@@ -1,16 +1,14 @@
 """DraftRepository 抽象接口。
 
 管理章节草稿的读写。草稿存储在 .drafts/ 目录下。
-参见 PRD §2.6.1 中 LocalFileDraftRepository。
+参见 PRD §2.6.2、DECISIONS D-0016。
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from core.domain.draft import Draft
+from core.domain.draft import Draft
 
 
 class DraftRepository(ABC):
