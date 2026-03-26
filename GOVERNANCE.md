@@ -56,12 +56,12 @@
 
 下列目录和逻辑属于核心区：
 
-- `core/domain/*`
-- `core/services/*`
-- `core/state/*`
-- `core/import/*`
-- `core/sync_contracts/*`
-- `repositories/interfaces/*`
+- `src-python/core/domain/*`
+- `src-python/core/services/*`
+- `src-python/core/state/*`
+- `src-python/core/import_/*`
+- `src-python/core/sync_contracts/*`
+- `src-python/repositories/interfaces/*`
 - 任何直接实现以下逻辑的代码：
   - confirm chapter
   - undo latest chapter
@@ -89,10 +89,10 @@
 
 下列目录通常属于功能区：
 
-- `ui/*`
-- `api/routes/*`
-- `tests/ui/*`
-- `tests/e2e/*`
+- `src-ui/src/ui/*`
+- `src-python/api/routes/*`
+- `src-python/tests/unit/*`
+- `src-python/tests/e2e/*`
 - `docs/*`
 
 **规则：**
@@ -105,12 +105,12 @@
 
 下列目录通常属于适配器区：
 
-- `infra/llm/*`
-- `infra/embeddings/*`
-- `infra/vector_index/*`
-- `infra/storage_local/*`
-- `infra/platform_desktop/*`
-- `infra/platform_mobile/*`
+- `src-python/infra/llm/*`
+- `src-python/infra/embeddings/*`
+- `src-python/infra/vector_index/*`
+- `src-python/infra/storage_local/*`
+- `src-python/infra/platform_desktop/*`
+- `src-python/infra/platform_mobile/*`
 
 **规则：**
 
@@ -146,9 +146,9 @@
 
 同一时间不得出现以下情况：
 
-- Claude 在改 `core/state/*`
-- Codex 也在另一个分支改 `core/state/*`
-- Antigravity 又为了 UI 联调改 `core/state/*`
+- Claude 在改 `src-python/core/state/*`
+- Codex 也在另一个分支改 `src-python/core/state/*`
+- Antigravity 又为了 UI 联调改 `src-python/core/state/*`
 
 如果发生，必须立即停止后到者的任务，重新切分。
 

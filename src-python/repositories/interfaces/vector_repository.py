@@ -1,0 +1,45 @@
+"""VectorRepository 抽象接口。
+
+业务逻辑不得直接访问 ChromaDB，必须通过此接口。
+参见 PRD §2.6.2。
+"""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.domain.chapter import Chapter
+
+
+@dataclass
+class Chunk:
+    """向量检索返回的文本片段。"""
+
+    content: str
+    chapter_num: int
+    score: float
+    metadata: dict
+
+
+class VectorRepository(ABC):
+    """向量存储抽象接口。"""
+
+    @abstractmethod
+    async def index_chapter(self, chapter: Chapter) -> None:
+        """将章节向量化并入库。"""
+        ...
+
+    @abstractmethod
+    async def delete_chapter(self, au_id: str, chapter_num: int) -> None:
+        """删除指定章节的向量索引。"""
+        ...
+
+    @abstractmethod
+    async def search(
+        self, query: str, filters: dict, top_k: int
+    ) -> list[Chunk]:
+        """向量检索，返回最相关的文本片段。"""
+        ...

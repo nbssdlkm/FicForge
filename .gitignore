@@ -1,0 +1,48 @@
+# === Node / Frontend ===
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# === Rust / Tauri ===
+src-ui/src-tauri/target/
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+.eggs/
+build/
+dist/
+*.spec
+venv/
+.venv/
+env/
+
+# === IDE ===
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# === OS ===
+.DS_Store
+Thumbs.db
+*.log
+
+# === Project data (本地用户数据，不入仓) ===
+fandoms/
+settings.yaml
+settings.local.yaml
+settings.sync.yaml
+
+# === Secrets ===
+.env
+.env.*
+*.key
+credentials.json
