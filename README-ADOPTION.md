@@ -33,7 +33,5 @@
 2. 搭建 Tauri + FastAPI sidecar 基础框架
 3. 创建 Repository 接口定义（抽象层）
 4. 配置依赖管理（requirements.txt / package.json）
-5. 完成后**更新 OWNERS.md 中的目录路径为实际路径**
-
-在骨架搭建完成前，OWNERS.md 中的目录路径为预定义结构，以逻辑层级（§3）为所有权判定依据。
+5. ~~完成后更新 OWNERS.md 中的目录路径为实际路径~~ ✅ 已在 T-001 中完成（2026-03-26）
 

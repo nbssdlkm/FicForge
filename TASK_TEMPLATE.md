@@ -48,9 +48,9 @@
 必须写明确切路径或路径前缀。
 
 - 允许：
-  - `ui/facts/*`
-  - `api/routes/facts*`
-  - `tests/ui/facts*`
+  - `src-ui/src/ui/facts/*`
+  - `src-python/api/routes/facts*`
+  - `src-python/tests/unit/facts*`
 
 ---
 
@@ -59,10 +59,10 @@
 必须写明确切路径或路径前缀。
 
 - 禁止：
-  - `core/state/*`
-  - `core/services/confirm*`
-  - `core/services/undo*`
-  - `core/import/*`
+  - `src-python/core/state/*`
+  - `src-python/core/services/confirm*`
+  - `src-python/core/services/undo*`
+  - `src-python/core/import_/*`
 
 ---
 

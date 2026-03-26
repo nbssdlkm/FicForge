@@ -38,7 +38,7 @@
 你是本仓库的核心架构与状态机负责人。你的职责是：
 - 落地 PRD 的核心规则
 - 维护核心状态机一致性
-- 实现或重构 core/domain、core/services、core/state、core/import、repositories/interfaces 等高风险模块
+- 实现或重构 src-python/core/domain、src-python/core/services、src-python/core/state、src-python/core/import_、src-python/repositories/interfaces 等高风险模块
 - 在需要时更新 DECISIONS.md
 
 你必须：

@@ -14,33 +14,33 @@
 
 ## 2. 所有权矩阵
 
-> ⚠️ 以下目录路径为**预定义结构**，实际路径在第一个任务（项目骨架搭建，由 Claude Code 执行）完成后以实际代码结构为准。在骨架搭建前，以逻辑层级（§3）为所有权判定依据。
+> 以下目录路径已在 T-001 骨架搭建后更新为实际代码结构（2026-03-26）。
 
 | 模块 / 目录 | Primary Owner | Secondary Owner | 默认权限 | 备注 |
 |---|---|---|---|---|
-| `core/domain/*` | Claude Code | Human Maintainer | 其他代理只读 | 领域对象与规则 |
-| `core/services/*` | Claude Code | Human Maintainer | 其他代理只读 | 核心用例与流程 |
-| `core/state/*` | Claude Code | Human Maintainer | 其他代理只读 | 状态字段与状态迁移 |
-| `core/import/*` | Claude Code | Human Maintainer | 其他代理只读 | 导入与初始化流程 |
-| `core/sync_contracts/*` | Claude Code | Human Maintainer | 其他代理只读 | 同步边界与契约 |
-| `repositories/interfaces/*` | Claude Code | Human Maintainer | 其他代理只读 | 抽象接口，不得随意变更 |
-| `infra/storage_local/*` | Claude Code | Codex | 授权后可改 | 需严格任务化 |
-| `infra/vector_index/*` | Claude Code | Codex | 授权后可改 | 不得顺手改领域规则 |
-| `infra/llm/*` | Claude Code | Codex | 授权后可改 | Provider 封装 |
-| `infra/embeddings/*` | Claude Code | Codex | 授权后可改 | Embedding 适配 |
-| `infra/platform_desktop/*` | Codex | Claude Code | 可改 | 桌面壳与平台集成 |
-| `infra/platform_mobile/*` | Claude Code | Codex | 授权后可改 | 未来安卓 / iOS 预留 |
-| `api/routes/*` | Codex | Claude Code | 可改 | 仅路由/DTO，不得偷改领域规则 |
-| `ui/writer/*` | Codex | Antigravity | 可改 | 主写作页 |
-| `ui/facts/*` | Codex | Antigravity | 可改 | facts 面板与管理页 |
-| `ui/settings/*` | Codex | Antigravity | 可改 | 设置界面 |
-| `ui/debug/*` | Codex | Antigravity | 可改 | 调试面板 |
-| `ui/shared/*` | Codex | Antigravity | 可改 | 公共组件 |
-| `tests/unit/*` | Codex | Claude Code | 可改 | 单元测试 |
-| `tests/integration/*` | Claude Code | Codex | 可改 | 状态流与接口集成 |
-| `tests/e2e/*` | Antigravity | Codex | 可改 | 端到端验收 |
+| `src-python/core/domain/*` | Claude Code | Human Maintainer | 其他代理只读 | 领域对象与规则 |
+| `src-python/core/services/*` | Claude Code | Human Maintainer | 其他代理只读 | 核心用例与流程 |
+| `src-python/core/state/*` | Claude Code | Human Maintainer | 其他代理只读 | 状态字段与状态迁移 |
+| `src-python/core/import_/*` | Claude Code | Human Maintainer | 其他代理只读 | 导入与初始化流程（Python 保留字避让） |
+| `src-python/core/sync_contracts/*` | Claude Code | Human Maintainer | 其他代理只读 | 同步边界与契约 |
+| `src-python/repositories/interfaces/*` | Claude Code | Human Maintainer | 其他代理只读 | 抽象接口，不得随意变更 |
+| `src-python/infra/storage_local/*` | Claude Code | Codex | 授权后可改 | 需严格任务化 |
+| `src-python/infra/vector_index/*` | Claude Code | Codex | 授权后可改 | 不得顺手改领域规则 |
+| `src-python/infra/llm/*` | Claude Code | Codex | 授权后可改 | Provider 封装 |
+| `src-python/infra/embeddings/*` | Claude Code | Codex | 授权后可改 | Embedding 适配 |
+| `src-python/infra/platform_desktop/*` | Codex | Claude Code | 可改 | 桌面壳与平台集成 |
+| `src-python/infra/platform_mobile/*` | Claude Code | Codex | 授权后可改 | 未来安卓 / iOS 预留 |
+| `src-python/api/routes/*` | Codex | Claude Code | 可改 | 仅路由/DTO，不得偷改领域规则 |
+| `src-ui/src/ui/writer/*` | Codex | Antigravity | 可改 | 主写作页 |
+| `src-ui/src/ui/facts/*` | Codex | Antigravity | 可改 | facts 面板与管理页 |
+| `src-ui/src/ui/settings/*` | Codex | Antigravity | 可改 | 设置界面 |
+| `src-ui/src/ui/debug/*` | Codex | Antigravity | 可改 | 调试面板 |
+| `src-ui/src/ui/shared/*` | Codex | Antigravity | 可改 | 公共组件 |
+| `src-python/tests/unit/*` | Codex | Claude Code | 可改 | 单元测试 |
+| `src-python/tests/integration/*` | Claude Code | Codex | 可改 | 状态流与接口集成 |
+| `src-python/tests/e2e/*` | Antigravity | Codex | 可改 | 端到端验收 |
 | `docs/*` | Codex | Claude Code | 可改 | 文档同步 |
-| `PRD/*` | Claude Code | Human Maintainer | 其他代理只读 | 产品规则源 |
+| `docs/fanfic-system-PRD-v2.md` | Claude Code | Human Maintainer | 其他代理只读 | 产品规则源 |
 
 ---
 
