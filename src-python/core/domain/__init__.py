@@ -14,8 +14,10 @@ from core.domain.enums import (
     LLMMode,
     NarrativeWeight,
     Perspective,
+    Provenance,
 )
 from core.domain.fact import Fact
+from core.domain.fandom import Fandom
 from core.domain.generated_with import GeneratedWith
 from core.domain.ops_entry import OpsEntry
 from core.domain.project import (
@@ -48,6 +50,7 @@ __all__ = [
     "LLMMode",
     "NarrativeWeight",
     "Perspective",
+    "Provenance",
     # Domain objects
     "AppConfig",
     "CastRegistry",
@@ -59,6 +62,7 @@ __all__ = [
     "EmbeddingConfig",
     "EmbeddingFingerprint",
     "EmbeddingLock",
+    "Fandom",
     "Fact",
     "GeneratedWith",
     "LLMConfig",

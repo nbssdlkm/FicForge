@@ -26,7 +26,7 @@ class State:
     """
 
     au_id: str
-    revision: int = 1                              # 每次运行态变更 +1
+    revision: int = 0                              # 每次运行态变更 +1（save 自动递增）
     updated_at: str = ""                           # ISO 8601
     current_chapter: int = 1                       # 当前待写章节号（D-0001）
     last_scene_ending: str = ""
@@ -34,6 +34,6 @@ class State:
     characters_last_seen: dict[str, int] = field(default_factory=dict)
     chapter_focus: list[str] = field(default_factory=list)  # fact id 数组，最多 2 个
     chapters_dirty: list[int] = field(default_factory=list)
-    index_status: IndexStatus = IndexStatus.READY
+    index_status: IndexStatus = IndexStatus.STALE  # 新 AU 无索引，默认 stale
     index_built_with: Optional[EmbeddingFingerprint] = None
     sync_unsafe: bool = False

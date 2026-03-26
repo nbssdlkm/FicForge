@@ -2,6 +2,7 @@
 
 from .chapter_repository import ChapterRepository
 from .draft_repository import DraftRepository
+from .fandom_repository import FandomRepository
 from .fact_repository import FactRepository
 from .ops_repository import OpsRepository
 from .project_repository import ProjectRepository
@@ -12,6 +13,7 @@ from .vector_repository import VectorRepository
 __all__ = [
     "ChapterRepository",
     "DraftRepository",
+    "FandomRepository",
     "FactRepository",
     "OpsRepository",
     "ProjectRepository",

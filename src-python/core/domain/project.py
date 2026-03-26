@@ -63,7 +63,7 @@ class Project:
     name: str = ""
     fandom: str = ""
     schema_version: str = "1.0.0"
-    revision: int = 1                              # 每次长期配置变更 +1
+    revision: int = 0                              # 每次长期配置变更 +1（save 自动递增）
     created_at: str = ""                           # ISO 8601
     updated_at: str = ""                           # ISO 8601
 
