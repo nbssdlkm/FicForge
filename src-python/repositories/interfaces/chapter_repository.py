@@ -39,3 +39,8 @@ class ChapterRepository(ABC):
     async def exists(self, au_id: str, chapter_num: int) -> bool:
         """检查指定章节是否存在。"""
         ...
+
+    @abstractmethod
+    async def get_content_only(self, au_id: str, chapter_num: int) -> str:
+        """读取纯正文（剥离 frontmatter），用于上下文注入和向量化。"""
+        ...

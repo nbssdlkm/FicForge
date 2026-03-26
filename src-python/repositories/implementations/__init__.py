@@ -3,6 +3,7 @@
 from .local_chroma_vector import LocalChromaVectorRepository
 from .local_file_chapter import LocalFileChapterRepository
 from .local_file_draft import LocalFileDraftRepository
+from .local_file_fandom import LocalFileFandomRepository
 from .local_file_fact import LocalFileFactRepository
 from .local_file_ops import LocalFileOpsRepository
 from .local_file_project import LocalFileProjectRepository
@@ -13,6 +14,7 @@ __all__ = [
     "LocalChromaVectorRepository",
     "LocalFileChapterRepository",
     "LocalFileDraftRepository",
+    "LocalFileFandomRepository",
     "LocalFileFactRepository",
     "LocalFileOpsRepository",
     "LocalFileProjectRepository",

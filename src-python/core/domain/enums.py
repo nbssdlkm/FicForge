@@ -72,3 +72,11 @@ class APIMode(str, Enum):
     """API 模式。参见 PRD §3.3。"""
     SELF_HOSTED = "self_hosted"
     MANAGED = "managed"
+
+
+class Provenance(str, Enum):
+    """章节来源标记。"""
+    AI = "ai"
+    MANUAL = "manual"
+    MIXED = "mixed"
+    IMPORTED = "imported"
