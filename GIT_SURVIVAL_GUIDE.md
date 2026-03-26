@@ -2,6 +2,7 @@
 
 > 你不需要成为 Git 专家。你需要的是：能存档、能回滚、能隔离三个 AI 的工作。
 
+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
 ---
 
 ## 0. 你只需要记住的 5 个概念
