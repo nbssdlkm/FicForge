@@ -1,0 +1,54 @@
+完整的开发启动套件：
+
+### 产品定义层
+| 文件 | 说明 |
+|------|------|
+| **fanfic-system-PRD-v2.md** | 3228 行产品规格书 |
+
+### 治理层
+| 文件 | 说明 |
+|------|------|
+| **GOVERNANCE.md** | 仓库最高协作约束 |
+| **OWNERS.md** | 模块所有权矩阵 |
+| **DECISIONS.md** | 20 条核心架构决策 |
+| **TASK_TEMPLATE.md** | 任务单模板 |
+| **AGENT_PROMPTS.md** | 三家 AI 的 prompt 规范 |
+| **INTEGRATION_CHECKLIST.md** | 合并前检查清单 |
+| **README-ADOPTION.md** | 治理文档落地指南 |
+
+### 开发执行层
+| 文件 | 说明 |
+|------|------|
+| **TASK_BREAKDOWN.md** | 34 个任务的切分方案 + 依赖关系 + 8 周排期 |
+| **GIT_SURVIVAL_GUIDE.md** | 给你的 Git 速成指南 |
+
+### 仓库配置层
+| 文件 | 说明 |
+|------|------|
+| **LICENSING.md** | AGPL-3.0 + 双许可声明 |
+| **GITHUB_SETUP_GUIDE.md** | GitHub 仓库设置操作指南（含 .gitignore 模板、README 模板、分支保护建议） |
+
+---
+
+### 你的下一步操作
+
+```
+1. 按 GITHUB_SETUP_GUIDE.md 设置仓库（15 分钟）
+   → 添加 LICENSE、LICENSING.md、.gitignore、README.md
+   → 把所有治理文档和 PRD 放进仓库
+   → 首次 commit 推送
+
+2. 开始第一个任务 T-001（项目骨架搭建）
+   → git checkout -b claude/t001-project-scaffold
+   → 用 TASK_TEMPLATE.md 写任务单
+   → 启动 Claude Code，贴 AGENT_PROMPTS.md 通用段 + 任务单
+   → 审核 → 合并
+
+3. 遇到问题随时找我
+   → PRD 模糊点
+   → Git 操作卡住
+   → AI 产出和 PRD 冲突
+   → 需要补充 DECISIONS.md
+```
+
+LICENSING.md 里有一个 `[your-email@example.com]` 占位符，记得替换成你的真实联系方式。LICENSE 文件本身用 GitHub 网页操作添加最简单——按指南里的方法 A，两分钟搞定。
