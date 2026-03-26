@@ -44,3 +44,13 @@ class ChapterRepository(ABC):
     async def get_content_only(self, au_id: str, chapter_num: int) -> str:
         """读取纯正文（剥离 frontmatter），用于上下文注入和向量化。"""
         ...
+
+    @abstractmethod
+    async def backup_chapter(self, au_id: str, chapter_num: int) -> str:
+        """备份章节到 chapters/backups/ 目录。
+
+        覆盖已确认章节时自动调用（PRD §4.3）。
+        版本号自增（ch{NNNN}_v{N}.md）。
+        返回备份文件路径。
+        """
+        ...
