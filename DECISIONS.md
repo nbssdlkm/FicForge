@@ -304,3 +304,17 @@
 - Consequences:
   - Remote Session 下手机只能看已确认章节
 - Supersedes: none
+
+---
+
+## D-0021 Repository 层使用同步方法
+- Date: 2026-03-26
+- Status: Accepted
+- Owner: Claude Code
+- Context: filelock 是同步阻塞的，async Repository 方法无法被 run_in_threadpool 正确包装。
+- Decision: 所有 Repository 方法为同步（def，非 async def）。FastAPI async 路由调用时须通过 run_in_threadpool() 包装。
+- Consequences:
+  - Service 层调用 Repository 时直接调用同步方法
+  - API 路由层负责 run_in_threadpool 包装
+  - 后续所有新 Repository 实现必须遵循此模式
+- Supersedes: none

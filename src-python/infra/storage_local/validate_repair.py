@@ -1,11 +1,12 @@
 """项目数据校验与自动修复框架。参见 PRD §2.6.7。
 
 每次打开 AU 时调用 validate_and_repair_project()。
-facts.jsonl 和 ops.jsonl 的校验留给 T-005 和 T-006。
 """
 
 from __future__ import annotations
 
+import json
+import shutil
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -35,6 +36,7 @@ def validate_and_repair_project(au_path: Path) -> RepairResult:
 
     _repair_project_yaml(au_path, result)
     _repair_state_yaml(au_path, result)
+    _repair_facts_jsonl(au_path, result)
     _repair_chapter_frontmatter(au_path, result)
     _check_chapter_consistency(au_path, result)
 
@@ -149,6 +151,43 @@ def _repair_state_yaml(au_path: Path, result: RepairResult) -> None:
     if repaired:
         content = yaml.dump(raw, allow_unicode=True, sort_keys=False, default_flow_style=False)
         atomic_write(path, content)
+
+
+def _repair_facts_jsonl(au_path: Path, result: RepairResult) -> None:
+    """校验 facts.jsonl：逐行解析，损坏行跳过，自动备份并重写。"""
+    path = au_path / "facts.jsonl"
+    if not path.exists():
+        return
+
+    raw_lines = path.read_text(encoding="utf-8").splitlines()
+    valid_lines: list[str] = []
+    error_count = 0
+
+    for line_num, raw_line in enumerate(raw_lines, 1):
+        stripped = raw_line.strip()
+        if not stripped:
+            continue
+        try:
+            json.loads(stripped)
+            valid_lines.append(stripped)
+        except json.JSONDecodeError as e:
+            error_count += 1
+            result.repairs.append(
+                f"facts.jsonl line {line_num}: 损坏行跳过 ({e})"
+            )
+
+    if error_count > 0:
+        # 自动生成 .bak 备份
+        bak_path = au_path / "facts.jsonl.bak"
+        shutil.copy2(str(path), str(bak_path))
+        result.repairs.append(f"facts.jsonl: 已创建备份 {bak_path.name}")
+
+        # 重写干净文件
+        content = "\n".join(valid_lines) + "\n" if valid_lines else ""
+        atomic_write(path, content)
+        result.repairs.append(
+            f"facts.jsonl: 跳过 {error_count} 行损坏数据，保留 {len(valid_lines)} 行"
+        )
 
 
 def _repair_chapter_frontmatter(au_path: Path, result: RepairResult) -> None:
