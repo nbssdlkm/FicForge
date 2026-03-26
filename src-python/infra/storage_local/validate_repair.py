@@ -25,6 +25,7 @@ class RepairResult:
     warnings: list[str] = field(default_factory=list)
     repairs: list[str] = field(default_factory=list)
     is_project_invalid: bool = False
+    needs_sync_unsafe: bool = False
 
 
 def validate_and_repair_project(au_path: Path) -> RepairResult:
@@ -37,6 +38,12 @@ def validate_and_repair_project(au_path: Path) -> RepairResult:
     _repair_project_yaml(au_path, result)
     _repair_state_yaml(au_path, result)
     _repair_facts_jsonl(au_path, result)
+    _repair_ops_jsonl(au_path, result)
+
+    # ops 截断后标记 sync_unsafe（PRD §2.6.5 / §2.6.7）
+    if result.needs_sync_unsafe:
+        _set_sync_unsafe(au_path, result)
+
     _repair_chapter_frontmatter(au_path, result)
     _check_chapter_consistency(au_path, result)
 
@@ -188,6 +195,71 @@ def _repair_facts_jsonl(au_path: Path, result: RepairResult) -> None:
         result.repairs.append(
             f"facts.jsonl: 跳过 {error_count} 行损坏数据，保留 {len(valid_lines)} 行"
         )
+
+
+def _repair_ops_jsonl(au_path: Path, result: RepairResult) -> None:
+    """校验 ops.jsonl：逐行解析，末尾损坏行截断，中间损坏行跳过。
+
+    截断发生时标记 needs_sync_unsafe=true（PRD §2.6.5 / §2.6.7）。
+    """
+    path = au_path / "ops.jsonl"
+    if not path.exists():
+        return
+
+    raw_lines = path.read_text(encoding="utf-8").splitlines()
+    valid_lines: list[str] = []
+    error_count = 0
+
+    for line_num, raw_line in enumerate(raw_lines, 1):
+        stripped = raw_line.strip()
+        if not stripped:
+            continue
+        try:
+            json.loads(stripped)
+            valid_lines.append(stripped)
+        except json.JSONDecodeError as e:
+            error_count += 1
+            result.repairs.append(
+                f"ops.jsonl line {line_num}: 损坏行跳过 ({e})"
+            )
+
+    if error_count > 0:
+        # 自动生成 .bak 备份
+        bak_path = au_path / "ops.jsonl.bak"
+        shutil.copy2(str(path), str(bak_path))
+        result.repairs.append(f"ops.jsonl: 已创建备份 {bak_path.name}")
+
+        # 重写干净文件
+        content = "\n".join(valid_lines) + "\n" if valid_lines else ""
+        atomic_write(path, content)
+        result.repairs.append(
+            f"ops.jsonl: 跳过 {error_count} 行损坏数据，保留 {len(valid_lines)} 行"
+        )
+
+        # 截断意味着日志链已断——标记 sync_unsafe
+        result.needs_sync_unsafe = True
+        result.warnings.append(
+            "ops.jsonl 存在损坏行已截断，本地操作日志存在缺口，撤销操作可能不完整"
+        )
+
+
+def _set_sync_unsafe(au_path: Path, result: RepairResult) -> None:
+    """将 state.yaml.sync_unsafe 设为 true。"""
+    state_path = au_path / "state.yaml"
+    if not state_path.exists():
+        return
+    try:
+        raw = yaml.safe_load(state_path.read_text(encoding="utf-8"))
+    except yaml.YAMLError:
+        return
+    if not isinstance(raw, dict):
+        return
+    if raw.get("sync_unsafe") is True:
+        return  # 已经是 true，无需重复写入
+    raw["sync_unsafe"] = True
+    content = yaml.dump(raw, allow_unicode=True, sort_keys=False, default_flow_style=False)
+    atomic_write(state_path, content)
+    result.repairs.append("state.yaml: sync_unsafe 已标记为 true")
 
 
 def _repair_chapter_frontmatter(au_path: Path, result: RepairResult) -> None:
