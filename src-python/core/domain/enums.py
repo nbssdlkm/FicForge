@@ -80,3 +80,18 @@ class Provenance(str, Enum):
     MANUAL = "manual"
     MIXED = "mixed"
     IMPORTED = "imported"
+
+
+class OpType(str, Enum):
+    """操作日志类型。参见 PRD §2.6.5。"""
+    CONFIRM_CHAPTER = "confirm_chapter"
+    UNDO_CHAPTER = "undo_chapter"
+    IMPORT_PROJECT = "import_project"
+    ADD_FACT = "add_fact"
+    EDIT_FACT = "edit_fact"
+    UPDATE_FACT_STATUS = "update_fact_status"
+    SET_CHAPTER_FOCUS = "set_chapter_focus"
+    RESOLVE_DIRTY_CHAPTER = "resolve_dirty_chapter"
+    REBUILD_INDEX = "rebuild_index"
+    RECALC_GLOBAL_STATE = "recalc_global_state"
+    UPDATE_PINNED = "update_pinned"

@@ -14,6 +14,7 @@ from core.domain.enums import (
     LLMMode,
     NarrativeWeight,
     Perspective,
+    OpType,
     Provenance,
 )
 from core.domain.fact import Fact
@@ -49,6 +50,7 @@ __all__ = [
     "LicenseTier",
     "LLMMode",
     "NarrativeWeight",
+    "OpType",
     "Perspective",
     "Provenance",
     # Domain objects
