@@ -140,6 +140,26 @@ class LocalFileChapterRepository(ChapterRepository):
         post = frontmatter.loads(text)
         return str(post.content)
 
+    async def backup_chapter(self, au_id: str, chapter_num: int) -> str:
+        """备份章节到 chapters/backups/（PRD §4.3）。"""
+        import shutil as _shutil
+
+        src = self._chapter_path(au_id, chapter_num)
+        if not src.exists():
+            raise FileNotFoundError(f"Chapter not found for backup: {src}")
+
+        backups_dir = Path(au_id) / "chapters" / "backups"
+        backups_dir.mkdir(parents=True, exist_ok=True)
+
+        # 确定版本号（扫描已有备份数量 +1）
+        prefix = f"ch{chapter_num:04d}_v"
+        existing = [f for f in backups_dir.iterdir() if f.name.startswith(prefix)]
+        version = len(existing) + 1
+
+        dest = backups_dir / f"ch{chapter_num:04d}_v{version}.md"
+        _shutil.copy2(str(src), str(dest))
+        return str(dest)
+
     # ------------------------------------------------------------------
     # 内部映射
     # ------------------------------------------------------------------
