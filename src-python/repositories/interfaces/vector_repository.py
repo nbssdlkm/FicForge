@@ -7,21 +7,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import Any
 
-if TYPE_CHECKING:
-    from core.domain.chapter import Chapter
-
-
-@dataclass
-class Chunk:
-    """向量检索返回的文本片段。"""
-
-    content: str
-    chapter_num: int
-    score: float
-    metadata: dict
+from core.domain.chapter import Chapter
+from core.domain.chunk import Chunk
 
 
 class VectorRepository(ABC):
@@ -39,7 +28,7 @@ class VectorRepository(ABC):
 
     @abstractmethod
     async def search(
-        self, query: str, filters: dict, top_k: int
+        self, au_id: str, query: str, filters: dict[str, Any], top_k: int
     ) -> list[Chunk]:
         """向量检索，返回最相关的文本片段。"""
         ...

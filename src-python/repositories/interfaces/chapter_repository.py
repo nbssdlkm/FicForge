@@ -1,16 +1,15 @@
 """ChapterRepository 抽象接口。
 
 业务逻辑不得直接访问文件路径，必须通过此接口。
+章节文件名 4 位补零转换封装在 Repository 内部（D-0014）。
 参见 PRD §2.6.2。
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from core.domain.chapter import Chapter
+from core.domain.chapter import Chapter
 
 
 class ChapterRepository(ABC):
@@ -18,7 +17,7 @@ class ChapterRepository(ABC):
 
     @abstractmethod
     async def get(self, au_id: str, chapter_num: int) -> Chapter:
-        """获取指定章节。"""
+        """获取指定章节。chapter_num 为整型（D-0014）。"""
         ...
 
     @abstractmethod
@@ -33,5 +32,10 @@ class ChapterRepository(ABC):
 
     @abstractmethod
     async def list_main(self, au_id: str) -> list[Chapter]:
-        """列出 AU 下所有已确认主线章节。"""
+        """列出 AU 下所有已确认主线章节，按章节号排序。"""
+        ...
+
+    @abstractmethod
+    async def exists(self, au_id: str, chapter_num: int) -> bool:
+        """检查指定章节是否存在。"""
         ...

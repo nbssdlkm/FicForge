@@ -1,14 +1,21 @@
+"""Repository 抽象接口导出。"""
+
 from .chapter_repository import ChapterRepository
-from .vector_repository import Chunk, VectorRepository
-from .fact_repository import FactRepository
-from .project_repository import ProjectRepository
 from .draft_repository import DraftRepository
+from .fact_repository import FactRepository
+from .ops_repository import OpsRepository
+from .project_repository import ProjectRepository
+from .settings_repository import SettingsRepository
+from .state_repository import StateRepository
+from .vector_repository import VectorRepository
 
 __all__ = [
     "ChapterRepository",
-    "Chunk",
-    "VectorRepository",
-    "FactRepository",
-    "ProjectRepository",
     "DraftRepository",
+    "FactRepository",
+    "OpsRepository",
+    "ProjectRepository",
+    "SettingsRepository",
+    "StateRepository",
+    "VectorRepository",
 ]
