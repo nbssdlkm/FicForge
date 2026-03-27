@@ -43,12 +43,14 @@ class ConfirmChapterService:
         state_repo: StateRepository,
         ops_repo: OpsRepository,
         au_mutex: AUMutexManager,
+        task_queue: Optional[Any] = None,
     ) -> None:
         self._chapter_repo = chapter_repo
         self._draft_repo = draft_repo
         self._state_repo = state_repo
         self._ops_repo = ops_repo
         self._mutex = au_mutex
+        self._task_queue = task_queue
 
     def confirm_chapter(
         self,
@@ -216,6 +218,12 @@ class ConfirmChapterService:
 
         # === 步骤 5：清理草稿 ===
         self._draft_repo.delete_by_chapter(au_id, chapter_num)
+
+        # === 步骤 6：排队向量化（T-017）===
+        if self._task_queue is not None:
+            self._task_queue.enqueue("vectorize_chapter", au_id, {
+                "au_path": au_id, "chapter_num": chapter_num,
+            })
 
         return {
             "chapter_id": chapter_id,

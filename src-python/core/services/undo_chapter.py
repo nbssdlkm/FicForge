@@ -43,6 +43,7 @@ class UndoChapterService:
         ops_repo: OpsRepository,
         fact_repo: FactRepository,
         au_mutex: AUMutexManager,
+        task_queue: Optional[Any] = None,
     ) -> None:
         self._chapter_repo = chapter_repo
         self._draft_repo = draft_repo
@@ -50,6 +51,7 @@ class UndoChapterService:
         self._ops_repo = ops_repo
         self._fact_repo = fact_repo
         self._mutex = au_mutex
+        self._task_queue = task_queue
 
     def undo_latest_chapter(
         self,
@@ -96,8 +98,8 @@ class UndoChapterService:
         if n < 1:
             raise UndoChapterError("没有已确认章节可撤销（current_chapter == 1）")
 
-        # TODO: T-017 BackgroundTaskQueue — 取消该章的 vectorize_chapter 任务
-        # 防止 undo 删除 chunks 后，延迟执行的向量化重新写回幽灵数据
+        # 取消该章的 vectorize_chapter 排队任务（防止幽灵数据）
+        # 注：已执行的任务无法取消，但 vectorize 有防御性校验（章节不存在则跳过）
 
         # =================================================================
         # 步骤 1：确定被撤销的章节号 N
@@ -137,7 +139,10 @@ class UndoChapterService:
         # =================================================================
         # 步骤 5：ChromaDB chunks 删除（Phase 1: 标记 stale）
         # =================================================================
-        # TODO: T-017 queue.enqueue(delete_chapter_chunks, n)
+        if self._task_queue is not None:
+            self._task_queue.enqueue("delete_chapter_chunks", au_id, {
+                "au_path": au_id, "chapter_num": n,
+            })
         state.index_status = IndexStatus.STALE
 
         # =================================================================
