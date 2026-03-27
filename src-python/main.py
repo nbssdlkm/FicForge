@@ -15,7 +15,14 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from api.routes.chapters import router as chapters_router
+from api.routes.drafts import router as drafts_router
+from api.routes.facts import router as facts_router
+from api.routes.fandoms import router as fandoms_router
 from api.routes.generate import router as generate_router
+from api.routes.project import router as project_router
+from api.routes.settings import router as settings_router
+from api.routes.state import router as state_router
 
 # ---------------------------------------------------------------------------
 # 动态端口（启动后通过 stdout 通知 Tauri）
@@ -106,6 +113,13 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     application.include_router(generate_router)
+    application.include_router(chapters_router)
+    application.include_router(drafts_router)
+    application.include_router(facts_router)
+    application.include_router(fandoms_router)
+    application.include_router(project_router)
+    application.include_router(settings_router)
+    application.include_router(state_router)
 
     return application
 
