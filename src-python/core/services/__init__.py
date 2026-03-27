@@ -5,6 +5,7 @@ from core.services.confirm_chapter import ConfirmChapterError, ConfirmChapterSer
 from core.services.context_assembler import assemble_context
 from core.services.dirty_resolve import DirtyResolveError, ResolveDirtyChapterService
 from core.services.generation import generate_chapter, is_empty_intent
+from core.services.rag_retrieval import build_active_chars, build_rag_query, retrieve_rag
 from core.services.facts_lifecycle import (
     FactsLifecycleError,
     add_fact,
@@ -26,6 +27,9 @@ __all__ = [
     "assemble_context",
     "generate_chapter",
     "is_empty_intent",
+    "build_active_chars",
+    "build_rag_query",
+    "retrieve_rag",
     "add_fact",
     "edit_fact",
     "set_chapter_focus",
