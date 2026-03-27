@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { Library } from "./ui/Library";
 import { WriterLayout } from "./ui/writer/WriterLayout";
+import { FactsLayout } from "./ui/facts/FactsLayout";
 import { setSidecarPort } from "./api/client";
 
 function App() {
@@ -9,7 +10,6 @@ function App() {
   const [sidecarReady, setSidecarReady] = useState(false);
 
   useEffect(() => {
-    // 监听 sidecar 端口就绪事件
     let unlisten: (() => void) | undefined;
 
     async function setup() {
@@ -19,13 +19,11 @@ function App() {
           setSidecarReady(true);
         });
       } catch {
-        // 非 Tauri 环境（开发模式），使用默认端口
         setSidecarReady(true);
       }
     }
 
     setup();
-    // 3 秒后如果还没就绪，假定开发模式
     const timer = setTimeout(() => setSidecarReady(true), 3000);
 
     return () => {
@@ -47,11 +45,9 @@ function App() {
 
   return (
     <>
-      {currentPage === "library" ? (
-         <Library onNavigate={setCurrentPage} />
-      ) : (
-         <WriterLayout onNavigate={setCurrentPage} />
-      )}
+      {currentPage === "library" && <Library onNavigate={setCurrentPage} />}
+      {currentPage === "writer" && <WriterLayout onNavigate={setCurrentPage} />}
+      {currentPage === "facts" && <FactsLayout onNavigate={setCurrentPage} />}
     </>
   );
 }
