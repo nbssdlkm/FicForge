@@ -3,6 +3,7 @@
 from core.services.au_mutex import AUMutexManager
 from core.services.confirm_chapter import ConfirmChapterError, ConfirmChapterService
 from core.services.context_assembler import assemble_context
+from core.services.facts_extraction import ExtractedFact, extract_facts_from_chapter
 from core.services.dirty_resolve import DirtyResolveError, ResolveDirtyChapterService
 from core.services.generation import generate_chapter, is_empty_intent
 from core.services.rag_retrieval import build_active_chars, build_rag_query, retrieve_rag
@@ -24,7 +25,9 @@ __all__ = [
     "ResolveDirtyChapterService",
     "UndoChapterError",
     "UndoChapterService",
+    "ExtractedFact",
     "assemble_context",
+    "extract_facts_from_chapter",
     "generate_chapter",
     "is_empty_intent",
     "build_active_chars",
