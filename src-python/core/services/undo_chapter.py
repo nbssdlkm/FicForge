@@ -9,9 +9,8 @@ AU 互斥锁在入口获取（D-0009）。方法是同步的（D-0021）。
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
-from typing import Any, Coroutine, Optional, TypeVar
+from typing import Any, Optional
 
 from core.domain.character_scanner import scan_characters_in_chapter
 from core.domain.enums import FactStatus, IndexStatus
@@ -25,14 +24,6 @@ from repositories.interfaces.draft_repository import DraftRepository
 from repositories.interfaces.fact_repository import FactRepository
 from repositories.interfaces.ops_repository import OpsRepository
 from repositories.interfaces.state_repository import StateRepository
-
-_T = TypeVar("_T")
-
-
-def _call(coro: Coroutine[Any, Any, _T]) -> _T:
-    """Run async-but-actually-sync Repository coroutine synchronously."""
-    return asyncio.run(coro)
-
 
 class UndoChapterError(Exception):
     """撤销章节流程错误。"""
@@ -99,7 +90,7 @@ class UndoChapterService:
         # =================================================================
         # 步骤 0：前置校验 + 异步任务取消
         # =================================================================
-        state = _call(self._state_repo.get(au_id))
+        state = self._state_repo.get(au_id)
         n = state.current_chapter - 1
 
         if n < 1:
@@ -116,7 +107,7 @@ class UndoChapterService:
         # 读取被撤销章节信息（用于 ops target_id）
         chapter_id = ""
         try:
-            old_chapter = _call(self._chapter_repo.get(au_id, n))
+            old_chapter = self._chapter_repo.get(au_id, n)
             chapter_id = old_chapter.chapter_id
         except FileNotFoundError:
             pass  # 章节文件已不存在（异常状态），继续回滚
@@ -135,8 +126,8 @@ class UndoChapterService:
         # =================================================================
         # 步骤 2：删除章节文件 + 清理 ≥N 的所有草稿（D-0016）
         # =================================================================
-        _call(self._chapter_repo.delete(au_id, n))
-        _call(self._draft_repo.delete_from_chapter(au_id, n))
+        self._chapter_repo.delete(au_id, n)
+        self._draft_repo.delete_from_chapter(au_id, n)
 
         # =================================================================
         # 步骤 4：facts 物理删除（D-0003，通过 ops target_id 精准删除）
@@ -189,7 +180,7 @@ class UndoChapterService:
         # =================================================================
 
         # state.yaml（StateRepository.save 自动 revision+1 + updated_at）
-        _call(self._state_repo.save(state))
+        self._state_repo.save(state)
 
         # ops.jsonl（事务提交标记，payload 为空 {}）
         ops_entry = OpsEntry(
@@ -323,7 +314,7 @@ class UndoChapterService:
 
         # 降级：读取 ch{N-1} 末尾
         try:
-            content = _call(self._chapter_repo.get_content_only(au_id, n - 1))
+            content = self._chapter_repo.get_content_only(au_id, n - 1)
             return extract_last_scene_ending(content)
         except FileNotFoundError:
             return ""
@@ -372,7 +363,7 @@ class UndoChapterService:
 
         撤销是低频高危操作，必须优先保证数据完整性而非速度。
         """
-        chapters = _call(self._chapter_repo.list_main(au_id))
+        chapters = self._chapter_repo.list_main(au_id)
         result: dict[str, int] = {}
         for ch in chapters:
             scanned = scan_characters_in_chapter(
@@ -396,7 +387,7 @@ class UndoChapterService:
         if n <= 1:
             return []
         try:
-            prev_ch = _call(self._chapter_repo.get(au_id, n - 1))
+            prev_ch = self._chapter_repo.get(au_id, n - 1)
             return list(prev_ch.confirmed_focus)
         except FileNotFoundError:
             return []

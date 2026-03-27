@@ -1,6 +1,5 @@
 """撤销最新章完整流程集成测试。"""
 
-import asyncio
 
 import pytest
 
@@ -55,15 +54,15 @@ def _setup_au(tmp_path):
 
 
 def _save_draft(au, chapter_num, variant, content):
-    asyncio.run(LocalFileDraftRepository().save(
+    LocalFileDraftRepository().save(
         Draft(au_id=str(au), chapter_num=chapter_num, variant=variant, content=content)
-    ))
+    )
 
 
 def _save_state(au, **overrides):
     defaults = {"au_id": str(au), "current_chapter": 1}
     defaults.update(overrides)
-    asyncio.run(LocalFileStateRepository().save(State(**defaults)))
+    LocalFileStateRepository().save(State(**defaults))
 
 
 def _make_gw():
@@ -93,7 +92,7 @@ def test_full_confirm_then_undo(tmp_path):
     confirm.confirm_chapter(au, 1, "ch0001_draft_A.md", _make_gw(), CAST)
 
     # Verify confirm worked
-    state = asyncio.run(state_repo.get(str(au)))
+    state = state_repo.get(str(au))
     assert state.current_chapter == 2
 
     # Undo
@@ -105,7 +104,7 @@ def test_full_confirm_then_undo(tmp_path):
     assert not (au / "chapters" / "main" / "ch0001.md").exists()
 
     # current_chapter 回退
-    state = asyncio.run(state_repo.get(str(au)))
+    state = state_repo.get(str(au))
     assert state.current_chapter == 1
 
     # last_scene_ending 回滚（N==1 → 空字符串）
@@ -154,13 +153,13 @@ def test_undo_cleans_chapters_dirty(tmp_path):
     confirm.confirm_chapter(au, 1, "ch0001_draft_A.md")
 
     # Manually add chapter 1 to dirty list
-    state = asyncio.run(LocalFileStateRepository().get(str(au)))
+    state = LocalFileStateRepository().get(str(au))
     state.chapters_dirty = [1, 5, 10]
-    asyncio.run(LocalFileStateRepository().save(state))
+    LocalFileStateRepository().save(state)
 
     undo.undo_latest_chapter(au)
 
-    state = asyncio.run(LocalFileStateRepository().get(str(au)))
+    state = LocalFileStateRepository().get(str(au))
     assert 1 not in state.chapters_dirty
     assert 5 in state.chapters_dirty  # Others preserved
 
@@ -445,7 +444,7 @@ def test_undo_no_status_changes_ok(tmp_path):
     # 没有任何 update_fact_status 操作，直接 undo
     undo.undo_latest_chapter(au)
 
-    state = asyncio.run(LocalFileStateRepository().get(str(au)))
+    state = LocalFileStateRepository().get(str(au))
     assert state.current_chapter == 1  # 正常回退
 
 
@@ -463,7 +462,7 @@ def test_snapshot_restore_from_ops(tmp_path):
     confirm.confirm_chapter(au, 1, "ch0001_draft_A.md", _make_gw(), CAST)
 
     # 记录 ch1 确认后的状态（用于验证 undo ch2 后的恢复）
-    state_after_ch1 = asyncio.run(state_repo.get(str(au)))
+    state_after_ch1 = state_repo.get(str(au))
     ch1_scene_ending = state_after_ch1.last_scene_ending
     ch1_chars = dict(state_after_ch1.characters_last_seen)
 
@@ -471,13 +470,13 @@ def test_snapshot_restore_from_ops(tmp_path):
     _save_draft(au, 2, "A", "第二章。陈明开始整理。陈律师突然到访。")
     confirm.confirm_chapter(au, 2, "ch0002_draft_A.md", _make_gw(), CAST)
 
-    state = asyncio.run(state_repo.get(str(au)))
+    state = state_repo.get(str(au))
     assert state.current_chapter == 3
 
     # Undo ch2
     undo.undo_latest_chapter(au, CAST)
 
-    state = asyncio.run(state_repo.get(str(au)))
+    state = state_repo.get(str(au))
     assert state.current_chapter == 2
 
     # last_scene_ending 从 ch1 的 ops 快照精确恢复
@@ -504,7 +503,7 @@ def test_fallback_last_scene_ending_from_file(tmp_path):
         chapter_id="ch_import_1", revision=1, confirmed_at="2025-01-01T00:00:00Z",
         content_hash=compute_content_hash(ch1_content), provenance="imported",
     )
-    asyncio.run(LocalFileChapterRepository().save(ch1))
+    LocalFileChapterRepository().save(ch1)
 
     ch2_content = "导入的第二章内容。"
     ch2 = Chapter(
@@ -512,14 +511,14 @@ def test_fallback_last_scene_ending_from_file(tmp_path):
         chapter_id="ch_import_2", revision=1, confirmed_at="2025-01-01T00:00:00Z",
         content_hash=compute_content_hash(ch2_content), provenance="imported",
     )
-    asyncio.run(LocalFileChapterRepository().save(ch2))
+    LocalFileChapterRepository().save(ch2)
 
     _save_state(au, current_chapter=3)
 
     _, undo, *_ = _build_services()
     undo.undo_latest_chapter(au, CAST)
 
-    state = asyncio.run(LocalFileStateRepository().get(str(au)))
+    state = LocalFileStateRepository().get(str(au))
     # Should fallback to reading ch1 last ~50 chars
     assert "这是最后一句话" in state.last_scene_ending
 
@@ -541,7 +540,7 @@ def test_fallback_characters_full_scan(tmp_path):
             chapter_id=f"ch_imp_{i}", revision=1, confirmed_at="2025-01-01T00:00:00Z",
             content_hash=compute_content_hash(content), provenance="imported",
         )
-        asyncio.run(LocalFileChapterRepository().save(ch))
+        LocalFileChapterRepository().save(ch)
 
     # ch3 to be undone
     ch3 = Chapter(
@@ -549,14 +548,14 @@ def test_fallback_characters_full_scan(tmp_path):
         chapter_id="ch_imp_3", revision=1, confirmed_at="2025-01-01T00:00:00Z",
         content_hash=compute_content_hash("陈律师来了。"), provenance="imported",
     )
-    asyncio.run(LocalFileChapterRepository().save(ch3))
+    LocalFileChapterRepository().save(ch3)
 
     _save_state(au, current_chapter=4)
 
     _, undo, *_ = _build_services()
     undo.undo_latest_chapter(au, CAST)
 
-    state = asyncio.run(LocalFileStateRepository().get(str(au)))
+    state = LocalFileStateRepository().get(str(au))
     # 全量扫描 ch1+ch2 重建
     assert state.characters_last_seen.get("林深") == 2
     assert state.characters_last_seen.get("陈明") == 2
@@ -581,19 +580,19 @@ def test_confirm_two_undo_two(tmp_path):
     _save_draft(au, 2, "A", "第二章。陈明。")
     confirm.confirm_chapter(au, 2, "ch0002_draft_A.md", _make_gw(), CAST)
 
-    state = asyncio.run(state_repo.get(str(au)))
+    state = state_repo.get(str(au))
     assert state.current_chapter == 3
 
     # Undo ch2
     undo.undo_latest_chapter(au, CAST)
-    state = asyncio.run(state_repo.get(str(au)))
+    state = state_repo.get(str(au))
     assert state.current_chapter == 2
     assert not (au / "chapters" / "main" / "ch0002.md").exists()
     assert (au / "chapters" / "main" / "ch0001.md").exists()
 
     # Undo ch1
     undo.undo_latest_chapter(au, CAST)
-    state = asyncio.run(state_repo.get(str(au)))
+    state = state_repo.get(str(au))
     assert state.current_chapter == 1
     assert not (au / "chapters" / "main" / "ch0001.md").exists()
 

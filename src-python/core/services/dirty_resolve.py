@@ -6,9 +6,8 @@ AU 互斥锁在入口获取（D-0009）。方法是同步的（D-0021）。
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
-from typing import Any, Coroutine, Optional, TypeVar
+from typing import Any, Optional
 
 from core.domain.character_scanner import scan_characters_in_chapter
 from core.domain.enums import IndexStatus
@@ -24,13 +23,6 @@ from repositories.interfaces.chapter_repository import ChapterRepository
 from repositories.interfaces.fact_repository import FactRepository
 from repositories.interfaces.ops_repository import OpsRepository
 from repositories.interfaces.state_repository import StateRepository
-
-_T = TypeVar("_T")
-
-
-def _call(coro: Coroutine[Any, Any, _T]) -> _T:
-    """Run async-but-actually-sync Repository coroutine synchronously."""
-    return asyncio.run(coro)
 
 
 class DirtyResolveError(Exception):
@@ -104,14 +96,14 @@ class ResolveDirtyChapterService:
         # =================================================================
         # 步骤 1：前置校验
         # =================================================================
-        state = _call(self._state_repo.get(au_id))
+        state = self._state_repo.get(au_id)
 
         if chapter_num not in state.chapters_dirty:
             raise DirtyResolveError(
                 f"章节 {chapter_num} 不在 chapters_dirty 列表中"
             )
 
-        if not _call(self._chapter_repo.exists(au_id, chapter_num)):
+        if not self._chapter_repo.exists(au_id, chapter_num):
             raise DirtyResolveError(
                 f"章节 {chapter_num} 文件不存在"
             )
@@ -123,7 +115,7 @@ class ResolveDirtyChapterService:
         self._apply_fact_changes(au_id, chapter_num, confirmed_fact_changes, timestamp)
 
         # 重新读取 state——fact 级联操作（悬空清理等）可能已修改并保存了 state
-        state = _call(self._state_repo.get(au_id))
+        state = self._state_repo.get(au_id)
 
         # =================================================================
         # 步骤 3：最新章 / 历史章分流
@@ -135,25 +127,22 @@ class ResolveDirtyChapterService:
             state.characters_last_seen = self._recalc_characters_latest(
                 au_id, chapter_num, cast_registry, character_aliases
             )
-            content = _call(
-                self._chapter_repo.get_content_only(au_id, chapter_num)
-            )
+            content = self._chapter_repo.get_content_only(au_id, chapter_num)
             state.last_scene_ending = extract_last_scene_ending(content)
         else:
             # 历史章：不覆盖全局 characters_last_seen，不重算 last_scene_ending
             # 只重建 ChromaDB chunks（Phase 1 标记 stale）
-            content = _call(
-                self._chapter_repo.get_content_only(au_id, chapter_num)
-            )
+            content = self._chapter_repo.get_content_only(au_id, chapter_num)
 
         # =================================================================
         # 步骤 4：重算 content_hash（D-0011）
         # =================================================================
         new_hash = compute_content_hash(content)
-        chapter = _call(self._chapter_repo.get(au_id, chapter_num))
+        chapter = self._chapter_repo.get(au_id, chapter_num)
         chapter.content_hash = new_hash
         chapter.revision += 1  # 写路径契约：每次写操作必须同时 bump revision
-        _call(self._chapter_repo.save(chapter))
+        chapter.confirmed_at = now_utc()
+        self._chapter_repo.save(chapter)
 
         # =================================================================
         # 步骤 5：更新 state.yaml
@@ -161,7 +150,7 @@ class ResolveDirtyChapterService:
         state.chapters_dirty.remove(chapter_num)
         state.index_status = IndexStatus.STALE
         # StateRepository.save() 自动 revision+1 + updated_at
-        _call(self._state_repo.save(state))
+        self._state_repo.save(state)
 
         # =================================================================
         # 步骤 6：append ops.jsonl
@@ -253,7 +242,7 @@ class ResolveDirtyChapterService:
         baseline = self._get_baseline(au_id, n, cast_registry, character_aliases)
 
         # 扫描第 N 章
-        content = _call(self._chapter_repo.get_content_only(au_id, n))
+        content = self._chapter_repo.get_content_only(au_id, n)
         scanned = scan_characters_in_chapter(
             content, cast_registry, character_aliases, n
         )
@@ -306,7 +295,7 @@ class ResolveDirtyChapterService:
 
         注意：这与 undo 的全量扫描不同——dirty resolve 只扫最近 3 章。
         """
-        all_chapters = _call(self._chapter_repo.list_main(au_id))
+        all_chapters = self._chapter_repo.list_main(au_id)
 
         # 确定扫描范围：N-3 到 N-1（不含 N 本身）
         start = max(1, n - 3)

@@ -17,17 +17,17 @@ class VectorRepository(ABC):
     """向量存储抽象接口。"""
 
     @abstractmethod
-    async def index_chapter(self, chapter: Chapter) -> None:
+    def index_chapter(self, chapter: Chapter) -> None:
         """将章节向量化并入库。"""
         ...
 
     @abstractmethod
-    async def delete_chapter(self, au_id: str, chapter_num: int) -> None:
+    def delete_chapter(self, au_id: str, chapter_num: int) -> None:
         """删除指定章节的向量索引。"""
         ...
 
     @abstractmethod
-    async def search(
+    def search(
         self, au_id: str, query: str, filters: dict[str, Any], top_k: int
     ) -> list[Chunk]:
         """向量检索，返回最相关的文本片段。"""

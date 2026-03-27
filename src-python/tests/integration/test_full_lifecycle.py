@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import re
 from pathlib import Path
 
@@ -90,20 +89,20 @@ class _Env:
 
     # convenience wrappers
     def save_draft(self, ch: int, variant: str, content: str) -> None:
-        asyncio.run(self.draft_repo.save(
+        self.draft_repo.save(
             Draft(au_id=str(self.au), chapter_num=ch, variant=variant, content=content)
-        ))
+        )
 
     def save_state(self, **kw: object) -> None:
         defaults: dict = {"au_id": str(self.au), "current_chapter": 1}
         defaults.update(kw)
-        asyncio.run(self.state_repo.save(State(**defaults)))
+        self.state_repo.save(State(**defaults))
 
     def get_state(self) -> State:
-        return asyncio.run(self.state_repo.get(str(self.au)))
+        return self.state_repo.get(str(self.au))
 
     def get_chapter(self, n: int) -> Chapter:
-        return asyncio.run(self.chapter_repo.get(str(self.au), n))
+        return self.chapter_repo.get(str(self.au), n)
 
     def confirm_ch(self, n: int, content: str) -> dict:
         self.save_draft(n, "A", content)
@@ -246,11 +245,11 @@ def test_scenario1_full_writing_cycle(tmp_path: Path) -> None:
     ch2 = env.get_chapter(2)
     ch2.content = "编辑后的第二章。林深换了灯泡。"
     ch2.provenance = "mixed"
-    asyncio.run(env.chapter_repo.save(ch2))
+    env.chapter_repo.save(ch2)
 
     s = env.get_state()
     s.chapters_dirty.append(2)
-    asyncio.run(env.state_repo.save(s))
+    env.state_repo.save(s)
 
     env.dirty.resolve_dirty_chapter(env.au, 2, [], cast_registry=CAST)
 
@@ -410,10 +409,10 @@ def test_scenario4_dirty_historical_vs_latest(tmp_path: Path) -> None:
     # --- dirty 第 2 章（历史章）→ resolve ---
     ch2 = env.get_chapter(2)
     ch2.content = "编辑后的第二章。全新内容。"
-    asyncio.run(env.chapter_repo.save(ch2))
+    env.chapter_repo.save(ch2)
     s = env.get_state()
     s.chapters_dirty.append(2)
-    asyncio.run(env.state_repo.save(s))
+    env.state_repo.save(s)
 
     env.dirty.resolve_dirty_chapter(env.au, 2, [])
 
@@ -426,10 +425,10 @@ def test_scenario4_dirty_historical_vs_latest(tmp_path: Path) -> None:
     # --- dirty 第 3 章（最新章）→ resolve ---
     ch3 = env.get_chapter(3)
     ch3.content = "重写的第三章。只有林深。全新结尾场景。"
-    asyncio.run(env.chapter_repo.save(ch3))
+    env.chapter_repo.save(ch3)
     s = env.get_state()
     s.chapters_dirty.append(3)
-    asyncio.run(env.state_repo.save(s))
+    env.state_repo.save(s)
 
     env.dirty.resolve_dirty_chapter(env.au, 3, [], cast_registry=CAST)
 

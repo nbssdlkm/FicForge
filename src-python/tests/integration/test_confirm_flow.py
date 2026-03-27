@@ -1,6 +1,5 @@
 """确认章节完整流程集成测试。"""
 
-import asyncio
 import hashlib
 import json
 
@@ -39,14 +38,14 @@ def _setup_au(tmp_path):
 
 def _save_draft(au, chapter_num, variant, content):
     draft = Draft(au_id=str(au), chapter_num=chapter_num, variant=variant, content=content)
-    asyncio.run(LocalFileDraftRepository().save(draft))
+    LocalFileDraftRepository().save(draft)
 
 
 def _save_state(au, **overrides):
     defaults = {"au_id": str(au), "current_chapter": 1}
     defaults.update(overrides)
     state = State(**defaults)
-    asyncio.run(LocalFileStateRepository().save(state))
+    LocalFileStateRepository().save(state)
 
 
 # ===== 完整确认流程 =====
@@ -97,7 +96,7 @@ def test_full_confirm_flow(tmp_path):
     assert post.metadata["content_hash"] == compute_content_hash(content)
 
     # state 更新
-    state = asyncio.run(LocalFileStateRepository().get(str(au)))
+    state = LocalFileStateRepository().get(str(au))
     assert state.current_chapter == 2  # +1
     assert state.last_scene_ending != ""
     assert state.characters_last_seen.get("林深") == 1
@@ -133,7 +132,7 @@ def test_confirm_advances_current_chapter(tmp_path):
     service = _build_service()
     service.confirm_chapter(au, 5, "ch0005_draft_A.md")
 
-    state = asyncio.run(LocalFileStateRepository().get(str(au)))
+    state = LocalFileStateRepository().get(str(au))
     assert state.current_chapter == 6
 
 
@@ -146,7 +145,7 @@ def test_confirm_historical_no_advance(tmp_path):
     service = _build_service()
     service.confirm_chapter(au, 3, "ch0003_draft_A.md")
 
-    state = asyncio.run(LocalFileStateRepository().get(str(au)))
+    state = LocalFileStateRepository().get(str(au))
     assert state.current_chapter == 10  # 不变
 
 
@@ -160,7 +159,7 @@ def test_characters_last_seen_max_merge(tmp_path):
     service = _build_service()
     service.confirm_chapter(au, 3, "ch0003_draft_A.md", cast_registry=cast)
 
-    state = asyncio.run(LocalFileStateRepository().get(str(au)))
+    state = LocalFileStateRepository().get(str(au))
     assert state.characters_last_seen["林深"] == 8  # 保持 8，不降为 3
 
 
@@ -173,7 +172,7 @@ def test_last_scene_ending_only_on_advance(tmp_path):
     service = _build_service()
     service.confirm_chapter(au, 3, "ch0003_draft_A.md")
 
-    state = asyncio.run(LocalFileStateRepository().get(str(au)))
+    state = LocalFileStateRepository().get(str(au))
     assert state.last_scene_ending == "原始结尾"  # 不变
 
 
@@ -247,7 +246,7 @@ def test_invalid_draft_id_raises(tmp_path):
     # 无 ops 写入
     assert not (au / "ops.jsonl").exists()
     # state 未变更
-    state = asyncio.run(LocalFileStateRepository().get(str(au)))
+    state = LocalFileStateRepository().get(str(au))
     assert state.current_chapter == 1
 
 

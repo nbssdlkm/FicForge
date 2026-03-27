@@ -54,7 +54,7 @@ class LocalFileChapterRepository(ChapterRepository):
     # 接口实现
     # ------------------------------------------------------------------
 
-    async def get(self, au_id: str, chapter_num: int) -> Chapter:
+    def get(self, au_id: str, chapter_num: int) -> Chapter:
         path = self._chapter_path(au_id, chapter_num)
         if not path.exists():
             raise FileNotFoundError(f"Chapter not found: {path}")
@@ -103,18 +103,18 @@ class LocalFileChapterRepository(ChapterRepository):
 
         return self._meta_to_chapter(au_id, chapter_num, meta, content)
 
-    async def save(self, chapter: Chapter) -> None:
+    def save(self, chapter: Chapter) -> None:
         path = self._chapter_path(chapter.au_id, chapter.chapter_num)
         meta = self._chapter_to_meta(chapter)
         post = frontmatter.Post(chapter.content, **meta)
         atomic_write(path, frontmatter.dumps(post))
 
-    async def delete(self, au_id: str, chapter_num: int) -> None:
+    def delete(self, au_id: str, chapter_num: int) -> None:
         path = self._chapter_path(au_id, chapter_num)
         if path.exists():
             path.unlink()
 
-    async def list_main(self, au_id: str) -> list[Chapter]:
+    def list_main(self, au_id: str) -> list[Chapter]:
         main_dir = Path(au_id) / "chapters" / "main"
         if not main_dir.exists():
             return []
@@ -124,14 +124,14 @@ class LocalFileChapterRepository(ChapterRepository):
                 continue
             num = self._filename_to_chapter_num(f.name)
             if num is not None:
-                ch = await self.get(au_id, num)
+                ch = self.get(au_id, num)
                 chapters.append(ch)
         return chapters
 
-    async def exists(self, au_id: str, chapter_num: int) -> bool:
+    def exists(self, au_id: str, chapter_num: int) -> bool:
         return self._chapter_path(au_id, chapter_num).exists()
 
-    async def get_content_only(self, au_id: str, chapter_num: int) -> str:
+    def get_content_only(self, au_id: str, chapter_num: int) -> str:
         """读取纯正文（剥离 frontmatter），用于上下文注入和向量化。"""
         path = self._chapter_path(au_id, chapter_num)
         if not path.exists():
@@ -140,7 +140,7 @@ class LocalFileChapterRepository(ChapterRepository):
         post = frontmatter.loads(text)
         return str(post.content)
 
-    async def backup_chapter(self, au_id: str, chapter_num: int) -> str:
+    def backup_chapter(self, au_id: str, chapter_num: int) -> str:
         """备份章节到 chapters/backups/（PRD §4.3）。"""
         import shutil as _shutil
 

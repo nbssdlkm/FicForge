@@ -24,8 +24,7 @@ def _setup_au(tmp_path):
 
 # ===== Chapter Tests =====
 
-@pytest.mark.asyncio
-async def test_4digit_padding(tmp_path):
+def test_4digit_padding(tmp_path):
     """4 位补零：1→ch0001.md, 38→ch0038.md, 1000→ch1000.md。"""
     au = _setup_au(tmp_path)
     repo = LocalFileChapterRepository()
@@ -34,13 +33,12 @@ async def test_4digit_padding(tmp_path):
         ch = Chapter(au_id=str(au), chapter_num=num, content=f"内容{num}")
         ch.chapter_id = f"id_{num}"
         ch.content_hash = compute_content_hash(ch.content)
-        await repo.save(ch)
+        repo.save(ch)
         path = au / "chapters" / "main" / expected
         assert path.exists(), f"Expected {expected} to exist"
 
 
-@pytest.mark.asyncio
-async def test_roundtrip_frontmatter(tmp_path):
+def test_roundtrip_frontmatter(tmp_path):
     """写入+读取 frontmatter 全字段往返一致。"""
     au = _setup_au(tmp_path)
     repo = LocalFileChapterRepository()
@@ -59,8 +57,8 @@ async def test_roundtrip_frontmatter(tmp_path):
         provenance="ai",
         generated_with=gw,
     )
-    await repo.save(ch)
-    loaded = await repo.get(str(au), 1)
+    repo.save(ch)
+    loaded = repo.get(str(au), 1)
 
     assert loaded.chapter_id == "ch_abc123"
     assert loaded.revision == 1
@@ -73,16 +71,14 @@ async def test_roundtrip_frontmatter(tmp_path):
     assert loaded.content == "第一章的内容"
 
 
-@pytest.mark.asyncio
-async def test_content_hash_correct(tmp_path):
+def test_content_hash_correct(tmp_path):
     """content_hash 计算正确（SHA-256 of 纯正文，不含 frontmatter）。"""
     content = "这是一段测试正文"
     expected = hashlib.sha256(content.encode("utf-8")).hexdigest()
     assert compute_content_hash(content) == expected
 
 
-@pytest.mark.asyncio
-async def test_get_content_only(tmp_path):
+def test_get_content_only(tmp_path):
     """get_content_only 返回纯正文（无 frontmatter）。"""
     au = _setup_au(tmp_path)
     repo = LocalFileChapterRepository()
@@ -91,13 +87,12 @@ async def test_get_content_only(tmp_path):
         au_id=str(au), chapter_num=5, content="纯正文内容",
         chapter_id="id5", content_hash=compute_content_hash("纯正文内容"),
     )
-    await repo.save(ch)
-    content = await repo.get_content_only(str(au), 5)
+    repo.save(ch)
+    content = repo.get_content_only(str(au), 5)
     assert content == "纯正文内容"
 
 
-@pytest.mark.asyncio
-async def test_auto_repair_missing_chapter_id(tmp_path):
+def test_auto_repair_missing_chapter_id(tmp_path):
     """缺 chapter_id 的旧文件 → 自动补 UUID 并写回。"""
     au = _setup_au(tmp_path)
     # 写入无 frontmatter 的纯正文文件
@@ -105,7 +100,7 @@ async def test_auto_repair_missing_chapter_id(tmp_path):
     ch_path.write_text("纯正文无 frontmatter", encoding="utf-8")
 
     repo = LocalFileChapterRepository()
-    ch = await repo.get(str(au), 1)
+    ch = repo.get(str(au), 1)
     assert ch.chapter_id != ""  # 自动生成了 UUID
     assert ch.content_hash != ""  # 自动计算了 hash
     assert ch.provenance == "imported"  # 无 frontmatter → imported
@@ -116,8 +111,7 @@ async def test_auto_repair_missing_chapter_id(tmp_path):
     assert post.metadata.get("chapter_id") == ch.chapter_id
 
 
-@pytest.mark.asyncio
-async def test_list_main_sorted(tmp_path):
+def test_list_main_sorted(tmp_path):
     """list_main 按 chapter_num 排序。"""
     au = _setup_au(tmp_path)
     repo = LocalFileChapterRepository()
@@ -127,14 +121,13 @@ async def test_list_main_sorted(tmp_path):
             au_id=str(au), chapter_num=num, content=f"Ch{num}",
             chapter_id=f"id_{num}", content_hash=compute_content_hash(f"Ch{num}"),
         )
-        await repo.save(ch)
+        repo.save(ch)
 
-    chapters = await repo.list_main(str(au))
+    chapters = repo.list_main(str(au))
     assert [c.chapter_num for c in chapters] == [1, 2, 3]
 
 
-@pytest.mark.asyncio
-async def test_exists_and_delete(tmp_path):
+def test_exists_and_delete(tmp_path):
     """exists 和 delete 正常工作。"""
     au = _setup_au(tmp_path)
     repo = LocalFileChapterRepository()
@@ -143,51 +136,48 @@ async def test_exists_and_delete(tmp_path):
         au_id=str(au), chapter_num=1, content="test",
         chapter_id="id1", content_hash="abc",
     )
-    await repo.save(ch)
-    assert await repo.exists(str(au), 1) is True
-    await repo.delete(str(au), 1)
-    assert await repo.exists(str(au), 1) is False
+    repo.save(ch)
+    assert repo.exists(str(au), 1) is True
+    repo.delete(str(au), 1)
+    assert repo.exists(str(au), 1) is False
 
 
 # ===== Draft Tests =====
 
-@pytest.mark.asyncio
-async def test_draft_filename_format(tmp_path):
+def test_draft_filename_format(tmp_path):
     """草稿文件名格式正确（ch0038_draft_A.md）。"""
     au = _setup_au(tmp_path)
     repo = LocalFileDraftRepository()
 
     draft = Draft(au_id=str(au), chapter_num=38, variant="A", content="草稿内容")
-    await repo.save(draft)
+    repo.save(draft)
 
     path = au / "chapters" / ".drafts" / "ch0038_draft_A.md"
     assert path.exists()
 
 
-@pytest.mark.asyncio
-async def test_draft_roundtrip(tmp_path):
+def test_draft_roundtrip(tmp_path):
     """草稿写入+读取往返一致。"""
     au = _setup_au(tmp_path)
     repo = LocalFileDraftRepository()
 
     draft = Draft(au_id=str(au), chapter_num=1, variant="B", content="草稿B")
-    await repo.save(draft)
-    loaded = await repo.get(str(au), 1, "B")
+    repo.save(draft)
+    loaded = repo.get(str(au), 1, "B")
     assert loaded.content == "草稿B"
     assert loaded.variant == "B"
 
 
-@pytest.mark.asyncio
-async def test_delete_drafts_gte(tmp_path):
+def test_delete_drafts_gte(tmp_path):
     """delete_from_chapter 正确清理 ≥ N 的草稿（D-0016）。"""
     au = _setup_au(tmp_path)
     repo = LocalFileDraftRepository()
 
     for num in [1, 2, 3, 4, 5]:
         draft = Draft(au_id=str(au), chapter_num=num, variant="A", content=f"d{num}")
-        await repo.save(draft)
+        repo.save(draft)
 
-    await repo.delete_from_chapter(str(au), 3)
+    repo.delete_from_chapter(str(au), 3)
 
     # ch1, ch2 should remain
     assert (au / "chapters" / ".drafts" / "ch0001_draft_A.md").exists()

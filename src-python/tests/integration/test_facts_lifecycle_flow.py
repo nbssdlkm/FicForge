@@ -1,6 +1,5 @@
 """Facts 生命周期集成测试。"""
 
-import asyncio
 
 import pytest
 
@@ -29,7 +28,7 @@ def _setup_au(tmp_path):
 def _save_state(au, **overrides):
     defaults = {"au_id": str(au), "current_chapter": 5}
     defaults.update(overrides)
-    asyncio.run(LocalFileStateRepository().save(State(**defaults)))
+    LocalFileStateRepository().save(State(**defaults))
 
 
 # ===== add_fact =====
@@ -234,7 +233,7 @@ def test_update_status_deprecated_cleans_focus(tmp_path):
     result = update_fact_status(au, f.id, "deprecated", 5, fr, or_, sr)
 
     assert result["focus_warning"] is True
-    state = asyncio.run(sr.get(str(au)))
+    state = sr.get(str(au))
     assert f.id not in state.chapter_focus
     assert f.id not in state.last_confirmed_chapter_focus
 
@@ -251,7 +250,7 @@ def test_update_status_resolved_cleans_focus(tmp_path):
 
     update_fact_status(au, f.id, "resolved", 5, fr, or_, sr)
 
-    state = asyncio.run(sr.get(str(au)))
+    state = sr.get(str(au))
     assert f.id not in state.chapter_focus
 
 
@@ -289,7 +288,7 @@ def test_set_focus_two_unresolved(tmp_path):
 
     set_chapter_focus(au, [f1.id, f2.id], fr, or_, sr)
 
-    state = asyncio.run(sr.get(str(au)))
+    state = sr.get(str(au))
     assert state.chapter_focus == [f1.id, f2.id]
 
 
@@ -326,7 +325,7 @@ def test_set_focus_empty_clears(tmp_path):
 
     set_chapter_focus(au, [], fr, or_, sr)
 
-    state = asyncio.run(sr.get(str(au)))
+    state = sr.get(str(au))
     assert state.chapter_focus == []
 
 
