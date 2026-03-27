@@ -11,11 +11,13 @@ from pathlib import Path
 from typing import Any, Coroutine, Optional, TypeVar
 
 from core.domain.character_scanner import scan_characters_in_chapter
-from core.domain.enums import FactStatus, IndexStatus
+from core.domain.enums import IndexStatus
 from core.domain.fact_change import FactChange
 from core.domain.ops_entry import OpsEntry
 from core.domain.text_utils import extract_last_scene_ending
 from core.services.au_mutex import AUMutexManager
+from core.services.facts_lifecycle import edit_fact as _edit_fact
+from core.services.facts_lifecycle import update_fact_status as _update_fact_status
 from infra.storage_local.file_utils import compute_content_hash, now_utc
 from repositories.implementations.local_file_ops import generate_op_id
 from repositories.interfaces.chapter_repository import ChapterRepository
@@ -120,6 +122,9 @@ class ResolveDirtyChapterService:
         timestamp = now_utc()
         self._apply_fact_changes(au_id, chapter_num, confirmed_fact_changes, timestamp)
 
+        # 重新读取 state——fact 级联操作（悬空清理等）可能已修改并保存了 state
+        state = _call(self._state_repo.get(au_id))
+
         # =================================================================
         # 步骤 3：最新章 / 历史章分流
         # =================================================================
@@ -147,6 +152,7 @@ class ResolveDirtyChapterService:
         new_hash = compute_content_hash(content)
         chapter = _call(self._chapter_repo.get(au_id, chapter_num))
         chapter.content_hash = new_hash
+        chapter.revision += 1  # 写路径契约：每次写操作必须同时 bump revision
         _call(self._chapter_repo.save(chapter))
 
         # =================================================================
@@ -190,59 +196,39 @@ class ResolveDirtyChapterService:
         au_id: str,
         chapter_num: int,
         changes: list[FactChange],
-        timestamp: str,
+        timestamp: str,  # noqa: ARG002 — kept for interface compat
     ) -> None:
-        """执行用户在 facts 确认面板上的操作。"""
+        """执行用户在 facts 确认面板上的操作。
+
+        复用 facts_lifecycle 的级联逻辑（resolves 联动 + 悬空 focus 清理），
+        而不是直接调用 repository 绕过级联。
+        """
+        au_path = Path(au_id)
         for change in changes:
             if change.action == "keep":
                 continue
 
-            fact = self._fact_repo.get(au_id, change.fact_id)
-            if fact is None:
-                continue  # fact 不存在，跳过
-
             if change.action == "update" and change.updated_fields:
-                # 更新指定字段
-                for key, value in change.updated_fields.items():
-                    if hasattr(fact, key):
-                        setattr(fact, key, value)
-                self._fact_repo.update(au_id, fact)
-
-                # ops: edit_fact（无 chapter_num）
-                self._ops_repo.append(
-                    au_id,
-                    OpsEntry(
-                        op_id=generate_op_id(),
-                        op_type="edit_fact",
-                        target_id=change.fact_id,
-                        timestamp=timestamp,
-                        payload={"updated_fields": change.updated_fields},
-                    ),
+                # 复用 edit_fact：自动处理 resolves 联动 + 悬空清理 + ops 记录
+                _edit_fact(
+                    au_path,
+                    change.fact_id,
+                    change.updated_fields,
+                    self._fact_repo,
+                    self._ops_repo,
+                    self._state_repo,
                 )
 
             elif change.action == "deprecate":
-                old_status = (
-                    fact.status.value
-                    if isinstance(fact.status, FactStatus)
-                    else str(fact.status)
-                )
-                fact.status = FactStatus.DEPRECATED
-                self._fact_repo.update(au_id, fact)
-
-                # ops: update_fact_status（有 chapter_num）
-                self._ops_repo.append(
-                    au_id,
-                    OpsEntry(
-                        op_id=generate_op_id(),
-                        op_type="update_fact_status",
-                        target_id=change.fact_id,
-                        chapter_num=chapter_num,
-                        timestamp=timestamp,
-                        payload={
-                            "old_status": old_status,
-                            "new_status": "deprecated",
-                        },
-                    ),
+                # 复用 update_fact_status：自动处理悬空清理 + ops 记录
+                _update_fact_status(
+                    au_path,
+                    change.fact_id,
+                    "deprecated",
+                    chapter_num,
+                    self._fact_repo,
+                    self._ops_repo,
+                    self._state_repo,
                 )
 
     # -----------------------------------------------------------------

@@ -208,25 +208,26 @@ class UndoChapterService:
     def _rollback_fact_statuses(self, au_id: str, n: int) -> None:
         """回滚被撤销章节 facts 的 resolves 关系。
 
-        对于 chapter==N 的 facts 中有 resolves 字段的条目：
-        找到被 resolves 指向的目标 fact，若其 status 为 "resolved"
-        且无其他 fact 仍然 resolves 它，则恢复为 "unresolved"。
+        通过 ops target_id 定位第 N 章的 facts（不依赖可变的 fact.chapter 字段），
+        然后对有 resolves 字段的条目恢复被指向目标的 status。
         """
-        all_facts = self._fact_repo.list_all(au_id)
-        chapter_n_facts = [f for f in all_facts if f.chapter == n]
+        # 通过 ops 精准定位第 N 章的 facts（与步骤 4 用同一数据源）
+        add_fact_ops = self._ops_repo.get_add_facts_for_chapter(au_id, n)
+        ids_to_delete = {op.target_id for op in add_fact_ops}
 
-        # 收集需要检查的 target_id
+        if not ids_to_delete:
+            return
+
+        all_facts = self._fact_repo.list_all(au_id)
+
+        # 在即将被删除的 facts 中找有 resolves 关系的
         targets_to_check: set[str] = set()
-        for fact in chapter_n_facts:
-            if fact.resolves:
+        for fact in all_facts:
+            if fact.id in ids_to_delete and fact.resolves:
                 targets_to_check.add(fact.resolves)
 
         if not targets_to_check:
             return
-
-        # 找出即将被删除的 fact IDs（步骤 4 用 ops，但这里需要预判）
-        add_fact_ops = self._ops_repo.get_add_facts_for_chapter(au_id, n)
-        ids_to_delete = {op.target_id for op in add_fact_ops}
 
         for target_id in targets_to_check:
             target = self._fact_repo.get(au_id, target_id)

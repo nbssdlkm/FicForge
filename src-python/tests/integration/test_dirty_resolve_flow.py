@@ -371,3 +371,89 @@ def test_snapshot_fallback_scan(tmp_path):
     assert "林深" in state.characters_last_seen
     assert "陈明" in state.characters_last_seen
     assert "陈律师" in state.characters_last_seen
+
+
+# ===== 审计修复验证 =====
+
+
+def test_deprecate_cleans_dangling_focus(tmp_path):
+    """dirty resolve 中 deprecate fact → chapter_focus 已清理悬空 ID。"""
+    au = _setup_au(tmp_path)
+    confirm, resolve, fact_repo, ops_repo, state_repo, chapter_repo = _build_services()
+
+    _confirm_and_dirty(au, confirm, state_repo, chapter_repo, 1, "内容。")
+
+    # 添加 unresolved fact 并设为 chapter_focus
+    fact = Fact(
+        id="f_focus_test", content_raw="伏笔", content_clean="伏笔",
+        chapter=1, status=FactStatus.UNRESOLVED, type=FactType.FORESHADOWING,
+        source=FactSource.MANUAL, revision=1,
+        created_at="2025-01-01T00:00:00Z", updated_at="2025-01-01T00:00:00Z",
+    )
+    fact_repo.append(str(au), fact)
+
+    state = asyncio.run(state_repo.get(str(au)))
+    state.chapter_focus = ["f_focus_test"]
+    asyncio.run(state_repo.save(state))
+
+    # dirty resolve 中 deprecate 该 fact
+    changes = [FactChange(fact_id="f_focus_test", action="deprecate")]
+    resolve.resolve_dirty_chapter(au, 1, changes)
+
+    # chapter_focus 应已清理
+    state = asyncio.run(state_repo.get(str(au)))
+    assert "f_focus_test" not in state.chapter_focus
+
+
+def test_update_resolves_linkage_in_dirty(tmp_path):
+    """dirty resolve 中 update fact 的 resolves → 被指向的旧 fact 状态已联动。"""
+    au = _setup_au(tmp_path)
+    confirm, resolve, fact_repo, ops_repo, state_repo, chapter_repo = _build_services()
+
+    _confirm_and_dirty(au, confirm, state_repo, chapter_repo, 1, "内容。")
+
+    # 添加一个 unresolved 伏笔
+    foreshadow = Fact(
+        id="f_foreshadow_dr", content_raw="伏笔", content_clean="伏笔",
+        chapter=0, status=FactStatus.UNRESOLVED, type=FactType.FORESHADOWING,
+        source=FactSource.MANUAL, revision=1,
+        created_at="2025-01-01T00:00:00Z", updated_at="2025-01-01T00:00:00Z",
+    )
+    fact_repo.append(str(au), foreshadow)
+
+    # 添加一个 fact 用于修改
+    resolver = Fact(
+        id="f_resolver_dr", content_raw="揭示", content_clean="揭示",
+        chapter=1, status=FactStatus.ACTIVE, type=FactType.CHARACTER_DETAIL,
+        source=FactSource.MANUAL, revision=1,
+        created_at="2025-01-01T00:00:00Z", updated_at="2025-01-01T00:00:00Z",
+    )
+    fact_repo.append(str(au), resolver)
+
+    # dirty resolve 中 update resolver 添加 resolves 关联
+    changes = [FactChange(
+        fact_id="f_resolver_dr", action="update",
+        updated_fields={"resolves": "f_foreshadow_dr"},
+    )]
+    resolve.resolve_dirty_chapter(au, 1, changes)
+
+    # 伏笔应已被联动为 resolved
+    target = fact_repo.get(str(au), "f_foreshadow_dr")
+    assert target is not None
+    assert target.status == FactStatus.RESOLVED
+
+
+def test_dirty_resolve_bumps_chapter_revision(tmp_path):
+    """dirty resolve 后 chapter.revision 已 +1。"""
+    au = _setup_au(tmp_path)
+    confirm, resolve, _, _, state_repo, chapter_repo = _build_services()
+
+    _confirm_and_dirty(au, confirm, state_repo, chapter_repo, 1, "内容。")
+
+    ch_before = asyncio.run(chapter_repo.get(str(au), 1))
+    rev_before = ch_before.revision
+
+    resolve.resolve_dirty_chapter(au, 1, [])
+
+    ch_after = asyncio.run(chapter_repo.get(str(au), 1))
+    assert ch_after.revision == rev_before + 1

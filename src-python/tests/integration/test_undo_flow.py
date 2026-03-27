@@ -280,6 +280,64 @@ def test_undo_facts_deletion_via_ops(tmp_path):
     assert fact_repo.get(str(au), "f_other") is not None
 
 
+# ===== 审计修复验证 =====
+
+
+def test_undo_resolves_via_ops_not_chapter_field(tmp_path):
+    """undo 的 resolves 回滚通过 ops target_id 定位，用户改过 fact.chapter 后仍正确。"""
+    au = _setup_au(tmp_path)
+    _save_state(au, current_chapter=1)
+    confirm, undo, fact_repo, ops_repo, state_repo, chapter_repo, _ = _build_services()
+
+    # 添加 unresolved 伏笔
+    foreshadow = Fact(
+        id="f_fsh_ops", content_raw="伏笔", content_clean="伏笔",
+        chapter=0, status=FactStatus.UNRESOLVED, type=FactType.FORESHADOWING,
+        source=FactSource.MANUAL, revision=1,
+        created_at="2025-01-01T00:00:00Z", updated_at="2025-01-01T00:00:00Z",
+    )
+    fact_repo.append(str(au), foreshadow)
+
+    # Confirm ch1
+    _save_draft(au, 1, "A", "第一章正文。")
+    confirm.confirm_chapter(au, 1, "ch0001_draft_A.md")
+
+    # 添加 resolving fact（通过 ops 记录）
+    resolving = Fact(
+        id="f_rsl_ops", content_raw="揭示", content_clean="揭示",
+        chapter=1, status=FactStatus.ACTIVE, type=FactType.CHARACTER_DETAIL,
+        resolves="f_fsh_ops",
+        source=FactSource.MANUAL, revision=1,
+        created_at="2025-01-01T00:00:00Z", updated_at="2025-01-01T00:00:00Z",
+    )
+    fact_repo.append(str(au), resolving)
+    ops_repo.append(str(au), OpsEntry(
+        op_id="op_af_rsl", op_type="add_fact", target_id="f_rsl_ops",
+        chapter_num=1, timestamp="2025-01-01T00:00:00Z", payload={},
+    ))
+
+    # 伏笔标记为 resolved
+    foreshadow.status = FactStatus.RESOLVED
+    fact_repo.update(str(au), foreshadow)
+
+    # 关键：用户手动将 resolving fact 的 chapter 字段改为 99（模拟用户修改归属）
+    resolving_loaded = fact_repo.get(str(au), "f_rsl_ops")
+    assert resolving_loaded is not None
+    resolving_loaded.chapter = 99
+    fact_repo.update(str(au), resolving_loaded)
+
+    # Undo — 应通过 ops target_id 而非 fact.chapter==1 找到 resolving fact
+    undo.undo_latest_chapter(au)
+
+    # 伏笔应恢复为 unresolved（即使 resolving.chapter 已被改为 99）
+    restored = fact_repo.get(str(au), "f_fsh_ops")
+    assert restored is not None
+    assert restored.status == FactStatus.UNRESOLVED
+
+    # resolving fact 也应被精准删除（通过 ops target_id）
+    assert fact_repo.get(str(au), "f_rsl_ops") is None
+
+
 # ===== 快照降级 =====
 
 
