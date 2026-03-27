@@ -18,6 +18,7 @@ from core.domain.enums import (
     Provenance,
 )
 from core.domain.fact import Fact
+from core.domain.fact_change import FactChange
 from core.domain.fandom import Fandom
 from core.domain.generated_with import GeneratedWith
 from core.domain.ops_entry import OpsEntry
@@ -66,6 +67,7 @@ __all__ = [
     "EmbeddingLock",
     "Fandom",
     "Fact",
+    "FactChange",
     "GeneratedWith",
     "LLMConfig",
     "LicenseConfig",
