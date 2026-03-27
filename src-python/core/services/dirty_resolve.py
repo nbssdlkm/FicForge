@@ -42,12 +42,14 @@ class ResolveDirtyChapterService:
         ops_repo: OpsRepository,
         fact_repo: FactRepository,
         au_mutex: AUMutexManager,
+        task_queue: Optional[Any] = None,
     ) -> None:
         self._chapter_repo = chapter_repo
         self._state_repo = state_repo
         self._ops_repo = ops_repo
         self._fact_repo = fact_repo
         self._mutex = au_mutex
+        self._task_queue = task_queue
 
     def resolve_dirty_chapter(
         self,
@@ -168,7 +170,10 @@ class ResolveDirtyChapterService:
         # =================================================================
         # 步骤 7：ChromaDB 重建（Phase 1 简化：标记 stale）
         # =================================================================
-        # TODO: T-017 queue.enqueue(rebuild_chapter_chunks, chapter_num)
+        if self._task_queue is not None:
+            self._task_queue.enqueue("vectorize_chapter", au_id, {
+                "au_path": au_id, "chapter_num": chapter_num,
+            })
 
         return {
             "chapter_num": chapter_num,
