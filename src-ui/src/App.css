@@ -1,1 +1,52 @@
-/* Placeholder - styles will be added in UI tasks */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Default: Warm Theme ('暖光') */
+    --color-bg: #FAF9F7;
+    --color-surface: #F2F0EB;
+    --color-text: #3D3935;
+    --color-accent: #C5705D;
+    
+    --color-success: #508D69;
+    --color-warning: #D69F3C;
+    --color-error: #D35D5D;
+    --color-info: #5A85B8;
+  }
+
+  /* Warm Theme */
+  .theme-warm {
+    --color-bg: #FAF9F7;
+    --color-surface: #F2F0EB;
+    --color-text: #3D3935;
+    --color-accent: #C5705D;
+  }
+
+  /* Mint Theme ('薄荷') */
+  .theme-mint {
+    --color-bg: #F0F7F2;
+    --color-surface: #E6F0E9;
+    --color-text: #2D3A2E;
+    --color-accent: #6BAF7A;
+  }
+
+  /* Night Theme ('夜间') */
+  .theme-night {
+    --color-bg: #1A1A1E;
+    --color-surface: #232328;
+    --color-text: #E0DDD8;
+    --color-accent: #C5705D; /* User accent goes here, defaulting to warm */
+    
+    /* Slightly adjusted semantics for dark mode visibility */
+    --color-success: #4A8361; 
+    --color-warning: #C79437;
+    --color-error: #C25555;
+    --color-info: #527AAB;
+  }
+
+  body {
+    @apply bg-background text-text font-sans antialiased transition-colors duration-200;
+  }
+}
