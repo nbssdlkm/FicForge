@@ -122,9 +122,15 @@ class UndoChapterService:
             pass  # 章节文件已不存在（异常状态），继续回滚
 
         # =================================================================
-        # 步骤 3：facts 状态回滚（在删除前执行，以便读取 resolves 关系）
+        # 步骤 3a：facts resolves 关系回滚（在删除前执行）
         # =================================================================
         self._rollback_fact_statuses(au_id, n)
+
+        # =================================================================
+        # 步骤 3b：回放 update_fact_status 操作（PRD §6.3 步骤 3）
+        # 用户在写第 N 章时手动修改的旧 fact 状态须恢复为操作前状态
+        # =================================================================
+        self._rollback_manual_status_changes(au_id, n)
 
         # =================================================================
         # 步骤 2：删除章节文件 + 清理 ≥N 的所有草稿（D-0016）
@@ -243,6 +249,40 @@ class UndoChapterService:
             if not still_resolved:
                 target.status = FactStatus.UNRESOLVED
                 self._fact_repo.update(au_id, target)
+
+    # -----------------------------------------------------------------
+    # 步骤 3b：回放 update_fact_status 操作
+    # -----------------------------------------------------------------
+
+    def _rollback_manual_status_changes(self, au_id: str, n: int) -> None:
+        """回放第 N 章中用户手动执行的 update_fact_status 操作（PRD §6.3 步骤 3）。
+
+        扫描 ops.jsonl 中 chapter_num==N 且 op_type=="update_fact_status" 的记录，
+        按逆序回放——将每条 fact 恢复为 payload.old_status。
+        """
+        all_ops = self._ops_repo.list_all(au_id)
+        status_ops = [
+            op for op in all_ops
+            if op.op_type == "update_fact_status" and op.chapter_num == n
+        ]
+
+        if not status_ops:
+            return
+
+        # 按时间戳逆序回放
+        status_ops.sort(key=lambda op: op.timestamp, reverse=True)
+
+        for op in status_ops:
+            old_status = op.payload.get("old_status")
+            if not old_status:
+                continue
+
+            fact = self._fact_repo.get(au_id, op.target_id)
+            if fact is None:
+                continue
+
+            fact.status = FactStatus(old_status)
+            self._fact_repo.update(au_id, fact)
 
     # -----------------------------------------------------------------
     # 步骤 4：facts 物理删除

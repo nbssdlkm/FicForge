@@ -12,6 +12,7 @@ from core.domain.ops_entry import OpsEntry
 from core.domain.state import State
 from core.services.au_mutex import AUMutexManager
 from core.services.confirm_chapter import ConfirmChapterService
+from core.services.facts_lifecycle import update_fact_status
 from core.services.undo_chapter import UndoChapterError, UndoChapterService
 from infra.storage_local.directory import ensure_au_directories
 from repositories.implementations.local_file_chapter import LocalFileChapterRepository
@@ -336,6 +337,116 @@ def test_undo_resolves_via_ops_not_chapter_field(tmp_path):
 
     # resolving fact 也应被精准删除（通过 ops target_id）
     assert fact_repo.get(str(au), "f_rsl_ops") is None
+
+
+# ===== update_fact_status 回放 =====
+
+
+def test_undo_restores_manually_deprecated_fact(tmp_path):
+    """写第 N 章时手动 deprecated 旧 fact → undo → 恢复为 unresolved。"""
+    au = _setup_au(tmp_path)
+    _save_state(au, current_chapter=1)
+    confirm, undo, fact_repo, ops_repo, state_repo, chapter_repo, _ = _build_services()
+
+    # 添加一个 unresolved 伏笔
+    fact = Fact(
+        id="f_manual_dep", content_raw="伏笔", content_clean="伏笔",
+        chapter=0, status=FactStatus.UNRESOLVED, type=FactType.FORESHADOWING,
+        source=FactSource.MANUAL, revision=1,
+        created_at="2025-01-01T00:00:00Z", updated_at="2025-01-01T00:00:00Z",
+    )
+    fact_repo.append(str(au), fact)
+
+    # Confirm ch1
+    _save_draft(au, 1, "A", "第一章正文。")
+    confirm.confirm_chapter(au, 1, "ch0001_draft_A.md")
+
+    # 用户在写第 1 章时手动将伏笔标为 deprecated（模拟 UI 操作）
+    update_fact_status(au, "f_manual_dep", "deprecated", 1, fact_repo, ops_repo, state_repo)
+
+    # 验证已变为 deprecated
+    assert fact_repo.get(str(au), "f_manual_dep").status == FactStatus.DEPRECATED
+
+    # Undo ch1
+    undo.undo_latest_chapter(au)
+
+    # 伏笔应恢复为 unresolved（操作前状态）
+    restored = fact_repo.get(str(au), "f_manual_dep")
+    assert restored is not None
+    assert restored.status == FactStatus.UNRESOLVED
+
+
+def test_undo_restores_active_to_active(tmp_path):
+    """手动 active→deprecated → undo → 恢复为 active（不是 unresolved）。"""
+    au = _setup_au(tmp_path)
+    _save_state(au, current_chapter=1)
+    confirm, undo, fact_repo, ops_repo, state_repo, chapter_repo, _ = _build_services()
+
+    # 添加一个 active fact
+    fact = Fact(
+        id="f_was_active", content_raw="事件", content_clean="事件",
+        chapter=0, status=FactStatus.ACTIVE, type=FactType.PLOT_EVENT,
+        source=FactSource.MANUAL, revision=1,
+        created_at="2025-01-01T00:00:00Z", updated_at="2025-01-01T00:00:00Z",
+    )
+    fact_repo.append(str(au), fact)
+
+    _save_draft(au, 1, "A", "正文。")
+    confirm.confirm_chapter(au, 1, "ch0001_draft_A.md")
+
+    update_fact_status(au, "f_was_active", "deprecated", 1, fact_repo, ops_repo, state_repo)
+
+    undo.undo_latest_chapter(au)
+
+    restored = fact_repo.get(str(au), "f_was_active")
+    assert restored is not None
+    assert restored.status == FactStatus.ACTIVE  # 恢复为 active，不是 unresolved
+
+
+def test_undo_rollback_multiple_status_changes(tmp_path):
+    """多次 update_fact_status → undo 按逆序全部回放。"""
+    au = _setup_au(tmp_path)
+    _save_state(au, current_chapter=1)
+    confirm, undo, fact_repo, ops_repo, state_repo, chapter_repo, _ = _build_services()
+
+    # 两个 facts
+    for fid, status in [("f_m1", FactStatus.UNRESOLVED), ("f_m2", FactStatus.ACTIVE)]:
+        fact_repo.append(str(au), Fact(
+            id=fid, content_raw="x", content_clean="x",
+            chapter=0, status=status, type=FactType.PLOT_EVENT,
+            source=FactSource.MANUAL, revision=1,
+            created_at="2025-01-01T00:00:00Z", updated_at="2025-01-01T00:00:00Z",
+        ))
+
+    _save_draft(au, 1, "A", "正文。")
+    confirm.confirm_chapter(au, 1, "ch0001_draft_A.md")
+
+    from core.services.facts_lifecycle import update_fact_status
+    # 两次状态变更
+    update_fact_status(au, "f_m1", "deprecated", 1, fact_repo, ops_repo, state_repo)
+    update_fact_status(au, "f_m2", "resolved", 1, fact_repo, ops_repo, state_repo)
+
+    undo.undo_latest_chapter(au)
+
+    # 两个 facts 都恢复为各自的原始状态
+    assert fact_repo.get(str(au), "f_m1").status == FactStatus.UNRESOLVED
+    assert fact_repo.get(str(au), "f_m2").status == FactStatus.ACTIVE
+
+
+def test_undo_no_status_changes_ok(tmp_path):
+    """无 update_fact_status 操作 → undo 正常执行。"""
+    au = _setup_au(tmp_path)
+    _save_state(au, current_chapter=1)
+    confirm, undo, *_ = _build_services()
+
+    _save_draft(au, 1, "A", "正文。")
+    confirm.confirm_chapter(au, 1, "ch0001_draft_A.md")
+
+    # 没有任何 update_fact_status 操作，直接 undo
+    undo.undo_latest_chapter(au)
+
+    state = asyncio.run(LocalFileStateRepository().get(str(au)))
+    assert state.current_chapter == 1  # 正常回退
 
 
 # ===== 快照降级 =====
