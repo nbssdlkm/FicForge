@@ -15,11 +15,11 @@ class StateRepository(ABC):
     """运行时状态存储抽象接口。"""
 
     @abstractmethod
-    async def get(self, au_id: str) -> State:
+    def get(self, au_id: str) -> State:
         """读取 AU 运行时状态。"""
         ...
 
     @abstractmethod
-    async def save(self, state: State) -> None:
+    def save(self, state: State) -> None:
         """保存 AU 运行时状态。"""
         ...

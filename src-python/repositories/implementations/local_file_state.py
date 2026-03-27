@@ -16,7 +16,7 @@ from repositories.interfaces.state_repository import StateRepository
 class LocalFileStateRepository(StateRepository):
     """基于本地文件的 AU 运行时状态存储（state.yaml）。"""
 
-    async def get(self, au_id: str) -> State:
+    def get(self, au_id: str) -> State:
         path = Path(au_id) / "state.yaml"
         if not path.exists():
             return State(au_id=au_id)
@@ -28,7 +28,7 @@ class LocalFileStateRepository(StateRepository):
 
         return _dict_to_state(raw, au_id)
 
-    async def save(self, state: State) -> None:
+    def save(self, state: State) -> None:
         path = Path(state.au_id) / "state.yaml"
         state.updated_at = now_utc()
         state.revision += 1

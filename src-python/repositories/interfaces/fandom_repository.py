@@ -15,21 +15,21 @@ class FandomRepository(ABC):
     """Fandom 元信息存储抽象接口。"""
 
     @abstractmethod
-    async def get(self, fandom_path: str) -> Fandom:
+    def get(self, fandom_path: str) -> Fandom:
         """读取 fandom.yaml。文件不存在时抛出 FileNotFoundError。"""
         ...
 
     @abstractmethod
-    async def save(self, fandom_path: str, fandom: Fandom) -> None:
+    def save(self, fandom_path: str, fandom: Fandom) -> None:
         """保存 fandom.yaml。"""
         ...
 
     @abstractmethod
-    async def list_fandoms(self, data_dir: str) -> list[str]:
+    def list_fandoms(self, data_dir: str) -> list[str]:
         """列出所有 Fandom 目录名。"""
         ...
 
     @abstractmethod
-    async def list_aus(self, fandom_path: str) -> list[str]:
+    def list_aus(self, fandom_path: str) -> list[str]:
         """列出 Fandom 下所有 AU 目录名。"""
         ...

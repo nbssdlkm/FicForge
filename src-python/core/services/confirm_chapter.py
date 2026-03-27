@@ -6,11 +6,10 @@ AU 互斥锁在入口获取（D-0009）。方法是同步的（D-0021）。
 
 from __future__ import annotations
 
-import asyncio
 import re
 import uuid
 from pathlib import Path
-from typing import Any, Coroutine, Optional, TypeVar
+from typing import Any, Optional
 
 from core.domain.chapter import Chapter
 from core.domain.character_scanner import scan_characters_in_chapter
@@ -25,17 +24,6 @@ from repositories.interfaces.chapter_repository import ChapterRepository
 from repositories.interfaces.draft_repository import DraftRepository
 from repositories.interfaces.ops_repository import OpsRepository
 from repositories.interfaces.state_repository import StateRepository
-
-_T = TypeVar("_T")
-
-
-def _call(coro: Coroutine[Any, Any, _T]) -> _T:
-    """Run async-but-actually-sync Repository coroutine synchronously.
-
-    T-002/T-004 的 ChapterRepository / DraftRepository / StateRepository 仍为 async def，
-    但内部仅做同步 I/O。本函数在 run_in_threadpool 线程池上下文中安全调用。
-    """
-    return asyncio.run(coro)
 
 
 class ConfirmChapterError(Exception):
@@ -127,7 +115,7 @@ class ConfirmChapterService:
             )
 
         try:
-            draft = _call(self._draft_repo.get(au_id, chapter_num, draft_variant))
+            draft = self._draft_repo.get(au_id, chapter_num, draft_variant)
         except FileNotFoundError as exc:
             raise ConfirmChapterError(f"草稿文件不存在: {draft_id}") from exc
 
@@ -135,9 +123,9 @@ class ConfirmChapterService:
 
         # === 步骤 1：备份（如果覆盖已有章节）===
         old_chapter: Optional[Chapter] = None
-        if _call(self._chapter_repo.exists(au_id, chapter_num)):
-            old_chapter = _call(self._chapter_repo.get(au_id, chapter_num))
-            _call(self._chapter_repo.backup_chapter(au_id, chapter_num))
+        if self._chapter_repo.exists(au_id, chapter_num):
+            old_chapter = self._chapter_repo.get(au_id, chapter_num)
+            self._chapter_repo.backup_chapter(au_id, chapter_num)
 
         # === 步骤 2：写入正文章节 ===
         content_hash = compute_content_hash(draft_content)
@@ -147,7 +135,7 @@ class ConfirmChapterService:
         revision = (old_chapter.revision + 1) if old_chapter else 1
 
         # 读取 state 获取 confirmed_focus（步骤 3 清空之前的值）
-        state = _call(self._state_repo.get(au_id))
+        state = self._state_repo.get(au_id)
         confirmed_focus = list(state.chapter_focus)
 
         chapter = Chapter(
@@ -162,7 +150,7 @@ class ConfirmChapterService:
             provenance="ai",
             generated_with=generated_with,
         )
-        _call(self._chapter_repo.save(chapter))
+        self._chapter_repo.save(chapter)
 
         # === 步骤 3：更新 state.yaml ===
         old_current_chapter = state.current_chapter
@@ -195,7 +183,7 @@ class ConfirmChapterService:
         state.index_status = IndexStatus.STALE
 
         # save（StateRepository.save 自动更新 revision + updated_at）
-        _call(self._state_repo.save(state))
+        self._state_repo.save(state)
 
         # === 步骤 4：append ops.jsonl ===
         gw_payload: dict[str, Any] = {}
@@ -227,7 +215,7 @@ class ConfirmChapterService:
         self._ops_repo.append(au_id, ops_entry)
 
         # === 步骤 5：清理草稿 ===
-        _call(self._draft_repo.delete_by_chapter(au_id, chapter_num))
+        self._draft_repo.delete_by_chapter(au_id, chapter_num)
 
         return {
             "chapter_id": chapter_id,

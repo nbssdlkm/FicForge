@@ -14,7 +14,7 @@ from repositories.interfaces.fandom_repository import FandomRepository
 class LocalFileFandomRepository(FandomRepository):
     """基于本地文件的 Fandom 元信息存储（fandom.yaml）。"""
 
-    async def get(self, fandom_path: str) -> Fandom:
+    def get(self, fandom_path: str) -> Fandom:
         path = Path(fandom_path) / "fandom.yaml"
         if not path.exists():
             raise FileNotFoundError(
@@ -33,13 +33,13 @@ class LocalFileFandomRepository(FandomRepository):
             wiki_source=raw.get("wiki_source", ""),
         )
 
-    async def save(self, fandom_path: str, fandom: Fandom) -> None:
+    def save(self, fandom_path: str, fandom: Fandom) -> None:
         path = Path(fandom_path) / "fandom.yaml"
         raw = dc_to_dict(fandom)
         content = yaml.dump(raw, allow_unicode=True, sort_keys=False, default_flow_style=False)
         atomic_write(path, content)
 
-    async def list_fandoms(self, data_dir: str) -> list[str]:
+    def list_fandoms(self, data_dir: str) -> list[str]:
         fandoms_dir = Path(data_dir) / "fandoms"
         if not fandoms_dir.exists():
             return []
@@ -49,7 +49,7 @@ class LocalFileFandomRepository(FandomRepository):
             if d.is_dir() and (d / "fandom.yaml").exists()
         )
 
-    async def list_aus(self, fandom_path: str) -> list[str]:
+    def list_aus(self, fandom_path: str) -> list[str]:
         aus_dir = Path(fandom_path) / "aus"
         if not aus_dir.exists():
             return []

@@ -27,7 +27,7 @@ class ProjectInvalidError(Exception):
 class LocalFileProjectRepository(ProjectRepository):
     """基于本地文件的 AU 项目配置存储（project.yaml）。"""
 
-    async def get(self, au_id: str) -> Project:
+    def get(self, au_id: str) -> Project:
         path = Path(au_id) / "project.yaml"
         if not path.exists():
             raise FileNotFoundError(f"project.yaml not found: {path}")
@@ -43,7 +43,7 @@ class LocalFileProjectRepository(ProjectRepository):
 
         return _dict_to_project(raw, au_id)
 
-    async def save(self, project: Project) -> None:
+    def save(self, project: Project) -> None:
         path = Path(project.au_id) / "project.yaml"
         project.updated_at = now_utc()
         project.revision += 1
@@ -51,7 +51,7 @@ class LocalFileProjectRepository(ProjectRepository):
         content = yaml.dump(raw, allow_unicode=True, sort_keys=False, default_flow_style=False)
         atomic_write(path, content)
 
-    async def list_aus(self, fandom: str) -> list[Project]:
+    def list_aus(self, fandom: str) -> list[Project]:
         aus_dir = Path(fandom) / "aus"
         if not aus_dir.exists():
             return []
@@ -59,7 +59,7 @@ class LocalFileProjectRepository(ProjectRepository):
         for d in sorted(aus_dir.iterdir()):
             if d.is_dir() and (d / "project.yaml").exists():
                 try:
-                    project = await self.get(str(d))
+                    project = self.get(str(d))
                     result.append(project)
                 except (ProjectInvalidError, FileNotFoundError):
                     continue

@@ -1,6 +1,5 @@
 """Dirty 章节解除流程集成测试。"""
 
-import asyncio
 
 import pytest
 
@@ -53,15 +52,15 @@ def _setup_au(tmp_path):
 
 
 def _save_draft(au, chapter_num, variant, content):
-    asyncio.run(LocalFileDraftRepository().save(
+    LocalFileDraftRepository().save(
         Draft(au_id=str(au), chapter_num=chapter_num, variant=variant, content=content)
-    ))
+    )
 
 
 def _save_state(au, **overrides):
     defaults = {"au_id": str(au), "current_chapter": 1}
     defaults.update(overrides)
-    asyncio.run(LocalFileStateRepository().save(State(**defaults)))
+    LocalFileStateRepository().save(State(**defaults))
 
 
 def _make_gw():
@@ -80,16 +79,16 @@ def _confirm_and_dirty(au, confirm_svc, state_repo, chapter_repo, chapter_num, c
     confirm_svc.confirm_chapter(au, chapter_num, f"ch{chapter_num:04d}_draft_A.md", _make_gw(), CAST)
 
     # Simulate user editing the confirmed chapter (mark dirty)
-    state = asyncio.run(state_repo.get(str(au)))
+    state = state_repo.get(str(au))
     if chapter_num not in state.chapters_dirty:
         state.chapters_dirty.append(chapter_num)
-    asyncio.run(state_repo.save(state))
+    state_repo.save(state)
 
     # Simulate editing the chapter content
-    ch = asyncio.run(chapter_repo.get(str(au), chapter_num))
+    ch = chapter_repo.get(str(au), chapter_num)
     ch.content = content + "（用户编辑后的新内容）"
     ch.provenance = "mixed"
-    asyncio.run(chapter_repo.save(ch))
+    chapter_repo.save(ch)
 
 
 # ===== 最新章 resolve =====
@@ -107,7 +106,7 @@ def test_latest_chapter_resolve(tmp_path):
     assert result["is_latest"] is True
     assert result["chapter_num"] == 1
 
-    state = asyncio.run(state_repo.get(str(au)))
+    state = state_repo.get(str(au))
     # characters_last_seen 已重算
     assert "林深" in state.characters_last_seen
     assert "陈明" in state.characters_last_seen
@@ -125,7 +124,7 @@ def test_latest_chapter_content_hash_updated(tmp_path):
 
     resolve.resolve_dirty_chapter(au, 1, [], cast_registry=CAST)
 
-    ch = asyncio.run(chapter_repo.get(str(au), 1))
+    ch = chapter_repo.get(str(au), 1)
     expected_content = original + "（用户编辑后的新内容）"
     assert ch.content_hash == compute_content_hash(expected_content)
 
@@ -139,7 +138,7 @@ def test_latest_chapter_dirty_removed(tmp_path):
 
     resolve.resolve_dirty_chapter(au, 1, [])
 
-    state = asyncio.run(state_repo.get(str(au)))
+    state = state_repo.get(str(au))
     assert 1 not in state.chapters_dirty
 
 
@@ -160,24 +159,24 @@ def test_historical_chapter_no_state_change(tmp_path):
     confirm.confirm_chapter(au, 2, "ch0002_draft_A.md", _make_gw(), CAST)
 
     # Save state before dirty resolve
-    state_before = asyncio.run(state_repo.get(str(au)))
+    state_before = state_repo.get(str(au))
     chars_before = dict(state_before.characters_last_seen)
     ending_before = state_before.last_scene_ending
 
     # Mark ch1 as dirty (historical chapter)
     state_before.chapters_dirty.append(1)
-    asyncio.run(state_repo.save(state_before))
+    state_repo.save(state_before)
 
     # Edit ch1 content
-    ch1 = asyncio.run(chapter_repo.get(str(au), 1))
+    ch1 = chapter_repo.get(str(au), 1)
     ch1.content = "编辑后的第一章。"
-    asyncio.run(chapter_repo.save(ch1))
+    chapter_repo.save(ch1)
 
     # Resolve
     result = resolve.resolve_dirty_chapter(au, 1, [])
 
     assert result["is_latest"] is False
-    state_after = asyncio.run(state_repo.get(str(au)))
+    state_after = state_repo.get(str(au))
     # characters_last_seen 不变
     assert state_after.characters_last_seen == chars_before
     # last_scene_ending 不变
@@ -197,17 +196,17 @@ def test_historical_chapter_content_hash_updated(tmp_path):
     confirm.confirm_chapter(au, 2, "ch0002_draft_A.md", _make_gw(), CAST)
 
     # Mark ch1 dirty + edit
-    state = asyncio.run(state_repo.get(str(au)))
+    state = state_repo.get(str(au))
     state.chapters_dirty.append(1)
-    asyncio.run(state_repo.save(state))
+    state_repo.save(state)
 
-    ch1 = asyncio.run(chapter_repo.get(str(au), 1))
+    ch1 = chapter_repo.get(str(au), 1)
     ch1.content = "全新的第一章内容。"
-    asyncio.run(chapter_repo.save(ch1))
+    chapter_repo.save(ch1)
 
     resolve.resolve_dirty_chapter(au, 1, [])
 
-    ch1_after = asyncio.run(chapter_repo.get(str(au), 1))
+    ch1_after = chapter_repo.get(str(au), 1)
     assert ch1_after.content_hash == compute_content_hash("全新的第一章内容。")
 
 
@@ -222,13 +221,13 @@ def test_historical_chapter_dirty_removed(tmp_path):
     _save_draft(au, 2, "A", "ch2")
     confirm.confirm_chapter(au, 2, "ch0002_draft_A.md", _make_gw(), CAST)
 
-    state = asyncio.run(state_repo.get(str(au)))
+    state = state_repo.get(str(au))
     state.chapters_dirty.append(1)
-    asyncio.run(state_repo.save(state))
+    state_repo.save(state)
 
     resolve.resolve_dirty_chapter(au, 1, [])
 
-    state = asyncio.run(state_repo.get(str(au)))
+    state = state_repo.get(str(au))
     assert 1 not in state.chapters_dirty
 
 
@@ -343,7 +342,7 @@ def test_empty_fact_changes_still_updates_state(tmp_path):
     result = resolve.resolve_dirty_chapter(au, 1, [], cast_registry=CAST)
 
     # State still refreshed
-    state = asyncio.run(state_repo.get(str(au)))
+    state = state_repo.get(str(au))
     assert 1 not in state.chapters_dirty
     assert result["content_hash"] != ""
 
@@ -359,14 +358,14 @@ def test_snapshot_fallback_scan(tmp_path):
             chapter_id=f"ch_imp_{i}", revision=1, confirmed_at="2025-01-01T00:00:00Z",
             content_hash=compute_content_hash(content), provenance="imported",
         )
-        asyncio.run(LocalFileChapterRepository().save(ch))
+        LocalFileChapterRepository().save(ch)
 
     _save_state(au, current_chapter=4, chapters_dirty=[3])
 
     _, resolve, *_ = _build_services()
     resolve.resolve_dirty_chapter(au, 3, [], cast_registry=CAST)
 
-    state = asyncio.run(LocalFileStateRepository().get(str(au)))
+    state = LocalFileStateRepository().get(str(au))
     # Latest chapter (3 == current_chapter-1), so characters recalculated
     assert "林深" in state.characters_last_seen
     assert "陈明" in state.characters_last_seen
@@ -392,16 +391,16 @@ def test_deprecate_cleans_dangling_focus(tmp_path):
     )
     fact_repo.append(str(au), fact)
 
-    state = asyncio.run(state_repo.get(str(au)))
+    state = state_repo.get(str(au))
     state.chapter_focus = ["f_focus_test"]
-    asyncio.run(state_repo.save(state))
+    state_repo.save(state)
 
     # dirty resolve 中 deprecate 该 fact
     changes = [FactChange(fact_id="f_focus_test", action="deprecate")]
     resolve.resolve_dirty_chapter(au, 1, changes)
 
     # chapter_focus 应已清理
-    state = asyncio.run(state_repo.get(str(au)))
+    state = state_repo.get(str(au))
     assert "f_focus_test" not in state.chapter_focus
 
 
@@ -450,10 +449,10 @@ def test_dirty_resolve_bumps_chapter_revision(tmp_path):
 
     _confirm_and_dirty(au, confirm, state_repo, chapter_repo, 1, "内容。")
 
-    ch_before = asyncio.run(chapter_repo.get(str(au), 1))
+    ch_before = chapter_repo.get(str(au), 1)
     rev_before = ch_before.revision
 
     resolve.resolve_dirty_chapter(au, 1, [])
 
-    ch_after = asyncio.run(chapter_repo.get(str(au), 1))
+    ch_after = chapter_repo.get(str(au), 1)
     assert ch_after.revision == rev_before + 1

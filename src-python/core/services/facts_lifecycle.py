@@ -6,9 +6,8 @@
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
-from typing import Any, Coroutine, Optional, TypeVar
+from typing import Any, Optional
 
 from core.domain.enums import FactSource, FactStatus, FactType, NarrativeWeight
 from core.domain.fact import Fact
@@ -19,13 +18,6 @@ from repositories.implementations.local_file_ops import generate_op_id
 from repositories.interfaces.fact_repository import FactRepository
 from repositories.interfaces.ops_repository import OpsRepository
 from repositories.interfaces.state_repository import StateRepository
-
-_T = TypeVar("_T")
-
-
-def _call(coro: Coroutine[Any, Any, _T]) -> _T:
-    """Run async-but-actually-sync Repository coroutine synchronously."""
-    return asyncio.run(coro)
 
 
 class FactsLifecycleError(Exception):
@@ -74,7 +66,7 @@ def _clean_dangling_focus(
     Returns True if fact_id was in chapter_focus (caller should warn user).
     last_confirmed_chapter_focus 中静默移除。
     """
-    state = _call(state_repo.get(au_id))
+    state = state_repo.get(au_id)
     changed = False
     was_in_focus = False
 
@@ -88,7 +80,7 @@ def _clean_dangling_focus(
         changed = True
 
     if changed:
-        _call(state_repo.save(state))
+        state_repo.save(state)
 
     return was_in_focus
 
@@ -401,10 +393,10 @@ def set_chapter_focus(
             )
 
     # 更新 state
-    state = _call(state_repo.get(au_id))
+    state = state_repo.get(au_id)
     state.chapter_focus = list(focus_ids)
     # StateRepository.save() 自动 revision+1 + updated_at
-    _call(state_repo.save(state))
+    state_repo.save(state)
 
     # ops
     ops_repo.append(

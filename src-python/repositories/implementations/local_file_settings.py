@@ -29,10 +29,10 @@ class LocalFileSettingsRepository(SettingsRepository):
     def __init__(self, data_dir: Path) -> None:
         self._path = data_dir / "settings.yaml"
 
-    async def get(self) -> Settings:
+    def get(self) -> Settings:
         if not self._path.exists():
             settings = Settings(updated_at=now_utc())
-            await self.save(settings)
+            self.save(settings)
             return settings
 
         text = self._path.read_text(encoding="utf-8")
@@ -57,7 +57,7 @@ class LocalFileSettingsRepository(SettingsRepository):
 
         return settings
 
-    async def save(self, settings: Settings) -> None:
+    def save(self, settings: Settings) -> None:
         settings.updated_at = now_utc()
         raw = dc_to_dict(settings)
         content = yaml.dump(raw, allow_unicode=True, sort_keys=False, default_flow_style=False)

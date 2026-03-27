@@ -15,16 +15,16 @@ class ProjectRepository(ABC):
     """项目配置存储抽象接口。"""
 
     @abstractmethod
-    async def get(self, au_id: str) -> Project:
+    def get(self, au_id: str) -> Project:
         """读取 AU 项目配置。"""
         ...
 
     @abstractmethod
-    async def save(self, project: Project) -> None:
+    def save(self, project: Project) -> None:
         """保存 AU 项目配置。"""
         ...
 
     @abstractmethod
-    async def list_aus(self, fandom: str) -> list[Project]:
+    def list_aus(self, fandom: str) -> list[Project]:
         """列出 Fandom 下所有 AU 的项目配置。"""
         ...

@@ -16,37 +16,37 @@ class ChapterRepository(ABC):
     """章节存储抽象接口。"""
 
     @abstractmethod
-    async def get(self, au_id: str, chapter_num: int) -> Chapter:
+    def get(self, au_id: str, chapter_num: int) -> Chapter:
         """获取指定章节。chapter_num 为整型（D-0014）。"""
         ...
 
     @abstractmethod
-    async def save(self, chapter: Chapter) -> None:
+    def save(self, chapter: Chapter) -> None:
         """保存章节（新建或覆盖）。"""
         ...
 
     @abstractmethod
-    async def delete(self, au_id: str, chapter_num: int) -> None:
+    def delete(self, au_id: str, chapter_num: int) -> None:
         """删除指定章节。"""
         ...
 
     @abstractmethod
-    async def list_main(self, au_id: str) -> list[Chapter]:
+    def list_main(self, au_id: str) -> list[Chapter]:
         """列出 AU 下所有已确认主线章节，按章节号排序。"""
         ...
 
     @abstractmethod
-    async def exists(self, au_id: str, chapter_num: int) -> bool:
+    def exists(self, au_id: str, chapter_num: int) -> bool:
         """检查指定章节是否存在。"""
         ...
 
     @abstractmethod
-    async def get_content_only(self, au_id: str, chapter_num: int) -> str:
+    def get_content_only(self, au_id: str, chapter_num: int) -> str:
         """读取纯正文（剥离 frontmatter），用于上下文注入和向量化。"""
         ...
 
     @abstractmethod
-    async def backup_chapter(self, au_id: str, chapter_num: int) -> str:
+    def backup_chapter(self, au_id: str, chapter_num: int) -> str:
         """备份章节到 chapters/backups/ 目录。
 
         覆盖已确认章节时自动调用（PRD §4.3）。

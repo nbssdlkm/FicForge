@@ -40,7 +40,7 @@ class LocalFileDraftRepository(DraftRepository):
     def _draft_path(self, au_id: str, chapter_num: int, variant: str) -> Path:
         return self._drafts_dir(au_id) / self._draft_filename(chapter_num, variant)
 
-    async def get(self, au_id: str, chapter_num: int, variant: str) -> Draft:
+    def get(self, au_id: str, chapter_num: int, variant: str) -> Draft:
         path = self._draft_path(au_id, chapter_num, variant)
         if not path.exists():
             raise FileNotFoundError(f"Draft not found: {path}")
@@ -72,7 +72,7 @@ class LocalFileDraftRepository(DraftRepository):
             generated_with=generated_with,
         )
 
-    async def save(self, draft: Draft) -> None:
+    def save(self, draft: Draft) -> None:
         path = self._draft_path(draft.au_id, draft.chapter_num, draft.variant)
         meta: dict[str, Any] = {}
         if draft.generated_with is not None:
@@ -91,7 +91,7 @@ class LocalFileDraftRepository(DraftRepository):
         post = frontmatter.Post(draft.content, **meta)
         atomic_write(path, frontmatter.dumps(post))
 
-    async def list_by_chapter(self, au_id: str, chapter_num: int) -> list[Draft]:
+    def list_by_chapter(self, au_id: str, chapter_num: int) -> list[Draft]:
         drafts_dir = self._drafts_dir(au_id)
         if not drafts_dir.exists():
             return []
@@ -99,11 +99,11 @@ class LocalFileDraftRepository(DraftRepository):
         for f in sorted(drafts_dir.iterdir()):
             parsed = self._parse_draft_filename(f.name)
             if parsed and parsed[0] == chapter_num:
-                draft = await self.get(au_id, parsed[0], parsed[1])
+                draft = self.get(au_id, parsed[0], parsed[1])
                 result.append(draft)
         return result
 
-    async def delete_by_chapter(self, au_id: str, chapter_num: int) -> None:
+    def delete_by_chapter(self, au_id: str, chapter_num: int) -> None:
         drafts_dir = self._drafts_dir(au_id)
         if not drafts_dir.exists():
             return
@@ -112,7 +112,7 @@ class LocalFileDraftRepository(DraftRepository):
             if parsed and parsed[0] == chapter_num:
                 f.unlink()
 
-    async def delete_from_chapter(self, au_id: str, from_chapter_num: int) -> None:
+    def delete_from_chapter(self, au_id: str, from_chapter_num: int) -> None:
         """删除章节号 >= from_chapter_num 的所有草稿（D-0016 undo 清理）。"""
         drafts_dir = self._drafts_dir(au_id)
         if not drafts_dir.exists():

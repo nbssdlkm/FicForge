@@ -15,11 +15,11 @@ class SettingsRepository(ABC):
     """全局配置存储抽象接口。"""
 
     @abstractmethod
-    async def get(self) -> Settings:
+    def get(self) -> Settings:
         """读取全局配置。"""
         ...
 
     @abstractmethod
-    async def save(self, settings: Settings) -> None:
+    def save(self, settings: Settings) -> None:
         """保存全局配置。"""
         ...
