@@ -77,24 +77,17 @@ class LocalChromaVectorRepository:
         top_k: int = 3,
         char_filter: Optional[list[str]] = None,
     ) -> list[Chunk]:
-        """向量检索。"""
+        """向量检索。角色过滤在 Python 层执行（跨 ChromaDB 版本兼容）。"""
         collection = self._get_collection(collection_name)
 
         query_embedding = self._embedding.embed([query_text])[0]
 
-        where: Optional[dict[str, Any]] = None
-        if char_filter:
-            # ChromaDB $or 需要至少 2 个条件
-            conditions = [{"characters": {"$contains": name}} for name in char_filter]
-            if len(conditions) == 1:
-                where = conditions[0]
-            else:
-                where = {"$or": conditions}
+        # 取更多结果用于 Python 层过滤
+        fetch_k = top_k * 3 if char_filter else top_k
 
         results = collection.query(
             query_embeddings=[query_embedding],
-            n_results=top_k,
-            where=where,
+            n_results=fetch_k,
         )
 
         chunks: list[Chunk] = []
@@ -112,7 +105,15 @@ class LocalChromaVectorRepository:
                 metadata=meta,
             ))
 
-        return chunks
+        # Python 层角色过滤（跨 ChromaDB 版本兼容）
+        if char_filter:
+            filter_set = set(char_filter)
+            chunks = [
+                c for c in chunks
+                if any(name in c.metadata.get("characters", "") for name in filter_set)
+            ]
+
+        return chunks[:top_k]
 
     def rebuild_all(
         self, au_id: str, chapters: list[tuple[int, list[ChunkData]]]

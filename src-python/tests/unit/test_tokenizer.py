@@ -9,6 +9,19 @@ import pytest
 
 from core.domain.tokenizer import TokenCount, clear_tokenizer_cache, count_tokens
 
+# tiktoken 可能在某些环境不可用（离线/网络问题）
+_tiktoken_available = False
+try:
+    import tiktoken
+    tiktoken.get_encoding("cl100k_base")
+    _tiktoken_available = True
+except Exception:
+    pass
+
+_requires_tiktoken = pytest.mark.skipif(
+    not _tiktoken_available, reason="tiktoken 不可用（离线环境）"
+)
+
 
 @dataclass
 class _FakeLLM:
@@ -20,13 +33,15 @@ class _FakeLLM:
 # ===== count_tokens 基础 =====
 
 
+@_requires_tiktoken
 def test_api_mode_english():
-    """API 模式 + 英文文本 → 正整数。"""
+    """API 模式 + 英文文本 → 正整数（需要 tiktoken）。"""
     result = count_tokens("Hello, world!", _FakeLLM(mode="api"))
     assert result.count > 0
     assert result.is_estimate is False
 
 
+@_requires_tiktoken
 def test_api_mode_chinese():
     """API 模式 + 中文文本 → 正整数（且大于等长英文文本）。"""
     en = count_tokens("abcdef", _FakeLLM(mode="api"))
@@ -42,6 +57,7 @@ def test_api_mode_empty():
     assert result.is_estimate is False
 
 
+@_requires_tiktoken
 def test_ollama_mode_same_as_api():
     """Ollama 模式 → 与 API 模式一致（都用 tiktoken）。"""
     text = "测试文本 test"
@@ -50,6 +66,7 @@ def test_ollama_mode_same_as_api():
     assert api_result.count == ollama_result.count
 
 
+@_requires_tiktoken
 def test_local_mode_no_tokenizer_json(tmp_path):
     """Local 模式 + 无 tokenizer.json → 降级为 tiktoken。"""
     result = count_tokens("test text", _FakeLLM(mode="local", local_model_path=str(tmp_path)))
@@ -70,6 +87,7 @@ def test_fallback_char_mul1_5():
 # ===== LRU Cache =====
 
 
+@_requires_tiktoken
 def test_cache_hit():
     """连续两次调用同一模型 → tokenizer 实例缓存命中。"""
     clear_tokenizer_cache()
@@ -82,6 +100,7 @@ def test_cache_hit():
     clear_tokenizer_cache()
 
 
+@_requires_tiktoken
 def test_clear_cache():
     """clear_tokenizer_cache() 后 → 缓存已清空。"""
     from core.domain.tokenizer import _get_tiktoken_encoding
