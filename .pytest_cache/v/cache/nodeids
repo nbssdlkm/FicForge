@@ -1,0 +1,18 @@
+[
+  "src-python/tests/integration/test_stress_edge_cases.py::test_1_empty_project_yaml",
+  "src-python/tests/integration/test_stress_edge_cases.py::test_2_state_yaml_missing_current_chapter",
+  "src-python/tests/integration/test_stress_edge_cases.py::test_3_facts_jsonl_corrupted_line",
+  "src-python/tests/integration/test_stress_edge_cases.py::test_4_ops_jsonl_corrupted_line",
+  "src-python/tests/integration/test_stress_edge_cases.py::test_5_chapter_missing_frontmatter",
+  "src-python/tests/integration/test_stress_edge_cases.py::test_6_undo_at_chapter_1",
+  "src-python/tests/integration/test_stress_edge_cases.py::test_7_resolve_missing_dirty_chapter",
+  "src-python/tests/integration/test_stress_edge_cases.py::test_8_chapter_focus_deleted_fact",
+  "src-python/tests/integration/test_stress_edge_cases.py::test_9_resolves_non_existent_fact",
+  "src-python/tests/integration/test_stress_edge_cases.py::test_10_characters_last_seen_unknown_registry",
+  "src-python/tests/integration/test_stress_edge_cases.py::test_11_concurrent_facts_append",
+  "src-python/tests/integration/test_stress_edge_cases.py::test_12_concurrent_ops_append",
+  "src-python/tests/integration/test_stress_edge_cases.py::test_13_concurrent_confirm_and_add_fact",
+  "src-python/tests/integration/test_stress_edge_cases.py::test_14_benchmark_1000_facts_read",
+  "src-python/tests/integration/test_stress_edge_cases.py::test_15_benchmark_100_chapters_list",
+  "src-python/tests/integration/test_stress_edge_cases.py::test_16_benchmark_scan_characters"
+]

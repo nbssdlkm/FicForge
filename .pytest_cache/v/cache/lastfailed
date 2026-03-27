@@ -1,0 +1,9 @@
+{
+  "src-python/tests/integration/test_stress_edge_cases.py::test_10_characters_last_seen_unknown_registry": true,
+  "src-python/tests/integration/test_stress_edge_cases.py::test_1_empty_project_yaml": true,
+  "src-python/tests/integration/test_stress_edge_cases.py::test_4_ops_jsonl_corrupted_line": true,
+  "src-python/tests/integration/test_stress_edge_cases.py::test_5_chapter_missing_frontmatter": true,
+  "src-python/tests/integration/test_stress_edge_cases.py::test_6_undo_at_chapter_1": true,
+  "src-python/tests/integration/test_stress_edge_cases.py::test_7_resolve_missing_dirty_chapter": true,
+  "src-python/tests/integration/test_stress_edge_cases.py::test_8_chapter_focus_deleted_fact": true
+}
