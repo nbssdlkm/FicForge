@@ -1,0 +1,236 @@
+﻿pytest : Traceback (mo
+st recent call last):
+所在位置 行:1 字符: 31
++ ... rc-python"; pyte
+st src-python/tests/in
+tegration/test_stress_
+edge_case ...
++                 ~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~
+    + CategoryInfo    
+          : NotSpeci  
+  fied: (Traceback    
+ (most recent call    
+ last)::String) [    ]
+, RemoteExceptio    n
+    + FullyQualifiedE 
+   rrorId : NativeCo  
+  mmandError
+ 
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\numpy\core\__in
+it__.py", line 16, in 
+<module>
+    from . import mult
+iarray
+ImportError: DLL load 
+failed: 找不到指定的模块。
+
+During handling of the
+ above exception, anot
+her exception occurred
+:
+
+Traceback (most recent
+ call last):
+  File "C:\ProgramData
+\anaconda3\Scripts\pyt
+est-script.py", line 1
+0, in <module>
+    sys.exit(main())
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\_pytest\config\
+__init__.py", line 58,
+ in main
+    config = _preparec
+onfig(args, plugins)
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\_pytest\config\
+__init__.py", line 185
+, in _prepareconfig
+    pluginmanager=plug
+inmanager, args=args
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\pluggy\hooks.py
+", line 258, in __call
+__
+    return self._hooke
+xec(self, self._nonwra
+ppers + self._wrappers
+, kwargs)
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\pluggy\manager.
+py", line 67, in _hook
+exec
+    return self._inner
+_hookexec(hook, method
+s, kwargs)
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\pluggy\manager.
+py", line 61, in <lamb
+da>
+    firstresult=hook.s
+pec_opts.get('firstres
+ult'),
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\pluggy\callers.
+py", line 196, in _mul
+ticall
+    gen.send(outcome)
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\_pytest\helpcon
+fig.py", line 89, in p
+ytest_cmdline_parse
+    config = outcome.g
+et_result()
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\pluggy\callers.
+py", line 76, in get_r
+esult
+    raise ex[1].with_t
+raceback(ex[2])
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\pluggy\callers.
+py", line 180, in _mul
+ticall
+    res = hook_impl.fu
+nction(*args)
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\_pytest\config\
+__init__.py", line 648
+, in pytest_cmdline_pa
+rse
+    self.parse(args)
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\_pytest\config\
+__init__.py", line 820
+, in parse
+    self._preparse(arg
+s, addopts=addopts)
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\_pytest\config\
+__init__.py", line 772
+, in _preparse
+    self.pluginmanager
+.load_setuptools_entry
+points("pytest11")
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\pluggy\manager.
+py", line 253, in load
+_setuptools_entrypoint
+s
+    plugin = ep.load()
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\pkg_resources\_
+_init__.py", line 2325
+, in load
+    return self.resolv
+e()
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\pkg_resources\_
+_init__.py", line 2331
+, in resolve
+    module = __import_
+_(self.module_name, fr
+omlist=['__name__'], l
+evel=0)
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\_pytest\asserti
+on\rewrite.py", line 2
+96, in load_module
+    six.exec_(co, mod.
+__dict__)
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\pytest_doctestp
+lus\plugin.py", line 1
+7, in <module>
+    from .output_check
+er import OutputChecke
+r, FIX
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\_pytest\asserti
+on\rewrite.py", line 2
+96, in load_module
+    six.exec_(co, mod.
+__dict__)
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\pytest_doctestp
+lus\output_checker.py"
+, line 10, in <module>
+    import numpy as np
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\numpy\__init__.
+py", line 142, in <mod
+ule>
+    from . import add_
+newdocs
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\numpy\add_newdo
+cs.py", line 13, in <m
+odule>
+    from numpy.lib imp
+ort add_newdoc
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\numpy\lib\__ini
+t__.py", line 8, in <m
+odule>
+    from .type_check i
+mport *
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\numpy\lib\type_
+check.py", line 11, in
+ <module>
+    import numpy.core.
+numeric as _nx
+  File "C:\ProgramData
+\anaconda3\lib\site-pa
+ckages\numpy\core\__in
+it__.py", line 26, in 
+<module>
+    raise ImportError(
+msg)
+ImportError: 
+Importing the multiarr
+ay numpy extension mod
+ule failed.  Most
+likely you are trying 
+to import a failed bui
+ld of numpy.
+If you're working with
+ a numpy git repo, try
+ `git clean -xdf` (rem
+oves all
+files not under versio
+n control).  Otherwise
+ reinstall numpy.
+
+Original error was: DL
+L load failed: 找不到指定的模
+块。
+
