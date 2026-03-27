@@ -38,6 +38,7 @@ from core.domain.settings import (
     ModelParams,
     Settings,
 )
+from core.domain.budget_report import BudgetReport
 from core.domain.model_context_map import (
     DEFAULT_CONTEXT_WINDOW,
     DEFAULT_MAX_OUTPUT,
@@ -64,6 +65,7 @@ __all__ = [
     "Perspective",
     "Provenance",
     # Domain objects
+    "BudgetReport",
     "AppConfig",
     "CastRegistry",
     "Chapter",
