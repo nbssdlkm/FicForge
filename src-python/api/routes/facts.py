@@ -4,15 +4,25 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from api import build_fact_repository, build_ops_repository, build_state_repository, error_response
+from api import (
+    build_chapter_repository,
+    build_fact_repository,
+    build_ops_repository,
+    build_project_repository,
+    build_settings_repository,
+    build_state_repository,
+    error_response,
+)
 from core.domain.enums import FactSource, FactStatus, FactType, NarrativeWeight
+from core.services.facts_extraction import ExtractedFact, extract_facts_from_chapter
 from core.services.facts_lifecycle import FactsLifecycleError, add_fact, edit_fact, update_fact_status
+from infra.llm.config_resolver import create_provider, resolve_llm_config
 
 router = APIRouter(prefix="/api/v1/facts", tags=["facts"])
 
@@ -77,6 +87,13 @@ class UpdateFactStatusRequest(BaseModel):
 class UpdateFactStatusResponse(BaseModel):
     fact_id: str
     status: FactStatus
+
+
+class ExtractFactsRequest(BaseModel):
+    au_path: str
+    chapter_num: int
+    session_llm: Optional[dict[str, Any]] = None
+    session_params: Optional[dict[str, Any]] = None
 
 
 @router.get("", response_model=list[FactResponse])
@@ -189,3 +206,68 @@ async def patch_fact_status(fact_id: str, request: UpdateFactStatusRequest):
         fact_id=result["fact_id"],
         status=FactStatus(result["new_status"]),
     )
+
+
+@router.post("/extract")
+async def extract_facts_endpoint(request: ExtractFactsRequest) -> Any:
+    """提取章节中的 facts 候选列表（PRD §6.7）。"""
+    au_path = Path(request.au_path)
+    chapter_repo = build_chapter_repository()
+    fact_repo = build_fact_repository()
+    project_repo = build_project_repository()
+    settings_repo = build_settings_repository()
+
+    try:
+        content = await run_in_threadpool(
+            chapter_repo.get_content_only, str(au_path), request.chapter_num,
+        )
+    except Exception:
+        return error_response(
+            404,
+            "CHAPTER_NOT_FOUND",
+            f"章节 {request.chapter_num} 不存在",
+            ["确认章节号是否正确"],
+        )
+
+    existing_facts = await run_in_threadpool(fact_repo.list_all, str(au_path))
+    project = await run_in_threadpool(project_repo.get, str(au_path))
+    settings = await run_in_threadpool(settings_repo.get)
+
+    llm_config = resolve_llm_config(request.session_llm, project, settings)
+    provider = create_provider(llm_config)
+
+    # 从 project 中获取 cast_registry 和角色别名
+    cast_registry = getattr(project, "cast_registry", {}) or {}
+    character_aliases: dict[str, list[str]] = {}
+    all_chars = (
+        list((cast_registry.get("from_core") or []))
+        + list((cast_registry.get("au_specific") or []))
+        + list((cast_registry.get("oc") or []))
+    )
+    for char_entry in all_chars:
+        if isinstance(char_entry, dict):
+            name = char_entry.get("name", "")
+            aliases = char_entry.get("aliases", [])
+            if name and aliases:
+                character_aliases[name] = aliases
+
+    try:
+        result = await run_in_threadpool(
+            extract_facts_from_chapter,
+            content,
+            request.chapter_num,
+            existing_facts,
+            cast_registry,
+            character_aliases,
+            provider,
+            llm_config,
+        )
+    except Exception as exc:
+        return error_response(
+            500,
+            "EXTRACT_FACTS_FAILED",
+            f"提取失败: {exc}",
+            ["检查 LLM 配置是否正确"],
+        )
+
+    return {"facts": [asdict(f) for f in result]}

@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
 import { FactCard } from './FactCard';
 import { Modal } from '../shared/Modal';
-import { Search, Plus, Filter, Loader2, AlertCircle } from 'lucide-react';
-import { listFacts, addFact, updateFactStatus, type FactInfo } from '../../api/facts';
+import { Search, Plus, Filter, Loader2, AlertCircle, Check } from 'lucide-react';
+import { listFacts, addFact, editFact, updateFactStatus, type FactInfo } from '../../api/facts';
 
 export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const [facts, setFacts] = useState<FactInfo[]>([]);
@@ -12,9 +12,15 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
-  
-  // Edit mode
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Edit mode — track mutable fields via refs to avoid re-render on each keystroke
   const [editingFact, setEditingFact] = useState<FactInfo | null>(null);
+  const editContentCleanRef = useRef<HTMLTextAreaElement>(null);
+  const editContentRawRef = useRef<HTMLTextAreaElement>(null);
+  const editCharactersRef = useRef<HTMLInputElement>(null);
+  const editWeightRef = useRef<HTMLInputElement>(null);
   
   // Add modal state
   const [isAddModalOpen, setAddModalOpen] = useState(false);
@@ -72,6 +78,34 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
       }
     } catch (e: any) {
       setError(e.message || '状态修改失败');
+    }
+  };
+
+  const handleSaveFact = async () => {
+    if (!editingFact || !auPath) return;
+    setSaving(true);
+    setSaveSuccess(false);
+    try {
+      const updatedFields: Record<string, any> = {};
+      if (editContentCleanRef.current) updatedFields.content_clean = editContentCleanRef.current.value;
+      if (editContentRawRef.current) updatedFields.content_raw = editContentRawRef.current.value;
+      if (editCharactersRef.current) {
+        updatedFields.characters = editCharactersRef.current.value
+          .split(',')
+          .map((s: string) => s.trim())
+          .filter(Boolean);
+      }
+      if (editWeightRef.current) updatedFields.narrative_weight = editWeightRef.current.value;
+      await editFact(auPath, editingFact.id, updatedFields);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+      await loadFacts();
+      // Update editingFact with saved values
+      setEditingFact(prev => prev ? { ...prev, ...updatedFields } : null);
+    } catch (e: any) {
+      setError(e.message || '保存失败');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -148,9 +182,11 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 <span className="font-mono text-sm font-semibold opacity-70">
                   {editingFact.id.split('-')[0]} <span className="font-sans font-normal opacity-70 ml-2">正在编辑</span>
                 </span>
-                <div className="flex gap-3">
+                <div className="flex gap-3 items-center">
                    <Button variant="ghost" size="sm" className="h-8" onClick={() => setEditingFact(null)}>取消选择</Button>
-                   <Button variant="primary" size="sm" className="h-8 w-24">保 存</Button>
+                   <Button variant="primary" size="sm" className="h-8 w-24" onClick={handleSaveFact} disabled={saving}>
+                     {saving ? <Loader2 size={14} className="animate-spin" /> : saveSuccess ? <><Check size={14} /> 已保存</> : '保 存'}
+                   </Button>
                 </div>
               </>
             ) : (
@@ -160,7 +196,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
 
           <div className="flex-1 overflow-y-auto p-8 lg:p-12 w-full max-w-3xl mx-auto space-y-8">
             {editingFact ? (
-              <>
+              <div key={editingFact.id}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-bold text-text/90">当前状态 (Status)</label>
@@ -178,29 +214,29 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                   </div>
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-bold text-text/90">核心叙事权重 (Weight)</label>
-                    <Input type="number" defaultValue={editingFact.narrative_weight || 5} className="h-10 font-mono text-lg text-accent font-bold" />
+                    <Input ref={editWeightRef} type="number" defaultValue={editingFact.narrative_weight || 5} className="h-10 font-mono text-lg text-accent font-bold" />
                     <p className="text-xs text-text/50">1-10 范围。数值越大，系统提示引擎对它的回忆优先级越高。</p>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-bold text-text/90">精简逻辑 (Content Clean)</label>
-                  <Textarea defaultValue={editingFact.content_clean} className="font-serif min-h-[100px] text-lg leading-relaxed resize-y" />
+                  <Textarea ref={editContentCleanRef} defaultValue={editingFact.content_clean} className="font-serif min-h-[100px] text-lg leading-relaxed resize-y" />
                   <p className="text-xs text-text/50">供 AI 阅读和 Context 注入的结构化抽象事实，避免描写细节。</p>
                 </div>
 
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-bold text-text/90">章节出处摘录 (Content Raw)</label>
-                  <Textarea defaultValue={editingFact.content_raw} className="font-serif opacity-70 min-h-[140px] text-base leading-relaxed bg-surface/50 resize-y" />
+                  <Textarea ref={editContentRawRef} defaultValue={editingFact.content_raw} className="font-serif opacity-70 min-h-[140px] text-base leading-relaxed bg-surface/50 resize-y" />
                   <p className="text-xs text-text/50">仅供人类作者回溯参考，默认不会占用给 AI 注入的 token，允许大段堆叠。</p>
                 </div>
 
                 <div className="flex flex-col gap-2 pt-4 border-t border-black/10 dark:border-white/10">
                   <label className="text-sm font-bold text-text/90">涉及角色 (Characters)</label>
-                  <Input defaultValue={(editingFact.characters || []).join(', ')} className="h-10 text-sm" />
+                  <Input ref={editCharactersRef} defaultValue={(editingFact.characters || []).join(', ')} className="h-10 text-sm" />
                   <p className="text-xs text-text/50">用逗号隔开对应的人名，能让角色独立检索时快速召回此事实。</p>
                 </div>
-              </>
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full opacity-30 mt-20">
                 <Search size={48} className="mb-4" />

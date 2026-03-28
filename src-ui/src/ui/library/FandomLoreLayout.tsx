@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
 import { Tag } from '../shared/Tag';
 import { Search, Plus, ArrowLeft, FileText, ChevronDown, ChevronRight, Folder, Loader2 } from 'lucide-react';
 import { saveLore } from '../../api/lore';
+import { listFandomFiles, readFandomFile, type FandomFileEntry } from '../../api/fandoms';
 
 export const FandomLoreLayout = ({ fandomPath, onNavigate }: { fandomPath?: string, onNavigate: (page: string) => void }) => {
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
@@ -12,10 +13,40 @@ export const FandomLoreLayout = ({ fandomPath, onNavigate }: { fandomPath?: stri
   });
 
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('core_characters');
   const [editorContent, setEditorContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [characterFiles, setCharacterFiles] = useState<FandomFileEntry[]>([]);
+  const [worldbuildingFiles, setWorldbuildingFiles] = useState<FandomFileEntry[]>([]);
+  const [filesLoading, setFilesLoading] = useState(false);
 
   const fandomName = fandomPath?.split('/').pop() || 'Unknown Fandom';
+
+  useEffect(() => {
+    if (!fandomPath) return;
+    setFilesLoading(true);
+    listFandomFiles(fandomName)
+      .then(data => {
+        setCharacterFiles(data.characters);
+        setWorldbuildingFiles(data.worldbuilding);
+      })
+      .catch(() => {
+        setCharacterFiles([]);
+        setWorldbuildingFiles([]);
+      })
+      .finally(() => setFilesLoading(false));
+  }, [fandomPath, fandomName]);
+
+  const handleSelectFile = async (filename: string, category: string) => {
+    setSelectedFile(filename.replace('.md', ''));
+    setSelectedCategory(category);
+    try {
+      const result = await readFandomFile(fandomName, category, filename);
+      setEditorContent(result.content);
+    } catch {
+      setEditorContent('');
+    }
+  };
 
   const toggleFolder = (folder: string) => {
     setExpandedFolders(prev => ({ ...prev, [folder]: !prev[folder] }));
@@ -37,7 +68,9 @@ export const FandomLoreLayout = ({ fandomPath, onNavigate }: { fandomPath?: stri
         content: `# ${rawName}\n\n[设定尚未编写]`
       });
       setSelectedFile(slug);
+      setSelectedCategory('core_characters');
       setEditorContent(`# ${rawName}\n\n[设定尚未编写]`);
+      setCharacterFiles(prev => [...prev, { name: slug, filename: `${slug}.md` }]);
     } catch (e: any) {
       alert("创建失败: " + e.message);
     } finally {
@@ -51,7 +84,7 @@ export const FandomLoreLayout = ({ fandomPath, onNavigate }: { fandomPath?: stri
     try {
       await saveLore({
         fandom_path: fandomPath,
-        category: 'core_characters',  // Default to core characters for now
+        category: selectedCategory,
         filename: `${selectedFile}.md`,
         content: editorContent
       });
@@ -95,7 +128,26 @@ export const FandomLoreLayout = ({ fandomPath, onNavigate }: { fandomPath?: stri
                </div>
                {expandedFolders['core_characters'] && (
                  <div className="mt-1 space-y-0.5">
-                   <p className="text-xs text-text/40 pl-6 py-2">设定文件由 Fandom 文件夹自动发现。<br/>尚未扫描到文件。</p>
+                   {filesLoading ? (
+                     <div className="pl-6 py-2"><Loader2 size={14} className="animate-spin text-accent" /></div>
+                   ) : characterFiles.length === 0 ? (
+                     <p className="text-xs text-text/40 pl-6 py-2">尚未发现角色设定文件。</p>
+                   ) : (
+                     characterFiles.map(f => (
+                       <div
+                         key={f.filename}
+                         className={`flex items-center gap-2 pl-6 pr-2 py-1.5 text-sm cursor-pointer rounded-md transition-colors ${
+                           selectedFile === f.name && selectedCategory === 'core_characters'
+                             ? 'bg-accent/10 text-accent font-semibold'
+                             : 'hover:bg-black/5 dark:hover:bg-white/5 text-text/70'
+                         }`}
+                         onClick={() => handleSelectFile(f.filename, 'core_characters')}
+                       >
+                         <FileText size={13} />
+                         <span>{f.name}</span>
+                       </div>
+                     ))
+                   )}
                  </div>
                )}
              </div>
@@ -107,7 +159,26 @@ export const FandomLoreLayout = ({ fandomPath, onNavigate }: { fandomPath?: stri
                </div>
                {expandedFolders['worldbuilding'] && (
                  <div className="mt-1 space-y-0.5">
-                   <p className="text-xs text-text/40 pl-6 py-2">暂无世界观设定文件。</p>
+                   {filesLoading ? (
+                     <div className="pl-6 py-2"><Loader2 size={14} className="animate-spin text-accent" /></div>
+                   ) : worldbuildingFiles.length === 0 ? (
+                     <p className="text-xs text-text/40 pl-6 py-2">暂无世界观设定文件。</p>
+                   ) : (
+                     worldbuildingFiles.map(f => (
+                       <div
+                         key={f.filename}
+                         className={`flex items-center gap-2 pl-6 pr-2 py-1.5 text-sm cursor-pointer rounded-md transition-colors ${
+                           selectedFile === f.name && selectedCategory === 'core_worldbuilding'
+                             ? 'bg-accent/10 text-accent font-semibold'
+                             : 'hover:bg-black/5 dark:hover:bg-white/5 text-text/70'
+                         }`}
+                         onClick={() => handleSelectFile(f.filename, 'core_worldbuilding')}
+                       >
+                         <FileText size={13} />
+                         <span>{f.name}</span>
+                       </div>
+                     ))
+                   )}
                  </div>
                )}
              </div>
@@ -121,7 +192,9 @@ export const FandomLoreLayout = ({ fandomPath, onNavigate }: { fandomPath?: stri
               <>
                 <div className="flex items-center gap-3">
                   <span className="font-mono text-sm font-semibold opacity-70">{selectedFile}.md</span>
-                  <Tag variant="success">Core Character</Tag>
+                  <Tag variant={selectedCategory === 'core_characters' ? 'success' : 'warning'}>
+                    {selectedCategory === 'core_characters' ? 'Core Character' : 'Worldbuilding'}
+                  </Tag>
                 </div>
                 <div className="flex items-center gap-4">
                    <span className="text-[11px] text-text/40 bg-black/5 dark:bg-white/5 px-2 py-1 rounded-md hidden xl:block">
