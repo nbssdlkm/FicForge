@@ -15,6 +15,13 @@ from core.services.facts_lifecycle import (
     update_fact_status,
 )
 from core.services.undo_chapter import UndoChapterError, UndoChapterService
+from core.services.import_pipeline import (
+    ImportResult,
+    import_chapters,
+    parse_import_file,
+    split_into_chapters,
+)
+from core.services.export_service import export_chapters
 
 __all__ = [
     "AUMutexManager",
@@ -37,4 +44,9 @@ __all__ = [
     "edit_fact",
     "set_chapter_focus",
     "update_fact_status",
+    "ImportResult",
+    "import_chapters",
+    "parse_import_file",
+    "split_into_chapters",
+    "export_chapters",
 ]

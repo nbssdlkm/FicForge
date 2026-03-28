@@ -53,10 +53,11 @@ async def generate_stream(request: GenerateRequest) -> StreamingResponse:
             draft_repo = build_draft_repository()
             
             # Load entities
-            project = await run_in_threadpool(project_repo.load, au_dir)
-            state = await run_in_threadpool(state_repo.load, au_dir)
-            settings = await run_in_threadpool(settings_repo.load)
-            facts = await run_in_threadpool(fact_repo.list_all, au_dir)
+            au_id = str(au_dir)
+            project = await run_in_threadpool(project_repo.get, au_id)
+            state = await run_in_threadpool(state_repo.get, au_id)
+            settings = await run_in_threadpool(settings_repo.get)
+            facts = await run_in_threadpool(fact_repo.list_all, au_id)
             
             # Execute generation service (should be run in background, but the generator yields chunk by chunk)
             # The generation inner loop uses provider.generate(stream=True) which blocks per chunk.
