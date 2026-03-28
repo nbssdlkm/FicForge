@@ -28,3 +28,21 @@ export async function createAu(fandomName: string, auName: string, fandomPath: s
     body: JSON.stringify({ name: auName, fandom_path: fandomPath }),
   });
 }
+
+export interface FandomFileEntry {
+  name: string;
+  filename: string;
+}
+
+export interface FandomFilesResponse {
+  characters: FandomFileEntry[];
+  worldbuilding: FandomFileEntry[];
+}
+
+export async function listFandomFiles(fandomName: string, dataDir = "./fandoms"): Promise<FandomFilesResponse> {
+  return apiFetch(`/api/v1/fandoms/${encodeURIComponent(fandomName)}/files?data_dir=${encodeURIComponent(dataDir)}`);
+}
+
+export async function readFandomFile(fandomName: string, category: string, filename: string, dataDir = "./fandoms"): Promise<{ filename: string; category: string; content: string }> {
+  return apiFetch(`/api/v1/fandoms/${encodeURIComponent(fandomName)}/files/${encodeURIComponent(category)}/${encodeURIComponent(filename)}?data_dir=${encodeURIComponent(dataDir)}`);
+}

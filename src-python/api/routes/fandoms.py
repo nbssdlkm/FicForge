@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
@@ -94,3 +96,65 @@ async def create_au(fandom_name: str, request: CreateAURequest) -> Any:
     await run_in_threadpool(state_repo.save, state)
 
     return {"name": request.name, "path": str(au_path)}
+
+
+def _scan_md_files(directory: Path) -> list[dict[str, str]]:
+    """扫描目录下的 .md 文件，返回 [{name, filename}]。"""
+    if not directory.is_dir():
+        return []
+    results: list[dict[str, str]] = []
+    for f in sorted(directory.iterdir()):
+        if f.is_file() and f.suffix == ".md":
+            results.append({"name": f.stem, "filename": f.name})
+    return results
+
+
+_SAFE_NAME_RE = re.compile(r"^[\w\-\u4e00-\u9fff]+$")
+
+
+@router.get("/fandoms/{fandom_name}/files")
+async def list_fandom_files(
+    fandom_name: str, data_dir: str = Query("./fandoms"),
+) -> Any:
+    """扫描 fandom 目录下的角色和世界观 .md 文件。"""
+    if not _SAFE_NAME_RE.match(fandom_name):
+        return error_response(400, "INVALID_NAME", "非法的 fandom 名称", [])
+
+    fandom_dir = Path(data_dir) / "fandoms" / fandom_name
+
+    characters = await run_in_threadpool(
+        _scan_md_files, fandom_dir / "core_characters",
+    )
+    worldbuilding = await run_in_threadpool(
+        _scan_md_files, fandom_dir / "core_worldbuilding",
+    )
+
+    return {"characters": characters, "worldbuilding": worldbuilding}
+
+
+@router.get("/fandoms/{fandom_name}/files/{category}/{filename}")
+async def read_fandom_file(
+    fandom_name: str,
+    category: str,
+    filename: str,
+    data_dir: str = Query("./fandoms"),
+) -> Any:
+    """读取 fandom 下指定分类的 .md 文件内容。"""
+    if not _SAFE_NAME_RE.match(fandom_name):
+        return error_response(400, "INVALID_NAME", "非法的 fandom 名称", [])
+    if category not in ("core_characters", "core_worldbuilding"):
+        return error_response(400, "INVALID_CATEGORY", "不支持的分类", [])
+    # 防止路径遍历（PRD §5.5）
+    if "/" in filename or "\\" in filename or ".." in filename:
+        return error_response(400, "INVALID_FILENAME", "非法的文件名", [])
+
+    file_path = Path(data_dir) / "fandoms" / fandom_name / category / filename
+    if not file_path.is_file():
+        return error_response(404, "FILE_NOT_FOUND", f"文件不存在: {filename}", [])
+
+    try:
+        content = await run_in_threadpool(file_path.read_text, "utf-8")
+    except Exception as exc:
+        return error_response(500, "FILE_READ_FAILED", str(exc), [])
+
+    return {"filename": filename, "category": category, "content": content}
