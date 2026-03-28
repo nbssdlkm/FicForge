@@ -10,7 +10,7 @@ export function setSidecarPort(port: number): void {
 }
 
 function getBaseUrl(): string {
-  const port = sidecarPort || 8765; // 开发环境默认端口
+  const port = sidecarPort || 54284; // 开发环境对应的 FastAPI 端口
   return `http://127.0.0.1:${port}`;
 }
 

@@ -1,27 +1,28 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Sidebar } from '../shared/Sidebar';
 import { ThemeToggle } from '../shared/ThemeToggle';
 import { Button } from '../shared/Button';
 import { Tag } from '../shared/Tag';
 import { SettingsPanel } from '../settings/SettingsPanel';
-import { Undo2, LogOut, Check, Loader2, AlertCircle, BookOpen } from 'lucide-react';
-import { listChapters, getChapterContent, confirmChapter, undoChapter, type ChapterInfo } from '../../api/chapters';
+import { Undo2, Check, FileUp, AlertCircle, Loader2, BookOpen } from 'lucide-react';
+import { ExportModal } from './ExportModal';
+import { DirtyModal } from './DirtyModal';
+import { Sidebar } from '../shared/Sidebar';
+
+import { getChapterContent, confirmChapter, undoChapter } from '../../api/chapters';
 import { getState, setChapterFocus, type StateInfo } from '../../api/state';
 import { listFacts, type FactInfo } from '../../api/facts';
 import { generateChapter } from '../../api/generate';
+import { getSettings, updateSettings } from '../../api/settings';
+import { getProject, updateProject } from '../../api/project';
 
-// TODO: au_path should come from navigation context
-const AU_PATH = "./fandoms/fandoms/test/aus/test_au";
-
-export const WriterLayout = ({ onNavigate }: { onNavigate: (page: string) => void }) => {
-  const [leftCollapsed, setLeftCollapsed] = useState(false);
+export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigate: (page: string) => void }) => {
   const [rightCollapsed, setRightCollapsed] = useState(false);
+  const [isExportOpen, setExportOpen] = useState(false);
+  const [isDirtyOpen, setDirtyOpen] = useState(false);
 
   // Data state
-  const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [state, setState] = useState<StateInfo | null>(null);
   const [currentContent, setCurrentContent] = useState('');
-  const [selectedChapter, setSelectedChapter] = useState<number>(0);
   const [unresolvedFacts, setUnresolvedFacts] = useState<FactInfo[]>([]);
   const [focusSelection, setFocusSelection] = useState<string>('free');
 
@@ -32,38 +33,55 @@ export const WriterLayout = ({ onNavigate }: { onNavigate: (page: string) => voi
   const [generatedWith, setGeneratedWith] = useState<any>(null);
   const [budgetReport, setBudgetReport] = useState<any>(null);
 
-  // UI state
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Input state
   const [instructionText, setInstructionText] = useState('');
 
-  // Settings state (passed to generate)
+  // Settings
   const [sessionModel, setSessionModel] = useState('deepseek-chat');
   const [sessionTemp, setSessionTemp] = useState(1.0);
   const [sessionTopP, setSessionTopP] = useState(0.95);
 
-  // --- Data fetching ---
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [chaptersData, stateData, factsData] = await Promise.all([
-        listChapters(AU_PATH).catch(() => []),
-        getState(AU_PATH).catch(() => null),
-        listFacts(AU_PATH, 'unresolved').catch(() => []),
+      const [stateData, factsData, proj, settings] = await Promise.all([
+        getState(auPath).catch(() => null),
+        listFacts(auPath, 'unresolved').catch(() => []),
+        getProject(auPath).catch(() => null),
+        getSettings().catch(() => null),
       ]);
-      setChapters(chaptersData);
       setState(stateData);
       setUnresolvedFacts(factsData);
 
-      // Load latest chapter content
+      // Initialize defaults based on settings hierarchy
+      let defModel = 'deepseek-chat';
+      let defTemp = 1.0;
+      let defTopP = 0.95;
+
+      if (settings?.default_llm?.model) {
+        defModel = settings.default_llm.model;
+        const gParams = settings.model_params?.[defModel];
+        if (gParams) { defTemp = gParams.temperature; defTopP = gParams.top_p; }
+      }
+      
+      if (proj?.llm?.model) {
+        defModel = proj.llm.model;
+      }
+      if (proj?.model_params_override?.[defModel]) {
+        defTemp = proj.model_params_override[defModel].temperature;
+        defTopP = proj.model_params_override[defModel].top_p;
+      }
+
+      setSessionModel(defModel);
+      setSessionTemp(defTemp);
+      setSessionTopP(defTopP);
+
       if (stateData && stateData.current_chapter > 1) {
         const latestNum = stateData.current_chapter - 1;
-        setSelectedChapter(latestNum);
         try {
-          const content = await getChapterContent(AU_PATH, latestNum);
+          const content = await getChapterContent(auPath, latestNum);
           setCurrentContent(typeof content === 'string' ? content : '');
         } catch { setCurrentContent('（章节内容加载失败）'); }
       }
@@ -72,11 +90,33 @@ export const WriterLayout = ({ onNavigate }: { onNavigate: (page: string) => voi
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [auPath]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // --- Actions ---
+  const handleSaveGlobalParams = async () => {
+    try {
+      const settings = await getSettings();
+      settings.model_params[sessionModel] = { temperature: sessionTemp, top_p: sessionTopP };
+      await updateSettings('./fandoms', settings);
+      alert('已保存参数到全局配置');
+    } catch (e: any) {
+      setError('保存全局配置失败: ' + e.message);
+    }
+  };
+
+  const handleSaveAuParams = async () => {
+    try {
+      const proj = await getProject(auPath);
+      if (!proj.model_params_override) proj.model_params_override = {};
+      proj.model_params_override[sessionModel] = { temperature: sessionTemp, top_p: sessionTopP };
+      await updateProject(auPath, proj as any);
+      alert('已保存附加参数到本 AU 独立配置');
+    } catch (e: any) {
+      setError('保存 AU 配置失败: ' + e.message);
+    }
+  };
+
   const handleGenerate = async (inputType: 'continue' | 'instruction') => {
     if (isGenerating || !state) return;
     setIsGenerating(true);
@@ -89,7 +129,7 @@ export const WriterLayout = ({ onNavigate }: { onNavigate: (page: string) => voi
         : '继续';
 
       for await (const event of generateChapter({
-        au_path: AU_PATH,
+        au_path: auPath,
         chapter_num: state.current_chapter,
         user_input: userInput,
         input_type: inputType,
@@ -117,7 +157,7 @@ export const WriterLayout = ({ onNavigate }: { onNavigate: (page: string) => voi
     if (!draftLabel || !state) return;
     try {
       const draftId = `ch${String(state.current_chapter).padStart(4, '0')}_draft_${draftLabel}.md`;
-      await confirmChapter(AU_PATH, state.current_chapter, draftId, generatedWith);
+      await confirmChapter(auPath, state.current_chapter, draftId, generatedWith);
       setStreamText('');
       setDraftLabel('');
       await loadData();
@@ -128,7 +168,7 @@ export const WriterLayout = ({ onNavigate }: { onNavigate: (page: string) => voi
 
   const handleUndo = async () => {
     try {
-      await undoChapter(AU_PATH);
+      await undoChapter(auPath);
       setStreamText('');
       setDraftLabel('');
       await loadData();
@@ -141,75 +181,29 @@ export const WriterLayout = ({ onNavigate }: { onNavigate: (page: string) => voi
     setFocusSelection(value);
     try {
       const ids = value === 'free' ? [] : [value];
-      await setChapterFocus(AU_PATH, ids);
+      await setChapterFocus(auPath, ids);
     } catch (e: any) {
       setError(e.message || '设置焦点失败');
     }
   };
 
-  const handleSelectChapter = async (num: number) => {
-    setSelectedChapter(num);
-    try {
-      const content = await getChapterContent(AU_PATH, num);
-      setCurrentContent(typeof content === 'string' ? content : '');
-    } catch { setCurrentContent('（无法加载章节内容）'); }
-  };
-
-  // --- Computed ---
   const displayContent = streamText || currentContent;
   const currentChapter = state?.current_chapter || 1;
   const metaModel = generatedWith?.model || sessionModel;
   const metaChars = generatedWith?.char_count || displayContent.length;
   const metaDuration = generatedWith?.duration_ms ? `${(generatedWith.duration_ms / 1000).toFixed(1)}s` : '—';
 
-  // Context visualization from budget_report
   const contextLayers = budgetReport ? [
-    { layer: 'P0', label: 'Pinned', percent: Math.round((budgetReport.system_tokens / (budgetReport.total_input_tokens || 1)) * 100), color: 'bg-error/70' },
-    { layer: 'P1', label: '指令', percent: 15, color: 'bg-warning/70' },
-    { layer: 'P2', label: '最近章节', percent: 35, color: 'bg-info/70' },
-    { layer: 'P3', label: '事实表', percent: 20, color: 'bg-accent/70' },
-    { layer: 'P4', label: 'RAG', percent: 15, color: 'bg-success/70' },
-    { layer: 'P5', label: '设定', percent: 5, color: 'bg-text/30' },
+    { layer: 'P0', label: 'Pinned', percent: Math.max(1, Math.round((budgetReport.system_tokens / (budgetReport.total_input_tokens || 1)) * 100)), color: 'bg-error/70' },
+    { layer: 'C.', label: 'Context', percent: Math.max(1, Math.round((budgetReport.context_tokens / (budgetReport.total_input_tokens || 1)) * 100)), color: 'bg-info/70' },
   ] : [
     { layer: 'P0', label: 'Pinned', percent: 10, color: 'bg-error/70' },
-    { layer: 'P1', label: '指令', percent: 15, color: 'bg-warning/70' },
     { layer: 'P2', label: '最近章节', percent: 35, color: 'bg-info/70' },
     { layer: 'P3', label: '事实表', percent: 20, color: 'bg-accent/70' },
-    { layer: 'P4', label: 'RAG', percent: 15, color: 'bg-success/70' },
-    { layer: 'P5', label: '设定', percent: 5, color: 'bg-text/30' },
   ];
 
   return (
-    <div className="h-screen w-screen flex overflow-hidden bg-background text-text font-sans transition-colors duration-200">
-
-      {/* LEFT SIDEBAR: Chapters */}
-      <Sidebar position="left" width="260px" isCollapsed={leftCollapsed} onToggle={() => setLeftCollapsed(!leftCollapsed)} className="flex flex-col">
-        <div className="p-4 border-b border-black/10 dark:border-white/10 flex items-center justify-between">
-          <div className="font-serif font-bold text-lg truncate">AU</div>
-          <Button variant="ghost" size="sm" onClick={() => onNavigate('library')} className="h-8 w-8 p-0 rounded-full text-text/60 hover:text-text" title="返回作品库">
-            <LogOut size={16} />
-          </Button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {loading ? (
-            <div className="flex items-center justify-center py-8"><Loader2 className="animate-spin text-accent" size={20} /></div>
-          ) : chapters.length === 0 ? (
-            <p className="text-xs text-text/40 text-center py-8">暂无章节</p>
-          ) : (
-            chapters.map(ch => (
-              <div key={ch.chapter_num} onClick={() => handleSelectChapter(ch.chapter_num)}
-                className={`px-3 py-2 rounded-md text-sm cursor-pointer transition-colors ${ch.chapter_num === selectedChapter ? 'bg-accent/10 text-accent font-medium' : 'hover:bg-black/5 dark:hover:bg-white/5 text-text/80'}`}>
-                <div className="flex items-center gap-2">
-                  <span className="opacity-50 text-xs font-mono">#{ch.chapter_num}</span>
-                  <span className="truncate">第{ch.chapter_num}章</span>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </Sidebar>
-
-      {/* MAIN CONTENT AREA */}
+    <>
       <main className="flex-1 flex flex-col min-w-0 bg-background relative transition-colors duration-200">
         <header className="h-12 flex items-center justify-between px-6 border-b border-black/5 dark:border-white/5 text-xs text-text/50">
           <div className="flex items-center gap-4">
@@ -218,7 +212,13 @@ export const WriterLayout = ({ onNavigate }: { onNavigate: (page: string) => voi
             <span>{metaDuration}</span>
           </div>
           <div className="flex items-center gap-2">
-            {isGenerating && <Tag variant="warning">生成中…</Tag>}
+            {isGenerating && <Tag variant="warning" className="mr-2">生成中…</Tag>}
+            <Button variant="ghost" size="sm" className="h-8 text-warning" onClick={() => setDirtyOpen(true)} title="Simulate Dirty State">
+               <AlertCircle size={16} />
+            </Button>
+            <Button variant="ghost" size="sm" className="h-8" onClick={() => setExportOpen(true)} title="Export">
+               <FileUp size={16} />
+            </Button>
             <ThemeToggle />
           </div>
         </header>
@@ -232,13 +232,13 @@ export const WriterLayout = ({ onNavigate }: { onNavigate: (page: string) => voi
         <div className="flex-1 overflow-y-auto w-full flex justify-center pb-24">
           <div className="w-full max-w-2xl px-8 py-12 text-lg font-serif leading-loose text-text/90">
             {loading ? (
-              <div className="flex items-center justify-center py-20"><Loader2 className="animate-spin" size={24} /></div>
+              <div className="flex items-center justify-center py-20"><Loader2 className="animate-spin text-accent" size={24} /></div>
             ) : displayContent ? (
-              displayContent.split('\n').filter(Boolean).map((para, i) => (
+              displayContent.split('\n').filter(Boolean).map((para: string, i: number) => (
                 <p key={i} className={`mb-6 indent-8 ${streamText && !draftLabel ? 'opacity-80' : ''}`}>{para}</p>
               ))
             ) : (
-              <p className="text-text/30 text-center py-20">输入指令或点击"续写"开始创作</p>
+              <p className="text-text/30 text-center py-20">输入指令或点击“续写”开始创作</p>
             )}
             {isGenerating && <span className="inline-block w-0.5 h-5 bg-accent animate-pulse" />}
           </div>
@@ -258,11 +258,10 @@ export const WriterLayout = ({ onNavigate }: { onNavigate: (page: string) => voi
             </div>
           )}
 
-          {/* Instruction input */}
           <div className="max-w-3xl w-full mx-auto">
             <input
               type="text"
-              placeholder="输入指令（如：让林深道歉）或留空直接续写…"
+              placeholder="输入指令（如：让角色道歉）或留空直接续写…"
               value={instructionText}
               onChange={e => setInstructionText(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !isGenerating) handleGenerate(instructionText.trim() ? 'instruction' : 'continue'); }}
@@ -289,7 +288,6 @@ export const WriterLayout = ({ onNavigate }: { onNavigate: (page: string) => voi
         </footer>
       </main>
 
-      {/* RIGHT SIDEBAR */}
       <Sidebar position="right" width="320px" isCollapsed={rightCollapsed} onToggle={() => setRightCollapsed(!rightCollapsed)} className="flex flex-col bg-surface/50 border-l border-black/10 dark:border-white/10">
         <div className="flex-1 overflow-y-auto p-5 space-y-8">
           <section>
@@ -301,7 +299,7 @@ export const WriterLayout = ({ onNavigate }: { onNavigate: (page: string) => voi
               </label>
               {unresolvedFacts.map(f => (
                 <label key={f.id} className="flex items-start gap-2 p-2 rounded-md hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer border border-transparent hover:border-black/5 dark:hover:border-white/5 transition-colors">
-                  <input type="radio" name="focus" className="mt-1 accent-accent" checked={focusSelection === f.id} onChange={() => handleFocusChange(f.id)} />
+                  <input type="radio" name="focus" className="mt-1 accent-accent" checked={focusSelection === String(f.id)} onChange={() => handleFocusChange(String(f.id))} />
                   <div className="flex flex-col">
                     <span className="text-sm">{f.content_clean}</span>
                     <Tag variant="warning" className="mt-1.5 w-fit">unresolved</Tag>
@@ -331,10 +329,14 @@ export const WriterLayout = ({ onNavigate }: { onNavigate: (page: string) => voi
               model={sessionModel} onModelChange={setSessionModel}
               temperature={sessionTemp} onTemperatureChange={setSessionTemp}
               topP={sessionTopP} onTopPChange={setSessionTopP}
+              onSaveGlobal={handleSaveGlobalParams} onSaveAu={handleSaveAuParams}
             />
           </section>
         </div>
       </Sidebar>
-    </div>
+
+      <ExportModal isOpen={isExportOpen} onClose={() => setExportOpen(false)} />
+      <DirtyModal isOpen={isDirtyOpen} onClose={() => setDirtyOpen(false)} auPath={auPath} chapterNum={currentChapter} onResolved={() => { setDirtyOpen(false); loadData(); }} />
+    </>
   );
 };

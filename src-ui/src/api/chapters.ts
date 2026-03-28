@@ -36,3 +36,14 @@ export async function undoChapter(auPath: string): Promise<any> {
     body: JSON.stringify({ au_path: auPath }),
   });
 }
+
+export async function resolveDirtyChapter(auPath: string, chapterNum: number, confirmedFactChanges: any[] = []): Promise<any> {
+  return apiFetch("/api/v1/chapters/dirty/resolve", {
+    method: "POST",
+    body: JSON.stringify({
+      au_path: auPath,
+      chapter_num: chapterNum,
+      confirmed_fact_changes: confirmedFactChanges,
+    }),
+  });
+}

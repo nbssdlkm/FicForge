@@ -9,6 +9,8 @@ interface SettingsPanelProps {
   onTemperatureChange?: (temp: number) => void;
   topP?: number;
   onTopPChange?: (topP: number) => void;
+  onSaveGlobal?: () => void;
+  onSaveAu?: () => void;
 }
 
 export const SettingsPanel = ({
@@ -18,6 +20,8 @@ export const SettingsPanel = ({
   onTemperatureChange,
   topP: externalTopP,
   onTopPChange,
+  onSaveGlobal,
+  onSaveAu
 }: SettingsPanelProps = {}) => {
   const [localModel, setLocalModel] = useState(externalModel || 'deepseek-chat');
   const [temp, setTemp] = useState(externalTemp ?? 1.0);
@@ -42,15 +46,18 @@ export const SettingsPanel = ({
 
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-text/70">模型</label>
-        <select value={localModel} onChange={e => handleModelChange(e.target.value)}
-          className="h-8 rounded border border-black/20 dark:border-white/20 bg-background px-2 text-xs focus:ring-1 focus:ring-accent outline-none">
-          <option value="deepseek-chat">deepseek-chat</option>
-          <option value="claude-3-5-sonnet">claude-3-5-sonnet</option>
-          <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
-          <option value="gpt-4o">gpt-4o</option>
-          <option value="llama3">llama3</option>
-          <option value="qwen-max">qwen-max</option>
-        </select>
+        <div className="flex items-center gap-2">
+           <select value={localModel} onChange={e => handleModelChange(e.target.value)}
+             className="h-8 rounded border border-black/20 dark:border-white/20 bg-background px-2 text-xs focus:ring-1 focus:ring-accent outline-none flex-1">
+             <option value="deepseek-chat">deepseek-chat</option>
+             <option value="claude-3-5-sonnet">claude-3-5-sonnet</option>
+             <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
+             <option value="gpt-4o">gpt-4o</option>
+             <option value="llama3">llama3</option>
+             <option value="qwen-max">qwen-max</option>
+             <option value="custom-model">custom-model (全局设置指定)</option>
+           </select>
+        </div>
       </div>
 
       <div className="flex flex-col gap-1.5">
@@ -74,8 +81,8 @@ export const SettingsPanel = ({
       </div>
 
       <div className="grid grid-cols-2 gap-2 mt-2">
-        <Button variant="secondary" size="sm" className="text-xs h-8">记住到全局</Button>
-        <Button variant="secondary" size="sm" className="text-xs h-8">记住到本 AU</Button>
+        <Button variant="secondary" size="sm" className="text-xs h-8" onClick={onSaveGlobal}>记住到全局</Button>
+        <Button variant="secondary" size="sm" className="text-xs h-8" onClick={onSaveAu}>记住到本 AU</Button>
       </div>
     </Card>
   );

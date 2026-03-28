@@ -1,18 +1,22 @@
-import React, { HTMLAttributes } from 'react';
+import { HTMLAttributes, forwardRef } from 'react';
 import { cn } from './utils';
 
 export interface TagProps extends HTMLAttributes<HTMLSpanElement> {
-  variant?: 'default' | 'success' | 'warning' | 'error' | 'info';
+  variant?: 'default' | 'success' | 'warning' | 'error' | 'info' | 'resolved' | 'deprecated' | 'unresolved' | 'active';
 }
 
-export const Tag = React.forwardRef<HTMLSpanElement, TagProps>(
+export const Tag = forwardRef<HTMLSpanElement, TagProps>(
   ({ className, variant = 'default', ...props }, ref) => {
     const variants = {
       default: 'bg-black/5 dark:bg-white/10 text-text',
-      success: 'bg-success/20 text-success dark:bg-success/30',
-      warning: 'bg-warning/20 text-warning dark:bg-warning/30',
-      error: 'bg-error/20 text-error dark:bg-error/30',
-      info: 'bg-info/20 text-info dark:bg-info/30',
+      success: 'bg-success/10 text-success border border-success/20',
+      warning: 'bg-warning/10 text-warning border border-warning/20',
+      error: 'bg-error/10 text-error border border-error/20',
+      info: 'bg-info/10 text-info border border-info/20',
+      unresolved: 'bg-accent/10 text-accent border border-accent/20 font-bold',
+      active: 'bg-info/10 text-info border border-info/20',
+      resolved: 'bg-black/5 dark:bg-white/10 text-text/50 border border-black/10 dark:border-white/10',
+      deprecated: 'bg-black/5 dark:bg-white/10 text-text/40 line-through border border-transparent',
     };
 
     return (

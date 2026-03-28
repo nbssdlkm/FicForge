@@ -7,6 +7,7 @@ Tauri 桌面端通过 sidecar 方式启动本进程。
 
 from __future__ import annotations
 
+import os
 import socket
 import sys
 
@@ -23,6 +24,7 @@ from api.routes.generate import router as generate_router
 from api.routes.project import router as project_router
 from api.routes.settings import router as settings_router
 from api.routes.state import router as state_router
+from api.routes.lore import router as lore_router
 
 # ---------------------------------------------------------------------------
 # 动态端口（启动后通过 stdout 通知 Tauri）
@@ -31,10 +33,9 @@ _sidecar_port: int = 0
 
 
 def _get_free_port() -> int:
-    """绑定 127.0.0.1:0 获取操作系统分配的空闲端口。"""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
+    """开发模式默认绑定 54284 方便前端调试。生产环境可恢复为 0"""
+    v = os.environ.get("PORT", "54284")
+    return int(v)
 
 
 # ---------------------------------------------------------------------------
@@ -120,6 +121,7 @@ def create_app() -> FastAPI:
     application.include_router(project_router)
     application.include_router(settings_router)
     application.include_router(state_router)
+    application.include_router(lore_router)
 
     return application
 

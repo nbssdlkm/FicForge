@@ -1,17 +1,17 @@
 import { useState, useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { Library } from "./ui/Library";
-import { WriterLayout } from "./ui/writer/WriterLayout";
-import { FactsLayout } from "./ui/facts/FactsLayout";
+import { FandomLoreLayout } from "./ui/library/FandomLoreLayout";
+import { AuWorkspaceLayout } from "./ui/workspace/AuWorkspaceLayout";
 import { setSidecarPort } from "./api/client";
 
 function App() {
   const [currentPage, setCurrentPage] = useState<string>("library");
+  const [currentAuPath, setCurrentAuPath] = useState<string>("");
   const [sidecarReady, setSidecarReady] = useState(false);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
-
     async function setup() {
       try {
         unlisten = await listen<number>("sidecar-ready", (event) => {
@@ -22,15 +22,20 @@ function App() {
         setSidecarReady(true);
       }
     }
-
     setup();
     const timer = setTimeout(() => setSidecarReady(true), 3000);
-
     return () => {
       clearTimeout(timer);
       unlisten?.();
     };
   }, []);
+
+  const handleNavigate = (page: string, contextPath?: string) => {
+    if (contextPath) {
+      setCurrentAuPath(contextPath);
+    }
+    setCurrentPage(page);
+  };
 
   if (!sidecarReady) {
     return (
@@ -43,11 +48,20 @@ function App() {
     );
   }
 
+  const isAuSpace = ["writer", "facts", "au_lore", "settings"].includes(currentPage);
+
   return (
     <>
-      {currentPage === "library" && <Library onNavigate={setCurrentPage} />}
-      {currentPage === "writer" && <WriterLayout onNavigate={setCurrentPage} />}
-      {currentPage === "facts" && <FactsLayout onNavigate={setCurrentPage} />}
+      {!isAuSpace && currentPage === "library" && <Library onNavigate={handleNavigate} />}
+      {!isAuSpace && currentPage === "fandom_lore" && <FandomLoreLayout onNavigate={handleNavigate} />}
+      
+      {isAuSpace && (
+        <AuWorkspaceLayout 
+          activeTab={currentPage} 
+          onNavigate={handleNavigate}
+          auPath={currentAuPath}
+        />
+      )}
     </>
   );
 }
