@@ -13,6 +13,10 @@ import sys
 import tempfile
 import time
 
+# 清除代理环境变量（防止 httpx 走 SOCKS proxy 报错）
+for _pv in ("ALL_PROXY", "all_proxy", "HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy"):
+    os.environ.pop(_pv, None)
+
 import httpx
 
 PORT = int(os.environ.get("TEST_PORT", "54284"))
@@ -38,6 +42,41 @@ def fail(label: str, detail: str) -> None:
     failed += 1
     bugs.append(f"{label}: {detail}")
     print(f"  \u274c {label}: {detail}")
+
+
+def parse_sse_stream(resp) -> tuple[str, list[dict], str | None, dict | None]:
+    """解析 SSE 流，返回 (生成文本, 事件列表, 错误消息, done 数据)。
+
+    SSE 格式：
+        event: token\\n
+        data: {"text": "..."}\\n
+        \\n
+    """
+    content = ""
+    events: list[dict] = []
+    error_msg: str | None = None
+    done_data: dict | None = None
+    current_event = ""
+
+    for line in resp.iter_lines():
+        if not line.strip():
+            continue
+        if line.startswith("event: "):
+            current_event = line[7:].strip()
+        elif line.startswith("data: "):
+            data_str = line[6:]
+            try:
+                data = json.loads(data_str)
+            except json.JSONDecodeError:
+                continue
+            events.append({"event": current_event, "data": data})
+            if current_event == "token":
+                content += data.get("text", "")
+            elif current_event == "done":
+                done_data = data
+            elif current_event == "error":
+                error_msg = data.get("message", str(data))
+    return content, events, error_msg, done_data
 
 
 def section(title: str) -> None:
@@ -263,7 +302,7 @@ else:
 
 # 3.2 确认导入 — 需要用完整内容，preview 只有 100 字
 # 重新切分获取完整内容
-from core.services.import_pipeline import split_into_chapters, get_split_method
+from core.services.import_pipeline import split_into_chapters
 
 full_chapters = split_into_chapters(test_novel)
 confirm_chapters = [
@@ -277,6 +316,7 @@ r = client.post(
         "au_path": au_path,
         "chapters": confirm_chapters,
         "split_method": preview.get("split_method", "title"),
+        "cast_registry": {"from_core": [], "au_specific": ["凌风", "苏晓"], "oc": []},
     },
 )
 if r.status_code == 200:
@@ -312,6 +352,14 @@ if r.status_code == 200:
         )
 else:
     fail("3.4 State 初始化", f"status={r.status_code} {r.text}")
+
+# 3.4b 验证 characters_last_seen 包含导入角色
+if r.status_code == 200:
+    cls = state.get("characters_last_seen", {})
+    if "凌风" in cls and "苏晓" in cls:
+        ok("3.4b 角色扫描", f"凌风@ch{cls['凌风']}, 苏晓@ch{cls['苏晓']}")
+    else:
+        fail("3.4b 角色扫描", f"characters_last_seen={cls}")
 
 # 3.5 读取第 1 章内容
 r = client.get("/api/v1/chapters/1/content", params={"au_path": au_path})
@@ -514,33 +562,14 @@ else:
             },
             timeout=60,
         ) as resp:
-            events: list[dict] = []
-            draft_content = ""
-            for line in resp.iter_lines():
-                if not line.strip():
-                    continue
-                if line.startswith("data: "):
-                    data_str = line[6:]
-                    try:
-                        ev = json.loads(data_str)
-                        events.append(ev)
-                        if ev.get("event") == "token":
-                            draft_content += ev.get("data", {}).get("text", "")
-                        elif ev.get("event") == "done":
-                            draft_content = ev.get("data", {}).get("full_text", draft_content)
-                    except json.JSONDecodeError:
-                        pass
+            draft_content, events, err, done_data = parse_sse_stream(resp)
 
-            if draft_content and len(draft_content) > 20:
+            if err:
+                fail("6.1 SSE 生成", f"error: {err}")
+            elif draft_content and len(draft_content) > 20:
                 ok("6.1 SSE 生成第 4 章", f"{len(draft_content)} 字符, {len(events)} events")
-            elif events:
-                last_ev = events[-1] if events else {}
-                if last_ev.get("event") == "error":
-                    fail("6.1 SSE 生成", f"error: {last_ev.get('data', {}).get('message', '')}")
-                else:
-                    ok("6.1 SSE 生成（有事件流）", f"{len(events)} events, content={len(draft_content)} 字符")
             else:
-                fail("6.1 SSE 生成", f"无事件流, status={resp.status_code}")
+                fail("6.1 SSE 生成", f"content 太短: {len(draft_content)} 字符, {len(events)} events")
     except Exception as exc:
         fail("6.1 SSE 生成", f"exception: {exc}")
 
@@ -565,27 +594,14 @@ else:
             },
             timeout=60,
         ) as resp:
-            events2: list[dict] = []
-            draft2 = ""
-            for line in resp.iter_lines():
-                if not line.strip():
-                    continue
-                if line.startswith("data: "):
-                    try:
-                        ev = json.loads(line[6:])
-                        events2.append(ev)
-                        if ev.get("event") == "token":
-                            draft2 += ev.get("data", {}).get("text", "")
-                        elif ev.get("event") == "done":
-                            draft2 = ev.get("data", {}).get("full_text", draft2)
-                    except json.JSONDecodeError:
-                        pass
-            if draft2 and len(draft2) > 20:
+            draft2, events2, err2, _ = parse_sse_stream(resp)
+
+            if err2:
+                fail("6.3 第二次生成", f"error: {err2}")
+            elif draft2 and len(draft2) > 20:
                 ok("6.3 第二次生成", f"{len(draft2)} 字符")
-            elif events2:
-                ok("6.3 第二次生成（有事件流）", f"{len(events2)} events")
             else:
-                fail("6.3 第二次生成", "无输出")
+                fail("6.3 第二次生成", f"content 太短: {len(draft2)} 字符")
     except Exception as exc:
         fail("6.3 第二次生成", f"exception: {exc}")
 
@@ -605,13 +621,15 @@ else:
 
     # 6.5 确认第一个版本
     if draft_id:
+        # 从第一次生成的 done 事件提取 generated_with 元数据
+        gen_with = done_data.get("generated_with") if done_data else None
         r = client.post(
             "/api/v1/chapters/confirm",
             json={
                 "au_path": au_path,
                 "chapter_num": current_ch,
                 "draft_id": draft_id,
-                "generated_with": None,
+                "generated_with": gen_with,
             },
         )
         if r.status_code == 200:
@@ -764,6 +782,21 @@ if bugs:
     print(f"\n  发现的 bug ({len(bugs)} 个):")
     for i, b in enumerate(bugs, 1):
         print(f"    {i}. {b}")
+
+# 清理：移除 settings 中的 API key（防止泄露到本地磁盘）
+try:
+    import yaml
+    from pathlib import Path
+
+    settings_path = Path("fandoms/settings.yaml")
+    if settings_path.exists():
+        sd = yaml.safe_load(settings_path.read_text())
+        for k in ("default_llm", "embedding"):
+            if k in sd:
+                sd[k]["api_key"] = ""
+        settings_path.write_text(yaml.dump(sd, allow_unicode=True, default_flow_style=False))
+except Exception:
+    pass
 
 print()
 sys.exit(0 if failed == 0 else 1)

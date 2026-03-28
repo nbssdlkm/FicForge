@@ -9,9 +9,13 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from api import build_project_repository, error_response
+from api import build_project_repository, error_response, validate_path
 from core.domain.enums import EmotionStyle, LLMMode, Perspective
 from repositories.implementations.local_file_project import ProjectInvalidError
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/project", tags=["project"])
 
@@ -77,6 +81,7 @@ async def get_project(au_path: str = Query(...)):
     try:
         project = await run_in_threadpool(repo.get, au_path)
     except FileNotFoundError:
+        logger.exception("Project not found: au=%s", au_path)
         return error_response(
             404,
             "PROJECT_NOT_FOUND",
@@ -84,6 +89,7 @@ async def get_project(au_path: str = Query(...)):
             ["检查 au_path 是否正确"],
         )
     except ProjectInvalidError as exc:
+        logger.exception("Project invalid: au=%s", au_path)
         return error_response(
             400,
             "PROJECT_INVALID",
@@ -115,13 +121,18 @@ class ProjectUpdateResponse(BaseModel):
 
 @router.put("", response_model=ProjectUpdateResponse)
 async def update_project(payload: ProjectUpdatePayload, au_path: str = Query(...)):
+    logger.info("Update project: au=%s", au_path)
+    if not validate_path(au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_project_repository()
 
     try:
         project = await run_in_threadpool(repo.get, au_path)
     except FileNotFoundError:
+        logger.exception("Update project - not found: au=%s", au_path)
         return error_response(404, "PROJECT_NOT_FOUND", "project.yaml 不存在", [])
     except ProjectInvalidError as exc:
+        logger.exception("Update project - invalid: au=%s", au_path)
         return error_response(400, "PROJECT_INVALID", str(exc), [])
 
     if payload.chapter_length is not None:
@@ -147,10 +158,22 @@ async def update_project(payload: ProjectUpdatePayload, au_path: str = Query(...
         project.rag_decay_coefficient = payload.rag_decay_coefficient
     if payload.core_guarantee_budget is not None:
         project.core_guarantee_budget = payload.core_guarantee_budget
+    if payload.llm is not None:
+        llm = project.llm
+        for key in ("mode", "model", "api_base", "api_key", "local_model_path", "ollama_model", "context_window"):
+            if key in payload.llm:
+                val = payload.llm[key]
+                # mode 字段需要转为 LLMMode 枚举
+                if key == "mode" and isinstance(val, str):
+                    val = LLMMode(val)
+                setattr(llm, key, val)
+    if payload.model_params_override is not None:
+        project.model_params_override = payload.model_params_override
 
     try:
         await run_in_threadpool(repo.save, project)
     except Exception as exc:
+        logger.exception("Update project save failed: au=%s", au_path)
         return error_response(500, "PROJECT_SAVE_FAILED", str(exc), [])
 
     return ProjectUpdateResponse(status="ok", revision=project.revision)

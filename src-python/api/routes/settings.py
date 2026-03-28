@@ -11,6 +11,10 @@ from starlette.concurrency import run_in_threadpool
 from api import build_settings_repository, error_response
 from core.domain.enums import APIMode, LicenseTier, LLMMode
 from core.domain.project import LLMConfig
+import logging
+
+logger = logging.getLogger(__name__)
+
 from core.domain.settings import (
     AppConfig,
     ChapterMetadataDisplay,
@@ -145,12 +149,14 @@ async def get_settings():
 
 @router.put("", response_model=SettingsUpdateResponse)
 async def update_settings(request: SettingsPayload):
+    logger.info("Update settings")
     repo = build_settings_repository()
     settings = request.to_domain()
 
     try:
         await run_in_threadpool(repo.save, settings)
     except Exception as exc:
+        logger.exception("Update settings failed")
         return error_response(
             500,
             "SETTINGS_SAVE_FAILED",

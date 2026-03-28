@@ -10,6 +10,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
+from api import validate_path
+
 router = APIRouter(prefix="/api/v1", tags=["generate"])
 
 
@@ -35,10 +37,19 @@ from api import (
 from core.services.generation import generate_chapter
 from pathlib import Path
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 @router.post("/generate/stream")
 async def generate_stream(request: GenerateRequest) -> StreamingResponse:
     """SSE 流式生成端点。"""
+    logger.info("Generate stream: au=%s ch=%d type=%s", request.au_path, request.chapter_num, request.input_type)
+    if not validate_path(request.au_path):
+        async def _error_gen():
+            yield 'event: error\ndata: {"error_code": "INVALID_PATH", "message": "路径不合法", "actions": []}\n\n'
+        return StreamingResponse(_error_gen(), media_type="text/event-stream")
 
     async def _event_generator() -> Any:
         try:
@@ -76,10 +87,16 @@ async def generate_stream(request: GenerateRequest) -> StreamingResponse:
                 draft_repo=draft_repo,
             )
             
-            for event in stream:
+            # 将同步迭代器的阻塞 next() 放到线程池，防止卡住事件循环
+            it = iter(stream)
+            while True:
+                event = await run_in_threadpool(next, it, None)
+                if event is None:
+                    break
                 yield f"event: {event['event']}\ndata: {json.dumps(event['data'], ensure_ascii=False)}\n\n"
                 
         except Exception as e:
+            logger.exception("Generate stream failed: au=%s ch=%d", request.au_path, request.chapter_num)
             error_data = {"error_code": "GENERATION_FAILED", "message": str(e), "actions": []}
             yield f"event: error\ndata: {json.dumps(error_data, ensure_ascii=False)}\n\n"
 

@@ -10,9 +10,13 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from api import build_fandom_repository, error_response
+from api import build_fandom_repository, error_response, validate_path
 from infra.storage_local.directory import ensure_au_directories
 from infra.storage_local.file_utils import now_utc
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["fandoms"])
 
@@ -34,6 +38,8 @@ class CreateAURequest(BaseModel):
 
 @router.get("/fandoms")
 async def list_fandoms(data_dir: str = "./fandoms") -> Any:
+    if not validate_path(data_dir):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_fandom_repository()
     try:
         names = await run_in_threadpool(repo.list_fandoms, data_dir)
@@ -44,11 +50,15 @@ async def list_fandoms(data_dir: str = "./fandoms") -> Any:
             result.append({"name": name, "aus": aus})
         return result
     except Exception as e:
+        logger.exception("List fandoms failed: data_dir=%s", data_dir)
         return error_response(500, "INTERNAL_ERROR", str(e))
 
 
 @router.post("/fandoms")
 async def create_fandom(request: CreateFandomRequest) -> Any:
+    logger.info("Create fandom: name=%s", request.name)
+    if not validate_path(request.name) or not validate_path(request.data_dir):
+        return error_response(400, "INVALID_NAME", "名称不合法", [])
     from pathlib import Path
     from core.domain.fandom import Fandom
     fandom_path = Path(request.data_dir) / "fandoms" / request.name
@@ -61,17 +71,23 @@ async def create_fandom(request: CreateFandomRequest) -> Any:
 
 @router.get("/fandoms/{fandom_name}/aus")
 async def list_aus(fandom_name: str, data_dir: str = "./fandoms") -> Any:
+    if not validate_path(fandom_name) or not validate_path(data_dir):
+        return error_response(400, "INVALID_NAME", "名称不合法", [])
     repo = build_fandom_repository()
     fandom_path = f"{data_dir}/fandoms/{fandom_name}"
     try:
         aus = await run_in_threadpool(repo.list_aus, fandom_path)
         return aus
     except Exception as e:
+        logger.exception("List AUs failed: fandom=%s", fandom_name)
         return error_response(500, "INTERNAL_ERROR", str(e))
 
 
 @router.post("/fandoms/{fandom_name}/aus")
 async def create_au(fandom_name: str, request: CreateAURequest) -> Any:
+    logger.info("Create AU: fandom=%s name=%s", fandom_name, request.name)
+    if not validate_path(request.name) or not validate_path(request.fandom_path):
+        return error_response(400, "INVALID_NAME", "名称不合法", [])
     from pathlib import Path
     au_path = Path(request.fandom_path) / "aus" / request.name
     ensure_au_directories(au_path)
@@ -117,6 +133,8 @@ async def list_fandom_files(
     fandom_name: str, data_dir: str = Query("./fandoms"),
 ) -> Any:
     """扫描 fandom 目录下的角色和世界观 .md 文件。"""
+    if not validate_path(data_dir):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     if not _SAFE_NAME_RE.match(fandom_name):
         return error_response(400, "INVALID_NAME", "非法的 fandom 名称", [])
 
@@ -140,6 +158,8 @@ async def read_fandom_file(
     data_dir: str = Query("./fandoms"),
 ) -> Any:
     """读取 fandom 下指定分类的 .md 文件内容。"""
+    if not validate_path(data_dir):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     if not _SAFE_NAME_RE.match(fandom_name):
         return error_response(400, "INVALID_NAME", "非法的 fandom 名称", [])
     if category not in ("core_characters", "core_worldbuilding"):
@@ -155,6 +175,7 @@ async def read_fandom_file(
     try:
         content = await run_in_threadpool(file_path.read_text, "utf-8")
     except Exception as exc:
+        logger.exception("Read fandom file failed: fandom=%s file=%s", fandom_name, filename)
         return error_response(500, "FILE_READ_FAILED", str(exc), [])
 
     return {"filename": filename, "category": category, "content": content}
