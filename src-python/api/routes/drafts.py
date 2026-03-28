@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import asdict
 
 from fastapi import APIRouter, Query
@@ -9,6 +10,8 @@ from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
 from api import build_draft_filename, build_draft_repository, error_response
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/drafts", tags=["drafts"])
 
@@ -58,6 +61,7 @@ async def get_draft(label: str, au_path: str = Query(...), chapter_num: int = Qu
     try:
         draft = await run_in_threadpool(repo.get, au_path, chapter_num, label)
     except FileNotFoundError:
+        logger.exception("Draft not found: au=%s ch=%d label=%s", au_path, chapter_num, label)
         return error_response(
             404,
             "DRAFT_NOT_FOUND",

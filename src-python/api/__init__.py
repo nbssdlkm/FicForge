@@ -115,3 +115,8 @@ def error_response(
 def build_draft_filename(chapter_num: int, variant: str) -> str:
     """构建草稿文件名。"""
     return f"ch{chapter_num:04d}_draft_{variant}.md"
+
+
+def validate_path(path: str) -> bool:
+    """拒绝含路径遍历的输入。所有接受用户路径的端点必须调用。"""
+    return ".." not in path

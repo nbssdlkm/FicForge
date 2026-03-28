@@ -18,11 +18,16 @@ from api import (
     build_settings_repository,
     build_state_repository,
     error_response,
+    validate_path,
 )
 from core.domain.enums import FactSource, FactStatus, FactType, NarrativeWeight
-from core.services.facts_extraction import ExtractedFact, extract_facts_from_chapter
+from core.services.facts_extraction import extract_facts_from_chapter
 from core.services.facts_lifecycle import FactsLifecycleError, add_fact, edit_fact, update_fact_status
 from infra.llm.config_resolver import create_provider, resolve_llm_config
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/facts", tags=["facts"])
 
@@ -127,6 +132,9 @@ async def list_facts(
 
 @router.post("", response_model=AddFactResponse, status_code=201)
 async def create_fact(request: AddFactRequest):
+    logger.info("Add fact: au=%s ch=%d", request.au_path, request.chapter_num)
+    if not validate_path(request.au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_fact_repository()
     ops_repo = build_ops_repository()
 
@@ -140,6 +148,7 @@ async def create_fact(request: AddFactRequest):
             ops_repo,
         )
     except FactsLifecycleError as exc:
+        logger.exception("Add fact failed: au=%s ch=%d", request.au_path, request.chapter_num)
         return error_response(
             400,
             "ADD_FACT_INVALID",
@@ -152,6 +161,9 @@ async def create_fact(request: AddFactRequest):
 
 @router.put("/{fact_id}", response_model=EditFactResponse)
 async def update_fact(fact_id: str, request: EditFactRequest):
+    logger.info("Edit fact: au=%s fact_id=%s", request.au_path, fact_id)
+    if not validate_path(request.au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_fact_repository()
     ops_repo = build_ops_repository()
     state_repo = build_state_repository()
@@ -167,6 +179,7 @@ async def update_fact(fact_id: str, request: EditFactRequest):
             state_repo,
         )
     except FactsLifecycleError as exc:
+        logger.exception("Edit fact failed: au=%s fact_id=%s", request.au_path, fact_id)
         return error_response(
             400,
             "EDIT_FACT_INVALID",
@@ -179,6 +192,9 @@ async def update_fact(fact_id: str, request: EditFactRequest):
 
 @router.patch("/{fact_id}/status", response_model=UpdateFactStatusResponse)
 async def patch_fact_status(fact_id: str, request: UpdateFactStatusRequest):
+    logger.info("Update fact status: au=%s fact_id=%s status=%s", request.au_path, fact_id, request.new_status.value)
+    if not validate_path(request.au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_fact_repository()
     ops_repo = build_ops_repository()
     state_repo = build_state_repository()
@@ -195,6 +211,7 @@ async def patch_fact_status(fact_id: str, request: UpdateFactStatusRequest):
             state_repo,
         )
     except FactsLifecycleError as exc:
+        logger.exception("Update fact status failed: au=%s fact_id=%s", request.au_path, fact_id)
         return error_response(
             400,
             "UPDATE_FACT_STATUS_INVALID",
@@ -211,6 +228,9 @@ async def patch_fact_status(fact_id: str, request: UpdateFactStatusRequest):
 @router.post("/extract")
 async def extract_facts_endpoint(request: ExtractFactsRequest) -> Any:
     """提取章节中的 facts 候选列表（PRD §6.7）。"""
+    logger.info("Extract facts: au=%s ch=%d", request.au_path, request.chapter_num)
+    if not validate_path(request.au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     au_path = Path(request.au_path)
     chapter_repo = build_chapter_repository()
     fact_repo = build_fact_repository()
@@ -222,6 +242,7 @@ async def extract_facts_endpoint(request: ExtractFactsRequest) -> Any:
             chapter_repo.get_content_only, str(au_path), request.chapter_num,
         )
     except Exception:
+        logger.exception("Extract facts chapter not found: au=%s ch=%d", request.au_path, request.chapter_num)
         return error_response(
             404,
             "CHAPTER_NOT_FOUND",
@@ -263,6 +284,7 @@ async def extract_facts_endpoint(request: ExtractFactsRequest) -> Any:
             llm_config,
         )
     except Exception as exc:
+        logger.exception("Extract facts failed: au=%s ch=%d", request.au_path, request.chapter_num)
         return error_response(
             500,
             "EXTRACT_FACTS_FAILED",

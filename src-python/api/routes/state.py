@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import asdict
 from pathlib import Path
 
@@ -9,9 +10,11 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from api import build_fact_repository, build_ops_repository, build_state_repository, error_response
+from api import build_fact_repository, build_ops_repository, build_state_repository, error_response, validate_path
 from core.domain.enums import IndexStatus
 from core.services.facts_lifecycle import FactsLifecycleError, set_chapter_focus
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/state", tags=["state"])
 
@@ -55,6 +58,9 @@ async def get_state(au_path: str = Query(...)):
 
 @router.put("/chapter-focus", response_model=SetChapterFocusResponse)
 async def update_chapter_focus(request: SetChapterFocusRequest):
+    logger.info("Set chapter focus: au=%s focus=%s", request.au_path, request.focus_ids)
+    if not validate_path(request.au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     fact_repo = build_fact_repository()
     ops_repo = build_ops_repository()
     state_repo = build_state_repository()
@@ -69,6 +75,7 @@ async def update_chapter_focus(request: SetChapterFocusRequest):
             state_repo,
         )
     except FactsLifecycleError as exc:
+        logger.exception("Set chapter focus failed: au=%s", request.au_path)
         return error_response(
             400,
             "CHAPTER_FOCUS_INVALID",

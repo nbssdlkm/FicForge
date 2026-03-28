@@ -18,6 +18,7 @@ from api import (
     build_project_repository,
     build_state_repository,
     error_response,
+    validate_path,
 )
 from core.services.import_pipeline import (
     ImportResult,
@@ -27,6 +28,10 @@ from core.services.import_pipeline import (
     split_into_chapters,
 )
 from core.services.export_service import export_chapters
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["import_export"])
 
@@ -75,6 +80,7 @@ class ImportConfirmResponse(BaseModel):
 @router.post("/import/upload", response_model=ImportUploadResponse)
 async def import_upload(file: UploadFile):
     """接收上传文件，返回解析结果预览（不写入）。"""
+    logger.info("Import upload: filename=%s", file.filename)
     # 验证文件扩展名
     filename = file.filename or "upload.txt"
     suffix = Path(filename).suffix.lower()
@@ -124,6 +130,9 @@ async def import_upload(file: UploadFile):
 @router.post("/import/confirm", response_model=ImportConfirmResponse)
 async def import_confirm(request: ImportConfirmRequest):
     """确认导入（写入文件 + 初始化状态）。"""
+    logger.info("Import confirm: au=%s chapters=%d", request.au_path, len(request.chapters))
+    if not validate_path(request.au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     au_path = Path(request.au_path)
 
     # 转换章节数据
@@ -175,6 +184,7 @@ async def import_confirm(request: ImportConfirmRequest):
             request.split_method,
         )
     except Exception as exc:
+        logger.exception("Import confirm failed: au=%s", request.au_path)
         return error_response(
             500,
             "IMPORT_FAILED",
@@ -204,6 +214,9 @@ async def export_chapters_endpoint(
     include_chapter_num: bool = Query(True),
 ):
     """导出章节为文本文件。"""
+    logger.info("Export chapters: au=%s start=%d end=%s fmt=%s", au_path, start, end, format)
+    if not validate_path(au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     if format not in ("txt", "md"):
         return error_response(
             400,
@@ -224,6 +237,7 @@ async def export_chapters_endpoint(
             include_chapter_num,
         )
     except Exception as exc:
+        logger.exception("Export chapters failed: au=%s", au_path)
         return error_response(
             500,
             "EXPORT_FAILED",

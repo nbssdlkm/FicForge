@@ -16,12 +16,17 @@ from api import (
     build_resolve_dirty_service,
     build_undo_chapter_service,
     error_response,
+    validate_path,
 )
 from core.domain.fact_change import FactChange
 from core.domain.generated_with import GeneratedWith
 from core.services.confirm_chapter import ConfirmChapterError
 from core.services.dirty_resolve import DirtyResolveError
 from core.services.undo_chapter import UndoChapterError
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/chapters", tags=["chapters"])
 
@@ -109,6 +114,9 @@ class ChapterContentResponse(BaseModel):
 
 @router.post("/confirm", response_model=ConfirmChapterResponse)
 async def confirm_chapter(request: ConfirmChapterRequest):
+    logger.info("Confirm chapter: au=%s ch=%d draft=%s", request.au_path, request.chapter_num, request.draft_id)
+    if not validate_path(request.au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     service = build_confirm_chapter_service()
     generated_with = (
         request.generated_with.to_domain() if request.generated_with is not None else None
@@ -123,6 +131,7 @@ async def confirm_chapter(request: ConfirmChapterRequest):
             generated_with,
         )
     except ConfirmChapterError as exc:
+        logger.exception("Confirm chapter failed: au=%s ch=%d", request.au_path, request.chapter_num)
         message = str(exc)
         if "草稿文件不存在" in message:
             return error_response(
@@ -154,6 +163,9 @@ async def confirm_chapter(request: ConfirmChapterRequest):
 
 @router.post("/undo", response_model=UndoChapterResponse)
 async def undo_latest_chapter(request: UndoChapterRequest):
+    logger.info("Undo chapter: au=%s", request.au_path)
+    if not validate_path(request.au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     service = build_undo_chapter_service()
 
     try:
@@ -162,6 +174,7 @@ async def undo_latest_chapter(request: UndoChapterRequest):
             Path(request.au_path),
         )
     except UndoChapterError as exc:
+        logger.exception("Undo chapter failed: au=%s", request.au_path)
         return error_response(
             400,
             "NO_CHAPTER_TO_UNDO",
@@ -177,6 +190,9 @@ async def undo_latest_chapter(request: UndoChapterRequest):
 
 @router.post("/dirty/resolve", response_model=ResolveDirtyChapterResponse)
 async def resolve_dirty_chapter(request: ResolveDirtyChapterRequest):
+    logger.info("Resolve dirty chapter: au=%s ch=%d", request.au_path, request.chapter_num)
+    if not validate_path(request.au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     service = build_resolve_dirty_service()
     changes = [item.to_domain() for item in request.confirmed_fact_changes]
 
@@ -188,6 +204,7 @@ async def resolve_dirty_chapter(request: ResolveDirtyChapterRequest):
             changes,
         )
     except DirtyResolveError as exc:
+        logger.exception("Resolve dirty chapter failed: au=%s ch=%d", request.au_path, request.chapter_num)
         return error_response(
             400,
             "DIRTY_CHAPTER_INVALID",
@@ -223,6 +240,7 @@ async def get_chapter(chapter_num: int, au_path: str = Query(...)):
     try:
         chapter = await run_in_threadpool(repo.get, au_path, chapter_num)
     except FileNotFoundError:
+        logger.exception("Chapter not found: au=%s ch=%d", au_path, chapter_num)
         return error_response(
             404,
             "CHAPTER_NOT_FOUND",
@@ -240,6 +258,7 @@ async def get_chapter_content(chapter_num: int, au_path: str = Query(...)):
     try:
         content = await run_in_threadpool(repo.get_content_only, au_path, chapter_num)
     except FileNotFoundError:
+        logger.exception("Chapter content not found: au=%s ch=%d", au_path, chapter_num)
         return error_response(
             404,
             "CHAPTER_NOT_FOUND",

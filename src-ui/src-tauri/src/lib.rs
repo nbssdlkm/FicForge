@@ -2,6 +2,9 @@
 //!
 //! PRD §2.6.7: Tauri 通过 Command API 拉起 Python sidecar，
 //! 监听 stdout 解析端口号，检测进程退出。
+//!
+//! 开发模式：直接运行 `python3 src-python/main.py`
+//! 生产模式：运行打包后的 `sidecar/main` (Linux) 或 `sidecar/main.exe` (Windows)
 
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
@@ -29,6 +32,51 @@ fn get_sidecar_port(state: tauri::State<SidecarState>) -> Option<u16> {
 // Sidecar 进程管理
 // ---------------------------------------------------------------------------
 
+/// 解析 sidecar 可执行文件路径。
+///
+/// 生产模式：`{app_resource_dir}/sidecar/main[.exe]`
+/// 开发模式：`python3 {project_root}/src-python/main.py`
+fn resolve_sidecar_command(handle: &AppHandle) -> (String, Vec<String>, Vec<(String, String)>) {
+    // 尝试生产模式路径
+    if let Ok(resource_dir) = handle.path().resource_dir() {
+        let sidecar_dir = resource_dir.join("sidecar");
+        let exe_name = if cfg!(windows) { "fanfic-sidecar.exe" } else { "fanfic-sidecar" };
+        let sidecar_exe = sidecar_dir.join(exe_name);
+
+        if sidecar_exe.exists() {
+            eprintln!("[sidecar] production mode: {}", sidecar_exe.display());
+            return (
+                sidecar_exe.to_string_lossy().to_string(),
+                vec![],
+                vec![("PYTHONUNBUFFERED".into(), "1".into())],
+            );
+        }
+    }
+
+    // 开发模式 fallback
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let project_root = std::path::Path::new(manifest_dir)
+        .parent()
+        .expect("cannot resolve src-ui")
+        .parent()
+        .expect("cannot resolve project root");
+    let script_path = project_root.join("src-python").join("main.py");
+    let python_path = project_root.join("src-python");
+
+    // Windows: python, Linux/macOS: python3
+    let python_cmd = if cfg!(windows) { "python" } else { "python3" };
+    eprintln!("[sidecar] dev mode: {} {}", python_cmd, script_path.display());
+
+    (
+        python_cmd.into(),
+        vec![script_path.to_string_lossy().to_string()],
+        vec![
+            ("PYTHONUNBUFFERED".into(), "1".into()),
+            ("PYTHONPATH".into(), python_path.to_string_lossy().to_string()),
+        ],
+    )
+}
+
 /// 启动 Python sidecar 进程。
 ///
 /// - 环境变量注入 PYTHONUNBUFFERED=1（PRD §2.6.7 双保险）
@@ -38,25 +86,37 @@ fn spawn_sidecar(handle: &AppHandle) {
     let handle = handle.clone();
 
     tokio::spawn(async move {
-        // 定位 Python 脚本路径
-        let manifest_dir = env!("CARGO_MANIFEST_DIR");
-        let project_root = std::path::Path::new(manifest_dir)
-            .parent()
-            .expect("cannot resolve src-ui")
-            .parent()
-            .expect("cannot resolve project root");
-        let script_path = project_root.join("src-python").join("main.py");
-        let python_path = project_root.join("src-python");
+        let (program, args, envs) = resolve_sidecar_command(&handle);
 
-        let mut child = Command::new("python3")
-            .arg(&script_path)
-            .env("PYTHONUNBUFFERED", "1")
-            .env("PYTHONPATH", &python_path)
-            .stdout(std::process::Stdio::piped())
+        let mut cmd = Command::new(&program);
+        for arg in &args {
+            cmd.arg(arg);
+        }
+        for (k, v) in &envs {
+            cmd.env(k, v);
+        }
+        // 清除代理环境变量：sidecar 直连 LLM API，不走系统代理
+        for proxy_var in &[
+            "ALL_PROXY", "all_proxy",
+            "HTTP_PROXY", "http_proxy",
+            "HTTPS_PROXY", "https_proxy",
+            "NO_PROXY", "no_proxy",
+        ] {
+            cmd.env_remove(proxy_var);
+        }
+
+        cmd.stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::inherit())
-            .kill_on_drop(true)
-            .spawn()
-            .expect("Failed to spawn Python sidecar");
+            .kill_on_drop(true);
+
+        let mut child = match cmd.spawn() {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("Failed to spawn sidecar ({program}): {e}");
+                let _ = handle.emit("sidecar-exited", format!("spawn error: {e}"));
+                return;
+            }
+        };
 
         let stdout = child.stdout.take().expect("Failed to capture sidecar stdout");
         let mut lines = BufReader::new(stdout).lines();
