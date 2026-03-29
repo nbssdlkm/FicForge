@@ -3,10 +3,10 @@ import { Card } from './shared/Card';
 import { Button } from './shared/Button';
 import { ThemeToggle } from './shared/ThemeToggle';
 import { Input, Textarea } from './shared/Input';
-import { Settings, Plus, BookOpen, Clock, FileText, Loader2 } from 'lucide-react';
+import { Settings, Plus, BookOpen, Clock, FileText, Loader2, Trash2 } from 'lucide-react';
 import { Modal } from './shared/Modal';
 import { GlobalSettingsModal } from './settings/GlobalSettingsModal';
-import { listFandoms, createFandom, createAu, type FandomInfo } from '../api/fandoms';
+import { listFandoms, createFandom, createAu, deleteFandom, deleteAu, type FandomInfo } from '../api/fandoms';
 
 export const Library = ({ onNavigate }: { onNavigate: (page: string, auPath?: string) => void }) => {
   const [isFandomModalOpen, setFandomModalOpen] = useState(false);
@@ -18,6 +18,8 @@ export const Library = ({ onNavigate }: { onNavigate: (page: string, auPath?: st
   const [newFandomName, setNewFandomName] = useState('');
   const [newAuName, setNewAuName] = useState('');
   const [selectedFandom, setSelectedFandom] = useState('');
+  const [selectedFandomDir, setSelectedFandomDir] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'fandom' | 'au'; fandomDir: string; fandomName: string; auName?: string } | null>(null);
 
   useEffect(() => {
     loadFandoms();
@@ -50,15 +52,31 @@ export const Library = ({ onNavigate }: { onNavigate: (page: string, auPath?: st
   };
 
   const handleCreateAu = async () => {
-    if (!newAuName.trim() || !selectedFandom) return;
+    if (!newAuName.trim() || !selectedFandomDir) return;
     try {
-      const fandomPath = `./fandoms/fandoms/${selectedFandom}`;
-      await createAu(selectedFandom, newAuName.trim(), fandomPath);
+      const fandomPath = `./fandoms/fandoms/${selectedFandomDir}`;
+      await createAu(selectedFandomDir, newAuName.trim(), fandomPath);
       setAuModalOpen(false);
       setNewAuName('');
       await loadFandoms();
     } catch (e: any) {
       setError(e.message || '创建失败');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      if (deleteTarget.type === 'fandom') {
+        await deleteFandom(deleteTarget.fandomDir);
+      } else {
+        await deleteAu(deleteTarget.fandomDir, deleteTarget.auName!);
+      }
+      setDeleteTarget(null);
+      await loadFandoms();
+    } catch (e: any) {
+      setError(e.message || '删除失败');
+      setDeleteTarget(null);
     }
   };
 
@@ -110,11 +128,14 @@ export const Library = ({ onNavigate }: { onNavigate: (page: string, auPath?: st
                     <span className="opacity-50 text-accent text-sm">📚</span> {fandom.name}
                   </h2>
                   <div className="flex items-center gap-2">
-                    <Button variant="secondary" size="sm" onClick={() => onNavigate('fandom_lore', `./fandoms/fandoms/${fandom.name}`)} className="bg-surface/80 border-black/10 dark:border-white/10 text-text/70">
+                    <Button variant="secondary" size="sm" onClick={() => onNavigate('fandom_lore', `./fandoms/fandoms/${fandom.dir_name}`)} className="bg-surface/80 border-black/10 dark:border-white/10 text-text/70">
                       <FileText size={14} className="mr-2 text-text/50" /> 本 Fandom 核心人物与世界观
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => { setSelectedFandom(fandom.name); setAuModalOpen(true); }}>
+                    <Button variant="ghost" size="sm" onClick={() => { setSelectedFandom(fandom.name); setSelectedFandomDir(fandom.dir_name); setAuModalOpen(true); }}>
                       <Plus size={14} className="mr-1 text-accent" /> 新建衍生 AU
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteTarget({ type: 'fandom', fandomDir: fandom.dir_name, fandomName: fandom.name })}>
+                      <Trash2 size={14} />
                     </Button>
                   </div>
                 </div>
@@ -123,7 +144,14 @@ export const Library = ({ onNavigate }: { onNavigate: (page: string, auPath?: st
                     <p className="text-text/40 text-sm col-span-3">暂无 AU，点击上方按钮创建</p>
                   ) : (
                     fandom.aus.map(au => (
-                      <Card key={au} className="hover:border-accent/50 cursor-pointer transition-colors" onClick={() => onNavigate('writer', `./fandoms/fandoms/${fandom.name}/aus/${au}`)}>
+                      <Card key={au} className="hover:border-accent/50 cursor-pointer transition-colors relative group" onClick={() => onNavigate('writer', `./fandoms/fandoms/${fandom.dir_name}/aus/${au}`)}>
+                        <button
+                          className="absolute top-2 right-2 p-1.5 rounded-md text-text/30 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => { e.stopPropagation(); setDeleteTarget({ type: 'au', fandomDir: fandom.dir_name, fandomName: fandom.name, auName: au }); }}
+                          title="删除此 AU"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                         <h3 className="text-lg font-sans font-medium mb-4">{au}</h3>
                         <div className="flex items-center justify-between text-sm text-text/60">
                           <span className="flex items-center gap-1"><BookOpen size={14} /> AU</span>
@@ -170,6 +198,22 @@ export const Library = ({ onNavigate }: { onNavigate: (page: string, auPath?: st
       </Modal>
 
       <GlobalSettingsModal isOpen={isGlobalSettingsOpen} onClose={() => setGlobalSettingsOpen(false)} />
+
+      <Modal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title={deleteTarget?.type === 'fandom' ? '确认删除 Fandom' : '确认删除 AU'}>
+        <div className="space-y-4">
+          <p className="text-sm text-text/80 leading-relaxed">
+            {deleteTarget?.type === 'fandom' ? (
+              <>确定要删除 Fandom「<strong>{deleteTarget?.fandomName}</strong>」及其所有 AU 数据吗？此操作不可撤销。</>
+            ) : (
+              <>确定要删除 AU「<strong>{deleteTarget?.auName}</strong>」及其全部章节和设定吗？此操作不可撤销。</>
+            )}
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setDeleteTarget(null)}>取消</Button>
+            <Button variant="primary" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDelete}>确认删除</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

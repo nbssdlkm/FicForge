@@ -16,8 +16,8 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const [isGlobalSettingsOpen, setGlobalSettingsOpen] = useState(false);
 
   // Editable state (initialised from project)
-  const [perspective, setPerspective] = useState('third_limited');
-  const [emotionStyle, setEmotionStyle] = useState('behavioral');
+  const [perspective, setPerspective] = useState('third_person');
+  const [emotionStyle, setEmotionStyle] = useState('implicit');
   const [chapterLength, setChapterLength] = useState(2000);
   const [customInstructions, setCustomInstructions] = useState('');
   const [pinnedContext, setPinnedContext] = useState<string[]>([]);
@@ -39,8 +39,8 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
       setProject(proj);
       setGlobalSettings(settings);
       if (proj) {
-        setPerspective(proj.writing_style?.perspective || 'third_limited');
-        setEmotionStyle(proj.writing_style?.emotion_style || 'behavioral');
+        setPerspective(proj.writing_style?.perspective || 'third_person');
+        setEmotionStyle(proj.writing_style?.emotion_style || 'implicit');
         setChapterLength(proj.chapter_length || 2000);
         setCustomInstructions(proj.writing_style?.custom_instructions || '');
         setPinnedContext(proj.pinned_context || []);
@@ -189,17 +189,15 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                  <div className="flex flex-col gap-2">
                    <label className="text-sm font-bold text-text/90">人称视角 (Perspective)</label>
                    <select value={perspective} onChange={e => setPerspective(e.target.value)} className="h-10 rounded-md border border-black/20 dark:border-white/20 bg-background px-3 text-sm focus:ring-2 focus:ring-accent outline-none">
-                     <option value="third_limited">第三人称有限视角 (推荐)</option>
-                     <option value="third_omniscient">第三人称上帝视角</option>
-                     <option value="first">第一人称</option>
+                     <option value="third_person">第三人称 (推荐)</option>
+                     <option value="first_person">第一人称</option>
                    </select>
                  </div>
                  <div className="flex flex-col gap-2">
                    <label className="text-sm font-bold text-text/90">情绪风格 (Emotion Style)</label>
                    <select value={emotionStyle} onChange={e => setEmotionStyle(e.target.value)} className="h-10 rounded-md border border-black/20 dark:border-white/20 bg-background px-3 text-sm focus:ring-2 focus:ring-accent outline-none">
-                     <option value="behavioral">行为暗示情绪 (Show, don't tell)</option>
-                     <option value="descriptive">直接描写情绪 (Tell)</option>
-                     <option value="poetic">意识流散文风</option>
+                     <option value="implicit">含蓄暗示 (Show, don't tell)</option>
+                     <option value="explicit">直接表达 (Tell)</option>
                    </select>
                  </div>
                  <div className="flex flex-col gap-2">

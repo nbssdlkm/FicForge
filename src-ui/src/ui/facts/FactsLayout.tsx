@@ -20,14 +20,14 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const editContentCleanRef = useRef<HTMLTextAreaElement>(null);
   const editContentRawRef = useRef<HTMLTextAreaElement>(null);
   const editCharactersRef = useRef<HTMLInputElement>(null);
-  const editWeightRef = useRef<HTMLInputElement>(null);
+  const editWeightRef = useRef<HTMLSelectElement>(null);
   
   // Add modal state
   const [isAddModalOpen, setAddModalOpen] = useState(false);
   const [newContentRaw, setNewContentRaw] = useState('');
   const [newContentClean, setNewContentClean] = useState('');
   const [newType, setNewType] = useState('plot_event');
-  const [newWeight, setNewWeight] = useState('5');
+  const [newWeight, setNewWeight] = useState('medium');
   const [newStatus, setNewStatus] = useState('active');
 
   const loadFacts = async () => {
@@ -161,12 +161,15 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
            {loading ? (
              <div className="flex justify-center py-10"><Loader2 size={24} className="animate-spin text-accent" /></div>
            ) : filteredFacts.length === 0 ? (
-             <p className="text-center text-xs text-text/40 py-10">未找到符合条件的事实</p>
+             <div className="text-center text-xs text-text/40 py-10 space-y-2">
+               <p>未找到符合条件的事实</p>
+               <p>点击右上角「新建」按钮添加第一条剧情事实锚点。</p>
+             </div>
            ) : (
              filteredFacts.map(f => (
                <div key={f.id} onClick={() => setEditingFact(f)}>
-                 <FactCard 
-                   fact={{...f, weight: parseInt(f.narrative_weight) || 5, chapter: f.chapter || 1}} 
+                 <FactCard
+                   fact={{...f, weight: f.narrative_weight || 'medium', chapter: f.chapter || 1}}
                  />
                </div>
              ))
@@ -213,9 +216,17 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                     <p className="text-xs text-text/50">标记为 Resolved 将会停止该事实在后续章节中的高优推送。</p>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label className="text-sm font-bold text-text/90">核心叙事权重 (Weight)</label>
-                    <Input ref={editWeightRef} type="number" defaultValue={editingFact.narrative_weight || 5} className="h-10 font-mono text-lg text-accent font-bold" />
-                    <p className="text-xs text-text/50">1-10 范围。数值越大，系统提示引擎对它的回忆优先级越高。</p>
+                    <label className="text-sm font-bold text-text/90">叙事引力权重 (Narrative Weight)</label>
+                    <select
+                      ref={editWeightRef as any}
+                      defaultValue={editingFact.narrative_weight || 'medium'}
+                      className="h-10 rounded-md border border-black/20 dark:border-white/20 bg-surface px-3 text-sm focus:ring-2 focus:ring-accent outline-none font-mono text-accent font-bold"
+                    >
+                      <option value="low">低 (路人背景/日常细节)</option>
+                      <option value="medium">中 (标准日常进展)</option>
+                      <option value="high">高 (核心主线/不可违逆)</option>
+                    </select>
+                    <p className="text-xs text-text/50">权重越高，AI 在后续章节中越优先回忆此事实。"高"用于核心剧情锚点。</p>
                   </div>
                 </div>
 
@@ -238,9 +249,14 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full opacity-30 mt-20">
-                <Search size={48} className="mb-4" />
-                <p>在左侧列表中点击事实卡片以查看和编辑详情。</p>
+              <div className="flex flex-col items-center justify-center h-full opacity-30 mt-20 max-w-md mx-auto text-center space-y-3">
+                <Search size={48} className="mb-2" />
+                <p className="font-bold">在左侧列表中点击事实卡片以查看和编辑详情</p>
+                <p className="text-xs leading-relaxed">
+                  「剧情事实表」是 FicForge 保证 AI 不忘记关键剧情的核心机制。
+                  每条事实会被注入章节生成的系统提示中，权重越高优先级越大。
+                  建议将伏笔、人物关系转折、世界观硬设定等设为「高」权重。
+                </p>
               </div>
             )}
           </div>
@@ -249,8 +265,14 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
        {/* Add Fact Modal */}
        <Modal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} title="注入新事实 (Add Fact)">
         <div className="space-y-4">
-          <Textarea label="情节出处 (Raw Content)" value={newContentRaw} onChange={e => setNewContentRaw(e.target.value)} placeholder="第N章林深提到..." className="min-h-[80px] bg-surface/50" />
-          <Textarea label="大模型记忆用逻辑抽提 (Clean Content)" value={newContentClean} onChange={e => setNewContentClean(e.target.value)} placeholder="纯叙事、精简描述..." className="min-h-[80px] bg-surface/50 font-bold" />
+          <div className="space-y-1">
+            <Textarea label="章节原文出处摘录 (Raw Content)" value={newContentRaw} onChange={e => setNewContentRaw(e.target.value)} placeholder={'例：第3章 —— 林深在雨中对叶澜说\u201c我不会再回来了\u201d，随后转身消失在巷口。'} className="min-h-[80px] bg-surface/50" />
+            <p className="text-[11px] text-text/40">仅供作者回溯参考，不占用 AI 上下文 token。可粘贴原文大段。</p>
+          </div>
+          <div className="space-y-1">
+            <Textarea label="AI 记忆用精简逻辑 (Clean Content) *" value={newContentClean} onChange={e => setNewContentClean(e.target.value)} placeholder="例：林深在第3章末与叶澜决裂并离开，叶澜不知其去向。" className="min-h-[80px] bg-surface/50 font-bold" />
+            <p className="text-[11px] text-text/40">这段文字会注入 AI 系统提示。请用简洁第三人称陈述事实。</p>
+          </div>
           
           <div className="grid grid-cols-3 gap-3">
             <div>
@@ -266,10 +288,9 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             <div>
               <label className="text-xs font-bold text-text/80 mb-1 block">叙事引力权重</label>
               <select value={newWeight} onChange={e => setNewWeight(e.target.value)} className="w-full h-9 px-2 rounded-md border border-black/10 dark:border-white/10 bg-surface text-sm">
-                <option value="1">1极低 (路人背景)</option>
-                <option value="5">5标准 (日常进展)</option>
-                <option value="8">8极高 (核心主线)</option>
-                <option value="10">10因果律 (不可违逆)</option>
+                <option value="low">低 (路人背景/日常细节)</option>
+                <option value="medium">中 (标准日常进展)</option>
+                <option value="high">高 (核心主线/不可违逆)</option>
               </select>
             </div>
             <div>

@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
 import { Tag } from '../shared/Tag';
-import { Search, Plus, ArrowLeft, FileText, ChevronDown, ChevronRight, Folder, Loader2 } from 'lucide-react';
-import { saveLore } from '../../api/lore';
+import { Modal } from '../shared/Modal';
+import { Search, Plus, ArrowLeft, FileText, ChevronDown, ChevronRight, Folder, Loader2, Trash2 } from 'lucide-react';
+import { saveLore, deleteLore } from '../../api/lore';
 import { listFandomFiles, readFandomFile, type FandomFileEntry } from '../../api/fandoms';
 
 export const FandomLoreLayout = ({ fandomPath, onNavigate }: { fandomPath?: string, onNavigate: (page: string) => void }) => {
@@ -19,6 +20,10 @@ export const FandomLoreLayout = ({ fandomPath, onNavigate }: { fandomPath?: stri
   const [characterFiles, setCharacterFiles] = useState<FandomFileEntry[]>([]);
   const [worldbuildingFiles, setWorldbuildingFiles] = useState<FandomFileEntry[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createModalCategory, setCreateModalCategory] = useState<'core_characters' | 'core_worldbuilding'>('core_characters');
+  const [createName, setCreateName] = useState('');
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const fandomName = fandomPath?.split('/').pop() || 'Unknown Fandom';
 
@@ -52,25 +57,37 @@ export const FandomLoreLayout = ({ fandomPath, onNavigate }: { fandomPath?: stri
     setExpandedFolders(prev => ({ ...prev, [folder]: !prev[folder] }));
   };
 
-  const handleCreateGlobalLore = async () => {
-    const rawName = window.prompt("请输入全局角色名 (如: Harry Potter)");
-    if (!rawName || !rawName.trim()) return;
-    
-    const slug = rawName.trim().toLowerCase().replace(/\s+/g, '_');
-    if (!fandomPath) return;
-    
+  const openCreateModal = (category: 'core_characters' | 'core_worldbuilding') => {
+    setCreateModalCategory(category);
+    setCreateName('');
+    setCreateModalOpen(true);
+  };
+
+  const handleCreateLore = async () => {
+    const rawName = createName.trim();
+    if (!rawName || !fandomPath) return;
+
+    const slug = rawName.toLowerCase().replace(/\s+/g, '_');
+    const label = createModalCategory === 'core_characters' ? '角色' : '世界观设定';
+    const defaultContent = `# ${rawName}\n\n[${label}尚未编写]`;
+
     setIsSaving(true);
+    setCreateModalOpen(false);
     try {
       await saveLore({
         fandom_path: fandomPath,
-        category: 'core_characters',
+        category: createModalCategory,
         filename: `${slug}.md`,
-        content: `# ${rawName}\n\n[设定尚未编写]`
+        content: defaultContent,
       });
       setSelectedFile(slug);
-      setSelectedCategory('core_characters');
-      setEditorContent(`# ${rawName}\n\n[设定尚未编写]`);
-      setCharacterFiles(prev => [...prev, { name: slug, filename: `${slug}.md` }]);
+      setSelectedCategory(createModalCategory);
+      setEditorContent(defaultContent);
+      if (createModalCategory === 'core_characters') {
+        setCharacterFiles(prev => [...prev, { name: slug, filename: `${slug}.md` }]);
+      } else {
+        setWorldbuildingFiles(prev => [...prev, { name: slug, filename: `${slug}.md` }]);
+      }
     } catch (e: any) {
       alert("创建失败: " + e.message);
     } finally {
@@ -94,6 +111,30 @@ export const FandomLoreLayout = ({ fandomPath, onNavigate }: { fandomPath?: stri
       setIsSaving(false);
     }
   };
+
+  const handleDeleteLore = async () => {
+    if (!selectedFile || !fandomPath) return;
+    setDeleteConfirmOpen(false);
+    setIsSaving(true);
+    try {
+      await deleteLore({
+        fandom_path: fandomPath,
+        category: selectedCategory,
+        filename: `${selectedFile}.md`,
+      });
+      if (selectedCategory === 'core_characters') {
+        setCharacterFiles(prev => prev.filter(f => f.name !== selectedFile));
+      } else {
+        setWorldbuildingFiles(prev => prev.filter(f => f.name !== selectedFile));
+      }
+      setSelectedFile(null);
+      setEditorContent('');
+    } catch (e: any) {
+      alert("删除失败: " + e.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
   return (
     <div className="flex h-screen bg-background text-text transition-colors duration-200 w-full overflow-hidden">
        <div className="w-[300px] md:w-[340px] shrink-0 border-r border-black/10 dark:border-white/10 flex flex-col bg-surface/50">
@@ -105,7 +146,7 @@ export const FandomLoreLayout = ({ fandomPath, onNavigate }: { fandomPath?: stri
                 </Button>
                 <h1 className="font-serif text-lg font-bold">{fandomName} 设定库</h1>
              </div>
-             <Button variant="ghost" size="sm" className="px-2" onClick={handleCreateGlobalLore} disabled={isSaving}>
+             <Button variant="ghost" size="sm" className="px-2" onClick={() => openCreateModal('core_characters')} disabled={isSaving}>
                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16}/>}
              </Button>
            </div>
@@ -152,10 +193,15 @@ export const FandomLoreLayout = ({ fandomPath, onNavigate }: { fandomPath?: stri
                )}
              </div>
              <div>
-               <div className="flex items-center gap-2 px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/80 font-bold font-sans" onClick={() => toggleFolder('worldbuilding')}>
-                 {expandedFolders['worldbuilding'] ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
-                 <Folder size={14} className="text-warning" fill="currentColor" fillOpacity={0.2} />
-                 <span>worldbuilding</span>
+               <div className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/80 font-bold font-sans" onClick={() => toggleFolder('worldbuilding')}>
+                 <div className="flex items-center gap-2">
+                   {expandedFolders['worldbuilding'] ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
+                   <Folder size={14} className="text-warning" fill="currentColor" fillOpacity={0.2} />
+                   <span>worldbuilding</span>
+                 </div>
+                 <Button variant="ghost" size="sm" className="p-0 h-6 w-6" onClick={(e) => { e.stopPropagation(); openCreateModal('core_worldbuilding'); }}>
+                   <Plus size={12} />
+                 </Button>
                </div>
                {expandedFolders['worldbuilding'] && (
                  <div className="mt-1 space-y-0.5">
@@ -200,6 +246,9 @@ export const FandomLoreLayout = ({ fandomPath, onNavigate }: { fandomPath?: stri
                    <span className="text-[11px] text-text/40 bg-black/5 dark:bg-white/5 px-2 py-1 rounded-md hidden xl:block">
                      ⚠️ Fandom 原著设定。保存将影响所有下属 AU 的基础记忆！
                    </span>
+                   <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteConfirmOpen(true)} disabled={isSaving}>
+                     <Trash2 size={14} />
+                   </Button>
                    <Button variant="primary" size="sm" className="h-8 w-24" onClick={handleSaveLore} disabled={isSaving}>
                      {isSaving ? <Loader2 size={14} className="animate-spin" /> : '全局覆盖保存'}
                    </Button>
@@ -241,6 +290,32 @@ export const FandomLoreLayout = ({ fandomPath, onNavigate }: { fandomPath?: stri
             )}
           </div>
        </div>
+
+       <Modal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} title={createModalCategory === 'core_characters' ? '新建角色设定' : '新建世界观设定'}>
+         <div className="flex flex-col gap-4">
+           <Input
+             placeholder={createModalCategory === 'core_characters' ? '角色名 (如: Harry Potter)' : '设定名 (如: 魔法体系)'}
+             value={createName}
+             onChange={e => setCreateName(e.target.value)}
+             className="h-10"
+             autoFocus
+           />
+           <div className="flex justify-end gap-2">
+             <Button variant="ghost" onClick={() => setCreateModalOpen(false)}>取消</Button>
+             <Button variant="primary" onClick={handleCreateLore} disabled={!createName.trim()}>创建</Button>
+           </div>
+         </div>
+       </Modal>
+
+       <Modal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} title="确认删除设定文件">
+         <div className="space-y-4">
+           <p className="text-sm text-text/80">确定要删除「<strong>{selectedFile}.md</strong>」吗？此操作不可撤销。</p>
+           <div className="flex justify-end gap-2">
+             <Button variant="ghost" onClick={() => setDeleteConfirmOpen(false)}>取消</Button>
+             <Button variant="primary" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDeleteLore}>确认删除</Button>
+           </div>
+         </div>
+       </Modal>
     </div>
   );
 };

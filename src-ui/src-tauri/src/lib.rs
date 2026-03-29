@@ -85,7 +85,7 @@ fn resolve_sidecar_command(handle: &AppHandle) -> (String, Vec<String>, Vec<(Str
 fn spawn_sidecar(handle: &AppHandle) {
     let handle = handle.clone();
 
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         let (program, args, envs) = resolve_sidecar_command(&handle);
 
         let mut cmd = Command::new(&program);

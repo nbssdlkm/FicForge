@@ -37,9 +37,17 @@ _sidecar_port: int = 0
 
 
 def _get_free_port() -> int:
-    """开发模式默认绑定 54284 方便前端调试。生产环境可恢复为 0"""
-    v = os.environ.get("PORT", "54284")
-    return int(v)
+    """开发模式默认绑定 54284 方便前端调试。生产环境使用随机可用端口。"""
+    v = os.environ.get("PORT", "")
+    if v:
+        return int(v)
+    if getattr(sys, "frozen", False):
+        # 生产环境：让 OS 分配空闲端口
+        import socket
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("127.0.0.1", 0))
+            return s.getsockname()[1]
+    return 54284  # 开发模式固定端口
 
 
 # ---------------------------------------------------------------------------
@@ -151,6 +159,8 @@ if __name__ == "__main__":
     # 开发模式: sys.executable 是 python3，__file__ 指向 main.py
     if getattr(sys, "frozen", False):
         _app_dir = Path(sys.executable).resolve().parent
+        # 生产模式：将 CWD 设为 sidecar 所在目录，确保 ./fandoms 等相对路径正确
+        os.chdir(_app_dir)
     else:
         _app_dir = Path(__file__).resolve().parent
     _default_data = _app_dir / "fandoms"

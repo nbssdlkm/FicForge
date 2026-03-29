@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,15 @@ from infra.storage_local.file_utils import now_utc
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Windows 非法文件名字符（\ / : * ? " < > |）
+_WIN_UNSAFE_RE = re.compile(r'[\\/:*?"<>|]')
+
+
+def _safe_dirname(name: str) -> str:
+    """将用户可读名称转换为 Windows 安全的目录名。"""
+    safe = _WIN_UNSAFE_RE.sub("_", name).strip().rstrip(".")
+    return safe
 
 router = APIRouter(prefix="/api/v1", tags=["fandoms"])
 
@@ -42,12 +52,20 @@ async def list_fandoms(data_dir: str = "./fandoms") -> Any:
         return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_fandom_repository()
     try:
-        names = await run_in_threadpool(repo.list_fandoms, data_dir)
+        dir_names = await run_in_threadpool(repo.list_fandoms, data_dir)
         result = []
-        for name in names:
-            fandom_path = f"{data_dir}/fandoms/{name}"
+        for dir_name in dir_names:
+            fandom_path = f"{data_dir}/fandoms/{dir_name}"
+            # 从 fandom.yaml 读取显示名；fallback 到目录名
+            display_name = dir_name
+            try:
+                fandom_obj = await run_in_threadpool(repo.get, fandom_path)
+                if fandom_obj.name:
+                    display_name = fandom_obj.name
+            except FileNotFoundError:
+                pass
             aus = await run_in_threadpool(repo.list_aus, fandom_path)
-            result.append({"name": name, "aus": aus})
+            result.append({"name": display_name, "dir_name": dir_name, "aus": aus})
         return result
     except Exception as e:
         logger.exception("List fandoms failed: data_dir=%s", data_dir)
@@ -59,14 +77,16 @@ async def create_fandom(request: CreateFandomRequest) -> Any:
     logger.info("Create fandom: name=%s", request.name)
     if not validate_path(request.name) or not validate_path(request.data_dir):
         return error_response(400, "INVALID_NAME", "名称不合法", [])
-    from pathlib import Path
     from core.domain.fandom import Fandom
-    fandom_path = Path(request.data_dir) / "fandoms" / request.name
+    dir_name = _safe_dirname(request.name)
+    if not dir_name:
+        return error_response(400, "INVALID_NAME", "名称不合法（安全化后为空）", [])
+    fandom_path = Path(request.data_dir) / "fandoms" / dir_name
     fandom_path.mkdir(parents=True, exist_ok=True)
     repo = build_fandom_repository()
     fandom = Fandom(name=request.name, created_at=now_utc())
     await run_in_threadpool(repo.save, str(fandom_path), fandom)
-    return {"name": request.name, "path": str(fandom_path)}
+    return {"name": request.name, "dir_name": dir_name, "path": str(fandom_path)}
 
 
 @router.get("/fandoms/{fandom_name}/aus")
@@ -88,8 +108,10 @@ async def create_au(fandom_name: str, request: CreateAURequest) -> Any:
     logger.info("Create AU: fandom=%s name=%s", fandom_name, request.name)
     if not validate_path(request.name) or not validate_path(request.fandom_path):
         return error_response(400, "INVALID_NAME", "名称不合法", [])
-    from pathlib import Path
-    au_path = Path(request.fandom_path) / "aus" / request.name
+    au_dir_name = _safe_dirname(request.name)
+    if not au_dir_name:
+        return error_response(400, "INVALID_NAME", "名称不合法（安全化后为空）", [])
+    au_path = Path(request.fandom_path) / "aus" / au_dir_name
     ensure_au_directories(au_path)
 
     # 初始化 project.yaml 和 state.yaml
@@ -125,7 +147,7 @@ def _scan_md_files(directory: Path) -> list[dict[str, str]]:
     return results
 
 
-_SAFE_NAME_RE = re.compile(r"^[\w\-\u4e00-\u9fff]+$")
+_SAFE_NAME_RE = re.compile(r"^[\w\- \u4e00-\u9fff]+$")
 
 
 @router.get("/fandoms/{fandom_name}/files")
@@ -179,3 +201,45 @@ async def read_fandom_file(
         return error_response(500, "FILE_READ_FAILED", str(exc), [])
 
     return {"filename": filename, "category": category, "content": content}
+
+
+@router.delete("/fandoms/{fandom_name}")
+async def delete_fandom(fandom_name: str, data_dir: str = Query("./fandoms")) -> Any:
+    """删除整个 Fandom 目录（含所有 AU）。"""
+    if not validate_path(data_dir):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
+    if not _SAFE_NAME_RE.match(fandom_name):
+        return error_response(400, "INVALID_NAME", "非法的 fandom 名称", [])
+
+    fandom_dir = Path(data_dir) / "fandoms" / fandom_name
+    if not fandom_dir.is_dir():
+        return error_response(404, "NOT_FOUND", f"Fandom 不存在: {fandom_name}", [])
+
+    try:
+        await run_in_threadpool(shutil.rmtree, fandom_dir)
+    except Exception as exc:
+        logger.exception("Delete fandom failed: %s", fandom_name)
+        return error_response(500, "DELETE_FAILED", str(exc), [])
+
+    return {"status": "ok", "deleted": str(fandom_dir)}
+
+
+@router.delete("/fandoms/{fandom_name}/aus/{au_name}")
+async def delete_au(fandom_name: str, au_name: str, data_dir: str = Query("./fandoms")) -> Any:
+    """删除指定 AU 目录。"""
+    if not validate_path(data_dir):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
+    if not _SAFE_NAME_RE.match(fandom_name) or not _SAFE_NAME_RE.match(au_name):
+        return error_response(400, "INVALID_NAME", "非法名称", [])
+
+    au_dir = Path(data_dir) / "fandoms" / fandom_name / "aus" / au_name
+    if not au_dir.is_dir():
+        return error_response(404, "NOT_FOUND", f"AU 不存在: {au_name}", [])
+
+    try:
+        await run_in_threadpool(shutil.rmtree, au_dir)
+    except Exception as exc:
+        logger.exception("Delete AU failed: fandom=%s au=%s", fandom_name, au_name)
+        return error_response(500, "DELETE_FAILED", str(exc), [])
+
+    return {"status": "ok", "deleted": str(au_dir)}

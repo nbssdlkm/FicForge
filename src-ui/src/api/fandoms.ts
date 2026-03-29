@@ -4,6 +4,7 @@ import { apiFetch } from "./client";
 
 export interface FandomInfo {
   name: string;
+  dir_name: string;
   aus: string[];
 }
 
@@ -45,4 +46,16 @@ export async function listFandomFiles(fandomName: string, dataDir = "./fandoms")
 
 export async function readFandomFile(fandomName: string, category: string, filename: string, dataDir = "./fandoms"): Promise<{ filename: string; category: string; content: string }> {
   return apiFetch(`/api/v1/fandoms/${encodeURIComponent(fandomName)}/files/${encodeURIComponent(category)}/${encodeURIComponent(filename)}?data_dir=${encodeURIComponent(dataDir)}`);
+}
+
+export async function deleteFandom(fandomDirName: string, dataDir = "./fandoms"): Promise<{ status: string }> {
+  return apiFetch(`/api/v1/fandoms/${encodeURIComponent(fandomDirName)}?data_dir=${encodeURIComponent(dataDir)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function deleteAu(fandomDirName: string, auName: string, dataDir = "./fandoms"): Promise<{ status: string }> {
+  return apiFetch(`/api/v1/fandoms/${encodeURIComponent(fandomDirName)}/aus/${encodeURIComponent(auName)}?data_dir=${encodeURIComponent(dataDir)}`, {
+    method: "DELETE",
+  });
 }
