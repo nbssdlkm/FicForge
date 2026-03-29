@@ -133,7 +133,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
         chapter_num: state.current_chapter,
         user_input: userInput,
         input_type: inputType,
-        session_llm: { mode: 'api', model: sessionModel, api_base: '', api_key: '' },
+        session_llm: sessionModel ? { mode: 'api', model: sessionModel } : undefined,
         session_params: { temperature: sessionTemp, top_p: sessionTopP },
       })) {
         if (event.event === 'token') {

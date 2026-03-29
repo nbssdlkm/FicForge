@@ -16,3 +16,24 @@ export async function saveLore(req: LoreSaveRequest): Promise<{ status: string; 
     body: JSON.stringify(req),
   });
 }
+
+export interface LoreReadRequest {
+  au_path?: string;
+  fandom_path?: string;
+  category: string;
+  filename: string;
+}
+
+export async function readLore(req: LoreReadRequest): Promise<{ content: string }> {
+  return apiFetch("/api/v1/lore/read", {
+    method: "POST",
+    body: JSON.stringify(req),
+  });
+}
+
+export async function deleteLore(req: LoreReadRequest): Promise<{ status: string }> {
+  return apiFetch("/api/v1/lore", {
+    method: "DELETE",
+    body: JSON.stringify(req),
+  });
+}
