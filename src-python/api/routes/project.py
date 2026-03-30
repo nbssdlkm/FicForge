@@ -173,3 +173,58 @@ async def update_project(payload: ProjectUpdatePayload, au_path: str = Query(...
         return error_response(500, "PROJECT_SAVE_FAILED", str(exc), [])
 
     return ProjectUpdateResponse(status="ok", revision=project.revision)
+
+
+# ---------------------------------------------------------------------------
+# 铁律 (Pinned Context) CRUD
+# ---------------------------------------------------------------------------
+
+class PinnedAddRequest(BaseModel):
+    text: str
+
+
+@router.post("/pinned", response_model=ProjectUpdateResponse)
+async def add_pinned(payload: PinnedAddRequest, au_path: str = Query(...)):
+    """添加铁律条目。"""
+    if not validate_path(au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
+    repo = build_project_repository()
+    try:
+        project = await run_in_threadpool(repo.get, au_path)
+    except FileNotFoundError:
+        return error_response(404, "PROJECT_NOT_FOUND", "project.yaml 不存在", [])
+
+    project.pinned_context.append(payload.text)
+
+    try:
+        await run_in_threadpool(repo.save, project)
+    except Exception as exc:
+        logger.exception("Add pinned failed: au=%s", au_path)
+        return error_response(500, "PROJECT_SAVE_FAILED", str(exc), [])
+
+    return ProjectUpdateResponse(status="ok", revision=project.revision)
+
+
+@router.delete("/pinned/{index}", response_model=ProjectUpdateResponse)
+async def delete_pinned(index: int, au_path: str = Query(...)):
+    """删除铁律条目（按索引，直接删除不进垃圾箱 — D-0023 例外）。"""
+    if not validate_path(au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
+    repo = build_project_repository()
+    try:
+        project = await run_in_threadpool(repo.get, au_path)
+    except FileNotFoundError:
+        return error_response(404, "PROJECT_NOT_FOUND", "project.yaml 不存在", [])
+
+    if index < 0 or index >= len(project.pinned_context):
+        return error_response(400, "INDEX_OUT_OF_RANGE", f"索引超出范围: {index}", [])
+
+    project.pinned_context.pop(index)
+
+    try:
+        await run_in_threadpool(repo.save, project)
+    except Exception as exc:
+        logger.exception("Delete pinned failed: au=%s index=%d", au_path, index)
+        return error_response(500, "PROJECT_SAVE_FAILED", str(exc), [])
+
+    return ProjectUpdateResponse(status="ok", revision=project.revision)

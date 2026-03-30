@@ -62,3 +62,16 @@ export async function updateProject(auPath: string, updates: any): Promise<any> 
     body: JSON.stringify(updates),
   });
 }
+
+export async function addPinned(auPath: string, text: string): Promise<{ status: string; revision: number }> {
+  return apiFetch(`/api/v1/project/pinned?au_path=${encodeURIComponent(auPath)}`, {
+    method: "POST",
+    body: JSON.stringify({ text }),
+  });
+}
+
+export async function deletePinned(auPath: string, index: number): Promise<{ status: string; revision: number }> {
+  return apiFetch(`/api/v1/project/pinned/${index}?au_path=${encodeURIComponent(auPath)}`, {
+    method: "DELETE",
+  });
+}
