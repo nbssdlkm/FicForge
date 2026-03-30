@@ -249,8 +249,8 @@ def _load_settings_files(
     if not entries:
         return ""
 
-    # 超量保护：>30000 token（~90000 中文字符估算）时截断
-    if total_chars > _SETTINGS_FILES_TOKEN_LIMIT * 3:
+    # 超量保护：>30000 token 时截断（tokenizer 估算 1 token ≈ 0.67 字符）
+    if total_chars > _SETTINGS_FILES_TOKEN_LIMIT // 1.5:
         logger.warning(
             "设定文件总量 %d 字符，超过阈值，截断低 importance 角色",
             total_chars,
@@ -270,12 +270,27 @@ def _truncate_low_importance(
     """截断低 importance 角色：只保留 frontmatter + ## 核心限制 段落。"""
     result: list[tuple[str, str, str]] = []
     for label, filename, content in entries:
-        if "importance: low" in content.lower():
+        if _has_low_importance(content):
             truncated = _extract_frontmatter_and_core(content)
             result.append((label, filename, truncated))
         else:
             result.append((label, filename, content))
     return result
+
+
+def _has_low_importance(content: str) -> bool:
+    """检查 YAML frontmatter 中 importance 是否为 low（仅检查 frontmatter）。"""
+    if not content.startswith("---"):
+        return False
+    try:
+        import yaml
+        fm_parts = content.split("---", 2)
+        if len(fm_parts) < 3:
+            return False
+        fm = yaml.safe_load(fm_parts[1]) or {}
+        return fm.get("importance") == "low"
+    except Exception:
+        return False
 
 
 def _extract_frontmatter_and_core(content: str) -> str:
