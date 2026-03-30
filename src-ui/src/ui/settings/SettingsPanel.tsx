@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '../shared/Button';
 import { Card } from '../shared/Card';
+import { useTranslation } from '../../i18n/useAppTranslation';
 
 interface SettingsPanelProps {
   model?: string;
@@ -23,6 +24,7 @@ export const SettingsPanel = ({
   onSaveGlobal,
   onSaveAu
 }: SettingsPanelProps = {}) => {
+  const { t } = useTranslation();
   const [localModel, setLocalModel] = useState(externalModel || 'deepseek-chat');
   const [temp, setTemp] = useState(externalTemp ?? 1.0);
   const [topP, setTopP] = useState(externalTopP ?? 0.95);
@@ -42,10 +44,10 @@ export const SettingsPanel = ({
 
   return (
     <Card className="w-full max-w-sm p-4 text-sm flex flex-col gap-4 !shadow-none border-transparent bg-transparent px-0">
-      <div className="font-sans font-medium mb-1 text-text/80 uppercase tracking-wide text-xs">生成参数配置</div>
+      <div className="font-sans font-medium mb-1 text-text/80 uppercase tracking-wide text-xs">{t("settingsPanel.title")}</div>
 
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-text/70">模型</label>
+        <label className="text-xs text-text/70">{t("common.labels.model")}</label>
         <div className="flex items-center gap-2">
            <select value={localModel} onChange={e => handleModelChange(e.target.value)}
              className="h-8 rounded border border-black/20 dark:border-white/20 bg-background px-2 text-xs focus:ring-1 focus:ring-accent outline-none flex-1">
@@ -55,14 +57,14 @@ export const SettingsPanel = ({
              <option value="gpt-4o">gpt-4o</option>
              <option value="llama3">llama3</option>
              <option value="qwen-max">qwen-max</option>
-             <option value="custom-model">custom-model (全局设置指定)</option>
+             <option value="custom-model">{t("settingsPanel.modelCustom")}</option>
            </select>
         </div>
       </div>
 
       <div className="flex flex-col gap-1.5">
         <div className="flex justify-between text-xs text-text/70">
-          <label>Temperature</label>
+          <label>{t("settingsPanel.temperature")}</label>
           <span>{temp.toFixed(1)}</span>
         </div>
         <input type="range" min="0" max="2" step="0.1" value={temp}
@@ -72,7 +74,7 @@ export const SettingsPanel = ({
 
       <div className="flex flex-col gap-1.5">
         <div className="flex justify-between text-xs text-text/70">
-          <label>Top-p</label>
+          <label>{t("settingsPanel.topP")}</label>
           <span>{topP.toFixed(2)}</span>
         </div>
         <input type="range" min="0" max="1" step="0.05" value={topP}
@@ -81,8 +83,8 @@ export const SettingsPanel = ({
       </div>
 
       <div className="grid grid-cols-2 gap-2 mt-2">
-        <Button variant="secondary" size="sm" className="text-xs h-8" onClick={onSaveGlobal}>记住到全局</Button>
-        <Button variant="secondary" size="sm" className="text-xs h-8" onClick={onSaveAu}>记住到本 AU</Button>
+        <Button variant="secondary" size="sm" className="text-xs h-8" onClick={onSaveGlobal}>{t("common.actions.saveToGlobal")}</Button>
+        <Button variant="secondary" size="sm" className="text-xs h-8" onClick={onSaveAu}>{t("common.actions.saveToStory")}</Button>
       </div>
     </Card>
   );

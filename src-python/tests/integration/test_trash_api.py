@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+import yaml
 from fastapi.testclient import TestClient
 
 
@@ -23,8 +24,14 @@ def au_setup(tmp_path: Path) -> dict[str, Path]:
     au_dir = fandom_dir / "aus" / "TestAU"
     chars_dir = au_dir / "characters"
     chars_dir.mkdir(parents=True)
-    (chars_dir / "Connor.md").write_text("# Connor\nDetective.", encoding="utf-8")
-    (chars_dir / "Hank.md").write_text("# Hank\nLieutenant.", encoding="utf-8")
+    (chars_dir / "Connor.md").write_text(
+        "---\nname: Connor\n---\n\n# Connor\nDetective.",
+        encoding="utf-8",
+    )
+    (chars_dir / "Hank.md").write_text(
+        "---\nname: Hank\n---\n\n# Hank\nLieutenant.",
+        encoding="utf-8",
+    )
     # project.yaml (最小化)
     (au_dir / "project.yaml").write_text(
         "project_id: test\nau_id: test\nname: TestAU\nfandom: TestFandom\n"
@@ -73,6 +80,27 @@ class TestTrashRestoreEndpoint:
         )
         assert restore_resp.status_code == 200
         assert (au_dir / "characters" / "Connor.md").is_file()
+
+    def test_restore_updates_cast_registry(self, client: TestClient, au_setup: dict[str, Path]):
+        au_dir = au_setup["au_dir"]
+
+        del_resp = client.request(
+            "DELETE", "/api/v1/lore",
+            json={"au_path": str(au_dir), "category": "characters", "filename": "Connor.md"},
+        )
+        assert del_resp.status_code == 200
+
+        raw_after_delete = yaml.safe_load((au_dir / "project.yaml").read_text(encoding="utf-8"))
+        assert raw_after_delete["cast_registry"]["characters"] == ["Hank"]
+
+        restore_resp = client.post(
+            "/api/v1/trash/restore",
+            json={"trash_id": del_resp.json()["trash_id"], "scope": "au", "path": str(au_dir)},
+        )
+        assert restore_resp.status_code == 200
+
+        raw_after_restore = yaml.safe_load((au_dir / "project.yaml").read_text(encoding="utf-8"))
+        assert raw_after_restore["cast_registry"]["characters"] == ["Hank", "Connor"]
 
     def test_restore_conflict_409(self, client: TestClient, au_setup: dict[str, Path]):
         au_dir = au_setup["au_dir"]

@@ -1,0 +1,466 @@
+{
+  "common": {
+    "appName": "FicForge",
+    "none": "无",
+    "unknownAu": "未命名 AU",
+    "unknownFandom": "未命名原作",
+    "actions": {
+      "save": "保存",
+      "cancel": "取消",
+      "create": "创建",
+      "confirm": "确认",
+      "delete": "删除",
+      "close": "关闭",
+      "back": "返回",
+      "continue": "续写",
+      "instruction": "指令",
+      "regenerate": "再生成一次",
+      "discardDraft": "丢弃草稿",
+      "finalize": "✅ 定稿",
+      "undoPreviousChapter": "↩️ 撤回上一章",
+      "saveToGlobal": "记住到全局",
+      "saveToStory": "记住到本篇",
+      "viewGlobalSettings": "查看全局设置",
+      "testConnection": "测试连接",
+      "createFandom": "+ 创建 Fandom",
+      "createAu": "+ 创建 AU",
+      "importOldWork": "📥 导入旧文",
+      "importFromFandom": "📥 从原作导入",
+      "importSelected": "导入选中的角色",
+      "importAll": "全部记下",
+      "addCharacter": "+ 添加角色",
+      "addWorldbuilding": "+ 添加世界观",
+      "addPinnedRule": "+ 添加一条底线",
+      "manualFact": "+ 手动记一笔",
+      "extractFacts": "✨ 从已有章节提取",
+      "newNote": "+ 记一笔",
+      "startWriting": "✍️ 开始写作",
+      "deleteFile": "删除文件",
+      "confirmDelete": "确认删除",
+      "saveGlobalSettings": "保存全局设置",
+      "addFile": "添加文件",
+      "editSettings": "故事设置",
+      "backToNotes": "回到剧情笔记"
+    },
+    "status": {
+      "loading": "加载中…",
+      "saving": "保存中…",
+      "generating": "生成中…",
+      "testing": "正在测试…",
+      "extracting": "正在提取…",
+      "exporting": "正在导出…"
+    },
+    "labels": {
+      "model": "模型",
+      "apiBase": "接口地址",
+      "apiKey": "密钥",
+      "contextWindow": "一次能读多少字",
+      "searchEngineModel": "搜索引擎模型",
+      "searchMode": "接入方式",
+      "displayName": "标准译名",
+      "aliases": "别名",
+      "contentRaw": "原文摘录",
+      "contentClean": "AI 参考文本",
+      "characters": "角色",
+      "storyTime": "故事时间",
+      "chapterLength": "每章目标字数",
+      "perspective": "人称",
+      "emotionStyle": "情感写法",
+      "customInstructions": "文风备注",
+      "writingStyle": "文风",
+      "pinnedContext": "写作底线",
+      "coreAlwaysInclude": "必带角色",
+      "factStatus": "状态",
+      "factType": "类型",
+      "narrativeWeight": "重要性",
+      "currentDraft": "草稿 {{label}}"
+    },
+    "help": {
+      "searchEngineModel": "AI 用这个模型来查找和你写的内容相关的设定。换了模型需要重新处理一遍所有设定，大约需要几分钟。",
+      "contextWindow": "AI 每次续写时能参考的最大文字量。数字越大，AI 能记住的前文和设定越多。大部分模型是 128k（约10万字），一般不用改。",
+      "apiBase": "你的 AI 服务商提供的地址，比如 DeepSeek 就填 https://api.deepseek.com",
+      "apiKey": "在你的 AI 服务商网站上获取，类似一串密码，用来验证你的身份",
+      "llmMode": {
+        "api": "在线API：最简单，填密钥就能用",
+        "local": "本地模型：不联网，需要自己下载模型文件",
+        "ollama": "Ollama：如果你已经在用 Ollama，可以直接接入"
+      },
+      "chapterLength": "控制单次续写时的目标字数。",
+      "pinnedContext": "写作底线是 AI 绝对不能违反的规则，比如角色关系、秘密和性格底线。",
+      "coreAlwaysInclude": "这些角色会在每次续写时优先被参考。",
+      "currentChapterFocus": "把想推进的剧情节点设成重点，AI 这章会更集中去写。"
+    },
+    "search": {
+      "files": "搜索文件或别称…",
+      "characters": "搜索设定或角色名…",
+      "facts": "搜索剧情笔记或关联角色…"
+    },
+    "scope": {
+      "fandomTitle": "原作：{{name}}",
+      "auTitle": "AU：{{name}}"
+    }
+  },
+  "shared": {
+    "sidebar": {
+      "expand": "展开侧栏",
+      "collapse": "收起侧栏"
+    },
+    "theme": {
+      "toggle": "切换主题"
+    },
+    "feedback": {
+      "errorTitle": "出了点问题",
+      "actionsTitle": "你可以试试这些做法：",
+      "acknowledge": "知道了"
+    }
+  },
+  "navigation": {
+    "library": "作品库",
+    "fandomLore": "原作资料",
+    "auLore": "本篇设定",
+    "facts": "剧情笔记",
+    "settings": "故事设置",
+    "writer": "正文与草稿",
+    "workspace": "AU 工作台"
+  },
+  "library": {
+    "title": "作品库",
+    "loading": "加载作品库…",
+    "fandomButton": "新建 Fandom 母树",
+    "fandomSectionButton": "原作资料",
+    "createAuButton": "新建衍生 AU",
+    "importOldWorkHint": "旧文导入流程还没接到这个入口上，先创建 Fandom 或 AU 也可以继续整理。",
+    "deleteFandomTitle": "确认删除原作",
+    "deleteAuTitle": "确认删除 AU",
+    "deleteFandomMessage": "确定要删除原作「{{name}}」及其所有 AU 数据吗？将移入垃圾箱，30 天内可恢复。",
+    "deleteAuMessage": "确定要删除 AU「{{name}}」及其全部章节和设定吗？将移入垃圾箱，30 天内可恢复。",
+    "emptyAuList": "这个原作下还没有 AU。",
+    "cardType": "AU",
+    "createFandomModal": {
+      "title": "新建原作",
+      "description": "输入原作名称，先把这篇同人的原作资料建起来。",
+      "namePlaceholder": "原作名称（如：底特律：变人）",
+      "notesPlaceholder": "可选：贴入原作设定、资料链接或你自己的整理笔记。",
+      "submit": "建立原作"
+    },
+    "createAuModal": {
+      "title": "新建 AU",
+      "description": "给这篇文起一个 AU 名字，后续剧情笔记和设定都会记在这里。",
+      "namePlaceholder": "AU 名称（如：星际皇室）",
+      "inheritLabel": "所属原作",
+      "initLabel": "起步方式",
+      "initGlobal": "先沿用当前默认设置",
+      "initCustom": "之后再单独调整本篇设置",
+      "submit": "立即开始这条世界线"
+    },
+    "importFlow": {
+      "title": "导入旧文",
+      "description": "旧文导入会先给你建一个原作和 AU，再把正文放进去。现在先从创建 Fandom 开始，后面的章节导入再接着做。",
+      "start": "先创建 Fandom"
+    }
+  },
+  "workspace": {
+    "subtitle": "AU 工作台",
+    "chaptersTitle": "章节列表",
+    "chapterItem": "第 {{num}} 章"
+  },
+  "writer": {
+    "contentLoadFailed": "章节内容加载失败",
+    "emptyContent": "输入指令，或者直接点“续写”开始写文。",
+    "inputPlaceholder": "输入指令（如：让角色道歉），或留空直接续写…",
+    "factsShortcut": "剧情笔记",
+    "focusTitle": "本章要推的线",
+    "freeWrite": "自由发挥",
+    "memoryPanel": "AI 记忆一览",
+    "memoryLayer": {
+      "pinned": "写作底线",
+      "context": "参考内容",
+      "recentChapter": "最近章节",
+      "facts": "剧情笔记"
+    },
+    "draftLabel": "草稿 {{label}}",
+    "draftReady": "草稿 {{label}}",
+    "metaWords": "{{count}} 字",
+    "metaDurationUnknown": "未记录",
+    "dirtyButtonTitle": "检查手动改动",
+    "exportButtonTitle": "导出这篇文",
+    "draftDiscarded": "草稿已丢弃。",
+    "generateErrorFallback": "续写失败，请重试。",
+    "confirmSuccess": "这一章已经定稿了。",
+    "undoSuccess": "上一章已经撤回。",
+    "focusSaved": "本章要推的线已经更新。",
+    "dirtyOpenHint": "如果你手动改过章节，可以在这里重新整理剧情笔记。",
+    "saveGlobalSuccess": "这组参数已经记到全局设置里了。",
+    "saveAuSuccess": "这组参数已经记到本篇设置里了。",
+    "modeWrite": "✍️ 写文",
+    "modeSettings": "📋 改设定"
+  },
+  "settingsPanel": {
+    "title": "续写参数",
+    "modelCustom": "custom-model（到设置里填写）",
+    "temperature": "发散度",
+    "topP": "取样范围"
+  },
+  "settings": {
+    "title": "故事设置",
+    "headerTitle": "故事设置",
+    "globalSettingsTitle": "全局设置",
+    "sections": {
+      "llm": "续写模型",
+      "writingStyle": "文风",
+      "pinnedContext": "写作底线",
+      "coreIncludes": "必带角色",
+      "castRegistry": "出场角色列表",
+      "searchEngine": "搜索引擎"
+    },
+    "global": {
+      "title": "全局设置",
+      "description": "这里的配置会作为默认值，所有新建的故事都会先用这套设置。",
+      "defaultModel": "默认模型",
+      "connectionSuccess": "连接成功，密钥可以用。",
+      "testFailedPrefix": "连接失败：",
+      "searchEngineDescription": "用来从你的设定里找到和当前剧情最相关的内容。",
+      "apiCredentialsDescription": "如果某篇故事没有单独指定，就会用这里的设置。",
+      "apiModeLabel": "接入方式"
+    },
+    "story": {
+      "scopeLabel": "当前故事：{{name}}",
+      "inheritDescription": "默认沿用全局设置；如果这篇文想单独换模型或密钥，再打开下面的覆盖开关。",
+      "overrideToggleLabel": "单独覆盖这篇故事的模型设置",
+      "storyModel": "本篇模型",
+      "searchMode": "接入方式",
+      "chapterLengthDescription": "控制单次续写时的目标字数。",
+      "customInstructionsPlaceholder": "比如：多写环境细节，台词短一点，情绪主要靠动作来带。",
+      "pinnedDescription": "写作底线会在每次续写时都被优先参考，尽量只写最不能出错的几条。",
+      "coreIncludesDescription": "这些角色会在每次续写时优先被参考，不必等 AI 自己想起来。",
+      "castRegistryDescription": "这里只展示当前故事已经登记的角色。"
+    },
+    "emptyPinned": {
+      "title": "还没有写作底线",
+      "description": "写作底线是 AI 绝对不能违反的规则，比如：\n「两人目前还没有在一起」\n「角色 A 不知道角色 B 的秘密」"
+    },
+    "emptyCoreIncludes": "还没有设置必带角色。",
+    "emptyCastRegistry": "现在还没有登记任何角色。",
+    "createCoreIncludeTitle": "添加必带角色",
+    "createCoreIncludePlaceholder": "输入角色名"
+  },
+  "facts": {
+    "title": "剧情笔记",
+    "createButton": "+ 记一笔",
+    "allTab": "全部",
+    "editing": "正在编辑",
+    "cancelSelection": "取消选择",
+    "saved": "已保存",
+    "unselected": "还没有选中剧情笔记",
+    "statusHintResolved": "标记成“已填坑”后，这条笔记就不会再被优先带入后续续写。",
+    "weightHint": "重要性越高，AI 越容易在后续续写里把它想起来。",
+    "cleanHint": "这是 AI 真正会拿来参考的文字，尽量写成简洁的人话。",
+    "rawHint": "这是你自己回看用的原文摘录，不需要写得特别精简。",
+    "charactersHint": "用逗号分开角色名，方便之后按人查剧情。",
+    "emptySelectionTitle": "从左边挑一条剧情笔记来查看和编辑",
+    "emptySelectionDescription": "剧情笔记会帮 AI 记住重要剧情、伏笔和角色关系，写得越清楚，后面越不容易跑偏。",
+    "noSearchResultTitle": "没有找到符合条件的剧情笔记",
+    "noSearchResultDescription": "换个关键词试试，或者直接记下第一笔。",
+    "filterTitle": "筛选剧情笔记",
+    "extractNoChapter": "还没有已定稿章节，暂时没法提取。",
+    "extractNoResult": "这一章暂时没有提取出新的剧情笔记。",
+    "extractReviewTitle": "提取结果预览",
+    "extractReviewDescription": "先看看 AI 提取了什么，确认没问题再记进剧情笔记里。",
+    "extractReviewEmpty": "这次没有提取到可用的剧情笔记。",
+    "extractSaveAll": "全部记下",
+    "extractSaved": "已记下 {{count}} 条剧情笔记。",
+    "extractSourceChapter": "来自第 {{chapter}} 章",
+    "createModal": {
+      "title": "记一笔",
+      "rawPlaceholder": "比如：第 3 章里林深说“我不会再回来了”，随后离开了叶澜。",
+      "cleanPlaceholder": "比如：林深在第 3 章末与叶澜决裂并离开，叶澜暂时不知道他去了哪里。",
+      "typeLabel": "这条笔记属于什么",
+      "weightLabel": "这条笔记有多重要",
+      "statusLabel": "这条笔记现在的状态",
+      "submit": "安全记下这笔"
+    }
+  },
+  "fandomLore": {
+    "title": "原作资料",
+    "rootLabel": "原作通用资料",
+    "category": {
+      "characters": "角色",
+      "worldbuilding": "世界观"
+    },
+    "selectedTagCharacter": "原作角色",
+    "selectedTagWorldbuilding": "世界观",
+    "referenceHint": "这些资料只作为原作参考，不会直接塞进某篇 AU 的续写里。",
+    "saveButton": "保存原作资料",
+    "unselected": "从左边选一份资料开始编辑。",
+    "createCharacterTitle": "新建角色设定",
+    "createWorldbuildingTitle": "新建世界观设定",
+    "characterPlaceholder": "角色名（如：康纳）",
+    "worldbuildingPlaceholder": "设定名（如：仿生人条例）",
+    "emptyCharacters": {
+      "title": "还没有角色设定",
+      "description": "添加角色后，后续整理 AU 设定时可以直接从原作资料里挑着用。"
+    },
+    "emptyWorldbuilding": {
+      "title": "还没有世界观设定",
+      "description": "把原作世界的规则记在这里，之后整理本篇设定时会更方便。"
+    },
+    "deleteTitle": "确认删除资料",
+    "deleteMessage": "确定要删除「{{name}}」吗？文件将移入垃圾箱，30 天内可恢复。"
+  },
+  "auLore": {
+    "title": "本篇设定",
+    "charactersLabel": "角色",
+    "referenceHint": "这些角色设定会在续写时被优先参考，越关键的内容越值得写清楚。",
+    "saveButton": "保存设定",
+    "unselected": "从左边选一个角色开始编辑。",
+    "createTitle": "新建角色",
+    "createPlaceholder": "角色名（如：林小雨）",
+    "searchPlaceholder": "搜索角色名…",
+    "createDescription": "给这个故事添加一个角色设定文件。",
+    "importTitle": "从原作导入角色",
+    "importDescription": "勾选想带进这篇文的原作角色，系统会把对应资料复制到本篇设定里。",
+    "importEmpty": "原作资料里还没有可导入的角色。",
+    "importSuccess": "已导入 {{count}} 个角色设定。",
+    "selectedTag": "本篇角色",
+    "deleteTitle": "确认删除设定文件",
+    "deleteMessage": "确定要删除「{{name}}」吗？文件将移入垃圾箱，30 天内可恢复。",
+    "emptyCharacters": {
+      "title": "还没有角色设定",
+      "description": "添加角色后，AI 续写时会自动参考人设，避免崩人设。"
+    }
+  },
+  "dirty": {
+    "title": "检查手动改动",
+    "warningTitle": "发现手动改过的章节",
+    "warningDescription": "这一章被手动改动过。为了让后面续写还记得准，请确认受影响的剧情笔记该保留还是作废。",
+    "empty": "这一章暂时没有关联到剧情笔记，可以直接重新整理。",
+    "dirtyTag": "待确认",
+    "deprecateTag": "将作废",
+    "keep": "保留",
+    "deprecate": "作废",
+    "extractButton": "提取这次修改带来的新剧情笔记",
+    "extractHint": "需要时可以去剧情笔记页继续补记新变化。",
+    "resolveButton": "🔄 重新整理",
+    "resolveSubtitle": "检查角色出场和剧情状态"
+  },
+  "export": {
+    "title": "导出这篇文",
+    "formatLabel": "选择导出格式",
+    "markdown": "Markdown 格式 (.md)",
+    "text": "纯文本格式 (.txt)",
+    "description": "导出时会拼接所有已定稿章节，不包含草稿。",
+    "writing": "正在写入本地文件…",
+    "submit": "确认导出"
+  },
+  "emptyState": {
+    "library": {
+      "title": "还没有作品",
+      "description": "创建你的第一个 Fandom 开始写文吧"
+    },
+    "fandomCharacters": {
+      "title": "还没有角色设定",
+      "description": "添加角色后，后面整理本篇设定时会更顺手。"
+    },
+    "fandomWorldbuilding": {
+      "title": "还没有世界观设定",
+      "description": "添加后，后面整理剧情时就能更清楚地参考原作规则。"
+    },
+    "auCharacters": {
+      "title": "还没有角色设定",
+      "description": "添加角色后，AI 续写时会自动参考人设，避免崩人设。"
+    },
+    "facts": {
+      "title": "还没有剧情笔记",
+      "description": "记下重要剧情和伏笔，AI 会帮你记住并在续写时参考。写了几章后，点击「提取」让 AI 自动从正文中总结。"
+    },
+    "pinned": {
+      "title": "还没有写作底线",
+      "description": "写作底线是 AI 绝对不能违反的规则，比如：\n「两人目前还没有在一起」\n「角色 A 不知道角色 B 的秘密」"
+    },
+    "chapters": {
+      "title": "还没有章节",
+      "description": "去写作页开始第一章吧"
+    },
+    "trash": {
+      "title": "垃圾箱是空的",
+      "description": "删除的设定文件会在这里保留 30 天"
+    }
+  },
+  "enums": {
+    "importance": {
+      "high": "主角",
+      "medium": "配角",
+      "low": "龙套"
+    },
+    "fact_status": {
+      "unresolved": "待填坑",
+      "active": "生效中",
+      "resolved": "已填坑",
+      "deprecated": "已作废"
+    },
+    "fact_type": {
+      "plot_event": "剧情事件",
+      "character_detail": "人物细节",
+      "relationship": "人物关系",
+      "worldbuilding": "世界观",
+      "world_rule": "世界观",
+      "foreshadowing": "伏笔",
+      "backstory": "背景经历"
+    },
+    "narrative_weight": {
+      "high": "★★★ 关键",
+      "medium": "★★ 普通",
+      "low": "★ 次要"
+    },
+    "perspective": {
+      "third_person": "第三人称",
+      "first_person": "第一人称"
+    },
+    "emotion_style": {
+      "implicit": "行为暗示（Show）",
+      "explicit": "直接描写（Tell）"
+    },
+    "llm_mode": {
+      "api": "在线API",
+      "local": "本地模型",
+      "ollama": "Ollama"
+    },
+    "index_status": {
+      "ready": "✅ 设定已就绪",
+      "stale": "⚠️ 设定需要重新处理",
+      "rebuilding": "🔄 正在处理设定…",
+      "interrupted": "⚠️ 设定需要重新处理"
+    },
+    "origin_ref": {
+      "fandom": "来源：原作 {{name}}",
+      "original": "来源：原创角色"
+    }
+  },
+  "error_messages": {
+    "invalid_api_key": "密钥验证失败，请检查你的 Key 是否正确",
+    "rate_limited": "请求太频繁了，等 {{retry_after}} 秒后再试",
+    "insufficient_balance": "API 额度用完了，请去服务商充值",
+    "timeout": "AI 想太久了没回应，再试一次？",
+    "context_length_exceeded": "这章的设定太多了，AI 读不完。试试减少一些角色设定或缩短底线。",
+    "content_filtered": "AI 服务商拒绝了这次请求（可能触发了内容审查），换个说法试试？",
+    "connection_failed": "连不上 AI 服务，检查一下网络和接口地址？",
+    "api_base_missing": "还没有配置接口地址，去「故事设置」填一下",
+    "unknown": "出了点问题，请重试或检查设置"
+  },
+  "trash": {
+    "title": "垃圾箱",
+    "count": "({{count}})",
+    "deletedAt": "删除于 {{time}}",
+    "expiresIn": "{{days}} 天后自动清除",
+    "expired": "已过期，等待清理",
+    "restore": "恢复",
+    "permanentDelete": "永久删除",
+    "clearAll": "清空垃圾箱",
+    "confirmDelete": "永久删除「{{name}}」？此操作不可恢复。",
+    "confirmClearAll": "永久删除垃圾箱中的所有 {{count}} 个条目？此操作不可恢复。",
+    "restoreSuccess": "已恢复：{{name}}",
+    "restoreConflict": "原位置已有同名文件，无法恢复。请先删除或重命名现有文件。",
+    "deleteSuccess": "已永久删除",
+    "clearSuccess": "已清空垃圾箱"
+  }
+}
