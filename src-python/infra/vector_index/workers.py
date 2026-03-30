@@ -107,7 +107,7 @@ def worker_delete_settings_chunks(info: TaskInfo, deps: dict[str, Any]) -> None:
             )
             if results and results.get("ids"):
                 ids = results.get("ids", [])
-                metas = results.get("metadatas", [])
+                metas = results.get("metadatas") or []
                 delete_ids = []
                 for i, id_ in enumerate(ids):
                     meta = metas[i] if i < len(metas) else {}

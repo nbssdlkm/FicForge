@@ -163,7 +163,7 @@ class LocalChromaVectorRepository:
                 )
                 if old_results and old_results.get("ids"):
                     old_ids = old_results.get("ids", [])
-                    old_metas = old_results.get("metadatas", [])
+                    old_metas = old_results.get("metadatas") or []
                     delete_ids = []
                     for i, id_ in enumerate(old_ids):
                         meta = old_metas[i] if i < len(old_metas) else {}
