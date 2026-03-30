@@ -111,7 +111,6 @@ def worker_delete_settings_chunks(info: TaskInfo, deps: dict[str, Any]) -> None:
                 delete_ids = []
                 for i, id_ in enumerate(ids):
                     meta = metas[i] if i < len(metas) else {}
-                    # 优先使用 metadata.au_id；兼容旧数据时回退到 ID 前缀匹配
                     if meta.get("au_id") == au_id or str(id_).startswith(f"{au_id}_"):
                         delete_ids.append(id_)
                 if delete_ids:
