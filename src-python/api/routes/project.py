@@ -74,6 +74,8 @@ class ProjectResponse(BaseModel):
 
 @router.get("", response_model=ProjectResponse)
 async def get_project(au_path: str = Query(...)):
+    if not validate_path(au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_project_repository()
 
     try:
