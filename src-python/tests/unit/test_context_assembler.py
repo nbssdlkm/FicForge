@@ -264,19 +264,10 @@ def test_context_summary_total_tokens():
     assert summary.total_input_tokens == result["budget_report"].total_input_tokens
 
 
-def test_context_summary_worldbuilding_used():
-    """ContextSummary 记录注入的世界观文件名 + 内容出现在 prompt 中。"""
+def test_context_summary_worldbuilding_used_empty():
+    """worldbuilding_used 当前为空数组（P5 只注入角色，世界观注入待后续立项）。"""
     p = _FakeProject()
     state = _FakeState()
-    wb_files = {"圣锚星系": "# 圣锚星系\n一个虚构的星系。", "魔法体系": "# 魔法体系\n元素魔法。"}
-    result = assemble_context(
-        p, state, "继续", [], _FakeChapterRepo(), "test/au",
-        worldbuilding_files=wb_files,
-    )
+    result = assemble_context(p, state, "继续", [], _FakeChapterRepo(), "test/au")
     summary = result["context_summary"]
-    assert "圣锚星系" in summary.worldbuilding_used
-    assert "魔法体系" in summary.worldbuilding_used
-    # 验证世界观内容实际注入 prompt
-    user_content = result["messages"][1]["content"]
-    assert "世界观设定" in user_content
-    assert "虚构的星系" in user_content
+    assert summary.worldbuilding_used == []

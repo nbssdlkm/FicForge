@@ -43,6 +43,8 @@ class DraftDetailResponse(BaseModel):
 
 @router.get("", response_model=list[DraftListItemResponse])
 async def list_drafts(au_path: str = Query(...), chapter_num: int = Query(...)):
+    if not validate_path(au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_draft_repository()
     drafts = await run_in_threadpool(repo.list_by_chapter, au_path, chapter_num)
     return [
@@ -56,6 +58,8 @@ async def list_drafts(au_path: str = Query(...), chapter_num: int = Query(...)):
 
 @router.get("/{label}", response_model=DraftDetailResponse)
 async def get_draft(label: str, au_path: str = Query(...), chapter_num: int = Query(...)):
+    if not validate_path(au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_draft_repository()
 
     try:

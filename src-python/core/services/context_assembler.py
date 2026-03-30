@@ -404,7 +404,6 @@ def assemble_context(
     au_path: Path,
     rag_results: Optional[str] = None,
     character_files: Optional[dict[str, str]] = None,
-    worldbuilding_files: Optional[dict[str, str]] = None,
 ) -> dict[str, Any]:
     """上下文组装器主函数（PRD §4.1）。
 
@@ -504,26 +503,6 @@ def assemble_context(
     p5_tc = _count(p5_text, llm)
     p5_tokens = p5_tc.count
     used += p5_tokens
-
-    # P5 世界观注入（用 P5 剩余 budget）
-    wb_injected: list[str] = []
-    if worldbuilding_files:
-        wb_parts: list[str] = []
-        wb_budget = max(0, budget - used)
-        wb_used = 0
-        for name, text in worldbuilding_files.items():
-            t = _count(text, llm).count
-            if wb_used + t <= wb_budget:
-                wb_parts.append(f"### {name}\n{text}")
-                wb_used += t
-                wb_injected.append(name)
-        if wb_parts:
-            wb_text = "## 世界观设定\n" + "\n\n".join(wb_parts)
-            p5_text = p5_text + "\n\n" + wb_text if p5_text else wb_text
-            wb_tc = _count(wb_text, llm)
-            used += wb_tc.count
-            p5_tokens += wb_tc.count
-
     report.p5_tokens = p5_tokens
     if p5_truncated:
         truncated.append("P5_core_settings")
@@ -558,10 +537,11 @@ def assemble_context(
             ]
             summary.rag_chunks_retrieved = len(rag_content_lines)
 
-        # P5 角色注入/截断 + 世界观
+        # P5 角色注入/截断
         summary.characters_used = p5_injected
         summary.truncated_characters = p5_truncated
-        summary.worldbuilding_used = wb_injected
+        # worldbuilding_used: 当前组装流程中无世界观文件名可收集（P5 只注入角色，
+        # RAG 未对接到生成流程）。保持空数组，待后续单独立项实现完整世界观注入。
 
         # 汇总
         summary.total_input_tokens = system_tokens + used

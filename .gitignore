@@ -46,3 +46,4 @@ settings.sync.yaml
 .env.*
 *.key
 credentials.json
+.pytest_cache/

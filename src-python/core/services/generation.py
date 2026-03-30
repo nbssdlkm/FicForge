@@ -130,17 +130,15 @@ def generate_chapter(
         params = resolve_llm_params(model_name, session_params, project, settings)
         provider = create_provider(llm_config)
 
-        # === 步骤 1.5：加载设定文件（P5 核心设定用）===
+        # === 步骤 1.5：加载角色设定文件（P5 核心设定用）===
         if character_files is None:
             character_files = _load_md_files(au_path / "characters")
-        worldbuilding_files = _load_md_files(au_path / "worldbuilding")
 
         # === 步骤 2：组装上下文 ===
         ctx = assemble_context(
             project, state, user_input, facts,
             chapter_repo, au_path,
             character_files=character_files,
-            worldbuilding_files=worldbuilding_files,
         )
         messages = ctx["messages"]
         max_tokens: int = ctx["max_tokens"]

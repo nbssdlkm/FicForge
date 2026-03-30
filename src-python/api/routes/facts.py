@@ -108,6 +108,8 @@ async def list_facts(
     chapter: int | None = Query(None),
     characters: list[str] | None = Query(None),
 ):
+    if not validate_path(au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_fact_repository()
 
     if characters:
