@@ -65,13 +65,33 @@ def _dispatch_worker(info: TaskInfo) -> None:
     worker_fn(info, deps)
 
 
-def _get_vector_repo():  # type: ignore[no-untyped-def]
-    """延迟初始化 vector_repo（ChromaDB 可能不可用）。"""
+_vector_repo_instance: Any = None
+_vector_repo_init_attempted: bool = False
+
+
+def _get_vector_repo() -> Any:
+    """延迟初始化 vector_repo 单例（ChromaDB + Embedding 可能不可用）。"""
+    global _vector_repo_instance, _vector_repo_init_attempted
+    if _vector_repo_init_attempted:
+        return _vector_repo_instance
+    _vector_repo_init_attempted = True
+
     try:
+        from pathlib import Path as _Path
+        from infra.vector_index.chromadb_client import init_chromadb
+        from infra.embeddings.local_provider import LocalEmbeddingProvider
         from repositories.implementations.local_chroma_vector import LocalChromaVectorRepository
-        return LocalChromaVectorRepository()
+
+        persist_dir = _Path("./fandoms/.chromadb")
+        client = init_chromadb(persist_dir)
+        embedding = LocalEmbeddingProvider()
+        _vector_repo_instance = LocalChromaVectorRepository(client, embedding)
     except Exception:
-        return None
+        import logging
+        logging.getLogger(__name__).warning(
+            "vector_repo 初始化失败，向量化功能不可用", exc_info=True
+        )
+    return _vector_repo_instance
 
 
 _task_queue = BackgroundTaskQueue(worker_fn=_dispatch_worker)

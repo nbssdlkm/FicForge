@@ -149,8 +149,10 @@ class LocalChromaVectorRepository:
         collection = self._get_collection(file_type)
 
         # 提取 source_file 用于 ID 生成和删除旧 chunks
+        import re as _re
         source_file = chunks[0].metadata.get("source_file", "") if chunks else ""
-        file_stem = source_file.replace(".md", "").replace(".", "_") if source_file else "unknown"
+        # 安全化文件名用于 ChromaDB ID（移除空格、点等）
+        file_stem = _re.sub(r"[.\s]+", "_", source_file.replace(".md", "")) if source_file else "unknown"
 
         # 先删除该文件的旧 chunks
         if source_file:
