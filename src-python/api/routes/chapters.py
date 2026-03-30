@@ -222,6 +222,8 @@ async def resolve_dirty_chapter(request: ResolveDirtyChapterRequest):
 
 @router.get("", response_model=list[ChapterListItemResponse])
 async def list_chapters(au_path: str = Query(...)):
+    if not validate_path(au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_chapter_repository()
     chapters = await run_in_threadpool(repo.list_main, au_path)
     return [
@@ -237,6 +239,8 @@ async def list_chapters(au_path: str = Query(...)):
 
 @router.get("/{chapter_num}", response_model=ChapterDetailResponse)
 async def get_chapter(chapter_num: int, au_path: str = Query(...)):
+    if not validate_path(au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_chapter_repository()
 
     try:
@@ -255,6 +259,8 @@ async def get_chapter(chapter_num: int, au_path: str = Query(...)):
 
 @router.get("/{chapter_num}/content", response_model=ChapterContentResponse)
 async def get_chapter_content(chapter_num: int, au_path: str = Query(...)):
+    if not validate_path(au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_chapter_repository()
 
     try:

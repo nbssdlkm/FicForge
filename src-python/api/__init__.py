@@ -193,5 +193,14 @@ def build_task_queue() -> BackgroundTaskQueue:
 
 
 def validate_path(path: str) -> bool:
-    """拒绝含路径遍历的输入。所有接受用户路径的端点必须调用。"""
-    return ".." not in path
+    """校验路径安全性。所有接受用户路径的端点必须调用。
+
+    拒绝：.. 路径遍历组件、空路径。
+    允许：绝对路径（桌面应用中 au_path 通常是绝对路径）。
+    """
+    if not path or not path.strip():
+        return False
+    # 拒绝 .. 组件（路径遍历防护）
+    if ".." in path:
+        return False
+    return True

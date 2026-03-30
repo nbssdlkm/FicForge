@@ -65,12 +65,12 @@ async def list_trash(
         return error_response(400, "INVALID_PATH", "路径不合法", [])
     scope_root = Path(resolved)
     if not scope_root.is_dir():
-        return error_response(404, "NOT_FOUND", f"目录不存在: {path}", [])
+        return error_response(404, "NOT_FOUND", f"目录不存在: {resolved}", [])
 
     try:
         entries = await run_in_threadpool(_trash_service.list_trash, scope_root)
     except Exception as exc:
-        logger.exception("List trash failed: path=%s", path)
+        logger.exception("List trash failed: path=%s", resolved)
         return error_response(500, "TRASH_LIST_FAILED", str(exc), [])
 
     return [e.to_dict() for e in entries]
@@ -84,7 +84,7 @@ async def restore_from_trash(req: RestoreRequest) -> Any:
         return error_response(400, "INVALID_PATH", "路径不合法", [])
     scope_root = Path(resolved)
     if not scope_root.is_dir():
-        return error_response(404, "NOT_FOUND", f"目录不存在: {req.path}", [])
+        return error_response(404, "NOT_FOUND", f"目录不存在: {resolved}", [])
 
     try:
         entry = await run_in_threadpool(
@@ -95,7 +95,7 @@ async def restore_from_trash(req: RestoreRequest) -> Any:
     except FileExistsError as exc:
         return error_response(409, "RESTORE_CONFLICT", str(exc), [])
     except Exception as exc:
-        logger.exception("Restore failed: path=%s id=%s", req.path, req.trash_id)
+        logger.exception("Restore failed: path=%s id=%s", resolved, req.trash_id)
         return error_response(500, "RESTORE_FAILED", str(exc), [])
 
     # 恢复后入队向量化（仅 AU 文件，D-0028）
@@ -141,7 +141,7 @@ async def purge_expired(
             _trash_service.purge_expired, scope_root, max_age_days
         )
     except Exception as exc:
-        logger.exception("Purge expired failed: path=%s", path)
+        logger.exception("Purge expired failed: path=%s", resolved)
         return error_response(500, "PURGE_FAILED", str(exc), [])
 
     return {"status": "ok", "purged_count": len(purged), "purged": [e.to_dict() for e in purged]}
@@ -167,7 +167,7 @@ async def permanent_delete(
     except FileNotFoundError as exc:
         return error_response(404, "TRASH_NOT_FOUND", str(exc), [])
     except Exception as exc:
-        logger.exception("Permanent delete failed: path=%s id=%s", path, trash_id)
+        logger.exception("Permanent delete failed: path=%s id=%s", resolved, trash_id)
         return error_response(500, "DELETE_FAILED", str(exc), [])
 
     return {"status": "ok", "deleted": entry.to_dict()}
