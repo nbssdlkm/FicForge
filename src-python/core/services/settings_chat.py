@@ -172,6 +172,14 @@ def build_settings_context(
             _FANDOM_SYSTEM_PROMPT.format(fandom_name=fandom_name)
         )
 
+        # Fandom 现有设定文件全文
+        fandom_files = _load_settings_files(
+            Path(base_path),
+            [("core_characters", "角色 DNA"), ("core_worldbuilding", "世界观")],
+        )
+        if fandom_files:
+            system_parts.append(f"## 当前 Fandom 设定文件\n{fandom_files}")
+
     system_content = "\n\n".join(system_parts)
 
     # 截断对话历史
@@ -206,6 +214,97 @@ def _load_au_meta(au_path: str) -> tuple[str, str]:
     return raw.get("name", Path(au_path).name), raw.get("fandom", "Unknown")
 
 
+_SETTINGS_FILES_TOKEN_LIMIT = 30000
+
+
+def _load_settings_files(
+    base_dir: Path,
+    categories: list[tuple[str, str]],
+) -> str:
+    """读取指定目录下的 .md 设定文件全文。
+
+    Args:
+        base_dir: 根目录（AU 或 Fandom 路径）。
+        categories: [(子目录名, 标签)] 列表，如 [("characters", "角色设定"), ("worldbuilding", "世界观")]。
+
+    Returns:
+        格式化的设定文件全文。超量时截断低 importance 角色。
+    """
+    entries: list[tuple[str, str, str]] = []  # (label, filename, content)
+    total_chars = 0
+
+    for subdir, label in categories:
+        dir_path = base_dir / subdir
+        if not dir_path.is_dir():
+            continue
+        for f in sorted(dir_path.iterdir()):
+            if f.is_file() and f.suffix == ".md":
+                try:
+                    content = f.read_text(encoding="utf-8")
+                    entries.append((label, f.name, content))
+                    total_chars += len(content)
+                except Exception:
+                    continue
+
+    if not entries:
+        return ""
+
+    # 超量保护：>30000 token（~90000 中文字符估算）时截断
+    if total_chars > _SETTINGS_FILES_TOKEN_LIMIT * 3:
+        logger.warning(
+            "设定文件总量 %d 字符，超过阈值，截断低 importance 角色",
+            total_chars,
+        )
+        entries = _truncate_low_importance(entries)
+
+    parts: list[str] = []
+    for label, filename, content in entries:
+        parts.append(f"[{label}] {filename}:\n{content}")
+
+    return "\n\n".join(parts)
+
+
+def _truncate_low_importance(
+    entries: list[tuple[str, str, str]],
+) -> list[tuple[str, str, str]]:
+    """截断低 importance 角色：只保留 frontmatter + ## 核心限制 段落。"""
+    result: list[tuple[str, str, str]] = []
+    for label, filename, content in entries:
+        if "importance: low" in content.lower():
+            truncated = _extract_frontmatter_and_core(content)
+            result.append((label, filename, truncated))
+        else:
+            result.append((label, filename, content))
+    return result
+
+
+def _extract_frontmatter_and_core(content: str) -> str:
+    """提取 frontmatter + ## 核心限制 段落。"""
+    parts: list[str] = []
+
+    # frontmatter
+    if content.startswith("---"):
+        fm_parts = content.split("---", 2)
+        if len(fm_parts) >= 3:
+            parts.append(f"---{fm_parts[1]}---")
+            remaining = fm_parts[2]
+        else:
+            remaining = content
+    else:
+        remaining = content
+
+    # ## 核心限制 段落
+    core_match = re.search(r"^## 核心限制.*?(?=\n## |\Z)", remaining, re.MULTILINE | re.DOTALL)
+    if core_match:
+        parts.append(core_match.group().strip())
+
+    if not parts:
+        # fallback: 前 500 字符
+        return content[:500] + "…（已截断）"
+
+    return "\n\n".join(parts) + "\n\n（其余内容已截断，原文件更完整）"
+
+
 def _load_fandom_dna_summaries(fandom_path: str) -> str:
     """读取 Fandom core_characters/ 下所有角色的 DNA 摘要。"""
     chars_dir = Path(fandom_path) / "core_characters"
@@ -227,44 +326,43 @@ def _load_fandom_dna_summaries(fandom_path: str) -> str:
 
 
 def _load_au_context(au_path: str) -> str:
-    """加载 AU 级上下文：cast_registry + pinned_context + writing_style。"""
+    """加载 AU 级上下文：设定文件全文 + pinned_context + writing_style。"""
     import yaml
-
-    project_yaml = Path(au_path) / "project.yaml"
-    if not project_yaml.is_file():
-        return ""
-
-    try:
-        raw = yaml.safe_load(project_yaml.read_text(encoding="utf-8")) or {}
-    except Exception:
-        return ""
 
     parts: list[str] = []
 
-    # cast_registry
-    registry = raw.get("cast_registry", {})
-    characters = registry.get("characters", [])
-    if characters:
-        parts.append(f"## 当前角色列表\n{', '.join(characters)}")
+    # 设定文件全文（characters/ + worldbuilding/）
+    files_text = _load_settings_files(
+        Path(au_path),
+        [("characters", "角色设定"), ("worldbuilding", "世界观")],
+    )
+    if files_text:
+        parts.append(f"## 当前 AU 设定文件\n{files_text}")
 
-    # pinned_context
-    pinned = raw.get("pinned_context", [])
-    if pinned:
-        lines = "\n".join(f"- {p}" for p in pinned)
-        parts.append(f"## 当前铁律\n{lines}")
+    # pinned_context + writing_style 从 project.yaml 读取
+    project_yaml = Path(au_path) / "project.yaml"
+    if project_yaml.is_file():
+        try:
+            raw = yaml.safe_load(project_yaml.read_text(encoding="utf-8")) or {}
+        except Exception:
+            raw = {}
 
-    # writing_style
-    ws = raw.get("writing_style", {})
-    if ws:
-        ws_parts: list[str] = []
-        if ws.get("perspective"):
-            ws_parts.append(f"视角: {ws['perspective']}")
-        if ws.get("emotion_style"):
-            ws_parts.append(f"情感: {ws['emotion_style']}")
-        if ws.get("custom_instructions"):
-            ws_parts.append(f"自定义文风: {ws['custom_instructions']}")
-        if ws_parts:
-            parts.append(f"## 当前文风配置\n{'  |  '.join(ws_parts)}")
+        pinned = raw.get("pinned_context", [])
+        if pinned:
+            lines = "\n".join(f"- {p}" for p in pinned)
+            parts.append(f"## 当前铁律\n{lines}")
+
+        ws = raw.get("writing_style", {})
+        if ws:
+            ws_parts: list[str] = []
+            if ws.get("perspective"):
+                ws_parts.append(f"视角: {ws['perspective']}")
+            if ws.get("emotion_style"):
+                ws_parts.append(f"情感: {ws['emotion_style']}")
+            if ws.get("custom_instructions"):
+                ws_parts.append(f"自定义文风: {ws['custom_instructions']}")
+            if ws_parts:
+                parts.append(f"## 当前文风配置\n{'  |  '.join(ws_parts)}")
 
     return "\n\n".join(parts)
 

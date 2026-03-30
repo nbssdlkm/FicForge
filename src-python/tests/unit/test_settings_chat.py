@@ -84,7 +84,7 @@ class TestBuildSettingsContext:
             encoding="utf-8",
         )
 
-        # AU project.yaml
+        # AU
         au_dir.mkdir(parents=True)
         (au_dir / "project.yaml").write_text(
             "name: TestAU\nfandom: TestFandom\n"
@@ -93,6 +93,19 @@ class TestBuildSettingsContext:
             "writing_style:\n  perspective: third_person\n  emotion_style: implicit\n",
             encoding="utf-8",
         )
+
+        # AU 设定文件
+        au_chars = au_dir / "characters"
+        au_chars.mkdir()
+        (au_chars / "Connor.md").write_text("# Connor Ellis\nAU 版侦探。", encoding="utf-8")
+        au_wb = au_dir / "worldbuilding"
+        au_wb.mkdir()
+        (au_wb / "Detroit.md").write_text("# 底特律 2038\n赛博朋克城市。", encoding="utf-8")
+
+        # Fandom worldbuilding
+        fandom_wb = fandom_dir / "core_worldbuilding"
+        fandom_wb.mkdir()
+        (fandom_wb / "World.md").write_text("# 原作世界观\n机器人世界。", encoding="utf-8")
 
         return {"fandom_dir": fandom_dir, "au_dir": au_dir}
 
@@ -115,25 +128,47 @@ class TestBuildSettingsContext:
         assert "Connor" in system_content
         assert "核心本质" in system_content
 
-    def test_au_mode_includes_cast_and_pinned(self, au_env: dict[str, Path]):
+    def test_au_mode_includes_files_and_pinned(self, au_env: dict[str, Path]):
         result = build_settings_context(
             "au", str(au_env["au_dir"]), str(au_env["fandom_dir"]),
             [{"role": "user", "content": "test"}],
         )
         system_content = result[0]["content"]
-        assert "Connor" in system_content
-        assert "Hank" in system_content
+        # 设定文件全文注入
+        assert "[角色设定] Connor.md:" in system_content
+        assert "AU 版侦探" in system_content
+        assert "[世界观] Detroit.md:" in system_content
+        assert "赛博朋克城市" in system_content
+        # pinned 仍注入
         assert "不要道歉" in system_content
 
-    def test_fandom_mode_simple(self, au_env: dict[str, Path]):
+    def test_au_mode_no_files_no_error(self, tmp_path: Path):
+        """AU 无设定文件时不报错。"""
+        au_dir = tmp_path / "EmptyAU"
+        au_dir.mkdir()
+        (au_dir / "project.yaml").write_text(
+            "name: EmptyAU\nfandom: Test\n", encoding="utf-8"
+        )
+        result = build_settings_context(
+            "au", str(au_dir), None,
+            [{"role": "user", "content": "test"}],
+        )
+        assert result[0]["role"] == "system"
+        assert "设定管理助手" in result[0]["content"]
+
+    def test_fandom_mode_includes_files(self, au_env: dict[str, Path]):
         result = build_settings_context(
             "fandom", str(au_env["fandom_dir"]), None,
             [{"role": "user", "content": "帮我分析角色"}],
         )
         system = result[0]
         assert "Fandom 设定管理助手" in system["content"]
-        # Fandom 模式不含 AU 信息（cast_registry、当前铁律列表）
-        assert "当前角色列表" not in system["content"]
+        # Fandom 设定文件全文注入
+        assert "[角色 DNA] Connor.md:" in system["content"]
+        assert "温柔但坚定" in system["content"]
+        assert "[世界观] World.md:" in system["content"]
+        assert "机器人世界" in system["content"]
+        # 不含 AU 信息
         assert "当前铁律" not in system["content"]
 
     def test_fandom_mode_no_au_context(self, au_env: dict[str, Path]):
@@ -142,7 +177,8 @@ class TestBuildSettingsContext:
             [{"role": "user", "content": "test"}],
         )
         system_content = result[0]["content"]
-        assert "pinned" not in system_content.lower()
+        # 不含 AU 级 pinned context
+        assert "当前铁律" not in system_content
 
     def test_messages_appended(self, au_env: dict[str, Path]):
         msgs = [
