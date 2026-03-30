@@ -45,6 +45,7 @@ class LocalChromaVectorRepository:
         ]
         metadatas = [
             {
+                "au_id": au_id,
                 "chapter": c.chapter_num,
                 "chunk_index": c.chunk_index,
                 "branch_id": c.branch_id,
@@ -62,10 +63,15 @@ class LocalChromaVectorRepository:
         )
 
     def delete_chapter(self, au_id: str, chapter_num: int) -> None:
-        """删除指定章节的所有 chunks。"""
+        """删除指定 AU 的指定章节的所有 chunks。"""
         collection = self._get_collection("chapters")
         try:
-            collection.delete(where={"chapter": chapter_num})
+            collection.delete(where={
+                "$and": [
+                    {"au_id": au_id},
+                    {"chapter": chapter_num},
+                ]
+            })
         except Exception as e:
             logger.warning("删除章节 %d chunks 失败: %s", chapter_num, e)
 
@@ -85,9 +91,12 @@ class LocalChromaVectorRepository:
         # 取更多结果用于 Python 层过滤
         fetch_k = top_k * 3 if char_filter else top_k
 
+        # chapters collection 按 AU 隔离查询
+        where_filter = {"au_id": au_id} if collection_name == "chapters" else None
         results = collection.query(
             query_embeddings=[query_embedding],
             n_results=fetch_k,
+            where=where_filter,
         )
 
         chunks: list[Chunk] = []
