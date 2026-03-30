@@ -139,7 +139,9 @@ class LocalFileOpsRepository(OpsRepository):
     # -----------------------------------------------------------------------
 
     def list_all(self, au_id: str) -> list[OpsEntry]:
-        entries, errors = self._read_all_raw(au_id)
+        # 在 filelock 下读取，防止读到 append 写入一半的行造成误判损坏
+        with self._get_lock(au_id):
+            entries, errors = self._read_all_raw(au_id)
         if errors:
             self._handle_corruption(au_id)
         return entries
@@ -162,7 +164,8 @@ class LocalFileOpsRepository(OpsRepository):
         state_path = Path(au_id) / "state.yaml"
         try:
             if state_path.is_file():
-                raw = yaml.safe_load(state_path.read_text(encoding="utf-8")) or {}
+                loaded = yaml.safe_load(state_path.read_text(encoding="utf-8"))
+                raw = loaded if isinstance(loaded, dict) else {}
             else:
                 raw = {"au_id": au_id, "current_chapter": 1}
             raw["sync_unsafe"] = True
