@@ -68,7 +68,7 @@ async def list_fandoms(data_dir: str = "./fandoms") -> Any:
         return result
     except Exception as e:
         logger.exception("List fandoms failed: data_dir=%s", data_dir)
-        return error_response(500, "INTERNAL_ERROR", str(e))
+        return error_response(500, "INTERNAL_ERROR", str(e), [])
 
 
 @router.post("/fandoms")
@@ -99,7 +99,7 @@ async def list_aus(fandom_name: str, data_dir: str = "./fandoms") -> Any:
         return aus
     except Exception as e:
         logger.exception("List AUs failed: fandom=%s", fandom_name)
-        return error_response(500, "INTERNAL_ERROR", str(e))
+        return error_response(500, "INTERNAL_ERROR", str(e), [])
 
 
 @router.post("/fandoms/{fandom_name}/aus")
