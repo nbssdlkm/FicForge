@@ -520,5 +520,17 @@
     "restoreConflict": "原位置已有同名文件，无法恢复。请先删除或重命名现有文件。",
     "deleteSuccess": "已永久删除",
     "clearSuccess": "已清空垃圾箱"
+  },
+  "coreIncludes": {
+    "pinned": "必带",
+    "setPin": "设为必带",
+    "pinnedToast": "已设为必带角色",
+    "unpinnedToast": "已取消必带",
+    "tooMany": "当前有 {{count}} 个必带角色。建议不超过 3 个，太多会占用 AI 的记忆空间。",
+    "hint": "「必带」角色的设定每次续写都会完整提供给 AI，确保不会崩人设。建议只设主角（1-3个），设太多会占用 AI 的记忆空间。",
+    "missingCoreLimit": "建议添加「核心限制」段落",
+    "missingCoreLimitDesc": "在角色设定中添加一段「## 核心限制」，用 2-3 句话概括最重要的人设。当 AI 的记忆空间不足时，至少会保留这几句话，确保角色不崩。",
+    "goEdit": "去编辑",
+    "later": "稍后再说"
   }
 }
