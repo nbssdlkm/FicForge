@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Sidebar } from '../shared/Sidebar';
 import { Button } from '../shared/Button';
 import { EmptyState } from '../shared/EmptyState';
+import { MilestoneGuide } from '../shared/MilestoneGuide';
 import { LogOut, Loader2, BookOpen } from 'lucide-react';
 import { WriterLayout } from '../writer/WriterLayout';
 import { FactsLayout } from '../facts/FactsLayout';
@@ -9,8 +10,12 @@ import { AuLoreLayout } from '../library/AuLoreLayout';
 import { AuSettingsLayout } from '../settings/AuSettingsLayout';
 import { AnimatePresence, motion } from 'framer-motion';
 import { listChapters, type ChapterInfo } from '../../api/chapters';
+import { getState } from '../../api/state';
+import { listFacts, type FactInfo } from '../../api/facts';
+import { getProject } from '../../api/project';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { FeedbackProvider } from '../../hooks/useFeedback';
+import { useMilestoneGuide } from '../../hooks/useMilestoneGuide';
 
 type Props = {
   activeTab: string;
@@ -25,6 +30,20 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const [loadingChapters, setLoadingChapters] = useState(false);
 
   const auName = auPath.split('/').pop() || t('common.unknownAu');
+  const { shouldShow, dismiss } = useMilestoneGuide();
+
+  // Milestone data (loaded once, from existing page data)
+  const [currentChapter, setCurrentChapter] = useState(1);
+  const [factsCount, setFactsCount] = useState(0);
+  const [pinnedCount, setPinnedCount] = useState(0);
+  const [unresolvedFact, setUnresolvedFact] = useState<string | null>(null);
+  const [chapterFocusEmpty, setChapterFocusEmpty] = useState(true);
+  const [milestoneDismissed, setMilestoneDismissed] = useState<Record<string, boolean>>({});
+
+  const dismissMilestone = (id: string) => {
+    dismiss(id);
+    setMilestoneDismissed(prev => ({ ...prev, [id]: true }));
+  };
 
   useEffect(() => {
     if (!auPath) return;
@@ -33,6 +52,25 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
       .then(res => setChapters(res))
       .catch(() => setChapters([]))
       .finally(() => setLoadingChapters(false));
+
+    // Load milestone data only if any milestone is still active (avoid unnecessary API calls)
+    const anyMilestoneActive = shouldShow('facts_intro') || shouldShow('pinned_intro') || shouldShow('focus_intro');
+    if (anyMilestoneActive) {
+      getState(auPath).then(state => {
+        setCurrentChapter(state.current_chapter || 1);
+        setChapterFocusEmpty(!state.chapter_focus || state.chapter_focus.length === 0);
+      }).catch(() => {});
+
+      listFacts(auPath).then(facts => {
+        setFactsCount(facts.length);
+        const firstUnresolved = facts.find((f: FactInfo) => f.status === 'unresolved');
+        setUnresolvedFact(firstUnresolved ? (firstUnresolved.content_clean || '').slice(0, 20) + '...' : null);
+      }).catch(() => {});
+
+      getProject(auPath).then(proj => {
+        setPinnedCount((proj.pinned_context || []).length);
+      }).catch(() => {});
+    }
   }, [auPath]);
 
   return (
@@ -99,7 +137,45 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
         </div>
       </Sidebar>
 
-      <div className="flex-1 flex overflow-hidden relative z-10 bg-background">
+      <div className="flex-1 flex flex-col overflow-hidden relative z-10 bg-background">
+        {/* Milestone banner (only on writer tab, show only the first triggered) */}
+        {activeTab === 'writer' && (() => {
+          // Priority order: M1 > M2 > M3. Show only one at a time.
+          if (currentChapter >= 4 && factsCount < 2 && shouldShow('facts_intro') && !milestoneDismissed['facts_intro']) {
+            return (
+              <MilestoneGuide
+                title={t('milestones.factsIntro.title')}
+                description={t('milestones.factsIntro.desc')}
+                primaryAction={{ label: t('milestones.factsIntro.extract'), onClick: () => { dismissMilestone('facts_intro'); onNavigate('facts', auPath); } }}
+                secondaryAction={{ label: t('milestones.factsIntro.later'), onClick: () => dismissMilestone('facts_intro') }}
+                onDismiss={() => dismissMilestone('facts_intro')}
+              />
+            );
+          }
+          if (currentChapter >= 6 && pinnedCount === 0 && shouldShow('pinned_intro') && !milestoneDismissed['pinned_intro']) {
+            return (
+              <MilestoneGuide
+                title={t('milestones.pinnedIntro.title')}
+                description={t('milestones.pinnedIntro.desc')}
+                primaryAction={{ label: t('milestones.pinnedIntro.addPinned'), onClick: () => { dismissMilestone('pinned_intro'); onNavigate('settings', auPath); } }}
+                secondaryAction={{ label: t('milestones.pinnedIntro.notNeeded'), onClick: () => dismissMilestone('pinned_intro') }}
+                onDismiss={() => dismissMilestone('pinned_intro')}
+              />
+            );
+          }
+          if (unresolvedFact && chapterFocusEmpty && shouldShow('focus_intro') && !milestoneDismissed['focus_intro']) {
+            return (
+              <MilestoneGuide
+                title={t('milestones.focusIntro.title', { content: unresolvedFact })}
+                description={t('milestones.focusIntro.desc')}
+                primaryAction={{ label: t('milestones.focusIntro.setFocus'), onClick: () => dismissMilestone('focus_intro') }}
+                secondaryAction={{ label: t('milestones.focusIntro.freeStyle'), onClick: () => dismissMilestone('focus_intro') }}
+                onDismiss={() => dismissMilestone('focus_intro')}
+              />
+            );
+          }
+          return null;
+        })()}
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}

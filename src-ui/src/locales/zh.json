@@ -533,6 +533,32 @@
     "goEdit": "去编辑",
     "later": "稍后再说"
   },
+  "milestones": {
+    "factsIntro": {
+      "title": "你已经写了3章了！试试「剧情笔记」",
+      "desc": "记下重要剧情和伏笔，AI 续写时会自动参考。",
+      "extract": "去看看剧情笔记",
+      "later": "稍后再说"
+    },
+    "pinnedIntro": {
+      "title": "写了5章了，有没有什么 AI 绝对不能搞错的规则？",
+      "desc": "比如角色关系、秘密、性格底线？添加到「写作底线」，AI 每次续写都会严格遵守。",
+      "addPinned": "去添加底线",
+      "notNeeded": "不需要"
+    },
+    "focusIntro": {
+      "title": "你有一个待填的坑：「{{content}}」",
+      "desc": "写下一章时，可以把它设为「本章要推的线」，AI 会在这章重点推进这个剧情。",
+      "setFocus": "设为本章重点",
+      "freeStyle": "先自由发挥"
+    },
+    "pinIntro": {
+      "title": "你还没有设置「必带角色」",
+      "desc": "把主角设为必带，AI 每次续写都会记住他们的人设。",
+      "goSet": "去设置",
+      "later": "稍后"
+    }
+  },
   "onboarding": {
     "welcome": {
       "title": "FicForge",

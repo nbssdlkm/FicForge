@@ -10,6 +10,8 @@ import { getProject, updateProject, type ProjectInfo } from '../../api/project';
 import { saveLore, readLore, deleteLore, listLoreFiles, importFromFandom, getLoreContent } from '../../api/lore';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
+import { useMilestoneGuide } from '../../hooks/useMilestoneGuide';
+import { MilestoneGuide } from '../shared/MilestoneGuide';
 
 type LoreFileEntry = {
   name: string;
@@ -55,6 +57,8 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
   const [trashRefreshToken, setTrashRefreshToken] = useState(0);
   const [coreLimitModalOpen, setCoreLimitModalOpen] = useState(false);
   const [coreLimitTarget, setCoreLimitTarget] = useState<string | null>(null);
+  const { shouldShow: shouldShowMilestone, dismiss: dismissMilestone } = useMilestoneGuide();
+  const [pinMilestoneDismissed, setPinMilestoneDismissed] = useState(false);
 
   const syncRegistry = async (names: string[]) => {
     const deduped = Array.from(new Set(names));
@@ -336,6 +340,16 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
         </header>
 
         <div className="flex-1 min-h-0 flex flex-col">
+          {/* Milestone 4: Pin intro when characters exist but no pins */}
+          {files.length > 0 && coreIncludes.length === 0 && shouldShowMilestone('pin_intro') && !pinMilestoneDismissed && (
+            <MilestoneGuide
+              title={t('milestones.pinIntro.title')}
+              description={t('milestones.pinIntro.desc')}
+              primaryAction={{ label: t('milestones.pinIntro.goSet'), onClick: () => { dismissMilestone('pin_intro'); setPinMilestoneDismissed(true); } }}
+              secondaryAction={{ label: t('milestones.pinIntro.later'), onClick: () => { dismissMilestone('pin_intro'); setPinMilestoneDismissed(true); } }}
+              onDismiss={() => { dismissMilestone('pin_intro'); setPinMilestoneDismissed(true); }}
+            />
+          )}
           <div className="flex-1 overflow-y-auto p-2 space-y-6 font-mono py-4">
             <div className="space-y-2">
               <div className="px-3 pb-1 text-[11px] font-sans font-bold text-text/40 uppercase tracking-widest">
