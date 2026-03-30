@@ -139,8 +139,39 @@ class LocalFileOpsRepository(OpsRepository):
     # -----------------------------------------------------------------------
 
     def list_all(self, au_id: str) -> list[OpsEntry]:
-        entries, _ = self._read_all_raw(au_id)
+        entries, errors = self._read_all_raw(au_id)
+        if errors:
+            self._handle_corruption(au_id)
         return entries
+
+    @staticmethod
+    def _handle_corruption(au_id: str) -> None:
+        """损坏行检测后：创建 .bak 备份 + 标记 state.sync_unsafe=True。"""
+        import shutil
+        import yaml
+
+        # .bak 备份
+        path = LocalFileOpsRepository._ops_path(au_id)
+        bak_path = path.with_suffix(".jsonl.bak")
+        try:
+            shutil.copy2(str(path), str(bak_path))
+        except Exception:
+            pass
+
+        # 标记 state.sync_unsafe=True
+        state_path = Path(au_id) / "state.yaml"
+        try:
+            if state_path.is_file():
+                raw = yaml.safe_load(state_path.read_text(encoding="utf-8")) or {}
+            else:
+                raw = {"au_id": au_id, "current_chapter": 1}
+            raw["sync_unsafe"] = True
+            state_path.write_text(
+                yaml.dump(raw, allow_unicode=True, sort_keys=False),
+                encoding="utf-8",
+            )
+        except Exception:
+            pass
 
     def list_by_target(self, au_id: str, target_id: str) -> list[OpsEntry]:
         return [e for e in self.list_all(au_id) if e.target_id == target_id]

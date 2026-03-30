@@ -38,6 +38,8 @@ class LocalFileProjectRepository(ProjectRepository):
         except yaml.YAMLError as e:
             raise ProjectInvalidError(f"project.yaml 损坏无法解析: {path}") from e
 
+        if raw is None:
+            raw = {}  # 空文件兜底为默认值
         if not isinstance(raw, dict):
             raise ProjectInvalidError(f"project.yaml 内容非法: {path}")
 
