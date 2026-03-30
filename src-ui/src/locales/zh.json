@@ -532,5 +532,56 @@
     "missingCoreLimitDesc": "在角色设定中添加一段「## 核心限制」，用 2-3 句话概括最重要的人设。当 AI 的记忆空间不足时，至少会保留这几句话，确保角色不崩。",
     "goEdit": "去编辑",
     "later": "稍后再说"
+  },
+  "onboarding": {
+    "welcome": {
+      "title": "FicForge",
+      "subtitle": "AI 帮你写同人，记住每一个设定，不再崩人设。",
+      "start": "开始设置 →"
+    },
+    "apiConfig": {
+      "title": "连接你的 AI 模型",
+      "modeApi": "在线 API（推荐）",
+      "modeLocal": "本地模型",
+      "modeOllama": "Ollama",
+      "apiBase": "接口地址",
+      "apiBaseHint": "你的 AI 服务商提供的地址",
+      "apiKey": "密钥",
+      "apiKeyHint": "在 AI 服务商网站获取",
+      "model": "模型",
+      "testConnection": "测试连接",
+      "testing": "正在测试...",
+      "testSuccess": "连接成功！模型：{{model}}",
+      "testFailed": "连接失败：{{message}}",
+      "localPath": "模型文件夹路径",
+      "localPathHint": "下载模型文件后，填入文件夹路径",
+      "ollamaBase": "Ollama 服务地址",
+      "ollamaModel": "Ollama 模型名",
+      "requireTest": "请先测试连接成功后再继续"
+    },
+    "createFandom": {
+      "title": "你想写哪个作品的同人？",
+      "nameLabel": "作品名",
+      "namePlaceholder": "比如：原神、咒术回战、底特律变人...",
+      "skip": "跳过",
+      "whyFandom": "为什么要填作品名？",
+      "fandomExplain": "FicForge 用「原作」和「AU」两层来管理你的同人设定。\n\n原作 = 你写的是哪个作品（比如底特律、原神）\n放角色的原始人格分析、作品世界观等通用资料\n\nAU = 你这篇文的具体设定（比如星际皇室AU、现代咖啡馆AU）\n放这篇文里角色的具体形象、独特世界观、剧情笔记\n\n一个原作下可以有多个 AU，共享原作资料但互不干扰。\n不想分层？直接跳过，以后再补也完全没问题。"
+    },
+    "completion": {
+      "title": "一切就绪！",
+      "modelConnected": "AI 模型已连接",
+      "fandomCreated": "「{{name}}」已创建",
+      "fandomSkipped": "稍后再创建作品",
+      "nextSteps": "接下来你可以：",
+      "nextCreateAu": "创建一个 AU 开始写文",
+      "nextAddCharacters": "在「原作资料」中添加角色分析",
+      "nextImport": "导入已有的小说继续写",
+      "enter": "进入 FicForge →"
+    },
+    "common": {
+      "step": "{{current}}/{{total}}",
+      "prev": "← 上一步",
+      "next": "下一步 →"
+    }
   }
 }
