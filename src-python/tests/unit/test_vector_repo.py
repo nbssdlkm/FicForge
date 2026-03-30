@@ -178,21 +178,100 @@ def _make_settings_chunks(filename: str, n: int = 2) -> list[ChunkData]:
     ]
 
 
+def test_search_au_isolation():
+    """不同 AU 的章节检索互不干扰。"""
+    import chromadb
+    client = chromadb.Client()
+    embed = _mock_embedding_provider()
+    repo = LocalChromaVectorRepository(client, embed)
+
+    # AU1 和 AU2 各写入 1 章
+    chunks_au1 = [ChunkData(content="AU1 独有内容", chapter_num=1, chunk_index=0)]
+    chunks_au2 = [ChunkData(content="AU2 独有内容", chapter_num=1, chunk_index=0)]
+    repo.index_chapter("au1", chunks_au1)
+    repo.index_chapter("au2", chunks_au2)
+
+    # AU1 只能搜到自己
+    results_au1 = repo.search("au1", "内容", collection_name="chapters", top_k=10)
+    assert all("AU1" in r.content for r in results_au1)
+    assert not any("AU2" in r.content for r in results_au1)
+
+    # AU2 只能搜到自己
+    results_au2 = repo.search("au2", "内容", collection_name="chapters", top_k=10)
+    assert all("AU2" in r.content for r in results_au2)
+
+
+def test_delete_chapter_au_isolation():
+    """删除章节只影响目标 AU，不误删其他 AU。"""
+    import chromadb
+    client = chromadb.Client()
+    embed = _mock_embedding_provider()
+    repo = LocalChromaVectorRepository(client, embed)
+
+    chunks_au1 = [ChunkData(content="AU1 ch1", chapter_num=1, chunk_index=0)]
+    chunks_au2 = [ChunkData(content="AU2 ch1", chapter_num=1, chunk_index=0)]
+    repo.index_chapter("au1", chunks_au1)
+    repo.index_chapter("au2", chunks_au2)
+
+    # 删除 AU1 的第 1 章
+    repo.delete_chapter("au1", 1)
+
+    # AU1 搜不到了
+    results_au1 = repo.search("au1", "内容", collection_name="chapters", top_k=10)
+    assert len(results_au1) == 0
+
+    # AU2 不受影响
+    results_au2 = repo.search("au2", "内容", collection_name="chapters", top_k=10)
+    assert len(results_au2) == 1
+    assert "AU2" in results_au2[0].content
+
+
+def test_settings_files_au_isolation():
+    """不同 AU 的同名设定文件互不干扰。"""
+    import chromadb
+    client = chromadb.Client()
+    embed = _mock_embedding_provider()
+    repo = LocalChromaVectorRepository(client, embed)
+
+    chunks_au1 = _make_settings_chunks("Connor.md", n=2)
+    chunks_au2 = _make_settings_chunks("Connor.md", n=2)
+    repo.index_settings_files("au1", "characters", chunks_au1)
+    repo.index_settings_files("au2", "characters", chunks_au2)
+
+    coll = repo._get_collection("characters")
+    all_items = coll.get(include=["metadatas"])
+    # 两个 AU × 2 chunks = 4 条
+    assert len(all_items["ids"]) == 4
+
+    # 按 au_id 过滤
+    au1_items = coll.get(where={"au_id": "au1"}, include=[])
+    au2_items = coll.get(where={"au_id": "au2"}, include=[])
+    assert len(au1_items["ids"]) == 2
+    assert len(au2_items["ids"]) == 2
+
+    # 搜索按 AU 隔离
+    results_au1 = repo.search("au1", "Connor", collection_name="characters", top_k=10)
+    results_au2 = repo.search("au2", "Connor", collection_name="characters", top_k=10)
+    assert len(results_au1) == 2
+    assert len(results_au2) == 2
+
+
 def test_settings_files_source_file_metadata():
-    """Bug fix: source_file 元数据正确存入 ChromaDB。"""
+    """Bug fix: source_file + au_id 元数据正确存入 ChromaDB。"""
     import chromadb
     client = chromadb.Client()
     embed = _mock_embedding_provider()
     repo = LocalChromaVectorRepository(client, embed)
 
     chunks = _make_settings_chunks("Connor.md", n=2)
-    repo.index_settings_files("au1", "characters", chunks)
+    repo.index_settings_files("test_meta_au", "characters", chunks)
 
     coll = repo._get_collection("characters")
-    results = coll.get(where={"source_file": "Connor.md"}, include=["metadatas"])
+    results = coll.get(where={"au_id": "test_meta_au"}, include=["metadatas"])
     assert len(results["ids"]) == 2
     for meta in results["metadatas"]:
         assert meta["source_file"] == "Connor.md"
+        assert meta["au_id"] == "test_meta_au"
 
 
 def test_settings_files_no_id_collision():
@@ -205,19 +284,18 @@ def test_settings_files_no_id_collision():
     chunks_a = _make_settings_chunks("Connor.md", n=2)
     chunks_b = _make_settings_chunks("Hank.md", n=2)
 
-    repo.index_settings_files("au1", "characters", chunks_a)
-    repo.index_settings_files("au1", "characters", chunks_b)
+    repo.index_settings_files("test_collision_au", "characters", chunks_a)
+    repo.index_settings_files("test_collision_au", "characters", chunks_b)
 
     coll = repo._get_collection("characters")
-    all_items = coll.get(include=["metadatas"])
-    # 两个文件 × 2 chunks = 4 条，不互相覆盖
-    assert len(all_items["ids"]) == 4
+    au_items = coll.get(where={"au_id": "test_collision_au"}, include=["metadatas"])
+    # 两个文件 × 2 chunks = 4 条
+    assert len(au_items["ids"]) == 4
 
-    # 按 source_file 过滤
-    connor = coll.get(where={"source_file": "Connor.md"}, include=[])
-    hank = coll.get(where={"source_file": "Hank.md"}, include=[])
-    assert len(connor["ids"]) == 2
-    assert len(hank["ids"]) == 2
+    connor_ids = [id_ for id_, m in zip(au_items["ids"], au_items["metadatas"]) if m.get("source_file") == "Connor.md"]
+    hank_ids = [id_ for id_, m in zip(au_items["ids"], au_items["metadatas"]) if m.get("source_file") == "Hank.md"]
+    assert len(connor_ids) == 2
+    assert len(hank_ids) == 2
 
 
 def test_settings_files_upsert_replaces_old_chunks():
@@ -229,16 +307,17 @@ def test_settings_files_upsert_replaces_old_chunks():
 
     # 第一次：2 chunks
     chunks_v1 = _make_settings_chunks("Connor.md", n=2)
-    repo.index_settings_files("au1", "characters", chunks_v1)
+    repo.index_settings_files("test_upsert_au", "characters", chunks_v1)
 
     # 第二次：3 chunks（模拟修改后内容变多）
     chunks_v2 = _make_settings_chunks("Connor.md", n=3)
-    repo.index_settings_files("au1", "characters", chunks_v2)
+    repo.index_settings_files("test_upsert_au", "characters", chunks_v2)
 
     coll = repo._get_collection("characters")
-    connor = coll.get(where={"source_file": "Connor.md"}, include=[])
+    au_items = coll.get(where={"au_id": "test_upsert_au"}, include=["metadatas"])
+    connor_ids = [id_ for id_, m in zip(au_items["ids"], au_items["metadatas"]) if m.get("source_file") == "Connor.md"]
     # 应只有 3 条（v2），不是 5 条（v1+v2）
-    assert len(connor["ids"]) == 3
+    assert len(connor_ids) == 3
 
 
 def test_settings_files_upsert_scoped_to_current_au():
@@ -251,7 +330,6 @@ def test_settings_files_upsert_scoped_to_current_au():
     repo.index_settings_files("au1", "characters", _make_settings_chunks("Connor.md", n=2))
     repo.index_settings_files("au2", "characters", _make_settings_chunks("Connor.md", n=2))
 
-    # 仅重建 au1 的同名文件
     repo.index_settings_files("au1", "characters", _make_settings_chunks("Connor.md", n=1))
 
     coll = repo._get_collection("characters")
@@ -269,21 +347,23 @@ def test_worker_delete_settings_chunks_only_deletes_current_au():
     embed = _mock_embedding_provider()
     repo = LocalChromaVectorRepository(client, embed)
 
-    repo.index_settings_files("au1", "characters", _make_settings_chunks("Connor.md", n=2))
-    repo.index_settings_files("au2", "characters", _make_settings_chunks("Connor.md", n=2))
+    repo.index_settings_files("del_au1", "characters", _make_settings_chunks("Connor.md", n=2))
+    repo.index_settings_files("del_au2", "characters", _make_settings_chunks("Connor.md", n=2))
 
     info = TaskInfo(
         task_id="t1",
         task_type="delete_settings_chunks",
-        au_id="au1",
+        au_id="del_au1",
         payload={"file_path": "characters/Connor.md", "collection": "characters"},
     )
     worker_delete_settings_chunks(info, {"vector_repo": repo})
 
     coll = repo._get_collection("characters")
-    remaining = coll.get(where={"source_file": "Connor.md"}, include=["metadatas"])
-    remaining_au_ids = sorted(m.get("au_id") for m in remaining["metadatas"])
-    assert remaining_au_ids == ["au2", "au2"]
+    # del_au1 的已删除，del_au2 的保留
+    au1_remaining = coll.get(where={"au_id": "del_au1"}, include=[])
+    au2_remaining = coll.get(where={"au_id": "del_au2"}, include=[])
+    assert len(au1_remaining["ids"]) == 0
+    assert len(au2_remaining["ids"]) == 2
 
 
 def test_settings_files_cleanup_handles_none_metadatas():
