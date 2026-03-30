@@ -284,3 +284,40 @@ def test_worker_delete_settings_chunks_only_deletes_current_au():
     remaining = coll.get(where={"source_file": "Connor.md"}, include=["metadatas"])
     remaining_au_ids = sorted(m.get("au_id") for m in remaining["metadatas"])
     assert remaining_au_ids == ["au2", "au2"]
+
+
+def test_settings_files_cleanup_handles_none_metadatas():
+    """兼容部分 Chroma 返回 metadatas=None 的情况。"""
+    client = MagicMock()
+    collection = MagicMock()
+    collection.get.return_value = {
+        "ids": ["au1_characters_Connor_0", "au2_characters_Connor_0"],
+        "metadatas": None,
+    }
+    client.get_or_create_collection.return_value = collection
+
+    repo = LocalChromaVectorRepository(client, _mock_embedding_provider())
+    repo.index_settings_files("au1", "characters", _make_settings_chunks("Connor.md", n=1))
+
+    collection.delete.assert_called_once_with(ids=["au1_characters_Connor_0"])
+
+
+def test_worker_delete_settings_chunks_handles_none_metadatas():
+    """worker 在 metadatas=None 时仍应按 AU 前缀删除。"""
+    collection = MagicMock()
+    collection.get.return_value = {
+        "ids": ["au1_characters_Connor_0", "au2_characters_Connor_0"],
+        "metadatas": None,
+    }
+    vector_repo = MagicMock()
+    vector_repo._get_collection.return_value = collection
+
+    info = TaskInfo(
+        task_id="t2",
+        task_type="delete_settings_chunks",
+        au_id="au1",
+        payload={"file_path": "characters/Connor.md", "collection": "characters"},
+    )
+    worker_delete_settings_chunks(info, {"vector_repo": vector_repo})
+
+    collection.delete.assert_called_once_with(ids=["au1_characters_Connor_0"])
