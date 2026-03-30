@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from core.services.au_mutex import AUMutexManager
 from core.services.confirm_chapter import ConfirmChapterService
 from core.services.trash_service import TrashService
+from infra.vector_index.task_queue import BackgroundTaskQueue
 from core.services.dirty_resolve import ResolveDirtyChapterService
 from core.services.undo_chapter import UndoChapterService
 from repositories.implementations.local_file_chapter import LocalFileChapterRepository
@@ -30,6 +31,7 @@ from repositories.implementations.local_file_state import LocalFileStateReposito
 
 _au_mutex = AUMutexManager()
 _trash_service = TrashService(retention_days=30)
+_task_queue = BackgroundTaskQueue()
 
 
 # ---------------------------------------------------------------------------
@@ -121,6 +123,10 @@ def build_draft_filename(chapter_num: int, variant: str) -> str:
 
 def build_trash_service() -> TrashService:
     return _trash_service
+
+
+def build_task_queue() -> BackgroundTaskQueue:
+    return _task_queue
 
 
 def validate_path(path: str) -> bool:

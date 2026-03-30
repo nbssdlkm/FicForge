@@ -7,11 +7,36 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from api import error_response, validate_path
+from api import build_task_queue, error_response, validate_path
 
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _is_au_path(base_path: str) -> bool:
+    """判断路径是否为 AU（存在 project.yaml）。Fandom 路径不含 project.yaml。"""
+    return (Path(base_path) / "project.yaml").is_file()
+
+
+def _enqueue_vectorize(au_path: str, category: str, filename: str) -> None:
+    """入队 vectorize_settings_file（D-0028: 仅 AU 文件）。"""
+    collection = "characters" if "character" in category else "worldbuilding"
+    file_path = str(Path(au_path) / category / filename)
+    build_task_queue().enqueue("vectorize_settings_file", au_path, {
+        "file_path": file_path,
+        "collection": collection,
+    })
+
+
+def _enqueue_delete_chunks(au_path: str, category: str, filename: str) -> None:
+    """入队 delete_settings_chunks。"""
+    collection = "characters" if "character" in category else "worldbuilding"
+    file_path = str(Path(au_path) / category / filename)
+    build_task_queue().enqueue("delete_settings_chunks", au_path, {
+        "file_path": file_path,
+        "collection": collection,
+    })
 
 router = APIRouter(prefix="/api/v1/lore", tags=["lore"])
 
@@ -99,7 +124,15 @@ async def save_lore(req: LoreSaveRequest):
     except Exception as e:
         logger.exception("Save lore failed: category=%s file=%s", req.category, req.filename)
         return error_response(500, "LORE_SAVE_FAILED", str(e), [])
-        
+
+    # 向量化入队（D-0028: 仅 AU 文件）
+    if req.au_path and _is_au_path(req.au_path):
+        try:
+            fname = file_path.name
+            _enqueue_vectorize(req.au_path, req.category, fname)
+        except Exception:
+            logger.warning("向量化入队失败（不影响保存）", exc_info=True)
+
     return {"status": "ok", "path": str(file_path)}
 
 
@@ -143,6 +176,13 @@ async def delete_lore(req: LoreReadRequest):
     except Exception as e:
         logger.exception("Delete lore failed: %s", file_path)
         return error_response(500, "DELETE_FAILED", str(e), [])
+
+    # 删除 chunks 入队（D-0028: 仅 AU 文件）
+    if req.au_path and _is_au_path(req.au_path):
+        try:
+            _enqueue_delete_chunks(req.au_path, req.category, filename)
+        except Exception:
+            logger.warning("删除 chunks 入队失败（不影响删除）", exc_info=True)
 
     return {"status": "ok", "trash_id": entry.trash_id, "deleted": str(file_path)}
 
@@ -295,6 +335,13 @@ async def import_from_fandom(req: ImportFromFandomRequest) -> Any:
     except Exception as e:
         logger.exception("Import from fandom failed")
         return error_response(500, "IMPORT_FAILED", str(e), [])
+
+    # 导入到 AU → 对每个文件入队向量化
+    for fname in imported:
+        try:
+            _enqueue_vectorize(req.au_path, "characters", fname)
+        except Exception:
+            logger.warning("导入向量化入队失败: %s", fname, exc_info=True)
 
     return {
         "status": "ok",
