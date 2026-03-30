@@ -203,9 +203,9 @@ export const Library = ({ onNavigate }: { onNavigate: (page: string, auPath?: st
         <div className="space-y-4">
           <p className="text-sm text-text/80 leading-relaxed">
             {deleteTarget?.type === 'fandom' ? (
-              <>确定要删除 Fandom「<strong>{deleteTarget?.fandomName}</strong>」及其所有 AU 数据吗？此操作不可撤销。</>
+              <>确定要删除 Fandom「<strong>{deleteTarget?.fandomName}</strong>」及其所有 AU 数据吗？将移入垃圾箱，30 天内可恢复。</>
             ) : (
-              <>确定要删除 AU「<strong>{deleteTarget?.auName}</strong>」及其全部章节和设定吗？此操作不可撤销。</>
+              <>确定要删除 AU「<strong>{deleteTarget?.auName}</strong>」及其全部章节和设定吗？将移入垃圾箱，30 天内可恢复。</>
             )}
           </p>
           <div className="flex justify-end gap-2">

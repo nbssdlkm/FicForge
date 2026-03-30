@@ -90,7 +90,7 @@ async def save_lore(req: LoreSaveRequest):
 
 @router.delete("")
 async def delete_lore(req: LoreReadRequest):
-    """删除指定的 lore .md 文件。"""
+    """删除指定的 lore .md 文件 → 移入垃圾箱（D-0023）。"""
     if ".." in req.category or "/" in req.category or "\\" in req.category:
         return error_response(400, "INVALID_CATEGORY", "分类名不合法", [])
     if ".." in req.filename or "/" in req.filename or "\\" in req.filename:
@@ -106,17 +106,28 @@ async def delete_lore(req: LoreReadRequest):
     else:
         return error_response(400, "INVALID_REQUEST", "Must provide au_path or fandom_path", [])
 
-    file_path = base_dir / req.category / req.filename
-    if not file_path.name.endswith(".md"):
-        file_path = file_path.with_name(f"{file_path.name}.md")
+    filename = req.filename
+    if not filename.endswith(".md"):
+        filename = f"{filename}.md"
 
+    file_path = base_dir / req.category / filename
     if not file_path.is_file():
         return error_response(404, "NOT_FOUND", f"文件不存在: {req.filename}", [])
 
+    # 确定实体类型
+    entity_type = "character_file" if "character" in req.category else "worldbuilding_file"
+    entity_name = Path(filename).stem
+
+    from starlette.concurrency import run_in_threadpool
+    from api import build_trash_service
+    trash = build_trash_service()
     try:
-        file_path.unlink()
+        relative_path = f"{req.category}/{filename}"
+        entry = await run_in_threadpool(
+            trash.move_to_trash, base_dir, relative_path, entity_type, entity_name
+        )
     except Exception as e:
         logger.exception("Delete lore failed: %s", file_path)
         return error_response(500, "DELETE_FAILED", str(e), [])
 
-    return {"status": "ok", "deleted": str(file_path)}
+    return {"status": "ok", "trash_id": entry.trash_id, "deleted": str(file_path)}

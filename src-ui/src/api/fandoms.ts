@@ -48,13 +48,13 @@ export async function readFandomFile(fandomName: string, category: string, filen
   return apiFetch(`/api/v1/fandoms/${encodeURIComponent(fandomName)}/files/${encodeURIComponent(category)}/${encodeURIComponent(filename)}?data_dir=${encodeURIComponent(dataDir)}`);
 }
 
-export async function deleteFandom(fandomDirName: string, dataDir = "./fandoms"): Promise<{ status: string }> {
+export async function deleteFandom(fandomDirName: string, dataDir = "./fandoms"): Promise<{ status: string; trash_id: string }> {
   return apiFetch(`/api/v1/fandoms/${encodeURIComponent(fandomDirName)}?data_dir=${encodeURIComponent(dataDir)}`, {
     method: "DELETE",
   });
 }
 
-export async function deleteAu(fandomDirName: string, auName: string, dataDir = "./fandoms"): Promise<{ status: string }> {
+export async function deleteAu(fandomDirName: string, auName: string, dataDir = "./fandoms"): Promise<{ status: string; trash_id: string }> {
   return apiFetch(`/api/v1/fandoms/${encodeURIComponent(fandomDirName)}/aus/${encodeURIComponent(auName)}?data_dir=${encodeURIComponent(dataDir)}`, {
     method: "DELETE",
   });
