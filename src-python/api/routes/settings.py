@@ -11,6 +11,8 @@ from starlette.concurrency import run_in_threadpool
 from api import build_settings_repository, error_response
 from core.domain.enums import APIMode, LicenseTier, LLMMode
 from core.domain.project import LLMConfig
+import httpx
+
 from infra.embeddings.provider import OpenAICompatibleEmbeddingProvider
 from infra.llm.openai_compatible import OpenAICompatibleProvider
 import logging
@@ -192,8 +194,6 @@ class TestConnectionResponse(BaseModel):
 @router.post("/test-connection", response_model=TestConnectionResponse)
 async def test_connection(request: TestConnectionRequest):
     """测试 LLM 连接（PRD §1.5）。失败时也返回 200。"""
-    import httpx
-
     mode = request.mode
 
     if mode == "api":

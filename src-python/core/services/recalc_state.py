@@ -38,7 +38,12 @@ def recalc_state(
     """
     au_id = str(au_path)
 
-    state = state_repo.get(au_id)
+    try:
+        state = state_repo.get(au_id)
+    except Exception:
+        # state.yaml 损坏或缺失时创建默认 state
+        from core.domain.state import State
+        state = State(au_id=au_id)
 
     # 读取 cast_registry
     try:
