@@ -61,10 +61,12 @@ class BackgroundTaskQueue:
 
             # --- rebuild_index 淘汰同 AU 排队任务 ---
             if task_type == "rebuild_index":
+                _cancelable = ("vectorize_chapter", "resolve_dirty_chapter",
+                               "vectorize_settings_file", "delete_settings_chunks")
                 for tid, info in list(self._tasks.items()):
                     if (info.au_id == au_id
                             and info.status == TaskStatus.PENDING
-                            and info.task_type in ("vectorize_chapter", "resolve_dirty_chapter")):
+                            and info.task_type in _cancelable):
                         info.status = TaskStatus.CANCELLED
                         logger.info("rebuild_index 淘汰排队任务: %s (%s)", tid, info.task_type)
 
@@ -136,7 +138,11 @@ class BackgroundTaskQueue:
 
 
 def _dedup_key(task_type: str, au_id: str, payload: dict[str, Any]) -> str:
-    """生成去重 key。"""
+    """生成去重 key。支持 chapter_num（章节）和 file_path（设定文件）。"""
+    # 设定文件任务用 file_path 去重
+    file_path = payload.get("file_path", "")
+    if file_path:
+        return f"{au_id}:{task_type}:{file_path}"
     chapter_num = payload.get("chapter_num", "")
     return f"{au_id}:{task_type}:{chapter_num}"
 
