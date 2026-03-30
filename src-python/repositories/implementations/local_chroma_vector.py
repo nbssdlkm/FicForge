@@ -91,8 +91,8 @@ class LocalChromaVectorRepository:
         # 取更多结果用于 Python 层过滤
         fetch_k = top_k * 3 if char_filter else top_k
 
-        # chapters collection 按 AU 隔离查询
-        where_filter = {"au_id": au_id} if collection_name == "chapters" else None
+        # 所有 collection 按 AU 隔离查询
+        where_filter: dict[str, str] | None = {"au_id": au_id}
         results = collection.query(
             query_embeddings=[query_embedding],
             n_results=fetch_k,
@@ -176,7 +176,6 @@ class LocalChromaVectorRepository:
                     delete_ids = []
                     for i, id_ in enumerate(old_ids):
                         meta = old_metas[i] if i < len(old_metas) else {}
-                        # 优先使用 metadata.au_id；兼容旧数据时回退到 ID 前缀匹配
                         if meta.get("au_id") == au_id or str(id_).startswith(f"{au_id}_"):
                             delete_ids.append(id_)
                     if delete_ids:
@@ -187,14 +186,13 @@ class LocalChromaVectorRepository:
         texts = [c.content for c in chunks]
         embeddings = self._embedding.embed(texts)
 
-        # ID 包含文件名，避免不同文件的 chunks 互相覆盖
         ids = [f"{au_id}_{file_type}_{file_stem}_{c.chunk_index}" for c in chunks]
         metadatas = [
             {
+                "au_id": au_id,
                 "characters": ",".join(c.characters),
                 "content": c.content[:200],
                 "source_file": c.metadata.get("source_file", ""),
-                "au_id": au_id,
             }
             for c in chunks
         ]
