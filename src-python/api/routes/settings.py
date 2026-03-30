@@ -11,6 +11,8 @@ from starlette.concurrency import run_in_threadpool
 from api import build_settings_repository, error_response
 from core.domain.enums import APIMode, LicenseTier, LLMMode
 from core.domain.project import LLMConfig
+from infra.embeddings.provider import OpenAICompatibleEmbeddingProvider
+from infra.llm.openai_compatible import OpenAICompatibleProvider
 import logging
 
 logger = logging.getLogger(__name__)
@@ -165,3 +167,149 @@ async def update_settings(request: SettingsPayload):
         )
 
     return SettingsUpdateResponse(status="ok")
+
+
+# ---------------------------------------------------------------------------
+# test-connection
+# ---------------------------------------------------------------------------
+
+class TestConnectionRequest(BaseModel):
+    mode: str = "api"
+    model: str = ""
+    api_base: str | None = None
+    api_key: str | None = None
+    local_model_path: str | None = None
+    ollama_model: str | None = None
+
+
+class TestConnectionResponse(BaseModel):
+    success: bool
+    model: str = ""
+    message: str = ""
+    error_code: str = ""
+
+
+@router.post("/test-connection", response_model=TestConnectionResponse)
+async def test_connection(request: TestConnectionRequest):
+    """测试 LLM 连接（PRD §1.5）。失败时也返回 200。"""
+    import httpx
+
+    mode = request.mode
+
+    if mode == "api":
+        if not request.model or not request.api_base or not request.api_key:
+            return TestConnectionResponse(
+                success=False, model=request.model or "",
+                error_code="missing_config", message="请填写模型名、API 地址和密钥",
+            )
+        try:
+            provider = OpenAICompatibleProvider(
+                api_base=request.api_base, api_key=request.api_key, model=request.model,
+            )
+
+            def _test():
+                return provider.generate(
+                    messages=[{"role": "user", "content": "hi"}],
+                    max_tokens=1, temperature=0.0, top_p=1.0, stream=False,
+                )
+
+            resp = await run_in_threadpool(_test)
+            return TestConnectionResponse(
+                success=True, model=resp.model or request.model, message="连接成功",
+            )
+        except Exception as e:
+            code = getattr(e, "error_code", "connection_failed")
+            msg = getattr(e, "message", str(e))
+            return TestConnectionResponse(
+                success=False, model=request.model, error_code=code, message=msg,
+            )
+
+    elif mode == "ollama":
+        base = (request.api_base or "http://localhost:11434").rstrip("/")
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(f"{base}/api/tags")
+            if resp.status_code == 200:
+                models = [m.get("name", "") for m in resp.json().get("models", [])]
+                target = request.ollama_model or request.model
+                if target and target not in models:
+                    return TestConnectionResponse(
+                        success=False, model=target,
+                        error_code="model_not_found",
+                        message=f"Ollama 已连接但未找到模型 {target}，可用: {', '.join(models[:5])}",
+                    )
+                return TestConnectionResponse(
+                    success=True, model=target, message="Ollama 连接成功",
+                )
+            return TestConnectionResponse(
+                success=False, model=request.model or "",
+                error_code="connection_failed", message=f"Ollama 返回 HTTP {resp.status_code}",
+            )
+        except Exception as e:
+            return TestConnectionResponse(
+                success=False, model=request.model or "",
+                error_code="connection_failed", message=f"无法连接 Ollama: {e}",
+            )
+
+    elif mode == "local":
+        from pathlib import Path as _Path
+        path = request.local_model_path or ""
+        if not path:
+            return TestConnectionResponse(
+                success=False, model="",
+                error_code="missing_config", message="请填写本地模型路径",
+            )
+        if not _Path(path).is_dir():
+            return TestConnectionResponse(
+                success=False, model=path,
+                error_code="path_not_found", message=f"路径不存在或不是目录: {path}",
+            )
+        return TestConnectionResponse(
+            success=True, model=path, message="本地模型路径有效",
+        )
+
+    else:
+        return TestConnectionResponse(
+            success=False, model="",
+            error_code="unsupported_mode", message=f"不支持的模式: {mode}",
+        )
+
+
+# ---------------------------------------------------------------------------
+# test-embedding（可选）
+# ---------------------------------------------------------------------------
+
+@router.post("/test-embedding", response_model=TestConnectionResponse)
+async def test_embedding(request: TestConnectionRequest):
+    """测试 Embedding 模型连接。"""
+    if request.mode != "api":
+        return TestConnectionResponse(
+            success=False, model=request.model or "",
+            error_code="unsupported_mode", message="Embedding 测试仅支持 API 模式",
+        )
+
+    if not request.model or not request.api_base or not request.api_key:
+        return TestConnectionResponse(
+            success=False, model=request.model or "",
+            error_code="missing_config", message="请填写模型名、API 地址和密钥",
+        )
+
+    try:
+        provider = OpenAICompatibleEmbeddingProvider(
+            api_base=request.api_base, api_key=request.api_key, model=request.model,
+        )
+        result = await run_in_threadpool(provider.embed, ["test"])
+        if result and len(result) > 0 and len(result[0]) > 0:
+            return TestConnectionResponse(
+                success=True, model=request.model,
+                message=f"Embedding 连接成功（维度: {len(result[0])}）",
+            )
+        return TestConnectionResponse(
+            success=False, model=request.model,
+            error_code="empty_response", message="Embedding 返回为空",
+        )
+    except Exception as e:
+        return TestConnectionResponse(
+            success=False, model=request.model,
+            error_code="connection_failed", message=str(e),
+        )
