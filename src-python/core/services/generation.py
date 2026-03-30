@@ -19,6 +19,24 @@ from infra.llm.provider import LLMError
 from infra.storage_local.file_utils import now_utc
 
 # ---------------------------------------------------------------------------
+# 设定文件加载
+# ---------------------------------------------------------------------------
+
+def _load_md_files(directory: Path) -> dict[str, str]:
+    """加载目录下所有 .md 文件，返回 {文件名stem: 内容}。"""
+    result: dict[str, str] = {}
+    if not directory.is_dir():
+        return result
+    for f in sorted(directory.iterdir()):
+        if f.is_file() and f.suffix == ".md":
+            try:
+                result[f.stem] = f.read_text(encoding="utf-8")
+            except Exception:
+                continue
+    return result
+
+
+# ---------------------------------------------------------------------------
 # 幂等控制（单进程内，PRD §4.2）
 # ---------------------------------------------------------------------------
 
@@ -112,11 +130,17 @@ def generate_chapter(
         params = resolve_llm_params(model_name, session_params, project, settings)
         provider = create_provider(llm_config)
 
+        # === 步骤 1.5：加载设定文件（P5 核心设定用）===
+        if character_files is None:
+            character_files = _load_md_files(au_path / "characters")
+        worldbuilding_files = _load_md_files(au_path / "worldbuilding")
+
         # === 步骤 2：组装上下文 ===
         ctx = assemble_context(
             project, state, user_input, facts,
             chapter_repo, au_path,
             character_files=character_files,
+            worldbuilding_files=worldbuilding_files,
         )
         messages = ctx["messages"]
         max_tokens: int = ctx["max_tokens"]
