@@ -6,10 +6,14 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, Optional
 
+logger = logging.getLogger(__name__)
+
 from core.domain.budget_report import BudgetReport
+from core.domain.context_summary import ContextSummary
 from core.domain.enums import FactStatus, NarrativeWeight
 from core.domain.fact import Fact
 from core.domain.model_context_map import get_context_window, get_model_max_output
@@ -338,18 +342,23 @@ def build_core_settings_layer(
     character_files: Optional[dict[str, str]],
     budget_tokens: int,
     llm_config: Any,
-) -> str:
+) -> tuple[str, list[str], list[str]]:
     """构建 P5 核心设定层。
 
     core_guarantee_budget 低保机制：为 core_always_include 预留 400 token。
+
+    Returns:
+        (text, injected_names, truncated_names)
     """
     if not character_files:
-        return ""
+        return "", [], []
 
     core_names = set(getattr(project, "core_always_include", []) or [])
     guarantee = getattr(project, "core_guarantee_budget", 400)
 
     parts: list[str] = []
+    injected: list[str] = []
+    truncated: list[str] = []
     used = 0
 
     # 先注入 core_always_include 角色（低保保护）
@@ -360,6 +369,9 @@ def build_core_settings_layer(
             if used + t <= max(budget_tokens, guarantee):
                 parts.append(f"### {name}\n{text}")
                 used += t
+                injected.append(name)
+            else:
+                truncated.append(name)
 
     # 再注入其他角色（用剩余 budget）
     for name, text in character_files.items():
@@ -369,11 +381,14 @@ def build_core_settings_layer(
         if used + t <= budget_tokens:
             parts.append(f"### {name}\n{text}")
             used += t
+            injected.append(name)
+        else:
+            truncated.append(name)
 
     if not parts:
-        return ""
+        return "", injected, truncated
 
-    return "## 人物设定\n" + "\n\n".join(parts)
+    return "## 人物设定\n" + "\n\n".join(parts), injected, truncated
 
 
 # ===========================================================================
@@ -482,16 +497,56 @@ def assemble_context(
 
     # === P5：核心设定（用剩余 budget，含低保） ===
     p5_budget = max(guarantee, budget - used)
-    p5_text = build_core_settings_layer(project, character_files, p5_budget, llm)
+    p5_text, p5_injected, p5_truncated = build_core_settings_layer(
+        project, character_files, p5_budget, llm
+    )
     p5_tc = _count(p5_text, llm)
     p5_tokens = p5_tc.count
     used += p5_tokens
     report.p5_tokens = p5_tokens
+    if p5_truncated:
+        truncated.append("P5_core_settings")
 
     # --- 汇总 ---
     report.total_input_tokens = system_tokens + used
     report.budget_remaining = budget - used
     report.truncated_layers = truncated
+
+    # --- ContextSummary 旁路收集（D-0031）---
+    # 全部包裹在 try/except 中，收集失败不影响组装结果
+    summary = ContextSummary()
+    try:
+        pinned = getattr(project, "pinned_context", None) or []
+        summary.pinned_count = len(pinned)
+
+        # focus facts 前 20 字
+        for f in facts:
+            if f.id in focus_ids:
+                summary.facts_as_focus.append(f.content_clean[:20])
+
+        # P3 注入的 facts 条数
+        summary.facts_injected = sum(
+            1 for line in p3_text.splitlines() if line.startswith("- [")
+        )
+
+        # P4 RAG chunk 数（按非空内容行计数，排除分组标题）
+        if p4_text:
+            rag_content_lines = [
+                line for line in p4_text.splitlines()
+                if line.strip() and not line.startswith("### ")
+            ]
+            summary.rag_chunks_retrieved = len(rag_content_lines)
+
+        # P5 角色注入/截断
+        summary.characters_used = p5_injected
+        summary.truncated_characters = p5_truncated
+
+        # 汇总
+        summary.total_input_tokens = system_tokens + used
+        summary.truncated_layers = list(truncated)
+    except Exception:
+        # D-0031: 收集失败不影响生成流程，返回部分填充的 summary
+        logger.warning("ContextSummary 收集异常，返回部分数据", exc_info=True)
 
     # --- 组装 messages ---
     # 收集顺序 P1→P3→P2→P4→P5
@@ -509,4 +564,5 @@ def assemble_context(
         "messages": messages,
         "max_tokens": max_tokens,
         "budget_report": report,
+        "context_summary": summary,
     }

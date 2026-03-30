@@ -122,6 +122,18 @@ def generate_chapter(
         max_tokens: int = ctx["max_tokens"]
         budget_report = ctx["budget_report"]
 
+        # === 步骤 2.5：yield context_summary SSE 事件（D-0031 旁路）===
+        try:
+            from dataclasses import asdict
+            context_summary = ctx.get("context_summary")
+            if context_summary is not None:
+                yield {
+                    "event": "context_summary",
+                    "data": asdict(context_summary),
+                }
+        except Exception:
+            pass  # 收集失败不影响生成流程
+
         # === 步骤 3：分配草稿标签 ===
         existing_drafts = draft_repo.list_by_chapter(str(au_path), chapter_num)
         existing_labels = [d.variant for d in existing_drafts]

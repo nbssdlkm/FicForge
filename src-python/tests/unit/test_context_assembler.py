@@ -7,6 +7,8 @@ import pytest
 from core.domain.enums import FactStatus, FactType, NarrativeWeight
 from core.domain.fact import Fact
 from core.services.context_assembler import (
+    assemble_context,
+    build_core_settings_layer,
     build_facts_layer,
     build_instruction,
     build_system_prompt,
@@ -171,3 +173,92 @@ def test_facts_uses_content_clean():
     f = _make_fact("f1", content="纯叙事描述")
     text, _ = build_facts_layer([f], [], 99999, _FakeLLM())
     assert "纯叙事描述" in text
+
+
+# ===== build_core_settings_layer =====
+
+def test_core_settings_returns_injected_names():
+    """P5 返回注入的角色名列表。"""
+    p = _FakeProject(core_always_include=["Connor"])
+    files = {"Connor": "# Connor\nDetective.", "Hank": "# Hank\nLieutenant."}
+    text, injected, truncated = build_core_settings_layer(p, files, 99999, _FakeLLM())
+    assert "Connor" in injected
+    assert "Hank" in injected
+    assert truncated == []
+    assert "Connor" in text
+    assert "Hank" in text
+
+
+def test_core_settings_truncated_names():
+    """P5 budget 不足 → 记录被截断的角色。"""
+    p = _FakeProject(core_always_include=[], core_guarantee_budget=0)
+    files = {"Connor": "# Connor\n" + "x" * 5000}
+    text, injected, truncated = build_core_settings_layer(p, files, 1, _FakeLLM())
+    # budget=1 token，无法注入任何角色
+    assert injected == []
+    assert "Connor" in truncated
+
+
+# ===== ContextSummary 集成收集 =====
+
+@dataclass
+class _FakeChapterRepo:
+    """用于 assemble_context 测试的 mock chapter_repo。"""
+    def get_content_only(self, au_id: str, chapter_num: int) -> str:
+        return "上一章的内容，林深在雨中站了很久。"
+
+
+def test_context_summary_pinned_count():
+    """ContextSummary 正确统计 pinned_count。"""
+    p = _FakeProject(pinned_context=["不要道歉", "保持距离", "角色不能飞"])
+    state = _FakeState()
+    result = assemble_context(p, state, "继续", [], _FakeChapterRepo(), "test/au")
+    summary = result["context_summary"]
+    assert summary.pinned_count == 3
+
+
+def test_context_summary_facts_injected():
+    """ContextSummary 正确统计 facts_injected。"""
+    facts = [
+        _make_fact("f1", status="active", content="事实A"),
+        _make_fact("f2", status="unresolved", content="伏笔B"),
+        _make_fact("f3", status="resolved", content="已解决"),
+    ]
+    p = _FakeProject()
+    state = _FakeState()
+    result = assemble_context(p, state, "继续", facts, _FakeChapterRepo(), "test/au")
+    summary = result["context_summary"]
+    assert summary.facts_injected == 2  # active + unresolved，不含 resolved
+
+
+def test_context_summary_characters_used():
+    """ContextSummary 正确记录 P5 注入的角色名。"""
+    p = _FakeProject()
+    state = _FakeState()
+    files = {"Connor": "# Connor\nDetective.", "Hank": "# Hank\nLieutenant."}
+    result = assemble_context(p, state, "继续", [], _FakeChapterRepo(), "test/au", character_files=files)
+    summary = result["context_summary"]
+    assert "Connor" in summary.characters_used
+    assert "Hank" in summary.characters_used
+    assert summary.truncated_characters == []
+
+
+def test_context_summary_focus_facts():
+    """ContextSummary 记录 focus facts 前 20 字。"""
+    facts = [_make_fact("f1", status="unresolved", content="这是一个很长很长的伏笔描述，超过二十个字符")]
+    state = _FakeState(chapter_focus=["f1"])
+    p = _FakeProject()
+    result = assemble_context(p, state, "继续", facts, _FakeChapterRepo(), "test/au")
+    summary = result["context_summary"]
+    assert len(summary.facts_as_focus) == 1
+    assert len(summary.facts_as_focus[0]) == 20
+
+
+def test_context_summary_total_tokens():
+    """ContextSummary 记录 total_input_tokens。"""
+    p = _FakeProject()
+    state = _FakeState()
+    result = assemble_context(p, state, "继续", [], _FakeChapterRepo(), "test/au")
+    summary = result["context_summary"]
+    assert summary.total_input_tokens > 0
+    assert summary.total_input_tokens == result["budget_report"].total_input_tokens

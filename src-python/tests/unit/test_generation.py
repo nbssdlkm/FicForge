@@ -236,6 +236,46 @@ def test_generate_stream_error_saves_partial(tmp_path):
     assert saved.content == "部分文本"
 
 
+def test_generate_context_summary_event(tmp_path):
+    """SSE 流在第一个 token 前发送 context_summary 事件（D-0031）。"""
+    mock_provider = _make_mock_provider()
+
+    with patch("core.services.generation.create_provider", return_value=mock_provider):
+        events = list(generate_chapter(
+            au_path=tmp_path,
+            chapter_num=1,
+            user_input="继续",
+            input_type="continue",
+            session_llm=None,
+            session_params=None,
+            project=_FakeProject(pinned_context=["不要道歉"]),
+            state=_FakeState(),
+            settings=_FakeSettings(),
+            facts=[],
+            chapter_repo=_make_mock_chapter_repo(),
+            draft_repo=_make_mock_draft_repo(),
+        ))
+
+    # context_summary 事件存在
+    summary_events = [e for e in events if e["event"] == "context_summary"]
+    assert len(summary_events) == 1
+
+    # 可解析且包含必要字段
+    data = summary_events[0]["data"]
+    assert "characters_used" in data
+    assert "pinned_count" in data
+    assert data["pinned_count"] == 1
+    assert "facts_injected" in data
+    assert "total_input_tokens" in data
+    assert data["total_input_tokens"] > 0
+
+    # context_summary 在第一个 token 之前
+    event_types = [e["event"] for e in events]
+    cs_idx = event_types.index("context_summary")
+    first_token_idx = event_types.index("token")
+    assert cs_idx < first_token_idx
+
+
 def test_generate_session_llm_used(tmp_path):
     """session_llm 有值 → 使用 session_llm 的模型。"""
     mock_provider = _make_mock_provider()
