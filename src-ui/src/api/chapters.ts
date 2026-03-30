@@ -23,10 +23,22 @@ export async function getChapterContent(auPath: string, chapterNum: number): Pro
   return apiFetch(`/api/v1/chapters/${chapterNum}/content?au_path=${encodeURIComponent(auPath)}`);
 }
 
-export async function confirmChapter(auPath: string, chapterNum: number, draftId: string, generatedWith?: object): Promise<any> {
+export async function confirmChapter(
+  auPath: string,
+  chapterNum: number,
+  draftId: string,
+  generatedWith?: object,
+  content?: string | null
+): Promise<any> {
   return apiFetch("/api/v1/chapters/confirm", {
     method: "POST",
-    body: JSON.stringify({ au_path: auPath, chapter_num: chapterNum, draft_id: draftId, generated_with: generatedWith }),
+    body: JSON.stringify({
+      au_path: auPath,
+      chapter_num: chapterNum,
+      draft_id: draftId,
+      generated_with: generatedWith,
+      content,
+    }),
   });
 }
 
