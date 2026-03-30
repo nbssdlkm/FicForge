@@ -1,6 +1,6 @@
 """LocalChromaVectorRepository — ChromaDB 向量存储实现。
 
-4 个 collection: chapters / characters / worldbuilding / oc。
+3 个 collection: chapters / characters / worldbuilding（D-0022: oc 合并入 characters）。
 D-0013: WAL 模式由 chromadb_client.init_chromadb 保证。
 """
 
@@ -139,19 +139,53 @@ class LocalChromaVectorRepository:
     def index_settings_files(
         self, au_id: str, file_type: str, chunks: list[ChunkData]
     ) -> None:
-        """索引设定文件到对应 collection（characters/worldbuilding）。"""
+        """索引设定文件到对应 collection（characters/worldbuilding）。
+
+        先删除该 AU + 文件的旧 chunks，再写入新 chunks。
+        """
         if not chunks:
             return
 
         collection = self._get_collection(file_type)
+
+        # 提取 source_file 用于 ID 生成和删除旧 chunks
+        import re as _re
+        source_file = chunks[0].metadata.get("source_file", "") if chunks else ""
+        # 安全化文件名用于 ChromaDB ID（移除空格、点等）
+        file_stem = _re.sub(r"[.\s]+", "_", source_file.replace(".md", "")) if source_file else "unknown"
+
+        # 先删除该 AU 下该文件的旧 chunks（避免跨 AU 误删）
+        if source_file:
+            try:
+                old_results = collection.get(
+                    where={"source_file": source_file},
+                    include=["metadatas"],
+                )
+                if old_results and old_results.get("ids"):
+                    old_ids = old_results.get("ids", [])
+                    old_metas = old_results.get("metadatas") or []
+                    delete_ids = []
+                    for i, id_ in enumerate(old_ids):
+                        meta = old_metas[i] if i < len(old_metas) else {}
+                        # 优先使用 metadata.au_id；兼容旧数据时回退到 ID 前缀匹配
+                        if meta.get("au_id") == au_id or str(id_).startswith(f"{au_id}_"):
+                            delete_ids.append(id_)
+                    if delete_ids:
+                        collection.delete(ids=delete_ids)
+            except Exception as e:
+                logger.warning("删除旧设定 chunks 失败: %s", e)
+
         texts = [c.content for c in chunks]
         embeddings = self._embedding.embed(texts)
 
-        ids = [f"{au_id}_{file_type}_{c.chunk_index}" for c in chunks]
+        # ID 包含文件名，避免不同文件的 chunks 互相覆盖
+        ids = [f"{au_id}_{file_type}_{file_stem}_{c.chunk_index}" for c in chunks]
         metadatas = [
             {
                 "characters": ",".join(c.characters),
                 "content": c.content[:200],
+                "source_file": c.metadata.get("source_file", ""),
+                "au_id": au_id,
             }
             for c in chunks
         ]

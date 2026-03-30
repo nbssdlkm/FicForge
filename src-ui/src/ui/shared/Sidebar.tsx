@@ -2,6 +2,7 @@ import React, { HTMLAttributes } from 'react';
 import { cn } from './utils';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button } from './Button';
+import { useTranslation } from '../../i18n/useAppTranslation';
 
 export interface SidebarProps extends HTMLAttributes<HTMLDivElement> {
   width?: string;
@@ -12,6 +13,8 @@ export interface SidebarProps extends HTMLAttributes<HTMLDivElement> {
 
 export const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
   ({ className, width = '280px', isCollapsed = false, onToggle, position = 'left', children, ...props }, ref) => {
+    const { t } = useTranslation();
+
     return (
       <div
         ref={ref}
@@ -36,7 +39,7 @@ export const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
                position === 'left' ? "-right-4" : "-left-4"
              )}
              onClick={onToggle}
-             title={isCollapsed ? "Expand" : "Collapse"}
+             title={isCollapsed ? t("shared.sidebar.expand") : t("shared.sidebar.collapse")}
            >
              {position === 'left' ? (isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />) : (isCollapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />)}
            </Button>

@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from core.services.au_mutex import AUMutexManager
 from core.services.confirm_chapter import ConfirmChapterService
 from core.services.trash_service import TrashService
+from infra.vector_index.task_queue import BackgroundTaskQueue, TaskInfo
 from core.services.dirty_resolve import ResolveDirtyChapterService
 from core.services.undo_chapter import UndoChapterService
 from repositories.implementations.local_file_chapter import LocalFileChapterRepository
@@ -30,6 +31,70 @@ from repositories.implementations.local_file_state import LocalFileStateReposito
 
 _au_mutex = AUMutexManager()
 _trash_service = TrashService(retention_days=30)
+
+
+def _dispatch_worker(info: TaskInfo) -> None:
+    """按 task_type 分发到对应 worker。"""
+    from infra.vector_index.workers import (
+        worker_delete_chapter_chunks,
+        worker_delete_settings_chunks,
+        worker_rebuild_index,
+        worker_vectorize_chapter,
+        worker_vectorize_settings_file,
+    )
+
+    _workers = {
+        "vectorize_chapter": worker_vectorize_chapter,
+        "delete_chapter_chunks": worker_delete_chapter_chunks,
+        "vectorize_settings_file": worker_vectorize_settings_file,
+        "delete_settings_chunks": worker_delete_settings_chunks,
+        "rebuild_index": worker_rebuild_index,
+    }
+
+    worker_fn = _workers.get(info.task_type)
+    if worker_fn is None:
+        import logging
+        logging.getLogger(__name__).warning("未知 task_type: %s", info.task_type)
+        return
+
+    # 构建 deps（lazy，避免启动时初始化 ChromaDB）
+    deps = {
+        "chapter_repo": build_chapter_repository(),
+        "vector_repo": _get_vector_repo(),
+    }
+    worker_fn(info, deps)
+
+
+_vector_repo_instance: Any = None
+_vector_repo_init_attempted: bool = False
+
+
+def _get_vector_repo() -> Any:
+    """延迟初始化 vector_repo 单例（ChromaDB + Embedding 可能不可用）。"""
+    global _vector_repo_instance, _vector_repo_init_attempted
+    if _vector_repo_init_attempted:
+        return _vector_repo_instance
+    _vector_repo_init_attempted = True
+
+    try:
+        from pathlib import Path as _Path
+        from infra.vector_index.chromadb_client import init_chromadb
+        from infra.embeddings.local_provider import LocalEmbeddingProvider
+        from repositories.implementations.local_chroma_vector import LocalChromaVectorRepository
+
+        persist_dir = _Path("./fandoms/.chromadb")
+        client = init_chromadb(persist_dir)
+        embedding = LocalEmbeddingProvider()
+        _vector_repo_instance = LocalChromaVectorRepository(client, embedding)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning(
+            "vector_repo 初始化失败，向量化功能不可用", exc_info=True
+        )
+    return _vector_repo_instance
+
+
+_task_queue = BackgroundTaskQueue(worker_fn=_dispatch_worker)
 
 
 # ---------------------------------------------------------------------------
@@ -121,6 +186,10 @@ def build_draft_filename(chapter_num: int, variant: str) -> str:
 
 def build_trash_service() -> TrashService:
     return _trash_service
+
+
+def build_task_queue() -> BackgroundTaskQueue:
+    return _task_queue
 
 
 def validate_path(path: str) -> bool:
