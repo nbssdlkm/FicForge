@@ -79,7 +79,7 @@ def test_active_chars_merge():
         chapter_focus=["f1"],
     )
     facts = [_make_fact("f1", ["张律师"])]
-    cast = {"from_core": ["林深", "陈明", "陈律师"], "au_specific": [], "oc": ["张律师"]}
+    cast = {"characters": ["林深", "陈明", "陈律师", "张律师"]}
 
     result = build_active_chars(state, "陈律师来了", _FakeProject(), facts, cast)
     assert result is not None

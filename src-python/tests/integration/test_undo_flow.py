@@ -73,7 +73,7 @@ def _make_gw():
     )
 
 
-CAST = {"from_core": ["林深", "陈明", "陈律师"], "au_specific": [], "oc": []}
+CAST = {"characters": ["林深", "陈明", "陈律师"]}
 
 
 # ===== 完整流程 =====

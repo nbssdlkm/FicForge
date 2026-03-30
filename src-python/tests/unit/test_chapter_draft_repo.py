@@ -253,6 +253,5 @@ def test_ensure_au_directories(tmp_path):
     assert (au / "chapters" / "branches").is_dir()
     assert (au / "chapters" / "snapshots").is_dir()
     assert (au / "characters").is_dir()
-    assert (au / "oc").is_dir()
     assert (au / "worldbuilding").is_dir()
     assert (au / "imports").is_dir()

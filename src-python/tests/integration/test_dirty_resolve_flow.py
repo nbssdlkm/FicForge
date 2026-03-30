@@ -23,7 +23,7 @@ from repositories.implementations.local_file_ops import LocalFileOpsRepository
 from repositories.implementations.local_file_state import LocalFileStateRepository
 
 
-CAST = {"from_core": ["林深", "陈明", "陈律师"], "au_specific": [], "oc": []}
+CAST = {"characters": ["林深", "陈明", "陈律师"]}
 
 
 def _build_services():

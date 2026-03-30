@@ -268,35 +268,17 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
             </div>
           </section>
 
-          {/* 5. Cast Registry */}
+          {/* 5. Cast Registry (D-0022: unified characters list) */}
           {project?.cast_registry && (
             <section className="space-y-6">
               <h2 className="text-lg font-sans font-bold text-info border-l-4 border-info pl-3">角色注册表 (Cast Registry)</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-surface/50 p-4 rounded-xl border border-black/5 dark:border-white/5">
-                  <h3 className="text-xs font-bold text-text/60 uppercase mb-2">Core Characters</h3>
-                  {project.cast_registry.from_core.length === 0 ? (
-                    <p className="text-xs text-text/40">无</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-1">{project.cast_registry.from_core.map(c => <Tag key={c} variant="default" className="text-xs">{c}</Tag>)}</div>
-                  )}
-                </div>
-                <div className="bg-surface/50 p-4 rounded-xl border border-black/5 dark:border-white/5">
-                  <h3 className="text-xs font-bold text-text/60 uppercase mb-2">AU Specific</h3>
-                  {project.cast_registry.au_specific.length === 0 ? (
-                    <p className="text-xs text-text/40">无</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-1">{project.cast_registry.au_specific.map(c => <Tag key={c} variant="info" className="text-xs">{c}</Tag>)}</div>
-                  )}
-                </div>
-                <div className="bg-surface/50 p-4 rounded-xl border border-black/5 dark:border-white/5">
-                  <h3 className="text-xs font-bold text-text/60 uppercase mb-2">Original Characters</h3>
-                  {project.cast_registry.oc.length === 0 ? (
-                    <p className="text-xs text-text/40">无</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-1">{project.cast_registry.oc.map(c => <Tag key={c} variant="success" className="text-xs">{c}</Tag>)}</div>
-                  )}
-                </div>
+              <div className="bg-surface/50 p-4 rounded-xl border border-black/5 dark:border-white/5">
+                <h3 className="text-xs font-bold text-text/60 uppercase mb-2">Characters</h3>
+                {(project.cast_registry.characters || []).length === 0 ? (
+                  <p className="text-xs text-text/40">无</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1">{project.cast_registry.characters.map(c => <Tag key={c} variant="default" className="text-xs">{c}</Tag>)}</div>
+                )}
               </div>
             </section>
           )}

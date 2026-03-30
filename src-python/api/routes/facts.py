@@ -257,14 +257,11 @@ async def extract_facts_endpoint(request: ExtractFactsRequest) -> Any:
     llm_config = resolve_llm_config(request.session_llm, project, settings)
     provider = create_provider(llm_config)
 
-    # 从 project 中获取 cast_registry 和角色别名
-    cast_registry = getattr(project, "cast_registry", {}) or {}
+    # 从 project 中获取 cast_registry 和角色别名（D-0022: 统一 characters 列表）
+    cast_registry_obj = getattr(project, "cast_registry", None)
+    cast_registry: dict[str, Any] = asdict(cast_registry_obj) if cast_registry_obj else {"characters": []}
     character_aliases: dict[str, list[str]] = {}
-    all_chars = (
-        list((cast_registry.get("from_core") or []))
-        + list((cast_registry.get("au_specific") or []))
-        + list((cast_registry.get("oc") or []))
-    )
+    all_chars = list(cast_registry.get("characters") or [])
     for char_entry in all_chars:
         if isinstance(char_entry, dict):
             name = char_entry.get("name", "")

@@ -69,12 +69,11 @@ def build_active_chars(
         if current - ch_num <= 3:
             chars.add(name)
 
-    # user_input 中提取已知角色名
+    # user_input 中提取已知角色名（D-0022: 统一 characters 列表）
     all_names: set[str] = set()
-    for group in ("from_core", "au_specific", "oc"):
-        names = cast_registry.get(group)
-        if isinstance(names, list):
-            all_names.update(names)
+    names = cast_registry.get("characters")
+    if isinstance(names, list):
+        all_names.update(names)
 
     alias_map: dict[str, str] = {}
     if character_aliases:
@@ -130,7 +129,8 @@ def retrieve_rag(
         return "", 0
 
     # --- 多 collection 检索 ---
-    collections = ["characters", "worldbuilding", "oc"]
+    # D-0022: OC 合并入 characters，不再有独立 oc collection
+    collections = ["characters", "worldbuilding"]
     all_chunks: list[dict[str, Any]] = []
 
     for coll_name in collections:
@@ -179,7 +179,7 @@ def retrieve_rag(
 
     # 仍超预算：按 collection 优先级丢弃
     if tokens > budget_remaining and budget_remaining > 0:
-        priority = ["characters", "chapters", "oc", "worldbuilding"]
+        priority = ["characters", "chapters", "worldbuilding"]
         kept: list[dict[str, Any]] = []
         used = 0
         for prio_coll in priority:
@@ -277,10 +277,9 @@ def _format_rag_chunks(chunks: list[dict[str, Any]]) -> str:
     label_map = {
         "characters": "角色设定",
         "worldbuilding": "世界观",
-        "oc": "OC 设定",
         "chapters": "历史章节片段",
     }
-    for coll in ["characters", "oc", "worldbuilding", "chapters"]:
+    for coll in ["characters", "worldbuilding", "chapters"]:
         items = groups.get(coll, [])
         if items:
             label = label_map.get(coll, coll)

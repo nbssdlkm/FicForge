@@ -62,7 +62,7 @@ def test_extract_basic():
         "林深走进咖啡馆，手腕上的旧疤若隐若现。陈明欲言又止。",
         chapter_num=5,
         existing_facts=[],
-        cast_registry={"from_core": ["林深", "陈明"], "au_specific": [], "oc": []},
+        cast_registry={"characters": ["林深", "陈明"]},
         character_aliases=None,
         llm_provider=provider,
         llm_config=_FakeLLM(),

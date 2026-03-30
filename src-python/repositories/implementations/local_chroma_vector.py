@@ -139,7 +139,7 @@ class LocalChromaVectorRepository:
     def index_settings_files(
         self, au_id: str, file_type: str, chunks: list[ChunkData]
     ) -> None:
-        """索引设定文件到对应 collection（characters/worldbuilding/oc）。"""
+        """索引设定文件到对应 collection（characters/worldbuilding）。"""
         if not chunks:
             return
 

@@ -33,11 +33,13 @@ class WritingStyle:
 
 @dataclass
 class CastRegistry:
-    """出场人物注册表。参见 PRD §3.4。"""
+    """出场人物注册表。参见 PRD §3.4 / D-0022。
 
-    from_core: list[str] = field(default_factory=list)
-    au_specific: list[str] = field(default_factory=list)
-    oc: list[str] = field(default_factory=list)
+    D-0022: 取消 from_core/au_specific/oc 分组，统一为 characters 列表。
+    角色来源通过设定文件 frontmatter 的 origin_ref 字段标记。
+    """
+
+    characters: list[str] = field(default_factory=list)
 
 
 @dataclass

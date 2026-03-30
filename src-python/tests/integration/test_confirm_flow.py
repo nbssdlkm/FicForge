@@ -62,7 +62,7 @@ def test_full_confirm_flow(tmp_path):
         input_tokens=12000, output_tokens=2000, char_count=len(content),
         duration_ms=5000, generated_at="2025-03-24T14:22:00Z",
     )
-    cast = {"from_core": ["林深", "陈明"], "au_specific": [], "oc": []}
+    cast = {"characters": ["林深", "陈明"]}
 
     service = _build_service()
     result = service.confirm_chapter(
@@ -155,7 +155,7 @@ def test_characters_last_seen_max_merge(tmp_path):
     _save_draft(au, 3, "A", "林深在旧章出场。")
     _save_state(au, current_chapter=10, characters_last_seen={"林深": 8})
 
-    cast = {"from_core": ["林深"], "au_specific": [], "oc": []}
+    cast = {"characters": ["林深"]}
     service = _build_service()
     service.confirm_chapter(au, 3, "ch0003_draft_A.md", cast_registry=cast)
 

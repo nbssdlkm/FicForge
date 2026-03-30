@@ -38,9 +38,7 @@ class WritingStyleResponse(BaseModel):
 
 
 class CastRegistryResponse(BaseModel):
-    from_core: list[str] = Field(default_factory=list)
-    au_specific: list[str] = Field(default_factory=list)
-    oc: list[str] = Field(default_factory=list)
+    characters: list[str] = Field(default_factory=list)
 
 
 class EmbeddingLockResponse(BaseModel):
@@ -147,9 +145,7 @@ async def update_project(payload: ProjectUpdatePayload, au_path: str = Query(...
     if payload.agent_pipeline_enabled is not None:
         project.agent_pipeline_enabled = payload.agent_pipeline_enabled
     if payload.cast_registry is not None:
-        project.cast_registry.from_core = payload.cast_registry.from_core
-        project.cast_registry.au_specific = payload.cast_registry.au_specific
-        project.cast_registry.oc = payload.cast_registry.oc
+        project.cast_registry.characters = payload.cast_registry.characters
     if payload.core_always_include is not None:
         project.core_always_include = payload.core_always_include
     if payload.pinned_context is not None:

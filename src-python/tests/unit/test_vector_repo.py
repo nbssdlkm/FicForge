@@ -152,7 +152,7 @@ def test_vectorize_chunk_has_characters(tmp_path: Path) -> None:
     embed = _mock_embedding_provider()
     vector_repo = LocalChromaVectorRepository(client, embed)
 
-    cast = {"from_core": ["林深", "陈明"], "au_specific": [], "oc": []}
+    cast = {"characters": ["林深", "陈明"]}
     vectorize_chapter(au, 1, mock_chapter_repo, vector_repo, cast_registry=cast)
 
     results = vector_repo.search(str(au), "咖啡馆", top_k=5)

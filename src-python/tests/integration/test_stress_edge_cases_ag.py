@@ -190,7 +190,7 @@ def test_10_characters_last_seen_unknown_registry(au_env):
         LocalFileChapterRepository(), LocalFileDraftRepository(),
         state_repo, LocalFileOpsRepository(), AUMutexManager()
     )
-    cast = {"from_core": ["林深"], "au_specific": [], "oc": []}
+    cast = {"characters": ["林深"]}
     res = service.confirm_chapter(au_env, 1, "ch0001_draft_A.md", cast_registry=cast)
     
     new_state = state_repo.get(str(au_env))
@@ -307,8 +307,7 @@ def test_15_benchmark_100_chapters_list(au_env, capsys):
 def test_16_benchmark_scan_characters(au_env, capsys):
     """16. 全量 scan_characters_in_chapter（50 个角色名 × 10000 字正文）耗时"""
     cast_registry = {
-        "from_core": [f"主角_{i}" for i in range(25)],
-        "oc": [f"配角_{i}" for i in range(25)]
+        "characters": [f"主角_{i}" for i in range(25)] + [f"配角_{i}" for i in range(25)]
     }
     content = "这是一个很长的故事。" * 1000 # 约 10000 字
     content += " 主角_15 和 配角_22 在说话。"

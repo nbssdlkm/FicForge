@@ -22,7 +22,7 @@ def test_read_normal_file(tmp_path):
         "revision": 3,
         "chapter_length": 2000,
         "writing_style": {"perspective": "first_person", "pov_character": "林深"},
-        "cast_registry": {"from_core": ["林深"], "au_specific": ["林深"], "oc": []},
+        "cast_registry": {"characters": ["林深"]},
         "core_guarantee_budget": 400,
     }
     (au / "project.yaml").write_text(
@@ -34,7 +34,7 @@ def test_read_normal_file(tmp_path):
     assert project.name == "测试AU"
     assert project.chapter_length == 2000
     assert project.writing_style.pov_character == "林深"
-    assert project.cast_registry.from_core == ["林深"]
+    assert project.cast_registry.characters == ["林深"]
 
 
 def test_missing_fields_filled(tmp_path):

@@ -214,9 +214,7 @@ project_update: dict = {
         "custom_instructions": "赛博朋克风格，注重氛围描写。",
     },
     "cast_registry": {
-        "from_core": [],
-        "au_specific": ["凌风", "苏晓"],
-        "oc": [],
+        "characters": ["凌风", "苏晓"],
     },
     "llm": {
         "mode": "api",
@@ -316,7 +314,7 @@ r = client.post(
         "au_path": au_path,
         "chapters": confirm_chapters,
         "split_method": preview.get("split_method", "title"),
-        "cast_registry": {"from_core": [], "au_specific": ["凌风", "苏晓"], "oc": []},
+        "cast_registry": {"characters": ["凌风", "苏晓"]},
     },
 )
 if r.status_code == 200:

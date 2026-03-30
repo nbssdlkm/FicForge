@@ -285,7 +285,7 @@ def import_chapters(
     """
     au_id = str(au_path)
     timestamp = now_utc()
-    effective_registry = cast_registry or {"from_core": [], "au_specific": [], "oc": []}
+    effective_registry = cast_registry or {"characters": []}
 
     # ------------------------------------------------------------------
     # 步骤 1：写入章节文件

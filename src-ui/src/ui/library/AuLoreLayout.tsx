@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
-import { Tag } from '../shared/Tag';
 import { Modal } from '../shared/Modal';
-import { Search, Plus, FileText, ChevronDown, ChevronRight, Folder, Loader2, RefreshCw, AlertCircle, Trash2 } from 'lucide-react';
+import { Search, Plus, FileText, ChevronDown, ChevronRight, Folder, Loader2, AlertCircle, Trash2 } from 'lucide-react';
 import { getProject, updateProject, type ProjectInfo } from '../../api/project';
 import { saveLore, readLore, deleteLore } from '../../api/lore';
 
@@ -12,45 +11,33 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
-    au_characters: true,
-    au_oc: true,
-    core_characters: true,
+    characters: true,
   });
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [editorContent, setEditorContent] = useState('');
 
   const [isSaving, setIsSaving] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [createCategory, setCreateCategory] = useState<'original_characters' | 'character_overrides'>('original_characters');
   const [createName, setCreateName] = useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  const loadFileContent = async (name: string, category: string) => {
+  const loadFileContent = async (name: string) => {
     setSelectedFile(name);
     try {
-      const result = await readLore({ au_path: auPath, category, filename: `${name}.md` });
+      const result = await readLore({ au_path: auPath, category: 'characters', filename: `${name}.md` });
       setEditorContent(result.content || `# ${name}\n\n[设定尚未编写]`);
     } catch {
       setEditorContent(`# ${name}\n\n[设定尚未编写]`);
     }
   };
 
-  const getCategoryForFile = (name: string): string => {
-    if (!project) return 'original_characters';
-    if (project.cast_registry.au_specific.includes(name)) return 'character_overrides';
-    if (project.cast_registry.from_core.includes(name)) return 'core_characters';
-    return 'original_characters';
-  };
-
   const handleSaveLore = async () => {
     if (!selectedFile || !project) return;
     setIsSaving(true);
     try {
-      const category = getCategoryForFile(selectedFile);
-
       await saveLore({
         au_path: auPath,
-        category,
+        category: 'characters',
         filename: `${selectedFile}.md`,
         content: editorContent
       });
@@ -63,34 +50,20 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
 
   const handleDeleteLore = async () => {
     if (!selectedFile || !project) return;
-    const category = getCategoryForFile(selectedFile);
-
-    // Core characters belong to the fandom layer — don't delete from AU
-    if (category === 'core_characters') {
-      alert("Fandom 继承角色不能在 AU 层删除，请到 Fandom 设定库操作。");
-      setDeleteConfirmOpen(false);
-      return;
-    }
 
     setDeleteConfirmOpen(false);
     setIsSaving(true);
     try {
       await deleteLore({
         au_path: auPath,
-        category,
+        category: 'characters',
         filename: `${selectedFile}.md`,
       });
 
       // Update cast_registry
-      if (category === 'character_overrides') {
-        const newList = project.cast_registry.au_specific.filter(n => n !== selectedFile);
-        await updateProject(auPath, { cast_registry: { ...project.cast_registry, au_specific: newList } });
-        setProject({ ...project, cast_registry: { ...project.cast_registry, au_specific: newList } });
-      } else {
-        const newList = (project.cast_registry.oc || []).filter(n => n !== selectedFile);
-        await updateProject(auPath, { cast_registry: { ...project.cast_registry, oc: newList } });
-        setProject({ ...project, cast_registry: { ...project.cast_registry, oc: newList } });
-      }
+      const newList = project.cast_registry.characters.filter(n => n !== selectedFile);
+      await updateProject(auPath, { cast_registry: { characters: newList } });
+      setProject({ ...project, cast_registry: { characters: newList } });
       setSelectedFile(null);
       setEditorContent('');
     } catch (e: any) {
@@ -98,12 +71,6 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const openCreate = (category: 'original_characters' | 'character_overrides') => {
-    setCreateCategory(category);
-    setCreateName('');
-    setCreateModalOpen(true);
   };
 
   const handleCreate = async () => {
@@ -117,24 +84,14 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     try {
       await saveLore({
         au_path: auPath,
-        category: createCategory,
+        category: 'characters',
         filename: `${slug}.md`,
         content: defaultContent,
       });
 
-      if (createCategory === 'original_characters') {
-        const newOcList = [...(project.cast_registry.oc || []), slug];
-        await updateProject(auPath, {
-          cast_registry: { ...project.cast_registry, oc: newOcList },
-        });
-        setProject({ ...project, cast_registry: { ...project.cast_registry, oc: newOcList } });
-      } else {
-        const newAuList = [...(project.cast_registry.au_specific || []), slug];
-        await updateProject(auPath, {
-          cast_registry: { ...project.cast_registry, au_specific: newAuList },
-        });
-        setProject({ ...project, cast_registry: { ...project.cast_registry, au_specific: newAuList } });
-      }
+      const newList = [...(project.cast_registry.characters || []), slug];
+      await updateProject(auPath, { cast_registry: { characters: newList } });
+      setProject({ ...project, cast_registry: { characters: newList } });
       setSelectedFile(slug);
       setEditorContent(defaultContent);
     } catch (e: any) {
@@ -150,17 +107,9 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     getProject(auPath)
       .then(proj => {
         setProject(proj);
-        // Auto-select first character and load its content
-        const coreList = proj.cast_registry?.from_core || [];
-        const auList = proj.cast_registry?.au_specific || [];
-        const ocList = proj.cast_registry?.oc || [];
-        const allChars = [...coreList, ...auList, ...ocList];
-        if (allChars.length > 0) {
-          const firstName = allChars[0];
-          let category = 'original_characters';
-          if (auList.includes(firstName)) category = 'character_overrides';
-          else if (coreList.includes(firstName)) category = 'core_characters';
-          loadFileContent(firstName, category);
+        const chars = proj.cast_registry?.characters || [];
+        if (chars.length > 0) {
+          loadFileContent(chars[0]);
         }
       })
       .catch((e: any) => setError(e.message || '加载失败'))
@@ -171,22 +120,19 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     setExpandedFolders(prev => ({ ...prev, [folder]: !prev[folder] }));
   };
 
-  const coreChars = project?.cast_registry?.from_core || [];
-  const auChars = project?.cast_registry?.au_specific || [];
-  const ocChars = project?.cast_registry?.oc || [];
+  const characters = project?.cast_registry?.characters || [];
   const auName = project?.name || auPath.split('/').pop() || 'AU';
 
-  const renderFile = (name: string, isOverride: boolean = false, category: string = 'original_characters') => (
+  const renderFile = (name: string) => (
     <div
       key={name}
       className={`flex items-center justify-between pl-6 pr-3 py-1.5 text-sm cursor-pointer rounded-md ${selectedFile === name ? 'bg-accent/10 text-accent font-medium' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5 hover:text-text'}`}
-      onClick={() => loadFileContent(name, category)}
+      onClick={() => loadFileContent(name)}
     >
       <div className="flex items-center gap-2 overflow-hidden">
         <FileText size={14} className="opacity-50 shrink-0" />
         <span className="truncate">{name}.md</span>
       </div>
-      {isOverride && <div title="此文件通过重载 (Override) 覆盖了 Fandom 层原文件"><RefreshCw size={12} className="text-warning shrink-0" /></div>}
     </div>
   );
 
@@ -204,9 +150,9 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
          <header className="p-4 border-b border-black/10 dark:border-white/10 flex flex-col gap-3 shrink-0 bg-surface">
            <div className="flex justify-between items-center">
              <div className="flex items-center gap-2">
-                <h1 className="font-serif text-lg font-bold">✨ {auName} 设定库</h1>
+                <h1 className="font-serif text-lg font-bold">{auName} 设定库</h1>
              </div>
-              <Button variant="ghost" size="sm" className="px-2" onClick={() => openCreate('original_characters')} disabled={isSaving}>
+              <Button variant="ghost" size="sm" className="px-2" onClick={() => { setCreateName(''); setCreateModalOpen(true); }} disabled={isSaving}>
                 {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16}/>}
               </Button>
            </div>
@@ -223,79 +169,37 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
              </div>
            )}
 
-           {/* Core characters (inherited from Fandom) */}
-           {coreChars.length > 0 && (
-             <div className="space-y-2">
-               <div className="px-3 pb-1 text-[11px] font-sans font-bold text-text/40 uppercase tracking-widest">
-                 📚 Fandom 继承角色 ({coreChars.length})
-               </div>
-               <div>
-                 <div className="flex items-center gap-2 px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/80 font-bold font-sans" onClick={() => toggleFolder('core_characters')}>
-                   {expandedFolders['core_characters'] ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
-                   <Folder size={14} className="text-accent" fill="currentColor" fillOpacity={0.2} />
-                   <span>core_characters</span>
-                 </div>
-                 {expandedFolders['core_characters'] && (
-                   <div className="mt-1 space-y-0.5">
-                     {coreChars.map(name => renderFile(name, auChars.includes(name), 'core_characters'))}
-                   </div>
-                 )}
-               </div>
-             </div>
-           )}
-
-           {/* AU-specific overrides */}
+           {/* Characters (unified — D-0022) */}
            <div className="space-y-2">
-             <div className="px-3 pb-1 text-[11px] font-sans font-bold text-info uppercase tracking-widest">
-               ✨ AU 专属重载 ({auChars.length})
+             <div className="px-3 pb-1 text-[11px] font-sans font-bold text-text/40 uppercase tracking-widest">
+               角色 ({characters.length})
              </div>
              <div>
-               <div className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/80 font-bold font-sans" onClick={() => toggleFolder('au_characters')}>
+               <div className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/80 font-bold font-sans" onClick={() => toggleFolder('characters')}>
                  <div className="flex items-center gap-2">
-                   {expandedFolders['au_characters'] ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
-                   <Folder size={14} className="text-info" fill="currentColor" fillOpacity={0.2} />
-                   <span>character_overrides</span>
+                   {expandedFolders['characters'] ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
+                   <Folder size={14} className="text-accent" fill="currentColor" fillOpacity={0.2} />
+                   <span>characters</span>
                  </div>
-                 <Button variant="ghost" size="sm" className="p-0 h-6 w-6" onClick={(e) => { e.stopPropagation(); openCreate('character_overrides'); }}>
+                 <Button variant="ghost" size="sm" className="p-0 h-6 w-6" onClick={(e) => { e.stopPropagation(); setCreateName(''); setCreateModalOpen(true); }}>
                    <Plus size={12} />
                  </Button>
                </div>
-               {expandedFolders['au_characters'] && (
+               {expandedFolders['characters'] && (
                  <div className="mt-1 space-y-0.5">
-                   {auChars.length === 0 ? (
-                     <p className="text-xs text-text/40 pl-6 py-2">暂无角色覆写。点击 + 创建。</p>
+                   {characters.length === 0 ? (
+                     <p className="text-xs text-text/40 pl-6 py-2">暂无角色。点击 + 创建。</p>
                    ) : (
-                     auChars.map(name => renderFile(name, true, 'character_overrides'))
+                     characters.map(name => renderFile(name))
                    )}
                  </div>
                )}
              </div>
            </div>
 
-           {/* OC characters */}
-           {ocChars.length > 0 && (
-             <div className="space-y-2">
-               <div className="px-3 pb-1 text-[11px] font-sans font-bold text-success uppercase tracking-widest">
-                 🌟 原创角色 OC ({ocChars.length})
-               </div>
-               <div>
-                 <div className="flex items-center gap-2 px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/80 font-bold font-sans" onClick={() => toggleFolder('au_oc')}>
-                   {expandedFolders['au_oc'] ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
-                   <Folder size={14} className="text-success" fill="currentColor" fillOpacity={0.2} />
-                   <span>original_characters</span>
-                 </div>
-                 {expandedFolders['au_oc'] && (
-                   <div className="mt-1 space-y-0.5">
-                     {ocChars.map(name => renderFile(name, false, 'original_characters'))}
-                   </div>
-                 )}
-               </div>
-             </div>
-           )}
-
            {/* Empty state */}
-           {coreChars.length === 0 && auChars.length === 0 && ocChars.length === 0 && (
-             <p className="text-center text-text/40 text-xs py-10">角色注册表为空。请在设置中添加角色。</p>
+           {characters.length === 0 && (
+             <p className="text-center text-text/40 text-xs py-10">角色注册表为空。点击 + 添加角色。</p>
            )}
          </div>
        </div>
@@ -306,16 +210,11 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
               <>
                 <div className="flex items-center gap-3">
                   <span className="font-mono text-sm font-semibold opacity-70">{selectedFile}.md</span>
-                  {auChars.includes(selectedFile) && (
-                    <Tag variant="warning" className="text-[10px]"><RefreshCw size={10} className="mr-1"/> AU Override</Tag>
-                  )}
                 </div>
                 <div className="flex items-center gap-4">
-                   {!coreChars.includes(selectedFile!) && (
-                     <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteConfirmOpen(true)} disabled={isSaving}>
-                       <Trash2 size={14} />
-                     </Button>
-                   )}
+                   <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteConfirmOpen(true)} disabled={isSaving}>
+                     <Trash2 size={14} />
+                   </Button>
                    <Button variant="primary" size="sm" className="h-8 w-20" onClick={handleSaveLore} disabled={isSaving}>
                      {isSaving ? <Loader2 size={14} className="animate-spin" /> : '保 存'}
                    </Button>
@@ -345,7 +244,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                   <Textarea
                     value={editorContent}
                     onChange={e => setEditorContent(e.target.value)}
-                    className="font-mono flex-1 min-h-[300px] text-sm leading-relaxed bg-surface/30 p-4 resize-y" 
+                    className="font-mono flex-1 min-h-[300px] text-sm leading-relaxed bg-surface/30 p-4 resize-y"
                   />
                 </div>
               </>
@@ -358,10 +257,10 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
           </div>
        </div>
 
-       <Modal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} title={createCategory === 'original_characters' ? '新建原创角色 (OC)' : '新建角色覆写 (Override)'}>
+       <Modal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} title="新建角色">
          <div className="flex flex-col gap-4">
            <Input
-             placeholder={createCategory === 'original_characters' ? '角色名 (如: 林小雨)' : '角色名 (如: Harry Potter)'}
+             placeholder="角色名 (如: Connor、林小雨)"
              value={createName}
              onChange={e => setCreateName(e.target.value)}
              className="h-10"

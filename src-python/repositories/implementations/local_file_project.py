@@ -98,11 +98,18 @@ def _dict_to_writing_style(d: dict[str, Any] | None) -> WritingStyle:
 def _dict_to_cast_registry(d: dict[str, Any] | None) -> CastRegistry:
     if not d:
         return CastRegistry()
-    return CastRegistry(
-        from_core=d.get("from_core") or [],
-        au_specific=d.get("au_specific") or [],
-        oc=d.get("oc") or [],
-    )
+    # D-0022: 新格式使用 characters 列表；兼容旧格式 from_core/au_specific/oc
+    if "characters" in d:
+        return CastRegistry(characters=d["characters"] or [])
+    # 旧格式迁移：合并去重，保持顺序
+    merged: list[str] = []
+    seen: set[str] = set()
+    for group in ("from_core", "au_specific", "oc"):
+        for name in d.get(group) or []:
+            if name not in seen:
+                merged.append(name)
+                seen.add(name)
+    return CastRegistry(characters=merged)
 
 
 def _dict_to_embedding_lock(d: dict[str, Any] | None) -> EmbeddingLock:
