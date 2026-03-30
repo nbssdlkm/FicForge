@@ -8,8 +8,10 @@ import { Modal } from './shared/Modal';
 import { GlobalSettingsModal } from './settings/GlobalSettingsModal';
 import { EmptyState } from './shared/EmptyState';
 import { listFandoms, createFandom, createAu, deleteFandom, deleteAu, type FandomInfo } from '../api/fandoms';
+import { getSettings } from '../api/settings';
 import { useTranslation } from '../i18n/useAppTranslation';
 import { FeedbackProvider, useFeedback } from '../hooks/useFeedback';
+import { OnboardingFlow, isOnboardingCompleted } from './onboarding/OnboardingFlow';
 
 type Props = {
   onNavigate: (page: string, auPath?: string) => void;
@@ -18,6 +20,7 @@ type Props = {
 function LibraryInner({ onNavigate }: Props) {
   const { t } = useTranslation();
   const { showError } = useFeedback();
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [isFandomModalOpen, setFandomModalOpen] = useState(false);
   const [isAuModalOpen, setAuModalOpen] = useState(false);
   const [isGlobalSettingsOpen, setGlobalSettingsOpen] = useState(false);
@@ -31,6 +34,17 @@ function LibraryInner({ onNavigate }: Props) {
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'fandom' | 'au'; fandomDir: string; fandomName: string; auName?: string } | null>(null);
 
   useEffect(() => {
+    // 检查是否需要显示引导流程
+    if (!isOnboardingCompleted()) {
+      getSettings().then(settings => {
+        const apiKey = settings?.default_llm?.api_key || '';
+        if (!apiKey) {
+          setShowOnboarding(true);
+        }
+      }).catch(() => {
+        setShowOnboarding(true);
+      });
+    }
     void loadFandoms();
   }, []);
 
@@ -91,6 +105,12 @@ function LibraryInner({ onNavigate }: Props) {
   const handleImportClick = () => {
     setImportModalOpen(true);
   };
+
+  if (showOnboarding) {
+    return (
+      <OnboardingFlow onComplete={() => { setShowOnboarding(false); void loadFandoms(); }} />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-text flex flex-col font-sans transition-colors duration-200">
