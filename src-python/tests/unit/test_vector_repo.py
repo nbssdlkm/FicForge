@@ -7,6 +7,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from infra.vector_index.task_queue import TaskInfo
+from infra.vector_index.workers import worker_delete_settings_chunks
 from infra.vector_index.chunker import ChunkData
 from infra.vector_index.vectorize import vectorize_chapter
 from repositories.implementations.local_chroma_vector import LocalChromaVectorRepository
@@ -237,3 +239,48 @@ def test_settings_files_upsert_replaces_old_chunks():
     connor = coll.get(where={"source_file": "Connor.md"}, include=[])
     # 应只有 3 条（v2），不是 5 条（v1+v2）
     assert len(connor["ids"]) == 3
+
+
+def test_settings_files_upsert_scoped_to_current_au():
+    """同名文件在不同 AU 共存时，重建 AU1 不应删除 AU2 数据。"""
+    import chromadb
+    client = chromadb.Client()
+    embed = _mock_embedding_provider()
+    repo = LocalChromaVectorRepository(client, embed)
+
+    repo.index_settings_files("au1", "characters", _make_settings_chunks("Connor.md", n=2))
+    repo.index_settings_files("au2", "characters", _make_settings_chunks("Connor.md", n=2))
+
+    # 仅重建 au1 的同名文件
+    repo.index_settings_files("au1", "characters", _make_settings_chunks("Connor.md", n=1))
+
+    coll = repo._get_collection("characters")
+    results = coll.get(where={"source_file": "Connor.md"}, include=["metadatas"])
+    au1_count = sum(1 for m in results["metadatas"] if m.get("au_id") == "au1")
+    au2_count = sum(1 for m in results["metadatas"] if m.get("au_id") == "au2")
+    assert au1_count == 1
+    assert au2_count == 2
+
+
+def test_worker_delete_settings_chunks_only_deletes_current_au():
+    """worker 删除同名文件时应仅删除当前 AU 的 chunks。"""
+    import chromadb
+    client = chromadb.Client()
+    embed = _mock_embedding_provider()
+    repo = LocalChromaVectorRepository(client, embed)
+
+    repo.index_settings_files("au1", "characters", _make_settings_chunks("Connor.md", n=2))
+    repo.index_settings_files("au2", "characters", _make_settings_chunks("Connor.md", n=2))
+
+    info = TaskInfo(
+        task_id="t1",
+        task_type="delete_settings_chunks",
+        au_id="au1",
+        payload={"file_path": "characters/Connor.md", "collection": "characters"},
+    )
+    worker_delete_settings_chunks(info, {"vector_repo": repo})
+
+    coll = repo._get_collection("characters")
+    remaining = coll.get(where={"source_file": "Connor.md"}, include=["metadatas"])
+    remaining_au_ids = sorted(m.get("au_id") for m in remaining["metadatas"])
+    assert remaining_au_ids == ["au2", "au2"]

@@ -96,18 +96,27 @@ def worker_delete_settings_chunks(info: TaskInfo, deps: dict[str, Any]) -> None:
         return
 
     try:
-        # 通过文件名过滤删除（source_file 元数据）
+        # 删除当前 AU 下该文件的 chunks，避免跨 AU 误删
         filename = Path(file_path).name if file_path else ""
         if filename:
             collection = vector_repo._get_collection(collection_name)
-            # 查找匹配的 IDs
+            # 先按 source_file 查，再在 Python 层限定到当前 au_id
             results = collection.get(
                 where={"source_file": filename},
-                include=[],
+                include=["metadatas"],
             )
             if results and results.get("ids"):
-                collection.delete(ids=results["ids"])
-                logger.info("已删除设定文件 %s 的 %d chunks", filename, len(results["ids"]))
+                ids = results.get("ids", [])
+                metas = results.get("metadatas", [])
+                delete_ids = []
+                for i, id_ in enumerate(ids):
+                    meta = metas[i] if i < len(metas) else {}
+                    # 优先使用 metadata.au_id；兼容旧数据时回退到 ID 前缀匹配
+                    if meta.get("au_id") == au_id or str(id_).startswith(f"{au_id}_"):
+                        delete_ids.append(id_)
+                if delete_ids:
+                    collection.delete(ids=delete_ids)
+                    logger.info("已删除设定文件 %s 的 %d chunks", filename, len(delete_ids))
     except Exception as e:
         logger.error("删除设定文件 chunks 失败: %s — %s", file_path, e, exc_info=True)
 
