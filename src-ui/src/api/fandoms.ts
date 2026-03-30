@@ -59,3 +59,17 @@ export async function deleteAu(fandomDirName: string, auName: string, dataDir = 
     method: "DELETE",
   });
 }
+
+export async function renameFandom(fandomDirName: string, newName: string, dataDir = "./fandoms"): Promise<{ status: string; old_name: string; new_name: string; new_dir: string }> {
+  return apiFetch(`/api/v1/fandoms/${encodeURIComponent(fandomDirName)}/rename?data_dir=${encodeURIComponent(dataDir)}`, {
+    method: "PUT",
+    body: JSON.stringify({ new_name: newName }),
+  });
+}
+
+export async function renameAu(fandomDirName: string, auName: string, newName: string, dataDir = "./fandoms"): Promise<{ status: string; old_name: string; new_name: string; new_dir: string }> {
+  return apiFetch(`/api/v1/fandoms/${encodeURIComponent(fandomDirName)}/aus/${encodeURIComponent(auName)}/rename?data_dir=${encodeURIComponent(dataDir)}`, {
+    method: "PUT",
+    body: JSON.stringify({ new_name: newName }),
+  });
+}

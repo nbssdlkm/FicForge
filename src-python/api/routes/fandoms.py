@@ -260,3 +260,105 @@ async def delete_au(fandom_name: str, au_name: str, data_dir: str = Query("./fan
         return error_response(500, "DELETE_FAILED", str(exc), [])
 
     return {"status": "ok", "trash_id": entry.trash_id, "deleted": str(au_dir)}
+
+
+# ---------------------------------------------------------------------------
+# 重命名
+# ---------------------------------------------------------------------------
+
+class RenameRequest(BaseModel):
+    new_name: str
+
+
+@router.put("/fandoms/{fandom_name}/rename")
+async def rename_fandom(fandom_name: str, req: RenameRequest, data_dir: str = Query("./fandoms")) -> Any:
+    """重命名 Fandom。更新目录名 + fandom.yaml 中的 name。"""
+    if not validate_path(data_dir):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
+    if not _SAFE_NAME_RE.match(fandom_name):
+        return error_response(400, "INVALID_NAME", "当前名称不合法", [])
+
+    new_dir_name = _safe_dirname(req.new_name)
+    if not new_dir_name:
+        return error_response(400, "INVALID_NAME", "新名称不合法", [])
+
+    fandoms_root = Path(data_dir) / "fandoms"
+    old_dir = fandoms_root / fandom_name
+    new_dir = fandoms_root / new_dir_name
+
+    if not old_dir.is_dir():
+        return error_response(404, "NOT_FOUND", f"Fandom 不存在: {fandom_name}", [])
+    if new_dir.exists():
+        return error_response(409, "ALREADY_EXISTS", f"目标名称已存在: {new_dir_name}", [])
+
+    import yaml
+
+    try:
+        def _do_rename() -> None:
+            # 先更新 YAML（在旧目录中），再改目录名，防止部分失败
+            fandom_yaml = old_dir / "fandom.yaml"
+            if fandom_yaml.is_file():
+                raw = yaml.safe_load(fandom_yaml.read_text(encoding="utf-8")) or {}
+                raw["name"] = req.new_name
+                fandom_yaml.write_text(
+                    yaml.dump(raw, allow_unicode=True, sort_keys=False),
+                    encoding="utf-8",
+                )
+            old_dir.rename(new_dir)
+
+        await run_in_threadpool(_do_rename)
+    except Exception as exc:
+        logger.exception("Rename fandom failed: %s → %s", fandom_name, req.new_name)
+        return error_response(500, "RENAME_FAILED", str(exc), [])
+
+    return {"status": "ok", "old_name": fandom_name, "new_name": req.new_name, "new_dir": new_dir_name}
+
+
+@router.put("/fandoms/{fandom_name}/aus/{au_name}/rename")
+async def rename_au(
+    fandom_name: str,
+    au_name: str,
+    req: RenameRequest,
+    data_dir: str = Query("./fandoms"),
+) -> Any:
+    """重命名 AU。更新目录名 + project.yaml 中的 name。"""
+    if not validate_path(data_dir):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
+    if not _SAFE_NAME_RE.match(fandom_name) or not _SAFE_NAME_RE.match(au_name):
+        return error_response(400, "INVALID_NAME", "名称不合法", [])
+
+    new_dir_name = _safe_dirname(req.new_name)
+    if not new_dir_name:
+        return error_response(400, "INVALID_NAME", "新名称不合法", [])
+
+    fandom_dir = Path(data_dir) / "fandoms" / fandom_name
+    old_dir = fandom_dir / "aus" / au_name
+    new_dir = fandom_dir / "aus" / new_dir_name
+
+    if not old_dir.is_dir():
+        return error_response(404, "NOT_FOUND", f"AU 不存在: {au_name}", [])
+    if new_dir.exists():
+        return error_response(409, "ALREADY_EXISTS", f"目标名称已存在: {new_dir_name}", [])
+
+    import yaml
+
+    try:
+        def _do_rename() -> None:
+            # 先更新 YAML（在旧目录中），再改目录名，防止部分失败
+            project_yaml = old_dir / "project.yaml"
+            if project_yaml.is_file():
+                raw = yaml.safe_load(project_yaml.read_text(encoding="utf-8")) or {}
+                raw["name"] = req.new_name
+                raw["au_id"] = str(new_dir)
+                project_yaml.write_text(
+                    yaml.dump(raw, allow_unicode=True, sort_keys=False),
+                    encoding="utf-8",
+                )
+            old_dir.rename(new_dir)
+
+        await run_in_threadpool(_do_rename)
+    except Exception as exc:
+        logger.exception("Rename AU failed: %s/%s → %s", fandom_name, au_name, req.new_name)
+        return error_response(500, "RENAME_FAILED", str(exc), [])
+
+    return {"status": "ok", "old_name": au_name, "new_name": req.new_name, "new_dir": new_dir_name}
