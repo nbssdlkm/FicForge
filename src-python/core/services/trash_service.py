@@ -239,20 +239,31 @@ class TrashService:
         self._remove_from_manifest(scope_root, trash_id)
         return target_entry
 
-    def purge_expired(self, scope_root: Path) -> list[TrashEntry]:
-        """清理所有已过期的垃圾箱条目。"""
+    def purge_expired(
+        self, scope_root: Path, max_age_days: Optional[int] = None
+    ) -> list[TrashEntry]:
+        """清理垃圾箱条目。
+
+        Args:
+            max_age_days: 为 0 时强制清理所有条目。None 时只清已过期条目。
+        """
         entries = self._read_manifest(scope_root)
         now = datetime.now(timezone.utc)
         purged: list[TrashEntry] = []
+        force_all = max_age_days is not None and max_age_days == 0
 
         for entry in entries:
-            try:
-                expires = datetime.fromisoformat(
-                    entry.expires_at.replace("Z", "+00:00")
-                )
-            except ValueError:
-                continue
-            if now >= expires:
+            should_purge = force_all
+            if not should_purge:
+                try:
+                    expires = datetime.fromisoformat(
+                        entry.expires_at.replace("Z", "+00:00")
+                    )
+                except ValueError:
+                    continue
+                should_purge = now >= expires
+
+            if should_purge:
                 trash_source = scope_root / ".trash" / entry.trash_path
                 if trash_source.exists():
                     if trash_source.is_dir():

@@ -110,18 +110,21 @@ async def restore_from_trash(req: RestoreRequest) -> Any:
 async def purge_expired(
     scope: str = Query(...),
     path: str = Query(...),
+    max_age_days: int | None = Query(None, description="为 0 时强制清理所有条目"),
 ) -> Any:
-    """清理所有已过期的垃圾箱条目。
+    """清理垃圾箱条目。max_age_days=0 时强制全清，不传时只清已过期。
 
     注意：此路由必须在 /{trash_id} 之前定义，否则 "purge" 会被匹配为 trash_id。
     """
     if not validate_path(path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
+    if max_age_days is not None and max_age_days < 0:
+        return error_response(400, "INVALID_PARAMETER", "max_age_days 不能为负数", [])
     scope_root = Path(path)
 
     try:
         purged = await run_in_threadpool(
-            _trash_service.purge_expired, scope_root
+            _trash_service.purge_expired, scope_root, max_age_days
         )
     except Exception as exc:
         logger.exception("Purge expired failed: path=%s", path)
