@@ -51,6 +51,7 @@ class ConfirmChapterRequest(BaseModel):
     chapter_num: int
     draft_id: str
     generated_with: GeneratedWithPayload | None = None
+    content: str | None = None  # 非 null 时用此内容替代草稿文件内容（编辑后定稿）
 
 
 class ConfirmChapterResponse(BaseModel):
@@ -129,6 +130,7 @@ async def confirm_chapter(request: ConfirmChapterRequest):
             request.chapter_num,
             request.draft_id,
             generated_with,
+            content_override=request.content,
         )
     except ConfirmChapterError as exc:
         logger.exception("Confirm chapter failed: au=%s ch=%d", request.au_path, request.chapter_num)

@@ -9,7 +9,7 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from api import build_draft_filename, build_draft_repository, error_response
+from api import build_draft_filename, build_draft_repository, error_response, validate_path
 
 logger = logging.getLogger(__name__)
 
@@ -70,3 +70,30 @@ async def get_draft(label: str, au_path: str = Query(...), chapter_num: int = Qu
         )
 
     return DraftDetailResponse(**asdict(draft))
+
+
+@router.delete("")
+async def delete_drafts(
+    au_path: str = Query(...),
+    chapter_num: int = Query(...),
+    label: str | None = Query(None, description="指定草稿标签，不传则删除该章全部草稿"),
+):
+    """丢弃草稿（D-0023 例外：草稿直接物理删除，不进垃圾箱）。"""
+    if not validate_path(au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
+
+    repo = build_draft_repository()
+
+    if label is not None:
+        # 删除单个草稿
+        deleted = await run_in_threadpool(repo.delete_single, au_path, chapter_num, label)
+        if not deleted:
+            return error_response(404, "DRAFT_NOT_FOUND", f"草稿不存在: ch{chapter_num:04d}_draft_{label}.md", [])
+        return {"deleted_count": 1}
+    else:
+        # 删除该章全部草稿
+        drafts = await run_in_threadpool(repo.list_by_chapter, au_path, chapter_num)
+        if not drafts:
+            return error_response(404, "DRAFT_NOT_FOUND", f"第 {chapter_num} 章无草稿", [])
+        await run_in_threadpool(repo.delete_by_chapter, au_path, chapter_num)
+        return {"deleted_count": len(drafts)}
