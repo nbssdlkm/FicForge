@@ -24,12 +24,13 @@ import { DirtyModal } from './DirtyModal';
 import { Sidebar } from '../shared/Sidebar';
 
 import { getChapterContent, confirmChapter, undoChapter } from '../../api/chapters';
-import { listDrafts, getDraft, deleteDrafts, type DraftGeneratedWith } from '../../api/drafts';
+import { listDrafts, getDraft, deleteDrafts, type DraftDetail, type DraftGeneratedWith } from '../../api/drafts';
 import { getState, setChapterFocus, type StateInfo } from '../../api/state';
 import { listFacts, addFact, extractFacts, type ExtractedFactCandidate, type FactInfo } from '../../api/facts';
 import { generateChapter } from '../../api/generate';
 import { getSettings, updateSettings } from '../../api/settings';
 import { getProject, updateProject } from '../../api/project';
+import { ApiError, getFriendlyErrorMessage } from '../../api/client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
 import { useFeedback } from '../../hooks/useFeedback';
@@ -59,6 +60,30 @@ const MAX_RECOMMENDED_DRAFTS = 5;
 
 function buildDraftId(chapterNum: number, label: string): string {
   return `ch${String(chapterNum).padStart(4, '0')}_draft_${label}.md`;
+}
+
+function createDraftItem(
+  chapterNum: number,
+  label: string,
+  content: string,
+  generatedWith?: DraftGeneratedWith | null
+): DraftItem {
+  return {
+    label,
+    draftId: buildDraftId(chapterNum, label),
+    content,
+    generatedWith: generatedWith || null,
+    modified: false,
+  };
+}
+
+function createDraftItemFromDetail(chapterNum: number, detail: DraftDetail): DraftItem {
+  return createDraftItem(
+    chapterNum,
+    detail.variant,
+    detail.content,
+    detail.generated_with || null
+  );
 }
 
 function sortDrafts(drafts: DraftItem[]): DraftItem[] {
@@ -208,6 +233,32 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     setRecoveryNotice(false);
   };
 
+  const mergeDraftIntoState = useCallback((draft: DraftItem) => {
+    setDrafts((current) => {
+      const merged = sortDrafts([
+        ...current.filter((item) => item.label !== draft.label),
+        draft,
+      ]);
+      const nextIndex = merged.findIndex((item) => item.label === draft.label);
+      setActiveDraftIndex(nextIndex >= 0 ? nextIndex : Math.max(merged.length - 1, 0));
+      return merged;
+    });
+  }, []);
+
+  const loadDraftByLabel = useCallback(async (
+    chapterNum: number,
+    label: string,
+    fallbackContent = '',
+    fallbackGeneratedWith?: DraftGeneratedWith | null
+  ): Promise<DraftItem> => {
+    try {
+      const detail = await getDraft(auPath, chapterNum, label);
+      return createDraftItemFromDetail(chapterNum, detail);
+    } catch {
+      return createDraftItem(chapterNum, label, fallbackContent, fallbackGeneratedWith || null);
+    }
+  }, [auPath]);
+
   const loadDraftsForChapter = useCallback(async (chapterNum: number): Promise<DraftItem[]> => {
     const list = await listDrafts(auPath, chapterNum);
     if (list.length === 0) return [];
@@ -217,13 +268,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     );
 
     return sortDrafts(
-      details.map((detail) => ({
-        label: detail.variant,
-        draftId: buildDraftId(chapterNum, detail.variant),
-        content: detail.content,
-        generatedWith: detail.generated_with || null,
-        modified: false,
-      }))
+      details.map((detail) => createDraftItemFromDetail(chapterNum, detail))
     );
   }, [auPath]);
 
@@ -322,7 +367,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     }
   };
 
-  const handleGenerate = async (request: GenerateRequestState) => {
+  const handleGenerate = useCallback(async (request: GenerateRequestState) => {
     if (isGenerating || !state) return;
 
     setIsGenerating(true);
@@ -338,6 +383,8 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     let nextGeneratedWith: DraftGeneratedWith | null = null;
     let nextBudgetReport: any = null;
     let nextText = '';
+    let partialDraftLabel = '';
+    let generationError: unknown = null;
 
     try {
       for await (const event of generateChapter({
@@ -363,31 +410,47 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
         }
 
         if (event.event === 'error') {
-          throw new Error(event.data.message || t('writer.generateErrorFallback'));
+          partialDraftLabel = event.data.partial_draft_label || '';
+          generationError = new ApiError(
+            event.data.error_code || 'UNKNOWN',
+            getFriendlyErrorMessage(event.data),
+            event.data.actions || [],
+            event.data.message
+          );
+          break;
         }
+      }
+
+      if (generationError) {
+        if (partialDraftLabel) {
+          const partialDraft = await loadDraftByLabel(
+            state.current_chapter,
+            partialDraftLabel,
+            nextText,
+            nextGeneratedWith
+          );
+          mergeDraftIntoState(partialDraft);
+          setGeneratedWith(partialDraft.generatedWith || nextGeneratedWith || null);
+          setStreamText('');
+          setRecoveryNotice(true);
+        } else {
+          setStreamText('');
+        }
+        throw generationError;
       }
 
       if (!nextDraftLabel) {
         throw new Error(t('writer.generateErrorFallback'));
       }
 
-      const nextDraft: DraftItem = {
-        label: nextDraftLabel,
-        draftId: buildDraftId(state.current_chapter, nextDraftLabel),
-        content: nextText,
-        generatedWith: nextGeneratedWith,
-        modified: false,
-      };
+      const nextDraft = createDraftItem(
+        state.current_chapter,
+        nextDraftLabel,
+        nextText,
+        nextGeneratedWith
+      );
 
-      setDrafts((current) => {
-        const merged = sortDrafts([
-          ...current.filter((item) => item.label !== nextDraft.label),
-          nextDraft,
-        ]);
-        const nextIndex = merged.findIndex((item) => item.label === nextDraft.label);
-        setActiveDraftIndex(nextIndex >= 0 ? nextIndex : Math.max(merged.length - 1, 0));
-        return merged;
-      });
+      mergeDraftIntoState(nextDraft);
       setGeneratedWith(nextGeneratedWith);
       setBudgetReport(nextBudgetReport);
       setStreamText('');
@@ -396,7 +459,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     } finally {
       setIsGenerating(false);
     }
-  };
+  }, [auPath, loadDraftByLabel, mergeDraftIntoState, sessionModel, sessionTemp, sessionTopP, showError, state, t]);
 
   const handleGenerateFromInput = async (inputType: 'continue' | 'instruction') => {
     if (drafts.length > 0) {
@@ -412,11 +475,12 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   };
 
   const handleRegenerate = async () => {
-    const fallbackRequest: GenerateRequestState = instructionText.trim()
-      ? { inputType: 'instruction', userInput: instructionText.trim() }
-      : { inputType: 'continue', userInput: t('common.actions.continue') };
+    const trimmedInstruction = instructionText.trim();
+    const request: GenerateRequestState = trimmedInstruction
+      ? { inputType: 'instruction', userInput: trimmedInstruction }
+      : (lastGenerateRequest || { inputType: 'continue', userInput: t('common.actions.continue') });
 
-    await handleGenerate(lastGenerateRequest || fallbackRequest);
+    await handleGenerate(request);
   };
 
   const handleConfirm = async () => {
