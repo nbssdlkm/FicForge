@@ -103,6 +103,14 @@ class LocalFileDraftRepository(DraftRepository):
                 result.append(draft)
         return result
 
+    def delete_single(self, au_id: str, chapter_num: int, variant: str) -> bool:
+        """删除单个草稿。返回是否实际删除了文件。"""
+        path = self._draft_path(au_id, chapter_num, variant)
+        if not path.exists():
+            return False
+        path.unlink()
+        return True
+
     def delete_by_chapter(self, au_id: str, chapter_num: int) -> None:
         drafts_dir = self._drafts_dir(au_id)
         if not drafts_dir.exists():

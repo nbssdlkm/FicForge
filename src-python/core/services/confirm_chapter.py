@@ -60,6 +60,7 @@ class ConfirmChapterService:
         generated_with: Optional[GeneratedWith] = None,
         cast_registry: Optional[dict[str, Any]] = None,
         character_aliases: Optional[dict[str, list[str]]] = None,
+        content_override: Optional[str] = None,
     ) -> dict[str, Any]:
         """确认章节。严格遵循 PRD §2.6.5 多文件写入顺序契约。
 
@@ -70,6 +71,7 @@ class ConfirmChapterService:
             generated_with: 生成统计元数据。provenance 为 ai 时应有值。
             cast_registry: project.yaml 的 cast_registry dict。
             character_aliases: {主名: [别名列表]}。
+            content_override: 编辑后的内容。非 None 时用此内容替代草稿文件内容，provenance 标记为 mixed。
 
         Returns:
             确认结果 dict（chapter_id, chapter_num, revision, content_hash, current_chapter）。
@@ -87,6 +89,7 @@ class ConfirmChapterService:
                 generated_with,
                 cast_registry or {},
                 character_aliases or {},
+                content_override=content_override,
             )
 
     def _do_confirm(
@@ -97,6 +100,7 @@ class ConfirmChapterService:
         generated_with: Optional[GeneratedWith],
         cast_registry: dict[str, Any],
         character_aliases: dict[str, list[str]],
+        content_override: Optional[str] = None,
     ) -> dict[str, Any]:
         """锁内执行确认流程。"""
 
@@ -121,7 +125,13 @@ class ConfirmChapterService:
         except FileNotFoundError as exc:
             raise ConfirmChapterError(f"草稿文件不存在: {draft_id}") from exc
 
-        draft_content = draft.content
+        # content_override 非 None 时用编辑后内容，provenance 标记为 mixed
+        if content_override is not None:
+            draft_content = content_override
+            provenance = "mixed"
+        else:
+            draft_content = draft.content
+            provenance = "ai"
 
         # === 步骤 1：备份（如果覆盖已有章节）===
         old_chapter: Optional[Chapter] = None
@@ -149,7 +159,7 @@ class ConfirmChapterService:
             confirmed_focus=confirmed_focus,
             confirmed_at=timestamp,
             content_hash=content_hash,
-            provenance="ai",
+            provenance=provenance,
             generated_with=generated_with,
         )
         self._chapter_repo.save(chapter)
