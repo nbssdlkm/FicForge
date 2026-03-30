@@ -275,7 +275,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
 
        <Modal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} title="确认删除设定文件">
          <div className="space-y-4">
-           <p className="text-sm text-text/80">确定要删除「<strong>{selectedFile}.md</strong>」吗？此操作不可撤销。</p>
+           <p className="text-sm text-text/80">确定要删除「<strong>{selectedFile}.md</strong>」吗？文件将移入垃圾箱，30 天内可恢复。</p>
            <div className="flex justify-end gap-2">
              <Button variant="ghost" onClick={() => setDeleteConfirmOpen(false)}>取消</Button>
              <Button variant="primary" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDeleteLore}>确认删除</Button>

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-import shutil
 from pathlib import Path
 from typing import Any
 
@@ -205,41 +204,59 @@ async def read_fandom_file(
 
 @router.delete("/fandoms/{fandom_name}")
 async def delete_fandom(fandom_name: str, data_dir: str = Query("./fandoms")) -> Any:
-    """删除整个 Fandom 目录（含所有 AU）。"""
+    """删除整个 Fandom 目录（含所有 AU）→ 移入垃圾箱（D-0023）。"""
     if not validate_path(data_dir):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
     if not _SAFE_NAME_RE.match(fandom_name):
         return error_response(400, "INVALID_NAME", "非法的 fandom 名称", [])
 
-    fandom_dir = Path(data_dir) / "fandoms" / fandom_name
+    fandoms_root = Path(data_dir) / "fandoms"
+    fandom_dir = fandoms_root / fandom_name
     if not fandom_dir.is_dir():
         return error_response(404, "NOT_FOUND", f"Fandom 不存在: {fandom_name}", [])
 
+    from api import build_trash_service
+    trash = build_trash_service()
     try:
-        await run_in_threadpool(shutil.rmtree, fandom_dir)
+        entry = await run_in_threadpool(
+            trash.move_to_trash,
+            fandoms_root,            # scope_root = fandoms/ 目录
+            fandom_name,             # relative_path
+            "fandom",
+            fandom_name,
+        )
     except Exception as exc:
         logger.exception("Delete fandom failed: %s", fandom_name)
         return error_response(500, "DELETE_FAILED", str(exc), [])
 
-    return {"status": "ok", "deleted": str(fandom_dir)}
+    return {"status": "ok", "trash_id": entry.trash_id, "deleted": str(fandom_dir)}
 
 
 @router.delete("/fandoms/{fandom_name}/aus/{au_name}")
 async def delete_au(fandom_name: str, au_name: str, data_dir: str = Query("./fandoms")) -> Any:
-    """删除指定 AU 目录。"""
+    """删除指定 AU 目录 → 移入垃圾箱（D-0023）。"""
     if not validate_path(data_dir):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
     if not _SAFE_NAME_RE.match(fandom_name) or not _SAFE_NAME_RE.match(au_name):
         return error_response(400, "INVALID_NAME", "非法名称", [])
 
-    au_dir = Path(data_dir) / "fandoms" / fandom_name / "aus" / au_name
+    fandom_dir = Path(data_dir) / "fandoms" / fandom_name
+    au_dir = fandom_dir / "aus" / au_name
     if not au_dir.is_dir():
         return error_response(404, "NOT_FOUND", f"AU 不存在: {au_name}", [])
 
+    from api import build_trash_service
+    trash = build_trash_service()
     try:
-        await run_in_threadpool(shutil.rmtree, au_dir)
+        entry = await run_in_threadpool(
+            trash.move_to_trash,
+            fandom_dir,              # scope_root = fandom 根目录
+            f"aus/{au_name}",        # relative_path
+            "au",
+            au_name,
+        )
     except Exception as exc:
         logger.exception("Delete AU failed: fandom=%s au=%s", fandom_name, au_name)
         return error_response(500, "DELETE_FAILED", str(exc), [])
 
-    return {"status": "ok", "deleted": str(au_dir)}
+    return {"status": "ok", "trash_id": entry.trash_id, "deleted": str(au_dir)}

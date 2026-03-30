@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 
 from core.services.au_mutex import AUMutexManager
 from core.services.confirm_chapter import ConfirmChapterService
+from core.services.trash_service import TrashService
 from core.services.dirty_resolve import ResolveDirtyChapterService
 from core.services.undo_chapter import UndoChapterService
 from repositories.implementations.local_file_chapter import LocalFileChapterRepository
@@ -28,6 +29,7 @@ from repositories.implementations.local_file_state import LocalFileStateReposito
 # ---------------------------------------------------------------------------
 
 _au_mutex = AUMutexManager()
+_trash_service = TrashService(retention_days=30)
 
 
 # ---------------------------------------------------------------------------
@@ -115,6 +117,10 @@ def error_response(
 def build_draft_filename(chapter_num: int, variant: str) -> str:
     """构建草稿文件名。"""
     return f"ch{chapter_num:04d}_draft_{variant}.md"
+
+
+def build_trash_service() -> TrashService:
+    return _trash_service
 
 
 def validate_path(path: str) -> bool:

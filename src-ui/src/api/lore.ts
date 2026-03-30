@@ -31,7 +31,7 @@ export async function readLore(req: LoreReadRequest): Promise<{ content: string 
   });
 }
 
-export async function deleteLore(req: LoreReadRequest): Promise<{ status: string }> {
+export async function deleteLore(req: LoreReadRequest): Promise<{ status: string; trash_id: string; deleted: string }> {
   return apiFetch("/api/v1/lore", {
     method: "DELETE",
     body: JSON.stringify(req),
