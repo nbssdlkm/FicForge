@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+import yaml
 
 from core.services.trash_service import TrashService
 
@@ -17,11 +18,29 @@ def scope_root(tmp_path: Path) -> Path:
     """创建一个带角色文件的 AU 目录。"""
     chars = tmp_path / "characters"
     chars.mkdir()
-    (chars / "Connor.md").write_text("# Connor\n\nDetective android.", encoding="utf-8")
-    (chars / "Hank.md").write_text("# Hank\n\nVeteran lieutenant.", encoding="utf-8")
+    (chars / "Connor.md").write_text(
+        "---\nname: Connor\n---\n\n# Connor\n\nDetective android.",
+        encoding="utf-8",
+    )
+    (chars / "Hank.md").write_text(
+        "---\nname: Hank\n---\n\n# Hank\n\nVeteran lieutenant.",
+        encoding="utf-8",
+    )
     wb = tmp_path / "worldbuilding"
     wb.mkdir()
     (wb / "Detroit2038.md").write_text("# Detroit 2038\n\nAndroids everywhere.", encoding="utf-8")
+    (tmp_path / "project.yaml").write_text(
+        yaml.dump(
+            {
+                "project_id": "p1",
+                "au_id": str(tmp_path),
+                "cast_registry": {"characters": ["Connor", "Hank"]},
+            },
+            allow_unicode=True,
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
     return tmp_path
 
 
@@ -73,6 +92,14 @@ class TestMoveToTrash:
         assert e1.trash_id in ids
         assert e2.trash_id in ids
 
+    def test_move_character_updates_cast_registry(self, scope_root: Path):
+        ts = TrashService()
+
+        ts.move_to_trash(scope_root, "characters/Connor.md", "character_file", "Connor")
+
+        raw = yaml.safe_load((scope_root / "project.yaml").read_text(encoding="utf-8"))
+        assert raw["cast_registry"]["characters"] == ["Hank"]
+
 
 class TestRestore:
     def test_restore_file(self, scope_root: Path):
@@ -103,6 +130,35 @@ class TestRestore:
         ts = TrashService()
         with pytest.raises(FileNotFoundError):
             ts.restore(scope_root, "tr_0_nonexistent")
+
+    def test_restore_character_updates_cast_registry(self, scope_root: Path):
+        ts = TrashService()
+        entry = ts.move_to_trash(scope_root, "characters/Connor.md", "character_file", "Connor")
+
+        raw_after_delete = yaml.safe_load((scope_root / "project.yaml").read_text(encoding="utf-8"))
+        assert raw_after_delete["cast_registry"]["characters"] == ["Hank"]
+
+        ts.restore(scope_root, entry.trash_id)
+
+        raw_after_restore = yaml.safe_load((scope_root / "project.yaml").read_text(encoding="utf-8"))
+        assert raw_after_restore["cast_registry"]["characters"] == ["Hank", "Connor"]
+
+    def test_restore_skips_registry_update_when_frontmatter_name_missing(self, scope_root: Path):
+        ts = TrashService()
+        char_path = scope_root / "characters" / "Nameless.md"
+        char_path.write_text("# Nameless\n\nNo frontmatter here.", encoding="utf-8")
+        raw = yaml.safe_load((scope_root / "project.yaml").read_text(encoding="utf-8"))
+        raw["cast_registry"]["characters"].append("Nameless")
+        (scope_root / "project.yaml").write_text(
+            yaml.dump(raw, allow_unicode=True, sort_keys=False),
+            encoding="utf-8",
+        )
+
+        entry = ts.move_to_trash(scope_root, "characters/Nameless.md", "character_file", "Nameless")
+        ts.restore(scope_root, entry.trash_id)
+
+        updated = yaml.safe_load((scope_root / "project.yaml").read_text(encoding="utf-8"))
+        assert updated["cast_registry"]["characters"] == ["Connor", "Hank", "Nameless"]
 
 
 class TestPermanentDelete:

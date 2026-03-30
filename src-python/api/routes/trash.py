@@ -10,7 +10,7 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from api import build_trash_service, error_response, validate_path
+from api import build_task_queue, build_trash_service, error_response, validate_path
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +85,23 @@ async def restore_from_trash(req: RestoreRequest) -> Any:
     except Exception as exc:
         logger.exception("Restore failed: path=%s id=%s", req.path, req.trash_id)
         return error_response(500, "RESTORE_FAILED", str(exc), [])
+
+    # 恢复后入队向量化（仅 AU 文件，D-0028）
+    try:
+        original_path = entry.original_path  # e.g. "characters/Connor.md"
+        # 判断是否 AU：scope_root 下有 project.yaml
+        if (scope_root / "project.yaml").is_file():
+            parts = original_path.split("/", 1)
+            if len(parts) == 2 and parts[0] in ("characters", "worldbuilding"):
+                category, filename = parts
+                collection = "characters" if "character" in category else "worldbuilding"
+                file_path = str(scope_root / original_path)
+                build_task_queue().enqueue("vectorize_settings_file", str(scope_root), {
+                    "file_path": file_path,
+                    "collection": collection,
+                })
+    except Exception:
+        logger.warning("恢复后向量化入队失败（不影响恢复）", exc_info=True)
 
     return {"status": "ok", "restored": entry.to_dict()}
 
