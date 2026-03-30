@@ -70,6 +70,17 @@ class TestConnectionApi:
         assert resp.json()["success"] is False
         assert resp.json()["error_code"] == "path_not_found"
 
+    def test_ollama_connection_refused(self, client: TestClient):
+        """Ollama 不可达时返回 connection_failed。"""
+        resp = client.post("/api/v1/settings/test-connection", json={
+            "mode": "ollama", "api_base": "http://localhost:99999",
+            "ollama_model": "llama3",
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is False
+        assert data["error_code"] == "connection_failed"
+
     def test_unsupported_mode(self, client: TestClient):
         resp = client.post("/api/v1/settings/test-connection", json={
             "mode": "quantum",
