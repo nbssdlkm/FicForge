@@ -1,16 +1,32 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ThemeToggle } from '../shared/ThemeToggle';
 import { Button } from '../shared/Button';
 import { Tag } from '../shared/Tag';
+import { Modal } from '../shared/Modal';
+import { EmptyState } from '../shared/EmptyState';
+import { Textarea } from '../shared/Input';
 import { SettingsPanel } from '../settings/SettingsPanel';
-import { Undo2, Check, FileUp, AlertCircle, Loader2, BookOpen } from 'lucide-react';
+import {
+  Undo2,
+  Check,
+  FileUp,
+  AlertCircle,
+  Loader2,
+  BookOpen,
+  ChevronLeft,
+  ChevronRight,
+  RefreshCw,
+  Trash2,
+  Sparkles,
+} from 'lucide-react';
 import { ExportModal } from './ExportModal';
 import { DirtyModal } from './DirtyModal';
 import { Sidebar } from '../shared/Sidebar';
 
 import { getChapterContent, confirmChapter, undoChapter } from '../../api/chapters';
+import { listDrafts, getDraft, deleteDrafts, type DraftGeneratedWith } from '../../api/drafts';
 import { getState, setChapterFocus, type StateInfo } from '../../api/state';
-import { listFacts, type FactInfo } from '../../api/facts';
+import { listFacts, addFact, extractFacts, type ExtractedFactCandidate, type FactInfo } from '../../api/facts';
 import { generateChapter } from '../../api/generate';
 import { getSettings, updateSettings } from '../../api/settings';
 import { getProject, updateProject } from '../../api/project';
@@ -25,30 +41,191 @@ type ContextLayer = {
   color: string;
 };
 
+type DraftItem = {
+  label: string;
+  draftId: string;
+  content: string;
+  generatedWith?: DraftGeneratedWith | null;
+  modified: boolean;
+};
+
+type GenerateRequestState = {
+  inputType: 'continue' | 'instruction';
+  userInput: string;
+};
+
+const FACTS_PROMPT_STORAGE_KEY = 'ficforge.writer.skipFactsPrompt';
+const MAX_RECOMMENDED_DRAFTS = 5;
+
+function buildDraftId(chapterNum: number, label: string): string {
+  return `ch${String(chapterNum).padStart(4, '0')}_draft_${label}.md`;
+}
+
+function sortDrafts(drafts: DraftItem[]): DraftItem[] {
+  return [...drafts].sort((left, right) => left.label.localeCompare(right.label));
+}
+
+function getGenerateRequestStorageKey(auPath: string, chapterNum: number): string {
+  return `ficforge.writer.generateRequest:${auPath}:${chapterNum}`;
+}
+
+function readSavedGenerateRequest(auPath: string, chapterNum: number): GenerateRequestState | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = window.localStorage.getItem(getGenerateRequestStorageKey(auPath, chapterNum));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<GenerateRequestState>;
+    if (
+      (parsed.inputType === 'continue' || parsed.inputType === 'instruction')
+      && typeof parsed.userInput === 'string'
+    ) {
+      return {
+        inputType: parsed.inputType,
+        userInput: parsed.userInput,
+      };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function saveGenerateRequest(auPath: string, chapterNum: number, request: GenerateRequestState): void {
+  if (typeof window === 'undefined') return;
+
+  window.localStorage.setItem(
+    getGenerateRequestStorageKey(auPath, chapterNum),
+    JSON.stringify(request)
+  );
+}
+
+function getSkipFactsPromptDefault(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.localStorage.getItem(FACTS_PROMPT_STORAGE_KEY) === '1';
+}
+
+function setSkipFactsPromptPersisted(value: boolean): void {
+  if (typeof window === 'undefined') return;
+  if (value) {
+    window.localStorage.setItem(FACTS_PROMPT_STORAGE_KEY, '1');
+    return;
+  }
+  window.localStorage.removeItem(FACTS_PROMPT_STORAGE_KEY);
+}
+
+function formatGeneratedMeta(generatedWith?: DraftGeneratedWith | null): string {
+  if (!generatedWith) return '';
+
+  const parts: string[] = [];
+  if (generatedWith.generated_at) {
+    const timestamp = new Date(generatedWith.generated_at);
+    if (!Number.isNaN(timestamp.getTime())) {
+      parts.push(
+        new Intl.DateTimeFormat('zh-CN', {
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+        }).format(timestamp)
+      );
+    }
+  }
+
+  if (generatedWith.model) {
+    parts.push(generatedWith.model);
+  }
+
+  return parts.join(' · ');
+}
+
+function getPreviewText(content: string, maxChars = 200): string {
+  const normalized = content.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxChars) return normalized;
+  return `${normalized.slice(0, maxChars)}…`;
+}
+
+function getCandidateKey(candidate: ExtractedFactCandidate, index: number): string {
+  return `${candidate.content_clean}-${candidate.chapter}-${index}`;
+}
+
 export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigate: (page: string) => void }) => {
   const { t } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
+  const instructionInputRef = useRef<HTMLInputElement | null>(null);
+
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [isExportOpen, setExportOpen] = useState(false);
   const [isDirtyOpen, setDirtyOpen] = useState(false);
+  const [isFinalizeConfirmOpen, setFinalizeConfirmOpen] = useState(false);
+  const [isDiscardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+  const [isFactsPromptOpen, setFactsPromptOpen] = useState(false);
+  const [isExtractReviewOpen, setExtractReviewOpen] = useState(false);
 
   const [state, setState] = useState<StateInfo | null>(null);
   const [currentContent, setCurrentContent] = useState('');
   const [unresolvedFacts, setUnresolvedFacts] = useState<FactInfo[]>([]);
   const [focusSelection, setFocusSelection] = useState<string>('free');
 
+  const [drafts, setDrafts] = useState<DraftItem[]>([]);
+  const [activeDraftIndex, setActiveDraftIndex] = useState(0);
+  const [recoveryNotice, setRecoveryNotice] = useState(false);
+  const [lastConfirmedChapter, setLastConfirmedChapter] = useState<number | null>(null);
+
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [isDiscarding, setIsDiscarding] = useState(false);
+  const [extractingFacts, setExtractingFacts] = useState(false);
+  const [savingExtracted, setSavingExtracted] = useState(false);
   const [streamText, setStreamText] = useState('');
-  const [draftLabel, setDraftLabel] = useState('');
-  const [generatedWith, setGeneratedWith] = useState<any>(null);
+  const [generatedWith, setGeneratedWith] = useState<DraftGeneratedWith | null>(null);
   const [budgetReport, setBudgetReport] = useState<any>(null);
+  const [lastGenerateRequest, setLastGenerateRequest] = useState<GenerateRequestState | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [instructionText, setInstructionText] = useState('');
+  const [skipFactsPrompt, setSkipFactsPrompt] = useState(getSkipFactsPromptDefault());
+  const [extractedCandidates, setExtractedCandidates] = useState<ExtractedFactCandidate[]>([]);
+  const [selectedExtractedKeys, setSelectedExtractedKeys] = useState<string[]>([]);
 
   const [sessionModel, setSessionModel] = useState('deepseek-chat');
   const [sessionTemp, setSessionTemp] = useState(1.0);
   const [sessionTopP, setSessionTopP] = useState(0.95);
+
+  const focusInstructionInput = () => {
+    window.setTimeout(() => {
+      instructionInputRef.current?.focus();
+    }, 0);
+  };
+
+  const clearDraftState = () => {
+    setDrafts([]);
+    setActiveDraftIndex(0);
+    setStreamText('');
+    setGeneratedWith(null);
+    setBudgetReport(null);
+    setRecoveryNotice(false);
+  };
+
+  const loadDraftsForChapter = useCallback(async (chapterNum: number): Promise<DraftItem[]> => {
+    const list = await listDrafts(auPath, chapterNum);
+    if (list.length === 0) return [];
+
+    const details = await Promise.all(
+      list.map((draft) => getDraft(auPath, chapterNum, draft.draft_label))
+    );
+
+    return sortDrafts(
+      details.map((detail) => ({
+        label: detail.variant,
+        draftId: buildDraftId(chapterNum, detail.variant),
+        content: detail.content,
+        generatedWith: detail.generated_with || null,
+        modified: false,
+      }))
+    );
+  }, [auPath]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -100,12 +277,23 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
       } else {
         setCurrentContent('');
       }
+
+      if (stateData) {
+        const loadedDrafts = await loadDraftsForChapter(stateData.current_chapter);
+        setDrafts(loadedDrafts);
+        setActiveDraftIndex(loadedDrafts.length > 0 ? loadedDrafts.length - 1 : 0);
+        setRecoveryNotice(loadedDrafts.length > 0);
+        setLastGenerateRequest(readSavedGenerateRequest(auPath, stateData.current_chapter));
+      } else {
+        clearDraftState();
+        setLastGenerateRequest(null);
+      }
     } catch (error) {
       showError(error, t('error_messages.unknown'));
     } finally {
       setLoading(false);
     }
-  }, [auPath, showError, t]);
+  }, [auPath, loadDraftsForChapter, showError, t]);
 
   useEffect(() => {
     void loadData();
@@ -134,37 +322,43 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     }
   };
 
-  const handleGenerate = async (inputType: 'continue' | 'instruction') => {
+  const handleGenerate = async (request: GenerateRequestState) => {
     if (isGenerating || !state) return;
 
     setIsGenerating(true);
     setStreamText('');
-    setDraftLabel('');
     setGeneratedWith(null);
     setBudgetReport(null);
+    setRecoveryNotice(false);
+
+    setLastGenerateRequest(request);
+    saveGenerateRequest(auPath, state.current_chapter, request);
+
+    let nextDraftLabel = '';
+    let nextGeneratedWith: DraftGeneratedWith | null = null;
+    let nextBudgetReport: any = null;
+    let nextText = '';
 
     try {
-      const userInput = inputType === 'instruction' && instructionText.trim()
-        ? instructionText.trim()
-        : t('common.actions.continue');
-
       for await (const event of generateChapter({
         au_path: auPath,
         chapter_num: state.current_chapter,
-        user_input: userInput,
-        input_type: inputType,
+        user_input: request.userInput,
+        input_type: request.inputType,
         session_llm: sessionModel ? { mode: 'api', model: sessionModel } : undefined,
         session_params: { temperature: sessionTemp, top_p: sessionTopP },
       })) {
         if (event.event === 'token') {
-          setStreamText(prev => prev + (event.data.text || ''));
+          const text = event.data.text || '';
+          nextText += text;
+          setStreamText((prev) => prev + text);
           continue;
         }
 
         if (event.event === 'done') {
-          setDraftLabel(event.data.draft_label);
-          setGeneratedWith(event.data.generated_with);
-          setBudgetReport(event.data.budget_report);
+          nextDraftLabel = event.data.draft_label;
+          nextGeneratedWith = event.data.generated_with || null;
+          nextBudgetReport = event.data.budget_report;
           continue;
         }
 
@@ -172,6 +366,31 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
           throw new Error(event.data.message || t('writer.generateErrorFallback'));
         }
       }
+
+      if (!nextDraftLabel) {
+        throw new Error(t('writer.generateErrorFallback'));
+      }
+
+      const nextDraft: DraftItem = {
+        label: nextDraftLabel,
+        draftId: buildDraftId(state.current_chapter, nextDraftLabel),
+        content: nextText,
+        generatedWith: nextGeneratedWith,
+        modified: false,
+      };
+
+      setDrafts((current) => {
+        const merged = sortDrafts([
+          ...current.filter((item) => item.label !== nextDraft.label),
+          nextDraft,
+        ]);
+        const nextIndex = merged.findIndex((item) => item.label === nextDraft.label);
+        setActiveDraftIndex(nextIndex >= 0 ? nextIndex : Math.max(merged.length - 1, 0));
+        return merged;
+      });
+      setGeneratedWith(nextGeneratedWith);
+      setBudgetReport(nextBudgetReport);
+      setStreamText('');
     } catch (error) {
       showError(error, t('writer.generateErrorFallback'));
     } finally {
@@ -179,29 +398,97 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     }
   };
 
+  const handleGenerateFromInput = async (inputType: 'continue' | 'instruction') => {
+    if (drafts.length > 0) {
+      showToast(t('drafts.generatingBlocked'), 'warning');
+      return;
+    }
+
+    const userInput = inputType === 'instruction' && instructionText.trim()
+      ? instructionText.trim()
+      : t('common.actions.continue');
+
+    await handleGenerate({ inputType, userInput });
+  };
+
+  const handleRegenerate = async () => {
+    const fallbackRequest: GenerateRequestState = instructionText.trim()
+      ? { inputType: 'instruction', userInput: instructionText.trim() }
+      : { inputType: 'continue', userInput: t('common.actions.continue') };
+
+    await handleGenerate(lastGenerateRequest || fallbackRequest);
+  };
+
   const handleConfirm = async () => {
-    if (!draftLabel || !state) return;
+    const currentDraft = drafts[activeDraftIndex];
+    if (!currentDraft || !state) return;
+
+    setIsFinalizing(true);
     try {
-      const draftId = `ch${String(state.current_chapter).padStart(4, '0')}_draft_${draftLabel}.md`;
-      await confirmChapter(auPath, state.current_chapter, draftId, generatedWith);
-      setStreamText('');
-      setDraftLabel('');
-      showSuccess(t('writer.confirmSuccess'));
+      const confirmedChapter = state.current_chapter;
+      await confirmChapter(
+        auPath,
+        confirmedChapter,
+        currentDraft.draftId,
+        currentDraft.generatedWith || undefined,
+        currentDraft.modified ? currentDraft.content : undefined
+      );
+
+      clearDraftState();
+      setFinalizeConfirmOpen(false);
+      setLastConfirmedChapter(confirmedChapter);
       await loadData();
+
+      if (skipFactsPrompt) {
+        showSuccess(t('drafts.finalizeSuccess', { chapter: confirmedChapter }));
+        focusInstructionInput();
+        return;
+      }
+
+      setFactsPromptOpen(true);
     } catch (error) {
       showError(error, t('error_messages.unknown'));
+    } finally {
+      setIsFinalizing(false);
     }
   };
 
   const handleUndo = async () => {
     try {
       await undoChapter(auPath);
-      setStreamText('');
-      setDraftLabel('');
+      clearDraftState();
       showSuccess(t('writer.undoSuccess'));
       await loadData();
     } catch (error) {
       showError(error, t('error_messages.unknown'));
+    }
+  };
+
+  const handleDiscardDrafts = async () => {
+    if (!state || drafts.length === 0) return;
+
+    setIsDiscarding(true);
+    try {
+      const currentDraft = drafts[activeDraftIndex];
+      const isSingleDraft = drafts.length === 1;
+      await deleteDrafts(
+        auPath,
+        state.current_chapter,
+        isSingleDraft ? currentDraft?.label : undefined
+      );
+
+      clearDraftState();
+      setDiscardConfirmOpen(false);
+      if (isSingleDraft) {
+        showToast(t('drafts.discardSuccess'), 'info');
+      } else {
+        showToast(t('drafts.discardAllSuccess'), 'info');
+      }
+      focusInstructionInput();
+    } catch (error) {
+      showError(error, t('error_messages.unknown'));
+    } finally {
+      setIsDiscarding(false);
     }
   };
 
@@ -210,18 +497,120 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     try {
       const ids = value === 'free' ? [] : [value];
       await setChapterFocus(auPath, ids);
+      showToast(t('writer.focusSaved'), 'success');
     } catch (error) {
       showError(error, t('error_messages.unknown'));
     }
   };
 
-  const displayContent = streamText || currentContent;
+  const handleCurrentDraftChange = (content: string) => {
+    setDrafts((current) =>
+      current.map((draft, index) =>
+        index === activeDraftIndex
+          ? {
+              ...draft,
+              content,
+              modified: true,
+            }
+          : draft
+      )
+    );
+  };
+
+  const handleFactsPromptToggle = (checked: boolean) => {
+    setSkipFactsPrompt(checked);
+    setSkipFactsPromptPersisted(checked);
+  };
+
+  const closeFactsPrompt = () => {
+    setFactsPromptOpen(false);
+    focusInstructionInput();
+  };
+
+  const handleSkipFactsPrompt = () => {
+    closeFactsPrompt();
+  };
+
+  const handleOpenExtractReview = async () => {
+    if (!lastConfirmedChapter) return;
+
+    setExtractingFacts(true);
+    try {
+      const result = await extractFacts(auPath, lastConfirmedChapter);
+      const candidates = result.facts || [];
+      setExtractedCandidates(candidates);
+      setSelectedExtractedKeys(candidates.map((candidate, index) => getCandidateKey(candidate, index)));
+      setFactsPromptOpen(false);
+      setExtractReviewOpen(true);
+      if (candidates.length === 0) {
+        showToast(t('facts.extractNoResult'), 'info');
+      }
+    } catch (error) {
+      showError(error, t('error_messages.unknown'));
+    } finally {
+      setExtractingFacts(false);
+    }
+  };
+
+  const handleSaveExtracted = async () => {
+    if (selectedExtractedKeys.length === 0) {
+      setExtractReviewOpen(false);
+      focusInstructionInput();
+      return;
+    }
+
+    setSavingExtracted(true);
+    try {
+      const selectedCandidates = extractedCandidates.filter((candidate, index) =>
+        selectedExtractedKeys.includes(getCandidateKey(candidate, index))
+      );
+
+      for (const candidate of selectedCandidates) {
+        await addFact(auPath, candidate.chapter || lastConfirmedChapter || 1, {
+          content_raw: candidate.content_raw || candidate.content_clean,
+          content_clean: candidate.content_clean,
+          type: candidate.fact_type || candidate.type || 'plot_event',
+          narrative_weight: candidate.narrative_weight || 'medium',
+          status: candidate.status || 'active',
+          characters: candidate.characters || [],
+          ...(candidate.timeline ? { timeline: candidate.timeline } : {}),
+        });
+      }
+
+      showSuccess(t('facts.extractSaved', { count: selectedCandidates.length }));
+      setExtractReviewOpen(false);
+      setExtractedCandidates([]);
+      setSelectedExtractedKeys([]);
+      focusInstructionInput();
+    } catch (error) {
+      showError(error, t('error_messages.unknown'));
+    } finally {
+      setSavingExtracted(false);
+    }
+  };
+
+  const toggleExtractedCandidate = (key: string) => {
+    setSelectedExtractedKeys((current) =>
+      current.includes(key)
+        ? current.filter((item) => item !== key)
+        : [...current, key]
+    );
+  };
+
   const currentChapter = state?.current_chapter || 1;
-  const metaModel = generatedWith?.model || sessionModel;
-  const metaChars = generatedWith?.char_count || displayContent.length;
-  const metaDuration = generatedWith?.duration_ms
-    ? `${(generatedWith.duration_ms / 1000).toFixed(1)}s`
+  const hasPendingDrafts = drafts.length > 0;
+  const currentDraft = drafts[activeDraftIndex] || null;
+  const activeGeneratedWith = currentDraft?.generatedWith || generatedWith;
+  const displayContent = streamText || currentDraft?.content || currentContent;
+  const metaModel = activeGeneratedWith?.model || sessionModel;
+  const metaChars = activeGeneratedWith?.char_count || displayContent.length;
+  const metaDuration = activeGeneratedWith?.duration_ms
+    ? `${(activeGeneratedWith.duration_ms / 1000).toFixed(1)}s`
     : t('writer.metaDurationUnknown');
+  const currentDraftMeta = formatGeneratedMeta(currentDraft?.generatedWith);
+  const previewText = currentDraft ? getPreviewText(currentDraft.content) : '';
+  const isLastDraft = activeDraftIndex >= drafts.length - 1;
+  const isFirstDraft = activeDraftIndex === 0;
 
   const contextLayers: ContextLayer[] = budgetReport ? [
     {
@@ -272,68 +661,132 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto w-full flex justify-center pb-24">
-          <div className="w-full max-w-2xl px-8 py-12 text-lg font-serif leading-loose text-text/90">
-            {loading ? (
-              <div className="flex items-center justify-center py-20"><Loader2 className="animate-spin text-accent" size={24} /></div>
-            ) : displayContent ? (
-              displayContent.split('\n').filter(Boolean).map((para: string, i: number) => (
-                <p key={i} className={`mb-6 indent-8 ${streamText && !draftLabel ? 'opacity-80' : ''}`}>{para}</p>
-              ))
-            ) : (
-              <p className="text-text/30 text-center py-20">{t('writer.emptyContent')}</p>
+        <div className="flex-1 overflow-y-auto w-full flex justify-center pb-32">
+          <div className="w-full max-w-3xl px-8 py-10 space-y-6">
+            {recoveryNotice && hasPendingDrafts && (
+              <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+                {t('drafts.recoveryNotice')}
+              </div>
             )}
-            {isGenerating && <span className="inline-block w-0.5 h-5 bg-accent animate-pulse" />}
+
+            <div className="rounded-[24px] border border-black/10 bg-surface/35 p-6 shadow-subtle dark:border-white/10">
+              {loading ? (
+                <div className="flex items-center justify-center py-24">
+                  <Loader2 className="animate-spin text-accent" size={24} />
+                </div>
+              ) : streamText ? (
+                <div className="text-lg font-serif leading-loose text-text/90 animate-in fade-in duration-200">
+                  {streamText.split('\n').filter(Boolean).map((para: string, i: number) => (
+                    <p key={i} className="mb-6 indent-8 opacity-90">{para}</p>
+                  ))}
+                  {isGenerating && <span className="inline-block h-5 w-0.5 bg-accent align-middle animate-pulse" />}
+                </div>
+              ) : currentDraft ? (
+                <div className="space-y-4">
+                  <Textarea
+                    value={currentDraft.content}
+                    onChange={(event) => handleCurrentDraftChange(event.target.value)}
+                    className="min-h-[440px] border-0 bg-transparent px-0 py-0 font-serif text-lg leading-loose shadow-none focus:ring-0"
+                  />
+                </div>
+              ) : displayContent ? (
+                <div className="text-lg font-serif leading-loose text-text/90">
+                  {displayContent.split('\n').filter(Boolean).map((para: string, i: number) => (
+                    <p key={i} className="mb-6 indent-8">{para}</p>
+                  ))}
+                </div>
+              ) : (
+                <p className="py-24 text-center text-text/30">{t('writer.emptyContent')}</p>
+              )}
+            </div>
           </div>
         </div>
 
-        <footer className="absolute bottom-0 w-full shrink-0 border-t border-black/10 dark:border-white/10 p-4 bg-surface/50 backdrop-blur-md flex flex-col gap-3">
-          {draftLabel && (
-            <div className="flex items-center justify-between max-w-3xl w-full mx-auto">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-sans text-text/50">{t('writer.draftReady', { label: draftLabel })}</span>
+        <footer className="absolute bottom-0 w-full shrink-0 border-t border-black/10 dark:border-white/10 bg-surface/50 p-4 backdrop-blur-md flex flex-col gap-3">
+          {hasPendingDrafts && currentDraft && (
+            <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 rounded-xl border border-black/10 bg-background/60 px-4 py-3 dark:border-white/10">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex items-center gap-2 text-sm font-sans text-text/75">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setActiveDraftIndex((current) => Math.max(0, current - 1))}
+                    disabled={isFirstDraft || isGenerating}
+                    aria-label={t('drafts.previous')}
+                  >
+                    <ChevronLeft size={16} />
+                  </Button>
+                  <span className="min-w-[140px] text-center font-medium">
+                    {t('drafts.count', { current: activeDraftIndex + 1, total: drafts.length })}
+                    {currentDraft.modified ? <span className="ml-1 text-text/55">{t('drafts.modified')}</span> : null}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setActiveDraftIndex((current) => Math.min(drafts.length - 1, current + 1))}
+                    disabled={isLastDraft || isGenerating}
+                    aria-label={t('drafts.next')}
+                  >
+                    <ChevronRight size={16} />
+                  </Button>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Button variant="primary" size="sm" className="h-8 gap-1" onClick={() => setFinalizeConfirmOpen(true)} disabled={isGenerating || isFinalizing}>
+                    <Check size={15} /> {t('drafts.finalize')}
+                  </Button>
+                  <Button variant="secondary" size="sm" className="h-8 gap-1" onClick={() => void handleRegenerate()} disabled={isGenerating || isFinalizing}>
+                    {isGenerating ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+                    {t('drafts.regenerate')}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1 text-error/80 hover:bg-error/10 hover:text-error"
+                    onClick={() => setDiscardConfirmOpen(true)}
+                    disabled={isGenerating || isDiscarding}
+                  >
+                    <Trash2 size={15} />
+                    {drafts.length > 1 ? t('drafts.discardAll') : t('drafts.discard')}
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 text-error/80 hover:text-error hover:bg-error/10"
-                  onClick={() => {
-                    setStreamText('');
-                    setDraftLabel('');
-                    showToast(t('writer.draftDiscarded'), 'info');
-                  }}
-                >
-                  {t('common.actions.discardDraft')}
-                </Button>
-                <Button variant="secondary" size="sm" className="h-8" onClick={() => handleGenerate('continue')} disabled={isGenerating}>
-                  {t('common.actions.regenerate')}
-                </Button>
-                <Button variant="primary" size="sm" className="h-8 gap-1" onClick={handleConfirm}>
-                  <Check size={16} /> {t('common.actions.finalize')}
-                </Button>
+
+              <div className="flex flex-col gap-2 text-xs text-text/50 lg:flex-row lg:items-center lg:justify-between">
+                <span>{currentDraftMeta || t('writer.metaDurationUnknown')}</span>
+                {drafts.length > MAX_RECOMMENDED_DRAFTS && (
+                  <span>{t('drafts.tooMany', { count: drafts.length })}</span>
+                )}
               </div>
             </div>
           )}
 
-          <div className="max-w-3xl w-full mx-auto">
+          <div className="mx-auto w-full max-w-3xl">
             <input
+              ref={instructionInputRef}
               type="text"
               placeholder={t('writer.inputPlaceholder')}
               value={instructionText}
-              onChange={e => setInstructionText(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !isGenerating) {
-                  void handleGenerate(instructionText.trim() ? 'instruction' : 'continue');
+              onChange={(event) => setInstructionText(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' || isGenerating) return;
+
+                if (hasPendingDrafts) {
+                  showToast(t('drafts.generatingBlocked'), 'warning');
+                  return;
                 }
+
+                void handleGenerateFromInput(instructionText.trim() ? 'instruction' : 'continue');
               }}
-              className="w-full h-9 px-3 rounded-lg border border-black/10 dark:border-white/10 bg-background text-sm focus:ring-2 focus:ring-accent/50 outline-none"
+              className="h-9 w-full rounded-lg border border-black/10 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent/50 dark:border-white/10"
             />
           </div>
 
-          <div className="flex items-center justify-between max-w-3xl w-full mx-auto mt-2 pt-2 border-t border-black/5 dark:border-white/5">
+          <div className="mx-auto mt-2 flex w-full max-w-3xl items-center justify-between border-t border-black/5 pt-2 dark:border-white/5">
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={handleUndo} disabled={currentChapter <= 1}>
+              <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={handleUndo} disabled={currentChapter <= 1 || isGenerating}>
                 <Undo2 size={16} className="mr-2" /> {t('common.actions.undoPreviousChapter')}
               </Button>
               <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => onNavigate('facts')}>
@@ -341,10 +794,20 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
               </Button>
             </div>
             <div className="flex gap-3">
-              <Button variant="secondary" className="w-32 shadow-medium" onClick={() => handleGenerate('instruction')} disabled={isGenerating || !instructionText.trim()}>
+              <Button
+                variant="secondary"
+                className="w-32 shadow-medium"
+                onClick={() => void handleGenerateFromInput('instruction')}
+                disabled={isGenerating || hasPendingDrafts || !instructionText.trim()}
+              >
                 {t('common.actions.instruction')}
               </Button>
-              <Button variant="primary" className="w-32 shadow-medium" onClick={() => handleGenerate('continue')} disabled={isGenerating}>
+              <Button
+                variant="primary"
+                className="w-32 shadow-medium"
+                onClick={() => void handleGenerateFromInput('continue')}
+                disabled={isGenerating || hasPendingDrafts}
+              >
                 {isGenerating ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.continue')}
               </Button>
             </div>
@@ -361,11 +824,11 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
                 <input type="radio" name="focus" className="mt-1 accent-accent" checked={focusSelection === 'free'} onChange={() => handleFocusChange('free')} />
                 <span className="text-sm">{t('writer.freeWrite')}</span>
               </label>
-              {unresolvedFacts.map(f => (
-                <label key={f.id} className="flex items-start gap-2 p-2 rounded-md hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer border border-transparent hover:border-black/5 dark:hover:border-white/5 transition-colors">
-                  <input type="radio" name="focus" className="mt-1 accent-accent" checked={focusSelection === String(f.id)} onChange={() => handleFocusChange(String(f.id))} />
+              {unresolvedFacts.map((fact) => (
+                <label key={fact.id} className="flex items-start gap-2 p-2 rounded-md hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer border border-transparent hover:border-black/5 dark:hover:border-white/5 transition-colors">
+                  <input type="radio" name="focus" className="mt-1 accent-accent" checked={focusSelection === String(fact.id)} onChange={() => handleFocusChange(String(fact.id))} />
                   <div className="flex flex-col">
-                    <span className="text-sm">{f.content_clean}</span>
+                    <span className="text-sm">{fact.content_clean}</span>
                     <Tag variant="warning" className="mt-1.5 w-fit">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</Tag>
                   </div>
                 </label>
@@ -376,7 +839,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
           <section>
             <h3 className="text-xs font-sans font-medium mb-3 text-text/70 tracking-wide uppercase">{t('writer.memoryPanel')}</h3>
             <div className="space-y-3">
-              {contextLayers.map(item => (
+              {contextLayers.map((item) => (
                 <div key={item.key} className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-text/70">{item.label}</span>
@@ -404,6 +867,141 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
           </section>
         </div>
       </Sidebar>
+
+      <Modal
+        isOpen={isFinalizeConfirmOpen && currentDraft !== null}
+        onClose={() => setFinalizeConfirmOpen(false)}
+        title={t('drafts.confirmFinalize', { chapter: currentChapter })}
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg border border-black/10 bg-surface/40 p-4 text-sm leading-relaxed text-text/80 dark:border-white/10">
+            {previewText || t('writer.emptyContent')}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setFinalizeConfirmOpen(false)}>
+              {t('common.actions.cancel')}
+            </Button>
+            <Button variant="primary" onClick={() => void handleConfirm()} disabled={isFinalizing}>
+              {isFinalizing ? <Loader2 size={16} className="animate-spin" /> : t('drafts.finalize')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isDiscardConfirmOpen}
+        onClose={() => setDiscardConfirmOpen(false)}
+        title={drafts.length > 1 ? t('drafts.discardAll') : t('drafts.discard')}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text/80">
+            {drafts.length > 1
+              ? t('drafts.confirmDiscardAll', { count: drafts.length })
+              : t('drafts.confirmDiscard')}
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setDiscardConfirmOpen(false)}>
+              {t('common.actions.cancel')}
+            </Button>
+            <Button variant="primary" className="bg-red-600 text-white hover:bg-red-700" onClick={() => void handleDiscardDrafts()} disabled={isDiscarding}>
+              {isDiscarding ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.confirm')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isFactsPromptOpen}
+        onClose={handleSkipFactsPrompt}
+        title={lastConfirmedChapter ? t('drafts.finalizeSuccess', { chapter: lastConfirmedChapter }) : t('drafts.finalizeSuccess', { chapter: currentChapter })}
+      >
+        <div className="space-y-5">
+          <p className="text-sm text-text/80">{t('drafts.factsPrompt')}</p>
+          <div className="space-y-2">
+            <Button variant="primary" className="w-full gap-2" onClick={() => void handleOpenExtractReview()} disabled={extractingFacts}>
+              {extractingFacts ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+              {t('drafts.factsExtract')}
+            </Button>
+            <Button variant="secondary" className="w-full" onClick={() => { setFactsPromptOpen(false); onNavigate('facts'); }}>
+              {t('drafts.factsManual')}
+            </Button>
+            <Button variant="ghost" className="w-full" onClick={handleSkipFactsPrompt}>
+              {t('drafts.factsSkip')}
+            </Button>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-text/70">
+            <input
+              type="checkbox"
+              className="accent-accent"
+              checked={skipFactsPrompt}
+              onChange={(event) => handleFactsPromptToggle(event.target.checked)}
+            />
+            <span>{t('drafts.factsNeverAsk')}</span>
+          </label>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isExtractReviewOpen}
+        onClose={() => {
+          setExtractReviewOpen(false);
+          focusInstructionInput();
+        }}
+        title={t('facts.extractReviewTitle')}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text/70">{t('facts.extractReviewDescription')}</p>
+          <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1">
+            {extractedCandidates.length === 0 ? (
+              <EmptyState compact icon={<Sparkles size={28} />} title={t('facts.extractReviewEmpty')} description={t('facts.extractNoResult')} />
+            ) : (
+              extractedCandidates.map((candidate, index) => {
+                const candidateType = candidate.fact_type || candidate.type || 'plot_event';
+                const key = getCandidateKey(candidate, index);
+                const checked = selectedExtractedKeys.includes(key);
+
+                return (
+                  <label key={key} className={`flex cursor-pointer gap-3 rounded-lg border p-4 dark:border-white/10 ${checked ? 'border-accent/40 bg-accent/5' : 'border-black/10 bg-surface/40'}`}>
+                    <input
+                      type="checkbox"
+                      className="mt-1 accent-accent"
+                      checked={checked}
+                      onChange={() => toggleExtractedCandidate(key)}
+                    />
+                    <div className="min-w-0 flex-1 space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Tag variant="info">{getEnumLabel('fact_type', candidateType, candidateType)}</Tag>
+                        <Tag variant="warning">{getEnumLabel('narrative_weight', candidate.narrative_weight, candidate.narrative_weight)}</Tag>
+                        <Tag variant="default">{getEnumLabel('fact_status', candidate.status, candidate.status)}</Tag>
+                        <span className="text-xs text-text/50">{t('facts.extractSourceChapter', { chapter: candidate.chapter })}</span>
+                      </div>
+                      <p className="text-sm text-text/85">{candidate.content_clean}</p>
+                      {candidate.characters.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {candidate.characters.map((character) => (
+                            <span key={character} className="text-xs font-medium text-accent/80">@{character}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                );
+              })
+            )}
+          </div>
+          <div className="flex justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
+            <Button variant="ghost" onClick={() => {
+              setExtractReviewOpen(false);
+              focusInstructionInput();
+            }}>
+              {t('common.actions.cancel')}
+            </Button>
+            <Button variant="primary" onClick={() => void handleSaveExtracted()} disabled={savingExtracted || selectedExtractedKeys.length === 0}>
+              {savingExtracted ? <Loader2 size={16} className="animate-spin" /> : t('drafts.extractSaveSelected')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <ExportModal isOpen={isExportOpen} onClose={() => setExportOpen(false)} />
       <DirtyModal

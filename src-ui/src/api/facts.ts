@@ -14,6 +14,22 @@ export interface FactInfo {
   timeline: string;
 }
 
+export interface ExtractedFactCandidate {
+  content_raw: string;
+  content_clean: string;
+  characters: string[];
+  fact_type?: string;
+  type?: string;
+  narrative_weight: string;
+  status: string;
+  chapter: number;
+  timeline?: string;
+}
+
+export interface ExtractFactsResponse {
+  facts: ExtractedFactCandidate[];
+}
+
 export async function listFacts(auPath: string, status?: string): Promise<FactInfo[]> {
   let url = `/api/v1/facts?au_path=${encodeURIComponent(auPath)}`;
   if (status) url += `&status=${status}`;
@@ -41,7 +57,7 @@ export async function updateFactStatus(auPath: string, factId: string, newStatus
   });
 }
 
-export async function extractFacts(auPath: string, chapterNum: number): Promise<any> {
+export async function extractFacts(auPath: string, chapterNum: number): Promise<ExtractFactsResponse> {
   return apiFetch("/api/v1/facts/extract", {
     method: "POST",
     body: JSON.stringify({ au_path: auPath, chapter_num: chapterNum }),
