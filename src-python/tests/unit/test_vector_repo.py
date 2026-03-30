@@ -178,6 +178,54 @@ def _make_settings_chunks(filename: str, n: int = 2) -> list[ChunkData]:
     ]
 
 
+def test_search_au_isolation():
+    """不同 AU 的章节检索互不干扰。"""
+    import chromadb
+    client = chromadb.Client()
+    embed = _mock_embedding_provider()
+    repo = LocalChromaVectorRepository(client, embed)
+
+    # AU1 和 AU2 各写入 1 章
+    chunks_au1 = [ChunkData(content="AU1 独有内容", chapter_num=1, chunk_index=0)]
+    chunks_au2 = [ChunkData(content="AU2 独有内容", chapter_num=1, chunk_index=0)]
+    repo.index_chapter("au1", chunks_au1)
+    repo.index_chapter("au2", chunks_au2)
+
+    # AU1 只能搜到自己
+    results_au1 = repo.search("au1", "内容", collection_name="chapters", top_k=10)
+    assert all("AU1" in r.content for r in results_au1)
+    assert not any("AU2" in r.content for r in results_au1)
+
+    # AU2 只能搜到自己
+    results_au2 = repo.search("au2", "内容", collection_name="chapters", top_k=10)
+    assert all("AU2" in r.content for r in results_au2)
+
+
+def test_delete_chapter_au_isolation():
+    """删除章节只影响目标 AU，不误删其他 AU。"""
+    import chromadb
+    client = chromadb.Client()
+    embed = _mock_embedding_provider()
+    repo = LocalChromaVectorRepository(client, embed)
+
+    chunks_au1 = [ChunkData(content="AU1 ch1", chapter_num=1, chunk_index=0)]
+    chunks_au2 = [ChunkData(content="AU2 ch1", chapter_num=1, chunk_index=0)]
+    repo.index_chapter("au1", chunks_au1)
+    repo.index_chapter("au2", chunks_au2)
+
+    # 删除 AU1 的第 1 章
+    repo.delete_chapter("au1", 1)
+
+    # AU1 搜不到了
+    results_au1 = repo.search("au1", "内容", collection_name="chapters", top_k=10)
+    assert len(results_au1) == 0
+
+    # AU2 不受影响
+    results_au2 = repo.search("au2", "内容", collection_name="chapters", top_k=10)
+    assert len(results_au2) == 1
+    assert "AU2" in results_au2[0].content
+
+
 def test_settings_files_source_file_metadata():
     """Bug fix: source_file 元数据正确存入 ChromaDB。"""
     import chromadb
