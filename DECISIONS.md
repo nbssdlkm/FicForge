@@ -431,6 +431,20 @@
 
 ---
 
+## D-0030 后端 API 字段名保持英文，前端 i18n 映射中文
+- Date: 2026-03-30
+- Status: Accepted
+- Owner: Human Maintainer
+- Context: 用户反馈 UI 术语过于技术化，但后端字段名变更会导致大量迁移成本。
+- Decision: 后端 API 字段名（perspective、importance、narrative_weight 等）保持英文不变。前端通过 locales/zh.json 做 i18n 映射，用户只看到中文。
+- Consequences:
+  - 前端所有用户可见文案走 i18n，不硬编码
+  - 后端无需任何改动
+  - 新增字段时需同步更新 zh.json 映射
+- Supersedes: none
+
+---
+
 ## D-0031 assemble_context 返回 ContextSummary 旁路统计
 - Date: 2026-03-30
 - Status: Accepted

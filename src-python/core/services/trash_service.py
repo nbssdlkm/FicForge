@@ -20,9 +20,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+import frontmatter
 import logging
+import yaml
 
-from infra.storage_local.file_utils import now_utc
+from infra.storage_local.file_utils import atomic_write, now_utc
 
 logger = logging.getLogger(__name__)
 
@@ -146,7 +148,10 @@ class TrashService:
             meta["is_directory"] = True
 
         # 移动
+        character_name = self._read_character_name(source) if self._should_sync_cast_registry(scope_root, relative_path) else None
         shutil.move(str(source), str(trash_target))
+        if character_name:
+            self._update_cast_registry(scope_root, character_name, action="remove")
 
         now = datetime.now(timezone.utc)
         expires = now + timedelta(days=self.retention_days)
@@ -201,6 +206,10 @@ class TrashService:
         original_dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(trash_source), str(original_dest))
         self._remove_from_manifest(scope_root, trash_id)
+        if self._should_sync_cast_registry(scope_root, target_entry.original_path):
+            character_name = self._read_character_name(original_dest)
+            if character_name:
+                self._update_cast_registry(scope_root, character_name, action="add")
 
         return target_entry
 
@@ -297,3 +306,62 @@ class TrashService:
         entries = self._read_manifest(scope_root)
         remaining = [e for e in entries if e.trash_id != trash_id]
         self._write_manifest(scope_root, remaining)
+
+    # ----- cast_registry 联动 -----
+
+    def _should_sync_cast_registry(self, scope_root: Path, relative_path: str) -> bool:
+        parts = Path(relative_path).parts
+        return bool(parts) and parts[0] == "characters" and (scope_root / "project.yaml").is_file()
+
+    def _read_character_name(self, path: Path) -> str | None:
+        try:
+            post = frontmatter.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            logger.warning("读取角色 frontmatter 失败，跳过 cast_registry 联动: %s (%s)", path, exc)
+            return None
+
+        name = post.metadata.get("name")
+        if isinstance(name, str):
+            stripped = name.strip()
+            return stripped or None
+        return None
+
+    def _update_cast_registry(self, scope_root: Path, character_name: str, action: str) -> None:
+        project_path = scope_root / "project.yaml"
+        if not project_path.is_file():
+            return
+
+        try:
+            raw = yaml.safe_load(project_path.read_text(encoding="utf-8")) or {}
+        except yaml.YAMLError as exc:
+            logger.warning("project.yaml 损坏，跳过 cast_registry 联动: %s (%s)", project_path, exc)
+            return
+
+        if not isinstance(raw, dict):
+            logger.warning("project.yaml 内容非法，跳过 cast_registry 联动: %s", project_path)
+            return
+
+        cast_registry = raw.get("cast_registry")
+        if not isinstance(cast_registry, dict):
+            cast_registry = {}
+
+        names = cast_registry.get("characters")
+        if not isinstance(names, list):
+            names = []
+
+        normalized = [name for name in names if isinstance(name, str) and name.strip()]
+
+        if action == "remove":
+            updated = [name for name in normalized if name != character_name]
+        else:
+            updated = list(normalized)
+            if character_name not in updated:
+                updated.append(character_name)
+
+        if updated == normalized:
+            return
+
+        cast_registry["characters"] = updated
+        raw["cast_registry"] = cast_registry
+        content = yaml.dump(raw, allow_unicode=True, sort_keys=False, default_flow_style=False)
+        atomic_write(project_path, content)

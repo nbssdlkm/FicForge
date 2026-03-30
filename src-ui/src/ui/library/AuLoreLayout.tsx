@@ -2,55 +2,140 @@ import { useState, useEffect } from 'react';
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
 import { Modal } from '../shared/Modal';
-import { Search, Plus, FileText, ChevronDown, ChevronRight, Folder, Loader2, AlertCircle, Trash2 } from 'lucide-react';
+import { EmptyState } from '../shared/EmptyState';
+import { TrashPanel } from '../shared/TrashPanel';
+import type { TrashEntry } from '../../api/trash';
+import { Search, Plus, FileText, ChevronDown, ChevronRight, Folder, Loader2, Trash2, Download } from 'lucide-react';
 import { getProject, updateProject, type ProjectInfo } from '../../api/project';
-import { saveLore, readLore, deleteLore } from '../../api/lore';
+import { saveLore, readLore, deleteLore, listLoreFiles, importFromFandom } from '../../api/lore';
+import { useTranslation } from '../../i18n/useAppTranslation';
+import { useFeedback } from '../../hooks/useFeedback';
+
+type LoreFileEntry = {
+  name: string;
+  filename: string;
+};
+
+function buildDefaultCharacterContent(name: string): string {
+  return `---\nname: ${name}\n---\n\n# ${name}\n\n`;
+}
+
+function deriveFandomPath(auPath: string): string {
+  return auPath.replace(/\/aus\/[^/]+$/, '');
+}
+
+function getRestoredCharacterFile(entry: TrashEntry): LoreFileEntry | null {
+  if (!entry.original_path.startsWith('characters/')) return null;
+  const filename = entry.original_path.split('/').pop();
+  if (!filename) return null;
+  return {
+    name: entry.entity_name || filename.replace(/\.md$/, ''),
+    filename,
+  };
+}
 
 export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
+  const { t } = useTranslation();
+  const { showError, showSuccess } = useFeedback();
   const [project, setProject] = useState<ProjectInfo | null>(null);
+  const [files, setFiles] = useState<LoreFileEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
-    characters: true,
-  });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({ characters: true });
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [editorContent, setEditorContent] = useState('');
-
   const [isSaving, setIsSaving] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createName, setCreateName] = useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importCandidates, setImportCandidates] = useState<LoreFileEntry[]>([]);
+  const [selectedImports, setSelectedImports] = useState<string[]>([]);
+  const [trashRefreshToken, setTrashRefreshToken] = useState(0);
+
+  const syncRegistry = async (names: string[]) => {
+    const deduped = Array.from(new Set(names));
+    await updateProject(auPath, { cast_registry: { characters: deduped } });
+    setProject(prev => prev ? {
+      ...prev,
+      cast_registry: {
+        ...prev.cast_registry,
+        characters: deduped,
+      },
+    } : prev);
+  };
 
   const loadFileContent = async (name: string) => {
     setSelectedFile(name);
     try {
       const result = await readLore({ au_path: auPath, category: 'characters', filename: `${name}.md` });
-      setEditorContent(result.content || `# ${name}\n\n[设定尚未编写]`);
+      setEditorContent(result.content || buildDefaultCharacterContent(name));
     } catch {
-      setEditorContent(`# ${name}\n\n[设定尚未编写]`);
+      setEditorContent(buildDefaultCharacterContent(name));
     }
   };
 
+  const loadData = async () => {
+    if (!auPath) return;
+    setLoading(true);
+    try {
+      const [proj, loreFiles] = await Promise.all([
+        getProject(auPath),
+        listLoreFiles({ au_path: auPath, category: 'characters' }),
+      ]);
+
+      setProject(proj);
+      setFiles(loreFiles.files);
+
+      const nextSelected = selectedFile && loreFiles.files.some(file => file.name === selectedFile)
+        ? selectedFile
+        : loreFiles.files[0]?.name || null;
+
+      if (nextSelected) {
+        await loadFileContent(nextSelected);
+      } else {
+        setSelectedFile(null);
+        setEditorContent('');
+      }
+    } catch (error) {
+      showError(error, t('error_messages.unknown'));
+      setFiles([]);
+      setSelectedFile(null);
+      setEditorContent('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadData();
+  }, [auPath]);
+
+  const toggleFolder = (folder: string) => {
+    setExpandedFolders(prev => ({ ...prev, [folder]: !prev[folder] }));
+  };
+
   const handleSaveLore = async () => {
-    if (!selectedFile || !project) return;
+    if (!selectedFile) return;
     setIsSaving(true);
     try {
       await saveLore({
         au_path: auPath,
         category: 'characters',
         filename: `${selectedFile}.md`,
-        content: editorContent
+        content: editorContent,
       });
-      setIsSaving(false);
-    } catch (e: any) {
-      alert("保存失败: " + e.message);
+      showSuccess(t('common.actions.save'));
+    } catch (error) {
+      showError(error, t('error_messages.unknown'));
+    } finally {
       setIsSaving(false);
     }
   };
 
   const handleDeleteLore = async () => {
     if (!selectedFile || !project) return;
-
     setDeleteConfirmOpen(false);
     setIsSaving(true);
     try {
@@ -60,14 +145,14 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
         filename: `${selectedFile}.md`,
       });
 
-      // Update cast_registry
-      const newList = project.cast_registry.characters.filter(n => n !== selectedFile);
-      await updateProject(auPath, { cast_registry: { characters: newList } });
-      setProject({ ...project, cast_registry: { characters: newList } });
+      const remainingNames = (project.cast_registry.characters || []).filter(name => name !== selectedFile);
+      await syncRegistry(remainingNames);
+      setFiles(prev => prev.filter(file => file.name !== selectedFile));
       setSelectedFile(null);
       setEditorContent('');
-    } catch (e: any) {
-      alert("删除失败: " + e.message);
+      setTrashRefreshToken(current => current + 1);
+    } catch (error) {
+      showError(error, t('error_messages.unknown'));
     } finally {
       setIsSaving(false);
     }
@@ -77,64 +162,102 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     const rawName = createName.trim();
     if (!rawName || !project) return;
 
-    const slug = rawName.toLowerCase().replace(/\s+/g, '_');
-    const defaultContent = `# ${rawName}\n\n[设定尚未编写]`;
+    const defaultContent = buildDefaultCharacterContent(rawName);
     setCreateModalOpen(false);
     setIsSaving(true);
+
     try {
       await saveLore({
         au_path: auPath,
         category: 'characters',
-        filename: `${slug}.md`,
+        filename: `${rawName}.md`,
         content: defaultContent,
       });
 
-      const newList = [...(project.cast_registry.characters || []), slug];
-      await updateProject(auPath, { cast_registry: { characters: newList } });
-      setProject({ ...project, cast_registry: { characters: newList } });
-      setSelectedFile(slug);
+      await syncRegistry([...(project.cast_registry.characters || []), rawName]);
+      setFiles(prev => [...prev, { name: rawName, filename: `${rawName}.md` }].sort((a, b) => a.name.localeCompare(b.name)));
+      setSelectedFile(rawName);
       setEditorContent(defaultContent);
-    } catch (e: any) {
-      alert("创建失败: " + e.message);
+      setCreateName('');
+    } catch (error) {
+      showError(error, t('error_messages.unknown'));
     } finally {
       setIsSaving(false);
     }
   };
 
-  useEffect(() => {
-    if (!auPath) return;
-    setLoading(true);
-    getProject(auPath)
-      .then(proj => {
-        setProject(proj);
-        const chars = proj.cast_registry?.characters || [];
-        if (chars.length > 0) {
-          loadFileContent(chars[0]);
-        }
-      })
-      .catch((e: any) => setError(e.message || '加载失败'))
-      .finally(() => setLoading(false));
-  }, [auPath]);
-
-  const toggleFolder = (folder: string) => {
-    setExpandedFolders(prev => ({ ...prev, [folder]: !prev[folder] }));
+  const openImportModal = async () => {
+    setImportModalOpen(true);
+    setImportLoading(true);
+    setSelectedImports([]);
+    try {
+      const fandomFiles = await listLoreFiles({ fandom_path: deriveFandomPath(auPath), category: 'core_characters' });
+      const existing = new Set(files.map(file => file.name));
+      setImportCandidates(fandomFiles.files.filter(file => !existing.has(file.name)));
+    } catch (error) {
+      showError(error, t('error_messages.unknown'));
+      setImportCandidates([]);
+    } finally {
+      setImportLoading(false);
+    }
   };
 
-  const characters = project?.cast_registry?.characters || [];
-  const auName = project?.name || auPath.split('/').pop() || 'AU';
+  const handleToggleImport = (name: string) => {
+    setSelectedImports(prev => prev.includes(name) ? prev.filter(item => item !== name) : [...prev, name]);
+  };
 
-  const renderFile = (name: string) => (
-    <div
-      key={name}
-      className={`flex items-center justify-between pl-6 pr-3 py-1.5 text-sm cursor-pointer rounded-md ${selectedFile === name ? 'bg-accent/10 text-accent font-medium' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5 hover:text-text'}`}
-      onClick={() => loadFileContent(name)}
-    >
-      <div className="flex items-center gap-2 overflow-hidden">
-        <FileText size={14} className="opacity-50 shrink-0" />
-        <span className="truncate">{name}.md</span>
-      </div>
-    </div>
-  );
+  const handleImportSelected = async () => {
+    if (selectedImports.length === 0 || !project) return;
+    setIsSaving(true);
+    try {
+      await importFromFandom({
+        fandom_path: deriveFandomPath(auPath),
+        au_path: auPath,
+        filenames: selectedImports.map(name => `${name}.md`),
+        source_category: 'core_characters',
+      });
+
+      await syncRegistry([...(project.cast_registry.characters || []), ...selectedImports]);
+      setImportModalOpen(false);
+      setSelectedImports([]);
+      showSuccess(t('auLore.importSuccess', { count: selectedImports.length }));
+      await loadData();
+    } catch (error) {
+      showError(error, t('error_messages.unknown'));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleTrashRestore = (entry: TrashEntry) => {
+    const restoredFile = getRestoredCharacterFile(entry);
+    if (!restoredFile) return;
+
+    setFiles((prev) => {
+      if (prev.some((file) => file.filename === restoredFile.filename)) return prev;
+      return [...prev, restoredFile].sort((left, right) => left.name.localeCompare(right.name));
+    });
+
+    setProject((prev) => {
+      if (!prev) return prev;
+      const currentCharacters = prev.cast_registry.characters || [];
+      if (currentCharacters.includes(restoredFile.name)) return prev;
+      return {
+        ...prev,
+        cast_registry: {
+          ...prev.cast_registry,
+          characters: [...currentCharacters, restoredFile.name],
+        },
+      };
+    });
+  };
+
+  const filteredFiles = files.filter(file => {
+    if (!searchTerm.trim()) return true;
+    return file.name.includes(searchTerm.trim());
+  });
+
+  const auName = project?.name || auPath.split('/').pop() || t('common.unknownAu');
 
   if (loading) {
     return (
@@ -146,142 +269,206 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
 
   return (
     <>
-       <div className="w-[300px] md:w-[340px] shrink-0 border-r border-black/10 dark:border-white/10 flex flex-col bg-surface/50">
-         <header className="p-4 border-b border-black/10 dark:border-white/10 flex flex-col gap-3 shrink-0 bg-surface">
-           <div className="flex justify-between items-center">
-             <div className="flex items-center gap-2">
-                <h1 className="font-serif text-lg font-bold">{auName} 设定库</h1>
-             </div>
-              <Button variant="ghost" size="sm" className="px-2" onClick={() => { setCreateName(''); setCreateModalOpen(true); }} disabled={isSaving}>
-                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16}/>}
+      <div className="w-[300px] md:w-[340px] shrink-0 border-r border-black/10 dark:border-white/10 flex flex-col bg-surface/50">
+        <header className="p-4 border-b border-black/10 dark:border-white/10 flex flex-col gap-3 shrink-0 bg-surface">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <h1 className="font-serif text-lg font-bold">{t('common.scope.auTitle', { name: auName })}</h1>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" className="px-2" onClick={openImportModal} disabled={isSaving} title={t('common.actions.importFromFandom')}>
+                <Download size={16} />
               </Button>
-           </div>
-           <div className="relative">
-             <Search className="absolute left-2.5 top-2 text-text/50" size={14} />
-             <Input className="pl-8 h-8 text-xs placeholder:text-xs" placeholder="搜索设定或角色名..." />
-           </div>
-         </header>
+              <Button variant="ghost" size="sm" className="px-2" onClick={() => { setCreateName(''); setCreateModalOpen(true); }} disabled={isSaving}>
+                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+              </Button>
+            </div>
+          </div>
+          <div className="text-xs text-text/60">{t('auLore.referenceHint')}</div>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2 text-text/50" size={14} />
+            <Input className="pl-8 h-8 text-xs placeholder:text-xs" placeholder={t('auLore.searchPlaceholder')} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          </div>
+        </header>
 
-         <div className="flex-1 overflow-y-auto p-2 space-y-6 font-mono py-4">
-           {error && (
-             <div className="m-2 p-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded text-xs flex items-center gap-2">
-               <AlertCircle size={14} /> {error}
-             </div>
-           )}
-
-           {/* Characters (unified — D-0022) */}
-           <div className="space-y-2">
-             <div className="px-3 pb-1 text-[11px] font-sans font-bold text-text/40 uppercase tracking-widest">
-               角色 ({characters.length})
-             </div>
-             <div>
-               <div className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/80 font-bold font-sans" onClick={() => toggleFolder('characters')}>
-                 <div className="flex items-center gap-2">
-                   {expandedFolders['characters'] ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
-                   <Folder size={14} className="text-accent" fill="currentColor" fillOpacity={0.2} />
-                   <span>characters</span>
-                 </div>
-                 <Button variant="ghost" size="sm" className="p-0 h-6 w-6" onClick={(e) => { e.stopPropagation(); setCreateName(''); setCreateModalOpen(true); }}>
-                   <Plus size={12} />
-                 </Button>
-               </div>
-               {expandedFolders['characters'] && (
-                 <div className="mt-1 space-y-0.5">
-                   {characters.length === 0 ? (
-                     <p className="text-xs text-text/40 pl-6 py-2">暂无角色。点击 + 创建。</p>
-                   ) : (
-                     characters.map(name => renderFile(name))
-                   )}
-                 </div>
-               )}
-             </div>
-           </div>
-
-           {/* Empty state */}
-           {characters.length === 0 && (
-             <p className="text-center text-text/40 text-xs py-10">角色注册表为空。点击 + 添加角色。</p>
-           )}
-         </div>
-       </div>
-
-       <div className="flex-1 flex flex-col bg-background relative">
-          <header className="h-14 border-b border-black/10 dark:border-white/10 flex items-center px-6 justify-between shrink-0 bg-surface/30">
-            {selectedFile ? (
-              <>
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-sm font-semibold opacity-70">{selectedFile}.md</span>
-                </div>
-                <div className="flex items-center gap-4">
-                   <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteConfirmOpen(true)} disabled={isSaving}>
-                     <Trash2 size={14} />
-                   </Button>
-                   <Button variant="primary" size="sm" className="h-8 w-20" onClick={handleSaveLore} disabled={isSaving}>
-                     {isSaving ? <Loader2 size={14} className="animate-spin" /> : '保 存'}
-                   </Button>
-                </div>
-              </>
-            ) : (
-              <span className="font-mono text-sm opacity-40">未选择文件</span>
-            )}
-          </header>
-
-          <div className="flex-1 overflow-y-auto p-8 lg:p-12 w-full max-w-4xl mx-auto flex flex-col gap-6">
-            {selectedFile ? (
-              <>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-bold text-text/90">标准译名 (Display Name)</label>
-                    <Input defaultValue={selectedFile} className="h-10 font-sans text-base" />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-bold text-text/90">别名 / 别称 (Aliases)</label>
-                    <Input placeholder="用逗号分隔" className="h-10 font-sans" />
-                    <p className="text-xs text-text/50">用逗号分隔文本。</p>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2 flex-1">
-                  <label className="text-sm font-bold text-text/90">Markdown 设定内容</label>
-                  <Textarea
-                    value={editorContent}
-                    onChange={e => setEditorContent(e.target.value)}
-                    className="font-mono flex-1 min-h-[300px] text-sm leading-relaxed bg-surface/30 p-4 resize-y"
-                  />
-                </div>
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full opacity-30 mt-20">
-                <FileText size={48} className="mb-4" />
-                <p>在左侧列表中选择角色以编辑设定。</p>
+        <div className="flex-1 min-h-0 flex flex-col">
+          <div className="flex-1 overflow-y-auto p-2 space-y-6 font-mono py-4">
+            <div className="space-y-2">
+              <div className="px-3 pb-1 text-[11px] font-sans font-bold text-text/40 uppercase tracking-widest">
+                {t('auLore.charactersLabel')} ({files.length})
               </div>
+              <div>
+                <div className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/80 font-bold font-sans" onClick={() => toggleFolder('characters')}>
+                  <div className="flex items-center gap-2">
+                    {expandedFolders.characters ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    <Folder size={14} className="text-accent" fill="currentColor" fillOpacity={0.2} />
+                    <span>{t('common.labels.characters')}</span>
+                  </div>
+                  <Button variant="ghost" size="sm" className="p-0 h-6 w-6" onClick={(event) => { event.stopPropagation(); setCreateName(''); setCreateModalOpen(true); }}>
+                    <Plus size={12} />
+                  </Button>
+                </div>
+                {expandedFolders.characters && (
+                  <div className="mt-1 space-y-0.5">
+                    {filteredFiles.length === 0 ? (
+                      <EmptyState
+                        compact
+                        icon={<FileText size={28} />}
+                        title={t('emptyState.auCharacters.title')}
+                        description={t('emptyState.auCharacters.description')}
+                        actions={[
+                          {
+                            key: 'add-character',
+                            element: (
+                              <Button variant="primary" size="sm" onClick={() => setCreateModalOpen(true)}>
+                                {t('common.actions.addCharacter')}
+                              </Button>
+                            ),
+                          },
+                          {
+                            key: 'import-character',
+                            element: (
+                              <Button variant="secondary" size="sm" onClick={openImportModal}>
+                                {t('common.actions.importFromFandom')}
+                              </Button>
+                            ),
+                          },
+                        ]}
+                      />
+                    ) : (
+                      filteredFiles.map(file => (
+                        <div
+                          key={file.name}
+                          className={`flex items-center justify-between pl-6 pr-3 py-1.5 text-sm cursor-pointer rounded-md ${selectedFile === file.name ? 'bg-accent/10 text-accent font-medium' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5 hover:text-text'}`}
+                          onClick={() => { void loadFileContent(file.name); }}
+                        >
+                          <div className="flex items-center gap-2 overflow-hidden">
+                            <FileText size={14} className="opacity-50 shrink-0" />
+                            <span className="truncate">{file.name}.md</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <TrashPanel scope="au" path={auPath} onRestore={handleTrashRestore} refreshToken={trashRefreshToken} />
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col bg-background relative">
+        <header className="h-14 border-b border-black/10 dark:border-white/10 flex items-center px-6 justify-between shrink-0 bg-surface/30">
+          {selectedFile ? (
+            <>
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-sm font-semibold opacity-70">{selectedFile}.md</span>
+                <span className="rounded-full bg-info/10 px-2 py-1 text-xs text-info">{t('auLore.selectedTag')}</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteConfirmOpen(true)} disabled={isSaving}>
+                  <Trash2 size={14} />
+                </Button>
+                <Button variant="primary" size="sm" className="h-8 w-24" onClick={handleSaveLore} disabled={isSaving}>
+                  {isSaving ? <Loader2 size={14} className="animate-spin" /> : t('auLore.saveButton')}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <span className="font-mono text-sm opacity-40">{t('auLore.unselected')}</span>
+          )}
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-8 lg:p-12 w-full max-w-4xl mx-auto flex flex-col gap-6">
+          {selectedFile ? (
+            <div className="flex flex-col gap-2 flex-1">
+              <label className="text-sm font-bold text-text/90">{t('navigation.auLore')}</label>
+              <Textarea
+                value={editorContent}
+                onChange={e => setEditorContent(e.target.value)}
+                className="font-mono flex-1 min-h-[420px] text-sm leading-relaxed bg-surface/30 p-4 resize-y"
+              />
+            </div>
+          ) : (
+            <EmptyState
+              icon={<FileText size={40} />}
+              title={t('navigation.auLore')}
+              description={t('auLore.referenceHint')}
+              actions={[
+                {
+                  key: 'create-character-empty',
+                  element: (
+                    <Button variant="primary" onClick={() => setCreateModalOpen(true)}>
+                      {t('common.actions.addCharacter')}
+                    </Button>
+                  ),
+                },
+                {
+                  key: 'import-character-empty',
+                  element: (
+                    <Button variant="secondary" onClick={openImportModal}>
+                      {t('common.actions.importFromFandom')}
+                    </Button>
+                  ),
+                },
+              ]}
+            />
+          )}
+        </div>
+      </div>
+
+      <Modal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} title={t('auLore.createTitle')}>
+        <div className="space-y-4">
+          <p className="text-sm text-text/70">{t('auLore.createDescription')}</p>
+          <Input value={createName} onChange={e => setCreateName(e.target.value)} placeholder={t('auLore.createPlaceholder')} autoFocus />
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setCreateModalOpen(false)}>{t('common.actions.cancel')}</Button>
+            <Button variant="primary" onClick={handleCreate} disabled={!createName.trim()}>{t('common.actions.create')}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} title={t('auLore.deleteTitle')}>
+        <div className="space-y-4">
+          <p className="text-sm text-text/80">{t('auLore.deleteMessage', { name: `${selectedFile}.md` })}</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setDeleteConfirmOpen(false)}>{t('common.actions.cancel')}</Button>
+            <Button variant="primary" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDeleteLore}>{t('common.actions.confirmDelete')}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={importModalOpen} onClose={() => setImportModalOpen(false)} title={t('auLore.importTitle')}>
+        <div className="space-y-4">
+          <p className="text-sm text-text/70">{t('auLore.importDescription')}</p>
+          <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-lg border border-black/10 p-2 dark:border-white/10">
+            {importLoading ? (
+              <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-accent" /></div>
+            ) : importCandidates.length === 0 ? (
+              <EmptyState compact icon={<Download size={28} />} title={t('auLore.importEmpty')} description={t('fandomLore.referenceHint')} />
+            ) : (
+              importCandidates.map(file => (
+                <label key={file.name} className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedImports.includes(file.name)}
+                    onChange={() => handleToggleImport(file.name)}
+                    className="accent-accent"
+                  />
+                  <span className="text-sm">{file.name}</span>
+                </label>
+              ))
             )}
           </div>
-       </div>
-
-       <Modal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} title="新建角色">
-         <div className="flex flex-col gap-4">
-           <Input
-             placeholder="角色名 (如: Connor、林小雨)"
-             value={createName}
-             onChange={e => setCreateName(e.target.value)}
-             className="h-10"
-             autoFocus
-           />
-           <div className="flex justify-end gap-2">
-             <Button variant="ghost" onClick={() => setCreateModalOpen(false)}>取消</Button>
-             <Button variant="primary" onClick={handleCreate} disabled={!createName.trim()}>创建</Button>
-           </div>
-         </div>
-       </Modal>
-
-       <Modal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} title="确认删除设定文件">
-         <div className="space-y-4">
-           <p className="text-sm text-text/80">确定要删除「<strong>{selectedFile}.md</strong>」吗？文件将移入垃圾箱，30 天内可恢复。</p>
-           <div className="flex justify-end gap-2">
-             <Button variant="ghost" onClick={() => setDeleteConfirmOpen(false)}>取消</Button>
-             <Button variant="primary" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDeleteLore}>确认删除</Button>
-           </div>
-         </div>
-       </Modal>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setImportModalOpen(false)}>{t('common.actions.cancel')}</Button>
+            <Button variant="primary" onClick={handleImportSelected} disabled={selectedImports.length === 0 || isSaving}>
+              {isSaving ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.importSelected')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 };

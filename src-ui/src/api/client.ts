@@ -2,6 +2,8 @@
  * API Client — 前端与 Python sidecar 通信基础设施。
  */
 
+import i18n from "../i18n";
+
 // sidecar 端口：从 Tauri 事件获取或使用默认值
 let sidecarPort: number | null = null;
 
@@ -14,22 +16,77 @@ function getBaseUrl(): string {
   return `http://127.0.0.1:${port}`;
 }
 
+export function buildApiUrl(path: string): string {
+  return `${getBaseUrl()}${path}`;
+}
+
 export class ApiError extends Error {
   constructor(
     public errorCode: string,
     public userMessage: string,
-    public actions: string[]
+    public actions: string[],
+    public rawMessage?: string,
+    public retryAfter?: number
   ) {
     super(userMessage);
     this.name = "ApiError";
   }
 }
 
+type ErrorPayload = {
+  error_code?: string;
+  message?: string;
+  actions?: string[];
+  retry_after?: number | string;
+};
+
+function normalizeErrorCode(errorCode?: string): string {
+  return (errorCode || "unknown").trim().toLowerCase();
+}
+
+function getRetryAfter(payload: ErrorPayload, retryAfterHeader?: string | null): number | undefined {
+  const fromPayload = Number(payload.retry_after);
+  if (Number.isFinite(fromPayload) && fromPayload > 0) return fromPayload;
+
+  const fromHeader = Number(retryAfterHeader);
+  if (Number.isFinite(fromHeader) && fromHeader > 0) return fromHeader;
+
+  return undefined;
+}
+
+export function getFriendlyErrorMessage(
+  payload: ErrorPayload,
+  retryAfterHeader?: string | null
+): string {
+  const normalized = normalizeErrorCode(payload.error_code);
+  const retryAfter = getRetryAfter(payload, retryAfterHeader);
+
+  const aliases: Record<string, string> = {
+    network_error: "connection_failed",
+    stream_error: "connection_failed",
+    timeout_error: "timeout",
+    http_429: "rate_limited",
+  };
+
+  const key = aliases[normalized] || normalized;
+  const translationKey = `error_messages.${key}`;
+
+  if (i18n.exists(translationKey)) {
+    if (key === "rate_limited") {
+      return i18n.t(translationKey, { retry_after: retryAfter ?? 30 });
+    }
+    return i18n.t(translationKey);
+  }
+
+  if (payload.message) return payload.message;
+  return i18n.t("error_messages.unknown");
+}
+
 export async function apiFetch<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
-  const url = `${getBaseUrl()}${path}`;
+  const url = buildApiUrl(path);
   const res = await fetch(url, {
     headers: {
       "Content-Type": "application/json",
@@ -40,15 +97,21 @@ export async function apiFetch<T>(
 
   if (!res.ok) {
     try {
-      const error = await res.json();
+      const error = (await res.json()) as ErrorPayload;
       throw new ApiError(
         error.error_code || "UNKNOWN",
-        error.message || "请求失败",
-        error.actions || []
+        getFriendlyErrorMessage(error, res.headers.get("Retry-After")),
+        error.actions || [],
+        error.message,
+        getRetryAfter(error, res.headers.get("Retry-After"))
       );
     } catch (e) {
       if (e instanceof ApiError) throw e;
-      throw new ApiError("NETWORK_ERROR", "网络错误", ["retry"]);
+      throw new ApiError(
+        "NETWORK_ERROR",
+        getFriendlyErrorMessage({ error_code: "connection_failed" }),
+        ["retry"]
+      );
     }
   }
 
@@ -62,7 +125,7 @@ export async function* sseStream(
   path: string,
   body: object
 ): AsyncGenerator<{ event: string; data: any }> {
-  const url = `${getBaseUrl()}${path}`;
+  const url = buildApiUrl(path);
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -70,7 +133,11 @@ export async function* sseStream(
   });
 
   if (!res.ok || !res.body) {
-    throw new ApiError("STREAM_ERROR", "流式连接失败", ["retry"]);
+    throw new ApiError(
+      "STREAM_ERROR",
+      getFriendlyErrorMessage({ error_code: "stream_error" }),
+      ["retry"]
+    );
   }
 
   const reader = res.body.getReader();
