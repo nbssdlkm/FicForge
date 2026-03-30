@@ -21,13 +21,14 @@ import {
 } from 'lucide-react';
 import { ExportModal } from './ExportModal';
 import { DirtyModal } from './DirtyModal';
+import { ContextSummaryBar } from './ContextSummaryBar';
 import { Sidebar } from '../shared/Sidebar';
 
 import { getChapterContent, confirmChapter, undoChapter } from '../../api/chapters';
 import { listDrafts, getDraft, deleteDrafts, type DraftDetail, type DraftGeneratedWith } from '../../api/drafts';
 import { getState, setChapterFocus, type StateInfo } from '../../api/state';
 import { listFacts, addFact, extractFacts, type ExtractedFactCandidate, type FactInfo } from '../../api/facts';
-import { generateChapter } from '../../api/generate';
+import { generateChapter, type ContextSummary } from '../../api/generate';
 import { getSettings, updateSettings } from '../../api/settings';
 import { getProject, updateProject } from '../../api/project';
 import { ApiError, getFriendlyErrorMessage } from '../../api/client';
@@ -92,6 +93,83 @@ function sortDrafts(drafts: DraftItem[]): DraftItem[] {
 
 function getGenerateRequestStorageKey(auPath: string, chapterNum: number): string {
   return `ficforge.writer.generateRequest:${auPath}:${chapterNum}`;
+}
+
+function getContextSummaryStorageKey(auPath: string, chapterNum: number): string {
+  return `ficforge.writer.contextSummary:${auPath}:${chapterNum}`;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
+function normalizeContextSummary(value: unknown): ContextSummary | null {
+  if (!value || typeof value !== 'object') return null;
+
+  const candidate = value as Partial<ContextSummary>;
+  if (
+    !isStringArray(candidate.characters_used)
+    || !isStringArray(candidate.worldbuilding_used)
+    || !isStringArray(candidate.facts_as_focus)
+    || !isStringArray(candidate.truncated_layers)
+    || !isStringArray(candidate.truncated_characters)
+    || typeof candidate.facts_injected !== 'number'
+    || typeof candidate.pinned_count !== 'number'
+    || typeof candidate.rag_chunks_retrieved !== 'number'
+    || typeof candidate.total_input_tokens !== 'number'
+  ) {
+    return null;
+  }
+
+  return {
+    characters_used: candidate.characters_used,
+    worldbuilding_used: candidate.worldbuilding_used,
+    facts_injected: candidate.facts_injected,
+    facts_as_focus: candidate.facts_as_focus,
+    pinned_count: candidate.pinned_count,
+    rag_chunks_retrieved: candidate.rag_chunks_retrieved,
+    total_input_tokens: candidate.total_input_tokens,
+    truncated_layers: candidate.truncated_layers,
+    truncated_characters: candidate.truncated_characters,
+  };
+}
+
+function readSavedContextSummaries(auPath: string, chapterNum: number): Record<string, ContextSummary> {
+  if (typeof window === 'undefined') return {};
+
+  try {
+    const raw = window.localStorage.getItem(getContextSummaryStorageKey(auPath, chapterNum));
+    if (!raw) return {};
+
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return Object.entries(parsed).reduce<Record<string, ContextSummary>>((accumulator, [label, value]) => {
+      const summary = normalizeContextSummary(value);
+      if (summary) {
+        accumulator[label] = summary;
+      }
+      return accumulator;
+    }, {});
+  } catch {
+    return {};
+  }
+}
+
+function saveContextSummaries(
+  auPath: string,
+  chapterNum: number,
+  summaries: Record<string, ContextSummary>
+): void {
+  if (typeof window === 'undefined') return;
+
+  if (Object.keys(summaries).length === 0) {
+    window.localStorage.removeItem(getContextSummaryStorageKey(auPath, chapterNum));
+    return;
+  }
+
+  window.localStorage.setItem(
+    getContextSummaryStorageKey(auPath, chapterNum),
+    JSON.stringify(summaries)
+  );
 }
 
 function readSavedGenerateRequest(auPath: string, chapterNum: number): GenerateRequestState | null {
@@ -207,6 +285,8 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   const [generatedWith, setGeneratedWith] = useState<DraftGeneratedWith | null>(null);
   const [budgetReport, setBudgetReport] = useState<any>(null);
   const [lastGenerateRequest, setLastGenerateRequest] = useState<GenerateRequestState | null>(null);
+  const [draftSummaries, setDraftSummaries] = useState<Record<string, ContextSummary>>({});
+  const pendingContextSummaryRef = useRef<ContextSummary | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [instructionText, setInstructionText] = useState('');
@@ -231,7 +311,25 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     setGeneratedWith(null);
     setBudgetReport(null);
     setRecoveryNotice(false);
+    setDraftSummaries({});
+    pendingContextSummaryRef.current = null;
   };
+
+  const replaceDraftSummaries = useCallback((chapterNum: number, summaries: Record<string, ContextSummary>) => {
+    setDraftSummaries(summaries);
+    saveContextSummaries(auPath, chapterNum, summaries);
+  }, [auPath]);
+
+  const attachDraftSummary = useCallback((chapterNum: number, label: string, summary: ContextSummary) => {
+    setDraftSummaries((current) => {
+      const next = {
+        ...current,
+        [label]: summary,
+      };
+      saveContextSummaries(auPath, chapterNum, next);
+      return next;
+    });
+  }, [auPath]);
 
   const mergeDraftIntoState = useCallback((draft: DraftItem) => {
     setDrafts((current) => {
@@ -325,10 +423,21 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
 
       if (stateData) {
         const loadedDrafts = await loadDraftsForChapter(stateData.current_chapter);
+        const storedSummaries = readSavedContextSummaries(auPath, stateData.current_chapter);
+        const activeLabels = new Set(loadedDrafts.map((draft) => draft.label));
+        const filteredSummaries = Object.entries(storedSummaries).reduce<Record<string, ContextSummary>>((accumulator, [label, summary]) => {
+          if (activeLabels.has(label)) {
+            accumulator[label] = summary;
+          }
+          return accumulator;
+        }, {});
+
         setDrafts(loadedDrafts);
         setActiveDraftIndex(loadedDrafts.length > 0 ? loadedDrafts.length - 1 : 0);
         setRecoveryNotice(loadedDrafts.length > 0);
         setLastGenerateRequest(readSavedGenerateRequest(auPath, stateData.current_chapter));
+        replaceDraftSummaries(stateData.current_chapter, filteredSummaries);
+        pendingContextSummaryRef.current = null;
       } else {
         clearDraftState();
         setLastGenerateRequest(null);
@@ -338,7 +447,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     } finally {
       setLoading(false);
     }
-  }, [auPath, loadDraftsForChapter, showError, t]);
+  }, [auPath, loadDraftsForChapter, replaceDraftSummaries, showError, t]);
 
   useEffect(() => {
     void loadData();
@@ -375,6 +484,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     setGeneratedWith(null);
     setBudgetReport(null);
     setRecoveryNotice(false);
+    pendingContextSummaryRef.current = null;
 
     setLastGenerateRequest(request);
     saveGenerateRequest(auPath, state.current_chapter, request);
@@ -385,6 +495,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     let nextText = '';
     let partialDraftLabel = '';
     let generationError: unknown = null;
+    let nextContextSummary: ContextSummary | null = null;
 
     try {
       for await (const event of generateChapter({
@@ -395,6 +506,15 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
         session_llm: sessionModel ? { mode: 'api', model: sessionModel } : undefined,
         session_params: { temperature: sessionTemp, top_p: sessionTopP },
       })) {
+        if (event.event === 'context_summary') {
+          const summary = normalizeContextSummary(event.data);
+          if (summary) {
+            nextContextSummary = summary;
+            pendingContextSummaryRef.current = summary;
+          }
+          continue;
+        }
+
         if (event.event === 'token') {
           const text = event.data.text || '';
           nextText += text;
@@ -433,13 +553,18 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
           setGeneratedWith(partialDraft.generatedWith || nextGeneratedWith || null);
           setStreamText('');
           setRecoveryNotice(true);
+          if (nextContextSummary) {
+            attachDraftSummary(state.current_chapter, partialDraftLabel, nextContextSummary);
+          }
         } else {
           setStreamText('');
         }
+        pendingContextSummaryRef.current = null;
         throw generationError;
       }
 
       if (!nextDraftLabel) {
+        pendingContextSummaryRef.current = null;
         throw new Error(t('writer.generateErrorFallback'));
       }
 
@@ -451,15 +576,20 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
       );
 
       mergeDraftIntoState(nextDraft);
+      if (nextContextSummary) {
+        attachDraftSummary(state.current_chapter, nextDraftLabel, nextContextSummary);
+      }
       setGeneratedWith(nextGeneratedWith);
       setBudgetReport(nextBudgetReport);
       setStreamText('');
+      pendingContextSummaryRef.current = null;
     } catch (error) {
+      pendingContextSummaryRef.current = null;
       showError(error, t('writer.generateErrorFallback'));
     } finally {
       setIsGenerating(false);
     }
-  }, [auPath, loadDraftByLabel, mergeDraftIntoState, sessionModel, sessionTemp, sessionTopP, showError, state, t]);
+  }, [attachDraftSummary, auPath, loadDraftByLabel, mergeDraftIntoState, sessionModel, sessionTemp, sessionTopP, showError, state, t]);
 
   const handleGenerateFromInput = async (inputType: 'continue' | 'instruction') => {
     if (drafts.length > 0) {
@@ -499,6 +629,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
       );
 
       clearDraftState();
+      replaceDraftSummaries(confirmedChapter, {});
       setFinalizeConfirmOpen(false);
       setLastConfirmedChapter(confirmedChapter);
       await loadData();
@@ -542,6 +673,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
       );
 
       clearDraftState();
+      replaceDraftSummaries(state.current_chapter, {});
       setDiscardConfirmOpen(false);
       if (isSingleDraft) {
         showToast(t('drafts.discardSuccess'), 'info');
@@ -664,6 +796,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   const currentChapter = state?.current_chapter || 1;
   const hasPendingDrafts = drafts.length > 0;
   const currentDraft = drafts[activeDraftIndex] || null;
+  const currentDraftSummary = !isGenerating && currentDraft ? draftSummaries[currentDraft.label] || null : null;
   const activeGeneratedWith = currentDraft?.generatedWith || generatedWith;
   const displayContent = streamText || currentDraft?.content || currentContent;
   const metaModel = activeGeneratedWith?.model || sessionModel;
@@ -763,6 +896,11 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
                 <p className="py-24 text-center text-text/30">{t('writer.emptyContent')}</p>
               )}
             </div>
+
+            <ContextSummaryBar
+              summary={currentDraftSummary}
+              onAdjustCoreIncludes={() => onNavigate('settings')}
+            />
           </div>
         </div>
 

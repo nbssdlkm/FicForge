@@ -11,6 +11,18 @@ export interface GenerateParams {
   session_params?: object;
 }
 
+export interface ContextSummary {
+  characters_used: string[];
+  worldbuilding_used: string[];
+  facts_injected: number;
+  facts_as_focus: string[];
+  pinned_count: number;
+  rag_chunks_retrieved: number;
+  total_input_tokens: number;
+  truncated_layers: string[];
+  truncated_characters: string[];
+}
+
 export async function* generateChapter(params: GenerateParams) {
   for await (const event of sseStream("/api/v1/generate/stream", params)) {
     yield event;
