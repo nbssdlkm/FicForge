@@ -139,6 +139,9 @@ class LocalFileOpsRepository(OpsRepository):
     # -----------------------------------------------------------------------
 
     def list_all(self, au_id: str) -> list[OpsEntry]:
+        # 文件不存在时直接返回，不创建锁文件（避免对不存在的 AU 路径产生副作用）
+        if not self._ops_path(au_id).exists():
+            return []
         # 在 filelock 下读取，防止读到 append 写入一半的行造成误判损坏
         with self._get_lock(au_id):
             entries, errors = self._read_all_raw(au_id)
@@ -148,9 +151,8 @@ class LocalFileOpsRepository(OpsRepository):
 
     @staticmethod
     def _handle_corruption(au_id: str) -> None:
-        """损坏行检测后：创建 .bak 备份 + 标记 state.sync_unsafe=True。"""
+        """损坏行检测后：创建 .bak 备份 + 通过 StateRepository 标记 sync_unsafe=True。"""
         import shutil
-        import yaml
 
         # .bak 备份
         path = LocalFileOpsRepository._ops_path(au_id)
@@ -160,19 +162,13 @@ class LocalFileOpsRepository(OpsRepository):
         except Exception:
             pass
 
-        # 标记 state.sync_unsafe=True
-        state_path = Path(au_id) / "state.yaml"
+        # 通过 StateRepository 原子写入 sync_unsafe=True
         try:
-            if state_path.is_file():
-                loaded = yaml.safe_load(state_path.read_text(encoding="utf-8"))
-                raw = loaded if isinstance(loaded, dict) else {}
-            else:
-                raw = {"au_id": au_id, "current_chapter": 1}
-            raw["sync_unsafe"] = True
-            state_path.write_text(
-                yaml.dump(raw, allow_unicode=True, sort_keys=False),
-                encoding="utf-8",
-            )
+            from repositories.implementations.local_file_state import LocalFileStateRepository
+            state_repo = LocalFileStateRepository()
+            state = state_repo.get(au_id)
+            state.sync_unsafe = True
+            state_repo.save(state)
         except Exception:
             pass
 
