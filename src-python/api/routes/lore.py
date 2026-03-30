@@ -72,7 +72,7 @@ async def read_lore(req: LoreReadRequest):
     if ".." in req.filename or "/" in req.filename or "\\" in req.filename:
         return error_response(400, "INVALID_FILENAME", "文件名不合法", [])
     base_path = req.au_path or req.fandom_path or ""
-    if ".." in base_path:
+    if not validate_path(base_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
     if req.au_path:
         base_dir = Path(req.au_path)
@@ -102,7 +102,7 @@ async def save_lore(req: LoreSaveRequest):
         return error_response(400, "INVALID_FILENAME", "文件名不合法", [])
 
     base_path = req.au_path or req.fandom_path or ""
-    if ".." in base_path:
+    if not validate_path(base_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
 
     if req.au_path:
@@ -144,7 +144,7 @@ async def delete_lore(req: LoreReadRequest):
     if ".." in req.filename or "/" in req.filename or "\\" in req.filename:
         return error_response(400, "INVALID_FILENAME", "文件名不合法", [])
     base_path = req.au_path or req.fandom_path or ""
-    if ".." in base_path:
+    if not validate_path(base_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
 
     if req.au_path:

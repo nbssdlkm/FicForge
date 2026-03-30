@@ -59,6 +59,8 @@ class SetChapterFocusResponse(BaseModel):
 
 @router.get("", response_model=StateResponse)
 async def get_state(au_path: str = Query(...)):
+    if not validate_path(au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_state_repository()
     state = await run_in_threadpool(repo.get, au_path)
     return StateResponse(**asdict(state))

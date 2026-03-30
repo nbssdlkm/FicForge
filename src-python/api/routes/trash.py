@@ -25,8 +25,9 @@ _trash_service = build_trash_service()
 
 class RestoreRequest(BaseModel):
     trash_id: str
-    scope: str          # "fandom" | "au"
-    path: str           # scope 根目录路径
+    scope: str = ""           # "fandom" | "au"（兼容旧参数）
+    path: str = ""            # scope 根目录路径（兼容旧参数）
+    au_path: str | None = None  # 新统一参数，优先于 scope+path
 
 
 class TrashEntryResponse(BaseModel):
@@ -40,19 +41,29 @@ class TrashEntryResponse(BaseModel):
     metadata: dict[str, Any]
 
 
+def _resolve_trash_path(
+    au_path: str | None = None,
+    path: str | None = None,
+) -> str | None:
+    """优先 au_path，兼容旧 scope+path 参数。"""
+    return au_path or path or None
+
+
 # ---------------------------------------------------------------------------
 # 端点
 # ---------------------------------------------------------------------------
 
 @router.get("")
 async def list_trash(
-    scope: str = Query(..., description="fandom 或 au"),
-    path: str = Query(..., description="scope 根目录路径"),
+    scope: str = Query("", description="fandom 或 au（兼容旧参数）"),
+    path: str = Query("", description="scope 根目录路径（兼容旧参数）"),
+    au_path: str = Query("", description="目录路径（优先）"),
 ) -> Any:
     """列出垃圾箱中的所有条目。"""
-    if not validate_path(path):
+    resolved = _resolve_trash_path(au_path or None, path or None)
+    if not resolved or not validate_path(resolved):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
-    scope_root = Path(path)
+    scope_root = Path(resolved)
     if not scope_root.is_dir():
         return error_response(404, "NOT_FOUND", f"目录不存在: {path}", [])
 
@@ -68,9 +79,10 @@ async def list_trash(
 @router.post("/restore")
 async def restore_from_trash(req: RestoreRequest) -> Any:
     """从垃圾箱恢复文件到原路径。"""
-    if not validate_path(req.path):
+    resolved = _resolve_trash_path(req.au_path, req.path or None)
+    if not resolved or not validate_path(resolved):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
-    scope_root = Path(req.path)
+    scope_root = Path(resolved)
     if not scope_root.is_dir():
         return error_response(404, "NOT_FOUND", f"目录不存在: {req.path}", [])
 
@@ -108,19 +120,21 @@ async def restore_from_trash(req: RestoreRequest) -> Any:
 
 @router.delete("/purge")
 async def purge_expired(
-    scope: str = Query(...),
-    path: str = Query(...),
+    scope: str = Query(""),
+    path: str = Query(""),
+    au_path: str = Query(""),
     max_age_days: int | None = Query(None, description="为 0 时强制清理所有条目"),
 ) -> Any:
     """清理垃圾箱条目。max_age_days=0 时强制全清，不传时只清已过期。
 
     注意：此路由必须在 /{trash_id} 之前定义，否则 "purge" 会被匹配为 trash_id。
     """
-    if not validate_path(path):
+    resolved = _resolve_trash_path(au_path or None, path or None)
+    if not resolved or not validate_path(resolved):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
     if max_age_days is not None and max_age_days < 0:
         return error_response(400, "INVALID_PARAMETER", "max_age_days 不能为负数", [])
-    scope_root = Path(path)
+    scope_root = Path(resolved)
 
     try:
         purged = await run_in_threadpool(
@@ -136,13 +150,15 @@ async def purge_expired(
 @router.delete("/{trash_id}")
 async def permanent_delete(
     trash_id: str,
-    scope: str = Query(...),
-    path: str = Query(...),
+    scope: str = Query(""),
+    path: str = Query(""),
+    au_path: str = Query(""),
 ) -> Any:
     """从垃圾箱永久删除单条。"""
-    if not validate_path(path):
+    resolved = _resolve_trash_path(au_path or None, path or None)
+    if not resolved or not validate_path(resolved):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
-    scope_root = Path(path)
+    scope_root = Path(resolved)
 
     try:
         entry = await run_in_threadpool(
