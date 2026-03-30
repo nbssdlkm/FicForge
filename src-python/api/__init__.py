@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from core.services.au_mutex import AUMutexManager
 from core.services.confirm_chapter import ConfirmChapterService
 from core.services.trash_service import TrashService
-from infra.vector_index.task_queue import BackgroundTaskQueue
+from infra.vector_index.task_queue import BackgroundTaskQueue, TaskInfo
 from core.services.dirty_resolve import ResolveDirtyChapterService
 from core.services.undo_chapter import UndoChapterService
 from repositories.implementations.local_file_chapter import LocalFileChapterRepository
@@ -31,7 +31,50 @@ from repositories.implementations.local_file_state import LocalFileStateReposito
 
 _au_mutex = AUMutexManager()
 _trash_service = TrashService(retention_days=30)
-_task_queue = BackgroundTaskQueue()
+
+
+def _dispatch_worker(info: TaskInfo) -> None:
+    """按 task_type 分发到对应 worker。"""
+    from infra.vector_index.workers import (
+        worker_delete_chapter_chunks,
+        worker_delete_settings_chunks,
+        worker_rebuild_index,
+        worker_vectorize_chapter,
+        worker_vectorize_settings_file,
+    )
+
+    _workers = {
+        "vectorize_chapter": worker_vectorize_chapter,
+        "delete_chapter_chunks": worker_delete_chapter_chunks,
+        "vectorize_settings_file": worker_vectorize_settings_file,
+        "delete_settings_chunks": worker_delete_settings_chunks,
+        "rebuild_index": worker_rebuild_index,
+    }
+
+    worker_fn = _workers.get(info.task_type)
+    if worker_fn is None:
+        import logging
+        logging.getLogger(__name__).warning("未知 task_type: %s", info.task_type)
+        return
+
+    # 构建 deps（lazy，避免启动时初始化 ChromaDB）
+    deps = {
+        "chapter_repo": build_chapter_repository(),
+        "vector_repo": _get_vector_repo(),
+    }
+    worker_fn(info, deps)
+
+
+def _get_vector_repo():  # type: ignore[no-untyped-def]
+    """延迟初始化 vector_repo（ChromaDB 可能不可用）。"""
+    try:
+        from repositories.implementations.local_chroma_vector import LocalChromaVectorRepository
+        return LocalChromaVectorRepository()
+    except Exception:
+        return None
+
+
+_task_queue = BackgroundTaskQueue(worker_fn=_dispatch_worker)
 
 
 # ---------------------------------------------------------------------------
