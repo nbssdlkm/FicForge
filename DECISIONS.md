@@ -428,3 +428,17 @@
   - 前端解析 tool_use 响应并渲染为确认卡片
   - 安全性：AI 只能建议，不能执行
 - Supersedes: none
+
+---
+
+## D-0031 assemble_context 返回 ContextSummary 旁路统计
+- Date: 2026-03-30
+- Status: Accepted
+- Owner: Human Maintainer
+- Context: 用户无法感知 AI 续写时参考了哪些设定，需要轻量参考摘要。
+- Decision: assemble_context 在组装过程中旁路收集 ContextSummary（只读统计），不改变现有组装逻辑和 prompt 内容。通过 SSE context_summary 事件传递给前端。收集失败不影响生成流程。
+- Consequences:
+  - assemble_context 返回 dict 新增 context_summary 字段
+  - generate_chapter 在第一个 token 前 yield context_summary 事件
+  - ContextSummary 不参与任何业务决策
+- Supersedes: none
