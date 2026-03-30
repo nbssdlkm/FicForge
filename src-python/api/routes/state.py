@@ -10,7 +10,15 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from api import build_fact_repository, build_ops_repository, build_state_repository, error_response, validate_path
+from api import (
+    build_chapter_repository,
+    build_fact_repository,
+    build_ops_repository,
+    build_project_repository,
+    build_state_repository,
+    error_response,
+    validate_path,
+)
 from core.domain.enums import IndexStatus
 from core.services.facts_lifecycle import FactsLifecycleError, set_chapter_focus
 
@@ -84,3 +92,42 @@ async def update_chapter_focus(request: SetChapterFocusRequest):
         )
 
     return SetChapterFocusResponse(chapter_focus=result["focus_ids"])
+
+
+# ---------------------------------------------------------------------------
+# recalc 重算全局状态
+# ---------------------------------------------------------------------------
+
+class RecalcRequest(BaseModel):
+    au_path: str
+
+
+class RecalcResponse(BaseModel):
+    characters_last_seen: dict[str, int]
+    last_scene_ending: str
+    last_confirmed_chapter_focus: list[str]
+    chapters_scanned: int
+
+
+@router.post("/recalc", response_model=RecalcResponse)
+async def recalc_state_endpoint(request: RecalcRequest):
+    """重算全局状态（PRD §4.3）。"""
+    logger.info("Recalc state: au=%s", request.au_path)
+    if not validate_path(request.au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
+
+    from core.services.recalc_state import recalc_state
+
+    try:
+        result = await run_in_threadpool(
+            recalc_state,
+            Path(request.au_path),
+            build_state_repository(),
+            build_chapter_repository(),
+            build_project_repository(),
+        )
+    except Exception as exc:
+        logger.exception("Recalc state failed: au=%s", request.au_path)
+        return error_response(500, "RECALC_FAILED", str(exc), [])
+
+    return RecalcResponse(**result)
