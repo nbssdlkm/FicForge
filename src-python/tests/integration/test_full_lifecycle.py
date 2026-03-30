@@ -41,7 +41,7 @@ from repositories.implementations.local_file_state import LocalFileStateReposito
 # Shared helpers
 # ---------------------------------------------------------------------------
 
-CAST = {"from_core": ["林深", "陈明", "陈律师"], "au_specific": [], "oc": []}
+CAST = {"characters": ["林深", "陈明", "陈律师"]}
 
 
 def _gw() -> GeneratedWith:

@@ -17,7 +17,6 @@ def ensure_au_directories(au_path: Path) -> None:
         au_path / "chapters" / "branches",
         au_path / "chapters" / "snapshots",
         au_path / "characters",
-        au_path / "oc",
         au_path / "worldbuilding",
         au_path / "imports",
     ]

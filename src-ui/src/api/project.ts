@@ -10,9 +10,7 @@ export interface WritingStyle {
 }
 
 export interface CastRegistry {
-  from_core: string[];
-  au_specific: string[];
-  oc: string[];
+  characters: string[];
 }
 
 export interface EmbeddingLock {

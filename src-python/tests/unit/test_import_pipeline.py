@@ -339,7 +339,7 @@ class TestImportChapters:
             {"chapter_num": 2, "title": "Ch2", "content": "陈明在看书。林深也来了。"},
             {"chapter_num": 3, "title": "Ch3", "content": "陈明离开了。"},
         ]
-        cast_registry = {"from_core": ["林深", "陈明"], "au_specific": [], "oc": []}
+        cast_registry = {"characters": ["林深", "陈明"]}
 
         import_chapters(
             au_path=tmp_path / "test_au",

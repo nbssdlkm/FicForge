@@ -244,7 +244,7 @@ export const FandomLoreLayout = ({ fandomPath, onNavigate }: { fandomPath?: stri
                 </div>
                 <div className="flex items-center gap-4">
                    <span className="text-[11px] text-text/40 bg-black/5 dark:bg-white/5 px-2 py-1 rounded-md hidden xl:block">
-                     ⚠️ Fandom 原著设定。保存将影响所有下属 AU 的基础记忆！
+                     Fandom 原著 DNA 模板。仅供 AI 设定模式参考，不直接注入 AU。
                    </span>
                    <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteConfirmOpen(true)} disabled={isSaving}>
                      <Trash2 size={14} />

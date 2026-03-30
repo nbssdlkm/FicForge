@@ -318,3 +318,113 @@
   - API 路由层负责 run_in_threadpool 包装
   - 后续所有新 Repository 实现必须遵循此模式
 - Supersedes: none
+
+---
+
+## D-0022 Fandom 角色=DNA 模板，AU 角色=独立个体，取消 character_overrides
+- Date: 2026-03-29
+- Status: Accepted
+- Owner: Human Maintainer
+- Context: 实际使用中发现 character_overrides 覆写机制不适用于同人创作——AU 角色与原作差异太大，覆写等于重写。
+- Decision: Fandom 角色是人格 DNA 模板，AU 角色是独立个体。两者无继承关系。取消 character_overrides 目录，AU 层统一使用 characters/ 目录，用 frontmatter origin_ref 字段标记来源（fandom/{name} 或 original）。Fandom 层保持 core_characters/ 和 worldbuilding/ 不变。
+- Consequences:
+  - AU 目录结构变更：character_overrides/ + original_characters/ → characters/
+  - origin_ref 是纯元数据，无功能绑定
+  - Fandom 修改不影响任何 AU
+  - cast_registry 不再区分 fandom_derived / au_specific
+- Supersedes: none
+
+---
+
+## D-0023 删除操作统一走垃圾箱
+- Date: 2026-03-29
+- Status: Accepted
+- Owner: Human Maintainer
+- Context: 直接删除不可恢复，误操作风险高。
+- Decision: 删除操作统一走垃圾箱（.trash/ + manifest.jsonl），默认保留 30 天（可配置）。例外：草稿直接删除、铁律直接删除、事实条目标记 deprecated 而非物理删除。
+- Consequences:
+  - 每个 Fandom/AU 根目录下有 .trash/ 目录
+  - manifest.jsonl 记录每条垃圾箱条目的元数据
+  - 恢复时检查原路径冲突（409）
+  - 删除时联动清理 ChromaDB 索引和 cast_registry
+- Supersedes: none
+
+---
+
+## D-0024 写作/设定双模式切换
+- Date: 2026-03-29
+- Status: Accepted
+- Owner: Human Maintainer
+- Context: 写作过程中需要随时调整设定，但设定操作不应混入写作流。
+- Decision: 写作界面支持写作/设定双模式切换。设定模式下 AI 通过 tool calling 返回操作建议，渲染为确认卡片，用户逐条确认后由前端调用 API 执行。
+- Consequences:
+  - 前端需要实现模式切换 UI 和确认卡片组件
+  - 后端需要支持 tool calling 响应格式
+- Supersedes: none
+
+---
+
+## D-0025 AU 设定模式只操作 AU 级文件
+- Date: 2026-03-29
+- Status: Accepted
+- Owner: Human Maintainer
+- Context: 防止 AU 设定模式意外修改 Fandom 级共享设定。
+- Decision: AU 设定模式只能操作 AU 级文件（characters/、worldbuilding/、facts、pinned_context、writing_style）。Fandom 级文件（core_characters/、worldbuilding/）需在 Fandom 设定模式中操作。
+- Consequences:
+  - API 端点需要校验操作范围
+  - 前端设定模式 UI 区分 AU 和 Fandom 上下文
+- Supersedes: none
+
+---
+
+## D-0026 禁止浏览器原生 prompt/confirm/alert
+- Date: 2026-03-29
+- Status: Accepted
+- Owner: Human Maintainer
+- Context: 浏览器原生弹窗在 Tauri WebView 中体验差且不可定制。
+- Decision: 所有新建实体弹窗使用应用内 Modal 组件，禁止使用浏览器原生 prompt/confirm/alert。
+- Consequences:
+  - 所有交互确认使用自定义 Modal
+  - 已有的 window.prompt 调用需迁移（B-005 已部分完成）
+- Supersedes: none
+
+---
+
+## D-0027 设定文件手动保存
+- Date: 2026-03-29
+- Status: Accepted
+- Owner: Human Maintainer
+- Context: 自动保存在长文本编辑中容易导致意外覆盖。
+- Decision: 设定文件（.md）的编辑使用手动保存（明确的保存按钮 + 成功反馈）。未保存时离开页面弹出确认。
+- Consequences:
+  - 前端需要 dirty state 追踪
+  - 离开页面时未保存变更触发确认弹窗
+- Supersedes: none
+
+---
+
+## D-0028 Fandom 设定不参与 AU 的 prompt/RAG
+- Date: 2026-03-29
+- Status: Accepted
+- Owner: Human Maintainer
+- Context: Fandom 层是参考模板，不应直接注入写作 prompt。
+- Decision: Fandom 层设定不参与任何 AU 的 prompt 组装和 RAG 检索。仅作为 AI 设定模式生成 AU 角色时的参考上下文。
+- Consequences:
+  - ChromaDB 索引只包含 AU 级文件
+  - P5 prompt 组装只从 AU 路径读取
+  - Fandom core_characters/ 仅在设定模式 AI 对话中作为上下文传入
+- Supersedes: none
+
+---
+
+## D-0029 设定模式 AI 使用 LLM 原生 tool calling
+- Date: 2026-03-29
+- Status: Accepted
+- Owner: Human Maintainer
+- Context: 设定操作需要 AI 辅助但不能让 AI 直接执行文件操作。
+- Decision: 设定模式 AI 通过 LLM 原生 tool calling 返回操作建议（9 个 tool 定义）。AI 无直接执行权限，无 delete 类 tool。所有操作需用户确认后由前端调用对应 API 端点执行。
+- Consequences:
+  - 需要定义 9 个 tool schema
+  - 前端解析 tool_use 响应并渲染为确认卡片
+  - 安全性：AI 只能建议，不能执行
+- Supersedes: none

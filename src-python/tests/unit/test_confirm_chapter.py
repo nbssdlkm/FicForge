@@ -9,7 +9,7 @@ from core.domain.text_utils import extract_last_scene_ending
 def test_scan_basic_cast_registry():
     """纯正文中包含 cast_registry 角色名 → 正确识别。"""
     text = "林深走进咖啡馆，陈明正在擦杯子。"
-    registry = {"from_core": ["林深", "陈明"], "au_specific": [], "oc": []}
+    registry = {"characters": ["林深", "陈明"]}
     result = scan_characters_in_chapter(text, registry, chapter_num=5)
     assert result == {"林深": 5, "陈明": 5}
 
@@ -17,7 +17,7 @@ def test_scan_basic_cast_registry():
 def test_scan_alias_mapping():
     """包含别名 → 映射为主名。"""
     text = "公子微微一笑，达达利亚露出了愉悦的表情。"
-    registry = {"from_core": ["达达利亚"], "au_specific": [], "oc": []}
+    registry = {"characters": ["达达利亚"]}
     aliases = {"达达利亚": ["公子", "阿贾克斯"]}
     result = scan_characters_in_chapter(text, registry, aliases, chapter_num=3)
     assert "达达利亚" in result
@@ -27,7 +27,7 @@ def test_scan_alias_mapping():
 def test_scan_no_unknown_names():
     """不在 cast_registry 中的名字 → 不识别（fallback=False）。"""
     text = "路人甲走过街角，林深没有注意到。"
-    registry = {"from_core": ["林深"], "au_specific": [], "oc": []}
+    registry = {"characters": ["林深"]}
     result = scan_characters_in_chapter(text, registry, chapter_num=1)
     assert "路人甲" not in result
     assert "林深" in result
@@ -36,14 +36,14 @@ def test_scan_no_unknown_names():
 def test_scan_returns_dict_format():
     """返回 {角色名: chapter_num} 字典格式正确。"""
     text = "陈律师翻开了案卷。"
-    registry = {"from_core": [], "au_specific": [], "oc": ["陈律师"]}
+    registry = {"characters": ["陈律师"]}
     result = scan_characters_in_chapter(text, registry, chapter_num=10)
     assert result == {"陈律师": 10}
 
 
 def test_scan_empty_text():
     """空正文 → 返回空字典。"""
-    result = scan_characters_in_chapter("", {"from_core": ["林深"], "au_specific": [], "oc": []}, chapter_num=1)
+    result = scan_characters_in_chapter("", {"characters": ["林深"]}, chapter_num=1)
     assert result == {}
 
 

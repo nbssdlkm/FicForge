@@ -177,7 +177,7 @@ export const Library = ({ onNavigate }: { onNavigate: (page: string, auPath?: st
       </Modal>
 
       <Modal isOpen={isAuModalOpen} onClose={() => setAuModalOpen(false)} title="新建衍生分支 (Alternate Universe)">
-        <p className="text-sm text-text/70 mb-5 leading-relaxed">设定一个新的平行宇宙或衍生同人世界。AU 相互隔离且支持独有的设定重载 (Overrides)。</p>
+        <p className="text-sm text-text/70 mb-5 leading-relaxed">设定一个新的平行宇宙或衍生同人世界。AU 拥有独立的角色设定和世界观。</p>
         <div className="flex flex-col gap-5">
           <Input placeholder="AU 主标题 (如: Cyberpunk Detective Dystopia)" value={newAuName} onChange={(e) => setNewAuName(e.target.value)} className="w-full h-10 bg-surface/50 text-base" />
           <div className="flex flex-col gap-2">
