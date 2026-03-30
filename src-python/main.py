@@ -30,6 +30,7 @@ from api.routes.state import router as state_router
 from api.routes.lore import router as lore_router
 from api.routes.import_export import router as import_export_router
 from api.routes.trash import router as trash_router
+from api.routes.settings_chat import router as settings_chat_router
 
 # ---------------------------------------------------------------------------
 # 动态端口（启动后通过 stdout 通知 Tauri）
@@ -140,6 +141,7 @@ def create_app() -> FastAPI:
     application.include_router(lore_router)
     application.include_router(import_export_router)
     application.include_router(trash_router)
+    application.include_router(settings_chat_router)
 
     return application
 
