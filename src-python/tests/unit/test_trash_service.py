@@ -205,6 +205,26 @@ class TestPurgeExpired:
         assert len(purged) == 0
         assert len(ts.list_trash(scope_root)) == 1
 
+    def test_purge_force_all_with_max_age_zero(self, scope_root: Path):
+        """max_age_days=0 强制清理所有条目（含未过期的）。"""
+        ts = TrashService(retention_days=30)
+        ts.move_to_trash(scope_root, "characters/Connor.md", "character_file", "Connor")
+        ts.move_to_trash(scope_root, "characters/Hank.md", "character_file", "Hank")
+        assert len(ts.list_trash(scope_root)) == 2
+
+        purged = ts.purge_expired(scope_root, max_age_days=0)
+        assert len(purged) == 2
+        assert len(ts.list_trash(scope_root)) == 0
+
+    def test_purge_default_no_force(self, scope_root: Path):
+        """max_age_days=None（默认）不清理未过期条目。"""
+        ts = TrashService(retention_days=30)
+        ts.move_to_trash(scope_root, "characters/Connor.md", "character_file", "Connor")
+
+        purged = ts.purge_expired(scope_root, max_age_days=None)
+        assert len(purged) == 0
+        assert len(ts.list_trash(scope_root)) == 1
+
 
 class TestListTrash:
     def test_empty_trash(self, tmp_path: Path):
