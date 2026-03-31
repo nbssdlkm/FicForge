@@ -330,6 +330,9 @@ async def import_from_fandom(req: ImportFromFandomRequest) -> Any:
             if ".." in fname or "/" in fname or "\\" in fname:
                 skipped.append(fname)
                 continue
+            if _validate_filename(fname) is not None:
+                skipped.append(fname)
+                continue
             src = source_dir / fname
             if not src.is_file():
                 skipped.append(fname)
