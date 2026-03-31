@@ -400,7 +400,7 @@
     "extractHint": "需要时可以去剧情笔记页继续补记新变化。",
     "resolveButton": "🔄 重新整理",
     "resolveSubtitle": "检查角色出场和剧情状态",
-    "banner": "有 {{count}} 章设定待同步（{{chapters}}）。AI 续写时会使用旧版设定。",
+    "banner": "有 {{count}} 章的角色出场信息需要更新（第 {{chapters}} 章）。AI 续写时可能参考旧版信息。",
     "goResolve": "去处理",
     "dismissBanner": "稍后"
   },
@@ -604,6 +604,8 @@
     "importNotUnderstandDesc": "AI 可以从历史章节中检索相关内容，但早期伏笔的精准推进需要你手动补充剧情笔记。",
     "startWriting": "开始写作 →",
     "selectAu": "选择要导入到哪个 AU",
+    "noAu": "还没有 AU，请先创建一个",
+    "createAuFirst": "去创建 AU",
     "formatError": "仅支持 txt/md/docx 格式"
   },
   "milestones": {
@@ -664,7 +666,7 @@
       "namePlaceholder": "比如：原神、咒术回战、底特律变人...",
       "skip": "跳过",
       "whyFandom": "为什么要填作品名？",
-      "fandomExplain": "FicForge 用「原作」和「AU」两层来管理你的同人设定。\n\n原作 = 你写的是哪个作品（比如底特律、原神）\n放角色的原始人格分析、作品世界观等通用资料\n\nAU = 你这篇文的具体设定（比如星际皇室AU、现代咖啡馆AU）\n放这篇文里角色的具体形象、独特世界观、剧情笔记\n\n一个原作下可以有多个 AU，共享原作资料但互不干扰。\n不想分层？直接跳过，以后再补也完全没问题。"
+      "fandomExplain": "FicForge 用「原作」和「AU（平行世界设定）」两层来管理你的同人设定。\n\n原作 = 你写的是哪个作品（比如底特律、原神）\n放角色的原始人格分析、作品世界观等通用资料\n\nAU = 你这篇文的具体设定（比如星际皇室AU、现代咖啡馆AU）\n放这篇文里角色的具体形象、独特世界观、剧情笔记\n\n一个原作下可以有多个 AU，共享原作资料但互不干扰。\n不想分层？直接跳过，以后再补也完全没问题。"
     },
     "completion": {
       "title": "一切就绪！",
@@ -672,7 +674,7 @@
       "fandomCreated": "「{{name}}」已创建",
       "fandomSkipped": "稍后再创建作品",
       "nextSteps": "接下来你可以：",
-      "nextCreateAu": "创建一个 AU 开始写文",
+      "nextCreateAu": "创建一个 AU（平行世界设定）开始写文",
       "nextAddCharacters": "在「原作资料」中添加角色分析",
       "nextImport": "导入已有的小说继续写",
       "enter": "进入 FicForge →"

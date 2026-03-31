@@ -264,8 +264,13 @@ function LibraryInner({ onNavigate }: Props) {
                 </button>
               );
             }))}
-            {fandoms.length === 0 && (
-              <p className="text-sm text-text/50 text-center py-4">{t('library.importFlow.description')}</p>
+            {fandoms.flatMap(f => f.aus).length === 0 && (
+              <div className="text-center py-6 space-y-3">
+                <p className="text-sm text-text/50">{t('import.noAu')}</p>
+                <Button variant="primary" size="sm" onClick={() => { setImportModalOpen(false); setFandomModalOpen(true); }}>
+                  {t('import.createAuFirst')}
+                </Button>
+              </div>
             )}
           </div>
           <div className="flex justify-end">
