@@ -8,7 +8,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from api import build_settings_repository, error_response
+from api import build_settings_repository, error_response, is_masked_key
 from core.domain.enums import APIMode, LicenseTier, LLMMode
 from core.domain.project import LLMConfig
 import httpx
@@ -161,10 +161,35 @@ async def get_settings():
 async def update_settings(request: SettingsPayload):
     logger.info("Update settings")
     repo = build_settings_repository()
-    settings = request.to_domain()
+
+    # 读取现有配置用于 merge
+    existing = await run_in_threadpool(repo.get)
+
+    # --- merge 语义：只更新 payload 中显式传入的顶层字段 ---
+    sent = request.model_fields_set
+    incoming = request.to_domain()
+
+    if "default_llm" in sent:
+        if is_masked_key(incoming.default_llm.api_key):
+            incoming.default_llm.api_key = existing.default_llm.api_key
+        existing.default_llm = incoming.default_llm
+
+    if "model_params" in sent:
+        existing.model_params = incoming.model_params
+
+    if "embedding" in sent:
+        if is_masked_key(incoming.embedding.api_key):
+            incoming.embedding.api_key = existing.embedding.api_key
+        existing.embedding = incoming.embedding
+
+    if "app" in sent:
+        existing.app = incoming.app
+
+    if "license" in sent:
+        existing.license = incoming.license
 
     try:
-        await run_in_threadpool(repo.save, settings)
+        await run_in_threadpool(repo.save, existing)
     except Exception as exc:
         logger.exception("Update settings failed")
         return error_response(
