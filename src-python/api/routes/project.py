@@ -9,7 +9,7 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from api import build_project_repository, error_response, validate_path
+from api import build_project_repository, error_response, is_masked_key, validate_path
 from core.domain.enums import EmotionStyle, LLMMode, Perspective
 from repositories.implementations.local_file_project import ProjectInvalidError
 
@@ -176,6 +176,9 @@ async def update_project(payload: ProjectUpdatePayload, au_path: str = Query(...
         for key in ("mode", "model", "api_base", "api_key", "local_model_path", "ollama_model", "context_window"):
             if key in payload.llm:
                 val = payload.llm[key]
+                # 掩码 api_key 不覆盖真实值
+                if key == "api_key" and isinstance(val, str) and is_masked_key(val):
+                    continue
                 # mode 字段需要转为 LLMMode 枚举
                 if key == "mode" and isinstance(val, str):
                     val = LLMMode(val)
