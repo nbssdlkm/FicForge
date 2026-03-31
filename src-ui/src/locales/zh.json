@@ -533,6 +533,15 @@
     "goEdit": "去编辑",
     "later": "稍后再说"
   },
+  "app": {
+    "sidecar": {
+      "exited": "后端引擎已退出: {{reason}}",
+      "timeout": "后端引擎启动超时（30 秒），请重启应用",
+      "error": "引擎异常",
+      "restartHint": "请重启应用，或检查日志文件",
+      "initializing": "正在初始化本地引擎…"
+    }
+  },
   "milestones": {
     "factsIntro": {
       "title": "你已经写了3章了！试试「剧情笔记」",

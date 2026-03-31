@@ -20,6 +20,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/project", tags=["project"])
 
 
+def _mask_api_key(key: str) -> str:
+    """掩码 API Key：****{最后4位}。空值返回空，短 key 全掩码。"""
+    if not key:
+        return key
+    if len(key) <= 8:
+        return "****"
+    return "****" + key[-4:]
+
+
 class LLMConfigResponse(BaseModel):
     mode: LLMMode
     model: str
@@ -97,7 +106,13 @@ async def get_project(au_path: str = Query(...)):
             ["检查 project.yaml 内容是否合法"],
         )
 
-    return ProjectResponse(**asdict(project))
+    data = asdict(project)
+    # 掩码 API Key（安全：前端不需要明文）
+    if data.get("llm") and data["llm"].get("api_key"):
+        data["llm"]["api_key"] = _mask_api_key(data["llm"]["api_key"])
+    if data.get("embedding_lock") and data["embedding_lock"].get("api_key"):
+        data["embedding_lock"]["api_key"] = _mask_api_key(data["embedding_lock"]["api_key"])
+    return ProjectResponse(**data)
 
 
 class ProjectUpdatePayload(BaseModel):

@@ -71,19 +71,24 @@ async def update_chapter_focus(request: SetChapterFocusRequest):
     logger.info("Set chapter focus: au=%s focus=%s", request.au_path, request.focus_ids)
     if not validate_path(request.au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
+    from api import build_au_mutex
     fact_repo = build_fact_repository()
     ops_repo = build_ops_repository()
     state_repo = build_state_repository()
+    mutex = build_au_mutex()
+
+    def _locked_focus():
+        with mutex.get_lock(request.au_path):
+            return set_chapter_focus(
+                Path(request.au_path),
+                request.focus_ids,
+                fact_repo,
+                ops_repo,
+                state_repo,
+            )
 
     try:
-        result = await run_in_threadpool(
-            set_chapter_focus,
-            Path(request.au_path),
-            request.focus_ids,
-            fact_repo,
-            ops_repo,
-            state_repo,
-        )
+        result = await run_in_threadpool(_locked_focus)
     except FactsLifecycleError as exc:
         logger.exception("Set chapter focus failed: au=%s", request.au_path)
         return error_response(
@@ -109,6 +114,8 @@ class RecalcResponse(BaseModel):
     last_scene_ending: str
     last_confirmed_chapter_focus: list[str]
     chapters_scanned: int
+    cleaned_dirty_count: int = 0
+    cleaned_focus_count: int = 0
 
 
 @router.post("/recalc", response_model=RecalcResponse)
@@ -127,6 +134,7 @@ async def recalc_state_endpoint(request: RecalcRequest):
             build_state_repository(),
             build_chapter_repository(),
             build_project_repository(),
+            build_fact_repository(),
         )
     except Exception as exc:
         logger.exception("Recalc state failed: au=%s", request.au_path)

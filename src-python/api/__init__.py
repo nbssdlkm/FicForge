@@ -184,6 +184,10 @@ def build_draft_filename(chapter_num: int, variant: str) -> str:
     return f"ch{chapter_num:04d}_draft_{variant}.md"
 
 
+def build_au_mutex() -> AUMutexManager:
+    return _au_mutex
+
+
 def build_trash_service() -> TrashService:
     return _trash_service
 
