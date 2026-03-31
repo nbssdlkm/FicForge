@@ -211,7 +211,11 @@ async def add_pinned(payload: PinnedAddRequest, au_path: str = Query(...)):
     except FileNotFoundError:
         return error_response(404, "PROJECT_NOT_FOUND", "project.yaml 不存在", [])
 
-    project.pinned_context.append(payload.text)
+    text = payload.text.strip()
+    if not text:
+        return error_response(400, "INVALID_PARAMETER", "底线内容不能为空", [])
+
+    project.pinned_context.append(text)
 
     try:
         await run_in_threadpool(repo.save, project)
