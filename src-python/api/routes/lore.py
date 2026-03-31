@@ -14,6 +14,22 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _validate_filename(filename: str) -> str | None:
+    """校验 lore 文件名。返回错误消息，合法时返回 None。"""
+    if "\x00" in filename:
+        return "文件名包含非法字符"
+    stripped = filename.strip()
+    if not stripped:
+        return "文件名不能为空"
+    # 去掉 .md 后缀后仍需有实际内容
+    stem = stripped.removesuffix(".md").strip()
+    if not stem:
+        return "文件名不能为空"
+    if len(filename) > 200:
+        return "文件名过长（最多 200 字符）"
+    return None
+
+
 def _is_au_path(base_path: str) -> bool:
     """判断路径是否为 AU（存在 project.yaml）。Fandom 路径不含 project.yaml。"""
     return (Path(base_path) / "project.yaml").is_file()
@@ -71,6 +87,9 @@ async def read_lore(req: LoreReadRequest):
         return error_response(400, "INVALID_CATEGORY", "分类名不合法", [])
     if ".." in req.filename or "/" in req.filename or "\\" in req.filename:
         return error_response(400, "INVALID_FILENAME", "文件名不合法", [])
+    fn_err = _validate_filename(req.filename)
+    if fn_err:
+        return error_response(400, "INVALID_FILENAME", fn_err, [])
     base_path = req.au_path or req.fandom_path or ""
     if not validate_path(base_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
@@ -100,6 +119,9 @@ async def save_lore(req: LoreSaveRequest):
         return error_response(400, "INVALID_CATEGORY", "分类名不合法", [])
     if ".." in req.filename or "/" in req.filename or "\\" in req.filename:
         return error_response(400, "INVALID_FILENAME", "文件名不合法", [])
+    fn_err = _validate_filename(req.filename)
+    if fn_err:
+        return error_response(400, "INVALID_FILENAME", fn_err, [])
 
     base_path = req.au_path or req.fandom_path or ""
     if not validate_path(base_path):
@@ -111,7 +133,7 @@ async def save_lore(req: LoreSaveRequest):
         base_dir = Path(req.fandom_path)
     else:
         return error_response(400, "INVALID_REQUEST", "Must provide au_path or fandom_path", [])
-        
+
     target_dir = base_dir / req.category
     target_dir.mkdir(parents=True, exist_ok=True)
     
@@ -143,6 +165,9 @@ async def delete_lore(req: LoreReadRequest):
         return error_response(400, "INVALID_CATEGORY", "分类名不合法", [])
     if ".." in req.filename or "/" in req.filename or "\\" in req.filename:
         return error_response(400, "INVALID_FILENAME", "文件名不合法", [])
+    fn_err = _validate_filename(req.filename)
+    if fn_err:
+        return error_response(400, "INVALID_FILENAME", fn_err, [])
     base_path = req.au_path or req.fandom_path or ""
     if not validate_path(base_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
@@ -203,6 +228,9 @@ async def get_lore_content(
         return error_response(400, "INVALID_CATEGORY", "分类名不合法", [])
     if ".." in filename or "/" in filename or "\\" in filename:
         return error_response(400, "INVALID_FILENAME", "文件名不合法", [])
+    fn_err = _validate_filename(filename)
+    if fn_err:
+        return error_response(400, "INVALID_FILENAME", fn_err, [])
     base_path = au_path or fandom_path or ""
     if not validate_path(base_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
@@ -300,6 +328,9 @@ async def import_from_fandom(req: ImportFromFandomRequest) -> Any:
     def _do_import() -> None:
         for fname in req.filenames:
             if ".." in fname or "/" in fname or "\\" in fname:
+                skipped.append(fname)
+                continue
+            if _validate_filename(fname) is not None:
                 skipped.append(fname)
                 continue
             src = source_dir / fname
