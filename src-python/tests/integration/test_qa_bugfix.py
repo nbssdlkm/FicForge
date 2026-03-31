@@ -170,6 +170,29 @@ class TestLoreFilenameValidation:
         )
         assert resp.status_code == 400
 
+    def test_filename_validation_on_import_from_fandom(
+        self, client: TestClient, au_env: dict[str, Path]
+    ):
+        """import-from-fandom 端点跳过非法文件名。"""
+        fandom_dir = au_env["au_dir"].parent
+        core_chars = fandom_dir / "core_characters"
+        core_chars.mkdir(exist_ok=True)
+        (core_chars / "   .md").write_text("bad", encoding="utf-8")
+
+        resp = client.post(
+            "/api/v1/lore/import-from-fandom",
+            json={
+                "fandom_path": str(fandom_dir),
+                "au_path": str(au_env["au_dir"]),
+                "filenames": ["   .md"],
+                "source_category": "core_characters",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "   .md" in data["skipped"]
+        assert "   .md" not in data["imported"]
+
 
 # =========================================================================
 # B-03: pinned_context 空文本
