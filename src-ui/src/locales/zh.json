@@ -542,6 +542,39 @@
       "initializing": "正在初始化本地引擎…"
     }
   },
+  "focus": {
+    "continueLastChapter": "↩ 延续上章",
+    "maxTwo": "最多选择 2 个焦点",
+    "lastFocusExpired": "上章焦点已失效，请重新选择",
+    "recommended": "推荐"
+  },
+  "dirty": {
+    "banner": "有 {{count}} 章设定待同步（{{chapters}}）。AI 续写时会使用旧版设定。",
+    "goResolve": "去处理",
+    "dismissBanner": "稍后"
+  },
+  "undo": {
+    "confirmTitle": "确认撤回第 {{chapter}} 章？",
+    "confirmDesc": "撤回后：\n· 该章正文将被删除\n· 该章提取的剧情笔记将被清除\n· 该章及之后的草稿将被清除",
+    "irreversible": "此操作不可恢复。",
+    "confirmAction": "确认撤回",
+    "cancel": "取消"
+  },
+  "advanced": {
+    "title": "高级操作",
+    "recalc": "重新整理",
+    "recalcDesc": "检查角色出场和剧情状态",
+    "recalcSuccess": "已重新整理：扫描了 {{scanned}} 章，清理了 {{dirty}} 个脏标记",
+    "rebuildIndex": "重建索引",
+    "rebuildIndexDesc": "重新处理所有设定文件（即将上线）",
+    "advancedHint": "这些操作仅在外部修改了文件或状态异常时需要使用。"
+  },
+  "embedding": {
+    "staleTitle": "搜索引擎需要更新",
+    "staleDesc": "当前的设定文件索引与搜索引擎模型不匹配，AI 续写时可能无法正确检索设定。",
+    "rebuild": "立即重建",
+    "skipRebuild": "跳过，继续写作"
+  },
   "import": {
     "title": "导入旧文",
     "supportedFormats": "支持格式：.txt  .md  .docx",
