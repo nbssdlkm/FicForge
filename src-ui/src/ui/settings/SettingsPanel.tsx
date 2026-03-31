@@ -80,7 +80,6 @@ export const SettingsPanel = ({
              <option value="gpt-4o">gpt-4o</option>
              <option value="llama3">llama3</option>
              <option value="qwen-max">qwen-max</option>
-             <option value="custom-model">{t("settingsPanel.modelCustom")}</option>
            </select>
         </div>
       </div>

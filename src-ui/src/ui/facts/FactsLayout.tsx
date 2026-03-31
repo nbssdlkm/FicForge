@@ -36,6 +36,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [saving, setSaving] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [extractModalOpen, setExtractModalOpen] = useState(false);
@@ -81,6 +82,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     activeAuPathRef.current = auPath;
     loadFactsRequestIdRef.current += 1;
     setLoading(true);
+    setAdding(false);
     setSaving(false);
     setSaveSuccess(false);
     setExtracting(false);
@@ -105,9 +107,10 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
   };
 
   const handleAddFact = async () => {
-    if (!newContentClean.trim() || !auPath) return;
+    if (!newContentClean.trim() || !auPath || adding) return;
     const requestAuPath = auPath;
     const chapterNum = Math.max(1, (state?.current_chapter || 1) - 1 || 1);
+    setAdding(true);
     try {
       await addFact(requestAuPath, chapterNum, {
         content_raw: newContentRaw || newContentClean,
@@ -124,6 +127,10 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     } catch (error) {
       if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
+    } finally {
+      if (activeAuPathRef.current === requestAuPath) {
+        setAdding(false);
+      }
     }
   };
 
@@ -434,7 +441,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
         </div>
       </div>
 
-      <Modal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} title={t('facts.createModal.title')}>
+      <Modal isOpen={isAddModalOpen} onClose={adding ? () => {} : () => setAddModalOpen(false)} title={t('facts.createModal.title')}>
         <div className="space-y-4">
           <div className="space-y-1">
             <Textarea
@@ -486,8 +493,10 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-4 border-t border-black/10 dark:border-white/10">
-            <Button variant="ghost" onClick={() => setAddModalOpen(false)}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={handleAddFact} disabled={!newContentClean.trim()}>{t('facts.createModal.submit')}</Button>
+            <Button variant="ghost" onClick={() => setAddModalOpen(false)} disabled={adding}>{t('common.actions.cancel')}</Button>
+            <Button variant="primary" onClick={handleAddFact} disabled={!newContentClean.trim() || adding}>
+              {adding ? <Loader2 size={16} className="animate-spin" /> : t('facts.createModal.submit')}
+            </Button>
           </div>
         </div>
       </Modal>

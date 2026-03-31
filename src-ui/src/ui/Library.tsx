@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Card } from './shared/Card';
 import { Button } from './shared/Button';
 import { ThemeToggle } from './shared/ThemeToggle';
-import { Input, Textarea } from './shared/Input';
+import { Input } from './shared/Input';
 import { Settings, Plus, BookOpen, Clock, FileText, Loader2, Trash2 } from 'lucide-react';
 import { Modal } from './shared/Modal';
 import { GlobalSettingsModal } from './settings/GlobalSettingsModal';
@@ -160,7 +160,7 @@ function LibraryInner({ onNavigate }: Props) {
       <main className="flex-1 max-w-5xl w-full mx-auto p-8">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-serif font-bold">{t("library.title")}</h1>
-          <Button onClick={() => setFandomModalOpen(true)} className="shadow-md">
+          <Button onClick={() => setFandomModalOpen(true)} className="shadow-md" disabled={creatingFandom || creatingAu || deleting}>
             <Plus size={16} className="mr-2" /> {t("library.fandomButton")}
           </Button>
         </div>
@@ -206,10 +206,10 @@ function LibraryInner({ onNavigate }: Props) {
                     <Button variant="secondary" size="sm" onClick={() => onNavigate('fandom_lore', `./fandoms/fandoms/${fandom.dir_name}`)} className="bg-surface/80 border-black/10 dark:border-white/10 text-text/70">
                       <FileText size={14} className="mr-2 text-text/50" /> {t("library.fandomSectionButton")}
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => { setSelectedFandom(fandom.name); setSelectedFandomDir(fandom.dir_name); setAuModalOpen(true); }}>
+                    <Button variant="ghost" size="sm" onClick={() => { setSelectedFandom(fandom.name); setSelectedFandomDir(fandom.dir_name); setAuModalOpen(true); }} disabled={creatingFandom || creatingAu || deleting}>
                       <Plus size={14} className="mr-1 text-accent" /> {t("library.createAuButton")}
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteTarget({ type: 'fandom', fandomDir: fandom.dir_name, fandomName: fandom.name })}>
+                    <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteTarget({ type: 'fandom', fandomDir: fandom.dir_name, fandomName: fandom.name })} disabled={creatingFandom || creatingAu || deleting}>
                       <Trash2 size={14} />
                     </Button>
                   </div>
@@ -224,6 +224,7 @@ function LibraryInner({ onNavigate }: Props) {
                           className="absolute top-2 right-2 p-1.5 rounded-md text-text/30 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
                           onClick={(e) => { e.stopPropagation(); setDeleteTarget({ type: 'au', fandomDir: fandom.dir_name, fandomName: fandom.name, auName: au }); }}
                           title={t("common.actions.delete")}
+                          disabled={creatingFandom || creatingAu || deleting}
                         >
                           <Trash2 size={14} />
                         </button>
@@ -242,33 +243,31 @@ function LibraryInner({ onNavigate }: Props) {
         )}
       </main>
 
-      <Modal isOpen={isFandomModalOpen} onClose={() => setFandomModalOpen(false)} title={t("library.createFandomModal.title")}>
+      <Modal isOpen={isFandomModalOpen} onClose={creatingFandom ? () => {} : () => setFandomModalOpen(false)} title={t("library.createFandomModal.title")}>
         <p className="text-sm text-text/70 mb-5">{t("library.createFandomModal.description")}</p>
         <div className="flex flex-col gap-4">
           <Input placeholder={t("library.createFandomModal.namePlaceholder")} value={newFandomName} onChange={(e) => setNewFandomName(e.target.value)} className="w-full h-10 bg-surface/50 text-base" disabled={creatingFandom} />
-          <Textarea placeholder={t("library.createFandomModal.notesPlaceholder")} className="w-full min-h-[120px] text-sm bg-surface/50 leading-relaxed resize-y" disabled={creatingFandom} />
           <Button variant="primary" className="w-full h-10 mt-2 font-medium tracking-wide" onClick={handleCreateFandom} disabled={creatingFandom || !newFandomName.trim()}>
             {creatingFandom ? <Loader2 size={16} className="animate-spin" /> : t("library.createFandomModal.submit")}
           </Button>
         </div>
       </Modal>
 
-      <Modal isOpen={isAuModalOpen} onClose={() => setAuModalOpen(false)} title={t("library.createAuModal.title")}>
+      <Modal isOpen={isAuModalOpen} onClose={creatingAu ? () => {} : () => setAuModalOpen(false)} title={t("library.createAuModal.title")}>
         <p className="text-sm text-text/70 mb-5 leading-relaxed">{t("library.createAuModal.description")}</p>
         <div className="flex flex-col gap-5">
           <Input placeholder={t("library.createAuModal.namePlaceholder")} value={newAuName} onChange={(e) => setNewAuName(e.target.value)} className="w-full h-10 bg-surface/50 text-base" disabled={creatingAu} />
           <div className="flex flex-col gap-2">
              <label className="text-sm font-bold text-text/90">{t("library.createAuModal.inheritLabel")}</label>
-             <select className="h-10 rounded-md border border-black/20 dark:border-white/20 bg-surface/80 px-3 text-sm focus:ring-2 focus:ring-accent outline-none w-full" disabled={creatingAu}>
-                <option>{selectedFandom}</option>
-             </select>
+             <div className="flex min-h-10 items-center rounded-md border border-black/20 bg-surface/60 px-3 text-sm text-text/75 dark:border-white/20">
+                {selectedFandom}
+             </div>
           </div>
           <div className="flex flex-col gap-2">
              <label className="text-sm font-bold text-text/90">{t("library.createAuModal.initLabel")}</label>
-             <select className="h-10 rounded-md border border-black/20 dark:border-white/20 bg-surface/80 px-3 text-sm focus:ring-2 focus:ring-accent outline-none w-full" disabled={creatingAu}>
-                <option>{t("library.createAuModal.initGlobal")}</option>
-                <option>{t("library.createAuModal.initCustom")}</option>
-             </select>
+             <div className="rounded-md border border-black/20 bg-surface/60 px-3 py-2 text-sm text-text/75 dark:border-white/20">
+                {t("library.createAuModal.initGlobal")}
+             </div>
           </div>
           <Button variant="primary" className="w-full h-10 mt-2 font-medium tracking-wide" onClick={handleCreateAu} disabled={creatingAu || !newAuName.trim() || !selectedFandomDir}>
             {creatingAu ? <Loader2 size={16} className="animate-spin" /> : t("library.createAuModal.submit")}
@@ -317,7 +316,7 @@ function LibraryInner({ onNavigate }: Props) {
         onComplete={() => { setImportModalOpen(false); setImportAuPath(''); onNavigate('writer', importAuPath); }}
       />
 
-      <Modal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title={deleteTarget?.type === 'fandom' ? t('library.deleteFandomTitle') : t('library.deleteAuTitle')}>
+      <Modal isOpen={!!deleteTarget} onClose={deleting ? () => {} : () => setDeleteTarget(null)} title={deleteTarget?.type === 'fandom' ? t('library.deleteFandomTitle') : t('library.deleteAuTitle')}>
         <div className="space-y-4">
           <p className="text-sm text-text/80 leading-relaxed">
             {deleteTarget?.type === 'fandom'
