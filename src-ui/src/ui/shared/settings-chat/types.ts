@@ -39,6 +39,20 @@ export interface LoreFileOption {
   filename: string;
 }
 
+export const FACT_TYPE_OPTIONS = [
+  "character_detail",
+  "relationship",
+  "backstory",
+  "plot_event",
+  "foreshadowing",
+  "world_rule",
+] as const;
+
+export const FACT_STATUS_OPTIONS = ["active", "unresolved", "resolved", "deprecated"] as const;
+export const FACT_CREATE_STATUS_OPTIONS = ["active", "unresolved"] as const;
+export const NARRATIVE_WEIGHT_OPTIONS = ["low", "medium", "high"] as const;
+export const CORE_INCLUDE_INVALID_MARKER = "__INVALID__";
+
 export function coerceString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
@@ -157,7 +171,8 @@ export function getToolCallName(source: SettingsChatToolCall | ToolCallCardState
 export function getToolValidationError(
   source: SettingsChatToolCall | ToolCallCardState | string,
   args: Record<string, unknown>,
-  t: (key: string, options?: Record<string, unknown>) => string
+  t: (key: string, options?: Record<string, unknown>) => string,
+  availableCharacterNames?: Set<string>
 ): string | null {
   const toolName = typeof source === "string" ? source : getToolCallName(source);
   const importance = coerceString(args.importance);
@@ -206,13 +221,13 @@ export function getToolValidationError(
     if (!coerceString(args.status).trim()) {
       return t("settingsMode.validation.factStatusRequired");
     }
-    if (!["plot_event", "character_detail", "relationship", "worldbuilding", "foreshadowing"].includes(factType)) {
+    if (!FACT_TYPE_OPTIONS.includes(factType as (typeof FACT_TYPE_OPTIONS)[number])) {
       return t("settingsMode.validation.factTypeInvalid");
     }
-    if (!["active", "unresolved"].includes(factStatus)) {
+    if (!FACT_CREATE_STATUS_OPTIONS.includes(factStatus as (typeof FACT_CREATE_STATUS_OPTIONS)[number])) {
       return t("settingsMode.validation.factStatusInvalid");
     }
-    if (narrativeWeight && !["low", "medium", "high"].includes(narrativeWeight)) {
+    if (narrativeWeight && !NARRATIVE_WEIGHT_OPTIONS.includes(narrativeWeight as (typeof NARRATIVE_WEIGHT_OPTIONS)[number])) {
       return t("settingsMode.validation.narrativeWeightInvalid");
     }
     return null;
@@ -246,13 +261,13 @@ export function getToolValidationError(
     if (Object.prototype.hasOwnProperty.call(args, "narrative_weight") && !narrativeWeight) {
       return t("settingsMode.validation.narrativeWeightRequired");
     }
-    if (factType && !["plot_event", "character_detail", "relationship", "worldbuilding", "foreshadowing"].includes(factType)) {
+    if (factType && !FACT_TYPE_OPTIONS.includes(factType as (typeof FACT_TYPE_OPTIONS)[number])) {
       return t("settingsMode.validation.factTypeInvalid");
     }
-    if (factStatus && !["active", "unresolved", "resolved", "deprecated"].includes(factStatus)) {
+    if (factStatus && !FACT_STATUS_OPTIONS.includes(factStatus as (typeof FACT_STATUS_OPTIONS)[number])) {
       return t("settingsMode.validation.factStatusInvalid");
     }
-    if (narrativeWeight && !["low", "medium", "high"].includes(narrativeWeight)) {
+    if (narrativeWeight && !NARRATIVE_WEIGHT_OPTIONS.includes(narrativeWeight as (typeof NARRATIVE_WEIGHT_OPTIONS)[number])) {
       return t("settingsMode.validation.narrativeWeightInvalid");
     }
     return null;
@@ -289,6 +304,18 @@ export function getToolValidationError(
   if (toolName === "update_core_includes") {
     if (!Array.isArray(args.filenames)) {
       return t("settingsMode.validation.coreIncludesRequired");
+    }
+    if (availableCharacterNames) {
+      const selections = coerceStringArray(args.filenames)
+        .map((item) => item.replace(/\.md$/i, "").trim())
+        .filter(Boolean);
+      if (selections.length === 0) {
+        return t("settingsMode.validation.coreIncludesRequired");
+      }
+      const validSelections = selections.filter((item) => availableCharacterNames.has(item));
+      if (validSelections.length === 0) {
+        return t("settingsMode.validation.coreIncludesAllMissing");
+      }
     }
     return null;
   }
@@ -337,10 +364,13 @@ export function isToolCallResolved(status: ToolCallStatus): boolean {
   return status === "executed" || status === "skipped" || status === "undone";
 }
 
-export function getToolStatusSummary(card: ToolCallCardState): string | null {
+export function getToolStatusSummary(
+  card: ToolCallCardState,
+  t: (key: string, options?: Record<string, unknown>) => string
+): string | null {
   const name = getToolCallName(card);
-  if (card.status === "executed") return `已执行 ${name}`;
-  if (card.status === "skipped") return `已跳过 ${name}`;
-  if (card.status === "undone") return `已撤销 ${name}`;
+  if (card.status === "executed") return t("settingsMode.history.statusExecuted", { name });
+  if (card.status === "skipped") return t("settingsMode.history.statusSkipped", { name });
+  if (card.status === "undone") return t("settingsMode.history.statusUndone", { name });
   return null;
 }
