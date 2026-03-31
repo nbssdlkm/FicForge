@@ -1,7 +1,7 @@
 import { Input, Textarea } from "../Input";
 import { getEnumLabel } from "../../../i18n/labels";
 import type { SettingsMode } from "./types";
-import { coerceString, coerceStringArray, getToolCallName } from "./types";
+import { VALID_FACT_TYPES, coerceString, coerceStringArray, getToolCallName } from "./types";
 import type { ToolCallCardState } from "./types";
 
 interface ToolCallEditorProps {
@@ -262,7 +262,7 @@ export function ToolCallEditor({
               }}
               className="h-10 w-full rounded-md border border-black/20 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent dark:border-white/20"
             >
-              {["plot_event", "character_detail", "relationship", "worldbuilding", "foreshadowing"].map((option) => (
+              {VALID_FACT_TYPES.map((option) => (
                 <option key={option} value={option}>
                   {getEnumLabel("fact_type", option, option)}
                 </option>

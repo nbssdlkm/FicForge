@@ -12,6 +12,8 @@ export interface SettingsChatSessionLlm {
   model?: string;
   api_base?: string;
   api_key?: string;
+  local_model_path?: string;
+  ollama_model?: string;
 }
 
 export interface SettingsChatToolCall {

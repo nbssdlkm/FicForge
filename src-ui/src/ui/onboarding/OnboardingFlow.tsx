@@ -24,7 +24,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
       await updateSettings('./fandoms', {
         default_llm: {
           mode: config.mode,
-          model: config.mode === 'ollama' ? '' : config.model,
+          model: config.mode === 'api' ? config.model : '',
           api_base: config.api_base,
           api_key: config.api_key,
           local_model_path: config.local_model_path,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
@@ -14,10 +14,17 @@ export function CreateFandomStep({
   onPrev: () => void;
 }) {
   const { t } = useTranslation();
+  const requestIdRef = useRef(0);
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      requestIdRef.current += 1;
+    };
+  }, []);
 
   const handleNext = async () => {
     const trimmed = name.trim();
@@ -25,15 +32,20 @@ export function CreateFandomStep({
       onNext(null); // skip
       return;
     }
+    const requestId = ++requestIdRef.current;
     setCreating(true);
     setError('');
     try {
       await createFandom(trimmed);
+      if (requestId !== requestIdRef.current) return;
       onNext(trimmed);
     } catch (e: any) {
+      if (requestId !== requestIdRef.current) return;
       setError(e.message || 'Failed to create');
     } finally {
-      setCreating(false);
+      if (requestId === requestIdRef.current) {
+        setCreating(false);
+      }
     }
   };
 

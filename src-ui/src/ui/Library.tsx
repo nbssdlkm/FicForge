@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card } from './shared/Card';
 import { Button } from './shared/Button';
 import { ThemeToggle } from './shared/ThemeToggle';
@@ -21,6 +21,7 @@ type Props = {
 function LibraryInner({ onNavigate }: Props) {
   const { t } = useTranslation();
   const { showError } = useFeedback();
+  const loadFandomsRequestIdRef = useRef(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isFandomModalOpen, setFandomModalOpen] = useState(false);
   const [isAuModalOpen, setAuModalOpen] = useState(false);
@@ -35,12 +36,23 @@ function LibraryInner({ onNavigate }: Props) {
   const [selectedFandomDir, setSelectedFandomDir] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'fandom' | 'au'; fandomDir: string; fandomName: string; auName?: string } | null>(null);
 
+  const hasUsableConnectionConfig = (settings: Awaited<ReturnType<typeof getSettings>> | null | undefined) => {
+    const llm = settings?.default_llm;
+    if (!llm) return false;
+    if (llm.mode === 'local') {
+      return Boolean(llm.local_model_path?.trim());
+    }
+    if (llm.mode === 'ollama') {
+      return Boolean((llm.ollama_model || llm.model || '').trim());
+    }
+    return Boolean(llm.api_key?.trim());
+  };
+
   useEffect(() => {
     // 检查是否需要显示引导流程
     if (!isOnboardingCompleted()) {
       getSettings().then(settings => {
-        const apiKey = settings?.default_llm?.api_key || '';
-        if (!apiKey) {
+        if (!hasUsableConnectionConfig(settings)) {
           setShowOnboarding(true);
         }
       }).catch(() => {
@@ -51,15 +63,19 @@ function LibraryInner({ onNavigate }: Props) {
   }, []);
 
   const loadFandoms = async () => {
+    const requestId = ++loadFandomsRequestIdRef.current;
     setLoading(true);
     try {
       const data = await listFandoms();
+      if (requestId !== loadFandomsRequestIdRef.current) return;
       setFandoms(data);
     } catch (e: any) {
+      if (requestId !== loadFandomsRequestIdRef.current) return;
       showError(e, t("error_messages.unknown"));
-      setFandoms([]);
     } finally {
-      setLoading(false);
+      if (requestId === loadFandomsRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 

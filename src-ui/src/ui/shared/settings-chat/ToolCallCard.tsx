@@ -215,7 +215,14 @@ export function ToolCallCard({
 
       {card.parseError ? (
         <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
-          {t("settingsMode.parseError")}
+          <p>{t("settingsMode.parseErrorTitle")}</p>
+          <p className="mt-1">{t("settingsMode.parseError")}</p>
+          <details className="mt-2">
+            <summary className="cursor-pointer text-xs font-medium">{t("settingsMode.showRawArguments")}</summary>
+            <pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded-md bg-black/5 p-2 font-mono text-[11px] text-text/80 dark:bg-white/10">
+              {card.toolCall.function.arguments}
+            </pre>
+          </details>
         </div>
       ) : null}
 

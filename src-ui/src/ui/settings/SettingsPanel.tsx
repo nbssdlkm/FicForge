@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '../shared/Button';
 import { Card } from '../shared/Card';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -28,6 +28,18 @@ export const SettingsPanel = ({
   const [localModel, setLocalModel] = useState(externalModel || 'deepseek-chat');
   const [temp, setTemp] = useState(externalTemp ?? 1.0);
   const [topP, setTopP] = useState(externalTopP ?? 0.95);
+
+  useEffect(() => {
+    setLocalModel(externalModel || 'deepseek-chat');
+  }, [externalModel]);
+
+  useEffect(() => {
+    setTemp(externalTemp ?? 1.0);
+  }, [externalTemp]);
+
+  useEffect(() => {
+    setTopP(externalTopP ?? 0.95);
+  }, [externalTopP]);
 
   const handleModelChange = (val: string) => {
     setLocalModel(val);

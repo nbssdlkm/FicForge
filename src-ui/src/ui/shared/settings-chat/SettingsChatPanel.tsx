@@ -155,17 +155,21 @@ function applyManagedFrontmatter(
   return ["---", ...nextFrontmatter, "---", "", body.trimStart()].join("\n");
 }
 
-function buildOutboundUserMessage(rawInput: string, intent: LargeTextIntent): string {
+function buildOutboundUserMessage(
+  rawInput: string,
+  intent: LargeTextIntent,
+  t: (key: string, options?: Record<string, unknown>) => string
+): string {
   if (intent === "character") {
     return [
-      "下面是一段较长的用户文本。请优先把它整理成角色设定文件，尽量保留原文，不删减用户提供的关键信息。",
+      t("settingsMode.prompt.importCharacter"),
       rawInput,
     ].join("\n\n");
   }
 
   if (intent === "worldbuilding") {
     return [
-      "下面是一段较长的用户文本。请优先把它整理成世界观设定文件，尽量保留原文，不删减用户提供的关键信息。",
+      t("settingsMode.prompt.importWorldbuilding"),
       rawInput,
     ].join("\n\n");
   }
@@ -173,7 +177,10 @@ function buildOutboundUserMessage(rawInput: string, intent: LargeTextIntent): st
   return rawInput;
 }
 
-function serializeAssistantMessage(message: SettingsChatMessage): string {
+function serializeAssistantMessage(
+  message: SettingsChatMessage,
+  t: (key: string, options?: Record<string, unknown>) => string
+): string {
   const toolSummaries = (message.toolCalls || []).map((card) => {
     const args = Object.entries(card.parsedArgs)
       .slice(0, 4)
@@ -182,23 +189,26 @@ function serializeAssistantMessage(message: SettingsChatMessage): string {
     return `${getToolCallName(card)}${args ? `（${args}）` : ""}`;
   });
   const summaries = (message.toolCalls || [])
-    .map((card) => getToolStatusSummary(card))
+    .map((card) => getToolStatusSummary(card, t))
     .filter((item): item is string => Boolean(item));
 
   const parts = [message.content];
   if (toolSummaries.length > 0) {
-    parts.push(`AI 上一轮建议的操作：\n- ${toolSummaries.join("\n- ")}`);
+    parts.push(t("settingsMode.historyPreviousTools", { tools: `- ${toolSummaries.join("\n- ")}` }));
   }
   if (summaries.length > 0) {
-    parts.push(`本轮已处理的操作：\n- ${summaries.join("\n- ")}`);
+    parts.push(t("settingsMode.historyProcessedTools", { tools: `- ${summaries.join("\n- ")}` }));
   }
   return parts.filter(Boolean).join("\n\n");
 }
 
-function toApiMessages(messages: SettingsChatMessage[]): { role: "user" | "assistant"; content: string }[] {
+function toApiMessages(
+  messages: SettingsChatMessage[],
+  t: (key: string, options?: Record<string, unknown>) => string
+): { role: "user" | "assistant"; content: string }[] {
   return messages.map((message) => ({
     role: message.role,
-    content: message.role === "assistant" ? serializeAssistantMessage(message) : message.content,
+    content: message.role === "assistant" ? serializeAssistantMessage(message, t) : message.content,
   }));
 }
 
@@ -227,7 +237,7 @@ export function SettingsChatPanel({
   onAfterMutation,
 }: SettingsChatPanelProps) {
   const { t } = useTranslation();
-  const { showError } = useFeedback();
+  const { showError, showToast } = useFeedback();
   const [messages, setMessages] = useState<SettingsChatMessage[]>([]);
   const messagesRef = useRef<SettingsChatMessage[]>([]);
   const [inputText, setInputText] = useState("");
@@ -647,8 +657,26 @@ export function SettingsChatPanel({
     }
 
     if (toolName === "update_core_includes") {
-      const filenames = normalizeCoreIncludes(args.filenames);
-      await updateProject(basePath, { core_always_include: filenames });
+      const currentProject = requireAuProject();
+      const requestedNames = normalizeCoreIncludes(args.filenames);
+      const availableNames = new Set([
+        ...latestCharacterFiles.files.map((file) => file.name),
+        ...(currentProject.cast_registry.characters || []),
+      ]);
+      const validNames = requestedNames.filter((name) => availableNames.has(name));
+      const missingNames = requestedNames.filter((name) => !availableNames.has(name));
+
+      if (validNames.length === 0) {
+        throw new Error(t("settingsMode.error.coreIncludesMissingAll"));
+      }
+      if (missingNames.length > 0) {
+        showToast(
+          t("settingsMode.warning.coreIncludesMissingPartial", { names: missingNames.join("、") }),
+          "warning"
+        );
+      }
+
+      await updateProject(basePath, { core_always_include: validNames });
       return {
         resultNote: t("settingsMode.executedWithTarget", { target: t("common.labels.coreAlwaysInclude") }),
         undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
@@ -656,7 +684,7 @@ export function SettingsChatPanel({
     }
 
     throw new Error(t("settingsMode.error.unsupportedTool", { name: toolName }));
-  }, [basePath, currentChapter, mode, projectInfo, t]);
+  }, [basePath, currentChapter, mode, showToast, t]);
 
   const handleConfirmTool = useCallback(async (
     messageId: string,
@@ -883,6 +911,12 @@ export function SettingsChatPanel({
           new Set(worldbuildingFilesRef.current.map((file) => file.filename)),
           t
         )
+        && !getToolDuplicateWarning(
+          card,
+          card.parsedArgs,
+          projectInfoRef.current?.pinned_context || [],
+          t
+        )
       )
       .map((card) => card.id);
 
@@ -911,10 +945,10 @@ export function SettingsChatPanel({
 
   const sendMessage = useCallback(async (intent: LargeTextIntent) => {
     const trimmed = inputText.trim();
-    if (!trimmed || !basePath || sending || disabled) return;
+    if (!trimmed || !basePath || mutationBusy || disabled) return;
 
     const requestId = ++chatRequestIdRef.current;
-    const outgoing = buildOutboundUserMessage(trimmed, intent);
+    const outgoing = buildOutboundUserMessage(trimmed, intent, t);
     const userMessageId = createMessageId(MESSAGE_STORAGE_PREFIX);
     const nextMessages = [
       ...messagesRef.current,
@@ -933,7 +967,7 @@ export function SettingsChatPanel({
         base_path: basePath,
         mode,
         messages: [
-          ...toApiMessages(messagesRef.current),
+          ...toApiMessages(messagesRef.current, t),
           { role: "user", content: outgoing },
         ],
         ...(fandomPath ? { fandom_path: fandomPath } : {}),
@@ -960,7 +994,7 @@ export function SettingsChatPanel({
         setSending(false);
       }
     }
-  }, [basePath, disabled, fandomPath, inputText, mode, sending, sessionLlm, showError, t]);
+  }, [basePath, disabled, fandomPath, inputText, mode, mutationBusy, sessionLlm, showError, t]);
 
   const existingCharacterFileNames = useMemo(
     () => new Set(characterFiles.map((file) => file.filename)),
@@ -995,7 +1029,7 @@ export function SettingsChatPanel({
           existingCharacterFileNames={existingCharacterFileNames}
           existingWorldbuildingFileNames={existingWorldbuildingFileNames}
           existingPinnedTexts={existingPinnedTexts}
-          disabled={disabled || sending || isPostMutationBusy}
+          disabled={disabled || mutationBusy}
           onConfirmTool={handleConfirmTool}
           onSkipTool={handleSkipTool}
           onUndoTool={handleUndoTool}
@@ -1012,7 +1046,8 @@ export function SettingsChatPanel({
         placeholder={placeholder}
         sending={sending}
         compact={compact}
-        disableSend={!basePath || disabled || isPostMutationBusy}
+        disableSend={!basePath || disabled || mutationBusy}
+        busyHint={hasLoadingCards ? t("settingsMode.toolActionBusy") : null}
         t={t}
       />
     </div>

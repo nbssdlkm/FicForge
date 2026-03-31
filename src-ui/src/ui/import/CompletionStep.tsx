@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '../shared/Button';
 import { CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -18,20 +18,37 @@ export function CompletionStep({
   const [extracting, setExtracting] = useState(false);
   const [extractProgress, setExtractProgress] = useState({ current: 0, total: 0 });
   const [extractDone, setExtractDone] = useState(false);
+  const extractRequestIdRef = useRef(0);
+  const unmountedRef = useRef(false);
+
+  useEffect(() => {
+    unmountedRef.current = false;
+    return () => {
+      unmountedRef.current = true;
+      extractRequestIdRef.current += 1;
+    };
+  }, []);
 
   const handleExtract = async (count: number) => {
+    const requestId = ++extractRequestIdRef.current;
     setExtracting(true);
     const start = Math.max(1, totalChapters - count + 1);
     const total = Math.min(count, totalChapters);
     setExtractProgress({ current: 0, total });
 
     for (let ch = start; ch <= totalChapters; ch++) {
+      if (requestId !== extractRequestIdRef.current || unmountedRef.current) {
+        return;
+      }
       setExtractProgress({ current: ch - start + 1, total });
       try {
         await extractFacts(auPath, ch);
       } catch {
         // 单章失败不阻断
       }
+    }
+    if (requestId !== extractRequestIdRef.current || unmountedRef.current) {
+      return;
     }
     setExtracting(false);
     setExtractDone(true);

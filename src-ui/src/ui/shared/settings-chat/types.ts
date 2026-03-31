@@ -39,6 +39,15 @@ export interface LoreFileOption {
   filename: string;
 }
 
+export const VALID_FACT_TYPES = [
+  "character_detail",
+  "relationship",
+  "backstory",
+  "plot_event",
+  "foreshadowing",
+  "world_rule",
+] as const;
+
 export function coerceString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
@@ -206,7 +215,7 @@ export function getToolValidationError(
     if (!coerceString(args.status).trim()) {
       return t("settingsMode.validation.factStatusRequired");
     }
-    if (!["plot_event", "character_detail", "relationship", "worldbuilding", "foreshadowing"].includes(factType)) {
+    if (!VALID_FACT_TYPES.includes(factType as typeof VALID_FACT_TYPES[number])) {
       return t("settingsMode.validation.factTypeInvalid");
     }
     if (!["active", "unresolved"].includes(factStatus)) {
@@ -246,7 +255,7 @@ export function getToolValidationError(
     if (Object.prototype.hasOwnProperty.call(args, "narrative_weight") && !narrativeWeight) {
       return t("settingsMode.validation.narrativeWeightRequired");
     }
-    if (factType && !["plot_event", "character_detail", "relationship", "worldbuilding", "foreshadowing"].includes(factType)) {
+    if (factType && !VALID_FACT_TYPES.includes(factType as typeof VALID_FACT_TYPES[number])) {
       return t("settingsMode.validation.factTypeInvalid");
     }
     if (factStatus && !["active", "unresolved", "resolved", "deprecated"].includes(factStatus)) {
@@ -337,10 +346,13 @@ export function isToolCallResolved(status: ToolCallStatus): boolean {
   return status === "executed" || status === "skipped" || status === "undone";
 }
 
-export function getToolStatusSummary(card: ToolCallCardState): string | null {
+export function getToolStatusSummary(
+  card: ToolCallCardState,
+  t: (key: string, options?: Record<string, unknown>) => string
+): string | null {
   const name = getToolCallName(card);
-  if (card.status === "executed") return `已执行 ${name}`;
-  if (card.status === "skipped") return `已跳过 ${name}`;
-  if (card.status === "undone") return `已撤销 ${name}`;
+  if (card.status === "executed") return t("settingsMode.statusSummary.executed", { name });
+  if (card.status === "skipped") return t("settingsMode.statusSummary.skipped", { name });
+  if (card.status === "undone") return t("settingsMode.statusSummary.undone", { name });
   return null;
 }

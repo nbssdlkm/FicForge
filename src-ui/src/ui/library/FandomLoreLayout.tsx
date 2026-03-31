@@ -118,8 +118,6 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
     } catch (e) {
       if (requestId !== loadFilesRequestIdRef.current) return null;
       showError(e, t("error_messages.unknown"));
-      setCharacterFiles([]);
-      setWorldbuildingFiles([]);
       return null;
     } finally {
       if (requestId === loadFilesRequestIdRef.current) {

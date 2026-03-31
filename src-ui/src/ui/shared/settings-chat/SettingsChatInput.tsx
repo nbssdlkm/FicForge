@@ -12,6 +12,7 @@ interface SettingsChatInputProps {
   sending: boolean;
   compact?: boolean;
   disableSend?: boolean;
+  busyHint?: string | null;
   t: (key: string, options?: Record<string, unknown>) => string;
 }
 
@@ -26,6 +27,7 @@ export function SettingsChatInput({
   sending,
   compact = false,
   disableSend = false,
+  busyHint = null,
   t,
 }: SettingsChatInputProps) {
   const trimmed = value.trim();
@@ -64,6 +66,9 @@ export function SettingsChatInput({
             {sending ? <Loader2 size={16} className="animate-spin" /> : t("settingsMode.send")}
           </Button>
         </div>
+        {busyHint ? (
+          <p className="text-xs text-text/50">{busyHint}</p>
+        ) : null}
       </div>
     </div>
   );
