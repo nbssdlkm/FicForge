@@ -48,7 +48,6 @@ export interface TestConnectionResponse {
   message?: string;
   error_code?: string;
 }
-
 export async function getSettings(dataDir = "./fandoms"): Promise<SettingsInfo> {
   return apiFetch(`/api/v1/settings?data_dir=${encodeURIComponent(dataDir)}`);
 }

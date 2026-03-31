@@ -20,6 +20,7 @@ interface SettingsChatHistoryProps {
   compact?: boolean;
   disabled?: boolean;
   availableCharacterNames: string[];
+  availableCharacterNameSet: Set<string>;
   existingCharacterFileNames: Set<string>;
   existingWorldbuildingFileNames: Set<string>;
   existingPinnedTexts: string[];
@@ -37,6 +38,7 @@ export function SettingsChatHistory({
   compact = false,
   disabled = false,
   availableCharacterNames,
+  availableCharacterNameSet,
   existingCharacterFileNames,
   existingWorldbuildingFileNames,
   existingPinnedTexts,
@@ -76,7 +78,7 @@ export function SettingsChatHistory({
           (card) =>
             !card.isLoading
             && !card.parseError
-            && !getToolValidationError(card, card.parsedArgs, t)
+            && !getToolValidationError(card, card.parsedArgs, t, availableCharacterNameSet)
             && !getToolDuplicateWarning(card, card.parsedArgs, existingPinnedTexts, t)
             && !getToolMissingTargetError(
               card,

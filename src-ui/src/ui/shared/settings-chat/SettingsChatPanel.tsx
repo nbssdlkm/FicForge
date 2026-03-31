@@ -162,14 +162,14 @@ function buildOutboundUserMessage(
 ): string {
   if (intent === "character") {
     return [
-      t("settingsMode.prompt.importCharacter"),
+      t("settingsMode.prompt.largeTextCharacter"),
       rawInput,
     ].join("\n\n");
   }
 
   if (intent === "worldbuilding") {
     return [
-      t("settingsMode.prompt.importWorldbuilding"),
+      t("settingsMode.prompt.largeTextWorldbuilding"),
       rawInput,
     ].join("\n\n");
   }
@@ -220,6 +220,10 @@ function normalizeCoreIncludes(value: unknown): string[] {
         .filter(Boolean)
     )
   );
+}
+
+function normalizeAvailableCharacterNames(files: LoreFileOption[]): Set<string> {
+  return new Set(files.map((file) => file.name.trim()).filter(Boolean));
 }
 
 export function SettingsChatPanel({
@@ -380,7 +384,7 @@ export function SettingsChatPanel({
     card: ToolCallCardState,
     nextArgs?: Record<string, unknown>,
     contextVersion?: number
-  ): Promise<{ resultNote: string; undoMeta: ToolUndoMeta | null }> => {
+  ): Promise<{ resultNote: string; undoMeta: ToolUndoMeta | null; warningMessage?: string | null }> => {
     if (!basePath) {
       throw new Error(t("error_messages.unknown"));
     }
@@ -412,7 +416,8 @@ export function SettingsChatPanel({
     worldbuildingFilesRef.current = latestWorldbuildingFiles.files;
     const latestCharacterFileNames = new Set(latestCharacterFiles.files.map((file) => file.filename));
     const latestWorldbuildingFileNames = new Set(latestWorldbuildingFiles.files.map((file) => file.filename));
-    const validationError = getToolValidationError(card, args, t);
+    const availableCharacterNames = normalizeAvailableCharacterNames(latestCharacterFiles.files);
+    const validationError = getToolValidationError(card, args, t, availableCharacterNames);
     if (validationError) {
       throw new Error(validationError);
     }
@@ -496,6 +501,7 @@ export function SettingsChatPanel({
       return {
         resultNote: t("settingsMode.executedWithTarget", { target: filename }),
         undoMeta: { kind: "lore", category: "characters", filename },
+        warningMessage: null,
       };
     }
 
@@ -510,6 +516,7 @@ export function SettingsChatPanel({
       return {
         resultNote: t("settingsMode.executedWithTarget", { target: filename }),
         undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
+        warningMessage: null,
       };
     }
 
@@ -529,6 +536,7 @@ export function SettingsChatPanel({
       return {
         resultNote: t("settingsMode.executedWithTarget", { target: filename }),
         undoMeta: { kind: "lore", category: "core_characters", filename },
+        warningMessage: null,
       };
     }
 
@@ -543,6 +551,7 @@ export function SettingsChatPanel({
       return {
         resultNote: t("settingsMode.executedWithTarget", { target: filename }),
         undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
+        warningMessage: null,
       };
     }
 
@@ -560,6 +569,7 @@ export function SettingsChatPanel({
           category: mode === "au" ? "worldbuilding" : "core_worldbuilding",
           filename,
         },
+        warningMessage: null,
       };
     }
 
@@ -572,6 +582,7 @@ export function SettingsChatPanel({
       return {
         resultNote: t("settingsMode.executedWithTarget", { target: filename }),
         undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
+        warningMessage: null,
       };
     }
 
@@ -591,6 +602,7 @@ export function SettingsChatPanel({
           factId: response.fact_id,
           chapterNum: currentChapter,
         },
+        warningMessage: null,
       };
     }
 
@@ -624,6 +636,7 @@ export function SettingsChatPanel({
       return {
         resultNote: t("settingsMode.executedWithTarget", { target: factId }),
         undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
+        warningMessage: null,
       };
     }
 
@@ -638,6 +651,7 @@ export function SettingsChatPanel({
           pinnedIndex: index,
           pinnedContent: content,
         },
+        warningMessage: null,
       };
     }
 
@@ -653,6 +667,7 @@ export function SettingsChatPanel({
       return {
         resultNote: t("settingsMode.executedWithTarget", { target: t("common.labels.writingStyle") }),
         undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
+        warningMessage: null,
       };
     }
 
@@ -669,22 +684,19 @@ export function SettingsChatPanel({
       if (validNames.length === 0) {
         throw new Error(t("settingsMode.error.coreIncludesMissingAll"));
       }
-      if (missingNames.length > 0) {
-        showToast(
-          t("settingsMode.warning.coreIncludesMissingPartial", { names: missingNames.join("、") }),
-          "warning"
-        );
-      }
 
       await updateProject(basePath, { core_always_include: validNames });
       return {
         resultNote: t("settingsMode.executedWithTarget", { target: t("common.labels.coreAlwaysInclude") }),
         undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
+        warningMessage: missingNames.length > 0
+          ? t("settingsMode.warning.coreIncludesPartialMissing", { names: missingNames.join("、") })
+          : null,
       };
     }
 
     throw new Error(t("settingsMode.error.unsupportedTool", { name: toolName }));
-  }, [basePath, currentChapter, mode, showToast, t]);
+  }, [basePath, currentChapter, mode, t]);
 
   const handleConfirmTool = useCallback(async (
     messageId: string,
@@ -716,7 +728,7 @@ export function SettingsChatPanel({
       errorMessage: null,
     }));
 
-    let result: { resultNote: string; undoMeta: ToolUndoMeta | null };
+    let result: { resultNote: string; undoMeta: ToolUndoMeta | null; warningMessage?: string | null };
 
     try {
       result = await executeTool(card, nextArgs, contextVersion);
@@ -755,6 +767,10 @@ export function SettingsChatPanel({
       errorMessage: null,
     }));
 
+    if (result.warningMessage) {
+      showToast(result.warningMessage, "warning");
+    }
+
     setPostMutationBusy(true);
     try {
       await runAfterMutation(contextVersion);
@@ -770,7 +786,7 @@ export function SettingsChatPanel({
       }
       loadingCardIdsRef.current.delete(cardId);
     }
-  }, [disabled, executeTool, isPostMutationBusy, runAfterMutation, sending, showError, t, updateSingleCard]);
+  }, [disabled, executeTool, isPostMutationBusy, runAfterMutation, sending, showError, showToast, t, updateSingleCard]);
 
   const handleSkipTool = useCallback((messageId: string, cardId: string) => {
     if (disabled || sending || isPostMutationBusy) {
@@ -896,7 +912,12 @@ export function SettingsChatPanel({
         && !card.isLoading
         && !loadingCardIdsRef.current.has(card.id)
         && !card.parseError
-        && !getToolValidationError(card, card.parsedArgs, t)
+        && !getToolValidationError(
+          card,
+          card.parsedArgs,
+          t,
+          new Set(characterFilesRef.current.map((file) => file.name.trim()).filter(Boolean))
+        )
         && !getToolMissingTargetError(
           card,
           card.parsedArgs,
@@ -966,6 +987,7 @@ export function SettingsChatPanel({
       const response = await sendSettingsChat({
         base_path: basePath,
         mode,
+        // 对话历史全量发送，由后端 settings_chat.py 负责截断（保留最近 5 轮）。
         messages: [
           ...toApiMessages(messagesRef.current, t),
           { role: "user", content: outgoing },
@@ -1009,6 +1031,10 @@ export function SettingsChatPanel({
     () => characterFiles.map((file) => file.name),
     [characterFiles]
   );
+  const availableCharacterNameSet = useMemo(
+    () => new Set(availableCharacterNames),
+    [availableCharacterNames]
+  );
 
   return (
     <div className={`flex h-full min-h-0 flex-col ${className}`}>
@@ -1024,15 +1050,16 @@ export function SettingsChatPanel({
           messages={messages}
           mode={mode}
           t={t}
-          compact={compact}
-          availableCharacterNames={availableCharacterNames}
-          existingCharacterFileNames={existingCharacterFileNames}
-          existingWorldbuildingFileNames={existingWorldbuildingFileNames}
-          existingPinnedTexts={existingPinnedTexts}
-          disabled={disabled || mutationBusy}
-          onConfirmTool={handleConfirmTool}
-          onSkipTool={handleSkipTool}
-          onUndoTool={handleUndoTool}
+        compact={compact}
+        availableCharacterNames={availableCharacterNames}
+        existingCharacterFileNames={existingCharacterFileNames}
+        existingWorldbuildingFileNames={existingWorldbuildingFileNames}
+        existingPinnedTexts={existingPinnedTexts}
+        disabled={disabled || mutationBusy}
+        availableCharacterNameSet={availableCharacterNameSet}
+        onConfirmTool={handleConfirmTool}
+        onSkipTool={handleSkipTool}
+        onUndoTool={handleUndoTool}
           onConfirmAll={handleConfirmAll}
           onSkipAll={handleSkipAll}
         />

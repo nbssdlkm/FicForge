@@ -1,7 +1,15 @@
 import { Input, Textarea } from "../Input";
 import { getEnumLabel } from "../../../i18n/labels";
 import type { SettingsMode } from "./types";
-import { VALID_FACT_TYPES, coerceString, coerceStringArray, getToolCallName } from "./types";
+import {
+  FACT_CREATE_STATUS_OPTIONS,
+  FACT_STATUS_OPTIONS,
+  FACT_TYPE_OPTIONS,
+  NARRATIVE_WEIGHT_OPTIONS,
+  coerceString,
+  coerceStringArray,
+  getToolCallName,
+} from "./types";
 import type { ToolCallCardState } from "./types";
 
 interface ToolCallEditorProps {
@@ -262,7 +270,7 @@ export function ToolCallEditor({
               }}
               className="h-10 w-full rounded-md border border-black/20 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent dark:border-white/20"
             >
-              {VALID_FACT_TYPES.map((option) => (
+              {FACT_TYPE_OPTIONS.map((option) => (
                 <option key={option} value={option}>
                   {getEnumLabel("fact_type", option, option)}
                 </option>
@@ -276,9 +284,7 @@ export function ToolCallEditor({
               onChange={(event) => onChange(setField(value, "status", event.target.value))}
               className="h-10 w-full rounded-md border border-black/20 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent dark:border-white/20"
             >
-              {(toolName === "modify_fact"
-                ? ["active", "unresolved", "resolved", "deprecated"]
-                : ["active", "unresolved"]).map((option) => (
+              {(toolName === "modify_fact" ? FACT_STATUS_OPTIONS : FACT_CREATE_STATUS_OPTIONS).map((option) => (
                 <option key={option} value={option}>
                   {getEnumLabel("fact_status", option, option)}
                 </option>
@@ -292,7 +298,7 @@ export function ToolCallEditor({
               onChange={(event) => onChange(setField(value, "narrative_weight", event.target.value))}
               className="h-10 w-full rounded-md border border-black/20 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent dark:border-white/20"
             >
-              {["high", "medium", "low"].map((option) => (
+              {NARRATIVE_WEIGHT_OPTIONS.map((option) => (
                 <option key={option} value={option}>
                   {getEnumLabel("narrative_weight", option, option)}
                 </option>
