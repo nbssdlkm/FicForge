@@ -196,6 +196,17 @@ def build_task_queue() -> BackgroundTaskQueue:
     return _task_queue
 
 
+def is_masked_key(value: str | None) -> bool:
+    """检测是否为掩码 API Key（如 ****abcd 或 ****）。
+
+    用于 PUT 写入前过滤：掩码值不应覆盖真实 Key。
+    空字符串不算掩码（用户可能想清空 Key）。
+    """
+    if not value:
+        return False
+    return value.startswith("****")
+
+
 def validate_path(path: str) -> bool:
     """校验路径安全性。所有接受用户路径的端点必须调用。
 
