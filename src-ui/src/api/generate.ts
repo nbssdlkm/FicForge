@@ -7,7 +7,14 @@ export interface GenerateParams {
   chapter_num: number;
   user_input: string;
   input_type: "continue" | "instruction";
-  session_llm?: object;
+  session_llm?: {
+    mode?: string;
+    model?: string;
+    api_base?: string;
+    api_key?: string;
+    local_model_path?: string;
+    ollama_model?: string;
+  };
   session_params?: object;
 }
 

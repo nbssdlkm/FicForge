@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Modal } from '../shared/Modal';
 import { FileSelectStep } from './FileSelectStep';
 import { PreviewStep } from './PreviewStep';
@@ -20,6 +20,7 @@ export function ImportFlow({
 }) {
   const { t } = useTranslation();
   const { showError } = useFeedback();
+  const flowRequestIdRef = useRef(0);
   const [step, setStep] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -29,9 +30,11 @@ export function ImportFlow({
   const [result, setResult] = useState<ImportConfirmResponse | null>(null);
 
   const handleFileSelected = async (file: File) => {
+    const requestId = ++flowRequestIdRef.current;
     setUploading(true);
     try {
       const resp = await uploadImportFile(file);
+      if (requestId !== flowRequestIdRef.current) return;
       setChapters(resp.chapters);
       setSplitMethod(resp.split_method);
       // 保存完整章节内容（upload 只返回 preview，confirm 需要完整内容）
@@ -39,17 +42,22 @@ export function ImportFlow({
       // 实际上后端 upload 解析后不保存，需要从文件重新读取
       // 方案：前端读取文件内容，按后端的切分结果构造完整章节
       const text = await file.text();
+      if (requestId !== flowRequestIdRef.current) return;
       const fullChs = buildFullChapters(text, resp.chapters);
       setFullChapters(fullChs);
       setStep(1);
     } catch (error) {
+      if (requestId !== flowRequestIdRef.current) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      setUploading(false);
+      if (requestId === flowRequestIdRef.current) {
+        setUploading(false);
+      }
     }
   };
 
   const handleConfirm = async () => {
+    const requestId = ++flowRequestIdRef.current;
     setConfirming(true);
     try {
       const resp = await confirmImport({
@@ -57,12 +65,16 @@ export function ImportFlow({
         chapters: fullChapters,
         split_method: splitMethod,
       });
+      if (requestId !== flowRequestIdRef.current) return;
       setResult(resp);
       setStep(2);
     } catch (error) {
+      if (requestId !== flowRequestIdRef.current) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      setConfirming(false);
+      if (requestId === flowRequestIdRef.current) {
+        setConfirming(false);
+      }
     }
   };
 
@@ -72,11 +84,21 @@ export function ImportFlow({
   };
 
   const handleClose = () => {
+    flowRequestIdRef.current += 1;
     setStep(0);
+    setUploading(false);
+    setConfirming(false);
     setChapters([]);
+    setSplitMethod('');
     setFullChapters([]);
     setResult(null);
     onClose();
+  };
+
+  const handleBackToFileSelect = () => {
+    flowRequestIdRef.current += 1;
+    setConfirming(false);
+    setStep(0);
   };
 
   const stepTitle = step === 0
@@ -95,7 +117,7 @@ export function ImportFlow({
           chapters={chapters}
           splitMethod={splitMethod}
           onConfirm={handleConfirm}
-          onBack={() => setStep(0)}
+          onBack={handleBackToFileSelect}
           confirming={confirming}
         />
       )}

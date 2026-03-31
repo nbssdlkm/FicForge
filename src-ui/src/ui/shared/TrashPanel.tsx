@@ -122,7 +122,6 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
         return;
       }
       showError(error, t("error_messages.unknown"));
-      setEntries([]);
     } finally {
       if (requestId === loadRequestIdRef.current && contextVersion === contextVersionRef.current) {
         setLoading(false);

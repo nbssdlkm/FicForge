@@ -84,7 +84,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         default_llm: {
           ...settings.default_llm,
           mode,
-          model: mode === 'ollama' ? '' : model,
+          model: mode === 'api' ? model : '',
           api_base: mode === 'ollama' ? (apiBase || 'http://localhost:11434') : apiBase,
           api_key: mode === 'api' ? apiKey : '',
           local_model_path: mode === 'local' ? localModelPath : '',

@@ -52,6 +52,8 @@
     },
     "labels": {
       "model": "模型",
+      "localModelPath": "本地模型路径",
+      "ollamaModel": "Ollama 模型名",
       "apiBase": "接口地址",
       "apiKey": "密钥",
       "contextWindow": "一次能读多少字",
@@ -81,6 +83,8 @@
       "contextWindow": "AI 每次续写时能参考的最大文字量。数字越大，AI 能记住的前文和设定越多。大部分模型是 128k（约10万字），一般不用改。",
       "apiBase": "你的 AI 服务商提供的地址，比如 DeepSeek 就填 https://api.deepseek.com",
       "apiKey": "在你的 AI 服务商网站上获取，类似一串密码，用来验证你的身份",
+      "localModelPath": "填写本地模型文件所在目录，用来让程序找到你的模型。",
+      "ollamaModel": "填写你本机 Ollama 已经拉取好的模型名，比如 llama3。",
       "llmMode": {
         "api": "在线API：最简单，填密钥就能用",
         "local": "本地模型：不联网，需要自己下载模型文件",
@@ -230,14 +234,30 @@
     "fandomEmptyTitle": "AI 助手已经准备好",
     "fandomEmptyDescription": "可以直接贴角色分析或世界观笔记，AI 会帮你整理成原作资料文件。",
     "parseError": "这条工具参数解析失败，暂时不能直接确认。你可以跳过，或者等后端/模型返回更完整的结构。",
+    "parseErrorTitle": "参数解析失败",
+    "showRawArguments": "查看原始参数",
     "sideTitle": "设定模式",
     "sideDescription": "这里会沿用当前故事的模型配置，但不会碰正文草稿。确认卡片生效后，设定文件和剧情笔记会立即更新。",
+    "historyPreviousTools": "AI 上一轮建议的操作：\n{{tools}}",
+    "historyProcessedTools": "本轮已处理的操作：\n{{tools}}",
+    "toolActionBusy": "有操作正在执行，请等待完成。",
+    "switchBlocked": "设定操作进行中，请等待完成。",
+    "statusSummary": {
+      "executed": "已执行 {{name}}",
+      "skipped": "已跳过 {{name}}",
+      "undone": "已撤销 {{name}}"
+    },
+    "prompt": {
+      "importCharacter": "下面是一段较长的用户文本。请优先把它整理成角色设定文件，尽量保留原文，不删减用户提供的关键信息。",
+      "importWorldbuilding": "下面是一段较长的用户文本。请优先把它整理成世界观设定文件，尽量保留原文，不删减用户提供的关键信息。"
+    },
     "field": {
       "origin": "来源"
     },
     "warning": {
       "existingFile": "⚠️ {{name}} 已存在，不能直接创建。请先改名，或改成修改这份文件。",
-      "duplicatePinned": "⚠️ 已有相同的写作底线，确认前最好再看一眼。"
+      "duplicatePinned": "⚠️ 已有相同的写作底线，确认前最好再看一眼。",
+      "coreIncludesMissingPartial": "以下角色不存在，已自动跳过：{{names}}"
     },
     "error": {
       "unsupportedTool": "这个工具当前还没接前端执行：{{name}}",
@@ -245,7 +265,8 @@
       "pinnedUndoNotFound": "这条写作底线的位置已经变化，暂时没法自动撤销。",
       "createCharacterRollbackFailed": "角色文件 {{name}} 已经写入，但更新角色列表时失败，回滚也没成功。请检查角色文件或垃圾箱后再继续。",
       "supportDataUnavailable": "当前设定列表还没同步完成，暂时不能执行这项改动。稍等一下再试。",
-      "projectUnavailable": "当前故事设置还没加载完成，暂时不能执行这项改动。稍等一下再试。"
+      "projectUnavailable": "当前故事设置还没加载完成，暂时不能执行这项改动。稍等一下再试。",
+      "coreIncludesMissingAll": "指定的角色均不存在，暂时不能保存必带角色。"
     },
     "validation": {
       "nameRequired": "名称不能为空。",
@@ -492,6 +513,7 @@
     "selectedTag": "本篇角色",
     "deleteTitle": "确认删除设定文件",
     "deleteMessage": "确定要删除「{{name}}」吗？文件将移入垃圾箱，30 天内可恢复。",
+    "createDuplicate": "「{{name}}」已经存在，先换个名字再创建。",
     "emptyCharacters": {
       "title": "还没有角色设定",
       "description": "添加角色后，AI 续写时会自动参考人设，避免崩人设。"

@@ -27,6 +27,9 @@ type ExtractedFactCandidate = {
 export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const { t } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
+  const activeAuPathRef = useRef(auPath);
+  activeAuPathRef.current = auPath;
+  const loadFactsRequestIdRef = useRef(0);
   const [facts, setFacts] = useState<FactInfo[]>([]);
   const [state, setState] = useState<StateInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,21 +56,37 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
 
   const loadFacts = async () => {
     if (!auPath) return;
+    const requestId = ++loadFactsRequestIdRef.current;
+    const requestAuPath = auPath;
     setLoading(true);
     try {
       const [factsData, stateData] = await Promise.all([
         listFacts(auPath, statusFilter || undefined),
         getState(auPath).catch(() => null),
       ]);
+      if (requestId !== loadFactsRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
       setFacts(factsData);
       setState(stateData);
     } catch (error) {
+      if (requestId !== loadFactsRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
-      setFacts([]);
     } finally {
-      setLoading(false);
+      if (requestId === loadFactsRequestIdRef.current && activeAuPathRef.current === requestAuPath) {
+        setLoading(false);
+      }
     }
   };
+
+  useEffect(() => {
+    activeAuPathRef.current = auPath;
+    loadFactsRequestIdRef.current += 1;
+    setLoading(true);
+    setFacts([]);
+    setState(null);
+    setEditingFact(null);
+    setExtractModalOpen(false);
+    setExtractedCandidates([]);
+  }, [auPath]);
 
   useEffect(() => {
     void loadFacts();
@@ -417,6 +436,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 <option value="plot_event">{getEnumLabel('fact_type', 'plot_event', 'plot_event')}</option>
                 <option value="character_detail">{getEnumLabel('fact_type', 'character_detail', 'character_detail')}</option>
                 <option value="relationship">{getEnumLabel('fact_type', 'relationship', 'relationship')}</option>
+                <option value="backstory">{getEnumLabel('fact_type', 'backstory', 'backstory')}</option>
                 <option value="foreshadowing">{getEnumLabel('fact_type', 'foreshadowing', 'foreshadowing')}</option>
                 <option value="world_rule">{getEnumLabel('fact_type', 'world_rule', 'world_rule')}</option>
               </select>

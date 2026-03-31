@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
 import { Tag } from '../shared/Tag';
 import { Modal } from '../shared/Modal';
 import { Settings, Save, Trash2, Plus, Loader2, AlertCircle } from 'lucide-react';
 import { getProject, updateProject, type ProjectInfo } from '../../api/project';
-import { getSettings, updateSettings } from '../../api/settings';
+import { getSettings, type SettingsInfo } from '../../api/settings';
 import { getState, recalcState } from '../../api/state';
 import { GlobalSettingsModal } from './GlobalSettingsModal';
 import { EmptyState } from '../shared/EmptyState';
@@ -15,9 +15,12 @@ import { useFeedback } from '../../hooks/useFeedback';
 
 export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const { t } = useTranslation();
-  const { showError, showSuccess } = useFeedback();
+  const { showError, showSuccess, showToast } = useFeedback();
+  const activeAuPathRef = useRef(auPath);
+  activeAuPathRef.current = auPath;
+  const loadSettingsRequestIdRef = useRef(0);
   const [project, setProject] = useState<ProjectInfo | null>(null);
-  const [globalSettings, setGlobalSettings] = useState<any>(null);
+  const [globalSettings, setGlobalSettings] = useState<SettingsInfo | null>(null);
   const [indexStatus, setIndexStatus] = useState('stale');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -35,6 +38,8 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const [isLlMOverride, setIsLlmOverride] = useState(false);
   const [llmMode, setLlmMode] = useState('api');
   const [auModel, setAuModel] = useState('');
+  const [auLocalModelPath, setAuLocalModelPath] = useState('');
+  const [auOllamaModel, setAuOllamaModel] = useState('');
   const [auApiBase, setAuApiBase] = useState('');
   const [auApiKey, setAuApiKey] = useState('');
   const [contextWindow, setContextWindow] = useState(128000);
@@ -43,25 +48,61 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const [recalcing, setRecalcing] = useState(false);
 
   const handleRecalc = async () => {
+    const requestAuPath = auPath;
     setRecalcing(true);
     try {
       const result = await recalcState(auPath);
+      if (activeAuPathRef.current !== requestAuPath) return;
       showSuccess(t('advanced.recalcSuccess', { scanned: result.chapters_scanned, dirty: result.cleaned_dirty_count }));
     } catch (error) {
+      if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      setRecalcing(false);
+      if (activeAuPathRef.current === requestAuPath) {
+        setRecalcing(false);
+      }
     }
   };
 
   useEffect(() => {
     if (!auPath) return;
+    activeAuPathRef.current = auPath;
+    loadSettingsRequestIdRef.current += 1;
     setLoading(true);
-    Promise.all([
-      getProject(auPath).catch(() => null),
-      getSettings().catch(() => null),
-      getState(auPath).catch(() => null),
-    ]).then(([proj, settings, state]) => {
+    setProject(null);
+    setGlobalSettings(null);
+    setIndexStatus('stale');
+    setPerspective('third_person');
+    setEmotionStyle('implicit');
+    setChapterLength(2000);
+    setCustomInstructions('');
+    setPinnedContext([]);
+    setCoreIncludes([]);
+    setIsLlmOverride(false);
+    setLlmMode('api');
+    setAuModel('');
+    setAuLocalModelPath('');
+    setAuOllamaModel('');
+    setAuApiBase('');
+    setAuApiKey('');
+    setContextWindow(128000);
+
+    const requestId = ++loadSettingsRequestIdRef.current;
+    Promise.allSettled([
+      getProject(auPath),
+      getSettings(),
+      getState(auPath),
+    ]).then(([projResult, settingsResult, stateResult]) => {
+      if (requestId !== loadSettingsRequestIdRef.current || activeAuPathRef.current !== auPath) return;
+      let firstError: unknown = null;
+      const proj = projResult.status === 'fulfilled' ? projResult.value : null;
+      const settings = settingsResult.status === 'fulfilled' ? settingsResult.value : null;
+      const state = stateResult.status === 'fulfilled' ? stateResult.value : null;
+
+      if (projResult.status === 'rejected') firstError = firstError || projResult.reason;
+      if (settingsResult.status === 'rejected') firstError = firstError || settingsResult.reason;
+      if (stateResult.status === 'rejected') firstError = firstError || stateResult.reason;
+
       setProject(proj);
       setGlobalSettings(settings);
       setIndexStatus((state as any)?.index_status || 'stale');
@@ -72,26 +113,42 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
         setCustomInstructions(proj.writing_style?.custom_instructions || '');
         setPinnedContext(proj.pinned_context || []);
         setCoreIncludes(proj.core_always_include || []);
-        
-        // Load AU LLM config if present
-        if (proj.llm && proj.llm.model) {
+
+        if (
+          proj.llm
+          && (
+            proj.llm.mode !== 'api'
+            || proj.llm.model
+            || proj.llm.api_base
+            || proj.llm.api_key
+            || proj.llm.local_model_path
+            || proj.llm.ollama_model
+          )
+        ) {
           setIsLlmOverride(true);
           setLlmMode(proj.llm.mode || 'api');
-          setAuModel(proj.llm.model);
+          setAuModel(proj.llm.model || '');
+          setAuLocalModelPath(proj.llm.local_model_path || '');
+          setAuOllamaModel(proj.llm.ollama_model || proj.llm.model || '');
           setAuApiBase(proj.llm.api_base || '');
           setAuApiKey(proj.llm.api_key || '');
           setContextWindow(proj.llm.context_window || 128000);
         }
       }
-    }).finally(() => setLoading(false));
+      if (firstError) {
+        showError(firstError, t('error_messages.unknown'));
+      }
+    }).finally(() => {
+      if (requestId === loadSettingsRequestIdRef.current && activeAuPathRef.current === auPath) {
+        setLoading(false);
+      }
+    });
   }, [auPath]);
 
   const handleSave = async () => {
+    const requestAuPath = auPath;
     setSaving(true);
     try {
-      if (globalSettings) {
-        await updateSettings('./fandoms', globalSettings);
-      }
       if (project) {
         const payload: any = {
           chapter_length: chapterLength,
@@ -107,25 +164,38 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
         
         if (isLlMOverride) {
            payload.llm = {
-             ...project.llm,
              mode: llmMode,
-             model: auModel,
-             api_base: auApiBase,
-             api_key: auApiKey,
+             model: llmMode === 'api' ? auModel : '',
+             api_base: llmMode === 'ollama' ? (auApiBase || 'http://localhost:11434') : auApiBase,
+             api_key: llmMode === 'api' ? auApiKey : '',
+             local_model_path: llmMode === 'local' ? auLocalModelPath : '',
+             ollama_model: llmMode === 'ollama' ? auOllamaModel : '',
              context_window: contextWindow,
            };
         } else {
            // Clear it so it falls back to global
-           payload.llm = { mode: 'api', model: '', api_base: '', api_key: '', context_window: 0 };
+           payload.llm = {
+             mode: 'api',
+             model: '',
+             api_base: '',
+             api_key: '',
+             local_model_path: '',
+             ollama_model: '',
+             context_window: 0,
+           };
         }
         
         await updateProject(auPath, payload);
+        if (activeAuPathRef.current !== requestAuPath) return;
       }
       showSuccess(t("common.actions.save"));
     } catch (e: any) {
+      if (activeAuPathRef.current !== requestAuPath) return;
       showError(e, t("error_messages.unknown"));
     } finally {
-      setSaving(false);
+      if (activeAuPathRef.current === requestAuPath) {
+        setSaving(false);
+      }
     }
   };
 
@@ -135,9 +205,14 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
 
   const removeCoreInclude = (idx: number) => setCoreIncludes(prev => prev.filter((_, i) => i !== idx));
   const addCoreInclude = () => {
-    const value = coreIncludeName.trim();
+    const value = coreIncludeName.trim().replace(/\.md$/i, '');
     if (!value) return;
-    setCoreIncludes(prev => [...prev, value]);
+    const availableCharacters = new Set(project?.cast_registry?.characters || []);
+    if (availableCharacters.size > 0 && !availableCharacters.has(value)) {
+      showToast(t('settings.coreIncludeMissing', { name: value }), 'warning');
+      return;
+    }
+    setCoreIncludes(prev => (prev.includes(value) ? prev : [...prev, value]));
     setCoreIncludeName('');
     setCoreIncludeModalOpen(false);
   };
@@ -198,20 +273,45 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                     </select>
                     <p className="text-xs text-text/50">{t(`common.help.llmMode.${llmMode}`)}</p>
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-text/80">{t("settings.story.storyModel")}</label>
-                    <Input value={auModel} onChange={e => setAuModel(e.target.value)} placeholder="deepseek-chat" className="h-9 text-sm" />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                     <label className="text-xs font-bold text-text/80">{t("common.labels.apiKey")}</label>
-                     <Input type="password" value={auApiKey} onChange={e => setAuApiKey(e.target.value)} placeholder="sk-..." className="h-9 text-sm" />
-                     <p className="text-xs text-text/50">{t("common.help.apiKey")}</p>
-                  </div>
-                  <div className="flex flex-col gap-1.5 md:col-span-2">
-                     <label className="text-xs font-bold text-text/80">{t("common.labels.apiBase")}</label>
-                     <Input value={auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="https://api.deepseek.com" className="h-9 text-sm" />
-                     <p className="text-xs text-text/50">{t("common.help.apiBase")}</p>
-                  </div>
+                  {llmMode === 'api' && (
+                    <>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-text/80">{t("settings.story.storyModel")}</label>
+                        <Input value={auModel} onChange={e => setAuModel(e.target.value)} placeholder="deepseek-chat" className="h-9 text-sm" />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                         <label className="text-xs font-bold text-text/80">{t("common.labels.apiKey")}</label>
+                         <Input type="password" value={auApiKey} onChange={e => setAuApiKey(e.target.value)} placeholder="sk-..." className="h-9 text-sm" />
+                         <p className="text-xs text-text/50">{t("common.help.apiKey")}</p>
+                      </div>
+                      <div className="flex flex-col gap-1.5 md:col-span-2">
+                         <label className="text-xs font-bold text-text/80">{t("common.labels.apiBase")}</label>
+                         <Input value={auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="https://api.deepseek.com" className="h-9 text-sm" />
+                         <p className="text-xs text-text/50">{t("common.help.apiBase")}</p>
+                      </div>
+                    </>
+                  )}
+                  {llmMode === 'local' && (
+                    <div className="flex flex-col gap-1.5 md:col-span-2">
+                      <label className="text-xs font-bold text-text/80">{t("common.labels.localModelPath")}</label>
+                      <Input value={auLocalModelPath} onChange={e => setAuLocalModelPath(e.target.value)} placeholder="/path/to/model" className="h-9 text-sm" />
+                      <p className="text-xs text-text/50">{t("common.help.localModelPath")}</p>
+                    </div>
+                  )}
+                  {llmMode === 'ollama' && (
+                    <>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-text/80">{t("common.labels.ollamaModel")}</label>
+                        <Input value={auOllamaModel} onChange={e => setAuOllamaModel(e.target.value)} placeholder="llama3" className="h-9 text-sm" />
+                        <p className="text-xs text-text/50">{t("common.help.ollamaModel")}</p>
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                         <label className="text-xs font-bold text-text/80">{t("common.labels.apiBase")}</label>
+                         <Input value={auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="http://localhost:11434" className="h-9 text-sm" />
+                         <p className="text-xs text-text/50">{t("common.help.apiBase")}</p>
+                      </div>
+                    </>
+                  )}
                   <div className="flex flex-col gap-1.5 md:col-span-2">
                      <label className="text-xs font-bold text-text/80">{t("common.labels.contextWindow")}</label>
                      <Input type="number" value={contextWindow} onChange={e => setContextWindow(parseInt(e.target.value, 10) || 0)} className="h-9 text-sm" />

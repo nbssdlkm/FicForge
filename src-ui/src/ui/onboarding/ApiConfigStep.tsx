@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
@@ -38,9 +38,16 @@ export function ApiConfigStep({
   initialConfig?: Partial<ApiConfig>;
 }) {
   const { t } = useTranslation();
+  const requestIdRef = useRef(0);
   const [config, setConfig] = useState<ApiConfig>({ ...DEFAULT_CONFIG, ...initialConfig });
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestResult>(null);
+
+  useEffect(() => {
+    return () => {
+      requestIdRef.current += 1;
+    };
+  }, []);
 
   const update = (field: keyof ApiConfig, value: string) => {
     setConfig(prev => ({ ...prev, [field]: value }));
@@ -48,6 +55,7 @@ export function ApiConfigStep({
   };
 
   const handleTest = async () => {
+    const requestId = ++requestIdRef.current;
     setTesting(true);
     setTestResult(null);
     try {
@@ -62,11 +70,15 @@ export function ApiConfigStep({
           ollama_model: config.ollama_model,
         }),
       });
+      if (requestId !== requestIdRef.current) return;
       setTestResult(result as TestResult);
     } catch (e: any) {
+      if (requestId !== requestIdRef.current) return;
       setTestResult({ success: false, message: e.message || 'Unknown error' });
     } finally {
-      setTesting(false);
+      if (requestId === requestIdRef.current) {
+        setTesting(false);
+      }
     }
   };
 

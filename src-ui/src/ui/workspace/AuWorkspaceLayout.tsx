@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '../shared/Sidebar';
 import { Button } from '../shared/Button';
 import { EmptyState } from '../shared/EmptyState';
@@ -26,6 +26,9 @@ type Props = {
 
 function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const { t } = useTranslation();
+  const activeAuPathRef = useRef(auPath);
+  activeAuPathRef.current = auPath;
+  const loadWorkspaceRequestIdRef = useRef(0);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [loadingChapters, setLoadingChapters] = useState(false);
@@ -50,14 +53,31 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
 
   useEffect(() => {
     if (!auPath) return;
+    const requestId = ++loadWorkspaceRequestIdRef.current;
+    const requestAuPath = auPath;
     setLoadingChapters(true);
+    setChapters([]);
+    setCurrentChapter(1);
+    setFactsCount(0);
+    setEmbeddingStale(false);
+    setPinnedCount(0);
+    setUnresolvedFact(null);
+    setChapterFocusEmpty(true);
     listChapters(auPath)
-      .then(res => setChapters(res))
-      .catch(() => setChapters([]))
-      .finally(() => setLoadingChapters(false));
+      .then((res) => {
+        if (requestId !== loadWorkspaceRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
+        setChapters(res);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (requestId === loadWorkspaceRequestIdRef.current && activeAuPathRef.current === requestAuPath) {
+          setLoadingChapters(false);
+        }
+      });
 
     // Embedding check (sub-task 5): check index_status
     getState(auPath).then(s => {
+      if (requestId !== loadWorkspaceRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
       if (s.index_status === 'stale' || s.index_status === 'interrupted') {
         setEmbeddingStale(true);
       }
@@ -67,21 +87,24 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
     const anyMilestoneActive = shouldShow('facts_intro') || shouldShow('pinned_intro') || shouldShow('focus_intro');
     if (anyMilestoneActive) {
       getState(auPath).then(state => {
+        if (requestId !== loadWorkspaceRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
         setCurrentChapter(state.current_chapter || 1);
         setChapterFocusEmpty(!state.chapter_focus || state.chapter_focus.length === 0);
       }).catch(() => {});
 
       listFacts(auPath).then(facts => {
+        if (requestId !== loadWorkspaceRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
         setFactsCount(facts.length);
         const firstUnresolved = facts.find((f: FactInfo) => f.status === 'unresolved');
         setUnresolvedFact(firstUnresolved ? (firstUnresolved.content_clean || '').slice(0, 20) + '...' : null);
       }).catch(() => {});
 
       getProject(auPath).then(proj => {
+        if (requestId !== loadWorkspaceRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
         setPinnedCount((proj.pinned_context || []).length);
       }).catch(() => {});
     }
-  }, [auPath]);
+  }, [auPath, shouldShow]);
 
   return (
     <div className="h-screen w-screen flex overflow-hidden bg-background text-text font-sans transition-colors duration-200">

@@ -63,6 +63,34 @@ const MAX_RECOMMENDED_DRAFTS = 5;
 
 type WriterMode = 'write' | 'settings';
 
+function hasSessionLlmOverride(llm: ProjectInfo['llm'] | null | undefined): boolean {
+  return Boolean(
+    llm && (
+      llm.mode !== 'api'
+      || llm.model
+      || llm.api_base
+      || llm.api_key
+      || llm.local_model_path
+      || llm.ollama_model
+    )
+  );
+}
+
+function getConfiguredLlmModel(llm: ProjectInfo['llm'] | null | undefined): string {
+  if (!llm) return '';
+  if (llm.mode === 'ollama') {
+    return llm.ollama_model || llm.model || '';
+  }
+  if (llm.mode === 'local') {
+    if (llm.model) return llm.model;
+    const path = llm.local_model_path?.trim() || '';
+    if (!path) return '';
+    const segments = path.split(/[\\/]/).filter(Boolean);
+    return segments[segments.length - 1] || path;
+  }
+  return llm.model || '';
+}
+
 function buildDraftId(chapterNum: number, label: string): string {
   return `ch${String(chapterNum).padStart(4, '0')}_draft_${label}.md`;
 }
@@ -277,6 +305,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   activeAuPathRef.current = auPath;
   const [mode, setMode] = useState<WriterMode>('write');
   const [showSettingsTooltip, setShowSettingsTooltip] = useState(false);
+  const [isSettingsModeBusy, setSettingsModeBusy] = useState(false);
 
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [isExportOpen, setExportOpen] = useState(false);
@@ -456,17 +485,19 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
       let defTemp = 1.0;
       let defTopP = 0.95;
 
-      if (settings?.default_llm?.model) {
-        defModel = settings.default_llm.model;
-        const globalParams = settings.model_params?.[defModel];
+      const globalConfiguredModel = getConfiguredLlmModel(settings?.default_llm as ProjectInfo['llm']);
+      if (globalConfiguredModel) {
+        defModel = globalConfiguredModel;
+        const globalParams = settings?.model_params?.[defModel];
         if (globalParams) {
           defTemp = globalParams.temperature;
           defTopP = globalParams.top_p;
         }
       }
 
-      if (proj?.llm?.model) {
-        defModel = proj.llm.model;
+      const projectConfiguredModel = getConfiguredLlmModel(proj?.llm);
+      if (projectConfiguredModel) {
+        defModel = projectConfiguredModel;
       }
       if (proj?.model_params_override?.[defModel]) {
         defTemp = proj.model_params_override[defModel].temperature;
@@ -580,15 +611,18 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   const sessionLlmPayload = useMemo(() => {
     if (!sessionModel) return null;
 
-    const source = projectInfo?.llm?.model
-      ? projectInfo.llm
+    const source = hasSessionLlmOverride(projectInfo?.llm)
+      ? projectInfo?.llm
       : settingsInfo?.default_llm;
+    const configuredModel = getConfiguredLlmModel(source as ProjectInfo['llm']) || sessionModel;
 
     return {
       mode: source?.mode || 'api',
-      model: sessionModel,
+      model: configuredModel,
       api_base: source?.api_base || '',
       api_key: source?.api_key || '',
+      local_model_path: source?.local_model_path || '',
+      ollama_model: source?.ollama_model || '',
     };
   }, [projectInfo, sessionModel, settingsInfo]);
 
@@ -910,6 +944,10 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   };
 
   const handleModeChange = (nextMode: WriterMode) => {
+    if (mode === 'settings' && nextMode === 'write' && isSettingsModeBusy) {
+      showToast(t('settingsMode.switchBlocked'), 'warning');
+      return;
+    }
     setMode(nextMode);
     if (nextMode === 'settings' && !hasSeenSettingsModeTooltip()) {
       setShowSettingsTooltip(true);
@@ -1181,10 +1219,10 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
                   </div>
 
                   <div className="flex flex-wrap items-center justify-end gap-2">
-                    <Button variant="primary" size="sm" className="h-8 gap-1" onClick={() => setFinalizeConfirmOpen(true)} disabled={isGenerating || isFinalizing}>
+                    <Button variant="primary" size="sm" className="h-8 gap-1" onClick={() => setFinalizeConfirmOpen(true)} disabled={isGenerating || isFinalizing || isSettingsModeBusy}>
                       <Check size={15} /> {t('drafts.finalize')}
                     </Button>
-                    <Button variant="secondary" size="sm" className="h-8 gap-1" onClick={() => void handleRegenerate()} disabled={isGenerating || isFinalizing}>
+                    <Button variant="secondary" size="sm" className="h-8 gap-1" onClick={() => void handleRegenerate()} disabled={isGenerating || isFinalizing || isSettingsModeBusy}>
                       {isGenerating ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
                       {t('drafts.regenerate')}
                     </Button>
@@ -1193,7 +1231,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
                       size="sm"
                       className="h-8 gap-1 text-error/80 hover:bg-error/10 hover:text-error"
                       onClick={() => setDiscardConfirmOpen(true)}
-                      disabled={isGenerating || isDiscarding}
+                      disabled={isGenerating || isDiscarding || isSettingsModeBusy}
                     >
                       <Trash2 size={15} />
                       {drafts.length > 1 ? t('drafts.discardAll') : t('drafts.discard')}
@@ -1218,7 +1256,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
                 value={instructionText}
                 onChange={(event) => setInstructionText(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key !== 'Enter' || isGenerating) return;
+                  if (event.key !== 'Enter' || isGenerating || isSettingsModeBusy) return;
 
                   if (hasPendingDrafts) {
                     showToast(t('drafts.generatingBlocked'), 'warning');
@@ -1227,13 +1265,14 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
 
                   void handleGenerateFromInput(instructionText.trim() ? 'instruction' : 'continue');
                 }}
-                className="h-9 w-full rounded-lg border border-black/10 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent/50 dark:border-white/10"
+                disabled={isSettingsModeBusy}
+                className="h-9 w-full rounded-lg border border-black/10 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10"
               />
             </div>
 
             <div className="mx-auto mt-2 flex w-full max-w-3xl items-center justify-between border-t border-black/5 pt-2 dark:border-white/5">
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => setUndoConfirmOpen(true)} disabled={currentChapter <= 1 || isGenerating}>
+                <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => setUndoConfirmOpen(true)} disabled={currentChapter <= 1 || isGenerating || isSettingsModeBusy}>
                   <Undo2 size={16} className="mr-2" /> {t('common.actions.undoPreviousChapter')}
                 </Button>
                 <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => onNavigate('facts')}>
@@ -1245,7 +1284,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
                   variant="secondary"
                   className="w-32 shadow-medium"
                   onClick={() => void handleGenerateFromInput('instruction')}
-                  disabled={isGenerating || hasPendingDrafts || !instructionText.trim()}
+                  disabled={isGenerating || hasPendingDrafts || !instructionText.trim() || isSettingsModeBusy}
                 >
                   {t('common.actions.instruction')}
                 </Button>
@@ -1253,7 +1292,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
                   variant="primary"
                   className="w-32 shadow-medium"
                   onClick={() => void handleGenerateFromInput('continue')}
-                  disabled={isGenerating || hasPendingDrafts}
+                  disabled={isGenerating || hasPendingDrafts || isSettingsModeBusy}
                 >
                   {isGenerating ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.continue')}
                 </Button>
@@ -1280,6 +1319,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
               currentChapter={currentChapter}
               sessionLlm={settingsSessionLlm}
               disabled={loading || !state}
+              onBusyChange={setSettingsModeBusy}
               onAfterMutation={async () => {
                 await refreshSettingsModeData();
               }}
