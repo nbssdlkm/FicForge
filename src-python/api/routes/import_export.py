@@ -108,6 +108,15 @@ async def import_upload(file: UploadFile):
         chapters = await run_in_threadpool(split_into_chapters, raw_text, suffix.lstrip("."))
         split_method = get_split_method(raw_text)
 
+        # 空文件检测（B-12）
+        if not chapters:
+            return error_response(
+                400,
+                "EMPTY_CONTENT",
+                "文件内容为空，无法导入",
+                ["请检查文件是否有实际内容"],
+            )
+
         # 构建预览
         previews: list[ChapterPreview] = []
         for ch in chapters:
