@@ -24,6 +24,7 @@ def recalc_state(
     state_repo: Any,
     chapter_repo: Any,
     project_repo: Any,
+    fact_repo: Any = None,
 ) -> dict[str, Any]:
     """重算全局状态，返回重建结果。
 
@@ -68,12 +69,16 @@ def recalc_state(
         state.characters_last_seen = {}
         state.last_scene_ending = ""
         state.last_confirmed_chapter_focus = []
+        state.chapters_dirty = []
+        state.chapter_focus = []
         state_repo.save(state)
         return {
             "characters_last_seen": {},
             "last_scene_ending": "",
             "last_confirmed_chapter_focus": [],
             "chapters_scanned": 0,
+            "cleaned_dirty_count": 0,
+            "cleaned_focus_count": 0,
         }
 
     # 按章节号排序
@@ -109,10 +114,32 @@ def recalc_state(
     # 从最后一章读取 confirmed_focus
     new_last_confirmed_focus = list(getattr(last_chapter, "confirmed_focus", []) or [])
 
+    # 清理 chapters_dirty：移除不存在章节文件的 dirty 标记
+    existing_nums = {ch.chapter_num for ch in sorted_chapters}
+    old_dirty = list(getattr(state, "chapters_dirty", []) or [])
+    new_dirty = [n for n in old_dirty if n in existing_nums]
+    cleaned_dirty_count = len(old_dirty) - len(new_dirty)
+
+    # 清理 chapter_focus：移除失效的 fact_id（不存在或已 resolved）
+    old_focus = list(getattr(state, "chapter_focus", []) or [])
+    cleaned_focus_count = 0
+    if old_focus and fact_repo:
+        try:
+            facts = fact_repo.list_all(au_id)
+            valid_focus_ids = {f.id for f in facts if f.status == "unresolved"}
+            new_focus = [fid for fid in old_focus if fid in valid_focus_ids]
+            cleaned_focus_count = len(old_focus) - len(new_focus)
+        except Exception:
+            new_focus = old_focus
+    else:
+        new_focus = old_focus
+
     # 写回 state
     state.characters_last_seen = new_characters_last_seen
     state.last_scene_ending = new_last_scene_ending
     state.last_confirmed_chapter_focus = new_last_confirmed_focus
+    state.chapters_dirty = new_dirty
+    state.chapter_focus = new_focus
     state_repo.save(state)
 
     return {
@@ -120,4 +147,6 @@ def recalc_state(
         "last_scene_ending": new_last_scene_ending,
         "last_confirmed_chapter_focus": new_last_confirmed_focus,
         "chapters_scanned": chapters_scanned,
+        "cleaned_dirty_count": cleaned_dirty_count,
+        "cleaned_focus_count": cleaned_focus_count,
     }

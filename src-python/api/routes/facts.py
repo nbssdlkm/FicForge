@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from api import (
+    build_au_mutex,
     build_chapter_repository,
     build_fact_repository,
     build_ops_repository,
@@ -140,15 +141,20 @@ async def create_fact(request: AddFactRequest):
     repo = build_fact_repository()
     ops_repo = build_ops_repository()
 
+    mutex = build_au_mutex()
+
+    def _locked_add():
+        with mutex.get_lock(request.au_path):
+            return add_fact(
+                Path(request.au_path),
+                request.chapter_num,
+                request.fact_data.model_dump(exclude_none=True),
+                repo,
+                ops_repo,
+            )
+
     try:
-        fact = await run_in_threadpool(
-            add_fact,
-            Path(request.au_path),
-            request.chapter_num,
-            request.fact_data.model_dump(exclude_none=True),
-            repo,
-            ops_repo,
-        )
+        fact = await run_in_threadpool(_locked_add)
     except FactsLifecycleError as exc:
         logger.exception("Add fact failed: au=%s ch=%d", request.au_path, request.chapter_num)
         return error_response(
@@ -170,16 +176,21 @@ async def update_fact(fact_id: str, request: EditFactRequest):
     ops_repo = build_ops_repository()
     state_repo = build_state_repository()
 
+    mutex = build_au_mutex()
+
+    def _locked_edit():
+        with mutex.get_lock(request.au_path):
+            return edit_fact(
+                Path(request.au_path),
+                fact_id,
+                request.updated_fields,
+                repo,
+                ops_repo,
+                state_repo,
+            )
+
     try:
-        fact = await run_in_threadpool(
-            edit_fact,
-            Path(request.au_path),
-            fact_id,
-            request.updated_fields,
-            repo,
-            ops_repo,
-            state_repo,
-        )
+        fact = await run_in_threadpool(_locked_edit)
     except FactsLifecycleError as exc:
         logger.exception("Edit fact failed: au=%s fact_id=%s", request.au_path, fact_id)
         return error_response(
@@ -201,17 +212,22 @@ async def patch_fact_status(fact_id: str, request: UpdateFactStatusRequest):
     ops_repo = build_ops_repository()
     state_repo = build_state_repository()
 
+    mutex = build_au_mutex()
+
+    def _locked_status():
+        with mutex.get_lock(request.au_path):
+            return update_fact_status(
+                Path(request.au_path),
+                fact_id,
+                request.new_status.value,
+                request.chapter_num,
+                repo,
+                ops_repo,
+                state_repo,
+            )
+
     try:
-        result = await run_in_threadpool(
-            update_fact_status,
-            Path(request.au_path),
-            fact_id,
-            request.new_status.value,
-            request.chapter_num,
-            repo,
-            ops_repo,
-            state_repo,
-        )
+        result = await run_in_threadpool(_locked_status)
     except FactsLifecycleError as exc:
         logger.exception("Update fact status failed: au=%s fact_id=%s", request.au_path, fact_id)
         return error_response(

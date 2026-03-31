@@ -148,7 +148,13 @@ class SettingsUpdateResponse(BaseModel):
 async def get_settings():
     repo = build_settings_repository()
     settings = await run_in_threadpool(repo.get)
-    return SettingsPayload(**asdict(settings))
+    data = asdict(settings)
+    # 掩码 API Key
+    from api.routes.project import _mask_api_key
+    for section in ("default_llm", "embedding"):
+        if data.get(section) and data[section].get("api_key"):
+            data[section]["api_key"] = _mask_api_key(data[section]["api_key"])
+    return SettingsPayload(**data)
 
 
 @router.put("", response_model=SettingsUpdateResponse)
