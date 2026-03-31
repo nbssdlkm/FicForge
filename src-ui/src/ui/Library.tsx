@@ -7,6 +7,7 @@ import { Settings, Plus, BookOpen, Clock, FileText, Loader2, Trash2 } from 'luci
 import { Modal } from './shared/Modal';
 import { GlobalSettingsModal } from './settings/GlobalSettingsModal';
 import { EmptyState } from './shared/EmptyState';
+import { ImportFlow } from './import/ImportFlow';
 import { listFandoms, createFandom, createAu, deleteFandom, deleteAu, type FandomInfo } from '../api/fandoms';
 import { getSettings } from '../api/settings';
 import { useTranslation } from '../i18n/useAppTranslation';
@@ -25,6 +26,7 @@ function LibraryInner({ onNavigate }: Props) {
   const [isAuModalOpen, setAuModalOpen] = useState(false);
   const [isGlobalSettingsOpen, setGlobalSettingsOpen] = useState(false);
   const [isImportModalOpen, setImportModalOpen] = useState(false);
+  const [importAuPath, setImportAuPath] = useState('');
   const [fandoms, setFandoms] = useState<FandomInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [newFandomName, setNewFandomName] = useState('');
@@ -244,23 +246,39 @@ function LibraryInner({ onNavigate }: Props) {
 
       <GlobalSettingsModal isOpen={isGlobalSettingsOpen} onClose={() => setGlobalSettingsOpen(false)} />
 
-      <Modal isOpen={isImportModalOpen} onClose={() => setImportModalOpen(false)} title={t('library.importFlow.title')}>
+      {/* Import flow: AU selector → ImportFlow */}
+      <Modal isOpen={isImportModalOpen && !importAuPath} onClose={() => setImportModalOpen(false)} title={t('import.selectAu')}>
         <div className="space-y-4">
-          <p className="text-sm text-text/80 leading-relaxed">{t('library.importFlow.description')}</p>
-          <div className="flex justify-end gap-2">
+          <p className="text-sm text-text/70">{t('library.importFlow.description')}</p>
+          <div className="max-h-[40vh] overflow-y-auto space-y-2">
+            {fandoms.flatMap(f => f.aus.map(au => {
+              const auPath = `./fandoms/fandoms/${f.dir_name}/aus/${au}`;
+              return (
+                <button
+                  key={auPath}
+                  className="w-full text-left px-4 py-3 rounded-lg border border-black/10 dark:border-white/10 hover:bg-accent/5 hover:border-accent/30 transition-colors"
+                  onClick={() => { setImportAuPath(auPath); }}
+                >
+                  <div className="text-sm font-medium">{au}</div>
+                  <div className="text-xs text-text/40">{f.name}</div>
+                </button>
+              );
+            }))}
+            {fandoms.length === 0 && (
+              <p className="text-sm text-text/50 text-center py-4">{t('library.importFlow.description')}</p>
+            )}
+          </div>
+          <div className="flex justify-end">
             <Button variant="ghost" onClick={() => setImportModalOpen(false)}>{t('common.actions.cancel')}</Button>
-            <Button
-              variant="primary"
-              onClick={() => {
-                setImportModalOpen(false);
-                setFandomModalOpen(true);
-              }}
-            >
-              {t('library.importFlow.start')}
-            </Button>
           </div>
         </div>
       </Modal>
+      <ImportFlow
+        isOpen={isImportModalOpen && !!importAuPath}
+        onClose={() => { setImportModalOpen(false); setImportAuPath(''); }}
+        auPath={importAuPath}
+        onComplete={() => { setImportModalOpen(false); setImportAuPath(''); onNavigate('writer', importAuPath); }}
+      />
 
       <Modal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title={deleteTarget?.type === 'fandom' ? t('library.deleteFandomTitle') : t('library.deleteAuTitle')}>
         <div className="space-y-4">
