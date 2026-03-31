@@ -53,6 +53,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [isReadingFile, setIsReadingFile] = useState(false);
   const [settingsChatBusy, setSettingsChatBusy] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [characterFiles, setCharacterFiles] = useState<FandomFileEntry[]>([]);
   const [worldbuildingFiles, setWorldbuildingFiles] = useState<FandomFileEntry[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
@@ -79,11 +80,26 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
     ? (selectedCategory === 'core_characters' ? characterFiles : worldbuildingFiles)
       .find((file) => file.filename === selectedFile)
     : null;
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const filteredCharacterFiles = normalizedSearch
+    ? characterFiles.filter((file) =>
+        file.name.toLowerCase().includes(normalizedSearch)
+        || file.filename.toLowerCase().includes(normalizedSearch)
+      )
+    : characterFiles;
+  const filteredWorldbuildingFiles = normalizedSearch
+    ? worldbuildingFiles.filter((file) =>
+        file.name.toLowerCase().includes(normalizedSearch)
+        || file.filename.toLowerCase().includes(normalizedSearch)
+      )
+    : worldbuildingFiles;
 
   useEffect(() => {
     contextVersionRef.current += 1;
     loadFilesRequestIdRef.current += 1;
     selectFileRequestIdRef.current += 1;
+    setCharacterFiles([]);
+    setWorldbuildingFiles([]);
     setSelectedFile(null);
     setSelectedCategory('core_characters');
     setEditorContent('');
@@ -95,6 +111,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
     setDiscardChangesOpen(false);
     setCreateModalOpen(false);
     setCreateName('');
+    setSearchTerm('');
     setFilesLoading(false);
     pendingSelectionRef.current = null;
     pendingCreateCategoryRef.current = null;
@@ -426,7 +443,12 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
           </div>
           <div className="relative">
             <Search className="absolute left-2.5 top-2 text-text/50" size={14} />
-            <Input className="pl-8 h-8 text-xs placeholder:text-xs" placeholder={t("common.search.files")} />
+            <Input
+              className="pl-8 h-8 text-xs placeholder:text-xs"
+              placeholder={t("common.search.files")}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
         </header>
 
@@ -488,21 +510,21 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                   <div className="mt-1 space-y-0.5">
                     {filesLoading ? (
                       <div className="pl-6 py-2"><Loader2 size={14} className="animate-spin text-accent" /></div>
-                    ) : characterFiles.length === 0 ? (
+                    ) : filteredCharacterFiles.length === 0 ? (
                       <EmptyState
                         compact
                         icon={<Users size={28} />}
-                        title={t("emptyState.fandomCharacters.title")}
-                        description={t("emptyState.fandomCharacters.description")}
-                        actions={[
+                        title={characterFiles.length === 0 ? t("emptyState.fandomCharacters.title") : t("facts.noSearchResultTitle")}
+                        description={characterFiles.length === 0 ? t("emptyState.fandomCharacters.description") : t("facts.noSearchResultDescription")}
+                        actions={characterFiles.length === 0 ? [
                           {
                             key: 'create-character',
                             element: <Button variant="primary" size="sm" onClick={() => openCreateModal('core_characters')}>{t("common.actions.addCharacter")}</Button>,
                           },
-                        ]}
+                        ] : undefined}
                       />
                     ) : (
-                      characterFiles.map(f => (
+                      filteredCharacterFiles.map(f => (
                         <div
                           key={f.filename}
                           className={`flex items-center gap-2 pl-6 pr-2 py-1.5 text-sm cursor-pointer rounded-md transition-colors ${
@@ -536,21 +558,21 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                   <div className="mt-1 space-y-0.5">
                     {filesLoading ? (
                       <div className="pl-6 py-2"><Loader2 size={14} className="animate-spin text-accent" /></div>
-                    ) : worldbuildingFiles.length === 0 ? (
+                    ) : filteredWorldbuildingFiles.length === 0 ? (
                       <EmptyState
                         compact
                         icon={<Globe2 size={28} />}
-                        title={t("emptyState.fandomWorldbuilding.title")}
-                        description={t("emptyState.fandomWorldbuilding.description")}
-                        actions={[
+                        title={worldbuildingFiles.length === 0 ? t("emptyState.fandomWorldbuilding.title") : t("facts.noSearchResultTitle")}
+                        description={worldbuildingFiles.length === 0 ? t("emptyState.fandomWorldbuilding.description") : t("facts.noSearchResultDescription")}
+                        actions={worldbuildingFiles.length === 0 ? [
                           {
                             key: 'create-worldbuilding',
                             element: <Button variant="primary" size="sm" onClick={() => openCreateModal('core_worldbuilding')}>{t("common.actions.addWorldbuilding")}</Button>,
                           },
-                        ]}
+                        ] : undefined}
                       />
                     ) : (
-                      worldbuildingFiles.map(f => (
+                      filteredWorldbuildingFiles.map(f => (
                         <div
                           key={f.filename}
                           className={`flex items-center gap-2 pl-6 pr-2 py-1.5 text-sm cursor-pointer rounded-md transition-colors ${

@@ -108,7 +108,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={t('dirty.title')}>
+    <Modal isOpen={isOpen} onClose={isResolving ? () => {} : onClose} title={t('dirty.title')}>
       <div className="space-y-6 mt-2">
         <div className="p-4 bg-warning/10 text-warning text-sm rounded-lg border border-warning/20 leading-relaxed font-sans">
           <strong>{t('dirty.warningTitle')}：</strong> {t('dirty.warningDescription')}
@@ -141,6 +141,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
                     size="sm"
                     className="flex-1 border border-black/10 dark:border-white/10"
                     onClick={() => setDecision(f.id, 'keep')}
+                    disabled={isResolving}
                   >
                     {t('dirty.keep')}
                   </Button>
@@ -149,6 +150,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
                     size="sm"
                     className="flex-1 border border-black/10 dark:border-white/10"
                     onClick={() => setDecision(f.id, 'deprecate')}
+                    disabled={isResolving}
                   >
                     {t('dirty.deprecate')}
                   </Button>
@@ -163,6 +165,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
             variant="secondary"
             className="w-full border-dashed border-accent/40 text-accent gap-2 bg-accent/5 hover:bg-accent/10 transition-colors h-10"
             onClick={() => showToast(t('dirty.extractHint'), 'info')}
+            disabled={isResolving}
           >
              <Plus size={16}/> {t('dirty.extractButton')}
           </Button>

@@ -584,12 +584,16 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   }, [loadData]);
 
   const handleSaveGlobalParams = async () => {
+    const requestAuPath = auPath;
     try {
       const settings = await getSettings();
+      settings.model_params = settings.model_params || {};
       settings.model_params[sessionModel] = { temperature: sessionTemp, top_p: sessionTopP };
       await updateSettings('./fandoms', settings);
+      if (activeAuPathRef.current !== requestAuPath) return;
       showSuccess(t('writer.saveGlobalSuccess'));
     } catch (error) {
+      if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
     }
   };
