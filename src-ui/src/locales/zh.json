@@ -225,6 +225,7 @@
     "importAsCharacter": "📄 导入为角色设定",
     "importAsWorldbuilding": "🌍 导入为世界观",
     "sendAsInstruction": "💬 作为普通指令发送",
+    "actionInProgress": "有操作正在执行，请等待完成。",
     "fandomAiTitle": "🤖 AI 助手",
     "userLabel": "用户",
     "assistantLabel": "AI",
@@ -233,31 +234,31 @@
     "emptyDescription": "描述你想调整的人设、世界观、剧情笔记或写作底线，AI 会先给你一份待确认的变更清单。",
     "fandomEmptyTitle": "AI 助手已经准备好",
     "fandomEmptyDescription": "可以直接贴角色分析或世界观笔记，AI 会帮你整理成原作资料文件。",
-    "parseError": "这条工具参数解析失败，暂时不能直接确认。你可以跳过，或者等后端/模型返回更完整的结构。",
     "parseErrorTitle": "参数解析失败",
+    "parseError": "这条工具参数解析失败，暂时不能直接确认。你可以跳过，或者等后端/模型返回更完整的结构。",
     "showRawArguments": "查看原始参数",
     "sideTitle": "设定模式",
     "sideDescription": "这里会沿用当前故事的模型配置，但不会碰正文草稿。确认卡片生效后，设定文件和剧情笔记会立即更新。",
     "historyPreviousTools": "AI 上一轮建议的操作：\n{{tools}}",
     "historyProcessedTools": "本轮已处理的操作：\n{{tools}}",
     "toolActionBusy": "有操作正在执行，请等待完成。",
-    "switchBlocked": "设定操作进行中，请等待完成。",
+    "busyWriteBlocked": "设定操作进行中，请等待完成后再切回写文。",
     "statusSummary": {
       "executed": "已执行 {{name}}",
       "skipped": "已跳过 {{name}}",
       "undone": "已撤销 {{name}}"
     },
-    "prompt": {
-      "importCharacter": "下面是一段较长的用户文本。请优先把它整理成角色设定文件，尽量保留原文，不删减用户提供的关键信息。",
-      "importWorldbuilding": "下面是一段较长的用户文本。请优先把它整理成世界观设定文件，尽量保留原文，不删减用户提供的关键信息。"
-    },
     "field": {
       "origin": "来源"
+    },
+    "prompt": {
+      "largeTextCharacter": "下面是一段较长的用户文本。请优先把它整理成角色设定文件，尽量保留原文，不删减用户提供的关键信息。",
+      "largeTextWorldbuilding": "下面是一段较长的用户文本。请优先把它整理成世界观设定文件，尽量保留原文，不删减用户提供的关键信息。"
     },
     "warning": {
       "existingFile": "⚠️ {{name}} 已存在，不能直接创建。请先改名，或改成修改这份文件。",
       "duplicatePinned": "⚠️ 已有相同的写作底线，确认前最好再看一眼。",
-      "coreIncludesMissingPartial": "以下角色不存在，已自动跳过：{{names}}"
+      "coreIncludesPartialMissing": "以下角色不存在，已自动跳过：{{names}}"
     },
     "error": {
       "unsupportedTool": "这个工具当前还没接前端执行：{{name}}",
@@ -289,6 +290,7 @@
       "stylePerspectiveInvalid": "人称设置不合法。",
       "styleEmotionInvalid": "情绪表达方式不合法。",
       "coreIncludesRequired": "请提供必带角色列表。",
+      "coreIncludesAllMissing": "指定的角色都不存在，暂时不能保存。",
       "targetFileMissing": "找不到要修改的文件：{{name}}。请先确认文件名是否正确。"
     },
     "editor": {
@@ -596,9 +598,9 @@
       "character_detail": "人物细节",
       "relationship": "人物关系",
       "worldbuilding": "世界观",
-      "world_rule": "世界观",
+      "world_rule": "世界规则",
       "foreshadowing": "伏笔",
-      "backstory": "背景经历"
+      "backstory": "背景设定"
     },
     "narrative_weight": {
       "high": "★★★ 关键",

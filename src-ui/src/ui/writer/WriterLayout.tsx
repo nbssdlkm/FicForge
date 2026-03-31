@@ -30,7 +30,7 @@ import { listDrafts, getDraft, deleteDrafts, type DraftDetail, type DraftGenerat
 import { getState, setChapterFocus, type StateInfo } from '../../api/state';
 import { listFacts, addFact, extractFacts, type ExtractedFactCandidate, type FactInfo } from '../../api/facts';
 import { generateChapter, type ContextSummary } from '../../api/generate';
-import { getSettings, updateSettings } from '../../api/settings';
+import { getSettings, updateSettings, type SettingsInfo } from '../../api/settings';
 import { getProject, updateProject, type ProjectInfo } from '../../api/project';
 import { ApiError, getFriendlyErrorMessage } from '../../api/client';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -305,7 +305,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   activeAuPathRef.current = auPath;
   const [mode, setMode] = useState<WriterMode>('write');
   const [showSettingsTooltip, setShowSettingsTooltip] = useState(false);
-  const [isSettingsModeBusy, setSettingsModeBusy] = useState(false);
+  const [isSettingsModeBusy, setIsSettingsModeBusy] = useState(false);
 
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [isExportOpen, setExportOpen] = useState(false);
@@ -317,7 +317,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
 
   const [state, setState] = useState<StateInfo | null>(null);
   const [projectInfo, setProjectInfo] = useState<ProjectInfo | null>(null);
-  const [settingsInfo, setSettingsInfo] = useState<any>(null);
+  const [settingsInfo, setSettingsInfo] = useState<SettingsInfo | null>(null);
   const [currentContent, setCurrentContent] = useState('');
   const [unresolvedFacts, setUnresolvedFacts] = useState<FactInfo[]>([]);
   const [focusSelection, setFocusSelection] = useState<string[]>([]);
@@ -356,7 +356,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     loadRequestIdRef.current += 1;
     refreshRequestIdRef.current += 1;
     setLoading(true);
-    setSettingsModeBusy(false);
+    setIsSettingsModeBusy(false);
     setState(null);
     setProjectInfo(null);
     setSettingsInfo(null);
@@ -944,12 +944,9 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     setSkipFactsPromptPersisted(checked);
   };
 
-  const auPathParts = auPath.split('/aus/');
-  const derivedFandomPath = auPathParts.length >= 2 ? auPathParts[0] : undefined;
-
   const handleModeChange = (nextMode: WriterMode) => {
-    if (mode === 'settings' && nextMode === 'write' && isSettingsModeBusy) {
-      showToast(t('settingsMode.switchBlocked'), 'warning');
+    if (nextMode === 'write' && isSettingsModeBusy) {
+      showToast(t('settingsMode.busyWriteBlocked'), 'warning');
       return;
     }
     setMode(nextMode);
@@ -1050,8 +1047,11 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
 
   const currentChapter = state?.current_chapter || 1;
   const hasPendingDrafts = drafts.length > 0;
+  const writeActionsDisabled = isGenerating || isFinalizing || isDiscarding || isSettingsModeBusy;
   const currentDraft = drafts[activeDraftIndex] || null;
   const settingsSessionLlm = sessionLlmPayload;
+  const fandomPathParts = auPath.split('/aus/');
+  const settingsFandomPath = fandomPathParts.length >= 2 ? fandomPathParts[0] : auPath;
   const currentDraftSummary = !isGenerating && currentDraft ? draftSummaries[currentDraft.label] || null : null;
   const activeGeneratedWith = currentDraft?.generatedWith || generatedWith;
   const displayContent = streamText || currentDraft?.content || currentContent;
@@ -1105,6 +1105,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
                 size="sm"
                 className="h-8"
                 onClick={() => handleModeChange('write')}
+                disabled={isSettingsModeBusy}
               >
                 {t('settingsMode.tabWrite')}
               </Button>
@@ -1201,7 +1202,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
                       size="sm"
                       className="h-8 w-8 p-0"
                       onClick={() => setActiveDraftIndex((current) => Math.max(0, current - 1))}
-                      disabled={isFirstDraft || isGenerating}
+                      disabled={isFirstDraft || writeActionsDisabled}
                       aria-label={t('drafts.previous')}
                     >
                       <ChevronLeft size={16} />
@@ -1215,7 +1216,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
                       size="sm"
                       className="h-8 w-8 p-0"
                       onClick={() => setActiveDraftIndex((current) => Math.min(drafts.length - 1, current + 1))}
-                      disabled={isLastDraft || isGenerating}
+                      disabled={isLastDraft || writeActionsDisabled}
                       aria-label={t('drafts.next')}
                     >
                       <ChevronRight size={16} />
@@ -1223,10 +1224,10 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
                   </div>
 
                   <div className="flex flex-wrap items-center justify-end gap-2">
-                    <Button variant="primary" size="sm" className="h-8 gap-1" onClick={() => setFinalizeConfirmOpen(true)} disabled={isGenerating || isFinalizing || isSettingsModeBusy}>
+                    <Button variant="primary" size="sm" className="h-8 gap-1" onClick={() => setFinalizeConfirmOpen(true)} disabled={writeActionsDisabled}>
                       <Check size={15} /> {t('drafts.finalize')}
                     </Button>
-                    <Button variant="secondary" size="sm" className="h-8 gap-1" onClick={() => void handleRegenerate()} disabled={isGenerating || isFinalizing || isSettingsModeBusy}>
+                    <Button variant="secondary" size="sm" className="h-8 gap-1" onClick={() => void handleRegenerate()} disabled={writeActionsDisabled}>
                       {isGenerating ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
                       {t('drafts.regenerate')}
                     </Button>
@@ -1260,7 +1261,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
                 value={instructionText}
                 onChange={(event) => setInstructionText(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key !== 'Enter' || isGenerating || isSettingsModeBusy) return;
+                  if (event.key !== 'Enter' || writeActionsDisabled) return;
 
                   if (hasPendingDrafts) {
                     showToast(t('drafts.generatingBlocked'), 'warning');
@@ -1269,14 +1270,14 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
 
                   void handleGenerateFromInput(instructionText.trim() ? 'instruction' : 'continue');
                 }}
-                disabled={isSettingsModeBusy}
-                className="h-9 w-full rounded-lg border border-black/10 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10"
+                disabled={writeActionsDisabled}
+                className="h-9 w-full rounded-lg border border-black/10 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent/50 dark:border-white/10"
               />
             </div>
 
             <div className="mx-auto mt-2 flex w-full max-w-3xl items-center justify-between border-t border-black/5 pt-2 dark:border-white/5">
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => setUndoConfirmOpen(true)} disabled={currentChapter <= 1 || isGenerating || isSettingsModeBusy}>
+                <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => setUndoConfirmOpen(true)} disabled={currentChapter <= 1 || writeActionsDisabled}>
                   <Undo2 size={16} className="mr-2" /> {t('common.actions.undoPreviousChapter')}
                 </Button>
                 <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => onNavigate('facts')}>
@@ -1288,7 +1289,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
                   variant="secondary"
                   className="w-32 shadow-medium"
                   onClick={() => void handleGenerateFromInput('instruction')}
-                  disabled={isGenerating || hasPendingDrafts || !instructionText.trim() || isSettingsModeBusy}
+                  disabled={writeActionsDisabled || hasPendingDrafts || !instructionText.trim()}
                 >
                   {t('common.actions.instruction')}
                 </Button>
@@ -1296,7 +1297,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
                   variant="primary"
                   className="w-32 shadow-medium"
                   onClick={() => void handleGenerateFromInput('continue')}
-                  disabled={isGenerating || hasPendingDrafts || isSettingsModeBusy}
+                  disabled={writeActionsDisabled || hasPendingDrafts}
                 >
                   {isGenerating ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.continue')}
                 </Button>
@@ -1318,12 +1319,12 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
             <SettingsChatPanel
               mode="au"
               basePath={auPath}
-              fandomPath={derivedFandomPath}
+              fandomPath={settingsFandomPath}
               placeholder={t('settingsMode.placeholder')}
               currentChapter={currentChapter}
               sessionLlm={settingsSessionLlm}
               disabled={loading || !state}
-              onBusyChange={setSettingsModeBusy}
+              onBusyChange={setIsSettingsModeBusy}
               onAfterMutation={async () => {
                 await refreshSettingsModeData();
               }}

@@ -146,8 +146,13 @@ export function ToolCallCard({
   const [draftArgs, setDraftArgs] = useState<Record<string, unknown>>(card.parsedArgs);
   const preview = useMemo(() => getLorePreview(card), [card]);
   const validationError = useMemo(
-    () => getToolValidationError(card, isEditing ? draftArgs : card.parsedArgs, t),
-    [card, draftArgs, isEditing, t]
+    () => getToolValidationError(
+      card,
+      isEditing ? draftArgs : card.parsedArgs,
+      t,
+      new Set(availableCharacterNames)
+    ),
+    [availableCharacterNames, card, draftArgs, isEditing, t]
   );
   const overwriteWarning = useMemo(
     () =>
@@ -215,11 +220,13 @@ export function ToolCallCard({
 
       {card.parseError ? (
         <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
-          <p>{t("settingsMode.parseErrorTitle")}</p>
+          <p className="font-medium">{t("settingsMode.parseErrorTitle")}</p>
           <p className="mt-1">{t("settingsMode.parseError")}</p>
-          <details className="mt-2">
-            <summary className="cursor-pointer text-xs font-medium">{t("settingsMode.showRawArguments")}</summary>
-            <pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded-md bg-black/5 p-2 font-mono text-[11px] text-text/80 dark:bg-white/10">
+          <details className="mt-3">
+            <summary className="cursor-pointer select-none text-xs font-medium text-warning/90">
+              {t("settingsMode.showRawArguments")}
+            </summary>
+            <pre className="mt-2 overflow-x-auto rounded-lg border border-warning/20 bg-black/5 p-3 text-xs text-text dark:bg-white/5">
               {card.toolCall.function.arguments}
             </pre>
           </details>
