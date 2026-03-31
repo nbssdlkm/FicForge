@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { FileUp } from 'lucide-react';
@@ -9,19 +9,42 @@ export const ExportModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () 
   const [format, setFormat] = useState('md');
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
+  const intervalRef = useRef<number | null>(null);
+  const timeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current !== null) window.clearInterval(intervalRef.current);
+      if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) return;
+    if (intervalRef.current !== null) window.clearInterval(intervalRef.current);
+    if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
+    intervalRef.current = null;
+    timeoutRef.current = null;
+    setExporting(false);
+    setProgress(0);
+  }, [isOpen]);
 
   const handleExport = () => {
+    if (intervalRef.current !== null) window.clearInterval(intervalRef.current);
+    if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
     setExporting(true);
     // Mock progress interpolation
     let p = 0;
-    const interval = setInterval(() => {
+    intervalRef.current = window.setInterval(() => {
       p += 20;
       setProgress(p);
       if (p >= 100) {
-        clearInterval(interval);
-        setTimeout(() => {
+        if (intervalRef.current !== null) window.clearInterval(intervalRef.current);
+        intervalRef.current = null;
+        timeoutRef.current = window.setTimeout(() => {
           setExporting(false);
           setProgress(0);
+          timeoutRef.current = null;
           onClose(); // Auto-close when done
         }, 500);
       }

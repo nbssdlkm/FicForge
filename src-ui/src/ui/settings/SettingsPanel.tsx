@@ -25,6 +25,14 @@ export const SettingsPanel = ({
   onSaveAu
 }: SettingsPanelProps = {}) => {
   const { t } = useTranslation();
+  const presetModels = [
+    'deepseek-chat',
+    'claude-3-5-sonnet',
+    'claude-sonnet-4-6',
+    'gpt-4o',
+    'llama3',
+    'qwen-max',
+  ];
   const [localModel, setLocalModel] = useState(externalModel || 'deepseek-chat');
   const [temp, setTemp] = useState(externalTemp ?? 1.0);
   const [topP, setTopP] = useState(externalTopP ?? 0.95);
@@ -63,6 +71,9 @@ export const SettingsPanel = ({
         <div className="flex items-center gap-2">
            <select value={localModel} onChange={e => handleModelChange(e.target.value)}
              className="h-8 rounded border border-black/20 dark:border-white/20 bg-background px-2 text-xs focus:ring-1 focus:ring-accent outline-none flex-1">
+             {!presetModels.includes(localModel) && localModel ? (
+               <option value={localModel}>{localModel}</option>
+             ) : null}
              <option value="deepseek-chat">deepseek-chat</option>
              <option value="claude-3-5-sonnet">claude-3-5-sonnet</option>
              <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>

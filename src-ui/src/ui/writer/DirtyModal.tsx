@@ -2,7 +2,7 @@ import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { Plus, Loader2, AlertCircle } from 'lucide-react';
 import { Tag } from '../shared/Tag';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { resolveDirtyChapter } from '../../api/chapters';
 import { listFacts, type FactInfo } from '../../api/facts';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -13,6 +13,9 @@ type FactDecision = 'keep' | 'deprecate';
 export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: { isOpen: boolean, onClose: () => void, auPath: string, chapterNum: number, onResolved?: () => void }) => {
   const { t } = useTranslation();
   const { showError, showToast } = useFeedback();
+  const activeContextRef = useRef({ auPath, chapterNum });
+  activeContextRef.current = { auPath, chapterNum };
+  const loadRequestIdRef = useRef(0);
   const [isResolving, setIsResolving] = useState(false);
   const [facts, setFacts] = useState<FactInfo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -20,19 +23,58 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
   const [decisions, setDecisions] = useState<Record<string, FactDecision>>({});
 
   useEffect(() => {
+    if (!isOpen) {
+      loadRequestIdRef.current += 1;
+      setIsResolving(false);
+      setLoading(false);
+      setFacts([]);
+      setDecisions({});
+      setError(null);
+      return;
+    }
     if (!isOpen || !auPath || chapterNum == null) return;
+    const requestId = ++loadRequestIdRef.current;
+    const requestAuPath = auPath;
+    const requestChapter = chapterNum;
     setLoading(true);
     setError(null);
     listFacts(auPath, undefined)
       .then(all => {
+        const active = activeContextRef.current;
+        if (
+          requestId !== loadRequestIdRef.current
+          || active.auPath !== requestAuPath
+          || active.chapterNum !== requestChapter
+        ) {
+          return;
+        }
         const chapterFacts = all.filter(f => f.chapter === chapterNum);
         setFacts(chapterFacts);
         const initial: Record<string, FactDecision> = {};
         chapterFacts.forEach(f => { initial[f.id] = 'keep'; });
         setDecisions(initial);
       })
-      .catch(e => setError(e.message || t('error_messages.unknown')))
-      .finally(() => setLoading(false));
+      .catch(e => {
+        const active = activeContextRef.current;
+        if (
+          requestId !== loadRequestIdRef.current
+          || active.auPath !== requestAuPath
+          || active.chapterNum !== requestChapter
+        ) {
+          return;
+        }
+        setError(e.message || t('error_messages.unknown'));
+      })
+      .finally(() => {
+        const active = activeContextRef.current;
+        if (
+          requestId === loadRequestIdRef.current
+          && active.auPath === requestAuPath
+          && active.chapterNum === requestChapter
+        ) {
+          setLoading(false);
+        }
+      });
   }, [isOpen, auPath, chapterNum, t]);
 
   const setDecision = (factId: string, decision: FactDecision) => {
@@ -40,6 +82,8 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
   };
 
   const handleResolve = async () => {
+    const requestAuPath = auPath;
+    const requestChapter = chapterNum;
     setIsResolving(true);
     try {
       const confirmedChanges = facts.map(f => ({
@@ -47,12 +91,19 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
         action: decisions[f.id] || 'keep',
       }));
       await resolveDirtyChapter(auPath, chapterNum, confirmedChanges);
+      const active = activeContextRef.current;
+      if (active.auPath !== requestAuPath || active.chapterNum !== requestChapter) return;
       onClose();
       if (onResolved) onResolved();
     } catch (e: any) {
+      const active = activeContextRef.current;
+      if (active.auPath !== requestAuPath || active.chapterNum !== requestChapter) return;
       showError(e, t('error_messages.unknown'));
     } finally {
-      setIsResolving(false);
+      const active = activeContextRef.current;
+      if (active.auPath === requestAuPath && active.chapterNum === requestChapter) {
+        setIsResolving(false);
+      }
     }
   };
 
