@@ -138,6 +138,8 @@ async def create_fact(request: AddFactRequest):
     logger.info("Add fact: au=%s ch=%d", request.au_path, request.chapter_num)
     if not validate_path(request.au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
+    if not (request.fact_data.content_clean or "").strip():
+        return error_response(400, "INVALID_PARAMETER", "剧情笔记内容不能为空", [])
     repo = build_fact_repository()
     ops_repo = build_ops_repository()
 

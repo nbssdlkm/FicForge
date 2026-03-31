@@ -199,12 +199,51 @@ def build_task_queue() -> BackgroundTaskQueue:
 def validate_path(path: str) -> bool:
     """校验路径安全性。所有接受用户路径的端点必须调用。
 
-    拒绝：.. 路径遍历组件、空路径。
+    拒绝：.. 路径遍历组件、空路径、null byte、超长路径。
     允许：绝对路径（桌面应用中 au_path 通常是绝对路径）。
     """
     if not path or not path.strip():
         return False
     # 拒绝 .. 组件（路径遍历防护）
     if ".." in path:
+        return False
+    # 拒绝 null byte（B-10）
+    if "\x00" in path:
+        return False
+    # 拒绝超长路径（B-07，避免 OS 层 File name too long 500）
+    if len(path) > 500:
+        return False
+    return True
+
+
+# ---------------------------------------------------------------------------
+# 生成状态共享（B-05 / B-06）
+# ---------------------------------------------------------------------------
+
+import time as _time
+
+_au_generating: dict[str, float] = {}
+"""AU 级生成锁：au_path → 开始时间戳。路由层维护。"""
+
+_GENERATION_TIMEOUT = 300  # 5 分钟超时（B-06）
+
+
+def mark_generating(au_path: str) -> None:
+    """标记 AU 正在生成。"""
+    _au_generating[au_path] = _time.time()
+
+
+def clear_generating(au_path: str) -> None:
+    """清除 AU 生成状态。"""
+    _au_generating.pop(au_path, None)
+
+
+def is_generating(au_path: str) -> bool:
+    """检查 AU 是否正在生成（含超时自动清理）。"""
+    start = _au_generating.get(au_path)
+    if start is None:
+        return False
+    if _time.time() - start > _GENERATION_TIMEOUT:
+        _au_generating.pop(au_path, None)
         return False
     return True

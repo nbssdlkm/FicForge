@@ -399,7 +399,10 @@
     "extractButton": "提取这次修改带来的新剧情笔记",
     "extractHint": "需要时可以去剧情笔记页继续补记新变化。",
     "resolveButton": "🔄 重新整理",
-    "resolveSubtitle": "检查角色出场和剧情状态"
+    "resolveSubtitle": "检查角色出场和剧情状态",
+    "banner": "有 {{count}} 章设定待同步（{{chapters}}）。AI 续写时会使用旧版设定。",
+    "goResolve": "去处理",
+    "dismissBanner": "稍后"
   },
   "export": {
     "title": "导出这篇文",
@@ -547,11 +550,6 @@
     "maxTwo": "最多选择 2 个焦点",
     "lastFocusExpired": "上章焦点已失效，请重新选择",
     "recommended": "推荐"
-  },
-  "dirty": {
-    "banner": "有 {{count}} 章设定待同步（{{chapters}}）。AI 续写时会使用旧版设定。",
-    "goResolve": "去处理",
-    "dismissBanner": "稍后"
   },
   "undo": {
     "confirmTitle": "确认撤回第 {{chapter}} 章？",

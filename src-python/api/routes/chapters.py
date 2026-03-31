@@ -16,6 +16,7 @@ from api import (
     build_resolve_dirty_service,
     build_undo_chapter_service,
     error_response,
+    is_generating,
     validate_path,
 )
 from core.domain.fact_change import FactChange
@@ -168,6 +169,13 @@ async def undo_latest_chapter(request: UndoChapterRequest):
     logger.info("Undo chapter: au=%s", request.au_path)
     if not validate_path(request.au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
+    if is_generating(request.au_path):
+        return error_response(
+            409,
+            "GENERATION_IN_PROGRESS",
+            "生成进行中，请等待完成或取消后再撤销",
+            ["等待当前生成完成"],
+        )
     service = build_undo_chapter_service()
 
     try:

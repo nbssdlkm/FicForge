@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from api import validate_path
+from api import clear_generating, mark_generating, validate_path
 
 router = APIRouter(prefix="/api/v1", tags=["generate"])
 
@@ -52,9 +52,11 @@ async def generate_stream(request: GenerateRequest) -> StreamingResponse:
         return StreamingResponse(_error_gen(), media_type="text/event-stream")
 
     async def _event_generator() -> Any:
+        au_id = request.au_path
+        mark_generating(au_id)
         try:
-            au_dir = Path(request.au_path)
-            
+            au_dir = Path(au_id)
+
             # Build repositories
             project_repo = build_project_repository()
             state_repo = build_state_repository()
@@ -62,16 +64,13 @@ async def generate_stream(request: GenerateRequest) -> StreamingResponse:
             fact_repo = build_fact_repository()
             chapter_repo = build_chapter_repository()
             draft_repo = build_draft_repository()
-            
+
             # Load entities
-            au_id = str(au_dir)
             project = await run_in_threadpool(project_repo.get, au_id)
             state = await run_in_threadpool(state_repo.get, au_id)
             settings = await run_in_threadpool(settings_repo.get)
             facts = await run_in_threadpool(fact_repo.list_all, au_id)
-            
-            # Execute generation service (should be run in background, but the generator yields chunk by chunk)
-            # The generation inner loop uses provider.generate(stream=True) which blocks per chunk.
+
             stream = generate_chapter(
                 au_path=au_dir,
                 chapter_num=request.chapter_num,
@@ -86,7 +85,7 @@ async def generate_stream(request: GenerateRequest) -> StreamingResponse:
                 chapter_repo=chapter_repo,
                 draft_repo=draft_repo,
             )
-            
+
             # 将同步迭代器的阻塞 next() 放到线程池，防止卡住事件循环
             it = iter(stream)
             while True:
@@ -94,11 +93,13 @@ async def generate_stream(request: GenerateRequest) -> StreamingResponse:
                 if event is None:
                     break
                 yield f"event: {event['event']}\ndata: {json.dumps(event['data'], ensure_ascii=False)}\n\n"
-                
+
         except Exception as e:
             logger.exception("Generate stream failed: au=%s ch=%d", request.au_path, request.chapter_num)
             error_data = {"error_code": "GENERATION_FAILED", "message": str(e), "actions": []}
             yield f"event: error\ndata: {json.dumps(error_data, ensure_ascii=False)}\n\n"
+        finally:
+            clear_generating(au_id)
 
     return StreamingResponse(
         _event_generator(),
