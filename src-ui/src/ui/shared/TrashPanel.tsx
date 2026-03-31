@@ -139,7 +139,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
   }, [isExpanded]);
 
   const handleRestore = async (entry: TrashEntry) => {
-    if (!path) return;
+    if (!path || disabled) return;
     const contextVersion = contextVersionRef.current;
     setPendingId(entry.trash_id);
     try {
@@ -171,7 +171,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
   };
 
   const handlePermanentDelete = async () => {
-    if (!path || !deleteTarget) return;
+    if (!path || !deleteTarget || disabled) return;
     const contextVersion = contextVersionRef.current;
     setPendingId(deleteTarget.trash_id);
     try {
@@ -196,7 +196,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
   };
 
   const handleClearAll = async () => {
-    if (!path || entries.length === 0) return;
+    if (!path || entries.length === 0 || disabled) return;
     const contextVersion = contextVersionRef.current;
     setIsClearingAll(true);
     try {
@@ -349,7 +349,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
               variant="primary"
               className="bg-red-600 text-white hover:bg-red-700"
               onClick={() => { void handlePermanentDelete(); }}
-              disabled={pendingId !== null}
+              disabled={pendingId !== null || disabled}
             >
               {pendingId && deleteTarget ? <Loader2 size={14} className="animate-spin" /> : t("common.actions.confirmDelete")}
             </Button>
@@ -374,7 +374,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
               variant="primary"
               className="bg-red-600 text-white hover:bg-red-700"
               onClick={() => { void handleClearAll(); }}
-              disabled={isClearingAll}
+              disabled={isClearingAll || disabled}
             >
               {isClearingAll ? <Loader2 size={14} className="animate-spin" /> : t("trash.clearAll")}
             </Button>

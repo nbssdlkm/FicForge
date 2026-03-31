@@ -30,6 +30,9 @@ function LibraryInner({ onNavigate }: Props) {
   const [importAuPath, setImportAuPath] = useState('');
   const [fandoms, setFandoms] = useState<FandomInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creatingFandom, setCreatingFandom] = useState(false);
+  const [creatingAu, setCreatingAu] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [newFandomName, setNewFandomName] = useState('');
   const [newAuName, setNewAuName] = useState('');
   const [selectedFandom, setSelectedFandom] = useState('');
@@ -80,7 +83,8 @@ function LibraryInner({ onNavigate }: Props) {
   };
 
   const handleCreateFandom = async () => {
-    if (!newFandomName.trim()) return;
+    if (!newFandomName.trim() || creatingFandom) return;
+    setCreatingFandom(true);
     try {
       await createFandom(newFandomName.trim());
       setFandomModalOpen(false);
@@ -88,11 +92,14 @@ function LibraryInner({ onNavigate }: Props) {
       await loadFandoms();
     } catch (e: any) {
       showError(e, t("error_messages.unknown"));
+    } finally {
+      setCreatingFandom(false);
     }
   };
 
   const handleCreateAu = async () => {
-    if (!newAuName.trim() || !selectedFandomDir) return;
+    if (!newAuName.trim() || !selectedFandomDir || creatingAu) return;
+    setCreatingAu(true);
     try {
       const fandomPath = `./fandoms/fandoms/${selectedFandomDir}`;
       await createAu(selectedFandomDir, newAuName.trim(), fandomPath);
@@ -101,11 +108,14 @@ function LibraryInner({ onNavigate }: Props) {
       await loadFandoms();
     } catch (e: any) {
       showError(e, t("error_messages.unknown"));
+    } finally {
+      setCreatingAu(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
     try {
       if (deleteTarget.type === 'fandom') {
         await deleteFandom(deleteTarget.fandomDir);
@@ -117,6 +127,8 @@ function LibraryInner({ onNavigate }: Props) {
     } catch (e: any) {
       showError(e, t("error_messages.unknown"));
       setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -233,30 +245,34 @@ function LibraryInner({ onNavigate }: Props) {
       <Modal isOpen={isFandomModalOpen} onClose={() => setFandomModalOpen(false)} title={t("library.createFandomModal.title")}>
         <p className="text-sm text-text/70 mb-5">{t("library.createFandomModal.description")}</p>
         <div className="flex flex-col gap-4">
-          <Input placeholder={t("library.createFandomModal.namePlaceholder")} value={newFandomName} onChange={(e) => setNewFandomName(e.target.value)} className="w-full h-10 bg-surface/50 text-base" />
-          <Textarea placeholder={t("library.createFandomModal.notesPlaceholder")} className="w-full min-h-[120px] text-sm bg-surface/50 leading-relaxed resize-y" />
-          <Button variant="primary" className="w-full h-10 mt-2 font-medium tracking-wide" onClick={handleCreateFandom}>{t("library.createFandomModal.submit")}</Button>
+          <Input placeholder={t("library.createFandomModal.namePlaceholder")} value={newFandomName} onChange={(e) => setNewFandomName(e.target.value)} className="w-full h-10 bg-surface/50 text-base" disabled={creatingFandom} />
+          <Textarea placeholder={t("library.createFandomModal.notesPlaceholder")} className="w-full min-h-[120px] text-sm bg-surface/50 leading-relaxed resize-y" disabled={creatingFandom} />
+          <Button variant="primary" className="w-full h-10 mt-2 font-medium tracking-wide" onClick={handleCreateFandom} disabled={creatingFandom || !newFandomName.trim()}>
+            {creatingFandom ? <Loader2 size={16} className="animate-spin" /> : t("library.createFandomModal.submit")}
+          </Button>
         </div>
       </Modal>
 
       <Modal isOpen={isAuModalOpen} onClose={() => setAuModalOpen(false)} title={t("library.createAuModal.title")}>
         <p className="text-sm text-text/70 mb-5 leading-relaxed">{t("library.createAuModal.description")}</p>
         <div className="flex flex-col gap-5">
-          <Input placeholder={t("library.createAuModal.namePlaceholder")} value={newAuName} onChange={(e) => setNewAuName(e.target.value)} className="w-full h-10 bg-surface/50 text-base" />
+          <Input placeholder={t("library.createAuModal.namePlaceholder")} value={newAuName} onChange={(e) => setNewAuName(e.target.value)} className="w-full h-10 bg-surface/50 text-base" disabled={creatingAu} />
           <div className="flex flex-col gap-2">
              <label className="text-sm font-bold text-text/90">{t("library.createAuModal.inheritLabel")}</label>
-             <select className="h-10 rounded-md border border-black/20 dark:border-white/20 bg-surface/80 px-3 text-sm focus:ring-2 focus:ring-accent outline-none w-full">
+             <select className="h-10 rounded-md border border-black/20 dark:border-white/20 bg-surface/80 px-3 text-sm focus:ring-2 focus:ring-accent outline-none w-full" disabled={creatingAu}>
                 <option>{selectedFandom}</option>
              </select>
           </div>
           <div className="flex flex-col gap-2">
              <label className="text-sm font-bold text-text/90">{t("library.createAuModal.initLabel")}</label>
-             <select className="h-10 rounded-md border border-black/20 dark:border-white/20 bg-surface/80 px-3 text-sm focus:ring-2 focus:ring-accent outline-none w-full">
+             <select className="h-10 rounded-md border border-black/20 dark:border-white/20 bg-surface/80 px-3 text-sm focus:ring-2 focus:ring-accent outline-none w-full" disabled={creatingAu}>
                 <option>{t("library.createAuModal.initGlobal")}</option>
                 <option>{t("library.createAuModal.initCustom")}</option>
              </select>
           </div>
-          <Button variant="primary" className="w-full h-10 mt-2 font-medium tracking-wide" onClick={handleCreateAu}>{t("library.createAuModal.submit")}</Button>
+          <Button variant="primary" className="w-full h-10 mt-2 font-medium tracking-wide" onClick={handleCreateAu} disabled={creatingAu || !newAuName.trim() || !selectedFandomDir}>
+            {creatingAu ? <Loader2 size={16} className="animate-spin" /> : t("library.createAuModal.submit")}
+          </Button>
         </div>
       </Modal>
 
@@ -309,8 +325,10 @@ function LibraryInner({ onNavigate }: Props) {
               : t('library.deleteAuMessage', { name: deleteTarget?.auName || '' })}
           </p>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setDeleteTarget(null)}>{t("common.actions.cancel")}</Button>
-            <Button variant="primary" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDelete}>{t("common.actions.confirmDelete")}</Button>
+            <Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={deleting}>{t("common.actions.cancel")}</Button>
+            <Button variant="primary" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDelete} disabled={deleting}>
+              {deleting ? <Loader2 size={16} className="animate-spin" /> : t("common.actions.confirmDelete")}
+            </Button>
           </div>
         </div>
       </Modal>

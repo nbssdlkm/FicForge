@@ -81,9 +81,13 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     activeAuPathRef.current = auPath;
     loadFactsRequestIdRef.current += 1;
     setLoading(true);
+    setSaving(false);
+    setSaveSuccess(false);
+    setExtracting(false);
     setFacts([]);
     setState(null);
     setEditingFact(null);
+    setAddModalOpen(false);
     setExtractModalOpen(false);
     setExtractedCandidates([]);
   }, [auPath]);
@@ -102,8 +106,10 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
 
   const handleAddFact = async () => {
     if (!newContentClean.trim() || !auPath) return;
+    const requestAuPath = auPath;
+    const chapterNum = Math.max(1, (state?.current_chapter || 1) - 1 || 1);
     try {
-      await addFact(auPath, 1, {
+      await addFact(requestAuPath, chapterNum, {
         content_raw: newContentRaw || newContentClean,
         content_clean: newContentClean,
         type: newType,
@@ -111,29 +117,37 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
         status: newStatus,
         characters: [],
       });
+      if (activeAuPathRef.current !== requestAuPath) return;
       setAddModalOpen(false);
       resetAddModal();
       await loadFacts();
     } catch (error) {
+      if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
     }
   };
 
   const handleStatusChange = async (factId: string, nextStatus: string) => {
     if (!auPath) return;
+    const requestAuPath = auPath;
+    const targetFact = facts.find((fact) => fact.id === factId);
+    const chapterNum = targetFact?.chapter || editingFact?.chapter || 1;
     try {
-      await updateFactStatus(auPath, factId, nextStatus, 1);
+      await updateFactStatus(requestAuPath, factId, nextStatus, chapterNum);
+      if (activeAuPathRef.current !== requestAuPath) return;
       await loadFacts();
       if (editingFact?.id === factId) {
         setEditingFact(prev => prev ? { ...prev, status: nextStatus } : null);
       }
     } catch (error) {
+      if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
     }
   };
 
   const handleSaveFact = async () => {
     if (!editingFact || !auPath) return;
+    const requestAuPath = auPath;
     setSaving(true);
     setSaveSuccess(false);
     try {
@@ -148,15 +162,19 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
       }
       if (editWeightRef.current) updatedFields.narrative_weight = editWeightRef.current.value;
 
-      await editFact(auPath, editingFact.id, updatedFields);
+      await editFact(requestAuPath, editingFact.id, updatedFields);
+      if (activeAuPathRef.current !== requestAuPath) return;
       setSaveSuccess(true);
       window.setTimeout(() => setSaveSuccess(false), 2000);
       await loadFacts();
       setEditingFact(prev => prev ? { ...prev, ...updatedFields } : null);
     } catch (error) {
+      if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      setSaving(false);
+      if (activeAuPathRef.current === requestAuPath) {
+        setSaving(false);
+      }
     }
   };
 
@@ -167,9 +185,11 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
       return;
     }
 
+    const requestAuPath = auPath;
     setExtracting(true);
     try {
-      const result = await extractFacts(auPath, latestConfirmedChapter);
+      const result = await extractFacts(requestAuPath, latestConfirmedChapter);
+      if (activeAuPathRef.current !== requestAuPath) return;
       const candidates = (result?.facts || []) as ExtractedFactCandidate[];
       setExtractedCandidates(candidates);
       setExtractModalOpen(true);
@@ -177,9 +197,12 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
         showToast(t('facts.extractNoResult'), 'info');
       }
     } catch (error) {
+      if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      setExtracting(false);
+      if (activeAuPathRef.current === requestAuPath) {
+        setExtracting(false);
+      }
     }
   };
 
@@ -189,10 +212,11 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
       return;
     }
 
+    const requestAuPath = auPath;
     setSaving(true);
     try {
       for (const candidate of extractedCandidates) {
-        await addFact(auPath, candidate.chapter || 1, {
+        await addFact(requestAuPath, candidate.chapter || 1, {
           content_raw: candidate.content_raw || candidate.content_clean,
           content_clean: candidate.content_clean,
           type: candidate.fact_type || candidate.type || 'plot_event',
@@ -201,6 +225,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           characters: candidate.characters || [],
           ...(candidate.timeline ? { timeline: candidate.timeline } : {}),
         });
+        if (activeAuPathRef.current !== requestAuPath) return;
       }
 
       showSuccess(t('facts.extractSaved', { count: extractedCandidates.length }));
@@ -208,9 +233,12 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
       setExtractedCandidates([]);
       await loadFacts();
     } catch (error) {
+      if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      setSaving(false);
+      if (activeAuPathRef.current === requestAuPath) {
+        setSaving(false);
+      }
     }
   };
 

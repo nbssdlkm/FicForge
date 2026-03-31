@@ -41,7 +41,7 @@ export function CreateFandomStep({
       onNext(trimmed);
     } catch (e: any) {
       if (requestId !== requestIdRef.current) return;
-      setError(e.message || 'Failed to create');
+      setError(e.message || t('error_messages.unknown'));
     } finally {
       if (requestId === requestIdRef.current) {
         setCreating(false);
@@ -62,6 +62,7 @@ export function CreateFandomStep({
           value={name}
           onChange={e => { setName(e.target.value); setError(''); }}
           placeholder={t('onboarding.createFandom.namePlaceholder')}
+          disabled={creating}
           autoFocus
         />
       </div>
@@ -90,9 +91,9 @@ export function CreateFandomStep({
 
       {/* Navigation */}
       <div className="flex justify-between pt-4">
-        <Button variant="ghost" onClick={onPrev}>{t('onboarding.common.prev')}</Button>
+        <Button variant="ghost" onClick={onPrev} disabled={creating}>{t('onboarding.common.prev')}</Button>
         <div className="flex gap-2">
-          <Button variant="ghost" onClick={() => onNext(null)}>{t('onboarding.createFandom.skip')}</Button>
+          <Button variant="ghost" onClick={() => onNext(null)} disabled={creating}>{t('onboarding.createFandom.skip')}</Button>
           <Button variant="primary" onClick={handleNext} disabled={creating || !name.trim()}>
             {creating ? <Loader2 size={14} className="animate-spin" /> : t('onboarding.common.next')}
           </Button>

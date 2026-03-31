@@ -3,7 +3,7 @@ import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
-import { apiFetch } from '../../api/client';
+import { testConnection } from '../../api/settings';
 import { StepIndicator } from './StepIndicator';
 
 type Mode = 'api' | 'local' | 'ollama';
@@ -50,7 +50,9 @@ export function ApiConfigStep({
   }, []);
 
   const update = (field: keyof ApiConfig, value: string) => {
+    requestIdRef.current += 1;
     setConfig(prev => ({ ...prev, [field]: value }));
+    setTesting(false);
     setTestResult(null); // 修改配置后清除测试结果
   };
 
@@ -59,22 +61,19 @@ export function ApiConfigStep({
     setTesting(true);
     setTestResult(null);
     try {
-      const result = await apiFetch('/api/v1/settings/test-connection', {
-        method: 'POST',
-        body: JSON.stringify({
-          mode: config.mode,
-          model: config.mode === 'ollama' ? config.ollama_model : config.model,
-          api_base: config.mode === 'ollama' ? (config.api_base || 'http://localhost:11434') : config.api_base,
-          api_key: config.api_key,
-          local_model_path: config.local_model_path,
-          ollama_model: config.ollama_model,
-        }),
+      const result = await testConnection({
+        mode: config.mode,
+        model: config.mode === 'ollama' ? config.ollama_model : config.model,
+        api_base: config.mode === 'ollama' ? (config.api_base || 'http://localhost:11434') : config.api_base,
+        api_key: config.mode === 'api' ? config.api_key : '',
+        local_model_path: config.mode === 'local' ? config.local_model_path : '',
+        ollama_model: config.mode === 'ollama' ? config.ollama_model : '',
       });
       if (requestId !== requestIdRef.current) return;
       setTestResult(result as TestResult);
     } catch (e: any) {
       if (requestId !== requestIdRef.current) return;
-      setTestResult({ success: false, message: e.message || 'Unknown error' });
+      setTestResult({ success: false, message: e.message || t('error_messages.unknown') });
     } finally {
       if (requestId === requestIdRef.current) {
         setTesting(false);
@@ -83,6 +82,13 @@ export function ApiConfigStep({
   };
 
   const canProceed = testResult?.success === true;
+  const canTest = testing
+    ? false
+    : config.mode === 'api'
+      ? Boolean(config.api_key.trim())
+      : config.mode === 'local'
+        ? Boolean(config.local_model_path.trim())
+        : Boolean(config.ollama_model.trim());
 
   return (
     <div className="max-w-lg mx-auto space-y-6 py-8">
@@ -112,17 +118,17 @@ export function ApiConfigStep({
         <div className="space-y-4 border-t border-black/10 dark:border-white/10 pt-4">
           <div className="space-y-1">
             <label className="text-sm font-medium text-text/80">{t('onboarding.apiConfig.apiBase')}</label>
-            <Input value={config.api_base} onChange={e => update('api_base', e.target.value)} placeholder="https://api.deepseek.com" />
+            <Input value={config.api_base} onChange={e => update('api_base', e.target.value)} placeholder="https://api.deepseek.com" disabled={testing} />
             <p className="text-xs text-text/40">{t('onboarding.apiConfig.apiBaseHint')}</p>
           </div>
           <div className="space-y-1">
             <label className="text-sm font-medium text-text/80">{t('onboarding.apiConfig.apiKey')}</label>
-            <Input type="password" value={config.api_key} onChange={e => update('api_key', e.target.value)} placeholder="sk-..." />
+            <Input type="password" value={config.api_key} onChange={e => update('api_key', e.target.value)} placeholder="sk-..." disabled={testing} />
             <p className="text-xs text-text/40">{t('onboarding.apiConfig.apiKeyHint')}</p>
           </div>
           <div className="space-y-1">
             <label className="text-sm font-medium text-text/80">{t('onboarding.apiConfig.model')}</label>
-            <Input value={config.model} onChange={e => update('model', e.target.value)} placeholder="deepseek-chat" />
+            <Input value={config.model} onChange={e => update('model', e.target.value)} placeholder="deepseek-chat" disabled={testing} />
           </div>
         </div>
       )}
@@ -132,7 +138,7 @@ export function ApiConfigStep({
         <div className="space-y-4 border-t border-black/10 dark:border-white/10 pt-4">
           <div className="space-y-1">
             <label className="text-sm font-medium text-text/80">{t('onboarding.apiConfig.localPath')}</label>
-            <Input value={config.local_model_path} onChange={e => update('local_model_path', e.target.value)} placeholder="/path/to/model" />
+            <Input value={config.local_model_path} onChange={e => update('local_model_path', e.target.value)} placeholder="/path/to/model" disabled={testing} />
             <p className="text-xs text-text/40">{t('onboarding.apiConfig.localPathHint')}</p>
           </div>
         </div>
@@ -143,18 +149,18 @@ export function ApiConfigStep({
         <div className="space-y-4 border-t border-black/10 dark:border-white/10 pt-4">
           <div className="space-y-1">
             <label className="text-sm font-medium text-text/80">{t('onboarding.apiConfig.ollamaBase')}</label>
-            <Input value={config.api_base} onChange={e => update('api_base', e.target.value)} placeholder="http://localhost:11434" />
+            <Input value={config.api_base} onChange={e => update('api_base', e.target.value)} placeholder="http://localhost:11434" disabled={testing} />
           </div>
           <div className="space-y-1">
             <label className="text-sm font-medium text-text/80">{t('onboarding.apiConfig.ollamaModel')}</label>
-            <Input value={config.ollama_model} onChange={e => update('ollama_model', e.target.value)} placeholder="llama3" />
+            <Input value={config.ollama_model} onChange={e => update('ollama_model', e.target.value)} placeholder="llama3" disabled={testing} />
           </div>
         </div>
       )}
 
       {/* Test connection */}
       <div className="space-y-3">
-        <Button variant="secondary" onClick={handleTest} disabled={testing} className="w-full">
+        <Button variant="secondary" onClick={handleTest} disabled={!canTest} className="w-full">
           {testing ? <><Loader2 size={14} className="animate-spin mr-2" />{t('onboarding.apiConfig.testing')}</> : t('onboarding.apiConfig.testConnection')}
         </Button>
 
@@ -176,8 +182,8 @@ export function ApiConfigStep({
 
       {/* Navigation */}
       <div className="flex justify-between pt-4">
-        <Button variant="ghost" onClick={onPrev}>{t('onboarding.common.prev')}</Button>
-        <Button variant="primary" onClick={() => onNext(config)} disabled={!canProceed}>
+        <Button variant="ghost" onClick={onPrev} disabled={testing}>{t('onboarding.common.prev')}</Button>
+        <Button variant="primary" onClick={() => onNext(config)} disabled={!canProceed || testing}>
           {t('onboarding.common.next')}
         </Button>
       </div>

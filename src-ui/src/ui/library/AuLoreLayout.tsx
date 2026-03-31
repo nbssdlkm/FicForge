@@ -59,6 +59,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [editorContent, setEditorContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isReadingFile, setIsReadingFile] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createName, setCreateName] = useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -129,13 +130,16 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
 
   const loadFileContent = async (name: string, loadRequestId?: number) => {
     const readRequestId = ++readFileRequestIdRef.current;
+    const requestAuPath = auPath;
     setSelectedFile(name);
+    setEditorContent('');
+    setIsReadingFile(true);
     try {
       const result = await readLore({ au_path: auPath, category: 'characters', filename: `${name}.md` });
       if (
         readRequestId !== readFileRequestIdRef.current
         || (typeof loadRequestId === 'number' && loadRequestId !== loadDataRequestIdRef.current)
-        || activeAuPathRef.current !== auPath
+        || activeAuPathRef.current !== requestAuPath
       ) {
         return;
       }
@@ -144,11 +148,19 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
       if (
         readRequestId !== readFileRequestIdRef.current
         || (typeof loadRequestId === 'number' && loadRequestId !== loadDataRequestIdRef.current)
-        || activeAuPathRef.current !== auPath
+        || activeAuPathRef.current !== requestAuPath
       ) {
         return;
       }
       setEditorContent(buildDefaultCharacterContent(name));
+    } finally {
+      if (
+        readRequestId === readFileRequestIdRef.current
+        && (typeof loadRequestId !== 'number' || loadRequestId === loadDataRequestIdRef.current)
+        && activeAuPathRef.current === requestAuPath
+      ) {
+        setIsReadingFile(false);
+      }
     }
   };
 
@@ -196,6 +208,16 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     setFiles([]);
     setSelectedFile(null);
     setEditorContent('');
+    setIsSaving(false);
+    setIsReadingFile(false);
+    setCreateModalOpen(false);
+    setDeleteConfirmOpen(false);
+    setImportModalOpen(false);
+    setImportLoading(false);
+    setImportCandidates([]);
+    setSelectedImports([]);
+    setCoreLimitModalOpen(false);
+    setCoreLimitTarget(null);
   }, [auPath]);
 
   useEffect(() => {
@@ -563,11 +585,11 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                 )}
               </div>
               <div className="flex items-center gap-4">
-                <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteConfirmOpen(true)} disabled={isSaving}>
+                <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteConfirmOpen(true)} disabled={isSaving || isReadingFile}>
                   <Trash2 size={14} />
                 </Button>
-                <Button variant="primary" size="sm" className="h-8 w-24" onClick={handleSaveLore} disabled={isSaving}>
-                  {isSaving ? <Loader2 size={14} className="animate-spin" /> : t('auLore.saveButton')}
+                <Button variant="primary" size="sm" className="h-8 w-24" onClick={handleSaveLore} disabled={isSaving || isReadingFile}>
+                  {isSaving || isReadingFile ? <Loader2 size={14} className="animate-spin" /> : t('auLore.saveButton')}
                 </Button>
               </div>
             </>
@@ -583,6 +605,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
               <Textarea
                 value={editorContent}
                 onChange={e => setEditorContent(e.target.value)}
+                disabled={isReadingFile}
                 className="font-mono flex-1 min-h-[420px] text-sm leading-relaxed bg-surface/30 p-4 resize-y"
               />
             </div>

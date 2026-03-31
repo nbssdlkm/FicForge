@@ -29,6 +29,18 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   const [contextWindow, setContextWindow] = useState(128000);
   const [embeddingModel, setEmbeddingModel] = useState('nomic-embed-text');
 
+  const resetFormState = () => {
+    setSettings(null);
+    setMode('api');
+    setModel('deepseek-chat');
+    setLocalModelPath('');
+    setOllamaModel('');
+    setApiBase('https://api.deepseek.com');
+    setApiKey('');
+    setContextWindow(128000);
+    setEmbeddingModel('nomic-embed-text');
+  };
+
   useEffect(() => {
     testRequestIdRef.current += 1;
     setTestStatus('idle');
@@ -39,6 +51,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     if (isOpen) {
       const requestId = ++modalRequestIdRef.current;
       setLoading(true);
+      resetFormState();
       getSettings().then((res) => {
         if (requestId !== modalRequestIdRef.current) return;
         setSettings(res);
@@ -67,6 +80,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     } else {
       modalRequestIdRef.current += 1;
       testRequestIdRef.current += 1;
+      resetFormState();
       setLoading(false);
       setSaving(false);
       setTestStatus('idle');
@@ -249,7 +263,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
 
           <div className="flex justify-end gap-3 border-t border-black/10 pt-5 dark:border-white/10">
             <Button variant="ghost" onClick={onClose} disabled={saving}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={handleSave} disabled={saving} className="w-32">
+            <Button variant="primary" onClick={handleSave} disabled={saving || !settings} className="w-32">
               {saving ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.saveGlobalSettings')}
             </Button>
           </div>

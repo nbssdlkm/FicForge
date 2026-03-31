@@ -356,6 +356,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     loadRequestIdRef.current += 1;
     refreshRequestIdRef.current += 1;
     setLoading(true);
+    setSettingsModeBusy(false);
     setState(null);
     setProjectInfo(null);
     setSettingsInfo(null);
@@ -943,6 +944,9 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     setSkipFactsPromptPersisted(checked);
   };
 
+  const auPathParts = auPath.split('/aus/');
+  const derivedFandomPath = auPathParts.length >= 2 ? auPathParts[0] : undefined;
+
   const handleModeChange = (nextMode: WriterMode) => {
     if (mode === 'settings' && nextMode === 'write' && isSettingsModeBusy) {
       showToast(t('settingsMode.switchBlocked'), 'warning');
@@ -1314,7 +1318,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
             <SettingsChatPanel
               mode="au"
               basePath={auPath}
-              fandomPath={auPath.includes('/aus/') ? auPath.split('/aus/')[0] : undefined}
+              fandomPath={derivedFandomPath}
               placeholder={t('settingsMode.placeholder')}
               currentChapter={currentChapter}
               sessionLlm={settingsSessionLlm}

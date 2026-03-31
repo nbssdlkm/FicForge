@@ -69,6 +69,8 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
     activeAuPathRef.current = auPath;
     loadSettingsRequestIdRef.current += 1;
     setLoading(true);
+    setSaving(false);
+    setRecalcing(false);
     setProject(null);
     setGlobalSettings(null);
     setIndexStatus('stale');
@@ -86,6 +88,9 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
     setAuApiBase('');
     setAuApiKey('');
     setContextWindow(128000);
+    setGlobalSettingsOpen(false);
+    setCoreIncludeModalOpen(false);
+    setCoreIncludeName('');
 
     const requestId = ++loadSettingsRequestIdRef.current;
     Promise.allSettled([
