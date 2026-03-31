@@ -542,6 +542,39 @@
       "initializing": "正在初始化本地引擎…"
     }
   },
+  "import": {
+    "title": "导入旧文",
+    "supportedFormats": "支持格式：.txt  .md  .docx",
+    "dropzone": "拖拽文件到这里，或点击选择",
+    "selectedFile": "选中：{{name}} ({{size}})",
+    "uploading": "正在分析文件...",
+    "previewTitle": "预览章节切分",
+    "chaptersDetected": "检测到 {{count}} 章（{{method}}切分）",
+    "splitMethods": {
+      "standard": "按「第X章」标识",
+      "integer": "按整数标题",
+      "auto": "按字数自动"
+    },
+    "chapterPreview": "第 {{num}} 章",
+    "charCount": "({{count}} 字)",
+    "singleChapterWarning": "未检测到章节标记，全文作为一章导入。如果原文有章节划分，请检查格式。",
+    "splitHint": "如果切分不正确，请检查原文的章节标记",
+    "confirmImport": "确认导入 →",
+    "importing": "正在导入...",
+    "completionTitle": "导入完成！",
+    "stats": "已导入 {{chapters}} 章",
+    "charactersFound": "检测到角色：{{names}}",
+    "factsPrompt": "建议提取剧情笔记，帮助 AI 理解当前剧情状态：",
+    "extractRecent5": "提取最近 5 章（推荐）",
+    "extractRecent20": "提取最近 20 章（适合长篇）",
+    "extractLater": "稍后手动维护",
+    "extractProgress": "正在提取第 {{current}}/{{total}} 章...",
+    "importNotUnderstand": "导入 ≠ AI 已理解全文",
+    "importNotUnderstandDesc": "AI 可以从历史章节中检索相关内容，但早期伏笔的精准推进需要你手动补充剧情笔记。",
+    "startWriting": "开始写作 →",
+    "selectAu": "选择要导入到哪个 AU",
+    "formatError": "仅支持 txt/md/docx 格式"
+  },
   "milestones": {
     "factsIntro": {
       "title": "你已经写了3章了！试试「剧情笔记」",
