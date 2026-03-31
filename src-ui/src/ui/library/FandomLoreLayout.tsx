@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
 import { Tag } from '../shared/Tag';
 import { Modal } from '../shared/Modal';
 import { EmptyState } from '../shared/EmptyState';
 import { TrashPanel } from '../shared/TrashPanel';
+import { SettingsChatPanel } from '../shared/settings-chat/SettingsChatPanel';
 import type { TrashEntry } from '../../api/trash';
 import { Search, Plus, ArrowLeft, FileText, ChevronDown, ChevronRight, Folder, Loader2, Trash2, Users, Globe2 } from 'lucide-react';
 import { saveLore, deleteLore } from '../../api/lore';
@@ -30,9 +31,17 @@ function getRestoredFandomFile(entry: TrashEntry): { category: 'core_characters'
   };
 }
 
+function toCanonicalCreateKey(value: string): string {
+  return value
+    .trim()
+    .replace(/\.md$/i, '')
+    .toLowerCase()
+    .replace(/[\s_]+/g, '_');
+}
+
 function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
   const { t } = useTranslation();
-  const { showError } = useFeedback();
+  const { showError, showToast } = useFeedback();
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
     core_characters: true,
     core_worldbuilding: true,
@@ -40,7 +49,10 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<'core_characters' | 'core_worldbuilding'>('core_characters');
   const [editorContent, setEditorContent] = useState('');
+  const [savedEditorContent, setSavedEditorContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isReadingFile, setIsReadingFile] = useState(false);
+  const [settingsChatBusy, setSettingsChatBusy] = useState(false);
   const [characterFiles, setCharacterFiles] = useState<FandomFileEntry[]>([]);
   const [worldbuildingFiles, setWorldbuildingFiles] = useState<FandomFileEntry[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
@@ -48,23 +60,71 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
   const [createModalCategory, setCreateModalCategory] = useState<'core_characters' | 'core_worldbuilding'>('core_characters');
   const [createName, setCreateName] = useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [discardChangesOpen, setDiscardChangesOpen] = useState(false);
   const [trashRefreshToken, setTrashRefreshToken] = useState(0);
+  const loadFilesRequestIdRef = useRef(0);
+  const selectFileRequestIdRef = useRef(0);
+  const contextVersionRef = useRef(0);
+  const pendingSelectionRef = useRef<{ filename: string; category: 'core_characters' | 'core_worldbuilding' } | null>(null);
+  const pendingCreateCategoryRef = useRef<'core_characters' | 'core_worldbuilding' | null>(null);
+  const pendingNavigationRef = useRef<string | null>(null);
+  const pendingDeleteRef = useRef(false);
 
   const fandomName = fandomPath?.split('/').pop() || t('common.unknownFandom');
+  const renderContextVersion = contextVersionRef.current;
+  const editorBusy = isSaving || isReadingFile || settingsChatBusy;
+  const isEditorDirty = selectedFile !== null && editorContent !== savedEditorContent;
+  const settingsChatDisabled = isSaving || isReadingFile || isEditorDirty;
+  const selectedEntry = selectedFile
+    ? (selectedCategory === 'core_characters' ? characterFiles : worldbuildingFiles)
+      .find((file) => file.filename === selectedFile)
+    : null;
 
-  const loadFiles = async () => {
-    if (!fandomPath) return;
+  useEffect(() => {
+    contextVersionRef.current += 1;
+    loadFilesRequestIdRef.current += 1;
+    selectFileRequestIdRef.current += 1;
+    setSelectedFile(null);
+    setSelectedCategory('core_characters');
+    setEditorContent('');
+    setSavedEditorContent('');
+    setIsSaving(false);
+    setIsReadingFile(false);
+    setSettingsChatBusy(false);
+    setDeleteConfirmOpen(false);
+    setDiscardChangesOpen(false);
+    setCreateModalOpen(false);
+    setCreateName('');
+    setFilesLoading(false);
+    pendingSelectionRef.current = null;
+    pendingCreateCategoryRef.current = null;
+    pendingNavigationRef.current = null;
+    pendingDeleteRef.current = false;
+  }, [fandomPath]);
+
+  const loadFiles = async (): Promise<{
+    characters: FandomFileEntry[];
+    worldbuilding: FandomFileEntry[];
+  } | null> => {
+    if (!fandomPath) return null;
+    const requestId = ++loadFilesRequestIdRef.current;
     setFilesLoading(true);
     try {
       const data = await listFandomFiles(fandomName);
+      if (requestId !== loadFilesRequestIdRef.current) return null;
       setCharacterFiles(data.characters);
       setWorldbuildingFiles(data.worldbuilding);
+      return data;
     } catch (e) {
+      if (requestId !== loadFilesRequestIdRef.current) return null;
       showError(e, t("error_messages.unknown"));
       setCharacterFiles([]);
       setWorldbuildingFiles([]);
+      return null;
     } finally {
-      setFilesLoading(false);
+      if (requestId === loadFilesRequestIdRef.current) {
+        setFilesLoading(false);
+      }
     }
   };
 
@@ -72,14 +132,56 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
     void loadFiles();
   }, [fandomName, fandomPath, showError, t]);
 
+  const openDiscardChangesConfirm = (
+    nextAction:
+      | { type: 'select'; filename: string; category: 'core_characters' | 'core_worldbuilding' }
+      | { type: 'create'; category: 'core_characters' | 'core_worldbuilding' }
+      | { type: 'delete' }
+      | { type: 'navigate'; page: string }
+  ) => {
+    if (nextAction.type === 'select') {
+      pendingSelectionRef.current = { filename: nextAction.filename, category: nextAction.category };
+      pendingCreateCategoryRef.current = null;
+      pendingNavigationRef.current = null;
+      pendingDeleteRef.current = false;
+    } else if (nextAction.type === 'create') {
+      pendingCreateCategoryRef.current = nextAction.category;
+      pendingSelectionRef.current = null;
+      pendingNavigationRef.current = null;
+      pendingDeleteRef.current = false;
+    } else if (nextAction.type === 'delete') {
+      pendingSelectionRef.current = null;
+      pendingCreateCategoryRef.current = null;
+      pendingNavigationRef.current = null;
+      pendingDeleteRef.current = true;
+    } else {
+      pendingSelectionRef.current = null;
+      pendingCreateCategoryRef.current = null;
+      pendingNavigationRef.current = nextAction.page;
+      pendingDeleteRef.current = false;
+    }
+    setDiscardChangesOpen(true);
+  };
+
   const handleSelectFile = async (filename: string, category: 'core_characters' | 'core_worldbuilding') => {
-    setSelectedFile(filename.replace('.md', ''));
+    const requestId = ++selectFileRequestIdRef.current;
+    setSelectedFile(filename);
     setSelectedCategory(category);
+    setEditorContent('');
+    setSavedEditorContent('');
+    setIsReadingFile(true);
     try {
       const result = await readFandomFile(fandomName, category, filename);
+      if (requestId !== selectFileRequestIdRef.current) return;
       setEditorContent(result.content);
+      setSavedEditorContent(result.content);
+      setIsReadingFile(false);
     } catch {
+      if (requestId !== selectFileRequestIdRef.current) return;
+      setSelectedFile(null);
       setEditorContent('');
+      setSavedEditorContent('');
+      setIsReadingFile(false);
     }
   };
 
@@ -88,85 +190,211 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
   };
 
   const openCreateModal = (category: 'core_characters' | 'core_worldbuilding') => {
+    if (isEditorDirty) {
+      openDiscardChangesConfirm({ type: 'create', category });
+      return;
+    }
     setCreateModalCategory(category);
     setCreateName('');
     setCreateModalOpen(true);
   };
 
+  const handleSelectFileIntent = (filename: string, category: 'core_characters' | 'core_worldbuilding') => {
+    if (editorBusy) {
+      return;
+    }
+
+    if (selectedFile === filename && selectedCategory === category) {
+      return;
+    }
+
+    if (isEditorDirty && (selectedFile !== filename || selectedCategory !== category)) {
+      openDiscardChangesConfirm({ type: 'select', filename, category });
+      return;
+    }
+
+    void handleSelectFile(filename, category);
+  };
+
+  const handleConfirmDiscardChanges = () => {
+    setDiscardChangesOpen(false);
+    const pendingSelection = pendingSelectionRef.current;
+    const pendingCreateCategory = pendingCreateCategoryRef.current;
+    const pendingNavigation = pendingNavigationRef.current;
+    const pendingDelete = pendingDeleteRef.current;
+    pendingSelectionRef.current = null;
+    pendingCreateCategoryRef.current = null;
+    pendingNavigationRef.current = null;
+    pendingDeleteRef.current = false;
+
+    if (pendingSelection) {
+      void handleSelectFile(pendingSelection.filename, pendingSelection.category);
+      return;
+    }
+
+    if (pendingCreateCategory) {
+      setCreateModalCategory(pendingCreateCategory);
+      setCreateName('');
+      setCreateModalOpen(true);
+      return;
+    }
+
+    if (pendingNavigation) {
+      onNavigate(pendingNavigation);
+      return;
+    }
+
+    if (pendingDelete) {
+      setDeleteConfirmOpen(true);
+    }
+  };
+
+  const handleCancelDiscardChanges = () => {
+    setDiscardChangesOpen(false);
+    pendingSelectionRef.current = null;
+    pendingCreateCategoryRef.current = null;
+    pendingNavigationRef.current = null;
+    pendingDeleteRef.current = false;
+  };
+
+  const handleNavigateIntent = (page: string) => {
+    if (isEditorDirty) {
+      openDiscardChangesConfirm({ type: 'navigate', page });
+      return;
+    }
+
+    onNavigate(page);
+  };
+
   const handleCreateLore = async () => {
     const rawName = createName.trim();
     if (!rawName || !fandomPath) return;
-
-    const slug = rawName.toLowerCase().replace(/\s+/g, '_');
-    const defaultContent = `# ${rawName}\n\n[]`;
-
+    const contextVersion = contextVersionRef.current;
     setIsSaving(true);
+
+    const displayName = rawName.replace(/\.md$/i, '').trim();
+    if (!displayName) {
+      showToast(t('settingsMode.validation.nameRequired'), 'warning');
+      setIsSaving(false);
+      return;
+    }
+    const filename = `${displayName}.md`;
+    let latestFiles: { characters: FandomFileEntry[]; worldbuilding: FandomFileEntry[] } | null = null;
+
+    try {
+      latestFiles = await listFandomFiles(fandomName);
+      if (contextVersion !== contextVersionRef.current) return;
+      setCharacterFiles(latestFiles.characters);
+      setWorldbuildingFiles(latestFiles.worldbuilding);
+    } catch (e: any) {
+      if (contextVersion !== contextVersionRef.current) return;
+      showError(e, t("error_messages.unknown"));
+      setIsSaving(false);
+      return;
+    }
+
+    const existingFiles = createModalCategory === 'core_characters'
+      ? latestFiles.characters
+      : latestFiles.worldbuilding;
+    if (existingFiles.some((file) => toCanonicalCreateKey(file.filename) === toCanonicalCreateKey(filename))) {
+      showToast(t('fandomLore.createDuplicate', { name: filename }), 'warning');
+      setIsSaving(false);
+      return;
+    }
+
+    const defaultContent = `# ${displayName}\n\n[]`;
+
     setCreateModalOpen(false);
+    loadFilesRequestIdRef.current += 1;
+    selectFileRequestIdRef.current += 1;
     try {
       await saveLore({
         fandom_path: fandomPath,
         category: createModalCategory,
-        filename: `${slug}.md`,
+        filename,
         content: defaultContent,
       });
-      setSelectedFile(slug);
+      if (contextVersion !== contextVersionRef.current) return;
+      setSelectedFile(filename);
       setSelectedCategory(createModalCategory);
       setEditorContent(defaultContent);
+      setSavedEditorContent(defaultContent);
+      setIsReadingFile(false);
       if (createModalCategory === 'core_characters') {
-        setCharacterFiles(prev => [...prev, { name: slug, filename: `${slug}.md` }]);
+        setCharacterFiles(prev => [...prev, { name: displayName, filename }]);
       } else {
-        setWorldbuildingFiles(prev => [...prev, { name: slug, filename: `${slug}.md` }]);
+        setWorldbuildingFiles(prev => [...prev, { name: displayName, filename }]);
       }
     } catch (e: any) {
+      if (contextVersion !== contextVersionRef.current) return;
       showError(e, t("error_messages.unknown"));
     } finally {
-      setIsSaving(false);
+      if (contextVersion === contextVersionRef.current) {
+        setIsSaving(false);
+      }
     }
   };
 
   const handleSaveLore = async () => {
     if (!selectedFile || !fandomPath) return;
+    const contextVersion = contextVersionRef.current;
     setIsSaving(true);
     try {
       await saveLore({
         fandom_path: fandomPath,
         category: selectedCategory,
-        filename: `${selectedFile}.md`,
+        filename: selectedFile,
         content: editorContent
       });
+      if (contextVersion !== contextVersionRef.current) return;
+      setSavedEditorContent(editorContent);
     } catch (e: any) {
+      if (contextVersion !== contextVersionRef.current) return;
       showError(e, t("error_messages.unknown"));
     } finally {
-      setIsSaving(false);
+      if (contextVersion === contextVersionRef.current) {
+        setIsSaving(false);
+      }
     }
   };
 
   const handleDeleteLore = async () => {
     if (!selectedFile || !fandomPath) return;
+    const contextVersion = contextVersionRef.current;
     setDeleteConfirmOpen(false);
     setIsSaving(true);
+    loadFilesRequestIdRef.current += 1;
+    selectFileRequestIdRef.current += 1;
     try {
       await deleteLore({
         fandom_path: fandomPath,
         category: selectedCategory,
-        filename: `${selectedFile}.md`,
+        filename: selectedFile,
       });
+      if (contextVersion !== contextVersionRef.current) return;
       if (selectedCategory === 'core_characters') {
-        setCharacterFiles(prev => prev.filter(f => f.name !== selectedFile));
+        setCharacterFiles(prev => prev.filter(f => f.filename !== selectedFile));
       } else {
-        setWorldbuildingFiles(prev => prev.filter(f => f.name !== selectedFile));
+        setWorldbuildingFiles(prev => prev.filter(f => f.filename !== selectedFile));
       }
       setSelectedFile(null);
       setEditorContent('');
+      setSavedEditorContent('');
+      setIsReadingFile(false);
       setTrashRefreshToken(current => current + 1);
     } catch (e: any) {
+      if (contextVersion !== contextVersionRef.current) return;
       showError(e, t("error_messages.unknown"));
     } finally {
-      setIsSaving(false);
+      if (contextVersion === contextVersionRef.current) {
+        setIsSaving(false);
+      }
     }
   };
 
   const handleTrashRestore = (entry: TrashEntry) => {
+    if (renderContextVersion !== contextVersionRef.current) return;
+
     const restored = getRestoredFandomFile(entry);
     if (!restored) return;
 
@@ -189,12 +417,12 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
         <header className="p-4 border-b border-black/10 dark:border-white/10 flex flex-col gap-3 shrink-0 bg-surface">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => onNavigate('library')} className="p-1 h-8 w-8 text-text/60 hover:text-text rounded-full" title={t("common.actions.back")}>
+            <Button variant="ghost" size="sm" onClick={() => handleNavigateIntent('library')} className="p-1 h-8 w-8 text-text/60 hover:text-text rounded-full" title={t("common.actions.back")}>
                 <ArrowLeft size={18} />
               </Button>
               <h1 className="font-serif text-lg font-bold">{t("common.scope.fandomTitle", { name: fandomName })}</h1>
             </div>
-            <Button variant="ghost" size="sm" className="px-2" onClick={() => openCreateModal('core_characters')} disabled={isSaving}>
+            <Button variant="ghost" size="sm" className="px-2" onClick={() => openCreateModal('core_characters')} disabled={editorBusy || filesLoading}>
               {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16}/>}
             </Button>
           </div>
@@ -206,6 +434,42 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
 
         <div className="flex-1 min-h-0 flex flex-col">
           <div className="flex-1 overflow-y-auto p-2 space-y-6 font-mono py-4">
+            <div className="px-2">
+              <SettingsChatPanel
+                mode="fandom"
+                basePath={fandomPath}
+                placeholder={t('settingsMode.fandomPlaceholder')}
+                title={t('settingsMode.fandomAiTitle')}
+                compact
+                disabled={settingsChatDisabled}
+                onBusyChange={setSettingsChatBusy}
+                onAfterMutation={async () => {
+                  const refreshed = await loadFiles();
+                  if (!refreshed) return;
+                  if (!selectedFile) return;
+
+                  const refreshedFiles = selectedCategory === 'core_characters'
+                    ? (refreshed?.characters || [])
+                    : (refreshed?.worldbuilding || []);
+                  const fileStillExists = refreshedFiles.some((file) => file.filename === selectedFile);
+
+                  if (!fileStillExists) {
+                    setSelectedFile(null);
+                    setEditorContent('');
+                    setSavedEditorContent('');
+                    showToast(t('fandomLore.selectedFileRemoved'), 'warning');
+                    return;
+                  }
+
+                  if (!isEditorDirty) {
+                    await handleSelectFile(selectedFile, selectedCategory);
+                  } else {
+                    showToast(t('fandomLore.pendingEditsPreserved'), 'warning');
+                  }
+                }}
+              />
+            </div>
+
             <div className="space-y-2">
               <div className="px-3 pb-1 text-[11px] font-sans font-bold text-text/40 uppercase tracking-widest flex justify-between items-center">
                 <span>{t("fandomLore.rootLabel")}</span>
@@ -218,7 +482,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                     <Folder size={14} className="text-accent" fill="currentColor" fillOpacity={0.2} />
                     <span>{t("fandomLore.category.characters")}</span>
                   </div>
-                  <Button variant="ghost" size="sm" className="p-0 h-6 w-6" onClick={(e) => { e.stopPropagation(); openCreateModal('core_characters'); }}>
+                  <Button variant="ghost" size="sm" className="p-0 h-6 w-6" onClick={(e) => { e.stopPropagation(); openCreateModal('core_characters'); }} disabled={editorBusy || filesLoading}>
                     <Plus size={12} />
                   </Button>
                 </div>
@@ -244,11 +508,11 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                         <div
                           key={f.filename}
                           className={`flex items-center gap-2 pl-6 pr-2 py-1.5 text-sm cursor-pointer rounded-md transition-colors ${
-                            selectedFile === f.name && selectedCategory === 'core_characters'
+                            selectedFile === f.filename && selectedCategory === 'core_characters'
                               ? 'bg-accent/10 text-accent font-semibold'
                               : 'hover:bg-black/5 dark:hover:bg-white/5 text-text/70'
-                          }`}
-                          onClick={() => handleSelectFile(f.filename, 'core_characters')}
+                          } ${editorBusy ? 'pointer-events-none opacity-60' : ''}`}
+                          onClick={() => handleSelectFileIntent(f.filename, 'core_characters')}
                         >
                           <FileText size={13} />
                           <span>{f.name}</span>
@@ -266,7 +530,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                     <Folder size={14} className="text-warning" fill="currentColor" fillOpacity={0.2} />
                     <span>{t("fandomLore.category.worldbuilding")}</span>
                   </div>
-                  <Button variant="ghost" size="sm" className="p-0 h-6 w-6" onClick={(e) => { e.stopPropagation(); openCreateModal('core_worldbuilding'); }}>
+                  <Button variant="ghost" size="sm" className="p-0 h-6 w-6" onClick={(e) => { e.stopPropagation(); openCreateModal('core_worldbuilding'); }} disabled={editorBusy || filesLoading}>
                     <Plus size={12} />
                   </Button>
                 </div>
@@ -292,11 +556,11 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                         <div
                           key={f.filename}
                           className={`flex items-center gap-2 pl-6 pr-2 py-1.5 text-sm cursor-pointer rounded-md transition-colors ${
-                            selectedFile === f.name && selectedCategory === 'core_worldbuilding'
+                            selectedFile === f.filename && selectedCategory === 'core_worldbuilding'
                               ? 'bg-accent/10 text-accent font-semibold'
                               : 'hover:bg-black/5 dark:hover:bg-white/5 text-text/70'
-                          }`}
-                          onClick={() => handleSelectFile(f.filename, 'core_worldbuilding')}
+                          } ${editorBusy ? 'pointer-events-none opacity-60' : ''}`}
+                          onClick={() => handleSelectFileIntent(f.filename, 'core_worldbuilding')}
                         >
                           <FileText size={13} />
                           <span>{f.name}</span>
@@ -308,7 +572,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
               </div>
             </div>
           </div>
-          <TrashPanel scope="fandom" path={fandomPath} onRestore={handleTrashRestore} refreshToken={trashRefreshToken} />
+          <TrashPanel scope="fandom" path={fandomPath} onRestore={handleTrashRestore} refreshToken={trashRefreshToken} disabled={editorBusy} />
         </div>
       </div>
 
@@ -317,7 +581,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
           {selectedFile ? (
             <>
               <div className="flex items-center gap-3">
-                <span className="font-mono text-sm font-semibold opacity-70">{selectedFile}.md</span>
+                <span className="font-mono text-sm font-semibold opacity-70">{selectedEntry?.filename || selectedFile}</span>
                 <Tag variant={selectedCategory === 'core_characters' ? 'success' : 'warning'}>
                   {selectedCategory === 'core_characters' ? t('fandomLore.selectedTagCharacter') : t('fandomLore.selectedTagWorldbuilding')}
                 </Tag>
@@ -326,11 +590,23 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                 <span className="text-[11px] text-text/40 bg-black/5 dark:bg-white/5 px-2 py-1 rounded-md hidden xl:block">
                   {t("fandomLore.referenceHint")}
                 </span>
-                <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteConfirmOpen(true)} disabled={isSaving}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  onClick={() => {
+                    if (isEditorDirty) {
+                      openDiscardChangesConfirm({ type: 'delete' });
+                      return;
+                    }
+                    setDeleteConfirmOpen(true);
+                  }}
+                  disabled={editorBusy}
+                >
                   <Trash2 size={14} />
                 </Button>
-                <Button variant="primary" size="sm" className="h-8 w-28" onClick={handleSaveLore} disabled={isSaving}>
-                  {isSaving ? <Loader2 size={14} className="animate-spin" /> : t('fandomLore.saveButton')}
+                <Button variant="primary" size="sm" className="h-8 w-28" onClick={handleSaveLore} disabled={editorBusy}>
+                  {isSaving || isReadingFile ? <Loader2 size={14} className="animate-spin" /> : t('fandomLore.saveButton')}
                 </Button>
               </div>
             </>
@@ -342,23 +618,20 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
         <div className="flex-1 overflow-y-auto p-8 lg:p-12 w-full max-w-4xl mx-auto flex flex-col gap-6">
           {selectedFile ? (
             <>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-bold text-text/90">{t("common.labels.displayName")}</label>
-                  <Input defaultValue={selectedFile} className="h-10 font-sans text-base" />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-bold text-text/90">{t("common.labels.aliases")}</label>
-                  <Input placeholder={t("common.labels.aliases")} className="h-10 font-sans" />
-                </div>
-              </div>
               <div className="flex flex-col gap-2 flex-1">
                 <label className="text-sm font-bold text-text/90">{selectedCategory === 'core_characters' ? t("fandomLore.category.characters") : t("fandomLore.category.worldbuilding")}</label>
-                <Textarea
-                  value={editorContent}
-                  onChange={e => setEditorContent(e.target.value)}
-                  className="font-mono flex-1 min-h-[300px] text-sm leading-relaxed bg-surface/30 p-4 resize-y"
-                />
+                {isReadingFile ? (
+                  <div className="flex min-h-[300px] flex-1 items-center justify-center rounded-md border border-black/10 bg-surface/30 p-4 dark:border-white/10">
+                    <Loader2 size={18} className="animate-spin text-accent" />
+                  </div>
+                ) : (
+                  <Textarea
+                    value={editorContent}
+                    onChange={e => setEditorContent(e.target.value)}
+                    disabled={editorBusy}
+                    className="font-mono flex-1 min-h-[300px] text-sm leading-relaxed bg-surface/30 p-4 resize-y"
+                  />
+                )}
               </div>
             </>
           ) : (
@@ -382,17 +655,27 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
           />
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setCreateModalOpen(false)}>{t("common.actions.cancel")}</Button>
-            <Button variant="primary" onClick={handleCreateLore} disabled={!createName.trim()}>{t("common.actions.create")}</Button>
+            <Button variant="primary" onClick={handleCreateLore} disabled={!createName.trim() || editorBusy}>{t("common.actions.create")}</Button>
           </div>
         </div>
       </Modal>
 
       <Modal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} title={t("fandomLore.deleteTitle")}>
         <div className="space-y-4">
-          <p className="text-sm text-text/80">{t("fandomLore.deleteMessage", { name: `${selectedFile}.md` })}</p>
+          <p className="text-sm text-text/80">{t("fandomLore.deleteMessage", { name: selectedEntry?.filename || selectedFile || '' })}</p>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setDeleteConfirmOpen(false)}>{t("common.actions.cancel")}</Button>
-            <Button variant="primary" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDeleteLore}>{t("common.actions.confirmDelete")}</Button>
+            <Button variant="primary" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDeleteLore} disabled={editorBusy}>{t("common.actions.confirmDelete")}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={discardChangesOpen} onClose={handleCancelDiscardChanges} title={t("fandomLore.discardChangesTitle")}>
+        <div className="space-y-4">
+          <p className="text-sm text-text/80">{t("fandomLore.discardChangesMessage")}</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={handleCancelDiscardChanges}>{t("common.actions.cancel")}</Button>
+            <Button variant="primary" onClick={handleConfirmDiscardChanges}>{t("fandomLore.discardChangesConfirm")}</Button>
           </div>
         </div>
       </Modal>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ThemeToggle } from '../shared/ThemeToggle';
 import { Button } from '../shared/Button';
 import { Tag } from '../shared/Tag';
@@ -23,6 +23,7 @@ import { ExportModal } from './ExportModal';
 import { DirtyModal } from './DirtyModal';
 import { ContextSummaryBar } from './ContextSummaryBar';
 import { Sidebar } from '../shared/Sidebar';
+import { SettingsChatPanel } from '../shared/settings-chat/SettingsChatPanel';
 
 import { getChapterContent, confirmChapter, undoChapter } from '../../api/chapters';
 import { listDrafts, getDraft, deleteDrafts, type DraftDetail, type DraftGeneratedWith } from '../../api/drafts';
@@ -30,7 +31,7 @@ import { getState, setChapterFocus, type StateInfo } from '../../api/state';
 import { listFacts, addFact, extractFacts, type ExtractedFactCandidate, type FactInfo } from '../../api/facts';
 import { generateChapter, type ContextSummary } from '../../api/generate';
 import { getSettings, updateSettings } from '../../api/settings';
-import { getProject, updateProject } from '../../api/project';
+import { getProject, updateProject, type ProjectInfo } from '../../api/project';
 import { ApiError, getFriendlyErrorMessage } from '../../api/client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
@@ -57,7 +58,10 @@ type GenerateRequestState = {
 };
 
 const FACTS_PROMPT_STORAGE_KEY = 'ficforge.writer.skipFactsPrompt';
+const SETTINGS_MODE_TOOLTIP_STORAGE_KEY = 'ficforge.writer.settingsModeTipSeen';
 const MAX_RECOMMENDED_DRAFTS = 5;
+
+type WriterMode = 'write' | 'settings';
 
 function buildDraftId(chapterNum: number, label: string): string {
   return `ch${String(chapterNum).padStart(4, '0')}_draft_${label}.md`;
@@ -218,6 +222,16 @@ function setSkipFactsPromptPersisted(value: boolean): void {
   window.localStorage.removeItem(FACTS_PROMPT_STORAGE_KEY);
 }
 
+function hasSeenSettingsModeTooltip(): boolean {
+  if (typeof window === 'undefined') return true;
+  return window.localStorage.getItem(SETTINGS_MODE_TOOLTIP_STORAGE_KEY) === '1';
+}
+
+function markSettingsModeTooltipSeen(): void {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(SETTINGS_MODE_TOOLTIP_STORAGE_KEY, '1');
+}
+
 function formatGeneratedMeta(generatedWith?: DraftGeneratedWith | null): string {
   if (!generatedWith) return '';
 
@@ -257,6 +271,12 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   const { t } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
   const instructionInputRef = useRef<HTMLInputElement | null>(null);
+  const activeAuPathRef = useRef(auPath);
+  const loadRequestIdRef = useRef(0);
+  const refreshRequestIdRef = useRef(0);
+  activeAuPathRef.current = auPath;
+  const [mode, setMode] = useState<WriterMode>('write');
+  const [showSettingsTooltip, setShowSettingsTooltip] = useState(false);
 
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [isExportOpen, setExportOpen] = useState(false);
@@ -267,6 +287,8 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   const [isExtractReviewOpen, setExtractReviewOpen] = useState(false);
 
   const [state, setState] = useState<StateInfo | null>(null);
+  const [projectInfo, setProjectInfo] = useState<ProjectInfo | null>(null);
+  const [settingsInfo, setSettingsInfo] = useState<any>(null);
   const [currentContent, setCurrentContent] = useState('');
   const [unresolvedFacts, setUnresolvedFacts] = useState<FactInfo[]>([]);
   const [focusSelection, setFocusSelection] = useState<string[]>([]);
@@ -299,6 +321,45 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   const [sessionModel, setSessionModel] = useState('deepseek-chat');
   const [sessionTemp, setSessionTemp] = useState(1.0);
   const [sessionTopP, setSessionTopP] = useState(0.95);
+
+  useEffect(() => {
+    activeAuPathRef.current = auPath;
+    loadRequestIdRef.current += 1;
+    refreshRequestIdRef.current += 1;
+    setLoading(true);
+    setState(null);
+    setProjectInfo(null);
+    setSettingsInfo(null);
+    setCurrentContent('');
+    setUnresolvedFacts([]);
+    setFocusSelection([]);
+    setDrafts([]);
+    setActiveDraftIndex(0);
+    setRecoveryNotice(false);
+    setLastConfirmedChapter(null);
+    setUndoConfirmOpen(false);
+    setDirtyBannerDismissed(false);
+    setIsGenerating(false);
+    setIsFinalizing(false);
+    setIsDiscarding(false);
+    setExtractingFacts(false);
+    setSavingExtracted(false);
+    setStreamText('');
+    setGeneratedWith(null);
+    setBudgetReport(null);
+    setLastGenerateRequest(null);
+    setDraftSummaries({});
+    pendingContextSummaryRef.current = null;
+    setInstructionText('');
+    setExtractedCandidates([]);
+    setSelectedExtractedKeys([]);
+    setFinalizeConfirmOpen(false);
+    setDiscardConfirmOpen(false);
+    setFactsPromptOpen(false);
+    setExtractReviewOpen(false);
+    setDirtyOpen(false);
+    setExportOpen(false);
+  }, [auPath]);
 
   const focusInstructionInput = () => {
     window.setTimeout(() => {
@@ -373,6 +434,8 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   }, [auPath]);
 
   const loadData = useCallback(async () => {
+    const requestId = ++loadRequestIdRef.current;
+    const requestAuPath = auPath;
     setLoading(true);
     try {
       const [stateData, factsData, proj, settings] = await Promise.all([
@@ -381,8 +444,11 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
         getProject(auPath).catch(() => null),
         getSettings().catch(() => null),
       ]);
+      if (requestId !== loadRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
 
       setState(stateData);
+      setProjectInfo(proj);
+      setSettingsInfo(settings);
       setUnresolvedFacts(factsData);
       setFocusSelection(stateData?.chapter_focus || []);
 
@@ -415,8 +481,10 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
         const latestNum = stateData.current_chapter - 1;
         try {
           const content = await getChapterContent(auPath, latestNum);
+          if (requestId !== loadRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
           setCurrentContent(typeof content === 'string' ? content : '');
         } catch {
+          if (requestId !== loadRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
           setCurrentContent(t('writer.contentLoadFailed'));
         }
       } else {
@@ -425,6 +493,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
 
       if (stateData) {
         const loadedDrafts = await loadDraftsForChapter(stateData.current_chapter);
+        if (requestId !== loadRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
         const storedSummaries = readSavedContextSummaries(auPath, stateData.current_chapter);
         const activeLabels = new Set(loadedDrafts.map((draft) => draft.label));
         const filteredSummaries = Object.entries(storedSummaries).reduce<Record<string, ContextSummary>>((accumulator, [label, summary]) => {
@@ -443,13 +512,40 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
       } else {
         clearDraftState();
         setLastGenerateRequest(null);
+        setProjectInfo(null);
       }
     } catch (error) {
+      if (requestId !== loadRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestIdRef.current && activeAuPathRef.current === requestAuPath) {
+        setLoading(false);
+      }
     }
   }, [auPath, loadDraftsForChapter, replaceDraftSummaries, showError, t]);
+
+  const refreshSettingsModeData = useCallback(async () => {
+    const requestId = ++refreshRequestIdRef.current;
+    const requestAuPath = auPath;
+    try {
+      const [stateData, factsData, proj] = await Promise.all([
+        getState(auPath).catch(() => null),
+        listFacts(auPath, 'unresolved').catch(() => []),
+        getProject(auPath).catch(() => null),
+      ]);
+      if (requestId !== refreshRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
+
+      if (stateData) {
+        setState(stateData);
+        setFocusSelection(stateData.chapter_focus || []);
+      }
+      setProjectInfo(proj);
+      setUnresolvedFacts(factsData);
+    } catch (error) {
+      if (requestId !== refreshRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
+      showError(error, t('error_messages.unknown'));
+    }
+  }, [auPath, showError, t]);
 
   useEffect(() => {
     void loadData();
@@ -467,19 +563,38 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   };
 
   const handleSaveAuParams = async () => {
+    const requestAuPath = auPath;
     try {
       const proj = await getProject(auPath);
       if (!proj.model_params_override) proj.model_params_override = {};
       proj.model_params_override[sessionModel] = { temperature: sessionTemp, top_p: sessionTopP };
       await updateProject(auPath, proj as any);
+      if (activeAuPathRef.current !== requestAuPath) return;
       showSuccess(t('writer.saveAuSuccess'));
     } catch (error) {
+      if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
     }
   };
 
+  const sessionLlmPayload = useMemo(() => {
+    if (!sessionModel) return null;
+
+    const source = projectInfo?.llm?.model
+      ? projectInfo.llm
+      : settingsInfo?.default_llm;
+
+    return {
+      mode: source?.mode || 'api',
+      model: sessionModel,
+      api_base: source?.api_base || '',
+      api_key: source?.api_key || '',
+    };
+  }, [projectInfo, sessionModel, settingsInfo]);
+
   const handleGenerate = useCallback(async (request: GenerateRequestState) => {
     if (isGenerating || !state) return;
+    const requestAuPath = auPath;
 
     setIsGenerating(true);
     setStreamText('');
@@ -505,9 +620,14 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
         chapter_num: state.current_chapter,
         user_input: request.userInput,
         input_type: request.inputType,
-        session_llm: sessionModel ? { mode: 'api', model: sessionModel } : undefined,
+        session_llm: sessionLlmPayload || undefined,
         session_params: { temperature: sessionTemp, top_p: sessionTopP },
       })) {
+        if (activeAuPathRef.current !== requestAuPath) {
+          pendingContextSummaryRef.current = null;
+          return;
+        }
+
         if (event.event === 'context_summary') {
           const summary = normalizeContextSummary(event.data);
           if (summary) {
@@ -551,6 +671,10 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
             nextText,
             nextGeneratedWith
           );
+          if (activeAuPathRef.current !== requestAuPath) {
+            pendingContextSummaryRef.current = null;
+            return;
+          }
           mergeDraftIntoState(partialDraft);
           setGeneratedWith(partialDraft.generatedWith || nextGeneratedWith || null);
           setStreamText('');
@@ -576,6 +700,10 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
         nextText,
         nextGeneratedWith
       );
+      if (activeAuPathRef.current !== requestAuPath) {
+        pendingContextSummaryRef.current = null;
+        return;
+      }
 
       mergeDraftIntoState(nextDraft);
       if (nextContextSummary) {
@@ -587,11 +715,14 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
       pendingContextSummaryRef.current = null;
     } catch (error) {
       pendingContextSummaryRef.current = null;
+      if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('writer.generateErrorFallback'));
     } finally {
-      setIsGenerating(false);
+      if (activeAuPathRef.current === requestAuPath) {
+        setIsGenerating(false);
+      }
     }
-  }, [attachDraftSummary, auPath, loadDraftByLabel, mergeDraftIntoState, sessionModel, sessionTemp, sessionTopP, showError, state, t]);
+  }, [attachDraftSummary, auPath, loadDraftByLabel, mergeDraftIntoState, sessionLlmPayload, sessionTemp, sessionTopP, showError, state, t]);
 
   const handleGenerateFromInput = async (inputType: 'continue' | 'instruction') => {
     if (drafts.length > 0) {
@@ -618,6 +749,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   const handleConfirm = async () => {
     const currentDraft = drafts[activeDraftIndex];
     if (!currentDraft || !state) return;
+    const requestAuPath = auPath;
 
     setIsFinalizing(true);
     try {
@@ -629,6 +761,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
         currentDraft.generatedWith || undefined,
         currentDraft.modified ? currentDraft.content : undefined
       );
+      if (activeAuPathRef.current !== requestAuPath) return;
 
       clearDraftState();
       replaceDraftSummaries(confirmedChapter, {});
@@ -644,26 +777,33 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
 
       setFactsPromptOpen(true);
     } catch (error) {
+      if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      setIsFinalizing(false);
+      if (activeAuPathRef.current === requestAuPath) {
+        setIsFinalizing(false);
+      }
     }
   };
 
   const handleUndoConfirmed = async () => {
+    const requestAuPath = auPath;
     setUndoConfirmOpen(false);
     try {
       await undoChapter(auPath);
+      if (activeAuPathRef.current !== requestAuPath) return;
       clearDraftState();
       showSuccess(t('writer.undoSuccess'));
       await loadData();
     } catch (error) {
+      if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
     }
   };
 
   const handleDiscardDrafts = async () => {
     if (!state || drafts.length === 0) return;
+    const requestAuPath = auPath;
 
     setIsDiscarding(true);
     try {
@@ -674,6 +814,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
         state.current_chapter,
         isSingleDraft ? currentDraft?.label : undefined
       );
+      if (activeAuPathRef.current !== requestAuPath) return;
 
       clearDraftState();
       replaceDraftSummaries(state.current_chapter, {});
@@ -685,13 +826,17 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
       }
       focusInstructionInput();
     } catch (error) {
+      if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      setIsDiscarding(false);
+      if (activeAuPathRef.current === requestAuPath) {
+        setIsDiscarding(false);
+      }
     }
   };
 
   const handleFocusToggle = async (factId: string) => {
+    const requestAuPath = auPath;
     let next: string[];
     if (focusSelection.includes(factId)) {
       next = focusSelection.filter(id => id !== factId);
@@ -705,23 +850,29 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     setFocusSelection(next);
     try {
       await setChapterFocus(auPath, next);
+      if (activeAuPathRef.current !== requestAuPath) return;
       showToast(t('writer.focusSaved'), 'success');
     } catch (error) {
+      if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
     }
   };
 
   const handleClearFocus = async () => {
+    const requestAuPath = auPath;
     setFocusSelection([]);
     try {
       await setChapterFocus(auPath, []);
+      if (activeAuPathRef.current !== requestAuPath) return;
       showToast(t('writer.focusSaved'), 'success');
     } catch (error) {
+      if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
     }
   };
 
   const handleContinueLastFocus = async () => {
+    const requestAuPath = auPath;
     const lastFocus = state?.last_confirmed_chapter_focus || [];
     const validIds = lastFocus.filter(id => unresolvedFacts.some(f => String(f.id) === id));
     if (validIds.length === 0) {
@@ -731,8 +882,10 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     setFocusSelection(validIds);
     try {
       await setChapterFocus(auPath, validIds);
+      if (activeAuPathRef.current !== requestAuPath) return;
       showToast(t('writer.focusSaved'), 'success');
     } catch (error) {
+      if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
     }
   };
@@ -756,6 +909,18 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     setSkipFactsPromptPersisted(checked);
   };
 
+  const handleModeChange = (nextMode: WriterMode) => {
+    setMode(nextMode);
+    if (nextMode === 'settings' && !hasSeenSettingsModeTooltip()) {
+      setShowSettingsTooltip(true);
+      markSettingsModeTooltipSeen();
+      return;
+    }
+    if (nextMode !== 'settings') {
+      setShowSettingsTooltip(false);
+    }
+  };
+
   const closeFactsPrompt = () => {
     setFactsPromptOpen(false);
     focusInstructionInput();
@@ -767,10 +932,12 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
 
   const handleOpenExtractReview = async () => {
     if (!lastConfirmedChapter) return;
+    const requestAuPath = auPath;
 
     setExtractingFacts(true);
     try {
       const result = await extractFacts(auPath, lastConfirmedChapter);
+      if (activeAuPathRef.current !== requestAuPath) return;
       const candidates = result.facts || [];
       setExtractedCandidates(candidates);
       setSelectedExtractedKeys(candidates.map((candidate, index) => getCandidateKey(candidate, index)));
@@ -780,9 +947,12 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
         showToast(t('facts.extractNoResult'), 'info');
       }
     } catch (error) {
+      if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      setExtractingFacts(false);
+      if (activeAuPathRef.current === requestAuPath) {
+        setExtractingFacts(false);
+      }
     }
   };
 
@@ -794,6 +964,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     }
 
     setSavingExtracted(true);
+    const requestAuPath = auPath;
     try {
       const selectedCandidates = extractedCandidates.filter((candidate, index) =>
         selectedExtractedKeys.includes(getCandidateKey(candidate, index))
@@ -810,6 +981,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
           ...(candidate.timeline ? { timeline: candidate.timeline } : {}),
         });
       }
+      if (activeAuPathRef.current !== requestAuPath) return;
 
       showSuccess(t('facts.extractSaved', { count: selectedCandidates.length }));
       setExtractReviewOpen(false);
@@ -817,9 +989,12 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
       setSelectedExtractedKeys([]);
       focusInstructionInput();
     } catch (error) {
+      if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      setSavingExtracted(false);
+      if (activeAuPathRef.current === requestAuPath) {
+        setSavingExtracted(false);
+      }
     }
   };
 
@@ -834,6 +1009,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   const currentChapter = state?.current_chapter || 1;
   const hasPendingDrafts = drafts.length > 0;
   const currentDraft = drafts[activeDraftIndex] || null;
+  const settingsSessionLlm = sessionLlmPayload;
   const currentDraftSummary = !isGenerating && currentDraft ? draftSummaries[currentDraft.label] || null : null;
   const activeGeneratedWith = currentDraft?.generatedWith || generatedWith;
   const displayContent = streamText || currentDraft?.content || currentContent;
@@ -879,14 +1055,34 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
             </div>
           </div>
         )}
-        <header className="h-12 flex items-center justify-between px-6 border-b border-black/5 dark:border-white/5 text-xs text-text/50">
+        <header className="flex h-14 items-center justify-between border-b border-black/5 px-6 text-xs text-text/50 dark:border-white/5">
           <div className="flex items-center gap-4">
-            <span>{metaModel} · T{sessionTemp}</span>
-            <span>{t('writer.metaWords', { count: metaChars })}</span>
-            <span>{metaDuration}</span>
+            <div className="inline-flex rounded-lg border border-black/10 bg-surface/60 p-1 dark:border-white/10">
+              <Button
+                variant={mode === 'write' ? 'primary' : 'ghost'}
+                size="sm"
+                className="h-8"
+                onClick={() => handleModeChange('write')}
+              >
+                {t('settingsMode.tabWrite')}
+              </Button>
+              <Button
+                variant={mode === 'settings' ? 'primary' : 'ghost'}
+                size="sm"
+                className="h-8"
+                onClick={() => handleModeChange('settings')}
+              >
+                {t('settingsMode.tabSettings')}
+              </Button>
+            </div>
+            <div className="hidden items-center gap-4 md:flex">
+              <span>{metaModel} · T{sessionTemp}</span>
+              <span>{t('writer.metaWords', { count: metaChars })}</span>
+              <span>{metaDuration}</span>
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            {isGenerating && <Tag variant="warning" className="mr-2">{t('common.status.generating')}</Tag>}
+            {mode === 'write' && isGenerating && <Tag variant="warning" className="mr-2">{t('common.status.generating')}</Tag>}
             <Button
               variant="ghost"
               size="sm"
@@ -906,217 +1102,254 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto w-full flex justify-center pb-32">
-          <div className="w-full max-w-3xl px-8 py-10 space-y-6">
-            {recoveryNotice && hasPendingDrafts && (
-              <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
-                {t('drafts.recoveryNotice')}
+        <div className={mode === 'write' ? 'flex flex-1 flex-col min-h-0' : 'hidden'}>
+          <div className="flex-1 overflow-y-auto w-full flex justify-center pb-32">
+            <div className="w-full max-w-3xl px-8 py-10 space-y-6">
+              {recoveryNotice && hasPendingDrafts && (
+                <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+                  {t('drafts.recoveryNotice')}
+                </div>
+              )}
+
+              <div className="rounded-[24px] border border-black/10 bg-surface/35 p-6 shadow-subtle dark:border-white/10">
+                {loading ? (
+                  <div className="flex items-center justify-center py-24">
+                    <Loader2 className="animate-spin text-accent" size={24} />
+                  </div>
+                ) : streamText ? (
+                  <div className="text-lg font-serif leading-loose text-text/90 animate-in fade-in duration-200">
+                    {streamText.split('\n').filter(Boolean).map((para: string, i: number) => (
+                      <p key={i} className="mb-6 indent-8 opacity-90">{para}</p>
+                    ))}
+                    {isGenerating && <span className="inline-block h-5 w-0.5 bg-accent align-middle animate-pulse" />}
+                  </div>
+                ) : currentDraft ? (
+                  <div className="space-y-4">
+                    <Textarea
+                      value={currentDraft.content}
+                      onChange={(event) => handleCurrentDraftChange(event.target.value)}
+                      className="min-h-[440px] border-0 bg-transparent px-0 py-0 font-serif text-lg leading-loose shadow-none focus:ring-0"
+                    />
+                  </div>
+                ) : displayContent ? (
+                  <div className="text-lg font-serif leading-loose text-text/90">
+                    {displayContent.split('\n').filter(Boolean).map((para: string, i: number) => (
+                      <p key={i} className="mb-6 indent-8">{para}</p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="py-24 text-center text-text/30">{t('writer.emptyContent')}</p>
+                )}
+              </div>
+
+              <ContextSummaryBar
+                summary={currentDraftSummary}
+                onAdjustCoreIncludes={() => onNavigate('settings')}
+              />
+            </div>
+          </div>
+
+          <footer className="absolute bottom-0 w-full shrink-0 border-t border-black/10 dark:border-white/10 bg-surface/50 p-4 backdrop-blur-md flex flex-col gap-3">
+            {hasPendingDrafts && currentDraft && (
+              <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 rounded-xl border border-black/10 bg-background/60 px-4 py-3 dark:border-white/10">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex items-center gap-2 text-sm font-sans text-text/75">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => setActiveDraftIndex((current) => Math.max(0, current - 1))}
+                      disabled={isFirstDraft || isGenerating}
+                      aria-label={t('drafts.previous')}
+                    >
+                      <ChevronLeft size={16} />
+                    </Button>
+                    <span className="min-w-[140px] text-center font-medium">
+                      {t('drafts.count', { current: activeDraftIndex + 1, total: drafts.length })}
+                      {currentDraft.modified ? <span className="ml-1 text-text/55">{t('drafts.modified')}</span> : null}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => setActiveDraftIndex((current) => Math.min(drafts.length - 1, current + 1))}
+                      disabled={isLastDraft || isGenerating}
+                      aria-label={t('drafts.next')}
+                    >
+                      <ChevronRight size={16} />
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Button variant="primary" size="sm" className="h-8 gap-1" onClick={() => setFinalizeConfirmOpen(true)} disabled={isGenerating || isFinalizing}>
+                      <Check size={15} /> {t('drafts.finalize')}
+                    </Button>
+                    <Button variant="secondary" size="sm" className="h-8 gap-1" onClick={() => void handleRegenerate()} disabled={isGenerating || isFinalizing}>
+                      {isGenerating ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+                      {t('drafts.regenerate')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 gap-1 text-error/80 hover:bg-error/10 hover:text-error"
+                      onClick={() => setDiscardConfirmOpen(true)}
+                      disabled={isGenerating || isDiscarding}
+                    >
+                      <Trash2 size={15} />
+                      {drafts.length > 1 ? t('drafts.discardAll') : t('drafts.discard')}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 text-xs text-text/50 lg:flex-row lg:items-center lg:justify-between">
+                  <span>{currentDraftMeta || t('writer.metaDurationUnknown')}</span>
+                  {drafts.length > MAX_RECOMMENDED_DRAFTS && (
+                    <span>{t('drafts.tooMany', { count: drafts.length })}</span>
+                  )}
+                </div>
               </div>
             )}
 
-            <div className="rounded-[24px] border border-black/10 bg-surface/35 p-6 shadow-subtle dark:border-white/10">
-              {loading ? (
-                <div className="flex items-center justify-center py-24">
-                  <Loader2 className="animate-spin text-accent" size={24} />
-                </div>
-              ) : streamText ? (
-                <div className="text-lg font-serif leading-loose text-text/90 animate-in fade-in duration-200">
-                  {streamText.split('\n').filter(Boolean).map((para: string, i: number) => (
-                    <p key={i} className="mb-6 indent-8 opacity-90">{para}</p>
-                  ))}
-                  {isGenerating && <span className="inline-block h-5 w-0.5 bg-accent align-middle animate-pulse" />}
-                </div>
-              ) : currentDraft ? (
-                <div className="space-y-4">
-                  <Textarea
-                    value={currentDraft.content}
-                    onChange={(event) => handleCurrentDraftChange(event.target.value)}
-                    className="min-h-[440px] border-0 bg-transparent px-0 py-0 font-serif text-lg leading-loose shadow-none focus:ring-0"
-                  />
-                </div>
-              ) : displayContent ? (
-                <div className="text-lg font-serif leading-loose text-text/90">
-                  {displayContent.split('\n').filter(Boolean).map((para: string, i: number) => (
-                    <p key={i} className="mb-6 indent-8">{para}</p>
-                  ))}
-                </div>
-              ) : (
-                <p className="py-24 text-center text-text/30">{t('writer.emptyContent')}</p>
-              )}
+            <div className="mx-auto w-full max-w-3xl">
+              <input
+                ref={instructionInputRef}
+                type="text"
+                placeholder={t('writer.inputPlaceholder')}
+                value={instructionText}
+                onChange={(event) => setInstructionText(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' || isGenerating) return;
+
+                  if (hasPendingDrafts) {
+                    showToast(t('drafts.generatingBlocked'), 'warning');
+                    return;
+                  }
+
+                  void handleGenerateFromInput(instructionText.trim() ? 'instruction' : 'continue');
+                }}
+                className="h-9 w-full rounded-lg border border-black/10 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent/50 dark:border-white/10"
+              />
             </div>
 
-            <ContextSummaryBar
-              summary={currentDraftSummary}
-              onAdjustCoreIncludes={() => onNavigate('settings')}
+            <div className="mx-auto mt-2 flex w-full max-w-3xl items-center justify-between border-t border-black/5 pt-2 dark:border-white/5">
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => setUndoConfirmOpen(true)} disabled={currentChapter <= 1 || isGenerating}>
+                  <Undo2 size={16} className="mr-2" /> {t('common.actions.undoPreviousChapter')}
+                </Button>
+                <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => onNavigate('facts')}>
+                  <BookOpen size={16} className="mr-1" /> {t('writer.factsShortcut')}
+                </Button>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="secondary"
+                  className="w-32 shadow-medium"
+                  onClick={() => void handleGenerateFromInput('instruction')}
+                  disabled={isGenerating || hasPendingDrafts || !instructionText.trim()}
+                >
+                  {t('common.actions.instruction')}
+                </Button>
+                <Button
+                  variant="primary"
+                  className="w-32 shadow-medium"
+                  onClick={() => void handleGenerateFromInput('continue')}
+                  disabled={isGenerating || hasPendingDrafts}
+                >
+                  {isGenerating ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.continue')}
+                </Button>
+              </div>
+            </div>
+          </footer>
+        </div>
+
+        <div className={mode === 'settings' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
+          <div className="mx-auto flex h-full w-full max-w-4xl min-h-0 flex-col px-6 py-6">
+            {showSettingsTooltip ? (
+              <div className="mb-4 flex items-start justify-between gap-4 rounded-2xl border border-info/20 bg-info/10 px-4 py-3 text-sm text-info">
+                <p>{t('settingsMode.firstTimeTooltip')}</p>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-info" onClick={() => setShowSettingsTooltip(false)}>
+                  {t('common.actions.close')}
+                </Button>
+              </div>
+            ) : null}
+            <SettingsChatPanel
+              mode="au"
+              basePath={auPath}
+              fandomPath={auPath.includes('/aus/') ? auPath.split('/aus/')[0] : undefined}
+              placeholder={t('settingsMode.placeholder')}
+              currentChapter={currentChapter}
+              sessionLlm={settingsSessionLlm}
+              disabled={loading || !state}
+              onAfterMutation={async () => {
+                await refreshSettingsModeData();
+              }}
+              className="min-h-0 flex-1"
             />
           </div>
         </div>
-
-        <footer className="absolute bottom-0 w-full shrink-0 border-t border-black/10 dark:border-white/10 bg-surface/50 p-4 backdrop-blur-md flex flex-col gap-3">
-          {hasPendingDrafts && currentDraft && (
-            <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 rounded-xl border border-black/10 bg-background/60 px-4 py-3 dark:border-white/10">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex items-center gap-2 text-sm font-sans text-text/75">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => setActiveDraftIndex((current) => Math.max(0, current - 1))}
-                    disabled={isFirstDraft || isGenerating}
-                    aria-label={t('drafts.previous')}
-                  >
-                    <ChevronLeft size={16} />
-                  </Button>
-                  <span className="min-w-[140px] text-center font-medium">
-                    {t('drafts.count', { current: activeDraftIndex + 1, total: drafts.length })}
-                    {currentDraft.modified ? <span className="ml-1 text-text/55">{t('drafts.modified')}</span> : null}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => setActiveDraftIndex((current) => Math.min(drafts.length - 1, current + 1))}
-                    disabled={isLastDraft || isGenerating}
-                    aria-label={t('drafts.next')}
-                  >
-                    <ChevronRight size={16} />
-                  </Button>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <Button variant="primary" size="sm" className="h-8 gap-1" onClick={() => setFinalizeConfirmOpen(true)} disabled={isGenerating || isFinalizing}>
-                    <Check size={15} /> {t('drafts.finalize')}
-                  </Button>
-                  <Button variant="secondary" size="sm" className="h-8 gap-1" onClick={() => void handleRegenerate()} disabled={isGenerating || isFinalizing}>
-                    {isGenerating ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
-                    {t('drafts.regenerate')}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 gap-1 text-error/80 hover:bg-error/10 hover:text-error"
-                    onClick={() => setDiscardConfirmOpen(true)}
-                    disabled={isGenerating || isDiscarding}
-                  >
-                    <Trash2 size={15} />
-                    {drafts.length > 1 ? t('drafts.discardAll') : t('drafts.discard')}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2 text-xs text-text/50 lg:flex-row lg:items-center lg:justify-between">
-                <span>{currentDraftMeta || t('writer.metaDurationUnknown')}</span>
-                {drafts.length > MAX_RECOMMENDED_DRAFTS && (
-                  <span>{t('drafts.tooMany', { count: drafts.length })}</span>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="mx-auto w-full max-w-3xl">
-            <input
-              ref={instructionInputRef}
-              type="text"
-              placeholder={t('writer.inputPlaceholder')}
-              value={instructionText}
-              onChange={(event) => setInstructionText(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key !== 'Enter' || isGenerating) return;
-
-                if (hasPendingDrafts) {
-                  showToast(t('drafts.generatingBlocked'), 'warning');
-                  return;
-                }
-
-                void handleGenerateFromInput(instructionText.trim() ? 'instruction' : 'continue');
-              }}
-              className="h-9 w-full rounded-lg border border-black/10 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent/50 dark:border-white/10"
-            />
-          </div>
-
-          <div className="mx-auto mt-2 flex w-full max-w-3xl items-center justify-between border-t border-black/5 pt-2 dark:border-white/5">
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => setUndoConfirmOpen(true)} disabled={currentChapter <= 1 || isGenerating}>
-                <Undo2 size={16} className="mr-2" /> {t('common.actions.undoPreviousChapter')}
-              </Button>
-              <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => onNavigate('facts')}>
-                <BookOpen size={16} className="mr-1" /> {t('writer.factsShortcut')}
-              </Button>
-            </div>
-            <div className="flex gap-3">
-              <Button
-                variant="secondary"
-                className="w-32 shadow-medium"
-                onClick={() => void handleGenerateFromInput('instruction')}
-                disabled={isGenerating || hasPendingDrafts || !instructionText.trim()}
-              >
-                {t('common.actions.instruction')}
-              </Button>
-              <Button
-                variant="primary"
-                className="w-32 shadow-medium"
-                onClick={() => void handleGenerateFromInput('continue')}
-                disabled={isGenerating || hasPendingDrafts}
-              >
-                {isGenerating ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.continue')}
-              </Button>
-            </div>
-          </div>
-        </footer>
       </main>
 
       <Sidebar position="right" width="320px" isCollapsed={rightCollapsed} onToggle={() => setRightCollapsed(!rightCollapsed)} className="flex flex-col bg-surface/50 border-l border-black/10 dark:border-white/10">
         <div className="flex-1 overflow-y-auto p-5 space-y-8">
-          <section>
-            <h3 className="text-xs font-sans font-medium mb-3 text-text/70 tracking-wide uppercase">{t('writer.focusTitle')}</h3>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 mb-2">
-                <Button variant="ghost" size="sm" className="text-xs" onClick={handleClearFocus} disabled={focusSelection.length === 0}>
-                  {t('writer.freeWrite')}
-                </Button>
-                {(state?.last_confirmed_chapter_focus || []).length > 0 && (
-                  <Button variant="ghost" size="sm" className="text-xs" onClick={handleContinueLastFocus}>
-                    {t('focus.continueLastChapter')}
-                  </Button>
-                )}
-              </div>
-              {unresolvedFacts.map((fact) => {
-                const isHigh = fact.narrative_weight === 'high';
-                return (
-                  <label key={fact.id} className={`flex items-start gap-2 p-2 rounded-md hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer border transition-colors ${focusSelection.includes(String(fact.id)) ? 'border-accent/30 bg-accent/5' : 'border-transparent hover:border-black/5 dark:hover:border-white/5'}`}>
-                    <input type="checkbox" className="mt-1 accent-accent" checked={focusSelection.includes(String(fact.id))} onChange={() => handleFocusToggle(String(fact.id))} />
-                    <div className="flex flex-col">
-                      <span className="text-sm">{fact.content_clean}</span>
-                      <div className="flex items-center gap-1.5 mt-1.5">
-                        <Tag variant="warning" className="w-fit">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</Tag>
-                        {isHigh && <Tag variant="info" className="w-fit text-[10px]">{t('focus.recommended')}</Tag>}
+          {mode === 'write' ? (
+            <>
+              <section>
+                <h3 className="text-xs font-sans font-medium mb-3 text-text/70 tracking-wide uppercase">{t('writer.focusTitle')}</h3>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Button variant="ghost" size="sm" className="text-xs" onClick={handleClearFocus} disabled={focusSelection.length === 0}>
+                      {t('writer.freeWrite')}
+                    </Button>
+                    {(state?.last_confirmed_chapter_focus || []).length > 0 && (
+                      <Button variant="ghost" size="sm" className="text-xs" onClick={handleContinueLastFocus}>
+                        {t('focus.continueLastChapter')}
+                      </Button>
+                    )}
+                  </div>
+                  {unresolvedFacts.map((fact) => {
+                    const isHigh = fact.narrative_weight === 'high';
+                    return (
+                      <label key={fact.id} className={`flex items-start gap-2 p-2 rounded-md hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer border transition-colors ${focusSelection.includes(String(fact.id)) ? 'border-accent/30 bg-accent/5' : 'border-transparent hover:border-black/5 dark:hover:border-white/5'}`}>
+                        <input type="checkbox" className="mt-1 accent-accent" checked={focusSelection.includes(String(fact.id))} onChange={() => handleFocusToggle(String(fact.id))} />
+                        <div className="flex flex-col">
+                          <span className="text-sm">{fact.content_clean}</span>
+                          <div className="flex items-center gap-1.5 mt-1.5">
+                            <Tag variant="warning" className="w-fit">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</Tag>
+                            {isHigh && <Tag variant="info" className="w-fit text-[10px]">{t('focus.recommended')}</Tag>}
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                  {focusSelection.length >= 2 && (
+                    <p className="text-[10px] text-text/40 px-2">{t('focus.maxTwo')}</p>
+                  )}
+                </div>
+              </section>
+
+              <section>
+                <h3 className="text-xs font-sans font-medium mb-3 text-text/70 tracking-wide uppercase">{t('writer.memoryPanel')}</h3>
+                <div className="space-y-3">
+                  {contextLayers.map((item) => (
+                    <div key={item.key} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-text/70">{item.label}</span>
+                        <span className="text-text/50 font-mono">{item.percent}%</span>
+                      </div>
+                      <div className="h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden flex">
+                        <div className={`${item.color} h-full`} style={{ width: `${item.percent}%` }} />
                       </div>
                     </div>
-                  </label>
-                );
-              })}
-              {focusSelection.length >= 2 && (
-                <p className="text-[10px] text-text/40 px-2">{t('focus.maxTwo')}</p>
-              )}
-            </div>
-          </section>
-
-          <section>
-            <h3 className="text-xs font-sans font-medium mb-3 text-text/70 tracking-wide uppercase">{t('writer.memoryPanel')}</h3>
-            <div className="space-y-3">
-              {contextLayers.map((item) => (
-                <div key={item.key} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-text/70">{item.label}</span>
-                    <span className="text-text/50 font-mono">{item.percent}%</span>
-                  </div>
-                  <div className="h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden flex">
-                    <div className={`${item.color} h-full`} style={{ width: `${item.percent}%` }} />
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </section>
+              </section>
+            </>
+          ) : (
+            <section className="rounded-2xl border border-black/10 bg-background/50 p-4 dark:border-white/10">
+              <h3 className="mb-2 text-xs font-sans font-medium uppercase tracking-wide text-text/70">{t('settingsMode.sideTitle')}</h3>
+              <p className="text-sm leading-relaxed text-text/65">{t('settingsMode.sideDescription')}</p>
+            </section>
+          )}
 
           <section className="pt-4 border-t border-black/10 dark:border-white/10">
             <SettingsPanel

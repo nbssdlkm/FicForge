@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../../api/client";
 import {
   listTrash,
@@ -19,6 +19,7 @@ type TrashPanelProps = {
   path?: string;
   onRestore?: (entry: TrashEntry) => Promise<void> | void;
   refreshToken?: number;
+  disabled?: boolean;
 };
 
 function sortEntries(entries: TrashEntry[]): TrashEntry[] {
@@ -75,7 +76,7 @@ function getEntryLabel(entry: TrashEntry): string {
   return entry.entity_name || entry.original_path.split("/").pop() || entry.original_path;
 }
 
-export function TrashPanel({ scope, path, onRestore, refreshToken = 0 }: TrashPanelProps) {
+export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled = false }: TrashPanelProps) {
   const { t } = useTranslation();
   const { showError, showSuccess } = useFeedback();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -86,18 +87,46 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0 }: TrashPa
   const [deleteTarget, setDeleteTarget] = useState<TrashEntry | null>(null);
   const [clearAllOpen, setClearAllOpen] = useState(false);
   const [restoreConflictOpen, setRestoreConflictOpen] = useState(false);
+  const contextVersionRef = useRef(0);
+  const loadRequestIdRef = useRef(0);
+
+  useEffect(() => {
+    contextVersionRef.current += 1;
+    loadRequestIdRef.current += 1;
+    setEntries([]);
+    setLoading(false);
+    setPendingId(null);
+    setIsClearingAll(false);
+    setDeleteTarget(null);
+    setClearAllOpen(false);
+    setRestoreConflictOpen(false);
+  }, [path, scope]);
 
   const loadEntries = async () => {
-    if (!path) return;
+    if (!path) {
+      setEntries([]);
+      setLoading(false);
+      return;
+    }
+    const requestId = ++loadRequestIdRef.current;
+    const contextVersion = contextVersionRef.current;
     setLoading(true);
     try {
       const data = await listTrash(scope, path);
+      if (requestId !== loadRequestIdRef.current || contextVersion !== contextVersionRef.current) {
+        return;
+      }
       setEntries(sortEntries(data));
     } catch (error) {
+      if (requestId !== loadRequestIdRef.current || contextVersion !== contextVersionRef.current) {
+        return;
+      }
       showError(error, t("error_messages.unknown"));
       setEntries([]);
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestIdRef.current && contextVersion === contextVersionRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -112,9 +141,13 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0 }: TrashPa
 
   const handleRestore = async (entry: TrashEntry) => {
     if (!path) return;
+    const contextVersion = contextVersionRef.current;
     setPendingId(entry.trash_id);
     try {
       await restoreTrash(scope, path, entry.trash_id);
+      if (contextVersion !== contextVersionRef.current) {
+        return;
+      }
       setEntries((current) => current.filter((item) => item.trash_id !== entry.trash_id));
       try {
         await onRestore?.(entry);
@@ -123,48 +156,74 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0 }: TrashPa
       }
       showSuccess(t("trash.restoreSuccess", { name: getEntryLabel(entry) }));
     } catch (error) {
+      if (contextVersion !== contextVersionRef.current) {
+        return;
+      }
       if (error instanceof ApiError && error.errorCode.toLowerCase() === "restore_conflict") {
         setRestoreConflictOpen(true);
         return;
       }
       showError(error, t("error_messages.unknown"));
     } finally {
-      setPendingId(null);
+      if (contextVersion === contextVersionRef.current) {
+        setPendingId(null);
+      }
     }
   };
 
   const handlePermanentDelete = async () => {
     if (!path || !deleteTarget) return;
+    const contextVersion = contextVersionRef.current;
     setPendingId(deleteTarget.trash_id);
     try {
       await permanentDeleteTrash(scope, path, deleteTarget.trash_id);
+      if (contextVersion !== contextVersionRef.current) {
+        return;
+      }
       setEntries((current) => current.filter((item) => item.trash_id !== deleteTarget.trash_id));
       showSuccess(t("trash.deleteSuccess"));
       setDeleteTarget(null);
     } catch (error) {
+      if (contextVersion !== contextVersionRef.current) {
+        return;
+      }
       showError(error, t("error_messages.unknown"));
       await loadEntries();
     } finally {
-      setPendingId(null);
+      if (contextVersion === contextVersionRef.current) {
+        setPendingId(null);
+      }
     }
   };
 
   const handleClearAll = async () => {
     if (!path || entries.length === 0) return;
+    const contextVersion = contextVersionRef.current;
     setIsClearingAll(true);
     try {
       const snapshot = [...entries];
       for (const entry of snapshot) {
         await permanentDeleteTrash(scope, path, entry.trash_id);
+        if (contextVersion !== contextVersionRef.current) {
+          return;
+        }
         setEntries((current) => current.filter((item) => item.trash_id !== entry.trash_id));
+      }
+      if (contextVersion !== contextVersionRef.current) {
+        return;
       }
       showSuccess(t("trash.clearSuccess"));
       setClearAllOpen(false);
     } catch (error) {
+      if (contextVersion !== contextVersionRef.current) {
+        return;
+      }
       showError(error, t("error_messages.unknown"));
       await loadEntries();
     } finally {
-      setIsClearingAll(false);
+      if (contextVersion === contextVersionRef.current) {
+        setIsClearingAll(false);
+      }
     }
   };
 
@@ -175,6 +234,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0 }: TrashPa
           type="button"
           className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-text/80 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
           onClick={() => setIsExpanded((current) => !current)}
+          disabled={disabled}
         >
           <span className="flex items-center gap-2">
             {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -239,7 +299,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0 }: TrashPa
                           variant="secondary"
                           size="sm"
                           onClick={() => { void handleRestore(entry); }}
-                          disabled={isBusy}
+                          disabled={isBusy || disabled}
                         >
                           {pendingId === entry.trash_id ? <Loader2 size={14} className="animate-spin" /> : t("trash.restore")}
                         </Button>
@@ -248,7 +308,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0 }: TrashPa
                           size="sm"
                           className="text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
                           onClick={() => setDeleteTarget(entry)}
-                          disabled={isBusy}
+                          disabled={isBusy || disabled}
                         >
                           {t("trash.permanentDelete")}
                         </Button>
@@ -262,7 +322,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0 }: TrashPa
                     size="sm"
                     className="text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
                     onClick={() => setClearAllOpen(true)}
-                    disabled={isClearingAll}
+                    disabled={isClearingAll || disabled}
                   >
                     {isClearingAll ? <Loader2 size={14} className="animate-spin" /> : t("trash.clearAll")}
                   </Button>
