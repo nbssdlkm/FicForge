@@ -269,7 +269,9 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   const [state, setState] = useState<StateInfo | null>(null);
   const [currentContent, setCurrentContent] = useState('');
   const [unresolvedFacts, setUnresolvedFacts] = useState<FactInfo[]>([]);
-  const [focusSelection, setFocusSelection] = useState<string>('free');
+  const [focusSelection, setFocusSelection] = useState<string[]>([]);
+  const [isUndoConfirmOpen, setUndoConfirmOpen] = useState(false);
+  const [dirtyBannerDismissed, setDirtyBannerDismissed] = useState(false);
 
   const [drafts, setDrafts] = useState<DraftItem[]>([]);
   const [activeDraftIndex, setActiveDraftIndex] = useState(0);
@@ -382,7 +384,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
 
       setState(stateData);
       setUnresolvedFacts(factsData);
-      setFocusSelection(stateData?.chapter_focus?.[0] || 'free');
+      setFocusSelection(stateData?.chapter_focus || []);
 
       let defModel = 'deepseek-chat';
       let defTemp = 1.0;
@@ -648,7 +650,8 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     }
   };
 
-  const handleUndo = async () => {
+  const handleUndoConfirmed = async () => {
+    setUndoConfirmOpen(false);
     try {
       await undoChapter(auPath);
       clearDraftState();
@@ -688,11 +691,46 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     }
   };
 
-  const handleFocusChange = async (value: string) => {
-    setFocusSelection(value);
+  const handleFocusToggle = async (factId: string) => {
+    let next: string[];
+    if (focusSelection.includes(factId)) {
+      next = focusSelection.filter(id => id !== factId);
+    } else {
+      if (focusSelection.length >= 2) {
+        showToast(t('focus.maxTwo'), 'warning');
+        return;
+      }
+      next = [...focusSelection, factId];
+    }
+    setFocusSelection(next);
     try {
-      const ids = value === 'free' ? [] : [value];
-      await setChapterFocus(auPath, ids);
+      await setChapterFocus(auPath, next);
+      showToast(t('writer.focusSaved'), 'success');
+    } catch (error) {
+      showError(error, t('error_messages.unknown'));
+    }
+  };
+
+  const handleClearFocus = async () => {
+    setFocusSelection([]);
+    try {
+      await setChapterFocus(auPath, []);
+      showToast(t('writer.focusSaved'), 'success');
+    } catch (error) {
+      showError(error, t('error_messages.unknown'));
+    }
+  };
+
+  const handleContinueLastFocus = async () => {
+    const lastFocus = state?.last_confirmed_chapter_focus || [];
+    const validIds = lastFocus.filter(id => unresolvedFacts.some(f => String(f.id) === id));
+    if (validIds.length === 0) {
+      showToast(t('focus.lastFocusExpired'), 'warning');
+      return;
+    }
+    setFocusSelection(validIds);
+    try {
+      await setChapterFocus(auPath, validIds);
       showToast(t('writer.focusSaved'), 'success');
     } catch (error) {
       showError(error, t('error_messages.unknown'));
@@ -831,6 +869,16 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   return (
     <>
       <main className="flex-1 flex flex-col min-w-0 bg-background relative transition-colors duration-200">
+        {/* Dirty banner (sub-task 2) */}
+        {!dirtyBannerDismissed && (state?.chapters_dirty || []).length > 0 && (
+          <div className="bg-warning/10 border-b border-warning/20 px-6 py-2 flex items-center justify-between text-xs">
+            <span className="text-warning">{t('dirty.banner', { count: (state?.chapters_dirty || []).length, chapters: (state?.chapters_dirty || []).join(', ') })}</span>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" className="text-xs h-6" onClick={() => setDirtyOpen(true)}>{t('dirty.goResolve')}</Button>
+              <Button variant="ghost" size="sm" className="text-xs h-6 text-text/40" onClick={() => setDirtyBannerDismissed(true)}>{t('dirty.dismissBanner')}</Button>
+            </div>
+          </div>
+        )}
         <header className="h-12 flex items-center justify-between px-6 border-b border-black/5 dark:border-white/5 text-xs text-text/50">
           <div className="flex items-center gap-4">
             <span>{metaModel} · T{sessionTemp}</span>
@@ -988,7 +1036,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
 
           <div className="mx-auto mt-2 flex w-full max-w-3xl items-center justify-between border-t border-black/5 pt-2 dark:border-white/5">
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={handleUndo} disabled={currentChapter <= 1 || isGenerating}>
+              <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => setUndoConfirmOpen(true)} disabled={currentChapter <= 1 || isGenerating}>
                 <Undo2 size={16} className="mr-2" /> {t('common.actions.undoPreviousChapter')}
               </Button>
               <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => onNavigate('facts')}>
@@ -1022,19 +1070,34 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
           <section>
             <h3 className="text-xs font-sans font-medium mb-3 text-text/70 tracking-wide uppercase">{t('writer.focusTitle')}</h3>
             <div className="space-y-1">
-              <label className="flex items-start gap-2 p-2 rounded-md hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer border border-transparent hover:border-black/5 dark:hover:border-white/5 transition-colors">
-                <input type="radio" name="focus" className="mt-1 accent-accent" checked={focusSelection === 'free'} onChange={() => handleFocusChange('free')} />
-                <span className="text-sm">{t('writer.freeWrite')}</span>
-              </label>
-              {unresolvedFacts.map((fact) => (
-                <label key={fact.id} className="flex items-start gap-2 p-2 rounded-md hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer border border-transparent hover:border-black/5 dark:hover:border-white/5 transition-colors">
-                  <input type="radio" name="focus" className="mt-1 accent-accent" checked={focusSelection === String(fact.id)} onChange={() => handleFocusChange(String(fact.id))} />
-                  <div className="flex flex-col">
-                    <span className="text-sm">{fact.content_clean}</span>
-                    <Tag variant="warning" className="mt-1.5 w-fit">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</Tag>
-                  </div>
-                </label>
-              ))}
+              <div className="flex items-center gap-2 mb-2">
+                <Button variant="ghost" size="sm" className="text-xs" onClick={handleClearFocus} disabled={focusSelection.length === 0}>
+                  {t('writer.freeWrite')}
+                </Button>
+                {(state?.last_confirmed_chapter_focus || []).length > 0 && (
+                  <Button variant="ghost" size="sm" className="text-xs" onClick={handleContinueLastFocus}>
+                    {t('focus.continueLastChapter')}
+                  </Button>
+                )}
+              </div>
+              {unresolvedFacts.map((fact) => {
+                const isHigh = fact.narrative_weight === 'high';
+                return (
+                  <label key={fact.id} className={`flex items-start gap-2 p-2 rounded-md hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer border transition-colors ${focusSelection.includes(String(fact.id)) ? 'border-accent/30 bg-accent/5' : 'border-transparent hover:border-black/5 dark:hover:border-white/5'}`}>
+                    <input type="checkbox" className="mt-1 accent-accent" checked={focusSelection.includes(String(fact.id))} onChange={() => handleFocusToggle(String(fact.id))} />
+                    <div className="flex flex-col">
+                      <span className="text-sm">{fact.content_clean}</span>
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <Tag variant="warning" className="w-fit">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</Tag>
+                        {isHigh && <Tag variant="info" className="w-fit text-[10px]">{t('focus.recommended')}</Tag>}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+              {focusSelection.length >= 2 && (
+                <p className="text-[10px] text-text/40 px-2">{t('focus.maxTwo')}</p>
+              )}
             </div>
           </section>
 
@@ -1216,6 +1279,18 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
           void loadData();
         }}
       />
+
+      {/* Undo confirmation modal (sub-task 3) */}
+      <Modal isOpen={isUndoConfirmOpen} onClose={() => setUndoConfirmOpen(false)} title={t('undo.confirmTitle', { chapter: currentChapter - 1 })}>
+        <div className="space-y-4">
+          <div className="text-sm text-text/80 whitespace-pre-line">{t('undo.confirmDesc')}</div>
+          <p className="text-sm text-red-500 font-medium">{t('undo.irreversible')}</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setUndoConfirmOpen(false)}>{t('undo.cancel')}</Button>
+            <Button variant="danger" onClick={handleUndoConfirmed}>{t('undo.confirmAction')}</Button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 };

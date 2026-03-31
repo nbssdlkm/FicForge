@@ -3,6 +3,7 @@ import { Sidebar } from '../shared/Sidebar';
 import { Button } from '../shared/Button';
 import { EmptyState } from '../shared/EmptyState';
 import { MilestoneGuide } from '../shared/MilestoneGuide';
+import { Modal } from '../shared/Modal';
 import { LogOut, Loader2, BookOpen } from 'lucide-react';
 import { WriterLayout } from '../writer/WriterLayout';
 import { FactsLayout } from '../facts/FactsLayout';
@@ -35,6 +36,8 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   // Milestone data (loaded once, from existing page data)
   const [currentChapter, setCurrentChapter] = useState(1);
   const [factsCount, setFactsCount] = useState(0);
+  const [embeddingStale, setEmbeddingStale] = useState(false);
+  const [embeddingDismissed, setEmbeddingDismissed] = useState(false);
   const [pinnedCount, setPinnedCount] = useState(0);
   const [unresolvedFact, setUnresolvedFact] = useState<string | null>(null);
   const [chapterFocusEmpty, setChapterFocusEmpty] = useState(true);
@@ -52,6 +55,13 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
       .then(res => setChapters(res))
       .catch(() => setChapters([]))
       .finally(() => setLoadingChapters(false));
+
+    // Embedding check (sub-task 5): check index_status
+    getState(auPath).then(s => {
+      if (s.index_status === 'stale' || s.index_status === 'interrupted') {
+        setEmbeddingStale(true);
+      }
+    }).catch(() => {});
 
     // Load milestone data only if any milestone is still active (avoid unnecessary API calls)
     const anyMilestoneActive = shouldShow('facts_intro') || shouldShow('pinned_intro') || shouldShow('focus_intro');
@@ -192,6 +202,17 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* Embedding stale modal (sub-task 5) */}
+      <Modal isOpen={embeddingStale && !embeddingDismissed} onClose={() => setEmbeddingDismissed(true)} title={t('embedding.staleTitle')}>
+        <div className="space-y-4">
+          <p className="text-sm text-text/80">{t('embedding.staleDesc')}</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setEmbeddingDismissed(true)}>{t('embedding.skipRebuild')}</Button>
+            <Button variant="primary" onClick={() => { setEmbeddingDismissed(true); onNavigate('settings', auPath); }}>{t('embedding.rebuild')}</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

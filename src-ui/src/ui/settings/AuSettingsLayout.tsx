@@ -6,7 +6,7 @@ import { Modal } from '../shared/Modal';
 import { Settings, Save, Trash2, Plus, Loader2, AlertCircle } from 'lucide-react';
 import { getProject, updateProject, type ProjectInfo } from '../../api/project';
 import { getSettings, updateSettings } from '../../api/settings';
-import { getState } from '../../api/state';
+import { getState, recalcState } from '../../api/state';
 import { GlobalSettingsModal } from './GlobalSettingsModal';
 import { EmptyState } from '../shared/EmptyState';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -40,6 +40,19 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const [contextWindow, setContextWindow] = useState(128000);
   const [coreIncludeModalOpen, setCoreIncludeModalOpen] = useState(false);
   const [coreIncludeName, setCoreIncludeName] = useState('');
+  const [recalcing, setRecalcing] = useState(false);
+
+  const handleRecalc = async () => {
+    setRecalcing(true);
+    try {
+      const result = await recalcState(auPath);
+      showSuccess(t('advanced.recalcSuccess', { scanned: result.chapters_scanned, dirty: result.cleaned_dirty_count }));
+    } catch (error) {
+      showError(error, t('error_messages.unknown'));
+    } finally {
+      setRecalcing(false);
+    }
+  };
 
   useEffect(() => {
     if (!auPath) return;
@@ -341,6 +354,27 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
               </div>
             </section>
           )}
+
+          {/* 高级操作 (sub-task 4) */}
+          <section className="space-y-4 pt-6 border-t border-black/10 dark:border-white/10">
+            <h2 className="text-lg font-sans font-bold text-text/50 border-l-4 border-text/20 pl-3">{t('advanced.title')}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-surface/50 p-4 rounded-xl border border-black/5 dark:border-white/5">
+                <Button variant="secondary" size="sm" className="w-full mb-2" onClick={handleRecalc} disabled={recalcing}>
+                  {recalcing ? <Loader2 size={14} className="animate-spin mr-2" /> : null}
+                  {t('advanced.recalc')}
+                </Button>
+                <p className="text-xs text-text/40">{t('advanced.recalcDesc')}</p>
+              </div>
+              <div className="bg-surface/50 p-4 rounded-xl border border-black/5 dark:border-white/5">
+                <Button variant="secondary" size="sm" className="w-full mb-2 opacity-50 cursor-not-allowed" disabled title={t('advanced.rebuildIndexDesc')}>
+                  {t('advanced.rebuildIndex')}
+                </Button>
+                <p className="text-xs text-text/40">{t('advanced.rebuildIndexDesc')}</p>
+              </div>
+            </div>
+            <p className="text-xs text-text/30">{t('advanced.advancedHint')}</p>
+          </section>
 
           <div className="h-20"></div>
         </div>
