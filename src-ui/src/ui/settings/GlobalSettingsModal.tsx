@@ -110,7 +110,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
           model: embeddingModel,
         },
       };
-      await updateSettings('./fandoms', newSettings);
+      await updateSettings(newSettings);
       if (requestId !== modalRequestIdRef.current) return;
       onClose();
     } catch (error) {

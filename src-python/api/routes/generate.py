@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import AsyncGenerator
 from typing import Any, Optional
 
 from fastapi import APIRouter
@@ -47,7 +48,7 @@ async def generate_stream(request: GenerateRequest) -> StreamingResponse:
     """SSE 流式生成端点。"""
     logger.info("Generate stream: au=%s ch=%d type=%s", request.au_path, request.chapter_num, request.input_type)
     if not validate_path(request.au_path):
-        async def _error_gen():
+        async def _error_gen() -> AsyncGenerator[str, None]:
             yield 'event: error\ndata: {"error_code": "INVALID_PATH", "message": "路径不合法", "actions": []}\n\n'
         return StreamingResponse(_error_gen(), media_type="text/event-stream")
 

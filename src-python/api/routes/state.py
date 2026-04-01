@@ -5,10 +5,12 @@ from __future__ import annotations
 import logging
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
+from starlette.responses import JSONResponse
 
 from api import (
     build_chapter_repository,
@@ -58,7 +60,7 @@ class SetChapterFocusResponse(BaseModel):
 
 
 @router.get("", response_model=StateResponse)
-async def get_state(au_path: str = Query(...)):
+async def get_state(au_path: str = Query(...)) -> StateResponse | JSONResponse:
     if not validate_path(au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_state_repository()
@@ -67,7 +69,7 @@ async def get_state(au_path: str = Query(...)):
 
 
 @router.put("/chapter-focus", response_model=SetChapterFocusResponse)
-async def update_chapter_focus(request: SetChapterFocusRequest):
+async def update_chapter_focus(request: SetChapterFocusRequest) -> SetChapterFocusResponse | JSONResponse:
     logger.info("Set chapter focus: au=%s focus=%s", request.au_path, request.focus_ids)
     if not validate_path(request.au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
@@ -77,7 +79,7 @@ async def update_chapter_focus(request: SetChapterFocusRequest):
     state_repo = build_state_repository()
     mutex = build_au_mutex()
 
-    def _locked_focus():
+    def _locked_focus() -> dict[str, Any]:
         with mutex.get_lock(request.au_path):
             return set_chapter_focus(
                 Path(request.au_path),
@@ -119,7 +121,7 @@ class RecalcResponse(BaseModel):
 
 
 @router.post("/recalc", response_model=RecalcResponse)
-async def recalc_state_endpoint(request: RecalcRequest):
+async def recalc_state_endpoint(request: RecalcRequest) -> RecalcResponse | JSONResponse:
     """重算全局状态（PRD §4.3）。"""
     logger.info("Recalc state: au=%s", request.au_path)
     if not validate_path(request.au_path):

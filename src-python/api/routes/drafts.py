@@ -7,7 +7,10 @@ from dataclasses import asdict
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
+from typing import Any
+
 from starlette.concurrency import run_in_threadpool
+from starlette.responses import JSONResponse
 
 from api import build_draft_filename, build_draft_repository, error_response, validate_path
 
@@ -42,7 +45,7 @@ class DraftDetailResponse(BaseModel):
 
 
 @router.get("", response_model=list[DraftListItemResponse])
-async def list_drafts(au_path: str = Query(...), chapter_num: int = Query(...)):
+async def list_drafts(au_path: str = Query(...), chapter_num: int = Query(...)) -> list[DraftListItemResponse] | JSONResponse:
     if not validate_path(au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_draft_repository()
@@ -57,7 +60,7 @@ async def list_drafts(au_path: str = Query(...), chapter_num: int = Query(...)):
 
 
 @router.get("/{label}", response_model=DraftDetailResponse)
-async def get_draft(label: str, au_path: str = Query(...), chapter_num: int = Query(...)):
+async def get_draft(label: str, au_path: str = Query(...), chapter_num: int = Query(...)) -> DraftDetailResponse | JSONResponse:
     if not validate_path(au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_draft_repository()
@@ -81,7 +84,7 @@ async def delete_drafts(
     au_path: str = Query(...),
     chapter_num: int = Query(...),
     label: str | None = Query(None, description="指定草稿标签，不传则删除该章全部草稿"),
-):
+) -> Any:
     """丢弃草稿（D-0023 例外：草稿直接物理删除，不进垃圾箱）。"""
     if not validate_path(au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])

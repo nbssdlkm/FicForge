@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from typing import Any
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
+from starlette.responses import JSONResponse
 
 from api import build_settings_repository, error_response, is_masked_key
 from core.domain.enums import APIMode, LicenseTier, LLMMode
@@ -145,7 +147,7 @@ class SettingsUpdateResponse(BaseModel):
 
 
 @router.get("", response_model=SettingsPayload)
-async def get_settings():
+async def get_settings() -> SettingsPayload:
     repo = build_settings_repository()
     settings = await run_in_threadpool(repo.get)
     data = asdict(settings)
@@ -158,7 +160,7 @@ async def get_settings():
 
 
 @router.put("", response_model=SettingsUpdateResponse)
-async def update_settings(request: SettingsPayload):
+async def update_settings(request: SettingsPayload) -> SettingsUpdateResponse | JSONResponse:
     logger.info("Update settings")
     repo = build_settings_repository()
 
@@ -223,7 +225,7 @@ class TestConnectionResponse(BaseModel):
 
 
 @router.post("/test-connection", response_model=TestConnectionResponse)
-async def test_connection(request: TestConnectionRequest):
+async def test_connection(request: TestConnectionRequest) -> TestConnectionResponse:
     """测试 LLM 连接（PRD §1.5）。失败时也返回 200。"""
     mode = request.mode
 
@@ -238,7 +240,7 @@ async def test_connection(request: TestConnectionRequest):
                 api_base=request.api_base, api_key=request.api_key, model=request.model,
             )
 
-            def _test():
+            def _test() -> Any:
                 return provider.generate(
                     messages=[{"role": "user", "content": "hi"}],
                     max_tokens=1, temperature=0.0, top_p=1.0, stream=False,
@@ -311,7 +313,7 @@ async def test_connection(request: TestConnectionRequest):
 # ---------------------------------------------------------------------------
 
 @router.post("/test-embedding", response_model=TestConnectionResponse)
-async def test_embedding(request: TestConnectionRequest):
+async def test_embedding(request: TestConnectionRequest) -> TestConnectionResponse:
     """测试 Embedding 模型连接。"""
     if request.mode != "api":
         return TestConnectionResponse(

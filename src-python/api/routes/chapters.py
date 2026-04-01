@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
+from starlette.responses import JSONResponse
 
 from api import (
     build_chapter_repository,
@@ -115,7 +116,7 @@ class ChapterContentResponse(BaseModel):
 
 
 @router.post("/confirm", response_model=ConfirmChapterResponse)
-async def confirm_chapter(request: ConfirmChapterRequest):
+async def confirm_chapter(request: ConfirmChapterRequest) -> ConfirmChapterResponse | JSONResponse:
     logger.info("Confirm chapter: au=%s ch=%d draft=%s", request.au_path, request.chapter_num, request.draft_id)
     if not validate_path(request.au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
@@ -165,7 +166,7 @@ async def confirm_chapter(request: ConfirmChapterRequest):
 
 
 @router.post("/undo", response_model=UndoChapterResponse)
-async def undo_latest_chapter(request: UndoChapterRequest):
+async def undo_latest_chapter(request: UndoChapterRequest) -> UndoChapterResponse | JSONResponse:
     logger.info("Undo chapter: au=%s", request.au_path)
     if not validate_path(request.au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
@@ -199,7 +200,7 @@ async def undo_latest_chapter(request: UndoChapterRequest):
 
 
 @router.post("/dirty/resolve", response_model=ResolveDirtyChapterResponse)
-async def resolve_dirty_chapter(request: ResolveDirtyChapterRequest):
+async def resolve_dirty_chapter(request: ResolveDirtyChapterRequest) -> ResolveDirtyChapterResponse | JSONResponse:
     logger.info("Resolve dirty chapter: au=%s ch=%d", request.au_path, request.chapter_num)
     if not validate_path(request.au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
@@ -229,7 +230,7 @@ async def resolve_dirty_chapter(request: ResolveDirtyChapterRequest):
 
 
 @router.get("", response_model=list[ChapterListItemResponse])
-async def list_chapters(au_path: str = Query(...)):
+async def list_chapters(au_path: str = Query(...)) -> list[ChapterListItemResponse] | JSONResponse:
     if not validate_path(au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_chapter_repository()
@@ -246,7 +247,7 @@ async def list_chapters(au_path: str = Query(...)):
 
 
 @router.get("/{chapter_num}", response_model=ChapterDetailResponse)
-async def get_chapter(chapter_num: int, au_path: str = Query(...)):
+async def get_chapter(chapter_num: int, au_path: str = Query(...)) -> ChapterDetailResponse | JSONResponse:
     if not validate_path(au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_chapter_repository()
@@ -266,7 +267,7 @@ async def get_chapter(chapter_num: int, au_path: str = Query(...)):
 
 
 @router.get("/{chapter_num}/content", response_model=ChapterContentResponse)
-async def get_chapter_content(chapter_num: int, au_path: str = Query(...)):
+async def get_chapter_content(chapter_num: int, au_path: str = Query(...)) -> ChapterContentResponse | JSONResponse:
     if not validate_path(au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_chapter_repository()

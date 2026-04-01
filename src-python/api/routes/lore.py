@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
+from starlette.responses import JSONResponse
 
 from api import build_task_queue, error_response, validate_path
 
@@ -81,7 +82,7 @@ class ImportFromFandomRequest(BaseModel):
     source_category: str = "core_characters"  # Fandom 层目录
 
 @router.post("/read")
-async def read_lore(req: LoreReadRequest):
+async def read_lore(req: LoreReadRequest) -> Any:
     """读取 lore .md 文件内容。"""
     if ".." in req.category or "/" in req.category or "\\" in req.category:
         return error_response(400, "INVALID_CATEGORY", "分类名不合法", [])
@@ -112,7 +113,7 @@ async def read_lore(req: LoreReadRequest):
         return error_response(500, "LORE_READ_FAILED", str(e), [])
 
 @router.put("")
-async def save_lore(req: LoreSaveRequest):
+async def save_lore(req: LoreSaveRequest) -> Any:
     logger.info("Save lore: au=%s fandom=%s category=%s file=%s", req.au_path, req.fandom_path, req.category, req.filename)
     # 路径遍历防护
     if ".." in req.category or "/" in req.category or "\\" in req.category:
@@ -159,7 +160,7 @@ async def save_lore(req: LoreSaveRequest):
 
 
 @router.delete("")
-async def delete_lore(req: LoreReadRequest):
+async def delete_lore(req: LoreReadRequest) -> Any:
     """删除指定的 lore .md 文件 → 移入垃圾箱（D-0023）。"""
     if ".." in req.category or "/" in req.category or "\\" in req.category:
         return error_response(400, "INVALID_CATEGORY", "分类名不合法", [])

@@ -21,7 +21,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
     setApiConfig(config);
     // 保存配置到 settings
     try {
-      await updateSettings('./fandoms', {
+      await updateSettings({
         default_llm: {
           mode: config.mode,
           model: config.mode === 'api' ? config.model : '',

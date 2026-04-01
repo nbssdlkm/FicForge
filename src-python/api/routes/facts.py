@@ -9,6 +9,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
+from starlette.responses import JSONResponse
 
 from api import (
     build_au_mutex,
@@ -108,7 +109,7 @@ async def list_facts(
     status: FactStatus | None = Query(None),
     chapter: int | None = Query(None),
     characters: list[str] | None = Query(None),
-):
+) -> list[FactResponse] | JSONResponse:
     if not validate_path(au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_fact_repository()
@@ -134,7 +135,7 @@ async def list_facts(
 
 
 @router.post("", response_model=AddFactResponse, status_code=201)
-async def create_fact(request: AddFactRequest):
+async def create_fact(request: AddFactRequest) -> AddFactResponse | JSONResponse:
     logger.info("Add fact: au=%s ch=%d", request.au_path, request.chapter_num)
     if not validate_path(request.au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
@@ -145,7 +146,7 @@ async def create_fact(request: AddFactRequest):
 
     mutex = build_au_mutex()
 
-    def _locked_add():
+    def _locked_add() -> Any:
         with mutex.get_lock(request.au_path):
             return add_fact(
                 Path(request.au_path),
@@ -170,7 +171,7 @@ async def create_fact(request: AddFactRequest):
 
 
 @router.put("/{fact_id}", response_model=EditFactResponse)
-async def update_fact(fact_id: str, request: EditFactRequest):
+async def update_fact(fact_id: str, request: EditFactRequest) -> EditFactResponse | JSONResponse:
     logger.info("Edit fact: au=%s fact_id=%s", request.au_path, fact_id)
     if not validate_path(request.au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
@@ -180,7 +181,7 @@ async def update_fact(fact_id: str, request: EditFactRequest):
 
     mutex = build_au_mutex()
 
-    def _locked_edit():
+    def _locked_edit() -> Any:
         with mutex.get_lock(request.au_path):
             return edit_fact(
                 Path(request.au_path),
@@ -206,7 +207,7 @@ async def update_fact(fact_id: str, request: EditFactRequest):
 
 
 @router.patch("/{fact_id}/status", response_model=UpdateFactStatusResponse)
-async def patch_fact_status(fact_id: str, request: UpdateFactStatusRequest):
+async def patch_fact_status(fact_id: str, request: UpdateFactStatusRequest) -> UpdateFactStatusResponse | JSONResponse:
     logger.info("Update fact status: au=%s fact_id=%s status=%s", request.au_path, fact_id, request.new_status.value)
     if not validate_path(request.au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
@@ -216,7 +217,7 @@ async def patch_fact_status(fact_id: str, request: UpdateFactStatusRequest):
 
     mutex = build_au_mutex()
 
-    def _locked_status():
+    def _locked_status() -> Any:
         with mutex.get_lock(request.au_path):
             return update_fact_status(
                 Path(request.au_path),

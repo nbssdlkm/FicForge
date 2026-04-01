@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
+from starlette.responses import JSONResponse
 
 from api import build_project_repository, error_response, is_masked_key, validate_path
 from core.domain.enums import EmotionStyle, LLMMode, Perspective
@@ -82,7 +83,7 @@ class ProjectResponse(BaseModel):
 
 
 @router.get("", response_model=ProjectResponse)
-async def get_project(au_path: str = Query(...)):
+async def get_project(au_path: str = Query(...)) -> ProjectResponse | JSONResponse:
     if not validate_path(au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_project_repository()
@@ -135,7 +136,7 @@ class ProjectUpdateResponse(BaseModel):
 
 
 @router.put("", response_model=ProjectUpdateResponse)
-async def update_project(payload: ProjectUpdatePayload, au_path: str = Query(...)):
+async def update_project(payload: ProjectUpdatePayload, au_path: str = Query(...)) -> ProjectUpdateResponse | JSONResponse:
     logger.info("Update project: au=%s", au_path)
     if not validate_path(au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
@@ -204,7 +205,7 @@ class PinnedAddRequest(BaseModel):
 
 
 @router.post("/pinned", response_model=ProjectUpdateResponse)
-async def add_pinned(payload: PinnedAddRequest, au_path: str = Query(...)):
+async def add_pinned(payload: PinnedAddRequest, au_path: str = Query(...)) -> ProjectUpdateResponse | JSONResponse:
     """添加铁律条目。"""
     if not validate_path(au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
@@ -230,7 +231,7 @@ async def add_pinned(payload: PinnedAddRequest, au_path: str = Query(...)):
 
 
 @router.delete("/pinned/{index}", response_model=ProjectUpdateResponse)
-async def delete_pinned(index: int, au_path: str = Query(...)):
+async def delete_pinned(index: int, au_path: str = Query(...)) -> ProjectUpdateResponse | JSONResponse:
     """删除铁律条目（按索引，直接删除不进垃圾箱 — D-0023 例外）。"""
     if not validate_path(au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
