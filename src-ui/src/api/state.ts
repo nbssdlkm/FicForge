@@ -24,6 +24,13 @@ export async function setChapterFocus(auPath: string, focusIds: string[]): Promi
   });
 }
 
+export async function rebuildIndex(auPath: string): Promise<{ task_id: string; message: string }> {
+  return apiFetch("/api/v1/state/rebuild-index", {
+    method: "POST",
+    body: JSON.stringify({ au_path: auPath }),
+  });
+}
+
 export async function recalcState(auPath: string): Promise<{
   characters_last_seen: Record<string, number>;
   last_scene_ending: string;

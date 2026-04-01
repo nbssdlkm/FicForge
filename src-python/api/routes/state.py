@@ -143,3 +143,31 @@ async def recalc_state_endpoint(request: RecalcRequest) -> RecalcResponse | JSON
         return error_response(500, "RECALC_FAILED", str(exc), [])
 
     return RecalcResponse(**result)
+
+
+# ---------------------------------------------------------------------------
+# rebuild-index 重建向量索引
+# ---------------------------------------------------------------------------
+
+class RebuildIndexRequest(BaseModel):
+    au_path: str
+
+
+class RebuildIndexResponse(BaseModel):
+    task_id: str
+    message: str
+
+
+@router.post("/rebuild-index", response_model=RebuildIndexResponse)
+async def rebuild_index_endpoint(request: RebuildIndexRequest) -> RebuildIndexResponse | JSONResponse:
+    """触发后台重建向量索引。"""
+    logger.info("Rebuild index: au=%s", request.au_path)
+    if not validate_path(request.au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
+
+    from api import build_task_queue
+
+    tq = build_task_queue()
+    task_id = tq.enqueue("rebuild_index", request.au_path, {"au_path": request.au_path})
+
+    return RebuildIndexResponse(task_id=task_id, message="索引重建已提交")

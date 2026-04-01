@@ -410,6 +410,7 @@
       "testFailedPrefix": "连接失败：",
       "searchEngineDescription": "用来从你的设定里找到和当前剧情最相关的内容。",
       "noEmbeddingModel": "（未配置）",
+      "builtinEmbedding": "bge-small-zh（内置，无需配置）",
       "apiCredentialsDescription": "如果某篇故事没有单独指定，就会用这里的设置。",
       "apiModeLabel": "接入方式"
     },

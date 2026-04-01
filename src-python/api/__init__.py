@@ -80,11 +80,32 @@ def _get_vector_repo() -> Any:
         from pathlib import Path as _Path
         from infra.vector_index.chromadb_client import init_chromadb
         from infra.embeddings.local_provider import LocalEmbeddingProvider
+        from infra.embeddings.provider import OpenAICompatibleEmbeddingProvider
         from repositories.implementations.local_chroma_vector import LocalChromaVectorRepository
 
         persist_dir = _Path("./fandoms/.chromadb")
         client = init_chromadb(persist_dir)
-        embedding = LocalEmbeddingProvider()
+
+        # 根据全局 settings 选择 embedding provider
+        # 用户可在全局设置中配置 API 模式的 embedding；否则使用内置 bge-small-zh
+        embedding: Any = None
+        try:
+            settings = build_settings_repository().get()
+            emb = getattr(settings, "embedding", None)
+            emb_mode = str(getattr(emb, "mode", "")) if emb else ""
+            emb_model = str(getattr(emb, "model", "")) if emb else ""
+            emb_key = str(getattr(emb, "api_key", "")) if emb else ""
+            emb_base = str(getattr(emb, "api_base", "")) if emb else ""
+            if emb_mode == "api" and emb_model and emb_key and not emb_key.startswith("****"):
+                embedding = OpenAICompatibleEmbeddingProvider(
+                    api_base=emb_base, api_key=emb_key, model=emb_model,
+                )
+        except Exception:
+            pass
+
+        if embedding is None:
+            embedding = LocalEmbeddingProvider()
+
         _vector_repo_instance = LocalChromaVectorRepository(client, embedding)
     except Exception:
         import logging
@@ -194,6 +215,11 @@ def build_trash_service() -> TrashService:
 
 def build_task_queue() -> BackgroundTaskQueue:
     return _task_queue
+
+
+def build_vector_repository() -> Any:
+    """获取 vector_repo 单例（可能为 None）。"""
+    return _get_vector_repo()
 
 
 def is_masked_key(value: str | None) -> bool:
