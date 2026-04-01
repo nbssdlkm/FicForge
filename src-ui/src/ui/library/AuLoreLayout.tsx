@@ -348,6 +348,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
       setSelectedFile(displayName);
       setEditorContent(defaultContent);
       setCreateName('');
+      setSearchTerm('');
     } catch (error) {
       if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));

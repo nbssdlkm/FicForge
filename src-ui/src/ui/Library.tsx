@@ -3,7 +3,7 @@ import { Card } from './shared/Card';
 import { Button } from './shared/Button';
 import { ThemeToggle } from './shared/ThemeToggle';
 import { Input } from './shared/Input';
-import { Settings, Plus, BookOpen, Clock, FileText, Loader2, Trash2 } from 'lucide-react';
+import { Settings, Plus, BookOpen, FileText, Loader2, Trash2 } from 'lucide-react';
 import { Modal } from './shared/Modal';
 import { GlobalSettingsModal } from './settings/GlobalSettingsModal';
 import { EmptyState } from './shared/EmptyState';
@@ -53,7 +53,9 @@ function LibraryInner({ onNavigate }: Props) {
 
   useEffect(() => {
     // 检查是否需要显示引导流程
-    if (!isOnboardingCompleted()) {
+    if (isOnboardingCompleted()) {
+      // 已完成引导，直接加载
+    } else {
       getSettings().then(settings => {
         if (!hasUsableConnectionConfig(settings)) {
           setShowOnboarding(true);
@@ -102,10 +104,11 @@ function LibraryInner({ onNavigate }: Props) {
     setCreatingAu(true);
     try {
       const fandomPath = `./fandoms/fandoms/${selectedFandomDir}`;
-      await createAu(selectedFandomDir, newAuName.trim(), fandomPath);
+      const auName = newAuName.trim();
+      await createAu(selectedFandomDir, auName, fandomPath);
       setAuModalOpen(false);
       setNewAuName('');
-      await loadFandoms();
+      onNavigate('writer', `${fandomPath}/aus/${auName}`);
     } catch (e: any) {
       showError(e, t("error_messages.unknown"));
     } finally {
@@ -160,9 +163,14 @@ function LibraryInner({ onNavigate }: Props) {
       <main className="flex-1 max-w-5xl w-full mx-auto p-8">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-serif font-bold">{t("library.title")}</h1>
-          <Button onClick={() => setFandomModalOpen(true)} className="shadow-md" disabled={creatingFandom || creatingAu || deleting}>
-            <Plus size={16} className="mr-2" /> {t("library.fandomButton")}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button variant="secondary" onClick={handleImportClick} disabled={creatingFandom || creatingAu || deleting}>
+              {t("common.actions.importOldWork")}
+            </Button>
+            <Button onClick={() => setFandomModalOpen(true)} className="shadow-md" disabled={creatingFandom || creatingAu || deleting}>
+              <Plus size={16} className="mr-2" /> {t("library.fandomButton")}
+            </Button>
+          </div>
         </div>
 
         {loading ? (
@@ -229,9 +237,8 @@ function LibraryInner({ onNavigate }: Props) {
                           <Trash2 size={14} />
                         </button>
                         <h3 className="text-lg font-sans font-medium mb-4">{t("common.scope.auTitle", { name: au })}</h3>
-                        <div className="flex items-center justify-between text-sm text-text/60">
+                        <div className="flex items-center text-sm text-text/60">
                           <span className="flex items-center gap-1"><BookOpen size={14} /> {t("library.cardType")}</span>
-                          <span className="flex items-center gap-1"><Clock size={14} /> —</span>
                         </div>
                       </Card>
                     ))
