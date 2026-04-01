@@ -36,8 +36,11 @@ export async function permanentDeleteTrash(scope: TrashScope, path: string, tras
   });
 }
 
-export async function purgeTrash(scope: TrashScope, path: string): Promise<{ purged_count: number }> {
+export async function purgeTrash(scope: TrashScope, path: string, maxAgeDays?: number): Promise<{ purged_count: number }> {
   const query = new URLSearchParams({ scope, path });
+  if (maxAgeDays !== undefined) {
+    query.set("max_age_days", String(maxAgeDays));
+  }
   return apiFetch(`/api/v1/trash/purge?${query.toString()}`, {
     method: "DELETE",
   });

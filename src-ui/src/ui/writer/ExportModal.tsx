@@ -3,52 +3,47 @@ import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { FileUp } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
+import { exportChapters } from '../../api/importExport';
 
-export const ExportModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
+export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onClose: () => void, auPath: string }) => {
   const { t } = useTranslation();
-  const [format, setFormat] = useState('md');
+  const [format, setFormat] = useState<'md' | 'txt'>('md');
   const [exporting, setExporting] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const intervalRef = useRef<number | null>(null);
-  const timeoutRef = useRef<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef(false);
 
   useEffect(() => {
-    return () => {
-      if (intervalRef.current !== null) window.clearInterval(intervalRef.current);
-      if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (isOpen) return;
-    if (intervalRef.current !== null) window.clearInterval(intervalRef.current);
-    if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
-    intervalRef.current = null;
-    timeoutRef.current = null;
-    setExporting(false);
-    setProgress(0);
+    if (!isOpen) {
+      abortRef.current = true;
+      setExporting(false);
+      setError(null);
+    } else {
+      abortRef.current = false;
+    }
   }, [isOpen]);
 
-  const handleExport = () => {
-    if (intervalRef.current !== null) window.clearInterval(intervalRef.current);
-    if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
+  const handleExport = async () => {
     setExporting(true);
-    // Mock progress interpolation
-    let p = 0;
-    intervalRef.current = window.setInterval(() => {
-      p += 20;
-      setProgress(p);
-      if (p >= 100) {
-        if (intervalRef.current !== null) window.clearInterval(intervalRef.current);
-        intervalRef.current = null;
-        timeoutRef.current = window.setTimeout(() => {
-          setExporting(false);
-          setProgress(0);
-          timeoutRef.current = null;
-          onClose(); // Auto-close when done
-        }, 500);
-      }
-    }, 200);
+    setError(null);
+    abortRef.current = false;
+    try {
+      const blob = await exportChapters({ au_path: auPath, format });
+      if (abortRef.current) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `export.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      onClose();
+    } catch (e: unknown) {
+      if (abortRef.current) return;
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      if (!abortRef.current) setExporting(false);
+    }
   };
 
   return (
@@ -68,22 +63,14 @@ export const ExportModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () 
           </div>
           <p className="text-xs text-text/50">{t('export.description')}</p>
         </div>
-        
-        {exporting ? (
-          <div className="space-y-2 p-2 bg-surface rounded-lg">
-            <div className="flex justify-between text-xs font-mono text-text/60 font-bold">
-              <span>{t('export.writing')}</span>
-              <span className="text-success">{progress}%</span>
-            </div>
-            <div className="w-full bg-black/10 dark:bg-white/10 rounded-full h-2 overflow-hidden">
-              <div className="bg-success h-2 rounded-full transition-all duration-200" style={{ width: `${progress}%` }}></div>
-            </div>
-          </div>
-        ) : (
-          <Button variant="primary" className="w-full gap-2 shadow-md" onClick={handleExport}>
-            <FileUp size={16}/> {t('export.submit')}
-          </Button>
+
+        {error && (
+          <div className="text-sm text-error bg-error/10 rounded-lg p-3">{error}</div>
         )}
+
+        <Button variant="primary" className="w-full gap-2 shadow-md" onClick={handleExport} disabled={exporting}>
+          <FileUp size={16}/> {exporting ? t('export.writing') : t('export.submit')}
+        </Button>
       </div>
     </Modal>
   );
