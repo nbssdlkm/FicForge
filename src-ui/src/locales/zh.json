@@ -427,7 +427,8 @@
     "emptyCoreIncludes": "还没有设置必带角色。",
     "emptyCastRegistry": "现在还没有登记任何角色。",
     "createCoreIncludeTitle": "添加必带角色",
-    "createCoreIncludePlaceholder": "输入角色名"
+    "createCoreIncludePlaceholder": "输入角色名",
+    "coreIncludeMissing": "角色「{{name}}」不在登记名册中，请先在角色页创建"
   },
   "facts": {
     "title": "剧情笔记",
@@ -640,7 +641,9 @@
     "content_filtered": "AI 服务商拒绝了这次请求（可能触发了内容审查），换个说法试试？",
     "connection_failed": "连不上 AI 服务，检查一下网络和接口地址？",
     "api_base_missing": "还没有配置接口地址，去「故事设置」填一下",
-    "unknown": "出了点问题，请重试或检查设置"
+    "unknown": "出了点问题，请重试或检查设置",
+    "fandom_already_exists": "同名 Fandom 已存在，请换个名字",
+    "au_already_exists": "同名 AU 已存在，请换个名字"
   },
   "trash": {
     "title": "垃圾箱",

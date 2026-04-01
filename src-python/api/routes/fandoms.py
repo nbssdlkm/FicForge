@@ -81,7 +81,9 @@ async def create_fandom(request: CreateFandomRequest) -> Any:
     if not dir_name:
         return error_response(400, "INVALID_NAME", "名称不合法（安全化后为空）", [])
     fandom_path = Path(request.data_dir) / "fandoms" / dir_name
-    fandom_path.mkdir(parents=True, exist_ok=True)
+    if fandom_path.exists():
+        return error_response(409, "FANDOM_ALREADY_EXISTS", f"同名 Fandom 已存在: {request.name}", [])
+    fandom_path.mkdir(parents=True, exist_ok=False)
     repo = build_fandom_repository()
     fandom = Fandom(name=request.name, created_at=now_utc())
     await run_in_threadpool(repo.save, str(fandom_path), fandom)
@@ -111,6 +113,8 @@ async def create_au(fandom_name: str, request: CreateAURequest) -> Any:
     if not au_dir_name:
         return error_response(400, "INVALID_NAME", "名称不合法（安全化后为空）", [])
     au_path = Path(request.fandom_path) / "aus" / au_dir_name
+    if au_path.exists():
+        return error_response(409, "AU_ALREADY_EXISTS", f"同名 AU 已存在: {request.name}", [])
     ensure_au_directories(au_path)
 
     # 初始化 project.yaml 和 state.yaml
