@@ -93,11 +93,22 @@ def _resolve_settings_llm(request: SettingsChatRequest) -> dict[str, str]:
     优先级：session_llm > project.llm > settings.default_llm
     """
     if request.session_llm and request.session_llm.get("model"):
+        api_key = str(request.session_llm.get("api_key", ""))
+        # 掩码 api_key 防御：前端 GET 返回 ****xxxx，不能用来调 API
+        if api_key.startswith("****") or not api_key:
+            from api import build_settings_repository
+            try:
+                _s = build_settings_repository().get()
+                _k = getattr(getattr(_s, "default_llm", None), "api_key", "")
+                if _k and not _k.startswith("****"):
+                    api_key = _k
+            except Exception:
+                pass
         return {
             "mode": str(request.session_llm.get("mode", "api")),
             "model": str(request.session_llm.get("model", "")),
             "api_base": str(request.session_llm.get("api_base", "")),
-            "api_key": str(request.session_llm.get("api_key", "")),
+            "api_key": api_key,
         }
 
     # fallback: 读 project.yaml

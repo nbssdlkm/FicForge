@@ -52,6 +52,15 @@ def resolve_llm_config(
     if hasattr(mode, "value"):
         cfg["mode"] = mode.value
 
+    # 掩码 api_key 防御：前端 GET 返回的 key 形如 ****xxxx，
+    # 如果被误传入 session_llm，回退到 settings 的真实 key。
+    api_key = cfg.get("api_key", "")
+    if api_key.startswith("****") or not api_key:
+        s_llm = getattr(settings, "default_llm", None)
+        real_key = getattr(s_llm, "api_key", "") if s_llm else ""
+        if real_key and not real_key.startswith("****"):
+            cfg["api_key"] = real_key
+
     # API Key 优先级：环境变量 > 配置字段
     env_key = os.environ.get("FANFIC_LLM_API_KEY", "")
     if env_key:

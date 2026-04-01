@@ -41,6 +41,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const [factsCount, setFactsCount] = useState(0);
   const [embeddingStale, setEmbeddingStale] = useState(false);
   const [embeddingDismissed, setEmbeddingDismissed] = useState(false);
+  const [viewingChapter, setViewingChapter] = useState<number | null>(null);
   const [pinnedCount, setPinnedCount] = useState(0);
   const [unresolvedFact, setUnresolvedFact] = useState<string | null>(null);
   const [chapterFocusEmpty, setChapterFocusEmpty] = useState(true);
@@ -158,7 +159,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
               />
             ) : (
               chapters.map(ch => (
-                <div key={ch.chapter_num} onClick={() => onNavigate('writer', auPath)} className={`px-3 py-2 rounded-md text-sm cursor-pointer transition-colors ${activeTab === 'writer' ? 'bg-accent/10 text-accent font-medium' : 'hover:bg-black/5 dark:hover:bg-white/5 text-text/80'}`}>
+                <div key={ch.chapter_num} onClick={() => { setViewingChapter(ch.chapter_num); onNavigate('writer', auPath); }} className={`px-3 py-2 rounded-md text-sm cursor-pointer transition-colors ${activeTab === 'writer' && viewingChapter === ch.chapter_num ? 'bg-accent/10 text-accent font-medium' : 'hover:bg-black/5 dark:hover:bg-white/5 text-text/80'}`}>
                   <div className="flex items-center gap-2">
                     <span className="opacity-50 text-xs font-mono">#{ch.chapter_num}</span>
                     <span className="truncate">{t('workspace.chapterItem', { num: ch.chapter_num })}</span>
@@ -218,7 +219,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
             transition={{ duration: 0.18, ease: "easeOut" }}
             className="flex-1 flex w-full h-full overflow-hidden"
           >
-            {activeTab === 'writer' && <WriterLayout auPath={auPath} onNavigate={onNavigate} />}
+            {activeTab === 'writer' && <WriterLayout auPath={auPath} onNavigate={onNavigate} viewChapter={viewingChapter} onClearViewChapter={() => setViewingChapter(null)} />}
             {activeTab === 'facts' && <FactsLayout auPath={auPath} />}
             {activeTab === 'au_lore' && <AuLoreLayout auPath={auPath} />}
             {activeTab === 'settings' && <AuSettingsLayout auPath={auPath} />}
