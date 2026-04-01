@@ -48,14 +48,14 @@ export interface TestConnectionResponse {
   message?: string;
   error_code?: string;
 }
-export async function getSettings(dataDir = "./fandoms"): Promise<SettingsInfo> {
-  return apiFetch(`/api/v1/settings?data_dir=${encodeURIComponent(dataDir)}`);
+export async function getSettings(): Promise<SettingsInfo> {
+  return apiFetch("/api/v1/settings");
 }
 
-export async function updateSettings(dataDir: string, updates: object): Promise<SettingsInfo> {
+export async function updateSettings(updates: object): Promise<SettingsInfo> {
   return apiFetch("/api/v1/settings", {
     method: "PUT",
-    body: JSON.stringify({ data_dir: dataDir, ...updates }),
+    body: JSON.stringify(updates),
   });
 }
 

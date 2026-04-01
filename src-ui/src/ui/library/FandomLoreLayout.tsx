@@ -298,11 +298,11 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
 
     try {
       latestFiles = await listFandomFiles(fandomName);
-      if (contextVersion !== contextVersionRef.current) return;
+      if (contextVersion !== contextVersionRef.current) { setIsSaving(false); return; }
       setCharacterFiles(latestFiles.characters);
       setWorldbuildingFiles(latestFiles.worldbuilding);
     } catch (e: any) {
-      if (contextVersion !== contextVersionRef.current) return;
+      if (contextVersion !== contextVersionRef.current) { setIsSaving(false); return; }
       showError(e, t("error_messages.unknown"));
       setIsSaving(false);
       return;
@@ -361,10 +361,10 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
         filename: selectedFile,
         content: editorContent
       });
-      if (contextVersion !== contextVersionRef.current) return;
+      if (contextVersion !== contextVersionRef.current) { setIsSaving(false); return; }
       setSavedEditorContent(editorContent);
     } catch (e: any) {
-      if (contextVersion !== contextVersionRef.current) return;
+      if (contextVersion !== contextVersionRef.current) { setIsSaving(false); return; }
       showError(e, t("error_messages.unknown"));
     } finally {
       if (contextVersion === contextVersionRef.current) {
@@ -386,7 +386,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
         category: selectedCategory,
         filename: selectedFile,
       });
-      if (contextVersion !== contextVersionRef.current) return;
+      if (contextVersion !== contextVersionRef.current) { setIsSaving(false); return; }
       if (selectedCategory === 'core_characters') {
         setCharacterFiles(prev => prev.filter(f => f.filename !== selectedFile));
       } else {
@@ -398,7 +398,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
       setIsReadingFile(false);
       setTrashRefreshToken(current => current + 1);
     } catch (e: any) {
-      if (contextVersion !== contextVersionRef.current) return;
+      if (contextVersion !== contextVersionRef.current) { setIsSaving(false); return; }
       showError(e, t("error_messages.unknown"));
     } finally {
       if (contextVersion === contextVersionRef.current) {

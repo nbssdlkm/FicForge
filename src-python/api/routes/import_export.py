@@ -9,7 +9,7 @@ from typing import Optional
 from fastapi import APIRouter, Query, UploadFile
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
 
 from api import (
     build_chapter_repository,
@@ -78,7 +78,7 @@ class ImportConfirmResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 @router.post("/import/upload", response_model=ImportUploadResponse)
-async def import_upload(file: UploadFile):
+async def import_upload(file: UploadFile) -> ImportUploadResponse | JSONResponse:
     """接收上传文件，返回解析结果预览（不写入）。"""
     logger.info("Import upload: filename=%s", file.filename)
     # 验证文件扩展名
@@ -137,7 +137,7 @@ async def import_upload(file: UploadFile):
 
 
 @router.post("/import/confirm", response_model=ImportConfirmResponse)
-async def import_confirm(request: ImportConfirmRequest):
+async def import_confirm(request: ImportConfirmRequest) -> ImportConfirmResponse | JSONResponse:
     """确认导入（写入文件 + 初始化状态）。"""
     logger.info("Import confirm: au=%s chapters=%d", request.au_path, len(request.chapters))
     if not validate_path(request.au_path):
@@ -221,7 +221,7 @@ async def export_chapters_endpoint(
     format: str = Query("txt"),
     include_title: bool = Query(True),
     include_chapter_num: bool = Query(True),
-):
+) -> Response:
     """导出章节为文本文件。"""
     logger.info("Export chapters: au=%s start=%d end=%s fmt=%s", au_path, start, end, format)
     if not validate_path(au_path):

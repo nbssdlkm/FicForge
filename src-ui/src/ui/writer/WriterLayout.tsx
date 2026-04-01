@@ -589,7 +589,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
       const settings = await getSettings();
       settings.model_params = settings.model_params || {};
       settings.model_params[sessionModel] = { temperature: sessionTemp, top_p: sessionTopP };
-      await updateSettings('./fandoms', settings);
+      await updateSettings(settings);
       if (activeAuPathRef.current !== requestAuPath) return;
       showSuccess(t('writer.saveGlobalSuccess'));
     } catch (error) {
