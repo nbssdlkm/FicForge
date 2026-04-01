@@ -26,12 +26,18 @@ class LocalChromaVectorRepository:
     def _get_collection(self, name: str) -> Any:
         return self._client.get_or_create_collection(name=name)
 
+    @staticmethod
+    def _norm(au_id: str) -> str:
+        """Windows/Unix 路径统一为正斜杠，去掉 ./ 前缀。"""
+        return au_id.replace("\\", "/").lstrip("./")
+
     # ------------------------------------------------------------------
     # 章节索引
     # ------------------------------------------------------------------
 
     def index_chapter(self, au_id: str, chunks: list[ChunkData]) -> None:
         """将章节 chunks 写入 ChromaDB chapters collection。"""
+        au_id = self._norm(au_id)
         if not chunks:
             return
 
@@ -64,6 +70,7 @@ class LocalChromaVectorRepository:
 
     def delete_chapter(self, au_id: str, chapter_num: int) -> None:
         """删除指定 AU 的指定章节的所有 chunks。"""
+        au_id = self._norm(au_id)
         collection = self._get_collection("chapters")
         try:
             collection.delete(where={
@@ -84,6 +91,7 @@ class LocalChromaVectorRepository:
         char_filter: Optional[list[str]] = None,
     ) -> list[Chunk]:
         """向量检索。角色过滤在 Python 层执行（跨 ChromaDB 版本兼容）。"""
+        au_id = self._norm(au_id)
         collection = self._get_collection(collection_name)
 
         query_embedding = self._embedding.embed([query_text])[0]
@@ -128,6 +136,7 @@ class LocalChromaVectorRepository:
         self, au_id: str, chapters: list[tuple[int, list[ChunkData]]]
     ) -> None:
         """全量重建索引：删除 AU 所有 chunks → 逐章重新 index。"""
+        au_id = self._norm(au_id)
         collection = self._get_collection("chapters")
         # 删除所有
         try:
@@ -152,6 +161,7 @@ class LocalChromaVectorRepository:
 
         先删除该 AU + 文件的旧 chunks，再写入新 chunks。
         """
+        au_id = self._norm(au_id)
         if not chunks:
             return
 

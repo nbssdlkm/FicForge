@@ -68,7 +68,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
           setApiKey(res.default_llm.api_key || '');
           setContextWindow(res.default_llm.context_window || 128000);
         }
-        setEmbeddingModel(res?.embedding?.model || 'nomic-embed-text');
+        setEmbeddingModel(res?.embedding?.model || '');
       }).catch((error) => {
         if (requestId !== modalRequestIdRef.current) return;
         showError(error, t('error_messages.unknown'));
@@ -234,8 +234,8 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
 
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-bold text-text/90">{t('common.labels.searchEngineModel')}</label>
-              <Input value={embeddingModel} onChange={(e) => setEmbeddingModel(e.target.value)} placeholder="nomic-embed-text" disabled={saving} />
-              <p className="text-xs text-text/50">{t('common.help.searchEngineModel')}</p>
+              <Input value={embeddingModel} onChange={(e) => setEmbeddingModel(e.target.value)} placeholder={t('settings.global.builtinEmbedding')} disabled={saving} />
+              <p className="text-xs text-text/50">{embeddingModel ? t('common.help.searchEngineModel') : t('settings.global.builtinEmbedding')}</p>
             </div>
           </div>
 

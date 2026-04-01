@@ -14,6 +14,7 @@ from typing import Any, Iterator, Optional
 from core.domain.draft import Draft
 from core.domain.generated_with import GeneratedWith
 from core.services.context_assembler import assemble_context
+from core.services.rag_retrieval import build_rag_query, retrieve_rag
 from infra.llm.config_resolver import create_provider, resolve_llm_config, resolve_llm_params
 from infra.llm.provider import LLMError
 from infra.storage_local.file_utils import now_utc
@@ -96,6 +97,7 @@ def generate_chapter(
     chapter_repo: Any,
     draft_repo: Any,
     character_files: Optional[dict[str, str]] = None,
+    vector_repo: Any = None,
 ) -> Iterator[dict[str, Any]]:
     """生成章节（SSE 事件流 generator）。
 
@@ -134,10 +136,43 @@ def generate_chapter(
         if character_files is None:
             character_files = _load_md_files(au_path / "characters")
 
+        # === 步骤 1.8：RAG 检索（向量搜索） ===
+        rag_text: Optional[str] = None
+        if vector_repo is not None:
+            try:
+                from core.services.rag_retrieval import build_active_chars
+                from dataclasses import asdict as _asdict
+                cast_reg_obj = getattr(project, "cast_registry", None)
+                cast_reg = _asdict(cast_reg_obj) if cast_reg_obj and hasattr(cast_reg_obj, "__dataclass_fields__") else {}
+                active_chars = build_active_chars(state, user_input, project, facts, cast_reg)
+                focus_texts = [f.content_clean for f in facts if f.status == "active"] if facts else []
+                last_ending = getattr(state, "last_scene_ending", "") or ""
+                query = build_rag_query(focus_texts, last_ending, user_input)
+                context_window = int(getattr(
+                    getattr(settings, "default_llm", None), "context_window", 0
+                ) or 128000)
+                budget_for_rag = max(0, context_window // 4)
+                rag_text, _rag_tokens = retrieve_rag(
+                    vector_repo=vector_repo,
+                    au_id=str(au_path),
+                    query=query,
+                    budget_remaining=budget_for_rag,
+                    char_filter=active_chars,
+                    llm_config=llm_config,
+                    rag_decay_coefficient=getattr(project, "rag_decay_coefficient", 0.05),
+                    current_chapter=state.current_chapter,
+                )
+                if not rag_text:
+                    rag_text = None
+            except Exception:
+                import logging as _log
+                _log.getLogger(__name__).warning("RAG retrieval failed, continuing without", exc_info=True)
+
         # === 步骤 2：组装上下文 ===
         ctx = assemble_context(
             project, state, user_input, facts,
             chapter_repo, au_path,
+            rag_results=rag_text,
             character_files=character_files,
         )
         messages = ctx["messages"]

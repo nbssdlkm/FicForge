@@ -34,6 +34,7 @@ from api import (
     build_project_repository,
     build_settings_repository,
     build_state_repository,
+    build_vector_repository,
 )
 from core.services.generation import generate_chapter
 from pathlib import Path
@@ -72,6 +73,8 @@ async def generate_stream(request: GenerateRequest) -> StreamingResponse:
             settings = await run_in_threadpool(settings_repo.get)
             facts = await run_in_threadpool(fact_repo.list_all, au_id)
 
+            vector_repo = build_vector_repository()
+
             stream = generate_chapter(
                 au_path=au_dir,
                 chapter_num=request.chapter_num,
@@ -85,6 +88,7 @@ async def generate_stream(request: GenerateRequest) -> StreamingResponse:
                 facts=facts,
                 chapter_repo=chapter_repo,
                 draft_repo=draft_repo,
+                vector_repo=vector_repo,
             )
 
             # 将同步迭代器的阻塞 next() 放到线程池，防止卡住事件循环

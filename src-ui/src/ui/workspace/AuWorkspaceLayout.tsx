@@ -10,6 +10,7 @@ import { FactsLayout } from '../facts/FactsLayout';
 import { AuLoreLayout } from '../library/AuLoreLayout';
 import { AuSettingsLayout } from '../settings/AuSettingsLayout';
 import { AnimatePresence, motion } from 'framer-motion';
+import { rebuildIndex } from '../../api/state';
 import { listChapters, type ChapterInfo } from '../../api/chapters';
 import { getState } from '../../api/state';
 import { listFacts, type FactInfo } from '../../api/facts';
@@ -233,7 +234,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
           <p className="text-sm text-text/80">{t('embedding.staleDesc')}</p>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setEmbeddingDismissed(true)}>{t('embedding.skipRebuild')}</Button>
-            <Button variant="primary" onClick={() => { setEmbeddingDismissed(true); onNavigate('settings', auPath); }}>{t('embedding.rebuild')}</Button>
+            <Button variant="primary" onClick={() => { setEmbeddingDismissed(true); rebuildIndex(auPath).catch(() => {}); }}>{t('embedding.rebuild')}</Button>
           </div>
         </div>
       </Modal>

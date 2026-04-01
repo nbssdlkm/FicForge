@@ -332,7 +332,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
             <div className="bg-surface/50 p-6 rounded-xl border border-black/5 dark:border-white/5 space-y-4">
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-bold text-text/90">{t("common.labels.searchEngineModel")}</label>
-                <Input value={globalSettings?.embedding?.model || globalSettings?.embedding?.ollama_model || t('settings.global.noEmbeddingModel')} readOnly className="h-10 font-mono bg-background/70" />
+                <Input value={globalSettings?.embedding?.model || t('settings.global.builtinEmbedding')} readOnly className="h-10 font-mono bg-background/70" />
                 <p className="text-xs text-text/50">{t("common.help.searchEngineModel")}</p>
               </div>
               <div className="flex items-center justify-between rounded-lg border border-black/10 dark:border-white/10 bg-background/60 px-4 py-3">
