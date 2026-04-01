@@ -338,6 +338,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   const [generatedWith, setGeneratedWith] = useState<DraftGeneratedWith | null>(null);
   const [budgetReport, setBudgetReport] = useState<any>(null);
   const [lastGenerateRequest, setLastGenerateRequest] = useState<GenerateRequestState | null>(null);
+  const [generationErrorDisplay, setGenerationErrorDisplay] = useState<{ message: string; actions: string[] } | null>(null);
   const [draftSummaries, setDraftSummaries] = useState<Record<string, ContextSummary>>({});
   const pendingContextSummaryRef = useRef<ContextSummary | null>(null);
 
@@ -640,6 +641,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
     setGeneratedWith(null);
     setBudgetReport(null);
     setRecoveryNotice(false);
+    setGenerationErrorDisplay(null);
     pendingContextSummaryRef.current = null;
 
     setLastGenerateRequest(request);
@@ -756,6 +758,11 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
       pendingContextSummaryRef.current = null;
       if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('writer.generateErrorFallback'));
+      if (error instanceof ApiError) {
+        setGenerationErrorDisplay({ message: error.userMessage || error.message, actions: error.actions });
+      } else if (error instanceof Error) {
+        setGenerationErrorDisplay({ message: error.message, actions: [] });
+      }
     } finally {
       if (activeAuPathRef.current === requestAuPath) {
         setIsGenerating(false);
@@ -1185,7 +1192,24 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
                     ))}
                   </div>
                 ) : (
-                  <p className="py-24 text-center text-text/30">{t('writer.emptyContent')}</p>
+                  generationErrorDisplay ? (
+                    <div className="py-12 flex flex-col items-center gap-4">
+                      <div className="flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/20 px-5 py-4 text-red-700 dark:text-red-300 max-w-lg">
+                        <svg className="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
+                        <span className="text-sm">{generationErrorDisplay.message}</span>
+                      </div>
+                      {generationErrorDisplay.actions.includes('check_settings') && (
+                        <Button variant="secondary" size="sm" onClick={() => onNavigate('settings')}>
+                          {t('writer.checkSettings')}
+                        </Button>
+                      )}
+                      <button className="text-xs text-text/40 hover:text-text/60" onClick={() => setGenerationErrorDisplay(null)}>
+                        {t('common.actions.dismiss')}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="py-24 text-center text-text/30">{t('writer.emptyContent')}</p>
+                  )
                 )}
               </div>
 

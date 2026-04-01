@@ -121,7 +121,7 @@ function App() {
   return (
     <>
       {!isAuSpace && currentPage === "library" && <Library onNavigate={handleNavigate} />}
-      {!isAuSpace && currentPage === "fandom_lore" && <FandomLoreLayout onNavigate={handleNavigate} />}
+      {!isAuSpace && currentPage === "fandom_lore" && <FandomLoreLayout fandomPath={currentAuPath} onNavigate={handleNavigate} />}
       
       {isAuSpace && (
         <AuWorkspaceLayout 
