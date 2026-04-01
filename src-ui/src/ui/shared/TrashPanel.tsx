@@ -3,6 +3,7 @@ import { ApiError } from "../../api/client";
 import {
   listTrash,
   permanentDeleteTrash,
+  purgeTrash,
   restoreTrash,
   type TrashEntry,
   type TrashScope,
@@ -200,17 +201,11 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
     const contextVersion = contextVersionRef.current;
     setIsClearingAll(true);
     try {
-      const snapshot = [...entries];
-      for (const entry of snapshot) {
-        await permanentDeleteTrash(scope, path, entry.trash_id);
-        if (contextVersion !== contextVersionRef.current) {
-          return;
-        }
-        setEntries((current) => current.filter((item) => item.trash_id !== entry.trash_id));
-      }
+      await purgeTrash(scope, path, 0);
       if (contextVersion !== contextVersionRef.current) {
         return;
       }
+      setEntries([]);
       showSuccess(t("trash.clearSuccess"));
       setClearAllOpen(false);
     } catch (error) {

@@ -1550,7 +1550,7 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
         </div>
       </Modal>
 
-      <ExportModal isOpen={isExportOpen} onClose={() => setExportOpen(false)} />
+      <ExportModal isOpen={isExportOpen} onClose={() => setExportOpen(false)} auPath={auPath} />
       <DirtyModal
         isOpen={isDirtyOpen}
         onClose={() => setDirtyOpen(false)}
