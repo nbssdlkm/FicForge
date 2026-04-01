@@ -47,3 +47,26 @@ export async function confirmImport(params: {
     body: JSON.stringify(params),
   });
 }
+
+export async function exportChapters(params: {
+  au_path: string;
+  format: "txt" | "md";
+  start?: number;
+  end?: number;
+}): Promise<Blob> {
+  const query = new URLSearchParams({
+    au_path: params.au_path,
+    format: params.format,
+  });
+  if (params.start !== undefined) query.set("start", String(params.start));
+  if (params.end !== undefined) query.set("end", String(params.end));
+  const url = buildApiUrl(`/api/v1/export?${query.toString()}`);
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ error_code: "EXPORT_FAILED", message: resp.statusText }));
+    throw Object.assign(new Error(err.message || `Export failed: ${resp.status}`), {
+      error_code: err.error_code || "EXPORT_FAILED",
+    });
+  }
+  return resp.blob();
+}
