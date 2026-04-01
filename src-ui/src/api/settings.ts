@@ -22,6 +22,7 @@ export interface EmbeddingSettingsInfo {
   model?: string;
   api_base?: string;
   api_key?: string;
+  ollama_model?: string;
 }
 
 export interface SettingsInfo {

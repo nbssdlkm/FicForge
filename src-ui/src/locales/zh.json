@@ -57,8 +57,8 @@
       "ollamaModel": "Ollama 模型名",
       "apiBase": "接口地址",
       "apiKey": "密钥",
-      "contextWindow": "一次能读多少字",
-      "searchEngineModel": "搜索引擎模型",
+      "contextWindow": "一次能读多少字 (context window)",
+      "searchEngineModel": "搜索引擎模型 (embedding)",
       "searchMode": "接入方式",
       "displayName": "标准译名",
       "aliases": "别名",
@@ -193,6 +193,8 @@
     "draftDiscarded": "草稿已丢弃。",
     "generateErrorFallback": "续写失败，请重试。",
     "checkSettings": "检查设置",
+    "viewingHistory": "只读查看",
+    "backToCurrentChapter": "返回当前章",
     "confirmSuccess": "这一章已经定稿了。",
     "undoSuccess": "上一章已经撤回。",
     "focusSaved": "本章要推的线已经更新。",
@@ -385,8 +387,8 @@
   "settingsPanel": {
     "title": "续写参数",
     "modelCustom": "custom-model（到设置里填写）",
-    "temperature": "发散度",
-    "topP": "取样范围"
+    "temperature": "发散度 (temperature)",
+    "topP": "取样范围 (top_p)"
   },
   "settings": {
     "title": "故事设置",
@@ -407,6 +409,7 @@
       "connectionSuccess": "连接成功，密钥可以用。",
       "testFailedPrefix": "连接失败：",
       "searchEngineDescription": "用来从你的设定里找到和当前剧情最相关的内容。",
+      "noEmbeddingModel": "（未配置）",
       "apiCredentialsDescription": "如果某篇故事没有单独指定，就会用这里的设置。",
       "apiModeLabel": "接入方式"
     },

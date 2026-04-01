@@ -295,7 +295,7 @@ function getCandidateKey(candidate: ExtractedFactCandidate, index: number): stri
   return `${candidate.content_clean}-${candidate.chapter}-${index}`;
 }
 
-export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigate: (page: string) => void }) => {
+export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapter }: { auPath: string, onNavigate: (page: string) => void, viewChapter?: number | null, onClearViewChapter?: () => void }) => {
   const { t } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
   const instructionInputRef = useRef<HTMLInputElement | null>(null);
@@ -339,6 +339,8 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   const [budgetReport, setBudgetReport] = useState<any>(null);
   const [lastGenerateRequest, setLastGenerateRequest] = useState<GenerateRequestState | null>(null);
   const [generationErrorDisplay, setGenerationErrorDisplay] = useState<{ message: string; actions: string[] } | null>(null);
+  const [viewingHistoryContent, setViewingHistoryContent] = useState<string | null>(null);
+  const [viewingHistoryNum, setViewingHistoryNum] = useState<number | null>(null);
   const [draftSummaries, setDraftSummaries] = useState<Record<string, ContextSummary>>({});
   const pendingContextSummaryRef = useRef<ContextSummary | null>(null);
 
@@ -351,6 +353,29 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   const [sessionModel, setSessionModel] = useState('deepseek-chat');
   const [sessionTemp, setSessionTemp] = useState(1.0);
   const [sessionTopP, setSessionTopP] = useState(0.95);
+
+  // 查看历史章节
+  useEffect(() => {
+    if (!viewChapter || !state) return;
+    // 如果点击的是当前正在写的章节，清除查看状态
+    if (viewChapter >= state.current_chapter) {
+      setViewingHistoryContent(null);
+      setViewingHistoryNum(null);
+      return;
+    }
+    let cancelled = false;
+    getChapterContent(auPath, viewChapter).then((result: any) => {
+      if (cancelled) return;
+      const text = typeof result === 'string' ? result : result?.content || '';
+      setViewingHistoryContent(text);
+      setViewingHistoryNum(viewChapter);
+    }).catch(() => {
+      if (cancelled) return;
+      setViewingHistoryContent(null);
+      setViewingHistoryNum(null);
+    });
+    return () => { cancelled = true; };
+  }, [viewChapter, auPath, state]);
 
   useEffect(() => {
     activeAuPathRef.current = auPath;
@@ -622,11 +647,12 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
       : settingsInfo?.default_llm;
     const configuredModel = getConfiguredLlmModel(source as ProjectInfo['llm']) || sessionModel;
 
+    // 注意：不发送 api_key —— 前端只持有掩码值（如 ****9cb2），
+    // 后端 resolve_llm_config 会从磁盘读取真实 key。
     return {
       mode: source?.mode || 'api',
       model: configuredModel,
       api_base: source?.api_base || '',
-      api_key: source?.api_key || '',
       local_model_path: source?.local_model_path || '',
       ollama_model: source?.ollama_model || '',
     };
@@ -1065,7 +1091,8 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
   const settingsFandomPath = fandomPathParts.length >= 2 ? fandomPathParts[0] : auPath;
   const currentDraftSummary = !isGenerating && currentDraft ? draftSummaries[currentDraft.label] || null : null;
   const activeGeneratedWith = currentDraft?.generatedWith || generatedWith;
-  const displayContent = streamText || currentDraft?.content || currentContent;
+  const isViewingHistory = viewingHistoryContent !== null && viewingHistoryNum !== null;
+  const displayContent = isViewingHistory ? viewingHistoryContent : (streamText || currentDraft?.content || currentContent);
   const metaModel = activeGeneratedWith?.model || sessionModel;
   const metaChars = activeGeneratedWith?.char_count || displayContent.length;
   const metaDuration = activeGeneratedWith?.duration_ms
@@ -1159,6 +1186,14 @@ export const WriterLayout = ({ auPath, onNavigate }: { auPath: string, onNavigat
         <div className={mode === 'write' ? 'flex flex-1 flex-col min-h-0' : 'hidden'}>
           <div className="flex-1 overflow-y-auto w-full flex justify-center pb-32">
             <div className="w-full max-w-3xl px-8 py-10 space-y-6">
+              {isViewingHistory && (
+                <div className="rounded-xl border border-info/30 bg-info/10 px-4 py-3 text-sm text-info flex items-center justify-between">
+                  <span>{t('workspace.chapterItem', { num: viewingHistoryNum })} — {t('writer.viewingHistory')}</span>
+                  <Button variant="ghost" size="sm" onClick={() => { setViewingHistoryContent(null); setViewingHistoryNum(null); onClearViewChapter?.(); }}>
+                    {t('writer.backToCurrentChapter')}
+                  </Button>
+                </div>
+              )}
               {recoveryNotice && hasPendingDrafts && (
                 <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
                   {t('drafts.recoveryNotice')}
