@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '../shared/Button';
 import { CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
-import { extractFacts } from '../../api/facts';
+import { extractFactsBatch } from '../../api/facts';
 export function CompletionStep({
   auPath,
   totalChapters,
@@ -36,15 +36,20 @@ export function CompletionStep({
     const total = Math.min(count, totalChapters);
     setExtractProgress({ current: 0, total });
 
-    for (let ch = start; ch <= totalChapters; ch++) {
+    const batchSize = 3;
+    for (let batchStart = start; batchStart <= totalChapters; batchStart += batchSize) {
       if (requestId !== extractRequestIdRef.current || unmountedRef.current) {
         return;
       }
-      setExtractProgress({ current: ch - start + 1, total });
+      const chapterNums: number[] = [];
+      for (let ch = batchStart; ch <= Math.min(batchStart + batchSize - 1, totalChapters); ch++) {
+        chapterNums.push(ch);
+      }
+      setExtractProgress({ current: Math.min(batchStart - start + batchSize, total), total });
       try {
-        await extractFacts(auPath, ch);
+        await extractFactsBatch(auPath, chapterNums);
       } catch {
-        // 单章失败不阻断
+        // 批次失败不阻断
       }
     }
     if (requestId !== extractRequestIdRef.current || unmountedRef.current) {

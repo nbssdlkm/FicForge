@@ -19,7 +19,49 @@ type LoreFileEntry = {
 };
 
 function buildDefaultCharacterContent(name: string): string {
-  return `---\nname: ${name}\n---\n\n# ${name}\n\n`;
+  return `---\nname: ${name}\naliases: []\n---\n\n# ${name}\n\n`;
+}
+
+function parseAliasesFromContent(content: string): string[] {
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) return [];
+  const fm = match[1];
+  // Parse aliases: [a, b, c] or aliases:\n- a\n- b
+  const inlineMatch = fm.match(/aliases:\s*\[([^\]]*)\]/);
+  if (inlineMatch) {
+    return inlineMatch[1].split(',').map(s => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+  }
+  const lines = fm.split('\n');
+  const idx = lines.findIndex(l => l.startsWith('aliases:'));
+  if (idx < 0) return [];
+  const result: string[] = [];
+  for (let i = idx + 1; i < lines.length; i++) {
+    const m = lines[i].match(/^\s*-\s*(.+)/);
+    if (m) result.push(m[1].trim().replace(/^["']|["']$/g, ''));
+    else break;
+  }
+  return result;
+}
+
+function setAliasesInContent(content: string, aliases: string[]): string {
+  const aliasYaml = aliases.length > 0 ? `aliases: [${aliases.join(', ')}]` : 'aliases: []';
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) return content;
+  const fm = match[1];
+  // Replace existing aliases line(s)
+  const lines = fm.split('\n');
+  const idx = lines.findIndex(l => l.startsWith('aliases:'));
+  if (idx >= 0) {
+    // Remove old aliases line + any continuation list items
+    let endIdx = idx + 1;
+    while (endIdx < lines.length && lines[endIdx].match(/^\s*-\s/)) endIdx++;
+    lines.splice(idx, endIdx - idx, aliasYaml);
+  } else {
+    // Add after name line
+    const nameIdx = lines.findIndex(l => l.startsWith('name:'));
+    lines.splice(nameIdx >= 0 ? nameIdx + 1 : lines.length, 0, aliasYaml);
+  }
+  return content.replace(/^---\n[\s\S]*?\n---/, `---\n${lines.join('\n')}\n---`);
 }
 
 function toCanonicalCreateKey(value: string): string {
@@ -60,6 +102,8 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
   const [selectedCategory, setSelectedCategory] = useState<'characters' | 'worldbuilding'>('characters');
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [editorContent, setEditorContent] = useState('');
+  const [aliases, setAliases] = useState<string[]>([]);
+  const [newAlias, setNewAlias] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isReadingFile, setIsReadingFile] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -145,7 +189,10 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
       ) {
         return;
       }
-      setEditorContent(result.content || buildDefaultCharacterContent(name));
+      const content = result.content || buildDefaultCharacterContent(name);
+      setEditorContent(content);
+      setAliases(selectedCategory === 'characters' ? parseAliasesFromContent(content) : []);
+      setNewAlias('');
     } catch {
       if (
         readRequestId !== readFileRequestIdRef.current
@@ -237,11 +284,14 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     const requestAuPath = auPath;
     setIsSaving(true);
     try {
+      const contentToSave = selectedCategory === 'characters'
+        ? setAliasesInContent(editorContent, aliases)
+        : editorContent;
       await saveLore({
         au_path: auPath,
         category: selectedCategory,
         filename: `${selectedFile}.md`,
-        content: editorContent,
+        content: contentToSave,
       });
       if (activeAuPathRef.current !== requestAuPath) return;
       showSuccess(t('common.actions.save'));
@@ -663,6 +713,39 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
           {selectedFile ? (
             <div className="flex flex-col gap-2 flex-1">
               <label className="text-sm font-bold text-text/90">{t('navigation.auLore')}</label>
+
+              {/* 别名编辑（仅角色） */}
+              {selectedCategory === 'characters' && (
+                <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-black/10 dark:border-white/10 bg-surface/30 px-3 py-2 min-h-[36px]">
+                  <span className="text-[10px] text-text/40 font-sans mr-1">{t('auLore.aliasesLabel')}</span>
+                  {aliases.map((alias, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 rounded-md bg-accent/10 text-accent text-xs px-2 py-0.5 font-sans">
+                      {alias}
+                      <button className="hover:text-red-500 text-accent/60" onClick={() => setAliases(prev => prev.filter((_, j) => j !== i))}>×</button>
+                    </span>
+                  ))}
+                  <input
+                    className="flex-1 min-w-[80px] bg-transparent text-xs outline-none placeholder:text-text/30 font-sans"
+                    placeholder={t('auLore.aliasPlaceholder')}
+                    value={newAlias}
+                    onChange={e => setNewAlias(e.target.value)}
+                    onKeyDown={e => {
+                      if ((e.key === 'Enter' || e.key === ',') && newAlias.trim()) {
+                        e.preventDefault();
+                        if (!aliases.includes(newAlias.trim())) {
+                          setAliases(prev => [...prev, newAlias.trim()]);
+                        }
+                        setNewAlias('');
+                      }
+                      if (e.key === 'Backspace' && !newAlias && aliases.length > 0) {
+                        setAliases(prev => prev.slice(0, -1));
+                      }
+                    }}
+                    disabled={isReadingFile}
+                  />
+                </div>
+              )}
+
               <Textarea
                 value={editorContent}
                 onChange={e => setEditorContent(e.target.value)}

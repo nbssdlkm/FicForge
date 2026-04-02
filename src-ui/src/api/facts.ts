@@ -57,9 +57,23 @@ export async function updateFactStatus(auPath: string, factId: string, newStatus
   });
 }
 
+export async function batchUpdateFactStatus(auPath: string, factIds: string[], newStatus: string): Promise<{ updated: number; failed: number }> {
+  return apiFetch("/api/v1/facts/batch-status", {
+    method: "PATCH",
+    body: JSON.stringify({ au_path: auPath, fact_ids: factIds, new_status: newStatus }),
+  });
+}
+
 export async function extractFacts(auPath: string, chapterNum: number): Promise<ExtractFactsResponse> {
   return apiFetch("/api/v1/facts/extract", {
     method: "POST",
     body: JSON.stringify({ au_path: auPath, chapter_num: chapterNum }),
+  });
+}
+
+export async function extractFactsBatch(auPath: string, chapterNums: number[]): Promise<ExtractFactsResponse> {
+  return apiFetch("/api/v1/facts/extract-batch", {
+    method: "POST",
+    body: JSON.stringify({ au_path: auPath, chapter_nums: chapterNums }),
   });
 }
