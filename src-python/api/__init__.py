@@ -61,6 +61,7 @@ def _dispatch_worker(info: TaskInfo) -> None:
     deps = {
         "chapter_repo": build_chapter_repository(),
         "vector_repo": _get_vector_repo(),
+        "state_repo": build_state_repository(),
     }
     worker_fn(info, deps)
 

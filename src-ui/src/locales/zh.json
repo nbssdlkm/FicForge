@@ -65,6 +65,7 @@
       "contentRaw": "原文摘录",
       "contentClean": "AI 参考文本",
       "characters": "角色",
+      "worldbuilding": "世界观",
       "storyTime": "故事时间",
       "chapterLength": "每章目标字数",
       "perspective": "人称",
@@ -176,13 +177,17 @@
     "inputPlaceholder": "输入指令（如：让角色道歉），或留空直接续写…",
     "factsShortcut": "剧情笔记",
     "focusTitle": "本章要推的线",
+    "focusHint": "从「待填坑」笔记中选择本章要重点推进的剧情线，会高优先级注入 AI 上下文",
     "freeWrite": "自由发挥",
     "memoryPanel": "AI 记忆一览",
+    "memoryPanelHint": "续写一次后显示实际 token 分配",
     "memoryLayer": {
       "pinned": "写作底线",
       "context": "参考内容",
       "recentChapter": "最近章节",
-      "facts": "剧情笔记"
+      "facts": "剧情笔记",
+      "rag": "RAG 检索",
+      "characterSettings": "角色设定"
     },
     "draftLabel": "草稿 {{label}}",
     "draftReady": "草稿 {{label}}",
@@ -454,6 +459,12 @@
     "noSearchResultTitle": "没有找到符合条件的剧情笔记",
     "noSearchResultDescription": "换个关键词试试，或者直接记下第一笔。",
     "filterTitle": "筛选剧情笔记",
+    "statusHint": {
+      "unresolved": "伏笔/悬念，可在「本章要推的线」中选为本章重点。续写时会被带入上下文",
+      "active": "确定的事实。每次续写都会自动带入上下文，AI 始终记住",
+      "resolved": "已填上的坑。不再带入续写上下文",
+      "deprecated": "已作废的笔记。不再带入续写上下文"
+    },
     "extractNoChapter": "还没有已定稿章节，暂时没法提取。",
     "extractNoResult": "这一章暂时没有提取出新的剧情笔记。",
     "extractReviewTitle": "提取结果预览",
@@ -570,6 +581,10 @@
     "auCharacters": {
       "title": "还没有角色设定",
       "description": "添加角色后，AI 续写时会自动参考人设，避免崩人设。"
+    },
+    "auWorldbuilding": {
+      "title": "还没有世界观设定",
+      "description": "添加后，AI 续写时能参考世界规则，保持一致性。"
     },
     "facts": {
       "title": "还没有剧情笔记",

@@ -53,9 +53,11 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
   const readFileRequestIdRef = useRef(0);
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [files, setFiles] = useState<LoreFileEntry[]>([]);
+  const [worldbuildingFiles, setWorldbuildingFiles] = useState<LoreFileEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({ characters: true });
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({ characters: true, worldbuilding: false });
+  const [selectedCategory, setSelectedCategory] = useState<'characters' | 'worldbuilding'>('characters');
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [editorContent, setEditorContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -135,7 +137,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     setEditorContent('');
     setIsReadingFile(true);
     try {
-      const result = await readLore({ au_path: auPath, category: 'characters', filename: `${name}.md` });
+      const result = await readLore({ au_path: auPath, category: selectedCategory, filename: `${name}.md` });
       if (
         readRequestId !== readFileRequestIdRef.current
         || (typeof loadRequestId === 'number' && loadRequestId !== loadDataRequestIdRef.current)
@@ -170,14 +172,16 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     const requestAuPath = auPath;
     setLoading(true);
     try {
-      const [proj, loreFiles] = await Promise.all([
+      const [proj, loreFiles, wbFiles] = await Promise.all([
         getProject(auPath),
-        listLoreFiles({ au_path: auPath, category: 'characters' }),
+        listLoreFiles({ au_path: auPath, category: selectedCategory }),
+        listLoreFiles({ au_path: auPath, category: 'worldbuilding' }),
       ]);
       if (requestId !== loadDataRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
 
       setProject(proj);
       setFiles(loreFiles.files);
+      setWorldbuildingFiles(wbFiles.files);
 
       const nextSelected = selectedFile && loreFiles.files.some(file => file.name === selectedFile)
         ? selectedFile
@@ -235,7 +239,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     try {
       await saveLore({
         au_path: auPath,
-        category: 'characters',
+        category: selectedCategory,
         filename: `${selectedFile}.md`,
         content: editorContent,
       });
@@ -259,7 +263,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     try {
       await deleteLore({
         au_path: auPath,
-        category: 'characters',
+        category: selectedCategory,
         filename: `${selectedFile}.md`,
       });
       if (activeAuPathRef.current !== requestAuPath) return;
@@ -309,7 +313,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
       try {
         [latestProject, latestFiles] = await Promise.all([
           getProject(auPath),
-          listLoreFiles({ au_path: auPath, category: 'characters' }),
+          listLoreFiles({ au_path: auPath, category: selectedCategory }),
         ]);
       } catch (error) {
         if (activeAuPathRef.current !== requestAuPath) return;
@@ -325,17 +329,19 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
 
       await saveLore({
         au_path: auPath,
-        category: 'characters',
+        category: selectedCategory,
         filename,
         content: defaultContent,
       });
       try {
-        await syncRegistry([...(latestProject.cast_registry.characters || []), displayName], requestAuPath);
+        if (selectedCategory === 'characters') {
+          await syncRegistry([...(latestProject.cast_registry.characters || []), displayName], requestAuPath);
+        }
       } catch (error) {
         try {
           await deleteLore({
             au_path: auPath,
-            category: 'characters',
+            category: selectedCategory,
             filename,
           });
         } catch {
@@ -497,7 +503,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                     <Folder size={14} className="text-accent" fill="currentColor" fillOpacity={0.2} />
                     <span>{t('common.labels.characters')}</span>
                   </div>
-                  <Button variant="ghost" size="sm" className="p-0 h-6 w-6" onClick={(event) => { event.stopPropagation(); setCreateName(''); setCreateModalOpen(true); }}>
+                  <Button variant="ghost" size="sm" className="p-0 h-6 w-6" onClick={(event) => { event.stopPropagation(); setSelectedCategory('characters'); setCreateName(''); setCreateModalOpen(true); }}>
                     <Plus size={12} />
                   </Button>
                 </div>
@@ -534,8 +540,8 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                         return (
                           <div
                             key={file.name}
-                            className={`flex items-center justify-between pl-6 pr-2 py-1.5 text-sm cursor-pointer rounded-md ${selectedFile === file.name ? 'bg-accent/10 text-accent font-medium' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5 hover:text-text'}`}
-                            onClick={() => { void loadFileContent(file.name); }}
+                            className={`flex items-center justify-between pl-6 pr-2 py-1.5 text-sm cursor-pointer rounded-md ${selectedFile === file.name && selectedCategory === 'characters' ? 'bg-accent/10 text-accent font-medium' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5 hover:text-text'}`}
+                            onClick={() => { setSelectedCategory('characters'); void loadFileContent(file.name); }}
                           >
                             <div className="flex items-center gap-2 overflow-hidden">
                               <FileText size={14} className="opacity-50 shrink-0" />
@@ -552,6 +558,60 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                           </div>
                         );
                       })
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 世界观分区 */}
+            <div className="space-y-2">
+              <div className="px-3 pb-1 text-[11px] font-sans font-bold text-text/40 uppercase tracking-widest">
+                {t('common.labels.worldbuilding')} ({worldbuildingFiles.length})
+              </div>
+              <div>
+                <div className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/80 font-bold font-sans" onClick={() => toggleFolder('worldbuilding')}>
+                  <div className="flex items-center gap-2">
+                    {expandedFolders.worldbuilding ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    <Folder size={14} className="text-info" fill="currentColor" fillOpacity={0.2} />
+                    <span>{t('common.labels.worldbuilding')}</span>
+                  </div>
+                  <Button variant="ghost" size="sm" className="p-0 h-6 w-6" onClick={(event) => { event.stopPropagation(); setSelectedCategory('worldbuilding'); setCreateName(''); setCreateModalOpen(true); }}>
+                    <Plus size={12} />
+                  </Button>
+                </div>
+                {expandedFolders.worldbuilding && (
+                  <div className="mt-1 space-y-0.5">
+                    {worldbuildingFiles.length === 0 ? (
+                      <EmptyState
+                        compact
+                        icon={<FileText size={28} />}
+                        title={t('emptyState.auWorldbuilding.title')}
+                        description={t('emptyState.auWorldbuilding.description')}
+                        actions={[
+                          {
+                            key: 'add-worldbuilding',
+                            element: (
+                              <Button variant="primary" size="sm" onClick={() => { setSelectedCategory('worldbuilding'); setCreateModalOpen(true); }}>
+                                {t('common.actions.addWorldbuilding')}
+                              </Button>
+                            ),
+                          },
+                        ]}
+                      />
+                    ) : (
+                      worldbuildingFiles.map(file => (
+                        <div
+                          key={file.name}
+                          className={`flex items-center justify-between pl-6 pr-2 py-1.5 text-sm cursor-pointer rounded-md ${selectedFile === file.name && selectedCategory === 'worldbuilding' ? 'bg-accent/10 text-accent font-medium' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5 hover:text-text'}`}
+                          onClick={() => { setSelectedCategory('worldbuilding'); void loadFileContent(file.name); }}
+                        >
+                          <div className="flex items-center gap-2 overflow-hidden">
+                            <FileText size={14} className="opacity-50 shrink-0" />
+                            <span className="truncate">{file.name}.md</span>
+                          </div>
+                        </div>
+                      ))
                     )}
                   </div>
                 )}

@@ -19,11 +19,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Windows 非法文件名字符（\ / : * ? " < > |）
-_WIN_UNSAFE_RE = re.compile(r'[\\/:*?"<>|]')
+_WIN_UNSAFE_RE = re.compile(r'[\\/:*?"<>|：＊？＜＞｜＂\u200b-\u200f\u2028-\u202f]')
 
 
 def _safe_dirname(name: str) -> str:
-    """将用户可读名称转换为 Windows 安全的目录名。"""
+    """将用户可读名称转换为 Windows 安全的目录名。
+
+    替换半角和全角文件系统不安全字符（含中文冒号 ： 等）。
+    """
     safe = _WIN_UNSAFE_RE.sub("_", name).strip().rstrip(".")
     return safe
 
