@@ -106,6 +106,17 @@ def _parse_llm_output(text: str) -> list[dict[str, Any]]:
             return result
         return []
     except json.JSONDecodeError:
+        pass
+
+    # Fallback: 剥离开头的 ```json 和结尾的 ```（即使不完整）
+    cleaned = re.sub(r"^```(?:json)?\s*\n?", "", text).strip()
+    cleaned = re.sub(r"\n?```\s*$", "", cleaned).strip()
+    try:
+        result = json.loads(cleaned)
+        if isinstance(result, list):
+            return result
+        return []
+    except json.JSONDecodeError:
         logger.warning("Facts 提取结果解析失败: %s...", text[:100])
         return []
 
