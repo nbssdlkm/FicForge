@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "vite-frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 1420,
+      "cwd": "src-ui"
+    },
+    {
+      "name": "python-backend",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["main.py"],
+      "port": 54284,
+      "cwd": "src-python"
+    }
+  ]
+}

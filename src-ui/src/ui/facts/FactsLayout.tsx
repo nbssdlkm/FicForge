@@ -6,7 +6,7 @@ import { Modal } from '../shared/Modal';
 import { EmptyState } from '../shared/EmptyState';
 import { Tag } from '../shared/Tag';
 import { Search, Plus, Filter, Loader2, Check, Sparkles, BookOpenText } from 'lucide-react';
-import { listFacts, addFact, editFact, updateFactStatus, extractFacts, type FactInfo } from '../../api/facts';
+import { listFacts, addFact, editFact, updateFactStatus, batchUpdateFactStatus, extractFactsBatch, type FactInfo } from '../../api/facts';
 import { getState, type StateInfo } from '../../api/state';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
@@ -46,6 +46,12 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const [extractRange, setExtractRange] = useState<[number, number]>([1, 1]);
   const [extractProgress, setExtractProgress] = useState(0);
 
+  const [batchMode, setBatchMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchMenuOpen, setBatchMenuOpen] = useState(false);
+  const [batchConfirm, setBatchConfirm] = useState<string | null>(null);
+  const [batchProcessing, setBatchProcessing] = useState(false);
+
   const [editingFact, setEditingFact] = useState<FactInfo | null>(null);
   const editContentCleanRef = useRef<HTMLTextAreaElement>(null);
   const editContentRawRef = useRef<HTMLTextAreaElement>(null);
@@ -66,7 +72,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     setLoading(true);
     try {
       const [factsData, allFactsData, stateData] = await Promise.all([
-        listFacts(auPath, statusFilter || undefined),
+        listFacts(auPath, (statusFilter && statusFilter !== 'stale') ? statusFilter : undefined),
         listFacts(auPath),
         getState(auPath).catch(() => null),
       ]);
@@ -214,21 +220,19 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     setExtractProgress(0);
     try {
       const allCandidates: ExtractedFactCandidate[] = [];
-      const total = to - from + 1;
-      const concurrency = 3;
+      const totalChapters = to - from + 1;
+      const batchSize = 3; // 每 3 章合并为一个 LLM 请求
       let done = 0;
-      for (let start = from; start <= to; start += concurrency) {
-        const batch = [];
-        for (let ch = start; ch <= Math.min(start + concurrency - 1, to); ch++) {
-          batch.push(extractFacts(requestAuPath, ch).catch(() => ({ facts: [] })));
+      for (let start = from; start <= to; start += batchSize) {
+        const chapterNums: number[] = [];
+        for (let ch = start; ch <= Math.min(start + batchSize - 1, to); ch++) {
+          chapterNums.push(ch);
         }
-        const results = await Promise.all(batch);
+        const result = await extractFactsBatch(requestAuPath, chapterNums).catch(() => ({ facts: [] }));
         if (activeAuPathRef.current !== requestAuPath) return;
-        for (const result of results) {
-          allCandidates.push(...((result?.facts || []) as ExtractedFactCandidate[]));
-        }
-        done += batch.length;
-        setExtractProgress(Math.round((done / total) * 100));
+        allCandidates.push(...((result?.facts || []) as ExtractedFactCandidate[]));
+        done += chapterNums.length;
+        setExtractProgress(Math.round((done / totalChapters) * 100));
       }
       if (activeAuPathRef.current !== requestAuPath) return;
       setExtractedCandidates(allCandidates);
@@ -283,6 +287,11 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
   };
 
   const filteredFacts = facts.filter((fact) => {
+    // 'stale' 伪筛选：客户端过滤超过 30 章的 active/unresolved facts
+    if (statusFilter === 'stale') {
+      if (fact.status !== 'active' && fact.status !== 'unresolved') return false;
+      if ((state?.current_chapter || 1) - fact.chapter <= 30) return false;
+    }
     if (!filter) return true;
     const keyword = filter.trim();
     return fact.content_clean.includes(keyword) || fact.characters.join(',').includes(keyword);
@@ -295,6 +304,43 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const deprecatedCount = allFactsCounts.deprecated ?? 0;
   const showEmptyNotes = !loading && facts.length === 0 && !filter && !statusFilter;
   const showNoSearchResult = !loading && filteredFacts.length === 0 && !showEmptyNotes;
+
+  // 过期 facts 提醒（current_chapter - fact.chapter > 30）
+  const currentChapter = state?.current_chapter || 1;
+  const staleFacts = facts.filter(f => (f.status === 'active' || f.status === 'unresolved') && currentChapter - f.chapter > 30);
+  const staleCount = staleFacts.length;
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredFacts.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredFacts.map(f => f.id)));
+    }
+  };
+
+  const handleBatchStatus = async (newStatus: string) => {
+    setBatchConfirm(null);
+    setBatchProcessing(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const result = await batchUpdateFactStatus(auPath, ids, newStatus);
+      showSuccess(t('facts.batchSuccess', { count: result.updated, status: getEnumLabel('fact_status', newStatus, newStatus) }));
+      setSelectedIds(new Set());
+      setBatchMenuOpen(false);
+      await loadFacts();
+    } catch (error) {
+      showError(error, t('error_messages.unknown'));
+    } finally {
+      setBatchProcessing(false);
+    }
+  };
 
   return (
     <>
@@ -353,6 +399,48 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           </div>
         </header>
 
+        {/* 过期提醒 */}
+        {staleCount > 0 && !statusFilter && (
+          <div className="mx-4 mt-3 flex items-center justify-between rounded-lg bg-warning/10 border border-warning/20 px-3 py-2 text-xs text-warning">
+            <span>💡 {t('facts.staleHint', { count: staleCount })}</span>
+            <Button variant="ghost" size="sm" className="text-xs h-6 px-2" onClick={() => setStatusFilter('stale')}>{t('facts.staleView')}</Button>
+          </div>
+        )}
+
+        {/* 批量操作栏 */}
+        {filteredFacts.length > 0 && (
+          <div className="mx-4 mt-2 flex items-center gap-3 text-xs text-text/60">
+            <button className={`font-medium ${batchMode ? 'text-accent' : 'text-text/40 hover:text-text/60'}`} onClick={() => { setBatchMode(!batchMode); if (batchMode) { setSelectedIds(new Set()); setBatchMenuOpen(false); } }}>
+              {batchMode ? t('facts.batchExit') : t('facts.batchEnter')}
+            </button>
+            {batchMode && (
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === filteredFacts.length} onChange={toggleSelectAll} className="accent-accent" />
+                {t('facts.batchSelect')}
+              </label>
+            )}
+            {selectedIds.size > 0 && (
+              <>
+                <span className="text-accent font-medium">{t('facts.batchSelected', { count: selectedIds.size })}</span>
+                <div className="relative">
+                  <Button variant="secondary" size="sm" className="h-6 px-2 text-xs" onClick={() => setBatchMenuOpen(!batchMenuOpen)} disabled={batchProcessing}>
+                    {t('facts.batchAction')} ▾
+                  </Button>
+                  {batchMenuOpen && (
+                    <div className="absolute top-7 left-0 z-20 bg-surface border border-black/10 dark:border-white/10 rounded-lg shadow-lg py-1 min-w-[160px]">
+                      {(['deprecated', 'resolved', 'active', 'unresolved'] as const).map(s => (
+                        <button key={s} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent/10 transition-colors" onClick={() => { setBatchMenuOpen(false); setBatchConfirm(s); }}>
+                          {t(`facts.batchTo.${s}`)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {loading ? (
             <div className="flex justify-center py-10"><Loader2 size={24} className="animate-spin text-accent" /></div>
@@ -400,8 +488,18 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             />
           ) : (
             filteredFacts.map(fact => (
-              <div key={fact.id} onClick={() => setEditingFact(fact)}>
-                <FactCard fact={{ ...fact, weight: fact.narrative_weight || 'medium', chapter: fact.chapter || 1 }} />
+              <div key={fact.id} className="flex items-start gap-2">
+                {batchMode && (
+                  <input
+                    type="checkbox"
+                    className="mt-3 accent-accent shrink-0"
+                    checked={selectedIds.has(fact.id)}
+                    onChange={() => toggleSelect(fact.id)}
+                  />
+                )}
+                <div className="flex-1 cursor-pointer" onClick={() => setEditingFact(fact)}>
+                  <FactCard fact={{ ...fact, weight: fact.narrative_weight || 'medium', chapter: fact.chapter || 1 }} />
+                </div>
               </div>
             ))
           )}
@@ -600,6 +698,24 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             <Button variant="ghost" onClick={() => setExtractModalOpen(false)}>{t('common.actions.cancel')}</Button>
             <Button variant="primary" onClick={handleSaveExtracted} disabled={saving || extractedCandidates.length === 0}>
               {saving ? <Loader2 size={16} className="animate-spin" /> : t('facts.extractSaveAll')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 批量确认弹窗 */}
+      <Modal isOpen={!!batchConfirm} onClose={() => setBatchConfirm(null)} title={t('facts.batchConfirmTitle', { count: selectedIds.size, status: batchConfirm ? getEnumLabel('fact_status', batchConfirm, batchConfirm) : '' })}>
+        <div className="space-y-4">
+          <p className="text-sm text-text/70">
+            {batchConfirm === 'deprecated' && t('facts.batchDeprecatedDesc')}
+            {batchConfirm === 'resolved' && t('facts.batchResolvedDesc')}
+            {batchConfirm === 'active' && t('facts.batchActiveDesc')}
+            {batchConfirm === 'unresolved' && t('facts.batchUnresolvedDesc')}
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setBatchConfirm(null)}>{t('common.actions.cancel')}</Button>
+            <Button variant="primary" onClick={() => batchConfirm && handleBatchStatus(batchConfirm)} disabled={batchProcessing}>
+              {batchProcessing ? <Loader2 size={14} className="animate-spin" /> : t('common.actions.confirm')}
             </Button>
           </div>
         </div>

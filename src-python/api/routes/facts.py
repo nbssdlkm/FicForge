@@ -23,7 +23,7 @@ from api import (
     validate_path,
 )
 from core.domain.enums import FactSource, FactStatus, FactType, NarrativeWeight
-from core.services.facts_extraction import extract_facts_from_chapter
+from core.services.facts_extraction import extract_facts_from_chapter, extract_facts_batch, load_character_aliases
 from core.services.facts_lifecycle import FactsLifecycleError, add_fact, edit_fact, update_fact_status
 from infra.llm.config_resolver import create_provider, resolve_llm_config
 
@@ -246,6 +246,48 @@ async def patch_fact_status(fact_id: str, request: UpdateFactStatusRequest) -> U
     )
 
 
+class BatchStatusRequest(BaseModel):
+    au_path: str
+    fact_ids: list[str]
+    new_status: FactStatus
+    chapter_num: int = 0
+
+
+class BatchStatusResponse(BaseModel):
+    updated: int
+    failed: int
+
+
+@router.patch("/batch-status", response_model=BatchStatusResponse)
+async def batch_update_status(request: BatchStatusRequest) -> BatchStatusResponse | JSONResponse:
+    """批量更新 facts 状态。"""
+    logger.info("Batch status: au=%s count=%d → %s", request.au_path, len(request.fact_ids), request.new_status.value)
+    if not validate_path(request.au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
+
+    repo = build_fact_repository()
+    ops_repo = build_ops_repository()
+    state_repo = build_state_repository()
+    mutex = build_au_mutex()
+
+    updated = 0
+    failed = 0
+    for fact_id in request.fact_ids:
+        try:
+            def _locked(fid: str = fact_id) -> Any:
+                with mutex.get_lock(request.au_path):
+                    return update_fact_status(
+                        Path(request.au_path), fid, request.new_status.value,
+                        request.chapter_num, repo, ops_repo, state_repo,
+                    )
+            await run_in_threadpool(_locked)
+            updated += 1
+        except Exception:
+            failed += 1
+
+    return BatchStatusResponse(updated=updated, failed=failed)
+
+
 @router.post("/extract")
 async def extract_facts_endpoint(request: ExtractFactsRequest) -> Any:
     """提取章节中的 facts 候选列表（PRD §6.7）。"""
@@ -278,17 +320,10 @@ async def extract_facts_endpoint(request: ExtractFactsRequest) -> Any:
     llm_config = resolve_llm_config(request.session_llm, project, settings)
     provider = create_provider(llm_config)
 
-    # 从 project 中获取 cast_registry 和角色别名（D-0022: 统一 characters 列表）
+    # 从 project 中获取 cast_registry，从角色文件 frontmatter 读取别名
     cast_registry_obj = getattr(project, "cast_registry", None)
     cast_registry: dict[str, Any] = asdict(cast_registry_obj) if cast_registry_obj else {"characters": []}
-    character_aliases: dict[str, list[str]] = {}
-    all_chars = list(cast_registry.get("characters") or [])
-    for char_entry in all_chars:
-        if isinstance(char_entry, dict):
-            name = char_entry.get("name", "")
-            aliases = char_entry.get("aliases", [])
-            if name and aliases:
-                character_aliases[name] = aliases
+    character_aliases = load_character_aliases(au_path)
 
     try:
         result = await run_in_threadpool(
@@ -309,5 +344,69 @@ async def extract_facts_endpoint(request: ExtractFactsRequest) -> Any:
             f"提取失败: {exc}",
             ["检查 LLM 配置是否正确"],
         )
+
+    return {"facts": [asdict(f) for f in result]}
+
+
+# ---------------------------------------------------------------------------
+# 批量提取（多章合并）
+# ---------------------------------------------------------------------------
+
+class ExtractFactsBatchRequest(BaseModel):
+    au_path: str
+    chapter_nums: list[int]
+    session_llm: Optional[dict[str, Any]] = None
+
+
+@router.post("/extract-batch")
+async def extract_facts_batch_endpoint(request: ExtractFactsBatchRequest) -> Any:
+    """批量提取多章 facts（合并为一个 LLM 调用）。"""
+    logger.info("Extract facts batch: au=%s chapters=%s", request.au_path, request.chapter_nums)
+    if not validate_path(request.au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
+    au_path = Path(request.au_path)
+    chapter_repo = build_chapter_repository()
+    fact_repo = build_fact_repository()
+    project_repo = build_project_repository()
+    settings_repo = build_settings_repository()
+
+    # 读取各章内容
+    chapters_data: list[dict[str, Any]] = []
+    for ch_num in request.chapter_nums:
+        try:
+            content = await run_in_threadpool(
+                chapter_repo.get_content_only, str(au_path), ch_num,
+            )
+            chapters_data.append({"chapter_num": ch_num, "content": content})
+        except Exception:
+            logger.warning("Extract batch: chapter %d not found, skipping", ch_num)
+
+    if not chapters_data:
+        return error_response(404, "NO_CHAPTERS", "没有找到可提取的章节", [])
+
+    existing_facts = await run_in_threadpool(fact_repo.list_all, str(au_path))
+    project = await run_in_threadpool(project_repo.get, str(au_path))
+    settings = await run_in_threadpool(settings_repo.get)
+
+    llm_config = resolve_llm_config(request.session_llm, project, settings)
+    provider = create_provider(llm_config)
+
+    cast_registry_obj = getattr(project, "cast_registry", None)
+    cast_registry: dict[str, Any] = asdict(cast_registry_obj) if cast_registry_obj else {"characters": []}
+    character_aliases = load_character_aliases(au_path)
+
+    try:
+        result = await run_in_threadpool(
+            extract_facts_batch,
+            chapters_data,
+            existing_facts,
+            cast_registry,
+            character_aliases,
+            provider,
+            llm_config,
+        )
+    except Exception as exc:
+        logger.exception("Extract facts batch failed: au=%s", request.au_path)
+        return error_response(500, "EXTRACT_FACTS_FAILED", f"批量提取失败: {exc}", [])
 
     return {"facts": [asdict(f) for f in result]}
