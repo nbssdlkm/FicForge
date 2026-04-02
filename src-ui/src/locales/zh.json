@@ -415,7 +415,11 @@
       "testFailedPrefix": "连接失败：",
       "searchEngineDescription": "用来从你的设定里找到和当前剧情最相关的内容。",
       "noEmbeddingModel": "（未配置）",
-      "builtinEmbedding": "bge-small-zh（内置，无需配置）",
+      "builtinEmbedding": "默认使用内置 bge-small-zh 模型，无需配置",
+      "useCustomEmbedding": "使用自定义 Embedding API",
+      "embeddingModelPlaceholder": "模型名（如 text-embedding-3-small）",
+      "embeddingApiBasePlaceholder": "API 地址（如 https://api.openai.com）",
+      "embeddingApiKeyPlaceholder": "API 密钥",
       "apiCredentialsDescription": "如果某篇故事没有单独指定，就会用这里的设置。",
       "apiModeLabel": "接入方式"
     },
@@ -465,6 +469,12 @@
       "resolved": "已填上的坑。不再带入续写上下文",
       "deprecated": "已作废的笔记。不再带入续写上下文"
     },
+    "extractRangeTitle": "选择提取范围",
+    "extractRangeDesc": "选择要从哪些章节中提取剧情笔记。章节越多越慢（每章约 10-30 秒）。",
+    "extractFrom": "从第",
+    "extractTo": "到第",
+    "extractChapterCount": "共 {{count}} 章",
+    "extractStart": "开始提取",
     "extractNoChapter": "还没有已定稿章节，暂时没法提取。",
     "extractNoResult": "这一章暂时没有提取出新的剧情笔记。",
     "extractReviewTitle": "提取结果预览",
@@ -762,8 +772,12 @@
     "importNotUnderstandDesc": "AI 可以从历史章节中检索相关内容，但早期伏笔的精准推进需要你手动补充剧情笔记。",
     "startWriting": "开始写作 →",
     "selectAu": "选择要导入到哪个 AU",
+    "selectAuDesc": "选择一个已有的 AU，或在 Fandom 下新建一个",
     "noAu": "还没有 AU，请先创建一个",
+    "noFandom": "还没有 Fandom，请先创建一个",
     "createAuFirst": "去创建 AU",
+    "createFandomFirst": "去创建 Fandom",
+    "newAuInFandom": "在此 Fandom 下新建 AU",
     "formatError": "仅支持 txt/md/docx 格式"
   },
   "milestones": {

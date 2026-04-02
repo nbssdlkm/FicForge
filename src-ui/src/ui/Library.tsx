@@ -28,6 +28,9 @@ function LibraryInner({ onNavigate }: Props) {
   const [isGlobalSettingsOpen, setGlobalSettingsOpen] = useState(false);
   const [isImportModalOpen, setImportModalOpen] = useState(false);
   const [importAuPath, setImportAuPath] = useState('');
+  const [importNewAuName, setImportNewAuName] = useState('');
+  const [importSelectedFandom, setImportSelectedFandom] = useState<{ name: string; dir: string } | null>(null);
+  const [importCreatingAu, setImportCreatingAu] = useState(false);
   const [fandoms, setFandoms] = useState<FandomInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [creatingFandom, setCreatingFandom] = useState(false);
@@ -285,34 +288,77 @@ function LibraryInner({ onNavigate }: Props) {
       <GlobalSettingsModal isOpen={isGlobalSettingsOpen} onClose={() => setGlobalSettingsOpen(false)} />
 
       {/* Import flow: AU selector → ImportFlow */}
-      <Modal isOpen={isImportModalOpen && !importAuPath} onClose={() => setImportModalOpen(false)} title={t('import.selectAu')}>
+      <Modal isOpen={isImportModalOpen && !importAuPath} onClose={() => { setImportModalOpen(false); setImportSelectedFandom(null); setImportNewAuName(''); }} title={t('import.selectAu')}>
         <div className="space-y-4">
-          <p className="text-sm text-text/70">{t('library.importFlow.description')}</p>
-          <div className="max-h-[40vh] overflow-y-auto space-y-2">
-            {fandoms.flatMap(f => f.aus.map(au => {
-              const auPath = `./fandoms/fandoms/${f.dir_name}/aus/${au}`;
-              return (
-                <button
-                  key={auPath}
-                  className="w-full text-left px-4 py-3 rounded-lg border border-black/10 dark:border-white/10 hover:bg-accent/5 hover:border-accent/30 transition-colors"
-                  onClick={() => { setImportAuPath(auPath); }}
-                >
-                  <div className="text-sm font-medium">{au}</div>
-                  <div className="text-xs text-text/40">{f.name}</div>
-                </button>
-              );
-            }))}
-            {fandoms.flatMap(f => f.aus).length === 0 && (
+          <p className="text-sm text-text/70">{t('import.selectAuDesc')}</p>
+          <div className="max-h-[50vh] overflow-y-auto space-y-4">
+            {fandoms.length === 0 ? (
               <div className="text-center py-6 space-y-3">
-                <p className="text-sm text-text/50">{t('import.noAu')}</p>
+                <p className="text-sm text-text/50">{t('import.noFandom')}</p>
                 <Button variant="primary" size="sm" onClick={() => { setImportModalOpen(false); setFandomModalOpen(true); }}>
-                  {t('import.createAuFirst')}
+                  {t('import.createFandomFirst')}
                 </Button>
               </div>
+            ) : (
+              fandoms.map(f => (
+                <div key={f.dir_name} className="space-y-1.5">
+                  <div className="text-xs font-bold text-text/50 uppercase tracking-wide px-1">{f.name}</div>
+                  {f.aus.map(au => {
+                    const auPath = `./fandoms/fandoms/${f.dir_name}/aus/${au}`;
+                    return (
+                      <button
+                        key={auPath}
+                        className="w-full text-left px-4 py-2.5 rounded-lg border border-black/10 dark:border-white/10 hover:bg-accent/5 hover:border-accent/30 transition-colors"
+                        onClick={() => setImportAuPath(auPath)}
+                      >
+                        <div className="text-sm font-medium">{au}</div>
+                      </button>
+                    );
+                  })}
+                  {/* 在每个 Fandom 下新建 AU */}
+                  {importSelectedFandom?.dir === f.dir_name ? (
+                    <div className="flex gap-2 px-1">
+                      <Input
+                        className="h-8 text-sm flex-1"
+                        placeholder={t('library.createAuModal.namePlaceholder')}
+                        value={importNewAuName}
+                        onChange={e => setImportNewAuName(e.target.value)}
+                        disabled={importCreatingAu}
+                      />
+                      <Button variant="primary" size="sm" className="h-8 shrink-0" disabled={!importNewAuName.trim() || importCreatingAu} onClick={async () => {
+                        if (!importNewAuName.trim()) return;
+                        setImportCreatingAu(true);
+                        try {
+                          const fandomPath = `./fandoms/fandoms/${f.dir_name}`;
+                          const auName = importNewAuName.trim();
+                          await createAu(f.dir_name, auName, fandomPath);
+                          await loadFandoms();
+                          setImportAuPath(`${fandomPath}/aus/${auName}`);
+                          setImportSelectedFandom(null);
+                          setImportNewAuName('');
+                        } catch (e: any) {
+                          showError(e, t('error_messages.unknown'));
+                        } finally {
+                          setImportCreatingAu(false);
+                        }
+                      }}>
+                        {t('common.actions.create')}
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      className="w-full text-left px-4 py-2 rounded-lg text-xs text-accent hover:bg-accent/5 transition-colors"
+                      onClick={() => { setImportSelectedFandom({ name: f.name, dir: f.dir_name }); setImportNewAuName(''); }}
+                    >
+                      + {t('import.newAuInFandom')}
+                    </button>
+                  )}
+                </div>
+              ))
             )}
           </div>
           <div className="flex justify-end">
-            <Button variant="ghost" onClick={() => setImportModalOpen(false)}>{t('common.actions.cancel')}</Button>
+            <Button variant="ghost" onClick={() => { setImportModalOpen(false); setImportSelectedFandom(null); setImportNewAuName(''); }}>{t('common.actions.cancel')}</Button>
           </div>
         </div>
       </Modal>

@@ -42,6 +42,9 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const [extracting, setExtracting] = useState(false);
   const [extractModalOpen, setExtractModalOpen] = useState(false);
   const [extractedCandidates, setExtractedCandidates] = useState<ExtractedFactCandidate[]>([]);
+  const [extractRangeOpen, setExtractRangeOpen] = useState(false);
+  const [extractRange, setExtractRange] = useState<[number, number]>([1, 1]);
+  const [extractProgress, setExtractProgress] = useState(0);
 
   const [editingFact, setEditingFact] = useState<FactInfo | null>(null);
   const editContentCleanRef = useRef<HTMLTextAreaElement>(null);
@@ -192,22 +195,45 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     }
   };
 
-  const handleExtract = async () => {
-    const latestConfirmedChapter = (state?.current_chapter || 1) - 1;
-    if (latestConfirmedChapter <= 0) {
+  const handleExtractClick = () => {
+    const totalConfirmed = (state?.current_chapter || 1) - 1;
+    if (totalConfirmed <= 0) {
       showToast(t('facts.extractNoChapter'), 'info');
       return;
     }
+    setExtractRange([1, totalConfirmed]);
+    setExtractRangeOpen(true);
+  };
+
+  const handleExtractConfirm = async () => {
+    setExtractRangeOpen(false);
+    const [from, to] = extractRange;
 
     const requestAuPath = auPath;
     setExtracting(true);
+    setExtractProgress(0);
     try {
-      const result = await extractFacts(requestAuPath, latestConfirmedChapter);
+      const allCandidates: ExtractedFactCandidate[] = [];
+      const total = to - from + 1;
+      const concurrency = 3;
+      let done = 0;
+      for (let start = from; start <= to; start += concurrency) {
+        const batch = [];
+        for (let ch = start; ch <= Math.min(start + concurrency - 1, to); ch++) {
+          batch.push(extractFacts(requestAuPath, ch).catch(() => ({ facts: [] })));
+        }
+        const results = await Promise.all(batch);
+        if (activeAuPathRef.current !== requestAuPath) return;
+        for (const result of results) {
+          allCandidates.push(...((result?.facts || []) as ExtractedFactCandidate[]));
+        }
+        done += batch.length;
+        setExtractProgress(Math.round((done / total) * 100));
+      }
       if (activeAuPathRef.current !== requestAuPath) return;
-      const candidates = (result?.facts || []) as ExtractedFactCandidate[];
-      setExtractedCandidates(candidates);
+      setExtractedCandidates(allCandidates);
       setExtractModalOpen(true);
-      if (candidates.length === 0) {
+      if (allCandidates.length === 0) {
         showToast(t('facts.extractNoResult'), 'info');
       }
     } catch (error) {
@@ -277,9 +303,9 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           <div className="flex justify-between items-center gap-3">
             <h1 className="font-serif text-xl font-bold">{t('facts.title')}</h1>
             <div className="flex items-center gap-2">
-              <Button variant="secondary" size="sm" className="px-3 gap-1" onClick={handleExtract} disabled={extracting}>
+              <Button variant="secondary" size="sm" className="px-3 gap-1" onClick={handleExtractClick} disabled={extracting}>
                 {extracting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                {t('common.actions.extractFacts')}
+                {extracting ? `${extractProgress}%` : t('common.actions.extractFacts')}
               </Button>
               <Button variant="primary" size="sm" className="px-3 shadow-md gap-1" onClick={() => setAddModalOpen(true)}>
                 <Plus size={16} />
@@ -348,7 +374,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 {
                   key: 'extract-facts',
                   element: (
-                    <Button variant="secondary" size="sm" onClick={handleExtract} disabled={extracting}>
+                    <Button variant="secondary" size="sm" onClick={handleExtractClick} disabled={extracting}>
                       {t('common.actions.extractFacts')}
                     </Button>
                   ),
@@ -518,6 +544,24 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             <Button variant="primary" onClick={handleAddFact} disabled={!newContentClean.trim() || adding}>
               {adding ? <Loader2 size={16} className="animate-spin" /> : t('facts.createModal.submit')}
             </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 提取范围选择 */}
+      <Modal isOpen={extractRangeOpen} onClose={() => setExtractRangeOpen(false)} title={t('facts.extractRangeTitle')}>
+        <div className="space-y-4">
+          <p className="text-sm text-text/70">{t('facts.extractRangeDesc')}</p>
+          <div className="flex items-center gap-3">
+            <label className="text-sm text-text/70 shrink-0">{t('facts.extractFrom')}</label>
+            <Input type="number" className="h-8 w-20 text-sm" min={1} max={extractRange[1]} value={extractRange[0]} onChange={e => setExtractRange([Math.max(1, parseInt(e.target.value) || 1), extractRange[1]])} />
+            <label className="text-sm text-text/70 shrink-0">{t('facts.extractTo')}</label>
+            <Input type="number" className="h-8 w-20 text-sm" min={extractRange[0]} value={extractRange[1]} onChange={e => setExtractRange([extractRange[0], parseInt(e.target.value) || extractRange[1]])} />
+            <span className="text-xs text-text/40">{t('facts.extractChapterCount', { count: extractRange[1] - extractRange[0] + 1 })}</span>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setExtractRangeOpen(false)}>{t('common.actions.cancel')}</Button>
+            <Button variant="primary" onClick={handleExtractConfirm}>{t('facts.extractStart')}</Button>
           </div>
         </div>
       </Modal>

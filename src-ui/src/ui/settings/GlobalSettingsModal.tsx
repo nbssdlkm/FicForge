@@ -27,7 +27,10 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   const [apiBase, setApiBase] = useState('https://api.deepseek.com');
   const [apiKey, setApiKey] = useState('');
   const [contextWindow, setContextWindow] = useState(128000);
-  const [embeddingModel, setEmbeddingModel] = useState('nomic-embed-text');
+  const [embeddingModel, setEmbeddingModel] = useState('');
+  const [embeddingApiBase, setEmbeddingApiBase] = useState('');
+  const [embeddingApiKey, setEmbeddingApiKey] = useState('');
+  const [useCustomEmbedding, setUseCustomEmbedding] = useState(false);
 
   const resetFormState = () => {
     setSettings(null);
@@ -38,7 +41,10 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     setApiBase('https://api.deepseek.com');
     setApiKey('');
     setContextWindow(128000);
-    setEmbeddingModel('nomic-embed-text');
+    setEmbeddingModel('');
+    setEmbeddingApiBase('');
+    setEmbeddingApiKey('');
+    setUseCustomEmbedding(false);
   };
 
   useEffect(() => {
@@ -69,6 +75,9 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
           setContextWindow(res.default_llm.context_window || 128000);
         }
         setEmbeddingModel(res?.embedding?.model || '');
+        setEmbeddingApiBase(res?.embedding?.api_base || '');
+        setEmbeddingApiKey(res?.embedding?.api_key || '');
+        setUseCustomEmbedding(!!(res?.embedding?.model && res?.embedding?.api_key));
       }).catch((error) => {
         if (requestId !== modalRequestIdRef.current) return;
         showError(error, t('error_messages.unknown'));
@@ -107,7 +116,10 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         },
         embedding: {
           ...settings.embedding,
-          model: embeddingModel,
+          mode: useCustomEmbedding ? 'api' : 'local',
+          model: useCustomEmbedding ? embeddingModel : '',
+          api_base: useCustomEmbedding ? embeddingApiBase : '',
+          api_key: useCustomEmbedding ? embeddingApiKey : '',
         },
       };
       await updateSettings(newSettings);
@@ -232,10 +244,20 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
               <p className="text-xs text-text/50">{t('common.help.contextWindow')}</p>
             </div>
 
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-2">
               <label className="text-sm font-bold text-text/90">{t('common.labels.searchEngineModel')}</label>
-              <Input value={embeddingModel} onChange={(e) => setEmbeddingModel(e.target.value)} placeholder={t('settings.global.builtinEmbedding')} disabled={saving} />
-              <p className="text-xs text-text/50">{embeddingModel ? t('common.help.searchEngineModel') : t('settings.global.builtinEmbedding')}</p>
+              <p className="text-xs text-text/50">{t('settings.global.builtinEmbedding')}</p>
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-text/70">
+                <input type="checkbox" checked={useCustomEmbedding} onChange={e => setUseCustomEmbedding(e.target.checked)} disabled={saving} className="accent-accent" />
+                {t('settings.global.useCustomEmbedding')}
+              </label>
+              {useCustomEmbedding && (
+                <div className="space-y-2 pl-2 border-l-2 border-accent/30">
+                  <Input value={embeddingModel} onChange={e => setEmbeddingModel(e.target.value)} placeholder={t('settings.global.embeddingModelPlaceholder')} disabled={saving} className="h-8 text-sm" />
+                  <Input value={embeddingApiBase} onChange={e => setEmbeddingApiBase(e.target.value)} placeholder={t('settings.global.embeddingApiBasePlaceholder')} disabled={saving} className="h-8 text-sm" />
+                  <Input value={embeddingApiKey} onChange={e => setEmbeddingApiKey(e.target.value)} placeholder={t('settings.global.embeddingApiKeyPlaceholder')} disabled={saving} className="h-8 text-sm" type="password" />
+                </div>
+              )}
             </div>
           </div>
 
