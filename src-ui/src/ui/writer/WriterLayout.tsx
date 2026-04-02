@@ -1103,11 +1103,11 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const isLastDraft = activeDraftIndex >= drafts.length - 1;
   const isFirstDraft = activeDraftIndex === 0;
 
-  const _pct = (tokens: number) => budgetReport ? Math.max(1, Math.round((tokens / (budgetReport.total_input_tokens || 1)) * 100)) : 0;
+  const _pct = (tokens: number | undefined) => budgetReport && tokens ? Math.max(1, Math.round((tokens / (budgetReport.total_input_tokens || 1)) * 100)) : 0;
   const contextLayers: ContextLayer[] = budgetReport ? [
     { key: 'pinned', label: t('writer.memoryLayer.pinned'), percent: _pct(budgetReport.system_tokens), color: 'bg-error/70' },
-    { key: 'recent', label: t('writer.memoryLayer.recentChapter'), percent: _pct(budgetReport.p2_tokens), color: 'bg-info/70' },
-    { key: 'facts', label: t('writer.memoryLayer.facts'), percent: _pct(budgetReport.p3_tokens), color: 'bg-accent/70' },
+    ...(_pct(budgetReport.p2_tokens) > 0 ? [{ key: 'recent', label: t('writer.memoryLayer.recentChapter'), percent: _pct(budgetReport.p2_tokens), color: 'bg-info/70' }] : []),
+    ...(_pct(budgetReport.p3_tokens) > 0 ? [{ key: 'facts', label: t('writer.memoryLayer.facts'), percent: _pct(budgetReport.p3_tokens), color: 'bg-accent/70' }] : []),
     ...(budgetReport.p4_tokens > 0 ? [{ key: 'rag', label: t('writer.memoryLayer.rag'), percent: _pct(budgetReport.p4_tokens), color: 'bg-success/70' }] : []),
     ...(budgetReport.p5_tokens > 0 ? [{ key: 'settings', label: t('writer.memoryLayer.characterSettings'), percent: _pct(budgetReport.p5_tokens), color: 'bg-warning/70' }] : []),
   ] : [
