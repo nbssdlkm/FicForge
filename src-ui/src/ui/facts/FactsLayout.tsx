@@ -35,6 +35,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [allFactsCounts, setAllFactsCounts] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
   const [adding, setAdding] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -61,13 +62,19 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     const requestAuPath = auPath;
     setLoading(true);
     try {
-      const [factsData, stateData] = await Promise.all([
+      const [factsData, allFactsData, stateData] = await Promise.all([
         listFacts(auPath, statusFilter || undefined),
+        listFacts(auPath),
         getState(auPath).catch(() => null),
       ]);
       if (requestId !== loadFactsRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
       setFacts(factsData);
       setState(stateData);
+      const counts: Record<string, number> = { total: allFactsData.length };
+      for (const f of allFactsData) {
+        counts[f.status] = (counts[f.status] || 0) + 1;
+      }
+      setAllFactsCounts(counts);
     } catch (error) {
       if (requestId !== loadFactsRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
@@ -255,8 +262,11 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     return fact.content_clean.includes(keyword) || fact.characters.join(',').includes(keyword);
   });
 
-  const activeCount = facts.filter(fact => fact.status === 'active').length;
-  const unresolvedCount = facts.filter(fact => fact.status === 'unresolved').length;
+  const totalCount = allFactsCounts.total ?? facts.length;
+  const activeCount = allFactsCounts.active ?? 0;
+  const unresolvedCount = allFactsCounts.unresolved ?? 0;
+  const resolvedCount = allFactsCounts.resolved ?? 0;
+  const deprecatedCount = allFactsCounts.deprecated ?? 0;
   const showEmptyNotes = !loading && facts.length === 0 && !filter && !statusFilter;
   const showNoSearchResult = !loading && filteredFacts.length === 0 && !showEmptyNotes;
 
@@ -293,16 +303,27 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             </Button>
           </div>
 
-          <div className="flex gap-3 overflow-x-auto pb-1 text-xs font-sans whitespace-nowrap">
-            <span className={`cursor-pointer font-medium border-b-2 pb-1 ${!statusFilter ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => setStatusFilter('')}>
-              {t('facts.allTab')} ({facts.length})
-            </span>
-            <span className={`cursor-pointer font-medium border-b-2 pb-1 ${statusFilter === 'unresolved' ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => setStatusFilter('unresolved')}>
-              {getEnumLabel('fact_status', 'unresolved', 'unresolved')} ({unresolvedCount})
-            </span>
-            <span className={`cursor-pointer font-medium border-b-2 pb-1 ${statusFilter === 'active' ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => setStatusFilter('active')}>
-              {getEnumLabel('fact_status', 'active', 'active')} ({activeCount})
-            </span>
+          <div className="flex flex-col gap-1">
+            <div className="flex gap-3 overflow-x-auto pb-1 text-xs font-sans whitespace-nowrap">
+              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${!statusFilter ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => setStatusFilter('')}>
+                {t('facts.allTab')} ({totalCount})
+              </span>
+              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${statusFilter === 'unresolved' ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => setStatusFilter('unresolved')}>
+                {getEnumLabel('fact_status', 'unresolved', 'unresolved')} ({unresolvedCount})
+              </span>
+              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${statusFilter === 'active' ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => setStatusFilter('active')}>
+                {getEnumLabel('fact_status', 'active', 'active')} ({activeCount})
+              </span>
+              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${statusFilter === 'resolved' ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => setStatusFilter('resolved')}>
+                {getEnumLabel('fact_status', 'resolved', 'resolved')} ({resolvedCount})
+              </span>
+              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${statusFilter === 'deprecated' ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => setStatusFilter('deprecated')}>
+                {getEnumLabel('fact_status', 'deprecated', 'deprecated')} ({deprecatedCount})
+              </span>
+            </div>
+            {statusFilter && (
+              <p className="text-[10px] text-text/40 font-sans">{t(`facts.statusHint.${statusFilter}`)}</p>
+            )}
           </div>
         </header>
 

@@ -1103,19 +1103,13 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const isLastDraft = activeDraftIndex >= drafts.length - 1;
   const isFirstDraft = activeDraftIndex === 0;
 
+  const _pct = (tokens: number) => budgetReport ? Math.max(1, Math.round((tokens / (budgetReport.total_input_tokens || 1)) * 100)) : 0;
   const contextLayers: ContextLayer[] = budgetReport ? [
-    {
-      key: 'pinned',
-      label: t('writer.memoryLayer.pinned'),
-      percent: Math.max(1, Math.round((budgetReport.system_tokens / (budgetReport.total_input_tokens || 1)) * 100)),
-      color: 'bg-error/70',
-    },
-    {
-      key: 'context',
-      label: t('writer.memoryLayer.context'),
-      percent: Math.max(1, Math.round((budgetReport.context_tokens / (budgetReport.total_input_tokens || 1)) * 100)),
-      color: 'bg-info/70',
-    },
+    { key: 'pinned', label: t('writer.memoryLayer.pinned'), percent: _pct(budgetReport.system_tokens), color: 'bg-error/70' },
+    { key: 'recent', label: t('writer.memoryLayer.recentChapter'), percent: _pct(budgetReport.p2_tokens), color: 'bg-info/70' },
+    { key: 'facts', label: t('writer.memoryLayer.facts'), percent: _pct(budgetReport.p3_tokens), color: 'bg-accent/70' },
+    ...(budgetReport.p4_tokens > 0 ? [{ key: 'rag', label: t('writer.memoryLayer.rag'), percent: _pct(budgetReport.p4_tokens), color: 'bg-success/70' }] : []),
+    ...(budgetReport.p5_tokens > 0 ? [{ key: 'settings', label: t('writer.memoryLayer.characterSettings'), percent: _pct(budgetReport.p5_tokens), color: 'bg-warning/70' }] : []),
   ] : [
     { key: 'pinned', label: t('writer.memoryLayer.pinned'), percent: 10, color: 'bg-error/70' },
     { key: 'recent', label: t('writer.memoryLayer.recentChapter'), percent: 35, color: 'bg-info/70' },
@@ -1402,7 +1396,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
           {mode === 'write' ? (
             <>
               <section>
-                <h3 className="text-xs font-sans font-medium mb-3 text-text/70 tracking-wide uppercase">{t('writer.focusTitle')}</h3>
+                <h3 className="text-xs font-sans font-medium mb-1 text-text/70 tracking-wide uppercase">{t('writer.focusTitle')}</h3>
+                <p className="text-[10px] text-text/35 mb-3">{t('writer.focusHint')}</p>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 mb-2">
                     <Button variant="ghost" size="sm" className="text-xs" onClick={handleClearFocus} disabled={focusSelection.length === 0}>
@@ -1436,7 +1431,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
               </section>
 
               <section>
-                <h3 className="text-xs font-sans font-medium mb-3 text-text/70 tracking-wide uppercase">{t('writer.memoryPanel')}</h3>
+                <h3 className="text-xs font-sans font-medium mb-1 text-text/70 tracking-wide uppercase">{t('writer.memoryPanel')}</h3>
+                {!budgetReport && <p className="text-[10px] text-text/35 mb-2">{t('writer.memoryPanelHint')}</p>}
                 <div className="space-y-3">
                   {contextLayers.map((item) => (
                     <div key={item.key} className="space-y-1">

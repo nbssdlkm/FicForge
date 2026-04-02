@@ -236,7 +236,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
     <>
       <main className="flex-1 overflow-y-auto w-full">
         <div className="max-w-4xl mx-auto p-8 lg:p-12 space-y-12">
-          
+
           <header className="flex justify-between items-center pb-6 border-b border-black/10 dark:border-white/10">
             <div className="flex items-center gap-3">
               <h1 className="font-serif text-2xl font-bold flex items-center gap-2">
@@ -422,6 +422,13 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                )}
             </div>
           </section>
+
+          {/* 浮动保存按钮 — 编辑底线后方便保存 */}
+          <div className="flex justify-end">
+            <Button variant="primary" className="shadow-md gap-2" onClick={handleSave} disabled={saving}>
+              <Save size={16}/> {saving ? t("common.status.saving") : t("common.actions.save")}
+            </Button>
+          </div>
 
           {/* 4. Core Includes */}
           <section className="space-y-6">

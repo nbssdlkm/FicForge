@@ -143,3 +143,15 @@ def worker_rebuild_index(info: TaskInfo, deps: dict[str, Any]) -> None:
 
     vector_repo.rebuild_all(str(au_path), chapter_chunks)
     logger.info("全量重建完成：%d 章", len(chapter_chunks))
+
+    # 更新 index_status → ready
+    state_repo = deps.get("state_repo")
+    if state_repo:
+        try:
+            from core.domain.enums import IndexStatus
+            state = state_repo.get(str(au_path))
+            state.index_status = IndexStatus.READY
+            state_repo.save(state)
+            logger.info("index_status → ready: %s", au_path)
+        except Exception:
+            logger.warning("更新 index_status 失败", exc_info=True)
