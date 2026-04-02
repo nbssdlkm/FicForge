@@ -29,8 +29,11 @@ def build() -> None:
         "--collect-all", "tiktoken_ext",
         "--hidden-import", "tiktoken_ext.openai_public",
         "--hidden-import", "tiktoken_ext",
-        # ONNX Runtime（ChromaDB embedding 依赖）
+        # ONNX Runtime（ChromaDB + fastembed 依赖）
         "--collect-all", "onnxruntime",
+        # fastembed（本地 Embedding，BAAI/bge-small-zh）
+        "--collect-all", "fastembed",
+        "--hidden-import", "fastembed",
         # OpenAI / httpx
         "--hidden-import", "openai",
         "--hidden-import", "httpx",
