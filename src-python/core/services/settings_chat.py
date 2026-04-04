@@ -118,7 +118,8 @@ def build_settings_context(
         # Fandom 现有设定文件全文
         fandom_files = _load_settings_files(
             Path(base_path),
-            [("core_characters", "角色 DNA"), ("core_worldbuilding", "世界观")],
+            [("core_characters", P.SETTINGS_LABEL_CORE_CHARACTERS), ("core_worldbuilding", P.SETTINGS_LABEL_CORE_WORLDBUILDING)],
+            language=language,
         )
         if fandom_files:
             system_parts.append(f"{P.SETTINGS_CURRENT_FANDOM_FILES_HEADER}\n{fandom_files}")
@@ -163,6 +164,7 @@ _SETTINGS_FILES_TOKEN_LIMIT = 30000
 def _load_settings_files(
     base_dir: Path,
     categories: list[tuple[str, str]],
+    language: str = "zh",
 ) -> str:
     """读取指定目录下的 .md 设定文件全文。
 
@@ -198,7 +200,7 @@ def _load_settings_files(
             "设定文件总量 %d 字符，超过阈值，截断低 importance 角色",
             total_chars,
         )
-        entries = _truncate_low_importance(entries)
+        entries = _truncate_low_importance(entries, language=language)
 
     parts: list[str] = []
     for label, filename, content in entries:
@@ -209,12 +211,13 @@ def _load_settings_files(
 
 def _truncate_low_importance(
     entries: list[tuple[str, str, str]],
+    language: str = "zh",
 ) -> list[tuple[str, str, str]]:
     """截断低 importance 角色：只保留 frontmatter + ## 核心限制 段落。"""
     result: list[tuple[str, str, str]] = []
     for label, filename, content in entries:
         if _has_low_importance(content):
-            truncated = _extract_frontmatter_and_core(content)
+            truncated = _extract_frontmatter_and_core(content, language=language)
             result.append((label, filename, truncated))
         else:
             result.append((label, filename, content))
@@ -236,8 +239,11 @@ def _has_low_importance(content: str) -> bool:
         return False
 
 
-def _extract_frontmatter_and_core(content: str) -> str:
+def _extract_frontmatter_and_core(content: str, language: str = "zh") -> str:
     """提取 frontmatter + ## 核心限制 段落。"""
+    from core.prompts import get_prompts
+    P = get_prompts(language)
+
     parts: list[str] = []
 
     # frontmatter
@@ -257,14 +263,9 @@ def _extract_frontmatter_and_core(content: str) -> str:
         parts.append(core_match.group().strip())
 
     if not parts:
-        # fallback: 前 500 字符
-        from core.prompts import get_prompts as _gp
-        _P = _gp("zh")  # truncation suffix — language not available at this level
-        return content[:500] + _P.SETTINGS_TRUNCATED_SUFFIX
+        return content[:500] + P.SETTINGS_TRUNCATED_SUFFIX
 
-    from core.prompts import get_prompts as _gp
-    _P = _gp("zh")
-    return "\n\n".join(parts) + _P.SETTINGS_TRUNCATED_FULL_SUFFIX
+    return "\n\n".join(parts) + P.SETTINGS_TRUNCATED_FULL_SUFFIX
 
 
 def _load_fandom_dna_summaries(fandom_path: str) -> str:
@@ -298,7 +299,8 @@ def _load_au_context(au_path: str, language: str = "zh") -> str:
     # 设定文件全文（characters/ + worldbuilding/）
     files_text = _load_settings_files(
         Path(au_path),
-        [("characters", "角色设定"), ("worldbuilding", "世界观")],
+        [("characters", P.SETTINGS_LABEL_CHARACTERS), ("worldbuilding", P.SETTINGS_LABEL_WORLDBUILDING)],
+        language=language,
     )
     if files_text:
         parts.append(f"{P.SETTINGS_CURRENT_AU_FILES_HEADER}\n{files_text}")

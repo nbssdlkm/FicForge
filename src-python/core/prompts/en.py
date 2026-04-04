@@ -146,7 +146,7 @@ RAG_LABEL_CHAPTERS = "Historical Chapter Excerpts"
 FACTS_SYSTEM_PROMPT = """\
 You are a professional fanfiction lore analysis assistant. Extract key plot facts and lore from the chapter text.
 
-【Extraction Rules】
+[Extraction Rules]
 
 1. Merge transient processes: If an event completes within the chapter (e.g. captured→escaped, \
 injured→healed), merge the entire process into one result-state fact describing the final outcome \
@@ -194,7 +194,7 @@ FACTS_BATCH_SYSTEM_PROMPT = """\
 You are a professional fanfiction lore analysis assistant. Extract key plot facts from the following \
 consecutive chapters.
 
-【Extraction Rules】
+[Extraction Rules]
 
 1. Merge transient processes: If an event completes within a chapter (e.g. captured→escaped), \
 merge into one result-state fact. Do not split intermediate steps.
@@ -220,7 +220,7 @@ extract one result-state fact only in the ending chapter.
 
 Output format: JSON array. Output ONLY JSON, nothing else."""
 
-FACTS_KNOWN_CHARS_HEADER = "\n\n【Known Character Names and Aliases】"
+FACTS_KNOWN_CHARS_HEADER = "\n\n[Known Character Names and Aliases]"
 FACTS_ALIAS_FORMAT = "- {name} (aliases: {aliases})"
 FACTS_USE_MAIN_NAME = "Always use the main name (first name after the dash) in output, not aliases."
 
@@ -308,3 +308,9 @@ SETTINGS_CURRENT_PINNED_HEADER = "## Current Writing Rules"
 SETTINGS_CURRENT_STYLE_HEADER = "## Current Writing Style"
 SETTINGS_TRUNCATED_SUFFIX = "… (truncated)"
 SETTINGS_TRUNCATED_FULL_SUFFIX = "\n\n(remaining content truncated — original file has more)"
+
+# settings_chat.py: _load_settings_files category labels
+SETTINGS_LABEL_CHARACTERS = "Character Profiles"
+SETTINGS_LABEL_WORLDBUILDING = "Worldbuilding"
+SETTINGS_LABEL_CORE_CHARACTERS = "Character DNA"
+SETTINGS_LABEL_CORE_WORLDBUILDING = "Worldbuilding"
