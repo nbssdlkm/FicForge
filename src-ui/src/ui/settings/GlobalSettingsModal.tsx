@@ -7,9 +7,10 @@ import { getSettings, testConnection, updateSettings, type SettingsInfo } from '
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
 import { useFeedback } from '../../hooks/useFeedback';
+import { changeLanguage, SUPPORTED_LANGUAGES, type AppLanguage } from '../../i18n';
 
 export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { showError } = useFeedback();
   const modalRequestIdRef = useRef(0);
   const testRequestIdRef = useRef(0);
@@ -281,6 +282,25 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
             >
               {t('common.actions.testConnection')}
             </Button>
+          </div>
+
+          {/* Language Selector */}
+          <div className="space-y-2 border-t border-black/10 pt-5 dark:border-white/10">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-bold text-text/90">{t('settings.global.languageLabel')}</label>
+              <select
+                value={i18n.language}
+                onChange={async (e) => { await changeLanguage(e.target.value as AppLanguage); }}
+                className="h-10 w-48 rounded-md border border-black/20 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent dark:border-white/20"
+              >
+                {SUPPORTED_LANGUAGES.map(lang => (
+                  <option key={lang} value={lang}>
+                    {lang === 'zh' ? '中文' : 'English'}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-text/50">{t('settings.global.languageDescription')}</p>
+            </div>
           </div>
 
           <div className="flex justify-end gap-3 border-t border-black/10 pt-5 dark:border-white/10">

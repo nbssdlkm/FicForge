@@ -309,7 +309,7 @@ def _extract_frontmatter_and_core(content: str) -> str:
         remaining = content
 
     # ## 核心限制 段落
-    core_match = re.search(r"^## 核心限制.*?(?=\n## |\Z)", remaining, re.MULTILINE | re.DOTALL)
+    core_match = re.search(r"^## (?:核心限制|Core Constraints).*?(?=\n## |\Z)", remaining, re.MULTILINE | re.DOTALL)
     if core_match:
         parts.append(core_match.group().strip())
 

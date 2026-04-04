@@ -153,7 +153,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
         try {
           const result = await getLoreContent({ au_path: auPath, category: 'characters', filename: `${name}.md` });
           if (activeAuPathRef.current !== requestAuPath) return;
-          if (!result.content.includes('## 核心限制')) {
+          if (!result.content.includes('## 核心限制') && !result.content.includes('## Core Constraints')) {
             setCoreLimitTarget(name);
             setCoreLimitModalOpen(true);
           }
