@@ -326,11 +326,7 @@ async def extract_facts_endpoint(request: ExtractFactsRequest) -> Any:
     character_aliases = load_character_aliases(au_path)
 
     # 读取语言偏好
-    try:
-        _settings = build_settings_repository().get()
-        _language = getattr(getattr(_settings, "app", None), "language", "zh") or "zh"
-    except Exception:
-        _language = "zh"
+    _language = getattr(getattr(settings, "app", None), "language", "zh") or "zh"
 
     try:
         result = await run_in_threadpool(

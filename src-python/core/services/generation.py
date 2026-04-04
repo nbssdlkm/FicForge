@@ -136,6 +136,9 @@ def generate_chapter(
         if character_files is None:
             character_files = _load_md_files(au_path / "characters")
 
+        # === 语言偏好（一次计算，后续共享） ===
+        _language = getattr(getattr(settings, "app", None), "language", "zh") or "zh"
+
         # === 步骤 1.8：RAG 检索（向量搜索） ===
         rag_text: Optional[str] = None
         if vector_repo is not None:
@@ -152,7 +155,6 @@ def generate_chapter(
                     getattr(settings, "default_llm", None), "context_window", 0
                 ) or 128000)
                 budget_for_rag = max(0, context_window // 4)
-                _language = getattr(getattr(settings, "app", None), "language", "zh") or "zh"
                 rag_text, _rag_tokens = retrieve_rag(
                     vector_repo=vector_repo,
                     au_id=str(au_path),
@@ -171,7 +173,6 @@ def generate_chapter(
                 _log.getLogger(__name__).warning("RAG retrieval failed, continuing without", exc_info=True)
 
         # === 步骤 2：组装上下文 ===
-        _language = getattr(getattr(settings, "app", None), "language", "zh") or "zh"
         ctx = assemble_context(
             project, state, user_input, facts,
             chapter_repo, au_path,
