@@ -121,7 +121,7 @@ function renderFactSummary(card: ToolCallCardState, t: ToolCallCardProps["t"]) {
       </div>
       {characters.length > 0 ? (
         <p className="text-xs text-text/55">
-          {t("common.labels.characters")}：{characters.join("、")}
+          {t("common.labels.characters")}{t("common.labelColon")}{characters.join(t("common.listSeparator"))}
         </p>
       ) : null}
     </div>
@@ -272,10 +272,10 @@ export function ToolCallCard({
             if (toolName === "create_character_file") {
               return (
                 <div className="grid gap-2 md:grid-cols-2">
-                  <p>{t("common.labels.displayName")}：{coerceString(args.name) || t("common.none")}</p>
-                  <p>{t("common.labels.aliases")}：{coerceStringArray(args.aliases).join("、") || t("common.none")}</p>
-                  <p>{t("common.labels.importance")}：{getEnumLabel("importance", coerceString(args.importance), t("common.none"))}</p>
-                  <p>{t("settingsMode.field.origin")}：{getOriginRefLabel(coerceString(args.origin_ref)) || t("common.none")}</p>
+                  <p>{t("common.labels.displayName")}{t("common.labelColon")}{coerceString(args.name) || t("common.none")}</p>
+                  <p>{t("common.labels.aliases")}{t("common.labelColon")}{coerceStringArray(args.aliases).join(t("common.listSeparator")) || t("common.none")}</p>
+                  <p>{t("common.labels.importance")}{t("common.labelColon")}{getEnumLabel("importance", coerceString(args.importance), t("common.none"))}</p>
+                  <p>{t("settingsMode.field.origin")}{t("common.labelColon")}{getOriginRefLabel(coerceString(args.origin_ref)) || t("common.none")}</p>
                 </div>
               );
             }
@@ -283,14 +283,14 @@ export function ToolCallCard({
             if (toolName === "modify_character_file" || toolName === "modify_core_character_file" || toolName === "modify_worldbuilding_file") {
               return (
                 <div className="space-y-2">
-                  <p>{t("settingsMode.editor.filename")}：{coerceString(args.filename) || t("common.none")}</p>
-                  <p>{t("settingsMode.editor.changeSummary")}：{coerceString(args.change_summary) || t("common.none")}</p>
+                  <p>{t("settingsMode.editor.filename")}{t("common.labelColon")}{coerceString(args.filename) || t("common.none")}</p>
+                  <p>{t("settingsMode.editor.changeSummary")}{t("common.labelColon")}{coerceString(args.change_summary) || t("common.none")}</p>
                 </div>
               );
             }
 
             if (toolName === "create_worldbuilding_file" || toolName === "create_core_character_file") {
-              return <p>{t("common.labels.displayName")}：{coerceString(args.name) || t("common.none")}</p>;
+              return <p>{t("common.labels.displayName")}{t("common.labelColon")}{coerceString(args.name) || t("common.none")}</p>;
             }
 
             if (toolName === "add_fact" || toolName === "modify_fact") {
@@ -316,8 +316,8 @@ export function ToolCallCard({
                   : rawValue;
               return (
                 <div className="space-y-2">
-                  <p>{t("settingsMode.editor.styleField")}：{fieldLabel}</p>
-                  <p>{t("settingsMode.editor.styleValue")}：{displayValue || t("common.none")}</p>
+                  <p>{t("settingsMode.editor.styleField")}{t("common.labelColon")}{fieldLabel}</p>
+                  <p>{t("settingsMode.editor.styleValue")}{t("common.labelColon")}{displayValue || t("common.none")}</p>
                 </div>
               );
             }
@@ -326,7 +326,7 @@ export function ToolCallCard({
               const filenames = coerceStringArray(args.filenames);
               return (
                 <p>
-                  {t("common.labels.coreAlwaysInclude")}：{filenames.length > 0 ? filenames.join("、") : t("common.none")}
+                  {t("common.labels.coreAlwaysInclude")}{t("common.labelColon")}{filenames.length > 0 ? filenames.join(t("common.listSeparator")) : t("common.none")}
                 </p>
               );
             }

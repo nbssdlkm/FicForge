@@ -69,7 +69,7 @@ export function CompletionStep({
       <div className="bg-surface/50 rounded-xl p-5 border border-black/5 dark:border-white/5 space-y-2">
         <p className="text-sm">{t('import.stats', { chapters: totalChapters, chars: '—' })}</p>
         {charactersFound.length > 0 && (
-          <p className="text-sm text-text/70">{t('import.charactersFound', { names: charactersFound.join('、') })}</p>
+          <p className="text-sm text-text/70">{t('import.charactersFound', { names: charactersFound.join(t('common.listSeparator')) })}</p>
         )}
       </div>
 

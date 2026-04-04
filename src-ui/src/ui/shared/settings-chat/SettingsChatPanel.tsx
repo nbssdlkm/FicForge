@@ -184,9 +184,9 @@ function serializeAssistantMessage(
   const toolSummaries = (message.toolCalls || []).map((card) => {
     const args = Object.entries(card.parsedArgs)
       .slice(0, 4)
-      .map(([key, value]) => `${key}=${Array.isArray(value) ? value.join("、") : String(value)}`)
-      .join("，");
-    return `${getToolCallName(card)}${args ? `（${args}）` : ""}`;
+      .map(([key, value]) => `${key}=${Array.isArray(value) ? value.join(t("common.listSeparator")) : String(value)}`)
+      .join(t("common.listComma"));
+    return `${getToolCallName(card)}${args ? `${t("common.parenOpen")}${args}${t("common.parenClose")}` : ""}`;
   });
   const summaries = (message.toolCalls || [])
     .map((card) => getToolStatusSummary(card, t))
@@ -690,7 +690,7 @@ export function SettingsChatPanel({
         resultNote: t("settingsMode.executedWithTarget", { target: t("common.labels.coreAlwaysInclude") }),
         undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
         warningMessage: missingNames.length > 0
-          ? t("settingsMode.warning.coreIncludesPartialMissing", { names: missingNames.join("、") })
+          ? t("settingsMode.warning.coreIncludesPartialMissing", { names: missingNames.join(t("common.listSeparator")) })
           : null,
       };
     }
