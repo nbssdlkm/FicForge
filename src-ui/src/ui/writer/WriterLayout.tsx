@@ -354,6 +354,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const [sessionTemp, setSessionTemp] = useState(1.0);
   const [sessionTopP, setSessionTopP] = useState(0.95);
 
+  // 阅读偏好（localStorage 持久化）
+  const [fontSize, setFontSize] = useState(() => parseInt(localStorage.getItem('ficforge.fontSize') || '18', 10));
+  const [lineHeight, setLineHeight] = useState(() => parseFloat(localStorage.getItem('ficforge.lineHeight') || '2.0'));
+
   // 查看历史章节
   useEffect(() => {
     if (!viewChapter || !state) return;
@@ -1194,7 +1198,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                 </div>
               )}
 
-              <div className="rounded-[24px] border border-black/10 bg-surface/35 p-6 shadow-subtle dark:border-white/10">
+              <div className="rounded-[24px] border border-black/10 bg-surface/35 p-6 shadow-subtle dark:border-white/10" style={{ fontSize: `${fontSize}px`, lineHeight: lineHeight }}>
                 {loading ? (
                   <div className="flex items-center justify-center py-24">
                     <Loader2 className="animate-spin text-accent" size={24} />
@@ -1466,6 +1470,27 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
               onSaveGlobal={handleSaveGlobalParams}
               onSaveAu={handleSaveAuParams}
             />
+          </section>
+
+          {/* 阅读偏好 */}
+          <section>
+            <h3 className="text-xs font-sans font-medium mb-3 text-text/70 tracking-wide uppercase">{t('writer.readingPrefs')}</h3>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-text/70">{t('writer.fontSize')}</span>
+                  <span className="text-text/50 font-mono">{fontSize}px</span>
+                </div>
+                <input type="range" min="14" max="24" step="1" value={fontSize} onChange={e => { const v = parseInt(e.target.value); setFontSize(v); localStorage.setItem('ficforge.fontSize', String(v)); }} className="w-full accent-accent h-1.5" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-text/70">{t('writer.lineHeight')}</span>
+                  <span className="text-text/50 font-mono">{lineHeight.toFixed(1)}</span>
+                </div>
+                <input type="range" min="1.4" max="3.0" step="0.1" value={lineHeight} onChange={e => { const v = parseFloat(e.target.value); setLineHeight(v); localStorage.setItem('ficforge.lineHeight', String(v)); }} className="w-full accent-accent h-1.5" />
+              </div>
+            </div>
           </section>
         </div>
       </Sidebar>

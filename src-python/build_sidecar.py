@@ -13,8 +13,30 @@ import subprocess
 import sys
 
 
+def _clean_user_data() -> None:
+    """打包前清理用户数据，防止 API key 和测试数据泄露到安装包。"""
+    from pathlib import Path
+    import shutil
+
+    fandoms_dir = Path("fandoms/fandoms")
+    settings_file = Path("fandoms/settings.yaml")
+    chromadb_dir = Path("fandoms/.chromadb")
+
+    for p in [fandoms_dir, chromadb_dir]:
+        if p.is_dir():
+            shutil.rmtree(p)
+            p.mkdir(parents=True, exist_ok=True)
+            print(f"  Cleaned: {p}")
+
+    if settings_file.exists():
+        settings_file.unlink()
+        print(f"  Cleaned: {settings_file}")
+
+
 def build() -> None:
     """执行 PyInstaller 打包。"""
+    print("Cleaning user data before build...")
+    _clean_user_data()
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--onedir",

@@ -750,6 +750,14 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                 value={editorContent}
                 onChange={e => setEditorContent(e.target.value)}
                 disabled={isReadingFile}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files[0];
+                  if (file && (file.name.endsWith('.txt') || file.name.endsWith('.md'))) {
+                    file.text().then(text => setEditorContent(prev => prev + '\n\n' + text));
+                  }
+                }}
                 className="font-mono flex-1 min-h-[420px] text-sm leading-relaxed bg-surface/30 p-4 resize-y"
               />
             </div>

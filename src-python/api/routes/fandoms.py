@@ -84,9 +84,11 @@ async def create_fandom(request: CreateFandomRequest) -> Any:
     if not dir_name:
         return error_response(400, "INVALID_NAME", "名称不合法（安全化后为空）", [])
     fandom_path = Path(request.data_dir) / "fandoms" / dir_name
-    if fandom_path.exists():
+    # 只有目录存在且含 fandom.yaml 才算真正"已存在"
+    # 空目录/残留目录允许覆盖创建
+    if fandom_path.exists() and (fandom_path / "fandom.yaml").exists():
         return error_response(409, "FANDOM_ALREADY_EXISTS", f"同名 Fandom 已存在: {request.name}", [])
-    fandom_path.mkdir(parents=True, exist_ok=False)
+    fandom_path.mkdir(parents=True, exist_ok=True)
     repo = build_fandom_repository()
     fandom = Fandom(name=request.name, created_at=now_utc())
     await run_in_threadpool(repo.save, str(fandom_path), fandom)
