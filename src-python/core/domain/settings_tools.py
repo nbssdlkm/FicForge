@@ -24,7 +24,7 @@ _AU_TOOLS: list[dict[str, Any]] = [
                 "properties": {
                     "name": {"type": "string", "description": "角色名（如 Connor Ellis）"},
                     "aliases": {"type": "array", "items": {"type": "string"}, "description": "别名列表"},
-                    "importance": {"type": "string", "enum": ["high", "medium", "low"]},
+                    "importance": {"type": "string", "enum": ["main", "supporting", "minor"], "description": "main=主角, supporting=配角, minor=龙套"},
                     "origin_ref": {"type": "string", "description": "fandom/角色名（来自Fandom）或 original（原创）"},
                     "content": {"type": "string", "description": "完整 Markdown 设定内容（含核心人格、核心限制等段落）"},
                 },

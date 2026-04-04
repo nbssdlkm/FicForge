@@ -6,7 +6,7 @@ import { Modal } from '../shared/Modal';
 import { Settings, Save, Trash2, Plus, Loader2, AlertCircle } from 'lucide-react';
 import { getProject, updateProject, type ProjectInfo } from '../../api/project';
 import { getSettings, type SettingsInfo } from '../../api/settings';
-import { getState, recalcState } from '../../api/state';
+import { getState, recalcState, rebuildIndex } from '../../api/state';
 import { GlobalSettingsModal } from './GlobalSettingsModal';
 import { EmptyState } from '../shared/EmptyState';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -15,7 +15,7 @@ import { useFeedback } from '../../hooks/useFeedback';
 
 export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const { t } = useTranslation();
-  const { showError, showSuccess, showToast } = useFeedback();
+  const { showError, showSuccess } = useFeedback();
   const activeAuPathRef = useRef(auPath);
   activeAuPathRef.current = auPath;
   const loadSettingsRequestIdRef = useRef(0);
@@ -44,7 +44,6 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const [auApiKey, setAuApiKey] = useState('');
   const [contextWindow, setContextWindow] = useState(128000);
   const [coreIncludeModalOpen, setCoreIncludeModalOpen] = useState(false);
-  const [coreIncludeName, setCoreIncludeName] = useState('');
   const [recalcing, setRecalcing] = useState(false);
 
   const handleRecalc = async () => {
@@ -90,7 +89,6 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
     setContextWindow(128000);
     setGlobalSettingsOpen(false);
     setCoreIncludeModalOpen(false);
-    setCoreIncludeName('');
 
     const requestId = ++loadSettingsRequestIdRef.current;
     Promise.allSettled([
@@ -209,18 +207,6 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const updatePinnedRule = (idx: number, value: string) => setPinnedContext(prev => prev.map((v, i) => i === idx ? value : v));
 
   const removeCoreInclude = (idx: number) => setCoreIncludes(prev => prev.filter((_, i) => i !== idx));
-  const addCoreInclude = () => {
-    const value = coreIncludeName.trim().replace(/\.md$/i, '');
-    if (!value) return;
-    const availableCharacters = new Set(project?.cast_registry?.characters || []);
-    if (availableCharacters.size > 0 && !availableCharacters.has(value)) {
-      showToast(t('settings.coreIncludeMissing', { name: value }), 'warning');
-      return;
-    }
-    setCoreIncludes(prev => (prev.includes(value) ? prev : [...prev, value]));
-    setCoreIncludeName('');
-    setCoreIncludeModalOpen(false);
-  };
 
   const auName = project?.name || auPath.split('/').pop() || t('common.unknownAu');
 
@@ -461,7 +447,31 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                 {(project.cast_registry.characters || []).length === 0 ? (
                   <p className="text-xs text-text/40">{t("settings.emptyCastRegistry")}</p>
                 ) : (
-                  <div className="flex flex-wrap gap-1">{project.cast_registry.characters.map(c => <Tag key={c} variant="default" className="text-xs">{c}</Tag>)}</div>
+                  <div className="flex flex-wrap gap-2">
+                    {project.cast_registry.characters.map(c => (
+                      <span key={c} className="inline-flex items-center gap-1 rounded-md bg-black/5 dark:bg-white/5 px-2 py-1 text-xs">
+                        {c}
+                        <button
+                          className="text-text/30 hover:text-error transition-colors"
+                          title={t("settings.removeCastCharacter")}
+                          onClick={async () => {
+                            const next = (project.cast_registry.characters || []).filter((n: string) => n !== c);
+                            // 同时从必带角色中移除
+                            const nextPins = coreIncludes.filter(n => n !== c);
+                            try {
+                              await updateProject(auPath, { cast_registry: { characters: next }, core_always_include: nextPins });
+                              setProject(prev => prev ? { ...prev, cast_registry: { ...prev.cast_registry, characters: next }, core_always_include: nextPins } : prev);
+                              setCoreIncludes(nextPins);
+                            } catch (e) {
+                              showError(e, t("settings.removeCastFail"));
+                            }
+                          }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
                 )}
               </div>
             </section>
@@ -479,7 +489,14 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                 <p className="text-xs text-text/40">{t('advanced.recalcDesc')}</p>
               </div>
               <div className="bg-surface/50 p-4 rounded-xl border border-black/5 dark:border-white/5">
-                <Button variant="secondary" size="sm" className="w-full mb-2 opacity-50 cursor-not-allowed" disabled title={t('advanced.rebuildIndexDesc')}>
+                <Button variant="secondary" size="sm" className="w-full mb-2" onClick={async () => {
+                  try {
+                    await rebuildIndex(auPath);
+                    showSuccess(t('advanced.rebuildIndexSuccess'));
+                  } catch (e) {
+                    showError(e, t('advanced.rebuildIndexFail'));
+                  }
+                }}>
                   {t('advanced.rebuildIndex')}
                 </Button>
                 <p className="text-xs text-text/40">{t('advanced.rebuildIndexDesc')}</p>
@@ -494,15 +511,22 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
       <GlobalSettingsModal isOpen={isGlobalSettingsOpen} onClose={() => setGlobalSettingsOpen(false)} />
       <Modal isOpen={coreIncludeModalOpen} onClose={() => setCoreIncludeModalOpen(false)} title={t("settings.createCoreIncludeTitle")}>
         <div className="space-y-4">
-          <Input
-            value={coreIncludeName}
-            onChange={e => setCoreIncludeName(e.target.value)}
-            placeholder={t("settings.createCoreIncludePlaceholder")}
-            autoFocus
-          />
-          <div className="flex justify-end gap-2">
+          {(() => {
+            const available = (project?.cast_registry?.characters || []).filter(c => !coreIncludes.includes(c));
+            return available.length > 0 ? (
+              <div className="space-y-2">
+                {available.map(name => (
+                  <button key={name} className="w-full text-left px-3 py-2 rounded-lg border border-black/10 dark:border-white/10 hover:bg-accent/10 hover:border-accent/30 transition-colors text-sm" onClick={() => { setCoreIncludes(prev => [...prev, name]); setCoreIncludeModalOpen(false); }}>
+                    {name}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-text/50">{t("settings.coreIncludeNoAvailable")}</p>
+            );
+          })()}
+          <div className="flex justify-end">
             <Button variant="ghost" onClick={() => setCoreIncludeModalOpen(false)}>{t("common.actions.cancel")}</Button>
-            <Button variant="primary" onClick={addCoreInclude} disabled={!coreIncludeName.trim()}>{t("common.actions.confirm")}</Button>
           </div>
         </div>
       </Modal>
