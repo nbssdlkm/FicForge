@@ -325,6 +325,9 @@ async def extract_facts_endpoint(request: ExtractFactsRequest) -> Any:
     cast_registry: dict[str, Any] = asdict(cast_registry_obj) if cast_registry_obj else {"characters": []}
     character_aliases = load_character_aliases(au_path)
 
+    # 读取语言偏好
+    _language = getattr(getattr(settings, "app", None), "language", "zh") or "zh"
+
     try:
         result = await run_in_threadpool(
             extract_facts_from_chapter,
@@ -335,6 +338,7 @@ async def extract_facts_endpoint(request: ExtractFactsRequest) -> Any:
             character_aliases,
             provider,
             llm_config,
+            language=_language,
         )
     except Exception as exc:
         logger.exception("Extract facts failed: au=%s ch=%d", request.au_path, request.chapter_num)
@@ -395,6 +399,12 @@ async def extract_facts_batch_endpoint(request: ExtractFactsBatchRequest) -> Any
     cast_registry: dict[str, Any] = asdict(cast_registry_obj) if cast_registry_obj else {"characters": []}
     character_aliases = load_character_aliases(au_path)
 
+    # 读取语言偏好
+    try:
+        _language = getattr(getattr(settings, "app", None), "language", "zh") or "zh"
+    except Exception:
+        _language = "zh"
+
     try:
         result = await run_in_threadpool(
             extract_facts_batch,
@@ -404,6 +414,7 @@ async def extract_facts_batch_endpoint(request: ExtractFactsBatchRequest) -> Any
             character_aliases,
             provider,
             llm_config,
+            language=_language,
         )
     except Exception as exc:
         logger.exception("Extract facts batch failed: au=%s", request.au_path)

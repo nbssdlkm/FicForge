@@ -43,81 +43,7 @@ class ExtractedFact:
 # 提取 Prompt 模板
 # ---------------------------------------------------------------------------
 
-_SYSTEM_PROMPT = """\
-你是一个专业的同人小说设定分析助手。请从章节正文中提取关键的剧情事实和设定信息。
-
-【提取规则】
-
-1. 合并瞬时过程：如果一个事件在本章内已经完成（如被困→脱困、受伤→治愈、被抓→逃跑），\
-将整个过程合并为一条结果性事实，描述最终状态和关键过程。\
-不要把中间步骤拆成多条独立事实。
-
-2. 数量控制：每章只提取 3-5 条最重要的事实变化，绝不超过 5 条。优先提取：
-   - 角色关系发生实质变化的事件
-   - 留下伏笔或悬念的事件（标记为 unresolved）
-   - 关键行动和决策
-   - 新出现的角色或势力
-   忽略：
-   - 纯情绪描写（"他感到不安"）
-   - 环境氛围描写
-   - 章节内已完成且无后续影响的临时状态
-
-3. 只提取章末仍成立的状态：如果这条事实在本章结束时已经不再成立，不要提取。
-
-4. 角色内心想法：只在对后续剧情有实质影响时才提取（如"怀疑X是幕后黑手"），\
-纯粹的情绪感受不提取。
-
-5. 区分事实类型（fact_type）：
-   - character_detail：角色特征、习惯、外貌等
-   - relationship：角色间关系变化
-   - plot_event：已发生的剧情事件
-   - foreshadowing：伏笔、悬念、未解之谜
-   - backstory：背景故事、回忆
-   - world_rule：世界观规则
-
-6. 判断叙事权重（narrative_weight）：
-   - high：影响主线剧情走向的关键信息
-   - medium：重要但非决定性的信息
-   - low：氛围细节、次要信息
-
-7. 判断状态（status）：
-   - unresolved：伏笔/悬念尚未揭晓
-   - active：已确认的事实，当前有效
-
-8. content_raw 保留章节引用（如"第N章中..."）
-9. content_clean 用纯粹的第三人称客观描述，去掉章节编号引用
-10. characters 列出涉及的角色名（使用主名，不要用别名）
-
-输出格式：JSON 数组，每个元素包含以上字段。只输出 JSON，不要输出其他内容。"""
-
-_BATCH_SYSTEM_PROMPT = """\
-你是一个专业的同人小说设定分析助手。请从以下多个连续章节中提取关键的剧情事实和设定信息。
-
-【提取规则】
-
-1. 合并瞬时过程：如果一个事件在某章内已经完成（如被困→脱困），\
-将整个过程合并为一条结果性事实。不要把中间步骤拆成多条。
-
-2. 跨章事件：如果某个事件跨越多章（如第3章开始、第5章结束），\
-只在结束的章节提取一条结果性事实。
-
-3. 数量控制：每章只提取 3-5 条最重要的事实变化，绝不超过 5 条。忽略纯情绪、氛围描写。
-
-4. 只提取章末仍成立的状态。
-
-5. 每条事实必须包含 chapter 字段（章节号），表明属于哪一章。
-
-6. 区分事实类型（fact_type）：
-   - character_detail / relationship / plot_event / foreshadowing / backstory / world_rule
-
-7. 判断叙事权重（narrative_weight）：high / medium / low
-
-8. 判断状态（status）：unresolved（伏笔）或 active（已确认事实）
-
-9. content_raw 保留章节引用，content_clean 用纯粹的第三人称客观描述
-10. characters 列出涉及的角色名（使用主名，不要用别名）
-
-输出格式：JSON 数组。只输出 JSON，不要输出其他内容。"""
+# Prompt 常量已迁移到 core/prompts/zh.py 和 en.py，通过 get_prompts(language) 获取。
 
 
 # ---------------------------------------------------------------------------
@@ -127,21 +53,25 @@ _BATCH_SYSTEM_PROMPT = """\
 def _build_character_info_block(
     cast_registry: dict[str, Any],
     character_aliases: Optional[dict[str, list[str]]],
+    language: str = "zh",
 ) -> str:
     """构造角色名+别名注入段，追加到 user message 末尾。"""
+    from core.prompts import get_prompts
+    P = get_prompts(language)
+
     char_names = cast_registry.get("characters") or []
     if not char_names and not character_aliases:
         return ""
 
-    lines = ["\n\n【已知角色名和别名】"]
+    lines = [P.FACTS_KNOWN_CHARS_HEADER]
     for name in char_names:
         if isinstance(name, str):
             aliases = (character_aliases or {}).get(name, [])
             if aliases:
-                lines.append(f"- {name}（别名：{', '.join(aliases)}）")
+                lines.append(P.FACTS_ALIAS_FORMAT.format(name=name, aliases=", ".join(aliases)))
             else:
                 lines.append(f"- {name}")
-    lines.append("输出时统一使用主名（横线后第一个名字），不使用别名。")
+    lines.append(P.FACTS_USE_MAIN_NAME)
     return "\n".join(lines)
 
 
@@ -173,20 +103,24 @@ def _build_user_message(
     existing_facts: list[Any],
     cast_registry: dict[str, Any],
     character_aliases: Optional[dict[str, list[str]]],
+    language: str = "zh",
 ) -> str:
     """构建单章提取的 user message。"""
+    from core.prompts import get_prompts
+    P = get_prompts(language)
+
     existing_summary = ""
     if existing_facts:
         items = [getattr(f, "content_clean", str(f)) for f in existing_facts[:20]]
         existing_summary = "\n".join(f"- {item}" for item in items)
 
-    parts = [f"以下是第 {chapter_num} 章的正文：\n\n{chapter_text}"]
+    parts = [P.FACTS_USER_CHAPTER_INTRO.format(chapter_num=chapter_num, chapter_text=chapter_text)]
 
     if existing_summary:
-        parts.append(f"\n\n已有的事实条目（避免重复提取）：\n{existing_summary}")
+        parts.append(P.FACTS_USER_EXISTING_HINT.format(existing_summary=existing_summary))
 
-    parts.append(_build_character_info_block(cast_registry, character_aliases))
-    parts.append("\n\n请提取本章新增的事实条目。")
+    parts.append(_build_character_info_block(cast_registry, character_aliases, language=language))
+    parts.append(P.FACTS_USER_EXTRACT_COMMAND)
 
     return "".join(parts)
 
@@ -196,22 +130,26 @@ def _build_batch_user_message(
     existing_facts: list[Any],
     cast_registry: dict[str, Any],
     character_aliases: Optional[dict[str, list[str]]],
+    language: str = "zh",
 ) -> str:
     """构建多章合并提取的 user message。"""
+    from core.prompts import get_prompts
+    P = get_prompts(language)
+
     existing_summary = ""
     if existing_facts:
         items = [getattr(f, "content_clean", str(f)) for f in existing_facts[:20]]
         existing_summary = "\n".join(f"- {item}" for item in items)
 
-    parts = ["以下是连续的多个章节：\n"]
+    parts = [P.FACTS_USER_BATCH_INTRO]
     for ch in chapters:
-        parts.append(f"\n=== 第 {ch['chapter_num']} 章 ===\n{ch['content']}\n")
+        parts.append(P.FACTS_USER_BATCH_CHAPTER.format(chapter_num=ch['chapter_num'], content=ch['content']))
 
     if existing_summary:
-        parts.append(f"\n\n已有的事实条目（避免重复提取）：\n{existing_summary}")
+        parts.append(P.FACTS_USER_BATCH_EXISTING_HINT.format(existing_summary=existing_summary))
 
-    parts.append(_build_character_info_block(cast_registry, character_aliases))
-    parts.append("\n\n请为每个章节分别提取事实，在每条事实中标明 chapter 字段。")
+    parts.append(_build_character_info_block(cast_registry, character_aliases, language=language))
+    parts.append(P.FACTS_USER_BATCH_COMMAND)
 
     return "".join(parts)
 
@@ -348,11 +286,15 @@ def extract_facts_from_chapter(
     llm_provider: Any,
     llm_config: Any,
     max_chunk_tokens: int = 4000,
+    language: str = "zh",
 ) -> list[ExtractedFact]:
     """从章节文本中提取 facts 候选列表。
 
     返回 ExtractedFact 列表，前端审阅后通过 add_fact 保存。
     """
+    from core.prompts import get_prompts
+    P = get_prompts(language)
+
     if not chapter_text.strip():
         return []
 
@@ -363,10 +305,10 @@ def extract_facts_from_chapter(
     for chunk_text in chunks:
         # 构建 messages
         messages = [
-            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "system", "content": P.FACTS_SYSTEM_PROMPT},
             {"role": "user", "content": _build_user_message(
                 chunk_text, chapter_num, existing_facts,
-                cast_registry, character_aliases,
+                cast_registry, character_aliases, language=language,
             )},
         ]
 
@@ -405,18 +347,22 @@ def extract_facts_batch(
     character_aliases: Optional[dict[str, list[str]]],
     llm_provider: Any,
     llm_config: Any,
+    language: str = "zh",
 ) -> list[ExtractedFact]:
     """批量提取多章 facts（合并为一个 LLM 调用）。
 
     chapters: [{"chapter_num": int, "content": str}, ...]
     """
+    from core.prompts import get_prompts
+    P = get_prompts(language)
+
     if not chapters:
         return []
 
     messages = [
-        {"role": "system", "content": _BATCH_SYSTEM_PROMPT},
+        {"role": "system", "content": P.FACTS_BATCH_SYSTEM_PROMPT},
         {"role": "user", "content": _build_batch_user_message(
-            chapters, existing_facts, cast_registry, character_aliases,
+            chapters, existing_facts, cast_registry, character_aliases, language=language,
         )},
     ]
 
