@@ -84,12 +84,12 @@ async def import_upload(file: UploadFile) -> ImportUploadResponse | JSONResponse
     # 验证文件扩展名
     filename = file.filename or "upload.txt"
     suffix = Path(filename).suffix.lower()
-    if suffix not in (".txt", ".md", ".docx"):
+    if suffix not in (".txt", ".md", ".docx", ".html", ".htm"):
         return error_response(
             400,
             "UNSUPPORTED_FORMAT",
             f"不支持的文件格式: {suffix}",
-            ["支持 .txt / .md / .docx"],
+            ["支持 .txt / .md / .docx / .html"],
         )
 
     # 保存临时文件

@@ -230,6 +230,9 @@ def parse_import_file(file_path: Path) -> str:
     if suffix == ".docx":
         return _parse_docx(file_path)
 
+    if suffix in (".html", ".htm"):
+        return _parse_html(file_path)
+
     raise ValueError(f"不支持的文件格式: {suffix}")
 
 
@@ -244,6 +247,27 @@ def _parse_docx(file_path: Path) -> str:
         if text:
             paragraphs.append(text)
     return "\n\n".join(paragraphs)
+
+
+def _parse_html(file_path: Path) -> str:
+    """从 HTML 中提取正文文本（去除标签，保留段落结构）。"""
+    import html
+    raw = file_path.read_text(encoding="utf-8", errors="replace")
+
+    # 去除 script/style 标签及内容
+    raw = re.sub(r"<(script|style)[^>]*>.*?</\1>", "", raw, flags=re.DOTALL | re.IGNORECASE)
+    # <br> <br/> → 换行
+    raw = re.sub(r"<br\s*/?>", "\n", raw, flags=re.IGNORECASE)
+    # <p> </p> <div> </div> <h1-6> → 双换行
+    raw = re.sub(r"</(p|div|h[1-6]|li|tr|blockquote)>", "\n\n", raw, flags=re.IGNORECASE)
+    raw = re.sub(r"<(p|div|h[1-6]|li|tr|blockquote)[^>]*>", "", raw, flags=re.IGNORECASE)
+    # 去除其他标签
+    raw = re.sub(r"<[^>]+>", "", raw)
+    # HTML 实体解码
+    raw = html.unescape(raw)
+    # 合并多余空行
+    raw = re.sub(r"\n{3,}", "\n\n", raw)
+    return raw.strip()
 
 
 # ---------------------------------------------------------------------------

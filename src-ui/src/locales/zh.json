@@ -181,6 +181,9 @@
     "freeWrite": "自由发挥",
     "memoryPanel": "AI 记忆一览",
     "memoryPanelHint": "续写一次后显示实际 token 分配",
+    "readingPrefs": "阅读偏好",
+    "fontSize": "字号",
+    "lineHeight": "行间距",
     "memoryLayer": {
       "pinned": "写作底线",
       "context": "参考内容",
