@@ -326,12 +326,17 @@ def extract_facts_from_chapter(
         except Exception as e:
             logger.error("Facts 提取 LLM 调用失败: %s", e)
 
-    # 步骤 4：后处理
+    # 步骤 4：后处理 + 硬限制（prompt 要求 3-5 条，但 LLM 可能不遵守）
+    MAX_FACTS_PER_CHAPTER = 5
     results: list[ExtractedFact] = []
     for raw in all_raw:
         fact = _raw_to_extracted(raw, chapter_num, cast_registry, character_aliases)
         if fact:
             results.append(fact)
+
+    if len(results) > MAX_FACTS_PER_CHAPTER:
+        logger.info("Facts 提取结果 %d 条超过上限 %d，截断", len(results), MAX_FACTS_PER_CHAPTER)
+        results = results[:MAX_FACTS_PER_CHAPTER]
 
     return results
 

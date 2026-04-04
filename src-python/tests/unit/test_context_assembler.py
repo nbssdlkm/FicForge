@@ -181,7 +181,7 @@ def test_core_settings_returns_injected_names():
     """P5 返回注入的角色名列表。"""
     p = _FakeProject(core_always_include=["Connor"])
     files = {"Connor": "# Connor\nDetective.", "Hank": "# Hank\nLieutenant."}
-    text, injected, truncated = build_core_settings_layer(p, files, 99999, _FakeLLM())
+    text, injected, truncated, wb_injected = build_core_settings_layer(p, files, 99999, _FakeLLM())
     assert "Connor" in injected
     assert "Hank" in injected
     assert truncated == []
@@ -193,7 +193,7 @@ def test_core_settings_truncated_names():
     """P5 budget 不足 → 记录被截断的角色。"""
     p = _FakeProject(core_always_include=[], core_guarantee_budget=0)
     files = {"Connor": "# Connor\n" + "x" * 5000}
-    text, injected, truncated = build_core_settings_layer(p, files, 1, _FakeLLM())
+    text, injected, truncated, wb_injected = build_core_settings_layer(p, files, 1, _FakeLLM())
     # budget=1 token，无法注入任何角色
     assert injected == []
     assert "Connor" in truncated
