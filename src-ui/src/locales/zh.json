@@ -419,12 +419,15 @@
       "searchEngineDescription": "用来从你的设定里找到和当前剧情最相关的内容。",
       "noEmbeddingModel": "（未配置）",
       "builtinEmbedding": "默认使用内置 bge-small-zh 模型，无需配置",
+      "builtinEmbeddingLabel": "bge-small-zh（内置）",
       "useCustomEmbedding": "使用自定义 Embedding API",
       "embeddingModelPlaceholder": "模型名（如 text-embedding-3-small）",
       "embeddingApiBasePlaceholder": "API 地址（如 https://api.openai.com）",
       "embeddingApiKeyPlaceholder": "API 密钥",
       "apiCredentialsDescription": "如果某篇故事没有单独指定，就会用这里的设置。",
-      "apiModeLabel": "接入方式"
+      "apiModeLabel": "接入方式",
+      "languageLabel": "界面语言",
+      "languageDescription": "切换应用的显示语言。"
     },
     "story": {
       "scopeLabel": "当前故事：{{name}}",
