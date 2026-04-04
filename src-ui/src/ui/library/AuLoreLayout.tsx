@@ -22,6 +22,10 @@ function buildDefaultCharacterContent(name: string): string {
   return `---\nname: ${name}\naliases: []\n---\n\n# ${name}\n\n`;
 }
 
+function buildDefaultWorldbuildingContent(name: string): string {
+  return `# ${name}\n\n`;
+}
+
 function parseAliasesFromContent(content: string): string[] {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return [];
@@ -174,14 +178,15 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     }
   };
 
-  const loadFileContent = async (name: string, loadRequestId?: number) => {
+  const loadFileContent = async (name: string, loadRequestId?: number, categoryOverride?: 'characters' | 'worldbuilding') => {
     const readRequestId = ++readFileRequestIdRef.current;
     const requestAuPath = auPath;
+    const effectiveCategory = categoryOverride ?? selectedCategory;
     setSelectedFile(name);
     setEditorContent('');
     setIsReadingFile(true);
     try {
-      const result = await readLore({ au_path: auPath, category: selectedCategory, filename: `${name}.md` });
+      const result = await readLore({ au_path: auPath, category: effectiveCategory, filename: `${name}.md` });
       if (
         readRequestId !== readFileRequestIdRef.current
         || (typeof loadRequestId === 'number' && loadRequestId !== loadDataRequestIdRef.current)
@@ -189,9 +194,9 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
       ) {
         return;
       }
-      const content = result.content || buildDefaultCharacterContent(name);
+      const content = result.content || (effectiveCategory === 'worldbuilding' ? buildDefaultWorldbuildingContent(name) : buildDefaultCharacterContent(name));
       setEditorContent(content);
-      setAliases(selectedCategory === 'characters' ? parseAliasesFromContent(content) : []);
+      setAliases(effectiveCategory === 'characters' ? parseAliasesFromContent(content) : []);
       setNewAlias('');
     } catch {
       if (
@@ -201,7 +206,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
       ) {
         return;
       }
-      setEditorContent(buildDefaultCharacterContent(name));
+      setEditorContent(effectiveCategory === 'worldbuilding' ? buildDefaultWorldbuildingContent(name) : buildDefaultCharacterContent(name));
     } finally {
       if (
         readRequestId === readFileRequestIdRef.current
@@ -328,7 +333,8 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
         if (activeAuPathRef.current !== requestAuPath) return;
         setProject(prev => prev ? { ...prev, core_always_include: remainingPins } : prev);
       }
-      setFiles(prev => prev.filter(file => file.name !== selectedFile));
+      const setTargetFilesForDelete = selectedCategory === 'worldbuilding' ? setWorldbuildingFiles : setFiles;
+      setTargetFilesForDelete(prev => prev.filter(file => file.name !== selectedFile));
       setSelectedFile(null);
       setEditorContent('');
       setTrashRefreshToken(current => current + 1);
@@ -353,7 +359,9 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     }
 
     const filename = `${displayName}.md`;
-    const defaultContent = buildDefaultCharacterContent(displayName);
+    const defaultContent = selectedCategory === 'worldbuilding'
+      ? buildDefaultWorldbuildingContent(displayName)
+      : buildDefaultCharacterContent(displayName);
     let latestProject: ProjectInfo;
     let latestFiles: { files: LoreFileEntry[] };
     setCreateModalOpen(false);
@@ -400,7 +408,8 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
         throw error;
       }
       if (activeAuPathRef.current !== requestAuPath) return;
-      setFiles(prev => [...prev, { name: displayName, filename }].sort((a, b) => a.name.localeCompare(b.name)));
+      const setTargetFiles = selectedCategory === 'worldbuilding' ? setWorldbuildingFiles : setFiles;
+      setTargetFiles(prev => [...prev, { name: displayName, filename }].sort((a, b) => a.name.localeCompare(b.name)));
       setSelectedFile(displayName);
       setEditorContent(defaultContent);
       setCreateName('');
@@ -591,7 +600,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                           <div
                             key={file.name}
                             className={`flex items-center justify-between pl-6 pr-2 py-1.5 text-sm cursor-pointer rounded-md ${selectedFile === file.name && selectedCategory === 'characters' ? 'bg-accent/10 text-accent font-medium' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5 hover:text-text'}`}
-                            onClick={() => { setSelectedCategory('characters'); void loadFileContent(file.name); }}
+                            onClick={() => { setSelectedCategory('characters'); void loadFileContent(file.name, undefined, 'characters'); }}
                           >
                             <div className="flex items-center gap-2 overflow-hidden">
                               <FileText size={14} className="opacity-50 shrink-0" />
@@ -654,7 +663,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                         <div
                           key={file.name}
                           className={`flex items-center justify-between pl-6 pr-2 py-1.5 text-sm cursor-pointer rounded-md ${selectedFile === file.name && selectedCategory === 'worldbuilding' ? 'bg-accent/10 text-accent font-medium' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5 hover:text-text'}`}
-                          onClick={() => { setSelectedCategory('worldbuilding'); void loadFileContent(file.name); }}
+                          onClick={() => { setSelectedCategory('worldbuilding'); void loadFileContent(file.name, undefined, 'worldbuilding'); }}
                         >
                           <div className="flex items-center gap-2 overflow-hidden">
                             <FileText size={14} className="opacity-50 shrink-0" />
@@ -789,10 +798,10 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
         </div>
       </div>
 
-      <Modal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} title={t('auLore.createTitle')}>
+      <Modal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} title={selectedCategory === 'worldbuilding' ? t('auLore.createTitleWorldbuilding') : t('auLore.createTitle')}>
         <div className="space-y-4">
-          <p className="text-sm text-text/70">{t('auLore.createDescription')}</p>
-          <Input value={createName} onChange={e => setCreateName(e.target.value)} placeholder={t('auLore.createPlaceholder')} autoFocus />
+          <p className="text-sm text-text/70">{selectedCategory === 'worldbuilding' ? t('auLore.createDescriptionWorldbuilding') : t('auLore.createDescription')}</p>
+          <Input value={createName} onChange={e => setCreateName(e.target.value)} placeholder={selectedCategory === 'worldbuilding' ? t('auLore.createPlaceholderWorldbuilding') : t('auLore.createPlaceholder')} autoFocus />
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setCreateModalOpen(false)}>{t('common.actions.cancel')}</Button>
             <Button variant="primary" onClick={handleCreate} disabled={!createName.trim()}>{t('common.actions.create')}</Button>

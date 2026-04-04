@@ -132,9 +132,10 @@ def generate_chapter(
         params = resolve_llm_params(model_name, session_params, project, settings)
         provider = create_provider(llm_config)
 
-        # === 步骤 1.5：加载角色设定文件（P5 核心设定用）===
+        # === 步骤 1.5：加载角色与世界观设定文件（P5 核心设定用）===
         if character_files is None:
             character_files = _load_md_files(au_path / "characters")
+        worldbuilding_files = _load_md_files(au_path / "worldbuilding")
 
         # === 语言偏好（一次计算，后续共享） ===
         _language = getattr(getattr(settings, "app", None), "language", "zh") or "zh"
@@ -178,6 +179,7 @@ def generate_chapter(
             chapter_repo, au_path,
             rag_results=rag_text,
             character_files=character_files,
+            worldbuilding_files=worldbuilding_files,
             language=_language,
         )
         messages = ctx["messages"]
@@ -267,8 +269,14 @@ def generate_chapter(
                 "budget_report": {
                     "context_window": budget_report.context_window,
                     "system_tokens": budget_report.system_tokens,
+                    "p1_tokens": budget_report.p1_tokens,
+                    "p2_tokens": budget_report.p2_tokens,
+                    "p3_tokens": budget_report.p3_tokens,
+                    "p4_tokens": budget_report.p4_tokens,
+                    "p5_tokens": budget_report.p5_tokens,
                     "total_input_tokens": budget_report.total_input_tokens,
                     "max_output_tokens": budget_report.max_output_tokens,
+                    "truncated_layers": budget_report.truncated_layers,
                 },
             },
         }

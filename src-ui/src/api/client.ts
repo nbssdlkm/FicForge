@@ -146,11 +146,14 @@ export async function* sseStream(
 
   while (true) {
     const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
+    if (done) {
+      // Flush remaining buffer — the final SSE event (e.g. "done") may lack a trailing newline
+      buffer += decoder.decode();
+    } else {
+      buffer += decoder.decode(value, { stream: true });
+    }
     const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
+    buffer = done ? "" : (lines.pop() || "");
 
     let currentEvent = "message";
     for (const line of lines) {
@@ -165,5 +168,6 @@ export async function* sseStream(
         }
       }
     }
+    if (done) break;
   }
 }

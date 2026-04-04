@@ -96,7 +96,7 @@ def test_assemble_budget_formula(tmp_path):
 
 
 def test_assemble_max_tokens(tmp_path):
-    """max_tokens = min(model_max_output, context_window*0.40)。"""
+    """max_tokens = min(model_max_output, context_window*0.40, chapter_length*1.5)。"""
     au = tmp_path / "au"
     ensure_au_directories(au)
 
@@ -106,8 +106,8 @@ def test_assemble_max_tokens(tmp_path):
         LocalFileChapterRepository(), au,
     )
 
-    # deepseek-chat max_output=8192, context*0.40=26214
-    assert result["max_tokens"] == 8192
+    # deepseek-chat max_output=8192, context*0.40=26214, chapter_length(1500)*2=3000
+    assert result["max_tokens"] == 3000
 
 
 def test_assemble_zero_chapter_cold_start(tmp_path):
