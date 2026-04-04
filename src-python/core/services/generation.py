@@ -136,6 +136,9 @@ def generate_chapter(
         if character_files is None:
             character_files = _load_md_files(au_path / "characters")
 
+        # === 语言偏好（一次计算，后续共享） ===
+        _language = getattr(getattr(settings, "app", None), "language", "zh") or "zh"
+
         # === 步骤 1.8：RAG 检索（向量搜索） ===
         rag_text: Optional[str] = None
         if vector_repo is not None:
@@ -161,6 +164,7 @@ def generate_chapter(
                     llm_config=llm_config,
                     rag_decay_coefficient=getattr(project, "rag_decay_coefficient", 0.05),
                     current_chapter=state.current_chapter,
+                    language=_language,
                 )
                 if not rag_text:
                     rag_text = None
@@ -174,6 +178,7 @@ def generate_chapter(
             chapter_repo, au_path,
             rag_results=rag_text,
             character_files=character_files,
+            language=_language,
         )
         messages = ctx["messages"]
         max_tokens: int = ctx["max_tokens"]

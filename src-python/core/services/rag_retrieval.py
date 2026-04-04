@@ -119,6 +119,7 @@ def retrieve_rag(
     llm_config: Any,
     rag_decay_coefficient: float = 0.05,
     current_chapter: int = 1,
+    language: str = "zh",
 ) -> tuple[str, int]:
     """RAG 检索（PRD §4.1）。
 
@@ -165,14 +166,14 @@ def retrieve_rag(
             deduped.append(c)
 
     # --- 超预算处理：降低 top_k ---
-    text = _format_rag_chunks(deduped)
+    text = _format_rag_chunks(deduped, language=language)
     tokens = count_tokens(text, llm_config).count
 
     if tokens > budget_remaining and budget_remaining > 0:
         # 逐步减少
         for reduced_k in [2, 1]:
             deduped = _reduce_top_k(deduped, reduced_k)
-            text = _format_rag_chunks(deduped)
+            text = _format_rag_chunks(deduped, language=language)
             tokens = count_tokens(text, llm_config).count
             if tokens <= budget_remaining:
                 break
@@ -190,7 +191,7 @@ def retrieve_rag(
                         kept.append(c)
                         used += c_tokens
         deduped = kept
-        text = _format_rag_chunks(deduped)
+        text = _format_rag_chunks(deduped, language=language)
         tokens = count_tokens(text, llm_config).count
 
     return text, tokens
@@ -263,10 +264,13 @@ def _reduce_top_k(
     return result
 
 
-def _format_rag_chunks(chunks: list[dict[str, Any]]) -> str:
+def _format_rag_chunks(chunks: list[dict[str, Any]], language: str = "zh") -> str:
     """将 chunks 按 collection 分组格式化。"""
     if not chunks:
         return ""
+
+    from core.prompts import get_prompts
+    P = get_prompts(language)
 
     groups: dict[str, list[str]] = {}
     for c in chunks:
@@ -275,9 +279,9 @@ def _format_rag_chunks(chunks: list[dict[str, Any]]) -> str:
 
     parts: list[str] = []
     label_map = {
-        "characters": "角色设定",
-        "worldbuilding": "世界观",
-        "chapters": "历史章节片段",
+        "characters": P.RAG_LABEL_CHARACTERS,
+        "worldbuilding": P.RAG_LABEL_WORLDBUILDING,
+        "chapters": P.RAG_LABEL_CHAPTERS,
     }
     for coll in ["characters", "worldbuilding", "chapters"]:
         items = groups.get(coll, [])

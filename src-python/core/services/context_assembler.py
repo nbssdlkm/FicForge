@@ -18,6 +18,7 @@ from core.domain.enums import FactStatus, NarrativeWeight
 from core.domain.fact import Fact
 from core.domain.model_context_map import get_context_window, get_model_max_output
 from core.domain.tokenizer import TokenCount, count_tokens
+from core.prompts import get_prompts
 
 
 # ---------------------------------------------------------------------------
@@ -35,34 +36,26 @@ def _count(text: str, llm_config: Any) -> TokenCount:
 def build_system_prompt(
     project: Any,
     trim_custom: bool = False,
+    language: str = "zh",
 ) -> str:
     """构建 System Role 消息。
 
     Args:
         project: Project 领域对象。
         trim_custom: 若为 True，裁剪 custom_instructions（budget 不够时）。
+        language: 界面语言，决定 prompt 使用中文还是英文。
     """
-    parts: list[str] = ["你是一位专业的小说作者。"]
+    P = get_prompts(language)
+    parts: list[str] = [P.SYSTEM_NOVELIST]
 
     # --- P0 Pinned Context ---
     pinned = getattr(project, "pinned_context", None) or []
     if pinned:
         lines = "\n".join(f"- {p}" for p in pinned)
-        parts.append(
-            "# 后台核心铁律——通过行为自然体现，绝不直接陈述\n"
-            "以下是不可逾越的叙事底线。请通过人物行为、对话、细节自然体现（Show, don't tell），\n"
-            "绝对不要将这些规则直接写成旁白或心理活动陈述：\n"
-            f"{lines}"
-        )
+        parts.append(P.PINNED_CONTEXT_HEADER.format(lines=lines))
 
     # --- 冲突解决规则 ---
-    parts.append(
-        '# 冲突解决规则（重要）\n'
-        '当\u201c上一章结尾\u201d、\u201c召回的历史设定片段\u201d与\u201c当前剧情状态（事实表）\u201d发生语义冲突时，\n'
-        '必须且只能以\u201c当前剧情状态（事实表）\u201d为绝对事实依据，忽视其他冲突信息。\n\n'
-        '若发现\u201c后台核心铁律（pinned_context）\u201d与\u201c当前剧情状态\u201d存在矛盾，请照常执行任务，\n'
-        '系统将在外部提示用户更新过期的铁律条目。'
-    )
+    parts.append(P.CONFLICT_RESOLUTION_RULES)
 
     # --- 叙事视角 ---
     ws = getattr(project, "writing_style", None)
@@ -70,46 +63,32 @@ def build_system_prompt(
     p_val: str = perspective.value if perspective is not None and hasattr(perspective, "value") else str(perspective or "third_person")
 
     if p_val == "first_person":
-        pov = getattr(ws, "pov_character", "") or "主角"
-        parts.append(
-            f"# 叙事视角\n"
-            f"以{pov}的第一人称视角写作。以下\u201c客观事实\u201d描述的是{pov}所处的世界状态，\n"
-            f"请将其转化为{pov}的主观感知、心理活动和第一人称动作描写。"
-        )
+        pov = getattr(ws, "pov_character", "") or ("主角" if language == "zh" else "protagonist")
+        parts.append(P.PERSPECTIVE_FIRST_PERSON.format(pov=pov))
     else:
-        parts.append("# 叙事视角\n以第三人称叙事视角写作。")
+        parts.append(P.PERSPECTIVE_THIRD_PERSON)
 
     # --- 情感风格 ---
     emotion = getattr(ws, "emotion_style", None)
     e_val: str = emotion.value if emotion is not None and hasattr(emotion, "value") else str(emotion or "implicit")
 
     if e_val == "explicit":
-        parts.append("# 情感表达风格\n可以直接描写人物心理和情绪。")
+        parts.append(P.EMOTION_EXPLICIT)
     else:
-        parts.append("# 情感表达风格\n偏好用行为和细节暗示情绪，避免直接陈述心理状态。")
+        parts.append(P.EMOTION_IMPLICIT)
 
     # --- 伏笔规约 ---
-    parts.append(
-        "# 伏笔使用规约（重要）\n"
-        "\u201c当前剧情状态\u201d中标注为 unresolved 的内容，是当前世界中成立的背景约束。\n"
-        "除非指令中明确要求推进，否则请保持其悬而未决，仅作氛围点缀。\n"
-        "不要强行解释或解决任何 unresolved 伏笔，也不要只是顺手\u201c提一句\u201d来刷存在感。"
-    )
+    parts.append(P.FORESHADOWING_RULES)
 
     # --- 通用规则 ---
     chapter_length = getattr(project, "chapter_length", 1500)
-    parts.append(
-        "# 通用规则\n"
-        "不要出现任何章节编号或叙事外的结构性标注。\n"
-        "所有背景信息通过人物行为、心理、对话自然呈现。\n"
-        f"本章目标字数约 {chapter_length} 字。"
-    )
+    parts.append(P.GENERIC_RULES.format(chapter_length=chapter_length))
 
     # --- custom_instructions ---
     if not trim_custom:
         custom = getattr(ws, "custom_instructions", "") if ws else ""
         if custom:
-            parts.append(f"# 用户自定义文风\n{custom}")
+            parts.append(P.CUSTOM_INSTRUCTIONS_HEADER.format(custom=custom))
 
     return "\n\n".join(parts)
 
@@ -122,16 +101,18 @@ def build_instruction(
     state: Any,
     user_input: str,
     facts: list[Fact],
+    language: str = "zh",
 ) -> str:
     """构建 P1 当前指令层。"""
+    P = get_prompts(language)
     parts: list[str] = []
 
     # 当前状态行
     current_ch = getattr(state, "current_chapter", 1)
     last_ending = getattr(state, "last_scene_ending", "")
-    parts.append(f"## 当前状态\n现在是第{current_ch}章。")
+    parts.append(P.CURRENT_STATUS.format(current_ch=current_ch))
     if last_ending:
-        parts.append(f"上一章结尾：{last_ending}")
+        parts.append(P.LAST_ENDING_INLINE.format(last_ending=last_ending))
 
     # chapter_focus 分支
     focus_ids = getattr(state, "chapter_focus", []) or []
@@ -140,15 +121,8 @@ def build_instruction(
     if focus_facts:
         # 推进目标块
         focus_lines = "\n".join(f"- {f.content_clean}" for f in focus_facts)
-        parts.append(
-            '## 本章核心推进目标（必须执行）\n'
-            '请在本章剧情中，对以下悬念给出实质性推进。\n'
-            '\u201c推进\u201d的定义：信息有新增、关系发生变化、或冲突更激化/更接近解决。\n'
-            '\u201c只是顺口提到\u201d或\u201c只是描写氛围/情绪\u201d不算推进。\n'
-            '推进必须带来可感知的新信息或状态变化，使读者阅读后明确感觉剧情比之前更接近某种结果。\n'
-            '如果本章结束后该节点仍无任何实质变化，视为未完成推进。\n'
-            f'{focus_lines}'
-        )
+        parts.append(P.FOCUS_GOAL_HEADER)
+        parts.append(P.FOCUS_GOAL_DEFINITION.format(focus_lines=focus_lines))
 
         # 本章特别注意（非 focus 的高权重 unresolved，最多 2 条）
         non_focus_unresolved = [
@@ -163,30 +137,18 @@ def build_instruction(
             caution_lines = "\n".join(
                 f"- {f.content_clean}" for f in non_focus_unresolved[:2]
             )
-            parts.append(
-                "## 本章特别注意（仅列最易被触发的1-2个高权重悬念，勿主动推进）\n"
-                "以下悬念极易被顺带提及，请特别克制，本章保持悬而未决：\n"
-                f"{caution_lines}"
-            )
+            parts.append(P.ATTENTION_HEADER)
+            parts.append(P.ATTENTION_BODY.format(caution_lines=caution_lines))
 
         # 背景信息使用规则
-        parts.append(
-            '## 背景信息使用规则\n'
-            '\u201c当前剧情状态\u201d中其余 unresolved 事项仅作为世界背景。\n'
-            '除非当前指令明确要求，否则保持悬而未决，不要主动解释或解决它们。'
-        )
+        parts.append(P.BG_RULES)
 
     elif any(f.status == FactStatus.UNRESOLVED for f in facts):
         # 铺陈指令
-        parts.append(
-            "## 本章叙事节奏\n"
-            "本章以延续当前剧情和铺陈氛围为主。\n"
-            "除非用户的具体指令中明确要求推进或解决某项事件，否则保持所有已有伏笔悬而未决，"
-            "不要急于解决任何悬念，也不要随意挑选 unresolved 事项填坑。"
-        )
+        parts.append(P.PACING_INSTRUCTION)
 
     # 用户输入
-    parts.append(f"## 请续写\n{user_input}")
+    parts.append(P.CONTINUE_WRITING.format(user_input=user_input))
 
     return "\n\n".join(parts)
 
@@ -200,6 +162,7 @@ def build_facts_layer(
     focus_ids: list[str],
     budget_tokens: int,
     llm_config: Any,
+    language: str = "zh",
 ) -> tuple[str, bool]:
     """构建 P3 事实层。
 
@@ -269,12 +232,14 @@ def build_facts_layer(
              for f in all_kept]
 
     if unresolved_dropped > 0:
-        lines.append(f"（另有 {unresolved_dropped} 条未解决伏笔暂未展示，详见事实表）")
+        P = get_prompts(language)
+        lines.append(P.UNRESOLVED_DROPPED_HINT.format(count=unresolved_dropped))
 
     if not lines:
         return "", soft_degraded
 
-    return "## 当前剧情状态\n" + "\n".join(lines), soft_degraded
+    P = get_prompts(language)
+    return P.SECTION_PLOT_STATE + "\n" + "\n".join(lines), soft_degraded
 
 
 def _sort_by_weight_and_recency(facts: list[Fact]) -> list[Fact]:
@@ -298,8 +263,10 @@ def build_recent_chapter_layer(
     au_path: Path,
     budget_tokens: int,
     llm_config: Any,
+    language: str = "zh",
 ) -> str:
     """构建 P2 最近章节层。"""
+    P = get_prompts(language)
     current = getattr(state, "current_chapter", 1)
     if current <= 1:
         return ""
@@ -315,12 +282,12 @@ def build_recent_chapter_layer(
     # 截断：保留末尾，最少 500 字
     tokens = _count(content, llm_config).count
     if tokens <= budget_tokens:
-        return f"## 上一章结尾\n{content}"
+        return P.SECTION_LAST_ENDING.format(content=content)
 
     # 从末尾截取
     min_chars = 500
     if len(content) <= min_chars:
-        return f"## 上一章结尾\n{content}"
+        return P.SECTION_LAST_ENDING.format(content=content)
 
     # 二分查找合适的截断点
     end_text = content[-min_chars:]
@@ -330,7 +297,7 @@ def build_recent_chapter_layer(
     while _count(end_text, llm_config).count > budget_tokens and len(end_text) > min_chars:
         end_text = end_text[200:]
 
-    return f"## 上一章结尾\n（前文略）…{end_text}"
+    return P.SECTION_LAST_ENDING_TRUNCATED.format(end_text=end_text)
 
 
 # ===========================================================================
@@ -342,6 +309,7 @@ def build_core_settings_layer(
     character_files: Optional[dict[str, str]],
     budget_tokens: int,
     llm_config: Any,
+    language: str = "zh",
 ) -> tuple[str, list[str], list[str]]:
     """构建 P5 核心设定层。
 
@@ -388,7 +356,8 @@ def build_core_settings_layer(
     if not parts:
         return "", injected, truncated
 
-    return "## 人物设定\n" + "\n\n".join(parts), injected, truncated
+    P = get_prompts(language)
+    return P.SECTION_CHARACTERS + "\n" + "\n\n".join(parts), injected, truncated
 
 
 # ===========================================================================
@@ -404,6 +373,7 @@ def assemble_context(
     au_path: Path,
     rag_results: Optional[str] = None,
     character_files: Optional[dict[str, str]] = None,
+    language: str = "zh",
 ) -> dict[str, Any]:
     """上下文组装器主函数（PRD §4.1）。
 
@@ -418,7 +388,7 @@ def assemble_context(
     report.context_window = context_window
 
     # --- System prompt ---
-    system_prompt = build_system_prompt(project)
+    system_prompt = build_system_prompt(project, language=language)
     sys_tc = _count(system_prompt, llm)
     system_tokens = sys_tc.count
     report.is_fallback_estimate = sys_tc.is_estimate
@@ -427,7 +397,7 @@ def assemble_context(
 
     # fail-safe：budget 不够 → 裁剪 custom_instructions
     if budget <= 0:
-        system_prompt = build_system_prompt(project, trim_custom=True)
+        system_prompt = build_system_prompt(project, trim_custom=True, language=language)
         sys_tc = _count(system_prompt, llm)
         system_tokens = sys_tc.count
         budget = int(context_window * 0.60) - system_tokens
@@ -453,7 +423,7 @@ def assemble_context(
 
     # === P1：当前指令（必须完整保留）===
     focus_ids = list(getattr(state, "chapter_focus", []) or [])
-    p1_text = build_instruction(state, user_input, facts)
+    p1_text = build_instruction(state, user_input, facts, language=language)
     p1_tc = _count(p1_text, llm)
     p1_tokens = p1_tc.count
     used += p1_tokens
@@ -461,7 +431,7 @@ def assemble_context(
 
     # === P3：事实表 ===
     p3_budget = max(0, budget - used - guarantee)  # 预留 core_guarantee
-    p3_text, soft_degraded = build_facts_layer(facts, focus_ids, p3_budget, llm)
+    p3_text, soft_degraded = build_facts_layer(facts, focus_ids, p3_budget, llm, language=language)
     p3_tc = _count(p3_text, llm)
     p3_tokens = p3_tc.count
     used += p3_tokens
@@ -472,7 +442,7 @@ def assemble_context(
 
     # === P2：最近章节 ===
     p2_budget = max(0, budget - used - guarantee)
-    p2_text = build_recent_chapter_layer(state, chapter_repo, au_path, p2_budget, llm)
+    p2_text = build_recent_chapter_layer(state, chapter_repo, au_path, p2_budget, llm, language=language)
     p2_tc = _count(p2_text, llm)
     p2_tokens = p2_tc.count
     if p2_tokens > p2_budget and p2_budget > 0:
@@ -498,7 +468,7 @@ def assemble_context(
     # === P5：核心设定（用剩余 budget，含低保） ===
     p5_budget = max(guarantee, budget - used)
     p5_text, p5_injected, p5_truncated = build_core_settings_layer(
-        project, character_files, p5_budget, llm
+        project, character_files, p5_budget, llm, language=language
     )
     p5_tc = _count(p5_text, llm)
     p5_tokens = p5_tc.count
