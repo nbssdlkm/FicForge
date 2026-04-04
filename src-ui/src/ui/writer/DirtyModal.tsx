@@ -111,7 +111,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
     <Modal isOpen={isOpen} onClose={isResolving ? () => {} : onClose} title={t('dirty.title')}>
       <div className="space-y-6 mt-2">
         <div className="p-4 bg-warning/10 text-warning text-sm rounded-lg border border-warning/20 leading-relaxed font-sans">
-          <strong>{t('dirty.warningTitle')}：</strong> {t('dirty.warningDescription')}
+          <strong>{t('dirty.warningTitle')}{t('common.labelColon')}</strong> {t('dirty.warningDescription')}
         </div>
 
         {error && (

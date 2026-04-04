@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Sidebar } from '../shared/Sidebar';
 import { Button } from '../shared/Button';
 import { EmptyState } from '../shared/EmptyState';
@@ -33,6 +33,10 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [loadingChapters, setLoadingChapters] = useState(false);
+
+  const refreshChapters = useCallback(() => {
+    listChapters(auPath).then(setChapters).catch(() => {});
+  }, [auPath]);
 
   const auName = auPath.split('/').pop() || t('common.unknownAu');
   const { shouldShow, dismiss } = useMilestoneGuide();
@@ -220,7 +224,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
             transition={{ duration: 0.18, ease: "easeOut" }}
             className="flex-1 flex w-full h-full overflow-hidden"
           >
-            {activeTab === 'writer' && <WriterLayout auPath={auPath} onNavigate={onNavigate} viewChapter={viewingChapter} onClearViewChapter={() => setViewingChapter(null)} />}
+            {activeTab === 'writer' && <WriterLayout auPath={auPath} onNavigate={onNavigate} viewChapter={viewingChapter} onClearViewChapter={() => setViewingChapter(null)} onChaptersChanged={refreshChapters} />}
             {activeTab === 'facts' && <FactsLayout auPath={auPath} />}
             {activeTab === 'au_lore' && <AuLoreLayout auPath={auPath} />}
             {activeTab === 'settings' && <AuSettingsLayout auPath={auPath} />}

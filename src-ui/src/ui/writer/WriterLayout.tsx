@@ -295,7 +295,7 @@ function getCandidateKey(candidate: ExtractedFactCandidate, index: number): stri
   return `${candidate.content_clean}-${candidate.chapter}-${index}`;
 }
 
-export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapter }: { auPath: string, onNavigate: (page: string) => void, viewChapter?: number | null, onClearViewChapter?: () => void }) => {
+export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapter, onChaptersChanged }: { auPath: string, onNavigate: (page: string) => void, viewChapter?: number | null, onClearViewChapter?: () => void, onChaptersChanged?: () => void }) => {
   const { t } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
   const instructionInputRef = useRef<HTMLInputElement | null>(null);
@@ -664,6 +664,14 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
   const handleGenerate = useCallback(async (request: GenerateRequestState) => {
     if (isGenerating || !state) return;
+
+    const effectiveLlm = projectInfo?.llm?.mode ? projectInfo.llm : settingsInfo?.default_llm;
+    const llmMode = effectiveLlm?.mode || 'api';
+    if (llmMode === 'api' && !effectiveLlm?.api_key) {
+      showError(null, t('error_messages.no_api_key'));
+      return;
+    }
+
     const requestAuPath = auPath;
 
     setIsGenerating(true);
@@ -844,6 +852,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       setFinalizeConfirmOpen(false);
       setLastConfirmedChapter(confirmedChapter);
       await loadData();
+      onChaptersChanged?.();
 
       if (skipFactsPrompt) {
         showSuccess(t('drafts.finalizeSuccess', { chapter: confirmedChapter }));
@@ -871,6 +880,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       clearDraftState();
       showSuccess(t('writer.undoSuccess'));
       await loadData();
+      onChaptersChanged?.();
     } catch (error) {
       if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
