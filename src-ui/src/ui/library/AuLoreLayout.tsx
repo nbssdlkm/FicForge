@@ -697,7 +697,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
             <>
               <div className="flex items-center gap-3">
                 <span className="font-mono text-sm font-semibold opacity-70">{selectedFile}.md</span>
-                <span className="rounded-full bg-info/10 px-2 py-1 text-xs text-info">{t('auLore.selectedTag')}</span>
+                <span className="rounded-full bg-info/10 px-2 py-1 text-xs text-info">{selectedCategory === 'worldbuilding' ? t('auLore.selectedTagWorldbuilding') : t('auLore.selectedTag')}</span>
                 {coreIncludes.includes(selectedFile) && (
                   <span className="rounded-full bg-accent/10 px-2 py-1 text-xs text-accent flex items-center gap-1">
                     <Pin size={10} fill="currentColor" /> {t('coreIncludes.pinned')}

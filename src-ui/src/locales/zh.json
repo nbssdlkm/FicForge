@@ -455,8 +455,11 @@
     },
     "emptyCoreIncludes": "还没有设置必带角色。",
     "emptyCastRegistry": "现在还没有登记任何角色。",
+    "removeCastCharacter": "从出场角色列表中移除",
+    "removeCastFail": "移除角色失败",
     "createCoreIncludeTitle": "添加必带角色",
     "createCoreIncludePlaceholder": "输入角色名",
+    "coreIncludeNoAvailable": "没有可添加的角色（所有角色已在必带列表中，或尚未创建角色）",
     "coreIncludeMissing": "角色「{{name}}」不在登记名册中，请先在角色页创建"
   },
   "facts": {
@@ -579,6 +582,7 @@
     "importEmpty": "原作资料里还没有可导入的角色。",
     "importSuccess": "已导入 {{count}} 个角色设定。",
     "selectedTag": "本篇角色",
+    "selectedTagWorldbuilding": "本篇世界观",
     "deleteTitle": "确认删除设定文件",
     "deleteMessage": "确定要删除「{{name}}」吗？文件将移入垃圾箱，30 天内可恢复。",
     "createDuplicate": "「{{name}}」已经存在，先换个名字再创建。",
@@ -777,7 +781,9 @@
     "recalcDesc": "检查角色出场和剧情状态",
     "recalcSuccess": "已重新整理：扫描了 {{scanned}} 章，清理了 {{dirty}} 个脏标记",
     "rebuildIndex": "重建索引",
-    "rebuildIndexDesc": "重新处理所有设定文件（即将上线）",
+    "rebuildIndexDesc": "重新处理所有设定文件",
+    "rebuildIndexSuccess": "索引重建已启动",
+    "rebuildIndexFail": "索引重建失败",
     "advancedHint": "这些操作仅在外部修改了文件或状态异常时需要使用。"
   },
   "embedding": {

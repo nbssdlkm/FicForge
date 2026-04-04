@@ -455,8 +455,11 @@
     },
     "emptyCoreIncludes": "No pinned characters set.",
     "emptyCastRegistry": "No characters registered yet.",
+    "removeCastCharacter": "Remove from cast list",
+    "removeCastFail": "Failed to remove character",
     "createCoreIncludeTitle": "Add Pinned Character",
     "createCoreIncludePlaceholder": "Enter character name",
+    "coreIncludeNoAvailable": "No characters available to add (all are already pinned, or no characters created yet)",
     "coreIncludeMissing": "Character \"{{name}}\" is not in the roster. Please create them first."
   },
   "facts": {
@@ -579,6 +582,7 @@
     "importEmpty": "No canon characters available for import.",
     "importSuccess": "Imported {{count}} character profile(s).",
     "selectedTag": "AU Character",
+    "selectedTagWorldbuilding": "AU Worldbuilding",
     "deleteTitle": "Delete Lore File",
     "deleteMessage": "Delete \"{{name}}\"? It will be moved to trash and can be recovered within 30 days.",
     "createDuplicate": "\"{{name}}\" already exists. Please choose a different name.",
@@ -777,7 +781,9 @@
     "recalcDesc": "Check character appearances and plot state",
     "recalcSuccess": "Re-processed: scanned {{scanned}} chapters, cleared {{dirty}} dirty flags",
     "rebuildIndex": "Rebuild Index",
-    "rebuildIndexDesc": "Reprocess all lore files (coming soon)",
+    "rebuildIndexDesc": "Reprocess all lore files",
+    "rebuildIndexSuccess": "Index rebuild started",
+    "rebuildIndexFail": "Index rebuild failed",
     "advancedHint": "These actions are only needed when files were modified externally or state is inconsistent."
   },
   "embedding": {
