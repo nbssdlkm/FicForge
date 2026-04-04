@@ -4,6 +4,11 @@
     "none": "None",
     "unknownAu": "Untitled AU",
     "unknownFandom": "Untitled Fandom",
+    "listSeparator": ", ",
+    "labelColon": ": ",
+    "listComma": ", ",
+    "parenOpen": "(",
+    "parenClose": ")",
     "actions": {
       "save": "Save",
       "cancel": "Cancel",
@@ -181,6 +186,9 @@
     "freeWrite": "Free Write",
     "memoryPanel": "AI Memory Overview",
     "memoryPanelHint": "Token allocation shown after first generation",
+    "readingPrefs": "Reading Preferences",
+    "fontSize": "Font Size",
+    "lineHeight": "Line Height",
     "memoryLayer": {
       "pinned": "Writing Rules",
       "context": "Reference Material",
@@ -687,7 +695,14 @@
       "original": "Origin: Original Character"
     }
   },
+  "contextMenu": {
+    "cut": "Cut",
+    "copy": "Copy",
+    "paste": "Paste",
+    "selectAll": "Select All"
+  },
   "error_messages": {
+    "no_api_key": "Please configure your API key in Global Settings first",
     "invalid_api_key": "API key validation failed. Please check your key.",
     "rate_limited": "Too many requests. Please wait {{retry_after}} seconds.",
     "insufficient_balance": "API quota exhausted. Please top up with your provider.",

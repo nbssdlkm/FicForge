@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useTranslation } from '../../i18n/useAppTranslation';
 
 interface MenuState {
   x: number;
@@ -13,6 +14,7 @@ interface MenuState {
 }
 
 export function ContextMenuProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const [menu, setMenu] = useState<MenuState | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -106,11 +108,11 @@ export function ContextMenuProvider({ children }: { children: React.ReactNode })
           style={{ left: menu.x, top: menu.y }}
           onMouseDown={e => e.preventDefault()}
         >
-          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/80" onClick={handleCut}>剪切</button>
-          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/80" onClick={handleCopy}>复制</button>
-          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/80" onClick={handlePaste}>粘贴</button>
+          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/80" onClick={handleCut}>{t('contextMenu.cut')}</button>
+          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/80" onClick={handleCopy}>{t('contextMenu.copy')}</button>
+          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/80" onClick={handlePaste}>{t('contextMenu.paste')}</button>
           <div className="h-px bg-black/10 dark:bg-white/10 my-1" />
-          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/80" onClick={handleSelectAll}>全选</button>
+          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/80" onClick={handleSelectAll}>{t('contextMenu.selectAll')}</button>
         </div>
       )}
     </>

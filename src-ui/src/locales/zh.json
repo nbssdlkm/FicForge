@@ -4,6 +4,11 @@
     "none": "无",
     "unknownAu": "未命名 AU",
     "unknownFandom": "未命名原作",
+    "listSeparator": "、",
+    "labelColon": "：",
+    "listComma": "，",
+    "parenOpen": "（",
+    "parenClose": "）",
     "actions": {
       "save": "保存",
       "cancel": "取消",
@@ -690,7 +695,14 @@
       "original": "来源：原创角色"
     }
   },
+  "contextMenu": {
+    "cut": "剪切",
+    "copy": "复制",
+    "paste": "粘贴",
+    "selectAll": "全选"
+  },
   "error_messages": {
+    "no_api_key": "请先在全局设置中配置 API 密钥",
     "invalid_api_key": "密钥验证失败，请检查你的 Key 是否正确",
     "rate_limited": "请求太频繁了，等 {{retry_after}} 秒后再试",
     "insufficient_balance": "API 额度用完了，请去服务商充值",
