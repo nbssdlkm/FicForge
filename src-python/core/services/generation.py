@@ -152,6 +152,7 @@ def generate_chapter(
                     getattr(settings, "default_llm", None), "context_window", 0
                 ) or 128000)
                 budget_for_rag = max(0, context_window // 4)
+                _language = getattr(getattr(settings, "app", None), "language", "zh") or "zh"
                 rag_text, _rag_tokens = retrieve_rag(
                     vector_repo=vector_repo,
                     au_id=str(au_path),
@@ -161,6 +162,7 @@ def generate_chapter(
                     llm_config=llm_config,
                     rag_decay_coefficient=getattr(project, "rag_decay_coefficient", 0.05),
                     current_chapter=state.current_chapter,
+                    language=_language,
                 )
                 if not rag_text:
                     rag_text = None
@@ -169,11 +171,13 @@ def generate_chapter(
                 _log.getLogger(__name__).warning("RAG retrieval failed, continuing without", exc_info=True)
 
         # === 步骤 2：组装上下文 ===
+        _language = getattr(getattr(settings, "app", None), "language", "zh") or "zh"
         ctx = assemble_context(
             project, state, user_input, facts,
             chapter_repo, au_path,
             rag_results=rag_text,
             character_files=character_files,
+            language=_language,
         )
         messages = ctx["messages"]
         max_tokens: int = ctx["max_tokens"]
