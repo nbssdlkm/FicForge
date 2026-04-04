@@ -52,6 +52,14 @@ async def settings_chat(request: SettingsChatRequest) -> Any:
         from core.domain.settings_tools import get_tools_for_mode
         from core.services.settings_chat import build_settings_context, call_settings_llm
 
+        # 0. 读取语言偏好
+        from api import build_settings_repository
+        try:
+            _settings = build_settings_repository().get()
+            _language = getattr(getattr(_settings, "app", None), "language", "zh") or "zh"
+        except Exception:
+            _language = "zh"
+
         # 1. 组装上下文
         assembled = await run_in_threadpool(
             build_settings_context,
@@ -59,6 +67,7 @@ async def settings_chat(request: SettingsChatRequest) -> Any:
             request.base_path,
             request.fandom_path,
             request.messages,
+            _language,
         )
 
         # 2. 获取 tool 集合
