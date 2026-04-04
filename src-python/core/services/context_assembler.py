@@ -82,7 +82,8 @@ def build_system_prompt(
 
     # --- 通用规则 ---
     chapter_length = getattr(project, "chapter_length", 1500)
-    parts.append(P.GENERIC_RULES.format(chapter_length=chapter_length))
+    chapter_length_max = int(chapter_length * 1.3)
+    parts.append(P.GENERIC_RULES.format(chapter_length=chapter_length, chapter_length_max=chapter_length_max))
 
     # --- custom_instructions ---
     if not trim_custom:
@@ -102,6 +103,7 @@ def build_instruction(
     user_input: str,
     facts: list[Fact],
     language: str = "zh",
+    chapter_length: int = 0,
 ) -> str:
     """构建 P1 当前指令层。"""
     P = get_prompts(language)
@@ -149,6 +151,10 @@ def build_instruction(
 
     # 用户输入
     parts.append(P.CONTINUE_WRITING.format(user_input=user_input))
+
+    # 字数提醒（在 P1 末尾重复，提高遵守率）
+    if chapter_length:
+        parts.append(P.WORD_COUNT_REMINDER.format(chapter_length=chapter_length))
 
     return "\n\n".join(parts)
 
@@ -310,54 +316,74 @@ def build_core_settings_layer(
     budget_tokens: int,
     llm_config: Any,
     language: str = "zh",
-) -> tuple[str, list[str], list[str]]:
+    worldbuilding_files: Optional[dict[str, str]] = None,
+) -> tuple[str, list[str], list[str], list[str]]:
     """构建 P5 核心设定层。
 
     core_guarantee_budget 低保机制：为 core_always_include 预留 400 token。
 
     Returns:
-        (text, injected_names, truncated_names)
+        (text, injected_character_names, truncated_character_names, injected_worldbuilding_names)
     """
-    if not character_files:
-        return "", [], []
+    if not character_files and not worldbuilding_files:
+        return "", [], [], []
 
     core_names = set(getattr(project, "core_always_include", []) or [])
     guarantee = getattr(project, "core_guarantee_budget", 400)
 
-    parts: list[str] = []
+    char_parts: list[str] = []
     injected: list[str] = []
     truncated: list[str] = []
     used = 0
 
-    # 先注入 core_always_include 角色（低保保护）
-    for name in sorted(core_names):
-        if name in character_files:
-            text = character_files[name]
+    if character_files:
+        # 先注入 core_always_include 角色（低保保护）
+        for name in sorted(core_names):
+            if name in character_files:
+                text = character_files[name]
+                t = _count(text, llm_config).count
+                if used + t <= max(budget_tokens, guarantee):
+                    char_parts.append(f"### {name}\n{text}")
+                    used += t
+                    injected.append(name)
+                else:
+                    truncated.append(name)
+
+        # 再注入其他角色（用剩余 budget）
+        for name, text in character_files.items():
+            if name in core_names:
+                continue
             t = _count(text, llm_config).count
-            if used + t <= max(budget_tokens, guarantee):
-                parts.append(f"### {name}\n{text}")
+            if used + t <= budget_tokens:
+                char_parts.append(f"### {name}\n{text}")
                 used += t
                 injected.append(name)
             else:
                 truncated.append(name)
 
-    # 再注入其他角色（用剩余 budget）
-    for name, text in character_files.items():
-        if name in core_names:
-            continue
-        t = _count(text, llm_config).count
-        if used + t <= budget_tokens:
-            parts.append(f"### {name}\n{text}")
-            used += t
-            injected.append(name)
-        else:
-            truncated.append(name)
+    # 世界观注入（用剩余 budget）
+    wb_parts: list[str] = []
+    wb_injected: list[str] = []
+    if worldbuilding_files:
+        for name, text in worldbuilding_files.items():
+            t = _count(text, llm_config).count
+            if used + t <= budget_tokens:
+                wb_parts.append(f"### {name}\n{text}")
+                used += t
+                wb_injected.append(name)
+            # 世界观超预算则静默跳过（不报 truncated，优先级低于角色）
 
-    if not parts:
-        return "", injected, truncated
-
+    all_parts: list[str] = []
     P = get_prompts(language)
-    return P.SECTION_CHARACTERS + "\n" + "\n\n".join(parts), injected, truncated
+    if char_parts:
+        all_parts.append(P.SECTION_CHARACTERS + "\n" + "\n\n".join(char_parts))
+    if wb_parts:
+        all_parts.append(P.SECTION_WORLDBUILDING + "\n" + "\n\n".join(wb_parts))
+
+    if not all_parts:
+        return "", injected, truncated, wb_injected
+
+    return "\n\n".join(all_parts), injected, truncated, wb_injected
 
 
 # ===========================================================================
@@ -373,6 +399,7 @@ def assemble_context(
     au_path: Path,
     rag_results: Optional[str] = None,
     character_files: Optional[dict[str, str]] = None,
+    worldbuilding_files: Optional[dict[str, str]] = None,
     language: str = "zh",
 ) -> dict[str, Any]:
     """上下文组装器主函数（PRD §4.1）。
@@ -409,9 +436,13 @@ def assemble_context(
 
     # --- max_tokens ---
     model_name = getattr(llm, "model", "") if llm else ""
+    chapter_length = getattr(project, "chapter_length", 1500)
+    # 安全网：chapter_length 的 2 倍作为硬上限（主要靠 prompt 约束，这里防极端情况）
+    chapter_token_cap = int(chapter_length * 2) if chapter_length else None
     max_tokens = min(
         get_model_max_output(model_name),
         int(context_window * 0.40),
+        *([chapter_token_cap] if chapter_token_cap else []),
     )
     report.max_output_tokens = max_tokens
 
@@ -423,7 +454,7 @@ def assemble_context(
 
     # === P1：当前指令（必须完整保留）===
     focus_ids = list(getattr(state, "chapter_focus", []) or [])
-    p1_text = build_instruction(state, user_input, facts, language=language)
+    p1_text = build_instruction(state, user_input, facts, language=language, chapter_length=chapter_length)
     p1_tc = _count(p1_text, llm)
     p1_tokens = p1_tc.count
     used += p1_tokens
@@ -467,8 +498,9 @@ def assemble_context(
 
     # === P5：核心设定（用剩余 budget，含低保） ===
     p5_budget = max(guarantee, budget - used)
-    p5_text, p5_injected, p5_truncated = build_core_settings_layer(
-        project, character_files, p5_budget, llm, language=language
+    p5_text, p5_injected, p5_truncated, p5_wb_injected = build_core_settings_layer(
+        project, character_files, p5_budget, llm, language=language,
+        worldbuilding_files=worldbuilding_files,
     )
     p5_tc = _count(p5_text, llm)
     p5_tokens = p5_tc.count
@@ -510,8 +542,7 @@ def assemble_context(
         # P5 角色注入/截断
         summary.characters_used = p5_injected
         summary.truncated_characters = p5_truncated
-        # worldbuilding_used: 当前组装流程中无世界观文件名可收集（P5 只注入角色，
-        # RAG 未对接到生成流程）。保持空数组，待后续单独立项实现完整世界观注入。
+        summary.worldbuilding_used = p5_wb_injected
 
         # 汇总
         summary.total_input_tokens = system_tokens + used

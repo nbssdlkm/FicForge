@@ -38,6 +38,8 @@ REQUIRED_KEYS = [
 
     # === context_assembler.py: build_core_settings_layer ===
     "SECTION_CHARACTERS",
+    "SECTION_WORLDBUILDING",
+    "WORD_COUNT_REMINDER",
 
     # === rag_retrieval.py ===
     "RAG_LABEL_CHARACTERS",

@@ -55,7 +55,7 @@ GENERIC_RULES = (
     "# General Rules\n"
     "Do not include chapter numbers or any structural markup outside the narrative.\n"
     "All background information should emerge naturally through character behavior, thoughts, and dialogue.\n"
-    "Target word count for this chapter: approximately {chapter_length} words."
+    "Target word count: {chapter_length} words. Hard limit: {chapter_length_max} words. Wrap up the current scene when approaching the target."
 )
 
 CUSTOM_INSTRUCTIONS_HEADER = "# Custom Style Instructions\n{custom}"
@@ -129,6 +129,10 @@ SECTION_LAST_ENDING_TRUNCATED = "## Previous Chapter Ending\n(earlier text omitt
 
 SECTION_CHARACTERS = "## Character Profiles"
 
+SECTION_WORLDBUILDING = "## Worldbuilding"
+
+WORD_COUNT_REMINDER = "[IMPORTANT] This chapter MUST stay under {chapter_length} words. Wrap up the scene immediately when approaching this limit. Better to write less than exceed."
+
 
 # ===========================================================================
 # rag_retrieval.py
@@ -152,7 +156,7 @@ You are a professional fanfiction lore analysis assistant. Extract key plot fact
 injured→healed), merge the entire process into one result-state fact describing the final outcome \
 and key process. Do not split intermediate steps into separate facts.
 
-2. Quantity control: Extract only 3-5 most important fact changes per chapter, never exceed 5. Prioritize:
+2. Quantity control [HIGHEST PRIORITY]: Extract only 3-5 core plot turning points per chapter, strictly never exceed 5. Prefer omitting over padding. Prioritize:
    - Events where character relationships materially change
    - Events that plant foreshadowing or suspense (mark as unresolved)
    - Key actions and decisions
@@ -202,7 +206,7 @@ merge into one result-state fact. Do not split intermediate steps.
 2. Cross-chapter events: If an event spans multiple chapters (e.g. starts Ch.3, ends Ch.5), \
 extract one result-state fact only in the ending chapter.
 
-3. Quantity control: 3-5 most important facts per chapter, never exceed 5. Ignore pure emotional/atmospheric descriptions.
+3. Quantity control [HIGHEST PRIORITY]: 3-5 core plot turning points per chapter, strictly never exceed 5. Prefer omitting over padding. Ignore pure emotional/atmospheric descriptions.
 
 4. Only extract facts that still hold true at chapter end.
 
@@ -243,7 +247,7 @@ You are FicForge's lore management assistant. The user is configuring AU "{au_na
 
 Your responsibilities:
 1. Understand the user's lore requirements described in natural language
-2. Return specific action suggestions via tool calling
+2. Return specific action suggestions via tool calling (if the user describes multiple operations at once, you MUST return multiple tool_calls in a single response — do not process them one by one)
 3. Explain your suggestions to the user in natural language
 
 Available tools (you do NOT execute them directly — the user must confirm first):
@@ -281,7 +285,7 @@ You are FicForge's Fandom lore management assistant. The user is organizing the 
 This is where the user stores their personality analysis and understanding of canon characters, \
 serving as reference material for all AU creations.
 
-You can suggest:
+You can suggest (if the user describes multiple operations at once, you MUST return multiple tool_calls in a single response — do not process them one by one):
 - Creating/modifying core character DNA files (core_characters/)
 - Creating/modifying worldbuilding notes (worldbuilding/)
 

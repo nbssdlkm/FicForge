@@ -18,6 +18,8 @@ import {
   RefreshCw,
   Trash2,
   Sparkles,
+  ChevronsDown,
+  ChevronsUp,
 } from 'lucide-react';
 import { ExportModal } from './ExportModal';
 import { DirtyModal } from './DirtyModal';
@@ -41,6 +43,7 @@ type ContextLayer = {
   key: string;
   label: string;
   percent: number;
+  tokens: number;
   color: string;
 };
 
@@ -323,6 +326,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const [focusSelection, setFocusSelection] = useState<string[]>([]);
   const [isUndoConfirmOpen, setUndoConfirmOpen] = useState(false);
   const [dirtyBannerDismissed, setDirtyBannerDismissed] = useState(false);
+  const [footerCollapsed, setFooterCollapsed] = useState(false);
 
   const [drafts, setDrafts] = useState<DraftItem[]>([]);
   const [activeDraftIndex, setActiveDraftIndex] = useState(0);
@@ -665,7 +669,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const handleGenerate = useCallback(async (request: GenerateRequestState) => {
     if (isGenerating || !state) return;
 
-    const effectiveLlm = projectInfo?.llm?.mode ? projectInfo.llm : settingsInfo?.default_llm;
+    const projectLlmUsable = projectInfo?.llm?.mode && (projectInfo.llm.mode !== 'api' || projectInfo.llm.api_key);
+    const effectiveLlm = projectLlmUsable ? projectInfo!.llm : settingsInfo?.default_llm;
     const llmMode = effectiveLlm?.mode || 'api';
     if (llmMode === 'api' && !effectiveLlm?.api_key) {
       showError(null, t('error_messages.no_api_key'));
@@ -1117,18 +1122,15 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const isLastDraft = activeDraftIndex >= drafts.length - 1;
   const isFirstDraft = activeDraftIndex === 0;
 
-  const _pct = (tokens: number | undefined) => budgetReport && tokens ? Math.max(1, Math.round((tokens / (budgetReport.total_input_tokens || 1)) * 100)) : 0;
+  const _layerSum = budgetReport ? (budgetReport.system_tokens || 0) + (budgetReport.p1_tokens || 0) + (budgetReport.p2_tokens || 0) + (budgetReport.p3_tokens || 0) + (budgetReport.p4_tokens || 0) + (budgetReport.p5_tokens || 0) : 1;
+  const _pct = (tokens: number | undefined) => budgetReport && tokens ? Math.max(1, Math.round((tokens / (_layerSum || 1)) * 100)) : 0;
   const contextLayers: ContextLayer[] = budgetReport ? [
-    { key: 'pinned', label: t('writer.memoryLayer.pinned'), percent: _pct(budgetReport.system_tokens), color: 'bg-error/70' },
-    ...(_pct(budgetReport.p2_tokens) > 0 ? [{ key: 'recent', label: t('writer.memoryLayer.recentChapter'), percent: _pct(budgetReport.p2_tokens), color: 'bg-info/70' }] : []),
-    ...(_pct(budgetReport.p3_tokens) > 0 ? [{ key: 'facts', label: t('writer.memoryLayer.facts'), percent: _pct(budgetReport.p3_tokens), color: 'bg-accent/70' }] : []),
-    ...(budgetReport.p4_tokens > 0 ? [{ key: 'rag', label: t('writer.memoryLayer.rag'), percent: _pct(budgetReport.p4_tokens), color: 'bg-success/70' }] : []),
-    ...(budgetReport.p5_tokens > 0 ? [{ key: 'settings', label: t('writer.memoryLayer.characterSettings'), percent: _pct(budgetReport.p5_tokens), color: 'bg-warning/70' }] : []),
-  ] : [
-    { key: 'pinned', label: t('writer.memoryLayer.pinned'), percent: 10, color: 'bg-error/70' },
-    { key: 'recent', label: t('writer.memoryLayer.recentChapter'), percent: 35, color: 'bg-info/70' },
-    { key: 'facts', label: t('writer.memoryLayer.facts'), percent: 20, color: 'bg-accent/70' },
-  ];
+    { key: 'pinned', label: t('writer.memoryLayer.pinned'), percent: _pct(budgetReport.system_tokens), tokens: budgetReport.system_tokens || 0, color: 'bg-error/70' },
+    ...((budgetReport.p2_tokens || 0) > 0 ? [{ key: 'recent', label: t('writer.memoryLayer.recentChapter'), percent: _pct(budgetReport.p2_tokens), tokens: budgetReport.p2_tokens || 0, color: 'bg-info/70' }] : []),
+    ...((budgetReport.p3_tokens || 0) > 0 ? [{ key: 'facts', label: t('writer.memoryLayer.facts'), percent: _pct(budgetReport.p3_tokens), tokens: budgetReport.p3_tokens || 0, color: 'bg-accent/70' }] : []),
+    ...((budgetReport.p4_tokens || 0) > 0 ? [{ key: 'rag', label: t('writer.memoryLayer.rag'), percent: _pct(budgetReport.p4_tokens), tokens: budgetReport.p4_tokens || 0, color: 'bg-success/70' }] : []),
+    ...((budgetReport.p5_tokens || 0) > 0 ? [{ key: 'settings', label: t('writer.memoryLayer.characterSettings'), percent: _pct(budgetReport.p5_tokens), tokens: budgetReport.p5_tokens || 0, color: 'bg-warning/70' }] : []),
+  ] : [];
 
   return (
     <>
@@ -1172,18 +1174,20 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
           </div>
           <div className="flex items-center gap-2">
             {mode === 'write' && isGenerating && <Tag variant="warning" className="mr-2">{t('common.status.generating')}</Tag>}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 text-warning"
-              onClick={() => {
-                showToast(t('writer.dirtyOpenHint'), 'info');
-                setDirtyOpen(true);
-              }}
-              title={t('writer.dirtyButtonTitle')}
-            >
-              <AlertCircle size={16} />
-            </Button>
+            {(state?.chapters_dirty || []).length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-warning"
+                onClick={() => {
+                  showToast(t('writer.dirtyOpenHint'), 'info');
+                  setDirtyOpen(true);
+                }}
+                title={t('writer.dirtyButtonTitle')}
+              >
+                <AlertCircle size={16} />
+              </Button>
+            )}
             <Button variant="ghost" size="sm" className="h-8" onClick={() => setExportOpen(true)} title={t('writer.exportButtonTitle')}>
               <FileUp size={16} />
             </Button>
@@ -1192,7 +1196,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         </header>
 
         <div className={mode === 'write' ? 'flex flex-1 flex-col min-h-0' : 'hidden'}>
-          <div className="flex-1 overflow-y-auto w-full flex justify-center pb-32">
+          <div className="flex-1 overflow-y-auto w-full flex justify-center pb-52">
             <div className="w-full max-w-3xl px-8 py-10 space-y-6">
               {isViewingHistory && (
                 <div className="rounded-xl border border-info/30 bg-info/10 px-4 py-3 text-sm text-info flex items-center justify-between">
@@ -1214,22 +1218,23 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                     <Loader2 className="animate-spin text-accent" size={24} />
                   </div>
                 ) : streamText ? (
-                  <div className="text-lg font-serif leading-loose text-text/90 animate-in fade-in duration-200">
+                  <div className="font-serif text-text/90 animate-in fade-in duration-200 pb-8">
                     {streamText.split('\n').filter(Boolean).map((para: string, i: number) => (
                       <p key={i} className="mb-6 indent-8 opacity-90">{para}</p>
                     ))}
                     {isGenerating && <span className="inline-block h-5 w-0.5 bg-accent align-middle animate-pulse" />}
                   </div>
                 ) : currentDraft ? (
-                  <div className="space-y-4">
+                  <div className="space-y-4 pb-8">
                     <Textarea
                       value={currentDraft.content}
                       onChange={(event) => handleCurrentDraftChange(event.target.value)}
-                      className="min-h-[440px] border-0 bg-transparent px-0 py-0 font-serif text-lg leading-loose shadow-none focus:ring-0"
+                      className="min-h-[440px] border-0 bg-transparent px-0 py-0 font-serif shadow-none focus:ring-0"
+                      style={{ fontSize: 'inherit', lineHeight: 'inherit' }}
                     />
                   </div>
                 ) : displayContent ? (
-                  <div className="text-lg font-serif leading-loose text-text/90">
+                  <div className="font-serif text-text/90 pb-8">
                     {displayContent.split('\n').filter(Boolean).map((para: string, i: number) => (
                       <p key={i} className="mb-6 indent-8">{para}</p>
                     ))}
@@ -1263,117 +1268,141 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
             </div>
           </div>
 
-          <footer className="absolute bottom-0 w-full shrink-0 border-t border-black/10 dark:border-white/10 bg-surface/50 p-4 backdrop-blur-md flex flex-col gap-3">
-            {hasPendingDrafts && currentDraft && (
-              <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 rounded-xl border border-black/10 bg-background/60 px-4 py-3 dark:border-white/10">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex items-center gap-2 text-sm font-sans text-text/75">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={() => setActiveDraftIndex((current) => Math.max(0, current - 1))}
-                      disabled={isFirstDraft || writeActionsDisabled}
-                      aria-label={t('drafts.previous')}
-                    >
-                      <ChevronLeft size={16} />
-                    </Button>
-                    <span className="min-w-[140px] text-center font-medium">
-                      {t('drafts.count', { current: activeDraftIndex + 1, total: drafts.length })}
-                      {currentDraft.modified ? <span className="ml-1 text-text/55">{t('drafts.modified')}</span> : null}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={() => setActiveDraftIndex((current) => Math.min(drafts.length - 1, current + 1))}
-                      disabled={isLastDraft || writeActionsDisabled}
-                      aria-label={t('drafts.next')}
-                    >
-                      <ChevronRight size={16} />
-                    </Button>
-                  </div>
+          <footer className="absolute bottom-0 w-full shrink-0 border-t border-black/10 dark:border-white/10 bg-surface/50 backdrop-blur-md flex flex-col">
+            {/* Collapse toggle */}
+            <button
+              className="mx-auto flex items-center gap-1 px-4 py-1 text-[10px] text-text/40 hover:text-text/60 transition-colors"
+              onClick={() => setFooterCollapsed(prev => !prev)}
+            >
+              {footerCollapsed ? <ChevronsUp size={12} /> : <ChevronsDown size={12} />}
+              {footerCollapsed ? t('writer.expandToolbar') : t('writer.collapseToolbar')}
+            </button>
 
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <Button variant="primary" size="sm" className="h-8 gap-1" onClick={() => setFinalizeConfirmOpen(true)} disabled={writeActionsDisabled}>
-                      <Check size={15} /> {t('drafts.finalize')}
-                    </Button>
-                    <Button variant="secondary" size="sm" className="h-8 gap-1" onClick={() => void handleRegenerate()} disabled={writeActionsDisabled}>
-                      {isGenerating ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
-                      {t('drafts.regenerate')}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 gap-1 text-error/80 hover:bg-error/10 hover:text-error"
-                      onClick={() => setDiscardConfirmOpen(true)}
-                      disabled={isGenerating || isDiscarding || isSettingsModeBusy}
-                    >
-                      <Trash2 size={15} />
-                      {drafts.length > 1 ? t('drafts.discardAll') : t('drafts.discard')}
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2 text-xs text-text/50 lg:flex-row lg:items-center lg:justify-between">
-                  <span>{currentDraftMeta || t('writer.metaDurationUnknown')}</span>
-                  {drafts.length > MAX_RECOMMENDED_DRAFTS && (
-                    <span>{t('drafts.tooMany', { count: drafts.length })}</span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div className="mx-auto w-full max-w-3xl">
-              <input
-                ref={instructionInputRef}
-                type="text"
-                placeholder={t('writer.inputPlaceholder')}
-                value={instructionText}
-                onChange={(event) => setInstructionText(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter' || writeActionsDisabled) return;
-
-                  if (hasPendingDrafts) {
-                    showToast(t('drafts.generatingBlocked'), 'warning');
-                    return;
-                  }
-
-                  void handleGenerateFromInput(instructionText.trim() ? 'instruction' : 'continue');
-                }}
-                disabled={writeActionsDisabled}
-                className="h-9 w-full rounded-lg border border-black/10 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent/50 dark:border-white/10"
-              />
-            </div>
-
-            <div className="mx-auto mt-2 flex w-full max-w-3xl items-center justify-between border-t border-black/5 pt-2 dark:border-white/5">
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => setUndoConfirmOpen(true)} disabled={currentChapter <= 1 || writeActionsDisabled}>
-                  <Undo2 size={16} className="mr-2" /> {t('common.actions.undoPreviousChapter')}
-                </Button>
-                <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => onNavigate('facts')}>
-                  <BookOpen size={16} className="mr-1" /> {t('writer.factsShortcut')}
-                </Button>
-              </div>
-              <div className="flex gap-3">
-                <Button
-                  variant="secondary"
-                  className="w-32 shadow-medium"
-                  onClick={() => void handleGenerateFromInput('instruction')}
-                  disabled={writeActionsDisabled || hasPendingDrafts || !instructionText.trim()}
-                >
-                  {t('common.actions.instruction')}
-                </Button>
+            {footerCollapsed ? (
+              /* Collapsed: minimal bar with just 续写 button */
+              <div className="flex items-center justify-center gap-3 pb-2">
                 <Button
                   variant="primary"
-                  className="w-32 shadow-medium"
-                  onClick={() => void handleGenerateFromInput('continue')}
+                  size="sm"
+                  className="shadow-medium"
+                  onClick={() => { setFooterCollapsed(false); void handleGenerateFromInput(instructionText.trim() ? 'instruction' : 'continue'); }}
                   disabled={writeActionsDisabled || hasPendingDrafts}
                 >
                   {isGenerating ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.continue')}
                 </Button>
+                {hasPendingDrafts && (
+                  <Button variant="primary" size="sm" onClick={() => { setFooterCollapsed(false); setFinalizeConfirmOpen(true); }} disabled={writeActionsDisabled}>
+                    <Check size={15} /> {t('drafts.finalize')}
+                  </Button>
+                )}
               </div>
-            </div>
+            ) : (
+              /* Expanded: full toolbar */
+              <div className="p-4 flex flex-col gap-3">
+                {hasPendingDrafts && currentDraft && (
+                  <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 rounded-xl border border-black/10 bg-background/60 px-4 py-3 dark:border-white/10">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="flex items-center gap-2 text-sm font-sans text-text/75">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={() => setActiveDraftIndex((current) => Math.max(0, current - 1))}
+                          disabled={isFirstDraft || writeActionsDisabled}
+                          aria-label={t('drafts.previous')}
+                        >
+                          <ChevronLeft size={16} />
+                        </Button>
+                        <span className="min-w-[140px] text-center font-medium">
+                          {t('drafts.count', { current: activeDraftIndex + 1, total: drafts.length })}
+                          {currentDraft.modified ? <span className="ml-1 text-text/55">{t('drafts.modified')}</span> : null}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={() => setActiveDraftIndex((current) => Math.min(drafts.length - 1, current + 1))}
+                          disabled={isLastDraft || writeActionsDisabled}
+                          aria-label={t('drafts.next')}
+                        >
+                          <ChevronRight size={16} />
+                        </Button>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <Button variant="primary" size="sm" className="h-8 gap-1" onClick={() => setFinalizeConfirmOpen(true)} disabled={writeActionsDisabled}>
+                          <Check size={15} /> {t('drafts.finalize')}
+                        </Button>
+                        <Button variant="secondary" size="sm" className="h-8 gap-1" onClick={() => void handleRegenerate()} disabled={writeActionsDisabled}>
+                          {isGenerating ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+                          {t('drafts.regenerate')}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 gap-1 text-error/80 hover:bg-error/10 hover:text-error"
+                          onClick={() => setDiscardConfirmOpen(true)}
+                          disabled={isGenerating || isDiscarding || isSettingsModeBusy}
+                        >
+                          <Trash2 size={15} />
+                          {drafts.length > 1 ? t('drafts.discardAll') : t('drafts.discard')}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2 text-xs text-text/50 lg:flex-row lg:items-center lg:justify-between">
+                      <span>{currentDraftMeta || t('writer.metaDurationUnknown')}</span>
+                      {drafts.length > MAX_RECOMMENDED_DRAFTS && (
+                        <span>{t('drafts.tooMany', { count: drafts.length })}</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mx-auto w-full max-w-3xl">
+                  <input
+                    ref={instructionInputRef}
+                    type="text"
+                    placeholder={t('writer.inputPlaceholder')}
+                    value={instructionText}
+                    onChange={(event) => setInstructionText(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' || writeActionsDisabled) return;
+
+                      if (hasPendingDrafts) {
+                        showToast(t('drafts.generatingBlocked'), 'warning');
+                        return;
+                      }
+
+                      void handleGenerateFromInput(instructionText.trim() ? 'instruction' : 'continue');
+                    }}
+                    disabled={writeActionsDisabled}
+                    className="h-9 w-full rounded-lg border border-black/10 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent/50 dark:border-white/10"
+                  />
+                </div>
+
+                <div className="mx-auto mt-2 flex w-full max-w-3xl items-center justify-between border-t border-black/5 pt-2 dark:border-white/5">
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => setUndoConfirmOpen(true)} disabled={currentChapter <= 1 || writeActionsDisabled}>
+                      <Undo2 size={16} className="mr-2" /> {t('common.actions.undoPreviousChapter')}
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => onNavigate('facts')}>
+                      <BookOpen size={16} className="mr-1" /> {t('writer.factsShortcut')}
+                    </Button>
+                  </div>
+                  <div className="flex gap-3">
+                    <Button
+                      variant="primary"
+                      className="w-32 shadow-medium"
+                      onClick={() => void handleGenerateFromInput(instructionText.trim() ? 'instruction' : 'continue')}
+                      disabled={writeActionsDisabled || hasPendingDrafts}
+                    >
+                      {isGenerating ? <Loader2 size={16} className="animate-spin" /> : (instructionText.trim() ? t('common.actions.instruction') : t('common.actions.continue'))}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </footer>
         </div>
 
@@ -1446,20 +1475,26 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
               <section>
                 <h3 className="text-xs font-sans font-medium mb-1 text-text/70 tracking-wide uppercase">{t('writer.memoryPanel')}</h3>
-                {!budgetReport && <p className="text-[10px] text-text/35 mb-2">{t('writer.memoryPanelHint')}</p>}
-                <div className="space-y-3">
-                  {contextLayers.map((item) => (
-                    <div key={item.key} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-text/70">{item.label}</span>
-                        <span className="text-text/50 font-mono">{item.percent}%</span>
+                {!budgetReport ? (
+                  <p className="text-[10px] text-text/35">{t('writer.memoryPanelHint')}</p>
+                ) : (
+                  <div className="space-y-3">
+                    {contextLayers.map((item) => (
+                      <div key={item.key} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-text/70">{item.label}</span>
+                          <span className="text-text/50 font-mono">{item.tokens} tok</span>
+                        </div>
+                        <div className="h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden flex">
+                          <div className={`${item.color} h-full rounded-full`} style={{ width: `${Math.min(item.percent, 100)}%` }} />
+                        </div>
                       </div>
-                      <div className="h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden flex">
-                        <div className={`${item.color} h-full`} style={{ width: `${item.percent}%` }} />
-                      </div>
+                    ))}
+                    <div className="text-[10px] text-text/35 mt-1">
+                      {t('writer.memoryTotal', { tokens: _layerSum })}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
               </section>
             </>
           ) : (
