@@ -1,0 +1,884 @@
+{
+  "common": {
+    "appName": "FicForge",
+    "none": "None",
+    "unknownAu": "Untitled AU",
+    "unknownFandom": "Untitled Fandom",
+    "actions": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "create": "Create",
+      "confirm": "Confirm",
+      "delete": "Delete",
+      "close": "Close",
+      "dismiss": "Dismiss",
+      "back": "Back",
+      "continue": "Continue",
+      "instruction": "Instruction",
+      "regenerate": "Regenerate",
+      "discardDraft": "Discard Draft",
+      "finalize": "✅ Finalize",
+      "undoPreviousChapter": "↩️ Undo Last Chapter",
+      "saveToGlobal": "Save to Global",
+      "saveToStory": "Save to This Story",
+      "viewGlobalSettings": "View Global Settings",
+      "testConnection": "Test Connection",
+      "createFandom": "+ Create Fandom",
+      "createAu": "+ Create AU",
+      "importOldWork": "📥 Import Existing Work",
+      "importFromFandom": "📥 Import from Canon",
+      "importSelected": "Import Selected Characters",
+      "importAll": "Import All",
+      "addCharacter": "+ Add Character",
+      "addWorldbuilding": "+ Add Worldbuilding",
+      "addPinnedRule": "Add a Writing Rule",
+      "manualFact": "+ Add Manually",
+      "extractFacts": "✨ Extract from Chapters",
+      "newNote": "+ Add Point",
+      "startWriting": "✍️ Start Writing",
+      "deleteFile": "Delete File",
+      "confirmDelete": "Confirm Delete",
+      "saveGlobalSettings": "Save Global Settings",
+      "addFile": "Add File",
+      "editSettings": "Story Settings",
+      "backToNotes": "Back to Plot Points"
+    },
+    "status": {
+      "loading": "Loading…",
+      "saving": "Saving…",
+      "generating": "Generating…",
+      "testing": "Testing…",
+      "extracting": "Extracting…",
+      "exporting": "Exporting…"
+    },
+    "labels": {
+      "model": "Model",
+      "localModelPath": "Local Model Path",
+      "ollamaModel": "Ollama Model Name",
+      "apiBase": "API Endpoint",
+      "apiKey": "API Key",
+      "contextWindow": "Context Window Size",
+      "searchEngineModel": "Search Engine Model (embedding)",
+      "searchMode": "Connection Mode",
+      "displayName": "Display Name",
+      "aliases": "Aliases",
+      "contentRaw": "Original Excerpt",
+      "contentClean": "AI Reference Text",
+      "characters": "Characters",
+      "worldbuilding": "Worldbuilding",
+      "storyTime": "Story Time",
+      "chapterLength": "Target Words per Chapter",
+      "perspective": "Perspective",
+      "emotionStyle": "Emotion Style",
+      "customInstructions": "Style Notes",
+      "writingStyle": "Writing Style",
+      "pinnedContext": "Writing Rules",
+      "coreAlwaysInclude": "Pinned Characters",
+      "factStatus": "Status",
+      "factType": "Type",
+      "importance": "Character Importance",
+      "narrativeWeight": "Importance",
+      "currentDraft": "Draft {{label}}"
+    },
+    "help": {
+      "searchEngineModel": "This model helps the AI find relevant lore for your current scene. Changing models requires reprocessing all lore files, which takes a few minutes.",
+      "contextWindow": "The maximum amount of text the AI can reference per generation. Larger values mean more context and lore. Most models support 128k (~100k words). Usually no need to change.",
+      "apiBase": "The endpoint URL from your AI provider, e.g. https://api.deepseek.com for DeepSeek.",
+      "apiKey": "Get this from your AI provider's website. It's like a password that verifies your identity.",
+      "localModelPath": "Enter the directory where your local model files are stored.",
+      "ollamaModel": "Enter the name of a model you've already pulled in Ollama, e.g. llama3.",
+      "llmMode": {
+        "api": "Online API: Easiest — just enter your key",
+        "local": "Local Model: Offline, requires downloading model files",
+        "ollama": "Ollama: Connect directly if you already use Ollama"
+      },
+      "chapterLength": "Controls the target word count for each generation.",
+      "pinnedContext": "Writing Rules are constraints the AI must never violate — like character relationships, secrets, or personality limits.",
+      "coreAlwaysInclude": "These characters will always be referenced during generation.",
+      "currentChapterFocus": "Set a plot point as this chapter's focus and the AI will prioritize advancing it."
+    },
+    "search": {
+      "files": "Search files or aliases…",
+      "characters": "Search lore or character names…",
+      "facts": "Search plot points or characters…"
+    },
+    "scope": {
+      "fandomTitle": "Fandom: {{name}}",
+      "auTitle": "AU: {{name}}"
+    }
+  },
+  "shared": {
+    "sidebar": {
+      "expand": "Expand Sidebar",
+      "collapse": "Collapse Sidebar"
+    },
+    "theme": {
+      "toggle": "Toggle Theme"
+    },
+    "feedback": {
+      "errorTitle": "Something went wrong",
+      "actionsTitle": "You can try:",
+      "acknowledge": "Got it"
+    }
+  },
+  "navigation": {
+    "library": "Library",
+    "fandomLore": "Canon Lore",
+    "auLore": "AU Lore",
+    "facts": "Plot Points",
+    "settings": "Story Settings",
+    "writer": "Chapters & Drafts",
+    "workspace": "AU Workspace"
+  },
+  "library": {
+    "title": "Library",
+    "loading": "Loading library…",
+    "fandomButton": "New Fandom",
+    "fandomSectionButton": "Canon Lore",
+    "createAuButton": "New AU",
+    "importOldWorkHint": "The import flow isn't connected to this entry yet. You can create a Fandom or AU first and continue from there.",
+    "deleteFandomTitle": "Delete Fandom",
+    "deleteAuTitle": "Delete AU",
+    "deleteFandomMessage": "Delete fandom \"{{name}}\" and all its AU data? It will be moved to trash and can be recovered within 30 days.",
+    "deleteAuMessage": "Delete AU \"{{name}}\" and all its chapters and lore? It will be moved to trash and can be recovered within 30 days.",
+    "emptyAuList": "No AUs under this fandom yet.",
+    "cardType": "AU",
+    "createFandomModal": {
+      "title": "New Fandom",
+      "description": "Enter the fandom name to set up canon reference material for your fics.",
+      "namePlaceholder": "Fandom name (e.g. Detroit: Become Human)",
+      "notesPlaceholder": "Optional: paste canon info, wiki links, or your own notes.",
+      "submit": "Create Fandom"
+    },
+    "createAuModal": {
+      "title": "New AU",
+      "description": "Name this AU. Plot points and lore will be stored here.",
+      "namePlaceholder": "AU name (e.g. Space Royalty)",
+      "inheritLabel": "Parent Fandom",
+      "initLabel": "Starting Configuration",
+      "initGlobal": "Use current default settings",
+      "initCustom": "Customize settings later",
+      "submit": "Start This Timeline"
+    },
+    "importFlow": {
+      "title": "Import Existing Work",
+      "description": "Importing will create a Fandom and AU for you, then bring in your chapters. Let's start by creating a Fandom.",
+      "start": "Create Fandom First"
+    }
+  },
+  "workspace": {
+    "subtitle": "AU Workspace",
+    "chaptersTitle": "Chapters",
+    "chapterItem": "Chapter {{num}}"
+  },
+  "writer": {
+    "contentLoadFailed": "Failed to load chapter content",
+    "emptyContent": "Enter an instruction, or just hit Continue to start writing.",
+    "inputPlaceholder": "Enter an instruction (e.g. have them apologize), or leave blank to continue…",
+    "factsShortcut": "Plot Points",
+    "focusTitle": "Chapter Focus",
+    "focusHint": "Pick an unresolved plot point to focus on this chapter — it will be prioritized in the AI's context",
+    "freeWrite": "Free Write",
+    "memoryPanel": "AI Memory Overview",
+    "memoryPanelHint": "Token allocation shown after first generation",
+    "memoryLayer": {
+      "pinned": "Writing Rules",
+      "context": "Reference Material",
+      "recentChapter": "Recent Chapters",
+      "facts": "Plot Points",
+      "rag": "RAG Retrieval",
+      "characterSettings": "Character Profiles"
+    },
+    "draftLabel": "Draft {{label}}",
+    "draftReady": "Draft {{label}}",
+    "metaWords": "{{count}} words",
+    "metaDurationUnknown": "Not recorded",
+    "dirtyButtonTitle": "Check manual edits",
+    "exportButtonTitle": "Export this story",
+    "draftDiscarded": "Draft discarded.",
+    "generateErrorFallback": "Generation failed. Please try again.",
+    "checkSettings": "Check Settings",
+    "viewingHistory": "Read-only",
+    "backToCurrentChapter": "Back to Current Chapter",
+    "confirmSuccess": "This chapter has been finalized.",
+    "undoSuccess": "Last chapter has been undone.",
+    "focusSaved": "Chapter focus updated.",
+    "dirtyOpenHint": "If you manually edited a chapter, you can re-process plot points here.",
+    "saveGlobalSuccess": "These parameters have been saved to global settings.",
+    "saveAuSuccess": "These parameters have been saved to this story's settings.",
+    "modeWrite": "✍️ Write",
+    "modeSettings": "📋 Edit Lore"
+  },
+  "settingsMode": {
+    "tabWrite": "✍️ Write",
+    "tabSettings": "📋 Edit Lore",
+    "placeholder": "Describe the lore changes you want…",
+    "fandomPlaceholder": "Paste your character analysis, or describe characters and worldbuilding to add…",
+    "send": "Send",
+    "firstTimeTooltip": "Here you can describe lore changes in natural language. The AI will help create and modify characters, worldbuilding, plot points, and more. All changes need your confirmation before taking effect.",
+    "confirmAll": "✅ Confirm All",
+    "skipAll": "⏭️ Skip All",
+    "confirm": "✅ Confirm",
+    "editAndConfirm": "✏️ Edit & Confirm",
+    "skip": "⏭️ Skip",
+    "undo": "↩️ Undo",
+    "executed": "✅ Done",
+    "failed": "❌ Failed",
+    "skipped": "⏭️ Skipped",
+    "undone": "↩️ Undone",
+    "undoNotSupported": "Modifications can't be auto-undone. Please edit manually to revert.",
+    "executedWithTarget": "✅ Done · {{target}}",
+    "expandContent": "Expand",
+    "collapseContent": "Collapse",
+    "largeTextDetected": "Large text detected. How should it be handled?",
+    "importAsCharacter": "📄 Import as Character Profile",
+    "importAsWorldbuilding": "🌍 Import as Worldbuilding",
+    "sendAsInstruction": "💬 Send as Instruction",
+    "actionInProgress": "An action is in progress. Please wait.",
+    "fandomAiTitle": "🤖 AI Assistant",
+    "userLabel": "You",
+    "assistantLabel": "AI",
+    "emptyAssistant": "I'll organize your lore changes into confirmable actions.",
+    "emptyTitle": "Edit Lore mode is ready",
+    "emptyDescription": "Describe the character profiles, worldbuilding, plot points, or writing rules you want to change. The AI will prepare a list of changes for your review.",
+    "fandomEmptyTitle": "AI Assistant is ready",
+    "fandomEmptyDescription": "Paste character analyses or worldbuilding notes. The AI will organize them into canon lore files.",
+    "parseErrorTitle": "Failed to parse parameters",
+    "parseError": "This tool call's parameters couldn't be parsed. You can skip it, or wait for the model to return a complete response.",
+    "showRawArguments": "Show Raw Arguments",
+    "sideTitle": "Edit Lore",
+    "sideDescription": "This uses your story's model config but won't touch chapter drafts. Confirmed changes update lore files and plot points immediately.",
+    "historyPreviousTools": "AI's previous suggestions:\n{{tools}}",
+    "historyProcessedTools": "Processed actions:\n{{tools}}",
+    "toolActionBusy": "An action is in progress. Please wait.",
+    "busyWriteBlocked": "Lore edits in progress. Please wait before switching back to Write.",
+    "statusSummary": {
+      "executed": "Done: {{name}}",
+      "skipped": "Skipped: {{name}}",
+      "undone": "Undone: {{name}}"
+    },
+    "field": {
+      "origin": "Origin"
+    },
+    "prompt": {
+      "largeTextCharacter": "The following is a large block of user text. Please organize it into a character profile, preserving as much original content as possible.",
+      "largeTextWorldbuilding": "The following is a large block of user text. Please organize it into a worldbuilding file, preserving as much original content as possible."
+    },
+    "warning": {
+      "existingFile": "⚠️ {{name}} already exists. Please rename it, or modify the existing file instead.",
+      "duplicatePinned": "⚠️ A similar writing rule already exists. Please double-check before confirming.",
+      "coreIncludesPartialMissing": "These characters don't exist and were skipped: {{names}}"
+    },
+    "error": {
+      "unsupportedTool": "This tool isn't supported in the frontend yet: {{name}}",
+      "missingFactId": "Missing fact_id. Cannot modify this plot point.",
+      "pinnedUndoNotFound": "This writing rule's position has changed. Auto-undo isn't available.",
+      "createCharacterRollbackFailed": "Character file {{name}} was created, but updating the character list failed and rollback also failed. Please check the character files or trash before continuing.",
+      "supportDataUnavailable": "Lore data hasn't finished loading yet. Please try again in a moment.",
+      "projectUnavailable": "Story settings haven't finished loading yet. Please try again in a moment.",
+      "coreIncludesMissingAll": "None of the specified characters exist. Cannot save pinned characters."
+    },
+    "validation": {
+      "nameRequired": "Name is required.",
+      "filenameRequired": "Filename is required.",
+      "contentRequired": "Content is required.",
+      "factIdRequired": "Plot point ID is required.",
+      "factChangesRequired": "At least one change is required.",
+      "factContentRequired": "Plot point content is required.",
+      "factTypeRequired": "Please select a plot point type.",
+      "factTypeInvalid": "Invalid plot point type.",
+      "factStatusRequired": "Please select a plot point status.",
+      "factStatusInvalid": "Invalid plot point status.",
+      "narrativeWeightRequired": "Please select a narrative weight.",
+      "narrativeWeightInvalid": "Invalid narrative weight.",
+      "importanceInvalid": "Invalid character importance.",
+      "pinnedContentRequired": "Writing rule content is required.",
+      "styleFieldRequired": "Please select a style field to modify.",
+      "styleValueRequired": "New value is required.",
+      "styleFieldInvalid": "Invalid style field.",
+      "stylePerspectiveInvalid": "Invalid perspective setting.",
+      "styleEmotionInvalid": "Invalid emotion style setting.",
+      "coreIncludesRequired": "Please provide a list of pinned characters.",
+      "coreIncludesAllMissing": "None of the specified characters exist. Cannot save.",
+      "targetFileMissing": "File not found: {{name}}. Please check the filename."
+    },
+    "editor": {
+      "originRef": "Origin Tag",
+      "content": "Content",
+      "filename": "Filename",
+      "changeSummary": "Change Summary",
+      "factId": "Plot Point ID",
+      "styleField": "Which field to change",
+      "styleValue": "New value",
+      "noCharacters": "No characters available yet. Create a character profile first.",
+      "unsupportedTool": "Editing raw arguments for this tool ({{mode}}).",
+      "rawArguments": "Raw Arguments (JSON)",
+      "charactersPlaceholder": "Separate character names with commas"
+    },
+    "card": {
+      "createCharacter": "📝 Create Character: {{name}}",
+      "modifyCharacter": "✏️ Modify Character: {{filename}}",
+      "createWorldbuilding": "🌍 Create Worldbuilding: {{name}}",
+      "modifyWorldbuilding": "✏️ Modify Worldbuilding: {{filename}}",
+      "addFact": "📌 Add Plot Point",
+      "modifyFact": "✏️ Modify Plot Point: {{factId}}",
+      "addPinned": "🚧 Add Writing Rule",
+      "updateStyle": "🎨 Update Writing Style",
+      "updateCoreIncludes": "📌 Update Pinned Characters",
+      "createCoreCharacter": "📝 Create Character Analysis: {{name}}",
+      "modifyCoreCharacter": "✏️ Modify Character Analysis: {{filename}}",
+      "createFandomWorldbuilding": "🌍 Create Worldbuilding Note: {{name}}",
+      "modifyFandomWorldbuilding": "✏️ Modify Worldbuilding Note: {{filename}}"
+    }
+  },
+  "drafts": {
+    "count": "Draft {{current}}/{{total}}",
+    "modified": "(modified)",
+    "finalize": "✅ Finalize",
+    "regenerate": "🔄 Regenerate",
+    "discard": "🗑️ Discard",
+    "discardAll": "🗑️ Discard All",
+    "tooMany": "You have {{count}} drafts — consider finalizing one",
+    "confirmFinalize": "Finalize Chapter {{chapter}}?",
+    "finalizeSuccess": "Chapter {{chapter}} finalized!",
+    "factsPrompt": "Want to log some plot points? The AI can extract them from this chapter:",
+    "factsExtract": "✨ Let AI Extract",
+    "factsManual": "Add Manually",
+    "factsSkip": "Skip, continue writing →",
+    "factsNeverAsk": "Don't ask again after finalizing",
+    "confirmDiscard": "Discard this draft?",
+    "confirmDiscardAll": "Discard all {{count}} drafts?",
+    "recoveryNotice": "Unfinished drafts detected. Please handle them first:",
+    "generatingBlocked": "Unhandled drafts exist. Please finalize or discard them first.",
+    "previous": "Previous",
+    "next": "Next",
+    "discardSuccess": "Draft discarded.",
+    "discardAllSuccess": "All drafts for this chapter have been discarded.",
+    "extractSaveSelected": "Save Selected"
+  },
+  "contextSummary": {
+    "prefix": "📎 Referenced:",
+    "noContext": "📎 No lore referenced this time",
+    "characters": "{{count}} character profile(s)",
+    "charactersList": "{{names}}",
+    "charactersMore": "{{names}} and {{count}} more",
+    "worldbuilding": "{{count}} worldbuilding file(s)",
+    "worldbuildingList": "{{names}}",
+    "worldbuildingMore": "{{names}} and more",
+    "facts": "{{count}} plot point(s)",
+    "pinned": "{{count}} writing rule(s)",
+    "rag": "{{count}} RAG match(es)",
+    "detailToggle": "Details",
+    "detailCollapse": "Collapse",
+    "detailTitle": "📎 AI referenced the following:",
+    "detailCharacters": "👤 Character Profiles ({{count}})",
+    "detailCharacterFull": "{{name}} (full injection)",
+    "detailWorldbuilding": "🌍 Worldbuilding ({{count}})",
+    "detailFacts": "📝 Plot Points ({{count}})",
+    "detailFactsFocus": "🔴 Chapter Focus: {{content}}",
+    "detailFactsRest": "{{count}} active",
+    "detailPinned": "🚧 Writing Rules ({{count}} active)",
+    "detailRag": "🔍 RAG Retrieval ({{count}} matches)",
+    "detailTruncated": "⚠️ Truncated Content",
+    "detailNoTruncation": "⚠️ Truncated Content: None",
+    "truncatedWarning": "⚠️ Some lore was truncated",
+    "truncatedCharacters": "{{names}}'s profiles were not injected (over capacity)",
+    "truncatedP5": "Some character profiles were truncated",
+    "truncatedP4": "Some retrieval results were skipped",
+    "truncatedP2": "Previous chapter recap was shortened",
+    "truncatedRest": "Also referenced: {{summary}}",
+    "adjustCoreIncludes": "Adjust Pinned Characters"
+  },
+  "settingsPanel": {
+    "title": "Generation Parameters",
+    "modelCustom": "custom-model (configure in settings)",
+    "temperature": "Creativity (temperature)",
+    "topP": "Sampling Range (top_p)"
+  },
+  "settings": {
+    "title": "Story Settings",
+    "headerTitle": "Story Settings",
+    "globalSettingsTitle": "Global Settings",
+    "sections": {
+      "llm": "Generation Model",
+      "writingStyle": "Writing Style",
+      "pinnedContext": "Writing Rules",
+      "coreIncludes": "Pinned Characters",
+      "castRegistry": "Character Roster",
+      "searchEngine": "Search Engine"
+    },
+    "global": {
+      "title": "Global Settings",
+      "description": "These are the default settings. All new stories will start with this configuration.",
+      "defaultModel": "Default Model",
+      "connectionSuccess": "Connection successful. Key is valid.",
+      "testFailedPrefix": "Connection failed: ",
+      "searchEngineDescription": "Finds the most relevant lore for your current scene.",
+      "noEmbeddingModel": "(not configured)",
+      "builtinEmbedding": "Using built-in bge-small-zh model. No configuration needed.",
+      "builtinEmbeddingLabel": "bge-small-zh (built-in)",
+      "useCustomEmbedding": "Use Custom Embedding API",
+      "embeddingModelPlaceholder": "Model name (e.g. text-embedding-3-small)",
+      "embeddingApiBasePlaceholder": "API endpoint (e.g. https://api.openai.com)",
+      "embeddingApiKeyPlaceholder": "API key",
+      "apiCredentialsDescription": "Used as fallback when a story doesn't have its own model settings.",
+      "apiModeLabel": "Connection Mode",
+      "languageLabel": "Language",
+      "languageDescription": "Change the app display language."
+    },
+    "story": {
+      "scopeLabel": "Current Story: {{name}}",
+      "inheritDescription": "Using global settings by default. Toggle the override below to use a different model or key for this story.",
+      "overrideToggleLabel": "Override model settings for this story",
+      "storyModel": "Story Model",
+      "searchMode": "Connection Mode",
+      "chapterLengthDescription": "Controls the target word count for each generation.",
+      "customInstructionsPlaceholder": "e.g. More environmental detail, shorter dialogue, convey emotions through actions.",
+      "pinnedDescription": "Writing rules are always prioritized during generation. Keep only the most critical ones.",
+      "coreIncludesDescription": "These characters are always referenced during generation — no need to wait for the AI to recall them.",
+      "castRegistryDescription": "Shows all characters registered in this story."
+    },
+    "emptyPinned": {
+      "title": "No Writing Rules Yet",
+      "description": "Writing rules are constraints the AI must never violate, such as:\n\"They haven't gotten together yet\"\n\"Character A doesn't know Character B's secret\""
+    },
+    "emptyCoreIncludes": "No pinned characters set.",
+    "emptyCastRegistry": "No characters registered yet.",
+    "createCoreIncludeTitle": "Add Pinned Character",
+    "createCoreIncludePlaceholder": "Enter character name",
+    "coreIncludeMissing": "Character \"{{name}}\" is not in the roster. Please create them first."
+  },
+  "facts": {
+    "title": "Plot Points",
+    "createButton": "Add Point",
+    "allTab": "All",
+    "editing": "Editing",
+    "cancelSelection": "Cancel",
+    "saved": "Saved",
+    "unselected": "No plot point selected",
+    "statusHintResolved": "Once marked Resolved, this point won't be prioritized in future generations.",
+    "weightHint": "Higher importance means the AI is more likely to reference this point.",
+    "cleanHint": "This is the text the AI actually references. Keep it concise and clear.",
+    "rawHint": "Your personal excerpt for reference. Doesn't need to be polished.",
+    "charactersHint": "Separate character names with commas for easy filtering.",
+    "emptySelectionTitle": "Select a plot point from the left to view and edit",
+    "emptySelectionDescription": "Plot points help the AI remember key events, foreshadowing, and relationships. The clearer they are, the more consistent the story stays.",
+    "noSearchResultTitle": "No matching plot points found",
+    "noSearchResultDescription": "Try different keywords, or add your first point.",
+    "filterTitle": "Filter Plot Points",
+    "statusHint": {
+      "unresolved": "Foreshadowing or unresolved thread. Can be set as chapter focus. Injected into AI context.",
+      "active": "Established fact. Always injected into AI context.",
+      "resolved": "Resolved thread. No longer injected into AI context.",
+      "deprecated": "Retired point. No longer injected into AI context."
+    },
+    "staleHint": "{{count}} point(s) haven't been referenced in 30+ chapters and may be outdated",
+    "staleView": "View",
+    "batchEnter": "Batch Select",
+    "batchExit": "Exit Batch",
+    "batchSelect": "Select All",
+    "batchSelected": "{{count}} selected",
+    "batchAction": "Batch Action",
+    "batchTo": {
+      "deprecated": "Mark as Deprecated",
+      "resolved": "Mark as Resolved",
+      "active": "Mark as Active",
+      "unresolved": "Mark as Unresolved"
+    },
+    "batchConfirmTitle": "Mark {{count}} point(s) as \"{{status}}\"?",
+    "batchDeprecatedDesc": "Deprecated points won't be referenced by the AI. You can find them under the Deprecated tab.",
+    "batchResolvedDesc": "Resolved points won't be actively pushed by the AI.",
+    "batchActiveDesc": "Active points will be referenced during generation.",
+    "batchUnresolvedDesc": "Unresolved points will be prioritized by the AI.",
+    "batchSuccess": "Marked {{count}} point(s) as \"{{status}}\"",
+    "extractRangeTitle": "Select Extraction Range",
+    "extractRangeDesc": "Choose which chapters to extract plot points from. More chapters = longer wait (~10-30 sec each).",
+    "extractFrom": "From chapter",
+    "extractTo": "to chapter",
+    "extractChapterCount": "{{count}} chapter(s)",
+    "extractStart": "Start Extraction",
+    "extractNoChapter": "No finalized chapters yet. Nothing to extract.",
+    "extractNoResult": "No new plot points extracted from this chapter.",
+    "extractReviewTitle": "Extraction Preview",
+    "extractReviewDescription": "Review what the AI extracted before saving to your plot points.",
+    "extractReviewEmpty": "No usable plot points were extracted.",
+    "extractSaveAll": "Save All",
+    "extractSaved": "Saved {{count}} plot point(s).",
+    "extractSourceChapter": "From Chapter {{chapter}}",
+    "createModal": {
+      "title": "Add Plot Point",
+      "rawPlaceholder": "e.g. In Chapter 3, Alex said \"I'm never coming back\" and left Jamie.",
+      "cleanPlaceholder": "e.g. Alex broke up with Jamie at the end of Chapter 3. Jamie doesn't know where Alex went.",
+      "typeLabel": "What kind of point is this?",
+      "weightLabel": "How important is it?",
+      "statusLabel": "Current status",
+      "submit": "Save Plot Point"
+    }
+  },
+  "fandomLore": {
+    "title": "Canon Lore",
+    "rootLabel": "Canon Reference Material",
+    "category": {
+      "characters": "Characters",
+      "worldbuilding": "Worldbuilding"
+    },
+    "selectedTagCharacter": "Canon Character",
+    "selectedTagWorldbuilding": "Worldbuilding",
+    "referenceHint": "Canon lore is for reference only — it won't be directly injected into any AU's generation.",
+    "saveButton": "Save Canon Lore",
+    "unselected": "Select an entry from the left to start editing.",
+    "createCharacterTitle": "New Character Profile",
+    "createWorldbuildingTitle": "New Worldbuilding Entry",
+    "characterPlaceholder": "Character name (e.g. Connor)",
+    "worldbuildingPlaceholder": "Entry name (e.g. Android Laws)",
+    "emptyCharacters": {
+      "title": "No Character Profiles Yet",
+      "description": "Add characters here. They'll be available as reference when setting up AU lore."
+    },
+    "emptyWorldbuilding": {
+      "title": "No Worldbuilding Entries Yet",
+      "description": "Record the canon world's rules here for easy reference when writing."
+    },
+    "deleteTitle": "Delete Lore Entry",
+    "deleteMessage": "Delete \"{{name}}\"? It will be moved to trash and can be recovered within 30 days.",
+    "createDuplicate": "\"{{name}}\" already exists. Please choose a different name.",
+    "pendingEditsPreserved": "The right panel has unsaved edits. Current changes have been preserved without auto-refreshing.",
+    "selectedFileRemoved": "The currently open entry was removed. The editor has been closed.",
+    "discardChangesTitle": "Discard unsaved changes?",
+    "discardChangesMessage": "The right panel has unsaved edits. Continuing will discard them.",
+    "discardChangesConfirm": "Discard & Continue"
+  },
+  "auLore": {
+    "title": "AU Lore",
+    "charactersLabel": "Characters",
+    "referenceHint": "These character profiles are prioritized during generation. The more detailed, the better the AI stays in character.",
+    "saveButton": "Save Lore",
+    "aliasesLabel": "Aliases:",
+    "aliasPlaceholder": "Type an alias and press Enter",
+    "unselected": "Select a character from the left to start editing.",
+    "createTitle": "New Character",
+    "createPlaceholder": "Character name (e.g. Alex Chen)",
+    "searchPlaceholder": "Search characters…",
+    "createDescription": "Add a character profile for this story.",
+    "importTitle": "Import from Canon",
+    "importDescription": "Select canon characters to bring into this story. Their profiles will be copied to AU lore.",
+    "importEmpty": "No canon characters available for import.",
+    "importSuccess": "Imported {{count}} character profile(s).",
+    "selectedTag": "AU Character",
+    "deleteTitle": "Delete Lore File",
+    "deleteMessage": "Delete \"{{name}}\"? It will be moved to trash and can be recovered within 30 days.",
+    "createDuplicate": "\"{{name}}\" already exists. Please choose a different name.",
+    "emptyCharacters": {
+      "title": "No Character Profiles Yet",
+      "description": "Add characters so the AI can reference their profiles during generation. No more OOC."
+    }
+  },
+  "dirty": {
+    "title": "Check Manual Edits",
+    "warningTitle": "Manual edits detected",
+    "warningDescription": "This chapter was manually edited. To keep future generations accurate, please review the affected plot points and decide whether to keep or deprecate them.",
+    "empty": "No plot points are linked to this chapter. You can re-process directly.",
+    "dirtyTag": "Needs Review",
+    "deprecateTag": "Will Deprecate",
+    "keep": "Keep",
+    "deprecate": "Deprecate",
+    "extractButton": "Extract new plot points from this edit",
+    "extractHint": "You can also add more plot points from the Plot Points page.",
+    "resolveButton": "🔄 Re-process",
+    "resolveSubtitle": "Check character appearances and plot state",
+    "banner": "{{count}} chapter(s) need updated character data (Chapter {{chapters}}). The AI may reference outdated info.",
+    "goResolve": "Fix Now",
+    "dismissBanner": "Later"
+  },
+  "export": {
+    "title": "Export This Story",
+    "formatLabel": "Export Format",
+    "markdown": "Markdown (.md)",
+    "text": "Plain Text (.txt)",
+    "description": "Export includes all finalized chapters. Drafts are not included.",
+    "writing": "Writing to local file…",
+    "submit": "Export"
+  },
+  "emptyState": {
+    "library": {
+      "title": "No Stories Yet",
+      "description": "Create your first Fandom to start writing"
+    },
+    "fandomCharacters": {
+      "title": "No Character Profiles Yet",
+      "description": "Add characters here. They'll be handy when setting up AU lore later."
+    },
+    "fandomWorldbuilding": {
+      "title": "No Worldbuilding Entries Yet",
+      "description": "Record canon world rules here for easier reference when writing."
+    },
+    "auCharacters": {
+      "title": "No Character Profiles Yet",
+      "description": "Add characters so the AI can reference their profiles during generation. No more OOC."
+    },
+    "auWorldbuilding": {
+      "title": "No Worldbuilding Entries Yet",
+      "description": "Add worldbuilding so the AI can maintain world consistency."
+    },
+    "facts": {
+      "title": "No Plot Points Yet",
+      "description": "Log key events and foreshadowing. The AI will reference them during generation. After a few chapters, try \"Extract\" to let the AI summarize automatically."
+    },
+    "pinned": {
+      "title": "No Writing Rules Yet",
+      "description": "Writing rules are constraints the AI must never violate, such as:\n\"They haven't gotten together yet\"\n\"Character A doesn't know Character B's secret\""
+    },
+    "chapters": {
+      "title": "No Chapters Yet",
+      "description": "Head to the writing page to start your first chapter"
+    },
+    "trash": {
+      "title": "Trash is Empty",
+      "description": "Deleted lore files are kept here for 30 days"
+    }
+  },
+  "enums": {
+    "importance": {
+      "high": "Main",
+      "medium": "Supporting",
+      "low": "Minor"
+    },
+    "fact_status": {
+      "unresolved": "Unresolved",
+      "active": "Active",
+      "resolved": "Resolved",
+      "deprecated": "Deprecated"
+    },
+    "fact_type": {
+      "plot_event": "Plot Event",
+      "character_detail": "Character Detail",
+      "relationship": "Relationship",
+      "worldbuilding": "Worldbuilding",
+      "world_rule": "World Rule",
+      "foreshadowing": "Foreshadowing",
+      "backstory": "Backstory"
+    },
+    "narrative_weight": {
+      "high": "★★★ Key",
+      "medium": "★★ Normal",
+      "low": "★ Minor"
+    },
+    "perspective": {
+      "third_person": "Third Person",
+      "first_person": "First Person"
+    },
+    "emotion_style": {
+      "implicit": "Show (actions & subtext)",
+      "explicit": "Tell (direct description)"
+    },
+    "llm_mode": {
+      "api": "Online API",
+      "local": "Local Model",
+      "ollama": "Ollama"
+    },
+    "index_status": {
+      "ready": "✅ Lore indexed",
+      "stale": "⚠️ Lore needs reprocessing",
+      "rebuilding": "🔄 Processing lore…",
+      "interrupted": "⚠️ Lore needs reprocessing"
+    },
+    "origin_ref": {
+      "fandom": "Origin: Canon {{name}}",
+      "original": "Origin: Original Character"
+    }
+  },
+  "error_messages": {
+    "invalid_api_key": "API key validation failed. Please check your key.",
+    "rate_limited": "Too many requests. Please wait {{retry_after}} seconds.",
+    "insufficient_balance": "API quota exhausted. Please top up with your provider.",
+    "timeout": "The AI took too long to respond. Try again?",
+    "context_length_exceeded": "Too much lore for the AI to process. Try reducing character profiles or shortening writing rules.",
+    "content_filtered": "The AI provider rejected this request (possibly content moderation). Try rephrasing?",
+    "connection_failed": "Can't reach the AI service. Check your network and API endpoint.",
+    "api_base_missing": "API endpoint not configured. Set it up in Story Settings.",
+    "unknown": "Something went wrong. Please retry or check settings.",
+    "fandom_already_exists": "A fandom with this name already exists",
+    "au_already_exists": "An AU with this name already exists"
+  },
+  "trash": {
+    "title": "Trash",
+    "count": "({{count}})",
+    "deletedAt": "Deleted {{time}}",
+    "expiresIn": "Auto-deleted in {{days}} days",
+    "expired": "Expired, pending cleanup",
+    "restore": "Restore",
+    "permanentDelete": "Delete Permanently",
+    "clearAll": "Empty Trash",
+    "confirmDelete": "Permanently delete \"{{name}}\"? This cannot be undone.",
+    "confirmClearAll": "Permanently delete all {{count}} items in trash? This cannot be undone.",
+    "restoreSuccess": "Restored: {{name}}",
+    "restoreConflict": "A file with the same name already exists. Please delete or rename it first.",
+    "deleteSuccess": "Permanently deleted",
+    "clearSuccess": "Trash emptied"
+  },
+  "coreIncludes": {
+    "pinned": "Pinned",
+    "setPin": "Pin Character",
+    "pinnedToast": "Character pinned",
+    "unpinnedToast": "Character unpinned",
+    "tooMany": "You have {{count}} pinned characters. We recommend no more than 3 — too many takes up AI memory.",
+    "hint": "Pinned characters' profiles are fully injected every generation, ensuring they stay in character. Recommended: 1-3 main characters only.",
+    "missingCoreLimit": "Consider adding a Core Constraints section",
+    "missingCoreLimitDesc": "Add a \"## Core Constraints\" section to this character's profile with 2-3 key personality rules. When AI memory is tight, at least these lines will be preserved.",
+    "goEdit": "Edit Now",
+    "later": "Later"
+  },
+  "app": {
+    "sidecar": {
+      "exited": "Backend engine exited: {{reason}}",
+      "timeout": "Backend engine startup timed out (30s). Please restart the app.",
+      "error": "Engine Error",
+      "restartHint": "Please restart the app, or check the log files.",
+      "initializing": "Initializing local engine…"
+    }
+  },
+  "focus": {
+    "continueLastChapter": "↩ Continue Last Chapter",
+    "maxTwo": "Maximum 2 focus points",
+    "lastFocusExpired": "Last chapter's focus has expired. Please re-select.",
+    "recommended": "Recommended"
+  },
+  "undo": {
+    "confirmTitle": "Undo Chapter {{chapter}}?",
+    "confirmDesc": "This will:\n· Delete the chapter text\n· Remove plot points extracted from it\n· Clear drafts for this and later chapters",
+    "irreversible": "This action cannot be undone.",
+    "confirmAction": "Confirm Undo",
+    "cancel": "Cancel"
+  },
+  "advanced": {
+    "title": "Advanced",
+    "recalc": "Re-process",
+    "recalcDesc": "Check character appearances and plot state",
+    "recalcSuccess": "Re-processed: scanned {{scanned}} chapters, cleared {{dirty}} dirty flags",
+    "rebuildIndex": "Rebuild Index",
+    "rebuildIndexDesc": "Reprocess all lore files (coming soon)",
+    "advancedHint": "These actions are only needed when files were modified externally or state is inconsistent."
+  },
+  "embedding": {
+    "staleTitle": "Search Engine Needs Update",
+    "staleDesc": "The lore index doesn't match the current search engine model. The AI may not retrieve lore correctly.",
+    "rebuild": "Rebuild Now",
+    "skipRebuild": "Skip, Continue Writing"
+  },
+  "import": {
+    "title": "Import Existing Work",
+    "supportedFormats": "Supported formats: .txt  .md  .docx",
+    "dropzone": "Drag and drop a file here, or click to browse",
+    "selectedFile": "Selected: {{name}} ({{size}})",
+    "uploading": "Analyzing file...",
+    "previewTitle": "Chapter Split Preview",
+    "chaptersDetected": "Detected {{count}} chapter(s) ({{method}} split)",
+    "splitMethods": {
+      "standard": "By \"Chapter X\" markers",
+      "integer": "By numbered headings",
+      "auto": "By word count (auto)"
+    },
+    "chapterPreview": "Chapter {{num}}",
+    "charCount": "({{count}} chars)",
+    "singleChapterWarning": "No chapter markers detected. The entire text will be imported as one chapter. Check the formatting if your work has chapters.",
+    "splitHint": "If the split looks wrong, check the chapter markers in your original file",
+    "confirmImport": "Confirm Import →",
+    "importing": "Importing...",
+    "completionTitle": "Import Complete!",
+    "stats": "Imported {{chapters}} chapter(s)",
+    "charactersFound": "Characters detected: {{names}}",
+    "factsPrompt": "We recommend extracting plot points to help the AI understand the current story state:",
+    "extractRecent5": "Extract from last 5 chapters (recommended)",
+    "extractRecent20": "Extract from last 20 chapters (for long works)",
+    "extractLater": "I'll do it manually later",
+    "extractProgress": "Extracting chapter {{current}}/{{total}}...",
+    "importNotUnderstand": "Import ≠ AI understands everything",
+    "importNotUnderstandDesc": "The AI can retrieve relevant content from past chapters, but precise foreshadowing requires manual plot points. Consider adding key early-story details.",
+    "startWriting": "Start Writing →",
+    "selectAu": "Select Target AU",
+    "selectAuDesc": "Choose an existing AU, or create a new one under a Fandom",
+    "noAu": "No AUs yet. Please create one first.",
+    "noFandom": "No Fandoms yet. Please create one first.",
+    "createAuFirst": "Create AU",
+    "createFandomFirst": "Create Fandom",
+    "newAuInFandom": "Create New AU in This Fandom",
+    "formatError": "Only .txt, .md, and .docx files are supported"
+  },
+  "milestones": {
+    "factsIntro": {
+      "title": "You've written 3 chapters! Try Plot Points",
+      "desc": "Log key events and foreshadowing. The AI will reference them automatically.",
+      "extract": "Check Plot Points",
+      "later": "Later"
+    },
+    "pinnedIntro": {
+      "title": "5 chapters in — any rules the AI must never break?",
+      "desc": "Like character relationships, secrets, or personality limits? Add them as Writing Rules.",
+      "addPinned": "Add Rules",
+      "notNeeded": "Not needed"
+    },
+    "focusIntro": {
+      "title": "You have an open thread: \"{{content}}\"",
+      "desc": "Set it as this chapter's focus and the AI will prioritize advancing it.",
+      "setFocus": "Set as Focus",
+      "freeStyle": "Free Write"
+    },
+    "pinIntro": {
+      "title": "You haven't pinned any characters yet",
+      "desc": "Pin your main characters so the AI always remembers their profiles.",
+      "goSet": "Set Up",
+      "later": "Later"
+    }
+  },
+  "onboarding": {
+    "welcome": {
+      "title": "FicForge",
+      "subtitle": "AI-powered fanfic writing. Every detail remembered. No more OOC.",
+      "start": "Get Started →"
+    },
+    "apiConfig": {
+      "title": "Connect Your AI Model",
+      "modeApi": "Online API (recommended)",
+      "modeLocal": "Local Model",
+      "modeOllama": "Ollama",
+      "apiBase": "API Endpoint",
+      "apiBaseHint": "The endpoint URL from your AI provider",
+      "apiKey": "API Key",
+      "apiKeyHint": "Get this from your AI provider's website",
+      "model": "Model",
+      "testConnection": "Test Connection",
+      "testing": "Testing...",
+      "testSuccess": "Connected! Model: {{model}}",
+      "testFailed": "Connection failed: {{message}}",
+      "localPath": "Model Directory Path",
+      "localPathHint": "Enter the folder path where your model files are stored",
+      "ollamaBase": "Ollama Server Address",
+      "ollamaModel": "Ollama Model Name",
+      "requireTest": "Please test the connection before continuing"
+    },
+    "createFandom": {
+      "title": "What fandom are you writing for?",
+      "nameLabel": "Fandom Name",
+      "namePlaceholder": "e.g. Genshin Impact, Jujutsu Kaisen, Detroit: Become Human…",
+      "skip": "Skip",
+      "whyFandom": "Why do I need a Fandom?",
+      "fandomExplain": "FicForge organizes your work in two layers: Fandom and AU.\n\nFandom = The source material (e.g. Detroit, Genshin)\nStore canon character analyses and world rules here.\n\nAU = Your specific story's setting (e.g. Space Royalty AU, Coffee Shop AU)\nStore this story's character profiles, worldbuilding, and plot points here.\n\nOne Fandom can have multiple AUs, sharing canon lore but keeping stories separate.\n\nDon't want layers? Just skip — you can set this up later."
+    },
+    "completion": {
+      "title": "All Set!",
+      "modelConnected": "AI model connected",
+      "fandomCreated": "\"{{name}}\" created",
+      "fandomSkipped": "Fandom setup skipped",
+      "nextSteps": "What's next:",
+      "nextCreateAu": "Create an AU to start writing",
+      "nextAddCharacters": "Add character analyses to Canon Lore",
+      "nextImport": "Import an existing novel to continue",
+      "enter": "Enter FicForge →"
+    },
+    "common": {
+      "step": "{{current}}/{{total}}",
+      "prev": "← Back",
+      "next": "Next →"
+    }
+  }
+}
