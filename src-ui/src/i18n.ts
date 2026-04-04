@@ -38,8 +38,8 @@ if (!i18n.isInitialized) {
 }
 
 /**
- * Switch UI language and persist the choice.
- * Also writes to the backend settings API so prompt language can follow.
+ * Switch UI language and persist the choice to localStorage.
+ * TODO: Task B — sync language to backend settings.yaml for prompt language selection.
  */
 export async function changeLanguage(lang: AppLanguage): Promise<void> {
   await i18n.changeLanguage(lang);
