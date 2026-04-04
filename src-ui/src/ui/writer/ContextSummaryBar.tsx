@@ -18,7 +18,7 @@ function stripMarkdownExtension(name: string): string {
 function buildCharacterSummary(summary: ContextSummary, t: TranslateFn): string | null {
   if (summary.characters_used.length === 0) return null;
 
-  const names = summary.characters_used.slice(0, 3).join('、');
+  const names = summary.characters_used.slice(0, 3).join(t('common.listSeparator'));
   if (summary.characters_used.length > 3) {
     return t('contextSummary.charactersMore', {
       names,
@@ -33,7 +33,7 @@ function buildWorldbuildingSummary(summary: ContextSummary, t: TranslateFn): str
   if (summary.worldbuilding_used.length === 0) return null;
 
   const names = summary.worldbuilding_used.map(stripMarkdownExtension);
-  const visible = names.slice(0, 2).join('、');
+  const visible = names.slice(0, 2).join(t('common.listSeparator'));
   if (names.length > 2) {
     return t('contextSummary.worldbuildingMore', { names: visible });
   }
@@ -56,7 +56,7 @@ function buildTruncatedMessages(summary: ContextSummary, t: TranslateFn): string
   if (summary.truncated_characters.length > 0) {
     messages.push(
       t('contextSummary.truncatedCharacters', {
-        names: summary.truncated_characters.join('、'),
+        names: summary.truncated_characters.join(t('common.listSeparator')),
       })
     );
   }
