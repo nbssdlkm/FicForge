@@ -163,8 +163,16 @@ if __name__ == "__main__":
     # 开发模式: sys.executable 是 python3，__file__ 指向 main.py
     if getattr(sys, "frozen", False):
         _app_dir = Path(sys.executable).resolve().parent
+        _internal = Path(sys._MEIPASS)  # type: ignore[attr-defined]
         # 生产模式：将 CWD 设为 sidecar 所在目录，确保 ./fandoms 等相对路径正确
         os.chdir(_app_dir)
+        # v0.1.2: 设置打包内的缓存路径
+        _tiktoken_cache = _internal / "tiktoken_cache"
+        if _tiktoken_cache.is_dir():
+            os.environ.setdefault("TIKTOKEN_CACHE_DIR", str(_tiktoken_cache))
+        _fastembed_cache = _internal / "fastembed_cache"
+        if _fastembed_cache.is_dir():
+            os.environ.setdefault("FASTEMBED_CACHE_PATH", str(_fastembed_cache))
     else:
         _app_dir = Path(__file__).resolve().parent
     _default_data = _app_dir / "fandoms"
