@@ -24,10 +24,11 @@ import {
 import { ExportModal } from './ExportModal';
 import { DirtyModal } from './DirtyModal';
 import { ContextSummaryBar } from './ContextSummaryBar';
+import { ChapterMarkdown } from '../shared/ChapterMarkdown';
 import { Sidebar } from '../shared/Sidebar';
 import { SettingsChatPanel } from '../shared/settings-chat/SettingsChatPanel';
 
-import { getChapterContent, confirmChapter, undoChapter } from '../../api/chapters';
+import { getChapterContent, confirmChapter, undoChapter, updateChapterContent } from '../../api/chapters';
 import { listDrafts, getDraft, deleteDrafts, type DraftDetail, type DraftGeneratedWith } from '../../api/drafts';
 import { getState, setChapterFocus, type StateInfo } from '../../api/state';
 import { listFacts, addFact, extractFacts, type ExtractedFactCandidate, type FactInfo } from '../../api/facts';
@@ -358,12 +359,23 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const [sessionTemp, setSessionTemp] = useState(1.0);
   const [sessionTopP, setSessionTopP] = useState(0.95);
 
+  // 编辑已确认章节（FIX-006）
+  const [editingConfirmed, setEditingConfirmed] = useState(false);
+  const [editingContent, setEditingContent] = useState('');
+  const [editingOriginalContent, setEditingOriginalContent] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
   // 阅读偏好（localStorage 持久化）
   const [fontSize, setFontSize] = useState(() => parseInt(localStorage.getItem('ficforge.fontSize') || '18', 10));
   const [lineHeight, setLineHeight] = useState(() => parseFloat(localStorage.getItem('ficforge.lineHeight') || '2.0'));
 
   // 查看历史章节
   useEffect(() => {
+    // 切换章节时重置编辑状态
+    setEditingConfirmed(false);
+    setEditingContent('');
+    setEditingOriginalContent('');
+
     if (!viewChapter || !state) return;
     // 如果点击的是当前正在写的章节，清除查看状态
     if (viewChapter >= state.current_chapter) {
@@ -926,6 +938,42 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     }
   };
 
+  // --- 编辑已确认章节（FIX-006）---
+  const handleStartEditConfirmed = () => {
+    if (!displayContent) return;
+    setEditingOriginalContent(displayContent);
+    setEditingContent(displayContent);
+    setEditingConfirmed(true);
+  };
+
+  const handleCancelEditConfirmed = () => {
+    setEditingConfirmed(false);
+    setEditingContent('');
+    setEditingOriginalContent('');
+  };
+
+  const handleSaveEditConfirmed = async () => {
+    if (!viewingHistoryNum || !state) return;
+    setSavingEdit(true);
+    try {
+      await updateChapterContent(auPath, viewingHistoryNum, editingContent);
+      // 刷新状态以反映 dirty 标记
+      const newState = await getState(auPath);
+      setState(newState);
+      // 刷新显示内容
+      setViewingHistoryContent(editingContent);
+      setEditingConfirmed(false);
+      setEditingContent('');
+      setEditingOriginalContent('');
+      setDirtyBannerDismissed(false);
+      showToast(t('writer.editSaveSuccess'), 'success');
+    } catch (error) {
+      showError(error, t('error_messages.unknown'));
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const handleFocusToggle = async (factId: string) => {
     const requestAuPath = auPath;
     let next: string[];
@@ -1218,10 +1266,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                     <Loader2 className="animate-spin text-accent" size={24} />
                   </div>
                 ) : streamText ? (
-                  <div className="font-serif text-text/90 animate-in fade-in duration-200 pb-8">
-                    {streamText.split('\n').filter(Boolean).map((para: string, i: number) => (
-                      <p key={i} className="mb-6 indent-8 opacity-90">{para}</p>
-                    ))}
+                  <div className="font-serif text-text/90 animate-in fade-in duration-200 pb-8 opacity-90">
+                    <ChapterMarkdown content={streamText} />
                     {isGenerating && <span className="inline-block h-5 w-0.5 bg-accent align-middle animate-pulse" />}
                   </div>
                 ) : currentDraft ? (
@@ -1235,9 +1281,36 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                   </div>
                 ) : displayContent ? (
                   <div className="font-serif text-text/90 pb-8">
-                    {displayContent.split('\n').filter(Boolean).map((para: string, i: number) => (
-                      <p key={i} className="mb-6 indent-8">{para}</p>
-                    ))}
+                    {isViewingHistory && editingConfirmed ? (
+                      <>
+                        <Textarea
+                          value={editingContent}
+                          onChange={(e) => setEditingContent(e.target.value)}
+                          className="min-h-[440px] border-0 bg-transparent px-0 py-0 font-serif shadow-none focus:ring-0"
+                          style={{ fontSize: 'inherit', lineHeight: 'inherit' }}
+                        />
+                        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-black/10 dark:border-white/10">
+                          <Button variant="primary" size="sm" onClick={handleSaveEditConfirmed} disabled={savingEdit || editingContent === editingOriginalContent}>
+                            {savingEdit ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
+                            {t('writer.saveEdit')}
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={handleCancelEditConfirmed} disabled={savingEdit}>
+                            {t('writer.cancelEdit')}
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <ChapterMarkdown content={displayContent} />
+                        {isViewingHistory && (
+                          <div className="mt-4 pt-4 border-t border-black/10 dark:border-white/10">
+                            <Button variant="secondary" size="sm" onClick={handleStartEditConfirmed}>
+                              {t('writer.editChapter')}
+                            </Button>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 ) : (
                   generationErrorDisplay ? (
