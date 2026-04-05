@@ -31,6 +31,7 @@ from api.routes.lore import router as lore_router
 from api.routes.import_export import router as import_export_router
 from api.routes.trash import router as trash_router
 from api.routes.settings_chat import router as settings_chat_router
+from api.routes.annotations import router as annotations_router
 
 # ---------------------------------------------------------------------------
 # 动态端口（启动后通过 stdout 通知 Tauri）
@@ -142,6 +143,46 @@ def create_app() -> FastAPI:
     application.include_router(import_export_router)
     application.include_router(trash_router)
     application.include_router(settings_chat_router)
+    application.include_router(annotations_router)
+
+    # ------------------------------------------------------------------
+    # 启动事件：清理过期垃圾箱条目（FIX-004）
+    # ------------------------------------------------------------------
+    @application.on_event("startup")
+    async def _purge_expired_trash() -> None:
+        """应用启动时扫描所有 fandom/AU 的 .trash 目录，清理过期条目。"""
+        import asyncio
+        _startup_log = logging.getLogger("startup.trash_purge")
+
+        async def _do_purge() -> None:
+            from core.services.trash_service import TrashService
+
+            ts = TrashService(retention_days=30)
+            fandoms_root = Path("./fandoms/fandoms")
+            if not fandoms_root.is_dir():
+                return
+
+            total_purged = 0
+            for fandom_dir in fandoms_root.iterdir():
+                if not fandom_dir.is_dir():
+                    continue
+                # Fandom 级 .trash
+                if (fandom_dir / ".trash").is_dir():
+                    purged = ts.purge_expired(fandom_dir)
+                    total_purged += len(purged)
+                # AU 级 .trash
+                aus_dir = fandom_dir / "aus"
+                if aus_dir.is_dir():
+                    for au_dir in aus_dir.iterdir():
+                        if au_dir.is_dir() and (au_dir / ".trash").is_dir():
+                            purged = ts.purge_expired(au_dir)
+                            total_purged += len(purged)
+
+            if total_purged > 0:
+                _startup_log.info("启动时清理了 %d 条过期垃圾箱条目", total_purged)
+
+        # 不阻塞启动：在后台执行
+        asyncio.create_task(_do_purge())
 
     return application
 

@@ -22,15 +22,14 @@ export const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
         className={cn(
           "relative h-full flex flex-col bg-surface border-black/10 dark:border-white/10 transition-all duration-300 overflow-visible z-10",
           position === 'left' ? "border-r" : "border-l",
-          isCollapsed && "opacity-0 invisible pointer-events-none",
           className
         )}
         {...props}
       >
-        <div className={cn("flex-1 overflow-y-auto overflow-x-hidden transition-opacity duration-300 min-w-[200px]", isCollapsed ? "opacity-0" : "opacity-100")}>
+        <div className={cn("flex-1 overflow-y-auto overflow-x-hidden transition-opacity duration-300 min-w-[200px]", isCollapsed ? "opacity-0 invisible pointer-events-none" : "opacity-100")}>
           {children}
         </div>
-        
+
         {onToggle && (
            <Button
              variant="secondary"
