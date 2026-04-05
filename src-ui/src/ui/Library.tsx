@@ -3,12 +3,13 @@ import { Card } from './shared/Card';
 import { Button } from './shared/Button';
 import { ThemeToggle } from './shared/ThemeToggle';
 import { Input } from './shared/Input';
-import { Settings, Plus, BookOpen, FileText, Loader2, Trash2 } from 'lucide-react';
+import { Settings, Plus, BookOpen, FileText, Loader2, Trash2, ArchiveRestore } from 'lucide-react';
 import { Modal } from './shared/Modal';
 import { GlobalSettingsModal } from './settings/GlobalSettingsModal';
 import { EmptyState } from './shared/EmptyState';
 import { ImportFlow } from './import/ImportFlow';
 import { listFandoms, createFandom, createAu, deleteFandom, deleteAu, type FandomInfo } from '../api/fandoms';
+import { TrashPanel } from './shared/TrashPanel';
 import { getSettings } from '../api/settings';
 import { useTranslation } from '../i18n/useAppTranslation';
 import { FeedbackProvider, useFeedback } from '../hooks/useFeedback';
@@ -41,6 +42,8 @@ function LibraryInner({ onNavigate }: Props) {
   const [selectedFandom, setSelectedFandom] = useState('');
   const [selectedFandomDir, setSelectedFandomDir] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'fandom' | 'au'; fandomDir: string; fandomName: string; auName?: string } | null>(null);
+  const [trashTarget, setTrashTarget] = useState<{ fandomDir: string; fandomName: string } | null>(null);
+  const [trashRefreshToken, setTrashRefreshToken] = useState(0);
 
   const hasUsableConnectionConfig = (settings: Awaited<ReturnType<typeof getSettings>> | null | undefined) => {
     const llm = settings?.default_llm;
@@ -220,6 +223,9 @@ function LibraryInner({ onNavigate }: Props) {
                     <Button variant="ghost" size="sm" onClick={() => { setSelectedFandom(fandom.name); setSelectedFandomDir(fandom.dir_name); setAuModalOpen(true); }} disabled={creatingFandom || creatingAu || deleting}>
                       <Plus size={14} className="mr-1 text-accent" /> {t("library.createAuButton")}
                     </Button>
+                    <Button variant="ghost" size="sm" className="text-text/40 hover:text-text/60" onClick={() => setTrashTarget({ fandomDir: fandom.dir_name, fandomName: fandom.name })} title={t('trash.title')}>
+                      <ArchiveRestore size={14} />
+                    </Button>
                     <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteTarget({ type: 'fandom', fandomDir: fandom.dir_name, fandomName: fandom.name })} disabled={creatingFandom || creatingAu || deleting}>
                       <Trash2 size={14} />
                     </Button>
@@ -368,6 +374,18 @@ function LibraryInner({ onNavigate }: Props) {
         auPath={importAuPath}
         onComplete={() => { setImportModalOpen(false); setImportAuPath(''); onNavigate('writer', importAuPath); }}
       />
+
+      {/* Trash panel modal */}
+      <Modal isOpen={!!trashTarget} onClose={() => setTrashTarget(null)} title={`${t('trash.title')} — ${trashTarget?.fandomName || ''}`}>
+        {trashTarget && (
+          <TrashPanel
+            scope="fandom"
+            path={`./fandoms/fandoms/${trashTarget.fandomDir}`}
+            onRestore={() => { setTrashRefreshToken(v => v + 1); void loadFandoms(); }}
+            refreshToken={trashRefreshToken}
+          />
+        )}
+      </Modal>
 
       <Modal isOpen={!!deleteTarget} onClose={deleting ? () => {} : () => setDeleteTarget(null)} title={deleteTarget?.type === 'fandom' ? t('library.deleteFandomTitle') : t('library.deleteAuTitle')}>
         <div className="space-y-4">

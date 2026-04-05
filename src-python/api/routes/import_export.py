@@ -254,6 +254,14 @@ async def export_chapters_endpoint(
             ["检查 AU 路径和章节范围"],
         )
 
+    if not content:
+        return error_response(
+            404,
+            "NO_CHAPTERS",
+            "没有可导出的章节",
+            ["确认 AU 下已有已确认的章节"],
+        )
+
     end_label = str(end) if end is not None else "all"
     filename = f"export_ch{start}-{end_label}.{format}"
     media_type = "text/plain" if format == "txt" else "text/markdown"

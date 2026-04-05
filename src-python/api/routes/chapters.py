@@ -15,6 +15,7 @@ from api import (
     build_chapter_repository,
     build_confirm_chapter_service,
     build_resolve_dirty_service,
+    build_state_repository,
     build_undo_chapter_service,
     error_response,
     is_generating,
@@ -226,6 +227,69 @@ async def resolve_dirty_chapter(request: ResolveDirtyChapterRequest) -> ResolveD
     return ResolveDirtyChapterResponse(
         chapter_num=result["chapter_num"],
         is_latest=result["is_latest"],
+    )
+
+
+class UpdateChapterContentRequest(BaseModel):
+    au_path: str
+    content: str
+
+
+class UpdateChapterContentResponse(BaseModel):
+    chapter_num: int
+    content_hash: str
+    provenance: str
+    revision: int
+
+
+@router.put("/{chapter_num}/content", response_model=UpdateChapterContentResponse)
+async def update_chapter_content(
+    chapter_num: int, request: UpdateChapterContentRequest
+) -> UpdateChapterContentResponse | JSONResponse:
+    """编辑已确认章节的正文（FIX-006）。
+
+    1. 备份旧章节
+    2. 用新内容覆写，重算 content_hash，provenance → mixed
+    3. 将 chapter_num 加入 state.chapters_dirty
+    """
+    logger.info("Update chapter content: au=%s ch=%d", request.au_path, chapter_num)
+    if not validate_path(request.au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
+
+    from infra.storage_local.file_utils import compute_content_hash, now_utc
+
+    chapter_repo = build_chapter_repository()
+    state_repo = build_state_repository()
+    au_id = str(Path(request.au_path))
+
+    try:
+        chapter = await run_in_threadpool(chapter_repo.get, au_id, chapter_num)
+    except FileNotFoundError:
+        return error_response(404, "CHAPTER_NOT_FOUND", "指定章节不存在", ["检查章节号"])
+
+    # 备份
+    await run_in_threadpool(chapter_repo.backup_chapter, au_id, chapter_num)
+
+    # 更新内容
+    new_hash = compute_content_hash(request.content)
+    chapter.content = request.content
+    chapter.content_hash = new_hash
+    chapter.provenance = "mixed"
+    chapter.revision += 1
+    chapter.confirmed_at = now_utc()
+    await run_in_threadpool(chapter_repo.save, chapter)
+
+    # 标记 dirty
+    state = await run_in_threadpool(state_repo.get, au_id)
+    if chapter_num not in state.chapters_dirty:
+        state.chapters_dirty.append(chapter_num)
+        await run_in_threadpool(state_repo.save, state)
+
+    return UpdateChapterContentResponse(
+        chapter_num=chapter_num,
+        content_hash=new_hash,
+        provenance="mixed",
+        revision=chapter.revision,
     )
 
 

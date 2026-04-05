@@ -49,6 +49,17 @@ export async function undoChapter(auPath: string): Promise<any> {
   });
 }
 
+export async function updateChapterContent(
+  auPath: string,
+  chapterNum: number,
+  content: string
+): Promise<{ chapter_num: number; content_hash: string; provenance: string; revision: number }> {
+  return apiFetch(`/api/v1/chapters/${chapterNum}/content`, {
+    method: "PUT",
+    body: JSON.stringify({ au_path: auPath, content }),
+  });
+}
+
 export async function resolveDirtyChapter(auPath: string, chapterNum: number, confirmedFactChanges: any[] = []): Promise<any> {
   return apiFetch("/api/v1/chapters/dirty/resolve", {
     method: "POST",
