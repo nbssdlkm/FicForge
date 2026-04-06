@@ -8,7 +8,7 @@ import { exportChapters } from '../../api/importExport';
 /** Tauri 环境检测：window.__TAURI_INTERNALS__ 存在则为 Tauri 打包环境 */
 const isTauri = () => typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__;
 
-async function saveWithTauriDialog(blob: Blob, filename: string): Promise<boolean> {
+async function saveWithTauriDialog(blob: Blob, filename: string): Promise<'saved' | 'cancelled' | 'error'> {
   try {
     const { save } = await import('@tauri-apps/plugin-dialog');
     const { writeFile } = await import('@tauri-apps/plugin-fs');
@@ -21,13 +21,20 @@ async function saveWithTauriDialog(blob: Blob, filename: string): Promise<boolea
         { name: 'All Files', extensions: ['*'] },
       ],
     });
-    if (!filePath) return false; // 用户取消
+    if (!filePath) return 'cancelled';
 
     const arrayBuffer = await blob.arrayBuffer();
     await writeFile(filePath, new Uint8Array(arrayBuffer));
-    return true;
-  } catch {
-    return false;
+    return 'saved';
+  } catch (e) {
+    console.error('[Export] Tauri save failed:', e);
+    // Fallback: 尝试浏览器下载
+    try {
+      saveWithBrowserDownload(blob, filename);
+      return 'saved';
+    } catch {
+      return 'error';
+    }
   }
 }
 
@@ -68,10 +75,11 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onCl
       if (abortRef.current) return;
 
       if (isTauri()) {
-        const saved = await saveWithTauriDialog(blob, filename);
+        const result = await saveWithTauriDialog(blob, filename);
         if (abortRef.current) return;
-        if (saved) onClose();
-        // 用户取消对话框则不关闭 modal，让用户可以重试
+        if (result === 'saved') onClose();
+        else if (result === 'error') setError('Export failed. Check file permissions.');
+        // 'cancelled': 用户取消对话框，不关闭 modal
       } else {
         // Dev 模式 fallback：浏览器下载
         saveWithBrowserDownload(blob, filename);
