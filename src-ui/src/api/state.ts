@@ -5,6 +5,7 @@ import { apiFetch } from "./client";
 export interface StateInfo {
   current_chapter: number;
   chapter_focus: string[];
+  chapter_titles: Record<string, string>;  // JSON key 是 string，值如 {"1": "黄昏的告别"}
   last_scene_ending: string;
   characters_last_seen: Record<string, number>;
   chapters_dirty: number[];

@@ -19,6 +19,7 @@ def export_chapters(
     format: str = "txt",
     include_title: bool = True,
     include_chapter_num: bool = True,
+    chapter_titles: Optional[dict[int, str]] = None,
 ) -> str:
     """导出指定范围章节，返回合并后的文本。
 
@@ -65,6 +66,7 @@ def export_chapters(
                 format=format,
                 include_title=include_title,
                 include_chapter_num=include_chapter_num,
+                custom_title=(chapter_titles or {}).get(ch.chapter_num, ""),
             )
             if title_line:
                 section_parts.append(title_line)
@@ -85,12 +87,16 @@ def _build_title_line(
     format: str = "txt",
     include_title: bool = True,
     include_chapter_num: bool = True,
+    custom_title: str = "",
 ) -> str:
     """构建标题行。"""
     if not include_title and not include_chapter_num:
         return ""
 
-    title = f"第{chapter_num}章"
+    if custom_title:
+        title = f"第{chapter_num}章 {custom_title}"
+    else:
+        title = f"第{chapter_num}章"
 
     if format == "md":
         return f"## {title}"

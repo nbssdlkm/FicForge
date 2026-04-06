@@ -109,6 +109,7 @@ async def restore_from_trash(req: RestoreRequest) -> Any:
                 collection = "characters" if "character" in category else "worldbuilding"
                 file_path = str(scope_root / original_path)
                 build_task_queue().enqueue("vectorize_settings_file", str(scope_root), {
+                    "au_path": str(scope_root),
                     "file_path": file_path,
                     "collection": collection,
                 })

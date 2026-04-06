@@ -218,6 +218,8 @@
     "editChapter": "Edit Chapter",
     "saveEdit": "Save",
     "cancelEdit": "Cancel",
+    "chapterTitleLabel": "Chapter Title",
+    "chapterTitlePlaceholder": "Name this chapter (optional)",
     "editSaveSuccess": "Chapter updated. Please resolve dirty chapter notes.",
     "saveGlobalSuccess": "These parameters have been saved to global settings.",
     "saveAuSuccess": "These parameters have been saved to this story's settings.",
@@ -421,6 +423,9 @@
       "coreIncludes": "Pinned Characters",
       "castRegistry": "Character Roster",
       "searchEngine": "Search Engine"
+    },
+    "au": {
+      "useCustomEmbedding": "Use a custom Embedding model for this story"
     },
     "global": {
       "title": "Global Settings",
@@ -743,7 +748,8 @@
     "restoreSuccess": "Restored: {{name}}",
     "restoreConflict": "A file with the same name already exists. Please delete or rename it first.",
     "deleteSuccess": "Permanently deleted",
-    "clearSuccess": "Trash emptied"
+    "clearSuccess": "Trash emptied",
+    "tooltip": "View deleted lore and data, recoverable within 30 days"
   },
   "coreIncludes": {
     "pinned": "Pinned",

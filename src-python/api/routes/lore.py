@@ -41,6 +41,7 @@ def _enqueue_vectorize(au_path: str, category: str, filename: str) -> None:
     collection = "characters" if "character" in category else "worldbuilding"
     file_path = str(Path(au_path) / category / filename)
     build_task_queue().enqueue("vectorize_settings_file", au_path, {
+        "au_path": au_path,
         "file_path": file_path,
         "collection": collection,
     })
@@ -51,6 +52,7 @@ def _enqueue_delete_chunks(au_path: str, category: str, filename: str) -> None:
     collection = "characters" if "character" in category else "worldbuilding"
     file_path = str(Path(au_path) / category / filename)
     build_task_queue().enqueue("delete_settings_chunks", au_path, {
+        "au_path": au_path,
         "file_path": file_path,
         "collection": collection,
     })

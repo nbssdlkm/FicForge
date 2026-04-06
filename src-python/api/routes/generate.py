@@ -73,7 +73,7 @@ async def generate_stream(request: GenerateRequest) -> StreamingResponse:
             settings = await run_in_threadpool(settings_repo.get)
             facts = await run_in_threadpool(fact_repo.list_all, au_id)
 
-            vector_repo = build_vector_repository()
+            vector_repo = build_vector_repository(au_path=au_id)
 
             stream = generate_chapter(
                 au_path=au_dir,
