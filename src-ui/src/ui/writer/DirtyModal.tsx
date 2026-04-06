@@ -1,10 +1,10 @@
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
-import { Plus, Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Check } from 'lucide-react';
 import { Tag } from '../shared/Tag';
 import { useState, useEffect, useRef } from 'react';
 import { resolveDirtyChapter } from '../../api/chapters';
-import { listFacts, type FactInfo } from '../../api/facts';
+import { listFacts, extractFacts, addFact, type FactInfo, type ExtractedFactCandidate } from '../../api/facts';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
 
@@ -12,89 +12,126 @@ type FactDecision = 'keep' | 'deprecate';
 
 export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: { isOpen: boolean, onClose: () => void, auPath: string, chapterNum: number, onResolved?: () => void }) => {
   const { t } = useTranslation();
-  const { showError, showToast } = useFeedback();
+  const { showError } = useFeedback();
   const activeContextRef = useRef({ auPath, chapterNum });
   activeContextRef.current = { auPath, chapterNum };
   const loadRequestIdRef = useRef(0);
-  const [isResolving, setIsResolving] = useState(false);
-  const [facts, setFacts] = useState<FactInfo[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  // Old facts
+  const [oldFacts, setOldFacts] = useState<FactInfo[]>([]);
   const [decisions, setDecisions] = useState<Record<string, FactDecision>>({});
+  const [loadingOld, setLoadingOld] = useState(false);
+
+  // AI re-extracted candidates
+  const [candidates, setCandidates] = useState<ExtractedFactCandidate[]>([]);
+  const [selectedCandidates, setSelectedCandidates] = useState<Set<number>>(new Set());
+  const [extracting, setExtracting] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
+
+  // Resolve
+  const [resolving, setResolving] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
       loadRequestIdRef.current += 1;
-      setIsResolving(false);
-      setLoading(false);
-      setFacts([]);
+      setOldFacts([]);
       setDecisions({});
-      setError(null);
+      setLoadingOld(false);
+      setCandidates([]);
+      setSelectedCandidates(new Set());
+      setExtracting(false);
+      setExtractError(null);
+      setResolving(false);
       return;
     }
-    if (!isOpen || !auPath || chapterNum == null) return;
+    if (!auPath || !chapterNum) return;
+
     const requestId = ++loadRequestIdRef.current;
-    const requestAuPath = auPath;
-    const requestChapter = chapterNum;
-    setLoading(true);
-    setError(null);
+
+    // Load old facts
+    setLoadingOld(true);
     listFacts(auPath, undefined)
       .then(all => {
-        const active = activeContextRef.current;
-        if (
-          requestId !== loadRequestIdRef.current
-          || active.auPath !== requestAuPath
-          || active.chapterNum !== requestChapter
-        ) {
-          return;
-        }
+        if (requestId !== loadRequestIdRef.current) return;
         const chapterFacts = all.filter(f => f.chapter === chapterNum);
-        setFacts(chapterFacts);
+        setOldFacts(chapterFacts);
         const initial: Record<string, FactDecision> = {};
         chapterFacts.forEach(f => { initial[f.id] = 'keep'; });
         setDecisions(initial);
       })
+      .catch(() => {})
+      .finally(() => {
+        if (requestId === loadRequestIdRef.current) setLoadingOld(false);
+      });
+
+    // AI extract (parallel)
+    setExtracting(true);
+    setExtractError(null);
+    extractFacts(auPath, chapterNum)
+      .then(res => {
+        if (requestId !== loadRequestIdRef.current) return;
+        setCandidates(res.facts || []);
+        // Default: select all
+        setSelectedCandidates(new Set((res.facts || []).map((_, i) => i)));
+      })
       .catch(e => {
-        const active = activeContextRef.current;
-        if (
-          requestId !== loadRequestIdRef.current
-          || active.auPath !== requestAuPath
-          || active.chapterNum !== requestChapter
-        ) {
-          return;
-        }
-        setError(e.message || t('error_messages.unknown'));
+        if (requestId !== loadRequestIdRef.current) return;
+        setExtractError(e instanceof Error ? e.message : String(e));
       })
       .finally(() => {
-        const active = activeContextRef.current;
-        if (
-          requestId === loadRequestIdRef.current
-          && active.auPath === requestAuPath
-          && active.chapterNum === requestChapter
-        ) {
-          setLoading(false);
-        }
+        if (requestId === loadRequestIdRef.current) setExtracting(false);
       });
-  }, [isOpen, auPath, chapterNum, t]);
+  }, [isOpen, auPath, chapterNum]);
 
-  const setDecision = (factId: string, decision: FactDecision) => {
-    setDecisions(prev => ({ ...prev, [factId]: decision }));
+  const toggleCandidate = (idx: number) => {
+    setSelectedCandidates(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      return next;
+    });
   };
 
   const handleResolve = async () => {
     const requestAuPath = auPath;
     const requestChapter = chapterNum;
-    setIsResolving(true);
+    setResolving(true);
     try {
-      const confirmedChanges = facts.map(f => ({
+      // 1. Resolve dirty: process old facts decisions + clear dirty flag
+      const confirmedChanges = oldFacts.map(f => ({
         fact_id: f.id,
         action: decisions[f.id] || 'keep',
       }));
       await resolveDirtyChapter(auPath, chapterNum, confirmedChanges);
+
+      // 2. Save selected new candidates (fault-tolerant: one failure doesn't block others)
+      let failCount = 0;
+      for (const idx of selectedCandidates) {
+        const c = candidates[idx];
+        if (!c) continue;
+        const active = activeContextRef.current;
+        if (active.auPath !== requestAuPath || active.chapterNum !== requestChapter) return;
+        try {
+          await addFact(auPath, chapterNum, {
+            content_raw: c.content_raw,
+            content_clean: c.content_clean,
+            characters: c.characters,
+            type: c.fact_type || c.type || 'plot_event',
+            narrative_weight: c.narrative_weight || 'medium',
+            status: c.status || 'active',
+            timeline: c.timeline || '',
+          });
+        } catch {
+          failCount++;
+        }
+      }
+
       const active = activeContextRef.current;
       if (active.auPath !== requestAuPath || active.chapterNum !== requestChapter) return;
       onClose();
       if (onResolved) onResolved();
+      if (failCount > 0) {
+        showError(new Error(t('dirty.saveFailed', { count: failCount })), t('error_messages.unknown'));
+      }
     } catch (e: any) {
       const active = activeContextRef.current;
       if (active.auPath !== requestAuPath || active.chapterNum !== requestChapter) return;
@@ -102,80 +139,116 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
     } finally {
       const active = activeContextRef.current;
       if (active.auPath === requestAuPath && active.chapterNum === requestChapter) {
-        setIsResolving(false);
+        setResolving(false);
       }
     }
   };
 
+  const isLoading = loadingOld || extracting;
+  const hasOldFacts = oldFacts.length > 0;
+  const hasCandidates = candidates.length > 0;
+
   return (
-    <Modal isOpen={isOpen} onClose={isResolving ? () => {} : onClose} title={t('dirty.title')}>
-      <div className="space-y-6 mt-2">
-        <div className="p-4 bg-warning/10 text-warning text-sm rounded-lg border border-warning/20 leading-relaxed font-sans">
+    <Modal isOpen={isOpen} onClose={resolving ? () => {} : onClose} title={`${t('dirty.title')} — Ch.${chapterNum}`}>
+      <div className="space-y-5 mt-2">
+        {/* Warning banner */}
+        <div className="p-3 bg-warning/10 text-warning text-sm rounded-lg border border-warning/20 leading-relaxed font-sans">
           <strong>{t('dirty.warningTitle')}{t('common.labelColon')}</strong> {t('dirty.warningDescription')}
         </div>
 
-        {error && (
-          <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded text-sm flex items-center gap-2">
-            <AlertCircle size={14} /> {error}
-          </div>
-        )}
-
-        <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
-          {loading ? (
-            <div className="flex justify-center py-6"><Loader2 size={20} className="animate-spin text-accent" /></div>
-          ) : facts.length === 0 ? (
-            <p className="text-center text-sm text-text/50 py-6">{t('dirty.empty')}</p>
-          ) : (
-            facts.map(f => (
-              <div key={f.id} className="border border-black/10 dark:border-white/10 rounded-lg p-4 space-y-4 bg-surface shadow-sm transition-all hover:border-warning/30">
-                <div className="font-mono text-xs opacity-60 flex justify-between items-center">
-                  <span>{f.id.substring(0, 12)}… (Ch.{f.chapter})</span>
-                  <Tag variant={decisions[f.id] === 'deprecate' ? 'error' : 'warning'} className="px-2">
-                    {decisions[f.id] === 'deprecate' ? t('dirty.deprecateTag') : t('dirty.dirtyTag')}
-                  </Tag>
-                </div>
-                <p className="text-sm font-serif leading-relaxed text-text">{f.content_clean || f.content_raw}</p>
-                <div className="flex gap-3">
-                  <Button
-                    variant={decisions[f.id] === 'keep' ? 'primary' : 'ghost'}
-                    size="sm"
-                    className="flex-1 border border-black/10 dark:border-white/10"
-                    onClick={() => setDecision(f.id, 'keep')}
-                    disabled={isResolving}
-                  >
-                    {t('dirty.keep')}
-                  </Button>
-                  <Button
-                    variant={decisions[f.id] === 'deprecate' ? 'primary' : 'ghost'}
-                    size="sm"
-                    className="flex-1 border border-black/10 dark:border-white/10"
-                    onClick={() => setDecision(f.id, 'deprecate')}
-                    disabled={isResolving}
-                  >
-                    {t('dirty.deprecate')}
-                  </Button>
-                </div>
+        <div className="max-h-[55vh] overflow-y-auto space-y-5 pr-1">
+          {/* Section 1: Old facts */}
+          <div>
+            <h3 className="text-xs font-bold text-text/60 uppercase tracking-wider mb-2">{t('dirty.oldFactsSection')}</h3>
+            {loadingOld ? (
+              <div className="flex items-center gap-2 py-4 justify-center text-text/50 text-sm">
+                <Loader2 size={16} className="animate-spin" />
               </div>
-            ))
-          )}
+            ) : !hasOldFacts ? (
+              <p className="text-sm text-text/40 py-2">{t('dirty.noOldFacts')}</p>
+            ) : (
+              <div className="space-y-2">
+                {oldFacts.map(f => (
+                  <div key={f.id} className="border border-black/10 dark:border-white/10 rounded-lg p-3 bg-surface/50 space-y-2">
+                    <div className="flex justify-between items-start gap-2">
+                      <p className="text-sm font-serif leading-relaxed text-text flex-1">{f.content_clean || f.content_raw}</p>
+                      <Tag variant={decisions[f.id] === 'deprecate' ? 'error' : 'warning'} className="px-2 shrink-0 text-[10px]">
+                        {decisions[f.id] === 'deprecate' ? t('dirty.deprecateTag') : t('dirty.dirtyTag')}
+                      </Tag>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant={decisions[f.id] === 'keep' ? 'primary' : 'ghost'}
+                        size="sm" className="flex-1 h-7 text-xs"
+                        onClick={() => setDecisions(prev => ({ ...prev, [f.id]: 'keep' }))}
+                        disabled={resolving}
+                      >{t('dirty.keep')}</Button>
+                      <Button
+                        variant={decisions[f.id] === 'deprecate' ? 'primary' : 'ghost'}
+                        size="sm" className="flex-1 h-7 text-xs"
+                        onClick={() => setDecisions(prev => ({ ...prev, [f.id]: 'deprecate' }))}
+                        disabled={resolving}
+                      >{t('dirty.deprecate')}</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Section 2: AI re-extracted candidates */}
+          <div>
+            <h3 className="text-xs font-bold text-text/60 uppercase tracking-wider mb-2">{t('dirty.newFactsSection')}</h3>
+            {extracting ? (
+              <div className="flex items-center gap-2 py-4 justify-center text-accent text-sm">
+                <Loader2 size={16} className="animate-spin" />
+                <span>{t('dirty.extracting')}</span>
+              </div>
+            ) : extractError ? (
+              <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 rounded-lg text-sm">
+                <AlertCircle size={14} className="shrink-0" />
+                <span>{t('dirty.extractFailed')}</span>
+              </div>
+            ) : !hasCandidates ? (
+              <p className="text-sm text-text/40 py-2">{t('dirty.noCandidates')}</p>
+            ) : (
+              <div className="space-y-2">
+                {candidates.map((c, idx) => (
+                  <label key={idx} className={`flex items-start gap-3 border rounded-lg p-3 cursor-pointer transition-colors ${selectedCandidates.has(idx) ? 'border-accent/40 bg-accent/5' : 'border-black/10 dark:border-white/10 bg-surface/30'}`}>
+                    <input
+                      type="checkbox"
+                      checked={selectedCandidates.has(idx)}
+                      onChange={() => toggleCandidate(idx)}
+                      disabled={resolving}
+                      className="mt-1 accent-accent w-4 h-4 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-serif leading-relaxed text-text">{c.content_clean || c.content_raw}</p>
+                      {c.characters && c.characters.length > 0 && (
+                        <p className="text-[11px] text-text/40 mt-1">{c.characters.join(', ')}</p>
+                      )}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="border-t border-black/10 dark:border-white/10 pt-5 space-y-3">
+        {/* Confirm button */}
+        <div className="border-t border-black/10 dark:border-white/10 pt-4">
           <Button
-            variant="secondary"
-            className="w-full border-dashed border-accent/40 text-accent gap-2 bg-accent/5 hover:bg-accent/10 transition-colors h-10"
-            onClick={() => showToast(t('dirty.extractHint'), 'info')}
-            disabled={isResolving}
+            variant="primary"
+            className="w-full h-11 text-[15px] shadow-sm"
+            onClick={handleResolve}
+            disabled={resolving || isLoading}
           >
-             <Plus size={16}/> {t('dirty.extractButton')}
-          </Button>
-          <Button variant="primary" className="w-full h-11 text-[15px] shadow-sm tracking-wide" onClick={handleResolve} disabled={isResolving}>
-            {isResolving ? (
+            {resolving ? (
               <Loader2 size={16} className="animate-spin" />
             ) : (
               <span className="flex flex-col items-center leading-tight">
-                <span>{t('dirty.resolveButton')}</span>
-                <span className="text-[11px] opacity-80">{t('dirty.resolveSubtitle')}</span>
+                <span className="flex items-center gap-1.5"><Check size={15} /> {t('dirty.confirmResolve')}</span>
+                <span className="text-[11px] opacity-80">{t('dirty.confirmResolveSubtitle')}</span>
               </span>
             )}
           </Button>
