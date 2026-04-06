@@ -7,6 +7,11 @@
     "core:default",
     "opener:default",
     "dialog:default",
-    "fs:default"
+    "dialog:allow-save",
+    "fs:default",
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [{ "path": "**" }]
+    }
   ]
 }
