@@ -5,6 +5,43 @@ import { FileUp } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { exportChapters } from '../../api/importExport';
 
+/** Tauri 环境检测：window.__TAURI_INTERNALS__ 存在则为 Tauri 打包环境 */
+const isTauri = () => typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__;
+
+async function saveWithTauriDialog(blob: Blob, filename: string): Promise<boolean> {
+  try {
+    const { save } = await import('@tauri-apps/plugin-dialog');
+    const { writeFile } = await import('@tauri-apps/plugin-fs');
+
+    const ext = filename.split('.').pop() || 'txt';
+    const filePath = await save({
+      defaultPath: filename,
+      filters: [
+        { name: ext === 'md' ? 'Markdown' : 'Text', extensions: [ext] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+    });
+    if (!filePath) return false; // 用户取消
+
+    const arrayBuffer = await blob.arrayBuffer();
+    await writeFile(filePath, new Uint8Array(arrayBuffer));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function saveWithBrowserDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onClose: () => void, auPath: string }) => {
   const { t } = useTranslation();
   const [format, setFormat] = useState<'md' | 'txt'>('md');
@@ -29,15 +66,17 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onCl
     try {
       const { blob, filename } = await exportChapters({ au_path: auPath, format });
       if (abortRef.current) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      onClose();
+
+      if (isTauri()) {
+        const saved = await saveWithTauriDialog(blob, filename);
+        if (abortRef.current) return;
+        if (saved) onClose();
+        // 用户取消对话框则不关闭 modal，让用户可以重试
+      } else {
+        // Dev 模式 fallback：浏览器下载
+        saveWithBrowserDownload(blob, filename);
+        onClose();
+      }
     } catch (e: unknown) {
       if (abortRef.current) return;
       setError(e instanceof Error ? e.message : String(e));

@@ -220,6 +220,7 @@
     "cancelEdit": "Cancel",
     "chapterTitleLabel": "Chapter Title",
     "chapterTitlePlaceholder": "Name this chapter (optional)",
+    "chapterTitleAutoHint": "Leave empty for AI-generated title",
     "editSaveSuccess": "Chapter updated. Please resolve dirty chapter notes.",
     "saveGlobalSuccess": "These parameters have been saved to global settings.",
     "saveAuSuccess": "These parameters have been saved to this story's settings.",

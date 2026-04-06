@@ -220,6 +220,7 @@
     "cancelEdit": "取消",
     "chapterTitleLabel": "章节标题",
     "chapterTitlePlaceholder": "为这一章起个名字（选填，可留空）",
+    "chapterTitleAutoHint": "留空将由 AI 自动生成标题",
     "editSaveSuccess": "章节已更新，需要重新整理剧情笔记。",
     "saveGlobalSuccess": "这组参数已经记到全局设置里了。",
     "saveAuSuccess": "这组参数已经记到本篇设置里了。",

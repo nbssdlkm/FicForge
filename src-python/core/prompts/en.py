@@ -318,3 +318,6 @@ SETTINGS_LABEL_CHARACTERS = "Character Profiles"
 SETTINGS_LABEL_WORLDBUILDING = "Worldbuilding"
 SETTINGS_LABEL_CORE_CHARACTERS = "Character DNA"
 SETTINGS_LABEL_CORE_WORLDBUILDING = "Worldbuilding"
+
+# === AI chapter title generation ===
+CHAPTER_TITLE_PROMPT = "Give a short title (no more than 6 words) for the following fiction chapter. Return only the title text, no explanation or punctuation:\n\n{content}"

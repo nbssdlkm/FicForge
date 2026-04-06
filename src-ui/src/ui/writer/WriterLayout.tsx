@@ -1632,6 +1632,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
               placeholder={t('writer.chapterTitlePlaceholder')}
               className="w-full rounded-lg border border-black/10 bg-surface/40 px-3 py-2 text-sm text-text focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent dark:border-white/10"
             />
+            <p className="text-[11px] text-text/40 mt-1">{t('writer.chapterTitleAutoHint')}</p>
           </div>
           <div className="rounded-lg border border-black/10 bg-surface/40 p-4 text-sm leading-relaxed text-text/80 dark:border-white/10 max-h-48 overflow-y-auto">
             {previewText || t('writer.emptyContent')}

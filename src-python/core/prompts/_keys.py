@@ -76,4 +76,7 @@ REQUIRED_KEYS = [
     "SETTINGS_LABEL_WORLDBUILDING",
     "SETTINGS_LABEL_CORE_CHARACTERS",
     "SETTINGS_LABEL_CORE_WORLDBUILDING",
+
+    # === chapters.py: AI chapter title generation ===
+    "CHAPTER_TITLE_PROMPT",             # f-string with {content}
 ]
