@@ -58,38 +58,90 @@ def _dispatch_worker(info: TaskInfo) -> None:
         return
 
     # 构建 deps（lazy，避免启动时初始化 ChromaDB）
+    _worker_au_path = info.payload.get("au_path") if info.payload else None
     deps = {
         "chapter_repo": build_chapter_repository(),
-        "vector_repo": _get_vector_repo(),
+        "vector_repo": _get_vector_repo(au_path=_worker_au_path),
         "state_repo": build_state_repository(),
     }
     worker_fn(info, deps)
 
 
-_vector_repo_instance: Any = None
-_vector_repo_init_attempted: bool = False
+_chromadb_client: Any = None
+_chromadb_init_attempted: bool = False
+_default_vector_repo: Any = None
+_default_vector_repo_init_attempted: bool = False
+_au_vector_repo_cache: dict[tuple[str, str, str, str], Any] = {}  # (au_path, model, api_base, api_key) → repo
 
 
-def _get_vector_repo() -> Any:
-    """延迟初始化 vector_repo 单例（ChromaDB + Embedding 可能不可用）。"""
-    global _vector_repo_instance, _vector_repo_init_attempted
-    if _vector_repo_init_attempted:
-        return _vector_repo_instance
-    _vector_repo_init_attempted = True
-
+def _ensure_chromadb_client() -> Any:
+    """延迟初始化 ChromaDB 客户端单例。"""
+    global _chromadb_client, _chromadb_init_attempted
+    if _chromadb_init_attempted:
+        return _chromadb_client
+    _chromadb_init_attempted = True
     try:
         from pathlib import Path as _Path
         from infra.vector_index.chromadb_client import init_chromadb
-        from infra.embeddings.local_provider import LocalEmbeddingProvider
-        from infra.embeddings.provider import OpenAICompatibleEmbeddingProvider
-        from repositories.implementations.local_chroma_vector import LocalChromaVectorRepository
+        _chromadb_client = init_chromadb(_Path("./fandoms/.chromadb"))
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning(
+            "ChromaDB 初始化失败，向量化功能不可用", exc_info=True
+        )
+    return _chromadb_client
 
-        persist_dir = _Path("./fandoms/.chromadb")
-        client = init_chromadb(persist_dir)
 
-        # 根据全局 settings 选择 embedding provider
-        # 用户可在全局设置中配置 API 模式的 embedding；否则使用内置 bge-small-zh
-        embedding: Any = None
+def _build_embedding_provider(mode: str, model: str, api_key: str, api_base: str) -> Any:
+    """根据配置创建 embedding provider。api_key 必须是明文非掩码值。"""
+    from infra.embeddings.local_provider import LocalEmbeddingProvider
+    from infra.embeddings.provider import OpenAICompatibleEmbeddingProvider
+
+    if mode == "api" and model and api_key and not api_key.startswith("****"):
+        return OpenAICompatibleEmbeddingProvider(
+            api_base=api_base, api_key=api_key, model=model,
+        )
+    return LocalEmbeddingProvider()
+
+
+def _get_vector_repo(au_path: str | None = None) -> Any:
+    """获取 vector_repo。
+
+    如果 au_path 指定且该 AU 有 embedding_lock 配置，使用 AU 级 provider；
+    否则使用全局默认 provider。
+    """
+    global _default_vector_repo, _default_vector_repo_init_attempted
+
+    client = _ensure_chromadb_client()
+    if client is None:
+        return None
+
+    from repositories.implementations.local_chroma_vector import LocalChromaVectorRepository
+
+    # 尝试 AU 级别 embedding_lock 覆盖（带缓存）
+    if au_path:
+        try:
+            project = build_project_repository().get(au_path)
+            lock = getattr(project, "embedding_lock", None)
+            if lock:
+                lock_model = str(getattr(lock, "model", ""))
+                lock_key = str(getattr(lock, "api_key", ""))
+                lock_base = str(getattr(lock, "api_base", ""))
+                lock_mode = str(getattr(lock, "mode", ""))
+                if lock_model and lock_key and not lock_key.startswith("****"):
+                    cache_key = (au_path, lock_model, lock_base, lock_key)
+                    if cache_key not in _au_vector_repo_cache:
+                        provider = _build_embedding_provider(
+                            lock_mode or "api", lock_model, lock_key, lock_base,
+                        )
+                        _au_vector_repo_cache[cache_key] = LocalChromaVectorRepository(client, provider)
+                    return _au_vector_repo_cache[cache_key]
+        except Exception:
+            pass  # fallback 到全局默认
+
+    # 全局默认 provider（缓存单例）
+    if not _default_vector_repo_init_attempted:
+        _default_vector_repo_init_attempted = True
         try:
             settings = build_settings_repository().get()
             emb = getattr(settings, "embedding", None)
@@ -97,23 +149,14 @@ def _get_vector_repo() -> Any:
             emb_model = str(getattr(emb, "model", "")) if emb else ""
             emb_key = str(getattr(emb, "api_key", "")) if emb else ""
             emb_base = str(getattr(emb, "api_base", "")) if emb else ""
-            if emb_mode == "api" and emb_model and emb_key and not emb_key.startswith("****"):
-                embedding = OpenAICompatibleEmbeddingProvider(
-                    api_base=emb_base, api_key=emb_key, model=emb_model,
-                )
+            provider = _build_embedding_provider(emb_mode, emb_model, emb_key, emb_base)
+            _default_vector_repo = LocalChromaVectorRepository(client, provider)
         except Exception:
-            pass
-
-        if embedding is None:
-            embedding = LocalEmbeddingProvider()
-
-        _vector_repo_instance = LocalChromaVectorRepository(client, embedding)
-    except Exception:
-        import logging
-        logging.getLogger(__name__).warning(
-            "vector_repo 初始化失败，向量化功能不可用", exc_info=True
-        )
-    return _vector_repo_instance
+            import logging
+            logging.getLogger(__name__).warning(
+                "vector_repo 初始化失败，向量化功能不可用", exc_info=True
+            )
+    return _default_vector_repo
 
 
 _task_queue = BackgroundTaskQueue(worker_fn=_dispatch_worker)
@@ -218,9 +261,9 @@ def build_task_queue() -> BackgroundTaskQueue:
     return _task_queue
 
 
-def build_vector_repository() -> Any:
-    """获取 vector_repo 单例（可能为 None）。"""
-    return _get_vector_repo()
+def build_vector_repository(au_path: str | None = None) -> Any:
+    """获取 vector_repo（可能为 None）。传入 au_path 时优先使用 AU 级 embedding_lock。"""
+    return _get_vector_repo(au_path=au_path)
 
 
 def is_masked_key(value: str | None) -> bool:

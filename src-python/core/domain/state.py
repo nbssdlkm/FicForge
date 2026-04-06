@@ -33,6 +33,7 @@ class State:
     last_confirmed_chapter_focus: list[str] = field(default_factory=list)
     characters_last_seen: dict[str, int] = field(default_factory=dict)
     chapter_focus: list[str] = field(default_factory=list)  # fact id 数组，最多 2 个
+    chapter_titles: dict[int, str] = field(default_factory=dict)  # {1: "黄昏的告别", 2: "..."}
     chapters_dirty: list[int] = field(default_factory=list)
     index_status: IndexStatus = IndexStatus.STALE  # 新 AU 无索引，默认 stale
     index_built_with: Optional[EmbeddingFingerprint] = None

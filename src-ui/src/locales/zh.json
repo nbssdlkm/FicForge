@@ -218,6 +218,8 @@
     "editChapter": "编辑本章",
     "saveEdit": "保存修改",
     "cancelEdit": "取消",
+    "chapterTitleLabel": "章节标题",
+    "chapterTitlePlaceholder": "为这一章起个名字（选填，可留空）",
     "editSaveSuccess": "章节已更新，需要重新整理剧情笔记。",
     "saveGlobalSuccess": "这组参数已经记到全局设置里了。",
     "saveAuSuccess": "这组参数已经记到本篇设置里了。",
@@ -421,6 +423,9 @@
       "coreIncludes": "必带角色",
       "castRegistry": "出场角色列表",
       "searchEngine": "搜索引擎"
+    },
+    "au": {
+      "useCustomEmbedding": "为本篇使用独立 Embedding 模型"
     },
     "global": {
       "title": "全局设置",
@@ -743,7 +748,8 @@
     "restoreSuccess": "已恢复：{{name}}",
     "restoreConflict": "原位置已有同名文件，无法恢复。请先删除或重命名现有文件。",
     "deleteSuccess": "已永久删除",
-    "clearSuccess": "已清空垃圾箱"
+    "clearSuccess": "已清空垃圾箱",
+    "tooltip": "查看已删除的设定和数据，可在 30 天内恢复"
   },
   "coreIncludes": {
     "pinned": "必带",

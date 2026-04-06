@@ -9,6 +9,7 @@ export interface ChapterInfo {
   revision: number;
   confirmed_at: string;
   provenance: string;
+  title?: string;
 }
 
 export async function listChapters(auPath: string): Promise<ChapterInfo[]> {
@@ -28,7 +29,8 @@ export async function confirmChapter(
   chapterNum: number,
   draftId: string,
   generatedWith?: object,
-  content?: string | null
+  content?: string | null,
+  title?: string | null
 ): Promise<any> {
   return apiFetch("/api/v1/chapters/confirm", {
     method: "POST",
@@ -38,6 +40,7 @@ export async function confirmChapter(
       draft_id: draftId,
       generated_with: generatedWith,
       content,
+      title,
     }),
   });
 }
@@ -57,6 +60,17 @@ export async function updateChapterContent(
   return apiFetch(`/api/v1/chapters/${chapterNum}/content`, {
     method: "PUT",
     body: JSON.stringify({ au_path: auPath, content }),
+  });
+}
+
+export async function updateChapterTitle(
+  auPath: string,
+  chapterNum: number,
+  title: string
+): Promise<{ chapter_num: number; title: string }> {
+  return apiFetch(`/api/v1/chapters/${chapterNum}/title`, {
+    method: "PUT",
+    body: JSON.stringify({ au_path: auPath, title }),
   });
 }
 

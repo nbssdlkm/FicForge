@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import JSONResponse
 
-from api import build_project_repository, error_response, is_masked_key, validate_path
+from api import build_project_repository, build_state_repository, error_response, is_masked_key, validate_path
 from core.domain.enums import EmotionStyle, LLMMode, Perspective
 from repositories.implementations.local_file_project import ProjectInvalidError
 
@@ -128,6 +128,7 @@ class ProjectUpdatePayload(BaseModel):
     core_guarantee_budget: int | None = None
     llm: dict | None = None
     model_params_override: dict | None = None
+    embedding_lock: dict | None = None
 
 
 class ProjectUpdateResponse(BaseModel):
@@ -186,6 +187,25 @@ async def update_project(payload: ProjectUpdatePayload, au_path: str = Query(...
                 setattr(llm, key, val)
     if payload.model_params_override is not None:
         project.model_params_override = payload.model_params_override
+    if payload.embedding_lock is not None:
+        old_emb_model = project.embedding_lock.model
+        lock = project.embedding_lock
+        for key in ("mode", "model", "api_base", "api_key"):
+            if key in payload.embedding_lock:
+                val = payload.embedding_lock[key]
+                if key == "api_key" and isinstance(val, str) and is_masked_key(val):
+                    continue
+                setattr(lock, key, val)
+        # 如果 embedding 模型变了，标记索引需要重建
+        if lock.model != old_emb_model:
+            try:
+                from core.domain.enums import IndexStatus as _IS
+                state_repo = build_state_repository()
+                state = await run_in_threadpool(state_repo.get, au_path)
+                state.index_status = _IS.STALE
+                await run_in_threadpool(state_repo.save, state)
+            except Exception:
+                logger.warning("embedding_lock 变更后标记 index stale 失败", exc_info=True)
 
     try:
         await run_in_threadpool(repo.save, project)

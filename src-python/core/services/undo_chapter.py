@@ -170,10 +170,11 @@ class UndoChapterService:
         )
 
         # =================================================================
-        # 步骤 10：chapters_dirty 清理
+        # 步骤 10：chapters_dirty 清理 + chapter_titles 清理
         # =================================================================
         if n in state.chapters_dirty:
             state.chapters_dirty.remove(n)
+        state.chapter_titles.pop(n, None)
 
         # =================================================================
         # 更新 current_chapter

@@ -315,6 +315,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const [isExportOpen, setExportOpen] = useState(false);
   const [isDirtyOpen, setDirtyOpen] = useState(false);
   const [isFinalizeConfirmOpen, setFinalizeConfirmOpen] = useState(false);
+  const [chapterTitle, setChapterTitle] = useState('');
   const [isDiscardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const [isFactsPromptOpen, setFactsPromptOpen] = useState(false);
   const [isExtractReviewOpen, setExtractReviewOpen] = useState(false);
@@ -860,7 +861,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         confirmedChapter,
         currentDraft.draftId,
         currentDraft.generatedWith || undefined,
-        currentDraft.modified ? currentDraft.content : undefined
+        currentDraft.modified ? currentDraft.content : undefined,
+        chapterTitle.trim() || undefined
       );
       if (activeAuPathRef.current !== requestAuPath) return;
 
@@ -1270,18 +1272,9 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                     <ChapterMarkdown content={streamText} />
                     {isGenerating && <span className="inline-block h-5 w-0.5 bg-accent align-middle animate-pulse" />}
                   </div>
-                ) : currentDraft ? (
-                  <div className="space-y-4 pb-8">
-                    <Textarea
-                      value={currentDraft.content}
-                      onChange={(event) => handleCurrentDraftChange(event.target.value)}
-                      className="min-h-[440px] border-0 bg-transparent px-0 py-0 font-serif shadow-none focus:ring-0"
-                      style={{ fontSize: 'inherit', lineHeight: 'inherit' }}
-                    />
-                  </div>
-                ) : displayContent ? (
+                ) : isViewingHistory && viewingHistoryContent ? (
                   <div className="font-serif text-text/90 pb-8">
-                    {isViewingHistory && editingConfirmed ? (
+                    {editingConfirmed ? (
                       <>
                         <Textarea
                           value={editingContent}
@@ -1301,16 +1294,27 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                       </>
                     ) : (
                       <>
-                        <ChapterMarkdown content={displayContent} />
-                        {isViewingHistory && (
-                          <div className="mt-4 pt-4 border-t border-black/10 dark:border-white/10">
-                            <Button variant="secondary" size="sm" onClick={handleStartEditConfirmed}>
-                              {t('writer.editChapter')}
-                            </Button>
-                          </div>
-                        )}
+                        <ChapterMarkdown content={viewingHistoryContent} />
+                        <div className="mt-4 pt-4 border-t border-black/10 dark:border-white/10">
+                          <Button variant="secondary" size="sm" onClick={handleStartEditConfirmed}>
+                            {t('writer.editChapter')}
+                          </Button>
+                        </div>
                       </>
                     )}
+                  </div>
+                ) : currentDraft ? (
+                  <div className="space-y-4 pb-8">
+                    <Textarea
+                      value={currentDraft.content}
+                      onChange={(event) => handleCurrentDraftChange(event.target.value)}
+                      className="min-h-[440px] border-0 bg-transparent px-0 py-0 font-serif shadow-none focus:ring-0"
+                      style={{ fontSize: 'inherit', lineHeight: 'inherit' }}
+                    />
+                  </div>
+                ) : displayContent ? (
+                  <div className="font-serif text-text/90 pb-8">
+                    <ChapterMarkdown content={displayContent} />
                   </div>
                 ) : (
                   generationErrorDisplay ? (
@@ -1364,7 +1368,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                   {isGenerating ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.continue')}
                 </Button>
                 {hasPendingDrafts && (
-                  <Button variant="primary" size="sm" onClick={() => { setFooterCollapsed(false); setFinalizeConfirmOpen(true); }} disabled={writeActionsDisabled}>
+                  <Button variant="primary" size="sm" onClick={() => { setFooterCollapsed(false); setChapterTitle(''); setFinalizeConfirmOpen(true); }} disabled={writeActionsDisabled}>
                     <Check size={15} /> {t('drafts.finalize')}
                   </Button>
                 )}
@@ -1403,7 +1407,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                       </div>
 
                       <div className="flex flex-wrap items-center justify-end gap-2">
-                        <Button variant="primary" size="sm" className="h-8 gap-1" onClick={() => setFinalizeConfirmOpen(true)} disabled={writeActionsDisabled}>
+                        <Button variant="primary" size="sm" className="h-8 gap-1" onClick={() => { setChapterTitle(''); setFinalizeConfirmOpen(true); }} disabled={writeActionsDisabled}>
                           <Check size={15} /> {t('drafts.finalize')}
                         </Button>
                         <Button variant="secondary" size="sm" className="h-8 gap-1" onClick={() => void handleRegenerate()} disabled={writeActionsDisabled}>
@@ -1619,7 +1623,17 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         title={t('drafts.confirmFinalize', { chapter: currentChapter })}
       >
         <div className="space-y-4">
-          <div className="rounded-lg border border-black/10 bg-surface/40 p-4 text-sm leading-relaxed text-text/80 dark:border-white/10">
+          <div>
+            <label className="block text-xs font-bold text-text/60 mb-1.5">{t('writer.chapterTitleLabel')}</label>
+            <input
+              type="text"
+              value={chapterTitle}
+              onChange={(e) => setChapterTitle(e.target.value)}
+              placeholder={t('writer.chapterTitlePlaceholder')}
+              className="w-full rounded-lg border border-black/10 bg-surface/40 px-3 py-2 text-sm text-text focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent dark:border-white/10"
+            />
+          </div>
+          <div className="rounded-lg border border-black/10 bg-surface/40 p-4 text-sm leading-relaxed text-text/80 dark:border-white/10 max-h-48 overflow-y-auto">
             {previewText || t('writer.emptyContent')}
           </div>
           <div className="flex justify-end gap-2">

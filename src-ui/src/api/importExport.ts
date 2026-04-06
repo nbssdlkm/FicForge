@@ -53,7 +53,7 @@ export async function exportChapters(params: {
   format: "txt" | "md";
   start?: number;
   end?: number;
-}): Promise<Blob> {
+}): Promise<{ blob: Blob; filename: string }> {
   const query = new URLSearchParams({
     au_path: params.au_path,
     format: params.format,
@@ -68,5 +68,11 @@ export async function exportChapters(params: {
       error_code: err.error_code || "EXPORT_FAILED",
     });
   }
-  return resp.blob();
+  // 从 Content-Disposition header 提取文件名（优先用 filename*=UTF-8'' 编码格式）
+  const disposition = resp.headers.get("content-disposition") || "";
+  const utf8Match = disposition.match(/filename\*=UTF-8''(.+?)(?:;|$)/i);
+  const plainMatch = disposition.match(/filename="?([^";]+)"?(?:;|$)/);
+  const rawName = utf8Match ? decodeURIComponent(utf8Match[1]) : plainMatch ? plainMatch[1] : "";
+  const filename = rawName || `export.${params.format}`;
+  return { blob: await resp.blob(), filename };
 }

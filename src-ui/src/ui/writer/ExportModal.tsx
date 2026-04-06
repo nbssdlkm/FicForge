@@ -27,12 +27,12 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onCl
     setError(null);
     abortRef.current = false;
     try {
-      const blob = await exportChapters({ au_path: auPath, format });
+      const { blob, filename } = await exportChapters({ au_path: auPath, format });
       if (abortRef.current) return;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `export.${format}`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

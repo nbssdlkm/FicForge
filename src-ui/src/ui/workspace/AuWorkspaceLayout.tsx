@@ -167,7 +167,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
                 <div key={ch.chapter_num} onClick={() => { setViewingChapter(ch.chapter_num); onNavigate('writer', auPath); }} className={`px-3 py-2 rounded-md text-sm cursor-pointer transition-colors ${activeTab === 'writer' && viewingChapter === ch.chapter_num ? 'bg-accent/10 text-accent font-medium' : 'hover:bg-black/5 dark:hover:bg-white/5 text-text/80'}`}>
                   <div className="flex items-center gap-2">
                     <span className="opacity-50 text-xs font-mono">#{ch.chapter_num}</span>
-                    <span className="truncate">{t('workspace.chapterItem', { num: ch.chapter_num })}</span>
+                    <span className="truncate">{ch.title || t('workspace.chapterItem', { num: ch.chapter_num })}</span>
                   </div>
                 </div>
               ))

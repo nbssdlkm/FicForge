@@ -44,6 +44,7 @@ class StateResponse(BaseModel):
     last_confirmed_chapter_focus: list[str]
     characters_last_seen: dict[str, int]
     chapter_focus: list[str]
+    chapter_titles: dict[int, str]
     chapters_dirty: list[int]
     index_status: IndexStatus
     index_built_with: EmbeddingFingerprintResponse | None = None

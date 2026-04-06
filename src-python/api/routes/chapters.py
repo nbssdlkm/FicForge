@@ -55,6 +55,7 @@ class ConfirmChapterRequest(BaseModel):
     draft_id: str
     generated_with: GeneratedWithPayload | None = None
     content: str | None = None  # 非 null 时用此内容替代草稿文件内容（编辑后定稿）
+    title: str | None = None    # 章节标题（AI 生成或用户编辑）
 
 
 class ConfirmChapterResponse(BaseModel):
@@ -97,6 +98,7 @@ class ChapterListItemResponse(BaseModel):
     chapter_id: str
     confirmed_at: str
     content_hash: str
+    title: str = ""
 
 
 class ChapterDetailResponse(BaseModel):
@@ -158,6 +160,18 @@ async def confirm_chapter(request: ConfirmChapterRequest) -> ConfirmChapterRespo
             message,
             ["检查章节号和 draft_id"],
         )
+
+    # 保存章节标题到 state（如果提供了），在 AU 锁内执行防止并发覆盖
+    if request.title:
+        from api import build_au_mutex
+        mutex = build_au_mutex()
+        state_repo = build_state_repository()
+        def _save_title() -> None:
+            with mutex.get_lock(request.au_path):
+                state = state_repo.get(request.au_path)
+                state.chapter_titles[result["chapter_num"]] = request.title
+                state_repo.save(state)
+        await run_in_threadpool(_save_title)
 
     return ConfirmChapterResponse(
         chapter_id=result["chapter_id"],
@@ -293,18 +307,60 @@ async def update_chapter_content(
     )
 
 
+class UpdateChapterTitleRequest(BaseModel):
+    au_path: str
+    title: str
+
+
+class UpdateChapterTitleResponse(BaseModel):
+    chapter_num: int
+    title: str
+
+
+@router.put("/{chapter_num}/title", response_model=UpdateChapterTitleResponse)
+async def update_chapter_title(
+    chapter_num: int, request: UpdateChapterTitleRequest
+) -> UpdateChapterTitleResponse | JSONResponse:
+    """修改章节标题。"""
+    logger.info("Update chapter title: au=%s ch=%d title=%s", request.au_path, chapter_num, request.title)
+    if not validate_path(request.au_path):
+        return error_response(400, "INVALID_PATH", "路径不合法", [])
+
+    from api import build_au_mutex
+    mutex = build_au_mutex()
+    state_repo = build_state_repository()
+
+    def _update() -> str | None:
+        with mutex.get_lock(request.au_path):
+            state = state_repo.get(request.au_path)
+            if chapter_num < 1 or chapter_num >= state.current_chapter:
+                return "章节号无效"
+            state.chapter_titles[chapter_num] = request.title
+            state_repo.save(state)
+            return None
+
+    err = await run_in_threadpool(_update)
+    if err:
+        return error_response(400, "INVALID_CHAPTER", err, ["检查章节号"])
+    return UpdateChapterTitleResponse(chapter_num=chapter_num, title=request.title)
+
+
 @router.get("", response_model=list[ChapterListItemResponse])
 async def list_chapters(au_path: str = Query(...)) -> list[ChapterListItemResponse] | JSONResponse:
     if not validate_path(au_path):
         return error_response(400, "INVALID_PATH", "路径不合法", [])
     repo = build_chapter_repository()
+    state_repo = build_state_repository()
     chapters = await run_in_threadpool(repo.list_main, au_path)
+    state = await run_in_threadpool(state_repo.get, au_path)
+    titles = state.chapter_titles
     return [
         ChapterListItemResponse(
             chapter_num=chapter.chapter_num,
             chapter_id=chapter.chapter_id,
             confirmed_at=chapter.confirmed_at,
             content_hash=chapter.content_hash,
+            title=titles.get(chapter.chapter_num, ""),
         )
         for chapter in chapters
     ]
