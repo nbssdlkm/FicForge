@@ -11,7 +11,7 @@ import { AuLoreLayout } from '../library/AuLoreLayout';
 import { AuSettingsLayout } from '../settings/AuSettingsLayout';
 import { AnimatePresence, motion } from 'framer-motion';
 import { rebuildIndex } from '../../api/state';
-import { listChapters, type ChapterInfo } from '../../api/chapters';
+import { listChapters, updateChapterTitle, type ChapterInfo } from '../../api/chapters';
 import { getState } from '../../api/state';
 import { listFacts, type FactInfo } from '../../api/facts';
 import { getProject } from '../../api/project';
@@ -47,6 +47,11 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const [embeddingStale, setEmbeddingStale] = useState(false);
   const [embeddingDismissed, setEmbeddingDismissed] = useState(false);
   const [viewingChapter, setViewingChapter] = useState<number | null>(null);
+  const [editingTitleNum, setEditingTitleNum] = useState<number | null>(null);
+  const [editingTitleValue, setEditingTitleValue] = useState('');
+  const editingRef = useRef<{ num: number; original: string } | null>(null);
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (clickTimerRef.current) clearTimeout(clickTimerRef.current); }, []);
   const [pinnedCount, setPinnedCount] = useState(0);
   const [unresolvedFact, setUnresolvedFact] = useState<string | null>(null);
   const [chapterFocusEmpty, setChapterFocusEmpty] = useState(true);
@@ -164,10 +169,66 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
               />
             ) : (
               chapters.map(ch => (
-                <div key={ch.chapter_num} onClick={() => { setViewingChapter(ch.chapter_num); onNavigate('writer', auPath); }} className={`px-3 py-2 rounded-md text-sm cursor-pointer transition-colors ${activeTab === 'writer' && viewingChapter === ch.chapter_num ? 'bg-accent/10 text-accent font-medium' : 'hover:bg-black/5 dark:hover:bg-white/5 text-text/80'}`}>
+                <div
+                  key={ch.chapter_num}
+                  onClick={() => {
+                    if (editingTitleNum === ch.chapter_num) return;
+                    // Delay single click to distinguish from double click
+                    if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+                    clickTimerRef.current = setTimeout(() => {
+                      setViewingChapter(ch.chapter_num); onNavigate('writer', auPath);
+                    }, 250);
+                  }}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    if (clickTimerRef.current) { clearTimeout(clickTimerRef.current); clickTimerRef.current = null; }
+                    editingRef.current = { num: ch.chapter_num, original: ch.title || '' };
+                    setEditingTitleNum(ch.chapter_num);
+                    setEditingTitleValue(ch.title || '');
+                  }}
+                  className={`px-3 py-2 rounded-md text-sm cursor-pointer transition-colors ${activeTab === 'writer' && viewingChapter === ch.chapter_num ? 'bg-accent/10 text-accent font-medium' : 'hover:bg-black/5 dark:hover:bg-white/5 text-text/80'}`}
+                >
                   <div className="flex items-center gap-2">
                     <span className="opacity-50 text-xs font-mono">#{ch.chapter_num}</span>
-                    <span className="truncate">{ch.title || t('workspace.chapterItem', { num: ch.chapter_num })}</span>
+                    {editingTitleNum === ch.chapter_num ? (
+                      <input
+                        autoFocus
+                        value={editingTitleValue}
+                        onChange={(e) => setEditingTitleValue(e.target.value)}
+                        onKeyDown={async (e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const ref = editingRef.current;
+                            if (!ref) return;
+                            const trimmed = editingTitleValue.trim();
+                            try {
+                              await updateChapterTitle(auPath, ref.num, trimmed);
+                              refreshChapters();
+                            } catch { /* save failed, value stays in input for retry */ return; }
+                            editingRef.current = null;
+                            setEditingTitleNum(null);
+                          } else if (e.key === 'Escape') { editingRef.current = null; setEditingTitleNum(null); }
+                        }}
+                        onBlur={async () => {
+                          const ref = editingRef.current;
+                          if (!ref) { setEditingTitleNum(null); return; }
+                          const trimmed = editingTitleValue.trim();
+                          if (trimmed !== ref.original) {
+                            try {
+                              await updateChapterTitle(auPath, ref.num, trimmed);
+                              refreshChapters();
+                            } catch { /* silent — user can re-edit later */ }
+                          }
+                          editingRef.current = null;
+                          setEditingTitleNum(null);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => e.stopPropagation()}
+                        className="flex-1 min-w-0 bg-transparent border-b border-accent/50 outline-none text-sm px-0 py-0"
+                      />
+                    ) : (
+                      <span className="truncate">{ch.title || t('workspace.chapterItem', { num: ch.chapter_num })}</span>
+                    )}
                   </div>
                 </div>
               ))

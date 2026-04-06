@@ -314,6 +314,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [isExportOpen, setExportOpen] = useState(false);
   const [isDirtyOpen, setDirtyOpen] = useState(false);
+  const [dirtyTargetChapter, setDirtyTargetChapter] = useState<number>(0);
   const [isFinalizeConfirmOpen, setFinalizeConfirmOpen] = useState(false);
   const [chapterTitle, setChapterTitle] = useState('');
   const [isDiscardConfirmOpen, setDiscardConfirmOpen] = useState(false);
@@ -1190,7 +1191,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
           <div className="bg-warning/10 border-b border-warning/20 px-6 py-2 flex items-center justify-between text-xs">
             <span className="text-warning">{t('dirty.banner', { count: (state?.chapters_dirty || []).length, chapters: (state?.chapters_dirty || []).join(', ') })}</span>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" className="text-xs h-6" onClick={() => setDirtyOpen(true)}>{t('dirty.goResolve')}</Button>
+              <Button variant="ghost" size="sm" className="text-xs h-6" onClick={() => { setDirtyTargetChapter((state?.chapters_dirty || [])[0] || 0); setDirtyOpen(true); }}>{t('dirty.goResolve')}</Button>
               <Button variant="ghost" size="sm" className="text-xs h-6 text-text/40" onClick={() => setDirtyBannerDismissed(true)}>{t('dirty.dismissBanner')}</Button>
             </div>
           </div>
@@ -1230,6 +1231,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                 size="sm"
                 className="h-8 text-warning"
                 onClick={() => {
+                  setDirtyTargetChapter((state?.chapters_dirty || [])[0] || 0);
                   showToast(t('writer.dirtyOpenHint'), 'info');
                   setDirtyOpen(true);
                 }}
@@ -1768,7 +1770,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         isOpen={isDirtyOpen}
         onClose={() => setDirtyOpen(false)}
         auPath={auPath}
-        chapterNum={currentChapter}
+        chapterNum={dirtyTargetChapter}
         onResolved={() => {
           setDirtyOpen(false);
           void loadData();
