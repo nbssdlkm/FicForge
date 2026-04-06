@@ -61,7 +61,7 @@ def create_app() -> FastAPI:
 
     application = FastAPI(
         title="FicForge Backend",
-        version="0.1.2",
+        version="0.1.3",
     )
 
     # CORS —— 本地模式 allow_origins=["*"]
