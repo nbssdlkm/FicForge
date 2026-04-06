@@ -34,6 +34,44 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/chapters", tags=["chapters"])
 
 
+async def _generate_chapter_title(au_path: str, chapter_num: int) -> str:
+    """AI 生成章节标题。失败时静默返回空字符串，不阻塞定稿流程。"""
+    try:
+        from api import build_settings_repository, build_project_repository
+        from infra.llm.config_resolver import resolve_llm_config, create_provider
+        from core.prompts import get_prompts
+
+        settings = await run_in_threadpool(build_settings_repository().get)
+        project = await run_in_threadpool(build_project_repository().get, au_path)
+        language = getattr(getattr(settings, "app", None), "language", "zh") or "zh"
+        P = get_prompts(language)
+
+        # 读取章节正文（前 500 字）
+        chapter_repo = build_chapter_repository()
+        content = await run_in_threadpool(chapter_repo.get_content_only, au_path, chapter_num)
+        snippet = content[:500] if content else ""
+        if not snippet.strip():
+            return ""
+
+        llm_config = resolve_llm_config(None, project, settings)
+        provider = create_provider(llm_config)
+        prompt = P.CHAPTER_TITLE_PROMPT.format(content=snippet)
+
+        response = await run_in_threadpool(
+            provider.generate,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=30,
+            temperature=0.5,
+            top_p=0.9,
+            stream=False,
+        )
+        title = response.content.strip().strip('"\'""''「」《》')[:20]
+        return title
+    except Exception:
+        logger.warning("AI 章节标题生成失败（不影响定稿）", exc_info=True)
+        return ""
+
+
 class GeneratedWithPayload(BaseModel):
     mode: str = ""
     model: str = ""
@@ -161,15 +199,20 @@ async def confirm_chapter(request: ConfirmChapterRequest) -> ConfirmChapterRespo
             ["检查章节号和 draft_id"],
         )
 
-    # 保存章节标题到 state（如果提供了），在 AU 锁内执行防止并发覆盖
-    if request.title:
+    # 保存章节标题到 state，在 AU 锁内执行防止并发覆盖
+    # 如果用户手动填了 title 直接用；否则尝试 AI 生成
+    final_title = request.title or ""
+    if not final_title:
+        final_title = await _generate_chapter_title(request.au_path, result["chapter_num"])
+    if final_title:
         from api import build_au_mutex
         mutex = build_au_mutex()
         state_repo = build_state_repository()
+        _ch_num = result["chapter_num"]
         def _save_title() -> None:
             with mutex.get_lock(request.au_path):
                 state = state_repo.get(request.au_path)
-                state.chapter_titles[result["chapter_num"]] = request.title
+                state.chapter_titles[_ch_num] = final_title
                 state_repo.save(state)
         await run_in_threadpool(_save_title)
 

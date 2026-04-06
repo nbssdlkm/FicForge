@@ -306,3 +306,6 @@ SETTINGS_LABEL_CHARACTERS = "角色设定"
 SETTINGS_LABEL_WORLDBUILDING = "世界观"
 SETTINGS_LABEL_CORE_CHARACTERS = "角色 DNA"
 SETTINGS_LABEL_CORE_WORLDBUILDING = "世界观"
+
+# === AI 章节标题生成 ===
+CHAPTER_TITLE_PROMPT = "为以下小说章节起一个简短的中文标题（不超过10个字），只返回标题文字，不要任何解释或标点符号：\n\n{content}"
