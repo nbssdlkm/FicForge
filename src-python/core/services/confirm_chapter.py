@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """确认章节流程。参见 PRD §4.3、§2.6.5 多文件写入顺序契约。
 
 严格遵循 5 步写入顺序：备份 → 章节 → state → ops → 清理草稿。

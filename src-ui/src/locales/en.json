@@ -928,5 +928,16 @@
       "prev": "← Back",
       "next": "Next →"
     }
+  },
+  "ethics": {
+    "aboutFooter": "FicForge runs locally on your computer. Your data is never uploaded or used for AI training. Please only import your own work, and consider disclosing AI assistance when publishing.",
+    "importWarning": "Please ensure you have the right to use the content you import. Do not import others' work.",
+    "exportAiLabel": "Append AI assistance disclosure to exported file",
+    "exportDisclaimer": "This work was created with AI assistance (tool: FicForge).",
+    "exportUncheckedWarning": "With this unchecked, please ensure you follow the AI disclosure policies of your publishing platform.",
+    "onboardingTitle": "Before You Start",
+    "onboardingBody": "FicForge helps you write your own stories. All data stays on your device and is never uploaded.\n\nReminders:\n· Only import content you own\n· When publishing AI-assisted work, consider disclosing AI involvement\n· Follow the rules of your creative community",
+    "onboardingAcknowledge": "I understand, let's start",
+    "onboardingConsent": "By using this tool, you acknowledge that you have read and understood our Responsible Use statement"
   }
 }

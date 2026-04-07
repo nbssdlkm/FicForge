@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """垃圾箱服务。参见 D-0023。
 
 .trash/ + manifest.jsonl 实现软删除与恢复。

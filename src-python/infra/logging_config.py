@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """日志配置。
 
 同时输出到终端和文件，日志文件按天轮转，保留 30 天。

@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """Context 预算报告数据结构。参见 PRD §4.1。"""
 
 from __future__ import annotations

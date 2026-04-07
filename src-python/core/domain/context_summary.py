@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """ContextSummary 旁路统计数据结构。参见 D-0031。
 
 只读统计对象，在 assemble_context 组装过程中旁路收集。

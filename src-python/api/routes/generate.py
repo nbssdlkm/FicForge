@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """生成流式端点。D-0018: SSE 流式传输。"""
 
 from __future__ import annotations

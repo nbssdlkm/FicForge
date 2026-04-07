@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """LocalFileFactRepository — facts.jsonl 读写实现。
 
 facts.jsonl 采用 JSONL 格式（每行一条独立 JSON）。

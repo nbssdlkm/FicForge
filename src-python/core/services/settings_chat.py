@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """设定模式 AI 对话服务。参见 D-0024、D-0029。
 
 精简版上下文组装 + LLM tool calling 请求。

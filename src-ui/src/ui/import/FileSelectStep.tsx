@@ -1,3 +1,7 @@
+// Copyright (c) 2026 FicForge Contributors
+// Licensed under the GNU Affero General Public License v3.0.
+// See LICENSE file in the project root for full license text.
+
 import { useState, useRef, DragEvent } from 'react';
 import { Button } from '../shared/Button';
 import { Upload, FileText, Loader2 } from 'lucide-react';
@@ -43,6 +47,11 @@ export function FileSelectStep({
   return (
     <div className="space-y-6">
       <p className="text-sm text-text/60">{t('import.supportedFormats')}</p>
+
+      <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-sm text-warning">
+        <span className="shrink-0">⚠️</span>
+        <span>{t('ethics.importWarning')}</span>
+      </div>
 
       <div
         className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors ${dragOver ? 'border-accent bg-accent/5' : 'border-black/15 dark:border-white/15 hover:border-accent/50'}`}

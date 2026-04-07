@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """Tokenizer 路由 + LRU Cache。参见 PRD §2.4。
 
 三种模式：

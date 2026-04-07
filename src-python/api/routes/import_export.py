@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """导入/导出 API 路由。参见 PRD §4.8、§6.8。"""
 
 from __future__ import annotations

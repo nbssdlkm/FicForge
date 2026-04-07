@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """LocalFileOpsRepository — ops.jsonl 读写实现。
 
 ops.jsonl 是业务关键依赖（D-0010），用于 undo 快照恢复、dirty 基线、同步回放。
