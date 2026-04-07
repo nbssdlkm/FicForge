@@ -630,7 +630,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
 
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-bold text-text/90">{t('common.labels.contentClean')}</label>
-                <Textarea ref={editContentCleanRef} defaultValue={editingFact.content_clean} className="font-serif min-h-[100px] text-lg leading-relaxed resize-y" />
+                <Textarea ref={editContentCleanRef} defaultValue={editingFact.content_clean} className="font-serif min-h-[160px] text-lg leading-relaxed resize-y" />
                 <p className="text-xs text-text/50">{t('facts.cleanHint')}</p>
               </div>
 
