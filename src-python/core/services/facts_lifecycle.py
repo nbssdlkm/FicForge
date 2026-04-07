@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """Facts 生命周期管理。参见 PRD §3.6、§6.7、§4.3。
 
 四个 Service 方法：add_fact / edit_fact / update_fact_status / set_chapter_focus。

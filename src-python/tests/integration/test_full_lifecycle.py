@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """阶段 1 核心状态机全量集成审计。
 
 模拟完整用户旅程，验证所有 Repository + Service 在整个生命周期中保持数据一致。

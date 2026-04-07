@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """ConfirmChapter 单元测试——辅助函数。"""
 
 from core.domain.character_scanner import scan_characters_in_chapter

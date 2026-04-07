@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """AU 粒度互斥锁管理器。参见 DECISIONS D-0009。
 
 同一 AU 同一时间只有一个状态机变更操作。

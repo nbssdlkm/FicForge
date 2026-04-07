@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """生成流式端点。D-0018: SSE 流式传输。"""
 
 from __future__ import annotations
@@ -73,7 +77,7 @@ async def generate_stream(request: GenerateRequest) -> StreamingResponse:
             settings = await run_in_threadpool(settings_repo.get)
             facts = await run_in_threadpool(fact_repo.list_all, au_id)
 
-            vector_repo = build_vector_repository()
+            vector_repo = build_vector_repository(au_path=au_id)
 
             stream = generate_chapter(
                 au_path=au_dir,

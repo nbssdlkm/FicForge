@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """运行时状态领域对象。参见 PRD §3.5 state.yaml。"""
 
 from __future__ import annotations
@@ -33,6 +37,7 @@ class State:
     last_confirmed_chapter_focus: list[str] = field(default_factory=list)
     characters_last_seen: dict[str, int] = field(default_factory=dict)
     chapter_focus: list[str] = field(default_factory=list)  # fact id 数组，最多 2 个
+    chapter_titles: dict[int, str] = field(default_factory=dict)  # {1: "黄昏的告别", 2: "..."}
     chapters_dirty: list[int] = field(default_factory=list)
     index_status: IndexStatus = IndexStatus.STALE  # 新 AU 无索引，默认 stale
     index_built_with: Optional[EmbeddingFingerprint] = None

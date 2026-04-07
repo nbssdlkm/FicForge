@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """FactRepository 抽象接口。
 
 Facts 在常规流程中 append-only，仅在章节回滚时允许物理删除。

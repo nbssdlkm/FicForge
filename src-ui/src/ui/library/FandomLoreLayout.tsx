@@ -1,3 +1,7 @@
+// Copyright (c) 2026 FicForge Contributors
+// Licensed under the GNU Affero General Public License v3.0.
+// See LICENSE file in the project root for full license text.
+
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
@@ -7,7 +11,8 @@ import { EmptyState } from '../shared/EmptyState';
 import { TrashPanel } from '../shared/TrashPanel';
 import { SettingsChatPanel } from '../shared/settings-chat/SettingsChatPanel';
 import type { TrashEntry } from '../../api/trash';
-import { Search, Plus, ArrowLeft, FileText, ChevronDown, ChevronRight, Folder, Loader2, Trash2, Users, Globe2 } from 'lucide-react';
+import { Search, Plus, ArrowLeft, FileText, ChevronDown, ChevronRight, Folder, Loader2, Trash2, Users, Globe2, Eye, Pencil, MessageSquare, X } from 'lucide-react';
+import { SettingsMarkdown } from '../shared/SettingsMarkdown';
 import { saveLore, deleteLore } from '../../api/lore';
 import { listFandomFiles, readFandomFile, type FandomFileEntry } from '../../api/fandoms';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -53,6 +58,8 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [isReadingFile, setIsReadingFile] = useState(false);
   const [settingsChatBusy, setSettingsChatBusy] = useState(false);
+  const [previewMode, setPreviewMode] = useState(true);
+  const [aiPanelOpen, setAiPanelOpen] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [characterFiles, setCharacterFiles] = useState<FandomFileEntry[]>([]);
   const [worldbuildingFiles, setWorldbuildingFiles] = useState<FandomFileEntry[]>([]);
@@ -332,6 +339,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
       if (contextVersion !== contextVersionRef.current) return;
       setSelectedFile(filename);
       setSelectedCategory(createModalCategory);
+      setPreviewMode(false);
       setEditorContent(defaultContent);
       setSavedEditorContent(defaultContent);
       setIsReadingFile(false);
@@ -454,42 +462,6 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
 
         <div className="flex-1 min-h-0 flex flex-col">
           <div className="flex-1 overflow-y-auto p-2 space-y-6 font-mono py-4">
-            <div className="px-2">
-              <SettingsChatPanel
-                mode="fandom"
-                basePath={fandomPath}
-                placeholder={t('settingsMode.fandomPlaceholder')}
-                title={t('settingsMode.fandomAiTitle')}
-                compact
-                disabled={settingsChatDisabled}
-                onBusyChange={setSettingsChatBusy}
-                onAfterMutation={async () => {
-                  const refreshed = await loadFiles();
-                  if (!refreshed) return;
-                  if (!selectedFile) return;
-
-                  const refreshedFiles = selectedCategory === 'core_characters'
-                    ? (refreshed?.characters || [])
-                    : (refreshed?.worldbuilding || []);
-                  const fileStillExists = refreshedFiles.some((file) => file.filename === selectedFile);
-
-                  if (!fileStillExists) {
-                    setSelectedFile(null);
-                    setEditorContent('');
-                    setSavedEditorContent('');
-                    showToast(t('fandomLore.selectedFileRemoved'), 'warning');
-                    return;
-                  }
-
-                  if (!isEditorDirty) {
-                    await handleSelectFile(selectedFile, selectedCategory);
-                  } else {
-                    showToast(t('fandomLore.pendingEditsPreserved'), 'warning');
-                  }
-                }}
-              />
-            </div>
-
             <div className="space-y-2">
               <div className="px-3 pb-1 text-[11px] font-sans font-bold text-text/40 uppercase tracking-widest flex justify-between items-center">
                 <span>{t("fandomLore.rootLabel")}</span>
@@ -625,6 +597,14 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                 >
                   <Trash2 size={14} />
                 </Button>
+                <div className="inline-flex rounded-md border border-black/10 dark:border-white/10 bg-surface/60 p-0.5 mr-2">
+                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${!previewMode ? 'bg-accent text-white' : 'text-text/60 hover:text-text'}`} onClick={() => setPreviewMode(false)}>
+                    <Pencil size={12} /> {t('common.actions.edit')}
+                  </button>
+                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${previewMode ? 'bg-accent text-white' : 'text-text/60 hover:text-text'}`} onClick={() => setPreviewMode(true)}>
+                    <Eye size={12} /> {t('common.actions.preview')}
+                  </button>
+                </div>
                 <Button variant="primary" size="sm" className="h-8 w-28" onClick={handleSaveLore} disabled={editorBusy}>
                   {isSaving || isReadingFile ? <Loader2 size={14} className="animate-spin" /> : t('fandomLore.saveButton')}
                 </Button>
@@ -635,7 +615,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
           )}
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 lg:p-12 w-full max-w-4xl mx-auto flex flex-col gap-6">
+        <div className="flex-1 overflow-y-auto p-6 w-full flex flex-col gap-6">
           {selectedFile ? (
             <>
               <div className="flex flex-col gap-2 flex-1">
@@ -643,6 +623,10 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                 {isReadingFile ? (
                   <div className="flex min-h-[300px] flex-1 items-center justify-center rounded-md border border-black/10 bg-surface/30 p-4 dark:border-white/10">
                     <Loader2 size={18} className="animate-spin text-accent" />
+                  </div>
+                ) : previewMode ? (
+                  <div className="flex-1 min-h-[300px] rounded-md border border-black/10 bg-surface/30 p-6 dark:border-white/10 overflow-y-auto">
+                    <SettingsMarkdown content={editorContent} />
                   </div>
                 ) : (
                   <Textarea
@@ -663,6 +647,60 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
           )}
         </div>
       </div>
+
+      {/* Right panel: AI Assistant */}
+      <div className={`shrink-0 border-l border-black/10 dark:border-white/10 flex flex-col bg-surface/30 transition-all duration-300 overflow-hidden ${aiPanelOpen ? 'w-[320px] lg:w-[360px]' : 'w-0'}`}>
+          <div className={`flex-1 flex flex-col min-h-0 transition-opacity duration-200 ${aiPanelOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <div className="p-3 border-b border-black/10 dark:border-white/10 flex items-center justify-between shrink-0">
+              <span className="text-xs font-bold text-text/60">{t('settingsMode.fandomAiTitle')}</span>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setAiPanelOpen(false)}>
+                <X size={14} />
+              </Button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
+              <SettingsChatPanel
+                mode="fandom"
+                basePath={fandomPath}
+                placeholder={t('settingsMode.fandomPlaceholder')}
+                title=""
+                compact
+                disabled={settingsChatDisabled}
+                onBusyChange={setSettingsChatBusy}
+                onAfterMutation={async () => {
+                  const refreshed = await loadFiles();
+                  if (!refreshed) return;
+                  if (!selectedFile) return;
+                  const refreshedFiles = selectedCategory === 'core_characters'
+                    ? (refreshed?.characters || [])
+                    : (refreshed?.worldbuilding || []);
+                  const fileStillExists = refreshedFiles.some((file) => file.filename === selectedFile);
+                  if (!fileStillExists) {
+                    setSelectedFile(null);
+                    setEditorContent('');
+                    setSavedEditorContent('');
+                    showToast(t('fandomLore.selectedFileRemoved'), 'warning');
+                    return;
+                  }
+                  if (!isEditorDirty) {
+                    await handleSelectFile(selectedFile, selectedCategory);
+                  } else {
+                    showToast(t('fandomLore.pendingEditsPreserved'), 'warning');
+                  }
+                }}
+              />
+            </div>
+          </div>
+      </div>
+      {!aiPanelOpen && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="fixed right-3 top-16 z-20 h-8 px-2 bg-surface border border-black/10 dark:border-white/10 shadow-sm"
+          onClick={() => setAiPanelOpen(true)}
+        >
+          <MessageSquare size={14} className="mr-1" /> AI
+        </Button>
+      )}
 
       <Modal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} title={createModalCategory === 'core_characters' ? t('fandomLore.createCharacterTitle') : t('fandomLore.createWorldbuildingTitle')}>
         <div className="flex flex-col gap-4">

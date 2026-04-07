@@ -1,3 +1,7 @@
+// Copyright (c) 2026 FicForge Contributors
+// Licensed under the GNU Affero General Public License v3.0.
+// See LICENSE file in the project root for full license text.
+
 import { useState, useEffect, useRef } from 'react';
 import { Card } from './shared/Card';
 import { Button } from './shared/Button';
@@ -223,7 +227,7 @@ function LibraryInner({ onNavigate }: Props) {
                     <Button variant="ghost" size="sm" onClick={() => { setSelectedFandom(fandom.name); setSelectedFandomDir(fandom.dir_name); setAuModalOpen(true); }} disabled={creatingFandom || creatingAu || deleting}>
                       <Plus size={14} className="mr-1 text-accent" /> {t("library.createAuButton")}
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-text/40 hover:text-text/60" onClick={() => setTrashTarget({ fandomDir: fandom.dir_name, fandomName: fandom.name })} title={t('trash.title')}>
+                    <Button variant="ghost" size="sm" className="text-text/40 hover:text-text/60" onClick={() => setTrashTarget({ fandomDir: fandom.dir_name, fandomName: fandom.name })} title={t('trash.tooltip')}>
                       <ArchiveRestore size={14} />
                     </Button>
                     <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteTarget({ type: 'fandom', fandomDir: fandom.dir_name, fandomName: fandom.name })} disabled={creatingFandom || creatingAu || deleting}>

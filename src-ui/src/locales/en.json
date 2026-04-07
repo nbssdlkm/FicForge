@@ -16,6 +16,8 @@
       "confirm": "Confirm",
       "delete": "Delete",
       "close": "Close",
+      "edit": "Edit",
+      "preview": "Preview",
       "dismiss": "Dismiss",
       "back": "Back",
       "continue": "Continue",
@@ -38,7 +40,7 @@
       "addWorldbuilding": "+ Add Worldbuilding",
       "addPinnedRule": "Add a Writing Rule",
       "manualFact": "+ Add Manually",
-      "extractFacts": "✨ Extract from Chapters",
+      "extractFacts": "Extract from Chapters",
       "newNote": "+ Add Point",
       "startWriting": "✍️ Start Writing",
       "deleteFile": "Delete File",
@@ -218,6 +220,9 @@
     "editChapter": "Edit Chapter",
     "saveEdit": "Save",
     "cancelEdit": "Cancel",
+    "chapterTitleLabel": "Chapter Title",
+    "chapterTitlePlaceholder": "Name this chapter (optional)",
+    "chapterTitleAutoHint": "Leave empty for AI-generated title",
     "editSaveSuccess": "Chapter updated. Please resolve dirty chapter notes.",
     "saveGlobalSuccess": "These parameters have been saved to global settings.",
     "saveAuSuccess": "These parameters have been saved to this story's settings.",
@@ -422,6 +427,9 @@
       "castRegistry": "Character Roster",
       "searchEngine": "Search Engine"
     },
+    "au": {
+      "useCustomEmbedding": "Use a custom Embedding model for this story"
+    },
     "global": {
       "title": "Global Settings",
       "description": "These are the default settings. All new stories will start with this configuration.",
@@ -484,6 +492,10 @@
     "noSearchResultTitle": "No matching plot points found",
     "noSearchResultDescription": "Try different keywords, or add your first point.",
     "filterTitle": "Filter Plot Points",
+    "filterAllChapters": "All Chapters",
+    "filterAllCharacters": "All Characters",
+    "filterClear": "Clear Filters",
+    "chapterGroup": "Chapter {{num}}",
     "statusHint": {
       "unresolved": "Foreshadowing or unresolved thread. Can be set as chapter focus. Injected into AI context.",
       "active": "Established fact. Always injected into AI context.",
@@ -598,16 +610,20 @@
   "dirty": {
     "title": "Check Manual Edits",
     "warningTitle": "Manual edits detected",
-    "warningDescription": "This chapter was manually edited. To keep future generations accurate, please review the affected plot points and decide whether to keep or deprecate them.",
-    "empty": "No plot points are linked to this chapter. You can re-process directly.",
+    "warningDescription": "This chapter was manually edited. AI is re-extracting plot points — please review and confirm.",
+    "oldFactsSection": "Existing Plot Points",
+    "newFactsSection": "AI Re-extracted Points",
     "dirtyTag": "Needs Review",
     "deprecateTag": "Will Deprecate",
     "keep": "Keep",
     "deprecate": "Deprecate",
-    "extractButton": "Extract new plot points from this edit",
-    "extractHint": "You can also add more plot points from the Plot Points page.",
-    "resolveButton": "🔄 Re-process",
-    "resolveSubtitle": "Check character appearances and plot state",
+    "extracting": "AI is re-extracting plot points for this chapter...",
+    "extractFailed": "AI extraction failed. You can skip and confirm directly.",
+    "noOldFacts": "No existing points for this chapter",
+    "noCandidates": "AI found no new points",
+    "confirmResolve": "Confirm Edit & Update",
+    "confirmResolveSubtitle": "Save selected points + clear edit flag",
+    "saveFailed": "{{count}} fact(s) failed to save",
     "banner": "{{count}} chapter(s) need updated character data (Chapter {{chapters}}). The AI may reference outdated info.",
     "goResolve": "Fix Now",
     "dismissBanner": "Later"
@@ -743,7 +759,8 @@
     "restoreSuccess": "Restored: {{name}}",
     "restoreConflict": "A file with the same name already exists. Please delete or rename it first.",
     "deleteSuccess": "Permanently deleted",
-    "clearSuccess": "Trash emptied"
+    "clearSuccess": "Trash emptied",
+    "tooltip": "View deleted lore and data, recoverable within 30 days"
   },
   "coreIncludes": {
     "pinned": "Pinned",
@@ -911,5 +928,16 @@
       "prev": "← Back",
       "next": "Next →"
     }
+  },
+  "ethics": {
+    "aboutFooter": "FicForge runs locally on your computer. Your data is never uploaded or used for AI training. Please only import your own work, and consider disclosing AI assistance when publishing.",
+    "importWarning": "Please ensure you have the right to use the content you import. Do not import others' work.",
+    "exportAiLabel": "Append AI assistance disclosure to exported file",
+    "exportDisclaimer": "This work was created with AI assistance (tool: FicForge).",
+    "exportUncheckedWarning": "With this unchecked, please ensure you follow the AI disclosure policies of your publishing platform.",
+    "onboardingTitle": "Before You Start",
+    "onboardingBody": "FicForge helps you write your own stories. All data stays on your device and is never uploaded.\n\nReminders:\n· Only import content you own\n· When publishing AI-assisted work, consider disclosing AI involvement\n· Follow the rules of your creative community",
+    "onboardingAcknowledge": "I understand, let's start",
+    "onboardingConsent": "By using this tool, you acknowledge that you have read and understood our Responsible Use statement"
   }
 }

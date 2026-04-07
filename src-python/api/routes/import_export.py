@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """导入/导出 API 路由。参见 PRD §4.8、§6.8。"""
 
 from __future__ import annotations
@@ -5,6 +9,7 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 from typing import Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, Query, UploadFile
 from pydantic import BaseModel
@@ -234,6 +239,14 @@ async def export_chapters_endpoint(
             ["支持 txt / md"],
         )
 
+    # 读取 chapter_titles 用于导出
+    from api import build_state_repository
+    try:
+        _state = await run_in_threadpool(build_state_repository().get, au_path)
+        _titles = _state.chapter_titles
+    except Exception:
+        _titles = {}
+
     try:
         content = await run_in_threadpool(
             export_chapters,
@@ -244,6 +257,7 @@ async def export_chapters_endpoint(
             format,
             include_title,
             include_chapter_num,
+            _titles,
         )
     except Exception as exc:
         logger.exception("Export chapters failed: au=%s", au_path)
@@ -262,12 +276,22 @@ async def export_chapters_endpoint(
             ["确认 AU 下已有已确认的章节"],
         )
 
+    # 用 AU 目录名作为文件名前缀（去掉路径中的 fandoms/fandoms/ 前缀）
+    au_name = Path(au_path).name or "export"
     end_label = str(end) if end is not None else "all"
-    filename = f"export_ch{start}-{end_label}.{format}"
+    filename = f"{au_name}_ch{start}-{end_label}.{format}"
     media_type = "text/plain" if format == "txt" else "text/markdown"
 
+    # RFC 6266: filename 用 ASCII fallback，filename* 用 UTF-8 编码
+    ascii_fallback = f"export_ch{start}-{end_label}.{format}"
+    encoded_name = quote(filename, safe="")
     return Response(
         content=content,
         media_type=media_type,
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename=\"{ascii_fallback}\"; "
+                f"filename*=UTF-8''{encoded_name}"
+            )
+        },
     )

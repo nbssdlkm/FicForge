@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """中文 prompt 模板。
 
 所有注入给 LLM 的中文文本集中在此，由 core.prompts 按 app.language 路由。
@@ -306,3 +310,6 @@ SETTINGS_LABEL_CHARACTERS = "角色设定"
 SETTINGS_LABEL_WORLDBUILDING = "世界观"
 SETTINGS_LABEL_CORE_CHARACTERS = "角色 DNA"
 SETTINGS_LABEL_CORE_WORLDBUILDING = "世界观"
+
+# === AI 章节标题生成 ===
+CHAPTER_TITLE_PROMPT = "为以下小说章节起一个简短的中文标题（不超过10个字），只返回标题文字，不要任何解释或标点符号：\n\n{content}"

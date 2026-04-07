@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """文件操作工具函数。
 
 提供原子写入、时间戳生成、content_hash 计算等公共能力。

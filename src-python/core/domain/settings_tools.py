@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """设定模式 Tool Schema 定义。参见 D-0029、补充 PRD v2 §1.5。
 
 AU 模式 9 个 tool，Fandom 模式 4 个 tool。

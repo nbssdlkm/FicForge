@@ -1,3 +1,7 @@
+// Copyright (c) 2026 FicForge Contributors
+// Licensed under the GNU Affero General Public License v3.0.
+// See LICENSE file in the project root for full license text.
+
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
@@ -5,7 +9,8 @@ import { Modal } from '../shared/Modal';
 import { EmptyState } from '../shared/EmptyState';
 import { TrashPanel } from '../shared/TrashPanel';
 import type { TrashEntry } from '../../api/trash';
-import { Search, Plus, FileText, ChevronDown, ChevronRight, Folder, Loader2, Trash2, Download, Pin } from 'lucide-react';
+import { Search, Plus, FileText, ChevronDown, ChevronRight, Folder, Loader2, Trash2, Download, Pin, Eye, Pencil } from 'lucide-react';
+import { SettingsMarkdown } from '../shared/SettingsMarkdown';
 import { getProject, updateProject, type ProjectInfo } from '../../api/project';
 import { saveLore, readLore, deleteLore, listLoreFiles, importFromFandom, getLoreContent } from '../../api/lore';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -109,6 +114,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
   const [aliases, setAliases] = useState<string[]>([]);
   const [newAlias, setNewAlias] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [previewMode, setPreviewMode] = useState(true);
   const [isReadingFile, setIsReadingFile] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createName, setCreateName] = useState('');
@@ -411,6 +417,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
       const setTargetFiles = selectedCategory === 'worldbuilding' ? setWorldbuildingFiles : setFiles;
       setTargetFiles(prev => [...prev, { name: displayName, filename }].sort((a, b) => a.name.localeCompare(b.name)));
       setSelectedFile(displayName);
+      setPreviewMode(false);
       setEditorContent(defaultContent);
       setCreateName('');
       setSearchTerm('');
@@ -708,6 +715,14 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                 <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteConfirmOpen(true)} disabled={isSaving || isReadingFile}>
                   <Trash2 size={14} />
                 </Button>
+                <div className="inline-flex rounded-md border border-black/10 dark:border-white/10 bg-surface/60 p-0.5 mr-2">
+                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${!previewMode ? 'bg-accent text-white' : 'text-text/60 hover:text-text'}`} onClick={() => setPreviewMode(false)}>
+                    <Pencil size={12} /> {t('common.actions.edit')}
+                  </button>
+                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${previewMode ? 'bg-accent text-white' : 'text-text/60 hover:text-text'}`} onClick={() => setPreviewMode(true)}>
+                    <Eye size={12} /> {t('common.actions.preview')}
+                  </button>
+                </div>
                 <Button variant="primary" size="sm" className="h-8 w-24" onClick={handleSaveLore} disabled={isSaving || isReadingFile}>
                   {isSaving || isReadingFile ? <Loader2 size={14} className="animate-spin" /> : t('auLore.saveButton')}
                 </Button>
@@ -718,7 +733,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
           )}
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 lg:p-12 w-full max-w-4xl mx-auto flex flex-col gap-6">
+        <div className="flex-1 overflow-y-auto p-6 w-full flex flex-col gap-6">
           {selectedFile ? (
             <div className="flex flex-col gap-2 flex-1">
               <label className="text-sm font-bold text-text/90">{t('navigation.auLore')}</label>
@@ -755,20 +770,26 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                 </div>
               )}
 
-              <Textarea
-                value={editorContent}
-                onChange={e => setEditorContent(e.target.value)}
-                disabled={isReadingFile}
-                onDragOver={e => e.preventDefault()}
-                onDrop={e => {
-                  e.preventDefault();
-                  const file = e.dataTransfer.files[0];
-                  if (file && (file.name.endsWith('.txt') || file.name.endsWith('.md'))) {
-                    file.text().then(text => setEditorContent(prev => prev + '\n\n' + text));
-                  }
-                }}
-                className="font-mono flex-1 min-h-[420px] text-sm leading-relaxed bg-surface/30 p-4 resize-y"
-              />
+              {previewMode ? (
+                <div className="flex-1 min-h-[420px] rounded-md border border-black/10 bg-surface/30 p-6 dark:border-white/10 overflow-y-auto">
+                  <SettingsMarkdown content={editorContent} />
+                </div>
+              ) : (
+                <Textarea
+                  value={editorContent}
+                  onChange={e => setEditorContent(e.target.value)}
+                  disabled={isReadingFile}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={e => {
+                    e.preventDefault();
+                    const file = e.dataTransfer.files[0];
+                    if (file && (file.name.endsWith('.txt') || file.name.endsWith('.md'))) {
+                      file.text().then(text => setEditorContent(prev => prev + '\n\n' + text));
+                    }
+                  }}
+                  className="font-mono flex-1 min-h-[420px] text-sm leading-relaxed bg-surface/30 p-4 resize-y"
+                />
+              )}
             </div>
           ) : (
             <EmptyState

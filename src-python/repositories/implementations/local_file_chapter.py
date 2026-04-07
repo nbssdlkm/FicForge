@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """LocalFileChapterRepository — 章节文件读写实现。
 
 4 位补零文件名转换封装在此处（D-0014）。
