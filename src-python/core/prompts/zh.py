@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """中文 prompt 模板。
 
 所有注入给 LLM 的中文文本集中在此，由 core.prompts 按 app.language 路由。

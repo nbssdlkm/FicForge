@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """撤销最新章流程。参见 PRD §6.3 步骤 0-10。
 
 ⚠️ 这是整个项目最危险的 Service：10 步级联回滚，涉及 5 类文件。

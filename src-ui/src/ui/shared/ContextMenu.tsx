@@ -1,3 +1,7 @@
+// Copyright (c) 2026 FicForge Contributors
+// Licensed under the GNU Affero General Public License v3.0.
+// See LICENSE file in the project root for full license text.
+
 /**
  * 自定义右键菜单（Tauri webview 不显示浏览器默认右键菜单）。
  * 在 input/textarea 上右键时显示剪切/复制/粘贴/全选。

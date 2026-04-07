@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """导出功能。参见 PRD §6.8。
 
 支持 txt/md 两种格式，frontmatter 剥离使用 frontmatter.loads()（§5.2）。

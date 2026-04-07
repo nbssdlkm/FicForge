@@ -1,8 +1,13 @@
+// Copyright (c) 2026 FicForge Contributors
+// Licensed under the GNU Affero General Public License v3.0.
+// See LICENSE file in the project root for full license text.
+
 import { useEffect, useRef, useState } from 'react';
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { FileUp } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
+import { useFeedback } from '../../hooks/useFeedback';
 import { exportChapters } from '../../api/importExport';
 
 /** Tauri 环境检测：window.__TAURI_INTERNALS__ 存在则为 Tauri 打包环境 */
@@ -51,9 +56,11 @@ function saveWithBrowserDownload(blob: Blob, filename: string): void {
 
 export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onClose: () => void, auPath: string }) => {
   const { t } = useTranslation();
+  const { showToast } = useFeedback();
   const [format, setFormat] = useState<'md' | 'txt'>('md');
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiDisclosure, setAiDisclosure] = useState(true);
   const abortRef = useRef(false);
 
   useEffect(() => {
@@ -71,8 +78,15 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onCl
     setError(null);
     abortRef.current = false;
     try {
-      const { blob, filename } = await exportChapters({ au_path: auPath, format });
+      let { blob, filename } = await exportChapters({ au_path: auPath, format });
       if (abortRef.current) return;
+
+      // Append AI disclosure if checked
+      if (aiDisclosure) {
+        const text = await blob.text();
+        const disclaimer = t('ethics.exportDisclaimer');
+        blob = new Blob([text + '\n\n---\n\n' + disclaimer + '\n'], { type: blob.type });
+      }
 
       if (isTauri()) {
         const result = await saveWithTauriDialog(blob, filename);
@@ -114,6 +128,19 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onCl
         {error && (
           <div className="text-sm text-error bg-error/10 rounded-lg p-3">{error}</div>
         )}
+
+        <label className="flex items-start gap-2 text-xs cursor-pointer">
+          <input
+            type="checkbox"
+            checked={aiDisclosure}
+            onChange={e => {
+              setAiDisclosure(e.target.checked);
+              if (!e.target.checked) showToast(t('ethics.exportUncheckedWarning'), 'warning');
+            }}
+            className="mt-0.5 accent-accent w-3.5 h-3.5"
+          />
+          <span className="text-text/60">{t('ethics.exportAiLabel')}</span>
+        </label>
 
         <Button variant="primary" className="w-full gap-2 shadow-md" onClick={handleExport} disabled={exporting}>
           <FileUp size={16}/> {exporting ? t('export.writing') : t('export.submit')}

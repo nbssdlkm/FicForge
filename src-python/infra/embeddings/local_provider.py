@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """Local Embedding Provider — fastembed + BAAI/bge-small-zh-v1.5。
 
 零配置开箱即用：首次调用时自动下载 ONNX 模型（~24MB）到本地缓存。

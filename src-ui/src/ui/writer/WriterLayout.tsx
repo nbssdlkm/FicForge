@@ -1,3 +1,7 @@
+// Copyright (c) 2026 FicForge Contributors
+// Licensed under the GNU Affero General Public License v3.0.
+// See LICENSE file in the project root for full license text.
+
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ThemeToggle } from '../shared/ThemeToggle';
 import { Button } from '../shared/Button';

@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """运行时状态领域对象。参见 PRD §3.5 state.yaml。"""
 
 from __future__ import annotations

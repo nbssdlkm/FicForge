@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """本地文件存储基础设施。"""
 
 from infra.storage_local.directory import ensure_au_directories

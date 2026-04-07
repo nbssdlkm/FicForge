@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """上下文组装器。参见 PRD §4.1。
 
 六层结构 P0-P5，按优先级截断，reversed 后注入。

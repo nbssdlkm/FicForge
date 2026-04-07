@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """LocalChromaVectorRepository — ChromaDB 向量存储实现。
 
 3 个 collection: chapters / characters / worldbuilding（D-0022: oc 合并入 characters）。

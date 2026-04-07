@@ -659,3 +659,15 @@ specific requirements.
 if any, to sign a "copyright disclaimer" for the program, if necessary.
 For more information on this, and how to apply and follow the GNU AGPL, see
 <https://www.gnu.org/licenses/>.
+
+--- Additional Terms (Section 7(b)) ---
+
+Pursuant to Section 7(b) of the GNU Affero General Public License v3.0,
+any modified or derivative version of this software must retain:
+
+1. The original copyright notice and attribution to FicForge.
+2. A reference to the Responsible Use statement (ETHICS.md) in the
+   user-facing interface or documentation.
+
+This requirement applies to all distributions and network deployments
+of the software or its derivatives.

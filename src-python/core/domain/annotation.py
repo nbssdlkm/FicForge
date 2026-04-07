@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """批注领域对象（FIX-005B）。
 
 批注是覆盖在正文上的独立层，不修改 ch00XX.md 的内容。

@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """后台任务 Worker 函数。参见 PRD §2.6.5。"""
 
 from __future__ import annotations

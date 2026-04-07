@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """QA Bugfix 验证测试：B-01 ~ B-12。"""
 
 from __future__ import annotations

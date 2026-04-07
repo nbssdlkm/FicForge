@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """API 层依赖注入 + 工具函数。
 
 所有 Repository/Service 构建器在此定义，路由文件通过导入使用。

@@ -928,5 +928,16 @@
       "prev": "← 上一步",
       "next": "下一步 →"
     }
+  },
+  "ethics": {
+    "aboutFooter": "FicForge 是本地运行的个人创作辅助工具。你的数据不离开你的电脑，不会被用于训练任何 AI 模型。请只导入你自己的作品，发布时建议标注 AI 辅助。",
+    "importWarning": "请确保你拥有导入内容的合法使用权。请勿导入他人作品。",
+    "exportAiLabel": "在导出文件末尾附加 AI 辅助创作声明",
+    "exportDisclaimer": "本作品由 AI 辅助创作（工具：FicForge）。",
+    "exportUncheckedWarning": "取消勾选后，请确保在发布时遵守目标平台的 AI 标注规范。",
+    "onboardingTitle": "在开始之前",
+    "onboardingBody": "FicForge 帮助你创作自己的故事。你的所有数据保存在本地，不会上传。\n\n使用提醒：\n· 请只导入你自己的作品\n· 发布 AI 辅助创作的内容时，建议标注 AI 的参与\n· 请遵守你所在创作社区的规则",
+    "onboardingAcknowledge": "我已了解，开始使用",
+    "onboardingConsent": "使用本工具即表示你已阅读并理解我们的负责任使用声明"
   }
 }
