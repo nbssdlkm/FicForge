@@ -1,5 +1,7 @@
 # FicForge · 粮坊
 
+**English** | [中文](README_zh.md)
+
 A local-first AI writing tool for fanfiction creators. Keep your characters consistent across 100+ chapters.
 
 > Can't find the fic you want to read? Write it yourself — with AI that actually remembers your story.
