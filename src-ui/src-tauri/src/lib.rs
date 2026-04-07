@@ -1,3 +1,7 @@
+// Copyright (c) 2026 FicForge Contributors
+// Licensed under the GNU Affero General Public License v3.0.
+// See LICENSE file in the project root for full license text.
+
 //! Sidecar 生命周期管理。
 //!
 //! PRD §2.6.7: Tauri 通过 Command API 拉起 Python sidecar，

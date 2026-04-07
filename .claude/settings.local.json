@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(python -c \"import py_compile; import glob; errs=0:*)"
-    ]
-  }
-}
