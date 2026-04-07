@@ -44,7 +44,7 @@ function stripFrontmatter(text: string): string {
 
 export function SettingsMarkdown({ content }: { content: string }) {
   return (
-    <div className="text-sm text-text/85">
+    <div className="text-sm text-text/85 max-w-prose">
       <Markdown components={components}>
         {stripFrontmatter(content)}
       </Markdown>
