@@ -4,7 +4,8 @@ A local-first AI writing tool for fanfiction creators. Keep your characters cons
 
 > Can't find the fic you want to read? Write it yourself — with AI that actually remembers your story.
 
-[Screenshot or GIF of the writing interface — placeholder, human will add later]
+<img width="1918" height="1569" alt="image" src="https://github.com/user-attachments/assets/cdc6a563-ac9f-40a3-b810-402aaa108f16" />
+
 
 ## Features
 
