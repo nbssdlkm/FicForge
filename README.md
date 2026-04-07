@@ -2,30 +2,57 @@
 
 **English** | [中文](README_zh.md)
 
-A local-first AI writing tool for fanfiction creators. Keep your characters consistent across 100+ chapters.
+> You ship a rare pair. Nobody writes them. You try AI, but it forgets your character's personality by chapter 10, drops every plot thread you set up, and ignores the worldbuilding you spent hours writing.
+>
+> FicForge fixes that.
 
-> Can't find the fic you want to read? Write it yourself — with AI that actually remembers your story.
+A local-first AI writing tool built for **fanfiction writers who use AI to create content for pairings nobody else writes.**
 
-[Screenshot or GIF of the writing interface — placeholder, human will add later]
+Not a generic AI writing assistant. Not a novel generator. A system that keeps AI consistent across 100+ chapters — because your characters deserve better than being forgotten.
 
-## Features
+---
 
-- **Structured plot tracking** — AI won't forget the foreshadowing you planted 50 chapters ago
-- **Character consistency** — core personality traits are always injected into every generation
-- **AI settings assistant** — describe what you want in natural language, AI suggests changes via tool calling, you confirm each one
-- **Multi-draft writing** — generate multiple versions, browse and compare, finalize the one you like
-- **Works with any OpenAI-compatible API** — DeepSeek, GPT, Ollama, local models
-- **Bilingual UI** — 中文 / English, switch anytime
-- **Local-first** — all data stays on your machine, nothing uploaded, nothing used for training
-- **Built-in semantic search** — ships with Chinese embedding model (bge-small-zh), no setup needed. English users can configure an API embedding (e.g. OpenAI `text-embedding-3-small`) in Global Settings for better retrieval quality
+## The Problem
 
-## Quick Start
+If you've used AI for long-form fanfiction, you've hit these:
 
-### Install (Windows)
+- **Character collapse**: You wrote 3000 words of character analysis. AI ignores it by chapter 3
+- **Lost foreshadowing**: You carefully planted a plot thread. AI pretends it never happened
+- **Relationship regression**: Characters have grown closer over 20 chapters. AI resets them to strangers
+- **Worldbuilding amnesia**: You built an entire world. AI makes up its own
+
+The root cause is context window limits — AI can't remember everything you've written. Most AI writing tools try to solve this with "auto-summarization," but summaries lose information, especially the details you care about most.
+
+FicForge takes a different approach: **you decide what matters, AI injects it precisely when writing.**
+
+---
+
+## How It Works
+
+- **Plot Points**: Mark something as foreshadowing — it stays in AI's memory until you say it's resolved
+- **Character Profiles**: Core personality traits get a protected "minimum budget" — even when context is full, your protagonist's personality won't be cut
+- **Chapter Focus**: Tell AI "this chapter must advance this plot thread" — no more random tangents
+- **AI Settings Assistant**: Describe what you want in plain language. AI suggests changes, you confirm each one — AI proposes, never acts alone
+- **Semantic Search**: AI automatically retrieves the most relevant snippets from your settings and past chapters. No manual copy-paste
+- **Multi-draft**: Generate multiple versions of the same chapter, compare side by side, finalize the one you like
+
+---
+
+## Privacy
+
+- **All data stays on your computer.** FicForge does not upload your data to any server we control — we don't have servers
+- When you use AI writing features, your content is sent to the API provider you configure (e.g. DeepSeek) — this is necessary for generation and is under your control
+- Built-in semantic search runs entirely on your machine
+
+---
+
+## Install
+
+### Windows
 
 1. Download the latest release from [Releases](../../releases)
-2. Run the `.exe` installer
-3. Open FicForge → configure your API key (DeepSeek recommended) → start writing
+2. Run the installer
+3. Open FicForge → configure your API key ([DeepSeek](https://platform.deepseek.com) recommended) → start writing
 
 ### Build from Source
 
@@ -43,6 +70,30 @@ npm run dev
 
 Requires Python 3.12+ and Node.js 18+.
 
+---
+
+## Compatibility
+
+- **Models**: Any OpenAI-compatible API — DeepSeek, GPT, Ollama, local models
+- **Language**: Bilingual UI (中文 / English), switch anytime
+- **Import**: txt / md / docx / html with automatic chapter splitting
+- **Built-in search**: Ships with Chinese embedding model (bge-small-zh), works out of the box. English users should configure an API embedding (e.g. OpenAI `text-embedding-3-small`) in Global Settings for best results
+
+---
+
+## Responsible Use
+
+FicForge is for writing your own stories, not for taking others'.
+
+- Only import content you own
+- When publishing AI-assisted work, consider disclosing AI involvement
+- Export includes an AI attribution notice by default
+- Follow the rules of your creative community
+
+See [ETHICS.md](ETHICS.md) for our full statement.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -52,18 +103,11 @@ Requires Python 3.12+ and Node.js 18+.
 | Vector DB | ChromaDB + bge-small-zh embedding |
 | Desktop | Tauri 2 |
 
-## Responsible Use
-
-FicForge runs locally. Your data is never uploaded or used to train AI models.
-
-Only import content you own. If you publish AI-assisted work, please disclose AI involvement and follow your community's guidelines.
-
-See [ETHICS.md](ETHICS.md) for our full responsible use statement.
-
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-[AGPLv3](LICENSE) — FicForge is free and open-source software. Any derivative work must also be open-source under the same license, including network deployments.
+[AGPLv3](LICENSE) — FicForge is free and open-source. Any derivative work must be open-sourced under the same license, including network deployments.
+```
