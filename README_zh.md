@@ -4,7 +4,8 @@
 
 > 写冷 CP 找不到粮？自己动手，用 AI 产。
 
-[写作界面截图 — 占位，人工后续添加]
+<img width="2559" height="1492" alt="image" src="https://github.com/user-attachments/assets/9d2d671a-93d3-4181-834f-27458ee0937a" />
+
 
 ## 功能亮点
 
