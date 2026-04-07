@@ -490,6 +490,10 @@
     "noSearchResultTitle": "No matching plot points found",
     "noSearchResultDescription": "Try different keywords, or add your first point.",
     "filterTitle": "Filter Plot Points",
+    "filterAllChapters": "All Chapters",
+    "filterAllCharacters": "All Characters",
+    "filterClear": "Clear Filters",
+    "chapterGroup": "Chapter {{num}}",
     "statusHint": {
       "unresolved": "Foreshadowing or unresolved thread. Can be set as chapter focus. Injected into AI context.",
       "active": "Established fact. Always injected into AI context.",
