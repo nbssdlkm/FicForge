@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """Dirty 章节解除流程。参见 PRD §4.3。
 
 最新章 vs 历史章分流：两者的 state 更新范围完全不同。

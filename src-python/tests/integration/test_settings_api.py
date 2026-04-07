@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """Settings API 集成测试 — 掩码回写防御 + merge 语义。"""
 
 from __future__ import annotations

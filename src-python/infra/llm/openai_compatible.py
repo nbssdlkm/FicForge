@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """OpenAI 兼容接口 Provider。适配 DeepSeek / OpenAI / Claude 中转站等。
 
 使用 httpx 库直接打 HTTP 请求（不依赖 openai SDK）。

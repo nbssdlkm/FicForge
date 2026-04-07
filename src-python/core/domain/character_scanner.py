@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """章节角色扫描。参见 PRD §2.6.5 scan_characters_in_chapter。
 
 Phase 1 简化：只实现 ①② 两档匹配（cast_registry 角色名 + aliases）。

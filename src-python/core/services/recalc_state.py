@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """重算全局状态。参见 PRD §4.3。
 
 手动触发全量重建 characters_last_seen / last_scene_ending / last_confirmed_chapter_focus。

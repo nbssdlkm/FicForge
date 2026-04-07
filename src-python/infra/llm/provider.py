@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """LLM Provider 抽象接口 + 数据结构。参见 PRD §2.3、§4.2。"""
 
 from __future__ import annotations

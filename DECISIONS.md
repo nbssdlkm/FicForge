@@ -1,7 +1,7 @@
 # 关键决策记录（DECISIONS）
 
-> 只记录会影响架构、状态机、同步边界、平台能力承诺的高价值决策。
-> 新决策必须追加，不得静默覆盖旧决策。若新决策替代旧决策，必须明确写“Supersedes”。
+> Architecture decisions that affect state machine semantics, data models, sync boundaries, or platform capabilities.
+> New decisions are appended. If a new decision supersedes an old one, it must explicitly state “Supersedes: D-XXXX”.
 
 ---
 
@@ -21,7 +21,7 @@
 ## D-0001 `current_chapter` 语义
 - Date: YYYY-MM-DD
 - Status: Accepted
-- Owner: Claude Code / Human Maintainer
+- Owner: Team
 - Context: 章节确认、撤销、导入初始化、继续写作都依赖该字段。
 - Decision: `current_chapter` 定义为“当前待写章节号（下一章编号）”，不是“最后已确认章节号”。
 - Consequences:
@@ -35,7 +35,7 @@
 ## D-0002 Undo 为级联回滚，不是简单删章
 - Date: YYYY-MM-DD
 - Status: Accepted
-- Owner: Claude Code / Human Maintainer
+- Owner: Team
 - Context: 撤销最新一章会影响状态、facts、索引与派生值。
 - Decision: undo latest chapter 必须执行完整级联回滚，不得只删除章节文件。
 - Consequences:
@@ -49,7 +49,7 @@
 ## D-0003 Facts 常规 append-only，章节回滚例外
 - Date: YYYY-MM-DD
 - Status: Accepted
-- Owner: Claude Code / Human Maintainer
+- Owner: Team
 - Context: facts 生命周期以 status 驱动，但章节回滚需要撤销对应事实。
 - Decision: `facts.jsonl` 在常规维护流程中采用 append-only；仅在显式章节回滚/删除时允许物理删除对应章节条目。
 - Consequences:
@@ -62,7 +62,7 @@
 ## D-0004 权威数据与可重建数据分离
 - Date: YYYY-MM-DD
 - Status: Accepted
-- Owner: Claude Code / Human Maintainer
+- Owner: Team
 - Context: 未来需要跨端同步，不能把所有本地产物都视为同步真相。
 - Decision: 以下为权威数据，未来可同步：
   - `project.yaml`
@@ -81,7 +81,7 @@
 ## D-0005 平台能力矩阵
 - Date: YYYY-MM-DD
 - Status: Accepted
-- Owner: Claude Code / Human Maintainer
+- Owner: Team
 - Context: 桌面优先，安卓必须实现，iOS 需要预留但非当前强承诺。
 - Decision:
   - 桌面端是 Phase 1 / 近期主平台
@@ -97,7 +97,7 @@
 ## D-0006 LLM 热切换 / Embedding 冷切换
 - Date: YYYY-MM-DD
 - Status: Accepted
-- Owner: Claude Code / Human Maintainer
+- Owner: Team
 - Context: 用户频繁切换 LLM 是高频场景，但 Embedding 切换需要重建索引。
 - Decision:
   - LLM 是运行时可切换资源，不是作品状态的一部分
@@ -113,7 +113,7 @@
 ## D-0007 session_llm 不写回项目长期配置
 - Date: YYYY-MM-DD
 - Status: Accepted
-- Owner: Claude Code / Human Maintainer
+- Owner: Team
 - Context: 用户临时试模型不应污染 AU 配置和同步状态。
 - Decision:
   - "本次生成模型"（session_llm）存前端 sessionStorage，不持久化
@@ -130,7 +130,7 @@
 ## D-0008 模型参数跟模型走，不跟 AU 走
 - Date: YYYY-MM-DD
 - Status: Accepted
-- Owner: Claude Code / Human Maintainer
+- Owner: Team
 - Context: 不同模型的 temperature/top_p 合理范围不同（如 Claude 0-1 vs DeepSeek 0-2）。
 - Decision:
   - settings.yaml.model_params 按模型名索引存储参数
@@ -147,7 +147,7 @@
 ## D-0009 AU 级互斥锁保护复合状态操作
 - Date: YYYY-MM-DD
 - Status: Accepted
-- Owner: Claude Code / Human Maintainer
+- Owner: Team
 - Context: 单文件 filelock 无法防止多文件事务的状态撕裂。
 - Decision:
   - confirm_chapter、undo_chapter、resolve_dirty_chapter 在 Service 层入口获取 AU 粒度 asyncio.Lock
@@ -162,7 +162,7 @@
 ## D-0010 ops.jsonl 是业务关键依赖
 - Date: YYYY-MM-DD
 - Status: Accepted
-- Owner: Claude Code / Human Maintainer
+- Owner: Team
 - Context: ops.jsonl 不只是调试日志，undo/dirty/同步都依赖它。
 - Decision:
   - ops.jsonl 是 undo 快照恢复、dirty 基线、fact 状态回放的业务关键依赖
@@ -178,7 +178,7 @@
 ## D-0011 content_hash 替代 mtime 检测外部修改
 - Date: YYYY-MM-DD
 - Status: Accepted
-- Owner: Claude Code / Human Maintainer
+- Owner: Team
 - Context: mtime 在 Git checkout/云盘同步/zip 解压场景下大面积误报。
 - Decision:
   - 确认章节时计算正文 SHA-256 hash 存入 frontmatter
@@ -190,35 +190,10 @@
 
 ---
 
-## D-0012 PyInstaller 严禁 --onefile，必须 --onedir
-- Date: YYYY-MM-DD
-- Status: Accepted
-- Owner: Claude Code / Human Maintainer
-- Context: --onefile 每次启动解压到临时目录，含 ChromaDB/ONNX 时冷启动 20-40 秒。
-- Decision: 必须使用 --onedir，由 Tauri 安装包将目录解压到 Program Files。
-- Consequences:
-  - 冷启动 1-3 秒
-  - tiktoken BPE 词表必须预打包到 --onedir 目录
-- Supersedes: none
-
----
-
-## D-0013 ChromaDB 必须开启 WAL 模式
-- Date: YYYY-MM-DD
-- Status: Accepted
-- Owner: Claude Code / Human Maintainer
-- Context: 默认 journal 模式下耗时写事务会阻塞并发读操作。
-- Decision: 初始化 ChromaDB 客户端时显式开启 SQLite WAL 模式。
-- Consequences:
-  - 后台重建索引时用户仍可正常执行 RAG 检索
-- Supersedes: none
-
----
-
 ## D-0014 章节文件 4 位补零 + Repository 层封装
 - Date: YYYY-MM-DD
 - Status: Accepted
-- Owner: Claude Code / Human Maintainer
+- Owner: Team
 - Context: 超 999 章时 3 位补零导致字典序错乱。
 - Decision:
   - 所有章节/草稿文件名强制 ch%04d（如 ch0038.md、ch0038_draft_A.md）
@@ -234,7 +209,7 @@
 ## D-0015 核心设定低保预算 Phase 1 即启用
 - Date: YYYY-MM-DD
 - Status: Accepted
-- Owner: Claude Code / Human Maintainer
+- Owner: Team
 - Context: "不崩人物"是核心价值，但 P5 核心设定是最低优先级最先被裁剪。
 - Decision: Phase 1 即为 core_always_include 的 `## 核心限制` 段落预留 400 token 不可挤占预算。
 - Consequences:
@@ -246,7 +221,7 @@
 ## D-0016 撤销时清理 ≥N 的所有草稿
 - Date: YYYY-MM-DD
 - Status: Accepted
-- Owner: Claude Code / Human Maintainer
+- Owner: Team
 - Context: 撤销第 N 章时，第 N+1 章草稿基于已抹除的时间线生成。
 - Decision: undo 步骤 2 清理 .drafts/ 下所有章节号 ≥ N 的草稿文件。
 - Consequences:
@@ -259,7 +234,7 @@
 ## D-0017 后台任务队列去重规则
 - Date: YYYY-MM-DD
 - Status: Accepted
-- Owner: Claude Code / Human Maintainer
+- Owner: Team
 - Context: 重复入队导致冗余向量化和陈旧任务堆积。
 - Decision:
   - 同 AU/同章/同 task_type 等待中的任务去重（后入丢弃）
@@ -273,11 +248,11 @@
 ## D-0018 流式传输使用 SSE
 - Date: YYYY-MM-DD
 - Status: Accepted
-- Owner: Claude Code / Human Maintainer
+- Owner: Team
 - Context: 生成是单向推送，不需要 WebSocket 的双向通信。
 - Decision: FastAPI 端点返回 StreamingResponse（SSE），前端用 EventSource 或 fetch+ReadableStream 消费。
 - Consequences:
-  - 前后端协议统一，三家 AI 不会各自实现不同协议
+  - 前后端协议统一
 - Supersedes: none
 
 ---
@@ -285,8 +260,8 @@
 ## D-0019 错误响应统一 JSON 格式
 - Date: YYYY-MM-DD
 - Status: Accepted
-- Owner: Claude Code / Human Maintainer
-- Context: 三家 AI 开发者需要统一的前后端错误通信协议。
+- Owner: Team
+- Context: Frontend and backend need a unified error communication protocol.
 - Decision: 后端错误响应格式固定为 `{error_code, message, actions}`。
 - Consequences:
   - 前端根据 error_code 匹配 UI 行为，actions 决定弹窗按钮
@@ -298,7 +273,7 @@
 ## D-0020 .drafts/ Phase 2D 默认不同步
 - Date: YYYY-MM-DD
 - Status: Accepted
-- Owner: Claude Code / Human Maintainer
+- Owner: Team
 - Context: 草稿同步涉及冲突解决、稳定 ID、是否可续写等复杂决策。
 - Decision: Phase 2D 草稿仅限本机，远端看不到未确认草稿。Phase 3 视需求再开放。
 - Consequences:
@@ -310,7 +285,7 @@
 ## D-0021 Repository 层使用同步方法
 - Date: 2026-03-26
 - Status: Accepted
-- Owner: Claude Code
+- Owner: Team
 - Context: filelock 是同步阻塞的，async Repository 方法无法被 run_in_threadpool 正确包装。
 - Decision: 所有 Repository 方法为同步（def，非 async def）。FastAPI async 路由调用时须通过 run_in_threadpool() 包装。
 - Consequences:
@@ -324,7 +299,7 @@
 ## D-0022 Fandom 角色=DNA 模板，AU 角色=独立个体，取消 character_overrides
 - Date: 2026-03-29
 - Status: Accepted
-- Owner: Human Maintainer
+- Owner: Team
 - Context: 实际使用中发现 character_overrides 覆写机制不适用于同人创作——AU 角色与原作差异太大，覆写等于重写。
 - Decision: Fandom 角色是人格 DNA 模板，AU 角色是独立个体。两者无继承关系。取消 character_overrides 目录，AU 层统一使用 characters/ 目录，用 frontmatter origin_ref 字段标记来源（fandom/{name} 或 original）。Fandom 层保持 core_characters/ 和 worldbuilding/ 不变。
 - Consequences:
@@ -339,7 +314,7 @@
 ## D-0023 删除操作统一走垃圾箱
 - Date: 2026-03-29
 - Status: Accepted
-- Owner: Human Maintainer
+- Owner: Team
 - Context: 直接删除不可恢复，误操作风险高。
 - Decision: 删除操作统一走垃圾箱（.trash/ + manifest.jsonl），默认保留 30 天（可配置）。例外：草稿直接删除、铁律直接删除、事实条目标记 deprecated 而非物理删除。
 - Consequences:
@@ -354,7 +329,7 @@
 ## D-0024 写作/设定双模式切换
 - Date: 2026-03-29
 - Status: Accepted
-- Owner: Human Maintainer
+- Owner: Team
 - Context: 写作过程中需要随时调整设定，但设定操作不应混入写作流。
 - Decision: 写作界面支持写作/设定双模式切换。设定模式下 AI 通过 tool calling 返回操作建议，渲染为确认卡片，用户逐条确认后由前端调用 API 执行。
 - Consequences:
@@ -367,7 +342,7 @@
 ## D-0025 AU 设定模式只操作 AU 级文件
 - Date: 2026-03-29
 - Status: Accepted
-- Owner: Human Maintainer
+- Owner: Team
 - Context: 防止 AU 设定模式意外修改 Fandom 级共享设定。
 - Decision: AU 设定模式只能操作 AU 级文件（characters/、worldbuilding/、facts、pinned_context、writing_style）。Fandom 级文件（core_characters/、worldbuilding/）需在 Fandom 设定模式中操作。
 - Consequences:
@@ -377,36 +352,10 @@
 
 ---
 
-## D-0026 禁止浏览器原生 prompt/confirm/alert
-- Date: 2026-03-29
-- Status: Accepted
-- Owner: Human Maintainer
-- Context: 浏览器原生弹窗在 Tauri WebView 中体验差且不可定制。
-- Decision: 所有新建实体弹窗使用应用内 Modal 组件，禁止使用浏览器原生 prompt/confirm/alert。
-- Consequences:
-  - 所有交互确认使用自定义 Modal
-  - 已有的 window.prompt 调用需迁移（B-005 已部分完成）
-- Supersedes: none
-
----
-
-## D-0027 设定文件手动保存
-- Date: 2026-03-29
-- Status: Accepted
-- Owner: Human Maintainer
-- Context: 自动保存在长文本编辑中容易导致意外覆盖。
-- Decision: 设定文件（.md）的编辑使用手动保存（明确的保存按钮 + 成功反馈）。未保存时离开页面弹出确认。
-- Consequences:
-  - 前端需要 dirty state 追踪
-  - 离开页面时未保存变更触发确认弹窗
-- Supersedes: none
-
----
-
 ## D-0028 Fandom 设定不参与 AU 的 prompt/RAG
 - Date: 2026-03-29
 - Status: Accepted
-- Owner: Human Maintainer
+- Owner: Team
 - Context: Fandom 层是参考模板，不应直接注入写作 prompt。
 - Decision: Fandom 层设定不参与任何 AU 的 prompt 组装和 RAG 检索。仅作为 AI 设定模式生成 AU 角色时的参考上下文。
 - Consequences:
@@ -420,7 +369,7 @@
 ## D-0029 设定模式 AI 使用 LLM 原生 tool calling
 - Date: 2026-03-29
 - Status: Accepted
-- Owner: Human Maintainer
+- Owner: Team
 - Context: 设定操作需要 AI 辅助但不能让 AI 直接执行文件操作。
 - Decision: 设定模式 AI 通过 LLM 原生 tool calling 返回操作建议（9 个 tool 定义）。AI 无直接执行权限，无 delete 类 tool。所有操作需用户确认后由前端调用对应 API 端点执行。
 - Consequences:
@@ -434,7 +383,7 @@
 ## D-0030 后端 API 字段名保持英文，前端 i18n 映射中文
 - Date: 2026-03-30
 - Status: Accepted
-- Owner: Human Maintainer
+- Owner: Team
 - Context: 用户反馈 UI 术语过于技术化，但后端字段名变更会导致大量迁移成本。
 - Decision: 后端 API 字段名（perspective、importance、narrative_weight 等）保持英文不变。前端通过 locales/zh.json 做 i18n 映射，用户只看到中文。
 - Consequences:
@@ -448,7 +397,7 @@
 ## D-0031 assemble_context 返回 ContextSummary 旁路统计
 - Date: 2026-03-30
 - Status: Accepted
-- Owner: Human Maintainer
+- Owner: Team
 - Context: 用户无法感知 AI 续写时参考了哪些设定，需要轻量参考摘要。
 - Decision: assemble_context 在组装过程中旁路收集 ContextSummary（只读统计），不改变现有组装逻辑和 prompt 内容。通过 SSE context_summary 事件传递给前端。收集失败不影响生成流程。
 - Consequences:

@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """OpsRepository 抽象接口。
 
 ops.jsonl 是业务关键依赖（D-0010），用于 undo/dirty/同步。

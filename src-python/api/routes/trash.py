@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """垃圾箱 API 路由。参见 D-0023。"""
 
 from __future__ import annotations
@@ -109,6 +113,7 @@ async def restore_from_trash(req: RestoreRequest) -> Any:
                 collection = "characters" if "character" in category else "worldbuilding"
                 file_path = str(scope_root / original_path)
                 build_task_queue().enqueue("vectorize_settings_file", str(scope_root), {
+                    "au_path": str(scope_root),
                     "file_path": file_path,
                     "collection": collection,
                 })

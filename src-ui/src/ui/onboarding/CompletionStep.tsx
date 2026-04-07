@@ -1,3 +1,7 @@
+// Copyright (c) 2026 FicForge Contributors
+// Licensed under the GNU Affero General Public License v3.0.
+// See LICENSE file in the project root for full license text.
+
 import { Button } from '../shared/Button';
 import { CheckCircle2, SkipForward } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -49,9 +53,17 @@ export function CompletionStep({
         </ul>
       </div>
 
-      <Button variant="primary" className="px-8 h-12 text-base" onClick={onComplete}>
-        {t('onboarding.completion.enter')}
-      </Button>
+      <div className="text-left bg-surface/50 rounded-xl p-5 border border-black/5 dark:border-white/5 space-y-3">
+        <p className="text-sm font-medium text-text/70">{t('ethics.onboardingTitle')}</p>
+        <p className="text-xs text-text/50 whitespace-pre-line leading-relaxed">{t('ethics.onboardingBody')}</p>
+      </div>
+
+      <div className="space-y-2">
+        <Button variant="primary" className="px-8 h-12 text-base" onClick={onComplete}>
+          {t('ethics.onboardingAcknowledge')}
+        </Button>
+        <p className="text-[11px] text-text/35">{t('ethics.onboardingConsent')}</p>
+      </div>
     </div>
   );
 }

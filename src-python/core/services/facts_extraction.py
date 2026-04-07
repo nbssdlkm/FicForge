@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """Facts 轻量提取。参见 PRD §6.7。
 
 用户确认章节后，可选让 AI 从新章节中提取事实条目。

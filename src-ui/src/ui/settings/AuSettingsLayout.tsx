@@ -1,3 +1,7 @@
+// Copyright (c) 2026 FicForge Contributors
+// Licensed under the GNU Affero General Public License v3.0.
+// See LICENSE file in the project root for full license text.
+
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
@@ -46,6 +50,12 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const [coreIncludeModalOpen, setCoreIncludeModalOpen] = useState(false);
   const [recalcing, setRecalcing] = useState(false);
 
+  // AU Embedding override
+  const [isEmbeddingOverride, setIsEmbeddingOverride] = useState(false);
+  const [embModel, setEmbModel] = useState('');
+  const [embApiBase, setEmbApiBase] = useState('');
+  const [embApiKey, setEmbApiKey] = useState('');
+
   const handleRecalc = async () => {
     const requestAuPath = auPath;
     setRecalcing(true);
@@ -89,6 +99,10 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
     setContextWindow(128000);
     setGlobalSettingsOpen(false);
     setCoreIncludeModalOpen(false);
+    setIsEmbeddingOverride(false);
+    setEmbModel('');
+    setEmbApiBase('');
+    setEmbApiKey('');
 
     const requestId = ++loadSettingsRequestIdRef.current;
     Promise.allSettled([
@@ -116,6 +130,14 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
         setCustomInstructions(proj.writing_style?.custom_instructions || '');
         setPinnedContext(proj.pinned_context || []);
         setCoreIncludes(proj.core_always_include || []);
+
+        // Embedding lock
+        if (proj.embedding_lock && (proj.embedding_lock.model || proj.embedding_lock.api_key)) {
+          setIsEmbeddingOverride(true);
+          setEmbModel(proj.embedding_lock.model || '');
+          setEmbApiBase(proj.embedding_lock.api_base || '');
+          setEmbApiKey(proj.embedding_lock.api_key || '');
+        }
 
         if (
           proj.llm
@@ -165,6 +187,18 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
           core_always_include: coreIncludes,
         };
         
+        // Embedding lock
+        if (isEmbeddingOverride) {
+          payload.embedding_lock = {
+            mode: embModel ? 'api' : '',
+            model: embModel,
+            api_base: embApiBase,
+            api_key: embApiKey,
+          };
+        } else {
+          payload.embedding_lock = { mode: '', model: '', api_base: '', api_key: '' };
+        }
+
         if (isLlMOverride) {
            payload.llm = {
              mode: llmMode,
@@ -318,7 +352,20 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
             <div className="bg-surface/50 p-6 rounded-xl border border-black/5 dark:border-white/5 space-y-4">
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-bold text-text/90">{t("common.labels.searchEngineModel")}</label>
-                <Input value={globalSettings?.embedding?.model || t("settings.global.builtinEmbeddingLabel")} readOnly className="h-10 font-mono bg-background/70" />
+                {!isEmbeddingOverride && (
+                  <Input value={globalSettings?.embedding?.model || t("settings.global.builtinEmbeddingLabel")} readOnly className="h-10 font-mono bg-background/70" />
+                )}
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={isEmbeddingOverride} onChange={e => setIsEmbeddingOverride(e.target.checked)} disabled={saving} className="accent-accent" />
+                  {t("settings.au.useCustomEmbedding")}
+                </label>
+                {isEmbeddingOverride && (
+                  <div className="space-y-2 pl-6 border-l-2 border-info/30">
+                    <Input value={embModel} onChange={e => setEmbModel(e.target.value)} placeholder={t("settings.global.embeddingModelPlaceholder")} disabled={saving} className="h-8 text-sm" />
+                    <Input value={embApiBase} onChange={e => setEmbApiBase(e.target.value)} placeholder={t("settings.global.embeddingApiBasePlaceholder")} disabled={saving} className="h-8 text-sm" />
+                    <Input value={embApiKey} onChange={e => setEmbApiKey(e.target.value)} placeholder={t("settings.global.embeddingApiKeyPlaceholder")} disabled={saving} className="h-8 text-sm" type="password" />
+                  </div>
+                )}
                 <p className="text-xs text-text/50">{t("common.help.searchEngineModel")}</p>
               </div>
               <div className="flex items-center justify-between rounded-lg border border-black/10 dark:border-white/10 bg-background/60 px-4 py-3">

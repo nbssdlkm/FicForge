@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """ChromaDB 客户端初始化。D-0013: 必须开启 WAL 模式。"""
 
 from __future__ import annotations

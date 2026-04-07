@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """Prompt key contract.
 
 zh.py and en.py must both define every key listed here.
@@ -76,4 +80,7 @@ REQUIRED_KEYS = [
     "SETTINGS_LABEL_WORLDBUILDING",
     "SETTINGS_LABEL_CORE_CHARACTERS",
     "SETTINGS_LABEL_CORE_WORLDBUILDING",
+
+    # === chapters.py: AI chapter title generation ===
+    "CHAPTER_TITLE_PROMPT",             # f-string with {content}
 ]

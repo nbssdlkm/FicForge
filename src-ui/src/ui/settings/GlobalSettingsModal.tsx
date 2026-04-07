@@ -1,3 +1,7 @@
+// Copyright (c) 2026 FicForge Contributors
+// Licensed under the GNU Affero General Public License v3.0.
+// See LICENSE file in the project root for full license text.
+
 import { useEffect, useRef, useState } from 'react';
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
@@ -302,6 +306,8 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
               <p className="text-xs text-text/50">{t('settings.global.languageDescription')}</p>
             </div>
           </div>
+
+          <p className="text-[11px] text-text/35 leading-relaxed mt-4">{t('ethics.aboutFooter')}</p>
 
           <div className="flex justify-end gap-3 border-t border-black/10 pt-5 dark:border-white/10">
             <Button variant="ghost" onClick={onClose} disabled={saving}>{t('common.actions.cancel')}</Button>

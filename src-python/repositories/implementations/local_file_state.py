@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """LocalFileStateRepository — state.yaml 读写实现。参见 PRD §3.5。"""
 
 from __future__ import annotations
@@ -61,6 +65,7 @@ def _dict_to_state(d: dict[str, Any], au_id: str) -> State:
         last_confirmed_chapter_focus=d.get("last_confirmed_chapter_focus") or [],
         characters_last_seen=d.get("characters_last_seen") or {},
         chapter_focus=d.get("chapter_focus") or [],
+        chapter_titles={int(k): v for k, v in (d.get("chapter_titles") or {}).items()},
         chapters_dirty=d.get("chapters_dirty") or [],
         index_status=IndexStatus(d.get("index_status", "stale")),
         index_built_with=_dict_to_embedding_fingerprint(d.get("index_built_with")),

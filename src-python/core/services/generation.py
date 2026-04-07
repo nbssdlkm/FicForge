@@ -1,3 +1,7 @@
+# Copyright (c) 2026 FicForge Contributors
+# Licensed under the GNU Affero General Public License v3.0.
+# See LICENSE file in the project root for full license text.
+
 """生成引擎。参见 PRD §4.2、§4.3。
 
 串联 T-012 上下文组装器 + T-013 LLM Provider，输出草稿文件。
