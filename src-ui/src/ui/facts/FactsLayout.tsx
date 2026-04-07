@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
 import { FactCard } from './FactCard';
@@ -35,6 +35,9 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [chapterFilter, setChapterFilter] = useState<number | null>(null);
+  const [characterFilter, setCharacterFilter] = useState('');
   const [allFactsCounts, setAllFactsCounts] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -108,6 +111,9 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     setAddModalOpen(false);
     setExtractModalOpen(false);
     setExtractedCandidates([]);
+    setChapterFilter(null);
+    setCharacterFilter('');
+    setFilterOpen(false);
   }, [auPath]);
 
   useEffect(() => {
@@ -286,23 +292,42 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     }
   };
 
-  const filteredFacts = facts.filter((fact) => {
+  // 从 facts 中动态提取唯一章节号和角色名
+  const uniqueChapters = useMemo(() => [...new Set(facts.map(f => f.chapter))].sort((a, b) => a - b), [facts]);
+  const uniqueCharacters = useMemo(() => [...new Set(facts.flatMap(f => f.characters))].sort(), [facts]);
+
+  const filteredFacts = useMemo(() => facts.filter((fact) => {
     // 'stale' 伪筛选：客户端过滤超过 30 章的 active/unresolved facts
     if (statusFilter === 'stale') {
       if (fact.status !== 'active' && fact.status !== 'unresolved') return false;
       if ((state?.current_chapter || 1) - fact.chapter <= 30) return false;
     }
+    // 章节筛选
+    if (chapterFilter !== null && fact.chapter !== chapterFilter) return false;
+    // 角色筛选
+    if (characterFilter && !fact.characters.includes(characterFilter)) return false;
+    // 文本搜索
     if (!filter) return true;
     const keyword = filter.trim();
     return fact.content_clean.includes(keyword) || fact.characters.join(',').includes(keyword);
-  });
+  }), [facts, filter, statusFilter, chapterFilter, characterFilter, state?.current_chapter]);
+
+  // 按章节分组
+  const groupedFacts = useMemo(() => {
+    const groups = new Map<number, FactInfo[]>();
+    for (const f of filteredFacts) {
+      if (!groups.has(f.chapter)) groups.set(f.chapter, []);
+      groups.get(f.chapter)!.push(f);
+    }
+    return [...groups.entries()].sort((a, b) => a[0] - b[0]);
+  }, [filteredFacts]);
 
   const totalCount = allFactsCounts.total ?? facts.length;
   const activeCount = allFactsCounts.active ?? 0;
   const unresolvedCount = allFactsCounts.unresolved ?? 0;
   const resolvedCount = allFactsCounts.resolved ?? 0;
   const deprecatedCount = allFactsCounts.deprecated ?? 0;
-  const showEmptyNotes = !loading && facts.length === 0 && !filter && !statusFilter;
+  const showEmptyNotes = !loading && facts.length === 0 && !filter && !statusFilter && chapterFilter === null && !characterFilter;
   const showNoSearchResult = !loading && filteredFacts.length === 0 && !showEmptyNotes;
 
   // 过期 facts 提醒（current_chapter - fact.chapter > 30）
@@ -370,10 +395,46 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 onChange={e => setFilter(e.target.value)}
               />
             </div>
-            <Button variant="secondary" className="px-2.5 h-8 flex-shrink-0" title={t('facts.filterTitle')}>
+            <Button
+              variant={filterOpen || chapterFilter !== null || characterFilter ? 'primary' : 'secondary'}
+              className="px-2.5 h-8 flex-shrink-0"
+              title={t('facts.filterTitle')}
+              onClick={() => setFilterOpen(!filterOpen)}
+            >
               <Filter size={14} />
             </Button>
           </div>
+
+          {filterOpen && (
+            <div className="flex gap-2 items-center flex-wrap">
+              <select
+                value={chapterFilter ?? ''}
+                onChange={e => setChapterFilter(e.target.value ? Number(e.target.value) : null)}
+                className="h-7 rounded-md border border-black/15 dark:border-white/15 bg-background px-2 text-xs focus:ring-1 focus:ring-accent outline-none"
+              >
+                <option value="">{t('facts.filterAllChapters')}</option>
+                {uniqueChapters.map(ch => (
+                  <option key={ch} value={ch}>{t('facts.chapterGroup', { num: ch })}</option>
+                ))}
+              </select>
+              <select
+                value={characterFilter}
+                onChange={e => setCharacterFilter(e.target.value)}
+                className="h-7 rounded-md border border-black/15 dark:border-white/15 bg-background px-2 text-xs focus:ring-1 focus:ring-accent outline-none"
+              >
+                <option value="">{t('facts.filterAllCharacters')}</option>
+                {uniqueCharacters.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              {(chapterFilter !== null || characterFilter) && (
+                <button
+                  className="text-[11px] text-accent hover:underline"
+                  onClick={() => { setChapterFilter(null); setCharacterFilter(''); }}
+                >{t('facts.filterClear')}</button>
+              )}
+            </div>
+          )}
 
           <div className="flex flex-col gap-1">
             <div className="flex gap-3 overflow-x-auto pb-1 text-xs font-sans whitespace-nowrap">
@@ -487,18 +548,27 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               ]}
             />
           ) : (
-            filteredFacts.map(fact => (
-              <div key={fact.id} className="flex items-start gap-2">
-                {batchMode && (
-                  <input
-                    type="checkbox"
-                    className="mt-3 accent-accent shrink-0"
-                    checked={selectedIds.has(fact.id)}
-                    onChange={() => toggleSelect(fact.id)}
-                  />
-                )}
-                <div className="flex-1 cursor-pointer" onClick={() => setEditingFact(fact)}>
-                  <FactCard fact={{ ...fact, weight: fact.narrative_weight || 'medium', chapter: fact.chapter || 1 }} />
+            groupedFacts.map(([chapterNum, chapterFacts]) => (
+              <div key={chapterNum}>
+                <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm px-1 py-1.5 text-[11px] font-bold text-text/50 uppercase tracking-wider border-b border-black/5 dark:border-white/5">
+                  {t('facts.chapterGroup', { num: chapterNum })} ({chapterFacts.length})
+                </div>
+                <div className="space-y-3 pt-2">
+                  {chapterFacts.map(fact => (
+                    <div key={fact.id} className="flex items-start gap-2">
+                      {batchMode && (
+                        <input
+                          type="checkbox"
+                          className="mt-3 accent-accent shrink-0"
+                          checked={selectedIds.has(fact.id)}
+                          onChange={() => toggleSelect(fact.id)}
+                        />
+                      )}
+                      <div className="flex-1 cursor-pointer" onClick={() => setEditingFact(fact)}>
+                        <FactCard fact={{ ...fact, weight: fact.narrative_weight || 'medium', chapter: fact.chapter || 1 }} />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))
