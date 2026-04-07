@@ -54,7 +54,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [isReadingFile, setIsReadingFile] = useState(false);
   const [settingsChatBusy, setSettingsChatBusy] = useState(false);
-  const [previewMode, setPreviewMode] = useState(false);
+  const [previewMode, setPreviewMode] = useState(true);
   const [aiPanelOpen, setAiPanelOpen] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [characterFiles, setCharacterFiles] = useState<FandomFileEntry[]>([]);
@@ -185,7 +185,6 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
     const requestId = ++selectFileRequestIdRef.current;
     setSelectedFile(filename);
     setSelectedCategory(category);
-    setPreviewMode(false);
     setEditorContent('');
     setSavedEditorContent('');
     setIsReadingFile(true);
@@ -612,7 +611,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
           )}
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 lg:p-12 w-full max-w-4xl mx-auto flex flex-col gap-6">
+        <div className="flex-1 overflow-y-auto p-6 w-full flex flex-col gap-6">
           {selectedFile ? (
             <>
               <div className="flex flex-col gap-2 flex-1">

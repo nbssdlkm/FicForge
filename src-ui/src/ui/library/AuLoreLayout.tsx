@@ -110,7 +110,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
   const [aliases, setAliases] = useState<string[]>([]);
   const [newAlias, setNewAlias] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [previewMode, setPreviewMode] = useState(false);
+  const [previewMode, setPreviewMode] = useState(true);
   const [isReadingFile, setIsReadingFile] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createName, setCreateName] = useState('');
@@ -185,7 +185,6 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     const requestAuPath = auPath;
     const effectiveCategory = categoryOverride ?? selectedCategory;
     setSelectedFile(name);
-    setPreviewMode(false);
     setEditorContent('');
     setIsReadingFile(true);
     try {
@@ -730,7 +729,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
           )}
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 lg:p-12 w-full max-w-4xl mx-auto flex flex-col gap-6">
+        <div className="flex-1 overflow-y-auto p-6 w-full flex flex-col gap-6">
           {selectedFile ? (
             <div className="flex flex-col gap-2 flex-1">
               <label className="text-sm font-bold text-text/90">{t('navigation.auLore')}</label>
