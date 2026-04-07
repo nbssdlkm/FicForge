@@ -4,8 +4,7 @@
 
 > 写冷 CP 找不到粮？自己动手，用 AI 产。
 
-<img width="2559" height="1492" alt="image" src="https://github.com/user-attachments/assets/9d2d671a-93d3-4181-834f-27458ee0937a" />
-
+<img width="1918" height="1569" alt="image" src="https://github.com/user-attachments/assets/0ccee8e3-16f7-4ffb-b7da-fe4698c58482" />
 
 ## 功能亮点
 
