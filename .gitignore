@@ -47,3 +47,10 @@ settings.sync.yaml
 *.key
 credentials.json
 .pytest_cache/
+
+# === Claude Code ===
+.claude/
+
+# === Debug output ===
+test_out*.txt
+*.log
