@@ -1,0 +1,26 @@
+{
+  "name": "@ficforge/engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "gpt-tokenizer": "^3.4.0",
+    "gray-matter": "^4.0.3",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/plugin-dialog": "^2.7.0",
+    "@tauri-apps/plugin-fs": "^2.5.0",
+    "@types/js-yaml": "^4.0.9",
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.1"
+  }
+}

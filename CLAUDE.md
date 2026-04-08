@@ -31,7 +31,7 @@ Platform Adapter
 
 | Phase | 内容 | 状态 |
 |-------|------|------|
-| M0 | Domain 模型、Prompt 模板、Token 计数、PlatformAdapter 接口 | 待开始 |
+| M0 | Domain 模型、Prompt 模板、Token 计数、PlatformAdapter 接口 | **已完成** |
 | M1 | Repository 接口+实现、向量存储（JSON 分片）、ChromaDB 迁移脚本 | 待开始 |
 | M2 | Facts Lifecycle、Context Assembler、RAG、LLM Provider、Generation | 待开始 |
 | M3 | Confirm/Undo Chapter、Dirty Resolve、Import/Export | 待开始 |
@@ -107,3 +107,45 @@ Platform Adapter
 
 ### 分支规则
 - 在人工指定的分支上工作，不自行创建或切换分支
+
+---
+
+## 架构迁移
+
+> 迁移总览、架构图、关键决策（D-0034 ~ D-0038）见上文对应章节，此处不重复。
+
+### 参考文档位置（必读 / 参考）
+
+```
+docs/internal/prd/FicForge-补充PRD-v4-架构迁移与移动端-final.md  — 迁移方案（必读）
+docs/internal/audit/CC-AUDIT-migration.md                       — 源码审计报告（必读）
+docs/internal/prd/fanfic-system-PRD-v2.md                        — 原始功能设计（参考）
+docs/internal/decisions/DECISIONS-updated.md                     — 所有架构决策（参考）
+```
+
+### 迁移原则
+
+1. **Python 源码是最权威的规格说明书**。PRD 定义"应该怎样"，Python 代码定义"实际怎样"。两者冲突时以代码为准
+2. Repository 接口签名直接复制到 TypeScript interface
+3. 不要改动现有 Python 代码（除非是补测试）
+4. 每个 Phase 完成后写 devlog 到 `docs/internal/devlog/`
+
+### src-engine/ 目录补充
+
+上文架构图列出了核心子目录。以下是架构图未体现的补充细节：
+
+- `repositories/interfaces/` — TypeScript interface（从 Python ABC 翻译）
+- `repositories/implementations/` — 文件 I/O 实现
+- `platform/` — PlatformAdapter 接口 + 平台适配（Tauri / Capacitor / Web）
+- `index.ts` — 统一导出入口
+
+前端导入方式：`import { ... } from "@ficforge/engine"`（Vite alias 已配置）。
+
+### 文件所有权
+
+| 范围 | 负责人 |
+|------|--------|
+| `src-engine/` 全部 | CC |
+| 前端 API 层切换（client.ts 等） | CC |
+| 移动端 UI 适配 | Codex（后续任务） |
+| 现有 Python 代码 | 冻结，不改动 |

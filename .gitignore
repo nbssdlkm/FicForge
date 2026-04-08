@@ -35,6 +35,9 @@ env/
 Thumbs.db
 *.log
 
+# === Internal docs (不公开) ===
+docs/internal/
+
 # === Project data (本地用户数据，不入仓) ===
 fandoms/
 settings.yaml
