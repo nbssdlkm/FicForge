@@ -32,7 +32,7 @@ Platform Adapter
 | Phase | 内容 | 状态 |
 |-------|------|------|
 | M0 | Domain 模型、Prompt 模板、Token 计数、PlatformAdapter 接口 | **已完成** |
-| M1 | Repository 接口+实现、向量存储（JSON 分片）、ChromaDB 迁移脚本 | 待开始 |
+| M1 | Repository 接口+实现、向量存储（JSON 分片）、ChromaDB 迁移脚本 | **已完成** |
 | M2 | Facts Lifecycle、Context Assembler、RAG、LLM Provider、Generation | 待开始 |
 | M3 | Confirm/Undo Chapter、Dirty Resolve、Import/Export | 待开始 |
 | M4 | Settings Chat、Trash、Recalc、前端 API 切换、SSE 消除、Sidecar 精简 | 待开始 |
