@@ -66,3 +66,15 @@ export { get_split_method, import_chapters, parse_html, split_into_chapters } fr
 // Export Service
 export type { ExportParams } from "./export_service.js";
 export { export_chapters } from "./export_service.js";
+
+// Settings Chat
+export type { SettingsChatParams, SettingsChatResult } from "./settings_chat.js";
+export { build_settings_context, call_settings_llm } from "./settings_chat.js";
+
+// Trash Service
+export type { TrashEntry } from "./trash_service.js";
+export { TrashService } from "./trash_service.js";
+
+// Recalc State
+export type { RecalcResult } from "./recalc_state.js";
+export { recalc_state } from "./recalc_state.js";

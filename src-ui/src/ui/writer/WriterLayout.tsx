@@ -32,17 +32,18 @@ import { ChapterMarkdown } from '../shared/ChapterMarkdown';
 import { Sidebar } from '../shared/Sidebar';
 import { SettingsChatPanel } from '../shared/settings-chat/SettingsChatPanel';
 
-import { getChapterContent, confirmChapter, undoChapter, updateChapterContent } from '../../api/chapters';
-import { listDrafts, getDraft, deleteDrafts, type DraftDetail, type DraftGeneratedWith } from '../../api/drafts';
-import { getState, setChapterFocus, type StateInfo } from '../../api/state';
-import { listFacts, addFact, extractFacts, type ExtractedFactCandidate, type FactInfo } from '../../api/facts';
-import { generateChapter, type ContextSummary } from '../../api/generate';
-import { getSettings, updateSettings, type SettingsInfo } from '../../api/settings';
-import { getProject, updateProject, type ProjectInfo } from '../../api/project';
-import { ApiError, getFriendlyErrorMessage } from '../../api/client';
+import { getChapterContent, confirmChapter, undoChapter, updateChapterContent } from '../../api/engine-client';
+import { listDrafts, getDraft, deleteDrafts, type DraftDetail, type DraftGeneratedWith } from '../../api/engine-client';
+import { getState, setChapterFocus, type StateInfo } from '../../api/engine-client';
+import { listFacts, addFact, extractFacts, type ExtractedFactCandidate, type FactInfo } from '../../api/engine-client';
+import { generateChapter, type ContextSummary } from '../../api/engine-client';
+import { getSettings, updateSettings, type SettingsInfo } from '../../api/engine-client';
+import { getProject, updateProject, type ProjectInfo } from '../../api/engine-client';
+import { ApiError, getFriendlyErrorMessage } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
 import { useFeedback } from '../../hooks/useFeedback';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 type ContextLayer = {
   key: string;
@@ -306,6 +307,7 @@ function getCandidateKey(candidate: ExtractedFactCandidate, index: number): stri
 export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapter, onChaptersChanged }: { auPath: string, onNavigate: (page: string) => void, viewChapter?: number | null, onClearViewChapter?: () => void, onChaptersChanged?: () => void }) => {
   const { t } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const instructionInputRef = useRef<HTMLInputElement | null>(null);
   const activeAuPathRef = useRef(auPath);
   const loadRequestIdRef = useRef(0);
@@ -314,6 +316,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const [mode, setMode] = useState<WriterMode>('write');
   const [showSettingsTooltip, setShowSettingsTooltip] = useState(false);
   const [isSettingsModeBusy, setIsSettingsModeBusy] = useState(false);
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
 
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [isExportOpen, setExportOpen] = useState(false);
@@ -441,7 +444,15 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     setExtractReviewOpen(false);
     setDirtyOpen(false);
     setExportOpen(false);
+    setMobileToolsOpen(false);
   }, [auPath]);
+
+  useEffect(() => {
+    if (isMobile && mode !== 'write') {
+      setMode('write');
+      setShowSettingsTooltip(false);
+    }
+  }, [isMobile, mode]);
 
   const focusInstructionInput = () => {
     window.setTimeout(() => {
@@ -1189,10 +1200,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
   return (
     <>
-      <main className="flex-1 flex flex-col min-w-0 bg-background relative transition-colors duration-200">
+      <main className="flex h-full flex-1 flex-col min-w-0 bg-background relative transition-colors duration-200">
         {/* Dirty banner (sub-task 2) */}
         {!dirtyBannerDismissed && (state?.chapters_dirty || []).length > 0 && (
-          <div className="bg-warning/10 border-b border-warning/20 px-6 py-2 flex items-center justify-between text-xs">
+          <div className="flex flex-col gap-2 border-b border-warning/20 bg-warning/10 px-4 py-2 text-xs md:flex-row md:items-center md:justify-between md:px-6">
             <span className="text-warning">{t('dirty.banner', { count: (state?.chapters_dirty || []).length, chapters: (state?.chapters_dirty || []).join(', ') })}</span>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" className="text-xs h-6" onClick={() => { setDirtyTargetChapter((state?.chapters_dirty || [])[0] || 0); setDirtyOpen(true); }}>{t('dirty.goResolve')}</Button>
@@ -1200,9 +1211,9 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
             </div>
           </div>
         )}
-        <header className="flex h-14 items-center justify-between border-b border-black/5 px-6 text-xs text-text/50 dark:border-white/5">
+        <header className="flex min-h-[64px] items-center justify-between border-b border-black/5 px-4 text-xs text-text/50 dark:border-white/5 md:h-14 md:px-6">
           <div className="flex items-center gap-4">
-            <div className="inline-flex rounded-lg border border-black/10 bg-surface/60 p-1 dark:border-white/10">
+            <div className="hidden rounded-lg border border-black/10 bg-surface/60 p-1 dark:border-white/10 md:inline-flex">
               <Button
                 variant={mode === 'write' ? 'primary' : 'ghost'}
                 size="sm"
@@ -1220,6 +1231,14 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
               >
                 {t('settingsMode.tabSettings')}
               </Button>
+            </div>
+            <div className="md:hidden">
+              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-text/35">{t('writer.modeWrite')}</p>
+              <p className="mt-1 text-sm font-medium text-text/70">
+                {isViewingHistory
+                  ? t('workspace.chapterItem', { num: viewingHistoryNum })
+                  : t('workspace.chapterItem', { num: currentChapter })}
+              </p>
             </div>
             <div className="hidden items-center gap-4 md:flex">
               <span>{metaModel} · T{sessionTemp}</span>
@@ -1252,10 +1271,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         </header>
 
         <div className={mode === 'write' ? 'flex flex-1 flex-col min-h-0' : 'hidden'}>
-          <div className="flex-1 overflow-y-auto w-full flex justify-center pb-52">
-            <div className="w-full max-w-3xl px-8 py-10 space-y-6">
+          <div className="flex flex-1 justify-center overflow-y-auto w-full pb-64 md:pb-52">
+            <div className="w-full max-w-3xl space-y-6 px-4 py-4 md:px-8 md:py-10">
               {isViewingHistory && (
-                <div className="rounded-xl border border-info/30 bg-info/10 px-4 py-3 text-sm text-info flex items-center justify-between">
+                <div className="flex flex-col gap-3 rounded-xl border border-info/30 bg-info/10 px-4 py-3 text-sm text-info md:flex-row md:items-center md:justify-between">
                   <span>{t('workspace.chapterItem', { num: viewingHistoryNum })} — {t('writer.viewingHistory')}</span>
                   <Button variant="ghost" size="sm" onClick={() => { setViewingHistoryContent(null); setViewingHistoryNum(null); onClearViewChapter?.(); }}>
                     {t('writer.backToCurrentChapter')}
@@ -1268,7 +1287,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                 </div>
               )}
 
-              <div className="rounded-[24px] border border-black/10 bg-surface/35 p-6 shadow-subtle dark:border-white/10" style={{ fontSize: `${fontSize}px`, lineHeight: lineHeight }}>
+              <div className="rounded-[24px] border border-black/10 bg-surface/35 p-4 shadow-subtle dark:border-white/10 md:p-6" style={{ fontSize: `${fontSize}px`, lineHeight: lineHeight }}>
                 {loading ? (
                   <div className="flex items-center justify-center py-24">
                     <Loader2 className="animate-spin text-accent" size={24} />
@@ -1351,7 +1370,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
             </div>
           </div>
 
-          <footer className="absolute bottom-0 w-full shrink-0 border-t border-black/10 dark:border-white/10 bg-surface/50 backdrop-blur-md flex flex-col">
+          <footer className="safe-area-bottom absolute bottom-0 w-full shrink-0 border-t border-black/10 dark:border-white/10 bg-surface/80 backdrop-blur-md flex flex-col">
             {/* Collapse toggle */}
             <button
               className="mx-auto flex items-center gap-1 px-4 py-1 text-[10px] text-text/40 hover:text-text/60 transition-colors"
@@ -1381,11 +1400,11 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
               </div>
             ) : (
               /* Expanded: full toolbar */
-              <div className="p-4 flex flex-col gap-3">
+              <div className="flex flex-col gap-3 p-4">
                 {hasPendingDrafts && currentDraft && (
                   <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 rounded-xl border border-black/10 bg-background/60 px-4 py-3 dark:border-white/10">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                      <div className="flex items-center gap-2 text-sm font-sans text-text/75">
+                      <div className="hidden items-center gap-2 text-sm font-sans text-text/75 md:flex">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -1410,6 +1429,19 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                         >
                           <ChevronRight size={16} />
                         </Button>
+                      </div>
+
+                      <div className="flex gap-2 overflow-x-auto md:hidden">
+                        {drafts.map((draft, index) => (
+                          <button
+                            key={draft.draftId}
+                            type="button"
+                            onClick={() => setActiveDraftIndex(index)}
+                            className={`min-h-[40px] rounded-full px-3 text-sm whitespace-nowrap transition-colors ${index === activeDraftIndex ? 'bg-accent text-white' : 'bg-black/5 text-text/60 dark:bg-white/10'}`}
+                          >
+                            {t('drafts.count', { current: index + 1, total: drafts.length })}
+                          </button>
+                        ))}
                       </div>
 
                       <div className="flex flex-wrap items-center justify-end gap-2">
@@ -1442,7 +1474,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                   </div>
                 )}
 
-                <div className="mx-auto w-full max-w-3xl">
+                <div className="mx-auto hidden w-full max-w-3xl md:block">
                   <input
                     ref={instructionInputRef}
                     type="text"
@@ -1464,7 +1496,17 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                   />
                 </div>
 
-                <div className="mx-auto mt-2 flex w-full max-w-3xl items-center justify-between border-t border-black/5 pt-2 dark:border-white/5">
+                <div className="mx-auto w-full max-w-3xl md:hidden">
+                  <Textarea
+                    value={instructionText}
+                    onChange={(event) => setInstructionText(event.target.value)}
+                    placeholder={t('writer.inputPlaceholder')}
+                    disabled={writeActionsDisabled}
+                    className="min-h-[96px] resize-none bg-background/90"
+                  />
+                </div>
+
+                <div className="mx-auto mt-2 hidden w-full max-w-3xl items-center justify-between border-t border-black/5 pt-2 dark:border-white/5 md:flex">
                   <div className="flex items-center gap-2">
                     <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => setUndoConfirmOpen(true)} disabled={currentChapter <= 1 || writeActionsDisabled}>
                       <Undo2 size={16} className="mr-2" /> {t('common.actions.undoPreviousChapter')}
@@ -1484,12 +1526,34 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                     </Button>
                   </div>
                 </div>
+
+                <div className="mx-auto mt-2 flex w-full max-w-3xl items-center justify-between border-t border-black/5 pt-3 dark:border-white/5 md:hidden">
+                  <Button variant="secondary" size="sm" className="px-4" onClick={() => setMobileToolsOpen(true)}>
+                    {t('common.actions.more')}
+                  </Button>
+                  <div className="flex items-center gap-2">
+                    {hasPendingDrafts ? (
+                      <Button variant="primary" size="sm" onClick={() => { setChapterTitle(''); setFinalizeConfirmOpen(true); }} disabled={writeActionsDisabled}>
+                        <Check size={15} className="mr-1" /> {t('drafts.finalize')}
+                      </Button>
+                    ) : null}
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="min-w-[110px]"
+                      onClick={() => void handleGenerateFromInput(instructionText.trim() ? 'instruction' : 'continue')}
+                      disabled={writeActionsDisabled || hasPendingDrafts}
+                    >
+                      {isGenerating ? <Loader2 size={16} className="animate-spin" /> : (instructionText.trim() ? t('common.actions.instruction') : t('common.actions.continue'))}
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
           </footer>
         </div>
 
-        <div className={mode === 'settings' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
+        <div className={mode === 'settings' ? 'hidden min-h-0 flex-1 flex-col md:flex' : 'hidden'}>
           <div className="mx-auto flex h-full w-full max-w-4xl min-h-0 flex-col px-6 py-6">
             {showSettingsTooltip ? (
               <div className="mb-4 flex items-start justify-between gap-4 rounded-2xl border border-info/20 bg-info/10 px-4 py-3 text-sm text-info">
@@ -1517,7 +1581,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         </div>
       </main>
 
-      <Sidebar position="right" width="320px" isCollapsed={rightCollapsed} onToggle={() => setRightCollapsed(!rightCollapsed)} className="flex flex-col bg-surface/50 border-l border-black/10 dark:border-white/10">
+      <Sidebar position="right" width="320px" isCollapsed={rightCollapsed} onToggle={() => setRightCollapsed(!rightCollapsed)} className="hidden flex-col bg-surface/50 border-l border-black/10 dark:border-white/10 md:flex">
         <div className="flex-1 overflow-y-auto p-5 space-y-8">
           {mode === 'write' ? (
             <>
@@ -1622,6 +1686,111 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
           </section>
         </div>
       </Sidebar>
+
+      <Modal isOpen={mobileToolsOpen} onClose={() => setMobileToolsOpen(false)} title={t('common.actions.more')}>
+        <div className="space-y-6 md:hidden">
+          <section>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-xs font-medium uppercase tracking-wide text-text/70">{t('writer.focusTitle')}</h3>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" className="text-xs" onClick={handleClearFocus} disabled={focusSelection.length === 0}>
+                  {t('writer.freeWrite')}
+                </Button>
+                {(state?.last_confirmed_chapter_focus || []).length > 0 ? (
+                  <Button variant="ghost" size="sm" className="text-xs" onClick={handleContinueLastFocus}>
+                    {t('focus.continueLastChapter')}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+            <div className="space-y-2">
+              {unresolvedFacts.length === 0 ? (
+                <p className="text-sm text-text/45">{t('facts.noSearchResultDescription')}</p>
+              ) : unresolvedFacts.map((fact) => {
+                const isHigh = fact.narrative_weight === 'high';
+                return (
+                  <label key={fact.id} className={`flex items-start gap-3 rounded-xl border p-3 ${focusSelection.includes(String(fact.id)) ? 'border-accent/30 bg-accent/5' : 'border-black/10 bg-surface/35 dark:border-white/10'}`}>
+                    <input type="checkbox" className="mt-1 accent-accent" checked={focusSelection.includes(String(fact.id))} onChange={() => handleFocusToggle(String(fact.id))} />
+                    <div className="space-y-2">
+                      <p className="text-sm text-text/85">{fact.content_clean}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Tag variant="warning">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</Tag>
+                        {isHigh ? <Tag variant="info">{t('focus.recommended')}</Tag> : null}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </section>
+
+          <section>
+            <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-text/70">{t('writer.memoryPanel')}</h3>
+            {!budgetReport ? (
+              <p className="text-sm text-text/45">{t('writer.memoryPanelHint')}</p>
+            ) : (
+              <div className="space-y-3">
+                {contextLayers.map((item) => (
+                  <div key={item.key} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-text/70">{item.label}</span>
+                      <span className="font-mono text-text/50">{item.tokens} tok</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
+                      <div className={`${item.color} h-full rounded-full`} style={{ width: `${Math.min(item.percent, 100)}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="border-t border-black/10 pt-5 dark:border-white/10">
+            <SettingsPanel
+              model={sessionModel}
+              onModelChange={setSessionModel}
+              temperature={sessionTemp}
+              onTemperatureChange={setSessionTemp}
+              topP={sessionTopP}
+              onTopPChange={setSessionTopP}
+              onSaveGlobal={handleSaveGlobalParams}
+              onSaveAu={handleSaveAuParams}
+            />
+          </section>
+
+          <section>
+            <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-text/70">{t('writer.readingPrefs')}</h3>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-text/70">{t('writer.fontSize')}</span>
+                  <span className="font-mono text-text/50">{fontSize}px</span>
+                </div>
+                <input type="range" min="14" max="24" step="1" value={fontSize} onChange={e => { const v = parseInt(e.target.value); setFontSize(v); localStorage.setItem('ficforge.fontSize', String(v)); }} className="h-2 w-full accent-accent" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-text/70">{t('writer.lineHeight')}</span>
+                  <span className="font-mono text-text/50">{lineHeight.toFixed(1)}</span>
+                </div>
+                <input type="range" min="1.4" max="3.0" step="0.1" value={lineHeight} onChange={e => { const v = parseFloat(e.target.value); setLineHeight(v); localStorage.setItem('ficforge.lineHeight', String(v)); }} className="h-2 w-full accent-accent" />
+              </div>
+            </div>
+          </section>
+
+          <section className="flex flex-wrap gap-2 border-t border-black/10 pt-5 dark:border-white/10">
+            <Button variant="secondary" size="sm" onClick={() => { setMobileToolsOpen(false); setUndoConfirmOpen(true); }} disabled={currentChapter <= 1 || writeActionsDisabled}>
+              <Undo2 size={16} className="mr-2" /> {t('common.actions.undoPreviousChapter')}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => { setMobileToolsOpen(false); onNavigate('facts'); }}>
+              <BookOpen size={16} className="mr-2" /> {t('writer.factsShortcut')}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => { setMobileToolsOpen(false); setExportOpen(true); }}>
+              <FileUp size={16} className="mr-2" /> {t('writer.exportButtonTitle')}
+            </Button>
+          </section>
+        </div>
+      </Modal>
 
       <Modal
         isOpen={isFinalizeConfirmOpen && currentDraft !== null}

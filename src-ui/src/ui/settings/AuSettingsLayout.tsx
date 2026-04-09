@@ -8,9 +8,9 @@ import { Input, Textarea } from '../shared/Input';
 import { Tag } from '../shared/Tag';
 import { Modal } from '../shared/Modal';
 import { Settings, Save, Trash2, Plus, Loader2, AlertCircle } from 'lucide-react';
-import { getProject, updateProject, type ProjectInfo } from '../../api/project';
-import { getSettings, type SettingsInfo } from '../../api/settings';
-import { getState, recalcState, rebuildIndex } from '../../api/state';
+import { getProject, updateProject, type ProjectInfo } from '../../api/engine-client';
+import { getSettings, type SettingsInfo } from '../../api/engine-client';
+import { getState, recalcState, rebuildIndex } from '../../api/engine-client';
 import { GlobalSettingsModal } from './GlobalSettingsModal';
 import { EmptyState } from '../shared/EmptyState';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -255,16 +255,16 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   return (
     <>
       <main className="flex-1 overflow-y-auto w-full">
-        <div className="max-w-4xl mx-auto p-8 lg:p-12 space-y-12">
+        <div className="mx-auto max-w-4xl space-y-10 px-4 py-4 md:p-8 lg:p-12">
 
-          <header className="flex justify-between items-center pb-6 border-b border-black/10 dark:border-white/10">
+          <header className="flex flex-col gap-4 border-b border-black/10 pb-6 dark:border-white/10 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
-              <h1 className="font-serif text-2xl font-bold flex items-center gap-2">
+              <h1 className="flex flex-wrap items-center gap-2 font-serif text-xl font-bold md:text-2xl">
                 <Settings className="text-accent" />
                 {t("settings.headerTitle")} <span className="text-lg font-normal opacity-50 ml-2">{t("settings.story.scopeLabel", { name: auName })}</span>
               </h1>
             </div>
-            <Button variant="primary" className="w-24 shadow-md gap-2" onClick={handleSave} disabled={saving}>
+            <Button variant="primary" className="w-full gap-2 shadow-md md:w-24" onClick={handleSave} disabled={saving}>
               <Save size={16}/> {saving ? t("common.status.saving") : t("common.actions.save")}
             </Button>
           </header>
@@ -272,8 +272,8 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
           {/* 1. 模型与 API 配置 */}
           <section className="space-y-4">
             <h2 className="text-lg font-sans font-bold text-accent border-l-4 border-accent pl-3">{t("settings.sections.llm")}</h2>
-            <div className="bg-surface/50 p-6 rounded-xl border border-black/5 dark:border-white/5 space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="space-y-4 rounded-xl border border-black/5 bg-surface/50 p-4 dark:border-white/5 md:p-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                    <h3 className="text-sm font-bold text-text/90 mb-1">{t("settings.story.overrideToggleLabel")}</h3>
                    <p className="text-xs text-text/50">{t("settings.story.inheritDescription")}</p>
@@ -349,7 +349,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
 
           <section className="space-y-4">
             <h2 className="text-lg font-sans font-bold text-info border-l-4 border-info pl-3">{t("settings.sections.searchEngine")}</h2>
-            <div className="bg-surface/50 p-6 rounded-xl border border-black/5 dark:border-white/5 space-y-4">
+            <div className="space-y-4 rounded-xl border border-black/5 bg-surface/50 p-4 dark:border-white/5 md:p-6">
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-bold text-text/90">{t("common.labels.searchEngineModel")}</label>
                 {!isEmbeddingOverride && (
@@ -379,7 +379,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
           <section className="space-y-6">
             <h2 className="text-lg font-sans font-bold text-accent border-l-4 border-accent pl-3">{t("settings.sections.writingStyle")}</h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-surface/50 p-6 rounded-xl border border-black/5 dark:border-white/5">
+            <div className="grid grid-cols-1 gap-6 rounded-xl border border-black/5 bg-surface/50 p-4 dark:border-white/5 md:grid-cols-2 md:gap-8 md:p-6">
               <div className="flex flex-col gap-4">
                  <div className="flex flex-col gap-2">
                    <label className="text-sm font-bold text-text/90">{t("common.labels.perspective")}</label>
@@ -416,9 +416,9 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
 
           {/* 3. 铁律 Pinned Context */}
           <section className="space-y-6">
-            <h2 className="text-lg font-sans font-bold text-error border-l-4 border-error pl-3 flex justify-between items-center">
+            <h2 className="flex flex-col gap-3 border-l-4 border-error pl-3 text-lg font-sans font-bold text-error md:flex-row md:items-center md:justify-between">
                <span>{t("settings.sections.pinnedContext")}</span>
-               <Button variant="secondary" size="sm" className="h-8 text-xs font-normal border-error/30 text-error hover:bg-error/10" onClick={addPinnedRule}>
+               <Button variant="secondary" size="sm" className="h-10 border-error/30 text-sm font-normal text-error hover:bg-error/10 md:h-8 md:text-xs" onClick={addPinnedRule}>
                  <Plus size={14} className="mr-1"/> {t("common.actions.addPinnedRule")}
                </Button>
             </h2>
@@ -444,7 +444,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                  />
                ) : (
                  pinnedContext.map((pc, idx) => (
-                   <div key={idx} className="flex gap-3 items-start bg-error/5 p-4 rounded-lg border border-error/20">
+                   <div key={idx} className="flex items-start gap-3 rounded-lg border border-error/20 bg-error/5 p-4">
                      <span className="font-mono text-error/50 font-bold mt-1 text-sm">{idx+1}.</span>
                      <Textarea className="min-h-[60px] flex-1 bg-background text-sm font-serif" value={pc} onChange={e => updatePinnedRule(idx, e.target.value)} />
                      <Button variant="ghost" size="sm" className="text-error/60 hover:text-error hover:bg-error/10 p-2 h-auto" onClick={() => removePinnedRule(idx)}>
@@ -479,7 +479,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                   </Tag>
                 ))
               )}
-              <Button variant="ghost" size="sm" className="h-8 border border-dashed border-success/30 text-success hover:bg-success/5" onClick={() => setCoreIncludeModalOpen(true)}>
+              <Button variant="ghost" size="sm" className="h-10 border border-dashed border-success/30 text-sm text-success hover:bg-success/5 md:h-8 md:text-xs" onClick={() => setCoreIncludeModalOpen(true)}>
                 <Plus size={14} className="mr-1"/> {t("common.actions.addFile")}
               </Button>
             </div>
@@ -525,17 +525,17 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
           )}
 
           {/* 高级操作 (sub-task 4) */}
-          <section className="space-y-4 pt-6 border-t border-black/10 dark:border-white/10">
+          <section className="space-y-4 border-t border-black/10 pt-6 dark:border-white/10">
             <h2 className="text-lg font-sans font-bold text-text/50 border-l-4 border-text/20 pl-3">{t('advanced.title')}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-surface/50 p-4 rounded-xl border border-black/5 dark:border-white/5">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="rounded-xl border border-black/5 bg-surface/50 p-4 dark:border-white/5">
                 <Button variant="secondary" size="sm" className="w-full mb-2" onClick={handleRecalc} disabled={recalcing}>
                   {recalcing ? <Loader2 size={14} className="animate-spin mr-2" /> : null}
                   {t('advanced.recalc')}
                 </Button>
                 <p className="text-xs text-text/40">{t('advanced.recalcDesc')}</p>
               </div>
-              <div className="bg-surface/50 p-4 rounded-xl border border-black/5 dark:border-white/5">
+              <div className="rounded-xl border border-black/5 bg-surface/50 p-4 dark:border-white/5">
                 <Button variant="secondary" size="sm" className="w-full mb-2" onClick={async () => {
                   try {
                     await rebuildIndex(auPath);
@@ -552,7 +552,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
             <p className="text-xs text-text/30">{t('advanced.advancedHint')}</p>
           </section>
 
-          <div className="h-20"></div>
+          <div className="h-10 md:h-20"></div>
         </div>
       </main>
       <GlobalSettingsModal isOpen={isGlobalSettingsOpen} onClose={() => setGlobalSettingsOpen(false)} />

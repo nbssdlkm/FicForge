@@ -14,14 +14,16 @@ import { FactsLayout } from '../facts/FactsLayout';
 import { AuLoreLayout } from '../library/AuLoreLayout';
 import { AuSettingsLayout } from '../settings/AuSettingsLayout';
 import { AnimatePresence, motion } from 'framer-motion';
-import { rebuildIndex } from '../../api/state';
-import { listChapters, updateChapterTitle, type ChapterInfo } from '../../api/chapters';
-import { getState } from '../../api/state';
-import { listFacts, type FactInfo } from '../../api/facts';
-import { getProject } from '../../api/project';
+import { rebuildIndex } from '../../api/engine-client';
+import { listChapters, updateChapterTitle, type ChapterInfo } from '../../api/engine-client';
+import { getState } from '../../api/engine-client';
+import { listFacts, type FactInfo } from '../../api/engine-client';
+import { getProject } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { FeedbackProvider } from '../../hooks/useFeedback';
 import { useMilestoneGuide } from '../../hooks/useMilestoneGuide';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { MobileLayout } from '../mobile/MobileLayout';
 
 type Props = {
   activeTab: string;
@@ -31,6 +33,7 @@ type Props = {
 
 function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const { t } = useTranslation();
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const activeAuPathRef = useRef(auPath);
   activeAuPathRef.current = auPath;
   const loadWorkspaceRequestIdRef = useRef(0);
@@ -120,6 +123,24 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
       }).catch(() => {});
     }
   }, [auPath, shouldShow]);
+
+  if (isMobile) {
+    return (
+      <MobileLayout
+        activePage={activeTab as 'writer' | 'facts' | 'au_lore' | 'settings'}
+        auPath={auPath}
+        auName={auName}
+        chapters={chapters}
+        loadingChapters={loadingChapters}
+        currentChapter={currentChapter}
+        selectedChapter={viewingChapter}
+        onNavigate={onNavigate}
+        onSelectChapter={setViewingChapter}
+        onClearViewChapter={() => setViewingChapter(null)}
+        onChaptersChanged={refreshChapters}
+      />
+    );
+  }
 
   return (
     <div className="h-screen w-screen flex overflow-hidden bg-background text-text font-sans transition-colors duration-200">

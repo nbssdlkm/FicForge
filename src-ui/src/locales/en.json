@@ -48,7 +48,8 @@
       "saveGlobalSettings": "Save Global Settings",
       "addFile": "Add File",
       "editSettings": "Story Settings",
-      "backToNotes": "Back to Plot Points"
+      "backToNotes": "Back to Plot Points",
+      "more": "More"
     },
     "status": {
       "loading": "Loading…",
@@ -922,6 +923,65 @@
       "nextAddCharacters": "Add character analyses to Canon Lore",
       "nextImport": "Import an existing novel to continue",
       "enter": "Enter FicForge →"
+    },
+    "mobile": {
+      "header": "Mobile Quick Setup",
+      "language": {
+        "title": "Pick Your Interface Language",
+        "subtitle": "Set the UI language first so the rest of the mobile setup updates immediately.",
+        "zhTitle": "Chinese",
+        "zhDescription": "Use the full onboarding flow in Chinese.",
+        "enTitle": "English",
+        "enDescription": "Use the full onboarding flow in English."
+      },
+      "llm": {
+        "title": "Connect Your Writing Model",
+        "subtitle": "Mobile onboarding uses the hosted API path first. Test the connection before moving on.",
+        "deepseekTitle": "DeepSeek",
+        "deepseekDescription": "Prefills the official DeepSeek endpoint for Chinese-first writing.",
+        "openaiTitle": "OpenAI",
+        "openaiDescription": "Prefills the official OpenAI endpoint. Enter your model name directly.",
+        "customTitle": "Custom Provider",
+        "customDescription": "Any OpenAI-compatible provider can be entered manually."
+      },
+      "embedding": {
+        "title": "Configure Retrieval",
+        "subtitle": "Embedding powers lore retrieval and RAG. You can wire it up now or skip it for later.",
+        "recommendedTitle": "Use a Custom Embedding API",
+        "recommendedDescription": "Recommended for stronger Chinese retrieval quality with providers like SiliconFlow.",
+        "recommendedHint": "If you skip this for now, lore retrieval and RAG stay unavailable until you configure embedding later.",
+        "skipTitle": "Skip for Now",
+        "skipDescription": "Enter the app first and configure embedding later in Settings."
+      },
+      "setup": {
+        "title": "Create or Import",
+        "subtitle": "Choose whether to start with a new fandom or jump straight to import and sync entry points.",
+        "createTitle": "Create a New Fandom",
+        "createDescription": "Set up a fandom container now, then create an AU and start writing.",
+        "importTitle": "Open Local Import Next",
+        "importDescription": "Finish onboarding, then jump straight into the import flow for existing work.",
+        "syncTitle": "Open Sync Settings Next",
+        "syncDescription": "Finish onboarding, then continue with WebDAV or sync-related setup from Settings.",
+        "laterTitle": "Enter the Library First",
+        "laterDescription": "Skip creation and import for now and explore the app first.",
+        "fandomPlaceholder": "e.g. Genshin Impact, Jujutsu Kaisen, Detroit: Become Human..."
+      },
+      "ethics": {
+        "subtitle": "Mobile uses the same local-first and responsible-use guidance as desktop.",
+        "confirm": "I will only import or create content I have the right to use, and I understand I should follow platform disclosure rules when publishing."
+      },
+      "complete": {
+        "title": "Ready to Go",
+        "subtitle": "These settings will be saved together when you finish.",
+        "languageSummary": "Interface language: {{language}}",
+        "llmSummary": "Writing model: {{model}}",
+        "embeddingSummary": "Embedding model: {{model}}",
+        "embeddingSkipped": "Embedding model: skipped for now, can be configured later in Settings",
+        "createSummary": "Initial content: create fandom \"{{name}}\"",
+        "importSummary": "Initial content: open the local import flow after setup",
+        "syncSummary": "Initial content: open Settings after setup to continue sync configuration",
+        "laterSummary": "Initial content: enter the library first and create or import later"
+      }
     },
     "common": {
       "step": "{{current}}/{{total}}",

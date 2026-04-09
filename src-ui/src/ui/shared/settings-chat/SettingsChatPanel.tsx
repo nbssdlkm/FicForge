@@ -4,10 +4,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
-import { sendSettingsChat, type SettingsChatSessionLlm } from "../../../api/settingsChat";
-import { addFact, editFact, updateFactStatus } from "../../../api/facts";
-import { deleteLore, listLoreFiles, saveLore } from "../../../api/lore";
-import { addPinned, deletePinned, getProject, updateProject, type ProjectInfo } from "../../../api/project";
+import { sendSettingsChat, type SettingsChatSessionLlm } from "../../../api/engine-client";
+import { addFact, editFact, updateFactStatus } from "../../../api/engine-client";
+import { deleteLore, listLoreFiles, saveLore } from "../../../api/engine-client";
+import { addPinned, deletePinned, getProject, updateProject, type ProjectInfo } from "../../../api/engine-client";
 import { useFeedback } from "../../../hooks/useFeedback";
 import { useTranslation } from "../../../i18n/useAppTranslation";
 import { SettingsChatHistory } from "./SettingsChatHistory";
@@ -859,7 +859,7 @@ export function SettingsChatPanel({
             : -1;
 
         if (pinnedIndex < 0 && pinnedContent) {
-          pinnedIndex = pinnedContext.map((item) => item.trim()).lastIndexOf(pinnedContent);
+          pinnedIndex = pinnedContext.map((item: string) => item.trim()).lastIndexOf(pinnedContent);
         }
 
         if (pinnedIndex < 0) {
@@ -1049,7 +1049,7 @@ export function SettingsChatPanel({
         </div>
       ) : null}
 
-      <div className={`min-h-0 flex-1 ${compact ? "rounded-[20px] border border-black/10 bg-surface/35 shadow-subtle dark:border-white/10" : ""}`}>
+      <div className={`min-h-0 flex-1 overflow-hidden ${compact ? "rounded-[20px] border border-black/10 bg-surface/35 shadow-subtle dark:border-white/10" : ""}`}>
         <SettingsChatHistory
           messages={messages}
           mode={mode}

@@ -7,7 +7,7 @@ import { Modal } from '../shared/Modal';
 import { FileSelectStep } from './FileSelectStep';
 import { PreviewStep } from './PreviewStep';
 import { CompletionStep } from './CompletionStep';
-import { uploadImportFile, confirmImport, type ChapterPreview, type ImportConfirmResponse } from '../../api/importExport';
+import { uploadImportFile, confirmImport, type ChapterPreview, type ImportConfirmResponse } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
 

@@ -385,7 +385,7 @@ export function ToolCallCard({
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 gap-1 text-text/70"
+              className="h-10 w-full gap-1 text-text/70 sm:h-8 sm:w-auto"
               onClick={() => void onUndo(card.id)}
               disabled={card.isLoading || (globalBusy && !card.isLoading)}
             >
@@ -400,6 +400,7 @@ export function ToolCallCard({
               <Button
                 variant="ghost"
                 size="sm"
+                className="w-full sm:w-auto"
                 onClick={() => {
                   setDraftArgs(card.parsedArgs);
                   setEditing(false);
@@ -411,6 +412,7 @@ export function ToolCallCard({
               <Button
                 variant="primary"
                 size="sm"
+                className="w-full sm:w-auto"
                 onClick={() => void onConfirm(card.id, draftArgs)}
                 disabled={
                   card.parseError !== null
@@ -430,6 +432,7 @@ export function ToolCallCard({
               <Button
                 variant="primary"
                 size="sm"
+                className="w-full sm:w-auto"
                 onClick={() => void onConfirm(card.id)}
                 disabled={
                   card.parseError !== null
@@ -446,6 +449,7 @@ export function ToolCallCard({
               <Button
                 variant="secondary"
                 size="sm"
+                className="w-full sm:w-auto"
                 onClick={() => setEditing(true)}
                 disabled={card.parseError !== null || card.isLoading || (globalBusy && !card.isLoading)}
               >
@@ -454,6 +458,7 @@ export function ToolCallCard({
               <Button
                 variant="ghost"
                 size="sm"
+                className="w-full sm:w-auto"
                 onClick={() => onSkip(card.id)}
                 disabled={card.isLoading || (globalBusy && !card.isLoading)}
               >

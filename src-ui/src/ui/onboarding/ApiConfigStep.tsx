@@ -7,7 +7,7 @@ import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
-import { testConnection } from '../../api/settings';
+import { testConnection } from '../../api/engine-client';
 import { StepIndicator } from './StepIndicator';
 
 type Mode = 'api' | 'local' | 'ollama';

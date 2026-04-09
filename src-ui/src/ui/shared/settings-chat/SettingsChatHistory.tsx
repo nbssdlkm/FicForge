@@ -75,7 +75,7 @@ export function SettingsChatHistory({
   }
 
   return (
-      <div className={`space-y-4 overflow-y-auto ${compact ? "max-h-[360px] pr-1" : "h-full px-8 py-10"}`}>
+      <div className={`space-y-4 overflow-y-auto ${compact ? "max-h-[360px] pr-1" : "h-full px-4 py-4 md:px-8 md:py-10"}`}>
       {messages.map((message) => {
         const pendingToolCalls = (message.toolCalls || []).filter((card) => !isToolCallResolved(card.status));
         const confirmableToolCalls = pendingToolCalls.filter(
@@ -102,7 +102,7 @@ export function SettingsChatHistory({
         return (
           <div key={message.id} className="space-y-3">
             <div className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[90%] rounded-2xl px-4 py-3 shadow-subtle ${message.role === "user" ? "bg-accent/10 text-text" : "bg-surface/60 text-text"}`}>
+              <div className={`max-w-full md:max-w-[90%] rounded-2xl px-4 py-3 shadow-subtle ${message.role === "user" ? "bg-accent/10 text-text" : "bg-surface/60 text-text"}`}>
                 <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-text/45">
                   {message.role === "user" ? <User2 size={14} /> : <Bot size={14} />}
                   <span>{message.role === "user" ? t("settingsMode.userLabel") : t("settingsMode.assistantLabel")}</span>
@@ -118,12 +118,13 @@ export function SettingsChatHistory({
                     <Button
                       variant="secondary"
                       size="sm"
+                      className="w-full sm:w-auto"
                       onClick={() => void onConfirmAll(message.id)}
                       disabled={confirmableToolCalls.length === 0 || hasAnyLoadingToolCall}
                     >
                       {t("settingsMode.confirmAll")}
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => onSkipAll(message.id)} disabled={hasAnyLoadingToolCall}>
+                    <Button variant="ghost" size="sm" className="w-full sm:w-auto" onClick={() => onSkipAll(message.id)} disabled={hasAnyLoadingToolCall}>
                       {t("settingsMode.skipAll")}
                     </Button>
                   </div>

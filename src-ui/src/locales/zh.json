@@ -48,7 +48,8 @@
       "saveGlobalSettings": "保存全局设置",
       "addFile": "添加文件",
       "editSettings": "故事设置",
-      "backToNotes": "回到剧情笔记"
+      "backToNotes": "回到剧情笔记",
+      "more": "更多"
     },
     "status": {
       "loading": "加载中…",
@@ -922,6 +923,65 @@
       "nextAddCharacters": "在「原作资料」中添加角色分析",
       "nextImport": "导入已有的小说继续写",
       "enter": "进入 FicForge →"
+    },
+    "mobile": {
+      "header": "移动端快速引导",
+      "language": {
+        "title": "先选界面语言",
+        "subtitle": "移动端先把阅读和输入环境定下来，后面的文案会立即切换。",
+        "zhTitle": "中文",
+        "zhDescription": "默认中文界面，适合直接开始配置和写作。",
+        "enTitle": "English",
+        "enDescription": "Switch the whole onboarding flow to English."
+      },
+      "llm": {
+        "title": "连接写作模型",
+        "subtitle": "先把续写模型接好。移动端默认按在线 API 流程走，测试通过后再继续。",
+        "deepseekTitle": "DeepSeek",
+        "deepseekDescription": "预填 DeepSeek 官方地址，适合中文续写。",
+        "openaiTitle": "OpenAI",
+        "openaiDescription": "预填 OpenAI 官方地址，可直接填你的模型名。",
+        "customTitle": "自定义服务商",
+        "customDescription": "兼容 OpenAI 协议的第三方服务都可以手动填写。"
+      },
+      "embedding": {
+        "title": "配置检索模型",
+        "subtitle": "Embedding 用来记设定和检索上下文。现在可以配，也可以先跳过。",
+        "recommendedTitle": "使用自定义 Embedding",
+        "recommendedDescription": "推荐硅基流动等兼容 OpenAI 协议的 Embedding 服务，中文检索体验更稳。",
+        "recommendedHint": "如果你暂时不配置，设定检索和 RAG 会先不可用，但不影响基础写作。",
+        "skipTitle": "先跳过",
+        "skipDescription": "直接进入应用，稍后再到设置里补上 Embedding。"
+      },
+      "setup": {
+        "title": "创建或导入",
+        "subtitle": "最后决定你想先建作品，还是先把旧文和同步入口接进来。",
+        "createTitle": "创建新 Fandom",
+        "createDescription": "先创建一个原作容器，完成后可以继续新建 AU 开始写。",
+        "importTitle": "稍后导入本地文件",
+        "importDescription": "完成引导后直接打开导入入口，继续处理旧文。",
+        "syncTitle": "稍后配置同步目录",
+        "syncDescription": "完成引导后打开设置，继续处理 WebDAV 或同步相关配置。",
+        "laterTitle": "先进入作品库",
+        "laterDescription": "暂时不创建也不导入，先看界面和主题。",
+        "fandomPlaceholder": "比如：原神、咒术回战、底特律变人..."
+      },
+      "ethics": {
+        "subtitle": "移动端也沿用和桌面端一致的本地优先与负责任使用说明。",
+        "confirm": "我确认只会导入和创作自己有权使用的内容，并理解发布时应遵守平台规则。"
+      },
+      "complete": {
+        "title": "可以开始了",
+        "subtitle": "下面这些配置会在完成后一起保存。",
+        "languageSummary": "界面语言：{{language}}",
+        "llmSummary": "写作模型：{{model}}",
+        "embeddingSummary": "检索模型：{{model}}",
+        "embeddingSkipped": "检索模型：暂时跳过，稍后可在设置里补上",
+        "createSummary": "初始化内容：创建 Fandom「{{name}}」",
+        "importSummary": "初始化内容：完成后直接打开本地导入入口",
+        "syncSummary": "初始化内容：完成后直接打开设置页继续配置同步",
+        "laterSummary": "初始化内容：先进入作品库，稍后再创建或导入"
+      }
     },
     "common": {
       "step": "{{current}}/{{total}}",

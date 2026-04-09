@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useRef, useState } from "react";
-import { ApiError } from "../../api/client";
+import { ApiError } from "../../api/engine-client";
 import {
   listTrash,
   permanentDeleteTrash,
@@ -11,7 +11,7 @@ import {
   restoreTrash,
   type TrashEntry,
   type TrashScope,
-} from "../../api/trash";
+} from "../../api/engine-client";
 import { useFeedback } from "../../hooks/useFeedback";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { Button } from "./Button";
