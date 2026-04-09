@@ -1,0 +1,276 @@
+// Copyright (c) 2026 FicForge Contributors
+// Licensed under the GNU Affero General Public License v3.0.
+
+/**
+ * OpenAI 兼容接口 Provider。适配 DeepSeek / OpenAI / Claude 中转站等。
+ * 使用原生 fetch（无外部依赖，移动端兼容）。
+ */
+
+import type { GenerateParams, LLMChunk, LLMProvider, LLMResponse, ToolCall } from "./provider.js";
+import { LLMError } from "./provider.js";
+
+const READ_TIMEOUT = 120_000;
+
+export class OpenAICompatibleProvider implements LLMProvider {
+  private apiBase: string;
+  private apiKey: string;
+  private model: string;
+
+  constructor(apiBase: string, apiKey: string, model: string) {
+    this.apiBase = apiBase.replace(/\/+$/, "");
+    this.apiKey = apiKey;
+    this.model = model;
+  }
+
+  // ------------------------------------------------------------------
+  // 非流式
+  // ------------------------------------------------------------------
+
+  async generate(params: GenerateParams): Promise<LLMResponse> {
+    const body = this.buildBody(params, false);
+    const data = await this.requestWithRetry(body);
+
+    let content = "";
+    let finishReason = "stop";
+    let toolCalls: ToolCall[] | undefined;
+    const choices = (data.choices ?? []) as Record<string, unknown>[];
+    if (choices.length > 0) {
+      const msg = (choices[0].message ?? {}) as Record<string, unknown>;
+      content = (msg.content as string) ?? "";
+      finishReason = (choices[0].finish_reason as string) ?? "stop";
+      if (msg.tool_calls) {
+        toolCalls = msg.tool_calls as ToolCall[];
+      }
+    }
+
+    const usage = (data.usage ?? {}) as Record<string, number>;
+    return {
+      content,
+      model: (data.model as string) ?? this.model,
+      input_tokens: usage.prompt_tokens ?? null,
+      output_tokens: usage.completion_tokens ?? null,
+      finish_reason: finishReason,
+      tool_calls: toolCalls,
+    };
+  }
+
+  // ------------------------------------------------------------------
+  // 流式
+  // ------------------------------------------------------------------
+
+  async *generateStream(params: GenerateParams): AsyncIterable<LLMChunk> {
+    const body = this.buildBody(params, true);
+    const url = `${this.apiBase}/v1/chat/completions`;
+
+    const controller = new AbortController();
+    // 可重置超时：每次收到数据后重置，防止长生成被误杀
+    let timeoutId = setTimeout(() => controller.abort(), READ_TIMEOUT);
+    const resetTimeout = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => controller.abort(), READ_TIMEOUT);
+    };
+
+    let resp: Response;
+    try {
+      resp = await fetch(url, {
+        method: "POST",
+        headers: this.headers(),
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (e) {
+      clearTimeout(timeoutId);
+      throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"]);
+    }
+
+    if (!resp.ok) {
+      clearTimeout(timeoutId);
+      const text = await resp.text();
+      handleError(resp.status, text);
+    }
+
+    try {
+      const reader = resp.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        resetTimeout(); // 收到数据，重置超时计时器
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop()!; // keep incomplete line
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const payload = line.slice(6).trim();
+          if (payload === "[DONE]") return;
+
+          let chunkData: Record<string, unknown>;
+          try {
+            chunkData = JSON.parse(payload);
+          } catch {
+            continue;
+          }
+
+          const choices = (chunkData.choices ?? []) as Record<string, unknown>[];
+          let deltaText = "";
+          let finish: string | null = null;
+          if (choices.length > 0) {
+            const delta = (choices[0].delta ?? {}) as Record<string, unknown>;
+            deltaText = (delta.content as string) ?? "";
+            finish = (choices[0].finish_reason as string) ?? null;
+          }
+
+          const usage = chunkData.usage as Record<string, number> | undefined;
+          yield {
+            delta: deltaText,
+            is_final: finish !== null,
+            input_tokens: usage?.prompt_tokens ?? null,
+            output_tokens: usage?.completion_tokens ?? null,
+            finish_reason: finish,
+          };
+        }
+      }
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // 内部
+  // ------------------------------------------------------------------
+
+  private headers(): Record<string, string> {
+    return {
+      Authorization: `Bearer ${this.apiKey}`,
+      "Content-Type": "application/json",
+    };
+  }
+
+  private buildBody(params: GenerateParams, stream: boolean): Record<string, unknown> {
+    const body: Record<string, unknown> = {
+      model: this.model,
+      messages: params.messages,
+      max_tokens: params.max_tokens,
+      temperature: params.temperature,
+      top_p: params.top_p,
+      stream,
+    };
+    if (stream) {
+      body.stream_options = { include_usage: true };
+    }
+    if (params.tools?.length) {
+      body.tools = params.tools;
+      if (params.tool_choice) body.tool_choice = params.tool_choice;
+    }
+    return body;
+  }
+
+  private async requestWithRetry(body: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const url = `${this.apiBase}/v1/chat/completions`;
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), READ_TIMEOUT);
+
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: this.headers(),
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (resp.ok) {
+          return (await resp.json()) as Record<string, unknown>;
+        }
+
+        if (resp.status === 429) {
+          return await this.retry429(url, body);
+        }
+
+        // 5xx: retry once
+        if (resp.status >= 500 && attempt === 0) {
+          continue;
+        }
+
+        const text = await resp.text();
+        handleError(resp.status, text);
+      } catch (e) {
+        if (e instanceof LLMError) throw e;
+        if (attempt === 0) continue; // retry once on network error
+        throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"]);
+      }
+    }
+
+    throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"]);
+  }
+
+  private async retry429(url: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const delays = [1000, 2000, 4000];
+    for (const delay of delays) {
+      await new Promise((r) => setTimeout(r, delay));
+      try {
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: this.headers(),
+          body: JSON.stringify(body),
+        });
+        if (resp.ok) {
+          return (await resp.json()) as Record<string, unknown>;
+        }
+        if (resp.status !== 429) {
+          handleError(resp.status, await resp.text());
+        }
+      } catch {
+        continue;
+      }
+    }
+    throw new LLMError("rate_limited", "请求过于频繁", ["retry", "switch_model"], 429);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 错误分类（PRD §4.2 错误表）
+// ---------------------------------------------------------------------------
+
+function handleError(statusCode: number, bodyText: string): never {
+  const lower = bodyText.toLowerCase();
+
+  if (statusCode === 401) {
+    throw new LLMError("invalid_api_key", "API 密钥无效或已过期", ["check_settings"], 401);
+  }
+
+  if (statusCode === 429) {
+    throw new LLMError("rate_limited", "请求过于频繁", ["retry", "switch_model"], 429);
+  }
+
+  if (statusCode === 402 || statusCode === 403) {
+    if (["billing", "quota", "insufficient", "balance"].some((k) => lower.includes(k))) {
+      throw new LLMError("insufficient_balance", "API 余额不足", ["recharge", "switch_model", "change_key"], statusCode);
+    }
+    if (["safety", "flagged", "content_filter", "moderation"].some((k) => lower.includes(k))) {
+      throw new LLMError("content_filtered", "生成被模型安全策略拦截", ["modify_input", "switch_model"], statusCode);
+    }
+  }
+
+  if (statusCode === 400) {
+    if (["length", "context_length", "too long", "token"].some((k) => lower.includes(k))) {
+      throw new LLMError("context_length_exceeded", "输入超出模型最大处理能力", ["reduce_input", "switch_model"], 400);
+    }
+    if (["safety", "flagged", "content_filter"].some((k) => lower.includes(k))) {
+      throw new LLMError("content_filtered", "生成被模型安全策略拦截", ["modify_input", "switch_model"], statusCode);
+    }
+  }
+
+  if (statusCode >= 500) {
+    throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"], statusCode);
+  }
+
+  throw new LLMError("network_error", `LLM 调用失败 (HTTP ${statusCode})`, ["retry"], statusCode);
+}

@@ -51,3 +51,28 @@ export {
 // Vector engine
 export { cosine_similarity, JsonVectorEngine, split_chapter_into_chunks } from "./vector/index.js";
 export type { ChunkData } from "./vector/index.js";
+
+// LLM
+export type {
+  EmbeddingProvider,
+  GenerateParams,
+  LLMChunk,
+  LLMProvider,
+  LLMResponse,
+  Message,
+  ResolvedLLMConfig,
+  ResolvedLLMParams,
+  ToolCall,
+  ToolDefinition,
+} from "./llm/index.js";
+export {
+  create_provider,
+  LLMError,
+  OpenAICompatibleProvider,
+  RemoteEmbeddingProvider,
+  resolve_llm_config,
+  resolve_llm_params,
+} from "./llm/index.js";
+
+// Services
+export * from "./services/index.js";

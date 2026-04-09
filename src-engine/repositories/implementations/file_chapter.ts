@@ -47,9 +47,10 @@ export class FileChapterRepository implements ChapterRepository {
     const parsed = matter(text);
     const meta = (parsed.data ?? {}) as Record<string, unknown>;
     // gray-matter preserves the blank line between frontmatter delimiter and
-    // body as a leading "\n". python-frontmatter strips it. Normalize here so
-    // both languages return identical content for the same file.
-    const content = parsed.content.replace(/^\n/, "");
+    // body as a leading "\n", and also keeps a trailing "\n".
+    // python-frontmatter strips both. Normalize here so both languages
+    // return identical content for the same file.
+    const content = parsed.content.replace(/^\n/, "").replace(/\n$/, "");
 
     // --- 缺失字段自动补齐（§2.6.7）---
     let repaired = false;
@@ -139,8 +140,8 @@ export class FileChapterRepository implements ChapterRepository {
     }
     const text = await this.adapter.readFile(path);
     const parsed = matter(text);
-    // Normalize leading newline (see get() comment for rationale).
-    return parsed.content.replace(/^\n/, "");
+    // Normalize leading/trailing newline (see get() comment for rationale).
+    return parsed.content.replace(/^\n/, "").replace(/\n$/, "");
   }
 
   async backup_chapter(au_id: string, chapter_num: number): Promise<string> {
