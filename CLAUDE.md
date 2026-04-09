@@ -36,7 +36,7 @@ Platform Adapter
 | M2 | Facts Lifecycle、Context Assembler、RAG、LLM Provider、Generation | **已完成** |
 | M3 | Confirm/Undo Chapter、Dirty Resolve、Import/Export | **已完成** |
 | M4 | Settings Chat、Trash、Recalc、前端 API 切换、SSE 消除、Sidecar 精简 | **已完成**（E.6 Sidecar 精简待人工执行） |
-| M5 | 移动端 Capacitor/PWA、响应式 UI、ops 合并引擎、数据同步 | 待开始 |
+| M5 | 移动端 Capacitor/PWA、响应式 UI、ops 合并引擎、数据同步 | **已完成** |
 | M6 | Agent 架构（开关矩阵、Checker、导演细纲、任务模式、报警暂停） | 待开始 |
 
 ## 关键决策

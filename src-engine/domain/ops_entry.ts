@@ -10,12 +10,16 @@ export interface OpsEntry {
   timestamp: string;                      // ISO 8601
   chapter_num: number | null;             // 关联章节号（可选）
   payload: Record<string, unknown>;       // 操作负载（快照数据等）
+  device_id: string;                      // 设备唯一标识（同步用）
+  lamport_clock: number;                  // 逻辑时钟（同步排序用）
 }
 
 export function createOpsEntry(partial: Pick<OpsEntry, "op_id" | "op_type" | "target_id" | "timestamp"> & Partial<OpsEntry>): OpsEntry {
   return {
     chapter_num: null,
     payload: {},
+    device_id: "",
+    lamport_clock: 0,
     ...partial,
   };
 }

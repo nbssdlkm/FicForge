@@ -175,6 +175,19 @@ export async function add_fact(
       payload: {
         content_clean: fact.content_clean,
         status: fact.status,
+        // 完整 fact 对象供 rebuildFactsFromOps 使用（D-0036 ops 重建）
+        fact: {
+          id: fact.id,
+          content_raw: fact.content_raw,
+          content_clean: fact.content_clean,
+          characters: fact.characters,
+          chapter: fact.chapter,
+          status: fact.status,
+          type: fact.type,
+          narrative_weight: fact.narrative_weight,
+          source: fact.source,
+          timeline: fact.timeline,
+        },
       },
     }),
   );

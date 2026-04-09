@@ -7,7 +7,8 @@ import type { PlatformAdapter } from "../../platform/adapter.js";
 import type { OpsEntry } from "../../domain/ops_entry.js";
 import { createOpsEntry } from "../../domain/ops_entry.js";
 import type { OpsRepository } from "../interfaces/ops.js";
-import { append_jsonl, joinPath, read_jsonl } from "./file_utils.js";
+import { append_jsonl, joinPath, read_jsonl, rewrite_jsonl } from "./file_utils.js";
+import { getNextLamportClock, initLamportClockFromOps } from "../../sync/ops_merge.js";
 
 // ---------------------------------------------------------------------------
 // 写入锁
@@ -34,9 +35,10 @@ function entryToDict(entry: OpsEntry): Record<string, unknown> {
     timestamp: entry.timestamp,
     payload: entry.payload,
   };
-  if (entry.chapter_num !== null) {
-    d.chapter_num = entry.chapter_num;
-  }
+  if (entry.chapter_num !== null) d.chapter_num = entry.chapter_num;
+  // 始终写入 device_id 和 lamport_clock（同步必需字段）
+  d.device_id = entry.device_id ?? "";
+  d.lamport_clock = entry.lamport_clock ?? 0;
   return d;
 }
 
@@ -48,6 +50,8 @@ function dictToEntry(d: Record<string, unknown>): OpsEntry {
     timestamp: (d.timestamp as string) ?? "",
     chapter_num: (d.chapter_num as number) ?? null,
     payload: (d.payload as Record<string, unknown>) ?? {},
+    device_id: (d.device_id as string) ?? "",
+    lamport_clock: (d.lamport_clock as number) ?? 0,
   });
 }
 
@@ -63,6 +67,13 @@ export class FileOpsRepository implements OpsRepository {
   }
 
   async append(au_id: string, entry: OpsEntry): Promise<void> {
+    // 自动注入 device_id 和 lamport_clock（如果调用方未设置）
+    if (!entry.device_id) {
+      entry.device_id = this.adapter.getDeviceId();
+    }
+    if (!entry.lamport_clock) {
+      entry.lamport_clock = getNextLamportClock();
+    }
     const path = this.opsPath(au_id);
     await withWriteLock(path, () => append_jsonl(this.adapter, path, entryToDict(entry)));
   }
@@ -72,6 +83,8 @@ export class FileOpsRepository implements OpsRepository {
     const exists = await this.adapter.exists(path);
     if (!exists) return [];
     const [entries] = await read_jsonl(this.adapter, path, dictToEntry);
+    // 懒初始化 lamport clock（首次读取 ops 时设置）
+    initLamportClockFromOps(entries);
     return entries;
   }
 
@@ -108,5 +121,13 @@ export class FileOpsRepository implements OpsRepository {
   async get_latest_by_type(au_id: string, op_type: string): Promise<OpsEntry | null> {
     const entries = await this.get_by_op_type(au_id, op_type);
     return entries.length > 0 ? entries[entries.length - 1] : null;
+  }
+
+  async replace_all(au_id: string, ops: OpsEntry[]): Promise<void> {
+    const path = this.opsPath(au_id);
+    await withWriteLock(path, async () => {
+      const items = ops.map(entryToDict);
+      await rewrite_jsonl(this.adapter, path, items);
+    });
   }
 }

@@ -16,7 +16,7 @@ export type { TokenCount } from "./tokenizer/index.js";
 
 // Platform
 export type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions } from "./platform/index.js";
-export { TauriAdapter } from "./platform/index.js";
+export { CapacitorAdapter, TauriAdapter, WebAdapter } from "./platform/index.js";
 
 // Repository interfaces
 export type {
@@ -77,3 +77,6 @@ export {
 
 // Services
 export * from "./services/index.js";
+
+// Sync
+export * from "./sync/index.js";

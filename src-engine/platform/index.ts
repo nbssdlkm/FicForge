@@ -3,3 +3,5 @@
 
 export type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions } from "./adapter.js";
 export { TauriAdapter } from "./tauri_adapter.js";
+export { CapacitorAdapter } from "./capacitor_adapter.js";
+export { WebAdapter } from "./web_adapter.js";

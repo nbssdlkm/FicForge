@@ -29,4 +29,7 @@ export interface OpsRepository {
 
   /** 返回指定类型的最新一条记录（按文件顺序）。 */
   get_latest_by_type(au_id: string, op_type: string): Promise<OpsEntry | null>;
+
+  /** 全量重写 ops（同步合并后使用）。 */
+  replace_all(au_id: string, ops: OpsEntry[]): Promise<void>;
 }

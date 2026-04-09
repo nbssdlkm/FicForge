@@ -258,6 +258,19 @@ async function deleteChapterFacts(
   if (addFactOps.length === 0) return;
 
   const targetIds = addFactOps.map((op) => op.target_id);
+
+  // 为每个被删除的 fact 发射 delete_fact op（D-0036 同步重建需要）
+  for (const factId of targetIds) {
+    await ops_repo.append(au_id, createOpsEntry({
+      op_id: generate_op_id(),
+      op_type: "delete_fact",
+      target_id: factId,
+      chapter_num: n,
+      timestamp: now_utc(),
+      payload: { reason: "undo_chapter" },
+    }));
+  }
+
   await fact_repo.delete_by_ids(au_id, targetIds);
 }
 
