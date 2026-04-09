@@ -38,6 +38,9 @@ import {
   create_provider,
   resolve_llm_config,
   OpenAICompatibleProvider,
+  RemoteEmbeddingProvider,
+  // Vector
+  JsonVectorEngine,
 } from "@ficforge/engine";
 
 // Re-export types from original API modules for compatibility
@@ -74,6 +77,7 @@ export interface EngineInstance {
     state: FileStateRepository;
   };
   trash: TrashService;
+  vectorEngine: JsonVectorEngine;
 }
 
 let _engine: EngineInstance | null = null;
@@ -93,6 +97,7 @@ export function initEngine(adapter: PlatformAdapter, dataDir: string): void {
       state: new FileStateRepository(adapter),
     },
     trash: new TrashService(adapter),
+    vectorEngine: new JsonVectorEngine(adapter),
   };
 }
 
@@ -359,6 +364,17 @@ export async function* generateChapter(params: {
   const allFacts = await e.repos.fact.list_all(params.au_path);
   const sett = await e.repos.settings.get();
 
+  // 验证 LLM 模式：local/ollama 在 TS 引擎中不支持流式生成
+  const llmConfig = resolve_llm_config(
+    params.session_llm ?? null,
+    proj as { llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } },
+    sett as { default_llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } },
+  );
+  if (llmConfig.mode !== "api") {
+    yield { event: "error", data: { error_code: "UNSUPPORTED_MODE", message: "续写功能需要 API 模式的 LLM 配置（local/ollama 模式暂不支持）", actions: ["check_settings"] } };
+    return;
+  }
+
   for await (const event of engineGenerateChapter({
     au_id: params.au_path,
     chapter_num: params.chapter_num,
@@ -372,6 +388,10 @@ export async function* generateChapter(params: {
     chapter_repo: e.repos.chapter,
     draft_repo: e.repos.draft,
     adapter: e.adapter,
+    vector_repo: e.vectorEngine,
+    embedding_provider: sett.embedding?.api_key
+      ? new RemoteEmbeddingProvider(sett.embedding.api_base || sett.default_llm?.api_base || "", sett.embedding.api_key, sett.embedding.model || "")
+      : undefined,
   })) {
     // Yield parsed objects (matching old sseStream format)
     if (event.type === "token") {
@@ -518,6 +538,10 @@ export async function sendSettingsChat(params: {
     {} as Record<string, string>,
     sett as { default_llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } },
   );
+  // Settings chat 需要 API 模式（tool calling 只有 API 支持）
+  if (llmConfig.mode !== "api") {
+    throw new Error("设定模式对话需要 API 模式的 LLM 配置（local/ollama 不支持 tool calling）");
+  }
   const provider = create_provider(llmConfig);
   const result = await call_settings_llm(assembled, params.mode as "au" | "fandom", provider);
 
@@ -537,31 +561,55 @@ export async function listFandoms(dataDir?: string) {
   const names = await fandom.list_fandoms(dd);
   const result = [];
   for (const name of names) {
-    const aus = await fandom.list_aus(`${dd}/fandoms/${name}`);
+    // 复用 listAus 的过滤逻辑（排除已删除的 AU）
+    const aus = await listAus(name, dd);
     result.push({ name, dir_name: name, aus });
   }
   return result;
 }
 
+/** 路径安全检查：拒绝含 /, .., 或平台非法字符的名称 */
+function sanitizeName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("名称不能为空");
+  if (/[/\\]|\.\./.test(trimmed)) throw new Error(`名称含非法字符: ${trimmed}`);
+  return trimmed;
+}
+
 export async function createFandom(name: string, dataDir?: string) {
+  const safeName = sanitizeName(name);
   const dd = dataDir ?? getDataDir();
   const { fandom } = getEngine().repos;
   const { adapter } = getEngine();
-  const path = `${dd}/fandoms/${name}`;
+  const path = `${dd}/fandoms/${safeName}`;
   await adapter.mkdir(path);
-  await fandom.save(path, { name, created_at: new Date().toISOString(), core_characters: [], wiki_source: "" });
-  return { name, path };
+  await fandom.save(path, { name: safeName, created_at: new Date().toISOString(), core_characters: [], wiki_source: "" });
+  return { name: safeName, path };
 }
 
 export async function listAus(fandomName: string, dataDir?: string) {
   const dd = dataDir ?? getDataDir();
   const { fandom } = getEngine().repos;
-  return await fandom.list_aus(`${dd}/fandoms/${fandomName}`);
+  const { adapter } = getEngine();
+  const auDirs = await fandom.list_aus(`${dd}/fandoms/${fandomName}`);
+  // 过滤掉 project.yaml 已被 trash 的 AU（deleteAu 只 trash project.yaml）
+  const validAus: string[] = [];
+  for (const au of auDirs) {
+    if (await adapter.exists(`${dd}/fandoms/${fandomName}/aus/${au}/project.yaml`)) {
+      validAus.push(au);
+    }
+  }
+  return validAus;
 }
 
 export async function createAu(fandomName: string, auName: string, fandomPath: string) {
+  const safeName = sanitizeName(auName);
   const { adapter } = getEngine();
-  const auPath = `${fandomPath}/aus/${auName}`;
+  const auPath = `${fandomPath}/aus/${safeName}`;
+  // 检查 AU 是否已存在
+  if (await adapter.exists(`${auPath}/project.yaml`)) {
+    throw new Error(`AU "${safeName}" already exists`);
+  }
   await adapter.mkdir(auPath);
   // Initialize project.yaml
   const { project } = getEngine().repos;
@@ -574,26 +622,19 @@ export async function createAu(fandomName: string, auName: string, fandomPath: s
 export async function deleteFandom(fandomDirName: string, dataDir?: string) {
   const dd = dataDir ?? getDataDir();
   // Fandom 是目录——将 fandom.yaml 移入 trash 作为删除标记
-  const trashId = `tr_${Math.floor(Date.now() / 1000)}_${crypto.randomUUID().slice(0, 4)}`;
-  // 将 fandom.yaml 移入 trash 作为标记
-  try {
-    await getEngine().trash.move_to_trash(`${dd}/fandoms/${fandomDirName}`, "fandom.yaml", "fandom", fandomDirName);
-  } catch {
-    // fandom.yaml 可能不存在
-  }
-  return { status: "ok", trash_id: trashId };
+  const entry = await getEngine().trash.move_to_trash(
+    `${dd}/fandoms/${fandomDirName}`, "fandom.yaml", "fandom", fandomDirName,
+  );
+  return { status: "ok", trash_id: entry.trash_id };
 }
 
 export async function deleteAu(fandomDirName: string, auName: string, dataDir?: string) {
   const dd = dataDir ?? getDataDir();
-  // AU 是目录——将 project.yaml 移入 trash 作为标记
-  const trashId = `tr_${Math.floor(Date.now() / 1000)}_${crypto.randomUUID().slice(0, 4)}`;
-  try {
-    await getEngine().trash.move_to_trash(`${dd}/fandoms/${fandomDirName}/aus/${auName}`, "project.yaml", "au", auName);
-  } catch {
-    // project.yaml 可能不存在
-  }
-  return { status: "ok", trash_id: trashId };
+  // AU 是目录——将 project.yaml 移入 trash 作为删除标记
+  const entry = await getEngine().trash.move_to_trash(
+    `${dd}/fandoms/${fandomDirName}/aus/${auName}`, "project.yaml", "au", auName,
+  );
+  return { status: "ok", trash_id: entry.trash_id };
 }
 
 export async function listFandomFiles(fandomName: string, dataDir?: string) {
@@ -653,6 +694,7 @@ export async function extractFacts(auPath: string, chapterNum: number) {
   const proj = await e.repos.project.get(auPath);
   const sett = await e.repos.settings.get();
   const llmConfig = resolve_llm_config(null, proj as { llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } }, sett as { default_llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } });
+  if (llmConfig.mode !== "api") throw new Error("Facts 提取需要 API 模式的 LLM 配置");
   const provider = create_provider(llmConfig);
   const facts = await extract_facts_from_chapter(
     chapterContent, chapterNum, existingFacts,
@@ -673,6 +715,7 @@ export async function extractFactsBatch(auPath: string, chapterNums: number[]) {
   const proj = await e.repos.project.get(auPath);
   const sett = await e.repos.settings.get();
   const llmConfig = resolve_llm_config(null, proj as { llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } }, sett as { default_llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } });
+  if (llmConfig.mode !== "api") throw new Error("Facts 批量提取需要 API 模式的 LLM 配置");
   const provider = create_provider(llmConfig);
   const facts = await extract_facts_batch(chapters, existingFacts, proj.cast_registry, null, provider);
   return { facts };
