@@ -582,6 +582,9 @@ export async function createFandom(name: string, dataDir?: string) {
   const { fandom } = getEngine().repos;
   const { adapter } = getEngine();
   const path = `${dd}/fandoms/${safeName}`;
+  if (await adapter.exists(`${path}/fandom.yaml`)) {
+    throw new Error(`Fandom "${safeName}" already exists`);
+  }
   await adapter.mkdir(path);
   await fandom.save(path, { name: safeName, created_at: new Date().toISOString(), core_characters: [], wiki_source: "" });
   return { name: safeName, path };
@@ -621,10 +624,22 @@ export async function createAu(fandomName: string, auName: string, fandomPath: s
 
 export async function deleteFandom(fandomDirName: string, dataDir?: string) {
   const dd = dataDir ?? getDataDir();
-  // Fandom 是目录——将 fandom.yaml 移入 trash 作为删除标记
-  const entry = await getEngine().trash.move_to_trash(
-    `${dd}/fandoms/${fandomDirName}`, "fandom.yaml", "fandom", fandomDirName,
-  );
+  const { adapter } = getEngine();
+  const fandomRoot = `${dd}/fandoms/${fandomDirName}`;
+
+  // 先 trash 所有 AU 的 project.yaml（使 listAus 不再列出它们）
+  const ausDir = `${fandomRoot}/aus`;
+  if (await adapter.exists(ausDir)) {
+    const auDirs = await adapter.listDir(ausDir);
+    for (const au of auDirs) {
+      try {
+        await getEngine().trash.move_to_trash(fandomRoot, `aus/${au}/project.yaml`, "au", au);
+      } catch { /* 可能已删或不存在 */ }
+    }
+  }
+
+  // 再 trash fandom.yaml（使 listFandoms 不再列出此 fandom）
+  const entry = await getEngine().trash.move_to_trash(fandomRoot, "fandom.yaml", "fandom", fandomDirName);
   return { status: "ok", trash_id: entry.trash_id };
 }
 
