@@ -46,3 +46,23 @@ export type {
   GenerationEvent,
 } from "./generation.js";
 export { generate_chapter, is_empty_intent } from "./generation.js";
+
+// Confirm Chapter
+export type { ConfirmChapterParams, ConfirmChapterResult } from "./confirm_chapter.js";
+export { confirm_chapter, ConfirmChapterError } from "./confirm_chapter.js";
+
+// Undo Chapter
+export type { UndoChapterParams, UndoChapterResult } from "./undo_chapter.js";
+export { undo_latest_chapter, UndoChapterError } from "./undo_chapter.js";
+
+// Dirty Resolve
+export type { ResolveDirtyParams, ResolveDirtyResult } from "./dirty_resolve.js";
+export { resolve_dirty_chapter, DirtyResolveError } from "./dirty_resolve.js";
+
+// Import Pipeline
+export type { ImportChaptersParams, ImportResult, SplitChapter } from "./import_pipeline.js";
+export { get_split_method, import_chapters, parse_html, split_into_chapters } from "./import_pipeline.js";
+
+// Export Service
+export type { ExportParams } from "./export_service.js";
+export { export_chapters } from "./export_service.js";

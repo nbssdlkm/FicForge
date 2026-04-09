@@ -1,0 +1,130 @@
+{
+  "scene1": {
+    "system_len": 573,
+    "user_len": 941,
+    "budget": {
+      "context_window": 32000,
+      "system_tokens": 544,
+      "p1_tokens": 349,
+      "p2_tokens": 258,
+      "p3_tokens": 107,
+      "p4_tokens": 0,
+      "p5_tokens": 59,
+      "max_output_tokens": 3000,
+      "unresolved_soft_degraded": false,
+      "truncated_layers": []
+    },
+    "summary": {
+      "pinned_count": 1,
+      "facts_injected": 9,
+      "characters_used": [
+        "Alice",
+        "Bob"
+      ],
+      "worldbuilding_used": [
+        "世界观"
+      ],
+      "rag_chunks_retrieved": 0,
+      "truncated_characters": []
+    }
+  },
+  "scene2": {
+    "system_len": 831,
+    "user_len": 448,
+    "budget": {
+      "context_window": 4096,
+      "system_tokens": 817,
+      "p1_tokens": 184,
+      "p2_tokens": 0,
+      "p3_tokens": 242,
+      "p4_tokens": 0,
+      "p5_tokens": 0,
+      "max_output_tokens": 1600,
+      "unresolved_soft_degraded": false,
+      "truncated_layers": []
+    },
+    "summary": {
+      "pinned_count": 1,
+      "facts_injected": 5,
+      "characters_used": [],
+      "worldbuilding_used": [],
+      "rag_chunks_retrieved": 0,
+      "truncated_characters": []
+    }
+  },
+  "scene3": {
+    "system_len": 466,
+    "user_len": 84,
+    "budget": {
+      "context_window": 32000,
+      "system_tokens": 440,
+      "p1_tokens": 80,
+      "p2_tokens": 0,
+      "p3_tokens": 0,
+      "p4_tokens": 0,
+      "p5_tokens": 0,
+      "max_output_tokens": 3000,
+      "unresolved_soft_degraded": false,
+      "truncated_layers": []
+    },
+    "summary": {
+      "pinned_count": 0,
+      "facts_injected": 0,
+      "characters_used": [],
+      "worldbuilding_used": [],
+      "rag_chunks_retrieved": 0,
+      "truncated_characters": []
+    }
+  },
+  "scene4": {
+    "system_len": 466,
+    "user_len": 1453,
+    "budget": {
+      "context_window": 32000,
+      "system_tokens": 440,
+      "p1_tokens": 188,
+      "p2_tokens": 0,
+      "p3_tokens": 774,
+      "p4_tokens": 0,
+      "p5_tokens": 0,
+      "max_output_tokens": 3000,
+      "unresolved_soft_degraded": false,
+      "truncated_layers": []
+    },
+    "summary": {
+      "pinned_count": 0,
+      "facts_injected": 50,
+      "characters_used": [],
+      "worldbuilding_used": [],
+      "rag_chunks_retrieved": 0,
+      "truncated_characters": []
+    }
+  },
+  "scene5": {
+    "system_len": 466,
+    "user_len": 1318,
+    "budget": {
+      "context_window": 8000,
+      "system_tokens": 440,
+      "p1_tokens": 76,
+      "p2_tokens": 0,
+      "p3_tokens": 0,
+      "p4_tokens": 0,
+      "p5_tokens": 1330,
+      "max_output_tokens": 2000,
+      "unresolved_soft_degraded": false,
+      "truncated_layers": []
+    },
+    "summary": {
+      "pinned_count": 0,
+      "facts_injected": 0,
+      "characters_used": [
+        "主角",
+        "配角"
+      ],
+      "worldbuilding_used": [],
+      "rag_chunks_retrieved": 0,
+      "truncated_characters": []
+    }
+  }
+}
