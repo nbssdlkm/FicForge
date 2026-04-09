@@ -7,8 +7,8 @@ import { Button } from '../shared/Button';
 import { Loader2, AlertCircle, Check } from 'lucide-react';
 import { Tag } from '../shared/Tag';
 import { useState, useEffect, useRef } from 'react';
-import { resolveDirtyChapter } from '../../api/chapters';
-import { listFacts, extractFacts, addFact, type FactInfo, type ExtractedFactCandidate } from '../../api/facts';
+import { resolveDirtyChapter } from '../../api/engine-client';
+import { listFacts, extractFacts, addFact, type FactInfo, type ExtractedFactCandidate } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
 

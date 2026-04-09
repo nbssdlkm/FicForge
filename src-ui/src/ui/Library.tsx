@@ -12,9 +12,9 @@ import { Modal } from './shared/Modal';
 import { GlobalSettingsModal } from './settings/GlobalSettingsModal';
 import { EmptyState } from './shared/EmptyState';
 import { ImportFlow } from './import/ImportFlow';
-import { listFandoms, createFandom, createAu, deleteFandom, deleteAu, type FandomInfo } from '../api/fandoms';
+import { listFandoms, createFandom, createAu, deleteFandom, deleteAu, getDataDir, type FandomInfo } from '../api/engine-client';
 import { TrashPanel } from './shared/TrashPanel';
-import { getSettings } from '../api/settings';
+import { getSettings } from '../api/engine-client';
 import { useTranslation } from '../i18n/useAppTranslation';
 import { FeedbackProvider, useFeedback } from '../hooks/useFeedback';
 import { OnboardingFlow, isOnboardingCompleted } from './onboarding/OnboardingFlow';
@@ -113,7 +113,7 @@ function LibraryInner({ onNavigate }: Props) {
     if (!newAuName.trim() || !selectedFandomDir || creatingAu) return;
     setCreatingAu(true);
     try {
-      const fandomPath = `./fandoms/fandoms/${selectedFandomDir}`;
+      const fandomPath = `${getDataDir()}/fandoms/${selectedFandomDir}`;
       const auName = newAuName.trim();
       await createAu(selectedFandomDir, auName, fandomPath);
       setAuModalOpen(false);
@@ -221,7 +221,7 @@ function LibraryInner({ onNavigate }: Props) {
                     <span className="opacity-50 text-accent text-sm">📚</span> {t("common.scope.fandomTitle", { name: fandom.name })}
                   </h2>
                   <div className="flex items-center gap-2">
-                    <Button variant="secondary" size="sm" onClick={() => onNavigate('fandom_lore', `./fandoms/fandoms/${fandom.dir_name}`)} className="bg-surface/80 border-black/10 dark:border-white/10 text-text/70">
+                    <Button variant="secondary" size="sm" onClick={() => onNavigate('fandom_lore', `${getDataDir()}/fandoms/${fandom.dir_name}`)} className="bg-surface/80 border-black/10 dark:border-white/10 text-text/70">
                       <FileText size={14} className="mr-2 text-text/50" /> {t("library.fandomSectionButton")}
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => { setSelectedFandom(fandom.name); setSelectedFandomDir(fandom.dir_name); setAuModalOpen(true); }} disabled={creatingFandom || creatingAu || deleting}>
@@ -240,7 +240,7 @@ function LibraryInner({ onNavigate }: Props) {
                     <p className="text-text/40 text-sm col-span-3">{t("library.emptyAuList")}</p>
                   ) : (
                     fandom.aus.map(au => (
-                      <Card key={au} className="hover:border-accent/50 cursor-pointer transition-colors relative group" onClick={() => onNavigate('writer', `./fandoms/fandoms/${fandom.dir_name}/aus/${au}`)}>
+                      <Card key={au} className="hover:border-accent/50 cursor-pointer transition-colors relative group" onClick={() => onNavigate('writer', `${getDataDir()}/fandoms/${fandom.dir_name}/aus/${au}`)}>
                         <button
                           className="absolute top-2 right-2 p-1.5 rounded-md text-text/30 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
                           onClick={(e) => { e.stopPropagation(); setDeleteTarget({ type: 'au', fandomDir: fandom.dir_name, fandomName: fandom.name, auName: au }); }}
@@ -314,7 +314,7 @@ function LibraryInner({ onNavigate }: Props) {
                 <div key={f.dir_name} className="space-y-1.5">
                   <div className="text-xs font-bold text-text/50 uppercase tracking-wide px-1">{f.name}</div>
                   {f.aus.map(au => {
-                    const auPath = `./fandoms/fandoms/${f.dir_name}/aus/${au}`;
+                    const auPath = `${getDataDir()}/fandoms/${f.dir_name}/aus/${au}`;
                     return (
                       <button
                         key={auPath}
@@ -339,7 +339,7 @@ function LibraryInner({ onNavigate }: Props) {
                         if (!importNewAuName.trim()) return;
                         setImportCreatingAu(true);
                         try {
-                          const fandomPath = `./fandoms/fandoms/${f.dir_name}`;
+                          const fandomPath = `${getDataDir()}/fandoms/${f.dir_name}`;
                           const auName = importNewAuName.trim();
                           await createAu(f.dir_name, auName, fandomPath);
                           await loadFandoms();
@@ -384,7 +384,7 @@ function LibraryInner({ onNavigate }: Props) {
         {trashTarget && (
           <TrashPanel
             scope="fandom"
-            path={`./fandoms/fandoms/${trashTarget.fandomDir}`}
+            path={`${getDataDir()}/fandoms/${trashTarget.fandomDir}`}
             onRestore={() => { setTrashRefreshToken(v => v + 1); void loadFandoms(); }}
             refreshToken={trashRefreshToken}
           />

@@ -5,7 +5,7 @@
 import { Button } from '../shared/Button';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
-import type { ChapterPreview } from '../../api/importExport';
+import type { ChapterPreview } from '../../api/engine-client';
 
 export function PreviewStep({
   chapters,

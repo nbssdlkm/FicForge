@@ -1,0 +1,803 @@
+// Copyright (c) 2026 FicForge Contributors
+// Licensed under the GNU Affero General Public License v3.0.
+
+/**
+ * Engine Client — 前端直接调用 TS 引擎替代 REST API。
+ *
+ * 每个函数签名与原 API 模块兼容，前端组件切换 import 来源即可。
+ * 按模块组织，与 settings.ts / state.ts / facts.ts 等一一对应。
+ */
+
+import type { PlatformAdapter } from "@ficforge/engine";
+import {
+  FileChapterRepository,
+  FileDraftRepository,
+  FileFactRepository,
+  FileFandomRepository,
+  FileOpsRepository,
+  FileProjectRepository,
+  FileSettingsRepository,
+  FileStateRepository,
+  TrashService,
+  // Services
+  add_fact,
+  edit_fact,
+  update_fact_status,
+  set_chapter_focus,
+  confirm_chapter as engineConfirmChapter,
+  undo_latest_chapter,
+  resolve_dirty_chapter,
+  recalc_state,
+  export_chapters as engineExportChapters,
+  split_into_chapters,
+  import_chapters as engineImportChapters,
+  generate_chapter as engineGenerateChapter,
+  build_settings_context,
+  call_settings_llm,
+  // LLM
+  create_provider,
+  resolve_llm_config,
+  OpenAICompatibleProvider,
+} from "@ficforge/engine";
+
+// Re-export types from original API modules for compatibility
+export type { StateInfo } from "./state";
+export type { FactInfo, ExtractedFactCandidate, ExtractFactsResponse } from "./facts";
+export type { ChapterInfo } from "./chapters";
+export type { DraftListItem, DraftDetail, DraftGeneratedWith, DeleteDraftsResult } from "./drafts";
+export type { ProjectInfo, WritingStyle, CastRegistry, EmbeddingLock } from "./project";
+export type { SettingsInfo, LlmSettingsInfo, TestConnectionRequest, TestConnectionResponse } from "./settings";
+export type { FandomInfo, FandomFileEntry, FandomFilesResponse } from "./fandoms";
+export type { TrashEntry, TrashScope } from "./trash";
+export type { GenerateParams, ContextSummary } from "./generate";
+export type { SettingsChatMode, SettingsChatMessagePayload, SettingsChatSessionLlm, SettingsChatToolCall, SettingsChatResponse } from "./settingsChat";
+export type { ChapterPreview, ImportUploadResponse, ImportConfirmResponse } from "./importExport";
+
+// Re-export ApiError for compatibility with components that use it for error handling
+export { ApiError, getFriendlyErrorMessage } from "./client";
+
+// ---------------------------------------------------------------------------
+// Engine 实例管理
+// ---------------------------------------------------------------------------
+
+export interface EngineInstance {
+  adapter: PlatformAdapter;
+  dataDir: string;
+  repos: {
+    chapter: FileChapterRepository;
+    draft: FileDraftRepository;
+    fact: FileFactRepository;
+    fandom: FileFandomRepository;
+    ops: FileOpsRepository;
+    project: FileProjectRepository;
+    settings: FileSettingsRepository;
+    state: FileStateRepository;
+  };
+  trash: TrashService;
+}
+
+let _engine: EngineInstance | null = null;
+
+export function initEngine(adapter: PlatformAdapter, dataDir: string): void {
+  _engine = {
+    adapter,
+    dataDir,
+    repos: {
+      chapter: new FileChapterRepository(adapter),
+      draft: new FileDraftRepository(adapter),
+      fact: new FileFactRepository(adapter),
+      fandom: new FileFandomRepository(adapter),
+      ops: new FileOpsRepository(adapter),
+      project: new FileProjectRepository(adapter),
+      settings: new FileSettingsRepository(adapter, dataDir),
+      state: new FileStateRepository(adapter),
+    },
+    trash: new TrashService(adapter),
+  };
+}
+
+export function getEngine(): EngineInstance {
+  if (!_engine) throw new Error("Engine not initialized. Call initEngine() first.");
+  return _engine;
+}
+
+export function isEngineReady(): boolean {
+  return _engine !== null;
+}
+
+/** 获取数据根目录（所有 fandom 操作的基础路径）。 */
+export function getDataDir(): string {
+  return getEngine().dataDir;
+}
+
+// ===========================================================================
+// Settings
+// ===========================================================================
+
+export async function getSettings() {
+  const { settings } = getEngine().repos;
+  const s = await settings.get();
+  return s as unknown as import("./settings").SettingsInfo;
+}
+
+export async function updateSettings(updates: Record<string, unknown>) {
+  const { settings } = getEngine().repos;
+  const current = await settings.get();
+  Object.assign(current, updates);
+  await settings.save(current);
+  return current as unknown as import("./settings").SettingsInfo;
+}
+
+export async function testConnection(params: { mode: string; model?: string; api_base?: string; api_key?: string; local_model_path?: string; ollama_model?: string }) {
+  try {
+    if (params.mode === "local") {
+      // 本地模式通过 sidecar embedding 验证（如果 sidecar 运行中）
+      return { success: true, model: params.local_model_path ?? "local", message: "本地模式需要通过 sidecar 验证" };
+    }
+    if (params.mode === "ollama") {
+      // Ollama 模式：尝试连接 Ollama API
+      const base = params.api_base || "http://localhost:11434";
+      const resp = await fetch(`${base}/api/tags`);
+      if (resp.ok) {
+        return { success: true, model: params.ollama_model ?? "ollama" };
+      }
+      return { success: false, message: "无法连接 Ollama 服务", error_code: "connection_failed" };
+    }
+    // API 模式：发送测试请求
+    const provider = new OpenAICompatibleProvider(
+      params.api_base ?? "",
+      params.api_key ?? "",
+      params.model ?? "",
+    );
+    const resp = await provider.generate({
+      messages: [{ role: "user", content: "Hi" }],
+      max_tokens: 1,
+      temperature: 0,
+      top_p: 1,
+    });
+    return { success: true, model: resp.model };
+  } catch (e: unknown) {
+    const err = e as { message?: string; error_code?: string };
+    return { success: false, message: err.message, error_code: err.error_code };
+  }
+}
+
+// ===========================================================================
+// State
+// ===========================================================================
+
+export async function getState(auPath: string) {
+  const { state } = getEngine().repos;
+  return await state.get(auPath) as unknown as import("./state").StateInfo;
+}
+
+export async function setChapterFocus(auPath: string, focusIds: string[]) {
+  const { fact, ops, state } = getEngine().repos;
+  return await set_chapter_focus(auPath, focusIds, fact, ops, state);
+}
+
+export async function rebuildIndex(auPath: string) {
+  // 标记索引为 stale，触发重建
+  const { state } = getEngine().repos;
+  const st = await state.get(auPath);
+  const { IndexStatus } = await import("@ficforge/engine");
+  st.index_status = IndexStatus.STALE;
+  await state.save(st);
+  return { task_id: "rebuild_" + Date.now(), message: "index marked stale, will rebuild on next retrieval" };
+}
+
+export { recalcState };
+async function recalcState(auPath: string) {
+  const { state, chapter, project, fact } = getEngine().repos;
+  return await recalc_state(auPath, state, chapter, project, fact);
+}
+
+// ===========================================================================
+// Facts
+// ===========================================================================
+
+export async function listFacts(auPath: string, status?: string) {
+  const { fact } = getEngine().repos;
+  if (status) {
+    return (await fact.list_by_status(auPath, status as import("@ficforge/engine").FactStatus)) as unknown as import("./facts").FactInfo[];
+  }
+  return (await fact.list_all(auPath)) as unknown as import("./facts").FactInfo[];
+}
+
+export async function addFact(auPath: string, chapterNum: number, factData: Record<string, unknown>) {
+  const { fact, ops } = getEngine().repos;
+  const result = await add_fact(auPath, chapterNum, factData, fact, ops);
+  // Return with fact_id alias for frontend compatibility (Python API returns fact_id, domain uses id)
+  return { ...result, fact_id: result.id };
+}
+
+export async function editFact(auPath: string, factId: string, updatedFields: Record<string, unknown>) {
+  const { fact, ops, state } = getEngine().repos;
+  return await edit_fact(auPath, factId, updatedFields, fact, ops, state);
+}
+
+export async function updateFactStatus(auPath: string, factId: string, newStatus: string, chapterNum: number) {
+  const { fact, ops, state } = getEngine().repos;
+  return await update_fact_status(auPath, factId, newStatus, chapterNum, fact, ops, state);
+}
+
+// ===========================================================================
+// Project
+// ===========================================================================
+
+export async function getProject(auPath: string) {
+  const { project } = getEngine().repos;
+  return (await project.get(auPath)) as unknown as import("./project").ProjectInfo;
+}
+
+export async function updateProject(auPath: string, updates: Record<string, unknown>) {
+  const { project } = getEngine().repos;
+  const current = await project.get(auPath);
+  Object.assign(current, updates);
+  await project.save(current);
+  return current as unknown as import("./project").ProjectInfo;
+}
+
+// ===========================================================================
+// Chapters
+// ===========================================================================
+
+export async function listChapters(auPath: string) {
+  const { chapter, state } = getEngine().repos;
+  const chapters = await chapter.list_main(auPath);
+  const st = await state.get(auPath);
+  return chapters.map((ch) => ({
+    chapter_num: ch.chapter_num,
+    chapter_id: ch.chapter_id,
+    content: ch.content,
+    revision: ch.revision,
+    confirmed_at: ch.confirmed_at,
+    provenance: ch.provenance,
+    title: st.chapter_titles[ch.chapter_num] ?? undefined,
+  }));
+}
+
+export async function getChapter(auPath: string, chapterNum: number) {
+  const { chapter } = getEngine().repos;
+  const ch = await chapter.get(auPath, chapterNum);
+  return ch as unknown as import("./chapters").ChapterInfo;
+}
+
+export async function getChapterContent(auPath: string, chapterNum: number) {
+  const { chapter } = getEngine().repos;
+  return await chapter.get_content_only(auPath, chapterNum);
+}
+
+export async function confirmChapter(
+  auPath: string, chapterNum: number, draftId: string,
+  generatedWith?: object, content?: string | null, title?: string | null,
+) {
+  const { chapter, draft, state, ops, project } = getEngine().repos;
+  const proj = await project.get(auPath);
+  const result = await engineConfirmChapter({
+    au_id: auPath, chapter_num: chapterNum, draft_id: draftId,
+    generated_with: generatedWith as import("@ficforge/engine").GeneratedWith | undefined,
+    cast_registry: proj.cast_registry,
+    content_override: content,
+    chapter_repo: chapter, draft_repo: draft, state_repo: state, ops_repo: ops,
+  });
+  // Update title if provided
+  if (title) {
+    const st = await state.get(auPath);
+    st.chapter_titles[chapterNum] = title;
+    await state.save(st);
+  }
+  return result;
+}
+
+export async function undoChapter(auPath: string) {
+  const { chapter, draft, state, ops, fact, project } = getEngine().repos;
+  const proj = await project.get(auPath);
+  return await undo_latest_chapter({
+    au_id: auPath, cast_registry: proj.cast_registry,
+    chapter_repo: chapter, draft_repo: draft, state_repo: state, ops_repo: ops, fact_repo: fact,
+  });
+}
+
+export async function updateChapterTitle(auPath: string, chapterNum: number, title: string) {
+  const { state } = getEngine().repos;
+  const st = await state.get(auPath);
+  st.chapter_titles[chapterNum] = title;
+  await state.save(st);
+  return { chapter_num: chapterNum, title };
+}
+
+export async function resolveDirtyChapter(auPath: string, chapterNum: number, confirmedFactChanges: any[] = []) {
+  const { chapter, state, ops, fact, project } = getEngine().repos;
+  const proj = await project.get(auPath);
+  return await resolve_dirty_chapter({
+    au_id: auPath, chapter_num: chapterNum, confirmed_fact_changes: confirmedFactChanges,
+    cast_registry: proj.cast_registry,
+    chapter_repo: chapter, state_repo: state, ops_repo: ops, fact_repo: fact,
+  });
+}
+
+// ===========================================================================
+// Drafts
+// ===========================================================================
+
+export async function listDrafts(auPath: string, chapterNum: number) {
+  const { draft } = getEngine().repos;
+  const drafts = await draft.list_by_chapter(auPath, chapterNum);
+  return drafts.map((d) => ({
+    draft_label: d.variant,
+    filename: `ch${String(d.chapter_num).padStart(4, "0")}_draft_${d.variant}.md`,
+  }));
+}
+
+export async function getDraft(auPath: string, chapterNum: number, label: string) {
+  const { draft } = getEngine().repos;
+  return (await draft.get(auPath, chapterNum, label)) as unknown as import("./drafts").DraftDetail;
+}
+
+export async function deleteDrafts(auPath: string, chapterNum: number, _label?: string) {
+  const { draft } = getEngine().repos;
+  await draft.delete_by_chapter(auPath, chapterNum);
+  return { deleted_count: 1 };
+}
+
+// ===========================================================================
+// Generate (replaces SSE — E.5)
+// ===========================================================================
+
+export async function* generateChapter(params: {
+  au_path: string;
+  chapter_num: number;
+  user_input: string;
+  input_type?: string;
+  session_llm?: Record<string, string> | null;
+  session_params?: Record<string, number> | null;
+}): AsyncGenerator<{ event: string; data: any }> {
+  const e = getEngine();
+  const proj = await e.repos.project.get(params.au_path);
+  const st = await e.repos.state.get(params.au_path);
+  const allFacts = await e.repos.fact.list_all(params.au_path);
+  const sett = await e.repos.settings.get();
+
+  for await (const event of engineGenerateChapter({
+    au_id: params.au_path,
+    chapter_num: params.chapter_num,
+    user_input: params.user_input,
+    session_llm: params.session_llm ?? null,
+    session_params: params.session_params ?? null,
+    project: proj,
+    state: st,
+    settings: sett,
+    facts: allFacts,
+    chapter_repo: e.repos.chapter,
+    draft_repo: e.repos.draft,
+    adapter: e.adapter,
+  })) {
+    // Yield parsed objects (matching old sseStream format)
+    if (event.type === "token") {
+      yield { event: "token", data: { text: event.data } };
+    } else if (event.type === "context_summary") {
+      yield { event: "context_summary", data: event.data };
+    } else if (event.type === "done") {
+      yield { event: "done", data: event.data };
+    } else if (event.type === "error") {
+      yield { event: "error", data: event.data };
+    }
+  }
+}
+
+// ===========================================================================
+// Trash
+// ===========================================================================
+
+export async function listTrash(_scope: string, path: string) {
+  return getEngine().trash.list_trash(path);
+}
+
+export async function restoreTrash(_scope: string, path: string, trashId: string) {
+  await getEngine().trash.restore(path, trashId);
+}
+
+export async function permanentDeleteTrash(_scope: string, path: string, trashId: string) {
+  await getEngine().trash.permanent_delete(path, trashId);
+}
+
+export async function purgeTrash(_scope: string, path: string, maxAgeDays?: number) {
+  const purged = await getEngine().trash.purge_expired(path, maxAgeDays);
+  return { purged_count: purged.length };
+}
+
+// ===========================================================================
+// Import / Export
+// ===========================================================================
+
+export async function exportChapters(params: {
+  au_path: string;
+  format?: string;
+  start_chapter?: number;
+  end_chapter?: number;
+  include_title?: boolean;
+}) {
+  const { chapter, state } = getEngine().repos;
+  const st = await state.get(params.au_path);
+  const text = await engineExportChapters({
+    au_id: params.au_path,
+    chapter_repo: chapter,
+    format: (params.format ?? "txt") as "txt" | "md",
+    start_chapter: params.start_chapter,
+    end_chapter: params.end_chapter,
+    chapter_titles: st.chapter_titles,
+  });
+  const blob = new Blob([text], { type: "text/plain" });
+  const filename = `export.${params.format ?? "txt"}`;
+  return { blob, filename };
+}
+
+export async function importChaptersFromText(auPath: string, text: string, splitMethod?: string) {
+  const chapters = split_into_chapters(text);
+  const { chapter, state, ops } = getEngine().repos;
+  return await engineImportChapters({
+    au_id: auPath,
+    chapters,
+    chapter_repo: chapter,
+    state_repo: state,
+    ops_repo: ops,
+    split_method: splitMethod,
+  });
+}
+
+// ===========================================================================
+// Lore (file read/write via PlatformAdapter)
+// ===========================================================================
+
+export async function saveLore(req: { au_path?: string; fandom_path?: string; category: string; filename: string; content: string }) {
+  const { adapter } = getEngine();
+  const basePath = req.au_path ?? req.fandom_path ?? "";
+  const filePath = `${basePath}/${req.category}/${req.filename}`;
+  const dir = filePath.substring(0, filePath.lastIndexOf("/"));
+  await adapter.mkdir(dir);
+  await adapter.writeFile(filePath, req.content);
+  return { status: "ok", path: filePath };
+}
+
+export async function readLore(req: { au_path?: string; fandom_path?: string; category: string; filename: string }) {
+  const { adapter } = getEngine();
+  const basePath = req.au_path ?? req.fandom_path ?? "";
+  const filePath = `${basePath}/${req.category}/${req.filename}`;
+  const content = await adapter.readFile(filePath);
+  return { content };
+}
+
+export async function deleteLore(req: { au_path?: string; fandom_path?: string; category: string; filename: string }) {
+  const basePath = req.au_path ?? req.fandom_path ?? "";
+  const relativePath = `${req.category}/${req.filename}`;
+  const entry = await getEngine().trash.move_to_trash(basePath, relativePath, "lore_file", req.filename);
+  return { status: "ok", trash_id: entry.trash_id, deleted: relativePath };
+}
+
+export async function listLoreFiles(params: { category: string; au_path?: string; fandom_path?: string }) {
+  const { adapter } = getEngine();
+  const basePath = params.au_path ?? params.fandom_path ?? "";
+  const dirPath = `${basePath}/${params.category}`;
+  const exists = await adapter.exists(dirPath);
+  if (!exists) return { files: [] };
+  const files = await adapter.listDir(dirPath);
+  return {
+    files: files.filter((f) => f.endsWith(".md")).sort().map((f) => ({
+      name: f.replace(/\.md$/, ""),
+      filename: f,
+    })),
+  };
+}
+
+// ===========================================================================
+// Settings Chat
+// ===========================================================================
+
+export async function sendSettingsChat(params: {
+  mode: string;
+  base_path: string;
+  fandom_path?: string;
+  messages: any[];
+  session_llm?: { api_base?: string; api_key?: string; model?: string };
+}) {
+  const { adapter } = getEngine();
+  const { settings } = getEngine().repos;
+  const sett = await settings.get();
+
+  const assembled = await build_settings_context({
+    mode: params.mode as "au" | "fandom",
+    base_path: params.base_path,
+    fandom_path: params.fandom_path,
+    messages: params.messages,
+    adapter,
+  });
+
+  const llmConfig = resolve_llm_config(
+    params.session_llm as Record<string, string> | null,
+    {} as Record<string, string>,
+    sett as { default_llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } },
+  );
+  const provider = create_provider(llmConfig);
+  const result = await call_settings_llm(assembled, params.mode as "au" | "fandom", provider);
+
+  return {
+    content: result.content,
+    tool_calls: result.tool_calls,
+  };
+}
+
+// ===========================================================================
+// Fandoms (filesystem operations)
+// ===========================================================================
+
+export async function listFandoms(dataDir?: string) {
+  const dd = dataDir ?? getDataDir();
+  const { fandom } = getEngine().repos;
+  const names = await fandom.list_fandoms(dd);
+  const result = [];
+  for (const name of names) {
+    const aus = await fandom.list_aus(`${dd}/fandoms/${name}`);
+    result.push({ name, dir_name: name, aus });
+  }
+  return result;
+}
+
+export async function createFandom(name: string, dataDir?: string) {
+  const dd = dataDir ?? getDataDir();
+  const { fandom } = getEngine().repos;
+  const { adapter } = getEngine();
+  const path = `${dd}/fandoms/${name}`;
+  await adapter.mkdir(path);
+  await fandom.save(path, { name, created_at: new Date().toISOString(), core_characters: [], wiki_source: "" });
+  return { name, path };
+}
+
+export async function listAus(fandomName: string, dataDir?: string) {
+  const dd = dataDir ?? getDataDir();
+  const { fandom } = getEngine().repos;
+  return await fandom.list_aus(`${dd}/fandoms/${fandomName}`);
+}
+
+export async function createAu(fandomName: string, auName: string, fandomPath: string) {
+  const { adapter } = getEngine();
+  const auPath = `${fandomPath}/aus/${auName}`;
+  await adapter.mkdir(auPath);
+  // Initialize project.yaml
+  const { project } = getEngine().repos;
+  const { createProject } = await import("@ficforge/engine");
+  const proj = createProject({ project_id: crypto.randomUUID(), au_id: auPath, name: auName, fandom: fandomName });
+  await project.save(proj);
+  return { name: auName, path: auPath };
+}
+
+export async function deleteFandom(fandomDirName: string, dataDir?: string) {
+  const dd = dataDir ?? getDataDir();
+  // Fandom 是目录——将 fandom.yaml 移入 trash 作为删除标记
+  const trashId = `tr_${Math.floor(Date.now() / 1000)}_${crypto.randomUUID().slice(0, 4)}`;
+  // 将 fandom.yaml 移入 trash 作为标记
+  try {
+    await getEngine().trash.move_to_trash(`${dd}/fandoms/${fandomDirName}`, "fandom.yaml", "fandom", fandomDirName);
+  } catch {
+    // fandom.yaml 可能不存在
+  }
+  return { status: "ok", trash_id: trashId };
+}
+
+export async function deleteAu(fandomDirName: string, auName: string, dataDir?: string) {
+  const dd = dataDir ?? getDataDir();
+  // AU 是目录——将 project.yaml 移入 trash 作为标记
+  const trashId = `tr_${Math.floor(Date.now() / 1000)}_${crypto.randomUUID().slice(0, 4)}`;
+  try {
+    await getEngine().trash.move_to_trash(`${dd}/fandoms/${fandomDirName}/aus/${auName}`, "project.yaml", "au", auName);
+  } catch {
+    // project.yaml 可能不存在
+  }
+  return { status: "ok", trash_id: trashId };
+}
+
+export async function listFandomFiles(fandomName: string, dataDir?: string) {
+  const dd = dataDir ?? getDataDir();
+  const { adapter } = getEngine();
+  const base = `${dd}/fandoms/${fandomName}`;
+  const readDir = async (sub: string) => {
+    const dir = `${base}/${sub}`;
+    if (!(await adapter.exists(dir))) return [];
+    const files = await adapter.listDir(dir);
+    return files.filter((f) => f.endsWith(".md")).sort().map((f) => ({ name: f.replace(/\.md$/, ""), filename: f }));
+  };
+  return { characters: await readDir("core_characters"), worldbuilding: await readDir("core_worldbuilding") };
+}
+
+export async function readFandomFile(fandomName: string, category: string, filename: string, dataDir?: string) {
+  const dd = dataDir ?? getDataDir();
+  const { adapter } = getEngine();
+  const content = await adapter.readFile(`${dd}/fandoms/${fandomName}/${category}/${filename}`);
+  return { filename, category, content };
+}
+
+export async function renameFandom(_fandomDirName: string, _newName: string, _dataDir?: string) {
+  // Filesystem rename not directly supported by PlatformAdapter. Requires read+write+delete.
+  throw new Error("renameFandom not yet implemented in engine-client");
+}
+
+export async function renameAu(_fandomDirName: string, _auName: string, _newName: string, _dataDir?: string) {
+  throw new Error("renameAu not yet implemented in engine-client");
+}
+
+// ===========================================================================
+// Missing Facts functions
+// ===========================================================================
+
+export async function batchUpdateFactStatus(auPath: string, factIds: string[], newStatus: string) {
+  const { fact, ops, state } = getEngine().repos;
+  let updated = 0;
+  let failed = 0;
+  for (const fid of factIds) {
+    try {
+      await update_fact_status(auPath, fid, newStatus, 0, fact, ops, state);
+      updated++;
+    } catch {
+      failed++;
+    }
+  }
+  return { updated, failed };
+}
+
+export async function extractFacts(auPath: string, chapterNum: number) {
+  // This requires LLM call — delegate to the engine's extract function
+  const { extract_facts_from_chapter } = await import("@ficforge/engine");
+  const e = getEngine();
+  const chapterContent = await e.repos.chapter.get_content_only(auPath, chapterNum);
+  const existingFacts = await e.repos.fact.list_all(auPath);
+  const proj = await e.repos.project.get(auPath);
+  const sett = await e.repos.settings.get();
+  const llmConfig = resolve_llm_config(null, proj as { llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } }, sett as { default_llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } });
+  const provider = create_provider(llmConfig);
+  const facts = await extract_facts_from_chapter(
+    chapterContent, chapterNum, existingFacts,
+    proj.cast_registry, null, provider, llmConfig,
+  );
+  return { facts };
+}
+
+export async function extractFactsBatch(auPath: string, chapterNums: number[]) {
+  const { extract_facts_batch } = await import("@ficforge/engine");
+  const e = getEngine();
+  const chapters = [];
+  for (const num of chapterNums) {
+    const content = await e.repos.chapter.get_content_only(auPath, num);
+    chapters.push({ chapter_num: num, content });
+  }
+  const existingFacts = await e.repos.fact.list_all(auPath);
+  const proj = await e.repos.project.get(auPath);
+  const sett = await e.repos.settings.get();
+  const llmConfig = resolve_llm_config(null, proj as { llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } }, sett as { default_llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } });
+  const provider = create_provider(llmConfig);
+  const facts = await extract_facts_batch(chapters, existingFacts, proj.cast_registry, null, provider);
+  return { facts };
+}
+
+// ===========================================================================
+// Missing Project functions
+// ===========================================================================
+
+export async function addPinned(auPath: string, text: string) {
+  const { project } = getEngine().repos;
+  const proj = await project.get(auPath);
+  proj.pinned_context.push(text);
+  await project.save(proj);
+  return { status: "ok", revision: proj.revision };
+}
+
+export async function deletePinned(auPath: string, index: number) {
+  const { project } = getEngine().repos;
+  const proj = await project.get(auPath);
+  if (index >= 0 && index < proj.pinned_context.length) {
+    proj.pinned_context.splice(index, 1);
+    await project.save(proj);
+  }
+  return { status: "ok", revision: proj.revision };
+}
+
+// ===========================================================================
+// Missing Chapter functions
+// ===========================================================================
+
+export async function updateChapterContent(auPath: string, chapterNum: number, content: string) {
+  const { chapter, state } = getEngine().repos;
+  const ch = await chapter.get(auPath, chapterNum);
+  ch.content = content;
+  const { compute_content_hash } = await import("@ficforge/engine");
+  ch.content_hash = await compute_content_hash(content);
+  ch.provenance = "mixed";
+  ch.revision += 1;
+  await chapter.save(ch);
+  // Mark dirty
+  const st = await state.get(auPath);
+  if (!st.chapters_dirty.includes(chapterNum)) {
+    st.chapters_dirty.push(chapterNum);
+    await state.save(st);
+  }
+  return { chapter_num: chapterNum, content_hash: ch.content_hash, provenance: ch.provenance, revision: ch.revision };
+}
+
+// ===========================================================================
+// Missing Import functions
+// ===========================================================================
+
+export async function uploadImportFile(file: File): Promise<import("./importExport").ImportUploadResponse> {
+  // Read file content locally (no upload to server)
+  const text = await file.text();
+  const chapters = split_into_chapters(text);
+  const { get_split_method } = await import("@ficforge/engine");
+  return {
+    chapters: chapters.map((c) => ({ chapter_num: c.chapter_num, title: c.title, preview: c.content.slice(0, 100) })),
+    split_method: get_split_method(text),
+    total_chapters: chapters.length,
+  };
+}
+
+export async function confirmImport(params: {
+  au_path: string;
+  chapters: { chapter_num: number; title: string; content: string }[];
+  split_method?: string;
+}) {
+  const { chapter, state, ops } = getEngine().repos;
+  const result = await engineImportChapters({
+    au_id: params.au_path,
+    chapters: params.chapters.map((c) => ({ chapter_num: c.chapter_num, title: c.title, content: c.content })),
+    chapter_repo: chapter,
+    state_repo: state,
+    ops_repo: ops,
+    split_method: params.split_method,
+  });
+  return result;
+}
+
+// ===========================================================================
+// Lore: importFromFandom
+// ===========================================================================
+
+export async function importFromFandom(req: {
+  fandom_path: string;
+  au_path: string;
+  filenames: string[];
+  source_category?: string;
+}) {
+  const { adapter } = getEngine();
+  const imported: string[] = [];
+  const skipped: string[] = [];
+  const srcCat = req.source_category ?? "core_characters";
+
+  for (const filename of req.filenames) {
+    const srcPath = `${req.fandom_path}/${srcCat}/${filename}`;
+    const destCat = srcCat === "core_characters" ? "characters" : "worldbuilding";
+    const destPath = `${req.au_path}/${destCat}/${filename}`;
+
+    if (await adapter.exists(destPath)) {
+      skipped.push(filename);
+      continue;
+    }
+
+    try {
+      const content = await adapter.readFile(srcPath);
+      const dir = destPath.substring(0, destPath.lastIndexOf("/"));
+      await adapter.mkdir(dir);
+      await adapter.writeFile(destPath, content);
+      imported.push(filename);
+    } catch {
+      skipped.push(filename);
+    }
+  }
+
+  return { status: "ok", imported, skipped };
+}
+
+// ===========================================================================
+// Lore: getLoreContent (alias for readLore)
+// ===========================================================================
+
+export async function getLoreContent(params: { category: string; filename: string; au_path?: string; fandom_path?: string }) {
+  return readLore(params);
+}

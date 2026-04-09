@@ -7,7 +7,7 @@ import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
-import { getSettings, testConnection, updateSettings, type SettingsInfo } from '../../api/settings';
+import { getSettings, testConnection, updateSettings, type SettingsInfo } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
 import { useFeedback } from '../../hooks/useFeedback';

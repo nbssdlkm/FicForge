@@ -10,11 +10,11 @@ import { Modal } from '../shared/Modal';
 import { EmptyState } from '../shared/EmptyState';
 import { TrashPanel } from '../shared/TrashPanel';
 import { SettingsChatPanel } from '../shared/settings-chat/SettingsChatPanel';
-import type { TrashEntry } from '../../api/trash';
+import type { TrashEntry } from '../../api/engine-client';
 import { Search, Plus, ArrowLeft, FileText, ChevronDown, ChevronRight, Folder, Loader2, Trash2, Users, Globe2, Eye, Pencil, MessageSquare, X } from 'lucide-react';
 import { SettingsMarkdown } from '../shared/SettingsMarkdown';
-import { saveLore, deleteLore } from '../../api/lore';
-import { listFandomFiles, readFandomFile, type FandomFileEntry } from '../../api/fandoms';
+import { saveLore, deleteLore } from '../../api/engine-client';
+import { listFandomFiles, readFandomFile, type FandomFileEntry } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { FeedbackProvider, useFeedback } from '../../hooks/useFeedback';
 

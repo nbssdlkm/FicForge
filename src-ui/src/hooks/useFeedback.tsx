@@ -14,7 +14,7 @@ import {
 import { Modal } from "../ui/shared/Modal";
 import { Toast } from "../ui/shared/Toast";
 import { Button } from "../ui/shared/Button";
-import { ApiError } from "../api/client";
+import { ApiError } from "../api/engine-client";
 import { useTranslation } from "../i18n/useAppTranslation";
 
 type ToastVariant = "success" | "error" | "info" | "warning";

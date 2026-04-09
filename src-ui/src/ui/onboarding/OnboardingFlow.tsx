@@ -8,7 +8,7 @@ import { WelcomeStep } from './WelcomeStep';
 import { ApiConfigStep, type ApiConfig } from './ApiConfigStep';
 import { CreateFandomStep } from './CreateFandomStep';
 import { CompletionStep } from './CompletionStep';
-import { updateSettings } from '../../api/settings';
+import { updateSettings } from '../../api/engine-client';
 
 const ONBOARDING_KEY = 'ficforge.onboarding.completed';
 

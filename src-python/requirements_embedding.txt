@@ -1,0 +1,5 @@
+# Minimal requirements for embedding-only sidecar
+fastapi>=0.115.0
+uvicorn>=0.30.0
+pydantic>=2.0.0
+fastembed>=0.4.0

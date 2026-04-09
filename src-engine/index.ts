@@ -44,6 +44,7 @@ export {
   FileProjectRepository,
   FileSettingsRepository,
   FileStateRepository,
+  compute_content_hash,
   generate_fact_id,
   generate_op_id,
 } from "./repositories/implementations/index.js";

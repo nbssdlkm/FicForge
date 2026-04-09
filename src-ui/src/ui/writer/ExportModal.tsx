@@ -8,7 +8,7 @@ import { Button } from '../shared/Button';
 import { FileUp } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
-import { exportChapters } from '../../api/importExport';
+import { exportChapters } from '../../api/engine-client';
 
 /** Tauri 环境检测：window.__TAURI_INTERNALS__ 存在则为 Tauri 打包环境 */
 const isTauri = () => typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__;

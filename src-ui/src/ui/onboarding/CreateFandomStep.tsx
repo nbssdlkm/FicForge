@@ -7,7 +7,7 @@ import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
-import { createFandom } from '../../api/fandoms';
+import { createFandom } from '../../api/engine-client';
 import { StepIndicator } from './StepIndicator';
 
 export function CreateFandomStep({

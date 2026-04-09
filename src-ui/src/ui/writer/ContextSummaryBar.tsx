@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '../shared/Button';
-import { type ContextSummary } from '../../api/generate';
+import { type ContextSummary } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 
 type ContextSummaryBarProps = {

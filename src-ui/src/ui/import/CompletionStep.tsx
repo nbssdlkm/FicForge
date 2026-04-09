@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '../shared/Button';
 import { CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
-import { extractFactsBatch } from '../../api/facts';
+import { extractFactsBatch } from '../../api/engine-client';
 export function CompletionStep({
   auPath,
   totalChapters,
