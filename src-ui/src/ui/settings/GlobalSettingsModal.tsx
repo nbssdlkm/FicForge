@@ -57,6 +57,13 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     setEmbeddingApiBase('');
     setEmbeddingApiKey('');
     setUseCustomEmbedding(false);
+    setSyncMode('none');
+    setSyncUrl('');
+    setSyncUsername('');
+    setSyncPassword('');
+    setSyncRemoteDir('/FicForge/');
+    setSyncTestStatus('idle');
+    setLastSync(null);
   };
 
   useEffect(() => {
