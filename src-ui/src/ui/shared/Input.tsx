@@ -11,7 +11,15 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, ...props }, ref) => {
+  ({ className, label, error, type, style, ...props }, ref) => {
+    // Android WebView 的 type="password" 禁止粘贴。
+    // 改用 type="text" + CSS -webkit-text-security 遮蔽，保留粘贴能力。
+    const isPassword = type === "password";
+    const resolvedType = isPassword ? "text" : type;
+    const resolvedStyle = isPassword
+      ? { ...style, WebkitTextSecurity: "disc" as const }
+      : style;
+
     return (
       <div className="flex flex-col gap-1.5 w-full">
         {label && <label className="text-sm font-sans font-medium text-text">{label}</label>}
@@ -22,6 +30,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             className
           )}
           ref={ref}
+          type={resolvedType}
+          style={resolvedStyle}
+          autoComplete={isPassword ? "off" : undefined}
           {...props}
         />
         {error && <span className="text-xs font-sans text-error">{error}</span>}
