@@ -41,7 +41,7 @@ FicForge 的做法不同：**你来决定什么重要，AI 负责在写作时精
 
 ## 隐私
 
-- **所有数据保存在你自己的电脑上。** 粮坊不会把你的设定、章节、任何东西上传到我们的服务器——我们没有服务器
+- **所有数据保存在你自己的设备上。** 粮坊不会把你的设定、章节、任何东西上传到我们的服务器——我们没有服务器
 - 当你使用 AI 写作功能时，内容会发送到你自己配置的 API 提供商（如 DeepSeek）——这是 AI 生成必需的，完全由你控制
 - 内置的语义搜索在本地运行，不经过任何云端
 
@@ -49,27 +49,39 @@ FicForge 的做法不同：**你来决定什么重要，AI 负责在写作时精
 
 ## 安装
 
-### Windows
+### Windows（桌面端）
 
-1. 从 [Releases](../../releases) 下载最新版本
+1. 从 [Releases](../../releases) 下载 `FicForge_0.2.0_x64-setup.exe`
 2. 运行安装包
 3. 打开粮坊 → 配置 API 密钥（推荐 [DeepSeek](https://platform.deepseek.com)，便宜好用）→ 开始写
+
+### Android
+
+1. 从 [Releases](../../releases) 下载 `app-debug.apk`
+2. 安装到手机（可能需要开启"允许安装未知来源应用"）
+3. 打开粮坊 → 配置 API 密钥 → 开始写
+
+### iOS / 网页版（PWA）
+
+用 Safari 打开部署好的网页版 → "添加到主屏幕"。（需要自行部署，见从源码构建。）
 
 ### 从源码构建
 
 ```bash
-# 后端
-cd src-python
-pip install -r requirements.txt
-PYTHONPATH=. python main.py
-
-# 前端
+# 前端 + 引擎
 cd src-ui
 npm install
-npm run dev
+npm run build        # PWA 产物在 dist/
+
+# 桌面端（Tauri）
+npm run tauri build  # Windows 安装包
+
+# Android（Capacitor）
+npx cap sync android
+cd android && ./gradlew.bat assembleDebug
 ```
 
-需要 Python 3.12+ 和 Node.js 18+。
+需要 Node.js 18+。Android 构建需要 JDK 17+ 和 Android SDK。
 
 ---
 
@@ -95,14 +107,22 @@ npm run dev
 
 ---
 
+## 多设备同步
+
+在电脑和手机之间同步你的写作数据。[中文指南](docs/SYNC-GUIDE_zh.md) | [English Guide](docs/SYNC-GUIDE.md)
+
+---
+
 ## 技术栈
 
 | 层级 | 技术 |
 |------|------|
+| 核心引擎 | TypeScript (src-engine/) |
 | 前端 | React + TypeScript + Vite + TailwindCSS |
-| 后端 | Python 3.12 + FastAPI |
-| 向量库 | ChromaDB + bge-small-zh 向量模型 |
-| 桌面壳 | Tauri 2 |
+| 桌面端 | Tauri 2 + Python sidecar（本地 embedding） |
+| 移动端 | Capacitor (Android) / PWA (iOS/Web) |
+| 向量检索 | JSON 分片 + 内存余弦相似度 |
+| LLM 调用 | openai-node SDK（OpenAI 兼容接口） |
 
 ## 参与贡献
 

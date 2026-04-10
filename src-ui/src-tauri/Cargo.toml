@@ -1,6 +1,6 @@
 [package]
 name = "fanfic-system"
-version = "0.1.3"
+version = "0.2.0"
 description = "同人写作辅助系统 - AI-assisted fanfiction writing"
 authors = ["fanfic-system"]
 edition = "2021"

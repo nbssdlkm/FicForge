@@ -1,0 +1,8 @@
+{
+  "appId": "com.ficforge.app",
+  "appName": "FicForge",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

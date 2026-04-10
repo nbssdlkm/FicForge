@@ -40,7 +40,7 @@ FicForge takes a different approach: **you decide what matters, AI injects it pr
 
 ## Privacy
 
-- **All data stays on your computer.** FicForge does not upload your data to any server we control — we don't have servers
+- **All data stays on your device.** FicForge does not upload your data to any server we control — we don't have servers
 - When you use AI writing features, your content is sent to the API provider you configure (e.g. DeepSeek) — this is necessary for generation and is under your control
 - Built-in semantic search runs entirely on your machine
 
@@ -48,27 +48,39 @@ FicForge takes a different approach: **you decide what matters, AI injects it pr
 
 ## Install
 
-### Windows
+### Windows (Desktop)
 
-1. Download the latest release from [Releases](../../releases)
+1. Download `FicForge_0.2.0_x64-setup.exe` from [Releases](../../releases)
 2. Run the installer
 3. Open FicForge → configure your API key ([DeepSeek](https://platform.deepseek.com) recommended) → start writing
+
+### Android
+
+1. Download `app-debug.apk` from [Releases](../../releases)
+2. Install on your device (you may need to enable "Install from unknown sources")
+3. Open FicForge → configure your API key → start writing
+
+### iOS / Web (PWA)
+
+Open the hosted version in Safari → "Add to Home Screen". (Self-hosting required — see Build from Source.)
 
 ### Build from Source
 
 ```bash
-# Backend
-cd src-python
-pip install -r requirements.txt
-PYTHONPATH=. python main.py
-
-# Frontend
+# Frontend + Engine
 cd src-ui
 npm install
-npm run dev
+npm run build        # PWA output in dist/
+
+# Desktop (Tauri)
+npm run tauri build  # Windows installer
+
+# Android (Capacitor)
+npx cap sync android
+cd android && ./gradlew.bat assembleDebug
 ```
 
-Requires Python 3.12+ and Node.js 18+.
+Requires Node.js 18+. Android build requires JDK 17+ and Android SDK.
 
 ---
 
@@ -94,14 +106,22 @@ See [ETHICS.md](ETHICS.md) for our full statement.
 
 ---
 
+## Multi-device Sync
+
+Sync your writing across desktop and mobile. [Guide](docs/SYNC-GUIDE.md) | [中文指南](docs/SYNC-GUIDE_zh.md)
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
+| Core Engine | TypeScript (src-engine/) |
 | Frontend | React + TypeScript + Vite + TailwindCSS |
-| Backend | Python 3.12 + FastAPI |
-| Vector DB | ChromaDB + bge-small-zh embedding |
-| Desktop | Tauri 2 |
+| Desktop | Tauri 2 + Python sidecar (local embedding) |
+| Mobile | Capacitor (Android) / PWA (iOS/Web) |
+| Vector Search | JSON shards + in-memory cosine similarity |
+| LLM | openai-node SDK (OpenAI-compatible API) |
 
 ## Contributing
 
