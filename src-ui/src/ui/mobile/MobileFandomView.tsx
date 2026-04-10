@@ -311,7 +311,6 @@ export function MobileFandomView({ fandomPath, onNavigate }: MobileFandomViewPro
         {!loading && currentFiles.length > 0 && (
           <div className="pt-2">
             <Button variant="secondary" size="sm" className="w-full" onClick={() => { setCreateName(""); setCreateOpen(true); }}>
-              <Plus size={14} className="mr-1" />
               {category === "core_characters" ? t("common.actions.addCharacter") : t("common.actions.addWorldbuilding")}
             </Button>
           </div>

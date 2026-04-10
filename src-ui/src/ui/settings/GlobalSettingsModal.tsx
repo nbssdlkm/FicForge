@@ -36,6 +36,13 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   const [embeddingApiBase, setEmbeddingApiBase] = useState('');
   const [embeddingApiKey, setEmbeddingApiKey] = useState('');
   const [useCustomEmbedding, setUseCustomEmbedding] = useState(false);
+  const [syncMode, setSyncMode] = useState<'none' | 'webdav'>('none');
+  const [syncUrl, setSyncUrl] = useState('');
+  const [syncUsername, setSyncUsername] = useState('');
+  const [syncPassword, setSyncPassword] = useState('');
+  const [syncRemoteDir, setSyncRemoteDir] = useState('/FicForge/');
+  const [syncTestStatus, setSyncTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const [lastSync, setLastSync] = useState<string | null>(null);
 
   const resetFormState = () => {
     setSettings(null);
@@ -83,6 +90,18 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         setEmbeddingApiBase(res?.embedding?.api_base || '');
         setEmbeddingApiKey(res?.embedding?.api_key || '');
         setUseCustomEmbedding(!!(res?.embedding?.model && res?.embedding?.api_key));
+        const sync = (res as Record<string, unknown>)?.sync as Record<string, unknown> | undefined;
+        if (sync) {
+          setSyncMode((sync.mode as 'none' | 'webdav') || 'none');
+          const webdav = sync.webdav as Record<string, string> | undefined;
+          if (webdav) {
+            setSyncUrl(webdav.url || '');
+            setSyncUsername(webdav.username || '');
+            setSyncPassword(webdav.password || '');
+            setSyncRemoteDir(webdav.remote_dir || '/FicForge/');
+          }
+          setLastSync((sync.last_sync as string) || null);
+        }
       }).catch((error) => {
         if (requestId !== modalRequestIdRef.current) return;
         showError(error, t('error_messages.unknown'));
@@ -125,6 +144,13 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
           model: useCustomEmbedding ? embeddingModel : '',
           api_base: useCustomEmbedding ? embeddingApiBase : '',
           api_key: useCustomEmbedding ? embeddingApiKey : '',
+        },
+        sync: {
+          mode: syncMode,
+          ...(syncMode === 'webdav' ? {
+            webdav: { url: syncUrl, username: syncUsername, password: syncPassword, remote_dir: syncRemoteDir },
+          } : {}),
+          last_sync: lastSync,
         },
       };
       await updateSettings(newSettings);
@@ -286,6 +312,58 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
             >
               {t('common.actions.testConnection')}
             </Button>
+          </div>
+
+          {/* Sync Settings */}
+          <div className="space-y-4 border-t border-black/10 pt-5 dark:border-white/10">
+            <h3 className="text-sm font-bold text-text/90">{t('settings.sync.title')}</h3>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-text/80">{t('settings.sync.modeLabel')}</label>
+              <select
+                value={syncMode}
+                onChange={(e) => { setSyncMode(e.target.value as 'none' | 'webdav'); setSyncTestStatus('idle'); }}
+                className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:w-48 md:text-sm"
+              >
+                <option value="none">{t('settings.sync.modeNone')}</option>
+                <option value="webdav">WebDAV</option>
+              </select>
+            </div>
+
+            {syncMode === 'webdav' && (
+              <div className="space-y-3 rounded-xl border border-black/10 bg-surface/30 p-4 dark:border-white/10">
+                <Input label={t('settings.sync.serverUrl')} value={syncUrl} onChange={(e) => setSyncUrl(e.target.value)} placeholder="https://dav.jianguoyun.com/dav/" />
+                <Input label={t('settings.sync.username')} value={syncUsername} onChange={(e) => setSyncUsername(e.target.value)} />
+                <Input label={t('settings.sync.password')} type="password" value={syncPassword} onChange={(e) => setSyncPassword(e.target.value)} />
+                <Input label={t('settings.sync.remoteDir')} value={syncRemoteDir} onChange={(e) => setSyncRemoteDir(e.target.value)} placeholder="/FicForge/" />
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={async () => {
+                      setSyncTestStatus('testing');
+                      try {
+                        const resp = await fetch(syncUrl, {
+                          method: 'OPTIONS',
+                          headers: { Authorization: 'Basic ' + btoa(`${syncUsername}:${syncPassword}`) },
+                        });
+                        setSyncTestStatus(resp.ok || resp.status === 200 || resp.status === 207 ? 'success' : 'error');
+                      } catch {
+                        setSyncTestStatus('error');
+                      }
+                    }}
+                    disabled={!syncUrl.trim() || !syncUsername.trim() || syncTestStatus === 'testing'}
+                  >
+                    {syncTestStatus === 'testing' ? <Loader2 size={14} className="mr-1 animate-spin" /> : null}
+                    {t('settings.sync.testConnection')}
+                  </Button>
+                  {syncTestStatus === 'success' && <span className="flex items-center gap-1 text-xs text-success"><CheckCircle2 size={14} /> {t('settings.sync.connected')}</span>}
+                  {syncTestStatus === 'error' && <span className="flex items-center gap-1 text-xs text-error"><XCircle size={14} /> {t('settings.sync.failed')}</span>}
+                </div>
+                {lastSync && (
+                  <p className="text-xs text-text/40">{t('settings.sync.lastSync')}: {new Date(lastSync).toLocaleString()}</p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Language Selector */}

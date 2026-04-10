@@ -455,6 +455,19 @@
       "languageLabel": "界面语言",
       "languageDescription": "切换应用的显示语言。"
     },
+    "sync": {
+      "title": "数据同步",
+      "modeLabel": "同步方式",
+      "modeNone": "无",
+      "serverUrl": "服务器地址",
+      "username": "用户名",
+      "password": "密码",
+      "remoteDir": "远程目录",
+      "testConnection": "测试连接",
+      "connected": "已连接",
+      "failed": "连接失败",
+      "lastSync": "上次同步"
+    },
     "story": {
       "scopeLabel": "当前故事：{{name}}",
       "inheritDescription": "默认沿用全局设置；如果这篇文想单独换模型或密钥，再打开下面的覆盖开关。",
@@ -1007,5 +1020,16 @@
     "onboardingBody": "FicForge 帮助你创作自己的故事。你的所有数据保存在本地，不会上传。\n\n使用提醒：\n· 请只导入你自己的作品\n· 发布 AI 辅助创作的内容时，建议标注 AI 的参与\n· 请遵守你所在创作社区的规则",
     "onboardingAcknowledge": "我已了解，开始使用",
     "onboardingConsent": "使用本工具即表示你已阅读并理解我们的负责任使用声明"
+  },
+  "sync": {
+    "conflict": {
+      "title": "同步冲突",
+      "description": "以下文件在两个设备上都被修改：",
+      "localModified": "本设备修改",
+      "remoteModified": "其他设备修改",
+      "keepLocal": "保留本设备",
+      "keepRemote": "保留其他",
+      "keepAllLocal": "全部保留本设备"
+    }
   }
 }

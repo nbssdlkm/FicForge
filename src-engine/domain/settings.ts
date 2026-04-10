@@ -112,6 +112,24 @@ export function createLicenseConfig(partial?: Partial<LicenseConfig>): LicenseCo
   };
 }
 
+export interface SyncConfig {
+  mode: "none" | "webdav";
+  webdav?: {
+    url: string;
+    username: string;
+    password: string;
+    remote_dir: string;
+  };
+  last_sync?: string;
+}
+
+export function createSyncConfig(partial?: Partial<SyncConfig>): SyncConfig {
+  return {
+    mode: "none",
+    ...partial,
+  };
+}
+
 /** 全局配置。字段名与 PRD §3.3 settings.yaml 一致。 */
 export interface Settings {
   updated_at: string;                           // ISO 8601
@@ -120,6 +138,7 @@ export interface Settings {
   embedding: EmbeddingConfig;
   app: AppConfig;
   license: LicenseConfig;
+  sync: SyncConfig;
 }
 
 export function createSettings(partial?: Partial<Settings>): Settings {
@@ -130,6 +149,7 @@ export function createSettings(partial?: Partial<Settings>): Settings {
     embedding: createEmbeddingConfig(),
     app: createAppConfig(),
     license: createLicenseConfig(),
+    sync: createSyncConfig(),
     ...partial,
   };
 }

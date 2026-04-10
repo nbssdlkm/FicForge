@@ -455,6 +455,19 @@
       "languageLabel": "Language",
       "languageDescription": "Change the app display language."
     },
+    "sync": {
+      "title": "Data Sync",
+      "modeLabel": "Sync Mode",
+      "modeNone": "None",
+      "serverUrl": "Server URL",
+      "username": "Username",
+      "password": "Password",
+      "remoteDir": "Remote Directory",
+      "testConnection": "Test Connection",
+      "connected": "Connected",
+      "failed": "Connection failed",
+      "lastSync": "Last synced"
+    },
     "story": {
       "scopeLabel": "Current Story: {{name}}",
       "inheritDescription": "Using global settings by default. Toggle the override below to use a different model or key for this story.",
@@ -1007,5 +1020,16 @@
     "onboardingBody": "FicForge helps you write your own stories. All data stays on your device and is never uploaded.\n\nReminders:\n· Only import content you own\n· When publishing AI-assisted work, consider disclosing AI involvement\n· Follow the rules of your creative community",
     "onboardingAcknowledge": "I understand, let's start",
     "onboardingConsent": "By using this tool, you acknowledge that you have read and understood our Responsible Use statement"
+  },
+  "sync": {
+    "conflict": {
+      "title": "Sync Conflicts",
+      "description": "The following files were modified on both devices:",
+      "localModified": "Local modified",
+      "remoteModified": "Remote modified",
+      "keepLocal": "Keep local",
+      "keepRemote": "Keep remote",
+      "keepAllLocal": "Keep all local"
+    }
   }
 }

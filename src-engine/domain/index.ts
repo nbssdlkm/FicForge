@@ -70,6 +70,7 @@ export type {
   LicenseConfig,
   ModelParams,
   Settings,
+  SyncConfig,
 } from "./settings.js";
 export {
   createAppConfig,
@@ -79,6 +80,7 @@ export {
   createLicenseConfig,
   createModelParams,
   createSettings,
+  createSyncConfig,
 } from "./settings.js";
 
 export type { EmbeddingFingerprint, State } from "./state.js";

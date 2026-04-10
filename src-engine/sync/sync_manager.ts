@@ -10,10 +10,19 @@ import type { SyncAdapter } from "./sync_adapter.js";
 import { mergeOps, rebuildStateFromOps, rebuildFactsFromOps, syncLamportClock } from "./ops_merge.js";
 import { joinPath } from "../repositories/implementations/file_utils.js";
 
+export interface FileConflict {
+  path: string;
+  localModified?: string;
+  remoteModified?: string;
+}
+
 export interface SyncResult {
   synced: boolean;
   conflicts: { type: string; description: string }[];
+  fileConflicts: FileConflict[];
   opsAdded: number;
+  filesPushed: number;
+  filesPulled: number;
 }
 
 export class SyncManager {
@@ -56,10 +65,103 @@ export class SyncManager {
     // 7. 推送本地 ops 到远程
     await this.syncAdapter.pushOps(auId, merged);
 
+    // 8. 同步内容文件
+    const contentResult = await this.syncContentFiles(auId);
+
     return {
       synced: true,
       conflicts: conflicts.map((c) => ({ type: c.type, description: c.description })),
+      fileConflicts: contentResult.fileConflicts,
       opsAdded,
+      filesPushed: contentResult.pushed,
+      filesPulled: contentResult.pulled,
     };
+  }
+
+  /** 同步内容文件（章节、设定、project.yaml、trash manifest）。 */
+  async syncContentFiles(auId: string): Promise<{ pushed: number; pulled: number; fileConflicts: FileConflict[] }> {
+    const syncDirs = [
+      "chapters/main",
+      "characters",
+      "worldbuilding",
+    ];
+    const syncFiles = ["project.yaml", ".trash/manifest.jsonl"];
+
+    let pushed = 0;
+    let pulled = 0;
+    const fileConflicts: FileConflict[] = [];
+
+    // Sync individual files
+    for (const relPath of syncFiles) {
+      const fullPath = joinPath(auId, relPath);
+      const result = await this.syncSingleFile(fullPath, relPath);
+      if (result === "pushed") pushed++;
+      else if (result === "pulled") pulled++;
+      else if (result === "conflict") fileConflicts.push({ path: relPath });
+    }
+
+    // Sync directories
+    for (const dir of syncDirs) {
+      const localDir = joinPath(auId, dir);
+      const localExists = await this.adapter.exists(localDir);
+      const localFiles = localExists ? await this.adapter.listDir(localDir) : [];
+
+      let remoteFiles: string[] = [];
+      try {
+        remoteFiles = await this.syncAdapter.listRemoteFiles(joinPath(auId, dir));
+      } catch {
+        // Remote dir may not exist yet
+      }
+
+      const allFiles = new Set([...localFiles, ...remoteFiles]);
+
+      for (const file of allFiles) {
+        const relPath = joinPath(dir, file);
+        const fullPath = joinPath(auId, relPath);
+        const result = await this.syncSingleFile(fullPath, relPath);
+        if (result === "pushed") pushed++;
+        else if (result === "pulled") pulled++;
+        else if (result === "conflict") fileConflicts.push({ path: relPath });
+      }
+    }
+
+    return { pushed, pulled, fileConflicts };
+  }
+
+  /** 同步单个文件。返回 "pushed" | "pulled" | "conflict" | "unchanged"。 */
+  private async syncSingleFile(localPath: string, remotePath: string): Promise<"pushed" | "pulled" | "conflict" | "unchanged"> {
+    const localExists = await this.adapter.exists(localPath);
+    let remoteContent = "";
+    let remoteExists = false;
+    try {
+      remoteContent = await this.syncAdapter.pullFile(remotePath);
+      remoteExists = remoteContent !== "";
+    } catch {
+      // Remote not available
+    }
+
+    if (!localExists && !remoteExists) return "unchanged";
+
+    if (!localExists && remoteExists) {
+      // Pull: remote has, local doesn't
+      const dir = localPath.substring(0, localPath.lastIndexOf("/"));
+      if (dir) await this.adapter.mkdir(dir);
+      await this.adapter.writeFile(localPath, remoteContent);
+      return "pulled";
+    }
+
+    const localContent = localExists ? await this.adapter.readFile(localPath) : "";
+
+    if (localExists && !remoteExists) {
+      // Push: local has, remote doesn't
+      await this.syncAdapter.pushFile(remotePath, localContent);
+      return "pushed";
+    }
+
+    // Both exist: compare content
+    if (localContent === remoteContent) return "unchanged";
+
+    // Content differs → conflict
+    return "conflict";
   }
 }
