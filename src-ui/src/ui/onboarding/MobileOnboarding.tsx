@@ -10,10 +10,11 @@ import { Input } from '../shared/Input';
 import { StepIndicator } from './StepIndicator';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { changeLanguage, type AppLanguage } from '../../i18n';
-import { createFandom, getSettings, testConnection, updateSettings } from '../../api/engine-client';
+import { createAu, createFandom, getSettings, testConnection, updateSettings } from '../../api/engine-client';
 
 export type OnboardingCompletion = {
   nextAction?: 'open-import' | 'open-settings';
+  openAuPath?: string;
 };
 
 type LlmProvider = 'deepseek' | 'openai' | 'custom';
@@ -84,7 +85,9 @@ export function MobileOnboarding({
   onClose: () => void;
 }) {
   const { t, i18n } = useTranslation();
+  const isMountedRef = useRef(true);
   const requestIdRef = useRef(0);
+  const connectionRequestIdRef = useRef(0);
   const [step, setStep] = useState(0);
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [provider, setProvider] = useState<LlmProvider>('deepseek');
@@ -99,12 +102,14 @@ export function MobileOnboarding({
   const [embeddingApiKey, setEmbeddingApiKey] = useState('');
   const [setupAction, setSetupAction] = useState<SetupAction>('create');
   const [fandomName, setFandomName] = useState('');
+  const [auName, setAuName] = useState('');
   const [ethicsAccepted, setEthicsAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     const requestId = ++requestIdRef.current;
+    isMountedRef.current = true;
     setLoadingSettings(true);
     getSettings().then(settings => {
       if (requestId !== requestIdRef.current) return;
@@ -132,16 +137,18 @@ export function MobileOnboarding({
     });
 
     return () => {
+      isMountedRef.current = false;
       requestIdRef.current += 1;
     };
   }, []);
 
   useEffect(() => {
+    connectionRequestIdRef.current += 1;
     setConnectionStatus('idle');
     setConnectionMessage('');
   }, [apiBase, apiKey, model, provider]);
 
-  const language = (i18n.language === 'en' ? 'en' : 'zh') as AppLanguage;
+  const language = (i18n.resolvedLanguage === 'en' ? 'en' : 'zh') as AppLanguage;
   const currentStep = step + 1;
 
   const canAdvance = useMemo(() => {
@@ -151,11 +158,11 @@ export function MobileOnboarding({
       return !useCustomEmbedding || Boolean(embeddingModel.trim() && embeddingApiBase.trim() && embeddingApiKey.trim());
     }
     if (step === 3) {
-      return setupAction !== 'create' || Boolean(fandomName.trim());
+      return setupAction !== 'create' || Boolean(fandomName.trim() && auName.trim());
     }
     if (step === 4) return ethicsAccepted;
     return true;
-  }, [connectionStatus, embeddingApiBase, embeddingApiKey, embeddingModel, ethicsAccepted, fandomName, setupAction, step, useCustomEmbedding]);
+  }, [auName, connectionStatus, embeddingApiBase, embeddingApiKey, embeddingModel, ethicsAccepted, fandomName, setupAction, step, useCustomEmbedding]);
 
   const applyProviderPreset = (nextProvider: LlmProvider) => {
     setProvider(nextProvider);
@@ -174,7 +181,7 @@ export function MobileOnboarding({
   };
 
   const handleTestConnection = async () => {
-    const requestId = ++requestIdRef.current;
+    const requestId = ++connectionRequestIdRef.current;
     setConnectionStatus('testing');
     setConnectionMessage('');
     try {
@@ -184,16 +191,16 @@ export function MobileOnboarding({
         api_base: apiBase,
         api_key: apiKey,
       });
-      if (requestId !== requestIdRef.current) return;
+      if (requestId !== connectionRequestIdRef.current) return;
       if (result.success) {
         setConnectionStatus('success');
-        setConnectionMessage(result.message || t('onboarding.apiConfig.testSuccess', { model: result.model || model }));
+        setConnectionMessage(t('onboarding.apiConfig.testSuccess', { model: result.model || model }));
       } else {
         setConnectionStatus('error');
         setConnectionMessage(result.message || t('error_messages.unknown'));
       }
     } catch (error: any) {
-      if (requestId !== requestIdRef.current) return;
+      if (requestId !== connectionRequestIdRef.current) return;
       setConnectionStatus('error');
       setConnectionMessage(error?.message || t('error_messages.unknown'));
     }
@@ -226,11 +233,18 @@ export function MobileOnboarding({
         },
       });
 
-      if (setupAction === 'create' && fandomName.trim()) {
-        await createFandom(fandomName.trim());
+      let openAuPath: string | undefined;
+
+      if (setupAction === 'create' && fandomName.trim() && auName.trim()) {
+        const fandom = await createFandom(fandomName.trim());
+        const au = await createAu(fandom.name, auName.trim(), fandom.path);
+        openAuPath = au.path;
       }
 
+      if (!isMountedRef.current) return;
+
       onComplete({
+        openAuPath,
         nextAction:
           setupAction === 'import-local'
             ? 'open-import'
@@ -239,9 +253,12 @@ export function MobileOnboarding({
               : undefined,
       });
     } catch (error: any) {
+      if (!isMountedRef.current) return;
       setSubmitError(error?.message || t('error_messages.unknown'));
     } finally {
-      setSubmitting(false);
+      if (isMountedRef.current) {
+        setSubmitting(false);
+      }
     }
   };
 
@@ -256,8 +273,13 @@ export function MobileOnboarding({
           <StepIndicator current={currentStep} total={TOTAL_STEPS} />
           <button
             type="button"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-text/50 hover:bg-black/5 hover:text-text dark:hover:bg-white/5"
-            onClick={onClose}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-text/50 hover:bg-black/5 hover:text-text disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-text/50 dark:hover:bg-white/5"
+            onClick={() => {
+              if (!submitting) {
+                onClose();
+              }
+            }}
+            disabled={submitting}
             aria-label={t('common.actions.close')}
           >
             <X size={20} />
@@ -462,12 +484,20 @@ export function MobileOnboarding({
 
                 {setupAction === 'create' && (
                   <Card className="rounded-2xl p-4">
-                    <Input
-                      label={t('onboarding.createFandom.nameLabel')}
-                      value={fandomName}
-                      onChange={event => setFandomName(event.target.value)}
-                      placeholder={t('onboarding.mobile.setup.fandomPlaceholder')}
-                    />
+                    <div className="space-y-4">
+                      <Input
+                        label={t('onboarding.createFandom.nameLabel')}
+                        value={fandomName}
+                        onChange={event => setFandomName(event.target.value)}
+                        placeholder={t('onboarding.mobile.setup.fandomPlaceholder')}
+                      />
+                      <Input
+                        label={t('onboarding.mobile.setup.auLabel')}
+                        value={auName}
+                        onChange={event => setAuName(event.target.value)}
+                        placeholder={t('onboarding.mobile.setup.auPlaceholder')}
+                      />
+                    </div>
                   </Card>
                 )}
               </>
@@ -523,7 +553,7 @@ export function MobileOnboarding({
                     <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-green-500" />
                     <span>
                       {setupAction === 'create'
-                        ? t('onboarding.mobile.complete.createSummary', { name: fandomName })
+                        ? t('onboarding.mobile.complete.createSummary', { fandomName, auName })
                         : setupAction === 'import-local'
                           ? t('onboarding.mobile.complete.importSummary')
                           : setupAction === 'sync-directory'

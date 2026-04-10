@@ -236,6 +236,7 @@
     "placeholder": "描述你想要的设定变更…（受模型能力限制，建议一次只生成一份设定文件）",
     "fandomPlaceholder": "粘贴你对角色的理解，或描述想要添加的角色和世界观…（受模型能力限制，建议一次只生成一份设定文件）",
     "send": "发送",
+    "expandComposer": "展开输入框",
     "firstTimeTooltip": "在这里，你可以用自然语言描述设定需求，AI 会帮你创建和修改角色、世界观、剧情笔记等。所有变更需要你确认后才会生效。",
     "confirmAll": "✅ 全部确认",
     "skipAll": "⏭️ 全部跳过",
@@ -435,7 +436,7 @@
       "title": "全局设置",
       "description": "这里的配置会作为默认值，所有新建的故事都会先用这套设置。",
       "defaultModel": "默认模型",
-      "connectionSuccess": "连接成功，密钥可以用。",
+      "connectionSuccess": "连接成功。",
       "testFailedPrefix": "连接失败：",
       "searchEngineDescription": "用来从你的设定里找到和当前剧情最相关的内容。",
       "noEmbeddingModel": "（未配置）",
@@ -636,7 +637,8 @@
     "text": "纯文本格式 (.txt)",
     "description": "导出时会拼接所有已定稿章节，不包含草稿。",
     "writing": "正在写入本地文件…",
-    "submit": "确认导出"
+    "submit": "确认导出",
+    "saveFailed": "导出失败，请检查文件权限。"
   },
   "emptyState": {
     "library": {
@@ -816,7 +818,7 @@
   },
   "import": {
     "title": "导入旧文",
-    "supportedFormats": "支持格式：.txt  .md  .docx  .html",
+    "supportedFormats": "支持格式：.txt  .md  .html  .htm",
     "dropzone": "拖拽文件到这里，或点击选择",
     "selectedFile": "选中：{{name}} ({{size}})",
     "uploading": "正在分析文件...",
@@ -851,7 +853,7 @@
     "createAuFirst": "去创建 AU",
     "createFandomFirst": "去创建 Fandom",
     "newAuInFandom": "在此 Fandom 下新建 AU",
-    "formatError": "仅支持 txt/md/docx/html 格式"
+    "formatError": "仅支持 txt/md/html/htm 格式"
   },
   "milestones": {
     "factsIntro": {
@@ -955,16 +957,18 @@
       },
       "setup": {
         "title": "创建或导入",
-        "subtitle": "最后决定你想先建作品，还是先把旧文和同步入口接进来。",
-        "createTitle": "创建新 Fandom",
-        "createDescription": "先创建一个原作容器，完成后可以继续新建 AU 开始写。",
+        "subtitle": "最后决定你想先建作品，还是先打开导入或设置入口。",
+        "createTitle": "创建新 Fandom 和 AU",
+        "createDescription": "现在一次性创建原作和 AU，完成后就能直接开始写。",
         "importTitle": "稍后导入本地文件",
         "importDescription": "完成引导后直接打开导入入口，继续处理旧文。",
         "syncTitle": "稍后配置同步目录",
         "syncDescription": "完成引导后打开设置，继续处理 WebDAV 或同步相关配置。",
         "laterTitle": "先进入作品库",
         "laterDescription": "暂时不创建也不导入，先看界面和主题。",
-        "fandomPlaceholder": "比如：原神、咒术回战、底特律变人..."
+        "fandomPlaceholder": "比如：原神、咒术回战、底特律变人...",
+        "auLabel": "AU 名称",
+        "auPlaceholder": "比如：现代校园、赛博警探、星际皇室..."
       },
       "ethics": {
         "subtitle": "移动端也沿用和桌面端一致的本地优先与负责任使用说明。",
@@ -977,7 +981,7 @@
         "llmSummary": "写作模型：{{model}}",
         "embeddingSummary": "检索模型：{{model}}",
         "embeddingSkipped": "检索模型：暂时跳过，稍后可在设置里补上",
-        "createSummary": "初始化内容：创建 Fandom「{{name}}」",
+        "createSummary": "初始化内容：创建 Fandom「{{fandomName}}」和 AU「{{auName}}」",
         "importSummary": "初始化内容：完成后直接打开本地导入入口",
         "syncSummary": "初始化内容：完成后直接打开设置页继续配置同步",
         "laterSummary": "初始化内容：先进入作品库，稍后再创建或导入"

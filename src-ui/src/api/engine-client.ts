@@ -30,6 +30,7 @@ import {
   recalc_state,
   export_chapters as engineExportChapters,
   split_into_chapters,
+  parse_html,
   import_chapters as engineImportChapters,
   generate_chapter as engineGenerateChapter,
   build_settings_context,
@@ -770,8 +771,15 @@ export async function updateChapterContent(auPath: string, chapterNum: number, c
 // ===========================================================================
 
 export async function uploadImportFile(file: File): Promise<import("./importExport").ImportUploadResponse> {
-  // Read file content locally (no upload to server)
-  const text = await file.text();
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (ext === "docx") {
+    throw Object.assign(new Error("DOCX import is not supported in the local app yet."), {
+      error_code: "UNSUPPORTED_IMPORT_FORMAT",
+    });
+  }
+
+  const rawText = await file.text();
+  const text = ext === "html" || ext === "htm" ? parse_html(rawText) : rawText;
   const chapters = split_into_chapters(text);
   const { get_split_method } = await import("@ficforge/engine");
   return {

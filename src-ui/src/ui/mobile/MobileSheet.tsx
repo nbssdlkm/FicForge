@@ -4,6 +4,7 @@
 
 import type { HTMLAttributes, ReactNode } from "react";
 import { X } from "lucide-react";
+import { useTranslation } from "../../i18n/useAppTranslation";
 import { Button } from "../shared/Button";
 import { cn } from "../shared/utils";
 
@@ -23,6 +24,8 @@ export function MobileSheet({
   contentClassName,
   ...props
 }: MobileSheetProps) {
+  const { t } = useTranslation();
+
   if (!isOpen) return null;
 
   return (
@@ -31,7 +34,7 @@ export function MobileSheet({
         type="button"
         className="absolute inset-0 bg-black/45 backdrop-blur-sm"
         onClick={onClose}
-        aria-label="Close"
+        aria-label={t("common.actions.close")}
       />
       <div
         className={cn(
@@ -49,6 +52,7 @@ export function MobileSheet({
             size="sm"
             onClick={onClose}
             className="ml-3 h-11 w-11 shrink-0 rounded-full p-0"
+            aria-label={t("common.actions.close")}
           >
             <X size={18} />
           </Button>

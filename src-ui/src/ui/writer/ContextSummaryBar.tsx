@@ -143,7 +143,7 @@ export function ContextSummaryBar({ summary, onAdjustCoreIncludes }: ContextSumm
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 border border-warning/30 bg-warning/10 text-warning hover:bg-warning/20 hover:text-warning"
+              className="h-11 border border-warning/30 bg-warning/10 text-warning hover:bg-warning/20 hover:text-warning md:h-8"
               onClick={onAdjustCoreIncludes}
             >
               {t('contextSummary.adjustCoreIncludes')}
@@ -153,7 +153,7 @@ export function ContextSummaryBar({ summary, onAdjustCoreIncludes }: ContextSumm
             variant="ghost"
             size="sm"
             className={[
-              'h-8 gap-1 px-2',
+              'h-11 gap-1 px-3 md:h-8 md:px-2',
               hasWarning ? 'text-warning hover:bg-warning/10 hover:text-warning' : 'text-text/60',
             ].join(' ')}
             onClick={() => setExpanded((current) => !current)}

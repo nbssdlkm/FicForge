@@ -8,7 +8,7 @@ import { Upload, FileText, Loader2 } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
 
-const ACCEPTED = ['.txt', '.md', '.docx', '.html', '.htm'];
+const ACCEPTED = ['.txt', '.md', '.html', '.htm'];
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`;
@@ -65,7 +65,7 @@ export function FileSelectStep({
         <input
           ref={inputRef}
           type="file"
-          accept=".txt,.md,.docx,.html,.htm"
+          accept=".txt,.md,.html,.htm"
           className="hidden"
           onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }}
         />

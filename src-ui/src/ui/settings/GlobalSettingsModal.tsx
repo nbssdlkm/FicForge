@@ -100,7 +100,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
       setTestStatus('idle');
       setTestMessage('');
     }
-  }, [isOpen, showError, t]);
+  }, [isOpen]);
 
   const handleSave = async () => {
     if (!settings) return;
@@ -156,7 +156,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
       if (requestId !== testRequestIdRef.current) return;
       if (result.success) {
         setTestStatus('success');
-        setTestMessage(result.message || t('settings.global.connectionSuccess'));
+        setTestMessage(t('settings.global.connectionSuccess'));
       } else {
         setTestStatus('error');
         setTestMessage(result.message || t('error_messages.unknown'));
@@ -164,7 +164,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     } catch (error: any) {
       if (requestId !== testRequestIdRef.current) return;
       setTestStatus('error');
-      setTestMessage(`${t('settings.global.testFailedPrefix')}${error.message}`);
+      setTestMessage(`${t('settings.global.testFailedPrefix')}${error?.message || t('error_messages.unknown')}`);
     }
   };
 
@@ -173,7 +173,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   const testRequiresOllamaModel = mode === 'ollama';
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={t('settings.global.title')}>
+    <Modal isOpen={isOpen} onClose={saving ? () => {} : onClose} title={t('settings.global.title')}>
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="animate-spin text-accent" /></div>
       ) : (
@@ -189,7 +189,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                 value={mode}
                 onChange={(e) => setMode(e.target.value)}
                 disabled={saving}
-                className="h-10 rounded-md border border-black/20 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent disabled:opacity-60 dark:border-white/20"
+                className="h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent disabled:opacity-60 dark:border-white/20 md:h-10 md:text-sm"
               >
                 <option value="api">{getEnumLabel('llm_mode', 'api', 'api')}</option>
                 <option value="local">{getEnumLabel('llm_mode', 'local', 'local')}</option>
@@ -252,15 +252,15 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
             <div className="flex flex-col gap-2">
               <label className="text-sm font-bold text-text/90">{t('common.labels.searchEngineModel')}</label>
               <p className="text-xs text-text/50">{t('settings.global.builtinEmbedding')}</p>
-              <label className="flex items-center gap-2 cursor-pointer text-sm text-text/70">
+              <label className="flex min-h-[44px] items-center gap-2 cursor-pointer text-sm text-text/70">
                 <input type="checkbox" checked={useCustomEmbedding} onChange={e => setUseCustomEmbedding(e.target.checked)} disabled={saving} className="accent-accent" />
                 {t('settings.global.useCustomEmbedding')}
               </label>
               {useCustomEmbedding && (
                 <div className="space-y-2 pl-2 border-l-2 border-accent/30">
-                  <Input value={embeddingModel} onChange={e => setEmbeddingModel(e.target.value)} placeholder={t('settings.global.embeddingModelPlaceholder')} disabled={saving} className="h-8 text-sm" />
-                  <Input value={embeddingApiBase} onChange={e => setEmbeddingApiBase(e.target.value)} placeholder={t('settings.global.embeddingApiBasePlaceholder')} disabled={saving} className="h-8 text-sm" />
-                  <Input value={embeddingApiKey} onChange={e => setEmbeddingApiKey(e.target.value)} placeholder={t('settings.global.embeddingApiKeyPlaceholder')} disabled={saving} className="h-8 text-sm" type="password" />
+                  <Input value={embeddingModel} onChange={e => setEmbeddingModel(e.target.value)} placeholder={t('settings.global.embeddingModelPlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
+                  <Input value={embeddingApiBase} onChange={e => setEmbeddingApiBase(e.target.value)} placeholder={t('settings.global.embeddingApiBasePlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
+                  <Input value={embeddingApiKey} onChange={e => setEmbeddingApiKey(e.target.value)} placeholder={t('settings.global.embeddingApiKeyPlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" type="password" />
                 </div>
               )}
             </div>
@@ -293,9 +293,9 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-bold text-text/90">{t('settings.global.languageLabel')}</label>
               <select
-                value={i18n.language}
+                value={i18n.resolvedLanguage === 'en' ? 'en' : 'zh'}
                 onChange={async (e) => { await changeLanguage(e.target.value as AppLanguage); }}
-                className="h-10 w-48 rounded-md border border-black/20 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent dark:border-white/20"
+                className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:w-48 md:text-sm"
               >
                 {SUPPORTED_LANGUAGES.map(lang => (
                   <option key={lang} value={lang}>

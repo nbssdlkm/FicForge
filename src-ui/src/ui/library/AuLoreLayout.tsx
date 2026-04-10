@@ -533,12 +533,18 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
       <label className="text-sm font-bold text-text/90">{t('navigation.auLore')}</label>
 
       {selectedCategory === 'characters' && (
-        <div className="flex min-h-[36px] flex-wrap items-center gap-1.5 rounded-lg border border-black/10 bg-surface/30 px-3 py-2 dark:border-white/10">
-          <span className="mr-1 text-[10px] font-sans text-text/40">{t('auLore.aliasesLabel')}</span>
+        <div className="flex min-h-[44px] flex-wrap items-center gap-1.5 rounded-lg border border-black/10 bg-surface/30 px-3 py-2 dark:border-white/10 md:min-h-[36px]">
+          <span className="mr-1 text-xs font-sans text-text/40 md:text-[10px]">{t('auLore.aliasesLabel')}</span>
           {aliases.map((alias, i) => (
-            <span key={i} className="inline-flex items-center gap-1 rounded-md bg-accent/10 px-2 py-0.5 text-xs font-sans text-accent">
+            <span key={i} className="inline-flex min-h-[44px] items-center gap-1 rounded-xl bg-accent/10 px-3 py-1 text-sm font-sans text-accent md:min-h-0 md:rounded-md md:px-2 md:py-0.5 md:text-xs">
               {alias}
-              <button className="text-accent/60 hover:text-red-500" onClick={() => setAliases(prev => prev.filter((_, j) => j !== i))}>×</button>
+              <button
+                type="button"
+                className="-mr-2 inline-flex h-11 w-11 items-center justify-center rounded-full text-accent/60 transition-colors hover:text-red-500 md:-mr-1 md:h-5 md:w-5"
+                onClick={() => setAliases(prev => prev.filter((_, j) => j !== i))}
+              >
+                ×
+              </button>
             </span>
           ))}
           <input
@@ -646,7 +652,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
         </div>
       </Modal>
 
-      <Modal isOpen={importModalOpen} onClose={() => setImportModalOpen(false)} title={t('auLore.importTitle')}>
+      <Modal isOpen={importModalOpen} onClose={isSaving ? () => {} : () => setImportModalOpen(false)} title={t('auLore.importTitle')}>
         <div className="space-y-4">
           <p className="text-sm text-text/70">{t('auLore.importDescription')}</p>
           <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-lg border border-black/10 p-2 dark:border-white/10">
@@ -656,7 +662,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
               <EmptyState compact icon={<Download size={28} />} title={t('auLore.importEmpty')} description={t('fandomLore.referenceHint')} />
             ) : (
               importCandidates.map(file => (
-                <label key={file.name} className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer">
+                <label key={file.name} className="flex min-h-[44px] items-center gap-3 rounded-md px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={selectedImports.includes(file.name)}
@@ -669,7 +675,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
             )}
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setImportModalOpen(false)}>{t('common.actions.cancel')}</Button>
+            <Button variant="ghost" onClick={() => setImportModalOpen(false)} disabled={isSaving}>{t('common.actions.cancel')}</Button>
             <Button variant="primary" onClick={handleImportSelected} disabled={selectedImports.length === 0 || isSaving}>
               {isSaving ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.importSelected')}
             </Button>
@@ -729,10 +735,10 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
 
             {selectedFile ? (
               <div className="mt-3 inline-flex rounded-md border border-black/10 bg-surface/60 p-0.5 dark:border-white/10">
-                <button className={`flex items-center gap-1 rounded px-3 py-2 text-sm ${!previewMode ? 'bg-accent text-white' : 'text-text/60 hover:text-text'}`} onClick={() => setPreviewMode(false)}>
+                <button className={`flex min-h-[44px] items-center gap-1 rounded px-3 py-2 text-sm ${!previewMode ? 'bg-accent text-white' : 'text-text/60 hover:text-text'}`} onClick={() => setPreviewMode(false)}>
                   <Pencil size={12} /> {t('common.actions.edit')}
                 </button>
-                <button className={`flex items-center gap-1 rounded px-3 py-2 text-sm ${previewMode ? 'bg-accent text-white' : 'text-text/60 hover:text-text'}`} onClick={() => setPreviewMode(true)}>
+                <button className={`flex min-h-[44px] items-center gap-1 rounded px-3 py-2 text-sm ${previewMode ? 'bg-accent text-white' : 'text-text/60 hover:text-text'}`} onClick={() => setPreviewMode(true)}>
                   <Eye size={12} /> {t('common.actions.preview')}
                 </button>
               </div>
@@ -799,7 +805,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                       {selectedCategory === 'characters' ? (
                         <button
                           type="button"
-                          className={`ml-3 shrink-0 rounded-full p-2 ${isPinned ? 'text-accent' : 'text-text/30'}`}
+                          className={`ml-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${isPinned ? 'text-accent' : 'text-text/30'}`}
                           onClick={(event) => { event.stopPropagation(); void handleTogglePin(file.name); }}
                         >
                           <Pin size={14} fill={isPinned ? 'currentColor' : 'none'} />

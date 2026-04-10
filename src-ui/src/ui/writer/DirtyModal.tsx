@@ -153,7 +153,11 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
   const hasCandidates = candidates.length > 0;
 
   return (
-    <Modal isOpen={isOpen} onClose={resolving ? () => {} : onClose} title={`${t('dirty.title')} — Ch.${chapterNum}`}>
+    <Modal
+      isOpen={isOpen}
+      onClose={resolving ? () => {} : onClose}
+      title={`${t('dirty.title')} — ${t('workspace.chapterItem', { num: chapterNum })}`}
+    >
       <div className="space-y-5 mt-2">
         {/* Warning banner */}
         <div className="p-3 bg-warning/10 text-warning text-sm rounded-lg border border-warning/20 leading-relaxed font-sans">
@@ -183,13 +187,13 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
                     <div className="flex gap-2">
                       <Button
                         variant={decisions[f.id] === 'keep' ? 'primary' : 'ghost'}
-                        size="sm" className="flex-1 h-7 text-xs"
+                        size="sm" className="flex-1 h-11 text-sm md:h-7 md:text-xs"
                         onClick={() => setDecisions(prev => ({ ...prev, [f.id]: 'keep' }))}
                         disabled={resolving}
                       >{t('dirty.keep')}</Button>
                       <Button
                         variant={decisions[f.id] === 'deprecate' ? 'primary' : 'ghost'}
-                        size="sm" className="flex-1 h-7 text-xs"
+                        size="sm" className="flex-1 h-11 text-sm md:h-7 md:text-xs"
                         onClick={() => setDecisions(prev => ({ ...prev, [f.id]: 'deprecate' }))}
                         disabled={resolving}
                       >{t('dirty.deprecate')}</Button>

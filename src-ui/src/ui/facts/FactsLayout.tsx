@@ -451,7 +451,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
       {isMobile ? (
         <Modal
           isOpen={!!editingFact}
-          onClose={() => setEditingFact(null)}
+          onClose={saving ? () => {} : () => setEditingFact(null)}
           title={editingFact ? `${editingFact.id.split('-')[0]} ${t('facts.editing')}` : t('facts.editing')}
         >
           {renderFactEditor(true)}
@@ -535,7 +535,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
         </div>
       </Modal>
 
-      <Modal isOpen={extractModalOpen} onClose={() => setExtractModalOpen(false)} title={t('facts.extractReviewTitle')}>
+      <Modal isOpen={extractModalOpen} onClose={saving ? () => {} : () => setExtractModalOpen(false)} title={t('facts.extractReviewTitle')}>
         <div className="space-y-4">
           <p className="text-sm text-text/70">{t('facts.extractReviewDescription')}</p>
           <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1">
@@ -566,7 +566,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             )}
           </div>
           <div className="flex justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
-            <Button variant="ghost" onClick={() => setExtractModalOpen(false)}>{t('common.actions.cancel')}</Button>
+            <Button variant="ghost" onClick={() => setExtractModalOpen(false)} disabled={saving}>{t('common.actions.cancel')}</Button>
             <Button variant="primary" onClick={handleSaveExtracted} disabled={saving || extractedCandidates.length === 0}>
               {saving ? <Loader2 size={16} className="animate-spin" /> : t('facts.extractSaveAll')}
             </Button>
@@ -574,7 +574,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
         </div>
       </Modal>
 
-      <Modal isOpen={!!batchConfirm} onClose={() => setBatchConfirm(null)} title={t('facts.batchConfirmTitle', { count: selectedIds.size, status: batchConfirm ? getEnumLabel('fact_status', batchConfirm, batchConfirm) : '' })}>
+      <Modal isOpen={!!batchConfirm} onClose={batchProcessing ? () => {} : () => setBatchConfirm(null)} title={t('facts.batchConfirmTitle', { count: selectedIds.size, status: batchConfirm ? getEnumLabel('fact_status', batchConfirm, batchConfirm) : '' })}>
         <div className="space-y-4">
           <p className="text-sm text-text/70">
             {batchConfirm === 'deprecated' && t('facts.batchDeprecatedDesc')}
@@ -583,7 +583,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             {batchConfirm === 'unresolved' && t('facts.batchUnresolvedDesc')}
           </p>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setBatchConfirm(null)}>{t('common.actions.cancel')}</Button>
+            <Button variant="ghost" onClick={() => setBatchConfirm(null)} disabled={batchProcessing}>{t('common.actions.cancel')}</Button>
             <Button variant="primary" onClick={() => batchConfirm && handleBatchStatus(batchConfirm)} disabled={batchProcessing}>
               {batchProcessing ? <Loader2 size={14} className="animate-spin" /> : t('common.actions.confirm')}
             </Button>
@@ -659,39 +659,63 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               </div>
             ) : null}
 
-            <div className="mt-3 flex gap-3 overflow-x-auto pb-1 text-sm whitespace-nowrap">
-              <span className={`cursor-pointer border-b-2 pb-1 font-medium ${!statusFilter ? 'border-accent text-accent' : 'border-transparent text-text/60'}`} onClick={() => setStatusFilter('')}>
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1 text-sm whitespace-nowrap">
+              <button
+                type="button"
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${!statusFilter ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                onClick={() => setStatusFilter('')}
+              >
                 {t('facts.allTab')} ({totalCount})
-              </span>
-              <span className={`cursor-pointer border-b-2 pb-1 font-medium ${statusFilter === 'unresolved' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`} onClick={() => setStatusFilter('unresolved')}>
+              </button>
+              <button
+                type="button"
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${statusFilter === 'unresolved' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                onClick={() => setStatusFilter('unresolved')}
+              >
                 {getEnumLabel('fact_status', 'unresolved', 'unresolved')} ({unresolvedCount})
-              </span>
-              <span className={`cursor-pointer border-b-2 pb-1 font-medium ${statusFilter === 'active' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`} onClick={() => setStatusFilter('active')}>
+              </button>
+              <button
+                type="button"
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${statusFilter === 'active' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                onClick={() => setStatusFilter('active')}
+              >
                 {getEnumLabel('fact_status', 'active', 'active')} ({activeCount})
-              </span>
-              <span className={`cursor-pointer border-b-2 pb-1 font-medium ${statusFilter === 'resolved' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`} onClick={() => setStatusFilter('resolved')}>
+              </button>
+              <button
+                type="button"
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${statusFilter === 'resolved' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                onClick={() => setStatusFilter('resolved')}
+              >
                 {getEnumLabel('fact_status', 'resolved', 'resolved')} ({resolvedCount})
-              </span>
-              <span className={`cursor-pointer border-b-2 pb-1 font-medium ${statusFilter === 'deprecated' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`} onClick={() => setStatusFilter('deprecated')}>
+              </button>
+              <button
+                type="button"
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${statusFilter === 'deprecated' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                onClick={() => setStatusFilter('deprecated')}
+              >
                 {getEnumLabel('fact_status', 'deprecated', 'deprecated')} ({deprecatedCount})
-              </span>
+              </button>
             </div>
           </header>
 
           {staleCount > 0 && !statusFilter ? (
             <div className="mx-4 mt-3 flex items-center justify-between rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-xs text-warning">
               <span>💡 {t('facts.staleHint', { count: staleCount })}</span>
-              <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => setStatusFilter('stale')}>{t('facts.staleView')}</Button>
+              <Button variant="ghost" size="sm" className="h-11 px-3 text-sm" onClick={() => setStatusFilter('stale')}>{t('facts.staleView')}</Button>
             </div>
           ) : null}
 
           {filteredFacts.length > 0 ? (
             <div className="mx-4 mt-3 flex flex-wrap items-center gap-3 text-xs text-text/60">
-              <button className={`font-medium ${batchMode ? 'text-accent' : 'text-text/40 hover:text-text/60'}`} onClick={() => { setBatchMode(!batchMode); if (batchMode) { setSelectedIds(new Set()); setBatchMenuOpen(false); } }}>
+              <button
+                type="button"
+                className={`min-h-[44px] font-medium ${batchMode ? 'text-accent' : 'text-text/40 hover:text-text/60'}`}
+                onClick={() => { setBatchMode(!batchMode); if (batchMode) { setSelectedIds(new Set()); setBatchMenuOpen(false); } }}
+              >
                 {batchMode ? t('facts.batchExit') : t('facts.batchEnter')}
               </button>
               {batchMode ? (
-                <label className="flex items-center gap-1.5 cursor-pointer">
+                <label className="flex min-h-[44px] items-center gap-1.5 cursor-pointer">
                   <input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === filteredFacts.length} onChange={toggleSelectAll} className="accent-accent" />
                   {t('facts.batchSelect')}
                 </label>
@@ -699,13 +723,13 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               {selectedIds.size > 0 ? (
                 <>
                   <span className="font-medium text-accent">{t('facts.batchSelected', { count: selectedIds.size })}</span>
-                  <Button variant="secondary" size="sm" className="h-8 px-3 text-xs" onClick={() => setBatchMenuOpen(!batchMenuOpen)} disabled={batchProcessing}>
+                  <Button variant="secondary" size="sm" className="h-11 px-3 text-sm" onClick={() => setBatchMenuOpen(!batchMenuOpen)} disabled={batchProcessing}>
                     {t('facts.batchAction')} ▾
                   </Button>
                   {batchMenuOpen ? (
                     <div className="w-full rounded-lg border border-black/10 bg-surface p-1 dark:border-white/10">
                       {(['deprecated', 'resolved', 'active', 'unresolved'] as const).map(s => (
-                        <button key={s} className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-accent/10" onClick={() => { setBatchMenuOpen(false); setBatchConfirm(s); }}>
+                        <button key={s} type="button" className="flex min-h-[44px] w-full items-center rounded-md px-3 py-2 text-left text-sm hover:bg-accent/10" onClick={() => { setBatchMenuOpen(false); setBatchConfirm(s); }}>
                           {t(`facts.batchTo.${s}`)}
                         </button>
                       ))}

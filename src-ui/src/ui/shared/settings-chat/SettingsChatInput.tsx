@@ -43,7 +43,7 @@ export function SettingsChatInput({
   return (
     <div className="safe-area-bottom flex flex-col border-t border-black/10 bg-surface/45 dark:border-white/10">
       <button
-        className="mx-auto flex items-center gap-1 px-4 py-1 text-[10px] text-text/40 hover:text-text/60 transition-colors"
+        className="mx-auto flex min-h-[44px] items-center gap-1 px-4 py-1 text-[10px] text-text/40 transition-colors hover:text-text/60"
         onClick={() => setCollapsed(prev => !prev)}
       >
         {collapsed ? <ChevronsUp size={12} /> : <ChevronsDown size={12} />}
@@ -53,7 +53,7 @@ export function SettingsChatInput({
       {collapsed ? (
         <div className="flex items-center justify-center gap-3 pb-2">
           <Button variant="primary" size="sm" onClick={() => setCollapsed(false)} className="min-w-[112px]">
-            {t("settingsMode.send")}
+            {t("settingsMode.expandComposer")}
           </Button>
         </div>
       ) : (

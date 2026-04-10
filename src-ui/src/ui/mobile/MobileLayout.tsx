@@ -64,6 +64,10 @@ export function MobileLayout({
   const handleTabChange = (nextTab: MobileWorkspaceTab) => {
     setActiveTab(nextTab);
 
+    if (nextTab === "chapters") {
+      return;
+    }
+
     if (nextTab === "settings") {
       onNavigate("au_lore", auPath);
       return;
@@ -74,6 +78,7 @@ export function MobileLayout({
       return;
     }
 
+    onClearViewChapter();
     onNavigate("writer", auPath);
   };
 
@@ -92,6 +97,7 @@ export function MobileLayout({
               onNavigate("writer", auPath);
             }}
             onStartWriting={() => {
+              onClearViewChapter();
               setActiveTab("writer");
               onNavigate("writer", auPath);
             }}
@@ -113,7 +119,16 @@ export function MobileLayout({
         ) : null}
 
         {activeTab === "manage" ? (
-          <MobileManageView auPath={auPath} defaultSection={manageSection} />
+          <MobileManageView
+            auPath={auPath}
+            defaultSection={manageSection}
+            onImportComplete={onChaptersChanged}
+            onOpenWriter={() => {
+              onClearViewChapter();
+              setActiveTab("writer");
+              onNavigate("writer", auPath);
+            }}
+          />
         ) : null}
       </div>
 

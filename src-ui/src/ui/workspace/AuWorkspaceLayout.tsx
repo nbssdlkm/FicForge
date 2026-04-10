@@ -73,14 +73,23 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
     if (!auPath) return;
     const requestId = ++loadWorkspaceRequestIdRef.current;
     const requestAuPath = auPath;
+    if (clickTimerRef.current) {
+      clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = null;
+    }
     setLoadingChapters(true);
     setChapters([]);
     setCurrentChapter(1);
     setFactsCount(0);
     setEmbeddingStale(false);
+    setEmbeddingDismissed(false);
     setPinnedCount(0);
     setUnresolvedFact(null);
     setChapterFocusEmpty(true);
+    setViewingChapter(null);
+    editingRef.current = null;
+    setEditingTitleNum(null);
+    setEditingTitleValue('');
     listChapters(auPath)
       .then((res) => {
         if (requestId !== loadWorkspaceRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;

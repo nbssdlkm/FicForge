@@ -269,7 +269,7 @@ function markSettingsModeTooltipSeen(): void {
   window.localStorage.setItem(SETTINGS_MODE_TOOLTIP_STORAGE_KEY, '1');
 }
 
-function formatGeneratedMeta(generatedWith?: DraftGeneratedWith | null): string {
+function formatGeneratedMeta(generatedWith?: DraftGeneratedWith | null, locale = 'zh-CN'): string {
   if (!generatedWith) return '';
 
   const parts: string[] = [];
@@ -277,7 +277,7 @@ function formatGeneratedMeta(generatedWith?: DraftGeneratedWith | null): string 
     const timestamp = new Date(generatedWith.generated_at);
     if (!Number.isNaN(timestamp.getTime())) {
       parts.push(
-        new Intl.DateTimeFormat('zh-CN', {
+        new Intl.DateTimeFormat(locale, {
           month: '2-digit',
           day: '2-digit',
           hour: '2-digit',
@@ -305,7 +305,7 @@ function getCandidateKey(candidate: ExtractedFactCandidate, index: number): stri
 }
 
 export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapter, onChaptersChanged }: { auPath: string, onNavigate: (page: string) => void, viewChapter?: number | null, onClearViewChapter?: () => void, onChaptersChanged?: () => void }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
   const isMobile = useMediaQuery('(max-width: 768px)');
   const instructionInputRef = useRef<HTMLInputElement | null>(null);
@@ -1183,7 +1183,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const metaDuration = activeGeneratedWith?.duration_ms
     ? `${(activeGeneratedWith.duration_ms / 1000).toFixed(1)}s`
     : t('writer.metaDurationUnknown');
-  const currentDraftMeta = formatGeneratedMeta(currentDraft?.generatedWith);
+  const currentDraftMeta = formatGeneratedMeta(
+    currentDraft?.generatedWith,
+    i18n.resolvedLanguage === 'en' ? 'en-US' : 'zh-CN'
+  );
   const previewText = currentDraft ? getPreviewText(currentDraft.content) : '';
   const isLastDraft = activeDraftIndex >= drafts.length - 1;
   const isFirstDraft = activeDraftIndex === 0;
@@ -1206,8 +1209,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
           <div className="flex flex-col gap-2 border-b border-warning/20 bg-warning/10 px-4 py-2 text-xs md:flex-row md:items-center md:justify-between md:px-6">
             <span className="text-warning">{t('dirty.banner', { count: (state?.chapters_dirty || []).length, chapters: (state?.chapters_dirty || []).join(', ') })}</span>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" className="text-xs h-6" onClick={() => { setDirtyTargetChapter((state?.chapters_dirty || [])[0] || 0); setDirtyOpen(true); }}>{t('dirty.goResolve')}</Button>
-              <Button variant="ghost" size="sm" className="text-xs h-6 text-text/40" onClick={() => setDirtyBannerDismissed(true)}>{t('dirty.dismissBanner')}</Button>
+              <Button variant="ghost" size="sm" className="h-11 text-xs md:h-6" onClick={() => { setDirtyTargetChapter((state?.chapters_dirty || [])[0] || 0); setDirtyOpen(true); }}>{t('dirty.goResolve')}</Button>
+              <Button variant="ghost" size="sm" className="h-11 text-xs text-text/40 md:h-6" onClick={() => setDirtyBannerDismissed(true)}>{t('dirty.dismissBanner')}</Button>
             </div>
           </div>
         )}
@@ -1252,7 +1255,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 text-warning"
+                className="h-11 text-warning md:h-8"
                 onClick={() => {
                   setDirtyTargetChapter((state?.chapters_dirty || [])[0] || 0);
                   showToast(t('writer.dirtyOpenHint'), 'info');
@@ -1263,7 +1266,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                 <AlertCircle size={16} />
               </Button>
             )}
-            <Button variant="ghost" size="sm" className="h-8" onClick={() => setExportOpen(true)} title={t('writer.exportButtonTitle')}>
+            <Button variant="ghost" size="sm" className="h-11 md:h-8" onClick={() => setExportOpen(true)} title={t('writer.exportButtonTitle')}>
               <FileUp size={16} />
             </Button>
             <ThemeToggle />
@@ -1353,7 +1356,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                           {t('writer.checkSettings')}
                         </Button>
                       )}
-                      <button className="text-xs text-text/40 hover:text-text/60" onClick={() => setGenerationErrorDisplay(null)}>
+                      <button
+                        className="inline-flex min-h-[44px] items-center px-4 text-xs text-text/40 hover:text-text/60"
+                        onClick={() => setGenerationErrorDisplay(null)}
+                      >
                         {t('common.actions.dismiss')}
                       </button>
                     </div>
@@ -1373,7 +1379,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
           <footer className="safe-area-bottom absolute bottom-0 w-full shrink-0 border-t border-black/10 dark:border-white/10 bg-surface/80 backdrop-blur-md flex flex-col">
             {/* Collapse toggle */}
             <button
-              className="mx-auto flex items-center gap-1 px-4 py-1 text-[10px] text-text/40 hover:text-text/60 transition-colors"
+              className="mx-auto flex min-h-[44px] items-center gap-1 px-4 py-1 text-[10px] text-text/40 transition-colors hover:text-text/60"
               onClick={() => setFooterCollapsed(prev => !prev)}
             >
               {footerCollapsed ? <ChevronsUp size={12} /> : <ChevronsDown size={12} />}
@@ -1437,7 +1443,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                             key={draft.draftId}
                             type="button"
                             onClick={() => setActiveDraftIndex(index)}
-                            className={`min-h-[40px] rounded-full px-3 text-sm whitespace-nowrap transition-colors ${index === activeDraftIndex ? 'bg-accent text-white' : 'bg-black/5 text-text/60 dark:bg-white/10'}`}
+                            className={`min-h-[44px] rounded-full px-3 text-sm whitespace-nowrap transition-colors ${index === activeDraftIndex ? 'bg-accent text-white' : 'bg-black/5 text-text/60 dark:bg-white/10'}`}
                           >
                             {t('drafts.count', { current: index + 1, total: drafts.length })}
                           </button>
@@ -1445,17 +1451,17 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                       </div>
 
                       <div className="flex flex-wrap items-center justify-end gap-2">
-                        <Button variant="primary" size="sm" className="h-8 gap-1" onClick={() => { setChapterTitle(''); setFinalizeConfirmOpen(true); }} disabled={writeActionsDisabled}>
+                        <Button variant="primary" size="sm" className="h-11 gap-1 md:h-8" onClick={() => { setChapterTitle(''); setFinalizeConfirmOpen(true); }} disabled={writeActionsDisabled}>
                           <Check size={15} /> {t('drafts.finalize')}
                         </Button>
-                        <Button variant="secondary" size="sm" className="h-8 gap-1" onClick={() => void handleRegenerate()} disabled={writeActionsDisabled}>
+                        <Button variant="secondary" size="sm" className="h-11 gap-1 md:h-8" onClick={() => void handleRegenerate()} disabled={writeActionsDisabled}>
                           {isGenerating ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
                           {t('drafts.regenerate')}
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 gap-1 text-error/80 hover:bg-error/10 hover:text-error"
+                          className="h-11 gap-1 text-error/80 hover:bg-error/10 hover:text-error md:h-8"
                           onClick={() => setDiscardConfirmOpen(true)}
                           disabled={isGenerating || isDiscarding || isSettingsModeBusy}
                         >
@@ -1805,7 +1811,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
               value={chapterTitle}
               onChange={(e) => setChapterTitle(e.target.value)}
               placeholder={t('writer.chapterTitlePlaceholder')}
-              className="w-full rounded-lg border border-black/10 bg-surface/40 px-3 py-2 text-sm text-text focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent dark:border-white/10"
+              className="w-full rounded-lg border border-black/10 bg-surface/40 px-3 py-2 text-base text-text focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent dark:border-white/10 md:text-sm"
             />
             <p className="text-[11px] text-text/40 mt-1">{t('writer.chapterTitleAutoHint')}</p>
           </div>
@@ -1864,7 +1870,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
               {t('drafts.factsSkip')}
             </Button>
           </div>
-          <label className="flex items-center gap-2 text-sm text-text/70">
+          <label className="flex min-h-[44px] items-center gap-2 text-sm text-text/70">
             <input
               type="checkbox"
               className="accent-accent"

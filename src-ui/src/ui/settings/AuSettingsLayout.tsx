@@ -291,7 +291,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                 <div className="pt-4 border-t border-black/10 dark:border-white/10 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-text/80">{t("common.labels.searchMode")}</label>
-                    <select value={llmMode} onChange={e => setLlmMode(e.target.value)} className="h-9 rounded-md border border-black/20 dark:border-white/20 bg-background px-3 text-sm focus:ring-2 focus:ring-accent outline-none">
+                    <select value={llmMode} onChange={e => setLlmMode(e.target.value)} className="h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-9 md:text-sm">
                       <option value="api">{getEnumLabel("llm_mode", "api", "api")}</option>
                       <option value="local">{getEnumLabel("llm_mode", "local", "local")}</option>
                       <option value="ollama">{getEnumLabel("llm_mode", "ollama", "ollama")}</option>
@@ -302,16 +302,16 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                     <>
                       <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-text/80">{t("settings.story.storyModel")}</label>
-                        <Input value={auModel} onChange={e => setAuModel(e.target.value)} placeholder="deepseek-chat" className="h-9 text-sm" />
+                        <Input value={auModel} onChange={e => setAuModel(e.target.value)} placeholder="deepseek-chat" className="h-11 text-base md:h-9 md:text-sm" />
                       </div>
                       <div className="flex flex-col gap-1.5">
                          <label className="text-xs font-bold text-text/80">{t("common.labels.apiKey")}</label>
-                         <Input type="password" value={auApiKey} onChange={e => setAuApiKey(e.target.value)} placeholder="sk-..." className="h-9 text-sm" />
+                         <Input type="password" value={auApiKey} onChange={e => setAuApiKey(e.target.value)} placeholder="sk-..." className="h-11 text-base md:h-9 md:text-sm" />
                          <p className="text-xs text-text/50">{t("common.help.apiKey")}</p>
                       </div>
                       <div className="flex flex-col gap-1.5 md:col-span-2">
                          <label className="text-xs font-bold text-text/80">{t("common.labels.apiBase")}</label>
-                         <Input value={auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="https://api.deepseek.com" className="h-9 text-sm" />
+                         <Input value={auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="https://api.deepseek.com" className="h-11 text-base md:h-9 md:text-sm" />
                          <p className="text-xs text-text/50">{t("common.help.apiBase")}</p>
                       </div>
                     </>
@@ -319,7 +319,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                   {llmMode === 'local' && (
                     <div className="flex flex-col gap-1.5 md:col-span-2">
                       <label className="text-xs font-bold text-text/80">{t("common.labels.localModelPath")}</label>
-                      <Input value={auLocalModelPath} onChange={e => setAuLocalModelPath(e.target.value)} placeholder="/path/to/model" className="h-9 text-sm" />
+                      <Input value={auLocalModelPath} onChange={e => setAuLocalModelPath(e.target.value)} placeholder="/path/to/model" className="h-11 text-base md:h-9 md:text-sm" />
                       <p className="text-xs text-text/50">{t("common.help.localModelPath")}</p>
                     </div>
                   )}
@@ -327,19 +327,19 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                     <>
                       <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-text/80">{t("common.labels.ollamaModel")}</label>
-                        <Input value={auOllamaModel} onChange={e => setAuOllamaModel(e.target.value)} placeholder="llama3" className="h-9 text-sm" />
+                        <Input value={auOllamaModel} onChange={e => setAuOllamaModel(e.target.value)} placeholder="llama3" className="h-11 text-base md:h-9 md:text-sm" />
                         <p className="text-xs text-text/50">{t("common.help.ollamaModel")}</p>
                       </div>
                       <div className="flex flex-col gap-1.5">
                          <label className="text-xs font-bold text-text/80">{t("common.labels.apiBase")}</label>
-                         <Input value={auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="http://localhost:11434" className="h-9 text-sm" />
+                         <Input value={auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="http://localhost:11434" className="h-11 text-base md:h-9 md:text-sm" />
                          <p className="text-xs text-text/50">{t("common.help.apiBase")}</p>
                       </div>
                     </>
                   )}
                   <div className="flex flex-col gap-1.5 md:col-span-2">
                      <label className="text-xs font-bold text-text/80">{t("common.labels.contextWindow")}</label>
-                     <Input type="number" value={contextWindow} onChange={e => setContextWindow(parseInt(e.target.value, 10) || 0)} className="h-9 text-sm" />
+                     <Input type="number" value={contextWindow} onChange={e => setContextWindow(parseInt(e.target.value, 10) || 0)} className="h-11 text-base md:h-9 md:text-sm" />
                      <p className="text-xs text-text/50">{t("common.help.contextWindow")}</p>
                   </div>
                 </div>
@@ -353,17 +353,17 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-bold text-text/90">{t("common.labels.searchEngineModel")}</label>
                 {!isEmbeddingOverride && (
-                  <Input value={globalSettings?.embedding?.model || t("settings.global.builtinEmbeddingLabel")} readOnly className="h-10 font-mono bg-background/70" />
+                  <Input value={globalSettings?.embedding?.model || t("settings.global.builtinEmbeddingLabel")} readOnly className="h-11 bg-background/70 font-mono text-base md:h-10 md:text-sm" />
                 )}
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <label className="flex min-h-[44px] items-center gap-2 text-sm cursor-pointer">
                   <input type="checkbox" checked={isEmbeddingOverride} onChange={e => setIsEmbeddingOverride(e.target.checked)} disabled={saving} className="accent-accent" />
                   {t("settings.au.useCustomEmbedding")}
                 </label>
                 {isEmbeddingOverride && (
                   <div className="space-y-2 pl-6 border-l-2 border-info/30">
-                    <Input value={embModel} onChange={e => setEmbModel(e.target.value)} placeholder={t("settings.global.embeddingModelPlaceholder")} disabled={saving} className="h-8 text-sm" />
-                    <Input value={embApiBase} onChange={e => setEmbApiBase(e.target.value)} placeholder={t("settings.global.embeddingApiBasePlaceholder")} disabled={saving} className="h-8 text-sm" />
-                    <Input value={embApiKey} onChange={e => setEmbApiKey(e.target.value)} placeholder={t("settings.global.embeddingApiKeyPlaceholder")} disabled={saving} className="h-8 text-sm" type="password" />
+                    <Input value={embModel} onChange={e => setEmbModel(e.target.value)} placeholder={t("settings.global.embeddingModelPlaceholder")} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
+                    <Input value={embApiBase} onChange={e => setEmbApiBase(e.target.value)} placeholder={t("settings.global.embeddingApiBasePlaceholder")} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
+                    <Input value={embApiKey} onChange={e => setEmbApiKey(e.target.value)} placeholder={t("settings.global.embeddingApiKeyPlaceholder")} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" type="password" />
                   </div>
                 )}
                 <p className="text-xs text-text/50">{t("common.help.searchEngineModel")}</p>
@@ -383,21 +383,21 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
               <div className="flex flex-col gap-4">
                  <div className="flex flex-col gap-2">
                    <label className="text-sm font-bold text-text/90">{t("common.labels.perspective")}</label>
-                   <select value={perspective} onChange={e => setPerspective(e.target.value)} className="h-10 rounded-md border border-black/20 dark:border-white/20 bg-background px-3 text-sm focus:ring-2 focus:ring-accent outline-none">
+                   <select value={perspective} onChange={e => setPerspective(e.target.value)} className="h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm">
                      <option value="third_person">{getEnumLabel("perspective", "third_person", "third_person")}</option>
                      <option value="first_person">{getEnumLabel("perspective", "first_person", "first_person")}</option>
                    </select>
                  </div>
                  <div className="flex flex-col gap-2">
                    <label className="text-sm font-bold text-text/90">{t("common.labels.emotionStyle")}</label>
-                   <select value={emotionStyle} onChange={e => setEmotionStyle(e.target.value)} className="h-10 rounded-md border border-black/20 dark:border-white/20 bg-background px-3 text-sm focus:ring-2 focus:ring-accent outline-none">
+                   <select value={emotionStyle} onChange={e => setEmotionStyle(e.target.value)} className="h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm">
                      <option value="implicit">{getEnumLabel("emotion_style", "implicit", "implicit")}</option>
                      <option value="explicit">{getEnumLabel("emotion_style", "explicit", "explicit")}</option>
                    </select>
                  </div>
                  <div className="flex flex-col gap-2">
                    <label className="text-sm font-bold text-text/90">{t("common.labels.chapterLength")}</label>
-                   <Input type="number" value={chapterLength} onChange={e => setChapterLength(parseInt(e.target.value) || 2000)} className="h-10 font-mono" />
+                   <Input type="number" value={chapterLength} onChange={e => setChapterLength(parseInt(e.target.value) || 2000)} className="h-11 font-mono text-base md:h-10 md:text-sm" />
                    <p className="text-xs text-text/50">{t("settings.story.chapterLengthDescription")}</p>
                  </div>
               </div>
@@ -408,7 +408,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                    value={customInstructions}
                    onChange={e => setCustomInstructions(e.target.value)}
                    placeholder={t("settings.story.customInstructionsPlaceholder")}
-                   className="font-serif min-h-[200px] text-sm leading-relaxed bg-background p-4 resize-y" 
+                   className="min-h-[200px] resize-y bg-background p-4 font-serif text-base leading-relaxed md:text-sm"
                  />
               </div>
             </div>
@@ -418,7 +418,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
           <section className="space-y-6">
             <h2 className="flex flex-col gap-3 border-l-4 border-error pl-3 text-lg font-sans font-bold text-error md:flex-row md:items-center md:justify-between">
                <span>{t("settings.sections.pinnedContext")}</span>
-               <Button variant="secondary" size="sm" className="h-10 border-error/30 text-sm font-normal text-error hover:bg-error/10 md:h-8 md:text-xs" onClick={addPinnedRule}>
+               <Button variant="secondary" size="sm" className="h-11 border-error/30 text-sm font-normal text-error hover:bg-error/10 md:h-8 md:text-xs" onClick={addPinnedRule}>
                  <Plus size={14} className="mr-1"/> {t("common.actions.addPinnedRule")}
                </Button>
             </h2>
@@ -446,8 +446,8 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                  pinnedContext.map((pc, idx) => (
                    <div key={idx} className="flex items-start gap-3 rounded-lg border border-error/20 bg-error/5 p-4">
                      <span className="font-mono text-error/50 font-bold mt-1 text-sm">{idx+1}.</span>
-                     <Textarea className="min-h-[60px] flex-1 bg-background text-sm font-serif" value={pc} onChange={e => updatePinnedRule(idx, e.target.value)} />
-                     <Button variant="ghost" size="sm" className="text-error/60 hover:text-error hover:bg-error/10 p-2 h-auto" onClick={() => removePinnedRule(idx)}>
+                     <Textarea className="min-h-[60px] flex-1 bg-background font-serif text-base md:text-sm" value={pc} onChange={e => updatePinnedRule(idx, e.target.value)} />
+                     <Button variant="ghost" size="sm" className="h-11 w-11 p-0 text-error/60 hover:bg-error/10 hover:text-error md:h-auto md:w-auto md:p-2" onClick={() => removePinnedRule(idx)}>
                        <Trash2 size={16}/>
                      </Button>
                    </div>
@@ -475,11 +475,11 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                 coreIncludes.map((file, idx) => (
                   <Tag key={idx} variant="success" className="px-3 py-1.5 text-sm gap-2">
                     <span>{file}</span>
-                    <button className="hover:text-success/50" onClick={() => removeCoreInclude(idx)}><Trash2 size={14}/></button>
+                    <button className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:text-success/50 md:h-auto md:w-auto" onClick={() => removeCoreInclude(idx)}><Trash2 size={14}/></button>
                   </Tag>
                 ))
               )}
-              <Button variant="ghost" size="sm" className="h-10 border border-dashed border-success/30 text-sm text-success hover:bg-success/5 md:h-8 md:text-xs" onClick={() => setCoreIncludeModalOpen(true)}>
+              <Button variant="ghost" size="sm" className="h-11 border border-dashed border-success/30 text-sm text-success hover:bg-success/5 md:h-8 md:text-xs" onClick={() => setCoreIncludeModalOpen(true)}>
                 <Plus size={14} className="mr-1"/> {t("common.actions.addFile")}
               </Button>
             </div>
@@ -563,7 +563,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
             return available.length > 0 ? (
               <div className="space-y-2">
                 {available.map(name => (
-                  <button key={name} className="w-full text-left px-3 py-2 rounded-lg border border-black/10 dark:border-white/10 hover:bg-accent/10 hover:border-accent/30 transition-colors text-sm" onClick={() => { setCoreIncludes(prev => [...prev, name]); setCoreIncludeModalOpen(false); }}>
+                  <button key={name} className="min-h-[44px] w-full rounded-lg border border-black/10 px-3 py-2 text-left text-sm transition-colors hover:border-accent/30 hover:bg-accent/10 dark:border-white/10" onClick={() => { setCoreIncludes(prev => [...prev, name]); setCoreIncludeModalOpen(false); }}>
                     {name}
                   </button>
                 ))}

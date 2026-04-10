@@ -56,7 +56,7 @@ export function PreviewStep({
       <p className="text-xs text-text/40">{t('import.splitHint')}</p>
 
       <div className="flex justify-between pt-2">
-        <Button variant="ghost" onClick={onBack}>{t('onboarding.common.prev')}</Button>
+        <Button variant="ghost" onClick={onBack} disabled={confirming}>{t('onboarding.common.prev')}</Button>
         <Button variant="primary" onClick={onConfirm} disabled={confirming}>
           {confirming ? <><Loader2 size={14} className="animate-spin mr-2" />{t('import.importing')}</> : t('import.confirmImport')}
         </Button>

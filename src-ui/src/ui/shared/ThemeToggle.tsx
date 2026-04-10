@@ -28,7 +28,7 @@ export const ThemeToggle: React.FC = () => {
   };
 
   return (
-    <Button variant="ghost" size="sm" onClick={cycleTheme} className="w-10 h-10 p-0 rounded-full" title={t("shared.theme.toggle")}>
+    <Button variant="ghost" size="sm" onClick={cycleTheme} className="h-11 w-11 rounded-full p-0 md:h-10 md:w-10" title={t("shared.theme.toggle")}>
       {theme === 'warm' && <Sun size={18} />}
       {theme === 'mint' && <Leaf size={18} />}
       {theme === 'night' && <Moon size={18} />}

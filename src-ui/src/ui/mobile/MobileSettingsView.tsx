@@ -2,9 +2,10 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
+import { getState } from "../../api/engine-client";
 import { AuLoreLayout } from "../library/AuLoreLayout";
 import { Button } from "../shared/Button";
 import { SettingsChatPanel } from "../shared/settings-chat/SettingsChatPanel";
@@ -22,7 +23,28 @@ export function MobileSettingsView({ auPath, currentChapter }: MobileSettingsVie
   const { t } = useTranslation();
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [resolvedCurrentChapter, setResolvedCurrentChapter] = useState(currentChapter);
+  const requestIdRef = useRef(0);
   const fandomPath = useMemo(() => deriveFandomPath(auPath), [auPath]);
+
+  useEffect(() => {
+    setResolvedCurrentChapter(currentChapter);
+  }, [currentChapter]);
+
+  useEffect(() => {
+    const requestId = ++requestIdRef.current;
+    getState(auPath).then((state) => {
+      if (requestId !== requestIdRef.current) return;
+      setResolvedCurrentChapter(state?.current_chapter || 1);
+    }).catch(() => {
+      if (requestId !== requestIdRef.current) return;
+      setResolvedCurrentChapter(currentChapter || 1);
+    });
+
+    return () => {
+      requestIdRef.current += 1;
+    };
+  }, [auPath, currentChapter, overlayOpen]);
 
   return (
     <div className="relative min-h-full md:hidden">
@@ -60,7 +82,7 @@ export function MobileSettingsView({ auPath, currentChapter }: MobileSettingsVie
               basePath={auPath}
               fandomPath={fandomPath}
               placeholder={t("settingsMode.placeholder")}
-              currentChapter={currentChapter}
+              currentChapter={resolvedCurrentChapter}
               className="h-full"
               onAfterMutation={async () => {
                 setRefreshKey((current) => current + 1);

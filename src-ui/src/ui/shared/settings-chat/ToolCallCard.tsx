@@ -4,8 +4,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { useMediaQuery } from "../../../hooks/useMediaQuery";
 import { Button } from "../Button";
 import { Card } from "../Card";
+import { Modal } from "../Modal";
 import { Tag } from "../Tag";
 import { ToolCallEditor } from "./ToolCallEditor";
 import { getEnumLabel, getOriginRefLabel } from "../../../i18n/labels";
@@ -145,6 +147,7 @@ export function ToolCallCard({
   onSkip,
   onUndo,
 }: ToolCallCardProps) {
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const [isExpanded, setExpanded] = useState(false);
   const [isEditing, setEditing] = useState(false);
   const [draftArgs, setDraftArgs] = useState<Record<string, unknown>>(card.parsedArgs);
@@ -195,6 +198,28 @@ export function ToolCallCard({
     setDraftArgs(card.parsedArgs);
     setEditing(false);
   }, [card.id, card.parsedArgs]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    if (card.status === "executed" || card.status === "undone" || card.status === "skipped") {
+      setEditing(false);
+    }
+  }, [card.status, isMobile]);
+
+  const canConfirm = !(
+    card.parseError !== null
+    || card.isLoading
+    || (globalBusy && !card.isLoading)
+    || validationError !== null
+    || warning !== null
+    || overwriteWarning !== null
+    || missingTargetError !== null
+  );
+
+  const handleCancelEdit = () => {
+    setDraftArgs(card.parsedArgs);
+    setEditing(false);
+  };
 
   const statusTag = card.status === "pending"
     ? null
@@ -267,7 +292,7 @@ export function ToolCallCard({
         </div>
       ) : null}
 
-      {!isEditing ? (
+      {!isEditing || isMobile ? (
         <div className="space-y-3 text-sm text-text/75">
           {(() => {
             const args = card.parsedArgs;
@@ -350,7 +375,7 @@ export function ToolCallCard({
               <Button
                 variant="ghost"
                 size="sm"
-                className="mt-2 h-7 px-2 text-xs"
+                className="mt-2 h-11 px-3 text-sm sm:h-7 sm:px-2 sm:text-xs"
                 onClick={() => setExpanded((current) => !current)}
               >
                 {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -385,7 +410,7 @@ export function ToolCallCard({
             <Button
               variant="ghost"
               size="sm"
-              className="h-10 w-full gap-1 text-text/70 sm:h-8 sm:w-auto"
+              className="h-11 w-full gap-1 text-text/70 sm:h-8 sm:w-auto"
               onClick={() => void onUndo(card.id)}
               disabled={card.isLoading || (globalBusy && !card.isLoading)}
             >
@@ -393,18 +418,15 @@ export function ToolCallCard({
             </Button>
           ) : null}
         </div>
-      ) : (
+      ) : isEditing && isMobile ? null : (
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {isEditing ? (
+          {isEditing && !isMobile ? (
             <>
               <Button
                 variant="ghost"
                 size="sm"
                 className="w-full sm:w-auto"
-                onClick={() => {
-                  setDraftArgs(card.parsedArgs);
-                  setEditing(false);
-                }}
+                onClick={handleCancelEdit}
                 disabled={globalBusy && !card.isLoading}
               >
                 {t("common.actions.cancel")}
@@ -414,15 +436,7 @@ export function ToolCallCard({
                 size="sm"
                 className="w-full sm:w-auto"
                 onClick={() => void onConfirm(card.id, draftArgs)}
-                disabled={
-                  card.parseError !== null
-                  || card.isLoading
-                  || (globalBusy && !card.isLoading)
-                  || validationError !== null
-                  || warning !== null
-                  || overwriteWarning !== null
-                  || missingTargetError !== null
-                }
+                disabled={!canConfirm}
               >
                 {card.isLoading ? <Loader2 size={14} className="animate-spin" /> : t("settingsMode.confirm")}
               </Button>
@@ -434,15 +448,7 @@ export function ToolCallCard({
                 size="sm"
                 className="w-full sm:w-auto"
                 onClick={() => void onConfirm(card.id)}
-                disabled={
-                  card.parseError !== null
-                  || card.isLoading
-                  || (globalBusy && !card.isLoading)
-                  || validationError !== null
-                  || warning !== null
-                  || overwriteWarning !== null
-                  || missingTargetError !== null
-                }
+                disabled={!canConfirm}
               >
                 {card.isLoading ? <Loader2 size={14} className="animate-spin" /> : t("settingsMode.confirm")}
               </Button>
@@ -468,6 +474,31 @@ export function ToolCallCard({
           )}
         </div>
       )}
+
+      <Modal
+        isOpen={isEditing && isMobile}
+        onClose={handleCancelEdit}
+        title={getCardTitle(card, mode, t)}
+      >
+        <div className="space-y-4">
+          <ToolCallEditor
+            card={card}
+            value={draftArgs}
+            onChange={setDraftArgs}
+            availableCharacterNames={availableCharacterNames}
+            mode={mode}
+            t={t}
+          />
+          <div className="flex flex-col gap-2 border-t border-black/10 pt-4 dark:border-white/10">
+            <Button variant="ghost" onClick={handleCancelEdit} disabled={globalBusy && !card.isLoading}>
+              {t("common.actions.cancel")}
+            </Button>
+            <Button variant="primary" onClick={() => void onConfirm(card.id, draftArgs)} disabled={!canConfirm}>
+              {card.isLoading ? <Loader2 size={14} className="animate-spin" /> : t("settingsMode.confirm")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </Card>
   );
 }

@@ -236,6 +236,7 @@
     "placeholder": "Describe the lore changes you want… (due to model limitations, create one file per message for best results)",
     "fandomPlaceholder": "Paste your character analysis, or describe characters and worldbuilding to add… (due to model limitations, create one file per message for best results)",
     "send": "Send",
+    "expandComposer": "Open Composer",
     "firstTimeTooltip": "Here you can describe lore changes in natural language. The AI will help create and modify characters, worldbuilding, plot points, and more. All changes need your confirmation before taking effect.",
     "confirmAll": "✅ Confirm All",
     "skipAll": "⏭️ Skip All",
@@ -435,7 +436,7 @@
       "title": "Global Settings",
       "description": "These are the default settings. All new stories will start with this configuration.",
       "defaultModel": "Default Model",
-      "connectionSuccess": "Connection successful. Key is valid.",
+      "connectionSuccess": "Connection successful.",
       "testFailedPrefix": "Connection failed: ",
       "searchEngineDescription": "Finds the most relevant lore for your current scene.",
       "noEmbeddingModel": "(not configured)",
@@ -636,7 +637,8 @@
     "text": "Plain Text (.txt)",
     "description": "Export includes all finalized chapters. Drafts are not included.",
     "writing": "Writing to local file…",
-    "submit": "Export"
+    "submit": "Export",
+    "saveFailed": "Export failed. Check file permissions."
   },
   "emptyState": {
     "library": {
@@ -816,7 +818,7 @@
   },
   "import": {
     "title": "Import Existing Work",
-    "supportedFormats": "Supported formats: .txt  .md  .docx  .html",
+    "supportedFormats": "Supported formats: .txt  .md  .html  .htm",
     "dropzone": "Drag and drop a file here, or click to browse",
     "selectedFile": "Selected: {{name}} ({{size}})",
     "uploading": "Analyzing file...",
@@ -851,7 +853,7 @@
     "createAuFirst": "Create AU",
     "createFandomFirst": "Create Fandom",
     "newAuInFandom": "Create New AU in This Fandom",
-    "formatError": "Only .txt, .md, .docx, and .html files are supported"
+    "formatError": "Only .txt, .md, .html, and .htm files are supported"
   },
   "milestones": {
     "factsIntro": {
@@ -955,16 +957,18 @@
       },
       "setup": {
         "title": "Create or Import",
-        "subtitle": "Choose whether to start with a new fandom or jump straight to import and sync entry points.",
-        "createTitle": "Create a New Fandom",
-        "createDescription": "Set up a fandom container now, then create an AU and start writing.",
+        "subtitle": "Choose whether to start with a new fandom, open the import flow, or review settings next.",
+        "createTitle": "Create a New Fandom and AU",
+        "createDescription": "Create both the fandom and its first AU now, then start writing right away.",
         "importTitle": "Open Local Import Next",
         "importDescription": "Finish onboarding, then jump straight into the import flow for existing work.",
         "syncTitle": "Open Sync Settings Next",
         "syncDescription": "Finish onboarding, then continue with WebDAV or sync-related setup from Settings.",
         "laterTitle": "Enter the Library First",
         "laterDescription": "Skip creation and import for now and explore the app first.",
-        "fandomPlaceholder": "e.g. Genshin Impact, Jujutsu Kaisen, Detroit: Become Human..."
+        "fandomPlaceholder": "e.g. Genshin Impact, Jujutsu Kaisen, Detroit: Become Human...",
+        "auLabel": "AU Name",
+        "auPlaceholder": "e.g. Modern Campus, Cyber Detectives, Space Royalty..."
       },
       "ethics": {
         "subtitle": "Mobile uses the same local-first and responsible-use guidance as desktop.",
@@ -977,7 +981,7 @@
         "llmSummary": "Writing model: {{model}}",
         "embeddingSummary": "Embedding model: {{model}}",
         "embeddingSkipped": "Embedding model: skipped for now, can be configured later in Settings",
-        "createSummary": "Initial content: create fandom \"{{name}}\"",
+        "createSummary": "Initial content: create fandom \"{{fandomName}}\" and AU \"{{auName}}\"",
         "importSummary": "Initial content: open the local import flow after setup",
         "syncSummary": "Initial content: open Settings after setup to continue sync configuration",
         "laterSummary": "Initial content: enter the library first and create or import later"

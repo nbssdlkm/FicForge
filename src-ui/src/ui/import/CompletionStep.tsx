@@ -12,11 +12,13 @@ export function CompletionStep({
   totalChapters,
   charactersFound,
   onStartWriting,
+  onBusyChange,
 }: {
   auPath: string;
   totalChapters: number;
   charactersFound: string[];
   onStartWriting: () => void;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const { t } = useTranslation();
   const [extracting, setExtracting] = useState(false);
@@ -30,8 +32,13 @@ export function CompletionStep({
     return () => {
       unmountedRef.current = true;
       extractRequestIdRef.current += 1;
+      onBusyChange?.(false);
     };
-  }, []);
+  }, [onBusyChange]);
+
+  useEffect(() => {
+    onBusyChange?.(extracting);
+  }, [extracting, onBusyChange]);
 
   const handleExtract = async (count: number) => {
     const requestId = ++extractRequestIdRef.current;
