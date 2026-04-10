@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowLeft, FileText, Loader2, Plus, Pencil, Eye, Trash2, Users, Globe2 } from "lucide-react";
+import { ArrowLeft, FileText, Loader2, Pencil, Eye, Trash2, Users, Globe2 } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { listFandomFiles, readFandomFile, saveLore, deleteLore, type FandomFileEntry } from "../../api/engine-client";
 import { Button } from "../shared/Button";
@@ -285,7 +285,6 @@ export function MobileFandomView({ fandomPath, onNavigate }: MobileFandomViewPro
               key: "create",
               element: (
                 <Button variant="primary" size="sm" onClick={() => { setCreateName(""); setCreateOpen(true); }}>
-                  <Plus size={14} className="mr-1" />
                   {category === "core_characters" ? t("common.actions.addCharacter") : t("common.actions.addWorldbuilding")}
                 </Button>
               ),

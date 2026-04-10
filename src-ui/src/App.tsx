@@ -2,10 +2,11 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Library } from "./ui/Library";
 import { FandomLoreLayout } from "./ui/library/FandomLoreLayout";
 import { MobileFandomView } from "./ui/mobile/MobileFandomView";
+import { SplashScreen } from "./ui/SplashScreen";
 import { AuWorkspaceLayout } from "./ui/workspace/AuWorkspaceLayout";
 import { initEngine } from "./api/engine-client";
 import { useTranslation } from "./i18n/useAppTranslation";
@@ -18,7 +19,9 @@ function App() {
   const [currentAuPath, setCurrentAuPath] = useState<string>("");
   const [engineInitialized, setEngineInitialized] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
+  const [splashVisible, setSplashVisible] = useState(true);
   const initRef = useRef(false);
+  const splashStartRef = useRef(Date.now());
 
   useEffect(() => {
     async function setup() {
@@ -85,6 +88,19 @@ function App() {
     };
   }, []);
 
+  // Splash fade-out: ensure minimum 1s display, then fade
+  const dismissSplash = useCallback(() => {
+    const elapsed = Date.now() - splashStartRef.current;
+    const remaining = Math.max(0, 1000 - elapsed);
+    setTimeout(() => setSplashVisible(false), remaining);
+  }, []);
+
+  useEffect(() => {
+    if (engineInitialized || initError) {
+      dismissSplash();
+    }
+  }, [engineInitialized, initError, dismissSplash]);
+
   const handleNavigate = (page: string, contextPath?: string) => {
     if (contextPath) {
       setCurrentAuPath(contextPath);
@@ -105,20 +121,14 @@ function App() {
   }
 
   if (!engineInitialized) {
-    return (
-      <div className="min-h-screen bg-background text-text flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto mb-4" />
-          <p className="text-text/60">{t('app.sidecar.initializing')}</p>
-        </div>
-      </div>
-    );
+    return <SplashScreen visible={splashVisible} />;
   }
 
   const isAuSpace = ["writer", "facts", "au_lore", "settings"].includes(currentPage);
 
   return (
     <>
+      <SplashScreen visible={splashVisible} />
       {!isAuSpace && currentPage === "library" && <Library onNavigate={handleNavigate} />}
       {!isAuSpace && currentPage === "fandom_lore" && (
         isMobile
