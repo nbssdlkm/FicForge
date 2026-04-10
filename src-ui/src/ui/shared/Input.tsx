@@ -14,9 +14,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, label, error, type, style, ...props }, ref) => {
     // Android WebView 的 type="password" 禁止粘贴。
     // 改用 type="text" + CSS -webkit-text-security 遮蔽，保留粘贴能力。
+    // Firefox 不支持 -webkit-text-security，回退为原生 type="password"。
     const isPassword = type === "password";
-    const resolvedType = isPassword ? "text" : type;
-    const resolvedStyle = isPassword
+    const isFirefox = typeof navigator !== "undefined" && /firefox/i.test(navigator.userAgent);
+    const useTextSecurity = isPassword && !isFirefox;
+    const resolvedType = useTextSecurity ? "text" : type;
+    const resolvedStyle = useTextSecurity
       ? { ...style, WebkitTextSecurity: "disc" as const }
       : style;
 

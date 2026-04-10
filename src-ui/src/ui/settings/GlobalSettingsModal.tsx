@@ -159,7 +159,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
           ...(syncMode === 'webdav' ? {
             webdav: { url: syncUrl, username: syncUsername, password: syncPassword, remote_dir: syncRemoteDir },
           } : {}),
-          last_sync: lastSync,
+          ...(lastSync ? { last_sync: lastSync } : {}),
         },
       };
       await updateSettings(newSettings);
@@ -381,7 +381,12 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                     onClick={async () => {
                       setSyncTestStatus('testing');
                       try {
-                        const url = syncUrl.replace(/\/+$/, '') + syncRemoteDir;
+                        const raw = syncUrl.trim();
+                        if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
+                          setSyncTestStatus('error');
+                          return;
+                        }
+                        const url = raw.replace(/\/+$/, '') + syncRemoteDir;
                         const resp = await fetch(url, {
                           method: 'PROPFIND',
                           headers: {

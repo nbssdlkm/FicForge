@@ -65,7 +65,7 @@ export function MobileFandomView({ fandomPath, onNavigate }: MobileFandomViewPro
       setCharacterFiles(data.characters);
       setWorldbuildingFiles(data.worldbuilding);
     } catch {
-      // silent
+      // error handled silently — user sees empty/stale UI
     } finally {
       if (requestId === loadRequestRef.current) setLoading(false);
     }
@@ -105,7 +105,7 @@ export function MobileFandomView({ fandomPath, onNavigate }: MobileFandomViewPro
       await saveLore({ fandom_path: fandomPath, category: selectedCategory, filename: selectedFile, content: editorContent });
       setSavedContent(editorContent);
     } catch {
-      // silent
+      // error handled silently — user sees empty/stale UI
     } finally {
       setSaving(false);
     }
@@ -125,7 +125,7 @@ export function MobileFandomView({ fandomPath, onNavigate }: MobileFandomViewPro
       await loadFiles();
       await handleSelectFile(filename, category);
     } catch {
-      // silent
+      // error handled silently — user sees empty/stale UI
     } finally {
       setSaving(false);
     }
@@ -141,7 +141,7 @@ export function MobileFandomView({ fandomPath, onNavigate }: MobileFandomViewPro
       setSelectedFile(null);
       await loadFiles();
     } catch {
-      // silent
+      // error handled silently — user sees empty/stale UI
     } finally {
       setSaving(false);
     }

@@ -34,48 +34,59 @@ export class SyncManager {
   ) {}
 
   async sync(auId: string): Promise<SyncResult> {
-    // 1. 拉取远程 ops
-    const remoteOps = await this.syncAdapter.pullOps(auId);
+    try {
+      // 1. 拉取远程 ops
+      const remoteOps = await this.syncAdapter.pullOps(auId);
 
-    // 2. 读取本地 ops
-    const localOps = await this.opsRepo.list_all(auId);
+      // 2. 读取本地 ops
+      const localOps = await this.opsRepo.list_all(auId);
 
-    // 3. 合并
-    const { ops: merged, conflicts, newLamportClock } = mergeOps(localOps, remoteOps);
-    syncLamportClock(newLamportClock);
+      // 3. 合并
+      const { ops: merged, conflicts, newLamportClock } = mergeOps(localOps, remoteOps);
+      syncLamportClock(newLamportClock);
 
-    // 4. 计算新增 ops 数
-    const localIds = new Set(localOps.map((o) => o.op_id));
-    const opsAdded = merged.filter((o) => !localIds.has(o.op_id)).length;
+      // 4. 计算新增 ops 数
+      const localIds = new Set(localOps.map((o) => o.op_id));
+      const opsAdded = merged.filter((o) => !localIds.has(o.op_id)).length;
 
-    // 5. 写回合并后的 ops（通过 opsRepo 确保序列化格式一致）
-    await this.opsRepo.replace_all(auId, merged);
+      // 5. 写回合并后的 ops
+      await this.opsRepo.replace_all(auId, merged);
 
-    // 6. 重建 state + facts（如果有新 ops）
-    if (opsAdded > 0) {
-      const state = rebuildStateFromOps(merged, auId);
-      await this.stateRepo.save(state);
+      // 6. 重建 state + facts（如果有新 ops）
+      if (opsAdded > 0) {
+        const state = rebuildStateFromOps(merged, auId);
+        await this.stateRepo.save(state);
 
-      const facts = rebuildFactsFromOps(merged);
-      const factsPath = joinPath(auId, "facts.jsonl");
-      const factsContent = facts.map((f) => JSON.stringify(f)).join("\n") + "\n";
-      await this.adapter.writeFile(factsPath, factsContent);
+        const facts = rebuildFactsFromOps(merged);
+        const factsPath = joinPath(auId, "facts.jsonl");
+        const factsContent = facts.map((f) => JSON.stringify(f)).join("\n") + "\n";
+        await this.adapter.writeFile(factsPath, factsContent);
+      }
+
+      // 7. 推送本地 ops 到远程
+      await this.syncAdapter.pushOps(auId, merged);
+
+      // 8. 同步内容文件
+      const contentResult = await this.syncContentFiles(auId);
+
+      return {
+        synced: true,
+        conflicts: conflicts.map((c) => ({ type: c.type, description: c.description })),
+        fileConflicts: contentResult.fileConflicts,
+        opsAdded,
+        filesPushed: contentResult.pushed,
+        filesPulled: contentResult.pulled,
+      };
+    } catch (e) {
+      return {
+        synced: false,
+        conflicts: [{ type: "sync_error", description: String(e) }],
+        fileConflicts: [],
+        opsAdded: 0,
+        filesPushed: 0,
+        filesPulled: 0,
+      };
     }
-
-    // 7. 推送本地 ops 到远程
-    await this.syncAdapter.pushOps(auId, merged);
-
-    // 8. 同步内容文件
-    const contentResult = await this.syncContentFiles(auId);
-
-    return {
-      synced: true,
-      conflicts: conflicts.map((c) => ({ type: c.type, description: c.description })),
-      fileConflicts: contentResult.fileConflicts,
-      opsAdded,
-      filesPushed: contentResult.pushed,
-      filesPulled: contentResult.pulled,
-    };
   }
 
   /** 同步内容文件（章节、设定、project.yaml、trash manifest）。 */
@@ -135,9 +146,9 @@ export class SyncManager {
     let remoteExists = false;
     try {
       remoteContent = await this.syncAdapter.pullFile(remotePath);
-      remoteExists = remoteContent !== "";
+      remoteExists = remoteContent.length > 0;
     } catch {
-      // Remote not available
+      remoteExists = false;
     }
 
     if (!localExists && !remoteExists) return "unchanged";
