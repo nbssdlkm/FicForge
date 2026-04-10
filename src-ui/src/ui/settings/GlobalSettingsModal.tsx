@@ -349,11 +349,15 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                     onClick={async () => {
                       setSyncTestStatus('testing');
                       try {
-                        const resp = await fetch(syncUrl, {
-                          method: 'OPTIONS',
-                          headers: { Authorization: 'Basic ' + btoa(`${syncUsername}:${syncPassword}`) },
+                        const url = syncUrl.replace(/\/+$/, '') + syncRemoteDir;
+                        const resp = await fetch(url, {
+                          method: 'PROPFIND',
+                          headers: {
+                            Authorization: 'Basic ' + btoa(`${syncUsername}:${syncPassword}`),
+                            Depth: '0',
+                          },
                         });
-                        setSyncTestStatus(resp.ok || resp.status === 200 || resp.status === 207 ? 'success' : 'error');
+                        setSyncTestStatus(resp.ok || resp.status === 207 ? 'success' : 'error');
                       } catch {
                         setSyncTestStatus('error');
                       }
