@@ -1011,7 +1011,7 @@
     }
   },
   "ethics": {
-    "aboutFooter": "FicForge 是本地运行的个人创作辅助工具。你的数据不离开你的电脑，不会被用于训练任何 AI 模型。请只导入你自己的作品，发布时建议标注 AI 辅助。",
+    "aboutFooter": "FicForge 是本地运行的个人创作辅助工具。你的数据不离开你的设备，不会被用于训练任何 AI 模型。请只导入你自己的作品，发布时建议标注 AI 辅助。",
     "importWarning": "请确保你拥有导入内容的合法使用权。请勿导入他人作品。",
     "exportAiLabel": "在导出文件末尾附加 AI 辅助创作声明",
     "exportDisclaimer": "本作品由 AI 辅助创作（工具：FicForge）。",

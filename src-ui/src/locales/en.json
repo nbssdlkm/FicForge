@@ -1011,7 +1011,7 @@
     }
   },
   "ethics": {
-    "aboutFooter": "FicForge runs locally on your computer. Your data is never uploaded or used for AI training. Please only import your own work, and consider disclosing AI assistance when publishing.",
+    "aboutFooter": "FicForge runs locally on your device. Your data is never uploaded or used for AI training. Please only import your own work, and consider disclosing AI assistance when publishing.",
     "importWarning": "Please ensure you have the right to use the content you import. Do not import others' work.",
     "exportAiLabel": "Append AI assistance disclosure to exported file",
     "exportDisclaimer": "This work was created with AI assistance (tool: FicForge).",
