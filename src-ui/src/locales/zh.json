@@ -235,6 +235,7 @@
     "modeSettings": "📋 改设定"
   },
   "settingsMode": {
+    "title": "AI 设定助手",
     "tabWrite": "✍️ 写文",
     "tabSettings": "📋 改设定",
     "placeholder": "描述你想要的设定变更…（受模型能力限制，建议一次只生成一份设定文件）",
@@ -469,7 +470,7 @@
       "lastSync": "上次同步",
       "helpButton": "帮助",
       "help": {
-        "intro": "支持两种同步方式，让你在电脑和手机之间同步写作数据。",
+        "intro": "支持两种同步方式，让你在不同设备之间同步写作数据。",
         "option1Title": "方案一：文件夹同步（推荐）",
         "option1Desc": "将数据目录放在坚果云 / OneDrive 同步文件夹内，各设备通过云盘客户端自动同步。最简单，无需额外配置。",
         "option2Title": "方案二：WebDAV 同步",
@@ -926,9 +927,12 @@
       "modeOllama": "Ollama",
       "apiBase": "接口地址",
       "apiBaseHint": "你的 AI 服务商提供的地址",
+      "apiBaseTooltip": "AI 服务商的接口地址。\n常见：\n• DeepSeek: https://api.deepseek.com\n• OpenAI: https://api.openai.com/v1\n• 硅基流动: https://api.siliconflow.cn/v1",
       "apiKey": "密钥",
       "apiKeyHint": "在 AI 服务商网站获取",
+      "apiKeyTooltip": "在服务商网站的「API Key」页面创建。\n通常以 sk- 开头，创建后只显示一次。\n密钥只存在你自己的设备上。",
       "model": "模型",
+      "modelTooltip": "填写模型的准确名称，必须和服务商一致。\n常见：\n• DeepSeek: deepseek-chat\n• GPT: gpt-4o-mini\n• 硅基流动: deepseek-ai/DeepSeek-V3",
       "testConnection": "测试连接",
       "testing": "正在测试...",
       "testSuccess": "连接成功！模型：{{model}}",
@@ -959,71 +963,79 @@
       "enter": "进入 FicForge →"
     },
     "mobile": {
-      "header": "移动端快速引导",
+      "header": "开始使用 FicForge",
       "language": {
-        "title": "先选界面语言",
-        "subtitle": "移动端先把阅读和输入环境定下来，后面的文案会立即切换。",
+        "title": "选择语言",
+        "subtitle": "选好后界面文案会立即切换。",
         "zhTitle": "中文",
-        "zhDescription": "默认中文界面，适合直接开始配置和写作。",
+        "zhDescription": "中文界面，直接开始。",
         "enTitle": "English",
-        "enDescription": "Switch the whole onboarding flow to English."
+        "enDescription": "Switch to English interface."
       },
       "llm": {
-        "title": "连接写作模型",
-        "subtitle": "先把续写模型接好。移动端默认按在线 API 流程走，测试通过后再继续。",
-        "deepseekTitle": "DeepSeek",
-        "deepseekDescription": "预填 DeepSeek 官方地址，适合中文续写。",
+        "title": "连接 AI 写作模型",
+        "subtitle": "FicForge 需要连接一个 AI 模型来帮你续写故事。你需要填入一个 API Key（密钥）来启用。",
+        "techDetails": "此 Key 用于调用 LLM（大语言模型）的 Chat Completions 接口。支持所有 OpenAI 兼容接口：DeepSeek / GPT / Ollama / 硅基流动等。",
+        "deepseekTitle": "DeepSeek（深度求索）",
+        "deepseekDescription": "中文写作质量高，价格便宜。注册地址：platform.deepseek.com",
         "openaiTitle": "OpenAI",
-        "openaiDescription": "预填 OpenAI 官方地址，可直接填你的模型名。",
-        "customTitle": "自定义服务商",
-        "customDescription": "兼容 OpenAI 协议的第三方服务都可以手动填写。"
+        "openaiDescription": "全球通用，需预充值。注册地址：platform.openai.com",
+        "customTitle": "其他服务商",
+        "customDescription": "硅基流动、Ollama 等兼容 OpenAI 协议的服务均可使用。"
       },
       "embedding": {
-        "title": "配置检索模型",
-        "subtitle": "Embedding 用来记设定和检索上下文。现在可以配，也可以先跳过。",
-        "recommendedTitle": "使用自定义 Embedding",
-        "recommendedDescription": "推荐硅基流动等兼容 OpenAI 协议的 Embedding 服务，中文检索体验更稳。",
-        "recommendedHint": "如果你暂时不配置，设定检索和 RAG 会先不可用，但不影响基础写作。",
+        "title": "让 AI 记住你的设定（可选）",
+        "subtitle": "配好 Embedding（嵌入）模型后，AI 续写时能自动回忆之前的剧情和人设。写到第 100 章还能记住第 5 章埋的伏笔。",
+        "techDetails": "Embedding 模型将文本转为向量，用于 RAG（检索增强生成）。推荐模型：BAAI/bge-m3。支持 OpenAI 兼容的 /v1/embeddings 端点。",
+        "recommendedTitle": "使用 Embedding（嵌入）模型",
+        "recommendedDescription": "推荐硅基流动（siliconflow.cn），注册送免费额度。在「模型广场」→「嵌入」分类中选择模型。",
+        "recommendedHint": "跳过后 AI 仍可正常续写，只是无法自动检索历史内容。",
         "skipTitle": "先跳过",
-        "skipDescription": "直接进入应用，稍后再到设置里补上 Embedding。"
+        "skipDescription": "直接进入应用，稍后到设置里补上。"
       },
       "setup": {
-        "title": "创建或导入",
-        "subtitle": "最后决定你想先建作品，还是先打开导入或设置入口。",
-        "createTitle": "创建新 Fandom 和 AU",
-        "createDescription": "现在一次性创建原作和 AU，完成后就能直接开始写。",
-        "importTitle": "稍后导入本地文件",
-        "importDescription": "完成引导后直接打开导入入口，继续处理旧文。",
-        "syncTitle": "稍后配置同步目录",
-        "syncDescription": "完成引导后打开设置，继续处理 WebDAV 或同步相关配置。",
-        "laterTitle": "先进入作品库",
-        "laterDescription": "暂时不创建也不导入，先看界面和主题。",
+        "title": "创建你的第一个故事",
+        "subtitle": "FicForge 用「原作」和「衍生（AU）」两层来管理同人文。原作 = 你磕的那部作品，AU = 你在这部作品下写的故事。",
+        "techDetails": "Fandom 角色 = 人格 DNA 模板。AU 角色 = 独立个体（可基于模板）。Fandom 设定不注入 AU 写作 prompt。",
+        "createTitle": "创建新故事",
+        "createDescription": "现在创建一个原作和 AU，完成后直接开始写。",
+        "importTitle": "导入已有的文",
+        "importDescription": "完成引导后打开导入入口，把已写的文导进来。",
+        "syncTitle": "配置多设备同步",
+        "syncDescription": "完成引导后打开设置，配置 WebDAV 同步。",
+        "laterTitle": "先看看再说",
+        "laterDescription": "暂时不创建，先逛逛界面。",
         "fandomPlaceholder": "比如：原神、咒术回战、底特律变人...",
         "auLabel": "AU 名称",
         "auPlaceholder": "比如：现代校园、赛博警探、星际皇室..."
       },
       "ethics": {
-        "subtitle": "移动端也沿用和桌面端一致的本地优先与负责任使用说明。",
-        "confirm": "我确认只会导入和创作自己有权使用的内容，并理解发布时应遵守平台规则。"
+        "subtitle": "FicForge 是为同人创作者设计的 AI 辅助写作工具。",
+        "confirm": "我已了解：只导入自己的作品，发布时遵守平台规则，AI 辅助创作建议标注。",
+        "privacyNote": "你的数据只存在你自己的设备上，我们不收集、不上传。",
+        "aiNote": "AI 是辅助，不是替代。导出时默认附带 AI 标注声明。",
+        "respectNote": "同人创作建立在对原作的热爱上，请遵守目标平台的发布规范。"
       },
       "complete": {
-        "title": "可以开始了",
-        "subtitle": "下面这些配置会在完成后一起保存。",
-        "languageSummary": "界面语言：{{language}}",
+        "title": "一切就绪！",
+        "subtitle": "以下配置会在完成后保存。",
+        "tip": "建议先去「设定」页创建角色，然后回到「写作」开始第一章。",
+        "languageSummary": "语言：{{language}}",
         "llmSummary": "写作模型：{{model}}",
         "embeddingSummary": "检索模型：{{model}}",
-        "embeddingSkipped": "检索模型：暂时跳过，稍后可在设置里补上",
-        "createSummary": "初始化内容：创建 Fandom「{{fandomName}}」和 AU「{{auName}}」",
-        "importSummary": "初始化内容：完成后直接打开本地导入入口",
-        "syncSummary": "初始化内容：完成后直接打开设置页继续配置同步",
-        "laterSummary": "初始化内容：先进入作品库，稍后再创建或导入"
+        "embeddingSkipped": "检索模型：暂时跳过，稍后可补上",
+        "createSummary": "创建「{{fandomName}}」→「{{auName}}」",
+        "importSummary": "完成后打开导入入口",
+        "syncSummary": "完成后打开同步设置",
+        "laterSummary": "先进入作品库"
       }
     },
     "common": {
       "step": "{{current}}/{{total}}",
       "prev": "← 上一步",
       "next": "下一步 →"
-    }
+    },
+    "techDetailsLabel": "技术细节"
   },
   "ethics": {
     "aboutFooter": "FicForge 是本地运行的个人创作辅助工具。你的数据不离开你的设备，不会被用于训练任何 AI 模型。请只导入你自己的作品，发布时建议标注 AI 辅助。",
@@ -1035,6 +1047,31 @@
     "onboardingBody": "FicForge 帮助你创作自己的故事。你的所有数据保存在本地，不会上传。\n\n使用提醒：\n· 请只导入你自己的作品\n· 发布 AI 辅助创作的内容时，建议标注 AI 的参与\n· 请遵守你所在创作社区的规则",
     "onboardingAcknowledge": "我已了解，开始使用",
     "onboardingConsent": "使用本工具即表示你已阅读并理解我们的负责任使用声明"
+  },
+  "help": {
+    "apiSetup": {
+      "title": "API 配置帮助",
+      "whatIsKey": "什么是 API Key？",
+      "whatIsKeyDesc": "API Key（密钥）是 AI 服务商分配给你的身份凭证，类似一个密码。FicForge 用它来调用 AI 服务帮你续写故事。每个服务商有自己的 API Key，需要注册账号后创建。",
+      "modelTitle": "模型名称怎么填？",
+      "modelDesc": "模型名称必须和服务商网站上显示的一模一样，不能自己起名。去服务商网站的「模型列表」页面，复制你想用的模型名称。",
+      "provider": "服务商",
+      "writingModel": "写作模型",
+      "siliconflow": "硅基流动",
+      "urlTitle": "接口地址（Base URL）",
+      "howToGetKey": "怎么获取密钥？",
+      "deepseekSteps": "打开 platform.deepseek.com → 注册/登录 → 左侧菜单 API Keys → 创建密钥 → 复制 sk- 开头的字符串",
+      "openaiSteps": "打开 platform.openai.com → 注册/登录 → API Keys → 创建密钥 → 复制。注意需预充值。",
+      "siliconflowSteps": "打开 siliconflow.cn → 注册/登录 → API 密钥 → 新建 → 复制。新用户有免费额度。",
+      "faqTitle": "常见问题",
+      "faqTestFail": "测试连接失败？",
+      "faqTestFailAnswer": "检查：密钥是否复制完整、接口地址末尾有没有多余空格、网络是否正常。",
+      "faqSafe": "密钥安全吗？",
+      "faqSafeAnswer": "密钥只存在你自己的设备上，FicForge 不会把密钥发到任何地方——只发给你填的那个服务商地址。",
+      "faqFree": "可以免费用吗？",
+      "faqFreeAnswer": "DeepSeek 和硅基流动有免费额度，Ollama 完全免费（本地运行，需电脑性能足够）。",
+      "howToGet": "如何获取？"
+    }
   },
   "sync": {
     "conflict": {

@@ -287,10 +287,26 @@ export async function confirmChapter(
     content_override: content,
     chapter_repo: chapter, draft_repo: draft, state_repo: state, ops_repo: ops,
   });
-  // Update title if provided
-  if (title) {
+  // Update title: use provided title, or auto-generate via LLM
+  let finalTitle = title;
+  if (!finalTitle) {
+    try {
+      const { generateChapterTitle } = await import("@ficforge/engine");
+      const sett = await getEngine().repos.settings.get();
+      const llmConfig = resolve_llm_config(null, proj as unknown as Record<string, unknown>, sett as { default_llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } });
+      if (llmConfig.mode === "api" && llmConfig.api_key) {
+        const provider = create_provider(llmConfig);
+        const chContent = await chapter.get_content_only(auPath, chapterNum);
+        const lang = sett.app?.language || "zh";
+        finalTitle = await generateChapterTitle(chContent, lang, provider);
+      }
+    } catch {
+      // AI title generation failed — silent fallback
+    }
+  }
+  if (finalTitle) {
     const st = await state.get(auPath);
-    st.chapter_titles[chapterNum] = title;
+    st.chapter_titles[chapterNum] = finalTitle;
     await state.save(st);
   }
   return result;
@@ -646,9 +662,10 @@ export async function deleteFandom(fandomDirName: string, dataDir?: string) {
 
 export async function deleteAu(fandomDirName: string, auName: string, dataDir?: string) {
   const dd = dataDir ?? getDataDir();
-  // AU 是目录——将 project.yaml 移入 trash 作为删除标记
+  // AU 是目录——在 fandom 级别的 .trash/ 创建记录（这样 Library 的 TrashPanel 能看到）
+  const fandomRoot = `${dd}/fandoms/${fandomDirName}`;
   const entry = await getEngine().trash.move_to_trash(
-    `${dd}/fandoms/${fandomDirName}/aus/${auName}`, "project.yaml", "au", auName,
+    fandomRoot, `aus/${auName}/project.yaml`, "au", auName,
   );
   return { status: "ok", trash_id: entry.trash_id };
 }

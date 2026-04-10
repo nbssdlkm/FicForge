@@ -235,6 +235,7 @@
     "modeSettings": "📋 Edit Lore"
   },
   "settingsMode": {
+    "title": "AI Settings Assistant",
     "tabWrite": "✍️ Write",
     "tabSettings": "📋 Edit Lore",
     "placeholder": "Describe the lore changes you want… (due to model limitations, create one file per message for best results)",
@@ -926,9 +927,12 @@
       "modeOllama": "Ollama",
       "apiBase": "API Endpoint",
       "apiBaseHint": "The endpoint URL from your AI provider",
+      "apiBaseTooltip": "Your provider's API endpoint.\nCommon:\n• DeepSeek: https://api.deepseek.com\n• OpenAI: https://api.openai.com/v1\n• SiliconFlow: https://api.siliconflow.cn/v1",
       "apiKey": "API Key",
       "apiKeyHint": "Get this from your AI provider's website",
+      "apiKeyTooltip": "Created on your provider's API Keys page.\nUsually starts with sk-. Only shown once.\nStored locally on your device only.",
       "model": "Model",
+      "modelTooltip": "Exact model name from your provider.\nCommon:\n• DeepSeek: deepseek-chat\n• GPT: gpt-4o-mini\n• SiliconFlow: deepseek-ai/DeepSeek-V3",
       "testConnection": "Test Connection",
       "testing": "Testing...",
       "testSuccess": "Connected! Model: {{model}}",
@@ -959,71 +963,79 @@
       "enter": "Enter FicForge →"
     },
     "mobile": {
-      "header": "Mobile Quick Setup",
+      "header": "Welcome to FicForge",
       "language": {
-        "title": "Pick Your Interface Language",
-        "subtitle": "Set the UI language first so the rest of the mobile setup updates immediately.",
-        "zhTitle": "Chinese",
-        "zhDescription": "Use the full onboarding flow in Chinese.",
+        "title": "Choose Language",
+        "subtitle": "The interface will switch immediately.",
+        "zhTitle": "中文",
+        "zhDescription": "Chinese interface.",
         "enTitle": "English",
-        "enDescription": "Use the full onboarding flow in English."
+        "enDescription": "English interface."
       },
       "llm": {
-        "title": "Connect Your Writing Model",
-        "subtitle": "Mobile onboarding uses the hosted API path first. Test the connection before moving on.",
+        "title": "Connect AI Writing Model",
+        "subtitle": "FicForge needs an AI model to help write your stories. You'll need an API Key from a provider to get started.",
+        "techDetails": "This key is used to call the LLM Chat Completions endpoint. Any OpenAI-compatible API works: DeepSeek / GPT / Ollama / SiliconFlow / etc.",
         "deepseekTitle": "DeepSeek",
-        "deepseekDescription": "Prefills the official DeepSeek endpoint for Chinese-first writing.",
+        "deepseekDescription": "Affordable, strong multilingual. Sign up at platform.deepseek.com",
         "openaiTitle": "OpenAI",
-        "openaiDescription": "Prefills the official OpenAI endpoint. Enter your model name directly.",
-        "customTitle": "Custom Provider",
-        "customDescription": "Any OpenAI-compatible provider can be entered manually."
+        "openaiDescription": "Widely available, requires prepaid balance. Sign up at platform.openai.com",
+        "customTitle": "Other Provider",
+        "customDescription": "SiliconFlow, Ollama, or any OpenAI-compatible service."
       },
       "embedding": {
-        "title": "Configure Retrieval",
-        "subtitle": "Embedding powers lore retrieval and RAG. You can wire it up now or skip it for later.",
-        "recommendedTitle": "Use a Custom Embedding API",
-        "recommendedDescription": "Recommended for stronger Chinese retrieval quality with providers like SiliconFlow.",
-        "recommendedHint": "If you skip this for now, lore retrieval and RAG stay unavailable until you configure embedding later.",
+        "title": "Help AI Remember Your Lore (Optional)",
+        "subtitle": "With an Embedding model, the AI can recall past chapters and character details while writing. Even at Chapter 100, it remembers foreshadowing from Chapter 5.",
+        "techDetails": "Embedding converts text to vectors for RAG (Retrieval-Augmented Generation). Recommended: BAAI/bge-m3. Uses OpenAI-compatible /v1/embeddings endpoint.",
+        "recommendedTitle": "Use Embedding Model",
+        "recommendedDescription": "Recommended: SiliconFlow (free tier available) or OpenAI text-embedding-3-small.",
+        "recommendedHint": "Without this, writing still works — AI just won't auto-search your past content.",
         "skipTitle": "Skip for Now",
-        "skipDescription": "Enter the app first and configure embedding later in Settings."
+        "skipDescription": "Enter the app first, set this up later in Settings."
       },
       "setup": {
-        "title": "Create or Import",
-        "subtitle": "Choose whether to start with a new fandom, open the import flow, or review settings next.",
-        "createTitle": "Create a New Fandom and AU",
-        "createDescription": "Create both the fandom and its first AU now, then start writing right away.",
-        "importTitle": "Open Local Import Next",
-        "importDescription": "Finish onboarding, then jump straight into the import flow for existing work.",
-        "syncTitle": "Open Sync Settings Next",
-        "syncDescription": "Finish onboarding, then continue with WebDAV or sync-related setup from Settings.",
-        "laterTitle": "Enter the Library First",
-        "laterDescription": "Skip creation and import for now and explore the app first.",
+        "title": "Create Your First Story",
+        "subtitle": "FicForge uses two layers: a Fandom (the source material you love) and an AU (your story within it). One Fandom can have multiple AUs.",
+        "techDetails": "Fandom characters = personality DNA templates. AU characters = independent individuals (can be based on templates). Fandom lore is NOT injected into AU writing prompts.",
+        "createTitle": "Create a New Story",
+        "createDescription": "Set up a Fandom and AU now, then start writing right away.",
+        "importTitle": "Import Existing Work",
+        "importDescription": "Open the import flow after setup to bring in your existing chapters.",
+        "syncTitle": "Set Up Multi-device Sync",
+        "syncDescription": "Open Settings after setup to configure WebDAV sync.",
+        "laterTitle": "Just Look Around",
+        "laterDescription": "Skip for now and explore the interface first.",
         "fandomPlaceholder": "e.g. Genshin Impact, Jujutsu Kaisen, Detroit: Become Human...",
         "auLabel": "AU Name",
         "auPlaceholder": "e.g. Modern Campus, Cyber Detectives, Space Royalty..."
       },
       "ethics": {
-        "subtitle": "Mobile uses the same local-first and responsible-use guidance as desktop.",
-        "confirm": "I will only import or create content I have the right to use, and I understand I should follow platform disclosure rules when publishing."
+        "subtitle": "FicForge is an AI writing assistant designed for fan creators.",
+        "confirm": "I understand: only import my own work, follow platform rules when publishing, and label AI-assisted content.",
+        "privacyNote": "Your data stays on your device only. We don't collect or upload anything.",
+        "aiNote": "AI assists, not replaces. Exports include an AI attribution notice by default.",
+        "respectNote": "Fan creation is built on love for the source — please follow your platform's publishing guidelines."
       },
       "complete": {
-        "title": "Ready to Go",
-        "subtitle": "These settings will be saved together when you finish.",
-        "languageSummary": "Interface language: {{language}}",
+        "title": "All Set!",
+        "subtitle": "These settings will be saved when you finish.",
+        "tip": "Tip: Create characters in the Lore tab first, then start writing your first chapter.",
+        "languageSummary": "Language: {{language}}",
         "llmSummary": "Writing model: {{model}}",
         "embeddingSummary": "Embedding model: {{model}}",
-        "embeddingSkipped": "Embedding model: skipped for now, can be configured later in Settings",
-        "createSummary": "Initial content: create fandom \"{{fandomName}}\" and AU \"{{auName}}\"",
-        "importSummary": "Initial content: open the local import flow after setup",
-        "syncSummary": "Initial content: open Settings after setup to continue sync configuration",
-        "laterSummary": "Initial content: enter the library first and create or import later"
+        "embeddingSkipped": "Embedding: skipped for now",
+        "createSummary": "Create \"{{fandomName}}\" → \"{{auName}}\"",
+        "importSummary": "Open import flow after setup",
+        "syncSummary": "Open sync settings after setup",
+        "laterSummary": "Enter library first"
       }
     },
     "common": {
       "step": "{{current}}/{{total}}",
       "prev": "← Back",
       "next": "Next →"
-    }
+    },
+    "techDetailsLabel": "Technical details"
   },
   "ethics": {
     "aboutFooter": "FicForge runs locally on your device. Your data is never uploaded or used for AI training. Please only import your own work, and consider disclosing AI assistance when publishing.",
@@ -1035,6 +1047,31 @@
     "onboardingBody": "FicForge helps you write your own stories. All data stays on your device and is never uploaded.\n\nReminders:\n· Only import content you own\n· When publishing AI-assisted work, consider disclosing AI involvement\n· Follow the rules of your creative community",
     "onboardingAcknowledge": "I understand, let's start",
     "onboardingConsent": "By using this tool, you acknowledge that you have read and understood our Responsible Use statement"
+  },
+  "help": {
+    "apiSetup": {
+      "title": "API Setup Guide",
+      "whatIsKey": "What is an API Key?",
+      "whatIsKeyDesc": "An API Key is a credential from your AI provider — like a password. FicForge uses it to call AI services for writing. Each provider has its own key, created after you sign up.",
+      "modelTitle": "What model name to use?",
+      "modelDesc": "The model name must exactly match what your provider shows. Go to the provider's model list page and copy the name.",
+      "provider": "Provider",
+      "writingModel": "Writing Model",
+      "siliconflow": "SiliconFlow",
+      "urlTitle": "API Endpoint (Base URL)",
+      "howToGetKey": "How to get a key",
+      "deepseekSteps": "Go to platform.deepseek.com → Sign up → API Keys → Create → Copy the sk- string",
+      "openaiSteps": "Go to platform.openai.com → Sign up → API Keys → Create → Copy. Note: requires prepaid balance.",
+      "siliconflowSteps": "Go to siliconflow.cn → Sign up → API Keys → Create → Copy. Free tier available for new users.",
+      "faqTitle": "FAQ",
+      "faqTestFail": "Connection test failed?",
+      "faqTestFailAnswer": "Check: is the key fully copied? Any trailing spaces in the URL? Is your network working?",
+      "faqSafe": "Is my key safe?",
+      "faqSafeAnswer": "Your key is stored locally on your device only. FicForge never sends it anywhere except the provider URL you entered.",
+      "faqFree": "Can I use it for free?",
+      "faqFreeAnswer": "DeepSeek and SiliconFlow offer free tiers. Ollama is completely free (runs locally, needs decent hardware).",
+      "howToGet": "How to get one?"
+    }
   },
   "sync": {
     "conflict": {

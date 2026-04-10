@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowLeft, FileText, Loader2, Pencil, Eye, Trash2, Users, Globe2 } from "lucide-react";
+import { ArrowLeft, FileText, Loader2, Pencil, Eye, Trash2, Users, Globe2, Sparkles } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { listFandomFiles, readFandomFile, saveLore, deleteLore, type FandomFileEntry } from "../../api/engine-client";
 import { Button } from "../shared/Button";
@@ -11,6 +11,7 @@ import { Input, Textarea } from "../shared/Input";
 import { Modal } from "../shared/Modal";
 import { EmptyState } from "../shared/EmptyState";
 import { SettingsMarkdown } from "../shared/SettingsMarkdown";
+import { SettingsChatPanel } from "../shared/settings-chat/SettingsChatPanel";
 import { cn } from "../shared/utils";
 
 interface MobileFandomViewProps {
@@ -38,6 +39,9 @@ export function MobileFandomView({ fandomPath, onNavigate }: MobileFandomViewPro
   const [previewMode, setPreviewMode] = useState(true);
   const [saving, setSaving] = useState(false);
   const [readingFile, setReadingFile] = useState(false);
+
+  // AI assistant overlay
+  const [aiOverlayOpen, setAiOverlayOpen] = useState(false);
 
   // Create modal
   const [createOpen, setCreateOpen] = useState(false);
@@ -336,6 +340,42 @@ export function MobileFandomView({ fandomPath, onNavigate }: MobileFandomViewPro
           </div>
         </div>
       </Modal>
+
+      {/* AI assistant floating button */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-6 z-30 flex justify-end px-4 md:hidden">
+        <Button
+          variant="primary"
+          className="pointer-events-auto h-12 rounded-full px-5 shadow-strong"
+          onClick={() => setAiOverlayOpen(true)}
+        >
+          <Sparkles size={16} className="mr-2" />
+          AI {t("settingsMode.title")}
+        </Button>
+      </div>
+
+      {/* AI assistant overlay */}
+      {aiOverlayOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
+          <header className="safe-area-top flex items-center justify-between border-b border-black/10 bg-surface/95 px-4 py-3 backdrop-blur dark:border-white/10">
+            <Button variant="ghost" size="sm" className="h-11 px-3" onClick={() => setAiOverlayOpen(false)}>
+              <ArrowLeft size={16} className="mr-2" />
+              {t("common.actions.back")}
+            </Button>
+            <h2 className="text-base font-semibold text-text">{t("settingsMode.title")}</h2>
+            <div className="w-[68px]" />
+          </header>
+          <div className="flex-1 overflow-hidden">
+            <SettingsChatPanel
+              mode="fandom"
+              basePath={fandomPath}
+              fandomPath={fandomPath}
+              placeholder={t("settingsMode.fandomPlaceholder")}
+              className="h-full"
+              onAfterMutation={async () => { await loadFiles(); }}
+            />
+          </div>
+        </div>
+      )}
     </section>
   );
 }

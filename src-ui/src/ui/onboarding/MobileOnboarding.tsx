@@ -7,6 +7,7 @@ import { ArrowRight, CheckCircle2, Database, Download, FolderPlus, Globe2, Loade
 import { Button } from '../shared/Button';
 import { Card } from '../shared/Card';
 import { Input } from '../shared/Input';
+import { HelpTooltip } from '../shared/HelpTooltip';
 import { StepIndicator } from './StepIndicator';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { changeLanguage, type AppLanguage } from '../../i18n';
@@ -323,6 +324,10 @@ export function MobileOnboarding({
                 <div className="space-y-2">
                   <h1 className="text-3xl font-serif font-bold">{t('onboarding.mobile.llm.title')}</h1>
                   <p className="text-base leading-relaxed text-text/60">{t('onboarding.mobile.llm.subtitle')}</p>
+                  <details className="text-xs text-text/40 mt-2">
+                    <summary className="cursor-pointer hover:text-text/60">{t('onboarding.techDetailsLabel')}</summary>
+                    <p className="mt-1 pl-3 border-l-2 border-text/10">{t('onboarding.mobile.llm.techDetails')}</p>
+                  </details>
                 </div>
 
                 <div className="grid gap-3">
@@ -350,21 +355,30 @@ export function MobileOnboarding({
                 </div>
 
                 <Card className="space-y-4 rounded-2xl p-4">
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm font-medium text-text">{t('onboarding.apiConfig.apiBase')}</span>
+                    <HelpTooltip text={t('onboarding.apiConfig.apiBaseTooltip')} />
+                  </div>
                   <Input
-                    label={t('onboarding.apiConfig.apiBase')}
                     value={apiBase}
                     onChange={event => setApiBase(event.target.value)}
                     placeholder="https://api.deepseek.com"
                   />
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm font-medium text-text">{t('onboarding.apiConfig.apiKey')}</span>
+                    <HelpTooltip text={t('onboarding.apiConfig.apiKeyTooltip')} />
+                  </div>
                   <Input
-                    label={t('onboarding.apiConfig.apiKey')}
                     type="password"
                     value={apiKey}
                     onChange={event => setApiKey(event.target.value)}
                     placeholder="sk-..."
                   />
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm font-medium text-text">{t('onboarding.apiConfig.model')}</span>
+                    <HelpTooltip text={t('onboarding.apiConfig.modelTooltip')} />
+                  </div>
                   <Input
-                    label={t('onboarding.apiConfig.model')}
                     value={model}
                     onChange={event => setModel(event.target.value)}
                     placeholder="deepseek-chat"
@@ -400,6 +414,10 @@ export function MobileOnboarding({
                 <div className="space-y-2">
                   <h1 className="text-3xl font-serif font-bold">{t('onboarding.mobile.embedding.title')}</h1>
                   <p className="text-base leading-relaxed text-text/60">{t('onboarding.mobile.embedding.subtitle')}</p>
+                  <details className="text-xs text-text/40 mt-2">
+                    <summary className="cursor-pointer hover:text-text/60">{t('onboarding.techDetailsLabel')}</summary>
+                    <p className="mt-1 pl-3 border-l-2 border-text/10">{t('onboarding.mobile.embedding.techDetails')}</p>
+                  </details>
                 </div>
 
                 <StepCard
@@ -449,6 +467,10 @@ export function MobileOnboarding({
                 <div className="space-y-2">
                   <h1 className="text-3xl font-serif font-bold">{t('onboarding.mobile.setup.title')}</h1>
                   <p className="text-base leading-relaxed text-text/60">{t('onboarding.mobile.setup.subtitle')}</p>
+                  <details className="text-xs text-text/40 mt-2">
+                    <summary className="cursor-pointer hover:text-text/60">{t('onboarding.techDetailsLabel')}</summary>
+                    <p className="mt-1 pl-3 border-l-2 border-text/10">{t('onboarding.mobile.setup.techDetails')}</p>
+                  </details>
                 </div>
 
                 <div className="grid gap-3">
@@ -511,7 +533,11 @@ export function MobileOnboarding({
                 </div>
 
                 <Card className="space-y-4 rounded-2xl p-5">
-                  <p className="whitespace-pre-line text-sm leading-relaxed text-text/70">{t('ethics.onboardingBody')}</p>
+                  <div className="space-y-3 text-sm text-text/70">
+                    <p>📱 {t('onboarding.mobile.ethics.privacyNote')}</p>
+                    <p>✍️ {t('onboarding.mobile.ethics.aiNote')}</p>
+                    <p>📖 {t('onboarding.mobile.ethics.respectNote')}</p>
+                  </div>
                   <label className="flex items-start gap-3 rounded-xl border border-black/10 bg-background px-4 py-3 text-sm text-text/75 dark:border-white/10">
                     <input
                       type="checkbox"

@@ -78,3 +78,9 @@ export { TrashService } from "./trash_service.js";
 // Recalc State
 export type { RecalcResult } from "./recalc_state.js";
 export { recalc_state } from "./recalc_state.js";
+
+// Title Generator
+export { generateChapterTitle } from "./title_generator.js";
+
+// Snapshot
+export { checkAndSnapshot } from "./snapshot.js";
