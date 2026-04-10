@@ -4,8 +4,8 @@
 
 import { Buffer } from "buffer";
 // gray-matter 依赖 Node.js Buffer，浏览器环境需要 polyfill
-if (typeof globalThis.Buffer === "undefined") {
-  globalThis.Buffer = Buffer;
+if (typeof (globalThis as Record<string, unknown>).Buffer === "undefined") {
+  (globalThis as Record<string, unknown>).Buffer = Buffer;
 }
 
 import React from "react";

@@ -3,7 +3,10 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import type { ChapterInfo } from "../../api/engine-client";
+import { useTranslation } from "../../i18n/useAppTranslation";
+import { ThemeToggle } from "../shared/ThemeToggle";
 import { WriterLayout } from "../writer/WriterLayout";
 import { BottomNavBar, type MobileWorkspaceTab } from "./BottomNavBar";
 import { MobileChapterList } from "./MobileChapterList";
@@ -82,8 +85,24 @@ export function MobileLayout({
     onNavigate("writer", auPath);
   };
 
+  const { t } = useTranslation();
+
   return (
     <div className="app-height relative flex flex-col overflow-hidden bg-background text-text md:hidden">
+      {/* Global mobile header with back button */}
+      <header className="safe-area-top flex h-11 shrink-0 items-center justify-between border-b border-black/10 bg-surface/80 px-3 backdrop-blur dark:border-white/10">
+        <button
+          type="button"
+          className="flex items-center gap-1 text-sm text-accent"
+          onClick={() => onNavigate("library")}
+        >
+          <ArrowLeft size={16} />
+          <span>{t("library.title")}</span>
+        </button>
+        <span className="truncate px-2 text-xs font-medium text-text/50">{auName}</span>
+        <ThemeToggle />
+      </header>
+
       <div className="flex-1 overflow-hidden pb-24">
         {activeTab === "chapters" ? (
           <MobileChapterList

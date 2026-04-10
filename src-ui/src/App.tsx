@@ -5,12 +5,15 @@
 import { useState, useEffect, useRef } from "react";
 import { Library } from "./ui/Library";
 import { FandomLoreLayout } from "./ui/library/FandomLoreLayout";
+import { MobileFandomView } from "./ui/mobile/MobileFandomView";
 import { AuWorkspaceLayout } from "./ui/workspace/AuWorkspaceLayout";
 import { initEngine } from "./api/engine-client";
 import { useTranslation } from "./i18n/useAppTranslation";
+import { useMediaQuery } from "./hooks/useMediaQuery";
 
 function App() {
   const { t } = useTranslation();
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const [currentPage, setCurrentPage] = useState<string>("library");
   const [currentAuPath, setCurrentAuPath] = useState<string>("");
   const [engineInitialized, setEngineInitialized] = useState(false);
@@ -117,7 +120,11 @@ function App() {
   return (
     <>
       {!isAuSpace && currentPage === "library" && <Library onNavigate={handleNavigate} />}
-      {!isAuSpace && currentPage === "fandom_lore" && <FandomLoreLayout fandomPath={currentAuPath} onNavigate={handleNavigate} />}
+      {!isAuSpace && currentPage === "fandom_lore" && (
+        isMobile
+          ? <MobileFandomView fandomPath={currentAuPath} onNavigate={handleNavigate} />
+          : <FandomLoreLayout fandomPath={currentAuPath} onNavigate={handleNavigate} />
+      )}
       
       {isAuSpace && (
         <AuWorkspaceLayout 
