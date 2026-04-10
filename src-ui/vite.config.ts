@@ -13,6 +13,26 @@ export default defineConfig(async () => ({
       "@ficforge/engine": path.resolve(__dirname, "../src-engine/index.ts"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("react-markdown") || id.includes("remark") || id.includes("rehype") || id.includes("mdast") || id.includes("hast") || id.includes("unified") || id.includes("micromark")) {
+            return "vendor-markdown";
+          }
+          if (id.includes("js-yaml") || id.includes("gray-matter")) {
+            return "vendor-yaml";
+          }
+          if (id.includes("framer-motion")) {
+            return "vendor-motion";
+          }
+          if (id.includes("gpt-tokenizer")) {
+            return "vendor-tokenizer";
+          }
+        },
+      },
+    },
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
