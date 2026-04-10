@@ -133,7 +133,7 @@ export function ToolCallEditor({
             <select
               value={coerceString(value.importance) || "medium"}
               onChange={(event) => onChange(setField(value, "importance", event.target.value))}
-              className="h-10 w-full rounded-md border border-black/20 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent dark:border-white/20"
+              className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
             >
               {["high", "medium", "low"].map((option) => (
                 <option key={option} value={option}>
@@ -272,7 +272,7 @@ export function ToolCallEditor({
               onChange={(event) => {
                 onChange(setField(setField(value, "fact_type", event.target.value), "type", event.target.value));
               }}
-              className="h-10 w-full rounded-md border border-black/20 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent dark:border-white/20"
+              className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
             >
               {FACT_TYPE_OPTIONS.map((option) => (
                 <option key={option} value={option}>
@@ -286,7 +286,7 @@ export function ToolCallEditor({
             <select
               value={coerceString(value.status) || "active"}
               onChange={(event) => onChange(setField(value, "status", event.target.value))}
-              className="h-10 w-full rounded-md border border-black/20 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent dark:border-white/20"
+              className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
             >
               {(toolName === "modify_fact" ? FACT_STATUS_OPTIONS : FACT_CREATE_STATUS_OPTIONS).map((option) => (
                 <option key={option} value={option}>
@@ -300,7 +300,7 @@ export function ToolCallEditor({
             <select
               value={coerceString(value.narrative_weight) || "medium"}
               onChange={(event) => onChange(setField(value, "narrative_weight", event.target.value))}
-              className="h-10 w-full rounded-md border border-black/20 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent dark:border-white/20"
+              className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
             >
               {NARRATIVE_WEIGHT_OPTIONS.map((option) => (
                 <option key={option} value={option}>
@@ -335,7 +335,7 @@ export function ToolCallEditor({
           <select
             value={field}
             onChange={(event) => onChange(setField(value, "field", event.target.value))}
-            className="h-10 w-full rounded-md border border-black/20 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent dark:border-white/20"
+            className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
           >
             <option value="perspective">{t("common.labels.perspective")}</option>
             <option value="emotion_style">{t("common.labels.emotionStyle")}</option>
@@ -348,7 +348,7 @@ export function ToolCallEditor({
             <select
               value={fieldValue || "third_person"}
               onChange={(event) => onChange(setField(value, "value", event.target.value))}
-              className="h-10 w-full rounded-md border border-black/20 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent dark:border-white/20"
+              className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
             >
               {["third_person", "first_person"].map((option) => (
                 <option key={option} value={option}>
@@ -363,7 +363,7 @@ export function ToolCallEditor({
             <select
               value={fieldValue || "implicit"}
               onChange={(event) => onChange(setField(value, "value", event.target.value))}
-              className="h-10 w-full rounded-md border border-black/20 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent dark:border-white/20"
+              className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
             >
               {["implicit", "explicit"].map((option) => (
                 <option key={option} value={option}>

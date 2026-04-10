@@ -28,10 +28,23 @@ export function ImportFlow({
   const [step, setStep] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [completionBusy, setCompletionBusy] = useState(false);
   const [chapters, setChapters] = useState<ChapterPreview[]>([]);
   const [splitMethod, setSplitMethod] = useState('');
   const [fullChapters, setFullChapters] = useState<{ chapter_num: number; title: string; content: string }[]>([]);
   const [result, setResult] = useState<ImportConfirmResponse | null>(null);
+
+  const resetFlowState = () => {
+    flowRequestIdRef.current += 1;
+    setStep(0);
+    setUploading(false);
+    setConfirming(false);
+    setCompletionBusy(false);
+    setChapters([]);
+    setSplitMethod('');
+    setFullChapters([]);
+    setResult(null);
+  };
 
   const handleFileSelected = async (file: File) => {
     const requestId = ++flowRequestIdRef.current;
@@ -42,10 +55,9 @@ export function ImportFlow({
       setChapters(resp.chapters);
       setSplitMethod(resp.split_method);
       // 保存完整章节内容（upload 只返回 preview，confirm 需要完整内容）
-      // 但 upload API 只返回 preview，confirm 需要我们把完整内容传过去
-      // 实际上后端 upload 解析后不保存，需要从文件重新读取
-      // 方案：前端读取文件内容，按后端的切分结果构造完整章节
-      const text = await file.text();
+      // 这里必须和 uploadImportFile 使用同一套文本归一化逻辑，
+      // 否则预览切分和真正导入会不一致。
+      const text = await readImportText(file);
       if (requestId !== flowRequestIdRef.current) return;
       const fullChs = buildFullChapters(text, resp.chapters);
       setFullChapters(fullChs);
@@ -83,23 +95,19 @@ export function ImportFlow({
   };
 
   const handleStartWriting = () => {
+    resetFlowState();
     onClose();
     onComplete();
   };
 
   const handleClose = () => {
-    flowRequestIdRef.current += 1;
-    setStep(0);
-    setUploading(false);
-    setConfirming(false);
-    setChapters([]);
-    setSplitMethod('');
-    setFullChapters([]);
-    setResult(null);
+    if (uploading || confirming || completionBusy) return;
+    resetFlowState();
     onClose();
   };
 
   const handleBackToFileSelect = () => {
+    if (confirming) return;
     flowRequestIdRef.current += 1;
     setConfirming(false);
     setStep(0);
@@ -131,15 +139,26 @@ export function ImportFlow({
           totalChapters={result.total_chapters}
           charactersFound={result.characters_found}
           onStartWriting={handleStartWriting}
+          onBusyChange={setCompletionBusy}
         />
       )}
     </Modal>
   );
 }
 
+async function readImportText(file: File): Promise<string> {
+  const rawText = await file.text();
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+  if (ext === 'html' || ext === 'htm') {
+    const { parse_html } = await import('@ficforge/engine');
+    return parse_html(rawText);
+  }
+  return rawText;
+}
+
 /**
- * 从原始文本 + 后端章节切分结果构造完整章节内容。
- * 后端 upload 只返回 preview（前 100 字），confirm 需要完整内容。
+ * 从归一化后的文本 + 预览切分结果构造完整章节内容。
+ * upload 只返回 preview（前 100 字），confirm 需要完整内容。
  * 按章节标题在原文中定位并截取。处理重复标题和不匹配的情况。
  */
 function buildFullChapters(

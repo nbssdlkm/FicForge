@@ -92,7 +92,7 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onCl
         const result = await saveWithTauriDialog(blob, filename);
         if (abortRef.current) return;
         if (result === 'saved') onClose();
-        else if (result === 'error') setError('Export failed. Check file permissions.');
+        else if (result === 'error') setError(t('export.saveFailed'));
         // 'cancelled': 用户取消对话框，不关闭 modal
       } else {
         // Dev 模式 fallback：浏览器下载
@@ -113,11 +113,11 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onCl
         <div className="flex flex-col gap-3 mt-2">
           <label className="text-sm font-bold text-text/90">{t('export.formatLabel')}</label>
           <div className="flex gap-6">
-            <label className="flex items-center gap-2 text-sm cursor-pointer hover:opacity-80">
+            <label className="flex min-h-[44px] items-center gap-2 text-sm cursor-pointer hover:opacity-80">
               <input type="radio" name="exportFmt" checked={format === 'md'} onChange={() => setFormat('md')} className="text-accent focus:ring-accent accent-accent w-4 h-4" />
               {t('export.markdown')}
             </label>
-            <label className="flex items-center gap-2 text-sm cursor-pointer hover:opacity-80">
+            <label className="flex min-h-[44px] items-center gap-2 text-sm cursor-pointer hover:opacity-80">
               <input type="radio" name="exportFmt" checked={format === 'txt'} onChange={() => setFormat('txt')} className="text-accent focus:ring-accent accent-accent w-4 h-4" />
               {t('export.text')}
             </label>
@@ -129,7 +129,7 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onCl
           <div className="text-sm text-error bg-error/10 rounded-lg p-3">{error}</div>
         )}
 
-        <label className="flex items-start gap-2 text-xs cursor-pointer">
+        <label className="flex min-h-[44px] items-start gap-2 text-xs cursor-pointer">
           <input
             type="checkbox"
             checked={aiDisclosure}

@@ -8,7 +8,9 @@ import { WelcomeStep } from './WelcomeStep';
 import { ApiConfigStep, type ApiConfig } from './ApiConfigStep';
 import { CreateFandomStep } from './CreateFandomStep';
 import { CompletionStep } from './CompletionStep';
+import { MobileOnboarding, type OnboardingCompletion } from './MobileOnboarding';
 import { updateSettings } from '../../api/engine-client';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 const ONBOARDING_KEY = 'ficforge.onboarding.completed';
 
@@ -16,7 +18,8 @@ export function isOnboardingCompleted(): boolean {
   return localStorage.getItem(ONBOARDING_KEY) === 'true';
 }
 
-export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
+export function OnboardingFlow({ onComplete }: { onComplete: (result?: OnboardingCompletion) => void }) {
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const [step, setStep] = useState(0);
   const [apiConfig, setApiConfig] = useState<ApiConfig | null>(null);
   const [fandomName, setFandomName] = useState<string | null>(null);
@@ -47,15 +50,19 @@ export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
     setStep(3);
   }, []);
 
-  const handleComplete = useCallback(() => {
+  const handleComplete = useCallback((result?: OnboardingCompletion) => {
     localStorage.setItem(ONBOARDING_KEY, 'true');
-    onComplete();
+    onComplete(result);
   }, [onComplete]);
 
   const handleClose = useCallback(() => {
     // 关闭不标记完成
     onComplete();
   }, [onComplete]);
+
+  if (isMobile) {
+    return <MobileOnboarding onComplete={handleComplete} onClose={handleClose} />;
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
@@ -87,7 +94,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
         {step === 3 && (
           <CompletionStep
             fandomName={fandomName}
-            onComplete={handleComplete}
+            onComplete={() => handleComplete()}
           />
         )}
       </div>

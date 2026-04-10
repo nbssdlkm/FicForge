@@ -34,13 +34,13 @@ function sortEntries(entries: TrashEntry[]): TrashEntry[] {
   );
 }
 
-function formatRelativeTime(value: string): string {
+function formatRelativeTime(value: string, locale: string): string {
   const timestamp = new Date(value).getTime();
   if (Number.isNaN(timestamp)) return value;
 
   const diffMs = timestamp - Date.now();
   const diffMinutes = Math.round(diffMs / (1000 * 60));
-  const rtf = new Intl.RelativeTimeFormat("zh-CN", { numeric: "auto" });
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
 
   if (Math.abs(diffMinutes) < 60) return rtf.format(diffMinutes, "minute");
 
@@ -51,10 +51,10 @@ function formatRelativeTime(value: string): string {
   return rtf.format(diffDays, "day");
 }
 
-function formatAbsoluteTime(value: string): string {
+function formatAbsoluteTime(value: string, locale: string): string {
   const timestamp = new Date(value).getTime();
   if (Number.isNaN(timestamp)) return value;
-  return new Intl.DateTimeFormat("zh-CN", {
+  return new Intl.DateTimeFormat(locale, {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -82,7 +82,7 @@ function getEntryLabel(entry: TrashEntry): string {
 }
 
 export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled = false }: TrashPanelProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { showError, showSuccess } = useFeedback();
   const [isExpanded, setIsExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -94,6 +94,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
   const [restoreConflictOpen, setRestoreConflictOpen] = useState(false);
   const contextVersionRef = useRef(0);
   const loadRequestIdRef = useRef(0);
+  const timeLocale = i18n.resolvedLanguage === "en" ? "en-US" : "zh-CN";
 
   useEffect(() => {
     contextVersionRef.current += 1;
@@ -276,13 +277,13 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
                           </div>
                           <div
                             className="mt-1 text-xs text-text/55"
-                            title={formatAbsoluteTime(entry.deleted_at)}
+                            title={formatAbsoluteTime(entry.deleted_at, timeLocale)}
                           >
-                            {t("trash.deletedAt", { time: formatRelativeTime(entry.deleted_at) })}
+                            {t("trash.deletedAt", { time: formatRelativeTime(entry.deleted_at, timeLocale) })}
                           </div>
                           <div
                             className="text-xs text-text/45"
-                            title={formatAbsoluteTime(entry.expires_at)}
+                            title={formatAbsoluteTime(entry.expires_at, timeLocale)}
                           >
                             {expiresInDays === null
                               ? t("trash.expired")

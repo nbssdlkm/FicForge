@@ -62,6 +62,26 @@ function App() {
     setup();
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const updateViewportHeight = () => {
+      document.documentElement.style.setProperty(
+        "--app-height",
+        `${window.visualViewport?.height ?? window.innerHeight}px`
+      );
+    };
+
+    updateViewportHeight();
+    window.visualViewport?.addEventListener("resize", updateViewportHeight);
+    window.addEventListener("resize", updateViewportHeight);
+
+    return () => {
+      window.visualViewport?.removeEventListener("resize", updateViewportHeight);
+      window.removeEventListener("resize", updateViewportHeight);
+    };
+  }, []);
+
   const handleNavigate = (page: string, contextPath?: string) => {
     if (contextPath) {
       setCurrentAuPath(contextPath);

@@ -17,6 +17,7 @@ import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
 import { useMilestoneGuide } from '../../hooks/useMilestoneGuide';
 import { MilestoneGuide } from '../shared/MilestoneGuide';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 type LoreFileEntry = {
   name: string;
@@ -98,6 +99,7 @@ function getRestoredCharacterFile(entry: TrashEntry): LoreFileEntry | null {
 export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
   const { t } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const activeAuPathRef = useRef(auPath);
   activeAuPathRef.current = auPath;
   const loadDataRequestIdRef = useRef(0);
@@ -511,6 +513,10 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     if (!searchTerm.trim()) return true;
     return file.name.includes(searchTerm.trim());
   });
+  const filteredWorldbuildingFiles = worldbuildingFiles.filter(file => {
+    if (!searchTerm.trim()) return true;
+    return file.name.includes(searchTerm.trim());
+  });
 
   const auName = project?.name || auPath.split('/').pop() || t('common.unknownAu');
 
@@ -519,6 +525,306 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
       <div className="flex-1 flex items-center justify-center">
         <Loader2 className="animate-spin text-accent" size={32} />
       </div>
+    );
+  }
+
+  const editorPanel = selectedFile ? (
+    <div className="flex flex-1 flex-col gap-2">
+      <label className="text-sm font-bold text-text/90">{t('navigation.auLore')}</label>
+
+      {selectedCategory === 'characters' && (
+        <div className="flex min-h-[44px] flex-wrap items-center gap-1.5 rounded-lg border border-black/10 bg-surface/30 px-3 py-2 dark:border-white/10 md:min-h-[36px]">
+          <span className="mr-1 text-xs font-sans text-text/40 md:text-[10px]">{t('auLore.aliasesLabel')}</span>
+          {aliases.map((alias, i) => (
+            <span key={i} className="inline-flex min-h-[44px] items-center gap-1 rounded-xl bg-accent/10 px-3 py-1 text-sm font-sans text-accent md:min-h-0 md:rounded-md md:px-2 md:py-0.5 md:text-xs">
+              {alias}
+              <button
+                type="button"
+                className="-mr-2 inline-flex h-11 w-11 items-center justify-center rounded-full text-accent/60 transition-colors hover:text-red-500 md:-mr-1 md:h-5 md:w-5"
+                onClick={() => setAliases(prev => prev.filter((_, j) => j !== i))}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          <input
+            className="min-w-[80px] flex-1 bg-transparent text-xs font-sans outline-none placeholder:text-text/30"
+            placeholder={t('auLore.aliasPlaceholder')}
+            value={newAlias}
+            onChange={e => setNewAlias(e.target.value)}
+            onKeyDown={e => {
+              if ((e.key === 'Enter' || e.key === ',') && newAlias.trim()) {
+                e.preventDefault();
+                if (!aliases.includes(newAlias.trim())) {
+                  setAliases(prev => [...prev, newAlias.trim()]);
+                }
+                setNewAlias('');
+              }
+              if (e.key === 'Backspace' && !newAlias && aliases.length > 0) {
+                setAliases(prev => prev.slice(0, -1));
+              }
+            }}
+            disabled={isReadingFile}
+          />
+        </div>
+      )}
+
+      {previewMode ? (
+        <div className="min-h-[420px] flex-1 overflow-y-auto rounded-md border border-black/10 bg-surface/30 p-4 dark:border-white/10 md:p-6">
+          <SettingsMarkdown content={editorContent} />
+        </div>
+      ) : (
+        <Textarea
+          value={editorContent}
+          onChange={e => setEditorContent(e.target.value)}
+          disabled={isReadingFile}
+          onDragOver={e => e.preventDefault()}
+          onDrop={e => {
+            e.preventDefault();
+            const file = e.dataTransfer.files[0];
+            if (file && (file.name.endsWith('.txt') || file.name.endsWith('.md'))) {
+              file.text().then(text => setEditorContent(prev => prev + '\n\n' + text));
+            }
+          }}
+          className="font-mono flex-1 min-h-[420px] text-sm leading-relaxed bg-surface/30 p-4 resize-y"
+        />
+      )}
+    </div>
+  ) : (
+    <EmptyState
+      icon={<FileText size={40} />}
+      title={t('navigation.auLore')}
+      description={t('auLore.referenceHint')}
+      actions={[
+        {
+          key: 'create-character-empty',
+          element: (
+            <Button variant="primary" onClick={() => setCreateModalOpen(true)}>
+              {t('common.actions.addCharacter')}
+            </Button>
+          ),
+        },
+        {
+          key: 'import-character-empty',
+          element: (
+            <Button variant="secondary" onClick={openImportModal}>
+              {t('common.actions.importFromFandom')}
+            </Button>
+          ),
+        },
+      ]}
+    />
+  );
+
+  const sharedModals = (
+    <>
+      <Modal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} title={selectedCategory === 'worldbuilding' ? t('auLore.createTitleWorldbuilding') : t('auLore.createTitle')}>
+        <div className="space-y-4">
+          <p className="text-sm text-text/70">{selectedCategory === 'worldbuilding' ? t('auLore.createDescriptionWorldbuilding') : t('auLore.createDescription')}</p>
+          <Input value={createName} onChange={e => setCreateName(e.target.value)} placeholder={selectedCategory === 'worldbuilding' ? t('auLore.createPlaceholderWorldbuilding') : t('auLore.createPlaceholder')} autoFocus />
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setCreateModalOpen(false)}>{t('common.actions.cancel')}</Button>
+            <Button variant="primary" onClick={handleCreate} disabled={!createName.trim()}>{t('common.actions.create')}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} title={t('auLore.deleteTitle')}>
+        <div className="space-y-4">
+          <p className="text-sm text-text/80">{t('auLore.deleteMessage', { name: `${selectedFile}.md` })}</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setDeleteConfirmOpen(false)}>{t('common.actions.cancel')}</Button>
+            <Button variant="primary" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDeleteLore}>{t('common.actions.confirmDelete')}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={coreLimitModalOpen} onClose={() => setCoreLimitModalOpen(false)} title={t('coreIncludes.missingCoreLimit')}>
+        <div className="space-y-4">
+          <p className="text-sm text-text/80 leading-relaxed">{t('coreIncludes.missingCoreLimitDesc')}</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setCoreLimitModalOpen(false)}>{t('coreIncludes.later')}</Button>
+            <Button variant="primary" onClick={() => {
+              setCoreLimitModalOpen(false);
+              if (coreLimitTarget) void loadFileContent(coreLimitTarget);
+            }}>{t('coreIncludes.goEdit')}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={importModalOpen} onClose={isSaving ? () => {} : () => setImportModalOpen(false)} title={t('auLore.importTitle')}>
+        <div className="space-y-4">
+          <p className="text-sm text-text/70">{t('auLore.importDescription')}</p>
+          <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-lg border border-black/10 p-2 dark:border-white/10">
+            {importLoading ? (
+              <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-accent" /></div>
+            ) : importCandidates.length === 0 ? (
+              <EmptyState compact icon={<Download size={28} />} title={t('auLore.importEmpty')} description={t('fandomLore.referenceHint')} />
+            ) : (
+              importCandidates.map(file => (
+                <label key={file.name} className="flex min-h-[44px] items-center gap-3 rounded-md px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedImports.includes(file.name)}
+                    onChange={() => handleToggleImport(file.name)}
+                    className="accent-accent"
+                  />
+                  <span className="text-sm">{file.name}</span>
+                </label>
+              ))
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setImportModalOpen(false)} disabled={isSaving}>{t('common.actions.cancel')}</Button>
+            <Button variant="primary" onClick={handleImportSelected} disabled={selectedImports.length === 0 || isSaving}>
+              {isSaving ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.importSelected')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </>
+  );
+
+  if (isMobile) {
+    const currentFiles = selectedCategory === 'characters' ? filteredFiles : filteredWorldbuildingFiles;
+
+    return (
+      <>
+        <div className="min-h-full bg-background pb-28 md:hidden">
+          <header className="safe-area-top sticky top-0 z-20 border-b border-black/10 bg-surface/90 px-4 py-4 backdrop-blur dark:border-white/10">
+            <div className="flex items-center justify-between gap-3">
+              {selectedFile ? (
+                <div className="flex min-w-0 items-center gap-2">
+                  <Button variant="ghost" size="sm" className="px-3" onClick={() => setSelectedFile(null)}>
+                    ← {t('common.actions.back')}
+                  </Button>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-text">{selectedFile}.md</p>
+                    <p className="text-xs text-text/45">{selectedCategory === 'worldbuilding' ? t('auLore.selectedTagWorldbuilding') : t('auLore.selectedTag')}</p>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-text/40">{t('navigation.auLore')}</p>
+                  <h1 className="mt-1 truncate font-serif text-2xl font-bold">{auName}</h1>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                {selectedFile ? (
+                  <>
+                    <Button variant="ghost" size="sm" className="px-3 text-red-500" onClick={() => setDeleteConfirmOpen(true)} disabled={isSaving || isReadingFile}>
+                      <Trash2 size={16} />
+                    </Button>
+                    <Button variant="primary" size="sm" className="px-3" onClick={handleSaveLore} disabled={isSaving || isReadingFile}>
+                      {isSaving || isReadingFile ? <Loader2 size={14} className="animate-spin" /> : t('auLore.saveButton')}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="ghost" size="sm" className="px-3" onClick={openImportModal} disabled={isSaving} title={t('common.actions.importFromFandom')}>
+                      <Download size={16} />
+                    </Button>
+                    <Button variant="primary" size="sm" className="px-3" onClick={() => { setCreateName(''); setCreateModalOpen(true); }} disabled={isSaving}>
+                      <Plus size={16} />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {selectedFile ? (
+              <div className="mt-3 inline-flex rounded-md border border-black/10 bg-surface/60 p-0.5 dark:border-white/10">
+                <button className={`flex min-h-[44px] items-center gap-1 rounded px-3 py-2 text-sm ${!previewMode ? 'bg-accent text-white' : 'text-text/60 hover:text-text'}`} onClick={() => setPreviewMode(false)}>
+                  <Pencil size={12} /> {t('common.actions.edit')}
+                </button>
+                <button className={`flex min-h-[44px] items-center gap-1 rounded px-3 py-2 text-sm ${previewMode ? 'bg-accent text-white' : 'text-text/60 hover:text-text'}`} onClick={() => setPreviewMode(true)}>
+                  <Eye size={12} /> {t('common.actions.preview')}
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="mt-4 inline-flex w-full rounded-2xl border border-black/10 bg-background/70 p-1 dark:border-white/10">
+                  <button type="button" onClick={() => setSelectedCategory('characters')} className={`flex min-h-[44px] flex-1 items-center justify-center rounded-xl text-sm font-medium transition-colors ${selectedCategory === 'characters' ? 'bg-accent text-white' : 'text-text/55'}`}>
+                    {t('common.labels.characters')}
+                  </button>
+                  <button type="button" onClick={() => setSelectedCategory('worldbuilding')} className={`flex min-h-[44px] flex-1 items-center justify-center rounded-xl text-sm font-medium transition-colors ${selectedCategory === 'worldbuilding' ? 'bg-accent text-white' : 'text-text/55'}`}>
+                    {t('common.labels.worldbuilding')}
+                  </button>
+                </div>
+                <div className="relative mt-3">
+                  <Search className="absolute left-3 top-3 text-text/50" size={16} />
+                  <Input className="pl-10" placeholder={t('auLore.searchPlaceholder')} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                </div>
+              </>
+            )}
+          </header>
+
+          <div className="px-4 py-4">
+            {selectedFile ? (
+              editorPanel
+            ) : (
+              <div className="space-y-3">
+                {currentFiles.length === 0 ? (
+                  <EmptyState
+                    compact
+                    icon={<FileText size={28} />}
+                    title={selectedCategory === 'characters' ? t('emptyState.auCharacters.title') : t('emptyState.auWorldbuilding.title')}
+                    description={selectedCategory === 'characters' ? t('emptyState.auCharacters.description') : t('emptyState.auWorldbuilding.description')}
+                    actions={[
+                      {
+                        key: 'add-item',
+                        element: (
+                          <Button variant="primary" size="sm" onClick={() => setCreateModalOpen(true)}>
+                            {selectedCategory === 'characters' ? t('common.actions.addCharacter') : t('common.actions.addWorldbuilding')}
+                          </Button>
+                        ),
+                      },
+                    ]}
+                  />
+                ) : currentFiles.map(file => {
+                  const isPinned = coreIncludes.includes(file.name);
+                  return (
+                    <div
+                      key={file.name}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => { void loadFileContent(file.name, undefined, selectedCategory); }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          void loadFileContent(file.name, undefined, selectedCategory);
+                        }
+                      }}
+                      className="flex w-full cursor-pointer items-center justify-between rounded-2xl border border-black/10 bg-surface/35 px-4 py-4 text-left transition-colors dark:border-white/10"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-medium text-text">{file.name}.md</p>
+                        <p className="mt-1 text-xs text-text/45">{selectedCategory === 'worldbuilding' ? t('auLore.selectedTagWorldbuilding') : t('auLore.selectedTag')}</p>
+                      </div>
+                      {selectedCategory === 'characters' ? (
+                        <button
+                          type="button"
+                          className={`ml-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${isPinned ? 'text-accent' : 'text-text/30'}`}
+                          onClick={(event) => { event.stopPropagation(); void handleTogglePin(file.name); }}
+                        >
+                          <Pin size={14} fill={isPinned ? 'currentColor' : 'none'} />
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
+
+                <div className="overflow-hidden rounded-2xl border border-black/10 bg-surface/35 dark:border-white/10">
+                  <TrashPanel scope="au" path={auPath} onRestore={handleTrashRestore} refreshToken={trashRefreshToken} />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {sharedModals}
+      </>
     );
   }
 
@@ -734,155 +1040,11 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 w-full flex flex-col gap-6">
-          {selectedFile ? (
-            <div className="flex flex-col gap-2 flex-1">
-              <label className="text-sm font-bold text-text/90">{t('navigation.auLore')}</label>
-
-              {/* 别名编辑（仅角色） */}
-              {selectedCategory === 'characters' && (
-                <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-black/10 dark:border-white/10 bg-surface/30 px-3 py-2 min-h-[36px]">
-                  <span className="text-[10px] text-text/40 font-sans mr-1">{t('auLore.aliasesLabel')}</span>
-                  {aliases.map((alias, i) => (
-                    <span key={i} className="inline-flex items-center gap-1 rounded-md bg-accent/10 text-accent text-xs px-2 py-0.5 font-sans">
-                      {alias}
-                      <button className="hover:text-red-500 text-accent/60" onClick={() => setAliases(prev => prev.filter((_, j) => j !== i))}>×</button>
-                    </span>
-                  ))}
-                  <input
-                    className="flex-1 min-w-[80px] bg-transparent text-xs outline-none placeholder:text-text/30 font-sans"
-                    placeholder={t('auLore.aliasPlaceholder')}
-                    value={newAlias}
-                    onChange={e => setNewAlias(e.target.value)}
-                    onKeyDown={e => {
-                      if ((e.key === 'Enter' || e.key === ',') && newAlias.trim()) {
-                        e.preventDefault();
-                        if (!aliases.includes(newAlias.trim())) {
-                          setAliases(prev => [...prev, newAlias.trim()]);
-                        }
-                        setNewAlias('');
-                      }
-                      if (e.key === 'Backspace' && !newAlias && aliases.length > 0) {
-                        setAliases(prev => prev.slice(0, -1));
-                      }
-                    }}
-                    disabled={isReadingFile}
-                  />
-                </div>
-              )}
-
-              {previewMode ? (
-                <div className="flex-1 min-h-[420px] rounded-md border border-black/10 bg-surface/30 p-6 dark:border-white/10 overflow-y-auto">
-                  <SettingsMarkdown content={editorContent} />
-                </div>
-              ) : (
-                <Textarea
-                  value={editorContent}
-                  onChange={e => setEditorContent(e.target.value)}
-                  disabled={isReadingFile}
-                  onDragOver={e => e.preventDefault()}
-                  onDrop={e => {
-                    e.preventDefault();
-                    const file = e.dataTransfer.files[0];
-                    if (file && (file.name.endsWith('.txt') || file.name.endsWith('.md'))) {
-                      file.text().then(text => setEditorContent(prev => prev + '\n\n' + text));
-                    }
-                  }}
-                  className="font-mono flex-1 min-h-[420px] text-sm leading-relaxed bg-surface/30 p-4 resize-y"
-                />
-              )}
-            </div>
-          ) : (
-            <EmptyState
-              icon={<FileText size={40} />}
-              title={t('navigation.auLore')}
-              description={t('auLore.referenceHint')}
-              actions={[
-                {
-                  key: 'create-character-empty',
-                  element: (
-                    <Button variant="primary" onClick={() => setCreateModalOpen(true)}>
-                      {t('common.actions.addCharacter')}
-                    </Button>
-                  ),
-                },
-                {
-                  key: 'import-character-empty',
-                  element: (
-                    <Button variant="secondary" onClick={openImportModal}>
-                      {t('common.actions.importFromFandom')}
-                    </Button>
-                  ),
-                },
-              ]}
-            />
-          )}
+          {editorPanel}
         </div>
       </div>
 
-      <Modal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} title={selectedCategory === 'worldbuilding' ? t('auLore.createTitleWorldbuilding') : t('auLore.createTitle')}>
-        <div className="space-y-4">
-          <p className="text-sm text-text/70">{selectedCategory === 'worldbuilding' ? t('auLore.createDescriptionWorldbuilding') : t('auLore.createDescription')}</p>
-          <Input value={createName} onChange={e => setCreateName(e.target.value)} placeholder={selectedCategory === 'worldbuilding' ? t('auLore.createPlaceholderWorldbuilding') : t('auLore.createPlaceholder')} autoFocus />
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setCreateModalOpen(false)}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={handleCreate} disabled={!createName.trim()}>{t('common.actions.create')}</Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} title={t('auLore.deleteTitle')}>
-        <div className="space-y-4">
-          <p className="text-sm text-text/80">{t('auLore.deleteMessage', { name: `${selectedFile}.md` })}</p>
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setDeleteConfirmOpen(false)}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDeleteLore}>{t('common.actions.confirmDelete')}</Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal isOpen={coreLimitModalOpen} onClose={() => setCoreLimitModalOpen(false)} title={t('coreIncludes.missingCoreLimit')}>
-        <div className="space-y-4">
-          <p className="text-sm text-text/80 leading-relaxed">{t('coreIncludes.missingCoreLimitDesc')}</p>
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setCoreLimitModalOpen(false)}>{t('coreIncludes.later')}</Button>
-            <Button variant="primary" onClick={() => {
-              setCoreLimitModalOpen(false);
-              if (coreLimitTarget) void loadFileContent(coreLimitTarget);
-            }}>{t('coreIncludes.goEdit')}</Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal isOpen={importModalOpen} onClose={() => setImportModalOpen(false)} title={t('auLore.importTitle')}>
-        <div className="space-y-4">
-          <p className="text-sm text-text/70">{t('auLore.importDescription')}</p>
-          <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-lg border border-black/10 p-2 dark:border-white/10">
-            {importLoading ? (
-              <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-accent" /></div>
-            ) : importCandidates.length === 0 ? (
-              <EmptyState compact icon={<Download size={28} />} title={t('auLore.importEmpty')} description={t('fandomLore.referenceHint')} />
-            ) : (
-              importCandidates.map(file => (
-                <label key={file.name} className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedImports.includes(file.name)}
-                    onChange={() => handleToggleImport(file.name)}
-                    className="accent-accent"
-                  />
-                  <span className="text-sm">{file.name}</span>
-                </label>
-              ))
-            )}
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setImportModalOpen(false)}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={handleImportSelected} disabled={selectedImports.length === 0 || isSaving}>
-              {isSaving ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.importSelected')}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      {sharedModals}
     </>
   );
 };

@@ -255,16 +255,16 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   return (
     <>
       <main className="flex-1 overflow-y-auto w-full">
-        <div className="max-w-4xl mx-auto p-8 lg:p-12 space-y-12">
+        <div className="mx-auto max-w-4xl space-y-10 px-4 py-4 md:p-8 lg:p-12">
 
-          <header className="flex justify-between items-center pb-6 border-b border-black/10 dark:border-white/10">
+          <header className="flex flex-col gap-4 border-b border-black/10 pb-6 dark:border-white/10 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
-              <h1 className="font-serif text-2xl font-bold flex items-center gap-2">
+              <h1 className="flex flex-wrap items-center gap-2 font-serif text-xl font-bold md:text-2xl">
                 <Settings className="text-accent" />
                 {t("settings.headerTitle")} <span className="text-lg font-normal opacity-50 ml-2">{t("settings.story.scopeLabel", { name: auName })}</span>
               </h1>
             </div>
-            <Button variant="primary" className="w-24 shadow-md gap-2" onClick={handleSave} disabled={saving}>
+            <Button variant="primary" className="w-full gap-2 shadow-md md:w-24" onClick={handleSave} disabled={saving}>
               <Save size={16}/> {saving ? t("common.status.saving") : t("common.actions.save")}
             </Button>
           </header>
@@ -272,8 +272,8 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
           {/* 1. 模型与 API 配置 */}
           <section className="space-y-4">
             <h2 className="text-lg font-sans font-bold text-accent border-l-4 border-accent pl-3">{t("settings.sections.llm")}</h2>
-            <div className="bg-surface/50 p-6 rounded-xl border border-black/5 dark:border-white/5 space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="space-y-4 rounded-xl border border-black/5 bg-surface/50 p-4 dark:border-white/5 md:p-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                    <h3 className="text-sm font-bold text-text/90 mb-1">{t("settings.story.overrideToggleLabel")}</h3>
                    <p className="text-xs text-text/50">{t("settings.story.inheritDescription")}</p>
@@ -291,7 +291,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                 <div className="pt-4 border-t border-black/10 dark:border-white/10 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-text/80">{t("common.labels.searchMode")}</label>
-                    <select value={llmMode} onChange={e => setLlmMode(e.target.value)} className="h-9 rounded-md border border-black/20 dark:border-white/20 bg-background px-3 text-sm focus:ring-2 focus:ring-accent outline-none">
+                    <select value={llmMode} onChange={e => setLlmMode(e.target.value)} className="h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-9 md:text-sm">
                       <option value="api">{getEnumLabel("llm_mode", "api", "api")}</option>
                       <option value="local">{getEnumLabel("llm_mode", "local", "local")}</option>
                       <option value="ollama">{getEnumLabel("llm_mode", "ollama", "ollama")}</option>
@@ -302,16 +302,16 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                     <>
                       <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-text/80">{t("settings.story.storyModel")}</label>
-                        <Input value={auModel} onChange={e => setAuModel(e.target.value)} placeholder="deepseek-chat" className="h-9 text-sm" />
+                        <Input value={auModel} onChange={e => setAuModel(e.target.value)} placeholder="deepseek-chat" className="h-11 text-base md:h-9 md:text-sm" />
                       </div>
                       <div className="flex flex-col gap-1.5">
                          <label className="text-xs font-bold text-text/80">{t("common.labels.apiKey")}</label>
-                         <Input type="password" value={auApiKey} onChange={e => setAuApiKey(e.target.value)} placeholder="sk-..." className="h-9 text-sm" />
+                         <Input type="password" value={auApiKey} onChange={e => setAuApiKey(e.target.value)} placeholder="sk-..." className="h-11 text-base md:h-9 md:text-sm" />
                          <p className="text-xs text-text/50">{t("common.help.apiKey")}</p>
                       </div>
                       <div className="flex flex-col gap-1.5 md:col-span-2">
                          <label className="text-xs font-bold text-text/80">{t("common.labels.apiBase")}</label>
-                         <Input value={auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="https://api.deepseek.com" className="h-9 text-sm" />
+                         <Input value={auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="https://api.deepseek.com" className="h-11 text-base md:h-9 md:text-sm" />
                          <p className="text-xs text-text/50">{t("common.help.apiBase")}</p>
                       </div>
                     </>
@@ -319,7 +319,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                   {llmMode === 'local' && (
                     <div className="flex flex-col gap-1.5 md:col-span-2">
                       <label className="text-xs font-bold text-text/80">{t("common.labels.localModelPath")}</label>
-                      <Input value={auLocalModelPath} onChange={e => setAuLocalModelPath(e.target.value)} placeholder="/path/to/model" className="h-9 text-sm" />
+                      <Input value={auLocalModelPath} onChange={e => setAuLocalModelPath(e.target.value)} placeholder="/path/to/model" className="h-11 text-base md:h-9 md:text-sm" />
                       <p className="text-xs text-text/50">{t("common.help.localModelPath")}</p>
                     </div>
                   )}
@@ -327,19 +327,19 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                     <>
                       <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-text/80">{t("common.labels.ollamaModel")}</label>
-                        <Input value={auOllamaModel} onChange={e => setAuOllamaModel(e.target.value)} placeholder="llama3" className="h-9 text-sm" />
+                        <Input value={auOllamaModel} onChange={e => setAuOllamaModel(e.target.value)} placeholder="llama3" className="h-11 text-base md:h-9 md:text-sm" />
                         <p className="text-xs text-text/50">{t("common.help.ollamaModel")}</p>
                       </div>
                       <div className="flex flex-col gap-1.5">
                          <label className="text-xs font-bold text-text/80">{t("common.labels.apiBase")}</label>
-                         <Input value={auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="http://localhost:11434" className="h-9 text-sm" />
+                         <Input value={auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="http://localhost:11434" className="h-11 text-base md:h-9 md:text-sm" />
                          <p className="text-xs text-text/50">{t("common.help.apiBase")}</p>
                       </div>
                     </>
                   )}
                   <div className="flex flex-col gap-1.5 md:col-span-2">
                      <label className="text-xs font-bold text-text/80">{t("common.labels.contextWindow")}</label>
-                     <Input type="number" value={contextWindow} onChange={e => setContextWindow(parseInt(e.target.value, 10) || 0)} className="h-9 text-sm" />
+                     <Input type="number" value={contextWindow} onChange={e => setContextWindow(parseInt(e.target.value, 10) || 0)} className="h-11 text-base md:h-9 md:text-sm" />
                      <p className="text-xs text-text/50">{t("common.help.contextWindow")}</p>
                   </div>
                 </div>
@@ -349,21 +349,21 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
 
           <section className="space-y-4">
             <h2 className="text-lg font-sans font-bold text-info border-l-4 border-info pl-3">{t("settings.sections.searchEngine")}</h2>
-            <div className="bg-surface/50 p-6 rounded-xl border border-black/5 dark:border-white/5 space-y-4">
+            <div className="space-y-4 rounded-xl border border-black/5 bg-surface/50 p-4 dark:border-white/5 md:p-6">
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-bold text-text/90">{t("common.labels.searchEngineModel")}</label>
                 {!isEmbeddingOverride && (
-                  <Input value={globalSettings?.embedding?.model || t("settings.global.builtinEmbeddingLabel")} readOnly className="h-10 font-mono bg-background/70" />
+                  <Input value={globalSettings?.embedding?.model || t("settings.global.builtinEmbeddingLabel")} readOnly className="h-11 bg-background/70 font-mono text-base md:h-10 md:text-sm" />
                 )}
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <label className="flex min-h-[44px] items-center gap-2 text-sm cursor-pointer">
                   <input type="checkbox" checked={isEmbeddingOverride} onChange={e => setIsEmbeddingOverride(e.target.checked)} disabled={saving} className="accent-accent" />
                   {t("settings.au.useCustomEmbedding")}
                 </label>
                 {isEmbeddingOverride && (
                   <div className="space-y-2 pl-6 border-l-2 border-info/30">
-                    <Input value={embModel} onChange={e => setEmbModel(e.target.value)} placeholder={t("settings.global.embeddingModelPlaceholder")} disabled={saving} className="h-8 text-sm" />
-                    <Input value={embApiBase} onChange={e => setEmbApiBase(e.target.value)} placeholder={t("settings.global.embeddingApiBasePlaceholder")} disabled={saving} className="h-8 text-sm" />
-                    <Input value={embApiKey} onChange={e => setEmbApiKey(e.target.value)} placeholder={t("settings.global.embeddingApiKeyPlaceholder")} disabled={saving} className="h-8 text-sm" type="password" />
+                    <Input value={embModel} onChange={e => setEmbModel(e.target.value)} placeholder={t("settings.global.embeddingModelPlaceholder")} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
+                    <Input value={embApiBase} onChange={e => setEmbApiBase(e.target.value)} placeholder={t("settings.global.embeddingApiBasePlaceholder")} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
+                    <Input value={embApiKey} onChange={e => setEmbApiKey(e.target.value)} placeholder={t("settings.global.embeddingApiKeyPlaceholder")} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" type="password" />
                   </div>
                 )}
                 <p className="text-xs text-text/50">{t("common.help.searchEngineModel")}</p>
@@ -379,25 +379,25 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
           <section className="space-y-6">
             <h2 className="text-lg font-sans font-bold text-accent border-l-4 border-accent pl-3">{t("settings.sections.writingStyle")}</h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-surface/50 p-6 rounded-xl border border-black/5 dark:border-white/5">
+            <div className="grid grid-cols-1 gap-6 rounded-xl border border-black/5 bg-surface/50 p-4 dark:border-white/5 md:grid-cols-2 md:gap-8 md:p-6">
               <div className="flex flex-col gap-4">
                  <div className="flex flex-col gap-2">
                    <label className="text-sm font-bold text-text/90">{t("common.labels.perspective")}</label>
-                   <select value={perspective} onChange={e => setPerspective(e.target.value)} className="h-10 rounded-md border border-black/20 dark:border-white/20 bg-background px-3 text-sm focus:ring-2 focus:ring-accent outline-none">
+                   <select value={perspective} onChange={e => setPerspective(e.target.value)} className="h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm">
                      <option value="third_person">{getEnumLabel("perspective", "third_person", "third_person")}</option>
                      <option value="first_person">{getEnumLabel("perspective", "first_person", "first_person")}</option>
                    </select>
                  </div>
                  <div className="flex flex-col gap-2">
                    <label className="text-sm font-bold text-text/90">{t("common.labels.emotionStyle")}</label>
-                   <select value={emotionStyle} onChange={e => setEmotionStyle(e.target.value)} className="h-10 rounded-md border border-black/20 dark:border-white/20 bg-background px-3 text-sm focus:ring-2 focus:ring-accent outline-none">
+                   <select value={emotionStyle} onChange={e => setEmotionStyle(e.target.value)} className="h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm">
                      <option value="implicit">{getEnumLabel("emotion_style", "implicit", "implicit")}</option>
                      <option value="explicit">{getEnumLabel("emotion_style", "explicit", "explicit")}</option>
                    </select>
                  </div>
                  <div className="flex flex-col gap-2">
                    <label className="text-sm font-bold text-text/90">{t("common.labels.chapterLength")}</label>
-                   <Input type="number" value={chapterLength} onChange={e => setChapterLength(parseInt(e.target.value) || 2000)} className="h-10 font-mono" />
+                   <Input type="number" value={chapterLength} onChange={e => setChapterLength(parseInt(e.target.value) || 2000)} className="h-11 font-mono text-base md:h-10 md:text-sm" />
                    <p className="text-xs text-text/50">{t("settings.story.chapterLengthDescription")}</p>
                  </div>
               </div>
@@ -408,7 +408,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                    value={customInstructions}
                    onChange={e => setCustomInstructions(e.target.value)}
                    placeholder={t("settings.story.customInstructionsPlaceholder")}
-                   className="font-serif min-h-[200px] text-sm leading-relaxed bg-background p-4 resize-y" 
+                   className="min-h-[200px] resize-y bg-background p-4 font-serif text-base leading-relaxed md:text-sm"
                  />
               </div>
             </div>
@@ -416,9 +416,9 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
 
           {/* 3. 铁律 Pinned Context */}
           <section className="space-y-6">
-            <h2 className="text-lg font-sans font-bold text-error border-l-4 border-error pl-3 flex justify-between items-center">
+            <h2 className="flex flex-col gap-3 border-l-4 border-error pl-3 text-lg font-sans font-bold text-error md:flex-row md:items-center md:justify-between">
                <span>{t("settings.sections.pinnedContext")}</span>
-               <Button variant="secondary" size="sm" className="h-8 text-xs font-normal border-error/30 text-error hover:bg-error/10" onClick={addPinnedRule}>
+               <Button variant="secondary" size="sm" className="h-11 border-error/30 text-sm font-normal text-error hover:bg-error/10 md:h-8 md:text-xs" onClick={addPinnedRule}>
                  <Plus size={14} className="mr-1"/> {t("common.actions.addPinnedRule")}
                </Button>
             </h2>
@@ -444,10 +444,10 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                  />
                ) : (
                  pinnedContext.map((pc, idx) => (
-                   <div key={idx} className="flex gap-3 items-start bg-error/5 p-4 rounded-lg border border-error/20">
+                   <div key={idx} className="flex items-start gap-3 rounded-lg border border-error/20 bg-error/5 p-4">
                      <span className="font-mono text-error/50 font-bold mt-1 text-sm">{idx+1}.</span>
-                     <Textarea className="min-h-[60px] flex-1 bg-background text-sm font-serif" value={pc} onChange={e => updatePinnedRule(idx, e.target.value)} />
-                     <Button variant="ghost" size="sm" className="text-error/60 hover:text-error hover:bg-error/10 p-2 h-auto" onClick={() => removePinnedRule(idx)}>
+                     <Textarea className="min-h-[60px] flex-1 bg-background font-serif text-base md:text-sm" value={pc} onChange={e => updatePinnedRule(idx, e.target.value)} />
+                     <Button variant="ghost" size="sm" className="h-11 w-11 p-0 text-error/60 hover:bg-error/10 hover:text-error md:h-auto md:w-auto md:p-2" onClick={() => removePinnedRule(idx)}>
                        <Trash2 size={16}/>
                      </Button>
                    </div>
@@ -475,11 +475,11 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                 coreIncludes.map((file, idx) => (
                   <Tag key={idx} variant="success" className="px-3 py-1.5 text-sm gap-2">
                     <span>{file}</span>
-                    <button className="hover:text-success/50" onClick={() => removeCoreInclude(idx)}><Trash2 size={14}/></button>
+                    <button className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:text-success/50 md:h-auto md:w-auto" onClick={() => removeCoreInclude(idx)}><Trash2 size={14}/></button>
                   </Tag>
                 ))
               )}
-              <Button variant="ghost" size="sm" className="h-8 border border-dashed border-success/30 text-success hover:bg-success/5" onClick={() => setCoreIncludeModalOpen(true)}>
+              <Button variant="ghost" size="sm" className="h-11 border border-dashed border-success/30 text-sm text-success hover:bg-success/5 md:h-8 md:text-xs" onClick={() => setCoreIncludeModalOpen(true)}>
                 <Plus size={14} className="mr-1"/> {t("common.actions.addFile")}
               </Button>
             </div>
@@ -525,17 +525,17 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
           )}
 
           {/* 高级操作 (sub-task 4) */}
-          <section className="space-y-4 pt-6 border-t border-black/10 dark:border-white/10">
+          <section className="space-y-4 border-t border-black/10 pt-6 dark:border-white/10">
             <h2 className="text-lg font-sans font-bold text-text/50 border-l-4 border-text/20 pl-3">{t('advanced.title')}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-surface/50 p-4 rounded-xl border border-black/5 dark:border-white/5">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="rounded-xl border border-black/5 bg-surface/50 p-4 dark:border-white/5">
                 <Button variant="secondary" size="sm" className="w-full mb-2" onClick={handleRecalc} disabled={recalcing}>
                   {recalcing ? <Loader2 size={14} className="animate-spin mr-2" /> : null}
                   {t('advanced.recalc')}
                 </Button>
                 <p className="text-xs text-text/40">{t('advanced.recalcDesc')}</p>
               </div>
-              <div className="bg-surface/50 p-4 rounded-xl border border-black/5 dark:border-white/5">
+              <div className="rounded-xl border border-black/5 bg-surface/50 p-4 dark:border-white/5">
                 <Button variant="secondary" size="sm" className="w-full mb-2" onClick={async () => {
                   try {
                     await rebuildIndex(auPath);
@@ -552,7 +552,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
             <p className="text-xs text-text/30">{t('advanced.advancedHint')}</p>
           </section>
 
-          <div className="h-20"></div>
+          <div className="h-10 md:h-20"></div>
         </div>
       </main>
       <GlobalSettingsModal isOpen={isGlobalSettingsOpen} onClose={() => setGlobalSettingsOpen(false)} />
@@ -563,7 +563,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
             return available.length > 0 ? (
               <div className="space-y-2">
                 {available.map(name => (
-                  <button key={name} className="w-full text-left px-3 py-2 rounded-lg border border-black/10 dark:border-white/10 hover:bg-accent/10 hover:border-accent/30 transition-colors text-sm" onClick={() => { setCoreIncludes(prev => [...prev, name]); setCoreIncludeModalOpen(false); }}>
+                  <button key={name} className="min-h-[44px] w-full rounded-lg border border-black/10 px-3 py-2 text-left text-sm transition-colors hover:border-accent/30 hover:bg-accent/10 dark:border-white/10" onClick={() => { setCoreIncludes(prev => [...prev, name]); setCoreIncludeModalOpen(false); }}>
                     {name}
                   </button>
                 ))}

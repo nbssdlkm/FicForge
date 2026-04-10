@@ -74,7 +74,7 @@ export const SettingsPanel = ({
         <label className="text-xs text-text/70">{t("common.labels.model")}</label>
         <div className="flex items-center gap-2">
            <select value={localModel} onChange={e => handleModelChange(e.target.value)}
-             className="h-8 rounded border border-black/20 dark:border-white/20 bg-background px-2 text-xs focus:ring-1 focus:ring-accent outline-none flex-1">
+             className="h-11 flex-1 rounded border border-black/20 bg-background px-3 text-base outline-none focus:ring-1 focus:ring-accent dark:border-white/20 md:h-8 md:px-2 md:text-xs">
              {!presetModels.includes(localModel) && localModel ? (
                <option value={localModel}>{localModel}</option>
              ) : null}
@@ -109,8 +109,8 @@ export const SettingsPanel = ({
       </div>
 
       <div className="grid grid-cols-2 gap-2 mt-2">
-        <Button variant="secondary" size="sm" className="text-xs h-8" onClick={onSaveGlobal}>{t("common.actions.saveToGlobal")}</Button>
-        <Button variant="secondary" size="sm" className="text-xs h-8" onClick={onSaveAu}>{t("common.actions.saveToStory")}</Button>
+        <Button variant="secondary" size="sm" className="h-11 text-sm md:h-8 md:text-xs" onClick={onSaveGlobal}>{t("common.actions.saveToGlobal")}</Button>
+        <Button variant="secondary" size="sm" className="h-11 text-sm md:h-8 md:text-xs" onClick={onSaveAu}>{t("common.actions.saveToStory")}</Button>
       </div>
     </Card>
   );

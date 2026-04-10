@@ -41,9 +41,9 @@ export function SettingsChatInput({
   const canSendNormally = !disableSend && !sending && trimmed.length > 0 && !showLargeTextPrompt;
 
   return (
-    <div className="border-t border-black/10 bg-surface/45 dark:border-white/10 flex flex-col">
+    <div className="safe-area-bottom flex flex-col border-t border-black/10 bg-surface/45 dark:border-white/10">
       <button
-        className="mx-auto flex items-center gap-1 px-4 py-1 text-[10px] text-text/40 hover:text-text/60 transition-colors"
+        className="mx-auto flex min-h-[44px] items-center gap-1 px-4 py-1 text-[10px] text-text/40 transition-colors hover:text-text/60"
         onClick={() => setCollapsed(prev => !prev)}
       >
         {collapsed ? <ChevronsUp size={12} /> : <ChevronsDown size={12} />}
@@ -53,7 +53,7 @@ export function SettingsChatInput({
       {collapsed ? (
         <div className="flex items-center justify-center gap-3 pb-2">
           <Button variant="primary" size="sm" onClick={() => setCollapsed(false)} className="min-w-[112px]">
-            {t("settingsMode.send")}
+            {t("settingsMode.expandComposer")}
           </Button>
         </div>
       ) : (
@@ -84,7 +84,7 @@ export function SettingsChatInput({
               className={`resize-none ${compact ? "min-h-[110px]" : "min-h-[128px]"} bg-background/80`}
             />
             <div className="flex items-center justify-end">
-              <Button variant="primary" onClick={onSend} disabled={!canSendNormally} className={compact ? "w-full" : "min-w-[112px]"}>
+              <Button variant="primary" onClick={onSend} disabled={!canSendNormally} className={compact ? "w-full" : "min-w-[112px] w-full sm:w-auto"}>
                 {sending ? <Loader2 size={16} className="animate-spin" /> : t("settingsMode.send")}
               </Button>
             </div>

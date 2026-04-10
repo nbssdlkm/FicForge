@@ -15,6 +15,7 @@ import { getState, type StateInfo } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
 import { useFeedback } from '../../hooks/useFeedback';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 type ExtractedFactCandidate = {
   content_raw: string;
@@ -31,6 +32,7 @@ type ExtractedFactCandidate = {
 export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const { t } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const activeAuPathRef = useRef(auPath);
   activeAuPathRef.current = auPath;
   const loadFactsRequestIdRef = useRef(0);
@@ -371,6 +373,437 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     }
   };
 
+  const renderFactEditor = (showFooter: boolean) => {
+    if (!editingFact) {
+      return (
+        <EmptyState
+          icon={<Search size={40} />}
+          title={t('facts.emptySelectionTitle')}
+          description={t('facts.emptySelectionDescription')}
+        />
+      );
+    }
+
+    return (
+      <div key={editingFact.id} className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-bold text-text/90">{t('common.labels.factStatus')}</label>
+            <select
+              className="h-11 rounded-md border border-black/20 bg-surface px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
+              value={editingFact.status}
+              onChange={(e) => handleStatusChange(editingFact.id, e.target.value)}
+            >
+              <option value="unresolved">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</option>
+              <option value="active">{getEnumLabel('fact_status', 'active', 'active')}</option>
+              <option value="resolved">{getEnumLabel('fact_status', 'resolved', 'resolved')}</option>
+              <option value="deprecated">{getEnumLabel('fact_status', 'deprecated', 'deprecated')}</option>
+            </select>
+            <p className="text-xs text-text/50">{t('facts.statusHintResolved')}</p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-bold text-text/90">{t('common.labels.narrativeWeight')}</label>
+            <select
+              ref={editWeightRef as any}
+              defaultValue={editingFact.narrative_weight || 'medium'}
+              className="h-11 rounded-md border border-black/20 bg-surface px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
+            >
+              <option value="low">{getEnumLabel('narrative_weight', 'low', 'low')}</option>
+              <option value="medium">{getEnumLabel('narrative_weight', 'medium', 'medium')}</option>
+              <option value="high">{getEnumLabel('narrative_weight', 'high', 'high')}</option>
+            </select>
+            <p className="text-xs text-text/50">{t('facts.weightHint')}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-bold text-text/90">{t('common.labels.contentClean')}</label>
+          <Textarea ref={editContentCleanRef} defaultValue={editingFact.content_clean} className="font-serif min-h-[160px] text-lg leading-relaxed resize-y" />
+          <p className="text-xs text-text/50">{t('facts.cleanHint')}</p>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-bold text-text/90">{t('common.labels.contentRaw')}</label>
+          <Textarea ref={editContentRawRef} defaultValue={editingFact.content_raw} className="font-serif opacity-70 min-h-[140px] text-base leading-relaxed bg-surface/50 resize-y" />
+          <p className="text-xs text-text/50">{t('facts.rawHint')}</p>
+        </div>
+
+        <div className="flex flex-col gap-2 border-t border-black/10 pt-4 dark:border-white/10">
+          <label className="text-sm font-bold text-text/90">{t('common.labels.characters')}</label>
+          <Input ref={editCharactersRef} defaultValue={(editingFact.characters || []).join(', ')} className="h-11 text-base md:h-10 md:text-sm" />
+          <p className="text-xs text-text/50">{t('facts.charactersHint')}</p>
+        </div>
+
+        {showFooter ? (
+          <div className="flex items-center justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
+            <Button variant="ghost" onClick={() => setEditingFact(null)}>{t('facts.cancelSelection')}</Button>
+            <Button variant="primary" onClick={handleSaveFact} disabled={saving}>
+              {saving ? <Loader2 size={14} className="animate-spin" /> : saveSuccess ? <><Check size={14} className="mr-1" /> {t('facts.saved')}</> : t('common.actions.save')}
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
+  const sharedModals = (
+    <>
+      {isMobile ? (
+        <Modal
+          isOpen={!!editingFact}
+          onClose={saving ? () => {} : () => setEditingFact(null)}
+          title={editingFact ? `${editingFact.id.split('-')[0]} ${t('facts.editing')}` : t('facts.editing')}
+        >
+          {renderFactEditor(true)}
+        </Modal>
+      ) : null}
+
+      <Modal isOpen={isAddModalOpen} onClose={adding ? () => {} : () => setAddModalOpen(false)} title={t('facts.createModal.title')}>
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <Textarea
+              label={t('common.labels.contentRaw')}
+              value={newContentRaw}
+              onChange={e => setNewContentRaw(e.target.value)}
+              placeholder={t('facts.createModal.rawPlaceholder')}
+              className="min-h-[80px] bg-surface/50"
+            />
+            <p className="text-[11px] text-text/40">{t('facts.rawHint')}</p>
+          </div>
+          <div className="space-y-1">
+            <Textarea
+              label={`${t('common.labels.contentClean')} *`}
+              value={newContentClean}
+              onChange={e => setNewContentClean(e.target.value)}
+              placeholder={t('facts.createModal.cleanPlaceholder')}
+              className="min-h-[80px] bg-surface/50 font-bold"
+            />
+            <p className="text-[11px] text-text/40">{t('facts.cleanHint')}</p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-xs font-bold text-text/80">{t('facts.createModal.typeLabel')}</label>
+              <select value={newType} onChange={e => setNewType(e.target.value)} className="h-11 w-full rounded-md border border-black/10 bg-surface px-2 text-base dark:border-white/10 md:h-9 md:text-sm">
+                <option value="plot_event">{getEnumLabel('fact_type', 'plot_event', 'plot_event')}</option>
+                <option value="character_detail">{getEnumLabel('fact_type', 'character_detail', 'character_detail')}</option>
+                <option value="relationship">{getEnumLabel('fact_type', 'relationship', 'relationship')}</option>
+                <option value="backstory">{getEnumLabel('fact_type', 'backstory', 'backstory')}</option>
+                <option value="foreshadowing">{getEnumLabel('fact_type', 'foreshadowing', 'foreshadowing')}</option>
+                <option value="world_rule">{getEnumLabel('fact_type', 'world_rule', 'world_rule')}</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-bold text-text/80">{t('facts.createModal.weightLabel')}</label>
+              <select value={newWeight} onChange={e => setNewWeight(e.target.value)} className="h-11 w-full rounded-md border border-black/10 bg-surface px-2 text-base dark:border-white/10 md:h-9 md:text-sm">
+                <option value="low">{getEnumLabel('narrative_weight', 'low', 'low')}</option>
+                <option value="medium">{getEnumLabel('narrative_weight', 'medium', 'medium')}</option>
+                <option value="high">{getEnumLabel('narrative_weight', 'high', 'high')}</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-bold text-text/80">{t('facts.createModal.statusLabel')}</label>
+              <select value={newStatus} onChange={e => setNewStatus(e.target.value)} className="h-11 w-full rounded-md border border-black/10 bg-surface px-2 text-base dark:border-white/10 md:h-9 md:text-sm">
+                <option value="active">{getEnumLabel('fact_status', 'active', 'active')}</option>
+                <option value="unresolved">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
+            <Button variant="ghost" onClick={() => setAddModalOpen(false)} disabled={adding}>{t('common.actions.cancel')}</Button>
+            <Button variant="primary" onClick={handleAddFact} disabled={!newContentClean.trim() || adding}>
+              {adding ? <Loader2 size={16} className="animate-spin" /> : t('facts.createModal.submit')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={extractRangeOpen} onClose={() => setExtractRangeOpen(false)} title={t('facts.extractRangeTitle')}>
+        <div className="space-y-4">
+          <p className="text-sm text-text/70">{t('facts.extractRangeDesc')}</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[auto,96px,auto,96px,1fr] sm:items-center">
+            <label className="text-sm text-text/70 shrink-0">{t('facts.extractFrom')}</label>
+            <Input type="number" className="h-11 text-base md:h-8 md:text-sm" min={1} max={extractRange[1]} value={extractRange[0]} onChange={e => setExtractRange([Math.max(1, parseInt(e.target.value) || 1), extractRange[1]])} />
+            <label className="text-sm text-text/70 shrink-0">{t('facts.extractTo')}</label>
+            <Input type="number" className="h-11 text-base md:h-8 md:text-sm" min={extractRange[0]} value={extractRange[1]} onChange={e => setExtractRange([extractRange[0], parseInt(e.target.value) || extractRange[1]])} />
+            <span className="text-xs text-text/40">{t('facts.extractChapterCount', { count: extractRange[1] - extractRange[0] + 1 })}</span>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setExtractRangeOpen(false)}>{t('common.actions.cancel')}</Button>
+            <Button variant="primary" onClick={handleExtractConfirm}>{t('facts.extractStart')}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={extractModalOpen} onClose={saving ? () => {} : () => setExtractModalOpen(false)} title={t('facts.extractReviewTitle')}>
+        <div className="space-y-4">
+          <p className="text-sm text-text/70">{t('facts.extractReviewDescription')}</p>
+          <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1">
+            {extractedCandidates.length === 0 ? (
+              <EmptyState compact icon={<Sparkles size={28} />} title={t('facts.extractReviewEmpty')} description={t('facts.extractNoResult')} />
+            ) : (
+              extractedCandidates.map((candidate, index) => {
+                const candidateType = candidate.fact_type || candidate.type || 'plot_event';
+                return (
+                  <div key={`${candidate.content_clean}-${index}`} className="space-y-3 rounded-lg border border-black/10 bg-surface/40 p-4 dark:border-white/10">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Tag variant="info">{getEnumLabel('fact_type', candidateType, candidateType)}</Tag>
+                      <Tag variant="warning">{getEnumLabel('narrative_weight', candidate.narrative_weight, candidate.narrative_weight)}</Tag>
+                      <Tag variant="default">{getEnumLabel('fact_status', candidate.status, candidate.status)}</Tag>
+                      <span className="text-xs text-text/50">{t('facts.extractSourceChapter', { chapter: candidate.chapter })}</span>
+                    </div>
+                    <p className="text-sm text-text/85">{candidate.content_clean}</p>
+                    {candidate.characters.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {candidate.characters.map(character => (
+                          <span key={character} className="text-xs font-medium text-accent/80">@{character}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+          <div className="flex justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
+            <Button variant="ghost" onClick={() => setExtractModalOpen(false)} disabled={saving}>{t('common.actions.cancel')}</Button>
+            <Button variant="primary" onClick={handleSaveExtracted} disabled={saving || extractedCandidates.length === 0}>
+              {saving ? <Loader2 size={16} className="animate-spin" /> : t('facts.extractSaveAll')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={!!batchConfirm} onClose={batchProcessing ? () => {} : () => setBatchConfirm(null)} title={t('facts.batchConfirmTitle', { count: selectedIds.size, status: batchConfirm ? getEnumLabel('fact_status', batchConfirm, batchConfirm) : '' })}>
+        <div className="space-y-4">
+          <p className="text-sm text-text/70">
+            {batchConfirm === 'deprecated' && t('facts.batchDeprecatedDesc')}
+            {batchConfirm === 'resolved' && t('facts.batchResolvedDesc')}
+            {batchConfirm === 'active' && t('facts.batchActiveDesc')}
+            {batchConfirm === 'unresolved' && t('facts.batchUnresolvedDesc')}
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setBatchConfirm(null)} disabled={batchProcessing}>{t('common.actions.cancel')}</Button>
+            <Button variant="primary" onClick={() => batchConfirm && handleBatchStatus(batchConfirm)} disabled={batchProcessing}>
+              {batchProcessing ? <Loader2 size={14} className="animate-spin" /> : t('common.actions.confirm')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <>
+        <div className="min-h-full bg-background pb-28 md:hidden">
+          <header className="safe-area-top sticky top-0 z-20 border-b border-black/10 bg-surface/90 px-4 py-4 backdrop-blur dark:border-white/10">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h1 className="font-serif text-2xl font-bold">{t('facts.title')}</h1>
+                <p className="text-sm text-text/55">事实卡片、状态和批量处理。</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" size="sm" className="px-3" onClick={handleExtractClick} disabled={extracting}>
+                  {extracting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                </Button>
+                <Button variant="primary" size="sm" className="px-3 shadow-md" onClick={() => setAddModalOpen(true)}>
+                  <Plus size={16} className="mr-1" />
+                  新建
+                </Button>
+              </div>
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 text-text/50" size={16} />
+                <Input
+                  className="pl-10"
+                  placeholder={t('common.search.facts')}
+                  value={filter}
+                  onChange={e => setFilter(e.target.value)}
+                />
+              </div>
+              <Button
+                variant={filterOpen || chapterFilter !== null || characterFilter ? 'primary' : 'secondary'}
+                className="w-11 px-0"
+                title={t('facts.filterTitle')}
+                onClick={() => setFilterOpen(!filterOpen)}
+              >
+                <Filter size={16} />
+              </Button>
+            </div>
+
+            {filterOpen ? (
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <select
+                  value={chapterFilter ?? ''}
+                  onChange={e => setChapterFilter(e.target.value ? Number(e.target.value) : null)}
+                  className="h-11 rounded-md border border-black/15 bg-background px-3 text-base outline-none focus:ring-1 focus:ring-accent dark:border-white/15 md:text-sm"
+                >
+                  <option value="">{t('facts.filterAllChapters')}</option>
+                  {uniqueChapters.map(ch => (
+                    <option key={ch} value={ch}>{t('facts.chapterGroup', { num: ch })}</option>
+                  ))}
+                </select>
+                <select
+                  value={characterFilter}
+                  onChange={e => setCharacterFilter(e.target.value)}
+                  className="h-11 rounded-md border border-black/15 bg-background px-3 text-base outline-none focus:ring-1 focus:ring-accent dark:border-white/15 md:text-sm"
+                >
+                  <option value="">{t('facts.filterAllCharacters')}</option>
+                  {uniqueCharacters.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1 text-sm whitespace-nowrap">
+              <button
+                type="button"
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${!statusFilter ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                onClick={() => setStatusFilter('')}
+              >
+                {t('facts.allTab')} ({totalCount})
+              </button>
+              <button
+                type="button"
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${statusFilter === 'unresolved' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                onClick={() => setStatusFilter('unresolved')}
+              >
+                {getEnumLabel('fact_status', 'unresolved', 'unresolved')} ({unresolvedCount})
+              </button>
+              <button
+                type="button"
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${statusFilter === 'active' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                onClick={() => setStatusFilter('active')}
+              >
+                {getEnumLabel('fact_status', 'active', 'active')} ({activeCount})
+              </button>
+              <button
+                type="button"
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${statusFilter === 'resolved' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                onClick={() => setStatusFilter('resolved')}
+              >
+                {getEnumLabel('fact_status', 'resolved', 'resolved')} ({resolvedCount})
+              </button>
+              <button
+                type="button"
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${statusFilter === 'deprecated' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                onClick={() => setStatusFilter('deprecated')}
+              >
+                {getEnumLabel('fact_status', 'deprecated', 'deprecated')} ({deprecatedCount})
+              </button>
+            </div>
+          </header>
+
+          {staleCount > 0 && !statusFilter ? (
+            <div className="mx-4 mt-3 flex items-center justify-between rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-xs text-warning">
+              <span>💡 {t('facts.staleHint', { count: staleCount })}</span>
+              <Button variant="ghost" size="sm" className="h-11 px-3 text-sm" onClick={() => setStatusFilter('stale')}>{t('facts.staleView')}</Button>
+            </div>
+          ) : null}
+
+          {filteredFacts.length > 0 ? (
+            <div className="mx-4 mt-3 flex flex-wrap items-center gap-3 text-xs text-text/60">
+              <button
+                type="button"
+                className={`min-h-[44px] font-medium ${batchMode ? 'text-accent' : 'text-text/40 hover:text-text/60'}`}
+                onClick={() => { setBatchMode(!batchMode); if (batchMode) { setSelectedIds(new Set()); setBatchMenuOpen(false); } }}
+              >
+                {batchMode ? t('facts.batchExit') : t('facts.batchEnter')}
+              </button>
+              {batchMode ? (
+                <label className="flex min-h-[44px] items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === filteredFacts.length} onChange={toggleSelectAll} className="accent-accent" />
+                  {t('facts.batchSelect')}
+                </label>
+              ) : null}
+              {selectedIds.size > 0 ? (
+                <>
+                  <span className="font-medium text-accent">{t('facts.batchSelected', { count: selectedIds.size })}</span>
+                  <Button variant="secondary" size="sm" className="h-11 px-3 text-sm" onClick={() => setBatchMenuOpen(!batchMenuOpen)} disabled={batchProcessing}>
+                    {t('facts.batchAction')} ▾
+                  </Button>
+                  {batchMenuOpen ? (
+                    <div className="w-full rounded-lg border border-black/10 bg-surface p-1 dark:border-white/10">
+                      {(['deprecated', 'resolved', 'active', 'unresolved'] as const).map(s => (
+                        <button key={s} type="button" className="flex min-h-[44px] w-full items-center rounded-md px-3 py-2 text-left text-sm hover:bg-accent/10" onClick={() => { setBatchMenuOpen(false); setBatchConfirm(s); }}>
+                          {t(`facts.batchTo.${s}`)}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="space-y-4 px-4 py-4">
+            {loading ? (
+              <div className="flex justify-center py-10"><Loader2 size={24} className="animate-spin text-accent" /></div>
+            ) : showEmptyNotes ? (
+              <EmptyState
+                compact
+                icon={<BookOpenText size={28} />}
+                title={t('emptyState.facts.title')}
+                description={t('emptyState.facts.description')}
+                actions={[
+                  {
+                    key: 'add-fact',
+                    element: <Button variant="primary" size="sm" onClick={() => setAddModalOpen(true)}>{t('common.actions.manualFact')}</Button>,
+                  },
+                  {
+                    key: 'extract-facts',
+                    element: <Button variant="secondary" size="sm" onClick={handleExtractClick} disabled={extracting}>{t('common.actions.extractFacts')}</Button>,
+                  },
+                ]}
+              />
+            ) : showNoSearchResult ? (
+              <EmptyState
+                compact
+                icon={<Search size={28} />}
+                title={t('facts.noSearchResultTitle')}
+                description={t('facts.noSearchResultDescription')}
+                actions={[
+                  {
+                    key: 'add-first-fact',
+                    element: <Button variant="primary" size="sm" onClick={() => setAddModalOpen(true)}>{t('common.actions.newNote')}</Button>,
+                  },
+                ]}
+              />
+            ) : (
+              groupedFacts.map(([chapterNum, chapterFacts]) => (
+                <div key={chapterNum} className="space-y-3">
+                  <div className="sticky top-[148px] z-10 rounded-xl border border-black/5 bg-background/92 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-text/50 backdrop-blur dark:border-white/5">
+                    {t('facts.chapterGroup', { num: chapterNum })} ({chapterFacts.length})
+                  </div>
+                  {chapterFacts.map(fact => (
+                    <div key={fact.id} className="flex items-start gap-2">
+                      {batchMode ? (
+                        <input
+                          type="checkbox"
+                          className="mt-4 accent-accent shrink-0"
+                          checked={selectedIds.has(fact.id)}
+                          onChange={() => toggleSelect(fact.id)}
+                        />
+                      ) : null}
+                      <div className="flex-1 cursor-pointer" onClick={() => setEditingFact(fact)}>
+                        <FactCard fact={{ ...fact, weight: fact.narrative_weight || 'medium', chapter: fact.chapter || 1 }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        {sharedModals}
+      </>
+    );
+  }
+
   return (
     <>
       <div className="w-[360px] md:w-[420px] shrink-0 border-r border-black/10 dark:border-white/10 flex flex-col bg-surface/50 h-full relative">
@@ -600,200 +1033,11 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
         </header>
 
         <div className="flex-1 overflow-y-auto p-8 lg:p-12 w-full max-w-3xl mx-auto space-y-8">
-          {editingFact ? (
-            <div key={editingFact.id}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-bold text-text/90">{t('common.labels.factStatus')}</label>
-                  <select
-                    className="h-10 rounded-md border border-black/20 dark:border-white/20 bg-surface px-3 text-sm focus:ring-2 focus:ring-accent outline-none font-sans font-medium text-accent"
-                    value={editingFact.status}
-                    onChange={(e) => handleStatusChange(editingFact.id, e.target.value)}
-                  >
-                    <option value="unresolved">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</option>
-                    <option value="active">{getEnumLabel('fact_status', 'active', 'active')}</option>
-                    <option value="resolved">{getEnumLabel('fact_status', 'resolved', 'resolved')}</option>
-                    <option value="deprecated">{getEnumLabel('fact_status', 'deprecated', 'deprecated')}</option>
-                  </select>
-                  <p className="text-xs text-text/50">{t('facts.statusHintResolved')}</p>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-bold text-text/90">{t('common.labels.narrativeWeight')}</label>
-                  <select
-                    ref={editWeightRef as any}
-                    defaultValue={editingFact.narrative_weight || 'medium'}
-                    className="h-10 rounded-md border border-black/20 dark:border-white/20 bg-surface px-3 text-sm focus:ring-2 focus:ring-accent outline-none font-mono text-accent font-bold"
-                  >
-                    <option value="low">{getEnumLabel('narrative_weight', 'low', 'low')}</option>
-                    <option value="medium">{getEnumLabel('narrative_weight', 'medium', 'medium')}</option>
-                    <option value="high">{getEnumLabel('narrative_weight', 'high', 'high')}</option>
-                  </select>
-                  <p className="text-xs text-text/50">{t('facts.weightHint')}</p>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-bold text-text/90">{t('common.labels.contentClean')}</label>
-                <Textarea ref={editContentCleanRef} defaultValue={editingFact.content_clean} className="font-serif min-h-[160px] text-lg leading-relaxed resize-y" />
-                <p className="text-xs text-text/50">{t('facts.cleanHint')}</p>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-bold text-text/90">{t('common.labels.contentRaw')}</label>
-                <Textarea ref={editContentRawRef} defaultValue={editingFact.content_raw} className="font-serif opacity-70 min-h-[140px] text-base leading-relaxed bg-surface/50 resize-y" />
-                <p className="text-xs text-text/50">{t('facts.rawHint')}</p>
-              </div>
-
-              <div className="flex flex-col gap-2 pt-4 border-t border-black/10 dark:border-white/10">
-                <label className="text-sm font-bold text-text/90">{t('common.labels.characters')}</label>
-                <Input ref={editCharactersRef} defaultValue={(editingFact.characters || []).join(', ')} className="h-10 text-sm" />
-                <p className="text-xs text-text/50">{t('facts.charactersHint')}</p>
-              </div>
-            </div>
-          ) : (
-            <EmptyState
-              icon={<Search size={40} />}
-              title={t('facts.emptySelectionTitle')}
-              description={t('facts.emptySelectionDescription')}
-            />
-          )}
+          {renderFactEditor(false)}
         </div>
       </div>
 
-      <Modal isOpen={isAddModalOpen} onClose={adding ? () => {} : () => setAddModalOpen(false)} title={t('facts.createModal.title')}>
-        <div className="space-y-4">
-          <div className="space-y-1">
-            <Textarea
-              label={t('common.labels.contentRaw')}
-              value={newContentRaw}
-              onChange={e => setNewContentRaw(e.target.value)}
-              placeholder={t('facts.createModal.rawPlaceholder')}
-              className="min-h-[80px] bg-surface/50"
-            />
-            <p className="text-[11px] text-text/40">{t('facts.rawHint')}</p>
-          </div>
-          <div className="space-y-1">
-            <Textarea
-              label={`${t('common.labels.contentClean')} *`}
-              value={newContentClean}
-              onChange={e => setNewContentClean(e.target.value)}
-              placeholder={t('facts.createModal.cleanPlaceholder')}
-              className="min-h-[80px] bg-surface/50 font-bold"
-            />
-            <p className="text-[11px] text-text/40">{t('facts.cleanHint')}</p>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="text-xs font-bold text-text/80 mb-1 block">{t('facts.createModal.typeLabel')}</label>
-              <select value={newType} onChange={e => setNewType(e.target.value)} className="w-full h-9 px-2 rounded-md border border-black/10 dark:border-white/10 bg-surface text-sm">
-                <option value="plot_event">{getEnumLabel('fact_type', 'plot_event', 'plot_event')}</option>
-                <option value="character_detail">{getEnumLabel('fact_type', 'character_detail', 'character_detail')}</option>
-                <option value="relationship">{getEnumLabel('fact_type', 'relationship', 'relationship')}</option>
-                <option value="backstory">{getEnumLabel('fact_type', 'backstory', 'backstory')}</option>
-                <option value="foreshadowing">{getEnumLabel('fact_type', 'foreshadowing', 'foreshadowing')}</option>
-                <option value="world_rule">{getEnumLabel('fact_type', 'world_rule', 'world_rule')}</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-bold text-text/80 mb-1 block">{t('facts.createModal.weightLabel')}</label>
-              <select value={newWeight} onChange={e => setNewWeight(e.target.value)} className="w-full h-9 px-2 rounded-md border border-black/10 dark:border-white/10 bg-surface text-sm">
-                <option value="low">{getEnumLabel('narrative_weight', 'low', 'low')}</option>
-                <option value="medium">{getEnumLabel('narrative_weight', 'medium', 'medium')}</option>
-                <option value="high">{getEnumLabel('narrative_weight', 'high', 'high')}</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-bold text-text/80 mb-1 block">{t('facts.createModal.statusLabel')}</label>
-              <select value={newStatus} onChange={e => setNewStatus(e.target.value)} className="w-full h-9 px-2 rounded-md border border-black/10 dark:border-white/10 bg-surface text-sm">
-                <option value="active">{getEnumLabel('fact_status', 'active', 'active')}</option>
-                <option value="unresolved">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</option>
-              </select>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-4 border-t border-black/10 dark:border-white/10">
-            <Button variant="ghost" onClick={() => setAddModalOpen(false)} disabled={adding}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={handleAddFact} disabled={!newContentClean.trim() || adding}>
-              {adding ? <Loader2 size={16} className="animate-spin" /> : t('facts.createModal.submit')}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* 提取范围选择 */}
-      <Modal isOpen={extractRangeOpen} onClose={() => setExtractRangeOpen(false)} title={t('facts.extractRangeTitle')}>
-        <div className="space-y-4">
-          <p className="text-sm text-text/70">{t('facts.extractRangeDesc')}</p>
-          <div className="flex items-center gap-3">
-            <label className="text-sm text-text/70 shrink-0">{t('facts.extractFrom')}</label>
-            <Input type="number" className="h-8 w-20 text-sm" min={1} max={extractRange[1]} value={extractRange[0]} onChange={e => setExtractRange([Math.max(1, parseInt(e.target.value) || 1), extractRange[1]])} />
-            <label className="text-sm text-text/70 shrink-0">{t('facts.extractTo')}</label>
-            <Input type="number" className="h-8 w-20 text-sm" min={extractRange[0]} value={extractRange[1]} onChange={e => setExtractRange([extractRange[0], parseInt(e.target.value) || extractRange[1]])} />
-            <span className="text-xs text-text/40">{t('facts.extractChapterCount', { count: extractRange[1] - extractRange[0] + 1 })}</span>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setExtractRangeOpen(false)}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={handleExtractConfirm}>{t('facts.extractStart')}</Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal isOpen={extractModalOpen} onClose={() => setExtractModalOpen(false)} title={t('facts.extractReviewTitle')}>
-        <div className="space-y-4">
-          <p className="text-sm text-text/70">{t('facts.extractReviewDescription')}</p>
-          <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1">
-            {extractedCandidates.length === 0 ? (
-              <EmptyState compact icon={<Sparkles size={28} />} title={t('facts.extractReviewEmpty')} description={t('facts.extractNoResult')} />
-            ) : (
-              extractedCandidates.map((candidate, index) => {
-                const candidateType = candidate.fact_type || candidate.type || 'plot_event';
-                return (
-                  <div key={`${candidate.content_clean}-${index}`} className="rounded-lg border border-black/10 bg-surface/40 p-4 space-y-3 dark:border-white/10">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Tag variant="info">{getEnumLabel('fact_type', candidateType, candidateType)}</Tag>
-                      <Tag variant="warning">{getEnumLabel('narrative_weight', candidate.narrative_weight, candidate.narrative_weight)}</Tag>
-                      <Tag variant="default">{getEnumLabel('fact_status', candidate.status, candidate.status)}</Tag>
-                      <span className="text-xs text-text/50">{t('facts.extractSourceChapter', { chapter: candidate.chapter })}</span>
-                    </div>
-                    <p className="text-sm text-text/85">{candidate.content_clean}</p>
-                    {candidate.characters.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {candidate.characters.map(character => (
-                          <span key={character} className="text-xs text-accent/80 font-medium">@{character}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-          <div className="flex justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
-            <Button variant="ghost" onClick={() => setExtractModalOpen(false)}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={handleSaveExtracted} disabled={saving || extractedCandidates.length === 0}>
-              {saving ? <Loader2 size={16} className="animate-spin" /> : t('facts.extractSaveAll')}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* 批量确认弹窗 */}
-      <Modal isOpen={!!batchConfirm} onClose={() => setBatchConfirm(null)} title={t('facts.batchConfirmTitle', { count: selectedIds.size, status: batchConfirm ? getEnumLabel('fact_status', batchConfirm, batchConfirm) : '' })}>
-        <div className="space-y-4">
-          <p className="text-sm text-text/70">
-            {batchConfirm === 'deprecated' && t('facts.batchDeprecatedDesc')}
-            {batchConfirm === 'resolved' && t('facts.batchResolvedDesc')}
-            {batchConfirm === 'active' && t('facts.batchActiveDesc')}
-            {batchConfirm === 'unresolved' && t('facts.batchUnresolvedDesc')}
-          </p>
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setBatchConfirm(null)}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={() => batchConfirm && handleBatchStatus(batchConfirm)} disabled={batchProcessing}>
-              {batchProcessing ? <Loader2 size={14} className="animate-spin" /> : t('common.actions.confirm')}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      {sharedModals}
     </>
   );
 };

@@ -6,6 +6,9 @@ import React, { HTMLAttributes } from 'react';
 import { X } from 'lucide-react';
 import { cn } from './utils';
 import { Button } from './Button';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { useTranslation } from '../../i18n/useAppTranslation';
+import { MobileSheet } from '../mobile/MobileSheet';
 
 export interface ModalProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
   isOpen: boolean;
@@ -15,7 +18,23 @@ export interface ModalProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'
 
 export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
   ({ className, isOpen, onClose, title, children, ...props }, ref) => {
+    const isMobile = useMediaQuery('(max-width: 768px)');
+    const { t } = useTranslation();
     if (!isOpen) return null;
+
+    if (isMobile) {
+      return (
+        <MobileSheet
+          isOpen={isOpen}
+          onClose={onClose}
+          title={title}
+          className={className}
+          {...props}
+        >
+          {children}
+        </MobileSheet>
+      );
+    }
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -26,7 +45,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
         >
           <div className="flex items-center justify-between px-6 py-4 border-b border-black/10 dark:border-white/10">
             {title && <h2 className="text-lg font-sans font-semibold">{title}</h2>}
-            <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0 rounded-full ml-auto">
+            <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0 rounded-full ml-auto" aria-label={t('common.actions.close')}>
               <X size={18} />
             </Button>
           </div>

@@ -48,7 +48,8 @@
       "saveGlobalSettings": "Save Global Settings",
       "addFile": "Add File",
       "editSettings": "Story Settings",
-      "backToNotes": "Back to Plot Points"
+      "backToNotes": "Back to Plot Points",
+      "more": "More"
     },
     "status": {
       "loading": "Loading…",
@@ -235,6 +236,7 @@
     "placeholder": "Describe the lore changes you want… (due to model limitations, create one file per message for best results)",
     "fandomPlaceholder": "Paste your character analysis, or describe characters and worldbuilding to add… (due to model limitations, create one file per message for best results)",
     "send": "Send",
+    "expandComposer": "Open Composer",
     "firstTimeTooltip": "Here you can describe lore changes in natural language. The AI will help create and modify characters, worldbuilding, plot points, and more. All changes need your confirmation before taking effect.",
     "confirmAll": "✅ Confirm All",
     "skipAll": "⏭️ Skip All",
@@ -434,7 +436,7 @@
       "title": "Global Settings",
       "description": "These are the default settings. All new stories will start with this configuration.",
       "defaultModel": "Default Model",
-      "connectionSuccess": "Connection successful. Key is valid.",
+      "connectionSuccess": "Connection successful.",
       "testFailedPrefix": "Connection failed: ",
       "searchEngineDescription": "Finds the most relevant lore for your current scene.",
       "noEmbeddingModel": "(not configured)",
@@ -635,7 +637,8 @@
     "text": "Plain Text (.txt)",
     "description": "Export includes all finalized chapters. Drafts are not included.",
     "writing": "Writing to local file…",
-    "submit": "Export"
+    "submit": "Export",
+    "saveFailed": "Export failed. Check file permissions."
   },
   "emptyState": {
     "library": {
@@ -815,7 +818,7 @@
   },
   "import": {
     "title": "Import Existing Work",
-    "supportedFormats": "Supported formats: .txt  .md  .docx  .html",
+    "supportedFormats": "Supported formats: .txt  .md  .html  .htm",
     "dropzone": "Drag and drop a file here, or click to browse",
     "selectedFile": "Selected: {{name}} ({{size}})",
     "uploading": "Analyzing file...",
@@ -850,7 +853,7 @@
     "createAuFirst": "Create AU",
     "createFandomFirst": "Create Fandom",
     "newAuInFandom": "Create New AU in This Fandom",
-    "formatError": "Only .txt, .md, .docx, and .html files are supported"
+    "formatError": "Only .txt, .md, .html, and .htm files are supported"
   },
   "milestones": {
     "factsIntro": {
@@ -922,6 +925,67 @@
       "nextAddCharacters": "Add character analyses to Canon Lore",
       "nextImport": "Import an existing novel to continue",
       "enter": "Enter FicForge →"
+    },
+    "mobile": {
+      "header": "Mobile Quick Setup",
+      "language": {
+        "title": "Pick Your Interface Language",
+        "subtitle": "Set the UI language first so the rest of the mobile setup updates immediately.",
+        "zhTitle": "Chinese",
+        "zhDescription": "Use the full onboarding flow in Chinese.",
+        "enTitle": "English",
+        "enDescription": "Use the full onboarding flow in English."
+      },
+      "llm": {
+        "title": "Connect Your Writing Model",
+        "subtitle": "Mobile onboarding uses the hosted API path first. Test the connection before moving on.",
+        "deepseekTitle": "DeepSeek",
+        "deepseekDescription": "Prefills the official DeepSeek endpoint for Chinese-first writing.",
+        "openaiTitle": "OpenAI",
+        "openaiDescription": "Prefills the official OpenAI endpoint. Enter your model name directly.",
+        "customTitle": "Custom Provider",
+        "customDescription": "Any OpenAI-compatible provider can be entered manually."
+      },
+      "embedding": {
+        "title": "Configure Retrieval",
+        "subtitle": "Embedding powers lore retrieval and RAG. You can wire it up now or skip it for later.",
+        "recommendedTitle": "Use a Custom Embedding API",
+        "recommendedDescription": "Recommended for stronger Chinese retrieval quality with providers like SiliconFlow.",
+        "recommendedHint": "If you skip this for now, lore retrieval and RAG stay unavailable until you configure embedding later.",
+        "skipTitle": "Skip for Now",
+        "skipDescription": "Enter the app first and configure embedding later in Settings."
+      },
+      "setup": {
+        "title": "Create or Import",
+        "subtitle": "Choose whether to start with a new fandom, open the import flow, or review settings next.",
+        "createTitle": "Create a New Fandom and AU",
+        "createDescription": "Create both the fandom and its first AU now, then start writing right away.",
+        "importTitle": "Open Local Import Next",
+        "importDescription": "Finish onboarding, then jump straight into the import flow for existing work.",
+        "syncTitle": "Open Sync Settings Next",
+        "syncDescription": "Finish onboarding, then continue with WebDAV or sync-related setup from Settings.",
+        "laterTitle": "Enter the Library First",
+        "laterDescription": "Skip creation and import for now and explore the app first.",
+        "fandomPlaceholder": "e.g. Genshin Impact, Jujutsu Kaisen, Detroit: Become Human...",
+        "auLabel": "AU Name",
+        "auPlaceholder": "e.g. Modern Campus, Cyber Detectives, Space Royalty..."
+      },
+      "ethics": {
+        "subtitle": "Mobile uses the same local-first and responsible-use guidance as desktop.",
+        "confirm": "I will only import or create content I have the right to use, and I understand I should follow platform disclosure rules when publishing."
+      },
+      "complete": {
+        "title": "Ready to Go",
+        "subtitle": "These settings will be saved together when you finish.",
+        "languageSummary": "Interface language: {{language}}",
+        "llmSummary": "Writing model: {{model}}",
+        "embeddingSummary": "Embedding model: {{model}}",
+        "embeddingSkipped": "Embedding model: skipped for now, can be configured later in Settings",
+        "createSummary": "Initial content: create fandom \"{{fandomName}}\" and AU \"{{auName}}\"",
+        "importSummary": "Initial content: open the local import flow after setup",
+        "syncSummary": "Initial content: open Settings after setup to continue sync configuration",
+        "laterSummary": "Initial content: enter the library first and create or import later"
+      }
     },
     "common": {
       "step": "{{current}}/{{total}}",
