@@ -57,3 +57,5 @@ credentials.json
 # === Debug output ===
 test_out*.txt
 *.log
+release/
+src-ui/android/

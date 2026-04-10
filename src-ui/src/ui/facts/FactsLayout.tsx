@@ -601,7 +601,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h1 className="font-serif text-2xl font-bold">{t('facts.title')}</h1>
-                <p className="text-sm text-text/55">事实卡片、状态和批量处理。</p>
+                <p className="text-sm text-text/55">{t('facts.subtitle')}</p>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="secondary" size="sm" className="px-3" onClick={handleExtractClick} disabled={extracting}>

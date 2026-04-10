@@ -468,6 +468,10 @@
       "connected": "Connected",
       "failed": "Connection failed",
       "lastSync": "Last synced",
+      "syncNow": "Sync Now",
+      "syncing": "Syncing…",
+      "syncSuccess": "Sync complete",
+      "syncFailed": "Sync failed",
       "helpButton": "Help",
       "help": {
         "intro": "Two sync methods are available to keep your writing data in sync across devices.",
@@ -511,6 +515,7 @@
   },
   "facts": {
     "title": "Plot Points",
+    "subtitle": "Fact cards, status tracking, and batch operations.",
     "createButton": "Add Point",
     "allTab": "All",
     "editing": "Editing",
@@ -817,6 +822,11 @@
       "error": "Engine Error",
       "restartHint": "Please restart the app, or check the log files.",
       "initializing": "Initializing local engine…"
+    },
+    "splash": {
+      "subtitle": "粮坊",
+      "sloganZh": "再冷的圈，也值得一个故事。",
+      "sloganEn": "Every ship deserves a story."
     }
   },
   "focus": {

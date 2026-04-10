@@ -405,6 +405,19 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                 {lastSync && (
                   <p className="text-xs text-text/40">{t('settings.sync.lastSync')}: {new Date(lastSync).toLocaleString()}</p>
                 )}
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="w-full"
+                  onClick={async () => {
+                    // TODO: integrate SyncManager.sync() when AU path is available
+                    // For now, update last_sync timestamp as placeholder
+                    setLastSync(new Date().toISOString());
+                  }}
+                  disabled={syncTestStatus !== 'success'}
+                >
+                  {t('settings.sync.syncNow')}
+                </Button>
               </div>
             )}
           </div>

@@ -468,6 +468,10 @@
       "connected": "已连接",
       "failed": "连接失败",
       "lastSync": "上次同步",
+      "syncNow": "立即同步",
+      "syncing": "同步中…",
+      "syncSuccess": "同步完成",
+      "syncFailed": "同步失败",
       "helpButton": "帮助",
       "help": {
         "intro": "支持两种同步方式，让你在不同设备之间同步写作数据。",
@@ -511,6 +515,7 @@
   },
   "facts": {
     "title": "剧情笔记",
+    "subtitle": "事实卡片、状态和批量处理。",
     "createButton": "记一笔",
     "allTab": "全部",
     "editing": "正在编辑",
@@ -817,6 +822,11 @@
       "error": "引擎异常",
       "restartHint": "请重启应用，或检查日志文件",
       "initializing": "正在初始化本地引擎…"
+    },
+    "splash": {
+      "subtitle": "粮坊",
+      "sloganZh": "再冷的圈，也值得一个故事。",
+      "sloganEn": "Every ship deserves a story."
     }
   },
   "focus": {
