@@ -56,7 +56,8 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
   }, [onComplete]);
 
   const handleClose = useCallback(() => {
-    // 关闭不标记完成
+    // 关闭也标记完成，避免每次返回作品库重复弹出
+    localStorage.setItem(ONBOARDING_KEY, 'true');
     onComplete();
   }, [onComplete]);
 

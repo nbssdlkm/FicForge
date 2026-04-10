@@ -177,7 +177,11 @@
   "workspace": {
     "subtitle": "AU 工作台",
     "chaptersTitle": "章节列表",
-    "chapterItem": "第 {{num}} 章"
+    "chapterItem": "第 {{num}} 章",
+    "mobileTabs": {
+      "manage": "管理"
+    },
+    "projectSection": "故事设置"
   },
   "writer": {
     "contentLoadFailed": "章节内容加载失败",

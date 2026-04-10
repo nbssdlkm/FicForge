@@ -2,6 +2,12 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
+import { Buffer } from "buffer";
+// gray-matter 依赖 Node.js Buffer，浏览器环境需要 polyfill
+if (typeof globalThis.Buffer === "undefined") {
+  globalThis.Buffer = Buffer;
+}
+
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";

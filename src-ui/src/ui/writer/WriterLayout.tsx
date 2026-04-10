@@ -1274,7 +1274,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         </header>
 
         <div className={mode === 'write' ? 'flex flex-1 flex-col min-h-0' : 'hidden'}>
-          <div className="flex flex-1 justify-center overflow-y-auto w-full pb-64 md:pb-52">
+          <div className="flex flex-1 justify-center overflow-y-auto w-full pb-16 md:pb-12">
             <div className="w-full max-w-3xl space-y-6 px-4 py-4 md:px-8 md:py-10">
               {isViewingHistory && (
                 <div className="flex flex-col gap-3 rounded-xl border border-info/30 bg-info/10 px-4 py-3 text-sm text-info md:flex-row md:items-center md:justify-between">
@@ -1376,7 +1376,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
             </div>
           </div>
 
-          <footer className="safe-area-bottom absolute bottom-0 w-full shrink-0 border-t border-black/10 dark:border-white/10 bg-surface/80 backdrop-blur-md flex flex-col">
+          <footer className="safe-area-bottom w-full shrink-0 border-t border-black/10 dark:border-white/10 bg-surface/80 backdrop-blur-md flex flex-col">
             {/* Collapse toggle */}
             <button
               className="mx-auto flex min-h-[44px] items-center gap-1 px-4 py-1 text-[10px] text-text/40 transition-colors hover:text-text/60"

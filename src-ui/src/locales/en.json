@@ -177,7 +177,11 @@
   "workspace": {
     "subtitle": "AU Workspace",
     "chaptersTitle": "Chapters",
-    "chapterItem": "Chapter {{num}}"
+    "chapterItem": "Chapter {{num}}",
+    "mobileTabs": {
+      "manage": "Manage"
+    },
+    "projectSection": "Story Settings"
   },
   "writer": {
     "contentLoadFailed": "Failed to load chapter content",
