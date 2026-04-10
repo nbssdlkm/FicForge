@@ -54,14 +54,8 @@ function App() {
           }
 
           initEngine(adapter, dataDir);
-        } else if (typeof (window as any).Capacitor !== "undefined") {
-          // Capacitor 环境（Android/iOS）：使用 CapacitorAdapter
-          const { CapacitorAdapter } = await import("@ficforge/engine");
-          const adapter = new CapacitorAdapter();
-          const dataDir = await adapter.getDataDir();
-          initEngine(adapter, dataDir);
         } else {
-          // 浏览器 / PWA 环境：使用 WebAdapter（IndexedDB）
+          // 非 Tauri 环境（Capacitor / PWA / 浏览器）：使用 WebAdapter（IndexedDB）
           const { WebAdapter } = await import("@ficforge/engine");
           const adapter = new WebAdapter();
           await adapter.init();
