@@ -466,7 +466,22 @@
       "testConnection": "Test Connection",
       "connected": "Connected",
       "failed": "Connection failed",
-      "lastSync": "Last synced"
+      "lastSync": "Last synced",
+      "helpButton": "Help",
+      "help": {
+        "intro": "Two sync methods are available to keep your writing data in sync across devices.",
+        "option1Title": "Option 1: Folder Sync (Recommended)",
+        "option1Desc": "Place your data directory in a cloud sync folder (OneDrive / Dropbox / iCloud). Each device syncs through the cloud client. Simplest setup.",
+        "option2Title": "Option 2: WebDAV Sync",
+        "option2Desc": "Built-in WebDAV client connects to Nextcloud, TeraCloud, Synology NAS, or other WebDAV services. Useful when no cloud client is available on your phone.",
+        "stepsTitle": "WebDAV setup steps:",
+        "step1": "1. Get your WebDAV server URL and credentials",
+        "step2": "2. For Nextcloud: Settings → Security → App passwords → Create new",
+        "step3": "3. Enter the server URL, username, and app password below",
+        "step4": "4. Click 'Test Connection' to verify",
+        "syncScope": "Synced: chapters, character/worldbuilding lore, plot points, operation history.",
+        "notSynced": "Not synced: drafts, global settings (API keys), search indexes (rebuilt locally)."
+      }
     },
     "story": {
       "scopeLabel": "Current Story: {{name}}",

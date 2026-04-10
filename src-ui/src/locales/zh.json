@@ -466,7 +466,22 @@
       "testConnection": "测试连接",
       "connected": "已连接",
       "failed": "连接失败",
-      "lastSync": "上次同步"
+      "lastSync": "上次同步",
+      "helpButton": "帮助",
+      "help": {
+        "intro": "支持两种同步方式，让你在电脑和手机之间同步写作数据。",
+        "option1Title": "方案一：文件夹同步（推荐）",
+        "option1Desc": "将数据目录放在坚果云 / OneDrive 同步文件夹内，各设备通过云盘客户端自动同步。最简单，无需额外配置。",
+        "option2Title": "方案二：WebDAV 同步",
+        "option2Desc": "内置 WebDAV 客户端，直接连接坚果云等支持 WebDAV 的云存储。适合手机上没有云盘客户端的用户。",
+        "stepsTitle": "坚果云 WebDAV 配置步骤：",
+        "step1": "1. 下载安装坚果云客户端，登录账号",
+        "step2": "2. 进入 设置 → 第三方应用管理 → 添加应用密码",
+        "step3": "3. 在下方填写坚果云邮箱和应用密码（不是登录密码）",
+        "step4": "4. 点击「测试连接」确认成功",
+        "syncScope": "同步范围：章节正文、角色/世界观设定、剧情笔记、操作历史。",
+        "notSynced": "不同步：草稿、全局设置（API Key 等）、搜索索引（每端自动重建）。"
+      }
     },
     "story": {
       "scopeLabel": "当前故事：{{name}}",

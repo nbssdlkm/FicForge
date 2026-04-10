@@ -43,6 +43,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   const [syncRemoteDir, setSyncRemoteDir] = useState('/FicForge/');
   const [syncTestStatus, setSyncTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [lastSync, setLastSync] = useState<string | null>(null);
+  const [syncHelpOpen, setSyncHelpOpen] = useState(false);
 
   const resetFormState = () => {
     setSettings(null);
@@ -64,6 +65,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     setSyncRemoteDir('/FicForge/');
     setSyncTestStatus('idle');
     setLastSync(null);
+    setSyncHelpOpen(false);
   };
 
   useEffect(() => {
@@ -323,7 +325,37 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
 
           {/* Sync Settings */}
           <div className="space-y-4 border-t border-black/10 pt-5 dark:border-white/10">
-            <h3 className="text-sm font-bold text-text/90">{t('settings.sync.title')}</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-text/90">{t('settings.sync.title')}</h3>
+              <Button variant="ghost" size="sm" className="text-xs text-accent" onClick={() => setSyncHelpOpen(!syncHelpOpen)}>
+                {syncHelpOpen ? t('common.actions.close') : t('settings.sync.helpButton')}
+              </Button>
+            </div>
+
+            {syncHelpOpen && (
+              <div className="rounded-xl border border-info/20 bg-info/5 p-4 text-sm text-text/80 space-y-3">
+                <p className="font-medium text-text/90">{t('settings.sync.help.intro')}</p>
+                <div>
+                  <p className="font-medium">{t('settings.sync.help.option1Title')}</p>
+                  <p className="text-xs text-text/60 mt-1">{t('settings.sync.help.option1Desc')}</p>
+                </div>
+                <div>
+                  <p className="font-medium">{t('settings.sync.help.option2Title')}</p>
+                  <p className="text-xs text-text/60 mt-1">{t('settings.sync.help.option2Desc')}</p>
+                </div>
+                <div className="rounded-lg bg-background/60 p-3 text-xs space-y-1">
+                  <p className="font-medium text-text/70">{t('settings.sync.help.stepsTitle')}</p>
+                  <p>{t('settings.sync.help.step1')}</p>
+                  <p>{t('settings.sync.help.step2')}</p>
+                  <p>{t('settings.sync.help.step3')}</p>
+                  <p>{t('settings.sync.help.step4')}</p>
+                </div>
+                <div className="text-xs text-text/50 space-y-1">
+                  <p>{t('settings.sync.help.syncScope')}</p>
+                  <p>{t('settings.sync.help.notSynced')}</p>
+                </div>
+              </div>
+            )}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-text/80">{t('settings.sync.modeLabel')}</label>
               <select
