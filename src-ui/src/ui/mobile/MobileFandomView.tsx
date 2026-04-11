@@ -13,6 +13,7 @@ import { EmptyState } from "../shared/EmptyState";
 import { SettingsMarkdown } from "../shared/SettingsMarkdown";
 import { SettingsChatPanel } from "../shared/settings-chat/SettingsChatPanel";
 import { cn } from "../shared/utils";
+import { useFeedback } from "../../hooks/useFeedback";
 
 interface MobileFandomViewProps {
   fandomPath: string;
@@ -23,6 +24,7 @@ type FandomCategory = "core_characters" | "core_worldbuilding";
 
 export function MobileFandomView({ fandomPath, onNavigate }: MobileFandomViewProps) {
   const { t } = useTranslation();
+  const { showError } = useFeedback();
   const fandomName = fandomPath.split("/").pop() || "";
 
   // --- State ---
@@ -64,8 +66,8 @@ export function MobileFandomView({ fandomPath, onNavigate }: MobileFandomViewPro
       if (requestId !== loadRequestRef.current) return;
       setCharacterFiles(data.characters);
       setWorldbuildingFiles(data.worldbuilding);
-    } catch {
-      // error handled silently — user sees empty/stale UI
+    } catch (error) {
+      showError(error, t("error_messages.unknown"));
     } finally {
       if (requestId === loadRequestRef.current) setLoading(false);
     }
@@ -89,7 +91,7 @@ export function MobileFandomView({ fandomPath, onNavigate }: MobileFandomViewPro
       if (requestId !== readRequestRef.current) return;
       setEditorContent(result.content);
       setSavedContent(result.content);
-    } catch {
+    } catch (error) {
       if (requestId !== readRequestRef.current) return;
       setSelectedFile(null);
     } finally {
@@ -104,8 +106,8 @@ export function MobileFandomView({ fandomPath, onNavigate }: MobileFandomViewPro
     try {
       await saveLore({ fandom_path: fandomPath, category: selectedCategory, filename: selectedFile, content: editorContent });
       setSavedContent(editorContent);
-    } catch {
-      // error handled silently — user sees empty/stale UI
+    } catch (error) {
+      showError(error, t("error_messages.unknown"));
     } finally {
       setSaving(false);
     }
@@ -124,8 +126,8 @@ export function MobileFandomView({ fandomPath, onNavigate }: MobileFandomViewPro
       setCreateName("");
       await loadFiles();
       await handleSelectFile(filename, category);
-    } catch {
-      // error handled silently — user sees empty/stale UI
+    } catch (error) {
+      showError(error, t("error_messages.unknown"));
     } finally {
       setSaving(false);
     }
@@ -140,8 +142,8 @@ export function MobileFandomView({ fandomPath, onNavigate }: MobileFandomViewPro
       setDeleteOpen(false);
       setSelectedFile(null);
       await loadFiles();
-    } catch {
-      // error handled silently — user sees empty/stale UI
+    } catch (error) {
+      showError(error, t("error_messages.unknown"));
     } finally {
       setSaving(false);
     }
