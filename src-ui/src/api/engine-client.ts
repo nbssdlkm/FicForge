@@ -32,6 +32,16 @@ import {
   split_into_chapters,
   parse_html,
   import_chapters as engineImportChapters,
+  // Import v2
+  analyzeFile as engineAnalyzeFile,
+  buildImportPlan as engineBuildImportPlan,
+  executeImport as engineExecuteImport,
+  type FileAnalysis,
+  type ImportPlan,
+  type ImportConflictOptions,
+  type NewImportResult,
+  type ImportProgress,
+  type AnalysisOptions,
   generate_chapter as engineGenerateChapter,
   build_settings_context,
   call_settings_llm,
@@ -803,7 +813,78 @@ export async function updateChapterContent(auPath: string, chapterNum: number, c
 }
 
 // ===========================================================================
-// Missing Import functions
+// Import v2 API
+// ===========================================================================
+
+export type { FileAnalysis, ImportPlan, ImportConflictOptions, NewImportResult, ImportProgress, AnalysisOptions };
+
+/**
+ * 分析单个文件——检测对话格式 or 纯正文，返回分析结果。
+ * 前端负责文件读取和格式转换（docx/html → 纯文本）。
+ */
+export async function analyzeImportFile(
+  text: string,
+  filename: string,
+  options: AnalysisOptions = {},
+): Promise<FileAnalysis> {
+  // 如果用户开启了 AI 辅助但没传 provider，自动构建一个
+  if (options.useAiAssist && !options.llmProvider) {
+    try {
+      const { settings } = getEngine().repos;
+      const sett = await settings.get();
+      const llmConfig = resolve_llm_config(null, {}, sett as unknown as Record<string, unknown>);
+      if (llmConfig.mode === "api" && llmConfig.api_key) {
+        options = { ...options, llmProvider: create_provider(llmConfig) };
+      }
+    } catch {
+      // 无法构建 provider，禁用 AI 辅助
+      options = { ...options, useAiAssist: false };
+    }
+  }
+  return engineAnalyzeFile(text, filename, options);
+}
+
+/**
+ * 从分析结果构建导入计划（多文件接续、"续"合并、设定收集）。
+ */
+export function buildImportPlanFromAnalyses(
+  analyses: FileAnalysis[],
+  conflictOptions: ImportConflictOptions,
+): ImportPlan {
+  return engineBuildImportPlan(analyses, conflictOptions);
+}
+
+/**
+ * 执行导入计划——写入章节、设定、ops，更新 state。
+ */
+export async function executeImportPlan(
+  plan: ImportPlan,
+  auPath: string,
+  onProgress?: (progress: ImportProgress) => void,
+): Promise<NewImportResult> {
+  const { adapter, repos, trash } = getEngine();
+  return engineExecuteImport(plan, {
+    auId: auPath,
+    chapterRepo: repos.chapter,
+    stateRepo: repos.state,
+    opsRepo: repos.ops,
+    adapter,
+    trashService: trash,
+    onProgress,
+  });
+}
+
+/**
+ * 获取 AU 已有章节数（用于冲突检测）。
+ */
+export async function getExistingChapterNums(auPath: string): Promise<number[]> {
+  const { chapter } = getEngine().repos;
+  const chapters = await chapter.list_main(auPath);
+  return chapters.map(c => c.chapter_num).sort((a, b) => a - b);
+}
+
+// ===========================================================================
+// Legacy Import functions (backward-compatible)
 // ===========================================================================
 
 export async function uploadImportFile(file: File): Promise<import("./importExport").ImportUploadResponse> {

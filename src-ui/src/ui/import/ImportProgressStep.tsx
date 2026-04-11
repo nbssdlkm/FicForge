@@ -1,0 +1,107 @@
+// Copyright (c) 2026 FicForge Contributors
+// Licensed under the GNU Affero General Public License v3.0.
+
+import { Button } from "../shared/Button";
+import { CheckCircle2, Loader2 } from "lucide-react";
+import { useTranslation } from "../../i18n/useAppTranslation";
+import type { NewImportResult, ImportProgress } from "@ficforge/engine";
+
+interface ImportProgressStepProps {
+  importing: boolean;
+  progress: ImportProgress | null;
+  result: NewImportResult | null;
+  nextChapterNum: number;
+  onGoToLore: () => void;
+  onGoToFacts: () => void;
+  onStartWriting: () => void;
+}
+
+export function ImportProgressStep({
+  importing,
+  progress,
+  result,
+  nextChapterNum,
+  onGoToLore,
+  onGoToFacts,
+  onStartWriting,
+}: ImportProgressStepProps) {
+  const { t } = useTranslation();
+
+  if (importing) {
+    const pct = progress && progress.chaptersTotal > 0
+      ? Math.round((progress.chaptersDone / progress.chaptersTotal) * 100)
+      : 0;
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Loader2 size={24} className="animate-spin text-accent" />
+          <h3 className="text-lg font-bold text-text">{t("import.step5Title")}</h3>
+        </div>
+
+        {/* Progress bar */}
+        <div className="h-3 w-full overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
+          <div
+            className="h-full rounded-full bg-accent transition-all duration-300"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+
+        <div className="space-y-1 text-sm text-text/70">
+          {progress ? (
+            <>
+              <p>{t("import.step5Progress", { done: progress.chaptersDone, total: progress.chaptersTotal })}</p>
+              {progress.settingsTotal > 0 && (
+                <p>{t("import.step5SettingsProgress", { done: progress.settingsDone, total: progress.settingsTotal })}</p>
+              )}
+              {progress.currentFile && (
+                <p className="text-xs text-text/40">{progress.currentFile}</p>
+              )}
+            </>
+          ) : (
+            <p className="text-text/40">{t("import.importing")}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (result) {
+    const nextChapter = nextChapterNum;
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <CheckCircle2 size={24} className="text-green-500" />
+          <h3 className="text-lg font-bold text-text">{t("import.step5Done")}</h3>
+        </div>
+
+        <div className="rounded-xl border border-black/5 bg-surface/50 p-5 space-y-2 text-sm dark:border-white/5">
+          <p>{t("import.step5ChaptersImported", { n: result.chaptersImported })}</p>
+          {result.settingsImported > 0 && (
+            <p>{t("import.step5SettingsImported", { n: result.settingsImported })}</p>
+          )}
+          {result.trashedChapters.length > 0 && (
+            <p className="text-text/50">{t("import.step5TrashedChapters", { n: result.trashedChapters.length })}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          {result.settingsImported > 0 && (
+            <Button variant="secondary" size="sm" className="w-full justify-start" onClick={onGoToLore}>
+              {t("import.step5Next1")}
+            </Button>
+          )}
+          <Button variant="secondary" size="sm" className="w-full justify-start" onClick={onGoToFacts}>
+            {t("import.step5Next2")}
+          </Button>
+          <Button variant="primary" size="sm" className="w-full justify-start" onClick={onStartWriting}>
+            {t("import.step5Next3", { n: nextChapter })}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}

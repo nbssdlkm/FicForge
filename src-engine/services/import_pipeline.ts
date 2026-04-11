@@ -101,6 +101,7 @@ export interface NewImportResult {
   chaptersImported: number;
   settingsImported: number;
   trashedChapters: number[];
+  nextChapterNum: number;
 }
 
 export interface ImportProgress {
@@ -384,6 +385,7 @@ export async function executeImport(
     chaptersImported: 0,
     settingsImported: 0,
     trashedChapters: [],
+    nextChapterNum: 1,
   };
 
   const timestamp = now_utc();
@@ -495,6 +497,7 @@ export async function executeImport(
           index_status: IndexStatus.STALE,
         });
     await stateRepo.save(state);
+    result.nextChapterNum = state.current_chapter;
   }
 
   // 5. 写入 ops
