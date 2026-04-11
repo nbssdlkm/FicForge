@@ -95,6 +95,7 @@ export interface EngineInstance {
 let _engine: EngineInstance | null = null;
 
 export function initEngine(adapter: PlatformAdapter, dataDir: string): void {
+  const vectorEngine = new JsonVectorEngine(adapter);
   _engine = {
     adapter,
     dataDir,
@@ -109,10 +110,9 @@ export function initEngine(adapter: PlatformAdapter, dataDir: string): void {
       state: new FileStateRepository(adapter),
     },
     trash: new TrashService(adapter),
-    vectorEngine: new JsonVectorEngine(adapter),
-    ragManager: null as unknown as RagManager,
+    vectorEngine,
+    ragManager: new RagManager(vectorEngine),
   };
-  _engine.ragManager = new RagManager(_engine.vectorEngine);
 }
 
 export function getEngine(): EngineInstance {
