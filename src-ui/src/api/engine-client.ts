@@ -255,7 +255,9 @@ async function recalcState(auPath: string) {
     payload: { chapters_dirty: [...result.state.chapters_dirty] },
   }));
   await state.save(result.state);
-  return result;
+  // 不泄露内部 state 对象到前端
+  const { state: _s, ...publicResult } = result;
+  return publicResult;
 }
 
 // ===========================================================================
@@ -369,7 +371,7 @@ export async function confirmChapter(
   if (finalTitle) {
     const st = await state.get(auPath);
     st.chapter_titles[chapterNum] = finalTitle;
-    await state.save(st);
+    // ops 先于 state 落盘（D-0036）
     await ops.append(auPath, createOpsEntry({
       op_id: generate_op_id(),
       op_type: "set_chapter_title",
@@ -378,6 +380,7 @@ export async function confirmChapter(
       timestamp: now_utc(),
       payload: { title: finalTitle },
     }));
+    await state.save(st);
   }
 
   // Index the confirmed chapter for RAG (F7) — delegated to RagManager
