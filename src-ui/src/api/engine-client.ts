@@ -29,6 +29,7 @@ import {
   undo_latest_chapter,
   resolve_dirty_chapter,
   recalc_state,
+  edit_chapter_content,
   export_chapters as engineExportChapters,
   // Import v2 types (re-exported from engine-import.ts, code in engine-import.ts)
   type FileAnalysis,
@@ -907,28 +908,7 @@ export async function deletePinned(auPath: string, index: number) {
 
 export async function updateChapterContent(auPath: string, chapterNum: number, content: string) {
   const { chapter, state, ops } = getEngine().repos;
-  const ch = await chapter.get(auPath, chapterNum);
-  ch.content = content;
-  const { compute_content_hash } = await import("@ficforge/engine");
-  ch.content_hash = await compute_content_hash(content);
-  ch.provenance = "mixed";
-  ch.revision += 1;
-  await chapter.save(ch);
-  // Mark dirty
-  const st = await state.get(auPath);
-  if (!st.chapters_dirty.includes(chapterNum)) {
-    st.chapters_dirty.push(chapterNum);
-    await state.save(st);
-  }
-  // Write op so cross-device rebuild can project chapters_dirty (R5-F4)
-  await ops.append(auPath, createOpsEntry({
-    op_id: generate_op_id(),
-    op_type: "mark_chapters_dirty",
-    target_id: auPath,
-    timestamp: now_utc(),
-    payload: { chapters_dirty: [...st.chapters_dirty] },
-  }));
-  return { chapter_num: chapterNum, content_hash: ch.content_hash, provenance: ch.provenance, revision: ch.revision };
+  return await edit_chapter_content(auPath, chapterNum, content, chapter, state, ops);
 }
 
 // ===========================================================================
