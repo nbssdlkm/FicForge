@@ -57,11 +57,10 @@ export class RagManager {
     chapterRepo: ChapterRepository,
     embeddingProvider: EmbeddingProvider,
   ): Promise<void> {
-    // 清除内存中该 AU 的所有 chunks
+    // 清除内存中该 AU 的所有 chunks，直接标记为当前 AU
+    // 避免中间 persist 空索引（崩溃安全：旧索引保留到最终 persist 覆盖）
     await this.vectorEngine.rebuild_index(auPath);
-    // 立即持久化空状态，覆盖旧的 .vectors/ index.json
-    await this.vectorEngine.persist(vectorsDir(auPath));
-    this.currentAu = null;
+    this.currentAu = auPath;
 
     // 遍历所有章节：批量索引到内存，最后一次性 persist
     const chapters = await chapterRepo.list_main(auPath);
@@ -69,9 +68,8 @@ export class RagManager {
       const content = await chapterRepo.get_content_only(auPath, ch.chapter_num);
       await this.indexChapterInMemory(auPath, ch.chapter_num, content, embeddingProvider);
     }
-    if (chapters.length > 0) {
-      await this.vectorEngine.persist(vectorsDir(auPath));
-    }
+    // 无论有无章节都 persist（0 章节时需要写入空索引覆盖旧数据）
+    await this.vectorEngine.persist(vectorsDir(auPath));
   }
 
   /**
@@ -90,6 +88,12 @@ export class RagManager {
 
     const texts = chunks.map((c) => c.content);
     const embeddings = await embeddingProvider.embed(texts);
+
+    if (embeddings.length !== texts.length) {
+      throw new Error(
+        `Embedding count mismatch: expected ${texts.length}, got ${embeddings.length}`,
+      );
+    }
 
     const vectorChunks = chunks.map((c, i) => ({
       id: `ch${chapterNum}_${c.chunk_index}`,

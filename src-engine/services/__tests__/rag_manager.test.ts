@@ -120,6 +120,19 @@ describe("RagManager", () => {
       expect(adapter.raw("au1/.vectors/index.json")).toBeTruthy();
     });
 
+    it("handles 0 chapters gracefully", async () => {
+      // Pre-index a chapter, then rebuild with no chapters in repo
+      await ragManager.indexChapter("au1", 1, "旧内容。足够长的文本以生成chunk数据。", embProvider);
+      expect(vectorEngine.chunkCount).toBeGreaterThan(0);
+
+      // Rebuild with empty repo → should produce empty index
+      await ragManager.rebuildForAu("au1", chapterRepo, embProvider);
+
+      expect(vectorEngine.chunkCount).toBe(0);
+      const indexJson = JSON.parse(adapter.raw("au1/.vectors/index.json")!);
+      expect(indexJson.total_chunks).toBe(0);
+    });
+
     it("clears old index before rebuilding", async () => {
       // Index a chapter first
       await ragManager.indexChapter("au1", 1, "旧的内容。足够长的文本以生成chunk数据用于测试。", embProvider);
@@ -139,6 +152,31 @@ describe("RagManager", () => {
       const chapterNums = new Set(indexJson.chunks.map((c: { chapter?: number }) => c.chapter));
       expect(chapterNums.has(1)).toBe(false);
       expect(chapterNums.has(2)).toBe(true);
+    });
+  });
+
+  describe("indexChapter — overwrite", () => {
+    it("replaces chunks when re-indexing the same chapter", async () => {
+      const contentV1 = "第一版内容。Alice在这里。足够长的文本以生成chunk数据。";
+      await ragManager.indexChapter("au1", 1, contentV1, embProvider);
+      const countV1 = vectorEngine.chunkCount;
+
+      // Re-index same chapter with different content
+      const contentV2 = "第二版内容。Bob在这里。同样足够长的文本以生成chunk数据。";
+      await ragManager.indexChapter("au1", 1, contentV2, embProvider);
+      const countV2 = vectorEngine.chunkCount;
+
+      // Chunk count should be the same (replaced, not appended)
+      expect(countV2).toBe(countV1);
+
+      // Verify persisted content is V2
+      const indexJson = JSON.parse(adapter.raw("au1/.vectors/index.json")!);
+      for (const entry of indexJson.chunks) {
+        const chunkFile = adapter.raw(`au1/.vectors/${entry.file}`);
+        expect(chunkFile).toBeTruthy();
+        const chunkData = JSON.parse(chunkFile!);
+        expect(chunkData.content).not.toContain("第一版");
+      }
     });
   });
 

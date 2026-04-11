@@ -133,6 +133,18 @@ export function getDataDir(): string {
   return getEngine().dataDir;
 }
 
+/** 从 settings 创建 RemoteEmbeddingProvider（若已配置 embedding api_key）。 */
+function createEmbeddingProvider(
+  sett: { embedding?: { api_base?: string; api_key?: string; model?: string }; default_llm?: { api_base?: string } },
+): RemoteEmbeddingProvider | undefined {
+  if (!sett.embedding?.api_key) return undefined;
+  return new RemoteEmbeddingProvider(
+    sett.embedding.api_base || sett.default_llm?.api_base || "",
+    sett.embedding.api_key,
+    sett.embedding.model || "",
+  );
+}
+
 // ===========================================================================
 // Settings
 // ===========================================================================
@@ -212,13 +224,9 @@ export async function setChapterFocus(auPath: string, focusIds: string[]) {
 export async function rebuildIndex(auPath: string) {
   const e = getEngine();
   const sett = await e.repos.settings.get();
+  const embProvider = createEmbeddingProvider(sett);
 
-  if (sett.embedding?.api_key) {
-    const embProvider = new RemoteEmbeddingProvider(
-      sett.embedding.api_base || sett.default_llm?.api_base || "",
-      sett.embedding.api_key,
-      sett.embedding.model || "",
-    );
+  if (embProvider) {
     await e.ragManager.rebuildForAu(auPath, e.repos.chapter, embProvider);
     // Update state to READY
     const st = await e.repos.state.get(auPath);
@@ -374,12 +382,8 @@ export async function confirmChapter(
 
   // Index the confirmed chapter for RAG (F7) — delegated to RagManager
   try {
-    if (sett.embedding?.api_key) {
-      const embProvider = new RemoteEmbeddingProvider(
-        sett.embedding.api_base || sett.default_llm?.api_base || "",
-        sett.embedding.api_key,
-        sett.embedding.model || "",
-      );
+    const embProvider = createEmbeddingProvider(sett);
+    if (embProvider) {
       const chContent = await chapter.get_content_only(auPath, chapterNum);
       await e.ragManager.indexChapter(auPath, chapterNum, chContent, embProvider);
     }
@@ -500,9 +504,7 @@ export async function* generateChapter(params: {
     draft_repo: e.repos.draft,
     adapter: e.adapter,
     vector_repo: e.vectorEngine,
-    embedding_provider: sett.embedding?.api_key
-      ? new RemoteEmbeddingProvider(sett.embedding.api_base || sett.default_llm?.api_base || "", sett.embedding.api_key, sett.embedding.model || "")
-      : undefined,
+    embedding_provider: createEmbeddingProvider(sett),
   })) {
     // Yield parsed objects (matching old sseStream format)
     if (event.type === "token") {
@@ -654,9 +656,8 @@ export async function sendSettingsChat(params: {
   messages: any[];
   session_llm?: { api_base?: string; api_key?: string; model?: string };
 }) {
-  const { adapter } = getEngine();
-  const { settings } = getEngine().repos;
-  const sett = await settings.get();
+  const e = getEngine();
+  const sett = await e.repos.settings.get();
 
   const lang = sett.app?.language || "zh";
   const assembled = await build_settings_context({
@@ -664,7 +665,7 @@ export async function sendSettingsChat(params: {
     base_path: params.base_path,
     fandom_path: params.fandom_path,
     messages: params.messages,
-    adapter,
+    adapter: e.adapter,
     language: lang,
   });
 
@@ -714,14 +715,13 @@ function sanitizeName(name: string): string {
 export async function createFandom(name: string, dataDir?: string) {
   const safeName = sanitizeName(name);
   const dd = dataDir ?? getDataDir();
-  const { fandom } = getEngine().repos;
-  const { adapter } = getEngine();
+  const e = getEngine();
   const path = `${dd}/fandoms/${safeName}`;
-  if (await adapter.exists(`${path}/fandom.yaml`)) {
+  if (await e.adapter.exists(`${path}/fandom.yaml`)) {
     throw new Error(`Fandom "${safeName}" already exists`);
   }
-  await adapter.mkdir(path);
-  await fandom.save(path, { name: safeName, created_at: new Date().toISOString(), core_characters: [], wiki_source: "" });
+  await e.adapter.mkdir(path);
+  await e.repos.fandom.save(path, { name: safeName, created_at: new Date().toISOString(), core_characters: [], wiki_source: "" });
   return { name: safeName, path };
 }
 
