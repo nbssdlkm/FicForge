@@ -19,6 +19,7 @@ import {
   FileSettingsRepository,
   FileStateRepository,
   TrashService,
+  RagManager,
   // Services
   add_fact,
   edit_fact,
@@ -46,7 +47,6 @@ import {
   RemoteEmbeddingProvider,
   // Vector
   JsonVectorEngine,
-  split_chapter_into_chunks,
   // Ops utilities (for writing ops from engine-client)
   createOpsEntry,
   generate_op_id,
@@ -88,6 +88,7 @@ export interface EngineInstance {
   };
   trash: TrashService;
   vectorEngine: JsonVectorEngine;
+  ragManager: RagManager;
 }
 
 let _engine: EngineInstance | null = null;
@@ -108,7 +109,9 @@ export function initEngine(adapter: PlatformAdapter, dataDir: string): void {
     },
     trash: new TrashService(adapter),
     vectorEngine: new JsonVectorEngine(adapter),
+    ragManager: null as unknown as RagManager,
   };
+  _engine.ragManager = new RagManager(_engine.vectorEngine);
 }
 
 export function getEngine(): EngineInstance {
@@ -202,13 +205,31 @@ export async function setChapterFocus(auPath: string, focusIds: string[]) {
 }
 
 export async function rebuildIndex(auPath: string) {
-  // 标记索引为 stale，触发重建
-  const { state } = getEngine().repos;
+  const e = getEngine();
+  const sett = await e.repos.settings.get();
+
+  if (sett.embedding?.api_key) {
+    const embProvider = new RemoteEmbeddingProvider(
+      sett.embedding.api_base || sett.default_llm?.api_base || "",
+      sett.embedding.api_key,
+      sett.embedding.model || "",
+    );
+    await e.ragManager.rebuildForAu(auPath, e.repos.chapter, embProvider);
+    // Update state to READY
+    const st = await e.repos.state.get(auPath);
+    const { IndexStatus } = await import("@ficforge/engine");
+    st.index_status = IndexStatus.READY;
+    await e.repos.state.save(st);
+    return { task_id: "rebuild_" + Date.now(), message: "index rebuilt successfully" };
+  }
+
+  // No embedding configured — mark stale
+  const { state } = e.repos;
   const st = await state.get(auPath);
   const { IndexStatus } = await import("@ficforge/engine");
   st.index_status = IndexStatus.STALE;
   await state.save(st);
-  return { task_id: "rebuild_" + Date.now(), message: "index marked stale, will rebuild on next retrieval" };
+  return { task_id: "rebuild_" + Date.now(), message: "index marked stale (no embedding configured)" };
 }
 
 export { recalcState };
@@ -348,39 +369,17 @@ export async function confirmChapter(
     }));
   }
 
-  // Index the confirmed chapter for RAG (F7)
+  // Index the confirmed chapter for RAG (F7) — delegated to RagManager
   try {
     const sett = await getEngine().repos.settings.get();
-    if (sett.embedding.api_key) {
+    if (sett.embedding?.api_key) {
       const embProvider = new RemoteEmbeddingProvider(
-        sett.embedding.api_base || sett.default_llm.api_base || "",
+        sett.embedding.api_base || sett.default_llm?.api_base || "",
         sett.embedding.api_key,
         sett.embedding.model || "",
       );
       const chContent = await chapter.get_content_only(auPath, chapterNum);
-      const chunks = split_chapter_into_chunks(chContent, chapterNum);
-      if (chunks.length > 0) {
-        const texts = chunks.map((c) => c.content);
-        const embeddings = await embProvider.embed(texts);
-        const vectorChunks = chunks.map((c, i) => ({
-          id: `ch${chapterNum}_${c.chunk_index}`,
-          collection: "chapters" as const,
-          content: c.content,
-          embedding: embeddings[i],
-          metadata: {
-            au_id: auPath,
-            chapter: chapterNum,
-            chunk_index: c.chunk_index,
-            branch_id: c.branch_id,
-            characters: c.characters.join(","),
-          },
-        }));
-        const ve = getEngine().vectorEngine;
-        // Load existing index first to avoid overwriting old chunks (R5-F7)
-        try { await ve.load(`${auPath}/.vectors`); } catch { /* no existing index */ }
-        await ve.index_chunks(vectorChunks);
-        await ve.persist(`${auPath}/.vectors`);
-      }
+      await getEngine().ragManager.indexChapter(auPath, chapterNum, chContent, embProvider);
     }
   } catch {
     // RAG indexing failure doesn't block confirm
@@ -478,9 +477,9 @@ export async function* generateChapter(params: {
     return;
   }
 
-  // Load vector index for RAG retrieval (F7)
+  // Load vector index for RAG retrieval (F7) — delegated to RagManager
   try {
-    await e.vectorEngine.load(`${params.au_path}/.vectors`);
+    await e.ragManager.ensureLoaded(params.au_path);
   } catch {
     // Vector index not yet created — search will return empty results
   }

@@ -126,3 +126,6 @@ export { generateChapterTitle } from "./title_generator.js";
 
 // Snapshot
 export { checkAndSnapshot } from "./snapshot.js";
+
+// RAG Manager
+export { RagManager } from "./rag_manager.js";
