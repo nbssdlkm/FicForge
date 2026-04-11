@@ -19,6 +19,8 @@ interface ChapterArrangeStepProps {
 export function ChapterArrangeStep({ analyses, onUpdateAnalyses, onNext, onBack }: ChapterArrangeStepProps) {
   const { t } = useTranslation();
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+  const [visibleCounts, setVisibleCounts] = useState<Map<string, number>>(new Map());
+  const PAGE_SIZE = 30;
 
   // 计算全局统计
   const globalStats = useMemo(() => {
@@ -150,23 +152,42 @@ export function ChapterArrangeStep({ analyses, onUpdateAnalyses, onNext, onBack 
                   </Button>
                 </div>
 
-                {/* Turn cards */}
-                <div className="space-y-2 max-h-[50vh] overflow-y-auto">
-                  {analysis.turns.map((turn, turnIdx) => {
-                    // 计算当前 turn 的章节号上下文
-                    const chapterContext = getChapterContext(analysis.turns!, turnIdx);
-
-                    return (
-                      <TurnCard
-                        key={turn.index}
-                        turn={turn}
-                        currentChapterNum={chapterContext.currentChapterNum}
-                        hasPreviousChapter={chapterContext.hasPreviousChapter}
-                        onChangeType={(_idx, newType) => handleChangeTurnType(fileIndex, turnIdx, newType)}
-                      />
-                    );
-                  })}
-                </div>
+                {/* Turn cards (paginated) */}
+                {(() => {
+                  const visibleCount = visibleCounts.get(analysis.filename) ?? PAGE_SIZE;
+                  const visibleTurns = analysis.turns.slice(0, visibleCount);
+                  const hasMore = analysis.turns.length > visibleCount;
+                  return (
+                    <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+                      {visibleTurns.map((turn, turnIdx) => {
+                        const chapterContext = getChapterContext(analysis.turns!, turnIdx);
+                        return (
+                          <TurnCard
+                            key={turn.index}
+                            turn={turn}
+                            currentChapterNum={chapterContext.currentChapterNum}
+                            hasPreviousChapter={chapterContext.hasPreviousChapter}
+                            onChangeType={(_idx, newType) => handleChangeTurnType(fileIndex, turnIdx, newType)}
+                          />
+                        );
+                      })}
+                      {hasMore && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full text-xs text-accent"
+                          onClick={() => setVisibleCounts((prev) => {
+                            const next = new Map(prev);
+                            next.set(analysis.filename, visibleCount + PAGE_SIZE);
+                            return next;
+                          })}
+                        >
+                          {t("import.loadMore", { count: analysis.turns.length - visibleCount })}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

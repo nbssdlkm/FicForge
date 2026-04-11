@@ -475,6 +475,7 @@
       "syncFailed": "同步失败",
       "syncError": "同步失败：{{message}}",
       "conflictsFound": "发现 {{count}} 个冲突",
+      "opsConflictsFound": "同步完成，但检测到 {{count}} 个操作冲突，请检查数据",
       "helpButton": "帮助",
       "help": {
         "intro": "支持两种同步方式，让你在不同设备之间同步写作数据。",
@@ -899,6 +900,7 @@
     "step3BatchReapply": "重新应用阈值",
     "step3BatchAllChapter": "全部AI→正文",
     "step3PreviewMerged": "预览合并效果",
+    "loadMore": "加载更多（剩余 {{count}} 条）",
     "fileSummary": "{{chapters}} 章 + {{settings}} 条设定 + {{skipped}} 轮跳过",
     "assignChapter": "第 {{n}} 章",
     "assignContinue": "第 {{n}} 章（续）",

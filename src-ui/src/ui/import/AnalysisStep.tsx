@@ -3,14 +3,14 @@
 
 import { Button } from "../shared/Button";
 import { Input } from "../shared/Input";
-import { CheckCircle2, Loader2, Clock } from "lucide-react";
+import { CheckCircle2, Loader2, Clock, XCircle } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import type { FileAnalysis } from "@ficforge/engine";
 
 interface AnalysisStepProps {
   files: File[];
   analyses: FileAnalysis[];
-  analysisStatus: Map<string, "waiting" | "analyzing" | "done">;
+  analysisStatus: Map<string, "waiting" | "analyzing" | "done" | "error">;
   useAiAssist: boolean;
   chapterThreshold: number;
   skipThreshold: number;
@@ -51,6 +51,7 @@ export function AnalysisStep({
             <div key={file.name} className="rounded-xl border border-black/10 bg-surface/30 p-4 dark:border-white/10">
               <div className="flex items-center gap-2">
                 {status === "done" && <CheckCircle2 size={16} className="text-green-500" />}
+                {status === "error" && <XCircle size={16} className="text-error" />}
                 {status === "analyzing" && <Loader2 size={16} className="animate-spin text-accent" />}
                 {status === "waiting" && <Clock size={16} className="text-text/30" />}
                 <span className="text-sm font-medium text-text">{file.name}</span>

@@ -206,6 +206,23 @@ function applyOpToState(state: State, op: OpsEntry): void {
       break;
     }
 
+    case "import_chapters": {
+      const maxCh = op.payload.last_chapter_num as number | undefined;
+      if (typeof maxCh === "number") {
+        state.current_chapter = Math.max(state.current_chapter, maxCh + 1);
+      }
+      if (typeof op.payload.last_scene_ending === "string") {
+        state.last_scene_ending = op.payload.last_scene_ending as string;
+      }
+      if (op.payload.characters_last_seen && typeof op.payload.characters_last_seen === "object") {
+        state.characters_last_seen = {
+          ...state.characters_last_seen,
+          ...(op.payload.characters_last_seen as Record<string, number>),
+        };
+      }
+      break;
+    }
+
     case "resolve_dirty_chapter":
       if (op.chapter_num !== null) {
         const idx = state.chapters_dirty.indexOf(op.chapter_num);

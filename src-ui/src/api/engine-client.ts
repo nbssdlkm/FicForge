@@ -861,6 +861,7 @@ export async function executeImportPlan(
   plan: ImportPlan,
   auPath: string,
   onProgress?: (progress: ImportProgress) => void,
+  locale?: "zh" | "en",
 ): Promise<NewImportResult> {
   const { adapter, repos, trash } = getEngine();
   return engineExecuteImport(plan, {
@@ -871,6 +872,7 @@ export async function executeImportPlan(
     adapter,
     trashService: trash,
     onProgress,
+    locale,
   });
 }
 
@@ -984,10 +986,21 @@ export interface WebDAVConfig {
 export interface AggregatedSyncResult {
   synced: boolean;
   fileConflicts: { path: string; auPath: string; localModified?: string; remoteModified?: string }[];
+  opsConflicts: string[];
   opsAdded: number;
   filesPushed: number;
   filesPulled: number;
   errors: string[];
+}
+
+/** 从本地绝对路径提取远端相对路径。去掉 dataDir 前缀，只保留 fandoms/xxx/aus/yyy */
+function toRemoteAuPath(localAuPath: string, dataDir: string): string {
+  let rel = localAuPath;
+  if (dataDir && rel.startsWith(dataDir)) {
+    rel = rel.slice(dataDir.length);
+  }
+  // 去掉开头的 / 或 \
+  return rel.replace(/^[/\\]+/, "").replace(/\\/g, "/");
 }
 
 export async function syncAllAus(webdavConfig: WebDAVConfig): Promise<AggregatedSyncResult> {
@@ -997,23 +1010,33 @@ export async function syncAllAus(webdavConfig: WebDAVConfig): Promise<Aggregated
   const syncAdapter = new WebDAVSyncAdapter(baseUrl, webdavConfig.username, webdavConfig.password);
   const syncManager = new SyncManager(adapter, repos.ops, repos.state, syncAdapter);
 
-  const agg: AggregatedSyncResult = { synced: true, fileConflicts: [], opsAdded: 0, filesPushed: 0, filesPulled: 0, errors: [] };
+  const agg: AggregatedSyncResult = {
+    synced: true, fileConflicts: [], opsConflicts: [],
+    opsAdded: 0, filesPushed: 0, filesPulled: 0, errors: [],
+  };
 
   try {
     const fandoms = await listFandoms(dd);
     for (const fandom of fandoms) {
       for (const auName of fandom.aus) {
-        const auPath = `${dd}/fandoms/${fandom.dir_name}/aus/${auName}`;
+        const localPath = `${dd}/fandoms/${fandom.dir_name}/aus/${auName}`;
+        const remotePath = toRemoteAuPath(localPath, dd);
         try {
-          const result: SyncResult = await syncManager.sync(auPath);
+          const result: SyncResult = await syncManager.sync(localPath, remotePath);
           if (!result.synced) {
             agg.errors.push(`${fandom.name}/${auName}: ${result.conflicts.map(c => c.description).join('; ')}`);
+          }
+          // S4: 收集 ops 冲突（非 sync_error 类型的 conflicts）
+          for (const c of result.conflicts) {
+            if (c.type !== "sync_error") {
+              agg.opsConflicts.push(`${fandom.name}/${auName}: ${c.description}`);
+            }
           }
           agg.opsAdded += result.opsAdded;
           agg.filesPushed += result.filesPushed;
           agg.filesPulled += result.filesPulled;
           for (const fc of result.fileConflicts) {
-            agg.fileConflicts.push({ ...fc, auPath });
+            agg.fileConflicts.push({ ...fc, auPath: localPath });
           }
         } catch (e) {
           agg.errors.push(`${fandom.name}/${auName}: ${String(e)}`);
@@ -1038,20 +1061,19 @@ export async function resolveFileConflict(
   webdavConfig: WebDAVConfig,
 ): Promise<void> {
   const { adapter } = getEngine();
+  const dd = getDataDir();
   const baseUrl = webdavConfig.url.replace(/\/+$/, '') + webdavConfig.remote_dir;
   const syncAdapter = new WebDAVSyncAdapter(baseUrl, webdavConfig.username, webdavConfig.password);
 
-  // localFullPath = 本地完整路径（含 auPath 前缀）
-  // remotePath = 与 SyncManager.syncSingleFile 一致（auPath/filePath）
   const localFullPath = `${auPath}/${filePath}`;
-  const remotePath = `${auPath}/${filePath}`;
+  // 远端路径用相对路径
+  const remoteAuPath = toRemoteAuPath(auPath, dd);
+  const remotePath = `${remoteAuPath}/${filePath}`;
 
   if (choice === "local") {
-    // 保留本地版本 → 推送到远程
     const localContent = await adapter.readFile(localFullPath);
     await syncAdapter.pushFile(remotePath, localContent);
   } else {
-    // 保留远程版本 → 拉取覆盖本地
     const remoteContent = await syncAdapter.pullFile(remotePath);
     await adapter.writeFile(localFullPath, remoteContent);
   }

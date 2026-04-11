@@ -46,7 +46,7 @@ FicForge has a built-in WebDAV client that connects directly to WebDAV-compatibl
 3. Enter server URL, username, and password
 4. Click "Test Connection" to verify
 5. Click "Sync Now" for the initial sync
-6. FicForge will auto-sync on each launch after that
+6. Click "Sync Now" each time you want to sync between devices
 
 ## What Gets Synced?
 

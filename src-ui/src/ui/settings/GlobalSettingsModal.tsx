@@ -492,6 +492,9 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                       } else if (result.errors.length > 0) {
                         setSyncResultStatus('error');
                         setSyncMessage(t('settings.sync.syncError', { message: result.errors[0] }));
+                      } else if (result.opsConflicts && result.opsConflicts.length > 0) {
+                        setSyncResultStatus('conflicts');
+                        setSyncMessage(t('settings.sync.opsConflictsFound', { count: result.opsConflicts.length }));
                       } else {
                         setSyncResultStatus('success');
                         setSyncMessage(t('settings.sync.syncSuccess'));

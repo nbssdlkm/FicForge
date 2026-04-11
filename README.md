@@ -88,7 +88,7 @@ Requires Node.js 18+. Android build requires JDK 17+ and Android SDK.
 
 - **Models**: Any OpenAI-compatible API — DeepSeek, GPT, Ollama, local models
 - **Language**: Bilingual UI (中文 / English), switch anytime
-- **Import**: txt / md / docx / html with automatic chapter splitting
+- **Import**: txt / md / html / json with automatic chapter splitting and AI chat log parsing
 - **Built-in search**: Ships with Chinese embedding model (bge-small-zh), works out of the box. English users should configure an API embedding (e.g. OpenAI `text-embedding-3-small`) in Global Settings for best results
 
 ---

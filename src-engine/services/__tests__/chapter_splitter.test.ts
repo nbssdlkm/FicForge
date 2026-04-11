@@ -321,7 +321,9 @@ describe("llmDetectChapterPattern", () => {
       generateStream: vi.fn(),
     };
 
-    const text = "前言\n\n**1.黎明前**\n正文1\n\n**2.暗流**\n正文2\n\n**3.交锋**\n正文3";
+    // 用足够长的文本确保密度检查通过（匹配数 / 总行数 < 20%）
+    const chapterContent = "这是正文内容。\n第二行。\n第三行。\n第四行。\n第五行。";
+    const text = `前言\n\n**1.黎明前**\n${chapterContent}\n\n**2.暗流**\n${chapterContent}\n\n**3.交锋**\n${chapterContent}`;
     const result = await splitChapters(text, { useAiAssist: true, llmProvider: mockProvider });
     expect(result.method).toBe("ai_detected");
     expect(result.chapters).toHaveLength(3);

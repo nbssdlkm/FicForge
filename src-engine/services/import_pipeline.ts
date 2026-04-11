@@ -122,6 +122,7 @@ export interface ExecuteImportParams {
   castRegistry?: { characters?: string[] };
   characterAliases?: Record<string, string[]> | null;
   onProgress?: (progress: ImportProgress) => void;
+  locale?: "zh" | "en";
 }
 
 // ---------------------------------------------------------------------------
@@ -236,8 +237,11 @@ function tryParseJsonl(text: string): ChatTurn[] {
       const content = (obj.content as string ?? "").trim();
       if (!role || !content) continue;
 
+      const lower = role.toLowerCase();
+      const skipRoles = ["system", "tool", "function"];
+      if (skipRoles.includes(lower)) continue;
       const normalizedRole: "user" | "assistant" =
-        role === "user" || role === "human" ? "user" : "assistant";
+        lower === "user" || lower === "human" ? "user" : "assistant";
       turns.push({ index: index++, role: normalizedRole, content, charCount: content.length });
     } catch {
       // 某行解析失败 → 整个文件不是 JSONL
@@ -281,13 +285,16 @@ export function buildImportPlan(
       break;
   }
 
+  // 跨文件维护"续"合并上下文
+  let lastChapterIndex = -1;
+
   for (const analysis of analyses) {
     if (analysis.mode === "chat" && analysis.turns) {
       // 对话模式：从 ClassifiedTurn 中提取
-      const result = extractFromTurns(analysis.turns, analysis.filename, nextChapter);
-      chapters.push(...result.chapters);
+      const result = extractFromTurns(analysis.turns, analysis.filename, nextChapter, lastChapterIndex, chapters);
       settings.push(...result.settings);
       nextChapter = result.nextChapter;
+      lastChapterIndex = result.lastChapterIndex;
     } else if (analysis.mode === "text" && analysis.chapters) {
       // 纯正文模式：从 SplitChapter 中提取
       for (const ch of analysis.chapters) {
@@ -298,6 +305,7 @@ export function buildImportPlan(
           sourceTurns: [],
           title: ch.title,
         });
+        lastChapterIndex = chapters.length - 1;
       }
     }
   }
@@ -309,11 +317,12 @@ function extractFromTurns(
   turns: ClassifiedTurn[],
   filename: string,
   startChapter: number,
-): { chapters: ImportChapter[]; settings: ImportSetting[]; nextChapter: number } {
-  const chapters: ImportChapter[] = [];
+  globalLastChapterIndex: number,
+  globalChapters: ImportChapter[],
+): { settings: ImportSetting[]; nextChapter: number; lastChapterIndex: number } {
   const settings: ImportSetting[] = [];
   let nextChapter = startChapter;
-  let lastChapterIndex = -1; // index into chapters array for "续" merging
+  let lastChapterIndex = globalLastChapterIndex;
 
   for (const turn of turns) {
     switch (turn.assignedType) {
@@ -325,24 +334,24 @@ function extractFromTurns(
           sourceTurns: [turn.index],
           title: undefined,
         };
-        chapters.push(ch);
-        lastChapterIndex = chapters.length - 1;
+        globalChapters.push(ch);
+        lastChapterIndex = globalChapters.length - 1;
         break;
       }
       case "chapter_continue": {
-        // 追加到上一个 chapter
-        if (lastChapterIndex >= 0) {
-          chapters[lastChapterIndex].content += "\n\n" + turn.content;
-          chapters[lastChapterIndex].sourceTurns.push(turn.index);
+        // 追加到上一个 chapter（支持跨文件续接）
+        if (lastChapterIndex >= 0 && lastChapterIndex < globalChapters.length) {
+          globalChapters[lastChapterIndex].content += "\n\n" + turn.content;
+          globalChapters[lastChapterIndex].sourceTurns.push(turn.index);
         } else {
           // 没有前一章可追加，升级为独立章节
-          chapters.push({
+          globalChapters.push({
             chapterNum: nextChapter++,
             content: turn.content,
             sourceFile: filename,
             sourceTurns: [turn.index],
           });
-          lastChapterIndex = chapters.length - 1;
+          lastChapterIndex = globalChapters.length - 1;
         }
         break;
       }
@@ -361,7 +370,7 @@ function extractFromTurns(
     }
   }
 
-  return { chapters, settings, nextChapter };
+  return { settings, nextChapter, lastChapterIndex };
 }
 
 // ---------------------------------------------------------------------------
@@ -378,7 +387,7 @@ export async function executeImport(
   const {
     auId, chapterRepo, stateRepo, opsRepo, adapter,
     trashService, castRegistry = { characters: [] },
-    characterAliases = null, onProgress,
+    characterAliases = null, onProgress, locale = "zh",
   } = params;
 
   const result: NewImportResult = {
@@ -445,19 +454,20 @@ export async function executeImport(
 
   // 3. 写入设定文件
   if (plan.settings.length > 0) {
+    const settingsName = locale === "zh" ? "导入设定" : "imported_settings";
     if (plan.conflictOptions.settingsMode === "merge") {
       const merged = plan.settings.map((s) => s.content).join("\n\n---\n\n");
-      const settingsPath = `${auId}/worldbuilding/导入设定.md`;
+      const settingsPath = `${auId}/worldbuilding/${settingsName}.md`;
       const dir = settingsPath.substring(0, settingsPath.lastIndexOf("/"));
       await adapter.mkdir(dir);
-      await adapter.writeFile(settingsPath, `---\ntitle: 导入设定\n---\n\n${merged}`);
+      await adapter.writeFile(settingsPath, `---\ntitle: ${settingsName}\n---\n\n${merged}`);
     } else {
       const dir = `${auId}/worldbuilding`;
       await adapter.mkdir(dir);
       for (let i = 0; i < plan.settings.length; i++) {
         await adapter.writeFile(
-          `${dir}/导入设定_${i + 1}.md`,
-          `---\ntitle: 导入设定 ${i + 1}\n---\n\n${plan.settings[i].content}`,
+          `${dir}/${settingsName}_${i + 1}.md`,
+          `---\ntitle: ${settingsName} ${i + 1}\n---\n\n${plan.settings[i].content}`,
         );
       }
     }
@@ -512,6 +522,10 @@ export async function executeImport(
       trashed_chapters: result.trashedChapters,
       source_files: [...new Set(plan.chapters.map((c) => c.sourceFile))],
       characters_found: Object.keys(allCharactersLastSeen),
+      // 供 rebuildStateFromOps 使用（跨设备同步时重建 state）
+      last_chapter_num: plan.chapters.length > 0 ? Math.max(...plan.chapters.map((c) => c.chapterNum)) : 0,
+      last_scene_ending: plan.chapters.length > 0 ? extract_last_scene_ending(plan.chapters[plan.chapters.length - 1].content, 50) : "",
+      characters_last_seen: allCharactersLastSeen,
     },
   }));
 

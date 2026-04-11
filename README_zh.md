@@ -89,7 +89,7 @@ cd android && ./gradlew.bat assembleDebug
 
 - **模型**：支持所有 OpenAI 兼容 API——DeepSeek、GPT、Ollama、本地模型
 - **语言**：中英双语界面，随时切换
-- **导入**：支持 txt / md / docx / html，自动切分章节
+- **导入**：支持 txt / md / html / json，自动切分章节 + AI 对话记录解析
 - **内置搜索**：自带中文向量模型（bge-small-zh），开箱即用。英文写作用户建议在全局设置中配置 API Embedding 以获得更好的检索效果
 
 ---

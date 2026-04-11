@@ -262,6 +262,11 @@ function extractSamples(content: string, size: number): { begin: string; middle:
 export function buildRegexFromPattern(pattern: ChapterPatternResult): RegExp | null {
   if (!pattern.found) return null;
 
+  // 防护：number_style = "none" 时 prefix 和 suffix 不能同时为空（否则生成 ^.+$）
+  if (pattern.number_style === "none" && !pattern.prefix.trim() && !pattern.suffix.trim()) return null;
+  // 防护：即使有编号，也需要至少有 prefix 或 suffix 或 separator 来锚定
+  if (!pattern.prefix.trim() && !pattern.suffix.trim() && !pattern.separator.trim() && pattern.number_style === "none") return null;
+
   try {
     const prefix = escapeRegex(pattern.prefix);
     const suffix = escapeRegex(pattern.suffix);
@@ -318,6 +323,10 @@ function splitByCustomRegex(text: string, regex: RegExp): SplitChapter[] | null 
   }
 
   if (matches.length < 2) return null;
+
+  // 密度检查：匹配超过总行数 20% 则正则太宽泛，放弃
+  const totalLines = text.split("\n").length;
+  if (matches.length > totalLines * 0.2) return null;
 
   const chapters: SplitChapter[] = [];
   const preContent = text.slice(0, matches[0][0]).trim();

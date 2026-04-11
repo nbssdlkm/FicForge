@@ -16,6 +16,7 @@ import type {
   LicenseConfig,
   ModelParams,
   Settings,
+  SyncConfig,
 } from "../../domain/settings.js";
 import {
   createAppConfig,
@@ -25,6 +26,7 @@ import {
   createLicenseConfig,
   createModelParams,
   createSettings,
+  createSyncConfig,
 } from "../../domain/settings.js";
 import type { SettingsRepository } from "../interfaces/settings.js";
 import { now_utc, obj_to_plain } from "./file_utils.js";
@@ -154,6 +156,23 @@ function dictToLicenseConfig(d: Record<string, unknown> | null): LicenseConfig {
   });
 }
 
+function dictToSyncConfig(d: Record<string, unknown> | null): SyncConfig {
+  if (!d) return createSyncConfig();
+  const webdav = d.webdav as Record<string, string> | undefined;
+  return createSyncConfig({
+    mode: (d.mode as "none" | "webdav") ?? "none",
+    ...(webdav ? {
+      webdav: {
+        url: webdav.url ?? "",
+        username: webdav.username ?? "",
+        password: webdav.password ?? "",
+        remote_dir: webdav.remote_dir ?? "/FicForge/",
+      },
+    } : {}),
+    ...(d.last_sync ? { last_sync: d.last_sync as string } : {}),
+  });
+}
+
 function dictToSettings(d: Record<string, unknown>): Settings {
   return createSettings({
     updated_at: (d.updated_at as string) ?? "",
@@ -162,5 +181,6 @@ function dictToSettings(d: Record<string, unknown>): Settings {
     embedding: dictToEmbeddingConfig(d.embedding as Record<string, unknown> | null),
     app: dictToAppConfig(d.app as Record<string, unknown> | null),
     license: dictToLicenseConfig(d.license as Record<string, unknown> | null),
+    sync: dictToSyncConfig(d.sync as Record<string, unknown> | null),
   });
 }

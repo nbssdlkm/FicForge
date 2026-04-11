@@ -34,7 +34,7 @@ export function ImportFlow({
   auPath: string;
   onComplete: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { showError } = useFeedback();
   const flowRequestIdRef = useRef(0);
 
@@ -42,7 +42,7 @@ export function ImportFlow({
   const [step, setStep] = useState(0);
   const [files, setFiles] = useState<File[]>([]);
   const [analyses, setAnalyses] = useState<FileAnalysis[]>([]);
-  const [analysisStatus, setAnalysisStatus] = useState<Map<string, "waiting" | "analyzing" | "done">>(new Map());
+  const [analysisStatus, setAnalysisStatus] = useState<Map<string, "waiting" | "analyzing" | "done" | "error">>(new Map());
   const [analyzing, setAnalyzing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
@@ -130,6 +130,12 @@ export function ImportFlow({
       } catch (error) {
         if (requestId !== flowRequestIdRef.current) return;
         showError(error, t("error_messages.unknown"));
+        setAnalysisStatus((prev) => {
+          const next = new Map(prev);
+          next.set(file.name, "error");
+          return next;
+        });
+        continue; // 不设 done，跳到下一个文件
       }
 
       setAnalysisStatus((prev) => {
@@ -165,9 +171,10 @@ export function ImportFlow({
 
     try {
       const plan = buildImportPlanFromAnalyses(analyses, conflictOptions);
+      const locale = (i18n.resolvedLanguage === "en" ? "en" : "zh") as "zh" | "en";
       const result = await executeImportPlan(plan, auPath, (progress) => {
         setImportProgress(progress);
-      });
+      }, locale);
       setImportResult(result);
       setImporting(false);
     } catch (error) {
@@ -176,7 +183,7 @@ export function ImportFlow({
       // 导入失败，回退到章节编排步骤
       setStep(2);
     }
-  }, [analyses, auPath, showError, t]);
+  }, [analyses, auPath, i18n, showError, t]);
 
   // ── Step 3: Chapter arrangement ──
 
@@ -269,8 +276,6 @@ export function ImportFlow({
           progress={importProgress}
           result={importResult}
           nextChapterNum={importResult?.nextChapterNum ?? 1}
-          onGoToLore={handleStartWriting}
-          onGoToFacts={handleStartWriting}
           onStartWriting={handleStartWriting}
         />
       )}

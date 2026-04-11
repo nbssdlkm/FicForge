@@ -11,8 +11,6 @@ interface ImportProgressStepProps {
   progress: ImportProgress | null;
   result: NewImportResult | null;
   nextChapterNum: number;
-  onGoToLore: () => void;
-  onGoToFacts: () => void;
   onStartWriting: () => void;
 }
 
@@ -21,8 +19,6 @@ export function ImportProgressStep({
   progress,
   result,
   nextChapterNum,
-  onGoToLore,
-  onGoToFacts,
   onStartWriting,
 }: ImportProgressStepProps) {
   const { t } = useTranslation();
@@ -86,16 +82,13 @@ export function ImportProgressStep({
           )}
         </div>
 
-        <div className="space-y-2">
-          {result.settingsImported > 0 && (
-            <Button variant="secondary" size="sm" className="w-full justify-start" onClick={onGoToLore}>
-              {t("import.step5Next1")}
-            </Button>
-          )}
-          <Button variant="secondary" size="sm" className="w-full justify-start" onClick={onGoToFacts}>
-            {t("import.step5Next2")}
-          </Button>
-          <Button variant="primary" size="sm" className="w-full justify-start" onClick={onStartWriting}>
+        {result.settingsImported > 0 && (
+          <p className="text-xs text-text/50">{t("import.step5Next1")}</p>
+        )}
+        <p className="text-xs text-text/50">{t("import.step5Next2")}</p>
+
+        <div className="pt-2">
+          <Button variant="primary" className="w-full" onClick={onStartWriting}>
             {t("import.step5Next3", { n: nextChapter })}
           </Button>
         </div>

@@ -270,52 +270,95 @@ export function parseChatExport(data: unknown): ChatTurn[] {
   return [];
 }
 
+// 角色白名单
+const USER_ROLES = new Set(["user", "human"]);
+const ASSISTANT_ROLES = new Set(["assistant", "ai", "chatgpt", "deepseek"]);
+const SKIP_ROLES = new Set(["system", "tool", "function"]);
+
+function normalizeRole(role: string): "user" | "assistant" | null {
+  const lower = role.toLowerCase();
+  if (USER_ROLES.has(lower)) return "user";
+  if (ASSISTANT_ROLES.has(lower)) return "assistant";
+  if (SKIP_ROLES.has(lower)) return null;
+  return null; // 未知角色也跳过
+}
+
 function parseChatGptMapping(data: Record<string, unknown>): ChatTurn[] {
   const mapping = data.mapping as Record<string, unknown>;
   if (!mapping) return [];
 
-  const nodes: { id: string; role: string; content: string; parent?: string }[] = [];
-
+  // 按 parent/children 链 DFS 遍历，保证正确对话顺序
+  // 找根节点：parent 为 null 或 parent 不在 mapping 中
+  const nodeIds = new Set(Object.keys(mapping));
+  let rootId: string | null = null;
   for (const [id, nodeRaw] of Object.entries(mapping)) {
     const node = nodeRaw as Record<string, unknown>;
-    const message = node?.message as Record<string, unknown> | undefined;
-    if (!message) continue;
-
-    const author = message.author as Record<string, unknown> | undefined;
-    const role = author?.role as string ?? (message.role as string ?? "");
-    if (!role || (role !== "user" && role !== "assistant")) continue;
-
-    const contentObj = message.content as Record<string, unknown> | undefined;
-    let text = "";
-    if (contentObj) {
-      const parts = contentObj.parts as string[] | undefined;
-      if (Array.isArray(parts)) {
-        text = parts.join("\n");
-      }
+    const parent = node.parent as string | undefined;
+    if (!parent || !nodeIds.has(parent)) {
+      rootId = id;
+      break;
     }
-    if (!text.trim()) continue;
-
-    nodes.push({
-      id,
-      role,
-      content: text.trim(),
-      parent: node.parent as string | undefined,
-    });
   }
 
-  // 按 parent 链排序（简单方法：找到 root，沿 children 链构建顺序）
-  // 由于 mapping 结构复杂，退化为按出现顺序
-  // ChatGPT 的 mapping 通常已经是有序的
+  if (!rootId) {
+    // 找不到根节点，退化为按 entries 顺序
+    rootId = Object.keys(mapping)[0];
+  }
+
   const turns: ChatTurn[] = [];
   let index = 0;
-  for (const node of nodes) {
-    const normalizedRole: "user" | "assistant" = node.role === "user" ? "user" : "assistant";
-    turns.push({
-      index: index++,
-      role: normalizedRole,
-      content: node.content,
-      charCount: node.content.length,
-    });
+
+  function dfs(nodeId: string) {
+    const nodeRaw = mapping[nodeId] as Record<string, unknown> | undefined;
+    if (!nodeRaw) return;
+
+    const message = nodeRaw.message as Record<string, unknown> | undefined;
+    if (message) {
+      const author = message.author as Record<string, unknown> | undefined;
+      const role = author?.role as string ?? (message.role as string ?? "");
+      const normalized = normalizeRole(role);
+
+      if (normalized) {
+        const contentObj = message.content as Record<string, unknown> | undefined;
+        let text = "";
+        if (contentObj) {
+          const parts = contentObj.parts as unknown[] | undefined;
+          if (Array.isArray(parts)) {
+            text = parts.filter((p) => typeof p === "string").join("\n");
+          }
+        }
+        if (text.trim()) {
+          turns.push({
+            index: index++,
+            role: normalized,
+            content: text.trim(),
+            charCount: text.trim().length,
+          });
+        }
+      }
+    }
+
+    // 遍历 children
+    const children = nodeRaw.children as string[] | undefined;
+    if (Array.isArray(children)) {
+      for (const childId of children) {
+        dfs(childId);
+      }
+    }
+  }
+
+  // 检查是否有 children 链接——如果没有（简化的 mapping），退化为全量遍历
+  const hasChildrenLinks = Object.values(mapping).some(
+    (n) => Array.isArray((n as Record<string, unknown>)?.children) && ((n as Record<string, unknown>).children as string[]).length > 0,
+  );
+
+  if (hasChildrenLinks && rootId) {
+    dfs(rootId);
+  } else {
+    // 无 children 链接，按 entries 顺序遍历所有节点
+    for (const nodeId of Object.keys(mapping)) {
+      dfs(nodeId);
+    }
   }
 
   return turns;
@@ -332,8 +375,8 @@ function parseSimpleArray(data: unknown[]): ChatTurn[] {
     const content = (obj.content as string ?? "").trim();
     if (!role || !content) continue;
 
-    const normalizedRole: "user" | "assistant" =
-      role === "user" || role === "human" ? "user" : "assistant";
+    const normalizedRole = normalizeRole(role);
+    if (!normalizedRole) continue; // 跳过 system/tool/function 等
 
     turns.push({
       index: index++,

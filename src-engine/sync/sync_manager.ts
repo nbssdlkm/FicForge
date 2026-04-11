@@ -33,13 +33,19 @@ export class SyncManager {
     private syncAdapter: SyncAdapter,
   ) {}
 
-  async sync(auId: string): Promise<SyncResult> {
+  /**
+   * 同步单个 AU。
+   * @param localAuPath 本地绝对路径（用于文件 I/O）
+   * @param remoteAuPath 远端相对路径（用于 WebDAV I/O），如 "fandoms/dbh/aus/star-empire"
+   */
+  async sync(localAuPath: string, remoteAuPath?: string): Promise<SyncResult> {
+    const remote = remoteAuPath ?? localAuPath;
     try {
       // 1. 拉取远程 ops
-      const remoteOps = await this.syncAdapter.pullOps(auId);
+      const remoteOps = await this.syncAdapter.pullOps(remote);
 
       // 2. 读取本地 ops
-      const localOps = await this.opsRepo.list_all(auId);
+      const localOps = await this.opsRepo.list_all(localAuPath);
 
       // 3. 合并
       const { ops: merged, conflicts, newLamportClock } = mergeOps(localOps, remoteOps);
@@ -50,24 +56,24 @@ export class SyncManager {
       const opsAdded = merged.filter((o) => !localIds.has(o.op_id)).length;
 
       // 5. 写回合并后的 ops
-      await this.opsRepo.replace_all(auId, merged);
+      await this.opsRepo.replace_all(localAuPath, merged);
 
       // 6. 重建 state + facts（如果有新 ops）
       if (opsAdded > 0) {
-        const state = rebuildStateFromOps(merged, auId);
+        const state = rebuildStateFromOps(merged, localAuPath);
         await this.stateRepo.save(state);
 
         const facts = rebuildFactsFromOps(merged);
-        const factsPath = joinPath(auId, "facts.jsonl");
+        const factsPath = joinPath(localAuPath, "facts.jsonl");
         const factsContent = facts.map((f) => JSON.stringify(f)).join("\n") + "\n";
         await this.adapter.writeFile(factsPath, factsContent);
       }
 
       // 7. 推送本地 ops 到远程
-      await this.syncAdapter.pushOps(auId, merged);
+      await this.syncAdapter.pushOps(remote, merged);
 
       // 8. 同步内容文件
-      const contentResult = await this.syncContentFiles(auId);
+      const contentResult = await this.syncContentFiles(localAuPath, remote);
 
       return {
         synced: true,
@@ -90,7 +96,10 @@ export class SyncManager {
   }
 
   /** 同步内容文件（章节、设定、project.yaml、trash manifest）。 */
-  async syncContentFiles(auId: string): Promise<{ pushed: number; pulled: number; fileConflicts: FileConflict[] }> {
+  async syncContentFiles(
+    localAuPath: string,
+    remoteAuPath: string,
+  ): Promise<{ pushed: number; pulled: number; fileConflicts: FileConflict[] }> {
     const syncDirs = [
       "chapters/main",
       "characters",
@@ -104,8 +113,8 @@ export class SyncManager {
 
     // Sync individual files
     for (const relPath of syncFiles) {
-      const localPath = joinPath(auId, relPath);
-      const remotePath = joinPath(auId, relPath);
+      const localPath = joinPath(localAuPath, relPath);
+      const remotePath = joinPath(remoteAuPath, relPath);
       const result = await this.syncSingleFile(localPath, remotePath);
       if (result === "pushed") pushed++;
       else if (result === "pulled") pulled++;
@@ -114,13 +123,13 @@ export class SyncManager {
 
     // Sync directories
     for (const dir of syncDirs) {
-      const localDir = joinPath(auId, dir);
+      const localDir = joinPath(localAuPath, dir);
       const localExists = await this.adapter.exists(localDir);
       const localFiles = localExists ? await this.adapter.listDir(localDir) : [];
 
       let remoteFiles: string[] = [];
       try {
-        remoteFiles = await this.syncAdapter.listRemoteFiles(joinPath(auId, dir));
+        remoteFiles = await this.syncAdapter.listRemoteFiles(joinPath(remoteAuPath, dir));
       } catch {
         // Remote dir may not exist yet
       }
@@ -129,8 +138,8 @@ export class SyncManager {
 
       for (const file of allFiles) {
         const relPath = joinPath(dir, file);
-        const localPath = joinPath(auId, relPath);
-        const remotePath = joinPath(auId, relPath);
+        const localPath = joinPath(localAuPath, relPath);
+        const remotePath = joinPath(remoteAuPath, relPath);
         const result = await this.syncSingleFile(localPath, remotePath);
         if (result === "pushed") pushed++;
         else if (result === "pulled") pulled++;
