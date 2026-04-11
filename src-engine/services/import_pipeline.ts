@@ -506,28 +506,28 @@ export async function executeImport(
           characters_last_seen: allCharactersLastSeen,
           index_status: IndexStatus.STALE,
         });
-    await stateRepo.save(state);
     result.nextChapterNum = state.current_chapter;
-  }
 
-  // 5. 写入 ops
-  await opsRepo.append(auId, createOpsEntry({
-    op_id: generate_op_id(),
-    op_type: "import_chapters",
-    target_id: auId,
-    timestamp,
-    payload: {
-      total_chapters: result.chaptersImported,
-      total_settings: result.settingsImported,
-      trashed_chapters: result.trashedChapters,
-      source_files: [...new Set(plan.chapters.map((c) => c.sourceFile))],
-      characters_found: Object.keys(allCharactersLastSeen),
-      // 供 rebuildStateFromOps 使用（跨设备同步时重建 state）
-      last_chapter_num: plan.chapters.length > 0 ? Math.max(...plan.chapters.map((c) => c.chapterNum)) : 0,
-      last_scene_ending: plan.chapters.length > 0 ? extract_last_scene_ending(plan.chapters[plan.chapters.length - 1].content, 50) : "",
-      characters_last_seen: allCharactersLastSeen,
-    },
-  }));
+    // 5. ops 先于 state 落盘（D-0036）
+    await opsRepo.append(auId, createOpsEntry({
+      op_id: generate_op_id(),
+      op_type: "import_chapters",
+      target_id: auId,
+      timestamp,
+      payload: {
+        total_chapters: result.chaptersImported,
+        total_settings: result.settingsImported,
+        trashed_chapters: result.trashedChapters,
+        source_files: [...new Set(plan.chapters.map((c) => c.sourceFile))],
+        characters_found: Object.keys(allCharactersLastSeen),
+        // 供 rebuildStateFromOps 使用（跨设备同步时重建 state）
+        last_chapter_num: plan.chapters.length > 0 ? Math.max(...plan.chapters.map((c) => c.chapterNum)) : 0,
+        last_scene_ending: plan.chapters.length > 0 ? extract_last_scene_ending(plan.chapters[plan.chapters.length - 1].content, 50) : "",
+        characters_last_seen: allCharactersLastSeen,
+      },
+    }));
+    await stateRepo.save(state);
+  }
 
   return result;
 }
@@ -652,9 +652,7 @@ export async function import_chapters(params: ImportChaptersParams): Promise<Imp
     characters_last_seen: charactersLastSeen,
     index_status: IndexStatus.STALE,
   });
-  await state_repo.save(state);
-
-  // ops
+  // ops 先于 state 落盘（D-0036）
   await ops_repo.append(au_id, createOpsEntry({
     op_id: generate_op_id(),
     op_type: "import_project",
@@ -673,6 +671,7 @@ export async function import_chapters(params: ImportChaptersParams): Promise<Imp
       },
     },
   }));
+  await state_repo.save(state);
 
   return {
     total_chapters: chapters.length,

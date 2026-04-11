@@ -19,6 +19,7 @@ import {
   FileSettingsRepository,
   FileStateRepository,
   TrashService,
+  RagManager,
   // Services
   add_fact,
   edit_fact,
@@ -28,6 +29,7 @@ import {
   undo_latest_chapter,
   resolve_dirty_chapter,
   recalc_state,
+  edit_chapter_content,
   export_chapters as engineExportChapters,
   // Import v2 types (re-exported from engine-import.ts, code in engine-import.ts)
   type FileAnalysis,
@@ -46,7 +48,10 @@ import {
   RemoteEmbeddingProvider,
   // Vector
   JsonVectorEngine,
-  split_chapter_into_chunks,
+  // Domain enums
+  IndexStatus,
+  // Services (static imports replacing dynamic ones)
+  generateChapterTitle,
   // Ops utilities (for writing ops from engine-client)
   createOpsEntry,
   generate_op_id,
@@ -88,11 +93,13 @@ export interface EngineInstance {
   };
   trash: TrashService;
   vectorEngine: JsonVectorEngine;
+  ragManager: RagManager;
 }
 
 let _engine: EngineInstance | null = null;
 
 export function initEngine(adapter: PlatformAdapter, dataDir: string): void {
+  const vectorEngine = new JsonVectorEngine(adapter);
   _engine = {
     adapter,
     dataDir,
@@ -107,7 +114,8 @@ export function initEngine(adapter: PlatformAdapter, dataDir: string): void {
       state: new FileStateRepository(adapter),
     },
     trash: new TrashService(adapter),
-    vectorEngine: new JsonVectorEngine(adapter),
+    vectorEngine,
+    ragManager: new RagManager(vectorEngine),
   };
 }
 
@@ -123,6 +131,18 @@ export function isEngineReady(): boolean {
 /** 获取数据根目录（所有 fandom 操作的基础路径）。 */
 export function getDataDir(): string {
   return getEngine().dataDir;
+}
+
+/** 从 settings 创建 RemoteEmbeddingProvider（若已配置 embedding api_key）。 */
+function createEmbeddingProvider(
+  sett: { embedding?: { api_base?: string; api_key?: string; model?: string }; default_llm?: { api_base?: string } },
+): RemoteEmbeddingProvider | undefined {
+  if (!sett.embedding?.api_key) return undefined;
+  return new RemoteEmbeddingProvider(
+    sett.embedding.api_base || sett.default_llm?.api_base || "",
+    sett.embedding.api_key,
+    sett.embedding.model || "",
+  );
 }
 
 // ===========================================================================
@@ -202,29 +222,42 @@ export async function setChapterFocus(auPath: string, focusIds: string[]) {
 }
 
 export async function rebuildIndex(auPath: string) {
-  // 标记索引为 stale，触发重建
-  const { state } = getEngine().repos;
-  const st = await state.get(auPath);
-  const { IndexStatus } = await import("@ficforge/engine");
+  const e = getEngine();
+  const sett = await e.repos.settings.get();
+  const embProvider = createEmbeddingProvider(sett);
+
+  if (embProvider) {
+    await e.ragManager.rebuildForAu(auPath, e.repos.chapter, embProvider);
+    // Update state to READY
+    const st = await e.repos.state.get(auPath);
+    st.index_status = IndexStatus.READY;
+    await e.repos.state.save(st);
+    return { task_id: "rebuild_" + Date.now(), message: "index rebuilt successfully" };
+  }
+
+  // No embedding configured — mark stale
+  const st = await e.repos.state.get(auPath);
   st.index_status = IndexStatus.STALE;
-  await state.save(st);
-  return { task_id: "rebuild_" + Date.now(), message: "index marked stale, will rebuild on next retrieval" };
+  await e.repos.state.save(st);
+  return { task_id: "rebuild_" + Date.now(), message: "index marked stale (no embedding configured)" };
 }
 
 export { recalcState };
 async function recalcState(auPath: string) {
   const { state, chapter, project, fact, ops } = getEngine().repos;
   const result = await recalc_state(auPath, state, chapter, project, fact);
-  // Write op so cross-device rebuild can project chapters_dirty (F4)
-  const st = await state.get(auPath);
+  // ops 先于 state 落盘（D-0036）
   await ops.append(auPath, createOpsEntry({
     op_id: generate_op_id(),
     op_type: "mark_chapters_dirty",
     target_id: auPath,
     timestamp: now_utc(),
-    payload: { chapters_dirty: [...st.chapters_dirty] },
+    payload: { chapters_dirty: [...result.state.chapters_dirty] },
   }));
-  return result;
+  await state.save(result.state);
+  // 不泄露内部 state 对象到前端
+  const { state: _s, ...publicResult } = result;
+  return publicResult;
 }
 
 // ===========================================================================
@@ -307,7 +340,8 @@ export async function confirmChapter(
   auPath: string, chapterNum: number, draftId: string,
   generatedWith?: object, content?: string | null, title?: string | null,
 ) {
-  const { chapter, draft, state, ops, project } = getEngine().repos;
+  const e = getEngine();
+  const { chapter, draft, state, ops, project, settings } = e.repos;
   const proj = await project.get(auPath);
   const result = await engineConfirmChapter({
     au_id: auPath, chapter_num: chapterNum, draft_id: draftId,
@@ -316,12 +350,13 @@ export async function confirmChapter(
     content_override: content,
     chapter_repo: chapter, draft_repo: draft, state_repo: state, ops_repo: ops,
   });
+
+  const sett = await settings.get();
+
   // Update title: use provided title, or auto-generate via LLM
   let finalTitle = title;
   if (!finalTitle) {
     try {
-      const { generateChapterTitle } = await import("@ficforge/engine");
-      const sett = await getEngine().repos.settings.get();
       const llmConfig = resolve_llm_config(null, proj as unknown as Record<string, unknown>, sett as { default_llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } });
       if (llmConfig.mode === "api" && llmConfig.api_key) {
         const provider = create_provider(llmConfig);
@@ -336,8 +371,7 @@ export async function confirmChapter(
   if (finalTitle) {
     const st = await state.get(auPath);
     st.chapter_titles[chapterNum] = finalTitle;
-    await state.save(st);
-    // Write op so cross-device rebuild can project chapter_titles (F4)
+    // ops 先于 state 落盘（D-0036）
     await ops.append(auPath, createOpsEntry({
       op_id: generate_op_id(),
       op_type: "set_chapter_title",
@@ -346,41 +380,15 @@ export async function confirmChapter(
       timestamp: now_utc(),
       payload: { title: finalTitle },
     }));
+    await state.save(st);
   }
 
-  // Index the confirmed chapter for RAG (F7)
+  // Index the confirmed chapter for RAG (F7) — delegated to RagManager
   try {
-    const sett = await getEngine().repos.settings.get();
-    if (sett.embedding.api_key) {
-      const embProvider = new RemoteEmbeddingProvider(
-        sett.embedding.api_base || sett.default_llm.api_base || "",
-        sett.embedding.api_key,
-        sett.embedding.model || "",
-      );
+    const embProvider = createEmbeddingProvider(sett);
+    if (embProvider) {
       const chContent = await chapter.get_content_only(auPath, chapterNum);
-      const chunks = split_chapter_into_chunks(chContent, chapterNum);
-      if (chunks.length > 0) {
-        const texts = chunks.map((c) => c.content);
-        const embeddings = await embProvider.embed(texts);
-        const vectorChunks = chunks.map((c, i) => ({
-          id: `ch${chapterNum}_${c.chunk_index}`,
-          collection: "chapters" as const,
-          content: c.content,
-          embedding: embeddings[i],
-          metadata: {
-            au_id: auPath,
-            chapter: chapterNum,
-            chunk_index: c.chunk_index,
-            branch_id: c.branch_id,
-            characters: c.characters.join(","),
-          },
-        }));
-        const ve = getEngine().vectorEngine;
-        // Load existing index first to avoid overwriting old chunks (R5-F7)
-        try { await ve.load(`${auPath}/.vectors`); } catch { /* no existing index */ }
-        await ve.index_chunks(vectorChunks);
-        await ve.persist(`${auPath}/.vectors`);
-      }
+      await e.ragManager.indexChapter(auPath, chapterNum, chContent, embProvider);
     }
   } catch {
     // RAG indexing failure doesn't block confirm
@@ -402,8 +410,7 @@ export async function updateChapterTitle(auPath: string, chapterNum: number, tit
   const { state, ops } = getEngine().repos;
   const st = await state.get(auPath);
   st.chapter_titles[chapterNum] = title;
-  await state.save(st);
-  // Write op so cross-device rebuild can project chapter_titles (F4)
+  // ops 先于 state 落盘（D-0036: ops 是 sync truth）
   await ops.append(auPath, createOpsEntry({
     op_id: generate_op_id(),
     op_type: "set_chapter_title",
@@ -412,6 +419,7 @@ export async function updateChapterTitle(auPath: string, chapterNum: number, tit
     timestamp: now_utc(),
     payload: { title },
   }));
+  await state.save(st);
   return { chapter_num: chapterNum, title };
 }
 
@@ -478,9 +486,9 @@ export async function* generateChapter(params: {
     return;
   }
 
-  // Load vector index for RAG retrieval (F7)
+  // Load vector index for RAG retrieval (F7) — delegated to RagManager
   try {
-    await e.vectorEngine.load(`${params.au_path}/.vectors`);
+    await e.ragManager.ensureLoaded(params.au_path);
   } catch {
     // Vector index not yet created — search will return empty results
   }
@@ -499,9 +507,7 @@ export async function* generateChapter(params: {
     draft_repo: e.repos.draft,
     adapter: e.adapter,
     vector_repo: e.vectorEngine,
-    embedding_provider: sett.embedding?.api_key
-      ? new RemoteEmbeddingProvider(sett.embedding.api_base || sett.default_llm?.api_base || "", sett.embedding.api_key, sett.embedding.model || "")
-      : undefined,
+    embedding_provider: createEmbeddingProvider(sett),
   })) {
     // Yield parsed objects (matching old sseStream format)
     if (event.type === "token") {
@@ -653,9 +659,8 @@ export async function sendSettingsChat(params: {
   messages: any[];
   session_llm?: { api_base?: string; api_key?: string; model?: string };
 }) {
-  const { adapter } = getEngine();
-  const { settings } = getEngine().repos;
-  const sett = await settings.get();
+  const e = getEngine();
+  const sett = await e.repos.settings.get();
 
   const lang = sett.app?.language || "zh";
   const assembled = await build_settings_context({
@@ -663,7 +668,7 @@ export async function sendSettingsChat(params: {
     base_path: params.base_path,
     fandom_path: params.fandom_path,
     messages: params.messages,
-    adapter,
+    adapter: e.adapter,
     language: lang,
   });
 
@@ -713,14 +718,13 @@ function sanitizeName(name: string): string {
 export async function createFandom(name: string, dataDir?: string) {
   const safeName = sanitizeName(name);
   const dd = dataDir ?? getDataDir();
-  const { fandom } = getEngine().repos;
-  const { adapter } = getEngine();
+  const e = getEngine();
   const path = `${dd}/fandoms/${safeName}`;
-  if (await adapter.exists(`${path}/fandom.yaml`)) {
+  if (await e.adapter.exists(`${path}/fandom.yaml`)) {
     throw new Error(`Fandom "${safeName}" already exists`);
   }
-  await adapter.mkdir(path);
-  await fandom.save(path, { name: safeName, created_at: new Date().toISOString(), core_characters: [], wiki_source: "" });
+  await e.adapter.mkdir(path);
+  await e.repos.fandom.save(path, { name: safeName, created_at: new Date().toISOString(), core_characters: [], wiki_source: "" });
   return { name: safeName, path };
 }
 
@@ -908,28 +912,7 @@ export async function deletePinned(auPath: string, index: number) {
 
 export async function updateChapterContent(auPath: string, chapterNum: number, content: string) {
   const { chapter, state, ops } = getEngine().repos;
-  const ch = await chapter.get(auPath, chapterNum);
-  ch.content = content;
-  const { compute_content_hash } = await import("@ficforge/engine");
-  ch.content_hash = await compute_content_hash(content);
-  ch.provenance = "mixed";
-  ch.revision += 1;
-  await chapter.save(ch);
-  // Mark dirty
-  const st = await state.get(auPath);
-  if (!st.chapters_dirty.includes(chapterNum)) {
-    st.chapters_dirty.push(chapterNum);
-    await state.save(st);
-  }
-  // Write op so cross-device rebuild can project chapters_dirty (R5-F4)
-  await ops.append(auPath, createOpsEntry({
-    op_id: generate_op_id(),
-    op_type: "mark_chapters_dirty",
-    target_id: auPath,
-    timestamp: now_utc(),
-    payload: { chapters_dirty: [...st.chapters_dirty] },
-  }));
-  return { chapter_num: chapterNum, content_hash: ch.content_hash, provenance: ch.provenance, revision: ch.revision };
+  return await edit_chapter_content(auPath, chapterNum, content, chapter, state, ops);
 }
 
 // ===========================================================================

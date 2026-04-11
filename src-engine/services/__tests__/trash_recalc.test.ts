@@ -143,7 +143,7 @@ describe("recalc_state", () => {
     state.chapters_dirty = [99]; // stale dirty mark
     await stateRepo.save(state);
 
-    // Recalc
+    // Recalc（不内部 save，调用方负责 save）
     const result = await recalc_state("au1", stateRepo, chapterRepo, projectRepo);
 
     expect(result.chapters_scanned).toBe(2);
@@ -151,6 +151,12 @@ describe("recalc_state", () => {
     expect(result.characters_last_seen.Bob).toBe(2);
     expect(result.last_scene_ending).toBeTruthy();
     expect(result.cleaned_dirty_count).toBe(1); // ch99 doesn't exist
+
+    // 调用方 save 后验证持久化
+    await stateRepo.save(result.state);
+    const persisted = await stateRepo.get("au1");
+    expect(persisted.characters_last_seen.Alice).toBe(2);
+    expect(persisted.chapters_dirty).not.toContain(99);
   });
 
   it("empty AU returns clean state", async () => {

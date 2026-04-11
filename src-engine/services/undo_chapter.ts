@@ -151,10 +151,8 @@ async function doUndo(params: UndoChapterParams): Promise<UndoChapterResult> {
   state.current_chapter = n;
 
   // =================================================================
-  // 最终写入
+  // 最终写入：ops 先于 state 落盘（D-0036: ops 是 sync truth）
   // =================================================================
-  await state_repo.save(state);
-
   await ops_repo.append(au_id, createOpsEntry({
     op_id: generate_op_id(),
     op_type: "undo_chapter",
@@ -173,6 +171,8 @@ async function doUndo(params: UndoChapterParams): Promise<UndoChapterResult> {
       },
     },
   }));
+
+  await state_repo.save(state);
 
   return {
     chapter_num: n,

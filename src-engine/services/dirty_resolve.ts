@@ -109,13 +109,12 @@ async function doResolve(params: ResolveDirtyParams): Promise<ResolveDirtyResult
   chapter.confirmed_at = now_utc();
   await chapter_repo.save(chapter);
 
-  // === 步骤 5：更新 state.yaml ===
+  // === 步骤 5：更新 state（内存） ===
   const dirtyIdx = state.chapters_dirty.indexOf(chapter_num);
   if (dirtyIdx >= 0) state.chapters_dirty.splice(dirtyIdx, 1);
   state.index_status = IndexStatus.STALE;
-  await state_repo.save(state);
 
-  // === 步骤 6：append ops.jsonl ===
+  // === 步骤 6：ops 先于 state 落盘（D-0036） ===
   await ops_repo.append(au_id, createOpsEntry({
     op_id: generate_op_id(),
     op_type: "resolve_dirty_chapter",
@@ -124,6 +123,7 @@ async function doResolve(params: ResolveDirtyParams): Promise<ResolveDirtyResult
     timestamp,
     payload: {},
   }));
+  await state_repo.save(state);
 
   return {
     chapter_num,
