@@ -32,7 +32,7 @@ export function ImportFlow({
   isOpen: boolean;
   onClose: () => void;
   auPath: string;
-  onComplete: () => void;
+  onComplete: (target?: "writer" | "au_lore" | "facts") => void;
 }) {
   const { t, i18n } = useTranslation();
   const { showError } = useFeedback();
@@ -170,7 +170,7 @@ export function ImportFlow({
     setImportProgress(null);
 
     try {
-      const plan = buildImportPlanFromAnalyses(analyses, conflictOptions);
+      const plan = await buildImportPlanFromAnalyses(analyses, conflictOptions);
       const locale = (i18n.resolvedLanguage === "en" ? "en" : "zh") as "zh" | "en";
       const result = await executeImportPlan(plan, auPath, (progress) => {
         setImportProgress(progress);
@@ -202,7 +202,19 @@ export function ImportFlow({
   const handleStartWriting = () => {
     resetFlowState();
     onClose();
-    onComplete();
+    onComplete("writer");
+  };
+
+  const handleGoToLore = () => {
+    resetFlowState();
+    onClose();
+    onComplete("au_lore");
+  };
+
+  const handleGoToFacts = () => {
+    resetFlowState();
+    onClose();
+    onComplete("facts");
   };
 
   // ── Step titles ──
@@ -254,6 +266,7 @@ export function ImportFlow({
       {step === 2 && (
         <ChapterArrangeStep
           analyses={analyses}
+          thresholds={{ chapterMinChars: chapterThreshold, skipMaxChars: skipThreshold }}
           onUpdateAnalyses={setAnalyses}
           onNext={handleArrangeNext}
           onBack={() => setStep(1)}
@@ -277,6 +290,8 @@ export function ImportFlow({
           result={importResult}
           nextChapterNum={importResult?.nextChapterNum ?? 1}
           onStartWriting={handleStartWriting}
+          onGoToLore={handleGoToLore}
+          onGoToFacts={handleGoToFacts}
         />
       )}
     </Modal>

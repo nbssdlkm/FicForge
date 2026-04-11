@@ -8,15 +8,17 @@ import { useTranslation } from "../../i18n/useAppTranslation";
 import { TurnCard } from "./TurnCard";
 import type { FileAnalysis } from "@ficforge/engine";
 import type { ClassifiedTurn } from "@ficforge/engine";
+import { classifyTurns, type ClassificationThresholds } from "@ficforge/engine";
 
 interface ChapterArrangeStepProps {
   analyses: FileAnalysis[];
+  thresholds: ClassificationThresholds;
   onUpdateAnalyses: (updated: FileAnalysis[]) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
-export function ChapterArrangeStep({ analyses, onUpdateAnalyses, onNext, onBack }: ChapterArrangeStepProps) {
+export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onNext, onBack }: ChapterArrangeStepProps) {
   const { t } = useTranslation();
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
   const [visibleCounts, setVisibleCounts] = useState<Map<string, number>>(new Map());
@@ -52,6 +54,23 @@ export function ChapterArrangeStep({ analyses, onUpdateAnalyses, onNext, onBack 
       return next;
     });
   };
+
+  const handleReapplyThresholds = useCallback((fileIndex: number) => {
+    const updated = [...analyses];
+    const analysis = { ...updated[fileIndex] };
+    if (!analysis.turns) return;
+
+    // Extract original ChatTurn data from classified turns, then re-classify
+    const reclassified = classifyTurns(
+      analysis.turns.map(t => ({ index: t.index, role: t.role, content: t.content, charCount: t.charCount })),
+      thresholds,
+    );
+
+    analysis.turns = reclassified;
+    analysis.stats = computeStats(reclassified);
+    updated[fileIndex] = analysis;
+    onUpdateAnalyses(updated);
+  }, [analyses, thresholds, onUpdateAnalyses]);
 
   const handleChangeTurnType = useCallback((
     fileIndex: number,
@@ -149,6 +168,14 @@ export function ChapterArrangeStep({ analyses, onUpdateAnalyses, onNext, onBack 
                     onClick={() => batchAction(analyses, fileIndex, "allAiChapter", onUpdateAnalyses)}
                   >
                     {t("import.step3BatchAllChapter")}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => handleReapplyThresholds(fileIndex)}
+                  >
+                    {t("import.step3BatchReapply")}
                   </Button>
                 </div>
 

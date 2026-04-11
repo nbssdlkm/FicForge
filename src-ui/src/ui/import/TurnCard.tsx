@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
-import type { ClassifiedTurn } from "@ficforge/engine";
+import type { ClassifiedTurn, ClassificationReason } from "@ficforge/engine";
 
 type AssignedType = ClassifiedTurn["assignedType"];
 
@@ -23,6 +23,8 @@ export function TurnCard({ turn, currentChapterNum, hasPreviousChapter, onChange
 
   const roleLabel = turn.role === "user" ? t("import.roleUser") : t("import.roleAssistant");
   const preview = turn.content.length > 60 ? turn.content.slice(0, 60) + "..." : turn.content;
+
+  const reasonText = formatReason(turn.reason, t);
 
   const bgClass = turn.assignedType === "chapter" || turn.assignedType === "chapter_continue"
     ? "border-accent/30 bg-accent/5"
@@ -54,6 +56,7 @@ export function TurnCard({ turn, currentChapterNum, hasPreviousChapter, onChange
               {roleLabel}
             </span>
             <span className="text-text/40">{t("import.charCount", { count: turn.charCount })}</span>
+            {reasonText && <span className="text-text/30">— {reasonText}</span>}
           </div>
           {!expanded && (
             <p className="mt-1 text-xs text-text/50 line-clamp-1">"{preview}"</p>
@@ -89,4 +92,19 @@ export function TurnCard({ turn, currentChapterNum, hasPreviousChapter, onChange
       )}
     </div>
   );
+}
+
+function formatReason(reason: ClassificationReason, t: (key: string, opts?: Record<string, unknown>) => string): string | null {
+  switch (reason.type) {
+    case "user_message":
+      return t("import.reasonUserMessage");
+    case "long_reply":
+      return t("import.reasonLongReply", { n: reason.charCount, threshold: reason.threshold });
+    case "short_reply":
+      return t("import.reasonShortReply", { n: reason.charCount, threshold: reason.threshold });
+    case "uncertain":
+      return t("import.reasonUncertain", { n: reason.charCount });
+    default:
+      return null;
+  }
 }

@@ -145,7 +145,7 @@ describe("classifyTurns", () => {
     const classified = classifyTurns(turns);
     expect(classified[0].classification).toBe("skip");
     expect(classified[0].assignedType).toBe("skip");
-    expect(classified[0].reason).toBe("用户消息");
+    expect(classified[0].reason).toEqual({ type: "user_message" });
   });
 
   it("#8: AI reply ≥ 1500 chars → chapter", () => {

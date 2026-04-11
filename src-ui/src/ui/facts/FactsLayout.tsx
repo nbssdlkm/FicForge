@@ -302,6 +302,9 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const uniqueChapters = useMemo(() => [...new Set(facts.map(f => f.chapter))].sort((a, b) => a - b), [facts]);
   const uniqueCharacters = useMemo(() => [...new Set(facts.flatMap(f => f.characters))].sort(), [facts]);
 
+  const FACTS_PAGE_SIZE = 50;
+  const [visibleCount, setVisibleCount] = useState(FACTS_PAGE_SIZE);
+
   const filteredFacts = useMemo(() => facts.filter((fact) => {
     // 'stale' 伪筛选：客户端过滤超过 30 章的 active/unresolved facts
     if (statusFilter === 'stale') {
@@ -318,15 +321,22 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     return fact.content_clean.includes(keyword) || fact.characters.join(',').includes(keyword);
   }), [facts, filter, statusFilter, chapterFilter, characterFilter, state?.current_chapter]);
 
-  // 按章节分组
+  // Reset pagination when filters change
+  useEffect(() => { setVisibleCount(FACTS_PAGE_SIZE); }, [filter, statusFilter, chapterFilter, characterFilter]);
+
+  // Paginated slice of filteredFacts
+  const paginatedFacts = useMemo(() => filteredFacts.slice(0, visibleCount), [filteredFacts, visibleCount]);
+  const hasMoreFacts = filteredFacts.length > visibleCount;
+
+  // 按章节分组（使用分页后的数据）
   const groupedFacts = useMemo(() => {
     const groups = new Map<number, FactInfo[]>();
-    for (const f of filteredFacts) {
+    for (const f of paginatedFacts) {
       if (!groups.has(f.chapter)) groups.set(f.chapter, []);
       groups.get(f.chapter)!.push(f);
     }
     return [...groups.entries()].sort((a, b) => a[0] - b[0]);
-  }, [filteredFacts]);
+  }, [paginatedFacts]);
 
   const totalCount = allFactsCounts.total ?? facts.length;
   const activeCount = allFactsCounts.active ?? 0;
@@ -797,6 +807,13 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 </div>
               ))
             )}
+            {hasMoreFacts && (
+              <div className="flex justify-center py-4">
+                <Button variant="ghost" size="sm" onClick={() => setVisibleCount(prev => prev + FACTS_PAGE_SIZE)}>
+                  {t('facts.loadMore', { remaining: filteredFacts.length - visibleCount })}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
         {sharedModals}
@@ -1009,6 +1026,13 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 </div>
               </div>
             ))
+          )}
+          {hasMoreFacts && (
+            <div className="flex justify-center py-4">
+              <Button variant="ghost" size="sm" onClick={() => setVisibleCount(prev => prev + FACTS_PAGE_SIZE)}>
+                {t('facts.loadMore', { remaining: filteredFacts.length - visibleCount })}
+              </Button>
+            </div>
           )}
         </div>
       </div>

@@ -23,13 +23,19 @@ export interface ChatTurn {
   charCount: number;
 }
 
+export type ClassificationReason =
+  | { type: "user_message" }
+  | { type: "long_reply"; charCount: number; threshold: number }
+  | { type: "short_reply"; charCount: number; threshold: number }
+  | { type: "uncertain"; charCount: number };
+
 export interface ClassifiedTurn {
   index: number;
   role: "user" | "assistant";
   content: string;
   charCount: number;
   classification: "chapter" | "setting" | "skip" | "uncertain";
-  reason: string;
+  reason: ClassificationReason;
   assignedChapter: number | null;
   assignedType: "chapter" | "chapter_continue" | "setting" | "skip";
 }
@@ -180,7 +186,7 @@ export function classifyTurns(
       return {
         ...t,
         classification: "skip" as const,
-        reason: "用户消息",
+        reason: { type: "user_message" as const },
         assignedChapter: null,
         assignedType: "skip" as const,
       };
@@ -192,7 +198,7 @@ export function classifyTurns(
       return {
         ...t,
         classification: "chapter" as const,
-        reason: `${t.charCount} 字 ≥ ${thresholds.chapterMinChars}（正文阈值）`,
+        reason: { type: "long_reply" as const, charCount: t.charCount, threshold: thresholds.chapterMinChars },
         assignedChapter: chapter,
         assignedType: "chapter" as const,
       };
@@ -202,7 +208,7 @@ export function classifyTurns(
       return {
         ...t,
         classification: "skip" as const,
-        reason: `${t.charCount} 字 ≤ ${thresholds.skipMaxChars}（跳过阈值）`,
+        reason: { type: "short_reply" as const, charCount: t.charCount, threshold: thresholds.skipMaxChars },
         assignedChapter: null,
         assignedType: "skip" as const,
       };
@@ -212,7 +218,7 @@ export function classifyTurns(
     return {
       ...t,
       classification: "uncertain" as const,
-      reason: `${t.charCount} 字，介于阈值之间，请手动判断`,
+      reason: { type: "uncertain" as const, charCount: t.charCount },
       assignedChapter: null,
       assignedType: "skip" as const,
     };

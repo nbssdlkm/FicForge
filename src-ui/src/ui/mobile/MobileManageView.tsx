@@ -20,14 +20,14 @@ interface MobileManageViewProps {
   auPath: string;
   defaultSection?: ManageSection;
   onImportComplete?: () => void;
-  onOpenWriter?: () => void;
+  onNavigateAfterImport?: (target: "writer" | "au_lore" | "facts") => void;
 }
 
 export function MobileManageView({
   auPath,
   defaultSection = "facts",
   onImportComplete,
-  onOpenWriter,
+  onNavigateAfterImport,
 }: MobileManageViewProps) {
   const { t } = useTranslation();
   const [section, setSection] = useState<ManageSection>(defaultSection);
@@ -99,10 +99,16 @@ export function MobileManageView({
         isOpen={importOpen}
         onClose={() => setImportOpen(false)}
         auPath={auPath}
-        onComplete={() => {
+        onComplete={(target) => {
           setImportOpen(false);
           onImportComplete?.();
-          onOpenWriter?.();
+          if (target === "facts") {
+            setSection("facts");
+          } else if (target === "au_lore") {
+            setSection("project");
+          } else {
+            onNavigateAfterImport?.(target || "writer");
+          }
         }}
       />
       <ExportModal isOpen={exportOpen} onClose={() => setExportOpen(false)} auPath={auPath} />

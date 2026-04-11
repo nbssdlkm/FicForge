@@ -32,10 +32,7 @@ import {
   split_into_chapters,
   parse_html,
   import_chapters as engineImportChapters,
-  // Import v2
-  analyzeFile as engineAnalyzeFile,
-  buildImportPlan as engineBuildImportPlan,
-  executeImport as engineExecuteImport,
+  // Import v2 types (values loaded dynamically)
   type FileAnalysis,
   type ImportPlan,
   type ImportConflictOptions,
@@ -52,9 +49,7 @@ import {
   RemoteEmbeddingProvider,
   // Vector
   JsonVectorEngine,
-  // Sync
-  SyncManager,
-  WebDAVSyncAdapter,
+  // Sync types (values loaded dynamically)
   type SyncResult,
 } from "@ficforge/engine";
 
@@ -859,17 +854,19 @@ export async function analyzeImportFile(
       options = { ...options, useAiAssist: false };
     }
   }
-  return engineAnalyzeFile(text, filename, options);
+  const { analyzeFile } = await import("@ficforge/engine");
+  return analyzeFile(text, filename, options);
 }
 
 /**
  * 从分析结果构建导入计划（多文件接续、"续"合并、设定收集）。
  */
-export function buildImportPlanFromAnalyses(
+export async function buildImportPlanFromAnalyses(
   analyses: FileAnalysis[],
   conflictOptions: ImportConflictOptions,
-): ImportPlan {
-  return engineBuildImportPlan(analyses, conflictOptions);
+): Promise<ImportPlan> {
+  const { buildImportPlan } = await import("@ficforge/engine");
+  return buildImportPlan(analyses, conflictOptions);
 }
 
 /**
@@ -881,8 +878,9 @@ export async function executeImportPlan(
   onProgress?: (progress: ImportProgress) => void,
   locale?: "zh" | "en",
 ): Promise<NewImportResult> {
+  const { executeImport } = await import("@ficforge/engine");
   const { adapter, repos, trash } = getEngine();
-  return engineExecuteImport(plan, {
+  return executeImport(plan, {
     auId: auPath,
     chapterRepo: repos.chapter,
     stateRepo: repos.state,
@@ -1022,6 +1020,7 @@ function toRemoteAuPath(localAuPath: string, dataDir: string): string {
 }
 
 export async function syncAllAus(webdavConfig: WebDAVConfig): Promise<AggregatedSyncResult> {
+  const { SyncManager, WebDAVSyncAdapter } = await import("@ficforge/engine");
   const { adapter, repos } = getEngine();
   const dd = getDataDir();
   const baseUrl = webdavConfig.url.replace(/\/+$/, '') + webdavConfig.remote_dir;
@@ -1078,6 +1077,7 @@ export async function resolveFileConflict(
   choice: "local" | "remote",
   webdavConfig: WebDAVConfig,
 ): Promise<void> {
+  const { WebDAVSyncAdapter } = await import("@ficforge/engine");
   const { adapter } = getEngine();
   const dd = getDataDir();
   const baseUrl = webdavConfig.url.replace(/\/+$/, '') + webdavConfig.remote_dir;

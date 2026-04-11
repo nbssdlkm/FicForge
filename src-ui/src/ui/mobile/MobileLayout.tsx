@@ -142,10 +142,10 @@ export function MobileLayout({
             auPath={auPath}
             defaultSection={manageSection}
             onImportComplete={onChaptersChanged}
-            onOpenWriter={() => {
+            onNavigateAfterImport={(target) => {
               onClearViewChapter();
               setActiveTab("writer");
-              onNavigate("writer", auPath);
+              onNavigate(target, auPath);
             }}
           />
         ) : null}

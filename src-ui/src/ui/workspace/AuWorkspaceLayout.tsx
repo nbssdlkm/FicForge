@@ -41,8 +41,11 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [loadingChapters, setLoadingChapters] = useState(false);
 
+  const [milestoneRefreshKey, setMilestoneRefreshKey] = useState(0);
+
   const refreshChapters = useCallback(() => {
     listChapters(auPath).then(setChapters).catch(() => {});
+    setMilestoneRefreshKey(k => k + 1);
   }, [auPath]);
 
   const auName = auPath.split('/').pop() || t('common.unknownAu');
@@ -109,29 +112,32 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
         setEmbeddingStale(true);
       }
     }).catch(() => {});
+  }, [auPath]);
 
-    // Load milestone data only if any milestone is still active (avoid unnecessary API calls)
+  // Milestone data — refreshes when auPath changes OR after mutations (refreshKey)
+  useEffect(() => {
+    if (!auPath) return;
     const anyMilestoneActive = shouldShow('facts_intro') || shouldShow('pinned_intro') || shouldShow('focus_intro');
-    if (anyMilestoneActive) {
-      getState(auPath).then(state => {
-        if (requestId !== loadWorkspaceRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
-        setCurrentChapter(state.current_chapter || 1);
-        setChapterFocusEmpty(!state.chapter_focus || state.chapter_focus.length === 0);
-      }).catch(() => {});
+    if (!anyMilestoneActive) return;
 
-      listFacts(auPath).then(facts => {
-        if (requestId !== loadWorkspaceRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
-        setFactsCount(facts.length);
-        const firstUnresolved = facts.find((f: FactInfo) => f.status === 'unresolved');
-        setUnresolvedFact(firstUnresolved ? (firstUnresolved.content_clean || '').slice(0, 20) + '...' : null);
-      }).catch(() => {});
+    getState(auPath).then(state => {
+      if (activeAuPathRef.current !== auPath) return;
+      setCurrentChapter(state.current_chapter || 1);
+      setChapterFocusEmpty(!state.chapter_focus || state.chapter_focus.length === 0);
+    }).catch(() => {});
 
-      getProject(auPath).then(proj => {
-        if (requestId !== loadWorkspaceRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
-        setPinnedCount((proj.pinned_context || []).length);
-      }).catch(() => {});
-    }
-  }, [auPath, shouldShow]);
+    listFacts(auPath).then(facts => {
+      if (activeAuPathRef.current !== auPath) return;
+      setFactsCount(facts.length);
+      const firstUnresolved = facts.find((f: FactInfo) => f.status === 'unresolved');
+      setUnresolvedFact(firstUnresolved ? (firstUnresolved.content_clean || '').slice(0, 20) + '...' : null);
+    }).catch(() => {});
+
+    getProject(auPath).then(proj => {
+      if (activeAuPathRef.current !== auPath) return;
+      setPinnedCount((proj.pinned_context || []).length);
+    }).catch(() => {});
+  }, [auPath, milestoneRefreshKey, shouldShow]);
 
   if (isMobile) {
     return (

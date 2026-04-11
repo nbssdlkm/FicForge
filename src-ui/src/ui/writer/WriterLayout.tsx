@@ -1004,10 +1004,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       }
       next = [...focusSelection, factId];
     }
-    setFocusSelection(next);
     try {
       await setChapterFocus(auPath, next);
       if (activeAuPathRef.current !== requestAuPath) return;
+      setFocusSelection(next);
       showToast(t('writer.focusSaved'), 'success');
     } catch (error) {
       if (activeAuPathRef.current !== requestAuPath) return;
@@ -1017,10 +1017,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
   const handleClearFocus = async () => {
     const requestAuPath = auPath;
-    setFocusSelection([]);
     try {
       await setChapterFocus(auPath, []);
       if (activeAuPathRef.current !== requestAuPath) return;
+      setFocusSelection([]);
       showToast(t('writer.focusSaved'), 'success');
     } catch (error) {
       if (activeAuPathRef.current !== requestAuPath) return;
@@ -1036,10 +1036,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       showToast(t('focus.lastFocusExpired'), 'warning');
       return;
     }
-    setFocusSelection(validIds);
     try {
       await setChapterFocus(auPath, validIds);
       if (activeAuPathRef.current !== requestAuPath) return;
+      setFocusSelection(validIds);
       showToast(t('writer.focusSaved'), 'success');
     } catch (error) {
       if (activeAuPathRef.current !== requestAuPath) return;

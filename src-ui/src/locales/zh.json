@@ -172,6 +172,8 @@
       "initCustom": "之后再单独调整本篇设置",
       "submit": "立即开始这条世界线"
     },
+    "apiWarning": "AI 服务未配置，续写功能不可用",
+    "apiWarningAction": "去配置",
     "importFlow": {
       "title": "导入旧文",
       "description": "旧文导入会先给你建一个原作和 AU，再把正文放进去。现在先从创建 Fandom 开始，后面的章节导入再接着做。",
@@ -552,6 +554,7 @@
     },
     "staleHint": "有 {{count}} 条笔记超过 30 章未被引用，可能已经过时",
     "staleView": "查看",
+    "loadMore": "加载更多（剩余 {{remaining}} 条）",
     "batchEnter": "批量选择",
     "batchExit": "退出批量",
     "batchSelect": "全选",
@@ -1031,6 +1034,8 @@
       "ollamaModel": "Ollama 模型名",
       "requireTest": "请先测试连接成功后再继续"
     },
+    "closeConfirm": "还没有配置 API Key，关闭后续写功能将不可用。确定要跳过吗？",
+    "closeConfirmYes": "跳过配置",
     "createFandom": {
       "title": "你想写哪个作品的同人？",
       "nameLabel": "作品名",

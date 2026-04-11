@@ -81,6 +81,7 @@ export { analyzeFile, buildImportPlan, executeImport } from "./import_pipeline.j
 export type {
   ChatFormatPattern,
   ChatTurn,
+  ClassificationReason,
   ClassificationThresholds,
   ClassifiedTurn,
 } from "./chat_parser.js";

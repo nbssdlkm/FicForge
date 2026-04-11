@@ -52,6 +52,7 @@ function LibraryInner({ onNavigate }: Props) {
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'fandom' | 'au'; fandomDir: string; fandomName: string; auName?: string } | null>(null);
   const [trashTarget, setTrashTarget] = useState<{ fandomDir: string; fandomName: string } | null>(null);
   const [trashRefreshToken, setTrashRefreshToken] = useState(0);
+  const [showApiWarning, setShowApiWarning] = useState(false);
 
   const resetImportSelection = () => {
     setImportAuPath('');
@@ -79,7 +80,12 @@ function LibraryInner({ onNavigate }: Props) {
   useEffect(() => {
     // 检查是否需要显示引导流程
     if (isOnboardingCompleted()) {
-      // 已完成引导，直接加载
+      // 已完成引导，但仍检查 API 配置是否有效
+      getSettings().then(settings => {
+        if (!hasUsableConnectionConfig(settings)) {
+          setShowApiWarning(true);
+        }
+      }).catch(() => {});
     } else {
       getSettings().then(settings => {
         if (!hasUsableConnectionConfig(settings)) {
@@ -224,6 +230,15 @@ function LibraryInner({ onNavigate }: Props) {
             </Button>
           </div>
         </div>
+
+        {showApiWarning && (
+          <div className="mb-6 flex items-center justify-between rounded-xl border border-warning/20 bg-warning/10 px-4 py-3">
+            <span className="text-sm text-warning">{t('library.apiWarning')}</span>
+            <Button variant="secondary" size="sm" onClick={() => { setShowApiWarning(false); setGlobalSettingsOpen(true); }}>
+              {t('library.apiWarningAction')}
+            </Button>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -427,11 +442,11 @@ function LibraryInner({ onNavigate }: Props) {
         isOpen={isImportModalOpen && !!importAuPath}
         onClose={() => { setImportModalOpen(false); resetImportSelection(); }}
         auPath={importAuPath}
-        onComplete={() => {
+        onComplete={(target) => {
           const nextAuPath = importAuPath;
           setImportModalOpen(false);
           resetImportSelection();
-          onNavigate('writer', nextAuPath);
+          onNavigate(target || 'writer', nextAuPath);
         }}
       />
 

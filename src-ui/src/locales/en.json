@@ -172,6 +172,8 @@
       "initCustom": "Customize settings later",
       "submit": "Start This Timeline"
     },
+    "apiWarning": "AI service not configured — writing features are unavailable",
+    "apiWarningAction": "Configure",
     "importFlow": {
       "title": "Import Existing Work",
       "description": "Importing will create a Fandom and AU for you, then bring in your chapters. Let's start by creating a Fandom.",
@@ -552,6 +554,7 @@
     },
     "staleHint": "{{count}} point(s) haven't been referenced in 30+ chapters and may be outdated",
     "staleView": "View",
+    "loadMore": "Load more ({{remaining}} remaining)",
     "batchEnter": "Batch Select",
     "batchExit": "Exit Batch",
     "batchSelect": "Select All",
@@ -1031,6 +1034,8 @@
       "ollamaModel": "Ollama Model Name",
       "requireTest": "Please test the connection before continuing"
     },
+    "closeConfirm": "API Key is not configured yet. Writing features won't work without it. Skip anyway?",
+    "closeConfirmYes": "Skip Setup",
     "createFandom": {
       "title": "What fandom are you writing for?",
       "nameLabel": "Fandom Name",
