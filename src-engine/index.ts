@@ -47,6 +47,7 @@ export {
   compute_content_hash,
   generate_fact_id,
   generate_op_id,
+  now_utc,
 } from "./repositories/implementations/index.js";
 
 // Vector engine

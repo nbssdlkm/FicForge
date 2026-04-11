@@ -46,6 +46,11 @@ import {
   RemoteEmbeddingProvider,
   // Vector
   JsonVectorEngine,
+  split_chapter_into_chunks,
+  // Ops utilities (for writing ops from engine-client)
+  createOpsEntry,
+  generate_op_id,
+  now_utc,
 } from "@ficforge/engine";
 
 // Re-export types from original API modules for compatibility
@@ -208,8 +213,18 @@ export async function rebuildIndex(auPath: string) {
 
 export { recalcState };
 async function recalcState(auPath: string) {
-  const { state, chapter, project, fact } = getEngine().repos;
-  return await recalc_state(auPath, state, chapter, project, fact);
+  const { state, chapter, project, fact, ops } = getEngine().repos;
+  const result = await recalc_state(auPath, state, chapter, project, fact);
+  // Write op so cross-device rebuild can project chapters_dirty (F4)
+  const st = await state.get(auPath);
+  await ops.append(auPath, createOpsEntry({
+    op_id: generate_op_id(),
+    op_type: "mark_chapters_dirty",
+    target_id: auPath,
+    timestamp: now_utc(),
+    payload: { chapters_dirty: [...st.chapters_dirty] },
+  }));
+  return result;
 }
 
 // ===========================================================================
@@ -322,7 +337,53 @@ export async function confirmChapter(
     const st = await state.get(auPath);
     st.chapter_titles[chapterNum] = finalTitle;
     await state.save(st);
+    // Write op so cross-device rebuild can project chapter_titles (F4)
+    await ops.append(auPath, createOpsEntry({
+      op_id: generate_op_id(),
+      op_type: "set_chapter_title",
+      target_id: auPath,
+      chapter_num: chapterNum,
+      timestamp: now_utc(),
+      payload: { title: finalTitle },
+    }));
   }
+
+  // Index the confirmed chapter for RAG (F7)
+  try {
+    const sett = await getEngine().repos.settings.get();
+    if (sett.embedding.api_key) {
+      const embProvider = new RemoteEmbeddingProvider(
+        sett.embedding.api_base || sett.default_llm.api_base || "",
+        sett.embedding.api_key,
+        sett.embedding.model || "",
+      );
+      const chContent = await chapter.get_content_only(auPath, chapterNum);
+      const chunks = split_chapter_into_chunks(chContent, chapterNum);
+      if (chunks.length > 0) {
+        const texts = chunks.map((c) => c.content);
+        const embeddings = await embProvider.embed(texts);
+        const vectorChunks = chunks.map((c, i) => ({
+          id: `ch${chapterNum}_${c.chunk_index}`,
+          collection: "chapters" as const,
+          content: c.content,
+          embedding: embeddings[i],
+          metadata: {
+            au_id: auPath,
+            chapter: chapterNum,
+            chunk_index: c.chunk_index,
+            branch_id: c.branch_id,
+            characters: c.characters.join(","),
+          },
+        }));
+        const ve = getEngine().vectorEngine;
+        await ve.index_chunks(vectorChunks);
+        await ve.persist(`${auPath}/.vectors`);
+      }
+    }
+  } catch {
+    // RAG indexing failure doesn't block confirm
+  }
+
   return result;
 }
 
@@ -336,10 +397,19 @@ export async function undoChapter(auPath: string) {
 }
 
 export async function updateChapterTitle(auPath: string, chapterNum: number, title: string) {
-  const { state } = getEngine().repos;
+  const { state, ops } = getEngine().repos;
   const st = await state.get(auPath);
   st.chapter_titles[chapterNum] = title;
   await state.save(st);
+  // Write op so cross-device rebuild can project chapter_titles (F4)
+  await ops.append(auPath, createOpsEntry({
+    op_id: generate_op_id(),
+    op_type: "set_chapter_title",
+    target_id: auPath,
+    chapter_num: chapterNum,
+    timestamp: now_utc(),
+    payload: { title },
+  }));
   return { chapter_num: chapterNum, title };
 }
 
@@ -404,6 +474,13 @@ export async function* generateChapter(params: {
   if (llmConfig.mode !== "api") {
     yield { event: "error", data: { error_code: "UNSUPPORTED_MODE", message: "续写功能需要 API 模式的 LLM 配置（local/ollama 模式暂不支持）", actions: ["check_settings"] } };
     return;
+  }
+
+  // Load vector index for RAG retrieval (F7)
+  try {
+    await e.vectorEngine.load(`${params.au_path}/.vectors`);
+  } catch {
+    // Vector index not yet created — search will return empty results
   }
 
   for await (const event of engineGenerateChapter({

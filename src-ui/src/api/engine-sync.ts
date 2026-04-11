@@ -114,6 +114,6 @@ export async function resolveFileConflict(
     await syncAdapter.pushFile(remotePath, localContent);
   } else {
     const remoteContent = await syncAdapter.pullFile(remotePath);
-    await adapter.writeFile(localFullPath, remoteContent);
+    await adapter.writeFile(localFullPath, remoteContent ?? "");
   }
 }

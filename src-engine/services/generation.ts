@@ -68,6 +68,13 @@ function genKey(au_id: string, chapter_num: number): string {
 // 草稿标签分配
 // ---------------------------------------------------------------------------
 
+export class DraftLabelExhaustedError extends Error {
+  constructor() {
+    super("草稿标签已用尽（A-Z），请先定稿或删除部分草稿");
+    this.name = "DraftLabelExhaustedError";
+  }
+}
+
 function nextDraftLabel(existingLabels: string[]): string {
   if (existingLabels.length === 0) return "A";
   const used = new Set(existingLabels);
@@ -75,7 +82,7 @@ function nextDraftLabel(existingLabels: string[]): string {
     const label = String.fromCharCode(65 + i);
     if (!used.has(label)) return label;
   }
-  return "Z";
+  throw new DraftLabelExhaustedError();
 }
 
 // ---------------------------------------------------------------------------

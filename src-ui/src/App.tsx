@@ -12,6 +12,20 @@ import { initEngine } from "./api/engine-client";
 import { useTranslation } from "./i18n/useAppTranslation";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 
+/** 获取或创建持久化设备 ID，避免每次启动重新生成。 */
+function getOrCreateDeviceId(): string {
+  const key = "ficforge_device_id";
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored) return stored;
+  } catch {
+    // localStorage 不可用，fallback 到每次生成
+  }
+  const id = crypto.randomUUID();
+  try { localStorage.setItem(key, id); } catch { /* noop */ }
+  return id;
+}
+
 function App() {
   const { t } = useTranslation();
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -32,12 +46,14 @@ function App() {
         // 检查是否在 Tauri 环境中
         const isTauri = typeof window !== "undefined" && !!(window as any).__TAURI_INTERNALS__;
 
+        const deviceId = getOrCreateDeviceId();
+
         if (isTauri) {
           // Tauri 环境：使用 TauriAdapter
           const { TauriAdapter } = await import("@ficforge/engine");
           const { appDataDir } = await import("@tauri-apps/api/path");
           const { exists } = await import("@tauri-apps/plugin-fs");
-          const adapter = new TauriAdapter();
+          const adapter = new TauriAdapter(deviceId);
 
           // 数据目录检测：优先使用 appDataDir，如果旧路径有数据则使用旧路径（兼容迁移）
           let dataDir = await appDataDir();
@@ -55,11 +71,22 @@ function App() {
 
           initEngine(adapter, dataDir);
         } else {
-          // 非 Tauri 环境（Capacitor / PWA / 浏览器）：使用 WebAdapter（IndexedDB）
-          const { WebAdapter } = await import("@ficforge/engine");
-          const adapter = new WebAdapter();
-          await adapter.init();
-          initEngine(adapter, "");
+          // 非 Tauri 环境：检测 Capacitor 或降级 WebAdapter
+          const isCapacitor = typeof (window as any).Capacitor !== "undefined"
+            && (window as any).Capacitor.isNativePlatform?.();
+
+          if (isCapacitor) {
+            // Capacitor 环境（Android/iOS）：使用 CapacitorAdapter
+            const { CapacitorAdapter } = await import("@ficforge/engine");
+            const adapter = new CapacitorAdapter(deviceId);
+            initEngine(adapter, "");
+          } else {
+            // PWA / 浏览器：使用 WebAdapter（IndexedDB）
+            const { WebAdapter } = await import("@ficforge/engine");
+            const adapter = new WebAdapter(deviceId);
+            await adapter.init();
+            initEngine(adapter, "");
+          }
         }
 
         setEngineInitialized(true);

@@ -183,10 +183,30 @@ function applyOpToState(state: State, op: OpsEntry): void {
       }
       break;
 
-    case "undo_chapter":
-      state.current_chapter = op.chapter_num ?? state.current_chapter;
+    case "undo_chapter": {
+      const undoSnap = op.payload.state_snapshot as Record<string, unknown> | undefined;
+      if (undoSnap) {
+        if (typeof undoSnap.current_chapter === "number") state.current_chapter = undoSnap.current_chapter;
+        if (typeof undoSnap.last_scene_ending === "string") state.last_scene_ending = undoSnap.last_scene_ending;
+        if (undoSnap.characters_last_seen && typeof undoSnap.characters_last_seen === "object") {
+          state.characters_last_seen = undoSnap.characters_last_seen as Record<string, number>;
+        }
+        if (Array.isArray(undoSnap.last_confirmed_chapter_focus)) {
+          state.last_confirmed_chapter_focus = undoSnap.last_confirmed_chapter_focus as string[];
+        }
+        if (undoSnap.chapter_titles && typeof undoSnap.chapter_titles === "object") {
+          state.chapter_titles = undoSnap.chapter_titles as Record<number, string>;
+        }
+        if (Array.isArray(undoSnap.chapters_dirty)) {
+          state.chapters_dirty = undoSnap.chapters_dirty as number[];
+        }
+      } else {
+        // Legacy ops without snapshot — best effort
+        state.current_chapter = op.chapter_num ?? state.current_chapter;
+      }
       state.chapter_focus = [];
       break;
+    }
 
     case "set_chapter_focus":
       if (Array.isArray(op.payload.focus)) {
@@ -223,6 +243,18 @@ function applyOpToState(state: State, op: OpsEntry): void {
       break;
     }
 
+    case "set_chapter_title":
+      if (op.chapter_num !== null && typeof op.payload.title === "string") {
+        state.chapter_titles[op.chapter_num] = op.payload.title;
+      }
+      break;
+
+    case "mark_chapters_dirty":
+      if (Array.isArray(op.payload.chapters_dirty)) {
+        state.chapters_dirty = op.payload.chapters_dirty as number[];
+      }
+      break;
+
     case "resolve_dirty_chapter":
       if (op.chapter_num !== null) {
         const idx = state.chapters_dirty.indexOf(op.chapter_num);
@@ -249,6 +281,11 @@ function factFromPayload(id: string, d: Record<string, unknown>): Fact {
     narrative_weight: ((d.narrative_weight as string) ?? "medium") as NarrativeWeight,
     source: ((d.source as string) ?? "extract_auto") as FactSource,
     timeline: (d.timeline as string) ?? "",
+    story_time: (d.story_time as string) ?? "",
+    resolves: (d.resolves as string) ?? null,
+    revision: (d.revision as number) ?? 1,
+    created_at: (d.created_at as string) ?? "",
+    updated_at: (d.updated_at as string) ?? "",
   });
 }
 
@@ -311,7 +348,6 @@ export function rebuildFactsFromOps(ops: OpsEntry[]): Fact[] {
 // ---------------------------------------------------------------------------
 
 let _localClock = 0;
-let _initialized = false;
 
 export function getNextLamportClock(): number {
   return ++_localClock;
@@ -319,7 +355,6 @@ export function getNextLamportClock(): number {
 
 export function syncLamportClock(remoteClock: number): void {
   _localClock = Math.max(_localClock, remoteClock);
-  _initialized = true;
 }
 
 export function getCurrentLamportClock(): number {
@@ -327,13 +362,13 @@ export function getCurrentLamportClock(): number {
 }
 
 /**
- * 从现有 ops 初始化 lamport clock。
- * 必须在 app 启动时调用（读取 ops.jsonl 后），否则新 ops 的 clock 值
- * 可能低于已有 ops，破坏排序保证。
+ * 从现有 ops 初始化/更新 lamport clock。
+ * 每次加载 AU 的 ops.jsonl 时调用。若 ops 中的最大 clock 高于当前本地
+ * 时钟则抬升，确保后续 op 的 clock 值不低于已有 ops。
  */
 export function initLamportClockFromOps(ops: OpsEntry[]): void {
-  if (_initialized) return;
   const maxClock = ops.reduce((max, op) => Math.max(max, op.lamport_clock ?? 0), 0);
-  _localClock = maxClock;
-  _initialized = true;
+  if (maxClock > _localClock) {
+    _localClock = maxClock;
+  }
 }

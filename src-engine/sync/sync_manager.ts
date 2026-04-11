@@ -153,14 +153,13 @@ export class SyncManager {
   /** 同步单个文件。返回 "pushed" | "pulled" | "conflict" | "unchanged"。 */
   private async syncSingleFile(localPath: string, remotePath: string): Promise<"pushed" | "pulled" | "conflict" | "unchanged"> {
     const localExists = await this.adapter.exists(localPath);
-    let remoteContent = "";
-    let remoteExists = false;
+    let remoteContent: string | null = null;
     try {
       remoteContent = await this.syncAdapter.pullFile(remotePath);
-      remoteExists = remoteContent.length > 0;
     } catch {
-      remoteExists = false;
+      remoteContent = null;
     }
+    const remoteExists = remoteContent !== null;
 
     if (!localExists && !remoteExists) return "unchanged";
 
@@ -168,7 +167,7 @@ export class SyncManager {
       // Pull: remote has, local doesn't
       const dir = localPath.substring(0, localPath.lastIndexOf("/"));
       if (dir) await this.adapter.mkdir(dir);
-      await this.adapter.writeFile(localPath, remoteContent);
+      await this.adapter.writeFile(localPath, remoteContent!);
       return "pulled";
     }
 

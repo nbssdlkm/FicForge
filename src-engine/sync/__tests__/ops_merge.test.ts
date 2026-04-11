@@ -264,4 +264,101 @@ describe("rebuildStateFromOps — additional cases", () => {
     const rebuilt = rebuildStateFromOps(ops, "au1");
     expect(rebuilt.chapters_dirty).not.toContain(5);
   });
+
+  // F1: undo_chapter with state_snapshot restores all fields
+  it("undo_chapter with state_snapshot restores full state", () => {
+    const ops = [
+      op({ op_id: "c1", op_type: "confirm_chapter", chapter_num: 1, lamport_clock: 1,
+        payload: { focus: ["f1"], last_scene_ending_snapshot: "日落", characters_last_seen_snapshot: { Alice: 1 } } }),
+      op({ op_id: "u1", op_type: "undo_chapter", chapter_num: 1, lamport_clock: 2,
+        payload: { state_snapshot: {
+          current_chapter: 1,
+          last_scene_ending: "",
+          characters_last_seen: {},
+          last_confirmed_chapter_focus: [],
+          chapter_titles: {},
+          chapters_dirty: [],
+        } } }),
+    ];
+    const state = rebuildStateFromOps(ops, "au1");
+    expect(state.current_chapter).toBe(1);
+    expect(state.last_scene_ending).toBe("");
+    expect(state.characters_last_seen).toEqual({});
+    expect(state.last_confirmed_chapter_focus).toEqual([]);
+    expect(state.chapter_titles).toEqual({});
+    expect(state.chapter_focus).toEqual([]);
+  });
+
+  // F1: legacy undo_chapter without snapshot falls back to chapter_num
+  it("undo_chapter without snapshot uses chapter_num fallback", () => {
+    const ops = [
+      op({ op_id: "c1", op_type: "confirm_chapter", chapter_num: 1, lamport_clock: 1,
+        payload: { focus: [], last_scene_ending_snapshot: "s", characters_last_seen_snapshot: { A: 1 } } }),
+      op({ op_id: "u1", op_type: "undo_chapter", chapter_num: 1, lamport_clock: 2, payload: {} }),
+    ];
+    const state = rebuildStateFromOps(ops, "au1");
+    expect(state.current_chapter).toBe(1);
+    expect(state.chapter_focus).toEqual([]);
+  });
+
+  // F4: set_chapter_title sets title in rebuilt state
+  it("set_chapter_title projects into chapter_titles", () => {
+    const ops = [
+      op({ op_id: "t1", op_type: "set_chapter_title", chapter_num: 1, lamport_clock: 1,
+        payload: { title: "黄昏的告别" } }),
+      op({ op_id: "t2", op_type: "set_chapter_title", chapter_num: 2, lamport_clock: 2,
+        payload: { title: "新的开始" } }),
+    ];
+    const state = rebuildStateFromOps(ops, "au1");
+    expect(state.chapter_titles[1]).toBe("黄昏的告别");
+    expect(state.chapter_titles[2]).toBe("新的开始");
+  });
+
+  // F4: mark_chapters_dirty projects into chapters_dirty
+  it("mark_chapters_dirty + resolve_dirty_chapter sequence", () => {
+    const ops = [
+      op({ op_id: "m1", op_type: "mark_chapters_dirty", lamport_clock: 1,
+        payload: { chapters_dirty: [3, 5] } }),
+      op({ op_id: "r1", op_type: "resolve_dirty_chapter", chapter_num: 3, lamport_clock: 2 }),
+    ];
+    const state = rebuildStateFromOps(ops, "au1");
+    expect(state.chapters_dirty).toEqual([5]);
+  });
+});
+
+// F5: add_fact with full payload roundtrips all fields
+describe("rebuildFactsFromOps — full fact fields (F5)", () => {
+  it("add_fact preserves story_time, resolves, revision, timestamps", () => {
+    const ops = [
+      op({ op_id: "a1", op_type: "add_fact", target_id: "f1", chapter_num: 1, lamport_clock: 1,
+        payload: { fact: {
+          id: "f1", content_raw: "raw", content_clean: "clean",
+          characters: ["Alice"], chapter: 1, status: "active",
+          type: "plot_event", narrative_weight: "high", source: "manual",
+          timeline: "main", story_time: "第三天黄昏",
+          resolves: "f0", revision: 2,
+          created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-02T00:00:00Z",
+        } } }),
+    ];
+    const facts = rebuildFactsFromOps(ops);
+    expect(facts).toHaveLength(1);
+    const f = facts[0];
+    expect(f.story_time).toBe("第三天黄昏");
+    expect(f.resolves).toBe("f0");
+    expect(f.revision).toBe(2);
+    expect(f.created_at).toBe("2026-01-01T00:00:00Z");
+    expect(f.updated_at).toBe("2026-01-02T00:00:00Z");
+    expect(f.narrative_weight).toBe("high");
+  });
+
+  it("add_fact with missing optional fields uses defaults", () => {
+    const ops = [
+      op({ op_id: "a2", op_type: "add_fact", target_id: "f2", lamport_clock: 1,
+        payload: { fact: { id: "f2", content_raw: "r", content_clean: "c" } } }),
+    ];
+    const facts = rebuildFactsFromOps(ops);
+    expect(facts[0].story_time).toBe("");
+    expect(facts[0].resolves).toBeNull();
+    expect(facts[0].revision).toBe(1);
+  });
 });

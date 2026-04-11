@@ -161,7 +161,17 @@ async function doUndo(params: UndoChapterParams): Promise<UndoChapterResult> {
     target_id: chapterId,
     chapter_num: n,
     timestamp: now_utc(),
-    payload: {},
+    payload: {
+      // Complete state snapshot after undo for cross-device rebuild (D-0036)
+      state_snapshot: {
+        current_chapter: state.current_chapter,
+        last_scene_ending: state.last_scene_ending,
+        characters_last_seen: { ...state.characters_last_seen },
+        last_confirmed_chapter_focus: [...state.last_confirmed_chapter_focus],
+        chapter_titles: { ...state.chapter_titles },
+        chapters_dirty: [...state.chapters_dirty],
+      },
+    },
   }));
 
   return {

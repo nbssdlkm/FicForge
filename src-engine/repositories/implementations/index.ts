@@ -13,4 +13,4 @@ export { FileSettingsRepository } from "./file_settings.js";
 export { FileStateRepository } from "./file_state.js";
 
 // Utilities
-export { compute_content_hash, generate_fact_id, generate_op_id } from "./file_utils.js";
+export { compute_content_hash, generate_fact_id, generate_op_id, now_utc } from "./file_utils.js";
