@@ -169,9 +169,8 @@ async function doConfirm(params: ConfirmChapterParams): Promise<ConfirmChapterRe
 
   state.chapter_focus = [];
   state.index_status = IndexStatus.STALE;
-  await state_repo.save(state);
 
-  // === 步骤 4：append ops.jsonl ===
+  // === 步骤 4：append ops.jsonl（先于 state 落盘，D-0036） ===
   const gwPayload: Record<string, unknown> = {};
   if (generated_with) {
     gwPayload.mode = generated_with.mode;
@@ -197,6 +196,9 @@ async function doConfirm(params: ConfirmChapterParams): Promise<ConfirmChapterRe
       generated_with: gwPayload,
     },
   }));
+
+  // === 步骤 4b：state 落盘（ops 之后，可从 ops 重建） ===
+  await state_repo.save(state);
 
   // === 步骤 5：清理草稿 ===
   await draft_repo.delete_by_chapter(au_id, chapter_num);

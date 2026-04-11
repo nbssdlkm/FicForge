@@ -340,12 +340,10 @@ export async function set_chapter_focus(
     }
   }
 
-  // 更新 state
+  // 更新 state（内存），ops 先于 state 落盘（D-0036）
   const state = await state_repo.get(au_id);
   state.chapter_focus = [...focus_ids];
-  await state_repo.save(state);
 
-  // ops
   await ops_repo.append(
     au_id,
     createOpsEntry({
@@ -357,6 +355,7 @@ export async function set_chapter_focus(
       payload: { focus: [...focus_ids] },
     }),
   );
+  await state_repo.save(state);
 
   return { focus_ids: [...focus_ids] };
 }

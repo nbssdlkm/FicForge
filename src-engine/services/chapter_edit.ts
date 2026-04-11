@@ -49,15 +49,14 @@ export async function edit_chapter_content(
   ch.revision += 1;
   await chapter_repo.save(ch);
 
-  // 2. 标记 dirty + 索引 STALE
+  // 2. 计算新 state（内存），写 op，最后落盘 state
   const st = await state_repo.get(au_id);
   if (!st.chapters_dirty.includes(chapter_num)) {
     st.chapters_dirty.push(chapter_num);
   }
   st.index_status = IndexStatus.STALE;
-  await state_repo.save(st);
 
-  // 3. 写 op
+  // ops 先于 state 落盘（D-0036: ops 是 sync truth，state 可从 ops 重建）
   await ops_repo.append(au_id, createOpsEntry({
     op_id: generate_op_id(),
     op_type: "mark_chapters_dirty",
@@ -65,6 +64,7 @@ export async function edit_chapter_content(
     timestamp: now_utc(),
     payload: { chapters_dirty: [...st.chapters_dirty] },
   }));
+  await state_repo.save(st);
 
   return {
     chapter_num,

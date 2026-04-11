@@ -407,8 +407,7 @@ export async function updateChapterTitle(auPath: string, chapterNum: number, tit
   const { state, ops } = getEngine().repos;
   const st = await state.get(auPath);
   st.chapter_titles[chapterNum] = title;
-  await state.save(st);
-  // Write op so cross-device rebuild can project chapter_titles (F4)
+  // ops 先于 state 落盘（D-0036: ops 是 sync truth）
   await ops.append(auPath, createOpsEntry({
     op_id: generate_op_id(),
     op_type: "set_chapter_title",
@@ -417,6 +416,7 @@ export async function updateChapterTitle(auPath: string, chapterNum: number, tit
     timestamp: now_utc(),
     payload: { title },
   }));
+  await state.save(st);
   return { chapter_num: chapterNum, title };
 }
 
