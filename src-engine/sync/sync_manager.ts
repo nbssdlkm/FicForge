@@ -104,8 +104,9 @@ export class SyncManager {
 
     // Sync individual files
     for (const relPath of syncFiles) {
-      const fullPath = joinPath(auId, relPath);
-      const result = await this.syncSingleFile(fullPath, relPath);
+      const localPath = joinPath(auId, relPath);
+      const remotePath = joinPath(auId, relPath);
+      const result = await this.syncSingleFile(localPath, remotePath);
       if (result === "pushed") pushed++;
       else if (result === "pulled") pulled++;
       else if (result === "conflict") fileConflicts.push({ path: relPath });
@@ -128,8 +129,9 @@ export class SyncManager {
 
       for (const file of allFiles) {
         const relPath = joinPath(dir, file);
-        const fullPath = joinPath(auId, relPath);
-        const result = await this.syncSingleFile(fullPath, relPath);
+        const localPath = joinPath(auId, relPath);
+        const remotePath = joinPath(auId, relPath);
+        const result = await this.syncSingleFile(localPath, remotePath);
         if (result === "pushed") pushed++;
         else if (result === "pulled") pulled++;
         else if (result === "conflict") fileConflicts.push({ path: relPath });

@@ -9,6 +9,7 @@ import { Card } from '../shared/Card';
 import { Input } from '../shared/Input';
 import { HelpTooltip } from '../shared/HelpTooltip';
 import { StepIndicator } from './StepIndicator';
+import { ApiSetupHelp } from '../help/ApiSetupHelp';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { changeLanguage, type AppLanguage } from '../../i18n';
 import { createAu, createFandom, getSettings, testConnection, updateSettings } from '../../api/engine-client';
@@ -107,6 +108,7 @@ export function MobileOnboarding({
   const [ethicsAccepted, setEthicsAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
     const requestId = ++requestIdRef.current;
@@ -374,6 +376,9 @@ export function MobileOnboarding({
                     onChange={event => setApiKey(event.target.value)}
                     placeholder="sk-..."
                   />
+                  <p className="text-xs text-text/40">
+                    <button type="button" className="text-accent hover:underline" onClick={() => setHelpOpen(true)}>{t('help.apiSetup.howToGet')}</button>
+                  </p>
                   <div className="flex items-center gap-1">
                     <span className="text-sm font-medium text-text">{t('onboarding.apiConfig.model')}</span>
                     <HelpTooltip text={t('onboarding.apiConfig.modelTooltip')} />
@@ -456,6 +461,9 @@ export function MobileOnboarding({
                       onChange={event => setEmbeddingApiKey(event.target.value)}
                       placeholder="sk-..."
                     />
+                    <p className="text-xs text-text/40">
+                      <button type="button" className="text-accent hover:underline" onClick={() => setHelpOpen(true)}>{t('help.apiSetup.howToGet')}</button>
+                    </p>
                     <p className="text-sm leading-relaxed text-text/55">{t('onboarding.mobile.embedding.recommendedHint')}</p>
                   </Card>
                 )}
@@ -634,6 +642,7 @@ export function MobileOnboarding({
           </div>
         </footer>
       )}
+      <ApiSetupHelp isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }

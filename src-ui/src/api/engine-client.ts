@@ -42,6 +42,10 @@ import {
   RemoteEmbeddingProvider,
   // Vector
   JsonVectorEngine,
+  // Sync
+  SyncManager,
+  WebDAVSyncAdapter,
+  type SyncResult,
 } from "@ficforge/engine";
 
 // Re-export types from original API modules for compatibility
@@ -883,4 +887,91 @@ export async function importFromFandom(req: {
 
 export async function getLoreContent(params: { category: string; filename: string; au_path?: string; fandom_path?: string }) {
   return readLore(params);
+}
+
+// ===========================================================================
+// Sync
+// ===========================================================================
+
+export interface WebDAVConfig {
+  url: string;
+  username: string;
+  password: string;
+  remote_dir: string;
+}
+
+export interface AggregatedSyncResult {
+  synced: boolean;
+  fileConflicts: { path: string; auPath: string; localModified?: string; remoteModified?: string }[];
+  opsAdded: number;
+  filesPushed: number;
+  filesPulled: number;
+  errors: string[];
+}
+
+export async function syncAllAus(webdavConfig: WebDAVConfig): Promise<AggregatedSyncResult> {
+  const { adapter, repos } = getEngine();
+  const dd = getDataDir();
+  const baseUrl = webdavConfig.url.replace(/\/+$/, '') + webdavConfig.remote_dir;
+  const syncAdapter = new WebDAVSyncAdapter(baseUrl, webdavConfig.username, webdavConfig.password);
+  const syncManager = new SyncManager(adapter, repos.ops, repos.state, syncAdapter);
+
+  const agg: AggregatedSyncResult = { synced: true, fileConflicts: [], opsAdded: 0, filesPushed: 0, filesPulled: 0, errors: [] };
+
+  try {
+    const fandoms = await listFandoms(dd);
+    for (const fandom of fandoms) {
+      for (const auName of fandom.aus) {
+        const auPath = `${dd}/fandoms/${fandom.dir_name}/aus/${auName}`;
+        try {
+          const result: SyncResult = await syncManager.sync(auPath);
+          if (!result.synced) {
+            agg.errors.push(`${fandom.name}/${auName}: ${result.conflicts.map(c => c.description).join('; ')}`);
+          }
+          agg.opsAdded += result.opsAdded;
+          agg.filesPushed += result.filesPushed;
+          agg.filesPulled += result.filesPulled;
+          for (const fc of result.fileConflicts) {
+            agg.fileConflicts.push({ ...fc, auPath });
+          }
+        } catch (e) {
+          agg.errors.push(`${fandom.name}/${auName}: ${String(e)}`);
+        }
+      }
+    }
+    if (agg.errors.length > 0 && agg.fileConflicts.length === 0) {
+      agg.synced = false;
+    }
+  } catch (e) {
+    agg.synced = false;
+    agg.errors.push(String(e));
+  }
+
+  return agg;
+}
+
+export async function resolveFileConflict(
+  auPath: string,
+  filePath: string,
+  choice: "local" | "remote",
+  webdavConfig: WebDAVConfig,
+): Promise<void> {
+  const { adapter } = getEngine();
+  const baseUrl = webdavConfig.url.replace(/\/+$/, '') + webdavConfig.remote_dir;
+  const syncAdapter = new WebDAVSyncAdapter(baseUrl, webdavConfig.username, webdavConfig.password);
+
+  // localFullPath = 本地完整路径（含 auPath 前缀）
+  // remotePath = 与 SyncManager.syncSingleFile 一致（auPath/filePath）
+  const localFullPath = `${auPath}/${filePath}`;
+  const remotePath = `${auPath}/${filePath}`;
+
+  if (choice === "local") {
+    // 保留本地版本 → 推送到远程
+    const localContent = await adapter.readFile(localFullPath);
+    await syncAdapter.pushFile(remotePath, localContent);
+  } else {
+    // 保留远程版本 → 拉取覆盖本地
+    const remoteContent = await syncAdapter.pullFile(remotePath);
+    await adapter.writeFile(localFullPath, remoteContent);
+  }
 }

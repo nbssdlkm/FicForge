@@ -451,6 +451,7 @@
       "embeddingModelPlaceholder": "模型名（如 text-embedding-3-small）",
       "embeddingApiBasePlaceholder": "API 地址（如 https://api.openai.com）",
       "embeddingApiKeyPlaceholder": "API 密钥",
+      "embeddingMobileHint": "移动端需配置在线 Embedding API",
       "apiCredentialsDescription": "如果某篇故事没有单独指定，就会用这里的设置。",
       "apiModeLabel": "接入方式",
       "languageLabel": "界面语言",
@@ -472,6 +473,8 @@
       "syncing": "同步中…",
       "syncSuccess": "同步完成",
       "syncFailed": "同步失败",
+      "syncError": "同步失败：{{message}}",
+      "conflictsFound": "发现 {{count}} 个冲突",
       "helpButton": "帮助",
       "help": {
         "intro": "支持两种同步方式，让你在不同设备之间同步写作数据。",

@@ -6,12 +6,17 @@ import { useEffect, useRef, useState } from 'react';
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
-import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
-import { getSettings, testConnection, updateSettings, type SettingsInfo } from '../../api/engine-client';
+import { HelpCircle, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { getSettings, testConnection, updateSettings, syncAllAus, resolveFileConflict, type SettingsInfo, type WebDAVConfig } from '../../api/engine-client';
+import { ConflictResolveModal, type ConflictItem } from '../shared/ConflictResolveModal';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
 import { useFeedback } from '../../hooks/useFeedback';
 import { changeLanguage, SUPPORTED_LANGUAGES, type AppLanguage } from '../../i18n';
+import { ApiSetupHelp } from '../help/ApiSetupHelp';
+
+/** Tauri 环境检测 */
+const isTauri = () => typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__;
 
 export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const { t, i18n } = useTranslation();
@@ -44,6 +49,14 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   const [syncTestStatus, setSyncTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [syncHelpOpen, setSyncHelpOpen] = useState(false);
+  const [apiHelpOpen, setApiHelpOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
+  const [syncResultStatus, setSyncResultStatus] = useState<'idle' | 'success' | 'error' | 'conflicts'>('idle');
+  const [conflicts, setConflicts] = useState<ConflictItem[]>([]);
+  const [conflictModalOpen, setConflictModalOpen] = useState(false);
+  // Map display path → { auPath, filePath } for conflict resolution
+  const conflictPathMapRef = useRef<Map<string, { auPath: string; filePath: string }>>(new Map());
 
   const resetFormState = () => {
     setSettings(null);
@@ -66,6 +79,12 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     setSyncTestStatus('idle');
     setLastSync(null);
     setSyncHelpOpen(false);
+    setApiHelpOpen(false);
+    setSyncing(false);
+    setSyncMessage('');
+    setSyncResultStatus('idle');
+    setConflicts([]);
+    setConflictModalOpen(false);
   };
 
   useEffect(() => {
@@ -149,10 +168,10 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         },
         embedding: {
           ...settings.embedding,
-          mode: useCustomEmbedding ? 'api' : 'local',
-          model: useCustomEmbedding ? embeddingModel : '',
-          api_base: useCustomEmbedding ? embeddingApiBase : '',
-          api_key: useCustomEmbedding ? embeddingApiKey : '',
+          mode: (useCustomEmbedding || !isTauri()) ? 'api' : 'local',
+          model: (useCustomEmbedding || !isTauri()) ? embeddingModel : '',
+          api_base: (useCustomEmbedding || !isTauri()) ? embeddingApiBase : '',
+          api_key: (useCustomEmbedding || !isTauri()) ? embeddingApiKey : '',
         },
         sync: {
           mode: syncMode,
@@ -218,8 +237,14 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
           </div>
 
           <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-text/90">{t('common.labels.searchMode')}</span>
+              <Button variant="ghost" size="sm" className="text-xs text-accent" onClick={() => setApiHelpOpen(true)}>
+                <HelpCircle size={14} className="mr-1" />
+                {t('settings.sync.helpButton')}
+              </Button>
+            </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-bold text-text/90">{t('common.labels.searchMode')}</label>
               <select
                 value={mode}
                 onChange={(e) => setMode(e.target.value)}
@@ -285,13 +310,25 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold text-text/90">{t('common.labels.searchEngineModel')}</label>
-              <p className="text-xs text-text/50">{t('settings.global.builtinEmbedding')}</p>
-              <label className="flex min-h-[44px] items-center gap-2 cursor-pointer text-sm text-text/70">
-                <input type="checkbox" checked={useCustomEmbedding} onChange={e => setUseCustomEmbedding(e.target.checked)} disabled={saving} className="accent-accent" />
-                {t('settings.global.useCustomEmbedding')}
-              </label>
-              {useCustomEmbedding && (
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-bold text-text/90">{t('common.labels.searchEngineModel')}</label>
+                <Button variant="ghost" size="sm" className="text-xs text-accent" onClick={() => setApiHelpOpen(true)}>
+                  <HelpCircle size={14} className="mr-1" />
+                  {t('settings.sync.helpButton')}
+                </Button>
+              </div>
+              {isTauri() ? (
+                <>
+                  <p className="text-xs text-text/50">{t('settings.global.builtinEmbedding')}</p>
+                  <label className="flex min-h-[44px] items-center gap-2 cursor-pointer text-sm text-text/70">
+                    <input type="checkbox" checked={useCustomEmbedding} onChange={e => setUseCustomEmbedding(e.target.checked)} disabled={saving} className="accent-accent" />
+                    {t('settings.global.useCustomEmbedding')}
+                  </label>
+                </>
+              ) : (
+                <p className="text-xs text-text/50">{t('settings.global.embeddingMobileHint')}</p>
+              )}
+              {(useCustomEmbedding || !isTauri()) && (
                 <div className="space-y-2 pl-2 border-l-2 border-accent/30">
                   <Input value={embeddingModel} onChange={e => setEmbeddingModel(e.target.value)} placeholder={t('settings.global.embeddingModelPlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
                   <Input value={embeddingApiBase} onChange={e => setEmbeddingApiBase(e.target.value)} placeholder={t('settings.global.embeddingApiBasePlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
@@ -415,14 +452,66 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                   size="sm"
                   className="w-full"
                   onClick={async () => {
-                    // TODO: integrate SyncManager.sync() when AU path is available
-                    // For now, update last_sync timestamp as placeholder
-                    setLastSync(new Date().toISOString());
+                    setSyncing(true);
+                    setSyncMessage('');
+                    setSyncResultStatus('idle');
+                    try {
+                      const webdavConfig: WebDAVConfig = {
+                        url: syncUrl,
+                        username: syncUsername,
+                        password: syncPassword,
+                        remote_dir: syncRemoteDir,
+                      };
+                      const result = await syncAllAus(webdavConfig);
+                      const now = new Date().toISOString();
+                      setLastSync(now);
+                      // 立即持久化 last_sync，不依赖用户点"保存"
+                      await updateSettings({
+                        sync: {
+                          mode: syncMode,
+                          webdav: { url: syncUrl, username: syncUsername, password: syncPassword, remote_dir: syncRemoteDir },
+                          last_sync: now,
+                        },
+                      }).catch(() => { /* 持久化失败不阻断同步流程 */ });
+                      if (result.fileConflicts.length > 0) {
+                        const map = new Map<string, { auPath: string; filePath: string }>();
+                        const items = result.fileConflicts.map(fc => {
+                          const displayPath = `${fc.auPath}/${fc.path}`;
+                          map.set(displayPath, { auPath: fc.auPath, filePath: fc.path });
+                          return { path: displayPath, localModified: fc.localModified, remoteModified: fc.remoteModified };
+                        });
+                        conflictPathMapRef.current = map;
+                        setConflicts(items);
+                        setConflictModalOpen(true);
+                        setSyncResultStatus('conflicts');
+                        // 冲突 + 错误并存时，两者都显示
+                        const msg = t('settings.sync.conflictsFound', { count: result.fileConflicts.length });
+                        setSyncMessage(result.errors.length > 0
+                          ? `${msg} | ${t('settings.sync.syncError', { message: result.errors[0] })}`
+                          : msg);
+                      } else if (result.errors.length > 0) {
+                        setSyncResultStatus('error');
+                        setSyncMessage(t('settings.sync.syncError', { message: result.errors[0] }));
+                      } else {
+                        setSyncResultStatus('success');
+                        setSyncMessage(t('settings.sync.syncSuccess'));
+                      }
+                    } catch (e: any) {
+                      setSyncResultStatus('error');
+                      setSyncMessage(t('settings.sync.syncError', { message: e?.message || t('error_messages.unknown') }));
+                    } finally {
+                      setSyncing(false);
+                    }
                   }}
-                  disabled={syncTestStatus !== 'success'}
+                  disabled={syncTestStatus !== 'success' || syncing}
                 >
-                  {t('settings.sync.syncNow')}
+                  {syncing ? <><Loader2 size={14} className="mr-1 animate-spin" />{t('settings.sync.syncing')}</> : t('settings.sync.syncNow')}
                 </Button>
+                {syncMessage && (
+                  <p className={`text-xs mt-2 ${syncResultStatus === 'success' ? 'text-success' : syncResultStatus === 'error' ? 'text-error' : 'text-text/60'}`}>
+                    {syncMessage}
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -456,6 +545,61 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
           </div>
         </div>
       )}
+      <ApiSetupHelp isOpen={apiHelpOpen} onClose={() => setApiHelpOpen(false)} />
+      <ConflictResolveModal
+        isOpen={conflictModalOpen}
+        onClose={() => setConflictModalOpen(false)}
+        conflicts={conflicts}
+        onResolve={async (path, choice) => {
+          try {
+            const webdavConfig: WebDAVConfig = { url: syncUrl, username: syncUsername, password: syncPassword, remote_dir: syncRemoteDir };
+            const entry = conflictPathMapRef.current.get(path);
+            if (entry) {
+              await resolveFileConflict(entry.auPath, entry.filePath, choice, webdavConfig);
+            }
+            // 函数式更新，避免快速连续点击时闭包过期
+            let isEmpty = false;
+            setConflicts(prev => {
+              const remaining = prev.filter(c => c.path !== path);
+              isEmpty = remaining.length === 0;
+              return remaining;
+            });
+            if (isEmpty) {
+              setConflictModalOpen(false);
+              setSyncResultStatus('success');
+              setSyncMessage(t('settings.sync.syncSuccess'));
+            }
+          } catch (e: any) {
+            setSyncResultStatus('error');
+            setSyncMessage(t('settings.sync.syncError', { message: e?.message || '' }));
+          }
+        }}
+        onResolveAll={async (choice) => {
+          const webdavConfig: WebDAVConfig = { url: syncUrl, username: syncUsername, password: syncPassword, remote_dir: syncRemoteDir };
+          // 逐个解决，每成功一个就移除，避免部分失败后状态不一致
+          const snapshot = [...conflicts];
+          let lastError: string | null = null;
+          for (const c of snapshot) {
+            try {
+              const entry = conflictPathMapRef.current.get(c.path);
+              if (entry) {
+                await resolveFileConflict(entry.auPath, entry.filePath, choice, webdavConfig);
+              }
+              setConflicts(prev => prev.filter(item => item.path !== c.path));
+            } catch (e: any) {
+              lastError = e?.message || '';
+            }
+          }
+          if (lastError) {
+            setSyncResultStatus('error');
+            setSyncMessage(t('settings.sync.syncError', { message: lastError }));
+          } else {
+            setConflictModalOpen(false);
+            setSyncResultStatus('success');
+            setSyncMessage(t('settings.sync.syncSuccess'));
+          }
+        }}
+      />
     </Modal>
   );
 };

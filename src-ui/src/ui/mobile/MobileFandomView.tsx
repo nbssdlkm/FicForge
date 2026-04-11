@@ -349,7 +349,7 @@ export function MobileFandomView({ fandomPath, onNavigate }: MobileFandomViewPro
           onClick={() => setAiOverlayOpen(true)}
         >
           <Sparkles size={16} className="mr-2" />
-          AI {t("settingsMode.title")}
+          {t("settingsMode.title")}
         </Button>
       </div>
 

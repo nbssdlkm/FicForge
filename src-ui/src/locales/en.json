@@ -451,6 +451,7 @@
       "embeddingModelPlaceholder": "Model name (e.g. text-embedding-3-small)",
       "embeddingApiBasePlaceholder": "API endpoint (e.g. https://api.openai.com)",
       "embeddingApiKeyPlaceholder": "API key",
+      "embeddingMobileHint": "Mobile requires online Embedding API",
       "apiCredentialsDescription": "Used as fallback when a story doesn't have its own model settings.",
       "apiModeLabel": "Connection Mode",
       "languageLabel": "Language",
@@ -472,6 +473,8 @@
       "syncing": "Syncing…",
       "syncSuccess": "Sync complete",
       "syncFailed": "Sync failed",
+      "syncError": "Sync failed: {{message}}",
+      "conflictsFound": "Found {{count}} conflicts",
       "helpButton": "Help",
       "help": {
         "intro": "Two sync methods are available to keep your writing data in sync across devices.",

@@ -661,6 +661,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
               <SettingsChatPanel
                 mode="fandom"
                 basePath={fandomPath}
+                fandomPath={fandomPath}
                 placeholder={t('settingsMode.fandomPlaceholder')}
                 title=""
                 compact

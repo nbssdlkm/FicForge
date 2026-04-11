@@ -9,6 +9,7 @@ import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { testConnection } from '../../api/engine-client';
 import { StepIndicator } from './StepIndicator';
+import { ApiSetupHelp } from '../help/ApiSetupHelp';
 
 type Mode = 'api' | 'local' | 'ollama';
 
@@ -46,6 +47,7 @@ export function ApiConfigStep({
   const [config, setConfig] = useState<ApiConfig>({ ...DEFAULT_CONFIG, ...initialConfig });
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestResult>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -128,7 +130,10 @@ export function ApiConfigStep({
           <div className="space-y-1">
             <label className="text-sm font-medium text-text/80">{t('onboarding.apiConfig.apiKey')}</label>
             <Input type="password" value={config.api_key} onChange={e => update('api_key', e.target.value)} placeholder="sk-..." disabled={testing} />
-            <p className="text-xs text-text/40">{t('onboarding.apiConfig.apiKeyHint')}</p>
+            <p className="text-xs text-text/40">
+              {t('onboarding.apiConfig.apiKeyHint')}{' '}
+              <button type="button" className="text-accent hover:underline" onClick={() => setHelpOpen(true)}>{t('help.apiSetup.howToGet')}</button>
+            </p>
           </div>
           <div className="space-y-1">
             <label className="text-sm font-medium text-text/80">{t('onboarding.apiConfig.model')}</label>
@@ -191,6 +196,8 @@ export function ApiConfigStep({
           {t('onboarding.common.next')}
         </Button>
       </div>
+
+      <ApiSetupHelp isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }
