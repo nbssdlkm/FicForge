@@ -44,6 +44,45 @@ export class RagManager {
     content: string,
     embeddingProvider: EmbeddingProvider,
   ): Promise<void> {
+    await this.indexChapterInMemory(auPath, chapterNum, content, embeddingProvider);
+    await this.vectorEngine.persist(vectorsDir(auPath));
+  }
+
+  /**
+   * 全量重建：删除旧索引 → 遍历所有章节 → 逐章 indexChapter。
+   * chapter_repo 和 embedding_provider 由调用方传入（DI 模式）。
+   */
+  async rebuildForAu(
+    auPath: string,
+    chapterRepo: ChapterRepository,
+    embeddingProvider: EmbeddingProvider,
+  ): Promise<void> {
+    // 清除内存中该 AU 的所有 chunks
+    await this.vectorEngine.rebuild_index(auPath);
+    // 立即持久化空状态，覆盖旧的 .vectors/ index.json
+    await this.vectorEngine.persist(vectorsDir(auPath));
+    this.currentAu = null;
+
+    // 遍历所有章节：批量索引到内存，最后一次性 persist
+    const chapters = await chapterRepo.list_main(auPath);
+    for (const ch of chapters) {
+      const content = await chapterRepo.get_content_only(auPath, ch.chapter_num);
+      await this.indexChapterInMemory(auPath, ch.chapter_num, content, embeddingProvider);
+    }
+    if (chapters.length > 0) {
+      await this.vectorEngine.persist(vectorsDir(auPath));
+    }
+  }
+
+  /**
+   * 仅索引到内存，不 persist。供 rebuildForAu 批量使用。
+   */
+  private async indexChapterInMemory(
+    auPath: string,
+    chapterNum: number,
+    content: string,
+    embeddingProvider: EmbeddingProvider,
+  ): Promise<void> {
     await this.ensureLoaded(auPath);
 
     const chunks = split_chapter_into_chunks(content, chapterNum);
@@ -67,30 +106,6 @@ export class RagManager {
     }));
 
     await this.vectorEngine.index_chunks(vectorChunks);
-    await this.vectorEngine.persist(vectorsDir(auPath));
-  }
-
-  /**
-   * 全量重建：删除旧索引 → 遍历所有章节 → 逐章 indexChapter。
-   * chapter_repo 和 embedding_provider 由调用方传入（DI 模式）。
-   */
-  async rebuildForAu(
-    auPath: string,
-    chapterRepo: ChapterRepository,
-    embeddingProvider: EmbeddingProvider,
-  ): Promise<void> {
-    // 清除内存中该 AU 的所有 chunks
-    await this.vectorEngine.rebuild_index(auPath);
-    // 立即持久化空状态，覆盖旧的 .vectors/ 文件
-    await this.vectorEngine.persist(vectorsDir(auPath));
-    this.currentAu = null;
-
-    // 遍历所有章节重新索引
-    const chapters = await chapterRepo.list_main(auPath);
-    for (const ch of chapters) {
-      const content = await chapterRepo.get_content_only(auPath, ch.chapter_num);
-      await this.indexChapter(auPath, ch.chapter_num, content, embeddingProvider);
-    }
   }
 
   /**

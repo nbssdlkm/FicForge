@@ -48,6 +48,10 @@ import {
   RemoteEmbeddingProvider,
   // Vector
   JsonVectorEngine,
+  // Domain enums
+  IndexStatus,
+  // Services (static imports replacing dynamic ones)
+  generateChapterTitle,
   // Ops utilities (for writing ops from engine-client)
   createOpsEntry,
   generate_op_id,
@@ -218,18 +222,15 @@ export async function rebuildIndex(auPath: string) {
     await e.ragManager.rebuildForAu(auPath, e.repos.chapter, embProvider);
     // Update state to READY
     const st = await e.repos.state.get(auPath);
-    const { IndexStatus } = await import("@ficforge/engine");
     st.index_status = IndexStatus.READY;
     await e.repos.state.save(st);
     return { task_id: "rebuild_" + Date.now(), message: "index rebuilt successfully" };
   }
 
   // No embedding configured — mark stale
-  const { state } = e.repos;
-  const st = await state.get(auPath);
-  const { IndexStatus } = await import("@ficforge/engine");
+  const st = await e.repos.state.get(auPath);
   st.index_status = IndexStatus.STALE;
-  await state.save(st);
+  await e.repos.state.save(st);
   return { task_id: "rebuild_" + Date.now(), message: "index marked stale (no embedding configured)" };
 }
 
@@ -329,7 +330,8 @@ export async function confirmChapter(
   auPath: string, chapterNum: number, draftId: string,
   generatedWith?: object, content?: string | null, title?: string | null,
 ) {
-  const { chapter, draft, state, ops, project } = getEngine().repos;
+  const e = getEngine();
+  const { chapter, draft, state, ops, project, settings } = e.repos;
   const proj = await project.get(auPath);
   const result = await engineConfirmChapter({
     au_id: auPath, chapter_num: chapterNum, draft_id: draftId,
@@ -338,12 +340,13 @@ export async function confirmChapter(
     content_override: content,
     chapter_repo: chapter, draft_repo: draft, state_repo: state, ops_repo: ops,
   });
+
+  const sett = await settings.get();
+
   // Update title: use provided title, or auto-generate via LLM
   let finalTitle = title;
   if (!finalTitle) {
     try {
-      const { generateChapterTitle } = await import("@ficforge/engine");
-      const sett = await getEngine().repos.settings.get();
       const llmConfig = resolve_llm_config(null, proj as unknown as Record<string, unknown>, sett as { default_llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } });
       if (llmConfig.mode === "api" && llmConfig.api_key) {
         const provider = create_provider(llmConfig);
@@ -359,7 +362,6 @@ export async function confirmChapter(
     const st = await state.get(auPath);
     st.chapter_titles[chapterNum] = finalTitle;
     await state.save(st);
-    // Write op so cross-device rebuild can project chapter_titles (F4)
     await ops.append(auPath, createOpsEntry({
       op_id: generate_op_id(),
       op_type: "set_chapter_title",
@@ -372,7 +374,6 @@ export async function confirmChapter(
 
   // Index the confirmed chapter for RAG (F7) — delegated to RagManager
   try {
-    const sett = await getEngine().repos.settings.get();
     if (sett.embedding?.api_key) {
       const embProvider = new RemoteEmbeddingProvider(
         sett.embedding.api_base || sett.default_llm?.api_base || "",
@@ -380,7 +381,7 @@ export async function confirmChapter(
         sett.embedding.model || "",
       );
       const chContent = await chapter.get_content_only(auPath, chapterNum);
-      await getEngine().ragManager.indexChapter(auPath, chapterNum, chContent, embProvider);
+      await e.ragManager.indexChapter(auPath, chapterNum, chContent, embProvider);
     }
   } catch {
     // RAG indexing failure doesn't block confirm
