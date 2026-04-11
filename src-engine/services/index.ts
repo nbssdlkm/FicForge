@@ -124,8 +124,7 @@ export { recalc_state } from "./recalc_state.js";
 // Title Generator
 export { generateChapterTitle } from "./title_generator.js";
 
-// Snapshot
-export { checkAndSnapshot } from "./snapshot.js";
+// Snapshot — checkAndSnapshot 暂不导出（M6 接入后启用）
 
 // RAG Manager
 export { RagManager } from "./rag_manager.js";

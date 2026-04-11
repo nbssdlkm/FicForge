@@ -40,6 +40,21 @@ function toRemoteAuPath(localAuPath: string, dataDir: string): string {
   return rel.replace(/^[/\\]+/, "").replace(/\\/g, "/");
 }
 
+/** 测试 WebDAV 连接（PROPFIND）。 */
+export async function testWebDAVConnection(
+  config: WebDAVConfig,
+): Promise<{ success: boolean }> {
+  const url = config.url.replace(/\/+$/, "") + config.remote_dir;
+  const resp = await fetch(url, {
+    method: "PROPFIND",
+    headers: {
+      Authorization: "Basic " + btoa(`${config.username}:${config.password}`),
+      Depth: "0",
+    },
+  });
+  return { success: resp.ok || resp.status === 207 };
+}
+
 export async function syncAllAus(webdavConfig: WebDAVConfig): Promise<AggregatedSyncResult> {
   const { SyncManager, WebDAVSyncAdapter } = await import("@ficforge/engine");
   const { adapter, repos } = getEngine();

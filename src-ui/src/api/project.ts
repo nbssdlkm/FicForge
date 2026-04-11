@@ -4,8 +4,6 @@
 
 /** Project API — AU-specific configuration */
 
-import { apiFetch } from "./client";
-
 export interface WritingStyle {
   perspective: string;
   pov_character: string;
@@ -54,28 +52,4 @@ export interface ProjectInfo {
   embedding_lock: EmbeddingLock;
   core_guarantee_budget: number;
   current_branch: string;
-}
-
-export async function getProject(auPath: string): Promise<ProjectInfo> {
-  return apiFetch(`/api/v1/project?au_path=${encodeURIComponent(auPath)}`);
-}
-
-export async function updateProject(auPath: string, updates: any): Promise<any> {
-  return apiFetch(`/api/v1/project?au_path=${encodeURIComponent(auPath)}`, {
-    method: "PUT",
-    body: JSON.stringify(updates),
-  });
-}
-
-export async function addPinned(auPath: string, text: string): Promise<{ status: string; revision: number }> {
-  return apiFetch(`/api/v1/project/pinned?au_path=${encodeURIComponent(auPath)}`, {
-    method: "POST",
-    body: JSON.stringify({ text }),
-  });
-}
-
-export async function deletePinned(auPath: string, index: number): Promise<{ status: string; revision: number }> {
-  return apiFetch(`/api/v1/project/pinned/${index}?au_path=${encodeURIComponent(auPath)}`, {
-    method: "DELETE",
-  });
 }

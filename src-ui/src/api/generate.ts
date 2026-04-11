@@ -4,8 +4,6 @@
 
 /** 生成 API（SSE 流式） */
 
-import { sseStream } from "./client";
-
 export interface GenerateParams {
   au_path: string;
   chapter_num: number;
@@ -32,10 +30,4 @@ export interface ContextSummary {
   total_input_tokens: number;
   truncated_layers: string[];
   truncated_characters: string[];
-}
-
-export async function* generateChapter(params: GenerateParams) {
-  for await (const event of sseStream("/api/v1/generate/stream", params)) {
-    yield event;
-  }
 }

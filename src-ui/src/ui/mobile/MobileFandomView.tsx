@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { ArrowLeft, FileText, Loader2, Pencil, Eye, Trash2, Users, Globe2, Sparkles } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { listFandomFiles, readFandomFile, saveLore, deleteLore, type FandomFileEntry } from "../../api/engine-client";
+import { TrashPanel } from "../shared/TrashPanel";
 import { Button } from "../shared/Button";
 import { Input, Textarea } from "../shared/Input";
 import { Modal } from "../shared/Modal";
@@ -323,7 +324,7 @@ export function MobileFandomView({ fandomPath, onNavigate }: MobileFandomViewPro
           </div>
         )}
 
-        {/* TODO: TrashPanel crashes on fandom scope in WebAdapter — investigate and re-enable */}
+        <TrashPanel scope="fandom" path={fandomPath} />
       </div>
 
       {/* Create modal */}

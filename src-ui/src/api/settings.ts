@@ -4,8 +4,6 @@
 
 /** Settings API */
 
-import { apiFetch } from "./client";
-
 export interface LlmSettingsInfo {
   mode?: string;
   model?: string;
@@ -52,21 +50,4 @@ export interface TestConnectionResponse {
   model?: string;
   message?: string;
   error_code?: string;
-}
-export async function getSettings(): Promise<SettingsInfo> {
-  return apiFetch("/api/v1/settings");
-}
-
-export async function updateSettings(updates: object): Promise<SettingsInfo> {
-  return apiFetch("/api/v1/settings", {
-    method: "PUT",
-    body: JSON.stringify(updates),
-  });
-}
-
-export async function testConnection(params: TestConnectionRequest): Promise<TestConnectionResponse> {
-  return apiFetch("/api/v1/settings/test-connection", {
-    method: "POST",
-    body: JSON.stringify(params),
-  });
 }

@@ -8,7 +8,7 @@ import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { HelpCircle, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { getSettings, testConnection, updateSettings, type SettingsInfo } from '../../api/engine-client';
-import { syncAllAus, resolveFileConflict, type WebDAVConfig } from '../../api/engine-sync';
+import { syncAllAus, resolveFileConflict, testWebDAVConnection, type WebDAVConfig } from '../../api/engine-sync';
 import { ConflictResolveModal, type ConflictItem } from '../shared/ConflictResolveModal';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
@@ -427,16 +427,14 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                           setSyncTestStatus('error');
                           return;
                         }
-                        const url = raw.replace(/\/+$/, '') + syncRemoteDir;
-                        const resp = await fetch(url, {
-                          method: 'PROPFIND',
-                          headers: {
-                            Authorization: 'Basic ' + btoa(`${syncUsername}:${syncPassword}`),
-                            Depth: '0',
-                          },
+                        const result = await testWebDAVConnection({
+                          url: raw,
+                          username: syncUsername,
+                          password: syncPassword,
+                          remote_dir: syncRemoteDir,
                         });
                         if (reqId !== modalRequestIdRef.current) return;
-                        setSyncTestStatus(resp.ok || resp.status === 207 ? 'success' : 'error');
+                        setSyncTestStatus(result.success ? 'success' : 'error');
                       } catch {
                         if (reqId !== modalRequestIdRef.current) return;
                         setSyncTestStatus('error');
