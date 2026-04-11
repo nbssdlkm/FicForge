@@ -246,15 +246,15 @@ export { recalcState };
 async function recalcState(auPath: string) {
   const { state, chapter, project, fact, ops } = getEngine().repos;
   const result = await recalc_state(auPath, state, chapter, project, fact);
-  // Write op so cross-device rebuild can project chapters_dirty (F4)
-  const st = await state.get(auPath);
+  // ops 先于 state 落盘（D-0036）
   await ops.append(auPath, createOpsEntry({
     op_id: generate_op_id(),
     op_type: "mark_chapters_dirty",
     target_id: auPath,
     timestamp: now_utc(),
-    payload: { chapters_dirty: [...st.chapters_dirty] },
+    payload: { chapters_dirty: [...result.state.chapters_dirty] },
   }));
+  await state.save(result.state);
   return result;
 }
 

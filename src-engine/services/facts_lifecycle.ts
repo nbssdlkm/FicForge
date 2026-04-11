@@ -57,12 +57,11 @@ function normalizeCharacters(
 // 悬空 ID 级联清理
 // ---------------------------------------------------------------------------
 
-async function cleanDanglingFocus(
-  au_id: string,
+/** 纯内存操作：从 state 的 focus 列表中移除指定 fact_id。不落盘。 */
+function applyDanglingFocusCleanup(
+  state: { chapter_focus: string[]; last_confirmed_chapter_focus: string[] },
   fact_id: string,
-  state_repo: StateRepository,
-): Promise<boolean> {
-  const state = await state_repo.get(au_id);
+): { wasInFocus: boolean; changed: boolean } {
   let changed = false;
   let wasInFocus = false;
 
@@ -79,11 +78,7 @@ async function cleanDanglingFocus(
     changed = true;
   }
 
-  if (changed) {
-    await state_repo.save(state);
-  }
-
-  return wasInFocus;
+  return { wasInFocus, changed };
 }
 
 // ---------------------------------------------------------------------------
@@ -252,16 +247,20 @@ export async function edit_fact(
     }
   }
 
-  // 悬空 ID 级联清理
+  // 悬空 ID 级联清理（内存操作，不落盘）
   const newStatus = fact.status;
+  let needStateSave = false;
+  let state: Awaited<ReturnType<StateRepository["get"]>> | null = null;
   if (
     (newStatus === FactStatus.DEPRECATED || newStatus === FactStatus.RESOLVED) &&
     oldStatus !== newStatus
   ) {
-    await cleanDanglingFocus(au_id, fact_id, state_repo);
+    state = await state_repo.get(au_id);
+    const { changed } = applyDanglingFocusCleanup(state, fact_id);
+    needStateSave = changed;
   }
 
-  // ops
+  // ops 先于 state 落盘（D-0036）
   await ops_repo.append(
     au_id,
     createOpsEntry({
@@ -272,6 +271,10 @@ export async function edit_fact(
       payload: { updated_fields },
     }),
   );
+
+  if (needStateSave && state) {
+    await state_repo.save(state);
+  }
 
   return fact;
 }
@@ -295,13 +298,18 @@ export async function update_fact_status(
 
   await fact_repo.update(au_id, fact);
 
-  // 悬空 ID 级联清理
+  // 悬空 ID 级联清理（内存操作，不落盘）
   let focusWarning = false;
+  let needStateSave = false;
+  let state: Awaited<ReturnType<StateRepository["get"]>> | null = null;
   if (new_status === "deprecated" || new_status === "resolved") {
-    focusWarning = await cleanDanglingFocus(au_id, fact_id, state_repo);
+    state = await state_repo.get(au_id);
+    const { wasInFocus, changed } = applyDanglingFocusCleanup(state, fact_id);
+    focusWarning = wasInFocus;
+    needStateSave = changed;
   }
 
-  // ops
+  // ops 先于 state 落盘（D-0036）
   await ops_repo.append(
     au_id,
     createOpsEntry({
@@ -313,6 +321,10 @@ export async function update_fact_status(
       payload: { old_status: oldStatus, new_status },
     }),
   );
+
+  if (needStateSave && state) {
+    await state_repo.save(state);
+  }
 
   return { fact_id, new_status, focus_warning: focusWarning };
 }

@@ -21,6 +21,8 @@ export interface RecalcResult {
   chapters_scanned: number;
   cleaned_dirty_count: number;
   cleaned_focus_count: number;
+  /** 计算后的 state 对象（调用方负责 save，以便 ops-first 写入）。 */
+  state: Awaited<ReturnType<StateRepository["get"]>>;
 }
 
 export async function recalc_state(
@@ -61,7 +63,6 @@ export async function recalc_state(
     state.last_confirmed_chapter_focus = [];
     state.chapters_dirty = [];
     state.chapter_focus = [];
-    await state_repo.save(state);
     return {
       characters_last_seen: {},
       last_scene_ending: "",
@@ -69,6 +70,7 @@ export async function recalc_state(
       chapters_scanned: 0,
       cleaned_dirty_count: 0,
       cleaned_focus_count: 0,
+      state,
     };
   }
 
@@ -119,13 +121,12 @@ export async function recalc_state(
     }
   }
 
-  // 写回 state
+  // 计算完毕，更新 state 对象（不落盘，由调用方在 ops 之后 save）
   state.characters_last_seen = newCharactersLastSeen;
   state.last_scene_ending = newLastSceneEnding;
   state.last_confirmed_chapter_focus = newLastConfirmedFocus;
   state.chapters_dirty = newDirty;
   state.chapter_focus = newFocus;
-  await state_repo.save(state);
 
   return {
     characters_last_seen: newCharactersLastSeen,
@@ -134,5 +135,6 @@ export async function recalc_state(
     chapters_scanned: chaptersScanned,
     cleaned_dirty_count: cleanedDirtyCount,
     cleaned_focus_count: cleanedFocusCount,
+    state,
   };
 }
