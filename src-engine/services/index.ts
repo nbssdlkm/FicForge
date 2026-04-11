@@ -59,9 +59,50 @@ export { undo_latest_chapter, UndoChapterError } from "./undo_chapter.js";
 export type { ResolveDirtyParams, ResolveDirtyResult } from "./dirty_resolve.js";
 export { resolve_dirty_chapter, DirtyResolveError } from "./dirty_resolve.js";
 
-// Import Pipeline
+// Import Pipeline (backward-compatible)
 export type { ImportChaptersParams, ImportResult, SplitChapter } from "./import_pipeline.js";
 export { get_split_method, import_chapters, parse_html, split_into_chapters } from "./import_pipeline.js";
+
+// Import Pipeline v2 (new API)
+export type {
+  AnalysisOptions,
+  ExecuteImportParams,
+  FileAnalysis,
+  ImportChapter,
+  ImportConflictOptions,
+  ImportPlan,
+  ImportProgress,
+  ImportSetting,
+  NewImportResult,
+} from "./import_pipeline.js";
+export { analyzeFile, buildImportPlan, executeImport } from "./import_pipeline.js";
+
+// Chat Parser
+export type {
+  ChatFormatPattern,
+  ChatTurn,
+  ClassificationThresholds,
+  ClassifiedTurn,
+} from "./chat_parser.js";
+export {
+  classifyTurns,
+  DEFAULT_THRESHOLDS,
+  detectChatFormat,
+  isJsonChatExport,
+  parseChatExport,
+  splitByRole,
+} from "./chat_parser.js";
+
+// Chapter Splitter
+export type { ChapterPatternResult, SplitOptions, SplitResult } from "./chapter_splitter.js";
+export {
+  buildRegexFromPattern,
+  llmDetectChapterPattern,
+  splitByCharCount,
+  splitChapters,
+  trySplitByNumericHeaders,
+  trySplitByStandardHeaders,
+} from "./chapter_splitter.js";
 
 // Export Service
 export type { ExportParams } from "./export_service.js";
