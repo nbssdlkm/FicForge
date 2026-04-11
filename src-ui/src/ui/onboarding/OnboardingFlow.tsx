@@ -26,9 +26,12 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
   const [apiConfig, setApiConfig] = useState<ApiConfig | null>(null);
   const [fandomName, setFandomName] = useState<string | null>(null);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [configSaved, setConfigSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const handleApiNext = useCallback(async (config: ApiConfig) => {
     setApiConfig(config);
+    setSaveError(null);
     // 保存配置到 settings
     try {
       await updateSettings({
@@ -42,11 +45,13 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
           context_window: 0,
         },
       });
-    } catch {
-      // 保存失败不阻塞引导流程
+      setConfigSaved(true);
+      setStep(2);
+    } catch (e: any) {
+      setSaveError(e?.message || t('error_messages.unknown'));
+      // 保存失败——不跳到下一步
     }
-    setStep(2);
-  }, []);
+  }, [t]);
 
   const handleFandomNext = useCallback((name: string | null) => {
     setFandomName(name);
@@ -59,15 +64,15 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
   }, [onComplete]);
 
   const handleClose = useCallback(() => {
-    // 如果已配置 API，关闭时标记完成
-    if (apiConfig) {
+    // 只有配置已成功保存才标记完成
+    if (configSaved) {
       localStorage.setItem(ONBOARDING_KEY, 'true');
       onComplete();
     } else {
-      // 未配置 API，弹确认
+      // 未保存配置，弹确认
       setShowCloseConfirm(true);
     }
-  }, [apiConfig, onComplete]);
+  }, [configSaved, onComplete]);
 
   const handleConfirmClose = useCallback(() => {
     // 用户确认跳过——不标记 completed，下次打开会重新检查
@@ -103,6 +108,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
         <button
           className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-text/40 hover:text-text/70 transition-colors"
           onClick={handleClose}
+          aria-label={t('common.actions.close')}
         >
           <X size={20} />
         </button>
@@ -111,11 +117,18 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
       <div className="flex-1 overflow-y-auto px-6">
         {step === 0 && <WelcomeStep onNext={() => setStep(1)} />}
         {step === 1 && (
-          <ApiConfigStep
-            onNext={handleApiNext}
-            onPrev={() => setStep(0)}
-            initialConfig={apiConfig || undefined}
-          />
+          <>
+            <ApiConfigStep
+              onNext={handleApiNext}
+              onPrev={() => setStep(0)}
+              initialConfig={apiConfig || undefined}
+            />
+            {saveError && (
+              <div className="mx-auto mt-3 max-w-lg rounded-lg border border-error/30 bg-error/5 px-4 py-2 text-sm text-error">
+                {saveError}
+              </div>
+            )}
+          </>
         )}
         {step === 2 && (
           <CreateFandomStep

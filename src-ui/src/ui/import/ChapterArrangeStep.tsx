@@ -66,6 +66,19 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
       thresholds,
     );
 
+    // 计算前面文件的最后章节号，作为全局起始章节号
+    let startChapter = 1;
+    for (let fi = 0; fi < fileIndex; fi++) {
+      const prevTurns = updated[fi].turns;
+      if (!prevTurns) continue;
+      for (const t of prevTurns) {
+        if (t.assignedType === "chapter" && t.assignedChapter !== null) {
+          startChapter = t.assignedChapter + 1;
+        }
+      }
+    }
+    reassignChapterNumbersFrom(reclassified, startChapter);
+
     analysis.turns = reclassified;
     analysis.stats = computeStats(reclassified);
     updated[fileIndex] = analysis;
@@ -84,8 +97,18 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
     const turns = analysis.turns.map((t) => ({ ...t }));
     turns[turnIndex].assignedType = newType;
 
-    // 重新计算章节号
-    reassignChapterNumbers(turns);
+    // 计算前面文件的最后章节号，作为全局起始章节号
+    let startChapter = 1;
+    for (let fi = 0; fi < fileIndex; fi++) {
+      const prevTurns = updated[fi].turns;
+      if (!prevTurns) continue;
+      for (const t of prevTurns) {
+        if (t.assignedType === "chapter" && t.assignedChapter !== null) {
+          startChapter = t.assignedChapter + 1;
+        }
+      }
+    }
+    reassignChapterNumbersFrom(turns, startChapter);
 
     analysis.turns = turns;
     analysis.stats = computeStats(turns);
@@ -187,7 +210,7 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
                   return (
                     <div className="space-y-2 max-h-[50vh] overflow-y-auto">
                       {visibleTurns.map((turn, turnIdx) => {
-                        const chapterContext = getChapterContext(analysis.turns!, turnIdx);
+                        const chapterContext = getChapterContextGlobal(analyses, fileIndex, turnIdx);
                         return (
                           <TurnCard
                             key={turn.index}
@@ -248,8 +271,8 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
 // Helpers
 // ---------------------------------------------------------------------------
 
-function reassignChapterNumbers(turns: ClassifiedTurn[]) {
-  let chapterNum = 1;
+function reassignChapterNumbersFrom(turns: ClassifiedTurn[], startChapter: number = 1) {
+  let chapterNum = startChapter;
   for (const turn of turns) {
     if (turn.assignedType === "chapter") {
       turn.assignedChapter = chapterNum++;
@@ -271,27 +294,51 @@ function computeStats(turns: ClassifiedTurn[]): FileAnalysis["stats"] {
   };
 }
 
-function getChapterContext(turns: ClassifiedTurn[], currentIndex: number): {
-  currentChapterNum: number | null;
-  hasPreviousChapter: boolean;
-} {
-  // 找最近的 chapter turn 的章节号
+/**
+ * 全局计算章节上下文——跨文件查找前面最近的 chapter turn，
+ * 使得后续文件首条 turn 也能选"续"。
+ */
+function getChapterContextGlobal(
+  analyses: FileAnalysis[],
+  fileIndex: number,
+  turnIndex: number,
+): { currentChapterNum: number | null; hasPreviousChapter: boolean } {
   let lastChapterNum: number | null = null;
   let hasPreviousChapter = false;
-  for (let i = 0; i <= currentIndex; i++) {
-    if (turns[i].assignedType === "chapter") {
-      lastChapterNum = turns[i].assignedChapter;
-      if (i < currentIndex) hasPreviousChapter = true;
+
+  // 遍历前面所有文件的所有 turns
+  for (let fi = 0; fi < fileIndex; fi++) {
+    const turns = analyses[fi].turns;
+    if (!turns) continue;
+    for (const t of turns) {
+      if (t.assignedType === "chapter") {
+        lastChapterNum = t.assignedChapter;
+        hasPreviousChapter = true;
+      }
     }
   }
 
+  // 遍历当前文件到 turnIndex
+  const currentFileTurns = analyses[fileIndex].turns;
+  if (currentFileTurns) {
+    for (let i = 0; i <= turnIndex; i++) {
+      if (currentFileTurns[i].assignedType === "chapter") {
+        lastChapterNum = currentFileTurns[i].assignedChapter;
+        if (i < turnIndex) hasPreviousChapter = true;
+      }
+    }
+  }
+
+  const current = currentFileTurns?.[turnIndex];
+  if (!current) {
+    return { currentChapterNum: lastChapterNum ?? 1, hasPreviousChapter };
+  }
+
   // 当前 turn 如果本身就是 chapter，显示自己的章节号
-  const current = turns[currentIndex];
   if (current.assignedType === "chapter") {
     return { currentChapterNum: current.assignedChapter, hasPreviousChapter: false };
   }
 
-  // 下一个可能的章节号
   const nextChapterNum = lastChapterNum !== null ? lastChapterNum + 1 : 1;
 
   return {
@@ -327,7 +374,18 @@ function batchAction(
     }
   }
 
-  reassignChapterNumbers(turns);
+  // 计算前面文件的最后章节号，作为全局起始章节号
+  let startChapter = 1;
+  for (let fi = 0; fi < fileIndex; fi++) {
+    const prevTurns = updated[fi].turns;
+    if (!prevTurns) continue;
+    for (const t of prevTurns) {
+      if (t.assignedType === "chapter" && t.assignedChapter !== null) {
+        startChapter = t.assignedChapter + 1;
+      }
+    }
+  }
+  reassignChapterNumbersFrom(turns, startChapter);
   analysis.turns = turns;
   analysis.stats = computeStats(turns);
   updated[fileIndex] = analysis;

@@ -20,7 +20,7 @@ import { getState } from '../../api/engine-client';
 import { listFacts, type FactInfo } from '../../api/engine-client';
 import { getProject } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
-import { FeedbackProvider } from '../../hooks/useFeedback';
+import { FeedbackProvider, useFeedback } from '../../hooks/useFeedback';
 import { useMilestoneGuide } from '../../hooks/useMilestoneGuide';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { MobileLayout } from '../mobile/MobileLayout';
@@ -33,6 +33,7 @@ type Props = {
 
 function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const { t } = useTranslation();
+  const { showError } = useFeedback();
   const isMobile = useMediaQuery('(max-width: 768px)');
   const activeAuPathRef = useRef(auPath);
   activeAuPathRef.current = auPath;
@@ -44,7 +45,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const [milestoneRefreshKey, setMilestoneRefreshKey] = useState(0);
 
   const refreshChapters = useCallback(() => {
-    listChapters(auPath).then(setChapters).catch(() => {});
+    listChapters(auPath).then(chs => { if (activeAuPathRef.current === auPath) setChapters(chs); }).catch((err) => console.warn('refreshChapters failed:', err));
     setMilestoneRefreshKey(k => k + 1);
   }, [auPath]);
 
@@ -244,7 +245,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
                             try {
                               await updateChapterTitle(auPath, ref.num, trimmed);
                               refreshChapters();
-                            } catch { /* save failed, value stays in input for retry */ return; }
+                            } catch (err) { showError(err, t('error_messages.unknown')); return; }
                             editingRef.current = null;
                             setEditingTitleNum(null);
                           } else if (e.key === 'Escape') { editingRef.current = null; setEditingTitleNum(null); }
@@ -257,7 +258,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
                             try {
                               await updateChapterTitle(auPath, ref.num, trimmed);
                               refreshChapters();
-                            } catch { /* silent — user can re-edit later */ }
+                            } catch (err) { showError(err, t('error_messages.unknown')); }
                           }
                           editingRef.current = null;
                           setEditingTitleNum(null);

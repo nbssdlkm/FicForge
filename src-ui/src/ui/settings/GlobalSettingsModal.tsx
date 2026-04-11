@@ -7,7 +7,8 @@ import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { HelpCircle, Loader2, CheckCircle2, XCircle } from 'lucide-react';
-import { getSettings, testConnection, updateSettings, syncAllAus, resolveFileConflict, type SettingsInfo, type WebDAVConfig } from '../../api/engine-client';
+import { getSettings, testConnection, updateSettings, type SettingsInfo } from '../../api/engine-client';
+import { syncAllAus, resolveFileConflict, type WebDAVConfig } from '../../api/engine-sync';
 import { ConflictResolveModal, type ConflictItem } from '../shared/ConflictResolveModal';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
@@ -55,6 +56,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   const [syncResultStatus, setSyncResultStatus] = useState<'idle' | 'success' | 'error' | 'conflicts'>('idle');
   const [conflicts, setConflicts] = useState<ConflictItem[]>([]);
   const [conflictModalOpen, setConflictModalOpen] = useState(false);
+  const [opsConflictDetails, setOpsConflictDetails] = useState<string[]>([]);
   // Map display path → { auPath, filePath } for conflict resolution
   const conflictPathMapRef = useRef<Map<string, { auPath: string; filePath: string }>>(new Map());
 
@@ -85,6 +87,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     setSyncResultStatus('idle');
     setConflicts([]);
     setConflictModalOpen(false);
+    setOpsConflictDetails([]);
   };
 
   useEffect(() => {
@@ -416,6 +419,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                     variant="secondary"
                     size="sm"
                     onClick={async () => {
+                      const reqId = modalRequestIdRef.current;
                       setSyncTestStatus('testing');
                       try {
                         const raw = syncUrl.trim();
@@ -431,8 +435,10 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                             Depth: '0',
                           },
                         });
+                        if (reqId !== modalRequestIdRef.current) return;
                         setSyncTestStatus(resp.ok || resp.status === 207 ? 'success' : 'error');
                       } catch {
+                        if (reqId !== modalRequestIdRef.current) return;
                         setSyncTestStatus('error');
                       }
                     }}
@@ -452,6 +458,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                   size="sm"
                   className="w-full"
                   onClick={async () => {
+                    const syncRequestId = modalRequestIdRef.current;
                     setSyncing(true);
                     setSyncMessage('');
                     setSyncResultStatus('idle');
@@ -463,16 +470,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                         remote_dir: syncRemoteDir,
                       };
                       const result = await syncAllAus(webdavConfig);
-                      const now = new Date().toISOString();
-                      setLastSync(now);
-                      // 立即持久化 last_sync，不依赖用户点"保存"
-                      await updateSettings({
-                        sync: {
-                          mode: syncMode,
-                          webdav: { url: syncUrl, username: syncUsername, password: syncPassword, remote_dir: syncRemoteDir },
-                          last_sync: now,
-                        },
-                      }).catch(() => { /* 持久化失败不阻断同步流程 */ });
+                      if (syncRequestId !== modalRequestIdRef.current) return;
                       if (result.fileConflicts.length > 0) {
                         const map = new Map<string, { auPath: string; filePath: string }>();
                         const items = result.fileConflicts.map(fc => {
@@ -493,17 +491,31 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                         setSyncResultStatus('error');
                         setSyncMessage(t('settings.sync.syncError', { message: result.errors[0] }));
                       } else if (result.opsConflicts && result.opsConflicts.length > 0) {
+                        setOpsConflictDetails(result.opsConflicts);
                         setSyncResultStatus('conflicts');
                         setSyncMessage(t('settings.sync.opsConflictsFound', { count: result.opsConflicts.length }));
                       } else {
+                        // 完全成功——才更新 last_sync
+                        const now = new Date().toISOString();
+                        setLastSync(now);
+                        await updateSettings({
+                          sync: {
+                            mode: syncMode,
+                            webdav: { url: syncUrl, username: syncUsername, password: syncPassword, remote_dir: syncRemoteDir },
+                            last_sync: now,
+                          },
+                        }).catch((err) => { console.warn('last_sync persist failed:', err); });
                         setSyncResultStatus('success');
                         setSyncMessage(t('settings.sync.syncSuccess'));
                       }
                     } catch (e: any) {
+                      if (syncRequestId !== modalRequestIdRef.current) return;
                       setSyncResultStatus('error');
                       setSyncMessage(t('settings.sync.syncError', { message: e?.message || t('error_messages.unknown') }));
                     } finally {
-                      setSyncing(false);
+                      if (syncRequestId === modalRequestIdRef.current) {
+                        setSyncing(false);
+                      }
                     }
                   }}
                   disabled={syncTestStatus !== 'success' || syncing}
@@ -515,6 +527,16 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                     {syncMessage}
                   </p>
                 )}
+                {opsConflictDetails.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {opsConflictDetails.map((detail, i) => (
+                      <div key={i} className="text-xs text-text/50">
+                        {detail}
+                      </div>
+                    ))}
+                    <p className="text-xs text-text/40 mt-1">{t('settings.sync.opsConflictsMergedHint')}</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -525,7 +547,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
               <label className="text-sm font-bold text-text/90">{t('settings.global.languageLabel')}</label>
               <select
                 value={i18n.resolvedLanguage === 'en' ? 'en' : 'zh'}
-                onChange={async (e) => { await changeLanguage(e.target.value as AppLanguage); }}
+                onChange={(e) => { changeLanguage(e.target.value as AppLanguage).catch((err) => showError(err, t('error_messages.unknown'))); }}
                 className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:w-48 md:text-sm"
               >
                 {SUPPORTED_LANGUAGES.map(lang => (

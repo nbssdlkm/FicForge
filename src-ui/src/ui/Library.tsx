@@ -78,24 +78,26 @@ function LibraryInner({ onNavigate }: Props) {
   };
 
   useEffect(() => {
+    let cancelled = false;
     // 检查是否需要显示引导流程
     if (isOnboardingCompleted()) {
       // 已完成引导，但仍检查 API 配置是否有效
       getSettings().then(settings => {
-        if (!hasUsableConnectionConfig(settings)) {
+        if (!cancelled && !hasUsableConnectionConfig(settings)) {
           setShowApiWarning(true);
         }
       }).catch(() => {});
     } else {
       getSettings().then(settings => {
-        if (!hasUsableConnectionConfig(settings)) {
+        if (!cancelled && !hasUsableConnectionConfig(settings)) {
           setShowOnboarding(true);
         }
       }).catch(() => {
-        setShowOnboarding(true);
+        if (!cancelled) setShowOnboarding(true);
       });
     }
     void loadFandoms();
+    return () => { cancelled = true; };
   }, []);
 
   const loadFandoms = async () => {

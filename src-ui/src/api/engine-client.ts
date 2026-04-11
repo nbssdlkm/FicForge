@@ -29,10 +29,7 @@ import {
   resolve_dirty_chapter,
   recalc_state,
   export_chapters as engineExportChapters,
-  split_into_chapters,
-  parse_html,
-  import_chapters as engineImportChapters,
-  // Import v2 types (values loaded dynamically)
+  // Import v2 types (re-exported from engine-import.ts, code in engine-import.ts)
   type FileAnalysis,
   type ImportPlan,
   type ImportConflictOptions,
@@ -49,8 +46,6 @@ import {
   RemoteEmbeddingProvider,
   // Vector
   JsonVectorEngine,
-  // Sync types (values loaded dynamically)
-  type SyncResult,
 } from "@ficforge/engine";
 
 // Re-export types from original API modules for compatibility
@@ -138,7 +133,17 @@ export async function getSettings() {
 export async function updateSettings(updates: Record<string, unknown>) {
   const { settings } = getEngine().repos;
   const current = await settings.get();
-  Object.assign(current, updates);
+  // 深合并嵌套对象，避免覆盖 app.theme 等未传入的字段
+  const merged: Record<string, unknown> = { ...current };
+  for (const key of Object.keys(updates)) {
+    const val = updates[key];
+    if (val && typeof val === "object" && !Array.isArray(val) && typeof (current as unknown as Record<string, unknown>)[key] === "object") {
+      merged[key] = { ...((current as unknown as Record<string, unknown>)[key] as Record<string, unknown>), ...(val as Record<string, unknown>) };
+    } else {
+      merged[key] = val;
+    }
+  }
+  Object.assign(current, merged);
   await settings.save(current);
   return current as unknown as import("./settings").SettingsInfo;
 }
@@ -480,9 +485,10 @@ export async function exportChapters(params: {
 }
 
 export async function importChaptersFromText(auPath: string, text: string, splitMethod?: string) {
+  const { split_into_chapters, import_chapters } = await import("@ficforge/engine");
   const chapters = split_into_chapters(text);
   const { chapter, state, ops } = getEngine().repos;
-  return await engineImportChapters({
+  return await import_chapters({
     au_id: auPath,
     chapters,
     chapter_repo: chapter,
@@ -496,21 +502,26 @@ export async function importChaptersFromText(auPath: string, text: string, split
 // Lore (file read/write via PlatformAdapter)
 // ===========================================================================
 
-/** 防止路径穿越：去除 / \ .. 和开头的点 */
-function sanitizeFilename(name: string): string {
-  return name
+/** 防止路径穿越：去除 / \ .. 和开头的点，拒绝空段 */
+function sanitizePathSegment(segment: string): string {
+  if (!segment) throw new Error("Path segment cannot be empty");
+  const sanitized = segment
+    .replace(/[\x00-\x1f\x7f]/g, "")   // 去除 NUL 和控制字符
     .replace(/[\/\\]/g, "")
     .replace(/\.\./g, "")
     .replace(/^\.+/, "")
     .trim();
+  if (!sanitized) throw new Error("Invalid path segment");
+  return sanitized;
 }
+
 
 export async function saveLore(req: { au_path?: string; fandom_path?: string; category: string; filename: string; content: string }) {
   const { adapter } = getEngine();
   const basePath = req.au_path ?? req.fandom_path ?? "";
-  const safeFilename = sanitizeFilename(req.filename);
-  if (!safeFilename) throw new Error("Invalid filename");
-  const filePath = `${basePath}/${req.category}/${safeFilename}`;
+  const safeCategory = sanitizePathSegment(req.category);
+  const safeFilename = sanitizePathSegment(req.filename);
+  const filePath = `${basePath}/${safeCategory}/${safeFilename}`;
   const dir = filePath.substring(0, filePath.lastIndexOf("/"));
   await adapter.mkdir(dir);
   await adapter.writeFile(filePath, req.content);
@@ -520,18 +531,18 @@ export async function saveLore(req: { au_path?: string; fandom_path?: string; ca
 export async function readLore(req: { au_path?: string; fandom_path?: string; category: string; filename: string }) {
   const { adapter } = getEngine();
   const basePath = req.au_path ?? req.fandom_path ?? "";
-  const safeFilename = sanitizeFilename(req.filename);
-  if (!safeFilename) throw new Error("Invalid filename");
-  const filePath = `${basePath}/${req.category}/${safeFilename}`;
+  const safeCategory = sanitizePathSegment(req.category);
+  const safeFilename = sanitizePathSegment(req.filename);
+  const filePath = `${basePath}/${safeCategory}/${safeFilename}`;
   const content = await adapter.readFile(filePath);
   return { content };
 }
 
 export async function deleteLore(req: { au_path?: string; fandom_path?: string; category: string; filename: string }) {
   const basePath = req.au_path ?? req.fandom_path ?? "";
-  const safeFilename = sanitizeFilename(req.filename);
-  if (!safeFilename) throw new Error("Invalid filename");
-  const relativePath = `${req.category}/${safeFilename}`;
+  const safeCategory = sanitizePathSegment(req.category);
+  const safeFilename = sanitizePathSegment(req.filename);
+  const relativePath = `${safeCategory}/${safeFilename}`;
   const entry = await getEngine().trash.move_to_trash(basePath, relativePath, "lore_file", req.filename);
   return { status: "ok", trash_id: entry.trash_id, deleted: relativePath };
 }
@@ -539,7 +550,8 @@ export async function deleteLore(req: { au_path?: string; fandom_path?: string; 
 export async function listLoreFiles(params: { category: string; au_path?: string; fandom_path?: string }) {
   const { adapter } = getEngine();
   const basePath = params.au_path ?? params.fandom_path ?? "";
-  const dirPath = `${basePath}/${params.category}`;
+  const safeCategory = sanitizePathSegment(params.category);
+  const dirPath = `${basePath}/${safeCategory}`;
   const exists = await adapter.exists(dirPath);
   if (!exists) return { files: [] };
   const files = await adapter.listDir(dirPath);
@@ -634,14 +646,15 @@ export async function createFandom(name: string, dataDir?: string) {
 }
 
 export async function listAus(fandomName: string, dataDir?: string) {
+  const safeFandomName = sanitizePathSegment(fandomName);
   const dd = dataDir ?? getDataDir();
   const { fandom } = getEngine().repos;
   const { adapter } = getEngine();
-  const auDirs = await fandom.list_aus(`${dd}/fandoms/${fandomName}`);
+  const auDirs = await fandom.list_aus(`${dd}/fandoms/${safeFandomName}`);
   // 过滤掉 project.yaml 已被 trash 的 AU（deleteAu 只 trash project.yaml）
   const validAus: string[] = [];
   for (const au of auDirs) {
-    if (await adapter.exists(`${dd}/fandoms/${fandomName}/aus/${au}/project.yaml`)) {
+    if (await adapter.exists(`${dd}/fandoms/${safeFandomName}/aus/${au}/project.yaml`)) {
       validAus.push(au);
     }
   }
@@ -666,9 +679,10 @@ export async function createAu(fandomName: string, auName: string, fandomPath: s
 }
 
 export async function deleteFandom(fandomDirName: string, dataDir?: string) {
+  const safeFandomDir = sanitizePathSegment(fandomDirName);
   const dd = dataDir ?? getDataDir();
   const { adapter } = getEngine();
-  const fandomRoot = `${dd}/fandoms/${fandomDirName}`;
+  const fandomRoot = `${dd}/fandoms/${safeFandomDir}`;
 
   // 先 trash 所有 AU 的 project.yaml（使 listAus 不再列出它们）
   const ausDir = `${fandomRoot}/aus`;
@@ -687,19 +701,22 @@ export async function deleteFandom(fandomDirName: string, dataDir?: string) {
 }
 
 export async function deleteAu(fandomDirName: string, auName: string, dataDir?: string) {
+  const safeFandomDir = sanitizePathSegment(fandomDirName);
+  const safeAuName = sanitizePathSegment(auName);
   const dd = dataDir ?? getDataDir();
   // AU 是目录——在 fandom 级别的 .trash/ 创建记录（这样 Library 的 TrashPanel 能看到）
-  const fandomRoot = `${dd}/fandoms/${fandomDirName}`;
+  const fandomRoot = `${dd}/fandoms/${safeFandomDir}`;
   const entry = await getEngine().trash.move_to_trash(
-    fandomRoot, `aus/${auName}/project.yaml`, "au", auName,
+    fandomRoot, `aus/${safeAuName}/project.yaml`, "au", safeAuName,
   );
   return { status: "ok", trash_id: entry.trash_id };
 }
 
 export async function listFandomFiles(fandomName: string, dataDir?: string) {
+  const safeFandomName = sanitizePathSegment(fandomName);
   const dd = dataDir ?? getDataDir();
   const { adapter } = getEngine();
-  const base = `${dd}/fandoms/${fandomName}`;
+  const base = `${dd}/fandoms/${safeFandomName}`;
   const readDir = async (sub: string) => {
     const dir = `${base}/${sub}`;
     if (!(await adapter.exists(dir))) return [];
@@ -710,9 +727,12 @@ export async function listFandomFiles(fandomName: string, dataDir?: string) {
 }
 
 export async function readFandomFile(fandomName: string, category: string, filename: string, dataDir?: string) {
+  const safeFandomName = sanitizePathSegment(fandomName);
+  const safeCategory = sanitizePathSegment(category);
+  const safeFilename = sanitizePathSegment(filename);
   const dd = dataDir ?? getDataDir();
   const { adapter } = getEngine();
-  const content = await adapter.readFile(`${dd}/fandoms/${fandomName}/${category}/${filename}`);
+  const content = await adapter.readFile(`${dd}/fandoms/${safeFandomName}/${safeCategory}/${safeFilename}`);
   return { filename, category, content };
 }
 
@@ -826,120 +846,10 @@ export async function updateChapterContent(auPath: string, chapterNum: number, c
 }
 
 // ===========================================================================
-// Import v2 API
+// Import v2 types (实际函数已拆分到 engine-import.ts，按需加载)
 // ===========================================================================
 
 export type { FileAnalysis, ImportPlan, ImportConflictOptions, NewImportResult, ImportProgress, AnalysisOptions };
-
-/**
- * 分析单个文件——检测对话格式 or 纯正文，返回分析结果。
- * 前端负责文件读取和格式转换（docx/html → 纯文本）。
- */
-export async function analyzeImportFile(
-  text: string,
-  filename: string,
-  options: AnalysisOptions = {},
-): Promise<FileAnalysis> {
-  // 如果用户开启了 AI 辅助但没传 provider，自动构建一个
-  if (options.useAiAssist && !options.llmProvider) {
-    try {
-      const { settings } = getEngine().repos;
-      const sett = await settings.get();
-      const llmConfig = resolve_llm_config(null, {}, sett as unknown as Record<string, unknown>);
-      if (llmConfig.mode === "api" && llmConfig.api_key) {
-        options = { ...options, llmProvider: create_provider(llmConfig) };
-      }
-    } catch {
-      // 无法构建 provider，禁用 AI 辅助
-      options = { ...options, useAiAssist: false };
-    }
-  }
-  const { analyzeFile } = await import("@ficforge/engine");
-  return analyzeFile(text, filename, options);
-}
-
-/**
- * 从分析结果构建导入计划（多文件接续、"续"合并、设定收集）。
- */
-export async function buildImportPlanFromAnalyses(
-  analyses: FileAnalysis[],
-  conflictOptions: ImportConflictOptions,
-): Promise<ImportPlan> {
-  const { buildImportPlan } = await import("@ficforge/engine");
-  return buildImportPlan(analyses, conflictOptions);
-}
-
-/**
- * 执行导入计划——写入章节、设定、ops，更新 state。
- */
-export async function executeImportPlan(
-  plan: ImportPlan,
-  auPath: string,
-  onProgress?: (progress: ImportProgress) => void,
-  locale?: "zh" | "en",
-): Promise<NewImportResult> {
-  const { executeImport } = await import("@ficforge/engine");
-  const { adapter, repos, trash } = getEngine();
-  return executeImport(plan, {
-    auId: auPath,
-    chapterRepo: repos.chapter,
-    stateRepo: repos.state,
-    opsRepo: repos.ops,
-    adapter,
-    trashService: trash,
-    onProgress,
-    locale,
-  });
-}
-
-/**
- * 获取 AU 已有章节数（用于冲突检测）。
- */
-export async function getExistingChapterNums(auPath: string): Promise<number[]> {
-  const { chapter } = getEngine().repos;
-  const chapters = await chapter.list_main(auPath);
-  return chapters.map(c => c.chapter_num).sort((a, b) => a - b);
-}
-
-// ===========================================================================
-// Legacy Import functions (backward-compatible)
-// ===========================================================================
-
-export async function uploadImportFile(file: File): Promise<import("./importExport").ImportUploadResponse> {
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  if (ext === "docx") {
-    throw Object.assign(new Error("DOCX import is not supported in the local app yet."), {
-      error_code: "UNSUPPORTED_IMPORT_FORMAT",
-    });
-  }
-
-  const rawText = await file.text();
-  const text = ext === "html" || ext === "htm" ? parse_html(rawText) : rawText;
-  const chapters = split_into_chapters(text);
-  const { get_split_method } = await import("@ficforge/engine");
-  return {
-    chapters: chapters.map((c) => ({ chapter_num: c.chapter_num, title: c.title, preview: c.content.slice(0, 100) })),
-    split_method: get_split_method(text),
-    total_chapters: chapters.length,
-  };
-}
-
-export async function confirmImport(params: {
-  au_path: string;
-  chapters: { chapter_num: number; title: string; content: string }[];
-  split_method?: string;
-}) {
-  const { chapter, state, ops } = getEngine().repos;
-  const result = await engineImportChapters({
-    au_id: params.au_path,
-    chapters: params.chapters.map((c) => ({ chapter_num: c.chapter_num, title: c.title, content: c.content })),
-    chapter_repo: chapter,
-    state_repo: state,
-    ops_repo: ops,
-    split_method: params.split_method,
-  });
-  return result;
-}
 
 // ===========================================================================
 // Lore: importFromFandom
@@ -954,12 +864,13 @@ export async function importFromFandom(req: {
   const { adapter } = getEngine();
   const imported: string[] = [];
   const skipped: string[] = [];
-  const srcCat = req.source_category ?? "core_characters";
+  const srcCat = sanitizePathSegment(req.source_category ?? "core_characters");
 
   for (const filename of req.filenames) {
-    const srcPath = `${req.fandom_path}/${srcCat}/${filename}`;
+    const safeFilename = sanitizePathSegment(filename);
+    const srcPath = `${req.fandom_path}/${srcCat}/${safeFilename}`;
     const destCat = srcCat === "core_characters" ? "characters" : "worldbuilding";
-    const destPath = `${req.au_path}/${destCat}/${filename}`;
+    const destPath = `${req.au_path}/${destCat}/${safeFilename}`;
 
     if (await adapter.exists(destPath)) {
       skipped.push(filename);
@@ -989,110 +900,8 @@ export async function getLoreContent(params: { category: string; filename: strin
 }
 
 // ===========================================================================
-// Sync
+// Sync (实际函数已拆分到 engine-sync.ts，按需加载)
 // ===========================================================================
 
-export interface WebDAVConfig {
-  url: string;
-  username: string;
-  password: string;
-  remote_dir: string;
-}
-
-export interface AggregatedSyncResult {
-  synced: boolean;
-  fileConflicts: { path: string; auPath: string; localModified?: string; remoteModified?: string }[];
-  opsConflicts: string[];
-  opsAdded: number;
-  filesPushed: number;
-  filesPulled: number;
-  errors: string[];
-}
-
-/** 从本地绝对路径提取远端相对路径。去掉 dataDir 前缀，只保留 fandoms/xxx/aus/yyy */
-function toRemoteAuPath(localAuPath: string, dataDir: string): string {
-  let rel = localAuPath;
-  if (dataDir && rel.startsWith(dataDir)) {
-    rel = rel.slice(dataDir.length);
-  }
-  // 去掉开头的 / 或 \
-  return rel.replace(/^[/\\]+/, "").replace(/\\/g, "/");
-}
-
-export async function syncAllAus(webdavConfig: WebDAVConfig): Promise<AggregatedSyncResult> {
-  const { SyncManager, WebDAVSyncAdapter } = await import("@ficforge/engine");
-  const { adapter, repos } = getEngine();
-  const dd = getDataDir();
-  const baseUrl = webdavConfig.url.replace(/\/+$/, '') + webdavConfig.remote_dir;
-  const syncAdapter = new WebDAVSyncAdapter(baseUrl, webdavConfig.username, webdavConfig.password);
-  const syncManager = new SyncManager(adapter, repos.ops, repos.state, syncAdapter);
-
-  const agg: AggregatedSyncResult = {
-    synced: true, fileConflicts: [], opsConflicts: [],
-    opsAdded: 0, filesPushed: 0, filesPulled: 0, errors: [],
-  };
-
-  try {
-    const fandoms = await listFandoms(dd);
-    for (const fandom of fandoms) {
-      for (const auName of fandom.aus) {
-        const localPath = `${dd}/fandoms/${fandom.dir_name}/aus/${auName}`;
-        const remotePath = toRemoteAuPath(localPath, dd);
-        try {
-          const result: SyncResult = await syncManager.sync(localPath, remotePath);
-          if (!result.synced) {
-            agg.errors.push(`${fandom.name}/${auName}: ${result.conflicts.map(c => c.description).join('; ')}`);
-          }
-          // S4: 收集 ops 冲突（非 sync_error 类型的 conflicts）
-          for (const c of result.conflicts) {
-            if (c.type !== "sync_error") {
-              agg.opsConflicts.push(`${fandom.name}/${auName}: ${c.description}`);
-            }
-          }
-          agg.opsAdded += result.opsAdded;
-          agg.filesPushed += result.filesPushed;
-          agg.filesPulled += result.filesPulled;
-          for (const fc of result.fileConflicts) {
-            agg.fileConflicts.push({ ...fc, auPath: localPath });
-          }
-        } catch (e) {
-          agg.errors.push(`${fandom.name}/${auName}: ${String(e)}`);
-        }
-      }
-    }
-    if (agg.errors.length > 0 && agg.fileConflicts.length === 0) {
-      agg.synced = false;
-    }
-  } catch (e) {
-    agg.synced = false;
-    agg.errors.push(String(e));
-  }
-
-  return agg;
-}
-
-export async function resolveFileConflict(
-  auPath: string,
-  filePath: string,
-  choice: "local" | "remote",
-  webdavConfig: WebDAVConfig,
-): Promise<void> {
-  const { WebDAVSyncAdapter } = await import("@ficforge/engine");
-  const { adapter } = getEngine();
-  const dd = getDataDir();
-  const baseUrl = webdavConfig.url.replace(/\/+$/, '') + webdavConfig.remote_dir;
-  const syncAdapter = new WebDAVSyncAdapter(baseUrl, webdavConfig.username, webdavConfig.password);
-
-  const localFullPath = `${auPath}/${filePath}`;
-  // 远端路径用相对路径
-  const remoteAuPath = toRemoteAuPath(auPath, dd);
-  const remotePath = `${remoteAuPath}/${filePath}`;
-
-  if (choice === "local") {
-    const localContent = await adapter.readFile(localFullPath);
-    await syncAdapter.pushFile(remotePath, localContent);
-  } else {
-    const remoteContent = await syncAdapter.pullFile(remotePath);
-    await adapter.writeFile(localFullPath, remoteContent);
-  }
-}
+// Types only — 不 re-export 函数值，避免循环依赖
+export type { WebDAVConfig, AggregatedSyncResult } from "./engine-sync";

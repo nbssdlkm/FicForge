@@ -117,7 +117,8 @@ export function FileSelectStep({
                     type="button"
                     onClick={() => moveFile(index, -1)}
                     disabled={index === 0}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded text-text/30 hover:text-text/60 disabled:opacity-20"
+                    aria-label={t("import.moveUp")}
+                    className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-text/30 hover:text-text/60 disabled:opacity-20"
                   >
                     <ChevronUp size={14} />
                   </button>
@@ -125,7 +126,8 @@ export function FileSelectStep({
                     type="button"
                     onClick={() => moveFile(index, 1)}
                     disabled={index === files.length - 1}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded text-text/30 hover:text-text/60 disabled:opacity-20"
+                    aria-label={t("import.moveDown")}
+                    className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-text/30 hover:text-text/60 disabled:opacity-20"
                   >
                     <ChevronDown size={14} />
                   </button>
@@ -139,7 +141,8 @@ export function FileSelectStep({
                 <button
                   type="button"
                   onClick={() => removeFile(index)}
-                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-text/30 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+                  aria-label={t("import.removeFile")}
+                  className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-md text-text/30 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
                 >
                   <X size={14} />
                 </button>

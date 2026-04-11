@@ -67,7 +67,7 @@ export function TurnCard({ turn, currentChapterNum, hasPreviousChapter, onChange
         <select
           value={turn.assignedType}
           onChange={(e) => onChangeType(turn.index, e.target.value as AssignedType)}
-          className="h-9 rounded-md border border-black/15 bg-background px-2 text-xs outline-none focus:ring-2 focus:ring-accent dark:border-white/15 md:h-7"
+          className="min-h-[44px] rounded-md border border-black/15 bg-background px-2 text-xs outline-none focus:ring-2 focus:ring-accent dark:border-white/15 md:h-7 md:min-h-0"
         >
           {options.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -78,7 +78,8 @@ export function TurnCard({ turn, currentChapterNum, hasPreviousChapter, onChange
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-text/40 hover:bg-black/5 dark:hover:bg-white/5 md:h-7 md:w-7"
+          aria-label={expanded ? t("import.collapse") : t("import.expand")}
+          className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-md text-text/40 hover:bg-black/5 dark:hover:bg-white/5 md:h-7 md:w-7 md:min-h-0 md:min-w-0"
         >
           {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>

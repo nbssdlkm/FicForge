@@ -8,7 +8,7 @@ FicForge supports syncing data between desktop and mobile devices, so you can bu
 
 ### How It Works
 
-Place your AU data directory inside a cloud sync folder (OneDrive / Dropbox / iCloud). Each device syncs files through the cloud client. FicForge detects changes on startup and merges automatically.
+Place your AU data directory inside a cloud sync folder (OneDrive / Dropbox / iCloud). Each device syncs files through the cloud client. Go to Settings → Data Sync and click "Sync Now" to sync manually.
 
 ### Steps
 

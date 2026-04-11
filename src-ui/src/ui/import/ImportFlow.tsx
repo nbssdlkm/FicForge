@@ -17,7 +17,7 @@ import {
   type ImportConflictOptions,
   type NewImportResult,
   type ImportProgress,
-} from "../../api/engine-client";
+} from "../../api/engine-import";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { useFeedback } from "../../hooks/useFeedback";
 

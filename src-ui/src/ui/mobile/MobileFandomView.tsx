@@ -93,6 +93,7 @@ export function MobileFandomView({ fandomPath, onNavigate }: MobileFandomViewPro
       setSavedContent(result.content);
     } catch (error) {
       if (requestId !== readRequestRef.current) return;
+      showError(error, t("error_messages.unknown"));
       setSelectedFile(null);
     } finally {
       if (requestId === readRequestRef.current) setReadingFile(false);
