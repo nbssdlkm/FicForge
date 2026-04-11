@@ -42,8 +42,7 @@ if (!i18n.isInitialized) {
 }
 
 /**
- * Switch UI language and persist the choice to localStorage.
- * TODO: Task B — sync language to backend settings.yaml for prompt language selection.
+ * Switch UI language and persist to localStorage + settings.yaml (for engine prompt language).
  */
 export async function changeLanguage(lang: AppLanguage): Promise<void> {
   await i18n.changeLanguage(lang);
@@ -51,6 +50,13 @@ export async function changeLanguage(lang: AppLanguage): Promise<void> {
     localStorage.setItem("ficforge_language", lang);
   } catch {
     // ignore
+  }
+  // 同步到 settings.yaml 供引擎侧 prompt 选择语言
+  try {
+    const { updateSettings } = await import("./api/engine-client");
+    await updateSettings({ app: { language: lang } });
+  } catch {
+    // 引擎未初始化时忽略（如引导页首次选语言）
   }
 }
 

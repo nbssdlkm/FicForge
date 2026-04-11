@@ -3,6 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { BookOpenText, LibraryBig, PenSquare, SlidersHorizontal } from "lucide-react";
+import { useTranslation } from "../../i18n/useAppTranslation";
 import { cn } from "../shared/utils";
 
 export type MobileWorkspaceTab = "chapters" | "writer" | "settings" | "manage";
@@ -12,22 +13,30 @@ interface BottomNavBarProps {
   onTabChange: (tab: MobileWorkspaceTab) => void;
 }
 
-const tabs = [
-  { id: "chapters", label: "章节", Icon: BookOpenText },
-  { id: "writer", label: "写作", Icon: PenSquare },
-  { id: "settings", label: "设定", Icon: LibraryBig },
-  { id: "manage", label: "管理", Icon: SlidersHorizontal },
-] as const satisfies ReadonlyArray<{
-  id: MobileWorkspaceTab;
-  label: string;
-  Icon: typeof BookOpenText;
-}>;
+const TAB_ICONS = {
+  chapters: BookOpenText,
+  writer: PenSquare,
+  settings: LibraryBig,
+  manage: SlidersHorizontal,
+} as const;
+
+const TAB_IDS: MobileWorkspaceTab[] = ["chapters", "writer", "settings", "manage"];
 
 export function BottomNavBar({ activeTab, onTabChange }: BottomNavBarProps) {
+  const { t } = useTranslation();
+
+  const tabLabels: Record<MobileWorkspaceTab, string> = {
+    chapters: t("navigation.chapters"),
+    writer: t("navigation.mobileWriter"),
+    settings: t("navigation.mobileSettings"),
+    manage: t("navigation.manage"),
+  };
+
   return (
     <nav className="safe-area-bottom safe-area-x fixed inset-x-0 bottom-0 z-40 border-t border-black/10 bg-surface/95 backdrop-blur md:hidden dark:border-white/10">
       <div className="grid grid-cols-4 gap-1 px-2 py-2">
-        {tabs.map(({ id, label, Icon }) => {
+        {TAB_IDS.map((id) => {
+          const Icon = TAB_ICONS[id];
           const active = activeTab === id;
           return (
             <button
@@ -42,7 +51,7 @@ export function BottomNavBar({ activeTab, onTabChange }: BottomNavBarProps) {
               )}
             >
               <Icon size={18} className="mb-1" />
-              <span>{label}</span>
+              <span>{tabLabels[id]}</span>
             </button>
           );
         })}

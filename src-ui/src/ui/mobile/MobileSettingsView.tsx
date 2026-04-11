@@ -57,7 +57,7 @@ export function MobileSettingsView({ auPath, currentChapter }: MobileSettingsVie
           onClick={() => setOverlayOpen(true)}
         >
           <Sparkles size={16} className="mr-2" />
-          AI 助手
+          {t("settingsMode.title")}
         </Button>
       </div>
 
@@ -71,7 +71,7 @@ export function MobileSettingsView({ auPath, currentChapter }: MobileSettingsVie
               onClick={() => setOverlayOpen(false)}
             >
               <ArrowLeft size={16} className="mr-2" />
-              返回
+              {t("common.actions.back")}
             </Button>
             <h2 className="text-base font-semibold text-text">{t("settingsMode.title")}</h2>
             <div className="w-[68px]" />

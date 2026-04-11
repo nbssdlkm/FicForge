@@ -69,7 +69,9 @@ export function coerceStringArray(value: unknown): string[] {
 
 export function normalizeMarkdownFilename(value: string): string {
   const trimmed = value.trim().replace(/\.md$/i, "");
-  return `${trimmed || "untitled"}.md`;
+  // 防止路径穿越
+  const safe = trimmed.replace(/[\/\\]/g, "").replace(/\.\./g, "").replace(/^\.+/, "").trim();
+  return `${safe || "untitled"}.md`;
 }
 
 function hasUsableMarkdownStem(value: unknown): boolean {

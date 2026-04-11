@@ -136,7 +136,11 @@
     "facts": "剧情笔记",
     "settings": "故事设置",
     "writer": "正文与草稿",
-    "workspace": "AU 工作台"
+    "workspace": "AU 工作台",
+    "chapters": "章节",
+    "manage": "管理",
+    "mobileWriter": "写作",
+    "mobileSettings": "设定"
   },
   "library": {
     "title": "作品库",
@@ -1166,6 +1170,15 @@
       "keepLocal": "保留本设备",
       "keepRemote": "保留其他",
       "keepAllLocal": "全部保留本设备"
+    }
+  },
+  "mobile": {
+    "chapters": {
+      "hint": "点击章节进入阅读或继续编辑。",
+      "emptyTitle": "还没有章节",
+      "emptyDesc": "先进入写作页生成第一章。",
+      "startWriting": "开始写作",
+      "untitled": "未命名章节"
     }
   }
 }

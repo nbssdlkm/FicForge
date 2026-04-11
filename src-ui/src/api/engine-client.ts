@@ -501,10 +501,21 @@ export async function importChaptersFromText(auPath: string, text: string, split
 // Lore (file read/write via PlatformAdapter)
 // ===========================================================================
 
+/** 防止路径穿越：去除 / \ .. 和开头的点 */
+function sanitizeFilename(name: string): string {
+  return name
+    .replace(/[\/\\]/g, "")
+    .replace(/\.\./g, "")
+    .replace(/^\.+/, "")
+    .trim();
+}
+
 export async function saveLore(req: { au_path?: string; fandom_path?: string; category: string; filename: string; content: string }) {
   const { adapter } = getEngine();
   const basePath = req.au_path ?? req.fandom_path ?? "";
-  const filePath = `${basePath}/${req.category}/${req.filename}`;
+  const safeFilename = sanitizeFilename(req.filename);
+  if (!safeFilename) throw new Error("Invalid filename");
+  const filePath = `${basePath}/${req.category}/${safeFilename}`;
   const dir = filePath.substring(0, filePath.lastIndexOf("/"));
   await adapter.mkdir(dir);
   await adapter.writeFile(filePath, req.content);
@@ -514,14 +525,18 @@ export async function saveLore(req: { au_path?: string; fandom_path?: string; ca
 export async function readLore(req: { au_path?: string; fandom_path?: string; category: string; filename: string }) {
   const { adapter } = getEngine();
   const basePath = req.au_path ?? req.fandom_path ?? "";
-  const filePath = `${basePath}/${req.category}/${req.filename}`;
+  const safeFilename = sanitizeFilename(req.filename);
+  if (!safeFilename) throw new Error("Invalid filename");
+  const filePath = `${basePath}/${req.category}/${safeFilename}`;
   const content = await adapter.readFile(filePath);
   return { content };
 }
 
 export async function deleteLore(req: { au_path?: string; fandom_path?: string; category: string; filename: string }) {
   const basePath = req.au_path ?? req.fandom_path ?? "";
-  const relativePath = `${req.category}/${req.filename}`;
+  const safeFilename = sanitizeFilename(req.filename);
+  if (!safeFilename) throw new Error("Invalid filename");
+  const relativePath = `${req.category}/${safeFilename}`;
   const entry = await getEngine().trash.move_to_trash(basePath, relativePath, "lore_file", req.filename);
   return { status: "ok", trash_id: entry.trash_id, deleted: relativePath };
 }
@@ -556,12 +571,14 @@ export async function sendSettingsChat(params: {
   const { settings } = getEngine().repos;
   const sett = await settings.get();
 
+  const lang = sett.app?.language || "zh";
   const assembled = await build_settings_context({
     mode: params.mode as "au" | "fandom",
     base_path: params.base_path,
     fandom_path: params.fandom_path,
     messages: params.messages,
     adapter,
+    language: lang,
   });
 
   const llmConfig = resolve_llm_config(
@@ -743,9 +760,10 @@ export async function extractFacts(auPath: string, chapterNum: number) {
   const llmConfig = resolve_llm_config(null, proj as { llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } }, sett as { default_llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } });
   if (llmConfig.mode !== "api") throw new Error("Facts 提取需要 API 模式的 LLM 配置");
   const provider = create_provider(llmConfig);
+  const lang = sett.app?.language || "zh";
   const facts = await extract_facts_from_chapter(
     chapterContent, chapterNum, existingFacts,
-    proj.cast_registry, null, provider, llmConfig,
+    proj.cast_registry, null, provider, llmConfig, undefined, lang,
   );
   return { facts };
 }

@@ -4,6 +4,7 @@
 
 import { BookOpen, ChevronRight, Loader2 } from "lucide-react";
 import type { ChapterInfo } from "../../api/engine-client";
+import { useTranslation } from "../../i18n/useAppTranslation";
 import { Button } from "../shared/Button";
 import { EmptyState } from "../shared/EmptyState";
 import { cn } from "../shared/utils";
@@ -25,12 +26,14 @@ export function MobileChapterList({
   onSelectChapter,
   onStartWriting,
 }: MobileChapterListProps) {
+  const { t } = useTranslation();
+
   return (
     <section className="flex min-h-full flex-col bg-background md:hidden">
       <header className="safe-area-top border-b border-black/10 bg-surface/80 px-4 py-4 backdrop-blur dark:border-white/10">
-        <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-text/40">章节</p>
+        <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-text/40">{t("navigation.chapters")}</p>
         <h1 className="mt-1 truncate font-serif text-2xl font-bold text-text">{auName}</h1>
-        <p className="mt-1 text-sm text-text/55">点击章节进入阅读或继续编辑。</p>
+        <p className="mt-1 text-sm text-text/55">{t("mobile.chapters.hint")}</p>
       </header>
 
       <div className="flex-1 space-y-3 px-4 py-4">
@@ -41,12 +44,12 @@ export function MobileChapterList({
         ) : chapters.length === 0 ? (
           <EmptyState
             icon={<BookOpen size={42} />}
-            title="还没有章节"
-            description="先进入写作页生成第一章。"
+            title={t("mobile.chapters.emptyTitle")}
+            description={t("mobile.chapters.emptyDesc")}
             actions={[
               {
                 key: "start-writing",
-                element: <Button onClick={onStartWriting}>开始写作</Button>,
+                element: <Button onClick={onStartWriting}>{t("mobile.chapters.startWriting")}</Button>,
               },
             ]}
           />
@@ -65,10 +68,10 @@ export function MobileChapterList({
             >
               <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text/45">
-                  第 {chapter.chapter_num} 章
+                  {t("import.chapterPreview", { num: chapter.chapter_num })}
                 </p>
                 <p className="mt-1 truncate text-base font-medium text-current">
-                  {chapter.title?.trim() || "未命名章节"}
+                  {chapter.title?.trim() || t("mobile.chapters.untitled")}
                 </p>
               </div>
               <ChevronRight size={18} className="shrink-0 opacity-55" />

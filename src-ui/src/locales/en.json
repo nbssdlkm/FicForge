@@ -136,7 +136,11 @@
     "facts": "Plot Points",
     "settings": "Story Settings",
     "writer": "Chapters & Drafts",
-    "workspace": "AU Workspace"
+    "workspace": "AU Workspace",
+    "chapters": "Chapters",
+    "manage": "Manage",
+    "mobileWriter": "Write",
+    "mobileSettings": "Lore"
   },
   "library": {
     "title": "Library",
@@ -1166,6 +1170,15 @@
       "keepLocal": "Keep local",
       "keepRemote": "Keep remote",
       "keepAllLocal": "Keep all local"
+    }
+  },
+  "mobile": {
+    "chapters": {
+      "hint": "Tap a chapter to read or continue editing.",
+      "emptyTitle": "No chapters yet",
+      "emptyDesc": "Go to the Write tab to generate your first chapter.",
+      "startWriting": "Start Writing",
+      "untitled": "Untitled chapter"
     }
   }
 }
