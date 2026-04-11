@@ -376,6 +376,8 @@ export async function confirmChapter(
           },
         }));
         const ve = getEngine().vectorEngine;
+        // Load existing index first to avoid overwriting old chunks (R5-F7)
+        try { await ve.load(`${auPath}/.vectors`); } catch { /* no existing index */ }
         await ve.index_chunks(vectorChunks);
         await ve.persist(`${auPath}/.vectors`);
       }
@@ -905,7 +907,7 @@ export async function deletePinned(auPath: string, index: number) {
 // ===========================================================================
 
 export async function updateChapterContent(auPath: string, chapterNum: number, content: string) {
-  const { chapter, state } = getEngine().repos;
+  const { chapter, state, ops } = getEngine().repos;
   const ch = await chapter.get(auPath, chapterNum);
   ch.content = content;
   const { compute_content_hash } = await import("@ficforge/engine");
@@ -919,6 +921,14 @@ export async function updateChapterContent(auPath: string, chapterNum: number, c
     st.chapters_dirty.push(chapterNum);
     await state.save(st);
   }
+  // Write op so cross-device rebuild can project chapters_dirty (R5-F4)
+  await ops.append(auPath, createOpsEntry({
+    op_id: generate_op_id(),
+    op_type: "mark_chapters_dirty",
+    target_id: auPath,
+    timestamp: now_utc(),
+    payload: { chapters_dirty: [...st.chapters_dirty] },
+  }));
   return { chapter_num: chapterNum, content_hash: ch.content_hash, provenance: ch.provenance, revision: ch.revision };
 }
 
