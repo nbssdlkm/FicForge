@@ -2,8 +2,8 @@
   "common": {
     "appName": "FicForge",
     "none": "无",
-    "unknownAu": "未命名 AU",
-    "unknownFandom": "未命名原作",
+    "unknownAu": "未命名AU",
+    "unknownFandom": "未命名Fandom",
     "listSeparator": "、",
     "labelColon": "：",
     "listComma": "，",
@@ -30,10 +30,10 @@
       "saveToStory": "记住到本篇",
       "viewGlobalSettings": "查看全局设置",
       "testConnection": "测试连接",
-      "createFandom": "+ 创建 Fandom",
-      "createAu": "+ 创建 AU",
+      "createFandom": "+ 创建Fandom",
+      "createAu": "+ 创建AU",
       "importOldWork": "📥 导入旧文",
-      "importFromFandom": "📥 从原作导入",
+      "importFromFandom": "📥 从Fandom导入",
       "importSelected": "导入选中的角色",
       "importAll": "全部记下",
       "addCharacter": "+ 添加角色",
@@ -62,7 +62,7 @@
     "labels": {
       "model": "模型",
       "localModelPath": "本地模型路径",
-      "ollamaModel": "Ollama 模型名",
+      "ollamaModel": "Ollama模型名",
       "apiBase": "接口地址",
       "apiKey": "密钥",
       "contextWindow": "一次能读多少字 (context window)",
@@ -71,7 +71,7 @@
       "displayName": "标准译名",
       "aliases": "别名",
       "contentRaw": "原文摘录",
-      "contentClean": "AI 参考文本",
+      "contentClean": "AI参考文本",
       "characters": "角色",
       "worldbuilding": "世界观",
       "storyTime": "故事时间",
@@ -89,21 +89,21 @@
       "currentDraft": "草稿 {{label}}"
     },
     "help": {
-      "searchEngineModel": "AI 用这个模型来查找和你写的内容相关的设定。换了模型需要重新处理一遍所有设定，大约需要几分钟。",
-      "contextWindow": "AI 每次续写时能参考的最大文字量。数字越大，AI 能记住的前文和设定越多。大部分模型是 128k（约10万字），一般不用改。",
-      "apiBase": "你的 AI 服务商提供的地址，比如 DeepSeek 就填 https://api.deepseek.com",
-      "apiKey": "在你的 AI 服务商网站上获取，类似一串密码，用来验证你的身份",
+      "searchEngineModel": "该模型用于查找内容相关的设定。如更换模型，则需要重新处理所有设定，大约需要几分钟。",
+      "contextWindow": "AI每次续写时能参考的最大文字量。数字越大，AI能记住的前文和设定越多。大部分模型是128k（约10万字），一般不用改。",
+      "apiBase": "你的AI服务商提供的地址，比如DeepSeek就填 https://api.deepseek.com",
+      "apiKey": "在你的AI服务商网站上获取，类似一串密码，用来验证你的身份",
       "localModelPath": "填写本地模型文件所在目录，用来让程序找到你的模型。",
-      "ollamaModel": "填写你本机 Ollama 已经拉取好的模型名，比如 llama3。",
+      "ollamaModel": "填写你本机Ollama已经拉取好的模型名，比如llama3。",
       "llmMode": {
         "api": "在线API：最简单，填密钥就能用",
         "local": "本地模型：不联网，需要自己下载模型文件",
         "ollama": "Ollama：如果你已经在用 Ollama，可以直接接入"
       },
       "chapterLength": "控制单次续写时的目标字数。",
-      "pinnedContext": "写作底线是 AI 绝对不能违反的规则，比如角色关系、秘密和性格底线。",
+      "pinnedContext": "写作底线是AI绝对不能违反的规则，比如角色关系、秘密和性格底线。",
       "coreAlwaysInclude": "这些角色会在每次续写时优先被参考。",
-      "currentChapterFocus": "把想推进的剧情节点设成重点，AI 这章会更集中去写。"
+      "currentChapterFocus": "把想推进的剧情笔记设成重点，AI这章会更集中去写。"
     },
     "search": {
       "files": "搜索文件或别称…",
@@ -111,7 +111,7 @@
       "facts": "搜索剧情笔记或关联角色…"
     },
     "scope": {
-      "fandomTitle": "原作：{{name}}",
+      "fandomTitle": "Fandom：{{name}}",
       "auTitle": "AU：{{name}}"
     }
   },
@@ -131,12 +131,12 @@
   },
   "navigation": {
     "library": "作品库",
-    "fandomLore": "原作资料",
+    "fandomLore": "Fandom资料",
     "auLore": "本篇设定",
     "facts": "剧情笔记",
     "settings": "故事设置",
     "writer": "正文与草稿",
-    "workspace": "AU 工作台",
+    "workspace": "AU工作台",
     "chapters": "章节",
     "manage": "管理",
     "mobileWriter": "写作",
@@ -145,43 +145,43 @@
   "library": {
     "title": "作品库",
     "loading": "加载作品库…",
-    "fandomButton": "新建 Fandom 母树",
-    "fandomSectionButton": "原作资料",
-    "createAuButton": "新建衍生 AU",
-    "importOldWorkHint": "旧文导入流程还没接到这个入口上，先创建 Fandom 或 AU 也可以继续整理。",
-    "deleteFandomTitle": "确认删除原作",
-    "deleteAuTitle": "确认删除 AU",
-    "deleteFandomMessage": "确定要删除原作「{{name}}」及其所有 AU 数据吗？将移入垃圾箱，30 天内可恢复。",
-    "deleteAuMessage": "确定要删除 AU「{{name}}」及其全部章节和设定吗？将移入垃圾箱，30 天内可恢复。",
-    "emptyAuList": "这个原作下还没有 AU。",
+    "fandomButton": "新建Fandom",
+    "fandomSectionButton": "Fandom资料",
+    "createAuButton": "新建衍生AU",
+    "importOldWorkHint": "旧文导入流程还没接到这个入口上，先创建Fandom或AU也可以继续整理。",
+    "deleteFandomTitle": "确认删除Fandom",
+    "deleteAuTitle": "确认删除AU",
+    "deleteFandomMessage": "确定要删除Fandom「{{name}}」及其所有AU数据吗？将移入垃圾箱，30天内可恢复。",
+    "deleteAuMessage": "确定要删除AU「{{name}}」及其全部章节和设定吗？将移入垃圾箱，30天内可恢复。",
+    "emptyAuList": "这个Fandom下还没有AU。",
     "cardType": "AU",
     "createFandomModal": {
-      "title": "新建原作",
-      "description": "输入原作名称，先把这篇同人的原作资料建起来。",
-      "namePlaceholder": "原作名称（如：底特律：变人）",
-      "notesPlaceholder": "可选：贴入原作设定、资料链接或你自己的整理笔记。",
-      "submit": "建立原作"
+      "title": "新建Fandom",
+      "description": "输入Fandom名称，先把这篇同人的Fandom资料建起来。",
+      "namePlaceholder": "Fandom名称（如：底特律：变人）",
+      "notesPlaceholder": "可选：贴入Fandom设定、资料链接或你自己的整理笔记。",
+      "submit": "建立Fandom"
     },
     "createAuModal": {
-      "title": "新建 AU",
-      "description": "给这篇文起一个 AU 名字，后续剧情笔记和设定都会记在这里。",
-      "namePlaceholder": "AU 名称（如：星际皇室）",
-      "inheritLabel": "所属原作",
+      "title": "新建AU",
+      "description": "给这篇文起一个AU名字，后续剧情笔记和设定都会记在这里。",
+      "namePlaceholder": "AU名称（如：星际皇室）",
+      "inheritLabel": "所属Fandom",
       "initLabel": "起步方式",
       "initGlobal": "先沿用当前默认设置",
       "initCustom": "之后再单独调整本篇设置",
       "submit": "立即开始这条世界线"
     },
-    "apiWarning": "AI 服务未配置，续写功能不可用",
+    "apiWarning": "AI服务未配置，续写功能不可用",
     "apiWarningAction": "去配置",
     "importFlow": {
       "title": "导入旧文",
-      "description": "旧文导入会先给你建一个原作和 AU，再把正文放进去。现在先从创建 Fandom 开始，后面的章节导入再接着做。",
-      "start": "先创建 Fandom"
+      "description": "旧文导入会先给你建一个Fandom和AU，再把正文放进去。现在先从创建Fandom开始，后面的章节导入再接着做。",
+      "start": "先创建Fandom"
     }
   },
   "workspace": {
-    "subtitle": "AU 工作台",
+    "subtitle": "AU工作台",
     "chaptersTitle": "章节列表",
     "chapterItem": "第 {{num}} 章",
     "mobileTabs": {
@@ -195,10 +195,10 @@
     "inputPlaceholder": "输入指令（如：让角色道歉），或留空直接续写…",
     "factsShortcut": "剧情笔记",
     "focusTitle": "本章要推的线",
-    "focusHint": "从「待填坑」笔记中选择本章要重点推进的剧情线，会高优先级注入 AI 上下文",
+    "focusHint": "从「待填坑」笔记中选择本章要重点推进的剧情线，会高优先级注入AI上下文",
     "freeWrite": "自由发挥",
-    "memoryPanel": "AI 记忆一览",
-    "memoryPanelHint": "续写一次后显示实际 token 分配",
+    "memoryPanel": "AI记忆一览",
+    "memoryPanelHint": "续写一次后显示实际token分配",
     "memoryTotal": "合计 {{tokens}} tokens",
     "expandToolbar": "展开工具栏",
     "collapseToolbar": "收起工具栏",
@@ -233,7 +233,7 @@
     "cancelEdit": "取消",
     "chapterTitleLabel": "章节标题",
     "chapterTitlePlaceholder": "为这一章起个名字（选填，可留空）",
-    "chapterTitleAutoHint": "留空将由 AI 自动生成标题",
+    "chapterTitleAutoHint": "留空将由AI自动生成标题",
     "editSaveSuccess": "章节已更新，需要重新整理剧情笔记。",
     "saveGlobalSuccess": "这组参数已经记到全局设置里了。",
     "saveAuSuccess": "这组参数已经记到本篇设置里了。",
@@ -241,14 +241,14 @@
     "modeSettings": "📋 改设定"
   },
   "settingsMode": {
-    "title": "AI 设定助手",
+    "title": "AI设定助手",
     "tabWrite": "✍️ 写文",
     "tabSettings": "📋 改设定",
     "placeholder": "描述你想要的设定变更…（受模型能力限制，建议一次只生成一份设定文件）",
     "fandomPlaceholder": "粘贴你对角色的理解，或描述想要添加的角色和世界观…（受模型能力限制，建议一次只生成一份设定文件）",
     "send": "发送",
     "expandComposer": "展开输入框",
-    "firstTimeTooltip": "在这里，你可以用自然语言描述设定需求，AI 会帮你创建和修改角色、世界观、剧情笔记等。所有变更需要你确认后才会生效。",
+    "firstTimeTooltip": "在这里，你可以用自然语言描述设定需求，AI会帮你创建和修改角色、世界观、剧情笔记等。所有变更需要你确认后才会生效。",
     "confirmAll": "✅ 全部确认",
     "skipAll": "⏭️ 全部跳过",
     "confirm": "✅ 确认",
@@ -268,20 +268,20 @@
     "importAsWorldbuilding": "🌍 导入为世界观",
     "sendAsInstruction": "💬 作为普通指令发送",
     "actionInProgress": "有操作正在执行，请等待完成。",
-    "fandomAiTitle": "🤖 AI 助手",
+    "fandomAiTitle": "🤖AI助手",
     "userLabel": "用户",
     "assistantLabel": "AI",
     "emptyAssistant": "我先把你的设定需求整理成可确认的变更。",
     "emptyTitle": "改设定模式已经准备好",
-    "emptyDescription": "描述你想调整的人设、世界观、剧情笔记或写作底线，AI 会先给你一份待确认的变更清单。",
-    "fandomEmptyTitle": "AI 助手已经准备好",
-    "fandomEmptyDescription": "可以直接贴角色分析或世界观笔记，AI 会帮你整理成原作资料文件。",
+    "emptyDescription": "描述你想调整的人设、世界观、剧情笔记或写作底线，AI会先给你一份待确认的变更清单。",
+    "fandomEmptyTitle": "AI助手已经准备好",
+    "fandomEmptyDescription": "可以直接贴角色分析或世界观笔记，AI会帮你整理成Fandom资料文件。",
     "parseErrorTitle": "参数解析失败",
     "parseError": "这条工具参数解析失败，暂时不能直接确认。你可以跳过，或者等后端/模型返回更完整的结构。",
     "showRawArguments": "查看原始参数",
     "sideTitle": "设定模式",
     "sideDescription": "这里会沿用当前故事的模型配置，但不会碰正文草稿。确认卡片生效后，设定文件和剧情笔记会立即更新。",
-    "historyPreviousTools": "AI 上一轮建议的操作：\n{{tools}}",
+    "historyPreviousTools": "AI上一轮建议的操作：\n{{tools}}",
     "historyProcessedTools": "本轮已处理的操作：\n{{tools}}",
     "toolActionBusy": "有操作正在执行，请等待完成。",
     "busyWriteBlocked": "设定操作进行中，请等待完成后再切回写文。",
@@ -304,7 +304,7 @@
     },
     "error": {
       "unsupportedTool": "这个工具当前还没接前端执行：{{name}}",
-      "missingFactId": "缺少 fact_id，暂时没法修改这条剧情笔记。",
+      "missingFactId": "缺少fact_id，暂时没法修改这条剧情笔记。",
       "pinnedUndoNotFound": "这条写作底线的位置已经变化，暂时没法自动撤销。",
       "createCharacterRollbackFailed": "角色文件 {{name}} 已经写入，但更新角色列表时失败，回滚也没成功。请检查角色文件或垃圾箱后再继续。",
       "supportDataUnavailable": "当前设定列表还没同步完成，暂时不能执行这项改动。稍等一下再试。",
@@ -315,7 +315,7 @@
       "nameRequired": "名称不能为空。",
       "filenameRequired": "文件名不能为空。",
       "contentRequired": "内容不能为空。",
-      "factIdRequired": "剧情笔记 ID 不能为空。",
+      "factIdRequired": "剧情笔记ID不能为空。",
       "factChangesRequired": "至少要提供一项要修改的内容。",
       "factContentRequired": "剧情笔记内容不能为空。",
       "factTypeRequired": "请选择剧情笔记类型。",
@@ -345,7 +345,7 @@
       "styleValue": "改成什么",
       "noCharacters": "还没有可选角色，先创建角色设定后再回来选。",
       "unsupportedTool": "这个工具先按原始参数编辑（{{mode}}）。",
-      "rawArguments": "原始参数 JSON",
+      "rawArguments": "原始参数JSON",
       "charactersPlaceholder": "用逗号分开角色名"
     },
     "card": {
@@ -374,7 +374,7 @@
     "tooMany": "已有{{count}}个版本，建议先选一个定稿",
     "confirmFinalize": "确认第{{chapter}}章定稿？",
     "finalizeSuccess": "第{{chapter}}章已定稿！",
-    "factsPrompt": "要不要记几条剧情笔记？AI 可以帮你从这章提取：",
+    "factsPrompt": "要不要记几条剧情笔记？AI可以帮你从这章提取：",
     "factsExtract": "✨ 让AI提取",
     "factsManual": "自己记",
     "factsSkip": "跳过，继续写下一章 →",
@@ -403,7 +403,7 @@
     "rag": "{{count}}条智能检索",
     "detailToggle": "详情",
     "detailCollapse": "收起",
-    "detailTitle": "📎 本次 AI 参考了以下内容：",
+    "detailTitle": "📎 本次AI参考了以下内容：",
     "detailCharacters": "👤 角色设定（{{count}}个）",
     "detailCharacterFull": "{{name}}（完整注入）",
     "detailWorldbuilding": "🌍 世界观（{{count}}个）",
@@ -441,7 +441,7 @@
       "searchEngine": "搜索引擎"
     },
     "au": {
-      "useCustomEmbedding": "为本篇使用独立 Embedding 模型"
+      "useCustomEmbedding": "为本篇使用独立Embedding模型"
     },
     "global": {
       "title": "全局设置",
@@ -451,17 +451,20 @@
       "testFailedPrefix": "连接失败：",
       "searchEngineDescription": "用来从你的设定里找到和当前剧情最相关的内容。",
       "noEmbeddingModel": "（未配置）",
-      "builtinEmbedding": "默认使用内置 bge-small-zh 模型，无需配置",
+      "builtinEmbedding": "默认使用内置bge-small-zh模型，无需配置",
       "builtinEmbeddingLabel": "bge-small-zh（内置）",
-      "useCustomEmbedding": "使用自定义 Embedding API",
+      "useCustomEmbedding": "使用自定义Embedding API",
       "embeddingModelPlaceholder": "模型名（如 text-embedding-3-small）",
       "embeddingApiBasePlaceholder": "API 地址（如 https://api.openai.com）",
       "embeddingApiKeyPlaceholder": "API 密钥",
-      "embeddingMobileHint": "移动端需配置在线 Embedding API",
+      "embeddingMobileHint": "移动端需配置在线Embedding API",
       "apiCredentialsDescription": "如果某篇故事没有单独指定，就会用这里的设置。",
       "apiModeLabel": "接入方式",
       "languageLabel": "界面语言",
-      "languageDescription": "切换应用的显示语言。"
+      "languageDescription": "切换应用的显示语言。",
+      "dataPathLabel": "数据存储路径",
+      "dataPathDefault": "应用内部存储",
+      "dataPathHint": "你的所有作品数据保存在此路径下。建议定期通过导出或同步功能备份。"
     },
     "sync": {
       "title": "数据同步",
@@ -487,16 +490,16 @@
       "help": {
         "intro": "支持两种同步方式，让你在不同设备之间同步写作数据。",
         "option1Title": "方案一：文件夹同步（推荐）",
-        "option1Desc": "将数据目录放在坚果云 / OneDrive 同步文件夹内，各设备通过云盘客户端自动同步。最简单，无需额外配置。",
-        "option2Title": "方案二：WebDAV 同步",
-        "option2Desc": "内置 WebDAV 客户端，直接连接坚果云等支持 WebDAV 的云存储。适合手机上没有云盘客户端的用户。",
-        "stepsTitle": "坚果云 WebDAV 配置步骤：",
+        "option1Desc": "将数据目录放在坚果云 / OneDrive同步文件夹内，各设备通过云盘客户端自动同步。最简单，无需额外配置。",
+        "option2Title": "方案二：WebDAV同步",
+        "option2Desc": "内置WebDAV客户端，直接连接坚果云等支持WebDAV的云存储。适合手机上没有云盘客户端的用户。",
+        "stepsTitle": "坚果云WebDAV配置步骤：",
         "step1": "1. 下载安装坚果云客户端，登录账号",
         "step2": "2. 进入 设置 → 第三方应用管理 → 添加应用密码",
         "step3": "3. 在下方填写坚果云邮箱和应用密码（不是登录密码）",
         "step4": "4. 点击「测试连接」确认成功",
         "syncScope": "同步范围：章节正文、角色/世界观设定、剧情笔记、操作历史。",
-        "notSynced": "不同步：草稿、全局设置（API Key 等）、搜索索引（每端自动重建）。"
+        "notSynced": "不同步：草稿、全局设置（API Key等）、搜索索引（每端自动重建）。"
       }
     },
     "story": {
@@ -508,12 +511,12 @@
       "chapterLengthDescription": "控制单次续写时的目标字数。",
       "customInstructionsPlaceholder": "比如：多写环境细节，台词短一点，情绪主要靠动作来带。",
       "pinnedDescription": "写作底线会在每次续写时都被优先参考，尽量只写最不能出错的几条。",
-      "coreIncludesDescription": "这些角色会在每次续写时优先被参考，不必等 AI 自己想起来。",
+      "coreIncludesDescription": "这些角色会在每次续写时优先被参考，不必等AI自己想起来。",
       "castRegistryDescription": "这里只展示当前故事已经登记的角色。"
     },
     "emptyPinned": {
       "title": "还没有写作底线",
-      "description": "写作底线是 AI 绝对不能违反的规则，比如：\n「两人目前还没有在一起」\n「角色 A 不知道角色 B 的秘密」"
+      "description": "写作底线是AI绝对不能违反的规则，比如：\n「两人目前还没有在一起」\n「角色 A 不知道角色 B 的秘密」"
     },
     "emptyCoreIncludes": "还没有设置必带角色。",
     "emptyCastRegistry": "现在还没有登记任何角色。",
@@ -534,12 +537,12 @@
     "saved": "已保存",
     "unselected": "还没有选中剧情笔记",
     "statusHintResolved": "标记成“已填坑”后，这条笔记就不会再被优先带入后续续写。",
-    "weightHint": "重要性越高，AI 越容易在后续续写里把它想起来。",
-    "cleanHint": "这是 AI 真正会拿来参考的文字，尽量写成简洁的人话。",
+    "weightHint": "重要性越高，AI越容易在后续续写里把它想起来。",
+    "cleanHint": "这是AI真正会拿来参考的文字，尽量写成简洁的人话。",
     "rawHint": "这是你自己回看用的原文摘录，不需要写得特别精简。",
     "charactersHint": "用逗号分开角色名，方便之后按人查剧情。",
     "emptySelectionTitle": "从左边挑一条剧情笔记来查看和编辑",
-    "emptySelectionDescription": "剧情笔记会帮 AI 记住重要剧情、伏笔和角色关系，写得越清楚，后面越不容易跑偏。",
+    "emptySelectionDescription": "剧情笔记会帮AI记住重要剧情、伏笔和角色关系，写得越清楚，后面越不容易跑偏。",
     "noSearchResultTitle": "没有找到符合条件的剧情笔记",
     "noSearchResultDescription": "换个关键词试试，或者直接记下第一笔。",
     "filterTitle": "筛选剧情笔记",
@@ -549,11 +552,11 @@
     "chapterGroup": "第 {{num}} 章",
     "statusHint": {
       "unresolved": "伏笔/悬念，可在「本章要推的线」中选为本章重点。续写时会被带入上下文",
-      "active": "确定的事实。每次续写都会自动带入上下文，AI 始终记住",
+      "active": "确定的事实。每次续写都会自动带入上下文，AI始终记住",
       "resolved": "已填上的坑。不再带入续写上下文",
       "deprecated": "已作废的笔记。不再带入续写上下文"
     },
-    "staleHint": "有 {{count}} 条笔记超过 30 章未被引用，可能已经过时",
+    "staleHint": "有 {{count}} 条笔记超过30章未被引用，可能已经过时",
     "staleView": "查看",
     "loadMore": "加载更多（剩余 {{remaining}} 条）",
     "batchEnter": "批量选择",
@@ -568,13 +571,13 @@
       "unresolved": "标为「待填坑」"
     },
     "batchConfirmTitle": "确认将 {{count}} 条笔记标为「{{status}}」？",
-    "batchDeprecatedDesc": "作废后不会再被 AI 参考。你可以随时在「已作废」标签下找回。",
-    "batchResolvedDesc": "填坑后不会再被 AI 重点推进。",
-    "batchActiveDesc": "生效后 AI 续写时会参考这些笔记。",
-    "batchUnresolvedDesc": "标为待填坑后，AI 会优先尝试推进这些伏笔。",
+    "batchDeprecatedDesc": "作废后不会再被AI参考。你可以随时在「已作废」标签下找回。",
+    "batchResolvedDesc": "填坑后不会再被AI重点推进。",
+    "batchActiveDesc": "生效后AI续写时会参考这些笔记。",
+    "batchUnresolvedDesc": "标为待填坑后，AI会优先尝试推进这些伏笔。",
     "batchSuccess": "已将 {{count}} 条笔记标为「{{status}}」",
     "extractRangeTitle": "选择提取范围",
-    "extractRangeDesc": "选择要从哪些章节中提取剧情笔记。章节越多越慢（每章约 10-30 秒）。",
+    "extractRangeDesc": "选择要从哪些章节中提取剧情笔记。章节越多越慢（每章约10-30秒）。",
     "extractFrom": "从第",
     "extractTo": "到第",
     "extractChapterCount": "共 {{count}} 章",
@@ -582,15 +585,15 @@
     "extractNoChapter": "还没有已定稿章节，暂时没法提取。",
     "extractNoResult": "这一章暂时没有提取出新的剧情笔记。",
     "extractReviewTitle": "提取结果预览",
-    "extractReviewDescription": "先看看 AI 提取了什么，确认没问题再记进剧情笔记里。",
+    "extractReviewDescription": "先看看AI提取了什么，确认没问题再记进剧情笔记里。",
     "extractReviewEmpty": "这次没有提取到可用的剧情笔记。",
     "extractSaveAll": "全部记下",
     "extractSaved": "已记下 {{count}} 条剧情笔记。",
     "extractSourceChapter": "来自第 {{chapter}} 章",
     "createModal": {
       "title": "记一笔",
-      "rawPlaceholder": "比如：第 3 章里林深说“我不会再回来了”，随后离开了叶澜。",
-      "cleanPlaceholder": "比如：林深在第 3 章末与叶澜决裂并离开，叶澜暂时不知道他去了哪里。",
+      "rawPlaceholder": "比如：第3章里林深说“我不会再回来了”，随后离开了叶澜。",
+      "cleanPlaceholder": "比如：林深在第3章末与叶澜决裂并离开，叶澜暂时不知道他去了哪里。",
       "typeLabel": "这条笔记属于什么",
       "weightLabel": "这条笔记有多重要",
       "statusLabel": "这条笔记现在的状态",
@@ -598,16 +601,16 @@
     }
   },
   "fandomLore": {
-    "title": "原作资料",
-    "rootLabel": "原作通用资料",
+    "title": "Fandom资料",
+    "rootLabel": "Fandom通用资料",
     "category": {
       "characters": "角色",
       "worldbuilding": "世界观"
     },
-    "selectedTagCharacter": "原作角色",
+    "selectedTagCharacter": "Fandom角色",
     "selectedTagWorldbuilding": "世界观",
-    "referenceHint": "这些资料只作为原作参考，不会直接塞进某篇 AU 的续写里。",
-    "saveButton": "保存原作资料",
+    "referenceHint": "这些资料只作为Fandom参考，不会直接塞进某篇AU的续写里。",
+    "saveButton": "保存Fandom资料",
     "unselected": "从左边选一份资料开始编辑。",
     "createCharacterTitle": "新建角色设定",
     "createWorldbuildingTitle": "新建世界观设定",
@@ -615,14 +618,14 @@
     "worldbuildingPlaceholder": "设定名（如：仿生人条例）",
     "emptyCharacters": {
       "title": "还没有角色设定",
-      "description": "添加角色后，后续整理 AU 设定时可以直接从原作资料里挑着用。"
+      "description": "添加角色后，后续整理AU设定时可以直接从Fandom资料里挑着用。"
     },
     "emptyWorldbuilding": {
       "title": "还没有世界观设定",
-      "description": "把原作世界的规则记在这里，之后整理本篇设定时会更方便。"
+      "description": "把Fandom世界的规则记在这里，之后整理本篇设定时会更方便。"
     },
     "deleteTitle": "确认删除资料",
-    "deleteMessage": "确定要删除「{{name}}」吗？文件将移入垃圾箱，30 天内可恢复。",
+    "deleteMessage": "确定要删除「{{name}}」吗？文件将移入垃圾箱，30天内可恢复。",
     "createDuplicate": "「{{name}}」已经存在，先换个名字再创建。",
     "pendingEditsPreserved": "右侧资料有未保存改动，已保留当前编辑内容，没有自动刷新。",
     "selectedFileRemoved": "当前打开的资料已被移除，右侧编辑区已关闭。",
@@ -645,9 +648,9 @@
     "searchPlaceholder": "搜索角色名…",
     "createDescription": "给这个故事添加一个角色设定文件。",
     "createDescriptionWorldbuilding": "给这个故事添加一个世界观设定文件。",
-    "importTitle": "从原作导入角色",
-    "importDescription": "勾选想带进这篇文的原作角色，系统会把对应资料复制到本篇设定里。",
-    "importEmpty": "原作资料里还没有可导入的角色。",
+    "importTitle": "从Fandom导入角色",
+    "importDescription": "勾选想带进这篇文的Fandom角色，系统会把对应资料复制到本篇设定里。",
+    "importEmpty": "Fandom资料里还没有可导入的角色。",
     "importSuccess": "已导入 {{count}} 个角色设定。",
     "selectedTag": "本篇角色",
     "selectedTagWorldbuilding": "本篇世界观",
@@ -656,44 +659,45 @@
     "createDuplicate": "「{{name}}」已经存在，先换个名字再创建。",
     "emptyCharacters": {
       "title": "还没有角色设定",
-      "description": "添加角色后，AI 续写时会自动参考人设，避免崩人设。"
+      "description": "添加角色后，AI续写时会自动参考人设，避免崩人设。"
     }
   },
   "dirty": {
     "title": "检查手动改动",
     "warningTitle": "发现手动改过的章节",
-    "warningDescription": "这一章被手动改动过。AI 正在重新提取剧情笔记，请审查后确认。",
+    "warningDescription": "这一章被手动改动过。AI正在重新提取剧情笔记，请审查后确认。",
     "oldFactsSection": "现有剧情笔记",
-    "newFactsSection": "AI 重新提取的笔记",
+    "newFactsSection": "AI重新提取的笔记",
     "dirtyTag": "待确认",
     "deprecateTag": "将作废",
     "keep": "保留",
     "deprecate": "作废",
-    "extracting": "AI 正在重新提取本章剧情笔记…",
-    "extractFailed": "AI 提取失败，可跳过直接确认",
+    "extracting": "AI正在重新提取本章剧情笔记…",
+    "extractFailed": "AI提取失败，可跳过直接确认",
     "noOldFacts": "本章无现有笔记",
-    "noCandidates": "AI 未提取到新笔记",
+    "noCandidates": "AI未提取到新笔记",
     "confirmResolve": "确认修改，更新状态",
     "confirmResolveSubtitle": "保存选中的笔记 + 清除修改标记",
     "saveFailed": "有 {{count}} 条笔记保存失败",
-    "banner": "有 {{count}} 章的角色出场信息需要更新（第 {{chapters}} 章）。AI 续写时可能参考旧版信息。",
+    "banner": "有 {{count}} 章的角色出场信息需要更新（第 {{chapters}} 章）。AI续写时可能参考旧版信息。",
     "goResolve": "去处理",
     "dismissBanner": "稍后"
   },
   "export": {
     "title": "导出这篇文",
     "formatLabel": "选择导出格式",
-    "markdown": "Markdown 格式 (.md)",
+    "markdown": "Markdown格式 (.md)",
     "text": "纯文本格式 (.txt)",
     "description": "导出时会拼接所有已定稿章节，不包含草稿。",
     "writing": "正在写入本地文件…",
     "submit": "确认导出",
-    "saveFailed": "导出失败，请检查文件权限。"
+    "saveFailed": "导出失败，请检查文件权限。",
+    "savedToDocuments": "已保存到手机文档目录"
   },
   "emptyState": {
     "library": {
       "title": "还没有作品",
-      "description": "创建你的第一个 Fandom 开始写文吧"
+      "description": "创建你的第一个Fandom开始写文吧"
     },
     "fandomCharacters": {
       "title": "还没有角色设定",
@@ -701,23 +705,23 @@
     },
     "fandomWorldbuilding": {
       "title": "还没有世界观设定",
-      "description": "添加后，后面整理剧情时就能更清楚地参考原作规则。"
+      "description": "添加后，后面整理剧情时就能更清楚地参考Fandom规则。"
     },
     "auCharacters": {
       "title": "还没有角色设定",
-      "description": "添加角色后，AI 续写时会自动参考人设，避免崩人设。"
+      "description": "添加角色后，AI续写时会自动参考人设，避免崩人设。"
     },
     "auWorldbuilding": {
       "title": "还没有世界观设定",
-      "description": "添加后，AI 续写时能参考世界规则，保持一致性。"
+      "description": "添加后，AI续写时能参考世界规则，保持一致性。"
     },
     "facts": {
       "title": "还没有剧情笔记",
-      "description": "记下重要剧情和伏笔，AI 会帮你记住并在续写时参考。写了几章后，点击「提取」让 AI 自动从正文中总结。"
+      "description": "记下重要剧情和伏笔，AI会帮你记住并在续写时参考。写了几章后，点击「提取」让AI自动从正文中总结。"
     },
     "pinned": {
       "title": "还没有写作底线",
-      "description": "写作底线是 AI 绝对不能违反的规则，比如：\n「两人目前还没有在一起」\n「角色 A 不知道角色 B 的秘密」"
+      "description": "写作底线是AI绝对不能违反的规则，比如：\n「两人目前还没有在一起」\n「角色 A 不知道角色 B 的秘密」"
     },
     "chapters": {
       "title": "还没有章节",
@@ -774,7 +778,7 @@
       "interrupted": "⚠️ 设定需要重新处理"
     },
     "origin_ref": {
-      "fandom": "来源：原作 {{name}}",
+      "fandom": "来源：Fandom{{name}}",
       "original": "来源：原创角色"
     }
   },
@@ -785,18 +789,18 @@
     "selectAll": "全选"
   },
   "error_messages": {
-    "no_api_key": "请先在全局设置中配置 API 密钥",
-    "invalid_api_key": "密钥验证失败，请检查你的 Key 是否正确",
+    "no_api_key": "请先在全局设置中配置API密钥",
+    "invalid_api_key": "密钥验证失败，请检查你的Key是否正确",
     "rate_limited": "请求太频繁了，等 {{retry_after}} 秒后再试",
-    "insufficient_balance": "API 额度用完了，请去服务商充值",
-    "timeout": "AI 想太久了没回应，再试一次？",
-    "context_length_exceeded": "这章的设定太多了，AI 读不完。试试减少一些角色设定或缩短底线。",
-    "content_filtered": "AI 服务商拒绝了这次请求（可能触发了内容审查），换个说法试试？",
-    "connection_failed": "连不上 AI 服务，检查一下网络和接口地址？",
+    "insufficient_balance": "API额度用完了，请去服务商充值",
+    "timeout": "AI想太久了没回应，再试一次？",
+    "context_length_exceeded": "这章的设定太多了，AI读不完。试试减少一些角色设定或缩短底线。",
+    "content_filtered": "AI服务商拒绝了这次请求（可能触发了内容审查），换个说法试试？",
+    "connection_failed": "连不上AI服务，检查一下网络和接口地址？",
     "api_base_missing": "还没有配置接口地址，去「故事设置」填一下",
     "unknown": "出了点问题，请重试或检查设置",
-    "fandom_already_exists": "同名 Fandom 已存在，请换个名字",
-    "au_already_exists": "同名 AU 已存在，请换个名字"
+    "fandom_already_exists": "同名Fandom已存在，请换个名字",
+    "au_already_exists": "同名AU已存在，请换个名字"
   },
   "trash": {
     "title": "垃圾箱",
@@ -813,24 +817,24 @@
     "restoreConflict": "原位置已有同名文件，无法恢复。请先删除或重命名现有文件。",
     "deleteSuccess": "已永久删除",
     "clearSuccess": "已清空垃圾箱",
-    "tooltip": "查看已删除的设定和数据，可在 30 天内恢复"
+    "tooltip": "查看已删除的设定和数据，可在30天内恢复"
   },
   "coreIncludes": {
     "pinned": "必带",
     "setPin": "设为必带",
     "pinnedToast": "已设为必带角色",
     "unpinnedToast": "已取消必带",
-    "tooMany": "当前有 {{count}} 个必带角色。建议不超过 3 个，太多会占用 AI 的记忆空间。",
-    "hint": "「必带」角色的设定每次续写都会完整提供给 AI，确保不会崩人设。建议只设主角（1-3个），设太多会占用 AI 的记忆空间。",
+    "tooMany": "当前有 {{count}} 个必带角色。建议不超过3个，太多会占用AI的记忆空间。",
+    "hint": "「必带」角色的设定每次续写都会完整提供给AI，确保不会崩人设。建议只设主角（1-3个），设太多会占用AI的记忆空间。",
     "missingCoreLimit": "建议添加「核心限制」段落",
-    "missingCoreLimitDesc": "在角色设定中添加一段「## 核心限制」，用 2-3 句话概括最重要的人设。当 AI 的记忆空间不足时，至少会保留这几句话，确保角色不崩。",
+    "missingCoreLimitDesc": "在角色设定中添加一段「## 核心限制」，用 2-3 句话概括最重要的人设。当AI的记忆空间不足时，至少会保留这几句话，确保角色不崩。",
     "goEdit": "去编辑",
     "later": "稍后再说"
   },
   "app": {
     "sidecar": {
       "exited": "后端引擎已退出: {{reason}}",
-      "timeout": "后端引擎启动超时（30 秒），请重启应用",
+      "timeout": "后端引擎启动超时（30秒），请重启应用",
       "error": "引擎异常",
       "restartHint": "请重启应用，或检查日志文件",
       "initializing": "正在初始化本地引擎…"
@@ -843,7 +847,7 @@
   },
   "focus": {
     "continueLastChapter": "↩ 延续上章",
-    "maxTwo": "最多选择 2 个焦点",
+    "maxTwo": "最多选择2个焦点",
     "lastFocusExpired": "上章焦点已失效，请重新选择",
     "recommended": "推荐"
   },
@@ -867,7 +871,7 @@
   },
   "embedding": {
     "staleTitle": "搜索引擎需要更新",
-    "staleDesc": "当前的设定文件索引与搜索引擎模型不匹配，AI 续写时可能无法正确检索设定。",
+    "staleDesc": "当前的设定文件索引与搜索引擎模型不匹配，AI续写时可能无法正确检索设定。",
     "rebuild": "立即重建",
     "skipRebuild": "跳过，继续写作"
   },
@@ -885,17 +889,17 @@
     "moveDown": "下移",
     "formatError": "不支持的文件格式：{{ext}}",
     "step2Title": "分析文件",
-    "step2AiAssist": "使用 AI 辅助识别章节格式",
-    "step2AiAssistHint": "如果自动切分效果不好，AI 可以帮助识别非标准的章节标题格式",
+    "step2AiAssist": "使用AI辅助识别章节格式",
+    "step2AiAssistHint": "如果自动切分效果不好，AI可以帮助识别非标准的章节标题格式",
     "step2AiAssistCost": "消耗少量 token（约 1000-2000）",
     "step2Thresholds": "对话格式分类阈值",
-    "step2ChapterThreshold": "AI 回复超过 {{n}} 字 → 标记为正文",
-    "step2SkipThreshold": "AI 回复少于 {{n}} 字 → 标记为跳过",
+    "step2ChapterThreshold": "AI回复超过 {{n}} 字 → 标记为正文",
+    "step2SkipThreshold": "AI回复少于 {{n}} 字 → 标记为跳过",
     "step2ThresholdHint": "默认值适合大多数情况。如果你的每章篇幅较短，可以把正文阈值调低。",
     "analyzing": "分析中...",
     "analyzed": "分析完成",
     "waiting": "等待中",
-    "chatDetected": "检测到 AI 对话格式（{{format}}）",
+    "chatDetected": "检测到AI对话格式（{{format}}）",
     "textDetected": "纯正文格式",
     "turnsCount": "{{n}} 轮对话",
     "estimatedChapters": "预计 {{n}} 章正文",
@@ -958,7 +962,7 @@
       "standard": "按「第X章」标识",
       "integer": "按整数标题",
       "auto": "按字数自动",
-      "ai": "AI 辅助识别"
+      "ai": "AI辅助识别"
     },
     "chapterPreview": "第 {{num}} 章",
     "charCount": "({{count}} 字)",
@@ -969,44 +973,44 @@
     "completionTitle": "导入完成！",
     "stats": "已导入 {{chapters}} 章",
     "charactersFound": "检测到角色：{{names}}",
-    "factsPrompt": "建议提取剧情笔记，帮助 AI 理解当前剧情状态：",
+    "factsPrompt": "建议提取剧情笔记，帮助AI理解当前剧情状态：",
     "extractRecent5": "提取最近 5 章（推荐）",
     "extractRecent20": "提取最近 20 章（适合长篇）",
     "extractLater": "稍后手动维护",
     "extractProgress": "正在提取第 {{current}}/{{total}} 章...",
-    "importNotUnderstand": "导入 ≠ AI 已理解全文",
-    "importNotUnderstandDesc": "AI 可以从历史章节中检索相关内容，但早期伏笔的精准推进需要你手动补充剧情笔记。",
+    "importNotUnderstand": "导入≠AI已理解全文",
+    "importNotUnderstandDesc": "AI可以从历史章节中检索相关内容，但早期伏笔的精准推进需要你手动补充剧情笔记。",
     "startWriting": "开始写作 →",
     "selectAu": "选择要导入到哪个 AU",
-    "selectAuDesc": "选择一个已有的 AU，或在 Fandom 下新建一个",
+    "selectAuDesc": "选择一个已有的 AU，或在Fandom下新建一个",
     "noAu": "还没有 AU，请先创建一个",
-    "noFandom": "还没有 Fandom，请先创建一个",
+    "noFandom": "还没有Fandom，请先创建一个",
     "createAuFirst": "去创建 AU",
-    "createFandomFirst": "去创建 Fandom",
-    "newAuInFandom": "在此 Fandom 下新建 AU"
+    "createFandomFirst": "去创建Fandom",
+    "newAuInFandom": "在此Fandom下新建 AU"
   },
   "milestones": {
     "factsIntro": {
       "title": "你已经写了3章了！试试「剧情笔记」",
-      "desc": "记下重要剧情和伏笔，AI 续写时会自动参考。",
+      "desc": "记下重要剧情和伏笔，AI续写时会自动参考。",
       "extract": "去看看剧情笔记",
       "later": "稍后再说"
     },
     "pinnedIntro": {
-      "title": "写了5章了，有没有什么 AI 绝对不能搞错的规则？",
-      "desc": "比如角色关系、秘密、性格底线？添加到「写作底线」，AI 每次续写都会严格遵守。",
+      "title": "写了5章了，有没有什么AI绝对不能搞错的规则？",
+      "desc": "比如角色关系、秘密、性格底线？添加到「写作底线」，AI每次续写都会严格遵守。",
       "addPinned": "去添加底线",
       "notNeeded": "不需要"
     },
     "focusIntro": {
       "title": "你有一个待填的坑：「{{content}}」",
-      "desc": "写下一章时，可以把它设为「本章要推的线」，AI 会在这章重点推进这个剧情。",
+      "desc": "写下一章时，可以把它设为「本章要推的线」，AI会在这章重点推进这个剧情。",
       "setFocus": "设为本章重点",
       "freeStyle": "先自由发挥"
     },
     "pinIntro": {
       "title": "你还没有设置「必带角色」",
-      "desc": "把主角设为必带，AI 每次续写都会记住他们的人设。",
+      "desc": "把主角设为必带，AI每次续写都会记住他们的人设。",
       "goSet": "去设置",
       "later": "稍后"
     }
@@ -1014,19 +1018,19 @@
   "onboarding": {
     "welcome": {
       "title": "FicForge",
-      "subtitle": "AI 帮你写同人，记住每一个设定，不再崩人设。",
+      "subtitle": "AI帮你写同人，记住每一个设定，不再崩人设。",
       "start": "开始设置 →"
     },
     "apiConfig": {
-      "title": "连接你的 AI 模型",
-      "modeApi": "在线 API（推荐）",
+      "title": "连接你的AI模型",
+      "modeApi": "在线API（推荐）",
       "modeLocal": "本地模型",
       "modeOllama": "Ollama",
       "apiBase": "接口地址",
-      "apiBaseHint": "你的 AI 服务商提供的地址",
-      "apiBaseTooltip": "AI 服务商的接口地址。\n常见：\n• DeepSeek: https://api.deepseek.com\n• OpenAI: https://api.openai.com/v1\n• 硅基流动: https://api.siliconflow.cn/v1",
+      "apiBaseHint": "你的AI服务商提供的地址",
+      "apiBaseTooltip": "AI服务商的接口地址。\n常见：\n• DeepSeek: https://api.deepseek.com\n• OpenAI: https://api.openai.com/v1\n• 硅基流动: https://api.siliconflow.cn/v1",
       "apiKey": "密钥",
-      "apiKeyHint": "在 AI 服务商网站获取",
+      "apiKeyHint": "在AI服务商网站获取",
       "apiKeyTooltip": "在服务商网站的「API Key」页面创建。\n通常以 sk- 开头，创建后只显示一次。\n密钥只存在你自己的设备上。",
       "model": "模型",
       "modelTooltip": "填写模型的准确名称，必须和服务商一致。\n常见：\n• DeepSeek: deepseek-chat\n• GPT: gpt-4o-mini\n• 硅基流动: deepseek-ai/DeepSeek-V3",
@@ -1036,11 +1040,11 @@
       "testFailed": "连接失败：{{message}}",
       "localPath": "模型文件夹路径",
       "localPathHint": "下载模型文件后，填入文件夹路径",
-      "ollamaBase": "Ollama 服务地址",
-      "ollamaModel": "Ollama 模型名",
+      "ollamaBase": "Ollama服务地址",
+      "ollamaModel": "Ollama模型名",
       "requireTest": "请先测试连接成功后再继续"
     },
-    "closeConfirm": "还没有配置 API Key，关闭后续写功能将不可用。确定要跳过吗？",
+    "closeConfirm": "还没有配置API Key，关闭后续写功能将不可用。确定要跳过吗？",
     "closeConfirmYes": "跳过配置",
     "createFandom": {
       "title": "你想写哪个作品的同人？",
@@ -1048,21 +1052,21 @@
       "namePlaceholder": "比如：原神、咒术回战、底特律变人...",
       "skip": "跳过",
       "whyFandom": "为什么要填作品名？",
-      "fandomExplain": "FicForge 用「原作」和「AU（平行世界设定）」两层来管理你的同人设定。\n\n原作 = 你写的是哪个作品（比如底特律、原神）\n放角色的原始人格分析、作品世界观等通用资料\n\nAU = 你这篇文的具体设定（比如星际皇室AU、现代咖啡馆AU）\n放这篇文里角色的具体形象、独特世界观、剧情笔记\n\n一个原作下可以有多个 AU，共享原作资料但互不干扰。\n不想分层？直接跳过，以后再补也完全没问题。"
+      "fandomExplain": "FicForge用「Fandom」和「AU（平行世界设定）」两层来管理你的同人设定。\n\nFandom=你想写的作品（比如底特律、原神）\n放角色的原始人格分析、作品世界观等通用资料\n\nAU = 你这篇文的具体设定（比如星际皇室AU、现代咖啡馆AU）\n放这篇文里角色的具体形象、独特世界观、剧情笔记\n\n一个Fandom下可以有多个 AU，共享Fandom资料但互不干扰。\n不想分层？直接跳过，以后再补也完全没问题。"
     },
     "completion": {
       "title": "一切就绪！",
-      "modelConnected": "AI 模型已连接",
+      "modelConnected": "AI模型已连接",
       "fandomCreated": "「{{name}}」已创建",
       "fandomSkipped": "稍后再创建作品",
       "nextSteps": "接下来你可以：",
-      "nextCreateAu": "创建一个 AU（平行世界设定）开始写文",
-      "nextAddCharacters": "在「原作资料」中添加角色分析",
+      "nextCreateAu": "创建一个AU（平行世界设定）开始写文",
+      "nextAddCharacters": "在「Fandom资料」中添加角色分析",
       "nextImport": "导入已有的小说继续写",
-      "enter": "进入 FicForge →"
+      "enter": "进入FicForge →"
     },
     "mobile": {
-      "header": "开始使用 FicForge",
+      "header": "开始使用FicForge",
       "language": {
         "title": "选择语言",
         "subtitle": "选好后界面文案会立即切换。",
@@ -1072,48 +1076,48 @@
         "enDescription": "Switch to English interface."
       },
       "llm": {
-        "title": "连接 AI 写作模型",
-        "subtitle": "FicForge 需要连接一个 AI 模型来帮你续写故事。你需要填入一个 API Key（密钥）来启用。",
-        "techDetails": "此 Key 用于调用 LLM（大语言模型）的 Chat Completions 接口。支持所有 OpenAI 兼容接口：DeepSeek / GPT / Ollama / 硅基流动等。",
+        "title": "连接AI写作模型",
+        "subtitle": "FicForge需要连接一个AI模型来帮你续写故事。你需要填入一个API Key（密钥）来启用。",
+        "techDetails": "此Key用于调用LLM（大语言模型）的Chat Completions接口。支持所有OpenAI兼容接口：DeepSeek / GPT / Ollama / 硅基流动等。",
         "deepseekTitle": "DeepSeek（深度求索）",
         "deepseekDescription": "中文写作质量高，价格便宜。注册地址：platform.deepseek.com",
         "openaiTitle": "OpenAI",
         "openaiDescription": "全球通用，需预充值。注册地址：platform.openai.com",
         "customTitle": "其他服务商",
-        "customDescription": "硅基流动、Ollama 等兼容 OpenAI 协议的服务均可使用。"
+        "customDescription": "硅基流动、Ollama等兼容OpenAI协议的服务均可使用。"
       },
       "embedding": {
-        "title": "让 AI 记住你的设定（可选）",
-        "subtitle": "配好 Embedding（嵌入）模型后，AI 续写时能自动回忆之前的剧情和人设。写到第 100 章还能记住第 5 章埋的伏笔。",
-        "techDetails": "Embedding 模型将文本转为向量，用于 RAG（检索增强生成）。推荐模型：BAAI/bge-m3。支持 OpenAI 兼容的 /v1/embeddings 端点。",
-        "recommendedTitle": "使用 Embedding（嵌入）模型",
+        "title": "让AI记住你的设定（可选）",
+        "subtitle": "配好Embedding（嵌入）模型后，AI续写时能自动回忆之前的剧情和人设。写到第100章还能记住第5章埋的伏笔。",
+        "techDetails": "Embedding模型将文本转为向量，用于RAG（检索增强生成）。推荐模型：BAAI/bge-m3。支持OpenAI兼容的/v1/embeddings端点。",
+        "recommendedTitle": "使用Embedding（嵌入）模型",
         "recommendedDescription": "推荐硅基流动（siliconflow.cn），注册送免费额度。在「模型广场」→「嵌入」分类中选择模型。",
-        "recommendedHint": "跳过后 AI 仍可正常续写，只是无法自动检索历史内容。",
+        "recommendedHint": "跳过后AI仍可正常续写，只是无法自动检索历史内容。",
         "skipTitle": "先跳过",
         "skipDescription": "直接进入应用，稍后到设置里补上。"
       },
       "setup": {
         "title": "创建你的第一个故事",
-        "subtitle": "FicForge 用「原作」和「衍生（AU）」两层来管理同人文。原作 = 你磕的那部作品，AU = 你在这部作品下写的故事。",
-        "techDetails": "Fandom 角色 = 人格 DNA 模板。AU 角色 = 独立个体（可基于模板）。Fandom 设定不注入 AU 写作 prompt。",
+        "subtitle": "FicForge用「Fandom」和「衍生（AU）」两层来管理同人文。Fandom=你磕的那部作品，AU=你在这部作品下写的故事。",
+        "techDetails": "Fandom角色=角色原始资料。AU角色=角色在AU的具体体现（可基于原始资料）。Fandom设定不会直接用于AU写作。",
         "createTitle": "创建新故事",
-        "createDescription": "现在创建一个原作和 AU，完成后直接开始写。",
+        "createDescription": "现在创建一个Fandom和AU，完成后直接开始写。",
         "importTitle": "导入已有的文",
         "importDescription": "完成引导后打开导入入口，把已写的文导进来。",
         "syncTitle": "配置多设备同步",
-        "syncDescription": "完成引导后打开设置，配置 WebDAV 同步。",
+        "syncDescription": "完成引导后打开设置，配置WebDAV同步。",
         "laterTitle": "先看看再说",
         "laterDescription": "暂时不创建，先逛逛界面。",
-        "fandomPlaceholder": "比如：原神、咒术回战、底特律变人...",
-        "auLabel": "AU 名称",
+        "fandomPlaceholder": "比如：原神、咒术回战、底特律：变人...",
+        "auLabel": "AU名称",
         "auPlaceholder": "比如：现代校园、赛博警探、星际皇室..."
       },
       "ethics": {
-        "subtitle": "FicForge 是为同人创作者设计的 AI 辅助写作工具。",
-        "confirm": "我已了解：只导入自己的作品，发布时遵守平台规则，AI 辅助创作建议标注。",
-        "privacyNote": "你的数据只存在你自己的设备上，我们不收集、不上传。",
-        "aiNote": "AI 是辅助，不是替代。导出时默认附带 AI 标注声明。",
-        "respectNote": "同人创作建立在对原作的热爱上，请遵守目标平台的发布规范。"
+        "subtitle": "在开始之前，有几件事想和你说。",
+        "confirm": "我已了解，开始创作",
+        "privacyNote": "你的所有数据只保存在本地设备上，不会上传，也不会被用于训练任何模型。",
+        "aiNote": "FicForge只帮你续写你自己的故事。导出时会默认附带AI辅助标注，方便你在发布时符合平台要求。",
+        "respectNote": "同人圈对AI创作有不同的声音，我们理解也尊重。请在发布前了解目标平台的相关规范。"
       },
       "complete": {
         "title": "一切就绪！",
@@ -1137,21 +1141,21 @@
     "techDetailsLabel": "技术细节"
   },
   "ethics": {
-    "aboutFooter": "FicForge 是本地运行的个人创作辅助工具。你的数据不离开你的设备，不会被用于训练任何 AI 模型。请只导入你自己的作品，发布时建议标注 AI 辅助。",
-    "importWarning": "请确保你拥有导入内容的合法使用权。请勿导入他人作品。",
-    "exportAiLabel": "在导出文件末尾附加 AI 辅助创作声明",
-    "exportDisclaimer": "本作品由 AI 辅助创作（工具：FicForge）。",
-    "exportUncheckedWarning": "取消勾选后，请确保在发布时遵守目标平台的 AI 标注规范。",
+    "aboutFooter": "FicForge 在你的设备上本地运行，数据不会上传或用于模型训练。导出时默认附带 AI 辅助标注。",
+    "importWarning": "导入的内容应为你自己的创作。",
+    "exportAiLabel": "在导出文件末尾附加AI辅助创作声明",
+    "exportDisclaimer": "本作品由AI辅助创作（工具：FicForge）。",
+    "exportUncheckedWarning": "取消后导出文件将不附带标注，发布时请留意平台规范。",
     "onboardingTitle": "在开始之前",
-    "onboardingBody": "FicForge 帮助你创作自己的故事。你的所有数据保存在本地，不会上传。\n\n使用提醒：\n· 请只导入你自己的作品\n· 发布 AI 辅助创作的内容时，建议标注 AI 的参与\n· 请遵守你所在创作社区的规则",
+    "onboardingBody": "FicForge 帮你续写自己的故事，所有数据保存在本地，不会上传。导出时默认附带 AI 辅助标注。",
     "onboardingAcknowledge": "我已了解，开始使用",
-    "onboardingConsent": "使用本工具即表示你已阅读并理解我们的负责任使用声明"
+    "onboardingConsent": "我已了解上述内容"
   },
   "help": {
     "apiSetup": {
-      "title": "API 配置帮助",
-      "whatIsKey": "什么是 API Key？",
-      "whatIsKeyDesc": "API Key（密钥）是 AI 服务商分配给你的身份凭证，类似一个密码。FicForge 用它来调用 AI 服务帮你续写故事。每个服务商有自己的 API Key，需要注册账号后创建。",
+      "title": "API配置帮助",
+      "whatIsKey": "什么是API Key？",
+      "whatIsKeyDesc": "API Key（密钥）是AI服务商分配给你的身份凭证，类似一个密码。FicForge用它来调用AI服务帮你续写故事。每个服务商有自己的 API Key，需要注册账号后创建。",
       "modelTitle": "模型名称怎么填？",
       "modelDesc": "模型名称必须和服务商网站上显示的一模一样，不能自己起名。去服务商网站的「模型列表」页面，复制你想用的模型名称。",
       "provider": "服务商",
@@ -1159,16 +1163,16 @@
       "siliconflow": "硅基流动",
       "urlTitle": "接口地址（Base URL）",
       "howToGetKey": "怎么获取密钥？",
-      "deepseekSteps": "打开 platform.deepseek.com → 注册/登录 → 左侧菜单 API Keys → 创建密钥 → 复制 sk- 开头的字符串",
+      "deepseekSteps": "打开 platform.deepseek.com → 注册/登录 → 左侧菜单API Keys → 创建密钥 → 复制 sk- 开头的字符串",
       "openaiSteps": "打开 platform.openai.com → 注册/登录 → API Keys → 创建密钥 → 复制。注意需预充值。",
-      "siliconflowSteps": "打开 siliconflow.cn → 注册/登录 → API 密钥 → 新建 → 复制。新用户有免费额度。",
+      "siliconflowSteps": "打开 siliconflow.cn → 注册/登录 → API密钥 → 新建 → 复制。新用户有免费额度。",
       "faqTitle": "常见问题",
       "faqTestFail": "测试连接失败？",
       "faqTestFailAnswer": "检查：密钥是否复制完整、接口地址末尾有没有多余空格、网络是否正常。",
       "faqSafe": "密钥安全吗？",
-      "faqSafeAnswer": "密钥只存在你自己的设备上，FicForge 不会把密钥发到任何地方——只发给你填的那个服务商地址。",
+      "faqSafeAnswer": "密钥只存在你自己的设备上，FicForge不会把密钥发到任何地方——只发给你填的那个服务商地址。",
       "faqFree": "可以免费用吗？",
-      "faqFreeAnswer": "DeepSeek 和硅基流动有免费额度，Ollama 完全免费（本地运行，需电脑性能足够）。",
+      "faqFreeAnswer": "DeepSeek和硅基流动有免费额度，Ollama完全免费（本地运行，需电脑性能足够）。",
       "howToGet": "如何获取？"
     }
   },

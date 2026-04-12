@@ -13,6 +13,10 @@ import { exportChapters } from '../../api/engine-client';
 /** Tauri 环境检测：window.__TAURI_INTERNALS__ 存在则为 Tauri 打包环境 */
 const isTauri = () => typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__;
 
+/** Capacitor 原生环境检测 */
+const isCapacitor = () => typeof (window as any).Capacitor !== 'undefined'
+  && (window as any).Capacitor.isNativePlatform?.();
+
 async function saveWithTauriDialog(blob: Blob, filename: string): Promise<'saved' | 'cancelled' | 'error'> {
   try {
     const { save } = await import('@tauri-apps/plugin-dialog');
@@ -94,8 +98,28 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onCl
         if (result === 'saved') onClose();
         else if (result === 'error') setError(t('export.saveFailed'));
         // 'cancelled': 用户取消对话框，不关闭 modal
+      } else if (isCapacitor()) {
+        // Capacitor 移动端：使用 Web Share API 分享文件
+        const file = new File([blob], filename, { type: blob.type });
+        if (navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ files: [file], title: filename });
+          onClose();
+        } else {
+          // Share API 不可用时写入 Documents 目录
+          const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
+          const text = await blob.text();
+          await Filesystem.writeFile({
+            path: filename,
+            data: text,
+            directory: Directory.Documents,
+            encoding: Encoding.UTF8,
+            recursive: true,
+          });
+          showToast(t('export.savedToDocuments'), 'success');
+          onClose();
+        }
       } else {
-        // Dev 模式 fallback：浏览器下载
+        // PWA / 浏览器：浏览器下载
         saveWithBrowserDownload(blob, filename);
         onClose();
       }

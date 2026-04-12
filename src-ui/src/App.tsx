@@ -85,6 +85,8 @@ function App() {
             const adapter = new WebAdapter(deviceId);
             await adapter.init();
             initEngine(adapter, "");
+            // 请求持久化存储，防止浏览器自动回收 IndexedDB 数据
+            try { await navigator.storage?.persist?.(); } catch { /* best effort */ }
           }
         }
 

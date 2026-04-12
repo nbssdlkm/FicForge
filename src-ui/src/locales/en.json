@@ -461,7 +461,10 @@
       "apiCredentialsDescription": "Used as fallback when a story doesn't have its own model settings.",
       "apiModeLabel": "Connection Mode",
       "languageLabel": "Language",
-      "languageDescription": "Change the app display language."
+      "languageDescription": "Change the app display language.",
+      "dataPathLabel": "Data Storage Path",
+      "dataPathDefault": "App internal storage",
+      "dataPathHint": "All your work is saved at this location. We recommend regular backups via export or sync."
     },
     "sync": {
       "title": "Data Sync",
@@ -688,7 +691,8 @@
     "description": "Export includes all finalized chapters. Drafts are not included.",
     "writing": "Writing to local file…",
     "submit": "Export",
-    "saveFailed": "Export failed. Check file permissions."
+    "saveFailed": "Export failed. Check file permissions.",
+    "savedToDocuments": "Saved to Documents folder"
   },
   "emptyState": {
     "library": {
@@ -1109,11 +1113,11 @@
         "auPlaceholder": "e.g. Modern Campus, Cyber Detectives, Space Royalty..."
       },
       "ethics": {
-        "subtitle": "FicForge is an AI writing assistant designed for fan creators.",
-        "confirm": "I understand: only import my own work, follow platform rules when publishing, and label AI-assisted content.",
-        "privacyNote": "Your data stays on your device only. We don't collect or upload anything.",
-        "aiNote": "AI assists, not replaces. Exports include an AI attribution notice by default.",
-        "respectNote": "Fan creation is built on love for the source — please follow your platform's publishing guidelines."
+        "subtitle": "Before we start, a few things to know.",
+        "confirm": "I understand, let's create",
+        "privacyNote": "All your data stays on your device — nothing is uploaded or used for model training.",
+        "aiNote": "FicForge helps you continue your own stories. Exports include an AI attribution notice by default.",
+        "respectNote": "The fan community has different views on AI in creative work, and we respect that. Please check your platform's guidelines before publishing."
       },
       "complete": {
         "title": "All Set!",
@@ -1137,15 +1141,15 @@
     "techDetailsLabel": "Technical details"
   },
   "ethics": {
-    "aboutFooter": "FicForge runs locally on your device. Your data is never uploaded or used for AI training. Please only import your own work, and consider disclosing AI assistance when publishing.",
-    "importWarning": "Please ensure you have the right to use the content you import. Do not import others' work.",
+    "aboutFooter": "FicForge runs locally on your device. Your data is never uploaded or used for model training. Exports include an AI attribution notice by default.",
+    "importWarning": "Imported content should be your own writing.",
     "exportAiLabel": "Append AI assistance disclosure to exported file",
     "exportDisclaimer": "This work was created with AI assistance (tool: FicForge).",
-    "exportUncheckedWarning": "With this unchecked, please ensure you follow the AI disclosure policies of your publishing platform.",
+    "exportUncheckedWarning": "Exports won't include attribution. Please check your platform's guidelines before publishing.",
     "onboardingTitle": "Before You Start",
-    "onboardingBody": "FicForge helps you write your own stories. All data stays on your device and is never uploaded.\n\nReminders:\n· Only import content you own\n· When publishing AI-assisted work, consider disclosing AI involvement\n· Follow the rules of your creative community",
+    "onboardingBody": "FicForge helps you continue your own stories. All data stays on your device and is never uploaded. Exports include an AI attribution notice by default.",
     "onboardingAcknowledge": "I understand, let's start",
-    "onboardingConsent": "By using this tool, you acknowledge that you have read and understood our Responsible Use statement"
+    "onboardingConsent": "I understand"
   },
   "help": {
     "apiSetup": {

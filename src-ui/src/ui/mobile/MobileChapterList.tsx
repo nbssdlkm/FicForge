@@ -36,7 +36,7 @@ export function MobileChapterList({
         <p className="mt-1 text-sm text-text/55">{t("mobile.chapters.hint")}</p>
       </header>
 
-      <div className="flex-1 space-y-3 px-4 py-4">
+      <div className="flex-1 overflow-y-auto space-y-3 px-4 py-4">
         {loading ? (
           <div className="flex items-center justify-center py-16 text-text/50">
             <Loader2 size={22} className="animate-spin" />

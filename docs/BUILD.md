@@ -123,6 +123,18 @@ cd android
 - Android 端无 Python sidecar，embedding 依赖远端 API
 - 最低 SDK 版本由 `android/variables.gradle` 中 `minSdkVersion` 控制
 
+#### Capacitor 原生插件依赖（重要）
+
+`src-engine/` 中使用的 Capacitor 插件（如 `@capacitor/filesystem`）必须同时在 **`src-ui/package.json`** 的 `dependencies` 中声明。原因：`npx cap sync` 根据 `src-ui/` 的依赖树决定注册哪些原生插件到 Android/iOS 项目。如果插件仅在 `src-engine/` 的 devDependencies 中，JS 代码通过 Vite alias 能 import 到，但原生端没有对应实现，运行时会报 `"XXX plugin is not implemented on android"` 错误。
+
+当前需要在 `src-ui/package.json` 中声明的 Capacitor 插件：
+
+| 插件 | 用途 |
+|------|------|
+| `@capacitor/filesystem` | CapacitorAdapter 文件 I/O |
+
+添加新的 Capacitor 插件后，务必重新执行 `npx cap sync android` 并检查 `android/capacitor.settings.gradle` 中包含对应插件。
+
 ---
 
 ## 版本同步清单

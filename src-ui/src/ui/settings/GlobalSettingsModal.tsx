@@ -7,7 +7,7 @@ import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { HelpCircle, Loader2, CheckCircle2, XCircle } from 'lucide-react';
-import { getSettings, testConnection, updateSettings, LLMMode, type SettingsInfo } from '../../api/engine-client';
+import { getSettings, testConnection, updateSettings, LLMMode, type SettingsInfo, getDataDir } from '../../api/engine-client';
 import { ConflictResolveModal } from '../shared/ConflictResolveModal';
 import { useSyncOperations } from './useSyncOperations';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -388,6 +388,15 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
               </select>
               <p className="text-xs text-text/50">{t('settings.global.languageDescription')}</p>
             </div>
+          </div>
+
+          {/* 数据存储路径 */}
+          <div className="space-y-1 border-t border-black/10 pt-5 dark:border-white/10">
+            <label className="text-sm font-bold text-text/90">{t('settings.global.dataPathLabel')}</label>
+            <p className="rounded-md bg-black/5 px-3 py-2 font-mono text-xs text-text/60 dark:bg-white/5">
+              {getDataDir() || t('settings.global.dataPathDefault')}
+            </p>
+            <p className="text-xs text-text/40">{t('settings.global.dataPathHint')}</p>
           </div>
 
           <p className="text-[11px] text-text/35 leading-relaxed mt-4">{t('ethics.aboutFooter')}</p>
