@@ -156,10 +156,10 @@ export function parseLLMOutput(text: string): Record<string, unknown>[] {
 }
 
 // ---------------------------------------------------------------------------
-// 别名归一化
+// 别名归一化（大小写不敏感，适用于 LLM 提取结果）
 // ---------------------------------------------------------------------------
 
-function normalizeCharacters(
+function normalizeExtractedCharacters(
   characters: string[],
   character_aliases: Record<string, string[]> | null,
 ): string[] {
@@ -220,7 +220,7 @@ function rawToExtracted(
 
   let characters = (raw.characters as string[]) ?? [];
   if (Array.isArray(characters)) {
-    characters = normalizeCharacters(characters, character_aliases);
+    characters = normalizeExtractedCharacters(characters, character_aliases);
   }
 
   return {
