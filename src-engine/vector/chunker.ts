@@ -14,6 +14,7 @@
  */
 
 import matter from "gray-matter";
+import { scan_characters_in_chapter } from "../domain/character_scanner.js";
 
 /** 切块结果。 */
 export interface ChunkData {
@@ -23,6 +24,11 @@ export interface ChunkData {
   branch_id: string;
   characters: string[];
   metadata: Record<string, unknown>;
+}
+
+/** 角色名册（与 Project.cast_registry 兼容）。 */
+export interface CastRegistryLike {
+  characters?: string[];
 }
 
 /** 句子结束标点。 */
@@ -36,6 +42,7 @@ export function split_chapter_into_chunks(
   chapter_num: number,
   max_size = 500,
   overlap_sentences = 1,
+  cast_registry?: CastRegistryLike | null,
 ): ChunkData[] {
   // 剥离 frontmatter
   const parsed = matter(text);
@@ -68,15 +75,22 @@ export function split_chapter_into_chunks(
     chunksText = addOverlap(chunksText, overlap_sentences);
   }
 
-  // 构建 ChunkData
-  return chunksText.map((content, i) => ({
-    content,
-    chapter_num,
-    chunk_index: i,
-    branch_id: "main",
-    characters: [],
-    metadata: {},
-  }));
+  // 构建 ChunkData（含逐块角色扫描）
+  return chunksText.map((content, i) => {
+    let characters: string[] = [];
+    if (cast_registry?.characters?.length) {
+      const scanned = scan_characters_in_chapter(content, cast_registry, null, chapter_num);
+      characters = Object.keys(scanned);
+    }
+    return {
+      content,
+      chapter_num,
+      chunk_index: i,
+      branch_id: "main",
+      characters,
+      metadata: {},
+    };
+  });
 }
 
 function mergeShortParagraphs(paragraphs: string[], minSize: number): string[] {

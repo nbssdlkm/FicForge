@@ -15,10 +15,15 @@ export class CapacitorAdapter implements PlatformAdapter {
     this._deviceId = deviceId ?? crypto.randomUUID();
   }
 
+  /** Capacitor Filesystem 使用 Directory.Data 为根，path 必须是相对路径。 */
+  private normPath(path: string): string {
+    return path.replace(/^\/+/, "");
+  }
+
   async readFile(path: string): Promise<string> {
     const { Filesystem, Directory, Encoding } = await import("@capacitor/filesystem");
     const result = await Filesystem.readFile({
-      path,
+      path: this.normPath(path),
       directory: Directory.Data,
       encoding: Encoding.UTF8,
     });
@@ -28,7 +33,7 @@ export class CapacitorAdapter implements PlatformAdapter {
   async writeFile(path: string, content: string): Promise<void> {
     const { Filesystem, Directory, Encoding } = await import("@capacitor/filesystem");
     await Filesystem.writeFile({
-      path,
+      path: this.normPath(path),
       data: content,
       directory: Directory.Data,
       encoding: Encoding.UTF8,
@@ -38,19 +43,19 @@ export class CapacitorAdapter implements PlatformAdapter {
 
   async deleteFile(path: string): Promise<void> {
     const { Filesystem, Directory } = await import("@capacitor/filesystem");
-    await Filesystem.deleteFile({ path, directory: Directory.Data });
+    await Filesystem.deleteFile({ path: this.normPath(path), directory: Directory.Data });
   }
 
   async listDir(path: string): Promise<string[]> {
     const { Filesystem, Directory } = await import("@capacitor/filesystem");
-    const result = await Filesystem.readdir({ path, directory: Directory.Data });
+    const result = await Filesystem.readdir({ path: this.normPath(path), directory: Directory.Data });
     return result.files.map((f) => f.name);
   }
 
   async exists(path: string): Promise<boolean> {
     const { Filesystem, Directory } = await import("@capacitor/filesystem");
     try {
-      await Filesystem.stat({ path, directory: Directory.Data });
+      await Filesystem.stat({ path: this.normPath(path), directory: Directory.Data });
       return true;
     } catch {
       return false;
@@ -60,7 +65,7 @@ export class CapacitorAdapter implements PlatformAdapter {
   async mkdir(path: string): Promise<void> {
     const { Filesystem, Directory } = await import("@capacitor/filesystem");
     try {
-      await Filesystem.mkdir({ path, directory: Directory.Data, recursive: true });
+      await Filesystem.mkdir({ path: this.normPath(path), directory: Directory.Data, recursive: true });
     } catch {
       // 目录已存在时 Capacitor 可能抛错
     }

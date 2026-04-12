@@ -12,7 +12,7 @@
 import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { JsonVectorEngine } from "../vector/engine.js";
-import { split_chapter_into_chunks } from "../vector/chunker.js";
+import { split_chapter_into_chunks, type CastRegistryLike } from "../vector/chunker.js";
 
 function vectorsDir(auPath: string): string {
   return `${auPath}/.vectors`;
@@ -43,8 +43,9 @@ export class RagManager {
     chapterNum: number,
     content: string,
     embeddingProvider: EmbeddingProvider,
+    castRegistry?: CastRegistryLike | null,
   ): Promise<void> {
-    await this.indexChapterInMemory(auPath, chapterNum, content, embeddingProvider);
+    await this.indexChapterInMemory(auPath, chapterNum, content, embeddingProvider, castRegistry);
     await this.vectorEngine.persist(vectorsDir(auPath));
   }
 
@@ -56,6 +57,7 @@ export class RagManager {
     auPath: string,
     chapterRepo: ChapterRepository,
     embeddingProvider: EmbeddingProvider,
+    castRegistry?: CastRegistryLike | null,
   ): Promise<void> {
     // 先切换到目标 AU（ensureLoaded 会清空内存并从磁盘重新加载，
     // 确保不残留前一个 AU 的 chunks）
@@ -69,7 +71,7 @@ export class RagManager {
     const chapters = await chapterRepo.list_main(auPath);
     for (const ch of chapters) {
       const content = await chapterRepo.get_content_only(auPath, ch.chapter_num);
-      await this.indexChapterInMemory(auPath, ch.chapter_num, content, embeddingProvider);
+      await this.indexChapterInMemory(auPath, ch.chapter_num, content, embeddingProvider, castRegistry);
     }
     // 无论有无章节都 persist（0 章节时需要写入空索引覆盖旧数据）
     await this.vectorEngine.persist(vectorsDir(auPath));
@@ -83,10 +85,11 @@ export class RagManager {
     chapterNum: number,
     content: string,
     embeddingProvider: EmbeddingProvider,
+    castRegistry?: CastRegistryLike | null,
   ): Promise<void> {
     await this.ensureLoaded(auPath);
 
-    const chunks = split_chapter_into_chunks(content, chapterNum);
+    const chunks = split_chapter_into_chunks(content, chapterNum, 500, 1, castRegistry);
     if (chunks.length === 0) return;
 
     const texts = chunks.map((c) => c.content);

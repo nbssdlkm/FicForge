@@ -101,7 +101,7 @@ export async function confirmChapter(
     const embProvider = createEmbeddingProvider(sett);
     if (embProvider) {
       const chContent = await chapter.get_content_only(auPath, chapterNum);
-      await e.ragManager.indexChapter(auPath, chapterNum, chContent, embProvider);
+      await e.ragManager.indexChapter(auPath, chapterNum, chContent, embProvider, proj.cast_registry);
     }
   } catch {
     // RAG indexing failure doesn't block confirm

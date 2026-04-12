@@ -12,17 +12,16 @@ import { initEngine } from "./api/engine-client";
 import { useTranslation } from "./i18n/useAppTranslation";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 
-/** 获取或创建持久化设备 ID，避免每次启动重新生成。 */
+/** 获取或创建持久化设备 ID（同步，用于 adapter 构造前）。 */
 function getOrCreateDeviceId(): string {
   const key = "ficforge_device_id";
   try {
     const stored = localStorage.getItem(key);
     if (stored) return stored;
-  } catch {
-    // localStorage 不可用，fallback 到每次生成
-  }
+  } catch { /* localStorage 不可用 */ }
   const id = crypto.randomUUID();
   try { localStorage.setItem(key, id); } catch { /* noop */ }
+  // 注：受限环境下每次生成新 ID，在 initEngine 后会通过 adapter.kvSet 补写持久化
   return id;
 }
 
@@ -88,6 +87,16 @@ function App() {
             initEngine(adapter, "");
           }
         }
+
+        // 确保 device_id 持久化到 adapter KV（覆盖 localStorage 不可用的场景）
+        try {
+          const { getEngine } = await import("./api/engine-client");
+          const eng = getEngine();
+          const kvStored = await eng.adapter.kvGet("ficforge_device_id");
+          if (!kvStored) {
+            await eng.adapter.kvSet("ficforge_device_id", deviceId);
+          }
+        } catch { /* best effort */ }
 
         setEngineInitialized(true);
       } catch (e) {

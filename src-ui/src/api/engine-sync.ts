@@ -55,7 +55,7 @@ export async function testWebDAVConnection(
   const resp = await fetch(url, {
     method: "PROPFIND",
     headers: {
-      Authorization: "Basic " + btoa(`${config.username}:${config.password}`),
+      Authorization: "Basic " + btoa(unescape(encodeURIComponent(`${config.username}:${config.password}`))),
       Depth: "0",
     },
   });

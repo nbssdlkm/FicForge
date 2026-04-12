@@ -9,7 +9,7 @@
 
 import type { BudgetReport } from "../domain/budget_report.js";
 import type { ContextSummary } from "../domain/context_summary.js";
-import { FactStatus } from "../domain/enums.js";
+import { FactStatus, IndexStatus } from "../domain/enums.js";
 import type { Fact } from "../domain/fact.js";
 import type { GeneratedWith } from "../domain/generated_with.js";
 import { createGeneratedWith } from "../domain/generated_with.js";
@@ -208,8 +208,9 @@ export async function* generate_chapter(
       worldbuilding_files = await loadMdFiles(adapter, joinPath(au_id, "worldbuilding"));
     }
 
-    // === 步骤 1.8：RAG 检索 ===
-    if (rag_text === null && vector_repo && embedding_provider) {
+    // === 步骤 1.8：RAG 检索（STALE 索引时跳过，避免旧 chunk 污染上下文）===
+    const indexReady = state.index_status === IndexStatus.READY;
+    if (rag_text === null && vector_repo && embedding_provider && indexReady) {
       try {
         const castReg = project.cast_registry ?? { characters: [] };
         const activeChars = build_active_chars(state, user_input, project, facts, castReg);

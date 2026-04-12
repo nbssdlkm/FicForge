@@ -44,7 +44,8 @@ export async function rebuildIndex(auPath: string) {
   const embProvider = createEmbeddingProvider(sett);
 
   if (embProvider) {
-    await e.ragManager.rebuildForAu(auPath, e.repos.chapter, embProvider);
+    const proj = await e.repos.project.get(auPath);
+    await e.ragManager.rebuildForAu(auPath, e.repos.chapter, embProvider, proj.cast_registry);
     // Update state to READY
     const st = await e.repos.state.get(auPath);
     st.index_status = IndexStatus.READY;

@@ -4,6 +4,18 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useKV } from '../../hooks/useKV';
+import {
+  type GenerateRequestState,
+  normalizeContextSummary,
+  readSavedContextSummaries,
+  saveContextSummaries,
+  readSavedGenerateRequest,
+  saveGenerateRequest,
+  getSkipFactsPromptDefault,
+  setSkipFactsPromptPersisted,
+  hasSeenSettingsModeTooltip,
+  markSettingsModeTooltipSeen,
+} from '../../utils/writerStorage';
 import { ThemeToggle } from '../shared/ThemeToggle';
 import { Button } from '../shared/Button';
 import { Tag } from '../shared/Tag';
@@ -62,13 +74,9 @@ type DraftItem = {
   modified: boolean;
 };
 
-type GenerateRequestState = {
-  inputType: 'continue' | 'instruction';
-  userInput: string;
-};
+// GenerateRequestState imported from utils/writerStorage
 
-const FACTS_PROMPT_STORAGE_KEY = 'ficforge.writer.skipFactsPrompt';
-const SETTINGS_MODE_TOOLTIP_STORAGE_KEY = 'ficforge.writer.settingsModeTipSeen';
+// 存储工具已抽取到 utils/writerStorage.ts
 const MAX_RECOMMENDED_DRAFTS = 5;
 
 type WriterMode = 'write' | 'settings';
@@ -133,142 +141,7 @@ function sortDrafts(drafts: DraftItem[]): DraftItem[] {
   return [...drafts].sort((left, right) => left.label.localeCompare(right.label));
 }
 
-function getGenerateRequestStorageKey(auPath: string, chapterNum: number): string {
-  return `ficforge.writer.generateRequest:${auPath}:${chapterNum}`;
-}
-
-function getContextSummaryStorageKey(auPath: string, chapterNum: number): string {
-  return `ficforge.writer.contextSummary:${auPath}:${chapterNum}`;
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === 'string');
-}
-
-function normalizeContextSummary(value: unknown): ContextSummary | null {
-  if (!value || typeof value !== 'object') return null;
-
-  const candidate = value as Partial<ContextSummary>;
-  if (
-    !isStringArray(candidate.characters_used)
-    || !isStringArray(candidate.worldbuilding_used)
-    || !isStringArray(candidate.facts_as_focus)
-    || !isStringArray(candidate.truncated_layers)
-    || !isStringArray(candidate.truncated_characters)
-    || typeof candidate.facts_injected !== 'number'
-    || typeof candidate.pinned_count !== 'number'
-    || typeof candidate.rag_chunks_retrieved !== 'number'
-    || typeof candidate.total_input_tokens !== 'number'
-  ) {
-    return null;
-  }
-
-  return {
-    characters_used: candidate.characters_used,
-    worldbuilding_used: candidate.worldbuilding_used,
-    facts_injected: candidate.facts_injected,
-    facts_as_focus: candidate.facts_as_focus,
-    pinned_count: candidate.pinned_count,
-    rag_chunks_retrieved: candidate.rag_chunks_retrieved,
-    total_input_tokens: candidate.total_input_tokens,
-    truncated_layers: candidate.truncated_layers,
-    truncated_characters: candidate.truncated_characters,
-  };
-}
-
-function readSavedContextSummaries(auPath: string, chapterNum: number): Record<string, ContextSummary> {
-  if (typeof window === 'undefined') return {};
-
-  try {
-    const raw = window.localStorage.getItem(getContextSummaryStorageKey(auPath, chapterNum));
-    if (!raw) return {};
-
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    return Object.entries(parsed).reduce<Record<string, ContextSummary>>((accumulator, [label, value]) => {
-      const summary = normalizeContextSummary(value);
-      if (summary) {
-        accumulator[label] = summary;
-      }
-      return accumulator;
-    }, {});
-  } catch {
-    return {};
-  }
-}
-
-function saveContextSummaries(
-  auPath: string,
-  chapterNum: number,
-  summaries: Record<string, ContextSummary>
-): void {
-  if (typeof window === 'undefined') return;
-
-  if (Object.keys(summaries).length === 0) {
-    window.localStorage.removeItem(getContextSummaryStorageKey(auPath, chapterNum));
-    return;
-  }
-
-  window.localStorage.setItem(
-    getContextSummaryStorageKey(auPath, chapterNum),
-    JSON.stringify(summaries)
-  );
-}
-
-function readSavedGenerateRequest(auPath: string, chapterNum: number): GenerateRequestState | null {
-  if (typeof window === 'undefined') return null;
-
-  try {
-    const raw = window.localStorage.getItem(getGenerateRequestStorageKey(auPath, chapterNum));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<GenerateRequestState>;
-    if (
-      (parsed.inputType === 'continue' || parsed.inputType === 'instruction')
-      && typeof parsed.userInput === 'string'
-    ) {
-      return {
-        inputType: parsed.inputType,
-        userInput: parsed.userInput,
-      };
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
-}
-
-function saveGenerateRequest(auPath: string, chapterNum: number, request: GenerateRequestState): void {
-  if (typeof window === 'undefined') return;
-
-  window.localStorage.setItem(
-    getGenerateRequestStorageKey(auPath, chapterNum),
-    JSON.stringify(request)
-  );
-}
-
-function getSkipFactsPromptDefault(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(FACTS_PROMPT_STORAGE_KEY) === '1';
-}
-
-function setSkipFactsPromptPersisted(value: boolean): void {
-  if (typeof window === 'undefined') return;
-  if (value) {
-    window.localStorage.setItem(FACTS_PROMPT_STORAGE_KEY, '1');
-    return;
-  }
-  window.localStorage.removeItem(FACTS_PROMPT_STORAGE_KEY);
-}
-
-function hasSeenSettingsModeTooltip(): boolean {
-  if (typeof window === 'undefined') return true;
-  return window.localStorage.getItem(SETTINGS_MODE_TOOLTIP_STORAGE_KEY) === '1';
-}
-
-function markSettingsModeTooltipSeen(): void {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(SETTINGS_MODE_TOOLTIP_STORAGE_KEY, '1');
-}
+// localStorage helpers 已抽取至 utils/writerStorage.ts
 
 function formatGeneratedMeta(generatedWith?: DraftGeneratedWith | null, locale = 'zh-CN'): string {
   if (!generatedWith) return '';
