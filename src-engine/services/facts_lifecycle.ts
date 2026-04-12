@@ -14,6 +14,7 @@ import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
 import { generate_fact_id, generate_op_id, now_utc } from "../repositories/implementations/file_utils.js";
+import { WriteTransaction } from "./write_transaction.js";
 
 export class FactsLifecycleError extends Error {
   constructor(message: string) {
@@ -151,43 +152,40 @@ export async function add_fact(
     updated_at: ts,
   });
 
-  // ops 先于 fact 落盘（D-0036: ops 是 sync truth）
-  await ops_repo.append(
-    au_id,
-    createOpsEntry({
-      op_id: generate_op_id(),
-      op_type: "add_fact",
-      target_id: fact.id,
-      chapter_num,
-      timestamp: ts,
-      payload: {
+  // WriteTransaction 保证 D-0036 写入顺序：ops → facts
+  const tx = new WriteTransaction();
+  tx.appendOp(au_id, createOpsEntry({
+    op_id: generate_op_id(),
+    op_type: "add_fact",
+    target_id: fact.id,
+    chapter_num,
+    timestamp: ts,
+    payload: {
+      content_clean: fact.content_clean,
+      status: fact.status,
+      fact: {
+        id: fact.id,
+        content_raw: fact.content_raw,
         content_clean: fact.content_clean,
+        characters: fact.characters,
+        chapter: fact.chapter,
         status: fact.status,
-        // 完整 fact 对象供 rebuildFactsFromOps 使用（D-0036 ops 重建）
-        fact: {
-          id: fact.id,
-          content_raw: fact.content_raw,
-          content_clean: fact.content_clean,
-          characters: fact.characters,
-          chapter: fact.chapter,
-          status: fact.status,
-          type: fact.type,
-          narrative_weight: fact.narrative_weight,
-          source: fact.source,
-          timeline: fact.timeline,
-          story_time: fact.story_time,
-          resolves: fact.resolves,
-          revision: fact.revision,
-          created_at: fact.created_at,
-          updated_at: fact.updated_at,
-        },
+        type: fact.type,
+        narrative_weight: fact.narrative_weight,
+        source: fact.source,
+        timeline: fact.timeline,
+        story_time: fact.story_time,
+        resolves: fact.resolves,
+        revision: fact.revision,
+        created_at: fact.created_at,
+        updated_at: fact.updated_at,
       },
-    }),
-  );
+    },
+  }));
+  tx.appendFact(au_id, fact);
+  await tx.commit(ops_repo, fact_repo, null);
 
-  await fact_repo.append(au_id, fact);
-
-  // resolves 正向联动
+  // resolves 联动需要读 target fact，在 tx 外执行
   if (fact.resolves) {
     await applyResolvesForward(au_id, fact.resolves, fact_repo);
   }
@@ -247,21 +245,29 @@ export async function edit_fact(
     needStateSave = changed;
   }
 
-  // ops 先于 fact/state 落盘（D-0036: ops 是 sync truth）
-  await ops_repo.append(
-    au_id,
-    createOpsEntry({
+  // WriteTransaction 保证 D-0036 写入顺序：ops → facts → state
+  const tx = new WriteTransaction();
+  tx.appendOp(au_id, createOpsEntry({
+    op_id: generate_op_id(),
+    op_type: "edit_fact",
+    target_id: fact_id,
+    timestamp: now_utc(),
+    payload: { updated_fields },
+  }));
+  tx.updateFact(au_id, fact);
+  if (needStateSave && state) {
+    tx.appendOp(au_id, createOpsEntry({
       op_id: generate_op_id(),
-      op_type: "edit_fact",
-      target_id: fact_id,
+      op_type: "set_chapter_focus",
+      target_id: au_id,
       timestamp: now_utc(),
-      payload: { updated_fields },
-    }),
-  );
+      payload: { focus: [...state.chapter_focus] },
+    }));
+    tx.setState(state);
+  }
+  await tx.commit(ops_repo, fact_repo, state_repo);
 
-  await fact_repo.update(au_id, fact);
-
-  // resolves 级联
+  // resolves 联动需要读 target fact，在 tx 外执行
   const newResolves = fact.resolves;
   if (oldResolves !== newResolves) {
     if (newResolves) {
@@ -270,18 +276,6 @@ export async function edit_fact(
     if (oldResolves) {
       await applyResolvesReverse(au_id, oldResolves, fact_repo);
     }
-  }
-
-  if (needStateSave && state) {
-    // 将 focus cleanup 记入 ops，确保跨设备重建时也能清理
-    await ops_repo.append(au_id, createOpsEntry({
-      op_id: generate_op_id(),
-      op_type: "set_chapter_focus",
-      target_id: au_id,
-      timestamp: now_utc(),
-      payload: { focus: [...state.chapter_focus] },
-    }));
-    await state_repo.save(state);
   }
 
   return fact;
@@ -315,32 +309,28 @@ export async function update_fact_status(
     needStateSave = changed;
   }
 
-  // ops 先于 fact/state 落盘（D-0036: ops 是 sync truth）
-  await ops_repo.append(
-    au_id,
-    createOpsEntry({
-      op_id: generate_op_id(),
-      op_type: "update_fact_status",
-      target_id: fact_id,
-      chapter_num,
-      timestamp: now_utc(),
-      payload: { old_status: oldStatus, new_status },
-    }),
-  );
-
-  await fact_repo.update(au_id, fact);
-
+  // WriteTransaction 保证 D-0036 写入顺序：ops → facts → state
+  const tx = new WriteTransaction();
+  tx.appendOp(au_id, createOpsEntry({
+    op_id: generate_op_id(),
+    op_type: "update_fact_status",
+    target_id: fact_id,
+    chapter_num,
+    timestamp: now_utc(),
+    payload: { old_status: oldStatus, new_status },
+  }));
+  tx.updateFact(au_id, fact);
   if (needStateSave && state) {
-    // 将 focus cleanup 记入 ops，确保跨设备重建时也能清理
-    await ops_repo.append(au_id, createOpsEntry({
+    tx.appendOp(au_id, createOpsEntry({
       op_id: generate_op_id(),
       op_type: "set_chapter_focus",
       target_id: au_id,
       timestamp: now_utc(),
       payload: { focus: [...state.chapter_focus] },
     }));
-    await state_repo.save(state);
+    tx.setState(state);
   }
+  await tx.commit(ops_repo, fact_repo, state_repo);
 
   return { fact_id, new_status, focus_warning: focusWarning };
 }
@@ -368,22 +358,21 @@ export async function set_chapter_focus(
     }
   }
 
-  // 更新 state（内存），ops 先于 state 落盘（D-0036）
+  // WriteTransaction 保证 D-0036 写入顺序：ops → state
   const state = await state_repo.get(au_id);
   state.chapter_focus = [...focus_ids];
 
-  await ops_repo.append(
-    au_id,
-    createOpsEntry({
-      op_id: generate_op_id(),
-      op_type: "set_chapter_focus",
-      target_id: au_id,
-      chapter_num: state.current_chapter,
-      timestamp: now_utc(),
-      payload: { focus: [...focus_ids] },
-    }),
-  );
-  await state_repo.save(state);
+  const tx = new WriteTransaction();
+  tx.appendOp(au_id, createOpsEntry({
+    op_id: generate_op_id(),
+    op_type: "set_chapter_focus",
+    target_id: au_id,
+    chapter_num: state.current_chapter,
+    timestamp: now_utc(),
+    payload: { focus: [...focus_ids] },
+  }));
+  tx.setState(state);
+  await tx.commit(ops_repo, null, state_repo);
 
   return { focus_ids: [...focus_ids] };
 }

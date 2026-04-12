@@ -1,0 +1,145 @@
+// Copyright (c) 2026 FicForge Contributors
+// Licensed under the GNU Affero General Public License v3.0.
+
+/**
+ * Engine Fandom — listFandoms, createFandom, listAus, createAu,
+ *   deleteFandom, deleteAu, listFandomFiles, readFandomFile,
+ *   renameFandom, renameAu.
+ */
+
+import { getEngine, getDataDir } from "./engine-client";
+import { sanitizePathSegment } from "./engine-lore";
+
+/** 路径安全检查：拒绝含 /, .., 或平台非法字符的名称 */
+function sanitizeName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("名称不能为空");
+  if (/[/\\]|\.\./.test(trimmed)) throw new Error(`名称含非法字符: ${trimmed}`);
+  return trimmed;
+}
+
+export async function listFandoms(dataDir?: string) {
+  const dd = dataDir ?? getDataDir();
+  const { fandom } = getEngine().repos;
+  const names = await fandom.list_fandoms(dd);
+  const result = [];
+  for (const name of names) {
+    // 复用 listAus 的过滤逻辑（排除已删除的 AU）
+    const aus = await listAus(name, dd);
+    result.push({ name, dir_name: name, aus });
+  }
+  return result;
+}
+
+export async function createFandom(name: string, dataDir?: string) {
+  const safeName = sanitizeName(name);
+  const dd = dataDir ?? getDataDir();
+  const e = getEngine();
+  const path = `${dd}/fandoms/${safeName}`;
+  if (await e.adapter.exists(`${path}/fandom.yaml`)) {
+    throw new Error(`Fandom "${safeName}" already exists`);
+  }
+  await e.adapter.mkdir(path);
+  await e.repos.fandom.save(path, { name: safeName, created_at: new Date().toISOString(), core_characters: [], wiki_source: "" });
+  return { name: safeName, path };
+}
+
+export async function listAus(fandomName: string, dataDir?: string) {
+  const safeFandomName = sanitizePathSegment(fandomName);
+  const dd = dataDir ?? getDataDir();
+  const { fandom } = getEngine().repos;
+  const { adapter } = getEngine();
+  const auDirs = await fandom.list_aus(`${dd}/fandoms/${safeFandomName}`);
+  // 过滤掉 project.yaml 已被 trash 的 AU（deleteAu 只 trash project.yaml）
+  const validAus: string[] = [];
+  for (const au of auDirs) {
+    if (await adapter.exists(`${dd}/fandoms/${safeFandomName}/aus/${au}/project.yaml`)) {
+      validAus.push(au);
+    }
+  }
+  return validAus;
+}
+
+export async function createAu(fandomName: string, auName: string, fandomPath: string) {
+  const safeName = sanitizeName(auName);
+  const { adapter } = getEngine();
+  const auPath = `${fandomPath}/aus/${safeName}`;
+  // 检查 AU 是否已存在
+  if (await adapter.exists(`${auPath}/project.yaml`)) {
+    throw new Error(`AU "${safeName}" already exists`);
+  }
+  await adapter.mkdir(auPath);
+  // Initialize project.yaml
+  const { project } = getEngine().repos;
+  const { createProject } = await import("@ficforge/engine");
+  const proj = createProject({ project_id: crypto.randomUUID(), au_id: auPath, name: auName, fandom: fandomName });
+  await project.save(proj);
+  return { name: auName, path: auPath };
+}
+
+export async function deleteFandom(fandomDirName: string, dataDir?: string) {
+  const safeFandomDir = sanitizePathSegment(fandomDirName);
+  const dd = dataDir ?? getDataDir();
+  const { adapter } = getEngine();
+  const fandomRoot = `${dd}/fandoms/${safeFandomDir}`;
+
+  // 先 trash 所有 AU 的 project.yaml（使 listAus 不再列出它们）
+  const ausDir = `${fandomRoot}/aus`;
+  if (await adapter.exists(ausDir)) {
+    const auDirs = await adapter.listDir(ausDir);
+    for (const au of auDirs) {
+      try {
+        await getEngine().trash.move_to_trash(fandomRoot, `aus/${au}/project.yaml`, "au", au);
+      } catch { /* 可能已删或不存在 */ }
+    }
+  }
+
+  // 再 trash fandom.yaml（使 listFandoms 不再列出此 fandom）
+  const entry = await getEngine().trash.move_to_trash(fandomRoot, "fandom.yaml", "fandom", fandomDirName);
+  return { status: "ok", trash_id: entry.trash_id };
+}
+
+export async function deleteAu(fandomDirName: string, auName: string, dataDir?: string) {
+  const safeFandomDir = sanitizePathSegment(fandomDirName);
+  const safeAuName = sanitizePathSegment(auName);
+  const dd = dataDir ?? getDataDir();
+  // AU 是目录——在 fandom 级别的 .trash/ 创建记录（这样 Library 的 TrashPanel 能看到）
+  const fandomRoot = `${dd}/fandoms/${safeFandomDir}`;
+  const entry = await getEngine().trash.move_to_trash(
+    fandomRoot, `aus/${safeAuName}/project.yaml`, "au", safeAuName,
+  );
+  return { status: "ok", trash_id: entry.trash_id };
+}
+
+export async function listFandomFiles(fandomName: string, dataDir?: string) {
+  const safeFandomName = sanitizePathSegment(fandomName);
+  const dd = dataDir ?? getDataDir();
+  const { adapter } = getEngine();
+  const base = `${dd}/fandoms/${safeFandomName}`;
+  const readDir = async (sub: string) => {
+    const dir = `${base}/${sub}`;
+    if (!(await adapter.exists(dir))) return [];
+    const files = await adapter.listDir(dir);
+    return files.filter((f) => f.endsWith(".md")).sort().map((f) => ({ name: f.replace(/\.md$/, ""), filename: f }));
+  };
+  return { characters: await readDir("core_characters"), worldbuilding: await readDir("core_worldbuilding") };
+}
+
+export async function readFandomFile(fandomName: string, category: string, filename: string, dataDir?: string) {
+  const safeFandomName = sanitizePathSegment(fandomName);
+  const safeCategory = sanitizePathSegment(category);
+  const safeFilename = sanitizePathSegment(filename);
+  const dd = dataDir ?? getDataDir();
+  const { adapter } = getEngine();
+  const content = await adapter.readFile(`${dd}/fandoms/${safeFandomName}/${safeCategory}/${safeFilename}`);
+  return { filename, category, content };
+}
+
+export async function renameFandom(_fandomDirName: string, _newName: string, _dataDir?: string) {
+  // Filesystem rename not directly supported by PlatformAdapter. Requires read+write+delete.
+  throw new Error("renameFandom not yet implemented in engine-client");
+}
+
+export async function renameAu(_fandomDirName: string, _auName: string, _newName: string, _dataDir?: string) {
+  throw new Error("renameAu not yet implemented in engine-client");
+}

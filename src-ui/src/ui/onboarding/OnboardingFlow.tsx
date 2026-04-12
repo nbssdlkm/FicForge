@@ -16,7 +16,8 @@ import { useTranslation } from '../../i18n/useAppTranslation';
 const ONBOARDING_KEY = 'ficforge.onboarding.completed';
 
 export function isOnboardingCompleted(): boolean {
-  return localStorage.getItem(ONBOARDING_KEY) === 'true';
+  try { return localStorage.getItem(ONBOARDING_KEY) === 'true'; }
+  catch { return false; }
 }
 
 export function OnboardingFlow({ onComplete }: { onComplete: (result?: OnboardingCompletion) => void }) {
@@ -59,14 +60,14 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
   }, []);
 
   const handleComplete = useCallback((result?: OnboardingCompletion) => {
-    localStorage.setItem(ONBOARDING_KEY, 'true');
+    try { localStorage.setItem(ONBOARDING_KEY, 'true'); } catch { /* ignore */ }
     onComplete(result);
   }, [onComplete]);
 
   const handleClose = useCallback(() => {
     // 只有配置已成功保存才标记完成
     if (configSaved) {
-      localStorage.setItem(ONBOARDING_KEY, 'true');
+      try { localStorage.setItem(ONBOARDING_KEY, 'true'); } catch { /* ignore */ }
       onComplete();
     } else {
       // 未保存配置，弹确认

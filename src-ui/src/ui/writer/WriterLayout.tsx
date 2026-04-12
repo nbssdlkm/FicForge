@@ -3,6 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useKV } from '../../hooks/useKV';
 import { ThemeToggle } from '../shared/ThemeToggle';
 import { Button } from '../shared/Button';
 import { Tag } from '../shared/Tag';
@@ -374,9 +375,13 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const [editingOriginalContent, setEditingOriginalContent] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
 
-  // 阅读偏好（localStorage 持久化）
-  const [fontSize, setFontSize] = useState(() => parseInt(localStorage.getItem('ficforge.fontSize') || '18', 10));
-  const [lineHeight, setLineHeight] = useState(() => parseFloat(localStorage.getItem('ficforge.lineHeight') || '2.0'));
+  // 阅读偏好（跨平台 KV 持久化）
+  const [fontSizeStr, setFontSizeKV] = useKV('ficforge.fontSize', '18');
+  const fontSize = parseInt(fontSizeStr, 10);
+  const setFontSize = useCallback((v: number) => setFontSizeKV(String(v)), [setFontSizeKV]);
+  const [lineHeightStr, setLineHeightKV] = useKV('ficforge.lineHeight', '2.0');
+  const lineHeight = parseFloat(lineHeightStr);
+  const setLineHeight = useCallback((v: number) => setLineHeightKV(String(v)), [setLineHeightKV]);
 
   // 查看历史章节
   useEffect(() => {
@@ -1680,14 +1685,14 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                   <span className="text-text/70">{t('writer.fontSize')}</span>
                   <span className="text-text/50 font-mono">{fontSize}px</span>
                 </div>
-                <input type="range" min="14" max="24" step="1" value={fontSize} onChange={e => { const v = parseInt(e.target.value); setFontSize(v); localStorage.setItem('ficforge.fontSize', String(v)); }} className="w-full accent-accent h-1.5" />
+                <input type="range" min="14" max="24" step="1" value={fontSize} onChange={e => setFontSize(parseInt(e.target.value))} className="w-full accent-accent h-1.5" />
               </div>
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-text/70">{t('writer.lineHeight')}</span>
                   <span className="text-text/50 font-mono">{lineHeight.toFixed(1)}</span>
                 </div>
-                <input type="range" min="1.4" max="3.0" step="0.1" value={lineHeight} onChange={e => { const v = parseFloat(e.target.value); setLineHeight(v); localStorage.setItem('ficforge.lineHeight', String(v)); }} className="w-full accent-accent h-1.5" />
+                <input type="range" min="1.4" max="3.0" step="0.1" value={lineHeight} onChange={e => setLineHeight(parseFloat(e.target.value))} className="w-full accent-accent h-1.5" />
               </div>
             </div>
           </section>
@@ -1773,14 +1778,14 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                   <span className="text-text/70">{t('writer.fontSize')}</span>
                   <span className="font-mono text-text/50">{fontSize}px</span>
                 </div>
-                <input type="range" min="14" max="24" step="1" value={fontSize} onChange={e => { const v = parseInt(e.target.value); setFontSize(v); localStorage.setItem('ficforge.fontSize', String(v)); }} className="h-2 w-full accent-accent" />
+                <input type="range" min="14" max="24" step="1" value={fontSize} onChange={e => setFontSize(parseInt(e.target.value))} className="h-2 w-full accent-accent" />
               </div>
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-text/70">{t('writer.lineHeight')}</span>
                   <span className="font-mono text-text/50">{lineHeight.toFixed(1)}</span>
                 </div>
-                <input type="range" min="1.4" max="3.0" step="0.1" value={lineHeight} onChange={e => { const v = parseFloat(e.target.value); setLineHeight(v); localStorage.setItem('ficforge.lineHeight', String(v)); }} className="h-2 w-full accent-accent" />
+                <input type="range" min="1.4" max="3.0" step="0.1" value={lineHeight} onChange={e => setLineHeight(parseFloat(e.target.value))} className="h-2 w-full accent-accent" />
               </div>
             </div>
           </section>

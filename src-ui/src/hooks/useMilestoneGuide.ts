@@ -8,11 +8,13 @@ const PREFIX = 'ficforge.milestones.';
 
 export function useMilestoneGuide() {
   const shouldShow = useCallback((milestoneId: string): boolean => {
-    return localStorage.getItem(`${PREFIX}${milestoneId}`) !== 'dismissed';
+    try { return localStorage.getItem(`${PREFIX}${milestoneId}`) !== 'dismissed'; }
+    catch { return true; }
   }, []);
 
   const dismiss = useCallback((milestoneId: string): void => {
-    localStorage.setItem(`${PREFIX}${milestoneId}`, 'dismissed');
+    try { localStorage.setItem(`${PREFIX}${milestoneId}`, 'dismissed'); }
+    catch { /* ignore */ }
   }, []);
 
   return { shouldShow, dismiss };
