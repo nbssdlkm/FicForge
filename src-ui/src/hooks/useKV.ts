@@ -7,16 +7,18 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { getEngine } from "../api/engine-client";
+import { isEngineReady, getEngine } from "../api/engine-client";
 
 /**
  * 使用平台适配器的 KV 存储读写字符串值。
  * mount 时异步加载初始值，写入时同步更新 state 并异步持久化。
+ * 引擎初始化前安全降级为仅使用默认值。
  */
 export function useKV(key: string, defaultValue: string): [string, (v: string) => void] {
   const [value, setValue] = useState(defaultValue);
 
   useEffect(() => {
+    if (!isEngineReady()) return;
     let cancelled = false;
     getEngine().adapter.kvGet(key).then((stored) => {
       if (!cancelled && stored !== null) {
@@ -28,6 +30,7 @@ export function useKV(key: string, defaultValue: string): [string, (v: string) =
 
   const set = useCallback((v: string) => {
     setValue(v);
+    if (!isEngineReady()) return;
     getEngine().adapter.kvSet(key, v).catch(() => { /* ignore write failures */ });
   }, [key]);
 

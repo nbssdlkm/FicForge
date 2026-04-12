@@ -377,10 +377,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
   // 阅读偏好（跨平台 KV 持久化）
   const [fontSizeStr, setFontSizeKV] = useKV('ficforge.fontSize', '18');
-  const fontSize = parseInt(fontSizeStr, 10);
+  const fontSize = parseInt(fontSizeStr, 10) || 18;
   const setFontSize = useCallback((v: number) => setFontSizeKV(String(v)), [setFontSizeKV]);
   const [lineHeightStr, setLineHeightKV] = useKV('ficforge.lineHeight', '2.0');
-  const lineHeight = parseFloat(lineHeightStr);
+  const lineHeight = parseFloat(lineHeightStr) || 2.0;
   const setLineHeight = useCallback((v: number) => setLineHeightKV(String(v)), [setLineHeightKV]);
 
   // 查看历史章节
