@@ -68,7 +68,7 @@ export async function syncAllAus(webdavConfig: WebDAVConfig): Promise<Aggregated
   const dd = getDataDir();
   const baseUrl = webdavConfig.url.replace(/\/+$/, '') + normalizeRemoteDir(webdavConfig.remote_dir);
   const syncAdapter = new WebDAVSyncAdapter(baseUrl, webdavConfig.username, webdavConfig.password);
-  const syncManager = new SyncManager(adapter, repos.ops, repos.state, syncAdapter);
+  const syncManager = new SyncManager(adapter, repos.ops, repos.state, syncAdapter, repos.fact);
 
   const agg: AggregatedSyncResult = {
     synced: true, fileConflicts: [], opsConflicts: [],

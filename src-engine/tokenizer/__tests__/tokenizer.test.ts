@@ -1,8 +1,12 @@
 // Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 
-import { describe, expect, it } from "vitest";
-import { clear_tokenizer_cache, count_tokens } from "../index.js";
+import { describe, expect, it, beforeAll } from "vitest";
+import { clear_tokenizer_cache, count_tokens, ensureTokenizer } from "../index.js";
+
+beforeAll(async () => {
+  await ensureTokenizer();
+});
 
 describe("count_tokens", () => {
   it("empty text returns 0", () => {

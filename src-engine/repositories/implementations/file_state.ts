@@ -9,13 +9,17 @@ import { IndexStatus } from "../../domain/enums.js";
 import type { EmbeddingFingerprint, State } from "../../domain/state.js";
 import { createEmbeddingFingerprint, createState } from "../../domain/state.js";
 import type { StateRepository } from "../interfaces/state.js";
-import { joinPath, now_utc, obj_to_plain } from "./file_utils.js";
+import { joinPath, now_utc, obj_to_plain, withWriteLock } from "./file_utils.js";
 
 export class FileStateRepository implements StateRepository {
   constructor(private adapter: PlatformAdapter) {}
 
+  private statePath(au_id: string): string {
+    return joinPath(au_id, "state.yaml");
+  }
+
   async get(au_id: string): Promise<State> {
-    const path = joinPath(au_id, "state.yaml");
+    const path = this.statePath(au_id);
     const exists = await this.adapter.exists(path);
     if (!exists) {
       return createState({ au_id });
@@ -31,14 +35,32 @@ export class FileStateRepository implements StateRepository {
   }
 
   async save(state: State): Promise<void> {
-    const path = joinPath(state.au_id, "state.yaml");
-    state.updated_at = now_utc();
-    state.revision += 1;
-    const raw = obj_to_plain(state);
-    const content = yaml.dump(raw, { sortKeys: false, lineWidth: -1 });
-    const dir = path.substring(0, path.lastIndexOf("/"));
-    await this.adapter.mkdir(dir);
-    await this.adapter.writeFile(path, content);
+    const path = this.statePath(state.au_id);
+    await withWriteLock(path, async () => {
+      state.updated_at = now_utc();
+      state.revision += 1;
+      const raw = obj_to_plain(state);
+      const content = yaml.dump(raw, { sortKeys: false, lineWidth: -1 });
+      const dir = path.substring(0, path.lastIndexOf("/"));
+      await this.adapter.mkdir(dir);
+      await this.adapter.writeFile(path, content);
+    });
+  }
+
+  async update(au_id: string, mutator: (state: State) => void): Promise<State> {
+    const path = this.statePath(au_id);
+    return withWriteLock(path, async () => {
+      const state = await this.get(au_id);
+      mutator(state);
+      state.updated_at = now_utc();
+      state.revision += 1;
+      const raw = obj_to_plain(state);
+      const content = yaml.dump(raw, { sortKeys: false, lineWidth: -1 });
+      const dir = path.substring(0, path.lastIndexOf("/"));
+      await this.adapter.mkdir(dir);
+      await this.adapter.writeFile(path, content);
+      return state;
+    });
   }
 }
 

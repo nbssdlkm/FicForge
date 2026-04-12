@@ -11,7 +11,7 @@ export { getPrompts } from "./prompts/index.js";
 export type { PromptKey, PromptModule } from "./prompts/index.js";
 
 // Tokenizer
-export { clear_tokenizer_cache, count_tokens } from "./tokenizer/index.js";
+export { clear_tokenizer_cache, count_tokens, ensureTokenizer } from "./tokenizer/index.js";
 export type { TokenCount } from "./tokenizer/index.js";
 
 // Platform

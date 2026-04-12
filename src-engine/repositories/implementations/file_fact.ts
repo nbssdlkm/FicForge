@@ -8,20 +8,7 @@ import { FactSource, FactStatus, FactType, NarrativeWeight } from "../../domain/
 import type { Fact } from "../../domain/fact.js";
 import { createFact } from "../../domain/fact.js";
 import type { FactRepository } from "../interfaces/fact.js";
-import { append_jsonl, joinPath, now_utc, read_jsonl, rewrite_jsonl } from "./file_utils.js";
-
-// ---------------------------------------------------------------------------
-// 写入锁（单线程环境下串行化 async 写入，防竞态）
-// ---------------------------------------------------------------------------
-
-const _writeLocks = new Map<string, Promise<void>>();
-
-function withWriteLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
-  const prev = _writeLocks.get(key) ?? Promise.resolve();
-  const next = prev.then(fn, fn); // always chain, even on error
-  _writeLocks.set(key, next.then(() => {}, () => {}));
-  return next;
-}
+import { append_jsonl, joinPath, now_utc, read_jsonl, rewrite_jsonl, withWriteLock } from "./file_utils.js";
 
 // ---------------------------------------------------------------------------
 // Fact ↔ JSON 序列化
@@ -148,6 +135,13 @@ export class FileFactRepository implements FactRepository {
       }
       const remaining = facts.filter((f) => !idsSet.has(f.id));
       await rewrite_jsonl(this.adapter, path, remaining.map(factToDict));
+    });
+  }
+
+  async replace_all(au_id: string, facts: Fact[]): Promise<void> {
+    const path = this.factsPath(au_id);
+    await withWriteLock(path, async () => {
+      await rewrite_jsonl(this.adapter, path, facts.map(factToDict));
     });
   }
 }

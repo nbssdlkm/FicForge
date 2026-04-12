@@ -17,7 +17,7 @@ import type { Fact } from "../domain/fact.js";
 import { get_context_window, get_model_max_output } from "../domain/model_context_map.js";
 import type { Project } from "../domain/project.js";
 import type { State } from "../domain/state.js";
-import { count_tokens } from "../tokenizer/index.js";
+import { count_tokens, ensureTokenizer } from "../tokenizer/index.js";
 import { getPrompts } from "../prompts/index.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { Message } from "../llm/provider.js";
@@ -407,6 +407,7 @@ export async function assemble_context(
   worldbuilding_files: Record<string, string> | null = null,
   language = "zh",
 ): Promise<AssembleContextResult> {
+  await ensureTokenizer();
   const llm = project.llm;
   const report = createBudgetReport();
 

@@ -9,9 +9,34 @@
  * - local → gpt-tokenizer（无本地 tokenizer.json 支持，直接走 cl100k_base）
  *
  * fallback：gpt-tokenizer 加载失败 → char_mul1.5 估算。
+ *
+ * gpt-tokenizer（~950KB）通过动态 import 懒加载，不阻塞首屏渲染。
+ * 调用方在 async 入口处调用 `await ensureTokenizer()` 预加载，
+ * 之后所有 `count_tokens` 调用同步返回，无需改签名。
  */
 
-import { encode } from "gpt-tokenizer/encoding/cl100k_base";
+// ---------------------------------------------------------------------------
+// 懒加载缓存
+// ---------------------------------------------------------------------------
+
+type EncodeFn = (text: string) => number[];
+
+let _encodeFn: EncodeFn | null = null;
+let _loadPromise: Promise<void> | null = null;
+
+/**
+ * 预加载 gpt-tokenizer。在生成/RAG 等重计算入口调用一次即可。
+ * 多次调用安全（只加载一次），加载失败静默降级为 char_mul1.5。
+ */
+export async function ensureTokenizer(): Promise<void> {
+  if (_encodeFn) return;
+  if (!_loadPromise) {
+    _loadPromise = import("gpt-tokenizer/encoding/cl100k_base")
+      .then((m) => { _encodeFn = m.encode; })
+      .catch(() => { /* 降级为估算 */ });
+  }
+  await _loadPromise;
+}
 
 // ---------------------------------------------------------------------------
 // Token 计数结果
@@ -28,11 +53,8 @@ export interface TokenCount {
 // ---------------------------------------------------------------------------
 
 /**
- * 分词器路由（PRD §2.4）。
- *
- * @param text 要计算 token 数的文本。
- * @param llm_config LLMConfig 或类似对象，需要 mode 属性。
- * @returns TokenCount
+ * 分词器路由（PRD §2.4）。同步调用。
+ * 如果 ensureTokenizer() 已完成，使用精确分词；否则 fallback 为 char_mul1.5。
  */
 export function count_tokens(
   text: string,
@@ -42,15 +64,16 @@ export function count_tokens(
     return { count: 0, is_estimate: false };
   }
 
-  // gpt-tokenizer cl100k_base（覆盖 api / ollama / local 所有模式）
-  try {
-    const tokens = encode(text);
-    return { count: tokens.length, is_estimate: false };
-  } catch {
-    // fallback
+  if (_encodeFn) {
+    try {
+      const tokens = _encodeFn(text);
+      return { count: tokens.length, is_estimate: false };
+    } catch {
+      // fallback
+    }
   }
 
-  // 最终 fallback：char_mul1.5
+  // gpt-tokenizer 未加载或编码失败 → char_mul1.5
   return { count: Math.trunc(text.length * 1.5), is_estimate: true };
 }
 

@@ -4,12 +4,12 @@
 /** 同步管理器。参见 PRD v4 §3。 */
 
 import type { PlatformAdapter } from "../platform/adapter.js";
+import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
 import type { SyncAdapter } from "./sync_adapter.js";
 import { mergeOps, rebuildStateFromOps, rebuildFactsFromOps, syncLamportClock } from "./ops_merge.js";
 import { joinPath } from "../repositories/implementations/file_utils.js";
-import { factToDict } from "../repositories/implementations/file_fact.js";
 
 export interface FileConflict {
   path: string;
@@ -32,6 +32,7 @@ export class SyncManager {
     private opsRepo: OpsRepository,
     private stateRepo: StateRepository,
     private syncAdapter: SyncAdapter,
+    private factRepo?: FactRepository,
   ) {}
 
   /**
@@ -80,10 +81,9 @@ export class SyncManager {
         await this.stateRepo.save(state);
 
         const facts = rebuildFactsFromOps(merged);
-        const factsPath = joinPath(localAuPath, "facts.jsonl");
-        // 使用 factToDict 保持与 FileFactRepository 一致的序列化格式
-        const factsContent = facts.map((f) => JSON.stringify(factToDict(f))).join("\n") + "\n";
-        await this.adapter.writeFile(factsPath, factsContent);
+        if (this.factRepo) {
+          await this.factRepo.replace_all(localAuPath, facts);
+        }
       }
 
       // 7. 推送本地 ops 到远程

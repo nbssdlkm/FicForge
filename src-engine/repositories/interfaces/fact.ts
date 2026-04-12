@@ -33,4 +33,7 @@ export interface FactRepository {
 
   /** 按 ID 列表精准删除（仅限 undo 级联回滚，D-0003）。 */
   delete_by_ids(au_id: string, fact_ids: string[]): Promise<void>;
+
+  /** 全量替换 facts（sync 重建用）。 */
+  replace_all(au_id: string, facts: Fact[]): Promise<void>;
 }

@@ -18,6 +18,7 @@ import {
   createOpsEntry,
   generate_op_id,
   now_utc,
+  WriteTransaction,
   type GeneratedWith,
 } from "@ficforge/engine";
 import { getEngine } from "./engine-client";
@@ -82,10 +83,11 @@ export async function confirmChapter(
     }
   }
   if (finalTitle) {
+    // 原子更新：读取最新 state → 修改 title → WriteTransaction 保证 D-0036 顺序
     const st = await state.get(auPath);
     st.chapter_titles[chapterNum] = finalTitle;
-    // ops 先于 state 落盘（D-0036）
-    await ops.append(auPath, createOpsEntry({
+    const tx = new WriteTransaction();
+    tx.appendOp(auPath, createOpsEntry({
       op_id: generate_op_id(),
       op_type: "set_chapter_title",
       target_id: auPath,
@@ -93,7 +95,8 @@ export async function confirmChapter(
       timestamp: now_utc(),
       payload: { title: finalTitle },
     }));
-    await state.save(st);
+    tx.setState(st);
+    await tx.commit(ops, null, state);
   }
 
   // Index the confirmed chapter for RAG (F7) — delegated to RagManager
@@ -123,8 +126,8 @@ export async function updateChapterTitle(auPath: string, chapterNum: number, tit
   const { state, ops } = getEngine().repos;
   const st = await state.get(auPath);
   st.chapter_titles[chapterNum] = title;
-  // ops 先于 state 落盘（D-0036: ops 是 sync truth）
-  await ops.append(auPath, createOpsEntry({
+  const tx = new WriteTransaction();
+  tx.appendOp(auPath, createOpsEntry({
     op_id: generate_op_id(),
     op_type: "set_chapter_title",
     target_id: auPath,
@@ -132,7 +135,8 @@ export async function updateChapterTitle(auPath: string, chapterNum: number, tit
     timestamp: now_utc(),
     payload: { title },
   }));
-  await state.save(st);
+  tx.setState(st);
+  await tx.commit(ops, null, state);
   return { chapter_num: chapterNum, title };
 }
 

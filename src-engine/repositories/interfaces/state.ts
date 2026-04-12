@@ -11,4 +11,10 @@ export interface StateRepository {
 
   /** 保存 AU 运行时状态。 */
   save(state: State): Promise<void>;
+
+  /**
+   * 原子 read-modify-write：在写入锁内读取 state，执行 mutator，然后保存。
+   * 用于只需修改个别字段的场景（如 index_status），避免长 async 间隙导致的竞态覆写。
+   */
+  update(au_id: string, mutator: (state: State) => void): Promise<State>;
 }

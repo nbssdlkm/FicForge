@@ -6,7 +6,7 @@
  * 用户确认章节后，可选让 AI 从新章节中提取事实条目。
  */
 
-import { count_tokens } from "../tokenizer/index.js";
+import { count_tokens, ensureTokenizer } from "../tokenizer/index.js";
 import { getPrompts } from "../prompts/index.js";
 import type { LLMProvider } from "../llm/provider.js";
 
@@ -253,6 +253,7 @@ export async function extract_facts_from_chapter(
   max_chunk_tokens = 4000,
   language = "zh",
 ): Promise<ExtractedFact[]> {
+  await ensureTokenizer();
   const P = getPrompts(language as "zh" | "en");
 
   if (!chapter_text.trim()) return [];

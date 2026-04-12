@@ -35,6 +35,23 @@ export function obj_to_plain(obj: unknown): unknown {
 }
 
 // ---------------------------------------------------------------------------
+// 写入锁（单线程环境下串行化 async 写入，防竞态）
+// ---------------------------------------------------------------------------
+
+const _writeLocks = new Map<string, Promise<void>>();
+
+/**
+ * 对同一 key（通常是文件路径）的 async 写入串行化。
+ * 保证先到的操作先执行完，后到的操作排队。
+ */
+export function withWriteLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const prev = _writeLocks.get(key) ?? Promise.resolve();
+  const next = prev.then(fn, fn); // always chain, even on error
+  _writeLocks.set(key, next.then(() => {}, () => {}));
+  return next;
+}
+
+// ---------------------------------------------------------------------------
 // JSONL helpers
 // ---------------------------------------------------------------------------
 

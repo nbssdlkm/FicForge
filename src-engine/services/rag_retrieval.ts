@@ -6,7 +6,7 @@
  * 从向量引擎检索相关设定和历史章节片段，格式化后注入上下文组装器 P4 层。
  */
 
-import { count_tokens } from "../tokenizer/index.js";
+import { count_tokens, ensureTokenizer } from "../tokenizer/index.js";
 import { getPrompts } from "../prompts/index.js";
 import type { VectorRepository, SearchResult } from "../repositories/interfaces/vector.js";
 import type { EmbeddingProvider } from "../llm/embedding_provider.js";
@@ -123,6 +123,7 @@ export async function retrieve_rag(
   current_chapter = 1,
   language = "zh",
 ): Promise<[string, number]> {
+  await ensureTokenizer();
   if (!query.trim()) return ["", 0];
 
   // 获取查询向量

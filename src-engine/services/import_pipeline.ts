@@ -454,13 +454,72 @@ export async function executeImport(
     });
   }
 
-  // 3. 写入设定文件
+  // 3. 更新 state（仅在有章节时需要）
+  let importState: ReturnType<typeof createState> | null = null;
+  if (plan.chapters.length > 0) {
+    const maxChapterNum = Math.max(...plan.chapters.map((c) => c.chapterNum));
+    const lastContent = plan.chapters[plan.chapters.length - 1].content;
+    const lastSceneEnding = extract_last_scene_ending(lastContent, 50);
+
+    let existingState;
+    try {
+      existingState = await stateRepo.get(auId);
+    } catch {
+      existingState = null;
+    }
+
+    importState = existingState
+      ? {
+          ...existingState,
+          current_chapter: Math.max(existingState.current_chapter, maxChapterNum + 1),
+          last_scene_ending: lastSceneEnding,
+          characters_last_seen: {
+            ...existingState.characters_last_seen,
+            ...allCharactersLastSeen,
+          },
+          index_status: IndexStatus.STALE,
+          updated_at: timestamp,
+        }
+      : createState({
+          au_id: auId,
+          current_chapter: maxChapterNum + 1,
+          last_scene_ending: lastSceneEnding,
+          characters_last_seen: allCharactersLastSeen,
+          index_status: IndexStatus.STALE,
+        });
+    result.nextChapterNum = importState.current_chapter;
+  }
+
+  // 4. 事务提交 — 只要有章节或设定就写 ops（D-0036：ops 是 sync truth）
+  if (plan.chapters.length > 0 || plan.settings.length > 0) {
+    tx.appendOp(auId, createOpsEntry({
+      op_id: generate_op_id(),
+      op_type: "import_chapters",
+      target_id: auId,
+      timestamp,
+      payload: {
+        total_chapters: result.chaptersImported,
+        total_settings: plan.settings.length,
+        trashed_chapters: result.trashedChapters,
+        source_files: [...new Set(plan.chapters.map((c) => c.sourceFile))],
+        characters_found: Object.keys(allCharactersLastSeen),
+        // 供 rebuildStateFromOps 使用（跨设备同步时重建 state）
+        last_chapter_num: plan.chapters.length > 0 ? Math.max(...plan.chapters.map((c) => c.chapterNum)) : 0,
+        last_scene_ending: plan.chapters.length > 0 ? extract_last_scene_ending(plan.chapters[plan.chapters.length - 1].content, 50) : "",
+        characters_last_seen: allCharactersLastSeen,
+      },
+    }));
+    if (importState) tx.setState(importState);
+
+    await tx.commit(opsRepo, null, stateRepo, chapterRepo, null);
+  }
+
+  // 5. 写入设定文件（tx 提交之后：worldbuilding 不受 ops 管理，非关键数据）
   if (plan.settings.length > 0) {
     const settingsName = locale === "zh" ? "导入设定" : "imported_settings";
     if (plan.conflictOptions.settingsMode === "merge") {
       const merged = plan.settings.map((s) => s.content).join("\n\n---\n\n");
       let settingsPath = `${auId}/worldbuilding/${settingsName}.md`;
-      // 重名保护：已存在则追加时间戳
       if (await adapter.exists(settingsPath)) {
         const ts = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         settingsPath = `${auId}/worldbuilding/${settingsName}_${ts}.md`;
@@ -484,63 +543,6 @@ export async function executeImport(
       }
     }
     result.settingsImported = plan.settings.length;
-  }
-
-  // 4. 更新 state
-  if (plan.chapters.length > 0) {
-    const maxChapterNum = Math.max(...plan.chapters.map((c) => c.chapterNum));
-    const lastContent = plan.chapters[plan.chapters.length - 1].content;
-    const lastSceneEnding = extract_last_scene_ending(lastContent, 50);
-
-    let existingState;
-    try {
-      existingState = await stateRepo.get(auId);
-    } catch {
-      existingState = null;
-    }
-
-    const state = existingState
-      ? {
-          ...existingState,
-          current_chapter: Math.max(existingState.current_chapter, maxChapterNum + 1),
-          last_scene_ending: lastSceneEnding,
-          characters_last_seen: {
-            ...existingState.characters_last_seen,
-            ...allCharactersLastSeen,
-          },
-          index_status: IndexStatus.STALE,
-          updated_at: timestamp,
-        }
-      : createState({
-          au_id: auId,
-          current_chapter: maxChapterNum + 1,
-          last_scene_ending: lastSceneEnding,
-          characters_last_seen: allCharactersLastSeen,
-          index_status: IndexStatus.STALE,
-        });
-    result.nextChapterNum = state.current_chapter;
-
-    // 5. 事务提交（D-0036：ops → chapters → state）
-    tx.appendOp(auId, createOpsEntry({
-      op_id: generate_op_id(),
-      op_type: "import_chapters",
-      target_id: auId,
-      timestamp,
-      payload: {
-        total_chapters: result.chaptersImported,
-        total_settings: result.settingsImported,
-        trashed_chapters: result.trashedChapters,
-        source_files: [...new Set(plan.chapters.map((c) => c.sourceFile))],
-        characters_found: Object.keys(allCharactersLastSeen),
-        // 供 rebuildStateFromOps 使用（跨设备同步时重建 state）
-        last_chapter_num: plan.chapters.length > 0 ? Math.max(...plan.chapters.map((c) => c.chapterNum)) : 0,
-        last_scene_ending: plan.chapters.length > 0 ? extract_last_scene_ending(plan.chapters[plan.chapters.length - 1].content, 50) : "",
-        characters_last_seen: allCharactersLastSeen,
-      },
-    }));
-    tx.setState(state);
-
-    await tx.commit(opsRepo, null, stateRepo, chapterRepo, null);
   }
 
   return result;
@@ -626,8 +628,10 @@ export async function import_chapters(params: ImportChaptersParams): Promise<Imp
   } = params;
 
   const timestamp = now_utc();
+  const tx = new WriteTransaction();
 
-  // 写入章节文件
+  // 收集章节 + 角色扫描
+  const charactersLastSeen: Record<string, number> = {};
   for (const chData of chapters) {
     const contentHash = await compute_content_hash(chData.content);
     const chapter = createChapter({
@@ -640,12 +644,8 @@ export async function import_chapters(params: ImportChaptersParams): Promise<Imp
       content_hash: contentHash,
       provenance: "imported",
     });
-    await chapter_repo.save(chapter);
-  }
+    tx.saveChapter(au_id, chapter);
 
-  // 角色扫描
-  const charactersLastSeen: Record<string, number> = {};
-  for (const chData of chapters) {
     const scanned = scan_characters_in_chapter(chData.content, cast_registry, character_aliases, chData.chapter_num);
     for (const [name, chNum] of Object.entries(scanned)) {
       if (!(name in charactersLastSeen) || chNum > charactersLastSeen[name]) {
@@ -666,8 +666,9 @@ export async function import_chapters(params: ImportChaptersParams): Promise<Imp
     characters_last_seen: charactersLastSeen,
     index_status: IndexStatus.STALE,
   });
-  // ops 先于 state 落盘（D-0036）
-  await ops_repo.append(au_id, createOpsEntry({
+
+  // 事务提交（D-0036：ops → chapters → state）
+  tx.appendOp(au_id, createOpsEntry({
     op_id: generate_op_id(),
     op_type: "import_project",
     target_id: au_id,
@@ -685,7 +686,8 @@ export async function import_chapters(params: ImportChaptersParams): Promise<Imp
       },
     },
   }));
-  await state_repo.save(state);
+  tx.setState(state);
+  await tx.commit(ops_repo, null, state_repo, chapter_repo, null);
 
   return {
     total_chapters: chapters.length,

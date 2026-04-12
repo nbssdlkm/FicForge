@@ -46,17 +46,13 @@ export async function rebuildIndex(auPath: string) {
   if (embProvider) {
     const proj = await e.repos.project.get(auPath);
     await e.ragManager.rebuildForAu(auPath, e.repos.chapter, embProvider, proj.cast_registry);
-    // Update state to READY
-    const st = await e.repos.state.get(auPath);
-    st.index_status = IndexStatus.READY;
-    await e.repos.state.save(st);
+    // 原子更新 index_status（rebuild 可能耗时数十秒，期间 state 可能被其他操作修改）
+    await e.repos.state.update(auPath, (st) => { st.index_status = IndexStatus.READY; });
     return { task_id: "rebuild_" + Date.now(), message: "index rebuilt successfully" };
   }
 
   // No embedding configured — mark stale
-  const st = await e.repos.state.get(auPath);
-  st.index_status = IndexStatus.STALE;
-  await e.repos.state.save(st);
+  await e.repos.state.update(auPath, (st) => { st.index_status = IndexStatus.STALE; });
   return { task_id: "rebuild_" + Date.now(), message: "index marked stale (no embedding configured)" };
 }
 

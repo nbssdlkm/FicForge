@@ -7,7 +7,7 @@ import type { PlatformAdapter } from "../../platform/adapter.js";
 import type { OpsEntry } from "../../domain/ops_entry.js";
 import { createOpsEntry } from "../../domain/ops_entry.js";
 import type { OpsRepository } from "../interfaces/ops.js";
-import { append_jsonl, joinPath, read_jsonl, rewrite_jsonl } from "./file_utils.js";
+import { append_jsonl, joinPath, read_jsonl, rewrite_jsonl, withWriteLock } from "./file_utils.js";
 import { getNextLamportClock, initLamportClockFromOps } from "../../sync/ops_merge.js";
 
 // ---------------------------------------------------------------------------
@@ -51,19 +51,6 @@ async function preserveBadLines(
     // sidecar 写入失败不阻断主流程
   }
   console.warn(`[file_ops] Preserved ${badLines.length} bad line(s) to ${badPath}`);
-}
-
-// ---------------------------------------------------------------------------
-// 写入锁
-// ---------------------------------------------------------------------------
-
-const _writeLocks = new Map<string, Promise<void>>();
-
-function withWriteLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
-  const prev = _writeLocks.get(key) ?? Promise.resolve();
-  const next = prev.then(fn, fn);
-  _writeLocks.set(key, next.then(() => {}, () => {}));
-  return next;
 }
 
 // ---------------------------------------------------------------------------
