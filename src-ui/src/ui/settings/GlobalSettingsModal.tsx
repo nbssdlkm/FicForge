@@ -15,6 +15,7 @@ import { getEnumLabel } from '../../i18n/labels';
 import { useFeedback } from '../../hooks/useFeedback';
 import { changeLanguage, SUPPORTED_LANGUAGES, type AppLanguage } from '../../i18n';
 import { ApiSetupHelp } from '../help/ApiSetupHelp';
+import { GlobalSettingsSyncSection } from './GlobalSettingsSyncSection';
 
 /** Tauri 环境检测 */
 const isTauri = () => typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__;
@@ -48,15 +49,13 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   const [syncPassword, setSyncPassword] = useState('');
   const [syncRemoteDir, setSyncRemoteDir] = useState('/FicForge/');
   const [lastSync, setLastSync] = useState<string | null>(null);
-  const [syncHelpOpen, setSyncHelpOpen] = useState(false);
   const [apiHelpOpen, setApiHelpOpen] = useState(false);
 
   const syncOps = useSyncOperations({ url: syncUrl, username: syncUsername, password: syncPassword, remote_dir: syncRemoteDir });
   const {
-    syncing, syncMessage, syncResultStatus, conflicts,
-    conflictModalOpen, setConflictModalOpen, opsConflictDetails,
-    syncTestStatus, setSyncTestStatus,
-    handleTestWebDAV, handleSyncNow, handleResolveConflict, handleResolveAllConflicts,
+    conflicts,
+    conflictModalOpen, setConflictModalOpen,
+    handleResolveConflict, handleResolveAllConflicts,
     resetSyncState,
   } = syncOps;
 
@@ -79,7 +78,6 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     setSyncPassword('');
     setSyncRemoteDir('/FicForge/');
     setLastSync(null);
-    setSyncHelpOpen(false);
     setApiHelpOpen(false);
     resetSyncState();
   };
@@ -357,99 +355,21 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
           </div>
 
           {/* Sync Settings */}
-          <div className="space-y-4 border-t border-black/10 pt-5 dark:border-white/10">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-text/90">{t('settings.sync.title')}</h3>
-              <Button variant="ghost" size="sm" className="text-xs text-accent" onClick={() => setSyncHelpOpen(!syncHelpOpen)}>
-                {syncHelpOpen ? t('common.actions.close') : t('settings.sync.helpButton')}
-              </Button>
-            </div>
-
-            {syncHelpOpen && (
-              <div className="rounded-xl border border-info/20 bg-info/5 p-4 text-sm text-text/80 space-y-3">
-                <p className="font-medium text-text/90">{t('settings.sync.help.intro')}</p>
-                <div>
-                  <p className="font-medium">{t('settings.sync.help.option1Title')}</p>
-                  <p className="text-xs text-text/60 mt-1">{t('settings.sync.help.option1Desc')}</p>
-                </div>
-                <div>
-                  <p className="font-medium">{t('settings.sync.help.option2Title')}</p>
-                  <p className="text-xs text-text/60 mt-1">{t('settings.sync.help.option2Desc')}</p>
-                </div>
-                <div className="rounded-lg bg-background/60 p-3 text-xs space-y-1">
-                  <p className="font-medium text-text/70">{t('settings.sync.help.stepsTitle')}</p>
-                  <p>{t('settings.sync.help.step1')}</p>
-                  <p>{t('settings.sync.help.step2')}</p>
-                  <p>{t('settings.sync.help.step3')}</p>
-                  <p>{t('settings.sync.help.step4')}</p>
-                </div>
-                <div className="text-xs text-text/50 space-y-1">
-                  <p>{t('settings.sync.help.syncScope')}</p>
-                  <p>{t('settings.sync.help.notSynced')}</p>
-                </div>
-              </div>
-            )}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-text/80">{t('settings.sync.modeLabel')}</label>
-              <select
-                value={syncMode}
-                onChange={(e) => { setSyncMode(e.target.value as 'none' | 'webdav'); setSyncTestStatus('idle'); }}
-                className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:w-48 md:text-sm"
-              >
-                <option value="none">{t('settings.sync.modeNone')}</option>
-                <option value="webdav">WebDAV</option>
-              </select>
-            </div>
-
-            {syncMode === 'webdav' && (
-              <div className="space-y-3 rounded-xl border border-black/10 bg-surface/30 p-4 dark:border-white/10">
-                <Input label={t('settings.sync.serverUrl')} value={syncUrl} onChange={(e) => setSyncUrl(e.target.value)} placeholder="https://dav.jianguoyun.com/dav/" />
-                <Input label={t('settings.sync.username')} value={syncUsername} onChange={(e) => setSyncUsername(e.target.value)} />
-                <Input label={t('settings.sync.password')} type="password" value={syncPassword} onChange={(e) => setSyncPassword(e.target.value)} />
-                <Input label={t('settings.sync.remoteDir')} value={syncRemoteDir} onChange={(e) => setSyncRemoteDir(e.target.value)} placeholder="/FicForge/" />
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleTestWebDAV}
-                    disabled={!syncUrl.trim() || !syncUsername.trim() || syncTestStatus === 'testing'}
-                  >
-                    {syncTestStatus === 'testing' ? <Loader2 size={14} className="mr-1 animate-spin" /> : null}
-                    {t('settings.sync.testConnection')}
-                  </Button>
-                  {syncTestStatus === 'success' && <span className="flex items-center gap-1 text-xs text-success"><CheckCircle2 size={14} /> {t('settings.sync.connected')}</span>}
-                  {syncTestStatus === 'error' && <span className="flex items-center gap-1 text-xs text-error"><XCircle size={14} /> {t('settings.sync.failed')}</span>}
-                </div>
-                {lastSync && (
-                  <p className="text-xs text-text/40">{t('settings.sync.lastSync')}: {new Date(lastSync).toLocaleString()}</p>
-                )}
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => handleSyncNow(syncMode, setLastSync)}
-                  disabled={syncTestStatus !== 'success' || syncing}
-                >
-                  {syncing ? <><Loader2 size={14} className="mr-1 animate-spin" />{t('settings.sync.syncing')}</> : t('settings.sync.syncNow')}
-                </Button>
-                {syncMessage && (
-                  <p className={`text-xs mt-2 ${syncResultStatus === 'success' ? 'text-success' : syncResultStatus === 'error' ? 'text-error' : 'text-text/60'}`}>
-                    {syncMessage}
-                  </p>
-                )}
-                {opsConflictDetails.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    {opsConflictDetails.map((detail, i) => (
-                      <div key={i} className="text-xs text-text/50">
-                        {detail}
-                      </div>
-                    ))}
-                    <p className="text-xs text-text/40 mt-1">{t('settings.sync.opsConflictsMergedHint')}</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <GlobalSettingsSyncSection
+            syncMode={syncMode}
+            setSyncMode={setSyncMode}
+            syncUrl={syncUrl}
+            setSyncUrl={setSyncUrl}
+            syncUsername={syncUsername}
+            setSyncUsername={setSyncUsername}
+            syncPassword={syncPassword}
+            setSyncPassword={setSyncPassword}
+            syncRemoteDir={syncRemoteDir}
+            setSyncRemoteDir={setSyncRemoteDir}
+            lastSync={lastSync}
+            setLastSync={setLastSync}
+            syncOps={syncOps}
+          />
 
           {/* Language Selector */}
           <div className="space-y-2 border-t border-black/10 pt-5 dark:border-white/10">

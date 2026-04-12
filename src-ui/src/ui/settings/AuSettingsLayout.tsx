@@ -4,18 +4,20 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '../shared/Button';
-import { Input, Textarea } from '../shared/Input';
+import { Input } from '../shared/Input';
 import { Tag } from '../shared/Tag';
 import { Modal } from '../shared/Modal';
-import { Settings, Save, Trash2, Plus, Loader2, AlertCircle } from 'lucide-react';
+import { Settings, Save, Trash2, Plus, Loader2 } from 'lucide-react';
 import { getProject, updateProject, type ProjectInfo } from '../../api/engine-client';
 import { getSettings, type SettingsInfo } from '../../api/engine-client';
 import { getState, recalcState, rebuildIndex } from '../../api/engine-client';
 import { GlobalSettingsModal } from './GlobalSettingsModal';
-import { EmptyState } from '../shared/EmptyState';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
 import { useFeedback } from '../../hooks/useFeedback';
+import { AuSettingsWritingSection } from './AuSettingsWritingSection';
+import { AuSettingsPinnedSection } from './AuSettingsPinnedSection';
+import { AuSettingsAdvancedSection } from './AuSettingsAdvancedSection';
 
 export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const { t } = useTranslation();
@@ -376,85 +378,24 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
           </section>
 
           {/* 2. 文风与结构控制 */}
-          <section className="space-y-6">
-            <h2 className="text-lg font-sans font-bold text-accent border-l-4 border-accent pl-3">{t("settings.sections.writingStyle")}</h2>
-            
-            <div className="grid grid-cols-1 gap-6 rounded-xl border border-black/5 bg-surface/50 p-4 dark:border-white/5 md:grid-cols-2 md:gap-8 md:p-6">
-              <div className="flex flex-col gap-4">
-                 <div className="flex flex-col gap-2">
-                   <label className="text-sm font-bold text-text/90">{t("common.labels.perspective")}</label>
-                   <select value={perspective} onChange={e => setPerspective(e.target.value)} className="h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm">
-                     <option value="third_person">{getEnumLabel("perspective", "third_person", "third_person")}</option>
-                     <option value="first_person">{getEnumLabel("perspective", "first_person", "first_person")}</option>
-                   </select>
-                 </div>
-                 <div className="flex flex-col gap-2">
-                   <label className="text-sm font-bold text-text/90">{t("common.labels.emotionStyle")}</label>
-                   <select value={emotionStyle} onChange={e => setEmotionStyle(e.target.value)} className="h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm">
-                     <option value="implicit">{getEnumLabel("emotion_style", "implicit", "implicit")}</option>
-                     <option value="explicit">{getEnumLabel("emotion_style", "explicit", "explicit")}</option>
-                   </select>
-                 </div>
-                 <div className="flex flex-col gap-2">
-                   <label className="text-sm font-bold text-text/90">{t("common.labels.chapterLength")}</label>
-                   <Input type="number" value={chapterLength} onChange={e => setChapterLength(parseInt(e.target.value) || 2000)} className="h-11 font-mono text-base md:h-10 md:text-sm" />
-                   <p className="text-xs text-text/50">{t("settings.story.chapterLengthDescription")}</p>
-                 </div>
-              </div>
-
-              <div className="flex flex-col gap-2 flex-1">
-                 <label className="text-sm font-bold text-text/90">{t("common.labels.customInstructions")}</label>
-                 <Textarea 
-                   value={customInstructions}
-                   onChange={e => setCustomInstructions(e.target.value)}
-                   placeholder={t("settings.story.customInstructionsPlaceholder")}
-                   className="min-h-[200px] resize-y bg-background p-4 font-serif text-base leading-relaxed md:text-sm"
-                 />
-              </div>
-            </div>
-          </section>
+          <AuSettingsWritingSection
+            perspective={perspective}
+            setPerspective={setPerspective}
+            emotionStyle={emotionStyle}
+            setEmotionStyle={setEmotionStyle}
+            chapterLength={chapterLength}
+            setChapterLength={setChapterLength}
+            customInstructions={customInstructions}
+            setCustomInstructions={setCustomInstructions}
+          />
 
           {/* 3. 铁律 Pinned Context */}
-          <section className="space-y-6">
-            <h2 className="flex flex-col gap-3 border-l-4 border-error pl-3 text-lg font-sans font-bold text-error md:flex-row md:items-center md:justify-between">
-               <span>{t("settings.sections.pinnedContext")}</span>
-               <Button variant="secondary" size="sm" className="h-11 border-error/30 text-sm font-normal text-error hover:bg-error/10 md:h-8 md:text-xs" onClick={addPinnedRule}>
-                 <Plus size={14} className="mr-1"/> {t("common.actions.addPinnedRule")}
-               </Button>
-            </h2>
-            <p className="text-sm text-text/60">{t("settings.story.pinnedDescription")}</p>
-            
-            <div className="space-y-3">
-               {pinnedContext.length === 0 ? (
-                 <EmptyState
-                   compact
-                   icon={<AlertCircle size={28} />}
-                   title={t("settings.emptyPinned.title")}
-                   description={t("settings.emptyPinned.description")}
-                   actions={[
-                     {
-                       key: "add-pinned",
-                       element: (
-                         <Button variant="primary" onClick={addPinnedRule}>
-                           {t("common.actions.addPinnedRule")}
-                         </Button>
-                       ),
-                     },
-                   ]}
-                 />
-               ) : (
-                 pinnedContext.map((pc, idx) => (
-                   <div key={idx} className="flex items-start gap-3 rounded-lg border border-error/20 bg-error/5 p-4">
-                     <span className="font-mono text-error/50 font-bold mt-1 text-sm">{idx+1}.</span>
-                     <Textarea className="min-h-[60px] flex-1 bg-background font-serif text-base md:text-sm" value={pc} onChange={e => updatePinnedRule(idx, e.target.value)} />
-                     <Button variant="ghost" size="sm" className="h-11 w-11 p-0 text-error/60 hover:bg-error/10 hover:text-error md:h-auto md:w-auto md:p-2" onClick={() => removePinnedRule(idx)}>
-                       <Trash2 size={16}/>
-                     </Button>
-                   </div>
-                 ))
-               )}
-            </div>
-          </section>
+          <AuSettingsPinnedSection
+            pinnedContext={pinnedContext}
+            addPinnedRule={addPinnedRule}
+            removePinnedRule={removePinnedRule}
+            updatePinnedRule={updatePinnedRule}
+          />
 
           {/* 浮动保存按钮 — 编辑底线后方便保存 */}
           <div className="flex justify-end">
@@ -525,32 +466,18 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
           )}
 
           {/* 高级操作 (sub-task 4) */}
-          <section className="space-y-4 border-t border-black/10 pt-6 dark:border-white/10">
-            <h2 className="text-lg font-sans font-bold text-text/50 border-l-4 border-text/20 pl-3">{t('advanced.title')}</h2>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="rounded-xl border border-black/5 bg-surface/50 p-4 dark:border-white/5">
-                <Button variant="secondary" size="sm" className="w-full mb-2" onClick={handleRecalc} disabled={recalcing}>
-                  {recalcing ? <Loader2 size={14} className="animate-spin mr-2" /> : null}
-                  {t('advanced.recalc')}
-                </Button>
-                <p className="text-xs text-text/40">{t('advanced.recalcDesc')}</p>
-              </div>
-              <div className="rounded-xl border border-black/5 bg-surface/50 p-4 dark:border-white/5">
-                <Button variant="secondary" size="sm" className="w-full mb-2" onClick={async () => {
-                  try {
-                    await rebuildIndex(auPath);
-                    showSuccess(t('advanced.rebuildIndexSuccess'));
-                  } catch (e) {
-                    showError(e, t('advanced.rebuildIndexFail'));
-                  }
-                }}>
-                  {t('advanced.rebuildIndex')}
-                </Button>
-                <p className="text-xs text-text/40">{t('advanced.rebuildIndexDesc')}</p>
-              </div>
-            </div>
-            <p className="text-xs text-text/30">{t('advanced.advancedHint')}</p>
-          </section>
+          <AuSettingsAdvancedSection
+            recalcing={recalcing}
+            handleRecalc={handleRecalc}
+            handleRebuildIndex={async () => {
+              try {
+                await rebuildIndex(auPath);
+                showSuccess(t('advanced.rebuildIndexSuccess'));
+              } catch (e) {
+                showError(e, t('advanced.rebuildIndexFail'));
+              }
+            }}
+          />
 
           <div className="h-10 md:h-20"></div>
         </div>

@@ -5,7 +5,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
-import { Modal } from '../shared/Modal';
 import { EmptyState } from '../shared/EmptyState';
 import { TrashPanel } from '../shared/TrashPanel';
 import type { TrashEntry } from '../../api/engine-client';
@@ -18,6 +17,7 @@ import { useFeedback } from '../../hooks/useFeedback';
 import { useMilestoneGuide } from '../../hooks/useMilestoneGuide';
 import { MilestoneGuide } from '../shared/MilestoneGuide';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { AuLoreModals } from './AuLoreModals';
 
 type LoreFileEntry = {
   name: string;
@@ -564,72 +564,30 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
   );
 
   const sharedModals = (
-    <>
-      <Modal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} title={selectedCategory === 'worldbuilding' ? t('auLore.createTitleWorldbuilding') : t('auLore.createTitle')}>
-        <div className="space-y-4">
-          <p className="text-sm text-text/70">{selectedCategory === 'worldbuilding' ? t('auLore.createDescriptionWorldbuilding') : t('auLore.createDescription')}</p>
-          <Input value={createName} onChange={e => setCreateName(e.target.value)} placeholder={selectedCategory === 'worldbuilding' ? t('auLore.createPlaceholderWorldbuilding') : t('auLore.createPlaceholder')} autoFocus />
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setCreateModalOpen(false)}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={handleCreate} disabled={!createName.trim()}>{t('common.actions.create')}</Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} title={t('auLore.deleteTitle')}>
-        <div className="space-y-4">
-          <p className="text-sm text-text/80">{t('auLore.deleteMessage', { name: `${selectedFile}.md` })}</p>
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setDeleteConfirmOpen(false)}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDeleteLore}>{t('common.actions.confirmDelete')}</Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal isOpen={coreLimitModalOpen} onClose={() => setCoreLimitModalOpen(false)} title={t('coreIncludes.missingCoreLimit')}>
-        <div className="space-y-4">
-          <p className="text-sm text-text/80 leading-relaxed">{t('coreIncludes.missingCoreLimitDesc')}</p>
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setCoreLimitModalOpen(false)}>{t('coreIncludes.later')}</Button>
-            <Button variant="primary" onClick={() => {
-              setCoreLimitModalOpen(false);
-              if (coreLimitTarget) void loadFileContent(coreLimitTarget);
-            }}>{t('coreIncludes.goEdit')}</Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal isOpen={importModalOpen} onClose={isSaving ? () => {} : () => setImportModalOpen(false)} title={t('auLore.importTitle')}>
-        <div className="space-y-4">
-          <p className="text-sm text-text/70">{t('auLore.importDescription')}</p>
-          <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-lg border border-black/10 p-2 dark:border-white/10">
-            {importLoading ? (
-              <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-accent" /></div>
-            ) : importCandidates.length === 0 ? (
-              <EmptyState compact icon={<Download size={28} />} title={t('auLore.importEmpty')} description={t('fandomLore.referenceHint')} />
-            ) : (
-              importCandidates.map(file => (
-                <label key={file.name} className="flex min-h-[44px] items-center gap-3 rounded-md px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedImports.includes(file.name)}
-                    onChange={() => handleToggleImport(file.name)}
-                    className="accent-accent"
-                  />
-                  <span className="text-sm">{file.name}</span>
-                </label>
-              ))
-            )}
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setImportModalOpen(false)} disabled={isSaving}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={handleImportSelected} disabled={selectedImports.length === 0 || isSaving}>
-              {isSaving ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.importSelected')}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-    </>
+    <AuLoreModals
+      createModalOpen={createModalOpen}
+      setCreateModalOpen={setCreateModalOpen}
+      createName={createName}
+      setCreateName={setCreateName}
+      selectedCategory={selectedCategory}
+      handleCreate={handleCreate}
+      deleteConfirmOpen={deleteConfirmOpen}
+      setDeleteConfirmOpen={setDeleteConfirmOpen}
+      selectedFile={selectedFile}
+      handleDeleteLore={handleDeleteLore}
+      importModalOpen={importModalOpen}
+      setImportModalOpen={setImportModalOpen}
+      importLoading={importLoading}
+      importCandidates={importCandidates}
+      selectedImports={selectedImports}
+      handleToggleImport={handleToggleImport}
+      handleImportSelected={handleImportSelected}
+      isSaving={isSaving}
+      coreLimitModalOpen={coreLimitModalOpen}
+      setCoreLimitModalOpen={setCoreLimitModalOpen}
+      coreLimitTarget={coreLimitTarget}
+      loadFileContent={(name) => { void loadFileContent(name); }}
+    />
   );
 
   if (isMobile) {

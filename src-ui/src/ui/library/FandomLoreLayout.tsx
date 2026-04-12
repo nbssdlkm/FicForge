@@ -6,13 +6,13 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
 import { Tag } from '../shared/Tag';
-import { Modal } from '../shared/Modal';
 import { EmptyState } from '../shared/EmptyState';
 import { TrashPanel } from '../shared/TrashPanel';
 import { SettingsChatPanel } from '../shared/settings-chat/SettingsChatPanel';
 import type { TrashEntry } from '../../api/engine-client';
 import { Search, Plus, ArrowLeft, FileText, ChevronDown, ChevronRight, Folder, Loader2, Trash2, Users, Globe2, Eye, Pencil, MessageSquare, X } from 'lucide-react';
 import { SettingsMarkdown } from '../shared/SettingsMarkdown';
+import { FandomLoreModals } from './FandomLoreModals';
 import { saveLore, deleteLore } from '../../api/engine-client';
 import { listFandomFiles, readFandomFile, type FandomFileEntry } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -697,41 +697,23 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
         </Button>
       )}
 
-      <Modal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} title={createModalCategory === 'core_characters' ? t('fandomLore.createCharacterTitle') : t('fandomLore.createWorldbuildingTitle')}>
-        <div className="flex flex-col gap-4">
-          <Input
-            placeholder={createModalCategory === 'core_characters' ? t('fandomLore.characterPlaceholder') : t('fandomLore.worldbuildingPlaceholder')}
-            value={createName}
-            onChange={e => setCreateName(e.target.value)}
-            className="h-10"
-            autoFocus
-          />
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setCreateModalOpen(false)}>{t("common.actions.cancel")}</Button>
-            <Button variant="primary" onClick={handleCreateLore} disabled={!createName.trim() || editorBusy}>{t("common.actions.create")}</Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} title={t("fandomLore.deleteTitle")}>
-        <div className="space-y-4">
-          <p className="text-sm text-text/80">{t("fandomLore.deleteMessage", { name: selectedEntry?.filename || selectedFile || '' })}</p>
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setDeleteConfirmOpen(false)}>{t("common.actions.cancel")}</Button>
-            <Button variant="primary" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDeleteLore} disabled={editorBusy}>{t("common.actions.confirmDelete")}</Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal isOpen={discardChangesOpen} onClose={handleCancelDiscardChanges} title={t("fandomLore.discardChangesTitle")}>
-        <div className="space-y-4">
-          <p className="text-sm text-text/80">{t("fandomLore.discardChangesMessage")}</p>
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={handleCancelDiscardChanges}>{t("common.actions.cancel")}</Button>
-            <Button variant="primary" onClick={handleConfirmDiscardChanges}>{t("fandomLore.discardChangesConfirm")}</Button>
-          </div>
-        </div>
-      </Modal>
+      <FandomLoreModals
+        createModalOpen={createModalOpen}
+        setCreateModalOpen={setCreateModalOpen}
+        createModalCategory={createModalCategory}
+        createName={createName}
+        setCreateName={setCreateName}
+        handleCreateLore={handleCreateLore}
+        editorBusy={editorBusy}
+        deleteConfirmOpen={deleteConfirmOpen}
+        setDeleteConfirmOpen={setDeleteConfirmOpen}
+        selectedEntry={selectedEntry ?? null}
+        selectedFile={selectedFile}
+        handleDeleteLore={handleDeleteLore}
+        discardChangesOpen={discardChangesOpen}
+        handleCancelDiscardChanges={handleCancelDiscardChanges}
+        handleConfirmDiscardChanges={handleConfirmDiscardChanges}
+      />
     </div>
   );
 }
