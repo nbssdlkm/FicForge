@@ -15,6 +15,7 @@ import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
 import { compute_content_hash, generate_op_id, now_utc } from "../repositories/implementations/file_utils.js";
+import { WriteTransaction } from "./write_transaction.js";
 
 export interface EditChapterContentResult {
   chapter_num: number;
@@ -41,30 +42,32 @@ export async function edit_chapter_content(
   state_repo: StateRepository,
   ops_repo: OpsRepository,
 ): Promise<EditChapterContentResult> {
-  // 1. 读取并更新章节
+  // 1. 读取并更新章节（内存）
   const ch = await chapter_repo.get(au_id, chapter_num);
   ch.content = new_content;
   ch.content_hash = await compute_content_hash(new_content);
   ch.provenance = "mixed";
   ch.revision += 1;
-  await chapter_repo.save(ch);
 
-  // 2. 计算新 state（内存），写 op，最后落盘 state
+  // 2. 计算新 state（内存）
   const st = await state_repo.get(au_id);
   if (!st.chapters_dirty.includes(chapter_num)) {
     st.chapters_dirty.push(chapter_num);
   }
   st.index_status = IndexStatus.STALE;
 
-  // ops 先于 state 落盘（D-0036: ops 是 sync truth，state 可从 ops 重建）
-  await ops_repo.append(au_id, createOpsEntry({
+  // 3. 事务提交（D-0036：ops → chapter → state）
+  const tx = new WriteTransaction();
+  tx.appendOp(au_id, createOpsEntry({
     op_id: generate_op_id(),
     op_type: "mark_chapters_dirty",
     target_id: au_id,
     timestamp: now_utc(),
     payload: { added_dirty: [chapter_num] },
   }));
-  await state_repo.save(st);
+  tx.saveChapter(au_id, ch);
+  tx.setState(st);
+  await tx.commit(ops_repo, null, state_repo, chapter_repo, null);
 
   return {
     chapter_num,
