@@ -130,7 +130,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
             setSyncPassword(sync.webdav.password || '');
             setSyncRemoteDir(sync.webdav.remote_dir || '/FicForge/');
           }
-          setLastSync((sync.last_sync as string) || null);
+          setLastSync(sync.last_sync || null);
         }
       }).catch((error) => {
         if (requestId !== modalRequestIdRef.current) return;
