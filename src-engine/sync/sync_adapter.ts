@@ -9,8 +9,13 @@ import type { OpsEntry } from "../domain/ops_entry.js";
 // 接口
 // ---------------------------------------------------------------------------
 
+export interface PullOpsResult {
+  entries: OpsEntry[];
+  badLineCount: number;
+}
+
 export interface SyncAdapter {
-  pullOps(auPath: string): Promise<OpsEntry[]>;
+  pullOps(auPath: string): Promise<PullOpsResult>;
   pushOps(auPath: string, ops: OpsEntry[]): Promise<void>;
   /** Returns file content, or null if file does not exist. */
   pullFile(remotePath: string): Promise<string | null>;
@@ -34,9 +39,9 @@ export class WebDAVSyncAdapter implements SyncAdapter {
     };
   }
 
-  async pullOps(auPath: string): Promise<OpsEntry[]> {
+  async pullOps(auPath: string): Promise<PullOpsResult> {
     const content = await this.pullFile(`${auPath}/ops.jsonl`);
-    if (content === null || content === "") return [];
+    if (content === null || content === "") return { entries: [], badLineCount: 0 };
     const entries: OpsEntry[] = [];
     let badLineCount = 0;
     for (const line of content.split("\n")) {
@@ -51,7 +56,7 @@ export class WebDAVSyncAdapter implements SyncAdapter {
     if (badLineCount > 0) {
       console.warn(`[sync_adapter] ${badLineCount} bad line(s) in remote ${auPath}/ops.jsonl`);
     }
-    return entries;
+    return { entries, badLineCount };
   }
 
   async pushOps(auPath: string, ops: OpsEntry[]): Promise<void> {

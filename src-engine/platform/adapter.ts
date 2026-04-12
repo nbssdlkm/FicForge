@@ -34,9 +34,12 @@ export interface PlatformAdapter {
   kvRemove(key: string): Promise<void>;
 
   /**
-   * 安全存储：用于 API key、密码等敏感数据。
-   * 平台实现应尽可能使用 OS 级安全存储（Keychain/Keystore/Stronghold），
-   * 降级方案为加密后存入 KV。
+   * 敏感数据存储：用于 API key、密码等字段，使其不出现在 settings.yaml 明文中。
+   *
+   * 当前实现：所有平台均为 KV + `__secure__:` 前缀隔离（未加密）。
+   * TODO: Tauri 接入 @tauri-apps/plugin-stronghold (OS keychain)；
+   *       Capacitor 接入 @capacitor-community/secure-storage (Android Keystore / iOS Keychain)；
+   *       Web 接入 crypto.subtle 派生密钥加密。
    */
   secureGet(key: string): Promise<string | null>;
   secureSet(key: string, value: string): Promise<void>;

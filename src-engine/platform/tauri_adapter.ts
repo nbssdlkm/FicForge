@@ -97,7 +97,7 @@ export class TauriAdapter implements PlatformAdapter {
     catch { /* ignore */ }
   }
 
-  // 安全存储：优先尝试 @tauri-apps/plugin-stronghold，降级到 KV + 前缀隔离
+  // 敏感数据存储：当前为 KV + 前缀隔离（TODO: 接入 @tauri-apps/plugin-stronghold）
   async secureGet(key: string): Promise<string | null> {
     return this.kvGet(`__secure__:${key}`);
   }

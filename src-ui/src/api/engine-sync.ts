@@ -137,6 +137,9 @@ export async function resolveFileConflict(
     await syncAdapter.pushFile(remotePath, localContent);
   } else {
     const remoteContent = await syncAdapter.pullFile(remotePath);
-    await adapter.writeFile(localFullPath, remoteContent ?? "");
+    if (remoteContent === null) {
+      throw new Error(`远端文件已不存在: ${remotePath}`);
+    }
+    await adapter.writeFile(localFullPath, remoteContent);
   }
 }

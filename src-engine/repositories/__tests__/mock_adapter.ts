@@ -100,7 +100,7 @@ export class MockAdapter implements PlatformAdapter {
     this.kv.delete(key);
   }
 
-  // 安全存储（mock：复用 KV + 前缀）
+  // 敏感数据存储（mock：复用 KV + 前缀）
   async secureGet(key: string): Promise<string | null> {
     return this.kvGet(`__secure__:${key}`);
   }

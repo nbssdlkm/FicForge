@@ -159,7 +159,11 @@ export function saveGenerateRequest(auPath: string, chapterNum: number, request:
 
 export function getSkipFactsPromptDefault(): boolean {
   if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(FACTS_PROMPT_STORAGE_KEY) === "1";
+  try {
+    return window.localStorage.getItem(FACTS_PROMPT_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
 }
 
 export function setSkipFactsPromptPersisted(value: boolean): void {
@@ -177,7 +181,11 @@ export function setSkipFactsPromptPersisted(value: boolean): void {
 
 export function hasSeenSettingsModeTooltip(): boolean {
   if (typeof window === "undefined") return true;
-  return window.localStorage.getItem(SETTINGS_MODE_TOOLTIP_STORAGE_KEY) === "1";
+  try {
+    return window.localStorage.getItem(SETTINGS_MODE_TOOLTIP_STORAGE_KEY) === "1";
+  } catch {
+    return true;
+  }
 }
 
 export function markSettingsModeTooltipSeen(): void {

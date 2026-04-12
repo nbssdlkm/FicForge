@@ -64,7 +64,7 @@ fn resolve_sidecar_command(handle: &AppHandle) -> (String, Vec<String>, Vec<(Str
         .expect("cannot resolve src-ui")
         .parent()
         .expect("cannot resolve project root");
-    let script_path = project_root.join("src-python").join("main.py");
+    let script_path = project_root.join("src-python").join("main_embedding.py");
     let python_path = project_root.join("src-python");
 
     // Windows: python, Linux/macOS: python3

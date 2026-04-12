@@ -112,7 +112,7 @@ export class CapacitorAdapter implements PlatformAdapter {
     catch { this._kvFallback.delete(key); }
   }
 
-  // 安全存储：优先尝试 @capacitor-community/secure-storage，降级到 KV + 前缀隔离
+  // 敏感数据存储：当前为 KV + 前缀隔离（TODO: 接入 @capacitor-community/secure-storage）
   async secureGet(key: string): Promise<string | null> {
     return this.kvGet(`__secure__:${key}`);
   }

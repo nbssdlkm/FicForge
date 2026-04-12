@@ -43,7 +43,22 @@ export class SyncManager {
     const remote = remoteAuPath ?? localAuPath;
     try {
       // 1. 拉取远程 ops
-      const remoteOps = await this.syncAdapter.pullOps(remote);
+      const { entries: remoteOps, badLineCount } = await this.syncAdapter.pullOps(remote);
+
+      // 远端 ops 有坏行时中止同步：merge+push 会永久丢失这些行
+      if (badLineCount > 0) {
+        return {
+          synced: false,
+          conflicts: [{
+            type: "sync_error",
+            description: `远端 ops.jsonl 包含 ${badLineCount} 行无法解析的数据，已中止同步以防数据丢失`,
+          }],
+          fileConflicts: [],
+          opsAdded: 0,
+          filesPushed: 0,
+          filesPulled: 0,
+        };
+      }
 
       // 2. 读取本地 ops
       const localOps = await this.opsRepo.list_all(localAuPath);

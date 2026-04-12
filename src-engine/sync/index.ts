@@ -12,7 +12,7 @@ export {
   syncLamportClock,
 } from "./ops_merge.js";
 
-export type { SyncAdapter } from "./sync_adapter.js";
+export type { PullOpsResult, SyncAdapter } from "./sync_adapter.js";
 export { WebDAVSyncAdapter } from "./sync_adapter.js";
 
 export type { SyncResult } from "./sync_manager.js";

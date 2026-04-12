@@ -174,7 +174,7 @@ export class WebAdapter implements PlatformAdapter {
     catch { this._kvFallback.delete(key); }
   }
 
-  // 安全存储：Web 环境无 OS 级 keystore，降级到 KV + 前缀隔离
+  // 敏感数据存储：当前为 KV + 前缀隔离（TODO: 接入 crypto.subtle 加密）
   async secureGet(key: string): Promise<string | null> {
     return this.kvGet(`__secure__:${key}`);
   }

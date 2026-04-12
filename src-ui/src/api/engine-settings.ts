@@ -7,6 +7,7 @@
 
 import { OpenAICompatibleProvider, type Settings } from "@ficforge/engine";
 import { getEngine } from "./engine-client";
+import { buildApiUrl } from "./client";
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
 
@@ -37,13 +38,14 @@ export async function updateSettings(updates: DeepPartial<Settings>) {
 export async function testConnection(params: { mode: string; model?: string; api_base?: string; api_key?: string; local_model_path?: string; ollama_model?: string }) {
   try {
     if (params.mode === "local") {
-      // 本地模式：尝试连接 sidecar /health 端点
+      // 本地模式：尝试连接 sidecar /health 端点（端口与 client.ts 一致）
       try {
-        const resp = await fetch("http://127.0.0.1:5000/health", { signal: AbortSignal.timeout(3000) });
+        const healthUrl = buildApiUrl("/health");
+        const resp = await fetch(healthUrl, { signal: AbortSignal.timeout(3000) });
         if (resp.ok) return { success: true, model: params.local_model_path ?? "local" };
         return { success: false, message: "Sidecar 无响应", error_code: "sidecar_unavailable" };
       } catch {
-        return { success: false, message: "无法连接本地 Sidecar (127.0.0.1:5000)", error_code: "sidecar_unavailable" };
+        return { success: false, message: "无法连接本地 Sidecar", error_code: "sidecar_unavailable" };
       }
     }
     if (params.mode === "ollama") {
