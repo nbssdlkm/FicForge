@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useKV } from '../../hooks/useKV';
 import {
   type GenerateRequestState,
@@ -11,11 +11,11 @@ import {
   saveContextSummaries,
   readSavedGenerateRequest,
   saveGenerateRequest,
-  getSkipFactsPromptDefault,
-  setSkipFactsPromptPersisted,
   hasSeenSettingsModeTooltip,
   markSettingsModeTooltipSeen,
 } from '../../utils/writerStorage';
+import { useWriterFactsExtraction } from './useWriterFactsExtraction';
+import { useSessionParams } from './useSessionParams';
 import { ThemeToggle } from '../shared/ThemeToggle';
 import { Button } from '../shared/Button';
 import { Tag } from '../shared/Tag';
@@ -48,10 +48,10 @@ import { SettingsChatPanel } from '../shared/settings-chat/SettingsChatPanel';
 import { getChapterContent, confirmChapter, undoChapter, updateChapterContent } from '../../api/engine-client';
 import { listDrafts, getDraft, deleteDrafts, type DraftDetail, type DraftGeneratedWith } from '../../api/engine-client';
 import { getState, setChapterFocus, type StateInfo } from '../../api/engine-client';
-import { listFacts, addFact, extractFacts, type ExtractedFactCandidate, type FactInfo } from '../../api/engine-client';
+import { listFacts, type FactInfo } from '../../api/engine-client';
 import { generateChapter, type ContextSummary } from '../../api/engine-client';
-import { getSettings, updateSettings, type SettingsInfo } from '../../api/engine-client';
-import { getProject, updateProject, type ProjectInfo } from '../../api/engine-client';
+import { getSettings, type SettingsInfo } from '../../api/engine-client';
+import { getProject, type ProjectInfo } from '../../api/engine-client';
 import { ApiError, getFriendlyErrorMessage } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
@@ -80,34 +80,6 @@ type DraftItem = {
 const MAX_RECOMMENDED_DRAFTS = 5;
 
 type WriterMode = 'write' | 'settings';
-
-function hasSessionLlmOverride(llm: ProjectInfo['llm'] | null | undefined): boolean {
-  return Boolean(
-    llm && (
-      llm.mode !== 'api'
-      || llm.model
-      || llm.api_base
-      || llm.api_key
-      || llm.local_model_path
-      || llm.ollama_model
-    )
-  );
-}
-
-function getConfiguredLlmModel(llm: ProjectInfo['llm'] | null | undefined): string {
-  if (!llm) return '';
-  if (llm.mode === 'ollama') {
-    return llm.ollama_model || llm.model || '';
-  }
-  if (llm.mode === 'local') {
-    if (llm.model) return llm.model;
-    const path = llm.local_model_path?.trim() || '';
-    if (!path) return '';
-    const segments = path.split(/[\\/]/).filter(Boolean);
-    return segments[segments.length - 1] || path;
-  }
-  return llm.model || '';
-}
 
 function buildDraftId(chapterNum: number, label: string): string {
   return `ch${String(chapterNum).padStart(4, '0')}_draft_${label}.md`;
@@ -174,10 +146,6 @@ function getPreviewText(content: string, maxChars = 200): string {
   return `${normalized.slice(0, maxChars)}…`;
 }
 
-function getCandidateKey(candidate: ExtractedFactCandidate, index: number): string {
-  return `${candidate.content_clean}-${candidate.chapter}-${index}`;
-}
-
 export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapter, onChaptersChanged }: { auPath: string, onNavigate: (page: string) => void, viewChapter?: number | null, onClearViewChapter?: () => void, onChaptersChanged?: () => void }) => {
   const { t, i18n } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
@@ -199,8 +167,6 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const [isFinalizeConfirmOpen, setFinalizeConfirmOpen] = useState(false);
   const [chapterTitle, setChapterTitle] = useState('');
   const [isDiscardConfirmOpen, setDiscardConfirmOpen] = useState(false);
-  const [isFactsPromptOpen, setFactsPromptOpen] = useState(false);
-  const [isExtractReviewOpen, setExtractReviewOpen] = useState(false);
 
   const [state, setState] = useState<StateInfo | null>(null);
   const [projectInfo, setProjectInfo] = useState<ProjectInfo | null>(null);
@@ -220,8 +186,6 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const [isGenerating, setIsGenerating] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [isDiscarding, setIsDiscarding] = useState(false);
-  const [extractingFacts, setExtractingFacts] = useState(false);
-  const [savingExtracted, setSavingExtracted] = useState(false);
   const [streamText, setStreamText] = useState('');
   const [generatedWith, setGeneratedWith] = useState<DraftGeneratedWith | null>(null);
   const [budgetReport, setBudgetReport] = useState<any>(null);
@@ -234,13 +198,9 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
   const [loading, setLoading] = useState(true);
   const [instructionText, setInstructionText] = useState('');
-  const [skipFactsPrompt, setSkipFactsPrompt] = useState(getSkipFactsPromptDefault());
-  const [extractedCandidates, setExtractedCandidates] = useState<ExtractedFactCandidate[]>([]);
-  const [selectedExtractedKeys, setSelectedExtractedKeys] = useState<string[]>([]);
 
-  const [sessionModel, setSessionModel] = useState('deepseek-chat');
-  const [sessionTemp, setSessionTemp] = useState(1.0);
-  const [sessionTopP, setSessionTopP] = useState(0.95);
+  const factsExtraction = useWriterFactsExtraction(auPath, lastConfirmedChapter);
+  const sessionParams = useSessionParams(auPath, projectInfo, settingsInfo, showSuccess, showError);
 
   // 编辑已确认章节（FIX-006）
   const [editingConfirmed, setEditingConfirmed] = useState(false);
@@ -305,8 +265,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     setIsGenerating(false);
     setIsFinalizing(false);
     setIsDiscarding(false);
-    setExtractingFacts(false);
-    setSavingExtracted(false);
+    factsExtraction.setExtractingFacts(false);
+    factsExtraction.setSavingExtracted(false);
     setStreamText('');
     setGeneratedWith(null);
     setBudgetReport(null);
@@ -314,12 +274,12 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     setDraftSummaries({});
     pendingContextSummaryRef.current = null;
     setInstructionText('');
-    setExtractedCandidates([]);
-    setSelectedExtractedKeys([]);
+    factsExtraction.setExtractedCandidates([]);
+    factsExtraction.setSelectedExtractedKeys([]);
     setFinalizeConfirmOpen(false);
     setDiscardConfirmOpen(false);
-    setFactsPromptOpen(false);
-    setExtractReviewOpen(false);
+    factsExtraction.setFactsPromptOpen(false);
+    factsExtraction.setExtractReviewOpen(false);
     setDirtyOpen(false);
     setExportOpen(false);
     setMobileToolsOpen(false);
@@ -427,7 +387,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       let defTemp = 1.0;
       let defTopP = 0.95;
 
-      const globalConfiguredModel = getConfiguredLlmModel(settings?.default_llm as ProjectInfo['llm']);
+      const globalConfiguredModel = sessionParams.getConfiguredLlmModel(settings?.default_llm as ProjectInfo['llm']);
       if (globalConfiguredModel) {
         defModel = globalConfiguredModel;
         const globalParams = settings?.model_params?.[defModel];
@@ -437,7 +397,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         }
       }
 
-      const projectConfiguredModel = getConfiguredLlmModel(proj?.llm);
+      const projectConfiguredModel = sessionParams.getConfiguredLlmModel(proj?.llm);
       if (projectConfiguredModel) {
         defModel = projectConfiguredModel;
       }
@@ -447,9 +407,9 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         defTopP = (override.top_p as number) ?? defTopP;
       }
 
-      setSessionModel(defModel);
-      setSessionTemp(defTemp);
-      setSessionTopP(defTopP);
+      sessionParams.setSessionModel(defModel);
+      sessionParams.setSessionTemp(defTemp);
+      sessionParams.setSessionTopP(defTopP);
 
       if (stateData && stateData.current_chapter > 1) {
         const latestNum = stateData.current_chapter - 1;
@@ -525,55 +485,6 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     void loadData();
   }, [loadData]);
 
-  const handleSaveGlobalParams = async () => {
-    const requestAuPath = auPath;
-    try {
-      const settings = await getSettings();
-      settings.model_params = settings.model_params || {};
-      settings.model_params[sessionModel] = { temperature: sessionTemp, top_p: sessionTopP };
-      await updateSettings(settings);
-      if (activeAuPathRef.current !== requestAuPath) return;
-      showSuccess(t('writer.saveGlobalSuccess'));
-    } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
-      showError(error, t('error_messages.unknown'));
-    }
-  };
-
-  const handleSaveAuParams = async () => {
-    const requestAuPath = auPath;
-    try {
-      const proj = await getProject(auPath);
-      if (!proj.model_params_override) proj.model_params_override = {};
-      proj.model_params_override[sessionModel] = { temperature: sessionTemp, top_p: sessionTopP };
-      await updateProject(auPath, proj as any);
-      if (activeAuPathRef.current !== requestAuPath) return;
-      showSuccess(t('writer.saveAuSuccess'));
-    } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
-      showError(error, t('error_messages.unknown'));
-    }
-  };
-
-  const sessionLlmPayload = useMemo(() => {
-    if (!sessionModel) return null;
-
-    const source = hasSessionLlmOverride(projectInfo?.llm)
-      ? projectInfo?.llm
-      : settingsInfo?.default_llm;
-    const configuredModel = getConfiguredLlmModel(source as ProjectInfo['llm']) || sessionModel;
-
-    // 注意：不发送 api_key —— 前端只持有掩码值（如 ****9cb2），
-    // 后端 resolve_llm_config 会从磁盘读取真实 key。
-    return {
-      mode: source?.mode || 'api',
-      model: configuredModel,
-      api_base: source?.api_base || '',
-      local_model_path: source?.local_model_path || '',
-      ollama_model: source?.ollama_model || '',
-    };
-  }, [projectInfo, sessionModel, settingsInfo]);
-
   const handleGenerate = useCallback(async (request: GenerateRequestState) => {
     if (isGenerating || !state) return;
 
@@ -612,8 +523,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         chapter_num: state.current_chapter,
         user_input: request.userInput,
         input_type: request.inputType,
-        session_llm: sessionLlmPayload || undefined,
-        session_params: { temperature: sessionTemp, top_p: sessionTopP },
+        session_llm: sessionParams.sessionLlmPayload || undefined,
+        session_params: { temperature: sessionParams.sessionTemp, top_p: sessionParams.sessionTopP },
       })) {
         if (activeAuPathRef.current !== requestAuPath) {
           pendingContextSummaryRef.current = null;
@@ -719,7 +630,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         setIsGenerating(false);
       }
     }
-  }, [attachDraftSummary, auPath, loadDraftByLabel, mergeDraftIntoState, sessionLlmPayload, sessionTemp, sessionTopP, showError, state, t]);
+  }, [attachDraftSummary, auPath, loadDraftByLabel, mergeDraftIntoState, sessionParams.sessionLlmPayload, sessionParams.sessionTemp, sessionParams.sessionTopP, showError, state, t]);
 
   const handleGenerateFromInput = async (inputType: 'continue' | 'instruction') => {
     if (drafts.length > 0) {
@@ -768,13 +679,13 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       await loadData();
       onChaptersChanged?.();
 
-      if (skipFactsPrompt) {
+      if (factsExtraction.skipFactsPrompt) {
         showSuccess(t('drafts.finalizeSuccess', { chapter: confirmedChapter }));
         focusInstructionInput();
         return;
       }
 
-      setFactsPromptOpen(true);
+      factsExtraction.setFactsPromptOpen(true);
     } catch (error) {
       if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
@@ -940,11 +851,6 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     );
   };
 
-  const handleFactsPromptToggle = (checked: boolean) => {
-    setSkipFactsPrompt(checked);
-    setSkipFactsPromptPersisted(checked);
-  };
-
   const handleModeChange = (nextMode: WriterMode) => {
     if (nextMode === 'write' && isSettingsModeBusy) {
       showToast(t('settingsMode.busyWriteBlocked'), 'warning');
@@ -961,103 +867,18 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     }
   };
 
-  const closeFactsPrompt = () => {
-    setFactsPromptOpen(false);
-    focusInstructionInput();
-  };
-
-  const handleSkipFactsPrompt = () => {
-    closeFactsPrompt();
-  };
-
-  const handleOpenExtractReview = async () => {
-    if (!lastConfirmedChapter) return;
-    const requestAuPath = auPath;
-
-    setExtractingFacts(true);
-    try {
-      const result = await extractFacts(auPath, lastConfirmedChapter);
-      if (activeAuPathRef.current !== requestAuPath) return;
-      const candidates = result.facts || [];
-      setExtractedCandidates(candidates);
-      setSelectedExtractedKeys(candidates.map((candidate, index) => getCandidateKey(candidate, index)));
-      setFactsPromptOpen(false);
-      setExtractReviewOpen(true);
-      if (candidates.length === 0) {
-        showToast(t('facts.extractNoResult'), 'info');
-      }
-    } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
-      showError(error, t('error_messages.unknown'));
-    } finally {
-      if (activeAuPathRef.current === requestAuPath) {
-        setExtractingFacts(false);
-      }
-    }
-  };
-
-  const handleSaveExtracted = async () => {
-    if (selectedExtractedKeys.length === 0) {
-      setExtractReviewOpen(false);
-      focusInstructionInput();
-      return;
-    }
-
-    setSavingExtracted(true);
-    const requestAuPath = auPath;
-    try {
-      const selectedCandidates = extractedCandidates.filter((candidate, index) =>
-        selectedExtractedKeys.includes(getCandidateKey(candidate, index))
-      );
-
-      for (const candidate of selectedCandidates) {
-        await addFact(auPath, candidate.chapter || lastConfirmedChapter || 1, {
-          content_raw: candidate.content_raw || candidate.content_clean,
-          content_clean: candidate.content_clean,
-          type: candidate.fact_type || candidate.type || 'plot_event',
-          narrative_weight: candidate.narrative_weight || 'medium',
-          status: candidate.status || 'active',
-          characters: candidate.characters || [],
-          ...(candidate.timeline ? { timeline: candidate.timeline } : {}),
-        });
-      }
-      if (activeAuPathRef.current !== requestAuPath) return;
-
-      showSuccess(t('facts.extractSaved', { count: selectedCandidates.length }));
-      setExtractReviewOpen(false);
-      setExtractedCandidates([]);
-      setSelectedExtractedKeys([]);
-      focusInstructionInput();
-    } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
-      showError(error, t('error_messages.unknown'));
-    } finally {
-      if (activeAuPathRef.current === requestAuPath) {
-        setSavingExtracted(false);
-      }
-    }
-  };
-
-  const toggleExtractedCandidate = (key: string) => {
-    setSelectedExtractedKeys((current) =>
-      current.includes(key)
-        ? current.filter((item) => item !== key)
-        : [...current, key]
-    );
-  };
-
   const currentChapter = state?.current_chapter || 1;
   const hasPendingDrafts = drafts.length > 0;
   const writeActionsDisabled = isGenerating || isFinalizing || isDiscarding || isSettingsModeBusy;
   const currentDraft = drafts[activeDraftIndex] || null;
-  const settingsSessionLlm = sessionLlmPayload;
+  const settingsSessionLlm = sessionParams.sessionLlmPayload;
   const fandomPathParts = auPath.split('/aus/');
   const settingsFandomPath = fandomPathParts.length >= 2 ? fandomPathParts[0] : auPath;
   const currentDraftSummary = !isGenerating && currentDraft ? draftSummaries[currentDraft.label] || null : null;
   const activeGeneratedWith = currentDraft?.generatedWith || generatedWith;
   const isViewingHistory = viewingHistoryContent !== null && viewingHistoryNum !== null;
   const displayContent = isViewingHistory ? viewingHistoryContent : (streamText || currentDraft?.content || currentContent);
-  const metaModel = activeGeneratedWith?.model || sessionModel;
+  const metaModel = activeGeneratedWith?.model || sessionParams.sessionModel;
   const metaChars = activeGeneratedWith?.char_count || displayContent.length;
   const metaDuration = activeGeneratedWith?.duration_ms
     ? `${(activeGeneratedWith.duration_ms / 1000).toFixed(1)}s`
@@ -1123,7 +944,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
               </p>
             </div>
             <div className="hidden items-center gap-4 md:flex">
-              <span>{metaModel} · T{sessionTemp}</span>
+              <span>{metaModel} · T{sessionParams.sessionTemp}</span>
               <span>{t('writer.metaWords', { count: metaChars })}</span>
               <span>{metaDuration}</span>
             </div>
@@ -1538,14 +1359,14 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
           <section className="pt-4 border-t border-black/10 dark:border-white/10">
             <SettingsPanel
-              model={sessionModel}
-              onModelChange={setSessionModel}
-              temperature={sessionTemp}
-              onTemperatureChange={setSessionTemp}
-              topP={sessionTopP}
-              onTopPChange={setSessionTopP}
-              onSaveGlobal={handleSaveGlobalParams}
-              onSaveAu={handleSaveAuParams}
+              model={sessionParams.sessionModel}
+              onModelChange={sessionParams.setSessionModel}
+              temperature={sessionParams.sessionTemp}
+              onTemperatureChange={sessionParams.setSessionTemp}
+              topP={sessionParams.sessionTopP}
+              onTopPChange={sessionParams.setSessionTopP}
+              onSaveGlobal={sessionParams.handleSaveGlobalParams}
+              onSaveAu={sessionParams.handleSaveAuParams}
             />
           </section>
 
@@ -1632,14 +1453,14 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
           <section className="border-t border-black/10 pt-5 dark:border-white/10">
             <SettingsPanel
-              model={sessionModel}
-              onModelChange={setSessionModel}
-              temperature={sessionTemp}
-              onTemperatureChange={setSessionTemp}
-              topP={sessionTopP}
-              onTopPChange={setSessionTopP}
-              onSaveGlobal={handleSaveGlobalParams}
-              onSaveAu={handleSaveAuParams}
+              model={sessionParams.sessionModel}
+              onModelChange={sessionParams.setSessionModel}
+              temperature={sessionParams.sessionTemp}
+              onTemperatureChange={sessionParams.setSessionTemp}
+              topP={sessionParams.sessionTopP}
+              onTopPChange={sessionParams.setSessionTopP}
+              onSaveGlobal={sessionParams.handleSaveGlobalParams}
+              onSaveAu={sessionParams.handleSaveAuParams}
             />
           </section>
 
@@ -1731,21 +1552,21 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       </Modal>
 
       <Modal
-        isOpen={isFactsPromptOpen}
-        onClose={handleSkipFactsPrompt}
+        isOpen={factsExtraction.isFactsPromptOpen}
+        onClose={factsExtraction.handleSkipFactsPrompt}
         title={lastConfirmedChapter ? t('drafts.finalizeSuccess', { chapter: lastConfirmedChapter }) : t('drafts.finalizeSuccess', { chapter: currentChapter })}
       >
         <div className="space-y-5">
           <p className="text-sm text-text/80">{t('drafts.factsPrompt')}</p>
           <div className="space-y-2">
-            <Button variant="primary" className="w-full gap-2" onClick={() => void handleOpenExtractReview()} disabled={extractingFacts}>
-              {extractingFacts ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+            <Button variant="primary" className="w-full gap-2" onClick={() => void factsExtraction.handleOpenExtractReview()} disabled={factsExtraction.extractingFacts}>
+              {factsExtraction.extractingFacts ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
               {t('drafts.factsExtract')}
             </Button>
-            <Button variant="secondary" className="w-full" onClick={() => { setFactsPromptOpen(false); onNavigate('facts'); }}>
+            <Button variant="secondary" className="w-full" onClick={() => { factsExtraction.setFactsPromptOpen(false); onNavigate('facts'); }}>
               {t('drafts.factsManual')}
             </Button>
-            <Button variant="ghost" className="w-full" onClick={handleSkipFactsPrompt}>
+            <Button variant="ghost" className="w-full" onClick={factsExtraction.handleSkipFactsPrompt}>
               {t('drafts.factsSkip')}
             </Button>
           </div>
@@ -1753,8 +1574,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
             <input
               type="checkbox"
               className="accent-accent"
-              checked={skipFactsPrompt}
-              onChange={(event) => handleFactsPromptToggle(event.target.checked)}
+              checked={factsExtraction.skipFactsPrompt}
+              onChange={(event) => factsExtraction.handleFactsPromptToggle(event.target.checked)}
             />
             <span>{t('drafts.factsNeverAsk')}</span>
           </label>
@@ -1762,9 +1583,9 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       </Modal>
 
       <Modal
-        isOpen={isExtractReviewOpen}
+        isOpen={factsExtraction.isExtractReviewOpen}
         onClose={() => {
-          setExtractReviewOpen(false);
+          factsExtraction.setExtractReviewOpen(false);
           focusInstructionInput();
         }}
         title={t('facts.extractReviewTitle')}
@@ -1772,13 +1593,13 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         <div className="space-y-4">
           <p className="text-sm text-text/70">{t('facts.extractReviewDescription')}</p>
           <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1">
-            {extractedCandidates.length === 0 ? (
+            {factsExtraction.extractedCandidates.length === 0 ? (
               <EmptyState compact icon={<Sparkles size={28} />} title={t('facts.extractReviewEmpty')} description={t('facts.extractNoResult')} />
             ) : (
-              extractedCandidates.map((candidate, index) => {
+              factsExtraction.extractedCandidates.map((candidate, index) => {
                 const candidateType = candidate.fact_type || candidate.type || 'plot_event';
-                const key = getCandidateKey(candidate, index);
-                const checked = selectedExtractedKeys.includes(key);
+                const key = factsExtraction.getCandidateKey(candidate, index);
+                const checked = factsExtraction.selectedExtractedKeys.includes(key);
 
                 return (
                   <label key={key} className={`flex cursor-pointer gap-3 rounded-lg border p-4 dark:border-white/10 ${checked ? 'border-accent/40 bg-accent/5' : 'border-black/10 bg-surface/40'}`}>
@@ -1786,7 +1607,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                       type="checkbox"
                       className="mt-1 accent-accent"
                       checked={checked}
-                      onChange={() => toggleExtractedCandidate(key)}
+                      onChange={() => factsExtraction.toggleExtractedCandidate(key)}
                     />
                     <div className="min-w-0 flex-1 space-y-3">
                       <div className="flex flex-wrap items-center gap-2">
@@ -1811,13 +1632,13 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
           </div>
           <div className="flex justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
             <Button variant="ghost" onClick={() => {
-              setExtractReviewOpen(false);
+              factsExtraction.setExtractReviewOpen(false);
               focusInstructionInput();
             }}>
               {t('common.actions.cancel')}
             </Button>
-            <Button variant="primary" onClick={() => void handleSaveExtracted()} disabled={savingExtracted || selectedExtractedKeys.length === 0}>
-              {savingExtracted ? <Loader2 size={16} className="animate-spin" /> : t('drafts.extractSaveSelected')}
+            <Button variant="primary" onClick={() => void factsExtraction.handleSaveExtracted()} disabled={factsExtraction.savingExtracted || factsExtraction.selectedExtractedKeys.length === 0}>
+              {factsExtraction.savingExtracted ? <Loader2 size={16} className="animate-spin" /> : t('drafts.extractSaveSelected')}
             </Button>
           </div>
         </div>

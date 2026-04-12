@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
 import { FactCard } from './FactCard';
@@ -10,28 +10,20 @@ import { Modal } from '../shared/Modal';
 import { EmptyState } from '../shared/EmptyState';
 import { Tag } from '../shared/Tag';
 import { Search, Plus, Filter, Loader2, Check, Sparkles, BookOpenText } from 'lucide-react';
-import { listFacts, addFact, editFact, updateFactStatus, batchUpdateFactStatus, extractFactsBatch, FactStatus, type FactInfo } from '../../api/engine-client';
+import { listFacts, updateFactStatus, FactStatus, type FactInfo } from '../../api/engine-client';
 import { getState, type StateInfo } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
 import { useFeedback } from '../../hooks/useFeedback';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
-
-type ExtractedFactCandidate = {
-  content_raw: string;
-  content_clean: string;
-  characters: string[];
-  fact_type?: string;
-  type?: string;
-  narrative_weight: string;
-  status: string;
-  chapter: number;
-  timeline?: string;
-};
+import { useFactsFilter } from './useFactsFilter';
+import { useBatchFacts } from './useBatchFacts';
+import { useFactEditor } from './useFactEditor';
+import { useFactsExtraction } from './useFactsExtraction';
 
 export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const { t } = useTranslation();
-  const { showError, showSuccess, showToast } = useFeedback();
+  const { showError } = useFeedback();
   const isMobile = useMediaQuery('(max-width: 768px)');
   const activeAuPathRef = useRef(auPath);
   activeAuPathRef.current = auPath;
@@ -39,41 +31,9 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const [facts, setFacts] = useState<FactInfo[]>([]);
   const [state, setState] = useState<StateInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [chapterFilter, setChapterFilter] = useState<number | null>(null);
-  const [characterFilter, setCharacterFilter] = useState('');
   const [allFactsCounts, setAllFactsCounts] = useState<Record<string, number>>({});
-  const [saving, setSaving] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [extracting, setExtracting] = useState(false);
-  const [extractModalOpen, setExtractModalOpen] = useState(false);
-  const [extractedCandidates, setExtractedCandidates] = useState<ExtractedFactCandidate[]>([]);
-  const [extractRangeOpen, setExtractRangeOpen] = useState(false);
-  const [extractRange, setExtractRange] = useState<[number, number]>([1, 1]);
-  const [extractProgress, setExtractProgress] = useState(0);
 
-  const [batchMode, setBatchMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [batchMenuOpen, setBatchMenuOpen] = useState(false);
-  const [batchConfirm, setBatchConfirm] = useState<string | null>(null);
-  const [batchProcessing, setBatchProcessing] = useState(false);
-
-  const [editingFact, setEditingFact] = useState<FactInfo | null>(null);
-  const editContentCleanRef = useRef<HTMLTextAreaElement>(null);
-  const editContentRawRef = useRef<HTMLTextAreaElement>(null);
-  const editCharactersRef = useRef<HTMLInputElement>(null);
-  const editWeightRef = useRef<HTMLSelectElement>(null);
-
-  const [isAddModalOpen, setAddModalOpen] = useState(false);
-  const [newContentRaw, setNewContentRaw] = useState('');
-  const [newContentClean, setNewContentClean] = useState('');
-  const [newType, setNewType] = useState('plot_event');
-  const [newWeight, setNewWeight] = useState('medium');
-  const [newStatus, setNewStatus] = useState('active');
-
+  const factsFilter = useFactsFilter(facts, state);
   const loadFacts = async () => {
     if (!auPath) return;
     const requestId = ++loadFactsRequestIdRef.current;
@@ -81,7 +41,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     setLoading(true);
     try {
       const [factsData, allFactsData, stateData] = await Promise.all([
-        listFacts(auPath, (statusFilter && statusFilter !== 'stale') ? statusFilter : undefined),
+        listFacts(auPath, (factsFilter.statusFilter && factsFilter.statusFilter !== 'stale') ? factsFilter.statusFilter : undefined),
         listFacts(auPath),
         getState(auPath).catch(() => null),
       ]);
@@ -103,288 +63,63 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     }
   };
 
+  const batch = useBatchFacts(auPath, factsFilter.filteredFacts, loadFacts);
+  const editor = useFactEditor(auPath, state?.current_chapter ?? 1, loadFacts);
+  const extraction = useFactsExtraction(auPath, state, loadFacts);
+
   useEffect(() => {
     activeAuPathRef.current = auPath;
     loadFactsRequestIdRef.current += 1;
     setLoading(true);
-    setAdding(false);
-    setSaving(false);
-    setSaveSuccess(false);
-    setExtracting(false);
     setFacts([]);
     setState(null);
-    setEditingFact(null);
-    setAddModalOpen(false);
-    setExtractModalOpen(false);
-    setExtractedCandidates([]);
-    setChapterFilter(null);
-    setCharacterFilter('');
-    setFilterOpen(false);
+    // Hooks handle their own reset via auPath-dependent refs
+    factsFilter.resetFilters();
+    editor.setEditingFact(null);
+    editor.setAddModalOpen(false);
+    extraction.setExtractModalOpen(false);
+    extraction.setExtractedCandidates([]);
   }, [auPath]);
 
   useEffect(() => {
     void loadFacts();
-  }, [auPath, statusFilter]);
-
-  const resetAddModal = () => {
-    setNewContentRaw('');
-    setNewContentClean('');
-    setNewType('plot_event');
-    setNewWeight('medium');
-    setNewStatus('active');
-  };
-
-  const handleAddFact = async () => {
-    if (!newContentClean.trim() || !auPath || adding) return;
-    const requestAuPath = auPath;
-    const chapterNum = Math.max(1, (state?.current_chapter || 1) - 1 || 1);
-    setAdding(true);
-    try {
-      await addFact(requestAuPath, chapterNum, {
-        content_raw: newContentRaw || newContentClean,
-        content_clean: newContentClean,
-        type: newType,
-        narrative_weight: newWeight,
-        status: newStatus,
-        characters: [],
-      });
-      if (activeAuPathRef.current !== requestAuPath) return;
-      setAddModalOpen(false);
-      resetAddModal();
-      await loadFacts();
-    } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
-      showError(error, t('error_messages.unknown'));
-    } finally {
-      if (activeAuPathRef.current === requestAuPath) {
-        setAdding(false);
-      }
-    }
-  };
+  }, [auPath, factsFilter.statusFilter]);
 
   const handleStatusChange = async (factId: string, nextStatus: string) => {
     if (!auPath) return;
     const requestAuPath = auPath;
     const targetFact = facts.find((fact) => fact.id === factId);
-    const chapterNum = targetFact?.chapter || editingFact?.chapter || 1;
+    const chapterNum = targetFact?.chapter || editor.editingFact?.chapter || 1;
     try {
       await updateFactStatus(requestAuPath, factId, nextStatus, chapterNum);
       if (activeAuPathRef.current !== requestAuPath) return;
       await loadFacts();
-      if (editingFact?.id === factId) {
-        setEditingFact(prev => prev ? { ...prev, status: nextStatus as FactStatus } : null);
+      if (editor.editingFact?.id === factId) {
+        editor.setEditingFact(prev => prev ? { ...prev, status: nextStatus as FactStatus } : null);
       }
     } catch (error) {
       if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
     }
   };
-
-  const handleSaveFact = async () => {
-    if (!editingFact || !auPath) return;
-    const requestAuPath = auPath;
-    setSaving(true);
-    setSaveSuccess(false);
-    try {
-      const updatedFields: Record<string, any> = {};
-      if (editContentCleanRef.current) updatedFields.content_clean = editContentCleanRef.current.value;
-      if (editContentRawRef.current) updatedFields.content_raw = editContentRawRef.current.value;
-      if (editCharactersRef.current) {
-        updatedFields.characters = editCharactersRef.current.value
-          .split(',')
-          .map((item: string) => item.trim())
-          .filter(Boolean);
-      }
-      if (editWeightRef.current) updatedFields.narrative_weight = editWeightRef.current.value;
-
-      await editFact(requestAuPath, editingFact.id, updatedFields);
-      if (activeAuPathRef.current !== requestAuPath) return;
-      setSaveSuccess(true);
-      window.setTimeout(() => setSaveSuccess(false), 2000);
-      await loadFacts();
-      setEditingFact(prev => prev ? { ...prev, ...updatedFields } : null);
-    } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
-      showError(error, t('error_messages.unknown'));
-    } finally {
-      if (activeAuPathRef.current === requestAuPath) {
-        setSaving(false);
-      }
-    }
-  };
-
-  const handleExtractClick = () => {
-    const totalConfirmed = (state?.current_chapter || 1) - 1;
-    if (totalConfirmed <= 0) {
-      showToast(t('facts.extractNoChapter'), 'info');
-      return;
-    }
-    setExtractRange([1, totalConfirmed]);
-    setExtractRangeOpen(true);
-  };
-
-  const handleExtractConfirm = async () => {
-    setExtractRangeOpen(false);
-    const [from, to] = extractRange;
-
-    const requestAuPath = auPath;
-    setExtracting(true);
-    setExtractProgress(0);
-    try {
-      const allCandidates: ExtractedFactCandidate[] = [];
-      const totalChapters = to - from + 1;
-      const batchSize = 3; // 每 3 章合并为一个 LLM 请求
-      let done = 0;
-      for (let start = from; start <= to; start += batchSize) {
-        const chapterNums: number[] = [];
-        for (let ch = start; ch <= Math.min(start + batchSize - 1, to); ch++) {
-          chapterNums.push(ch);
-        }
-        const result = await extractFactsBatch(requestAuPath, chapterNums).catch(() => ({ facts: [] }));
-        if (activeAuPathRef.current !== requestAuPath) return;
-        allCandidates.push(...((result?.facts || []) as ExtractedFactCandidate[]));
-        done += chapterNums.length;
-        setExtractProgress(Math.round((done / totalChapters) * 100));
-      }
-      if (activeAuPathRef.current !== requestAuPath) return;
-      setExtractedCandidates(allCandidates);
-      setExtractModalOpen(true);
-      if (allCandidates.length === 0) {
-        showToast(t('facts.extractNoResult'), 'info');
-      }
-    } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
-      showError(error, t('error_messages.unknown'));
-    } finally {
-      if (activeAuPathRef.current === requestAuPath) {
-        setExtracting(false);
-      }
-    }
-  };
-
-  const handleSaveExtracted = async () => {
-    if (extractedCandidates.length === 0) {
-      setExtractModalOpen(false);
-      return;
-    }
-
-    const requestAuPath = auPath;
-    setSaving(true);
-    try {
-      for (const candidate of extractedCandidates) {
-        await addFact(requestAuPath, candidate.chapter || 1, {
-          content_raw: candidate.content_raw || candidate.content_clean,
-          content_clean: candidate.content_clean,
-          type: candidate.fact_type || candidate.type || 'plot_event',
-          narrative_weight: candidate.narrative_weight || 'medium',
-          status: candidate.status || 'active',
-          characters: candidate.characters || [],
-          ...(candidate.timeline ? { timeline: candidate.timeline } : {}),
-        });
-        if (activeAuPathRef.current !== requestAuPath) return;
-      }
-
-      showSuccess(t('facts.extractSaved', { count: extractedCandidates.length }));
-      setExtractModalOpen(false);
-      setExtractedCandidates([]);
-      await loadFacts();
-    } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
-      showError(error, t('error_messages.unknown'));
-    } finally {
-      if (activeAuPathRef.current === requestAuPath) {
-        setSaving(false);
-      }
-    }
-  };
-
-  // 从 facts 中动态提取唯一章节号和角色名
-  const uniqueChapters = useMemo(() => [...new Set(facts.map(f => f.chapter))].sort((a, b) => a - b), [facts]);
-  const uniqueCharacters = useMemo(() => [...new Set(facts.flatMap(f => f.characters))].sort(), [facts]);
-
-  const FACTS_PAGE_SIZE = 50;
-  const [visibleCount, setVisibleCount] = useState(FACTS_PAGE_SIZE);
-
-  const filteredFacts = useMemo(() => facts.filter((fact) => {
-    // 'stale' 伪筛选：客户端过滤超过 30 章的 active/unresolved facts
-    if (statusFilter === 'stale') {
-      if (fact.status !== 'active' && fact.status !== 'unresolved') return false;
-      if ((state?.current_chapter || 1) - fact.chapter <= 30) return false;
-    }
-    // 章节筛选
-    if (chapterFilter !== null && fact.chapter !== chapterFilter) return false;
-    // 角色筛选
-    if (characterFilter && !fact.characters.includes(characterFilter)) return false;
-    // 文本搜索
-    if (!filter) return true;
-    const keyword = filter.trim();
-    return fact.content_clean.includes(keyword) || fact.characters.join(',').includes(keyword);
-  }), [facts, filter, statusFilter, chapterFilter, characterFilter, state?.current_chapter]);
-
-  // Reset pagination when filters change
-  useEffect(() => { setVisibleCount(FACTS_PAGE_SIZE); }, [filter, statusFilter, chapterFilter, characterFilter]);
-
-  // Paginated slice of filteredFacts
-  const paginatedFacts = useMemo(() => filteredFacts.slice(0, visibleCount), [filteredFacts, visibleCount]);
-  const hasMoreFacts = filteredFacts.length > visibleCount;
-
-  // 按章节分组（使用分页后的数据）
-  const groupedFacts = useMemo(() => {
-    const groups = new Map<number, FactInfo[]>();
-    for (const f of paginatedFacts) {
-      if (!groups.has(f.chapter)) groups.set(f.chapter, []);
-      groups.get(f.chapter)!.push(f);
-    }
-    return [...groups.entries()].sort((a, b) => a[0] - b[0]);
-  }, [paginatedFacts]);
 
   const totalCount = allFactsCounts.total ?? facts.length;
   const activeCount = allFactsCounts.active ?? 0;
   const unresolvedCount = allFactsCounts.unresolved ?? 0;
   const resolvedCount = allFactsCounts.resolved ?? 0;
   const deprecatedCount = allFactsCounts.deprecated ?? 0;
-  const showEmptyNotes = !loading && facts.length === 0 && !filter && !statusFilter && chapterFilter === null && !characterFilter;
-  const showNoSearchResult = !loading && filteredFacts.length === 0 && !showEmptyNotes;
+  const showEmptyNotes = !loading && facts.length === 0 && !factsFilter.filter && !factsFilter.statusFilter && factsFilter.chapterFilter === null && !factsFilter.characterFilter;
+  const showNoSearchResult = !loading && factsFilter.filteredFacts.length === 0 && !showEmptyNotes;
 
   // 过期 facts 提醒（current_chapter - fact.chapter > 30）
   const currentChapter = state?.current_chapter || 1;
   const staleFacts = facts.filter(f => (f.status === 'active' || f.status === 'unresolved') && currentChapter - f.chapter > 30);
   const staleCount = staleFacts.length;
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-  const toggleSelectAll = () => {
-    if (selectedIds.size === filteredFacts.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredFacts.map(f => f.id)));
-    }
-  };
-
-  const handleBatchStatus = async (newStatus: string) => {
-    setBatchConfirm(null);
-    setBatchProcessing(true);
-    try {
-      const ids = Array.from(selectedIds);
-      const result = await batchUpdateFactStatus(auPath, ids, newStatus);
-      showSuccess(t('facts.batchSuccess', { count: result.updated, status: getEnumLabel('fact_status', newStatus, newStatus) }));
-      setSelectedIds(new Set());
-      setBatchMenuOpen(false);
-      await loadFacts();
-    } catch (error) {
-      showError(error, t('error_messages.unknown'));
-    } finally {
-      setBatchProcessing(false);
-    }
-  };
+  const FACTS_PAGE_SIZE = 50;
 
   const renderFactEditor = (showFooter: boolean) => {
-    if (!editingFact) {
+    if (!editor.editingFact) {
       return (
         <EmptyState
           icon={<Search size={40} />}
@@ -395,14 +130,14 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     }
 
     return (
-      <div key={editingFact.id} className="space-y-6">
+      <div key={editor.editingFact.id} className="space-y-6">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="flex flex-col gap-2">
             <label className="text-sm font-bold text-text/90">{t('common.labels.factStatus')}</label>
             <select
               className="h-11 rounded-md border border-black/20 bg-surface px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
-              value={editingFact.status}
-              onChange={(e) => handleStatusChange(editingFact.id, e.target.value)}
+              value={editor.editingFact.status}
+              onChange={(e) => handleStatusChange(editor.editingFact!.id, e.target.value)}
             >
               <option value="unresolved">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</option>
               <option value="active">{getEnumLabel('fact_status', 'active', 'active')}</option>
@@ -414,8 +149,8 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           <div className="flex flex-col gap-2">
             <label className="text-sm font-bold text-text/90">{t('common.labels.narrativeWeight')}</label>
             <select
-              ref={editWeightRef as any}
-              defaultValue={editingFact.narrative_weight || 'medium'}
+              ref={editor.editWeightRef as any}
+              defaultValue={editor.editingFact.narrative_weight || 'medium'}
               className="h-11 rounded-md border border-black/20 bg-surface px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
             >
               <option value="low">{getEnumLabel('narrative_weight', 'low', 'low')}</option>
@@ -428,27 +163,27 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-bold text-text/90">{t('common.labels.contentClean')}</label>
-          <Textarea ref={editContentCleanRef} defaultValue={editingFact.content_clean} className="font-serif min-h-[160px] text-lg leading-relaxed resize-y" />
+          <Textarea ref={editor.editContentCleanRef} defaultValue={editor.editingFact.content_clean} className="font-serif min-h-[160px] text-lg leading-relaxed resize-y" />
           <p className="text-xs text-text/50">{t('facts.cleanHint')}</p>
         </div>
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-bold text-text/90">{t('common.labels.contentRaw')}</label>
-          <Textarea ref={editContentRawRef} defaultValue={editingFact.content_raw} className="font-serif opacity-70 min-h-[140px] text-base leading-relaxed bg-surface/50 resize-y" />
+          <Textarea ref={editor.editContentRawRef} defaultValue={editor.editingFact.content_raw} className="font-serif opacity-70 min-h-[140px] text-base leading-relaxed bg-surface/50 resize-y" />
           <p className="text-xs text-text/50">{t('facts.rawHint')}</p>
         </div>
 
         <div className="flex flex-col gap-2 border-t border-black/10 pt-4 dark:border-white/10">
           <label className="text-sm font-bold text-text/90">{t('common.labels.characters')}</label>
-          <Input ref={editCharactersRef} defaultValue={(editingFact.characters || []).join(', ')} className="h-11 text-base md:h-10 md:text-sm" />
+          <Input ref={editor.editCharactersRef} defaultValue={(editor.editingFact.characters || []).join(', ')} className="h-11 text-base md:h-10 md:text-sm" />
           <p className="text-xs text-text/50">{t('facts.charactersHint')}</p>
         </div>
 
         {showFooter ? (
           <div className="flex items-center justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
-            <Button variant="ghost" onClick={() => setEditingFact(null)}>{t('facts.cancelSelection')}</Button>
-            <Button variant="primary" onClick={handleSaveFact} disabled={saving}>
-              {saving ? <Loader2 size={14} className="animate-spin" /> : saveSuccess ? <><Check size={14} className="mr-1" /> {t('facts.saved')}</> : t('common.actions.save')}
+            <Button variant="ghost" onClick={() => editor.setEditingFact(null)}>{t('facts.cancelSelection')}</Button>
+            <Button variant="primary" onClick={editor.handleSaveFact} disabled={editor.savingFact}>
+              {editor.savingFact ? <Loader2 size={14} className="animate-spin" /> : editor.saveSuccess ? <><Check size={14} className="mr-1" /> {t('facts.saved')}</> : t('common.actions.save')}
             </Button>
           </div>
         ) : null}
@@ -460,21 +195,21 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     <>
       {isMobile ? (
         <Modal
-          isOpen={!!editingFact}
-          onClose={saving ? () => {} : () => setEditingFact(null)}
-          title={editingFact ? `${editingFact.id.split('-')[0]} ${t('facts.editing')}` : t('facts.editing')}
+          isOpen={!!editor.editingFact}
+          onClose={editor.savingFact ? () => {} : () => editor.setEditingFact(null)}
+          title={editor.editingFact ? `${editor.editingFact.id.split('-')[0]} ${t('facts.editing')}` : t('facts.editing')}
         >
           {renderFactEditor(true)}
         </Modal>
       ) : null}
 
-      <Modal isOpen={isAddModalOpen} onClose={adding ? () => {} : () => setAddModalOpen(false)} title={t('facts.createModal.title')}>
+      <Modal isOpen={editor.isAddModalOpen} onClose={editor.adding ? () => {} : () => editor.setAddModalOpen(false)} title={t('facts.createModal.title')}>
         <div className="space-y-4">
           <div className="space-y-1">
             <Textarea
               label={t('common.labels.contentRaw')}
-              value={newContentRaw}
-              onChange={e => setNewContentRaw(e.target.value)}
+              value={editor.newContentRaw}
+              onChange={e => editor.setNewContentRaw(e.target.value)}
               placeholder={t('facts.createModal.rawPlaceholder')}
               className="min-h-[80px] bg-surface/50"
             />
@@ -483,8 +218,8 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           <div className="space-y-1">
             <Textarea
               label={`${t('common.labels.contentClean')} *`}
-              value={newContentClean}
-              onChange={e => setNewContentClean(e.target.value)}
+              value={editor.newContentClean}
+              onChange={e => editor.setNewContentClean(e.target.value)}
               placeholder={t('facts.createModal.cleanPlaceholder')}
               className="min-h-[80px] bg-surface/50 font-bold"
             />
@@ -494,7 +229,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-xs font-bold text-text/80">{t('facts.createModal.typeLabel')}</label>
-              <select value={newType} onChange={e => setNewType(e.target.value)} className="h-11 w-full rounded-md border border-black/10 bg-surface px-2 text-base dark:border-white/10 md:h-9 md:text-sm">
+              <select value={editor.newType} onChange={e => editor.setNewType(e.target.value)} className="h-11 w-full rounded-md border border-black/10 bg-surface px-2 text-base dark:border-white/10 md:h-9 md:text-sm">
                 <option value="plot_event">{getEnumLabel('fact_type', 'plot_event', 'plot_event')}</option>
                 <option value="character_detail">{getEnumLabel('fact_type', 'character_detail', 'character_detail')}</option>
                 <option value="relationship">{getEnumLabel('fact_type', 'relationship', 'relationship')}</option>
@@ -505,7 +240,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             </div>
             <div>
               <label className="mb-1 block text-xs font-bold text-text/80">{t('facts.createModal.weightLabel')}</label>
-              <select value={newWeight} onChange={e => setNewWeight(e.target.value)} className="h-11 w-full rounded-md border border-black/10 bg-surface px-2 text-base dark:border-white/10 md:h-9 md:text-sm">
+              <select value={editor.newWeight} onChange={e => editor.setNewWeight(e.target.value)} className="h-11 w-full rounded-md border border-black/10 bg-surface px-2 text-base dark:border-white/10 md:h-9 md:text-sm">
                 <option value="low">{getEnumLabel('narrative_weight', 'low', 'low')}</option>
                 <option value="medium">{getEnumLabel('narrative_weight', 'medium', 'medium')}</option>
                 <option value="high">{getEnumLabel('narrative_weight', 'high', 'high')}</option>
@@ -513,46 +248,46 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             </div>
             <div>
               <label className="mb-1 block text-xs font-bold text-text/80">{t('facts.createModal.statusLabel')}</label>
-              <select value={newStatus} onChange={e => setNewStatus(e.target.value)} className="h-11 w-full rounded-md border border-black/10 bg-surface px-2 text-base dark:border-white/10 md:h-9 md:text-sm">
+              <select value={editor.newStatus} onChange={e => editor.setNewStatus(e.target.value)} className="h-11 w-full rounded-md border border-black/10 bg-surface px-2 text-base dark:border-white/10 md:h-9 md:text-sm">
                 <option value="active">{getEnumLabel('fact_status', 'active', 'active')}</option>
                 <option value="unresolved">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</option>
               </select>
             </div>
           </div>
           <div className="flex justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
-            <Button variant="ghost" onClick={() => setAddModalOpen(false)} disabled={adding}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={handleAddFact} disabled={!newContentClean.trim() || adding}>
-              {adding ? <Loader2 size={16} className="animate-spin" /> : t('facts.createModal.submit')}
+            <Button variant="ghost" onClick={() => editor.setAddModalOpen(false)} disabled={editor.adding}>{t('common.actions.cancel')}</Button>
+            <Button variant="primary" onClick={editor.handleAddFact} disabled={!editor.newContentClean.trim() || editor.adding}>
+              {editor.adding ? <Loader2 size={16} className="animate-spin" /> : t('facts.createModal.submit')}
             </Button>
           </div>
         </div>
       </Modal>
 
-      <Modal isOpen={extractRangeOpen} onClose={() => setExtractRangeOpen(false)} title={t('facts.extractRangeTitle')}>
+      <Modal isOpen={extraction.extractRangeOpen} onClose={() => extraction.setExtractRangeOpen(false)} title={t('facts.extractRangeTitle')}>
         <div className="space-y-4">
           <p className="text-sm text-text/70">{t('facts.extractRangeDesc')}</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[auto,96px,auto,96px,1fr] sm:items-center">
             <label className="text-sm text-text/70 shrink-0">{t('facts.extractFrom')}</label>
-            <Input type="number" className="h-11 text-base md:h-8 md:text-sm" min={1} max={extractRange[1]} value={extractRange[0]} onChange={e => setExtractRange([Math.max(1, parseInt(e.target.value) || 1), extractRange[1]])} />
+            <Input type="number" className="h-11 text-base md:h-8 md:text-sm" min={1} max={extraction.extractRange[1]} value={extraction.extractRange[0]} onChange={e => extraction.setExtractRange([Math.max(1, parseInt(e.target.value) || 1), extraction.extractRange[1]])} />
             <label className="text-sm text-text/70 shrink-0">{t('facts.extractTo')}</label>
-            <Input type="number" className="h-11 text-base md:h-8 md:text-sm" min={extractRange[0]} value={extractRange[1]} onChange={e => setExtractRange([extractRange[0], parseInt(e.target.value) || extractRange[1]])} />
-            <span className="text-xs text-text/40">{t('facts.extractChapterCount', { count: extractRange[1] - extractRange[0] + 1 })}</span>
+            <Input type="number" className="h-11 text-base md:h-8 md:text-sm" min={extraction.extractRange[0]} value={extraction.extractRange[1]} onChange={e => extraction.setExtractRange([extraction.extractRange[0], parseInt(e.target.value) || extraction.extractRange[1]])} />
+            <span className="text-xs text-text/40">{t('facts.extractChapterCount', { count: extraction.extractRange[1] - extraction.extractRange[0] + 1 })}</span>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setExtractRangeOpen(false)}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={handleExtractConfirm}>{t('facts.extractStart')}</Button>
+            <Button variant="ghost" onClick={() => extraction.setExtractRangeOpen(false)}>{t('common.actions.cancel')}</Button>
+            <Button variant="primary" onClick={extraction.handleExtractConfirm}>{t('facts.extractStart')}</Button>
           </div>
         </div>
       </Modal>
 
-      <Modal isOpen={extractModalOpen} onClose={saving ? () => {} : () => setExtractModalOpen(false)} title={t('facts.extractReviewTitle')}>
+      <Modal isOpen={extraction.extractModalOpen} onClose={extraction.savingExtraction ? () => {} : () => extraction.setExtractModalOpen(false)} title={t('facts.extractReviewTitle')}>
         <div className="space-y-4">
           <p className="text-sm text-text/70">{t('facts.extractReviewDescription')}</p>
           <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1">
-            {extractedCandidates.length === 0 ? (
+            {extraction.extractedCandidates.length === 0 ? (
               <EmptyState compact icon={<Sparkles size={28} />} title={t('facts.extractReviewEmpty')} description={t('facts.extractNoResult')} />
             ) : (
-              extractedCandidates.map((candidate, index) => {
+              extraction.extractedCandidates.map((candidate, index) => {
                 const candidateType = candidate.fact_type || candidate.type || 'plot_event';
                 return (
                   <div key={`${candidate.content_clean}-${index}`} className="space-y-3 rounded-lg border border-black/10 bg-surface/40 p-4 dark:border-white/10">
@@ -576,26 +311,26 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             )}
           </div>
           <div className="flex justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
-            <Button variant="ghost" onClick={() => setExtractModalOpen(false)} disabled={saving}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={handleSaveExtracted} disabled={saving || extractedCandidates.length === 0}>
-              {saving ? <Loader2 size={16} className="animate-spin" /> : t('facts.extractSaveAll')}
+            <Button variant="ghost" onClick={() => extraction.setExtractModalOpen(false)} disabled={extraction.savingExtraction}>{t('common.actions.cancel')}</Button>
+            <Button variant="primary" onClick={extraction.handleSaveExtracted} disabled={extraction.savingExtraction || extraction.extractedCandidates.length === 0}>
+              {extraction.savingExtraction ? <Loader2 size={16} className="animate-spin" /> : t('facts.extractSaveAll')}
             </Button>
           </div>
         </div>
       </Modal>
 
-      <Modal isOpen={!!batchConfirm} onClose={batchProcessing ? () => {} : () => setBatchConfirm(null)} title={t('facts.batchConfirmTitle', { count: selectedIds.size, status: batchConfirm ? getEnumLabel('fact_status', batchConfirm, batchConfirm) : '' })}>
+      <Modal isOpen={!!batch.batchConfirm} onClose={batch.batchProcessing ? () => {} : () => batch.setBatchConfirm(null)} title={t('facts.batchConfirmTitle', { count: batch.selectedIds.size, status: batch.batchConfirm ? getEnumLabel('fact_status', batch.batchConfirm, batch.batchConfirm) : '' })}>
         <div className="space-y-4">
           <p className="text-sm text-text/70">
-            {batchConfirm === 'deprecated' && t('facts.batchDeprecatedDesc')}
-            {batchConfirm === 'resolved' && t('facts.batchResolvedDesc')}
-            {batchConfirm === 'active' && t('facts.batchActiveDesc')}
-            {batchConfirm === 'unresolved' && t('facts.batchUnresolvedDesc')}
+            {batch.batchConfirm === 'deprecated' && t('facts.batchDeprecatedDesc')}
+            {batch.batchConfirm === 'resolved' && t('facts.batchResolvedDesc')}
+            {batch.batchConfirm === 'active' && t('facts.batchActiveDesc')}
+            {batch.batchConfirm === 'unresolved' && t('facts.batchUnresolvedDesc')}
           </p>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setBatchConfirm(null)} disabled={batchProcessing}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={() => batchConfirm && handleBatchStatus(batchConfirm)} disabled={batchProcessing}>
-              {batchProcessing ? <Loader2 size={14} className="animate-spin" /> : t('common.actions.confirm')}
+            <Button variant="ghost" onClick={() => batch.setBatchConfirm(null)} disabled={batch.batchProcessing}>{t('common.actions.cancel')}</Button>
+            <Button variant="primary" onClick={() => batch.batchConfirm && batch.handleBatchStatus(batch.batchConfirm)} disabled={batch.batchProcessing}>
+              {batch.batchProcessing ? <Loader2 size={14} className="animate-spin" /> : t('common.actions.confirm')}
             </Button>
           </div>
         </div>
@@ -614,10 +349,10 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 <p className="text-sm text-text/55">{t('facts.subtitle')}</p>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="secondary" size="sm" className="px-3" onClick={handleExtractClick} disabled={extracting}>
-                  {extracting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                <Button variant="secondary" size="sm" className="px-3" onClick={extraction.handleExtractClick} disabled={extraction.extracting}>
+                  {extraction.extracting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
                 </Button>
-                <Button variant="primary" size="sm" className="px-3 shadow-md" onClick={() => setAddModalOpen(true)}>
+                <Button variant="primary" size="sm" className="px-3 shadow-md" onClick={() => editor.setAddModalOpen(true)}>
                   <Plus size={16} className="mr-1" />
                   新建
                 </Button>
@@ -630,39 +365,39 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 <Input
                   className="pl-10"
                   placeholder={t('common.search.facts')}
-                  value={filter}
-                  onChange={e => setFilter(e.target.value)}
+                  value={factsFilter.filter}
+                  onChange={e => factsFilter.setFilter(e.target.value)}
                 />
               </div>
               <Button
-                variant={filterOpen || chapterFilter !== null || characterFilter ? 'primary' : 'secondary'}
+                variant={factsFilter.filterOpen || factsFilter.chapterFilter !== null || factsFilter.characterFilter ? 'primary' : 'secondary'}
                 className="w-11 px-0"
                 title={t('facts.filterTitle')}
-                onClick={() => setFilterOpen(!filterOpen)}
+                onClick={() => factsFilter.setFilterOpen(!factsFilter.filterOpen)}
               >
                 <Filter size={16} />
               </Button>
             </div>
 
-            {filterOpen ? (
+            {factsFilter.filterOpen ? (
               <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <select
-                  value={chapterFilter ?? ''}
-                  onChange={e => setChapterFilter(e.target.value ? Number(e.target.value) : null)}
+                  value={factsFilter.chapterFilter ?? ''}
+                  onChange={e => factsFilter.setChapterFilter(e.target.value ? Number(e.target.value) : null)}
                   className="h-11 rounded-md border border-black/15 bg-background px-3 text-base outline-none focus:ring-1 focus:ring-accent dark:border-white/15 md:text-sm"
                 >
                   <option value="">{t('facts.filterAllChapters')}</option>
-                  {uniqueChapters.map(ch => (
+                  {factsFilter.uniqueChapters.map(ch => (
                     <option key={ch} value={ch}>{t('facts.chapterGroup', { num: ch })}</option>
                   ))}
                 </select>
                 <select
-                  value={characterFilter}
-                  onChange={e => setCharacterFilter(e.target.value)}
+                  value={factsFilter.characterFilter}
+                  onChange={e => factsFilter.setCharacterFilter(e.target.value)}
                   className="h-11 rounded-md border border-black/15 bg-background px-3 text-base outline-none focus:ring-1 focus:ring-accent dark:border-white/15 md:text-sm"
                 >
                   <option value="">{t('facts.filterAllCharacters')}</option>
-                  {uniqueCharacters.map(c => (
+                  {factsFilter.uniqueCharacters.map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
@@ -672,74 +407,74 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             <div className="mt-3 flex gap-2 overflow-x-auto pb-1 text-sm whitespace-nowrap">
               <button
                 type="button"
-                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${!statusFilter ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
-                onClick={() => setStatusFilter('')}
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${!factsFilter.statusFilter ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                onClick={() => factsFilter.setStatusFilter('')}
               >
                 {t('facts.allTab')} ({totalCount})
               </button>
               <button
                 type="button"
-                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${statusFilter === 'unresolved' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
-                onClick={() => setStatusFilter('unresolved')}
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${factsFilter.statusFilter === 'unresolved' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                onClick={() => factsFilter.setStatusFilter('unresolved')}
               >
                 {getEnumLabel('fact_status', 'unresolved', 'unresolved')} ({unresolvedCount})
               </button>
               <button
                 type="button"
-                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${statusFilter === 'active' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
-                onClick={() => setStatusFilter('active')}
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${factsFilter.statusFilter === 'active' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                onClick={() => factsFilter.setStatusFilter('active')}
               >
                 {getEnumLabel('fact_status', 'active', 'active')} ({activeCount})
               </button>
               <button
                 type="button"
-                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${statusFilter === 'resolved' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
-                onClick={() => setStatusFilter('resolved')}
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${factsFilter.statusFilter === 'resolved' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                onClick={() => factsFilter.setStatusFilter('resolved')}
               >
                 {getEnumLabel('fact_status', 'resolved', 'resolved')} ({resolvedCount})
               </button>
               <button
                 type="button"
-                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${statusFilter === 'deprecated' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
-                onClick={() => setStatusFilter('deprecated')}
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${factsFilter.statusFilter === 'deprecated' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                onClick={() => factsFilter.setStatusFilter('deprecated')}
               >
                 {getEnumLabel('fact_status', 'deprecated', 'deprecated')} ({deprecatedCount})
               </button>
             </div>
           </header>
 
-          {staleCount > 0 && !statusFilter ? (
+          {staleCount > 0 && !factsFilter.statusFilter ? (
             <div className="mx-4 mt-3 flex items-center justify-between rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-xs text-warning">
               <span>💡 {t('facts.staleHint', { count: staleCount })}</span>
-              <Button variant="ghost" size="sm" className="h-11 px-3 text-sm" onClick={() => setStatusFilter('stale')}>{t('facts.staleView')}</Button>
+              <Button variant="ghost" size="sm" className="h-11 px-3 text-sm" onClick={() => factsFilter.setStatusFilter('stale')}>{t('facts.staleView')}</Button>
             </div>
           ) : null}
 
-          {filteredFacts.length > 0 ? (
+          {factsFilter.filteredFacts.length > 0 ? (
             <div className="mx-4 mt-3 flex flex-wrap items-center gap-3 text-xs text-text/60">
               <button
                 type="button"
-                className={`min-h-[44px] font-medium ${batchMode ? 'text-accent' : 'text-text/40 hover:text-text/60'}`}
-                onClick={() => { setBatchMode(!batchMode); if (batchMode) { setSelectedIds(new Set()); setBatchMenuOpen(false); } }}
+                className={`min-h-[44px] font-medium ${batch.batchMode ? 'text-accent' : 'text-text/40 hover:text-text/60'}`}
+                onClick={() => { batch.setBatchMode(!batch.batchMode); if (batch.batchMode) { batch.setSelectedIds(new Set()); batch.setBatchMenuOpen(false); } }}
               >
-                {batchMode ? t('facts.batchExit') : t('facts.batchEnter')}
+                {batch.batchMode ? t('facts.batchExit') : t('facts.batchEnter')}
               </button>
-              {batchMode ? (
+              {batch.batchMode ? (
                 <label className="flex min-h-[44px] items-center gap-1.5 cursor-pointer">
-                  <input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === filteredFacts.length} onChange={toggleSelectAll} className="accent-accent" />
+                  <input type="checkbox" checked={batch.selectedIds.size > 0 && batch.selectedIds.size === factsFilter.filteredFacts.length} onChange={batch.toggleSelectAll} className="accent-accent" />
                   {t('facts.batchSelect')}
                 </label>
               ) : null}
-              {selectedIds.size > 0 ? (
+              {batch.selectedIds.size > 0 ? (
                 <>
-                  <span className="font-medium text-accent">{t('facts.batchSelected', { count: selectedIds.size })}</span>
-                  <Button variant="secondary" size="sm" className="h-11 px-3 text-sm" onClick={() => setBatchMenuOpen(!batchMenuOpen)} disabled={batchProcessing}>
+                  <span className="font-medium text-accent">{t('facts.batchSelected', { count: batch.selectedIds.size })}</span>
+                  <Button variant="secondary" size="sm" className="h-11 px-3 text-sm" onClick={() => batch.setBatchMenuOpen(!batch.batchMenuOpen)} disabled={batch.batchProcessing}>
                     {t('facts.batchAction')} ▾
                   </Button>
-                  {batchMenuOpen ? (
+                  {batch.batchMenuOpen ? (
                     <div className="w-full rounded-lg border border-black/10 bg-surface p-1 dark:border-white/10">
                       {(['deprecated', 'resolved', 'active', 'unresolved'] as const).map(s => (
-                        <button key={s} type="button" className="flex min-h-[44px] w-full items-center rounded-md px-3 py-2 text-left text-sm hover:bg-accent/10" onClick={() => { setBatchMenuOpen(false); setBatchConfirm(s); }}>
+                        <button key={s} type="button" className="flex min-h-[44px] w-full items-center rounded-md px-3 py-2 text-left text-sm hover:bg-accent/10" onClick={() => { batch.setBatchMenuOpen(false); batch.setBatchConfirm(s); }}>
                           {t(`facts.batchTo.${s}`)}
                         </button>
                       ))}
@@ -762,11 +497,11 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 actions={[
                   {
                     key: 'add-fact',
-                    element: <Button variant="primary" size="sm" onClick={() => setAddModalOpen(true)}>{t('common.actions.manualFact')}</Button>,
+                    element: <Button variant="primary" size="sm" onClick={() => editor.setAddModalOpen(true)}>{t('common.actions.manualFact')}</Button>,
                   },
                   {
                     key: 'extract-facts',
-                    element: <Button variant="secondary" size="sm" onClick={handleExtractClick} disabled={extracting}>{t('common.actions.extractFacts')}</Button>,
+                    element: <Button variant="secondary" size="sm" onClick={extraction.handleExtractClick} disabled={extraction.extracting}>{t('common.actions.extractFacts')}</Button>,
                   },
                 ]}
               />
@@ -779,27 +514,27 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 actions={[
                   {
                     key: 'add-first-fact',
-                    element: <Button variant="primary" size="sm" onClick={() => setAddModalOpen(true)}>{t('common.actions.newNote')}</Button>,
+                    element: <Button variant="primary" size="sm" onClick={() => editor.setAddModalOpen(true)}>{t('common.actions.newNote')}</Button>,
                   },
                 ]}
               />
             ) : (
-              groupedFacts.map(([chapterNum, chapterFacts]) => (
+              factsFilter.groupedFacts.map(([chapterNum, chapterFacts]) => (
                 <div key={chapterNum} className="space-y-3">
                   <div className="sticky top-[148px] z-10 rounded-xl border border-black/5 bg-background/92 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-text/50 backdrop-blur dark:border-white/5">
                     {t('facts.chapterGroup', { num: chapterNum })} ({chapterFacts.length})
                   </div>
                   {chapterFacts.map(fact => (
                     <div key={fact.id} className="flex items-start gap-2">
-                      {batchMode ? (
+                      {batch.batchMode ? (
                         <input
                           type="checkbox"
                           className="mt-4 accent-accent shrink-0"
-                          checked={selectedIds.has(fact.id)}
-                          onChange={() => toggleSelect(fact.id)}
+                          checked={batch.selectedIds.has(fact.id)}
+                          onChange={() => batch.toggleSelect(fact.id)}
                         />
                       ) : null}
-                      <div className="flex-1 cursor-pointer" onClick={() => setEditingFact(fact)}>
+                      <div className="flex-1 cursor-pointer" onClick={() => editor.setEditingFact(fact)}>
                         <FactCard fact={{ ...fact, weight: fact.narrative_weight || 'medium', chapter: fact.chapter || 1 }} />
                       </div>
                     </div>
@@ -807,10 +542,10 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 </div>
               ))
             )}
-            {hasMoreFacts && (
+            {factsFilter.hasMoreFacts && (
               <div className="flex justify-center py-4">
-                <Button variant="ghost" size="sm" onClick={() => setVisibleCount(prev => prev + FACTS_PAGE_SIZE)}>
-                  {t('facts.loadMore', { remaining: filteredFacts.length - visibleCount })}
+                <Button variant="ghost" size="sm" onClick={() => factsFilter.setVisibleCount(prev => prev + FACTS_PAGE_SIZE)}>
+                  {t('facts.loadMore', { remaining: factsFilter.filteredFacts.length - factsFilter.visibleCount })}
                 </Button>
               </div>
             )}
@@ -828,11 +563,11 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           <div className="flex justify-between items-center gap-3">
             <h1 className="font-serif text-xl font-bold">{t('facts.title')}</h1>
             <div className="flex items-center gap-2">
-              <Button variant="secondary" size="sm" className="px-3 gap-1" onClick={handleExtractClick} disabled={extracting}>
-                {extracting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                {extracting ? `${extractProgress}%` : t('common.actions.extractFacts')}
+              <Button variant="secondary" size="sm" className="px-3 gap-1" onClick={extraction.handleExtractClick} disabled={extraction.extracting}>
+                {extraction.extracting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                {extraction.extracting ? `${extraction.extractProgress}%` : t('common.actions.extractFacts')}
               </Button>
-              <Button variant="primary" size="sm" className="px-3 shadow-md gap-1" onClick={() => setAddModalOpen(true)}>
+              <Button variant="primary" size="sm" className="px-3 shadow-md gap-1" onClick={() => editor.setAddModalOpen(true)}>
                 <Plus size={16} />
                 {t('facts.createButton')}
               </Button>
@@ -845,46 +580,46 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               <Input
                 className="pl-9 h-8 text-xs placeholder:text-xs"
                 placeholder={t('common.search.facts')}
-                value={filter}
-                onChange={e => setFilter(e.target.value)}
+                value={factsFilter.filter}
+                onChange={e => factsFilter.setFilter(e.target.value)}
               />
             </div>
             <Button
-              variant={filterOpen || chapterFilter !== null || characterFilter ? 'primary' : 'secondary'}
+              variant={factsFilter.filterOpen || factsFilter.chapterFilter !== null || factsFilter.characterFilter ? 'primary' : 'secondary'}
               className="px-2.5 h-8 flex-shrink-0"
               title={t('facts.filterTitle')}
-              onClick={() => setFilterOpen(!filterOpen)}
+              onClick={() => factsFilter.setFilterOpen(!factsFilter.filterOpen)}
             >
               <Filter size={14} />
             </Button>
           </div>
 
-          {filterOpen && (
+          {factsFilter.filterOpen && (
             <div className="flex gap-2 items-center flex-wrap">
               <select
-                value={chapterFilter ?? ''}
-                onChange={e => setChapterFilter(e.target.value ? Number(e.target.value) : null)}
+                value={factsFilter.chapterFilter ?? ''}
+                onChange={e => factsFilter.setChapterFilter(e.target.value ? Number(e.target.value) : null)}
                 className="h-7 rounded-md border border-black/15 dark:border-white/15 bg-background px-2 text-xs focus:ring-1 focus:ring-accent outline-none"
               >
                 <option value="">{t('facts.filterAllChapters')}</option>
-                {uniqueChapters.map(ch => (
+                {factsFilter.uniqueChapters.map(ch => (
                   <option key={ch} value={ch}>{t('facts.chapterGroup', { num: ch })}</option>
                 ))}
               </select>
               <select
-                value={characterFilter}
-                onChange={e => setCharacterFilter(e.target.value)}
+                value={factsFilter.characterFilter}
+                onChange={e => factsFilter.setCharacterFilter(e.target.value)}
                 className="h-7 rounded-md border border-black/15 dark:border-white/15 bg-background px-2 text-xs focus:ring-1 focus:ring-accent outline-none"
               >
                 <option value="">{t('facts.filterAllCharacters')}</option>
-                {uniqueCharacters.map(c => (
+                {factsFilter.uniqueCharacters.map(c => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
-              {(chapterFilter !== null || characterFilter) && (
+              {(factsFilter.chapterFilter !== null || factsFilter.characterFilter) && (
                 <button
                   className="text-[11px] text-accent hover:underline"
-                  onClick={() => { setChapterFilter(null); setCharacterFilter(''); }}
+                  onClick={() => { factsFilter.setChapterFilter(null); factsFilter.setCharacterFilter(''); }}
                 >{t('facts.filterClear')}</button>
               )}
             </div>
@@ -892,59 +627,59 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
 
           <div className="flex flex-col gap-1">
             <div className="flex gap-3 overflow-x-auto pb-1 text-xs font-sans whitespace-nowrap">
-              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${!statusFilter ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => setStatusFilter('')}>
+              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${!factsFilter.statusFilter ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => factsFilter.setStatusFilter('')}>
                 {t('facts.allTab')} ({totalCount})
               </span>
-              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${statusFilter === 'unresolved' ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => setStatusFilter('unresolved')}>
+              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${factsFilter.statusFilter === 'unresolved' ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => factsFilter.setStatusFilter('unresolved')}>
                 {getEnumLabel('fact_status', 'unresolved', 'unresolved')} ({unresolvedCount})
               </span>
-              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${statusFilter === 'active' ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => setStatusFilter('active')}>
+              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${factsFilter.statusFilter === 'active' ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => factsFilter.setStatusFilter('active')}>
                 {getEnumLabel('fact_status', 'active', 'active')} ({activeCount})
               </span>
-              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${statusFilter === 'resolved' ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => setStatusFilter('resolved')}>
+              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${factsFilter.statusFilter === 'resolved' ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => factsFilter.setStatusFilter('resolved')}>
                 {getEnumLabel('fact_status', 'resolved', 'resolved')} ({resolvedCount})
               </span>
-              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${statusFilter === 'deprecated' ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => setStatusFilter('deprecated')}>
+              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${factsFilter.statusFilter === 'deprecated' ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => factsFilter.setStatusFilter('deprecated')}>
                 {getEnumLabel('fact_status', 'deprecated', 'deprecated')} ({deprecatedCount})
               </span>
             </div>
-            {statusFilter && (
-              <p className="text-[10px] text-text/40 font-sans">{t(`facts.statusHint.${statusFilter}`)}</p>
+            {factsFilter.statusFilter && (
+              <p className="text-[10px] text-text/40 font-sans">{t(`facts.statusHint.${factsFilter.statusFilter}`)}</p>
             )}
           </div>
         </header>
 
         {/* 过期提醒 */}
-        {staleCount > 0 && !statusFilter && (
+        {staleCount > 0 && !factsFilter.statusFilter && (
           <div className="mx-4 mt-3 flex items-center justify-between rounded-lg bg-warning/10 border border-warning/20 px-3 py-2 text-xs text-warning">
             <span>💡 {t('facts.staleHint', { count: staleCount })}</span>
-            <Button variant="ghost" size="sm" className="text-xs h-6 px-2" onClick={() => setStatusFilter('stale')}>{t('facts.staleView')}</Button>
+            <Button variant="ghost" size="sm" className="text-xs h-6 px-2" onClick={() => factsFilter.setStatusFilter('stale')}>{t('facts.staleView')}</Button>
           </div>
         )}
 
         {/* 批量操作栏 */}
-        {filteredFacts.length > 0 && (
+        {factsFilter.filteredFacts.length > 0 && (
           <div className="mx-4 mt-2 flex items-center gap-3 text-xs text-text/60">
-            <button className={`font-medium ${batchMode ? 'text-accent' : 'text-text/40 hover:text-text/60'}`} onClick={() => { setBatchMode(!batchMode); if (batchMode) { setSelectedIds(new Set()); setBatchMenuOpen(false); } }}>
-              {batchMode ? t('facts.batchExit') : t('facts.batchEnter')}
+            <button className={`font-medium ${batch.batchMode ? 'text-accent' : 'text-text/40 hover:text-text/60'}`} onClick={() => { batch.setBatchMode(!batch.batchMode); if (batch.batchMode) { batch.setSelectedIds(new Set()); batch.setBatchMenuOpen(false); } }}>
+              {batch.batchMode ? t('facts.batchExit') : t('facts.batchEnter')}
             </button>
-            {batchMode && (
+            {batch.batchMode && (
               <label className="flex items-center gap-1.5 cursor-pointer">
-                <input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === filteredFacts.length} onChange={toggleSelectAll} className="accent-accent" />
+                <input type="checkbox" checked={batch.selectedIds.size > 0 && batch.selectedIds.size === factsFilter.filteredFacts.length} onChange={batch.toggleSelectAll} className="accent-accent" />
                 {t('facts.batchSelect')}
               </label>
             )}
-            {selectedIds.size > 0 && (
+            {batch.selectedIds.size > 0 && (
               <>
-                <span className="text-accent font-medium">{t('facts.batchSelected', { count: selectedIds.size })}</span>
+                <span className="text-accent font-medium">{t('facts.batchSelected', { count: batch.selectedIds.size })}</span>
                 <div className="relative">
-                  <Button variant="secondary" size="sm" className="h-6 px-2 text-xs" onClick={() => setBatchMenuOpen(!batchMenuOpen)} disabled={batchProcessing}>
+                  <Button variant="secondary" size="sm" className="h-6 px-2 text-xs" onClick={() => batch.setBatchMenuOpen(!batch.batchMenuOpen)} disabled={batch.batchProcessing}>
                     {t('facts.batchAction')} ▾
                   </Button>
-                  {batchMenuOpen && (
+                  {batch.batchMenuOpen && (
                     <div className="absolute top-7 left-0 z-20 bg-surface border border-black/10 dark:border-white/10 rounded-lg shadow-lg py-1 min-w-[160px]">
                       {(['deprecated', 'resolved', 'active', 'unresolved'] as const).map(s => (
-                        <button key={s} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent/10 transition-colors" onClick={() => { setBatchMenuOpen(false); setBatchConfirm(s); }}>
+                        <button key={s} className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent/10 transition-colors" onClick={() => { batch.setBatchMenuOpen(false); batch.setBatchConfirm(s); }}>
                           {t(`facts.batchTo.${s}`)}
                         </button>
                       ))}
@@ -969,7 +704,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 {
                   key: 'add-fact',
                   element: (
-                    <Button variant="primary" size="sm" onClick={() => setAddModalOpen(true)}>
+                    <Button variant="primary" size="sm" onClick={() => editor.setAddModalOpen(true)}>
                       {t('common.actions.manualFact')}
                     </Button>
                   ),
@@ -977,7 +712,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 {
                   key: 'extract-facts',
                   element: (
-                    <Button variant="secondary" size="sm" onClick={handleExtractClick} disabled={extracting}>
+                    <Button variant="secondary" size="sm" onClick={extraction.handleExtractClick} disabled={extraction.extracting}>
                       {t('common.actions.extractFacts')}
                     </Button>
                   ),
@@ -994,7 +729,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 {
                   key: 'add-first-fact',
                   element: (
-                    <Button variant="primary" size="sm" onClick={() => setAddModalOpen(true)}>
+                    <Button variant="primary" size="sm" onClick={() => editor.setAddModalOpen(true)}>
                       {t('common.actions.newNote')}
                     </Button>
                   ),
@@ -1002,7 +737,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               ]}
             />
           ) : (
-            groupedFacts.map(([chapterNum, chapterFacts]) => (
+            factsFilter.groupedFacts.map(([chapterNum, chapterFacts]) => (
               <div key={chapterNum}>
                 <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm px-1 py-1.5 text-[11px] font-bold text-text/50 uppercase tracking-wider border-b border-black/5 dark:border-white/5">
                   {t('facts.chapterGroup', { num: chapterNum })} ({chapterFacts.length})
@@ -1010,15 +745,15 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 <div className="space-y-3 pt-2">
                   {chapterFacts.map(fact => (
                     <div key={fact.id} className="flex items-start gap-2">
-                      {batchMode && (
+                      {batch.batchMode && (
                         <input
                           type="checkbox"
                           className="mt-3 accent-accent shrink-0"
-                          checked={selectedIds.has(fact.id)}
-                          onChange={() => toggleSelect(fact.id)}
+                          checked={batch.selectedIds.has(fact.id)}
+                          onChange={() => batch.toggleSelect(fact.id)}
                         />
                       )}
-                      <div className="flex-1 cursor-pointer" onClick={() => setEditingFact(fact)}>
+                      <div className="flex-1 cursor-pointer" onClick={() => editor.setEditingFact(fact)}>
                         <FactCard fact={{ ...fact, weight: fact.narrative_weight || 'medium', chapter: fact.chapter || 1 }} />
                       </div>
                     </div>
@@ -1027,10 +762,10 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               </div>
             ))
           )}
-          {hasMoreFacts && (
+          {factsFilter.hasMoreFacts && (
             <div className="flex justify-center py-4">
-              <Button variant="ghost" size="sm" onClick={() => setVisibleCount(prev => prev + FACTS_PAGE_SIZE)}>
-                {t('facts.loadMore', { remaining: filteredFacts.length - visibleCount })}
+              <Button variant="ghost" size="sm" onClick={() => factsFilter.setVisibleCount(prev => prev + FACTS_PAGE_SIZE)}>
+                {t('facts.loadMore', { remaining: factsFilter.filteredFacts.length - factsFilter.visibleCount })}
               </Button>
             </div>
           )}
@@ -1039,15 +774,15 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
 
       <div className="flex-1 flex flex-col bg-background relative h-full min-w-0">
         <header className="h-14 border-b border-black/10 dark:border-white/10 flex items-center px-6 justify-between shrink-0 bg-surface/30">
-          {editingFact ? (
+          {editor.editingFact ? (
             <>
               <span className="font-mono text-sm font-semibold opacity-70">
-                {editingFact.id.split('-')[0]} <span className="font-sans font-normal opacity-70 ml-2">{t('facts.editing')}</span>
+                {editor.editingFact.id.split('-')[0]} <span className="font-sans font-normal opacity-70 ml-2">{t('facts.editing')}</span>
               </span>
               <div className="flex gap-3 items-center">
-                <Button variant="ghost" size="sm" className="h-8" onClick={() => setEditingFact(null)}>{t('facts.cancelSelection')}</Button>
-                <Button variant="primary" size="sm" className="h-8 w-24" onClick={handleSaveFact} disabled={saving}>
-                  {saving ? <Loader2 size={14} className="animate-spin" /> : saveSuccess ? <><Check size={14} /> {t('facts.saved')}</> : t('common.actions.save')}
+                <Button variant="ghost" size="sm" className="h-8" onClick={() => editor.setEditingFact(null)}>{t('facts.cancelSelection')}</Button>
+                <Button variant="primary" size="sm" className="h-8 w-24" onClick={editor.handleSaveFact} disabled={editor.savingFact}>
+                  {editor.savingFact ? <Loader2 size={14} className="animate-spin" /> : editor.saveSuccess ? <><Check size={14} /> {t('facts.saved')}</> : t('common.actions.save')}
                 </Button>
               </div>
             </>
