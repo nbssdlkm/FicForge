@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from './shared/Card';
 import { Button } from './shared/Button';
 import { ThemeToggle } from './shared/ThemeToggle';
@@ -12,7 +12,8 @@ import { Modal } from './shared/Modal';
 import { GlobalSettingsModal } from './settings/GlobalSettingsModal';
 import { EmptyState } from './shared/EmptyState';
 import { ImportFlow } from './import/ImportFlow';
-import { listFandoms, createFandom, createAu, deleteFandom, deleteAu, getDataDir, type FandomInfo } from '../api/engine-client';
+import { createFandom, createAu, deleteFandom, deleteAu, getDataDir } from '../api/engine-client';
+import { useLibraryData } from '../hooks/useLibraryData';
 import { TrashPanel } from './shared/TrashPanel';
 import { getSettings } from '../api/engine-client';
 import { useTranslation } from '../i18n/useAppTranslation';
@@ -29,7 +30,7 @@ function LibraryInner({ onNavigate }: Props) {
   const { t } = useTranslation();
   const { showError } = useFeedback();
   const isMobile = useMediaQuery('(max-width: 768px)');
-  const loadFandomsRequestIdRef = useRef(0);
+  const { fandoms, loading, loadFandoms } = useLibraryData();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isFandomModalOpen, setFandomModalOpen] = useState(false);
   const [isAuModalOpen, setAuModalOpen] = useState(false);
@@ -40,8 +41,6 @@ function LibraryInner({ onNavigate }: Props) {
   const [importNewAuName, setImportNewAuName] = useState('');
   const [importSelectedFandom, setImportSelectedFandom] = useState<{ name: string; dir: string } | null>(null);
   const [importCreatingAu, setImportCreatingAu] = useState(false);
-  const [fandoms, setFandoms] = useState<FandomInfo[]>([]);
-  const [loading, setLoading] = useState(true);
   const [creatingFandom, setCreatingFandom] = useState(false);
   const [creatingAu, setCreatingAu] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -99,23 +98,6 @@ function LibraryInner({ onNavigate }: Props) {
     void loadFandoms();
     return () => { cancelled = true; };
   }, []);
-
-  const loadFandoms = async () => {
-    const requestId = ++loadFandomsRequestIdRef.current;
-    setLoading(true);
-    try {
-      const data = await listFandoms();
-      if (requestId !== loadFandomsRequestIdRef.current) return;
-      setFandoms(data);
-    } catch (e: any) {
-      if (requestId !== loadFandomsRequestIdRef.current) return;
-      showError(e, t("error_messages.unknown"));
-    } finally {
-      if (requestId === loadFandomsRequestIdRef.current) {
-        setLoading(false);
-      }
-    }
-  };
 
   const handleCreateFandom = async () => {
     if (!newFandomName.trim() || creatingFandom) return;

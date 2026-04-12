@@ -8,8 +8,8 @@ import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { HelpCircle, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { getSettings, testConnection, updateSettings, LLMMode, type SettingsInfo } from '../../api/engine-client';
-import { syncAllAus, resolveFileConflict, testWebDAVConnection, type WebDAVConfig } from '../../api/engine-sync';
-import { ConflictResolveModal, type ConflictItem } from '../shared/ConflictResolveModal';
+import { ConflictResolveModal } from '../shared/ConflictResolveModal';
+import { useSyncOperations } from './useSyncOperations';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
 import { useFeedback } from '../../hooks/useFeedback';
@@ -47,18 +47,18 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   const [syncUsername, setSyncUsername] = useState('');
   const [syncPassword, setSyncPassword] = useState('');
   const [syncRemoteDir, setSyncRemoteDir] = useState('/FicForge/');
-  const [syncTestStatus, setSyncTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [syncHelpOpen, setSyncHelpOpen] = useState(false);
   const [apiHelpOpen, setApiHelpOpen] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [syncMessage, setSyncMessage] = useState('');
-  const [syncResultStatus, setSyncResultStatus] = useState<'idle' | 'success' | 'error' | 'conflicts'>('idle');
-  const [conflicts, setConflicts] = useState<ConflictItem[]>([]);
-  const [conflictModalOpen, setConflictModalOpen] = useState(false);
-  const [opsConflictDetails, setOpsConflictDetails] = useState<string[]>([]);
-  // Map display path → { auPath, filePath } for conflict resolution
-  const conflictPathMapRef = useRef<Map<string, { auPath: string; filePath: string }>>(new Map());
+
+  const syncOps = useSyncOperations({ url: syncUrl, username: syncUsername, password: syncPassword, remote_dir: syncRemoteDir });
+  const {
+    syncing, syncMessage, syncResultStatus, conflicts,
+    conflictModalOpen, setConflictModalOpen, opsConflictDetails,
+    syncTestStatus, setSyncTestStatus,
+    handleTestWebDAV, handleSyncNow, handleResolveConflict, handleResolveAllConflicts,
+    resetSyncState,
+  } = syncOps;
 
   const resetFormState = () => {
     setSettings(null);
@@ -78,16 +78,10 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     setSyncUsername('');
     setSyncPassword('');
     setSyncRemoteDir('/FicForge/');
-    setSyncTestStatus('idle');
     setLastSync(null);
     setSyncHelpOpen(false);
     setApiHelpOpen(false);
-    setSyncing(false);
-    setSyncMessage('');
-    setSyncResultStatus('idle');
-    setConflicts([]);
-    setConflictModalOpen(false);
-    setOpsConflictDetails([]);
+    resetSyncState();
   };
 
   useEffect(() => {
@@ -417,28 +411,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={async () => {
-                      const reqId = modalRequestIdRef.current;
-                      setSyncTestStatus('testing');
-                      try {
-                        const raw = syncUrl.trim();
-                        if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
-                          setSyncTestStatus('error');
-                          return;
-                        }
-                        const result = await testWebDAVConnection({
-                          url: raw,
-                          username: syncUsername,
-                          password: syncPassword,
-                          remote_dir: syncRemoteDir,
-                        });
-                        if (reqId !== modalRequestIdRef.current) return;
-                        setSyncTestStatus(result.success ? 'success' : 'error');
-                      } catch {
-                        if (reqId !== modalRequestIdRef.current) return;
-                        setSyncTestStatus('error');
-                      }
-                    }}
+                    onClick={handleTestWebDAV}
                     disabled={!syncUrl.trim() || !syncUsername.trim() || syncTestStatus === 'testing'}
                   >
                     {syncTestStatus === 'testing' ? <Loader2 size={14} className="mr-1 animate-spin" /> : null}
@@ -454,67 +427,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                   variant="primary"
                   size="sm"
                   className="w-full"
-                  onClick={async () => {
-                    const syncRequestId = modalRequestIdRef.current;
-                    setSyncing(true);
-                    setSyncMessage('');
-                    setSyncResultStatus('idle');
-                    try {
-                      const webdavConfig: WebDAVConfig = {
-                        url: syncUrl,
-                        username: syncUsername,
-                        password: syncPassword,
-                        remote_dir: syncRemoteDir,
-                      };
-                      const result = await syncAllAus(webdavConfig);
-                      if (syncRequestId !== modalRequestIdRef.current) return;
-                      if (result.fileConflicts.length > 0) {
-                        const map = new Map<string, { auPath: string; filePath: string }>();
-                        const items = result.fileConflicts.map(fc => {
-                          const displayPath = `${fc.auPath}/${fc.path}`;
-                          map.set(displayPath, { auPath: fc.auPath, filePath: fc.path });
-                          return { path: displayPath, localModified: fc.localModified, remoteModified: fc.remoteModified };
-                        });
-                        conflictPathMapRef.current = map;
-                        setConflicts(items);
-                        setConflictModalOpen(true);
-                        setSyncResultStatus('conflicts');
-                        // 冲突 + 错误并存时，两者都显示
-                        const msg = t('settings.sync.conflictsFound', { count: result.fileConflicts.length });
-                        setSyncMessage(result.errors.length > 0
-                          ? `${msg} | ${t('settings.sync.syncError', { message: result.errors[0] })}`
-                          : msg);
-                      } else if (result.errors.length > 0) {
-                        setSyncResultStatus('error');
-                        setSyncMessage(t('settings.sync.syncError', { message: result.errors[0] }));
-                      } else if (result.opsConflicts && result.opsConflicts.length > 0) {
-                        setOpsConflictDetails(result.opsConflicts);
-                        setSyncResultStatus('conflicts');
-                        setSyncMessage(t('settings.sync.opsConflictsFound', { count: result.opsConflicts.length }));
-                      } else {
-                        // 完全成功——才更新 last_sync
-                        const now = new Date().toISOString();
-                        setLastSync(now);
-                        await updateSettings({
-                          sync: {
-                            mode: syncMode,
-                            webdav: { url: syncUrl, username: syncUsername, password: syncPassword, remote_dir: syncRemoteDir },
-                            last_sync: now,
-                          },
-                        }).catch((err) => { console.warn('last_sync persist failed:', err); });
-                        setSyncResultStatus('success');
-                        setSyncMessage(t('settings.sync.syncSuccess'));
-                      }
-                    } catch (e: any) {
-                      if (syncRequestId !== modalRequestIdRef.current) return;
-                      setSyncResultStatus('error');
-                      setSyncMessage(t('settings.sync.syncError', { message: e?.message || t('error_messages.unknown') }));
-                    } finally {
-                      if (syncRequestId === modalRequestIdRef.current) {
-                        setSyncing(false);
-                      }
-                    }
-                  }}
+                  onClick={() => handleSyncNow(syncMode, setLastSync)}
                   disabled={syncTestStatus !== 'success' || syncing}
                 >
                   {syncing ? <><Loader2 size={14} className="mr-1 animate-spin" />{t('settings.sync.syncing')}</> : t('settings.sync.syncNow')}
@@ -572,55 +485,8 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         isOpen={conflictModalOpen}
         onClose={() => setConflictModalOpen(false)}
         conflicts={conflicts}
-        onResolve={async (path, choice) => {
-          try {
-            const webdavConfig: WebDAVConfig = { url: syncUrl, username: syncUsername, password: syncPassword, remote_dir: syncRemoteDir };
-            const entry = conflictPathMapRef.current.get(path);
-            if (entry) {
-              await resolveFileConflict(entry.auPath, entry.filePath, choice, webdavConfig);
-            }
-            // 函数式更新，避免快速连续点击时闭包过期
-            let isEmpty = false;
-            setConflicts(prev => {
-              const remaining = prev.filter(c => c.path !== path);
-              isEmpty = remaining.length === 0;
-              return remaining;
-            });
-            if (isEmpty) {
-              setConflictModalOpen(false);
-              setSyncResultStatus('success');
-              setSyncMessage(t('settings.sync.syncSuccess'));
-            }
-          } catch (e: any) {
-            setSyncResultStatus('error');
-            setSyncMessage(t('settings.sync.syncError', { message: e?.message || '' }));
-          }
-        }}
-        onResolveAll={async (choice) => {
-          const webdavConfig: WebDAVConfig = { url: syncUrl, username: syncUsername, password: syncPassword, remote_dir: syncRemoteDir };
-          // 逐个解决，每成功一个就移除，避免部分失败后状态不一致
-          const snapshot = [...conflicts];
-          let lastError: string | null = null;
-          for (const c of snapshot) {
-            try {
-              const entry = conflictPathMapRef.current.get(c.path);
-              if (entry) {
-                await resolveFileConflict(entry.auPath, entry.filePath, choice, webdavConfig);
-              }
-              setConflicts(prev => prev.filter(item => item.path !== c.path));
-            } catch (e: any) {
-              lastError = e?.message || '';
-            }
-          }
-          if (lastError) {
-            setSyncResultStatus('error');
-            setSyncMessage(t('settings.sync.syncError', { message: lastError }));
-          } else {
-            setConflictModalOpen(false);
-            setSyncResultStatus('success');
-            setSyncMessage(t('settings.sync.syncSuccess'));
-          }
-        }}
+        onResolve={handleResolveConflict}
+        onResolveAll={handleResolveAllConflicts}
       />
     </Modal>
   );
