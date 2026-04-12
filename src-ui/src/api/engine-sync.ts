@@ -103,7 +103,8 @@ export async function syncAllAus(webdavConfig: WebDAVConfig): Promise<Aggregated
         }
       }
     }
-    if (agg.errors.length > 0 && agg.fileConflicts.length === 0) {
+    // 只要有任何错误，synced 就是 false（不因 fileConflicts 存在而掩盖错误）
+    if (agg.errors.length > 0) {
       agg.synced = false;
     }
   } catch (e) {

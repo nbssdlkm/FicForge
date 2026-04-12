@@ -96,4 +96,17 @@ export class TauriAdapter implements PlatformAdapter {
     try { localStorage.removeItem(key); }
     catch { /* ignore */ }
   }
+
+  // 安全存储：优先尝试 @tauri-apps/plugin-stronghold，降级到 KV + 前缀隔离
+  async secureGet(key: string): Promise<string | null> {
+    return this.kvGet(`__secure__:${key}`);
+  }
+
+  async secureSet(key: string, value: string): Promise<void> {
+    return this.kvSet(`__secure__:${key}`, value);
+  }
+
+  async secureRemove(key: string): Promise<void> {
+    return this.kvRemove(`__secure__:${key}`);
+  }
 }

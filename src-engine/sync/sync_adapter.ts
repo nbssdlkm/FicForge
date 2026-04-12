@@ -38,14 +38,18 @@ export class WebDAVSyncAdapter implements SyncAdapter {
     const content = await this.pullFile(`${auPath}/ops.jsonl`);
     if (content === null || content === "") return [];
     const entries: OpsEntry[] = [];
+    let badLineCount = 0;
     for (const line of content.split("\n")) {
       const trimmed = line.trim();
       if (!trimmed) continue;
       try {
         entries.push(JSON.parse(trimmed) as OpsEntry);
       } catch {
-        continue;
+        badLineCount++;
       }
+    }
+    if (badLineCount > 0) {
+      console.warn(`[sync_adapter] ${badLineCount} bad line(s) in remote ${auPath}/ops.jsonl`);
     }
     return entries;
   }

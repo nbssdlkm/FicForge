@@ -32,4 +32,13 @@ export interface PlatformAdapter {
   kvGet(key: string): Promise<string | null>;
   kvSet(key: string, value: string): Promise<void>;
   kvRemove(key: string): Promise<void>;
+
+  /**
+   * 安全存储：用于 API key、密码等敏感数据。
+   * 平台实现应尽可能使用 OS 级安全存储（Keychain/Keystore/Stronghold），
+   * 降级方案为加密后存入 KV。
+   */
+  secureGet(key: string): Promise<string | null>;
+  secureSet(key: string, value: string): Promise<void>;
+  secureRemove(key: string): Promise<void>;
 }

@@ -83,35 +83,79 @@ function applyDanglingFocusCleanup(
 }
 
 // ---------------------------------------------------------------------------
-// resolves 联动
+// resolves 联动（返回待写入的 op + fact，由调用方塞进 tx 提交）
 // ---------------------------------------------------------------------------
 
-async function applyResolvesForward(
-  au_id: string,
-  resolves_target_id: string,
-  fact_repo: FactRepository,
-): Promise<void> {
-  const target = await fact_repo.get(au_id, resolves_target_id);
-  if (target !== null && target.status !== FactStatus.RESOLVED) {
-    target.status = FactStatus.RESOLVED;
-    await fact_repo.update(au_id, target);
-  }
+interface ResolvesEffect {
+  op: ReturnType<typeof createOpsEntry>;
+  fact: Fact;
 }
 
-async function applyResolvesReverse(
+async function collectResolvesForward(
+  au_id: string,
+  resolves_target_id: string,
+  chapter_num: number,
+  fact_repo: FactRepository,
+): Promise<ResolvesEffect | null> {
+  const target = await fact_repo.get(au_id, resolves_target_id);
+  if (target !== null && target.status !== FactStatus.RESOLVED) {
+    const oldStatus = target.status;
+    target.status = FactStatus.RESOLVED;
+    return {
+      op: createOpsEntry({
+        op_id: generate_op_id(),
+        op_type: "update_fact_status",
+        target_id: resolves_target_id,
+        chapter_num,
+        timestamp: now_utc(),
+        payload: {
+          old_status: oldStatus,
+          new_status: FactStatus.RESOLVED,
+          reason: "resolves_cascade",
+        },
+      }),
+      fact: target,
+    };
+  }
+  return null;
+}
+
+async function collectResolvesReverse(
   au_id: string,
   old_resolves_target_id: string,
+  chapter_num: number,
   fact_repo: FactRepository,
-): Promise<void> {
+  exclude_fact_id?: string,
+): Promise<ResolvesEffect | null> {
   const allFacts = await fact_repo.list_all(au_id);
-  const stillResolved = allFacts.some((f) => f.resolves === old_resolves_target_id);
+  // exclude_fact_id: 正在编辑的 fact，其 resolves 字段即将被移除，
+  // 但磁盘上尚未更新，需要从 "仍然 resolves" 检查中排除
+  const stillResolved = allFacts.some(
+    (f) => f.resolves === old_resolves_target_id && f.id !== exclude_fact_id,
+  );
   if (!stillResolved) {
     const target = await fact_repo.get(au_id, old_resolves_target_id);
     if (target !== null && target.status === FactStatus.RESOLVED) {
+      const oldStatus = target.status;
       target.status = FactStatus.UNRESOLVED;
-      await fact_repo.update(au_id, target);
+      return {
+        op: createOpsEntry({
+          op_id: generate_op_id(),
+          op_type: "update_fact_status",
+          target_id: old_resolves_target_id,
+          chapter_num,
+          timestamp: now_utc(),
+          payload: {
+            old_status: oldStatus,
+            new_status: FactStatus.UNRESOLVED,
+            reason: "resolves_cascade_reverse",
+          },
+        }),
+        fact: target,
+      };
     }
   }
+  return null;
 }
 
 // ===========================================================================
@@ -183,12 +227,17 @@ export async function add_fact(
     },
   }));
   tx.appendFact(au_id, fact);
-  await tx.commit(ops_repo, fact_repo, null);
 
-  // resolves 联动需要读 target fact，在 tx 外执行
+  // resolves 联动：读取 target fact，构造 op + fact 更新，塞进同一个 tx
   if (fact.resolves) {
-    await applyResolvesForward(au_id, fact.resolves, fact_repo);
+    const effect = await collectResolvesForward(au_id, fact.resolves, chapter_num, fact_repo);
+    if (effect) {
+      tx.appendOp(au_id, effect.op);
+      tx.updateFact(au_id, effect.fact);
+    }
   }
+
+  await tx.commit(ops_repo, fact_repo, null);
 
   return fact;
 }
@@ -265,18 +314,26 @@ export async function edit_fact(
     }));
     tx.setState(state);
   }
-  await tx.commit(ops_repo, fact_repo, state_repo);
-
-  // resolves 联动需要读 target fact，在 tx 外执行
+  // resolves 联动：读取 target fact(s)，构造 op + fact 更新，塞进同一个 tx
   const newResolves = fact.resolves;
   if (oldResolves !== newResolves) {
     if (newResolves) {
-      await applyResolvesForward(au_id, newResolves, fact_repo);
+      const effect = await collectResolvesForward(au_id, newResolves, fact.chapter, fact_repo);
+      if (effect) {
+        tx.appendOp(au_id, effect.op);
+        tx.updateFact(au_id, effect.fact);
+      }
     }
     if (oldResolves) {
-      await applyResolvesReverse(au_id, oldResolves, fact_repo);
+      const effect = await collectResolvesReverse(au_id, oldResolves, fact.chapter, fact_repo, fact_id);
+      if (effect) {
+        tx.appendOp(au_id, effect.op);
+        tx.updateFact(au_id, effect.fact);
+      }
     }
   }
+
+  await tx.commit(ops_repo, fact_repo, state_repo);
 
   return fact;
 }

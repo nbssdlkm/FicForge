@@ -98,15 +98,19 @@ export function saveContextSummaries(
 ): void {
   if (typeof window === "undefined") return;
 
-  if (Object.keys(summaries).length === 0) {
-    window.localStorage.removeItem(getContextSummaryStorageKey(auPath, chapterNum));
-    return;
-  }
+  try {
+    if (Object.keys(summaries).length === 0) {
+      window.localStorage.removeItem(getContextSummaryStorageKey(auPath, chapterNum));
+      return;
+    }
 
-  window.localStorage.setItem(
-    getContextSummaryStorageKey(auPath, chapterNum),
-    JSON.stringify(summaries),
-  );
+    window.localStorage.setItem(
+      getContextSummaryStorageKey(auPath, chapterNum),
+      JSON.stringify(summaries),
+    );
+  } catch {
+    // localStorage 可能在 iOS 隐私模式或容量满时抛异常，不阻断主流程
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -139,10 +143,14 @@ export function readSavedGenerateRequest(auPath: string, chapterNum: number): Ge
 export function saveGenerateRequest(auPath: string, chapterNum: number, request: GenerateRequestState): void {
   if (typeof window === "undefined") return;
 
-  window.localStorage.setItem(
-    getGenerateRequestStorageKey(auPath, chapterNum),
-    JSON.stringify(request),
-  );
+  try {
+    window.localStorage.setItem(
+      getGenerateRequestStorageKey(auPath, chapterNum),
+      JSON.stringify(request),
+    );
+  } catch {
+    // localStorage 可能在 iOS 隐私模式或容量满时抛异常，不阻断主流程
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -156,11 +164,15 @@ export function getSkipFactsPromptDefault(): boolean {
 
 export function setSkipFactsPromptPersisted(value: boolean): void {
   if (typeof window === "undefined") return;
-  if (value) {
-    window.localStorage.setItem(FACTS_PROMPT_STORAGE_KEY, "1");
-    return;
+  try {
+    if (value) {
+      window.localStorage.setItem(FACTS_PROMPT_STORAGE_KEY, "1");
+      return;
+    }
+    window.localStorage.removeItem(FACTS_PROMPT_STORAGE_KEY);
+  } catch {
+    // localStorage 可能在受限环境下抛异常，不阻断主流程
   }
-  window.localStorage.removeItem(FACTS_PROMPT_STORAGE_KEY);
 }
 
 export function hasSeenSettingsModeTooltip(): boolean {
@@ -170,5 +182,9 @@ export function hasSeenSettingsModeTooltip(): boolean {
 
 export function markSettingsModeTooltipSeen(): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(SETTINGS_MODE_TOOLTIP_STORAGE_KEY, "1");
+  try {
+    window.localStorage.setItem(SETTINGS_MODE_TOOLTIP_STORAGE_KEY, "1");
+  } catch {
+    // localStorage 可能在受限环境下抛异常，不阻断主流程
+  }
 }

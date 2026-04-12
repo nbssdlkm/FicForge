@@ -81,7 +81,11 @@ export class FileFactRepository implements FactRepository {
   }
 
   private async readAll(au_id: string): Promise<Fact[]> {
-    const [facts] = await read_jsonl(this.adapter, this.factsPath(au_id), dictToFact);
+    const path = this.factsPath(au_id);
+    const [facts, errors] = await read_jsonl(this.adapter, path, dictToFact);
+    if (errors.length > 0) {
+      console.warn(`[file_fact] ${errors.length} bad line(s) in ${path}: ${errors[0]}${errors.length > 1 ? ` (+${errors.length - 1} more)` : ""}`);
+    }
     return facts;
   }
 
@@ -124,7 +128,10 @@ export class FileFactRepository implements FactRepository {
     fact.revision += 1;
     const path = this.factsPath(au_id);
     await withWriteLock(path, async () => {
-      const [facts] = await read_jsonl(this.adapter, path, dictToFact);
+      const [facts, errors] = await read_jsonl(this.adapter, path, dictToFact);
+      if (errors.length > 0) {
+        console.warn(`[file_fact] ${errors.length} bad line(s) in ${path} during update`);
+      }
       const items = facts.map((f) => (f.id === fact.id ? factToDict(fact) : factToDict(f)));
       await rewrite_jsonl(this.adapter, path, items);
     });
@@ -134,7 +141,10 @@ export class FileFactRepository implements FactRepository {
     const idsSet = new Set(fact_ids);
     const path = this.factsPath(au_id);
     await withWriteLock(path, async () => {
-      const [facts] = await read_jsonl(this.adapter, path, dictToFact);
+      const [facts, errors] = await read_jsonl(this.adapter, path, dictToFact);
+      if (errors.length > 0) {
+        console.warn(`[file_fact] ${errors.length} bad line(s) in ${path} during delete`);
+      }
       const remaining = facts.filter((f) => !idsSet.has(f.id));
       await rewrite_jsonl(this.adapter, path, remaining.map(factToDict));
     });

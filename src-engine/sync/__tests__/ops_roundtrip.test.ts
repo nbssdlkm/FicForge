@@ -173,6 +173,55 @@ describe("ops roundtrip: service → ops → rebuild", () => {
     expect(actualState.chapter_focus).toEqual([]);
   });
 
+  it("add_fact with resolves → rebuild recovers target RESOLVED status", async () => {
+    // f1: unresolved foreshadowing
+    const f1 = await add_fact("au1", 1, {
+      content_raw: "r", content_clean: "mystery",
+      status: "unresolved", type: "foreshadowing",
+    }, factRepo, opsRepo);
+
+    // f2: resolves f1 → should cascade f1 to RESOLVED via ops
+    await add_fact("au1", 2, {
+      content_raw: "r", content_clean: "answer",
+      resolves: f1.id,
+    }, factRepo, opsRepo);
+
+    // Verify local state
+    expect((await factRepo.get("au1", f1.id))!.status).toBe("resolved");
+
+    // Rebuild from ops only → must also produce f1 as RESOLVED
+    const ops = await opsRepo.list_all("au1");
+    const rebuilt = rebuildFactsFromOps(ops);
+    const rebuiltF1 = rebuilt.find((f) => f.id === f1.id);
+    expect(rebuiltF1).toBeDefined();
+    expect(rebuiltF1!.status).toBe("resolved");
+  });
+
+  it("edit_fact removes resolves → rebuild recovers target UNRESOLVED status", async () => {
+    const f1 = await add_fact("au1", 1, {
+      content_raw: "r", content_clean: "mystery",
+      status: "unresolved", type: "foreshadowing",
+    }, factRepo, opsRepo);
+
+    const f2 = await add_fact("au1", 2, {
+      content_raw: "r", content_clean: "answer",
+      resolves: f1.id,
+    }, factRepo, opsRepo);
+
+    // Remove resolves → f1 should revert to UNRESOLVED
+    await edit_fact("au1", f2.id, { resolves: null }, factRepo, opsRepo, stateRepo);
+
+    // Verify local
+    expect((await factRepo.get("au1", f1.id))!.status).toBe("unresolved");
+
+    // Rebuild from ops only
+    const ops = await opsRepo.list_all("au1");
+    const rebuilt = rebuildFactsFromOps(ops);
+    const rebuiltF1 = rebuilt.find((f) => f.id === f1.id);
+    expect(rebuiltF1).toBeDefined();
+    expect(rebuiltF1!.status).toBe("unresolved");
+  });
+
   it("recalc_global_state op restores all fields", () => {
     const op = {
       op_id: "recalc1", op_type: "recalc_global_state", target_id: "au1",

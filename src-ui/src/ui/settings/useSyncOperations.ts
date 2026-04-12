@@ -19,6 +19,8 @@ export function useSyncOperations(syncConfig: { url: string; username: string; p
   const [conflictModalOpen, setConflictModalOpen] = useState(false);
   const [opsConflictDetails, setOpsConflictDetails] = useState<string[]>([]);
   const [syncTestStatus, setSyncTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  // 暂存非冲突错误，冲突解决后检查是否有残留
+  const nonConflictErrorsRef = useRef<string[]>([]);
 
   // Map display path -> { auPath, filePath } for conflict resolution
   const conflictPathMapRef = useRef<Map<string, { auPath: string; filePath: string }>>(new Map());
@@ -60,6 +62,14 @@ export function useSyncOperations(syncConfig: { url: string; username: string; p
       };
       const result = await syncAllAus(webdavConfig);
       if (syncRequestId !== requestIdRef.current) return;
+      // 暂存非冲突错误，供冲突解决后检查
+      nonConflictErrorsRef.current = result.errors;
+      // 格式化全部错误信息（不只第一条）
+      const allErrorsMsg = result.errors.length > 0
+        ? result.errors.length <= 3
+          ? result.errors.join('; ')
+          : `${result.errors.slice(0, 3).join('; ')} (+${result.errors.length - 3})`
+        : '';
       if (result.fileConflicts.length > 0) {
         const map = new Map<string, { auPath: string; filePath: string }>();
         const items = result.fileConflicts.map(fc => {
@@ -73,12 +83,10 @@ export function useSyncOperations(syncConfig: { url: string; username: string; p
         setSyncResultStatus('conflicts');
         // 冲突 + 错误并存时，两者都显示
         const msg = t('settings.sync.conflictsFound', { count: result.fileConflicts.length });
-        setSyncMessage(result.errors.length > 0
-          ? `${msg} | ${t('settings.sync.syncError', { message: result.errors[0] })}`
-          : msg);
+        setSyncMessage(allErrorsMsg ? `${msg} | ${allErrorsMsg}` : msg);
       } else if (result.errors.length > 0) {
         setSyncResultStatus('error');
-        setSyncMessage(t('settings.sync.syncError', { message: result.errors[0] }));
+        setSyncMessage(allErrorsMsg);
       } else if (result.opsConflicts && result.opsConflicts.length > 0) {
         setOpsConflictDetails(result.opsConflicts);
         setSyncResultStatus('conflicts');
@@ -124,8 +132,15 @@ export function useSyncOperations(syncConfig: { url: string; username: string; p
       });
       if (isEmpty) {
         setConflictModalOpen(false);
-        setSyncResultStatus('success');
-        setSyncMessage(t('settings.sync.syncSuccess'));
+        // 冲突全部解决后，检查是否有残留的非冲突错误
+        if (nonConflictErrorsRef.current.length > 0) {
+          setSyncResultStatus('error');
+          const msgs = nonConflictErrorsRef.current;
+          setSyncMessage(msgs.length <= 3 ? msgs.join('; ') : `${msgs.slice(0, 3).join('; ')} (+${msgs.length - 3})`);
+        } else {
+          setSyncResultStatus('success');
+          setSyncMessage(t('settings.sync.syncSuccess'));
+        }
       }
     } catch (e: any) {
       setSyncResultStatus('error');
@@ -154,8 +169,15 @@ export function useSyncOperations(syncConfig: { url: string; username: string; p
       setSyncMessage(t('settings.sync.syncError', { message: lastError }));
     } else {
       setConflictModalOpen(false);
-      setSyncResultStatus('success');
-      setSyncMessage(t('settings.sync.syncSuccess'));
+      // 冲突全部解决后，检查是否有残留的非冲突错误
+      if (nonConflictErrorsRef.current.length > 0) {
+        setSyncResultStatus('error');
+        const msgs = nonConflictErrorsRef.current;
+        setSyncMessage(msgs.length <= 3 ? msgs.join('; ') : `${msgs.slice(0, 3).join('; ')} (+${msgs.length - 3})`);
+      } else {
+        setSyncResultStatus('success');
+        setSyncMessage(t('settings.sync.syncSuccess'));
+      }
     }
   }, [conflicts, syncConfig, t]);
 
@@ -167,6 +189,7 @@ export function useSyncOperations(syncConfig: { url: string; username: string; p
     setConflictModalOpen(false);
     setOpsConflictDetails([]);
     setSyncTestStatus('idle');
+    nonConflictErrorsRef.current = [];
   }, []);
 
   return {

@@ -100,6 +100,19 @@ export class MockAdapter implements PlatformAdapter {
     this.kv.delete(key);
   }
 
+  // 安全存储（mock：复用 KV + 前缀）
+  async secureGet(key: string): Promise<string | null> {
+    return this.kvGet(`__secure__:${key}`);
+  }
+
+  async secureSet(key: string, value: string): Promise<void> {
+    return this.kvSet(`__secure__:${key}`, value);
+  }
+
+  async secureRemove(key: string): Promise<void> {
+    return this.kvRemove(`__secure__:${key}`);
+  }
+
   private norm(p: string): string {
     return p.replace(/\/+/g, "/").replace(/\/$/, "");
   }

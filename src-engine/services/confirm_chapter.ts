@@ -17,6 +17,7 @@ import type { DraftRepository } from "../repositories/interfaces/draft.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
 import { compute_content_hash, generate_op_id, now_utc } from "../repositories/implementations/file_utils.js";
+import { WriteTransaction } from "./write_transaction.js";
 
 export class ConfirmChapterError extends Error {
   constructor(message: string) {
@@ -119,7 +120,7 @@ async function doConfirm(params: ConfirmChapterParams): Promise<ConfirmChapterRe
     await chapter_repo.backup_chapter(au_id, chapter_num);
   }
 
-  // === 步骤 2：写入正文章节 ===
+  // === 步骤 2：构建章节对象 ===
   const contentHash = await compute_content_hash(draftContent);
   const timestamp = now_utc();
   const chapterId = oldChapterId || crypto.randomUUID();
@@ -141,9 +142,8 @@ async function doConfirm(params: ConfirmChapterParams): Promise<ConfirmChapterRe
     provenance,
     generated_with: generated_with ?? null,
   });
-  await chapter_repo.save(chapter);
 
-  // === 步骤 3：更新 state.yaml ===
+  // === 步骤 3：更新 state（内存） ===
   const isAdvancing = chapter_num === state.current_chapter;
 
   if (isAdvancing) {
@@ -170,7 +170,7 @@ async function doConfirm(params: ConfirmChapterParams): Promise<ConfirmChapterRe
   state.chapter_focus = [];
   state.index_status = IndexStatus.STALE;
 
-  // === 步骤 4：append ops.jsonl（先于 state 落盘，D-0036） ===
+  // === 步骤 4：事务提交（D-0036：ops → chapter → draft → state） ===
   const gwPayload: Record<string, unknown> = {};
   if (generated_with) {
     gwPayload.mode = generated_with.mode;
@@ -183,7 +183,8 @@ async function doConfirm(params: ConfirmChapterParams): Promise<ConfirmChapterRe
     gwPayload.duration_ms = generated_with.duration_ms;
   }
 
-  await ops_repo.append(au_id, createOpsEntry({
+  const tx = new WriteTransaction();
+  tx.appendOp(au_id, createOpsEntry({
     op_id: generate_op_id(),
     op_type: "confirm_chapter",
     target_id: chapterId,
@@ -196,12 +197,11 @@ async function doConfirm(params: ConfirmChapterParams): Promise<ConfirmChapterRe
       generated_with: gwPayload,
     },
   }));
+  tx.saveChapter(au_id, chapter);
+  tx.deleteDraftByChapter(au_id, chapter_num);
+  tx.setState(state);
 
-  // === 步骤 4b：state 落盘（ops 之后，可从 ops 重建） ===
-  await state_repo.save(state);
-
-  // === 步骤 5：清理草稿 ===
-  await draft_repo.delete_by_chapter(au_id, chapter_num);
+  await tx.commit(ops_repo, null, state_repo, chapter_repo, draft_repo);
 
   return {
     chapter_id: chapterId,

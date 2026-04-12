@@ -10,7 +10,9 @@
 
 import { scan_characters_in_chapter } from "../domain/character_scanner.js";
 import { FactStatus, IndexStatus } from "../domain/enums.js";
+import type { OpsEntry } from "../domain/ops_entry.js";
 import { createOpsEntry } from "../domain/ops_entry.js";
+import type { Fact } from "../domain/fact.js";
 import { extract_last_scene_ending } from "../domain/text_utils.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { DraftRepository } from "../repositories/interfaces/draft.js";
@@ -18,6 +20,7 @@ import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
 import { generate_op_id, now_utc } from "../repositories/implementations/file_utils.js";
+import { WriteTransaction } from "./write_transaction.js";
 
 export class UndoChapterError extends Error {
   constructor(message: string) {
@@ -89,78 +92,60 @@ async function doUndo(params: UndoChapterParams): Promise<UndoChapterResult> {
   }
 
   // =================================================================
-  // 步骤 3a：facts resolves 关系回滚（在删除前执行）
+  // 读取阶段：收集所有待写入操作（不实际写入）
   // =================================================================
-  await rollbackFactStatuses(au_id, n, ops_repo, fact_repo);
+  const tx = new WriteTransaction();
 
-  // =================================================================
-  // 步骤 3b：回放 update_fact_status 操作
-  // =================================================================
-  await rollbackManualStatusChanges(au_id, n, ops_repo, fact_repo);
+  // 步骤 3a：facts resolves 关系回滚
+  const resolvesOps = await collectResolvesRollback(au_id, n, ops_repo, fact_repo);
+  for (const { op, fact } of resolvesOps) {
+    tx.appendOp(au_id, op);
+    tx.updateFact(au_id, fact);
+  }
 
-  // =================================================================
+  // 步骤 3b：回放 update_fact_status（收集待更新 facts）
+  const manualRollbacks = await collectManualStatusRollback(au_id, n, ops_repo, fact_repo);
+  for (const fact of manualRollbacks) {
+    tx.updateFact(au_id, fact);
+  }
+
   // 步骤 2：删除章节文件 + 清理 ≥N 的所有草稿（D-0016）
-  // =================================================================
-  await chapter_repo.delete(au_id, n);
-  await draft_repo.delete_from_chapter(au_id, n);
+  tx.deleteChapter(au_id, n);
+  tx.deleteDraftFromChapter(au_id, n);
 
-  // =================================================================
   // 步骤 4：facts 物理删除（D-0003，通过 ops target_id 精准删除）
-  // =================================================================
-  await deleteChapterFacts(au_id, n, ops_repo, fact_repo);
+  const { deleteOps, factIdsToDelete } = await collectChapterFactDeletes(au_id, n, ops_repo);
+  for (const op of deleteOps) {
+    tx.appendOp(au_id, op);
+  }
+  tx.deleteFactsByIds(au_id, factIdsToDelete);
 
   // =================================================================
-  // 步骤 5：向量 chunks 删除（标记 stale）
+  // 步骤 5-10：state 更新（内存计算）
   // =================================================================
   state.index_status = IndexStatus.STALE;
-
-  // =================================================================
-  // 步骤 6：last_scene_ending 回滚
-  // =================================================================
   state.last_scene_ending = await rollbackLastSceneEnding(au_id, n, ops_repo, chapter_repo);
-
-  // =================================================================
-  // 步骤 7：characters_last_seen 回滚
-  // =================================================================
   state.characters_last_seen = await rollbackCharactersLastSeen(
     au_id, n, ops_repo, chapter_repo, cast_registry, character_aliases,
   );
-
-  // =================================================================
-  // 步骤 8：chapter_focus 清空
-  // =================================================================
   state.chapter_focus = [];
-
-  // =================================================================
-  // 步骤 9：last_confirmed_chapter_focus 回退
-  // =================================================================
   state.last_confirmed_chapter_focus = await rollbackConfirmedFocus(au_id, n, chapter_repo);
 
-  // =================================================================
-  // 步骤 10：chapters_dirty 清理 + chapter_titles 清理
-  // =================================================================
   const dirtyIdx = state.chapters_dirty.indexOf(n);
   if (dirtyIdx >= 0) {
     state.chapters_dirty.splice(dirtyIdx, 1);
   }
   delete state.chapter_titles[n];
-
-  // =================================================================
-  // 更新 current_chapter
-  // =================================================================
   state.current_chapter = n;
 
-  // =================================================================
-  // 最终写入：ops 先于 state 落盘（D-0036: ops 是 sync truth）
-  // =================================================================
-  await ops_repo.append(au_id, createOpsEntry({
+  // undo_chapter op（主 op，包含 state snapshot 供跨设备重建）
+  tx.appendOp(au_id, createOpsEntry({
     op_id: generate_op_id(),
     op_type: "undo_chapter",
     target_id: chapterId,
     chapter_num: n,
     timestamp: now_utc(),
     payload: {
-      // Complete state snapshot after undo for cross-device rebuild (D-0036)
       state_snapshot: {
         current_chapter: state.current_chapter,
         last_scene_ending: state.last_scene_ending,
@@ -171,8 +156,12 @@ async function doUndo(params: UndoChapterParams): Promise<UndoChapterResult> {
       },
     },
   }));
+  tx.setState(state);
 
-  await state_repo.save(state);
+  // =================================================================
+  // 事务提交：ops → chapters → facts → drafts → state
+  // =================================================================
+  await tx.commit(ops_repo, fact_repo, state_repo, chapter_repo, draft_repo);
 
   return {
     chapter_num: n,
@@ -181,19 +170,26 @@ async function doUndo(params: UndoChapterParams): Promise<UndoChapterResult> {
 }
 
 // -----------------------------------------------------------------
-// 步骤 3a：facts resolves 状态回滚
+// 步骤 3a：facts resolves 状态回滚（收集模式，不直接写入）
 // -----------------------------------------------------------------
 
-async function rollbackFactStatuses(
+interface ResolvesRollbackItem {
+  op: OpsEntry;
+  fact: Fact;
+}
+
+async function collectResolvesRollback(
   au_id: string,
   n: number,
   ops_repo: OpsRepository,
   fact_repo: FactRepository,
-): Promise<void> {
+): Promise<ResolvesRollbackItem[]> {
+  const result: ResolvesRollbackItem[] = [];
+
   const addFactOps = await ops_repo.get_add_facts_for_chapter(au_id, n);
   const idsToDelete = new Set(addFactOps.map((op) => op.target_id));
 
-  if (idsToDelete.size === 0) return;
+  if (idsToDelete.size === 0) return result;
 
   const allFacts = await fact_repo.list_all(au_id);
 
@@ -205,7 +201,7 @@ async function rollbackFactStatuses(
     }
   }
 
-  if (targetsToCheck.size === 0) return;
+  if (targetsToCheck.size === 0) return result;
 
   for (const targetId of targetsToCheck) {
     const target = await fact_repo.get(au_id, targetId);
@@ -216,28 +212,47 @@ async function rollbackFactStatuses(
       (f) => f.resolves === targetId && !idsToDelete.has(f.id) && f.id !== targetId,
     );
     if (!stillResolved) {
+      const oldStatus = target.status;
       target.status = FactStatus.UNRESOLVED;
-      await fact_repo.update(au_id, target);
+      result.push({
+        op: createOpsEntry({
+          op_id: generate_op_id(),
+          op_type: "update_fact_status",
+          target_id: targetId,
+          chapter_num: n,
+          timestamp: now_utc(),
+          payload: {
+            old_status: oldStatus,
+            new_status: FactStatus.UNRESOLVED,
+            reason: "undo_resolves_cascade",
+          },
+        }),
+        fact: target,
+      });
     }
   }
+
+  return result;
 }
 
 // -----------------------------------------------------------------
-// 步骤 3b：回放 update_fact_status 操作
+// 步骤 3b：回放 update_fact_status（收集模式，不直接写入）
 // -----------------------------------------------------------------
 
-async function rollbackManualStatusChanges(
+async function collectManualStatusRollback(
   au_id: string,
   n: number,
   ops_repo: OpsRepository,
   fact_repo: FactRepository,
-): Promise<void> {
+): Promise<Fact[]> {
+  const result: Fact[] = [];
+
   const allOps = await ops_repo.list_all(au_id);
   const statusOps = allOps.filter(
     (op) => op.op_type === "update_fact_status" && op.chapter_num === n,
   );
 
-  if (statusOps.length === 0) return;
+  if (statusOps.length === 0) return result;
 
   // 按时间戳逆序回放
   statusOps.sort((a, b) => (a.timestamp > b.timestamp ? -1 : a.timestamp < b.timestamp ? 1 : 0));
@@ -250,28 +265,34 @@ async function rollbackManualStatusChanges(
     if (fact === null) continue;
 
     fact.status = oldStatus as FactStatus;
-    await fact_repo.update(au_id, fact);
+    result.push(fact);
   }
+
+  return result;
 }
 
 // -----------------------------------------------------------------
-// 步骤 4：facts 物理删除
+// 步骤 4：facts 物理删除（收集模式，不直接写入）
 // -----------------------------------------------------------------
 
-async function deleteChapterFacts(
+interface ChapterFactDeletes {
+  deleteOps: OpsEntry[];
+  factIdsToDelete: string[];
+}
+
+async function collectChapterFactDeletes(
   au_id: string,
   n: number,
   ops_repo: OpsRepository,
-  fact_repo: FactRepository,
-): Promise<void> {
+): Promise<ChapterFactDeletes> {
   const addFactOps = await ops_repo.get_add_facts_for_chapter(au_id, n);
-  if (addFactOps.length === 0) return;
+  if (addFactOps.length === 0) return { deleteOps: [], factIdsToDelete: [] };
 
-  const targetIds = addFactOps.map((op) => op.target_id);
+  const factIdsToDelete = addFactOps.map((op) => op.target_id);
+  const deleteOps: OpsEntry[] = [];
 
-  // 为每个被删除的 fact 发射 delete_fact op（D-0036 同步重建需要）
-  for (const factId of targetIds) {
-    await ops_repo.append(au_id, createOpsEntry({
+  for (const factId of factIdsToDelete) {
+    deleteOps.push(createOpsEntry({
       op_id: generate_op_id(),
       op_type: "delete_fact",
       target_id: factId,
@@ -281,7 +302,7 @@ async function deleteChapterFacts(
     }));
   }
 
-  await fact_repo.delete_by_ids(au_id, targetIds);
+  return { deleteOps, factIdsToDelete };
 }
 
 // -----------------------------------------------------------------

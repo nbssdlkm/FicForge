@@ -11,6 +11,49 @@ import { append_jsonl, joinPath, read_jsonl, rewrite_jsonl } from "./file_utils.
 import { getNextLamportClock, initLamportClockFromOps } from "../../sync/ops_merge.js";
 
 // ---------------------------------------------------------------------------
+// 坏行保留
+// ---------------------------------------------------------------------------
+
+/**
+ * 重写 JSONL 前，检查原文件中是否有无法解析的行。
+ * 如果有，将原文追加到 {path}.bad sidecar 文件，避免永久丢失。
+ */
+async function preserveBadLines(
+  adapter: PlatformAdapter,
+  path: string,
+  parse: (d: Record<string, unknown>) => OpsEntry,
+): Promise<void> {
+  const exists = await adapter.exists(path);
+  if (!exists) return;
+
+  const text = await adapter.readFile(path);
+  const badLines: string[] = [];
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const d = JSON.parse(trimmed) as Record<string, unknown>;
+      parse(d);
+    } catch {
+      badLines.push(trimmed);
+    }
+  }
+
+  if (badLines.length === 0) return;
+
+  const badPath = path + ".bad";
+  const header = `# ${new Date().toISOString()} — ${badLines.length} bad line(s) preserved before replace_all\n`;
+  const badContent = header + badLines.join("\n") + "\n";
+  try {
+    const existingBad = await adapter.exists(badPath) ? await adapter.readFile(badPath) : "";
+    await adapter.writeFile(badPath, existingBad + badContent);
+  } catch {
+    // sidecar 写入失败不阻断主流程
+  }
+  console.warn(`[file_ops] Preserved ${badLines.length} bad line(s) to ${badPath}`);
+}
+
+// ---------------------------------------------------------------------------
 // 写入锁
 // ---------------------------------------------------------------------------
 
@@ -82,7 +125,10 @@ export class FileOpsRepository implements OpsRepository {
     const path = this.opsPath(au_id);
     const exists = await this.adapter.exists(path);
     if (!exists) return [];
-    const [entries] = await read_jsonl(this.adapter, path, dictToEntry);
+    const [entries, errors] = await read_jsonl(this.adapter, path, dictToEntry);
+    if (errors.length > 0) {
+      console.warn(`[file_ops] ${errors.length} bad line(s) in ${path}: ${errors[0]}${errors.length > 1 ? ` (+${errors.length - 1} more)` : ""}`);
+    }
     // 懒初始化 lamport clock（首次读取 ops 时设置）
     initLamportClockFromOps(entries);
     return entries;
@@ -126,6 +172,8 @@ export class FileOpsRepository implements OpsRepository {
   async replace_all(au_id: string, ops: OpsEntry[]): Promise<void> {
     const path = this.opsPath(au_id);
     await withWriteLock(path, async () => {
+      // 写入前保留坏行到 .bad sidecar，防止永久丢失
+      await preserveBadLines(this.adapter, path, dictToEntry);
       const items = ops.map(entryToDict);
       await rewrite_jsonl(this.adapter, path, items);
     });

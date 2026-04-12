@@ -20,6 +20,7 @@ import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
 import { compute_content_hash, generate_op_id, now_utc } from "../repositories/implementations/file_utils.js";
+import { WriteTransaction } from "./write_transaction.js";
 
 import {
   detectChatFormat,
@@ -416,7 +417,8 @@ export async function executeImport(
     }
   }
 
-  // 2. 逐章写入
+  // 2. 逐章构建（收集到 tx，不立即写入）
+  const tx = new WriteTransaction();
   const allCharactersLastSeen: Record<string, number> = {};
   for (const ch of plan.chapters) {
     const contentHash = await compute_content_hash(ch.content);
@@ -430,7 +432,7 @@ export async function executeImport(
       content_hash: contentHash,
       provenance: "imported",
     });
-    await chapterRepo.save(chapter);
+    tx.saveChapter(auId, chapter);
 
     // 角色扫描
     const scanned = scan_characters_in_chapter(
@@ -518,8 +520,8 @@ export async function executeImport(
         });
     result.nextChapterNum = state.current_chapter;
 
-    // 5. ops 先于 state 落盘（D-0036）
-    await opsRepo.append(auId, createOpsEntry({
+    // 5. 事务提交（D-0036：ops → chapters → state）
+    tx.appendOp(auId, createOpsEntry({
       op_id: generate_op_id(),
       op_type: "import_chapters",
       target_id: auId,
@@ -536,7 +538,9 @@ export async function executeImport(
         characters_last_seen: allCharactersLastSeen,
       },
     }));
-    await stateRepo.save(state);
+    tx.setState(state);
+
+    await tx.commit(opsRepo, null, stateRepo, chapterRepo, null);
   }
 
   return result;
