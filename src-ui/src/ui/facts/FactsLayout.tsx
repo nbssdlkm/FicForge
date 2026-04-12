@@ -10,7 +10,7 @@ import { Modal } from '../shared/Modal';
 import { EmptyState } from '../shared/EmptyState';
 import { Tag } from '../shared/Tag';
 import { Search, Plus, Filter, Loader2, Check, Sparkles, BookOpenText } from 'lucide-react';
-import { listFacts, addFact, editFact, updateFactStatus, batchUpdateFactStatus, extractFactsBatch, type FactInfo } from '../../api/engine-client';
+import { listFacts, addFact, editFact, updateFactStatus, batchUpdateFactStatus, extractFactsBatch, FactStatus, type FactInfo } from '../../api/engine-client';
 import { getState, type StateInfo } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
@@ -172,7 +172,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
       if (activeAuPathRef.current !== requestAuPath) return;
       await loadFacts();
       if (editingFact?.id === factId) {
-        setEditingFact(prev => prev ? { ...prev, status: nextStatus } : null);
+        setEditingFact(prev => prev ? { ...prev, status: nextStatus as FactStatus } : null);
       }
     } catch (error) {
       if (activeAuPathRef.current !== requestAuPath) return;

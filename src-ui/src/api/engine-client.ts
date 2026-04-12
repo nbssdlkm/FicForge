@@ -48,8 +48,11 @@ import {
   RemoteEmbeddingProvider,
   // Vector
   JsonVectorEngine,
+  // Domain types (used directly in this module)
+  type Settings,
   // Domain enums
   IndexStatus,
+  FactStatus,
   // Services (static imports replacing dynamic ones)
   generateChapterTitle,
   // Ops utilities (for writing ops from engine-client)
@@ -58,18 +61,28 @@ import {
   now_utc,
 } from "@ficforge/engine";
 
-// Re-export types from original API modules for compatibility
-export type { StateInfo } from "./state";
-export type { FactInfo, ExtractedFactCandidate, ExtractFactsResponse } from "./facts";
+// ---------------------------------------------------------------------------
+// Type re-exports: engine domain types (aliased for backward compat)
+// ---------------------------------------------------------------------------
+export type { State as StateInfo } from "@ficforge/engine";
+export type { Fact as FactInfo } from "@ficforge/engine";
+export type { Draft as DraftDetail } from "@ficforge/engine";
+export type { Project as ProjectInfo } from "@ficforge/engine";
+export type { Settings as SettingsInfo } from "@ficforge/engine";
+export type { WritingStyle, CastRegistry, EmbeddingLock, ContextSummary } from "@ficforge/engine";
+export { FactStatus, IndexStatus, LLMMode, Provenance } from "@ficforge/engine";
+
+// UI-specific types (no engine equivalent)
+export type { ExtractedFactCandidate, ExtractFactsResponse } from "./facts";
 export type { ChapterInfo } from "./chapters";
-export type { DraftListItem, DraftDetail, DraftGeneratedWith, DeleteDraftsResult } from "./drafts";
-export type { ProjectInfo, WritingStyle, CastRegistry, EmbeddingLock } from "./project";
-export type { SettingsInfo, LlmSettingsInfo, TestConnectionRequest, TestConnectionResponse } from "./settings";
+export type { DraftListItem, DraftGeneratedWith, DeleteDraftsResult } from "./drafts";
+export type { LlmSettingsInfo, TestConnectionRequest, TestConnectionResponse } from "./settings";
 export type { FandomInfo, FandomFileEntry, FandomFilesResponse } from "./fandoms";
-export type { TrashEntry, TrashScope } from "./trash";
-export type { GenerateParams, ContextSummary } from "./generate";
+export type { TrashScope } from "./trash";
+export type { GenerateParams } from "./generate";
 export type { SettingsChatMode, SettingsChatMessagePayload, SettingsChatSessionLlm, SettingsChatToolCall, SettingsChatResponse } from "./settingsChat";
 export type { ChapterPreview, ImportUploadResponse, ImportConfirmResponse } from "./importExport";
+export type { TrashEntry } from "@ficforge/engine";
 
 // Re-export ApiError for compatibility with components that use it for error handling
 export { ApiError, getFriendlyErrorMessage } from "./client";
@@ -134,9 +147,7 @@ export function getDataDir(): string {
 }
 
 /** 从 settings 创建 RemoteEmbeddingProvider（若已配置 embedding api_key）。 */
-function createEmbeddingProvider(
-  sett: { embedding?: { api_base?: string; api_key?: string; model?: string }; default_llm?: { api_base?: string } },
-): RemoteEmbeddingProvider | undefined {
+function createEmbeddingProvider(sett: Settings): RemoteEmbeddingProvider | undefined {
   if (!sett.embedding?.api_key) return undefined;
   return new RemoteEmbeddingProvider(
     sett.embedding.api_base || sett.default_llm?.api_base || "",
@@ -152,25 +163,27 @@ function createEmbeddingProvider(
 export async function getSettings() {
   const { settings } = getEngine().repos;
   const s = await settings.get();
-  return s as unknown as import("./settings").SettingsInfo;
+  return s;
 }
 
-export async function updateSettings(updates: Record<string, unknown>) {
+type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
+
+export async function updateSettings(updates: DeepPartial<Settings>) {
   const { settings } = getEngine().repos;
   const current = await settings.get();
   // 深合并嵌套对象，避免覆盖 app.theme 等未传入的字段
-  const merged: Record<string, unknown> = { ...current };
-  for (const key of Object.keys(updates)) {
-    const val = updates[key];
-    if (val && typeof val === "object" && !Array.isArray(val) && typeof (current as unknown as Record<string, unknown>)[key] === "object") {
-      merged[key] = { ...((current as unknown as Record<string, unknown>)[key] as Record<string, unknown>), ...(val as Record<string, unknown>) };
+  const currentRec = current as unknown as Record<string, unknown>;
+  const updatesRec = updates as Record<string, unknown>;
+  for (const key of Object.keys(updatesRec)) {
+    const val = updatesRec[key];
+    if (val && typeof val === "object" && !Array.isArray(val) && typeof currentRec[key] === "object") {
+      currentRec[key] = { ...(currentRec[key] as Record<string, unknown>), ...(val as Record<string, unknown>) };
     } else {
-      merged[key] = val;
+      currentRec[key] = val;
     }
   }
-  Object.assign(current, merged);
   await settings.save(current);
-  return current as unknown as import("./settings").SettingsInfo;
+  return current;
 }
 
 export async function testConnection(params: { mode: string; model?: string; api_base?: string; api_key?: string; local_model_path?: string; ollama_model?: string }) {
@@ -213,7 +226,7 @@ export async function testConnection(params: { mode: string; model?: string; api
 
 export async function getState(auPath: string) {
   const { state } = getEngine().repos;
-  return await state.get(auPath) as unknown as import("./state").StateInfo;
+  return await state.get(auPath);
 }
 
 export async function setChapterFocus(auPath: string, focusIds: string[]) {
@@ -267,9 +280,9 @@ async function recalcState(auPath: string) {
 export async function listFacts(auPath: string, status?: string) {
   const { fact } = getEngine().repos;
   if (status) {
-    return (await fact.list_by_status(auPath, status as import("@ficforge/engine").FactStatus)) as unknown as import("./facts").FactInfo[];
+    return await fact.list_by_status(auPath, status as FactStatus);
   }
-  return (await fact.list_all(auPath)) as unknown as import("./facts").FactInfo[];
+  return await fact.list_all(auPath);
 }
 
 export async function addFact(auPath: string, chapterNum: number, factData: Record<string, unknown>) {
@@ -295,7 +308,7 @@ export async function updateFactStatus(auPath: string, factId: string, newStatus
 
 export async function getProject(auPath: string) {
   const { project } = getEngine().repos;
-  return (await project.get(auPath)) as unknown as import("./project").ProjectInfo;
+  return await project.get(auPath);
 }
 
 export async function updateProject(auPath: string, updates: Record<string, unknown>) {
@@ -303,7 +316,7 @@ export async function updateProject(auPath: string, updates: Record<string, unkn
   const current = await project.get(auPath);
   Object.assign(current, updates);
   await project.save(current);
-  return current as unknown as import("./project").ProjectInfo;
+  return current;
 }
 
 // ===========================================================================
@@ -328,7 +341,7 @@ export async function listChapters(auPath: string) {
 export async function getChapter(auPath: string, chapterNum: number) {
   const { chapter } = getEngine().repos;
   const ch = await chapter.get(auPath, chapterNum);
-  return ch as unknown as import("./chapters").ChapterInfo;
+  return ch;
 }
 
 export async function getChapterContent(auPath: string, chapterNum: number) {
@@ -357,7 +370,7 @@ export async function confirmChapter(
   let finalTitle = title;
   if (!finalTitle) {
     try {
-      const llmConfig = resolve_llm_config(null, proj as unknown as Record<string, unknown>, sett as { default_llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } });
+      const llmConfig = resolve_llm_config(null, proj, sett);
       if (llmConfig.mode === "api" && llmConfig.api_key) {
         const provider = create_provider(llmConfig);
         const chContent = await chapter.get_content_only(auPath, chapterNum);
@@ -448,7 +461,7 @@ export async function listDrafts(auPath: string, chapterNum: number) {
 
 export async function getDraft(auPath: string, chapterNum: number, label: string) {
   const { draft } = getEngine().repos;
-  return (await draft.get(auPath, chapterNum, label)) as unknown as import("./drafts").DraftDetail;
+  return await draft.get(auPath, chapterNum, label);
 }
 
 export async function deleteDrafts(auPath: string, chapterNum: number, _label?: string) {
@@ -478,8 +491,8 @@ export async function* generateChapter(params: {
   // 验证 LLM 模式：local/ollama 在 TS 引擎中不支持流式生成
   const llmConfig = resolve_llm_config(
     params.session_llm ?? null,
-    proj as { llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } },
-    sett as { default_llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } },
+    proj,
+    sett,
   );
   if (llmConfig.mode !== "api") {
     yield { event: "error", data: { error_code: "UNSUPPORTED_MODE", message: "续写功能需要 API 模式的 LLM 配置（local/ollama 模式暂不支持）", actions: ["check_settings"] } };
@@ -674,8 +687,8 @@ export async function sendSettingsChat(params: {
 
   const llmConfig = resolve_llm_config(
     params.session_llm as Record<string, string> | null,
-    {} as Record<string, string>,
-    sett as { default_llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } },
+    {},
+    sett,
   );
   // Settings chat 需要 API 模式（tool calling 只有 API 支持）
   if (llmConfig.mode !== "api") {
@@ -855,7 +868,7 @@ export async function extractFacts(auPath: string, chapterNum: number) {
   const existingFacts = await e.repos.fact.list_all(auPath);
   const proj = await e.repos.project.get(auPath);
   const sett = await e.repos.settings.get();
-  const llmConfig = resolve_llm_config(null, proj as { llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } }, sett as { default_llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } });
+  const llmConfig = resolve_llm_config(null, proj, sett);
   if (llmConfig.mode !== "api") throw new Error("Facts 提取需要 API 模式的 LLM 配置");
   const provider = create_provider(llmConfig);
   const lang = sett.app?.language || "zh";
@@ -877,7 +890,7 @@ export async function extractFactsBatch(auPath: string, chapterNums: number[]) {
   const existingFacts = await e.repos.fact.list_all(auPath);
   const proj = await e.repos.project.get(auPath);
   const sett = await e.repos.settings.get();
-  const llmConfig = resolve_llm_config(null, proj as { llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } }, sett as { default_llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } });
+  const llmConfig = resolve_llm_config(null, proj, sett);
   if (llmConfig.mode !== "api") throw new Error("Facts 批量提取需要 API 模式的 LLM 配置");
   const provider = create_provider(llmConfig);
   const facts = await extract_facts_batch(chapters, existingFacts, proj.cast_registry, null, provider);

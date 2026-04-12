@@ -12,7 +12,7 @@ import { StepIndicator } from './StepIndicator';
 import { ApiSetupHelp } from '../help/ApiSetupHelp';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { changeLanguage, type AppLanguage } from '../../i18n';
-import { createAu, createFandom, getSettings, testConnection, updateSettings } from '../../api/engine-client';
+import { createAu, createFandom, getSettings, testConnection, updateSettings, LLMMode } from '../../api/engine-client';
 
 export type OnboardingCompletion = {
   nextAction?: 'open-import' | 'open-settings';
@@ -218,7 +218,7 @@ export function MobileOnboarding({
       await updateSettings({
         default_llm: {
           ...settings?.default_llm,
-          mode: 'api',
+          mode: LLMMode.API,
           model: model.trim(),
           api_base: apiBase.trim(),
           api_key: apiKey.trim(),
@@ -228,7 +228,7 @@ export function MobileOnboarding({
         },
         embedding: {
           ...settings?.embedding,
-          mode: useCustomEmbedding ? 'api' : 'local',
+          mode: useCustomEmbedding ? LLMMode.API : LLMMode.LOCAL,
           model: useCustomEmbedding ? embeddingModel.trim() : '',
           api_base: useCustomEmbedding ? embeddingApiBase.trim() : '',
           api_key: useCustomEmbedding ? embeddingApiKey.trim() : '',
