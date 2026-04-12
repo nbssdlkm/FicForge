@@ -7,7 +7,7 @@ import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { HelpCircle, Loader2, CheckCircle2, XCircle } from 'lucide-react';
-import { getSettings, testConnection, updateSettings, type SettingsInfo } from '../../api/engine-client';
+import { getSettings, testConnection, updateSettings, LLMMode, type SettingsInfo } from '../../api/engine-client';
 import { syncAllAus, resolveFileConflict, testWebDAVConnection, type WebDAVConfig } from '../../api/engine-sync';
 import { ConflictResolveModal, type ConflictItem } from '../shared/ConflictResolveModal';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -31,7 +31,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
 
   const [settings, setSettings] = useState<SettingsInfo | null>(null);
 
-  const [mode, setMode] = useState('api');
+  const [mode, setMode] = useState<LLMMode>(LLMMode.API);
   const [model, setModel] = useState('deepseek-chat');
   const [localModelPath, setLocalModelPath] = useState('');
   const [ollamaModel, setOllamaModel] = useState('');
@@ -62,7 +62,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
 
   const resetFormState = () => {
     setSettings(null);
-    setMode('api');
+    setMode(LLMMode.API);
     setModel('deepseek-chat');
     setLocalModelPath('');
     setOllamaModel('');
@@ -105,7 +105,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         if (requestId !== modalRequestIdRef.current) return;
         setSettings(res);
         if (res?.default_llm) {
-          const nextMode = res.default_llm.mode || 'api';
+          const nextMode = res.default_llm.mode || LLMMode.API;
           setMode(nextMode);
           setModel(res.default_llm.model || 'deepseek-chat');
           setLocalModelPath(res.default_llm.local_model_path || '');
@@ -121,15 +121,14 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         setEmbeddingApiBase(res?.embedding?.api_base || '');
         setEmbeddingApiKey(res?.embedding?.api_key || '');
         setUseCustomEmbedding(!!(res?.embedding?.model && res?.embedding?.api_key));
-        const sync = (res as Record<string, unknown>)?.sync as Record<string, unknown> | undefined;
+        const sync = res.sync;
         if (sync) {
-          setSyncMode((sync.mode as 'none' | 'webdav') || 'none');
-          const webdav = sync.webdav as Record<string, string> | undefined;
-          if (webdav) {
-            setSyncUrl(webdav.url || '');
-            setSyncUsername(webdav.username || '');
-            setSyncPassword(webdav.password || '');
-            setSyncRemoteDir(webdav.remote_dir || '/FicForge/');
+          setSyncMode(sync.mode || 'none');
+          if (sync.webdav) {
+            setSyncUrl(sync.webdav.url || '');
+            setSyncUsername(sync.webdav.username || '');
+            setSyncPassword(sync.webdav.password || '');
+            setSyncRemoteDir(sync.webdav.remote_dir || '/FicForge/');
           }
           setLastSync((sync.last_sync as string) || null);
         }
@@ -171,7 +170,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         },
         embedding: {
           ...settings.embedding,
-          mode: (useCustomEmbedding || !isTauri()) ? 'api' : 'local',
+          mode: (useCustomEmbedding || !isTauri()) ? LLMMode.API : LLMMode.LOCAL,
           model: (useCustomEmbedding || !isTauri()) ? embeddingModel : '',
           api_base: (useCustomEmbedding || !isTauri()) ? embeddingApiBase : '',
           api_key: (useCustomEmbedding || !isTauri()) ? embeddingApiKey : '',
@@ -250,7 +249,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
             <div className="flex flex-col gap-1.5">
               <select
                 value={mode}
-                onChange={(e) => setMode(e.target.value)}
+                onChange={(e) => setMode(e.target.value as LLMMode)}
                 disabled={saving}
                 className="h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent disabled:opacity-60 dark:border-white/20 md:h-10 md:text-sm"
               >

@@ -7,11 +7,11 @@ import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
-import { testConnection } from '../../api/engine-client';
+import { testConnection, LLMMode } from '../../api/engine-client';
 import { StepIndicator } from './StepIndicator';
 import { ApiSetupHelp } from '../help/ApiSetupHelp';
 
-type Mode = 'api' | 'local' | 'ollama';
+type Mode = LLMMode;
 
 type TestResult = { success: boolean; model?: string; message?: string; error_code?: string } | null;
 
@@ -25,7 +25,7 @@ export type ApiConfig = {
 };
 
 const DEFAULT_CONFIG: ApiConfig = {
-  mode: 'api',
+  mode: LLMMode.API,
   model: 'deepseek-chat',
   api_base: 'https://api.deepseek.com',
   api_key: '',

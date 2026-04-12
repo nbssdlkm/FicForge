@@ -564,8 +564,9 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         defModel = projectConfiguredModel;
       }
       if (proj?.model_params_override?.[defModel]) {
-        defTemp = proj.model_params_override[defModel].temperature;
-        defTopP = proj.model_params_override[defModel].top_p;
+        const override = proj.model_params_override[defModel];
+        defTemp = (override.temperature as number) ?? defTemp;
+        defTopP = (override.top_p as number) ?? defTopP;
       }
 
       setSessionModel(defModel);
