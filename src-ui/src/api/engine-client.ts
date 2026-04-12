@@ -82,8 +82,7 @@ export type { TrashScope } from "./trash";
 export type { GenerateParams } from "./generate";
 export type { SettingsChatMode, SettingsChatMessagePayload, SettingsChatSessionLlm, SettingsChatToolCall, SettingsChatResponse } from "./settingsChat";
 export type { ChapterPreview, ImportUploadResponse, ImportConfirmResponse } from "./importExport";
-// TrashEntry comes from engine's TrashService — re-export for convenience
-export type { TrashEntry } from "./trash";
+export type { TrashEntry } from "@ficforge/engine";
 
 // Re-export ApiError for compatibility with components that use it for error handling
 export { ApiError, getFriendlyErrorMessage } from "./client";
@@ -688,8 +687,8 @@ export async function sendSettingsChat(params: {
 
   const llmConfig = resolve_llm_config(
     params.session_llm as Record<string, string> | null,
-    {} as Record<string, string>,
-    sett as { default_llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } },
+    {},
+    sett,
   );
   // Settings chat 需要 API 模式（tool calling 只有 API 支持）
   if (llmConfig.mode !== "api") {
@@ -869,7 +868,7 @@ export async function extractFacts(auPath: string, chapterNum: number) {
   const existingFacts = await e.repos.fact.list_all(auPath);
   const proj = await e.repos.project.get(auPath);
   const sett = await e.repos.settings.get();
-  const llmConfig = resolve_llm_config(null, proj as { llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } }, sett as { default_llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } });
+  const llmConfig = resolve_llm_config(null, proj, sett);
   if (llmConfig.mode !== "api") throw new Error("Facts 提取需要 API 模式的 LLM 配置");
   const provider = create_provider(llmConfig);
   const lang = sett.app?.language || "zh";
@@ -891,7 +890,7 @@ export async function extractFactsBatch(auPath: string, chapterNums: number[]) {
   const existingFacts = await e.repos.fact.list_all(auPath);
   const proj = await e.repos.project.get(auPath);
   const sett = await e.repos.settings.get();
-  const llmConfig = resolve_llm_config(null, proj as { llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } }, sett as { default_llm?: { mode?: string; model?: string; api_base?: string; api_key?: string } });
+  const llmConfig = resolve_llm_config(null, proj, sett);
   if (llmConfig.mode !== "api") throw new Error("Facts 批量提取需要 API 模式的 LLM 配置");
   const provider = create_provider(llmConfig);
   const facts = await extract_facts_batch(chapters, existingFacts, proj.cast_registry, null, provider);
