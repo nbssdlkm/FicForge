@@ -47,7 +47,7 @@ export function MobileSettingsView({ auPath, currentChapter }: MobileSettingsVie
   }, [auPath, currentChapter, overlayOpen]);
 
   return (
-    <div className="relative min-h-full md:hidden">
+    <div className="relative h-full overflow-y-auto md:hidden">
       <AuLoreLayout key={`${auPath}:${refreshKey}`} auPath={auPath} />
 
       <div className="pointer-events-none fixed inset-x-0 bottom-24 z-30 flex justify-end px-4 md:hidden">

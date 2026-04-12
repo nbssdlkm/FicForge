@@ -29,7 +29,7 @@ export function MobileChapterList({
   const { t } = useTranslation();
 
   return (
-    <section className="flex min-h-full flex-col bg-background md:hidden">
+    <section className="flex h-full flex-col bg-background md:hidden">
       <header className="safe-area-top border-b border-black/10 bg-surface/80 px-4 py-4 backdrop-blur dark:border-white/10">
         <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-text/40">{t("navigation.chapters")}</p>
         <h1 className="mt-1 truncate font-serif text-2xl font-bold text-text">{auName}</h1>

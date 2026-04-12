@@ -235,7 +235,7 @@ export function MobileFandomView({ fandomPath, onNavigate }: MobileFandomViewPro
   // Main List View
   // ==========================================================================
   return (
-    <section className="flex min-h-full flex-col bg-background md:hidden">
+    <section className="flex h-full flex-col bg-background md:hidden">
       {/* Header */}
       <header className="safe-area-top border-b border-black/10 bg-surface/80 px-4 py-4 backdrop-blur dark:border-white/10">
         <div className="flex items-center gap-2">
