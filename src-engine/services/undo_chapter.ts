@@ -5,7 +5,7 @@
  * 撤销最新章流程。参见 PRD §6.3 步骤 0-10。
  *
  * ⚠️ 全代码库最危险的 Service：10 步级联回滚，涉及 5 类文件。
- * 严格遵循多文件写入顺序：数据变更 → state → ops（事务提交标记）。
+ * 使用 WriteTransaction 保证 D-0036 写入顺序：读取+计算 → tx(ops → chapters → facts → drafts → state)。
  */
 
 import { scan_characters_in_chapter } from "../domain/character_scanner.js";

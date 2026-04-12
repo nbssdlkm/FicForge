@@ -27,7 +27,8 @@ function withWriteLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
 // Fact ↔ JSON 序列化
 // ---------------------------------------------------------------------------
 
-function factToDict(fact: Fact): Record<string, unknown> {
+/** 将 Fact 转为 JSONL 行对象。sync_manager 重建 facts 时也需要用。 */
+export function factToDict(fact: Fact): Record<string, unknown> {
   const d: Record<string, unknown> = {
     id: fact.id,
     content_raw: fact.content_raw,

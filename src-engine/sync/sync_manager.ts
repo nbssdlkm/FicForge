@@ -9,6 +9,7 @@ import type { StateRepository } from "../repositories/interfaces/state.js";
 import type { SyncAdapter } from "./sync_adapter.js";
 import { mergeOps, rebuildStateFromOps, rebuildFactsFromOps, syncLamportClock } from "./ops_merge.js";
 import { joinPath } from "../repositories/implementations/file_utils.js";
+import { factToDict } from "../repositories/implementations/file_fact.js";
 
 export interface FileConflict {
   path: string;
@@ -65,7 +66,8 @@ export class SyncManager {
 
         const facts = rebuildFactsFromOps(merged);
         const factsPath = joinPath(localAuPath, "facts.jsonl");
-        const factsContent = facts.map((f) => JSON.stringify(f)).join("\n") + "\n";
+        // 使用 factToDict 保持与 FileFactRepository 一致的序列化格式
+        const factsContent = facts.map((f) => JSON.stringify(factToDict(f))).join("\n") + "\n";
         await this.adapter.writeFile(factsPath, factsContent);
       }
 
