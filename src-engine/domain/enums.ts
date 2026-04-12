@@ -10,6 +10,7 @@ export enum FactStatus {
   RESOLVED = "resolved",
   DEPRECATED = "deprecated",
 }
+export const FACT_STATUS_VALUES = Object.values(FactStatus) as [FactStatus, ...FactStatus[]];
 
 /** 事实类型。参见 PRD §3.6。 */
 export enum FactType {
@@ -20,6 +21,7 @@ export enum FactType {
   FORESHADOWING = "foreshadowing",
   WORLD_RULE = "world_rule",
 }
+export const FACT_TYPE_VALUES = Object.values(FactType) as [FactType, ...FactType[]];
 
 /** 叙事权重。参见 PRD §3.6。 */
 export enum NarrativeWeight {
@@ -27,6 +29,7 @@ export enum NarrativeWeight {
   MEDIUM = "medium",
   HIGH = "high",
 }
+export const NARRATIVE_WEIGHT_VALUES = Object.values(NarrativeWeight) as [NarrativeWeight, ...NarrativeWeight[]];
 
 /** 事实来源。参见 PRD §3.6。 */
 export enum FactSource {
@@ -34,6 +37,7 @@ export enum FactSource {
   EXTRACT_AUTO = "extract_auto",
   IMPORT_AUTO = "import_auto",
 }
+export const FACT_SOURCE_VALUES = Object.values(FactSource) as [FactSource, ...FactSource[]];
 
 /** LLM 运行模式。参见 PRD §3.3。 */
 export enum LLMMode {

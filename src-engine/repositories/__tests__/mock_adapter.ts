@@ -85,6 +85,21 @@ export class MockAdapter implements PlatformAdapter {
     return [...this.files.keys()];
   }
 
+  // KV 存储（in-memory mock）
+  private kv = new Map<string, string>();
+
+  async kvGet(key: string): Promise<string | null> {
+    return this.kv.get(key) ?? null;
+  }
+
+  async kvSet(key: string, value: string): Promise<void> {
+    this.kv.set(key, value);
+  }
+
+  async kvRemove(key: string): Promise<void> {
+    this.kv.delete(key);
+  }
+
   private norm(p: string): string {
     return p.replace(/\/+/g, "/").replace(/\/$/, "");
   }

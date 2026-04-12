@@ -52,43 +52,34 @@ export class FileChapterRepository implements ChapterRepository {
     const content = parsed.content.replace(/^\n+/, "").replace(/\n+$/, "");
 
     // --- 缺失字段自动补齐（§2.6.7）---
-    let repaired = false;
+    // 仅在内存中补齐，不写回磁盘。修复后的值在下次 save() 时持久化。
 
     if (!meta.chapter_id) {
       meta.chapter_id = crypto.randomUUID();
-      repaired = true;
     }
 
     if (!meta.confirmed_at) {
       meta.confirmed_at = now_utc();
-      repaired = true;
     }
 
     if (!meta.content_hash) {
       meta.content_hash = await compute_content_hash(content);
-      repaired = true;
     }
 
     if (!meta.provenance) {
       meta.provenance = Object.keys(parsed.data ?? {}).length > 0 ? "ai" : "imported";
-      repaired = true;
     }
 
     if (!("revision" in meta)) {
       meta.revision = 1;
-      repaired = true;
     }
 
     if (!("confirmed_focus" in meta)) {
       meta.confirmed_focus = [];
-      repaired = true;
     }
 
-    // 写回修复后的 frontmatter
-    if (repaired) {
-      const repairedText = matter.stringify(content, meta);
-      await this.adapter.writeFile(path, repairedText);
-    }
+    // 缺失字段在内存中补齐，不写回磁盘（读操作无副作用）。
+    // 修复后的值会在下次 save() 时持久化。
 
     return metaToChapter(au_id, chapter_num, meta, content);
   }

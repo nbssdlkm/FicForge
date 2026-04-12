@@ -151,14 +151,7 @@ export async function add_fact(
     updated_at: ts,
   });
 
-  await fact_repo.append(au_id, fact);
-
-  // resolves 正向联动
-  if (fact.resolves) {
-    await applyResolvesForward(au_id, fact.resolves, fact_repo);
-  }
-
-  // ops
+  // ops 先于 fact 落盘（D-0036: ops 是 sync truth）
   await ops_repo.append(
     au_id,
     createOpsEntry({
@@ -191,6 +184,13 @@ export async function add_fact(
       },
     }),
   );
+
+  await fact_repo.append(au_id, fact);
+
+  // resolves 正向联动
+  if (fact.resolves) {
+    await applyResolvesForward(au_id, fact.resolves, fact_repo);
+  }
 
   return fact;
 }
@@ -234,19 +234,6 @@ export async function edit_fact(
     }
   }
 
-  await fact_repo.update(au_id, fact);
-
-  // resolves 级联
-  const newResolves = fact.resolves;
-  if (oldResolves !== newResolves) {
-    if (newResolves) {
-      await applyResolvesForward(au_id, newResolves, fact_repo);
-    }
-    if (oldResolves) {
-      await applyResolvesReverse(au_id, oldResolves, fact_repo);
-    }
-  }
-
   // 悬空 ID 级联清理（内存操作，不落盘）
   const newStatus = fact.status;
   let needStateSave = false;
@@ -260,7 +247,7 @@ export async function edit_fact(
     needStateSave = changed;
   }
 
-  // ops 先于 state 落盘（D-0036）
+  // ops 先于 fact/state 落盘（D-0036: ops 是 sync truth）
   await ops_repo.append(
     au_id,
     createOpsEntry({
@@ -272,7 +259,28 @@ export async function edit_fact(
     }),
   );
 
+  await fact_repo.update(au_id, fact);
+
+  // resolves 级联
+  const newResolves = fact.resolves;
+  if (oldResolves !== newResolves) {
+    if (newResolves) {
+      await applyResolvesForward(au_id, newResolves, fact_repo);
+    }
+    if (oldResolves) {
+      await applyResolvesReverse(au_id, oldResolves, fact_repo);
+    }
+  }
+
   if (needStateSave && state) {
+    // 将 focus cleanup 记入 ops，确保跨设备重建时也能清理
+    await ops_repo.append(au_id, createOpsEntry({
+      op_id: generate_op_id(),
+      op_type: "set_chapter_focus",
+      target_id: au_id,
+      timestamp: now_utc(),
+      payload: { focus: [...state.chapter_focus] },
+    }));
     await state_repo.save(state);
   }
 
@@ -296,8 +304,6 @@ export async function update_fact_status(
   const oldStatus = fact.status;
   fact.status = new_status as FactStatus;
 
-  await fact_repo.update(au_id, fact);
-
   // 悬空 ID 级联清理（内存操作，不落盘）
   let focusWarning = false;
   let needStateSave = false;
@@ -309,7 +315,7 @@ export async function update_fact_status(
     needStateSave = changed;
   }
 
-  // ops 先于 state 落盘（D-0036）
+  // ops 先于 fact/state 落盘（D-0036: ops 是 sync truth）
   await ops_repo.append(
     au_id,
     createOpsEntry({
@@ -322,7 +328,17 @@ export async function update_fact_status(
     }),
   );
 
+  await fact_repo.update(au_id, fact);
+
   if (needStateSave && state) {
+    // 将 focus cleanup 记入 ops，确保跨设备重建时也能清理
+    await ops_repo.append(au_id, createOpsEntry({
+      op_id: generate_op_id(),
+      op_type: "set_chapter_focus",
+      target_id: au_id,
+      timestamp: now_utc(),
+      payload: { focus: [...state.chapter_focus] },
+    }));
     await state_repo.save(state);
   }
 

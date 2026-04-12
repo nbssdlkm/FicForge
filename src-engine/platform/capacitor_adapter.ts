@@ -88,4 +88,22 @@ export class CapacitorAdapter implements PlatformAdapter {
   getDeviceId(): string {
     return this._deviceId;
   }
+
+  // KV 存储：Capacitor WebView 支持 localStorage，加内存回退兜底
+  private _kvFallback = new Map<string, string>();
+
+  async kvGet(key: string): Promise<string | null> {
+    try { return localStorage.getItem(key); }
+    catch { return this._kvFallback.get(key) ?? null; }
+  }
+
+  async kvSet(key: string, value: string): Promise<void> {
+    try { localStorage.setItem(key, value); }
+    catch { this._kvFallback.set(key, value); }
+  }
+
+  async kvRemove(key: string): Promise<void> {
+    try { localStorage.removeItem(key); }
+    catch { this._kvFallback.delete(key); }
+  }
 }

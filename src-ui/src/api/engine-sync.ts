@@ -30,6 +30,13 @@ export interface AggregatedSyncResult {
   errors: string[];
 }
 
+/** 规范化 remote_dir：确保以 / 开头，去掉尾部 /。 */
+function normalizeRemoteDir(dir: string): string {
+  if (!dir) return ""; // 空 dir = 服务器根目录，无需前缀
+  const trimmed = dir.replace(/\/+$/, "");
+  return trimmed.startsWith("/") ? trimmed : "/" + trimmed;
+}
+
 /** 从本地绝对路径提取远端相对路径。去掉 dataDir 前缀，只保留 fandoms/xxx/aus/yyy */
 function toRemoteAuPath(localAuPath: string, dataDir: string): string {
   let rel = localAuPath;
@@ -44,7 +51,7 @@ function toRemoteAuPath(localAuPath: string, dataDir: string): string {
 export async function testWebDAVConnection(
   config: WebDAVConfig,
 ): Promise<{ success: boolean }> {
-  const url = config.url.replace(/\/+$/, "") + config.remote_dir;
+  const url = config.url.replace(/\/+$/, "") + normalizeRemoteDir(config.remote_dir);
   const resp = await fetch(url, {
     method: "PROPFIND",
     headers: {
@@ -59,7 +66,7 @@ export async function syncAllAus(webdavConfig: WebDAVConfig): Promise<Aggregated
   const { SyncManager, WebDAVSyncAdapter } = await import("@ficforge/engine");
   const { adapter, repos } = getEngine();
   const dd = getDataDir();
-  const baseUrl = webdavConfig.url.replace(/\/+$/, '') + webdavConfig.remote_dir;
+  const baseUrl = webdavConfig.url.replace(/\/+$/, '') + normalizeRemoteDir(webdavConfig.remote_dir);
   const syncAdapter = new WebDAVSyncAdapter(baseUrl, webdavConfig.username, webdavConfig.password);
   const syncManager = new SyncManager(adapter, repos.ops, repos.state, syncAdapter);
 
@@ -116,7 +123,7 @@ export async function resolveFileConflict(
   const { WebDAVSyncAdapter } = await import("@ficforge/engine");
   const { adapter } = getEngine();
   const dd = getDataDir();
-  const baseUrl = webdavConfig.url.replace(/\/+$/, '') + webdavConfig.remote_dir;
+  const baseUrl = webdavConfig.url.replace(/\/+$/, '') + normalizeRemoteDir(webdavConfig.remote_dir);
   const syncAdapter = new WebDAVSyncAdapter(baseUrl, webdavConfig.username, webdavConfig.password);
 
   const localFullPath = `${auPath}/${filePath}`;

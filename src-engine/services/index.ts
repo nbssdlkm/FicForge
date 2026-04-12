@@ -132,3 +132,6 @@ export { RagManager } from "./rag_manager.js";
 // Chapter Edit
 export type { EditChapterContentResult } from "./chapter_edit.js";
 export { edit_chapter_content } from "./chapter_edit.js";
+
+// Write Transaction
+export { WriteTransaction } from "./write_transaction.js";

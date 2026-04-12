@@ -43,18 +43,12 @@ export interface LoreFileOption {
   filename: string;
 }
 
-export const FACT_TYPE_OPTIONS = [
-  "character_detail",
-  "relationship",
-  "backstory",
-  "plot_event",
-  "foreshadowing",
-  "world_rule",
-] as const;
+import { FACT_TYPE_VALUES, FACT_STATUS_VALUES, NARRATIVE_WEIGHT_VALUES } from "@ficforge/engine";
 
-export const FACT_STATUS_OPTIONS = ["active", "unresolved", "resolved", "deprecated"] as const;
+export const FACT_TYPE_OPTIONS = FACT_TYPE_VALUES;
+export const FACT_STATUS_OPTIONS = FACT_STATUS_VALUES;
 export const FACT_CREATE_STATUS_OPTIONS = ["active", "unresolved"] as const;
-export const NARRATIVE_WEIGHT_OPTIONS = ["low", "medium", "high"] as const;
+export const NARRATIVE_WEIGHT_OPTIONS = NARRATIVE_WEIGHT_VALUES;
 export function coerceString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
@@ -195,7 +189,7 @@ export function getToolValidationError(
     if (!coerceString(args.content).trim()) {
       return t("settingsMode.validation.contentRequired");
     }
-    if (toolName === "create_character_file" && importance && !["high", "medium", "low"].includes(importance)) {
+    if (toolName === "create_character_file" && importance && !["main", "supporting", "minor"].includes(importance)) {
       return t("settingsMode.validation.importanceInvalid");
     }
     return null;

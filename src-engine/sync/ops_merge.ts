@@ -13,6 +13,9 @@ import { createState } from "../domain/state.js";
 import type { State } from "../domain/state.js";
 import type { Fact } from "../domain/fact.js";
 import { createFact } from "../domain/fact.js";
+import {
+  FACT_SOURCE_VALUES, FACT_STATUS_VALUES, FACT_TYPE_VALUES, NARRATIVE_WEIGHT_VALUES,
+} from "../domain/enums.js";
 import type { FactSource, FactStatus, FactType, NarrativeWeight } from "../domain/enums.js";
 
 // ---------------------------------------------------------------------------
@@ -250,7 +253,15 @@ function applyOpToState(state: State, op: OpsEntry): void {
       break;
 
     case "mark_chapters_dirty":
-      if (Array.isArray(op.payload.chapters_dirty)) {
+      if (Array.isArray(op.payload.added_dirty)) {
+        // 增量格式：union 合并（跨设备并发安全）
+        for (const ch of op.payload.added_dirty as number[]) {
+          if (!state.chapters_dirty.includes(ch)) {
+            state.chapters_dirty.push(ch);
+          }
+        }
+      } else if (Array.isArray(op.payload.chapters_dirty)) {
+        // 旧快照格式���向后兼容
         state.chapters_dirty = op.payload.chapters_dirty as number[];
       }
       break;
@@ -261,6 +272,26 @@ function applyOpToState(state: State, op: OpsEntry): void {
         if (idx >= 0) state.chapters_dirty.splice(idx, 1);
       }
       break;
+
+    case "recalc_global_state": {
+      const snap = op.payload as Record<string, unknown>;
+      if (snap.characters_last_seen && typeof snap.characters_last_seen === "object") {
+        state.characters_last_seen = snap.characters_last_seen as Record<string, number>;
+      }
+      if (typeof snap.last_scene_ending === "string") {
+        state.last_scene_ending = snap.last_scene_ending;
+      }
+      if (Array.isArray(snap.last_confirmed_chapter_focus)) {
+        state.last_confirmed_chapter_focus = snap.last_confirmed_chapter_focus as string[];
+      }
+      if (Array.isArray(snap.chapters_dirty)) {
+        state.chapters_dirty = snap.chapters_dirty as number[];
+      }
+      if (Array.isArray(snap.chapter_focus)) {
+        state.chapter_focus = snap.chapter_focus as string[];
+      }
+      break;
+    }
   }
 }
 
@@ -268,18 +299,32 @@ function applyOpToState(state: State, op: OpsEntry): void {
 // facts 重建
 // ---------------------------------------------------------------------------
 
-/** 从 ops payload 安全构建 Fact（类型安全，无 type assertion bypass）。 */
+/** 运行时校验枚举值，非法值回退默认并打 warn。 */
+function validateEnum<T extends string>(
+  value: string, valid: readonly T[], fallback: T, field: string, id: string,
+): T {
+  if ((valid as readonly string[]).includes(value)) return value as T;
+  console.warn(`[ops_merge] Unknown ${field} "${value}" for fact ${id}, using "${fallback}"`);
+  return fallback;
+}
+
+/** 从 ops payload 安全构建 Fact（运行时校验枚举字段）。 */
 function factFromPayload(id: string, d: Record<string, unknown>): Fact {
+  const rawStatus = (d.status as string) ?? "active";
+  const rawType = (d.type as string) ?? "plot_event";
+  const rawWeight = (d.narrative_weight as string) ?? "medium";
+  const rawSource = (d.source as string) ?? "extract_auto";
+
   return createFact({
     id,
     content_raw: (d.content_raw as string) ?? "",
     content_clean: (d.content_clean as string) ?? "",
     characters: (d.characters as string[]) ?? [],
     chapter: (d.chapter as number) ?? 0,
-    status: ((d.status as string) ?? "active") as FactStatus,
-    type: ((d.type as string) ?? "plot_event") as FactType,
-    narrative_weight: ((d.narrative_weight as string) ?? "medium") as NarrativeWeight,
-    source: ((d.source as string) ?? "extract_auto") as FactSource,
+    status: validateEnum(rawStatus, FACT_STATUS_VALUES, "active" as FactStatus, "status", id),
+    type: validateEnum(rawType, FACT_TYPE_VALUES, "plot_event" as FactType, "type", id),
+    narrative_weight: validateEnum(rawWeight, NARRATIVE_WEIGHT_VALUES, "medium" as NarrativeWeight, "narrative_weight", id),
+    source: validateEnum(rawSource, FACT_SOURCE_VALUES, "extract_auto" as FactSource, "source", id),
     timeline: (d.timeline as string) ?? "",
     story_time: (d.story_time as string) ?? "",
     resolves: (d.resolves as string) ?? null,

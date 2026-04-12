@@ -57,10 +57,13 @@ export class RagManager {
     chapterRepo: ChapterRepository,
     embeddingProvider: EmbeddingProvider,
   ): Promise<void> {
-    // 清除内存中该 AU 的所有 chunks，直接标记为当前 AU
-    // 避免中间 persist 空索引（崩溃安全：旧索引保留到最终 persist 覆盖）
-    await this.vectorEngine.rebuild_index(auPath);
+    // 先切换到目标 AU（ensureLoaded 会清空内存并从磁盘重新加载，
+    // 确保不残留前一个 AU 的 chunks）
+    this.unload();
+    await this.vectorEngine.load(vectorsDir(auPath));
     this.currentAu = auPath;
+    // 清除目标 AU 的旧 chunks（准备全量重建）
+    await this.vectorEngine.rebuild_index(auPath);
 
     // 遍历所有章节：批量索引到内存，最后一次性 persist
     const chapters = await chapterRepo.list_main(auPath);

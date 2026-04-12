@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { sendSettingsChat, type SettingsChatSessionLlm } from "../../../api/engine-client";
 import { addFact, editFact, updateFactStatus } from "../../../api/engine-client";
-import { deleteLore, listLoreFiles, saveLore } from "../../../api/engine-client";
+import { deleteLore, listLoreFiles, readLore, saveLore } from "../../../api/engine-client";
 import { addPinned, deletePinned, getProject, updateProject, type ProjectInfo } from "../../../api/engine-client";
 import { useFeedback } from "../../../hooks/useFeedback";
 import { useTranslation } from "../../../i18n/useAppTranslation";
@@ -157,6 +157,54 @@ function applyManagedFrontmatter(
   }
 
   return ["---", ...nextFrontmatter, "---", "", body.trimStart()].join("\n");
+}
+
+/**
+ * 从现有文件内容中提取受管 frontmatter 字段，
+ * 然后将它们注入到新内容中。用于 modify 路径保留 name/aliases 等元数据。
+ *
+ * 受管字段仅 name / aliases / importance / origin_ref 四种，
+ * 格式由 buildManagedFrontmatterLines 生成，结构已知。
+ */
+function preserveManagedFrontmatter(
+  oldContent: string,
+  newContent: string,
+  managedKeys: readonly ManagedFrontmatterKey[],
+): string {
+  const { frontmatter: oldFm } = splitYamlFrontmatter(oldContent);
+  if (!oldFm) return newContent;
+
+  const keySet = new Set<string>(managedKeys);
+  const fields: Record<string, unknown> = {};
+  const lines = oldFm.split("\n");
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // aliases 是列表，特殊处理
+    if (line.startsWith("aliases:") && keySet.has("aliases")) {
+      const aliases: string[] = [];
+      i++;
+      while (i < lines.length && lines[i].match(/^\s+-\s/)) {
+        aliases.push(lines[i].replace(/^\s+-\s+/, "").replace(/^["']|["']$/g, "").trim());
+        i++;
+      }
+      if (aliases.length > 0) fields.aliases = aliases;
+      continue;
+    }
+
+    // 标量字段：key: value（仅匹配受管 key）
+    const m = line.match(/^(\w+):\s*(.+)$/);
+    if (m && keySet.has(m[1])) {
+      fields[m[1]] = m[2].replace(/^["']|["']$/g, "").trim();
+    }
+
+    i++;
+  }
+
+  if (Object.keys(fields).length === 0) return newContent;
+  return applyManagedFrontmatter(newContent, fields, managedKeys);
 }
 
 function buildOutboundUserMessage(
@@ -511,11 +559,17 @@ export function SettingsChatPanel({
 
     if (toolName === "modify_character_file") {
       const filename = normalizeMarkdownFilename(coerceString(args.filename));
+      // 读旧文件，保留受管 frontmatter（name, aliases, importance, origin_ref）
+      let finalContent = coerceString(args.new_content);
+      try {
+        const { content: oldContent } = await readLore({ au_path: basePath, category: "characters", filename });
+        finalContent = preserveManagedFrontmatter(oldContent, finalContent, CHARACTER_FRONTMATTER_KEYS);
+      } catch { /* 旧文件不存在时直接使用新内容 */ }
       await saveLore({
         au_path: basePath,
         category: "characters",
         filename,
-        content: coerceString(args.new_content),
+        content: finalContent,
       });
       return {
         resultNote: t("settingsMode.executedWithTarget", { target: filename }),
@@ -546,11 +600,17 @@ export function SettingsChatPanel({
 
     if (toolName === "modify_core_character_file") {
       const filename = normalizeMarkdownFilename(coerceString(args.filename));
+      // 读旧文件，保留受管 frontmatter（name）
+      let finalContent = coerceString(args.new_content);
+      try {
+        const { content: oldContent } = await readLore({ fandom_path: basePath, category: "core_characters", filename });
+        finalContent = preserveManagedFrontmatter(oldContent, finalContent, CORE_CHARACTER_FRONTMATTER_KEYS);
+      } catch { /* 旧文件不存在时直接使用新内容 */ }
       await saveLore({
         fandom_path: basePath,
         category: "core_characters",
         filename,
-        content: coerceString(args.new_content),
+        content: finalContent,
       });
       return {
         resultNote: t("settingsMode.executedWithTarget", { target: filename }),

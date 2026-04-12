@@ -62,7 +62,7 @@ export async function edit_chapter_content(
     op_type: "mark_chapters_dirty",
     target_id: au_id,
     timestamp: now_utc(),
-    payload: { chapters_dirty: [...st.chapters_dirty] },
+    payload: { added_dirty: [chapter_num] },
   }));
   await state_repo.save(st);
 

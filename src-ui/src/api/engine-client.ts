@@ -189,8 +189,14 @@ export async function updateSettings(updates: DeepPartial<Settings>) {
 export async function testConnection(params: { mode: string; model?: string; api_base?: string; api_key?: string; local_model_path?: string; ollama_model?: string }) {
   try {
     if (params.mode === "local") {
-      // 本地模式通过 sidecar embedding 验证（如果 sidecar 运行中）
-      return { success: true, model: params.local_model_path ?? "local", message: "本地模式需要通过 sidecar 验证" };
+      // 本地模式：尝试连接 sidecar /health 端点
+      try {
+        const resp = await fetch("http://127.0.0.1:5000/health", { signal: AbortSignal.timeout(3000) });
+        if (resp.ok) return { success: true, model: params.local_model_path ?? "local" };
+        return { success: false, message: "Sidecar 无响应", error_code: "sidecar_unavailable" };
+      } catch {
+        return { success: false, message: "无法连接本地 Sidecar (127.0.0.1:5000)", error_code: "sidecar_unavailable" };
+      }
     }
     if (params.mode === "ollama") {
       // Ollama 模式：尝试连接 Ollama API
@@ -259,13 +265,19 @@ export { recalcState };
 async function recalcState(auPath: string) {
   const { state, chapter, project, fact, ops } = getEngine().repos;
   const result = await recalc_state(auPath, state, chapter, project, fact);
-  // ops 先于 state 落盘（D-0036）
+  // ops 先于 state 落盘（D-0036: 完整 state 快照，支持跨设备重建）
   await ops.append(auPath, createOpsEntry({
     op_id: generate_op_id(),
-    op_type: "mark_chapters_dirty",
+    op_type: "recalc_global_state",
     target_id: auPath,
     timestamp: now_utc(),
-    payload: { chapters_dirty: [...result.state.chapters_dirty] },
+    payload: {
+      characters_last_seen: { ...result.state.characters_last_seen },
+      last_scene_ending: result.state.last_scene_ending,
+      last_confirmed_chapter_focus: [...result.state.last_confirmed_chapter_focus],
+      chapters_dirty: [...result.state.chapters_dirty],
+      chapter_focus: [...result.state.chapter_focus],
+    },
   }));
   await state.save(result.state);
   // 不泄露内部 state 对象到前端

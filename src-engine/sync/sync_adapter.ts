@@ -108,7 +108,7 @@ export class WebDAVSyncAdapter implements SyncAdapter {
     const text = await resp.text();
     // 解析 PROPFIND 响应中的 href（支持 d:href 和 D:href 命名空间变体）
     const hrefs: string[] = [];
-    const regex = /<(?:d|D):href>([^<]+)<\/(?:d|D):href>/gi;
+    const regex = /<(?:(?:d|D):)?href>([^<]+)<\/(?:(?:d|D):)?href>/gi;
     // Normalize remotePath for contains-matching (handles non-standard mount prefixes)
     const remotePathStr = remotePath.split("/").filter(Boolean).join("/");
     let m: RegExpExecArray | null;

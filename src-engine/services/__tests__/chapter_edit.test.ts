@@ -66,7 +66,7 @@ describe("edit_chapter_content", () => {
     expect(ops.length).toBeGreaterThanOrEqual(1);
     const dirtyOp = ops.find((o) => o.op_type === "mark_chapters_dirty");
     expect(dirtyOp).toBeTruthy();
-    expect(dirtyOp!.payload.chapters_dirty).toContain(1);
+    expect(dirtyOp!.payload.added_dirty).toContain(1);
   });
 
   it("adds chapter_num to chapters_dirty in state", async () => {

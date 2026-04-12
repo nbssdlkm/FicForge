@@ -81,4 +81,19 @@ export class TauriAdapter implements PlatformAdapter {
   getDeviceId(): string {
     return this._deviceId;
   }
+
+  async kvGet(key: string): Promise<string | null> {
+    try { return localStorage.getItem(key); }
+    catch { return null; }
+  }
+
+  async kvSet(key: string, value: string): Promise<void> {
+    try { localStorage.setItem(key, value); }
+    catch { /* Tauri WebView 理论上不会失败，兜底吞错 */ }
+  }
+
+  async kvRemove(key: string): Promise<void> {
+    try { localStorage.removeItem(key); }
+    catch { /* ignore */ }
+  }
 }

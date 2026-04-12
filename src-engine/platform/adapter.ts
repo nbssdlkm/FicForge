@@ -27,4 +27,9 @@ export interface PlatformAdapter {
   getPlatform(): "tauri" | "capacitor" | "web";
   getDataDir(): Promise<string>;
   getDeviceId(): string;
+
+  /** 键值存储：跨平台安全的 localStorage 替代。 */
+  kvGet(key: string): Promise<string | null>;
+  kvSet(key: string, value: string): Promise<void>;
+  kvRemove(key: string): Promise<void>;
 }

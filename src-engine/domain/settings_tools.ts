@@ -3,6 +3,8 @@
 
 /** 设定模式 Tool Schema 定义。参见 D-0029、补充 PRD v2 §1.5。 */
 
+import { FACT_TYPE_VALUES, NARRATIVE_WEIGHT_VALUES } from "./enums.js";
+
 // ===========================================================================
 // AU 设定模式 — 9 个 tool
 // ===========================================================================
@@ -84,8 +86,8 @@ const _AU_TOOLS: readonly Record<string, unknown>[] = [
           content_raw: { type: "string", description: "原文引用" },
           content_clean: { type: "string", description: "用第三人称客观描述的逻辑抽提" },
           characters: { type: "array", items: { type: "string" }, description: "关联角色名" },
-          fact_type: { type: "string", enum: ["plot_event", "character_detail", "relationship", "worldbuilding", "foreshadowing"] },
-          narrative_weight: { type: "string", enum: ["low", "medium", "high"] },
+          fact_type: { type: "string", enum: [...FACT_TYPE_VALUES], description: "事实类型" },
+          narrative_weight: { type: "string", enum: [...NARRATIVE_WEIGHT_VALUES], description: "叙事权重" },
           status: { type: "string", enum: ["active", "unresolved"] },
         },
         required: ["content_raw", "content_clean", "fact_type", "status"],
@@ -102,7 +104,7 @@ const _AU_TOOLS: readonly Record<string, unknown>[] = [
         properties: {
           fact_id: { type: "string" },
           content_clean: { type: "string" },
-          narrative_weight: { type: "string", enum: ["low", "medium", "high"] },
+          narrative_weight: { type: "string", enum: [...NARRATIVE_WEIGHT_VALUES] },
           status: { type: "string", enum: ["active", "unresolved", "resolved", "deprecated"] },
         },
         required: ["fact_id"],
