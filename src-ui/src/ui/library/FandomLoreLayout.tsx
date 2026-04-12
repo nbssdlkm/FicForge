@@ -36,13 +36,7 @@ function getRestoredFandomFile(entry: TrashEntry): { category: 'core_characters'
   };
 }
 
-function toCanonicalCreateKey(value: string): string {
-  return value
-    .trim()
-    .replace(/\.md$/i, '')
-    .toLowerCase()
-    .replace(/[\s_]+/g, '_');
-}
+import { toCanonicalCreateKey } from "./lore-utils";
 
 function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
   const { t } = useTranslation();

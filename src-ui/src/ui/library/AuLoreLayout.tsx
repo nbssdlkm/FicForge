@@ -24,67 +24,14 @@ type LoreFileEntry = {
   filename: string;
 };
 
-function buildDefaultCharacterContent(name: string): string {
-  return `---\nname: ${name}\naliases: []\n---\n\n# ${name}\n\n`;
-}
-
-function buildDefaultWorldbuildingContent(name: string): string {
-  return `# ${name}\n\n`;
-}
-
-function parseAliasesFromContent(content: string): string[] {
-  const match = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!match) return [];
-  const fm = match[1];
-  // Parse aliases: [a, b, c] or aliases:\n- a\n- b
-  const inlineMatch = fm.match(/aliases:\s*\[([^\]]*)\]/);
-  if (inlineMatch) {
-    return inlineMatch[1].split(',').map(s => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
-  }
-  const lines = fm.split('\n');
-  const idx = lines.findIndex(l => l.startsWith('aliases:'));
-  if (idx < 0) return [];
-  const result: string[] = [];
-  for (let i = idx + 1; i < lines.length; i++) {
-    const m = lines[i].match(/^\s*-\s*(.+)/);
-    if (m) result.push(m[1].trim().replace(/^["']|["']$/g, ''));
-    else break;
-  }
-  return result;
-}
-
-function setAliasesInContent(content: string, aliases: string[]): string {
-  const aliasYaml = aliases.length > 0 ? `aliases: [${aliases.join(', ')}]` : 'aliases: []';
-  const match = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!match) return content;
-  const fm = match[1];
-  // Replace existing aliases line(s)
-  const lines = fm.split('\n');
-  const idx = lines.findIndex(l => l.startsWith('aliases:'));
-  if (idx >= 0) {
-    // Remove old aliases line + any continuation list items
-    let endIdx = idx + 1;
-    while (endIdx < lines.length && lines[endIdx].match(/^\s*-\s/)) endIdx++;
-    lines.splice(idx, endIdx - idx, aliasYaml);
-  } else {
-    // Add after name line
-    const nameIdx = lines.findIndex(l => l.startsWith('name:'));
-    lines.splice(nameIdx >= 0 ? nameIdx + 1 : lines.length, 0, aliasYaml);
-  }
-  return content.replace(/^---\n[\s\S]*?\n---/, `---\n${lines.join('\n')}\n---`);
-}
-
-function toCanonicalCreateKey(value: string): string {
-  return value
-    .trim()
-    .replace(/\.md$/i, '')
-    .toLowerCase()
-    .replace(/[\s_]+/g, '_');
-}
-
-function deriveFandomPath(auPath: string): string {
-  return auPath.replace(/\/aus\/[^/]+$/, '');
-}
+import {
+  buildDefaultCharacterContent,
+  buildDefaultWorldbuildingContent,
+  parseAliasesFromContent,
+  setAliasesInContent,
+  toCanonicalCreateKey,
+  deriveFandomPath,
+} from "./lore-utils";
 
 function getRestoredCharacterFile(entry: TrashEntry): LoreFileEntry | null {
   if (!entry.original_path.startsWith('characters/')) return null;
