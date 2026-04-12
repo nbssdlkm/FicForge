@@ -43,7 +43,7 @@ export interface LoreFileOption {
   filename: string;
 }
 
-import { FACT_TYPE_VALUES, FACT_STATUS_VALUES, NARRATIVE_WEIGHT_VALUES } from "@ficforge/engine";
+import { FACT_TYPE_VALUES, FACT_STATUS_VALUES, NARRATIVE_WEIGHT_VALUES } from "../../../api/engine-client";
 
 export const FACT_TYPE_OPTIONS = FACT_TYPE_VALUES;
 export const FACT_STATUS_OPTIONS = FACT_STATUS_VALUES;

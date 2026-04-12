@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Button } from "../shared/Button";
 import { Input } from "../shared/Input";
 import { useTranslation } from "../../i18n/useAppTranslation";
-import type { ImportConflictOptions } from "@ficforge/engine";
+import type { ImportConflictOptions } from "../../api/engine-client";
 
 interface ConflictStepProps {
   existingChapterNums: number[];

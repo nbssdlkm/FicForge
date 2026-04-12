@@ -89,6 +89,7 @@ export async function extractFactsBatch(auPath: string, chapterNums: number[]) {
   const llmConfig = resolve_llm_config(null, proj, sett);
   if (llmConfig.mode !== "api") throw new Error("Facts 批量提取需要 API 模式的 LLM 配置");
   const provider = create_provider(llmConfig);
-  const facts = await extract_facts_batch(chapters, existingFacts, proj.cast_registry, null, provider);
+  const lang = sett.app?.language || "zh";
+  const facts = await extract_facts_batch(chapters, existingFacts, proj.cast_registry, null, provider, lang);
   return { facts };
 }

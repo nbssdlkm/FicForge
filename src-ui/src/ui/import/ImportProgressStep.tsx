@@ -4,7 +4,7 @@
 import { Button } from "../shared/Button";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
-import type { NewImportResult, ImportProgress } from "@ficforge/engine";
+import type { NewImportResult, ImportProgress } from "../../api/engine-client";
 
 interface ImportProgressStepProps {
   importing: boolean;

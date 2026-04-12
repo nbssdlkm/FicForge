@@ -6,9 +6,7 @@ import { Button } from "../shared/Button";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { TurnCard } from "./TurnCard";
-import type { FileAnalysis } from "@ficforge/engine";
-import type { ClassifiedTurn } from "@ficforge/engine";
-import { classifyTurns, type ClassificationThresholds } from "@ficforge/engine";
+import { classifyTurns, type FileAnalysis, type ClassifiedTurn, type ClassificationThresholds } from "../../api/engine-client";
 
 interface ChapterArrangeStepProps {
   analyses: FileAnalysis[];

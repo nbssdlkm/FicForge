@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
-import type { ClassifiedTurn, ClassificationReason } from "@ficforge/engine";
+import type { ClassifiedTurn, ClassificationReason } from "../../api/engine-client";
 
 type AssignedType = ClassifiedTurn["assignedType"];
 

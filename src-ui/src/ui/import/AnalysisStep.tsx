@@ -5,7 +5,7 @@ import { Button } from "../shared/Button";
 import { Input } from "../shared/Input";
 import { CheckCircle2, Loader2, Clock, XCircle } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
-import type { FileAnalysis } from "@ficforge/engine";
+import type { FileAnalysis } from "../../api/engine-client";
 
 interface AnalysisStepProps {
   files: File[];

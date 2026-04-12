@@ -50,8 +50,13 @@ export type { TrashEntry } from "@ficforge/engine";
 // Re-export ApiError for compatibility with components that use it for error handling
 export { ApiError, getFriendlyErrorMessage } from "./client";
 
-// Import v2 types
+// Import v2 types + classification
 export type { FileAnalysis, ImportPlan, ImportConflictOptions, NewImportResult, ImportProgress, AnalysisOptions } from "@ficforge/engine";
+export type { ClassifiedTurn, ClassificationReason, ClassificationThresholds } from "@ficforge/engine";
+export { classifyTurns } from "@ficforge/engine";
+
+// Enum value arrays (for UI validation)
+export { FACT_TYPE_VALUES, FACT_STATUS_VALUES, NARRATIVE_WEIGHT_VALUES } from "@ficforge/engine";
 
 // Sync types
 export type { WebDAVConfig, AggregatedSyncResult } from "./engine-sync";
