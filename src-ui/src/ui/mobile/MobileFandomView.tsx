@@ -14,7 +14,7 @@ import { EmptyState } from "../shared/EmptyState";
 import { SettingsMarkdown } from "../shared/SettingsMarkdown";
 import { SettingsChatPanel } from "../shared/settings-chat/SettingsChatPanel";
 import { cn } from "../shared/utils";
-import { useFeedback } from "../../hooks/useFeedback";
+import { FeedbackProvider, useFeedback } from "../../hooks/useFeedback";
 
 interface MobileFandomViewProps {
   fandomPath: string;
@@ -23,7 +23,15 @@ interface MobileFandomViewProps {
 
 type FandomCategory = "core_characters" | "core_worldbuilding";
 
-export function MobileFandomView({ fandomPath, onNavigate }: MobileFandomViewProps) {
+export function MobileFandomView(props: MobileFandomViewProps) {
+  return (
+    <FeedbackProvider>
+      <MobileFandomViewInner {...props} />
+    </FeedbackProvider>
+  );
+}
+
+function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps) {
   const { t } = useTranslation();
   const { showError } = useFeedback();
   const fandomName = fandomPath.split("/").pop() || "";
