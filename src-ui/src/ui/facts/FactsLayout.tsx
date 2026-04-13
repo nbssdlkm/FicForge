@@ -9,7 +9,8 @@ import { FactCard } from './FactCard';
 import { Modal } from '../shared/Modal';
 import { EmptyState } from '../shared/EmptyState';
 import { Tag } from '../shared/Tag';
-import { Search, Plus, Filter, Loader2, Check, Sparkles, BookOpenText } from 'lucide-react';
+import { Search, Plus, Filter, Loader2, Check, Sparkles, BookOpenText, X } from 'lucide-react';
+import { ProgressBar } from '../shared/ProgressBar';
 import { listFacts, updateFactStatus, FactStatus, type FactInfo } from '../../api/engine-client';
 import { getState, type StateInfo } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -73,12 +74,11 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     setLoading(true);
     setFacts([]);
     setState(null);
-    // Hooks handle their own reset via auPath-dependent refs
+    // Hooks handle their own reset via auPath-dependent effects
     factsFilter.resetFilters();
     editor.setEditingFact(null);
     editor.setAddModalOpen(false);
-    extraction.setExtractModalOpen(false);
-    extraction.setExtractedCandidates([]);
+    // extraction 状态由 useFactsExtraction 的 [auPath] effect 自行管理
   }, [auPath]);
 
   useEffect(() => {
@@ -443,6 +443,26 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             </div>
           </header>
 
+          {extraction.extracting && (
+            <div className="mx-4 mt-3 rounded-lg border border-accent/20 bg-accent/5 px-3 py-2.5">
+              <div className="flex items-center justify-between gap-2 text-sm">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Loader2 size={14} className="shrink-0 animate-spin text-accent" />
+                  <span className="truncate text-text/70">{t('common.actions.extracting')}</span>
+                  <span className="shrink-0 font-medium text-accent">{extraction.extractProgress}%</span>
+                </div>
+                <button
+                  type="button"
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0 rounded-md text-text/40 hover:text-error hover:bg-error/10 transition-colors"
+                  onClick={extraction.handleCancelExtraction}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <ProgressBar percent={extraction.extractProgress} className="mt-1.5" />
+            </div>
+          )}
+
           {staleCount > 0 && !factsFilter.statusFilter ? (
             <div className="mx-4 mt-3 flex items-center justify-between rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-xs text-warning">
               <span>💡 {t('facts.staleHint', { count: staleCount })}</span>
@@ -648,6 +668,28 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             )}
           </div>
         </header>
+
+        {/* 提取进度 */}
+        {extraction.extracting && (
+          <div className="mx-4 mt-3 rounded-lg border border-accent/20 bg-accent/5 px-3 py-2">
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Loader2 size={12} className="shrink-0 animate-spin text-accent" />
+                <span className="truncate text-text/70">{t('common.actions.extracting')}</span>
+                <span className="shrink-0 font-medium text-accent">{extraction.extractProgress}%</span>
+              </div>
+              <button
+                type="button"
+                className="shrink-0 rounded p-0.5 text-text/40 hover:text-error hover:bg-error/10 transition-colors"
+                onClick={extraction.handleCancelExtraction}
+                title={t('common.actions.cancel')}
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <ProgressBar percent={extraction.extractProgress} className="mt-1.5" />
+          </div>
+        )}
 
         {/* 过期提醒 */}
         {staleCount > 0 && !factsFilter.statusFilter && (

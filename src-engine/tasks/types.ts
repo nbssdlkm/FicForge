@@ -83,6 +83,8 @@ export interface TaskHandle {
   type: string;
   status: TaskStatus;
   progress: { current: number; total: number };
+  /** 任务参数（submit 时传入的 definition.params），用于 UI 重连时识别任务归属 */
+  params?: unknown;
   error?: string;
   result?: unknown;
   createdAt: string;

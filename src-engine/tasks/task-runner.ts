@@ -81,6 +81,7 @@ export class TaskRunner {
       type: definition.type,
       status: "pending",
       progress: { current: 0, total: 0 },
+      params: definition.params,
       createdAt: now_utc(),
     };
 
@@ -104,6 +105,7 @@ export class TaskRunner {
       type: checkpoint.taskType,
       status: "pending",
       progress: { ...checkpoint.progress },
+      params: checkpoint.params,
       createdAt: now_utc(),
     };
 
@@ -153,6 +155,16 @@ export class TaskRunner {
     for (const t of this.queue) tasks.push(t.handle);
     for (const t of this.running.values()) tasks.push(t.handle);
     return tasks;
+  }
+
+  /** 获取已完成/失败/取消的任务（最近 MAX_COMPLETED 个） */
+  getCompletedTasks(): TaskHandle[] {
+    return [...this.completed.values()];
+  }
+
+  /** 从已完成池中移除（UI 消费结果后调用，防止重复弹窗） */
+  removeCompleted(taskId: string): void {
+    this.completed.delete(taskId);
   }
 
   /** 检查是否有未完成的断点（app 启动时调用） */
@@ -225,10 +237,17 @@ export class TaskRunner {
         iterResult = await generator.next();
       }
 
-      handle.status = "completed";
-      handle.result = iterResult.value;
-      this.notifyEvent(handle.id, { type: "completed", result: iterResult.value });
-      this.notifyStatus(handle.id, "completed", handle);
+      // Generator 正常返回 — 但可能是因为 signal.aborted 触发 break 退出
+      if (abortController.signal.aborted) {
+        handle.status = "cancelled";
+        this.notifyEvent(handle.id, { type: "cancelled" });
+        this.notifyStatus(handle.id, "cancelled", handle);
+      } else {
+        handle.status = "completed";
+        handle.result = iterResult.value;
+        this.notifyEvent(handle.id, { type: "completed", result: iterResult.value });
+        this.notifyStatus(handle.id, "completed", handle);
+      }
       await this.store.remove(handle.id);
 
     } catch (err) {
