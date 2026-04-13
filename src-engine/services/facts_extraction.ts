@@ -242,6 +242,12 @@ function rawToExtracted(
 
 const MAX_FACTS_PER_CHAPTER = 5;
 
+export interface ExtractFactsOptions {
+  max_chunk_tokens?: number;
+  language?: string;
+  signal?: AbortSignal;
+}
+
 export async function extract_facts_from_chapter(
   chapter_text: string,
   chapter_num: number,
@@ -250,9 +256,12 @@ export async function extract_facts_from_chapter(
   character_aliases: Record<string, string[]> | null,
   llm_provider: LLMProvider,
   llm_config: unknown,
-  max_chunk_tokens = 4000,
-  language = "zh",
+  opts?: ExtractFactsOptions,
 ): Promise<ExtractedFact[]> {
+  const max_chunk_tokens = opts?.max_chunk_tokens ?? 4000;
+  const language = opts?.language ?? "zh";
+  const signal = opts?.signal;
+
   await ensureTokenizer();
   const P = getPrompts(language as "zh" | "en");
 
@@ -262,6 +271,8 @@ export async function extract_facts_from_chapter(
   const allRaw: Record<string, unknown>[] = [];
 
   for (const chunkText of chunks) {
+    if (signal?.aborted) break;
+
     const messages = [
       { role: "system" as const, content: P.FACTS_SYSTEM_PROMPT },
       {
@@ -279,6 +290,7 @@ export async function extract_facts_from_chapter(
         max_tokens: 2000,
         temperature: 0.3,
         top_p: 0.95,
+        signal,
       });
       const parsed = parseLLMOutput(response.content);
       allRaw.push(...parsed);
@@ -307,10 +319,12 @@ export async function extract_facts_batch(
   character_aliases: Record<string, string[]> | null,
   llm_provider: LLMProvider,
   language = "zh",
+  signal?: AbortSignal,
 ): Promise<ExtractedFact[]> {
   const P = getPrompts(language as "zh" | "en");
 
   if (chapters.length === 0) return [];
+  if (signal?.aborted) return [];
 
   const messages = [
     { role: "system" as const, content: P.FACTS_BATCH_SYSTEM_PROMPT },
@@ -329,6 +343,7 @@ export async function extract_facts_batch(
       max_tokens: 4000,
       temperature: 0.3,
       top_p: 0.95,
+      signal,
     });
     allRaw = parseLLMOutput(response.content);
   } catch {

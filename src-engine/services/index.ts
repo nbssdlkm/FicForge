@@ -13,7 +13,7 @@ export {
 } from "./facts_lifecycle.js";
 
 // Facts Extraction
-export type { ExtractedFact } from "./facts_extraction.js";
+export type { ExtractedFact, ExtractFactsOptions } from "./facts_extraction.js";
 export {
   extract_facts_batch,
   extract_facts_from_chapter,

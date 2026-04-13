@@ -28,7 +28,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
 
   async generate(params: GenerateParams): Promise<LLMResponse> {
     const body = this.buildBody(params, false);
-    const data = await this.requestWithRetry(body);
+    const data = await this.requestWithRetry(body, params.signal);
 
     let content = "";
     let finishReason = "stop";
@@ -69,6 +69,12 @@ export class OpenAICompatibleProvider implements LLMProvider {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => controller.abort(), READ_TIMEOUT);
     };
+
+    // 外部 signal 触发时同步 abort 内部 controller
+    if (params.signal) {
+      if (params.signal.aborted) { controller.abort(); }
+      else { params.signal.addEventListener("abort", () => controller.abort(), { once: true }); }
+    }
 
     let resp: Response;
     try {
@@ -170,13 +176,19 @@ export class OpenAICompatibleProvider implements LLMProvider {
     return body;
   }
 
-  private async requestWithRetry(body: Record<string, unknown>): Promise<Record<string, unknown>> {
+  private async requestWithRetry(body: Record<string, unknown>, externalSignal?: AbortSignal): Promise<Record<string, unknown>> {
     const url = `${this.apiBase}/v1/chat/completions`;
 
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
+        if (externalSignal?.aborted) {
+          throw new LLMError("cancelled", "请求已取消", []);
+        }
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), READ_TIMEOUT);
+        if (externalSignal) {
+          externalSignal.addEventListener("abort", () => controller.abort(), { once: true });
+        }
 
         const resp = await fetch(url, {
           method: "POST",
@@ -191,7 +203,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
         }
 
         if (resp.status === 429) {
-          return await this.retry429(url, body);
+          return await this.retry429(url, body, externalSignal);
         }
 
         // 5xx: retry once
@@ -211,15 +223,23 @@ export class OpenAICompatibleProvider implements LLMProvider {
     throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"]);
   }
 
-  private async retry429(url: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+  private async retry429(url: string, body: Record<string, unknown>, externalSignal?: AbortSignal): Promise<Record<string, unknown>> {
     const delays = [1000, 2000, 4000];
     for (const delay of delays) {
+      if (externalSignal?.aborted) {
+        throw new LLMError("cancelled", "请求已取消", []);
+      }
       await new Promise((r) => setTimeout(r, delay));
       try {
+        const controller = new AbortController();
+        if (externalSignal) {
+          externalSignal.addEventListener("abort", () => controller.abort(), { once: true });
+        }
         const resp = await fetch(url, {
           method: "POST",
           headers: this.headers(),
           body: JSON.stringify(body),
+          signal: controller.signal,
         });
         if (resp.ok) {
           return (await resp.json()) as Record<string, unknown>;
@@ -227,7 +247,8 @@ export class OpenAICompatibleProvider implements LLMProvider {
         if (resp.status !== 429) {
           handleError(resp.status, await resp.text());
         }
-      } catch {
+      } catch (e) {
+        if (externalSignal?.aborted) throw new LLMError("cancelled", "请求已取消", []);
         continue;
       }
     }

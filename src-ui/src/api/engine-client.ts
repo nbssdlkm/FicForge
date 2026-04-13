@@ -22,6 +22,7 @@ import {
   TrashService,
   RagManager,
   JsonVectorEngine,
+  TaskRunner,
 } from "@ficforge/engine";
 
 // ---------------------------------------------------------------------------
@@ -81,6 +82,7 @@ export interface EngineInstance {
   trash: TrashService;
   vectorEngine: JsonVectorEngine;
   ragManager: RagManager;
+  taskRunner: TaskRunner;
 }
 
 let _engine: EngineInstance | null = null;
@@ -103,6 +105,7 @@ export function initEngine(adapter: PlatformAdapter, dataDir: string): void {
     trash: new TrashService(adapter),
     vectorEngine,
     ragManager: new RagManager(vectorEngine),
+    taskRunner: new TaskRunner(adapter, dataDir),
   };
 }
 
@@ -126,7 +129,7 @@ export function getDataDir(): string {
 
 export { getSettings, updateSettings, testConnection } from "./engine-settings";
 export { getState, setChapterFocus, rebuildIndex, recalcState } from "./engine-state";
-export { listFacts, addFact, editFact, updateFactStatus, batchUpdateFactStatus, extractFacts, extractFactsBatch } from "./engine-facts";
+export { listFacts, addFact, editFact, updateFactStatus, batchUpdateFactStatus, extractFacts, extractFactsBatch, submitFactsExtraction } from "./engine-facts";
 export { getProject, updateProject, addPinned, deletePinned } from "./engine-project";
 export { listChapters, getChapter, getChapterContent, confirmChapter, undoChapter, updateChapterTitle, resolveDirtyChapter, updateChapterContent } from "./engine-chapters";
 export { listDrafts, getDraft, deleteDrafts } from "./engine-drafts";

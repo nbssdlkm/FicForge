@@ -79,5 +79,8 @@ export {
 // Services
 export * from "./services/index.js";
 
+// Tasks
+export * from "./tasks/index.js";
+
 // Sync
 export * from "./sync/index.js";

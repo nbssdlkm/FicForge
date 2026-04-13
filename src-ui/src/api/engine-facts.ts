@@ -3,7 +3,7 @@
 
 /**
  * Engine Facts — listFacts, addFact, editFact, updateFactStatus,
- *   batchUpdateFactStatus, extractFacts, extractFactsBatch.
+ *   batchUpdateFactStatus, extractFacts, extractFactsBatch, submitFactsExtraction.
  */
 
 import {
@@ -14,7 +14,32 @@ import {
   resolve_llm_config,
   create_provider,
 } from "@ficforge/engine";
+import type { LLMProvider, ResolvedLLMConfig, Project } from "@ficforge/engine";
 import { getEngine } from "./engine-client";
+
+// ---------------------------------------------------------------------------
+// 共享 helper：LLM 配置解析（仅本文件内使用）
+// ---------------------------------------------------------------------------
+
+async function resolveFactsProvider(auPath: string): Promise<{
+  provider: LLMProvider;
+  llmConfig: ResolvedLLMConfig;
+  proj: Project;
+  lang: string;
+}> {
+  const e = getEngine();
+  const proj = await e.repos.project.get(auPath);
+  const sett = await e.repos.settings.get();
+  const llmConfig = resolve_llm_config(null, proj, sett);
+  if (llmConfig.mode !== "api") throw new Error("Facts 提取需要 API 模式的 LLM 配置");
+  const provider = create_provider(llmConfig);
+  const lang = sett.app?.language || "zh";
+  return { provider, llmConfig, proj, lang };
+}
+
+// ---------------------------------------------------------------------------
+// CRUD
+// ---------------------------------------------------------------------------
 
 export async function listFacts(auPath: string, status?: string) {
   const { fact } = getEngine().repos;
@@ -27,7 +52,6 @@ export async function listFacts(auPath: string, status?: string) {
 export async function addFact(auPath: string, chapterNum: number, factData: Record<string, unknown>) {
   const { fact, ops } = getEngine().repos;
   const result = await add_fact(auPath, chapterNum, factData, fact, ops);
-  // Return with fact_id alias for frontend compatibility (Python API returns fact_id, domain uses id)
   return { ...result, fact_id: result.id };
 }
 
@@ -56,21 +80,20 @@ export async function batchUpdateFactStatus(auPath: string, factIds: string[], n
   return { updated, failed };
 }
 
+// ---------------------------------------------------------------------------
+// 提取
+// ---------------------------------------------------------------------------
+
 export async function extractFacts(auPath: string, chapterNum: number) {
-  // This requires LLM call — delegate to the engine's extract function
   const { extract_facts_from_chapter } = await import("@ficforge/engine");
   const e = getEngine();
+  const { provider, llmConfig, proj, lang } = await resolveFactsProvider(auPath);
   const chapterContent = await e.repos.chapter.get_content_only(auPath, chapterNum);
   const existingFacts = await e.repos.fact.list_all(auPath);
-  const proj = await e.repos.project.get(auPath);
-  const sett = await e.repos.settings.get();
-  const llmConfig = resolve_llm_config(null, proj, sett);
-  if (llmConfig.mode !== "api") throw new Error("Facts 提取需要 API 模式的 LLM 配置");
-  const provider = create_provider(llmConfig);
-  const lang = sett.app?.language || "zh";
   const facts = await extract_facts_from_chapter(
     chapterContent, chapterNum, existingFacts,
-    proj.cast_registry, null, provider, llmConfig, undefined, lang,
+    proj.cast_registry, null, provider, llmConfig,
+    { language: lang },
   );
   return { facts };
 }
@@ -78,18 +101,39 @@ export async function extractFacts(auPath: string, chapterNum: number) {
 export async function extractFactsBatch(auPath: string, chapterNums: number[]) {
   const { extract_facts_batch } = await import("@ficforge/engine");
   const e = getEngine();
+  const { provider, proj, lang } = await resolveFactsProvider(auPath);
   const chapters = [];
   for (const num of chapterNums) {
     const content = await e.repos.chapter.get_content_only(auPath, num);
     chapters.push({ chapter_num: num, content });
   }
   const existingFacts = await e.repos.fact.list_all(auPath);
-  const proj = await e.repos.project.get(auPath);
-  const sett = await e.repos.settings.get();
-  const llmConfig = resolve_llm_config(null, proj, sett);
-  if (llmConfig.mode !== "api") throw new Error("Facts 批量提取需要 API 模式的 LLM 配置");
-  const provider = create_provider(llmConfig);
-  const lang = sett.app?.language || "zh";
   const facts = await extract_facts_batch(chapters, existingFacts, proj.cast_registry, null, provider, lang);
   return { facts };
+}
+
+/**
+ * 通过 TaskRunner 提交后台批量笔记提取任务。
+ * 返回 taskId，UI 通过 onEvent 订阅进度。
+ */
+export async function submitFactsExtraction(
+  auPath: string,
+  fromChapter: number,
+  toChapter: number,
+): Promise<string> {
+  const { createFactsExtractionTask } = await import("@ficforge/engine");
+  const e = getEngine();
+  const { provider, lang } = await resolveFactsProvider(auPath);
+
+  const task = createFactsExtractionTask(
+    { auPath, fromChapter, toChapter, batchSize: 3, language: lang },
+    {
+      chapterRepo: e.repos.chapter,
+      factRepo: e.repos.fact,
+      projectRepo: e.repos.project,
+      llmProvider: provider,
+    },
+  );
+
+  return e.taskRunner.submit(task);
 }

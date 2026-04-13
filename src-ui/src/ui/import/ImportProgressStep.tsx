@@ -2,6 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { Button } from "../shared/Button";
+import { ProgressBar } from "../shared/ProgressBar";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import type { NewImportResult, ImportProgress } from "../../api/engine-client";
@@ -40,12 +41,7 @@ export function ImportProgressStep({
         </div>
 
         {/* Progress bar */}
-        <div className="h-3 w-full overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
-          <div
-            className="h-full rounded-full bg-accent transition-all duration-300"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
+        <ProgressBar percent={pct} />
 
         <div className="space-y-1 text-sm text-text/70">
           {progress ? (

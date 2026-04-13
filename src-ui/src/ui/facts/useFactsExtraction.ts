@@ -2,10 +2,12 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useRef } from 'react';
-import { addFact, extractFactsBatch, type StateInfo } from '../../api/engine-client';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { addFact, submitFactsExtraction, type StateInfo } from '../../api/engine-client';
+import { getEngine } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
+import type { TaskEvent } from '@ficforge/engine';
 
 type ExtractedFactCandidate = {
   content_raw: string;
@@ -34,6 +36,15 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
   const [extractProgress, setExtractProgress] = useState(0);
   const [savingExtraction, setSavingExtraction] = useState(false);
 
+  // 当前运行中的 taskId
+  const taskIdRef = useRef<string | null>(null);
+
+  // 清理：组件卸载时取消订阅
+  const unsubRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    return () => { unsubRef.current?.(); };
+  }, []);
+
   const handleExtractClick = () => {
     const totalConfirmed = (state?.current_chapter || 1) - 1;
     if (totalConfirmed <= 0) {
@@ -44,44 +55,62 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
     setExtractRangeOpen(true);
   };
 
-  const handleExtractConfirm = async () => {
+  const handleExtractConfirm = useCallback(async () => {
     setExtractRangeOpen(false);
     const [from, to] = extractRange;
-
     const requestAuPath = auPath;
+
     setExtracting(true);
     setExtractProgress(0);
+
     try {
-      const allCandidates: ExtractedFactCandidate[] = [];
-      const totalChapters = to - from + 1;
-      const batchSize = 3; // 每 3 章合并为一个 LLM 请求
-      let done = 0;
-      for (let start = from; start <= to; start += batchSize) {
-        const chapterNums: number[] = [];
-        for (let ch = start; ch <= Math.min(start + batchSize - 1, to); ch++) {
-          chapterNums.push(ch);
-        }
-        const result = await extractFactsBatch(requestAuPath, chapterNums).catch(() => ({ facts: [] }));
+      const taskId = await submitFactsExtraction(requestAuPath, from, to);
+      taskIdRef.current = taskId;
+
+      // 订阅任务事件
+      unsubRef.current?.();
+      const unsub = getEngine().taskRunner.onEvent((id: string, event: TaskEvent) => {
+        if (id !== taskId) return;
         if (activeAuPathRef.current !== requestAuPath) return;
-        allCandidates.push(...((result?.facts || []) as ExtractedFactCandidate[]));
-        done += chapterNums.length;
-        setExtractProgress(Math.round((done / totalChapters) * 100));
-      }
-      if (activeAuPathRef.current !== requestAuPath) return;
-      setExtractedCandidates(allCandidates);
-      setExtractModalOpen(true);
-      if (allCandidates.length === 0) {
-        showToast(t('facts.extractNoResult'), 'info');
-      }
+
+        if (event.type === 'progress') {
+          const pct = event.total > 0 ? Math.round((event.current / event.total) * 100) : 0;
+          setExtractProgress(pct);
+        } else if (event.type === 'completed') {
+          const result = event.result as { facts: ExtractedFactCandidate[] } | undefined;
+          const facts = result?.facts ?? [];
+          setExtractedCandidates(facts);
+          setExtractModalOpen(true);
+          setExtracting(false);
+          if (facts.length === 0) {
+            showToast(t('facts.extractNoResult'), 'info');
+          }
+          taskIdRef.current = null;
+          unsubRef.current?.();
+        } else if (event.type === 'failed') {
+          showError(new Error(event.error), t('error_messages.unknown'));
+          setExtracting(false);
+          taskIdRef.current = null;
+          unsubRef.current?.();
+        } else if (event.type === 'cancelled') {
+          setExtracting(false);
+          taskIdRef.current = null;
+          unsubRef.current?.();
+        }
+      });
+      unsubRef.current = unsub;
     } catch (error) {
       if (activeAuPathRef.current !== requestAuPath) return;
       showError(error, t('error_messages.unknown'));
-    } finally {
-      if (activeAuPathRef.current === requestAuPath) {
-        setExtracting(false);
-      }
+      setExtracting(false);
     }
-  };
+  }, [auPath, extractRange, showError, showToast, t]);
+
+  const handleCancelExtraction = useCallback(() => {
+    if (taskIdRef.current) {
+      getEngine().taskRunner.cancel(taskIdRef.current);
+    }
+  }, []);
 
   const handleSaveExtracted = async () => {
     if (extractedCandidates.length === 0) {
@@ -135,5 +164,6 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
     handleExtractClick,
     handleExtractConfirm,
     handleSaveExtracted,
+    handleCancelExtraction,
   };
 }

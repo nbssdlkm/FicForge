@@ -8,7 +8,7 @@ import { FandomLoreLayout } from "./ui/library/FandomLoreLayout";
 import { MobileFandomView } from "./ui/mobile/MobileFandomView";
 import { SplashScreen } from "./ui/SplashScreen";
 import { AuWorkspaceLayout } from "./ui/workspace/AuWorkspaceLayout";
-import { initEngine } from "./api/engine-client";
+import { initEngine, getEngine } from "./api/engine-client";
 import { useTranslation } from "./i18n/useAppTranslation";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 
@@ -97,6 +97,15 @@ function App() {
           const kvStored = await eng.adapter.kvGet("ficforge_device_id");
           if (!kvStored) {
             await eng.adapter.kvSet("ficforge_device_id", deviceId);
+          }
+        } catch { /* best effort */ }
+
+        // 检查是否有上次中断的后台任务（仅 log，后续可接恢复 UI）
+        try {
+          const eng = getEngine();
+          const interrupted = await eng.taskRunner.getInterruptedTasks();
+          if (interrupted.length > 0) {
+            console.info(`[TaskRunner] ${interrupted.length} interrupted task(s) found from previous session.`);
           }
         } catch { /* best effort */ }
 

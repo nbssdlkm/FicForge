@@ -58,6 +58,8 @@ export class RagManager {
     chapterRepo: ChapterRepository,
     embeddingProvider: EmbeddingProvider,
     castRegistry?: CastRegistryLike | null,
+    signal?: AbortSignal,
+    onProgress?: (current: number, total: number) => void,
   ): Promise<void> {
     // 先切换到目标 AU（ensureLoaded 会清空内存并从磁盘重新加载，
     // 确保不残留前一个 AU 的 chunks）
@@ -69,9 +71,13 @@ export class RagManager {
 
     // 遍历所有章节：批量索引到内存，最后一次性 persist
     const chapters = await chapterRepo.list_main(auPath);
-    for (const ch of chapters) {
+    onProgress?.(0, chapters.length);
+    for (let i = 0; i < chapters.length; i++) {
+      if (signal?.aborted) break;
+      const ch = chapters[i];
       const content = await chapterRepo.get_content_only(auPath, ch.chapter_num);
       await this.indexChapterInMemory(auPath, ch.chapter_num, content, embeddingProvider, castRegistry);
+      onProgress?.(i + 1, chapters.length);
     }
     // 无论有无章节都 persist（0 章节时需要写入空索引覆盖旧数据）
     await this.vectorEngine.persist(vectorsDir(auPath));

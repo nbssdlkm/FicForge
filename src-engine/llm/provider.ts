@@ -78,6 +78,8 @@ export interface GenerateParams {
   top_p: number;
   tools?: ToolDefinition[];
   tool_choice?: string;
+  /** 外部取消信号（与内部超时合并） */
+  signal?: AbortSignal;
 }
 
 export interface LLMProvider {
