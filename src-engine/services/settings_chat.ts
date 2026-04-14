@@ -11,6 +11,7 @@ import { get_tools_for_mode } from "../domain/settings_tools.js";
 import { getPrompts } from "../prompts/index.js";
 import type { PlatformAdapter } from "../platform/adapter.js";
 import type { LLMProvider, Message, ToolCall } from "../llm/provider.js";
+import { LLMError } from "../llm/provider.js";
 import { joinPath } from "../repositories/implementations/file_utils.js";
 import yaml from "js-yaml";
 
@@ -120,19 +121,39 @@ export async function call_settings_llm(
 ): Promise<SettingsChatResult> {
   const tools = get_tools_for_mode(mode);
 
-  const response = await llm_provider.generate({
-    messages: assembled_messages,
-    max_tokens: 4096,
-    temperature: 0.7,
-    top_p: 0.95,
-    tools: tools as unknown as import("../llm/provider.js").ToolDefinition[],
-    tool_choice: "auto",
-  });
+  // 先尝试带 tool calling 请求；若模型/提供商不兼容则降级为纯文本。
+  try {
+    const response = await llm_provider.generate({
+      messages: assembled_messages,
+      max_tokens: 4096,
+      temperature: 0.7,
+      top_p: 0.95,
+      tools: tools as unknown as import("../llm/provider.js").ToolDefinition[],
+      tool_choice: "auto",
+    });
 
-  return {
-    content: response.content,
-    tool_calls: response.tool_calls ?? [],
-  };
+    return {
+      content: response.content,
+      tool_calls: response.tool_calls ?? [],
+    };
+  } catch (err) {
+    // 已明确分类的错误（上下文超限、内容过滤、非 400）原样抛出
+    if (!(err instanceof LLMError) || err.status_code !== 400) throw err;
+    if (err.error_code === "context_length_exceeded" || err.error_code === "content_filtered") throw err;
+
+    // 400 且无明确分类 → 大概率是 tool calling 格式/数量不兼容，去掉 tools 重试
+    const response = await llm_provider.generate({
+      messages: assembled_messages,
+      max_tokens: 4096,
+      temperature: 0.7,
+      top_p: 0.95,
+    });
+
+    return {
+      content: response.content,
+      tool_calls: [],
+    };
+  }
 }
 
 // ---------------------------------------------------------------------------

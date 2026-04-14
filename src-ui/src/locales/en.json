@@ -506,6 +506,7 @@
       "scopeLabel": "Current Story: {{name}}",
       "inheritDescription": "Using global settings by default. Toggle the override below to use a different model or key for this story.",
       "overrideToggleLabel": "Override model settings for this story",
+      "overrideToggle": "Override",
       "storyModel": "Story Model",
       "searchMode": "Connection Mode",
       "chapterLengthDescription": "Controls the target word count for each generation.",

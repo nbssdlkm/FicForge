@@ -260,6 +260,18 @@ export class OpenAICompatibleProvider implements LLMProvider {
 // 错误分类（PRD §4.2 错误表）
 // ---------------------------------------------------------------------------
 
+/** 从 LLM 提供商返回的 JSON 错误体中提取可读消息。 */
+function extractErrorDetail(bodyText: string): string {
+  try {
+    const parsed = JSON.parse(bodyText) as Record<string, unknown>;
+    const err = (parsed.error ?? parsed) as Record<string, unknown>;
+    const msg = (err.message ?? err.msg ?? err.detail ?? "") as string;
+    return typeof msg === "string" ? msg.slice(0, 200) : "";
+  } catch {
+    return bodyText.slice(0, 200);
+  }
+}
+
 function handleError(statusCode: number, bodyText: string): never {
   const lower = bodyText.toLowerCase();
 
@@ -281,11 +293,16 @@ function handleError(statusCode: number, bodyText: string): never {
   }
 
   if (statusCode === 400) {
-    if (["length", "context_length", "too long", "token"].some((k) => lower.includes(k))) {
+    // 上下文超限（兼容中英文错误消息）
+    if (["length", "context_length", "too long", "token", "过长", "超出", "exceed"].some((k) => lower.includes(k))) {
       throw new LLMError("context_length_exceeded", "输入超出模型最大处理能力", ["reduce_input", "switch_model"], 400);
     }
     if (["safety", "flagged", "content_filter"].some((k) => lower.includes(k))) {
       throw new LLMError("content_filtered", "生成被模型安全策略拦截", ["modify_input", "switch_model"], statusCode);
+    }
+    // tool calling 不兼容
+    if (["tool", "function_call", "functions", "not support"].some((k) => lower.includes(k))) {
+      throw new LLMError("tools_unsupported", "当前模型不支持 tool calling", ["retry"], 400);
     }
   }
 
@@ -293,5 +310,7 @@ function handleError(statusCode: number, bodyText: string): never {
     throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"], statusCode);
   }
 
-  throw new LLMError("network_error", `LLM 调用失败 (HTTP ${statusCode})`, ["retry"], statusCode);
+  // 附带提供商原始错误以便调试
+  const detail = extractErrorDetail(bodyText);
+  throw new LLMError("network_error", `LLM 调用失败 (HTTP ${statusCode})${detail ? `: ${detail}` : ""}`, ["retry"], statusCode);
 }

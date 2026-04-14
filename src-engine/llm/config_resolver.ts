@@ -43,10 +43,11 @@ export function resolve_llm_config(
   cfg.api_base = cfg.api_base ?? "";
   cfg.api_key = cfg.api_key ?? "";
 
-  // 掩码 api_key 防御
-  if (cfg.api_key.startsWith("****") || !cfg.api_key) {
+  // 掩码 / 占位符 api_key 防御
+  const isMasked = !cfg.api_key || cfg.api_key.startsWith("****") || cfg.api_key === "<secure>";
+  if (isMasked) {
     const realKey = settings.default_llm?.api_key;
-    if (typeof realKey === "string" && realKey && !realKey.startsWith("****")) {
+    if (typeof realKey === "string" && realKey && !realKey.startsWith("****") && realKey !== "<secure>") {
       cfg.api_key = realKey;
     }
   }

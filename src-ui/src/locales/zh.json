@@ -506,6 +506,7 @@
       "scopeLabel": "当前故事：{{name}}",
       "inheritDescription": "默认沿用全局设置；如果这篇文想单独换模型或密钥，再打开下面的覆盖开关。",
       "overrideToggleLabel": "单独覆盖这篇故事的模型设置",
+      "overrideToggle": "启用覆盖",
       "storyModel": "本篇模型",
       "searchMode": "接入方式",
       "chapterLengthDescription": "控制单次续写时的目标字数。",
