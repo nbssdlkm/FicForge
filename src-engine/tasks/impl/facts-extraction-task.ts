@@ -66,7 +66,7 @@ export function createFactsExtractionTask(
 
     async *resume(ctx: TaskContext, checkpoint: TaskCheckpoint): AsyncGenerator<TaskEvent, FactsExtractionResult> {
       const data = checkpoint.data as FactsCheckpointData;
-      return yield* run(ctx, params, data.completedUpTo, data.extractedSoFar);
+      return yield* run(ctx, params, data.completedUpTo, data.extractedSoFar ?? []);
     },
   };
 
@@ -97,13 +97,13 @@ export function createFactsExtractionTask(
     for (let batchStart = startFrom; batchStart <= toChapter; batchStart += batchSize) {
       if (ctx.signal.aborted) break;
 
-      // 收集这一批的章节内容
-      const chapters: { chapter_num: number; content: string }[] = [];
+      // 收集这一批的章节内容（并行读取）
       const batchEnd = Math.min(batchStart + batchSize - 1, toChapter);
-      for (let ch = batchStart; ch <= batchEnd; ch++) {
-        const content = await chapterRepo.get_content_only(auPath, ch);
-        chapters.push({ chapter_num: ch, content });
-      }
+      const chapterNums = Array.from({ length: batchEnd - batchStart + 1 }, (_, i) => batchStart + i);
+      const contents = await Promise.all(
+        chapterNums.map((ch) => chapterRepo.get_content_only(auPath, ch)),
+      );
+      const chapters = chapterNums.map((ch, i) => ({ chapter_num: ch, content: contents[i] }));
 
       if (ctx.signal.aborted) break;
 
@@ -119,7 +119,7 @@ export function createFactsExtractionTask(
       yield { type: "progress", current: done, total: totalChapters, message: `${done}/${totalChapters}` };
       yield { type: "chunk_done", chunkId: `batch_${batchStart}_${batchEnd}` };
 
-      // 写 checkpoint（每批一次，节制写入）
+      // 写 checkpoint（每批一次，含已提取 facts 以支持断点续传后用户选择）
       await ctx.saveCheckpoint({
         completedUpTo: batchEnd,
         extractedSoFar: allFacts,

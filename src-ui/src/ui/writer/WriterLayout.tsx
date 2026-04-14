@@ -272,7 +272,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     pendingContextSummaryRef.current = null;
     setInstructionText('');
     factsExtraction.setExtractedCandidates([]);
-    factsExtraction.setSelectedExtractedKeys([]);
+    factsExtraction.clearSelection();
     setFinalizeConfirmOpen(false);
     setDiscardConfirmOpen(false);
     factsExtraction.setFactsPromptOpen(false);

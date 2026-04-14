@@ -10,10 +10,7 @@ import {
 } from '../../utils/writerStorage';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
-
-function getCandidateKey(candidate: ExtractedFactCandidate, index: number): string {
-  return `${candidate.content_clean}-${candidate.chapter}-${index}`;
-}
+import { useExtractedSelection, getCandidateKey } from '../../hooks/useExtractedSelection';
 
 export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: number | null) {
   const { t } = useTranslation();
@@ -26,7 +23,7 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
   const [extractingFacts, setExtractingFacts] = useState(false);
   const [savingExtracted, setSavingExtracted] = useState(false);
   const [extractedCandidates, setExtractedCandidates] = useState<ExtractedFactCandidate[]>([]);
-  const [selectedExtractedKeys, setSelectedExtractedKeys] = useState<string[]>([]);
+  const { selectedExtractedKeys, selectAll, clearSelection, toggleExtractedCandidate, filterSelected } = useExtractedSelection();
   const [skipFactsPrompt, setSkipFactsPrompt] = useState(getSkipFactsPromptDefault());
 
   const focusInstructionInput = useCallback(() => {
@@ -59,7 +56,7 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
       if (activeAuPathRef.current !== requestAuPath) return;
       const candidates = result.facts || [];
       setExtractedCandidates(candidates);
-      setSelectedExtractedKeys(candidates.map((candidate, index) => getCandidateKey(candidate, index)));
+      selectAll(candidates);
       setFactsPromptOpen(false);
       setExtractReviewOpen(true);
       if (candidates.length === 0) {
@@ -73,7 +70,7 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
         setExtractingFacts(false);
       }
     }
-  }, [auPath, lastConfirmedChapter, showError, showToast, t]);
+  }, [auPath, lastConfirmedChapter, showError, showToast, t, selectAll]);
 
   const handleSaveExtracted = useCallback(async () => {
     if (selectedExtractedKeys.length === 0) {
@@ -85,9 +82,7 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
     setSavingExtracted(true);
     const requestAuPath = auPath;
     try {
-      const selectedCandidates = extractedCandidates.filter((candidate, index) =>
-        selectedExtractedKeys.includes(getCandidateKey(candidate, index))
-      );
+      const selectedCandidates = filterSelected(extractedCandidates);
 
       for (const candidate of selectedCandidates) {
         await addFact(auPath, candidate.chapter || lastConfirmedChapter || 1, {
@@ -105,7 +100,7 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
       showSuccess(t('facts.extractSaved', { count: selectedCandidates.length }));
       setExtractReviewOpen(false);
       setExtractedCandidates([]);
-      setSelectedExtractedKeys([]);
+      clearSelection();
       focusInstructionInput();
     } catch (error) {
       if (activeAuPathRef.current !== requestAuPath) return;
@@ -115,15 +110,7 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
         setSavingExtracted(false);
       }
     }
-  }, [auPath, extractedCandidates, focusInstructionInput, lastConfirmedChapter, selectedExtractedKeys, showError, showSuccess, t]);
-
-  const toggleExtractedCandidate = useCallback((key: string) => {
-    setSelectedExtractedKeys((current) =>
-      current.includes(key)
-        ? current.filter((item) => item !== key)
-        : [...current, key]
-    );
-  }, []);
+  }, [auPath, extractedCandidates, filterSelected, focusInstructionInput, lastConfirmedChapter, clearSelection, showError, showSuccess, t]);
 
   return {
     // state
@@ -138,7 +125,7 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
     extractedCandidates,
     setExtractedCandidates,
     selectedExtractedKeys,
-    setSelectedExtractedKeys,
+    clearSelection,
     skipFactsPrompt,
     setSkipFactsPrompt,
 
