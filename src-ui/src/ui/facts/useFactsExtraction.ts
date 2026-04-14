@@ -7,11 +7,8 @@ import { addFact, submitFactsExtraction, type StateInfo, type ExtractedFactCandi
 import { getEngine } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
+import { useExtractedSelection, getCandidateKey } from '../../hooks/useExtractedSelection';
 import type { TaskEvent } from '@ficforge/engine';
-
-function getCandidateKey(candidate: ExtractedFactCandidate, index: number): string {
-  return `${candidate.content_clean}-${candidate.chapter}-${index}`;
-}
 
 export function useFactsExtraction(auPath: string, state: StateInfo | null, onSaved: () => void) {
   const { t } = useTranslation();
@@ -23,7 +20,7 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
   const [extracting, setExtracting] = useState(false);
   const [extractModalOpen, setExtractModalOpen] = useState(false);
   const [extractedCandidates, setExtractedCandidates] = useState<ExtractedFactCandidate[]>([]);
-  const [selectedExtractedKeys, setSelectedExtractedKeys] = useState<string[]>([]);
+  const selection = useExtractedSelection();
   const [extractRangeOpen, setExtractRangeOpen] = useState(false);
   const [extractRange, setExtractRange] = useState<[number, number]>([1, 1]);
   const [extractProgress, setExtractProgress] = useState(0);
@@ -50,7 +47,7 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
         const result = event.result as { facts: ExtractedFactCandidate[] } | undefined;
         const facts = result?.facts ?? [];
         setExtractedCandidates(facts);
-        setSelectedExtractedKeys(facts.map((c, i) => getCandidateKey(c, i)));
+        selection.selectAll(facts);
         setExtractModalOpen(true);
         setExtracting(false);
         if (facts.length === 0) {
@@ -109,7 +106,7 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
       const facts = result?.facts ?? [];
       if (facts.length > 0) {
         setExtractedCandidates(facts);
-        setSelectedExtractedKeys(facts.map((c, i) => getCandidateKey(c, i)));
+        selection.selectAll(facts);
         setExtractModalOpen(true);
       }
       // 消费后移除，避免反复挂载时重复弹窗
@@ -158,16 +155,8 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
     }
   }, []);
 
-  const toggleExtractedCandidate = useCallback((key: string) => {
-    setSelectedExtractedKeys((current) =>
-      current.includes(key)
-        ? current.filter((item) => item !== key)
-        : [...current, key]
-    );
-  }, []);
-
   const handleSaveExtracted = async () => {
-    if (selectedExtractedKeys.length === 0) {
+    if (selection.selectedExtractedKeys.length === 0) {
       setExtractModalOpen(false);
       return;
     }
@@ -175,9 +164,7 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
     const requestAuPath = auPath;
     setSavingExtraction(true);
     try {
-      const selectedCandidates = extractedCandidates.filter((candidate, index) =>
-        selectedExtractedKeys.includes(getCandidateKey(candidate, index))
-      );
+      const selectedCandidates = selection.filterSelected(extractedCandidates);
       for (const candidate of selectedCandidates) {
         await addFact(requestAuPath, candidate.chapter || 1, {
           content_raw: candidate.content_raw || candidate.content_clean,
@@ -194,7 +181,7 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
       showSuccess(t('facts.extractSaved', { count: selectedCandidates.length }));
       setExtractModalOpen(false);
       setExtractedCandidates([]);
-      setSelectedExtractedKeys([]);
+      selection.clearSelection();
       await onSaved();
     } catch (error) {
       if (activeAuPathRef.current !== requestAuPath) return;
@@ -213,7 +200,7 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
     setExtractModalOpen,
     extractedCandidates,
     setExtractedCandidates,
-    selectedExtractedKeys,
+    selectedExtractedKeys: selection.selectedExtractedKeys,
     extractRangeOpen,
     setExtractRangeOpen,
     extractRange,
@@ -224,7 +211,7 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
     handleExtractConfirm,
     handleSaveExtracted,
     handleCancelExtraction,
-    toggleExtractedCandidate,
+    toggleExtractedCandidate: selection.toggleExtractedCandidate,
     getCandidateKey,
   };
 }

@@ -38,7 +38,7 @@ export interface FactsExtractionResult {
 
 interface FactsCheckpointData {
   completedUpTo: number; // 已完成到哪一章（含）
-  extractedSoFar?: ExtractedFact[]; // 仅 resume 兼容旧 checkpoint 用
+  extractedSoFar: ExtractedFact[];
 }
 
 // ---------------------------------------------------------------------------
@@ -119,9 +119,10 @@ export function createFactsExtractionTask(
       yield { type: "progress", current: done, total: totalChapters, message: `${done}/${totalChapters}` };
       yield { type: "chunk_done", chunkId: `batch_${batchStart}_${batchEnd}` };
 
-      // 写 checkpoint（每批一次，只存进度游标，不序列化全量 facts）
+      // 写 checkpoint（每批一次，含已提取 facts 以支持断点续传后用户选择）
       await ctx.saveCheckpoint({
         completedUpTo: batchEnd,
+        extractedSoFar: allFacts,
       } satisfies FactsCheckpointData);
     }
 
