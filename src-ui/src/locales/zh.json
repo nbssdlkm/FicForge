@@ -693,7 +693,7 @@
     "writing": "正在写入本地文件…",
     "submit": "确认导出",
     "saveFailed": "导出失败，请检查文件权限。",
-    "savedToDocuments": "已保存到手机文档目录"
+    "savedToDocuments": "已保存到文档目录：{{filename}}"
   },
   "emptyState": {
     "library": {

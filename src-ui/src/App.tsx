@@ -78,7 +78,8 @@ function App() {
             // Capacitor 环境（Android/iOS）：使用 CapacitorAdapter
             const { CapacitorAdapter } = await import("@ficforge/engine");
             const adapter = new CapacitorAdapter(deviceId);
-            initEngine(adapter, "");
+            const capDataDir = await adapter.getDataDir();
+            initEngine(adapter, capDataDir);
           } else {
             // PWA / 浏览器：使用 WebAdapter（IndexedDB）
             const { WebAdapter } = await import("@ficforge/engine");

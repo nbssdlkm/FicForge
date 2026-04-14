@@ -86,8 +86,13 @@ export class CapacitorAdapter implements PlatformAdapter {
   }
 
   async getDataDir(): Promise<string> {
-    // Capacitor Filesystem 以 Directory.Data 为根，路径都是相对的
-    return "";
+    try {
+      const { Filesystem, Directory } = await import("@capacitor/filesystem");
+      const result = await Filesystem.getUri({ path: "", directory: Directory.Data });
+      return result.uri;
+    } catch {
+      return "";
+    }
   }
 
   getDeviceId(): string {

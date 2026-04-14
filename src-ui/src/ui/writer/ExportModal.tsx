@@ -115,7 +115,7 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onCl
             encoding: Encoding.UTF8,
             recursive: true,
           });
-          showToast(t('export.savedToDocuments'), 'success');
+          showToast(t('export.savedToDocuments', { filename }), 'success');
           onClose();
         }
       } else {

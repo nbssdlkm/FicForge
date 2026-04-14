@@ -15,8 +15,11 @@ export async function exportChapters(params: {
   end_chapter?: number;
   include_title?: boolean;
 }) {
-  const { chapter, state } = getEngine().repos;
-  const st = await state.get(params.au_path);
+  const { chapter, state, project } = getEngine().repos;
+  const [st, proj] = await Promise.all([
+    state.get(params.au_path),
+    project.get(params.au_path),
+  ]);
   const text = await engineExportChapters({
     au_id: params.au_path,
     chapter_repo: chapter,
@@ -26,7 +29,9 @@ export async function exportChapters(params: {
     chapter_titles: st.chapter_titles,
   });
   const blob = new Blob([text], { type: "text/plain" });
-  const filename = `export.${params.format ?? "txt"}`;
+  const ext = params.format ?? "txt";
+  const safeName = (proj.name || "export").replace(/[<>:"/\\|?*]/g, "_");
+  const filename = `${safeName}.${ext}`;
   return { blob, filename };
 }
 

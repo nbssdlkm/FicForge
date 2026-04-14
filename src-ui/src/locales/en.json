@@ -693,7 +693,7 @@
     "writing": "Writing to local file…",
     "submit": "Export",
     "saveFailed": "Export failed. Check file permissions.",
-    "savedToDocuments": "Saved to Documents folder"
+    "savedToDocuments": "Saved to Documents: {{filename}}"
   },
   "emptyState": {
     "library": {
