@@ -17,7 +17,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { rebuildIndex } from '../../api/engine-client';
 import { listChapters, updateChapterTitle, type ChapterInfo } from '../../api/engine-client';
 import { getState } from '../../api/engine-client';
-import { listFacts, type FactInfo } from '../../api/engine-client';
+import { listFacts, logCatch, type FactInfo } from '../../api/engine-client';
 import { getProject } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { FeedbackProvider, useFeedback } from '../../hooks/useFeedback';
@@ -45,7 +45,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const [milestoneRefreshKey, setMilestoneRefreshKey] = useState(0);
 
   const refreshChapters = useCallback(() => {
-    listChapters(auPath).then(chs => { if (activeAuPathRef.current === auPath) setChapters(chs); }).catch((err) => console.warn('refreshChapters failed:', err));
+    listChapters(auPath).then(chs => { if (activeAuPathRef.current === auPath) setChapters(chs); }).catch((err) => logCatch('workspace', 'refreshChapters failed', err));
     setMilestoneRefreshKey(k => k + 1);
   }, [auPath]);
 

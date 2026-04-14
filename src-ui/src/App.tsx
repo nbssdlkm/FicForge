@@ -8,7 +8,7 @@ import { FandomLoreLayout } from "./ui/library/FandomLoreLayout";
 import { MobileFandomView } from "./ui/mobile/MobileFandomView";
 import { SplashScreen } from "./ui/SplashScreen";
 import { AuWorkspaceLayout } from "./ui/workspace/AuWorkspaceLayout";
-import { initEngine, getEngine, initLogger } from "./api/engine-client";
+import { initEngine, getEngine, initLogger, getLogger } from "./api/engine-client";
 import { useTranslation } from "./i18n/useAppTranslation";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 
@@ -109,7 +109,7 @@ function App() {
           const eng = getEngine();
           const interrupted = await eng.taskRunner.getInterruptedTasks();
           if (interrupted.length > 0) {
-            console.info(`[TaskRunner] ${interrupted.length} interrupted task(s) found from previous session.`);
+            getLogger().info("task_runner", `${interrupted.length} interrupted task(s) from previous session`);
           }
         } catch { /* best effort */ }
 

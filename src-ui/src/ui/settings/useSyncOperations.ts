@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useRef, useCallback } from 'react';
-import { updateSettings } from '../../api/engine-client';
+import { updateSettings, logCatch } from '../../api/engine-client';
 import { syncAllAus, resolveFileConflict, testWebDAVConnection, type WebDAVConfig } from '../../api/engine-sync';
 import { type ConflictItem } from '../shared/ConflictResolveModal';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -101,7 +101,7 @@ export function useSyncOperations(syncConfig: { url: string; username: string; p
             webdav: { url: syncConfig.url, username: syncConfig.username, password: syncConfig.password, remote_dir: syncConfig.remote_dir },
             last_sync: now,
           },
-        }).catch((err) => { console.warn('last_sync persist failed:', err); });
+        }).catch((err) => { logCatch('sync', 'last_sync persist failed', err); });
         setSyncResultStatus('success');
         setSyncMessage(t('settings.sync.syncSuccess'));
       }

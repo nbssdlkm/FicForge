@@ -8,7 +8,7 @@ import { Button } from '../shared/Button';
 import { FileUp } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
-import { exportChapters } from '../../api/engine-client';
+import { exportChapters, logCatch } from '../../api/engine-client';
 
 /** Tauri 环境检测：window.__TAURI_INTERNALS__ 存在则为 Tauri 打包环境 */
 const isTauri = () => typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__;
@@ -36,7 +36,7 @@ async function saveWithTauriDialog(blob: Blob, filename: string): Promise<'saved
     await writeFile(filePath, new Uint8Array(arrayBuffer));
     return 'saved';
   } catch (e) {
-    console.error('[Export] Tauri save failed:', e);
+    logCatch('export', 'Tauri save failed', e);
     // Fallback: 尝试浏览器下载
     try {
       saveWithBrowserDownload(blob, filename);
