@@ -11,6 +11,17 @@ import { LLMError } from "./provider.js";
 
 const READ_TIMEOUT = 120_000;
 
+/**
+ * 清洗字符串中可能导致 JSON 解析失败的字符。
+ * 部分 LLM 提供商的 JSON parser 对 lone surrogate、NULL 等字符报
+ * "unexpected end of hex escape" 错误。在序列化前移除这些字符。
+ */
+function sanitizeForJson(s: string): string {
+  // 移除 lone surrogates (U+D800–U+DFFF) 和 NULL (U+0000)
+  // eslint-disable-next-line no-control-regex
+  return s.replace(/[\u0000\uD800-\uDFFF]/g, "");
+}
+
 export class OpenAICompatibleProvider implements LLMProvider {
   private apiBase: string;
   private apiKey: string;
@@ -160,7 +171,10 @@ export class OpenAICompatibleProvider implements LLMProvider {
   private buildBody(params: GenerateParams, stream: boolean): Record<string, unknown> {
     const body: Record<string, unknown> = {
       model: this.model,
-      messages: params.messages,
+      messages: params.messages.map((m) => ({
+        ...m,
+        content: typeof m.content === "string" ? sanitizeForJson(m.content) : m.content,
+      })),
       max_tokens: params.max_tokens,
       temperature: params.temperature,
       top_p: params.top_p,
