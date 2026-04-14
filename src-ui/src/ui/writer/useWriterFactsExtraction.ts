@@ -23,7 +23,7 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
   const [extractingFacts, setExtractingFacts] = useState(false);
   const [savingExtracted, setSavingExtracted] = useState(false);
   const [extractedCandidates, setExtractedCandidates] = useState<ExtractedFactCandidate[]>([]);
-  const selection = useExtractedSelection();
+  const { selectedExtractedKeys, selectAll, clearSelection, toggleExtractedCandidate, filterSelected } = useExtractedSelection();
   const [skipFactsPrompt, setSkipFactsPrompt] = useState(getSkipFactsPromptDefault());
 
   const focusInstructionInput = useCallback(() => {
@@ -56,7 +56,7 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
       if (activeAuPathRef.current !== requestAuPath) return;
       const candidates = result.facts || [];
       setExtractedCandidates(candidates);
-      selection.selectAll(candidates);
+      selectAll(candidates);
       setFactsPromptOpen(false);
       setExtractReviewOpen(true);
       if (candidates.length === 0) {
@@ -70,10 +70,10 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
         setExtractingFacts(false);
       }
     }
-  }, [auPath, lastConfirmedChapter, showError, showToast, t]);
+  }, [auPath, lastConfirmedChapter, showError, showToast, t, selectAll]);
 
   const handleSaveExtracted = useCallback(async () => {
-    if (selection.selectedExtractedKeys.length === 0) {
+    if (selectedExtractedKeys.length === 0) {
       setExtractReviewOpen(false);
       focusInstructionInput();
       return;
@@ -82,7 +82,7 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
     setSavingExtracted(true);
     const requestAuPath = auPath;
     try {
-      const selectedCandidates = selection.filterSelected(extractedCandidates);
+      const selectedCandidates = filterSelected(extractedCandidates);
 
       for (const candidate of selectedCandidates) {
         await addFact(auPath, candidate.chapter || lastConfirmedChapter || 1, {
@@ -100,7 +100,7 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
       showSuccess(t('facts.extractSaved', { count: selectedCandidates.length }));
       setExtractReviewOpen(false);
       setExtractedCandidates([]);
-      selection.clearSelection();
+      clearSelection();
       focusInstructionInput();
     } catch (error) {
       if (activeAuPathRef.current !== requestAuPath) return;
@@ -110,7 +110,7 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
         setSavingExtracted(false);
       }
     }
-  }, [auPath, extractedCandidates, focusInstructionInput, lastConfirmedChapter, selection, showError, showSuccess, t]);
+  }, [auPath, extractedCandidates, filterSelected, focusInstructionInput, lastConfirmedChapter, clearSelection, showError, showSuccess, t]);
 
   return {
     // state
@@ -124,8 +124,8 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
     setSavingExtracted,
     extractedCandidates,
     setExtractedCandidates,
-    selectedExtractedKeys: selection.selectedExtractedKeys,
-    setSelectedExtractedKeys: selection.selectAll, // 兼容：WriterLayout 直接设置全选
+    selectedExtractedKeys,
+    clearSelection,
     skipFactsPrompt,
     setSkipFactsPrompt,
 
@@ -135,7 +135,7 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
     handleSkipFactsPrompt,
     handleOpenExtractReview,
     handleSaveExtracted,
-    toggleExtractedCandidate: selection.toggleExtractedCandidate,
+    toggleExtractedCandidate,
 
     // helper
     getCandidateKey,
