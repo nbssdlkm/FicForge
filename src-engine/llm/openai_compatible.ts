@@ -8,6 +8,7 @@
 
 import type { GenerateParams, LLMChunk, LLMProvider, LLMResponse, ToolCall } from "./provider.js";
 import { LLMError } from "./provider.js";
+import { hasLogger, getLogger } from "../logger/index.js";
 
 const READ_TIMEOUT = 120_000;
 
@@ -39,8 +40,15 @@ export class OpenAICompatibleProvider implements LLMProvider {
   // ------------------------------------------------------------------
 
   async generate(params: GenerateParams): Promise<LLMResponse> {
+    const t0 = Date.now();
     const body = this.buildBody(params, false);
-    const data = await this.requestWithRetry(body, params.signal);
+    let data: Record<string, unknown>;
+    try {
+      data = await this.requestWithRetry(body, params.signal);
+    } catch (err) {
+      if (hasLogger()) getLogger().error("llm", "generate failed", { model: this.model, duration_ms: Date.now() - t0, error: err instanceof Error ? err.message : String(err) });
+      throw err;
+    }
 
     let content = "";
     let finishReason = "stop";
@@ -56,11 +64,15 @@ export class OpenAICompatibleProvider implements LLMProvider {
     }
 
     const usage = (data.usage ?? {}) as Record<string, number>;
+    const inputTokens = usage.prompt_tokens ?? null;
+    const outputTokens = usage.completion_tokens ?? null;
+    if (hasLogger()) getLogger().info("llm", "generate ok", { model: this.model, input_tokens: inputTokens, output_tokens: outputTokens, duration_ms: Date.now() - t0, tools: params.tools?.length ?? 0 });
+
     return {
       content,
       model: (data.model as string) ?? this.model,
-      input_tokens: usage.prompt_tokens ?? null,
-      output_tokens: usage.completion_tokens ?? null,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
       finish_reason: finishReason,
       tool_calls: toolCalls,
     };

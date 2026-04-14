@@ -466,6 +466,18 @@
       "dataPathDefault": "App internal storage",
       "dataPathHint": "All your work is saved at this location. We recommend regular backups via export or sync."
     },
+    "debugLogs": {
+      "title": "Debug Logs",
+      "filterAll": "All",
+      "filterWarn": "Warn + Error",
+      "filterError": "Error Only",
+      "refresh": "Refresh",
+      "copy": "Copy",
+      "copied": "Copied to clipboard",
+      "copyFailed": "Copy failed",
+      "count": "{{count}} entries",
+      "empty": "No logs yet"
+    },
     "sync": {
       "title": "Data Sync",
       "modeLabel": "Sync Mode",

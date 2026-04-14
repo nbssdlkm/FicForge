@@ -9,6 +9,7 @@ import { createOpsEntry } from "../../domain/ops_entry.js";
 import type { OpsRepository } from "../interfaces/ops.js";
 import { append_jsonl, joinPath, read_jsonl, rewrite_jsonl, withWriteLock } from "./file_utils.js";
 import { getNextLamportClock, initLamportClockFromOps } from "../../sync/ops_merge.js";
+import { hasLogger, getLogger } from "../../logger/index.js";
 
 // ---------------------------------------------------------------------------
 // 坏行保留
@@ -50,7 +51,7 @@ async function preserveBadLines(
   } catch {
     // sidecar 写入失败不阻断主流程
   }
-  console.warn(`[file_ops] Preserved ${badLines.length} bad line(s) to ${badPath}`);
+  if (hasLogger()) getLogger().warn("file_ops", "preserved bad lines", { badPath, count: badLines.length });
 }
 
 // ---------------------------------------------------------------------------
@@ -114,7 +115,7 @@ export class FileOpsRepository implements OpsRepository {
     if (!exists) return [];
     const [entries, errors] = await read_jsonl(this.adapter, path, dictToEntry);
     if (errors.length > 0) {
-      console.warn(`[file_ops] ${errors.length} bad line(s) in ${path}: ${errors[0]}${errors.length > 1 ? ` (+${errors.length - 1} more)` : ""}`);
+      if (hasLogger()) getLogger().warn("file_ops", "bad lines on read", { path, count: errors.length, first: errors[0] });
     }
     // 懒初始化 lamport clock（首次读取 ops 时设置）
     initLamportClockFromOps(entries);

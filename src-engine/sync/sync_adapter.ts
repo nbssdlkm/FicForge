@@ -4,6 +4,7 @@
 /** SyncAdapter 接口 + WebDAV 实现。参见 PRD v4 §3。 */
 
 import type { OpsEntry } from "../domain/ops_entry.js";
+import { hasLogger, getLogger } from "../logger/index.js";
 
 // ---------------------------------------------------------------------------
 // 接口
@@ -54,7 +55,7 @@ export class WebDAVSyncAdapter implements SyncAdapter {
       }
     }
     if (badLineCount > 0) {
-      console.warn(`[sync_adapter] ${badLineCount} bad line(s) in remote ${auPath}/ops.jsonl`);
+      if (hasLogger()) getLogger().warn("sync_adapter", "bad lines in remote ops", { auPath, count: badLineCount });
     }
     return { entries, badLineCount };
   }

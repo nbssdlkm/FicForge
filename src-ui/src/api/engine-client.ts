@@ -23,6 +23,8 @@ import {
   RagManager,
   JsonVectorEngine,
   TaskRunner,
+  getLogger,
+  hasLogger,
 } from "@ficforge/engine";
 
 // ---------------------------------------------------------------------------
@@ -88,6 +90,10 @@ export interface EngineInstance {
 let _engine: EngineInstance | null = null;
 
 export function initEngine(adapter: PlatformAdapter, dataDir: string): void {
+  // Logger 在 engine 之前初始化（App.tsx 中调用 initLogger）
+  // 这里记录引擎启动
+  if (hasLogger()) getLogger().info("engine", "initEngine", { platform: adapter.getPlatform(), dataDir });
+
   const vectorEngine = new JsonVectorEngine(adapter);
   _engine = {
     adapter,
@@ -139,3 +145,6 @@ export { saveLore, readLore, deleteLore, listLoreFiles, importFromFandom, getLor
 export { sendSettingsChat } from "./engine-settings-chat";
 export { listFandoms, createFandom, listAus, createAu, deleteFandom, deleteAu, listFandomFiles, readFandomFile, renameFandom, renameAu } from "./engine-fandom";
 export { exportChapters, importChaptersFromText } from "./engine-export";
+
+// Logger re-exports
+export { initLogger, getLogger, logCatch } from "@ficforge/engine";

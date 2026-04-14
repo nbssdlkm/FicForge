@@ -16,6 +16,7 @@ import { createFact } from "../domain/fact.js";
 import {
   FACT_SOURCE_VALUES, FACT_STATUS_VALUES, FACT_TYPE_VALUES, NARRATIVE_WEIGHT_VALUES,
 } from "../domain/enums.js";
+import { hasLogger, getLogger } from "../logger/index.js";
 import type { FactSource, FactStatus, FactType, NarrativeWeight } from "../domain/enums.js";
 
 // ---------------------------------------------------------------------------
@@ -304,7 +305,7 @@ function validateEnum<T extends string>(
   value: string, valid: readonly T[], fallback: T, field: string, id: string,
 ): T {
   if ((valid as readonly string[]).includes(value)) return value as T;
-  console.warn(`[ops_merge] Unknown ${field} "${value}" for fact ${id}, using "${fallback}"`);
+  if (hasLogger()) getLogger().warn("ops_merge", `unknown ${field}`, { id, value, fallback });
   return fallback;
 }
 

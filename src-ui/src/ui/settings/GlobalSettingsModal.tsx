@@ -13,6 +13,7 @@ import { useSyncOperations } from './useSyncOperations';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
 import { useFeedback } from '../../hooks/useFeedback';
+import { DebugLogsSection } from './DebugLogsSection';
 import { changeLanguage, SUPPORTED_LANGUAGES, type AppLanguage } from '../../i18n';
 import { ApiSetupHelp } from '../help/ApiSetupHelp';
 import { GlobalSettingsSyncSection } from './GlobalSettingsSyncSection';
@@ -398,6 +399,8 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
             </p>
             <p className="text-xs text-text/40">{t('settings.global.dataPathHint')}</p>
           </div>
+
+          <DebugLogsSection />
 
           <p className="text-[11px] text-text/35 leading-relaxed mt-4">{t('ethics.aboutFooter')}</p>
 

@@ -8,7 +8,7 @@ import { FandomLoreLayout } from "./ui/library/FandomLoreLayout";
 import { MobileFandomView } from "./ui/mobile/MobileFandomView";
 import { SplashScreen } from "./ui/SplashScreen";
 import { AuWorkspaceLayout } from "./ui/workspace/AuWorkspaceLayout";
-import { initEngine, getEngine } from "./api/engine-client";
+import { initEngine, getEngine, initLogger } from "./api/engine-client";
 import { useTranslation } from "./i18n/useAppTranslation";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 
@@ -68,6 +68,7 @@ function App() {
             // 检测失败，使用默认 appDataDir
           }
 
+          initLogger(adapter, dataDir);
           initEngine(adapter, dataDir);
         } else {
           // 非 Tauri 环境：检测 Capacitor 或降级 WebAdapter
@@ -79,12 +80,14 @@ function App() {
             const { CapacitorAdapter } = await import("@ficforge/engine");
             const adapter = new CapacitorAdapter(deviceId);
             const capDataDir = await adapter.getDataDir();
+            initLogger(adapter, capDataDir);
             initEngine(adapter, capDataDir);
           } else {
             // PWA / 浏览器：使用 WebAdapter（IndexedDB）
             const { WebAdapter } = await import("@ficforge/engine");
             const adapter = new WebAdapter(deviceId);
             await adapter.init();
+            initLogger(adapter, "");
             initEngine(adapter, "");
             // 请求持久化存储，防止浏览器自动回收 IndexedDB 数据
             try { await navigator.storage?.persist?.(); } catch { /* best effort */ }

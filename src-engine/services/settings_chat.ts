@@ -12,6 +12,7 @@ import { getPrompts } from "../prompts/index.js";
 import type { PlatformAdapter } from "../platform/adapter.js";
 import type { LLMProvider, Message, ToolCall } from "../llm/provider.js";
 import { LLMError } from "../llm/provider.js";
+import { hasLogger, getLogger } from "../logger/index.js";
 import { joinPath } from "../repositories/implementations/file_utils.js";
 import yaml from "js-yaml";
 
@@ -142,6 +143,7 @@ export async function call_settings_llm(
     if (err.error_code === "context_length_exceeded" || err.error_code === "content_filtered") throw err;
 
     // 400 且无明确分类 → 大概率是 tool calling 格式/数量不兼容，去掉 tools 重试
+    if (hasLogger()) getLogger().warn("settings_chat", "tool calling 400, retrying without tools", { mode, error: err.message });
     const response = await llm_provider.generate({
       messages: assembled_messages,
       max_tokens: 4096,

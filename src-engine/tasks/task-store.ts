@@ -13,6 +13,7 @@
 import type { PlatformAdapter } from "../platform/index.js";
 import type { TaskCheckpoint } from "./types.js";
 import { joinPath } from "../repositories/implementations/file_utils.js";
+import { logCatch } from "../logger/index.js";
 
 const TASKS_DIR = ".ficforge/tasks";
 
@@ -47,7 +48,8 @@ export class TaskStore {
     try {
       const json = await this.adapter.readFile(this.taskPath(taskId));
       return JSON.parse(json) as TaskCheckpoint;
-    } catch {
+    } catch (e) {
+      logCatch("task_store", "checkpoint load failed", e);
       return null;
     }
   }
@@ -56,8 +58,8 @@ export class TaskStore {
   async remove(taskId: string): Promise<void> {
     try {
       await this.adapter.deleteFile(this.taskPath(taskId));
-    } catch {
-      // 文件不存在，忽略
+    } catch (e) {
+      logCatch("task_store", "checkpoint delete failed", e);
     }
   }
 
@@ -67,7 +69,8 @@ export class TaskStore {
     let files: string[];
     try {
       files = await this.adapter.listDir(dir);
-    } catch {
+    } catch (e) {
+      logCatch("task_store", "listDir failed for tasks", e);
       return [];
     }
 
@@ -81,8 +84,8 @@ export class TaskStore {
           cp.status = "interrupted";
           results.push(cp);
         }
-      } catch {
-        // 损坏的 checkpoint，跳过
+      } catch (e) {
+        logCatch("task_store", "corrupt checkpoint skipped", e);
       }
     }
     return results;

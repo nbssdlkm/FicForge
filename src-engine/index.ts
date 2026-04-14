@@ -84,3 +84,8 @@ export * from "./tasks/index.js";
 
 // Sync
 export * from "./sync/index.js";
+
+// Logger
+export type { LogEntry, LogLevel, LoggerOptions } from "./logger/index.js";
+export { FileLogger, getLogger, hasLogger, initLogger, logCatch } from "./logger/index.js";
+export type { Logger } from "./logger/index.js";

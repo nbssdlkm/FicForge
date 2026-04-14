@@ -466,6 +466,18 @@
       "dataPathDefault": "应用内部存储",
       "dataPathHint": "你的所有作品数据保存在此路径下。建议定期通过导出或同步功能备份。"
     },
+    "debugLogs": {
+      "title": "调试日志",
+      "filterAll": "全部",
+      "filterWarn": "警告+错误",
+      "filterError": "仅错误",
+      "refresh": "刷新",
+      "copy": "复制",
+      "copied": "已复制到剪贴板",
+      "copyFailed": "复制失败",
+      "count": "{{count}} 条",
+      "empty": "暂无日志"
+    },
     "sync": {
       "title": "数据同步",
       "modeLabel": "同步方式",

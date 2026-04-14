@@ -9,6 +9,7 @@ import type { Fact } from "../../domain/fact.js";
 import { createFact } from "../../domain/fact.js";
 import type { FactRepository } from "../interfaces/fact.js";
 import { append_jsonl, joinPath, now_utc, read_jsonl, rewrite_jsonl, withWriteLock } from "./file_utils.js";
+import { hasLogger, getLogger } from "../../logger/index.js";
 
 // ---------------------------------------------------------------------------
 // Fact ↔ JSON 序列化
@@ -72,7 +73,7 @@ export class FileFactRepository implements FactRepository {
     const path = this.factsPath(au_id);
     const [facts, errors] = await read_jsonl(this.adapter, path, dictToFact);
     if (errors.length > 0) {
-      console.warn(`[file_fact] ${errors.length} bad line(s) in ${path}: ${errors[0]}${errors.length > 1 ? ` (+${errors.length - 1} more)` : ""}`);
+      if (hasLogger()) getLogger().warn("file_fact", "bad lines on read", { path, count: errors.length, first: errors[0] });
     }
     return facts;
   }
@@ -118,7 +119,7 @@ export class FileFactRepository implements FactRepository {
     await withWriteLock(path, async () => {
       const [facts, errors] = await read_jsonl(this.adapter, path, dictToFact);
       if (errors.length > 0) {
-        console.warn(`[file_fact] ${errors.length} bad line(s) in ${path} during update`);
+        if (hasLogger()) getLogger().warn("file_fact", "bad lines on update", { path, count: errors.length });
       }
       const items = facts.map((f) => (f.id === fact.id ? factToDict(fact) : factToDict(f)));
       await rewrite_jsonl(this.adapter, path, items);
@@ -131,7 +132,7 @@ export class FileFactRepository implements FactRepository {
     await withWriteLock(path, async () => {
       const [facts, errors] = await read_jsonl(this.adapter, path, dictToFact);
       if (errors.length > 0) {
-        console.warn(`[file_fact] ${errors.length} bad line(s) in ${path} during delete`);
+        if (hasLogger()) getLogger().warn("file_fact", "bad lines on delete", { path, count: errors.length });
       }
       const remaining = facts.filter((f) => !idsSet.has(f.id));
       await rewrite_jsonl(this.adapter, path, remaining.map(factToDict));
