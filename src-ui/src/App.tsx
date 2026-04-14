@@ -77,11 +77,11 @@ function App() {
 
           if (isCapacitor) {
             // Capacitor 环境（Android/iOS）：使用 CapacitorAdapter
+            // 文件操作用相对路径（""），file:// URI 仅用于 UI 显示
             const { CapacitorAdapter } = await import("@ficforge/engine");
             const adapter = new CapacitorAdapter(deviceId);
-            const capDataDir = await adapter.getDataDir();
-            initLogger(adapter, capDataDir);
-            initEngine(adapter, capDataDir);
+            initLogger(adapter, "");
+            initEngine(adapter, "");
           } else {
             // PWA / 浏览器：使用 WebAdapter（IndexedDB）
             const { WebAdapter } = await import("@ficforge/engine");

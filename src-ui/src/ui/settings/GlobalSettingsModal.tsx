@@ -7,7 +7,7 @@ import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { HelpCircle, Loader2, CheckCircle2, XCircle } from 'lucide-react';
-import { getSettings, testConnection, updateSettings, LLMMode, type SettingsInfo, getDataDir } from '../../api/engine-client';
+import { getSettings, testConnection, updateSettings, LLMMode, type SettingsInfo, getDataDir, getDisplayDataDir } from '../../api/engine-client';
 import { ConflictResolveModal } from '../shared/ConflictResolveModal';
 import { useSyncOperations } from './useSyncOperations';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -51,6 +51,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   const [syncRemoteDir, setSyncRemoteDir] = useState('/FicForge/');
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [apiHelpOpen, setApiHelpOpen] = useState(false);
+  const [displayDataDir, setDisplayDataDir] = useState('');
 
   const syncOps = useSyncOperations({ url: syncUrl, username: syncUsername, password: syncPassword, remote_dir: syncRemoteDir });
   const {
@@ -94,6 +95,10 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
       const requestId = ++modalRequestIdRef.current;
       setLoading(true);
       resetFormState();
+      // 异步获取显示用路径（Capacitor 返回 file:// URI，Tauri 返回绝对路径，Web 返回空）
+      getDisplayDataDir().then((dir) => {
+        if (requestId === modalRequestIdRef.current) setDisplayDataDir(dir);
+      }).catch(() => {});
       getSettings().then((res) => {
         if (requestId !== modalRequestIdRef.current) return;
         setSettings(res);
@@ -395,7 +400,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
           <div className="space-y-1 border-t border-black/10 pt-5 dark:border-white/10">
             <label className="text-sm font-bold text-text/90">{t('settings.global.dataPathLabel')}</label>
             <p className="rounded-md bg-black/5 px-3 py-2 font-mono text-xs text-text/60 dark:bg-white/5">
-              {getDataDir() || t('settings.global.dataPathDefault')}
+              {displayDataDir || getDataDir() || t('settings.global.dataPathDefault')}
             </p>
             <p className="text-xs text-text/40">{t('settings.global.dataPathHint')}</p>
           </div>

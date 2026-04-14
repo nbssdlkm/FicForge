@@ -129,6 +129,11 @@ export function getDataDir(): string {
   return getEngine().dataDir;
 }
 
+/** 异步获取显示用数据路径（Capacitor 返回 file:// URI，Tauri 返回绝对路径）。 */
+export async function getDisplayDataDir(): Promise<string> {
+  return getEngine().adapter.getDataDir();
+}
+
 // ---------------------------------------------------------------------------
 // Domain module re-exports
 // ---------------------------------------------------------------------------
