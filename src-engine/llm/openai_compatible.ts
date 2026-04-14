@@ -17,9 +17,10 @@ const READ_TIMEOUT = 120_000;
  * "unexpected end of hex escape" 错误。在序列化前移除这些字符。
  */
 function sanitizeForJson(s: string): string {
-  // 移除 lone surrogates (U+D800–U+DFFF) 和 NULL (U+0000)
+  // 仅移除 lone surrogates（不成对的）和 NULL (U+0000)。
+  // 合法的 surrogate pair（如 emoji 😊 = \uD83D\uDE0A）不动。
   // eslint-disable-next-line no-control-regex
-  return s.replace(/[\u0000\uD800-\uDFFF]/g, "");
+  return s.replace(/\u0000|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "");
 }
 
 export class OpenAICompatibleProvider implements LLMProvider {
