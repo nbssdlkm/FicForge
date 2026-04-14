@@ -8,15 +8,29 @@ import { Button } from './Button';
 import { useTranslation } from '../../i18n/useAppTranslation';
 
 type Theme = 'warm' | 'mint' | 'night';
+const THEME_KEY = 'ficforge_theme';
+const VALID_THEMES: Theme[] = ['warm', 'mint', 'night'];
+
+function readPersistedTheme(): Theme {
+  try {
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored && VALID_THEMES.includes(stored as Theme)) return stored as Theme;
+  } catch { /* localStorage 不可用 */ }
+  return 'warm';
+}
+
+// 页面加载时立即应用（避免闪烁），在 React 挂载前就生效
+const initialTheme = readPersistedTheme();
+document.documentElement.classList.add(`theme-${initialTheme}`);
 
 export const ThemeToggle: React.FC = () => {
   const { t } = useTranslation();
-  const [theme, setTheme] = useState<Theme>('warm');
+  const [theme, setTheme] = useState<Theme>(readPersistedTheme);
 
   useEffect(() => {
-    // Remove all theme classes and add the current one
     document.documentElement.classList.remove('theme-warm', 'theme-mint', 'theme-night');
     document.documentElement.classList.add(`theme-${theme}`);
+    try { localStorage.setItem(THEME_KEY, theme); } catch { /* best effort */ }
   }, [theme]);
 
   const cycleTheme = () => {
