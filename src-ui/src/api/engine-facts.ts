@@ -125,8 +125,12 @@ export async function submitFactsExtraction(
   const e = getEngine();
   const { provider, lang } = await resolveFactsProvider(auPath);
 
+  // 移动端用较小 batch size 减少内存压力和发热
+  const platform = e.adapter.getPlatform();
+  const batchSize = platform === "tauri" ? 3 : 2;
+
   const task = createFactsExtractionTask(
-    { auPath, fromChapter, toChapter, batchSize: 3, language: lang },
+    { auPath, fromChapter, toChapter, batchSize, language: lang },
     {
       chapterRepo: e.repos.chapter,
       factRepo: e.repos.fact,
