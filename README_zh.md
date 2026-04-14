@@ -43,7 +43,7 @@ FicForge 的做法不同：**你来决定什么重要，AI 负责在写作时精
 
 - **所有数据保存在你自己的设备上。** 粮坊不会把你的设定、章节、任何东西上传到我们的服务器——我们没有服务器
 - 当你使用 AI 写作功能时，内容会发送到你自己配置的 API 提供商（如 DeepSeek）——这是 AI 生成必需的，完全由你控制
-- 内置的语义搜索在本地运行，不经过任何云端
+- 语义搜索在桌面端可使用本地向量模型，移动端使用 API Embedding——由你选择
 
 ---
 
@@ -51,13 +51,13 @@ FicForge 的做法不同：**你来决定什么重要，AI 负责在写作时精
 
 ### Windows（桌面端）
 
-1. 从 [Releases](../../releases) 下载 `FicForge_0.2.0_x64-setup.exe`
+1. 从 [Releases](../../releases) 下载 `FicForge_0.3.0_x64-setup.exe`
 2. 运行安装包
 3. 打开粮坊 → 配置 API 密钥（推荐 [DeepSeek](https://platform.deepseek.com)，便宜好用）→ 开始写
 
 ### Android
 
-1. 从 [Releases](../../releases) 下载 `app-debug.apk`
+1. 从 [Releases](../../releases) 下载 `FicForge_0.3.0_android.apk`
 2. 安装到手机（可能需要开启"允许安装未知来源应用"）
 3. 打开粮坊 → 配置 API 密钥 → 开始写
 
@@ -85,12 +85,61 @@ cd android && ./gradlew.bat assembleDebug
 
 ---
 
+## 快速上手
+
+### 第 1 步：配置 API 密钥
+
+打开**全局设置**（齿轮图标）→ 填写 API 密钥和接口地址。
+
+- 推荐：[DeepSeek](https://platform.deepseek.com)（`api_base: https://api.deepseek.com`，模型：`deepseek-chat`）
+- 支持所有 OpenAI 兼容接口（GPT、Claude 中转、Ollama、本地模型等）
+
+### 第 2 步：创建 Fandom（圈子）
+
+在作品库页面，点击**创建 Fandom** → 取个名字（如"漫威"、"原神"、"原创"）。
+
+Fandom 是共享的世界观。角色 DNA 档案和世界观笔记放在这里——同一个圈子下的所有故事都能复用。
+
+### 第 3 步：创建故事（AU）
+
+进入 Fandom 后，点击**创建故事** → 给你的 AU 取名（如"咖啡店 AU"、"古代皇室 AU"）。
+
+每个 AU 有独立的章节、角色设定（继承自 Fandom）、剧情笔记和文风设置。
+
+### 第 4 步：建立角色
+
+进入**设定**页 → 使用 **AI 设定助手**，用大白话描述你的角色：
+
+> "创建一个叫林烨的角色。他是太子，表面冷漠但对亲近的人非常忠诚。"
+
+AI 会生成角色设定文件 → 你逐条确认后保存。也可以在设定页手动创建角色。
+
+### 第 5 步：开始写作
+
+切换到**写作**页 → 输入续写指令（如"写两人初次见面的场景"）→ 点击生成。
+
+粮坊会自动从角色设定、剧情笔记、近期章节中组装上下文。你可以看到 token 预算信息，了解哪些内容被注入。
+
+生成多个草稿 → 翻页对比 → 选最满意的定稿。
+
+### 第 6 步：记录剧情线索
+
+写了几章后，进入**管理**页 → **剧情笔记** → 点击"从已有章节提取"让 AI 自动总结关键事件，也可以手动添加。
+
+把伏笔标记为"待填坑"——它会一直留在 AI 的上下文里，直到你标记"已填坑"。
+
+### 第 7 步：导出
+
+在写作页 → 点击导出图标 → 选择格式（Markdown / 纯文本）→ 保存。
+
+---
+
 ## 兼容性
 
 - **模型**：支持所有 OpenAI 兼容 API——DeepSeek、GPT、Ollama、本地模型
 - **语言**：中英双语界面，随时切换
 - **导入**：支持 txt / md / html / json，自动切分章节 + AI 对话记录解析
-- **内置搜索**：自带中文向量模型（bge-small-zh），开箱即用。英文写作用户建议在全局设置中配置 API Embedding 以获得更好的检索效果
+- **向量检索**：桌面端自带中文向量模型（bge-small-zh）。移动端和英文写作用户请在全局设置中配置 API Embedding 模型
 
 ---
 
@@ -117,12 +166,12 @@ cd android && ./gradlew.bat assembleDebug
 
 | 层级 | 技术 |
 |------|------|
-| 核心引擎 | TypeScript (src-engine/) |
-| 前端 | React + TypeScript + Vite + TailwindCSS |
-| 桌面端 | Tauri 2 + Python sidecar（本地 embedding） |
+| 核心引擎 | TypeScript (src-engine/，三端共用) |
+| 前端 | React + Vite + TailwindCSS |
+| 桌面端 | Tauri 2 + 可选 Python sidecar（本地 embedding） |
 | 移动端 | Capacitor (Android) / PWA (iOS/Web) |
 | 向量检索 | JSON 分片 + 内存余弦相似度 |
-| LLM 调用 | openai-node SDK（OpenAI 兼容接口） |
+| LLM 调用 | 原生 fetch（OpenAI 兼容接口） |
 
 ## 参与贡献
 

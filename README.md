@@ -42,7 +42,7 @@ FicForge takes a different approach: **you decide what matters, AI injects it pr
 
 - **All data stays on your device.** FicForge does not upload your data to any server we control — we don't have servers
 - When you use AI writing features, your content is sent to the API provider you configure (e.g. DeepSeek) — this is necessary for generation and is under your control
-- Built-in semantic search runs entirely on your machine
+- Semantic search uses local embedding on desktop (optional Python sidecar) or API embedding on mobile — your choice
 
 ---
 
@@ -50,13 +50,13 @@ FicForge takes a different approach: **you decide what matters, AI injects it pr
 
 ### Windows (Desktop)
 
-1. Download `FicForge_0.2.0_x64-setup.exe` from [Releases](../../releases)
+1. Download `FicForge_0.3.0_x64-setup.exe` from [Releases](../../releases)
 2. Run the installer
 3. Open FicForge → configure your API key ([DeepSeek](https://platform.deepseek.com) recommended) → start writing
 
 ### Android
 
-1. Download `app-debug.apk` from [Releases](../../releases)
+1. Download `FicForge_0.3.0_android.apk` from [Releases](../../releases)
 2. Install on your device (you may need to enable "Install from unknown sources")
 3. Open FicForge → configure your API key → start writing
 
@@ -84,12 +84,61 @@ Requires Node.js 18+. Android build requires JDK 17+ and Android SDK.
 
 ---
 
+## Quick Start
+
+### Step 1: Configure API Key
+
+Open **Global Settings** (gear icon) → enter your API key and base URL.
+
+- Recommended: [DeepSeek](https://platform.deepseek.com) (`api_base: https://api.deepseek.com`, model: `deepseek-chat`)
+- Any OpenAI-compatible API works (GPT, Claude via proxy, Ollama, etc.)
+
+### Step 2: Create a Fandom
+
+From the Library, tap **Create Fandom** → name it (e.g. "Marvel", "Genshin Impact", "Original").
+
+A Fandom is the shared universe. Character DNA profiles and worldbuilding notes go here — they're reused across all stories in this fandom.
+
+### Step 3: Create a Story (AU)
+
+Inside the Fandom, tap **Create Story** → name your AU (e.g. "Coffee Shop AU", "Ancient Royalty AU").
+
+Each AU has its own chapters, character settings (inherited from Fandom), plot points, and writing style.
+
+### Step 4: Set Up Characters
+
+Go to the **Settings** tab → use the **AI Settings Assistant** to describe your characters in plain language:
+
+> "Create a character called Lin Ye. He's the crown prince, cold on the outside but deeply loyal to those close to him."
+
+The AI will suggest a character file — review it, confirm, and it's saved. You can also create characters manually in the **Settings** tab.
+
+### Step 5: Write
+
+Switch to the **Write** tab → type your instruction (e.g. "Write the scene where they meet for the first time") → hit Generate.
+
+FicForge automatically assembles context from your character settings, plot points, and recent chapters. You'll see token budget info showing what's included.
+
+Generate multiple drafts → swipe to compare → finalize the one you like.
+
+### Step 6: Track Plot Points
+
+After writing a few chapters, go to the **Management** tab → **Plot Points** → tap "Extract from Chapters" to let AI summarize key events, or add them manually.
+
+Mark foreshadowing as "unresolved" — it stays in AI's context until you mark it "resolved".
+
+### Step 7: Export
+
+In the Write tab → tap the export icon → choose format (Markdown / plain text) → save.
+
+---
+
 ## Compatibility
 
 - **Models**: Any OpenAI-compatible API — DeepSeek, GPT, Ollama, local models
 - **Language**: Bilingual UI (中文 / English), switch anytime
 - **Import**: txt / md / html / json with automatic chapter splitting and AI chat log parsing
-- **Built-in search**: Ships with Chinese embedding model (bge-small-zh), works out of the box. English users should configure an API embedding (e.g. OpenAI `text-embedding-3-small`) in Global Settings for best results
+- **Embedding**: Desktop ships with local Chinese embedding model (bge-small-zh). Mobile/PWA and English users should configure an API embedding model in Global Settings
 
 ---
 
@@ -116,12 +165,12 @@ Sync your writing across desktop and mobile. [Guide](docs/SYNC-GUIDE.md) | [中�
 
 | Layer | Technology |
 |-------|-----------|
-| Core Engine | TypeScript (src-engine/) |
-| Frontend | React + TypeScript + Vite + TailwindCSS |
-| Desktop | Tauri 2 + Python sidecar (local embedding) |
+| Core Engine | TypeScript (src-engine/, shared across all platforms) |
+| Frontend | React + Vite + TailwindCSS |
+| Desktop | Tauri 2 + optional Python sidecar (local embedding) |
 | Mobile | Capacitor (Android) / PWA (iOS/Web) |
 | Vector Search | JSON shards + in-memory cosine similarity |
-| LLM | openai-node SDK (OpenAI-compatible API) |
+| LLM | Native fetch (OpenAI-compatible API) |
 
 ## Contributing
 
@@ -130,4 +179,3 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 ## License
 
 [AGPLv3](LICENSE) — FicForge is free and open-source. Any derivative work must be open-sourced under the same license, including network deployments.
-```
