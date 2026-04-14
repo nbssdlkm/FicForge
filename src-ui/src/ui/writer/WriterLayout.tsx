@@ -965,7 +965,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
             <Button variant="ghost" size="sm" className="h-11 md:h-8" onClick={() => setExportOpen(true)} title={t('writer.exportButtonTitle')}>
               <FileUp size={16} />
             </Button>
-            <ThemeToggle />
+            <span className="hidden md:inline-flex"><ThemeToggle /></span>
           </div>
         </header>
 
