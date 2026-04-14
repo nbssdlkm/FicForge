@@ -937,6 +937,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                   ? t('workspace.chapterItem', { num: viewingHistoryNum })
                   : t('workspace.chapterItem', { num: currentChapter })}
               </p>
+              <p className="mt-0.5 text-[10px] text-text/35">{metaModel} · {t('writer.metaWords', { count: metaChars })} · {metaDuration}</p>
             </div>
             <div className="hidden items-center gap-4 md:flex">
               <span>{metaModel} · T{sessionParams.sessionTemp}</span>
