@@ -8,7 +8,6 @@ import { Input, Textarea } from '../shared/Input';
 import { FactCard } from './FactCard';
 import { Modal } from '../shared/Modal';
 import { EmptyState } from '../shared/EmptyState';
-import { Tag } from '../shared/Tag';
 import { Search, Plus, Filter, Loader2, Check, Sparkles, BookOpenText, X } from 'lucide-react';
 import { ProgressBar } from '../shared/ProgressBar';
 import { listFacts, updateFactStatus, FactStatus, type FactInfo } from '../../api/engine-client';
@@ -21,6 +20,7 @@ import { useFactsFilter } from './useFactsFilter';
 import { useBatchFacts } from './useBatchFacts';
 import { useFactEditor } from './useFactEditor';
 import { useFactsExtraction } from './useFactsExtraction';
+import { ExtractReviewModal } from '../writer/WriterModals';
 
 export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const { t } = useTranslation();
@@ -280,44 +280,16 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
         </div>
       </Modal>
 
-      <Modal isOpen={extraction.extractModalOpen} onClose={extraction.savingExtraction ? () => {} : () => extraction.setExtractModalOpen(false)} title={t('facts.extractReviewTitle')}>
-        <div className="space-y-4">
-          <p className="text-sm text-text/70">{t('facts.extractReviewDescription')}</p>
-          <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1">
-            {extraction.extractedCandidates.length === 0 ? (
-              <EmptyState compact icon={<Sparkles size={28} />} title={t('facts.extractReviewEmpty')} description={t('facts.extractNoResult')} />
-            ) : (
-              extraction.extractedCandidates.map((candidate, index) => {
-                const candidateType = candidate.fact_type || candidate.type || 'plot_event';
-                return (
-                  <div key={`${candidate.content_clean}-${index}`} className="space-y-3 rounded-lg border border-black/10 bg-surface/40 p-4 dark:border-white/10">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Tag variant="info">{getEnumLabel('fact_type', candidateType, candidateType)}</Tag>
-                      <Tag variant="warning">{getEnumLabel('narrative_weight', candidate.narrative_weight, candidate.narrative_weight)}</Tag>
-                      <Tag variant="default">{getEnumLabel('fact_status', candidate.status, candidate.status)}</Tag>
-                      <span className="text-xs text-text/50">{t('facts.extractSourceChapter', { chapter: candidate.chapter })}</span>
-                    </div>
-                    <p className="text-sm text-text/85">{candidate.content_clean}</p>
-                    {candidate.characters.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {candidate.characters.map(character => (
-                          <span key={character} className="text-xs font-medium text-accent/80">@{character}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-          <div className="flex justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
-            <Button variant="ghost" onClick={() => extraction.setExtractModalOpen(false)} disabled={extraction.savingExtraction}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={extraction.handleSaveExtracted} disabled={extraction.savingExtraction || extraction.extractedCandidates.length === 0}>
-              {extraction.savingExtraction ? <Loader2 size={16} className="animate-spin" /> : t('facts.extractSaveAll')}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      <ExtractReviewModal
+        isOpen={extraction.extractModalOpen}
+        onClose={extraction.savingExtraction ? () => {} : () => extraction.setExtractModalOpen(false)}
+        extractedCandidates={extraction.extractedCandidates}
+        selectedExtractedKeys={extraction.selectedExtractedKeys}
+        getCandidateKey={extraction.getCandidateKey}
+        onToggleCandidate={extraction.toggleExtractedCandidate}
+        onSave={extraction.handleSaveExtracted}
+        savingExtracted={extraction.savingExtraction}
+      />
 
       <Modal isOpen={!!batch.batchConfirm} onClose={batch.batchProcessing ? () => {} : () => batch.setBatchConfirm(null)} title={t('facts.batchConfirmTitle', { count: batch.selectedIds.size, status: batch.batchConfirm ? getEnumLabel('fact_status', batch.batchConfirm, batch.batchConfirm) : '' })}>
         <div className="space-y-4">
@@ -448,7 +420,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               <div className="flex items-center justify-between gap-2 text-sm">
                 <div className="flex items-center gap-2 min-w-0">
                   <Loader2 size={14} className="shrink-0 animate-spin text-accent" />
-                  <span className="truncate text-text/70">{t('common.actions.extracting')}</span>
+                  <span className="truncate text-text/70">{t('common.status.extracting')}</span>
                   <span className="shrink-0 font-medium text-accent">{extraction.extractProgress}%</span>
                 </div>
                 <button
@@ -675,7 +647,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             <div className="flex items-center justify-between gap-2 text-xs">
               <div className="flex items-center gap-1.5 min-w-0">
                 <Loader2 size={12} className="shrink-0 animate-spin text-accent" />
-                <span className="truncate text-text/70">{t('common.actions.extracting')}</span>
+                <span className="truncate text-text/70">{t('common.status.extracting')}</span>
                 <span className="shrink-0 font-medium text-accent">{extraction.extractProgress}%</span>
               </div>
               <button
