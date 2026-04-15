@@ -428,6 +428,12 @@
     "temperature": "发散度 (temperature)",
     "topP": "取样范围 (top_p)"
   },
+  "modelSelector": {
+    "customPlaceholder": "输入模型名称，如 gpt-4o",
+    "presets": "预设",
+    "custom": "自定义",
+    "selectHint": "选择模型..."
+  },
   "settings": {
     "title": "故事设置",
     "headerTitle": "故事设置",
@@ -862,7 +868,8 @@
     "continueLastChapter": "↩ 延续上章",
     "maxTwo": "最多选择2个焦点",
     "lastFocusExpired": "上章焦点已失效，请重新选择",
-    "recommended": "推荐"
+    "recommended": "推荐",
+    "resolvePrompt": "本章推进的剧情线已定稿，记得去剧情笔记中标记为「已填坑」"
   },
   "undo": {
     "confirmTitle": "确认撤回第 {{chapter}} 章？",
