@@ -15,6 +15,10 @@ import type { ContextSummary } from "../api/engine-client";
 const FACTS_PROMPT_STORAGE_KEY = "ficforge.writer.skipFactsPrompt";
 const SETTINGS_MODE_TOOLTIP_STORAGE_KEY = "ficforge.writer.settingsModeTipSeen";
 
+function getInstructionTextStorageKey(auPath: string, chapterNum: number): string {
+  return `ficforge.writer.instructionText:${auPath}:${chapterNum}`;
+}
+
 function getGenerateRequestStorageKey(auPath: string, chapterNum: number): string {
   return `ficforge.writer.generateRequest:${auPath}:${chapterNum}`;
 }
@@ -111,6 +115,30 @@ export function saveContextSummaries(
   } catch {
     // localStorage 可能在 iOS 隐私模式或容量满时抛异常，不阻断主流程
   }
+}
+
+// ---------------------------------------------------------------------------
+// Instruction Text 持久化（用户输入的续写指令）
+// ---------------------------------------------------------------------------
+
+export function readSavedInstructionText(auPath: string, chapterNum: number): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return window.localStorage.getItem(getInstructionTextStorageKey(auPath, chapterNum)) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function saveInstructionText(auPath: string, chapterNum: number, text: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (!text.trim()) {
+      window.localStorage.removeItem(getInstructionTextStorageKey(auPath, chapterNum));
+      return;
+    }
+    window.localStorage.setItem(getInstructionTextStorageKey(auPath, chapterNum), text);
+  } catch {}
 }
 
 // ---------------------------------------------------------------------------
