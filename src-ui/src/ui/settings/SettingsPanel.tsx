@@ -67,48 +67,46 @@ export const SettingsPanel = ({
   };
 
   return (
-    <Card className="w-full max-w-sm p-4 text-sm flex flex-col gap-4 !shadow-none border-transparent bg-transparent px-0">
+    <Card className="w-full p-4 text-sm flex flex-col gap-5 md:gap-4 md:max-w-sm !shadow-none border-transparent bg-transparent px-0">
       <div className="font-sans font-medium mb-1 text-text/80 uppercase tracking-wide text-xs">{t("settingsPanel.title")}</div>
 
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-text/70">{t("common.labels.model")}</label>
-        <div className="flex items-center gap-2">
-           <select value={localModel} onChange={e => handleModelChange(e.target.value)}
-             className="h-11 flex-1 rounded border border-black/20 bg-background px-3 text-base outline-none focus:ring-1 focus:ring-accent dark:border-white/20 md:h-8 md:px-2 md:text-xs">
-             {!presetModels.includes(localModel) && localModel ? (
-               <option value={localModel}>{localModel}</option>
-             ) : null}
-             <option value="deepseek-chat">deepseek-chat</option>
-             <option value="claude-3-5-sonnet">claude-3-5-sonnet</option>
-             <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
-             <option value="gpt-4o">gpt-4o</option>
-             <option value="llama3">llama3</option>
-             <option value="qwen-max">qwen-max</option>
-           </select>
-        </div>
+        <select value={localModel} onChange={e => handleModelChange(e.target.value)}
+          className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-1 focus:ring-accent dark:border-white/20 md:h-8 md:px-2 md:text-xs">
+          {!presetModels.includes(localModel) && localModel ? (
+            <option value={localModel}>{localModel}</option>
+          ) : null}
+          <option value="deepseek-chat">deepseek-chat</option>
+          <option value="claude-3-5-sonnet">claude-3-5-sonnet</option>
+          <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
+          <option value="gpt-4o">gpt-4o</option>
+          <option value="llama3">llama3</option>
+          <option value="qwen-max">qwen-max</option>
+        </select>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <div className="flex justify-between text-xs text-text/70">
+      <div className="flex flex-col gap-2 md:gap-1.5">
+        <div className="flex justify-between text-sm md:text-xs text-text/70">
           <label>{t("settingsPanel.temperature")}</label>
-          <span>{temp.toFixed(1)}</span>
+          <span className="font-mono">{temp.toFixed(1)}</span>
         </div>
         <input type="range" min="0" max="2" step="0.1" value={temp}
           onChange={e => handleTempChange(parseFloat(e.target.value))}
-          className="w-full accent-accent h-1" />
+          className="w-full accent-accent h-2 md:h-1" />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <div className="flex justify-between text-xs text-text/70">
+      <div className="flex flex-col gap-2 md:gap-1.5">
+        <div className="flex justify-between text-sm md:text-xs text-text/70">
           <label>{t("settingsPanel.topP")}</label>
-          <span>{topP.toFixed(2)}</span>
+          <span className="font-mono">{topP.toFixed(2)}</span>
         </div>
         <input type="range" min="0" max="1" step="0.05" value={topP}
           onChange={e => handleTopPChange(parseFloat(e.target.value))}
-          className="w-full accent-accent h-1" />
+          className="w-full accent-accent h-2 md:h-1" />
       </div>
 
-      <div className="grid grid-cols-2 gap-2 mt-2">
+      <div className="grid grid-cols-2 gap-2 mt-1">
         <Button variant="secondary" size="sm" className="h-11 text-sm md:h-8 md:text-xs" onClick={onSaveGlobal}>{t("common.actions.saveToGlobal")}</Button>
         <Button variant="secondary" size="sm" className="h-11 text-sm md:h-8 md:text-xs" onClick={onSaveAu}>{t("common.actions.saveToStory")}</Button>
       </div>
