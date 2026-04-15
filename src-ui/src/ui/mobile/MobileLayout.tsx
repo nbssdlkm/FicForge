@@ -27,6 +27,7 @@ interface MobileLayoutProps {
   onSelectChapter: (chapterNum: number) => void;
   onClearViewChapter: () => void;
   onChaptersChanged?: () => void;
+  milestoneElement?: React.ReactNode;
 }
 
 function mapPageToTab(page: WorkspacePage): MobileWorkspaceTab {
@@ -51,6 +52,7 @@ export function MobileLayout({
   onSelectChapter,
   onClearViewChapter,
   onChaptersChanged,
+  milestoneElement,
 }: MobileLayoutProps) {
   const [activeTab, setActiveTab] = useState<MobileWorkspaceTab>(() => mapPageToTab(activePage));
   const previousPageRef = useRef<WorkspacePage>(activePage);
@@ -104,6 +106,7 @@ export function MobileLayout({
       </header>
 
       <div className="flex-1 overflow-hidden pb-24">
+        {milestoneElement}
         {activeTab === "chapters" ? (
           <MobileChapterList
             auPath={auPath}

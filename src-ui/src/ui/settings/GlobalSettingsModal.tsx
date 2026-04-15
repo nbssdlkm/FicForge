@@ -7,7 +7,7 @@ import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { HelpCircle, Loader2, CheckCircle2, XCircle } from 'lucide-react';
-import { getSettings, testConnection, updateSettings, LLMMode, type SettingsInfo, getDataDir, getDisplayDataDir } from '../../api/engine-client';
+import { getSettings, testConnection, testEmbeddingConnection, updateSettings, LLMMode, type SettingsInfo, getDataDir, getDisplayDataDir } from '../../api/engine-client';
 import { ConflictResolveModal } from '../shared/ConflictResolveModal';
 import { useSyncOperations } from './useSyncOperations';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -52,6 +52,9 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [apiHelpOpen, setApiHelpOpen] = useState(false);
   const [displayDataDir, setDisplayDataDir] = useState('');
+  const [embTestStatus, setEmbTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const [embTestMessage, setEmbTestMessage] = useState('');
+  const embTestIdRef = useRef(0);
 
   const syncOps = useSyncOperations({ url: syncUrl, username: syncUsername, password: syncPassword, remote_dir: syncRemoteDir });
   const {
@@ -222,6 +225,29 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     }
   };
 
+  const handleEmbeddingTest = async () => {
+    const requestId = ++embTestIdRef.current;
+    setEmbTestStatus('testing');
+    setEmbTestMessage('');
+    try {
+      const base = embeddingApiBase || apiBase;
+      const key = embeddingApiKey || apiKey;
+      const result = await testEmbeddingConnection({ api_base: base, api_key: key, model: embeddingModel });
+      if (requestId !== embTestIdRef.current) return;
+      if (result.success) {
+        setEmbTestStatus('success');
+        setEmbTestMessage(`${t('settings.global.connectionSuccess')} dim=${result.dimension}`);
+      } else {
+        setEmbTestStatus('error');
+        setEmbTestMessage(result.message || t('error_messages.unknown'));
+      }
+    } catch (error: any) {
+      if (requestId !== embTestIdRef.current) return;
+      setEmbTestStatus('error');
+      setEmbTestMessage(error?.message || t('error_messages.unknown'));
+    }
+  };
+
   const testRequiresApiKey = mode === 'api';
   const testRequiresLocalPath = mode === 'local';
   const testRequiresOllamaModel = mode === 'ollama';
@@ -333,6 +359,14 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                   <Input value={embeddingModel} onChange={e => setEmbeddingModel(e.target.value)} placeholder={t('settings.global.embeddingModelPlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
                   <Input value={embeddingApiBase} onChange={e => setEmbeddingApiBase(e.target.value)} placeholder={t('settings.global.embeddingApiBasePlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
                   <Input value={embeddingApiKey} onChange={e => setEmbeddingApiKey(e.target.value)} placeholder={t('settings.global.embeddingApiKeyPlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" type="password" />
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button variant="secondary" size="sm" onClick={handleEmbeddingTest} disabled={saving || embTestStatus === 'testing' || !embeddingModel.trim()}>
+                      {embTestStatus === 'testing' ? <Loader2 size={14} className="mr-1 animate-spin" /> : null}
+                      {t('common.actions.testConnection')}
+                    </Button>
+                    {embTestStatus === 'success' && <span className="flex items-center text-xs text-success"><CheckCircle2 size={14} className="mr-1" /> {embTestMessage}</span>}
+                    {embTestStatus === 'error' && <span className="flex items-start text-xs text-error"><XCircle size={14} className="mr-1 mt-0.5 shrink-0" /> <span className="leading-tight">{embTestMessage}</span></span>}
+                  </div>
                 </div>
               )}
             </div>

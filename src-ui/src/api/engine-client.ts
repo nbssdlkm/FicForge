@@ -138,7 +138,7 @@ export async function getDisplayDataDir(): Promise<string> {
 // Domain module re-exports
 // ---------------------------------------------------------------------------
 
-export { getSettings, updateSettings, testConnection } from "./engine-settings";
+export { getSettings, updateSettings, testConnection, testEmbeddingConnection } from "./engine-settings";
 export { getState, setChapterFocus, rebuildIndex, recalcState } from "./engine-state";
 export { listFacts, addFact, editFact, updateFactStatus, batchUpdateFactStatus, extractFacts, extractFactsBatch, submitFactsExtraction } from "./engine-facts";
 export { getProject, updateProject, addPinned, deletePinned } from "./engine-project";

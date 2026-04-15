@@ -221,6 +221,7 @@
     "exportButtonTitle": "导出这篇文",
     "draftDiscarded": "草稿已丢弃。",
     "generateErrorFallback": "续写失败，请重试。",
+    "generateInterrupted": "续写已中断，可能由于网络断开或应用切换。",
     "checkSettings": "检查设置",
     "viewingHistory": "只读查看",
     "backToCurrentChapter": "返回当前章",
