@@ -611,15 +611,24 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       }
       setGeneratedWith(nextGeneratedWith);
       setBudgetReport(nextBudgetReport);
-      setStreamText('');
       pendingContextSummaryRef.current = null;
+      // 延迟清除 streamText，等 drafts + activeDraftIndex 先渲染，
+      // 避免 displayContent 在两者之间短暂为空
+      requestAnimationFrame(() => setStreamText(''));
     } catch (error) {
       pendingContextSummaryRef.current = null;
       if (activeAuPathRef.current !== requestAuPath) return;
-      showError(error, t('writer.generateErrorFallback'));
+      // 区分连接中断和 API 错误
+      const isAbort = error instanceof DOMException && error.name === 'AbortError';
+      const isNetwork = error instanceof TypeError && /fetch|network/i.test(error.message);
+      if (isAbort || isNetwork) {
+        showToast(t('writer.generateInterrupted'), 'warning');
+      } else {
+        showError(error, t('writer.generateErrorFallback'));
+      }
       if (error instanceof ApiError) {
         setGenerationErrorDisplay({ message: error.userMessage || error.message, actions: error.actions });
-      } else if (error instanceof Error) {
+      } else if (error instanceof Error && !isAbort && !isNetwork) {
         setGenerationErrorDisplay({ message: error.message, actions: [] });
       }
     } finally {
