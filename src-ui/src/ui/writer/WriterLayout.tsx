@@ -154,6 +154,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const loadRequestIdRef = useRef(0);
   const refreshRequestIdRef = useRef(0);
   const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingDraftSaveRef = useRef<{ auPath: string; chapterNum: number; label: string; content: string } | null>(null);
   const generateIdRef = useRef(0);
   activeAuPathRef.current = auPath;
   const [mode, setMode] = useState<WriterMode>('write');
@@ -301,8 +302,16 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     if (instructionSaveRef.current) clearTimeout(instructionSaveRef.current);
     instructionSaveRef.current = setTimeout(() => {
       saveInstructionText(auPath, currentChapterNum, instructionText);
+      instructionSaveRef.current = null;
     }, 500);
-    return () => { if (instructionSaveRef.current) clearTimeout(instructionSaveRef.current); };
+    return () => {
+      // cleanup 时 flush：localStorage 是同步的，直接写入
+      if (instructionSaveRef.current) {
+        clearTimeout(instructionSaveRef.current);
+        instructionSaveRef.current = null;
+        saveInstructionText(auPath, currentChapterNum, instructionText);
+      }
+    };
   }, [instructionText, auPath, currentChapterNum]);
 
   const focusInstructionInput = () => {
@@ -311,7 +320,17 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     }, 0);
   };
 
-  const clearDraftState = () => {
+  /** 立即写入挂起的草稿编辑，然后清除定时器。 */
+  const flushPendingDraftSave = (discard = false) => {
+    if (draftSaveTimerRef.current) { clearTimeout(draftSaveTimerRef.current); draftSaveTimerRef.current = null; }
+    const pending = pendingDraftSaveRef.current;
+    if (pending && !discard) {
+      saveDraft(pending.auPath, pending.chapterNum, pending.label, pending.content).catch(() => {});
+    }
+    pendingDraftSaveRef.current = null;
+  };
+
+  const clearDraftState = (discard = false) => {
     setDrafts([]);
     setActiveDraftIndex(0);
     setStreamText('');
@@ -320,8 +339,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     setRecoveryNotice(false);
     setDraftSummaries({});
     pendingContextSummaryRef.current = null;
-    // 清除 draft auto-save 定时器，防止草稿丢弃后 debounce 仍触发
-    if (draftSaveTimerRef.current) { clearTimeout(draftSaveTimerRef.current); draftSaveTimerRef.current = null; }
+    flushPendingDraftSave(discard);
   };
 
   const replaceDraftSummaries = useCallback((chapterNum: number, summaries: Record<string, ContextSummary>) => {
@@ -703,7 +721,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       );
       if (activeAuPathRef.current !== requestAuPath) return;
 
-      clearDraftState();
+      clearDraftState(true); // 草稿内容已通过 content_override 提交，无需再 flush
       replaceDraftSummaries(confirmedChapter, {});
       setFinalizeConfirmOpen(false);
       setLastConfirmedChapter(confirmedChapter);
@@ -737,7 +755,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     try {
       await undoChapter(auPath);
       if (activeAuPathRef.current !== requestAuPath) return;
-      clearDraftState();
+      clearDraftState(true); // undo 删除草稿，无需 flush
       showSuccess(t('writer.undoSuccess'));
       await loadData();
       onChaptersChanged?.();
@@ -762,7 +780,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       );
       if (activeAuPathRef.current !== requestAuPath) return;
 
-      clearDraftState();
+      clearDraftState(true); // discard=true: 用户主动丢弃，不 flush 到磁盘
       replaceDraftSummaries(state.current_chapter, {});
       setDiscardConfirmOpen(false);
       if (isSingleDraft) {
@@ -886,17 +904,19 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     );
 
     // debounced auto-save：编辑 1.5s 后自动保存到磁盘
-    // 直接用参数 content（最新值），draft label 通过 ref 快照避免 stale closure
     const label = drafts[activeDraftIndex]?.label;
     const chapterNum = state?.current_chapter || 1;
     if (!label) return;
+    pendingDraftSaveRef.current = { auPath, chapterNum, label, content };
     if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current);
     draftSaveTimerRef.current = setTimeout(() => {
       saveDraft(auPath, chapterNum, label, content).catch(() => {});
+      pendingDraftSaveRef.current = null;
     }, 1500);
   };
 
-  useEffect(() => () => { if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current); }, []);
+  // 组件卸载时 flush 未保存的编辑
+  useEffect(() => () => flushPendingDraftSave(), []);
 
   const handleModeChange = (nextMode: WriterMode) => {
     if (nextMode === 'write' && isSettingsModeBusy) {
