@@ -221,6 +221,7 @@
     "exportButtonTitle": "Export this story",
     "draftDiscarded": "Draft discarded.",
     "generateErrorFallback": "Generation failed. Please try again.",
+    "generateInterrupted": "Generation interrupted, possibly due to network disconnection or app switch.",
     "checkSettings": "Check Settings",
     "viewingHistory": "Read-only",
     "backToCurrentChapter": "Back to Current Chapter",
