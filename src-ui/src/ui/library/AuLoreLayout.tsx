@@ -192,7 +192,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
 
       const nextSelected = selectedFile && loreFiles.files.some(file => file.name === selectedFile)
         ? selectedFile
-        : loreFiles.files[0]?.name || null;
+        : null;
 
       if (nextSelected) {
         await loadFileContent(nextSelected, requestId);
