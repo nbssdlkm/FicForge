@@ -154,6 +154,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const loadRequestIdRef = useRef(0);
   const refreshRequestIdRef = useRef(0);
   const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const generateIdRef = useRef(0);
   activeAuPathRef.current = auPath;
   const [mode, setMode] = useState<WriterMode>('write');
   const [showSettingsTooltip, setShowSettingsTooltip] = useState(false);
@@ -503,6 +504,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
   const handleGenerate = useCallback(async (request: GenerateRequestState) => {
     if (isGenerating || !state) return;
+    const thisGenerateId = ++generateIdRef.current;
 
     const projectLlmUsable = projectInfo?.llm?.mode && (projectInfo.llm.mode !== 'api' || projectInfo.llm.api_key);
     const effectiveLlm = projectLlmUsable ? projectInfo!.llm : settingsInfo?.default_llm;
@@ -632,8 +634,11 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       setBudgetReport(nextBudgetReport);
       pendingContextSummaryRef.current = null;
       // 延迟清除 streamText，等 drafts + activeDraftIndex 先渲染，
-      // 避免 displayContent 在两者之间短暂为空
-      requestAnimationFrame(() => setStreamText(''));
+      // 避免 displayContent 在两者之间短暂为空。
+      // generateIdRef 防止新一轮生成启动后被旧 RAF 误清。
+      requestAnimationFrame(() => {
+        if (generateIdRef.current === thisGenerateId) setStreamText('');
+      });
     } catch (error) {
       pendingContextSummaryRef.current = null;
       if (activeAuPathRef.current !== requestAuPath) return;

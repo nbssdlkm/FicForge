@@ -303,7 +303,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                     <>
                       <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-text/80">{t("settings.story.storyModel")}</label>
-                        <ModelSelector value={auModel} onChange={setAuModel} onApiBaseAutoFill={setAuApiBase} disabled={false} />
+                        <ModelSelector value={auModel} onChange={setAuModel} onApiBaseAutoFill={setAuApiBase} />
                       </div>
                       <div className="flex flex-col gap-1.5">
                          <label className="text-xs font-bold text-text/80">{t("common.labels.apiKey")}</label>

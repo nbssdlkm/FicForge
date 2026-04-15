@@ -8,6 +8,8 @@ import { Card } from '../shared/Card';
 import { MODEL_PRESETS } from '../shared/ModelSelector';
 import { useTranslation } from '../../i18n/useAppTranslation';
 
+const ALL_PRESET_NAMES = MODEL_PRESETS.flatMap(g => g.models.map(m => m.name));
+
 interface SettingsPanelProps {
   model?: string;
   onModelChange?: (model: string) => void;
@@ -30,7 +32,6 @@ export const SettingsPanel = ({
   onSaveAu
 }: SettingsPanelProps = {}) => {
   const { t } = useTranslation();
-  const allPresetNames = MODEL_PRESETS.flatMap(g => g.models.map(m => m.name));
   const [localModel, setLocalModel] = useState(externalModel || 'deepseek-chat');
   const [temp, setTemp] = useState(externalTemp ?? 1.0);
   const [topP, setTopP] = useState(externalTopP ?? 0.95);
@@ -68,7 +69,7 @@ export const SettingsPanel = ({
         <label className="text-xs text-text/70">{t("common.labels.model")}</label>
         <select value={localModel} onChange={e => handleModelChange(e.target.value)}
           className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base text-text outline-none focus:ring-1 focus:ring-accent dark:border-white/20 md:h-8 md:px-2 md:text-xs">
-          {!allPresetNames.includes(localModel) && localModel ? (
+          {!ALL_PRESET_NAMES.includes(localModel) && localModel ? (
             <option value={localModel}>{localModel}</option>
           ) : null}
           {MODEL_PRESETS.map(group => (
