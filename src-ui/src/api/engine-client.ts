@@ -143,7 +143,7 @@ export { getState, setChapterFocus, rebuildIndex, recalcState } from "./engine-s
 export { listFacts, addFact, editFact, updateFactStatus, batchUpdateFactStatus, extractFacts, extractFactsBatch, submitFactsExtraction } from "./engine-facts";
 export { getProject, updateProject, addPinned, deletePinned } from "./engine-project";
 export { listChapters, getChapter, getChapterContent, confirmChapter, undoChapter, updateChapterTitle, resolveDirtyChapter, updateChapterContent } from "./engine-chapters";
-export { listDrafts, getDraft, deleteDrafts } from "./engine-drafts";
+export { listDrafts, getDraft, saveDraft, deleteDrafts } from "./engine-drafts";
 export { generateChapter } from "./engine-generate";
 export { listTrash, restoreTrash, permanentDeleteTrash, purgeTrash } from "./engine-trash";
 export { saveLore, readLore, deleteLore, listLoreFiles, importFromFandom, getLoreContent } from "./engine-lore";

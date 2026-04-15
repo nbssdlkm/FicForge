@@ -11,6 +11,8 @@ import {
   saveContextSummaries,
   readSavedGenerateRequest,
   saveGenerateRequest,
+  readSavedInstructionText,
+  saveInstructionText,
   hasSeenSettingsModeTooltip,
   markSettingsModeTooltipSeen,
 } from '../../utils/writerStorage';
@@ -44,7 +46,7 @@ import { Sidebar } from '../shared/Sidebar';
 import { SettingsChatPanel } from '../shared/settings-chat/SettingsChatPanel';
 
 import { getChapterContent, confirmChapter, undoChapter, updateChapterContent } from '../../api/engine-client';
-import { listDrafts, getDraft, deleteDrafts, type DraftDetail, type DraftGeneratedWith } from '../../api/engine-client';
+import { listDrafts, getDraft, saveDraft, deleteDrafts, type DraftDetail, type DraftGeneratedWith } from '../../api/engine-client';
 import { getState, setChapterFocus, type StateInfo } from '../../api/engine-client';
 import { listFacts, type FactInfo } from '../../api/engine-client';
 import { generateChapter, type ContextSummary } from '../../api/engine-client';
@@ -270,7 +272,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     setLastGenerateRequest(null);
     setDraftSummaries({});
     pendingContextSummaryRef.current = null;
-    setInstructionText('');
+    setInstructionText(''); // 先清空，loadData 后恢复
     factsExtraction.setExtractedCandidates([]);
     factsExtraction.clearSelection();
     setFinalizeConfirmOpen(false);
@@ -288,6 +290,17 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       setShowSettingsTooltip(false);
     }
   }, [isMobile, mode]);
+
+  // 指令文本持久化：变化时自动保存到 localStorage
+  const instructionSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!state) return;
+    if (instructionSaveRef.current) clearTimeout(instructionSaveRef.current);
+    instructionSaveRef.current = setTimeout(() => {
+      saveInstructionText(auPath, state.current_chapter, instructionText);
+    }, 500);
+    return () => { if (instructionSaveRef.current) clearTimeout(instructionSaveRef.current); };
+  }, [instructionText, auPath, state]);
 
   const focusInstructionInput = () => {
     window.setTimeout(() => {
@@ -438,11 +451,13 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         setActiveDraftIndex(loadedDrafts.length > 0 ? loadedDrafts.length - 1 : 0);
         setRecoveryNotice(loadedDrafts.length > 0);
         setLastGenerateRequest(readSavedGenerateRequest(auPath, stateData.current_chapter));
+        setInstructionText(readSavedInstructionText(auPath, stateData.current_chapter));
         replaceDraftSummaries(stateData.current_chapter, filteredSummaries);
         pendingContextSummaryRef.current = null;
       } else {
         clearDraftState();
         setLastGenerateRequest(null);
+        setInstructionText('');
         setProjectInfo(null);
       }
     } catch (error) {
@@ -657,6 +672,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     const requestAuPath = auPath;
 
     setIsFinalizing(true);
+    const confirmedFocus = [...focusSelection]; // 保存定稿前的 focus
     try {
       const confirmedChapter = state.current_chapter;
       await confirmChapter(
@@ -675,6 +691,12 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       setLastConfirmedChapter(confirmedChapter);
       await loadData();
       onChaptersChanged?.();
+
+      // 待填坑 focus 定稿后提示标记已填坑
+      if (confirmedFocus.length > 0) {
+        showToast(t('focus.resolvePrompt'), 'info');
+        // 延迟提示，不阻塞主流程；用户可在剧情笔记界面手动处理
+      }
 
       if (factsExtraction.skipFactsPrompt) {
         showSuccess(t('drafts.finalizeSuccess', { chapter: confirmedChapter }));
@@ -834,6 +856,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     }
   };
 
+  const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleCurrentDraftChange = (content: string) => {
     setDrafts((current) =>
       current.map((draft, index) =>
@@ -846,7 +870,17 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
           : draft
       )
     );
+
+    // debounced auto-save：编辑 1.5s 后自动保存到磁盘
+    if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current);
+    draftSaveTimerRef.current = setTimeout(() => {
+      const draft = drafts[activeDraftIndex];
+      if (!draft) return;
+      saveDraft(auPath, state?.current_chapter || 1, draft.label, content).catch(() => {});
+    }, 1500);
   };
+
+  useEffect(() => () => { if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current); }, []);
 
   const handleModeChange = (nextMode: WriterMode) => {
     if (nextMode === 'write' && isSettingsModeBusy) {

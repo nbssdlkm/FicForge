@@ -21,6 +21,13 @@ export async function getDraft(auPath: string, chapterNum: number, label: string
   return await draft.get(auPath, chapterNum, label);
 }
 
+export async function saveDraft(auPath: string, chapterNum: number, label: string, content: string) {
+  const { draft } = getEngine().repos;
+  const existing = await draft.get(auPath, chapterNum, label);
+  existing.content = content;
+  await draft.save(existing);
+}
+
 export async function deleteDrafts(auPath: string, chapterNum: number, _label?: string) {
   const { draft } = getEngine().repos;
   await draft.delete_by_chapter(auPath, chapterNum);
