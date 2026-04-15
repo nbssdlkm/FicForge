@@ -106,6 +106,7 @@ export function MobileLayout({
       <div className="flex-1 overflow-hidden pb-24">
         {activeTab === "chapters" ? (
           <MobileChapterList
+            auPath={auPath}
             auName={auName}
             chapters={chapters}
             loading={loadingChapters}
@@ -120,6 +121,7 @@ export function MobileLayout({
               setActiveTab("writer");
               onNavigate("writer", auPath);
             }}
+            onChaptersChanged={onChaptersChanged}
           />
         ) : null}
 
