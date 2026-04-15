@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
+import { Toggle } from '../shared/Toggle';
 import { Tag } from '../shared/Tag';
 import { Modal } from '../shared/Modal';
 import { Settings, Save, Trash2, Plus, Loader2 } from 'lucide-react';
@@ -281,11 +282,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                    <p className="text-xs text-text/50">{t("settings.story.inheritDescription")}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                   <label className="inline-flex items-center gap-2 cursor-pointer">
-                     <span className="text-xs font-medium text-text/70">{t("settings.story.overrideToggle")}</span>
-                     <input type="checkbox" className="sr-only peer" checked={isLlMOverride} onChange={e => setIsLlmOverride(e.target.checked)} />
-                     <div className="w-9 h-5 bg-black/20 dark:bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent"></div>
-                   </label>
+                   <Toggle checked={isLlMOverride} onChange={e => setIsLlmOverride(e.target.checked)} label={t("settings.story.overrideToggle")} />
                    <Button variant="ghost" size="sm" onClick={() => setGlobalSettingsOpen(true)}>{t("common.actions.viewGlobalSettings")}</Button>
                 </div>
               </div>
