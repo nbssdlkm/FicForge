@@ -318,44 +318,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
       </Sidebar>
 
       <div className="flex-1 flex flex-col overflow-hidden relative z-10 bg-background">
-        {/* Milestone banner (only on writer tab, show only the first triggered) */}
-        {activeTab === 'writer' && (() => {
-          // Priority order: M1 > M2 > M3. Show only one at a time.
-          if (currentChapter >= 4 && factsCount < 2 && shouldShow('facts_intro') && !milestoneDismissed['facts_intro']) {
-            return (
-              <MilestoneGuide
-                title={t('milestones.factsIntro.title')}
-                description={t('milestones.factsIntro.desc')}
-                primaryAction={{ label: t('milestones.factsIntro.extract'), onClick: () => { dismissMilestone('facts_intro'); onNavigate('facts', auPath); } }}
-                secondaryAction={{ label: t('milestones.factsIntro.later'), onClick: () => dismissMilestone('facts_intro') }}
-                onDismiss={() => dismissMilestone('facts_intro')}
-              />
-            );
-          }
-          if (currentChapter >= 6 && pinnedCount === 0 && shouldShow('pinned_intro') && !milestoneDismissed['pinned_intro']) {
-            return (
-              <MilestoneGuide
-                title={t('milestones.pinnedIntro.title')}
-                description={t('milestones.pinnedIntro.desc')}
-                primaryAction={{ label: t('milestones.pinnedIntro.addPinned'), onClick: () => { dismissMilestone('pinned_intro'); onNavigate('settings', auPath); } }}
-                secondaryAction={{ label: t('milestones.pinnedIntro.notNeeded'), onClick: () => dismissMilestone('pinned_intro') }}
-                onDismiss={() => dismissMilestone('pinned_intro')}
-              />
-            );
-          }
-          if (unresolvedFact && chapterFocusEmpty && shouldShow('focus_intro') && !milestoneDismissed['focus_intro']) {
-            return (
-              <MilestoneGuide
-                title={t('milestones.focusIntro.title', { content: unresolvedFact })}
-                description={t('milestones.focusIntro.desc')}
-                primaryAction={{ label: t('milestones.focusIntro.setFocus'), onClick: () => dismissMilestone('focus_intro') }}
-                secondaryAction={{ label: t('milestones.focusIntro.freeStyle'), onClick: () => dismissMilestone('focus_intro') }}
-                onDismiss={() => dismissMilestone('focus_intro')}
-              />
-            );
-          }
-          return null;
-        })()}
+        {milestoneElement}
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}

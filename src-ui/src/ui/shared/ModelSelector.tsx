@@ -70,10 +70,6 @@ export function ModelSelector({ value, onChange, onApiBaseAutoFill, disabled, cl
   const [isCustom, setIsCustom] = useState(() => !ALL_PRESETS.some(p => p.name === value));
 
   const handleSelect = (modelName: string) => {
-    if (modelName === '__custom__') {
-      setIsCustom(true);
-      return;
-    }
     setIsCustom(false);
     onChange(modelName);
     const preset = ALL_PRESETS.find(p => p.name === modelName);

@@ -881,11 +881,13 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     );
 
     // debounced auto-save：编辑 1.5s 后自动保存到磁盘
+    // 直接用参数 content（最新值），draft label 通过 ref 快照避免 stale closure
+    const label = drafts[activeDraftIndex]?.label;
+    const chapterNum = state?.current_chapter || 1;
+    if (!label) return;
     if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current);
     draftSaveTimerRef.current = setTimeout(() => {
-      const draft = drafts[activeDraftIndex];
-      if (!draft) return;
-      saveDraft(auPath, state?.current_chapter || 1, draft.label, content).catch(() => {});
+      saveDraft(auPath, chapterNum, label, content).catch(() => {});
     }, 1500);
   };
 

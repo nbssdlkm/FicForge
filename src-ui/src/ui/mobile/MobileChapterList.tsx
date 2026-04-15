@@ -39,16 +39,19 @@ export function MobileChapterList({
   const [editingNum, setEditingNum] = useState<number | null>(null);
   const [editingValue, setEditingValue] = useState("");
   const originalRef = useRef("");
+  const committingRef = useRef(false); // 防止 Enter+blur 双重提交
 
   const startEditing = (ch: ChapterInfo, e: React.MouseEvent) => {
     e.stopPropagation();
     originalRef.current = ch.title || "";
     setEditingNum(ch.chapter_num);
     setEditingValue(ch.title || "");
+    committingRef.current = false;
   };
 
   const commitEdit = async () => {
-    if (editingNum === null) return;
+    if (editingNum === null || committingRef.current) return;
+    committingRef.current = true;
     const trimmed = editingValue.trim();
     if (trimmed !== originalRef.current) {
       try {
@@ -61,7 +64,7 @@ export function MobileChapterList({
     setEditingNum(null);
   };
 
-  const cancelEdit = () => setEditingNum(null);
+  const cancelEdit = () => { committingRef.current = true; setEditingNum(null); };
 
   return (
     <section className="flex h-full flex-col bg-background md:hidden">
