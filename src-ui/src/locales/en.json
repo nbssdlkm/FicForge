@@ -429,6 +429,12 @@
     "temperature": "Creativity (temperature)",
     "topP": "Sampling Range (top_p)"
   },
+  "modelSelector": {
+    "customPlaceholder": "Enter model name, e.g. gpt-4o",
+    "presets": "Presets",
+    "custom": "Custom",
+    "selectHint": "Select model..."
+  },
   "settings": {
     "title": "Story Settings",
     "headerTitle": "Story Settings",
@@ -863,7 +869,8 @@
     "continueLastChapter": "↩ Continue Last Chapter",
     "maxTwo": "Maximum 2 focus points",
     "lastFocusExpired": "Last chapter's focus has expired. Please re-select.",
-    "recommended": "Recommended"
+    "recommended": "Recommended",
+    "resolvePrompt": "The plot threads advanced in this chapter have been finalized. Remember to mark them as resolved in Plot Notes."
   },
   "undo": {
     "confirmTitle": "Undo Chapter {{chapter}}?",

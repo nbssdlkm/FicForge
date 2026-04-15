@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { Toggle } from '../shared/Toggle';
+import { ModelSelector } from '../shared/ModelSelector';
 import { Tag } from '../shared/Tag';
 import { Modal } from '../shared/Modal';
 import { Settings, Save, Trash2, Plus, Loader2 } from 'lucide-react';
@@ -302,7 +303,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                     <>
                       <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-text/80">{t("settings.story.storyModel")}</label>
-                        <Input value={auModel} onChange={e => setAuModel(e.target.value)} placeholder="deepseek-chat" className="h-11 text-base md:h-9 md:text-sm" />
+                        <ModelSelector value={auModel} onChange={setAuModel} onApiBaseAutoFill={setAuApiBase} disabled={false} />
                       </div>
                       <div className="flex flex-col gap-1.5">
                          <label className="text-xs font-bold text-text/80">{t("common.labels.apiKey")}</label>
