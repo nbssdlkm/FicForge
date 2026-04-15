@@ -7,6 +7,7 @@ import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { HelpCircle, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { ModelSelector } from '../shared/ModelSelector';
 import { getSettings, testConnection, updateSettings, LLMMode, type SettingsInfo, getDataDir, getDisplayDataDir } from '../../api/engine-client';
 import { ConflictResolveModal } from '../shared/ConflictResolveModal';
 import { useSyncOperations } from './useSyncOperations';
@@ -262,7 +263,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
               <>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-bold text-text/90">{t('settings.global.defaultModel')}</label>
-                  <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="deepseek-chat" disabled={saving} />
+                  <ModelSelector value={model} onChange={setModel} onApiBaseAutoFill={setApiBase} disabled={saving} />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
