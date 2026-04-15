@@ -5,7 +5,7 @@
  * Engine Settings — getSettings, updateSettings, testConnection.
  */
 
-import { OpenAICompatibleProvider, type Settings } from "@ficforge/engine";
+import { OpenAICompatibleProvider, RemoteEmbeddingProvider, type Settings } from "@ficforge/engine";
 import { getEngine } from "./engine-client";
 import { buildApiUrl } from "./client";
 
@@ -33,6 +33,17 @@ export async function updateSettings(updates: DeepPartial<Settings>) {
   }
   await settings.save(current);
   return current;
+}
+
+export async function testEmbeddingConnection(params: { api_base: string; api_key: string; model: string }) {
+  try {
+    const provider = new RemoteEmbeddingProvider(params.api_base, params.api_key, params.model);
+    await provider.embed(["connection test"]);
+    return { success: true, model: params.model, dimension: provider.get_dimension() };
+  } catch (e: unknown) {
+    const err = e as { message?: string };
+    return { success: false, message: err.message };
+  }
 }
 
 export async function testConnection(params: { mode: string; model?: string; api_base?: string; api_key?: string; local_model_path?: string; ollama_model?: string }) {
