@@ -1048,7 +1048,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
               </div>
             ) : (
               /* Expanded: full toolbar */
-              <div className="flex flex-col gap-3 p-4">
+              <div className="flex flex-col gap-3 p-4 pb-6 md:pb-4">
                 {hasPendingDrafts && currentDraft && (
                   <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 rounded-xl border border-black/10 bg-background/60 px-4 py-3 dark:border-white/10">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -1108,7 +1108,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                       void handleGenerateFromInput(instructionText.trim() ? 'instruction' : 'continue');
                     }}
                     disabled={writeActionsDisabled}
-                    className="h-9 w-full rounded-lg border border-black/10 bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent/50 dark:border-white/10"
+                    className="h-9 w-full rounded-lg border border-black/10 bg-background px-3 text-sm text-text placeholder:text-text/40 outline-none focus:ring-2 focus:ring-accent/50 dark:border-white/10"
                   />
                 </div>
 
@@ -1118,7 +1118,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                     onChange={(event) => setInstructionText(event.target.value)}
                     placeholder={t('writer.inputPlaceholder')}
                     disabled={writeActionsDisabled}
-                    className="min-h-[96px] resize-none bg-background/90"
+                    className="min-h-[80px] resize-none bg-background/90 text-text"
                   />
                 </div>
 
