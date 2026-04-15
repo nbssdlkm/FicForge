@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from '../shared/Button';
 import { Card } from '../shared/Card';
+import { MODEL_PRESETS } from '../shared/ModelSelector';
 import { useTranslation } from '../../i18n/useAppTranslation';
 
 interface SettingsPanelProps {
@@ -29,14 +30,7 @@ export const SettingsPanel = ({
   onSaveAu
 }: SettingsPanelProps = {}) => {
   const { t } = useTranslation();
-  const presetModels = [
-    'deepseek-chat',
-    'claude-3-5-sonnet',
-    'claude-sonnet-4-6',
-    'gpt-4o',
-    'llama3',
-    'qwen-max',
-  ];
+  const allPresetNames = MODEL_PRESETS.flatMap(g => g.models.map(m => m.name));
   const [localModel, setLocalModel] = useState(externalModel || 'deepseek-chat');
   const [temp, setTemp] = useState(externalTemp ?? 1.0);
   const [topP, setTopP] = useState(externalTopP ?? 0.95);
@@ -73,16 +67,17 @@ export const SettingsPanel = ({
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-text/70">{t("common.labels.model")}</label>
         <select value={localModel} onChange={e => handleModelChange(e.target.value)}
-          className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-1 focus:ring-accent dark:border-white/20 md:h-8 md:px-2 md:text-xs">
-          {!presetModels.includes(localModel) && localModel ? (
+          className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base text-text outline-none focus:ring-1 focus:ring-accent dark:border-white/20 md:h-8 md:px-2 md:text-xs">
+          {!allPresetNames.includes(localModel) && localModel ? (
             <option value={localModel}>{localModel}</option>
           ) : null}
-          <option value="deepseek-chat">deepseek-chat</option>
-          <option value="claude-3-5-sonnet">claude-3-5-sonnet</option>
-          <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
-          <option value="gpt-4o">gpt-4o</option>
-          <option value="llama3">llama3</option>
-          <option value="qwen-max">qwen-max</option>
+          {MODEL_PRESETS.map(group => (
+            <optgroup key={group.group} label={group.group}>
+              {group.models.map(m => (
+                <option key={m.name} value={m.name}>{m.name}</option>
+              ))}
+            </optgroup>
+          ))}
         </select>
       </div>
 

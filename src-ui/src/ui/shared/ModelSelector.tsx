@@ -8,8 +8,9 @@ import { useTranslation } from '../../i18n/useAppTranslation';
 /**
  * 预设模型及其对应的 API base URL。
  * 选择预设时自动填充 baseurl，减少用户手动输入。
+ * 同时作为 SettingsPanel 等其他组件的唯一模型列表数据源。
  */
-const MODEL_PRESETS: { group: string; models: { name: string; apiBase: string }[] }[] = [
+export const MODEL_PRESETS: { group: string; models: { name: string; apiBase: string }[] }[] = [
   {
     group: 'DeepSeek',
     models: [

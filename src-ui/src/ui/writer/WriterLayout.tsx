@@ -153,6 +153,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const activeAuPathRef = useRef(auPath);
   const loadRequestIdRef = useRef(0);
   const refreshRequestIdRef = useRef(0);
+  const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   activeAuPathRef.current = auPath;
   const [mode, setMode] = useState<WriterMode>('write');
   const [showSettingsTooltip, setShowSettingsTooltip] = useState(false);
@@ -293,14 +294,15 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
   // 指令文本持久化：变化时自动保存到 localStorage
   const instructionSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentChapterNum = state?.current_chapter ?? 0;
   useEffect(() => {
-    if (!state) return;
+    if (!currentChapterNum) return;
     if (instructionSaveRef.current) clearTimeout(instructionSaveRef.current);
     instructionSaveRef.current = setTimeout(() => {
-      saveInstructionText(auPath, state.current_chapter, instructionText);
+      saveInstructionText(auPath, currentChapterNum, instructionText);
     }, 500);
     return () => { if (instructionSaveRef.current) clearTimeout(instructionSaveRef.current); };
-  }, [instructionText, auPath, state]);
+  }, [instructionText, auPath, currentChapterNum]);
 
   const focusInstructionInput = () => {
     window.setTimeout(() => {
@@ -317,6 +319,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     setRecoveryNotice(false);
     setDraftSummaries({});
     pendingContextSummaryRef.current = null;
+    // 清除 draft auto-save 定时器，防止草稿丢弃后 debounce 仍触发
+    if (draftSaveTimerRef.current) { clearTimeout(draftSaveTimerRef.current); draftSaveTimerRef.current = null; }
   };
 
   const replaceDraftSummaries = useCallback((chapterNum: number, summaries: Record<string, ContextSummary>) => {
@@ -701,14 +705,12 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       await loadData();
       onChaptersChanged?.();
 
-      // 待填坑 focus 定稿后提示标记已填坑
-      if (confirmedFocus.length > 0) {
-        showToast(t('focus.resolvePrompt'), 'info');
-        // 延迟提示，不阻塞主流程；用户可在剧情笔记界面手动处理
-      }
-
       if (factsExtraction.skipFactsPrompt) {
         showSuccess(t('drafts.finalizeSuccess', { chapter: confirmedChapter }));
+        // 跳过 facts 提取时，单独提示待填坑标记
+        if (confirmedFocus.length > 0) {
+          showToast(t('focus.resolvePrompt'), 'info');
+        }
         focusInstructionInput();
         return;
       }
@@ -864,8 +866,6 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       showError(error, t('error_messages.unknown'));
     }
   };
-
-  const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleCurrentDraftChange = (content: string) => {
     setDrafts((current) =>

@@ -106,7 +106,7 @@ export function MobileLayout({
       </header>
 
       <div className="flex-1 overflow-hidden pb-24">
-        {milestoneElement}
+        {activeTab === "writer" && milestoneElement}
         {activeTab === "chapters" ? (
           <MobileChapterList
             auPath={auPath}

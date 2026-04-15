@@ -5,7 +5,6 @@
  * Engine Drafts — listDrafts, getDraft, deleteDrafts.
  */
 
-import { createDraft } from "@ficforge/engine";
 import { getEngine } from "./engine-client";
 
 export async function listDrafts(auPath: string, chapterNum: number) {
@@ -24,13 +23,8 @@ export async function getDraft(auPath: string, chapterNum: number, label: string
 
 export async function saveDraft(auPath: string, chapterNum: number, label: string, content: string) {
   const { draft } = getEngine().repos;
-  let existing;
-  try {
-    existing = await draft.get(auPath, chapterNum, label);
-  } catch {
-    // 草稿可能已被丢弃，此时 debounce 定时器仍在跑
-    existing = createDraft({ au_id: auPath, chapter_num: chapterNum, variant: label });
-  }
+  // get 失败说明草稿已丢弃，让异常冒泡到调用方 .catch() 静默处理
+  const existing = await draft.get(auPath, chapterNum, label);
   existing.content = content;
   await draft.save(existing);
 }
