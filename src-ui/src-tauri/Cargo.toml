@@ -25,4 +25,5 @@ serde_json = "1"
 tokio = { version = "1", features = ["process", "io-util"] }
 tauri-plugin-dialog = "2.7.0"
 tauri-plugin-fs = "2.5.0"
+tauri-plugin-http = "2"
 

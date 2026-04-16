@@ -41,6 +41,7 @@ function App() {
       if (initRef.current) return;
       initRef.current = true;
 
+      let currentStep = "detecting platform";
       try {
         // 检查是否在 Tauri 环境中
         const isTauri = typeof window !== "undefined" && !!(window as any).__TAURI_INTERNALS__;
@@ -49,12 +50,14 @@ function App() {
 
         if (isTauri) {
           // Tauri 环境：使用 TauriAdapter
+          currentStep = "loading Tauri modules";
           const { TauriAdapter } = await import("@ficforge/engine");
           const { appDataDir } = await import("@tauri-apps/api/path");
           const { exists } = await import("@tauri-apps/plugin-fs");
           const adapter = new TauriAdapter(deviceId);
 
           // 数据目录检测：优先使用 appDataDir，如果旧路径有数据则使用旧路径（兼容迁移）
+          currentStep = "resolving data directory";
           let dataDir = await appDataDir();
           const oldDataDir = "./fandoms";
           try {
@@ -68,7 +71,9 @@ function App() {
             // 检测失败，使用默认 appDataDir
           }
 
+          currentStep = "initializing logger";
           initLogger(adapter, dataDir);
+          currentStep = "initializing engine";
           initEngine(adapter, dataDir);
         } else {
           // 非 Tauri 环境：检测 Capacitor 或降级 WebAdapter
@@ -78,16 +83,22 @@ function App() {
           if (isCapacitor) {
             // Capacitor 环境（Android/iOS）：使用 CapacitorAdapter
             // 文件操作用相对路径（""），file:// URI 仅用于 UI 显示
+            currentStep = "loading Capacitor adapter";
             const { CapacitorAdapter } = await import("@ficforge/engine");
             const adapter = new CapacitorAdapter(deviceId);
+            currentStep = "initializing logger";
             initLogger(adapter, "");
+            currentStep = "initializing engine";
             initEngine(adapter, "");
           } else {
             // PWA / 浏览器：使用 WebAdapter（IndexedDB）
+            currentStep = "loading Web adapter";
             const { WebAdapter } = await import("@ficforge/engine");
             const adapter = new WebAdapter(deviceId);
             await adapter.init();
+            currentStep = "initializing logger";
             initLogger(adapter, "");
+            currentStep = "initializing engine";
             initEngine(adapter, "");
             // 请求持久化存储，防止浏览器自动回收 IndexedDB 数据
             try { await navigator.storage?.persist?.(); } catch { /* best effort */ }
@@ -115,7 +126,9 @@ function App() {
 
         setEngineInitialized(true);
       } catch (e) {
-        setInitError(String(e));
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("[FicForge] Init failed at:", currentStep, e);
+        setInitError(`[${currentStep}] ${msg}`);
       }
     }
     setup();

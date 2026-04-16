@@ -78,6 +78,8 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   const showError = useCallback((error: unknown, fallbackMessage?: string) => {
     const fallback = fallbackMessage || t("error_messages.unknown");
     const { message, actions } = getMessage(error, fallback);
+    // 日志记录完整错误信息，便于调试
+    console.error("[FicForge] showError:", message, error);
     if (actions.length > 1) {
       setDialog({ message, actions });
       return;

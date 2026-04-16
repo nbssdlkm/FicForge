@@ -31,13 +31,15 @@ export interface SyncAdapter {
 export class WebDAVSyncAdapter implements SyncAdapter {
   private baseUrl: string;
   private headers: Record<string, string>;
+  private fetchFn: typeof fetch;
 
-  constructor(url: string, username: string, password: string) {
+  constructor(url: string, username: string, password: string, fetchFn?: typeof fetch) {
     this.baseUrl = url.replace(/\/+$/, "");
     this.headers = {
       // btoa 安全编码（支持非 ASCII 用户名/密码）
       Authorization: "Basic " + btoa(unescape(encodeURIComponent(`${username}:${password}`))),
     };
+    this.fetchFn = fetchFn ?? globalThis.fetch.bind(globalThis);
   }
 
   async pullOps(auPath: string): Promise<PullOpsResult> {
@@ -66,7 +68,7 @@ export class WebDAVSyncAdapter implements SyncAdapter {
   }
 
   async pullFile(remotePath: string): Promise<string | null> {
-    const resp = await fetch(`${this.baseUrl}/${remotePath}`, {
+    const resp = await this.fetchFn(`${this.baseUrl}/${remotePath}`, {
       method: "GET",
       headers: this.headers,
     });
@@ -79,7 +81,7 @@ export class WebDAVSyncAdapter implements SyncAdapter {
     // Ensure parent directories exist via MKCOL before PUT
     await this.ensureParentDir(remotePath);
 
-    const resp = await fetch(`${this.baseUrl}/${remotePath}`, {
+    const resp = await this.fetchFn(`${this.baseUrl}/${remotePath}`, {
       method: "PUT",
       headers: { ...this.headers, "Content-Type": "text/plain; charset=utf-8" },
       body: content,
@@ -95,7 +97,7 @@ export class WebDAVSyncAdapter implements SyncAdapter {
     for (let i = 1; i < parts.length; i++) {
       const dirPath = parts.slice(0, i).join("/");
       try {
-        const resp = await fetch(`${this.baseUrl}/${dirPath}`, {
+        const resp = await this.fetchFn(`${this.baseUrl}/${dirPath}`, {
           method: "MKCOL",
           headers: this.headers,
         });
@@ -109,8 +111,17 @@ export class WebDAVSyncAdapter implements SyncAdapter {
     }
   }
 
+  /** 测试连接（PROPFIND Depth:0）。 */
+  async testConnection(): Promise<{ success: boolean }> {
+    const resp = await this.fetchFn(this.baseUrl, {
+      method: "PROPFIND",
+      headers: { ...this.headers, Depth: "0" },
+    });
+    return { success: resp.ok || resp.status === 207 };
+  }
+
   async listRemoteFiles(remotePath: string): Promise<string[]> {
-    const resp = await fetch(`${this.baseUrl}/${remotePath}`, {
+    const resp = await this.fetchFn(`${this.baseUrl}/${remotePath}`, {
       method: "PROPFIND",
       headers: { ...this.headers, Depth: "1" },
     });

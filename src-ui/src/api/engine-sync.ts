@@ -30,6 +30,15 @@ export interface AggregatedSyncResult {
   errors: string[];
 }
 
+/** 获取当前平台的 fetch 函数。Tauri 环境使用 plugin-http 绕过 CORS。 */
+async function getPlatformFetch(): Promise<typeof fetch> {
+  if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
+    const { fetch: tauriFetch } = await import("@tauri-apps/plugin-http");
+    return tauriFetch;
+  }
+  return globalThis.fetch.bind(globalThis);
+}
+
 /** 规范化 remote_dir：确保以 / 开头，去掉尾部 /。 */
 function normalizeRemoteDir(dir: string): string {
   if (!dir) return ""; // 空 dir = 服务器根目录，无需前缀
@@ -51,23 +60,20 @@ function toRemoteAuPath(localAuPath: string, dataDir: string): string {
 export async function testWebDAVConnection(
   config: WebDAVConfig,
 ): Promise<{ success: boolean }> {
-  const url = config.url.replace(/\/+$/, "") + normalizeRemoteDir(config.remote_dir);
-  const resp = await fetch(url, {
-    method: "PROPFIND",
-    headers: {
-      Authorization: "Basic " + btoa(unescape(encodeURIComponent(`${config.username}:${config.password}`))),
-      Depth: "0",
-    },
-  });
-  return { success: resp.ok || resp.status === 207 };
+  const { WebDAVSyncAdapter } = await import("@ficforge/engine");
+  const fetchFn = await getPlatformFetch();
+  const baseUrl = config.url.replace(/\/+$/, '') + normalizeRemoteDir(config.remote_dir);
+  const adapter = new WebDAVSyncAdapter(baseUrl, config.username, config.password, fetchFn);
+  return adapter.testConnection();
 }
 
 export async function syncAllAus(webdavConfig: WebDAVConfig): Promise<AggregatedSyncResult> {
   const { SyncManager, WebDAVSyncAdapter } = await import("@ficforge/engine");
   const { adapter, repos } = getEngine();
   const dd = getDataDir();
+  const fetchFn = await getPlatformFetch();
   const baseUrl = webdavConfig.url.replace(/\/+$/, '') + normalizeRemoteDir(webdavConfig.remote_dir);
-  const syncAdapter = new WebDAVSyncAdapter(baseUrl, webdavConfig.username, webdavConfig.password);
+  const syncAdapter = new WebDAVSyncAdapter(baseUrl, webdavConfig.username, webdavConfig.password, fetchFn);
   const syncManager = new SyncManager(adapter, repos.ops, repos.state, syncAdapter, repos.fact);
 
   const agg: AggregatedSyncResult = {
@@ -124,8 +130,9 @@ export async function resolveFileConflict(
   const { WebDAVSyncAdapter } = await import("@ficforge/engine");
   const { adapter } = getEngine();
   const dd = getDataDir();
+  const fetchFn = await getPlatformFetch();
   const baseUrl = webdavConfig.url.replace(/\/+$/, '') + normalizeRemoteDir(webdavConfig.remote_dir);
-  const syncAdapter = new WebDAVSyncAdapter(baseUrl, webdavConfig.username, webdavConfig.password);
+  const syncAdapter = new WebDAVSyncAdapter(baseUrl, webdavConfig.username, webdavConfig.password, fetchFn);
 
   const localFullPath = `${auPath}/${filePath}`;
   // 远端路径用相对路径
