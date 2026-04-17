@@ -143,8 +143,10 @@ export async function rewrite_jsonl(
 // ---------------------------------------------------------------------------
 
 /**
- * 基础路径安全验证：拒绝空路径、空字节、反斜杠和 '..' 遍历序列。
- * 允许绝对路径（以 / 开头），用于系统级路径如 dataDir、au_id、fandom_path。
+ * 基础路径安全验证：拒绝空路径、空字节和 '..' 遍历序列。
+ * 允许绝对路径和反斜杠，用于系统级路径如 dataDir、au_id、fandom_path。
+ * Windows 桌面端 appDataDir() 返回带反斜杠的路径（如 C:\Users\...），必须允许。
+ * '..' 遍历检查同时覆盖正斜杠和反斜杠分隔符。
  */
 export function validateBasePath(value: string, name: string): void {
   if (!value) {
@@ -153,10 +155,8 @@ export function validateBasePath(value: string, name: string): void {
   if (value.includes("\0")) {
     throw new Error(`Path validation failed: ${name} contains null byte`);
   }
-  if (value.includes("\\")) {
-    throw new Error(`Path validation failed: ${name} contains backslash`);
-  }
-  const segments = value.split("/");
+  // Split on both / and \ to catch traversal on all platforms
+  const segments = value.split(/[/\\]/);
   for (const seg of segments) {
     if (seg === "..") {
       throw new Error(`Path validation failed: ${name} contains '..' traversal`);
@@ -165,13 +165,16 @@ export function validateBasePath(value: string, name: string): void {
 }
 
 /**
- * 严格路径段验证：除基础检查外，还拒绝绝对路径。
+ * 严格路径段验证：除基础检查外，还拒绝绝对路径和反斜杠。
  * 仅用于纯用户输入的相对段名（如 variant 名称），不用于可能为绝对路径的参数。
  */
 export function validatePathSegment(value: string, name: string): void {
   validateBasePath(value, name);
   if (value.startsWith("/")) {
     throw new Error(`Path validation failed: ${name} must be a relative path`);
+  }
+  if (value.includes("\\")) {
+    throw new Error(`Path validation failed: ${name} contains backslash`);
   }
 }
 
