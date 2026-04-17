@@ -85,16 +85,19 @@ export class WebAdapter implements PlatformAdapter {
   }
 
   async readFile(path: string): Promise<string> {
+    if (!path || !this.norm(path)) throw new Error("readFile: path must not be empty");
     const content = await txGet(this.db(), this.norm(path));
     if (content === undefined) throw new Error(`File not found: ${path}`);
     return content;
   }
 
   async writeFile(path: string, content: string): Promise<void> {
+    if (!path || !this.norm(path)) throw new Error("writeFile: path must not be empty");
     await txPut(this.db(), this.norm(path), content);
   }
 
   async deleteFile(path: string): Promise<void> {
+    if (!path || !this.norm(path)) throw new Error("deleteFile: path must not be empty");
     await txDelete(this.db(), this.norm(path));
   }
 
@@ -161,28 +164,43 @@ export class WebAdapter implements PlatformAdapter {
 
   async kvGet(key: string): Promise<string | null> {
     try { return localStorage.getItem(key); }
-    catch { return this._kvFallback.get(key) ?? null; }
+    catch {
+      console.warn(`[WebAdapter] kvGet: localStorage 不可用，使用内存回退（数据不持久化）`);
+      return this._kvFallback.get(key) ?? null;
+    }
   }
 
   async kvSet(key: string, value: string): Promise<void> {
     try { localStorage.setItem(key, value); }
-    catch { this._kvFallback.set(key, value); }
+    catch {
+      console.warn(`[WebAdapter] kvSet: localStorage 不可用，使用内存回退（数据不持久化）`);
+      this._kvFallback.set(key, value);
+    }
   }
 
   async kvRemove(key: string): Promise<void> {
     try { localStorage.removeItem(key); }
-    catch { this._kvFallback.delete(key); }
+    catch {
+      console.warn(`[WebAdapter] kvRemove: localStorage 不可用，使用内存回退`);
+      this._kvFallback.delete(key);
+    }
   }
 
-  // 敏感数据存储：当前为 KV + 前缀隔离（TODO: 接入 crypto.subtle 加密）
+  /**
+   * @warning **未加密。** 当前实现仅在 KV 键前添加 `__secure__:` 前缀隔离，
+   * 数据以明文存于 localStorage（或内存回退）。
+   * 待接入 crypto.subtle 派生密钥加密后实现真正加密。
+   */
   async secureGet(key: string): Promise<string | null> {
     return this.kvGet(`__secure__:${key}`);
   }
 
+  /** @see {@link WebAdapter.secureGet} — 同样未加密。 */
   async secureSet(key: string, value: string): Promise<void> {
     return this.kvSet(`__secure__:${key}`, value);
   }
 
+  /** @see {@link WebAdapter.secureGet} — 同样未加密。 */
   async secureRemove(key: string): Promise<void> {
     return this.kvRemove(`__secure__:${key}`);
   }
