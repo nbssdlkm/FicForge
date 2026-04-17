@@ -9,13 +9,7 @@ import { FileUp } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
 import { exportChapters, logCatch } from '../../api/engine-client';
-
-/** Tauri 环境检测：window.__TAURI_INTERNALS__ 存在则为 Tauri 打包环境 */
-const isTauri = () => typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__;
-
-/** Capacitor 原生环境检测 */
-const isCapacitor = () => typeof (window as any).Capacitor !== 'undefined'
-  && (window as any).Capacitor.isNativePlatform?.();
+import { isTauri, isCapacitor } from '../../utils/platform';
 
 async function saveWithTauriDialog(blob: Blob, filename: string): Promise<'saved' | 'cancelled' | 'error'> {
   try {

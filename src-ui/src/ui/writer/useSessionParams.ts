@@ -70,7 +70,7 @@ export function useSessionParams(
       const proj = await getProject(auPath);
       if (!proj.model_params_override) proj.model_params_override = {};
       proj.model_params_override[sessionModel] = { temperature: sessionTemp, top_p: sessionTopP };
-      await updateProject(auPath, proj as any);
+      await updateProject(auPath, proj);
       if (activeAuPathRef.current !== requestAuPath) return;
       showSuccess(t('writer.saveAuSuccess'));
     } catch (error) {

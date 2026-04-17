@@ -15,12 +15,13 @@ import {
   createWritingStyle,
 } from "../../domain/project.js";
 import type { ProjectRepository } from "../interfaces/project.js";
-import { joinPath, now_utc, obj_to_plain } from "./file_utils.js";
+import { joinPath, now_utc, obj_to_plain, validateBasePath } from "./file_utils.js";
 
 export class FileProjectRepository implements ProjectRepository {
   constructor(private adapter: PlatformAdapter) {}
 
   async get(au_id: string): Promise<Project> {
+    validateBasePath(au_id, "au_id");
     const path = joinPath(au_id, "project.yaml");
     const exists = await this.adapter.exists(path);
     if (!exists) {
@@ -40,10 +41,12 @@ export class FileProjectRepository implements ProjectRepository {
   }
 
   async save(project: Project): Promise<void> {
+    validateBasePath(project.au_id, "au_id");
     const path = joinPath(project.au_id, "project.yaml");
-    project.updated_at = now_utc();
-    project.revision += 1;
-    const raw = obj_to_plain(project);
+    const copy = structuredClone(project);
+    copy.updated_at = now_utc();
+    copy.revision += 1;
+    const raw = obj_to_plain(copy);
     const content = yaml.dump(raw, { sortKeys: false, lineWidth: -1 });
     const dir = path.substring(0, path.lastIndexOf("/"));
     await this.adapter.mkdir(dir);
@@ -51,6 +54,7 @@ export class FileProjectRepository implements ProjectRepository {
   }
 
   async list_aus(fandom: string): Promise<Project[]> {
+    validateBasePath(fandom, "fandom");
     const ausDir = joinPath(fandom, "aus");
     const exists = await this.adapter.exists(ausDir);
     if (!exists) return [];

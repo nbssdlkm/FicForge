@@ -7,16 +7,8 @@
  *   renameFandom, renameAu.
  */
 
-import { getEngine, getDataDir } from "./engine-client";
+import { getEngine, getDataDir } from "./engine-instance";
 import { sanitizePathSegment } from "./engine-lore";
-
-/** 路径安全检查：拒绝含 /, .., 或平台非法字符的名称 */
-function sanitizeName(name: string): string {
-  const trimmed = name.trim();
-  if (!trimmed) throw new Error("名称不能为空");
-  if (/[/\\]|\.\./.test(trimmed)) throw new Error(`名称含非法字符: ${trimmed}`);
-  return trimmed;
-}
 
 export async function listFandoms(dataDir?: string) {
   const dd = dataDir ?? getDataDir();
@@ -32,7 +24,7 @@ export async function listFandoms(dataDir?: string) {
 }
 
 export async function createFandom(name: string, dataDir?: string) {
-  const safeName = sanitizeName(name);
+  const safeName = sanitizePathSegment(name);
   const dd = dataDir ?? getDataDir();
   const e = getEngine();
   const path = `${dd}/fandoms/${safeName}`;
@@ -61,7 +53,7 @@ export async function listAus(fandomName: string, dataDir?: string) {
 }
 
 export async function createAu(fandomName: string, auName: string, fandomPath: string) {
-  const safeName = sanitizeName(auName);
+  const safeName = sanitizePathSegment(auName);
   const { adapter } = getEngine();
   const auPath = `${fandomPath}/aus/${safeName}`;
   // 检查 AU 是否已存在

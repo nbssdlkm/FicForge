@@ -10,7 +10,7 @@ import { createDraft } from "../../domain/draft.js";
 import type { GeneratedWith } from "../../domain/generated_with.js";
 import { createGeneratedWith } from "../../domain/generated_with.js";
 import type { DraftRepository } from "../interfaces/draft.js";
-import { joinPath } from "./file_utils.js";
+import { joinPath, validateBasePath, validatePathSegment } from "./file_utils.js";
 
 export class FileDraftRepository implements DraftRepository {
   constructor(private adapter: PlatformAdapter) {}
@@ -25,10 +25,12 @@ export class FileDraftRepository implements DraftRepository {
   }
 
   private draftsDir(au_id: string): string {
+    validateBasePath(au_id, "au_id");
     return joinPath(au_id, "chapters", ".drafts");
   }
 
   private draftPath(au_id: string, chapter_num: number, variant: string): string {
+    validatePathSegment(variant, "variant");
     return joinPath(this.draftsDir(au_id), this.draftFilename(chapter_num, variant));
   }
 

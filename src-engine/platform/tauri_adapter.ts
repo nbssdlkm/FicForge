@@ -19,16 +19,19 @@ export class TauriAdapter implements PlatformAdapter {
   }
 
   async readFile(path: string): Promise<string> {
+    if (!path) throw new Error("readFile: path must not be empty");
     const { readTextFile } = await import("@tauri-apps/plugin-fs");
     return readTextFile(path);
   }
 
   async writeFile(path: string, content: string): Promise<void> {
+    if (!path) throw new Error("writeFile: path must not be empty");
     const { writeTextFile } = await import("@tauri-apps/plugin-fs");
     await writeTextFile(path, content);
   }
 
   async deleteFile(path: string): Promise<void> {
+    if (!path) throw new Error("deleteFile: path must not be empty");
     const { remove } = await import("@tauri-apps/plugin-fs");
     await remove(path);
   }
@@ -83,29 +86,31 @@ export class TauriAdapter implements PlatformAdapter {
   }
 
   async kvGet(key: string): Promise<string | null> {
-    try { return localStorage.getItem(key); }
-    catch { return null; }
+    return localStorage.getItem(key);
   }
 
   async kvSet(key: string, value: string): Promise<void> {
-    try { localStorage.setItem(key, value); }
-    catch { /* Tauri WebView 理论上不会失败，兜底吞错 */ }
+    localStorage.setItem(key, value);
   }
 
   async kvRemove(key: string): Promise<void> {
-    try { localStorage.removeItem(key); }
-    catch { /* ignore */ }
+    localStorage.removeItem(key);
   }
 
-  // 敏感数据存储：当前为 KV + 前缀隔离（TODO: 接入 @tauri-apps/plugin-stronghold）
+  /**
+   * @warning **未加密。** 当前实现仅在 KV 键前添加 `__secure__:` 前缀隔离，
+   * 数据以明文存于 localStorage。待接入 @tauri-apps/plugin-stronghold 后实现真正加密。
+   */
   async secureGet(key: string): Promise<string | null> {
     return this.kvGet(`__secure__:${key}`);
   }
 
+  /** @see {@link TauriAdapter.secureGet} — 同样未加密。 */
   async secureSet(key: string, value: string): Promise<void> {
     return this.kvSet(`__secure__:${key}`, value);
   }
 
+  /** @see {@link TauriAdapter.secureGet} — 同样未加密。 */
   async secureRemove(key: string): Promise<void> {
     return this.kvRemove(`__secure__:${key}`);
   }

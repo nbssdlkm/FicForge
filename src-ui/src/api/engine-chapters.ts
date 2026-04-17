@@ -21,7 +21,7 @@ import {
   WriteTransaction,
   type GeneratedWith,
 } from "@ficforge/engine";
-import { getEngine } from "./engine-client";
+import { getEngine } from "./engine-instance";
 import { createEmbeddingProvider } from "./engine-state";
 
 export async function listChapters(auPath: string) {

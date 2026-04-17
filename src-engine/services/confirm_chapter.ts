@@ -35,7 +35,13 @@ const _locks = new Map<string, Promise<void>>();
 function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const prev = _locks.get(key) ?? Promise.resolve();
   const next = prev.then(fn, fn);
-  _locks.set(key, next.then(() => {}, () => {}));
+  const voidNext = next.then(() => {}, () => {});
+  _locks.set(key, voidNext);
+  voidNext.then(() => {
+    if (_locks.get(key) === voidNext) {
+      _locks.delete(key);
+    }
+  });
   return next;
 }
 

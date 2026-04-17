@@ -5,7 +5,7 @@
  * Engine Drafts — listDrafts, getDraft, deleteDrafts.
  */
 
-import { getEngine } from "./engine-client";
+import { getEngine } from "./engine-instance";
 
 export async function listDrafts(auPath: string, chapterNum: number) {
   const { draft } = getEngine().repos;

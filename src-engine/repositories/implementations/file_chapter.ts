@@ -10,7 +10,7 @@ import { createChapter } from "../../domain/chapter.js";
 import type { GeneratedWith } from "../../domain/generated_with.js";
 import { createGeneratedWith } from "../../domain/generated_with.js";
 import type { ChapterRepository } from "../interfaces/chapter.js";
-import { compute_content_hash, joinPath, now_utc } from "./file_utils.js";
+import { compute_content_hash, joinPath, now_utc, validateBasePath } from "./file_utils.js";
 
 export class FileChapterRepository implements ChapterRepository {
   constructor(private adapter: PlatformAdapter) {}
@@ -37,6 +37,7 @@ export class FileChapterRepository implements ChapterRepository {
   // ------------------------------------------------------------------
 
   async get(au_id: string, chapter_num: number): Promise<Chapter> {
+    validateBasePath(au_id, "au_id");
     const path = this.chapterPath(au_id, chapter_num);
     const exists = await this.adapter.exists(path);
     if (!exists) {
@@ -85,6 +86,7 @@ export class FileChapterRepository implements ChapterRepository {
   }
 
   async save(chapter: Chapter): Promise<void> {
+    validateBasePath(chapter.au_id, "au_id");
     const path = this.chapterPath(chapter.au_id, chapter.chapter_num);
     const meta = chapterToMeta(chapter);
     const text = matter.stringify(chapter.content, meta);
@@ -94,6 +96,7 @@ export class FileChapterRepository implements ChapterRepository {
   }
 
   async delete(au_id: string, chapter_num: number): Promise<void> {
+    validateBasePath(au_id, "au_id");
     const path = this.chapterPath(au_id, chapter_num);
     const exists = await this.adapter.exists(path);
     if (exists) {
@@ -102,6 +105,7 @@ export class FileChapterRepository implements ChapterRepository {
   }
 
   async list_main(au_id: string): Promise<Chapter[]> {
+    validateBasePath(au_id, "au_id");
     const mainDir = joinPath(au_id, "chapters", "main");
     const exists = await this.adapter.exists(mainDir);
     if (!exists) return [];
@@ -119,10 +123,12 @@ export class FileChapterRepository implements ChapterRepository {
   }
 
   async exists(au_id: string, chapter_num: number): Promise<boolean> {
+    validateBasePath(au_id, "au_id");
     return this.adapter.exists(this.chapterPath(au_id, chapter_num));
   }
 
   async get_content_only(au_id: string, chapter_num: number): Promise<string> {
+    validateBasePath(au_id, "au_id");
     const path = this.chapterPath(au_id, chapter_num);
     const exists = await this.adapter.exists(path);
     if (!exists) {
@@ -135,6 +141,7 @@ export class FileChapterRepository implements ChapterRepository {
   }
 
   async backup_chapter(au_id: string, chapter_num: number): Promise<string> {
+    validateBasePath(au_id, "au_id");
     const src = this.chapterPath(au_id, chapter_num);
     const srcExists = await this.adapter.exists(src);
     if (!srcExists) {

@@ -43,11 +43,18 @@ const _writeLocks = new Map<string, Promise<void>>();
 /**
  * 对同一 key（通常是文件路径）的 async 写入串行化。
  * 保证先到的操作先执行完，后到的操作排队。
+ * 锁释放后自动清理 Map 条目，防止内存泄漏。
  */
 export function withWriteLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const prev = _writeLocks.get(key) ?? Promise.resolve();
   const next = prev.then(fn, fn); // always chain, even on error
-  _writeLocks.set(key, next.then(() => {}, () => {}));
+  const voidNext = next.then(() => {}, () => {});
+  _writeLocks.set(key, voidNext);
+  voidNext.then(() => {
+    if (_writeLocks.get(key) === voidNext) {
+      _writeLocks.delete(key);
+    }
+  });
   return next;
 }
 
@@ -82,6 +89,21 @@ export async function read_jsonl<T>(
   return [items, errors];
 }
 
+/**
+ * 原子写入辅助：先写 .tmp，再写正式路径，最后删除 .tmp。
+ * 如果正式写入中途崩溃，.tmp 保留完整内容供恢复。
+ */
+async function atomicWrite(
+  adapter: PlatformAdapter,
+  path: string,
+  content: string,
+): Promise<void> {
+  const tmpPath = path + ".tmp";
+  await adapter.writeFile(tmpPath, content);
+  await adapter.writeFile(path, content);
+  try { await adapter.deleteFile(tmpPath); } catch { /* 清理失败不阻断 */ }
+}
+
 /** 追加一行 JSON 到 JSONL 文件。 */
 export async function append_jsonl(
   adapter: PlatformAdapter,
@@ -95,12 +117,12 @@ export async function append_jsonl(
     const existing = await adapter.readFile(path);
     // 确保末尾换行，防止粘连
     const prefix = existing.length > 0 && !existing.endsWith("\n") ? "\n" : "";
-    await adapter.writeFile(path, existing + prefix + line);
+    await atomicWrite(adapter, path, existing + prefix + line);
   } else {
     // 确保目录存在
     const dir = path.substring(0, path.lastIndexOf("/"));
     if (dir) await adapter.mkdir(dir);
-    await adapter.writeFile(path, line);
+    await atomicWrite(adapter, path, line);
   }
 }
 
@@ -113,7 +135,47 @@ export async function rewrite_jsonl(
   const content = items.length > 0
     ? items.map((item) => JSON.stringify(item)).join("\n") + "\n"
     : "";
-  await adapter.writeFile(path, content);
+  await atomicWrite(adapter, path, content);
+}
+
+// ---------------------------------------------------------------------------
+// Path safety
+// ---------------------------------------------------------------------------
+
+/**
+ * 基础路径安全验证：拒绝空路径、空字节和 '..' 遍历序列。
+ * 允许绝对路径和反斜杠，用于系统级路径如 dataDir、au_id、fandom_path。
+ * Windows 桌面端 appDataDir() 返回带反斜杠的路径（如 C:\Users\...），必须允许。
+ * '..' 遍历检查同时覆盖正斜杠和反斜杠分隔符。
+ */
+export function validateBasePath(value: string, name: string): void {
+  if (!value) {
+    throw new Error(`Path validation failed: ${name} must not be empty`);
+  }
+  if (value.includes("\0")) {
+    throw new Error(`Path validation failed: ${name} contains null byte`);
+  }
+  // Split on both / and \ to catch traversal on all platforms
+  const segments = value.split(/[/\\]/);
+  for (const seg of segments) {
+    if (seg === "..") {
+      throw new Error(`Path validation failed: ${name} contains '..' traversal`);
+    }
+  }
+}
+
+/**
+ * 严格路径段验证：除基础检查外，还拒绝绝对路径和反斜杠。
+ * 仅用于纯用户输入的相对段名（如 variant 名称），不用于可能为绝对路径的参数。
+ */
+export function validatePathSegment(value: string, name: string): void {
+  validateBasePath(value, name);
+  if (value.startsWith("/")) {
+    throw new Error(`Path validation failed: ${name} must be a relative path`);
+  }
+  if (value.includes("\\")) {
+    throw new Error(`Path validation failed: ${name} contains backslash`);
+  }
 }
 
 // ---------------------------------------------------------------------------

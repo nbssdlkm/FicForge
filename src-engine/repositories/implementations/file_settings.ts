@@ -29,7 +29,7 @@ import {
   createSyncConfig,
 } from "../../domain/settings.js";
 import type { SettingsRepository } from "../interfaces/settings.js";
-import { now_utc, obj_to_plain } from "./file_utils.js";
+import { now_utc, obj_to_plain, validateBasePath } from "./file_utils.js";
 
 // 敏感字段在 YAML 中的占位符
 const SECURE_PLACEHOLDER = "<secure>";
@@ -45,6 +45,7 @@ export class FileSettingsRepository implements SettingsRepository {
   private path: string;
 
   constructor(private adapter: PlatformAdapter, dataDir: string) {
+    validateBasePath(dataDir, "dataDir");
     this.path = dataDir + "/settings.yaml";
   }
 
@@ -76,12 +77,13 @@ export class FileSettingsRepository implements SettingsRepository {
   }
 
   async save(settings: Settings): Promise<void> {
-    settings.updated_at = now_utc();
+    const copy = structuredClone(settings);
+    copy.updated_at = now_utc();
 
     // 将敏感字段写入 secure storage，YAML 中写占位符
-    await this.extractSecureFields(settings);
+    await this.extractSecureFields(copy);
 
-    const stripped = { ...settings } as unknown as Record<string, unknown>;
+    const stripped = { ...copy } as unknown as Record<string, unknown>;
     const raw = obj_to_plain(stripped);
     const content = yaml.dump(raw, { sortKeys: false, lineWidth: -1 });
     await this.adapter.writeFile(this.path, content);

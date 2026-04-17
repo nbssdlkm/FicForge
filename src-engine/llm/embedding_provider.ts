@@ -25,14 +25,27 @@ export class RemoteEmbeddingProvider implements EmbeddingProvider {
     if (texts.length === 0) return [];
 
     const url = `${this.apiBase.replace(/\/+$/, "")}/v1/embeddings`;
-    const resp = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ model: this.model, input: texts }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30_000);
+    let resp: Response;
+    try {
+      resp = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ model: this.model, input: texts }),
+        signal: controller.signal,
+      });
+    } catch (e) {
+      clearTimeout(timeoutId);
+      if (controller.signal.aborted) {
+        throw new Error("Embedding API timeout (30s)");
+      }
+      throw new Error(`Embedding API network error: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    clearTimeout(timeoutId);
 
     if (!resp.ok) {
       throw new Error(`Embedding API error: HTTP ${resp.status}`);

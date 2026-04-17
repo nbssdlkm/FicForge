@@ -95,9 +95,10 @@ export class OpenAICompatibleProvider implements LLMProvider {
     };
 
     // 外部 signal 触发时同步 abort 内部 controller
+    const onExternalAbort = () => controller.abort();
     if (params.signal) {
       if (params.signal.aborted) { controller.abort(); }
-      else { params.signal.addEventListener("abort", () => controller.abort(), { once: true }); }
+      else { params.signal.addEventListener("abort", onExternalAbort, { once: true }); }
     }
 
     let resp: Response;
@@ -120,7 +121,10 @@ export class OpenAICompatibleProvider implements LLMProvider {
     }
 
     try {
-      const reader = resp.body!.getReader();
+      if (!resp.body) {
+        throw new LLMError("network_error", "LLM 返回空响应体，无法读取流数据", ["retry"]);
+      }
+      const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
 
@@ -167,6 +171,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
       }
     } finally {
       clearTimeout(timeoutId);
+      params.signal?.removeEventListener("abort", onExternalAbort);
     }
   }
 

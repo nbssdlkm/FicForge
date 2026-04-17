@@ -170,12 +170,9 @@ export class SyncManager {
   /** 同步单个文件。返回 "pushed" | "pulled" | "conflict" | "unchanged"。 */
   private async syncSingleFile(localPath: string, remotePath: string): Promise<"pushed" | "pulled" | "conflict" | "unchanged"> {
     const localExists = await this.adapter.exists(localPath);
-    let remoteContent: string | null = null;
-    try {
-      remoteContent = await this.syncAdapter.pullFile(remotePath);
-    } catch {
-      remoteContent = null;
-    }
+    // pullFile 返回 null 表示 404（文件不存在），网络错误直接抛出，
+    // 由外层 sync() 的 try/catch 报告为 sync_error，防止静默丢数据。
+    const remoteContent = await this.syncAdapter.pullFile(remotePath);
     const remoteExists = remoteContent !== null;
 
     if (!localExists && !remoteExists) return "unchanged";

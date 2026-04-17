@@ -15,7 +15,7 @@ import {
   create_provider,
 } from "@ficforge/engine";
 import type { LLMProvider, ResolvedLLMConfig, Project } from "@ficforge/engine";
-import { getEngine } from "./engine-client";
+import { getEngine } from "./engine-instance";
 
 // ---------------------------------------------------------------------------
 // 共享 helper：LLM 配置解析（仅本文件内使用）

@@ -7,7 +7,9 @@
  */
 
 import type { SyncResult } from "@ficforge/engine";
-import { getEngine, getDataDir, listFandoms } from "./engine-client";
+import { getEngine, getDataDir } from "./engine-instance";
+import { listFandoms } from "./engine-fandom";
+import { isTauri } from "../utils/platform";
 
 // ===========================================================================
 // Sync
@@ -32,7 +34,7 @@ export interface AggregatedSyncResult {
 
 /** 获取当前平台的 fetch 函数。Tauri 环境使用 plugin-http 绕过 CORS。 */
 async function getPlatformFetch(): Promise<typeof fetch> {
-  if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
+  if (isTauri()) {
     const { fetch: tauriFetch } = await import("@tauri-apps/plugin-http");
     return tauriFetch;
   }
