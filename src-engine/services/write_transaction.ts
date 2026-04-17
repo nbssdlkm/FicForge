@@ -20,6 +20,7 @@ import type { DraftRepository } from "../repositories/interfaces/draft.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
+import { logCatch } from "../logger/index.js";
 
 interface PendingOp {
   au_id: string;
@@ -113,49 +114,84 @@ export class WriteTransaction {
     chapter_repo?: ChapterRepository | null,
     draft_repo?: DraftRepository | null,
   ): Promise<void> {
-    // 1. ops 先落盘（sync truth）
+    // 1. ops 先落盘（sync truth）— 失败直接抛出，不进入后续步骤
     for (const { au_id, entry } of this.pendingOps) {
       await ops_repo.append(au_id, entry);
     }
 
+    // ops 已写成功，后续步骤部分失败时记录已写/未写内容，最终抛出
+    const completed: string[] = ["ops"];
+    const failed: string[] = [];
+
     // 2. chapters 落盘（confirm 的核心产物）
     if (chapter_repo) {
-      for (const { chapter } of this.pendingChapters) {
-        await chapter_repo.save(chapter);
-      }
-      for (const { au_id, chapter_num } of this.pendingChapterDeletes) {
-        await chapter_repo.delete(au_id, chapter_num);
+      try {
+        for (const { chapter } of this.pendingChapters) {
+          await chapter_repo.save(chapter);
+        }
+        for (const { au_id, chapter_num } of this.pendingChapterDeletes) {
+          await chapter_repo.delete(au_id, chapter_num);
+        }
+        completed.push("chapters");
+      } catch (err) {
+        failed.push("chapters");
+        logCatch("write_tx", "chapters write failed after ops committed", err);
       }
     }
 
     // 3. facts 落盘
     if (fact_repo) {
-      for (const { au_id, fact, mode } of this.pendingFacts) {
-        if (mode === "append") {
-          await fact_repo.append(au_id, fact);
-        } else {
-          await fact_repo.update(au_id, fact);
+      try {
+        for (const { au_id, fact, mode } of this.pendingFacts) {
+          if (mode === "append") {
+            await fact_repo.append(au_id, fact);
+          } else {
+            await fact_repo.update(au_id, fact);
+          }
         }
-      }
-      for (const { au_id, fact_ids } of this.pendingFactDeletes) {
-        await fact_repo.delete_by_ids(au_id, fact_ids);
+        for (const { au_id, fact_ids } of this.pendingFactDeletes) {
+          await fact_repo.delete_by_ids(au_id, fact_ids);
+        }
+        completed.push("facts");
+      } catch (err) {
+        failed.push("facts");
+        logCatch("write_tx", "facts write failed after ops committed", err);
       }
     }
 
     // 4. drafts 清理（非关键，丢了可重新生成）
     if (draft_repo) {
-      for (const { au_id, chapter_num, mode } of this.pendingDraftDeletes) {
-        if (mode === "by_chapter") {
-          await draft_repo.delete_by_chapter(au_id, chapter_num);
-        } else {
-          await draft_repo.delete_from_chapter(au_id, chapter_num);
+      try {
+        for (const { au_id, chapter_num, mode } of this.pendingDraftDeletes) {
+          if (mode === "by_chapter") {
+            await draft_repo.delete_by_chapter(au_id, chapter_num);
+          } else {
+            await draft_repo.delete_from_chapter(au_id, chapter_num);
+          }
         }
+        completed.push("drafts");
+      } catch (err) {
+        failed.push("drafts");
+        logCatch("write_tx", "drafts cleanup failed after ops committed", err);
       }
     }
 
     // 5. state 最后落盘（可从 ops 重建）
     if (this.pendingState && state_repo) {
-      await state_repo.save(this.pendingState);
+      try {
+        await state_repo.save(this.pendingState);
+        completed.push("state");
+      } catch (err) {
+        failed.push("state");
+        logCatch("write_tx", "state write failed after ops committed", err);
+      }
+    }
+
+    if (failed.length > 0) {
+      throw new Error(
+        `WriteTransaction partial commit: completed=[${completed.join(",")}] failed=[${failed.join(",")}]. ` +
+        `Ops committed successfully — run rebuildFromOps to recover.`,
+      );
     }
   }
 }

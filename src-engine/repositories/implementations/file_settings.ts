@@ -77,12 +77,13 @@ export class FileSettingsRepository implements SettingsRepository {
   }
 
   async save(settings: Settings): Promise<void> {
-    settings.updated_at = now_utc();
+    const copy = structuredClone(settings);
+    copy.updated_at = now_utc();
 
     // 将敏感字段写入 secure storage，YAML 中写占位符
-    await this.extractSecureFields(settings);
+    await this.extractSecureFields(copy);
 
-    const stripped = { ...settings } as unknown as Record<string, unknown>;
+    const stripped = { ...copy } as unknown as Record<string, unknown>;
     const raw = obj_to_plain(stripped);
     const content = yaml.dump(raw, { sortKeys: false, lineWidth: -1 });
     await this.adapter.writeFile(this.path, content);

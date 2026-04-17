@@ -11,6 +11,7 @@
 import type { PlatformAdapter } from "../platform/adapter.js";
 import { IndexStatus } from "../domain/enums.js";
 import type { SearchOptions, SearchResult, VectorChunk, VectorRepository } from "../repositories/interfaces/vector.js";
+import { logCatch } from "../logger/index.js";
 
 /** 内存中的 chunk 条目。 */
 interface MemoryChunk {
@@ -77,8 +78,8 @@ export class JsonVectorEngine implements VectorRepository {
         const chunkText = await this.adapter.readFile(filePath);
         const chunkData = JSON.parse(chunkText) as MemoryChunk;
         this.chunks.push(chunkData);
-      } catch {
-        // skip corrupt/missing files
+      } catch (err) {
+        logCatch("vector", `Failed to load chunk file: ${filePath}`, err);
       }
     }
 
