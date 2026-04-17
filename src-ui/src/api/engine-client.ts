@@ -2,30 +2,12 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 /**
- * Engine Client — 核心初始化 + 领域模块 re-export。
+ * Engine Client — 领域模块 barrel re-export。
  *
- * 各领域函数已拆分至独立模块（engine-state.ts, engine-facts.ts 等），
- * 本文件保留 Engine 实例管理并 re-export 全部公共 API，
- * UI 组件的 import 路径无需改动。
+ * Engine 实例管理已拆至 engine-instance.ts 以消除循环引用。
+ * 各领域函数已拆分至独立模块（engine-state.ts, engine-facts.ts 等）。
+ * 本文件统一 re-export，UI 组件的 import 路径无需改动。
  */
-
-import type { PlatformAdapter } from "@ficforge/engine";
-import {
-  FileChapterRepository,
-  FileDraftRepository,
-  FileFactRepository,
-  FileFandomRepository,
-  FileOpsRepository,
-  FileProjectRepository,
-  FileSettingsRepository,
-  FileStateRepository,
-  TrashService,
-  RagManager,
-  JsonVectorEngine,
-  TaskRunner,
-  getLogger,
-  hasLogger,
-} from "@ficforge/engine";
 
 // ---------------------------------------------------------------------------
 // Type re-exports: engine domain types (aliased for backward compat)
@@ -65,74 +47,10 @@ export { FACT_TYPE_VALUES, FACT_STATUS_VALUES, NARRATIVE_WEIGHT_VALUES } from "@
 export type { WebDAVConfig, AggregatedSyncResult } from "./engine-sync";
 
 // ---------------------------------------------------------------------------
-// Engine 实例管理
+// Engine 实例管理（从 engine-instance.ts re-export）
 // ---------------------------------------------------------------------------
-
-export interface EngineInstance {
-  adapter: PlatformAdapter;
-  dataDir: string;
-  repos: {
-    chapter: FileChapterRepository;
-    draft: FileDraftRepository;
-    fact: FileFactRepository;
-    fandom: FileFandomRepository;
-    ops: FileOpsRepository;
-    project: FileProjectRepository;
-    settings: FileSettingsRepository;
-    state: FileStateRepository;
-  };
-  trash: TrashService;
-  vectorEngine: JsonVectorEngine;
-  ragManager: RagManager;
-  taskRunner: TaskRunner;
-}
-
-let _engine: EngineInstance | null = null;
-
-export function initEngine(adapter: PlatformAdapter, dataDir: string): void {
-  // Logger 在 engine 之前初始化（App.tsx 中调用 initLogger）
-  // 这里记录引擎启动
-  if (hasLogger()) getLogger().info("engine", "initEngine", { platform: adapter.getPlatform(), dataDir });
-
-  const vectorEngine = new JsonVectorEngine(adapter);
-  _engine = {
-    adapter,
-    dataDir,
-    repos: {
-      chapter: new FileChapterRepository(adapter),
-      draft: new FileDraftRepository(adapter),
-      fact: new FileFactRepository(adapter),
-      fandom: new FileFandomRepository(adapter),
-      ops: new FileOpsRepository(adapter),
-      project: new FileProjectRepository(adapter),
-      settings: new FileSettingsRepository(adapter, dataDir),
-      state: new FileStateRepository(adapter),
-    },
-    trash: new TrashService(adapter),
-    vectorEngine,
-    ragManager: new RagManager(vectorEngine),
-    taskRunner: new TaskRunner(adapter, dataDir),
-  };
-}
-
-export function getEngine(): EngineInstance {
-  if (!_engine) throw new Error("Engine not initialized. Call initEngine() first.");
-  return _engine;
-}
-
-export function isEngineReady(): boolean {
-  return _engine !== null;
-}
-
-/** 获取数据根目录（所有 fandom 操作的基础路径）。 */
-export function getDataDir(): string {
-  return getEngine().dataDir;
-}
-
-/** 异步获取显示用数据路径（Capacitor 返回 file:// URI，Tauri 返回绝对路径）。 */
-export async function getDisplayDataDir(): Promise<string> {
-  return getEngine().adapter.getDataDir();
-}
+export type { EngineInstance } from "./engine-instance";
+export { initEngine, getEngine, isEngineReady, getDataDir, getDisplayDataDir } from "./engine-instance";
 
 // ---------------------------------------------------------------------------
 // Domain module re-exports

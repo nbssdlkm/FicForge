@@ -6,7 +6,7 @@
  */
 
 import { export_chapters as engineExportChapters } from "@ficforge/engine";
-import { getEngine } from "./engine-client";
+import { getEngine } from "./engine-instance";
 
 export async function exportChapters(params: {
   au_path: string;

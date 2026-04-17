@@ -16,7 +16,7 @@ import {
   RemoteEmbeddingProvider,
   type Settings,
 } from "@ficforge/engine";
-import { getEngine } from "./engine-client";
+import { getEngine } from "./engine-instance";
 
 /** 从 settings 创建 RemoteEmbeddingProvider（若已配置 embedding api_key）。 */
 export function createEmbeddingProvider(sett: Settings): RemoteEmbeddingProvider | undefined {

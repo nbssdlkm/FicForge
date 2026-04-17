@@ -5,7 +5,7 @@
  * Engine Trash — listTrash, restoreTrash, permanentDeleteTrash, purgeTrash.
  */
 
-import { getEngine } from "./engine-client";
+import { getEngine } from "./engine-instance";
 
 export async function listTrash(_scope: string, path: string) {
   return getEngine().trash.list_trash(path);

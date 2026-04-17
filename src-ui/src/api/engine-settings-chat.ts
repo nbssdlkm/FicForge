@@ -11,7 +11,7 @@ import {
   resolve_llm_config,
   create_provider,
 } from "@ficforge/engine";
-import { getEngine } from "./engine-client";
+import { getEngine } from "./engine-instance";
 
 export async function sendSettingsChat(params: {
   mode: string;

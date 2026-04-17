@@ -7,7 +7,8 @@
  */
 
 import type { SyncResult } from "@ficforge/engine";
-import { getEngine, getDataDir, listFandoms } from "./engine-client";
+import { getEngine, getDataDir } from "./engine-instance";
+import { listFandoms } from "./engine-fandom";
 import { isTauri } from "../utils/platform";
 
 // ===========================================================================

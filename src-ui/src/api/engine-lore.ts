@@ -6,7 +6,7 @@
  *   importFromFandom, getLoreContent, sanitizePathSegment.
  */
 
-import { getEngine } from "./engine-client";
+import { getEngine } from "./engine-instance";
 
 /** 防止路径穿越：去除 / \ .. 和开头的点，拒绝空段 */
 export function sanitizePathSegment(segment: string): string {

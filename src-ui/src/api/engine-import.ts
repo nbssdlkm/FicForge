@@ -23,7 +23,7 @@ import {
   import_chapters as engineImportChapters,
 } from "@ficforge/engine";
 
-import { getEngine } from "./engine-client";
+import { getEngine } from "./engine-instance";
 
 export type { FileAnalysis, ImportPlan, ImportConflictOptions, NewImportResult, ImportProgress, AnalysisOptions };
 
