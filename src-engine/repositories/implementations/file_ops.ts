@@ -7,7 +7,7 @@ import type { PlatformAdapter } from "../../platform/adapter.js";
 import type { OpsEntry } from "../../domain/ops_entry.js";
 import { createOpsEntry } from "../../domain/ops_entry.js";
 import type { OpsRepository } from "../interfaces/ops.js";
-import { append_jsonl, joinPath, read_jsonl, rewrite_jsonl, validatePathSegment, withWriteLock } from "./file_utils.js";
+import { append_jsonl, joinPath, read_jsonl, rewrite_jsonl, validateBasePath, withWriteLock } from "./file_utils.js";
 import { getNextLamportClock, initLamportClockFromOps, loadLamportClock, saveLamportClock } from "../../sync/ops_merge.js";
 import { hasLogger, getLogger } from "../../logger/index.js";
 
@@ -94,7 +94,7 @@ export class FileOpsRepository implements OpsRepository {
   constructor(private adapter: PlatformAdapter) {}
 
   private opsPath(au_id: string): string {
-    validatePathSegment(au_id, "au_id");
+    validateBasePath(au_id, "au_id");
     return joinPath(au_id, "ops.jsonl");
   }
 

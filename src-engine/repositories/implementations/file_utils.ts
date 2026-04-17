@@ -143,12 +143,10 @@ export async function rewrite_jsonl(
 // ---------------------------------------------------------------------------
 
 /**
- * 路径安全验证：拒绝包含遍历序列（..）、反斜杠（\）或空字节的路径段。
- * 在所有 repository 入口处调用，防止路径逃逸攻击。
- *
- * 允许正斜杠（/），因为 au_id 等参数是合法的多段相对路径。
+ * 基础路径安全验证：拒绝空路径、空字节、反斜杠和 '..' 遍历序列。
+ * 允许绝对路径（以 / 开头），用于系统级路径如 dataDir、au_id、fandom_path。
  */
-export function validatePathSegment(value: string, name: string): void {
+export function validateBasePath(value: string, name: string): void {
   if (!value) {
     throw new Error(`Path validation failed: ${name} must not be empty`);
   }
@@ -158,14 +156,22 @@ export function validatePathSegment(value: string, name: string): void {
   if (value.includes("\\")) {
     throw new Error(`Path validation failed: ${name} contains backslash`);
   }
-  if (value.startsWith("/")) {
-    throw new Error(`Path validation failed: ${name} must be a relative path`);
-  }
   const segments = value.split("/");
   for (const seg of segments) {
     if (seg === "..") {
       throw new Error(`Path validation failed: ${name} contains '..' traversal`);
     }
+  }
+}
+
+/**
+ * 严格路径段验证：除基础检查外，还拒绝绝对路径。
+ * 仅用于纯用户输入的相对段名（如 variant 名称），不用于可能为绝对路径的参数。
+ */
+export function validatePathSegment(value: string, name: string): void {
+  validateBasePath(value, name);
+  if (value.startsWith("/")) {
+    throw new Error(`Path validation failed: ${name} must be a relative path`);
   }
 }
 
