@@ -126,7 +126,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
 
       setProject(proj);
       setGlobalSettings(settings);
-      setIndexStatus((state as any)?.index_status || 'stale');
+      setIndexStatus(state?.index_status || 'stale');
       if (proj) {
         setPerspective(proj.writing_style?.perspective || 'third_person');
         setEmotionStyle(proj.writing_style?.emotion_style || 'implicit');

@@ -11,6 +11,7 @@ import { AuWorkspaceLayout } from "./ui/workspace/AuWorkspaceLayout";
 import { initEngine, getEngine, initLogger, getLogger } from "./api/engine-client";
 import { useTranslation } from "./i18n/useAppTranslation";
 import { useMediaQuery } from "./hooks/useMediaQuery";
+import { isTauri as detectTauri, isCapacitor as detectCapacitor } from "./utils/platform";
 
 /** 获取或创建持久化设备 ID（同步，用于 adapter 构造前）。 */
 function getOrCreateDeviceId(): string {
@@ -44,7 +45,7 @@ function App() {
       let currentStep = "detecting platform";
       try {
         // 检查是否在 Tauri 环境中
-        const isTauri = typeof window !== "undefined" && !!(window as any).__TAURI_INTERNALS__;
+        const isTauri = detectTauri();
 
         const deviceId = getOrCreateDeviceId();
 
@@ -77,8 +78,7 @@ function App() {
           initEngine(adapter, dataDir);
         } else {
           // 非 Tauri 环境：检测 Capacitor 或降级 WebAdapter
-          const isCapacitor = typeof (window as any).Capacitor !== "undefined"
-            && (window as any).Capacitor.isNativePlatform?.();
+          const isCapacitor = detectCapacitor();
 
           if (isCapacitor) {
             // Capacitor 环境（Android/iOS）：使用 CapacitorAdapter

@@ -149,7 +149,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           <div className="flex flex-col gap-2">
             <label className="text-sm font-bold text-text/90">{t('common.labels.narrativeWeight')}</label>
             <select
-              ref={editor.editWeightRef as any}
+              ref={editor.editWeightRef}
               defaultValue={editor.editingFact.narrative_weight || 'medium'}
               className="h-11 rounded-md border border-black/20 bg-surface px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
             >

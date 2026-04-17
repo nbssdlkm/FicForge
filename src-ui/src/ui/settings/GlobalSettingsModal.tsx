@@ -18,9 +18,7 @@ import { DebugLogsSection } from './DebugLogsSection';
 import { changeLanguage, SUPPORTED_LANGUAGES, type AppLanguage } from '../../i18n';
 import { ApiSetupHelp } from '../help/ApiSetupHelp';
 import { GlobalSettingsSyncSection } from './GlobalSettingsSyncSection';
-
-/** Tauri 环境检测 */
-const isTauri = () => typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__;
+import { isTauri } from '../../utils/platform';
 
 export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const { t, i18n } = useTranslation();

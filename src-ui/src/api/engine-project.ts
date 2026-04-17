@@ -5,6 +5,7 @@
  * Engine Project — getProject, updateProject, addPinned, deletePinned.
  */
 
+import type { Project } from "@ficforge/engine";
 import { getEngine } from "./engine-client";
 
 export async function getProject(auPath: string) {
@@ -12,7 +13,7 @@ export async function getProject(auPath: string) {
   return await project.get(auPath);
 }
 
-export async function updateProject(auPath: string, updates: Record<string, unknown>) {
+export async function updateProject(auPath: string, updates: Partial<Project> | Record<string, unknown>) {
   const { project } = getEngine().repos;
   const current = await project.get(auPath);
   Object.assign(current, updates);
