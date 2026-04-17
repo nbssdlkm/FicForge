@@ -43,11 +43,18 @@ const _writeLocks = new Map<string, Promise<void>>();
 /**
  * 对同一 key（通常是文件路径）的 async 写入串行化。
  * 保证先到的操作先执行完，后到的操作排队。
+ * 锁释放后自动清理 Map 条目，防止内存泄漏。
  */
 export function withWriteLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const prev = _writeLocks.get(key) ?? Promise.resolve();
   const next = prev.then(fn, fn); // always chain, even on error
-  _writeLocks.set(key, next.then(() => {}, () => {}));
+  const voidNext = next.then(() => {}, () => {});
+  _writeLocks.set(key, voidNext);
+  voidNext.then(() => {
+    if (_writeLocks.get(key) === voidNext) {
+      _writeLocks.delete(key);
+    }
+  });
   return next;
 }
 
@@ -82,6 +89,21 @@ export async function read_jsonl<T>(
   return [items, errors];
 }
 
+/**
+ * 原子写入辅助：先写 .tmp，再写正式路径，最后删除 .tmp。
+ * 如果正式写入中途崩溃，.tmp 保留完整内容供恢复。
+ */
+async function atomicWrite(
+  adapter: PlatformAdapter,
+  path: string,
+  content: string,
+): Promise<void> {
+  const tmpPath = path + ".tmp";
+  await adapter.writeFile(tmpPath, content);
+  await adapter.writeFile(path, content);
+  try { await adapter.deleteFile(tmpPath); } catch { /* 清理失败不阻断 */ }
+}
+
 /** 追加一行 JSON 到 JSONL 文件。 */
 export async function append_jsonl(
   adapter: PlatformAdapter,
@@ -95,12 +117,12 @@ export async function append_jsonl(
     const existing = await adapter.readFile(path);
     // 确保末尾换行，防止粘连
     const prefix = existing.length > 0 && !existing.endsWith("\n") ? "\n" : "";
-    await adapter.writeFile(path, existing + prefix + line);
+    await atomicWrite(adapter, path, existing + prefix + line);
   } else {
     // 确保目录存在
     const dir = path.substring(0, path.lastIndexOf("/"));
     if (dir) await adapter.mkdir(dir);
-    await adapter.writeFile(path, line);
+    await atomicWrite(adapter, path, line);
   }
 }
 
@@ -113,7 +135,38 @@ export async function rewrite_jsonl(
   const content = items.length > 0
     ? items.map((item) => JSON.stringify(item)).join("\n") + "\n"
     : "";
-  await adapter.writeFile(path, content);
+  await atomicWrite(adapter, path, content);
+}
+
+// ---------------------------------------------------------------------------
+// Path safety
+// ---------------------------------------------------------------------------
+
+/**
+ * 路径安全验证：拒绝包含遍历序列（..）、反斜杠（\）或空字节的路径段。
+ * 在所有 repository 入口处调用，防止路径逃逸攻击。
+ *
+ * 允许正斜杠（/），因为 au_id 等参数是合法的多段相对路径。
+ */
+export function validatePathSegment(value: string, name: string): void {
+  if (!value) {
+    throw new Error(`Path validation failed: ${name} must not be empty`);
+  }
+  if (value.includes("\0")) {
+    throw new Error(`Path validation failed: ${name} contains null byte`);
+  }
+  if (value.includes("\\")) {
+    throw new Error(`Path validation failed: ${name} contains backslash`);
+  }
+  if (value.startsWith("/")) {
+    throw new Error(`Path validation failed: ${name} must be a relative path`);
+  }
+  const segments = value.split("/");
+  for (const seg of segments) {
+    if (seg === "..") {
+      throw new Error(`Path validation failed: ${name} contains '..' traversal`);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

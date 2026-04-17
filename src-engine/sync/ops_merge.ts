@@ -18,6 +18,7 @@ import {
 } from "../domain/enums.js";
 import { hasLogger, getLogger } from "../logger/index.js";
 import type { FactSource, FactStatus, FactType, NarrativeWeight } from "../domain/enums.js";
+import type { PlatformAdapter } from "../platform/adapter.js";
 
 // ---------------------------------------------------------------------------
 // 合并结果
@@ -393,6 +394,8 @@ export function rebuildFactsFromOps(ops: OpsEntry[]): Fact[] {
 // Lamport clock 管理
 // ---------------------------------------------------------------------------
 
+const LAMPORT_KV_KEY = "ficforge:lamport_clock";
+
 let _localClock = 0;
 
 export function getNextLamportClock(): number {
@@ -417,4 +420,27 @@ export function initLamportClockFromOps(ops: OpsEntry[]): void {
   if (maxClock > _localClock) {
     _localClock = maxClock;
   }
+}
+
+/**
+ * 从持久化 KV 存储加载 lamport clock。
+ * 进程重启后 _localClock 归零，此函数从 kvGet 恢复上次持久化的值，
+ * 保证后续分配的 clock 不低于历史已分配值。
+ */
+export async function loadLamportClock(adapter: PlatformAdapter): Promise<void> {
+  const stored = await adapter.kvGet(LAMPORT_KV_KEY);
+  if (stored !== null) {
+    const parsed = parseInt(stored, 10);
+    if (!isNaN(parsed) && parsed > _localClock) {
+      _localClock = parsed;
+    }
+  }
+}
+
+/**
+ * 将当前 lamport clock 持久化到 KV 存储。
+ * 在 append op 分配 clock 后调用，确保下次进程启动时能恢复。
+ */
+export async function saveLamportClock(adapter: PlatformAdapter): Promise<void> {
+  await adapter.kvSet(LAMPORT_KV_KEY, String(_localClock));
 }

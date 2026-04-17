@@ -8,12 +8,13 @@ import type { PlatformAdapter } from "../../platform/adapter.js";
 import type { Fandom } from "../../domain/fandom.js";
 import { createFandom } from "../../domain/fandom.js";
 import type { FandomRepository } from "../interfaces/fandom.js";
-import { joinPath, obj_to_plain } from "./file_utils.js";
+import { joinPath, obj_to_plain, validatePathSegment } from "./file_utils.js";
 
 export class FileFandomRepository implements FandomRepository {
   constructor(private adapter: PlatformAdapter) {}
 
   async get(fandom_path: string): Promise<Fandom> {
+    validatePathSegment(fandom_path, "fandom_path");
     const path = joinPath(fandom_path, "fandom.yaml");
     const exists = await this.adapter.exists(path);
     if (!exists) {
@@ -35,6 +36,7 @@ export class FileFandomRepository implements FandomRepository {
   }
 
   async save(fandom_path: string, fandom: Fandom): Promise<void> {
+    validatePathSegment(fandom_path, "fandom_path");
     const path = joinPath(fandom_path, "fandom.yaml");
     const raw = obj_to_plain(fandom);
     const content = yaml.dump(raw, { sortKeys: false, lineWidth: -1 });
@@ -44,6 +46,7 @@ export class FileFandomRepository implements FandomRepository {
   }
 
   async list_fandoms(data_dir: string): Promise<string[]> {
+    validatePathSegment(data_dir, "data_dir");
     const fandomsDir = joinPath(data_dir, "fandoms");
     const exists = await this.adapter.exists(fandomsDir);
     if (!exists) return [];
@@ -60,6 +63,7 @@ export class FileFandomRepository implements FandomRepository {
   }
 
   async list_aus(fandom_path: string): Promise<string[]> {
+    validatePathSegment(fandom_path, "fandom_path");
     const ausDir = joinPath(fandom_path, "aus");
     const exists = await this.adapter.exists(ausDir);
     if (!exists) return [];

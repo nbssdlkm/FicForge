@@ -15,12 +15,13 @@ import {
   createWritingStyle,
 } from "../../domain/project.js";
 import type { ProjectRepository } from "../interfaces/project.js";
-import { joinPath, now_utc, obj_to_plain } from "./file_utils.js";
+import { joinPath, now_utc, obj_to_plain, validatePathSegment } from "./file_utils.js";
 
 export class FileProjectRepository implements ProjectRepository {
   constructor(private adapter: PlatformAdapter) {}
 
   async get(au_id: string): Promise<Project> {
+    validatePathSegment(au_id, "au_id");
     const path = joinPath(au_id, "project.yaml");
     const exists = await this.adapter.exists(path);
     if (!exists) {
@@ -40,6 +41,7 @@ export class FileProjectRepository implements ProjectRepository {
   }
 
   async save(project: Project): Promise<void> {
+    validatePathSegment(project.au_id, "au_id");
     const path = joinPath(project.au_id, "project.yaml");
     project.updated_at = now_utc();
     project.revision += 1;
@@ -51,6 +53,7 @@ export class FileProjectRepository implements ProjectRepository {
   }
 
   async list_aus(fandom: string): Promise<Project[]> {
+    validatePathSegment(fandom, "fandom");
     const ausDir = joinPath(fandom, "aus");
     const exists = await this.adapter.exists(ausDir);
     if (!exists) return [];

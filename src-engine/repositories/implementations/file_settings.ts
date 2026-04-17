@@ -29,7 +29,7 @@ import {
   createSyncConfig,
 } from "../../domain/settings.js";
 import type { SettingsRepository } from "../interfaces/settings.js";
-import { now_utc, obj_to_plain } from "./file_utils.js";
+import { now_utc, obj_to_plain, validatePathSegment } from "./file_utils.js";
 
 // 敏感字段在 YAML 中的占位符
 const SECURE_PLACEHOLDER = "<secure>";
@@ -45,6 +45,7 @@ export class FileSettingsRepository implements SettingsRepository {
   private path: string;
 
   constructor(private adapter: PlatformAdapter, dataDir: string) {
+    validatePathSegment(dataDir, "dataDir");
     this.path = dataDir + "/settings.yaml";
   }
 

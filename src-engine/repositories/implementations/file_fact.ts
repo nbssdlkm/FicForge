@@ -8,7 +8,7 @@ import { FactSource, FactStatus, FactType, NarrativeWeight } from "../../domain/
 import type { Fact } from "../../domain/fact.js";
 import { createFact } from "../../domain/fact.js";
 import type { FactRepository } from "../interfaces/fact.js";
-import { append_jsonl, joinPath, now_utc, read_jsonl, rewrite_jsonl, withWriteLock } from "./file_utils.js";
+import { append_jsonl, joinPath, now_utc, read_jsonl, rewrite_jsonl, validatePathSegment, withWriteLock } from "./file_utils.js";
 import { hasLogger, getLogger } from "../../logger/index.js";
 
 // ---------------------------------------------------------------------------
@@ -66,6 +66,7 @@ export class FileFactRepository implements FactRepository {
   constructor(private adapter: PlatformAdapter) {}
 
   private factsPath(au_id: string): string {
+    validatePathSegment(au_id, "au_id");
     return joinPath(au_id, "facts.jsonl");
   }
 
