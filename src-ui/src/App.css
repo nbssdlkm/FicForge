@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * 内置字体声明（Phase 3）
+ *
+ * Source Serif 4：单文件 variable font（wght 200-900），来自 @fontsource-variable。
+ * LXGW WenKai Screen 的 @font-face 声明走 /fonts/lxgw-wenkai-screen/result.css
+ * （见 index.html 的 <link rel="stylesheet">），包含 244 个 unicode-range 分包，
+ * 浏览器按需加载。
+ */
+@font-face {
+  font-family: "Source Serif 4";
+  src: url("/fonts/source-serif-4.woff2") format("woff2-variations");
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   :root {
     /* Default: Warm Theme ('暖光') */

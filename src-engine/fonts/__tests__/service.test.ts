@@ -52,13 +52,8 @@ describe("FontsService", () => {
       expect(await service.statusOf("no-such-font")).toBe("not-installed");
     });
 
-    it("returns not-installed for builtin before registration", async () => {
-      expect(await service.statusOf(BUILTIN_ID)).toBe("not-installed");
-    });
-
-    it("returns installed for builtin after registerFromUrl", async () => {
-      const entry = getFontById(BUILTIN_ID)!;
-      await registry.registerFromUrl(entry, "/fake-url");
+    it("returns installed for builtin unconditionally (HTML static load)", async () => {
+      // 内置字体由 index.html 静态加载，不经过 Registry；Service 一律报 installed。
       expect(await service.statusOf(BUILTIN_ID)).toBe("installed");
     });
 
@@ -105,13 +100,14 @@ describe("FontsService", () => {
   });
 
   describe("hydrateAll", () => {
-    it("registers all builtin fonts", async () => {
+    it("skips builtin fonts (HTML static load)", async () => {
+      // 内置字体不经过 Service.hydrate，不进 registry。
       await service.hydrateAll();
       const builtinIds = FONT_MANIFEST
         .filter((f) => f.type === "builtin")
         .map((f) => f.id);
       for (const id of builtinIds) {
-        expect(registry.isRegistered(id)).toBe(true);
+        expect(registry.isRegistered(id)).toBe(false);
       }
     });
 
@@ -140,10 +136,10 @@ describe("FontsService", () => {
       });
     });
 
-    it("registers builtin via URL without touching storage", async () => {
+    it("is a no-op for builtin fonts (HTML static load handles them)", async () => {
       await service.install(BUILTIN_ID);
-      expect(registry.isRegistered(BUILTIN_ID)).toBe(true);
-      // builtin 不落盘
+      // Service 不调用 registry 也不写 storage —— HTML 负责。
+      expect(registry.isRegistered(BUILTIN_ID)).toBe(false);
       expect(await storage.exists(BUILTIN_ID)).toBe(false);
     });
 

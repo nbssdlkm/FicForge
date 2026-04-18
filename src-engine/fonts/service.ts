@@ -51,9 +51,9 @@ export class FontsService {
     const entry = getFontById(id);
     if (!entry) return "not-installed";
     if (this.pendingDownloads.has(id)) return "downloading";
-    if (entry.type === "builtin") {
-      return this.registry.isRegistered(id) ? "installed" : "not-installed";
-    }
+    // 内置字体通过 HTML <link rel="stylesheet"> + <link rel="preload"> 由浏览器
+    // 静态加载（见 index.html），不经过 Registry。随应用包分发，一定可用。
+    if (entry.type === "builtin") return "installed";
     return (await this.storage.exists(id)) ? "installed" : "not-installed";
   }
 
@@ -65,7 +65,8 @@ export class FontsService {
   /**
    * 安装字体。
    *
-   * - `builtin` 字体：直接从 URL 注册到 FontFace。
+   * - `builtin` 字体：no-op。内置字体由 index.html 的 `<link>` 静态加载，
+   *   应用启动即可用，无需 JS 显式安装。对 UI 调用方是幂等的"已安装"语义。
    * - `downloadable` 字体：下载 → 校验 → 落盘 → 注册。并发调用抛错。
    */
   async install(id: string, options: InstallOptions = {}): Promise<void> {
@@ -73,7 +74,7 @@ export class FontsService {
     if (!entry) throw new FontError("not-found", `Font not found in manifest: ${id}`);
 
     if (entry.type === "builtin") {
-      await this.registry.registerFromUrl(entry, entry.url);
+      // no-op：HTML 已加载，无需 JS 参与。
       return;
     }
 
@@ -112,32 +113,27 @@ export class FontsService {
   }
 
   /**
-   * 从本地存储（或内置 URL）加载字体并注册。用于应用启动时恢复已安装字体。
+   * 从本地存储加载字体字节并注册到 FontFace。用于应用启动时恢复已下载字体。
    *
-   * 未安装的字体（downloadable 且本地不存在）会被静默跳过。
+   * 内置字体 no-op（HTML 静态加载负责）。未下载的字体静默跳过。
    */
   async hydrate(id: string): Promise<void> {
     const entry = getFontById(id);
     if (!entry) throw new FontError("not-found", `Font not found in manifest: ${id}`);
-    if (entry.type === "builtin") {
-      await this.registry.registerFromUrl(entry, entry.url);
-      return;
-    }
+    if (entry.type === "builtin") return; // HTML <link> 已加载
     if (!(await this.storage.exists(id))) return;
     const data = await this.storage.read(id);
     await this.registry.registerFromData(entry, data);
   }
 
   /**
-   * 启动时批量 hydrate：所有内置字体 + 所有本地已下载字体。
+   * 启动时批量 hydrate：所有本地已下载字体。
    *
-   * 单个字体 hydrate 失败不阻断其他字体（Promise.allSettled）。
+   * 内置字体由 HTML 负责，不进此流程。单个字体 hydrate 失败不阻断其他字体
+   * （Promise.allSettled）。
    */
   async hydrateAll(): Promise<void> {
     const ids = new Set<string>();
-    for (const entry of FONT_MANIFEST) {
-      if (entry.type === "builtin") ids.add(entry.id);
-    }
     for (const id of await this.storage.list()) {
       if (getFontById(id)) ids.add(id);
     }

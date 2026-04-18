@@ -7,6 +7,13 @@
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
+
+    <!-- 内置字体（Phase 3）：HTML 原生加载，零 JS 开销 -->
+    <!-- Source Serif 4 variable (Latin, 单文件 ~50KB)：首屏预加载防 FOUC -->
+    <link rel="preload" href="/fonts/source-serif-4.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- LXGW WenKai Screen (CJK, 244 subset 按 unicode-range 懒加载，首屏仅 ~60KB) -->
+    <link rel="stylesheet" href="/fonts/lxgw-wenkai-screen/result.css" />
+
     <title>FicForge</title>
   </head>
 
