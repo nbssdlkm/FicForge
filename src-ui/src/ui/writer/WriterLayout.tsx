@@ -990,7 +990,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
         <div className={mode === 'write' ? 'flex flex-1 flex-col min-h-0' : 'hidden'}>
           <div className="flex flex-1 justify-center overflow-y-auto w-full pb-16 md:pb-12">
-            <div className="w-full max-w-3xl space-y-6 px-4 py-4 md:px-8 md:py-10">
+            <div className="w-full max-w-[720px] space-y-6 px-4 py-4 md:px-8 md:py-10">
               {isViewingHistory && (
                 <InlineBanner
                   variant="info"

@@ -110,7 +110,7 @@ export function WriterFooter(props: WriterFooterProps) {
       ) : (
         <div className="flex flex-col gap-3 p-4 pb-6 md:pb-4">
           {hasPendingDrafts && currentDraft && (
-            <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 rounded-xl border border-black/10 bg-background/60 px-4 py-3 dark:border-white/10">
+            <div className="mx-auto flex w-full max-w-[720px] flex-col gap-3 rounded-xl border border-black/10 bg-background/60 px-4 py-3 dark:border-white/10">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <DraftNavigator
                   drafts={drafts}
@@ -150,7 +150,7 @@ export function WriterFooter(props: WriterFooterProps) {
             </div>
           )}
 
-          <div className="mx-auto hidden w-full max-w-3xl md:block">
+          <div className="mx-auto hidden w-full max-w-[720px] md:block">
             <input
               ref={instructionInputRef}
               type="text"
@@ -167,7 +167,7 @@ export function WriterFooter(props: WriterFooterProps) {
             />
           </div>
 
-          <div className="mx-auto w-full max-w-3xl md:hidden">
+          <div className="mx-auto w-full max-w-[720px] md:hidden">
             <Textarea
               value={instructionText}
               onChange={(event) => onInstructionTextChange(event.target.value)}
@@ -177,7 +177,7 @@ export function WriterFooter(props: WriterFooterProps) {
             />
           </div>
 
-          <div className="mx-auto mt-2 hidden w-full max-w-3xl items-center justify-between border-t border-black/5 pt-2 dark:border-white/5 md:flex">
+          <div className="mx-auto mt-2 hidden w-full max-w-[720px] items-center justify-between border-t border-black/5 pt-2 dark:border-white/5 md:flex">
             <div className="flex items-center gap-2">
               <Button tone="neutral" fill="plain" size="sm" className="text-text/60 hover:text-text" onClick={onOpenUndo} disabled={currentChapter <= 1 || writeActionsDisabled}>
                 <Undo2 size={16} className="mr-2" /> {t('common.actions.undoPreviousChapter')}
@@ -198,7 +198,7 @@ export function WriterFooter(props: WriterFooterProps) {
             </div>
           </div>
 
-          <div className="mx-auto mt-2 flex w-full max-w-3xl items-center justify-between border-t border-black/5 pt-3 dark:border-white/5 md:hidden">
+          <div className="mx-auto mt-2 flex w-full max-w-[720px] items-center justify-between border-t border-black/5 pt-3 dark:border-white/5 md:hidden">
             <Button tone="neutral" fill="outline" size="sm" className="px-4" onClick={onOpenMobileTools}>
               {t('common.actions.more')}
             </Button>
