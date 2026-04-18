@@ -84,7 +84,7 @@ export async function syncAllAus(webdavConfig: WebDAVConfig): Promise<Aggregated
   };
 
   try {
-    const fandoms = await listFandoms(dd);
+    const fandoms = await listFandoms();
     for (const fandom of fandoms) {
       for (const auName of fandom.aus) {
         const localPath = `${dd}/fandoms/${fandom.dir_name}/aus/${auName}`;

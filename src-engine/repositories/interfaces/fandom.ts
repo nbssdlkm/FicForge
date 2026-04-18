@@ -12,8 +12,8 @@ export interface FandomRepository {
   /** 保存 fandom.yaml。 */
   save(fandom_path: string, fandom: Fandom): Promise<void>;
 
-  /** 列出所有 Fandom 目录名。 */
-  list_fandoms(data_dir: string): Promise<string[]>;
+  /** 列出所有 Fandom 目录名。数据根目录在构造时注入，不作为方法参数。 */
+  list_fandoms(): Promise<string[]>;
 
   /** 列出 Fandom 下所有 AU 目录名。 */
   list_aus(fandom_path: string): Promise<string[]>;
