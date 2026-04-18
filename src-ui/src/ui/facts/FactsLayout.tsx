@@ -213,7 +213,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               placeholder={t('facts.createModal.rawPlaceholder')}
               className="min-h-[80px] bg-surface/50"
             />
-            <p className="text-[11px] text-text/40">{t('facts.rawHint')}</p>
+            <p className="text-xs text-text/50">{t('facts.rawHint')}</p>
           </div>
           <div className="space-y-1">
             <Textarea
@@ -223,12 +223,12 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               placeholder={t('facts.createModal.cleanPlaceholder')}
               className="min-h-[80px] bg-surface/50 font-bold"
             />
-            <p className="text-[11px] text-text/40">{t('facts.cleanHint')}</p>
+            <p className="text-xs text-text/50">{t('facts.cleanHint')}</p>
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
-              <label className="mb-1 block text-xs font-bold text-text/80">{t('facts.createModal.typeLabel')}</label>
+              <label className="mb-1 block text-xs font-bold text-text/90">{t('facts.createModal.typeLabel')}</label>
               <select value={editor.newType} onChange={e => editor.setNewType(e.target.value)} className="h-11 w-full rounded-md border border-black/10 bg-surface px-2 text-base dark:border-white/10 md:h-9 md:text-sm">
                 <option value="plot_event">{getEnumLabel('fact_type', 'plot_event', 'plot_event')}</option>
                 <option value="character_detail">{getEnumLabel('fact_type', 'character_detail', 'character_detail')}</option>
@@ -239,7 +239,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-text/80">{t('facts.createModal.weightLabel')}</label>
+              <label className="mb-1 block text-xs font-bold text-text/90">{t('facts.createModal.weightLabel')}</label>
               <select value={editor.newWeight} onChange={e => editor.setNewWeight(e.target.value)} className="h-11 w-full rounded-md border border-black/10 bg-surface px-2 text-base dark:border-white/10 md:h-9 md:text-sm">
                 <option value="low">{getEnumLabel('narrative_weight', 'low', 'low')}</option>
                 <option value="medium">{getEnumLabel('narrative_weight', 'medium', 'medium')}</option>
@@ -247,7 +247,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-text/80">{t('facts.createModal.statusLabel')}</label>
+              <label className="mb-1 block text-xs font-bold text-text/90">{t('facts.createModal.statusLabel')}</label>
               <select value={editor.newStatus} onChange={e => editor.setNewStatus(e.target.value)} className="h-11 w-full rounded-md border border-black/10 bg-surface px-2 text-base dark:border-white/10 md:h-9 md:text-sm">
                 <option value="active">{getEnumLabel('fact_status', 'active', 'active')}</option>
                 <option value="unresolved">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</option>
@@ -271,7 +271,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             <Input type="number" className="h-11 text-base md:h-8 md:text-sm" min={1} max={extraction.extractRange[1]} value={extraction.extractRange[0]} onChange={e => extraction.setExtractRange([Math.max(1, parseInt(e.target.value) || 1), extraction.extractRange[1]])} />
             <label className="text-sm text-text/70 shrink-0">{t('facts.extractTo')}</label>
             <Input type="number" className="h-11 text-base md:h-8 md:text-sm" min={extraction.extractRange[0]} value={extraction.extractRange[1]} onChange={e => extraction.setExtractRange([extraction.extractRange[0], parseInt(e.target.value) || extraction.extractRange[1]])} />
-            <span className="text-xs text-text/40">{t('facts.extractChapterCount', { count: extraction.extractRange[1] - extraction.extractRange[0] + 1 })}</span>
+            <span className="text-xs text-text/50">{t('facts.extractChapterCount', { count: extraction.extractRange[1] - extraction.extractRange[0] + 1 })}</span>
           </div>
           <div className="flex justify-end gap-2">
             <Button tone="neutral" fill="plain" onClick={() => extraction.setExtractRangeOpen(false)}>{t('common.actions.cancel')}</Button>
@@ -318,7 +318,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h1 className="font-serif text-2xl font-bold">{t('facts.title')}</h1>
-                <p className="text-sm text-text/55">{t('facts.subtitle')}</p>
+                <p className="text-sm text-text/50">{t('facts.subtitle')}</p>
               </div>
               <div className="flex items-center gap-2">
                 <Button tone="neutral" fill="outline" size="sm" className="px-3" onClick={extraction.handleExtractClick} disabled={extraction.extracting}>
@@ -356,7 +356,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 <select
                   value={factsFilter.chapterFilter ?? ''}
                   onChange={e => factsFilter.setChapterFilter(e.target.value ? Number(e.target.value) : null)}
-                  className="h-11 rounded-md border border-black/15 bg-background px-3 text-base outline-none focus:ring-1 focus:ring-accent dark:border-white/15 md:text-sm"
+                  className="h-11 rounded-md border border-black/10 bg-background px-3 text-base outline-none focus:ring-1 focus:ring-accent dark:border-white/15 md:text-sm"
                 >
                   <option value="">{t('facts.filterAllChapters')}</option>
                   {factsFilter.uniqueChapters.map(ch => (
@@ -366,7 +366,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 <select
                   value={factsFilter.characterFilter}
                   onChange={e => factsFilter.setCharacterFilter(e.target.value)}
-                  className="h-11 rounded-md border border-black/15 bg-background px-3 text-base outline-none focus:ring-1 focus:ring-accent dark:border-white/15 md:text-sm"
+                  className="h-11 rounded-md border border-black/10 bg-background px-3 text-base outline-none focus:ring-1 focus:ring-accent dark:border-white/15 md:text-sm"
                 >
                   <option value="">{t('facts.filterAllCharacters')}</option>
                   {factsFilter.uniqueCharacters.map(c => (
@@ -379,35 +379,35 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             <div className="mt-3 flex gap-2 overflow-x-auto pb-1 text-sm whitespace-nowrap">
               <button
                 type="button"
-                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${!factsFilter.statusFilter ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${!factsFilter.statusFilter ? 'border-accent text-accent' : 'border-transparent text-text/70'}`}
                 onClick={() => factsFilter.setStatusFilter('')}
               >
                 {t('facts.allTab')} ({totalCount})
               </button>
               <button
                 type="button"
-                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${factsFilter.statusFilter === 'unresolved' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${factsFilter.statusFilter === 'unresolved' ? 'border-accent text-accent' : 'border-transparent text-text/70'}`}
                 onClick={() => factsFilter.setStatusFilter('unresolved')}
               >
                 {getEnumLabel('fact_status', 'unresolved', 'unresolved')} ({unresolvedCount})
               </button>
               <button
                 type="button"
-                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${factsFilter.statusFilter === 'active' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${factsFilter.statusFilter === 'active' ? 'border-accent text-accent' : 'border-transparent text-text/70'}`}
                 onClick={() => factsFilter.setStatusFilter('active')}
               >
                 {getEnumLabel('fact_status', 'active', 'active')} ({activeCount})
               </button>
               <button
                 type="button"
-                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${factsFilter.statusFilter === 'resolved' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${factsFilter.statusFilter === 'resolved' ? 'border-accent text-accent' : 'border-transparent text-text/70'}`}
                 onClick={() => factsFilter.setStatusFilter('resolved')}
               >
                 {getEnumLabel('fact_status', 'resolved', 'resolved')} ({resolvedCount})
               </button>
               <button
                 type="button"
-                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${factsFilter.statusFilter === 'deprecated' ? 'border-accent text-accent' : 'border-transparent text-text/60'}`}
+                className={`min-h-[44px] border-b-2 px-1 pb-1 font-medium ${factsFilter.statusFilter === 'deprecated' ? 'border-accent text-accent' : 'border-transparent text-text/70'}`}
                 onClick={() => factsFilter.setStatusFilter('deprecated')}
               >
                 {getEnumLabel('fact_status', 'deprecated', 'deprecated')} ({deprecatedCount})
@@ -425,7 +425,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 </div>
                 <button
                   type="button"
-                  className="min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0 rounded-md text-text/40 hover:text-error hover:bg-error/10 transition-colors"
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0 rounded-md text-text/50 hover:text-error hover:bg-error/10 transition-colors"
                   onClick={extraction.handleCancelExtraction}
                 >
                   <X size={16} />
@@ -443,10 +443,10 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           ) : null}
 
           {factsFilter.filteredFacts.length > 0 ? (
-            <div className="mx-4 mt-3 flex flex-wrap items-center gap-3 text-xs text-text/60">
+            <div className="mx-4 mt-3 flex flex-wrap items-center gap-3 text-xs text-text/70">
               <button
                 type="button"
-                className={`min-h-[44px] font-medium ${batch.batchMode ? 'text-accent' : 'text-text/40 hover:text-text/60'}`}
+                className={`min-h-[44px] font-medium ${batch.batchMode ? 'text-accent' : 'text-text/50 hover:text-text/70'}`}
                 onClick={() => { batch.setBatchMode(!batch.batchMode); if (batch.batchMode) { batch.setSelectedIds(new Set()); batch.setBatchMenuOpen(false); } }}
               >
                 {batch.batchMode ? t('facts.batchExit') : t('facts.batchEnter')}
@@ -591,7 +591,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               <select
                 value={factsFilter.chapterFilter ?? ''}
                 onChange={e => factsFilter.setChapterFilter(e.target.value ? Number(e.target.value) : null)}
-                className="h-7 rounded-md border border-black/15 dark:border-white/15 bg-background px-2 text-xs focus:ring-1 focus:ring-accent outline-none"
+                className="h-7 rounded-md border border-black/10 dark:border-white/15 bg-background px-2 text-xs focus:ring-1 focus:ring-accent outline-none"
               >
                 <option value="">{t('facts.filterAllChapters')}</option>
                 {factsFilter.uniqueChapters.map(ch => (
@@ -601,7 +601,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               <select
                 value={factsFilter.characterFilter}
                 onChange={e => factsFilter.setCharacterFilter(e.target.value)}
-                className="h-7 rounded-md border border-black/15 dark:border-white/15 bg-background px-2 text-xs focus:ring-1 focus:ring-accent outline-none"
+                className="h-7 rounded-md border border-black/10 dark:border-white/15 bg-background px-2 text-xs focus:ring-1 focus:ring-accent outline-none"
               >
                 <option value="">{t('facts.filterAllCharacters')}</option>
                 {factsFilter.uniqueCharacters.map(c => (
@@ -610,7 +610,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               </select>
               {(factsFilter.chapterFilter !== null || factsFilter.characterFilter) && (
                 <button
-                  className="text-[11px] text-accent hover:underline"
+                  className="text-xs text-accent hover:underline"
                   onClick={() => { factsFilter.setChapterFilter(null); factsFilter.setCharacterFilter(''); }}
                 >{t('facts.filterClear')}</button>
               )}
@@ -619,24 +619,24 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
 
           <div className="flex flex-col gap-1">
             <div className="flex gap-3 overflow-x-auto pb-1 text-xs font-sans whitespace-nowrap">
-              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${!factsFilter.statusFilter ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => factsFilter.setStatusFilter('')}>
+              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${!factsFilter.statusFilter ? 'font-bold text-accent border-accent' : 'text-text/70 hover:text-text border-transparent'}`} onClick={() => factsFilter.setStatusFilter('')}>
                 {t('facts.allTab')} ({totalCount})
               </span>
-              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${factsFilter.statusFilter === 'unresolved' ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => factsFilter.setStatusFilter('unresolved')}>
+              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${factsFilter.statusFilter === 'unresolved' ? 'font-bold text-accent border-accent' : 'text-text/70 hover:text-text border-transparent'}`} onClick={() => factsFilter.setStatusFilter('unresolved')}>
                 {getEnumLabel('fact_status', 'unresolved', 'unresolved')} ({unresolvedCount})
               </span>
-              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${factsFilter.statusFilter === 'active' ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => factsFilter.setStatusFilter('active')}>
+              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${factsFilter.statusFilter === 'active' ? 'font-bold text-accent border-accent' : 'text-text/70 hover:text-text border-transparent'}`} onClick={() => factsFilter.setStatusFilter('active')}>
                 {getEnumLabel('fact_status', 'active', 'active')} ({activeCount})
               </span>
-              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${factsFilter.statusFilter === 'resolved' ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => factsFilter.setStatusFilter('resolved')}>
+              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${factsFilter.statusFilter === 'resolved' ? 'font-bold text-accent border-accent' : 'text-text/70 hover:text-text border-transparent'}`} onClick={() => factsFilter.setStatusFilter('resolved')}>
                 {getEnumLabel('fact_status', 'resolved', 'resolved')} ({resolvedCount})
               </span>
-              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${factsFilter.statusFilter === 'deprecated' ? 'font-bold text-accent border-accent' : 'text-text/60 hover:text-text border-transparent'}`} onClick={() => factsFilter.setStatusFilter('deprecated')}>
+              <span className={`cursor-pointer font-medium border-b-2 pb-1 ${factsFilter.statusFilter === 'deprecated' ? 'font-bold text-accent border-accent' : 'text-text/70 hover:text-text border-transparent'}`} onClick={() => factsFilter.setStatusFilter('deprecated')}>
                 {getEnumLabel('fact_status', 'deprecated', 'deprecated')} ({deprecatedCount})
               </span>
             </div>
             {factsFilter.statusFilter && (
-              <p className="text-[10px] text-text/40 font-sans">{t(`facts.statusHint.${factsFilter.statusFilter}`)}</p>
+              <p className="text-xs text-text/50 font-sans">{t(`facts.statusHint.${factsFilter.statusFilter}`)}</p>
             )}
           </div>
         </header>
@@ -652,7 +652,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               </div>
               <button
                 type="button"
-                className="shrink-0 rounded p-0.5 text-text/40 hover:text-error hover:bg-error/10 transition-colors"
+                className="shrink-0 rounded p-0.5 text-text/50 hover:text-error hover:bg-error/10 transition-colors"
                 onClick={extraction.handleCancelExtraction}
                 title={t('common.actions.cancel')}
               >
@@ -673,8 +673,8 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
 
         {/* 批量操作栏 */}
         {factsFilter.filteredFacts.length > 0 && (
-          <div className="mx-4 mt-2 flex items-center gap-3 text-xs text-text/60">
-            <button className={`font-medium ${batch.batchMode ? 'text-accent' : 'text-text/40 hover:text-text/60'}`} onClick={() => { batch.setBatchMode(!batch.batchMode); if (batch.batchMode) { batch.setSelectedIds(new Set()); batch.setBatchMenuOpen(false); } }}>
+          <div className="mx-4 mt-2 flex items-center gap-3 text-xs text-text/70">
+            <button className={`font-medium ${batch.batchMode ? 'text-accent' : 'text-text/50 hover:text-text/70'}`} onClick={() => { batch.setBatchMode(!batch.batchMode); if (batch.batchMode) { batch.setSelectedIds(new Set()); batch.setBatchMenuOpen(false); } }}>
               {batch.batchMode ? t('facts.batchExit') : t('facts.batchEnter')}
             </button>
             {batch.batchMode && (

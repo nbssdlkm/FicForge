@@ -62,7 +62,7 @@ export function CompletionStep({
         <Button tone="accent" fill="solid" className="px-8 h-12 text-base" onClick={onComplete}>
           {t('ethics.onboardingAcknowledge')}
         </Button>
-        <p className="text-[11px] text-text/35">{t('ethics.onboardingConsent')}</p>
+        <p className="text-xs text-text/30">{t('ethics.onboardingConsent')}</p>
       </div>
     </div>
   );

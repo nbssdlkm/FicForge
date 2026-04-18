@@ -77,7 +77,7 @@ export function WriterHeader({
               ? t('workspace.chapterItem', { num: viewingHistoryNum })
               : t('workspace.chapterItem', { num: currentChapter })}
           </p>
-          <p className="mt-0.5 text-[10px] text-text/35">
+          <p className="mt-0.5 text-xs text-text/30">
             {metaModel} · {t('writer.metaWords', { count: metaChars })} · {metaDuration}
           </p>
         </div>

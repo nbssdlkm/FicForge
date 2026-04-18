@@ -38,14 +38,14 @@ export function ConflictStep({
   return (
     <div className="space-y-5">
       {/* Context */}
-      <div className="rounded-xl border border-info/20 bg-info/5 p-4 text-sm text-text/80 space-y-1">
+      <div className="rounded-xl border border-info/20 bg-info/5 p-4 text-sm text-text/90 space-y-1">
         <p>{t("import.step4ExistingChapters", { count: existingChapterNums.length, max: maxExisting })}</p>
         <p>{t("import.step4ImportCount", { chapters: importChapterCount, settings: importSettingsCount })}</p>
       </div>
 
       {/* Chapter conflict mode */}
       <div className="space-y-3">
-        <p className="text-sm font-medium text-text/80">{t("import.step4ChapterMode")}</p>
+        <p className="text-sm font-medium text-text/90">{t("import.step4ChapterMode")}</p>
 
         <label className="flex items-start gap-3 rounded-xl border border-black/10 bg-surface/30 p-4 cursor-pointer dark:border-white/10">
           <input type="radio" name="mode" checked={mode === "append"} onChange={() => setMode("append")} className="mt-1 accent-accent" />
@@ -83,7 +83,7 @@ export function ConflictStep({
       {/* Settings mode */}
       {importSettingsCount > 0 && (
         <div className="space-y-3">
-          <p className="text-sm font-medium text-text/80">{t("import.step4SettingsMode")}</p>
+          <p className="text-sm font-medium text-text/90">{t("import.step4SettingsMode")}</p>
 
           <label className="flex items-start gap-3 rounded-xl border border-black/10 bg-surface/30 p-4 cursor-pointer dark:border-white/10">
             <input type="radio" name="settingsMode" checked={settingsMode === "merge"} onChange={() => setSettingsMode("merge")} className="mt-1 accent-accent" />

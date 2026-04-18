@@ -434,7 +434,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
         <header className="p-4 border-b border-black/10 dark:border-white/10 flex flex-col gap-3 shrink-0 bg-surface">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
-            <Button tone="neutral" fill="plain" size="sm" onClick={() => handleNavigateIntent('library')} className="p-1 h-8 w-8 text-text/60 hover:text-text rounded-full" title={t("common.actions.back")}>
+            <Button tone="neutral" fill="plain" size="sm" onClick={() => handleNavigateIntent('library')} className="p-1 h-8 w-8 text-text/70 hover:text-text rounded-full" title={t("common.actions.back")}>
                 <ArrowLeft size={18} />
               </Button>
               <h1 className="font-serif text-lg font-bold">{t("common.scope.fandomTitle", { name: fandomName })}</h1>
@@ -462,7 +462,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
               </div>
 
               <div>
-                <div className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/80 font-bold font-sans" onClick={() => toggleFolder('core_characters')}>
+                <div className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/90 font-bold font-sans" onClick={() => toggleFolder('core_characters')}>
                   <div className="flex items-center gap-2">
                     {expandedFolders['core_characters'] ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
                     <Folder size={14} className="text-accent" fill="currentColor" fillOpacity={0.2} />
@@ -510,7 +510,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
               </div>
 
               <div>
-                <div className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/80 font-bold font-sans" onClick={() => toggleFolder('core_worldbuilding')}>
+                <div className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/90 font-bold font-sans" onClick={() => toggleFolder('core_worldbuilding')}>
                   <div className="flex items-center gap-2">
                     {expandedFolders['core_worldbuilding'] ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
                     <Folder size={14} className="text-warning" fill="currentColor" fillOpacity={0.2} />
@@ -573,7 +573,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                 </Tag>
               </div>
               <div className="flex items-center gap-4">
-                <span className="text-[11px] text-text/40 bg-black/5 dark:bg-white/5 px-2 py-1 rounded-md hidden xl:block">
+                <span className="text-xs text-text/50 bg-black/5 dark:bg-white/5 px-2 py-1 rounded-md hidden xl:block">
                   {t("fandomLore.referenceHint")}
                 </span>
                 <Button
@@ -592,10 +592,10 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                   <Trash2 size={14} />
                 </Button>
                 <div className="inline-flex rounded-md border border-black/10 dark:border-white/10 bg-surface/60 p-0.5 mr-2">
-                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${!previewMode ? 'bg-accent text-white' : 'text-text/60 hover:text-text'}`} onClick={() => setPreviewMode(false)}>
+                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${!previewMode ? 'bg-accent text-white' : 'text-text/70 hover:text-text'}`} onClick={() => setPreviewMode(false)}>
                     <Pencil size={12} /> {t('common.actions.edit')}
                   </button>
-                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${previewMode ? 'bg-accent text-white' : 'text-text/60 hover:text-text'}`} onClick={() => setPreviewMode(true)}>
+                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${previewMode ? 'bg-accent text-white' : 'text-text/70 hover:text-text'}`} onClick={() => setPreviewMode(true)}>
                     <Eye size={12} /> {t('common.actions.preview')}
                   </button>
                 </div>
@@ -646,7 +646,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
       <div className={`shrink-0 border-l border-black/10 dark:border-white/10 flex flex-col bg-surface/30 transition-all duration-300 overflow-hidden ${aiPanelOpen ? 'w-[320px] lg:w-[360px]' : 'w-0'}`}>
           <div className={`flex-1 flex flex-col min-h-0 transition-opacity duration-200 ${aiPanelOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
             <div className="p-3 border-b border-black/10 dark:border-white/10 flex items-center justify-between shrink-0">
-              <span className="text-xs font-bold text-text/60">{t('settingsMode.fandomAiTitle')}</span>
+              <span className="text-xs font-bold text-text/70">{t('settingsMode.fandomAiTitle')}</span>
               <Button tone="neutral" fill="plain" size="sm" className="h-6 w-6 p-0" onClick={() => setAiPanelOpen(false)}>
                 <X size={14} />
               </Button>

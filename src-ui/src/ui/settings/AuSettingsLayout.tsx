@@ -292,22 +292,22 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
               {isLlMOverride && (
                 <div className="pt-4 border-t border-black/10 dark:border-white/10 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-text/80">{t("common.labels.searchMode")}</label>
+                    <label className="text-xs font-bold text-text/90">{t("common.labels.searchMode")}</label>
                     <LlmModeSelect value={llmMode} onChange={setLlmMode} />
                   </div>
                   {llmMode === 'api' && (
                     <>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-text/80">{t("settings.story.storyModel")}</label>
+                        <label className="text-xs font-bold text-text/90">{t("settings.story.storyModel")}</label>
                         <ModelSelector value={auModel} onChange={setAuModel} onApiBaseAutoFill={setAuApiBase} />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                         <label className="text-xs font-bold text-text/80">{t("common.labels.apiKey")}</label>
+                         <label className="text-xs font-bold text-text/90">{t("common.labels.apiKey")}</label>
                          <Input type="password" value={auApiKey} onChange={e => setAuApiKey(e.target.value)} placeholder="sk-..." className="h-11 text-base md:h-9 md:text-sm" />
                          <p className="text-xs text-text/50">{t("common.help.apiKey")}</p>
                       </div>
                       <div className="flex flex-col gap-1.5 md:col-span-2">
-                         <label className="text-xs font-bold text-text/80">{t("common.labels.apiBase")}</label>
+                         <label className="text-xs font-bold text-text/90">{t("common.labels.apiBase")}</label>
                          <Input value={auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="https://api.deepseek.com" className="h-11 text-base md:h-9 md:text-sm" />
                          <p className="text-xs text-text/50">{t("common.help.apiBase")}</p>
                       </div>
@@ -315,7 +315,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                   )}
                   {llmMode === 'local' && (
                     <div className="flex flex-col gap-1.5 md:col-span-2">
-                      <label className="text-xs font-bold text-text/80">{t("common.labels.localModelPath")}</label>
+                      <label className="text-xs font-bold text-text/90">{t("common.labels.localModelPath")}</label>
                       <Input value={auLocalModelPath} onChange={e => setAuLocalModelPath(e.target.value)} placeholder="/path/to/model" className="h-11 text-base md:h-9 md:text-sm" />
                       <p className="text-xs text-text/50">{t("common.help.localModelPath")}</p>
                     </div>
@@ -323,19 +323,19 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                   {llmMode === 'ollama' && (
                     <>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-text/80">{t("common.labels.ollamaModel")}</label>
+                        <label className="text-xs font-bold text-text/90">{t("common.labels.ollamaModel")}</label>
                         <Input value={auOllamaModel} onChange={e => setAuOllamaModel(e.target.value)} placeholder="llama3" className="h-11 text-base md:h-9 md:text-sm" />
                         <p className="text-xs text-text/50">{t("common.help.ollamaModel")}</p>
                       </div>
                       <div className="flex flex-col gap-1.5">
-                         <label className="text-xs font-bold text-text/80">{t("common.labels.apiBase")}</label>
+                         <label className="text-xs font-bold text-text/90">{t("common.labels.apiBase")}</label>
                          <Input value={auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="http://localhost:11434" className="h-11 text-base md:h-9 md:text-sm" />
                          <p className="text-xs text-text/50">{t("common.help.apiBase")}</p>
                       </div>
                     </>
                   )}
                   <div className="flex flex-col gap-1.5 md:col-span-2">
-                     <label className="text-xs font-bold text-text/80">{t("common.labels.contextWindow")}</label>
+                     <label className="text-xs font-bold text-text/90">{t("common.labels.contextWindow")}</label>
                      <Input type="number" value={contextWindow} onChange={e => setContextWindow(parseInt(e.target.value, 10) || 0)} className="h-11 text-base md:h-9 md:text-sm" />
                      <p className="text-xs text-text/50">{t("common.help.contextWindow")}</p>
                   </div>
@@ -366,7 +366,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                 <p className="text-xs text-text/50">{t("common.help.searchEngineModel")}</p>
               </div>
               <div className="flex items-center justify-between rounded-lg border border-black/10 dark:border-white/10 bg-background/60 px-4 py-3">
-                <span className="text-sm text-text/80">{t("settings.global.searchEngineDescription")}</span>
+                <span className="text-sm text-text/90">{t("settings.global.searchEngineDescription")}</span>
                 <Tag tone="info" className="text-xs">{getEnumLabel("index_status", indexStatus, indexStatus)}</Tag>
               </div>
             </div>
@@ -402,11 +402,11 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
           {/* 4. Core Includes */}
           <section className="space-y-6">
             <h2 className="text-lg font-sans font-bold text-success border-l-4 border-success pl-3">{t("settings.sections.coreIncludes")}</h2>
-            <p className="text-sm text-text/60">{t("settings.story.coreIncludesDescription")}</p>
+            <p className="text-sm text-text/70">{t("settings.story.coreIncludesDescription")}</p>
             
             <div className="flex gap-3 flex-wrap">
               {coreIncludes.length === 0 ? (
-                <p className="text-sm text-text/40">{t("settings.emptyCoreIncludes")}</p>
+                <p className="text-sm text-text/50">{t("settings.emptyCoreIncludes")}</p>
               ) : (
                 coreIncludes.map((file, idx) => (
                   <Tag key={idx} tone="success" className="px-3 py-1.5 text-sm gap-2">
@@ -426,9 +426,9 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
             <section className="space-y-6">
               <h2 className="text-lg font-sans font-bold text-info border-l-4 border-info pl-3">{t("settings.sections.castRegistry")}</h2>
               <div className="bg-surface/50 p-4 rounded-xl border border-black/5 dark:border-white/5">
-                <h3 className="text-xs font-bold text-text/60 uppercase mb-2">{t("common.labels.characters")}</h3>
+                <h3 className="text-xs font-bold text-text/70 uppercase mb-2">{t("common.labels.characters")}</h3>
                 {(project.cast_registry.characters || []).length === 0 ? (
-                  <p className="text-xs text-text/40">{t("settings.emptyCastRegistry")}</p>
+                  <p className="text-xs text-text/50">{t("settings.emptyCastRegistry")}</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {project.cast_registry.characters.map(c => (

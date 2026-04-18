@@ -89,13 +89,13 @@ export function ModelSelector({ value, onChange, onApiBaseAutoFill, disabled, cl
             onChange={(e) => onChange(e.target.value)}
             placeholder={t('modelSelector.customPlaceholder')}
             disabled={disabled}
-            className="h-11 flex-1 rounded-md border border-black/20 bg-background px-3 text-base text-text placeholder:text-text/40 outline-none focus:ring-1 focus:ring-accent dark:border-white/20 md:h-9 md:text-sm"
+            className="h-11 flex-1 rounded-md border border-black/20 bg-background px-3 text-base text-text placeholder:text-text/50 outline-none focus:ring-1 focus:ring-accent dark:border-white/20 md:h-9 md:text-sm"
           />
           <button
             type="button"
             onClick={() => setIsCustom(false)}
             disabled={disabled}
-            className="shrink-0 rounded-md border border-black/20 bg-background px-3 text-xs text-text/60 hover:text-text dark:border-white/20 md:text-xs"
+            className="shrink-0 rounded-md border border-black/20 bg-background px-3 text-xs text-text/70 hover:text-text dark:border-white/20 md:text-xs"
           >
             {t('modelSelector.presets')}
           </button>
@@ -123,7 +123,7 @@ export function ModelSelector({ value, onChange, onApiBaseAutoFill, disabled, cl
             type="button"
             onClick={() => setIsCustom(true)}
             disabled={disabled}
-            className="shrink-0 rounded-md border border-black/20 bg-background px-3 text-xs text-text/60 hover:text-text dark:border-white/20 md:text-xs"
+            className="shrink-0 rounded-md border border-black/20 bg-background px-3 text-xs text-text/70 hover:text-text dark:border-white/20 md:text-xs"
           >
             {t('modelSelector.custom')}
           </button>

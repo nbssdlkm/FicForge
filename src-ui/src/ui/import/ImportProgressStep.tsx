@@ -51,11 +51,11 @@ export function ImportProgressStep({
                 <p>{t("import.step5SettingsProgress", { done: progress.settingsDone, total: progress.settingsTotal })}</p>
               )}
               {progress.currentFile && (
-                <p className="text-xs text-text/40">{progress.currentFile}</p>
+                <p className="text-xs text-text/50">{progress.currentFile}</p>
               )}
             </>
           ) : (
-            <p className="text-text/40">{t("import.importing")}</p>
+            <p className="text-text/50">{t("import.importing")}</p>
           )}
         </div>
       </div>

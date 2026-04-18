@@ -127,7 +127,7 @@ export const ChapterContentArea = ({
               </Button>
             )}
             <button
-              className="inline-flex min-h-[44px] items-center px-4 text-xs text-text/40 hover:text-text/60"
+              className="inline-flex min-h-[44px] items-center px-4 text-xs text-text/50 hover:text-text/70"
               onClick={onDismissError}
             >
               {t('common.actions.dismiss')}

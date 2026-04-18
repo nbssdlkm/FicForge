@@ -20,7 +20,7 @@ const toneStyles: Record<TagTone, string> = {
   unresolved: 'bg-accent/10 text-accent border border-accent/20 font-bold',
   active: 'bg-info/10 text-info border border-info/20',
   resolved: 'bg-black/5 dark:bg-white/10 text-text/50 border border-black/10 dark:border-white/10',
-  deprecated: 'bg-black/5 dark:bg-white/10 text-text/40 line-through border border-transparent',
+  deprecated: 'bg-black/5 dark:bg-white/10 text-text/50 line-through border border-transparent',
 };
 
 export const Tag = forwardRef<HTMLSpanElement, TagProps>(

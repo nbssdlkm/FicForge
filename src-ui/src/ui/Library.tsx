@@ -233,7 +233,7 @@ function LibraryInner({ onNavigate }: Props) {
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="animate-spin text-accent" size={32} />
-            <span className="ml-3 text-text/60">{t("library.loading")}</span>
+            <span className="ml-3 text-text/70">{t("library.loading")}</span>
           </div>
         ) : fandoms.length === 0 ? (
           <EmptyState
@@ -264,7 +264,7 @@ function LibraryInner({ onNavigate }: Props) {
             {fandoms.map(fandom => (
               <div key={fandom.name}>
                 <div className="mb-4 flex flex-col gap-3 border-b border-black/10 pb-3 dark:border-white/10 md:flex-row md:items-center md:justify-between md:pb-2">
-                  <h2 className="text-xl font-sans font-semibold text-text/80">
+                  <h2 className="text-xl font-sans font-semibold text-text/90">
                     {t("common.scope.fandomTitle", { name: fandom.name })}
                   </h2>
                   <div className="flex flex-wrap items-center gap-2">
@@ -274,7 +274,7 @@ function LibraryInner({ onNavigate }: Props) {
                     <Button tone="neutral" fill="plain" size="sm" onClick={() => { setSelectedFandom(fandom.name); setSelectedFandomDir(fandom.dir_name); setAuModalOpen(true); }} disabled={creatingFandom || creatingAu || deleting}>
                       <Plus size={14} className="mr-1 text-accent" /> {t("library.createAuButton")}
                     </Button>
-                    <Button tone="neutral" fill="plain" size="sm" className="text-text/40 hover:text-text/60" onClick={() => setTrashTarget({ fandomDir: fandom.dir_name, fandomName: fandom.name })} title={t('trash.tooltip')}>
+                    <Button tone="neutral" fill="plain" size="sm" className="text-text/50 hover:text-text/70" onClick={() => setTrashTarget({ fandomDir: fandom.dir_name, fandomName: fandom.name })} title={t('trash.tooltip')}>
                       <ArchiveRestore size={14} />
                     </Button>
                     <Button tone="neutral" fill="plain" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteTarget({ type: 'fandom', fandomDir: fandom.dir_name, fandomName: fandom.name })} disabled={creatingFandom || creatingAu || deleting}>
@@ -284,12 +284,12 @@ function LibraryInner({ onNavigate }: Props) {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {fandom.aus.length === 0 ? (
-                    <p className="text-text/40 text-sm col-span-3">{t("library.emptyAuList")}</p>
+                    <p className="text-text/50 text-sm col-span-3">{t("library.emptyAuList")}</p>
                   ) : (
                     fandom.aus.map(au => (
-                      <Card key={au} className="relative cursor-pointer rounded-2xl p-5 transition-colors hover:border-accent/50 group" onClick={() => onNavigate('writer', `${getDataDir()}/fandoms/${fandom.dir_name}/aus/${au}`)}>
+                      <Card key={au} className="relative cursor-pointer rounded-xl p-5 transition-colors hover:border-accent/50 group" onClick={() => onNavigate('writer', `${getDataDir()}/fandoms/${fandom.dir_name}/aus/${au}`)}>
                         <button
-                          className="absolute right-3 top-3 inline-flex h-11 w-11 items-center justify-center rounded-md p-0 text-text/35 opacity-100 transition-opacity hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 md:h-9 md:w-9 md:opacity-0 md:group-hover:opacity-100"
+                          className="absolute right-3 top-3 inline-flex h-11 w-11 items-center justify-center rounded-md p-0 text-text/30 opacity-100 transition-opacity hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 md:h-9 md:w-9 md:opacity-0 md:group-hover:opacity-100"
                           onClick={(e) => { e.stopPropagation(); setDeleteTarget({ type: 'au', fandomDir: fandom.dir_name, fandomName: fandom.name, auName: au }); }}
                           title={t("common.actions.delete")}
                           disabled={creatingFandom || creatingAu || deleting}
@@ -297,7 +297,7 @@ function LibraryInner({ onNavigate }: Props) {
                           <Trash2 size={14} />
                         </button>
                         <h3 className="text-lg font-sans font-medium mb-4">{t("common.scope.auTitle", { name: au })}</h3>
-                        <div className="flex items-center text-sm text-text/60">
+                        <div className="flex items-center text-sm text-text/70">
                           <span className="flex items-center gap-1"><BookOpen size={14} /> {t("library.cardType")}</span>
                         </div>
                       </Card>

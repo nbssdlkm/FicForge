@@ -28,13 +28,13 @@ export function AuSettingsAdvancedSection({
             {recalcing ? <Loader2 size={14} className="animate-spin mr-2" /> : null}
             {t('advanced.recalc')}
           </Button>
-          <p className="text-xs text-text/40">{t('advanced.recalcDesc')}</p>
+          <p className="text-xs text-text/50">{t('advanced.recalcDesc')}</p>
         </div>
         <div className="rounded-xl border border-black/5 bg-surface/50 p-4 dark:border-white/5">
           <Button tone="neutral" fill="outline" size="sm" className="w-full mb-2" onClick={handleRebuildIndex}>
             {t('advanced.rebuildIndex')}
           </Button>
-          <p className="text-xs text-text/40">{t('advanced.rebuildIndexDesc')}</p>
+          <p className="text-xs text-text/50">{t('advanced.rebuildIndexDesc')}</p>
         </div>
       </div>
       <p className="text-xs text-text/30">{t('advanced.advancedHint')}</p>

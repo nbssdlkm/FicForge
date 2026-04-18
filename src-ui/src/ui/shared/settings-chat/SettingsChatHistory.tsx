@@ -102,12 +102,12 @@ export function SettingsChatHistory({
         return (
           <div key={message.id} className="space-y-3">
             <div className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-full md:max-w-[90%] rounded-2xl px-4 py-3 shadow-subtle ${message.role === "user" ? "bg-accent/10 text-text" : "bg-surface/60 text-text"}`}>
-                <div className="mb-2 flex items-center gap-2 text-xs text-text/45">
+              <div className={`max-w-full md:max-w-[90%] rounded-xl px-4 py-3 shadow-subtle ${message.role === "user" ? "bg-accent/10 text-text" : "bg-surface/60 text-text"}`}>
+                <div className="mb-2 flex items-center gap-2 text-xs text-text/50">
                   {message.role === "user" ? <User2 size={14} /> : <Bot size={14} />}
                   <span>{message.role === "user" ? t("settingsMode.userLabel") : t("settingsMode.assistantLabel")}</span>
                 </div>
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-text/85">{message.content}</p>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-text/90">{message.content}</p>
               </div>
             </div>
 

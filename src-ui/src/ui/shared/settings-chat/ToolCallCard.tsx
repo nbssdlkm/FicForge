@@ -117,7 +117,7 @@ function renderFactSummary(card: ToolCallCardState, t: ToolCallCardProps["t"]) {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm leading-relaxed text-text/80">
+      <p className="text-sm leading-relaxed text-text/90">
         {coerceString(args.content_clean) || coerceString(args.content_raw) || t("common.none")}
       </p>
       <div className="flex flex-wrap gap-2">
@@ -126,7 +126,7 @@ function renderFactSummary(card: ToolCallCardState, t: ToolCallCardProps["t"]) {
         {status ? <Tag tone="default">{getEnumLabel("fact_status", status, status)}</Tag> : null}
       </div>
       {characters.length > 0 ? (
-        <p className="text-xs text-text/55">
+        <p className="text-xs text-text/50">
           {t("common.labels.characters")}{t("common.labelColon")}{characters.join(t("common.listSeparator"))}
         </p>
       ) : null}
@@ -293,7 +293,7 @@ export function ToolCallCard({
       ) : null}
 
       {!isEditing || isMobile ? (
-        <div className="space-y-3 text-sm text-text/75">
+        <div className="space-y-3 text-sm text-text/70">
           {(() => {
             const args = card.parsedArgs;
             const toolName = getToolCallName(card);
@@ -327,7 +327,7 @@ export function ToolCallCard({
             }
 
             if (toolName === "add_pinned_context") {
-              return <p className="text-sm leading-relaxed text-text/80">{coerceString(args.content) || t("common.none")}</p>;
+              return <p className="text-sm leading-relaxed text-text/90">{coerceString(args.content) || t("common.none")}</p>;
             }
 
             if (toolName === "update_writing_style") {
@@ -369,7 +369,7 @@ export function ToolCallCard({
 
           {preview ? (
             <div className="rounded-lg border border-black/10 bg-background/40 p-3 dark:border-white/10">
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-text/80">
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-text/90">
                 {isExpanded ? preview.full : preview.preview}
               </p>
               <Button
@@ -400,7 +400,7 @@ export function ToolCallCard({
           <div className="flex items-center gap-2 text-sm text-success">
             <span>{card.resultNote || t("settingsMode.executed")}</span>
             {card.undoMeta?.kind === "unsupported" ? (
-              <span className="inline-flex items-center gap-1 text-text/55">
+              <span className="inline-flex items-center gap-1 text-text/50">
                 <AlertCircle size={13} />
                 {card.undoMeta.note || t("settingsMode.undoNotSupported")}
               </span>

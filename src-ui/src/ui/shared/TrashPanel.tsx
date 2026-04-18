@@ -231,7 +231,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
       <div className="shrink-0 border-t border-black/10 bg-surface/80 dark:border-white/10">
         <button
           type="button"
-          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-text/80 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-text/90 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
           onClick={() => setIsExpanded((current) => !current)}
           disabled={disabled}
         >
@@ -239,7 +239,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
             {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             <Trash2 size={14} className="text-text/50" />
             <span>{t("trash.title")}</span>
-            <span className="text-text/45">{t("trash.count", { count: entries.length })}</span>
+            <span className="text-text/50">{t("trash.count", { count: entries.length })}</span>
           </span>
           {loading && <Loader2 size={14} className="animate-spin text-accent" />}
         </button>
@@ -268,7 +268,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
                       className="rounded-lg border border-black/10 bg-background/60 p-3 shadow-subtle dark:border-white/10"
                     >
                       <div className="flex items-start gap-3">
-                        <div className="mt-0.5 text-text/45">
+                        <div className="mt-0.5 text-text/50">
                           {isDirectoryEntry(entry) ? <FolderOpen size={16} /> : <FileText size={16} />}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -276,13 +276,13 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
                             {getEntryLabel(entry)}
                           </div>
                           <div
-                            className="mt-1 text-xs text-text/55"
+                            className="mt-1 text-xs text-text/50"
                             title={formatAbsoluteTime(entry.deleted_at, timeLocale)}
                           >
                             {t("trash.deletedAt", { time: formatRelativeTime(entry.deleted_at, timeLocale) })}
                           </div>
                           <div
-                            className="text-xs text-text/45"
+                            className="text-xs text-text/50"
                             title={formatAbsoluteTime(entry.expires_at, timeLocale)}
                           >
                             {expiresInDays === null
@@ -338,7 +338,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
         title={t("trash.permanentDelete")}
       >
         <div className="space-y-4">
-          <p className="text-sm text-text/80">
+          <p className="text-sm text-text/90">
             {t("trash.confirmDelete", { name: deleteTarget ? getEntryLabel(deleteTarget) : "" })}
           </p>
           <div className="flex justify-end gap-2">
@@ -363,7 +363,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
         title={t("trash.clearAll")}
       >
         <div className="space-y-4">
-          <p className="text-sm text-text/80">
+          <p className="text-sm text-text/90">
             {t("trash.confirmClearAll", { count: entries.length })}
           </p>
           <div className="flex justify-end gap-2">
@@ -388,7 +388,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
         title={t("trash.restore")}
       >
         <div className="space-y-4">
-          <p className="text-sm text-text/80">{t("trash.restoreConflict")}</p>
+          <p className="text-sm text-text/90">{t("trash.restoreConflict")}</p>
           <div className="flex justify-end">
             <Button tone="accent" fill="solid" onClick={() => setRestoreConflictOpen(false)}>
               {t("shared.feedback.acknowledge")}

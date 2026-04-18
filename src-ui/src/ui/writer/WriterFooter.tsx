@@ -84,7 +84,7 @@ export function WriterFooter(props: WriterFooterProps) {
   return (
     <footer className="safe-area-bottom w-full shrink-0 border-t border-black/10 dark:border-white/10 bg-surface/80 backdrop-blur-md flex flex-col">
       <button
-        className="mx-auto flex min-h-[44px] items-center gap-1 px-4 py-1 text-[10px] text-text/40 transition-colors hover:text-text/60"
+        className="mx-auto flex min-h-[44px] items-center gap-1 px-4 py-1 text-xs text-text/50 transition-colors hover:text-text/70"
         onClick={onToggleCollapsed}
       >
         {footerCollapsed ? <ChevronsUp size={12} /> : <ChevronsDown size={12} />}
@@ -163,7 +163,7 @@ export function WriterFooter(props: WriterFooterProps) {
                 triggerGenerate();
               }}
               disabled={writeActionsDisabled}
-              className="h-9 w-full rounded-lg border border-black/10 bg-background px-3 text-sm text-text placeholder:text-text/40 outline-none focus:ring-2 focus:ring-accent/50 dark:border-white/10"
+              className="h-9 w-full rounded-lg border border-black/10 bg-background px-3 text-sm text-text placeholder:text-text/50 outline-none focus:ring-2 focus:ring-accent/50 dark:border-white/10"
             />
           </div>
 
@@ -179,10 +179,10 @@ export function WriterFooter(props: WriterFooterProps) {
 
           <div className="mx-auto mt-2 hidden w-full max-w-[720px] items-center justify-between border-t border-black/5 pt-2 dark:border-white/5 md:flex">
             <div className="flex items-center gap-2">
-              <Button tone="neutral" fill="plain" size="sm" className="text-text/60 hover:text-text" onClick={onOpenUndo} disabled={currentChapter <= 1 || writeActionsDisabled}>
+              <Button tone="neutral" fill="plain" size="sm" className="text-text/70 hover:text-text" onClick={onOpenUndo} disabled={currentChapter <= 1 || writeActionsDisabled}>
                 <Undo2 size={16} className="mr-2" /> {t('common.actions.undoPreviousChapter')}
               </Button>
-              <Button tone="neutral" fill="plain" size="sm" className="text-text/60 hover:text-text" onClick={onNavigateFacts}>
+              <Button tone="neutral" fill="plain" size="sm" className="text-text/70 hover:text-text" onClick={onNavigateFacts}>
                 <BookOpen size={16} className="mr-1" /> {t('writer.factsShortcut')}
               </Button>
             </div>

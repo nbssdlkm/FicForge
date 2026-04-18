@@ -167,20 +167,20 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
         <div className="max-h-[55vh] overflow-y-auto space-y-5 pr-1">
           {/* Section 1: Old facts */}
           <div>
-            <h3 className="text-xs font-medium text-text/60 mb-2">{t('dirty.oldFactsSection')}</h3>
+            <h3 className="text-xs font-medium text-text/70 mb-2">{t('dirty.oldFactsSection')}</h3>
             {loadingOld ? (
               <div className="flex items-center gap-2 py-4 justify-center text-text/50 text-sm">
                 <Loader2 size={16} className="animate-spin" />
               </div>
             ) : !hasOldFacts ? (
-              <p className="text-sm text-text/40 py-2">{t('dirty.noOldFacts')}</p>
+              <p className="text-sm text-text/50 py-2">{t('dirty.noOldFacts')}</p>
             ) : (
               <div className="space-y-2">
                 {oldFacts.map(f => (
                   <div key={f.id} className="border border-black/10 dark:border-white/10 rounded-lg p-3 bg-surface/50 space-y-2">
                     <div className="flex justify-between items-start gap-2">
                       <p className="text-sm font-serif leading-relaxed text-text flex-1">{f.content_clean || f.content_raw}</p>
-                      <Tag tone={decisions[f.id] === 'deprecate' ? 'error' : 'warning'} className="px-2 shrink-0 text-[10px]">
+                      <Tag tone={decisions[f.id] === 'deprecate' ? 'error' : 'warning'} className="px-2 shrink-0 text-xs">
                         {decisions[f.id] === 'deprecate' ? t('dirty.deprecateTag') : t('dirty.dirtyTag')}
                       </Tag>
                     </div>
@@ -208,7 +208,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
 
           {/* Section 2: AI re-extracted candidates */}
           <div>
-            <h3 className="text-xs font-medium text-text/60 mb-2">{t('dirty.newFactsSection')}</h3>
+            <h3 className="text-xs font-medium text-text/70 mb-2">{t('dirty.newFactsSection')}</h3>
             {extracting ? (
               <div className="flex items-center gap-2 py-4 justify-center text-accent text-sm">
                 <Loader2 size={16} className="animate-spin" />
@@ -220,7 +220,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
                 <span>{t('dirty.extractFailed')}</span>
               </div>
             ) : !hasCandidates ? (
-              <p className="text-sm text-text/40 py-2">{t('dirty.noCandidates')}</p>
+              <p className="text-sm text-text/50 py-2">{t('dirty.noCandidates')}</p>
             ) : (
               <div className="space-y-2">
                 {candidates.map((c, idx) => (
@@ -235,7 +235,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-serif leading-relaxed text-text">{c.content_clean || c.content_raw}</p>
                       {c.characters && c.characters.length > 0 && (
-                        <p className="text-[11px] text-text/40 mt-1">{c.characters.join(', ')}</p>
+                        <p className="text-xs text-text/50 mt-1">{c.characters.join(', ')}</p>
                       )}
                     </div>
                   </label>
@@ -249,7 +249,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
         <div className="border-t border-black/10 dark:border-white/10 pt-4">
           <Button
             tone="accent" fill="solid"
-            className="w-full h-11 text-[15px] shadow-sm"
+            className="w-full h-11 text-sm shadow-sm"
             onClick={handleResolve}
             disabled={resolving || isLoading}
           >
@@ -258,7 +258,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
             ) : (
               <span className="flex flex-col items-center leading-tight">
                 <span className="flex items-center gap-1.5"><Check size={15} /> {t('dirty.confirmResolve')}</span>
-                <span className="text-[11px] opacity-80">{t('dirty.confirmResolveSubtitle')}</span>
+                <span className="text-xs opacity-80">{t('dirty.confirmResolveSubtitle')}</span>
               </span>
             )}
           </Button>

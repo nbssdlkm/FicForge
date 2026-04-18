@@ -373,7 +373,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
 
           <div className="flex items-center justify-between pt-2">
             <div className="flex flex-1 items-center pr-4">
-              {testStatus === 'testing' && <span className="flex items-center text-xs text-text/60"><Loader2 size={14} className="mr-1 animate-spin" /> {t('common.status.testing')}</span>}
+              {testStatus === 'testing' && <span className="flex items-center text-xs text-text/70"><Loader2 size={14} className="mr-1 animate-spin" /> {t('common.status.testing')}</span>}
               {testStatus === 'success' && <span className="flex items-center text-xs text-success"><CheckCircle2 size={14} className="mr-1" /> {testMessage}</span>}
               {testStatus === 'error' && <span className="flex items-start text-xs text-error"><XCircle size={14} className="mr-1 mt-0.5 shrink-0" /> <span className="leading-tight">{testMessage}</span></span>}
             </div>
@@ -432,15 +432,15 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
           {/* 数据存储路径 */}
           <div className="space-y-1 border-t border-black/10 pt-5 dark:border-white/10">
             <label className="text-sm font-bold text-text/90">{t('settings.global.dataPathLabel')}</label>
-            <p className="rounded-md bg-black/5 px-3 py-2 font-mono text-xs text-text/60 dark:bg-white/5">
+            <p className="rounded-md bg-black/5 px-3 py-2 font-mono text-xs text-text/70 dark:bg-white/5">
               {displayDataDir || getDataDir() || t('settings.global.dataPathDefault')}
             </p>
-            <p className="text-xs text-text/40">{t('settings.global.dataPathHint')}</p>
+            <p className="text-xs text-text/50">{t('settings.global.dataPathHint')}</p>
           </div>
 
           <DebugLogsSection />
 
-          <p className="text-[11px] text-text/35 leading-relaxed mt-4">{t('ethics.aboutFooter')}</p>
+          <p className="text-xs text-text/30 leading-relaxed mt-4">{t('ethics.aboutFooter')}</p>
 
           <div className="flex justify-end gap-3 border-t border-black/10 pt-5 dark:border-white/10">
             <Button tone="neutral" fill="plain" onClick={onClose} disabled={saving}>{t('common.actions.cancel')}</Button>

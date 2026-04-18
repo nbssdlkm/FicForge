@@ -72,13 +72,13 @@ export function LibraryModals({
           <Input placeholder={t("library.createAuModal.namePlaceholder")} value={newAuName} onChange={(e) => setNewAuName(e.target.value)} className="w-full bg-surface/50 text-base" disabled={creatingAu} />
           <div className="flex flex-col gap-2">
              <label className="text-sm font-bold text-text/90">{t("library.createAuModal.inheritLabel")}</label>
-             <div className="flex min-h-[44px] items-center rounded-md border border-black/20 bg-surface/60 px-3 text-base text-text/75 dark:border-white/20 md:text-sm">
+             <div className="flex min-h-[44px] items-center rounded-md border border-black/20 bg-surface/60 px-3 text-base text-text/70 dark:border-white/20 md:text-sm">
                 {selectedFandom}
              </div>
           </div>
           <div className="flex flex-col gap-2">
              <label className="text-sm font-bold text-text/90">{t("library.createAuModal.initLabel")}</label>
-             <div className="rounded-md border border-black/20 bg-surface/60 px-3 py-3 text-base text-text/75 dark:border-white/20 md:text-sm">
+             <div className="rounded-md border border-black/20 bg-surface/60 px-3 py-3 text-base text-text/70 dark:border-white/20 md:text-sm">
                 {t("library.createAuModal.initGlobal")}
              </div>
           </div>
@@ -90,7 +90,7 @@ export function LibraryModals({
 
       <Modal isOpen={!!deleteTarget} onClose={deleting ? () => {} : () => setDeleteTarget(null)} title={deleteTarget?.type === 'fandom' ? t('library.deleteFandomTitle') : t('library.deleteAuTitle')}>
         <div className="space-y-4">
-          <p className="text-sm text-text/80 leading-relaxed">
+          <p className="text-sm text-text/90 leading-relaxed">
             {deleteTarget?.type === 'fandom'
               ? t('library.deleteFandomMessage', { name: deleteTarget.fandomName })
               : t('library.deleteAuMessage', { name: deleteTarget?.auName || '' })}

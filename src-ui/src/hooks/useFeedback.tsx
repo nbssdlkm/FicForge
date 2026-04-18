@@ -128,7 +128,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
         title={t("shared.feedback.errorTitle")}
       >
         <div className="space-y-4">
-          <p className="text-sm text-text/80">{dialog?.message}</p>
+          <p className="text-sm text-text/90">{dialog?.message}</p>
           {dialog && dialog.actions.length > 0 && (
             <div className="space-y-2 rounded-lg border border-black/10 bg-surface/50 p-3 text-sm text-text/70 dark:border-white/10">
               <p className="font-medium text-text">{t("shared.feedback.actionsTitle")}</p>

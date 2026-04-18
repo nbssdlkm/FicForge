@@ -59,15 +59,15 @@ export function GlobalSettingsSyncSection({
       </div>
 
       {syncHelpOpen && (
-        <div className="rounded-xl border border-info/20 bg-info/5 p-4 text-sm text-text/80 space-y-3">
+        <div className="rounded-xl border border-info/20 bg-info/5 p-4 text-sm text-text/90 space-y-3">
           <p className="font-medium text-text/90">{t('settings.sync.help.intro')}</p>
           <div>
             <p className="font-medium">{t('settings.sync.help.option1Title')}</p>
-            <p className="text-xs text-text/60 mt-1">{t('settings.sync.help.option1Desc')}</p>
+            <p className="text-xs text-text/70 mt-1">{t('settings.sync.help.option1Desc')}</p>
           </div>
           <div>
             <p className="font-medium">{t('settings.sync.help.option2Title')}</p>
-            <p className="text-xs text-text/60 mt-1">{t('settings.sync.help.option2Desc')}</p>
+            <p className="text-xs text-text/70 mt-1">{t('settings.sync.help.option2Desc')}</p>
           </div>
           <div className="rounded-lg bg-background/60 p-3 text-xs space-y-1">
             <p className="font-medium text-text/70">{t('settings.sync.help.stepsTitle')}</p>
@@ -83,7 +83,7 @@ export function GlobalSettingsSyncSection({
         </div>
       )}
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-text/80">{t('settings.sync.modeLabel')}</label>
+        <label className="text-sm font-medium text-text/90">{t('settings.sync.modeLabel')}</label>
         <select
           value={syncMode}
           onChange={(e) => { setSyncMode(e.target.value as 'none' | 'webdav'); setSyncTestStatus('idle'); }}
@@ -114,7 +114,7 @@ export function GlobalSettingsSyncSection({
             {syncTestStatus === 'error' && <span className="flex items-center gap-1 text-xs text-error"><XCircle size={14} /> {t('settings.sync.failed')}</span>}
           </div>
           {lastSync && (
-            <p className="text-xs text-text/40">{t('settings.sync.lastSync')}: {new Date(lastSync).toLocaleString()}</p>
+            <p className="text-xs text-text/50">{t('settings.sync.lastSync')}: {new Date(lastSync).toLocaleString()}</p>
           )}
           <Button
             tone="accent" fill="solid"
@@ -126,7 +126,7 @@ export function GlobalSettingsSyncSection({
             {syncing ? <><Loader2 size={14} className="mr-1 animate-spin" />{t('settings.sync.syncing')}</> : t('settings.sync.syncNow')}
           </Button>
           {syncMessage && (
-            <p className={`text-xs mt-2 ${syncResultStatus === 'success' ? 'text-success' : syncResultStatus === 'error' ? 'text-error' : 'text-text/60'}`}>
+            <p className={`text-xs mt-2 ${syncResultStatus === 'success' ? 'text-success' : syncResultStatus === 'error' ? 'text-error' : 'text-text/70'}`}>
               {syncMessage}
             </p>
           )}
@@ -137,7 +137,7 @@ export function GlobalSettingsSyncSection({
                   {detail}
                 </div>
               ))}
-              <p className="text-xs text-text/40 mt-1">{t('settings.sync.opsConflictsMergedHint')}</p>
+              <p className="text-xs text-text/50 mt-1">{t('settings.sync.opsConflictsMergedHint')}</p>
             </div>
           )}
         </div>

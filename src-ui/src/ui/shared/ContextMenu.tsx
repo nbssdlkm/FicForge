@@ -108,15 +108,15 @@ export function ContextMenuProvider({ children }: { children: React.ReactNode })
       {menu && (
         <div
           ref={menuRef}
-          className="fixed z-[100] bg-surface border border-black/15 dark:border-white/15 rounded-lg shadow-lg py-1 min-w-[120px] text-sm font-sans"
+          className="fixed z-[100] bg-surface border border-black/10 dark:border-white/15 rounded-lg shadow-lg py-1 min-w-[120px] text-sm font-sans"
           style={{ left: menu.x, top: menu.y }}
           onMouseDown={e => e.preventDefault()}
         >
-          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/80" onClick={handleCut}>{t('contextMenu.cut')}</button>
-          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/80" onClick={handleCopy}>{t('contextMenu.copy')}</button>
-          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/80" onClick={handlePaste}>{t('contextMenu.paste')}</button>
+          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90" onClick={handleCut}>{t('contextMenu.cut')}</button>
+          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90" onClick={handleCopy}>{t('contextMenu.copy')}</button>
+          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90" onClick={handlePaste}>{t('contextMenu.paste')}</button>
           <div className="h-px bg-black/10 dark:bg-white/10 my-1" />
-          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/80" onClick={handleSelectAll}>{t('contextMenu.selectAll')}</button>
+          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90" onClick={handleSelectAll}>{t('contextMenu.selectAll')}</button>
         </div>
       )}
     </>

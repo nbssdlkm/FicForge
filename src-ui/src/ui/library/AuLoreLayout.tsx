@@ -481,7 +481,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
 
       {selectedCategory === 'characters' && (
         <div className="flex min-h-[44px] flex-wrap items-center gap-1.5 rounded-lg border border-black/10 bg-surface/30 px-3 py-2 dark:border-white/10 md:min-h-[36px]">
-          <span className="mr-1 text-xs font-sans text-text/40 md:text-[10px]">{t('auLore.aliasesLabel')}</span>
+          <span className="mr-1 text-xs font-sans text-text/50 md:text-xs">{t('auLore.aliasesLabel')}</span>
           {aliases.map((alias, i) => (
             <span key={i} className="inline-flex min-h-[44px] items-center gap-1 rounded-xl bg-accent/10 px-3 py-1 text-sm font-sans text-accent md:min-h-0 md:rounded-md md:px-2 md:py-0.5 md:text-xs">
               {alias}
@@ -605,7 +605,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                   </Button>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-text">{selectedFile}.md</p>
-                    <p className="text-xs text-text/45">{selectedCategory === 'worldbuilding' ? t('auLore.selectedTagWorldbuilding') : t('auLore.selectedTag')}</p>
+                    <p className="text-xs text-text/50">{selectedCategory === 'worldbuilding' ? t('auLore.selectedTagWorldbuilding') : t('auLore.selectedTag')}</p>
                   </div>
                 </div>
               ) : (
@@ -640,20 +640,20 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
 
             {selectedFile ? (
               <div className="mt-3 inline-flex rounded-md border border-black/10 bg-surface/60 p-0.5 dark:border-white/10">
-                <button className={`flex min-h-[44px] items-center gap-1 rounded px-3 py-2 text-sm ${!previewMode ? 'bg-accent text-white' : 'text-text/60 hover:text-text'}`} onClick={() => setPreviewMode(false)}>
+                <button className={`flex min-h-[44px] items-center gap-1 rounded px-3 py-2 text-sm ${!previewMode ? 'bg-accent text-white' : 'text-text/70 hover:text-text'}`} onClick={() => setPreviewMode(false)}>
                   <Pencil size={12} /> {t('common.actions.edit')}
                 </button>
-                <button className={`flex min-h-[44px] items-center gap-1 rounded px-3 py-2 text-sm ${previewMode ? 'bg-accent text-white' : 'text-text/60 hover:text-text'}`} onClick={() => setPreviewMode(true)}>
+                <button className={`flex min-h-[44px] items-center gap-1 rounded px-3 py-2 text-sm ${previewMode ? 'bg-accent text-white' : 'text-text/70 hover:text-text'}`} onClick={() => setPreviewMode(true)}>
                   <Eye size={12} /> {t('common.actions.preview')}
                 </button>
               </div>
             ) : (
               <>
-                <div className="mt-4 inline-flex w-full rounded-2xl border border-black/10 bg-background/70 p-1 dark:border-white/10">
-                  <button type="button" onClick={() => setSelectedCategory('characters')} className={`flex min-h-[44px] flex-1 items-center justify-center rounded-xl text-sm font-medium transition-colors ${selectedCategory === 'characters' ? 'bg-accent text-white' : 'text-text/55'}`}>
+                <div className="mt-4 inline-flex w-full rounded-xl border border-black/10 bg-background/70 p-1 dark:border-white/10">
+                  <button type="button" onClick={() => setSelectedCategory('characters')} className={`flex min-h-[44px] flex-1 items-center justify-center rounded-xl text-sm font-medium transition-colors ${selectedCategory === 'characters' ? 'bg-accent text-white' : 'text-text/50'}`}>
                     {t('common.labels.characters')}
                   </button>
-                  <button type="button" onClick={() => setSelectedCategory('worldbuilding')} className={`flex min-h-[44px] flex-1 items-center justify-center rounded-xl text-sm font-medium transition-colors ${selectedCategory === 'worldbuilding' ? 'bg-accent text-white' : 'text-text/55'}`}>
+                  <button type="button" onClick={() => setSelectedCategory('worldbuilding')} className={`flex min-h-[44px] flex-1 items-center justify-center rounded-xl text-sm font-medium transition-colors ${selectedCategory === 'worldbuilding' ? 'bg-accent text-white' : 'text-text/50'}`}>
                     {t('common.labels.worldbuilding')}
                   </button>
                 </div>
@@ -701,11 +701,11 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                           void loadFileContent(file.name, undefined, selectedCategory);
                         }
                       }}
-                      className="flex w-full cursor-pointer items-center justify-between rounded-2xl border border-black/10 bg-surface/35 px-4 py-4 text-left transition-colors dark:border-white/10"
+                      className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-black/10 bg-surface/35 px-4 py-4 text-left transition-colors dark:border-white/10"
                     >
                       <div className="min-w-0">
                         <p className="truncate text-base font-medium text-text">{file.name}.md</p>
-                        <p className="mt-1 text-xs text-text/45">{selectedCategory === 'worldbuilding' ? t('auLore.selectedTagWorldbuilding') : t('auLore.selectedTag')}</p>
+                        <p className="mt-1 text-xs text-text/50">{selectedCategory === 'worldbuilding' ? t('auLore.selectedTagWorldbuilding') : t('auLore.selectedTag')}</p>
                       </div>
                       {selectedCategory === 'characters' ? (
                         <button
@@ -720,7 +720,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                   );
                 })}
 
-                <div className="overflow-hidden rounded-2xl border border-black/10 bg-surface/35 dark:border-white/10">
+                <div className="overflow-hidden rounded-xl border border-black/10 bg-surface/35 dark:border-white/10">
                   <TrashPanel scope="au" path={auPath} onRestore={handleTrashRestore} refreshToken={trashRefreshToken} />
                 </div>
               </div>
@@ -750,7 +750,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
               </Button>
             </div>
           </div>
-          <div className="text-xs text-text/60">{t('auLore.referenceHint')}</div>
+          <div className="text-xs text-text/70">{t('auLore.referenceHint')}</div>
           <div className="relative">
             <Search className="absolute left-2.5 top-2 text-text/50" size={14} />
             <Input className="pl-8 h-8 text-xs placeholder:text-xs" placeholder={t('auLore.searchPlaceholder')} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
@@ -774,7 +774,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                 {t('auLore.charactersLabel')} ({files.length})
               </div>
               <div>
-                <div className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/80 font-bold font-sans" onClick={() => toggleFolder('characters')}>
+                <div className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/90 font-bold font-sans" onClick={() => toggleFolder('characters')}>
                   <div className="flex items-center gap-2">
                     {expandedFolders.characters ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     <Folder size={14} className="text-accent" fill="currentColor" fillOpacity={0.2} />
@@ -825,7 +825,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                               <span className="truncate">{file.name}.md</span>
                             </div>
                             <button
-                              className={`shrink-0 p-1 rounded transition-colors ${isPinned ? 'text-accent' : 'text-text/20 hover:text-text/50'} ${isSaving ? 'opacity-30 cursor-not-allowed' : ''}`}
+                              className={`shrink-0 p-1 rounded transition-colors ${isPinned ? 'text-accent' : 'text-text/30 hover:text-text/50'} ${isSaving ? 'opacity-30 cursor-not-allowed' : ''}`}
                               title={isPinned ? t('coreIncludes.pinned') : t('coreIncludes.setPin')}
                               disabled={isSaving}
                               onClick={(e) => { e.stopPropagation(); void handleTogglePin(file.name); }}
@@ -847,7 +847,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                 {t('common.labels.worldbuilding')} ({worldbuildingFiles.length})
               </div>
               <div>
-                <div className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/80 font-bold font-sans" onClick={() => toggleFolder('worldbuilding')}>
+                <div className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/90 font-bold font-sans" onClick={() => toggleFolder('worldbuilding')}>
                   <div className="flex items-center gap-2">
                     {expandedFolders.worldbuilding ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     <Folder size={14} className="text-info" fill="currentColor" fillOpacity={0.2} />
@@ -901,7 +901,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                 {t('coreIncludes.tooMany', { count: coreIncludes.length })}
               </div>
             )}
-            <div className="text-[11px] text-text/40 leading-relaxed px-1">
+            <div className="text-xs text-text/50 leading-relaxed px-1">
               {t('coreIncludes.hint')}
             </div>
           </div>
@@ -927,10 +927,10 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                   <Trash2 size={14} />
                 </Button>
                 <div className="inline-flex rounded-md border border-black/10 dark:border-white/10 bg-surface/60 p-0.5 mr-2">
-                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${!previewMode ? 'bg-accent text-white' : 'text-text/60 hover:text-text'}`} onClick={() => setPreviewMode(false)}>
+                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${!previewMode ? 'bg-accent text-white' : 'text-text/70 hover:text-text'}`} onClick={() => setPreviewMode(false)}>
                     <Pencil size={12} /> {t('common.actions.edit')}
                   </button>
-                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${previewMode ? 'bg-accent text-white' : 'text-text/60 hover:text-text'}`} onClick={() => setPreviewMode(true)}>
+                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${previewMode ? 'bg-accent text-white' : 'text-text/70 hover:text-text'}`} onClick={() => setPreviewMode(true)}>
                     <Eye size={12} /> {t('common.actions.preview')}
                   </button>
                 </div>

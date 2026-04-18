@@ -58,7 +58,7 @@ export function AnalysisStep({
               </div>
 
               {analysis && (
-                <div className="mt-2 space-y-1 pl-6 text-xs text-text/60">
+                <div className="mt-2 space-y-1 pl-6 text-xs text-text/70">
                   {analysis.mode === "chat" ? (
                     <>
                       <p>{t("import.chatDetected", { format: analysis.chatFormat ?? "" })}</p>
@@ -88,7 +88,7 @@ export function AnalysisStep({
       {!analyzing && analyses.length === 0 && (
         <div className="space-y-4 rounded-xl border border-black/10 bg-surface/20 p-4 dark:border-white/10">
           {/* AI assist */}
-          <label className="flex min-h-[44px] items-center gap-3 cursor-pointer text-sm text-text/80">
+          <label className="flex min-h-[44px] items-center gap-3 cursor-pointer text-sm text-text/90">
             <input
               type="checkbox"
               checked={useAiAssist}
@@ -98,13 +98,13 @@ export function AnalysisStep({
             <div>
               <span className="font-medium">{t("import.step2AiAssist")}</span>
               <p className="text-xs text-text/50 mt-0.5">{t("import.step2AiAssistHint")}</p>
-              <p className="text-xs text-text/40">{t("import.step2AiAssistCost")}</p>
+              <p className="text-xs text-text/50">{t("import.step2AiAssistCost")}</p>
             </div>
           </label>
 
           {/* Thresholds */}
           <div className="space-y-3 border-t border-black/5 pt-3 dark:border-white/5">
-            <p className="text-xs font-medium text-text/60">{t("import.step2Thresholds")}</p>
+            <p className="text-xs font-medium text-text/70">{t("import.step2Thresholds")}</p>
             <div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
               <div className="flex-1">
                 <label className="text-xs text-text/50">{t("import.step2ChapterThreshold", { n: chapterThreshold })}</label>
@@ -123,7 +123,7 @@ export function AnalysisStep({
                 />
               </div>
             </div>
-            <p className="text-xs text-text/40">{t("import.step2ThresholdHint")}</p>
+            <p className="text-xs text-text/50">{t("import.step2ThresholdHint")}</p>
           </div>
         </div>
       )}

@@ -61,7 +61,7 @@ export function CreateFandomStep({
       </div>
 
       <div className="space-y-1">
-        <label className="text-sm font-medium text-text/80">{t('onboarding.createFandom.nameLabel')}</label>
+        <label className="text-sm font-medium text-text/90">{t('onboarding.createFandom.nameLabel')}</label>
         <Input
           value={name}
           onChange={e => { setName(e.target.value); setError(''); }}
@@ -80,7 +80,7 @@ export function CreateFandomStep({
       {/* Collapsible explanation */}
       <div className="border border-black/10 dark:border-white/10 rounded-lg">
         <button
-          className="flex items-center gap-2 w-full px-4 py-3 text-sm text-text/60 hover:text-text/80 transition-colors"
+          className="flex items-center gap-2 w-full px-4 py-3 text-sm text-text/70 hover:text-text/90 transition-colors"
           onClick={() => setExpanded(!expanded)}
         >
           {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}

@@ -31,7 +31,7 @@ export function AuSettingsPinnedSection({
            <Plus size={14} className="mr-1"/> {t("common.actions.addPinnedRule")}
          </Button>
       </h2>
-      <p className="text-sm text-text/60">{t("settings.story.pinnedDescription")}</p>
+      <p className="text-sm text-text/70">{t("settings.story.pinnedDescription")}</p>
 
       <div className="space-y-3">
          {pinnedContext.length === 0 ? (

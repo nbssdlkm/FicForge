@@ -962,7 +962,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
             actions={
               <>
                 <Button tone="neutral" fill="plain" size="sm" className="h-11 text-xs md:h-6" onClick={() => { setDirtyTargetChapter((state?.chapters_dirty || [])[0] || 0); setDirtyOpen(true); }}>{t('dirty.goResolve')}</Button>
-                <Button tone="neutral" fill="plain" size="sm" className="h-11 text-xs text-text/40 md:h-6" onClick={() => setDirtyBannerDismissed(true)}>{t('dirty.dismissBanner')}</Button>
+                <Button tone="neutral" fill="plain" size="sm" className="h-11 text-xs text-text/50 md:h-6" onClick={() => setDirtyBannerDismissed(true)}>{t('dirty.dismissBanner')}</Button>
               </>
             }
           />

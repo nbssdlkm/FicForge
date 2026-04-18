@@ -8,7 +8,7 @@ import { cn } from './utils';
 export type InputTone = 'neutral' | 'error';
 
 const baseFieldStyles =
-  'w-full font-sans rounded-md border bg-background px-3 py-2 text-base md:text-sm placeholder:text-text/40 focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors';
+  'w-full font-sans rounded-md border bg-background px-3 py-2 text-base md:text-sm placeholder:text-text/50 focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors';
 
 const toneStyles: Record<InputTone, string> = {
   neutral: 'border-black/20 dark:border-white/20 focus:ring-accent',

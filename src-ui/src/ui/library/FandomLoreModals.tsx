@@ -69,7 +69,7 @@ export function FandomLoreModals({
 
       <Modal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} title={t("fandomLore.deleteTitle")}>
         <div className="space-y-4">
-          <p className="text-sm text-text/80">{t("fandomLore.deleteMessage", { name: selectedEntry?.filename || selectedFile || '' })}</p>
+          <p className="text-sm text-text/90">{t("fandomLore.deleteMessage", { name: selectedEntry?.filename || selectedFile || '' })}</p>
           <div className="flex justify-end gap-2">
             <Button tone="neutral" fill="plain" onClick={() => setDeleteConfirmOpen(false)}>{t("common.actions.cancel")}</Button>
             <Button tone="accent" fill="solid" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDeleteLore} disabled={editorBusy}>{t("common.actions.confirmDelete")}</Button>
@@ -79,7 +79,7 @@ export function FandomLoreModals({
 
       <Modal isOpen={discardChangesOpen} onClose={handleCancelDiscardChanges} title={t("fandomLore.discardChangesTitle")}>
         <div className="space-y-4">
-          <p className="text-sm text-text/80">{t("fandomLore.discardChangesMessage")}</p>
+          <p className="text-sm text-text/90">{t("fandomLore.discardChangesMessage")}</p>
           <div className="flex justify-end gap-2">
             <Button tone="neutral" fill="plain" onClick={handleCancelDiscardChanges}>{t("common.actions.cancel")}</Button>
             <Button tone="accent" fill="solid" onClick={handleConfirmDiscardChanges}>{t("fandomLore.discardChangesConfirm")}</Button>

@@ -44,10 +44,10 @@ export function BottomNavBar({ activeTab, onTabChange }: BottomNavBarProps) {
               type="button"
               onClick={() => onTabChange(id)}
               className={cn(
-                "flex min-h-[56px] flex-col items-center justify-center rounded-2xl px-2 py-2 text-xs font-medium transition-colors",
+                "flex min-h-[56px] flex-col items-center justify-center rounded-xl px-2 py-2 text-xs font-medium transition-colors",
                 active
                   ? "bg-accent text-white shadow-subtle"
-                  : "text-text/55 hover:bg-black/5 hover:text-text dark:hover:bg-white/5"
+                  : "text-text/50 hover:bg-black/5 hover:text-text dark:hover:bg-white/5"
               )}
             >
               <Icon size={18} className="mb-1" />

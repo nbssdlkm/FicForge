@@ -29,7 +29,7 @@ export const DraftNavigator = ({
   return (
     <>
       {/* Desktop: prev/next buttons */}
-      <div className="hidden items-center gap-2 text-sm font-sans text-text/75 md:flex">
+      <div className="hidden items-center gap-2 text-sm font-sans text-text/70 md:flex">
         <Button
           tone="neutral" fill="plain"
           size="sm"
@@ -42,7 +42,7 @@ export const DraftNavigator = ({
         </Button>
         <span className="min-w-[140px] text-center font-medium">
           {t('drafts.count', { current: activeDraftIndex + 1, total: drafts.length })}
-          {modified ? <span className="ml-1 text-text/55">{t('drafts.modified')}</span> : null}
+          {modified ? <span className="ml-1 text-text/50">{t('drafts.modified')}</span> : null}
         </span>
         <Button
           tone="neutral" fill="plain"
@@ -63,7 +63,7 @@ export const DraftNavigator = ({
             key={draft.draftId}
             type="button"
             onClick={() => onSelect(index)}
-            className={`min-h-[44px] rounded-full px-3 text-sm whitespace-nowrap transition-colors ${index === activeDraftIndex ? 'bg-accent text-white' : 'bg-black/5 text-text/60 dark:bg-white/10'}`}
+            className={`min-h-[44px] rounded-full px-3 text-sm whitespace-nowrap transition-colors ${index === activeDraftIndex ? 'bg-accent text-white' : 'bg-black/5 text-text/70 dark:bg-white/10'}`}
           >
             {t('drafts.count', { current: index + 1, total: drafts.length })}
           </button>

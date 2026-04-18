@@ -44,7 +44,7 @@ export const FinalizeConfirmModal = ({
     >
       <div className="space-y-4">
         <div>
-          <label className="block text-xs font-bold text-text/60 mb-1.5">{t('writer.chapterTitleLabel')}</label>
+          <label className="block text-xs font-bold text-text/70 mb-1.5">{t('writer.chapterTitleLabel')}</label>
           <input
             type="text"
             value={chapterTitle}
@@ -52,9 +52,9 @@ export const FinalizeConfirmModal = ({
             placeholder={t('writer.chapterTitlePlaceholder')}
             className="w-full rounded-lg border border-black/10 bg-surface/40 px-3 py-2 text-base text-text focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent dark:border-white/10 md:text-sm"
           />
-          <p className="text-[11px] text-text/40 mt-1">{t('writer.chapterTitleAutoHint')}</p>
+          <p className="text-xs text-text/50 mt-1">{t('writer.chapterTitleAutoHint')}</p>
         </div>
-        <div className="rounded-lg border border-black/10 bg-surface/40 p-4 text-sm leading-relaxed text-text/80 dark:border-white/10 max-h-48 overflow-y-auto">
+        <div className="rounded-lg border border-black/10 bg-surface/40 p-4 text-sm leading-relaxed text-text/90 dark:border-white/10 max-h-48 overflow-y-auto">
           {previewText || t('writer.emptyContent')}
         </div>
         <div className="flex justify-end gap-2">
@@ -96,7 +96,7 @@ export const DiscardConfirmModal = ({
       title={draftsCount > 1 ? t('drafts.discardAll') : t('drafts.discard')}
     >
       <div className="space-y-4">
-        <p className="text-sm text-text/80">
+        <p className="text-sm text-text/90">
           {draftsCount > 1
             ? t('drafts.confirmDiscardAll', { count: draftsCount })
             : t('drafts.confirmDiscard')}
@@ -144,7 +144,7 @@ export const FactsPromptModal = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
       <div className="space-y-5">
-        <p className="text-sm text-text/80">{t('drafts.factsPrompt')}</p>
+        <p className="text-sm text-text/90">{t('drafts.factsPrompt')}</p>
         <div className="space-y-2">
           <Button tone="accent" fill="solid" className="w-full gap-2" onClick={onOpenExtractReview} disabled={extractingFacts}>
             {extractingFacts ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
@@ -224,7 +224,7 @@ export const ExtractReviewModal = ({
                       <Tag tone="default">{getEnumLabel('fact_status', candidate.status, candidate.status)}</Tag>
                       <span className="text-xs text-text/50">{t('facts.extractSourceChapter', { chapter: candidate.chapter })}</span>
                     </div>
-                    <p className="text-sm text-text/85">{candidate.content_clean}</p>
+                    <p className="text-sm text-text/90">{candidate.content_clean}</p>
                     {candidate.characters.length > 0 && (
                       <div className="flex flex-wrap gap-2">
                         {candidate.characters.map((character) => (
@@ -271,7 +271,7 @@ export const UndoConfirmModal = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('undo.confirmTitle', { chapter: chapterNum })}>
       <div className="space-y-4">
-        <div className="text-sm text-text/80 whitespace-pre-line">{t('undo.confirmDesc')}</div>
+        <div className="text-sm text-text/90 whitespace-pre-line">{t('undo.confirmDesc')}</div>
         <p className="text-sm text-red-500 font-medium">{t('undo.irreversible')}</p>
         <div className="flex justify-end gap-2">
           <Button tone="neutral" fill="plain" onClick={onClose}>{t('undo.cancel')}</Button>

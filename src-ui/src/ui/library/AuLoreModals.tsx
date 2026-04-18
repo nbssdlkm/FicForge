@@ -87,7 +87,7 @@ export function AuLoreModals({
 
       <Modal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} title={t('auLore.deleteTitle')}>
         <div className="space-y-4">
-          <p className="text-sm text-text/80">{t('auLore.deleteMessage', { name: `${selectedFile}.md` })}</p>
+          <p className="text-sm text-text/90">{t('auLore.deleteMessage', { name: `${selectedFile}.md` })}</p>
           <div className="flex justify-end gap-2">
             <Button tone="neutral" fill="plain" onClick={() => setDeleteConfirmOpen(false)}>{t('common.actions.cancel')}</Button>
             <Button tone="accent" fill="solid" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDeleteLore}>{t('common.actions.confirmDelete')}</Button>
@@ -97,7 +97,7 @@ export function AuLoreModals({
 
       <Modal isOpen={coreLimitModalOpen} onClose={() => setCoreLimitModalOpen(false)} title={t('coreIncludes.missingCoreLimit')}>
         <div className="space-y-4">
-          <p className="text-sm text-text/80 leading-relaxed">{t('coreIncludes.missingCoreLimitDesc')}</p>
+          <p className="text-sm text-text/90 leading-relaxed">{t('coreIncludes.missingCoreLimitDesc')}</p>
           <div className="flex justify-end gap-2">
             <Button tone="neutral" fill="plain" onClick={() => setCoreLimitModalOpen(false)}>{t('coreIncludes.later')}</Button>
             <Button tone="accent" fill="solid" onClick={() => {

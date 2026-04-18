@@ -38,7 +38,7 @@ export const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
            <Button
              tone="neutral" fill="outline"
              className={cn(
-               "absolute top-6 flex h-8 w-8 items-center justify-center p-0 rounded-full shadow-strong !bg-background !border-black/10 dark:!border-white/10 pointer-events-auto visible opacity-100 z-20 text-text/60 hover:text-text",
+               "absolute top-6 flex h-8 w-8 items-center justify-center p-0 rounded-full shadow-strong !bg-background !border-black/10 dark:!border-white/10 pointer-events-auto visible opacity-100 z-20 text-text/70 hover:text-text",
                position === 'left' ? "-right-4" : "-left-4"
              )}
              onClick={onToggle}

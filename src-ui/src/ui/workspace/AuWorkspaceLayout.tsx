@@ -209,7 +209,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
         <div className="p-4 border-b border-black/10 dark:border-white/10 flex flex-col gap-2 bg-surface">
           <div className="flex items-center justify-between">
             <div className="font-serif font-bold text-lg truncate max-w-[170px]" title={auName}>{t('common.scope.auTitle', { name: auName })}</div>
-            <Button tone="neutral" fill="plain" size="sm" onClick={() => onNavigate('library')} className="h-8 w-8 p-0 rounded-full text-text/60 hover:text-text" title={t('common.actions.back')}>
+            <Button tone="neutral" fill="plain" size="sm" onClick={() => onNavigate('library')} className="h-8 w-8 p-0 rounded-full text-text/70 hover:text-text" title={t('common.actions.back')}>
               <LogOut size={16} />
             </Button>
           </div>
@@ -266,7 +266,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
                     setEditingTitleNum(ch.chapter_num);
                     setEditingTitleValue(ch.title || '');
                   }}
-                  className={`px-3 py-2 rounded-md text-sm cursor-pointer transition-colors ${activeTab === 'writer' && viewingChapter === ch.chapter_num ? 'bg-accent/10 text-accent font-medium' : 'hover:bg-black/5 dark:hover:bg-white/5 text-text/80'}`}
+                  className={`px-3 py-2 rounded-md text-sm cursor-pointer transition-colors ${activeTab === 'writer' && viewingChapter === ch.chapter_num ? 'bg-accent/10 text-accent font-medium' : 'hover:bg-black/5 dark:hover:bg-white/5 text-text/90'}`}
                 >
                   <div className="flex items-center gap-2">
                     <span className="opacity-50 text-xs font-mono">#{ch.chapter_num}</span>
@@ -339,7 +339,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
       {/* Embedding stale modal (sub-task 5) */}
       <Modal isOpen={embeddingStale && !embeddingDismissed} onClose={() => setEmbeddingDismissed(true)} title={t('embedding.staleTitle')}>
         <div className="space-y-4">
-          <p className="text-sm text-text/80">{t('embedding.staleDesc')}</p>
+          <p className="text-sm text-text/90">{t('embedding.staleDesc')}</p>
           <div className="flex justify-end gap-2">
             <Button tone="neutral" fill="plain" onClick={() => setEmbeddingDismissed(true)}>{t('embedding.skipRebuild')}</Button>
             <Button tone="accent" fill="solid" onClick={() => { setEmbeddingDismissed(true); rebuildIndex(auPath).catch(() => {}); }}>{t('embedding.rebuild')}</Button>

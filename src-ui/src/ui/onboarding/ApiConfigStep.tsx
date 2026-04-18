@@ -139,20 +139,20 @@ export function ApiConfigStep({
       {config.mode === 'api' && (
         <div className="space-y-4 border-t border-black/10 dark:border-white/10 pt-4">
           <div className="space-y-1">
-            <label className="text-sm font-medium text-text/80">{t('onboarding.apiConfig.apiBase')}</label>
+            <label className="text-sm font-medium text-text/90">{t('onboarding.apiConfig.apiBase')}</label>
             <Input value={config.api_base} onChange={e => update('api_base', e.target.value)} placeholder="https://api.deepseek.com" disabled={testing} />
-            <p className="text-xs text-text/40">{t('onboarding.apiConfig.apiBaseHint')}</p>
+            <p className="text-xs text-text/50">{t('onboarding.apiConfig.apiBaseHint')}</p>
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium text-text/80">{t('onboarding.apiConfig.apiKey')}</label>
+            <label className="text-sm font-medium text-text/90">{t('onboarding.apiConfig.apiKey')}</label>
             <Input type="password" value={config.api_key} onChange={e => update('api_key', e.target.value)} placeholder="sk-..." disabled={testing} />
-            <p className="text-xs text-text/40">
+            <p className="text-xs text-text/50">
               {t('onboarding.apiConfig.apiKeyHint')}{' '}
               <button type="button" className="text-accent hover:underline" onClick={() => setHelpOpen(true)}>{t('help.apiSetup.howToGet')}</button>
             </p>
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium text-text/80">{t('onboarding.apiConfig.model')}</label>
+            <label className="text-sm font-medium text-text/90">{t('onboarding.apiConfig.model')}</label>
             <Input value={config.model} onChange={e => update('model', e.target.value)} placeholder="deepseek-chat" disabled={testing} />
           </div>
         </div>
@@ -162,9 +162,9 @@ export function ApiConfigStep({
       {config.mode === 'local' && (
         <div className="space-y-4 border-t border-black/10 dark:border-white/10 pt-4">
           <div className="space-y-1">
-            <label className="text-sm font-medium text-text/80">{t('onboarding.apiConfig.localPath')}</label>
+            <label className="text-sm font-medium text-text/90">{t('onboarding.apiConfig.localPath')}</label>
             <Input value={config.local_model_path} onChange={e => update('local_model_path', e.target.value)} placeholder="/path/to/model" disabled={testing} />
-            <p className="text-xs text-text/40">{t('onboarding.apiConfig.localPathHint')}</p>
+            <p className="text-xs text-text/50">{t('onboarding.apiConfig.localPathHint')}</p>
           </div>
         </div>
       )}
@@ -173,11 +173,11 @@ export function ApiConfigStep({
       {config.mode === 'ollama' && (
         <div className="space-y-4 border-t border-black/10 dark:border-white/10 pt-4">
           <div className="space-y-1">
-            <label className="text-sm font-medium text-text/80">{t('onboarding.apiConfig.ollamaBase')}</label>
+            <label className="text-sm font-medium text-text/90">{t('onboarding.apiConfig.ollamaBase')}</label>
             <Input value={config.api_base} onChange={e => update('api_base', e.target.value)} placeholder="http://localhost:11434" disabled={testing} />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium text-text/80">{t('onboarding.apiConfig.ollamaModel')}</label>
+            <label className="text-sm font-medium text-text/90">{t('onboarding.apiConfig.ollamaModel')}</label>
             <Input value={config.ollama_model} onChange={e => update('ollama_model', e.target.value)} placeholder="llama3" disabled={testing} />
           </div>
         </div>
@@ -201,7 +201,7 @@ export function ApiConfigStep({
         )}
 
         {!canProceed && testResult === null && (
-          <p className="text-xs text-text/40 text-center">{t('onboarding.apiConfig.requireTest')}</p>
+          <p className="text-xs text-text/50 text-center">{t('onboarding.apiConfig.requireTest')}</p>
         )}
       </div>
 

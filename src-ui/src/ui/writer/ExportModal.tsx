@@ -157,7 +157,7 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onCl
             }}
             className="mt-0.5 accent-accent w-3.5 h-3.5"
           />
-          <span className="text-text/60">{t('ethics.exportAiLabel')}</span>
+          <span className="text-text/70">{t('ethics.exportAiLabel')}</span>
         </label>
 
         <Button tone="accent" fill="solid" className="w-full gap-2 shadow-md" onClick={handleExport} disabled={exporting}>
