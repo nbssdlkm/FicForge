@@ -36,6 +36,29 @@ export class TauriAdapter implements PlatformAdapter {
     await remove(path);
   }
 
+  async readBinary(path: string): Promise<Uint8Array> {
+    if (!path) throw new Error("readBinary: path must not be empty");
+    const { readFile } = await import("@tauri-apps/plugin-fs");
+    return readFile(path);
+  }
+
+  async writeBinary(path: string, data: Uint8Array): Promise<void> {
+    if (!path) throw new Error("writeBinary: path must not be empty");
+    const { writeFile } = await import("@tauri-apps/plugin-fs");
+    await writeFile(path, data);
+  }
+
+  async getFileSize(path: string): Promise<number> {
+    if (!path) return -1;
+    try {
+      const { stat } = await import("@tauri-apps/plugin-fs");
+      const info = await stat(path);
+      return Number(info.size);
+    } catch {
+      return -1;
+    }
+  }
+
   async listDir(path: string): Promise<string[]> {
     const { readDir } = await import("@tauri-apps/plugin-fs");
     const entries = await readDir(path);

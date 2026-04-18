@@ -7,6 +7,7 @@ import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions } from "../.
 
 export class MockAdapter implements PlatformAdapter {
   private files = new Map<string, string>();
+  private binaryFiles = new Map<string, Uint8Array>();
 
   async readFile(path: string): Promise<string> {
     const content = this.files.get(this.norm(path));
@@ -15,17 +16,43 @@ export class MockAdapter implements PlatformAdapter {
   }
 
   async writeFile(path: string, content: string): Promise<void> {
-    this.files.set(this.norm(path), content);
+    const normed = this.norm(path);
+    this.files.set(normed, content);
+    // 真实 adapter 中文本/二进制是同一块磁盘文件，互相覆盖；mock 保持一致性。
+    this.binaryFiles.delete(normed);
   }
 
   async deleteFile(path: string): Promise<void> {
     this.files.delete(this.norm(path));
+    this.binaryFiles.delete(this.norm(path));
+  }
+
+  async readBinary(path: string): Promise<Uint8Array> {
+    const data = this.binaryFiles.get(this.norm(path));
+    if (data === undefined) throw new Error(`File not found: ${path}`);
+    return data;
+  }
+
+  async writeBinary(path: string, data: Uint8Array): Promise<void> {
+    const normed = this.norm(path);
+    this.binaryFiles.set(normed, data);
+    // 同 writeFile：保证同路径只留最新版本。
+    this.files.delete(normed);
+  }
+
+  async getFileSize(path: string): Promise<number> {
+    const normed = this.norm(path);
+    const bin = this.binaryFiles.get(normed);
+    if (bin !== undefined) return bin.byteLength;
+    const text = this.files.get(normed);
+    if (text !== undefined) return new TextEncoder().encode(text).length;
+    return -1;
   }
 
   async listDir(path: string): Promise<string[]> {
     const prefix = this.norm(path) + "/";
     const names = new Set<string>();
-    for (const key of this.files.keys()) {
+    for (const key of this.allKeys()) {
       if (key.startsWith(prefix)) {
         const rest = key.slice(prefix.length);
         const name = rest.split("/")[0];
@@ -38,12 +65,17 @@ export class MockAdapter implements PlatformAdapter {
   async exists(path: string): Promise<boolean> {
     const normed = this.norm(path);
     // Check exact file or any file in directory
-    if (this.files.has(normed)) return true;
+    if (this.files.has(normed) || this.binaryFiles.has(normed)) return true;
     const prefix = normed + "/";
-    for (const key of this.files.keys()) {
+    for (const key of this.allKeys()) {
       if (key.startsWith(prefix)) return true;
     }
     return false;
+  }
+
+  private *allKeys(): IterableIterator<string> {
+    for (const k of this.files.keys()) yield k;
+    for (const k of this.binaryFiles.keys()) yield k;
   }
 
   async mkdir(_path: string): Promise<void> {

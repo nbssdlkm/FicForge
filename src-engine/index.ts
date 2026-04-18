@@ -96,3 +96,36 @@ export * from "./sync/index.js";
 export type { LogEntry, LogLevel, LoggerOptions } from "./logger/index.js";
 export { FileLogger, getLogger, hasLogger, initLogger, logCatch } from "./logger/index.js";
 export type { Logger } from "./logger/index.js";
+
+// Fonts
+export {
+  BrowserFontRegistry,
+  DEFAULT_CJK_FONT_ID,
+  DEFAULT_LATIN_FONT_ID,
+  FONT_MANIFEST,
+  FontDownloader,
+  FontError,
+  FontStorage,
+  FontsService,
+  NoopFontRegistry,
+  SYSTEM_FONT_STACK,
+  filterFontsByType,
+  getFontById,
+  sha256Hex,
+} from "./fonts/index.js";
+export type {
+  BuiltinFont,
+  DownloadProgress,
+  DownloadableFont,
+  DownloaderOptions,
+  FetchLike,
+  FontCategory,
+  FontEntry,
+  FontRegistry,
+  FontScript,
+  FontSource,
+  FontStatus,
+  FontType,
+  InstallOptions,
+  ProgressCallback,
+} from "./fonts/index.js";

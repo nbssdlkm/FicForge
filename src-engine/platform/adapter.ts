@@ -28,6 +28,27 @@ export interface PlatformAdapter {
   exists(path: string): Promise<boolean>;
   mkdir(path: string): Promise<void>;
 
+  /**
+   * 二进制文件 I/O：用于字体、图片等非文本资源。
+   *
+   * 路径语义与 readFile/writeFile 一致。writeBinary 会自动创建中间目录。
+   * 大文件注意事项：Capacitor 端会通过 base64 中转，单次写入 ≥50MB 时可能
+   * 因 WebView 内存压力失败，调用方应对该场景做分块处理。
+   */
+  readBinary(path: string): Promise<Uint8Array>;
+  writeBinary(path: string, data: Uint8Array): Promise<void>;
+
+  /**
+   * 获取文件字节大小。
+   *
+   * 返回 -1 的情况：文件不存在、path 为空字符串、底层 stat 抛错。
+   * 设计为返回值而非抛错，便于断点续传 / 缓存占用统计 / 存在性探测等幂等场景。
+   *
+   * 三端实现差异：Tauri / Capacitor 走 stat，O(1)；Web（IndexedDB）无 stat API，
+   * 实际需要读取文件测长度，O(n)。调用方在 Web 平台的热路径上应避免高频调用。
+   */
+  getFileSize(path: string): Promise<number>;
+
   showSaveDialog(options: SaveDialogOptions): Promise<string | null>;
   showOpenDialog(options: OpenDialogOptions): Promise<string | null>;
 

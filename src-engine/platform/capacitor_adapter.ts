@@ -8,6 +8,31 @@
 
 import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions } from "./adapter.js";
 
+/**
+ * Uint8Array ↔ base64 分块转换。
+ *
+ * 直接 `String.fromCharCode(...u8)` 在数组长度 ≥ 约 65535 时触发 "Maximum call stack
+ * size exceeded"。我们按 32KB 分块处理，对 ~10MB 字体文件安全。
+ */
+const BASE64_CHUNK = 0x8000; // 32 KiB
+
+function uint8ToBase64(data: Uint8Array): string {
+  // 数组收集 + 末端 join("")：O(n)。比 `binary += ...` 累加字符串
+  // （在某些 JS 引擎实现下是 O(n²)）更稳，对 7MB 字体数据差异显著。
+  const parts: string[] = [];
+  for (let i = 0; i < data.length; i += BASE64_CHUNK) {
+    parts.push(String.fromCharCode(...data.subarray(i, i + BASE64_CHUNK)));
+  }
+  return btoa(parts.join(""));
+}
+
+function base64ToUint8(b64: string): Uint8Array {
+  const binary = atob(b64);
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+  return out;
+}
+
 export class CapacitorAdapter implements PlatformAdapter {
   private _deviceId: string;
 
@@ -47,6 +72,48 @@ export class CapacitorAdapter implements PlatformAdapter {
     if (!path || !this.normPath(path)) throw new Error("deleteFile: path must not be empty");
     const { Filesystem, Directory } = await import("@capacitor/filesystem");
     await Filesystem.deleteFile({ path: this.normPath(path), directory: Directory.Data });
+  }
+
+  async readBinary(path: string): Promise<Uint8Array> {
+    if (!path || !this.normPath(path)) throw new Error("readBinary: path must not be empty");
+    const { Filesystem, Directory } = await import("@capacitor/filesystem");
+    // 不指定 encoding：Capacitor 返回 base64 string（web）或 Blob（native Android/iOS）。
+    const result = await Filesystem.readFile({
+      path: this.normPath(path),
+      directory: Directory.Data,
+    });
+    const data = result.data;
+    if (typeof data === "string") return base64ToUint8(data);
+    if (data instanceof Blob) {
+      const buf = await data.arrayBuffer();
+      return new Uint8Array(buf);
+    }
+    throw new Error(
+      `CapacitorAdapter.readBinary: unexpected data type ${Object.prototype.toString.call(data)}`,
+    );
+  }
+
+  async writeBinary(path: string, data: Uint8Array): Promise<void> {
+    if (!path || !this.normPath(path)) throw new Error("writeBinary: path must not be empty");
+    const { Filesystem, Directory } = await import("@capacitor/filesystem");
+    await Filesystem.writeFile({
+      path: this.normPath(path),
+      data: uint8ToBase64(data),
+      directory: Directory.Data,
+      // 不指定 encoding：Capacitor 将 data 视为 base64 并解码为字节写入。
+      recursive: true,
+    });
+  }
+
+  async getFileSize(path: string): Promise<number> {
+    if (!path || !this.normPath(path)) return -1;
+    try {
+      const { Filesystem, Directory } = await import("@capacitor/filesystem");
+      const info = await Filesystem.stat({ path: this.normPath(path), directory: Directory.Data });
+      return info.size;
+    } catch {
+      return -1;
+    }
   }
 
   async listDir(path: string): Promise<string[]> {

@@ -26,19 +26,19 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-function txGet(db: IDBDatabase, key: string): Promise<string | undefined> {
+function txGet<T = string>(db: IDBDatabase, key: string): Promise<T | undefined> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readonly");
     const req = tx.objectStore(STORE_NAME).get(key);
-    req.onsuccess = () => resolve(req.result as string | undefined);
+    req.onsuccess = () => resolve(req.result as T | undefined);
     req.onerror = () => reject(req.error);
   });
 }
 
-function txPut(db: IDBDatabase, key: string, value: string): Promise<void> {
+function txPut<T>(db: IDBDatabase, key: string, value: T): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).put(value, key);
+    tx.objectStore(STORE_NAME).put(value as unknown, key);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -99,6 +99,28 @@ export class WebAdapter implements PlatformAdapter {
   async deleteFile(path: string): Promise<void> {
     if (!path || !this.norm(path)) throw new Error("deleteFile: path must not be empty");
     await txDelete(this.db(), this.norm(path));
+  }
+
+  async readBinary(path: string): Promise<Uint8Array> {
+    if (!path || !this.norm(path)) throw new Error("readBinary: path must not be empty");
+    const content = await txGet<ArrayBuffer | Uint8Array>(this.db(), this.norm(path));
+    if (content === undefined) throw new Error(`File not found: ${path}`);
+    return content instanceof Uint8Array ? content : new Uint8Array(content);
+  }
+
+  async writeBinary(path: string, data: Uint8Array): Promise<void> {
+    if (!path || !this.norm(path)) throw new Error("writeBinary: path must not be empty");
+    // 存为 ArrayBuffer 切片，避免保留原 Uint8Array 的 view 引用。
+    const buf = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+    await txPut(this.db(), this.norm(path), buf);
+  }
+
+  async getFileSize(path: string): Promise<number> {
+    if (!path || !this.norm(path)) return -1;
+    const content = await txGet<ArrayBuffer | Uint8Array | string>(this.db(), this.norm(path));
+    if (content === undefined) return -1;
+    if (typeof content === "string") return new TextEncoder().encode(content).length;
+    return content.byteLength;
   }
 
   async listDir(path: string): Promise<string[]> {

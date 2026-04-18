@@ -28,6 +28,7 @@
     "vector/**/*.ts",
     "platform/**/*.ts",
     "sync/**/*.ts",
+    "fonts/**/*.ts",
     "index.ts"
   ],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
