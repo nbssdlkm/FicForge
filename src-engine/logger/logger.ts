@@ -11,6 +11,7 @@
  */
 
 import type { PlatformAdapter } from "../platform/adapter.js";
+import { joinPath } from "../repositories/implementations/file_utils.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -74,7 +75,9 @@ export class FileLogger implements Logger {
 
   constructor(adapter: PlatformAdapter, dataDir: string, options?: LoggerOptions) {
     this.adapter = adapter;
-    this.logsDir = dataDir ? `${dataDir}/${LOGS_DIR_SUFFIX}` : LOGS_DIR_SUFFIX;
+    // dataDir 是数据根目录（可空，Capacitor/Web 约定 "" = 平台 Data 目录）。
+    // joinPath 自动过滤空段，与 FileSettingsRepository / TaskStore 的拼接方式一致。
+    this.logsDir = joinPath(dataDir, LOGS_DIR_SUFFIX);
     this.minLevel = LEVEL_ORDER[options?.minLevel ?? "debug"];
     this.flushThreshold = options?.flushThreshold ?? 50;
     this.maxDailyFileBytes = options?.maxDailyFileBytes ?? 2 * 1024 * 1024;
