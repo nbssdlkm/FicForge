@@ -11,7 +11,15 @@ import type { FandomRepository } from "../interfaces/fandom.js";
 import { joinPath, obj_to_plain, validateBasePath } from "./file_utils.js";
 
 export class FileFandomRepository implements FandomRepository {
-  constructor(private adapter: PlatformAdapter) {}
+  constructor(
+    private adapter: PlatformAdapter,
+    private readonly dataDir: string,
+  ) {
+    // dataDir 是数据根目录（可空，Capacitor/Web 约定 "" = 平台 Data 目录）。
+    // 不调用 validateBasePath —— 它专用于用户控制的路径段（au_id、fandom_path 等），
+    // 对根目录会误拒 ""。joinPath 自动过滤空段，天然兼容所有平台。
+    // 与 FileSettingsRepository 构造注入的语义保持一致。
+  }
 
   async get(fandom_path: string): Promise<Fandom> {
     validateBasePath(fandom_path, "fandom_path");
@@ -45,9 +53,8 @@ export class FileFandomRepository implements FandomRepository {
     await this.adapter.writeFile(path, content);
   }
 
-  async list_fandoms(data_dir: string): Promise<string[]> {
-    validateBasePath(data_dir, "data_dir");
-    const fandomsDir = joinPath(data_dir, "fandoms");
+  async list_fandoms(): Promise<string[]> {
+    const fandomsDir = joinPath(this.dataDir, "fandoms");
     const exists = await this.adapter.exists(fandomsDir);
     if (!exists) return [];
 

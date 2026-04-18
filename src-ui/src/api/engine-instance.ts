@@ -63,7 +63,7 @@ export function initEngine(adapter: PlatformAdapter, dataDir: string): void {
       chapter: new FileChapterRepository(adapter),
       draft: new FileDraftRepository(adapter),
       fact: new FileFactRepository(adapter),
-      fandom: new FileFandomRepository(adapter),
+      fandom: new FileFandomRepository(adapter, dataDir),
       ops: new FileOpsRepository(adapter),
       project: new FileProjectRepository(adapter),
       settings: new FileSettingsRepository(adapter, dataDir),

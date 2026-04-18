@@ -14,7 +14,7 @@ import { sanitizePathSegment } from "./engine-lore";
 export async function listFandoms(dataDir?: string) {
   const dd = dataDir ?? getDataDir();
   const { fandom } = getEngine().repos;
-  const names = await fandom.list_fandoms(dd);
+  const names = await fandom.list_fandoms();
   const result = [];
   for (const name of names) {
     // 复用 listAus 的过滤逻辑（排除已删除的 AU）
