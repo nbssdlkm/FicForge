@@ -11,22 +11,21 @@ import { withAuLock } from "@ficforge/engine";
 import { getEngine, getDataDir } from "./engine-instance";
 import { sanitizePathSegment } from "./engine-lore";
 
-export async function listFandoms(dataDir?: string) {
-  const dd = dataDir ?? getDataDir();
+export async function listFandoms() {
   const { fandom } = getEngine().repos;
-  const names = await fandom.list_fandoms(dd);
+  const names = await fandom.list_fandoms();
   const result = [];
   for (const name of names) {
     // 复用 listAus 的过滤逻辑（排除已删除的 AU）
-    const aus = await listAus(name, dd);
+    const aus = await listAus(name);
     result.push({ name, dir_name: name, aus });
   }
   return result;
 }
 
-export async function createFandom(name: string, dataDir?: string) {
+export async function createFandom(name: string) {
   const safeName = sanitizePathSegment(name);
-  const dd = dataDir ?? getDataDir();
+  const dd = getDataDir();
   const e = getEngine();
   const path = `${dd}/fandoms/${safeName}`;
   if (await e.adapter.exists(`${path}/fandom.yaml`)) {
@@ -37,9 +36,9 @@ export async function createFandom(name: string, dataDir?: string) {
   return { name: safeName, path };
 }
 
-export async function listAus(fandomName: string, dataDir?: string) {
+export async function listAus(fandomName: string) {
   const safeFandomName = sanitizePathSegment(fandomName);
-  const dd = dataDir ?? getDataDir();
+  const dd = getDataDir();
   const { fandom } = getEngine().repos;
   const { adapter } = getEngine();
   const auDirs = await fandom.list_aus(`${dd}/fandoms/${safeFandomName}`);
@@ -70,9 +69,9 @@ export async function createAu(fandomName: string, auName: string, fandomPath: s
   return { name: auName, path: auPath };
 }
 
-export async function deleteFandom(fandomDirName: string, dataDir?: string) {
+export async function deleteFandom(fandomDirName: string) {
   const safeFandomDir = sanitizePathSegment(fandomDirName);
-  const dd = dataDir ?? getDataDir();
+  const dd = getDataDir();
   const { adapter } = getEngine();
   const fandomRoot = `${dd}/fandoms/${safeFandomDir}`;
 
@@ -104,10 +103,10 @@ export async function deleteFandom(fandomDirName: string, dataDir?: string) {
   return { status: "ok", trash_id: entry.trash_id };
 }
 
-export async function deleteAu(fandomDirName: string, auName: string, dataDir?: string) {
+export async function deleteAu(fandomDirName: string, auName: string) {
   const safeFandomDir = sanitizePathSegment(fandomDirName);
   const safeAuName = sanitizePathSegment(auName);
-  const dd = dataDir ?? getDataDir();
+  const dd = getDataDir();
   // AU 是目录——在 fandom 级别的 .trash/ 创建记录（这样 Library 的 TrashPanel 能看到）
   const fandomRoot = `${dd}/fandoms/${safeFandomDir}`;
   const auPath = `${fandomRoot}/aus/${safeAuName}`;
@@ -126,9 +125,9 @@ export async function deleteAu(fandomDirName: string, auName: string, dataDir?: 
   });
 }
 
-export async function listFandomFiles(fandomName: string, dataDir?: string) {
+export async function listFandomFiles(fandomName: string) {
   const safeFandomName = sanitizePathSegment(fandomName);
-  const dd = dataDir ?? getDataDir();
+  const dd = getDataDir();
   const { adapter } = getEngine();
   const base = `${dd}/fandoms/${safeFandomName}`;
   const readDir = async (sub: string) => {
@@ -140,21 +139,21 @@ export async function listFandomFiles(fandomName: string, dataDir?: string) {
   return { characters: await readDir("core_characters"), worldbuilding: await readDir("core_worldbuilding") };
 }
 
-export async function readFandomFile(fandomName: string, category: string, filename: string, dataDir?: string) {
+export async function readFandomFile(fandomName: string, category: string, filename: string) {
   const safeFandomName = sanitizePathSegment(fandomName);
   const safeCategory = sanitizePathSegment(category);
   const safeFilename = sanitizePathSegment(filename);
-  const dd = dataDir ?? getDataDir();
+  const dd = getDataDir();
   const { adapter } = getEngine();
   const content = await adapter.readFile(`${dd}/fandoms/${safeFandomName}/${safeCategory}/${safeFilename}`);
   return { filename, category, content };
 }
 
-export async function renameFandom(_fandomDirName: string, _newName: string, _dataDir?: string) {
+export async function renameFandom(_fandomDirName: string, _newName: string) {
   // Filesystem rename not directly supported by PlatformAdapter. Requires read+write+delete.
   throw new Error("renameFandom not yet implemented in engine-client");
 }
 
-export async function renameAu(_fandomDirName: string, _auName: string, _newName: string, _dataDir?: string) {
+export async function renameAu(_fandomDirName: string, _auName: string, _newName: string) {
   throw new Error("renameAu not yet implemented in engine-client");
 }
