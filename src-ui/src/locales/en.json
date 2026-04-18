@@ -486,6 +486,14 @@
       "dataPathDefault": "App internal storage",
       "dataPathHint": "All your work is saved at this location. We recommend regular backups via export or sync."
     },
+    "fonts": {
+      "title": "Fonts",
+      "uiLabel": "Interface font",
+      "uiDescription": "Used for menus, buttons, forms and other UI elements.",
+      "readingLabel": "Reading font",
+      "readingDescription": "Used for chapter content and the settings-card editor — the reading and writing surfaces.",
+      "hint": "Bundled defaults: Source Serif 4 (Latin) + LXGW WenKai Screen (CJK). \"Follow system\" uses the OS default font."
+    },
     "debugLogs": {
       "title": "Debug Logs",
       "filterAll": "All",

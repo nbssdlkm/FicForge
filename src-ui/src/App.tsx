@@ -9,6 +9,7 @@ import { MobileFandomView } from "./ui/mobile/MobileFandomView";
 import { SplashScreen } from "./ui/SplashScreen";
 import { AuWorkspaceLayout } from "./ui/workspace/AuWorkspaceLayout";
 import { initEngine, getEngine, initLogger, getLogger } from "./api/engine-client";
+import { hydrateFontsOnStartup } from "./api/engine-fonts";
 import { useTranslation } from "./i18n/useAppTranslation";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 import { isTauri as detectTauri, isCapacitor as detectCapacitor } from "./utils/platform";
@@ -123,6 +124,10 @@ function App() {
             getLogger().info("task_runner", `${interrupted.length} interrupted task(s) from previous session`);
           }
         } catch { /* best effort */ }
+
+        // 启动时恢复已下载字体到 FontFace registry（Phase 5 有下载功能后才有实际作用）。
+        // 失败内部已 console.warn，不阻断启动。
+        await hydrateFontsOnStartup();
 
         setEngineInitialized(true);
       } catch (e) {

@@ -108,9 +108,11 @@ export {
   FontStorage,
   FontsService,
   NoopFontRegistry,
+  SYSTEM_FONT_ID,
   SYSTEM_FONT_STACK,
   filterFontsByType,
   getFontById,
+  resolveFontStack,
   sha256Hex,
 } from "./fonts/index.js";
 export type {
@@ -122,6 +124,7 @@ export type {
   FontCategory,
   FontEntry,
   FontRegistry,
+  FontRole,
   FontScript,
   FontSource,
   FontStatus,

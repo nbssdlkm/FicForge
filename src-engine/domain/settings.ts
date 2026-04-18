@@ -76,12 +76,34 @@ export function createChapterMetadataDisplay(partial?: Partial<ChapterMetadataDi
   };
 }
 
+/**
+ * 字体偏好。两个 id 分别对应 Tailwind font-sans（界面字体）和 font-serif（阅读字体），
+ * 背后由 CSS 变量 --font-ui / --font-reading 承载（见 src-ui/src/App.css）。
+ *
+ * 特殊值 "system" = 跟随操作系统（对应 src-engine/fonts/manifest.ts 的 SYSTEM_FONT_STACK）。
+ * 其他值必须是 FONT_MANIFEST 中某个 entry 的 id。
+ */
+export interface FontsConfig {
+  ui_font_id: string;
+  reading_font_id: string;
+}
+
+export function createFontsConfig(partial?: Partial<FontsConfig>): FontsConfig {
+  return {
+    // 默认：界面跟随系统、阅读用内置 CJK 楷体（同一 stack 里会 fallback 到 Source Serif 4 for 西文）
+    ui_font_id: "system",
+    reading_font_id: "lxgw-wenkai-screen",
+    ...partial,
+  };
+}
+
 export interface AppConfig {
   language: string;
   data_dir: string;
   token_count_fallback: string;
   token_warning_threshold: number;
   chapter_metadata_display: ChapterMetadataDisplay;
+  fonts: FontsConfig;
   schema_version: string;
 }
 
@@ -92,6 +114,7 @@ export function createAppConfig(partial?: Partial<AppConfig>): AppConfig {
     token_count_fallback: "char_mul1.5",
     token_warning_threshold: 32000,
     chapter_metadata_display: createChapterMetadataDisplay(),
+    fonts: createFontsConfig(),
     schema_version: "1.0.0",
     ...partial,
   };

@@ -12,6 +12,9 @@ export {
   getFontById,
 } from "./manifest.js";
 
+export { SYSTEM_FONT_ID, resolveFontStack } from "./stacks.js";
+export type { FontRole } from "./stacks.js";
+
 export { FontDownloader, sha256Hex } from "./downloader.js";
 export type { DownloaderOptions, FetchLike, ProgressCallback } from "./downloader.js";
 

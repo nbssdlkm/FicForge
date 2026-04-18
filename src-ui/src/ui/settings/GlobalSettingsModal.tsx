@@ -19,6 +19,7 @@ import { changeLanguage, SUPPORTED_LANGUAGES, type AppLanguage } from '../../i18
 import { ApiSetupHelp } from '../help/ApiSetupHelp';
 import { GlobalSettingsSyncSection } from './GlobalSettingsSyncSection';
 import { LlmModeSelect } from './LlmModeSelect';
+import { FontSettingsSection } from './FontSettingsSection';
 import { isTauri } from '../../utils/platform';
 
 export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
@@ -113,7 +114,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
           setOllamaModel(res.default_llm.ollama_model || res.default_llm.model || '');
           setApiBase(
             res.default_llm.api_base
-            || (nextMode === 'ollama' ? 'http://localhost:11434' : 'https://api.deepseek.com')
+            || (nextMode === 'ollama' ? 'http://localhost:11434/v1' : 'https://api.deepseek.com')
           );
           setApiKey(res.default_llm.api_key || '');
           setContextWindow(res.default_llm.context_window || 128000);
@@ -163,7 +164,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
           ...settings.default_llm,
           mode,
           model: mode === 'api' ? model : '',
-          api_base: mode === 'ollama' ? (apiBase || 'http://localhost:11434') : apiBase,
+          api_base: mode === 'ollama' ? (apiBase || 'http://localhost:11434/v1') : apiBase,
           api_key: mode === 'api' ? apiKey : '',
           local_model_path: mode === 'local' ? localModelPath : '',
           ollama_model: mode === 'ollama' ? ollamaModel : '',
@@ -205,7 +206,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
       const result = await testConnection({
         mode,
         model: mode === 'ollama' ? ollamaModel : model,
-        api_base: mode === 'ollama' ? (apiBase || 'http://localhost:11434') : apiBase,
+        api_base: mode === 'ollama' ? (apiBase || 'http://localhost:11434/v1') : apiBase,
         api_key: mode === 'api' ? apiKey : '',
         local_model_path: mode === 'local' ? localModelPath : '',
         ollama_model: mode === 'ollama' ? ollamaModel : '',
@@ -314,7 +315,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
               <>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-bold text-text/90">{t('common.labels.apiBase')}</label>
-                  <Input value={apiBase} onChange={(e) => setApiBase(e.target.value)} placeholder="http://localhost:11434" disabled={saving} />
+                  <Input value={apiBase} onChange={(e) => setApiBase(e.target.value)} placeholder="http://localhost:11434/v1" disabled={saving} />
                   <p className="text-xs text-text/50">{t('common.help.apiBase')}</p>
                 </div>
 
@@ -429,6 +430,9 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
               <p className="text-xs text-text/50">{t('settings.global.languageDescription')}</p>
             </div>
           </div>
+
+          {/* 字体偏好 */}
+          <FontSettingsSection />
 
           {/* 数据存储路径 */}
           <div className="space-y-1 border-t border-black/10 pt-5 dark:border-white/10">

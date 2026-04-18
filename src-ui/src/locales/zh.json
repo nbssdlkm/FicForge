@@ -486,6 +486,14 @@
       "dataPathDefault": "应用内部存储",
       "dataPathHint": "你的所有作品数据保存在此路径下。建议定期通过导出或同步功能备份。"
     },
+    "fonts": {
+      "title": "字体",
+      "uiLabel": "界面字体",
+      "uiDescription": "用于菜单、按钮、表单等界面元素。",
+      "readingLabel": "阅读字体",
+      "readingDescription": "用于章节正文与设定卡编辑等阅读/写作区域。",
+      "hint": "默认内置 Source Serif 4（西文）+ 霞鹜文楷屏幕版（中文）。「跟随系统」使用操作系统默认字体。"
+    },
     "debugLogs": {
       "title": "调试日志",
       "filterAll": "全部",
