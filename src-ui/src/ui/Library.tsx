@@ -3,12 +3,13 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useEffect } from 'react';
+import { Spinner } from "./shared/Spinner";
 import { Card } from './shared/Card';
 import { Button } from './shared/Button';
 import { InlineBanner } from './shared/InlineBanner';
 import { ThemeToggle } from './shared/ThemeToggle';
 import { Input } from './shared/Input';
-import { Settings, Plus, BookOpen, FileText, Loader2, Trash2, ArchiveRestore } from 'lucide-react';
+import { Settings, Plus, BookOpen, FileText, Trash2, ArchiveRestore } from 'lucide-react';
 import { Modal } from './shared/Modal';
 import { GlobalSettingsModal } from './settings/GlobalSettingsModal';
 import { EmptyState } from './shared/EmptyState';
@@ -232,7 +233,7 @@ function LibraryInner({ onNavigate }: Props) {
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="animate-spin text-accent" size={32} />
+            <Spinner size="lg" className="text-accent" />
             <span className="ml-3 text-text/70">{t("library.loading")}</span>
           </div>
         ) : fandoms.length === 0 ? (
@@ -396,7 +397,7 @@ function LibraryInner({ onNavigate }: Props) {
                           setImportCreatingAu(false);
                         }
                       }}>
-                        {importCreatingAu ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.create')}
+                        {importCreatingAu ? <Spinner size="md" /> : t('common.actions.create')}
                       </Button>
                     </div>
                   ) : (

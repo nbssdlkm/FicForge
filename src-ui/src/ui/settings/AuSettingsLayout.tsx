@@ -3,13 +3,14 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useEffect, useRef } from 'react';
+import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { Toggle } from '../shared/Toggle';
 import { ModelSelector } from '../shared/ModelSelector';
 import { Tag } from '../shared/Tag';
 import { Modal } from '../shared/Modal';
-import { Settings, Save, Trash2, Plus, Loader2 } from 'lucide-react';
+import { Settings, Save, Trash2, Plus } from 'lucide-react';
 import { getProject, updateProject, type ProjectInfo } from '../../api/engine-client';
 import { getSettings, type SettingsInfo } from '../../api/engine-client';
 import { getState, recalcState, rebuildIndex } from '../../api/engine-client';
@@ -252,7 +253,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   if (loading) {
     return (
       <main className="flex-1 flex items-center justify-center">
-        <Loader2 className="animate-spin text-accent" size={32} />
+        <Spinner size="lg" className="text-accent" />
       </main>
     );
   }

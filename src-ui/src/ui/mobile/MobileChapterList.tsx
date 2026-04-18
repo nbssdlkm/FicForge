@@ -3,7 +3,8 @@
 // See LICENSE file in the project root for full license text.
 
 import { useRef, useState } from "react";
-import { BookOpen, ChevronRight, Loader2, Pencil } from "lucide-react";
+import { BookOpen, ChevronRight, Pencil } from "lucide-react";
+import { Spinner } from "../shared/Spinner";
 import type { ChapterInfo } from "../../api/engine-client";
 import { updateChapterTitle } from "../../api/engine-client";
 import { useTranslation } from "../../i18n/useAppTranslation";
@@ -77,7 +78,7 @@ export function MobileChapterList({
       <div className="flex-1 overflow-y-auto space-y-3 px-4 py-4">
         {loading ? (
           <div className="flex items-center justify-center py-16 text-text/50">
-            <Loader2 size={22} className="animate-spin" />
+            <Spinner size="md" />
           </div>
         ) : chapters.length === 0 ? (
           <EmptyState

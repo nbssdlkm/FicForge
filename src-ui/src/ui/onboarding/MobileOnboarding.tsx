@@ -3,7 +3,8 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, CheckCircle2, Database, Download, FolderPlus, Globe2, Loader2, Sparkles, X } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Database, Download, FolderPlus, Globe2, Sparkles, X } from 'lucide-react';
+import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
 import { Card } from '../shared/Card';
 import { Input } from '../shared/Input';
@@ -293,7 +294,7 @@ export function MobileOnboarding({
       <main className="flex-1 overflow-y-auto px-4 py-5">
         {loadingSettings ? (
           <div className="flex h-full min-h-[40vh] items-center justify-center">
-            <Loader2 className="animate-spin text-accent" size={28} />
+            <Spinner size="lg" className="text-accent" />
           </div>
         ) : (
           <div className="mx-auto flex w-full max-w-xl flex-col gap-4 pb-8">
@@ -395,7 +396,7 @@ export function MobileOnboarding({
                     onClick={handleTestConnection}
                     disabled={connectionStatus === 'testing' || !apiKey.trim() || !apiBase.trim() || !model.trim()}
                   >
-                    {connectionStatus === 'testing' ? <><Loader2 size={16} className="mr-2 animate-spin" />{t('onboarding.apiConfig.testing')}</> : t('onboarding.apiConfig.testConnection')}
+                    {connectionStatus === 'testing' ? <><Spinner size="md" className="mr-2" />{t('onboarding.apiConfig.testing')}</> : t('onboarding.apiConfig.testConnection')}
                   </Button>
 
                   {connectionStatus !== 'idle' && (
@@ -636,7 +637,7 @@ export function MobileOnboarding({
               </Button>
             ) : (
               <Button tone="accent" fill="solid" className="flex-1" onClick={handleFinish} disabled={submitting}>
-                {submitting ? <><Loader2 size={16} className="mr-2 animate-spin" />{t('common.status.saving')}</> : t('ethics.onboardingAcknowledge')}
+                {submitting ? <><Spinner size="md" className="mr-2" />{t('common.status.saving')}</> : t('ethics.onboardingAcknowledge')}
               </Button>
             )}
           </div>

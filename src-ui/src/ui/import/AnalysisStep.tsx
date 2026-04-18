@@ -1,9 +1,10 @@
 // Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 
+import { Spinner } from "../shared/Spinner";
 import { Button } from "../shared/Button";
 import { Input } from "../shared/Input";
-import { CheckCircle2, Loader2, Clock, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, XCircle } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import type { FileAnalysis } from "../../api/engine-client";
 
@@ -52,7 +53,7 @@ export function AnalysisStep({
               <div className="flex items-center gap-2">
                 {status === "done" && <CheckCircle2 size={16} className="text-green-500" />}
                 {status === "error" && <XCircle size={16} className="text-error" />}
-                {status === "analyzing" && <Loader2 size={16} className="animate-spin text-accent" />}
+                {status === "analyzing" && <Spinner size="md" className="text-accent" />}
                 {status === "waiting" && <Clock size={16} className="text-text/30" />}
                 <span className="text-sm font-medium text-text">{file.name}</span>
               </div>
@@ -135,7 +136,7 @@ export function AnalysisStep({
         </Button>
         {!allDone ? (
           <Button tone="accent" fill="solid" onClick={onStartAnalysis} disabled={analyzing}>
-            {analyzing ? <><Loader2 size={14} className="mr-2 animate-spin" />{t("import.analyzing")}</> : t("onboarding.common.next")}
+            {analyzing ? <><Spinner size="sm" className="mr-2" />{t("import.analyzing")}</> : t("onboarding.common.next")}
           </Button>
         ) : (
           <Button tone="accent" fill="solid" onClick={onStartAnalysis}>

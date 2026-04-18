@@ -1,9 +1,10 @@
 // Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 
+import { Spinner } from "../shared/Spinner";
 import { Button } from "../shared/Button";
 import { ProgressBar } from "../shared/ProgressBar";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import type { NewImportResult, ImportProgress } from "../../api/engine-client";
 
@@ -36,7 +37,7 @@ export function ImportProgressStep({
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <Loader2 size={24} className="animate-spin text-accent" />
+          <Spinner size="lg" className="text-accent" />
           <h3 className="text-lg font-bold text-text">{t("import.step5Title")}</h3>
         </div>
 

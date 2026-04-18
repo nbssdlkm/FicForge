@@ -3,7 +3,8 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Spinner } from "../Spinner";
 import { useMediaQuery } from "../../../hooks/useMediaQuery";
 import { Button } from "../Button";
 import { Card } from "../Card";
@@ -244,7 +245,7 @@ export function ToolCallCard({
           <h4 className="text-sm font-semibold text-text">{getCardTitle(card, mode, t)}</h4>
           {statusTag}
         </div>
-        {card.isLoading ? <Loader2 size={16} className="animate-spin text-accent" /> : null}
+        {card.isLoading ? <Spinner size="md" className="text-accent" /> : null}
       </div>
 
       {card.parseError ? (
@@ -438,7 +439,7 @@ export function ToolCallCard({
                 onClick={() => void onConfirm(card.id, draftArgs)}
                 disabled={!canConfirm}
               >
-                {card.isLoading ? <Loader2 size={14} className="animate-spin" /> : t("settingsMode.confirm")}
+                {card.isLoading ? <Spinner size="sm" /> : t("settingsMode.confirm")}
               </Button>
             </>
           ) : (
@@ -450,7 +451,7 @@ export function ToolCallCard({
                 onClick={() => void onConfirm(card.id)}
                 disabled={!canConfirm}
               >
-                {card.isLoading ? <Loader2 size={14} className="animate-spin" /> : t("settingsMode.confirm")}
+                {card.isLoading ? <Spinner size="sm" /> : t("settingsMode.confirm")}
               </Button>
               <Button
                 tone="neutral" fill="outline"
@@ -494,7 +495,7 @@ export function ToolCallCard({
               {t("common.actions.cancel")}
             </Button>
             <Button tone="accent" fill="solid" onClick={() => void onConfirm(card.id, draftArgs)} disabled={!canConfirm}>
-              {card.isLoading ? <Loader2 size={14} className="animate-spin" /> : t("settingsMode.confirm")}
+              {card.isLoading ? <Spinner size="sm" /> : t("settingsMode.confirm")}
             </Button>
           </div>
         </div>

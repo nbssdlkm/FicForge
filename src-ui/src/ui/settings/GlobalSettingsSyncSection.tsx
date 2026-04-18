@@ -3,9 +3,10 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState } from 'react';
+import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
-import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, XCircle } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import type { useSyncOperations } from './useSyncOperations';
 
@@ -107,7 +108,7 @@ export function GlobalSettingsSyncSection({
               onClick={handleTestWebDAV}
               disabled={!syncUrl.trim() || !syncUsername.trim() || syncTestStatus === 'testing'}
             >
-              {syncTestStatus === 'testing' ? <Loader2 size={14} className="mr-1 animate-spin" /> : null}
+              {syncTestStatus === 'testing' ? <Spinner size="sm" className="mr-1" /> : null}
               {t('settings.sync.testConnection')}
             </Button>
             {syncTestStatus === 'success' && <span className="flex items-center gap-1 text-xs text-success"><CheckCircle2 size={14} /> {t('settings.sync.connected')}</span>}
@@ -123,7 +124,7 @@ export function GlobalSettingsSyncSection({
             onClick={() => handleSyncNow(syncMode, setLastSync)}
             disabled={syncTestStatus !== 'success' || syncing}
           >
-            {syncing ? <><Loader2 size={14} className="mr-1 animate-spin" />{t('settings.sync.syncing')}</> : t('settings.sync.syncNow')}
+            {syncing ? <><Spinner size="sm" className="mr-1" />{t('settings.sync.syncing')}</> : t('settings.sync.syncNow')}
           </Button>
           {syncMessage && (
             <p className={`text-xs mt-2 ${syncResultStatus === 'success' ? 'text-success' : syncResultStatus === 'error' ? 'text-error' : 'text-text/70'}`}>

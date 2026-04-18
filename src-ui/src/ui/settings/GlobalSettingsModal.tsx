@@ -3,10 +3,11 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useRef, useState } from 'react';
+import { Spinner } from "../shared/Spinner";
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
-import { HelpCircle, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { HelpCircle, CheckCircle2, XCircle } from 'lucide-react';
 import { ModelSelector } from '../shared/ModelSelector';
 import { getSettings, testConnection, testEmbeddingConnection, updateSettings, LLMMode, type SettingsInfo, getDataDir, getDisplayDataDir } from '../../api/engine-client';
 import { ConflictResolveModal } from '../shared/ConflictResolveModal';
@@ -259,7 +260,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   return (
     <Modal isOpen={isOpen} onClose={saving ? () => {} : onClose} title={t('settings.global.title')}>
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="animate-spin text-accent" /></div>
+        <div className="flex justify-center py-12"><Spinner size="sm" className="text-accent" /></div>
       ) : (
         <div className="mt-4 space-y-6">
           <div className="rounded-lg border border-info/20 bg-info/10 p-4 text-sm font-sans leading-relaxed text-info">
@@ -360,7 +361,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                   <Input value={embeddingApiKey} onChange={e => setEmbeddingApiKey(e.target.value)} placeholder={t('settings.global.embeddingApiKeyPlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" type="password" />
                   <div className="flex items-center gap-2 pt-1">
                     <Button tone="neutral" fill="outline" size="sm" onClick={handleEmbeddingTest} disabled={saving || embTestStatus === 'testing' || !embeddingModel.trim()}>
-                      {embTestStatus === 'testing' ? <Loader2 size={14} className="mr-1 animate-spin" /> : null}
+                      {embTestStatus === 'testing' ? <Spinner size="sm" className="mr-1" /> : null}
                       {t('common.actions.testConnection')}
                     </Button>
                     {embTestStatus === 'success' && <span className="flex items-center text-xs text-success"><CheckCircle2 size={14} className="mr-1" /> {embTestMessage}</span>}
@@ -373,7 +374,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
 
           <div className="flex items-center justify-between pt-2">
             <div className="flex flex-1 items-center pr-4">
-              {testStatus === 'testing' && <span className="flex items-center text-xs text-text/70"><Loader2 size={14} className="mr-1 animate-spin" /> {t('common.status.testing')}</span>}
+              {testStatus === 'testing' && <span className="flex items-center text-xs text-text/70"><Spinner size="sm" className="mr-1" /> {t('common.status.testing')}</span>}
               {testStatus === 'success' && <span className="flex items-center text-xs text-success"><CheckCircle2 size={14} className="mr-1" /> {testMessage}</span>}
               {testStatus === 'error' && <span className="flex items-start text-xs text-error"><XCircle size={14} className="mr-1 mt-0.5 shrink-0" /> <span className="leading-tight">{testMessage}</span></span>}
             </div>
@@ -445,7 +446,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
           <div className="flex justify-end gap-3 border-t border-black/10 pt-5 dark:border-white/10">
             <Button tone="neutral" fill="plain" onClick={onClose} disabled={saving}>{t('common.actions.cancel')}</Button>
             <Button tone="accent" fill="solid" onClick={handleSave} disabled={saving || !settings} className="w-32">
-              {saving ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.saveGlobalSettings')}
+              {saving ? <Spinner size="md" /> : t('common.actions.saveGlobalSettings')}
             </Button>
           </div>
         </div>

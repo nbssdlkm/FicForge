@@ -2,10 +2,12 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { Loader2, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
+import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
 import { Tag } from '../shared/Tag';
 import { Modal } from '../shared/Modal';
+import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { EmptyState } from '../shared/EmptyState';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
@@ -62,7 +64,7 @@ export const FinalizeConfirmModal = ({
             {t('common.actions.cancel')}
           </Button>
           <Button tone="accent" fill="solid" onClick={onConfirm} disabled={isFinalizing}>
-            {isFinalizing ? <Loader2 size={16} className="animate-spin" /> : t('drafts.finalize')}
+            {isFinalizing ? <Spinner size="md" /> : t('drafts.finalize')}
           </Button>
         </div>
       </div>
@@ -88,29 +90,18 @@ export const DiscardConfirmModal = ({
   isDiscarding,
 }: DiscardConfirmModalProps) => {
   const { t } = useTranslation();
-
   return (
-    <Modal
+    <ConfirmDialog
       isOpen={isOpen}
       onClose={onClose}
+      onConfirm={onDiscard}
       title={draftsCount > 1 ? t('drafts.discardAll') : t('drafts.discard')}
-    >
-      <div className="space-y-4">
-        <p className="text-sm text-text/90">
-          {draftsCount > 1
-            ? t('drafts.confirmDiscardAll', { count: draftsCount })
-            : t('drafts.confirmDiscard')}
-        </p>
-        <div className="flex justify-end gap-2">
-          <Button tone="neutral" fill="plain" onClick={onClose}>
-            {t('common.actions.cancel')}
-          </Button>
-          <Button tone="accent" fill="solid" className="bg-red-600 text-white hover:bg-red-700" onClick={onDiscard} disabled={isDiscarding}>
-            {isDiscarding ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.confirm')}
-          </Button>
-        </div>
-      </div>
-    </Modal>
+      message={draftsCount > 1
+        ? t('drafts.confirmDiscardAll', { count: draftsCount })
+        : t('drafts.confirmDiscard')}
+      destructive
+      loading={isDiscarding}
+    />
   );
 };
 
@@ -147,7 +138,7 @@ export const FactsPromptModal = ({
         <p className="text-sm text-text/90">{t('drafts.factsPrompt')}</p>
         <div className="space-y-2">
           <Button tone="accent" fill="solid" className="w-full gap-2" onClick={onOpenExtractReview} disabled={extractingFacts}>
-            {extractingFacts ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+            {extractingFacts ? <Spinner size="md" /> : <Sparkles size={16} />}
             {t('drafts.factsExtract')}
           </Button>
           <Button tone="neutral" fill="outline" className="w-full" onClick={onManualNavigate}>
@@ -243,7 +234,7 @@ export const ExtractReviewModal = ({
             {t('common.actions.cancel')}
           </Button>
           <Button tone="accent" fill="solid" onClick={onSave} disabled={savingExtracted || selectedExtractedKeys.length === 0}>
-            {savingExtracted ? <Loader2 size={16} className="animate-spin" /> : t('drafts.extractSaveSelected')}
+            {savingExtracted ? <Spinner size="md" /> : t('drafts.extractSaveSelected')}
           </Button>
         </div>
       </div>
@@ -269,16 +260,21 @@ export const UndoConfirmModal = ({
   const { t } = useTranslation();
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={t('undo.confirmTitle', { chapter: chapterNum })}>
-      <div className="space-y-4">
-        <div className="text-sm text-text/90 whitespace-pre-line">{t('undo.confirmDesc')}</div>
-        <p className="text-sm text-red-500 font-medium">{t('undo.irreversible')}</p>
-        <div className="flex justify-end gap-2">
-          <Button tone="neutral" fill="plain" onClick={onClose}>{t('undo.cancel')}</Button>
-          <Button tone="destructive" fill="solid" onClick={onConfirm}>{t('undo.confirmAction')}</Button>
-        </div>
-      </div>
-    </Modal>
+    <ConfirmDialog
+      isOpen={isOpen}
+      onClose={onClose}
+      onConfirm={onConfirm}
+      title={t('undo.confirmTitle', { chapter: chapterNum })}
+      message={
+        <>
+          <span className="block whitespace-pre-line">{t('undo.confirmDesc')}</span>
+          <span className="mt-2 block font-medium text-red-500">{t('undo.irreversible')}</span>
+        </>
+      }
+      destructive
+      confirmLabel={t('undo.confirmAction')}
+      cancelLabel={t('undo.cancel')}
+    />
   );
 };
 

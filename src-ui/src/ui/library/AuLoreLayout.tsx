@@ -3,12 +3,13 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useEffect, useRef } from 'react';
+import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
 import { EmptyState } from '../shared/EmptyState';
 import { TrashPanel } from '../shared/TrashPanel';
 import type { TrashEntry } from '../../api/engine-client';
-import { Search, Plus, FileText, ChevronDown, ChevronRight, Folder, Loader2, Trash2, Download, Pin, Eye, Pencil } from 'lucide-react';
+import { Search, Plus, FileText, ChevronDown, ChevronRight, Folder, Trash2, Download, Pin, Eye, Pencil } from 'lucide-react';
 import { SettingsMarkdown } from '../shared/SettingsMarkdown';
 import { getProject, updateProject, type ProjectInfo } from '../../api/engine-client';
 import { saveLore, readLore, deleteLore, listLoreFiles, importFromFandom, getLoreContent } from '../../api/engine-client';
@@ -470,7 +471,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <Loader2 className="animate-spin text-accent" size={32} />
+        <Spinner size="lg" className="text-accent" />
       </div>
     );
   }
@@ -622,7 +623,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                       <Trash2 size={16} />
                     </Button>
                     <Button tone="accent" fill="solid" size="sm" className="px-3" onClick={handleSaveLore} disabled={isSaving || isReadingFile}>
-                      {isSaving || isReadingFile ? <Loader2 size={14} className="animate-spin" /> : t('auLore.saveButton')}
+                      {isSaving || isReadingFile ? <Spinner size="sm" /> : t('auLore.saveButton')}
                     </Button>
                   </>
                 ) : (
@@ -746,7 +747,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                 <Download size={16} />
               </Button>
               <Button tone="neutral" fill="plain" size="sm" className="px-2" onClick={() => { setCreateName(''); setCreateModalOpen(true); }} disabled={isSaving}>
-                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                {isSaving ? <Spinner size="md" /> : <Plus size={16} />}
               </Button>
             </div>
           </div>
@@ -935,7 +936,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                   </button>
                 </div>
                 <Button tone="accent" fill="solid" size="sm" className="h-8 w-24" onClick={handleSaveLore} disabled={isSaving || isReadingFile}>
-                  {isSaving || isReadingFile ? <Loader2 size={14} className="animate-spin" /> : t('auLore.saveButton')}
+                  {isSaving || isReadingFile ? <Spinner size="sm" /> : t('auLore.saveButton')}
                 </Button>
               </div>
             </>

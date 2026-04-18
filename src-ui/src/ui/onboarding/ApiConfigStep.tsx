@@ -3,9 +3,10 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
-import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, XCircle } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { testConnection, LLMMode } from '../../api/engine-client';
 import { getEngine } from '../../api/engine-instance';
@@ -186,7 +187,7 @@ export function ApiConfigStep({
       {/* Test connection */}
       <div className="space-y-3">
         <Button tone="neutral" fill="outline" onClick={handleTest} disabled={!canTest} className="w-full">
-          {testing ? <><Loader2 size={14} className="animate-spin mr-2" />{t('onboarding.apiConfig.testing')}</> : t('onboarding.apiConfig.testConnection')}
+          {testing ? <><Spinner size="sm" className="mr-2" />{t('onboarding.apiConfig.testing')}</> : t('onboarding.apiConfig.testConnection')}
         </Button>
 
         {testResult && (

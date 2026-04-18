@@ -3,12 +3,13 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useEffect, useRef } from 'react';
+import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
 import { FactCard } from './FactCard';
 import { Modal } from '../shared/Modal';
 import { EmptyState } from '../shared/EmptyState';
-import { Search, Plus, Filter, Loader2, Check, Sparkles, BookOpenText, X } from 'lucide-react';
+import { Search, Plus, Filter, Check, Sparkles, BookOpenText, X } from 'lucide-react';
 import { ProgressBar } from '../shared/ProgressBar';
 import { listFacts, updateFactStatus, FactStatus, type FactInfo } from '../../api/engine-client';
 import { getState, type StateInfo } from '../../api/engine-client';
@@ -183,7 +184,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           <div className="flex items-center justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
             <Button tone="neutral" fill="plain" onClick={() => editor.setEditingFact(null)}>{t('facts.cancelSelection')}</Button>
             <Button tone="accent" fill="solid" onClick={editor.handleSaveFact} disabled={editor.savingFact}>
-              {editor.savingFact ? <Loader2 size={14} className="animate-spin" /> : editor.saveSuccess ? <><Check size={14} className="mr-1" /> {t('facts.saved')}</> : t('common.actions.save')}
+              {editor.savingFact ? <Spinner size="sm" /> : editor.saveSuccess ? <><Check size={14} className="mr-1" /> {t('facts.saved')}</> : t('common.actions.save')}
             </Button>
           </div>
         ) : null}
@@ -257,7 +258,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           <div className="flex justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
             <Button tone="neutral" fill="plain" onClick={() => editor.setAddModalOpen(false)} disabled={editor.adding}>{t('common.actions.cancel')}</Button>
             <Button tone="accent" fill="solid" onClick={editor.handleAddFact} disabled={!editor.newContentClean.trim() || editor.adding}>
-              {editor.adding ? <Loader2 size={16} className="animate-spin" /> : t('facts.createModal.submit')}
+              {editor.adding ? <Spinner size="md" /> : t('facts.createModal.submit')}
             </Button>
           </div>
         </div>
@@ -302,7 +303,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           <div className="flex justify-end gap-2">
             <Button tone="neutral" fill="plain" onClick={() => batch.setBatchConfirm(null)} disabled={batch.batchProcessing}>{t('common.actions.cancel')}</Button>
             <Button tone="accent" fill="solid" onClick={() => batch.batchConfirm && batch.handleBatchStatus(batch.batchConfirm)} disabled={batch.batchProcessing}>
-              {batch.batchProcessing ? <Loader2 size={14} className="animate-spin" /> : t('common.actions.confirm')}
+              {batch.batchProcessing ? <Spinner size="sm" /> : t('common.actions.confirm')}
             </Button>
           </div>
         </div>
@@ -322,7 +323,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               </div>
               <div className="flex items-center gap-2">
                 <Button tone="neutral" fill="outline" size="sm" className="px-3" onClick={extraction.handleExtractClick} disabled={extraction.extracting}>
-                  {extraction.extracting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                  {extraction.extracting ? <Spinner size="md" /> : <Sparkles size={16} />}
                 </Button>
                 <Button tone="accent" fill="solid" size="sm" className="px-3 shadow-md" onClick={() => editor.setAddModalOpen(true)}>
                   <Plus size={16} className="mr-1" />
@@ -419,7 +420,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             <div className="mx-4 mt-3 rounded-lg border border-accent/20 bg-accent/5 px-3 py-2.5">
               <div className="flex items-center justify-between gap-2 text-sm">
                 <div className="flex items-center gap-2 min-w-0">
-                  <Loader2 size={14} className="shrink-0 animate-spin text-accent" />
+                  <Spinner size="sm" className="shrink-0 text-accent" />
                   <span className="truncate text-text/70">{t('common.status.extracting')}</span>
                   <span className="shrink-0 font-medium text-accent">{extraction.extractProgress}%</span>
                 </div>
@@ -479,7 +480,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
 
           <div className="space-y-4 px-4 py-4">
             {loading ? (
-              <div className="flex justify-center py-10"><Loader2 size={24} className="animate-spin text-accent" /></div>
+              <div className="flex justify-center py-10"><Spinner size="lg" className="text-accent" /></div>
             ) : showEmptyNotes ? (
               <EmptyState
                 compact
@@ -556,7 +557,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             <h1 className="font-serif text-xl font-bold">{t('facts.title')}</h1>
             <div className="flex items-center gap-2">
               <Button tone="neutral" fill="outline" size="sm" className="px-3 gap-1" onClick={extraction.handleExtractClick} disabled={extraction.extracting}>
-                {extraction.extracting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                {extraction.extracting ? <Spinner size="md" /> : <Sparkles size={16} />}
                 {extraction.extracting ? `${extraction.extractProgress}%` : t('common.actions.extractFacts')}
               </Button>
               <Button tone="accent" fill="solid" size="sm" className="px-3 shadow-md gap-1" onClick={() => editor.setAddModalOpen(true)}>
@@ -646,7 +647,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           <div className="mx-4 mt-3 rounded-lg border border-accent/20 bg-accent/5 px-3 py-2">
             <div className="flex items-center justify-between gap-2 text-xs">
               <div className="flex items-center gap-1.5 min-w-0">
-                <Loader2 size={12} className="shrink-0 animate-spin text-accent" />
+                <Spinner size="sm" className="shrink-0 text-accent" />
                 <span className="truncate text-text/70">{t('common.status.extracting')}</span>
                 <span className="shrink-0 font-medium text-accent">{extraction.extractProgress}%</span>
               </div>
@@ -707,7 +708,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {loading ? (
-            <div className="flex justify-center py-10"><Loader2 size={24} className="animate-spin text-accent" /></div>
+            <div className="flex justify-center py-10"><Spinner size="lg" className="text-accent" /></div>
           ) : showEmptyNotes ? (
             <EmptyState
               compact
@@ -796,7 +797,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               <div className="flex gap-3 items-center">
                 <Button tone="neutral" fill="plain" size="sm" className="h-8" onClick={() => editor.setEditingFact(null)}>{t('facts.cancelSelection')}</Button>
                 <Button tone="accent" fill="solid" size="sm" className="h-8 w-24" onClick={editor.handleSaveFact} disabled={editor.savingFact}>
-                  {editor.savingFact ? <Loader2 size={14} className="animate-spin" /> : editor.saveSuccess ? <><Check size={14} /> {t('facts.saved')}</> : t('common.actions.save')}
+                  {editor.savingFact ? <Spinner size="sm" /> : editor.saveSuccess ? <><Check size={14} /> {t('facts.saved')}</> : t('common.actions.save')}
                 </Button>
               </div>
             </>

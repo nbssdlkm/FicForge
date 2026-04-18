@@ -3,9 +3,10 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useRef, useState } from 'react';
+import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
-import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { createFandom } from '../../api/engine-client';
 import { StepIndicator } from './StepIndicator';
@@ -99,7 +100,7 @@ export function CreateFandomStep({
         <div className="flex gap-2">
           <Button tone="neutral" fill="plain" onClick={() => onNext(null)} disabled={creating}>{t('onboarding.createFandom.skip')}</Button>
           <Button tone="accent" fill="solid" onClick={handleNext} disabled={creating || !name.trim()}>
-            {creating ? <Loader2 size={14} className="animate-spin" /> : t('onboarding.common.next')}
+            {creating ? <Spinner size="sm" /> : t('onboarding.common.next')}
           </Button>
         </div>
       </div>

@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { Loader2 } from 'lucide-react';
+import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
 import { Textarea } from '../shared/Input';
 import { ChapterMarkdown } from '../shared/ChapterMarkdown';
@@ -63,7 +63,7 @@ export const ChapterContentArea = ({
     <div style={{ fontSize: `${fontSize}px`, lineHeight }}>
       {loading ? (
         <div className="flex items-center justify-center py-24">
-          <Loader2 className="animate-spin text-accent" size={24} />
+          <Spinner size="lg" className="text-accent" />
         </div>
       ) : streamText ? (
         <div className="font-serif text-text/90 animate-in fade-in duration-200 pb-8 opacity-90">
@@ -82,7 +82,7 @@ export const ChapterContentArea = ({
               />
               <div className="flex items-center gap-2 mt-4 pt-4 border-t border-black/10 dark:border-white/10">
                 <Button tone="accent" fill="solid" size="sm" onClick={onSaveEdit} disabled={savingEdit || editingContent === editingOriginalContent}>
-                  {savingEdit ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
+                  {savingEdit ? <Spinner size="sm" className="mr-1" /> : null}
                   {t('writer.saveEdit')}
                 </Button>
                 <Button tone="neutral" fill="plain" size="sm" onClick={onCancelEdit} disabled={savingEdit}>

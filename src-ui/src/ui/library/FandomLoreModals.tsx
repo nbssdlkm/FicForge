@@ -5,6 +5,7 @@
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { Modal } from '../shared/Modal';
+import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { useTranslation } from '../../i18n/useAppTranslation';
 
 export type FandomLoreModalsProps = {
@@ -67,25 +68,25 @@ export function FandomLoreModals({
         </div>
       </Modal>
 
-      <Modal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} title={t("fandomLore.deleteTitle")}>
-        <div className="space-y-4">
-          <p className="text-sm text-text/90">{t("fandomLore.deleteMessage", { name: selectedEntry?.filename || selectedFile || '' })}</p>
-          <div className="flex justify-end gap-2">
-            <Button tone="neutral" fill="plain" onClick={() => setDeleteConfirmOpen(false)}>{t("common.actions.cancel")}</Button>
-            <Button tone="accent" fill="solid" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDeleteLore} disabled={editorBusy}>{t("common.actions.confirmDelete")}</Button>
-          </div>
-        </div>
-      </Modal>
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteLore}
+        title={t("fandomLore.deleteTitle")}
+        message={t("fandomLore.deleteMessage", { name: selectedEntry?.filename || selectedFile || '' })}
+        destructive
+        confirmLabel={t('common.actions.confirmDelete')}
+        loading={editorBusy}
+      />
 
-      <Modal isOpen={discardChangesOpen} onClose={handleCancelDiscardChanges} title={t("fandomLore.discardChangesTitle")}>
-        <div className="space-y-4">
-          <p className="text-sm text-text/90">{t("fandomLore.discardChangesMessage")}</p>
-          <div className="flex justify-end gap-2">
-            <Button tone="neutral" fill="plain" onClick={handleCancelDiscardChanges}>{t("common.actions.cancel")}</Button>
-            <Button tone="accent" fill="solid" onClick={handleConfirmDiscardChanges}>{t("fandomLore.discardChangesConfirm")}</Button>
-          </div>
-        </div>
-      </Modal>
+      <ConfirmDialog
+        isOpen={discardChangesOpen}
+        onClose={handleCancelDiscardChanges}
+        onConfirm={handleConfirmDiscardChanges}
+        title={t('fandomLore.discardChangesTitle')}
+        message={t('fandomLore.discardChangesMessage')}
+        confirmLabel={t('fandomLore.discardChangesConfirm')}
+      />
     </>
   );
 }

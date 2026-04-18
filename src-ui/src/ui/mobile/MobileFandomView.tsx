@@ -3,7 +3,8 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowLeft, FileText, Loader2, Pencil, Eye, Trash2, Users, Globe2, Sparkles } from "lucide-react";
+import { ArrowLeft, FileText, Pencil, Eye, Trash2, Users, Globe2, Sparkles } from "lucide-react";
+import { Spinner } from "../shared/Spinner";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { listFandomFiles, readFandomFile, saveLore, deleteLore, type FandomFileEntry } from "../../api/engine-client";
 import { TrashPanel } from "../shared/TrashPanel";
@@ -183,7 +184,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
               <Trash2 size={16} className="text-error" />
             </Button>
             <Button tone="accent" fill="solid" size="sm" className="h-11 px-4" onClick={handleSave} disabled={saving || !isDirty}>
-              {saving ? <Loader2 size={14} className="animate-spin" /> : t("common.actions.save")}
+              {saving ? <Spinner size="sm" /> : t("common.actions.save")}
             </Button>
           </div>
         </header>
@@ -210,7 +211,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
         <div className="flex-1 overflow-y-auto p-4">
           {readingFile ? (
             <div className="flex items-center justify-center py-24">
-              <Loader2 className="animate-spin text-accent" size={24} />
+              <Spinner size="lg" className="text-accent" />
             </div>
           ) : previewMode ? (
             <SettingsMarkdown content={editorContent} />
@@ -290,7 +291,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {loading ? (
           <div className="flex items-center justify-center py-24">
-            <Loader2 className="animate-spin text-accent" size={24} />
+            <Spinner size="lg" className="text-accent" />
           </div>
         ) : currentFiles.length === 0 ? (
           <EmptyState
@@ -347,7 +348,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
           <div className="flex justify-end gap-2">
             <Button tone="neutral" fill="plain" onClick={() => setCreateOpen(false)}>{t("common.actions.cancel")}</Button>
             <Button tone="accent" fill="solid" onClick={handleCreate} disabled={!createName.trim() || saving}>
-              {saving ? <Loader2 size={14} className="animate-spin" /> : t("common.actions.create")}
+              {saving ? <Spinner size="sm" /> : t("common.actions.create")}
             </Button>
           </div>
         </div>

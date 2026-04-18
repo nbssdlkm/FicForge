@@ -3,7 +3,8 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState } from "react";
-import { Loader2, ChevronsDown, ChevronsUp } from "lucide-react";
+import { ChevronsDown, ChevronsUp } from "lucide-react";
+import { Spinner } from "../Spinner";
 import { Button } from "../Button";
 import { Textarea } from "../Input";
 import type { LargeTextIntent } from "./types";
@@ -85,7 +86,7 @@ export function SettingsChatInput({
             />
             <div className="flex items-center justify-end">
               <Button tone="accent" fill="solid" onClick={onSend} disabled={!canSendNormally} className={compact ? "w-full" : "min-w-[112px] w-full sm:w-auto"}>
-                {sending ? <Loader2 size={16} className="animate-spin" /> : t("settingsMode.send")}
+                {sending ? <Spinner size="md" /> : t("settingsMode.send")}
               </Button>
             </div>
             {busyHint ? (

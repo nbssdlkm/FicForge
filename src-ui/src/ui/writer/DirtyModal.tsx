@@ -2,9 +2,10 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
+import { Spinner } from "../shared/Spinner";
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
-import { Loader2, AlertCircle, Check } from 'lucide-react';
+import { AlertCircle, Check } from 'lucide-react';
 import { Tag } from '../shared/Tag';
 import { useState, useEffect, useRef } from 'react';
 import { resolveDirtyChapter } from '../../api/engine-client';
@@ -170,7 +171,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
             <h3 className="text-xs font-medium text-text/70 mb-2">{t('dirty.oldFactsSection')}</h3>
             {loadingOld ? (
               <div className="flex items-center gap-2 py-4 justify-center text-text/50 text-sm">
-                <Loader2 size={16} className="animate-spin" />
+                <Spinner size="md" />
               </div>
             ) : !hasOldFacts ? (
               <p className="text-sm text-text/50 py-2">{t('dirty.noOldFacts')}</p>
@@ -211,7 +212,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
             <h3 className="text-xs font-medium text-text/70 mb-2">{t('dirty.newFactsSection')}</h3>
             {extracting ? (
               <div className="flex items-center gap-2 py-4 justify-center text-accent text-sm">
-                <Loader2 size={16} className="animate-spin" />
+                <Spinner size="md" />
                 <span>{t('dirty.extracting')}</span>
               </div>
             ) : extractError ? (
@@ -254,7 +255,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
             disabled={resolving || isLoading}
           >
             {resolving ? (
-              <Loader2 size={16} className="animate-spin" />
+              <Spinner size="md" />
             ) : (
               <span className="flex flex-col items-center leading-tight">
                 <span className="flex items-center gap-1.5"><Check size={15} /> {t('dirty.confirmResolve')}</span>

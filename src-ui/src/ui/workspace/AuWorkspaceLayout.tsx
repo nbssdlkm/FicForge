@@ -3,12 +3,13 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Spinner } from "../shared/Spinner";
 import { Sidebar } from '../shared/Sidebar';
 import { Button } from '../shared/Button';
 import { EmptyState } from '../shared/EmptyState';
 import { MilestoneGuide } from '../shared/MilestoneGuide';
 import { Modal } from '../shared/Modal';
-import { LogOut, Loader2, BookOpen } from 'lucide-react';
+import { LogOut, BookOpen } from 'lucide-react';
 import { WriterLayout } from '../writer/WriterLayout';
 import { FactsLayout } from '../facts/FactsLayout';
 import { AuLoreLayout } from '../library/AuLoreLayout';
@@ -229,7 +230,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
           </div>
           <div className="flex-1 overflow-y-auto px-2 space-y-1 pb-4">
             {loadingChapters ? (
-              <div className="flex items-center justify-center py-4 text-text/50"><Loader2 size={16} className="animate-spin" /></div>
+              <div className="flex items-center justify-center py-4 text-text/50"><Spinner size="md" /></div>
             ) : chapters.length === 0 ? (
               <EmptyState
                 compact

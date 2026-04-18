@@ -2,11 +2,13 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
+import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { Modal } from '../shared/Modal';
+import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { EmptyState } from '../shared/EmptyState';
-import { Loader2, Download } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
 
 type LoreFileEntry = {
@@ -85,35 +87,35 @@ export function AuLoreModals({
         </div>
       </Modal>
 
-      <Modal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} title={t('auLore.deleteTitle')}>
-        <div className="space-y-4">
-          <p className="text-sm text-text/90">{t('auLore.deleteMessage', { name: `${selectedFile}.md` })}</p>
-          <div className="flex justify-end gap-2">
-            <Button tone="neutral" fill="plain" onClick={() => setDeleteConfirmOpen(false)}>{t('common.actions.cancel')}</Button>
-            <Button tone="accent" fill="solid" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDeleteLore}>{t('common.actions.confirmDelete')}</Button>
-          </div>
-        </div>
-      </Modal>
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteLore}
+        title={t('auLore.deleteTitle')}
+        message={t('auLore.deleteMessage', { name: `${selectedFile}.md` })}
+        destructive
+        confirmLabel={t('common.actions.confirmDelete')}
+      />
 
-      <Modal isOpen={coreLimitModalOpen} onClose={() => setCoreLimitModalOpen(false)} title={t('coreIncludes.missingCoreLimit')}>
-        <div className="space-y-4">
-          <p className="text-sm text-text/90 leading-relaxed">{t('coreIncludes.missingCoreLimitDesc')}</p>
-          <div className="flex justify-end gap-2">
-            <Button tone="neutral" fill="plain" onClick={() => setCoreLimitModalOpen(false)}>{t('coreIncludes.later')}</Button>
-            <Button tone="accent" fill="solid" onClick={() => {
-              setCoreLimitModalOpen(false);
-              if (coreLimitTarget) loadFileContent(coreLimitTarget);
-            }}>{t('coreIncludes.goEdit')}</Button>
-          </div>
-        </div>
-      </Modal>
+      <ConfirmDialog
+        isOpen={coreLimitModalOpen}
+        onClose={() => setCoreLimitModalOpen(false)}
+        onConfirm={() => {
+          setCoreLimitModalOpen(false);
+          if (coreLimitTarget) loadFileContent(coreLimitTarget);
+        }}
+        title={t('coreIncludes.missingCoreLimit')}
+        message={t('coreIncludes.missingCoreLimitDesc')}
+        confirmLabel={t('coreIncludes.goEdit')}
+        cancelLabel={t('coreIncludes.later')}
+      />
 
       <Modal isOpen={importModalOpen} onClose={isSaving ? () => {} : () => setImportModalOpen(false)} title={t('auLore.importTitle')}>
         <div className="space-y-4">
           <p className="text-sm text-text/70">{t('auLore.importDescription')}</p>
           <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-lg border border-black/10 p-2 dark:border-white/10">
             {importLoading ? (
-              <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-accent" /></div>
+              <div className="flex justify-center py-8"><Spinner size="md" className="text-accent" /></div>
             ) : importCandidates.length === 0 ? (
               <EmptyState compact icon={<Download size={28} />} title={t('auLore.importEmpty')} description={t('fandomLore.referenceHint')} />
             ) : (
@@ -133,7 +135,7 @@ export function AuLoreModals({
           <div className="flex justify-end gap-2">
             <Button tone="neutral" fill="plain" onClick={() => setImportModalOpen(false)} disabled={isSaving}>{t('common.actions.cancel')}</Button>
             <Button tone="accent" fill="solid" onClick={handleImportSelected} disabled={selectedImports.length === 0 || isSaving}>
-              {isSaving ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.importSelected')}
+              {isSaving ? <Spinner size="md" /> : t('common.actions.importSelected')}
             </Button>
           </div>
         </div>

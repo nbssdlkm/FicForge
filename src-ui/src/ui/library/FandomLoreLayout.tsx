@@ -3,6 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useEffect, useRef } from 'react';
+import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
 import { Tag } from '../shared/Tag';
@@ -10,7 +11,7 @@ import { EmptyState } from '../shared/EmptyState';
 import { TrashPanel } from '../shared/TrashPanel';
 import { SettingsChatPanel } from '../shared/settings-chat/SettingsChatPanel';
 import type { TrashEntry } from '../../api/engine-client';
-import { Search, Plus, ArrowLeft, FileText, ChevronDown, ChevronRight, Folder, Loader2, Trash2, Users, Globe2, Eye, Pencil, MessageSquare, X } from 'lucide-react';
+import { Search, Plus, ArrowLeft, FileText, ChevronDown, ChevronRight, Folder, Trash2, Users, Globe2, Eye, Pencil, MessageSquare, X } from 'lucide-react';
 import { SettingsMarkdown } from '../shared/SettingsMarkdown';
 import { FandomLoreModals } from './FandomLoreModals';
 import { saveLore, deleteLore } from '../../api/engine-client';
@@ -440,7 +441,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
               <h1 className="font-serif text-lg font-bold">{t("common.scope.fandomTitle", { name: fandomName })}</h1>
             </div>
             <Button tone="neutral" fill="plain" size="sm" className="px-2" onClick={() => openCreateModal('core_characters')} disabled={editorBusy || filesLoading}>
-              {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16}/>}
+              {isSaving ? <Spinner size="md" /> : <Plus size={16}/>}
             </Button>
           </div>
           <div className="relative">
@@ -475,7 +476,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                 {expandedFolders['core_characters'] && (
                   <div className="mt-1 space-y-0.5">
                     {filesLoading ? (
-                      <div className="pl-6 py-2"><Loader2 size={14} className="animate-spin text-accent" /></div>
+                      <div className="pl-6 py-2"><Spinner size="sm" className="text-accent" /></div>
                     ) : filteredCharacterFiles.length === 0 ? (
                       <EmptyState
                         compact
@@ -523,7 +524,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                 {expandedFolders['core_worldbuilding'] && (
                   <div className="mt-1 space-y-0.5">
                     {filesLoading ? (
-                      <div className="pl-6 py-2"><Loader2 size={14} className="animate-spin text-accent" /></div>
+                      <div className="pl-6 py-2"><Spinner size="sm" className="text-accent" /></div>
                     ) : filteredWorldbuildingFiles.length === 0 ? (
                       <EmptyState
                         compact
@@ -600,7 +601,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                   </button>
                 </div>
                 <Button tone="accent" fill="solid" size="sm" className="h-8 w-28" onClick={handleSaveLore} disabled={editorBusy}>
-                  {isSaving || isReadingFile ? <Loader2 size={14} className="animate-spin" /> : t('fandomLore.saveButton')}
+                  {isSaving || isReadingFile ? <Spinner size="sm" /> : t('fandomLore.saveButton')}
                 </Button>
               </div>
             </>
@@ -616,7 +617,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                 <label className="text-sm font-bold text-text/90">{selectedCategory === 'core_characters' ? t("fandomLore.category.characters") : t("fandomLore.category.worldbuilding")}</label>
                 {isReadingFile ? (
                   <div className="flex min-h-[300px] flex-1 items-center justify-center rounded-md border border-black/10 bg-surface/30 p-4 dark:border-white/10">
-                    <Loader2 size={18} className="animate-spin text-accent" />
+                    <Spinner size="md" className="text-accent" />
                   </div>
                 ) : previewMode ? (
                   <div className="flex-1 min-h-[300px] rounded-md border border-black/10 bg-surface/30 p-6 dark:border-white/10 overflow-y-auto">

@@ -3,7 +3,8 @@
 // See LICENSE file in the project root for full license text.
 
 import type { RefObject } from 'react';
-import { BookOpen, Check, ChevronsDown, ChevronsUp, Loader2, RefreshCw, Trash2, Undo2 } from 'lucide-react';
+import { BookOpen, Check, ChevronsDown, ChevronsUp, RefreshCw, Trash2, Undo2 } from 'lucide-react';
+import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
 import { Textarea } from '../shared/Input';
 import { DraftNavigator } from './DraftNavigator';
@@ -99,7 +100,7 @@ export function WriterFooter(props: WriterFooterProps) {
             onClick={() => { onToggleCollapsed(); triggerGenerate(); }}
             disabled={writeActionsDisabled || hasPendingDrafts}
           >
-            {isGenerating ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.continue')}
+            {isGenerating ? <Spinner size="md" /> : t('common.actions.continue')}
           </Button>
           {hasPendingDrafts && (
             <Button tone="accent" fill="solid" size="sm" onClick={() => { onToggleCollapsed(); onOpenFinalize(); }} disabled={writeActionsDisabled}>
@@ -125,7 +126,7 @@ export function WriterFooter(props: WriterFooterProps) {
                     <Check size={15} /> {t('drafts.finalize')}
                   </Button>
                   <Button tone="neutral" fill="outline" size="sm" className="h-11 gap-1 md:h-8" onClick={onRegenerate} disabled={writeActionsDisabled}>
-                    {isGenerating ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+                    {isGenerating ? <Spinner size="sm" /> : <RefreshCw size={15} />}
                     {t('drafts.regenerate')}
                   </Button>
                   <Button
@@ -193,7 +194,7 @@ export function WriterFooter(props: WriterFooterProps) {
                 onClick={triggerGenerate}
                 disabled={writeActionsDisabled || hasPendingDrafts}
               >
-                {isGenerating ? <Loader2 size={16} className="animate-spin" /> : (instructionText.trim() ? t('common.actions.instruction') : t('common.actions.continue'))}
+                {isGenerating ? <Spinner size="md" /> : (instructionText.trim() ? t('common.actions.instruction') : t('common.actions.continue'))}
               </Button>
             </div>
           </div>
@@ -215,7 +216,7 @@ export function WriterFooter(props: WriterFooterProps) {
                 onClick={triggerGenerate}
                 disabled={writeActionsDisabled || hasPendingDrafts}
               >
-                {isGenerating ? <Loader2 size={16} className="animate-spin" /> : (instructionText.trim() ? t('common.actions.instruction') : t('common.actions.continue'))}
+                {isGenerating ? <Spinner size="md" /> : (instructionText.trim() ? t('common.actions.instruction') : t('common.actions.continue'))}
               </Button>
             </div>
           </div>

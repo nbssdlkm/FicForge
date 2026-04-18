@@ -3,6 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useRef, useState } from "react";
+import { Spinner } from "./Spinner";
 import { ApiError } from "../../api/engine-client";
 import {
   listTrash,
@@ -17,7 +18,7 @@ import { useTranslation } from "../../i18n/useAppTranslation";
 import { Button } from "./Button";
 import { EmptyState } from "./EmptyState";
 import { Modal } from "./Modal";
-import { ChevronDown, ChevronRight, FileText, FolderOpen, Loader2, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, FolderOpen, Trash2 } from "lucide-react";
 
 type TrashPanelProps = {
   scope: TrashScope;
@@ -241,14 +242,14 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
             <span>{t("trash.title")}</span>
             <span className="text-text/50">{t("trash.count", { count: entries.length })}</span>
           </span>
-          {loading && <Loader2 size={14} className="animate-spin text-accent" />}
+          {loading && <Spinner size="sm" className="text-accent" />}
         </button>
 
         {isExpanded && (
           <div className="space-y-3 border-t border-black/10 px-4 py-4 dark:border-white/10">
             {loading ? (
               <div className="flex justify-center py-6">
-                <Loader2 size={20} className="animate-spin text-accent" />
+                <Spinner size="md" className="text-accent" />
               </div>
             ) : entries.length === 0 ? (
               <EmptyState
@@ -300,7 +301,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
                           onClick={() => { void handleRestore(entry); }}
                           disabled={isBusy || disabled}
                         >
-                          {pendingId === entry.trash_id ? <Loader2 size={14} className="animate-spin" /> : t("trash.restore")}
+                          {pendingId === entry.trash_id ? <Spinner size="sm" /> : t("trash.restore")}
                         </Button>
                         <Button
                           tone="neutral" fill="plain"
@@ -323,7 +324,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
                     onClick={() => setClearAllOpen(true)}
                     disabled={isClearingAll || disabled}
                   >
-                    {isClearingAll ? <Loader2 size={14} className="animate-spin" /> : t("trash.clearAll")}
+                    {isClearingAll ? <Spinner size="sm" /> : t("trash.clearAll")}
                   </Button>
                 </div>
               </>
@@ -351,7 +352,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
               onClick={() => { void handlePermanentDelete(); }}
               disabled={pendingId !== null || disabled}
             >
-              {pendingId && deleteTarget ? <Loader2 size={14} className="animate-spin" /> : t("common.actions.confirmDelete")}
+              {pendingId && deleteTarget ? <Spinner size="sm" /> : t("common.actions.confirmDelete")}
             </Button>
           </div>
         </div>
@@ -376,7 +377,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
               onClick={() => { void handleClearAll(); }}
               disabled={isClearingAll || disabled}
             >
-              {isClearingAll ? <Loader2 size={14} className="animate-spin" /> : t("trash.clearAll")}
+              {isClearingAll ? <Spinner size="sm" /> : t("trash.clearAll")}
             </Button>
           </div>
         </div>

@@ -2,10 +2,11 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
+import { Spinner } from "./shared/Spinner";
 import { Button } from './shared/Button';
 import { Input } from './shared/Input';
 import { Modal } from './shared/Modal';
-import { Loader2 } from 'lucide-react';
+import { ConfirmDialog } from './shared/ConfirmDialog';
 import { useTranslation } from '../i18n/useAppTranslation';
 
 export type LibraryModalsProps = {
@@ -61,7 +62,7 @@ export function LibraryModals({
         <div className="flex flex-col gap-4">
           <Input placeholder={t("library.createFandomModal.namePlaceholder")} value={newFandomName} onChange={(e) => setNewFandomName(e.target.value)} className="w-full bg-surface/50 text-base" disabled={creatingFandom} />
           <Button tone="accent" fill="solid" className="mt-2 h-11 w-full font-medium tracking-wide" onClick={handleCreateFandom} disabled={creatingFandom || !newFandomName.trim()}>
-            {creatingFandom ? <Loader2 size={16} className="animate-spin" /> : t("library.createFandomModal.submit")}
+            {creatingFandom ? <Spinner size="md" /> : t("library.createFandomModal.submit")}
           </Button>
         </div>
       </Modal>
@@ -83,26 +84,23 @@ export function LibraryModals({
              </div>
           </div>
           <Button tone="accent" fill="solid" className="mt-2 h-11 w-full font-medium tracking-wide" onClick={handleCreateAu} disabled={creatingAu || !newAuName.trim()}>
-            {creatingAu ? <Loader2 size={16} className="animate-spin" /> : t("library.createAuModal.submit")}
+            {creatingAu ? <Spinner size="md" /> : t("library.createAuModal.submit")}
           </Button>
         </div>
       </Modal>
 
-      <Modal isOpen={!!deleteTarget} onClose={deleting ? () => {} : () => setDeleteTarget(null)} title={deleteTarget?.type === 'fandom' ? t('library.deleteFandomTitle') : t('library.deleteAuTitle')}>
-        <div className="space-y-4">
-          <p className="text-sm text-text/90 leading-relaxed">
-            {deleteTarget?.type === 'fandom'
-              ? t('library.deleteFandomMessage', { name: deleteTarget.fandomName })
-              : t('library.deleteAuMessage', { name: deleteTarget?.auName || '' })}
-          </p>
-          <div className="flex justify-end gap-2">
-            <Button tone="neutral" fill="plain" onClick={() => setDeleteTarget(null)} disabled={deleting}>{t("common.actions.cancel")}</Button>
-            <Button tone="accent" fill="solid" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDelete} disabled={deleting}>
-              {deleting ? <Loader2 size={16} className="animate-spin" /> : t("common.actions.confirmDelete")}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title={deleteTarget?.type === 'fandom' ? t('library.deleteFandomTitle') : t('library.deleteAuTitle')}
+        message={deleteTarget?.type === 'fandom'
+          ? t('library.deleteFandomMessage', { name: deleteTarget.fandomName })
+          : t('library.deleteAuMessage', { name: deleteTarget?.auName || '' })}
+        destructive
+        confirmLabel={t('common.actions.confirmDelete')}
+        loading={deleting}
+      />
     </>
   );
 }

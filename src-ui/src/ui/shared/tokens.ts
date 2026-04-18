@@ -3,14 +3,49 @@
 // See LICENSE file in the project root for full license text.
 
 /**
- * FicForge design tokens.
+ * FicForge design tokens — TS mirror of the design system.
  *
- * Semantic names mapped to CSS custom properties defined in `App.css` and
- * `tailwind.config.ts`. Prefer these over hardcoded hex/px values when writing
- * inline styles, animations, or any JS-side color/layout access.
+ * ════════════════════════════════════════════════════════════════════════════
+ * WHAT THIS FILE IS
+ * ────────────────────────────────────────────────────────────────────────────
+ * A typed reference to FicForge's semantic color / spacing / radius / layout
+ * values. All color values point to CSS custom properties (defined in
+ * `src-ui/src/App.css` under `.theme-warm / .theme-mint / .theme-night`), so
+ * theme switching flows through automatically — no need to re-read the theme.
  *
- * Theme swapping (warm / mint / night) happens via `.theme-*` classes on
- * `<html>` rewriting the CSS vars — TS consumers automatically follow.
+ * ════════════════════════════════════════════════════════════════════════════
+ * WHEN TO USE
+ * ────────────────────────────────────────────────────────────────────────────
+ * ✓ Inline `style={{ ... }}` when a value can't be expressed as a Tailwind class
+ *     e.g. `<div style={{ maxWidth: layout.readingMaxWidth }}>`
+ * ✓ framer-motion / Web Animations API
+ *     e.g. `animate={{ color: color.accent }}`
+ * ✓ Canvas / SVG where you need color values programmatically
+ * ✓ Any hook / utility computing styles in JS
+ *
+ * ════════════════════════════════════════════════════════════════════════════
+ * WHEN NOT TO USE
+ * ────────────────────────────────────────────────────────────────────────────
+ * ✗ When a Tailwind utility class already covers it. Do NOT convert
+ *     `className="text-accent"` → `style={{ color: color.accent }}`; the
+ *     class is shorter AND respects hover/dark variants. Tailwind classes
+ *     are the default; tokens are the escape hatch.
+ * ✗ Don't import `color.accent` then append opacity manually. Instead use
+ *     Tailwind's `text-accent/50` for opacity variants.
+ *
+ * ════════════════════════════════════════════════════════════════════════════
+ * HOW TO ADD / CHANGE A TOKEN
+ * ────────────────────────────────────────────────────────────────────────────
+ * 1. Change the CSS var in `App.css` (source of truth for colors).
+ * 2. Mirror any new semantic field here (TS-side reference).
+ * 3. If the token maps to a Tailwind value, also update `tailwind.config.ts`.
+ *
+ * ════════════════════════════════════════════════════════════════════════════
+ * BRAND CAVEAT
+ * ────────────────────────────────────────────────────────────────────────────
+ * `color.accent` is `var(--color-accent)` — its actual hex differs per theme
+ * (warm: #C5705D / mint: #6BAF7A / night: #C5705D). Do NOT hardcode the hex
+ * anywhere in JS/TS; always go through this indirection so themes stay coherent.
  */
 
 /** Semantic color tokens. Values reference CSS vars to respect the active theme. */

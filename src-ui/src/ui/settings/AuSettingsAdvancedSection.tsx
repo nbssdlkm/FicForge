@@ -2,8 +2,8 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
+import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
-import { Loader2 } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
 
 export type AuSettingsAdvancedSectionProps = {
@@ -25,7 +25,7 @@ export function AuSettingsAdvancedSection({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="rounded-xl border border-black/5 bg-surface/50 p-4 dark:border-white/5">
           <Button tone="neutral" fill="outline" size="sm" className="w-full mb-2" onClick={handleRecalc} disabled={recalcing}>
-            {recalcing ? <Loader2 size={14} className="animate-spin mr-2" /> : null}
+            {recalcing ? <Spinner size="sm" className="mr-2" /> : null}
             {t('advanced.recalc')}
           </Button>
           <p className="text-xs text-text/50">{t('advanced.recalcDesc')}</p>
