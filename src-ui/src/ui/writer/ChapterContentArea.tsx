@@ -22,7 +22,6 @@ export interface ChapterContentAreaProps {
   onEditingContentChange: (v: string) => void;
   onSaveEdit: () => void;
   onCancelEdit: () => void;
-  onStartEdit: () => void;
   currentDraft: { content: string } | null;
   onDraftChange: (v: string) => void;
   displayContent: string;
@@ -47,7 +46,6 @@ export const ChapterContentArea = ({
   onEditingContentChange,
   onSaveEdit,
   onCancelEdit,
-  onStartEdit,
   currentDraft,
   onDraftChange,
   displayContent,
@@ -91,14 +89,7 @@ export const ChapterContentArea = ({
               </div>
             </>
           ) : (
-            <>
-              <ChapterMarkdown content={viewingHistoryContent} />
-              <div className="mt-4 pt-4 border-t border-black/10 dark:border-white/10">
-                <Button tone="neutral" fill="outline" size="sm" onClick={onStartEdit}>
-                  {t('writer.editChapter')}
-                </Button>
-              </div>
-            </>
+            <ChapterMarkdown content={viewingHistoryContent} />
           )}
         </div>
       ) : currentDraft ? (

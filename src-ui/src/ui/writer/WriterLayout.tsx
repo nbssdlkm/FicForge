@@ -990,9 +990,14 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                   tone="info"
                   message={<>{t('workspace.chapterItem', { num: viewingHistoryNum })} — {t('writer.viewingHistory')}</>}
                   actions={
-                    <Button tone="neutral" fill="plain" size="sm" onClick={() => { setViewingHistoryContent(null); setViewingHistoryNum(null); onClearViewChapter?.(); }}>
-                      {t('writer.backToCurrentChapter')}
-                    </Button>
+                    <>
+                      <Button tone="neutral" fill="plain" size="sm" onClick={handleStartEditConfirmed} disabled={editingConfirmed}>
+                        {t('writer.editChapter')}
+                      </Button>
+                      <Button tone="neutral" fill="plain" size="sm" onClick={() => { setViewingHistoryContent(null); setViewingHistoryNum(null); onClearViewChapter?.(); }}>
+                        {t('writer.backToCurrentChapter')}
+                      </Button>
+                    </>
                   }
                 />
               )}
@@ -1014,7 +1019,6 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                 onEditingContentChange={setEditingContent}
                 onSaveEdit={handleSaveEditConfirmed}
                 onCancelEdit={handleCancelEditConfirmed}
-                onStartEdit={handleStartEditConfirmed}
                 currentDraft={currentDraft}
                 onDraftChange={handleCurrentDraftChange}
                 displayContent={displayContent}

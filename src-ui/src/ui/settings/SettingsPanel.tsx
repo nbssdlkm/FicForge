@@ -4,7 +4,6 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '../shared/Button';
-import { Card } from '../shared/Card';
 import { MODEL_PRESETS } from '../shared/ModelSelector';
 import { useTranslation } from '../../i18n/useAppTranslation';
 
@@ -62,7 +61,7 @@ export const SettingsPanel = ({
   };
 
   return (
-    <Card className="w-full p-4 text-sm flex flex-col gap-5 md:gap-4 md:max-w-sm !shadow-none border-transparent bg-transparent px-0">
+    <div className="w-full text-sm flex flex-col gap-5 md:gap-4 md:max-w-sm">
       <div className="font-sans font-medium mb-1 text-text/90 text-xs">{t("settingsPanel.title")}</div>
 
       <div className="flex flex-col gap-1.5">
@@ -106,6 +105,6 @@ export const SettingsPanel = ({
         <Button tone="neutral" fill="outline" size="sm" className="h-11 text-sm md:h-8 md:text-xs" onClick={onSaveGlobal}>{t("common.actions.saveToGlobal")}</Button>
         <Button tone="neutral" fill="outline" size="sm" className="h-11 text-sm md:h-8 md:text-xs" onClick={onSaveAu}>{t("common.actions.saveToStory")}</Button>
       </div>
-    </Card>
+    </div>
   );
 };
