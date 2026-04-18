@@ -1,9 +1,10 @@
 // Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 
+import { Spinner } from "../shared/Spinner";
 import { Button } from "../shared/Button";
 import { ProgressBar } from "../shared/ProgressBar";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import type { NewImportResult, ImportProgress } from "../../api/engine-client";
 
@@ -36,7 +37,7 @@ export function ImportProgressStep({
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <Loader2 size={24} className="animate-spin text-accent" />
+          <Spinner size="lg" className="text-accent" />
           <h3 className="text-lg font-bold text-text">{t("import.step5Title")}</h3>
         </div>
 
@@ -51,11 +52,11 @@ export function ImportProgressStep({
                 <p>{t("import.step5SettingsProgress", { done: progress.settingsDone, total: progress.settingsTotal })}</p>
               )}
               {progress.currentFile && (
-                <p className="text-xs text-text/40">{progress.currentFile}</p>
+                <p className="text-xs text-text/50">{progress.currentFile}</p>
               )}
             </>
           ) : (
-            <p className="text-text/40">{t("import.importing")}</p>
+            <p className="text-text/50">{t("import.importing")}</p>
           )}
         </div>
       </div>
@@ -83,15 +84,15 @@ export function ImportProgressStep({
         </div>
 
         <div className="flex flex-col gap-2 pt-2">
-          <Button variant="primary" className="w-full" onClick={onStartWriting}>
+          <Button tone="accent" fill="solid" className="w-full" onClick={onStartWriting}>
             {t("import.step5Next3", { n: nextChapter })}
           </Button>
           {result.settingsImported > 0 && (
-            <Button variant="secondary" className="w-full" onClick={onGoToLore}>
+            <Button tone="neutral" fill="outline" className="w-full" onClick={onGoToLore}>
               {t("import.step5Next1")}
             </Button>
           )}
-          <Button variant="secondary" className="w-full" onClick={onGoToFacts}>
+          <Button tone="neutral" fill="outline" className="w-full" onClick={onGoToFacts}>
             {t("import.step5Next2")}
           </Button>
         </div>

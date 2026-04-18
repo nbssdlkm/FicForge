@@ -3,12 +3,14 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Spinner } from "../shared/Spinner";
+import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { Sidebar } from '../shared/Sidebar';
 import { Button } from '../shared/Button';
 import { EmptyState } from '../shared/EmptyState';
 import { MilestoneGuide } from '../shared/MilestoneGuide';
 import { Modal } from '../shared/Modal';
-import { LogOut, Loader2, BookOpen } from 'lucide-react';
+import { LogOut, BookOpen } from 'lucide-react';
 import { WriterLayout } from '../writer/WriterLayout';
 import { FactsLayout } from '../facts/FactsLayout';
 import { AuLoreLayout } from '../library/AuLoreLayout';
@@ -35,9 +37,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const { t } = useTranslation();
   const { showError } = useFeedback();
   const isMobile = useMediaQuery('(max-width: 768px)');
-  const activeAuPathRef = useRef(auPath);
-  activeAuPathRef.current = auPath;
-  const loadWorkspaceRequestIdRef = useRef(0);
+  const loadGuard = useActiveRequestGuard(auPath);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [loadingChapters, setLoadingChapters] = useState(false);
@@ -45,9 +45,9 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const [milestoneRefreshKey, setMilestoneRefreshKey] = useState(0);
 
   const refreshChapters = useCallback(() => {
-    listChapters(auPath).then(chs => { if (activeAuPathRef.current === auPath) setChapters(chs); }).catch((err) => logCatch('workspace', 'refreshChapters failed', err));
+    listChapters(auPath).then(chs => { if (!loadGuard.isKeyStale(auPath)) setChapters(chs); }).catch((err) => logCatch('workspace', 'refreshChapters failed', err));
     setMilestoneRefreshKey(k => k + 1);
-  }, [auPath]);
+  }, [auPath, loadGuard]);
 
   const auName = auPath.split('/').pop() || t('common.unknownAu');
   const { shouldShow, dismiss } = useMilestoneGuide();
@@ -75,8 +75,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
 
   useEffect(() => {
     if (!auPath) return;
-    const requestId = ++loadWorkspaceRequestIdRef.current;
-    const requestAuPath = auPath;
+    const token = loadGuard.start();
     if (clickTimerRef.current) {
       clearTimeout(clickTimerRef.current);
       clickTimerRef.current = null;
@@ -96,24 +95,24 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
     setEditingTitleValue('');
     listChapters(auPath)
       .then((res) => {
-        if (requestId !== loadWorkspaceRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
+        if (loadGuard.isStale(token)) return;
         setChapters(res);
       })
       .catch(() => {})
       .finally(() => {
-        if (requestId === loadWorkspaceRequestIdRef.current && activeAuPathRef.current === requestAuPath) {
+        if (!loadGuard.isStale(token)) {
           setLoadingChapters(false);
         }
       });
 
     // Embedding check (sub-task 5): check index_status
     getState(auPath).then(s => {
-      if (requestId !== loadWorkspaceRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isStale(token)) return;
       if (s.index_status === 'stale' || s.index_status === 'interrupted') {
         setEmbeddingStale(true);
       }
     }).catch(() => {});
-  }, [auPath]);
+  }, [auPath, loadGuard]);
 
   // Milestone data — refreshes when auPath changes OR after mutations (refreshKey)
   useEffect(() => {
@@ -122,20 +121,20 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
     if (!anyMilestoneActive) return;
 
     getState(auPath).then(state => {
-      if (activeAuPathRef.current !== auPath) return;
+      if (loadGuard.isKeyStale(auPath)) return;
       setCurrentChapter(state.current_chapter || 1);
       setChapterFocusEmpty(!state.chapter_focus || state.chapter_focus.length === 0);
     }).catch(() => {});
 
     listFacts(auPath).then(facts => {
-      if (activeAuPathRef.current !== auPath) return;
+      if (loadGuard.isKeyStale(auPath)) return;
       setFactsCount(facts.length);
       const firstUnresolved = facts.find((f: FactInfo) => f.status === 'unresolved');
       setUnresolvedFact(firstUnresolved ? (firstUnresolved.content_clean || '').slice(0, 20) + '...' : null);
     }).catch(() => {});
 
     getProject(auPath).then(proj => {
-      if (activeAuPathRef.current !== auPath) return;
+      if (loadGuard.isKeyStale(auPath)) return;
       setPinnedCount((proj.pinned_context || []).length);
     }).catch(() => {});
   }, [auPath, milestoneRefreshKey, shouldShow]);
@@ -209,7 +208,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
         <div className="p-4 border-b border-black/10 dark:border-white/10 flex flex-col gap-2 bg-surface">
           <div className="flex items-center justify-between">
             <div className="font-serif font-bold text-lg truncate max-w-[170px]" title={auName}>{t('common.scope.auTitle', { name: auName })}</div>
-            <Button variant="ghost" size="sm" onClick={() => onNavigate('library')} className="h-8 w-8 p-0 rounded-full text-text/60 hover:text-text" title={t('common.actions.back')}>
+            <Button tone="neutral" fill="plain" size="sm" onClick={() => onNavigate('library')} className="h-8 w-8 p-0 rounded-full text-text/70 hover:text-text" title={t('common.actions.back')}>
               <LogOut size={16} />
             </Button>
           </div>
@@ -218,10 +217,10 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
 
         <div className="flex-1 flex flex-col pt-2 bg-surface/30 min-h-0">
           <div className="px-2 space-y-1 mb-4 border-b border-black/10 dark:border-white/10 pb-4 shrink-0">
-            <Button variant="ghost" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'writer' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('writer', auPath)}>{t('writer.modeWrite')}</Button>
-            <Button variant="ghost" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'facts' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('facts', auPath)}>{t('navigation.facts')}</Button>
-            <Button variant="ghost" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'au_lore' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('au_lore', auPath)}>{t('navigation.auLore')}</Button>
-            <Button variant="ghost" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'settings' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('settings', auPath)}>{t('navigation.settings')}</Button>
+            <Button tone="neutral" fill="plain" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'writer' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('writer', auPath)}>{t('writer.modeWrite')}</Button>
+            <Button tone="neutral" fill="plain" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'facts' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('facts', auPath)}>{t('navigation.facts')}</Button>
+            <Button tone="neutral" fill="plain" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'au_lore' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('au_lore', auPath)}>{t('navigation.auLore')}</Button>
+            <Button tone="neutral" fill="plain" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'settings' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('settings', auPath)}>{t('navigation.settings')}</Button>
           </div>
 
           <div className="px-4 pb-2 text-xs font-sans font-medium text-text/50 shrink-0">
@@ -229,7 +228,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
           </div>
           <div className="flex-1 overflow-y-auto px-2 space-y-1 pb-4">
             {loadingChapters ? (
-              <div className="flex items-center justify-center py-4 text-text/50"><Loader2 size={16} className="animate-spin" /></div>
+              <div className="flex items-center justify-center py-4 text-text/50"><Spinner size="md" /></div>
             ) : chapters.length === 0 ? (
               <EmptyState
                 compact
@@ -240,7 +239,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
                   {
                     key: 'start-writing',
                     element: (
-                      <Button variant="primary" size="sm" onClick={() => onNavigate('writer', auPath)}>
+                      <Button tone="accent" fill="solid" size="sm" onClick={() => onNavigate('writer', auPath)}>
                         {t('common.actions.startWriting')}
                       </Button>
                     ),
@@ -266,7 +265,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
                     setEditingTitleNum(ch.chapter_num);
                     setEditingTitleValue(ch.title || '');
                   }}
-                  className={`px-3 py-2 rounded-md text-sm cursor-pointer transition-colors ${activeTab === 'writer' && viewingChapter === ch.chapter_num ? 'bg-accent/10 text-accent font-medium' : 'hover:bg-black/5 dark:hover:bg-white/5 text-text/80'}`}
+                  className={`px-3 py-2 rounded-md text-sm cursor-pointer transition-colors ${activeTab === 'writer' && viewingChapter === ch.chapter_num ? 'bg-accent/10 text-accent font-medium' : 'hover:bg-black/5 dark:hover:bg-white/5 text-text/90'}`}
                 >
                   <div className="flex items-center gap-2">
                     <span className="opacity-50 text-xs font-mono">#{ch.chapter_num}</span>
@@ -339,10 +338,10 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
       {/* Embedding stale modal (sub-task 5) */}
       <Modal isOpen={embeddingStale && !embeddingDismissed} onClose={() => setEmbeddingDismissed(true)} title={t('embedding.staleTitle')}>
         <div className="space-y-4">
-          <p className="text-sm text-text/80">{t('embedding.staleDesc')}</p>
+          <p className="text-sm text-text/90">{t('embedding.staleDesc')}</p>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setEmbeddingDismissed(true)}>{t('embedding.skipRebuild')}</Button>
-            <Button variant="primary" onClick={() => { setEmbeddingDismissed(true); rebuildIndex(auPath).catch(() => {}); }}>{t('embedding.rebuild')}</Button>
+            <Button tone="neutral" fill="plain" onClick={() => setEmbeddingDismissed(true)}>{t('embedding.skipRebuild')}</Button>
+            <Button tone="accent" fill="solid" onClick={() => { setEmbeddingDismissed(true); rebuildIndex(auPath).catch(() => {}); }}>{t('embedding.rebuild')}</Button>
           </div>
         </div>
       </Modal>

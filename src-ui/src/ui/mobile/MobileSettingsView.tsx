@@ -52,7 +52,7 @@ export function MobileSettingsView({ auPath, currentChapter }: MobileSettingsVie
 
       <div className="pointer-events-none fixed inset-x-0 bottom-24 z-30 flex justify-end px-4 md:hidden">
         <Button
-          variant="primary"
+          tone="accent" fill="solid"
           className="pointer-events-auto h-12 rounded-full px-5 shadow-strong"
           onClick={() => setOverlayOpen(true)}
         >
@@ -65,7 +65,7 @@ export function MobileSettingsView({ auPath, currentChapter }: MobileSettingsVie
         <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
           <header className="safe-area-top flex items-center justify-between border-b border-black/10 bg-surface/95 px-4 py-3 backdrop-blur dark:border-white/10">
             <Button
-              variant="ghost"
+              tone="neutral" fill="plain"
               size="sm"
               className="h-11 px-3"
               onClick={() => setOverlayOpen(false)}

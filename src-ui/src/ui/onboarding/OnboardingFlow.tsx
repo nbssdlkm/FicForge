@@ -83,10 +83,10 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
 
   const closeConfirmDialog = showCloseConfirm && (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
-      <div className="mx-4 max-w-sm rounded-2xl bg-surface p-6 shadow-xl">
-        <p className="text-sm text-text/80 leading-relaxed">{t('onboarding.closeConfirm')}</p>
+      <div className="mx-4 max-w-sm rounded-xl bg-surface p-6 shadow-xl">
+        <p className="text-sm text-text/90 leading-relaxed">{t('onboarding.closeConfirm')}</p>
         <div className="mt-4 flex justify-end gap-2">
-          <button className="rounded-lg px-4 py-2 text-sm text-text/60 hover:bg-black/5 dark:hover:bg-white/5" onClick={() => setShowCloseConfirm(false)}>{t('common.actions.cancel')}</button>
+          <button className="rounded-lg px-4 py-2 text-sm text-text/70 hover:bg-black/5 dark:hover:bg-white/5" onClick={() => setShowCloseConfirm(false)}>{t('common.actions.cancel')}</button>
           <button className="rounded-lg bg-accent px-4 py-2 text-sm text-white" onClick={handleConfirmClose}>{t('onboarding.closeConfirmYes')}</button>
         </div>
       </div>
@@ -107,7 +107,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
       {/* Close button */}
       <div className="absolute top-4 right-4">
         <button
-          className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-text/40 hover:text-text/70 transition-colors"
+          className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-text/50 hover:text-text/70 transition-colors"
           onClick={handleClose}
           aria-label={t('common.actions.close')}
         >

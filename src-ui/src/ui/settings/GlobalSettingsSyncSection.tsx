@@ -3,9 +3,10 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState } from 'react';
+import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
-import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, XCircle } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import type { useSyncOperations } from './useSyncOperations';
 
@@ -53,21 +54,21 @@ export function GlobalSettingsSyncSection({
     <div className="space-y-4 border-t border-black/10 pt-5 dark:border-white/10">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-text/90">{t('settings.sync.title')}</h3>
-        <Button variant="ghost" size="sm" className="text-xs text-accent" onClick={() => setSyncHelpOpen(!syncHelpOpen)}>
+        <Button tone="neutral" fill="plain" size="sm" className="text-xs text-accent" onClick={() => setSyncHelpOpen(!syncHelpOpen)}>
           {syncHelpOpen ? t('common.actions.close') : t('settings.sync.helpButton')}
         </Button>
       </div>
 
       {syncHelpOpen && (
-        <div className="rounded-xl border border-info/20 bg-info/5 p-4 text-sm text-text/80 space-y-3">
+        <div className="rounded-xl border border-info/20 bg-info/5 p-4 text-sm text-text/90 space-y-3">
           <p className="font-medium text-text/90">{t('settings.sync.help.intro')}</p>
           <div>
             <p className="font-medium">{t('settings.sync.help.option1Title')}</p>
-            <p className="text-xs text-text/60 mt-1">{t('settings.sync.help.option1Desc')}</p>
+            <p className="text-xs text-text/70 mt-1">{t('settings.sync.help.option1Desc')}</p>
           </div>
           <div>
             <p className="font-medium">{t('settings.sync.help.option2Title')}</p>
-            <p className="text-xs text-text/60 mt-1">{t('settings.sync.help.option2Desc')}</p>
+            <p className="text-xs text-text/70 mt-1">{t('settings.sync.help.option2Desc')}</p>
           </div>
           <div className="rounded-lg bg-background/60 p-3 text-xs space-y-1">
             <p className="font-medium text-text/70">{t('settings.sync.help.stepsTitle')}</p>
@@ -83,7 +84,7 @@ export function GlobalSettingsSyncSection({
         </div>
       )}
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-text/80">{t('settings.sync.modeLabel')}</label>
+        <label className="text-sm font-medium text-text/90">{t('settings.sync.modeLabel')}</label>
         <select
           value={syncMode}
           onChange={(e) => { setSyncMode(e.target.value as 'none' | 'webdav'); setSyncTestStatus('idle'); }}
@@ -102,31 +103,31 @@ export function GlobalSettingsSyncSection({
           <Input label={t('settings.sync.remoteDir')} value={syncRemoteDir} onChange={(e) => setSyncRemoteDir(e.target.value)} placeholder="/FicForge/" />
           <div className="flex items-center gap-3">
             <Button
-              variant="secondary"
+              tone="neutral" fill="outline"
               size="sm"
               onClick={handleTestWebDAV}
               disabled={!syncUrl.trim() || !syncUsername.trim() || syncTestStatus === 'testing'}
             >
-              {syncTestStatus === 'testing' ? <Loader2 size={14} className="mr-1 animate-spin" /> : null}
+              {syncTestStatus === 'testing' ? <Spinner size="sm" className="mr-1" /> : null}
               {t('settings.sync.testConnection')}
             </Button>
             {syncTestStatus === 'success' && <span className="flex items-center gap-1 text-xs text-success"><CheckCircle2 size={14} /> {t('settings.sync.connected')}</span>}
             {syncTestStatus === 'error' && <span className="flex items-center gap-1 text-xs text-error"><XCircle size={14} /> {t('settings.sync.failed')}</span>}
           </div>
           {lastSync && (
-            <p className="text-xs text-text/40">{t('settings.sync.lastSync')}: {new Date(lastSync).toLocaleString()}</p>
+            <p className="text-xs text-text/50">{t('settings.sync.lastSync')}: {new Date(lastSync).toLocaleString()}</p>
           )}
           <Button
-            variant="primary"
+            tone="accent" fill="solid"
             size="sm"
             className="w-full"
             onClick={() => handleSyncNow(syncMode, setLastSync)}
             disabled={syncTestStatus !== 'success' || syncing}
           >
-            {syncing ? <><Loader2 size={14} className="mr-1 animate-spin" />{t('settings.sync.syncing')}</> : t('settings.sync.syncNow')}
+            {syncing ? <><Spinner size="sm" className="mr-1" />{t('settings.sync.syncing')}</> : t('settings.sync.syncNow')}
           </Button>
           {syncMessage && (
-            <p className={`text-xs mt-2 ${syncResultStatus === 'success' ? 'text-success' : syncResultStatus === 'error' ? 'text-error' : 'text-text/60'}`}>
+            <p className={`text-xs mt-2 ${syncResultStatus === 'success' ? 'text-success' : syncResultStatus === 'error' ? 'text-error' : 'text-text/70'}`}>
               {syncMessage}
             </p>
           )}
@@ -137,7 +138,7 @@ export function GlobalSettingsSyncSection({
                   {detail}
                 </div>
               ))}
-              <p className="text-xs text-text/40 mt-1">{t('settings.sync.opsConflictsMergedHint')}</p>
+              <p className="text-xs text-text/50 mt-1">{t('settings.sync.opsConflictsMergedHint')}</p>
             </div>
           )}
         </div>

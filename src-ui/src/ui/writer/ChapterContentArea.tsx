@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { Loader2 } from 'lucide-react';
+import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
 import { Textarea } from '../shared/Input';
 import { ChapterMarkdown } from '../shared/ChapterMarkdown';
@@ -63,7 +63,7 @@ export const ChapterContentArea = ({
     <div style={{ fontSize: `${fontSize}px`, lineHeight }}>
       {loading ? (
         <div className="flex items-center justify-center py-24">
-          <Loader2 className="animate-spin text-accent" size={24} />
+          <Spinner size="lg" className="text-accent" />
         </div>
       ) : streamText ? (
         <div className="font-serif text-text/90 animate-in fade-in duration-200 pb-8 opacity-90">
@@ -81,11 +81,11 @@ export const ChapterContentArea = ({
                 style={{ fontSize: 'inherit', lineHeight: 'inherit' }}
               />
               <div className="flex items-center gap-2 mt-4 pt-4 border-t border-black/10 dark:border-white/10">
-                <Button variant="primary" size="sm" onClick={onSaveEdit} disabled={savingEdit || editingContent === editingOriginalContent}>
-                  {savingEdit ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
+                <Button tone="accent" fill="solid" size="sm" onClick={onSaveEdit} disabled={savingEdit || editingContent === editingOriginalContent}>
+                  {savingEdit ? <Spinner size="sm" className="mr-1" /> : null}
                   {t('writer.saveEdit')}
                 </Button>
-                <Button variant="ghost" size="sm" onClick={onCancelEdit} disabled={savingEdit}>
+                <Button tone="neutral" fill="plain" size="sm" onClick={onCancelEdit} disabled={savingEdit}>
                   {t('writer.cancelEdit')}
                 </Button>
               </div>
@@ -94,7 +94,7 @@ export const ChapterContentArea = ({
             <>
               <ChapterMarkdown content={viewingHistoryContent} />
               <div className="mt-4 pt-4 border-t border-black/10 dark:border-white/10">
-                <Button variant="secondary" size="sm" onClick={onStartEdit}>
+                <Button tone="neutral" fill="outline" size="sm" onClick={onStartEdit}>
                   {t('writer.editChapter')}
                 </Button>
               </div>
@@ -122,12 +122,12 @@ export const ChapterContentArea = ({
               <span className="text-sm">{generationErrorDisplay.message}</span>
             </div>
             {generationErrorDisplay.actions.includes('check_settings') && (
-              <Button variant="secondary" size="sm" onClick={() => onNavigate('settings')}>
+              <Button tone="neutral" fill="outline" size="sm" onClick={() => onNavigate('settings')}>
                 {t('writer.checkSettings')}
               </Button>
             )}
             <button
-              className="inline-flex min-h-[44px] items-center px-4 text-xs text-text/40 hover:text-text/60"
+              className="inline-flex min-h-[44px] items-center px-4 text-xs text-text/50 hover:text-text/70"
               onClick={onDismissError}
             >
               {t('common.actions.dismiss')}

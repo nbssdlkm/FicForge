@@ -32,7 +32,7 @@ export function HelpTooltip({ text, className }: HelpTooltipProps) {
           <p className="whitespace-pre-line">{text}</p>
           <button
             type="button"
-            className="mt-2 text-[10px] text-accent"
+            className="mt-2 text-xs text-accent"
             onClick={() => setOpen(false)}
           >
             ✕

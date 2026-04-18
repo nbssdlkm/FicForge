@@ -21,7 +21,7 @@ const components: Components = {
   // 段落保持小说排版风格
   p: ({ children }) => <p className="mb-6 indent-8">{children}</p>,
   // 分隔线
-  hr: () => <hr className="my-8 border-t border-black/15 dark:border-white/15" />,
+  hr: () => <hr className="my-8 border-t border-black/10 dark:border-white/15" />,
   // 拦截标题、代码块、列表等 → 降级为段落
   h1: ({ children }) => <p className="mb-6 indent-8">{children}</p>,
   h2: ({ children }) => <p className="mb-6 indent-8">{children}</p>,

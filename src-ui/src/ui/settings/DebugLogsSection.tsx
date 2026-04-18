@@ -10,7 +10,7 @@ import { getLogger } from '../../api/engine-client';
 import type { LogEntry } from '@ficforge/engine';
 
 const LEVEL_COLORS: Record<string, string> = {
-  debug: 'text-text/40',
+  debug: 'text-text/50',
   info: 'text-text/70',
   warn: 'text-warning',
   error: 'text-error',
@@ -93,21 +93,21 @@ export function DebugLogsSection() {
               <option value="warn">{t('settings.debugLogs.filterWarn')}</option>
               <option value="error">{t('settings.debugLogs.filterError')}</option>
             </select>
-            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs gap-1" onClick={() => void loadLogs()}>
+            <Button tone="neutral" fill="plain" size="sm" className="h-8 px-2 text-xs gap-1" onClick={() => void loadLogs()}>
               <RefreshCw size={12} /> {t('settings.debugLogs.refresh')}
             </Button>
-            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs gap-1" onClick={() => void handleCopy()} disabled={!rawText}>
+            <Button tone="neutral" fill="plain" size="sm" className="h-8 px-2 text-xs gap-1" onClick={() => void handleCopy()} disabled={!rawText}>
               <Copy size={12} /> {t('settings.debugLogs.copy')}
             </Button>
-            <span className="text-[10px] text-text/40">{t('settings.debugLogs.count', { count: filtered.length })}</span>
+            <span className="text-xs text-text/50">{t('settings.debugLogs.count', { count: filtered.length })}</span>
           </div>
 
-          <div className="max-h-[40vh] overflow-y-auto rounded-md bg-black/5 p-2 font-mono text-[11px] leading-relaxed dark:bg-white/5">
+          <div className="max-h-[40vh] overflow-y-auto rounded-md bg-black/5 p-2 font-mono text-xs leading-relaxed dark:bg-white/5">
             {filtered.length === 0 ? (
-              <p className="py-4 text-center text-text/40">{t('settings.debugLogs.empty')}</p>
+              <p className="py-4 text-center text-text/50">{t('settings.debugLogs.empty')}</p>
             ) : (
               filtered.map((entry, i) => (
-                <div key={i} className={`${LEVEL_COLORS[entry.lvl] ?? 'text-text/60'} border-b border-black/5 py-0.5 dark:border-white/5`}>
+                <div key={i} className={`${LEVEL_COLORS[entry.lvl] ?? 'text-text/70'} border-b border-black/5 py-0.5 dark:border-white/5`}>
                   <span className="text-text/30">{entry.ts.slice(11, 19)}</span>
                   {' '}
                   <span className="font-semibold uppercase">{entry.lvl.padEnd(5)}</span>

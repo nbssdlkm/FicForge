@@ -17,9 +17,9 @@ const components: Components = {
   h1: ({ children }) => <h1 className="text-xl font-bold mt-6 mb-3 text-text">{children}</h1>,
   h2: ({ children }) => <h2 className="text-lg font-bold mt-5 mb-2 text-text">{children}</h2>,
   h3: ({ children }) => <h3 className="text-base font-bold mt-4 mb-2 text-text/90">{children}</h3>,
-  h4: ({ children }) => <h4 className="text-sm font-bold mt-3 mb-1 text-text/80">{children}</h4>,
+  h4: ({ children }) => <h4 className="text-sm font-bold mt-3 mb-1 text-text/90">{children}</h4>,
   h5: ({ children }) => <h5 className="text-sm font-semibold mt-2 mb-1 text-text/70">{children}</h5>,
-  h6: ({ children }) => <h6 className="text-xs font-semibold mt-2 mb-1 text-text/60">{children}</h6>,
+  h6: ({ children }) => <h6 className="text-xs font-semibold mt-2 mb-1 text-text/70">{children}</h6>,
   p: ({ children }) => <p className="mb-3 leading-relaxed">{children}</p>,
   hr: () => <hr className="my-5 border-t border-black/10 dark:border-white/10" />,
   ul: ({ children }) => <ul className="mb-3 pl-5 list-disc space-y-1">{children}</ul>,
@@ -48,7 +48,7 @@ function stripFrontmatter(text: string): string {
 
 export function SettingsMarkdown({ content }: { content: string }) {
   return (
-    <div className="text-sm text-text/85 max-w-prose">
+    <div className="text-sm text-text/90 max-w-prose">
       <Markdown components={components}>
         {stripFrontmatter(content)}
       </Markdown>

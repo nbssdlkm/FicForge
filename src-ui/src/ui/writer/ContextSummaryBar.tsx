@@ -104,9 +104,9 @@ export function ContextSummaryBar({ summary, onAdjustCoreIncludes }: ContextSumm
     : t('contextSummary.noContext');
   const factsRestCount = Math.max(0, summary.facts_injected - summary.facts_as_focus.length);
 
-  const headingClass = hasWarning ? 'text-warning font-medium' : 'text-text/80 font-medium';
+  const headingClass = hasWarning ? 'text-warning font-medium' : 'text-text/90 font-medium';
   const itemClass = hasWarning ? 'text-warning/90' : 'text-text/70';
-  const emptyClass = hasWarning ? 'text-warning/65' : 'text-text/45';
+  const emptyClass = hasWarning ? 'text-warning/65' : 'text-text/50';
 
   return (
     <div
@@ -141,7 +141,7 @@ export function ContextSummaryBar({ summary, onAdjustCoreIncludes }: ContextSumm
         <div className="flex items-center gap-2 self-start">
           {hasWarning && onAdjustCoreIncludes && (
             <Button
-              variant="ghost"
+              tone="neutral" fill="plain"
               size="sm"
               className="h-11 border border-warning/30 bg-warning/10 text-warning hover:bg-warning/20 hover:text-warning md:h-8"
               onClick={onAdjustCoreIncludes}
@@ -150,11 +150,11 @@ export function ContextSummaryBar({ summary, onAdjustCoreIncludes }: ContextSumm
             </Button>
           )}
           <Button
-            variant="ghost"
+            tone="neutral" fill="plain"
             size="sm"
             className={[
               'h-11 gap-1 px-3 md:h-8 md:px-2',
-              hasWarning ? 'text-warning hover:bg-warning/10 hover:text-warning' : 'text-text/60',
+              hasWarning ? 'text-warning hover:bg-warning/10 hover:text-warning' : 'text-text/70',
             ].join(' ')}
             onClick={() => setExpanded((current) => !current)}
           >

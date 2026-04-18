@@ -3,7 +3,8 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, CheckCircle2, Database, Download, FolderPlus, Globe2, Loader2, Sparkles, X } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Database, Download, FolderPlus, Globe2, Sparkles, X } from 'lucide-react';
+import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
 import { Card } from '../shared/Card';
 import { Input } from '../shared/Input';
@@ -62,7 +63,7 @@ function StepCard({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition-colors ${
+      className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors ${
         active
           ? 'border-accent bg-accent/8 shadow-subtle'
           : 'border-black/10 bg-surface hover:border-accent/40 dark:border-white/10'
@@ -73,7 +74,7 @@ function StepCard({
       </div>
       <div className="min-w-0 flex-1">
         <div className="text-sm font-semibold text-text">{title}</div>
-        <div className="mt-1 text-sm leading-relaxed text-text/60">{description}</div>
+        <div className="mt-1 text-sm leading-relaxed text-text/70">{description}</div>
       </div>
     </button>
   );
@@ -270,7 +271,7 @@ export function MobileOnboarding({
       <header className="safe-area-top flex items-center justify-between border-b border-black/10 bg-background px-4 py-3 dark:border-white/10">
         <div className="min-w-0">
           <div className="text-sm font-semibold text-text">{t('common.appName')}</div>
-          <div className="text-xs text-text/45">{t('onboarding.mobile.header')}</div>
+          <div className="text-xs text-text/50">{t('onboarding.mobile.header')}</div>
         </div>
         <div className="flex items-center gap-3">
           <StepIndicator current={currentStep} total={TOTAL_STEPS} />
@@ -293,7 +294,7 @@ export function MobileOnboarding({
       <main className="flex-1 overflow-y-auto px-4 py-5">
         {loadingSettings ? (
           <div className="flex h-full min-h-[40vh] items-center justify-center">
-            <Loader2 className="animate-spin text-accent" size={28} />
+            <Spinner size="lg" className="text-accent" />
           </div>
         ) : (
           <div className="mx-auto flex w-full max-w-xl flex-col gap-4 pb-8">
@@ -301,7 +302,7 @@ export function MobileOnboarding({
               <>
                 <div className="space-y-2">
                   <h1 className="text-3xl font-serif font-bold">{t('onboarding.mobile.language.title')}</h1>
-                  <p className="text-base leading-relaxed text-text/60">{t('onboarding.mobile.language.subtitle')}</p>
+                  <p className="text-base leading-relaxed text-text/70">{t('onboarding.mobile.language.subtitle')}</p>
                 </div>
 
                 <StepCard
@@ -325,9 +326,9 @@ export function MobileOnboarding({
               <>
                 <div className="space-y-2">
                   <h1 className="text-3xl font-serif font-bold">{t('onboarding.mobile.llm.title')}</h1>
-                  <p className="text-base leading-relaxed text-text/60">{t('onboarding.mobile.llm.subtitle')}</p>
-                  <details className="text-xs text-text/40 mt-2">
-                    <summary className="cursor-pointer hover:text-text/60">{t('onboarding.techDetailsLabel')}</summary>
+                  <p className="text-base leading-relaxed text-text/70">{t('onboarding.mobile.llm.subtitle')}</p>
+                  <details className="text-xs text-text/50 mt-2">
+                    <summary className="cursor-pointer hover:text-text/70">{t('onboarding.techDetailsLabel')}</summary>
                     <p className="mt-1 pl-3 border-l-2 border-text/10">{t('onboarding.mobile.llm.techDetails')}</p>
                   </details>
                 </div>
@@ -356,7 +357,7 @@ export function MobileOnboarding({
                   />
                 </div>
 
-                <Card className="space-y-4 rounded-2xl p-4">
+                <Card className="space-y-4 rounded-xl p-4">
                   <div className="flex items-center gap-1">
                     <span className="text-sm font-medium text-text">{t('onboarding.apiConfig.apiBase')}</span>
                     <HelpTooltip text={t('onboarding.apiConfig.apiBaseTooltip')} />
@@ -376,7 +377,7 @@ export function MobileOnboarding({
                     onChange={event => setApiKey(event.target.value)}
                     placeholder="sk-..."
                   />
-                  <p className="text-xs text-text/40">
+                  <p className="text-xs text-text/50">
                     <button type="button" className="text-accent hover:underline" onClick={() => setHelpOpen(true)}>{t('help.apiSetup.howToGet')}</button>
                   </p>
                   <div className="flex items-center gap-1">
@@ -390,12 +391,12 @@ export function MobileOnboarding({
                   />
 
                   <Button
-                    variant="secondary"
+                    tone="neutral" fill="outline"
                     className="w-full"
                     onClick={handleTestConnection}
                     disabled={connectionStatus === 'testing' || !apiKey.trim() || !apiBase.trim() || !model.trim()}
                   >
-                    {connectionStatus === 'testing' ? <><Loader2 size={16} className="mr-2 animate-spin" />{t('onboarding.apiConfig.testing')}</> : t('onboarding.apiConfig.testConnection')}
+                    {connectionStatus === 'testing' ? <><Spinner size="md" className="mr-2" />{t('onboarding.apiConfig.testing')}</> : t('onboarding.apiConfig.testConnection')}
                   </Button>
 
                   {connectionStatus !== 'idle' && (
@@ -404,7 +405,7 @@ export function MobileOnboarding({
                         ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'
                         : connectionStatus === 'error'
                           ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300'
-                          : 'bg-surface text-text/60'
+                          : 'bg-surface text-text/70'
                     }`}
                     >
                       {connectionMessage}
@@ -418,9 +419,9 @@ export function MobileOnboarding({
               <>
                 <div className="space-y-2">
                   <h1 className="text-3xl font-serif font-bold">{t('onboarding.mobile.embedding.title')}</h1>
-                  <p className="text-base leading-relaxed text-text/60">{t('onboarding.mobile.embedding.subtitle')}</p>
-                  <details className="text-xs text-text/40 mt-2">
-                    <summary className="cursor-pointer hover:text-text/60">{t('onboarding.techDetailsLabel')}</summary>
+                  <p className="text-base leading-relaxed text-text/70">{t('onboarding.mobile.embedding.subtitle')}</p>
+                  <details className="text-xs text-text/50 mt-2">
+                    <summary className="cursor-pointer hover:text-text/70">{t('onboarding.techDetailsLabel')}</summary>
                     <p className="mt-1 pl-3 border-l-2 border-text/10">{t('onboarding.mobile.embedding.techDetails')}</p>
                   </details>
                 </div>
@@ -441,7 +442,7 @@ export function MobileOnboarding({
                 />
 
                 {useCustomEmbedding && (
-                  <Card className="space-y-4 rounded-2xl p-4">
+                  <Card className="space-y-4 rounded-xl p-4">
                     <Input
                       label={t('common.labels.model')}
                       value={embeddingModel}
@@ -461,10 +462,10 @@ export function MobileOnboarding({
                       onChange={event => setEmbeddingApiKey(event.target.value)}
                       placeholder="sk-..."
                     />
-                    <p className="text-xs text-text/40">
+                    <p className="text-xs text-text/50">
                       <button type="button" className="text-accent hover:underline" onClick={() => setHelpOpen(true)}>{t('help.apiSetup.howToGet')}</button>
                     </p>
-                    <p className="text-sm leading-relaxed text-text/55">{t('onboarding.mobile.embedding.recommendedHint')}</p>
+                    <p className="text-sm leading-relaxed text-text/50">{t('onboarding.mobile.embedding.recommendedHint')}</p>
                   </Card>
                 )}
               </>
@@ -474,9 +475,9 @@ export function MobileOnboarding({
               <>
                 <div className="space-y-2">
                   <h1 className="text-3xl font-serif font-bold">{t('onboarding.mobile.setup.title')}</h1>
-                  <p className="text-base leading-relaxed text-text/60">{t('onboarding.mobile.setup.subtitle')}</p>
-                  <details className="text-xs text-text/40 mt-2">
-                    <summary className="cursor-pointer hover:text-text/60">{t('onboarding.techDetailsLabel')}</summary>
+                  <p className="text-base leading-relaxed text-text/70">{t('onboarding.mobile.setup.subtitle')}</p>
+                  <details className="text-xs text-text/50 mt-2">
+                    <summary className="cursor-pointer hover:text-text/70">{t('onboarding.techDetailsLabel')}</summary>
                     <p className="mt-1 pl-3 border-l-2 border-text/10">{t('onboarding.mobile.setup.techDetails')}</p>
                   </details>
                 </div>
@@ -513,7 +514,7 @@ export function MobileOnboarding({
                 </div>
 
                 {setupAction === 'create' && (
-                  <Card className="rounded-2xl p-4">
+                  <Card className="rounded-xl p-4">
                     <div className="space-y-4">
                       <Input
                         label={t('onboarding.createFandom.nameLabel')}
@@ -537,16 +538,16 @@ export function MobileOnboarding({
               <>
                 <div className="space-y-2">
                   <h1 className="text-3xl font-serif font-bold">{t('ethics.onboardingTitle')}</h1>
-                  <p className="text-base leading-relaxed text-text/60">{t('onboarding.mobile.ethics.subtitle')}</p>
+                  <p className="text-base leading-relaxed text-text/70">{t('onboarding.mobile.ethics.subtitle')}</p>
                 </div>
 
-                <Card className="space-y-4 rounded-2xl p-5">
+                <Card className="space-y-4 rounded-xl p-5">
                   <div className="space-y-3 text-sm text-text/70">
                     <p>📱 {t('onboarding.mobile.ethics.privacyNote')}</p>
                     <p>✍️ {t('onboarding.mobile.ethics.aiNote')}</p>
                     <p>📖 {t('onboarding.mobile.ethics.respectNote')}</p>
                   </div>
-                  <label className="flex items-start gap-3 rounded-xl border border-black/10 bg-background px-4 py-3 text-sm text-text/75 dark:border-white/10">
+                  <label className="flex items-start gap-3 rounded-xl border border-black/10 bg-background px-4 py-3 text-sm text-text/70 dark:border-white/10">
                     <input
                       type="checkbox"
                       className="mt-1 accent-accent"
@@ -563,19 +564,19 @@ export function MobileOnboarding({
               <>
                 <div className="space-y-2">
                   <h1 className="text-3xl font-serif font-bold">{t('onboarding.mobile.complete.title')}</h1>
-                  <p className="text-base leading-relaxed text-text/60">{t('onboarding.mobile.complete.subtitle')}</p>
+                  <p className="text-base leading-relaxed text-text/70">{t('onboarding.mobile.complete.subtitle')}</p>
                 </div>
 
-                <Card className="space-y-3 rounded-2xl p-5">
-                  <div className="flex items-start gap-3 text-sm text-text/80">
+                <Card className="space-y-3 rounded-xl p-5">
+                  <div className="flex items-start gap-3 text-sm text-text/90">
                     <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-green-500" />
                     <span>{t('onboarding.mobile.complete.languageSummary', { language: language === 'zh' ? '中文' : 'English' })}</span>
                   </div>
-                  <div className="flex items-start gap-3 text-sm text-text/80">
+                  <div className="flex items-start gap-3 text-sm text-text/90">
                     <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-green-500" />
                     <span>{t('onboarding.mobile.complete.llmSummary', { model })}</span>
                   </div>
-                  <div className="flex items-start gap-3 text-sm text-text/80">
+                  <div className="flex items-start gap-3 text-sm text-text/90">
                     <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-green-500" />
                     <span>
                       {useCustomEmbedding
@@ -583,7 +584,7 @@ export function MobileOnboarding({
                         : t('onboarding.mobile.complete.embeddingSkipped')}
                     </span>
                   </div>
-                  <div className="flex items-start gap-3 text-sm text-text/80">
+                  <div className="flex items-start gap-3 text-sm text-text/90">
                     <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-green-500" />
                     <span>
                       {setupAction === 'create'
@@ -612,7 +613,7 @@ export function MobileOnboarding({
         <footer className="safe-area-bottom border-t border-black/10 bg-background px-4 py-3 dark:border-white/10">
           <div className="mx-auto flex w-full max-w-xl gap-3">
             <Button
-              variant="ghost"
+              tone="neutral" fill="plain"
               className="flex-1"
               onClick={() => {
                 setSubmitError('');
@@ -624,7 +625,7 @@ export function MobileOnboarding({
             </Button>
             {step < TOTAL_STEPS - 1 ? (
               <Button
-                variant="primary"
+                tone="accent" fill="solid"
                 className="flex-1"
                 onClick={() => {
                   setSubmitError('');
@@ -635,8 +636,8 @@ export function MobileOnboarding({
                 {t('onboarding.common.next')}
               </Button>
             ) : (
-              <Button variant="primary" className="flex-1" onClick={handleFinish} disabled={submitting}>
-                {submitting ? <><Loader2 size={16} className="mr-2 animate-spin" />{t('common.status.saving')}</> : t('ethics.onboardingAcknowledge')}
+              <Button tone="accent" fill="solid" className="flex-1" onClick={handleFinish} disabled={submitting}>
+                {submitting ? <><Spinner size="md" className="mr-2" />{t('common.status.saving')}</> : t('ethics.onboardingAcknowledge')}
               </Button>
             )}
           </div>

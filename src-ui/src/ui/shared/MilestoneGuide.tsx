@@ -27,16 +27,16 @@ export function MilestoneGuide({
           <Lightbulb size={18} className="text-accent shrink-0 mt-0.5" />
           <div className="min-w-0 space-y-1">
             <div className="text-sm font-medium text-text/90">{title}</div>
-            <div className="text-xs text-text/60 leading-relaxed">{description}</div>
+            <div className="text-xs text-text/70 leading-relaxed">{description}</div>
             {(primaryAction || secondaryAction) && (
               <div className="flex items-center gap-2 pt-1">
                 {primaryAction && (
-                  <Button variant="primary" size="sm" className="text-xs h-7 px-3" onClick={primaryAction.onClick}>
+                  <Button tone="accent" fill="solid" size="sm" className="text-xs h-7 px-3" onClick={primaryAction.onClick}>
                     {primaryAction.label}
                   </Button>
                 )}
                 {secondaryAction && (
-                  <Button variant="ghost" size="sm" className="text-xs h-7 px-3" onClick={secondaryAction.onClick}>
+                  <Button tone="neutral" fill="plain" size="sm" className="text-xs h-7 px-3" onClick={secondaryAction.onClick}>
                     {secondaryAction.label}
                   </Button>
                 )}
@@ -45,7 +45,7 @@ export function MilestoneGuide({
           </div>
         </div>
         <button
-          className="shrink-0 p-1 rounded hover:bg-black/5 dark:hover:bg-white/5 text-text/30 hover:text-text/60 transition-colors"
+          className="shrink-0 p-1 rounded hover:bg-black/5 dark:hover:bg-white/5 text-text/30 hover:text-text/70 transition-colors"
           onClick={onDismiss}
         >
           <X size={14} />

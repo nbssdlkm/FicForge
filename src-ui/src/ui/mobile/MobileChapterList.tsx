@@ -3,7 +3,8 @@
 // See LICENSE file in the project root for full license text.
 
 import { useRef, useState } from "react";
-import { BookOpen, ChevronRight, Loader2, Pencil } from "lucide-react";
+import { BookOpen, ChevronRight, Pencil } from "lucide-react";
+import { Spinner } from "../shared/Spinner";
 import type { ChapterInfo } from "../../api/engine-client";
 import { updateChapterTitle } from "../../api/engine-client";
 import { useTranslation } from "../../i18n/useAppTranslation";
@@ -71,13 +72,13 @@ export function MobileChapterList({
       <header className="safe-area-top border-b border-black/10 bg-surface/80 px-4 py-4 backdrop-blur dark:border-white/10">
         <p className="text-xs font-medium text-text/50">{t("navigation.chapters")}</p>
         <h1 className="mt-1 truncate font-serif text-2xl font-bold text-text">{auName}</h1>
-        <p className="mt-1 text-sm text-text/55">{t("mobile.chapters.hint")}</p>
+        <p className="mt-1 text-sm text-text/50">{t("mobile.chapters.hint")}</p>
       </header>
 
       <div className="flex-1 overflow-y-auto space-y-3 px-4 py-4">
         {loading ? (
           <div className="flex items-center justify-center py-16 text-text/50">
-            <Loader2 size={22} className="animate-spin" />
+            <Spinner size="md" />
           </div>
         ) : chapters.length === 0 ? (
           <EmptyState
@@ -101,7 +102,7 @@ export function MobileChapterList({
                 onSelectChapter(chapter.chapter_num);
               }}
               className={cn(
-                "flex w-full items-center justify-between rounded-2xl border px-4 py-4 text-left transition-colors",
+                "flex w-full items-center justify-between rounded-xl border px-4 py-4 text-left transition-colors",
                 selectedChapter === chapter.chapter_num
                   ? "border-accent/40 bg-accent/8 text-accent"
                   : "border-black/10 bg-surface/35 text-text hover:border-accent/20 hover:bg-surface/70 dark:border-white/10"

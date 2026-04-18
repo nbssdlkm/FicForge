@@ -22,8 +22,8 @@ export function SplashScreen({ visible }: SplashScreenProps) {
         <BookOpen size={56} strokeWidth={1.5} className="mb-5 text-accent" />
         <h1 className="font-serif text-3xl font-bold tracking-tight text-text">FicForge</h1>
         <p className="mt-1 text-base text-text/50">{t("app.splash.subtitle")}</p>
-        <p className="mt-8 text-sm text-text/35">{t("app.splash.sloganZh")}</p>
-        <p className="mt-1 text-xs italic text-text/25">{t("app.splash.sloganEn")}</p>
+        <p className="mt-8 text-sm text-text/30">{t("app.splash.sloganZh")}</p>
+        <p className="mt-1 text-xs italic text-text/30">{t("app.splash.sloganEn")}</p>
         <div className="mt-10 h-5 w-5 animate-spin rounded-full border-2 border-accent/30 border-t-accent" />
       </div>
     </div>

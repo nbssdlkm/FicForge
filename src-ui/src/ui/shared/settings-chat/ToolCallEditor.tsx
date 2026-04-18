@@ -51,7 +51,7 @@ function renderCharactersPicker(
           {availableCharacterNames.map((name) => {
             const checked = selected.has(name);
             return (
-              <label key={name} className="inline-flex items-center gap-2 text-sm text-text/80">
+              <label key={name} className="inline-flex items-center gap-2 text-sm text-text/90">
                 <input
                   type="checkbox"
                   className="accent-accent"
@@ -393,11 +393,11 @@ export function ToolCallEditor({
         <label className="text-xs font-medium text-text/70">{t("common.labels.coreAlwaysInclude")}</label>
         <div className="rounded-lg border border-black/10 bg-background/50 p-3 dark:border-white/10">
           {availableCharacterNames.length === 0 ? (
-            <p className="text-sm text-text/55">{t("settingsMode.editor.noCharacters")}</p>
+            <p className="text-sm text-text/50">{t("settingsMode.editor.noCharacters")}</p>
           ) : (
             <div className="flex flex-wrap gap-3">
               {availableCharacterNames.map((name) => (
-                <label key={name} className="inline-flex items-center gap-2 text-sm text-text/80">
+                <label key={name} className="inline-flex items-center gap-2 text-sm text-text/90">
                   <input
                     type="checkbox"
                     className="accent-accent"
@@ -424,7 +424,7 @@ export function ToolCallEditor({
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-text/60">{t("settingsMode.editor.unsupportedTool", { mode })}</p>
+      <p className="text-sm text-text/70">{t("settingsMode.editor.unsupportedTool", { mode })}</p>
       <Textarea
         label={t("settingsMode.editor.rawArguments")}
         value={JSON.stringify(value, null, 2)}

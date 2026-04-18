@@ -3,6 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useRef, useState } from "react";
+import { Spinner } from "./Spinner";
 import { ApiError } from "../../api/engine-client";
 import {
   listTrash,
@@ -17,7 +18,7 @@ import { useTranslation } from "../../i18n/useAppTranslation";
 import { Button } from "./Button";
 import { EmptyState } from "./EmptyState";
 import { Modal } from "./Modal";
-import { ChevronDown, ChevronRight, FileText, FolderOpen, Loader2, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, FolderOpen, Trash2 } from "lucide-react";
 
 type TrashPanelProps = {
   scope: TrashScope;
@@ -231,7 +232,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
       <div className="shrink-0 border-t border-black/10 bg-surface/80 dark:border-white/10">
         <button
           type="button"
-          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-text/80 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-text/90 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
           onClick={() => setIsExpanded((current) => !current)}
           disabled={disabled}
         >
@@ -239,16 +240,16 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
             {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             <Trash2 size={14} className="text-text/50" />
             <span>{t("trash.title")}</span>
-            <span className="text-text/45">{t("trash.count", { count: entries.length })}</span>
+            <span className="text-text/50">{t("trash.count", { count: entries.length })}</span>
           </span>
-          {loading && <Loader2 size={14} className="animate-spin text-accent" />}
+          {loading && <Spinner size="sm" className="text-accent" />}
         </button>
 
         {isExpanded && (
           <div className="space-y-3 border-t border-black/10 px-4 py-4 dark:border-white/10">
             {loading ? (
               <div className="flex justify-center py-6">
-                <Loader2 size={20} className="animate-spin text-accent" />
+                <Spinner size="md" className="text-accent" />
               </div>
             ) : entries.length === 0 ? (
               <EmptyState
@@ -268,7 +269,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
                       className="rounded-lg border border-black/10 bg-background/60 p-3 shadow-subtle dark:border-white/10"
                     >
                       <div className="flex items-start gap-3">
-                        <div className="mt-0.5 text-text/45">
+                        <div className="mt-0.5 text-text/50">
                           {isDirectoryEntry(entry) ? <FolderOpen size={16} /> : <FileText size={16} />}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -276,13 +277,13 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
                             {getEntryLabel(entry)}
                           </div>
                           <div
-                            className="mt-1 text-xs text-text/55"
+                            className="mt-1 text-xs text-text/50"
                             title={formatAbsoluteTime(entry.deleted_at, timeLocale)}
                           >
                             {t("trash.deletedAt", { time: formatRelativeTime(entry.deleted_at, timeLocale) })}
                           </div>
                           <div
-                            className="text-xs text-text/45"
+                            className="text-xs text-text/50"
                             title={formatAbsoluteTime(entry.expires_at, timeLocale)}
                           >
                             {expiresInDays === null
@@ -295,15 +296,15 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
                       </div>
                       <div className="mt-3 flex justify-end gap-2">
                         <Button
-                          variant="secondary"
+                          tone="neutral" fill="outline"
                           size="sm"
                           onClick={() => { void handleRestore(entry); }}
                           disabled={isBusy || disabled}
                         >
-                          {pendingId === entry.trash_id ? <Loader2 size={14} className="animate-spin" /> : t("trash.restore")}
+                          {pendingId === entry.trash_id ? <Spinner size="sm" /> : t("trash.restore")}
                         </Button>
                         <Button
-                          variant="ghost"
+                          tone="neutral" fill="plain"
                           size="sm"
                           className="text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
                           onClick={() => setDeleteTarget(entry)}
@@ -317,13 +318,13 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
                 })}
                 <div className="flex justify-end pt-1">
                   <Button
-                    variant="ghost"
+                    tone="neutral" fill="plain"
                     size="sm"
                     className="text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
                     onClick={() => setClearAllOpen(true)}
                     disabled={isClearingAll || disabled}
                   >
-                    {isClearingAll ? <Loader2 size={14} className="animate-spin" /> : t("trash.clearAll")}
+                    {isClearingAll ? <Spinner size="sm" /> : t("trash.clearAll")}
                   </Button>
                 </div>
               </>
@@ -338,20 +339,20 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
         title={t("trash.permanentDelete")}
       >
         <div className="space-y-4">
-          <p className="text-sm text-text/80">
+          <p className="text-sm text-text/90">
             {t("trash.confirmDelete", { name: deleteTarget ? getEntryLabel(deleteTarget) : "" })}
           </p>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
+            <Button tone="neutral" fill="plain" onClick={() => setDeleteTarget(null)}>
               {t("common.actions.cancel")}
             </Button>
             <Button
-              variant="primary"
+              tone="accent" fill="solid"
               className="bg-red-600 text-white hover:bg-red-700"
               onClick={() => { void handlePermanentDelete(); }}
               disabled={pendingId !== null || disabled}
             >
-              {pendingId && deleteTarget ? <Loader2 size={14} className="animate-spin" /> : t("common.actions.confirmDelete")}
+              {pendingId && deleteTarget ? <Spinner size="sm" /> : t("common.actions.confirmDelete")}
             </Button>
           </div>
         </div>
@@ -363,20 +364,20 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
         title={t("trash.clearAll")}
       >
         <div className="space-y-4">
-          <p className="text-sm text-text/80">
+          <p className="text-sm text-text/90">
             {t("trash.confirmClearAll", { count: entries.length })}
           </p>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setClearAllOpen(false)}>
+            <Button tone="neutral" fill="plain" onClick={() => setClearAllOpen(false)}>
               {t("common.actions.cancel")}
             </Button>
             <Button
-              variant="primary"
+              tone="accent" fill="solid"
               className="bg-red-600 text-white hover:bg-red-700"
               onClick={() => { void handleClearAll(); }}
               disabled={isClearingAll || disabled}
             >
-              {isClearingAll ? <Loader2 size={14} className="animate-spin" /> : t("trash.clearAll")}
+              {isClearingAll ? <Spinner size="sm" /> : t("trash.clearAll")}
             </Button>
           </div>
         </div>
@@ -388,9 +389,9 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
         title={t("trash.restore")}
       >
         <div className="space-y-4">
-          <p className="text-sm text-text/80">{t("trash.restoreConflict")}</p>
+          <p className="text-sm text-text/90">{t("trash.restoreConflict")}</p>
           <div className="flex justify-end">
-            <Button variant="primary" onClick={() => setRestoreConflictOpen(false)}>
+            <Button tone="accent" fill="solid" onClick={() => setRestoreConflictOpen(false)}>
               {t("shared.feedback.acknowledge")}
             </Button>
           </div>

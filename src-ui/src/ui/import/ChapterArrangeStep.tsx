@@ -175,7 +175,7 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
                 {/* Batch actions */}
                 <div className="mb-3 flex flex-wrap gap-2">
                   <Button
-                    variant="ghost"
+                    tone="neutral" fill="plain"
                     size="sm"
                     className="text-xs"
                     onClick={() => batchAction(analyses, fileIndex, "skipAllUser", onUpdateAnalyses)}
@@ -183,7 +183,7 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
                     {t("import.step3BatchSkipUser")}
                   </Button>
                   <Button
-                    variant="ghost"
+                    tone="neutral" fill="plain"
                     size="sm"
                     className="text-xs"
                     onClick={() => batchAction(analyses, fileIndex, "allAiChapter", onUpdateAnalyses)}
@@ -191,7 +191,7 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
                     {t("import.step3BatchAllChapter")}
                   </Button>
                   <Button
-                    variant="ghost"
+                    tone="neutral" fill="plain"
                     size="sm"
                     className="text-xs"
                     onClick={() => handleReapplyThresholds(fileIndex)}
@@ -221,7 +221,7 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
                       })}
                       {hasMore && (
                         <Button
-                          variant="ghost"
+                          tone="neutral" fill="plain"
                           size="sm"
                           className="w-full text-xs text-accent"
                           onClick={() => setVisibleCounts((prev) => {
@@ -256,8 +256,8 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
 
       {/* Navigation */}
       <div className="flex justify-between pt-2">
-        <Button variant="ghost" onClick={onBack}>{t("onboarding.common.prev")}</Button>
-        <Button variant="primary" onClick={onNext} disabled={globalStats.chapters === 0}>
+        <Button tone="neutral" fill="plain" onClick={onBack}>{t("onboarding.common.prev")}</Button>
+        <Button tone="accent" fill="solid" onClick={onNext} disabled={globalStats.chapters === 0}>
           {t("onboarding.common.next")}
         </Button>
       </div>

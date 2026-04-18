@@ -71,7 +71,7 @@ export function FileSelectStep({
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-text/60">{t("import.supportedFormats")}</p>
+      <p className="text-sm text-text/70">{t("import.supportedFormats")}</p>
 
       <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-sm text-warning">
         <span className="shrink-0">⚠️</span>
@@ -80,7 +80,7 @@ export function FileSelectStep({
 
       {/* Drop zone */}
       <div
-        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${dragOver ? "border-accent bg-accent/5" : "border-black/15 dark:border-white/15 hover:border-accent/50"}`}
+        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${dragOver ? "border-accent bg-accent/5" : "border-black/10 dark:border-white/15 hover:border-accent/50"}`}
         onClick={() => inputRef.current?.click()}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
@@ -102,7 +102,7 @@ export function FileSelectStep({
       {/* File list */}
       {files.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs text-text/40">
+          <p className="text-xs text-text/50">
             {isMobile ? t("import.step1HintMobile") : t("import.step1Hint")}
           </p>
           <div className="space-y-1.5">
@@ -118,7 +118,7 @@ export function FileSelectStep({
                     onClick={() => moveFile(index, -1)}
                     disabled={index === 0}
                     aria-label={t("import.moveUp")}
-                    className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-text/30 hover:text-text/60 disabled:opacity-20"
+                    className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-text/30 hover:text-text/70 disabled:opacity-20"
                   >
                     <ChevronUp size={14} />
                   </button>
@@ -127,7 +127,7 @@ export function FileSelectStep({
                     onClick={() => moveFile(index, 1)}
                     disabled={index === files.length - 1}
                     aria-label={t("import.moveDown")}
-                    className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-text/30 hover:text-text/60 disabled:opacity-20"
+                    className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-text/30 hover:text-text/70 disabled:opacity-20"
                   >
                     <ChevronDown size={14} />
                   </button>
@@ -136,7 +136,7 @@ export function FileSelectStep({
                 <FileText size={16} className="shrink-0 text-accent" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm text-text">{file.name}</p>
-                  <p className="text-xs text-text/40">{formatSize(file.size)}</p>
+                  <p className="text-xs text-text/50">{formatSize(file.size)}</p>
                 </div>
                 <button
                   type="button"
@@ -154,7 +154,7 @@ export function FileSelectStep({
 
       <div className="flex justify-end">
         <Button
-          variant="primary"
+          tone="accent" fill="solid"
           onClick={() => onNext(files)}
           disabled={files.length === 0 || disabled}
         >

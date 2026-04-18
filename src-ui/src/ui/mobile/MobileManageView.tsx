@@ -37,7 +37,7 @@ export function MobileManageView({
         <p className="text-xs font-medium text-text/50">
           {t("workspace.mobileTabs.manage")}
         </p>
-        <div className="mt-3 inline-flex w-full rounded-2xl border border-black/10 bg-background/70 p-1 dark:border-white/10">
+        <div className="mt-3 inline-flex w-full rounded-xl border border-black/10 bg-background/70 p-1 dark:border-white/10">
           {[
             { id: "facts", label: t("facts.title"), Icon: SlidersHorizontal },
             { id: "project", label: t("workspace.projectSection"), Icon: Trash2 },
@@ -48,7 +48,7 @@ export function MobileManageView({
               onClick={() => setSection(id as ManageSection)}
               className={cn(
                 "flex min-h-[44px] flex-1 items-center justify-center rounded-xl text-sm font-medium transition-colors",
-                section === id ? "bg-accent text-white" : "text-text/55"
+                section === id ? "bg-accent text-white" : "text-text/50"
               )}
             >
               <Icon size={15} className="mr-2" />
@@ -65,7 +65,7 @@ export function MobileManageView({
           <div className="space-y-4">
             <AuSettingsLayout auPath={auPath} />
             <div className="px-4 pb-28">
-              <div className="overflow-hidden rounded-2xl border border-black/10 bg-surface/35 dark:border-white/10">
+              <div className="overflow-hidden rounded-xl border border-black/10 bg-surface/35 dark:border-white/10">
                 <TrashPanel scope="au" path={auPath} />
               </div>
             </div>

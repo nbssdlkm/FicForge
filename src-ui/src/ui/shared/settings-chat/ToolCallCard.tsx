@@ -3,7 +3,8 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Spinner } from "../Spinner";
 import { useMediaQuery } from "../../../hooks/useMediaQuery";
 import { Button } from "../Button";
 import { Card } from "../Card";
@@ -117,16 +118,16 @@ function renderFactSummary(card: ToolCallCardState, t: ToolCallCardProps["t"]) {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm leading-relaxed text-text/80">
+      <p className="text-sm leading-relaxed text-text/90">
         {coerceString(args.content_clean) || coerceString(args.content_raw) || t("common.none")}
       </p>
       <div className="flex flex-wrap gap-2">
-        {type ? <Tag variant="info">{getEnumLabel("fact_type", type, type)}</Tag> : null}
-        {weight ? <Tag variant="warning">{getEnumLabel("narrative_weight", weight, weight)}</Tag> : null}
-        {status ? <Tag variant="default">{getEnumLabel("fact_status", status, status)}</Tag> : null}
+        {type ? <Tag tone="info">{getEnumLabel("fact_type", type, type)}</Tag> : null}
+        {weight ? <Tag tone="warning">{getEnumLabel("narrative_weight", weight, weight)}</Tag> : null}
+        {status ? <Tag tone="default">{getEnumLabel("fact_status", status, status)}</Tag> : null}
       </div>
       {characters.length > 0 ? (
-        <p className="text-xs text-text/55">
+        <p className="text-xs text-text/50">
           {t("common.labels.characters")}{t("common.labelColon")}{characters.join(t("common.listSeparator"))}
         </p>
       ) : null}
@@ -224,7 +225,7 @@ export function ToolCallCard({
   const statusTag = card.status === "pending"
     ? null
     : (
-      <Tag variant={getStatusVariant(card)}>
+      <Tag tone={getStatusVariant(card)}>
         {card.status === "executed"
           ? t("settingsMode.executed")
           : card.status === "skipped"
@@ -244,7 +245,7 @@ export function ToolCallCard({
           <h4 className="text-sm font-semibold text-text">{getCardTitle(card, mode, t)}</h4>
           {statusTag}
         </div>
-        {card.isLoading ? <Loader2 size={16} className="animate-spin text-accent" /> : null}
+        {card.isLoading ? <Spinner size="md" className="text-accent" /> : null}
       </div>
 
       {card.parseError ? (
@@ -293,7 +294,7 @@ export function ToolCallCard({
       ) : null}
 
       {!isEditing || isMobile ? (
-        <div className="space-y-3 text-sm text-text/75">
+        <div className="space-y-3 text-sm text-text/70">
           {(() => {
             const args = card.parsedArgs;
             const toolName = getToolCallName(card);
@@ -327,7 +328,7 @@ export function ToolCallCard({
             }
 
             if (toolName === "add_pinned_context") {
-              return <p className="text-sm leading-relaxed text-text/80">{coerceString(args.content) || t("common.none")}</p>;
+              return <p className="text-sm leading-relaxed text-text/90">{coerceString(args.content) || t("common.none")}</p>;
             }
 
             if (toolName === "update_writing_style") {
@@ -369,11 +370,11 @@ export function ToolCallCard({
 
           {preview ? (
             <div className="rounded-lg border border-black/10 bg-background/40 p-3 dark:border-white/10">
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-text/80">
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-text/90">
                 {isExpanded ? preview.full : preview.preview}
               </p>
               <Button
-                variant="ghost"
+                tone="neutral" fill="plain"
                 size="sm"
                 className="mt-2 h-11 px-3 text-sm sm:h-7 sm:px-2 sm:text-xs"
                 onClick={() => setExpanded((current) => !current)}
@@ -400,7 +401,7 @@ export function ToolCallCard({
           <div className="flex items-center gap-2 text-sm text-success">
             <span>{card.resultNote || t("settingsMode.executed")}</span>
             {card.undoMeta?.kind === "unsupported" ? (
-              <span className="inline-flex items-center gap-1 text-text/55">
+              <span className="inline-flex items-center gap-1 text-text/50">
                 <AlertCircle size={13} />
                 {card.undoMeta.note || t("settingsMode.undoNotSupported")}
               </span>
@@ -408,7 +409,7 @@ export function ToolCallCard({
           </div>
           {card.undoMeta && card.undoMeta.kind !== "unsupported" ? (
             <Button
-              variant="ghost"
+              tone="neutral" fill="plain"
               size="sm"
               className="h-11 w-full gap-1 text-text/70 sm:h-8 sm:w-auto"
               onClick={() => void onUndo(card.id)}
@@ -423,7 +424,7 @@ export function ToolCallCard({
           {isEditing && !isMobile ? (
             <>
               <Button
-                variant="ghost"
+                tone="neutral" fill="plain"
                 size="sm"
                 className="w-full sm:w-auto"
                 onClick={handleCancelEdit}
@@ -432,28 +433,28 @@ export function ToolCallCard({
                 {t("common.actions.cancel")}
               </Button>
               <Button
-                variant="primary"
+                tone="accent" fill="solid"
                 size="sm"
                 className="w-full sm:w-auto"
                 onClick={() => void onConfirm(card.id, draftArgs)}
                 disabled={!canConfirm}
               >
-                {card.isLoading ? <Loader2 size={14} className="animate-spin" /> : t("settingsMode.confirm")}
+                {card.isLoading ? <Spinner size="sm" /> : t("settingsMode.confirm")}
               </Button>
             </>
           ) : (
             <>
               <Button
-                variant="primary"
+                tone="accent" fill="solid"
                 size="sm"
                 className="w-full sm:w-auto"
                 onClick={() => void onConfirm(card.id)}
                 disabled={!canConfirm}
               >
-                {card.isLoading ? <Loader2 size={14} className="animate-spin" /> : t("settingsMode.confirm")}
+                {card.isLoading ? <Spinner size="sm" /> : t("settingsMode.confirm")}
               </Button>
               <Button
-                variant="secondary"
+                tone="neutral" fill="outline"
                 size="sm"
                 className="w-full sm:w-auto"
                 onClick={() => setEditing(true)}
@@ -462,7 +463,7 @@ export function ToolCallCard({
                 {t("settingsMode.editAndConfirm")}
               </Button>
               <Button
-                variant="ghost"
+                tone="neutral" fill="plain"
                 size="sm"
                 className="w-full sm:w-auto"
                 onClick={() => onSkip(card.id)}
@@ -490,11 +491,11 @@ export function ToolCallCard({
             t={t}
           />
           <div className="flex flex-col gap-2 border-t border-black/10 pt-4 dark:border-white/10">
-            <Button variant="ghost" onClick={handleCancelEdit} disabled={globalBusy && !card.isLoading}>
+            <Button tone="neutral" fill="plain" onClick={handleCancelEdit} disabled={globalBusy && !card.isLoading}>
               {t("common.actions.cancel")}
             </Button>
-            <Button variant="primary" onClick={() => void onConfirm(card.id, draftArgs)} disabled={!canConfirm}>
-              {card.isLoading ? <Loader2 size={14} className="animate-spin" /> : t("settingsMode.confirm")}
+            <Button tone="accent" fill="solid" onClick={() => void onConfirm(card.id, draftArgs)} disabled={!canConfirm}>
+              {card.isLoading ? <Spinner size="sm" /> : t("settingsMode.confirm")}
             </Button>
           </div>
         </div>

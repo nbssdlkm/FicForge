@@ -15,7 +15,7 @@ export function ApiSetupHelp({ isOpen, onClose }: ApiSetupHelpProps) {
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t("help.apiSetup.title")}>
-      <div className="space-y-6 text-sm text-text/80">
+      <div className="space-y-6 text-sm text-text/90">
         {/* What is API Key */}
         <section>
           <h3 className="mb-2 text-base font-bold text-text">{t("help.apiSetup.whatIsKey")}</h3>
@@ -59,15 +59,15 @@ export function ApiSetupHelp({ isOpen, onClose }: ApiSetupHelpProps) {
           <div className="space-y-3">
             <div>
               <p className="font-medium">DeepSeek</p>
-              <p className="text-xs text-text/60">{t("help.apiSetup.deepseekSteps")}</p>
+              <p className="text-xs text-text/70">{t("help.apiSetup.deepseekSteps")}</p>
             </div>
             <div>
               <p className="font-medium">OpenAI</p>
-              <p className="text-xs text-text/60">{t("help.apiSetup.openaiSteps")}</p>
+              <p className="text-xs text-text/70">{t("help.apiSetup.openaiSteps")}</p>
             </div>
             <div>
               <p className="font-medium">{t("help.apiSetup.siliconflow")}</p>
-              <p className="text-xs text-text/60">{t("help.apiSetup.siliconflowSteps")}</p>
+              <p className="text-xs text-text/70">{t("help.apiSetup.siliconflowSteps")}</p>
             </div>
           </div>
         </section>
@@ -78,15 +78,15 @@ export function ApiSetupHelp({ isOpen, onClose }: ApiSetupHelpProps) {
           <div className="space-y-3 text-xs">
             <div>
               <p className="font-medium">{t("help.apiSetup.faqTestFail")}</p>
-              <p className="text-text/60">{t("help.apiSetup.faqTestFailAnswer")}</p>
+              <p className="text-text/70">{t("help.apiSetup.faqTestFailAnswer")}</p>
             </div>
             <div>
               <p className="font-medium">{t("help.apiSetup.faqSafe")}</p>
-              <p className="text-text/60">{t("help.apiSetup.faqSafeAnswer")}</p>
+              <p className="text-text/70">{t("help.apiSetup.faqSafeAnswer")}</p>
             </div>
             <div>
               <p className="font-medium">{t("help.apiSetup.faqFree")}</p>
-              <p className="text-text/60">{t("help.apiSetup.faqFreeAnswer")}</p>
+              <p className="text-text/70">{t("help.apiSetup.faqFreeAnswer")}</p>
             </div>
           </div>
         </section>

@@ -5,11 +5,11 @@
 import type { ReactNode } from 'react';
 import { cn } from './utils';
 
-export type InlineBannerVariant = 'info' | 'warning';
+export type InlineBannerTone = 'info' | 'warning';
 export type InlineBannerLayout = 'card' | 'bar';
 
 export interface InlineBannerProps {
-  variant?: InlineBannerVariant;
+  tone?: InlineBannerTone;
   layout?: InlineBannerLayout;
   message: ReactNode;
   actions?: ReactNode;
@@ -17,7 +17,7 @@ export interface InlineBannerProps {
   className?: string;
 }
 
-const variantStyles: Record<InlineBannerVariant, string> = {
+const toneStyles: Record<InlineBannerTone, string> = {
   info: 'border-info/30 bg-info/10 text-info',
   warning: 'border-warning/30 bg-warning/10 text-warning',
 };
@@ -28,7 +28,7 @@ const layoutStyles: Record<InlineBannerLayout, string> = {
 };
 
 export function InlineBanner({
-  variant = 'info',
+  tone = 'info',
   layout = 'card',
   message,
   actions,
@@ -39,7 +39,7 @@ export function InlineBanner({
     <div
       className={cn(
         'flex flex-col gap-2 md:flex-row md:items-center md:justify-between',
-        variantStyles[variant],
+        toneStyles[tone],
         layoutStyles[layout],
         compact ? 'text-xs' : 'text-sm',
         className,

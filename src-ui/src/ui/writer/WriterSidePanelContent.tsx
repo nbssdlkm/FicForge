@@ -98,11 +98,11 @@ export const WriterSidePanelContent = ({
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-xs font-medium text-text/70">{t('writer.focusTitle')}</h3>
                 <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" className="text-xs" onClick={onClearFocus} disabled={focusSelection.length === 0}>
+                  <Button tone="neutral" fill="plain" size="sm" className="text-xs" onClick={onClearFocus} disabled={focusSelection.length === 0}>
                     {t('writer.freeWrite')}
                   </Button>
                   {lastConfirmedFocus.length > 0 ? (
-                    <Button variant="ghost" size="sm" className="text-xs" onClick={onContinueLastFocus}>
+                    <Button tone="neutral" fill="plain" size="sm" className="text-xs" onClick={onContinueLastFocus}>
                       {t('focus.continueLastChapter')}
                     </Button>
                   ) : null}
@@ -111,24 +111,24 @@ export const WriterSidePanelContent = ({
             ) : (
               <>
                 <h3 className="text-xs font-sans font-medium mb-1 text-text/70">{t('writer.focusTitle')}</h3>
-                <p className="text-[10px] text-text/35 mb-3">{t('writer.focusHint')}</p>
+                <p className="text-xs text-text/30 mb-3">{t('writer.focusHint')}</p>
               </>
             )}
 
             {isMobile ? (
               <div className="space-y-2">
                 {unresolvedFacts.length === 0 ? (
-                  <p className="text-sm text-text/45">{t('facts.noSearchResultDescription')}</p>
+                  <p className="text-sm text-text/50">{t('facts.noSearchResultDescription')}</p>
                 ) : unresolvedFacts.map((fact) => {
                   const isHigh = fact.narrative_weight === 'high';
                   return (
                     <label key={fact.id} className={`flex items-start gap-3 rounded-xl border p-3 ${focusSelection.includes(String(fact.id)) ? 'border-accent/30 bg-accent/5' : 'border-black/10 bg-surface/35 dark:border-white/10'}`}>
                       <input type="checkbox" className="mt-1 accent-accent" checked={focusSelection.includes(String(fact.id))} onChange={() => onFocusToggle(String(fact.id))} />
                       <div className="space-y-2">
-                        <p className="text-sm text-text/85">{fact.content_clean}</p>
+                        <p className="text-sm text-text/90">{fact.content_clean}</p>
                         <div className="flex flex-wrap items-center gap-2">
-                          <Tag variant="warning">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</Tag>
-                          {isHigh ? <Tag variant="info">{t('focus.recommended')}</Tag> : null}
+                          <Tag tone="warning">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</Tag>
+                          {isHigh ? <Tag tone="info">{t('focus.recommended')}</Tag> : null}
                         </div>
                       </div>
                     </label>
@@ -138,11 +138,11 @@ export const WriterSidePanelContent = ({
             ) : (
               <div className="space-y-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <Button variant="ghost" size="sm" className="text-xs" onClick={onClearFocus} disabled={focusSelection.length === 0}>
+                  <Button tone="neutral" fill="plain" size="sm" className="text-xs" onClick={onClearFocus} disabled={focusSelection.length === 0}>
                     {t('writer.freeWrite')}
                   </Button>
                   {lastConfirmedFocus.length > 0 && (
-                    <Button variant="ghost" size="sm" className="text-xs" onClick={onContinueLastFocus}>
+                    <Button tone="neutral" fill="plain" size="sm" className="text-xs" onClick={onContinueLastFocus}>
                       {t('focus.continueLastChapter')}
                     </Button>
                   )}
@@ -155,15 +155,15 @@ export const WriterSidePanelContent = ({
                       <div className="flex flex-col">
                         <span className="text-sm">{fact.content_clean}</span>
                         <div className="flex items-center gap-1.5 mt-1.5">
-                          <Tag variant="warning" className="w-fit">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</Tag>
-                          {isHigh && <Tag variant="info" className="w-fit text-[10px]">{t('focus.recommended')}</Tag>}
+                          <Tag tone="warning" className="w-fit">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</Tag>
+                          {isHigh && <Tag tone="info" className="w-fit text-xs">{t('focus.recommended')}</Tag>}
                         </div>
                       </div>
                     </label>
                   );
                 })}
                 {focusSelection.length >= 2 && (
-                  <p className="text-[10px] text-text/40 px-2">{t('focus.maxTwo')}</p>
+                  <p className="text-xs text-text/50 px-2">{t('focus.maxTwo')}</p>
                 )}
               </div>
             )}
@@ -172,7 +172,7 @@ export const WriterSidePanelContent = ({
           <section>
             <h3 className={isMobile ? 'mb-3 text-xs font-medium text-text/70' : 'text-xs font-sans font-medium mb-1 text-text/70'}>{t('writer.memoryPanel')}</h3>
             {!budgetReport ? (
-              <p className={isMobile ? 'text-sm text-text/45' : 'text-[10px] text-text/35'}>{t('writer.memoryPanelHint')}</p>
+              <p className={isMobile ? 'text-sm text-text/50' : 'text-xs text-text/30'}>{t('writer.memoryPanelHint')}</p>
             ) : (
               <div className="space-y-3">
                 {contextLayers.map((item) => (
@@ -187,7 +187,7 @@ export const WriterSidePanelContent = ({
                   </div>
                 ))}
                 {!isMobile && (
-                  <div className="text-[10px] text-text/35 mt-1">
+                  <div className="text-xs text-text/30 mt-1">
                     {t('writer.memoryTotal', { tokens: layerSum })}
                   </div>
                 )}
@@ -196,9 +196,9 @@ export const WriterSidePanelContent = ({
           </section>
         </>
       ) : !isMobile ? (
-        <section className="rounded-2xl border border-black/10 bg-background/50 p-4 dark:border-white/10">
+        <section className="rounded-xl border border-black/10 bg-background/50 p-4 dark:border-white/10">
           <h3 className="mb-2 text-xs font-sans font-medium text-text/70">{t('settingsMode.sideTitle')}</h3>
-          <p className="text-sm leading-relaxed text-text/65">{t('settingsMode.sideDescription')}</p>
+          <p className="text-sm leading-relaxed text-text/70">{t('settingsMode.sideDescription')}</p>
         </section>
       ) : null}
 
@@ -237,13 +237,13 @@ export const WriterSidePanelContent = ({
 
       {isMobile && (
         <section className="flex flex-wrap gap-2 border-t border-black/10 pt-5 dark:border-white/10">
-          <Button variant="secondary" size="sm" onClick={onUndoClick} disabled={(currentChapter || 1) <= 1 || writeActionsDisabled}>
+          <Button tone="neutral" fill="outline" size="sm" onClick={onUndoClick} disabled={(currentChapter || 1) <= 1 || writeActionsDisabled}>
             <Undo2 size={16} className="mr-2" /> {t('common.actions.undoPreviousChapter')}
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => { onClose?.(); onNavigate('facts'); }}>
+          <Button tone="neutral" fill="outline" size="sm" onClick={() => { onClose?.(); onNavigate('facts'); }}>
             <BookOpen size={16} className="mr-2" /> {t('writer.factsShortcut')}
           </Button>
-          <Button variant="secondary" size="sm" onClick={onExportClick}>
+          <Button tone="neutral" fill="outline" size="sm" onClick={onExportClick}>
             <FileUp size={16} className="mr-2" /> {t('writer.exportButtonTitle')}
           </Button>
         </section>

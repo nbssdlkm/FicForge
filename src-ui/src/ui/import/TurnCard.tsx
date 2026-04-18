@@ -51,11 +51,11 @@ export function TurnCard({ turn, currentChapterNum, hasPreviousChapter, onChange
         {/* Turn info */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 text-xs">
-            <span className="font-mono text-text/40">#{turn.index + 1}</span>
-            <span className={`rounded px-1.5 py-0.5 font-medium ${turn.role === "user" ? "bg-black/5 dark:bg-white/5 text-text/60" : "bg-accent/10 text-accent"}`}>
+            <span className="font-mono text-text/50">#{turn.index + 1}</span>
+            <span className={`rounded px-1.5 py-0.5 font-medium ${turn.role === "user" ? "bg-black/5 dark:bg-white/5 text-text/70" : "bg-accent/10 text-accent"}`}>
               {roleLabel}
             </span>
-            <span className="text-text/40">{t("import.charCount", { count: turn.charCount })}</span>
+            <span className="text-text/50">{t("import.charCount", { count: turn.charCount })}</span>
             {reasonText && <span className="text-text/30">— {reasonText}</span>}
           </div>
           {!expanded && (
@@ -67,7 +67,7 @@ export function TurnCard({ turn, currentChapterNum, hasPreviousChapter, onChange
         <select
           value={turn.assignedType}
           onChange={(e) => onChangeType(turn.index, e.target.value as AssignedType)}
-          className="min-h-[44px] rounded-md border border-black/15 bg-background px-2 text-xs outline-none focus:ring-2 focus:ring-accent dark:border-white/15 md:h-7 md:min-h-0"
+          className="min-h-[44px] rounded-md border border-black/10 bg-background px-2 text-xs outline-none focus:ring-2 focus:ring-accent dark:border-white/15 md:h-7 md:min-h-0"
         >
           {options.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -79,7 +79,7 @@ export function TurnCard({ turn, currentChapterNum, hasPreviousChapter, onChange
           type="button"
           onClick={() => setExpanded(!expanded)}
           aria-label={expanded ? t("import.collapse") : t("import.expand")}
-          className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-md text-text/40 hover:bg-black/5 dark:hover:bg-white/5 md:h-7 md:w-7 md:min-h-0 md:min-w-0"
+          className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-md text-text/50 hover:bg-black/5 dark:hover:bg-white/5 md:h-7 md:w-7 md:min-h-0 md:min-w-0"
         >
           {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>

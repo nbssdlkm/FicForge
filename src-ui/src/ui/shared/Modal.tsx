@@ -45,7 +45,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
         >
           <div className="flex items-center justify-between px-6 py-4 border-b border-black/10 dark:border-white/10">
             {title && <h2 className="text-lg font-sans font-semibold">{title}</h2>}
-            <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0 rounded-full ml-auto" aria-label={t('common.actions.close')}>
+            <Button tone="neutral" fill="plain" size="sm" onClick={onClose} className="h-8 w-8 p-0 rounded-full ml-auto" aria-label={t('common.actions.close')}>
               <X size={18} />
             </Button>
           </div>

@@ -6,40 +6,41 @@ import React, { HTMLAttributes } from 'react';
 import { cn } from './utils';
 import { CheckCircle, AlertCircle, Info, AlertTriangle, X } from 'lucide-react';
 
+export type ToastTone = 'success' | 'error' | 'info' | 'warning';
+
 export interface ToastProps extends HTMLAttributes<HTMLDivElement> {
-  variant?: 'success' | 'error' | 'info' | 'warning';
+  tone?: ToastTone;
   onClose?: () => void;
   message: string;
 }
 
+const iconMap: Record<ToastTone, React.ReactNode> = {
+  success: <CheckCircle size={18} className="text-success" />,
+  error: <AlertCircle size={18} className="text-error" />,
+  info: <Info size={18} className="text-info" />,
+  warning: <AlertTriangle size={18} className="text-warning" />,
+};
+
+const bgMap: Record<ToastTone, string> = {
+  success: 'bg-success/10 border-success/20',
+  error: 'bg-error/10 border-error/20',
+  info: 'bg-info/10 border-info/20',
+  warning: 'bg-warning/10 border-warning/20',
+};
+
 export const Toast = React.forwardRef<HTMLDivElement, ToastProps>(
-  ({ className, variant = 'info', message, onClose, ...props }, ref) => {
-    
-    const iconMap = {
-      success: <CheckCircle size={18} className="text-success" />,
-      error: <AlertCircle size={18} className="text-error" />,
-      info: <Info size={18} className="text-info" />,
-      warning: <AlertTriangle size={18} className="text-warning" />,
-    };
-
-    const bgMap = {
-      success: 'bg-success/10 border-success/20',
-      error: 'bg-error/10 border-error/20',
-      info: 'bg-info/10 border-info/20',
-      warning: 'bg-warning/10 border-warning/20',
-    };
-
+  ({ className, tone = 'info', message, onClose, ...props }, ref) => {
     return (
       <div
         ref={ref}
         className={cn(
           "flex items-center gap-3 w-full max-w-md rounded-lg border p-4 shadow-medium font-sans text-sm text-text bg-surface pointer-events-auto",
-          bgMap[variant],
+          bgMap[tone],
           className
         )}
         {...props}
       >
-        {iconMap[variant]}
+        {iconMap[tone]}
         <div className="flex-1">{message}</div>
         {onClose && (
           <button onClick={onClose} className="text-text hover:opacity-70 transition-opacity">

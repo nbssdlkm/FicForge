@@ -43,6 +43,7 @@ import { ApiError, getFriendlyErrorMessage } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 
 type ContextLayer = {
   key: string;
@@ -134,13 +135,11 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const { showError, showSuccess, showToast } = useFeedback();
   const isMobile = useMediaQuery('(max-width: 768px)');
   const instructionInputRef = useRef<HTMLInputElement | null>(null);
-  const activeAuPathRef = useRef(auPath);
-  const loadRequestIdRef = useRef(0);
-  const refreshRequestIdRef = useRef(0);
+  const loadGuard = useActiveRequestGuard(auPath);
+  const refreshGuard = useActiveRequestGuard(auPath);
+  const generateGuard = useActiveRequestGuard(auPath);
   const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingDraftSaveRef = useRef<{ auPath: string; chapterNum: number; label: string; content: string } | null>(null);
-  const generateIdRef = useRef(0);
-  activeAuPathRef.current = auPath;
   const [mode, setMode] = useState<WriterMode>('write');
   const [showSettingsTooltip, setShowSettingsTooltip] = useState(false);
   const [isSettingsModeBusy, setIsSettingsModeBusy] = useState(false);
@@ -231,9 +230,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   }, [viewChapter, auPath, state]);
 
   useEffect(() => {
-    activeAuPathRef.current = auPath;
-    loadRequestIdRef.current += 1;
-    refreshRequestIdRef.current += 1;
+    // keyRef in each guard is auto-synced to auPath — pending tokens go stale
+    // via isStale/isKeyStale. No manual invalidation needed here.
     setLoading(true);
     setIsSettingsModeBusy(false);
     setState(null);
@@ -382,8 +380,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   }, [auPath]);
 
   const loadData = useCallback(async () => {
-    const requestId = ++loadRequestIdRef.current;
-    const requestAuPath = auPath;
+    const token = loadGuard.start();
     setLoading(true);
     try {
       const [stateData, factsData, proj, settings] = await Promise.all([
@@ -392,7 +389,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         getProject(auPath).catch(() => null),
         getSettings().catch(() => null),
       ]);
-      if (requestId !== loadRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isStale(token)) return;
 
       setState(stateData);
       setProjectInfo(proj);
@@ -432,10 +429,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         const latestNum = stateData.current_chapter - 1;
         try {
           const content = await getChapterContent(auPath, latestNum);
-          if (requestId !== loadRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
+          if (loadGuard.isStale(token)) return;
           setCurrentContent(typeof content === 'string' ? content : '');
         } catch {
-          if (requestId !== loadRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
+          if (loadGuard.isStale(token)) return;
           setCurrentContent(t('writer.contentLoadFailed'));
         }
       } else {
@@ -444,7 +441,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
       if (stateData) {
         const loadedDrafts = await loadDraftsForChapter(stateData.current_chapter);
-        if (requestId !== loadRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
+        if (loadGuard.isStale(token)) return;
         const storedSummaries = readSavedContextSummaries(auPath, stateData.current_chapter);
         const activeLabels = new Set(loadedDrafts.map((draft) => draft.label));
         const filteredSummaries = Object.entries(storedSummaries).reduce<Record<string, ContextSummary>>((accumulator, [label, summary]) => {
@@ -468,25 +465,24 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         setProjectInfo(null);
       }
     } catch (error) {
-      if (requestId !== loadRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isStale(token)) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      if (requestId === loadRequestIdRef.current && activeAuPathRef.current === requestAuPath) {
+      if (!loadGuard.isStale(token)) {
         setLoading(false);
       }
     }
-  }, [auPath, loadDraftsForChapter, replaceDraftSummaries, showError, t]);
+  }, [auPath, loadDraftsForChapter, loadGuard, replaceDraftSummaries, showError, t]);
 
   const refreshSettingsModeData = useCallback(async () => {
-    const requestId = ++refreshRequestIdRef.current;
-    const requestAuPath = auPath;
+    const token = refreshGuard.start();
     try {
       const [stateData, factsData, proj] = await Promise.all([
         getState(auPath).catch(() => null),
         listFacts(auPath, 'unresolved').catch(() => []),
         getProject(auPath).catch(() => null),
       ]);
-      if (requestId !== refreshRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
+      if (refreshGuard.isStale(token)) return;
 
       if (stateData) {
         setState(stateData);
@@ -495,10 +491,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       setProjectInfo(proj);
       setUnresolvedFacts(factsData);
     } catch (error) {
-      if (requestId !== refreshRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
+      if (refreshGuard.isStale(token)) return;
       showError(error, t('error_messages.unknown'));
     }
-  }, [auPath, showError, t]);
+  }, [auPath, refreshGuard, showError, t]);
 
   useEffect(() => {
     void loadData();
@@ -506,7 +502,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
   const handleGenerate = useCallback(async (request: GenerateRequestState) => {
     if (isGenerating || !state) return;
-    const thisGenerateId = ++generateIdRef.current;
+    const token = generateGuard.start();
 
     const projectLlmUsable = projectInfo?.llm?.mode && (projectInfo.llm.mode !== 'api' || projectInfo.llm.api_key);
     const effectiveLlm = projectLlmUsable ? projectInfo!.llm : settingsInfo?.default_llm;
@@ -515,8 +511,6 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       showError(null, t('error_messages.no_api_key'));
       return;
     }
-
-    const requestAuPath = auPath;
 
     setIsGenerating(true);
     setStreamText('');
@@ -546,7 +540,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         session_llm: sessionParams.sessionLlmPayload || undefined,
         session_params: { temperature: sessionParams.sessionTemp, top_p: sessionParams.sessionTopP },
       })) {
-        if (activeAuPathRef.current !== requestAuPath) {
+        if (generateGuard.isStale(token)) {
           pendingContextSummaryRef.current = null;
           return;
         }
@@ -594,7 +588,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
             nextText,
             nextGeneratedWith
           );
-          if (activeAuPathRef.current !== requestAuPath) {
+          if (generateGuard.isStale(token)) {
             pendingContextSummaryRef.current = null;
             return;
           }
@@ -623,7 +617,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         nextText,
         nextGeneratedWith
       );
-      if (activeAuPathRef.current !== requestAuPath) {
+      if (generateGuard.isStale(token)) {
         pendingContextSummaryRef.current = null;
         return;
       }
@@ -637,13 +631,13 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       pendingContextSummaryRef.current = null;
       // 延迟清除 streamText，等 drafts + activeDraftIndex 先渲染，
       // 避免 displayContent 在两者之间短暂为空。
-      // generateIdRef 防止新一轮生成启动后被旧 RAF 误清。
+      // Guard.isStale 防止新一轮生成启动后被旧 RAF 误清。
       requestAnimationFrame(() => {
-        if (generateIdRef.current === thisGenerateId) setStreamText('');
+        if (!generateGuard.isStale(token)) setStreamText('');
       });
     } catch (error) {
       pendingContextSummaryRef.current = null;
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (generateGuard.isStale(token)) return;
       // 区分连接中断和 API 错误
       const isAbort = error instanceof DOMException && error.name === 'AbortError';
       const isNetwork = error instanceof TypeError && /fetch|network/i.test(error.message);
@@ -658,11 +652,11 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         setGenerationErrorDisplay({ message: error.message, actions: [] });
       }
     } finally {
-      if (activeAuPathRef.current === requestAuPath) {
+      if (!generateGuard.isStale(token)) {
         setIsGenerating(false);
       }
     }
-  }, [attachDraftSummary, auPath, loadDraftByLabel, mergeDraftIntoState, sessionParams.sessionLlmPayload, sessionParams.sessionTemp, sessionParams.sessionTopP, showError, state, t]);
+  }, [attachDraftSummary, auPath, generateGuard, isGenerating, loadDraftByLabel, mergeDraftIntoState, projectInfo, sessionParams.sessionLlmPayload, sessionParams.sessionTemp, sessionParams.sessionTopP, settingsInfo, showError, showToast, state, t]);
 
   const handleGenerateFromInput = async (inputType: 'continue' | 'instruction') => {
     if (drafts.length > 0) {
@@ -703,7 +697,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         currentDraft.modified ? currentDraft.content : undefined,
         chapterTitle.trim() || undefined
       );
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
 
       clearDraftState(true); // 草稿内容已通过 content_override 提交，无需再 flush
       replaceDraftSummaries(confirmedChapter, {});
@@ -724,10 +718,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
       factsExtraction.setFactsPromptOpen(true);
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      if (activeAuPathRef.current === requestAuPath) {
+      if (!loadGuard.isKeyStale(requestAuPath)) {
         setIsFinalizing(false);
       }
     }
@@ -738,13 +732,13 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     setUndoConfirmOpen(false);
     try {
       await undoChapter(auPath);
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       clearDraftState(true); // undo 删除草稿，无需 flush
       showSuccess(t('writer.undoSuccess'));
       await loadData();
       onChaptersChanged?.();
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     }
   };
@@ -762,7 +756,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         state.current_chapter,
         isSingleDraft ? currentDraft?.label : undefined
       );
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
 
       clearDraftState(true); // discard=true: 用户主动丢弃，不 flush 到磁盘
       replaceDraftSummaries(state.current_chapter, {});
@@ -774,10 +768,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       }
       focusInstructionInput();
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      if (activeAuPathRef.current === requestAuPath) {
+      if (!loadGuard.isKeyStale(requestAuPath)) {
         setIsDiscarding(false);
       }
     }
@@ -833,11 +827,11 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     }
     try {
       await setChapterFocus(auPath, next);
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       setFocusSelection(next);
       showToast(t('writer.focusSaved'), 'success');
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     }
   };
@@ -846,11 +840,11 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     const requestAuPath = auPath;
     try {
       await setChapterFocus(auPath, []);
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       setFocusSelection([]);
       showToast(t('writer.focusSaved'), 'success');
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     }
   };
@@ -865,11 +859,11 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     }
     try {
       await setChapterFocus(auPath, validIds);
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       setFocusSelection(validIds);
       showToast(t('writer.focusSaved'), 'success');
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     }
   };
@@ -955,14 +949,14 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       <main className="flex h-full flex-1 flex-col min-w-0 bg-background relative transition-colors duration-200">
         {!dirtyBannerDismissed && (state?.chapters_dirty || []).length > 0 && (
           <InlineBanner
-            variant="warning"
+            tone="warning"
             layout="bar"
             compact
             message={t('dirty.banner', { count: (state?.chapters_dirty || []).length, chapters: (state?.chapters_dirty || []).join(', ') })}
             actions={
               <>
-                <Button variant="ghost" size="sm" className="h-11 text-xs md:h-6" onClick={() => { setDirtyTargetChapter((state?.chapters_dirty || [])[0] || 0); setDirtyOpen(true); }}>{t('dirty.goResolve')}</Button>
-                <Button variant="ghost" size="sm" className="h-11 text-xs text-text/40 md:h-6" onClick={() => setDirtyBannerDismissed(true)}>{t('dirty.dismissBanner')}</Button>
+                <Button tone="neutral" fill="plain" size="sm" className="h-11 text-xs md:h-6" onClick={() => { setDirtyTargetChapter((state?.chapters_dirty || [])[0] || 0); setDirtyOpen(true); }}>{t('dirty.goResolve')}</Button>
+                <Button tone="neutral" fill="plain" size="sm" className="h-11 text-xs text-text/50 md:h-6" onClick={() => setDirtyBannerDismissed(true)}>{t('dirty.dismissBanner')}</Button>
               </>
             }
           />
@@ -990,20 +984,20 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
         <div className={mode === 'write' ? 'flex flex-1 flex-col min-h-0' : 'hidden'}>
           <div className="flex flex-1 justify-center overflow-y-auto w-full pb-16 md:pb-12">
-            <div className="w-full max-w-3xl space-y-6 px-4 py-4 md:px-8 md:py-10">
+            <div className="w-full max-w-[720px] space-y-6 px-4 py-4 md:px-8 md:py-10">
               {isViewingHistory && (
                 <InlineBanner
-                  variant="info"
+                  tone="info"
                   message={<>{t('workspace.chapterItem', { num: viewingHistoryNum })} — {t('writer.viewingHistory')}</>}
                   actions={
-                    <Button variant="ghost" size="sm" onClick={() => { setViewingHistoryContent(null); setViewingHistoryNum(null); onClearViewChapter?.(); }}>
+                    <Button tone="neutral" fill="plain" size="sm" onClick={() => { setViewingHistoryContent(null); setViewingHistoryNum(null); onClearViewChapter?.(); }}>
                       {t('writer.backToCurrentChapter')}
                     </Button>
                   }
                 />
               )}
               {recoveryNotice && hasPendingDrafts && (
-                <InlineBanner variant="warning" message={t('drafts.recoveryNotice')} />
+                <InlineBanner tone="warning" message={t('drafts.recoveryNotice')} />
               )}
 
               <ChapterContentArea
@@ -1071,10 +1065,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
             {showSettingsTooltip ? (
               <InlineBanner
                 className="mb-4"
-                variant="info"
+                tone="info"
                 message={t('settingsMode.firstTimeTooltip')}
                 actions={
-                  <Button variant="ghost" size="sm" className="h-7 px-2 text-info" onClick={() => setShowSettingsTooltip(false)}>
+                  <Button tone="neutral" fill="plain" size="sm" className="h-7 px-2 text-info" onClick={() => setShowSettingsTooltip(false)}>
                     {t('common.actions.close')}
                   </Button>
                 }

@@ -63,7 +63,7 @@ export const SettingsPanel = ({
 
   return (
     <Card className="w-full p-4 text-sm flex flex-col gap-5 md:gap-4 md:max-w-sm !shadow-none border-transparent bg-transparent px-0">
-      <div className="font-sans font-medium mb-1 text-text/80 text-xs">{t("settingsPanel.title")}</div>
+      <div className="font-sans font-medium mb-1 text-text/90 text-xs">{t("settingsPanel.title")}</div>
 
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-text/70">{t("common.labels.model")}</label>
@@ -103,8 +103,8 @@ export const SettingsPanel = ({
       </div>
 
       <div className="grid grid-cols-2 gap-2 mt-1">
-        <Button variant="secondary" size="sm" className="h-11 text-sm md:h-8 md:text-xs" onClick={onSaveGlobal}>{t("common.actions.saveToGlobal")}</Button>
-        <Button variant="secondary" size="sm" className="h-11 text-sm md:h-8 md:text-xs" onClick={onSaveAu}>{t("common.actions.saveToStory")}</Button>
+        <Button tone="neutral" fill="outline" size="sm" className="h-11 text-sm md:h-8 md:text-xs" onClick={onSaveGlobal}>{t("common.actions.saveToGlobal")}</Button>
+        <Button tone="neutral" fill="outline" size="sm" className="h-11 text-sm md:h-8 md:text-xs" onClick={onSaveAu}>{t("common.actions.saveToStory")}</Button>
       </div>
     </Card>
   );

@@ -3,7 +3,8 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowLeft, FileText, Loader2, Pencil, Eye, Trash2, Users, Globe2, Sparkles } from "lucide-react";
+import { ArrowLeft, FileText, Pencil, Eye, Trash2, Users, Globe2, Sparkles } from "lucide-react";
+import { Spinner } from "../shared/Spinner";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { listFandomFiles, readFandomFile, saveLore, deleteLore, type FandomFileEntry } from "../../api/engine-client";
 import { TrashPanel } from "../shared/TrashPanel";
@@ -170,20 +171,20 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
     return (
       <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
         <header className="safe-area-top flex items-center justify-between border-b border-black/10 bg-surface/95 px-4 py-3 backdrop-blur dark:border-white/10">
-          <Button variant="ghost" size="sm" className="h-11 px-3" onClick={() => setSelectedFile(null)}>
+          <Button tone="neutral" fill="plain" size="sm" className="h-11 px-3" onClick={() => setSelectedFile(null)}>
             <ArrowLeft size={16} className="mr-2" />
             {t("common.actions.back")}
           </Button>
           <div className="min-w-0 flex-1 text-center">
             <p className="truncate text-sm font-semibold text-text">{displayName}</p>
-            <p className="text-[10px] text-text/40">{categoryLabel}</p>
+            <p className="text-xs text-text/50">{categoryLabel}</p>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" className="h-11 w-11 p-0" onClick={() => setDeleteOpen(true)}>
+            <Button tone="neutral" fill="plain" size="sm" className="h-11 w-11 p-0" onClick={() => setDeleteOpen(true)}>
               <Trash2 size={16} className="text-error" />
             </Button>
-            <Button variant="primary" size="sm" className="h-11 px-4" onClick={handleSave} disabled={saving || !isDirty}>
-              {saving ? <Loader2 size={14} className="animate-spin" /> : t("common.actions.save")}
+            <Button tone="accent" fill="solid" size="sm" className="h-11 px-4" onClick={handleSave} disabled={saving || !isDirty}>
+              {saving ? <Spinner size="sm" /> : t("common.actions.save")}
             </Button>
           </div>
         </header>
@@ -192,14 +193,14 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
         <div className="flex gap-2 border-b border-black/5 px-4 py-2 dark:border-white/5">
           <button
             type="button"
-            className={cn("flex items-center gap-1 rounded-lg px-3 py-2 text-sm", !previewMode ? "bg-accent text-white" : "text-text/55")}
+            className={cn("flex items-center gap-1 rounded-lg px-3 py-2 text-sm", !previewMode ? "bg-accent text-white" : "text-text/50")}
             onClick={() => setPreviewMode(false)}
           >
             <Pencil size={14} /> {t("common.actions.edit")}
           </button>
           <button
             type="button"
-            className={cn("flex items-center gap-1 rounded-lg px-3 py-2 text-sm", previewMode ? "bg-accent text-white" : "text-text/55")}
+            className={cn("flex items-center gap-1 rounded-lg px-3 py-2 text-sm", previewMode ? "bg-accent text-white" : "text-text/50")}
             onClick={() => setPreviewMode(true)}
           >
             <Eye size={14} /> {t("common.actions.preview")}
@@ -210,7 +211,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
         <div className="flex-1 overflow-y-auto p-4">
           {readingFile ? (
             <div className="flex items-center justify-center py-24">
-              <Loader2 className="animate-spin text-accent" size={24} />
+              <Spinner size="lg" className="text-accent" />
             </div>
           ) : previewMode ? (
             <SettingsMarkdown content={editorContent} />
@@ -226,10 +227,10 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
         {/* Delete confirm modal */}
         <Modal isOpen={deleteOpen} onClose={() => setDeleteOpen(false)} title={t("fandomLore.deleteTitle")}>
           <div className="space-y-4">
-            <p className="text-sm text-text/80">{t("fandomLore.deleteMessage", { name: selectedFile })}</p>
+            <p className="text-sm text-text/90">{t("fandomLore.deleteMessage", { name: selectedFile })}</p>
             <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setDeleteOpen(false)}>{t("common.actions.cancel")}</Button>
-              <Button variant="primary" className="bg-red-600 text-white hover:bg-red-700" onClick={handleDelete}>
+              <Button tone="neutral" fill="plain" onClick={() => setDeleteOpen(false)}>{t("common.actions.cancel")}</Button>
+              <Button tone="accent" fill="solid" className="bg-red-600 text-white hover:bg-red-700" onClick={handleDelete}>
                 {t("common.actions.confirmDelete")}
               </Button>
             </div>
@@ -263,7 +264,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
 
       {/* Category tabs */}
       <div className="border-b border-black/5 px-4 pt-3 dark:border-white/5">
-        <div className="inline-flex w-full rounded-2xl border border-black/10 bg-background/70 p-1 dark:border-white/10">
+        <div className="inline-flex w-full rounded-xl border border-black/10 bg-background/70 p-1 dark:border-white/10">
           {(["core_characters", "core_worldbuilding"] as const).map((cat) => {
             const Icon = cat === "core_characters" ? Users : Globe2;
             const label = cat === "core_characters" ? t("fandomLore.category.characters") : t("fandomLore.category.worldbuilding");
@@ -275,7 +276,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
                 onClick={() => setCategory(cat)}
                 className={cn(
                   "flex min-h-[44px] flex-1 items-center justify-center rounded-xl text-sm font-medium transition-colors",
-                  category === cat ? "bg-accent text-white" : "text-text/55",
+                  category === cat ? "bg-accent text-white" : "text-text/50",
                 )}
               >
                 <Icon size={15} className="mr-2" />
@@ -290,7 +291,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {loading ? (
           <div className="flex items-center justify-center py-24">
-            <Loader2 className="animate-spin text-accent" size={24} />
+            <Spinner size="lg" className="text-accent" />
           </div>
         ) : currentFiles.length === 0 ? (
           <EmptyState
@@ -300,7 +301,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
             actions={[{
               key: "create",
               element: (
-                <Button variant="primary" size="sm" onClick={() => { setCreateName(""); setCreateOpen(true); }}>
+                <Button tone="accent" fill="solid" size="sm" onClick={() => { setCreateName(""); setCreateOpen(true); }}>
                   {category === "core_characters" ? t("common.actions.addCharacter") : t("common.actions.addWorldbuilding")}
                 </Button>
               ),
@@ -311,12 +312,12 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
             <button
               key={file.filename}
               type="button"
-              className="flex w-full items-center justify-between rounded-2xl border border-black/10 bg-surface/35 px-4 py-4 text-left transition-colors dark:border-white/10"
+              className="flex w-full items-center justify-between rounded-xl border border-black/10 bg-surface/35 px-4 py-4 text-left transition-colors dark:border-white/10"
               onClick={() => handleSelectFile(file.filename, category)}
             >
               <div className="min-w-0">
                 <p className="truncate text-base font-medium text-text">{file.name}</p>
-                <p className="mt-1 text-xs text-text/45">{categoryLabel}</p>
+                <p className="mt-1 text-xs text-text/50">{categoryLabel}</p>
               </div>
               <FileText size={16} className="ml-3 shrink-0 text-text/30" />
             </button>
@@ -326,7 +327,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
         {/* Add button when list not empty */}
         {!loading && currentFiles.length > 0 && (
           <div className="pt-2">
-            <Button variant="secondary" size="sm" className="w-full" onClick={() => { setCreateName(""); setCreateOpen(true); }}>
+            <Button tone="neutral" fill="outline" size="sm" className="w-full" onClick={() => { setCreateName(""); setCreateOpen(true); }}>
               {category === "core_characters" ? t("common.actions.addCharacter") : t("common.actions.addWorldbuilding")}
             </Button>
           </div>
@@ -345,9 +346,9 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
             autoFocus
           />
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setCreateOpen(false)}>{t("common.actions.cancel")}</Button>
-            <Button variant="primary" onClick={handleCreate} disabled={!createName.trim() || saving}>
-              {saving ? <Loader2 size={14} className="animate-spin" /> : t("common.actions.create")}
+            <Button tone="neutral" fill="plain" onClick={() => setCreateOpen(false)}>{t("common.actions.cancel")}</Button>
+            <Button tone="accent" fill="solid" onClick={handleCreate} disabled={!createName.trim() || saving}>
+              {saving ? <Spinner size="sm" /> : t("common.actions.create")}
             </Button>
           </div>
         </div>
@@ -356,7 +357,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
       {/* AI assistant floating button */}
       <div className="pointer-events-none fixed inset-x-0 bottom-6 z-30 flex justify-end px-4 md:hidden">
         <Button
-          variant="primary"
+          tone="accent" fill="solid"
           className="pointer-events-auto h-12 rounded-full px-5 shadow-strong"
           onClick={() => setAiOverlayOpen(true)}
         >
@@ -369,7 +370,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
       {aiOverlayOpen && (
         <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
           <header className="safe-area-top flex items-center justify-between border-b border-black/10 bg-surface/95 px-4 py-3 backdrop-blur dark:border-white/10">
-            <Button variant="ghost" size="sm" className="h-11 px-3" onClick={() => setAiOverlayOpen(false)}>
+            <Button tone="neutral" fill="plain" size="sm" className="h-11 px-3" onClick={() => setAiOverlayOpen(false)}>
               <ArrowLeft size={16} className="mr-2" />
               {t("common.actions.back")}
             </Button>
