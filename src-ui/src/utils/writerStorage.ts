@@ -6,7 +6,7 @@
  * 从 WriterLayout.tsx 抽取，集中管理续写页面的 localStorage 读写。
  */
 
-import type { ContextSummary } from "../api/engine-client";
+import { RAG_COLLECTIONS, type ContextSummary, type RagChunkDetail } from "../api/engine-client";
 
 // ---------------------------------------------------------------------------
 // 存储键
@@ -40,6 +40,28 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
+const VALID_RAG_COLLECTIONS = new Set<string>(RAG_COLLECTIONS);
+
+function normalizeRagChunk(value: unknown): RagChunkDetail | null {
+  if (!value || typeof value !== "object") return null;
+  const c = value as Partial<RagChunkDetail>;
+  if (typeof c.content !== "string") return null;
+  if (typeof c.score !== "number" || !Number.isFinite(c.score)) return null;
+  if (typeof c.collection !== "string" || !VALID_RAG_COLLECTIONS.has(c.collection)) return null;
+  const out: RagChunkDetail = {
+    content: c.content,
+    collection: c.collection as RagChunkDetail["collection"],
+    score: c.score,
+  };
+  if (typeof c.chapter_num === "number" && Number.isFinite(c.chapter_num) && c.chapter_num > 0) {
+    out.chapter_num = c.chapter_num;
+  }
+  if (typeof c.source_file === "string" && c.source_file) {
+    out.source_file = c.source_file;
+  }
+  return out;
+}
+
 export function normalizeContextSummary(value: unknown): ContextSummary | null {
   if (!value || typeof value !== "object") return null;
 
@@ -65,6 +87,11 @@ export function normalizeContextSummary(value: unknown): ContextSummary | null {
     facts_as_focus: candidate.facts_as_focus,
     pinned_count: candidate.pinned_count,
     rag_chunks_retrieved: candidate.rag_chunks_retrieved,
+    rag_chunks: Array.isArray(candidate.rag_chunks)
+      ? candidate.rag_chunks
+          .map(normalizeRagChunk)
+          .filter((c): c is RagChunkDetail => c !== null)
+      : [],
     total_input_tokens: candidate.total_input_tokens,
     truncated_layers: candidate.truncated_layers,
     truncated_characters: candidate.truncated_characters,

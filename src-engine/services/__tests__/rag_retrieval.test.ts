@@ -148,4 +148,32 @@ describe("retrieve_rag", () => {
     );
     expect(text).toBe("");
   });
+
+  it("returns structured chunks with collection tag", async () => {
+    const repo = createMockVectorRepo({
+      characters: [{ content: "char info", chapter_num: 0, score: 0.9, metadata: {} }],
+      worldbuilding: [],
+      chapters: [{ content: "chapter text", chapter_num: 3, score: 0.7, metadata: {} }],
+    });
+
+    const [, , chunks] = await retrieve_rag(
+      repo, mockEmbedding, "au1", "query", 10000, null, null,
+    );
+
+    expect(chunks).toHaveLength(2);
+    const charChunk = chunks.find((c) => c.content === "char info");
+    const chChunk = chunks.find((c) => c.content === "chapter text");
+    expect(charChunk?._collection).toBe("characters");
+    expect(chChunk?._collection).toBe("chapters");
+    expect(chChunk?.chapter_num).toBe(3);
+    expect(chChunk?.score).toBeGreaterThan(0);
+  });
+
+  it("returns [] chunks for empty query", async () => {
+    const repo = createMockVectorRepo({});
+    const [, , chunks] = await retrieve_rag(
+      repo, mockEmbedding, "au1", "", 10000, null, null,
+    );
+    expect(chunks).toEqual([]);
+  });
 });

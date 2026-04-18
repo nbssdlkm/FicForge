@@ -36,8 +36,8 @@ export { createChapter } from "./chapter.js";
 export type { Chunk } from "./chunk.js";
 export { createChunk } from "./chunk.js";
 
-export type { ContextSummary } from "./context_summary.js";
-export { createContextSummary } from "./context_summary.js";
+export type { ContextSummary, RagChunkDetail, RagCollection } from "./context_summary.js";
+export { createContextSummary, RAG_COLLECTIONS } from "./context_summary.js";
 
 export type { Draft } from "./draft.js";
 export { createDraft } from "./draft.js";

@@ -5,7 +5,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '../shared/Button';
-import { type ContextSummary } from '../../api/engine-client';
+import { Tag } from '../shared/Tag';
+import { type ContextSummary, type RagChunkDetail } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 
 type ContextSummaryBarProps = {
@@ -52,6 +53,67 @@ function buildSummaryParts(summary: ContextSummary, t: TranslateFn): string[] {
     summary.facts_injected > 0 ? t('contextSummary.facts', { count: summary.facts_injected }) : null,
     summary.pinned_count > 0 ? t('contextSummary.pinned', { count: summary.pinned_count }) : null,
   ].filter((part): part is string => Boolean(part));
+}
+
+function buildRagChunkLabel(chunk: RagChunkDetail, t: TranslateFn): string {
+  if (chunk.collection === 'chapters') {
+    return chunk.chapter_num
+      ? t('contextSummary.ragChunkLabelChapter', { num: chunk.chapter_num })
+      : t('contextSummary.ragChunkLabelChapterNoNum');
+  }
+  const source = chunk.source_file ? stripMarkdownExtension(chunk.source_file) : '';
+  if (chunk.collection === 'characters') {
+    return source
+      ? t('contextSummary.ragChunkLabelCharacter', { name: source })
+      : t('contextSummary.ragChunkLabelCharacterGeneric');
+  }
+  return source
+    ? t('contextSummary.ragChunkLabelWorldbuilding', { name: source })
+    : t('contextSummary.ragChunkLabelWorldbuildingGeneric');
+}
+
+// 折叠 2 行的展示粒度下，约 80 字符能排满；超过才值得给用户一个"展开全文"入口。
+const RAG_CHUNK_EXPAND_THRESHOLD = 80;
+
+function RagChunkItem({
+  chunk,
+  t,
+  hasWarning,
+}: {
+  chunk: RagChunkDetail;
+  t: TranslateFn;
+  hasWarning: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const label = buildRagChunkLabel(chunk, t);
+  const scorePercent = Math.round(Math.max(0, Math.min(1, chunk.score)) * 100);
+  const canExpand = chunk.content.length > RAG_CHUNK_EXPAND_THRESHOLD;
+  const borderClass = hasWarning ? 'border-warning/20' : 'border-black/10 dark:border-white/10';
+  const textClass = hasWarning ? 'text-warning/90' : 'text-text/70';
+
+  return (
+    <div className={`space-y-1.5 border-l-2 pl-3 ${borderClass}`}>
+      <div className="flex flex-wrap items-center gap-2">
+        <Tag tone={hasWarning ? 'warning' : 'default'}>{label}</Tag>
+        <span className={`font-mono text-xs ${hasWarning ? 'text-warning/70' : 'text-text/50'}`}>{scorePercent}%</span>
+      </div>
+      <p className={`whitespace-pre-wrap text-sm ${textClass} ${expanded ? '' : 'line-clamp-2'}`}>
+        {chunk.content}
+      </p>
+      {canExpand && (
+        <Button
+          tone="neutral"
+          fill="plain"
+          size="sm"
+          className="h-11 gap-1 px-1 text-xs text-text/50 md:h-6"
+          onClick={() => setExpanded((current) => !current)}
+        >
+          {expanded ? t('contextSummary.ragChunkCollapse') : t('contextSummary.ragChunkExpand')}
+          {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+        </Button>
+      )}
+    </div>
+  );
 }
 
 function buildTruncatedMessages(summary: ContextSummary, t: TranslateFn): string[] {
@@ -226,8 +288,22 @@ export function ContextSummaryBar({ summary, onAdjustCoreIncludes }: ContextSumm
           </div>
 
           {summary.rag_chunks_retrieved > 0 && (
-            <div className="space-y-1">
-              <p className={headingClass}>{t('contextSummary.detailRag', { count: summary.rag_chunks_retrieved })}</p>
+            <div className="space-y-2">
+              <p className={headingClass}>{t('contextSummary.detailRag', { count: summary.rag_chunks.length || summary.rag_chunks_retrieved })}</p>
+              {summary.rag_chunks && summary.rag_chunks.length > 0 ? (
+                <div className="space-y-3 pl-3">
+                  {summary.rag_chunks.map((chunk, index) => (
+                    <RagChunkItem
+                      key={`${index}-${chunk.collection}-${chunk.content.slice(0, 32)}`}
+                      chunk={chunk}
+                      t={t}
+                      hasWarning={hasWarning}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className={`pl-3 ${emptyClass}`}>{t('common.none')}</p>
+              )}
             </div>
           )}
 

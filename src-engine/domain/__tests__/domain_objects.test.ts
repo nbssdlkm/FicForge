@@ -160,6 +160,7 @@ describe("Domain object factories — field names and defaults match Python", ()
     expect(cs.facts_as_focus).toEqual([]);
     expect(cs.pinned_count).toBe(0);
     expect(cs.rag_chunks_retrieved).toBe(0);
+    expect(cs.rag_chunks).toEqual([]);
     expect(cs.total_input_tokens).toBe(0);
     expect(cs.truncated_layers).toEqual([]);
     expect(cs.truncated_characters).toEqual([]);

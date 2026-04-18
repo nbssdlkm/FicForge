@@ -27,7 +27,8 @@ import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { ResolvedLLMConfig, ResolvedLLMParams } from "../llm/config_resolver.js";
 import { create_provider, resolve_llm_config, resolve_llm_params } from "../llm/config_resolver.js";
 import { assemble_context } from "./context_assembler.js";
-import { build_active_chars, build_rag_query, retrieve_rag } from "./rag_retrieval.js";
+import type { ChunkWithCollection } from "./rag_retrieval.js";
+import { build_active_chars, build_rag_query, retrieve_rag, toRagChunkDetail } from "./rag_retrieval.js";
 import { now_utc, joinPath } from "../repositories/implementations/file_utils.js";
 import { withAuLock } from "./au_lock.js";
 
@@ -211,6 +212,7 @@ export async function* generate_chapter(
 
     // === 步骤 1.8：RAG 检索（STALE 索引时跳过，避免旧 chunk 污染上下文）===
     const indexReady = state.index_status === IndexStatus.READY;
+    let ragChunksDetail: ChunkWithCollection[] = [];
     if (rag_text === null && vector_repo && embedding_provider && indexReady) {
       try {
         const castReg = project.cast_registry ?? { characters: [] };
@@ -220,13 +222,16 @@ export async function* generate_chapter(
         const query = build_rag_query(focusTexts, lastEnding, user_input);
         if (query) {
           const ragBudget = Math.max(0, Math.trunc((project.llm?.context_window || 128000) / 4));
-          const [ragResult] = await retrieve_rag(
+          const [ragResult, , chunks] = await retrieve_rag(
             vector_repo, embedding_provider, au_id, query,
             ragBudget, activeChars, llmConfig,
             project.rag_decay_coefficient ?? 0.05,
             state.current_chapter ?? 1, language,
           );
-          if (ragResult) rag_text = ragResult;
+          if (ragResult) {
+            rag_text = ragResult;
+            ragChunksDetail = chunks;
+          }
         }
       } catch {
         // RAG 失败不中断生成
@@ -243,6 +248,16 @@ export async function* generate_chapter(
       language,
     );
     const { messages, max_tokens, budget_report, context_summary } = ctx;
+
+    // 把结构化 RAG 片段挂到 summary（assemble_context 只看纯文本，这里外挂 detail）
+    context_summary.rag_chunks = ragChunksDetail
+      .map(toRagChunkDetail)
+      .filter((d): d is NonNullable<typeof d> => d !== null);
+    // 用 chunks 数覆盖原按行统计，保证 UI 数字与展示条数一致。
+    // 仅在走了内部 RAG（即拿到结构化 chunks）时覆盖；外部传入 rag_text 场景保留 context_assembler 按行算的值。
+    if (ragChunksDetail.length > 0) {
+      context_summary.rag_chunks_retrieved = context_summary.rag_chunks.length;
+    }
 
     // === 步骤 2.5：yield context_summary ===
     yield { type: "context_summary", data: context_summary };

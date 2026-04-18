@@ -10,6 +10,8 @@ import { count_tokens, ensureTokenizer } from "../tokenizer/index.js";
 import { getPrompts } from "../prompts/index.js";
 import type { VectorRepository, SearchResult } from "../repositories/interfaces/vector.js";
 import type { EmbeddingProvider } from "../llm/embedding_provider.js";
+import type { RagChunkDetail, RagCollection } from "../domain/context_summary.js";
+import { RAG_COLLECTIONS } from "../domain/context_summary.js";
 
 // ---------------------------------------------------------------------------
 // build_rag_query
@@ -103,12 +105,34 @@ export function build_active_chars(
 // retrieve_rag
 // ---------------------------------------------------------------------------
 
-interface ChunkWithCollection {
+export interface ChunkWithCollection {
   content: string;
   chapter_num: number;
   score: number;
   metadata: Record<string, unknown>;
   _collection: string;
+}
+
+/**
+ * 把 RAG 检索内部 chunk 转成 summary 对外的 RagChunkDetail。
+ * 在此集中：合法 collection 校验、chapter_num 正数 guard、source_file 非空 guard。
+ * 非法 collection 的 chunk 返回 null（UI 层 normalize 也有同类守卫，此处是源头）。
+ */
+export function toRagChunkDetail(c: ChunkWithCollection): RagChunkDetail | null {
+  if (!RAG_COLLECTIONS.includes(c._collection as RagCollection)) return null;
+  const detail: RagChunkDetail = {
+    content: c.content,
+    collection: c._collection as RagCollection,
+    score: c.score,
+  };
+  if (c._collection === "chapters" && c.chapter_num > 0) {
+    detail.chapter_num = c.chapter_num;
+  }
+  const srcFile = c.metadata?.source_file;
+  if (typeof srcFile === "string" && srcFile) {
+    detail.source_file = srcFile;
+  }
+  return detail;
 }
 
 export async function retrieve_rag(
@@ -122,9 +146,9 @@ export async function retrieve_rag(
   rag_decay_coefficient = 0.05,
   current_chapter = 1,
   language = "zh",
-): Promise<[string, number]> {
+): Promise<[string, number, ChunkWithCollection[]]> {
   await ensureTokenizer();
-  if (!query.trim()) return ["", 0];
+  if (!query.trim()) return ["", 0, []];
 
   // 获取查询向量
   const [queryEmbedding] = await embedding_provider.embed([query]);
@@ -200,7 +224,7 @@ export async function retrieve_rag(
     tokens = count_tokens(text, llm_config as { mode?: string }).count;
   }
 
-  return [text, tokens];
+  return [text, tokens, deduped];
 }
 
 // ---------------------------------------------------------------------------

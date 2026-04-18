@@ -17,7 +17,8 @@ export type { Fact as FactInfo } from "@ficforge/engine";
 export type { Draft as DraftDetail } from "@ficforge/engine";
 export type { Project as ProjectInfo } from "@ficforge/engine";
 export type { Settings as SettingsInfo } from "@ficforge/engine";
-export type { WritingStyle, CastRegistry, EmbeddingLock, ContextSummary } from "@ficforge/engine";
+export type { WritingStyle, CastRegistry, EmbeddingLock, ContextSummary, RagChunkDetail, RagCollection } from "@ficforge/engine";
+export { RAG_COLLECTIONS } from "@ficforge/engine";
 export { FactStatus, IndexStatus, LLMMode, Provenance } from "@ficforge/engine";
 
 // UI-specific types (no engine equivalent)

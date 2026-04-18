@@ -49,6 +49,7 @@ describe("writerStorage", () => {
         facts_as_focus: ["f1"],
         pinned_count: 1,
         rag_chunks_retrieved: 2,
+        rag_chunks: [],
         total_input_tokens: 1000,
         truncated_layers: [],
         truncated_characters: [],
@@ -59,8 +60,77 @@ describe("writerStorage", () => {
     expect(result).toEqual(summaries);
   });
 
+  it("roundtrip preserves valid rag_chunks", () => {
+    const summaries = {
+      "draft_a": {
+        characters_used: [],
+        worldbuilding_used: [],
+        facts_injected: 0,
+        facts_as_focus: [],
+        pinned_count: 0,
+        rag_chunks_retrieved: 2,
+        rag_chunks: [
+          { content: "alpha", collection: "chapters" as const, score: 0.8, chapter_num: 3 },
+          { content: "beta", collection: "characters" as const, score: 0.6, source_file: "lin.md" },
+        ],
+        total_input_tokens: 100,
+        truncated_layers: [],
+        truncated_characters: [],
+      },
+    };
+    saveContextSummaries("au1", 1, summaries);
+    expect(readSavedContextSummaries("au1", 1)).toEqual(summaries);
+  });
+
+  it("normalize drops invalid rag_chunks elements (unknown collection / NaN / missing content)", () => {
+    const stored = {
+      "draft_a": {
+        characters_used: [],
+        worldbuilding_used: [],
+        facts_injected: 0,
+        facts_as_focus: [],
+        pinned_count: 0,
+        rag_chunks_retrieved: 4,
+        rag_chunks: [
+          { content: "ok", collection: "chapters", score: 0.5, chapter_num: 1 },
+          { content: "bad-score", collection: "chapters", score: Number.NaN },
+          { content: "bad-coll", collection: "mystery", score: 0.3 },
+          { collection: "chapters", score: 0.4 }, // no content
+        ],
+        total_input_tokens: 0,
+        truncated_layers: [],
+        truncated_characters: [],
+      },
+    };
+    store.set("ficforge.writer.contextSummary:au1:1", JSON.stringify(stored));
+    const result = readSavedContextSummaries("au1", 1);
+    expect(result.draft_a.rag_chunks).toEqual([
+      { content: "ok", collection: "chapters", score: 0.5, chapter_num: 1 },
+    ]);
+  });
+
+  it("normalize backfills missing rag_chunks as []", () => {
+    const legacy = {
+      "draft_a": {
+        characters_used: [],
+        worldbuilding_used: [],
+        facts_injected: 0,
+        facts_as_focus: [],
+        pinned_count: 0,
+        rag_chunks_retrieved: 0,
+        // rag_chunks omitted (legacy localStorage)
+        total_input_tokens: 0,
+        truncated_layers: [],
+        truncated_characters: [],
+      },
+    };
+    store.set("ficforge.writer.contextSummary:au1:1", JSON.stringify(legacy));
+    const result = readSavedContextSummaries("au1", 1);
+    expect(result.draft_a.rag_chunks).toEqual([]);
+  });
+
   it("saveContextSummaries with empty object removes key", () => {
-    saveContextSummaries("au1", 1, { "x": { characters_used: [], worldbuilding_used: [], facts_injected: 0, facts_as_focus: [], pinned_count: 0, rag_chunks_retrieved: 0, total_input_tokens: 0, truncated_layers: [], truncated_characters: [] } });
+    saveContextSummaries("au1", 1, { "x": { characters_used: [], worldbuilding_used: [], facts_injected: 0, facts_as_focus: [], pinned_count: 0, rag_chunks_retrieved: 0, rag_chunks: [], total_input_tokens: 0, truncated_layers: [], truncated_characters: [] } });
     saveContextSummaries("au1", 1, {});
     expect(mockLocalStorage.removeItem).toHaveBeenCalled();
   });
@@ -72,7 +142,7 @@ describe("writerStorage", () => {
 
   it("saveContextSummaries swallows localStorage error", () => {
     mockLocalStorage.setItem.mockImplementationOnce(() => { throw new Error("QuotaExceeded"); });
-    expect(() => saveContextSummaries("au1", 1, { "x": { characters_used: [], worldbuilding_used: [], facts_injected: 0, facts_as_focus: [], pinned_count: 0, rag_chunks_retrieved: 0, total_input_tokens: 0, truncated_layers: [], truncated_characters: [] } })).not.toThrow();
+    expect(() => saveContextSummaries("au1", 1, { "x": { characters_used: [], worldbuilding_used: [], facts_injected: 0, facts_as_focus: [], pinned_count: 0, rag_chunks_retrieved: 0, rag_chunks: [], total_input_tokens: 0, truncated_layers: [], truncated_characters: [] } })).not.toThrow();
   });
 
   // ---------------------------------------------------------------------------
