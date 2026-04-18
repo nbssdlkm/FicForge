@@ -59,24 +59,48 @@ export interface FontOption {
 }
 
 /**
- * 当前可选字体列表：跟随系统 + 所有内置字体 + 已下载的 downloadable 字体。
+ * 当前可选字体列表：跟随系统 + 所有内置字体 + 已下载的 downloadable 字体
+ * + `alwaysIncludeIds` 中即使 manifest 未知或未安装也强制列出的 id。
  *
  * `installedDownloadableIds` 由 useFontManager 维护；未传则仅列出 system + builtin。
+ * `alwaysIncludeIds` 典型传入当前选中的 ui_font_id / reading_font_id —— 保证 `<select>`
+ * 的 value 永远能找到匹配 `<option>`，避免"保存的 id 在列表外" → 下拉显示与实际保存不一致。
  */
-export function listFontOptions(installedDownloadableIds: readonly string[] = []): FontOption[] {
+export function listFontOptions(
+  installedDownloadableIds: readonly string[] = [],
+  alwaysIncludeIds: readonly string[] = [],
+): FontOption[] {
   const options: FontOption[] = [
     { id: SYSTEM_FONT_ID, label: { zh: "跟随系统", en: "Follow system" } },
   ];
+  const addedIds = new Set<string>([SYSTEM_FONT_ID]);
+
   for (const entry of FONT_MANIFEST) {
     if (entry.type === "builtin") {
       options.push({ id: entry.id, label: entry.displayName });
+      addedIds.add(entry.id);
     }
   }
   for (const id of installedDownloadableIds) {
+    if (addedIds.has(id)) continue;
     const entry = getFontById(id);
     if (entry && entry.type === "downloadable") {
       options.push({ id: entry.id, label: entry.displayName });
+      addedIds.add(id);
     }
+  }
+  // 强制收录当前选中但不在正常列表中的 id（manifest 已删或未安装）
+  for (const id of alwaysIncludeIds) {
+    if (addedIds.has(id)) continue;
+    const entry = getFontById(id);
+    if (entry) {
+      // manifest 知道但不在 installed/builtin 里（例如用户选了已下载，之后卸载了）
+      options.push({ id, label: entry.displayName });
+    } else {
+      // manifest 完全不认识（未来 manifest 删字段 / 跨版本遗留）
+      options.push({ id, label: { zh: `未知字体 (${id})`, en: `Unknown (${id})` } });
+    }
+    addedIds.add(id);
   }
   return options;
 }

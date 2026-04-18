@@ -44,7 +44,9 @@ export const FontSettingsSection = () => {
   } = useFontManager();
 
   // 不必 useMemo：listFontOptions 计算极轻，installedDownloadableIds 已在 hook 内 memo。
-  const options = listFontOptions(installedDownloadableIds);
+  // alwaysIncludeIds 保证即使当前选中的 id 不在正常列表内（已卸载 / manifest 删了），
+  // 下拉仍能正确显示当前值，不会悄悄 fallback 到第一项造成 UI 状态与持久值不一致。
+  const options = listFontOptions(installedDownloadableIds, [uiFontId, readingFontId]);
 
   const handleClean = async () => {
     const keep = new Set<string>([uiFontId, readingFontId]);
