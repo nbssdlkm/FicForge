@@ -5,9 +5,10 @@
  * FontSettingsSection — GlobalSettingsModal 里的字体偏好 + 字体管理 section。
  *
  * 三块区域：
- * 1. 字体选择：两个下拉 —— 界面字体 / 阅读字体；下拉选项 = 系统 + 内置 + 已下载
+ * 1. 字体选择：「界面字体」「阅读字体」两组，每组内部各有西文 / 中文两个下拉 —— 共 4 个下拉。
+ *    CSS 层把同组的两个字体 family 合成 stack，浏览器按 unicode-range 自动分派。
  * 2. 字体列表：manifest 全部字体；每行展示状态 + 操作按钮（下载 / 取消 / 卸载 / 重试）
- * 3. 存储统计：已用总字节 + 「清理未用」按钮（保留当前选中字体，删除其他已下载）
+ * 3. 存储统计：已用总字节 + 「清理未用」按钮（保留当前 4 个选中字体，删除其他已下载）
  */
 
 import { FONT_MANIFEST } from "@ficforge/engine";
@@ -25,12 +26,46 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+interface ScriptSelectProps {
+  label: string;
+  value: string;
+  onChange: (id: string) => void;
+  options: { id: string; label: { zh: string; en: string } }[];
+  isZh: boolean;
+}
+
+const ScriptSelect = ({ label, value, onChange, options, isZh }: ScriptSelectProps) => (
+  <div className="flex flex-col gap-1">
+    <label className="text-xs text-text/70">{label}</label>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
+    >
+      {options.map((opt) => (
+        <option key={opt.id} value={opt.id}>
+          {isZh ? opt.label.zh : opt.label.en}
+        </option>
+      ))}
+    </select>
+  </div>
+);
+
 export const FontSettingsSection = () => {
   const { t, i18n } = useTranslation();
   const { showSuccess } = useFeedback();
   const isZh = i18n.resolvedLanguage !== "en";
 
-  const { uiFontId, readingFontId, setUiFontId, setReadingFontId } = useFontSelection();
+  const {
+    uiLatinFontId,
+    uiCjkFontId,
+    readingLatinFontId,
+    readingCjkFontId,
+    setUiLatinFontId,
+    setUiCjkFontId,
+    setReadingLatinFontId,
+    setReadingCjkFontId,
+  } = useFontSelection();
   const {
     statuses,
     progresses,
@@ -43,13 +78,12 @@ export const FontSettingsSection = () => {
     cleanUnused,
   } = useFontManager();
 
-  // 不必 useMemo：listFontOptions 计算极轻，installedDownloadableIds 已在 hook 内 memo。
-  // alwaysIncludeIds 保证即使当前选中的 id 不在正常列表内（已卸载 / manifest 删了），
-  // 下拉仍能正确显示当前值，不会悄悄 fallback 到第一项造成 UI 状态与持久值不一致。
-  const options = listFontOptions(installedDownloadableIds, [uiFontId, readingFontId]);
+  // 按 script 分别列出候选项；alwaysIncludeIds 传各自当前值以保证下拉能渲染。
+  const latinOptions = listFontOptions("latin", installedDownloadableIds, [uiLatinFontId, readingLatinFontId]);
+  const cjkOptions = listFontOptions("cjk", installedDownloadableIds, [uiCjkFontId, readingCjkFontId]);
 
   const handleClean = async () => {
-    const keep = new Set<string>([uiFontId, readingFontId]);
+    const keep = new Set<string>([uiLatinFontId, uiCjkFontId, readingLatinFontId, readingCjkFontId]);
     const n = await cleanUnused(keep);
     if (n > 0) {
       showSuccess(t("settings.fonts.cleanedToast", { count: n }));
@@ -62,36 +96,47 @@ export const FontSettingsSection = () => {
     <div className="space-y-4 border-t border-black/10 pt-5 dark:border-white/10">
       <h3 className="text-sm font-bold text-text/90">{t("settings.fonts.title")}</h3>
 
-      {/* 字体选择下拉 */}
-      <div className="flex flex-col gap-1.5">
+      {/* 界面字体：西文 + 中文 */}
+      <div className="flex flex-col gap-2">
         <label className="text-sm font-bold text-text/90">{t("settings.fonts.uiLabel")}</label>
-        <select
-          value={uiFontId}
-          onChange={(e) => setUiFontId(e.target.value)}
-          className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:w-64 md:text-sm"
-        >
-          {options.map((opt) => (
-            <option key={opt.id} value={opt.id}>
-              {isZh ? opt.label.zh : opt.label.en}
-            </option>
-          ))}
-        </select>
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+          <ScriptSelect
+            label={t("settings.fonts.latinLabel")}
+            value={uiLatinFontId}
+            onChange={setUiLatinFontId}
+            options={latinOptions}
+            isZh={isZh}
+          />
+          <ScriptSelect
+            label={t("settings.fonts.cjkLabel")}
+            value={uiCjkFontId}
+            onChange={setUiCjkFontId}
+            options={cjkOptions}
+            isZh={isZh}
+          />
+        </div>
         <p className="text-xs text-text/50">{t("settings.fonts.uiDescription")}</p>
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      {/* 阅读字体：西文 + 中文 */}
+      <div className="flex flex-col gap-2">
         <label className="text-sm font-bold text-text/90">{t("settings.fonts.readingLabel")}</label>
-        <select
-          value={readingFontId}
-          onChange={(e) => setReadingFontId(e.target.value)}
-          className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:w-64 md:text-sm"
-        >
-          {options.map((opt) => (
-            <option key={opt.id} value={opt.id}>
-              {isZh ? opt.label.zh : opt.label.en}
-            </option>
-          ))}
-        </select>
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+          <ScriptSelect
+            label={t("settings.fonts.latinLabel")}
+            value={readingLatinFontId}
+            onChange={setReadingLatinFontId}
+            options={latinOptions}
+            isZh={isZh}
+          />
+          <ScriptSelect
+            label={t("settings.fonts.cjkLabel")}
+            value={readingCjkFontId}
+            onChange={setReadingCjkFontId}
+            options={cjkOptions}
+            isZh={isZh}
+          />
+        </div>
         <p className="text-xs text-text/50">{t("settings.fonts.readingDescription")}</p>
       </div>
 

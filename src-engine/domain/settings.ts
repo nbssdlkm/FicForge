@@ -77,22 +77,28 @@ export function createChapterMetadataDisplay(partial?: Partial<ChapterMetadataDi
 }
 
 /**
- * 字体偏好。两个 id 分别对应 Tailwind font-sans（界面字体）和 font-serif（阅读字体），
- * 背后由 CSS 变量 --font-ui / --font-reading 承载（见 src-ui/src/App.css）。
+ * 字体偏好：界面 / 阅读两档，每档各选西文字体 + 中文字体。
  *
- * 特殊值 "system" = 跟随操作系统（对应 src-engine/fonts/manifest.ts 的 SYSTEM_FONT_STACK）。
+ * CSS 层把两个 id 对应的 family 拼成 font-family stack（Latin 字体在前、CJK 字体在后），
+ * 浏览器按 unicode-range 自动分派：英文走 Latin 字体、中文走 CJK 字体。
+ *
+ * 特殊值 `"system"` = 跟随操作系统（对应 SYSTEM_FONT_STACK）。
  * 其他值必须是 FONT_MANIFEST 中某个 entry 的 id。
  */
 export interface FontsConfig {
-  ui_font_id: string;
-  reading_font_id: string;
+  ui_latin_font_id: string;
+  ui_cjk_font_id: string;
+  reading_latin_font_id: string;
+  reading_cjk_font_id: string;
 }
 
 export function createFontsConfig(partial?: Partial<FontsConfig>): FontsConfig {
   return {
-    // 默认：界面跟随系统、阅读用内置 CJK 楷体（同一 stack 里会 fallback 到 Source Serif 4 for 西文）
-    ui_font_id: "system",
-    reading_font_id: "lxgw-wenkai-screen",
+    // 默认：界面跟随系统；阅读西文用 Source Serif 4、中文用 LXGW WenKai Screen。
+    ui_latin_font_id: "system",
+    ui_cjk_font_id: "system",
+    reading_latin_font_id: "source-serif-4",
+    reading_cjk_font_id: "lxgw-wenkai-screen",
     ...partial,
   };
 }
