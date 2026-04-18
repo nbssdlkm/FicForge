@@ -34,7 +34,7 @@ export function MobileManageView({
   return (
     <section className="flex h-full flex-col overflow-y-auto bg-background md:hidden">
       <header className="safe-area-top border-b border-black/10 bg-surface/80 px-4 py-4 backdrop-blur dark:border-white/10">
-        <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-text/40">
+        <p className="text-xs font-medium text-text/50">
           {t("workspace.mobileTabs.manage")}
         </p>
         <div className="mt-3 inline-flex w-full rounded-2xl border border-black/10 bg-background/70 p-1 dark:border-white/10">

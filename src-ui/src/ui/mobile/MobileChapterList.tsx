@@ -69,7 +69,7 @@ export function MobileChapterList({
   return (
     <section className="flex h-full flex-col bg-background md:hidden">
       <header className="safe-area-top border-b border-black/10 bg-surface/80 px-4 py-4 backdrop-blur dark:border-white/10">
-        <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-text/40">{t("navigation.chapters")}</p>
+        <p className="text-xs font-medium text-text/50">{t("navigation.chapters")}</p>
         <h1 className="mt-1 truncate font-serif text-2xl font-bold text-text">{auName}</h1>
         <p className="mt-1 text-sm text-text/55">{t("mobile.chapters.hint")}</p>
       </header>
@@ -108,7 +108,7 @@ export function MobileChapterList({
               )}
             >
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text/45">
+                <p className="text-xs font-medium text-text/50">
                   {t("import.chapterPreview", { num: chapter.chapter_num })}
                 </p>
                 {editingNum === chapter.chapter_num ? (

@@ -457,7 +457,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
         <div className="flex-1 min-h-0 flex flex-col">
           <div className="flex-1 overflow-y-auto p-2 space-y-6 font-mono py-4">
             <div className="space-y-2">
-              <div className="px-3 pb-1 text-[11px] font-sans font-bold text-text/40 uppercase tracking-widest flex justify-between items-center">
+              <div className="px-3 pb-1 text-xs font-sans font-medium text-text/50 flex justify-between items-center">
                 <span>{t("fandomLore.rootLabel")}</span>
               </div>
 

@@ -206,7 +206,7 @@ function LibraryInner({ onNavigate }: Props) {
 
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-5 pb-[calc(7rem+var(--safe-area-bottom))] md:p-8">
         <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-center md:justify-between">
-          <h1 className="text-3xl font-serif font-bold">{t("library.title")}</h1>
+          <h1 className="text-2xl font-serif font-medium">{t("library.title")}</h1>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Button variant="secondary" onClick={handleImportClick} disabled={creatingFandom || creatingAu || deleting} className="w-full sm:w-auto">
               {t("common.actions.importOldWork")}
@@ -356,7 +356,7 @@ function LibraryInner({ onNavigate }: Props) {
             ) : (
               fandoms.map(f => (
                 <div key={f.dir_name} className="space-y-1.5">
-                  <div className="text-xs font-bold text-text/50 uppercase tracking-wide px-1">{f.name}</div>
+                  <div className="text-xs font-medium text-text/50 px-1">{f.name}</div>
                   {f.aus.map(au => {
                     const auPath = `${getDataDir()}/fandoms/${f.dir_name}/aus/${au}`;
                     return (

@@ -167,7 +167,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
         <div className="max-h-[55vh] overflow-y-auto space-y-5 pr-1">
           {/* Section 1: Old facts */}
           <div>
-            <h3 className="text-xs font-bold text-text/60 uppercase tracking-wider mb-2">{t('dirty.oldFactsSection')}</h3>
+            <h3 className="text-xs font-medium text-text/60 mb-2">{t('dirty.oldFactsSection')}</h3>
             {loadingOld ? (
               <div className="flex items-center gap-2 py-4 justify-center text-text/50 text-sm">
                 <Loader2 size={16} className="animate-spin" />
@@ -206,7 +206,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
 
           {/* Section 2: AI re-extracted candidates */}
           <div>
-            <h3 className="text-xs font-bold text-text/60 uppercase tracking-wider mb-2">{t('dirty.newFactsSection')}</h3>
+            <h3 className="text-xs font-medium text-text/60 mb-2">{t('dirty.newFactsSection')}</h3>
             {extracting ? (
               <div className="flex items-center gap-2 py-4 justify-center text-accent text-sm">
                 <Loader2 size={16} className="animate-spin" />
