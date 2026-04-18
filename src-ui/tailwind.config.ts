@@ -18,9 +18,12 @@ export default {
         info: 'var(--color-info)',
       },
       fontFamily: {
-        serif: ['Charter', 'Georgia', '"Noto Serif CJK SC"', 'SimSun', 'serif'],
-        sans: ['Inter', '-apple-system', 'system-ui', '"Noto Sans CJK SC"', '"Microsoft YaHei"', 'sans-serif'],
-        mono: ['"JetBrains Mono"', '"Fira Code"', 'monospace'],
+        // 通过 CSS 变量解析，运行时可动态切换而无需重新渲染组件。
+        // 变量默认值定义在 App.css :root 里，hook 通过 setProperty 覆盖。
+        // 注意：Tailwind 要求 fontFamily 值是数组；单元素包裹 CSS var 即可。
+        serif: ['var(--font-reading)'],
+        sans: ['var(--font-ui)'],
+        mono: ['var(--font-mono)'],
       },
       spacing: {
         // Based on 4px grid requirements (but keeping arbitrary values mapped to normal tailwind keys)

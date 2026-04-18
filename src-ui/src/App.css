@@ -14,11 +14,27 @@
     --color-surface: #F2F0EB;
     --color-text: #3D3935;
     --color-accent: #C5705D;
-    
+
     --color-success: #508D69;
     --color-warning: #D69F3C;
     --color-error: #D35D5D;
     --color-info: #5A85B8;
+
+    /*
+     * 字体 stack（Phase 2）
+     *
+     * Tailwind font-sans / font-serif / font-mono 通过 var() 读取这两/三个变量，
+     * 字体切换 = 运行时 setProperty，零 React re-render、零组件改动。
+     *
+     * 默认值策略：内置字体（Source Serif 4 / LXGW WenKai Screen）被列在最前，
+     * Phase 3 前字体文件不存在，浏览器自动降级到后续 fallback（视觉无回归）；
+     * Phase 3 打包字体后自动升级为新默认。
+     *
+     * UI 默认「跟随系统」——与 src-engine/fonts/manifest.ts SYSTEM_FONT_STACK 同步。
+     */
+    --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --font-reading: "Source Serif 4", "LXGW WenKai Screen", Charter, Georgia, "Noto Serif CJK SC", "PingFang SC", SimSun, serif;
+    --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, monospace;
   }
 
   /* Warm Theme */
