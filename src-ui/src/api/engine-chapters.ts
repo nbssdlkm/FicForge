@@ -19,6 +19,7 @@ import {
   generate_op_id,
   now_utc,
   WriteTransaction,
+  withAuLock,
   type GeneratedWith,
 } from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
@@ -72,7 +73,12 @@ export async function confirmChapter(
   if (!finalTitle) {
     try {
       const llmConfig = resolve_llm_config(null, proj, sett);
-      if (llmConfig.mode === "api" && llmConfig.api_key) {
+      // 标题生成是纯 chat 调用，api 和 ollama 都能跑；local 暂未实现。
+      // api 模式必须有 api_key，ollama 模式 key 可为空（引擎会填 dummy）。
+      const canGenerate =
+        llmConfig.mode === "ollama" ||
+        (llmConfig.mode === "api" && !!llmConfig.api_key);
+      if (canGenerate) {
         const provider = create_provider(llmConfig);
         const chContent = await chapter.get_content_only(auPath, chapterNum);
         const lang = sett.app?.language || "zh";
@@ -83,20 +89,24 @@ export async function confirmChapter(
     }
   }
   if (finalTitle) {
-    // 原子更新：读取最新 state → 修改 title → WriteTransaction 保证 D-0036 顺序
-    const st = await state.get(auPath);
-    st.chapter_titles[chapterNum] = finalTitle;
-    const tx = new WriteTransaction();
-    tx.appendOp(auPath, createOpsEntry({
-      op_id: generate_op_id(),
-      op_type: "set_chapter_title",
-      target_id: auPath,
-      chapter_num: chapterNum,
-      timestamp: now_utc(),
-      payload: { title: finalTitle },
-    }));
-    tx.setState(st);
-    await tx.commit(ops, null, state);
+    // 原子更新：读取最新 state → 修改 title → WriteTransaction 保证 D-0036 顺序。
+    // AU 锁保证：engineConfirmChapter 释放锁后到这里写 title 前（LLM 生成 title 可能耗时），
+    // 如果用户发起 undo / edit 等操作，它们会和本段串行，不会覆盖中间状态。
+    await withAuLock(auPath, async () => {
+      const st = await state.get(auPath);
+      st.chapter_titles[chapterNum] = finalTitle;
+      const tx = new WriteTransaction();
+      tx.appendOp(auPath, createOpsEntry({
+        op_id: generate_op_id(),
+        op_type: "set_chapter_title",
+        target_id: auPath,
+        chapter_num: chapterNum,
+        timestamp: now_utc(),
+        payload: { title: finalTitle },
+      }));
+      tx.setState(st);
+      await tx.commit(ops, null, state);
+    });
   }
 
   // Index the confirmed chapter for RAG (F7) — delegated to RagManager
@@ -124,20 +134,24 @@ export async function undoChapter(auPath: string) {
 
 export async function updateChapterTitle(auPath: string, chapterNum: number, title: string) {
   const { state, ops } = getEngine().repos;
-  const st = await state.get(auPath);
-  st.chapter_titles[chapterNum] = title;
-  const tx = new WriteTransaction();
-  tx.appendOp(auPath, createOpsEntry({
-    op_id: generate_op_id(),
-    op_type: "set_chapter_title",
-    target_id: auPath,
-    chapter_num: chapterNum,
-    timestamp: now_utc(),
-    payload: { title },
-  }));
-  tx.setState(st);
-  await tx.commit(ops, null, state);
-  return { chapter_num: chapterNum, title };
+  // UI 直接写 state + ops，不经 service —— 必须顶层加 AU 锁，
+  // 否则 confirm / undo / edit 并发时会覆写同一 state 文件。
+  return withAuLock(auPath, async () => {
+    const st = await state.get(auPath);
+    st.chapter_titles[chapterNum] = title;
+    const tx = new WriteTransaction();
+    tx.appendOp(auPath, createOpsEntry({
+      op_id: generate_op_id(),
+      op_type: "set_chapter_title",
+      target_id: auPath,
+      chapter_num: chapterNum,
+      timestamp: now_utc(),
+      payload: { title },
+    }));
+    tx.setState(st);
+    await tx.commit(ops, null, state);
+    return { chapter_num: chapterNum, title };
+  });
 }
 
 export async function resolveDirtyChapter(auPath: string, chapterNum: number, confirmedFactChanges: any[] = []) {
@@ -152,5 +166,9 @@ export async function resolveDirtyChapter(auPath: string, chapterNum: number, co
 
 export async function updateChapterContent(auPath: string, chapterNum: number, content: string) {
   const { chapter, state, ops } = getEngine().repos;
-  return await edit_chapter_content(auPath, chapterNum, content, chapter, state, ops);
+  // edit_chapter_content 属于"底层 service"，本身不加锁（避免被 dirty_resolve
+  // 等已持锁的 orchestrator 调用时死锁）。UI 直接调用路径必须在此顶层加锁。
+  return withAuLock(auPath, () =>
+    edit_chapter_content(auPath, chapterNum, content, chapter, state, ops),
+  );
 }

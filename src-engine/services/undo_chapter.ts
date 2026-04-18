@@ -20,6 +20,7 @@ import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
 import { generate_op_id, now_utc } from "../repositories/implementations/file_utils.js";
+import { withAuLock } from "./au_lock.js";
 import { WriteTransaction } from "./write_transaction.js";
 
 export class UndoChapterError extends Error {
@@ -27,25 +28,6 @@ export class UndoChapterError extends Error {
     super(message);
     this.name = "UndoChapterError";
   }
-}
-
-// ---------------------------------------------------------------------------
-// AU 互斥锁
-// ---------------------------------------------------------------------------
-
-const _locks = new Map<string, Promise<void>>();
-
-function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
-  const prev = _locks.get(key) ?? Promise.resolve();
-  const next = prev.then(fn, fn);
-  const voidNext = next.then(() => {}, () => {});
-  _locks.set(key, voidNext);
-  voidNext.then(() => {
-    if (_locks.get(key) === voidNext) {
-      _locks.delete(key);
-    }
-  });
-  return next;
 }
 
 export interface UndoChapterParams {
@@ -64,8 +46,13 @@ export interface UndoChapterResult {
   new_current_chapter: number;
 }
 
+/**
+ * 撤销最新章入口。持 AU 锁覆盖 10 步级联回滚的整个事务 ——
+ * 这是全代码库最危险的 Service，任何并发插入都会破坏级联一致性。
+ * 锁分层策略见 services/au_lock.ts。
+ */
 export async function undo_latest_chapter(params: UndoChapterParams): Promise<UndoChapterResult> {
-  return withLock(params.au_id, () => doUndo(params));
+  return withAuLock(params.au_id, () => doUndo(params));
 }
 
 async function doUndo(params: UndoChapterParams): Promise<UndoChapterResult> {

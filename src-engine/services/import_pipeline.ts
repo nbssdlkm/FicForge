@@ -20,6 +20,7 @@ import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
 import { compute_content_hash, generate_op_id, now_utc } from "../repositories/implementations/file_utils.js";
+import { withAuLock } from "./au_lock.js";
 import { WriteTransaction } from "./write_transaction.js";
 
 import {
@@ -380,8 +381,16 @@ function extractFromTurns(
 
 /**
  * 执行导入计划。写入章节、设定、ops，更新 state。
+ * AU 级锁：整个导入流程期间阻止其它 service 对同一 AU 的并发写入。
  */
 export async function executeImport(
+  plan: ImportPlan,
+  params: ExecuteImportParams,
+): Promise<NewImportResult> {
+  return withAuLock(params.auId, () => doExecuteImport(plan, params));
+}
+
+async function doExecuteImport(
   plan: ImportPlan,
   params: ExecuteImportParams,
 ): Promise<NewImportResult> {
@@ -619,6 +628,10 @@ export interface ImportChaptersParams {
  * @deprecated 使用 executeImport() 替代
  */
 export async function import_chapters(params: ImportChaptersParams): Promise<ImportResult> {
+  return withAuLock(params.au_id, () => doImportChapters(params));
+}
+
+async function doImportChapters(params: ImportChaptersParams): Promise<ImportResult> {
   const {
     au_id, chapters,
     chapter_repo, state_repo, ops_repo,

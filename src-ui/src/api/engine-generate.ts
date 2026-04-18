@@ -26,14 +26,24 @@ export async function* generateChapter(params: {
   const allFacts = await e.repos.fact.list_all(params.au_path);
   const sett = await e.repos.settings.get();
 
-  // 验证 LLM 模式：local/ollama 在 TS 引擎中不支持流式生成
+  // 验证 LLM 模式。api 和 ollama 走 OpenAI 兼容协议，正常放行。
+  // local 需要 Python sidecar 扩展，当前未实现 —— 在 create_provider 里抛错之前
+  // 提前拦截，给前端友好的 error_code（UI 层 capabilities.ts 已禁用选项，
+  // 此处作为防手改 YAML 的最后防线）。
   const llmConfig = resolve_llm_config(
     params.session_llm ?? null,
     proj,
     sett,
   );
-  if (llmConfig.mode !== "api") {
-    yield { event: "error", data: { error_code: "UNSUPPORTED_MODE", message: "续写功能需要 API 模式的 LLM 配置（local/ollama 模式暂不支持）", actions: ["check_settings"] } };
+  if (llmConfig.mode === "local") {
+    yield {
+      event: "error",
+      data: {
+        error_code: "UNSUPPORTED_MODE",
+        message: "local 模式需要 Python sidecar 扩展支持，当前版本暂未实现。请在设置中切换到 API 或 Ollama 模式。",
+        actions: ["check_settings"],
+      },
+    };
     return;
   }
 

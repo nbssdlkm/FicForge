@@ -57,7 +57,8 @@
       "generating": "Generating…",
       "testing": "Testing…",
       "extracting": "Extracting…",
-      "exporting": "Exporting…"
+      "exporting": "Exporting…",
+      "comingSoon": "Coming Soon"
     },
     "labels": {
       "model": "Model",
@@ -450,6 +451,9 @@
     "au": {
       "useCustomEmbedding": "Use a custom Embedding model for this story"
     },
+    "ollama": {
+      "mobileRemoteHint": "⚠️ Mobile/Web cannot reach your local Ollama at localhost. Change the API endpoint to your Ollama host's LAN IP (e.g. http://192.168.1.10:11434/v1)."
+    },
     "global": {
       "title": "Global Settings",
       "description": "These are the default settings. All new stories will start with this configuration.",
@@ -465,6 +469,7 @@
       "embeddingApiBasePlaceholder": "API endpoint (e.g. https://api.openai.com)",
       "embeddingApiKeyPlaceholder": "API key",
       "embeddingMobileHint": "Mobile requires online Embedding API",
+      "embeddingIndependentHint": "⚠️ Embedding uses its own API configuration and does NOT reuse the LLM API key above. Many LLM providers (DeepSeek, Claude, etc.) do not offer an embedding endpoint — fill in the embedding service you actually use.",
       "apiCredentialsDescription": "Used as fallback when a story doesn't have its own model settings.",
       "apiModeLabel": "Connection Mode",
       "languageLabel": "Language",

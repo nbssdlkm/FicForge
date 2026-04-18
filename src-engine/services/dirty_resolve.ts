@@ -16,6 +16,7 @@ import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
 import { compute_content_hash, generate_op_id, now_utc } from "../repositories/implementations/file_utils.js";
+import { withAuLock } from "./au_lock.js";
 import { edit_fact, update_fact_status } from "./facts_lifecycle.js";
 import { WriteTransaction } from "./write_transaction.js";
 
@@ -24,25 +25,6 @@ export class DirtyResolveError extends Error {
     super(message);
     this.name = "DirtyResolveError";
   }
-}
-
-// ---------------------------------------------------------------------------
-// AU 互斥锁
-// ---------------------------------------------------------------------------
-
-const _locks = new Map<string, Promise<void>>();
-
-function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
-  const prev = _locks.get(key) ?? Promise.resolve();
-  const next = prev.then(fn, fn);
-  const voidNext = next.then(() => {}, () => {});
-  _locks.set(key, voidNext);
-  voidNext.then(() => {
-    if (_locks.get(key) === voidNext) {
-      _locks.delete(key);
-    }
-  });
-  return next;
 }
 
 export interface ResolveDirtyParams {
@@ -63,8 +45,13 @@ export interface ResolveDirtyResult {
   content_hash: string;
 }
 
+/**
+ * Dirty 章节解除入口。持 AU 锁覆盖整个 doResolve —— 内部会调用底层
+ * facts_lifecycle.edit_fact / update_fact_status，那两个底层函数不加锁
+ * 正是为了避免在这里发生重入死锁。见 services/au_lock.ts。
+ */
 export async function resolve_dirty_chapter(params: ResolveDirtyParams): Promise<ResolveDirtyResult> {
-  return withLock(params.au_id, () => doResolve(params));
+  return withAuLock(params.au_id, () => doResolve(params));
 }
 
 async function doResolve(params: ResolveDirtyParams): Promise<ResolveDirtyResult> {

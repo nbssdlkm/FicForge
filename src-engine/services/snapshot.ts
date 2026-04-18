@@ -10,7 +10,8 @@ import type { PlatformAdapter } from "../platform/adapter.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
-import { joinPath, withWriteLock } from "../repositories/implementations/file_utils.js";
+import { joinPath } from "../repositories/implementations/file_utils.js";
+import { withAuLock } from "./au_lock.js";
 
 export interface Snapshot {
   chapter: number;
@@ -28,7 +29,8 @@ export interface Snapshot {
  * 2.1 原子性：采用 watermark 策略——在快照中记录已归档 ops 数量，
  *     仅追加增量 ops 到归档文件，不清空 ops.jsonl。崩溃时 ops.jsonl
  *     保持完整，不会丢失数据。
- * 2.2 并发安全：全程持有 AU 级写锁，防止并发写入竞态。
+ * 2.2 并发安全：全程持有 AU 级锁（withAuLock），与 confirm/undo/edit 等其它
+ *     AU 级写入共享同一命名空间 "au:<au_id>"，保证读取 state/ops 时的一致性。
  */
 export async function checkAndSnapshot(
   auPath: string,
@@ -37,8 +39,8 @@ export async function checkAndSnapshot(
   stateRepo: StateRepository,
   factRepo: FactRepository,
 ): Promise<boolean> {
-  // 2.2: AU-level write lock — serializes snapshot with concurrent writes
-  return withWriteLock(`snapshot:${auPath}`, async () => {
+  // 2.2: 与 confirm/undo/edit 等共享同一把 AU 锁，避免命名空间分裂导致快照读到撕裂的 state
+  return withAuLock(auPath, async () => {
     const state = await stateRepo.get(auPath);
     const currentChapter = state.current_chapter;
 

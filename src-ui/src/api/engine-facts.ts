@@ -13,6 +13,7 @@ import {
   FactStatus,
   resolve_llm_config,
   create_provider,
+  withAuLock,
 } from "@ficforge/engine";
 import type { LLMProvider, ResolvedLLMConfig, Project } from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
@@ -31,7 +32,10 @@ async function resolveFactsProvider(auPath: string): Promise<{
   const proj = await e.repos.project.get(auPath);
   const sett = await e.repos.settings.get();
   const llmConfig = resolve_llm_config(null, proj, sett);
-  if (llmConfig.mode !== "api") throw new Error("Facts 提取需要 API 模式的 LLM 配置");
+  // api 和 ollama 都走 OpenAI 兼容协议，均可用。local 需要 sidecar 扩展，未实现。
+  if (llmConfig.mode === "local") {
+    throw new Error("Facts 提取暂不支持 local 模式，请切换到 API 或 Ollama");
+  }
   const provider = create_provider(llmConfig);
   const lang = sett.app?.language || "zh";
   return { provider, llmConfig, proj, lang };
@@ -51,33 +55,42 @@ export async function listFacts(auPath: string, status?: string) {
 
 export async function addFact(auPath: string, chapterNum: number, factData: Record<string, unknown>) {
   const { fact, ops } = getEngine().repos;
-  const result = await add_fact(auPath, chapterNum, factData, fact, ops);
-  return { ...result, fact_id: result.id };
+  return withAuLock(auPath, async () => {
+    const result = await add_fact(auPath, chapterNum, factData, fact, ops);
+    return { ...result, fact_id: result.id };
+  });
 }
 
 export async function editFact(auPath: string, factId: string, updatedFields: Record<string, unknown>) {
   const { fact, ops, state } = getEngine().repos;
-  return await edit_fact(auPath, factId, updatedFields, fact, ops, state);
+  return withAuLock(auPath, () =>
+    edit_fact(auPath, factId, updatedFields, fact, ops, state),
+  );
 }
 
 export async function updateFactStatus(auPath: string, factId: string, newStatus: string, chapterNum: number) {
   const { fact, ops, state } = getEngine().repos;
-  return await update_fact_status(auPath, factId, newStatus, chapterNum, fact, ops, state);
+  return withAuLock(auPath, () =>
+    update_fact_status(auPath, factId, newStatus, chapterNum, fact, ops, state),
+  );
 }
 
 export async function batchUpdateFactStatus(auPath: string, factIds: string[], newStatus: string) {
   const { fact, ops, state } = getEngine().repos;
-  let updated = 0;
-  let failed = 0;
-  for (const fid of factIds) {
-    try {
-      await update_fact_status(auPath, fid, newStatus, 0, fact, ops, state);
-      updated++;
-    } catch {
-      failed++;
+  // 整个批次包在一次 withAuLock 内，避免每次循环释放锁后被其它操作插入导致状态撕裂
+  return withAuLock(auPath, async () => {
+    let updated = 0;
+    let failed = 0;
+    for (const fid of factIds) {
+      try {
+        await update_fact_status(auPath, fid, newStatus, 0, fact, ops, state);
+        updated++;
+      } catch {
+        failed++;
+      }
     }
-  }
-  return { updated, failed };
+    return { updated, failed };
+  });
 }
 
 // ---------------------------------------------------------------------------

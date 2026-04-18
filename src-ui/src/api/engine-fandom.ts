@@ -7,6 +7,7 @@
  *   renameFandom, renameAu.
  */
 
+import { withAuLock } from "@ficforge/engine";
 import { getEngine, getDataDir } from "./engine-instance";
 import { sanitizePathSegment } from "./engine-lore";
 
@@ -75,14 +76,26 @@ export async function deleteFandom(fandomDirName: string, dataDir?: string) {
   const { adapter } = getEngine();
   const fandomRoot = `${dd}/fandoms/${safeFandomDir}`;
 
-  // 先 trash 所有 AU 的 project.yaml（使 listAus 不再列出它们）
+  // 先 trash 所有 AU 的 project.yaml（使 listAus 不再列出它们）+ 立即清理 AU 级 secure storage。
+  // 立即清理原因：API key 的安全半衰期远小于 30 天 trash 保留期，延迟清理 = 扩大泄漏窗口。
+  // 用户从 trash 恢复后重填 key 是可接受的（安全最佳实践）。
+  //
+  // AU 锁：对每个 AU 分别持锁执行删除，避免和该 AU 正在进行的 confirm / generate /
+  // edit 等操作交叉（比如 confirm 刚写完 chapter.md 就被 delete 移走 project.yaml）。
+  // 顺序加锁不会死锁 —— 本函数是唯一持多把 AU 锁的路径，其它 service 都只持一把。
   const ausDir = `${fandomRoot}/aus`;
   if (await adapter.exists(ausDir)) {
     const auDirs = await adapter.listDir(ausDir);
     for (const au of auDirs) {
-      try {
-        await getEngine().trash.move_to_trash(fandomRoot, `aus/${au}/project.yaml`, "au", au);
-      } catch { /* 可能已删或不存在 */ }
+      const auPath = `${ausDir}/${au}`;
+      await withAuLock(auPath, async () => {
+        try {
+          await getEngine().trash.move_to_trash(fandomRoot, `aus/${au}/project.yaml`, "au", au);
+        } catch { /* 可能已删或不存在 */ }
+        try {
+          await getEngine().repos.project.removeSecureStorage(auPath);
+        } catch { /* secure 清理失败不阻断 delete 主流程 */ }
+      });
     }
   }
 
@@ -97,10 +110,20 @@ export async function deleteAu(fandomDirName: string, auName: string, dataDir?: 
   const dd = dataDir ?? getDataDir();
   // AU 是目录——在 fandom 级别的 .trash/ 创建记录（这样 Library 的 TrashPanel 能看到）
   const fandomRoot = `${dd}/fandoms/${safeFandomDir}`;
-  const entry = await getEngine().trash.move_to_trash(
-    fandomRoot, `aus/${safeAuName}/project.yaml`, "au", safeAuName,
-  );
-  return { status: "ok", trash_id: entry.trash_id };
+  const auPath = `${fandomRoot}/aus/${safeAuName}`;
+  // AU 锁：避免和该 AU 上正在进行的任何写操作（confirm / generate / edit / extractFacts 等）
+  // 交叉 —— 否则删除中途可能读到半成品，或写操作在 project.yaml 被移走后读不到配置。
+  return withAuLock(auPath, async () => {
+    const entry = await getEngine().trash.move_to_trash(
+      fandomRoot, `aus/${safeAuName}/project.yaml`, "au", safeAuName,
+    );
+    // 立即清理 AU 级 secure storage —— 避免凭据在 trash 保留期内继续驻留。
+    // 详见 deleteFandom 的相同注释。
+    try {
+      await getEngine().repos.project.removeSecureStorage(auPath);
+    } catch { /* secure 清理失败不阻断 delete 主流程 */ }
+    return { status: "ok", trash_id: entry.trash_id };
+  });
 }
 
 export async function listFandomFiles(fandomName: string, dataDir?: string) {

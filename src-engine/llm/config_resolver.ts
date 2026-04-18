@@ -15,6 +15,8 @@ export interface ResolvedLLMConfig {
   model: string;
   api_base: string;
   api_key: string;
+  /** Ollama 模式下的模型名（对应 LLMConfig.ollama_model）。api 模式下忽略。 */
+  ollama_model?: string;
 }
 
 /**
@@ -23,14 +25,14 @@ export interface ResolvedLLMConfig {
  */
 export function resolve_llm_config(
   session_llm: Record<string, string> | null,
-  project: { llm?: { mode?: string | { value: string }; model?: string; api_base?: string; api_key?: string } },
-  settings: { default_llm?: { mode?: string | { value: string }; model?: string; api_base?: string; api_key?: string } },
+  project: { llm?: { mode?: string | { value: string }; model?: string; api_base?: string; api_key?: string; ollama_model?: string } },
+  settings: { default_llm?: { mode?: string | { value: string }; model?: string; api_base?: string; api_key?: string; ollama_model?: string } },
 ): ResolvedLLMConfig {
   let cfg: Record<string, string>;
 
   if (session_llm && session_llm.model) {
     cfg = { ...session_llm };
-  } else if (project.llm && project.llm.model) {
+  } else if (project.llm && (project.llm.model || project.llm.ollama_model)) {
     cfg = llmObjToDict(project.llm);
   } else if (settings.default_llm) {
     cfg = llmObjToDict(settings.default_llm);
@@ -42,6 +44,7 @@ export function resolve_llm_config(
   cfg.model = cfg.model ?? "";
   cfg.api_base = cfg.api_base ?? "";
   cfg.api_key = cfg.api_key ?? "";
+  cfg.ollama_model = cfg.ollama_model ?? "";
 
   // 掩码 / 占位符 api_key 防御
   const isMasked = !cfg.api_key || cfg.api_key.startsWith("****") || cfg.api_key === "<secure>";
@@ -57,6 +60,7 @@ export function resolve_llm_config(
     model: cfg.model,
     api_base: cfg.api_base,
     api_key: cfg.api_key,
+    ollama_model: cfg.ollama_model,
   };
 }
 
@@ -68,6 +72,7 @@ function llmObjToDict(llm: Record<string, unknown>): Record<string, string> {
     model: (llm.model as string) ?? "",
     api_base: (llm.api_base as string) ?? "",
     api_key: (llm.api_key as string) ?? "",
+    ollama_model: (llm.ollama_model as string) ?? "",
   };
 }
 
@@ -124,11 +129,41 @@ export function resolve_llm_params(
 // create_provider（工厂函数）
 // ---------------------------------------------------------------------------
 
+/**
+ * 根据解析后的 LLM 配置创建 Provider。
+ *
+ * 支持的 mode（来自 llm/capabilities.ts 的能力矩阵）：
+ *   - "api"    → OpenAI 兼容接口（DeepSeek / OpenAI / Claude 中转 / 自建中转等）
+ *   - "ollama" → Ollama 的 /v1 端点（100% 兼容 OpenAI chat/completions 协议），
+ *                所以直接复用 OpenAICompatibleProvider。api_base 为空时默认
+ *                http://localhost:11434/v1；api_key 为空时填 dummy "ollama"
+ *                （Ollama 不校验 key，但 OpenAI SDK 要求非空）
+ *   - "local"  → 本地模型文件。当前需要 Python sidecar 扩展支持，未实现；
+ *                UI 通过 capabilities.ts 禁用此选项，此处保留运行时防护。
+ */
 export function create_provider(llmConfig: ResolvedLLMConfig): LLMProvider {
   const mode = llmConfig.mode;
+
   if (mode === "api") {
     return new OpenAICompatibleProvider(llmConfig.api_base, llmConfig.api_key, llmConfig.model);
   }
-  // local 和 ollama 在 TS 端暂不支持（桌面端通过 sidecar 代理，移动端只用 API）
-  throw new Error(`不支持的 LLM mode: ${mode}`);
+
+  if (mode === "ollama") {
+    const base = (llmConfig.api_base || "http://localhost:11434/v1").replace(/\/+$/, "");
+    // Ollama 自己的 /api/chat 不走 OpenAI 协议；只有 /v1 子路径兼容。若用户填了
+    // 裸 host 而没带 /v1，补齐；若已带则不重复。
+    const normalizedBase = /\/v1$/.test(base) ? base : `${base}/v1`;
+    const key = llmConfig.api_key || "ollama";  // dummy —— Ollama 不校验
+    const model = llmConfig.ollama_model || llmConfig.model;
+    if (!model) {
+      throw new Error("Ollama 模式需要指定模型名（ollama_model）");
+    }
+    return new OpenAICompatibleProvider(normalizedBase, key, model);
+  }
+
+  if (mode === "local") {
+    throw new Error("local 模式需要 Python sidecar 扩展支持，当前版本暂未实现");
+  }
+
+  throw new Error(`未知的 LLM mode: ${mode}`);
 }

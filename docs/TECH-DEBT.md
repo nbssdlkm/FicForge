@@ -53,3 +53,122 @@ undo_latest_chapter 在撤销章节时，会通过 `collectManualStatusRollback`
 - Tauri: 接入 `@tauri-apps/plugin-stronghold`（OS keychain）
 - Capacitor: 接入 `@capacitor-community/secure-storage`（Android Keystore / iOS Keychain）
 - Web: 接入 `crypto.subtle` 派生密钥加密
+
+接入时 `PlatformAdapter.secureGet/secureSet/secureRemove` 的接口契约不变，仅替换实现；
+`repositories/implementations/secure_fields.ts` 的上层机制（占位符、旧明文自动迁移、
+删除 AU/Fandom 时清理）无需改动。
+
+---
+
+## TD-005: Embedding 功能不完整（AU 覆盖 + 本地 sidecar 均未接入）
+
+**状态:** 待修复（v0.3.0 二次审计发现）
+**优先级:** 中（文档/UI 承诺了该能力但实际不工作，用户无感）
+**涉及文件:** `src-engine/llm/embedding_provider.ts`, `src-engine/llm/capabilities.ts`,
+`src-ui/src/api/engine-state.ts`, `src-ui/src/api/engine-generate.ts`,
+`src-ui/src/api/engine-chapters.ts`
+
+两个相关缺陷捆绑修复：
+
+### 5a. AU 级 embedding_lock 覆盖从未生效
+
+`Project` 数据模型里有 `embedding_lock` 字段（`AuSettingsLayout` 允许用户为单个 AU
+配置独立的 embedding 服务），但 `createEmbeddingProvider(sett)` 只读取全局
+`settings.embedding`，**完全无视 `project.embedding_lock`**。
+
+### 5b. 本地 Embedding（Python sidecar）从未接入引擎
+
+TS 引擎只实现了 `RemoteEmbeddingProvider`（`/v1/embeddings` 远程端点），
+**没有 `LocalEmbeddingProvider`**。Python sidecar 的 `/embed` 端点存在，
+但 `createEmbeddingProvider` 不会构造消费它的 provider。因此：
+
+- 全局 `settings.embedding.mode=LOCAL` 在代码上等价于 "不配置 embedding"
+- 本次审计已把 `capabilities.ts` 的 `EMBEDDING_MATRIX.tauri.local` 从
+  `available: true` 降级为 `coming_soon`，避免 UI 允许但实际不工作
+- 等本修复完成再改回 `available: true`
+
+**修复方向:**
+
+1. 新增 `SidecarEmbeddingProvider implements EmbeddingProvider`，调用 Python
+   sidecar 的 `POST /embed`；
+2. `createEmbeddingProvider` 改签名：`(sett, project?, sidecarUrl?) => EmbeddingProvider | undefined`；
+   优先级：`project.embedding_lock.api_key` → `settings.embedding (api)` → `sidecar (local)`；
+3. 所有调用点传入 `project`（`engine-generate.ts`、`confirmChapter` 里的
+   indexChapter 调用、`rebuildIndex`）；
+4. `embedding_lock` 在 `file_project.ts` 里已经加入了 `projectSecureSpecs`（P0-3），
+   所以 `embedding_lock.api_key` 已经不会进 `project.yaml` 明文 —— 本修复只影响
+   "读取后如何使用"；
+5. `capabilities.ts` 把 Tauri 的 local 改回 `available: true`；
+6. 补测：generation/RAG 的 "AU embedding_lock 优先于 settings"、"Tauri 回退到 sidecar" 断言。
+
+**关联:** 与 TD-004（secureStorage 真加密）、TD-006（MobileOnboarding
+embedding 默认 mode）放在同一轮"embedding + 凭据一致性"修复批次。
+
+---
+
+## TD-006: MobileOnboarding 的 embedding 默认 mode 不适合移动端
+
+**状态:** 待修复（v0.3.0 二次审计发现）
+**优先级:** 低（首次使用才触发，不影响续写主流程，仅影响 RAG 索引）
+**涉及文件:** `src-ui/src/ui/onboarding/MobileOnboarding.tsx`
+
+`MobileOnboarding.tsx:231` 的逻辑是
+`mode: useCustomEmbedding ? LLMMode.API : LLMMode.LOCAL`。当用户不勾选
+"使用自定义 embedding"时默认写入 `LLMMode.LOCAL`，但移动端（Capacitor/PWA）
+没有 Python sidecar，**LOCAL embedding 根本跑不了**。结果是移动端新用户首次完成
+onboarding 后 RAG 索引永远失败（createEmbeddingProvider 返回 undefined，index STALE）。
+
+**修复方向:**
+
+1. 在 MobileOnboarding 里引入 `getEmbeddingModeAvailability(platform)`；
+2. 如果 local 不可用（移动端），强制 `useCustomEmbedding = true` 并在 UI 上隐藏
+   "使用内置 embedding"这个开关（或者直接不给用户选择，引导填 API 即可）；
+3. 桌面端保持现状（内置 local embedding 可用）。
+
+**关联:** 与 P1-5b capabilities 矩阵在同一概念体系下，但涉及 onboarding UX 流程，
+适合和 TD-005 / TD-004 一起做成一次 "embedding 一致性"修复批次。
+
+---
+
+## TD-007: WebDAV 同步冲突写入不持 AU 锁
+
+**状态:** 待修复（v0.3.0 五次审计发现）
+**优先级:** 低（冲突解决是用户主动触发的低频操作，和本地写入完全并发的概率小）
+**涉及文件:** `src-ui/src/api/engine-sync.ts`
+
+`engine-sync.ts` 的冲突解决路径（`applyFileConflictResolution` 等）在用户选择
+"用远端覆盖本地"时调 `adapter.writeFile(localFullPath, remoteContent)` 直接覆盖
+本地文件。如果此时某个 AU 正在进行 `confirmChapter` / `generateChapter` 等写入，
+刚写好的 chapter.md / ops.jsonl 可能被远端旧版本覆盖，或写入过程读到半新半旧。
+
+**修复方向:**
+
+1. 在冲突解决写入时，按文件所属 AU 解析 au_id，用 `withAuLock(auPath, ...)` 包裹
+   `writeFile` 段；
+2. 跨 AU 的批量冲突解决按 AU 分组，每个 AU 独立加锁；
+3. 同步"列文件对比差异"阶段无需加锁（纯读），只需在真正落盘时加锁。
+
+**关联:** 与 TD-001（Capacitor WebDAV CORS）放在同一轮"同步机制完善"修复。
+
+---
+
+## TD-008: 从 Trash 恢复 AU 后 api_key 为空的 UX 提示缺失
+
+**状态:** 待修复（v0.3.0 五次审计发现）
+**优先级:** 低（非功能缺陷，但首次遇到会让用户困惑）
+**涉及文件:** `src-ui/src/ui/Library.tsx`（或 TrashPanel 相关组件），
+`src-ui/src/ui/settings/AuSettingsLayout.tsx`
+
+`deleteAu` / `deleteFandom` 在软删除时**立即**清理 secure storage 里的 api_key
+（见 engine-fandom.ts 的注释：降低凭据泄漏窗口，符合安全最佳实践）。但 trash 里
+保留了 project.yaml（含占位符 `<secure>`），用户从 trash 恢复后：
+- FileProjectRepository.get 读取占位符 → secureGet 返回 null → 字段被设为空
+- 用户在 AU 设置里看到 api_key 空了，可能疑惑"我之前填过为什么没了"
+
+**修复方向:**
+
+- 在 TrashPanel 恢复操作的确认对话框里提示："恢复后需要重新填写 API Key"；或
+- 在 AuSettingsLayout 的 LLM 覆盖区，如果检测到 `proj.llm.api_key === ""`
+  且 `proj.llm.mode === "api"`，显示一次性提示"API Key 在恢复时已清除，请重新填写"。
+
+本设计（立即清理 secure storage）有意为之，不改；只需 UX 提示更友好。

@@ -14,6 +14,7 @@ import { getProject, updateProject, type ProjectInfo } from '../../api/engine-cl
 import { getSettings, type SettingsInfo } from '../../api/engine-client';
 import { getState, recalcState, rebuildIndex } from '../../api/engine-client';
 import { GlobalSettingsModal } from './GlobalSettingsModal';
+import { LlmModeSelect } from './LlmModeSelect';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
 import { useFeedback } from '../../hooks/useFeedback';
@@ -292,12 +293,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                 <div className="pt-4 border-t border-black/10 dark:border-white/10 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-text/80">{t("common.labels.searchMode")}</label>
-                    <select value={llmMode} onChange={e => setLlmMode(e.target.value)} className="h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-9 md:text-sm">
-                      <option value="api">{getEnumLabel("llm_mode", "api", "api")}</option>
-                      <option value="local">{getEnumLabel("llm_mode", "local", "local")}</option>
-                      <option value="ollama">{getEnumLabel("llm_mode", "ollama", "ollama")}</option>
-                    </select>
-                    <p className="text-xs text-text/50">{t(`common.help.llmMode.${llmMode}`)}</p>
+                    <LlmModeSelect value={llmMode} onChange={setLlmMode} />
                   </div>
                   {llmMode === 'api' && (
                     <>

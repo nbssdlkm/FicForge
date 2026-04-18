@@ -135,3 +135,6 @@ export { edit_chapter_content } from "./chapter_edit.js";
 
 // Write Transaction
 export { WriteTransaction } from "./write_transaction.js";
+
+// AU Lock（供 UI API 层在直接调用底层 services 时顶层加锁，避免跨服务交叉写）
+export { withAuLock } from "./au_lock.js";

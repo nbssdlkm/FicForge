@@ -57,7 +57,8 @@
       "generating": "生成中…",
       "testing": "正在测试…",
       "extracting": "正在提取…",
-      "exporting": "正在导出…"
+      "exporting": "正在导出…",
+      "comingSoon": "敬请期待"
     },
     "labels": {
       "model": "模型",
@@ -450,6 +451,9 @@
     "au": {
       "useCustomEmbedding": "为本篇使用独立Embedding模型"
     },
+    "ollama": {
+      "mobileRemoteHint": "⚠️ 移动端/网页版无法连接本机的 Ollama（localhost）。请把 API 地址改成你 Ollama 服务所在机器的局域网 IP（如 http://192.168.1.10:11434/v1）。"
+    },
     "global": {
       "title": "全局设置",
       "description": "这里的配置会作为默认值，所有新建的故事都会先用这套设置。",
@@ -465,6 +469,7 @@
       "embeddingApiBasePlaceholder": "API 地址（如 https://api.openai.com）",
       "embeddingApiKeyPlaceholder": "API 密钥",
       "embeddingMobileHint": "移动端需配置在线Embedding API",
+      "embeddingIndependentHint": "⚠️ Embedding 使用独立的 API 配置，不会复用上面 LLM 的 API Key。很多 LLM 供应商（DeepSeek、Claude 官方等）不提供 embedding 端点，请按实际使用的 embedding 服务填写。",
       "apiCredentialsDescription": "如果某篇故事没有单独指定，就会用这里的设置。",
       "apiModeLabel": "接入方式",
       "languageLabel": "界面语言",

@@ -42,7 +42,11 @@ export async function analyzeImportFile(
       const { settings } = getEngine().repos;
       const sett = await settings.get();
       const llmConfig = resolve_llm_config(null, {}, sett as unknown as Record<string, unknown>);
-      if (llmConfig.mode === "api" && llmConfig.api_key) {
+      // api 和 ollama 都支持 AI 辅助导入；local 未实现时静默禁用即可
+      const canAssist =
+        llmConfig.mode === "ollama" ||
+        (llmConfig.mode === "api" && !!llmConfig.api_key);
+      if (canAssist) {
         options = { ...options, llmProvider: create_provider(llmConfig) };
       }
     } catch {

@@ -16,6 +16,41 @@ import {
 } from "../../domain/project.js";
 import type { ProjectRepository } from "../interfaces/project.js";
 import { joinPath, now_utc, obj_to_plain, validateBasePath } from "./file_utils.js";
+import {
+  extractSecureFields,
+  removeSecureFields,
+  restoreSecureFields,
+  type SecureFieldSpec,
+} from "./secure_fields.js";
+
+/**
+ * AU 级敏感字段 spec factory。
+ * secureKey 用 `project.{au_id}.` 做 namespace，不同 AU 的凭据独立存储。
+ *
+ * ⚠️ 历史遗留：在引入本 spec 之前，AU 级 llm.api_key 会被明文写进 project.yaml
+ *    （审计 P1 问题）。restoreSecureFields 里的"旧明文自动迁移"分支会无感地把
+ *    老 project.yaml 的明文 key 搬进 secure storage，下次 save 时写占位符。
+ */
+function projectSecureSpecs(au_id: string): SecureFieldSpec<Project>[] {
+  return [
+    {
+      secureKey: `project.${au_id}.llm.api_key`,
+      get: (p) => p.llm.api_key,
+      set: (p, v) => { p.llm.api_key = v; },
+    },
+    {
+      secureKey: `project.${au_id}.embedding_lock.api_key`,
+      get: (p) => p.embedding_lock.api_key,
+      set: (p, v) => { p.embedding_lock.api_key = v; },
+    },
+  ];
+}
+
+/** 返回 au_id 对应的所有 secure keys（供删除 AU 时一并清理）。 */
+export function projectSecureKeysFor(au_id: string): string[] {
+  // 临时构造一个空壳 project 以复用 spec factory
+  return projectSecureSpecs(au_id).map((s) => s.secureKey);
+}
 
 export class FileProjectRepository implements ProjectRepository {
   constructor(private adapter: PlatformAdapter) {}
@@ -37,7 +72,10 @@ export class FileProjectRepository implements ProjectRepository {
       throw new Error(`project.yaml 损坏无法解析: ${path}`);
     }
 
-    return dictToProject(raw, au_id);
+    const project = dictToProject(raw, au_id);
+    // 还原敏感字段（占位符→secure storage；旧明文→自动迁移）
+    await restoreSecureFields(project, projectSecureSpecs(au_id), this.adapter);
+    return project;
   }
 
   async save(project: Project): Promise<void> {
@@ -46,6 +84,9 @@ export class FileProjectRepository implements ProjectRepository {
     const copy = structuredClone(project);
     copy.updated_at = now_utc();
     copy.revision += 1;
+    // 把 AU 级 api_key 抽到 secure storage —— 写入 project.yaml 的只是占位符，
+    // 防止项目工作目录备份 / 同步 / 导出时凭据扩散（审计 P1）
+    await extractSecureFields(copy, projectSecureSpecs(copy.au_id), this.adapter);
     const raw = obj_to_plain(copy);
     const content = yaml.dump(raw, { sortKeys: false, lineWidth: -1 });
     const dir = path.substring(0, path.lastIndexOf("/"));
@@ -71,6 +112,14 @@ export class FileProjectRepository implements ProjectRepository {
       }
     }
     return result;
+  }
+
+  /**
+   * 删除 AU 时调用：清理该 AU 在 secure storage 里的所有凭据。
+   * 避免孤儿 key 留在 secure storage 里造成信息残留。
+   */
+  async removeSecureStorage(au_id: string): Promise<void> {
+    await removeSecureFields(projectSecureKeysFor(au_id), this.adapter);
   }
 }
 

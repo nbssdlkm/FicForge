@@ -2,7 +2,8 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it } from "vitest";
-import { resolve_llm_config, resolve_llm_params } from "../config_resolver.js";
+import { create_provider, resolve_llm_config, resolve_llm_params } from "../config_resolver.js";
+import { OpenAICompatibleProvider } from "../openai_compatible.js";
 
 describe("resolve_llm_config", () => {
   it("session_llm takes priority", () => {
@@ -79,5 +80,62 @@ describe("resolve_llm_params", () => {
     const result = resolve_llm_params("unknown", null, {}, {});
     expect(result.temperature).toBe(1.0);
     expect(result.top_p).toBe(0.95);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// create_provider —— P1-5a 真正支持 ollama
+// ---------------------------------------------------------------------------
+
+describe("create_provider", () => {
+  it("mode=api 返回 OpenAICompatibleProvider", () => {
+    const p = create_provider({
+      mode: "api", model: "gpt-4o", api_base: "https://api.openai.com/v1", api_key: "sk-x",
+    });
+    expect(p).toBeInstanceOf(OpenAICompatibleProvider);
+  });
+
+  it("mode=ollama 走 OpenAI 兼容协议（默认 base = localhost:11434/v1）", () => {
+    const p = create_provider({
+      mode: "ollama", model: "", api_base: "", api_key: "",
+      ollama_model: "llama3",
+    });
+    expect(p).toBeInstanceOf(OpenAICompatibleProvider);
+  });
+
+  it("mode=ollama 自动补齐 /v1 后缀（用户只填了 host）", () => {
+    const p = create_provider({
+      mode: "ollama", model: "", api_base: "http://192.168.1.10:11434", api_key: "",
+      ollama_model: "llama3",
+    });
+    // 通过 instanceof 检查 —— 具体的 base normalization 在 OpenAICompatibleProvider 内部不可观测，
+    // 但至少不该因为缺 /v1 抛错
+    expect(p).toBeInstanceOf(OpenAICompatibleProvider);
+  });
+
+  it("mode=ollama 已带 /v1 不重复追加", () => {
+    const p = create_provider({
+      mode: "ollama", model: "", api_base: "http://host:11434/v1", api_key: "",
+      ollama_model: "llama3",
+    });
+    expect(p).toBeInstanceOf(OpenAICompatibleProvider);
+  });
+
+  it("mode=ollama 缺 ollama_model 抛错（引擎级护栏）", () => {
+    expect(() =>
+      create_provider({ mode: "ollama", model: "", api_base: "", api_key: "" }),
+    ).toThrow(/ollama_model/i);
+  });
+
+  it("mode=local 抛错（未实现）", () => {
+    expect(() =>
+      create_provider({ mode: "local", model: "", api_base: "", api_key: "" }),
+    ).toThrow(/local.*未实现|not.*implemented|sidecar/i);
+  });
+
+  it("未知 mode 抛错", () => {
+    expect(() =>
+      create_provider({ mode: "anthropic-native", model: "m", api_base: "", api_key: "" }),
+    ).toThrow(/mode/i);
   });
 });

@@ -7,7 +7,6 @@
 
 import { OpenAICompatibleProvider, RemoteEmbeddingProvider, type Settings } from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
-import { buildApiUrl } from "./client";
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
 
@@ -49,15 +48,15 @@ export async function testEmbeddingConnection(params: { api_base: string; api_ke
 export async function testConnection(params: { mode: string; model?: string; api_base?: string; api_key?: string; local_model_path?: string; ollama_model?: string }) {
   try {
     if (params.mode === "local") {
-      // 本地模式：尝试连接 sidecar /health 端点（端口与 client.ts 一致）
-      try {
-        const healthUrl = buildApiUrl("/health");
-        const resp = await fetch(healthUrl, { signal: AbortSignal.timeout(3000) });
-        if (resp.ok) return { success: true, model: params.local_model_path ?? "local" };
-        return { success: false, message: "Sidecar 无响应", error_code: "sidecar_unavailable" };
-      } catch {
-        return { success: false, message: "无法连接本地 Sidecar", error_code: "sidecar_unavailable" };
-      }
+      // local 模式的续写生成需要 Python sidecar 扩展，当前版本未实现
+      // （见 engine-generate.ts 的 UNSUPPORTED_MODE 拦截）。
+      // 即使 sidecar /health 存活，实际生成仍会抛错 —— 为避免"测试成功、使用报错"
+      // 的断层，这里和 create_provider 的行为保持一致。
+      return {
+        success: false,
+        message: "local 模式续写生成暂未实现（需要 Python sidecar 扩展）",
+        error_code: "mode_not_implemented",
+      };
     }
     if (params.mode === "ollama") {
       // Ollama 模式：尝试连接 Ollama API

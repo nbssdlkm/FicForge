@@ -4,6 +4,14 @@
 /**
  * Facts 生命周期管理。参见 PRD §3.6、§6.7、§4.3。
  * 四个 Service 方法：add_fact / edit_fact / update_fact_status / set_chapter_focus。
+ *
+ * ⚠️ 本层不持 AU 锁 —— 是"底层 service"。
+ * 原因：dirty_resolve 等已持锁的 orchestrator 会内部调用这些函数，
+ * 如果本层加同一把 AU 锁会重入死锁。
+ * 调用者必须已持锁，保证机制：
+ *   - UI 直接调用：engine-facts.ts 的入口包 withAuLock
+ *   - service 内部调用：由 orchestrator 入口的 withAuLock 覆盖
+ * 分层策略详见 services/au_lock.ts。
  */
 
 import { FactSource, FactStatus, FactType, NarrativeWeight } from "../domain/enums.js";

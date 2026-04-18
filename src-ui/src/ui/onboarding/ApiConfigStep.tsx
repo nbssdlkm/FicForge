@@ -2,12 +2,14 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { testConnection, LLMMode } from '../../api/engine-client';
+import { getEngine } from '../../api/engine-instance';
+import { listGenerationModes, type Platform } from '@ficforge/engine';
 import { StepIndicator } from './StepIndicator';
 import { ApiSetupHelp } from '../help/ApiSetupHelp';
 
@@ -48,6 +50,13 @@ export function ApiConfigStep({
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestResult>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+
+  // 按平台渲染可用模式。engine 已在 App.tsx 的 setup() 中初始化，此处可直接消费。
+  const modeOptions = useMemo(() => {
+    let platform: Platform = 'web';
+    try { platform = getEngine().adapter.getPlatform(); } catch { /* engine 未就绪，按 web 渲染 */ }
+    return listGenerationModes(platform);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -103,18 +112,25 @@ export function ApiConfigStep({
         <StepIndicator current={2} total={4} />
       </div>
 
-      {/* Mode selector */}
+      {/* Mode selector —— 消费 engine/capabilities.ts 的能力矩阵，和主设置页共用一份真相 */}
       <div className="space-y-2">
-        {(['api', 'local', 'ollama'] as Mode[]).map(mode => (
-          <label key={mode} className="flex items-center gap-3 cursor-pointer">
+        {modeOptions.map(({ mode, availability }) => (
+          <label
+            key={mode}
+            className={`flex items-center gap-3 ${availability.available ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+          >
             <input
               type="radio"
               name="mode"
               checked={config.mode === mode}
-              onChange={() => { update('mode', mode); }}
+              disabled={!availability.available}
+              onChange={() => { update('mode', mode as Mode); }}
               className="accent-accent"
             />
-            <span className="text-sm">{t(`onboarding.apiConfig.mode${mode.charAt(0).toUpperCase() + mode.slice(1)}`)}</span>
+            <span className="text-sm">
+              {t(`onboarding.apiConfig.mode${mode.charAt(0).toUpperCase() + mode.slice(1)}`)}
+              {!availability.available && ` (${t('common.status.comingSoon')})`}
+            </span>
           </label>
         ))}
       </div>

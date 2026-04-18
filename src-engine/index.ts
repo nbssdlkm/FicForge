@@ -56,12 +56,16 @@ export type { ChunkData } from "./vector/index.js";
 
 // LLM
 export type {
+  EmbeddingModeKey,
   EmbeddingProvider,
   GenerateParams,
   LLMChunk,
+  LLMModeKey,
   LLMProvider,
   LLMResponse,
   Message,
+  ModeAvailability,
+  Platform,
   ResolvedLLMConfig,
   ResolvedLLMParams,
   ToolCall,
@@ -69,6 +73,9 @@ export type {
 } from "./llm/index.js";
 export {
   create_provider,
+  getEmbeddingModeAvailability,
+  getGenerationModeAvailability,
+  listGenerationModes,
   LLMError,
   OpenAICompatibleProvider,
   RemoteEmbeddingProvider,

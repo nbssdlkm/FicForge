@@ -144,9 +144,13 @@ export async function rewrite_jsonl(
 
 /**
  * 基础路径安全验证：拒绝空路径、空字节和 '..' 遍历序列。
- * 允许绝对路径和反斜杠，用于系统级路径如 dataDir、au_id、fandom_path。
+ * 允许绝对路径和反斜杠，用于系统级路径如 au_id、fandom_path。
  * Windows 桌面端 appDataDir() 返回带反斜杠的路径（如 C:\Users\...），必须允许。
  * '..' 遍历检查同时覆盖正斜杠和反斜杠分隔符。
+ *
+ * ⚠️ 不要对"数据根目录"（dataDir）调用此函数 —— Capacitor/Web 平台约定
+ * 空字符串表示平台 Data 根，此处会被误拒。使用 joinPath(dataDir, ...)
+ * 来拼接子路径，joinPath 自动过滤空段。
  */
 export function validateBasePath(value: string, name: string): void {
   if (!value) {

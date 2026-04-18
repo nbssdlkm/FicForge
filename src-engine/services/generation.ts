@@ -29,6 +29,7 @@ import { create_provider, resolve_llm_config, resolve_llm_params } from "../llm/
 import { assemble_context } from "./context_assembler.js";
 import { build_active_chars, build_rag_query, retrieve_rag } from "./rag_retrieval.js";
 import { now_utc, joinPath } from "../repositories/implementations/file_utils.js";
+import { withAuLock } from "./au_lock.js";
 
 // ---------------------------------------------------------------------------
 // 事件类型
@@ -291,7 +292,11 @@ export async function* generate_chapter(
       content: fullText,
       generated_with: gw,
     });
-    await draft_repo.save(draft);
+    // 只对"写 draft"这一小段持 AU 锁，不锁整个生成流程 —— 否则 30 秒的
+    // 流式生成会阻塞 UI 对同 AU 的所有其它写操作（confirm / undo / editFact 等）。
+    await withAuLock(au_id, async () => {
+      await draft_repo.save(draft);
+    });
 
     // === 步骤 6：yield done ===
     yield {
@@ -312,7 +317,9 @@ export async function* generate_chapter(
         variant: label,
         content: fullText,
       });
-      await draft_repo.save(draft);
+      await withAuLock(au_id, async () => {
+        await draft_repo.save(draft);
+      });
     }
 
     if (e instanceof LLMError) {

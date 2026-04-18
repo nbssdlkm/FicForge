@@ -12,12 +12,12 @@ import { getSettings, testConnection, testEmbeddingConnection, updateSettings, L
 import { ConflictResolveModal } from '../shared/ConflictResolveModal';
 import { useSyncOperations } from './useSyncOperations';
 import { useTranslation } from '../../i18n/useAppTranslation';
-import { getEnumLabel } from '../../i18n/labels';
 import { useFeedback } from '../../hooks/useFeedback';
 import { DebugLogsSection } from './DebugLogsSection';
 import { changeLanguage, SUPPORTED_LANGUAGES, type AppLanguage } from '../../i18n';
 import { ApiSetupHelp } from '../help/ApiSetupHelp';
 import { GlobalSettingsSyncSection } from './GlobalSettingsSyncSection';
+import { LlmModeSelect } from './LlmModeSelect';
 import { isTauri } from '../../utils/platform';
 
 export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
@@ -229,9 +229,14 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     setEmbTestStatus('testing');
     setEmbTestMessage('');
     try {
-      const base = embeddingApiBase || apiBase;
-      const key = embeddingApiKey || apiKey;
-      const result = await testEmbeddingConnection({ api_base: base, api_key: key, model: embeddingModel });
+      // 严格用 embedding 自己的配置测试。不回退到 LLM 的 base/key ——
+      // 很多 LLM 供应商不支持 embedding 端点，隐式复用会把错误凭据发到错误端点，
+      // 排障成本高。测试时使用的配置必须 = 实际保存后使用的配置（诊断一致性）。
+      const result = await testEmbeddingConnection({
+        api_base: embeddingApiBase,
+        api_key: embeddingApiKey,
+        model: embeddingModel,
+      });
       if (requestId !== embTestIdRef.current) return;
       if (result.success) {
         setEmbTestStatus('success');
@@ -269,19 +274,11 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                 {t('settings.sync.helpButton')}
               </Button>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <select
-                value={mode}
-                onChange={(e) => setMode(e.target.value as LLMMode)}
-                disabled={saving}
-                className="h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent disabled:opacity-60 dark:border-white/20 md:h-10 md:text-sm"
-              >
-                <option value="api">{getEnumLabel('llm_mode', 'api', 'api')}</option>
-                <option value="local">{getEnumLabel('llm_mode', 'local', 'local')}</option>
-                <option value="ollama">{getEnumLabel('llm_mode', 'ollama', 'ollama')}</option>
-              </select>
-              <p className="text-xs text-text/50">{t(`common.help.llmMode.${mode}`)}</p>
-            </div>
+            <LlmModeSelect
+              value={mode}
+              onChange={(next) => setMode(next as LLMMode)}
+              disabled={saving}
+            />
 
             {mode === 'api' && (
               <>
@@ -355,6 +352,9 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
               )}
               {(useCustomEmbedding || !isTauri()) && (
                 <div className="space-y-2 pl-2 border-l-2 border-accent/30">
+                  <p className="text-xs leading-relaxed text-warning">
+                    {t('settings.global.embeddingIndependentHint')}
+                  </p>
                   <Input value={embeddingModel} onChange={e => setEmbeddingModel(e.target.value)} placeholder={t('settings.global.embeddingModelPlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
                   <Input value={embeddingApiBase} onChange={e => setEmbeddingApiBase(e.target.value)} placeholder={t('settings.global.embeddingApiBasePlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
                   <Input value={embeddingApiKey} onChange={e => setEmbeddingApiKey(e.target.value)} placeholder={t('settings.global.embeddingApiKeyPlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" type="password" />

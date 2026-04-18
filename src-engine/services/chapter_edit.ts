@@ -7,6 +7,10 @@
  * 封装章节内容更新的完整流程：
  * 读章节 → 更新 content/hash/provenance/revision → 保存 → 标记 dirty → 写 op → 标记索引 STALE。
  * 解决 F4：漏写 op 导致跨设备同步丢失 dirty 状态。
+ *
+ * ⚠️ 本层不持 AU 锁 —— 是"底层 service"，原因同 facts_lifecycle.ts。
+ * UI 调用路径由 engine-chapters.ts 的 updateChapterContent 顶层包 withAuLock。
+ * 分层策略详见 services/au_lock.ts。
  */
 
 import { IndexStatus } from "../domain/enums.js";

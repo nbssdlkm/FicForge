@@ -29,24 +29,44 @@ import {
   createSyncConfig,
 } from "../../domain/settings.js";
 import type { SettingsRepository } from "../interfaces/settings.js";
-import { now_utc, obj_to_plain, validateBasePath } from "./file_utils.js";
+import { joinPath, now_utc, obj_to_plain } from "./file_utils.js";
+import {
+  extractSecureFields,
+  restoreSecureFields,
+  type SecureFieldSpec,
+} from "./secure_fields.js";
 
-// 敏感字段在 YAML 中的占位符
-const SECURE_PLACEHOLDER = "<secure>";
-
-// 敏感字段对应的 secure storage key
-const SECURE_KEYS = {
-  "default_llm.api_key": "settings.default_llm.api_key",
-  "embedding.api_key": "settings.embedding.api_key",
-  "sync.webdav.password": "settings.sync.webdav.password",
-} as const;
+/**
+ * 全局 settings 的敏感字段 spec 表。
+ * 新增字段只需在此列表追加一项，读写路径自动覆盖。
+ * 注意：P1-4 彻底移除了 embedding.api_key 的隐式 fallback —— 该字段独立管理。
+ */
+const SETTINGS_SECURE_SPECS: SecureFieldSpec<Settings>[] = [
+  {
+    secureKey: "settings.default_llm.api_key",
+    get: (s) => s.default_llm.api_key,
+    set: (s, v) => { s.default_llm.api_key = v; },
+  },
+  {
+    secureKey: "settings.embedding.api_key",
+    get: (s) => s.embedding.api_key,
+    set: (s, v) => { s.embedding.api_key = v; },
+  },
+  {
+    secureKey: "settings.sync.webdav.password",
+    get: (s) => s.sync.webdav?.password ?? "",
+    set: (s, v) => { if (s.sync.webdav) s.sync.webdav.password = v; },
+  },
+];
 
 export class FileSettingsRepository implements SettingsRepository {
   private path: string;
 
   constructor(private adapter: PlatformAdapter, dataDir: string) {
-    validateBasePath(dataDir, "dataDir");
-    this.path = dataDir + "/settings.yaml";
+    // dataDir 是数据根目录（可空，Capacitor/Web 约定 "" = 平台 Data 目录）。
+    // 不调用 validateBasePath —— 它专用于用户控制的路径段（au_id、fandom_path 等），
+    // 对根目录会误拒 ""。joinPath 自动过滤空段，天然兼容所有平台。
+    this.path = joinPath(dataDir, "settings.yaml");
   }
 
   async get(): Promise<Settings> {
@@ -65,13 +85,8 @@ export class FileSettingsRepository implements SettingsRepository {
 
     const settings = dictToSettings(raw);
 
-    // 从 secure storage 还原敏感字段
-    await this.restoreSecureFields(settings);
-
-    // embedding.api_key 为空时复用 default_llm.api_key（仅同厂商时适用）
-    if (!settings.embedding.api_key && settings.default_llm.api_key) {
-      settings.embedding.api_key = settings.default_llm.api_key;
-    }
+    // 还原敏感字段：占位符 → secure storage；旧明文 → 自动迁移到 secure storage
+    await restoreSecureFields(settings, SETTINGS_SECURE_SPECS, this.adapter);
 
     return settings;
   }
@@ -80,52 +95,13 @@ export class FileSettingsRepository implements SettingsRepository {
     const copy = structuredClone(settings);
     copy.updated_at = now_utc();
 
-    // 将敏感字段写入 secure storage，YAML 中写占位符
-    await this.extractSecureFields(copy);
+    // 把敏感字段抽到 secure storage，YAML 文本里只剩占位符
+    await extractSecureFields(copy, SETTINGS_SECURE_SPECS, this.adapter);
 
     const stripped = { ...copy } as unknown as Record<string, unknown>;
     const raw = obj_to_plain(stripped);
     const content = yaml.dump(raw, { sortKeys: false, lineWidth: -1 });
     await this.adapter.writeFile(this.path, content);
-  }
-
-  /** 将敏感字段从 settings 提取到 secure storage，字段值替换为占位符。 */
-  private async extractSecureFields(settings: Settings): Promise<void> {
-    const pairs: [string, () => string, (v: string) => void][] = [
-      [SECURE_KEYS["default_llm.api_key"], () => settings.default_llm.api_key, (v) => { settings.default_llm.api_key = v; }],
-      [SECURE_KEYS["embedding.api_key"], () => settings.embedding.api_key, (v) => { settings.embedding.api_key = v; }],
-      [SECURE_KEYS["sync.webdav.password"], () => settings.sync.webdav?.password ?? "", (v) => { if (settings.sync.webdav) settings.sync.webdav.password = v; }],
-    ];
-
-    for (const [secureKey, getter, setter] of pairs) {
-      const value = getter();
-      if (value && value !== SECURE_PLACEHOLDER) {
-        await this.adapter.secureSet(secureKey, value);
-        setter(SECURE_PLACEHOLDER);
-      }
-    }
-  }
-
-  /** 从 secure storage 还原占位符字段；兼容旧的明文格式（自动迁移）。 */
-  private async restoreSecureFields(settings: Settings): Promise<void> {
-    const pairs: [string, () => string, (v: string) => void][] = [
-      [SECURE_KEYS["default_llm.api_key"], () => settings.default_llm.api_key, (v) => { settings.default_llm.api_key = v; }],
-      [SECURE_KEYS["embedding.api_key"], () => settings.embedding.api_key, (v) => { settings.embedding.api_key = v; }],
-      [SECURE_KEYS["sync.webdav.password"], () => settings.sync.webdav?.password ?? "", (v) => { if (settings.sync.webdav) settings.sync.webdav.password = v; }],
-    ];
-
-    for (const [secureKey, getter, setter] of pairs) {
-      const current = getter();
-      if (current === SECURE_PLACEHOLDER || current === "") {
-        // 从 secure storage 读取
-        const stored = await this.adapter.secureGet(secureKey);
-        if (stored) setter(stored);
-        else if (current === SECURE_PLACEHOLDER) setter("");
-      } else if (current && current !== SECURE_PLACEHOLDER) {
-        // 旧格式明文 → 自动迁移到 secure storage（下次 save 时会写占位符）
-        await this.adapter.secureSet(secureKey, current);
-      }
-    }
   }
 }
 

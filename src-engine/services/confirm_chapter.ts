@@ -17,6 +17,7 @@ import type { DraftRepository } from "../repositories/interfaces/draft.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
 import { compute_content_hash, generate_op_id, now_utc } from "../repositories/implementations/file_utils.js";
+import { withAuLock } from "./au_lock.js";
 import { WriteTransaction } from "./write_transaction.js";
 
 export class ConfirmChapterError extends Error {
@@ -24,25 +25,6 @@ export class ConfirmChapterError extends Error {
     super(message);
     this.name = "ConfirmChapterError";
   }
-}
-
-// ---------------------------------------------------------------------------
-// AU 互斥锁（Promise queue 串行化）
-// ---------------------------------------------------------------------------
-
-const _locks = new Map<string, Promise<void>>();
-
-function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
-  const prev = _locks.get(key) ?? Promise.resolve();
-  const next = prev.then(fn, fn);
-  const voidNext = next.then(() => {}, () => {});
-  _locks.set(key, voidNext);
-  voidNext.then(() => {
-    if (_locks.get(key) === voidNext) {
-      _locks.delete(key);
-    }
-  });
-  return next;
 }
 
 // ---------------------------------------------------------------------------
@@ -76,8 +58,12 @@ export interface ConfirmChapterResult {
   current_chapter: number;
 }
 
+/**
+ * 确认章节入口。持 AU 锁覆盖整个 doConfirm —— 包含读 draft / 写 chapter /
+ * 写 ops / 更新 state 的完整事务。锁分层策略见 services/au_lock.ts。
+ */
 export async function confirm_chapter(params: ConfirmChapterParams): Promise<ConfirmChapterResult> {
-  return withLock(params.au_id, () => doConfirm(params));
+  return withAuLock(params.au_id, () => doConfirm(params));
 }
 
 async function doConfirm(params: ConfirmChapterParams): Promise<ConfirmChapterResult> {
