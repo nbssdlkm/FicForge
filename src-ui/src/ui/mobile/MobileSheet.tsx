@@ -48,7 +48,7 @@ export function MobileSheet({
             {title ? <h2 className="truncate text-base font-semibold text-text">{title}</h2> : null}
           </div>
           <Button
-            variant="ghost"
+            tone="neutral" fill="plain"
             size="sm"
             onClick={onClose}
             className="ml-3 h-11 w-11 shrink-0 rounded-full p-0"

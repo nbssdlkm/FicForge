@@ -116,7 +116,7 @@ export function SettingsChatHistory({
                 {pendingToolCalls.length > 1 ? (
                   <div className="flex flex-wrap justify-end gap-2">
                     <Button
-                      variant="secondary"
+                      tone="neutral" fill="outline"
                       size="sm"
                       className="w-full sm:w-auto"
                       onClick={() => void onConfirmAll(message.id)}
@@ -124,7 +124,7 @@ export function SettingsChatHistory({
                     >
                       {t("settingsMode.confirmAll")}
                     </Button>
-                    <Button variant="ghost" size="sm" className="w-full sm:w-auto" onClick={() => onSkipAll(message.id)} disabled={hasAnyLoadingToolCall}>
+                    <Button tone="neutral" fill="plain" size="sm" className="w-full sm:w-auto" onClick={() => onSkipAll(message.id)} disabled={hasAnyLoadingToolCall}>
                       {t("settingsMode.skipAll")}
                     </Button>
                   </div>

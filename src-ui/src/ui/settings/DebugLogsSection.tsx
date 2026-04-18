@@ -93,10 +93,10 @@ export function DebugLogsSection() {
               <option value="warn">{t('settings.debugLogs.filterWarn')}</option>
               <option value="error">{t('settings.debugLogs.filterError')}</option>
             </select>
-            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs gap-1" onClick={() => void loadLogs()}>
+            <Button tone="neutral" fill="plain" size="sm" className="h-8 px-2 text-xs gap-1" onClick={() => void loadLogs()}>
               <RefreshCw size={12} /> {t('settings.debugLogs.refresh')}
             </Button>
-            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs gap-1" onClick={() => void handleCopy()} disabled={!rawText}>
+            <Button tone="neutral" fill="plain" size="sm" className="h-8 px-2 text-xs gap-1" onClick={() => void handleCopy()} disabled={!rawText}>
               <Copy size={12} /> {t('settings.debugLogs.copy')}
             </Button>
             <span className="text-[10px] text-text/40">{t('settings.debugLogs.count', { count: filtered.length })}</span>

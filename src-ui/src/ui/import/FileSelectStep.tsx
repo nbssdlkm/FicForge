@@ -154,7 +154,7 @@ export function FileSelectStep({
 
       <div className="flex justify-end">
         <Button
-          variant="primary"
+          tone="accent" fill="solid"
           onClick={() => onNext(files)}
           disabled={files.length === 0 || disabled}
         >

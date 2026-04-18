@@ -60,7 +60,7 @@ export function LibraryModals({
         <p className="text-sm text-text/70 mb-5">{t("library.createFandomModal.description")}</p>
         <div className="flex flex-col gap-4">
           <Input placeholder={t("library.createFandomModal.namePlaceholder")} value={newFandomName} onChange={(e) => setNewFandomName(e.target.value)} className="w-full bg-surface/50 text-base" disabled={creatingFandom} />
-          <Button variant="primary" className="mt-2 h-11 w-full font-medium tracking-wide" onClick={handleCreateFandom} disabled={creatingFandom || !newFandomName.trim()}>
+          <Button tone="accent" fill="solid" className="mt-2 h-11 w-full font-medium tracking-wide" onClick={handleCreateFandom} disabled={creatingFandom || !newFandomName.trim()}>
             {creatingFandom ? <Loader2 size={16} className="animate-spin" /> : t("library.createFandomModal.submit")}
           </Button>
         </div>
@@ -82,7 +82,7 @@ export function LibraryModals({
                 {t("library.createAuModal.initGlobal")}
              </div>
           </div>
-          <Button variant="primary" className="mt-2 h-11 w-full font-medium tracking-wide" onClick={handleCreateAu} disabled={creatingAu || !newAuName.trim()}>
+          <Button tone="accent" fill="solid" className="mt-2 h-11 w-full font-medium tracking-wide" onClick={handleCreateAu} disabled={creatingAu || !newAuName.trim()}>
             {creatingAu ? <Loader2 size={16} className="animate-spin" /> : t("library.createAuModal.submit")}
           </Button>
         </div>
@@ -96,8 +96,8 @@ export function LibraryModals({
               : t('library.deleteAuMessage', { name: deleteTarget?.auName || '' })}
           </p>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={deleting}>{t("common.actions.cancel")}</Button>
-            <Button variant="primary" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDelete} disabled={deleting}>
+            <Button tone="neutral" fill="plain" onClick={() => setDeleteTarget(null)} disabled={deleting}>{t("common.actions.cancel")}</Button>
+            <Button tone="accent" fill="solid" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDelete} disabled={deleting}>
               {deleting ? <Loader2 size={16} className="animate-spin" /> : t("common.actions.confirmDelete")}
             </Button>
           </div>

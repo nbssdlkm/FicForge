@@ -83,15 +83,15 @@ export function ImportProgressStep({
         </div>
 
         <div className="flex flex-col gap-2 pt-2">
-          <Button variant="primary" className="w-full" onClick={onStartWriting}>
+          <Button tone="accent" fill="solid" className="w-full" onClick={onStartWriting}>
             {t("import.step5Next3", { n: nextChapter })}
           </Button>
           {result.settingsImported > 0 && (
-            <Button variant="secondary" className="w-full" onClick={onGoToLore}>
+            <Button tone="neutral" fill="outline" className="w-full" onClick={onGoToLore}>
               {t("import.step5Next1")}
             </Button>
           )}
-          <Button variant="secondary" className="w-full" onClick={onGoToFacts}>
+          <Button tone="neutral" fill="outline" className="w-full" onClick={onGoToFacts}>
             {t("import.step5Next2")}
           </Button>
         </div>

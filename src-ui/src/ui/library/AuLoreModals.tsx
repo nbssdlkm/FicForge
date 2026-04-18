@@ -79,8 +79,8 @@ export function AuLoreModals({
           <p className="text-sm text-text/70">{selectedCategory === 'worldbuilding' ? t('auLore.createDescriptionWorldbuilding') : t('auLore.createDescription')}</p>
           <Input value={createName} onChange={e => setCreateName(e.target.value)} placeholder={selectedCategory === 'worldbuilding' ? t('auLore.createPlaceholderWorldbuilding') : t('auLore.createPlaceholder')} autoFocus />
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setCreateModalOpen(false)}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={handleCreate} disabled={!createName.trim()}>{t('common.actions.create')}</Button>
+            <Button tone="neutral" fill="plain" onClick={() => setCreateModalOpen(false)}>{t('common.actions.cancel')}</Button>
+            <Button tone="accent" fill="solid" onClick={handleCreate} disabled={!createName.trim()}>{t('common.actions.create')}</Button>
           </div>
         </div>
       </Modal>
@@ -89,8 +89,8 @@ export function AuLoreModals({
         <div className="space-y-4">
           <p className="text-sm text-text/80">{t('auLore.deleteMessage', { name: `${selectedFile}.md` })}</p>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setDeleteConfirmOpen(false)}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDeleteLore}>{t('common.actions.confirmDelete')}</Button>
+            <Button tone="neutral" fill="plain" onClick={() => setDeleteConfirmOpen(false)}>{t('common.actions.cancel')}</Button>
+            <Button tone="accent" fill="solid" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDeleteLore}>{t('common.actions.confirmDelete')}</Button>
           </div>
         </div>
       </Modal>
@@ -99,8 +99,8 @@ export function AuLoreModals({
         <div className="space-y-4">
           <p className="text-sm text-text/80 leading-relaxed">{t('coreIncludes.missingCoreLimitDesc')}</p>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setCoreLimitModalOpen(false)}>{t('coreIncludes.later')}</Button>
-            <Button variant="primary" onClick={() => {
+            <Button tone="neutral" fill="plain" onClick={() => setCoreLimitModalOpen(false)}>{t('coreIncludes.later')}</Button>
+            <Button tone="accent" fill="solid" onClick={() => {
               setCoreLimitModalOpen(false);
               if (coreLimitTarget) loadFileContent(coreLimitTarget);
             }}>{t('coreIncludes.goEdit')}</Button>
@@ -131,8 +131,8 @@ export function AuLoreModals({
             )}
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setImportModalOpen(false)} disabled={isSaving}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={handleImportSelected} disabled={selectedImports.length === 0 || isSaving}>
+            <Button tone="neutral" fill="plain" onClick={() => setImportModalOpen(false)} disabled={isSaving}>{t('common.actions.cancel')}</Button>
+            <Button tone="accent" fill="solid" onClick={handleImportSelected} disabled={selectedImports.length === 0 || isSaving}>
               {isSaving ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.importSelected')}
             </Button>
           </div>

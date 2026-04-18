@@ -98,11 +98,11 @@ export const WriterSidePanelContent = ({
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-xs font-medium text-text/70">{t('writer.focusTitle')}</h3>
                 <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" className="text-xs" onClick={onClearFocus} disabled={focusSelection.length === 0}>
+                  <Button tone="neutral" fill="plain" size="sm" className="text-xs" onClick={onClearFocus} disabled={focusSelection.length === 0}>
                     {t('writer.freeWrite')}
                   </Button>
                   {lastConfirmedFocus.length > 0 ? (
-                    <Button variant="ghost" size="sm" className="text-xs" onClick={onContinueLastFocus}>
+                    <Button tone="neutral" fill="plain" size="sm" className="text-xs" onClick={onContinueLastFocus}>
                       {t('focus.continueLastChapter')}
                     </Button>
                   ) : null}
@@ -138,11 +138,11 @@ export const WriterSidePanelContent = ({
             ) : (
               <div className="space-y-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <Button variant="ghost" size="sm" className="text-xs" onClick={onClearFocus} disabled={focusSelection.length === 0}>
+                  <Button tone="neutral" fill="plain" size="sm" className="text-xs" onClick={onClearFocus} disabled={focusSelection.length === 0}>
                     {t('writer.freeWrite')}
                   </Button>
                   {lastConfirmedFocus.length > 0 && (
-                    <Button variant="ghost" size="sm" className="text-xs" onClick={onContinueLastFocus}>
+                    <Button tone="neutral" fill="plain" size="sm" className="text-xs" onClick={onContinueLastFocus}>
                       {t('focus.continueLastChapter')}
                     </Button>
                   )}
@@ -237,13 +237,13 @@ export const WriterSidePanelContent = ({
 
       {isMobile && (
         <section className="flex flex-wrap gap-2 border-t border-black/10 pt-5 dark:border-white/10">
-          <Button variant="secondary" size="sm" onClick={onUndoClick} disabled={(currentChapter || 1) <= 1 || writeActionsDisabled}>
+          <Button tone="neutral" fill="outline" size="sm" onClick={onUndoClick} disabled={(currentChapter || 1) <= 1 || writeActionsDisabled}>
             <Undo2 size={16} className="mr-2" /> {t('common.actions.undoPreviousChapter')}
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => { onClose?.(); onNavigate('facts'); }}>
+          <Button tone="neutral" fill="outline" size="sm" onClick={() => { onClose?.(); onNavigate('facts'); }}>
             <BookOpen size={16} className="mr-2" /> {t('writer.factsShortcut')}
           </Button>
-          <Button variant="secondary" size="sm" onClick={onExportClick}>
+          <Button tone="neutral" fill="outline" size="sm" onClick={onExportClick}>
             <FileUp size={16} className="mr-2" /> {t('writer.exportButtonTitle')}
           </Button>
         </section>

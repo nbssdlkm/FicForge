@@ -31,7 +31,7 @@ export const DraftNavigator = ({
       {/* Desktop: prev/next buttons */}
       <div className="hidden items-center gap-2 text-sm font-sans text-text/75 md:flex">
         <Button
-          variant="ghost"
+          tone="neutral" fill="plain"
           size="sm"
           className="h-8 w-8 p-0"
           onClick={() => onSelect(Math.max(0, activeDraftIndex - 1))}
@@ -45,7 +45,7 @@ export const DraftNavigator = ({
           {modified ? <span className="ml-1 text-text/55">{t('drafts.modified')}</span> : null}
         </span>
         <Button
-          variant="ghost"
+          tone="neutral" fill="plain"
           size="sm"
           className="h-8 w-8 p-0"
           onClick={() => onSelect(Math.min(drafts.length - 1, activeDraftIndex + 1))}

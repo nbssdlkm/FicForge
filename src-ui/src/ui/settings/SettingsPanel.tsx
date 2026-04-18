@@ -103,8 +103,8 @@ export const SettingsPanel = ({
       </div>
 
       <div className="grid grid-cols-2 gap-2 mt-1">
-        <Button variant="secondary" size="sm" className="h-11 text-sm md:h-8 md:text-xs" onClick={onSaveGlobal}>{t("common.actions.saveToGlobal")}</Button>
-        <Button variant="secondary" size="sm" className="h-11 text-sm md:h-8 md:text-xs" onClick={onSaveAu}>{t("common.actions.saveToStory")}</Button>
+        <Button tone="neutral" fill="outline" size="sm" className="h-11 text-sm md:h-8 md:text-xs" onClick={onSaveGlobal}>{t("common.actions.saveToGlobal")}</Button>
+        <Button tone="neutral" fill="outline" size="sm" className="h-11 text-sm md:h-8 md:text-xs" onClick={onSaveAu}>{t("common.actions.saveToStory")}</Button>
       </div>
     </Card>
   );

@@ -31,12 +31,12 @@ export function MilestoneGuide({
             {(primaryAction || secondaryAction) && (
               <div className="flex items-center gap-2 pt-1">
                 {primaryAction && (
-                  <Button variant="primary" size="sm" className="text-xs h-7 px-3" onClick={primaryAction.onClick}>
+                  <Button tone="accent" fill="solid" size="sm" className="text-xs h-7 px-3" onClick={primaryAction.onClick}>
                     {primaryAction.label}
                   </Button>
                 )}
                 {secondaryAction && (
-                  <Button variant="ghost" size="sm" className="text-xs h-7 px-3" onClick={secondaryAction.onClick}>
+                  <Button tone="neutral" fill="plain" size="sm" className="text-xs h-7 px-3" onClick={secondaryAction.onClick}>
                     {secondaryAction.label}
                   </Button>
                 )}

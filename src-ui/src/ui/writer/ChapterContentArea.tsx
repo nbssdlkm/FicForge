@@ -81,11 +81,11 @@ export const ChapterContentArea = ({
                 style={{ fontSize: 'inherit', lineHeight: 'inherit' }}
               />
               <div className="flex items-center gap-2 mt-4 pt-4 border-t border-black/10 dark:border-white/10">
-                <Button variant="primary" size="sm" onClick={onSaveEdit} disabled={savingEdit || editingContent === editingOriginalContent}>
+                <Button tone="accent" fill="solid" size="sm" onClick={onSaveEdit} disabled={savingEdit || editingContent === editingOriginalContent}>
                   {savingEdit ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
                   {t('writer.saveEdit')}
                 </Button>
-                <Button variant="ghost" size="sm" onClick={onCancelEdit} disabled={savingEdit}>
+                <Button tone="neutral" fill="plain" size="sm" onClick={onCancelEdit} disabled={savingEdit}>
                   {t('writer.cancelEdit')}
                 </Button>
               </div>
@@ -94,7 +94,7 @@ export const ChapterContentArea = ({
             <>
               <ChapterMarkdown content={viewingHistoryContent} />
               <div className="mt-4 pt-4 border-t border-black/10 dark:border-white/10">
-                <Button variant="secondary" size="sm" onClick={onStartEdit}>
+                <Button tone="neutral" fill="outline" size="sm" onClick={onStartEdit}>
                   {t('writer.editChapter')}
                 </Button>
               </div>
@@ -122,7 +122,7 @@ export const ChapterContentArea = ({
               <span className="text-sm">{generationErrorDisplay.message}</span>
             </div>
             {generationErrorDisplay.actions.includes('check_settings') && (
-              <Button variant="secondary" size="sm" onClick={() => onNavigate('settings')}>
+              <Button tone="neutral" fill="outline" size="sm" onClick={() => onNavigate('settings')}>
                 {t('writer.checkSettings')}
               </Button>
             )}

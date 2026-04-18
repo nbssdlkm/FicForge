@@ -209,7 +209,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
         <div className="p-4 border-b border-black/10 dark:border-white/10 flex flex-col gap-2 bg-surface">
           <div className="flex items-center justify-between">
             <div className="font-serif font-bold text-lg truncate max-w-[170px]" title={auName}>{t('common.scope.auTitle', { name: auName })}</div>
-            <Button variant="ghost" size="sm" onClick={() => onNavigate('library')} className="h-8 w-8 p-0 rounded-full text-text/60 hover:text-text" title={t('common.actions.back')}>
+            <Button tone="neutral" fill="plain" size="sm" onClick={() => onNavigate('library')} className="h-8 w-8 p-0 rounded-full text-text/60 hover:text-text" title={t('common.actions.back')}>
               <LogOut size={16} />
             </Button>
           </div>
@@ -218,10 +218,10 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
 
         <div className="flex-1 flex flex-col pt-2 bg-surface/30 min-h-0">
           <div className="px-2 space-y-1 mb-4 border-b border-black/10 dark:border-white/10 pb-4 shrink-0">
-            <Button variant="ghost" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'writer' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('writer', auPath)}>{t('writer.modeWrite')}</Button>
-            <Button variant="ghost" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'facts' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('facts', auPath)}>{t('navigation.facts')}</Button>
-            <Button variant="ghost" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'au_lore' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('au_lore', auPath)}>{t('navigation.auLore')}</Button>
-            <Button variant="ghost" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'settings' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('settings', auPath)}>{t('navigation.settings')}</Button>
+            <Button tone="neutral" fill="plain" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'writer' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('writer', auPath)}>{t('writer.modeWrite')}</Button>
+            <Button tone="neutral" fill="plain" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'facts' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('facts', auPath)}>{t('navigation.facts')}</Button>
+            <Button tone="neutral" fill="plain" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'au_lore' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('au_lore', auPath)}>{t('navigation.auLore')}</Button>
+            <Button tone="neutral" fill="plain" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'settings' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('settings', auPath)}>{t('navigation.settings')}</Button>
           </div>
 
           <div className="px-4 pb-2 text-xs font-sans font-medium text-text/50 shrink-0">
@@ -240,7 +240,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
                   {
                     key: 'start-writing',
                     element: (
-                      <Button variant="primary" size="sm" onClick={() => onNavigate('writer', auPath)}>
+                      <Button tone="accent" fill="solid" size="sm" onClick={() => onNavigate('writer', auPath)}>
                         {t('common.actions.startWriting')}
                       </Button>
                     ),
@@ -341,8 +341,8 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
         <div className="space-y-4">
           <p className="text-sm text-text/80">{t('embedding.staleDesc')}</p>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setEmbeddingDismissed(true)}>{t('embedding.skipRebuild')}</Button>
-            <Button variant="primary" onClick={() => { setEmbeddingDismissed(true); rebuildIndex(auPath).catch(() => {}); }}>{t('embedding.rebuild')}</Button>
+            <Button tone="neutral" fill="plain" onClick={() => setEmbeddingDismissed(true)}>{t('embedding.skipRebuild')}</Button>
+            <Button tone="accent" fill="solid" onClick={() => { setEmbeddingDismissed(true); rebuildIndex(auPath).catch(() => {}); }}>{t('embedding.rebuild')}</Button>
           </div>
         </div>
       </Modal>

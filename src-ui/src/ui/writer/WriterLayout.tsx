@@ -961,8 +961,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
             message={t('dirty.banner', { count: (state?.chapters_dirty || []).length, chapters: (state?.chapters_dirty || []).join(', ') })}
             actions={
               <>
-                <Button variant="ghost" size="sm" className="h-11 text-xs md:h-6" onClick={() => { setDirtyTargetChapter((state?.chapters_dirty || [])[0] || 0); setDirtyOpen(true); }}>{t('dirty.goResolve')}</Button>
-                <Button variant="ghost" size="sm" className="h-11 text-xs text-text/40 md:h-6" onClick={() => setDirtyBannerDismissed(true)}>{t('dirty.dismissBanner')}</Button>
+                <Button tone="neutral" fill="plain" size="sm" className="h-11 text-xs md:h-6" onClick={() => { setDirtyTargetChapter((state?.chapters_dirty || [])[0] || 0); setDirtyOpen(true); }}>{t('dirty.goResolve')}</Button>
+                <Button tone="neutral" fill="plain" size="sm" className="h-11 text-xs text-text/40 md:h-6" onClick={() => setDirtyBannerDismissed(true)}>{t('dirty.dismissBanner')}</Button>
               </>
             }
           />
@@ -996,7 +996,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                   variant="info"
                   message={<>{t('workspace.chapterItem', { num: viewingHistoryNum })} — {t('writer.viewingHistory')}</>}
                   actions={
-                    <Button variant="ghost" size="sm" onClick={() => { setViewingHistoryContent(null); setViewingHistoryNum(null); onClearViewChapter?.(); }}>
+                    <Button tone="neutral" fill="plain" size="sm" onClick={() => { setViewingHistoryContent(null); setViewingHistoryNum(null); onClearViewChapter?.(); }}>
                       {t('writer.backToCurrentChapter')}
                     </Button>
                   }
@@ -1074,7 +1074,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                 variant="info"
                 message={t('settingsMode.firstTimeTooltip')}
                 actions={
-                  <Button variant="ghost" size="sm" className="h-7 px-2 text-info" onClick={() => setShowSettingsTooltip(false)}>
+                  <Button tone="neutral" fill="plain" size="sm" className="h-7 px-2 text-info" onClick={() => setShowSettingsTooltip(false)}>
                     {t('common.actions.close')}
                   </Button>
                 }

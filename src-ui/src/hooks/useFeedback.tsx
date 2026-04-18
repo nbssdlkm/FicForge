@@ -138,7 +138,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
             </div>
           )}
           <div className="flex justify-end">
-            <Button variant="primary" onClick={() => setDialog(null)}>
+            <Button tone="accent" fill="solid" onClick={() => setDialog(null)}>
               {t("shared.feedback.acknowledge")}
             </Button>
           </div>

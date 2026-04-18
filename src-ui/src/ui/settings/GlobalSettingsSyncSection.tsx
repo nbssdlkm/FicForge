@@ -53,7 +53,7 @@ export function GlobalSettingsSyncSection({
     <div className="space-y-4 border-t border-black/10 pt-5 dark:border-white/10">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-text/90">{t('settings.sync.title')}</h3>
-        <Button variant="ghost" size="sm" className="text-xs text-accent" onClick={() => setSyncHelpOpen(!syncHelpOpen)}>
+        <Button tone="neutral" fill="plain" size="sm" className="text-xs text-accent" onClick={() => setSyncHelpOpen(!syncHelpOpen)}>
           {syncHelpOpen ? t('common.actions.close') : t('settings.sync.helpButton')}
         </Button>
       </div>
@@ -102,7 +102,7 @@ export function GlobalSettingsSyncSection({
           <Input label={t('settings.sync.remoteDir')} value={syncRemoteDir} onChange={(e) => setSyncRemoteDir(e.target.value)} placeholder="/FicForge/" />
           <div className="flex items-center gap-3">
             <Button
-              variant="secondary"
+              tone="neutral" fill="outline"
               size="sm"
               onClick={handleTestWebDAV}
               disabled={!syncUrl.trim() || !syncUsername.trim() || syncTestStatus === 'testing'}
@@ -117,7 +117,7 @@ export function GlobalSettingsSyncSection({
             <p className="text-xs text-text/40">{t('settings.sync.lastSync')}: {new Date(lastSync).toLocaleString()}</p>
           )}
           <Button
-            variant="primary"
+            tone="accent" fill="solid"
             size="sm"
             className="w-full"
             onClick={() => handleSyncNow(syncMode, setLastSync)}

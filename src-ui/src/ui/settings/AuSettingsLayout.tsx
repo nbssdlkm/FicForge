@@ -269,7 +269,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                 {t("settings.headerTitle")} <span className="text-lg font-normal opacity-50 ml-2">{t("settings.story.scopeLabel", { name: auName })}</span>
               </h1>
             </div>
-            <Button variant="primary" className="w-full gap-2 shadow-md md:w-24" onClick={handleSave} disabled={saving}>
+            <Button tone="accent" fill="solid" className="w-full gap-2 shadow-md md:w-24" onClick={handleSave} disabled={saving}>
               <Save size={16}/> {saving ? t("common.status.saving") : t("common.actions.save")}
             </Button>
           </header>
@@ -285,7 +285,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                    <Toggle checked={isLlMOverride} onChange={e => setIsLlmOverride(e.target.checked)} label={t("settings.story.overrideToggle")} />
-                   <Button variant="ghost" size="sm" onClick={() => setGlobalSettingsOpen(true)}>{t("common.actions.viewGlobalSettings")}</Button>
+                   <Button tone="neutral" fill="plain" size="sm" onClick={() => setGlobalSettingsOpen(true)}>{t("common.actions.viewGlobalSettings")}</Button>
                 </div>
               </div>
 
@@ -394,7 +394,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
 
           {/* 浮动保存按钮 — 编辑底线后方便保存 */}
           <div className="flex justify-end">
-            <Button variant="primary" className="shadow-md gap-2" onClick={handleSave} disabled={saving}>
+            <Button tone="accent" fill="solid" className="shadow-md gap-2" onClick={handleSave} disabled={saving}>
               <Save size={16}/> {saving ? t("common.status.saving") : t("common.actions.save")}
             </Button>
           </div>
@@ -415,7 +415,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                   </Tag>
                 ))
               )}
-              <Button variant="ghost" size="sm" className="h-11 border border-dashed border-success/30 text-sm text-success hover:bg-success/5 md:h-8 md:text-xs" onClick={() => setCoreIncludeModalOpen(true)}>
+              <Button tone="neutral" fill="plain" size="sm" className="h-11 border border-dashed border-success/30 text-sm text-success hover:bg-success/5 md:h-8 md:text-xs" onClick={() => setCoreIncludeModalOpen(true)}>
                 <Plus size={14} className="mr-1"/> {t("common.actions.addFile")}
               </Button>
             </div>
@@ -495,7 +495,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
             );
           })()}
           <div className="flex justify-end">
-            <Button variant="ghost" onClick={() => setCoreIncludeModalOpen(false)}>{t("common.actions.cancel")}</Button>
+            <Button tone="neutral" fill="plain" onClick={() => setCoreIncludeModalOpen(false)}>{t("common.actions.cancel")}</Button>
           </div>
         </div>
       </Modal>

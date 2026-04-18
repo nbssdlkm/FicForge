@@ -58,10 +58,10 @@ export const FinalizeConfirmModal = ({
           {previewText || t('writer.emptyContent')}
         </div>
         <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>
+          <Button tone="neutral" fill="plain" onClick={onClose}>
             {t('common.actions.cancel')}
           </Button>
-          <Button variant="primary" onClick={onConfirm} disabled={isFinalizing}>
+          <Button tone="accent" fill="solid" onClick={onConfirm} disabled={isFinalizing}>
             {isFinalizing ? <Loader2 size={16} className="animate-spin" /> : t('drafts.finalize')}
           </Button>
         </div>
@@ -102,10 +102,10 @@ export const DiscardConfirmModal = ({
             : t('drafts.confirmDiscard')}
         </p>
         <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>
+          <Button tone="neutral" fill="plain" onClick={onClose}>
             {t('common.actions.cancel')}
           </Button>
-          <Button variant="primary" className="bg-red-600 text-white hover:bg-red-700" onClick={onDiscard} disabled={isDiscarding}>
+          <Button tone="accent" fill="solid" className="bg-red-600 text-white hover:bg-red-700" onClick={onDiscard} disabled={isDiscarding}>
             {isDiscarding ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.confirm')}
           </Button>
         </div>
@@ -146,14 +146,14 @@ export const FactsPromptModal = ({
       <div className="space-y-5">
         <p className="text-sm text-text/80">{t('drafts.factsPrompt')}</p>
         <div className="space-y-2">
-          <Button variant="primary" className="w-full gap-2" onClick={onOpenExtractReview} disabled={extractingFacts}>
+          <Button tone="accent" fill="solid" className="w-full gap-2" onClick={onOpenExtractReview} disabled={extractingFacts}>
             {extractingFacts ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
             {t('drafts.factsExtract')}
           </Button>
-          <Button variant="secondary" className="w-full" onClick={onManualNavigate}>
+          <Button tone="neutral" fill="outline" className="w-full" onClick={onManualNavigate}>
             {t('drafts.factsManual')}
           </Button>
-          <Button variant="ghost" className="w-full" onClick={onSkip}>
+          <Button tone="neutral" fill="plain" className="w-full" onClick={onSkip}>
             {t('drafts.factsSkip')}
           </Button>
         </div>
@@ -239,10 +239,10 @@ export const ExtractReviewModal = ({
           )}
         </div>
         <div className="flex justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
-          <Button variant="ghost" onClick={onClose}>
+          <Button tone="neutral" fill="plain" onClick={onClose}>
             {t('common.actions.cancel')}
           </Button>
-          <Button variant="primary" onClick={onSave} disabled={savingExtracted || selectedExtractedKeys.length === 0}>
+          <Button tone="accent" fill="solid" onClick={onSave} disabled={savingExtracted || selectedExtractedKeys.length === 0}>
             {savingExtracted ? <Loader2 size={16} className="animate-spin" /> : t('drafts.extractSaveSelected')}
           </Button>
         </div>
@@ -274,8 +274,8 @@ export const UndoConfirmModal = ({
         <div className="text-sm text-text/80 whitespace-pre-line">{t('undo.confirmDesc')}</div>
         <p className="text-sm text-red-500 font-medium">{t('undo.irreversible')}</p>
         <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>{t('undo.cancel')}</Button>
-          <Button variant="danger" onClick={onConfirm}>{t('undo.confirmAction')}</Button>
+          <Button tone="neutral" fill="plain" onClick={onClose}>{t('undo.cancel')}</Button>
+          <Button tone="destructive" fill="solid" onClick={onConfirm}>{t('undo.confirmAction')}</Button>
         </div>
       </div>
     </Modal>

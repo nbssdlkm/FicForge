@@ -51,7 +51,8 @@ export function WriterHeader({
       <div className="flex items-center gap-4">
         <div className="hidden rounded-lg border border-black/10 bg-surface/60 p-1 dark:border-white/10 md:inline-flex">
           <Button
-            variant={mode === 'write' ? 'primary' : 'ghost'}
+            tone={mode === 'write' ? 'accent' : 'neutral'}
+            fill={mode === 'write' ? 'solid' : 'plain'}
             size="sm"
             className="h-8"
             onClick={() => onModeChange('write')}
@@ -60,7 +61,8 @@ export function WriterHeader({
             {t('settingsMode.tabWrite')}
           </Button>
           <Button
-            variant={mode === 'settings' ? 'primary' : 'ghost'}
+            tone={mode === 'settings' ? 'accent' : 'neutral'}
+            fill={mode === 'settings' ? 'solid' : 'plain'}
             size="sm"
             className="h-8"
             onClick={() => onModeChange('settings')}
@@ -91,7 +93,7 @@ export function WriterHeader({
         )}
         {hasDirty && (
           <Button
-            variant="ghost"
+            tone="neutral" fill="plain"
             size="sm"
             className="h-11 text-warning md:h-8"
             onClick={onOpenDirty}
@@ -100,7 +102,7 @@ export function WriterHeader({
             <AlertCircle size={16} />
           </Button>
         )}
-        <Button variant="ghost" size="sm" className="h-11 md:h-8" onClick={onOpenExport} title={t('writer.exportButtonTitle')}>
+        <Button tone="neutral" fill="plain" size="sm" className="h-11 md:h-8" onClick={onOpenExport} title={t('writer.exportButtonTitle')}>
           <FileUp size={16} />
         </Button>
         <span className="hidden md:inline-flex"><ThemeToggle /></span>

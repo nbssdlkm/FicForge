@@ -197,7 +197,7 @@ function LibraryInner({ onNavigate }: Props) {
         </div>
         <div className="flex items-center gap-4">
           <ThemeToggle />
-          <Button variant="ghost" size="sm" onClick={() => setGlobalSettingsOpen(true)} className="h-11 w-11 rounded-full p-0 md:h-10 md:w-10" title={t("settings.global.title")}>
+          <Button tone="neutral" fill="plain" size="sm" onClick={() => setGlobalSettingsOpen(true)} className="h-11 w-11 rounded-full p-0 md:h-10 md:w-10" title={t("settings.global.title")}>
             <Settings size={20} />
           </Button>
         </div>
@@ -208,7 +208,7 @@ function LibraryInner({ onNavigate }: Props) {
         <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-center md:justify-between">
           <h1 className="text-2xl font-serif font-medium">{t("library.title")}</h1>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Button variant="secondary" onClick={handleImportClick} disabled={creatingFandom || creatingAu || deleting} className="w-full sm:w-auto">
+            <Button tone="neutral" fill="outline" onClick={handleImportClick} disabled={creatingFandom || creatingAu || deleting} className="w-full sm:w-auto">
               {t("common.actions.importOldWork")}
             </Button>
             <Button onClick={() => setFandomModalOpen(true)} className="w-full sm:w-auto" disabled={creatingFandom || creatingAu || deleting}>
@@ -223,7 +223,7 @@ function LibraryInner({ onNavigate }: Props) {
             variant="warning"
             message={t('library.apiWarning')}
             actions={
-              <Button variant="secondary" size="sm" onClick={() => { setShowApiWarning(false); setGlobalSettingsOpen(true); }}>
+              <Button tone="neutral" fill="outline" size="sm" onClick={() => { setShowApiWarning(false); setGlobalSettingsOpen(true); }}>
                 {t('library.apiWarningAction')}
               </Button>
             }
@@ -252,7 +252,7 @@ function LibraryInner({ onNavigate }: Props) {
               {
                 key: "import-old-work",
                 element: (
-                  <Button variant="secondary" onClick={handleImportClick}>
+                  <Button tone="neutral" fill="outline" onClick={handleImportClick}>
                     {t("common.actions.importOldWork")}
                   </Button>
                 ),
@@ -268,16 +268,16 @@ function LibraryInner({ onNavigate }: Props) {
                     {t("common.scope.fandomTitle", { name: fandom.name })}
                   </h2>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button variant="secondary" size="sm" onClick={() => onNavigate('fandom_lore', `${getDataDir()}/fandoms/${fandom.dir_name}`)} className="bg-surface/80 border-black/10 dark:border-white/10 text-text/70">
+                    <Button tone="neutral" fill="outline" size="sm" onClick={() => onNavigate('fandom_lore', `${getDataDir()}/fandoms/${fandom.dir_name}`)} className="bg-surface/80 border-black/10 dark:border-white/10 text-text/70">
                       <FileText size={14} className="mr-2 text-text/50" /> {t("library.fandomSectionButton")}
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => { setSelectedFandom(fandom.name); setSelectedFandomDir(fandom.dir_name); setAuModalOpen(true); }} disabled={creatingFandom || creatingAu || deleting}>
+                    <Button tone="neutral" fill="plain" size="sm" onClick={() => { setSelectedFandom(fandom.name); setSelectedFandomDir(fandom.dir_name); setAuModalOpen(true); }} disabled={creatingFandom || creatingAu || deleting}>
                       <Plus size={14} className="mr-1 text-accent" /> {t("library.createAuButton")}
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-text/40 hover:text-text/60" onClick={() => setTrashTarget({ fandomDir: fandom.dir_name, fandomName: fandom.name })} title={t('trash.tooltip')}>
+                    <Button tone="neutral" fill="plain" size="sm" className="text-text/40 hover:text-text/60" onClick={() => setTrashTarget({ fandomDir: fandom.dir_name, fandomName: fandom.name })} title={t('trash.tooltip')}>
                       <ArchiveRestore size={14} />
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteTarget({ type: 'fandom', fandomDir: fandom.dir_name, fandomName: fandom.name })} disabled={creatingFandom || creatingAu || deleting}>
+                    <Button tone="neutral" fill="plain" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteTarget({ type: 'fandom', fandomDir: fandom.dir_name, fandomName: fandom.name })} disabled={creatingFandom || creatingAu || deleting}>
                       <Trash2 size={14} />
                     </Button>
                   </div>
@@ -344,7 +344,7 @@ function LibraryInner({ onNavigate }: Props) {
             {fandoms.length === 0 ? (
               <div className="text-center py-6 space-y-3">
                 <p className="text-sm text-text/50">{t('import.noFandom')}</p>
-                <Button variant="primary" size="sm" onClick={() => {
+                <Button tone="accent" fill="solid" size="sm" onClick={() => {
                   setResumeImportAfterFandomCreate(true);
                   setImportModalOpen(false);
                   resetImportSelection();
@@ -379,7 +379,7 @@ function LibraryInner({ onNavigate }: Props) {
                         onChange={e => setImportNewAuName(e.target.value)}
                         disabled={importCreatingAu}
                       />
-                      <Button variant="primary" size="sm" className="h-11 shrink-0 md:h-8" disabled={!importNewAuName.trim() || importCreatingAu} onClick={async () => {
+                      <Button tone="accent" fill="solid" size="sm" className="h-11 shrink-0 md:h-8" disabled={!importNewAuName.trim() || importCreatingAu} onClick={async () => {
                         if (!importNewAuName.trim()) return;
                         setImportCreatingAu(true);
                         try {
@@ -412,7 +412,7 @@ function LibraryInner({ onNavigate }: Props) {
             )}
           </div>
           <div className={`flex ${isMobile ? 'justify-stretch' : 'justify-end'}`}>
-            <Button variant="ghost" onClick={() => { setImportModalOpen(false); resetImportSelection(); }} disabled={importCreatingAu}>{t('common.actions.cancel')}</Button>
+            <Button tone="neutral" fill="plain" onClick={() => { setImportModalOpen(false); resetImportSelection(); }} disabled={importCreatingAu}>{t('common.actions.cancel')}</Button>
           </div>
         </div>
       </Modal>

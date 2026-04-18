@@ -434,12 +434,12 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
         <header className="p-4 border-b border-black/10 dark:border-white/10 flex flex-col gap-3 shrink-0 bg-surface">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => handleNavigateIntent('library')} className="p-1 h-8 w-8 text-text/60 hover:text-text rounded-full" title={t("common.actions.back")}>
+            <Button tone="neutral" fill="plain" size="sm" onClick={() => handleNavigateIntent('library')} className="p-1 h-8 w-8 text-text/60 hover:text-text rounded-full" title={t("common.actions.back")}>
                 <ArrowLeft size={18} />
               </Button>
               <h1 className="font-serif text-lg font-bold">{t("common.scope.fandomTitle", { name: fandomName })}</h1>
             </div>
-            <Button variant="ghost" size="sm" className="px-2" onClick={() => openCreateModal('core_characters')} disabled={editorBusy || filesLoading}>
+            <Button tone="neutral" fill="plain" size="sm" className="px-2" onClick={() => openCreateModal('core_characters')} disabled={editorBusy || filesLoading}>
               {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16}/>}
             </Button>
           </div>
@@ -468,7 +468,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                     <Folder size={14} className="text-accent" fill="currentColor" fillOpacity={0.2} />
                     <span>{t("fandomLore.category.characters")}</span>
                   </div>
-                  <Button variant="ghost" size="sm" className="p-0 h-6 w-6" onClick={(e) => { e.stopPropagation(); openCreateModal('core_characters'); }} disabled={editorBusy || filesLoading}>
+                  <Button tone="neutral" fill="plain" size="sm" className="p-0 h-6 w-6" onClick={(e) => { e.stopPropagation(); openCreateModal('core_characters'); }} disabled={editorBusy || filesLoading}>
                     <Plus size={12} />
                   </Button>
                 </div>
@@ -485,7 +485,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                         actions={characterFiles.length === 0 ? [
                           {
                             key: 'create-character',
-                            element: <Button variant="primary" size="sm" onClick={() => openCreateModal('core_characters')}>{t("common.actions.addCharacter")}</Button>,
+                            element: <Button tone="accent" fill="solid" size="sm" onClick={() => openCreateModal('core_characters')}>{t("common.actions.addCharacter")}</Button>,
                           },
                         ] : undefined}
                       />
@@ -516,7 +516,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                     <Folder size={14} className="text-warning" fill="currentColor" fillOpacity={0.2} />
                     <span>{t("fandomLore.category.worldbuilding")}</span>
                   </div>
-                  <Button variant="ghost" size="sm" className="p-0 h-6 w-6" onClick={(e) => { e.stopPropagation(); openCreateModal('core_worldbuilding'); }} disabled={editorBusy || filesLoading}>
+                  <Button tone="neutral" fill="plain" size="sm" className="p-0 h-6 w-6" onClick={(e) => { e.stopPropagation(); openCreateModal('core_worldbuilding'); }} disabled={editorBusy || filesLoading}>
                     <Plus size={12} />
                   </Button>
                 </div>
@@ -533,7 +533,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                         actions={worldbuildingFiles.length === 0 ? [
                           {
                             key: 'create-worldbuilding',
-                            element: <Button variant="primary" size="sm" onClick={() => openCreateModal('core_worldbuilding')}>{t("common.actions.addWorldbuilding")}</Button>,
+                            element: <Button tone="accent" fill="solid" size="sm" onClick={() => openCreateModal('core_worldbuilding')}>{t("common.actions.addWorldbuilding")}</Button>,
                           },
                         ] : undefined}
                       />
@@ -577,7 +577,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                   {t("fandomLore.referenceHint")}
                 </span>
                 <Button
-                  variant="ghost"
+                  tone="neutral" fill="plain"
                   size="sm"
                   className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                   onClick={() => {
@@ -599,7 +599,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                     <Eye size={12} /> {t('common.actions.preview')}
                   </button>
                 </div>
-                <Button variant="primary" size="sm" className="h-8 w-28" onClick={handleSaveLore} disabled={editorBusy}>
+                <Button tone="accent" fill="solid" size="sm" className="h-8 w-28" onClick={handleSaveLore} disabled={editorBusy}>
                   {isSaving || isReadingFile ? <Loader2 size={14} className="animate-spin" /> : t('fandomLore.saveButton')}
                 </Button>
               </div>
@@ -647,7 +647,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
           <div className={`flex-1 flex flex-col min-h-0 transition-opacity duration-200 ${aiPanelOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
             <div className="p-3 border-b border-black/10 dark:border-white/10 flex items-center justify-between shrink-0">
               <span className="text-xs font-bold text-text/60">{t('settingsMode.fandomAiTitle')}</span>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setAiPanelOpen(false)}>
+              <Button tone="neutral" fill="plain" size="sm" className="h-6 w-6 p-0" onClick={() => setAiPanelOpen(false)}>
                 <X size={14} />
               </Button>
             </div>
@@ -688,7 +688,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
       </div>
       {!aiPanelOpen && (
         <Button
-          variant="ghost"
+          tone="neutral" fill="plain"
           size="sm"
           className="fixed right-3 top-16 z-20 h-8 px-2 bg-surface border border-black/10 dark:border-white/10 shadow-sm"
           onClick={() => setAiPanelOpen(true)}

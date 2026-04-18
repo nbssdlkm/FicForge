@@ -104,8 +104,8 @@ export function ConflictStep({
 
       {/* Navigation */}
       <div className="flex justify-between pt-2">
-        <Button variant="ghost" onClick={onBack}>{t("onboarding.common.prev")}</Button>
-        <Button variant="primary" onClick={handleNext}>{t("onboarding.common.next")}</Button>
+        <Button tone="neutral" fill="plain" onClick={onBack}>{t("onboarding.common.prev")}</Button>
+        <Button tone="accent" fill="solid" onClick={handleNext}>{t("onboarding.common.next")}</Button>
       </div>
     </div>
   );

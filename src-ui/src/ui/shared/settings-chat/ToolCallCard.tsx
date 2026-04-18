@@ -373,7 +373,7 @@ export function ToolCallCard({
                 {isExpanded ? preview.full : preview.preview}
               </p>
               <Button
-                variant="ghost"
+                tone="neutral" fill="plain"
                 size="sm"
                 className="mt-2 h-11 px-3 text-sm sm:h-7 sm:px-2 sm:text-xs"
                 onClick={() => setExpanded((current) => !current)}
@@ -408,7 +408,7 @@ export function ToolCallCard({
           </div>
           {card.undoMeta && card.undoMeta.kind !== "unsupported" ? (
             <Button
-              variant="ghost"
+              tone="neutral" fill="plain"
               size="sm"
               className="h-11 w-full gap-1 text-text/70 sm:h-8 sm:w-auto"
               onClick={() => void onUndo(card.id)}
@@ -423,7 +423,7 @@ export function ToolCallCard({
           {isEditing && !isMobile ? (
             <>
               <Button
-                variant="ghost"
+                tone="neutral" fill="plain"
                 size="sm"
                 className="w-full sm:w-auto"
                 onClick={handleCancelEdit}
@@ -432,7 +432,7 @@ export function ToolCallCard({
                 {t("common.actions.cancel")}
               </Button>
               <Button
-                variant="primary"
+                tone="accent" fill="solid"
                 size="sm"
                 className="w-full sm:w-auto"
                 onClick={() => void onConfirm(card.id, draftArgs)}
@@ -444,7 +444,7 @@ export function ToolCallCard({
           ) : (
             <>
               <Button
-                variant="primary"
+                tone="accent" fill="solid"
                 size="sm"
                 className="w-full sm:w-auto"
                 onClick={() => void onConfirm(card.id)}
@@ -453,7 +453,7 @@ export function ToolCallCard({
                 {card.isLoading ? <Loader2 size={14} className="animate-spin" /> : t("settingsMode.confirm")}
               </Button>
               <Button
-                variant="secondary"
+                tone="neutral" fill="outline"
                 size="sm"
                 className="w-full sm:w-auto"
                 onClick={() => setEditing(true)}
@@ -462,7 +462,7 @@ export function ToolCallCard({
                 {t("settingsMode.editAndConfirm")}
               </Button>
               <Button
-                variant="ghost"
+                tone="neutral" fill="plain"
                 size="sm"
                 className="w-full sm:w-auto"
                 onClick={() => onSkip(card.id)}
@@ -490,10 +490,10 @@ export function ToolCallCard({
             t={t}
           />
           <div className="flex flex-col gap-2 border-t border-black/10 pt-4 dark:border-white/10">
-            <Button variant="ghost" onClick={handleCancelEdit} disabled={globalBusy && !card.isLoading}>
+            <Button tone="neutral" fill="plain" onClick={handleCancelEdit} disabled={globalBusy && !card.isLoading}>
               {t("common.actions.cancel")}
             </Button>
-            <Button variant="primary" onClick={() => void onConfirm(card.id, draftArgs)} disabled={!canConfirm}>
+            <Button tone="accent" fill="solid" onClick={() => void onConfirm(card.id, draftArgs)} disabled={!canConfirm}>
               {card.isLoading ? <Loader2 size={14} className="animate-spin" /> : t("settingsMode.confirm")}
             </Button>
           </div>

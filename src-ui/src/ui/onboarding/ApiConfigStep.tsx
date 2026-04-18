@@ -185,7 +185,7 @@ export function ApiConfigStep({
 
       {/* Test connection */}
       <div className="space-y-3">
-        <Button variant="secondary" onClick={handleTest} disabled={!canTest} className="w-full">
+        <Button tone="neutral" fill="outline" onClick={handleTest} disabled={!canTest} className="w-full">
           {testing ? <><Loader2 size={14} className="animate-spin mr-2" />{t('onboarding.apiConfig.testing')}</> : t('onboarding.apiConfig.testConnection')}
         </Button>
 
@@ -207,8 +207,8 @@ export function ApiConfigStep({
 
       {/* Navigation */}
       <div className="flex justify-between pt-4">
-        <Button variant="ghost" onClick={onPrev} disabled={testing}>{t('onboarding.common.prev')}</Button>
-        <Button variant="primary" onClick={() => onNext(config)} disabled={!canProceed || testing}>
+        <Button tone="neutral" fill="plain" onClick={onPrev} disabled={testing}>{t('onboarding.common.prev')}</Button>
+        <Button tone="accent" fill="solid" onClick={() => onNext(config)} disabled={!canProceed || testing}>
           {t('onboarding.common.next')}
         </Button>
       </div>

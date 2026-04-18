@@ -181,8 +181,8 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
 
         {showFooter ? (
           <div className="flex items-center justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
-            <Button variant="ghost" onClick={() => editor.setEditingFact(null)}>{t('facts.cancelSelection')}</Button>
-            <Button variant="primary" onClick={editor.handleSaveFact} disabled={editor.savingFact}>
+            <Button tone="neutral" fill="plain" onClick={() => editor.setEditingFact(null)}>{t('facts.cancelSelection')}</Button>
+            <Button tone="accent" fill="solid" onClick={editor.handleSaveFact} disabled={editor.savingFact}>
               {editor.savingFact ? <Loader2 size={14} className="animate-spin" /> : editor.saveSuccess ? <><Check size={14} className="mr-1" /> {t('facts.saved')}</> : t('common.actions.save')}
             </Button>
           </div>
@@ -255,8 +255,8 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             </div>
           </div>
           <div className="flex justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
-            <Button variant="ghost" onClick={() => editor.setAddModalOpen(false)} disabled={editor.adding}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={editor.handleAddFact} disabled={!editor.newContentClean.trim() || editor.adding}>
+            <Button tone="neutral" fill="plain" onClick={() => editor.setAddModalOpen(false)} disabled={editor.adding}>{t('common.actions.cancel')}</Button>
+            <Button tone="accent" fill="solid" onClick={editor.handleAddFact} disabled={!editor.newContentClean.trim() || editor.adding}>
               {editor.adding ? <Loader2 size={16} className="animate-spin" /> : t('facts.createModal.submit')}
             </Button>
           </div>
@@ -274,8 +274,8 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             <span className="text-xs text-text/40">{t('facts.extractChapterCount', { count: extraction.extractRange[1] - extraction.extractRange[0] + 1 })}</span>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => extraction.setExtractRangeOpen(false)}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={extraction.handleExtractConfirm}>{t('facts.extractStart')}</Button>
+            <Button tone="neutral" fill="plain" onClick={() => extraction.setExtractRangeOpen(false)}>{t('common.actions.cancel')}</Button>
+            <Button tone="accent" fill="solid" onClick={extraction.handleExtractConfirm}>{t('facts.extractStart')}</Button>
           </div>
         </div>
       </Modal>
@@ -300,8 +300,8 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             {batch.batchConfirm === 'unresolved' && t('facts.batchUnresolvedDesc')}
           </p>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => batch.setBatchConfirm(null)} disabled={batch.batchProcessing}>{t('common.actions.cancel')}</Button>
-            <Button variant="primary" onClick={() => batch.batchConfirm && batch.handleBatchStatus(batch.batchConfirm)} disabled={batch.batchProcessing}>
+            <Button tone="neutral" fill="plain" onClick={() => batch.setBatchConfirm(null)} disabled={batch.batchProcessing}>{t('common.actions.cancel')}</Button>
+            <Button tone="accent" fill="solid" onClick={() => batch.batchConfirm && batch.handleBatchStatus(batch.batchConfirm)} disabled={batch.batchProcessing}>
               {batch.batchProcessing ? <Loader2 size={14} className="animate-spin" /> : t('common.actions.confirm')}
             </Button>
           </div>
@@ -321,10 +321,10 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 <p className="text-sm text-text/55">{t('facts.subtitle')}</p>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="secondary" size="sm" className="px-3" onClick={extraction.handleExtractClick} disabled={extraction.extracting}>
+                <Button tone="neutral" fill="outline" size="sm" className="px-3" onClick={extraction.handleExtractClick} disabled={extraction.extracting}>
                   {extraction.extracting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
                 </Button>
-                <Button variant="primary" size="sm" className="px-3 shadow-md" onClick={() => editor.setAddModalOpen(true)}>
+                <Button tone="accent" fill="solid" size="sm" className="px-3 shadow-md" onClick={() => editor.setAddModalOpen(true)}>
                   <Plus size={16} className="mr-1" />
                   新建
                 </Button>
@@ -342,7 +342,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 />
               </div>
               <Button
-                variant={factsFilter.filterOpen || factsFilter.chapterFilter !== null || factsFilter.characterFilter ? 'primary' : 'secondary'}
+                tone={factsFilter.filterOpen || factsFilter.chapterFilter !== null || factsFilter.characterFilter ? 'accent' : 'neutral'} fill={factsFilter.filterOpen || factsFilter.chapterFilter !== null || factsFilter.characterFilter ? 'solid' : 'outline'}
                 className="w-11 px-0"
                 title={t('facts.filterTitle')}
                 onClick={() => factsFilter.setFilterOpen(!factsFilter.filterOpen)}
@@ -438,7 +438,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           {staleCount > 0 && !factsFilter.statusFilter ? (
             <div className="mx-4 mt-3 flex items-center justify-between rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-xs text-warning">
               <span>💡 {t('facts.staleHint', { count: staleCount })}</span>
-              <Button variant="ghost" size="sm" className="h-11 px-3 text-sm" onClick={() => factsFilter.setStatusFilter('stale')}>{t('facts.staleView')}</Button>
+              <Button tone="neutral" fill="plain" size="sm" className="h-11 px-3 text-sm" onClick={() => factsFilter.setStatusFilter('stale')}>{t('facts.staleView')}</Button>
             </div>
           ) : null}
 
@@ -460,7 +460,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               {batch.selectedIds.size > 0 ? (
                 <>
                   <span className="font-medium text-accent">{t('facts.batchSelected', { count: batch.selectedIds.size })}</span>
-                  <Button variant="secondary" size="sm" className="h-11 px-3 text-sm" onClick={() => batch.setBatchMenuOpen(!batch.batchMenuOpen)} disabled={batch.batchProcessing}>
+                  <Button tone="neutral" fill="outline" size="sm" className="h-11 px-3 text-sm" onClick={() => batch.setBatchMenuOpen(!batch.batchMenuOpen)} disabled={batch.batchProcessing}>
                     {t('facts.batchAction')} ▾
                   </Button>
                   {batch.batchMenuOpen ? (
@@ -489,11 +489,11 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 actions={[
                   {
                     key: 'add-fact',
-                    element: <Button variant="primary" size="sm" onClick={() => editor.setAddModalOpen(true)}>{t('common.actions.manualFact')}</Button>,
+                    element: <Button tone="accent" fill="solid" size="sm" onClick={() => editor.setAddModalOpen(true)}>{t('common.actions.manualFact')}</Button>,
                   },
                   {
                     key: 'extract-facts',
-                    element: <Button variant="secondary" size="sm" onClick={extraction.handleExtractClick} disabled={extraction.extracting}>{t('common.actions.extractFacts')}</Button>,
+                    element: <Button tone="neutral" fill="outline" size="sm" onClick={extraction.handleExtractClick} disabled={extraction.extracting}>{t('common.actions.extractFacts')}</Button>,
                   },
                 ]}
               />
@@ -506,7 +506,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 actions={[
                   {
                     key: 'add-first-fact',
-                    element: <Button variant="primary" size="sm" onClick={() => editor.setAddModalOpen(true)}>{t('common.actions.newNote')}</Button>,
+                    element: <Button tone="accent" fill="solid" size="sm" onClick={() => editor.setAddModalOpen(true)}>{t('common.actions.newNote')}</Button>,
                   },
                 ]}
               />
@@ -536,7 +536,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             )}
             {factsFilter.hasMoreFacts && (
               <div className="flex justify-center py-4">
-                <Button variant="ghost" size="sm" onClick={() => factsFilter.setVisibleCount(prev => prev + FACTS_PAGE_SIZE)}>
+                <Button tone="neutral" fill="plain" size="sm" onClick={() => factsFilter.setVisibleCount(prev => prev + FACTS_PAGE_SIZE)}>
                   {t('facts.loadMore', { remaining: factsFilter.filteredFacts.length - factsFilter.visibleCount })}
                 </Button>
               </div>
@@ -555,11 +555,11 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           <div className="flex justify-between items-center gap-3">
             <h1 className="font-serif text-xl font-bold">{t('facts.title')}</h1>
             <div className="flex items-center gap-2">
-              <Button variant="secondary" size="sm" className="px-3 gap-1" onClick={extraction.handleExtractClick} disabled={extraction.extracting}>
+              <Button tone="neutral" fill="outline" size="sm" className="px-3 gap-1" onClick={extraction.handleExtractClick} disabled={extraction.extracting}>
                 {extraction.extracting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
                 {extraction.extracting ? `${extraction.extractProgress}%` : t('common.actions.extractFacts')}
               </Button>
-              <Button variant="primary" size="sm" className="px-3 shadow-md gap-1" onClick={() => editor.setAddModalOpen(true)}>
+              <Button tone="accent" fill="solid" size="sm" className="px-3 shadow-md gap-1" onClick={() => editor.setAddModalOpen(true)}>
                 <Plus size={16} />
                 {t('facts.createButton')}
               </Button>
@@ -577,7 +577,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               />
             </div>
             <Button
-              variant={factsFilter.filterOpen || factsFilter.chapterFilter !== null || factsFilter.characterFilter ? 'primary' : 'secondary'}
+              tone={factsFilter.filterOpen || factsFilter.chapterFilter !== null || factsFilter.characterFilter ? 'accent' : 'neutral'} fill={factsFilter.filterOpen || factsFilter.chapterFilter !== null || factsFilter.characterFilter ? 'solid' : 'outline'}
               className="px-2.5 h-8 flex-shrink-0"
               title={t('facts.filterTitle')}
               onClick={() => factsFilter.setFilterOpen(!factsFilter.filterOpen)}
@@ -667,7 +667,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
         {staleCount > 0 && !factsFilter.statusFilter && (
           <div className="mx-4 mt-3 flex items-center justify-between rounded-lg bg-warning/10 border border-warning/20 px-3 py-2 text-xs text-warning">
             <span>💡 {t('facts.staleHint', { count: staleCount })}</span>
-            <Button variant="ghost" size="sm" className="text-xs h-6 px-2" onClick={() => factsFilter.setStatusFilter('stale')}>{t('facts.staleView')}</Button>
+            <Button tone="neutral" fill="plain" size="sm" className="text-xs h-6 px-2" onClick={() => factsFilter.setStatusFilter('stale')}>{t('facts.staleView')}</Button>
           </div>
         )}
 
@@ -687,7 +687,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               <>
                 <span className="text-accent font-medium">{t('facts.batchSelected', { count: batch.selectedIds.size })}</span>
                 <div className="relative">
-                  <Button variant="secondary" size="sm" className="h-6 px-2 text-xs" onClick={() => batch.setBatchMenuOpen(!batch.batchMenuOpen)} disabled={batch.batchProcessing}>
+                  <Button tone="neutral" fill="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => batch.setBatchMenuOpen(!batch.batchMenuOpen)} disabled={batch.batchProcessing}>
                     {t('facts.batchAction')} ▾
                   </Button>
                   {batch.batchMenuOpen && (
@@ -718,7 +718,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 {
                   key: 'add-fact',
                   element: (
-                    <Button variant="primary" size="sm" onClick={() => editor.setAddModalOpen(true)}>
+                    <Button tone="accent" fill="solid" size="sm" onClick={() => editor.setAddModalOpen(true)}>
                       {t('common.actions.manualFact')}
                     </Button>
                   ),
@@ -726,7 +726,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 {
                   key: 'extract-facts',
                   element: (
-                    <Button variant="secondary" size="sm" onClick={extraction.handleExtractClick} disabled={extraction.extracting}>
+                    <Button tone="neutral" fill="outline" size="sm" onClick={extraction.handleExtractClick} disabled={extraction.extracting}>
                       {t('common.actions.extractFacts')}
                     </Button>
                   ),
@@ -743,7 +743,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 {
                   key: 'add-first-fact',
                   element: (
-                    <Button variant="primary" size="sm" onClick={() => editor.setAddModalOpen(true)}>
+                    <Button tone="accent" fill="solid" size="sm" onClick={() => editor.setAddModalOpen(true)}>
                       {t('common.actions.newNote')}
                     </Button>
                   ),
@@ -778,7 +778,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           )}
           {factsFilter.hasMoreFacts && (
             <div className="flex justify-center py-4">
-              <Button variant="ghost" size="sm" onClick={() => factsFilter.setVisibleCount(prev => prev + FACTS_PAGE_SIZE)}>
+              <Button tone="neutral" fill="plain" size="sm" onClick={() => factsFilter.setVisibleCount(prev => prev + FACTS_PAGE_SIZE)}>
                 {t('facts.loadMore', { remaining: factsFilter.filteredFacts.length - factsFilter.visibleCount })}
               </Button>
             </div>
@@ -794,8 +794,8 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 {editor.editingFact.id.split('-')[0]} <span className="font-sans font-normal opacity-70 ml-2">{t('facts.editing')}</span>
               </span>
               <div className="flex gap-3 items-center">
-                <Button variant="ghost" size="sm" className="h-8" onClick={() => editor.setEditingFact(null)}>{t('facts.cancelSelection')}</Button>
-                <Button variant="primary" size="sm" className="h-8 w-24" onClick={editor.handleSaveFact} disabled={editor.savingFact}>
+                <Button tone="neutral" fill="plain" size="sm" className="h-8" onClick={() => editor.setEditingFact(null)}>{t('facts.cancelSelection')}</Button>
+                <Button tone="accent" fill="solid" size="sm" className="h-8 w-24" onClick={editor.handleSaveFact} disabled={editor.savingFact}>
                   {editor.savingFact ? <Loader2 size={14} className="animate-spin" /> : editor.saveSuccess ? <><Check size={14} /> {t('facts.saved')}</> : t('common.actions.save')}
                 </Button>
               </div>

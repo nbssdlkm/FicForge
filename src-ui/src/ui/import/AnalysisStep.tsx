@@ -130,15 +130,15 @@ export function AnalysisStep({
 
       {/* Navigation */}
       <div className="flex justify-between pt-2">
-        <Button variant="ghost" onClick={onBack} disabled={analyzing}>
+        <Button tone="neutral" fill="plain" onClick={onBack} disabled={analyzing}>
           {t("onboarding.common.prev")}
         </Button>
         {!allDone ? (
-          <Button variant="primary" onClick={onStartAnalysis} disabled={analyzing}>
+          <Button tone="accent" fill="solid" onClick={onStartAnalysis} disabled={analyzing}>
             {analyzing ? <><Loader2 size={14} className="mr-2 animate-spin" />{t("import.analyzing")}</> : t("onboarding.common.next")}
           </Button>
         ) : (
-          <Button variant="primary" onClick={onStartAnalysis}>
+          <Button tone="accent" fill="solid" onClick={onStartAnalysis}>
             {t("onboarding.common.next")}
           </Button>
         )}

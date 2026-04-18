@@ -390,7 +390,7 @@ export function MobileOnboarding({
                   />
 
                   <Button
-                    variant="secondary"
+                    tone="neutral" fill="outline"
                     className="w-full"
                     onClick={handleTestConnection}
                     disabled={connectionStatus === 'testing' || !apiKey.trim() || !apiBase.trim() || !model.trim()}
@@ -612,7 +612,7 @@ export function MobileOnboarding({
         <footer className="safe-area-bottom border-t border-black/10 bg-background px-4 py-3 dark:border-white/10">
           <div className="mx-auto flex w-full max-w-xl gap-3">
             <Button
-              variant="ghost"
+              tone="neutral" fill="plain"
               className="flex-1"
               onClick={() => {
                 setSubmitError('');
@@ -624,7 +624,7 @@ export function MobileOnboarding({
             </Button>
             {step < TOTAL_STEPS - 1 ? (
               <Button
-                variant="primary"
+                tone="accent" fill="solid"
                 className="flex-1"
                 onClick={() => {
                   setSubmitError('');
@@ -635,7 +635,7 @@ export function MobileOnboarding({
                 {t('onboarding.common.next')}
               </Button>
             ) : (
-              <Button variant="primary" className="flex-1" onClick={handleFinish} disabled={submitting}>
+              <Button tone="accent" fill="solid" className="flex-1" onClick={handleFinish} disabled={submitting}>
                 {submitting ? <><Loader2 size={16} className="mr-2 animate-spin" />{t('common.status.saving')}</> : t('ethics.onboardingAcknowledge')}
               </Button>
             )}

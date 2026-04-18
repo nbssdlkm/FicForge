@@ -546,7 +546,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
         {
           key: 'create-character-empty',
           element: (
-            <Button variant="primary" onClick={() => setCreateModalOpen(true)}>
+            <Button tone="accent" fill="solid" onClick={() => setCreateModalOpen(true)}>
               {t('common.actions.addCharacter')}
             </Button>
           ),
@@ -554,7 +554,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
         {
           key: 'import-character-empty',
           element: (
-            <Button variant="secondary" onClick={openImportModal}>
+            <Button tone="neutral" fill="outline" onClick={openImportModal}>
               {t('common.actions.importFromFandom')}
             </Button>
           ),
@@ -600,7 +600,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
             <div className="flex items-center justify-between gap-3">
               {selectedFile ? (
                 <div className="flex min-w-0 items-center gap-2">
-                  <Button variant="ghost" size="sm" className="px-3" onClick={() => setSelectedFile(null)}>
+                  <Button tone="neutral" fill="plain" size="sm" className="px-3" onClick={() => setSelectedFile(null)}>
                     ← {t('common.actions.back')}
                   </Button>
                   <div className="min-w-0">
@@ -618,19 +618,19 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
               <div className="flex items-center gap-2">
                 {selectedFile ? (
                   <>
-                    <Button variant="ghost" size="sm" className="px-3 text-red-500" onClick={() => setDeleteConfirmOpen(true)} disabled={isSaving || isReadingFile}>
+                    <Button tone="neutral" fill="plain" size="sm" className="px-3 text-red-500" onClick={() => setDeleteConfirmOpen(true)} disabled={isSaving || isReadingFile}>
                       <Trash2 size={16} />
                     </Button>
-                    <Button variant="primary" size="sm" className="px-3" onClick={handleSaveLore} disabled={isSaving || isReadingFile}>
+                    <Button tone="accent" fill="solid" size="sm" className="px-3" onClick={handleSaveLore} disabled={isSaving || isReadingFile}>
                       {isSaving || isReadingFile ? <Loader2 size={14} className="animate-spin" /> : t('auLore.saveButton')}
                     </Button>
                   </>
                 ) : (
                   <>
-                    <Button variant="ghost" size="sm" className="px-3" onClick={openImportModal} disabled={isSaving} title={t('common.actions.importFromFandom')}>
+                    <Button tone="neutral" fill="plain" size="sm" className="px-3" onClick={openImportModal} disabled={isSaving} title={t('common.actions.importFromFandom')}>
                       <Download size={16} />
                     </Button>
-                    <Button variant="primary" size="sm" className="px-3" onClick={() => { setCreateName(''); setCreateModalOpen(true); }} disabled={isSaving}>
+                    <Button tone="accent" fill="solid" size="sm" className="px-3" onClick={() => { setCreateName(''); setCreateModalOpen(true); }} disabled={isSaving}>
                       <Plus size={16} />
                     </Button>
                   </>
@@ -680,7 +680,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                       {
                         key: 'add-item',
                         element: (
-                          <Button variant="primary" size="sm" onClick={() => setCreateModalOpen(true)}>
+                          <Button tone="accent" fill="solid" size="sm" onClick={() => setCreateModalOpen(true)}>
                             {selectedCategory === 'characters' ? t('common.actions.addCharacter') : t('common.actions.addWorldbuilding')}
                           </Button>
                         ),
@@ -742,10 +742,10 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
               <h1 className="font-serif text-lg font-bold">{t('common.scope.auTitle', { name: auName })}</h1>
             </div>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" className="px-2" onClick={openImportModal} disabled={isSaving} title={t('common.actions.importFromFandom')}>
+              <Button tone="neutral" fill="plain" size="sm" className="px-2" onClick={openImportModal} disabled={isSaving} title={t('common.actions.importFromFandom')}>
                 <Download size={16} />
               </Button>
-              <Button variant="ghost" size="sm" className="px-2" onClick={() => { setCreateName(''); setCreateModalOpen(true); }} disabled={isSaving}>
+              <Button tone="neutral" fill="plain" size="sm" className="px-2" onClick={() => { setCreateName(''); setCreateModalOpen(true); }} disabled={isSaving}>
                 {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
               </Button>
             </div>
@@ -780,7 +780,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                     <Folder size={14} className="text-accent" fill="currentColor" fillOpacity={0.2} />
                     <span>{t('common.labels.characters')}</span>
                   </div>
-                  <Button variant="ghost" size="sm" className="p-0 h-6 w-6" onClick={(event) => { event.stopPropagation(); setSelectedCategory('characters'); setCreateName(''); setCreateModalOpen(true); }}>
+                  <Button tone="neutral" fill="plain" size="sm" className="p-0 h-6 w-6" onClick={(event) => { event.stopPropagation(); setSelectedCategory('characters'); setCreateName(''); setCreateModalOpen(true); }}>
                     <Plus size={12} />
                   </Button>
                 </div>
@@ -796,7 +796,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                           {
                             key: 'add-character',
                             element: (
-                              <Button variant="primary" size="sm" onClick={() => setCreateModalOpen(true)}>
+                              <Button tone="accent" fill="solid" size="sm" onClick={() => setCreateModalOpen(true)}>
                                 {t('common.actions.addCharacter')}
                               </Button>
                             ),
@@ -804,7 +804,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                           {
                             key: 'import-character',
                             element: (
-                              <Button variant="secondary" size="sm" onClick={openImportModal}>
+                              <Button tone="neutral" fill="outline" size="sm" onClick={openImportModal}>
                                 {t('common.actions.importFromFandom')}
                               </Button>
                             ),
@@ -853,7 +853,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                     <Folder size={14} className="text-info" fill="currentColor" fillOpacity={0.2} />
                     <span>{t('common.labels.worldbuilding')}</span>
                   </div>
-                  <Button variant="ghost" size="sm" className="p-0 h-6 w-6" onClick={(event) => { event.stopPropagation(); setSelectedCategory('worldbuilding'); setCreateName(''); setCreateModalOpen(true); }}>
+                  <Button tone="neutral" fill="plain" size="sm" className="p-0 h-6 w-6" onClick={(event) => { event.stopPropagation(); setSelectedCategory('worldbuilding'); setCreateName(''); setCreateModalOpen(true); }}>
                     <Plus size={12} />
                   </Button>
                 </div>
@@ -869,7 +869,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                           {
                             key: 'add-worldbuilding',
                             element: (
-                              <Button variant="primary" size="sm" onClick={() => { setSelectedCategory('worldbuilding'); setCreateModalOpen(true); }}>
+                              <Button tone="accent" fill="solid" size="sm" onClick={() => { setSelectedCategory('worldbuilding'); setCreateModalOpen(true); }}>
                                 {t('common.actions.addWorldbuilding')}
                               </Button>
                             ),
@@ -923,7 +923,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                 )}
               </div>
               <div className="flex items-center gap-4">
-                <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteConfirmOpen(true)} disabled={isSaving || isReadingFile}>
+                <Button tone="neutral" fill="plain" size="sm" className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteConfirmOpen(true)} disabled={isSaving || isReadingFile}>
                   <Trash2 size={14} />
                 </Button>
                 <div className="inline-flex rounded-md border border-black/10 dark:border-white/10 bg-surface/60 p-0.5 mr-2">
@@ -934,7 +934,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                     <Eye size={12} /> {t('common.actions.preview')}
                   </button>
                 </div>
-                <Button variant="primary" size="sm" className="h-8 w-24" onClick={handleSaveLore} disabled={isSaving || isReadingFile}>
+                <Button tone="accent" fill="solid" size="sm" className="h-8 w-24" onClick={handleSaveLore} disabled={isSaving || isReadingFile}>
                   {isSaving || isReadingFile ? <Loader2 size={14} className="animate-spin" /> : t('auLore.saveButton')}
                 </Button>
               </div>

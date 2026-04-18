@@ -43,10 +43,10 @@ export function ConflictResolveModal({ isOpen, onClose, conflicts, onResolve, on
                 <p className="text-xs text-text/50">{t("sync.conflict.remoteModified")}: {new Date(c.remoteModified).toLocaleString()}</p>
               )}
               <div className="mt-3 flex gap-2">
-                <Button variant="secondary" size="sm" onClick={() => onResolve(c.path, "local")}>
+                <Button tone="neutral" fill="outline" size="sm" onClick={() => onResolve(c.path, "local")}>
                   {t("sync.conflict.keepLocal")}
                 </Button>
-                <Button variant="secondary" size="sm" onClick={() => onResolve(c.path, "remote")}>
+                <Button tone="neutral" fill="outline" size="sm" onClick={() => onResolve(c.path, "remote")}>
                   {t("sync.conflict.keepRemote")}
                 </Button>
               </div>
@@ -55,8 +55,8 @@ export function ConflictResolveModal({ isOpen, onClose, conflicts, onResolve, on
         </div>
 
         <div className="flex justify-end gap-3 border-t border-black/10 pt-4 dark:border-white/10">
-          <Button variant="ghost" onClick={onClose}>{t("common.actions.cancel")}</Button>
-          <Button variant="primary" onClick={() => onResolveAll("local")}>
+          <Button tone="neutral" fill="plain" onClick={onClose}>{t("common.actions.cancel")}</Button>
+          <Button tone="accent" fill="solid" onClick={() => onResolveAll("local")}>
             {t("sync.conflict.keepAllLocal")}
           </Button>
         </div>

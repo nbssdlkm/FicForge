@@ -141,7 +141,7 @@ export function ContextSummaryBar({ summary, onAdjustCoreIncludes }: ContextSumm
         <div className="flex items-center gap-2 self-start">
           {hasWarning && onAdjustCoreIncludes && (
             <Button
-              variant="ghost"
+              tone="neutral" fill="plain"
               size="sm"
               className="h-11 border border-warning/30 bg-warning/10 text-warning hover:bg-warning/20 hover:text-warning md:h-8"
               onClick={onAdjustCoreIncludes}
@@ -150,7 +150,7 @@ export function ContextSummaryBar({ summary, onAdjustCoreIncludes }: ContextSumm
             </Button>
           )}
           <Button
-            variant="ghost"
+            tone="neutral" fill="plain"
             size="sm"
             className={[
               'h-11 gap-1 px-3 md:h-8 md:px-2',

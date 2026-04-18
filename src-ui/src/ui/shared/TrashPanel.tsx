@@ -295,7 +295,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
                       </div>
                       <div className="mt-3 flex justify-end gap-2">
                         <Button
-                          variant="secondary"
+                          tone="neutral" fill="outline"
                           size="sm"
                           onClick={() => { void handleRestore(entry); }}
                           disabled={isBusy || disabled}
@@ -303,7 +303,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
                           {pendingId === entry.trash_id ? <Loader2 size={14} className="animate-spin" /> : t("trash.restore")}
                         </Button>
                         <Button
-                          variant="ghost"
+                          tone="neutral" fill="plain"
                           size="sm"
                           className="text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
                           onClick={() => setDeleteTarget(entry)}
@@ -317,7 +317,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
                 })}
                 <div className="flex justify-end pt-1">
                   <Button
-                    variant="ghost"
+                    tone="neutral" fill="plain"
                     size="sm"
                     className="text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
                     onClick={() => setClearAllOpen(true)}
@@ -342,11 +342,11 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
             {t("trash.confirmDelete", { name: deleteTarget ? getEntryLabel(deleteTarget) : "" })}
           </p>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
+            <Button tone="neutral" fill="plain" onClick={() => setDeleteTarget(null)}>
               {t("common.actions.cancel")}
             </Button>
             <Button
-              variant="primary"
+              tone="accent" fill="solid"
               className="bg-red-600 text-white hover:bg-red-700"
               onClick={() => { void handlePermanentDelete(); }}
               disabled={pendingId !== null || disabled}
@@ -367,11 +367,11 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
             {t("trash.confirmClearAll", { count: entries.length })}
           </p>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setClearAllOpen(false)}>
+            <Button tone="neutral" fill="plain" onClick={() => setClearAllOpen(false)}>
               {t("common.actions.cancel")}
             </Button>
             <Button
-              variant="primary"
+              tone="accent" fill="solid"
               className="bg-red-600 text-white hover:bg-red-700"
               onClick={() => { void handleClearAll(); }}
               disabled={isClearingAll || disabled}
@@ -390,7 +390,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
         <div className="space-y-4">
           <p className="text-sm text-text/80">{t("trash.restoreConflict")}</p>
           <div className="flex justify-end">
-            <Button variant="primary" onClick={() => setRestoreConflictOpen(false)}>
+            <Button tone="accent" fill="solid" onClick={() => setRestoreConflictOpen(false)}>
               {t("shared.feedback.acknowledge")}
             </Button>
           </div>

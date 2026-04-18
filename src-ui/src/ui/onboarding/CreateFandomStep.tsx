@@ -95,10 +95,10 @@ export function CreateFandomStep({
 
       {/* Navigation */}
       <div className="flex justify-between pt-4">
-        <Button variant="ghost" onClick={onPrev} disabled={creating}>{t('onboarding.common.prev')}</Button>
+        <Button tone="neutral" fill="plain" onClick={onPrev} disabled={creating}>{t('onboarding.common.prev')}</Button>
         <div className="flex gap-2">
-          <Button variant="ghost" onClick={() => onNext(null)} disabled={creating}>{t('onboarding.createFandom.skip')}</Button>
-          <Button variant="primary" onClick={handleNext} disabled={creating || !name.trim()}>
+          <Button tone="neutral" fill="plain" onClick={() => onNext(null)} disabled={creating}>{t('onboarding.createFandom.skip')}</Button>
+          <Button tone="accent" fill="solid" onClick={handleNext} disabled={creating || !name.trim()}>
             {creating ? <Loader2 size={14} className="animate-spin" /> : t('onboarding.common.next')}
           </Button>
         </div>
