@@ -18,32 +18,19 @@ import {
 } from '../../utils/writerStorage';
 import { useWriterFactsExtraction } from './useWriterFactsExtraction';
 import { useSessionParams } from './useSessionParams';
-import { ThemeToggle } from '../shared/ThemeToggle';
 import { Button } from '../shared/Button';
-import { Tag } from '../shared/Tag';
 import { Modal } from '../shared/Modal';
-import { Textarea } from '../shared/Input';
-import {
-  Undo2,
-  Check,
-  FileUp,
-  AlertCircle,
-  Loader2,
-  BookOpen,
-  RefreshCw,
-  Trash2,
-  ChevronsDown,
-  ChevronsUp,
-} from 'lucide-react';
 import { ExportModal } from './ExportModal';
 import { DirtyModal } from './DirtyModal';
 import { ContextSummaryBar } from './ContextSummaryBar';
 import { ChapterContentArea } from './ChapterContentArea';
 import { WriterSidePanelContent } from './WriterSidePanelContent';
 import { WriterModals } from './WriterModals';
-import { DraftNavigator } from './DraftNavigator';
+import { WriterHeader, type WriterMode } from './WriterHeader';
+import { WriterFooter } from './WriterFooter';
 import { Sidebar } from '../shared/Sidebar';
 import { SettingsChatPanel } from '../shared/settings-chat/SettingsChatPanel';
+import { InlineBanner } from '../shared/InlineBanner';
 
 import { getChapterContent, confirmChapter, undoChapter, updateChapterContent } from '../../api/engine-client';
 import { listDrafts, getDraft, saveDraft, deleteDrafts, type DraftDetail, type DraftGeneratedWith } from '../../api/engine-client';
@@ -76,9 +63,6 @@ type DraftItem = {
 // GenerateRequestState imported from utils/writerStorage
 
 // 存储工具已抽取到 utils/writerStorage.ts
-const MAX_RECOMMENDED_DRAFTS = 5;
-
-type WriterMode = 'write' | 'settings';
 
 function buildDraftId(chapterNum: number, label: string): string {
   return `ch${String(chapterNum).padStart(4, '0')}_draft_${label}.md`;
@@ -214,8 +198,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const [fontSizeStr, setFontSizeKV] = useKV('ficforge.fontSize', '18');
   const fontSize = parseInt(fontSizeStr, 10) || 18;
   const setFontSize = useCallback((v: number) => setFontSizeKV(String(v)), [setFontSizeKV]);
-  const [lineHeightStr, setLineHeightKV] = useKV('ficforge.lineHeight', '2.0');
-  const lineHeight = parseFloat(lineHeightStr) || 2.0;
+  const [lineHeightStr, setLineHeightKV] = useKV('ficforge.lineHeight', '1.8');
+  const lineHeight = parseFloat(lineHeightStr) || 1.8;
   const setLineHeight = useCallback((v: number) => setLineHeightKV(String(v)), [setLineHeightKV]);
 
   // 查看历史章节
@@ -969,91 +953,57 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   return (
     <>
       <main className="flex h-full flex-1 flex-col min-w-0 bg-background relative transition-colors duration-200">
-        {/* Dirty banner (sub-task 2) */}
         {!dirtyBannerDismissed && (state?.chapters_dirty || []).length > 0 && (
-          <div className="flex flex-col gap-2 border-b border-warning/20 bg-warning/10 px-4 py-2 text-xs md:flex-row md:items-center md:justify-between md:px-6">
-            <span className="text-warning">{t('dirty.banner', { count: (state?.chapters_dirty || []).length, chapters: (state?.chapters_dirty || []).join(', ') })}</span>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" className="h-11 text-xs md:h-6" onClick={() => { setDirtyTargetChapter((state?.chapters_dirty || [])[0] || 0); setDirtyOpen(true); }}>{t('dirty.goResolve')}</Button>
-              <Button variant="ghost" size="sm" className="h-11 text-xs text-text/40 md:h-6" onClick={() => setDirtyBannerDismissed(true)}>{t('dirty.dismissBanner')}</Button>
-            </div>
-          </div>
+          <InlineBanner
+            variant="warning"
+            layout="bar"
+            compact
+            message={t('dirty.banner', { count: (state?.chapters_dirty || []).length, chapters: (state?.chapters_dirty || []).join(', ') })}
+            actions={
+              <>
+                <Button variant="ghost" size="sm" className="h-11 text-xs md:h-6" onClick={() => { setDirtyTargetChapter((state?.chapters_dirty || [])[0] || 0); setDirtyOpen(true); }}>{t('dirty.goResolve')}</Button>
+                <Button variant="ghost" size="sm" className="h-11 text-xs text-text/40 md:h-6" onClick={() => setDirtyBannerDismissed(true)}>{t('dirty.dismissBanner')}</Button>
+              </>
+            }
+          />
         )}
-        <header className="flex min-h-[64px] items-center justify-between border-b border-black/5 px-4 text-xs text-text/50 dark:border-white/5 md:h-14 md:px-6">
-          <div className="flex items-center gap-4">
-            <div className="hidden rounded-lg border border-black/10 bg-surface/60 p-1 dark:border-white/10 md:inline-flex">
-              <Button
-                variant={mode === 'write' ? 'primary' : 'ghost'}
-                size="sm"
-                className="h-8"
-                onClick={() => handleModeChange('write')}
-                disabled={isSettingsModeBusy}
-              >
-                {t('settingsMode.tabWrite')}
-              </Button>
-              <Button
-                variant={mode === 'settings' ? 'primary' : 'ghost'}
-                size="sm"
-                className="h-8"
-                onClick={() => handleModeChange('settings')}
-              >
-                {t('settingsMode.tabSettings')}
-              </Button>
-            </div>
-            <div className="md:hidden">
-              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-text/35">{t('writer.modeWrite')}</p>
-              <p className="mt-1 text-sm font-medium text-text/70">
-                {isViewingHistory
-                  ? t('workspace.chapterItem', { num: viewingHistoryNum })
-                  : t('workspace.chapterItem', { num: currentChapter })}
-              </p>
-              <p className="mt-0.5 text-[10px] text-text/35">{metaModel} · {t('writer.metaWords', { count: metaChars })} · {metaDuration}</p>
-            </div>
-            <div className="hidden items-center gap-4 md:flex">
-              <span>{metaModel} · T{sessionParams.sessionTemp}</span>
-              <span>{t('writer.metaWords', { count: metaChars })}</span>
-              <span>{metaDuration}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {mode === 'write' && isGenerating && <Tag variant="warning" className="mr-2">{t('common.status.generating')}</Tag>}
-            {(state?.chapters_dirty || []).length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-11 text-warning md:h-8"
-                onClick={() => {
-                  setDirtyTargetChapter((state?.chapters_dirty || [])[0] || 0);
-                  showToast(t('writer.dirtyOpenHint'), 'info');
-                  setDirtyOpen(true);
-                }}
-                title={t('writer.dirtyButtonTitle')}
-              >
-                <AlertCircle size={16} />
-              </Button>
-            )}
-            <Button variant="ghost" size="sm" className="h-11 md:h-8" onClick={() => setExportOpen(true)} title={t('writer.exportButtonTitle')}>
-              <FileUp size={16} />
-            </Button>
-            <span className="hidden md:inline-flex"><ThemeToggle /></span>
-          </div>
-        </header>
+        <WriterHeader
+          mode={mode}
+          onModeChange={handleModeChange}
+          isSettingsModeBusy={isSettingsModeBusy}
+          isGenerating={isGenerating}
+          isViewingHistory={isViewingHistory}
+          viewingHistoryNum={viewingHistoryNum}
+          currentChapter={currentChapter}
+          metaModel={metaModel}
+          metaChars={metaChars}
+          metaDuration={metaDuration}
+          sessionTemp={sessionParams.sessionTemp}
+          chaptersDirty={state?.chapters_dirty || []}
+          onOpenDirty={() => {
+            setDirtyTargetChapter((state?.chapters_dirty || [])[0] || 0);
+            showToast(t('writer.dirtyOpenHint'), 'info');
+            setDirtyOpen(true);
+          }}
+          onOpenExport={() => setExportOpen(true)}
+        />
 
         <div className={mode === 'write' ? 'flex flex-1 flex-col min-h-0' : 'hidden'}>
           <div className="flex flex-1 justify-center overflow-y-auto w-full pb-16 md:pb-12">
             <div className="w-full max-w-3xl space-y-6 px-4 py-4 md:px-8 md:py-10">
               {isViewingHistory && (
-                <div className="flex flex-col gap-3 rounded-xl border border-info/30 bg-info/10 px-4 py-3 text-sm text-info md:flex-row md:items-center md:justify-between">
-                  <span>{t('workspace.chapterItem', { num: viewingHistoryNum })} — {t('writer.viewingHistory')}</span>
-                  <Button variant="ghost" size="sm" onClick={() => { setViewingHistoryContent(null); setViewingHistoryNum(null); onClearViewChapter?.(); }}>
-                    {t('writer.backToCurrentChapter')}
-                  </Button>
-                </div>
+                <InlineBanner
+                  variant="info"
+                  message={<>{t('workspace.chapterItem', { num: viewingHistoryNum })} — {t('writer.viewingHistory')}</>}
+                  actions={
+                    <Button variant="ghost" size="sm" onClick={() => { setViewingHistoryContent(null); setViewingHistoryNum(null); onClearViewChapter?.(); }}>
+                      {t('writer.backToCurrentChapter')}
+                    </Button>
+                  }
+                />
               )}
               {recoveryNotice && hasPendingDrafts && (
-                <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
-                  {t('drafts.recoveryNotice')}
-                </div>
+                <InlineBanner variant="warning" message={t('drafts.recoveryNotice')} />
               )}
 
               <ChapterContentArea
@@ -1088,166 +1038,47 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
             </div>
           </div>
 
-          <footer className="safe-area-bottom w-full shrink-0 border-t border-black/10 dark:border-white/10 bg-surface/80 backdrop-blur-md flex flex-col">
-            {/* Collapse toggle */}
-            <button
-              className="mx-auto flex min-h-[44px] items-center gap-1 px-4 py-1 text-[10px] text-text/40 transition-colors hover:text-text/60"
-              onClick={() => setFooterCollapsed(prev => !prev)}
-            >
-              {footerCollapsed ? <ChevronsUp size={12} /> : <ChevronsDown size={12} />}
-              {footerCollapsed ? t('writer.expandToolbar') : t('writer.collapseToolbar')}
-            </button>
-
-            {footerCollapsed ? (
-              /* Collapsed: minimal bar with just 续写 button */
-              <div className="flex items-center justify-center gap-3 pb-2">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="shadow-medium"
-                  onClick={() => { setFooterCollapsed(false); void handleGenerateFromInput(instructionText.trim() ? 'instruction' : 'continue'); }}
-                  disabled={writeActionsDisabled || hasPendingDrafts}
-                >
-                  {isGenerating ? <Loader2 size={16} className="animate-spin" /> : t('common.actions.continue')}
-                </Button>
-                {hasPendingDrafts && (
-                  <Button variant="primary" size="sm" onClick={() => { setFooterCollapsed(false); setChapterTitle(''); setFinalizeConfirmOpen(true); }} disabled={writeActionsDisabled}>
-                    <Check size={15} /> {t('drafts.finalize')}
-                  </Button>
-                )}
-              </div>
-            ) : (
-              /* Expanded: full toolbar */
-              <div className="flex flex-col gap-3 p-4 pb-6 md:pb-4">
-                {hasPendingDrafts && currentDraft && (
-                  <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 rounded-xl border border-black/10 bg-background/60 px-4 py-3 dark:border-white/10">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                      <DraftNavigator
-                        drafts={drafts}
-                        activeDraftIndex={activeDraftIndex}
-                        onSelect={setActiveDraftIndex}
-                        disabled={writeActionsDisabled}
-                        modified={currentDraft.modified}
-                      />
-
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        <Button variant="primary" size="sm" className="h-11 gap-1 md:h-8" onClick={() => { setChapterTitle(''); setFinalizeConfirmOpen(true); }} disabled={writeActionsDisabled}>
-                          <Check size={15} /> {t('drafts.finalize')}
-                        </Button>
-                        <Button variant="secondary" size="sm" className="h-11 gap-1 md:h-8" onClick={() => void handleRegenerate()} disabled={writeActionsDisabled}>
-                          {isGenerating ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
-                          {t('drafts.regenerate')}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-11 gap-1 text-error/80 hover:bg-error/10 hover:text-error md:h-8"
-                          onClick={() => setDiscardConfirmOpen(true)}
-                          disabled={isGenerating || isDiscarding || isSettingsModeBusy}
-                        >
-                          <Trash2 size={15} />
-                          {drafts.length > 1 ? t('drafts.discardAll') : t('drafts.discard')}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2 text-xs text-text/50 lg:flex-row lg:items-center lg:justify-between">
-                      <span>{currentDraftMeta || t('writer.metaDurationUnknown')}</span>
-                      {drafts.length > MAX_RECOMMENDED_DRAFTS && (
-                        <span>{t('drafts.tooMany', { count: drafts.length })}</span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div className="mx-auto hidden w-full max-w-3xl md:block">
-                  <input
-                    ref={instructionInputRef}
-                    type="text"
-                    placeholder={t('writer.inputPlaceholder')}
-                    value={instructionText}
-                    onChange={(event) => setInstructionText(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key !== 'Enter' || writeActionsDisabled) return;
-
-                      if (hasPendingDrafts) {
-                        showToast(t('drafts.generatingBlocked'), 'warning');
-                        return;
-                      }
-
-                      void handleGenerateFromInput(instructionText.trim() ? 'instruction' : 'continue');
-                    }}
-                    disabled={writeActionsDisabled}
-                    className="h-9 w-full rounded-lg border border-black/10 bg-background px-3 text-sm text-text placeholder:text-text/40 outline-none focus:ring-2 focus:ring-accent/50 dark:border-white/10"
-                  />
-                </div>
-
-                <div className="mx-auto w-full max-w-3xl md:hidden">
-                  <Textarea
-                    value={instructionText}
-                    onChange={(event) => setInstructionText(event.target.value)}
-                    placeholder={t('writer.inputPlaceholder')}
-                    disabled={writeActionsDisabled}
-                    className="min-h-[80px] resize-none bg-background/90 text-text"
-                  />
-                </div>
-
-                <div className="mx-auto mt-2 hidden w-full max-w-3xl items-center justify-between border-t border-black/5 pt-2 dark:border-white/5 md:flex">
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => setUndoConfirmOpen(true)} disabled={currentChapter <= 1 || writeActionsDisabled}>
-                      <Undo2 size={16} className="mr-2" /> {t('common.actions.undoPreviousChapter')}
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-text/60 hover:text-text" onClick={() => onNavigate('facts')}>
-                      <BookOpen size={16} className="mr-1" /> {t('writer.factsShortcut')}
-                    </Button>
-                  </div>
-                  <div className="flex gap-3">
-                    <Button
-                      variant="primary"
-                      className="w-32 shadow-medium"
-                      onClick={() => void handleGenerateFromInput(instructionText.trim() ? 'instruction' : 'continue')}
-                      disabled={writeActionsDisabled || hasPendingDrafts}
-                    >
-                      {isGenerating ? <Loader2 size={16} className="animate-spin" /> : (instructionText.trim() ? t('common.actions.instruction') : t('common.actions.continue'))}
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="mx-auto mt-2 flex w-full max-w-3xl items-center justify-between border-t border-black/5 pt-3 dark:border-white/5 md:hidden">
-                  <Button variant="secondary" size="sm" className="px-4" onClick={() => setMobileToolsOpen(true)}>
-                    {t('common.actions.more')}
-                  </Button>
-                  <div className="flex items-center gap-2">
-                    {hasPendingDrafts ? (
-                      <Button variant="primary" size="sm" onClick={() => { setChapterTitle(''); setFinalizeConfirmOpen(true); }} disabled={writeActionsDisabled}>
-                        <Check size={15} className="mr-1" /> {t('drafts.finalize')}
-                      </Button>
-                    ) : null}
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      className="min-w-[110px]"
-                      onClick={() => void handleGenerateFromInput(instructionText.trim() ? 'instruction' : 'continue')}
-                      disabled={writeActionsDisabled || hasPendingDrafts}
-                    >
-                      {isGenerating ? <Loader2 size={16} className="animate-spin" /> : (instructionText.trim() ? t('common.actions.instruction') : t('common.actions.continue'))}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </footer>
+          <WriterFooter
+            footerCollapsed={footerCollapsed}
+            onToggleCollapsed={() => setFooterCollapsed(prev => !prev)}
+            isGenerating={isGenerating}
+            writeActionsDisabled={writeActionsDisabled}
+            isSettingsModeBusy={isSettingsModeBusy}
+            isDiscarding={isDiscarding}
+            currentChapter={currentChapter}
+            instructionText={instructionText}
+            onInstructionTextChange={setInstructionText}
+            instructionInputRef={instructionInputRef}
+            onGenerate={(type) => { void handleGenerateFromInput(type); }}
+            drafts={drafts}
+            activeDraftIndex={activeDraftIndex}
+            onSelectDraft={setActiveDraftIndex}
+            currentDraft={currentDraft}
+            hasPendingDrafts={hasPendingDrafts}
+            currentDraftMeta={currentDraftMeta}
+            onOpenFinalize={() => { setChapterTitle(''); setFinalizeConfirmOpen(true); }}
+            onRegenerate={() => { void handleRegenerate(); }}
+            onOpenDiscard={() => setDiscardConfirmOpen(true)}
+            onOpenUndo={() => setUndoConfirmOpen(true)}
+            onNavigateFacts={() => onNavigate('facts')}
+            onOpenMobileTools={() => setMobileToolsOpen(true)}
+            onBlockedToast={() => showToast(t('drafts.generatingBlocked'), 'warning')}
+          />
         </div>
 
         <div className={mode === 'settings' ? 'hidden min-h-0 flex-1 flex-col md:flex' : 'hidden'}>
           <div className="mx-auto flex h-full w-full max-w-4xl min-h-0 flex-col px-6 py-6">
             {showSettingsTooltip ? (
-              <div className="mb-4 flex items-start justify-between gap-4 rounded-2xl border border-info/20 bg-info/10 px-4 py-3 text-sm text-info">
-                <p>{t('settingsMode.firstTimeTooltip')}</p>
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-info" onClick={() => setShowSettingsTooltip(false)}>
-                  {t('common.actions.close')}
-                </Button>
-              </div>
+              <InlineBanner
+                className="mb-4"
+                variant="info"
+                message={t('settingsMode.firstTimeTooltip')}
+                actions={
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-info" onClick={() => setShowSettingsTooltip(false)}>
+                    {t('common.actions.close')}
+                  </Button>
+                }
+              />
             ) : null}
             <SettingsChatPanel
               mode="au"

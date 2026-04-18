@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { Card } from './shared/Card';
 import { Button } from './shared/Button';
+import { InlineBanner } from './shared/InlineBanner';
 import { ThemeToggle } from './shared/ThemeToggle';
 import { Input } from './shared/Input';
 import { Settings, Plus, BookOpen, FileText, Loader2, Trash2, ArchiveRestore } from 'lucide-react';
@@ -205,24 +206,28 @@ function LibraryInner({ onNavigate }: Props) {
 
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-5 pb-[calc(7rem+var(--safe-area-bottom))] md:p-8">
         <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-center md:justify-between">
-          <h1 className="text-3xl font-serif font-bold">{t("library.title")}</h1>
+          <h1 className="text-2xl font-serif font-medium">{t("library.title")}</h1>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Button variant="secondary" onClick={handleImportClick} disabled={creatingFandom || creatingAu || deleting} className="w-full sm:w-auto">
               {t("common.actions.importOldWork")}
             </Button>
-            <Button onClick={() => setFandomModalOpen(true)} className="w-full shadow-md sm:w-auto" disabled={creatingFandom || creatingAu || deleting}>
+            <Button onClick={() => setFandomModalOpen(true)} className="w-full sm:w-auto" disabled={creatingFandom || creatingAu || deleting}>
               <Plus size={16} className="mr-2" /> {t("library.fandomButton")}
             </Button>
           </div>
         </div>
 
         {showApiWarning && (
-          <div className="mb-6 flex items-center justify-between rounded-xl border border-warning/20 bg-warning/10 px-4 py-3">
-            <span className="text-sm text-warning">{t('library.apiWarning')}</span>
-            <Button variant="secondary" size="sm" onClick={() => { setShowApiWarning(false); setGlobalSettingsOpen(true); }}>
-              {t('library.apiWarningAction')}
-            </Button>
-          </div>
+          <InlineBanner
+            className="mb-6"
+            variant="warning"
+            message={t('library.apiWarning')}
+            actions={
+              <Button variant="secondary" size="sm" onClick={() => { setShowApiWarning(false); setGlobalSettingsOpen(true); }}>
+                {t('library.apiWarningAction')}
+              </Button>
+            }
+          />
         )}
 
         {loading ? (
@@ -259,8 +264,8 @@ function LibraryInner({ onNavigate }: Props) {
             {fandoms.map(fandom => (
               <div key={fandom.name}>
                 <div className="mb-4 flex flex-col gap-3 border-b border-black/10 pb-3 dark:border-white/10 md:flex-row md:items-center md:justify-between md:pb-2">
-                  <h2 className="text-xl font-sans font-semibold text-text/80 flex items-center gap-2">
-                    <span className="opacity-50 text-accent text-sm">📚</span> {t("common.scope.fandomTitle", { name: fandom.name })}
+                  <h2 className="text-xl font-sans font-semibold text-text/80">
+                    {t("common.scope.fandomTitle", { name: fandom.name })}
                   </h2>
                   <div className="flex flex-wrap items-center gap-2">
                     <Button variant="secondary" size="sm" onClick={() => onNavigate('fandom_lore', `${getDataDir()}/fandoms/${fandom.dir_name}`)} className="bg-surface/80 border-black/10 dark:border-white/10 text-text/70">
@@ -351,7 +356,7 @@ function LibraryInner({ onNavigate }: Props) {
             ) : (
               fandoms.map(f => (
                 <div key={f.dir_name} className="space-y-1.5">
-                  <div className="text-xs font-bold text-text/50 uppercase tracking-wide px-1">{f.name}</div>
+                  <div className="text-xs font-medium text-text/50 px-1">{f.name}</div>
                   {f.aus.map(au => {
                     const auPath = `${getDataDir()}/fandoms/${f.dir_name}/aus/${au}`;
                     return (

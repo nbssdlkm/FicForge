@@ -39,13 +39,13 @@
 
   /* Night Theme ('夜间') */
   .theme-night {
-    --color-bg: #1A1A1E;
-    --color-surface: #232328;
+    --color-bg: #262624;
+    --color-surface: #2F2D2A;
     --color-text: #E0DDD8;
-    --color-accent: #C5705D; /* User accent goes here, defaulting to warm */
-    
+    --color-accent: #C5705D;
+
     /* Slightly adjusted semantics for dark mode visibility */
-    --color-success: #4A8361; 
+    --color-success: #4A8361;
     --color-warning: #C79437;
     --color-error: #C25555;
     --color-info: #527AAB;

@@ -96,7 +96,7 @@ export const WriterSidePanelContent = ({
           <section>
             {isMobile ? (
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-xs font-medium uppercase tracking-wide text-text/70">{t('writer.focusTitle')}</h3>
+                <h3 className="text-xs font-medium text-text/70">{t('writer.focusTitle')}</h3>
                 <div className="flex items-center gap-2">
                   <Button variant="ghost" size="sm" className="text-xs" onClick={onClearFocus} disabled={focusSelection.length === 0}>
                     {t('writer.freeWrite')}
@@ -110,7 +110,7 @@ export const WriterSidePanelContent = ({
               </div>
             ) : (
               <>
-                <h3 className="text-xs font-sans font-medium mb-1 text-text/70 tracking-wide uppercase">{t('writer.focusTitle')}</h3>
+                <h3 className="text-xs font-sans font-medium mb-1 text-text/70">{t('writer.focusTitle')}</h3>
                 <p className="text-[10px] text-text/35 mb-3">{t('writer.focusHint')}</p>
               </>
             )}
@@ -170,7 +170,7 @@ export const WriterSidePanelContent = ({
           </section>
 
           <section>
-            <h3 className={isMobile ? 'mb-3 text-xs font-medium uppercase tracking-wide text-text/70' : 'text-xs font-sans font-medium mb-1 text-text/70 tracking-wide uppercase'}>{t('writer.memoryPanel')}</h3>
+            <h3 className={isMobile ? 'mb-3 text-xs font-medium text-text/70' : 'text-xs font-sans font-medium mb-1 text-text/70'}>{t('writer.memoryPanel')}</h3>
             {!budgetReport ? (
               <p className={isMobile ? 'text-sm text-text/45' : 'text-[10px] text-text/35'}>{t('writer.memoryPanelHint')}</p>
             ) : (
@@ -197,7 +197,7 @@ export const WriterSidePanelContent = ({
         </>
       ) : !isMobile ? (
         <section className="rounded-2xl border border-black/10 bg-background/50 p-4 dark:border-white/10">
-          <h3 className="mb-2 text-xs font-sans font-medium uppercase tracking-wide text-text/70">{t('settingsMode.sideTitle')}</h3>
+          <h3 className="mb-2 text-xs font-sans font-medium text-text/70">{t('settingsMode.sideTitle')}</h3>
           <p className="text-sm leading-relaxed text-text/65">{t('settingsMode.sideDescription')}</p>
         </section>
       ) : null}
@@ -216,7 +216,7 @@ export const WriterSidePanelContent = ({
       </section>
 
       <section>
-        <h3 className={isMobile ? 'mb-3 text-xs font-medium uppercase tracking-wide text-text/70' : 'text-xs font-sans font-medium mb-3 text-text/70 tracking-wide uppercase'}>{t('writer.readingPrefs')}</h3>
+        <h3 className={isMobile ? 'mb-3 text-xs font-medium text-text/70' : 'text-xs font-sans font-medium mb-3 text-text/70'}>{t('writer.readingPrefs')}</h3>
         <div className="space-y-3">
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs">

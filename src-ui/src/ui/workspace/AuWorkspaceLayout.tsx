@@ -213,18 +213,18 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
               <LogOut size={16} />
             </Button>
           </div>
-          <div className="text-[10px] text-text/50 uppercase tracking-widest font-sans font-bold">{t('navigation.workspace')}</div>
+          <div className="text-xs text-text/50 font-sans font-medium">{t('navigation.workspace')}</div>
         </div>
 
         <div className="flex-1 flex flex-col pt-2 bg-surface/30 min-h-0">
           <div className="px-2 space-y-1 mb-4 border-b border-black/10 dark:border-white/10 pb-4 shrink-0">
             <Button variant="ghost" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'writer' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('writer', auPath)}>{t('writer.modeWrite')}</Button>
-            <Button variant="ghost" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'facts' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('facts', auPath)}><span className="text-accent mr-2">🎯</span> {t('navigation.facts')}</Button>
-            <Button variant="ghost" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'au_lore' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('au_lore', auPath)}><span className="text-info mr-2">✨</span> {t('navigation.auLore')}</Button>
-            <Button variant="ghost" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'settings' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('settings', auPath)}><span className="text-text/50 mr-2">⚙️</span> {t('navigation.settings')}</Button>
+            <Button variant="ghost" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'facts' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('facts', auPath)}>{t('navigation.facts')}</Button>
+            <Button variant="ghost" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'au_lore' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('au_lore', auPath)}>{t('navigation.auLore')}</Button>
+            <Button variant="ghost" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'settings' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('settings', auPath)}>{t('navigation.settings')}</Button>
           </div>
 
-          <div className="px-4 pb-2 text-[10px] font-sans font-bold text-text/40 uppercase tracking-widest shrink-0">
+          <div className="px-4 pb-2 text-xs font-sans font-medium text-text/50 shrink-0">
             {t('workspace.chaptersTitle')}
           </div>
           <div className="flex-1 overflow-y-auto px-2 space-y-1 pb-4">

@@ -513,7 +513,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             ) : (
               factsFilter.groupedFacts.map(([chapterNum, chapterFacts]) => (
                 <div key={chapterNum} className="space-y-3">
-                  <div className="sticky top-[148px] z-10 rounded-xl border border-black/5 bg-background/92 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-text/50 backdrop-blur dark:border-white/5">
+                  <div className="sticky top-[148px] z-10 rounded-xl border border-black/5 bg-background/92 px-3 py-2 text-xs font-medium text-text/50 backdrop-blur dark:border-white/5">
                     {t('facts.chapterGroup', { num: chapterNum })} ({chapterFacts.length})
                   </div>
                   {chapterFacts.map(fact => (
@@ -753,7 +753,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           ) : (
             factsFilter.groupedFacts.map(([chapterNum, chapterFacts]) => (
               <div key={chapterNum}>
-                <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm px-1 py-1.5 text-[11px] font-bold text-text/50 uppercase tracking-wider border-b border-black/5 dark:border-white/5">
+                <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm px-1 py-1.5 text-xs font-medium text-text/50 border-b border-black/5 dark:border-white/5">
                   {t('facts.chapterGroup', { num: chapterNum })} ({chapterFacts.length})
                 </div>
                 <div className="space-y-3 pt-2">

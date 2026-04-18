@@ -610,7 +610,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                 </div>
               ) : (
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-text/40">{t('navigation.auLore')}</p>
+                  <p className="text-xs font-medium text-text/50">{t('navigation.auLore')}</p>
                   <h1 className="mt-1 truncate font-serif text-2xl font-bold">{auName}</h1>
                 </div>
               )}
@@ -770,7 +770,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
           )}
           <div className="flex-1 overflow-y-auto p-2 space-y-6 font-mono py-4">
             <div className="space-y-2">
-              <div className="px-3 pb-1 text-[11px] font-sans font-bold text-text/40 uppercase tracking-widest">
+              <div className="px-3 pb-1 text-xs font-sans font-medium text-text/50">
                 {t('auLore.charactersLabel')} ({files.length})
               </div>
               <div>
@@ -843,7 +843,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
 
             {/* 世界观分区 */}
             <div className="space-y-2">
-              <div className="px-3 pb-1 text-[11px] font-sans font-bold text-text/40 uppercase tracking-widest">
+              <div className="px-3 pb-1 text-xs font-sans font-medium text-text/50">
                 {t('common.labels.worldbuilding')} ({worldbuildingFiles.length})
               </div>
               <div>
