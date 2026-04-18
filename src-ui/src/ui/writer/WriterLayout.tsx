@@ -44,6 +44,7 @@ import { WriterModals } from './WriterModals';
 import { DraftNavigator } from './DraftNavigator';
 import { Sidebar } from '../shared/Sidebar';
 import { SettingsChatPanel } from '../shared/settings-chat/SettingsChatPanel';
+import { InlineBanner } from '../shared/InlineBanner';
 
 import { getChapterContent, confirmChapter, undoChapter, updateChapterContent } from '../../api/engine-client';
 import { listDrafts, getDraft, saveDraft, deleteDrafts, type DraftDetail, type DraftGeneratedWith } from '../../api/engine-client';
@@ -214,8 +215,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const [fontSizeStr, setFontSizeKV] = useKV('ficforge.fontSize', '18');
   const fontSize = parseInt(fontSizeStr, 10) || 18;
   const setFontSize = useCallback((v: number) => setFontSizeKV(String(v)), [setFontSizeKV]);
-  const [lineHeightStr, setLineHeightKV] = useKV('ficforge.lineHeight', '2.0');
-  const lineHeight = parseFloat(lineHeightStr) || 2.0;
+  const [lineHeightStr, setLineHeightKV] = useKV('ficforge.lineHeight', '1.8');
+  const lineHeight = parseFloat(lineHeightStr) || 1.8;
   const setLineHeight = useCallback((v: number) => setLineHeightKV(String(v)), [setLineHeightKV]);
 
   // 查看历史章节
@@ -969,15 +970,19 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   return (
     <>
       <main className="flex h-full flex-1 flex-col min-w-0 bg-background relative transition-colors duration-200">
-        {/* Dirty banner (sub-task 2) */}
         {!dirtyBannerDismissed && (state?.chapters_dirty || []).length > 0 && (
-          <div className="flex flex-col gap-2 border-b border-warning/20 bg-warning/10 px-4 py-2 text-xs md:flex-row md:items-center md:justify-between md:px-6">
-            <span className="text-warning">{t('dirty.banner', { count: (state?.chapters_dirty || []).length, chapters: (state?.chapters_dirty || []).join(', ') })}</span>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" className="h-11 text-xs md:h-6" onClick={() => { setDirtyTargetChapter((state?.chapters_dirty || [])[0] || 0); setDirtyOpen(true); }}>{t('dirty.goResolve')}</Button>
-              <Button variant="ghost" size="sm" className="h-11 text-xs text-text/40 md:h-6" onClick={() => setDirtyBannerDismissed(true)}>{t('dirty.dismissBanner')}</Button>
-            </div>
-          </div>
+          <InlineBanner
+            variant="warning"
+            layout="bar"
+            compact
+            message={t('dirty.banner', { count: (state?.chapters_dirty || []).length, chapters: (state?.chapters_dirty || []).join(', ') })}
+            actions={
+              <>
+                <Button variant="ghost" size="sm" className="h-11 text-xs md:h-6" onClick={() => { setDirtyTargetChapter((state?.chapters_dirty || [])[0] || 0); setDirtyOpen(true); }}>{t('dirty.goResolve')}</Button>
+                <Button variant="ghost" size="sm" className="h-11 text-xs text-text/40 md:h-6" onClick={() => setDirtyBannerDismissed(true)}>{t('dirty.dismissBanner')}</Button>
+              </>
+            }
+          />
         )}
         <header className="flex min-h-[64px] items-center justify-between border-b border-black/5 px-4 text-xs text-text/50 dark:border-white/5 md:h-14 md:px-6">
           <div className="flex items-center gap-4">
@@ -1001,7 +1006,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
               </Button>
             </div>
             <div className="md:hidden">
-              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-text/35">{t('writer.modeWrite')}</p>
+              <p className="text-xs text-text/50">{t('writer.modeWrite')}</p>
               <p className="mt-1 text-sm font-medium text-text/70">
                 {isViewingHistory
                   ? t('workspace.chapterItem', { num: viewingHistoryNum })
@@ -1043,17 +1048,18 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
           <div className="flex flex-1 justify-center overflow-y-auto w-full pb-16 md:pb-12">
             <div className="w-full max-w-3xl space-y-6 px-4 py-4 md:px-8 md:py-10">
               {isViewingHistory && (
-                <div className="flex flex-col gap-3 rounded-xl border border-info/30 bg-info/10 px-4 py-3 text-sm text-info md:flex-row md:items-center md:justify-between">
-                  <span>{t('workspace.chapterItem', { num: viewingHistoryNum })} — {t('writer.viewingHistory')}</span>
-                  <Button variant="ghost" size="sm" onClick={() => { setViewingHistoryContent(null); setViewingHistoryNum(null); onClearViewChapter?.(); }}>
-                    {t('writer.backToCurrentChapter')}
-                  </Button>
-                </div>
+                <InlineBanner
+                  variant="info"
+                  message={<>{t('workspace.chapterItem', { num: viewingHistoryNum })} — {t('writer.viewingHistory')}</>}
+                  actions={
+                    <Button variant="ghost" size="sm" onClick={() => { setViewingHistoryContent(null); setViewingHistoryNum(null); onClearViewChapter?.(); }}>
+                      {t('writer.backToCurrentChapter')}
+                    </Button>
+                  }
+                />
               )}
               {recoveryNotice && hasPendingDrafts && (
-                <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
-                  {t('drafts.recoveryNotice')}
-                </div>
+                <InlineBanner variant="warning" message={t('drafts.recoveryNotice')} />
               )}
 
               <ChapterContentArea
@@ -1104,7 +1110,6 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                 <Button
                   variant="primary"
                   size="sm"
-                  className="shadow-medium"
                   onClick={() => { setFooterCollapsed(false); void handleGenerateFromInput(instructionText.trim() ? 'instruction' : 'continue'); }}
                   disabled={writeActionsDisabled || hasPendingDrafts}
                 >
@@ -1204,7 +1209,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                   <div className="flex gap-3">
                     <Button
                       variant="primary"
-                      className="w-32 shadow-medium"
+                      className="w-32"
                       onClick={() => void handleGenerateFromInput(instructionText.trim() ? 'instruction' : 'continue')}
                       disabled={writeActionsDisabled || hasPendingDrafts}
                     >
@@ -1242,12 +1247,16 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         <div className={mode === 'settings' ? 'hidden min-h-0 flex-1 flex-col md:flex' : 'hidden'}>
           <div className="mx-auto flex h-full w-full max-w-4xl min-h-0 flex-col px-6 py-6">
             {showSettingsTooltip ? (
-              <div className="mb-4 flex items-start justify-between gap-4 rounded-2xl border border-info/20 bg-info/10 px-4 py-3 text-sm text-info">
-                <p>{t('settingsMode.firstTimeTooltip')}</p>
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-info" onClick={() => setShowSettingsTooltip(false)}>
-                  {t('common.actions.close')}
-                </Button>
-              </div>
+              <InlineBanner
+                className="mb-4"
+                variant="info"
+                message={t('settingsMode.firstTimeTooltip')}
+                actions={
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-info" onClick={() => setShowSettingsTooltip(false)}>
+                    {t('common.actions.close')}
+                  </Button>
+                }
+              />
             ) : null}
             <SettingsChatPanel
               mode="au"

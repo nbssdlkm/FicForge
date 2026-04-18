@@ -60,10 +60,7 @@ export const ChapterContentArea = ({
   const { t } = useTranslation();
 
   return (
-    <div
-      className="rounded-[24px] border border-black/10 bg-surface/35 p-4 shadow-subtle dark:border-white/10 md:p-6"
-      style={{ fontSize: `${fontSize}px`, lineHeight }}
-    >
+    <div style={{ fontSize: `${fontSize}px`, lineHeight }}>
       {loading ? (
         <div className="flex items-center justify-center py-24">
           <Loader2 className="animate-spin text-accent" size={24} />
