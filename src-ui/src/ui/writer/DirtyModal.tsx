@@ -180,7 +180,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
                   <div key={f.id} className="border border-black/10 dark:border-white/10 rounded-lg p-3 bg-surface/50 space-y-2">
                     <div className="flex justify-between items-start gap-2">
                       <p className="text-sm font-serif leading-relaxed text-text flex-1">{f.content_clean || f.content_raw}</p>
-                      <Tag variant={decisions[f.id] === 'deprecate' ? 'error' : 'warning'} className="px-2 shrink-0 text-[10px]">
+                      <Tag tone={decisions[f.id] === 'deprecate' ? 'error' : 'warning'} className="px-2 shrink-0 text-[10px]">
                         {decisions[f.id] === 'deprecate' ? t('dirty.deprecateTag') : t('dirty.dirtyTag')}
                       </Tag>
                     </div>

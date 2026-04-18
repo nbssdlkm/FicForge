@@ -955,7 +955,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       <main className="flex h-full flex-1 flex-col min-w-0 bg-background relative transition-colors duration-200">
         {!dirtyBannerDismissed && (state?.chapters_dirty || []).length > 0 && (
           <InlineBanner
-            variant="warning"
+            tone="warning"
             layout="bar"
             compact
             message={t('dirty.banner', { count: (state?.chapters_dirty || []).length, chapters: (state?.chapters_dirty || []).join(', ') })}
@@ -993,7 +993,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
             <div className="w-full max-w-[720px] space-y-6 px-4 py-4 md:px-8 md:py-10">
               {isViewingHistory && (
                 <InlineBanner
-                  variant="info"
+                  tone="info"
                   message={<>{t('workspace.chapterItem', { num: viewingHistoryNum })} — {t('writer.viewingHistory')}</>}
                   actions={
                     <Button tone="neutral" fill="plain" size="sm" onClick={() => { setViewingHistoryContent(null); setViewingHistoryNum(null); onClearViewChapter?.(); }}>
@@ -1003,7 +1003,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                 />
               )}
               {recoveryNotice && hasPendingDrafts && (
-                <InlineBanner variant="warning" message={t('drafts.recoveryNotice')} />
+                <InlineBanner tone="warning" message={t('drafts.recoveryNotice')} />
               )}
 
               <ChapterContentArea
@@ -1071,7 +1071,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
             {showSettingsTooltip ? (
               <InlineBanner
                 className="mb-4"
-                variant="info"
+                tone="info"
                 message={t('settingsMode.firstTimeTooltip')}
                 actions={
                   <Button tone="neutral" fill="plain" size="sm" className="h-7 px-2 text-info" onClick={() => setShowSettingsTooltip(false)}>

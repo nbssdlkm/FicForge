@@ -568,7 +568,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
             <>
               <div className="flex items-center gap-3">
                 <span className="font-mono text-sm font-semibold opacity-70">{selectedEntry?.filename || selectedFile}</span>
-                <Tag variant={selectedCategory === 'core_characters' ? 'success' : 'warning'}>
+                <Tag tone={selectedCategory === 'core_characters' ? 'success' : 'warning'}>
                   {selectedCategory === 'core_characters' ? t('fandomLore.selectedTagCharacter') : t('fandomLore.selectedTagWorldbuilding')}
                 </Tag>
               </div>

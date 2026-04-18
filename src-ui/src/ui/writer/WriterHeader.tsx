@@ -89,7 +89,7 @@ export function WriterHeader({
       </div>
       <div className="flex items-center gap-2">
         {mode === 'write' && isGenerating && (
-          <Tag variant="warning" className="mr-2">{t('common.status.generating')}</Tag>
+          <Tag tone="warning" className="mr-2">{t('common.status.generating')}</Tag>
         )}
         {hasDirty && (
           <Button

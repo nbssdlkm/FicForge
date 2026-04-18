@@ -121,9 +121,9 @@ function renderFactSummary(card: ToolCallCardState, t: ToolCallCardProps["t"]) {
         {coerceString(args.content_clean) || coerceString(args.content_raw) || t("common.none")}
       </p>
       <div className="flex flex-wrap gap-2">
-        {type ? <Tag variant="info">{getEnumLabel("fact_type", type, type)}</Tag> : null}
-        {weight ? <Tag variant="warning">{getEnumLabel("narrative_weight", weight, weight)}</Tag> : null}
-        {status ? <Tag variant="default">{getEnumLabel("fact_status", status, status)}</Tag> : null}
+        {type ? <Tag tone="info">{getEnumLabel("fact_type", type, type)}</Tag> : null}
+        {weight ? <Tag tone="warning">{getEnumLabel("narrative_weight", weight, weight)}</Tag> : null}
+        {status ? <Tag tone="default">{getEnumLabel("fact_status", status, status)}</Tag> : null}
       </div>
       {characters.length > 0 ? (
         <p className="text-xs text-text/55">
@@ -224,7 +224,7 @@ export function ToolCallCard({
   const statusTag = card.status === "pending"
     ? null
     : (
-      <Tag variant={getStatusVariant(card)}>
+      <Tag tone={getStatusVariant(card)}>
         {card.status === "executed"
           ? t("settingsMode.executed")
           : card.status === "skipped"

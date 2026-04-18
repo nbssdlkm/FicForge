@@ -127,8 +127,8 @@ export const WriterSidePanelContent = ({
                       <div className="space-y-2">
                         <p className="text-sm text-text/85">{fact.content_clean}</p>
                         <div className="flex flex-wrap items-center gap-2">
-                          <Tag variant="warning">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</Tag>
-                          {isHigh ? <Tag variant="info">{t('focus.recommended')}</Tag> : null}
+                          <Tag tone="warning">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</Tag>
+                          {isHigh ? <Tag tone="info">{t('focus.recommended')}</Tag> : null}
                         </div>
                       </div>
                     </label>
@@ -155,8 +155,8 @@ export const WriterSidePanelContent = ({
                       <div className="flex flex-col">
                         <span className="text-sm">{fact.content_clean}</span>
                         <div className="flex items-center gap-1.5 mt-1.5">
-                          <Tag variant="warning" className="w-fit">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</Tag>
-                          {isHigh && <Tag variant="info" className="w-fit text-[10px]">{t('focus.recommended')}</Tag>}
+                          <Tag tone="warning" className="w-fit">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</Tag>
+                          {isHigh && <Tag tone="info" className="w-fit text-[10px]">{t('focus.recommended')}</Tag>}
                         </div>
                       </div>
                     </label>

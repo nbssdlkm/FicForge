@@ -116,7 +116,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
           <Toast
             key={toast.id}
             message={toast.message}
-            variant={toast.variant}
+            tone={toast.variant}
             onClose={() => removeToast(toast.id)}
             className="self-end"
           />

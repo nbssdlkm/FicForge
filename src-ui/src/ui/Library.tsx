@@ -220,7 +220,7 @@ function LibraryInner({ onNavigate }: Props) {
         {showApiWarning && (
           <InlineBanner
             className="mb-6"
-            variant="warning"
+            tone="warning"
             message={t('library.apiWarning')}
             actions={
               <Button tone="neutral" fill="outline" size="sm" onClick={() => { setShowApiWarning(false); setGlobalSettingsOpen(true); }}>

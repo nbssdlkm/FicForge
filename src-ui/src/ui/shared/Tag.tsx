@@ -5,28 +5,30 @@
 import { HTMLAttributes, forwardRef } from 'react';
 import { cn } from './utils';
 
+export type TagTone = 'default' | 'success' | 'warning' | 'error' | 'info' | 'resolved' | 'deprecated' | 'unresolved' | 'active';
+
 export interface TagProps extends HTMLAttributes<HTMLSpanElement> {
-  variant?: 'default' | 'success' | 'warning' | 'error' | 'info' | 'resolved' | 'deprecated' | 'unresolved' | 'active';
+  tone?: TagTone;
 }
 
-export const Tag = forwardRef<HTMLSpanElement, TagProps>(
-  ({ className, variant = 'default', ...props }, ref) => {
-    const variants = {
-      default: 'bg-black/5 dark:bg-white/10 text-text',
-      success: 'bg-success/10 text-success border border-success/20',
-      warning: 'bg-warning/10 text-warning border border-warning/20',
-      error: 'bg-error/10 text-error border border-error/20',
-      info: 'bg-info/10 text-info border border-info/20',
-      unresolved: 'bg-accent/10 text-accent border border-accent/20 font-bold',
-      active: 'bg-info/10 text-info border border-info/20',
-      resolved: 'bg-black/5 dark:bg-white/10 text-text/50 border border-black/10 dark:border-white/10',
-      deprecated: 'bg-black/5 dark:bg-white/10 text-text/40 line-through border border-transparent',
-    };
+const toneStyles: Record<TagTone, string> = {
+  default: 'bg-black/5 dark:bg-white/10 text-text',
+  success: 'bg-success/10 text-success border border-success/20',
+  warning: 'bg-warning/10 text-warning border border-warning/20',
+  error: 'bg-error/10 text-error border border-error/20',
+  info: 'bg-info/10 text-info border border-info/20',
+  unresolved: 'bg-accent/10 text-accent border border-accent/20 font-bold',
+  active: 'bg-info/10 text-info border border-info/20',
+  resolved: 'bg-black/5 dark:bg-white/10 text-text/50 border border-black/10 dark:border-white/10',
+  deprecated: 'bg-black/5 dark:bg-white/10 text-text/40 line-through border border-transparent',
+};
 
+export const Tag = forwardRef<HTMLSpanElement, TagProps>(
+  ({ className, tone = 'default', ...props }, ref) => {
     return (
       <span
         ref={ref}
-        className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-sans font-medium", variants[variant], className)}
+        className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-sans font-medium", toneStyles[tone], className)}
         {...props}
       />
     );

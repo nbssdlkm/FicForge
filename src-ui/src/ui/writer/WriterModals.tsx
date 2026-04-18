@@ -219,9 +219,9 @@ export const ExtractReviewModal = ({
                   />
                   <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Tag variant="info">{getEnumLabel('fact_type', candidateType, candidateType)}</Tag>
-                      <Tag variant="warning">{getEnumLabel('narrative_weight', candidate.narrative_weight, candidate.narrative_weight)}</Tag>
-                      <Tag variant="default">{getEnumLabel('fact_status', candidate.status, candidate.status)}</Tag>
+                      <Tag tone="info">{getEnumLabel('fact_type', candidateType, candidateType)}</Tag>
+                      <Tag tone="warning">{getEnumLabel('narrative_weight', candidate.narrative_weight, candidate.narrative_weight)}</Tag>
+                      <Tag tone="default">{getEnumLabel('fact_status', candidate.status, candidate.status)}</Tag>
                       <span className="text-xs text-text/50">{t('facts.extractSourceChapter', { chapter: candidate.chapter })}</span>
                     </div>
                     <p className="text-sm text-text/85">{candidate.content_clean}</p>

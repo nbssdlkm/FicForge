@@ -367,7 +367,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
               </div>
               <div className="flex items-center justify-between rounded-lg border border-black/10 dark:border-white/10 bg-background/60 px-4 py-3">
                 <span className="text-sm text-text/80">{t("settings.global.searchEngineDescription")}</span>
-                <Tag variant="info" className="text-xs">{getEnumLabel("index_status", indexStatus, indexStatus)}</Tag>
+                <Tag tone="info" className="text-xs">{getEnumLabel("index_status", indexStatus, indexStatus)}</Tag>
               </div>
             </div>
           </section>
@@ -409,7 +409,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                 <p className="text-sm text-text/40">{t("settings.emptyCoreIncludes")}</p>
               ) : (
                 coreIncludes.map((file, idx) => (
-                  <Tag key={idx} variant="success" className="px-3 py-1.5 text-sm gap-2">
+                  <Tag key={idx} tone="success" className="px-3 py-1.5 text-sm gap-2">
                     <span>{file}</span>
                     <button className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:text-success/50 md:h-auto md:w-auto" onClick={() => removeCoreInclude(idx)}><Trash2 size={14}/></button>
                   </Tag>
