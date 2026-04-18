@@ -2,8 +2,9 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Spinner } from "../shared/Spinner";
+import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { Toggle } from '../shared/Toggle';
@@ -26,9 +27,7 @@ import { AuSettingsAdvancedSection } from './AuSettingsAdvancedSection';
 export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const { t } = useTranslation();
   const { showError, showSuccess } = useFeedback();
-  const activeAuPathRef = useRef(auPath);
-  activeAuPathRef.current = auPath;
-  const loadSettingsRequestIdRef = useRef(0);
+  const loadGuard = useActiveRequestGuard(auPath);
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [globalSettings, setGlobalSettings] = useState<SettingsInfo | null>(null);
   const [indexStatus, setIndexStatus] = useState('stale');
@@ -67,13 +66,13 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
     setRecalcing(true);
     try {
       const result = await recalcState(auPath);
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       showSuccess(t('advanced.recalcSuccess', { scanned: result.chapters_scanned, dirty: result.cleaned_dirty_count }));
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      if (activeAuPathRef.current === requestAuPath) {
+      if (!loadGuard.isKeyStale(requestAuPath)) {
         setRecalcing(false);
       }
     }
@@ -81,8 +80,6 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
 
   useEffect(() => {
     if (!auPath) return;
-    activeAuPathRef.current = auPath;
-    loadSettingsRequestIdRef.current += 1;
     setLoading(true);
     setSaving(false);
     setRecalcing(false);
@@ -110,13 +107,13 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
     setEmbApiBase('');
     setEmbApiKey('');
 
-    const requestId = ++loadSettingsRequestIdRef.current;
+    const token = loadGuard.start();
     Promise.allSettled([
       getProject(auPath),
       getSettings(),
       getState(auPath),
     ]).then(([projResult, settingsResult, stateResult]) => {
-      if (requestId !== loadSettingsRequestIdRef.current || activeAuPathRef.current !== auPath) return;
+      if (loadGuard.isStale(token)) return;
       let firstError: unknown = null;
       const proj = projResult.status === 'fulfilled' ? projResult.value : null;
       const settings = settingsResult.status === 'fulfilled' ? settingsResult.value : null;
@@ -170,7 +167,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
         showError(firstError, t('error_messages.unknown'));
       }
     }).finally(() => {
-      if (requestId === loadSettingsRequestIdRef.current && activeAuPathRef.current === auPath) {
+      if (!loadGuard.isStale(token)) {
         setLoading(false);
       }
     });
@@ -229,14 +226,14 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
         }
         
         await updateProject(auPath, payload);
-        if (activeAuPathRef.current !== requestAuPath) return;
+        if (loadGuard.isKeyStale(requestAuPath)) return;
       }
       showSuccess(t("common.actions.save"));
     } catch (e: any) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       showError(e, t("error_messages.unknown"));
     } finally {
-      if (activeAuPathRef.current === requestAuPath) {
+      if (!loadGuard.isKeyStale(requestAuPath)) {
         setSaving(false);
       }
     }

@@ -2,8 +2,9 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Spinner } from "../shared/Spinner";
+import { useActiveRequestGuard, type GuardToken } from '../../hooks/useActiveRequestGuard';
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
 import { EmptyState } from '../shared/EmptyState';
@@ -48,10 +49,8 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
   const { t } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
   const isMobile = useMediaQuery('(max-width: 768px)');
-  const activeAuPathRef = useRef(auPath);
-  activeAuPathRef.current = auPath;
-  const loadDataRequestIdRef = useRef(0);
-  const readFileRequestIdRef = useRef(0);
+  const loadGuard = useActiveRequestGuard(auPath);
+  const readGuard = useActiveRequestGuard(auPath);
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [files, setFiles] = useState<LoreFileEntry[]>([]);
   const [worldbuildingFiles, setWorldbuildingFiles] = useState<LoreFileEntry[]>([]);
@@ -82,7 +81,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
   const syncRegistry = async (names: string[], requestAuPath = auPath) => {
     const deduped = Array.from(new Set(names));
     await updateProject(auPath, { cast_registry: { characters: deduped } });
-    if (activeAuPathRef.current !== requestAuPath) return;
+    if (loadGuard.isKeyStale(requestAuPath)) return;
     setProject(prev => prev ? {
       ...prev,
       cast_registry: {
@@ -112,7 +111,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
         // 检测核心限制段落
         try {
           const result = await getLoreContent({ au_path: auPath, category: 'characters', filename: `${name}.md` });
-          if (activeAuPathRef.current !== requestAuPath) return;
+          if (loadGuard.isKeyStale(requestAuPath)) return;
           if (!result.content.includes('## 核心限制') && !result.content.includes('## Core Constraints')) {
             setCoreLimitTarget(name);
             setCoreLimitModalOpen(true);
@@ -121,54 +120,39 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
       }
 
       await updateProject(auPath, { core_always_include: next });
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       setProject(prev => prev ? { ...prev, core_always_include: next } : prev);
       showSuccess(isPinned ? t('coreIncludes.unpinnedToast') : t('coreIncludes.pinnedToast'));
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      if (activeAuPathRef.current === requestAuPath) {
+      if (!loadGuard.isKeyStale(requestAuPath)) {
         setIsSaving(false);
       }
     }
   };
 
-  const loadFileContent = async (name: string, loadRequestId?: number, categoryOverride?: 'characters' | 'worldbuilding') => {
-    const readRequestId = ++readFileRequestIdRef.current;
-    const requestAuPath = auPath;
+  const loadFileContent = async (name: string, loadToken?: GuardToken<string>, categoryOverride?: 'characters' | 'worldbuilding') => {
+    const readToken = readGuard.start();
     const effectiveCategory = categoryOverride ?? selectedCategory;
     setSelectedFile(name);
     setEditorContent('');
     setIsReadingFile(true);
+    const isStale = () =>
+      readGuard.isStale(readToken) || (loadToken !== undefined && loadGuard.isStale(loadToken));
     try {
       const result = await readLore({ au_path: auPath, category: effectiveCategory, filename: `${name}.md` });
-      if (
-        readRequestId !== readFileRequestIdRef.current
-        || (typeof loadRequestId === 'number' && loadRequestId !== loadDataRequestIdRef.current)
-        || activeAuPathRef.current !== requestAuPath
-      ) {
-        return;
-      }
+      if (isStale()) return;
       const content = result.content || (effectiveCategory === 'worldbuilding' ? buildDefaultWorldbuildingContent(name) : buildDefaultCharacterContent(name));
       setEditorContent(content);
       setAliases(effectiveCategory === 'characters' ? parseAliasesFromContent(content) : []);
       setNewAlias('');
     } catch {
-      if (
-        readRequestId !== readFileRequestIdRef.current
-        || (typeof loadRequestId === 'number' && loadRequestId !== loadDataRequestIdRef.current)
-        || activeAuPathRef.current !== requestAuPath
-      ) {
-        return;
-      }
+      if (isStale()) return;
       setEditorContent(effectiveCategory === 'worldbuilding' ? buildDefaultWorldbuildingContent(name) : buildDefaultCharacterContent(name));
     } finally {
-      if (
-        readRequestId === readFileRequestIdRef.current
-        && (typeof loadRequestId !== 'number' || loadRequestId === loadDataRequestIdRef.current)
-        && activeAuPathRef.current === requestAuPath
-      ) {
+      if (!isStale()) {
         setIsReadingFile(false);
       }
     }
@@ -176,8 +160,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
 
   const loadData = async () => {
     if (!auPath) return;
-    const requestId = ++loadDataRequestIdRef.current;
-    const requestAuPath = auPath;
+    const token = loadGuard.start();
     setLoading(true);
     try {
       const [proj, loreFiles, wbFiles] = await Promise.all([
@@ -185,7 +168,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
         listLoreFiles({ au_path: auPath, category: selectedCategory }),
         listLoreFiles({ au_path: auPath, category: 'worldbuilding' }),
       ]);
-      if (requestId !== loadDataRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isStale(token)) return;
 
       setProject(proj);
       setFiles(loreFiles.files);
@@ -196,25 +179,22 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
         : null;
 
       if (nextSelected) {
-        await loadFileContent(nextSelected, requestId);
+        await loadFileContent(nextSelected, token);
       } else {
         setSelectedFile(null);
         setEditorContent('');
       }
     } catch (error) {
-      if (requestId !== loadDataRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isStale(token)) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      if (requestId === loadDataRequestIdRef.current && activeAuPathRef.current === requestAuPath) {
+      if (!loadGuard.isStale(token)) {
         setLoading(false);
       }
     }
   };
 
   useEffect(() => {
-    activeAuPathRef.current = auPath;
-    loadDataRequestIdRef.current += 1;
-    readFileRequestIdRef.current += 1;
     setLoading(true);
     setProject(null);
     setFiles([]);
@@ -254,13 +234,13 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
         filename: `${selectedFile}.md`,
         content: contentToSave,
       });
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       showSuccess(t('common.actions.save'));
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      if (activeAuPathRef.current === requestAuPath) {
+      if (!loadGuard.isKeyStale(requestAuPath)) {
         setIsSaving(false);
       }
     }
@@ -277,16 +257,16 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
         category: selectedCategory,
         filename: `${selectedFile}.md`,
       });
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
 
       const remainingNames = (project.cast_registry.characters || []).filter(name => name !== selectedFile);
       await syncRegistry(remainingNames, requestAuPath);
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       // 同时清理 core_always_include 中的已删除角色
       const remainingPins = (project.core_always_include || []).filter(n => n !== selectedFile);
       if (remainingPins.length !== (project.core_always_include || []).length) {
         await updateProject(auPath, { core_always_include: remainingPins });
-        if (activeAuPathRef.current !== requestAuPath) return;
+        if (loadGuard.isKeyStale(requestAuPath)) return;
         setProject(prev => prev ? { ...prev, core_always_include: remainingPins } : prev);
       }
       const setTargetFilesForDelete = selectedCategory === 'worldbuilding' ? setWorldbuildingFiles : setFiles;
@@ -295,10 +275,10 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
       setEditorContent('');
       setTrashRefreshToken(current => current + 1);
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      if (activeAuPathRef.current === requestAuPath) {
+      if (!loadGuard.isKeyStale(requestAuPath)) {
         setIsSaving(false);
       }
     }
@@ -330,11 +310,11 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
           listLoreFiles({ au_path: auPath, category: selectedCategory }),
         ]);
       } catch (error) {
-        if (activeAuPathRef.current !== requestAuPath) return;
+        if (loadGuard.isKeyStale(requestAuPath)) return;
         showError(error, t('error_messages.unknown'));
         return;
       }
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
 
       if (latestFiles.files.some((file) => toCanonicalCreateKey(file.filename) === toCanonicalCreateKey(filename))) {
         showToast(t('auLore.createDuplicate', { name: filename }), 'warning');
@@ -363,7 +343,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
         }
         throw error;
       }
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       const setTargetFiles = selectedCategory === 'worldbuilding' ? setWorldbuildingFiles : setFiles;
       setTargetFiles(prev => [...prev, { name: displayName, filename }].sort((a, b) => a.name.localeCompare(b.name)));
       setSelectedFile(displayName);
@@ -372,10 +352,10 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
       setCreateName('');
       setSearchTerm('');
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      if (activeAuPathRef.current === requestAuPath) {
+      if (!loadGuard.isKeyStale(requestAuPath)) {
         setIsSaving(false);
       }
     }
@@ -388,15 +368,15 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     setSelectedImports([]);
     try {
       const fandomFiles = await listLoreFiles({ fandom_path: deriveFandomPath(auPath), category: 'core_characters' });
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       const existing = new Set(files.map(file => file.name));
       setImportCandidates(fandomFiles.files.filter(file => !existing.has(file.name)));
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
       setImportCandidates([]);
     } finally {
-      if (activeAuPathRef.current === requestAuPath) {
+      if (!loadGuard.isKeyStale(requestAuPath)) {
         setImportLoading(false);
       }
     }
@@ -417,18 +397,18 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
         filenames: selectedImports.map(name => `${name}.md`),
         source_category: 'core_characters',
       });
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       await syncRegistry([...(project.cast_registry.characters || []), ...selectedImports], requestAuPath);
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       setImportModalOpen(false);
       setSelectedImports([]);
       showSuccess(t('auLore.importSuccess', { count: selectedImports.length }));
       await loadData();
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      if (activeAuPathRef.current === requestAuPath) {
+      if (!loadGuard.isKeyStale(requestAuPath)) {
         setIsSaving(false);
       }
     }

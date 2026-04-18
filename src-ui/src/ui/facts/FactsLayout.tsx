@@ -2,8 +2,9 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Spinner } from "../shared/Spinner";
+import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
 import { FactCard } from './FactCard';
@@ -27,9 +28,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const { t } = useTranslation();
   const { showError } = useFeedback();
   const isMobile = useMediaQuery('(max-width: 768px)');
-  const activeAuPathRef = useRef(auPath);
-  activeAuPathRef.current = auPath;
-  const loadFactsRequestIdRef = useRef(0);
+  const loadGuard = useActiveRequestGuard(auPath);
   const [facts, setFacts] = useState<FactInfo[]>([]);
   const [state, setState] = useState<StateInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,8 +37,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const factsFilter = useFactsFilter(facts, state);
   const loadFacts = async () => {
     if (!auPath) return;
-    const requestId = ++loadFactsRequestIdRef.current;
-    const requestAuPath = auPath;
+    const token = loadGuard.start();
     setLoading(true);
     try {
       const [factsData, allFactsData, stateData] = await Promise.all([
@@ -47,7 +45,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
         listFacts(auPath),
         getState(auPath).catch(() => null),
       ]);
-      if (requestId !== loadFactsRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isStale(token)) return;
       setFacts(factsData);
       setState(stateData);
       const counts: Record<string, number> = { total: allFactsData.length };
@@ -56,10 +54,10 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
       }
       setAllFactsCounts(counts);
     } catch (error) {
-      if (requestId !== loadFactsRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isStale(token)) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      if (requestId === loadFactsRequestIdRef.current && activeAuPathRef.current === requestAuPath) {
+      if (!loadGuard.isStale(token)) {
         setLoading(false);
       }
     }
@@ -70,8 +68,6 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const extraction = useFactsExtraction(auPath, state, loadFacts);
 
   useEffect(() => {
-    activeAuPathRef.current = auPath;
-    loadFactsRequestIdRef.current += 1;
     setLoading(true);
     setFacts([]);
     setState(null);
@@ -93,13 +89,13 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     const chapterNum = targetFact?.chapter || editor.editingFact?.chapter || 1;
     try {
       await updateFactStatus(requestAuPath, factId, nextStatus, chapterNum);
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       await loadFacts();
       if (editor.editingFact?.id === factId) {
         editor.setEditingFact(prev => prev ? { ...prev, status: nextStatus as FactStatus } : null);
       }
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     }
   };

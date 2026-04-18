@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Spinner } from "../shared/Spinner";
+import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { Sidebar } from '../shared/Sidebar';
 import { Button } from '../shared/Button';
 import { EmptyState } from '../shared/EmptyState';
@@ -36,9 +37,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const { t } = useTranslation();
   const { showError } = useFeedback();
   const isMobile = useMediaQuery('(max-width: 768px)');
-  const activeAuPathRef = useRef(auPath);
-  activeAuPathRef.current = auPath;
-  const loadWorkspaceRequestIdRef = useRef(0);
+  const loadGuard = useActiveRequestGuard(auPath);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [loadingChapters, setLoadingChapters] = useState(false);
@@ -46,9 +45,9 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const [milestoneRefreshKey, setMilestoneRefreshKey] = useState(0);
 
   const refreshChapters = useCallback(() => {
-    listChapters(auPath).then(chs => { if (activeAuPathRef.current === auPath) setChapters(chs); }).catch((err) => logCatch('workspace', 'refreshChapters failed', err));
+    listChapters(auPath).then(chs => { if (!loadGuard.isKeyStale(auPath)) setChapters(chs); }).catch((err) => logCatch('workspace', 'refreshChapters failed', err));
     setMilestoneRefreshKey(k => k + 1);
-  }, [auPath]);
+  }, [auPath, loadGuard]);
 
   const auName = auPath.split('/').pop() || t('common.unknownAu');
   const { shouldShow, dismiss } = useMilestoneGuide();
@@ -76,8 +75,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
 
   useEffect(() => {
     if (!auPath) return;
-    const requestId = ++loadWorkspaceRequestIdRef.current;
-    const requestAuPath = auPath;
+    const token = loadGuard.start();
     if (clickTimerRef.current) {
       clearTimeout(clickTimerRef.current);
       clickTimerRef.current = null;
@@ -97,24 +95,24 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
     setEditingTitleValue('');
     listChapters(auPath)
       .then((res) => {
-        if (requestId !== loadWorkspaceRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
+        if (loadGuard.isStale(token)) return;
         setChapters(res);
       })
       .catch(() => {})
       .finally(() => {
-        if (requestId === loadWorkspaceRequestIdRef.current && activeAuPathRef.current === requestAuPath) {
+        if (!loadGuard.isStale(token)) {
           setLoadingChapters(false);
         }
       });
 
     // Embedding check (sub-task 5): check index_status
     getState(auPath).then(s => {
-      if (requestId !== loadWorkspaceRequestIdRef.current || activeAuPathRef.current !== requestAuPath) return;
+      if (loadGuard.isStale(token)) return;
       if (s.index_status === 'stale' || s.index_status === 'interrupted') {
         setEmbeddingStale(true);
       }
     }).catch(() => {});
-  }, [auPath]);
+  }, [auPath, loadGuard]);
 
   // Milestone data — refreshes when auPath changes OR after mutations (refreshKey)
   useEffect(() => {
@@ -123,20 +121,20 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
     if (!anyMilestoneActive) return;
 
     getState(auPath).then(state => {
-      if (activeAuPathRef.current !== auPath) return;
+      if (loadGuard.isKeyStale(auPath)) return;
       setCurrentChapter(state.current_chapter || 1);
       setChapterFocusEmpty(!state.chapter_focus || state.chapter_focus.length === 0);
     }).catch(() => {});
 
     listFacts(auPath).then(facts => {
-      if (activeAuPathRef.current !== auPath) return;
+      if (loadGuard.isKeyStale(auPath)) return;
       setFactsCount(facts.length);
       const firstUnresolved = facts.find((f: FactInfo) => f.status === 'unresolved');
       setUnresolvedFact(firstUnresolved ? (firstUnresolved.content_clean || '').slice(0, 20) + '...' : null);
     }).catch(() => {});
 
     getProject(auPath).then(proj => {
-      if (activeAuPathRef.current !== auPath) return;
+      if (loadGuard.isKeyStale(auPath)) return;
       setPinnedCount((proj.pinned_context || []).length);
     }).catch(() => {});
   }, [auPath, milestoneRefreshKey, shouldShow]);
