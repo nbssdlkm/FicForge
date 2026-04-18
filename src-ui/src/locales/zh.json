@@ -492,7 +492,17 @@
       "uiDescription": "用于菜单、按钮、表单等界面元素。",
       "readingLabel": "阅读字体",
       "readingDescription": "用于章节正文与设定卡编辑等阅读/写作区域。",
-      "hint": "默认内置 Source Serif 4（西文）+ 霞鹜文楷屏幕版（中文）。「跟随系统」使用操作系统默认字体。"
+      "hint": "默认内置 Source Serif 4（西文）+ 霞鹜文楷屏幕版（中文）。「跟随系统」使用操作系统默认字体。",
+      "listTitle": "可用字体",
+      "builtinTag": "内置",
+      "installedTag": "已安装",
+      "downloadButton": "下载",
+      "uninstallButton": "卸载",
+      "retryButton": "重试",
+      "storageUsed": "字体已用 {{size}}",
+      "cleanUnused": "清理未用",
+      "cleanedToast": "已清理 {{count}} 个未用字体",
+      "noneToClean": "没有可清理的字体"
     },
     "debugLogs": {
       "title": "调试日志",

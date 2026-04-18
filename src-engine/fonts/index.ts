@@ -7,6 +7,7 @@ export {
   DEFAULT_CJK_FONT_ID,
   DEFAULT_LATIN_FONT_ID,
   FONT_MANIFEST,
+  MANIFEST_VERSION,
   SYSTEM_FONT_STACK,
   filterFontsByType,
   getFontById,

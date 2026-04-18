@@ -107,6 +107,7 @@ export {
   FontError,
   FontStorage,
   FontsService,
+  MANIFEST_VERSION,
   NoopFontRegistry,
   SYSTEM_FONT_ID,
   SYSTEM_FONT_STACK,

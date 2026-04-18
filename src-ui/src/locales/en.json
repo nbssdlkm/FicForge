@@ -492,7 +492,17 @@
       "uiDescription": "Used for menus, buttons, forms and other UI elements.",
       "readingLabel": "Reading font",
       "readingDescription": "Used for chapter content and the settings-card editor — the reading and writing surfaces.",
-      "hint": "Bundled defaults: Source Serif 4 (Latin) + LXGW WenKai Screen (CJK). \"Follow system\" uses the OS default font."
+      "hint": "Bundled defaults: Source Serif 4 (Latin) + LXGW WenKai Screen (CJK). \"Follow system\" uses the OS default font.",
+      "listTitle": "Available fonts",
+      "builtinTag": "Bundled",
+      "installedTag": "Installed",
+      "downloadButton": "Download",
+      "uninstallButton": "Uninstall",
+      "retryButton": "Retry",
+      "storageUsed": "Fonts use {{size}}",
+      "cleanUnused": "Clean unused",
+      "cleanedToast": "Cleaned {{count}} unused font(s)",
+      "noneToClean": "No fonts to clean"
     },
     "debugLogs": {
       "title": "Debug Logs",

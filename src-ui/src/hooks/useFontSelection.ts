@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   FONT_MANIFEST,
   SYSTEM_FONT_ID,
+  getFontById,
   resolveFontStack,
   type FontRole,
 } from "@ficforge/engine";
@@ -58,16 +59,22 @@ export interface FontOption {
 }
 
 /**
- * 当前可选字体列表：跟随系统 + 所有内置字体。
+ * 当前可选字体列表：跟随系统 + 所有内置字体 + 已下载的 downloadable 字体。
  *
- * Phase 5 会扩展为加上已下载的字体；Phase 4 只覆盖内置。
+ * `installedDownloadableIds` 由 useFontManager 维护；未传则仅列出 system + builtin。
  */
-export function listFontOptions(): FontOption[] {
+export function listFontOptions(installedDownloadableIds: readonly string[] = []): FontOption[] {
   const options: FontOption[] = [
     { id: SYSTEM_FONT_ID, label: { zh: "跟随系统", en: "Follow system" } },
   ];
   for (const entry of FONT_MANIFEST) {
     if (entry.type === "builtin") {
+      options.push({ id: entry.id, label: entry.displayName });
+    }
+  }
+  for (const id of installedDownloadableIds) {
+    const entry = getFontById(id);
+    if (entry && entry.type === "downloadable") {
       options.push({ id: entry.id, label: entry.displayName });
     }
   }

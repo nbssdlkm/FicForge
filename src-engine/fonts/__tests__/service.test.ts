@@ -213,6 +213,26 @@ describe("FontsService", () => {
     });
   });
 
+  describe("totalStorageSize", () => {
+    it("returns 0 when no fonts are downloaded", async () => {
+      expect(await service.totalStorageSize()).toBe(0);
+    });
+
+    it("sums byte sizes of all downloaded fonts", async () => {
+      await storage.write("font-a", new Uint8Array(100));
+      await storage.write("font-b", new Uint8Array(200));
+      await storage.write("font-c", new Uint8Array(50));
+      expect(await service.totalStorageSize()).toBe(350);
+    });
+
+    it("decreases after uninstall", async () => {
+      await storage.write(DOWNLOADABLE_ID, new Uint8Array(500));
+      expect(await service.totalStorageSize()).toBe(500);
+      await service.uninstall(DOWNLOADABLE_ID);
+      expect(await service.totalStorageSize()).toBe(0);
+    });
+  });
+
   describe("install — rollback on registry failure", () => {
     it("deletes storage file when registerFromData throws", async () => {
       // 真 bug 的回归测试：以前 register 失败后文件仍落盘，statusOf 误报

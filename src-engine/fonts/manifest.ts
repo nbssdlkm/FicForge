@@ -14,6 +14,16 @@
 import type { FontEntry } from "./types.js";
 
 /**
+ * Manifest 版本号。每次 manifest 结构发生**不向后兼容**的变化时递增：
+ *
+ * - 加字段、改 URL、改 sha256：不算 breaking，**不递增**；
+ * - 删字段、改字段语义、改 id 或 family、改 type 枚举：breaking，必须递增。
+ *
+ * 未来 Phase 可结合此版本号做字体数据的迁移（如清理旧版本留下的不兼容文件）。
+ */
+export const MANIFEST_VERSION = 1;
+
+/**
  * 「跟随系统」字体栈。不进 manifest，单独常量导出。
  *
  * 浏览器/OS 自动挑选：Windows 用 Segoe UI + 微软雅黑，macOS 用苹方，

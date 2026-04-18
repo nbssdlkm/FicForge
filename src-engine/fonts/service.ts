@@ -147,6 +147,16 @@ export class FontsService {
   }
 
   /**
+   * 已下载字体占用的磁盘总字节。
+   *
+   * 走真实 storage 层（fonts/ 目录下所有文件字节累加），比用 manifest.sizeBytes
+   * 估算更准确 —— 后者在 Phase 1 阶段是占位值，可能与真实下载文件大小偏差。
+   */
+  async totalStorageSize(): Promise<number> {
+    return this.storage.totalSize();
+  }
+
+  /**
    * 卸载字体（仅适用于 downloadable）。
    *
    * 卸载 FontFace + 删除本地文件。对内置字体抛 `unsupported` —— 内置字体
