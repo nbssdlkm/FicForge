@@ -18,6 +18,7 @@ import { type DraftItem, useWriterDraftController } from './useWriterDraftContro
 import { useWriterFocusController } from './useWriterFocusController';
 import { useWriterInstructionInput } from './useWriterInstructionInput';
 import { useWriterModeController } from './useWriterModeController';
+import { useWriterChromeState } from './useWriterChromeState';
 import { deriveWriterDisplayState } from './writerDisplayState';
 import { Button } from '../shared/Button';
 import { Modal } from '../shared/Modal';
@@ -113,15 +114,42 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const refreshGuard = useActiveRequestGuard(auPath);
   const generateGuard = useActiveRequestGuard(auPath);
   const [isSettingsModeBusy, setIsSettingsModeBusy] = useState(false);
-  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
-
-  const [rightCollapsed, setRightCollapsed] = useState(false);
-  const [isExportOpen, setExportOpen] = useState(false);
-  const [isDirtyOpen, setDirtyOpen] = useState(false);
-  const [dirtyTargetChapter, setDirtyTargetChapter] = useState<number>(0);
-  const [isFinalizeConfirmOpen, setFinalizeConfirmOpen] = useState(false);
-  const [chapterTitle, setChapterTitle] = useState('');
-  const [isDiscardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+  const {
+    mobileToolsOpen,
+    setMobileToolsOpen,
+    rightCollapsed,
+    isExportOpen,
+    setExportOpen,
+    isDirtyOpen,
+    setDirtyOpen,
+    dirtyTargetChapter,
+    isFinalizeConfirmOpen,
+    setFinalizeConfirmOpen,
+    chapterTitle,
+    setChapterTitle,
+    isDiscardConfirmOpen,
+    setDiscardConfirmOpen,
+    isUndoConfirmOpen,
+    setUndoConfirmOpen,
+    dirtyBannerDismissed,
+    setDirtyBannerDismissed,
+    footerCollapsed,
+    toggleRightCollapsed,
+    openExport,
+    closeExport,
+    openDirty,
+    closeDirty,
+    openFinalizeConfirm,
+    closeFinalizeConfirm,
+    openDiscardConfirm,
+    closeDiscardConfirm,
+    openUndoConfirm,
+    closeUndoConfirm,
+    dismissDirtyBanner,
+    toggleFooterCollapsed,
+    openMobileTools,
+    closeMobileTools,
+  } = useWriterChromeState();
 
   const [state, setState] = useState<StateInfo | null>(null);
   const [projectInfo, setProjectInfo] = useState<WriterProjectContext | null>(null);
@@ -129,9 +157,6 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const [currentContent, setCurrentContent] = useState('');
   const [unresolvedFacts, setUnresolvedFacts] = useState<FactInfo[]>([]);
   const [focusSelection, setFocusSelection] = useState<string[]>([]);
-  const [isUndoConfirmOpen, setUndoConfirmOpen] = useState(false);
-  const [dirtyBannerDismissed, setDirtyBannerDismissed] = useState(false);
-  const [footerCollapsed, setFooterCollapsed] = useState(false);
 
   const [drafts, setDrafts] = useState<DraftItem[]>([]);
   const [activeDraftIndex, setActiveDraftIndex] = useState(0);
@@ -662,8 +687,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
             message={t('dirty.banner', { count: (state?.chapters_dirty || []).length, chapters: (state?.chapters_dirty || []).join(', ') })}
             actions={
               <>
-                <Button tone="neutral" fill="plain" size="sm" className="h-11 text-xs md:h-6" onClick={() => { setDirtyTargetChapter((state?.chapters_dirty || [])[0] || 0); setDirtyOpen(true); }}>{t('dirty.goResolve')}</Button>
-                <Button tone="neutral" fill="plain" size="sm" className="h-11 text-xs text-text/50 md:h-6" onClick={() => setDirtyBannerDismissed(true)}>{t('dirty.dismissBanner')}</Button>
+                <Button tone="neutral" fill="plain" size="sm" className="h-11 text-xs md:h-6" onClick={() => openDirty((state?.chapters_dirty || [])[0] || 0)}>{t('dirty.goResolve')}</Button>
+                <Button tone="neutral" fill="plain" size="sm" className="h-11 text-xs text-text/50 md:h-6" onClick={dismissDirtyBanner}>{t('dirty.dismissBanner')}</Button>
               </>
             }
           />
@@ -682,11 +707,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
           sessionTemp={sessionParams.sessionTemp}
           chaptersDirty={state?.chapters_dirty || []}
           onOpenDirty={() => {
-            setDirtyTargetChapter((state?.chapters_dirty || [])[0] || 0);
+            openDirty((state?.chapters_dirty || [])[0] || 0);
             showToast(t('writer.dirtyOpenHint'), 'info');
-            setDirtyOpen(true);
           }}
-          onOpenExport={() => setExportOpen(true)}
+          onOpenExport={openExport}
         />
 
         <div className={mode === 'write' ? 'flex flex-1 flex-col min-h-0' : 'hidden'}>
@@ -745,7 +769,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
           <WriterFooter
             footerCollapsed={footerCollapsed}
-            onToggleCollapsed={() => setFooterCollapsed(prev => !prev)}
+            onToggleCollapsed={toggleFooterCollapsed}
             isGenerating={isGenerating}
             writeActionsDisabled={writeActionsDisabled}
             isSettingsModeBusy={isSettingsModeBusy}
@@ -761,12 +785,12 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
             currentDraft={currentDraft}
             hasPendingDrafts={hasPendingDrafts}
             currentDraftMeta={currentDraftMeta}
-            onOpenFinalize={() => { setChapterTitle(''); setFinalizeConfirmOpen(true); }}
+            onOpenFinalize={openFinalizeConfirm}
             onRegenerate={() => { void handleRegenerate(); }}
-            onOpenDiscard={() => setDiscardConfirmOpen(true)}
-            onOpenUndo={() => setUndoConfirmOpen(true)}
+            onOpenDiscard={openDiscardConfirm}
+            onOpenUndo={openUndoConfirm}
             onNavigateFacts={() => onNavigate('facts')}
-            onOpenMobileTools={() => setMobileToolsOpen(true)}
+            onOpenMobileTools={openMobileTools}
             onBlockedToast={() => showToast(t('drafts.generatingBlocked'), 'warning')}
           />
         </div>
@@ -803,19 +827,19 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         </div>
       </main>
 
-      <Sidebar position="right" width="320px" isCollapsed={rightCollapsed} onToggle={() => setRightCollapsed(!rightCollapsed)} className="hidden flex-col bg-surface/50 border-l border-black/10 dark:border-white/10 md:flex">
+      <Sidebar position="right" width="320px" isCollapsed={rightCollapsed} onToggle={toggleRightCollapsed} className="hidden flex-col bg-surface/50 border-l border-black/10 dark:border-white/10 md:flex">
         <WriterSidePanelContent
           isMobile={false}
           {...sharedSidePanelProps}
         />
       </Sidebar>
 
-      <Modal isOpen={mobileToolsOpen} onClose={() => setMobileToolsOpen(false)} title={t('common.actions.more')}>
+      <Modal isOpen={mobileToolsOpen} onClose={closeMobileTools} title={t('common.actions.more')}>
         <WriterSidePanelContent
           isMobile={true}
-          onClose={() => setMobileToolsOpen(false)}
-          onUndoClick={() => { setMobileToolsOpen(false); setUndoConfirmOpen(true); }}
-          onExportClick={() => { setMobileToolsOpen(false); setExportOpen(true); }}
+          onClose={closeMobileTools}
+          onUndoClick={() => { closeMobileTools(); openUndoConfirm(); }}
+          onExportClick={() => { closeMobileTools(); openExport(); }}
           currentChapter={currentChapter}
           writeActionsDisabled={writeActionsDisabled}
           {...sharedSidePanelProps}
@@ -824,7 +848,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
       <WriterModals
         isFinalizeConfirmOpen={isFinalizeConfirmOpen}
-        onCloseFinalizeConfirm={() => setFinalizeConfirmOpen(false)}
+        onCloseFinalizeConfirm={closeFinalizeConfirm}
         currentChapter={currentChapter}
         chapterTitle={chapterTitle}
         onChapterTitleChange={setChapterTitle}
@@ -833,7 +857,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         isFinalizing={isFinalizing}
         hasDraft={currentDraft !== null}
         isDiscardConfirmOpen={isDiscardConfirmOpen}
-        onCloseDiscardConfirm={() => setDiscardConfirmOpen(false)}
+        onCloseDiscardConfirm={closeDiscardConfirm}
         draftsCount={drafts.length}
         onDiscardDrafts={() => void handleDiscardDrafts()}
         isDiscarding={isDiscarding}
@@ -855,19 +879,19 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         onSaveExtracted={() => void factsExtraction.handleSaveExtracted()}
         savingExtracted={factsExtraction.savingExtracted}
         isUndoConfirmOpen={isUndoConfirmOpen}
-        onCloseUndoConfirm={() => setUndoConfirmOpen(false)}
+        onCloseUndoConfirm={closeUndoConfirm}
         undoChapterNum={currentChapter - 1}
         onConfirmUndo={handleUndoConfirmed}
       />
 
-      <ExportModal isOpen={isExportOpen} onClose={() => setExportOpen(false)} auPath={auPath} />
+      <ExportModal isOpen={isExportOpen} onClose={closeExport} auPath={auPath} />
       <DirtyModal
         isOpen={isDirtyOpen}
-        onClose={() => setDirtyOpen(false)}
+        onClose={closeDirty}
         auPath={auPath}
         chapterNum={dirtyTargetChapter}
         onResolved={() => {
-          setDirtyOpen(false);
+          closeDirty();
           void loadData();
         }}
       />
