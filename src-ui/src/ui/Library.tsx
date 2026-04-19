@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useState } from 'react';
-import { Settings, BookOpen } from 'lucide-react';
+import { Settings, BookOpen, Trash2 } from 'lucide-react';
 import { Spinner } from "./shared/Spinner";
 import { Button } from './shared/Button';
 import { InlineBanner } from './shared/InlineBanner';
@@ -35,6 +35,7 @@ function LibraryInner({ onNavigate }: Props) {
   const dataDir = getDataDir();
   const { fandoms, loading, loadFandoms } = useLibraryData();
   const [isGlobalSettingsOpen, setGlobalSettingsOpen] = useState(false);
+  const [isGlobalTrashOpen, setGlobalTrashOpen] = useState(false);
   const [trashTarget, setTrashTarget] = useState<{ fandomDir: string; fandomName: string } | null>(null);
   const [trashRefreshToken, setTrashRefreshToken] = useState(0);
   const {
@@ -103,6 +104,10 @@ function LibraryInner({ onNavigate }: Props) {
           <div className="flex flex-row items-center gap-2 sm:gap-3">
             <Button tone="neutral" fill="outline" size="sm" onClick={importFlow.openImportPicker} disabled={mutations.creatingFandom || mutations.creatingAu || mutations.deleting}>
               {t("common.actions.importOldWork")}
+            </Button>
+            <Button tone="neutral" fill="outline" size="sm" onClick={() => setGlobalTrashOpen(true)} disabled={mutations.creatingFandom || mutations.creatingAu || mutations.deleting}>
+              <Trash2 size={14} className="mr-2" />
+              {t("trash.title")}
             </Button>
             <Button size="sm" onClick={mutations.openFandomModal} disabled={mutations.creatingFandom || mutations.creatingAu || mutations.deleting}>
               {t("library.fandomButton")}
@@ -189,6 +194,15 @@ function LibraryInner({ onNavigate }: Props) {
       />
 
       <GlobalSettingsModal isOpen={isGlobalSettingsOpen} onClose={() => setGlobalSettingsOpen(false)} />
+
+      <Modal isOpen={isGlobalTrashOpen} onClose={() => setGlobalTrashOpen(false)} title={t('trash.title')}>
+        <TrashPanel
+          scope="fandom"
+          path={`${dataDir}/fandoms`}
+          onRestore={() => { setTrashRefreshToken(v => v + 1); void loadFandoms(); }}
+          refreshToken={trashRefreshToken}
+        />
+      </Modal>
 
       <LibraryImportPanel
         dataDir={dataDir}
