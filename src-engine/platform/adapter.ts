@@ -14,9 +14,9 @@ export interface OpenDialogOptions {
 }
 
 export interface SecretStorageCapabilities {
-  backend: "local_storage" | "local_storage_with_memory_fallback" | "memory" | "os_keyring";
+  backend: "local_storage" | "local_storage_with_memory_fallback" | "session_storage_with_memory_fallback" | "memory" | "os_keyring";
   encrypted_at_rest: boolean;
-  persistence: "persistent" | "best_effort" | "memory_only";
+  persistence: "persistent" | "best_effort" | "session_only" | "memory_only";
 }
 
 /**

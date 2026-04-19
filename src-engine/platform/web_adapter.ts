@@ -14,6 +14,7 @@ import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStora
 const DB_NAME = "ficforge_fs";
 const STORE_NAME = "files";
 const DB_VERSION = 1;
+const LEGACY_SECURE_KEY_PREFIX = "__secure__:";
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -65,6 +66,7 @@ function txGetAllKeys(db: IDBDatabase): Promise<string[]> {
 export class WebAdapter implements PlatformAdapter {
   private _deviceId: string;
   private _db: IDBDatabase | null = null;
+  private _secureFallback = new Map<string, string>();
 
   constructor(deviceId?: string) {
     this._deviceId = deviceId ?? crypto.randomUUID();
@@ -214,24 +216,88 @@ export class WebAdapter implements PlatformAdapter {
    * 待接入 crypto.subtle 派生密钥加密后实现真正加密。
    */
   async secureGet(key: string): Promise<string | null> {
-    return this.kvGet(`__secure__:${key}`);
+    const stored = this.getSessionSecureValue(key);
+    if (stored !== null) {
+      this.removeLegacySecureValue(key);
+      return stored;
+    }
+
+    const legacyValue = this.getLegacySecureValue(key);
+    if (legacyValue === null) {
+      return null;
+    }
+
+    this.setSessionSecureValue(key, legacyValue);
+    this.removeLegacySecureValue(key);
+    return legacyValue;
   }
 
   /** @see {@link WebAdapter.secureGet} — 同样未加密。 */
   async secureSet(key: string, value: string): Promise<void> {
-    return this.kvSet(`__secure__:${key}`, value);
+    this.setSessionSecureValue(key, value);
+    this.removeLegacySecureValue(key);
   }
 
   /** @see {@link WebAdapter.secureGet} — 同样未加密。 */
   async secureRemove(key: string): Promise<void> {
-    return this.kvRemove(`__secure__:${key}`);
+    this.removeSessionSecureValue(key);
+    this.removeLegacySecureValue(key);
   }
 
   getSecretStorageCapabilities(): SecretStorageCapabilities {
     return {
-      backend: "local_storage_with_memory_fallback",
+      backend: "session_storage_with_memory_fallback",
       encrypted_at_rest: false,
-      persistence: "best_effort",
+      persistence: "session_only",
     };
+  }
+
+  private getSecureStorageKey(key: string): string {
+    return `${LEGACY_SECURE_KEY_PREFIX}${key}`;
+  }
+
+  private getSessionSecureValue(key: string): string | null {
+    const storageKey = this.getSecureStorageKey(key);
+    try {
+      return sessionStorage.getItem(storageKey);
+    } catch {
+      return this._secureFallback.get(storageKey) ?? null;
+    }
+  }
+
+  private setSessionSecureValue(key: string, value: string): void {
+    const storageKey = this.getSecureStorageKey(key);
+    try {
+      sessionStorage.setItem(storageKey, value);
+    } catch {
+      console.warn(`[WebAdapter] secureSet: sessionStorage unavailable, using in-memory fallback (not persisted beyond this session)`);
+      this._secureFallback.set(storageKey, value);
+    }
+  }
+
+  private removeSessionSecureValue(key: string): void {
+    const storageKey = this.getSecureStorageKey(key);
+    try {
+      sessionStorage.removeItem(storageKey);
+    } catch {
+      this._secureFallback.delete(storageKey);
+    }
+  }
+
+  private getLegacySecureValue(key: string): string | null {
+    const storageKey = this.getSecureStorageKey(key);
+    try {
+      return localStorage.getItem(storageKey);
+    } catch {
+      return this._kvFallback.get(storageKey) ?? null;
+    }
+  }
+
+  private removeLegacySecureValue(key: string): void {
+    const storageKey = this.getSecureStorageKey(key);
+    this._kvFallback.delete(storageKey);
+    try {
+      localStorage.removeItem(storageKey);
+    } catch {}
   }
 }

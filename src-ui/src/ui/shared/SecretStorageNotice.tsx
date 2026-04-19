@@ -42,9 +42,9 @@ export function SecretStorageNotice({
 
 function getSecretStorageCopy(
   capabilities: {
-    backend: "local_storage" | "local_storage_with_memory_fallback" | "memory" | "os_keyring";
+    backend: "local_storage" | "local_storage_with_memory_fallback" | "session_storage_with_memory_fallback" | "memory" | "os_keyring";
     encrypted_at_rest: boolean;
-    persistence: "persistent" | "best_effort" | "memory_only";
+    persistence: "persistent" | "best_effort" | "session_only" | "memory_only";
   },
   t: (key: string) => string,
 ) {
@@ -52,6 +52,13 @@ function getSecretStorageCopy(
     return {
       title: t("security.secretStorage.encryptedTitle"),
       body: t("security.secretStorage.encryptedBody"),
+    };
+  }
+
+  if (capabilities.persistence === "session_only") {
+    return {
+      title: t("security.secretStorage.sessionOnlyTitle"),
+      body: t("security.secretStorage.sessionOnlyBody"),
     };
   }
 

@@ -1234,10 +1234,12 @@
   },
   "security": {
     "secretStorage": {
-      "encryptedTitle": "密钥会保存在系统钥匙串里",
-      "encryptedBody": "API Key 和同步密码会使用设备的安全钥匙串保存，静态存储时是加密的。",
+      "encryptedTitle": "密钥会保存在系统安全存储里",
+      "encryptedBody": "API Key 和同步密码会使用设备的安全存储保存，静态存储时是加密的。",
       "bestEffortTitle": "密钥会保存在本地，但不保证全程加密",
       "bestEffortBody": "这个平台可以记住你的凭据，但底层可能退回到安全性较弱的本地存储。请只在你信任的设备上使用。",
+      "sessionOnlyTitle": "密钥只会保留到当前浏览器会话结束",
+      "sessionOnlyBody": "凭据只会保留在当前浏览器会话里，关闭标签页或重启应用会话后需要重新输入。",
       "memoryOnlyTitle": "密钥只会保留到当前会话结束",
       "memoryOnlyBody": "凭据只保存在内存里，关闭应用或刷新页面后需要重新输入。",
       "unencryptedTitle": "密钥会保存在本地，但不会加密",

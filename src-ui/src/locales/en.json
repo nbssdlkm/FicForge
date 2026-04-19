@@ -1234,10 +1234,12 @@
   },
   "security": {
     "secretStorage": {
-      "encryptedTitle": "Secrets are stored in your system keychain",
-      "encryptedBody": "API keys and sync passwords are stored using your device's secure keychain and are encrypted at rest.",
+      "encryptedTitle": "Secrets are stored in secure system storage",
+      "encryptedBody": "API keys and sync passwords are stored using your device's secure storage and are encrypted at rest.",
       "bestEffortTitle": "Secrets are stored locally without full encryption guarantees",
       "bestEffortBody": "This platform can remember your credentials, but storage may fall back to a less secure local mechanism. Treat this device as trusted.",
+      "sessionOnlyTitle": "Secrets are stored only for the current browser session",
+      "sessionOnlyBody": "Credentials are kept for the current browser session and will need to be entered again after you close the tab or restart the app session.",
       "memoryOnlyTitle": "Secrets are kept only for this session",
       "memoryOnlyBody": "Credentials stay in memory and will need to be entered again after you close or refresh the app.",
       "unencryptedTitle": "Secrets are stored locally without encryption",
