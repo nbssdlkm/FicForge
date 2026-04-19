@@ -60,6 +60,42 @@ function applyCSS(role: FontRole, latinId: string, cjkId: string): void {
   document.documentElement.style.setProperty(cssVar, resolveFontStack(latinId, cjkId, role));
 }
 
+/**
+ * 一次性迁移：把 Phase 4 的旧 localStorage 单字段值（`ficforge_font_ui` /
+ * `ficforge_font_reading`）映射到 Phase 7 的 4 字段新 keys。
+ *
+ * 按旧值的 script 属性分派：latin 字体 → *_latin 槽，CJK / system / 未知 → *_cjk 槽。
+ * 新 key 已有值时不覆盖。迁移完删除旧 key，避免重复触发。
+ */
+function migrateLegacyLocalStorage(): void {
+  const LEGACY = { ui: "ficforge_font_ui", reading: "ficforge_font_reading" };
+  try {
+    const legacyUi = localStorage.getItem(LEGACY.ui);
+    const legacyReading = localStorage.getItem(LEGACY.reading);
+    if (!legacyUi && !legacyReading) return;
+
+    const slotFor = (value: string): "latin" | "cjk" => {
+      if (value === SYSTEM_FONT_ID) return "cjk";
+      const entry = getFontById(value);
+      return entry?.script === "latin" ? "latin" : "cjk";
+    };
+
+    if (legacyUi) {
+      const slot = slotFor(legacyUi);
+      const targetKey = slot === "latin" ? LS_KEYS.ui_latin : LS_KEYS.ui_cjk;
+      if (!localStorage.getItem(targetKey)) localStorage.setItem(targetKey, legacyUi);
+      localStorage.removeItem(LEGACY.ui);
+    }
+    if (legacyReading) {
+      const slot = slotFor(legacyReading);
+      const targetKey = slot === "latin" ? LS_KEYS.reading_latin : LS_KEYS.reading_cjk;
+      if (!localStorage.getItem(targetKey)) localStorage.setItem(targetKey, legacyReading);
+      localStorage.removeItem(LEGACY.reading);
+    }
+  } catch { /* localStorage 不可用时静默 */ }
+}
+migrateLegacyLocalStorage();
+
 // 模块顶层执行：页面首帧就读 localStorage 设 CSS var，避免 React mount 前的 FOUC。
 applyCSS(
   "ui",
