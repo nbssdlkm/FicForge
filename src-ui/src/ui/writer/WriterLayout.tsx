@@ -7,11 +7,8 @@ import { useKV } from '../../hooks/useKV';
 import {
   type GenerateRequestState,
   normalizeContextSummary,
-  readSavedContextSummaries,
   saveContextSummaries,
-  readSavedGenerateRequest,
   saveGenerateRequest,
-  readSavedInstructionText,
   saveInstructionText,
   hasSeenSettingsModeTooltip,
   markSettingsModeTooltipSeen,
@@ -19,6 +16,7 @@ import {
 import { useWriterFactsExtraction } from './useWriterFactsExtraction';
 import { useSessionParams } from './useSessionParams';
 import { useConfirmedChapterEditor } from './useConfirmedChapterEditor';
+import { useWriterBootstrap } from './useWriterBootstrap';
 import { Button } from '../shared/Button';
 import { Modal } from '../shared/Modal';
 import { ExportModal } from './ExportModal';
@@ -33,13 +31,13 @@ import { Sidebar } from '../shared/Sidebar';
 import { SettingsChatPanel } from '../shared/settings-chat/SettingsChatPanel';
 import { InlineBanner } from '../shared/InlineBanner';
 
-import { getChapterContent, confirmChapter, undoChapter } from '../../api/engine-client';
+import { confirmChapter, undoChapter } from '../../api/engine-client';
 import { listDrafts, getDraft, saveDraft, deleteDrafts, type DraftDetail, type DraftGeneratedWith } from '../../api/engine-client';
-import { getState, setChapterFocus, type StateInfo } from '../../api/engine-client';
-import { listFacts, type FactInfo } from '../../api/engine-client';
+import { setChapterFocus, type StateInfo } from '../../api/engine-client';
+import { type FactInfo } from '../../api/engine-client';
 import { generateChapter, type ContextSummary } from '../../api/engine-client';
-import { getWriterSessionConfig, type WriterSessionConfig } from '../../api/engine-client';
-import { getWriterProjectContext, type WriterProjectContext } from '../../api/engine-client';
+import { type WriterSessionConfig } from '../../api/engine-client';
+import { type WriterProjectContext } from '../../api/engine-client';
 import { ApiError, getFriendlyErrorMessage } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
@@ -345,127 +343,33 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       details.map((detail) => createDraftItemFromDetail(chapterNum, detail))
     );
   }, [auPath]);
-
-  const loadData = useCallback(async () => {
-    const token = loadGuard.start();
-    setLoading(true);
-    try {
-      const [stateData, factsData, proj, settings] = await Promise.all([
-        getState(auPath).catch(() => null),
-        listFacts(auPath, 'unresolved').catch(() => []),
-        getWriterProjectContext(auPath).catch(() => null),
-        getWriterSessionConfig().catch(() => null),
-      ]);
-      if (loadGuard.isStale(token)) return;
-
-      setState(stateData);
-      setProjectInfo(proj);
-      setSettingsInfo(settings);
-      setUnresolvedFacts(factsData);
-      setFocusSelection(stateData?.chapter_focus || []);
-
-      let defModel = 'deepseek-chat';
-      let defTemp = 1.0;
-      let defTopP = 0.95;
-
-      const globalConfiguredModel = sessionParams.getConfiguredLlmModel(settings?.default_llm);
-      if (globalConfiguredModel) {
-        defModel = globalConfiguredModel;
-        const globalParams = settings?.model_params?.[defModel];
-        if (globalParams) {
-          defTemp = globalParams.temperature;
-          defTopP = globalParams.top_p;
-        }
-      }
-
-      const projectConfiguredModel = sessionParams.getConfiguredLlmModel(proj?.llm);
-      if (projectConfiguredModel) {
-        defModel = projectConfiguredModel;
-      }
-      if (proj?.model_params_override?.[defModel]) {
-        const override = proj.model_params_override[defModel];
-        defTemp = (override.temperature as number) ?? defTemp;
-        defTopP = (override.top_p as number) ?? defTopP;
-      }
-
-      sessionParams.setSessionModel(defModel);
-      sessionParams.setSessionTemp(defTemp);
-      sessionParams.setSessionTopP(defTopP);
-
-      if (stateData && stateData.current_chapter > 1) {
-        const latestNum = stateData.current_chapter - 1;
-        try {
-          const content = await getChapterContent(auPath, latestNum);
-          if (loadGuard.isStale(token)) return;
-          setCurrentContent(typeof content === 'string' ? content : '');
-        } catch {
-          if (loadGuard.isStale(token)) return;
-          setCurrentContent(t('writer.contentLoadFailed'));
-        }
-      } else {
-        setCurrentContent('');
-      }
-
-      if (stateData) {
-        const loadedDrafts = await loadDraftsForChapter(stateData.current_chapter);
-        if (loadGuard.isStale(token)) return;
-        const storedSummaries = readSavedContextSummaries(auPath, stateData.current_chapter);
-        const activeLabels = new Set(loadedDrafts.map((draft) => draft.label));
-        const filteredSummaries = Object.entries(storedSummaries).reduce<Record<string, ContextSummary>>((accumulator, [label, summary]) => {
-          if (activeLabels.has(label)) {
-            accumulator[label] = summary;
-          }
-          return accumulator;
-        }, {});
-
-        setDrafts(loadedDrafts);
-        setActiveDraftIndex(loadedDrafts.length > 0 ? loadedDrafts.length - 1 : 0);
-        setRecoveryNotice(loadedDrafts.length > 0);
-        setLastGenerateRequest(readSavedGenerateRequest(auPath, stateData.current_chapter));
-        setInstructionText(readSavedInstructionText(auPath, stateData.current_chapter));
-        replaceDraftSummaries(stateData.current_chapter, filteredSummaries);
-        pendingContextSummaryRef.current = null;
-      } else {
-        clearDraftState();
-        setLastGenerateRequest(null);
-        setInstructionText('');
-        setProjectInfo(null);
-      }
-    } catch (error) {
-      if (loadGuard.isStale(token)) return;
-      showError(error, t('error_messages.unknown'));
-    } finally {
-      if (!loadGuard.isStale(token)) {
-        setLoading(false);
-      }
-    }
-  }, [auPath, loadDraftsForChapter, loadGuard, replaceDraftSummaries, showError, t]);
-
-  const refreshSettingsModeData = useCallback(async () => {
-    const token = refreshGuard.start();
-    try {
-      const [stateData, factsData, proj] = await Promise.all([
-        getState(auPath).catch(() => null),
-        listFacts(auPath, 'unresolved').catch(() => []),
-        getWriterProjectContext(auPath).catch(() => null),
-      ]);
-      if (refreshGuard.isStale(token)) return;
-
-      if (stateData) {
-        setState(stateData);
-        setFocusSelection(stateData.chapter_focus || []);
-      }
-      setProjectInfo(proj);
-      setUnresolvedFacts(factsData);
-    } catch (error) {
-      if (refreshGuard.isStale(token)) return;
-      showError(error, t('error_messages.unknown'));
-    }
-  }, [auPath, refreshGuard, showError, t]);
-
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
+  const { loadData, refreshSettingsModeData } = useWriterBootstrap<DraftItem>({
+    auPath,
+    loadGuard,
+    refreshGuard,
+    getConfiguredLlmModel: sessionParams.getConfiguredLlmModel,
+    setSessionModel: sessionParams.setSessionModel,
+    setSessionTemp: sessionParams.setSessionTemp,
+    setSessionTopP: sessionParams.setSessionTopP,
+    loadDraftsForChapter,
+    replaceDraftSummaries,
+    clearDraftState,
+    pendingContextSummaryRef,
+    showError,
+    t,
+    setLoading,
+    setState,
+    setProjectInfo,
+    setSettingsInfo,
+    setCurrentContent,
+    setUnresolvedFacts,
+    setFocusSelection,
+    setDrafts,
+    setActiveDraftIndex,
+    setRecoveryNotice,
+    setLastGenerateRequest,
+    setInstructionText,
+  });
 
   const handleGenerate = useCallback(async (request: GenerateRequestState) => {
     if (isGenerating || !state) return;
