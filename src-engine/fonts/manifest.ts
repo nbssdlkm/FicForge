@@ -11,6 +11,7 @@
  * warning —— 这是受控的"开发态"行为，生产环境必须填齐。
  */
 
+import { createFontsConfig } from "../domain/settings.js";
 import type { FontEntry } from "./types.js";
 
 /**
@@ -22,11 +23,6 @@ import type { FontEntry } from "./types.js";
  */
 export const SYSTEM_FONT_STACK =
   'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif';
-
-// 内部常量：默认字体 id。仅用于启动自检（validateManifest），不对外导出。
-// 外部调用方读默认值应走 `createFontsConfig()` —— 那是唯一对外真相源。
-const DEFAULT_LATIN_FONT_ID = "source-serif-4";
-const DEFAULT_CJK_FONT_ID = "lxgw-wenkai-screen";
 
 export const FONT_MANIFEST: readonly FontEntry[] = [
   // ── 内置字体（随包分发） ──────────────────────────
@@ -161,7 +157,17 @@ const SHA256_HEX_RE = /^[0-9a-f]{64}$/i;
       }
     }
   }
-  for (const defaultId of [DEFAULT_LATIN_FONT_ID, DEFAULT_CJK_FONT_ID]) {
+  // 默认字体 id 源自 createFontsConfig()（唯一真相源）—— 任何被默认指派的非 "system"
+  // 字体都必须是 builtin，否则用户首启就看不到默认字体。
+  const defaults = createFontsConfig();
+  const defaultIds = new Set([
+    defaults.ui_latin_font_id,
+    defaults.ui_cjk_font_id,
+    defaults.reading_latin_font_id,
+    defaults.reading_cjk_font_id,
+  ]);
+  for (const defaultId of defaultIds) {
+    if (defaultId === "system") continue; // 不是 manifest 条目
     const entry = FONT_MANIFEST.find((f) => f.id === defaultId);
     if (!entry) {
       throw new Error(`manifest.ts: DEFAULT font id "${defaultId}" not found in FONT_MANIFEST`);
