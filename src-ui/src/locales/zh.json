@@ -952,6 +952,7 @@
     "step2SkipThreshold": "AI回复少于 {{n}} 字 → 标记为跳过",
     "step2ThresholdHint": "默认值适合大多数情况。如果你的每章篇幅较短，可以把正文阈值调低。",
     "analyzing": "分析中...",
+    "llmDetectingChat": "AI 正在识别对话结构...",
     "analyzed": "分析完成",
     "waiting": "等待中",
     "chatDetected": "检测到AI对话格式（{{format}}）",

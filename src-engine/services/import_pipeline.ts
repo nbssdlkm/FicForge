@@ -29,6 +29,9 @@ import {
   classifyTurns,
   isJsonChatExport,
   parseChatExport,
+  validateChatFormat,
+  llmDetectChatStructure,
+  buildChatFormatFromSamples,
   type ChatTurn,
   type ClassifiedTurn,
   type ClassificationThresholds,
@@ -51,10 +54,14 @@ export type { SplitChapter } from "./chapter_splitter.js";
 // New API: Types
 // ---------------------------------------------------------------------------
 
+export type AnalysisStage = "llm-chat-detect";
+
 export interface AnalysisOptions {
   useAiAssist?: boolean;
   llmProvider?: import("../llm/provider.js").LLMProvider;
   thresholds?: ClassificationThresholds;
+  /** 阶段回调，用于 UI 显示当前在做什么（LLM 调用前触发）。 */
+  onStage?: (stage: AnalysisStage) => void;
 }
 
 export interface FileAnalysis {
@@ -164,7 +171,28 @@ export async function analyzeFile(
   }
 
   // 文本对话格式检测
-  const chatFormat = detectChatFormat(text);
+  let chatFormat = detectChatFormat(text);
+
+  // 规则失败 + AI 辅助开启 + 有 provider → 让 LLM 兜底识别对话结构
+  if (!chatFormat && options.useAiAssist && options.llmProvider) {
+    options.onStage?.("llm-chat-detect");
+    const llmResult = await llmDetectChatStructure(text, options.llmProvider);
+    if (llmResult.isChat && llmResult.userSample && llmResult.assistantSample) {
+      const candidate = buildChatFormatFromSamples(llmResult.userSample, llmResult.assistantSample);
+      // 二次验证：LLM 返回的 pattern 在全文必须各命中 ≥ 2 次（和规则路径对齐）
+      if (candidate && validateChatFormat(text, candidate)) {
+        chatFormat = candidate;
+      } else {
+        // LLM 声称是对话但给的 sample 构造/验证失败 → 多半是幻觉；降级到纯正文，warn 保留线索
+        console.warn("[import] LLM chat samples failed validation, falling back to text mode:", {
+          userSample: llmResult.userSample,
+          assistantSample: llmResult.assistantSample,
+          candidateNull: !candidate,
+        });
+      }
+    }
+  }
+
   if (chatFormat) {
     const turns = splitByRole(text, chatFormat);
     const classified = classifyTurns(turns, thresholds);

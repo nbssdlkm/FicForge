@@ -66,6 +66,7 @@ export { get_split_method, import_chapters, parse_html, split_into_chapters } fr
 // Import Pipeline v2 (new API)
 export type {
   AnalysisOptions,
+  AnalysisStage,
   ExecuteImportParams,
   FileAnalysis,
   ImportChapter,

@@ -952,6 +952,7 @@
     "step2SkipThreshold": "AI replies under {{n}} chars → mark as skip",
     "step2ThresholdHint": "Default values work for most cases. Lower the chapter threshold if your chapters are shorter.",
     "analyzing": "Analyzing...",
+    "llmDetectingChat": "AI is detecting chat structure...",
     "analyzed": "Analysis complete",
     "waiting": "Waiting",
     "chatDetected": "Detected AI chat format ({{format}})",

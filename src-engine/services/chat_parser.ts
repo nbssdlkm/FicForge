@@ -6,6 +6,8 @@
  * 支持 ChatGPT / DeepSeek / Chatbox / SillyTavern 等对话记录的解析。
  */
 
+import type { LLMProvider } from "../llm/provider.js";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -92,27 +94,138 @@ const KNOWN_CHAT_FORMATS: ChatFormatPattern[] = [
 // ---------------------------------------------------------------------------
 
 /**
+ * 验证 ChatFormatPattern 在文本中能匹配到足够多的轮次（user/assistant 各 ≥ 2）。
+ * 这是"文本是否构成对话"的唯一判据：detectChatFormat 和 LLM 兜底路径都复用此函数。
+ */
+export function validateChatFormat(content: string, format: ChatFormatPattern): boolean {
+  const userRe = new RegExp(format.userPattern.source, "gim");
+  const assistantRe = new RegExp(format.assistantPattern.source, "gim");
+  const userCount = (content.match(userRe) ?? []).length;
+  const assistantCount = (content.match(assistantRe) ?? []).length;
+  return userCount >= 2 && assistantCount >= 2;
+}
+
+/**
  * 检测文本是否为 AI 对话格式。
- * 每种模式的 user/assistant 标记各至少命中 2 次才认定。
- * 返回第一个命中的格式，全部不命中返回 null。
+ * 依次用 KNOWN_CHAT_FORMATS 的每个模式走 validateChatFormat 判据，返回首个命中，全部不命中返回 null。
  */
 export function detectChatFormat(content: string): ChatFormatPattern | null {
   if (!content || content.length < 10) return null;
-
   for (const fmt of KNOWN_CHAT_FORMATS) {
-    const userRe = new RegExp(fmt.userPattern.source, "gim");
-    const assistantRe = new RegExp(fmt.assistantPattern.source, "gim");
-    const userMatches = content.match(userRe);
-    const assistantMatches = content.match(assistantRe);
-    if (
-      userMatches && userMatches.length >= 2 &&
-      assistantMatches && assistantMatches.length >= 2
-    ) {
-      return fmt;
-    }
+    if (validateChatFormat(content, fmt)) return fmt;
   }
-
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// LLM-assisted chat structure detection (fallback when rules fail)
+// ---------------------------------------------------------------------------
+
+export interface LlmChatDetectResult {
+  isChat: boolean;
+  userSample: string | null;
+  assistantSample: string | null;
+}
+
+/**
+ * 用 LLM 判断文本是否为对话/问答记录，并返回每轮 user/assistant 行首的字面量样本。
+ * 规则检测（detectChatFormat）失败时的兜底。采样前 3000 字，pattern 识别足够。
+ * 调用失败、JSON 解析失败、非对话等情况统一返回 isChat=false。
+ */
+export async function llmDetectChatStructure(
+  content: string,
+  llmProvider: LLMProvider,
+): Promise<LlmChatDetectResult> {
+  const sample = content.slice(0, 3000);
+  // Few-shot prompt：对话 + 纯正文两个示例 → 弱模型也能稳定输出结构
+  const prompt = `判断以下文本是否为**人机对话或问答记录**（而非小说正文/普通文章）。
+
+如果是对话，请从原文中找出每轮 user（提问者/用户）和 assistant（回答者/AI）**行首的字面量标识**，要求：
+- 必须是原文中**逐字符出现**的字符串，含冒号、星号、Markdown heading 前缀等
+- 每轮 user 和每轮 assistant 各自有**稳定一致**的行首字面量；否则视为非对话
+
+示例 1（对话）：
+\`\`\`
+**Human:** 写第一章
+**Assistant:** [长回复]
+**Human:** 继续
+**Assistant:** [长回复]
+\`\`\`
+输出：{"isChat": true, "userSample": "**Human:**", "assistantSample": "**Assistant:**"}
+
+示例 2（纯正文）：
+\`\`\`
+第一章 黄昏
+落日斜挂天际...
+第二章 黎明
+晨光初现...
+\`\`\`
+输出：{"isChat": false, "userSample": null, "assistantSample": null}
+
+用 JSON 回答，只返回 JSON，不要多余文字或 markdown fence。格式：
+{"isChat": true 或 false, "userSample": "字面量或 null", "assistantSample": "字面量或 null"}
+
+文本：
+${sample}`;
+
+  try {
+    const response = await llmProvider.generate({
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0,
+      max_tokens: 200,
+      top_p: 1,
+    });
+    const result = extractJsonResult(response.content);
+    if (!result || !result.isChat || !result.userSample || !result.assistantSample) {
+      return { isChat: false, userSample: null, assistantSample: null };
+    }
+    return {
+      isChat: true,
+      userSample: String(result.userSample),
+      assistantSample: String(result.assistantSample),
+    };
+  } catch (err) {
+    // LLM 调用或 JSON 解析失败时降级为"非对话"，避免中断导入；warn 保留线索便于排查
+    console.warn("[import] llmDetectChatStructure failed, falling back to non-chat:", err);
+    return { isChat: false, userSample: null, assistantSample: null };
+  }
+}
+
+/**
+ * 从 LLM 响应中提取 JSON 对象。
+ * 宽容处理：markdown fence、前后多余文字（"好的，这是结果：{...}希望有帮助"）等常见 LLM 输出模式。
+ * 策略：剥离 fence 后取第一个 `{` 到最后一个 `}` 的子串 JSON.parse；失败返回 null。
+ */
+function extractJsonResult(raw: string): Partial<LlmChatDetectResult> | null {
+  const cleaned = raw.trim().replace(/```json\s*|```\s*/g, "");
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start === -1 || end <= start) return null;
+  try {
+    return JSON.parse(cleaned.slice(start, end + 1)) as Partial<LlmChatDetectResult>;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 用 LLM 返回的字面量样本构造 ChatFormatPattern。
+ * 两个 sample 相同/为空时返回 null（LLM 出错兜底）。
+ */
+export function buildChatFormatFromSamples(
+  userSample: string,
+  assistantSample: string,
+): ChatFormatPattern | null {
+  const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const uTrim = userSample.trim();
+  const aTrim = assistantSample.trim();
+  if (!uTrim || !aTrim || uTrim === aTrim) return null;
+
+  return {
+    name: "LLM Detected",
+    userPattern: new RegExp(`^${escape(uTrim)}\\s*`, "im"),
+    assistantPattern: new RegExp(`^${escape(aTrim)}\\s*`, "im"),
+  };
 }
 
 // ---------------------------------------------------------------------------

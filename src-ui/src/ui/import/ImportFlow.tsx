@@ -43,7 +43,7 @@ export function ImportFlow({
   const [step, setStep] = useState(0);
   const [files, setFiles] = useState<File[]>([]);
   const [analyses, setAnalyses] = useState<FileAnalysis[]>([]);
-  const [analysisStatus, setAnalysisStatus] = useState<Map<string, "waiting" | "analyzing" | "done" | "error">>(new Map());
+  const [analysisStatus, setAnalysisStatus] = useState<Map<string, "waiting" | "analyzing" | "llm-detecting-chat" | "done" | "error">>(new Map());
   const [analyzing, setAnalyzing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
@@ -82,7 +82,7 @@ export function ImportFlow({
   const handleFilesSelected = (selectedFiles: File[]) => {
     setFiles(selectedFiles);
     // Initialize analysis status
-    const status = new Map<string, "waiting" | "analyzing" | "done">();
+    const status = new Map<string, "waiting" | "analyzing" | "llm-detecting-chat" | "done" | "error">();
     for (const f of selectedFiles) status.set(f.name, "waiting");
     setAnalysisStatus(status);
     setAnalyses([]);
@@ -135,6 +135,16 @@ export function ImportFlow({
         const analysis = await analyzeImportFile(text, file.name, {
           useAiAssist: effectiveAiAssist,
           thresholds: { chapterMinChars: chapterThreshold, skipMaxChars: skipThreshold },
+          onStage: (stage) => {
+            if (requestId !== flowRequestIdRef.current) return;
+            if (stage === "llm-chat-detect") {
+              setAnalysisStatus((prev) => {
+                const next = new Map(prev);
+                next.set(file.name, "llm-detecting-chat");
+                return next;
+              });
+            }
+          },
         });
         if (requestId !== flowRequestIdRef.current) return;
 

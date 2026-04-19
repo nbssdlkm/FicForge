@@ -11,7 +11,7 @@ import type { FileAnalysis } from "../../api/engine-client";
 interface AnalysisStepProps {
   files: File[];
   analyses: FileAnalysis[];
-  analysisStatus: Map<string, "waiting" | "analyzing" | "done" | "error">;
+  analysisStatus: Map<string, "waiting" | "analyzing" | "llm-detecting-chat" | "done" | "error">;
   useAiAssist: boolean;
   chapterThreshold: number;
   skipThreshold: number;
@@ -53,7 +53,7 @@ export function AnalysisStep({
               <div className="flex items-center gap-2">
                 {status === "done" && <CheckCircle2 size={16} className="text-green-500" />}
                 {status === "error" && <XCircle size={16} className="text-error" />}
-                {status === "analyzing" && <Spinner size="md" className="text-accent" />}
+                {(status === "analyzing" || status === "llm-detecting-chat") && <Spinner size="md" className="text-accent" />}
                 {status === "waiting" && <Clock size={16} className="text-text/30" />}
                 <span className="text-sm font-medium text-text">{file.name}</span>
               </div>
@@ -79,6 +79,9 @@ export function AnalysisStep({
               )}
               {status === "analyzing" && (
                 <p className="mt-1 pl-6 text-xs text-accent">{t("import.analyzing")}</p>
+              )}
+              {status === "llm-detecting-chat" && (
+                <p className="mt-1 pl-6 text-xs text-accent">{t("import.llmDetectingChat")}</p>
               )}
             </div>
           );

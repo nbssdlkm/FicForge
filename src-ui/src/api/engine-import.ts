@@ -13,6 +13,7 @@ import type {
   NewImportResult,
   ImportProgress,
   AnalysisOptions,
+  AnalysisStage,
 } from "@ficforge/engine";
 
 import {
@@ -25,7 +26,7 @@ import {
 
 import { getEngine } from "./engine-instance";
 
-export type { FileAnalysis, ImportPlan, ImportConflictOptions, NewImportResult, ImportProgress, AnalysisOptions };
+export type { FileAnalysis, ImportPlan, ImportConflictOptions, NewImportResult, ImportProgress, AnalysisOptions, AnalysisStage };
 
 /**
  * 检测 AI 辅助当前是否可用。

@@ -48,19 +48,6 @@ Platform Adapter
 - 按钮文案统一去装饰前缀：`+` 号（6 个 i18n key）和 emoji（10 个 settingsMode.* key）全部移除，Plus icon 由组件渲染或去除。
 - 草稿按钮重组：`定稿` 从 3 处冗余改 1 处；`换一版` 与 `定稿` 紧邻 `指令` 按钮；移动端 `换一版` 改 icon-only（`title` + `aria-label`）。
 
-## 待接续（新对话处理）
-
-**旧文导入的对话识别太严 + AI 兜底实际未覆盖对话路径**
-
-- 症状：markdown 对话文件（如 `**Human:**`、"## Q"、"### You:"）被 `detectChatFormat` 返回 null，直接走 text 分支按字数切分；用户看不到 TurnCard 选 skip。
-- 根因：
-  - [`src-engine/services/chat_parser.ts:76-82`](src-engine/services/chat_parser.ts) `KNOWN_CHAT_FORMATS` 白名单太窄，行尾 `$` 锚过严，不支持 `**bold:**` 格式，命中门槛 user/assistant 各 ≥2。
-  - [`src-engine/services/import_pipeline.ts:167-172`](src-engine/services/import_pipeline.ts) AI 辅助只在 text 路径做章节切分；`detectChatFormat` 失败时**不调 LLM**。
-  - [`src-ui/src/api/engine-import.ts:50-55`](src-ui/src/api/engine-import.ts) LLM 配置无效时 `catch { useAiAssist = false }` 静默 fallback，用户无感知。
-- 修复分两波：
-  - **波 1（规则放宽 + 错误提示）**：去行尾 `$` 锚、扩角色名（`You/我/问/Q/答/A/对方`）、加 `**Human:**` 加粗 pattern；LLM 配置失败时 showError。
-  - **波 2（AI 真当对话兜底）**：`detectChatFormat` null 且 `useAiAssist` 开时调 `llmDetectChatStructure`（新函数）让 LLM 返回"是否对话 + 角色位置"，AnalysisStep 加进度反馈。
-
 ## 关键决策
 
 - **D-0034** 架构迁移为 TypeScript 统一核心引擎
