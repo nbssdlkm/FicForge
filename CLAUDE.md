@@ -39,6 +39,28 @@ Platform Adapter
 | M5 | 移动端 Capacitor/PWA、响应式 UI、ops 合并引擎、数据同步 | **已完成** |
 | M6 | Agent 架构（开关矩阵、Checker、导演细纲、任务模式、报警暂停） | 待开始 |
 
+## 活跃工作（当前分支）
+
+**`feat/rag-chunks-detail`**（未 push）
+
+- RAG 召回详情在 ContextSummaryBar 可展开查看（来源 Tag + 相似度 + 2 行预览 + 展开全文）。新增常量 `RAG_COLLECTIONS`、类型 `RagChunkDetail`、service `toRagChunkDetail`。detail 同步完成任务后删除本节。
+- UI 扁平化一轮：AuSettings 6 个 section 大框去除 / EmptyState 虚线框去 / SettingsChatPanel compact 外框去 / ChapterArrangeStep 两层嵌套框去。原则：靠 `<h2>` 左竖条 + 留白分组，功能性卡片（list item、modal input、tab pill）保留。
+- 按钮文案统一去装饰前缀：`+` 号（6 个 i18n key）和 emoji（10 个 settingsMode.* key）全部移除，Plus icon 由组件渲染或去除。
+- 草稿按钮重组：`定稿` 从 3 处冗余改 1 处；`换一版` 与 `定稿` 紧邻 `指令` 按钮；移动端 `换一版` 改 icon-only（`title` + `aria-label`）。
+
+## 待接续（新对话处理）
+
+**旧文导入的对话识别太严 + AI 兜底实际未覆盖对话路径**
+
+- 症状：markdown 对话文件（如 `**Human:**`、"## Q"、"### You:"）被 `detectChatFormat` 返回 null，直接走 text 分支按字数切分；用户看不到 TurnCard 选 skip。
+- 根因：
+  - [`src-engine/services/chat_parser.ts:76-82`](src-engine/services/chat_parser.ts) `KNOWN_CHAT_FORMATS` 白名单太窄，行尾 `$` 锚过严，不支持 `**bold:**` 格式，命中门槛 user/assistant 各 ≥2。
+  - [`src-engine/services/import_pipeline.ts:167-172`](src-engine/services/import_pipeline.ts) AI 辅助只在 text 路径做章节切分；`detectChatFormat` 失败时**不调 LLM**。
+  - [`src-ui/src/api/engine-import.ts:50-55`](src-ui/src/api/engine-import.ts) LLM 配置无效时 `catch { useAiAssist = false }` 静默 fallback，用户无感知。
+- 修复分两波：
+  - **波 1（规则放宽 + 错误提示）**：去行尾 `$` 锚、扩角色名（`You/我/问/Q/答/A/对方`）、加 `**Human:**` 加粗 pattern；LLM 配置失败时 showError。
+  - **波 2（AI 真当对话兜底）**：`detectChatFormat` null 且 `useAiAssist` 开时调 `llmDetectChatStructure`（新函数）让 LLM 返回"是否对话 + 角色位置"，AnalysisStep 加进度反馈。
+
 ## 关键决策
 
 - **D-0034** 架构迁移为 TypeScript 统一核心引擎
@@ -107,6 +129,61 @@ Platform Adapter
 
 ### 分支规则
 - 在人工指定的分支上工作，不自行创建或切换分支
+
+---
+
+## 工作原则
+
+### 质量优先于省力
+
+**不找"最省力方法"**。写代码 / 修 bug 时：
+
+- **功能实现完整**：不为省时间跳过功能边界 —— 迁移、错误处理、边界条件、回滚、并发防护，都算功能的一部分。
+- **少代码冗余**：同一字面量 / 同一判据逻辑不允许两处手工维护；**建立单一真相源**，其他地方 import 使用。
+- **健壮性**：错误路径要处理（rollback / 降级 / warn）；并发路径要有锁或快照保护；状态变更要考虑"半成功"场景。
+- **可维护性**：模块职责单一；命名反映语义；注释写"为什么"不是"怎么做"；新增字段要 trace 到完整数据链的每一环。
+- **可拓展性**：接口留扩展点。例子：新增字体只改 manifest.ts 数据，不改 downloader / registry / service 代码。
+
+### 单一真相源（示例）
+
+```
+默认值：engine 的 createXxxConfig() 一处定义，UI 层 import 使用
+判据函数：UI / engine 共用同一个公共函数（如 scriptSlotOf）
+枚举/清单：FONT_MANIFEST 一处声明，全项目 grep 只能找到这一个定义
+```
+
+---
+
+## 查 Bug 的方法论
+
+### 端到端 trace 数据流（强制）
+
+**教训**：单文件 self-review 多轮也发现不了结构性 bug。
+
+真实案例（2026-04 字体系统 Phase 7 才发现）：`dictToAppConfig` 完全漏接 `app.fonts` 字段 → Phase 4 以来**字体偏好从未跨会话持久化**（靠 localStorage 兜底掩盖了）。5+ 轮单文件自检都没发现，直到顺着"UI write → yaml.dump → yaml.load → dict-to-domain → UI read"完整走了一遍才看见。
+
+### 查 bug 的流程
+
+1. **画完整数据链**：用户操作 → state → localStorage → engine settings → yaml.dump → WebDAV sync → yaml.load → dict-to-domain → 回到 UI。**每一环都必须有对应代码**。
+2. **每个环节验证有测试** —— 没测试的环节就是风险点。
+3. **特别检查写入路径和读取路径的对称性**：有写必有读，有 save 必有 load（round-trip test 证明闭环）。
+4. **新增字段 / 新增 config 时**：主动 grep 到 dict-to-domain 映射函数、序列化函数、所有 copy/clone 点，确认新字段都被处理。**不要只依赖 TypeScript 静态类型 —— 它不检查 yaml 字典到 domain 对象的转换**。
+
+### 容易忽视的 bug 模式
+
+- **stale closure**：React setter 依赖其他 state 时，用 ref 缓存最新值 / 函数式 setState，不依赖闭包值。
+- **嵌套对象浅合并**：`{ ...current, nested: newNested }` 会整体替换 `nested`，不是深合并。要么传完整对象，要么写递归深合并。
+- **Silent fallback**：`??` / `||` / `catch () => {}` 的回退路径会掩盖 bug。写代码时问自己"fallback 实际何时触发？触发时表现正确吗？"
+- **死代码里的 typo**：fallback 永不触发的话，里面的 typo 会潜伏 —— 谁知道哪天条件变了就炸。
+- **双处手工同步的字面量**：同一常量出现在两个文件里 = 冗余 + 随时间漂移的 bug 源。
+- **新字段被沉默丢弃**：加 `interface FooConfig` 新字段 → `createFooConfig` 有了默认 → 但 `dictToFooConfig`（YAML / JSON 的映射函数）没处理 → 持久化断链。
+
+### 审查节奏
+
+- **只看自己新写的代码 → 容易漏结构性 bug**
+- 要主动 trace 到**原有代码**里看是否有新字段 / 新类型未被处理
+- "它能 build + 测试绿" ≠ "它 works"。**跑 dev server / preview 亲眼看一遍**，尤其是跨会话 / 跨设备的持久化路径。
+- **测试的真正价值是 round-trip 闭环证明**，不是单元逻辑覆盖。
 
 ---
 
