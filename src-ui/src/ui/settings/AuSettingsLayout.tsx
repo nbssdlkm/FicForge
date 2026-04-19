@@ -23,6 +23,7 @@ import { useFeedback } from '../../hooks/useFeedback';
 import { AuSettingsWritingSection } from './AuSettingsWritingSection';
 import { AuSettingsPinnedSection } from './AuSettingsPinnedSection';
 import { AuSettingsAdvancedSection } from './AuSettingsAdvancedSection';
+import { SecretStorageNotice } from '../shared/SecretStorageNotice';
 import {
   buildAuSettingsSaveInput,
   createDefaultAuSettingsFormState,
@@ -233,6 +234,8 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
               <Save size={16}/> {saving ? t("common.status.saving") : t("common.actions.save")}
             </Button>
           </header>
+
+          <SecretStorageNotice auPath={auPath} />
 
           {/* 1. 模型与 API 配置 */}
           <section className="space-y-4">

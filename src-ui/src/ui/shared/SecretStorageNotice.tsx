@@ -10,13 +10,15 @@ export function SecretStorageNotice({
   enabled = true,
   compact = false,
   className,
+  auPath,
 }: {
   enabled?: boolean;
   compact?: boolean;
   className?: string;
+  auPath?: string;
 }) {
   const { t } = useTranslation();
-  const capabilities = useSecretStorageCapabilities(enabled);
+  const capabilities = useSecretStorageCapabilities({ enabled, auPath });
 
   if (!capabilities) return null;
 
