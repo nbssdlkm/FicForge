@@ -172,3 +172,83 @@ onboarding 后 RAG 索引永远失败（createEmbeddingProvider 返回 undefined
   且 `proj.llm.mode === "api"`，显示一次性提示"API Key 在恢复时已清除，请重新填写"。
 
 本设计（立即清理 secure storage）有意为之，不改；只需 UX 提示更友好。
+
+---
+
+## TD-009: `updateSettings` 并发 race（read-modify-write 无锁）
+
+**状态:** 待修复（2026-04 字体系统 Phase 7 审查发现）
+**优先级:** 低（UI 操作下极难触发，但对所有 settings 写入都构成隐患）
+**涉及文件:** `src-ui/src/api/engine-settings.ts`
+
+`updateSettings(updates)` 的实现是 `const current = await settings.get(); ...合并...; await settings.save(current);` 典型的无锁 read-modify-write。两个并发调用交错时发生经典 race：
+
+```
+调用 A: get() → 拿到 old
+调用 B: get() → 拿到 old
+调用 A: save(old + A 的改动)
+调用 B: save(old + B 的改动)  ← 覆盖 A 的改动
+```
+
+**字体场景**：用户在同一渲染帧（1/60 秒）内连续切两个字体下拉 → 两个 setter 各自触发 `persist` → 两个并发 `updateSettings` → settings.yaml 丢失其中一次改动。localStorage 是同步写入不受影响，本地显示正确；只是跨设备同步到其他设备时那个字段停留在旧值。`<select>` 的 onChange 是阻塞事件，正常 UI 操作极难达到这个时序。
+
+**修复方向:**
+
+- 方案 A: `updateSettings` 内部维护一个串行队列（Promise chain mutex），所有调用按顺序执行。~10 行
+- 方案 B: settings.yaml 引入 version / etag 做乐观并发控制，冲突重试。工作量大但最严谨
+- 方案 C: 调用方自行保证不并发（当前事实状态）
+
+**关联:** 字体 `useFontSelection.persist` 已通过传完整 4 字段快照规避了"丢字段"的衍生后果，真正触发时也只是"两次改动只落地一次"。TD-010 同属 engine-settings 层，建议同轮修。
+
+---
+
+## TD-010: `updateSettings` 嵌套对象浅合并
+
+**状态:** 待修复（2026-04 字体系统 Phase 7 审查发现）
+**优先级:** 低（现有代码未踩坑，对未来新增写入点构成隐患）
+**涉及文件:** `src-ui/src/api/engine-settings.ts`
+
+`updateSettings` 的合并逻辑只在**顶层 key** 做 spread 浅合并：
+
+```ts
+currentRec[key] = { ...(currentRec[key]), ...val };
+```
+
+对 `{ app: { fonts: { ui_latin_font_id: "X" } } }` 这种**第二层嵌套对象**，`app.fonts` 会被新值整体替换，丢失其他 3 个 font id。
+
+**字体现状**：`useFontSelection.persist` 总是传完整 4 字段快照规避了这个坑，唯一写入点安全。代码内已加注释警告。
+
+**未来风险**：任何新增的 `updateSettings({ app: { fonts: { 部分字段 } } })` 调用都会踩坑。其他嵌套字段（`sync.webdav`、`chapter_metadata_display.fields` 等）理论上也有同样风险。
+
+**修复方向:**
+
+- 方案 A: `updateSettings` 改递归深合并（需评估现有语义依赖 ——例如 `sync.webdav = undefined` 的整体清除语义是否被使用）
+- 方案 B: 为字体增加 `updateFontSettings(partial)` 专用 API，不走通用 `updateSettings`
+- 方案 C: 保持现状，靠注释 + code review 防护
+
+**关联:** TD-009 同在 engine-settings 层，建议在"settings 写入重构"批次里一并解决。
+
+---
+
+## TD-011: 字体下载进度跨 Modal 生命周期丢失
+
+**状态:** 待修复（2026-04 字体系统 Phase 6 审查发现）
+**优先级:** 低（不影响功能，仅影响 Modal 重开瞬间的视觉反馈）
+**涉及文件:** `src-engine/fonts/service.ts`, `src-ui/src/hooks/useFontManager.ts`
+
+`useFontManager` 的 `progresses` 是组件级 React state。Modal 关闭 → `FontSettingsSection` unmount → hook 销毁 → `progresses` 丢失。
+
+**场景**：用户点"下载"一个大字体（思源宋体 14MB / 原版霞鹜文楷 11.9MB）→ 下载期间关 Modal 去做别的事 → 几秒后重新打开 Modal。
+
+- `FontsService` 单例仍在后台下载（pendingDownloads 持有 AbortController），不受 Modal 生命周期影响
+- 新 `useFontManager` 的 `refresh()` 查 `service.statusOf` 返回 `"downloading"`
+- UI 显示"取消"按钮，但**进度条不可见**（`progresses[id]` 是 undefined）
+- 下载完成后 `status` 会自动切到 `"installed"`，不影响最终结果
+
+**修复方向:**
+
+1. `FontsService` 内部维护 `progressesMap: Map<id, { loaded; total }>`，在 `install` 的 `onProgress` 钩子里更新
+2. 暴露 `service.currentProgresses(): Record<id, Progress>` 查询方法
+3. `useFontManager` 在 mount 时调一次拉取初始值；install 过程中继续通过 onProgress 更新自身 state
+
+工作量约 20-30 行。独立且低风险，可随时单独修。
