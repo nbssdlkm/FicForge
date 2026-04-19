@@ -252,3 +252,25 @@ currentRec[key] = { ...(currentRec[key]), ...val };
 3. `useFontManager` 在 mount 时调一次拉取初始值；install 过程中继续通过 onProgress 更新自身 state
 
 工作量约 20-30 行。独立且低风险，可随时单独修。
+
+---
+
+## TD-012: LLM `api_base` 硬编码 /v1 导致非标准 endpoint 连不上
+
+**状态:** 已修复（2026-04-19，commit `591a1bc`）
+**修复方式:** 移除 engine 层所有 URL 拼接里的 /v1 前缀，改为"用户在 `api_base` 里自己填写完整路径（含 /v1 或目标服务实际的 OpenAI 兼容前缀）"约定；UI 默认值 + 提示文案 + 文档同步更新。
+
+**原问题:** `api_base` 原先约定"用户填裸 host（如 `https://api.deepseek.com`），代码自动拼 `/v1/chat/completions` / `/v1/embeddings`"。但许多代理 / 聚合服务（OpenRouter、自建 OpenAI 网关等）的兼容层不一定在 /v1 下 —— 可能是 `/openai/v1/`、`/api/v1/`、甚至无 /v1。硬编码的 `/v1` 会把路径拼错，请求直接 404 或连接失败，用户在 UI 里无法定位原因。
+
+**涉及文件（已修复）:**
+
+- `src-engine/llm/openai_compatible.ts`: `/v1/chat/completions` → `/chat/completions`（两个调用点：`generateStream` + `requestWithRetry`）
+- `src-engine/llm/embedding_provider.ts`: `/v1/embeddings` → `/embeddings`
+- `src-engine/llm/config_resolver.ts`: Ollama 模式不再自动补 /v1；`api_base` 原样透传给 provider
+- `src-ui/src/api/engine-settings.ts`: `testConnection` 的 Ollama 分支走原生 `/api/tags` 端点（不在 OpenAI 兼容层下），从 `api_base` strip 掉尾部 /v1 后再拼
+- UI: `MobileOnboarding` / `ApiConfigStep` / `ApiSetupHelp` / `ModelSelector` 默认值 + 提示文案改为含 /v1 的完整路径
+- 删除了过时的"自动补 /v1"单元测试
+
+**经验教训（沉淀到 CLAUDE.md 工作原则）:**
+
+对外可配置的 URL 字段**不应在代码里硬编码路径前缀**。`api_base` 这类约定应让用户填"会被直接用的完整前缀"，避免"我以为只填 host，结果被自动补了 /v1"的误解 —— 尤其代理 / 聚合服务生态复杂，任何"自动补 X"都是未来坑的预埋。
