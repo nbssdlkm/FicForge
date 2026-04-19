@@ -18,6 +18,7 @@ import { type DraftItem, useWriterDraftController } from './useWriterDraftContro
 import { useWriterFocusController } from './useWriterFocusController';
 import { useWriterInstructionInput } from './useWriterInstructionInput';
 import { useWriterModeController } from './useWriterModeController';
+import { deriveWriterDisplayState } from './writerDisplayState';
 import { Button } from '../shared/Button';
 import { Modal } from '../shared/Modal';
 import { ExportModal } from './ExportModal';
@@ -44,14 +45,6 @@ import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
-
-type ContextLayer = {
-  key: string;
-  label: string;
-  percent: number;
-  tokens: number;
-  color: string;
-};
 
 
 // GenerateRequestState imported from utils/writerStorage
@@ -81,7 +74,7 @@ function createDraftItem(
 
 // localStorage helpers 已抽取至 utils/writerStorage.ts
 
-function formatGeneratedMeta(generatedWith?: DraftGeneratedWith | null, locale = 'zh-CN'): string {
+export function formatGeneratedMeta(generatedWith?: DraftGeneratedWith | null, locale = 'zh-CN'): string {
   if (!generatedWith) return '';
 
   const parts: string[] = [];
@@ -106,7 +99,7 @@ function formatGeneratedMeta(generatedWith?: DraftGeneratedWith | null, locale =
   return parts.join(' · ');
 }
 
-function getPreviewText(content: string, maxChars = 200): string {
+export function getPreviewText(content: string, maxChars = 200): string {
   const normalized = content.replace(/\s+/g, ' ').trim();
   if (normalized.length <= maxChars) return normalized;
   return `${normalized.slice(0, maxChars)}…`;
@@ -572,16 +565,40 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     t,
   });
 
-  const currentChapter = state?.current_chapter || 1;
-  const hasPendingDrafts = drafts.length > 0;
-  const writeActionsDisabled = isGenerating || isFinalizing || isDiscarding || isSettingsModeBusy;
-  const currentDraft = drafts[activeDraftIndex] || null;
   const settingsSessionLlm = sessionParams.sessionLlmPayload;
-  const fandomPathParts = auPath.split('/aus/');
-  const settingsFandomPath = fandomPathParts.length >= 2 ? fandomPathParts[0] : auPath;
-  const currentDraftSummary = !isGenerating && currentDraft ? draftSummaries[currentDraft.label] || null : null;
-  const activeGeneratedWith = currentDraft?.generatedWith || generatedWith;
-  const fallbackDisplayContent = streamText || currentDraft?.content || currentContent;
+  const {
+    currentChapter,
+    hasPendingDrafts,
+    writeActionsDisabled,
+    currentDraft,
+    settingsFandomPath,
+    currentDraftSummary,
+    fallbackDisplayContent,
+    metaModel,
+    metaChars,
+    metaDuration,
+    currentDraftMeta,
+    previewText,
+    layerSum,
+    contextLayers,
+  } = deriveWriterDisplayState({
+    auPath,
+    state,
+    drafts,
+    activeDraftIndex,
+    draftSummaries,
+    isGenerating,
+    isFinalizing,
+    isDiscarding,
+    isSettingsModeBusy,
+    currentContent,
+    streamText,
+    generatedWith,
+    budgetReport,
+    sessionModel: sessionParams.sessionModel,
+    locale: i18n.resolvedLanguage === 'en' ? 'en-US' : 'zh-CN',
+    t,
+  });
   const {
     viewingHistoryContent,
     viewingHistoryNum,
@@ -608,26 +625,31 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     t,
   });
   const displayContent = isViewingHistory ? (viewingHistoryContent || '') : fallbackDisplayContent;
-  const metaModel = activeGeneratedWith?.model || sessionParams.sessionModel;
-  const metaChars = activeGeneratedWith?.char_count || displayContent.length;
-  const metaDuration = activeGeneratedWith?.duration_ms
-    ? `${(activeGeneratedWith.duration_ms / 1000).toFixed(1)}s`
-    : t('writer.metaDurationUnknown');
-  const currentDraftMeta = formatGeneratedMeta(
-    currentDraft?.generatedWith,
-    i18n.resolvedLanguage === 'en' ? 'en-US' : 'zh-CN'
-  );
-  const previewText = currentDraft ? getPreviewText(currentDraft.content) : '';
-
-  const _layerSum = budgetReport ? (budgetReport.system_tokens || 0) + (budgetReport.p1_tokens || 0) + (budgetReport.p2_tokens || 0) + (budgetReport.p3_tokens || 0) + (budgetReport.p4_tokens || 0) + (budgetReport.p5_tokens || 0) : 1;
-  const _pct = (tokens: number | undefined) => budgetReport && tokens ? Math.max(1, Math.round((tokens / (_layerSum || 1)) * 100)) : 0;
-  const contextLayers: ContextLayer[] = budgetReport ? [
-    { key: 'pinned', label: t('writer.memoryLayer.pinned'), percent: _pct(budgetReport.system_tokens), tokens: budgetReport.system_tokens || 0, color: 'bg-error/70' },
-    ...((budgetReport.p2_tokens || 0) > 0 ? [{ key: 'recent', label: t('writer.memoryLayer.recentChapter'), percent: _pct(budgetReport.p2_tokens), tokens: budgetReport.p2_tokens || 0, color: 'bg-info/70' }] : []),
-    ...((budgetReport.p3_tokens || 0) > 0 ? [{ key: 'facts', label: t('writer.memoryLayer.facts'), percent: _pct(budgetReport.p3_tokens), tokens: budgetReport.p3_tokens || 0, color: 'bg-accent/70' }] : []),
-    ...((budgetReport.p4_tokens || 0) > 0 ? [{ key: 'rag', label: t('writer.memoryLayer.rag'), percent: _pct(budgetReport.p4_tokens), tokens: budgetReport.p4_tokens || 0, color: 'bg-success/70' }] : []),
-    ...((budgetReport.p5_tokens || 0) > 0 ? [{ key: 'settings', label: t('writer.memoryLayer.characterSettings'), percent: _pct(budgetReport.p5_tokens), tokens: budgetReport.p5_tokens || 0, color: 'bg-warning/70' }] : []),
-  ] : [];
+  const sharedSidePanelProps = {
+    mode,
+    unresolvedFacts,
+    focusSelection,
+    onFocusToggle: handleFocusToggle,
+    onClearFocus: handleClearFocus,
+    onContinueLastFocus: handleContinueLastFocus,
+    lastConfirmedFocus: state?.last_confirmed_chapter_focus || [],
+    budgetReport,
+    contextLayers,
+    layerSum,
+    sessionModel: sessionParams.sessionModel,
+    onModelChange: sessionParams.setSessionModel,
+    sessionTemp: sessionParams.sessionTemp,
+    onTempChange: sessionParams.setSessionTemp,
+    sessionTopP: sessionParams.sessionTopP,
+    onTopPChange: sessionParams.setSessionTopP,
+    onSaveGlobal: sessionParams.handleSaveGlobalParams,
+    onSaveAu: sessionParams.handleSaveAuParams,
+    fontSize,
+    onFontSizeChange: setFontSize,
+    lineHeight,
+    onLineHeightChange: setLineHeight,
+    onNavigate,
+  };
 
   return (
     <>
@@ -784,29 +806,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       <Sidebar position="right" width="320px" isCollapsed={rightCollapsed} onToggle={() => setRightCollapsed(!rightCollapsed)} className="hidden flex-col bg-surface/50 border-l border-black/10 dark:border-white/10 md:flex">
         <WriterSidePanelContent
           isMobile={false}
-          mode={mode}
-          unresolvedFacts={unresolvedFacts}
-          focusSelection={focusSelection}
-          onFocusToggle={handleFocusToggle}
-          onClearFocus={handleClearFocus}
-          onContinueLastFocus={handleContinueLastFocus}
-          lastConfirmedFocus={state?.last_confirmed_chapter_focus || []}
-          budgetReport={budgetReport}
-          contextLayers={contextLayers}
-          layerSum={_layerSum}
-          sessionModel={sessionParams.sessionModel}
-          onModelChange={sessionParams.setSessionModel}
-          sessionTemp={sessionParams.sessionTemp}
-          onTempChange={sessionParams.setSessionTemp}
-          sessionTopP={sessionParams.sessionTopP}
-          onTopPChange={sessionParams.setSessionTopP}
-          onSaveGlobal={sessionParams.handleSaveGlobalParams}
-          onSaveAu={sessionParams.handleSaveAuParams}
-          fontSize={fontSize}
-          onFontSizeChange={setFontSize}
-          lineHeight={lineHeight}
-          onLineHeightChange={setLineHeight}
-          onNavigate={onNavigate}
+          {...sharedSidePanelProps}
         />
       </Sidebar>
 
@@ -818,29 +818,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
           onExportClick={() => { setMobileToolsOpen(false); setExportOpen(true); }}
           currentChapter={currentChapter}
           writeActionsDisabled={writeActionsDisabled}
-          mode={mode}
-          unresolvedFacts={unresolvedFacts}
-          focusSelection={focusSelection}
-          onFocusToggle={handleFocusToggle}
-          onClearFocus={handleClearFocus}
-          onContinueLastFocus={handleContinueLastFocus}
-          lastConfirmedFocus={state?.last_confirmed_chapter_focus || []}
-          budgetReport={budgetReport}
-          contextLayers={contextLayers}
-          layerSum={_layerSum}
-          sessionModel={sessionParams.sessionModel}
-          onModelChange={sessionParams.setSessionModel}
-          sessionTemp={sessionParams.sessionTemp}
-          onTempChange={sessionParams.setSessionTemp}
-          sessionTopP={sessionParams.sessionTopP}
-          onTopPChange={sessionParams.setSessionTopP}
-          onSaveGlobal={sessionParams.handleSaveGlobalParams}
-          onSaveAu={sessionParams.handleSaveAuParams}
-          fontSize={fontSize}
-          onFontSizeChange={setFontSize}
-          lineHeight={lineHeight}
-          onLineHeightChange={setLineHeight}
-          onNavigate={onNavigate}
+          {...sharedSidePanelProps}
         />
       </Modal>
 
