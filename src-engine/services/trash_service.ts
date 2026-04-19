@@ -36,6 +36,66 @@ export class TrashService {
     private retentionDays = 30,
   ) {}
 
+  async move_tree_to_trash(
+    scopeRoot: string,
+    relativePath: string,
+    entityType: string,
+    entityName: string,
+  ): Promise<TrashEntry> {
+    if (relativePath.includes("..") || relativePath.startsWith("/")) {
+      throw new Error(`非法路径: ${relativePath}`);
+    }
+
+    const sourceRoot = joinPath(scopeRoot, relativePath);
+    if (!(await this.adapter.exists(sourceRoot))) {
+      throw new Error(`源不存在: ${sourceRoot}`);
+    }
+
+    const files = await this.collectTreeFiles(sourceRoot);
+    const ts = Math.floor(Date.now() / 1000);
+    const shortId = crypto.randomUUID().slice(0, 4);
+    const trashId = `tr_${ts}_${shortId}`;
+    const trashRel = `${relativePath}_${ts}`;
+    const trashRoot = joinPath(scopeRoot, ".trash", trashRel);
+    const copiedFiles: Array<{ source: string; trash: string }> = [];
+
+    try {
+      for (const fileRel of files) {
+        const source = joinPath(sourceRoot, fileRel);
+        const trashTarget = joinPath(trashRoot, fileRel);
+        await this.copyTextFile(source, trashTarget);
+        copiedFiles.push({ source, trash: trashTarget });
+      }
+
+      for (const { source } of copiedFiles) {
+        await this.adapter.deleteFile(source);
+      }
+
+      const now = new Date();
+      const expires = new Date(now.getTime() + this.retentionDays * 86400000);
+      const entry: TrashEntry = {
+        trash_id: trashId,
+        original_path: relativePath,
+        trash_path: trashRel,
+        entity_type: entityType,
+        entity_name: entityName,
+        deleted_at: now.toISOString().replace(/\.\d{3}Z$/, "Z"),
+        expires_at: expires.toISOString().replace(/\.\d{3}Z$/, "Z"),
+        metadata: {
+          is_directory: true,
+          file_count: files.length,
+        },
+      };
+
+      await this.appendManifest(scopeRoot, entry);
+      return entry;
+    } catch (error) {
+      await this.restoreCopiedTree(copiedFiles);
+      await this.deleteCopiedTree(copiedFiles.map((item) => item.trash));
+      throw error;
+    }
+  }
+
   async move_to_trash(
     scopeRoot: string,
     relativePath: string,
@@ -124,11 +184,15 @@ export class TrashService {
   async restore(scopeRoot: string, trashId: string): Promise<TrashEntry> {
     const entries = await this.readManifest(scopeRoot);
     const targetEntry = entries.find((e) => e.trash_id === trashId);
-    if (!targetEntry) throw new Error(`垃圾箱条目不存在: ${trashId}`);
+    if (!targetEntry) throw new Error(`垃圾箱项不存在: ${trashId}`);
+
+    if (this.isDirectoryEntry(targetEntry)) {
+      return this.restoreDirectoryEntry(scopeRoot, targetEntry);
+    }
 
     const originalDest = joinPath(scopeRoot, targetEntry.original_path);
     if (await this.adapter.exists(originalDest)) {
-      throw new Error(`原路径已存在文件，无法恢复: ${targetEntry.original_path}`);
+      throw new Error(`无法恢复，原路径已存在: ${targetEntry.original_path}`);
     }
 
     const trashSource = joinPath(scopeRoot, ".trash", targetEntry.trash_path);
@@ -137,7 +201,7 @@ export class TrashService {
       throw new Error(`垃圾箱中的文件已丢失: ${targetEntry.trash_path}`);
     }
 
-    // 恢复（read + write + delete）
+    // 兼容 adapter：使用 read + write + delete 实现“移动”
     const content = await this.adapter.readFile(trashSource);
     const dir = originalDest.substring(0, originalDest.lastIndexOf("/"));
     await this.adapter.mkdir(dir);
@@ -157,7 +221,15 @@ export class TrashService {
   async permanent_delete(scopeRoot: string, trashId: string): Promise<TrashEntry> {
     const entries = await this.readManifest(scopeRoot);
     const targetEntry = entries.find((e) => e.trash_id === trashId);
-    if (!targetEntry) throw new Error(`垃圾箱条目不存在: ${trashId}`);
+    if (!targetEntry) throw new Error(`垃圾箱项不存在: ${trashId}`);
+
+    if (this.isDirectoryEntry(targetEntry)) {
+      const trashRoot = joinPath(scopeRoot, ".trash", targetEntry.trash_path);
+      const files = await this.collectTreeFiles(trashRoot);
+      await this.deleteCopiedTree(files.map((fileRel) => joinPath(trashRoot, fileRel)));
+      await this.removeFromManifest(scopeRoot, trashId);
+      return targetEntry;
+    }
 
     const trashSource = joinPath(scopeRoot, ".trash", targetEntry.trash_path);
     if (await this.adapter.exists(trashSource)) {
@@ -186,9 +258,15 @@ export class TrashService {
       }
 
       if (shouldPurge) {
-        const trashSource = joinPath(scopeRoot, ".trash", entry.trash_path);
-        if (await this.adapter.exists(trashSource)) {
-          await this.adapter.deleteFile(trashSource);
+        if (this.isDirectoryEntry(entry)) {
+          const trashRoot = joinPath(scopeRoot, ".trash", entry.trash_path);
+          const files = await this.collectTreeFiles(trashRoot);
+          await this.deleteCopiedTree(files.map((fileRel) => joinPath(trashRoot, fileRel)));
+        } else {
+          const trashSource = joinPath(scopeRoot, ".trash", entry.trash_path);
+          if (await this.adapter.exists(trashSource)) {
+            await this.adapter.deleteFile(trashSource);
+          }
         }
         purged.push(entry);
       }
@@ -256,6 +334,107 @@ export class TrashService {
     const entries = await this.readManifest(scopeRoot);
     const remaining = entries.filter((e) => e.trash_id !== trashId);
     await this.writeManifest(scopeRoot, remaining);
+  }
+
+  private isDirectoryEntry(entry: TrashEntry): boolean {
+    return entry.metadata?.is_directory === true;
+  }
+
+  private async restoreDirectoryEntry(scopeRoot: string, entry: TrashEntry): Promise<TrashEntry> {
+    const trashRoot = joinPath(scopeRoot, ".trash", entry.trash_path);
+    if (!(await this.adapter.exists(trashRoot))) {
+      await this.removeFromManifest(scopeRoot, entry.trash_id);
+      throw new Error(`垃圾箱中的文件已丢失: ${entry.trash_path}`);
+    }
+
+    const files = await this.collectTreeFiles(trashRoot);
+    for (const fileRel of files) {
+      const originalDest = joinPath(scopeRoot, entry.original_path, fileRel);
+      if (await this.adapter.exists(originalDest)) {
+        throw new Error(`restore conflict: ${entry.original_path}/${fileRel}`);
+      }
+    }
+
+    for (const fileRel of files) {
+      const trashSource = joinPath(trashRoot, fileRel);
+      const originalDest = joinPath(scopeRoot, entry.original_path, fileRel);
+      await this.copyTextFile(trashSource, originalDest);
+    }
+
+    await this.deleteCopiedTree(files.map((fileRel) => joinPath(trashRoot, fileRel)));
+    await this.removeFromManifest(scopeRoot, entry.trash_id);
+    return entry;
+  }
+
+  private async collectTreeFiles(rootPath: string, relativePrefix = ""): Promise<string[]> {
+    const currentPath = relativePrefix ? joinPath(rootPath, relativePrefix) : rootPath;
+    let entries: string[] = [];
+    try {
+      entries = await this.adapter.listDir(currentPath);
+    } catch {
+      return [];
+    }
+
+    const files: string[] = [];
+    for (const entry of entries) {
+      const relativePath = relativePrefix ? `${relativePrefix}/${entry}` : entry;
+      const candidatePath = joinPath(rootPath, relativePath);
+      let childEntries: string[] | null = null;
+      try {
+        childEntries = await this.adapter.listDir(candidatePath);
+      } catch {
+        childEntries = null;
+      }
+
+      if (childEntries && childEntries.length > 0) {
+        files.push(...await this.collectTreeFiles(rootPath, relativePath));
+        continue;
+      }
+
+      if (await this.isReadableFile(candidatePath)) {
+        files.push(relativePath);
+      }
+    }
+    return files;
+  }
+
+  private async isReadableFile(path: string): Promise<boolean> {
+    try {
+      await this.adapter.readFile(path);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async copyTextFile(source: string, dest: string): Promise<void> {
+    const content = await this.adapter.readFile(source);
+    const dir = dest.substring(0, dest.lastIndexOf("/"));
+    await this.adapter.mkdir(dir);
+    await this.adapter.writeFile(dest, content);
+  }
+
+  private async restoreCopiedTree(copiedFiles: Array<{ source: string; trash: string }>): Promise<void> {
+    for (const item of [...copiedFiles].reverse()) {
+      if (await this.adapter.exists(item.source)) continue;
+      try {
+        await this.copyTextFile(item.trash, item.source);
+      } catch {
+        // best effort rollback
+      }
+    }
+  }
+
+  private async deleteCopiedTree(paths: string[]): Promise<void> {
+    for (const path of [...paths].reverse()) {
+      try {
+        if (await this.adapter.exists(path)) {
+          await this.adapter.deleteFile(path);
+        }
+      } catch {
+        // best effort cleanup
+      }
+    }
   }
 
   // ----- cast_registry 联动 -----

@@ -42,7 +42,7 @@ export async function listAus(fandomName: string) {
   const { fandom } = getEngine().repos;
   const { adapter } = getEngine();
   const auDirs = await fandom.list_aus(`${dd}/fandoms/${safeFandomName}`);
-  // 过滤掉 project.yaml 已被 trash 的 AU（deleteAu 只 trash project.yaml）
+  // 过滤掉已删除的 AU：目录级删除后 project.yaml 不再存在；fandom 级删除仍会先 trash 各 AU 的 project.yaml。
   const validAus: string[] = [];
   for (const au of auDirs) {
     if (await adapter.exists(`${dd}/fandoms/${safeFandomName}/aus/${au}/project.yaml`)) {
@@ -113,8 +113,8 @@ export async function deleteAu(fandomDirName: string, auName: string) {
   // AU 锁：避免和该 AU 上正在进行的任何写操作（confirm / generate / edit / extractFacts 等）
   // 交叉 —— 否则删除中途可能读到半成品，或写操作在 project.yaml 被移走后读不到配置。
   return withAuLock(auPath, async () => {
-    const entry = await getEngine().trash.move_to_trash(
-      fandomRoot, `aus/${safeAuName}/project.yaml`, "au", safeAuName,
+    const entry = await getEngine().trash.move_tree_to_trash(
+      fandomRoot, `aus/${safeAuName}`, "au", safeAuName,
     );
     // 立即清理 AU 级 secure storage —— 避免凭据在 trash 保留期内继续驻留。
     // 详见 deleteFandom 的相同注释。
