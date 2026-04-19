@@ -11,7 +11,7 @@ import { ThemeToggle } from './shared/ThemeToggle';
 import { Modal } from './shared/Modal';
 import { GlobalSettingsModal } from './settings/GlobalSettingsModal';
 import { EmptyState } from './shared/EmptyState';
-import { createFandom, createAu, deleteFandom, deleteAu, getDataDir } from '../api/engine-client';
+import { getDataDir } from '../api/engine-client';
 import { useLibraryData } from '../hooks/useLibraryData';
 import { TrashPanel } from './shared/TrashPanel';
 import { useTranslation } from '../i18n/useAppTranslation';
@@ -22,6 +22,7 @@ import { LibraryModals } from './LibraryModals';
 import { LibraryFandomSections } from './library/LibraryFandomSections';
 import { LibraryImportPanel } from './library/LibraryImportPanel';
 import { useLibraryImportFlow } from './library/useLibraryImportFlow';
+import { useLibraryMutations } from './library/useLibraryMutations';
 import { useLibraryOnboardingGate } from './library/useLibraryOnboardingGate';
 
 type Props = {
@@ -33,17 +34,7 @@ function LibraryInner({ onNavigate }: Props) {
   const { showError } = useFeedback();
   const dataDir = getDataDir();
   const { fandoms, loading, loadFandoms } = useLibraryData();
-  const [isFandomModalOpen, setFandomModalOpen] = useState(false);
-  const [isAuModalOpen, setAuModalOpen] = useState(false);
   const [isGlobalSettingsOpen, setGlobalSettingsOpen] = useState(false);
-  const [creatingFandom, setCreatingFandom] = useState(false);
-  const [creatingAu, setCreatingAu] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [newFandomName, setNewFandomName] = useState('');
-  const [newAuName, setNewAuName] = useState('');
-  const [selectedFandom, setSelectedFandom] = useState('');
-  const [selectedFandomDir, setSelectedFandomDir] = useState('');
-  const [deleteTarget, setDeleteTarget] = useState<{ type: 'fandom' | 'au'; fandomDir: string; fandomName: string; auName?: string } | null>(null);
   const [trashTarget, setTrashTarget] = useState<{ fandomDir: string; fandomName: string } | null>(null);
   const [trashRefreshToken, setTrashRefreshToken] = useState(0);
   const {
@@ -57,69 +48,20 @@ function LibraryInner({ onNavigate }: Props) {
     loadFandoms,
     onNavigate,
     onError: (error) => showError(error, t("error_messages.unknown")),
-    onOpenFandomModal: () => setFandomModalOpen(true),
+    onOpenFandomModal: () => mutations.openFandomModal(),
+  });
+  const mutations = useLibraryMutations({
+    dataDir,
+    loadFandoms,
+    onNavigate,
+    onError: (error) => showError(error, t("error_messages.unknown")),
+    onCreatedFandom: importFlow.handleCreatedFandom,
+    onCloseFandomModal: importFlow.cancelPendingImportResume,
   });
 
   useEffect(() => {
     void loadFandoms();
   }, [loadFandoms]);
-
-  const handleCreateFandom = async () => {
-    if (!newFandomName.trim() || creatingFandom) return;
-    setCreatingFandom(true);
-    try {
-      const createdFandom = await createFandom(newFandomName.trim());
-      setFandomModalOpen(false);
-      setNewFandomName('');
-      await loadFandoms();
-      importFlow.handleCreatedFandom(createdFandom);
-    } catch (e: any) {
-      showError(e, t("error_messages.unknown"));
-    } finally {
-      setCreatingFandom(false);
-    }
-  };
-
-  const handleCloseFandomModal = () => {
-    setFandomModalOpen(false);
-    importFlow.cancelPendingImportResume();
-  };
-
-  const handleCreateAu = async () => {
-    if (!newAuName.trim() || !selectedFandomDir || creatingAu) return;
-    setCreatingAu(true);
-    try {
-      const fandomPath = `${dataDir}/fandoms/${selectedFandomDir}`;
-      const auName = newAuName.trim();
-      await createAu(selectedFandomDir, auName, fandomPath);
-      setAuModalOpen(false);
-      setNewAuName('');
-      onNavigate('writer', `${fandomPath}/aus/${auName}`);
-    } catch (e: any) {
-      showError(e, t("error_messages.unknown"));
-    } finally {
-      setCreatingAu(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!deleteTarget || deleting) return;
-    setDeleting(true);
-    try {
-      if (deleteTarget.type === 'fandom') {
-        await deleteFandom(deleteTarget.fandomDir);
-      } else {
-        await deleteAu(deleteTarget.fandomDir, deleteTarget.auName!);
-      }
-      setDeleteTarget(null);
-      await loadFandoms();
-    } catch (e: any) {
-      showError(e, t("error_messages.unknown"));
-      setDeleteTarget(null);
-    } finally {
-      setDeleting(false);
-    }
-  };
 
   const handleOnboardingComplete = (result?: OnboardingCompletion) => {
     setShowOnboarding(false);
@@ -159,10 +101,10 @@ function LibraryInner({ onNavigate }: Props) {
         <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-center md:justify-between">
           <h1 className="text-2xl font-serif font-medium">{t("library.title")}</h1>
           <div className="flex flex-row items-center gap-2 sm:gap-3">
-            <Button tone="neutral" fill="outline" size="sm" onClick={importFlow.openImportPicker} disabled={creatingFandom || creatingAu || deleting}>
+            <Button tone="neutral" fill="outline" size="sm" onClick={importFlow.openImportPicker} disabled={mutations.creatingFandom || mutations.creatingAu || mutations.deleting}>
               {t("common.actions.importOldWork")}
             </Button>
-            <Button size="sm" onClick={() => setFandomModalOpen(true)} disabled={creatingFandom || creatingAu || deleting}>
+            <Button size="sm" onClick={mutations.openFandomModal} disabled={mutations.creatingFandom || mutations.creatingAu || mutations.deleting}>
               {t("library.fandomButton")}
             </Button>
           </div>
@@ -195,7 +137,7 @@ function LibraryInner({ onNavigate }: Props) {
               {
                 key: "create-fandom",
                 element: (
-                  <Button onClick={() => setFandomModalOpen(true)}>
+                  <Button onClick={mutations.openFandomModal}>
                     {t("common.actions.createFandom")}
                   </Button>
                 ),
@@ -214,40 +156,36 @@ function LibraryInner({ onNavigate }: Props) {
           <LibraryFandomSections
             dataDir={dataDir}
             fandoms={fandoms}
-            creatingFandom={creatingFandom}
-            creatingAu={creatingAu}
-            deleting={deleting}
+            creatingFandom={mutations.creatingFandom}
+            creatingAu={mutations.creatingAu}
+            deleting={mutations.deleting}
             onNavigate={onNavigate}
-            onOpenAuModal={(fandomName, fandomDir) => {
-              setSelectedFandom(fandomName);
-              setSelectedFandomDir(fandomDir);
-              setAuModalOpen(true);
-            }}
+            onOpenAuModal={mutations.openAuModal}
             onOpenTrash={(fandomDir, fandomName) => setTrashTarget({ fandomDir, fandomName })}
-            onDeleteFandom={(fandomDir, fandomName) => setDeleteTarget({ type: 'fandom', fandomDir, fandomName })}
-            onDeleteAu={(fandomDir, fandomName, auName) => setDeleteTarget({ type: 'au', fandomDir, fandomName, auName })}
+            onDeleteFandom={mutations.openDeleteFandom}
+            onDeleteAu={mutations.openDeleteAu}
           />
         )}
       </main>
 
       <LibraryModals
-        isFandomModalOpen={isFandomModalOpen}
-        handleCloseFandomModal={handleCloseFandomModal}
-        newFandomName={newFandomName}
-        setNewFandomName={setNewFandomName}
-        handleCreateFandom={handleCreateFandom}
-        creatingFandom={creatingFandom}
-        isAuModalOpen={isAuModalOpen}
-        setAuModalOpen={setAuModalOpen}
-        newAuName={newAuName}
-        setNewAuName={setNewAuName}
-        selectedFandom={selectedFandom}
-        handleCreateAu={handleCreateAu}
-        creatingAu={creatingAu}
-        deleteTarget={deleteTarget}
-        setDeleteTarget={setDeleteTarget}
-        handleDelete={handleDelete}
-        deleting={deleting}
+        isFandomModalOpen={mutations.isFandomModalOpen}
+        handleCloseFandomModal={mutations.closeFandomModal}
+        newFandomName={mutations.newFandomName}
+        setNewFandomName={mutations.setNewFandomName}
+        handleCreateFandom={mutations.handleCreateFandom}
+        creatingFandom={mutations.creatingFandom}
+        isAuModalOpen={mutations.isAuModalOpen}
+        setAuModalOpen={mutations.setAuModalOpen}
+        newAuName={mutations.newAuName}
+        setNewAuName={mutations.setNewAuName}
+        selectedFandom={mutations.selectedFandom}
+        handleCreateAu={mutations.handleCreateAu}
+        creatingAu={mutations.creatingAu}
+        deleteTarget={mutations.deleteTarget}
+        setDeleteTarget={mutations.setDeleteTarget}
+        handleDelete={mutations.handleDelete}
+        deleting={mutations.deleting}
       />
 
       <GlobalSettingsModal isOpen={isGlobalSettingsOpen} onClose={() => setGlobalSettingsOpen(false)} />
