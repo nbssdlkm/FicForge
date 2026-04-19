@@ -75,9 +75,9 @@ export function useLibraryImportFlow({
     try {
       const fandomPath = `${dataDir}/fandoms/${fandomDir}`;
       const auName = importNewAuName.trim();
-      await createAu(fandomDir, auName, fandomPath);
+      const createdAu = await createAu(fandomDir, auName, fandomPath);
       await loadFandoms();
-      setImportAuPath(`${fandomPath}/aus/${auName}`);
+      setImportAuPath(createdAu.path);
       setImportSelectedFandom(null);
       setImportNewAuName('');
     } catch (error) {

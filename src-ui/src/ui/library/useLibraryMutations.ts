@@ -85,10 +85,10 @@ export function useLibraryMutations({
     try {
       const fandomPath = `${dataDir}/fandoms/${selectedFandomDir}`;
       const auName = newAuName.trim();
-      await createAu(selectedFandomDir, auName, fandomPath);
+      const createdAu = await createAu(selectedFandomDir, auName, fandomPath);
       setAuModalOpen(false);
       setNewAuName('');
-      onNavigate('writer', `${fandomPath}/aus/${auName}`);
+      onNavigate('writer', createdAu.path);
     } catch (error) {
       onError(error);
     } finally {
