@@ -339,7 +339,7 @@ export async function testConnection(params: {
     if (params.mode === "local") {
       return {
         success: false,
-        message: "Local mode generation is not implemented yet.",
+        message: "local 模式续写生成暂未实现（需要 Python sidecar 扩展）",
         error_code: "mode_not_implemented",
       };
     }
@@ -350,7 +350,7 @@ export async function testConnection(params: {
       if (resp.ok) {
         return { success: true, model: params.ollama_model ?? "ollama" };
       }
-      return { success: false, message: "Failed to connect to Ollama.", error_code: "connection_failed" };
+      return { success: false, message: "无法连接 Ollama 服务", error_code: "connection_failed" };
     }
 
     const provider = new OpenAICompatibleProvider(
