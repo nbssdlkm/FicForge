@@ -117,3 +117,107 @@ describe("FileSettingsRepository embedding fallback removed (P1-4)", () => {
     expect(updatedYaml).toContain("<secure>");
   });
 });
+
+describe("FileSettingsRepository fonts — dictToFontsConfig + 迁移", () => {
+  it("空 yaml 首次 get → app.fonts 为 createFontsConfig() 默认值", async () => {
+    const adapter = new MockAdapter();
+    const repo = new FileSettingsRepository(adapter, "");
+    const s = await repo.get();
+    expect(s.app.fonts).toEqual({
+      ui_latin_font_id: "system",
+      ui_cjk_font_id: "system",
+      reading_latin_font_id: "source-serif-4",
+      reading_cjk_font_id: "lxgw-wenkai-screen",
+    });
+  });
+
+  it("fonts 字段能正确 round-trip（以前 dictToAppConfig 漏掉整个 fonts → 总是默认值）", async () => {
+    const adapter = new MockAdapter();
+    const repo = new FileSettingsRepository(adapter, "");
+
+    const s = await repo.get();
+    s.app.fonts.ui_latin_font_id = "source-serif-4";
+    s.app.fonts.ui_cjk_font_id = "lxgw-wenkai-screen";
+    s.app.fonts.reading_latin_font_id = "source-serif-4";
+    s.app.fonts.reading_cjk_font_id = "lxgw-wenkai-screen";
+    await repo.save(s);
+
+    const reloaded = await repo.get();
+    expect(reloaded.app.fonts.ui_latin_font_id).toBe("source-serif-4");
+    expect(reloaded.app.fonts.ui_cjk_font_id).toBe("lxgw-wenkai-screen");
+    expect(reloaded.app.fonts.reading_latin_font_id).toBe("source-serif-4");
+    expect(reloaded.app.fonts.reading_cjk_font_id).toBe("lxgw-wenkai-screen");
+  });
+
+  it("Phase 4 旧字段 ui_font_id / reading_font_id 自动按 script 迁移到 4 字段", async () => {
+    const adapter = new MockAdapter();
+    // 模拟 Phase 4 时代的 settings.yaml（只有 2 字段）
+    const legacyYaml = yaml.dump({
+      default_llm: { mode: "api", model: "", api_base: "", api_key: "" },
+      embedding: { mode: "api", model: "", api_base: "", api_key: "" },
+      app: {
+        fonts: {
+          ui_font_id: "source-serif-4",         // latin 字体 → 迁到 ui_latin 槽
+          reading_font_id: "lxgw-wenkai-screen", // cjk 字体 → 迁到 reading_cjk 槽
+        },
+      },
+      sync: {},
+    });
+    await adapter.writeFile("settings.yaml", legacyYaml);
+
+    const repo = new FileSettingsRepository(adapter, "");
+    const s = await repo.get();
+
+    expect(s.app.fonts.ui_latin_font_id).toBe("source-serif-4");
+    // 未被迁移的槽保持默认
+    expect(s.app.fonts.ui_cjk_font_id).toBe("system");
+    expect(s.app.fonts.reading_cjk_font_id).toBe("lxgw-wenkai-screen");
+    expect(s.app.fonts.reading_latin_font_id).toBe("source-serif-4"); // 来自 createFontsConfig 默认
+  });
+
+  it("迁移后下次 save → yaml 里旧字段被自动剥离", async () => {
+    const adapter = new MockAdapter();
+    const legacyYaml = yaml.dump({
+      default_llm: { mode: "api", model: "", api_base: "", api_key: "" },
+      embedding: { mode: "api", model: "", api_base: "", api_key: "" },
+      app: { fonts: { ui_font_id: "source-serif-4", reading_font_id: "lxgw-wenkai-screen" } },
+      sync: {},
+    });
+    await adapter.writeFile("settings.yaml", legacyYaml);
+    const repo = new FileSettingsRepository(adapter, "");
+
+    const s = await repo.get();
+    await repo.save(s);
+
+    const updatedYaml = await adapter.readFile("settings.yaml");
+    expect(updatedYaml).not.toContain("ui_font_id:");
+    expect(updatedYaml).not.toContain("reading_font_id:");
+    // 新 4 字段应该写入
+    expect(updatedYaml).toContain("ui_latin_font_id:");
+    expect(updatedYaml).toContain("reading_cjk_font_id:");
+  });
+
+  it("同时存在新字段 + 旧字段 → 新字段优先", async () => {
+    const adapter = new MockAdapter();
+    const legacyYaml = yaml.dump({
+      default_llm: { mode: "api", model: "", api_base: "", api_key: "" },
+      embedding: { mode: "api", model: "", api_base: "", api_key: "" },
+      app: {
+        fonts: {
+          // 用户在 Phase 4 时期选过的旧字段
+          ui_font_id: "lxgw-wenkai-screen",
+          // Phase 7 之后又选过，新字段覆盖
+          ui_cjk_font_id: "source-serif-4",
+        },
+      },
+      sync: {},
+    });
+    await adapter.writeFile("settings.yaml", legacyYaml);
+
+    const repo = new FileSettingsRepository(adapter, "");
+    const s = await repo.get();
+
+    // 旧 ui_font_id=lxgw 按 script 应迁到 ui_cjk，但新字段 ui_cjk=source-serif-4 覆盖它
+    expect(s.app.fonts.ui_cjk_font_id).toBe("source-serif-4");
+  });
+});

@@ -185,37 +185,39 @@ export function useFontSelection(): FontSelectionState {
   );
 
   // 启动时从 engine settings 同步（跨设备恢复）。失败静默，localStorage 兜底。
+  // dictToFontsConfig 保证 settings.app.fonts 的 4 字段都是非空 string，
+  // 这里直接按差异 diff 即可 —— 每 role 至多一次 setProperty。
   useEffect(() => {
     getSettings()
       .then((s) => {
         const f = s?.app?.fonts;
         if (!f) return;
-        const updates: { role: FontRole; latinId: string; cjkId: string }[] = [];
-        if (f.ui_latin_font_id && f.ui_latin_font_id !== uiLatinFontId) {
+        const uiLatinChanged = f.ui_latin_font_id !== uiLatinFontId;
+        const uiCjkChanged = f.ui_cjk_font_id !== uiCjkFontId;
+        const readingLatinChanged = f.reading_latin_font_id !== readingLatinFontId;
+        const readingCjkChanged = f.reading_cjk_font_id !== readingCjkFontId;
+
+        if (uiLatinChanged) {
           setUiLatinFontIdState(f.ui_latin_font_id);
           writeLocal(LS_KEYS.ui_latin, f.ui_latin_font_id);
-          updates.push({ role: "ui", latinId: f.ui_latin_font_id, cjkId: f.ui_cjk_font_id ?? uiCjkFontId });
         }
-        if (f.ui_cjk_font_id && f.ui_cjk_font_id !== uiCjkFontId) {
+        if (uiCjkChanged) {
           setUiCjkFontIdState(f.ui_cjk_font_id);
           writeLocal(LS_KEYS.ui_cjk, f.ui_cjk_font_id);
-          updates.push({ role: "ui", latinId: f.ui_latin_font_id ?? uiLatinFontId, cjkId: f.ui_cjk_font_id });
         }
-        if (f.reading_latin_font_id && f.reading_latin_font_id !== readingLatinFontId) {
+        if (readingLatinChanged) {
           setReadingLatinFontIdState(f.reading_latin_font_id);
           writeLocal(LS_KEYS.reading_latin, f.reading_latin_font_id);
-          updates.push({ role: "reading", latinId: f.reading_latin_font_id, cjkId: f.reading_cjk_font_id ?? readingCjkFontId });
         }
-        if (f.reading_cjk_font_id && f.reading_cjk_font_id !== readingCjkFontId) {
+        if (readingCjkChanged) {
           setReadingCjkFontIdState(f.reading_cjk_font_id);
           writeLocal(LS_KEYS.reading_cjk, f.reading_cjk_font_id);
-          updates.push({ role: "reading", latinId: f.reading_latin_font_id ?? uiLatinFontId, cjkId: f.reading_cjk_font_id });
         }
-        // 合并 per-role 的最后一次 update 去执行 applyCSS（避免同 role 多次 setProperty）
-        const lastByRole = new Map<FontRole, { latinId: string; cjkId: string }>();
-        for (const u of updates) lastByRole.set(u.role, { latinId: u.latinId, cjkId: u.cjkId });
-        for (const [role, { latinId, cjkId }] of lastByRole) {
-          applyCSS(role, latinId, cjkId);
+        if (uiLatinChanged || uiCjkChanged) {
+          applyCSS("ui", f.ui_latin_font_id, f.ui_cjk_font_id);
+        }
+        if (readingLatinChanged || readingCjkChanged) {
+          applyCSS("reading", f.reading_latin_font_id, f.reading_cjk_font_id);
         }
       })
       .catch(() => { /* engine 未 ready 或读取失败，localStorage 已兜底 */ });
