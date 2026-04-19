@@ -57,6 +57,10 @@ export async function getProject(auPath: string) {
   return await project.get(auPath);
 }
 
+export async function getProjectForEditing(auPath: string) {
+  return getProject(auPath);
+}
+
 export async function getWorkspaceSnapshot(auPath: string): Promise<WorkspaceSnapshot> {
   const project = await getProject(auPath);
   return {

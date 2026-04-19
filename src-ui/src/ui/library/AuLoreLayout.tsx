@@ -12,7 +12,7 @@ import { TrashPanel } from '../shared/TrashPanel';
 import type { TrashEntry } from '../../api/engine-client';
 import { Search, Plus, FileText, ChevronDown, ChevronRight, Folder, Trash2, Download, Pin, Eye, Pencil } from 'lucide-react';
 import { SettingsMarkdown } from '../shared/SettingsMarkdown';
-import { getProject, updateProject, type ProjectInfo } from '../../api/engine-client';
+import { getProjectForEditing, updateProject, type ProjectInfo } from '../../api/engine-client';
 import { saveLore, readLore, deleteLore, listLoreFiles, importFromFandom, getLoreContent } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
@@ -164,7 +164,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     setLoading(true);
     try {
       const [proj, loreFiles, wbFiles] = await Promise.all([
-        getProject(auPath),
+        getProjectForEditing(auPath),
         listLoreFiles({ au_path: auPath, category: selectedCategory }),
         listLoreFiles({ au_path: auPath, category: 'worldbuilding' }),
       ]);
@@ -306,7 +306,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     try {
       try {
         [latestProject, latestFiles] = await Promise.all([
-          getProject(auPath),
+          getProjectForEditing(auPath),
           listLoreFiles({ au_path: auPath, category: selectedCategory }),
         ]);
       } catch (error) {

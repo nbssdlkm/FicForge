@@ -9,7 +9,7 @@ import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { HelpCircle, CheckCircle2, XCircle } from 'lucide-react';
 import { ModelSelector } from '../shared/ModelSelector';
-import { getSettings, testConnection, testEmbeddingConnection, updateSettings, LLMMode, type SettingsInfo, getDataDir, getDisplayDataDir } from '../../api/engine-client';
+import { getSettingsForEditing, testConnection, testEmbeddingConnection, updateSettings, LLMMode, type SettingsInfo, getDataDir, getDisplayDataDir } from '../../api/engine-client';
 import { ConflictResolveModal } from '../shared/ConflictResolveModal';
 import { useSyncOperations } from './useSyncOperations';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -103,7 +103,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
       getDisplayDataDir().then((dir) => {
         if (requestId === modalRequestIdRef.current) setDisplayDataDir(dir);
       }).catch(() => {});
-      getSettings().then((res) => {
+      getSettingsForEditing().then((res) => {
         if (requestId !== modalRequestIdRef.current) return;
         setSettings(res);
         if (res?.default_llm) {

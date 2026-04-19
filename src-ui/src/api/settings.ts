@@ -24,6 +24,7 @@ export interface EmbeddingSettingsInfo {
   model?: string;
   api_base?: string;
   api_key?: string;
+  local_model_path?: string;
   ollama_model?: string;
 }
 
@@ -73,6 +74,11 @@ export interface SettingsSummary {
 export interface WriterSessionConfig {
   default_llm: LlmQueryInfo;
   model_params: Record<string, ModelParamInfo>;
+}
+
+export interface OnboardingDefaults {
+  default_llm: LlmSettingsInfo;
+  embedding: EmbeddingSettingsInfo;
 }
 
 export interface SettingsInfo {

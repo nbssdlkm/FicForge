@@ -12,6 +12,7 @@ import type {
   FontPreferences,
   LlmQueryInfo,
   ModelParamInfo,
+  OnboardingDefaults,
   SettingsSummary,
   WriterSessionConfig,
 } from "./settings";
@@ -80,6 +81,10 @@ export async function getSettings() {
   return s;
 }
 
+export async function getSettingsForEditing() {
+  return getSettings();
+}
+
 export async function getSettingsSummary(): Promise<SettingsSummary> {
   const settings = await getSettings();
   return {
@@ -111,6 +116,29 @@ export async function getWriterSessionConfig(): Promise<WriterSessionConfig> {
   };
 }
 
+export async function getOnboardingDefaults(): Promise<OnboardingDefaults> {
+  const settings = await getSettings();
+  return {
+    default_llm: {
+      mode: settings.default_llm.mode,
+      model: settings.default_llm.model,
+      api_base: settings.default_llm.api_base,
+      api_key: settings.default_llm.api_key,
+      local_model_path: settings.default_llm.local_model_path,
+      ollama_model: settings.default_llm.ollama_model,
+      context_window: settings.default_llm.context_window,
+    },
+    embedding: {
+      mode: settings.embedding.mode,
+      model: settings.embedding.model,
+      api_base: settings.embedding.api_base,
+      api_key: settings.embedding.api_key,
+      local_model_path: settings.embedding.local_model_path,
+      ollama_model: settings.embedding.ollama_model,
+    },
+  };
+}
+
 export async function updateSettings(updates: DeepPartial<Settings>) {
   const { settings } = getEngine().repos;
   const current = await settings.get();
@@ -139,6 +167,47 @@ export async function saveGlobalModelParams(model: string, params: ModelParamInf
   };
   await settings.save(current);
   return current.model_params[model];
+}
+
+export async function saveOnboardingSettings(payload: {
+  default_llm: {
+    mode: string;
+    model: string;
+    api_base: string;
+    api_key: string;
+    local_model_path: string;
+    ollama_model: string;
+  };
+  embedding: {
+    mode: string;
+    model: string;
+    api_base: string;
+    api_key: string;
+    ollama_model: string;
+  };
+}) {
+  const { settings } = getEngine().repos;
+  const current = await settings.get();
+  current.default_llm = {
+    ...current.default_llm,
+    mode: payload.default_llm.mode as Settings["default_llm"]["mode"],
+    model: payload.default_llm.model,
+    api_base: payload.default_llm.api_base,
+    api_key: payload.default_llm.api_key,
+    local_model_path: payload.default_llm.local_model_path,
+    ollama_model: payload.default_llm.ollama_model,
+    context_window: current.default_llm.context_window || 128000,
+  };
+  current.embedding = {
+    ...current.embedding,
+    mode: payload.embedding.mode as Settings["embedding"]["mode"],
+    model: payload.embedding.model,
+    api_base: payload.embedding.api_base,
+    api_key: payload.embedding.api_key,
+    ollama_model: payload.embedding.ollama_model,
+  };
+  await settings.save(current);
+  return current;
 }
 
 export async function testEmbeddingConnection(params: { api_base: string; api_key: string; model: string }) {

@@ -12,8 +12,8 @@ import { ModelSelector } from '../shared/ModelSelector';
 import { Tag } from '../shared/Tag';
 import { Modal } from '../shared/Modal';
 import { Settings, Save, Trash2, Plus } from 'lucide-react';
-import { getProject, updateProject, type ProjectInfo } from '../../api/engine-client';
-import { getSettings, type SettingsInfo } from '../../api/engine-client';
+import { getProjectForEditing, updateProject, type ProjectInfo } from '../../api/engine-client';
+import { getSettingsForEditing, type SettingsInfo } from '../../api/engine-client';
 import { getState, recalcState, rebuildIndex } from '../../api/engine-client';
 import { GlobalSettingsModal } from './GlobalSettingsModal';
 import { LlmModeSelect } from './LlmModeSelect';
@@ -109,8 +109,8 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
 
     const token = loadGuard.start();
     Promise.allSettled([
-      getProject(auPath),
-      getSettings(),
+      getProjectForEditing(auPath),
+      getSettingsForEditing(),
       getState(auPath),
     ]).then(([projResult, settingsResult, stateResult]) => {
       if (loadGuard.isStale(token)) return;

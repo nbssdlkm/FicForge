@@ -13,7 +13,7 @@ import { StepIndicator } from './StepIndicator';
 import { ApiSetupHelp } from '../help/ApiSetupHelp';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { changeLanguage, type AppLanguage } from '../../i18n';
-import { createAu, createFandom, getSettings, testConnection, updateSettings, LLMMode } from '../../api/engine-client';
+import { createAu, createFandom, getOnboardingDefaults, saveOnboardingSettings, testConnection, LLMMode } from '../../api/engine-client';
 
 export type OnboardingCompletion = {
   nextAction?: 'open-import' | 'open-settings';
@@ -115,7 +115,7 @@ export function MobileOnboarding({
     const requestId = ++requestIdRef.current;
     isMountedRef.current = true;
     setLoadingSettings(true);
-    getSettings().then(settings => {
+    getOnboardingDefaults().then(settings => {
       if (requestId !== requestIdRef.current) return;
       const llm = settings?.default_llm;
       if (llm?.api_base || llm?.model || llm?.api_key) {
@@ -215,20 +215,16 @@ export function MobileOnboarding({
     setSubmitting(true);
     setSubmitError('');
     try {
-      const settings = await getSettings().catch(() => null);
-      await updateSettings({
+      await saveOnboardingSettings({
         default_llm: {
-          ...settings?.default_llm,
           mode: LLMMode.API,
           model: model.trim(),
           api_base: apiBase.trim(),
           api_key: apiKey.trim(),
           local_model_path: '',
           ollama_model: '',
-          context_window: settings?.default_llm?.context_window || 128000,
         },
         embedding: {
-          ...settings?.embedding,
           mode: useCustomEmbedding ? LLMMode.API : LLMMode.LOCAL,
           model: useCustomEmbedding ? embeddingModel.trim() : '',
           api_base: useCustomEmbedding ? embeddingApiBase.trim() : '',

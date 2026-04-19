@@ -7,7 +7,7 @@ import { Sparkles } from "lucide-react";
 import { sendSettingsChat, type SettingsChatSessionLlm } from "../../../api/engine-client";
 import { addFact, editFact, updateFactStatus } from "../../../api/engine-client";
 import { deleteLore, listLoreFiles, readLore, saveLore } from "../../../api/engine-client";
-import { addPinned, deletePinned, getProject, updateProject, type ProjectInfo } from "../../../api/engine-client";
+import { addPinned, deletePinned, getProjectForEditing, updateProject, type ProjectInfo } from "../../../api/engine-client";
 import { useFeedback } from "../../../hooks/useFeedback";
 import { useTranslation } from "../../../i18n/useAppTranslation";
 import { SettingsChatHistory } from "./SettingsChatHistory";
@@ -219,7 +219,7 @@ export function SettingsChatPanel({
     try {
       if (mode === "au") {
         const [project, characters, worldbuilding] = await Promise.all([
-          getProject(basePath).catch(() => null),
+          getProjectForEditing(basePath).catch(() => null),
           listLoreFiles({ au_path: basePath, category: "characters" }).catch(() => ({ files: [] })),
           listLoreFiles({ au_path: basePath, category: "worldbuilding" }).catch(() => ({ files: [] })),
         ]);
@@ -351,7 +351,7 @@ export function SettingsChatPanel({
     let ensuredProject: ProjectInfo | null = null;
     if (mode === "au") {
       try {
-        ensuredProject = await getProject(basePath);
+        ensuredProject = await getProjectForEditing(basePath);
       } catch {
         throw new Error(t("settingsMode.error.projectUnavailable"));
       }
@@ -764,7 +764,7 @@ export function SettingsChatPanel({
       } else if (card.undoMeta.kind === "fact" && card.undoMeta.factId) {
         await updateFactStatus(basePath, card.undoMeta.factId, "deprecated", card.undoMeta.chapterNum || currentChapter);
       } else if (card.undoMeta.kind === "pinned") {
-        const latestProject = await getProject(basePath);
+        const latestProject = await getProjectForEditing(basePath);
         const pinnedContext = latestProject.pinned_context || [];
         const pinnedContent = (card.undoMeta.pinnedContent || "").trim();
         let pinnedIndex =

@@ -30,6 +30,7 @@ export type {
   FontPreferences,
   LlmQueryInfo,
   LlmSettingsInfo,
+  OnboardingDefaults,
   SettingsSummary,
   TestConnectionRequest,
   TestConnectionResponse,
@@ -69,11 +70,14 @@ export { initEngine, getEngine, isEngineReady, getDataDir, getDisplayDataDir } f
 
 export {
   getSettings,
+  getSettingsForEditing,
   getSettingsSummary,
   getFontPreferences,
+  getOnboardingDefaults,
   getWriterSessionConfig,
   updateSettings,
   saveGlobalModelParams,
+  saveOnboardingSettings,
   testConnection,
   testEmbeddingConnection,
 } from "./engine-settings";
@@ -81,6 +85,7 @@ export { getState, setChapterFocus, rebuildIndex, recalcState } from "./engine-s
 export { listFacts, addFact, editFact, updateFactStatus, batchUpdateFactStatus, extractFacts, extractFactsBatch, submitFactsExtraction } from "./engine-facts";
 export {
   getProject,
+  getProjectForEditing,
   getWorkspaceSnapshot,
   getWriterProjectContext,
   updateProject,
