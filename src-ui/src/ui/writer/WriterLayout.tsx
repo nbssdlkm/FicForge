@@ -17,6 +17,7 @@ import { useWriterFactsExtraction } from './useWriterFactsExtraction';
 import { useSessionParams } from './useSessionParams';
 import { useConfirmedChapterEditor } from './useConfirmedChapterEditor';
 import { useWriterBootstrap } from './useWriterBootstrap';
+import { useWriterResetOnAuChange } from './useWriterResetOnAuChange';
 import { Button } from '../shared/Button';
 import { Modal } from '../shared/Modal';
 import { ExportModal } from './ExportModal';
@@ -194,45 +195,40 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const lineHeight = parseFloat(lineHeightStr) || 1.8;
   const setLineHeight = useCallback((v: number) => setLineHeightKV(String(v)), [setLineHeightKV]);
 
-  useEffect(() => {
-    // keyRef in each guard is auto-synced to auPath — pending tokens go stale
-    // via isStale/isKeyStale. No manual invalidation needed here.
-    setLoading(true);
-    setIsSettingsModeBusy(false);
-    setState(null);
-    setProjectInfo(null);
-    setSettingsInfo(null);
-    setCurrentContent('');
-    setUnresolvedFacts([]);
-    setFocusSelection([]);
-    setDrafts([]);
-    setActiveDraftIndex(0);
-    setRecoveryNotice(false);
-    setLastConfirmedChapter(null);
-    setUndoConfirmOpen(false);
-    setDirtyBannerDismissed(false);
-    setIsGenerating(false);
-    setIsFinalizing(false);
-    setIsDiscarding(false);
-    factsExtraction.setExtractingFacts(false);
-    factsExtraction.setSavingExtracted(false);
-    setStreamText('');
-    setGeneratedWith(null);
-    setBudgetReport(null);
-    setLastGenerateRequest(null);
-    setDraftSummaries({});
-    pendingContextSummaryRef.current = null;
-    setInstructionText(''); // 先清空，loadData 后恢复
-    factsExtraction.setExtractedCandidates([]);
-    factsExtraction.clearSelection();
-    setFinalizeConfirmOpen(false);
-    setDiscardConfirmOpen(false);
-    factsExtraction.setFactsPromptOpen(false);
-    factsExtraction.setExtractReviewOpen(false);
-    setDirtyOpen(false);
-    setExportOpen(false);
-    setMobileToolsOpen(false);
-  }, [auPath]);
+  useWriterResetOnAuChange<DraftItem>({
+    auPath,
+    pendingContextSummaryRef,
+    setLoading,
+    setIsSettingsModeBusy,
+    setState,
+    setProjectInfo,
+    setSettingsInfo,
+    setCurrentContent,
+    setUnresolvedFacts,
+    setFocusSelection,
+    setDrafts,
+    setActiveDraftIndex,
+    setRecoveryNotice,
+    setLastConfirmedChapter,
+    setUndoConfirmOpen,
+    setDirtyBannerDismissed,
+    setIsGenerating,
+    setIsFinalizing,
+    setIsDiscarding,
+    setStreamText,
+    setGeneratedWith,
+    setBudgetReport,
+    setLastGenerateRequest,
+    setDraftSummaries,
+    setInstructionText,
+    setFinalizeConfirmOpen,
+    setDiscardConfirmOpen,
+    setDirtyOpen,
+    setExportOpen,
+    setMobileToolsOpen,
+    factsExtraction,
+  });
+
 
   useEffect(() => {
     if (isMobile && mode !== 'write') {
@@ -343,6 +339,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       details.map((detail) => createDraftItemFromDetail(chapterNum, detail))
     );
   }, [auPath]);
+
   const { loadData, refreshSettingsModeData } = useWriterBootstrap<DraftItem>({
     auPath,
     loadGuard,
