@@ -2,12 +2,13 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   testConnection,
   testEmbeddingConnection,
   type TestConnectionResponse,
 } from "../api/engine-client";
+import { useActiveRequestGuard } from "./useActiveRequestGuard";
 import { buildLlmConnectionTestRequest, type LlmConfigFields } from "../ui/shared/llm-config";
 
 export type ConnectionTestStatus = "idle" | "testing" | "success" | "error";
@@ -35,29 +36,23 @@ interface ConnectionTestOptions<TParams, TResult extends { success: boolean }> {
 function useConnectionTestState<TParams, TResult extends { success: boolean }>(
   options: ConnectionTestOptions<TParams, TResult>,
 ) {
-  const requestIdRef = useRef(0);
+  const requestGuard = useActiveRequestGuard("connection-test");
   const [status, setStatus] = useState<ConnectionTestStatus>("idle");
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    return () => {
-      requestIdRef.current += 1;
-    };
-  }, []);
-
   const reset = useCallback(() => {
-    requestIdRef.current += 1;
+    requestGuard.start();
     setStatus("idle");
     setMessage("");
-  }, []);
+  }, [requestGuard]);
 
   const run = useCallback(async (params: TParams) => {
-    const requestId = ++requestIdRef.current;
+    const token = requestGuard.start();
     setStatus("testing");
     setMessage("");
     try {
       const result = await options.runTest(params);
-      if (requestId !== requestIdRef.current) return;
+      if (requestGuard.isStale(token)) return;
       if (result.success) {
         setStatus("success");
         setMessage(options.getSuccessMessage(result, params));
@@ -66,11 +61,11 @@ function useConnectionTestState<TParams, TResult extends { success: boolean }>(
         setMessage(options.getFailureMessage(result, params));
       }
     } catch (error) {
-      if (requestId !== requestIdRef.current) return;
+      if (requestGuard.isStale(token)) return;
       setStatus("error");
       setMessage(options.getExceptionMessage(error, params));
     }
-  }, [options]);
+  }, [options, requestGuard]);
 
   return { status, message, reset, run };
 }
