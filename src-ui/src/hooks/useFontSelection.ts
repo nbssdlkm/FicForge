@@ -28,7 +28,7 @@ import {
   type FontRole,
   type FontScript,
 } from "@ficforge/engine";
-import { getSettings, updateSettings } from "../api/engine-client";
+import { getFontPreferences, updateSettings } from "../api/engine-client";
 
 const LS_KEYS = {
   ui_latin: "ficforge_font_ui_latin",
@@ -188,36 +188,34 @@ export function useFontSelection(): FontSelectionState {
   // dictToFontsConfig 保证 settings.app.fonts 的 4 字段都是非空 string，
   // 这里直接按差异 diff 即可 —— 每 role 至多一次 setProperty。
   useEffect(() => {
-    getSettings()
-      .then((s) => {
-        const f = s?.app?.fonts;
-        if (!f) return;
-        const uiLatinChanged = f.ui_latin_font_id !== uiLatinFontId;
-        const uiCjkChanged = f.ui_cjk_font_id !== uiCjkFontId;
-        const readingLatinChanged = f.reading_latin_font_id !== readingLatinFontId;
-        const readingCjkChanged = f.reading_cjk_font_id !== readingCjkFontId;
+    getFontPreferences()
+      .then((fonts) => {
+        const uiLatinChanged = fonts.ui_latin_font_id !== uiLatinFontId;
+        const uiCjkChanged = fonts.ui_cjk_font_id !== uiCjkFontId;
+        const readingLatinChanged = fonts.reading_latin_font_id !== readingLatinFontId;
+        const readingCjkChanged = fonts.reading_cjk_font_id !== readingCjkFontId;
 
         if (uiLatinChanged) {
-          setUiLatinFontIdState(f.ui_latin_font_id);
-          writeLocal(LS_KEYS.ui_latin, f.ui_latin_font_id);
+          setUiLatinFontIdState(fonts.ui_latin_font_id);
+          writeLocal(LS_KEYS.ui_latin, fonts.ui_latin_font_id);
         }
         if (uiCjkChanged) {
-          setUiCjkFontIdState(f.ui_cjk_font_id);
-          writeLocal(LS_KEYS.ui_cjk, f.ui_cjk_font_id);
+          setUiCjkFontIdState(fonts.ui_cjk_font_id);
+          writeLocal(LS_KEYS.ui_cjk, fonts.ui_cjk_font_id);
         }
         if (readingLatinChanged) {
-          setReadingLatinFontIdState(f.reading_latin_font_id);
-          writeLocal(LS_KEYS.reading_latin, f.reading_latin_font_id);
+          setReadingLatinFontIdState(fonts.reading_latin_font_id);
+          writeLocal(LS_KEYS.reading_latin, fonts.reading_latin_font_id);
         }
         if (readingCjkChanged) {
-          setReadingCjkFontIdState(f.reading_cjk_font_id);
-          writeLocal(LS_KEYS.reading_cjk, f.reading_cjk_font_id);
+          setReadingCjkFontIdState(fonts.reading_cjk_font_id);
+          writeLocal(LS_KEYS.reading_cjk, fonts.reading_cjk_font_id);
         }
         if (uiLatinChanged || uiCjkChanged) {
-          applyCSS("ui", f.ui_latin_font_id, f.ui_cjk_font_id);
+          applyCSS("ui", fonts.ui_latin_font_id, fonts.ui_cjk_font_id);
         }
         if (readingLatinChanged || readingCjkChanged) {
-          applyCSS("reading", f.reading_latin_font_id, f.reading_cjk_font_id);
+          applyCSS("reading", fonts.reading_latin_font_id, fonts.reading_cjk_font_id);
         }
       })
       .catch(() => { /* engine 未 ready 或读取失败，localStorage 已兜底 */ });

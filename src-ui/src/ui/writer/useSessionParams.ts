@@ -3,23 +3,19 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useRef, useMemo, useCallback } from 'react';
-import { getSettings, updateSettings, getProject, updateProject, type ProjectInfo, type SettingsInfo } from '../../api/engine-client';
+import {
+  saveGlobalModelParams,
+  saveProjectModelParamsOverride,
+  type WriterProjectContext,
+  type WriterSessionConfig,
+} from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 
-function hasSessionLlmOverride(llm: ProjectInfo['llm'] | null | undefined): boolean {
-  return Boolean(
-    llm && (
-      llm.mode !== 'api'
-      || llm.model
-      || llm.api_base
-      || llm.api_key
-      || llm.local_model_path
-      || llm.ollama_model
-    )
-  );
+function hasSessionLlmOverride(llm: WriterProjectContext['llm'] | null | undefined): boolean {
+  return Boolean(llm?.has_override);
 }
 
-function getConfiguredLlmModel(llm: ProjectInfo['llm'] | null | undefined): string {
+function getConfiguredLlmModel(llm: WriterProjectContext['llm'] | WriterSessionConfig['default_llm'] | null | undefined): string {
   if (!llm) return '';
   if (llm.mode === 'ollama') {
     return llm.ollama_model || llm.model || '';
@@ -36,8 +32,8 @@ function getConfiguredLlmModel(llm: ProjectInfo['llm'] | null | undefined): stri
 
 export function useSessionParams(
   auPath: string,
-  projectInfo: ProjectInfo | null,
-  settingsInfo: SettingsInfo | null,
+  projectInfo: WriterProjectContext | null,
+  settingsInfo: WriterSessionConfig | null,
   showSuccess: (msg: string) => void,
   showError: (err: unknown, fallback: string) => void,
 ) {
@@ -52,10 +48,7 @@ export function useSessionParams(
   const handleSaveGlobalParams = useCallback(async () => {
     const requestAuPath = auPath;
     try {
-      const settings = await getSettings();
-      settings.model_params = settings.model_params || {};
-      settings.model_params[sessionModel] = { temperature: sessionTemp, top_p: sessionTopP };
-      await updateSettings(settings);
+      await saveGlobalModelParams(sessionModel, { temperature: sessionTemp, top_p: sessionTopP });
       if (activeAuPathRef.current !== requestAuPath) return;
       showSuccess(t('writer.saveGlobalSuccess'));
     } catch (error) {
@@ -67,10 +60,7 @@ export function useSessionParams(
   const handleSaveAuParams = useCallback(async () => {
     const requestAuPath = auPath;
     try {
-      const proj = await getProject(auPath);
-      if (!proj.model_params_override) proj.model_params_override = {};
-      proj.model_params_override[sessionModel] = { temperature: sessionTemp, top_p: sessionTopP };
-      await updateProject(auPath, proj);
+      await saveProjectModelParamsOverride(auPath, sessionModel, { temperature: sessionTemp, top_p: sessionTopP });
       if (activeAuPathRef.current !== requestAuPath) return;
       showSuccess(t('writer.saveAuSuccess'));
     } catch (error) {
@@ -85,7 +75,7 @@ export function useSessionParams(
     const source = hasSessionLlmOverride(projectInfo?.llm)
       ? projectInfo?.llm
       : settingsInfo?.default_llm;
-    const configuredModel = getConfiguredLlmModel(source as ProjectInfo['llm']) || sessionModel;
+    const configuredModel = getConfiguredLlmModel(source) || sessionModel;
 
     // 注意：不发送 api_key —— 前端只持有掩码值（如 ****9cb2），
     // 后端 resolve_llm_config 会从磁盘读取真实 key。

@@ -20,7 +20,7 @@ import { rebuildIndex } from '../../api/engine-client';
 import { listChapters, updateChapterTitle, type ChapterInfo } from '../../api/engine-client';
 import { getState } from '../../api/engine-client';
 import { listFacts, logCatch, type FactInfo } from '../../api/engine-client';
-import { getProject } from '../../api/engine-client';
+import { getWorkspaceSnapshot } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { FeedbackProvider, useFeedback } from '../../hooks/useFeedback';
 import { useMilestoneGuide } from '../../hooks/useMilestoneGuide';
@@ -133,9 +133,9 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
       setUnresolvedFact(firstUnresolved ? (firstUnresolved.content_clean || '').slice(0, 20) + '...' : null);
     }).catch(() => {});
 
-    getProject(auPath).then(proj => {
+    getWorkspaceSnapshot(auPath).then((snapshot) => {
       if (loadGuard.isKeyStale(auPath)) return;
-      setPinnedCount((proj.pinned_context || []).length);
+      setPinnedCount(snapshot.pinned_count);
     }).catch(() => {});
   }, [auPath, milestoneRefreshKey, shouldShow]);
 

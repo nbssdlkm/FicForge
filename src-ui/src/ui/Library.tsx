@@ -17,7 +17,7 @@ import { ImportFlow } from './import/ImportFlow';
 import { createFandom, createAu, deleteFandom, deleteAu, getDataDir } from '../api/engine-client';
 import { useLibraryData } from '../hooks/useLibraryData';
 import { TrashPanel } from './shared/TrashPanel';
-import { getSettings } from '../api/engine-client';
+import { getSettingsSummary, type SettingsSummary } from '../api/engine-client';
 import { useTranslation } from '../i18n/useAppTranslation';
 import { FeedbackProvider, useFeedback } from '../hooks/useFeedback';
 import { OnboardingFlow, isOnboardingCompleted } from './onboarding/OnboardingFlow';
@@ -67,30 +67,21 @@ function LibraryInner({ onNavigate }: Props) {
     setImportModalOpen(true);
   };
 
-  const hasUsableConnectionConfig = (settings: Awaited<ReturnType<typeof getSettings>> | null | undefined) => {
-    const llm = settings?.default_llm;
-    if (!llm) return false;
-    if (llm.mode === 'local') {
-      return Boolean(llm.local_model_path?.trim());
-    }
-    if (llm.mode === 'ollama') {
-      return Boolean((llm.ollama_model || llm.model || '').trim());
-    }
-    return Boolean(llm.api_key?.trim());
-  };
+  const hasUsableConnectionConfig = (settings: SettingsSummary | null | undefined) =>
+    Boolean(settings?.default_llm.has_usable_connection);
 
   useEffect(() => {
     let cancelled = false;
     // 检查是否需要显示引导流程
     if (isOnboardingCompleted()) {
       // 已完成引导，但仍检查 API 配置是否有效
-      getSettings().then(settings => {
+      getSettingsSummary().then(settings => {
         if (!cancelled && !hasUsableConnectionConfig(settings)) {
           setShowApiWarning(true);
         }
       }).catch(() => {});
     } else {
-      getSettings().then(settings => {
+      getSettingsSummary().then(settings => {
         if (!cancelled && !hasUsableConnectionConfig(settings)) {
           setShowOnboarding(true);
         }

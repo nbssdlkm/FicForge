@@ -27,6 +27,54 @@ export interface EmbeddingSettingsInfo {
   ollama_model?: string;
 }
 
+export interface LlmQueryInfo {
+  mode: string;
+  model: string;
+  api_base: string;
+  has_api_key: boolean;
+  local_model_path: string;
+  ollama_model: string;
+  context_window: number;
+  has_usable_connection: boolean;
+}
+
+export interface EmbeddingQueryInfo {
+  mode: string;
+  model: string;
+  api_base: string;
+  has_api_key: boolean;
+  local_model_path: string;
+  ollama_model: string;
+  has_custom_config: boolean;
+}
+
+export interface FontPreferences {
+  ui_latin_font_id: string;
+  ui_cjk_font_id: string;
+  reading_latin_font_id: string;
+  reading_cjk_font_id: string;
+}
+
+export interface SettingsSummary {
+  default_llm: LlmQueryInfo;
+  embedding: EmbeddingQueryInfo;
+  sync: {
+    enabled: boolean;
+    mode: "none" | "webdav";
+    has_password: boolean;
+    last_sync: string | null;
+  };
+  app: {
+    language: string;
+    fonts: FontPreferences;
+  };
+}
+
+export interface WriterSessionConfig {
+  default_llm: LlmQueryInfo;
+  model_params: Record<string, ModelParamInfo>;
+}
+
 export interface SettingsInfo {
   default_llm?: LlmSettingsInfo;
   model_params: Record<string, ModelParamInfo>;

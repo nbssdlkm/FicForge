@@ -25,7 +25,17 @@ export { FactStatus, IndexStatus, LLMMode, Provenance } from "@ficforge/engine";
 export type { ExtractedFactCandidate, ExtractFactsResponse } from "./facts";
 export type { ChapterInfo } from "./chapters";
 export type { DraftListItem, DraftGeneratedWith, DeleteDraftsResult } from "./drafts";
-export type { LlmSettingsInfo, TestConnectionRequest, TestConnectionResponse } from "./settings";
+export type {
+  EmbeddingQueryInfo,
+  FontPreferences,
+  LlmQueryInfo,
+  LlmSettingsInfo,
+  SettingsSummary,
+  TestConnectionRequest,
+  TestConnectionResponse,
+  WriterSessionConfig,
+} from "./settings";
+export type { ProjectLlmQueryInfo, WorkspaceSnapshot, WriterProjectContext } from "./project";
 export type { FandomInfo, FandomFileEntry, FandomFilesResponse } from "./fandoms";
 export type { TrashScope } from "./trash";
 export type { GenerateParams } from "./generate";
@@ -57,10 +67,27 @@ export { initEngine, getEngine, isEngineReady, getDataDir, getDisplayDataDir } f
 // Domain module re-exports
 // ---------------------------------------------------------------------------
 
-export { getSettings, updateSettings, testConnection, testEmbeddingConnection } from "./engine-settings";
+export {
+  getSettings,
+  getSettingsSummary,
+  getFontPreferences,
+  getWriterSessionConfig,
+  updateSettings,
+  saveGlobalModelParams,
+  testConnection,
+  testEmbeddingConnection,
+} from "./engine-settings";
 export { getState, setChapterFocus, rebuildIndex, recalcState } from "./engine-state";
 export { listFacts, addFact, editFact, updateFactStatus, batchUpdateFactStatus, extractFacts, extractFactsBatch, submitFactsExtraction } from "./engine-facts";
-export { getProject, updateProject, addPinned, deletePinned } from "./engine-project";
+export {
+  getProject,
+  getWorkspaceSnapshot,
+  getWriterProjectContext,
+  updateProject,
+  saveProjectModelParamsOverride,
+  addPinned,
+  deletePinned,
+} from "./engine-project";
 export { listChapters, getChapter, getChapterContent, confirmChapter, undoChapter, updateChapterTitle, resolveDirtyChapter, updateChapterContent } from "./engine-chapters";
 export { listDrafts, getDraft, saveDraft, deleteDrafts } from "./engine-drafts";
 export { generateChapter } from "./engine-generate";

@@ -37,8 +37,8 @@ import { listDrafts, getDraft, saveDraft, deleteDrafts, type DraftDetail, type D
 import { getState, setChapterFocus, type StateInfo } from '../../api/engine-client';
 import { listFacts, type FactInfo } from '../../api/engine-client';
 import { generateChapter, type ContextSummary } from '../../api/engine-client';
-import { getSettings, type SettingsInfo } from '../../api/engine-client';
-import { getProject, type ProjectInfo } from '../../api/engine-client';
+import { getWriterSessionConfig, type WriterSessionConfig } from '../../api/engine-client';
+import { getWriterProjectContext, type WriterProjectContext } from '../../api/engine-client';
 import { ApiError, getFriendlyErrorMessage } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
@@ -154,8 +154,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const [isDiscardConfirmOpen, setDiscardConfirmOpen] = useState(false);
 
   const [state, setState] = useState<StateInfo | null>(null);
-  const [projectInfo, setProjectInfo] = useState<ProjectInfo | null>(null);
-  const [settingsInfo, setSettingsInfo] = useState<SettingsInfo | null>(null);
+  const [projectInfo, setProjectInfo] = useState<WriterProjectContext | null>(null);
+  const [settingsInfo, setSettingsInfo] = useState<WriterSessionConfig | null>(null);
   const [currentContent, setCurrentContent] = useState('');
   const [unresolvedFacts, setUnresolvedFacts] = useState<FactInfo[]>([]);
   const [focusSelection, setFocusSelection] = useState<string[]>([]);
@@ -386,8 +386,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       const [stateData, factsData, proj, settings] = await Promise.all([
         getState(auPath).catch(() => null),
         listFacts(auPath, 'unresolved').catch(() => []),
-        getProject(auPath).catch(() => null),
-        getSettings().catch(() => null),
+        getWriterProjectContext(auPath).catch(() => null),
+        getWriterSessionConfig().catch(() => null),
       ]);
       if (loadGuard.isStale(token)) return;
 
@@ -401,7 +401,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       let defTemp = 1.0;
       let defTopP = 0.95;
 
-      const globalConfiguredModel = sessionParams.getConfiguredLlmModel(settings?.default_llm as ProjectInfo['llm']);
+      const globalConfiguredModel = sessionParams.getConfiguredLlmModel(settings?.default_llm);
       if (globalConfiguredModel) {
         defModel = globalConfiguredModel;
         const globalParams = settings?.model_params?.[defModel];
@@ -480,7 +480,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       const [stateData, factsData, proj] = await Promise.all([
         getState(auPath).catch(() => null),
         listFacts(auPath, 'unresolved').catch(() => []),
-        getProject(auPath).catch(() => null),
+        getWriterProjectContext(auPath).catch(() => null),
       ]);
       if (refreshGuard.isStale(token)) return;
 
@@ -504,10 +504,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     if (isGenerating || !state) return;
     const token = generateGuard.start();
 
-    const projectLlmUsable = projectInfo?.llm?.mode && (projectInfo.llm.mode !== 'api' || projectInfo.llm.api_key);
+    const projectLlmUsable = projectInfo?.llm?.mode && (projectInfo.llm.mode !== 'api' || projectInfo.llm.has_api_key);
     const effectiveLlm = projectLlmUsable ? projectInfo!.llm : settingsInfo?.default_llm;
     const llmMode = effectiveLlm?.mode || 'api';
-    if (llmMode === 'api' && !effectiveLlm?.api_key) {
+    if (llmMode === 'api' && !effectiveLlm?.has_api_key) {
       showError(null, t('error_messages.no_api_key'));
       return;
     }
