@@ -103,24 +103,6 @@ describe("create_provider", () => {
     expect(p).toBeInstanceOf(OpenAICompatibleProvider);
   });
 
-  it("mode=ollama 自动补齐 /v1 后缀（用户只填了 host）", () => {
-    const p = create_provider({
-      mode: "ollama", model: "", api_base: "http://192.168.1.10:11434", api_key: "",
-      ollama_model: "llama3",
-    });
-    // 通过 instanceof 检查 —— 具体的 base normalization 在 OpenAICompatibleProvider 内部不可观测，
-    // 但至少不该因为缺 /v1 抛错
-    expect(p).toBeInstanceOf(OpenAICompatibleProvider);
-  });
-
-  it("mode=ollama 已带 /v1 不重复追加", () => {
-    const p = create_provider({
-      mode: "ollama", model: "", api_base: "http://host:11434/v1", api_key: "",
-      ollama_model: "llama3",
-    });
-    expect(p).toBeInstanceOf(OpenAICompatibleProvider);
-  });
-
   it("mode=ollama 缺 ollama_model 抛错（引擎级护栏）", () => {
     expect(() =>
       create_provider({ mode: "ollama", model: "", api_base: "", api_key: "" }),

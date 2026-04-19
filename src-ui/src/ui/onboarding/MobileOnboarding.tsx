@@ -31,7 +31,7 @@ const PROVIDER_PRESETS: Record<LlmProvider, { apiBase: string; model: string }> 
   },
   openai: {
     apiBase: 'https://api.openai.com/v1',
-    model: 'gpt-5.4',
+    model: '',
   },
   custom: {
     apiBase: '',
@@ -387,7 +387,7 @@ export function MobileOnboarding({
                   <Input
                     value={model}
                     onChange={event => setModel(event.target.value)}
-                    placeholder="deepseek-chat"
+                    placeholder={t('onboarding.apiConfig.modelPlaceholder')}
                   />
 
                   <Button
@@ -447,13 +447,13 @@ export function MobileOnboarding({
                       label={t('common.labels.model')}
                       value={embeddingModel}
                       onChange={event => setEmbeddingModel(event.target.value)}
-                      placeholder="BAAI/bge-m3"
+                      placeholder={t('settings.global.embeddingModelPlaceholder')}
                     />
                     <Input
                       label={t('common.labels.apiBase')}
                       value={embeddingApiBase}
                       onChange={event => setEmbeddingApiBase(event.target.value)}
-                      placeholder="https://api.siliconflow.cn/v1"
+                      placeholder={t('settings.global.embeddingApiBasePlaceholder')}
                     />
                     <Input
                       label={t('common.labels.apiKey')}

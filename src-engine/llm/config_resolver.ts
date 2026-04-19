@@ -150,15 +150,12 @@ export function create_provider(llmConfig: ResolvedLLMConfig): LLMProvider {
 
   if (mode === "ollama") {
     const base = (llmConfig.api_base || "http://localhost:11434/v1").replace(/\/+$/, "");
-    // Ollama 自己的 /api/chat 不走 OpenAI 协议；只有 /v1 子路径兼容。若用户填了
-    // 裸 host 而没带 /v1，补齐；若已带则不重复。
-    const normalizedBase = /\/v1$/.test(base) ? base : `${base}/v1`;
     const key = llmConfig.api_key || "ollama";  // dummy —— Ollama 不校验
     const model = llmConfig.ollama_model || llmConfig.model;
     if (!model) {
       throw new Error("Ollama 模式需要指定模型名（ollama_model）");
     }
-    return new OpenAICompatibleProvider(normalizedBase, key, model);
+    return new OpenAICompatibleProvider(base, key, model);
   }
 
   if (mode === "local") {

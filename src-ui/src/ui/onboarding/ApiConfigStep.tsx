@@ -80,7 +80,7 @@ export function ApiConfigStep({
       const result = await testConnection({
         mode: config.mode,
         model: config.mode === 'ollama' ? config.ollama_model : config.model,
-        api_base: config.mode === 'ollama' ? (config.api_base || 'http://localhost:11434') : config.api_base,
+        api_base: config.mode === 'ollama' ? (config.api_base || 'http://localhost:11434/v1') : config.api_base,
         api_key: config.mode === 'api' ? config.api_key : '',
         local_model_path: config.mode === 'local' ? config.local_model_path : '',
         ollama_model: config.mode === 'ollama' ? config.ollama_model : '',
@@ -154,7 +154,7 @@ export function ApiConfigStep({
           </div>
           <div className="space-y-1">
             <label className="text-sm font-medium text-text/90">{t('onboarding.apiConfig.model')}</label>
-            <Input value={config.model} onChange={e => update('model', e.target.value)} placeholder="deepseek-chat" disabled={testing} />
+            <Input value={config.model} onChange={e => update('model', e.target.value)} placeholder={t('onboarding.apiConfig.modelPlaceholder')} disabled={testing} />
           </div>
         </div>
       )}
@@ -175,7 +175,7 @@ export function ApiConfigStep({
         <div className="space-y-4 border-t border-black/10 dark:border-white/10 pt-4">
           <div className="space-y-1">
             <label className="text-sm font-medium text-text/90">{t('onboarding.apiConfig.ollamaBase')}</label>
-            <Input value={config.api_base} onChange={e => update('api_base', e.target.value)} placeholder="http://localhost:11434" disabled={testing} />
+            <Input value={config.api_base} onChange={e => update('api_base', e.target.value)} placeholder="http://localhost:11434/v1" disabled={testing} />
           </div>
           <div className="space-y-1">
             <label className="text-sm font-medium text-text/90">{t('onboarding.apiConfig.ollamaModel')}</label>
