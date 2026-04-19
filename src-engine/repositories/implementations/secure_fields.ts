@@ -128,3 +128,17 @@ export async function removeSecureFields(
     }
   }
 }
+
+/**
+ * 检测对象上是否仍携带未迁移的明文敏感字段。
+ * 仅用于显式迁移流程；普通 save 仍由 extractSecureFields 统一脱敏。
+ */
+export function hasLegacyPlaintextSecureFields<T>(
+  obj: T,
+  specs: SecureFieldSpec<T>[],
+): boolean {
+  return specs.some((spec) => {
+    const value = spec.get(obj);
+    return Boolean(value && value !== SECURE_PLACEHOLDER);
+  });
+}

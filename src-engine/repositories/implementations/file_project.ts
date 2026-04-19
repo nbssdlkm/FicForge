@@ -18,6 +18,7 @@ import type { ProjectRepository } from "../interfaces/project.js";
 import { joinPath, now_utc, obj_to_plain, validateBasePath } from "./file_utils.js";
 import {
   extractSecureFields,
+  hasLegacyPlaintextSecureFields,
   removeSecureFields,
   restoreSecureFields,
   type SecureFieldSpec,
@@ -120,6 +121,39 @@ export class FileProjectRepository implements ProjectRepository {
    */
   async removeSecureStorage(au_id: string): Promise<void> {
     await removeSecureFields(projectSecureKeysFor(au_id), this.adapter);
+  }
+
+  /**
+   * 显式迁移旧版 project.yaml 中的明文 secret。
+   * 仅重写占位符，不推进 revision / updated_at。
+   */
+  async migrateLegacySecureStorage(au_id: string): Promise<boolean> {
+    validateBasePath(au_id, "au_id");
+    const path = joinPath(au_id, "project.yaml");
+    const exists = await this.adapter.exists(path);
+    if (!exists) return false;
+
+    const text = await this.adapter.readFile(path);
+    let raw: Record<string, unknown>;
+    try {
+      const parsed = yaml.load(text);
+      raw = (parsed && typeof parsed === "object" ? parsed : {}) as Record<string, unknown>;
+    } catch {
+      return false;
+    }
+
+    const project = dictToProject(raw, au_id);
+    const specs = projectSecureSpecs(au_id);
+    if (!hasLegacyPlaintextSecureFields(project, specs)) {
+      return false;
+    }
+
+    await restoreSecureFields(project, specs, this.adapter);
+    const sanitized = structuredClone(project);
+    await extractSecureFields(sanitized, specs, this.adapter);
+    const content = yaml.dump(obj_to_plain(sanitized), { sortKeys: false, lineWidth: -1 });
+    await this.adapter.writeFile(path, content);
+    return true;
   }
 }
 

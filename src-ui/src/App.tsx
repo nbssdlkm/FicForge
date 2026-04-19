@@ -8,7 +8,7 @@ import { FandomLoreLayout } from "./ui/library/FandomLoreLayout";
 import { MobileFandomView } from "./ui/mobile/MobileFandomView";
 import { SplashScreen } from "./ui/SplashScreen";
 import { AuWorkspaceLayout } from "./ui/workspace/AuWorkspaceLayout";
-import { initEngine, getEngine, initLogger, getLogger } from "./api/engine-client";
+import { initEngine, getEngine, initLogger, getLogger, migrateLegacySecureStorage } from "./api/engine-client";
 import { hydrateFontsOnStartup } from "./api/engine-fonts";
 import { useTranslation } from "./i18n/useAppTranslation";
 import { useMediaQuery } from "./hooks/useMediaQuery";
@@ -125,6 +125,22 @@ function App() {
             getLogger().info("task_runner", `${interrupted.length} interrupted task(s) from previous session`);
           }
         } catch { /* best effort */ }
+
+        try {
+          currentStep = "migrating secure storage";
+          const migration = await migrateLegacySecureStorage();
+          if (migration.attempted && (migration.settingsMigrated || migration.migratedProjects > 0 || migration.failedProjects.length > 0)) {
+            getLogger().info("security", "migrated legacy secure storage", {
+              attempted: migration.attempted,
+              settingsMigrated: migration.settingsMigrated,
+              scannedProjects: migration.scannedProjects,
+              migratedProjects: migration.migratedProjects,
+              failedProjects: migration.failedProjects,
+            });
+          }
+        } catch (e) {
+          logUiError("app", "Legacy secure storage migration failed", e);
+        }
 
         // 启动时恢复已下载字体到 FontFace registry（Phase 5 有下载功能后才有实际作用）。
         // 失败内部已 console.warn，不阻断启动。

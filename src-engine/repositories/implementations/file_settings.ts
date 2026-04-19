@@ -35,6 +35,7 @@ import type { SettingsRepository } from "../interfaces/settings.js";
 import { joinPath, now_utc, obj_to_plain } from "./file_utils.js";
 import {
   extractSecureFields,
+  hasLegacyPlaintextSecureFields,
   restoreSecureFields,
   type SecureFieldSpec,
 } from "./secure_fields.js";
@@ -105,6 +106,33 @@ export class FileSettingsRepository implements SettingsRepository {
     const raw = obj_to_plain(stripped);
     const content = yaml.dump(raw, { sortKeys: false, lineWidth: -1 });
     await this.adapter.writeFile(this.path, content);
+  }
+
+  /**
+   * 显式迁移旧版明文 YAML 到 secure storage，并回写占位符。
+   * 不更新 updated_at，避免把安全迁移伪装成用户配置修改。
+   */
+  async migrateLegacySecureStorage(): Promise<boolean> {
+    const exists = await this.adapter.exists(this.path);
+    if (!exists) return false;
+
+    const text = await this.adapter.readFile(this.path);
+    const raw = yaml.load(text) as Record<string, unknown> | null;
+    if (!raw || typeof raw !== "object") {
+      return false;
+    }
+
+    const settings = dictToSettings(raw);
+    if (!hasLegacyPlaintextSecureFields(settings, SETTINGS_SECURE_SPECS)) {
+      return false;
+    }
+
+    await restoreSecureFields(settings, SETTINGS_SECURE_SPECS, this.adapter);
+    const sanitized = structuredClone(settings);
+    await extractSecureFields(sanitized, SETTINGS_SECURE_SPECS, this.adapter);
+    const content = yaml.dump(obj_to_plain(sanitized), { sortKeys: false, lineWidth: -1 });
+    await this.adapter.writeFile(this.path, content);
+    return true;
   }
 }
 

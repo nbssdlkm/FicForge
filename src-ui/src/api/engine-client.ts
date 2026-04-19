@@ -128,6 +128,7 @@ export { saveLore, readLore, deleteLore, listLoreFiles, importFromFandom, getLor
 export { sendSettingsChat } from "./engine-settings-chat";
 export { listFandoms, createFandom, listAus, createAu, deleteFandom, deleteAu, listFandomFiles, readFandomFile, renameFandom, renameAu } from "./engine-fandom";
 export { exportChapters, importChaptersFromText } from "./engine-export";
+export { migrateLegacySecureStorage } from "./engine-security";
 
 // Logger re-exports
 export { initLogger, getLogger, logCatch } from "@ficforge/engine";
