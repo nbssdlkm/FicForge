@@ -18,6 +18,7 @@ import { useConfirmedChapterEditor } from './useConfirmedChapterEditor';
 import { useWriterBootstrap } from './useWriterBootstrap';
 import { useWriterResetOnAuChange } from './useWriterResetOnAuChange';
 import { type DraftItem, useWriterDraftController } from './useWriterDraftController';
+import { useWriterFocusController } from './useWriterFocusController';
 import { Button } from '../shared/Button';
 import { Modal } from '../shared/Modal';
 import { ExportModal } from './ExportModal';
@@ -34,7 +35,7 @@ import { InlineBanner } from '../shared/InlineBanner';
 
 import { confirmChapter, undoChapter } from '../../api/engine-client';
 import { deleteDrafts, type DraftGeneratedWith } from '../../api/engine-client';
-import { setChapterFocus, type StateInfo } from '../../api/engine-client';
+import { type StateInfo } from '../../api/engine-client';
 import { type FactInfo } from '../../api/engine-client';
 import { generateChapter, type ContextSummary } from '../../api/engine-client';
 import { type WriterSessionConfig } from '../../api/engine-client';
@@ -572,60 +573,21 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     }
   };
 
-  const handleFocusToggle = async (factId: string) => {
-    const requestAuPath = auPath;
-    let next: string[];
-    if (focusSelection.includes(factId)) {
-      next = focusSelection.filter(id => id !== factId);
-    } else {
-      if (focusSelection.length >= 2) {
-        showToast(t('focus.maxTwo'), 'warning');
-        return;
-      }
-      next = [...focusSelection, factId];
-    }
-    try {
-      await setChapterFocus(auPath, next);
-      if (loadGuard.isKeyStale(requestAuPath)) return;
-      setFocusSelection(next);
-      showToast(t('writer.focusSaved'), 'success');
-    } catch (error) {
-      if (loadGuard.isKeyStale(requestAuPath)) return;
-      showError(error, t('error_messages.unknown'));
-    }
-  };
-
-  const handleClearFocus = async () => {
-    const requestAuPath = auPath;
-    try {
-      await setChapterFocus(auPath, []);
-      if (loadGuard.isKeyStale(requestAuPath)) return;
-      setFocusSelection([]);
-      showToast(t('writer.focusSaved'), 'success');
-    } catch (error) {
-      if (loadGuard.isKeyStale(requestAuPath)) return;
-      showError(error, t('error_messages.unknown'));
-    }
-  };
-
-  const handleContinueLastFocus = async () => {
-    const requestAuPath = auPath;
-    const lastFocus = state?.last_confirmed_chapter_focus || [];
-    const validIds = lastFocus.filter(id => unresolvedFacts.some(f => String(f.id) === id));
-    if (validIds.length === 0) {
-      showToast(t('focus.lastFocusExpired'), 'warning');
-      return;
-    }
-    try {
-      await setChapterFocus(auPath, validIds);
-      if (loadGuard.isKeyStale(requestAuPath)) return;
-      setFocusSelection(validIds);
-      showToast(t('writer.focusSaved'), 'success');
-    } catch (error) {
-      if (loadGuard.isKeyStale(requestAuPath)) return;
-      showError(error, t('error_messages.unknown'));
-    }
-  };
+  const {
+    handleFocusToggle,
+    handleClearFocus,
+    handleContinueLastFocus,
+  } = useWriterFocusController({
+    auPath,
+    focusSelection,
+    unresolvedFacts,
+    lastConfirmedFocus: state?.last_confirmed_chapter_focus || [],
+    loadGuard,
+    setFocusSelection,
+    showToast,
+    showError,
+    t,
+  });
 
   const handleModeChange = (nextMode: WriterMode) => {
     if (nextMode === 'write' && isSettingsModeBusy) {
