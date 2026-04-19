@@ -44,7 +44,9 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     script: "cjk",
     category: "serif",
     license: "SIL OFL 1.1",
-    url: "/fonts/lxgw-wenkai-screen.woff2",
+    // 分片加载入口：cn-font-split 拆出的 243 个 woff2 子片 + @font-face unicode-range 声明。
+    // 浏览器按需抓取子片，整包体积 ~17 MB 随应用分发（src-ui/public/fonts/lxgw-wenkai-screen/）。
+    url: "/fonts/lxgw-wenkai-screen/result.css",
   },
 
   // ── 可下载字体（按需拉取） ──────────────────────────

@@ -48,7 +48,15 @@ interface FontEntryBase {
 /** 内置字体：随应用打包，通过相对 URL 加载。 */
 export interface BuiltinFont extends FontEntryBase {
   type: "builtin";
-  /** 相对于前端静态根的 URL，如 "/fonts/source-serif-4.woff2"。 */
+  /**
+   * 相对于前端静态根的加载入口 URL。两种形态：
+   * - 单文件 woff2/ttf，如 `/fonts/source-serif-4.woff2`；
+   * - CSS 分片入口（按 unicode-range 懒加载子片），如 `/fonts/lxgw-wenkai-screen/result.css`,
+   *   适用于中文等大字库。
+   *
+   * 当前仅作信息字段：内置字体由 index.html 的 `<link>` 直接加载，service / downloader /
+   * registry 均不消费此字段。未来若要统一走 manifest 驱动加载，需按扩展名分派处理。
+   */
   url: string;
 }
 
