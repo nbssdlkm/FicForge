@@ -9,6 +9,7 @@ import { addFact, editFact, updateFactStatus } from "../../../api/engine-client"
 import { deleteLore, listLoreFiles, readLore, saveLore } from "../../../api/engine-client";
 import { addPinned, deletePinned, getProjectForEditing, saveProjectCastRegistryCharacters, saveProjectCoreIncludes, saveProjectWritingStyle, type ProjectInfo } from "../../../api/engine-client";
 import { useFeedback } from "../../../hooks/useFeedback";
+import { useActiveRequestGuard } from "../../../hooks/useActiveRequestGuard";
 import { useTranslation } from "../../../i18n/useAppTranslation";
 import { SettingsChatHistory } from "./SettingsChatHistory";
 import { SettingsChatInput } from "./SettingsChatInput";
@@ -161,10 +162,10 @@ export function SettingsChatPanel({
   const characterFilesRef = useRef<LoreFileOption[]>([]);
   const worldbuildingFilesRef = useRef<LoreFileOption[]>([]);
   const loadingCardIdsRef = useRef<Set<string>>(new Set());
-  const supportDataRequestIdRef = useRef(0);
-  const chatRequestIdRef = useRef(0);
   const contextVersionRef = useRef(0);
   const onAfterMutationRef = useRef<typeof onAfterMutation>(onAfterMutation);
+  const supportDataGuard = useActiveRequestGuard(`support:${mode}:${basePath ?? ""}`);
+  const chatGuard = useActiveRequestGuard(`chat:${mode}:${basePath ?? ""}`);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -197,8 +198,6 @@ export function SettingsChatPanel({
 
   useEffect(() => {
     contextVersionRef.current += 1;
-    chatRequestIdRef.current += 1;
-    supportDataRequestIdRef.current += 1;
     loadingCardIdsRef.current.clear();
     setSending(false);
     setPostMutationBusy(false);
@@ -214,7 +213,7 @@ export function SettingsChatPanel({
 
   const loadSupportData = useCallback(async () => {
     if (!basePath) return;
-    const requestId = ++supportDataRequestIdRef.current;
+    const token = supportDataGuard.start();
 
     try {
       if (mode === "au") {
@@ -223,7 +222,7 @@ export function SettingsChatPanel({
           listLoreFiles({ au_path: basePath, category: "characters" }).catch(() => ({ files: [] })),
           listLoreFiles({ au_path: basePath, category: "worldbuilding" }).catch(() => ({ files: [] })),
         ]);
-        if (requestId !== supportDataRequestIdRef.current) return;
+        if (supportDataGuard.isStale(token)) return;
         setProjectInfo(project);
         setCharacterFiles(characters.files);
         characterFilesRef.current = characters.files;
@@ -236,17 +235,17 @@ export function SettingsChatPanel({
         listLoreFiles({ fandom_path: basePath, category: "core_characters" }).catch(() => ({ files: [] })),
         listLoreFiles({ fandom_path: basePath, category: "core_worldbuilding" }).catch(() => ({ files: [] })),
       ]);
-      if (requestId !== supportDataRequestIdRef.current) return;
+      if (supportDataGuard.isStale(token)) return;
       setProjectInfo(null);
       setCharacterFiles(characters.files);
       characterFilesRef.current = characters.files;
       setWorldbuildingFiles(worldbuilding.files);
       worldbuildingFilesRef.current = worldbuilding.files;
     } catch (error) {
-      if (requestId !== supportDataRequestIdRef.current) return;
+      if (supportDataGuard.isStale(token)) return;
       showError(error, t("error_messages.unknown"));
     }
-  }, [basePath, mode, showError, t]);
+  }, [basePath, mode, showError, supportDataGuard, t]);
 
   useEffect(() => {
     void loadSupportData();
@@ -887,7 +886,7 @@ export function SettingsChatPanel({
     const trimmed = inputText.trim();
     if (!trimmed || !basePath || mutationBusy || disabled) return;
 
-    const requestId = ++chatRequestIdRef.current;
+    const token = chatGuard.start();
     const outgoing = buildOutboundUserMessage(trimmed, intent, t);
     const userMessageId = createMessageId(MESSAGE_STORAGE_PREFIX);
     const nextMessages = [
@@ -914,7 +913,7 @@ export function SettingsChatPanel({
         ...(fandomPath ? { fandom_path: fandomPath } : {}),
         ...(sessionLlm ? { session_llm: sessionLlm } : {}),
       });
-      if (requestId !== chatRequestIdRef.current) return;
+      if (chatGuard.isStale(token)) return;
       const toolCalls = Array.isArray(response.tool_calls) ? response.tool_calls : [];
 
       const assistantMessage: SettingsChatMessage = {
@@ -927,15 +926,15 @@ export function SettingsChatPanel({
       setMessages((current) => [...current, assistantMessage]);
       setInputText("");
     } catch (error) {
-      if (requestId !== chatRequestIdRef.current) return;
+      if (chatGuard.isStale(token)) return;
       setMessages((current) => current.filter((message) => message.id !== userMessageId));
       showError(error, t("error_messages.unknown"));
     } finally {
-      if (requestId === chatRequestIdRef.current) {
+      if (!chatGuard.isStale(token)) {
         setSending(false);
       }
     }
-  }, [basePath, disabled, fandomPath, inputText, mode, mutationBusy, sessionLlm, showError, t]);
+  }, [basePath, chatGuard, disabled, fandomPath, inputText, mode, mutationBusy, sessionLlm, showError, t]);
 
   const existingCharacterFileNames = useMemo(
     () => new Set(characterFiles.map((file) => file.filename)),
