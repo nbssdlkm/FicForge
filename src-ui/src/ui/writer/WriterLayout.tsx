@@ -20,17 +20,15 @@ import { useWriterChromeState } from './useWriterChromeState';
 import { useWriterChapterActions } from './useWriterChapterActions';
 import { useWriterGeneration } from './useWriterGeneration';
 import { deriveWriterDisplayState } from './writerDisplayState';
+import { WriterToolPanels } from './WriterToolPanels';
 import { Button } from '../shared/Button';
-import { Modal } from '../shared/Modal';
 import { ExportModal } from './ExportModal';
 import { DirtyModal } from './DirtyModal';
 import { ContextSummaryBar } from './ContextSummaryBar';
 import { ChapterContentArea } from './ChapterContentArea';
-import { WriterSidePanelContent } from './WriterSidePanelContent';
 import { WriterModals } from './WriterModals';
 import { WriterHeader } from './WriterHeader';
 import { WriterFooter } from './WriterFooter';
-import { Sidebar } from '../shared/Sidebar';
 import { SettingsChatPanel } from '../shared/settings-chat/SettingsChatPanel';
 import { InlineBanner } from '../shared/InlineBanner';
 
@@ -551,24 +549,18 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
         </div>
       </main>
 
-      <Sidebar position="right" width="320px" isCollapsed={rightCollapsed} onToggle={toggleRightCollapsed} className="hidden flex-col bg-surface/50 border-l border-black/10 dark:border-white/10 md:flex">
-        <WriterSidePanelContent
-          isMobile={false}
-          {...sharedSidePanelProps}
-        />
-      </Sidebar>
-
-      <Modal isOpen={mobileToolsOpen} onClose={closeMobileTools} title={t('common.actions.more')}>
-        <WriterSidePanelContent
-          isMobile={true}
-          onClose={closeMobileTools}
-          onUndoClick={() => { closeMobileTools(); openUndoConfirm(); }}
-          onExportClick={() => { closeMobileTools(); openExport(); }}
-          currentChapter={currentChapter}
-          writeActionsDisabled={writeActionsDisabled}
-          {...sharedSidePanelProps}
-        />
-      </Modal>
+      <WriterToolPanels
+        sidePanelProps={sharedSidePanelProps}
+        rightCollapsed={rightCollapsed}
+        onToggleRightCollapsed={toggleRightCollapsed}
+        mobileToolsOpen={mobileToolsOpen}
+        onCloseMobileTools={closeMobileTools}
+        onOpenUndo={openUndoConfirm}
+        onOpenExport={openExport}
+        currentChapter={currentChapter}
+        writeActionsDisabled={writeActionsDisabled}
+        mobileToolsTitle={t('common.actions.more')}
+      />
 
       <WriterModals
         isFinalizeConfirmOpen={isFinalizeConfirmOpen}
