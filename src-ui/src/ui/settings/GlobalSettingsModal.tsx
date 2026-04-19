@@ -9,7 +9,7 @@ import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { HelpCircle, CheckCircle2, XCircle } from 'lucide-react';
 import { ModelSelector } from '../shared/ModelSelector';
-import { getSettingsForEditing, testConnection, testEmbeddingConnection, saveGlobalSettingsForEditing, LLMMode, type SettingsInfo, getDataDir, getDisplayDataDir } from '../../api/engine-client';
+import { getSettingsForEditing, saveGlobalSettingsForEditing, LLMMode, type SettingsInfo, getDataDir, getDisplayDataDir } from '../../api/engine-client';
 import { ConflictResolveModal } from '../shared/ConflictResolveModal';
 import { useSyncOperations } from './useSyncOperations';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -21,16 +21,20 @@ import { GlobalSettingsSyncSection } from './GlobalSettingsSyncSection';
 import { LlmModeSelect } from './LlmModeSelect';
 import { FontSettingsSection } from './FontSettingsSection';
 import { isTauri } from '../../utils/platform';
+import { useEmbeddingConnectionTest, useLlmConnectionTest } from '../../hooks/useConnectionTest';
+import { canTestLlmConnection } from '../shared/llm-config';
+import {
+  buildGlobalSettingsSaveInput,
+  createDefaultGlobalSettingsFormState,
+  hydrateGlobalSettingsForm,
+} from './form-mappers';
 
 export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const { t, i18n } = useTranslation();
   const { showError } = useFeedback();
   const modalRequestIdRef = useRef(0);
-  const testRequestIdRef = useRef(0);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
-  const [testMessage, setTestMessage] = useState('');
 
   const [settings, setSettings] = useState<SettingsInfo | null>(null);
 
@@ -53,9 +57,17 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [apiHelpOpen, setApiHelpOpen] = useState(false);
   const [displayDataDir, setDisplayDataDir] = useState('');
-  const [embTestStatus, setEmbTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
-  const [embTestMessage, setEmbTestMessage] = useState('');
-  const embTestIdRef = useRef(0);
+
+  const llmConnection = useLlmConnectionTest({
+    getSuccessMessage: () => t('settings.global.connectionSuccess'),
+    getFailureMessage: (result) => result.message || t('error_messages.unknown'),
+    getExceptionMessage: (error) => `${t('settings.global.testFailedPrefix')}${error instanceof Error ? error.message || t('error_messages.unknown') : t('error_messages.unknown')}`,
+  });
+  const embeddingConnection = useEmbeddingConnectionTest({
+    getSuccessMessage: (result) => `${t('settings.global.connectionSuccess')} dim=${result.dimension}`,
+    getFailureMessage: (result) => result.message || t('error_messages.unknown'),
+    getExceptionMessage: (error) => error instanceof Error ? error.message || t('error_messages.unknown') : t('error_messages.unknown'),
+  });
 
   const syncOps = useSyncOperations({ url: syncUrl, username: syncUsername, password: syncPassword, remote_dir: syncRemoteDir });
   const {
@@ -66,32 +78,31 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   } = syncOps;
 
   const resetFormState = () => {
+    const defaults = createDefaultGlobalSettingsFormState();
     setSettings(null);
-    setMode(LLMMode.API);
-    setModel('deepseek-chat');
-    setLocalModelPath('');
-    setOllamaModel('');
-    setApiBase('https://api.deepseek.com');
-    setApiKey('');
-    setContextWindow(128000);
-    setEmbeddingModel('');
-    setEmbeddingApiBase('');
-    setEmbeddingApiKey('');
-    setUseCustomEmbedding(false);
-    setSyncMode('none');
-    setSyncUrl('');
-    setSyncUsername('');
-    setSyncPassword('');
-    setSyncRemoteDir('/FicForge/');
-    setLastSync(null);
+    setMode(defaults.mode);
+    setModel(defaults.model);
+    setLocalModelPath(defaults.localModelPath);
+    setOllamaModel(defaults.ollamaModel);
+    setApiBase(defaults.apiBase);
+    setApiKey(defaults.apiKey);
+    setContextWindow(defaults.contextWindow);
+    setEmbeddingModel(defaults.embeddingModel);
+    setEmbeddingApiBase(defaults.embeddingApiBase);
+    setEmbeddingApiKey(defaults.embeddingApiKey);
+    setUseCustomEmbedding(defaults.useCustomEmbedding);
+    setSyncMode(defaults.syncMode);
+    setSyncUrl(defaults.syncUrl);
+    setSyncUsername(defaults.syncUsername);
+    setSyncPassword(defaults.syncPassword);
+    setSyncRemoteDir(defaults.syncRemoteDir);
+    setLastSync(defaults.lastSync);
     setApiHelpOpen(false);
     resetSyncState();
   };
 
   useEffect(() => {
-    testRequestIdRef.current += 1;
-    setTestStatus('idle');
-    setTestMessage('');
+    llmConnection.reset();
   }, [mode, model, localModelPath, ollamaModel, apiBase, apiKey, contextWindow, embeddingModel]);
 
   useEffect(() => {
@@ -99,41 +110,30 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
       const requestId = ++modalRequestIdRef.current;
       setLoading(true);
       resetFormState();
-      // 异步获取显示用路径（Capacitor 返回 file:// URI，Tauri 返回绝对路径，Web 返回空）
       getDisplayDataDir().then((dir) => {
         if (requestId === modalRequestIdRef.current) setDisplayDataDir(dir);
       }).catch(() => {});
       getSettingsForEditing().then((res) => {
         if (requestId !== modalRequestIdRef.current) return;
         setSettings(res);
-        if (res?.default_llm) {
-          const nextMode = res.default_llm.mode || LLMMode.API;
-          setMode(nextMode);
-          setModel(res.default_llm.model || 'deepseek-chat');
-          setLocalModelPath(res.default_llm.local_model_path || '');
-          setOllamaModel(res.default_llm.ollama_model || res.default_llm.model || '');
-          setApiBase(
-            res.default_llm.api_base
-            || (nextMode === 'ollama' ? 'http://localhost:11434/v1' : 'https://api.deepseek.com')
-          );
-          setApiKey(res.default_llm.api_key || '');
-          setContextWindow(res.default_llm.context_window || 128000);
-        }
-        setEmbeddingModel(res?.embedding?.model || '');
-        setEmbeddingApiBase(res?.embedding?.api_base || '');
-        setEmbeddingApiKey(res?.embedding?.api_key || '');
-        setUseCustomEmbedding(!!(res?.embedding?.model && res?.embedding?.api_key));
-        const sync = res.sync;
-        if (sync) {
-          setSyncMode(sync.mode || 'none');
-          if (sync.webdav) {
-            setSyncUrl(sync.webdav.url || '');
-            setSyncUsername(sync.webdav.username || '');
-            setSyncPassword(sync.webdav.password || '');
-            setSyncRemoteDir(sync.webdav.remote_dir || '/FicForge/');
-          }
-          setLastSync(sync.last_sync || null);
-        }
+        const form = hydrateGlobalSettingsForm(res);
+        setMode(form.mode);
+        setModel(form.model);
+        setLocalModelPath(form.localModelPath);
+        setOllamaModel(form.ollamaModel);
+        setApiBase(form.apiBase);
+        setApiKey(form.apiKey);
+        setContextWindow(form.contextWindow);
+        setEmbeddingModel(form.embeddingModel);
+        setEmbeddingApiBase(form.embeddingApiBase);
+        setEmbeddingApiKey(form.embeddingApiKey);
+        setUseCustomEmbedding(form.useCustomEmbedding);
+        setSyncMode(form.syncMode);
+        setSyncUrl(form.syncUrl);
+        setSyncUsername(form.syncUsername);
+        setSyncPassword(form.syncPassword);
+        setSyncRemoteDir(form.syncRemoteDir);
+        setLastSync(form.lastSync);
       }).catch((error) => {
         if (requestId !== modalRequestIdRef.current) return;
         showError(error, t('error_messages.unknown'));
@@ -144,12 +144,10 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
       });
     } else {
       modalRequestIdRef.current += 1;
-      testRequestIdRef.current += 1;
+      llmConnection.reset();
       resetFormState();
       setLoading(false);
       setSaving(false);
-      setTestStatus('idle');
-      setTestMessage('');
     }
   }, [isOpen]);
 
@@ -158,31 +156,25 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     const requestId = modalRequestIdRef.current;
     setSaving(true);
     try {
-      await saveGlobalSettingsForEditing({
-        default_llm: {
-          mode,
-          model,
-          api_base: apiBase,
-          api_key: apiKey,
-          local_model_path: localModelPath,
-          ollama_model: ollamaModel,
-          context_window: contextWindow,
-        },
-        embedding: {
-          use_custom_config: useCustomEmbedding,
-          model: embeddingModel,
-          api_base: embeddingApiBase,
-          api_key: embeddingApiKey,
-        },
-        sync: {
-          mode: syncMode,
-          url: syncUrl,
-          username: syncUsername,
-          password: syncPassword,
-          remote_dir: syncRemoteDir,
-          last_sync: lastSync,
-        },
-      });
+      await saveGlobalSettingsForEditing(buildGlobalSettingsSaveInput({
+        mode,
+        model,
+        localModelPath,
+        ollamaModel,
+        apiBase,
+        apiKey,
+        contextWindow,
+        embeddingModel,
+        embeddingApiBase,
+        embeddingApiKey,
+        useCustomEmbedding,
+        syncMode,
+        syncUrl,
+        syncUsername,
+        syncPassword,
+        syncRemoteDir,
+        lastSync,
+      }));
       if (requestId !== modalRequestIdRef.current) return;
       onClose();
     } catch (error) {
@@ -196,64 +188,32 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   };
 
   const handleTest = async () => {
-    const requestId = ++testRequestIdRef.current;
-    setTestStatus('testing');
-    setTestMessage('');
-    try {
-      const result = await testConnection({
-        mode,
-        model: mode === 'ollama' ? ollamaModel : model,
-        api_base: mode === 'ollama' ? (apiBase || 'http://localhost:11434/v1') : apiBase,
-        api_key: mode === 'api' ? apiKey : '',
-        local_model_path: mode === 'local' ? localModelPath : '',
-        ollama_model: mode === 'ollama' ? ollamaModel : '',
-      });
-      if (requestId !== testRequestIdRef.current) return;
-      if (result.success) {
-        setTestStatus('success');
-        setTestMessage(t('settings.global.connectionSuccess'));
-      } else {
-        setTestStatus('error');
-        setTestMessage(result.message || t('error_messages.unknown'));
-      }
-    } catch (error: any) {
-      if (requestId !== testRequestIdRef.current) return;
-      setTestStatus('error');
-      setTestMessage(`${t('settings.global.testFailedPrefix')}${error?.message || t('error_messages.unknown')}`);
-    }
+    await llmConnection.run({
+      mode,
+      model,
+      apiBase,
+      apiKey,
+      localModelPath,
+      ollamaModel,
+    });
   };
 
   const handleEmbeddingTest = async () => {
-    const requestId = ++embTestIdRef.current;
-    setEmbTestStatus('testing');
-    setEmbTestMessage('');
-    try {
-      // 严格用 embedding 自己的配置测试。不回退到 LLM 的 base/key ——
-      // 很多 LLM 供应商不支持 embedding 端点，隐式复用会把错误凭据发到错误端点，
-      // 排障成本高。测试时使用的配置必须 = 实际保存后使用的配置（诊断一致性）。
-      const result = await testEmbeddingConnection({
-        api_base: embeddingApiBase,
-        api_key: embeddingApiKey,
-        model: embeddingModel,
-      });
-      if (requestId !== embTestIdRef.current) return;
-      if (result.success) {
-        setEmbTestStatus('success');
-        setEmbTestMessage(`${t('settings.global.connectionSuccess')} dim=${result.dimension}`);
-      } else {
-        setEmbTestStatus('error');
-        setEmbTestMessage(result.message || t('error_messages.unknown'));
-      }
-    } catch (error: any) {
-      if (requestId !== embTestIdRef.current) return;
-      setEmbTestStatus('error');
-      setEmbTestMessage(error?.message || t('error_messages.unknown'));
-    }
+    await embeddingConnection.run({
+      model: embeddingModel,
+      apiBase: embeddingApiBase,
+      apiKey: embeddingApiKey,
+    });
   };
 
-  const testRequiresApiKey = mode === 'api';
-  const testRequiresLocalPath = mode === 'local';
-  const testRequiresOllamaModel = mode === 'ollama';
+  const canRunLlmTest = canTestLlmConnection({
+    mode,
+    model,
+    apiBase,
+    apiKey,
+    localModelPath,
+    ollamaModel,
+  });
 
   return (
     <Modal isOpen={isOpen} onClose={saving ? () => {} : onClose} title={t('settings.global.title')}>
@@ -358,12 +318,12 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                   <Input value={embeddingApiBase} onChange={e => setEmbeddingApiBase(e.target.value)} placeholder={t('settings.global.embeddingApiBasePlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
                   <Input value={embeddingApiKey} onChange={e => setEmbeddingApiKey(e.target.value)} placeholder={t('settings.global.embeddingApiKeyPlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" type="password" />
                   <div className="flex items-center gap-2 pt-1">
-                    <Button tone="neutral" fill="outline" size="sm" onClick={handleEmbeddingTest} disabled={saving || embTestStatus === 'testing' || !embeddingModel.trim()}>
-                      {embTestStatus === 'testing' ? <Spinner size="sm" className="mr-1" /> : null}
+                    <Button tone="neutral" fill="outline" size="sm" onClick={handleEmbeddingTest} disabled={saving || embeddingConnection.status === 'testing' || !embeddingModel.trim()}>
+                      {embeddingConnection.status === 'testing' ? <Spinner size="sm" className="mr-1" /> : null}
                       {t('common.actions.testConnection')}
                     </Button>
-                    {embTestStatus === 'success' && <span className="flex items-center text-xs text-success"><CheckCircle2 size={14} className="mr-1" /> {embTestMessage}</span>}
-                    {embTestStatus === 'error' && <span className="flex items-start text-xs text-error"><XCircle size={14} className="mr-1 mt-0.5 shrink-0" /> <span className="leading-tight">{embTestMessage}</span></span>}
+                    {embeddingConnection.status === 'success' && <span className="flex items-center text-xs text-success"><CheckCircle2 size={14} className="mr-1" /> {embeddingConnection.message}</span>}
+                    {embeddingConnection.status === 'error' && <span className="flex items-start text-xs text-error"><XCircle size={14} className="mr-1 mt-0.5 shrink-0" /> <span className="leading-tight">{embeddingConnection.message}</span></span>}
                   </div>
                 </div>
               )}
@@ -372,9 +332,9 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
 
           <div className="flex items-center justify-between pt-2">
             <div className="flex flex-1 items-center pr-4">
-              {testStatus === 'testing' && <span className="flex items-center text-xs text-text/70"><Spinner size="sm" className="mr-1" /> {t('common.status.testing')}</span>}
-              {testStatus === 'success' && <span className="flex items-center text-xs text-success"><CheckCircle2 size={14} className="mr-1" /> {testMessage}</span>}
-              {testStatus === 'error' && <span className="flex items-start text-xs text-error"><XCircle size={14} className="mr-1 mt-0.5 shrink-0" /> <span className="leading-tight">{testMessage}</span></span>}
+              {llmConnection.status === 'testing' && <span className="flex items-center text-xs text-text/70"><Spinner size="sm" className="mr-1" /> {t('common.status.testing')}</span>}
+              {llmConnection.status === 'success' && <span className="flex items-center text-xs text-success"><CheckCircle2 size={14} className="mr-1" /> {llmConnection.message}</span>}
+              {llmConnection.status === 'error' && <span className="flex items-start text-xs text-error"><XCircle size={14} className="mr-1 mt-0.5 shrink-0" /> <span className="leading-tight">{llmConnection.message}</span></span>}
             </div>
             <Button
               tone="neutral" fill="outline"
@@ -382,17 +342,14 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
               onClick={handleTest}
               disabled={
                 saving
-                || testStatus === 'testing'
-                || (testRequiresApiKey && !apiKey.trim())
-                || (testRequiresLocalPath && !localModelPath.trim())
-                || (testRequiresOllamaModel && !ollamaModel.trim())
+                || llmConnection.status === 'testing'
+                || !canRunLlmTest
               }
             >
               {t('common.actions.testConnection')}
             </Button>
           </div>
 
-          {/* Sync Settings */}
           <GlobalSettingsSyncSection
             syncMode={syncMode}
             setSyncMode={setSyncMode}
@@ -409,7 +366,6 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
             syncOps={syncOps}
           />
 
-          {/* Language Selector */}
           <div className="space-y-2 border-t border-black/10 pt-5 dark:border-white/10">
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-bold text-text/90">{t('settings.global.languageLabel')}</label>
@@ -420,7 +376,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
               >
                 {SUPPORTED_LANGUAGES.map(lang => (
                   <option key={lang} value={lang}>
-                    {lang === 'zh' ? '中文' : 'English'}
+                    {lang === 'zh' ? '涓枃' : 'English'}
                   </option>
                 ))}
               </select>
@@ -428,10 +384,8 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
             </div>
           </div>
 
-          {/* 字体偏好 */}
           <FontSettingsSection />
 
-          {/* 数据存储路径 */}
           <div className="space-y-1 border-t border-black/10 pt-5 dark:border-white/10">
             <label className="text-sm font-bold text-text/90">{t('settings.global.dataPathLabel')}</label>
             <p className="rounded-md bg-black/5 px-3 py-2 font-mono text-xs text-text/70 dark:bg-white/5">

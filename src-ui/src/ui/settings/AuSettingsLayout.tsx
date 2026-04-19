@@ -23,6 +23,11 @@ import { useFeedback } from '../../hooks/useFeedback';
 import { AuSettingsWritingSection } from './AuSettingsWritingSection';
 import { AuSettingsPinnedSection } from './AuSettingsPinnedSection';
 import { AuSettingsAdvancedSection } from './AuSettingsAdvancedSection';
+import {
+  buildAuSettingsSaveInput,
+  createDefaultAuSettingsFormState,
+  hydrateAuSettingsForm,
+} from './form-mappers';
 
 export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const { t } = useTranslation();
@@ -44,7 +49,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const [coreIncludes, setCoreIncludes] = useState<string[]>([]);
   
   // AU Override config states
-  const [isLlMOverride, setIsLlmOverride] = useState(false);
+  const [isLlmOverride, setIsLlmOverride] = useState(false);
   const [llmMode, setLlmMode] = useState('api');
   const [auModel, setAuModel] = useState('');
   const [auLocalModelPath, setAuLocalModelPath] = useState('');
@@ -80,32 +85,33 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
 
   useEffect(() => {
     if (!auPath) return;
+    const defaults = createDefaultAuSettingsFormState();
     setLoading(true);
     setSaving(false);
     setRecalcing(false);
     setProject(null);
     setGlobalSettings(null);
     setIndexStatus('stale');
-    setPerspective('third_person');
-    setEmotionStyle('implicit');
-    setChapterLength(2000);
-    setCustomInstructions('');
-    setPinnedContext([]);
-    setCoreIncludes([]);
-    setIsLlmOverride(false);
-    setLlmMode('api');
-    setAuModel('');
-    setAuLocalModelPath('');
-    setAuOllamaModel('');
-    setAuApiBase('');
-    setAuApiKey('');
-    setContextWindow(128000);
+    setPerspective(defaults.perspective);
+    setEmotionStyle(defaults.emotionStyle);
+    setChapterLength(defaults.chapterLength);
+    setCustomInstructions(defaults.customInstructions);
+    setPinnedContext(defaults.pinnedContext);
+    setCoreIncludes(defaults.coreIncludes);
+    setIsLlmOverride(defaults.isLlmOverride);
+    setLlmMode(defaults.llmMode);
+    setAuModel(defaults.auModel);
+    setAuLocalModelPath(defaults.auLocalModelPath);
+    setAuOllamaModel(defaults.auOllamaModel);
+    setAuApiBase(defaults.auApiBase);
+    setAuApiKey(defaults.auApiKey);
+    setContextWindow(defaults.contextWindow);
     setGlobalSettingsOpen(false);
     setCoreIncludeModalOpen(false);
-    setIsEmbeddingOverride(false);
-    setEmbModel('');
-    setEmbApiBase('');
-    setEmbApiKey('');
+    setIsEmbeddingOverride(defaults.isEmbeddingOverride);
+    setEmbModel(defaults.embModel);
+    setEmbApiBase(defaults.embApiBase);
+    setEmbApiKey(defaults.embApiKey);
 
     const token = loadGuard.start();
     Promise.allSettled([
@@ -127,41 +133,25 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
       setGlobalSettings(settings);
       setIndexStatus(state?.index_status || 'stale');
       if (proj) {
-        setPerspective(proj.writing_style?.perspective || 'third_person');
-        setEmotionStyle(proj.writing_style?.emotion_style || 'implicit');
-        setChapterLength(proj.chapter_length || 2000);
-        setCustomInstructions(proj.writing_style?.custom_instructions || '');
-        setPinnedContext(proj.pinned_context || []);
-        setCoreIncludes(proj.core_always_include || []);
-
-        // Embedding lock
-        if (proj.embedding_lock && (proj.embedding_lock.model || proj.embedding_lock.api_key)) {
-          setIsEmbeddingOverride(true);
-          setEmbModel(proj.embedding_lock.model || '');
-          setEmbApiBase(proj.embedding_lock.api_base || '');
-          setEmbApiKey(proj.embedding_lock.api_key || '');
-        }
-
-        if (
-          proj.llm
-          && (
-            proj.llm.mode !== 'api'
-            || proj.llm.model
-            || proj.llm.api_base
-            || proj.llm.api_key
-            || proj.llm.local_model_path
-            || proj.llm.ollama_model
-          )
-        ) {
-          setIsLlmOverride(true);
-          setLlmMode(proj.llm.mode || 'api');
-          setAuModel(proj.llm.model || '');
-          setAuLocalModelPath(proj.llm.local_model_path || '');
-          setAuOllamaModel(proj.llm.ollama_model || proj.llm.model || '');
-          setAuApiBase(proj.llm.api_base || '');
-          setAuApiKey(proj.llm.api_key || '');
-          setContextWindow(proj.llm.context_window || 128000);
-        }
+        const form = hydrateAuSettingsForm(proj);
+        setPerspective(form.perspective);
+        setEmotionStyle(form.emotionStyle);
+        setChapterLength(form.chapterLength);
+        setCustomInstructions(form.customInstructions);
+        setPinnedContext(form.pinnedContext);
+        setCoreIncludes(form.coreIncludes);
+        setIsEmbeddingOverride(form.isEmbeddingOverride);
+        setEmbModel(form.embModel);
+        setEmbApiBase(form.embApiBase);
+        setEmbApiKey(form.embApiKey);
+        setIsLlmOverride(form.isLlmOverride);
+        setLlmMode(form.llmMode);
+        setAuModel(form.auModel);
+        setAuLocalModelPath(form.auLocalModelPath);
+        setAuOllamaModel(form.auOllamaModel);
+        setAuApiBase(form.auApiBase);
+        setAuApiKey(form.auApiKey);
+        setContextWindow(form.contextWindow);
       }
       if (firstError) {
         showError(firstError, t('error_messages.unknown'));
@@ -178,32 +168,26 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
     setSaving(true);
     try {
       if (project) {
-        await saveAuSettingsForEditing(auPath, {
-          chapter_length: chapterLength,
-          writing_style: {
-            perspective,
-            emotion_style: emotionStyle,
-            custom_instructions: customInstructions,
-          },
-          pinned_context: pinnedContext,
-          core_always_include: coreIncludes,
-          embedding_override: {
-            enabled: isEmbeddingOverride,
-            model: embModel,
-            api_base: embApiBase,
-            api_key: embApiKey,
-          },
-          llm_override: {
-            enabled: isLlMOverride,
-            mode: llmMode,
-            model: auModel,
-            api_base: auApiBase,
-            api_key: auApiKey,
-            local_model_path: auLocalModelPath,
-            ollama_model: auOllamaModel,
-            context_window: contextWindow,
-          },
-        });
+        await saveAuSettingsForEditing(auPath, buildAuSettingsSaveInput({
+          perspective,
+          emotionStyle,
+          chapterLength,
+          customInstructions,
+          pinnedContext,
+          coreIncludes,
+          isLlmOverride,
+          llmMode,
+          auModel,
+          auLocalModelPath,
+          auOllamaModel,
+          auApiBase,
+          auApiKey,
+          contextWindow,
+          isEmbeddingOverride,
+          embModel,
+          embApiBase,
+          embApiKey,
+        }));
         if (loadGuard.isKeyStale(requestAuPath)) return;
       }
       showSuccess(t("common.actions.save"));
@@ -260,12 +244,12 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                    <p className="text-xs text-text/50">{t("settings.story.inheritDescription")}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                   <Toggle checked={isLlMOverride} onChange={e => setIsLlmOverride(e.target.checked)} label={t("settings.story.overrideToggle")} />
+                   <Toggle checked={isLlmOverride} onChange={e => setIsLlmOverride(e.target.checked)} label={t("settings.story.overrideToggle")} />
                    <Button tone="neutral" fill="plain" size="sm" onClick={() => setGlobalSettingsOpen(true)}>{t("common.actions.viewGlobalSettings")}</Button>
                 </div>
               </div>
 
-              {isLlMOverride && (
+              {isLlmOverride && (
                 <div className="pt-4 border-t border-black/10 dark:border-white/10 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-text/90">{t("common.labels.searchMode")}</label>

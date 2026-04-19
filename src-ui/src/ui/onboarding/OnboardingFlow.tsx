@@ -12,6 +12,7 @@ import { MobileOnboarding, type OnboardingCompletion } from './MobileOnboarding'
 import { saveDefaultLlmSettings } from '../../api/engine-client';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { useTranslation } from '../../i18n/useAppTranslation';
+import { buildDefaultLlmSettingsInput } from '../shared/llm-config';
 
 const ONBOARDING_KEY = 'ficforge.onboarding.completed';
 
@@ -35,15 +36,14 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
     setSaveError(null);
     // 保存配置到 settings
     try {
-      await saveDefaultLlmSettings({
+      await saveDefaultLlmSettings(buildDefaultLlmSettingsInput({
         mode: config.mode,
-        model: config.mode === 'api' ? config.model : '',
-        api_base: config.api_base,
-        api_key: config.api_key,
-        local_model_path: config.local_model_path,
-        ollama_model: config.ollama_model,
-        context_window: 0,
-      });
+        model: config.model,
+        apiBase: config.api_base,
+        apiKey: config.api_key,
+        localModelPath: config.local_model_path,
+        ollamaModel: config.ollama_model,
+      }, 0));
       setConfigSaved(true);
       setStep(2);
     } catch (e: any) {
