@@ -1,4 +1,4 @@
-// Copyright (c) 2026 FicForge Contributors
+﻿// Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
@@ -6,8 +6,6 @@ import { useState, useCallback, useRef } from 'react';
 import { useKV } from '../../hooks/useKV';
 import {
   type GenerateRequestState,
-  normalizeContextSummary,
-  saveGenerateRequest,
 } from '../../utils/writerStorage';
 import { useWriterFactsExtraction } from './useWriterFactsExtraction';
 import { useSessionParams } from './useSessionParams';
@@ -20,6 +18,7 @@ import { useWriterInstructionInput } from './useWriterInstructionInput';
 import { useWriterModeController } from './useWriterModeController';
 import { useWriterChromeState } from './useWriterChromeState';
 import { useWriterChapterActions } from './useWriterChapterActions';
+import { useWriterGeneration } from './useWriterGeneration';
 import { deriveWriterDisplayState } from './writerDisplayState';
 import { Button } from '../shared/Button';
 import { Modal } from '../shared/Modal';
@@ -38,73 +37,13 @@ import { InlineBanner } from '../shared/InlineBanner';
 import { type DraftGeneratedWith } from '../../api/engine-client';
 import { type StateInfo } from '../../api/engine-client';
 import { type FactInfo } from '../../api/engine-client';
-import { generateChapter, type ContextSummary } from '../../api/engine-client';
+import { type ContextSummary } from '../../api/engine-client';
 import { type WriterSessionConfig } from '../../api/engine-client';
 import { type WriterProjectContext } from '../../api/engine-client';
-import { ApiError, getFriendlyErrorMessage } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
-
-
-// GenerateRequestState imported from utils/writerStorage
-
-// 存储工具已抽取到 utils/writerStorage.ts
-
-function buildDraftId(chapterNum: number, label: string): string {
-  return `ch${String(chapterNum).padStart(4, '0')}_draft_${label}.md`;
-}
-
-function createDraftItem(
-  chapterNum: number,
-  label: string,
-  content: string,
-  generatedWith?: DraftGeneratedWith | null
-): DraftItem {
-  return {
-    label,
-    draftId: buildDraftId(chapterNum, label),
-    content,
-    generatedWith: generatedWith || null,
-    modified: false,
-  };
-}
-
-
-
-// localStorage helpers 已抽取至 utils/writerStorage.ts
-
-export function formatGeneratedMeta(generatedWith?: DraftGeneratedWith | null, locale = 'zh-CN'): string {
-  if (!generatedWith) return '';
-
-  const parts: string[] = [];
-  if (generatedWith.generated_at) {
-    const timestamp = new Date(generatedWith.generated_at);
-    if (!Number.isNaN(timestamp.getTime())) {
-      parts.push(
-        new Intl.DateTimeFormat(locale, {
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-        }).format(timestamp)
-      );
-    }
-  }
-
-  if (generatedWith.model) {
-    parts.push(generatedWith.model);
-  }
-
-  return parts.join(' · ');
-}
-
-export function getPreviewText(content: string, maxChars = 200): string {
-  const normalized = content.replace(/\s+/g, ' ').trim();
-  if (normalized.length <= maxChars) return normalized;
-  return `${normalized.slice(0, maxChars)}…`;
-}
 
 export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapter, onChaptersChanged }: { auPath: string, onNavigate: (page: string) => void, viewChapter?: number | null, onClearViewChapter?: () => void, onChaptersChanged?: () => void }) => {
   const { t, i18n } = useTranslation();
@@ -191,9 +130,9 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     t,
   });
 
-  // 编辑已确认章节（FIX-006�?
+  // 缂栬緫宸茬‘璁ょ珷鑺傦紙FIX-006锛?
 
-  // 阅读偏好（跨平台 KV 持久化）
+  // 闃呰鍋忓ソ锛堣法骞冲彴 KV 鎸佷箙鍖栵級
   const [fontSizeStr, setFontSizeKV] = useKV('ficforge.fontSize', '18');
   const fontSize = parseInt(fontSizeStr, 10) || 18;
   const setFontSize = useCallback((v: number) => setFontSizeKV(String(v)), [setFontSizeKV]);
@@ -237,7 +176,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
 
 
-  // 指令文本持久化：变化时自动保存到 localStorage
+  // 鎸囦护鏂囨湰鎸佷箙鍖栵細鍙樺寲鏃惰嚜鍔ㄤ繚瀛樺埌 localStorage
   const currentChapterNum = state?.current_chapter ?? 0;
   const { instructionInputRef, focusInstructionInput } = useWriterInstructionInput({
     auPath,
@@ -245,7 +184,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     instructionText,
   });
 
-  /** 立即写入挂起的草稿编辑，然后清除定时器�?*/
+  /** 绔嬪嵆鍐欏叆鎸傝捣鐨勮崏绋跨紪杈戯紝鐒跺悗娓呴櫎瀹氭椂鍣ㄣ€?*/
   const {
     clearDraftState,
     replaceDraftSummaries,
@@ -328,187 +267,37 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     t,
   });
 
-  const handleGenerate = useCallback(async (request: GenerateRequestState) => {
-    if (isGenerating || !state) return;
-    const token = generateGuard.start();
-
-    const projectLlmUsable = projectInfo?.llm?.mode && (projectInfo.llm.mode !== 'api' || projectInfo.llm.has_api_key);
-    const effectiveLlm = projectLlmUsable ? projectInfo!.llm : settingsInfo?.default_llm;
-    const llmMode = effectiveLlm?.mode || 'api';
-    if (llmMode === 'api' && !effectiveLlm?.has_api_key) {
-      showError(null, t('error_messages.no_api_key'));
-      return;
-    }
-
-    setIsGenerating(true);
-    setStreamText('');
-    setGeneratedWith(null);
-    setBudgetReport(null);
-    setRecoveryNotice(false);
-    setGenerationErrorDisplay(null);
-    pendingContextSummaryRef.current = null;
-
-    setLastGenerateRequest(request);
-    saveGenerateRequest(auPath, state.current_chapter, request);
-
-    let nextDraftLabel = '';
-    let nextGeneratedWith: DraftGeneratedWith | null = null;
-    let nextBudgetReport: any = null;
-    let nextText = '';
-    let partialDraftLabel = '';
-    let generationError: unknown = null;
-    let nextContextSummary: ContextSummary | null = null;
-
-    try {
-      for await (const event of generateChapter({
-        au_path: auPath,
-        chapter_num: state.current_chapter,
-        user_input: request.userInput,
-        input_type: request.inputType,
-        session_llm: sessionParams.sessionLlmPayload || undefined,
-        session_params: { temperature: sessionParams.sessionTemp, top_p: sessionParams.sessionTopP },
-      })) {
-        if (generateGuard.isStale(token)) {
-          pendingContextSummaryRef.current = null;
-          return;
-        }
-
-        if (event.event === 'context_summary') {
-          const summary = normalizeContextSummary(event.data);
-          if (summary) {
-            nextContextSummary = summary;
-            pendingContextSummaryRef.current = summary;
-          }
-          continue;
-        }
-
-        if (event.event === 'token') {
-          const text = event.data.text || '';
-          nextText += text;
-          setStreamText((prev) => prev + text);
-          continue;
-        }
-
-        if (event.event === 'done') {
-          nextDraftLabel = event.data.draft_label;
-          nextGeneratedWith = event.data.generated_with || null;
-          nextBudgetReport = event.data.budget_report;
-          continue;
-        }
-
-        if (event.event === 'error') {
-          partialDraftLabel = event.data.partial_draft_label || '';
-          generationError = new ApiError(
-            event.data.error_code || 'UNKNOWN',
-            getFriendlyErrorMessage(event.data),
-            event.data.actions || [],
-            event.data.message
-          );
-          break;
-        }
-      }
-
-      if (generationError) {
-        if (partialDraftLabel) {
-          const partialDraft = await loadDraftByLabel(
-            state.current_chapter,
-            partialDraftLabel,
-            nextText,
-            nextGeneratedWith
-          );
-          if (generateGuard.isStale(token)) {
-            pendingContextSummaryRef.current = null;
-            return;
-          }
-          mergeDraftIntoState(partialDraft);
-          setGeneratedWith(partialDraft.generatedWith || nextGeneratedWith || null);
-          setStreamText('');
-          setRecoveryNotice(true);
-          if (nextContextSummary) {
-            attachDraftSummary(state.current_chapter, partialDraftLabel, nextContextSummary);
-          }
-        } else {
-          setStreamText('');
-        }
-        pendingContextSummaryRef.current = null;
-        throw generationError;
-      }
-
-      if (!nextDraftLabel) {
-        pendingContextSummaryRef.current = null;
-        throw new Error(t('writer.generateErrorFallback'));
-      }
-
-      const nextDraft = createDraftItem(
-        state.current_chapter,
-        nextDraftLabel,
-        nextText,
-        nextGeneratedWith
-      );
-      if (generateGuard.isStale(token)) {
-        pendingContextSummaryRef.current = null;
-        return;
-      }
-
-      mergeDraftIntoState(nextDraft);
-      if (nextContextSummary) {
-        attachDraftSummary(state.current_chapter, nextDraftLabel, nextContextSummary);
-      }
-      setGeneratedWith(nextGeneratedWith);
-      setBudgetReport(nextBudgetReport);
-      pendingContextSummaryRef.current = null;
-      // 延迟清除 streamText，等 drafts + activeDraftIndex 先渲染，
-      // 避免 displayContent 在两者之间短暂为空�?
-      // Guard.isStale 防止新一轮生成启动后被旧 RAF 误清�?
-      requestAnimationFrame(() => {
-        if (!generateGuard.isStale(token)) setStreamText('');
-      });
-    } catch (error) {
-      pendingContextSummaryRef.current = null;
-      if (generateGuard.isStale(token)) return;
-      // 区分连接中断�?API 错误
-      const isAbort = error instanceof DOMException && error.name === 'AbortError';
-      const isNetwork = error instanceof TypeError && /fetch|network/i.test(error.message);
-      if (isAbort || isNetwork) {
-        showToast(t('writer.generateInterrupted'), 'warning');
-      } else {
-        showError(error, t('writer.generateErrorFallback'));
-      }
-      if (error instanceof ApiError) {
-        setGenerationErrorDisplay({ message: error.userMessage || error.message, actions: error.actions });
-      } else if (error instanceof Error && !isAbort && !isNetwork) {
-        setGenerationErrorDisplay({ message: error.message, actions: [] });
-      }
-    } finally {
-      if (!generateGuard.isStale(token)) {
-        setIsGenerating(false);
-      }
-    }
-  }, [attachDraftSummary, auPath, generateGuard, isGenerating, loadDraftByLabel, mergeDraftIntoState, projectInfo, sessionParams.sessionLlmPayload, sessionParams.sessionTemp, sessionParams.sessionTopP, settingsInfo, showError, showToast, state, t]);
-
-  const handleGenerateFromInput = async (inputType: 'continue' | 'instruction') => {
-    if (drafts.length > 0) {
-      showToast(t('drafts.generatingBlocked'), 'warning');
-      return;
-    }
-
-    const userInput = inputType === 'instruction' && instructionText.trim()
-      ? instructionText.trim()
-      : t('common.actions.continue');
-
-    await handleGenerate({ inputType, userInput });
-  };
-
-  const handleRegenerate = async () => {
-    const trimmedInstruction = instructionText.trim();
-    const request: GenerateRequestState = trimmedInstruction
-      ? { inputType: 'instruction', userInput: trimmedInstruction }
-      : (lastGenerateRequest || { inputType: 'continue', userInput: t('common.actions.continue') });
-
-    await handleGenerate(request);
-  };
-
-
+  const {
+    handleGenerateFromInput,
+    handleRegenerate,
+  } = useWriterGeneration({
+    auPath,
+    state,
+    drafts,
+    instructionText,
+    lastGenerateRequest,
+    isGenerating,
+    projectInfo,
+    settingsInfo,
+    sessionLlmPayload: sessionParams.sessionLlmPayload,
+    sessionTemp: sessionParams.sessionTemp,
+    sessionTopP: sessionParams.sessionTopP,
+    generateGuard,
+    pendingContextSummaryRef,
+    loadDraftByLabel,
+    mergeDraftIntoState,
+    attachDraftSummary,
+    setIsGenerating,
+    setStreamText,
+    setGeneratedWith,
+    setBudgetReport,
+    setRecoveryNotice,
+    setGenerationErrorDisplay,
+    setLastGenerateRequest,
+    showError,
+    showToast,
+    t,
+  });
   const {
     handleFocusToggle,
     handleClearFocus,
@@ -654,7 +443,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
               {isViewingHistory && (
                 <InlineBanner
                   tone="info"
-                  message={<>{t('workspace.chapterItem', { num: viewingHistoryNum })} �?{t('writer.viewingHistory')}</>}
+                  message={<>{t('workspace.chapterItem', { num: viewingHistoryNum })} 鈥?{t('writer.viewingHistory')}</>}
                   actions={
                     <>
                       <Button tone="neutral" fill="plain" size="sm" onClick={startEditingConfirmed} disabled={editingConfirmed}>
@@ -833,4 +622,5 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     </>
   );
 };
+
 
