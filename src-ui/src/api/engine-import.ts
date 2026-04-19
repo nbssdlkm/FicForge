@@ -28,6 +28,27 @@ import { getEngine } from "./engine-instance";
 export type { FileAnalysis, ImportPlan, ImportConflictOptions, NewImportResult, ImportProgress, AnalysisOptions };
 
 /**
+ * 检测 AI 辅助当前是否可用。
+ * reason: "no_api_key"（api 模式缺 key）/ "unsupported_mode"（local 等未实现）/ "config_error"（异常）。
+ */
+export async function isAiAssistAvailable(): Promise<{ available: boolean; reason?: string }> {
+  try {
+    const { settings } = getEngine().repos;
+    const sett = await settings.get();
+    const llmConfig = resolve_llm_config(null, {}, sett as unknown as Record<string, unknown>);
+    if (llmConfig.mode === "ollama") return { available: true };
+    if (llmConfig.mode === "api") {
+      return llmConfig.api_key
+        ? { available: true }
+        : { available: false, reason: "no_api_key" };
+    }
+    return { available: false, reason: "unsupported_mode" };
+  } catch {
+    return { available: false, reason: "config_error" };
+  }
+}
+
+/**
  * 分析单个文件——检测对话格式 or 纯正文，返回分析结果。
  * 前端负责文件读取和格式转换（docx/html → 纯文本）。
  */
@@ -49,6 +70,7 @@ export async function analyzeImportFile(
       if (canAssist) {
         options = { ...options, llmProvider: create_provider(llmConfig) };
       }
+      // canAssist=false 时不设 llmProvider；下游 splitChapters 检查 llmProvider 为 undefined 会自动跳过 AI
     } catch {
       // 无法构建 provider，禁用 AI 辅助
       options = { ...options, useAiAssist: false };

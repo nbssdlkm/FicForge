@@ -13,6 +13,7 @@ import {
   buildImportPlanFromAnalyses,
   executeImportPlan,
   getExistingChapterNums,
+  isAiAssistAvailable,
   type FileAnalysis,
   type ImportConflictOptions,
   type NewImportResult,
@@ -35,7 +36,7 @@ export function ImportFlow({
   onComplete: (target?: "writer" | "au_lore" | "facts") => void;
 }) {
   const { t, i18n } = useTranslation();
-  const { showError } = useFeedback();
+  const { showError, showToast } = useFeedback();
   const flowRequestIdRef = useRef(0);
 
   // Step state
@@ -106,6 +107,18 @@ export function ImportFlow({
     setAnalyzing(true);
     const results: FileAnalysis[] = [];
 
+    // LLM 预检测：用户开了 AI 辅助但配置不可用时，提示并本地禁用
+    let effectiveAiAssist = useAiAssist;
+    if (useAiAssist) {
+      const check = await isAiAssistAvailable();
+      if (requestId !== flowRequestIdRef.current) return;
+      if (!check.available) {
+        effectiveAiAssist = false;
+        setUseAiAssist(false);
+        showToast(t("import.aiAssistUnavailable"), "warning");
+      }
+    }
+
     for (const file of files) {
       if (requestId !== flowRequestIdRef.current) return;
 
@@ -120,7 +133,7 @@ export function ImportFlow({
         if (requestId !== flowRequestIdRef.current) return;
 
         const analysis = await analyzeImportFile(text, file.name, {
-          useAiAssist,
+          useAiAssist: effectiveAiAssist,
           thresholds: { chapterMinChars: chapterThreshold, skipMaxChars: skipThreshold },
         });
         if (requestId !== flowRequestIdRef.current) return;

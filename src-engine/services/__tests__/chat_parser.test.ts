@@ -86,6 +86,48 @@ describe("detectChatFormat", () => {
     const fmt = detectChatFormat(text);
     expect(fmt).not.toBeNull();
   });
+
+  it("detects Markdown heading with trailing colon (### You:)", () => {
+    const text = repeat("### You:\nhello\n### Claude:\nhi there", 3);
+    const fmt = detectChatFormat(text);
+    expect(fmt).not.toBeNull();
+    expect(fmt!.name).toBe("Markdown");
+  });
+
+  it("detects Markdown heading with single-letter Q/A", () => {
+    const text = repeat("## Q\nhello\n## A\nhi there", 3);
+    const fmt = detectChatFormat(text);
+    expect(fmt).not.toBeNull();
+    expect(fmt!.name).toBe("Markdown");
+  });
+
+  it("does not misfire on Markdown heading with words starting with Q/A", () => {
+    const text = repeat("## Question\nabc\n## Answer\ndef", 3);
+    const fmt = detectChatFormat(text);
+    // Question/Answer 不在白名单里，Q/A 受 (?![a-zA-Z]) 保护 → 不命中
+    expect(fmt).toBeNull();
+  });
+
+  it("detects Markdown Bold format (**Human:**)", () => {
+    const text = repeat("**Human:** hello\n\n**Assistant:** hi there", 3);
+    const fmt = detectChatFormat(text);
+    expect(fmt).not.toBeNull();
+    expect(fmt!.name).toBe("Markdown Bold");
+  });
+
+  it("detects Markdown Bold with Chinese roles (**问:** / **答:**)", () => {
+    const text = repeat("**问：** 你好\n\n**答：** 你好呀", 3);
+    const fmt = detectChatFormat(text);
+    expect(fmt).not.toBeNull();
+    expect(fmt!.name).toBe("Markdown Bold");
+  });
+
+  it("detects Markdown Bold with colon outside (**Human**:)", () => {
+    const text = repeat("**Human**: hello\n\n**Assistant**: hi", 3);
+    const fmt = detectChatFormat(text);
+    expect(fmt).not.toBeNull();
+    expect(fmt!.name).toBe("Markdown Bold");
+  });
 });
 
 // ---------------------------------------------------------------------------

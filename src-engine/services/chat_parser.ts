@@ -73,11 +73,17 @@ const KNOWN_CHAT_FORMATS: ChatFormatPattern[] = [
     userPattern: /^>\s*(?:User|用户)\s*/im,
     assistantPattern: /^>\s*(?:Assistant|助手)\s*/im,
   },
-  // Markdown 标题格式
+  // Markdown 标题格式（允许可选冒号；Q/A 单字母要求后面不跟字母避免误命中 "## Question" 等）
   {
     name: "Markdown",
-    userPattern: /^#{1,3}\s*(?:User|Human|用户)\s*$/im,
-    assistantPattern: /^#{1,3}\s*(?:Assistant|AI|ChatGPT|DeepSeek|Claude|助手)\s*$/im,
+    userPattern: /^#{1,3}\s*(?:User|Human|You|用户|我|人类|问|对方|Q(?![a-zA-Z]))[:：]?\s*/im,
+    assistantPattern: /^#{1,3}\s*(?:Assistant|AI|ChatGPT|DeepSeek|Claude|GPT|助手|机器人|答|A(?![a-zA-Z]))[:：]?\s*/im,
+  },
+  // Markdown 加粗格式：**Human:** / **Human**: / **Human**
+  {
+    name: "Markdown Bold",
+    userPattern: /^\*\*\s*(?:User|Human|You|用户|我|人类|问|对方)\s*[:：]?\s*\*\*\s*[:：]?\s*/im,
+    assistantPattern: /^\*\*\s*(?:Assistant|AI|ChatGPT|DeepSeek|Claude|GPT|助手|机器人|答)\s*[:：]?\s*\*\*\s*[:：]?\s*/im,
   },
 ];
 

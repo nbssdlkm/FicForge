@@ -946,6 +946,7 @@
     "step2AiAssist": "使用AI辅助识别章节格式",
     "step2AiAssistHint": "如果自动切分效果不好，AI可以帮助识别非标准的章节标题格式",
     "step2AiAssistCost": "消耗少量 token（约 1000-2000）",
+    "aiAssistUnavailable": "AI 辅助不可用：未配置 LLM",
     "step2Thresholds": "对话格式分类阈值",
     "step2ChapterThreshold": "AI回复超过 {{n}} 字 → 标记为正文",
     "step2SkipThreshold": "AI回复少于 {{n}} 字 → 标记为跳过",

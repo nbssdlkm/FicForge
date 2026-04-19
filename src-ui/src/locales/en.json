@@ -946,6 +946,7 @@
     "step2AiAssist": "Use AI to help detect chapter format",
     "step2AiAssistHint": "If auto-split doesn't work well, AI can help identify non-standard chapter title patterns",
     "step2AiAssistCost": "Uses a small amount of tokens (~1000-2000)",
+    "aiAssistUnavailable": "AI assist unavailable: no LLM configured",
     "step2Thresholds": "Chat format classification thresholds",
     "step2ChapterThreshold": "AI replies over {{n}} chars → mark as chapter",
     "step2SkipThreshold": "AI replies under {{n}} chars → mark as skip",
