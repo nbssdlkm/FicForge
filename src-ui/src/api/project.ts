@@ -23,3 +23,36 @@ export interface WriterProjectContext {
 export interface WorkspaceSnapshot {
   pinned_count: number;
 }
+
+export interface ProjectWritingStyleInput {
+  perspective: string;
+  emotion_style: string;
+  custom_instructions: string;
+}
+
+export interface ProjectLlmOverrideInput {
+  enabled: boolean;
+  mode: string;
+  model: string;
+  api_base: string;
+  api_key: string;
+  local_model_path: string;
+  ollama_model: string;
+  context_window: number;
+}
+
+export interface ProjectEmbeddingOverrideInput {
+  enabled: boolean;
+  model: string;
+  api_base: string;
+  api_key: string;
+}
+
+export interface AuSettingsSaveInput {
+  chapter_length: number;
+  writing_style: ProjectWritingStyleInput;
+  pinned_context: string[];
+  core_always_include: string[];
+  llm_override: ProjectLlmOverrideInput;
+  embedding_override: ProjectEmbeddingOverrideInput;
+}

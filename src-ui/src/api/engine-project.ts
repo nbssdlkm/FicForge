@@ -12,7 +12,22 @@ import type { Project } from "@ficforge/engine";
 import { withAuLock } from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
 import type { ModelParamInfo } from "./settings";
-import type { ProjectLlmQueryInfo, WorkspaceSnapshot, WriterProjectContext } from "./project";
+import type {
+  AuSettingsSaveInput,
+  ProjectLlmQueryInfo,
+  WorkspaceSnapshot,
+  WriterProjectContext,
+} from "./project";
+
+async function withProjectWrite<T>(auPath: string, mutate: (current: Project) => T | Promise<T>): Promise<T> {
+  const { project } = getEngine().repos;
+  return withAuLock(auPath, async () => {
+    const current = await project.get(auPath);
+    const result = await mutate(current);
+    await project.save(current);
+    return result;
+  });
+}
 
 function hasProjectLlmOverride(llm: Project["llm"] | null | undefined): boolean {
   return Boolean(
@@ -86,16 +101,100 @@ export async function updateProject(auPath: string, updates: Partial<Project> | 
   });
 }
 
+export async function saveProjectCastRegistryCharacters(auPath: string, characters: string[]) {
+  return withProjectWrite(auPath, (current) => {
+    current.cast_registry = { characters } as Project["cast_registry"];
+    return current.cast_registry;
+  });
+}
+
+export async function saveProjectCoreIncludes(auPath: string, coreAlwaysInclude: string[]) {
+  return withProjectWrite(auPath, (current) => {
+    current.core_always_include = [...coreAlwaysInclude];
+    return current.core_always_include;
+  });
+}
+
+export async function saveProjectWritingStyle(auPath: string, writingStyle: Project["writing_style"]) {
+  return withProjectWrite(auPath, (current) => {
+    current.writing_style = writingStyle;
+    return current.writing_style;
+  });
+}
+
+export async function saveProjectCastRegistryAndCoreIncludes(
+  auPath: string,
+  payload: { characters: string[]; core_always_include: string[] },
+) {
+  return withProjectWrite(auPath, (current) => {
+    current.cast_registry = { characters: payload.characters } as Project["cast_registry"];
+    current.core_always_include = [...payload.core_always_include];
+    return {
+      cast_registry: current.cast_registry,
+      core_always_include: current.core_always_include,
+    };
+  });
+}
+
+export async function saveAuSettingsForEditing(auPath: string, payload: AuSettingsSaveInput) {
+  return withProjectWrite(auPath, (current) => {
+    current.chapter_length = payload.chapter_length;
+    current.writing_style = {
+      ...(current.writing_style || {}),
+      perspective: payload.writing_style.perspective as Project["writing_style"]["perspective"],
+      emotion_style: payload.writing_style.emotion_style as Project["writing_style"]["emotion_style"],
+      custom_instructions: payload.writing_style.custom_instructions,
+    };
+    current.pinned_context = [...payload.pinned_context];
+    current.core_always_include = [...payload.core_always_include];
+
+    current.embedding_lock = payload.embedding_override.enabled
+      ? {
+          mode: payload.embedding_override.model ? "api" : "",
+          model: payload.embedding_override.model,
+          api_base: payload.embedding_override.api_base,
+          api_key: payload.embedding_override.api_key,
+        } as Project["embedding_lock"]
+      : {
+          mode: "",
+          model: "",
+          api_base: "",
+          api_key: "",
+        } as Project["embedding_lock"];
+
+    current.llm = payload.llm_override.enabled
+      ? {
+          mode: payload.llm_override.mode as Project["llm"]["mode"],
+          model: payload.llm_override.mode === "api" ? payload.llm_override.model : "",
+          api_base: payload.llm_override.mode === "ollama"
+            ? (payload.llm_override.api_base || "http://localhost:11434/v1")
+            : payload.llm_override.api_base,
+          api_key: payload.llm_override.mode === "api" ? payload.llm_override.api_key : "",
+          local_model_path: payload.llm_override.mode === "local" ? payload.llm_override.local_model_path : "",
+          ollama_model: payload.llm_override.mode === "ollama" ? payload.llm_override.ollama_model : "",
+          context_window: payload.llm_override.context_window,
+        } as Project["llm"]
+      : {
+          mode: "api",
+          model: "",
+          api_base: "",
+          api_key: "",
+          local_model_path: "",
+          ollama_model: "",
+          context_window: 0,
+        } as Project["llm"];
+
+    return current;
+  });
+}
+
 export async function saveProjectModelParamsOverride(auPath: string, model: string, params: ModelParamInfo) {
-  const { project } = getEngine().repos;
-  return withAuLock(auPath, async () => {
-    const current = await project.get(auPath);
+  return withProjectWrite(auPath, (current) => {
     current.model_params_override = current.model_params_override || {};
     current.model_params_override[model] = {
       temperature: params.temperature,
       top_p: params.top_p,
     };
-    await project.save(current);
     return current.model_params_override[model];
   });
 }

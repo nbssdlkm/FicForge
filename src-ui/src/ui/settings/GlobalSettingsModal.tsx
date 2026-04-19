@@ -9,7 +9,7 @@ import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { HelpCircle, CheckCircle2, XCircle } from 'lucide-react';
 import { ModelSelector } from '../shared/ModelSelector';
-import { getSettingsForEditing, testConnection, testEmbeddingConnection, updateSettings, LLMMode, type SettingsInfo, getDataDir, getDisplayDataDir } from '../../api/engine-client';
+import { getSettingsForEditing, testConnection, testEmbeddingConnection, saveGlobalSettingsForEditing, LLMMode, type SettingsInfo, getDataDir, getDisplayDataDir } from '../../api/engine-client';
 import { ConflictResolveModal } from '../shared/ConflictResolveModal';
 import { useSyncOperations } from './useSyncOperations';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -158,34 +158,31 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     const requestId = modalRequestIdRef.current;
     setSaving(true);
     try {
-      const newSettings = {
-        ...settings,
+      await saveGlobalSettingsForEditing({
         default_llm: {
-          ...settings.default_llm,
           mode,
-          model: mode === 'api' ? model : '',
-          api_base: mode === 'ollama' ? (apiBase || 'http://localhost:11434/v1') : apiBase,
-          api_key: mode === 'api' ? apiKey : '',
-          local_model_path: mode === 'local' ? localModelPath : '',
-          ollama_model: mode === 'ollama' ? ollamaModel : '',
+          model,
+          api_base: apiBase,
+          api_key: apiKey,
+          local_model_path: localModelPath,
+          ollama_model: ollamaModel,
           context_window: contextWindow,
         },
         embedding: {
-          ...settings.embedding,
-          mode: (useCustomEmbedding || !isTauri()) ? LLMMode.API : LLMMode.LOCAL,
-          model: (useCustomEmbedding || !isTauri()) ? embeddingModel : '',
-          api_base: (useCustomEmbedding || !isTauri()) ? embeddingApiBase : '',
-          api_key: (useCustomEmbedding || !isTauri()) ? embeddingApiKey : '',
+          use_custom_config: useCustomEmbedding,
+          model: embeddingModel,
+          api_base: embeddingApiBase,
+          api_key: embeddingApiKey,
         },
         sync: {
           mode: syncMode,
-          ...(syncMode === 'webdav' ? {
-            webdav: { url: syncUrl, username: syncUsername, password: syncPassword, remote_dir: syncRemoteDir },
-          } : {}),
-          ...(lastSync ? { last_sync: lastSync } : {}),
+          url: syncUrl,
+          username: syncUsername,
+          password: syncPassword,
+          remote_dir: syncRemoteDir,
+          last_sync: lastSync,
         },
-      };
-      await updateSettings(newSettings);
+      });
       if (requestId !== modalRequestIdRef.current) return;
       onClose();
     } catch (error) {

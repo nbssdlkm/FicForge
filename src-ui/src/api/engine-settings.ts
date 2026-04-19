@@ -8,16 +8,46 @@
 import { OpenAICompatibleProvider, RemoteEmbeddingProvider, type Settings } from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
 import type {
+  AppPreferencesInput,
+  DefaultLlmSettingsInput,
   EmbeddingQueryInfo,
   FontPreferences,
+  GlobalSettingsSaveInput,
   LlmQueryInfo,
   ModelParamInfo,
   OnboardingDefaults,
   SettingsSummary,
+  SyncSettingsSaveInput,
   WriterSessionConfig,
 } from "./settings";
+import { isTauri } from "../utils/platform";
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
+
+async function withSettingsWrite<T>(mutate: (current: Settings) => T | Promise<T>): Promise<T> {
+  const { settings } = getEngine().repos;
+  const current = await settings.get();
+  const result = await mutate(current);
+  await settings.save(current);
+  return result;
+}
+
+function buildSyncSettings(input: SyncSettingsSaveInput): Settings["sync"] {
+  return {
+    mode: input.mode,
+    ...(input.mode === "webdav"
+      ? {
+          webdav: {
+            url: input.url,
+            username: input.username,
+            password: input.password,
+            remote_dir: input.remote_dir,
+          },
+        }
+      : {}),
+    ...(input.last_sync ? { last_sync: input.last_sync } : {}),
+  };
+}
 
 function hasUsableConnection(llm: {
   mode?: string;
@@ -157,6 +187,81 @@ export async function updateSettings(updates: DeepPartial<Settings>) {
   return current;
 }
 
+export async function saveDefaultLlmSettings(payload: DefaultLlmSettingsInput) {
+  return withSettingsWrite((current) => {
+    current.default_llm = {
+      ...current.default_llm,
+      mode: payload.mode as Settings["default_llm"]["mode"],
+      model: payload.model,
+      api_base: payload.api_base,
+      api_key: payload.api_key,
+      local_model_path: payload.local_model_path,
+      ollama_model: payload.ollama_model,
+      context_window: payload.context_window,
+    };
+    return current.default_llm;
+  });
+}
+
+export async function saveFontPreferences(payload: FontPreferences) {
+  return withSettingsWrite((current) => {
+    current.app = {
+      ...current.app,
+      fonts: {
+        ...current.app.fonts,
+        ...payload,
+      },
+    };
+    return toFontPreferences(current);
+  });
+}
+
+export async function saveAppPreferences(payload: AppPreferencesInput) {
+  return withSettingsWrite((current) => {
+    current.app = {
+      ...current.app,
+      ...(payload.language ? { language: payload.language as Settings["app"]["language"] } : {}),
+    };
+    return current.app;
+  });
+}
+
+export async function saveSyncSettings(payload: SyncSettingsSaveInput) {
+  return withSettingsWrite((current) => {
+    current.sync = buildSyncSettings(payload);
+    return current.sync;
+  });
+}
+
+export async function saveGlobalSettingsForEditing(payload: GlobalSettingsSaveInput) {
+  return withSettingsWrite((current) => {
+    current.default_llm = {
+      ...current.default_llm,
+      mode: payload.default_llm.mode as Settings["default_llm"]["mode"],
+      model: payload.default_llm.mode === "api" ? payload.default_llm.model : "",
+      api_base: payload.default_llm.mode === "ollama"
+        ? (payload.default_llm.api_base || "http://localhost:11434/v1")
+        : payload.default_llm.api_base,
+      api_key: payload.default_llm.mode === "api" ? payload.default_llm.api_key : "",
+      local_model_path: payload.default_llm.mode === "local" ? payload.default_llm.local_model_path : "",
+      ollama_model: payload.default_llm.mode === "ollama" ? payload.default_llm.ollama_model : "",
+      context_window: payload.default_llm.context_window,
+    };
+
+    const useCustomEmbedding = payload.embedding.use_custom_config || !isTauri();
+    current.embedding = {
+      ...current.embedding,
+      mode: (useCustomEmbedding ? "api" : "local") as Settings["embedding"]["mode"],
+      model: useCustomEmbedding ? payload.embedding.model : "",
+      api_base: useCustomEmbedding ? payload.embedding.api_base : "",
+      api_key: useCustomEmbedding ? payload.embedding.api_key : "",
+    };
+
+    current.sync = buildSyncSettings(payload.sync);
+    return current;
+  });
+}
+
 export async function saveGlobalModelParams(model: string, params: ModelParamInfo) {
   const { settings } = getEngine().repos;
   const current = await settings.get();
@@ -186,28 +291,27 @@ export async function saveOnboardingSettings(payload: {
     ollama_model: string;
   };
 }) {
-  const { settings } = getEngine().repos;
-  const current = await settings.get();
-  current.default_llm = {
-    ...current.default_llm,
-    mode: payload.default_llm.mode as Settings["default_llm"]["mode"],
-    model: payload.default_llm.model,
-    api_base: payload.default_llm.api_base,
-    api_key: payload.default_llm.api_key,
-    local_model_path: payload.default_llm.local_model_path,
-    ollama_model: payload.default_llm.ollama_model,
-    context_window: current.default_llm.context_window || 128000,
-  };
-  current.embedding = {
-    ...current.embedding,
-    mode: payload.embedding.mode as Settings["embedding"]["mode"],
-    model: payload.embedding.model,
-    api_base: payload.embedding.api_base,
-    api_key: payload.embedding.api_key,
-    ollama_model: payload.embedding.ollama_model,
-  };
-  await settings.save(current);
-  return current;
+  return withSettingsWrite((current) => {
+    current.default_llm = {
+      ...current.default_llm,
+      mode: payload.default_llm.mode as Settings["default_llm"]["mode"],
+      model: payload.default_llm.model,
+      api_base: payload.default_llm.api_base,
+      api_key: payload.default_llm.api_key,
+      local_model_path: payload.default_llm.local_model_path,
+      ollama_model: payload.default_llm.ollama_model,
+      context_window: current.default_llm.context_window || 128000,
+    };
+    current.embedding = {
+      ...current.embedding,
+      mode: payload.embedding.mode as Settings["embedding"]["mode"],
+      model: payload.embedding.model,
+      api_base: payload.embedding.api_base,
+      api_key: payload.embedding.api_key,
+      ollama_model: payload.embedding.ollama_model,
+    };
+    return current;
+  });
 }
 
 export async function testEmbeddingConnection(params: { api_base: string; api_key: string; model: string }) {

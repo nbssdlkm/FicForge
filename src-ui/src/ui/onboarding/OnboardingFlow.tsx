@@ -9,7 +9,7 @@ import { ApiConfigStep, type ApiConfig } from './ApiConfigStep';
 import { CreateFandomStep } from './CreateFandomStep';
 import { CompletionStep } from './CompletionStep';
 import { MobileOnboarding, type OnboardingCompletion } from './MobileOnboarding';
-import { updateSettings } from '../../api/engine-client';
+import { saveDefaultLlmSettings } from '../../api/engine-client';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { useTranslation } from '../../i18n/useAppTranslation';
 
@@ -35,16 +35,14 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
     setSaveError(null);
     // 保存配置到 settings
     try {
-      await updateSettings({
-        default_llm: {
-          mode: config.mode,
-          model: config.mode === 'api' ? config.model : '',
-          api_base: config.api_base,
-          api_key: config.api_key,
-          local_model_path: config.local_model_path,
-          ollama_model: config.ollama_model,
-          context_window: 0,
-        },
+      await saveDefaultLlmSettings({
+        mode: config.mode,
+        model: config.mode === 'api' ? config.model : '',
+        api_base: config.api_base,
+        api_key: config.api_key,
+        local_model_path: config.local_model_path,
+        ollama_model: config.ollama_model,
+        context_window: 0,
       });
       setConfigSaved(true);
       setStep(2);

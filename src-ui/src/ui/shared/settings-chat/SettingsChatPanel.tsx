@@ -7,7 +7,7 @@ import { Sparkles } from "lucide-react";
 import { sendSettingsChat, type SettingsChatSessionLlm } from "../../../api/engine-client";
 import { addFact, editFact, updateFactStatus } from "../../../api/engine-client";
 import { deleteLore, listLoreFiles, readLore, saveLore } from "../../../api/engine-client";
-import { addPinned, deletePinned, getProjectForEditing, updateProject, type ProjectInfo } from "../../../api/engine-client";
+import { addPinned, deletePinned, getProjectForEditing, saveProjectCastRegistryCharacters, saveProjectCoreIncludes, saveProjectWritingStyle, type ProjectInfo } from "../../../api/engine-client";
 import { useFeedback } from "../../../hooks/useFeedback";
 import { useTranslation } from "../../../i18n/useAppTranslation";
 import { SettingsChatHistory } from "./SettingsChatHistory";
@@ -393,7 +393,7 @@ export function SettingsChatPanel({
         const nextCharacters = Array.from(
           new Set([...(currentProject.cast_registry.characters || []), name])
         );
-        await updateProject(basePath, { cast_registry: { characters: nextCharacters } });
+        await saveProjectCastRegistryCharacters(basePath, nextCharacters);
       } catch (error) {
         try {
           await deleteLore({ au_path: basePath, category: "characters", filename });
@@ -582,7 +582,7 @@ export function SettingsChatPanel({
         ...(currentProject.writing_style || {}),
         [field]: value,
       };
-      await updateProject(basePath, { writing_style: writingStyle });
+      await saveProjectWritingStyle(basePath, writingStyle);
       return {
         resultNote: t("settingsMode.executedWithTarget", { target: t("common.labels.writingStyle") }),
         undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
@@ -604,7 +604,7 @@ export function SettingsChatPanel({
         throw new Error(t("settingsMode.error.coreIncludesMissingAll"));
       }
 
-      await updateProject(basePath, { core_always_include: validNames });
+      await saveProjectCoreIncludes(basePath, validNames);
       return {
         resultNote: t("settingsMode.executedWithTarget", { target: t("common.labels.coreAlwaysInclude") }),
         undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },

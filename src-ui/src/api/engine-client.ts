@@ -26,17 +26,30 @@ export type { ExtractedFactCandidate, ExtractFactsResponse } from "./facts";
 export type { ChapterInfo } from "./chapters";
 export type { DraftListItem, DraftGeneratedWith, DeleteDraftsResult } from "./drafts";
 export type {
+  AppPreferencesInput,
+  DefaultLlmSettingsInput,
+  EmbeddingSettingsSaveInput,
   EmbeddingQueryInfo,
   FontPreferences,
+  GlobalSettingsSaveInput,
   LlmQueryInfo,
   LlmSettingsInfo,
   OnboardingDefaults,
   SettingsSummary,
+  SyncSettingsSaveInput,
   TestConnectionRequest,
   TestConnectionResponse,
   WriterSessionConfig,
 } from "./settings";
-export type { ProjectLlmQueryInfo, WorkspaceSnapshot, WriterProjectContext } from "./project";
+export type {
+  AuSettingsSaveInput,
+  ProjectEmbeddingOverrideInput,
+  ProjectLlmOverrideInput,
+  ProjectLlmQueryInfo,
+  ProjectWritingStyleInput,
+  WorkspaceSnapshot,
+  WriterProjectContext,
+} from "./project";
 export type { FandomInfo, FandomFileEntry, FandomFilesResponse } from "./fandoms";
 export type { TrashScope } from "./trash";
 export type { GenerateParams } from "./generate";
@@ -76,8 +89,13 @@ export {
   getOnboardingDefaults,
   getWriterSessionConfig,
   updateSettings,
+  saveAppPreferences,
+  saveDefaultLlmSettings,
+  saveFontPreferences,
+  saveGlobalSettingsForEditing,
   saveGlobalModelParams,
   saveOnboardingSettings,
+  saveSyncSettings,
   testConnection,
   testEmbeddingConnection,
 } from "./engine-settings";
@@ -89,7 +107,12 @@ export {
   getWorkspaceSnapshot,
   getWriterProjectContext,
   updateProject,
+  saveAuSettingsForEditing,
+  saveProjectCastRegistryAndCoreIncludes,
+  saveProjectCastRegistryCharacters,
+  saveProjectCoreIncludes,
   saveProjectModelParamsOverride,
+  saveProjectWritingStyle,
   addPinned,
   deletePinned,
 } from "./engine-project";

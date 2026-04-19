@@ -12,7 +12,7 @@ import { ModelSelector } from '../shared/ModelSelector';
 import { Tag } from '../shared/Tag';
 import { Modal } from '../shared/Modal';
 import { Settings, Save, Trash2, Plus } from 'lucide-react';
-import { getProjectForEditing, updateProject, type ProjectInfo } from '../../api/engine-client';
+import { getProjectForEditing, saveAuSettingsForEditing, saveProjectCastRegistryAndCoreIncludes, type ProjectInfo } from '../../api/engine-client';
 import { getSettingsForEditing, type SettingsInfo } from '../../api/engine-client';
 import { getState, recalcState, rebuildIndex } from '../../api/engine-client';
 import { GlobalSettingsModal } from './GlobalSettingsModal';
@@ -178,54 +178,32 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
     setSaving(true);
     try {
       if (project) {
-        const payload: any = {
+        await saveAuSettingsForEditing(auPath, {
           chapter_length: chapterLength,
           writing_style: {
-            ...project.writing_style,
             perspective,
             emotion_style: emotionStyle,
             custom_instructions: customInstructions,
           },
           pinned_context: pinnedContext,
           core_always_include: coreIncludes,
-        };
-        
-        // Embedding lock
-        if (isEmbeddingOverride) {
-          payload.embedding_lock = {
-            mode: embModel ? 'api' : '',
+          embedding_override: {
+            enabled: isEmbeddingOverride,
             model: embModel,
             api_base: embApiBase,
             api_key: embApiKey,
-          };
-        } else {
-          payload.embedding_lock = { mode: '', model: '', api_base: '', api_key: '' };
-        }
-
-        if (isLlMOverride) {
-           payload.llm = {
-             mode: llmMode,
-             model: llmMode === 'api' ? auModel : '',
-             api_base: llmMode === 'ollama' ? (auApiBase || 'http://localhost:11434/v1') : auApiBase,
-             api_key: llmMode === 'api' ? auApiKey : '',
-             local_model_path: llmMode === 'local' ? auLocalModelPath : '',
-             ollama_model: llmMode === 'ollama' ? auOllamaModel : '',
-             context_window: contextWindow,
-           };
-        } else {
-           // Clear it so it falls back to global
-           payload.llm = {
-             mode: 'api',
-             model: '',
-             api_base: '',
-             api_key: '',
-             local_model_path: '',
-             ollama_model: '',
-             context_window: 0,
-           };
-        }
-        
-        await updateProject(auPath, payload);
+          },
+          llm_override: {
+            enabled: isLlMOverride,
+            mode: llmMode,
+            model: auModel,
+            api_base: auApiBase,
+            api_key: auApiKey,
+            local_model_path: auLocalModelPath,
+            ollama_model: auOllamaModel,
+            context_window: contextWindow,
+          },
+        });
         if (loadGuard.isKeyStale(requestAuPath)) return;
       }
       showSuccess(t("common.actions.save"));
@@ -439,7 +417,10 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                             // 同时从必带角色中移除
                             const nextPins = coreIncludes.filter(n => n !== c);
                             try {
-                              await updateProject(auPath, { cast_registry: { characters: next }, core_always_include: nextPins });
+                              await saveProjectCastRegistryAndCoreIncludes(auPath, {
+                                characters: next,
+                                core_always_include: nextPins,
+                              });
                               setProject(prev => prev ? { ...prev, cast_registry: { ...prev.cast_registry, characters: next }, core_always_include: nextPins } : prev);
                               setCoreIncludes(nextPins);
                             } catch (e) {
