@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Spinner } from "./Spinner";
 import { ApiError } from "../../api/engine-client";
 import {
@@ -13,6 +13,7 @@ import {
   type TrashEntry,
   type TrashScope,
 } from "../../api/engine-client";
+import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
 import { useFeedback } from "../../hooks/useFeedback";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { Button } from "./Button";
@@ -93,20 +94,17 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
   const [deleteTarget, setDeleteTarget] = useState<TrashEntry | null>(null);
   const [clearAllOpen, setClearAllOpen] = useState(false);
   const [restoreConflictOpen, setRestoreConflictOpen] = useState(false);
-  const contextVersionRef = useRef(0);
-  const loadRequestIdRef = useRef(0);
+  const requestGuard = useActiveRequestGuard(`${scope}:${path ?? ""}`);
   const timeLocale = i18n.resolvedLanguage === "en" ? "en-US" : "zh-CN";
 
   useEffect(() => {
-    contextVersionRef.current += 1;
-    loadRequestIdRef.current += 1;
     setEntries([]);
     setLoading(false);
     setPendingId(null);
     setIsClearingAll(false);
-    setDeleteTarget(null);
-    setClearAllOpen(false);
-    setRestoreConflictOpen(false);
+      setDeleteTarget(null);
+      setClearAllOpen(false);
+      setRestoreConflictOpen(false);
   }, [path, scope]);
 
   const loadEntries = async () => {
@@ -115,22 +113,17 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
       setLoading(false);
       return;
     }
-    const requestId = ++loadRequestIdRef.current;
-    const contextVersion = contextVersionRef.current;
+    const token = requestGuard.start();
     setLoading(true);
     try {
       const data = await listTrash(scope, path);
-      if (requestId !== loadRequestIdRef.current || contextVersion !== contextVersionRef.current) {
-        return;
-      }
+      if (requestGuard.isStale(token)) return;
       setEntries(sortEntries(data));
     } catch (error) {
-      if (requestId !== loadRequestIdRef.current || contextVersion !== contextVersionRef.current) {
-        return;
-      }
+      if (requestGuard.isStale(token)) return;
       showError(error, t("error_messages.unknown"));
     } finally {
-      if (requestId === loadRequestIdRef.current && contextVersion === contextVersionRef.current) {
+      if (!requestGuard.isStale(token)) {
         setLoading(false);
       }
     }
@@ -147,13 +140,11 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
 
   const handleRestore = async (entry: TrashEntry) => {
     if (!path || disabled) return;
-    const contextVersion = contextVersionRef.current;
+    const contextKey = `${scope}:${path}`;
     setPendingId(entry.trash_id);
     try {
       await restoreTrash(scope, path, entry.trash_id);
-      if (contextVersion !== contextVersionRef.current) {
-        return;
-      }
+      if (requestGuard.isKeyStale(contextKey)) return;
       setEntries((current) => current.filter((item) => item.trash_id !== entry.trash_id));
       try {
         await onRestore?.(entry);
@@ -162,16 +153,14 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
       }
       showSuccess(t("trash.restoreSuccess", { name: getEntryLabel(entry) }));
     } catch (error) {
-      if (contextVersion !== contextVersionRef.current) {
-        return;
-      }
+      if (requestGuard.isKeyStale(contextKey)) return;
       if (error instanceof ApiError && error.errorCode.toLowerCase() === "restore_conflict") {
         setRestoreConflictOpen(true);
         return;
       }
       showError(error, t("error_messages.unknown"));
     } finally {
-      if (contextVersion === contextVersionRef.current) {
+      if (!requestGuard.isKeyStale(contextKey)) {
         setPendingId(null);
       }
     }
@@ -179,24 +168,20 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
 
   const handlePermanentDelete = async () => {
     if (!path || !deleteTarget || disabled) return;
-    const contextVersion = contextVersionRef.current;
+    const contextKey = `${scope}:${path}`;
     setPendingId(deleteTarget.trash_id);
     try {
       await permanentDeleteTrash(scope, path, deleteTarget.trash_id);
-      if (contextVersion !== contextVersionRef.current) {
-        return;
-      }
+      if (requestGuard.isKeyStale(contextKey)) return;
       setEntries((current) => current.filter((item) => item.trash_id !== deleteTarget.trash_id));
       showSuccess(t("trash.deleteSuccess"));
       setDeleteTarget(null);
     } catch (error) {
-      if (contextVersion !== contextVersionRef.current) {
-        return;
-      }
+      if (requestGuard.isKeyStale(contextKey)) return;
       showError(error, t("error_messages.unknown"));
       await loadEntries();
     } finally {
-      if (contextVersion === contextVersionRef.current) {
+      if (!requestGuard.isKeyStale(contextKey)) {
         setPendingId(null);
       }
     }
@@ -204,24 +189,20 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
 
   const handleClearAll = async () => {
     if (!path || entries.length === 0 || disabled) return;
-    const contextVersion = contextVersionRef.current;
+    const contextKey = `${scope}:${path}`;
     setIsClearingAll(true);
     try {
       await purgeTrash(scope, path, 0);
-      if (contextVersion !== contextVersionRef.current) {
-        return;
-      }
+      if (requestGuard.isKeyStale(contextKey)) return;
       setEntries([]);
       showSuccess(t("trash.clearSuccess"));
       setClearAllOpen(false);
     } catch (error) {
-      if (contextVersion !== contextVersionRef.current) {
-        return;
-      }
+      if (requestGuard.isKeyStale(contextKey)) return;
       showError(error, t("error_messages.unknown"));
       await loadEntries();
     } finally {
-      if (contextVersion === contextVersionRef.current) {
+      if (!requestGuard.isKeyStale(contextKey)) {
         setIsClearingAll(false);
       }
     }
