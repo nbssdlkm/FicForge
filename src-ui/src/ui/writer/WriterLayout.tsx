@@ -2,15 +2,12 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useKV } from '../../hooks/useKV';
 import {
   type GenerateRequestState,
   normalizeContextSummary,
   saveGenerateRequest,
-  saveInstructionText,
-  hasSeenSettingsModeTooltip,
-  markSettingsModeTooltipSeen,
 } from '../../utils/writerStorage';
 import { useWriterFactsExtraction } from './useWriterFactsExtraction';
 import { useSessionParams } from './useSessionParams';
@@ -19,6 +16,8 @@ import { useWriterBootstrap } from './useWriterBootstrap';
 import { useWriterResetOnAuChange } from './useWriterResetOnAuChange';
 import { type DraftItem, useWriterDraftController } from './useWriterDraftController';
 import { useWriterFocusController } from './useWriterFocusController';
+import { useWriterInstructionInput } from './useWriterInstructionInput';
+import { useWriterModeController } from './useWriterModeController';
 import { Button } from '../shared/Button';
 import { Modal } from '../shared/Modal';
 import { ExportModal } from './ExportModal';
@@ -27,7 +26,7 @@ import { ContextSummaryBar } from './ContextSummaryBar';
 import { ChapterContentArea } from './ChapterContentArea';
 import { WriterSidePanelContent } from './WriterSidePanelContent';
 import { WriterModals } from './WriterModals';
-import { WriterHeader, type WriterMode } from './WriterHeader';
+import { WriterHeader } from './WriterHeader';
 import { WriterFooter } from './WriterFooter';
 import { Sidebar } from '../shared/Sidebar';
 import { SettingsChatPanel } from '../shared/settings-chat/SettingsChatPanel';
@@ -117,12 +116,9 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const { t, i18n } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
   const isMobile = useMediaQuery('(max-width: 768px)');
-  const instructionInputRef = useRef<HTMLInputElement | null>(null);
   const loadGuard = useActiveRequestGuard(auPath);
   const refreshGuard = useActiveRequestGuard(auPath);
   const generateGuard = useActiveRequestGuard(auPath);
-  const [mode, setMode] = useState<WriterMode>('write');
-  const [showSettingsTooltip, setShowSettingsTooltip] = useState(false);
   const [isSettingsModeBusy, setIsSettingsModeBusy] = useState(false);
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
 
@@ -165,6 +161,17 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
   const factsExtraction = useWriterFactsExtraction(auPath, lastConfirmedChapter);
   const sessionParams = useSessionParams(auPath, projectInfo, settingsInfo, showSuccess, showError);
+  const {
+    mode,
+    showSettingsTooltip,
+    handleModeChange,
+    closeSettingsTooltip,
+  } = useWriterModeController({
+    isMobile,
+    isSettingsModeBusy,
+    showToast,
+    t,
+  });
 
   // 编辑已确认章节（FIX-006）
 
@@ -211,38 +218,14 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   });
 
 
-  useEffect(() => {
-    if (isMobile && mode !== 'write') {
-      setMode('write');
-      setShowSettingsTooltip(false);
-    }
-  }, [isMobile, mode]);
 
   // 指令文本持久化：变化时自动保存到 localStorage
-  const instructionSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentChapterNum = state?.current_chapter ?? 0;
-  useEffect(() => {
-    if (!currentChapterNum) return;
-    if (instructionSaveRef.current) clearTimeout(instructionSaveRef.current);
-    instructionSaveRef.current = setTimeout(() => {
-      saveInstructionText(auPath, currentChapterNum, instructionText);
-      instructionSaveRef.current = null;
-    }, 500);
-    return () => {
-      // cleanup 时 flush：localStorage 是同步的，直接写入
-      if (instructionSaveRef.current) {
-        clearTimeout(instructionSaveRef.current);
-        instructionSaveRef.current = null;
-        saveInstructionText(auPath, currentChapterNum, instructionText);
-      }
-    };
-  }, [instructionText, auPath, currentChapterNum]);
-
-  const focusInstructionInput = () => {
-    window.setTimeout(() => {
-      instructionInputRef.current?.focus();
-    }, 0);
-  };
+  const { instructionInputRef, focusInstructionInput } = useWriterInstructionInput({
+    auPath,
+    currentChapterNum,
+    instructionText,
+  });
 
   /** 立即写入挂起的草稿编辑，然后清除定时器。 */
   const {
@@ -589,22 +572,6 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     t,
   });
 
-  const handleModeChange = (nextMode: WriterMode) => {
-    if (nextMode === 'write' && isSettingsModeBusy) {
-      showToast(t('settingsMode.busyWriteBlocked'), 'warning');
-      return;
-    }
-    setMode(nextMode);
-    if (nextMode === 'settings' && !hasSeenSettingsModeTooltip()) {
-      setShowSettingsTooltip(true);
-      markSettingsModeTooltipSeen();
-      return;
-    }
-    if (nextMode !== 'settings') {
-      setShowSettingsTooltip(false);
-    }
-  };
-
   const currentChapter = state?.current_chapter || 1;
   const hasPendingDrafts = drafts.length > 0;
   const writeActionsDisabled = isGenerating || isFinalizing || isDiscarding || isSettingsModeBusy;
@@ -790,7 +757,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                 tone="info"
                 message={t('settingsMode.firstTimeTooltip')}
                 actions={
-                  <Button tone="neutral" fill="plain" size="sm" className="h-7 px-2 text-info" onClick={() => setShowSettingsTooltip(false)}>
+                  <Button tone="neutral" fill="plain" size="sm" className="h-7 px-2 text-info" onClick={closeSettingsTooltip}>
                     {t('common.actions.close')}
                   </Button>
                 }
