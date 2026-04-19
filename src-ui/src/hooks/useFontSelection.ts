@@ -20,8 +20,10 @@ import { useCallback, useEffect, useState } from "react";
 import {
   FONT_MANIFEST,
   SYSTEM_FONT_ID,
+  createFontsConfig,
   getFontById,
   resolveFontStack,
+  scriptSlotOf,
   type FontEntry,
   type FontRole,
   type FontScript,
@@ -35,13 +37,11 @@ const LS_KEYS = {
   reading_cjk: "ficforge_font_reading_cjk",
 } as const;
 
-/** 默认值须与 engine createFontsConfig 保持同步。 */
-const DEFAULTS = {
-  ui_latin: SYSTEM_FONT_ID,
-  ui_cjk: SYSTEM_FONT_ID,
-  reading_latin: "source-serif-4",
-  reading_cjk: "lxgw-wenkai-screen",
-} as const;
+/**
+ * 默认值的唯一真相源 = engine `createFontsConfig()`。
+ * UI 层不再硬编码默认 id，避免双处维护不一致。
+ */
+const ENGINE_DEFAULTS = createFontsConfig();
 
 function readLocal(key: string, fallback: string): string {
   try {
@@ -64,7 +64,8 @@ function applyCSS(role: FontRole, latinId: string, cjkId: string): void {
  * 一次性迁移：把 Phase 4 的旧 localStorage 单字段值（`ficforge_font_ui` /
  * `ficforge_font_reading`）映射到 Phase 7 的 4 字段新 keys。
  *
- * 按旧值的 script 属性分派：latin 字体 → *_latin 槽，CJK / system / 未知 → *_cjk 槽。
+ * 分派规则复用 engine 的 `scriptSlotOf` —— 和 settings.yaml 迁移（见 file_settings.ts
+ * 的 dictToFontsConfig）共享同一判据，避免两处逻辑漂移。
  * 新 key 已有值时不覆盖。迁移完删除旧 key，避免重复触发。
  */
 function migrateLegacyLocalStorage(): void {
@@ -74,20 +75,13 @@ function migrateLegacyLocalStorage(): void {
     const legacyReading = localStorage.getItem(LEGACY.reading);
     if (!legacyUi && !legacyReading) return;
 
-    const slotFor = (value: string): "latin" | "cjk" => {
-      if (value === SYSTEM_FONT_ID) return "cjk";
-      const entry = getFontById(value);
-      return entry?.script === "latin" ? "latin" : "cjk";
-    };
-
     if (legacyUi) {
-      const slot = slotFor(legacyUi);
-      const targetKey = slot === "latin" ? LS_KEYS.ui_latin : LS_KEYS.ui_cjk;
+      const targetKey = scriptSlotOf(legacyUi) === "latin" ? LS_KEYS.ui_latin : LS_KEYS.ui_cjk;
       if (!localStorage.getItem(targetKey)) localStorage.setItem(targetKey, legacyUi);
       localStorage.removeItem(LEGACY.ui);
     }
     if (legacyReading) {
-      const slot = slotFor(legacyReading);
+      const slot = scriptSlotOf(legacyReading);
       const targetKey = slot === "latin" ? LS_KEYS.reading_latin : LS_KEYS.reading_cjk;
       if (!localStorage.getItem(targetKey)) localStorage.setItem(targetKey, legacyReading);
       localStorage.removeItem(LEGACY.reading);
@@ -99,13 +93,13 @@ migrateLegacyLocalStorage();
 // 模块顶层执行：页面首帧就读 localStorage 设 CSS var，避免 React mount 前的 FOUC。
 applyCSS(
   "ui",
-  readLocal(LS_KEYS.ui_latin, DEFAULTS.ui_latin),
-  readLocal(LS_KEYS.ui_cjk, DEFAULTS.ui_cjk),
+  readLocal(LS_KEYS.ui_latin, ENGINE_DEFAULTS.ui_latin_font_id),
+  readLocal(LS_KEYS.ui_cjk, ENGINE_DEFAULTS.ui_cjk_font_id),
 );
 applyCSS(
   "reading",
-  readLocal(LS_KEYS.reading_latin, DEFAULTS.reading_latin),
-  readLocal(LS_KEYS.reading_cjk, DEFAULTS.reading_cjk),
+  readLocal(LS_KEYS.reading_latin, ENGINE_DEFAULTS.reading_latin_font_id),
+  readLocal(LS_KEYS.reading_cjk, ENGINE_DEFAULTS.reading_cjk_font_id),
 );
 
 export interface FontOption {
@@ -178,16 +172,16 @@ export interface FontSelectionState {
 
 export function useFontSelection(): FontSelectionState {
   const [uiLatinFontId, setUiLatinFontIdState] = useState(
-    () => readLocal(LS_KEYS.ui_latin, DEFAULTS.ui_latin),
+    () => readLocal(LS_KEYS.ui_latin, ENGINE_DEFAULTS.ui_latin_font_id),
   );
   const [uiCjkFontId, setUiCjkFontIdState] = useState(
-    () => readLocal(LS_KEYS.ui_cjk, DEFAULTS.ui_cjk),
+    () => readLocal(LS_KEYS.ui_cjk, ENGINE_DEFAULTS.ui_cjk_font_id),
   );
   const [readingLatinFontId, setReadingLatinFontIdState] = useState(
-    () => readLocal(LS_KEYS.reading_latin, DEFAULTS.reading_latin),
+    () => readLocal(LS_KEYS.reading_latin, ENGINE_DEFAULTS.reading_latin_font_id),
   );
   const [readingCjkFontId, setReadingCjkFontIdState] = useState(
-    () => readLocal(LS_KEYS.reading_cjk, DEFAULTS.reading_cjk),
+    () => readLocal(LS_KEYS.reading_cjk, ENGINE_DEFAULTS.reading_cjk_font_id),
   );
 
   // 启动时从 engine settings 同步（跨设备恢复）。失败静默，localStorage 兜底。

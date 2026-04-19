@@ -4,16 +4,13 @@
 /** 字体系统统一导出。 */
 
 export {
-  DEFAULT_CJK_FONT_ID,
-  DEFAULT_LATIN_FONT_ID,
   FONT_MANIFEST,
-  MANIFEST_VERSION,
   SYSTEM_FONT_STACK,
   filterFontsByType,
   getFontById,
 } from "./manifest.js";
 
-export { SYSTEM_FONT_ID, resolveFontStack } from "./stacks.js";
+export { SYSTEM_FONT_ID, resolveFontStack, scriptSlotOf } from "./stacks.js";
 export type { FontRole } from "./stacks.js";
 
 export { FontDownloader, sha256Hex } from "./downloader.js";

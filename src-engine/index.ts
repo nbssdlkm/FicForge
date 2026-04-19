@@ -100,20 +100,18 @@ export type { Logger } from "./logger/index.js";
 // Fonts
 export {
   BrowserFontRegistry,
-  DEFAULT_CJK_FONT_ID,
-  DEFAULT_LATIN_FONT_ID,
   FONT_MANIFEST,
   FontDownloader,
   FontError,
   FontStorage,
   FontsService,
-  MANIFEST_VERSION,
   NoopFontRegistry,
   SYSTEM_FONT_ID,
   SYSTEM_FONT_STACK,
   filterFontsByType,
   getFontById,
   resolveFontStack,
+  scriptSlotOf,
   sha256Hex,
 } from "./fonts/index.js";
 export type {

@@ -22,6 +22,20 @@ export type FontRole = "ui" | "reading";
 export const SYSTEM_FONT_ID = "system";
 
 /**
+ * 按字体 id 的 script 属性判定它归属哪个槽（latin / cjk）。
+ *
+ * - `"system"` / manifest 未知 id → `"cjk"`（回退：Phase 4 旧数据多为 CJK 字体，
+ *   界面"默认值"也偏 CJK 风格；放 cjk 槽对用户感知最接近原选择）
+ * - 已知字体 → 按 entry.script 分派；"both" 也视为 latin（让西文栏位生效）
+ *
+ * 用于 Phase 4 → Phase 7 的 localStorage 和 settings.yaml 字段迁移。
+ */
+export function scriptSlotOf(fontId: string): "latin" | "cjk" {
+  if (fontId === SYSTEM_FONT_ID) return "cjk";
+  return getFontById(fontId)?.script === "latin" ? "latin" : "cjk";
+}
+
+/**
  * UI 角色的 fallback：完全等于 SYSTEM_FONT_STACK（浏览器/OS 默认 sans）。
  * 若用户选具体字体，该字体追加在 stack 最前，剩余部分仍是系统 fallback。
  */

@@ -14,16 +14,6 @@
 import type { FontEntry } from "./types.js";
 
 /**
- * Manifest 版本号。每次 manifest 结构发生**不向后兼容**的变化时递增：
- *
- * - 加字段、改 URL、改 sha256：不算 breaking，**不递增**；
- * - 删字段、改字段语义、改 id 或 family、改 type 枚举：breaking，必须递增。
- *
- * 未来 Phase 可结合此版本号做字体数据的迁移（如清理旧版本留下的不兼容文件）。
- */
-export const MANIFEST_VERSION = 1;
-
-/**
  * 「跟随系统」字体栈。不进 manifest，单独常量导出。
  *
  * 浏览器/OS 自动挑选：Windows 用 Segoe UI + 微软雅黑，macOS 用苹方，
@@ -33,10 +23,10 @@ export const MANIFEST_VERSION = 1;
 export const SYSTEM_FONT_STACK =
   'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif';
 
-/** 默认的西文阅读字体 id（内置）。 */
-export const DEFAULT_LATIN_FONT_ID = "source-serif-4";
-/** 默认的中文阅读字体 id（内置）。 */
-export const DEFAULT_CJK_FONT_ID = "lxgw-wenkai-screen";
+// 内部常量：默认字体 id。仅用于启动自检（validateManifest），不对外导出。
+// 外部调用方读默认值应走 `createFontsConfig()` —— 那是唯一对外真相源。
+const DEFAULT_LATIN_FONT_ID = "source-serif-4";
+const DEFAULT_CJK_FONT_ID = "lxgw-wenkai-screen";
 
 export const FONT_MANIFEST: readonly FontEntry[] = [
   // ── 内置字体（随包分发） ──────────────────────────
