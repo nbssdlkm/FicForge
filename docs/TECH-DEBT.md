@@ -274,3 +274,36 @@ currentRec[key] = { ...(currentRec[key]), ...val };
 **经验教训（沉淀到 CLAUDE.md 工作原则）:**
 
 对外可配置的 URL 字段**不应在代码里硬编码路径前缀**。`api_base` 这类约定应让用户填"会被直接用的完整前缀"，避免"我以为只填 host，结果被自动补了 /v1"的误解 —— 尤其代理 / 聚合服务生态复杂，任何"自动补 X"都是未来坑的预埋。
+
+---
+
+## TD-013: ImportFlow `TurnCard` 视觉层级不清 + `setting` / `chapter_continue` 埋得深
+
+**状态:** 待修复
+**优先级:** 中（功能已可用，但发现性差 + 批量编辑笨拙）
+**涉及文件:** `src-ui/src/ui/import/TurnCard.tsx`, `src-ui/src/ui/import/ChapterArrangeStep.tsx`
+
+波 2 LLM 对话识别完成后（commits `8139a6a`/`f93f6f0`），对话文件的 Import 流程完整 work，但用户在 `ChapterArrangeStep` 手动确认每轮类型时 UX 不佳。**等 Codex 当前架构大改完成后再动手**。
+
+**主要问题（4 条）:**
+
+1. **TurnCard 信息密度高、视觉层级乱**：`#index` / 角色徽标 / 字数 / reason / preview 全部 `text-xs` 挤在一行。20+ 张 TurnCard 滚动起来像噪声墙，没有主次。
+2. **`setting` / `chapter_continue` 发现性差**：两者都是"用户手动改"（`classifyTurns` 不自动产出），但选项藏在 `<select>` 下拉里，不点开不知道存在。第一次用的用户容易整个文件都按 chapter/skip 导入，浪费 `worldbuilding/` 写入功能和章节续接功能。
+3. **批量操作按钮不显眼**：`tone="neutral" fill="plain"` 3 个小按钮混在文件展开头部，点完无反馈也不能撤销。
+4. **缺多选批量机制**：想把第 5/7/9 三轮都改 setting 要开 3 次下拉。真批量选择应是 checkbox + 粘性底部操作栏。
+
+**修复方向（按优先级）:**
+
+- **视觉层级重构（核心）**：role + 类型做主字号 + icon，reason / preview 退为次淡色，preview 从 60 字扩到 120-150 字
+- **pill 按钮组代替下拉**（4 个类型 pill + 每个固定 icon/色），一次点击切换，`chapter_continue` 按"前面有 chapter"条件性禁用（保持 UI 稳定而非隐藏）
+- **批量操作升级**：按钮组视觉权重提升，加"所有 uncertain → setting/skip/chapter"类按钮，操作后 toast 反馈，缓存 snapshot 支持撤销
+- **多选 + 粘性操作栏（进阶）**：每张 TurnCard 加 checkbox，底部粘性栏"已选 N 条 → [设为 X]"
+
+**注意事项:**
+
+此改动触及 `TurnCard.tsx` 和 `ChapterArrangeStep.tsx` 的结构，需等 Codex 当前架构大改完成避免合并冲突。同时可顺带处理：
+
+- `uncertain` 轮次的视觉引导（"请手动决定"文字提示）
+- LLM 失败后的持久 UI 痕迹（当前只有 3.5 秒 toast，3.5 秒后再看 AnalysisStep 无任何失败提示）
+- 文件头统计数字用徽章 chip 而非嵌入文字
+- `"LLM Detected"` 文案友好化（i18n 或至少给 `chatFormat === "LLM Detected"` 特判显示"AI 识别"）
