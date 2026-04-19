@@ -59,9 +59,11 @@ export async function testConnection(params: { mode: string; model?: string; api
       };
     }
     if (params.mode === "ollama") {
-      // Ollama 模式：尝试连接 Ollama API
-      const base = params.api_base || "http://localhost:11434";
-      const resp = await fetch(`${base}/api/tags`);
+      // /api/tags 是 Ollama 原生端点，不在 OpenAI 兼容层 /v1 子路径下。
+      // 若 api_base 按新约定带了 /v1，strip 掉再拼 /api/tags。
+      const raw = (params.api_base || "http://localhost:11434/v1").replace(/\/+$/, "");
+      const nativeBase = raw.replace(/\/v1$/, "");
+      const resp = await fetch(`${nativeBase}/api/tags`);
       if (resp.ok) {
         return { success: true, model: params.ollama_model ?? "ollama" };
       }

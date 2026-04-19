@@ -10,7 +10,7 @@ export interface EmbeddingProvider {
 }
 
 /**
- * 远程 Embedding Provider（调用 OpenAI 兼容 /v1/embeddings 端点）。
+ * 远程 Embedding Provider（调用 OpenAI 兼容 /embeddings 端点；apiBase 需包含 /v1）。
  */
 export class RemoteEmbeddingProvider implements EmbeddingProvider {
   private dimension = 0;
@@ -24,7 +24,7 @@ export class RemoteEmbeddingProvider implements EmbeddingProvider {
   async embed(texts: string[]): Promise<number[][]> {
     if (texts.length === 0) return [];
 
-    const url = `${this.apiBase.replace(/\/+$/, "")}/v1/embeddings`;
+    const url = `${this.apiBase.replace(/\/+$/, "")}/embeddings`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30_000);
     let resp: Response;

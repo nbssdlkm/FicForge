@@ -23,7 +23,7 @@ import { getEngine } from "./engine-instance";
  * 从 settings 创建 RemoteEmbeddingProvider。
  *
  * ⚠️ 严格使用 embedding 自己的 api_key + api_base，不再回退到 default_llm。
- *    原因：很多 LLM 提供商（DeepSeek、Claude 官方等）不支持 embedding 端点，
+ *    原因：很多 LLM 提供商（如 DeepSeek）不支持 embedding 端点，
  *    或者 embedding 额度使用不同的 key。隐式复用会把错误凭据发到错误端点，
  *    排障成本高于让用户显式配置。
  *    未配置 embedding 时返回 undefined，RAG 自然降级。

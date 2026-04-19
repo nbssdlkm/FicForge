@@ -21,23 +21,16 @@ export const MODEL_PRESETS: { group: string; models: { name: string; apiBase: st
   {
     group: 'OpenAI',
     models: [
-      { name: 'gpt-4o', apiBase: 'https://api.openai.com' },
-      { name: 'gpt-4o-mini', apiBase: 'https://api.openai.com' },
-      { name: 'gpt-4.1', apiBase: 'https://api.openai.com' },
-    ],
-  },
-  {
-    group: 'Claude',
-    models: [
-      { name: 'claude-sonnet-4-6', apiBase: 'https://api.anthropic.com' },
-      { name: 'claude-3-5-sonnet', apiBase: 'https://api.anthropic.com' },
+      { name: 'gpt-4o', apiBase: 'https://api.openai.com/v1' },
+      { name: 'gpt-4o-mini', apiBase: 'https://api.openai.com/v1' },
+      { name: 'gpt-4.1', apiBase: 'https://api.openai.com/v1' },
     ],
   },
   {
     group: 'Qwen',
     models: [
-      { name: 'qwen-max', apiBase: 'https://dashscope.aliyuncs.com/compatible-mode' },
-      { name: 'qwen-plus', apiBase: 'https://dashscope.aliyuncs.com/compatible-mode' },
+      { name: 'qwen-max', apiBase: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
+      { name: 'qwen-plus', apiBase: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
     ],
   },
   {

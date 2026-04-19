@@ -84,7 +84,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
 
   async *generateStream(params: GenerateParams): AsyncIterable<LLMChunk> {
     const body = this.buildBody(params, true);
-    const url = `${this.apiBase}/v1/chat/completions`;
+    const url = `${this.apiBase}/chat/completions`;
 
     const controller = new AbortController();
     // 可重置超时：每次收到数据后重置，防止长生成被误杀
@@ -209,7 +209,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
   }
 
   private async requestWithRetry(body: Record<string, unknown>, externalSignal?: AbortSignal): Promise<Record<string, unknown>> {
-    const url = `${this.apiBase}/v1/chat/completions`;
+    const url = `${this.apiBase}/chat/completions`;
 
     for (let attempt = 0; attempt < 2; attempt++) {
       try {

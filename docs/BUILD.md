@@ -111,10 +111,33 @@ npx cap sync android       # 同步 dist/ → android/
 或命令行构建（需本地有 Android SDK）：
 ```bash
 cd android
-./gradlew assembleRelease
+JAVA_HOME="C:/Program Files/Android/Android Studio/jbr" ./gradlew.bat assembleRelease
 ```
 
-产物位置：`android/app/build/outputs/apk/release/`
+产物位置：`android/app/build/outputs/apk/release/app-release-unsigned.apk`
+
+#### APK 签名（必须，否则无法安装）
+
+`assembleRelease` 产出的是 unsigned APK，Android 设备拒绝安装未签名的 APK。用 debug keystore 签名即可侧载：
+
+```bash
+# 复制一份（apksigner 会原地修改文件）
+cp app-release-unsigned.apk app-signed.apk
+
+# 用 debug keystore 签名（密码固定为 android）
+JAVA_HOME="C:/Program Files/Android/Android Studio/jbr" \
+  $ANDROID_HOME/build-tools/36.1.0/apksigner sign \
+  --ks ~/.android/debug.keystore \
+  --ks-pass pass:android \
+  --key-pass pass:android \
+  app-signed.apk
+
+# 验证签名
+JAVA_HOME="C:/Program Files/Android/Android Studio/jbr" \
+  $ANDROID_HOME/build-tools/36.1.0/apksigner verify app-signed.apk
+```
+
+> **注意**：debug keystore 签名仅适用于个人侧载。上架 Google Play 需要创建正式 release keystore（`keytool -genkey ...`），并在 `android/app/build.gradle` 中配置 `signingConfigs`。
 
 #### 注意事项
 
@@ -122,6 +145,8 @@ cd android
 - `android/app/build.gradle` 中 `versionCode` 和 `versionName` 需手动更新
 - Android 端无 Python sidecar，embedding 依赖远端 API
 - 最低 SDK 版本由 `android/variables.gradle` 中 `minSdkVersion` 控制
+- `JAVA_HOME` 必须指向 Android Studio 内置的 JBR，系统 PATH 里的 java 不可用
+- Gradle wrapper（`gradlew.bat`）版本由 Android Studio 管理，Capacitor sync 后如有提示需升级则按提示操作
 
 #### Capacitor 原生插件依赖（重要）
 
@@ -151,14 +176,37 @@ cd android
 
 ---
 
+## 复制产物到 release/
+
+```bash
+# 清理旧产物
+rm -rf release/pwa/* release/desktop/* release/android/*
+
+# PWA
+cp -r src-ui/dist/* release/pwa/
+
+# Desktop（注意：bundle 目录保留历史版本，只复制当前版本）
+cp src-ui/src-tauri/target/release/bundle/nsis/FicForge_0.2.0_x64-setup.exe release/desktop/
+cp src-ui/src-tauri/target/release/bundle/msi/FicForge_0.2.0_x64_en-US.msi release/desktop/
+
+# Android（已签名的 APK）
+cp app-signed.apk release/android/FicForge_0.2.0_android.apk
+```
+
+> **注意**：Tauri 的 `target/release/bundle/nsis/` 和 `msi/` 目录会累积历史版本的安装包。使用通配符 `*.exe` 会把旧版本也复制进去。务必指定版本号精确复制。
+
+---
+
 ## 构建产物体积参考（v0.2.0）
 
 | 平台 | 产物 | 大小 |
 |------|------|------|
 | PWA / Capacitor web assets | `dist/` | ~2.4 MB |
 | PWA 首屏加载（不含 tokenizer） | JS + CSS | ~1.3 MB (gzip ~390 KB) |
-| Tauri Linux binary | release ELF | ~15 MB |
-| Tauri + Python sidecar | 含 embedding 模型 | ~43 MB |
+| Tauri Windows (NSIS, 含 sidecar) | `.exe` 安装包 | ~106 MB |
+| Tauri Windows (MSI, 含 sidecar) | `.msi` 安装包 | ~137 MB |
+| Tauri Windows (无 sidecar) | 安装包 | ~15 MB |
+| Android APK (signed) | `.apk` | ~4 MB |
 
 ### 首屏加载明细
 
