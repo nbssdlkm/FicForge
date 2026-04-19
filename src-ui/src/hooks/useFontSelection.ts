@@ -16,7 +16,7 @@
  * - `engine settings`：异步读写、跨设备同步（WebDAV sync 生效）。
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FONT_MANIFEST,
   SYSTEM_FONT_ID,
@@ -224,63 +224,86 @@ export function useFontSelection(): FontSelectionState {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 统一的 setter 工厂：每个 setter 都做 state + localStorage + CSS + engine settings 四同步。
-  // engine 侧写的是"当前四个字段的最新值快照"，避免 merge 漏字段。
+  /**
+   * 最新 4 字段的 ref —— 解决 setter 闭包 stale 问题。
+   *
+   * 场景：用户在同一 render 帧内快速连续调两个 setter（如两个下拉的 onChange
+   * 紧挨着触发），第二个 setter 用的是第一个 setter 执行前的 state 闭包。
+   * 如果 setter 用闭包值拼 persist 的 4 字段快照，第二次 persist 就会把第一次
+   * 的改动覆盖丢失。
+   *
+   * 策略：render 后 useEffect 同步 state → ref（外部对齐），setter 内同步更新
+   * ref（保证同一 event 链内下一次读到新值），persist 用 ref 读最新 4 字段。
+   */
+  const latestFontsRef = useRef({
+    ui_latin: uiLatinFontId,
+    ui_cjk: uiCjkFontId,
+    reading_latin: readingLatinFontId,
+    reading_cjk: readingCjkFontId,
+  });
+  useEffect(() => {
+    latestFontsRef.current = {
+      ui_latin: uiLatinFontId,
+      ui_cjk: uiCjkFontId,
+      reading_latin: readingLatinFontId,
+      reading_cjk: readingCjkFontId,
+    };
+  }, [uiLatinFontId, uiCjkFontId, readingLatinFontId, readingCjkFontId]);
+
   const persist = useCallback(
-    (latin: string, cjk: string, readingLatin: string, readingCjk: string) => {
+    (snapshot: { ui_latin: string; ui_cjk: string; reading_latin: string; reading_cjk: string }) => {
       updateSettings({
         app: {
           fonts: {
-            ui_latin_font_id: latin,
-            ui_cjk_font_id: cjk,
-            reading_latin_font_id: readingLatin,
-            reading_cjk_font_id: readingCjk,
+            ui_latin_font_id: snapshot.ui_latin,
+            ui_cjk_font_id: snapshot.ui_cjk,
+            reading_latin_font_id: snapshot.reading_latin,
+            reading_cjk_font_id: snapshot.reading_cjk,
           },
         },
-      }).catch(() => { /* engine 同步失败静默 */ });
+      }).catch((err) => {
+        // 本地 localStorage 已写入，用户感知无异常；但跨设备同步失效，debug 需要可见。
+        console.warn("[useFontSelection] engine settings persist failed:", err);
+      });
     },
     [],
   );
 
-  const setUiLatinFontId = useCallback(
-    (id: string) => {
-      setUiLatinFontIdState(id);
-      writeLocal(LS_KEYS.ui_latin, id);
-      applyCSS("ui", id, uiCjkFontId);
-      persist(id, uiCjkFontId, readingLatinFontId, readingCjkFontId);
-    },
-    [uiCjkFontId, readingLatinFontId, readingCjkFontId, persist],
-  );
+  const setUiLatinFontId = useCallback((id: string) => {
+    setUiLatinFontIdState(id);
+    writeLocal(LS_KEYS.ui_latin, id);
+    const next = { ...latestFontsRef.current, ui_latin: id };
+    latestFontsRef.current = next;
+    applyCSS("ui", next.ui_latin, next.ui_cjk);
+    persist(next);
+  }, [persist]);
 
-  const setUiCjkFontId = useCallback(
-    (id: string) => {
-      setUiCjkFontIdState(id);
-      writeLocal(LS_KEYS.ui_cjk, id);
-      applyCSS("ui", uiLatinFontId, id);
-      persist(uiLatinFontId, id, readingLatinFontId, readingCjkFontId);
-    },
-    [uiLatinFontId, readingLatinFontId, readingCjkFontId, persist],
-  );
+  const setUiCjkFontId = useCallback((id: string) => {
+    setUiCjkFontIdState(id);
+    writeLocal(LS_KEYS.ui_cjk, id);
+    const next = { ...latestFontsRef.current, ui_cjk: id };
+    latestFontsRef.current = next;
+    applyCSS("ui", next.ui_latin, next.ui_cjk);
+    persist(next);
+  }, [persist]);
 
-  const setReadingLatinFontId = useCallback(
-    (id: string) => {
-      setReadingLatinFontIdState(id);
-      writeLocal(LS_KEYS.reading_latin, id);
-      applyCSS("reading", id, readingCjkFontId);
-      persist(uiLatinFontId, uiCjkFontId, id, readingCjkFontId);
-    },
-    [uiLatinFontId, uiCjkFontId, readingCjkFontId, persist],
-  );
+  const setReadingLatinFontId = useCallback((id: string) => {
+    setReadingLatinFontIdState(id);
+    writeLocal(LS_KEYS.reading_latin, id);
+    const next = { ...latestFontsRef.current, reading_latin: id };
+    latestFontsRef.current = next;
+    applyCSS("reading", next.reading_latin, next.reading_cjk);
+    persist(next);
+  }, [persist]);
 
-  const setReadingCjkFontId = useCallback(
-    (id: string) => {
-      setReadingCjkFontIdState(id);
-      writeLocal(LS_KEYS.reading_cjk, id);
-      applyCSS("reading", readingLatinFontId, id);
-      persist(uiLatinFontId, uiCjkFontId, readingLatinFontId, id);
-    },
-    [uiLatinFontId, uiCjkFontId, readingLatinFontId, persist],
-  );
+  const setReadingCjkFontId = useCallback((id: string) => {
+    setReadingCjkFontIdState(id);
+    writeLocal(LS_KEYS.reading_cjk, id);
+    const next = { ...latestFontsRef.current, reading_cjk: id };
+    latestFontsRef.current = next;
+    applyCSS("reading", next.reading_latin, next.reading_cjk);
+    persist(next);
+  }, [persist]);
 
   return {
     uiLatinFontId,
