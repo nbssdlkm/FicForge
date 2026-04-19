@@ -15,6 +15,10 @@ use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
+mod secure_store;
+
+use secure_store::{secure_store_get, secure_store_remove, secure_store_set};
+
 // ---------------------------------------------------------------------------
 // Sidecar 状态
 // ---------------------------------------------------------------------------
@@ -44,7 +48,11 @@ fn resolve_sidecar_command(handle: &AppHandle) -> (String, Vec<String>, Vec<(Str
     // 尝试生产模式路径
     if let Ok(resource_dir) = handle.path().resource_dir() {
         let sidecar_dir = resource_dir.join("sidecar");
-        let exe_name = if cfg!(windows) { "fanfic-sidecar.exe" } else { "fanfic-sidecar" };
+        let exe_name = if cfg!(windows) {
+            "fanfic-sidecar.exe"
+        } else {
+            "fanfic-sidecar"
+        };
         let sidecar_exe = sidecar_dir.join(exe_name);
 
         if sidecar_exe.exists() {
@@ -69,14 +77,21 @@ fn resolve_sidecar_command(handle: &AppHandle) -> (String, Vec<String>, Vec<(Str
 
     // Windows: python, Linux/macOS: python3
     let python_cmd = if cfg!(windows) { "python" } else { "python3" };
-    eprintln!("[sidecar] dev mode: {} {}", python_cmd, script_path.display());
+    eprintln!(
+        "[sidecar] dev mode: {} {}",
+        python_cmd,
+        script_path.display()
+    );
 
     (
         python_cmd.into(),
         vec![script_path.to_string_lossy().to_string()],
         vec![
             ("PYTHONUNBUFFERED".into(), "1".into()),
-            ("PYTHONPATH".into(), python_path.to_string_lossy().to_string()),
+            (
+                "PYTHONPATH".into(),
+                python_path.to_string_lossy().to_string(),
+            ),
         ],
     )
 }
@@ -101,10 +116,14 @@ fn spawn_sidecar(handle: &AppHandle) {
         }
         // 清除代理环境变量：sidecar 直连 LLM API，不走系统代理
         for proxy_var in &[
-            "ALL_PROXY", "all_proxy",
-            "HTTP_PROXY", "http_proxy",
-            "HTTPS_PROXY", "https_proxy",
-            "NO_PROXY", "no_proxy",
+            "ALL_PROXY",
+            "all_proxy",
+            "HTTP_PROXY",
+            "http_proxy",
+            "HTTPS_PROXY",
+            "https_proxy",
+            "NO_PROXY",
+            "no_proxy",
         ] {
             cmd.env_remove(proxy_var);
         }
@@ -122,7 +141,10 @@ fn spawn_sidecar(handle: &AppHandle) {
             }
         };
 
-        let stdout = child.stdout.take().expect("Failed to capture sidecar stdout");
+        let stdout = child
+            .stdout
+            .take()
+            .expect("Failed to capture sidecar stdout");
         let mut lines = BufReader::new(stdout).lines();
 
         // 解析端口号
@@ -147,10 +169,7 @@ fn spawn_sidecar(handle: &AppHandle) {
         let status = child.wait().await;
         let state = handle.state::<SidecarState>();
         *state.port.lock().unwrap() = None;
-        let _ = handle.emit(
-            "sidecar-exited",
-            format!("{:?}", status),
-        );
+        let _ = handle.emit("sidecar-exited", format!("{:?}", status));
     });
 }
 
@@ -168,7 +187,12 @@ pub fn run() {
         .manage(SidecarState {
             port: Mutex::new(None),
         })
-        .invoke_handler(tauri::generate_handler![get_sidecar_port])
+        .invoke_handler(tauri::generate_handler![
+            get_sidecar_port,
+            secure_store_get,
+            secure_store_set,
+            secure_store_remove
+        ])
         .setup(|app| {
             spawn_sidecar(app.handle());
             Ok(())

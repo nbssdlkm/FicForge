@@ -14,7 +14,7 @@ export interface OpenDialogOptions {
 }
 
 export interface SecretStorageCapabilities {
-  backend: "local_storage" | "local_storage_with_memory_fallback" | "memory";
+  backend: "local_storage" | "local_storage_with_memory_fallback" | "memory" | "os_keyring";
   encrypted_at_rest: boolean;
   persistence: "persistent" | "best_effort" | "memory_only";
 }
@@ -76,12 +76,11 @@ export interface PlatformAdapter {
   /**
    * 敏感数据存储：用于 API key、密码等字段，使其不出现在 settings.yaml 明文中。
    *
-   * @warning **当前未加密。** 所有平台的实现均为 KV + `__secure__:` 前缀隔离，
-   * 数据以明文存储在 localStorage 或内存 Map 中。方法名保留 `secure` 前缀以便
-   * 未来接入真正的安全存储时无需修改调用点。
+   * 当前平台能力并不一致：Tauri 已接入 OS keyring / keychain，Web / Capacitor
+   * 仍是基于 KV 的兼容实现。调用方应结合 `getSecretStorageCapabilities()` 判断
+   * 实际安全级别，而不是仅根据方法名推断。
    *
-   * TODO: Tauri 接入 @tauri-apps/plugin-stronghold (OS keychain)；
-   *       Capacitor 接入 @capacitor-community/secure-storage (Android Keystore / iOS Keychain)；
+   * TODO: Capacitor 接入 @capacitor-community/secure-storage (Android Keystore / iOS Keychain)；
    *       Web 接入 crypto.subtle 派生密钥加密。
    */
   secureGet(key: string): Promise<string | null>;

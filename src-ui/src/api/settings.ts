@@ -57,7 +57,7 @@ export interface FontPreferences {
 }
 
 export interface SecretStorageCapabilities {
-  backend: "local_storage" | "local_storage_with_memory_fallback" | "memory";
+  backend: "local_storage" | "local_storage_with_memory_fallback" | "memory" | "os_keyring";
   encrypted_at_rest: boolean;
   persistence: "persistent" | "best_effort" | "memory_only";
 }
