@@ -4,7 +4,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { initEngine } from "../engine-instance";
 import {
-  getSettings,
+  getSettingsForEditing,
   saveAppPreferences,
   saveFontPreferences,
   saveGlobalModelParams,
@@ -29,7 +29,7 @@ describe("engine-settings write queue", () => {
   beforeEach(async () => {
     adapter = new SlowMockAdapter();
     initEngine(adapter, "");
-    await getSettings();
+    await getSettingsForEditing();
   });
 
   it("preserves both fields across concurrent settings commands", async () => {
@@ -45,7 +45,7 @@ describe("engine-settings write queue", () => {
       saveFontPreferences(fonts),
     ]);
 
-    const settings = await getSettings();
+    const settings = await getSettingsForEditing();
     expect(settings.app.language).toBe("en");
     expect(settings.app.fonts).toEqual(fonts);
   });
@@ -56,7 +56,7 @@ describe("engine-settings write queue", () => {
       saveGlobalModelParams("gpt-test", { temperature: 0.2, top_p: 0.8 }),
     ]);
 
-    const settings = await getSettings();
+    const settings = await getSettingsForEditing();
     expect(settings.app.language).toBe("en");
     expect(settings.model_params["gpt-test"]).toEqual({ temperature: 0.2, top_p: 0.8 });
   });

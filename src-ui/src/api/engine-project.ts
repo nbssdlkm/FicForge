@@ -2,10 +2,10 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 /**
- * Engine Project — getProject, updateProject, addPinned, deletePinned.
+ * Engine Project query/command layer.
  *
- * AU 锁：三个写入函数都是"读-改-写 project.yaml"的 RMW 模式。并发两次
- * addPinned 会互相覆盖（后写者只看到写入前的 pinned_context），必须串行化。
+ * Project writes are read-modify-write operations over `project.yaml`,
+ * so every mutating command must stay serialized behind the AU lock.
  */
 
 import type { Project } from "@ficforge/engine";
@@ -28,6 +28,11 @@ async function withProjectWrite<T>(auPath: string, mutate: (current: Project) =>
     await project.save(current);
     return result;
   });
+}
+
+async function readProject(auPath: string): Promise<Project> {
+  const { project } = getEngine().repos;
+  return project.get(auPath);
 }
 
 function hasProjectLlmOverride(llm: Project["llm"] | null | undefined): boolean {
@@ -68,13 +73,8 @@ function toModelParamInfoMap(source: Record<string, Record<string, unknown>> | u
   return result;
 }
 
-export async function getProject(auPath: string) {
-  const { project } = getEngine().repos;
-  return await project.get(auPath);
-}
-
 export async function getProjectForEditing(auPath: string) {
-  return getProject(auPath);
+  return readProject(auPath);
 }
 
 export async function getProjectCapabilities(_auPath: string): Promise<ProjectCapabilities> {
@@ -84,28 +84,18 @@ export async function getProjectCapabilities(_auPath: string): Promise<ProjectCa
 }
 
 export async function getWorkspaceSnapshot(auPath: string): Promise<WorkspaceSnapshot> {
-  const project = await getProject(auPath);
+  const project = await readProject(auPath);
   return {
     pinned_count: project.pinned_context.length,
   };
 }
 
 export async function getWriterProjectContext(auPath: string): Promise<WriterProjectContext> {
-  const project = await getProject(auPath);
+  const project = await readProject(auPath);
   return {
     llm: toProjectLlmQueryInfo(project.llm),
     model_params_override: toModelParamInfoMap(project.model_params_override),
   };
-}
-
-export async function updateProject(auPath: string, updates: Partial<Project> | Record<string, unknown>) {
-  const { project } = getEngine().repos;
-  return withAuLock(auPath, async () => {
-    const current = await project.get(auPath);
-    Object.assign(current, updates);
-    await project.save(current);
-    return current;
-  });
 }
 
 export async function saveProjectCastRegistryCharacters(auPath: string, characters: string[]) {

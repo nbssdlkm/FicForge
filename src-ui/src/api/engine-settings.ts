@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 /**
- * Engine Settings — getSettings, updateSettings, testConnection.
+ * Engine Settings query/command layer.
  */
 
 import { OpenAICompatibleProvider, RemoteEmbeddingProvider, type Settings } from "@ficforge/engine";
@@ -22,8 +22,6 @@ import type {
   WriterSessionConfig,
 } from "./settings";
 import { isTauri } from "../utils/platform";
-
-type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
 
 let settingsWriteQueue: Promise<void> = Promise.resolve();
 
@@ -50,6 +48,11 @@ async function withSettingsWrite<T>(mutate: (current: Settings) => T | Promise<T
     await settings.save(current);
     return result;
   });
+}
+
+async function readSettings(): Promise<Settings> {
+  const { settings } = getEngine().repos;
+  return settings.get();
 }
 
 function buildSyncSettings(input: SyncSettingsSaveInput): Settings["sync"] {
@@ -125,14 +128,8 @@ function toFontPreferences(settings: Settings): FontPreferences {
   };
 }
 
-export async function getSettings() {
-  const { settings } = getEngine().repos;
-  const s = await settings.get();
-  return s;
-}
-
 export async function getSettingsForEditing() {
-  return getSettings();
+  return readSettings();
 }
 
 export async function getSettingsSecretCapabilities(): Promise<SecretStorageCapabilities> {
@@ -140,7 +137,7 @@ export async function getSettingsSecretCapabilities(): Promise<SecretStorageCapa
 }
 
 export async function getSettingsSummary(): Promise<SettingsSummary> {
-  const settings = await getSettings();
+  const settings = await readSettings();
   return {
     default_llm: toLlmQueryInfo(settings.default_llm),
     embedding: toEmbeddingQueryInfo(settings.embedding),
@@ -158,12 +155,12 @@ export async function getSettingsSummary(): Promise<SettingsSummary> {
 }
 
 export async function getFontPreferences(): Promise<FontPreferences> {
-  const settings = await getSettings();
+  const settings = await readSettings();
   return toFontPreferences(settings);
 }
 
 export async function getWriterSessionConfig(): Promise<WriterSessionConfig> {
-  const settings = await getSettings();
+  const settings = await readSettings();
   return {
     default_llm: toLlmQueryInfo(settings.default_llm),
     model_params: structuredClone(settings.model_params) as Record<string, ModelParamInfo>,
@@ -171,7 +168,7 @@ export async function getWriterSessionConfig(): Promise<WriterSessionConfig> {
 }
 
 export async function getOnboardingDefaults(): Promise<OnboardingDefaults> {
-  const settings = await getSettings();
+  const settings = await readSettings();
   return {
     default_llm: {
       mode: settings.default_llm.mode,
@@ -191,23 +188,6 @@ export async function getOnboardingDefaults(): Promise<OnboardingDefaults> {
       ollama_model: settings.embedding.ollama_model,
     },
   };
-}
-
-export async function updateSettings(updates: DeepPartial<Settings>) {
-  return withSettingsWrite((current) => {
-    // 深合并嵌套对象，避免覆盖 app.theme 等未传入的字段
-    const currentRec = current as unknown as Record<string, unknown>;
-    const updatesRec = updates as Record<string, unknown>;
-    for (const key of Object.keys(updatesRec)) {
-      const val = updatesRec[key];
-      if (val && typeof val === "object" && !Array.isArray(val) && typeof currentRec[key] === "object") {
-        currentRec[key] = { ...(currentRec[key] as Record<string, unknown>), ...(val as Record<string, unknown>) };
-      } else {
-        currentRec[key] = val;
-      }
-    }
-    return current;
-  });
 }
 
 export async function saveDefaultLlmSettings(payload: DefaultLlmSettingsInput) {
@@ -347,31 +327,32 @@ export async function testEmbeddingConnection(params: { api_base: string; api_ke
   }
 }
 
-export async function testConnection(params: { mode: string; model?: string; api_base?: string; api_key?: string; local_model_path?: string; ollama_model?: string }) {
+export async function testConnection(params: {
+  mode: string;
+  model?: string;
+  api_base?: string;
+  api_key?: string;
+  local_model_path?: string;
+  ollama_model?: string;
+}) {
   try {
     if (params.mode === "local") {
-      // local 模式的续写生成需要 Python sidecar 扩展，当前版本未实现
-      // （见 engine-generate.ts 的 UNSUPPORTED_MODE 拦截）。
-      // 即使 sidecar /health 存活，实际生成仍会抛错 —— 为避免"测试成功、使用报错"
-      // 的断层，这里和 create_provider 的行为保持一致。
       return {
         success: false,
-        message: "local 模式续写生成暂未实现（需要 Python sidecar 扩展）",
+        message: "Local mode generation is not implemented yet.",
         error_code: "mode_not_implemented",
       };
     }
     if (params.mode === "ollama") {
-      // /api/tags 是 Ollama 原生端点，不在 OpenAI 兼容层 /v1 子路径下。
-      // 若 api_base 按新约定带了 /v1，strip 掉再拼 /api/tags。
       const raw = (params.api_base || "http://localhost:11434/v1").replace(/\/+$/, "");
       const nativeBase = raw.replace(/\/v1$/, "");
       const resp = await fetch(`${nativeBase}/api/tags`);
       if (resp.ok) {
         return { success: true, model: params.ollama_model ?? "ollama" };
       }
-      return { success: false, message: "无法连接 Ollama 服务", error_code: "connection_failed" };
+      return { success: false, message: "Failed to connect to Ollama.", error_code: "connection_failed" };
     }
-    // API 模式：发送测试请求
+
     const provider = new OpenAICompatibleProvider(
       params.api_base ?? "",
       params.api_key ?? "",

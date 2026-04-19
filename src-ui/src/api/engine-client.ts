@@ -84,14 +84,12 @@ export { initEngine, getEngine, isEngineReady, getDataDir, getDisplayDataDir } f
 // ---------------------------------------------------------------------------
 
 export {
-  getSettings,
   getSettingsForEditing,
   getSettingsSecretCapabilities,
   getSettingsSummary,
   getFontPreferences,
   getOnboardingDefaults,
   getWriterSessionConfig,
-  updateSettings,
   saveAppPreferences,
   saveDefaultLlmSettings,
   saveFontPreferences,
@@ -105,12 +103,10 @@ export {
 export { getState, setChapterFocus, rebuildIndex, recalcState } from "./engine-state";
 export { listFacts, addFact, editFact, updateFactStatus, batchUpdateFactStatus, extractFacts, extractFactsBatch, submitFactsExtraction } from "./engine-facts";
 export {
-  getProject,
   getProjectCapabilities,
   getProjectForEditing,
   getWorkspaceSnapshot,
   getWriterProjectContext,
-  updateProject,
   saveAuSettingsForEditing,
   saveProjectCastRegistryAndCoreIncludes,
   saveProjectCastRegistryCharacters,
