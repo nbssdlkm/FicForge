@@ -315,11 +315,12 @@ describe("analyzeFile", () => {
     `[U] 请写第${i + 1}章\n[B] ${"正文片段".repeat(500)}`,
   ).join("\n\n");
 
-  it("falls back to LLM when rules fail and useAiAssist + provider are set", async () => {
+  it("falls back to LLM with custom samples when rules fail (non-standard format path)", async () => {
     const llm = makeLlm(JSON.stringify({
       isChat: true,
-      userSample: "[U]",
-      assistantSample: "[B]",
+      matchKnownFormat: null,
+      customUserSample: "[U]",
+      customAssistantSample: "[B]",
     }));
     const result = await analyzeFile(nonStandardChat, "chat.md", {
       useAiAssist: true,
@@ -331,8 +332,12 @@ describe("analyzeFile", () => {
     expect(llm.generate).toHaveBeenCalledTimes(1);
   });
 
+  // 注：matchKnownFormat 路径的 integration 测试无法自然构造（规则 detectChatFormat 如果能命中某 KNOWN pattern ≥2 次，
+  // 会抢在 LLM 之前返回；反之规则 miss 就意味着 KNOWN pattern 都命中不了 ≥2 次，LLM 就算选 known 也会被 validateChatFormat
+  // 拦截）。所以集成层只测 custom 路径 + matchKnownFormat 被 validate 拦截的幻觉守卫；单元层（chat_parser.test.ts）覆盖 matchKnownFormat 解析。
+
   it("skips LLM when useAiAssist is off (falls back to pure text)", async () => {
-    const llm = makeLlm(JSON.stringify({ isChat: true, userSample: "[U]", assistantSample: "[B]" }));
+    const llm = makeLlm(JSON.stringify({ isChat: true, matchKnownFormat: null, customUserSample: "[U]", customAssistantSample: "[B]" }));
     const result = await analyzeFile(nonStandardChat, "chat.md", {
       useAiAssist: false,
       llmProvider: llm,
@@ -342,23 +347,24 @@ describe("analyzeFile", () => {
   });
 
   it("falls through to text mode when LLM says not a chat", async () => {
-    const llm = makeLlm(JSON.stringify({ isChat: false, userSample: null, assistantSample: null }));
+    const llm = makeLlm(JSON.stringify({ isChat: false, matchKnownFormat: null, customUserSample: null, customAssistantSample: null }));
     const result = await analyzeFile(nonStandardChat, "chat.md", {
       useAiAssist: true,
       llmProvider: llm,
     });
     expect(result.mode).toBe("text");
-    // LLM 会被调至少一次（chat detect）；纯正文分支的 splitChapters 可能再调一次做 chapter pattern detect，这是合理行为
+    // LLM 会被调至少一次（chat detect）；纯正文分支的 splitChapters 可能再调一次做 chapter pattern detect
     expect(llm.generate).toHaveBeenCalled();
     const firstCallPrompt = (llm.generate as ReturnType<typeof vi.fn>).mock.calls[0][0].messages[0].content as string;
-    expect(firstCallPrompt).toContain("对话"); // 验证第一次调用是 chat detect
+    expect(firstCallPrompt).toContain("对话");
   });
 
-  it("rejects LLM result when pattern fails to match ≥2 times in text (hallucination guard)", async () => {
+  it("rejects custom samples when pattern fails ≥2 times in text (hallucination guard)", async () => {
     const llm = makeLlm(JSON.stringify({
       isChat: true,
-      userSample: "NEVER_APPEARS_IN_TEXT",
-      assistantSample: "ALSO_MISSING",
+      matchKnownFormat: null,
+      customUserSample: "NEVER_APPEARS_IN_TEXT",
+      customAssistantSample: "ALSO_MISSING",
     }));
     const result = await analyzeFile(nonStandardChat, "chat.md", {
       useAiAssist: true,
@@ -367,11 +373,28 @@ describe("analyzeFile", () => {
     expect(result.mode).toBe("text");
   });
 
+  it("rejects matchKnownFormat when its pattern doesn't validate ≥2 in text (LLM chose wrong format)", async () => {
+    // 文件格式其实是 [U]/[B]，但 LLM 错选 "Markdown Bold"
+    const llm = makeLlm(JSON.stringify({
+      isChat: true,
+      matchKnownFormat: "Markdown Bold",
+      customUserSample: null,
+      customAssistantSample: null,
+    }));
+    const result = await analyzeFile(nonStandardChat, "chat.md", {
+      useAiAssist: true,
+      llmProvider: llm,
+    });
+    // [U]/[B] 不匹配 **Human:**/**Assistant:**，validateChatFormat 拦截 → 纯正文
+    expect(result.mode).toBe("text");
+  });
+
   it("fires onStage(\"llm-chat-detect\") before calling LLM", async () => {
     const llm = makeLlm(JSON.stringify({
       isChat: true,
-      userSample: "[U]",
-      assistantSample: "[B]",
+      matchKnownFormat: null,
+      customUserSample: "[U]",
+      customAssistantSample: "[B]",
     }));
     const onStage = vi.fn();
     await analyzeFile(nonStandardChat, "chat.md", {
@@ -382,12 +405,97 @@ describe("analyzeFile", () => {
     expect(onStage).toHaveBeenCalledWith("llm-chat-detect");
   });
 
+  it("fires onStage(\"llm-chat-failed\") when LLM throws", async () => {
+    const llm: LLMProvider = {
+      generate: vi.fn().mockRejectedValue(new Error("network")),
+      generateStream: vi.fn(),
+    };
+    const onStage = vi.fn();
+    await analyzeFile(nonStandardChat, "chat.md", {
+      useAiAssist: true,
+      llmProvider: llm,
+      onStage,
+    });
+    expect(onStage).toHaveBeenCalledWith("llm-chat-failed");
+  });
+
+  it("does NOT retry LLM in splitChapters when chat detect errored (avoid wasting API call)", async () => {
+    const llm: LLMProvider = {
+      generate: vi.fn().mockRejectedValue(new Error("network")),
+      generateStream: vi.fn(),
+    };
+    await analyzeFile(nonStandardChat, "chat.md", {
+      useAiAssist: true,
+      llmProvider: llm,
+    });
+    expect(llm.generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats \"isChat=true without format info\" as llm_error: fires failed + retry-guards downstream", async () => {
+    const llm = makeLlm(JSON.stringify({
+      isChat: true,
+      matchKnownFormat: null,
+      customUserSample: null,
+      customAssistantSample: null,
+    }));
+    const onStage = vi.fn();
+    await analyzeFile(nonStandardChat, "chat.md", {
+      useAiAssist: true,
+      llmProvider: llm,
+      onStage,
+    });
+    expect(onStage).toHaveBeenCalledWith("llm-chat-failed");
+    // LLM 未按 prompt 规则输出 → useAiAssist 应关闭避免 splitChapters 再调
+    expect(llm.generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("still retries LLM in splitChapters when chat detect returned hallucinated samples (LLM itself works)", async () => {
+    const llm = makeLlm(JSON.stringify({
+      isChat: true,
+      matchKnownFormat: null,
+      customUserSample: "NEVER_IN_TEXT",
+      customAssistantSample: "ALSO_MISSING",
+    }));
+    await analyzeFile(nonStandardChat, "chat.md", {
+      useAiAssist: true,
+      llmProvider: llm,
+    });
+    expect((llm.generate as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("fires onStage(\"llm-chat-failed\") when LLM hallucinates samples", async () => {
+    const llm = makeLlm(JSON.stringify({
+      isChat: true,
+      matchKnownFormat: null,
+      customUserSample: "NEVER_IN_TEXT",
+      customAssistantSample: "ALSO_MISSING",
+    }));
+    const onStage = vi.fn();
+    await analyzeFile(nonStandardChat, "chat.md", {
+      useAiAssist: true,
+      llmProvider: llm,
+      onStage,
+    });
+    expect(onStage).toHaveBeenCalledWith("llm-chat-failed");
+  });
+
+  it("does NOT fire llm-chat-failed when LLM legitimately says not a chat", async () => {
+    const llm = makeLlm(JSON.stringify({ isChat: false, matchKnownFormat: null, customUserSample: null, customAssistantSample: null }));
+    const onStage = vi.fn();
+    await analyzeFile(nonStandardChat, "chat.md", {
+      useAiAssist: true,
+      llmProvider: llm,
+      onStage,
+    });
+    expect(onStage).toHaveBeenCalledWith("llm-chat-detect");
+    expect(onStage).not.toHaveBeenCalledWith("llm-chat-failed");
+  });
+
   it("skips LLM chat detection when rules already matched", async () => {
-    // Standard format → rules hit → LLM must not be invoked
     const text = Array.from({ length: 4 }, (_, i) =>
       `User: 写第${i + 1}章\nAssistant: ${"内容".repeat(500)}`,
     ).join("\n\n");
-    const llm = makeLlm(JSON.stringify({ isChat: true, userSample: "x", assistantSample: "y" }));
+    const llm = makeLlm(JSON.stringify({ isChat: true, matchKnownFormat: "User/Assistant", customUserSample: null, customAssistantSample: null }));
     const onStage = vi.fn();
     const result = await analyzeFile(text, "chat.txt", {
       useAiAssist: true,

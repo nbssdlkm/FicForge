@@ -32,6 +32,7 @@ import {
   validateChatFormat,
   llmDetectChatStructure,
   buildChatFormatFromSamples,
+  findKnownChatFormat,
   type ChatTurn,
   type ClassifiedTurn,
   type ClassificationThresholds,
@@ -54,13 +55,18 @@ export type { SplitChapter } from "./chapter_splitter.js";
 // New API: Types
 // ---------------------------------------------------------------------------
 
-export type AnalysisStage = "llm-chat-detect";
+/**
+ * analyzeFile 进度阶段。
+ * - "llm-chat-detect": 正要调 LLM 识别对话结构（UI 应显示"AI 正在识别..."）
+ * - "llm-chat-failed": LLM 调用出错或 sample 幻觉被 validate 拦截（UI 应 toast "AI 识别失败"）；LLM 合理判断"非对话"不触发此阶段。
+ */
+export type AnalysisStage = "llm-chat-detect" | "llm-chat-failed";
 
 export interface AnalysisOptions {
   useAiAssist?: boolean;
   llmProvider?: import("../llm/provider.js").LLMProvider;
   thresholds?: ClassificationThresholds;
-  /** 阶段回调，用于 UI 显示当前在做什么（LLM 调用前触发）。 */
+  /** 阶段回调，用于 UI 显示当前在做什么。 */
   onStage?: (stage: AnalysisStage) => void;
 }
 
@@ -177,20 +183,36 @@ export async function analyzeFile(
   if (!chatFormat && options.useAiAssist && options.llmProvider) {
     options.onStage?.("llm-chat-detect");
     const llmResult = await llmDetectChatStructure(text, options.llmProvider);
-    if (llmResult.isChat && llmResult.userSample && llmResult.assistantSample) {
-      const candidate = buildChatFormatFromSamples(llmResult.userSample, llmResult.assistantSample);
-      // 二次验证：LLM 返回的 pattern 在全文必须各命中 ≥ 2 次（和规则路径对齐）
+    if (llmResult.error) {
+      // LLM 调用/响应解析出错 → UI 提示 + 关闭下游 LLM 避免 splitChapters 重复浪费一次 API 调用
+      // (幻觉场景不关闭：LLM 能正常返回，只是 chat 判断不准；对 chapter pattern detect 可能仍有效)
+      options.onStage?.("llm-chat-failed");
+      options = { ...options, useAiAssist: false };
+    } else if (llmResult.isChat) {
+      // 首选：LLM 选了已知格式 → 直接查 KNOWN_CHAT_FORMATS 用预定义 pattern（零幻觉路径）
+      let candidate: ReturnType<typeof buildChatFormatFromSamples> = null;
+      if (llmResult.matchKnownFormat) {
+        const known = findKnownChatFormat(llmResult.matchKnownFormat);
+        if (known) candidate = known;
+      } else if (llmResult.customUserSample && llmResult.customAssistantSample) {
+        // 兜底：非标格式，从 custom sample 构造 pattern
+        candidate = buildChatFormatFromSamples(llmResult.customUserSample, llmResult.customAssistantSample);
+      }
+      // 二次验证：pattern（不论来自已知还是 custom）在全文必须各命中 ≥ 2 次
       if (candidate && validateChatFormat(text, candidate)) {
         chatFormat = candidate;
       } else {
-        // LLM 声称是对话但给的 sample 构造/验证失败 → 多半是幻觉；降级到纯正文，warn 保留线索
-        console.warn("[import] LLM chat samples failed validation, falling back to text mode:", {
-          userSample: llmResult.userSample,
-          assistantSample: llmResult.assistantSample,
+        // LLM 声称是对话但识别结果在原文验证不过 → 幻觉 / LLM 判断错误
+        console.warn("[import] LLM chat detection failed validation, falling back to text mode:", {
+          matchKnownFormat: llmResult.matchKnownFormat,
+          customUserSample: llmResult.customUserSample,
+          customAssistantSample: llmResult.customAssistantSample,
           candidateNull: !candidate,
         });
+        options.onStage?.("llm-chat-failed");
       }
     }
+    // LLM 合理判断 isChat=false（非对话）→ 静默走纯正文，不算失败
   }
 
   if (chatFormat) {

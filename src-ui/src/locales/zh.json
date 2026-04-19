@@ -953,6 +953,7 @@
     "step2ThresholdHint": "默认值适合大多数情况。如果你的每章篇幅较短，可以把正文阈值调低。",
     "analyzing": "分析中...",
     "llmDetectingChat": "AI 正在识别对话结构...",
+    "llmChatDetectFailed": "AI 识别对话结构失败，已按规则分析",
     "analyzed": "分析完成",
     "waiting": "等待中",
     "chatDetected": "检测到AI对话格式（{{format}}）",

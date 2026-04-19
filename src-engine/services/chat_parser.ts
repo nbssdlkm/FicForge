@@ -16,6 +16,8 @@ export interface ChatFormatPattern {
   name: string;
   userPattern: RegExp;
   assistantPattern: RegExp;
+  /** 给 LLM prompt 作 few-shot 的示例字面量。新增格式必须同时提供，以便 LLM 能准确识别。 */
+  example?: { user: string; assistant: string };
 }
 
 export interface ChatTurn {
@@ -62,32 +64,45 @@ const KNOWN_CHAT_FORMATS: ChatFormatPattern[] = [
     name: "User/Assistant",
     userPattern: /^(?:User|Human|You)[:：]\s*/im,
     assistantPattern: /^(?:Assistant|AI|ChatGPT|DeepSeek|Claude)[:：]\s*/im,
+    example: { user: "User:", assistant: "Assistant:" },
   },
   // 中文标记
   {
     name: "用户/助手",
     userPattern: /^(?:用户|我|人类)[:：]\s*/im,
     assistantPattern: /^(?:助手|AI|机器人)[:：]\s*/im,
+    example: { user: "用户：", assistant: "助手：" },
   },
   // Chatbox 格式
   {
     name: "Chatbox",
     userPattern: /^>\s*(?:User|用户)\s*/im,
     assistantPattern: /^>\s*(?:Assistant|助手)\s*/im,
+    example: { user: "> User", assistant: "> Assistant" },
   },
   // Markdown 标题格式（允许可选冒号；Q/A 单字母要求后面不跟字母避免误命中 "## Question" 等）
   {
     name: "Markdown",
     userPattern: /^#{1,3}\s*(?:User|Human|You|用户|我|人类|问|对方|Q(?![a-zA-Z]))[:：]?\s*/im,
     assistantPattern: /^#{1,3}\s*(?:Assistant|AI|ChatGPT|DeepSeek|Claude|GPT|助手|机器人|答|A(?![a-zA-Z]))[:：]?\s*/im,
+    example: { user: "### User", assistant: "### Assistant" },
   },
   // Markdown 加粗格式：**Human:** / **Human**: / **Human**
   {
     name: "Markdown Bold",
     userPattern: /^\*\*\s*(?:User|Human|You|用户|我|人类|问|对方)\s*[:：]?\s*\*\*\s*[:：]?\s*/im,
     assistantPattern: /^\*\*\s*(?:Assistant|AI|ChatGPT|DeepSeek|Claude|GPT|助手|机器人|答)\s*[:：]?\s*\*\*\s*[:：]?\s*/im,
+    example: { user: "**Human:**", assistant: "**Assistant:**" },
   },
 ];
+
+/** 导出已知格式名列表（供 LLM prompt 构造枚举选项）。 */
+export const KNOWN_CHAT_FORMAT_NAMES: readonly string[] = KNOWN_CHAT_FORMATS.map(f => f.name);
+
+/** 按 name 查找已知格式；未找到返回 null。供 LLM 返回 matchKnownFormat 后查表用。 */
+export function findKnownChatFormat(name: string): ChatFormatPattern | null {
+  return KNOWN_CHAT_FORMATS.find(f => f.name === name) ?? null;
+}
 
 // ---------------------------------------------------------------------------
 // Format detection
@@ -123,47 +138,96 @@ export function detectChatFormat(content: string): ChatFormatPattern | null {
 
 export interface LlmChatDetectResult {
   isChat: boolean;
-  userSample: string | null;
-  assistantSample: string | null;
+  /**
+   * 首选：LLM 从 KNOWN_CHAT_FORMAT_NAMES 选一个已知格式名（零自由生成、零幻觉）。
+   * null 表示都不匹配，此时期望填 customUserSample / customAssistantSample。
+   */
+  matchKnownFormat: string | null;
+  /** 兜底：仅当 matchKnownFormat=null 时填，自由生成行首字面量（受 validateChatFormat 守卫）。 */
+  customUserSample: string | null;
+  customAssistantSample: string | null;
+  /**
+   * 非空表示 LLM 调用本身出了问题（网络错、响应里没有合法 JSON），
+   * 区别于"LLM 合理判断为非对话"（isChat=false 但 error 为空）。
+   * 调用方可据此给用户不同的 UX 反馈。
+   */
+  error?: "llm_error" | null;
 }
 
 /**
- * 用 LLM 判断文本是否为对话/问答记录，并返回每轮 user/assistant 行首的字面量样本。
- * 规则检测（detectChatFormat）失败时的兜底。采样前 3000 字，pattern 识别足够。
- * 调用失败、JSON 解析失败、非对话等情况统一返回 isChat=false。
+ * LLM 识别对话结构时给模型看的文本字符上限。
+ * 40000 字符在最极端场景也 ≥ 10000 tokens：
+ * - 纯英文 ≈ 11k tokens（tokenizer 约 1 token/3.5 字）
+ * - 混合 ≈ 20k tokens
+ * - 纯中文 ≈ 27k tokens（1 字 ≈ 0.7 tokens）
+ * 对 DeepSeek 级 API 约 $0.003/次；本地 Ollama 8K context 会超但本 app 主战场是云端 API。
+ */
+const LLM_CHAT_DETECT_SAMPLE_CHARS = 40000;
+
+/**
+ * 用 LLM 识别对话结构。规则检测（detectChatFormat）失败时的兜底。
+ * 采样前 LLM_CHAT_DETECT_SAMPLE_CHARS 字，pattern 识别足够。
+ *
+ * 设计：让 LLM 先"选"后"填"以降幻觉：
+ *   1. 优先从 KNOWN_CHAT_FORMAT_NAMES 里选一个（matchKnownFormat），零自由生成
+ *   2. 都不匹配才退化到 customUserSample/customAssistantSample（自由生成，受下游 validate 守卫）
+ *
+ * 返回策略：
+ * - LLM 调用失败 / 响应无合法 JSON：isChat=false + **error="llm_error"**（调用方应 toast 提示）
+ * - LLM 合理判断非对话（或 isChat=true 但格式字段全缺失）：isChat=false + error 空（静默纯正文）
+ * - 识别成功：isChat=true，matchKnownFormat 非空 **xor** customUserSample/customAssistantSample 都非空
  */
 export async function llmDetectChatStructure(
   content: string,
   llmProvider: LLMProvider,
 ): Promise<LlmChatDetectResult> {
-  const sample = content.slice(0, 3000);
-  // Few-shot prompt：对话 + 纯正文两个示例 → 弱模型也能稳定输出结构
+  const sample = content.slice(0, LLM_CHAT_DETECT_SAMPLE_CHARS);
+
+  // 从 KNOWN_CHAT_FORMATS 动态生成已知格式枚举，避免 prompt 与代码漂移
+  const knownList = KNOWN_CHAT_FORMATS
+    .map(f => `- "${f.name}": 如 "${f.example?.user}" / "${f.example?.assistant}"`)
+    .join("\n");
+  const knownNameEnum = KNOWN_CHAT_FORMAT_NAMES.map(n => `"${n}"`).join(" | ");
+
+  // 设计原则：让 LLM 尽量做"填空 / 选择"而非"自由生成"。
+  // 先尝试匹配下方枚举中的已知格式名（零幻觉路径）；都不匹配才退化到自由字面量 sample。
   const prompt = `判断以下文本是否为**人机对话或问答记录**（而非小说正文/普通文章）。
 
-如果是对话，请从原文中找出每轮 user（提问者/用户）和 assistant（回答者/AI）**行首的字面量标识**，要求：
-- 必须是原文中**逐字符出现**的字符串，含冒号、星号、Markdown heading 前缀等
-- 每轮 user 和每轮 assistant 各自有**稳定一致**的行首字面量；否则视为非对话
+如果是对话，**优先**尝试匹配以下已知格式之一（从原文行首标识判断）：
+${knownList}
 
-示例 1（对话）：
+规则：
+1. 如果能匹配某个已知格式，填 matchKnownFormat=该名字，custom 两字段留 null。
+2. 如果都不匹配（原文用了非常规 marker，如 "[U]" / "[B]"），matchKnownFormat=null，并把原文中每轮 user 和 assistant **行首逐字符**字面量填到 customUserSample / customAssistantSample。
+3. 如果不是对话（是小说/文章），isChat=false，其余字段全部 null。
+
+示例 1（匹配 Markdown Bold）：
 \`\`\`
 **Human:** 写第一章
 **Assistant:** [长回复]
 **Human:** 继续
 **Assistant:** [长回复]
 \`\`\`
-输出：{"isChat": true, "userSample": "**Human:**", "assistantSample": "**Assistant:**"}
+输出：{"isChat": true, "matchKnownFormat": "Markdown Bold", "customUserSample": null, "customAssistantSample": null}
 
-示例 2（纯正文）：
+示例 2（非常规格式，需 custom）：
+\`\`\`
+[U] 写第一章
+[B] [长回复]
+[U] 继续
+[B] [长回复]
+\`\`\`
+输出：{"isChat": true, "matchKnownFormat": null, "customUserSample": "[U]", "customAssistantSample": "[B]"}
+
+示例 3（纯正文非对话）：
 \`\`\`
 第一章 黄昏
 落日斜挂天际...
-第二章 黎明
-晨光初现...
 \`\`\`
-输出：{"isChat": false, "userSample": null, "assistantSample": null}
+输出：{"isChat": false, "matchKnownFormat": null, "customUserSample": null, "customAssistantSample": null}
 
 用 JSON 回答，只返回 JSON，不要多余文字或 markdown fence。格式：
-{"isChat": true 或 false, "userSample": "字面量或 null", "assistantSample": "字面量或 null"}
+{"isChat": bool, "matchKnownFormat": ${knownNameEnum} | null, "customUserSample": string | null, "customAssistantSample": string | null}
 
 文本：
 ${sample}`;
@@ -176,19 +240,53 @@ ${sample}`;
       top_p: 1,
     });
     const result = extractJsonResult(response.content);
-    if (!result || !result.isChat || !result.userSample || !result.assistantSample) {
-      return { isChat: false, userSample: null, assistantSample: null };
+    if (!result) {
+      // LLM 响应里找不到合法 JSON 结构 → LLM 层问题（没按指令输出）
+      console.warn("[import] llmDetectChatStructure: no valid JSON in response:", response.content);
+      return emptyResult({ error: "llm_error" });
     }
-    return {
-      isChat: true,
-      userSample: String(result.userSample),
-      assistantSample: String(result.assistantSample),
-    };
+    if (!result.isChat) {
+      // LLM 合理判断非对话
+      return emptyResult();
+    }
+    // 首选路径：LLM 选了已知格式
+    if (result.matchKnownFormat && KNOWN_CHAT_FORMAT_NAMES.includes(String(result.matchKnownFormat))) {
+      return {
+        isChat: true,
+        matchKnownFormat: String(result.matchKnownFormat),
+        customUserSample: null,
+        customAssistantSample: null,
+      };
+    }
+    // 兜底路径：custom sample（仅当两者都非空）
+    if (result.customUserSample && result.customAssistantSample) {
+      return {
+        isChat: true,
+        matchKnownFormat: null,
+        customUserSample: String(result.customUserSample),
+        customAssistantSample: String(result.customAssistantSample),
+      };
+    }
+    // LLM 说是对话但既没选已知格式也没填 custom → 未按 prompt 规则输出
+    // 归类为 llm_error：LLM 调用链虽 OK 但未能产出可用结果，UX 上和"真错"一样需要 toast，
+    // 且 LLM 对 prompt 规则的把握不足大概率也会影响 chapter detect，retry guard 一并关闭下游合理
+    console.warn("[import] llmDetectChatStructure: isChat=true but neither matchKnownFormat nor customSamples provided:", result);
+    return emptyResult({ error: "llm_error" });
   } catch (err) {
-    // LLM 调用或 JSON 解析失败时降级为"非对话"，避免中断导入；warn 保留线索便于排查
-    console.warn("[import] llmDetectChatStructure failed, falling back to non-chat:", err);
-    return { isChat: false, userSample: null, assistantSample: null };
+    // LLM 调用抛错（网络、timeout、key 无效等）→ LLM 层问题；warn 保留线索便于排查
+    console.warn("[import] llmDetectChatStructure threw, falling back to non-chat:", err);
+    return emptyResult({ error: "llm_error" });
   }
+}
+
+function emptyResult(extra: { error?: "llm_error" } = {}): LlmChatDetectResult {
+  return {
+    isChat: false,
+    matchKnownFormat: null,
+    customUserSample: null,
+    customAssistantSample: null,
+    ...(extra.error ? { error: extra.error } : {}),
+  };
 }
 
 /**

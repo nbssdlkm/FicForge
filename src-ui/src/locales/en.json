@@ -953,6 +953,7 @@
     "step2ThresholdHint": "Default values work for most cases. Lower the chapter threshold if your chapters are shorter.",
     "analyzing": "Analyzing...",
     "llmDetectingChat": "AI is detecting chat structure...",
+    "llmChatDetectFailed": "AI failed to detect chat structure, falling back to rule-based analysis",
     "analyzed": "Analysis complete",
     "waiting": "Waiting",
     "chatDetected": "Detected AI chat format ({{format}})",

@@ -143,6 +143,14 @@ export function ImportFlow({
                 next.set(file.name, "llm-detecting-chat");
                 return next;
               });
+            } else if (stage === "llm-chat-failed") {
+              // LLM 出错或幻觉：回到普通"分析中"文案 + toast 告知用户 AI 未能工作
+              setAnalysisStatus((prev) => {
+                const next = new Map(prev);
+                next.set(file.name, "analyzing");
+                return next;
+              });
+              showToast(t("import.llmChatDetectFailed"), "warning");
             }
           },
         });
