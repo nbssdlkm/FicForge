@@ -13,6 +13,7 @@ import { hydrateFontsOnStartup } from "./api/engine-fonts";
 import { useTranslation } from "./i18n/useAppTranslation";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 import { isTauri as detectTauri, isCapacitor as detectCapacitor } from "./utils/platform";
+import { logUiError } from "./utils/ui-logger";
 
 /** 获取或创建持久化设备 ID（同步，用于 adapter 构造前）。 */
 function getOrCreateDeviceId(): string {
@@ -132,7 +133,7 @@ function App() {
         setEngineInitialized(true);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        console.error("[FicForge] Init failed at:", currentStep, e);
+        logUiError("app", `Init failed at: ${currentStep}`, e);
         setInitError(`[${currentStep}] ${msg}`);
       }
     }
