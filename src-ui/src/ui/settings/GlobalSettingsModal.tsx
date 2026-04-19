@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Spinner } from "../shared/Spinner";
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
@@ -20,6 +20,7 @@ import { ApiSetupHelp } from '../help/ApiSetupHelp';
 import { GlobalSettingsSyncSection } from './GlobalSettingsSyncSection';
 import { LlmModeSelect } from './LlmModeSelect';
 import { FontSettingsSection } from './FontSettingsSection';
+import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { isTauri } from '../../utils/platform';
 import { useEmbeddingConnectionTest, useLlmConnectionTest } from '../../hooks/useConnectionTest';
 import { canTestLlmConnection } from '../shared/llm-config';
@@ -32,7 +33,7 @@ import {
 export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const { t, i18n } = useTranslation();
   const { showError } = useFeedback();
-  const modalRequestIdRef = useRef(0);
+  const modalGuard = useActiveRequestGuard(isOpen ? 'global-settings-open' : 'global-settings-closed');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -107,14 +108,14 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
 
   useEffect(() => {
     if (isOpen) {
-      const requestId = ++modalRequestIdRef.current;
+      const token = modalGuard.start();
       setLoading(true);
       resetFormState();
       getDisplayDataDir().then((dir) => {
-        if (requestId === modalRequestIdRef.current) setDisplayDataDir(dir);
+        if (!modalGuard.isStale(token)) setDisplayDataDir(dir);
       }).catch(() => {});
       getSettingsForEditing().then((res) => {
-        if (requestId !== modalRequestIdRef.current) return;
+        if (modalGuard.isStale(token)) return;
         setSettings(res);
         const form = hydrateGlobalSettingsForm(res);
         setMode(form.mode);
@@ -135,15 +136,14 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         setSyncRemoteDir(form.syncRemoteDir);
         setLastSync(form.lastSync);
       }).catch((error) => {
-        if (requestId !== modalRequestIdRef.current) return;
+        if (modalGuard.isStale(token)) return;
         showError(error, t('error_messages.unknown'));
       }).finally(() => {
-        if (requestId === modalRequestIdRef.current) {
+        if (!modalGuard.isStale(token)) {
           setLoading(false);
         }
       });
     } else {
-      modalRequestIdRef.current += 1;
       llmConnection.reset();
       resetFormState();
       setLoading(false);
@@ -153,7 +153,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
 
   const handleSave = async () => {
     if (!settings) return;
-    const requestId = modalRequestIdRef.current;
+    const token = modalGuard.start();
     setSaving(true);
     try {
       await saveGlobalSettingsForEditing(buildGlobalSettingsSaveInput({
@@ -175,13 +175,13 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         syncRemoteDir,
         lastSync,
       }));
-      if (requestId !== modalRequestIdRef.current) return;
+      if (modalGuard.isStale(token)) return;
       onClose();
     } catch (error) {
-      if (requestId !== modalRequestIdRef.current) return;
+      if (modalGuard.isStale(token)) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      if (requestId === modalRequestIdRef.current) {
+      if (!modalGuard.isStale(token)) {
         setSaving(false);
       }
     }

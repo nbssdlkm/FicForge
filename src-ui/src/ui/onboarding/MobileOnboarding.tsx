@@ -14,6 +14,7 @@ import { ApiSetupHelp } from '../help/ApiSetupHelp';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { changeLanguage, type AppLanguage } from '../../i18n';
 import { createAu, createFandom, getOnboardingDefaults, saveOnboardingSettings } from '../../api/engine-client';
+import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { useLlmConnectionTest } from '../../hooks/useConnectionTest';
 import { canTestLlmConnection } from '../shared/llm-config';
 import {
@@ -75,7 +76,7 @@ export function MobileOnboarding({
 }) {
   const { t, i18n } = useTranslation();
   const isMountedRef = useRef(true);
-  const requestIdRef = useRef(0);
+  const loadGuard = useActiveRequestGuard('mobile-onboarding-defaults');
   const [step, setStep] = useState(0);
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [provider, setProvider] = useState<LlmProvider>('deepseek');
@@ -100,11 +101,11 @@ export function MobileOnboarding({
   });
 
   useEffect(() => {
-    const requestId = ++requestIdRef.current;
     isMountedRef.current = true;
+    const token = loadGuard.start();
     setLoadingSettings(true);
     getOnboardingDefaults().then(settings => {
-      if (requestId !== requestIdRef.current) return;
+      if (loadGuard.isStale(token)) return;
       const defaults = hydrateMobileOnboardingSettings(settings);
       setProvider(defaults.provider);
       setApiBase(defaults.apiBase);
@@ -117,14 +118,13 @@ export function MobileOnboarding({
     }).catch(() => {
       // 引导页默认配置足够继续
     }).finally(() => {
-      if (requestId === requestIdRef.current) {
+      if (!loadGuard.isStale(token)) {
         setLoadingSettings(false);
       }
     });
 
     return () => {
       isMountedRef.current = false;
-      requestIdRef.current += 1;
     };
   }, []);
 

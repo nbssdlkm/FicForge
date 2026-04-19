@@ -2,11 +2,12 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, FileText, Pencil, Eye, Trash2, Users, Globe2, Sparkles } from "lucide-react";
 import { Spinner } from "../shared/Spinner";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { listFandomFiles, readFandomFile, saveLore, deleteLore, type FandomFileEntry } from "../../api/engine-client";
+import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
 import { TrashPanel } from "../shared/TrashPanel";
 import { Button } from "../shared/Button";
 import { Input, Textarea } from "../shared/Input";
@@ -62,24 +63,25 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
   // Delete confirm
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const loadRequestRef = useRef(0);
-  const readRequestRef = useRef(0);
+  const loadGuard = useActiveRequestGuard(`${fandomPath}:load`);
+  const readGuard = useActiveRequestGuard(`${fandomPath}:read`);
 
   const currentFiles = category === "core_characters" ? characterFiles : worldbuildingFiles;
 
   // --- Load files ---
   const loadFiles = useCallback(async () => {
-    const requestId = ++loadRequestRef.current;
+    const token = loadGuard.start();
     setLoading(true);
     try {
       const data = await listFandomFiles(fandomName);
-      if (requestId !== loadRequestRef.current) return;
+      if (loadGuard.isStale(token)) return;
       setCharacterFiles(data.characters);
       setWorldbuildingFiles(data.worldbuilding);
     } catch (error) {
+      if (loadGuard.isStale(token)) return;
       showError(error, t("error_messages.unknown"));
     } finally {
-      if (requestId === loadRequestRef.current) setLoading(false);
+      if (!loadGuard.isStale(token)) setLoading(false);
     }
   }, [fandomName]);
 
@@ -89,7 +91,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
 
   // --- Select file ---
   const handleSelectFile = async (filename: string, cat: FandomCategory) => {
-    const requestId = ++readRequestRef.current;
+    const token = readGuard.start();
     setSelectedFile(filename);
     setSelectedCategory(cat);
     setEditorContent("");
@@ -98,15 +100,15 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
     setReadingFile(true);
     try {
       const result = await readFandomFile(fandomName, cat, filename);
-      if (requestId !== readRequestRef.current) return;
+      if (readGuard.isStale(token)) return;
       setEditorContent(result.content);
       setSavedContent(result.content);
     } catch (error) {
-      if (requestId !== readRequestRef.current) return;
+      if (readGuard.isStale(token)) return;
       showError(error, t("error_messages.unknown"));
       setSelectedFile(null);
     } finally {
-      if (requestId === readRequestRef.current) setReadingFile(false);
+      if (!readGuard.isStale(token)) setReadingFile(false);
     }
   };
 
