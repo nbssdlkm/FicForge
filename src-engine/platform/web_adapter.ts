@@ -9,7 +9,7 @@
  * 目录结构通过路径前缀模拟。
  */
 
-import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions } from "./adapter.js";
+import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStorageCapabilities } from "./adapter.js";
 
 const DB_NAME = "ficforge_fs";
 const STORE_NAME = "files";
@@ -225,5 +225,13 @@ export class WebAdapter implements PlatformAdapter {
   /** @see {@link WebAdapter.secureGet} — 同样未加密。 */
   async secureRemove(key: string): Promise<void> {
     return this.kvRemove(`__secure__:${key}`);
+  }
+
+  getSecretStorageCapabilities(): SecretStorageCapabilities {
+    return {
+      backend: "local_storage_with_memory_fallback",
+      encrypted_at_rest: false,
+      persistence: "best_effort",
+    };
   }
 }

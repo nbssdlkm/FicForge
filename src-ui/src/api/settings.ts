@@ -56,6 +56,12 @@ export interface FontPreferences {
   reading_cjk_font_id: string;
 }
 
+export interface SecretStorageCapabilities {
+  backend: "local_storage" | "local_storage_with_memory_fallback" | "memory";
+  encrypted_at_rest: boolean;
+  persistence: "persistent" | "best_effort" | "memory_only";
+}
+
 export interface DefaultLlmSettingsInput {
   mode: string;
   model: string;

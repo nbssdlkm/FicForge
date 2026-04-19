@@ -13,6 +13,12 @@ export interface OpenDialogOptions {
   multiple?: boolean;
 }
 
+export interface SecretStorageCapabilities {
+  backend: "local_storage" | "local_storage_with_memory_fallback" | "memory";
+  encrypted_at_rest: boolean;
+  persistence: "persistent" | "best_effort" | "memory_only";
+}
+
 /**
  * 路径语义约定：
  * - readFile / writeFile / deleteFile：path 不得为空字符串，否则抛出异常。
@@ -81,4 +87,5 @@ export interface PlatformAdapter {
   secureGet(key: string): Promise<string | null>;
   secureSet(key: string, value: string): Promise<void>;
   secureRemove(key: string): Promise<void>;
+  getSecretStorageCapabilities(): SecretStorageCapabilities;
 }

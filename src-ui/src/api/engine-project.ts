@@ -14,6 +14,7 @@ import { getEngine } from "./engine-instance";
 import type { ModelParamInfo } from "./settings";
 import type {
   AuSettingsSaveInput,
+  ProjectCapabilities,
   ProjectLlmQueryInfo,
   WorkspaceSnapshot,
   WriterProjectContext,
@@ -74,6 +75,12 @@ export async function getProject(auPath: string) {
 
 export async function getProjectForEditing(auPath: string) {
   return getProject(auPath);
+}
+
+export async function getProjectCapabilities(_auPath: string): Promise<ProjectCapabilities> {
+  return {
+    secret_storage: getEngine().adapter.getSecretStorageCapabilities(),
+  };
 }
 
 export async function getWorkspaceSnapshot(auPath: string): Promise<WorkspaceSnapshot> {

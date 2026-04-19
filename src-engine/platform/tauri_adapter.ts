@@ -9,7 +9,7 @@
  * - ExportModal.tsx: @tauri-apps/plugin-dialog (save), @tauri-apps/plugin-fs (writeFile)
  */
 
-import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions } from "./adapter.js";
+import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStorageCapabilities } from "./adapter.js";
 
 export class TauriAdapter implements PlatformAdapter {
   private _deviceId: string;
@@ -136,5 +136,13 @@ export class TauriAdapter implements PlatformAdapter {
   /** @see {@link TauriAdapter.secureGet} — 同样未加密。 */
   async secureRemove(key: string): Promise<void> {
     return this.kvRemove(`__secure__:${key}`);
+  }
+
+  getSecretStorageCapabilities(): SecretStorageCapabilities {
+    return {
+      backend: "local_storage",
+      encrypted_at_rest: false,
+      persistence: "persistent",
+    };
   }
 }

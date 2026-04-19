@@ -16,6 +16,7 @@ import type {
   LlmQueryInfo,
   ModelParamInfo,
   OnboardingDefaults,
+  SecretStorageCapabilities,
   SettingsSummary,
   SyncSettingsSaveInput,
   WriterSessionConfig,
@@ -132,6 +133,10 @@ export async function getSettings() {
 
 export async function getSettingsForEditing() {
   return getSettings();
+}
+
+export async function getSettingsSecretCapabilities(): Promise<SecretStorageCapabilities> {
+  return getEngine().adapter.getSecretStorageCapabilities();
 }
 
 export async function getSettingsSummary(): Promise<SettingsSummary> {

@@ -3,7 +3,7 @@
 
 /** In-memory PlatformAdapter mock for testing. */
 
-import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions } from "../../platform/adapter.js";
+import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStorageCapabilities } from "../../platform/adapter.js";
 
 export class MockAdapter implements PlatformAdapter {
   private files = new Map<string, string>();
@@ -143,6 +143,14 @@ export class MockAdapter implements PlatformAdapter {
 
   async secureRemove(key: string): Promise<void> {
     return this.kvRemove(`__secure__:${key}`);
+  }
+
+  getSecretStorageCapabilities(): SecretStorageCapabilities {
+    return {
+      backend: "memory",
+      encrypted_at_rest: false,
+      persistence: "memory_only",
+    };
   }
 
   private norm(p: string): string {

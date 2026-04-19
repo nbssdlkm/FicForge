@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import type { ModelParamInfo } from "./settings";
+import type { ModelParamInfo, SecretStorageCapabilities } from "./settings";
 
 export interface ProjectLlmQueryInfo {
   mode: string;
@@ -22,6 +22,10 @@ export interface WriterProjectContext {
 
 export interface WorkspaceSnapshot {
   pinned_count: number;
+}
+
+export interface ProjectCapabilities {
+  secret_storage: SecretStorageCapabilities;
 }
 
 export interface ProjectWritingStyleInput {

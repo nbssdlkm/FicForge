@@ -35,6 +35,7 @@ export type {
   LlmQueryInfo,
   LlmSettingsInfo,
   OnboardingDefaults,
+  SecretStorageCapabilities,
   SettingsSummary,
   SyncSettingsSaveInput,
   TestConnectionRequest,
@@ -44,6 +45,7 @@ export type {
 export type {
   AuSettingsSaveInput,
   ProjectEmbeddingOverrideInput,
+  ProjectCapabilities,
   ProjectLlmOverrideInput,
   ProjectLlmQueryInfo,
   ProjectWritingStyleInput,
@@ -84,6 +86,7 @@ export { initEngine, getEngine, isEngineReady, getDataDir, getDisplayDataDir } f
 export {
   getSettings,
   getSettingsForEditing,
+  getSettingsSecretCapabilities,
   getSettingsSummary,
   getFontPreferences,
   getOnboardingDefaults,
@@ -103,6 +106,7 @@ export { getState, setChapterFocus, rebuildIndex, recalcState } from "./engine-s
 export { listFacts, addFact, editFact, updateFactStatus, batchUpdateFactStatus, extractFacts, extractFactsBatch, submitFactsExtraction } from "./engine-facts";
 export {
   getProject,
+  getProjectCapabilities,
   getProjectForEditing,
   getWorkspaceSnapshot,
   getWriterProjectContext,

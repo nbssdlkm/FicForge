@@ -6,7 +6,7 @@
  * 使用 @capacitor/filesystem 进行文件 I/O。
  */
 
-import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions } from "./adapter.js";
+import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStorageCapabilities } from "./adapter.js";
 
 /**
  * Uint8Array ↔ base64 分块转换。
@@ -213,5 +213,13 @@ export class CapacitorAdapter implements PlatformAdapter {
   /** @see {@link CapacitorAdapter.secureGet} — 同样未加密。 */
   async secureRemove(key: string): Promise<void> {
     return this.kvRemove(`__secure__:${key}`);
+  }
+
+  getSecretStorageCapabilities(): SecretStorageCapabilities {
+    return {
+      backend: "local_storage_with_memory_fallback",
+      encrypted_at_rest: false,
+      persistence: "best_effort",
+    };
   }
 }
