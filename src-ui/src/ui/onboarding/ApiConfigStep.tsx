@@ -15,6 +15,7 @@ import { StepIndicator } from './StepIndicator';
 import { ApiSetupHelp } from '../help/ApiSetupHelp';
 import { useLlmConnectionTest } from '../../hooks/useConnectionTest';
 import { canTestLlmConnection } from '../shared/llm-config';
+import { SecretStorageNotice } from '../shared/SecretStorageNotice';
 
 type Mode = LLMMode;
 
@@ -93,6 +94,8 @@ export function ApiConfigStep({
         <h2 className="text-xl font-serif font-bold">{t('onboarding.apiConfig.title')}</h2>
         <StepIndicator current={2} total={4} />
       </div>
+
+      <SecretStorageNotice />
 
       <div className="space-y-2">
         {modeOptions.map(({ mode, availability }) => (

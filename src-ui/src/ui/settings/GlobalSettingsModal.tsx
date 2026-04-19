@@ -24,6 +24,7 @@ import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { isTauri } from '../../utils/platform';
 import { useEmbeddingConnectionTest, useLlmConnectionTest } from '../../hooks/useConnectionTest';
 import { canTestLlmConnection } from '../shared/llm-config';
+import { SecretStorageNotice } from '../shared/SecretStorageNotice';
 import {
   buildGlobalSettingsSaveInput,
   createDefaultGlobalSettingsFormState,
@@ -224,6 +225,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
           <div className="rounded-lg border border-info/20 bg-info/10 p-4 text-sm font-sans leading-relaxed text-info">
             {t('settings.global.description')}
           </div>
+          <SecretStorageNotice enabled={isOpen} />
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">

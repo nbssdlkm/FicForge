@@ -17,6 +17,7 @@ import { createAu, createFandom, getOnboardingDefaults, saveOnboardingSettings }
 import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { useLlmConnectionTest } from '../../hooks/useConnectionTest';
 import { canTestLlmConnection } from '../shared/llm-config';
+import { SecretStorageNotice } from '../shared/SecretStorageNotice';
 import {
   buildOnboardingSettingsSaveInput,
   hydrateMobileOnboardingSettings,
@@ -286,6 +287,8 @@ export function MobileOnboarding({
                     <p className="mt-1 pl-3 border-l-2 border-text/10">{t('onboarding.mobile.llm.techDetails')}</p>
                   </details>
                 </div>
+
+                <SecretStorageNotice />
 
                 <div className="grid gap-3">
                   <StepCard
