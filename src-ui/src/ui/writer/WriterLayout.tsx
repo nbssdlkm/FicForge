@@ -18,6 +18,7 @@ import {
 } from '../../utils/writerStorage';
 import { useWriterFactsExtraction } from './useWriterFactsExtraction';
 import { useSessionParams } from './useSessionParams';
+import { useConfirmedChapterEditor } from './useConfirmedChapterEditor';
 import { Button } from '../shared/Button';
 import { Modal } from '../shared/Modal';
 import { ExportModal } from './ExportModal';
@@ -32,7 +33,7 @@ import { Sidebar } from '../shared/Sidebar';
 import { SettingsChatPanel } from '../shared/settings-chat/SettingsChatPanel';
 import { InlineBanner } from '../shared/InlineBanner';
 
-import { getChapterContent, confirmChapter, undoChapter, updateChapterContent } from '../../api/engine-client';
+import { getChapterContent, confirmChapter, undoChapter } from '../../api/engine-client';
 import { listDrafts, getDraft, saveDraft, deleteDrafts, type DraftDetail, type DraftGeneratedWith } from '../../api/engine-client';
 import { getState, setChapterFocus, type StateInfo } from '../../api/engine-client';
 import { listFacts, type FactInfo } from '../../api/engine-client';
@@ -176,8 +177,6 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const [budgetReport, setBudgetReport] = useState<any>(null);
   const [lastGenerateRequest, setLastGenerateRequest] = useState<GenerateRequestState | null>(null);
   const [generationErrorDisplay, setGenerationErrorDisplay] = useState<{ message: string; actions: string[] } | null>(null);
-  const [viewingHistoryContent, setViewingHistoryContent] = useState<string | null>(null);
-  const [viewingHistoryNum, setViewingHistoryNum] = useState<number | null>(null);
   const [draftSummaries, setDraftSummaries] = useState<Record<string, ContextSummary>>({});
   const pendingContextSummaryRef = useRef<ContextSummary | null>(null);
 
@@ -188,10 +187,6 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const sessionParams = useSessionParams(auPath, projectInfo, settingsInfo, showSuccess, showError);
 
   // 编辑已确认章节（FIX-006）
-  const [editingConfirmed, setEditingConfirmed] = useState(false);
-  const [editingContent, setEditingContent] = useState('');
-  const [editingOriginalContent, setEditingOriginalContent] = useState('');
-  const [savingEdit, setSavingEdit] = useState(false);
 
   // 阅读偏好（跨平台 KV 持久化）
   const [fontSizeStr, setFontSizeKV] = useKV('ficforge.fontSize', '18');
@@ -200,34 +195,6 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const [lineHeightStr, setLineHeightKV] = useKV('ficforge.lineHeight', '1.8');
   const lineHeight = parseFloat(lineHeightStr) || 1.8;
   const setLineHeight = useCallback((v: number) => setLineHeightKV(String(v)), [setLineHeightKV]);
-
-  // 查看历史章节
-  useEffect(() => {
-    // 切换章节时重置编辑状态
-    setEditingConfirmed(false);
-    setEditingContent('');
-    setEditingOriginalContent('');
-
-    if (!viewChapter || !state) return;
-    // 如果点击的是当前正在写的章节，清除查看状态
-    if (viewChapter >= state.current_chapter) {
-      setViewingHistoryContent(null);
-      setViewingHistoryNum(null);
-      return;
-    }
-    let cancelled = false;
-    getChapterContent(auPath, viewChapter).then((result: any) => {
-      if (cancelled) return;
-      const text = typeof result === 'string' ? result : result?.content || '';
-      setViewingHistoryContent(text);
-      setViewingHistoryNum(viewChapter);
-    }).catch(() => {
-      if (cancelled) return;
-      setViewingHistoryContent(null);
-      setViewingHistoryNum(null);
-    });
-    return () => { cancelled = true; };
-  }, [viewChapter, auPath, state]);
 
   useEffect(() => {
     // keyRef in each guard is auto-synced to auPath — pending tokens go stale
@@ -777,42 +744,6 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     }
   };
 
-  // --- 编辑已确认章节（FIX-006）---
-  const handleStartEditConfirmed = () => {
-    if (!displayContent) return;
-    setEditingOriginalContent(displayContent);
-    setEditingContent(displayContent);
-    setEditingConfirmed(true);
-  };
-
-  const handleCancelEditConfirmed = () => {
-    setEditingConfirmed(false);
-    setEditingContent('');
-    setEditingOriginalContent('');
-  };
-
-  const handleSaveEditConfirmed = async () => {
-    if (!viewingHistoryNum || !state) return;
-    setSavingEdit(true);
-    try {
-      await updateChapterContent(auPath, viewingHistoryNum, editingContent);
-      // 刷新状态以反映 dirty 标记
-      const newState = await getState(auPath);
-      setState(newState);
-      // 刷新显示内容
-      setViewingHistoryContent(editingContent);
-      setEditingConfirmed(false);
-      setEditingContent('');
-      setEditingOriginalContent('');
-      setDirtyBannerDismissed(false);
-      showToast(t('writer.editSaveSuccess'), 'success');
-    } catch (error) {
-      showError(error, t('error_messages.unknown'));
-    } finally {
-      setSavingEdit(false);
-    }
-  };
-
   const handleFocusToggle = async (factId: string) => {
     const requestAuPath = auPath;
     let next: string[];
@@ -921,8 +852,33 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const settingsFandomPath = fandomPathParts.length >= 2 ? fandomPathParts[0] : auPath;
   const currentDraftSummary = !isGenerating && currentDraft ? draftSummaries[currentDraft.label] || null : null;
   const activeGeneratedWith = currentDraft?.generatedWith || generatedWith;
-  const isViewingHistory = viewingHistoryContent !== null && viewingHistoryNum !== null;
-  const displayContent = isViewingHistory ? viewingHistoryContent : (streamText || currentDraft?.content || currentContent);
+  const fallbackDisplayContent = streamText || currentDraft?.content || currentContent;
+  const {
+    viewingHistoryContent,
+    viewingHistoryNum,
+    editingConfirmed,
+    editingContent,
+    editingOriginalContent,
+    savingEdit,
+    isViewingHistory,
+    setEditingContent,
+    clearHistoryView,
+    startEditingConfirmed,
+    cancelEditingConfirmed,
+    saveEditingConfirmed,
+  } = useConfirmedChapterEditor({
+    auPath,
+    viewChapter,
+    state,
+    fallbackContent: fallbackDisplayContent,
+    onClearViewChapter,
+    onStateChange: setState,
+    onDirtyBannerReset: () => setDirtyBannerDismissed(false),
+    onShowSuccess: (message) => showToast(message, 'success'),
+    onShowError: showError,
+    t,
+  });
+  const displayContent = isViewingHistory ? (viewingHistoryContent || '') : fallbackDisplayContent;
   const metaModel = activeGeneratedWith?.model || sessionParams.sessionModel;
   const metaChars = activeGeneratedWith?.char_count || displayContent.length;
   const metaDuration = activeGeneratedWith?.duration_ms
@@ -991,10 +947,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                   message={<>{t('workspace.chapterItem', { num: viewingHistoryNum })} — {t('writer.viewingHistory')}</>}
                   actions={
                     <>
-                      <Button tone="neutral" fill="plain" size="sm" onClick={handleStartEditConfirmed} disabled={editingConfirmed}>
+                      <Button tone="neutral" fill="plain" size="sm" onClick={startEditingConfirmed} disabled={editingConfirmed}>
                         {t('writer.editChapter')}
                       </Button>
-                      <Button tone="neutral" fill="plain" size="sm" onClick={() => { setViewingHistoryContent(null); setViewingHistoryNum(null); onClearViewChapter?.(); }}>
+                      <Button tone="neutral" fill="plain" size="sm" onClick={clearHistoryView}>
                         {t('writer.backToCurrentChapter')}
                       </Button>
                     </>
@@ -1017,8 +973,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                 editingOriginalContent={editingOriginalContent}
                 savingEdit={savingEdit}
                 onEditingContentChange={setEditingContent}
-                onSaveEdit={handleSaveEditConfirmed}
-                onCancelEdit={handleCancelEditConfirmed}
+                onSaveEdit={saveEditingConfirmed}
+                onCancelEdit={cancelEditingConfirmed}
                 currentDraft={currentDraft}
                 onDraftChange={handleCurrentDraftChange}
                 displayContent={displayContent}
