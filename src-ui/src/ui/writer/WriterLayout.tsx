@@ -7,7 +7,6 @@ import { useKV } from '../../hooks/useKV';
 import {
   type GenerateRequestState,
   normalizeContextSummary,
-  saveContextSummaries,
   saveGenerateRequest,
   saveInstructionText,
   hasSeenSettingsModeTooltip,
@@ -18,6 +17,7 @@ import { useSessionParams } from './useSessionParams';
 import { useConfirmedChapterEditor } from './useConfirmedChapterEditor';
 import { useWriterBootstrap } from './useWriterBootstrap';
 import { useWriterResetOnAuChange } from './useWriterResetOnAuChange';
+import { type DraftItem, useWriterDraftController } from './useWriterDraftController';
 import { Button } from '../shared/Button';
 import { Modal } from '../shared/Modal';
 import { ExportModal } from './ExportModal';
@@ -33,7 +33,7 @@ import { SettingsChatPanel } from '../shared/settings-chat/SettingsChatPanel';
 import { InlineBanner } from '../shared/InlineBanner';
 
 import { confirmChapter, undoChapter } from '../../api/engine-client';
-import { listDrafts, getDraft, saveDraft, deleteDrafts, type DraftDetail, type DraftGeneratedWith } from '../../api/engine-client';
+import { deleteDrafts, type DraftGeneratedWith } from '../../api/engine-client';
 import { setChapterFocus, type StateInfo } from '../../api/engine-client';
 import { type FactInfo } from '../../api/engine-client';
 import { generateChapter, type ContextSummary } from '../../api/engine-client';
@@ -53,13 +53,6 @@ type ContextLayer = {
   color: string;
 };
 
-type DraftItem = {
-  label: string;
-  draftId: string;
-  content: string;
-  generatedWith?: DraftGeneratedWith | null;
-  modified: boolean;
-};
 
 // GenerateRequestState imported from utils/writerStorage
 
@@ -84,18 +77,7 @@ function createDraftItem(
   };
 }
 
-function createDraftItemFromDetail(chapterNum: number, detail: DraftDetail): DraftItem {
-  return createDraftItem(
-    chapterNum,
-    detail.variant,
-    detail.content,
-    detail.generated_with || null
-  );
-}
 
-function sortDrafts(drafts: DraftItem[]): DraftItem[] {
-  return [...drafts].sort((left, right) => left.label.localeCompare(right.label));
-}
 
 // localStorage helpers 已抽取至 utils/writerStorage.ts
 
@@ -138,8 +120,6 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const loadGuard = useActiveRequestGuard(auPath);
   const refreshGuard = useActiveRequestGuard(auPath);
   const generateGuard = useActiveRequestGuard(auPath);
-  const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingDraftSaveRef = useRef<{ auPath: string; chapterNum: number; label: string; content: string } | null>(null);
   const [mode, setMode] = useState<WriterMode>('write');
   const [showSettingsTooltip, setShowSettingsTooltip] = useState(false);
   const [isSettingsModeBusy, setIsSettingsModeBusy] = useState(false);
@@ -264,81 +244,28 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   };
 
   /** 立即写入挂起的草稿编辑，然后清除定时器。 */
-  const flushPendingDraftSave = (discard = false) => {
-    if (draftSaveTimerRef.current) { clearTimeout(draftSaveTimerRef.current); draftSaveTimerRef.current = null; }
-    const pending = pendingDraftSaveRef.current;
-    if (pending && !discard) {
-      saveDraft(pending.auPath, pending.chapterNum, pending.label, pending.content).catch(() => {});
-    }
-    pendingDraftSaveRef.current = null;
-  };
-
-  const clearDraftState = (discard = false) => {
-    setDrafts([]);
-    setActiveDraftIndex(0);
-    setStreamText('');
-    setGeneratedWith(null);
-    setBudgetReport(null);
-    setRecoveryNotice(false);
-    setDraftSummaries({});
-    pendingContextSummaryRef.current = null;
-    flushPendingDraftSave(discard);
-  };
-
-  const replaceDraftSummaries = useCallback((chapterNum: number, summaries: Record<string, ContextSummary>) => {
-    setDraftSummaries(summaries);
-    saveContextSummaries(auPath, chapterNum, summaries);
-  }, [auPath]);
-
-  const attachDraftSummary = useCallback((chapterNum: number, label: string, summary: ContextSummary) => {
-    setDraftSummaries((current) => {
-      const next = {
-        ...current,
-        [label]: summary,
-      };
-      saveContextSummaries(auPath, chapterNum, next);
-      return next;
-    });
-  }, [auPath]);
-
-  const mergeDraftIntoState = useCallback((draft: DraftItem) => {
-    setDrafts((current) => {
-      const merged = sortDrafts([
-        ...current.filter((item) => item.label !== draft.label),
-        draft,
-      ]);
-      const nextIndex = merged.findIndex((item) => item.label === draft.label);
-      setActiveDraftIndex(nextIndex >= 0 ? nextIndex : Math.max(merged.length - 1, 0));
-      return merged;
-    });
-  }, []);
-
-  const loadDraftByLabel = useCallback(async (
-    chapterNum: number,
-    label: string,
-    fallbackContent = '',
-    fallbackGeneratedWith?: DraftGeneratedWith | null
-  ): Promise<DraftItem> => {
-    try {
-      const detail = await getDraft(auPath, chapterNum, label);
-      return createDraftItemFromDetail(chapterNum, detail);
-    } catch {
-      return createDraftItem(chapterNum, label, fallbackContent, fallbackGeneratedWith || null);
-    }
-  }, [auPath]);
-
-  const loadDraftsForChapter = useCallback(async (chapterNum: number): Promise<DraftItem[]> => {
-    const list = await listDrafts(auPath, chapterNum);
-    if (list.length === 0) return [];
-
-    const details = await Promise.all(
-      list.map((draft) => getDraft(auPath, chapterNum, draft.draft_label))
-    );
-
-    return sortDrafts(
-      details.map((detail) => createDraftItemFromDetail(chapterNum, detail))
-    );
-  }, [auPath]);
+  const {
+    clearDraftState,
+    replaceDraftSummaries,
+    attachDraftSummary,
+    mergeDraftIntoState,
+    loadDraftByLabel,
+    loadDraftsForChapter,
+    handleCurrentDraftChange,
+  } = useWriterDraftController({
+    auPath,
+    drafts,
+    activeDraftIndex,
+    currentChapterNum,
+    pendingContextSummaryRef,
+    setDrafts,
+    setActiveDraftIndex,
+    setStreamText,
+    setGeneratedWith,
+    setBudgetReport,
+    setRecoveryNotice,
+    setDraftSummaries,
+  });
 
   const { loadData, refreshSettingsModeData } = useWriterBootstrap<DraftItem>({
     auPath,
@@ -699,34 +626,6 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       showError(error, t('error_messages.unknown'));
     }
   };
-
-  const handleCurrentDraftChange = (content: string) => {
-    setDrafts((current) =>
-      current.map((draft, index) =>
-        index === activeDraftIndex
-          ? {
-              ...draft,
-              content,
-              modified: true,
-            }
-          : draft
-      )
-    );
-
-    // debounced auto-save：编辑 1.5s 后自动保存到磁盘
-    const label = drafts[activeDraftIndex]?.label;
-    const chapterNum = state?.current_chapter || 1;
-    if (!label) return;
-    pendingDraftSaveRef.current = { auPath, chapterNum, label, content };
-    if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current);
-    draftSaveTimerRef.current = setTimeout(() => {
-      saveDraft(auPath, chapterNum, label, content).catch(() => {});
-      pendingDraftSaveRef.current = null;
-    }, 1500);
-  };
-
-  // 组件卸载时 flush 未保存的编辑
-  useEffect(() => () => flushPendingDraftSave(), []);
 
   const handleModeChange = (nextMode: WriterMode) => {
     if (nextMode === 'write' && isSettingsModeBusy) {
