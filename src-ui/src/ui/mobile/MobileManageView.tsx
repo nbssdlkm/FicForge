@@ -34,10 +34,7 @@ export function MobileManageView({
   return (
     <section className="flex h-full flex-col overflow-y-auto bg-background md:hidden">
       <header className="safe-area-top border-b border-black/10 bg-surface/80 px-4 py-4 backdrop-blur dark:border-white/10">
-        <p className="text-xs font-medium text-text/50">
-          {t("workspace.mobileTabs.manage")}
-        </p>
-        <div className="mt-3 inline-flex w-full rounded-xl border border-black/10 bg-background/70 p-1 dark:border-white/10">
+        <div className="mt-2 inline-flex w-full rounded-xl border border-black/10 bg-background/70 p-1 dark:border-white/10">
           {[
             { id: "facts", label: t("facts.title"), Icon: SlidersHorizontal },
             { id: "project", label: t("workspace.projectSection"), Icon: Trash2 },
@@ -58,7 +55,7 @@ export function MobileManageView({
         </div>
       </header>
 
-      <div className="min-h-[calc(var(--app-height)-11rem)]">
+      <div className="mt-2 min-h-[calc(var(--app-height)-11rem)]">
         {section === "facts" ? (
           <FactsLayout auPath={auPath} />
         ) : (

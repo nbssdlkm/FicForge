@@ -102,17 +102,12 @@ export function WriterFooter(props: WriterFooterProps) {
           >
             {isGenerating ? <Spinner size="md" /> : t('common.actions.continue')}
           </Button>
-          {hasPendingDrafts && (
-            <Button tone="accent" fill="solid" size="sm" onClick={() => { onToggleCollapsed(); onOpenFinalize(); }} disabled={writeActionsDisabled}>
-              <Check size={15} /> {t('drafts.finalize')}
-            </Button>
-          )}
         </div>
       ) : (
         <div className="flex flex-col gap-3 p-4 pb-6 md:pb-4">
           {hasPendingDrafts && currentDraft && (
             <div className="mx-auto flex w-full max-w-[720px] flex-col gap-3 rounded-xl border border-black/10 bg-background/60 px-4 py-3 dark:border-white/10">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <DraftNavigator
                   drafts={drafts}
                   activeDraftIndex={activeDraftIndex}
@@ -121,25 +116,16 @@ export function WriterFooter(props: WriterFooterProps) {
                   modified={currentDraft.modified}
                 />
 
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <Button tone="accent" fill="solid" size="sm" className="h-11 gap-1 md:h-8" onClick={onOpenFinalize} disabled={writeActionsDisabled}>
-                    <Check size={15} /> {t('drafts.finalize')}
-                  </Button>
-                  <Button tone="neutral" fill="outline" size="sm" className="h-11 gap-1 md:h-8" onClick={onRegenerate} disabled={writeActionsDisabled}>
-                    {isGenerating ? <Spinner size="sm" /> : <RefreshCw size={15} />}
-                    {t('drafts.regenerate')}
-                  </Button>
-                  <Button
-                    tone="neutral" fill="plain"
-                    size="sm"
-                    className="h-11 gap-1 text-error/80 hover:bg-error/10 hover:text-error md:h-8"
-                    onClick={onOpenDiscard}
-                    disabled={isGenerating || isDiscarding || isSettingsModeBusy}
-                  >
-                    <Trash2 size={15} />
-                    {drafts.length > 1 ? t('drafts.discardAll') : t('drafts.discard')}
-                  </Button>
-                </div>
+                <Button
+                  tone="neutral" fill="plain"
+                  size="sm"
+                  className="h-11 gap-1 shrink-0 self-end text-error/80 hover:bg-error/10 hover:text-error md:h-8 md:self-auto"
+                  onClick={onOpenDiscard}
+                  disabled={isGenerating || isDiscarding || isSettingsModeBusy}
+                >
+                  <Trash2 size={15} />
+                  {drafts.length > 1 ? t('drafts.discardAll') : t('drafts.discard')}
+                </Button>
               </div>
 
               <div className="flex flex-col gap-2 text-xs text-text/50 lg:flex-row lg:items-center lg:justify-between">
@@ -187,7 +173,18 @@ export function WriterFooter(props: WriterFooterProps) {
                 <BookOpen size={16} className="mr-1" /> {t('writer.factsShortcut')}
               </Button>
             </div>
-            <div className="flex gap-3">
+            <div className="flex items-center gap-2">
+              {hasPendingDrafts && (
+                <>
+                  <Button tone="accent" fill="solid" size="sm" className="h-10 gap-1" onClick={onOpenFinalize} disabled={writeActionsDisabled}>
+                    <Check size={15} /> {t('drafts.finalize')}
+                  </Button>
+                  <Button tone="neutral" fill="outline" size="sm" className="h-10 gap-1" onClick={onRegenerate} disabled={writeActionsDisabled}>
+                    {isGenerating ? <Spinner size="sm" /> : <RefreshCw size={15} />}
+                    {t('drafts.regenerate')}
+                  </Button>
+                </>
+              )}
               <Button
                 tone="accent" fill="solid"
                 className="w-32"
@@ -204,11 +201,16 @@ export function WriterFooter(props: WriterFooterProps) {
               {t('common.actions.more')}
             </Button>
             <div className="flex items-center gap-2">
-              {hasPendingDrafts ? (
-                <Button tone="accent" fill="solid" size="sm" onClick={onOpenFinalize} disabled={writeActionsDisabled}>
-                  <Check size={15} className="mr-1" /> {t('drafts.finalize')}
-                </Button>
-              ) : null}
+              {hasPendingDrafts && (
+                <>
+                  <Button tone="accent" fill="solid" size="sm" onClick={onOpenFinalize} disabled={writeActionsDisabled}>
+                    <Check size={15} className="mr-1" /> {t('drafts.finalize')}
+                  </Button>
+                  <Button tone="neutral" fill="outline" size="sm" className="w-11 px-0" onClick={onRegenerate} disabled={writeActionsDisabled} title={t('drafts.regenerate')} aria-label={t('drafts.regenerate')}>
+                    {isGenerating ? <Spinner size="sm" /> : <RefreshCw size={15} />}
+                  </Button>
+                </>
+              )}
               <Button
                 tone="accent" fill="solid"
                 size="sm"

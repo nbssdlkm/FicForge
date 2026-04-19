@@ -591,8 +591,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                 </div>
               ) : (
                 <div>
-                  <p className="text-xs font-medium text-text/50">{t('navigation.auLore')}</p>
-                  <h1 className="mt-1 truncate font-serif text-2xl font-bold">{auName}</h1>
+                  <h1 className="truncate font-serif text-2xl font-bold">{auName}</h1>
                 </div>
               )}
 

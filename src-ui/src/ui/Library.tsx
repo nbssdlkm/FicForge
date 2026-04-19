@@ -208,12 +208,12 @@ function LibraryInner({ onNavigate }: Props) {
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-5 pb-[calc(7rem+var(--safe-area-bottom))] md:p-8">
         <div className="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-center md:justify-between">
           <h1 className="text-2xl font-serif font-medium">{t("library.title")}</h1>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Button tone="neutral" fill="outline" onClick={handleImportClick} disabled={creatingFandom || creatingAu || deleting} className="w-full sm:w-auto">
+          <div className="flex flex-row items-center gap-2 sm:gap-3">
+            <Button tone="neutral" fill="outline" size="sm" onClick={handleImportClick} disabled={creatingFandom || creatingAu || deleting}>
               {t("common.actions.importOldWork")}
             </Button>
-            <Button onClick={() => setFandomModalOpen(true)} className="w-full sm:w-auto" disabled={creatingFandom || creatingAu || deleting}>
-              <Plus size={16} className="mr-2" /> {t("library.fandomButton")}
+            <Button size="sm" onClick={() => setFandomModalOpen(true)} disabled={creatingFandom || creatingAu || deleting}>
+              {t("library.fandomButton")}
             </Button>
           </div>
         </div>
@@ -273,7 +273,7 @@ function LibraryInner({ onNavigate }: Props) {
                       <FileText size={14} className="mr-2 text-text/50" /> {t("library.fandomSectionButton")}
                     </Button>
                     <Button tone="neutral" fill="plain" size="sm" onClick={() => { setSelectedFandom(fandom.name); setSelectedFandomDir(fandom.dir_name); setAuModalOpen(true); }} disabled={creatingFandom || creatingAu || deleting}>
-                      <Plus size={14} className="mr-1 text-accent" /> {t("library.createAuButton")}
+                      <Plus size={14} className="mr-1" /> {t("library.createAuButton")}
                     </Button>
                     <Button tone="neutral" fill="plain" size="sm" className="text-text/50 hover:text-text/70" onClick={() => setTrashTarget({ fandomDir: fandom.dir_name, fandomName: fandom.name })} title={t('trash.tooltip')}>
                       <ArchiveRestore size={14} />

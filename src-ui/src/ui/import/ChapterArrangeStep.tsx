@@ -133,7 +133,7 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
   return (
     <div className="space-y-4">
       {/* Global summary */}
-      <div className="rounded-xl border border-accent/20 bg-accent/5 p-4">
+      <div>
         <p className="text-sm font-medium text-text">
           {t("import.step3Summary", { chapters: globalStats.chapters, settings: globalStats.settings })}
         </p>
@@ -147,7 +147,7 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
         const isExpanded = expandedFiles.has(analysis.filename);
 
         return (
-          <div key={analysis.filename} className="rounded-xl border border-black/10 bg-surface/30 dark:border-white/10">
+          <div key={analysis.filename} className="border-t border-black/10 pt-3 dark:border-white/10">
             {/* File header */}
             <button
               type="button"

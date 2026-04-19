@@ -33,7 +33,7 @@ export function AuSettingsWritingSection({
     <section className="space-y-6">
       <h2 className="text-lg font-sans font-bold text-accent border-l-4 border-accent pl-3">{t("settings.sections.writingStyle")}</h2>
 
-      <div className="grid grid-cols-1 gap-6 rounded-xl border border-black/5 bg-surface/50 p-4 dark:border-white/5 md:grid-cols-2 md:gap-8 md:p-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
         <div className="flex flex-col gap-4">
            <div className="flex flex-col gap-2">
              <label className="text-sm font-bold text-text/90">{t("common.labels.perspective")}</label>

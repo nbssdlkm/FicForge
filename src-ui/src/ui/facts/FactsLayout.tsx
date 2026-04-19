@@ -10,7 +10,7 @@ import { Input, Textarea } from '../shared/Input';
 import { FactCard } from './FactCard';
 import { Modal } from '../shared/Modal';
 import { EmptyState } from '../shared/EmptyState';
-import { Search, Plus, Filter, Check, Sparkles, BookOpenText, X } from 'lucide-react';
+import { Search, Filter, Check, Sparkles, BookOpenText, X } from 'lucide-react';
 import { ProgressBar } from '../shared/ProgressBar';
 import { listFacts, updateFactStatus, FactStatus, type FactInfo } from '../../api/engine-client';
 import { getState, type StateInfo } from '../../api/engine-client';
@@ -322,7 +322,6 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                   {extraction.extracting ? <Spinner size="md" /> : <Sparkles size={16} />}
                 </Button>
                 <Button tone="accent" fill="solid" size="sm" className="px-3 shadow-md" onClick={() => editor.setAddModalOpen(true)}>
-                  <Plus size={16} className="mr-1" />
                   新建
                 </Button>
               </div>
@@ -556,8 +555,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 {extraction.extracting ? <Spinner size="md" /> : <Sparkles size={16} />}
                 {extraction.extracting ? `${extraction.extractProgress}%` : t('common.actions.extractFacts')}
               </Button>
-              <Button tone="accent" fill="solid" size="sm" className="px-3 shadow-md gap-1" onClick={() => editor.setAddModalOpen(true)}>
-                <Plus size={16} />
+              <Button tone="accent" fill="solid" size="sm" className="px-3 shadow-md" onClick={() => editor.setAddModalOpen(true)}>
                 {t('facts.createButton')}
               </Button>
             </div>

@@ -71,8 +71,7 @@ export function WriterHeader({
           </Button>
         </div>
         <div className="md:hidden">
-          <p className="text-xs text-text/50">{t('writer.modeWrite')}</p>
-          <p className="mt-1 text-sm font-medium text-text/70">
+          <p className="text-sm font-medium text-text/70">
             {isViewingHistory
               ? t('workspace.chapterItem', { num: viewingHistoryNum })
               : t('workspace.chapterItem', { num: currentChapter })}

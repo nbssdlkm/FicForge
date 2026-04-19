@@ -206,7 +206,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
            payload.llm = {
              mode: llmMode,
              model: llmMode === 'api' ? auModel : '',
-             api_base: llmMode === 'ollama' ? (auApiBase || 'http://localhost:11434') : auApiBase,
+             api_base: llmMode === 'ollama' ? (auApiBase || 'http://localhost:11434/v1') : auApiBase,
              api_key: llmMode === 'api' ? auApiKey : '',
              local_model_path: llmMode === 'local' ? auLocalModelPath : '',
              ollama_model: llmMode === 'ollama' ? auOllamaModel : '',
@@ -275,7 +275,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
           {/* 1. 模型与 API 配置 */}
           <section className="space-y-4">
             <h2 className="text-lg font-sans font-bold text-accent border-l-4 border-accent pl-3">{t("settings.sections.llm")}</h2>
-            <div className="space-y-4 rounded-xl border border-black/5 bg-surface/50 p-4 dark:border-white/5 md:p-6">
+            <div className="space-y-4">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                    <h3 className="text-sm font-bold text-text/90 mb-1">{t("settings.story.overrideToggleLabel")}</h3>
@@ -327,7 +327,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                       </div>
                       <div className="flex flex-col gap-1.5">
                          <label className="text-xs font-bold text-text/90">{t("common.labels.apiBase")}</label>
-                         <Input value={auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="http://localhost:11434" className="h-11 text-base md:h-9 md:text-sm" />
+                         <Input value={auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="http://localhost:11434/v1" className="h-11 text-base md:h-9 md:text-sm" />
                          <p className="text-xs text-text/50">{t("common.help.apiBase")}</p>
                       </div>
                     </>
@@ -344,7 +344,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
 
           <section className="space-y-4">
             <h2 className="text-lg font-sans font-bold text-info border-l-4 border-info pl-3">{t("settings.sections.searchEngine")}</h2>
-            <div className="space-y-4 rounded-xl border border-black/5 bg-surface/50 p-4 dark:border-white/5 md:p-6">
+            <div className="space-y-4">
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-bold text-text/90">{t("common.labels.searchEngineModel")}</label>
                 {!isEmbeddingOverride && (
@@ -361,9 +361,8 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                     <Input value={embApiKey} onChange={e => setEmbApiKey(e.target.value)} placeholder={t("settings.global.embeddingApiKeyPlaceholder")} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" type="password" />
                   </div>
                 )}
-                <p className="text-xs text-text/50">{t("common.help.searchEngineModel")}</p>
               </div>
-              <div className="flex items-center justify-between rounded-lg border border-black/10 dark:border-white/10 bg-background/60 px-4 py-3">
+              <div className="flex flex-col items-start gap-2 rounded-lg border border-black/10 dark:border-white/10 bg-background/60 px-4 py-3">
                 <span className="text-sm text-text/90">{t("settings.global.searchEngineDescription")}</span>
                 <Tag tone="info" className="text-xs">{getEnumLabel("index_status", indexStatus, indexStatus)}</Tag>
               </div>
@@ -423,8 +422,8 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
           {project?.cast_registry && (
             <section className="space-y-6">
               <h2 className="text-lg font-sans font-bold text-info border-l-4 border-info pl-3">{t("settings.sections.castRegistry")}</h2>
-              <div className="bg-surface/50 p-4 rounded-xl border border-black/5 dark:border-white/5">
-                <h3 className="text-xs font-bold text-text/70 uppercase mb-2">{t("common.labels.characters")}</h3>
+              <div className="space-y-2">
+                <h3 className="text-xs font-bold text-text/70 uppercase">{t("common.labels.characters")}</h3>
                 {(project.cast_registry.characters || []).length === 0 ? (
                   <p className="text-xs text-text/50">{t("settings.emptyCastRegistry")}</p>
                 ) : (

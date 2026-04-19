@@ -964,7 +964,7 @@ export function SettingsChatPanel({
         </div>
       ) : null}
 
-      <div className={`min-h-0 flex-1 overflow-hidden ${compact ? "rounded-xl border border-black/10 bg-surface/35 shadow-subtle dark:border-white/10" : ""}`}>
+      <div className="min-h-0 flex-1 overflow-hidden">
         <SettingsChatHistory
           messages={messages}
           mode={mode}
