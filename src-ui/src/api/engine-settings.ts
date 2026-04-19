@@ -24,12 +24,31 @@ import { isTauri } from "../utils/platform";
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
 
+let settingsWriteQueue: Promise<void> = Promise.resolve();
+
+async function withSettingsWriteLock<T>(operation: () => Promise<T>): Promise<T> {
+  const previous = settingsWriteQueue;
+  let releaseCurrent!: () => void;
+  settingsWriteQueue = new Promise<void>((resolve) => {
+    releaseCurrent = resolve;
+  });
+
+  await previous.catch(() => undefined);
+  try {
+    return await operation();
+  } finally {
+    releaseCurrent();
+  }
+}
+
 async function withSettingsWrite<T>(mutate: (current: Settings) => T | Promise<T>): Promise<T> {
-  const { settings } = getEngine().repos;
-  const current = await settings.get();
-  const result = await mutate(current);
-  await settings.save(current);
-  return result;
+  return withSettingsWriteLock(async () => {
+    const { settings } = getEngine().repos;
+    const current = await settings.get();
+    const result = await mutate(current);
+    await settings.save(current);
+    return result;
+  });
 }
 
 function buildSyncSettings(input: SyncSettingsSaveInput): Settings["sync"] {
@@ -170,21 +189,20 @@ export async function getOnboardingDefaults(): Promise<OnboardingDefaults> {
 }
 
 export async function updateSettings(updates: DeepPartial<Settings>) {
-  const { settings } = getEngine().repos;
-  const current = await settings.get();
-  // 深合并嵌套对象，避免覆盖 app.theme 等未传入的字段
-  const currentRec = current as unknown as Record<string, unknown>;
-  const updatesRec = updates as Record<string, unknown>;
-  for (const key of Object.keys(updatesRec)) {
-    const val = updatesRec[key];
-    if (val && typeof val === "object" && !Array.isArray(val) && typeof currentRec[key] === "object") {
-      currentRec[key] = { ...(currentRec[key] as Record<string, unknown>), ...(val as Record<string, unknown>) };
-    } else {
-      currentRec[key] = val;
+  return withSettingsWrite((current) => {
+    // 深合并嵌套对象，避免覆盖 app.theme 等未传入的字段
+    const currentRec = current as unknown as Record<string, unknown>;
+    const updatesRec = updates as Record<string, unknown>;
+    for (const key of Object.keys(updatesRec)) {
+      const val = updatesRec[key];
+      if (val && typeof val === "object" && !Array.isArray(val) && typeof currentRec[key] === "object") {
+        currentRec[key] = { ...(currentRec[key] as Record<string, unknown>), ...(val as Record<string, unknown>) };
+      } else {
+        currentRec[key] = val;
+      }
     }
-  }
-  await settings.save(current);
-  return current;
+    return current;
+  });
 }
 
 export async function saveDefaultLlmSettings(payload: DefaultLlmSettingsInput) {
@@ -263,15 +281,14 @@ export async function saveGlobalSettingsForEditing(payload: GlobalSettingsSaveIn
 }
 
 export async function saveGlobalModelParams(model: string, params: ModelParamInfo) {
-  const { settings } = getEngine().repos;
-  const current = await settings.get();
-  current.model_params = current.model_params || {};
-  current.model_params[model] = {
-    temperature: params.temperature,
-    top_p: params.top_p,
-  };
-  await settings.save(current);
-  return current.model_params[model];
+  return withSettingsWrite((current) => {
+    current.model_params = current.model_params || {};
+    current.model_params[model] = {
+      temperature: params.temperature,
+      top_p: params.top_p,
+    };
+    return current.model_params[model];
+  });
 }
 
 export async function saveOnboardingSettings(payload: {
