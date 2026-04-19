@@ -375,6 +375,85 @@ function extractFromTurns(
   return { settings, nextChapter, lastChapterIndex };
 }
 
+async function rollbackImportedSettings(
+  adapter: PlatformAdapter,
+  writtenPaths: string[],
+): Promise<void> {
+  for (const path of [...writtenPaths].reverse()) {
+    try {
+      await adapter.deleteFile(path);
+    } catch {
+      // best effort rollback
+    }
+  }
+}
+
+async function writeImportedSettings(
+  plan: ImportPlan,
+  params: {
+    auId: string;
+    adapter: PlatformAdapter;
+    locale: "zh" | "en";
+    chaptersImported: number;
+    onProgress?: (progress: ImportProgress) => void;
+  },
+): Promise<number> {
+  if (plan.settings.length === 0) return 0;
+
+  const { auId, adapter, locale, chaptersImported, onProgress } = params;
+  const settingsName = locale === "zh" ? "导入设定" : "imported_settings";
+  const writtenPaths: string[] = [];
+
+  try {
+    if (plan.conflictOptions.settingsMode === "merge") {
+      const merged = plan.settings.map((s) => s.content).join("\n\n---\n\n");
+      let settingsPath = `${auId}/worldbuilding/${settingsName}.md`;
+      if (await adapter.exists(settingsPath)) {
+        const ts = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        settingsPath = `${auId}/worldbuilding/${settingsName}_${ts}.md`;
+      }
+      const dir = settingsPath.substring(0, settingsPath.lastIndexOf("/"));
+      await adapter.mkdir(dir);
+      await adapter.writeFile(settingsPath, `---\ntitle: ${settingsName}\n---\n\n${merged}`);
+      writtenPaths.push(settingsPath);
+      onProgress?.({
+        currentFile: plan.settings[plan.settings.length - 1]?.sourceFile ?? "",
+        chaptersTotal: plan.chapters.length,
+        chaptersDone: chaptersImported,
+        settingsTotal: plan.settings.length,
+        settingsDone: plan.settings.length,
+      });
+      return plan.settings.length;
+    }
+
+    const dir = `${auId}/worldbuilding`;
+    await adapter.mkdir(dir);
+    for (let i = 0; i < plan.settings.length; i++) {
+      let filePath = `${dir}/${settingsName}_${i + 1}.md`;
+      if (await adapter.exists(filePath)) {
+        const ts = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        filePath = `${dir}/${settingsName}_${i + 1}_${ts}.md`;
+      }
+      await adapter.writeFile(
+        filePath,
+        `---\ntitle: ${settingsName} ${i + 1}\n---\n\n${plan.settings[i].content}`,
+      );
+      writtenPaths.push(filePath);
+      onProgress?.({
+        currentFile: plan.settings[i].sourceFile,
+        chaptersTotal: plan.chapters.length,
+        chaptersDone: chaptersImported,
+        settingsTotal: plan.settings.length,
+        settingsDone: i + 1,
+      });
+    }
+    return plan.settings.length;
+  } catch (error) {
+    await rollbackImportedSettings(adapter, writtenPaths);
+    throw error;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // New API: executeImport
 // ---------------------------------------------------------------------------
@@ -499,6 +578,14 @@ async function doExecuteImport(
     result.nextChapterNum = importState.current_chapter;
   }
 
+  result.settingsImported = await writeImportedSettings(plan, {
+    auId,
+    adapter,
+    locale,
+    chaptersImported: result.chaptersImported,
+    onProgress,
+  });
+
   // 4. 事务提交 — 只要有章节或设定就写 ops（D-0036：ops 是 sync truth）
   if (plan.chapters.length > 0 || plan.settings.length > 0) {
     tx.appendOp(auId, createOpsEntry({
@@ -508,7 +595,7 @@ async function doExecuteImport(
       timestamp,
       payload: {
         total_chapters: result.chaptersImported,
-        total_settings: plan.settings.length,
+        total_settings: result.settingsImported,
         trashed_chapters: result.trashedChapters,
         source_files: [...new Set(plan.chapters.map((c) => c.sourceFile))],
         characters_found: Object.keys(allCharactersLastSeen),
@@ -524,7 +611,7 @@ async function doExecuteImport(
   }
 
   // 5. 写入设定文件（tx 提交之后：worldbuilding 不受 ops 管理，非关键数据）
-  if (plan.settings.length > 0) {
+  if (false && plan.settings.length > 0) { // Legacy path disabled in favor of writeImportedSettings().
     const settingsName = locale === "zh" ? "导入设定" : "imported_settings";
     if (plan.conflictOptions.settingsMode === "merge") {
       const merged = plan.settings.map((s) => s.content).join("\n\n---\n\n");

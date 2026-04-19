@@ -15,6 +15,19 @@ import { FileChapterRepository } from "../../repositories/implementations/file_c
 import { FileStateRepository } from "../../repositories/implementations/file_state.js";
 import { FileOpsRepository } from "../../repositories/implementations/file_ops.js";
 
+class FailingWriteAdapter extends MockAdapter {
+  constructor(private readonly shouldFailWrite: (path: string) => boolean) {
+    super();
+  }
+
+  override async writeFile(path: string, content: string): Promise<void> {
+    if (this.shouldFailWrite(path)) {
+      throw new Error(`write failed: ${path}`);
+    }
+    await super.writeFile(path, content);
+  }
+}
+
 // ===========================================================================
 // Backward-compatible: split_into_chapters (旧测试保留)
 // ===========================================================================
@@ -475,6 +488,31 @@ describe("executeImport", () => {
     const file2 = await adapter.readFile("au1/worldbuilding/导入设定_2.md");
     expect(file1).toContain("导入设定 1");
     expect(file2).toContain("导入设定 2");
+  });
+
+  it("rolls back settings files before commit when settings write fails", async () => {
+    const failingAdapter = new FailingWriteAdapter((path) => path.includes("/worldbuilding/") && path.endsWith("_2.md"));
+    const chapterRepo = new FileChapterRepository(failingAdapter);
+    const stateRepo = new FileStateRepository(failingAdapter);
+    const opsRepo = new FileOpsRepository(failingAdapter);
+
+    const analysis = makeChatAnalysis("chat.txt", [
+      { type: "chapter", chars: 2000 },
+      { type: "setting", chars: 800 },
+      { type: "setting", chars: 600 },
+    ]);
+
+    const plan = buildImportPlan([analysis], {
+      mode: "append", startChapter: 1, settingsMode: "separate",
+    });
+
+    await expect(executeImport(plan, {
+      auId: "au1", chapterRepo, stateRepo, opsRepo, adapter: failingAdapter,
+    })).rejects.toThrow("write failed");
+
+    expect(failingAdapter.allFiles().filter((path) => path.includes("/worldbuilding/"))).toEqual([]);
+    expect(await chapterRepo.exists("au1", 1)).toBe(false);
+    expect(await opsRepo.list_all("au1")).toHaveLength(0);
   });
 
   it("progress callback fires", async () => {
