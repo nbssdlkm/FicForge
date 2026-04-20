@@ -171,6 +171,8 @@
 - Consequences:
   - ops 格式损坏会导致 undo/dirty/同步全部降级
   - 并发写入必须使用 filelock
+  - `rebuildFromOps` 只能恢复 ops-backed projection（如 `state.yaml`、`facts.jsonl`）；确认章节的正文文件 `chapters/main/chXXXX.md` 不在 ops 内，不能靠 rebuild 自动补回。
+  - 因此 "ops 已落盘但 chapter 正文写失败" 必须用单独错误码上报，并提示人工检查 / 从草稿重新定稿，不能再把这类 partial commit 描述成“可自愈”。
 - Supersedes: none
 
 ---

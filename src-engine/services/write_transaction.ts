@@ -2,25 +2,27 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 /**
- * 写入事务抽象。
+ * Write transaction abstraction.
  *
- * 保证 D-0036 写入顺序：ops → chapters → facts → drafts → state。
- * Service 方法向 tx 注册写入意图，由 commit() 统一按固定顺序落盘，
- * 消除手工编排遗漏风险。
+ * Guarantees D-0036 persistence order:
+ * ops -> chapters -> facts -> drafts -> state.
  *
- * ops-first 策略：只要 ops 写成功，其他数据都可以通过 rebuildFromOps 重建。
+ * Important constraint: only ops-backed projections such as state/facts can be
+ * rebuilt from ops. Chapter bodies are not stored in ops, so a chapter write
+ * failure after ops commit requires explicit escalation instead of claiming the
+ * system can self-heal.
  */
 
 import type { Chapter } from "../domain/chapter.js";
 import type { Fact } from "../domain/fact.js";
 import type { OpsEntry } from "../domain/ops_entry.js";
 import type { State } from "../domain/state.js";
+import { logCatch } from "../logger/index.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { DraftRepository } from "../repositories/interfaces/draft.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
-import { logCatch } from "../logger/index.js";
 
 interface PendingOp {
   au_id: string;
@@ -52,6 +54,74 @@ interface PendingDraftDelete {
   au_id: string;
   chapter_num: number;
   mode: "by_chapter" | "from_chapter";
+}
+
+export const PARTIAL_COMMIT_CHAPTER_MISSING = "PARTIAL_COMMIT_CHAPTER_MISSING" as const;
+export const PARTIAL_COMMIT_OPS_ONLY = "PARTIAL_COMMIT_OPS_ONLY" as const;
+
+export type PartialCommitErrorCode =
+  | typeof PARTIAL_COMMIT_CHAPTER_MISSING
+  | typeof PARTIAL_COMMIT_OPS_ONLY;
+
+function detectPartialCommitErrorCode(failed: readonly string[]): PartialCommitErrorCode {
+  return failed.includes("chapters")
+    ? PARTIAL_COMMIT_CHAPTER_MISSING
+    : PARTIAL_COMMIT_OPS_ONLY;
+}
+
+function buildPartialCommitMessage(
+  errorCode: PartialCommitErrorCode,
+  completed: readonly string[],
+  failed: readonly string[],
+): string {
+  const prefix =
+    `WriteTransaction partial commit: completed=[${completed.join(",")}] failed=[${failed.join(",")}]. `;
+
+  if (errorCode === PARTIAL_COMMIT_CHAPTER_MISSING) {
+    return (
+      prefix +
+      "Ops were committed, but chapter content may be missing on disk. " +
+      "rebuildFromOps cannot restore chapter bodies; inspect chapters/main and re-confirm from a surviving draft if needed."
+    );
+  }
+
+  return (
+    prefix +
+    "Ops were committed and still describe the canonical state/facts projection. " +
+    "rebuildFromOps can repair ops-backed data, but non-op artifacts may still require cleanup."
+  );
+}
+
+function buildPartialCommitActions(errorCode: PartialCommitErrorCode): string[] {
+  if (errorCode === PARTIAL_COMMIT_CHAPTER_MISSING) {
+    return [
+      "Check whether the expected chapters/main/chXXXX.md file exists before trusting current_chapter.",
+      "If the chapter file is missing and the draft still exists, re-confirm the draft manually.",
+      "Do not rely on rebuildFromOps alone to restore missing chapter content.",
+    ];
+  }
+
+  return [
+    "Run rebuildFromOps if state.yaml or facts need to be reconstructed from committed ops.",
+    "Inspect non-op artifacts separately if the failed step wrote files outside ops-backed projections.",
+  ];
+}
+
+export class PartialCommitError extends Error {
+  readonly errorCode: PartialCommitErrorCode;
+  readonly completed: string[];
+  readonly failed: string[];
+  readonly actions: string[];
+
+  constructor(completed: readonly string[], failed: readonly string[]) {
+    const errorCode = detectPartialCommitErrorCode(failed);
+    super(buildPartialCommitMessage(errorCode, completed, failed));
+    this.name = "PartialCommitError";
+    this.errorCode = errorCode;
+    this.completed = [...completed];
+    this.failed = [...failed];
+    this.actions = buildPartialCommitActions(errorCode);
+  }
 }
 
 export class WriteTransaction {
@@ -102,10 +172,11 @@ export class WriteTransaction {
   }
 
   /**
-   * 按 D-0036 固定顺序落盘：ops → chapters → facts → drafts → state。
+   * Persist in D-0036 order.
    *
-   * ops 是 sync truth，其他数据可从 ops 重建，故 ops 最先、state 最后。
-   * 只要 ops 写入成功，即使后续步骤失败，重启后 rebuildFromOps 可自愈。
+   * Ops must land first because they are the sync truth. State is last because
+   * it is an ops-backed projection. Chapter bodies are intentionally treated as
+   * a separate artifact that cannot be reconstructed from ops.
    */
   async commit(
     ops_repo: OpsRepository,
@@ -114,16 +185,13 @@ export class WriteTransaction {
     chapter_repo?: ChapterRepository | null,
     draft_repo?: DraftRepository | null,
   ): Promise<void> {
-    // 1. ops 先落盘（sync truth）— 失败直接抛出，不进入后续步骤
     for (const { au_id, entry } of this.pendingOps) {
       await ops_repo.append(au_id, entry);
     }
 
-    // ops 已写成功，后续步骤部分失败时记录已写/未写内容，最终抛出
     const completed: string[] = ["ops"];
     const failed: string[] = [];
 
-    // 2. chapters 落盘（confirm 的核心产物）
     if (chapter_repo) {
       try {
         for (const { chapter } of this.pendingChapters) {
@@ -139,7 +207,6 @@ export class WriteTransaction {
       }
     }
 
-    // 3. facts 落盘
     if (fact_repo) {
       try {
         for (const { au_id, fact, mode } of this.pendingFacts) {
@@ -159,7 +226,6 @@ export class WriteTransaction {
       }
     }
 
-    // 4. drafts 清理（非关键，丢了可重新生成）
     if (draft_repo) {
       try {
         for (const { au_id, chapter_num, mode } of this.pendingDraftDeletes) {
@@ -176,7 +242,6 @@ export class WriteTransaction {
       }
     }
 
-    // 5. state 最后落盘（可从 ops 重建）
     if (this.pendingState && state_repo) {
       try {
         await state_repo.save(this.pendingState);
@@ -188,10 +253,7 @@ export class WriteTransaction {
     }
 
     if (failed.length > 0) {
-      throw new Error(
-        `WriteTransaction partial commit: completed=[${completed.join(",")}] failed=[${failed.join(",")}]. ` +
-        `Ops committed successfully — run rebuildFromOps to recover.`,
-      );
+      throw new PartialCommitError(completed, failed);
     }
   }
 }
