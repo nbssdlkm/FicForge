@@ -12,11 +12,13 @@ import {
   undo_latest_chapter,
   resolve_dirty_chapter,
   edit_chapter_content,
+  IndexStatus,
   resolve_llm_config,
   create_provider,
   generateChapterTitle,
   createOpsEntry,
   generate_op_id,
+  logCatch,
   now_utc,
   WriteTransaction,
   withAuLock,
@@ -115,9 +117,16 @@ export async function confirmChapter(
     if (embProvider) {
       const chContent = await chapter.get_content_only(auPath, chapterNum);
       await e.ragManager.indexChapter(auPath, chapterNum, chContent, embProvider, proj.cast_registry);
+      // confirm_chapter 里先悲观标记 STALE；增量索引成功后再升级回 READY。
+      await withAuLock(auPath, async () => {
+        await e.repos.state.update(auPath, (st) => {
+          st.index_status = IndexStatus.READY;
+        });
+      });
     }
-  } catch {
-    // RAG indexing failure doesn't block confirm
+  } catch (err) {
+    // RAG indexing failure doesn't block confirm；保留 STALE 作为真实状态。
+    logCatch("rag", `Failed to index chapter ${chapterNum} after confirm`, err);
   }
 
   return result;
