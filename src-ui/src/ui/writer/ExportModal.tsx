@@ -31,13 +31,7 @@ async function saveWithTauriDialog(blob: Blob, filename: string): Promise<'saved
     return 'saved';
   } catch (e) {
     logCatch('export', 'Tauri save failed', e);
-    // Fallback: 尝试浏览器下载
-    try {
-      saveWithBrowserDownload(blob, filename);
-      return 'saved';
-    } catch {
-      return 'error';
-    }
+    return 'error';
   }
 }
 
@@ -53,27 +47,42 @@ function saveWithBrowserDownload(blob: Blob, filename: string): void {
 }
 
 export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onClose: () => void, auPath: string }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { showToast } = useFeedback();
   const [format, setFormat] = useState<'md' | 'txt'>('md');
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiDisclosure, setAiDisclosure] = useState(true);
+  const [pendingBrowserFallback, setPendingBrowserFallback] = useState<{ blob: Blob; filename: string } | null>(null);
   const abortRef = useRef(false);
+  const browserFallbackLabel = i18n.resolvedLanguage === 'en' ? 'Download via browser' : '改用浏览器下载';
 
   useEffect(() => {
     if (!isOpen) {
       abortRef.current = true;
       setExporting(false);
       setError(null);
+      setPendingBrowserFallback(null);
     } else {
       abortRef.current = false;
     }
   }, [isOpen]);
 
+  const handleBrowserFallback = () => {
+    if (!pendingBrowserFallback) return;
+    try {
+      saveWithBrowserDownload(pendingBrowserFallback.blob, pendingBrowserFallback.filename);
+      setPendingBrowserFallback(null);
+      onClose();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const handleExport = async () => {
     setExporting(true);
     setError(null);
+    setPendingBrowserFallback(null);
     abortRef.current = false;
     try {
       let { blob, filename } = await exportChapters({ au_path: auPath, format });
@@ -90,16 +99,18 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onCl
         const result = await saveWithTauriDialog(blob, filename);
         if (abortRef.current) return;
         if (result === 'saved') onClose();
-        else if (result === 'error') setError(t('export.saveFailed'));
-        // 'cancelled': 用户取消对话框，不关闭 modal
+        else if (result === 'error') {
+          setError(t('export.saveFailed'));
+          setPendingBrowserFallback({ blob, filename });
+        }
       } else if (isCapacitor()) {
-        // Capacitor 移动端：使用 Web Share API 分享文件
+        // Capacitor mobile: prefer the platform share sheet when available.
         const file = new File([blob], filename, { type: blob.type });
         if (navigator.canShare?.({ files: [file] })) {
           await navigator.share({ files: [file], title: filename });
           onClose();
         } else {
-          // Share API 不可用时写入 Documents 目录
+          // Fallback for mobile environments without share-sheet file support.
           const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
           const text = await blob.text();
           await Filesystem.writeFile({
@@ -113,7 +124,6 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onCl
           onClose();
         }
       } else {
-        // PWA / 浏览器：浏览器下载
         saveWithBrowserDownload(blob, filename);
         onClose();
       }
@@ -128,15 +138,15 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onCl
   return (
     <Modal isOpen={isOpen} onClose={exporting ? () => {} : onClose} title={t('export.title')}>
       <div className="space-y-6">
-        <div className="flex flex-col gap-3 mt-2">
+        <div className="mt-2 flex flex-col gap-3">
           <label className="text-sm font-bold text-text/90">{t('export.formatLabel')}</label>
           <div className="flex gap-6">
-            <label className="flex min-h-[44px] items-center gap-2 text-sm cursor-pointer hover:opacity-80">
-              <input type="radio" name="exportFmt" checked={format === 'md'} onChange={() => setFormat('md')} className="text-accent focus:ring-accent accent-accent w-4 h-4" />
+            <label className="flex min-h-[44px] cursor-pointer items-center gap-2 text-sm hover:opacity-80">
+              <input type="radio" name="exportFmt" checked={format === 'md'} onChange={() => setFormat('md')} className="h-4 w-4 text-accent accent-accent focus:ring-accent" />
               {t('export.markdown')}
             </label>
-            <label className="flex min-h-[44px] items-center gap-2 text-sm cursor-pointer hover:opacity-80">
-              <input type="radio" name="exportFmt" checked={format === 'txt'} onChange={() => setFormat('txt')} className="text-accent focus:ring-accent accent-accent w-4 h-4" />
+            <label className="flex min-h-[44px] cursor-pointer items-center gap-2 text-sm hover:opacity-80">
+              <input type="radio" name="exportFmt" checked={format === 'txt'} onChange={() => setFormat('txt')} className="h-4 w-4 text-accent accent-accent focus:ring-accent" />
               {t('export.text')}
             </label>
           </div>
@@ -144,10 +154,16 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onCl
         </div>
 
         {error && (
-          <div className="text-sm text-error bg-error/10 rounded-lg p-3">{error}</div>
+          <div className="rounded-lg bg-error/10 p-3 text-sm text-error">{error}</div>
         )}
 
-        <label className="flex min-h-[44px] items-start gap-2 text-xs cursor-pointer">
+        {pendingBrowserFallback && (
+          <Button tone="neutral" fill="outline" className="w-full" onClick={handleBrowserFallback} disabled={exporting}>
+            {browserFallbackLabel}
+          </Button>
+        )}
+
+        <label className="flex min-h-[44px] cursor-pointer items-start gap-2 text-xs">
           <input
             type="checkbox"
             checked={aiDisclosure}
@@ -155,7 +171,7 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onCl
               setAiDisclosure(e.target.checked);
               if (!e.target.checked) showToast(t('ethics.exportUncheckedWarning'), 'warning');
             }}
-            className="mt-0.5 accent-accent w-3.5 h-3.5"
+            className="mt-0.5 h-3.5 w-3.5 accent-accent"
           />
           <span className="text-text/70">{t('ethics.exportAiLabel')}</span>
         </label>

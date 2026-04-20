@@ -86,18 +86,18 @@ export async function syncAllAus(webdavConfig: WebDAVConfig): Promise<Aggregated
   try {
     const fandoms = await listFandoms();
     for (const fandom of fandoms) {
-      for (const auName of fandom.aus) {
-        const localPath = `${dd}/fandoms/${fandom.dir_name}/aus/${auName}`;
+      for (const au of fandom.aus) {
+        const localPath = `${dd}/fandoms/${fandom.dir_name}/aus/${au.dir_name}`;
         const remotePath = toRemoteAuPath(localPath, dd);
         try {
           const result: SyncResult = await syncManager.sync(localPath, remotePath);
           if (!result.synced) {
-            agg.errors.push(`${fandom.name}/${auName}: ${result.conflicts.map(c => c.description).join('; ')}`);
+            agg.errors.push(`${fandom.name}/${au.name}: ${result.conflicts.map(c => c.description).join('; ')}`);
           }
           // S4: 收集 ops 冲突（非 sync_error 类型的 conflicts）
           for (const c of result.conflicts) {
             if (c.type !== "sync_error") {
-              agg.opsConflicts.push(`${fandom.name}/${auName}: ${c.description}`);
+              agg.opsConflicts.push(`${fandom.name}/${au.name}: ${c.description}`);
             }
           }
           agg.opsAdded += result.opsAdded;
@@ -107,7 +107,7 @@ export async function syncAllAus(webdavConfig: WebDAVConfig): Promise<Aggregated
             agg.fileConflicts.push({ ...fc, auPath: localPath });
           }
         } catch (e) {
-          agg.errors.push(`${fandom.name}/${auName}: ${String(e)}`);
+          agg.errors.push(`${fandom.name}/${au.name}: ${String(e)}`);
         }
       }
     }

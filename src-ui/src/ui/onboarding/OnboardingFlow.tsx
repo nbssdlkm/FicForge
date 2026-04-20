@@ -9,15 +9,30 @@ import { ApiConfigStep, type ApiConfig } from './ApiConfigStep';
 import { CreateFandomStep } from './CreateFandomStep';
 import { CompletionStep } from './CompletionStep';
 import { MobileOnboarding, type OnboardingCompletion } from './MobileOnboarding';
-import { updateSettings } from '../../api/engine-client';
+import { saveDefaultLlmSettings } from '../../api/engine-client';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { useTranslation } from '../../i18n/useAppTranslation';
+import { buildDefaultLlmSettingsInput } from '../shared/llm-config';
 
 const ONBOARDING_KEY = 'ficforge.onboarding.completed';
+const ONBOARDING_DISMISSED_SESSION_KEY = 'ficforge.onboarding.dismissed_session';
 
 export function isOnboardingCompleted(): boolean {
   try { return localStorage.getItem(ONBOARDING_KEY) === 'true'; }
   catch { return false; }
+}
+
+export function isOnboardingDismissedForSession(): boolean {
+  try { return sessionStorage.getItem(ONBOARDING_DISMISSED_SESSION_KEY) === 'true'; }
+  catch { return false; }
+}
+
+export function markOnboardingDismissedForSession() {
+  try { sessionStorage.setItem(ONBOARDING_DISMISSED_SESSION_KEY, 'true'); } catch { /* ignore */ }
+}
+
+export function clearOnboardingDismissedForSession() {
+  try { sessionStorage.removeItem(ONBOARDING_DISMISSED_SESSION_KEY); } catch { /* ignore */ }
 }
 
 export function OnboardingFlow({ onComplete }: { onComplete: (result?: OnboardingCompletion) => void }) {
@@ -35,17 +50,14 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
     setSaveError(null);
     // 保存配置到 settings
     try {
-      await updateSettings({
-        default_llm: {
-          mode: config.mode,
-          model: config.mode === 'api' ? config.model : '',
-          api_base: config.api_base,
-          api_key: config.api_key,
-          local_model_path: config.local_model_path,
-          ollama_model: config.ollama_model,
-          context_window: 0,
-        },
-      });
+      await saveDefaultLlmSettings(buildDefaultLlmSettingsInput({
+        mode: config.mode,
+        model: config.model,
+        apiBase: config.api_base,
+        apiKey: config.api_key,
+        localModelPath: config.local_model_path,
+        ollamaModel: config.ollama_model,
+      }, 0));
       setConfigSaved(true);
       setStep(2);
     } catch (e: any) {
@@ -61,6 +73,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
 
   const handleComplete = useCallback((result?: OnboardingCompletion) => {
     try { localStorage.setItem(ONBOARDING_KEY, 'true'); } catch { /* ignore */ }
+    clearOnboardingDismissedForSession();
     onComplete(result);
   }, [onComplete]);
 
@@ -68,6 +81,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
     // 只有配置已成功保存才标记完成
     if (configSaved) {
       try { localStorage.setItem(ONBOARDING_KEY, 'true'); } catch { /* ignore */ }
+      clearOnboardingDismissedForSession();
       onComplete();
     } else {
       // 未保存配置，弹确认
@@ -77,6 +91,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
 
   const handleConfirmClose = useCallback(() => {
     // 用户确认跳过——不标记 completed，下次打开会重新检查
+    markOnboardingDismissedForSession();
     setShowCloseConfirm(false);
     onComplete();
   }, [onComplete]);

@@ -6,7 +6,9 @@
  * 使用 @capacitor/filesystem 进行文件 I/O。
  */
 
-import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions } from "./adapter.js";
+import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStorageCapabilities } from "./adapter.js";
+
+const LEGACY_SECURE_KEY_PREFIX = "__secure__:";
 
 /**
  * Uint8Array ↔ base64 分块转换。
@@ -202,16 +204,75 @@ export class CapacitorAdapter implements PlatformAdapter {
    * 待接入 @capacitor-community/secure-storage (Android Keystore / iOS Keychain) 后实现真正加密。
    */
   async secureGet(key: string): Promise<string | null> {
-    return this.kvGet(`__secure__:${key}`);
+    const stored = await this.invokeSecureStoreGet(key);
+    if (stored !== null) {
+      this.removeLegacySecureValue(key);
+      return stored;
+    }
+
+    const legacyValue = this.getLegacySecureValue(key);
+    if (legacyValue === null) {
+      return null;
+    }
+
+    await this.invokeSecureStoreSet(key, legacyValue);
+    this.removeLegacySecureValue(key);
+    return legacyValue;
   }
 
   /** @see {@link CapacitorAdapter.secureGet} — 同样未加密。 */
   async secureSet(key: string, value: string): Promise<void> {
-    return this.kvSet(`__secure__:${key}`, value);
+    await this.invokeSecureStoreSet(key, value);
+    this.removeLegacySecureValue(key);
   }
 
   /** @see {@link CapacitorAdapter.secureGet} — 同样未加密。 */
   async secureRemove(key: string): Promise<void> {
-    return this.kvRemove(`__secure__:${key}`);
+    await this.invokeSecureStoreRemove(key);
+    this.removeLegacySecureValue(key);
+  }
+
+  getSecretStorageCapabilities(): SecretStorageCapabilities {
+    return {
+      backend: "os_keyring",
+      encrypted_at_rest: true,
+      persistence: "persistent",
+    };
+  }
+
+  private getLegacySecureStorageKey(key: string): string {
+    return `${LEGACY_SECURE_KEY_PREFIX}${key}`;
+  }
+
+  private getLegacySecureValue(key: string): string | null {
+    const legacyKey = this.getLegacySecureStorageKey(key);
+    try {
+      return localStorage.getItem(legacyKey);
+    } catch {
+      return this._kvFallback.get(legacyKey) ?? null;
+    }
+  }
+
+  private removeLegacySecureValue(key: string): void {
+    const legacyKey = this.getLegacySecureStorageKey(key);
+    this._kvFallback.delete(legacyKey);
+    try {
+      localStorage.removeItem(legacyKey);
+    } catch {}
+  }
+
+  private async invokeSecureStoreGet(key: string): Promise<string | null> {
+    const { SecureStorage } = await import("@aparajita/capacitor-secure-storage");
+    return SecureStorage.getItem(key);
+  }
+
+  private async invokeSecureStoreSet(key: string, value: string): Promise<void> {
+    const { SecureStorage } = await import("@aparajita/capacitor-secure-storage");
+    await SecureStorage.setItem(key, value);
+  }
+
+  private async invokeSecureStoreRemove(key: string): Promise<void> {
+    const { SecureStorage } = await import("@aparajita/capacitor-secure-storage");
+    await SecureStorage.removeItem(key);
   }
 }

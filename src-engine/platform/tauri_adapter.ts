@@ -9,7 +9,9 @@
  * - ExportModal.tsx: @tauri-apps/plugin-dialog (save), @tauri-apps/plugin-fs (writeFile)
  */
 
-import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions } from "./adapter.js";
+import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStorageCapabilities } from "./adapter.js";
+
+const LEGACY_SECURE_KEY_PREFIX = "__secure__:";
 
 export class TauriAdapter implements PlatformAdapter {
   private _deviceId: string;
@@ -121,20 +123,60 @@ export class TauriAdapter implements PlatformAdapter {
   }
 
   /**
-   * @warning **未加密。** 当前实现仅在 KV 键前添加 `__secure__:` 前缀隔离，
-   * 数据以明文存于 localStorage。待接入 @tauri-apps/plugin-stronghold 后实现真正加密。
+   * Tauri 端通过 Rust command 调用 OS keyring / keychain。
+   * 首次读取旧版 `__secure__:` localStorage 条目时会自动迁移并清理明文副本。
    */
   async secureGet(key: string): Promise<string | null> {
-    return this.kvGet(`__secure__:${key}`);
+    const stored = await this.invokeSecureStore<string | null>("secure_store_get", { key });
+    if (stored !== null) {
+      this.removeLegacySecureValue(key);
+      return stored;
+    }
+
+    const legacyValue = this.getLegacySecureValue(key);
+    if (legacyValue === null) {
+      return null;
+    }
+
+    await this.invokeSecureStore<void>("secure_store_set", { key, value: legacyValue });
+    this.removeLegacySecureValue(key);
+    return legacyValue;
   }
 
-  /** @see {@link TauriAdapter.secureGet} — 同样未加密。 */
+  /** @see {@link TauriAdapter.secureGet} */
   async secureSet(key: string, value: string): Promise<void> {
-    return this.kvSet(`__secure__:${key}`, value);
+    await this.invokeSecureStore<void>("secure_store_set", { key, value });
+    this.removeLegacySecureValue(key);
   }
 
-  /** @see {@link TauriAdapter.secureGet} — 同样未加密。 */
+  /** @see {@link TauriAdapter.secureGet} */
   async secureRemove(key: string): Promise<void> {
-    return this.kvRemove(`__secure__:${key}`);
+    await this.invokeSecureStore<void>("secure_store_remove", { key });
+    this.removeLegacySecureValue(key);
+  }
+
+  getSecretStorageCapabilities(): SecretStorageCapabilities {
+    return {
+      backend: "os_keyring",
+      encrypted_at_rest: true,
+      persistence: "persistent",
+    };
+  }
+
+  private getLegacySecureStorageKey(key: string): string {
+    return `${LEGACY_SECURE_KEY_PREFIX}${key}`;
+  }
+
+  private getLegacySecureValue(key: string): string | null {
+    return localStorage.getItem(this.getLegacySecureStorageKey(key));
+  }
+
+  private removeLegacySecureValue(key: string): void {
+    localStorage.removeItem(this.getLegacySecureStorageKey(key));
+  }
+
+  private async invokeSecureStore<T>(command: "secure_store_get" | "secure_store_set" | "secure_store_remove", payload: Record<string, unknown>): Promise<T> {
+    const { invoke } = await import("@tauri-apps/api/core");
+    return invoke<T>(command, payload);
   }
 }

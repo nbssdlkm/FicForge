@@ -59,6 +59,25 @@ describe("TrashService", () => {
     expect(list).toHaveLength(0);
   });
 
+  it("move_tree_to_trash restores AU directory entries", async () => {
+    adapter.seed("fandom1/aus/AU1/project.yaml", "name: AU1");
+    adapter.seed("fandom1/aus/AU1/chapters/main/ch0001.md", "# Chapter 1");
+
+    const entry = await trash.move_tree_to_trash("fandom1", "aus/AU1", "au", "AU1");
+
+    expect(adapter.raw("fandom1/aus/AU1/project.yaml")).toBeUndefined();
+    expect(adapter.raw("fandom1/aus/AU1/chapters/main/ch0001.md")).toBeUndefined();
+
+    const list = await trash.list_trash("fandom1");
+    expect(list).toHaveLength(1);
+    expect(list[0].metadata.is_directory).toBe(true);
+
+    await trash.restore("fandom1", entry.trash_id);
+
+    expect(adapter.raw("fandom1/aus/AU1/project.yaml")).toBe("name: AU1");
+    expect(adapter.raw("fandom1/aus/AU1/chapters/main/ch0001.md")).toBe("# Chapter 1");
+  });
+
   it("restore fails if original path exists", async () => {
     adapter.seed("au1/characters/C.md", "original");
     const entry = await trash.move_to_trash("au1", "characters/C.md", "character_file", "C");

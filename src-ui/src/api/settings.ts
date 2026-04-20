@@ -56,6 +56,48 @@ export interface FontPreferences {
   reading_cjk_font_id: string;
 }
 
+export interface SecretStorageCapabilities {
+  backend: "local_storage" | "local_storage_with_memory_fallback" | "session_storage_with_memory_fallback" | "memory" | "os_keyring";
+  encrypted_at_rest: boolean;
+  persistence: "persistent" | "best_effort" | "session_only" | "memory_only";
+}
+
+export interface DefaultLlmSettingsInput {
+  mode: string;
+  model: string;
+  api_base: string;
+  api_key: string;
+  local_model_path: string;
+  ollama_model: string;
+  context_window: number;
+}
+
+export interface EmbeddingSettingsSaveInput {
+  use_custom_config: boolean;
+  model: string;
+  api_base: string;
+  api_key: string;
+}
+
+export interface SyncSettingsSaveInput {
+  mode: "none" | "webdav";
+  url: string;
+  username: string;
+  password: string;
+  remote_dir: string;
+  last_sync: string | null;
+}
+
+export interface AppPreferencesInput {
+  language?: string;
+}
+
+export interface GlobalSettingsSaveInput {
+  default_llm: DefaultLlmSettingsInput;
+  embedding: EmbeddingSettingsSaveInput;
+  sync: SyncSettingsSaveInput;
+}
+
 export interface SettingsSummary {
   default_llm: LlmQueryInfo;
   embedding: EmbeddingQueryInfo;

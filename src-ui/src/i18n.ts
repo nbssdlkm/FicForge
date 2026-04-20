@@ -53,8 +53,8 @@ export async function changeLanguage(lang: AppLanguage): Promise<void> {
   }
   // 同步到 settings.yaml 供引擎侧 prompt 选择语言
   try {
-    const { updateSettings } = await import("./api/engine-client");
-    await updateSettings({ app: { language: lang } });
+    const { saveAppPreferences } = await import("./api/engine-client");
+    await saveAppPreferences({ language: lang });
   } catch {
     // 引擎未初始化时忽略（如引导页首次选语言）
   }

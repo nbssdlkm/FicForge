@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { Modal } from "../shared/Modal";
 import { FileSelectStep } from "./FileSelectStep";
 import { AnalysisStep } from "./AnalysisStep";
@@ -21,6 +21,7 @@ import {
 } from "../../api/engine-import";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { useFeedback } from "../../hooks/useFeedback";
+import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
 
 const TOTAL_STEPS = 5;
 
@@ -37,7 +38,7 @@ export function ImportFlow({
 }) {
   const { t, i18n } = useTranslation();
   const { showError, showToast } = useFeedback();
-  const flowRequestIdRef = useRef(0);
+  const requestGuard = useActiveRequestGuard(`${auPath}:${isOpen}`);
 
   // Step state
   const [step, setStep] = useState(0);
@@ -56,7 +57,7 @@ export function ImportFlow({
   const [skipThreshold, setSkipThreshold] = useState(300);
 
   const resetFlowState = () => {
-    flowRequestIdRef.current += 1;
+    requestGuard.start();
     setStep(0);
     setFiles([]);
     setAnalyses([]);
@@ -103,7 +104,7 @@ export function ImportFlow({
       return;
     }
 
-    const requestId = ++flowRequestIdRef.current;
+    const token = requestGuard.start();
     setAnalyzing(true);
     const results: FileAnalysis[] = [];
 
@@ -111,7 +112,7 @@ export function ImportFlow({
     let effectiveAiAssist = useAiAssist;
     if (useAiAssist) {
       const check = await isAiAssistAvailable();
-      if (requestId !== flowRequestIdRef.current) return;
+      if (requestGuard.isStale(token)) return;
       if (!check.available) {
         effectiveAiAssist = false;
         setUseAiAssist(false);
@@ -120,7 +121,7 @@ export function ImportFlow({
     }
 
     for (const file of files) {
-      if (requestId !== flowRequestIdRef.current) return;
+      if (requestGuard.isStale(token)) return;
 
       setAnalysisStatus((prev) => {
         const next = new Map(prev);
@@ -130,7 +131,7 @@ export function ImportFlow({
 
       try {
         const text = await readFileAsText(file);
-        if (requestId !== flowRequestIdRef.current) return;
+        if (requestGuard.isStale(token)) return;
 
         const analysis = await analyzeImportFile(text, file.name, {
           useAiAssist: effectiveAiAssist,
@@ -154,12 +155,12 @@ export function ImportFlow({
             }
           },
         });
-        if (requestId !== flowRequestIdRef.current) return;
+        if (requestGuard.isStale(token)) return;
 
         results.push(analysis);
         setAnalyses([...results]);
       } catch (error) {
-        if (requestId !== flowRequestIdRef.current) return;
+        if (requestGuard.isStale(token)) return;
         showError(error, t("error_messages.unknown"));
         setAnalysisStatus((prev) => {
           const next = new Map(prev);
@@ -176,7 +177,7 @@ export function ImportFlow({
       });
     }
 
-    if (requestId !== flowRequestIdRef.current) return;
+    if (requestGuard.isStale(token)) return;
     setAnalyzing(false);
 
     // 至少要有一个文件成功分析才能继续
@@ -189,13 +190,14 @@ export function ImportFlow({
     } catch { /* empty AU */ }
 
     setStep(2);
-  }, [analyses.length, auPath, chapterThreshold, files, showError, skipThreshold, t, useAiAssist]);
+  }, [analyses.length, auPath, chapterThreshold, files, requestGuard, showError, skipThreshold, t, useAiAssist]);
 
   // ── Step 3: Chapter arrangement ──
 
   // ── Step 4: Conflict resolution → Execute ──
 
   const handleExecuteImport = useCallback(async (conflictOptions: ImportConflictOptions) => {
+    const token = requestGuard.start();
     setStep(4);
     setImporting(true);
     setImportProgress(null);
@@ -204,17 +206,20 @@ export function ImportFlow({
       const plan = await buildImportPlanFromAnalyses(analyses, conflictOptions);
       const locale = (i18n.resolvedLanguage === "en" ? "en" : "zh") as "zh" | "en";
       const result = await executeImportPlan(plan, auPath, (progress) => {
+        if (requestGuard.isStale(token)) return;
         setImportProgress(progress);
       }, locale);
+      if (requestGuard.isStale(token)) return;
       setImportResult(result);
       setImporting(false);
     } catch (error) {
+      if (requestGuard.isStale(token)) return;
       setImporting(false);
       showError(error, t("error_messages.unknown"));
       // 导入失败，回退到章节编排步骤
       setStep(2);
     }
-  }, [analyses, auPath, i18n, showError, t]);
+  }, [analyses, auPath, i18n, requestGuard, showError, t]);
 
   // ── Step 3: Chapter arrangement ──
 

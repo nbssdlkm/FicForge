@@ -2,10 +2,11 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { getState } from "../../api/engine-client";
+import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
 import { AuLoreLayout } from "../library/AuLoreLayout";
 import { Button } from "../shared/Button";
 import { SettingsChatPanel } from "../shared/settings-chat/SettingsChatPanel";
@@ -24,7 +25,7 @@ export function MobileSettingsView({ auPath, currentChapter }: MobileSettingsVie
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [resolvedCurrentChapter, setResolvedCurrentChapter] = useState(currentChapter);
-  const requestIdRef = useRef(0);
+  const loadGuard = useActiveRequestGuard(auPath);
   const fandomPath = useMemo(() => deriveFandomPath(auPath), [auPath]);
 
   useEffect(() => {
@@ -32,18 +33,14 @@ export function MobileSettingsView({ auPath, currentChapter }: MobileSettingsVie
   }, [currentChapter]);
 
   useEffect(() => {
-    const requestId = ++requestIdRef.current;
+    const token = loadGuard.start();
     getState(auPath).then((state) => {
-      if (requestId !== requestIdRef.current) return;
+      if (loadGuard.isStale(token)) return;
       setResolvedCurrentChapter(state?.current_chapter || 1);
     }).catch(() => {
-      if (requestId !== requestIdRef.current) return;
+      if (loadGuard.isStale(token)) return;
       setResolvedCurrentChapter(currentChapter || 1);
     });
-
-    return () => {
-      requestIdRef.current += 1;
-    };
   }, [auPath, currentChapter, overlayOpen]);
 
   return (

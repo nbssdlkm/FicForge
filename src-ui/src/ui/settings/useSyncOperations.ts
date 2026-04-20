@@ -3,14 +3,21 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useRef, useCallback } from 'react';
-import { updateSettings, logCatch } from '../../api/engine-client';
+import { saveSyncSettings, logCatch } from '../../api/engine-client';
 import { syncAllAus, resolveFileConflict, testWebDAVConnection, type WebDAVConfig } from '../../api/engine-sync';
+import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { type ConflictItem } from '../shared/ConflictResolveModal';
 import { useTranslation } from '../../i18n/useAppTranslation';
 
+type SyncSuccessContext = {
+  syncMode: 'none' | 'webdav';
+  setLastSync: (val: string) => void;
+  syncConfig: WebDAVConfig;
+};
+
 export function useSyncOperations(syncConfig: { url: string; username: string; password: string; remote_dir: string }) {
   const { t } = useTranslation();
-  const requestIdRef = useRef(0);
+  const requestGuard = useActiveRequestGuard('sync-operations');
 
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
@@ -21,12 +28,36 @@ export function useSyncOperations(syncConfig: { url: string; username: string; p
   const [syncTestStatus, setSyncTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   // 暂存非冲突错误，冲突解决后检查是否有残留
   const nonConflictErrorsRef = useRef<string[]>([]);
+  const syncSuccessContextRef = useRef<SyncSuccessContext | null>(null);
 
   // Map display path -> { auPath, filePath } for conflict resolution
   const conflictPathMapRef = useRef<Map<string, { auPath: string; filePath: string }>>(new Map());
 
+  const finalizeSyncSuccess = useCallback(async (contextOverride?: SyncSuccessContext | null) => {
+    const context = contextOverride ?? syncSuccessContextRef.current;
+    const now = new Date().toISOString();
+    if (context) {
+      try {
+        await saveSyncSettings({
+          mode: context.syncMode,
+          url: context.syncConfig.url,
+          username: context.syncConfig.username,
+          password: context.syncConfig.password,
+          remote_dir: context.syncConfig.remote_dir,
+          last_sync: now,
+        });
+      } catch (err) {
+        logCatch('sync', 'last_sync persist failed', err);
+        throw err;
+      }
+      context.setLastSync(now);
+    }
+    setSyncResultStatus('success');
+    setSyncMessage(t('settings.sync.syncSuccess'));
+  }, [t]);
+
   const handleTestWebDAV = useCallback(async () => {
-    const reqId = ++requestIdRef.current;
+    const token = requestGuard.start();
     setSyncTestStatus('testing');
     try {
       const raw = syncConfig.url.trim();
@@ -40,16 +71,16 @@ export function useSyncOperations(syncConfig: { url: string; username: string; p
         password: syncConfig.password,
         remote_dir: syncConfig.remote_dir,
       });
-      if (reqId !== requestIdRef.current) return;
+      if (requestGuard.isStale(token)) return;
       setSyncTestStatus(result.success ? 'success' : 'error');
     } catch {
-      if (reqId !== requestIdRef.current) return;
+      if (requestGuard.isStale(token)) return;
       setSyncTestStatus('error');
     }
-  }, [syncConfig]);
+  }, [requestGuard, syncConfig]);
 
   const handleSyncNow = useCallback(async (syncMode: 'none' | 'webdav', setLastSync: (val: string) => void) => {
-    const syncRequestId = ++requestIdRef.current;
+    const token = requestGuard.start();
     setSyncing(true);
     setSyncMessage('');
     setSyncResultStatus('idle');
@@ -60,8 +91,14 @@ export function useSyncOperations(syncConfig: { url: string; username: string; p
         password: syncConfig.password,
         remote_dir: syncConfig.remote_dir,
       };
+      const syncSuccessContext: SyncSuccessContext = {
+        syncMode,
+        setLastSync,
+        syncConfig: webdavConfig,
+      };
+      syncSuccessContextRef.current = syncSuccessContext;
       const result = await syncAllAus(webdavConfig);
-      if (syncRequestId !== requestIdRef.current) return;
+      if (requestGuard.isStale(token)) return;
       // 暂存非冲突错误，供冲突解决后检查
       nonConflictErrorsRef.current = result.errors;
       // 格式化全部错误信息（不只第一条）
@@ -93,28 +130,18 @@ export function useSyncOperations(syncConfig: { url: string; username: string; p
         setSyncMessage(t('settings.sync.opsConflictsFound', { count: result.opsConflicts.length }));
       } else {
         // 完全成功——才更新 last_sync
-        const now = new Date().toISOString();
-        setLastSync(now);
-        await updateSettings({
-          sync: {
-            mode: syncMode,
-            webdav: { url: syncConfig.url, username: syncConfig.username, password: syncConfig.password, remote_dir: syncConfig.remote_dir },
-            last_sync: now,
-          },
-        }).catch((err) => { logCatch('sync', 'last_sync persist failed', err); });
-        setSyncResultStatus('success');
-        setSyncMessage(t('settings.sync.syncSuccess'));
+        await finalizeSyncSuccess(syncSuccessContext);
       }
     } catch (e: any) {
-      if (syncRequestId !== requestIdRef.current) return;
+      if (requestGuard.isStale(token)) return;
       setSyncResultStatus('error');
       setSyncMessage(t('settings.sync.syncError', { message: e?.message || t('error_messages.unknown') }));
     } finally {
-      if (syncRequestId === requestIdRef.current) {
+      if (!requestGuard.isStale(token)) {
         setSyncing(false);
       }
     }
-  }, [syncConfig, t]);
+  }, [finalizeSyncSuccess, requestGuard, syncConfig, t]);
 
   const handleResolveConflict = useCallback(async (path: string, choice: 'local' | 'remote') => {
     try {
@@ -138,15 +165,14 @@ export function useSyncOperations(syncConfig: { url: string; username: string; p
           const msgs = nonConflictErrorsRef.current;
           setSyncMessage(msgs.length <= 3 ? msgs.join('; ') : `${msgs.slice(0, 3).join('; ')} (+${msgs.length - 3})`);
         } else {
-          setSyncResultStatus('success');
-          setSyncMessage(t('settings.sync.syncSuccess'));
+          await finalizeSyncSuccess();
         }
       }
     } catch (e: any) {
       setSyncResultStatus('error');
       setSyncMessage(t('settings.sync.syncError', { message: e?.message || '' }));
     }
-  }, [syncConfig, t]);
+  }, [finalizeSyncSuccess, syncConfig, t]);
 
   const handleResolveAllConflicts = useCallback(async (choice: 'local' | 'remote') => {
     const webdavConfig: WebDAVConfig = { url: syncConfig.url, username: syncConfig.username, password: syncConfig.password, remote_dir: syncConfig.remote_dir };
@@ -175,11 +201,10 @@ export function useSyncOperations(syncConfig: { url: string; username: string; p
         const msgs = nonConflictErrorsRef.current;
         setSyncMessage(msgs.length <= 3 ? msgs.join('; ') : `${msgs.slice(0, 3).join('; ')} (+${msgs.length - 3})`);
       } else {
-        setSyncResultStatus('success');
-        setSyncMessage(t('settings.sync.syncSuccess'));
+        await finalizeSyncSuccess();
       }
     }
-  }, [conflicts, syncConfig, t]);
+  }, [conflicts, finalizeSyncSuccess, syncConfig, t]);
 
   const resetSyncState = useCallback(() => {
     setSyncing(false);
@@ -190,6 +215,7 @@ export function useSyncOperations(syncConfig: { url: string; username: string; p
     setOpsConflictDetails([]);
     setSyncTestStatus('idle');
     nonConflictErrorsRef.current = [];
+    syncSuccessContextRef.current = null;
   }, []);
 
   return {

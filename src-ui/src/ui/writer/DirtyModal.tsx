@@ -7,10 +7,11 @@ import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { AlertCircle, Check } from 'lucide-react';
 import { Tag } from '../shared/Tag';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { resolveDirtyChapter } from '../../api/engine-client';
 import { listFacts, extractFacts, addFact, type FactInfo, type ExtractedFactCandidate } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
+import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { useFeedback } from '../../hooks/useFeedback';
 
 type FactDecision = 'keep' | 'deprecate';
@@ -18,9 +19,8 @@ type FactDecision = 'keep' | 'deprecate';
 export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: { isOpen: boolean, onClose: () => void, auPath: string, chapterNum: number, onResolved?: () => void }) => {
   const { t } = useTranslation();
   const { showError } = useFeedback();
-  const activeContextRef = useRef({ auPath, chapterNum });
-  activeContextRef.current = { auPath, chapterNum };
-  const loadRequestIdRef = useRef(0);
+  const contextKey = `${isOpen ? 'open' : 'closed'}:${auPath}:${chapterNum}`;
+  const contextGuard = useActiveRequestGuard(contextKey);
 
   // Old facts
   const [oldFacts, setOldFacts] = useState<FactInfo[]>([]);
@@ -38,7 +38,6 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
 
   useEffect(() => {
     if (!isOpen) {
-      loadRequestIdRef.current += 1;
       setOldFacts([]);
       setDecisions({});
       setLoadingOld(false);
@@ -51,13 +50,13 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
     }
     if (!auPath || !chapterNum) return;
 
-    const requestId = ++loadRequestIdRef.current;
+    const token = contextGuard.start();
 
     // Load old facts
     setLoadingOld(true);
     listFacts(auPath, undefined)
       .then(all => {
-        if (requestId !== loadRequestIdRef.current) return;
+        if (contextGuard.isStale(token)) return;
         const chapterFacts = all.filter(f => f.chapter === chapterNum);
         setOldFacts(chapterFacts);
         const initial: Record<string, FactDecision> = {};
@@ -66,7 +65,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
       })
       .catch(() => {})
       .finally(() => {
-        if (requestId === loadRequestIdRef.current) setLoadingOld(false);
+        if (!contextGuard.isStale(token)) setLoadingOld(false);
       });
 
     // AI extract (parallel)
@@ -74,17 +73,17 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
     setExtractError(null);
     extractFacts(auPath, chapterNum)
       .then(res => {
-        if (requestId !== loadRequestIdRef.current) return;
+        if (contextGuard.isStale(token)) return;
         setCandidates(res.facts || []);
         // Default: select all
         setSelectedCandidates(new Set((res.facts || []).map((_, i) => i)));
       })
       .catch(e => {
-        if (requestId !== loadRequestIdRef.current) return;
+        if (contextGuard.isStale(token)) return;
         setExtractError(e instanceof Error ? e.message : String(e));
       })
       .finally(() => {
-        if (requestId === loadRequestIdRef.current) setExtracting(false);
+        if (!contextGuard.isStale(token)) setExtracting(false);
       });
   }, [isOpen, auPath, chapterNum]);
 
@@ -97,8 +96,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
   };
 
   const handleResolve = async () => {
-    const requestAuPath = auPath;
-    const requestChapter = chapterNum;
+    const snapshotKey = contextKey;
     setResolving(true);
     try {
       // 1. Resolve dirty: process old facts decisions + clear dirty flag
@@ -113,8 +111,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
       for (const idx of selectedCandidates) {
         const c = candidates[idx];
         if (!c) continue;
-        const active = activeContextRef.current;
-        if (active.auPath !== requestAuPath || active.chapterNum !== requestChapter) return;
+        if (contextGuard.isKeyStale(snapshotKey)) return;
         try {
           await addFact(auPath, chapterNum, {
             content_raw: c.content_raw,
@@ -130,20 +127,17 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
         }
       }
 
-      const active = activeContextRef.current;
-      if (active.auPath !== requestAuPath || active.chapterNum !== requestChapter) return;
+      if (contextGuard.isKeyStale(snapshotKey)) return;
       onClose();
       if (onResolved) onResolved();
       if (failCount > 0) {
         showError(new Error(t('dirty.saveFailed', { count: failCount })), t('error_messages.unknown'));
       }
     } catch (e: any) {
-      const active = activeContextRef.current;
-      if (active.auPath !== requestAuPath || active.chapterNum !== requestChapter) return;
+      if (contextGuard.isKeyStale(snapshotKey)) return;
       showError(e, t('error_messages.unknown'));
     } finally {
-      const active = activeContextRef.current;
-      if (active.auPath === requestAuPath && active.chapterNum === requestChapter) {
+      if (!contextGuard.isKeyStale(snapshotKey)) {
         setResolving(false);
       }
     }

@@ -2,13 +2,14 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { createFandom } from '../../api/engine-client';
+import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { StepIndicator } from './StepIndicator';
 
 export function CreateFandomStep({
@@ -19,17 +20,11 @@ export function CreateFandomStep({
   onPrev: () => void;
 }) {
   const { t } = useTranslation();
-  const requestIdRef = useRef(0);
+  const createGuard = useActiveRequestGuard('create-fandom-step');
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(false);
-
-  useEffect(() => {
-    return () => {
-      requestIdRef.current += 1;
-    };
-  }, []);
 
   const handleNext = async () => {
     const trimmed = name.trim();
@@ -37,18 +32,18 @@ export function CreateFandomStep({
       onNext(null); // skip
       return;
     }
-    const requestId = ++requestIdRef.current;
+    const token = createGuard.start();
     setCreating(true);
     setError('');
     try {
       await createFandom(trimmed);
-      if (requestId !== requestIdRef.current) return;
+      if (createGuard.isStale(token)) return;
       onNext(trimmed);
     } catch (e: any) {
-      if (requestId !== requestIdRef.current) return;
+      if (createGuard.isStale(token)) return;
       setError(e.message || t('error_messages.unknown'));
     } finally {
-      if (requestId === requestIdRef.current) {
+      if (!createGuard.isStale(token)) {
         setCreating(false);
       }
     }

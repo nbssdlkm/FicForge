@@ -5,6 +5,7 @@
  * Engine Trash — listTrash, restoreTrash, permanentDeleteTrash, purgeTrash.
  */
 
+import { ApiError } from "./client";
 import { getEngine } from "./engine-instance";
 
 export async function listTrash(_scope: string, path: string) {
@@ -12,7 +13,17 @@ export async function listTrash(_scope: string, path: string) {
 }
 
 export async function restoreTrash(_scope: string, path: string, trashId: string) {
-  await getEngine().trash.restore(path, trashId);
+  try {
+    await getEngine().trash.restore(path, trashId);
+  } catch (error) {
+    if (
+      error instanceof Error
+      && (error.message.includes("无法恢复") || error.message.toLowerCase().includes("restore conflict"))
+    ) {
+      throw new ApiError("restore_conflict", error.message, [], error.message);
+    }
+    throw error;
+  }
 }
 
 export async function permanentDeleteTrash(_scope: string, path: string, trashId: string) {

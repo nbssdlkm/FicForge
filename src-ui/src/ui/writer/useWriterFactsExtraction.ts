@@ -112,6 +112,15 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
     }
   }, [auPath, extractedCandidates, filterSelected, focusInstructionInput, lastConfirmedChapter, clearSelection, showError, showSuccess, t]);
 
+  const resetExtractionState = useCallback(() => {
+    setExtractingFacts(false);
+    setSavingExtracted(false);
+    setExtractedCandidates([]);
+    clearSelection();
+    setFactsPromptOpen(false);
+    setExtractReviewOpen(false);
+  }, [clearSelection]);
+
   return {
     // state
     isFactsPromptOpen,
@@ -136,6 +145,7 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
     handleOpenExtractReview,
     handleSaveExtracted,
     toggleExtractedCandidate,
+    resetExtractionState,
 
     // helper
     getCandidateKey,
