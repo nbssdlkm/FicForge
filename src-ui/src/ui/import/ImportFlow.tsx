@@ -137,7 +137,7 @@ export function ImportFlow({
           useAiAssist: effectiveAiAssist,
           thresholds: { chapterMinChars: chapterThreshold, skipMaxChars: skipThreshold },
           onStage: (stage) => {
-            if (requestId !== flowRequestIdRef.current) return;
+            if (requestGuard.isStale(token)) return;
             if (stage === "llm-chat-detect") {
               setAnalysisStatus((prev) => {
                 const next = new Map(prev);
