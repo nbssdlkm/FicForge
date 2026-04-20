@@ -104,10 +104,10 @@ export function WriterFooter(props: WriterFooterProps) {
           </Button>
         </div>
       ) : (
-        <div className="flex flex-col gap-3 p-4 pb-6 md:pb-4">
+        <div className="flex flex-col gap-4 p-4 pb-6 md:gap-3 md:pb-4">
           {hasPendingDrafts && currentDraft && (
-            <div className="mx-auto flex w-full max-w-[720px] flex-col gap-3 rounded-xl border border-black/10 bg-background/60 px-4 py-3 dark:border-white/10">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="mx-auto flex w-full max-w-[720px] flex-col gap-3 rounded-xl border border-black/10 bg-background/60 px-4 py-4 dark:border-white/10 md:py-3">
+              <div className="flex justify-center md:justify-start">
                 <DraftNavigator
                   drafts={drafts}
                   activeDraftIndex={activeDraftIndex}
@@ -115,24 +115,25 @@ export function WriterFooter(props: WriterFooterProps) {
                   disabled={writeActionsDisabled}
                   modified={currentDraft.modified}
                 />
-
-                <Button
-                  tone="neutral" fill="plain"
-                  size="sm"
-                  className="h-11 gap-1 shrink-0 self-end text-error/80 hover:bg-error/10 hover:text-error md:h-8 md:self-auto"
-                  onClick={onOpenDiscard}
-                  disabled={isGenerating || isDiscarding || isSettingsModeBusy}
-                >
-                  <Trash2 size={15} />
-                  {drafts.length > 1 ? t('drafts.discardAll') : t('drafts.discard')}
-                </Button>
               </div>
 
-              <div className="flex flex-col gap-2 text-xs text-text/50 lg:flex-row lg:items-center lg:justify-between">
-                <span>{currentDraftMeta || t('writer.metaDurationUnknown')}</span>
-                {drafts.length > MAX_RECOMMENDED_DRAFTS && (
-                  <span>{t('drafts.tooMany', { count: drafts.length })}</span>
-                )}
+              <div className="flex items-center justify-between gap-3 text-xs text-text/50">
+                <span className="min-w-0 flex-1 truncate">{currentDraftMeta || t('writer.metaDurationUnknown')}</span>
+                <div className="flex shrink-0 items-center gap-3">
+                  {drafts.length > MAX_RECOMMENDED_DRAFTS && (
+                    <span className="hidden md:inline">{t('drafts.tooMany', { count: drafts.length })}</span>
+                  )}
+                  <Button
+                    tone="neutral" fill="plain"
+                    size="sm"
+                    className="h-9 gap-1 px-2 text-error/80 hover:bg-error/10 hover:text-error md:h-8"
+                    onClick={onOpenDiscard}
+                    disabled={isGenerating || isDiscarding || isSettingsModeBusy}
+                  >
+                    <Trash2 size={15} />
+                    {drafts.length > 1 ? t('drafts.discardAll') : t('drafts.discard')}
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -179,7 +180,7 @@ export function WriterFooter(props: WriterFooterProps) {
                   <Button tone="accent" fill="solid" size="sm" className="h-10 gap-1" onClick={onOpenFinalize} disabled={writeActionsDisabled}>
                     <Check size={15} /> {t('drafts.finalize')}
                   </Button>
-                  <Button tone="neutral" fill="outline" size="sm" className="h-10 gap-1" onClick={onRegenerate} disabled={writeActionsDisabled}>
+                  <Button tone="accent" fill="outline" size="sm" className="h-10 gap-1" onClick={onRegenerate} disabled={writeActionsDisabled}>
                     {isGenerating ? <Spinner size="sm" /> : <RefreshCw size={15} />}
                     {t('drafts.regenerate')}
                   </Button>
@@ -196,17 +197,17 @@ export function WriterFooter(props: WriterFooterProps) {
             </div>
           </div>
 
-          <div className="mx-auto mt-2 flex w-full max-w-[720px] items-center justify-between border-t border-black/5 pt-3 dark:border-white/5 md:hidden">
-            <Button tone="neutral" fill="outline" size="sm" className="px-4" onClick={onOpenMobileTools}>
+          <div className="mx-auto mt-2 flex w-full max-w-[720px] items-center justify-between gap-2 border-t border-black/5 pt-4 dark:border-white/5 md:hidden">
+            <Button tone="neutral" fill="plain" size="sm" className="shrink-0 px-3 text-text/70" onClick={onOpenMobileTools}>
               {t('common.actions.more')}
             </Button>
             <div className="flex items-center gap-2">
               {hasPendingDrafts && (
                 <>
-                  <Button tone="accent" fill="solid" size="sm" onClick={onOpenFinalize} disabled={writeActionsDisabled}>
-                    <Check size={15} className="mr-1" /> {t('drafts.finalize')}
+                  <Button tone="accent" fill="solid" size="sm" className="h-11 gap-1 px-4" onClick={onOpenFinalize} disabled={writeActionsDisabled}>
+                    <Check size={15} /> {t('drafts.finalize')}
                   </Button>
-                  <Button tone="neutral" fill="outline" size="sm" className="w-11 px-0" onClick={onRegenerate} disabled={writeActionsDisabled} title={t('drafts.regenerate')} aria-label={t('drafts.regenerate')}>
+                  <Button tone="accent" fill="outline" size="sm" className="h-11 w-11 shrink-0 p-0" onClick={onRegenerate} disabled={writeActionsDisabled} title={t('drafts.regenerate')} aria-label={t('drafts.regenerate')}>
                     {isGenerating ? <Spinner size="sm" /> : <RefreshCw size={15} />}
                   </Button>
                 </>
@@ -214,7 +215,7 @@ export function WriterFooter(props: WriterFooterProps) {
               <Button
                 tone="accent" fill="solid"
                 size="sm"
-                className="min-w-[110px]"
+                className="h-11 min-w-[96px] px-4"
                 onClick={triggerGenerate}
                 disabled={writeActionsDisabled || hasPendingDrafts}
               >

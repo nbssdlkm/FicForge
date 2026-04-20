@@ -183,7 +183,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const finalizedChapter = chapterActions.lastConfirmedChapter ?? displayState.currentChapter;
   const headerProps = {
     mode, onModeChange: handleModeChange, isSettingsModeBusy, isGenerating: generation.isGenerating,
-    isViewingHistory: confirmedEditor.isViewingHistory, viewingHistoryNum: confirmedEditor.viewingHistoryNum, currentChapter: displayState.currentChapter,
+    isViewingHistory: confirmedEditor.isViewingHistory, viewingHistoryNum: confirmedEditor.viewingHistoryNum, currentChapter: displayState.displayedChapter,
     metaModel: displayState.metaModel, metaChars: displayState.metaChars, metaDuration: displayState.metaDuration, sessionTemp: sessionParams.sessionTemp,
     chaptersDirty: dirtyChapters, onOpenExport: chrome.openExport,
     onOpenDirty: () => { chrome.openDirty(dirtyChapterNum); showToast(t('writer.dirtyOpenHint'), 'info'); },
@@ -248,7 +248,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
               {confirmedEditor.isViewingHistory && (
                 <InlineBanner
                   tone="info"
-                  message={<>{t('workspace.chapterItem', { num: confirmedEditor.viewingHistoryNum })} 鈥?{t('writer.viewingHistory')}</>}
+                  message={<>{t('workspace.chapterItem', { num: confirmedEditor.viewingHistoryNum })} · {t('writer.viewingHistory')}</>}
                   actions={<><Button tone="neutral" fill="plain" size="sm" onClick={confirmedEditor.startEditingConfirmed} disabled={confirmedEditor.editingConfirmed}>{t('writer.editChapter')}</Button><Button tone="neutral" fill="plain" size="sm" onClick={confirmedEditor.clearHistoryView}>{t('writer.backToCurrentChapter')}</Button></>}
                 />
               )}

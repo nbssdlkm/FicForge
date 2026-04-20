@@ -173,7 +173,7 @@ export function ContextSummaryBar({ summary, onAdjustCoreIncludes }: ContextSumm
   return (
     <div
       className={[
-        'rounded-xl border px-4 py-3 text-sm shadow-subtle transition-colors',
+        'rounded-xl border px-4 py-4 text-sm shadow-subtle transition-colors md:py-3',
         hasWarning
           ? 'border-warning/30 bg-warning/10 text-warning'
           : 'border-black/10 bg-background/60 text-text/70 dark:border-white/10',

@@ -58,7 +58,7 @@ function formatGeneratedMeta(generatedWith?: DraftGeneratedWith | null, locale =
     parts.push(generatedWith.model);
   }
 
-  return parts.join(' 路 ');
+  return parts.join(' · ');
 }
 
 function getPreviewText(content: string, maxChars = 200): string {
@@ -89,6 +89,11 @@ export function deriveWriterDisplayState({
   const hasPendingDrafts = drafts.length > 0;
   const writeActionsDisabled = isGenerating || isFinalizing || isDiscarding || isSettingsModeBusy;
   const currentDraft = drafts[activeDraftIndex] || null;
+  // 「正在显示的章节」：当正在生成 / 有草稿时显示 current_chapter（正在写的一章），
+  // 否则显示 current_chapter - 1（最近已定稿的那一章，也就是主区此刻展示的内容）。
+  // 修复：从侧栏进入写作页时，header 曾显示「下一章」序号而非「当前最新章」。
+  const isWorkingOnCurrent = hasPendingDrafts || isGenerating || Boolean(streamText);
+  const displayedChapter = isWorkingOnCurrent ? currentChapter : Math.max(1, currentChapter - 1);
   const settingsFandomPath = auPath.split('/aus/')[0] || auPath;
   const currentDraftSummary = !isGenerating && currentDraft ? draftSummaries[currentDraft.label] || null : null;
   const activeGeneratedWith = currentDraft?.generatedWith || generatedWith;
@@ -121,6 +126,7 @@ export function deriveWriterDisplayState({
 
   return {
     currentChapter,
+    displayedChapter,
     hasPendingDrafts,
     writeActionsDisabled,
     currentDraft,
