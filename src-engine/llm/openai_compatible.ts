@@ -135,7 +135,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
 
     try {
       if (!resp.body) {
-        throw new LLMError("network_error", "LLM 返回空响应体，无法读取流数据", ["retry"]);
+        throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"]);
       }
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
@@ -187,7 +187,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
         throw createAbortError(e instanceof Error ? e.message : undefined);
       }
       if (isAbortError(e)) {
-        throw new LLMError("network_error", "缃戠粶寮傚父锛岃妫€鏌ヨ繛鎺ュ悗閲嶈瘯", ["retry"]);
+        throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"]);
       }
       throw e;
     } finally {
