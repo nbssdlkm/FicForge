@@ -4,9 +4,6 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { useKV } from '../../hooks/useKV';
-import {
-  type GenerateRequestState,
-} from '../../utils/writerStorage';
 import { useWriterFactsExtraction } from './useWriterFactsExtraction';
 import { useSessionParams } from './useSessionParams';
 import { useConfirmedChapterEditor } from './useConfirmedChapterEditor';
@@ -32,7 +29,6 @@ import { WriterFooter } from './WriterFooter';
 import { SettingsChatPanel } from '../shared/settings-chat/SettingsChatPanel';
 import { InlineBanner } from '../shared/InlineBanner';
 
-import { type DraftGeneratedWith } from '../../api/engine-client';
 import { type ContextSummary } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
@@ -86,21 +82,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
   const [focusSelection, setFocusSelection] = useState<string[]>([]);
 
-  const [drafts, setDrafts] = useState<DraftItem[]>([]);
-  const [activeDraftIndex, setActiveDraftIndex] = useState(0);
-  const [recoveryNotice, setRecoveryNotice] = useState(false);
   const [lastConfirmedChapter, setLastConfirmedChapter] = useState<number | null>(null);
 
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [isDiscarding, setIsDiscarding] = useState(false);
-  const [streamText, setStreamText] = useState('');
-  const [generatedWith, setGeneratedWith] = useState<DraftGeneratedWith | null>(null);
-  const [budgetReport, setBudgetReport] = useState<any>(null);
-  const [lastGenerateRequest, setLastGenerateRequest] = useState<GenerateRequestState | null>(null);
-  const [generationErrorDisplay, setGenerationErrorDisplay] = useState<{ message: string; actions: string[] } | null>(null);
-  const [draftSummaries, setDraftSummaries] = useState<Record<string, ContextSummary>>({});
-  const pendingContextSummaryRef = useRef<ContextSummary | null>(null);
   const bootstrapStateRef = useRef<{ current_chapter?: number } | null>(null);
   const sessionParamsBridgeRef = useRef<Pick<
     ReturnType<typeof useSessionParams>,
@@ -166,25 +151,15 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const lineHeight = parseFloat(lineHeightStr) || 1.8;
   const setLineHeight = useCallback((v: number) => setLineHeightKV(String(v)), [setLineHeightKV]);
 
-  useWriterResetOnAuChange<DraftItem>({
+  useWriterResetOnAuChange({
     auPath,
-    pendingContextSummaryRef,
     setIsSettingsModeBusy,
     setFocusSelection,
-    setDrafts,
-    setActiveDraftIndex,
-    setRecoveryNotice,
     setLastConfirmedChapter,
     setUndoConfirmOpen,
     setDirtyBannerDismissed,
-    setIsGenerating,
     setIsFinalizing,
     setIsDiscarding,
-    setStreamText,
-    setGeneratedWith,
-    setBudgetReport,
-    setLastGenerateRequest,
-    setDraftSummaries,
     setInstructionText,
     setFinalizeConfirmOpen,
     setDiscardConfirmOpen,
@@ -206,6 +181,21 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
   /** 绔嬪嵆鍐欏叆鎸傝捣鐨勮崏绋跨紪杈戯紝鐒跺悗娓呴櫎瀹氭椂鍣ㄣ€?*/
   const {
+    drafts,
+    activeDraftIndex,
+    streamText,
+    generatedWith,
+    budgetReport,
+    recoveryNotice,
+    draftSummaries,
+    appendStream,
+    resetStream,
+    markGeneratedWith,
+    markBudgetReport,
+    markRecoveryNotice,
+    attachPendingContextSummary,
+    getPendingContextSummary,
+    selectDraft,
     clearDraftState: clearDraftStateImpl,
     replaceDraftSummaries: replaceDraftSummariesImpl,
     attachDraftSummary,
@@ -215,17 +205,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     handleCurrentDraftChange,
   } = useWriterDraftController({
     auPath,
-    drafts,
-    activeDraftIndex,
     currentChapterNum,
-    pendingContextSummaryRef,
-    setDrafts,
-    setActiveDraftIndex,
-    setStreamText,
-    setGeneratedWith,
-    setBudgetReport,
-    setRecoveryNotice,
-    setDraftSummaries,
     onDraftSaveError: (error) => showError(error, t('error_messages.unknown')),
   });
   draftControllerBridgeRef.current = {
@@ -251,14 +231,12 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     loadDraftsForChapter,
     replaceDraftSummaries,
     clearDraftState,
-    pendingContextSummaryRef,
+    mergeDraftIntoState,
+    selectDraft,
+    markRecoveryNotice,
     showError,
     t,
     setFocusSelection,
-    setDrafts,
-    setActiveDraftIndex,
-    setRecoveryNotice,
-    setLastGenerateRequest,
     setInstructionText,
   });
   const sessionParams = useSessionParams(auPath, projectInfo, settingsInfo, showSuccess, showError);
@@ -302,32 +280,32 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   });
 
   const {
+    isGenerating,
+    generationErrorDisplay,
     handleGenerateFromInput,
     handleRegenerate,
+    dismissError,
   } = useWriterGeneration({
     auPath,
     state,
     drafts,
     instructionText,
-    lastGenerateRequest,
-    isGenerating,
     projectInfo,
     settingsInfo,
     sessionLlmPayload: sessionParams.sessionLlmPayload,
     sessionTemp: sessionParams.sessionTemp,
     sessionTopP: sessionParams.sessionTopP,
     generateGuard,
-    pendingContextSummaryRef,
     loadDraftByLabel,
     mergeDraftIntoState,
     attachDraftSummary,
-    setIsGenerating,
-    setStreamText,
-    setGeneratedWith,
-    setBudgetReport,
-    setRecoveryNotice,
-    setGenerationErrorDisplay,
-    setLastGenerateRequest,
+    appendStream,
+    resetStream,
+    markGeneratedWith,
+    markBudgetReport,
+    markRecoveryNotice,
+    attachPendingContextSummary,
+    getPendingContextSummary,
     showError,
     showToast,
     t,
@@ -512,7 +490,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                 onDraftChange={handleCurrentDraftChange}
                 displayContent={displayContent}
                 generationErrorDisplay={generationErrorDisplay}
-                onDismissError={() => setGenerationErrorDisplay(null)}
+                onDismissError={dismissError}
                 onNavigate={onNavigate}
                 fontSize={fontSize}
                 lineHeight={lineHeight}
@@ -539,7 +517,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
             onGenerate={(type) => { void handleGenerateFromInput(type); }}
             drafts={drafts}
             activeDraftIndex={activeDraftIndex}
-            onSelectDraft={setActiveDraftIndex}
+            onSelectDraft={selectDraft}
             currentDraft={currentDraft}
             hasPendingDrafts={hasPendingDrafts}
             currentDraftMeta={currentDraftMeta}

@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ApiError,
   generateChapter,
@@ -16,6 +16,7 @@ import {
 import type { ActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import {
   normalizeContextSummary,
+  readSavedGenerateRequest,
   saveGenerateRequest,
   type GenerateRequestState,
 } from '../../utils/writerStorage';
@@ -34,15 +35,12 @@ type UseWriterGenerationOptions = {
   state: StateInfo | null;
   drafts: DraftItem[];
   instructionText: string;
-  lastGenerateRequest: GenerateRequestState | null;
-  isGenerating: boolean;
   projectInfo: WriterProjectContext | null;
   settingsInfo: WriterSessionConfig | null;
   sessionLlmPayload: SessionLlmPayload;
   sessionTemp: number;
   sessionTopP: number;
   generateGuard: ActiveRequestGuard<string>;
-  pendingContextSummaryRef: MutableRefObject<ContextSummary | null>;
   loadDraftByLabel: (
     chapterNum: number,
     label: string,
@@ -51,13 +49,13 @@ type UseWriterGenerationOptions = {
   ) => Promise<DraftItem>;
   mergeDraftIntoState: (draft: DraftItem) => void;
   attachDraftSummary: (chapterNum: number, label: string, summary: ContextSummary) => void;
-  setIsGenerating: (busy: boolean) => void;
-  setStreamText: Dispatch<SetStateAction<string>>;
-  setGeneratedWith: (generatedWith: DraftGeneratedWith | null) => void;
-  setBudgetReport: (report: any) => void;
-  setRecoveryNotice: (show: boolean) => void;
-  setGenerationErrorDisplay: (value: { message: string; actions: string[] } | null) => void;
-  setLastGenerateRequest: (request: GenerateRequestState | null) => void;
+  appendStream: (text: string) => void;
+  resetStream: () => void;
+  markGeneratedWith: (generatedWith: DraftGeneratedWith | null) => void;
+  markBudgetReport: (report: any) => void;
+  markRecoveryNotice: (show: boolean) => void;
+  attachPendingContextSummary: (summary: ContextSummary | null) => void;
+  getPendingContextSummary: () => ContextSummary | null;
   showError: (error: unknown, fallback: string) => void;
   showToast: (message: string, tone?: 'info' | 'success' | 'warning' | 'error') => void;
   t: (key: string, params?: Record<string, unknown>) => string;
@@ -68,29 +66,44 @@ export function useWriterGeneration({
   state,
   drafts,
   instructionText,
-  lastGenerateRequest,
-  isGenerating,
   projectInfo,
   settingsInfo,
   sessionLlmPayload,
   sessionTemp,
   sessionTopP,
   generateGuard,
-  pendingContextSummaryRef,
   loadDraftByLabel,
   mergeDraftIntoState,
   attachDraftSummary,
-  setIsGenerating,
-  setStreamText,
-  setGeneratedWith,
-  setBudgetReport,
-  setRecoveryNotice,
-  setGenerationErrorDisplay,
-  setLastGenerateRequest,
+  appendStream,
+  resetStream,
+  markGeneratedWith,
+  markBudgetReport,
+  markRecoveryNotice,
+  attachPendingContextSummary,
+  getPendingContextSummary,
   showError,
   showToast,
   t,
 }: UseWriterGenerationOptions) {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationErrorDisplay, setGenerationErrorDisplay] = useState<{ message: string; actions: string[] } | null>(null);
+  const [lastGenerateRequest, setLastGenerateRequest] = useState<GenerateRequestState | null>(null);
+
+  useEffect(() => {
+    setIsGenerating(false);
+    setGenerationErrorDisplay(null);
+    setLastGenerateRequest(null);
+  }, [auPath]);
+
+  useEffect(() => {
+    if (!state) {
+      setLastGenerateRequest(null);
+      return;
+    }
+    setLastGenerateRequest(readSavedGenerateRequest(auPath, state.current_chapter));
+  }, [auPath, state?.current_chapter]);
+
   const handleGenerate = useCallback(async (request: GenerateRequestState) => {
     if (isGenerating || !state) return;
     const token = generateGuard.start();
@@ -104,12 +117,12 @@ export function useWriterGeneration({
     }
 
     setIsGenerating(true);
-    setStreamText('');
-    setGeneratedWith(null);
-    setBudgetReport(null);
-    setRecoveryNotice(false);
+    resetStream();
+    markGeneratedWith(null);
+    markBudgetReport(null);
+    markRecoveryNotice(false);
     setGenerationErrorDisplay(null);
-    pendingContextSummaryRef.current = null;
+    attachPendingContextSummary(null);
 
     setLastGenerateRequest(request);
     saveGenerateRequest(auPath, state.current_chapter, request);
@@ -132,7 +145,7 @@ export function useWriterGeneration({
         session_params: { temperature: sessionTemp, top_p: sessionTopP },
       })) {
         if (generateGuard.isStale(token)) {
-          pendingContextSummaryRef.current = null;
+          attachPendingContextSummary(null);
           return;
         }
 
@@ -140,7 +153,7 @@ export function useWriterGeneration({
           const summary = normalizeContextSummary(event.data);
           if (summary) {
             nextContextSummary = summary;
-            pendingContextSummaryRef.current = summary;
+            attachPendingContextSummary(summary);
           }
           continue;
         }
@@ -148,7 +161,7 @@ export function useWriterGeneration({
         if (event.event === 'token') {
           const text = event.data.text || '';
           nextText += text;
-          setStreamText((prev) => prev + text);
+          appendStream(text);
           continue;
         }
 
@@ -172,6 +185,9 @@ export function useWriterGeneration({
       }
 
       if (generationError) {
+        if (!nextContextSummary) {
+          nextContextSummary = getPendingContextSummary();
+        }
         if (partialDraftLabel) {
           const partialDraft = await loadDraftByLabel(
             state.current_chapter,
@@ -180,25 +196,25 @@ export function useWriterGeneration({
             nextGeneratedWith,
           );
           if (generateGuard.isStale(token)) {
-            pendingContextSummaryRef.current = null;
+            attachPendingContextSummary(null);
             return;
           }
           mergeDraftIntoState(partialDraft);
-          setGeneratedWith(partialDraft.generatedWith || nextGeneratedWith || null);
-          setStreamText('');
-          setRecoveryNotice(true);
+          markGeneratedWith(partialDraft.generatedWith || nextGeneratedWith || null);
+          resetStream();
+          markRecoveryNotice(true);
           if (nextContextSummary) {
             attachDraftSummary(state.current_chapter, partialDraftLabel, nextContextSummary);
           }
         } else {
-          setStreamText('');
+          resetStream();
         }
-        pendingContextSummaryRef.current = null;
+        attachPendingContextSummary(null);
         throw generationError;
       }
 
       if (!nextDraftLabel) {
-        pendingContextSummaryRef.current = null;
+        attachPendingContextSummary(null);
         throw new Error(t('writer.generateErrorFallback'));
       }
 
@@ -209,7 +225,7 @@ export function useWriterGeneration({
         nextGeneratedWith,
       );
       if (generateGuard.isStale(token)) {
-        pendingContextSummaryRef.current = null;
+        attachPendingContextSummary(null);
         return;
       }
 
@@ -217,14 +233,14 @@ export function useWriterGeneration({
       if (nextContextSummary) {
         attachDraftSummary(state.current_chapter, nextDraftLabel, nextContextSummary);
       }
-      setGeneratedWith(nextGeneratedWith);
-      setBudgetReport(nextBudgetReport);
-      pendingContextSummaryRef.current = null;
+      markGeneratedWith(nextGeneratedWith);
+      markBudgetReport(nextBudgetReport);
+      attachPendingContextSummary(null);
       requestAnimationFrame(() => {
-        if (!generateGuard.isStale(token)) setStreamText('');
+        if (!generateGuard.isStale(token)) resetStream();
       });
     } catch (error) {
-      pendingContextSummaryRef.current = null;
+      attachPendingContextSummary(null);
       if (generateGuard.isStale(token)) return;
       const isAbort = error instanceof DOMException && error.name === 'AbortError';
       const isNetwork = error instanceof TypeError && /fetch|network/i.test(error.message);
@@ -245,23 +261,25 @@ export function useWriterGeneration({
     }
   }, [
     attachDraftSummary,
+    appendStream,
+    attachPendingContextSummary,
     auPath,
     generateGuard,
+    getPendingContextSummary,
     isGenerating,
     loadDraftByLabel,
+    markBudgetReport,
+    markGeneratedWith,
+    markRecoveryNotice,
     mergeDraftIntoState,
-    pendingContextSummaryRef,
     projectInfo,
+    resetStream,
     sessionLlmPayload,
     sessionTemp,
     sessionTopP,
-    setBudgetReport,
-    setGeneratedWith,
     setGenerationErrorDisplay,
     setIsGenerating,
     setLastGenerateRequest,
-    setRecoveryNotice,
-    setStreamText,
     settingsInfo,
     showError,
     showToast,
@@ -284,15 +302,23 @@ export function useWriterGeneration({
 
   const handleRegenerate = useCallback(async () => {
     const trimmedInstruction = instructionText.trim();
+    const savedRequest = state ? readSavedGenerateRequest(auPath, state.current_chapter) : null;
     const request: GenerateRequestState = trimmedInstruction
       ? { inputType: 'instruction', userInput: trimmedInstruction }
-      : (lastGenerateRequest || { inputType: 'continue', userInput: t('common.actions.continue') });
+      : (lastGenerateRequest || savedRequest || { inputType: 'continue', userInput: t('common.actions.continue') });
 
     await handleGenerate(request);
-  }, [handleGenerate, instructionText, lastGenerateRequest, t]);
+  }, [auPath, handleGenerate, instructionText, lastGenerateRequest, state, t]);
+
+  const dismissError = useCallback(() => {
+    setGenerationErrorDisplay(null);
+  }, []);
 
   return {
+    isGenerating,
+    generationErrorDisplay,
     handleGenerateFromInput,
     handleRegenerate,
+    dismissError,
   };
 }

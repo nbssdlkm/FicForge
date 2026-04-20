@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getChapterContent,
   getState,
@@ -17,9 +17,7 @@ import {
 } from '../../api/engine-client';
 import {
   readSavedContextSummaries,
-  readSavedGenerateRequest,
   readSavedInstructionText,
-  type GenerateRequestState,
 } from '../../utils/writerStorage';
 import type { ActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 
@@ -36,14 +34,12 @@ type UseWriterBootstrapOptions<TDraft extends { label: string }> = {
   loadDraftsForChapter: (chapterNum: number) => Promise<TDraft[]>;
   replaceDraftSummaries: (chapterNum: number, summaries: Record<string, ContextSummary>) => void;
   clearDraftState: () => void;
-  pendingContextSummaryRef: MutableRefObject<ContextSummary | null>;
+  mergeDraftIntoState: (draft: TDraft) => void;
+  selectDraft: (index: number) => void;
+  markRecoveryNotice: (show: boolean) => void;
   showError: (error: unknown, fallback: string) => void;
   t: (key: string, params?: Record<string, unknown>) => string;
   setFocusSelection: (focus: string[]) => void;
-  setDrafts: (drafts: TDraft[]) => void;
-  setActiveDraftIndex: (index: number) => void;
-  setRecoveryNotice: (show: boolean) => void;
-  setLastGenerateRequest: (request: GenerateRequestState | null) => void;
   setInstructionText: (text: string) => void;
 };
 
@@ -58,14 +54,12 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
   loadDraftsForChapter,
   replaceDraftSummaries,
   clearDraftState,
-  pendingContextSummaryRef,
+  mergeDraftIntoState,
+  selectDraft,
+  markRecoveryNotice,
   showError,
   t,
   setFocusSelection,
-  setDrafts,
-  setActiveDraftIndex,
-  setRecoveryNotice,
-  setLastGenerateRequest,
   setInstructionText,
 }: UseWriterBootstrapOptions<TDraft>) {
   const [state, setState] = useState<StateInfo | null>(null);
@@ -150,16 +144,16 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
           {},
         );
 
-        setDrafts(loadedDrafts);
-        setActiveDraftIndex(loadedDrafts.length > 0 ? loadedDrafts.length - 1 : 0);
-        setRecoveryNotice(loadedDrafts.length > 0);
-        setLastGenerateRequest(readSavedGenerateRequest(auPath, stateData.current_chapter));
+        clearDraftState();
+        loadedDrafts.forEach((draft) => {
+          mergeDraftIntoState(draft);
+        });
+        selectDraft(loadedDrafts.length > 0 ? loadedDrafts.length - 1 : 0);
+        markRecoveryNotice(loadedDrafts.length > 0);
         setInstructionText(readSavedInstructionText(auPath, stateData.current_chapter));
         replaceDraftSummaries(stateData.current_chapter, filteredSummaries);
-        pendingContextSummaryRef.current = null;
       } else {
         clearDraftState();
-        setLastGenerateRequest(null);
         setInstructionText('');
         setProjectInfo(null);
       }
@@ -177,17 +171,15 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
     getConfiguredLlmModel,
     loadDraftsForChapter,
     loadGuard,
-    pendingContextSummaryRef,
+    markRecoveryNotice,
+    mergeDraftIntoState,
     replaceDraftSummaries,
-    setActiveDraftIndex,
-    setDrafts,
     setFocusSelection,
     setInstructionText,
-    setLastGenerateRequest,
-    setRecoveryNotice,
     setSessionModel,
     setSessionTemp,
     setSessionTopP,
+    selectDraft,
     showError,
     t,
   ]);

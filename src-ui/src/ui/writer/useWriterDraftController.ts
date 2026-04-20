@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getDraft,
   listDrafts,
@@ -62,38 +62,28 @@ type PendingDraftSave = {
 
 type UseWriterDraftControllerOptions = {
   auPath: string;
-  drafts: DraftItem[];
-  activeDraftIndex: number;
   currentChapterNum: number;
-  pendingContextSummaryRef: MutableRefObject<ContextSummary | null>;
-  setDrafts: Dispatch<SetStateAction<DraftItem[]>>;
-  setActiveDraftIndex: Dispatch<SetStateAction<number>>;
-  setStreamText: (text: string) => void;
-  setGeneratedWith: (generatedWith: DraftGeneratedWith | null) => void;
-  setBudgetReport: (report: any) => void;
-  setRecoveryNotice: (show: boolean) => void;
-  setDraftSummaries: Dispatch<SetStateAction<Record<string, ContextSummary>>>;
   onDraftSaveError?: (error: unknown) => void;
 };
 
 export function useWriterDraftController({
   auPath,
-  drafts,
-  activeDraftIndex,
   currentChapterNum,
-  pendingContextSummaryRef,
-  setDrafts,
-  setActiveDraftIndex,
-  setStreamText,
-  setGeneratedWith,
-  setBudgetReport,
-  setRecoveryNotice,
-  setDraftSummaries,
   onDraftSaveError,
 }: UseWriterDraftControllerOptions) {
+  const [drafts, setDrafts] = useState<DraftItem[]>([]);
+  const [activeDraftIndex, setActiveDraftIndex] = useState(0);
+  const [streamText, setStreamText] = useState('');
+  const [generatedWith, setGeneratedWith] = useState<DraftGeneratedWith | null>(null);
+  const [budgetReport, setBudgetReport] = useState<any>(null);
+  const [recoveryNotice, setRecoveryNotice] = useState(false);
+  const [draftSummaries, setDraftSummaries] = useState<Record<string, ContextSummary>>({});
   const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingDraftSaveRef = useRef<PendingDraftSave | null>(null);
+  const pendingContextSummaryRef = useRef<ContextSummary | null>(null);
   const draftSaveErrorShownRef = useRef(false);
+  const onDraftSaveErrorRef = useRef(onDraftSaveError);
+  onDraftSaveErrorRef.current = onDraftSaveError;
 
   const persistDraft = useCallback(async (pending: PendingDraftSave) => {
     try {
@@ -102,10 +92,10 @@ export function useWriterDraftController({
     } catch (error) {
       if (!draftSaveErrorShownRef.current) {
         draftSaveErrorShownRef.current = true;
-        onDraftSaveError?.(error);
+        onDraftSaveErrorRef.current?.(error);
       }
     }
-  }, [onDraftSaveError]);
+  }, []);
 
   const flushPendingDraftSave = useCallback((discard = false) => {
     if (draftSaveTimerRef.current) {
@@ -121,26 +111,56 @@ export function useWriterDraftController({
     pendingDraftSaveRef.current = null;
   }, [persistDraft]);
 
+  const appendStream = useCallback((text: string) => {
+    setStreamText((current) => current + text);
+  }, []);
+
+  const resetStream = useCallback(() => {
+    setStreamText('');
+  }, []);
+
+  const markGeneratedWith = useCallback((value: DraftGeneratedWith | null) => {
+    setGeneratedWith(value);
+  }, []);
+
+  const markBudgetReport = useCallback((report: any) => {
+    setBudgetReport(report);
+  }, []);
+
+  const markRecoveryNotice = useCallback((show: boolean) => {
+    setRecoveryNotice(show);
+  }, []);
+
+  const attachPendingContextSummary = useCallback((summary: ContextSummary | null) => {
+    pendingContextSummaryRef.current = summary;
+  }, []);
+
+  const getPendingContextSummary = useCallback(() => pendingContextSummaryRef.current, []);
+
+  const selectDraft = useCallback((index: number) => {
+    if (drafts.length === 0) {
+      setActiveDraftIndex(0);
+      return;
+    }
+    setActiveDraftIndex(Math.max(0, Math.min(drafts.length - 1, index)));
+  }, [drafts.length]);
+
   const clearDraftState = useCallback((discard = false) => {
     setDrafts([]);
     setActiveDraftIndex(0);
-    setStreamText('');
-    setGeneratedWith(null);
-    setBudgetReport(null);
-    setRecoveryNotice(false);
+    resetStream();
+    markGeneratedWith(null);
+    markBudgetReport(null);
+    markRecoveryNotice(false);
     setDraftSummaries({});
     pendingContextSummaryRef.current = null;
     flushPendingDraftSave(discard);
   }, [
     flushPendingDraftSave,
-    pendingContextSummaryRef,
-    setActiveDraftIndex,
-    setBudgetReport,
-    setDraftSummaries,
-    setDrafts,
-    setGeneratedWith,
-    setRecoveryNotice,
-    setStreamText,
+    markBudgetReport,
+    markGeneratedWith,
+    markRecoveryNotice,
+    resetStream,
   ]);
 
   const replaceDraftSummaries = useCallback((chapterNum: number, summaries: Record<string, ContextSummary>) => {
@@ -226,9 +246,36 @@ export function useWriterDraftController({
     }, 1500);
   }, [activeDraftIndex, auPath, currentChapterNum, drafts, persistDraft, setDrafts]);
 
+  useEffect(() => {
+    setDrafts([]);
+    setActiveDraftIndex(0);
+    setStreamText('');
+    setGeneratedWith(null);
+    setBudgetReport(null);
+    setRecoveryNotice(false);
+    setDraftSummaries({});
+    pendingContextSummaryRef.current = null;
+    flushPendingDraftSave(true);
+  }, [auPath, flushPendingDraftSave]);
+
   useEffect(() => () => flushPendingDraftSave(), [flushPendingDraftSave]);
 
   return {
+    drafts,
+    activeDraftIndex,
+    streamText,
+    generatedWith,
+    budgetReport,
+    recoveryNotice,
+    draftSummaries,
+    appendStream,
+    resetStream,
+    markGeneratedWith,
+    markBudgetReport,
+    markRecoveryNotice,
+    attachPendingContextSummary,
+    getPendingContextSummary,
+    selectDraft,
     clearDraftState,
     replaceDraftSummaries,
     attachDraftSummary,
