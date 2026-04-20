@@ -15,7 +15,7 @@ import { Search, Plus, ArrowLeft, FileText, ChevronDown, ChevronRight, Folder, T
 import { SettingsMarkdown } from '../shared/SettingsMarkdown';
 import { FandomLoreModals } from './FandomLoreModals';
 import { saveLore, deleteLore } from '../../api/engine-client';
-import { listFandomFiles, readFandomFile, type FandomFileEntry } from '../../api/engine-client';
+import { getFandomDisplayInfo, listFandomFiles, readFandomFile, type FandomFileEntry } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { FeedbackProvider, useFeedback } from '../../hooks/useFeedback';
 import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
@@ -75,7 +75,9 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
   const loadFilesGuard = useActiveRequestGuard(contextKey);
   const selectFileGuard = useActiveRequestGuard(contextKey);
   const contextGuard = useActiveRequestGuard(contextKey);
-  const fandomName = fandomPath?.split('/').pop() || t('common.unknownFandom');
+  const fandomDirName = fandomPath?.split('/').pop() || '';
+  const fallbackFandomName = fandomDirName || t('common.unknownFandom');
+  const [fandomName, setFandomName] = useState(fallbackFandomName);
   const editorBusy = isSaving || isReadingFile || settingsChatBusy;
   const isEditorDirty = selectedFile !== null && editorContent !== savedEditorContent;
   const settingsChatDisabled = isSaving || isReadingFile || isEditorDirty;
@@ -113,22 +115,27 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
     setCreateName('');
     setSearchTerm('');
     setFilesLoading(false);
+    setFandomName(fallbackFandomName);
     pendingSelectionRef.current = null;
     pendingCreateCategoryRef.current = null;
     pendingNavigationRef.current = null;
     pendingDeleteRef.current = false;
-  }, [fandomPath]);
+  }, [fallbackFandomName, fandomPath]);
 
   const loadFiles = async (): Promise<{
     characters: FandomFileEntry[];
     worldbuilding: FandomFileEntry[];
   } | null> => {
-    if (!fandomPath) return null;
+    if (!fandomPath || !fandomDirName) return null;
     const token = loadFilesGuard.start();
     setFilesLoading(true);
     try {
-      const data = await listFandomFiles(fandomName);
+      const [displayInfo, data] = await Promise.all([
+        getFandomDisplayInfo(fandomPath).catch(() => null),
+        listFandomFiles(fandomDirName),
+      ]);
       if (loadFilesGuard.isStale(token)) return null;
+      setFandomName(displayInfo?.name || fallbackFandomName);
       setCharacterFiles(data.characters);
       setWorldbuildingFiles(data.worldbuilding);
       return data;
@@ -145,7 +152,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
 
   useEffect(() => {
     void loadFiles();
-  }, [fandomName, fandomPath, showError, t]);
+  }, [fandomDirName, fandomPath, fallbackFandomName, showError, t]);
 
   const openDiscardChangesConfirm = (
     nextAction:
@@ -179,6 +186,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
   };
 
   const handleSelectFile = async (filename: string, category: 'core_characters' | 'core_worldbuilding') => {
+    if (!fandomDirName) return;
     const token = selectFileGuard.start();
     setSelectedFile(filename);
     setSelectedCategory(category);
@@ -186,7 +194,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
     setSavedEditorContent('');
     setIsReadingFile(true);
     try {
-      const result = await readFandomFile(fandomName, category, filename);
+      const result = await readFandomFile(fandomDirName, category, filename);
       if (selectFileGuard.isStale(token)) return;
       setEditorContent(result.content);
       setSavedEditorContent(result.content);
@@ -297,7 +305,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
     let latestFiles: { characters: FandomFileEntry[]; worldbuilding: FandomFileEntry[] } | null = null;
 
     try {
-      latestFiles = await listFandomFiles(fandomName);
+      latestFiles = await listFandomFiles(fandomDirName);
       if (contextGuard.isKeyStale(contextSnapshot)) { setIsSaving(false); return; }
       setCharacterFiles(latestFiles.characters);
       setWorldbuildingFiles(latestFiles.worldbuilding);

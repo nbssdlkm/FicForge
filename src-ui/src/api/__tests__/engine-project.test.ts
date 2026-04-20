@@ -93,6 +93,16 @@ describe("engine-project commands and queries", () => {
     expect(project.embedding_lock.api_key).toBe("embed-secret");
     expect(writerContext.llm.has_api_key).toBe(true);
     expect("api_key" in writerContext.llm).toBe(false);
+    expect(workspace.au_name).toBe("Canon");
     expect(workspace.pinned_count).toBe(1);
+  });
+
+  it("keeps workspace display names from project metadata", async () => {
+    const fandom = await createFandom("My/Fandom");
+    const au = await createAu(fandom.name, "AU/One", fandom.path);
+
+    const workspace = await getWorkspaceSnapshot(au.path);
+
+    expect(workspace.au_name).toBe("AU/One");
   });
 });

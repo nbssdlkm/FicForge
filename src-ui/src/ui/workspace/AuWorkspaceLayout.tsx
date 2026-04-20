@@ -43,13 +43,13 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const [loadingChapters, setLoadingChapters] = useState(false);
 
   const [milestoneRefreshKey, setMilestoneRefreshKey] = useState(0);
+  const fallbackAuName = auPath.split('/').pop() || t('common.unknownAu');
+  const [auName, setAuName] = useState(fallbackAuName);
 
   const refreshChapters = useCallback(() => {
     listChapters(auPath).then(chs => { if (!loadGuard.isKeyStale(auPath)) setChapters(chs); }).catch((err) => logCatch('workspace', 'refreshChapters failed', err));
     setMilestoneRefreshKey(k => k + 1);
   }, [auPath, loadGuard]);
-
-  const auName = auPath.split('/').pop() || t('common.unknownAu');
   const { shouldShow, dismiss } = useMilestoneGuide();
 
   // Milestone data (loaded once, from existing page data)
@@ -89,6 +89,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
     setPinnedCount(0);
     setUnresolvedFact(null);
     setChapterFocusEmpty(true);
+    setAuName(fallbackAuName);
     setViewingChapter(null);
     editingRef.current = null;
     setEditingTitleNum(null);
@@ -112,7 +113,12 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
         setEmbeddingStale(true);
       }
     }).catch(() => {});
-  }, [auPath, loadGuard]);
+
+    getWorkspaceSnapshot(auPath).then((snapshot) => {
+      if (loadGuard.isStale(token)) return;
+      setAuName(snapshot.au_name || fallbackAuName);
+    }).catch(() => {});
+  }, [auPath, fallbackAuName, loadGuard]);
 
   // Milestone data — refreshes when auPath changes OR after mutations (refreshKey)
   useEffect(() => {

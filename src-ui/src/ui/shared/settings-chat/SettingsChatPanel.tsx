@@ -116,7 +116,9 @@ function toApiMessages(
 ): { role: "user" | "assistant"; content: string }[] {
   return messages.map((message) => ({
     role: message.role,
-    content: message.role === "assistant" ? serializeAssistantMessage(message, t) : message.content,
+    content: message.role === "assistant"
+      ? serializeAssistantMessage(message, t)
+      : (message.requestContent ?? message.content),
   }));
 }
 
@@ -895,6 +897,7 @@ export function SettingsChatPanel({
         id: userMessageId,
         role: "user" as const,
         content: trimmed,
+        requestContent: outgoing,
       },
     ];
 

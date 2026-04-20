@@ -168,29 +168,30 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
     const requestAuPath = auPath;
     setSaving(true);
     try {
-      if (project) {
-        await saveAuSettingsForEditing(auPath, buildAuSettingsSaveInput({
-          perspective,
-          emotionStyle,
-          chapterLength,
-          customInstructions,
-          pinnedContext,
-          coreIncludes,
-          isLlmOverride,
-          llmMode,
-          auModel,
-          auLocalModelPath,
-          auOllamaModel,
-          auApiBase,
-          auApiKey,
-          contextWindow,
-          isEmbeddingOverride,
-          embModel,
-          embApiBase,
-          embApiKey,
-        }));
-        if (loadGuard.isKeyStale(requestAuPath)) return;
+      if (!project) {
+        throw new Error(t("settingsMode.error.projectUnavailable"));
       }
+      await saveAuSettingsForEditing(auPath, buildAuSettingsSaveInput({
+        perspective,
+        emotionStyle,
+        chapterLength,
+        customInstructions,
+        pinnedContext,
+        coreIncludes,
+        isLlmOverride,
+        llmMode,
+        auModel,
+        auLocalModelPath,
+        auOllamaModel,
+        auApiBase,
+        auApiKey,
+        contextWindow,
+        isEmbeddingOverride,
+        embModel,
+        embApiBase,
+        embApiKey,
+      }));
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       showSuccess(t("common.actions.save"));
     } catch (e: any) {
       if (loadGuard.isKeyStale(requestAuPath)) return;

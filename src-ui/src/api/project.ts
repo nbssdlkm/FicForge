@@ -21,6 +21,7 @@ export interface WriterProjectContext {
 }
 
 export interface WorkspaceSnapshot {
+  au_name: string;
   pinned_count: number;
 }
 

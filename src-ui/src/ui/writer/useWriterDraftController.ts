@@ -73,6 +73,7 @@ type UseWriterDraftControllerOptions = {
   setBudgetReport: (report: any) => void;
   setRecoveryNotice: (show: boolean) => void;
   setDraftSummaries: Dispatch<SetStateAction<Record<string, ContextSummary>>>;
+  onDraftSaveError?: (error: unknown) => void;
 };
 
 export function useWriterDraftController({
@@ -88,9 +89,23 @@ export function useWriterDraftController({
   setBudgetReport,
   setRecoveryNotice,
   setDraftSummaries,
+  onDraftSaveError,
 }: UseWriterDraftControllerOptions) {
   const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingDraftSaveRef = useRef<PendingDraftSave | null>(null);
+  const draftSaveErrorShownRef = useRef(false);
+
+  const persistDraft = useCallback(async (pending: PendingDraftSave) => {
+    try {
+      await saveDraft(pending.auPath, pending.chapterNum, pending.label, pending.content);
+      draftSaveErrorShownRef.current = false;
+    } catch (error) {
+      if (!draftSaveErrorShownRef.current) {
+        draftSaveErrorShownRef.current = true;
+        onDraftSaveError?.(error);
+      }
+    }
+  }, [onDraftSaveError]);
 
   const flushPendingDraftSave = useCallback((discard = false) => {
     if (draftSaveTimerRef.current) {
@@ -100,11 +115,11 @@ export function useWriterDraftController({
 
     const pending = pendingDraftSaveRef.current;
     if (pending && !discard) {
-      saveDraft(pending.auPath, pending.chapterNum, pending.label, pending.content).catch(() => {});
+      void persistDraft(pending);
     }
 
     pendingDraftSaveRef.current = null;
-  }, []);
+  }, [persistDraft]);
 
   const clearDraftState = useCallback((discard = false) => {
     setDrafts([]);
@@ -205,11 +220,11 @@ export function useWriterDraftController({
       clearTimeout(draftSaveTimerRef.current);
     }
     draftSaveTimerRef.current = setTimeout(() => {
-      saveDraft(auPath, chapterNum, label, content).catch(() => {});
+      void persistDraft({ auPath, chapterNum, label, content });
       pendingDraftSaveRef.current = null;
       draftSaveTimerRef.current = null;
     }, 1500);
-  }, [activeDraftIndex, auPath, currentChapterNum, drafts, setDrafts]);
+  }, [activeDraftIndex, auPath, currentChapterNum, drafts, persistDraft, setDrafts]);
 
   useEffect(() => () => flushPendingDraftSave(), [flushPendingDraftSave]);
 

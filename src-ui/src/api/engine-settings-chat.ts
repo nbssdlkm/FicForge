@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 /**
- * Engine Settings Chat — sendSettingsChat.
+ * Engine Settings Chat - sendSettingsChat.
  */
 
 import {
@@ -11,6 +11,7 @@ import {
   resolve_llm_config,
   create_provider,
 } from "@ficforge/engine";
+import { ApiError, getFriendlyErrorMessage } from "./client";
 import { getEngine } from "./engine-instance";
 
 export async function sendSettingsChat(params: {
@@ -38,14 +39,32 @@ export async function sendSettingsChat(params: {
     {},
     sett,
   );
-  // Settings chat 依赖 tool calling。
-  // - api：所有 OpenAI 兼容接口都支持
-  // - ollama：/v1 端点从 0.1.x 开始支持，但需要模型本身支持（如 llama3.1, qwen2.5）；
-  //   这里放行，用户的模型不支持会收到 tool_call 相关错误，错误会回传给用户
-  // - local：需要 sidecar 扩展，未实现
-  if (llmConfig.mode === "local") {
-    throw new Error("设定模式对话暂不支持 local 模式，请切换到 API 或 Ollama（Ollama 需选择支持 tool calling 的模型如 llama3.1 / qwen2.5）");
+
+  if (llmConfig.mode === "api") {
+    if (!llmConfig.api_key?.trim()) {
+      throw new ApiError(
+        "no_api_key",
+        getFriendlyErrorMessage({ error_code: "no_api_key" }),
+        [],
+      );
+    }
+    if (!llmConfig.api_base?.trim()) {
+      throw new ApiError(
+        "api_base_missing",
+        getFriendlyErrorMessage({ error_code: "api_base_missing" }),
+        [],
+      );
+    }
   }
+
+  // Settings chat relies on tool calling support.
+  // - api: any OpenAI-compatible endpoint that supports tools
+  // - ollama: supported by newer /v1-compatible models like llama3.1 / qwen2.5
+  // - local: not implemented in the current frontend/sidecar flow
+  if (llmConfig.mode === "local") {
+    throw new Error("设定模式对话暂不支持 local 模式，请切换到 API 或 Ollama。");
+  }
+
   const provider = create_provider(llmConfig);
   const result = await call_settings_llm(assembled, params.mode as "au" | "fandom", provider);
 

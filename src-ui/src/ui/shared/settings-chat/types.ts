@@ -35,6 +35,7 @@ export interface SettingsChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  requestContent?: string;
   toolCalls?: ToolCallCardState[];
 }
 

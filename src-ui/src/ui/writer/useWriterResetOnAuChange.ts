@@ -6,7 +6,6 @@ import { useEffect, type MutableRefObject } from 'react';
 import type {
   ContextSummary,
   DraftGeneratedWith,
-  ExtractedFactCandidate,
   FactInfo,
   StateInfo,
   WriterProjectContext,
@@ -45,14 +44,7 @@ type UseWriterResetOnAuChangeOptions<TDraft> = {
   setDirtyOpen: (open: boolean) => void;
   setExportOpen: (open: boolean) => void;
   setMobileToolsOpen: (open: boolean) => void;
-  factsExtraction: {
-    setExtractingFacts: (extracting: boolean) => void;
-    setSavingExtracted: (saving: boolean) => void;
-    setExtractedCandidates: (candidates: ExtractedFactCandidate[]) => void;
-    clearSelection: () => void;
-    setFactsPromptOpen: (open: boolean) => void;
-    setExtractReviewOpen: (open: boolean) => void;
-  };
+  resetFactsExtraction: () => void;
 };
 
 export function useWriterResetOnAuChange<TDraft>({
@@ -86,7 +78,7 @@ export function useWriterResetOnAuChange<TDraft>({
   setDirtyOpen,
   setExportOpen,
   setMobileToolsOpen,
-  factsExtraction,
+  resetFactsExtraction,
 }: UseWriterResetOnAuChangeOptions<TDraft>) {
   useEffect(() => {
     setLoading(true);
@@ -106,8 +98,7 @@ export function useWriterResetOnAuChange<TDraft>({
     setIsGenerating(false);
     setIsFinalizing(false);
     setIsDiscarding(false);
-    factsExtraction.setExtractingFacts(false);
-    factsExtraction.setSavingExtracted(false);
+    resetFactsExtraction();
     setStreamText('');
     setGeneratedWith(null);
     setBudgetReport(null);
@@ -115,19 +106,15 @@ export function useWriterResetOnAuChange<TDraft>({
     setDraftSummaries({});
     pendingContextSummaryRef.current = null;
     setInstructionText('');
-    factsExtraction.setExtractedCandidates([]);
-    factsExtraction.clearSelection();
     setFinalizeConfirmOpen(false);
     setDiscardConfirmOpen(false);
-    factsExtraction.setFactsPromptOpen(false);
-    factsExtraction.setExtractReviewOpen(false);
     setDirtyOpen(false);
     setExportOpen(false);
     setMobileToolsOpen(false);
   }, [
     auPath,
-    factsExtraction,
     pendingContextSummaryRef,
+    resetFactsExtraction,
     setActiveDraftIndex,
     setBudgetReport,
     setCurrentContent,

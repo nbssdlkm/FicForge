@@ -55,10 +55,10 @@ export function useLibraryImportFlow({
     setResumeImportAfterFandomCreate(false);
   };
 
-  const handleCreatedFandom = (createdFandom: { name: string }) => {
+  const handleCreatedFandom = (createdFandom: { name: string; dir_name: string }) => {
     if (!resumeImportAfterFandomCreate) return;
     setImportAuPath('');
-    setImportSelectedFandom({ name: createdFandom.name, dir: createdFandom.name });
+    setImportSelectedFandom({ name: createdFandom.name, dir: createdFandom.dir_name });
     setImportNewAuName('');
     setImportModalOpen(true);
     setResumeImportAfterFandomCreate(false);
@@ -70,12 +70,12 @@ export function useLibraryImportFlow({
   };
 
   const handleCreateImportAu = async (fandomDir: string) => {
-    if (!importNewAuName.trim()) return;
+    if (!importNewAuName.trim() || !importSelectedFandom) return;
     setImportCreatingAu(true);
     try {
       const fandomPath = `${dataDir}/fandoms/${fandomDir}`;
       const auName = importNewAuName.trim();
-      const createdAu = await createAu(fandomDir, auName, fandomPath);
+      const createdAu = await createAu(importSelectedFandom.name, auName, fandomPath);
       await loadFandoms();
       setImportAuPath(createdAu.path);
       setImportSelectedFandom(null);

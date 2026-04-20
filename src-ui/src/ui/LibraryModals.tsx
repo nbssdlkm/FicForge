@@ -28,8 +28,8 @@ export type LibraryModalsProps = {
   creatingAu: boolean;
 
   // Delete confirmation modal
-  deleteTarget: { type: 'fandom' | 'au'; fandomDir: string; fandomName: string; auName?: string } | null;
-  setDeleteTarget: (target: { type: 'fandom' | 'au'; fandomDir: string; fandomName: string; auName?: string } | null) => void;
+  deleteTarget: { type: 'fandom' | 'au'; fandomDir: string; fandomName: string; auDir?: string; auName?: string } | null;
+  setDeleteTarget: (target: { type: 'fandom' | 'au'; fandomDir: string; fandomName: string; auDir?: string; auName?: string } | null) => void;
   handleDelete: () => void;
   deleting: boolean;
 };

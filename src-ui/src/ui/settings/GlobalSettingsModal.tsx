@@ -378,7 +378,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
               >
                 {SUPPORTED_LANGUAGES.map(lang => (
                   <option key={lang} value={lang}>
-                    {lang === 'zh' ? '涓枃' : 'English'}
+                    {lang === 'zh' ? '中文' : 'English'}
                   </option>
                 ))}
               </select>
@@ -398,7 +398,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
 
           <DebugLogsSection />
 
-          <p className="text-xs text-text/30 leading-relaxed mt-4">{t('ethics.aboutFooter')}</p>
+          <p className="mt-4 text-xs leading-relaxed text-text/30">{t('ethics.aboutFooter')}</p>
 
           <div className="flex justify-end gap-3 border-t border-black/10 pt-5 dark:border-white/10">
             <Button tone="neutral" fill="plain" onClick={onClose} disabled={saving}>{t('common.actions.cancel')}</Button>

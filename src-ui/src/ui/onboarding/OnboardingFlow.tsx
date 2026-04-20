@@ -15,10 +15,24 @@ import { useTranslation } from '../../i18n/useAppTranslation';
 import { buildDefaultLlmSettingsInput } from '../shared/llm-config';
 
 const ONBOARDING_KEY = 'ficforge.onboarding.completed';
+const ONBOARDING_DISMISSED_SESSION_KEY = 'ficforge.onboarding.dismissed_session';
 
 export function isOnboardingCompleted(): boolean {
   try { return localStorage.getItem(ONBOARDING_KEY) === 'true'; }
   catch { return false; }
+}
+
+export function isOnboardingDismissedForSession(): boolean {
+  try { return sessionStorage.getItem(ONBOARDING_DISMISSED_SESSION_KEY) === 'true'; }
+  catch { return false; }
+}
+
+export function markOnboardingDismissedForSession() {
+  try { sessionStorage.setItem(ONBOARDING_DISMISSED_SESSION_KEY, 'true'); } catch { /* ignore */ }
+}
+
+export function clearOnboardingDismissedForSession() {
+  try { sessionStorage.removeItem(ONBOARDING_DISMISSED_SESSION_KEY); } catch { /* ignore */ }
 }
 
 export function OnboardingFlow({ onComplete }: { onComplete: (result?: OnboardingCompletion) => void }) {
@@ -59,6 +73,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
 
   const handleComplete = useCallback((result?: OnboardingCompletion) => {
     try { localStorage.setItem(ONBOARDING_KEY, 'true'); } catch { /* ignore */ }
+    clearOnboardingDismissedForSession();
     onComplete(result);
   }, [onComplete]);
 
@@ -66,6 +81,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
     // 只有配置已成功保存才标记完成
     if (configSaved) {
       try { localStorage.setItem(ONBOARDING_KEY, 'true'); } catch { /* ignore */ }
+      clearOnboardingDismissedForSession();
       onComplete();
     } else {
       // 未保存配置，弹确认
@@ -75,6 +91,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
 
   const handleConfirmClose = useCallback(() => {
     // 用户确认跳过——不标记 completed，下次打开会重新检查
+    markOnboardingDismissedForSession();
     setShowCloseConfirm(false);
     onComplete();
   }, [onComplete]);

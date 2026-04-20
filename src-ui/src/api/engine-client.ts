@@ -52,7 +52,7 @@ export type {
   WorkspaceSnapshot,
   WriterProjectContext,
 } from "./project";
-export type { FandomInfo, FandomFileEntry, FandomFilesResponse } from "./fandoms";
+export type { FandomDisplayInfo, FandomInfo, FandomFileEntry, FandomFilesResponse } from "./fandoms";
 export type { TrashScope } from "./trash";
 export type { GenerateParams } from "./generate";
 export type { SettingsChatMode, SettingsChatMessagePayload, SettingsChatSessionLlm, SettingsChatToolCall, SettingsChatResponse } from "./settingsChat";
@@ -122,7 +122,7 @@ export { generateChapter } from "./engine-generate";
 export { listTrash, restoreTrash, permanentDeleteTrash, purgeTrash } from "./engine-trash";
 export { saveLore, readLore, deleteLore, listLoreFiles, importFromFandom, getLoreContent } from "./engine-lore";
 export { sendSettingsChat } from "./engine-settings-chat";
-export { listFandoms, createFandom, listAus, createAu, deleteFandom, deleteAu, listFandomFiles, readFandomFile, renameFandom, renameAu } from "./engine-fandom";
+export { listFandoms, getFandomDisplayInfo, createFandom, listAus, createAu, deleteFandom, deleteAu, listFandomFiles, readFandomFile, renameFandom, renameAu } from "./engine-fandom";
 export { exportChapters, importChaptersFromText } from "./engine-export";
 export { migrateLegacySecureStorage } from "./engine-security";
 

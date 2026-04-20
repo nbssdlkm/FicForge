@@ -36,16 +36,21 @@ export function useSyncOperations(syncConfig: { url: string; username: string; p
   const finalizeSyncSuccess = useCallback(async (contextOverride?: SyncSuccessContext | null) => {
     const context = contextOverride ?? syncSuccessContextRef.current;
     const now = new Date().toISOString();
-    context?.setLastSync(now);
     if (context) {
-      await saveSyncSettings({
-        mode: context.syncMode,
-        url: context.syncConfig.url,
-        username: context.syncConfig.username,
-        password: context.syncConfig.password,
-        remote_dir: context.syncConfig.remote_dir,
-        last_sync: now,
-      }).catch((err) => { logCatch('sync', 'last_sync persist failed', err); });
+      try {
+        await saveSyncSettings({
+          mode: context.syncMode,
+          url: context.syncConfig.url,
+          username: context.syncConfig.username,
+          password: context.syncConfig.password,
+          remote_dir: context.syncConfig.remote_dir,
+          last_sync: now,
+        });
+      } catch (err) {
+        logCatch('sync', 'last_sync persist failed', err);
+        throw err;
+      }
+      context.setLastSync(now);
     }
     setSyncResultStatus('success');
     setSyncMessage(t('settings.sync.syncSuccess'));

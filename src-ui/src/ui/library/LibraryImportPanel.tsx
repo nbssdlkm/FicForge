@@ -70,14 +70,14 @@ export function LibraryImportPanel({
                 <div key={fandom.dir_name} className="space-y-1.5">
                   <div className="text-xs font-medium text-text/50 px-1">{fandom.name}</div>
                   {fandom.aus.map((au) => {
-                    const auPath = `${dataDir}/fandoms/${fandom.dir_name}/aus/${au}`;
+                    const auPath = `${dataDir}/fandoms/${fandom.dir_name}/aus/${au.dir_name}`;
                     return (
                       <button
                         key={auPath}
                         className="min-h-[44px] w-full rounded-lg border border-black/10 px-4 py-2.5 text-left transition-colors hover:border-accent/30 hover:bg-accent/5 dark:border-white/10"
                         onClick={() => onSelectAuPath(auPath)}
                       >
-                        <div className="text-sm font-medium">{au}</div>
+                        <div className="text-sm font-medium">{au.name}</div>
                       </button>
                     );
                   })}

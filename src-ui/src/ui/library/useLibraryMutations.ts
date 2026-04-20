@@ -9,6 +9,7 @@ export type LibraryDeleteTarget = {
   type: 'fandom' | 'au';
   fandomDir: string;
   fandomName: string;
+  auDir?: string;
   auName?: string;
 } | null;
 
@@ -17,7 +18,7 @@ type UseLibraryMutationsOptions = {
   loadFandoms: () => Promise<void>;
   onNavigate: (page: string, auPath?: string) => void;
   onError: (error: unknown) => void;
-  onCreatedFandom?: (createdFandom: { name: string }) => void;
+  onCreatedFandom?: (createdFandom: { name: string; dir_name: string }) => void;
   onCloseFandomModal?: () => void;
 };
 
@@ -59,8 +60,8 @@ export function useLibraryMutations({
     setDeleteTarget({ type: 'fandom', fandomDir, fandomName });
   };
 
-  const openDeleteAu = (fandomDir: string, fandomName: string, auName: string) => {
-    setDeleteTarget({ type: 'au', fandomDir, fandomName, auName });
+  const openDeleteAu = (fandomDir: string, fandomName: string, auDir: string, auName: string) => {
+    setDeleteTarget({ type: 'au', fandomDir, fandomName, auDir, auName });
   };
 
   const handleCreateFandom = async () => {
@@ -85,7 +86,7 @@ export function useLibraryMutations({
     try {
       const fandomPath = `${dataDir}/fandoms/${selectedFandomDir}`;
       const auName = newAuName.trim();
-      const createdAu = await createAu(selectedFandomDir, auName, fandomPath);
+      const createdAu = await createAu(selectedFandom, auName, fandomPath);
       setAuModalOpen(false);
       setNewAuName('');
       onNavigate('writer', createdAu.path);
@@ -103,7 +104,7 @@ export function useLibraryMutations({
       if (deleteTarget.type === 'fandom') {
         await deleteFandom(deleteTarget.fandomDir);
       } else {
-        await deleteAu(deleteTarget.fandomDir, deleteTarget.auName!);
+        await deleteAu(deleteTarget.fandomDir, deleteTarget.auDir || deleteTarget.auName!);
       }
       setDeleteTarget(null);
       await loadFandoms();

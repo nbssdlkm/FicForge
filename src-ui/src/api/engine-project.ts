@@ -86,6 +86,7 @@ export async function getProjectCapabilities(_auPath: string): Promise<ProjectCa
 export async function getWorkspaceSnapshot(auPath: string): Promise<WorkspaceSnapshot> {
   const project = await readProject(auPath);
   return {
+    au_name: project.name?.trim() || auPath.split("/").pop() || "",
     pinned_count: project.pinned_context.length,
   };
 }

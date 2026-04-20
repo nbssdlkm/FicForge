@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, FileText, Pencil, Eye, Trash2, Users, Globe2, Sparkles } from "lucide-react";
 import { Spinner } from "../shared/Spinner";
 import { useTranslation } from "../../i18n/useAppTranslation";
-import { listFandomFiles, readFandomFile, saveLore, deleteLore, type FandomFileEntry } from "../../api/engine-client";
+import { getFandomDisplayInfo, listFandomFiles, readFandomFile, saveLore, deleteLore, type FandomFileEntry } from "../../api/engine-client";
 import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
 import { TrashPanel } from "../shared/TrashPanel";
 import { Button } from "../shared/Button";
@@ -36,7 +36,9 @@ export function MobileFandomView(props: MobileFandomViewProps) {
 function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps) {
   const { t } = useTranslation();
   const { showError } = useFeedback();
-  const fandomName = fandomPath.split("/").pop() || "";
+  const fandomDirName = fandomPath.split("/").pop() || "";
+  const fallbackFandomName = fandomDirName || t("common.unknownFandom");
+  const [fandomName, setFandomName] = useState(fallbackFandomName);
 
   // --- State ---
   const [category, setCategory] = useState<FandomCategory>("core_characters");
@@ -70,11 +72,16 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
 
   // --- Load files ---
   const loadFiles = useCallback(async () => {
+    if (!fandomDirName) return;
     const token = loadGuard.start();
     setLoading(true);
     try {
-      const data = await listFandomFiles(fandomName);
+      const [displayInfo, data] = await Promise.all([
+        getFandomDisplayInfo(fandomPath).catch(() => null),
+        listFandomFiles(fandomDirName),
+      ]);
       if (loadGuard.isStale(token)) return;
+      setFandomName(displayInfo?.name || fallbackFandomName);
       setCharacterFiles(data.characters);
       setWorldbuildingFiles(data.worldbuilding);
     } catch (error) {
@@ -83,14 +90,16 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
     } finally {
       if (!loadGuard.isStale(token)) setLoading(false);
     }
-  }, [fandomName]);
+  }, [fallbackFandomName, fandomDirName, fandomPath, loadGuard, showError, t]);
 
   useEffect(() => {
+    setFandomName(fallbackFandomName);
     void loadFiles();
-  }, [loadFiles]);
+  }, [fallbackFandomName, loadFiles]);
 
   // --- Select file ---
   const handleSelectFile = async (filename: string, cat: FandomCategory) => {
+    if (!fandomDirName) return;
     const token = readGuard.start();
     setSelectedFile(filename);
     setSelectedCategory(cat);
@@ -99,7 +108,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
     setPreviewMode(true);
     setReadingFile(true);
     try {
-      const result = await readFandomFile(fandomName, cat, filename);
+      const result = await readFandomFile(fandomDirName, cat, filename);
       if (readGuard.isStale(token)) return;
       setEditorContent(result.content);
       setSavedContent(result.content);

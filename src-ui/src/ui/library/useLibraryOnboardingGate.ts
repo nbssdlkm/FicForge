@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { getSettingsSummary, type SettingsSummary } from '../../api/engine-client';
-import { isOnboardingCompleted } from '../onboarding/OnboardingFlow';
+import { isOnboardingCompleted, isOnboardingDismissedForSession } from '../onboarding/OnboardingFlow';
 
 function hasUsableConnectionConfig(settings: SettingsSummary | null | undefined) {
   return Boolean(settings?.default_llm.has_usable_connection);
@@ -17,7 +17,7 @@ export function useLibraryOnboardingGate() {
   useEffect(() => {
     let cancelled = false;
 
-    if (isOnboardingCompleted()) {
+    if (isOnboardingCompleted() || isOnboardingDismissedForSession()) {
       getSettingsSummary().then((settings) => {
         if (!cancelled && !hasUsableConnectionConfig(settings)) {
           setShowApiWarning(true);

@@ -485,6 +485,7 @@ async function doExecuteImport(
     trashedChapters: [],
     nextChapterNum: 1,
   };
+  const importedChapterTitles: Record<number, string> = {};
 
   const timestamp = now_utc();
 
@@ -521,6 +522,9 @@ async function doExecuteImport(
       provenance: "imported",
     });
     tx.saveChapter(auId, chapter);
+    if (typeof ch.title === "string" && ch.title.trim()) {
+      importedChapterTitles[ch.chapterNum] = ch.title.trim();
+    }
 
     // 角色扫描
     const scanned = scan_characters_in_chapter(
@@ -565,6 +569,10 @@ async function doExecuteImport(
             ...existingState.characters_last_seen,
             ...allCharactersLastSeen,
           },
+          chapter_titles: {
+            ...existingState.chapter_titles,
+            ...importedChapterTitles,
+          },
           index_status: IndexStatus.STALE,
           updated_at: timestamp,
         }
@@ -573,6 +581,7 @@ async function doExecuteImport(
           current_chapter: maxChapterNum + 1,
           last_scene_ending: lastSceneEnding,
           characters_last_seen: allCharactersLastSeen,
+          chapter_titles: importedChapterTitles,
           index_status: IndexStatus.STALE,
         });
     result.nextChapterNum = importState.current_chapter;
@@ -603,6 +612,7 @@ async function doExecuteImport(
         last_chapter_num: plan.chapters.length > 0 ? Math.max(...plan.chapters.map((c) => c.chapterNum)) : 0,
         last_scene_ending: plan.chapters.length > 0 ? extract_last_scene_ending(plan.chapters[plan.chapters.length - 1].content, 50) : "",
         characters_last_seen: allCharactersLastSeen,
+        chapter_titles: importedChapterTitles,
       },
     }));
     if (importState) tx.setState(importState);
@@ -732,6 +742,7 @@ async function doImportChapters(params: ImportChaptersParams): Promise<ImportRes
 
   // 收集章节 + 角色扫描
   const charactersLastSeen: Record<string, number> = {};
+  const chapterTitles: Record<number, string> = {};
   for (const chData of chapters) {
     const contentHash = await compute_content_hash(chData.content);
     const chapter = createChapter({
@@ -745,6 +756,9 @@ async function doImportChapters(params: ImportChaptersParams): Promise<ImportRes
       provenance: "imported",
     });
     tx.saveChapter(au_id, chapter);
+    if (typeof chData.title === "string" && chData.title.trim()) {
+      chapterTitles[chData.chapter_num] = chData.title.trim();
+    }
 
     const scanned = scan_characters_in_chapter(chData.content, cast_registry, character_aliases, chData.chapter_num);
     for (const [name, chNum] of Object.entries(scanned)) {
@@ -764,6 +778,7 @@ async function doImportChapters(params: ImportChaptersParams): Promise<ImportRes
     current_chapter: lastChapterNum + 1,
     last_scene_ending: lastSceneEnding,
     characters_last_seen: charactersLastSeen,
+    chapter_titles: chapterTitles,
     index_status: IndexStatus.STALE,
   });
 
@@ -783,6 +798,7 @@ async function doImportChapters(params: ImportChaptersParams): Promise<ImportRes
         current_chapter: state.current_chapter,
         last_scene_ending: state.last_scene_ending,
         characters_last_seen: state.characters_last_seen,
+        chapter_titles: state.chapter_titles,
       },
     },
   }));

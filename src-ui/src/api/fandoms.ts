@@ -4,10 +4,21 @@
 
 /** Fandom / AU API */
 
+export interface AuInfo {
+  name: string;
+  dir_name: string;
+}
+
 export interface FandomInfo {
   name: string;
   dir_name: string;
-  aus: string[];
+  aus: AuInfo[];
+}
+
+export interface FandomDisplayInfo {
+  name: string;
+  dir_name: string;
+  path: string;
 }
 
 export interface FandomFileEntry {

@@ -18,7 +18,7 @@ type LibraryFandomSectionsProps = {
   onOpenAuModal: (fandomName: string, fandomDir: string) => void;
   onOpenTrash: (fandomDir: string, fandomName: string) => void;
   onDeleteFandom: (fandomDir: string, fandomName: string) => void;
-  onDeleteAu: (fandomDir: string, fandomName: string, auName: string) => void;
+  onDeleteAu: (fandomDir: string, fandomName: string, auDir: string, auName: string) => void;
 };
 
 export function LibraryFandomSections({
@@ -63,19 +63,23 @@ export function LibraryFandomSections({
               <p className="text-text/50 text-sm col-span-3">{t("library.emptyAuList")}</p>
             ) : (
               fandom.aus.map((au) => (
-                <Card key={au} className="relative cursor-pointer rounded-xl p-5 transition-colors hover:border-accent/50 group" onClick={() => onNavigate('writer', `${dataDir}/fandoms/${fandom.dir_name}/aus/${au}`)}>
+                <Card
+                  key={`${fandom.dir_name}/${au.dir_name}`}
+                  className="relative cursor-pointer rounded-xl p-5 transition-colors hover:border-accent/50 group"
+                  onClick={() => onNavigate('writer', `${dataDir}/fandoms/${fandom.dir_name}/aus/${au.dir_name}`)}
+                >
                   <button
                     className="absolute right-3 top-3 inline-flex h-11 w-11 items-center justify-center rounded-md p-0 text-text/30 opacity-100 transition-opacity hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 md:h-9 md:w-9 md:opacity-0 md:group-hover:opacity-100"
                     onClick={(event) => {
                       event.stopPropagation();
-                      onDeleteAu(fandom.dir_name, fandom.name, au);
+                      onDeleteAu(fandom.dir_name, fandom.name, au.dir_name, au.name);
                     }}
                     title={t("common.actions.delete")}
                     disabled={creatingFandom || creatingAu || deleting}
                   >
                     <Trash2 size={14} />
                   </button>
-                  <h3 className="text-lg font-sans font-medium mb-4">{t("common.scope.auTitle", { name: au })}</h3>
+                  <h3 className="text-lg font-sans font-medium mb-4">{t("common.scope.auTitle", { name: au.name })}</h3>
                   <div className="flex items-center text-sm text-text/70">
                     <span className="flex items-center gap-1"><BookOpen size={14} /> {t("library.cardType")}</span>
                   </div>

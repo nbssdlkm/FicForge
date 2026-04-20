@@ -169,7 +169,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     setDirtyOpen,
     setExportOpen,
     setMobileToolsOpen,
-    factsExtraction,
+    resetFactsExtraction: factsExtraction.resetExtractionState,
   });
 
 
@@ -204,6 +204,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     setBudgetReport,
     setRecoveryNotice,
     setDraftSummaries,
+    onDraftSaveError: (error) => showError(error, t('error_messages.unknown')),
   });
 
   const { loadData, refreshSettingsModeData } = useWriterBootstrap<DraftItem>({

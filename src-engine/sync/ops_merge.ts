@@ -227,6 +227,9 @@ function applyOpToState(state: State, op: OpsEntry): void {
         if (snap.characters_last_seen && typeof snap.characters_last_seen === "object") {
           state.characters_last_seen = snap.characters_last_seen as Record<string, number>;
         }
+        if (snap.chapter_titles && typeof snap.chapter_titles === "object") {
+          state.chapter_titles = snap.chapter_titles as Record<number, string>;
+        }
       }
       break;
     }
@@ -243,6 +246,12 @@ function applyOpToState(state: State, op: OpsEntry): void {
         state.characters_last_seen = {
           ...state.characters_last_seen,
           ...(op.payload.characters_last_seen as Record<string, number>),
+        };
+      }
+      if (op.payload.chapter_titles && typeof op.payload.chapter_titles === "object") {
+        state.chapter_titles = {
+          ...state.chapter_titles,
+          ...(op.payload.chapter_titles as Record<number, string>),
         };
       }
       break;

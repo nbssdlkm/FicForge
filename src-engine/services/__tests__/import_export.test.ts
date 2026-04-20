@@ -151,6 +151,8 @@ describe("import_chapters (backward compat)", () => {
 
     const state = await stateRepo.get("au1");
     expect(state.current_chapter).toBe(3);
+    expect(state.chapter_titles[1]).toBe("第一章");
+    expect(state.chapter_titles[2]).toBe("第二章");
 
     expect(await chapterRepo.exists("au1", 1)).toBe(true);
     expect(await chapterRepo.exists("au1", 2)).toBe(true);
@@ -409,6 +411,8 @@ describe("executeImport", () => {
 
     const state = await stateRepo.get("au1");
     expect(state.current_chapter).toBe(6);
+    expect(state.chapter_titles[1]).toBe("Chapter 1");
+    expect(state.chapter_titles[5]).toBe("Chapter 2");
 
     const ops = await opsRepo.list_all("au1");
     expect(ops).toHaveLength(1);
