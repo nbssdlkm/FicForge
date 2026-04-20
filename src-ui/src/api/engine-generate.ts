@@ -19,7 +19,7 @@ export async function* generateChapter(params: {
   input_type?: string;
   session_llm?: Record<string, string> | null;
   session_params?: Record<string, number> | null;
-}): AsyncGenerator<{ event: string; data: any }> {
+}, options?: { signal?: AbortSignal }): AsyncGenerator<{ event: string; data: any }> {
   const e = getEngine();
   const proj = await e.repos.project.get(params.au_path);
   const st = await e.repos.state.get(params.au_path);
@@ -69,6 +69,7 @@ export async function* generateChapter(params: {
     adapter: e.adapter,
     vector_repo: e.vectorEngine,
     embedding_provider: createEmbeddingProvider(sett),
+    signal: options?.signal,
   })) {
     // Yield parsed objects (matching old sseStream format)
     if (event.type === "token") {

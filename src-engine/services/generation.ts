@@ -155,6 +155,7 @@ export interface GenerateChapterParams {
   /** 预计算的 RAG 文本，传入则跳过内部 RAG。 */
   rag_text?: string | null;
   language?: string;
+  signal?: AbortSignal;
   /** 测试用：注入 mock provider，跳过 create_provider。 */
   _provider_override?: LLMProvider;
 }
@@ -275,6 +276,7 @@ export async function* generate_chapter(
       max_tokens,
       temperature: llmParams.temperature,
       top_p: llmParams.top_p,
+      signal: params.signal,
     })) {
       if (chunk.delta) {
         fullText += chunk.delta;
@@ -324,6 +326,10 @@ export async function* generate_chapter(
       },
     };
   } catch (e) {
+    if (e instanceof DOMException ? e.name === "AbortError" : e instanceof Error && e.name === "AbortError") {
+      throw e;
+    }
+
     // === 错误处理：保留部分文本为草稿 ===
     if (fullText && label) {
       const draft = createDraft({
