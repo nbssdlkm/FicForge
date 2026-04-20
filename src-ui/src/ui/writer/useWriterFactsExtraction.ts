@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { extractFacts, addFact, type ExtractedFactCandidate } from '../../api/engine-client';
 import {
   getSkipFactsPromptDefault,
@@ -121,6 +121,10 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
     setExtractReviewOpen(false);
   }, [clearSelection]);
 
+  useEffect(() => {
+    resetExtractionState();
+  }, [auPath]);
+
   return {
     // state
     isFactsPromptOpen,
@@ -145,7 +149,6 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
     handleOpenExtractReview,
     handleSaveExtracted,
     toggleExtractedCandidate,
-    resetExtractionState,
 
     // helper
     getCandidateKey,

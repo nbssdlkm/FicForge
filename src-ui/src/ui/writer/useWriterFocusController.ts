@@ -2,17 +2,15 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { setChapterFocus, type FactInfo } from '../../api/engine-client';
 import type { ActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 
 type UseWriterFocusControllerOptions = {
   auPath: string;
-  focusSelection: string[];
   unresolvedFacts: FactInfo[];
   lastConfirmedFocus: string[];
   loadGuard: ActiveRequestGuard<string>;
-  setFocusSelection: (focus: string[]) => void;
   showToast: (message: string, tone?: 'info' | 'success' | 'warning' | 'error') => void;
   showError: (error: unknown, fallback: string) => void;
   t: (key: string, params?: Record<string, unknown>) => string;
@@ -20,15 +18,23 @@ type UseWriterFocusControllerOptions = {
 
 export function useWriterFocusController({
   auPath,
-  focusSelection,
   unresolvedFacts,
   lastConfirmedFocus,
   loadGuard,
-  setFocusSelection,
   showToast,
   showError,
   t,
 }: UseWriterFocusControllerOptions) {
+  const [focusSelection, setFocusSelection] = useState<string[]>([]);
+
+  useEffect(() => {
+    setFocusSelection([]);
+  }, [auPath]);
+
+  const setFocusFromState = useCallback((focus: string[]) => {
+    setFocusSelection([...focus]);
+  }, []);
+
   const handleFocusToggle = useCallback(async (factId: string) => {
     const requestAuPath = auPath;
     let next: string[];
@@ -88,6 +94,8 @@ export function useWriterFocusController({
   }, [auPath, lastConfirmedFocus, loadGuard, setFocusSelection, showError, showToast, t, unresolvedFacts]);
 
   return {
+    focusSelection,
+    setFocusFromState,
     handleFocusToggle,
     handleClearFocus,
     handleContinueLastFocus,

@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   confirmChapter,
   deleteDrafts,
@@ -20,16 +20,13 @@ type UseWriterChapterActionsOptions = {
   activeDraftIndex: number;
   chapterTitle: string;
   focusSelection: string[];
-  skipFactsPrompt: boolean;
-  setIsFinalizing: (busy: boolean) => void;
-  setIsDiscarding: (busy: boolean) => void;
+  getSkipFactsPrompt: () => boolean;
   loadGuard: ActiveRequestGuard<string>;
   clearDraftState: (discard?: boolean) => void;
   replaceDraftSummaries: (chapterNum: number, summaries: Record<string, ContextSummary>) => void;
   loadData: () => Promise<void>;
   focusInstructionInput: () => void;
   onChaptersChanged?: () => void;
-  onLastConfirmedChapter: (chapterNum: number) => void;
   onCloseFinalizeConfirm: () => void;
   onCloseDiscardConfirm: () => void;
   onCloseUndoConfirm: () => void;
@@ -47,16 +44,13 @@ export function useWriterChapterActions({
   activeDraftIndex,
   chapterTitle,
   focusSelection,
-  skipFactsPrompt,
-  setIsFinalizing,
-  setIsDiscarding,
+  getSkipFactsPrompt,
   loadGuard,
   clearDraftState,
   replaceDraftSummaries,
   loadData,
   focusInstructionInput,
   onChaptersChanged,
-  onLastConfirmedChapter,
   onCloseFinalizeConfirm,
   onCloseDiscardConfirm,
   onCloseUndoConfirm,
@@ -66,11 +60,22 @@ export function useWriterChapterActions({
   showError,
   t,
 }: UseWriterChapterActionsOptions) {
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [isDiscarding, setIsDiscarding] = useState(false);
+  const [lastConfirmedChapter, setLastConfirmedChapter] = useState<number | null>(null);
+
+  useEffect(() => {
+    setIsFinalizing(false);
+    setIsDiscarding(false);
+    setLastConfirmedChapter(null);
+  }, [auPath]);
+
   const handleConfirm = useCallback(async () => {
     const currentDraft = drafts[activeDraftIndex];
     if (!currentDraft || !state) return;
     const requestAuPath = auPath;
     const confirmedFocus = [...focusSelection];
+    const skipFactsPrompt = getSkipFactsPrompt();
 
     setIsFinalizing(true);
     try {
@@ -88,7 +93,7 @@ export function useWriterChapterActions({
       clearDraftState(true);
       replaceDraftSummaries(confirmedChapter, {});
       onCloseFinalizeConfirm();
-      onLastConfirmedChapter(confirmedChapter);
+      setLastConfirmedChapter(confirmedChapter);
       await loadData();
       onChaptersChanged?.();
 
@@ -118,17 +123,16 @@ export function useWriterChapterActions({
     drafts,
     focusInstructionInput,
     focusSelection,
+    getSkipFactsPrompt,
     loadData,
     loadGuard,
     onChaptersChanged,
     onCloseFinalizeConfirm,
-    onLastConfirmedChapter,
     onOpenFactsPrompt,
     replaceDraftSummaries,
     showError,
     showSuccess,
     showToast,
-    skipFactsPrompt,
     state,
     t,
   ]);
@@ -207,6 +211,9 @@ export function useWriterChapterActions({
   ]);
 
   return {
+    isFinalizing,
+    isDiscarding,
+    lastConfirmedChapter,
     handleConfirm,
     handleUndoConfirmed,
     handleDiscardDrafts,

@@ -17,7 +17,6 @@ import {
 } from '../../api/engine-client';
 import {
   readSavedContextSummaries,
-  readSavedInstructionText,
 } from '../../utils/writerStorage';
 import type { ActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 
@@ -39,8 +38,8 @@ type UseWriterBootstrapOptions<TDraft extends { label: string }> = {
   markRecoveryNotice: (show: boolean) => void;
   showError: (error: unknown, fallback: string) => void;
   t: (key: string, params?: Record<string, unknown>) => string;
-  setFocusSelection: (focus: string[]) => void;
-  setInstructionText: (text: string) => void;
+  applyFocusFromState: (focus: string[]) => void;
+  loadInstructionFromStorage: (chapterNum: number) => void;
 };
 
 export function useWriterBootstrap<TDraft extends { label: string }>({
@@ -59,8 +58,8 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
   markRecoveryNotice,
   showError,
   t,
-  setFocusSelection,
-  setInstructionText,
+  applyFocusFromState,
+  loadInstructionFromStorage,
 }: UseWriterBootstrapOptions<TDraft>) {
   const [state, setState] = useState<StateInfo | null>(null);
   const [projectInfo, setProjectInfo] = useState<WriterProjectContext | null>(null);
@@ -85,7 +84,7 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
       setProjectInfo(proj);
       setSettingsInfo(settings);
       setUnresolvedFacts(factsData);
-      setFocusSelection(stateData?.chapter_focus || []);
+      applyFocusFromState(stateData?.chapter_focus || []);
 
       let defModel = 'deepseek-chat';
       let defTemp = 1.0;
@@ -150,11 +149,12 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
         });
         selectDraft(loadedDrafts.length > 0 ? loadedDrafts.length - 1 : 0);
         markRecoveryNotice(loadedDrafts.length > 0);
-        setInstructionText(readSavedInstructionText(auPath, stateData.current_chapter));
+        loadInstructionFromStorage(stateData.current_chapter);
         replaceDraftSummaries(stateData.current_chapter, filteredSummaries);
       } else {
         clearDraftState();
-        setInstructionText('');
+        applyFocusFromState([]);
+        loadInstructionFromStorage(0);
         setProjectInfo(null);
       }
     } catch (error) {
@@ -166,16 +166,16 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
       }
     }
   }, [
+    applyFocusFromState,
     auPath,
     clearDraftState,
     getConfiguredLlmModel,
     loadDraftsForChapter,
     loadGuard,
+    loadInstructionFromStorage,
     markRecoveryNotice,
     mergeDraftIntoState,
     replaceDraftSummaries,
-    setFocusSelection,
-    setInstructionText,
     setSessionModel,
     setSessionTemp,
     setSessionTopP,
@@ -196,7 +196,7 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
 
       if (stateData) {
         setState(stateData);
-        setFocusSelection(stateData.chapter_focus || []);
+        applyFocusFromState(stateData.chapter_focus || []);
       }
       setProjectInfo(proj);
       setUnresolvedFacts(factsData);
@@ -205,9 +205,9 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
       showError(error, t('error_messages.unknown'));
     }
   }, [
+    applyFocusFromState,
     auPath,
     refreshGuard,
-    setFocusSelection,
     showError,
     t,
   ]);
