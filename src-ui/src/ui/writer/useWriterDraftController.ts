@@ -207,18 +207,8 @@ export function useWriterDraftController({
     }
   }, [auPath]);
 
-  const loadDraftsForChapter = useCallback(async (chapterNum: number): Promise<DraftItem[]> => {
-    const list = await listDrafts(auPath, chapterNum);
-    if (list.length === 0) return [];
-
-    const details = await Promise.all(
-      list.map((draft) => getDraft(auPath, chapterNum, draft.draft_label))
-    );
-
-    return sortDrafts(
-      details.map((detail) => createDraftItemFromDetail(chapterNum, detail))
-    );
-  }, [auPath]);
+  // Phase 6.3: 删掉 loadDraftsForChapter 对外导出。Phase 5c 后所有 draft 加载
+  // 由内部 state-watch useEffect 驱动，该方法无外部消费者。
 
   const handleCurrentDraftChange = useCallback((content: string) => {
     setDrafts((current) =>
@@ -263,6 +253,14 @@ export function useWriterDraftController({
       setDraftSummaries({});
       pendingContextSummaryRef.current = null;
       flushPendingDraftSave(true);
+      return;
+    }
+
+    // Phase 6.1: 首帧 stale-state guard。
+    // auPath 变化后，bootstrap 的 reset useEffect 在此 effect 之后执行；本 effect 在同帧拿到的
+    // state 可能还是旧 AU 的。通过 state.au_id 与 auPath 的尾部匹配检测：不匹配就 skip 这次 load，
+    // 等 bootstrap reset 把 state 置 null → 下一轮 effect 清空 → 新 state 到位后才 load。
+    if (state.au_id && !auPath.endsWith(state.au_id)) {
       return;
     }
 
@@ -337,7 +335,6 @@ export function useWriterDraftController({
     attachDraftSummary,
     mergeDraftIntoState,
     loadDraftByLabel,
-    loadDraftsForChapter,
     handleCurrentDraftChange,
   };
 }

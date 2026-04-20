@@ -146,7 +146,7 @@ export function useWriterFactsExtraction(auPath: string) {
 
     // handlers
     handleFactsPromptToggle,
-    closeFactsPrompt,
+    // closeFactsPrompt: 内部 handleSkipFactsPrompt 已使用，外部无消费者 → 不导出
     handleSkipFactsPrompt,
     handleOpenExtractReview,
     handleSaveExtracted,

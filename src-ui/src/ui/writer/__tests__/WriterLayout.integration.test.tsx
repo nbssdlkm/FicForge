@@ -96,6 +96,7 @@ const baseState = {
   chapter_focus: [],
   chapters_dirty: [],
   last_confirmed_chapter_focus: [],
+  au_id: "/fandoms/F/aus/A1",   // 匹配 defaultProps.auPath 的尾部
 };
 
 const baseProject = {
@@ -108,9 +109,18 @@ const baseSettings = {
   model_params: {},
 };
 
+// 动态 mock：getState 返回的 au_id 永远匹配传入的 auPath（去掉 /data 前缀），
+// 这样 draftCtrl 的 au_id 守卫能正确通过，测试能覆盖完整加载流程。
+function auIdForPath(auPath: string): string {
+  return auPath.replace(/^\/data/, '');
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
-  mocked.getState.mockResolvedValue(baseState);
+  mocked.getState.mockImplementation(async (auPath: string) => ({
+    ...baseState,
+    au_id: auIdForPath(auPath),
+  }));
   mocked.listFacts.mockResolvedValue([]);
   mocked.getWriterProjectContext.mockResolvedValue(baseProject);
   mocked.getWriterSessionConfig.mockResolvedValue(baseSettings);
@@ -169,6 +179,42 @@ describe("WriterLayout integration sentinels", () => {
       expect(mocked.getState).toHaveBeenCalledWith(newAuPath);
       expect(mocked.getWriterProjectContext).toHaveBeenCalledWith(newAuPath);
       expect(mocked.listDrafts).toHaveBeenCalledWith(newAuPath, 3);
+    });
+  });
+
+  it("clears prior draft state when auPath changes", async () => {
+    // Phase 6.2: protect the "clears prior state on AU switch" contract that the
+    // previous test's docstring claimed but did not actually verify.
+    //
+    // Setup: AU A has 1 draft → recovery banner appears. Then switch to AU B with
+    // no drafts → recovery banner must disappear (= drafts state cleared).
+    mocked.listDrafts.mockResolvedValueOnce([
+      { draft_label: "a", chapter_num: 3, draft_id: "ch0003_draft_a.md" },
+    ]);
+    mocked.getDraft.mockResolvedValue({
+      variant: "a",
+      content: "A draft",
+      generated_with: null,
+    });
+    mocked.getState.mockResolvedValueOnce({
+      ...baseState,
+      au_id: "/fandoms/F/aus/A1",
+    });
+
+    const { rerender } = render(<WriterLayout {...defaultProps} />);
+    await screen.findByText(/drafts\.recoveryNotice/);
+
+    // Switch to AU B (no drafts, different au_id)
+    mocked.listDrafts.mockResolvedValue([]);
+    mocked.getState.mockResolvedValue({
+      ...baseState,
+      au_id: "/fandoms/F/aus/A2",
+    });
+    rerender(<WriterLayout {...defaultProps} auPath="/data/fandoms/F/aus/A2" />);
+
+    // Recovery banner from A must disappear
+    await waitFor(() => {
+      expect(screen.queryByText(/drafts\.recoveryNotice/)).toBeNull();
     });
   });
 

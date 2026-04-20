@@ -90,25 +90,24 @@ export function useWriterChromeState(auPath: string) {
   }, []);
 
   return {
+    // values
     mobileToolsOpen,
-    setMobileToolsOpen,
     rightCollapsed,
     isExportOpen,
-    setExportOpen,
     isDirtyOpen,
-    setDirtyOpen,
     dirtyTargetChapter,
     isFinalizeConfirmOpen,
-    setFinalizeConfirmOpen,
     chapterTitle,
-    setChapterTitle,
     isDiscardConfirmOpen,
-    setDiscardConfirmOpen,
     isUndoConfirmOpen,
-    setUndoConfirmOpen,
     dirtyBannerDismissed,
-    setDirtyBannerDismissed,
     footerCollapsed,
+
+    // 用户事件 setter（受控组件/外部手动覆盖用，保留）：
+    setChapterTitle,              // <input> 受控绑定
+    setDirtyBannerDismissed,      // 外部一处调用（banner dismiss）
+
+    // 语义化 method（推荐用法；原 raw setX 在 Phase 6.3 移除）
     toggleRightCollapsed,
     openExport,
     closeExport,
