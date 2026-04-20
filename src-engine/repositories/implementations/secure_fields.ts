@@ -44,6 +44,7 @@
  */
 
 import type { PlatformAdapter } from "../../platform/adapter.js";
+import { createAdapterSecretStore } from "../../platform/secret_store.js";
 
 /** YAML 中占位符。固定不变，跨 repo 共享语义。 */
 export const SECURE_PLACEHOLDER = "<secure>";
@@ -70,10 +71,11 @@ export async function extractSecureFields<T>(
   specs: SecureFieldSpec<T>[],
   adapter: PlatformAdapter,
 ): Promise<void> {
+  const secretStore = createAdapterSecretStore(adapter);
   for (const spec of specs) {
     const value = spec.get(obj);
     if (value && value !== SECURE_PLACEHOLDER) {
-      await adapter.secureSet(spec.secureKey, value);
+      await secretStore.set(spec.secureKey, value);
       spec.set(obj, SECURE_PLACEHOLDER);
     }
   }
@@ -91,10 +93,11 @@ export async function restoreSecureFields<T>(
   specs: SecureFieldSpec<T>[],
   adapter: PlatformAdapter,
 ): Promise<void> {
+  const secretStore = createAdapterSecretStore(adapter);
   for (const spec of specs) {
     const current = spec.get(obj);
     if (current === SECURE_PLACEHOLDER || current === "") {
-      const stored = await adapter.secureGet(spec.secureKey);
+      const stored = await secretStore.get(spec.secureKey);
       if (stored) {
         spec.set(obj, stored);
       } else if (current === SECURE_PLACEHOLDER) {
@@ -103,7 +106,7 @@ export async function restoreSecureFields<T>(
       }
     } else if (current && current !== SECURE_PLACEHOLDER) {
       // 旧格式明文 → 写进 secure storage（下次 save 会变占位符）
-      await adapter.secureSet(spec.secureKey, current);
+      await secretStore.set(spec.secureKey, current);
     }
   }
 }
@@ -116,11 +119,26 @@ export async function removeSecureFields(
   secureKeys: string[],
   adapter: PlatformAdapter,
 ): Promise<void> {
+  const secretStore = createAdapterSecretStore(adapter);
   for (const key of secureKeys) {
     try {
-      await adapter.secureRemove(key);
+      await secretStore.remove(key);
     } catch {
       // best-effort 清理，失败不阻断 delete 主流程
     }
   }
+}
+
+/**
+ * 检测对象上是否仍携带未迁移的明文敏感字段。
+ * 仅用于显式迁移流程；普通 save 仍由 extractSecureFields 统一脱敏。
+ */
+export function hasLegacyPlaintextSecureFields<T>(
+  obj: T,
+  specs: SecureFieldSpec<T>[],
+): boolean {
+  return specs.some((spec) => {
+    const value = spec.get(obj);
+    return Boolean(value && value !== SECURE_PLACEHOLDER);
+  });
 }

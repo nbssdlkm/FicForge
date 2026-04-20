@@ -375,6 +375,85 @@ function extractFromTurns(
   return { settings, nextChapter, lastChapterIndex };
 }
 
+async function rollbackImportedSettings(
+  adapter: PlatformAdapter,
+  writtenPaths: string[],
+): Promise<void> {
+  for (const path of [...writtenPaths].reverse()) {
+    try {
+      await adapter.deleteFile(path);
+    } catch {
+      // best effort rollback
+    }
+  }
+}
+
+async function writeImportedSettings(
+  plan: ImportPlan,
+  params: {
+    auId: string;
+    adapter: PlatformAdapter;
+    locale: "zh" | "en";
+    chaptersImported: number;
+    onProgress?: (progress: ImportProgress) => void;
+  },
+): Promise<number> {
+  if (plan.settings.length === 0) return 0;
+
+  const { auId, adapter, locale, chaptersImported, onProgress } = params;
+  const settingsName = locale === "zh" ? "导入设定" : "imported_settings";
+  const writtenPaths: string[] = [];
+
+  try {
+    if (plan.conflictOptions.settingsMode === "merge") {
+      const merged = plan.settings.map((s) => s.content).join("\n\n---\n\n");
+      let settingsPath = `${auId}/worldbuilding/${settingsName}.md`;
+      if (await adapter.exists(settingsPath)) {
+        const ts = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        settingsPath = `${auId}/worldbuilding/${settingsName}_${ts}.md`;
+      }
+      const dir = settingsPath.substring(0, settingsPath.lastIndexOf("/"));
+      await adapter.mkdir(dir);
+      await adapter.writeFile(settingsPath, `---\ntitle: ${settingsName}\n---\n\n${merged}`);
+      writtenPaths.push(settingsPath);
+      onProgress?.({
+        currentFile: plan.settings[plan.settings.length - 1]?.sourceFile ?? "",
+        chaptersTotal: plan.chapters.length,
+        chaptersDone: chaptersImported,
+        settingsTotal: plan.settings.length,
+        settingsDone: plan.settings.length,
+      });
+      return plan.settings.length;
+    }
+
+    const dir = `${auId}/worldbuilding`;
+    await adapter.mkdir(dir);
+    for (let i = 0; i < plan.settings.length; i++) {
+      let filePath = `${dir}/${settingsName}_${i + 1}.md`;
+      if (await adapter.exists(filePath)) {
+        const ts = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        filePath = `${dir}/${settingsName}_${i + 1}_${ts}.md`;
+      }
+      await adapter.writeFile(
+        filePath,
+        `---\ntitle: ${settingsName} ${i + 1}\n---\n\n${plan.settings[i].content}`,
+      );
+      writtenPaths.push(filePath);
+      onProgress?.({
+        currentFile: plan.settings[i].sourceFile,
+        chaptersTotal: plan.chapters.length,
+        chaptersDone: chaptersImported,
+        settingsTotal: plan.settings.length,
+        settingsDone: i + 1,
+      });
+    }
+    return plan.settings.length;
+  } catch (error) {
+    await rollbackImportedSettings(adapter, writtenPaths);
+    throw error;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // New API: executeImport
 // ---------------------------------------------------------------------------
@@ -406,6 +485,7 @@ async function doExecuteImport(
     trashedChapters: [],
     nextChapterNum: 1,
   };
+  const importedChapterTitles: Record<number, string> = {};
 
   const timestamp = now_utc();
 
@@ -442,6 +522,9 @@ async function doExecuteImport(
       provenance: "imported",
     });
     tx.saveChapter(auId, chapter);
+    if (typeof ch.title === "string" && ch.title.trim()) {
+      importedChapterTitles[ch.chapterNum] = ch.title.trim();
+    }
 
     // 角色扫描
     const scanned = scan_characters_in_chapter(
@@ -486,6 +569,10 @@ async function doExecuteImport(
             ...existingState.characters_last_seen,
             ...allCharactersLastSeen,
           },
+          chapter_titles: {
+            ...existingState.chapter_titles,
+            ...importedChapterTitles,
+          },
           index_status: IndexStatus.STALE,
           updated_at: timestamp,
         }
@@ -494,10 +581,19 @@ async function doExecuteImport(
           current_chapter: maxChapterNum + 1,
           last_scene_ending: lastSceneEnding,
           characters_last_seen: allCharactersLastSeen,
+          chapter_titles: importedChapterTitles,
           index_status: IndexStatus.STALE,
         });
     result.nextChapterNum = importState.current_chapter;
   }
+
+  result.settingsImported = await writeImportedSettings(plan, {
+    auId,
+    adapter,
+    locale,
+    chaptersImported: result.chaptersImported,
+    onProgress,
+  });
 
   // 4. 事务提交 — 只要有章节或设定就写 ops（D-0036：ops 是 sync truth）
   if (plan.chapters.length > 0 || plan.settings.length > 0) {
@@ -508,7 +604,7 @@ async function doExecuteImport(
       timestamp,
       payload: {
         total_chapters: result.chaptersImported,
-        total_settings: plan.settings.length,
+        total_settings: result.settingsImported,
         trashed_chapters: result.trashedChapters,
         source_files: [...new Set(plan.chapters.map((c) => c.sourceFile))],
         characters_found: Object.keys(allCharactersLastSeen),
@@ -516,6 +612,7 @@ async function doExecuteImport(
         last_chapter_num: plan.chapters.length > 0 ? Math.max(...plan.chapters.map((c) => c.chapterNum)) : 0,
         last_scene_ending: plan.chapters.length > 0 ? extract_last_scene_ending(plan.chapters[plan.chapters.length - 1].content, 50) : "",
         characters_last_seen: allCharactersLastSeen,
+        chapter_titles: importedChapterTitles,
       },
     }));
     if (importState) tx.setState(importState);
@@ -524,7 +621,7 @@ async function doExecuteImport(
   }
 
   // 5. 写入设定文件（tx 提交之后：worldbuilding 不受 ops 管理，非关键数据）
-  if (plan.settings.length > 0) {
+  if (false && plan.settings.length > 0) { // Legacy path disabled in favor of writeImportedSettings().
     const settingsName = locale === "zh" ? "导入设定" : "imported_settings";
     if (plan.conflictOptions.settingsMode === "merge") {
       const merged = plan.settings.map((s) => s.content).join("\n\n---\n\n");
@@ -645,6 +742,7 @@ async function doImportChapters(params: ImportChaptersParams): Promise<ImportRes
 
   // 收集章节 + 角色扫描
   const charactersLastSeen: Record<string, number> = {};
+  const chapterTitles: Record<number, string> = {};
   for (const chData of chapters) {
     const contentHash = await compute_content_hash(chData.content);
     const chapter = createChapter({
@@ -658,6 +756,9 @@ async function doImportChapters(params: ImportChaptersParams): Promise<ImportRes
       provenance: "imported",
     });
     tx.saveChapter(au_id, chapter);
+    if (typeof chData.title === "string" && chData.title.trim()) {
+      chapterTitles[chData.chapter_num] = chData.title.trim();
+    }
 
     const scanned = scan_characters_in_chapter(chData.content, cast_registry, character_aliases, chData.chapter_num);
     for (const [name, chNum] of Object.entries(scanned)) {
@@ -677,6 +778,7 @@ async function doImportChapters(params: ImportChaptersParams): Promise<ImportRes
     current_chapter: lastChapterNum + 1,
     last_scene_ending: lastSceneEnding,
     characters_last_seen: charactersLastSeen,
+    chapter_titles: chapterTitles,
     index_status: IndexStatus.STALE,
   });
 
@@ -696,6 +798,7 @@ async function doImportChapters(params: ImportChaptersParams): Promise<ImportRes
         current_chapter: state.current_chapter,
         last_scene_ending: state.last_scene_ending,
         characters_last_seen: state.characters_last_seen,
+        chapter_titles: state.chapter_titles,
       },
     },
   }));

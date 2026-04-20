@@ -2,11 +2,12 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, FileText, Pencil, Eye, Trash2, Users, Globe2, Sparkles } from "lucide-react";
 import { Spinner } from "../shared/Spinner";
 import { useTranslation } from "../../i18n/useAppTranslation";
-import { listFandomFiles, readFandomFile, saveLore, deleteLore, type FandomFileEntry } from "../../api/engine-client";
+import { getFandomDisplayInfo, listFandomFiles, readFandomFile, saveLore, deleteLore, type FandomFileEntry } from "../../api/engine-client";
+import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
 import { TrashPanel } from "../shared/TrashPanel";
 import { Button } from "../shared/Button";
 import { Input, Textarea } from "../shared/Input";
@@ -35,7 +36,9 @@ export function MobileFandomView(props: MobileFandomViewProps) {
 function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps) {
   const { t } = useTranslation();
   const { showError } = useFeedback();
-  const fandomName = fandomPath.split("/").pop() || "";
+  const fandomDirName = fandomPath.split("/").pop() || "";
+  const fallbackFandomName = fandomDirName || t("common.unknownFandom");
+  const [fandomName, setFandomName] = useState(fallbackFandomName);
 
   // --- State ---
   const [category, setCategory] = useState<FandomCategory>("core_characters");
@@ -62,34 +65,42 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
   // Delete confirm
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const loadRequestRef = useRef(0);
-  const readRequestRef = useRef(0);
+  const loadGuard = useActiveRequestGuard(`${fandomPath}:load`);
+  const readGuard = useActiveRequestGuard(`${fandomPath}:read`);
 
   const currentFiles = category === "core_characters" ? characterFiles : worldbuildingFiles;
 
   // --- Load files ---
   const loadFiles = useCallback(async () => {
-    const requestId = ++loadRequestRef.current;
+    if (!fandomDirName) return;
+    const token = loadGuard.start();
     setLoading(true);
     try {
-      const data = await listFandomFiles(fandomName);
-      if (requestId !== loadRequestRef.current) return;
+      const [displayInfo, data] = await Promise.all([
+        getFandomDisplayInfo(fandomPath).catch(() => null),
+        listFandomFiles(fandomDirName),
+      ]);
+      if (loadGuard.isStale(token)) return;
+      setFandomName(displayInfo?.name || fallbackFandomName);
       setCharacterFiles(data.characters);
       setWorldbuildingFiles(data.worldbuilding);
     } catch (error) {
+      if (loadGuard.isStale(token)) return;
       showError(error, t("error_messages.unknown"));
     } finally {
-      if (requestId === loadRequestRef.current) setLoading(false);
+      if (!loadGuard.isStale(token)) setLoading(false);
     }
-  }, [fandomName]);
+  }, [fallbackFandomName, fandomDirName, fandomPath, loadGuard, showError, t]);
 
   useEffect(() => {
+    setFandomName(fallbackFandomName);
     void loadFiles();
-  }, [loadFiles]);
+  }, [fallbackFandomName, loadFiles]);
 
   // --- Select file ---
   const handleSelectFile = async (filename: string, cat: FandomCategory) => {
-    const requestId = ++readRequestRef.current;
+    if (!fandomDirName) return;
+    const token = readGuard.start();
     setSelectedFile(filename);
     setSelectedCategory(cat);
     setEditorContent("");
@@ -97,16 +108,16 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
     setPreviewMode(true);
     setReadingFile(true);
     try {
-      const result = await readFandomFile(fandomName, cat, filename);
-      if (requestId !== readRequestRef.current) return;
+      const result = await readFandomFile(fandomDirName, cat, filename);
+      if (readGuard.isStale(token)) return;
       setEditorContent(result.content);
       setSavedContent(result.content);
     } catch (error) {
-      if (requestId !== readRequestRef.current) return;
+      if (readGuard.isStale(token)) return;
       showError(error, t("error_messages.unknown"));
       setSelectedFile(null);
     } finally {
-      if (requestId === readRequestRef.current) setReadingFile(false);
+      if (!readGuard.isStale(token)) setReadingFile(false);
     }
   };
 

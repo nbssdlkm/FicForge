@@ -16,6 +16,7 @@ import { Toast } from "../ui/shared/Toast";
 import { Button } from "../ui/shared/Button";
 import { ApiError } from "../api/engine-client";
 import { useTranslation } from "../i18n/useAppTranslation";
+import { logUiError } from "../utils/ui-logger";
 
 type ToastVariant = "success" | "error" | "info" | "warning";
 
@@ -79,7 +80,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     const fallback = fallbackMessage || t("error_messages.unknown");
     const { message, actions } = getMessage(error, fallback);
     // 日志记录完整错误信息，便于调试
-    console.error("[FicForge] showError:", message, error);
+    logUiError("feedback", `showError: ${message}`, error);
     if (actions.length > 1) {
       setDialog({ message, actions });
       return;

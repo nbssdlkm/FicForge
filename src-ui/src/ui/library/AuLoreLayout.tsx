@@ -12,7 +12,7 @@ import { TrashPanel } from '../shared/TrashPanel';
 import type { TrashEntry } from '../../api/engine-client';
 import { Search, Plus, FileText, ChevronDown, ChevronRight, Folder, Trash2, Download, Pin, Eye, Pencil } from 'lucide-react';
 import { SettingsMarkdown } from '../shared/SettingsMarkdown';
-import { getProject, updateProject, type ProjectInfo } from '../../api/engine-client';
+import { getProjectForEditing, saveProjectCastRegistryCharacters, saveProjectCoreIncludes, type ProjectInfo } from '../../api/engine-client';
 import { saveLore, readLore, deleteLore, listLoreFiles, importFromFandom, getLoreContent } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
@@ -80,7 +80,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
 
   const syncRegistry = async (names: string[], requestAuPath = auPath) => {
     const deduped = Array.from(new Set(names));
-    await updateProject(auPath, { cast_registry: { characters: deduped } });
+    await saveProjectCastRegistryCharacters(auPath, deduped);
     if (loadGuard.isKeyStale(requestAuPath)) return;
     setProject(prev => prev ? {
       ...prev,
@@ -119,7 +119,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
         } catch { /* 读取失败不阻塞 */ }
       }
 
-      await updateProject(auPath, { core_always_include: next });
+      await saveProjectCoreIncludes(auPath, next);
       if (loadGuard.isKeyStale(requestAuPath)) return;
       setProject(prev => prev ? { ...prev, core_always_include: next } : prev);
       showSuccess(isPinned ? t('coreIncludes.unpinnedToast') : t('coreIncludes.pinnedToast'));
@@ -164,7 +164,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     setLoading(true);
     try {
       const [proj, loreFiles, wbFiles] = await Promise.all([
-        getProject(auPath),
+        getProjectForEditing(auPath),
         listLoreFiles({ au_path: auPath, category: selectedCategory }),
         listLoreFiles({ au_path: auPath, category: 'worldbuilding' }),
       ]);
@@ -265,7 +265,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
       // 同时清理 core_always_include 中的已删除角色
       const remainingPins = (project.core_always_include || []).filter(n => n !== selectedFile);
       if (remainingPins.length !== (project.core_always_include || []).length) {
-        await updateProject(auPath, { core_always_include: remainingPins });
+        await saveProjectCoreIncludes(auPath, remainingPins);
         if (loadGuard.isKeyStale(requestAuPath)) return;
         setProject(prev => prev ? { ...prev, core_always_include: remainingPins } : prev);
       }
@@ -306,7 +306,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
     try {
       try {
         [latestProject, latestFiles] = await Promise.all([
-          getProject(auPath),
+          getProjectForEditing(auPath),
           listLoreFiles({ au_path: auPath, category: selectedCategory }),
         ]);
       } catch (error) {

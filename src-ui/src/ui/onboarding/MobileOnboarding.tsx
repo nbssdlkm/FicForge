@@ -13,38 +13,26 @@ import { StepIndicator } from './StepIndicator';
 import { ApiSetupHelp } from '../help/ApiSetupHelp';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { changeLanguage, type AppLanguage } from '../../i18n';
-import { createAu, createFandom, getSettings, testConnection, updateSettings, LLMMode } from '../../api/engine-client';
+import { createAu, createFandom, getOnboardingDefaults, saveOnboardingSettings } from '../../api/engine-client';
+import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
+import { useLlmConnectionTest } from '../../hooks/useConnectionTest';
+import { canTestLlmConnection } from '../shared/llm-config';
+import { SecretStorageNotice } from '../shared/SecretStorageNotice';
+import {
+  buildOnboardingSettingsSaveInput,
+  hydrateMobileOnboardingSettings,
+  PROVIDER_PRESETS,
+  type LlmProvider,
+} from './form-mappers';
 
 export type OnboardingCompletion = {
   nextAction?: 'open-import' | 'open-settings';
   openAuPath?: string;
 };
 
-type LlmProvider = 'deepseek' | 'openai' | 'custom';
 type SetupAction = 'create' | 'import-local' | 'sync-directory' | 'later';
 
 const TOTAL_STEPS = 6;
-const PROVIDER_PRESETS: Record<LlmProvider, { apiBase: string; model: string }> = {
-  deepseek: {
-    apiBase: 'https://api.deepseek.com',
-    model: 'deepseek-chat',
-  },
-  openai: {
-    apiBase: 'https://api.openai.com/v1',
-    model: '',
-  },
-  custom: {
-    apiBase: '',
-    model: '',
-  },
-};
-
-function inferProvider(apiBase: string): LlmProvider {
-  const normalized = apiBase.toLowerCase();
-  if (normalized.includes('deepseek')) return 'deepseek';
-  if (normalized.includes('openai')) return 'openai';
-  return 'custom';
-}
 
 function StepCard({
   active,
@@ -89,16 +77,13 @@ export function MobileOnboarding({
 }) {
   const { t, i18n } = useTranslation();
   const isMountedRef = useRef(true);
-  const requestIdRef = useRef(0);
-  const connectionRequestIdRef = useRef(0);
+  const loadGuard = useActiveRequestGuard('mobile-onboarding-defaults');
   const [step, setStep] = useState(0);
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [provider, setProvider] = useState<LlmProvider>('deepseek');
   const [apiBase, setApiBase] = useState(PROVIDER_PRESETS.deepseek.apiBase);
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState(PROVIDER_PRESETS.deepseek.model);
-  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
-  const [connectionMessage, setConnectionMessage] = useState('');
   const [useCustomEmbedding, setUseCustomEmbedding] = useState(false);
   const [embeddingModel, setEmbeddingModel] = useState('BAAI/bge-m3');
   const [embeddingApiBase, setEmbeddingApiBase] = useState('https://api.siliconflow.cn/v1');
@@ -110,46 +95,42 @@ export function MobileOnboarding({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [helpOpen, setHelpOpen] = useState(false);
+  const llmConnection = useLlmConnectionTest({
+    getSuccessMessage: (result, fields) => t('onboarding.apiConfig.testSuccess', { model: result.model || fields.model }),
+    getFailureMessage: (result) => result.message || t('error_messages.unknown'),
+    getExceptionMessage: (error) => error instanceof Error ? error.message || t('error_messages.unknown') : t('error_messages.unknown'),
+  });
 
   useEffect(() => {
-    const requestId = ++requestIdRef.current;
     isMountedRef.current = true;
+    const token = loadGuard.start();
     setLoadingSettings(true);
-    getSettings().then(settings => {
-      if (requestId !== requestIdRef.current) return;
-      const llm = settings?.default_llm;
-      if (llm?.api_base || llm?.model || llm?.api_key) {
-        const nextBase = llm.api_base || PROVIDER_PRESETS.deepseek.apiBase;
-        setProvider(inferProvider(nextBase));
-        setApiBase(nextBase);
-        setApiKey(llm.api_key || '');
-        setModel(llm.model || PROVIDER_PRESETS.deepseek.model);
-      }
-
-      const embedding = settings?.embedding;
-      const hasCustomEmbedding = Boolean(embedding?.model || embedding?.api_key || embedding?.api_base);
-      setUseCustomEmbedding(hasCustomEmbedding);
-      if (embedding?.model) setEmbeddingModel(embedding.model);
-      if (embedding?.api_base) setEmbeddingApiBase(embedding.api_base);
-      if (embedding?.api_key) setEmbeddingApiKey(embedding.api_key);
+    getOnboardingDefaults().then(settings => {
+      if (loadGuard.isStale(token)) return;
+      const defaults = hydrateMobileOnboardingSettings(settings);
+      setProvider(defaults.provider);
+      setApiBase(defaults.apiBase);
+      setApiKey(defaults.apiKey);
+      setModel(defaults.model);
+      setUseCustomEmbedding(defaults.useCustomEmbedding);
+      setEmbeddingModel(defaults.embeddingModel);
+      setEmbeddingApiBase(defaults.embeddingApiBase);
+      setEmbeddingApiKey(defaults.embeddingApiKey);
     }).catch(() => {
       // 引导页默认配置足够继续
     }).finally(() => {
-      if (requestId === requestIdRef.current) {
+      if (!loadGuard.isStale(token)) {
         setLoadingSettings(false);
       }
     });
 
     return () => {
       isMountedRef.current = false;
-      requestIdRef.current += 1;
     };
   }, []);
 
   useEffect(() => {
-    connectionRequestIdRef.current += 1;
-    setConnectionStatus('idle');
-    setConnectionMessage('');
+    llmConnection.reset();
   }, [apiBase, apiKey, model, provider]);
 
   const language = (i18n.resolvedLanguage === 'en' ? 'en' : 'zh') as AppLanguage;
@@ -157,7 +138,7 @@ export function MobileOnboarding({
 
   const canAdvance = useMemo(() => {
     if (step === 0) return true;
-    if (step === 1) return connectionStatus === 'success';
+    if (step === 1) return llmConnection.status === 'success';
     if (step === 2) {
       return !useCustomEmbedding || Boolean(embeddingModel.trim() && embeddingApiBase.trim() && embeddingApiKey.trim());
     }
@@ -166,7 +147,7 @@ export function MobileOnboarding({
     }
     if (step === 4) return ethicsAccepted;
     return true;
-  }, [auName, connectionStatus, embeddingApiBase, embeddingApiKey, embeddingModel, ethicsAccepted, fandomName, setupAction, step, useCustomEmbedding]);
+  }, [auName, llmConnection.status, embeddingApiBase, embeddingApiKey, embeddingModel, ethicsAccepted, fandomName, setupAction, step, useCustomEmbedding]);
 
   const applyProviderPreset = (nextProvider: LlmProvider) => {
     setProvider(nextProvider);
@@ -185,29 +166,14 @@ export function MobileOnboarding({
   };
 
   const handleTestConnection = async () => {
-    const requestId = ++connectionRequestIdRef.current;
-    setConnectionStatus('testing');
-    setConnectionMessage('');
-    try {
-      const result = await testConnection({
-        mode: 'api',
-        model,
-        api_base: apiBase,
-        api_key: apiKey,
-      });
-      if (requestId !== connectionRequestIdRef.current) return;
-      if (result.success) {
-        setConnectionStatus('success');
-        setConnectionMessage(t('onboarding.apiConfig.testSuccess', { model: result.model || model }));
-      } else {
-        setConnectionStatus('error');
-        setConnectionMessage(result.message || t('error_messages.unknown'));
-      }
-    } catch (error: any) {
-      if (requestId !== connectionRequestIdRef.current) return;
-      setConnectionStatus('error');
-      setConnectionMessage(error?.message || t('error_messages.unknown'));
-    }
+    await llmConnection.run({
+      mode: 'api',
+      model,
+      apiBase,
+      apiKey,
+      localModelPath: '',
+      ollamaModel: '',
+    });
   };
 
   const handleFinish = async () => {
@@ -215,27 +181,16 @@ export function MobileOnboarding({
     setSubmitting(true);
     setSubmitError('');
     try {
-      const settings = await getSettings().catch(() => null);
-      await updateSettings({
-        default_llm: {
-          ...settings?.default_llm,
-          mode: LLMMode.API,
-          model: model.trim(),
-          api_base: apiBase.trim(),
-          api_key: apiKey.trim(),
-          local_model_path: '',
-          ollama_model: '',
-          context_window: settings?.default_llm?.context_window || 128000,
-        },
-        embedding: {
-          ...settings?.embedding,
-          mode: useCustomEmbedding ? LLMMode.API : LLMMode.LOCAL,
-          model: useCustomEmbedding ? embeddingModel.trim() : '',
-          api_base: useCustomEmbedding ? embeddingApiBase.trim() : '',
-          api_key: useCustomEmbedding ? embeddingApiKey.trim() : '',
-          ollama_model: '',
-        },
-      });
+      await saveOnboardingSettings(buildOnboardingSettingsSaveInput({
+        provider,
+        apiBase,
+        apiKey,
+        model,
+        useCustomEmbedding,
+        embeddingModel,
+        embeddingApiBase,
+        embeddingApiKey,
+      }));
 
       let openAuPath: string | undefined;
 
@@ -333,6 +288,8 @@ export function MobileOnboarding({
                   </details>
                 </div>
 
+                <SecretStorageNotice />
+
                 <div className="grid gap-3">
                   <StepCard
                     active={provider === 'deepseek'}
@@ -394,21 +351,21 @@ export function MobileOnboarding({
                     tone="neutral" fill="outline"
                     className="w-full"
                     onClick={handleTestConnection}
-                    disabled={connectionStatus === 'testing' || !apiKey.trim() || !apiBase.trim() || !model.trim()}
+                    disabled={!canTestLlmConnection({ mode: 'api', model, apiBase, apiKey, localModelPath: '', ollamaModel: '' }) || llmConnection.status === 'testing'}
                   >
-                    {connectionStatus === 'testing' ? <><Spinner size="md" className="mr-2" />{t('onboarding.apiConfig.testing')}</> : t('onboarding.apiConfig.testConnection')}
+                    {llmConnection.status === 'testing' ? <><Spinner size="md" className="mr-2" />{t('onboarding.apiConfig.testing')}</> : t('onboarding.apiConfig.testConnection')}
                   </Button>
 
-                  {connectionStatus !== 'idle' && (
+                  {llmConnection.status !== 'idle' && (
                     <div className={`rounded-xl px-4 py-3 text-sm leading-relaxed ${
-                      connectionStatus === 'success'
+                      llmConnection.status === 'success'
                         ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'
-                        : connectionStatus === 'error'
+                        : llmConnection.status === 'error'
                           ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300'
                           : 'bg-surface text-text/70'
                     }`}
                     >
-                      {connectionMessage}
+                      {llmConnection.message}
                     </div>
                   )}
                 </Card>

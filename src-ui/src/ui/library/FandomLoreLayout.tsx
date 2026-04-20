@@ -15,9 +15,10 @@ import { Search, Plus, ArrowLeft, FileText, ChevronDown, ChevronRight, Folder, T
 import { SettingsMarkdown } from '../shared/SettingsMarkdown';
 import { FandomLoreModals } from './FandomLoreModals';
 import { saveLore, deleteLore } from '../../api/engine-client';
-import { listFandomFiles, readFandomFile, type FandomFileEntry } from '../../api/engine-client';
+import { getFandomDisplayInfo, listFandomFiles, readFandomFile, type FandomFileEntry } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { FeedbackProvider, useFeedback } from '../../hooks/useFeedback';
+import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 
 type Props = {
   fandomPath?: string;
@@ -65,16 +66,18 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [discardChangesOpen, setDiscardChangesOpen] = useState(false);
   const [trashRefreshToken, setTrashRefreshToken] = useState(0);
-  const loadFilesRequestIdRef = useRef(0);
-  const selectFileRequestIdRef = useRef(0);
-  const contextVersionRef = useRef(0);
   const pendingSelectionRef = useRef<{ filename: string; category: 'core_characters' | 'core_worldbuilding' } | null>(null);
   const pendingCreateCategoryRef = useRef<'core_characters' | 'core_worldbuilding' | null>(null);
   const pendingNavigationRef = useRef<string | null>(null);
   const pendingDeleteRef = useRef(false);
 
-  const fandomName = fandomPath?.split('/').pop() || t('common.unknownFandom');
-  const renderContextVersion = contextVersionRef.current;
+  const contextKey = fandomPath ?? '';
+  const loadFilesGuard = useActiveRequestGuard(contextKey);
+  const selectFileGuard = useActiveRequestGuard(contextKey);
+  const contextGuard = useActiveRequestGuard(contextKey);
+  const fandomDirName = fandomPath?.split('/').pop() || '';
+  const fallbackFandomName = fandomDirName || t('common.unknownFandom');
+  const [fandomName, setFandomName] = useState(fallbackFandomName);
   const editorBusy = isSaving || isReadingFile || settingsChatBusy;
   const isEditorDirty = selectedFile !== null && editorContent !== savedEditorContent;
   const settingsChatDisabled = isSaving || isReadingFile || isEditorDirty;
@@ -97,9 +100,6 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
     : worldbuildingFiles;
 
   useEffect(() => {
-    contextVersionRef.current += 1;
-    loadFilesRequestIdRef.current += 1;
-    selectFileRequestIdRef.current += 1;
     setCharacterFiles([]);
     setWorldbuildingFiles([]);
     setSelectedFile(null);
@@ -115,31 +115,36 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
     setCreateName('');
     setSearchTerm('');
     setFilesLoading(false);
+    setFandomName(fallbackFandomName);
     pendingSelectionRef.current = null;
     pendingCreateCategoryRef.current = null;
     pendingNavigationRef.current = null;
     pendingDeleteRef.current = false;
-  }, [fandomPath]);
+  }, [fallbackFandomName, fandomPath]);
 
   const loadFiles = async (): Promise<{
     characters: FandomFileEntry[];
     worldbuilding: FandomFileEntry[];
   } | null> => {
-    if (!fandomPath) return null;
-    const requestId = ++loadFilesRequestIdRef.current;
+    if (!fandomPath || !fandomDirName) return null;
+    const token = loadFilesGuard.start();
     setFilesLoading(true);
     try {
-      const data = await listFandomFiles(fandomName);
-      if (requestId !== loadFilesRequestIdRef.current) return null;
+      const [displayInfo, data] = await Promise.all([
+        getFandomDisplayInfo(fandomPath).catch(() => null),
+        listFandomFiles(fandomDirName),
+      ]);
+      if (loadFilesGuard.isStale(token)) return null;
+      setFandomName(displayInfo?.name || fallbackFandomName);
       setCharacterFiles(data.characters);
       setWorldbuildingFiles(data.worldbuilding);
       return data;
     } catch (e) {
-      if (requestId !== loadFilesRequestIdRef.current) return null;
+      if (loadFilesGuard.isStale(token)) return null;
       showError(e, t("error_messages.unknown"));
       return null;
     } finally {
-      if (requestId === loadFilesRequestIdRef.current) {
+      if (!loadFilesGuard.isStale(token)) {
         setFilesLoading(false);
       }
     }
@@ -147,7 +152,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
 
   useEffect(() => {
     void loadFiles();
-  }, [fandomName, fandomPath, showError, t]);
+  }, [fandomDirName, fandomPath, fallbackFandomName, showError, t]);
 
   const openDiscardChangesConfirm = (
     nextAction:
@@ -181,20 +186,21 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
   };
 
   const handleSelectFile = async (filename: string, category: 'core_characters' | 'core_worldbuilding') => {
-    const requestId = ++selectFileRequestIdRef.current;
+    if (!fandomDirName) return;
+    const token = selectFileGuard.start();
     setSelectedFile(filename);
     setSelectedCategory(category);
     setEditorContent('');
     setSavedEditorContent('');
     setIsReadingFile(true);
     try {
-      const result = await readFandomFile(fandomName, category, filename);
-      if (requestId !== selectFileRequestIdRef.current) return;
+      const result = await readFandomFile(fandomDirName, category, filename);
+      if (selectFileGuard.isStale(token)) return;
       setEditorContent(result.content);
       setSavedEditorContent(result.content);
       setIsReadingFile(false);
     } catch {
-      if (requestId !== selectFileRequestIdRef.current) return;
+      if (selectFileGuard.isStale(token)) return;
       setSelectedFile(null);
       setEditorContent('');
       setSavedEditorContent('');
@@ -286,7 +292,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
   const handleCreateLore = async () => {
     const rawName = createName.trim();
     if (!rawName || !fandomPath) return;
-    const contextVersion = contextVersionRef.current;
+    const contextSnapshot = contextKey;
     setIsSaving(true);
 
     const displayName = rawName.replace(/\.md$/i, '').trim();
@@ -299,12 +305,12 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
     let latestFiles: { characters: FandomFileEntry[]; worldbuilding: FandomFileEntry[] } | null = null;
 
     try {
-      latestFiles = await listFandomFiles(fandomName);
-      if (contextVersion !== contextVersionRef.current) { setIsSaving(false); return; }
+      latestFiles = await listFandomFiles(fandomDirName);
+      if (contextGuard.isKeyStale(contextSnapshot)) { setIsSaving(false); return; }
       setCharacterFiles(latestFiles.characters);
       setWorldbuildingFiles(latestFiles.worldbuilding);
     } catch (e: any) {
-      if (contextVersion !== contextVersionRef.current) { setIsSaving(false); return; }
+      if (contextGuard.isKeyStale(contextSnapshot)) { setIsSaving(false); return; }
       showError(e, t("error_messages.unknown"));
       setIsSaving(false);
       return;
@@ -322,8 +328,8 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
     const defaultContent = `# ${displayName}\n\n[]`;
 
     setCreateModalOpen(false);
-    loadFilesRequestIdRef.current += 1;
-    selectFileRequestIdRef.current += 1;
+    loadFilesGuard.start();
+    selectFileGuard.start();
     try {
       await saveLore({
         fandom_path: fandomPath,
@@ -331,7 +337,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
         filename,
         content: defaultContent,
       });
-      if (contextVersion !== contextVersionRef.current) return;
+      if (contextGuard.isKeyStale(contextSnapshot)) return;
       setSelectedFile(filename);
       setSelectedCategory(createModalCategory);
       setPreviewMode(false);
@@ -344,10 +350,10 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
         setWorldbuildingFiles(prev => [...prev, { name: displayName, filename }]);
       }
     } catch (e: any) {
-      if (contextVersion !== contextVersionRef.current) return;
+      if (contextGuard.isKeyStale(contextSnapshot)) return;
       showError(e, t("error_messages.unknown"));
     } finally {
-      if (contextVersion === contextVersionRef.current) {
+      if (!contextGuard.isKeyStale(contextSnapshot)) {
         setIsSaving(false);
       }
     }
@@ -355,7 +361,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
 
   const handleSaveLore = async () => {
     if (!selectedFile || !fandomPath) return;
-    const contextVersion = contextVersionRef.current;
+    const contextSnapshot = contextKey;
     setIsSaving(true);
     try {
       await saveLore({
@@ -364,13 +370,13 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
         filename: selectedFile,
         content: editorContent
       });
-      if (contextVersion !== contextVersionRef.current) { setIsSaving(false); return; }
+      if (contextGuard.isKeyStale(contextSnapshot)) { setIsSaving(false); return; }
       setSavedEditorContent(editorContent);
     } catch (e: any) {
-      if (contextVersion !== contextVersionRef.current) { setIsSaving(false); return; }
+      if (contextGuard.isKeyStale(contextSnapshot)) { setIsSaving(false); return; }
       showError(e, t("error_messages.unknown"));
     } finally {
-      if (contextVersion === contextVersionRef.current) {
+      if (!contextGuard.isKeyStale(contextSnapshot)) {
         setIsSaving(false);
       }
     }
@@ -378,18 +384,18 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
 
   const handleDeleteLore = async () => {
     if (!selectedFile || !fandomPath) return;
-    const contextVersion = contextVersionRef.current;
+    const contextSnapshot = contextKey;
     setDeleteConfirmOpen(false);
     setIsSaving(true);
-    loadFilesRequestIdRef.current += 1;
-    selectFileRequestIdRef.current += 1;
+    loadFilesGuard.start();
+    selectFileGuard.start();
     try {
       await deleteLore({
         fandom_path: fandomPath,
         category: selectedCategory,
         filename: selectedFile,
       });
-      if (contextVersion !== contextVersionRef.current) { setIsSaving(false); return; }
+      if (contextGuard.isKeyStale(contextSnapshot)) { setIsSaving(false); return; }
       if (selectedCategory === 'core_characters') {
         setCharacterFiles(prev => prev.filter(f => f.filename !== selectedFile));
       } else {
@@ -401,17 +407,17 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
       setIsReadingFile(false);
       setTrashRefreshToken(current => current + 1);
     } catch (e: any) {
-      if (contextVersion !== contextVersionRef.current) { setIsSaving(false); return; }
+      if (contextGuard.isKeyStale(contextSnapshot)) { setIsSaving(false); return; }
       showError(e, t("error_messages.unknown"));
     } finally {
-      if (contextVersion === contextVersionRef.current) {
+      if (!contextGuard.isKeyStale(contextSnapshot)) {
         setIsSaving(false);
       }
     }
   };
 
   const handleTrashRestore = (entry: TrashEntry) => {
-    if (renderContextVersion !== contextVersionRef.current) return;
+    if (contextGuard.isKeyStale(contextKey)) return;
 
     const restored = getRestoredFandomFile(entry);
     if (!restored) return;

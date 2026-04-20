@@ -22,6 +22,7 @@
     "js-yaml": "^4.1.0"
   },
   "devDependencies": {
+    "@aparajita/capacitor-secure-storage": "^8.0.0",
     "@capacitor/core": "^8.3.0",
     "@capacitor/filesystem": "^8.1.2",
     "@tauri-apps/api": "^2.10.1",

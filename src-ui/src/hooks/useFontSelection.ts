@@ -28,7 +28,7 @@ import {
   type FontRole,
   type FontScript,
 } from "@ficforge/engine";
-import { getFontPreferences, updateSettings } from "../api/engine-client";
+import { getFontPreferences, saveFontPreferences } from "../api/engine-client";
 
 const LS_KEYS = {
   ui_latin: "ficforge_font_ui_latin",
@@ -250,15 +250,11 @@ export function useFontSelection(): FontSelectionState {
 
   const persist = useCallback(
     (snapshot: { ui_latin: string; ui_cjk: string; reading_latin: string; reading_cjk: string }) => {
-      updateSettings({
-        app: {
-          fonts: {
-            ui_latin_font_id: snapshot.ui_latin,
-            ui_cjk_font_id: snapshot.ui_cjk,
-            reading_latin_font_id: snapshot.reading_latin,
-            reading_cjk_font_id: snapshot.reading_cjk,
-          },
-        },
+      saveFontPreferences({
+        ui_latin_font_id: snapshot.ui_latin,
+        ui_cjk_font_id: snapshot.ui_cjk,
+        reading_latin_font_id: snapshot.reading_latin,
+        reading_cjk_font_id: snapshot.reading_cjk,
       }).catch((err) => {
         // 本地 localStorage 已写入，用户感知无异常；但跨设备同步失效，debug 需要可见。
         console.warn("[useFontSelection] engine settings persist failed:", err);

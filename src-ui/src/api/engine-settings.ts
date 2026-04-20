@@ -2,21 +2,75 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 /**
- * Engine Settings — getSettings, updateSettings, testConnection.
+ * Engine Settings query/command layer.
  */
 
 import { OpenAICompatibleProvider, RemoteEmbeddingProvider, type Settings } from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
 import type {
+  AppPreferencesInput,
+  DefaultLlmSettingsInput,
   EmbeddingQueryInfo,
   FontPreferences,
+  GlobalSettingsSaveInput,
   LlmQueryInfo,
   ModelParamInfo,
+  OnboardingDefaults,
+  SecretStorageCapabilities,
   SettingsSummary,
+  SyncSettingsSaveInput,
   WriterSessionConfig,
 } from "./settings";
+import { isTauri } from "../utils/platform";
 
-type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
+let settingsWriteQueue: Promise<void> = Promise.resolve();
+
+async function withSettingsWriteLock<T>(operation: () => Promise<T>): Promise<T> {
+  const previous = settingsWriteQueue;
+  let releaseCurrent!: () => void;
+  settingsWriteQueue = new Promise<void>((resolve) => {
+    releaseCurrent = resolve;
+  });
+
+  await previous.catch(() => undefined);
+  try {
+    return await operation();
+  } finally {
+    releaseCurrent();
+  }
+}
+
+async function withSettingsWrite<T>(mutate: (current: Settings) => T | Promise<T>): Promise<T> {
+  return withSettingsWriteLock(async () => {
+    const { settings } = getEngine().repos;
+    const current = await settings.get();
+    const result = await mutate(current);
+    await settings.save(current);
+    return result;
+  });
+}
+
+async function readSettings(): Promise<Settings> {
+  const { settings } = getEngine().repos;
+  return settings.get();
+}
+
+function buildSyncSettings(input: SyncSettingsSaveInput): Settings["sync"] {
+  return {
+    mode: input.mode,
+    ...(input.mode === "webdav"
+      ? {
+          webdav: {
+            url: input.url,
+            username: input.username,
+            password: input.password,
+            remote_dir: input.remote_dir,
+          },
+        }
+      : {}),
+    ...(input.last_sync ? { last_sync: input.last_sync } : {}),
+  };
+}
 
 function hasUsableConnection(llm: {
   mode?: string;
@@ -74,14 +128,16 @@ function toFontPreferences(settings: Settings): FontPreferences {
   };
 }
 
-export async function getSettings() {
-  const { settings } = getEngine().repos;
-  const s = await settings.get();
-  return s;
+export async function getSettingsForEditing() {
+  return readSettings();
+}
+
+export async function getSettingsSecretCapabilities(): Promise<SecretStorageCapabilities> {
+  return getEngine().adapter.getSecretStorageCapabilities();
 }
 
 export async function getSettingsSummary(): Promise<SettingsSummary> {
-  const settings = await getSettings();
+  const settings = await readSettings();
   return {
     default_llm: toLlmQueryInfo(settings.default_llm),
     embedding: toEmbeddingQueryInfo(settings.embedding),
@@ -99,46 +155,165 @@ export async function getSettingsSummary(): Promise<SettingsSummary> {
 }
 
 export async function getFontPreferences(): Promise<FontPreferences> {
-  const settings = await getSettings();
+  const settings = await readSettings();
   return toFontPreferences(settings);
 }
 
 export async function getWriterSessionConfig(): Promise<WriterSessionConfig> {
-  const settings = await getSettings();
+  const settings = await readSettings();
   return {
     default_llm: toLlmQueryInfo(settings.default_llm),
     model_params: structuredClone(settings.model_params) as Record<string, ModelParamInfo>,
   };
 }
 
-export async function updateSettings(updates: DeepPartial<Settings>) {
-  const { settings } = getEngine().repos;
-  const current = await settings.get();
-  // 深合并嵌套对象，避免覆盖 app.theme 等未传入的字段
-  const currentRec = current as unknown as Record<string, unknown>;
-  const updatesRec = updates as Record<string, unknown>;
-  for (const key of Object.keys(updatesRec)) {
-    const val = updatesRec[key];
-    if (val && typeof val === "object" && !Array.isArray(val) && typeof currentRec[key] === "object") {
-      currentRec[key] = { ...(currentRec[key] as Record<string, unknown>), ...(val as Record<string, unknown>) };
-    } else {
-      currentRec[key] = val;
-    }
-  }
-  await settings.save(current);
-  return current;
+export async function getOnboardingDefaults(): Promise<OnboardingDefaults> {
+  const settings = await readSettings();
+  return {
+    default_llm: {
+      mode: settings.default_llm.mode,
+      model: settings.default_llm.model,
+      api_base: settings.default_llm.api_base,
+      api_key: settings.default_llm.api_key,
+      local_model_path: settings.default_llm.local_model_path,
+      ollama_model: settings.default_llm.ollama_model,
+      context_window: settings.default_llm.context_window,
+    },
+    embedding: {
+      mode: settings.embedding.mode,
+      model: settings.embedding.model,
+      api_base: settings.embedding.api_base,
+      api_key: settings.embedding.api_key,
+      local_model_path: settings.embedding.local_model_path,
+      ollama_model: settings.embedding.ollama_model,
+    },
+  };
+}
+
+export async function saveDefaultLlmSettings(payload: DefaultLlmSettingsInput) {
+  return withSettingsWrite((current) => {
+    current.default_llm = {
+      ...current.default_llm,
+      mode: payload.mode as Settings["default_llm"]["mode"],
+      model: payload.model,
+      api_base: payload.api_base,
+      api_key: payload.api_key,
+      local_model_path: payload.local_model_path,
+      ollama_model: payload.ollama_model,
+      context_window: payload.context_window,
+    };
+    return current.default_llm;
+  });
+}
+
+export async function saveFontPreferences(payload: FontPreferences) {
+  return withSettingsWrite((current) => {
+    current.app = {
+      ...current.app,
+      fonts: {
+        ...current.app.fonts,
+        ...payload,
+      },
+    };
+    return toFontPreferences(current);
+  });
+}
+
+export async function saveAppPreferences(payload: AppPreferencesInput) {
+  return withSettingsWrite((current) => {
+    current.app = {
+      ...current.app,
+      ...(payload.language ? { language: payload.language as Settings["app"]["language"] } : {}),
+    };
+    return current.app;
+  });
+}
+
+export async function saveSyncSettings(payload: SyncSettingsSaveInput) {
+  return withSettingsWrite((current) => {
+    current.sync = buildSyncSettings(payload);
+    return current.sync;
+  });
+}
+
+export async function saveGlobalSettingsForEditing(payload: GlobalSettingsSaveInput) {
+  return withSettingsWrite((current) => {
+    current.default_llm = {
+      ...current.default_llm,
+      mode: payload.default_llm.mode as Settings["default_llm"]["mode"],
+      model: payload.default_llm.mode === "api" ? payload.default_llm.model : "",
+      api_base: payload.default_llm.mode === "ollama"
+        ? (payload.default_llm.api_base || "http://localhost:11434/v1")
+        : payload.default_llm.api_base,
+      api_key: payload.default_llm.mode === "api" ? payload.default_llm.api_key : "",
+      local_model_path: payload.default_llm.mode === "local" ? payload.default_llm.local_model_path : "",
+      ollama_model: payload.default_llm.mode === "ollama" ? payload.default_llm.ollama_model : "",
+      context_window: payload.default_llm.context_window,
+    };
+
+    const useCustomEmbedding = payload.embedding.use_custom_config || !isTauri();
+    current.embedding = {
+      ...current.embedding,
+      mode: (useCustomEmbedding ? "api" : "local") as Settings["embedding"]["mode"],
+      model: useCustomEmbedding ? payload.embedding.model : "",
+      api_base: useCustomEmbedding ? payload.embedding.api_base : "",
+      api_key: useCustomEmbedding ? payload.embedding.api_key : "",
+    };
+
+    current.sync = buildSyncSettings(payload.sync);
+    return current;
+  });
 }
 
 export async function saveGlobalModelParams(model: string, params: ModelParamInfo) {
-  const { settings } = getEngine().repos;
-  const current = await settings.get();
-  current.model_params = current.model_params || {};
-  current.model_params[model] = {
-    temperature: params.temperature,
-    top_p: params.top_p,
+  return withSettingsWrite((current) => {
+    current.model_params = current.model_params || {};
+    current.model_params[model] = {
+      temperature: params.temperature,
+      top_p: params.top_p,
+    };
+    return current.model_params[model];
+  });
+}
+
+export async function saveOnboardingSettings(payload: {
+  default_llm: {
+    mode: string;
+    model: string;
+    api_base: string;
+    api_key: string;
+    local_model_path: string;
+    ollama_model: string;
   };
-  await settings.save(current);
-  return current.model_params[model];
+  embedding: {
+    mode: string;
+    model: string;
+    api_base: string;
+    api_key: string;
+    ollama_model: string;
+  };
+}) {
+  return withSettingsWrite((current) => {
+    current.default_llm = {
+      ...current.default_llm,
+      mode: payload.default_llm.mode as Settings["default_llm"]["mode"],
+      model: payload.default_llm.model,
+      api_base: payload.default_llm.api_base,
+      api_key: payload.default_llm.api_key,
+      local_model_path: payload.default_llm.local_model_path,
+      ollama_model: payload.default_llm.ollama_model,
+      context_window: current.default_llm.context_window || 128000,
+    };
+    current.embedding = {
+      ...current.embedding,
+      mode: payload.embedding.mode as Settings["embedding"]["mode"],
+      model: payload.embedding.model,
+      api_base: payload.embedding.api_base,
+      api_key: payload.embedding.api_key,
+      ollama_model: payload.embedding.ollama_model,
+    };
+    return current;
+  });
 }
 
 export async function testEmbeddingConnection(params: { api_base: string; api_key: string; model: string }) {
@@ -152,13 +327,16 @@ export async function testEmbeddingConnection(params: { api_base: string; api_ke
   }
 }
 
-export async function testConnection(params: { mode: string; model?: string; api_base?: string; api_key?: string; local_model_path?: string; ollama_model?: string }) {
+export async function testConnection(params: {
+  mode: string;
+  model?: string;
+  api_base?: string;
+  api_key?: string;
+  local_model_path?: string;
+  ollama_model?: string;
+}) {
   try {
     if (params.mode === "local") {
-      // local 模式的续写生成需要 Python sidecar 扩展，当前版本未实现
-      // （见 engine-generate.ts 的 UNSUPPORTED_MODE 拦截）。
-      // 即使 sidecar /health 存活，实际生成仍会抛错 —— 为避免"测试成功、使用报错"
-      // 的断层，这里和 create_provider 的行为保持一致。
       return {
         success: false,
         message: "local 模式续写生成暂未实现（需要 Python sidecar 扩展）",
@@ -166,8 +344,6 @@ export async function testConnection(params: { mode: string; model?: string; api
       };
     }
     if (params.mode === "ollama") {
-      // /api/tags 是 Ollama 原生端点，不在 OpenAI 兼容层 /v1 子路径下。
-      // 若 api_base 按新约定带了 /v1，strip 掉再拼 /api/tags。
       const raw = (params.api_base || "http://localhost:11434/v1").replace(/\/+$/, "");
       const nativeBase = raw.replace(/\/v1$/, "");
       const resp = await fetch(`${nativeBase}/api/tags`);
@@ -176,7 +352,7 @@ export async function testConnection(params: { mode: string; model?: string; api
       }
       return { success: false, message: "无法连接 Ollama 服务", error_code: "connection_failed" };
     }
-    // API 模式：发送测试请求
+
     const provider = new OpenAICompatibleProvider(
       params.api_base ?? "",
       params.api_key ?? "",

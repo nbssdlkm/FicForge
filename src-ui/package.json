@@ -11,6 +11,7 @@
     "i18n:check": "tsx scripts/check-i18n-sync.ts"
   },
   "dependencies": {
+    "@aparajita/capacitor-secure-storage": "^8.0.0",
     "@capacitor/android": "^8.3.0",
     "@capacitor/cli": "^8.3.0",
     "@capacitor/core": "^8.3.0",

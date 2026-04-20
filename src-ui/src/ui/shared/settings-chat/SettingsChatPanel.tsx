@@ -7,8 +7,9 @@ import { Sparkles } from "lucide-react";
 import { sendSettingsChat, type SettingsChatSessionLlm } from "../../../api/engine-client";
 import { addFact, editFact, updateFactStatus } from "../../../api/engine-client";
 import { deleteLore, listLoreFiles, readLore, saveLore } from "../../../api/engine-client";
-import { addPinned, deletePinned, getProject, updateProject, type ProjectInfo } from "../../../api/engine-client";
+import { addPinned, deletePinned, getProjectForEditing, saveProjectCastRegistryCharacters, saveProjectCoreIncludes, saveProjectWritingStyle, type ProjectInfo } from "../../../api/engine-client";
 import { useFeedback } from "../../../hooks/useFeedback";
+import { useActiveRequestGuard } from "../../../hooks/useActiveRequestGuard";
 import { useTranslation } from "../../../i18n/useAppTranslation";
 import { SettingsChatHistory } from "./SettingsChatHistory";
 import { SettingsChatInput } from "./SettingsChatInput";
@@ -115,7 +116,9 @@ function toApiMessages(
 ): { role: "user" | "assistant"; content: string }[] {
   return messages.map((message) => ({
     role: message.role,
-    content: message.role === "assistant" ? serializeAssistantMessage(message, t) : message.content,
+    content: message.role === "assistant"
+      ? serializeAssistantMessage(message, t)
+      : (message.requestContent ?? message.content),
   }));
 }
 
@@ -161,10 +164,11 @@ export function SettingsChatPanel({
   const characterFilesRef = useRef<LoreFileOption[]>([]);
   const worldbuildingFilesRef = useRef<LoreFileOption[]>([]);
   const loadingCardIdsRef = useRef<Set<string>>(new Set());
-  const supportDataRequestIdRef = useRef(0);
-  const chatRequestIdRef = useRef(0);
-  const contextVersionRef = useRef(0);
   const onAfterMutationRef = useRef<typeof onAfterMutation>(onAfterMutation);
+  const panelContextKey = `${mode}:${basePath ?? ""}`;
+  const panelContextGuard = useActiveRequestGuard(panelContextKey);
+  const supportDataGuard = useActiveRequestGuard(`support:${mode}:${basePath ?? ""}`);
+  const chatGuard = useActiveRequestGuard(`chat:${mode}:${basePath ?? ""}`);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -196,9 +200,6 @@ export function SettingsChatPanel({
   }, [mutationBusy, onBusyChange]);
 
   useEffect(() => {
-    contextVersionRef.current += 1;
-    chatRequestIdRef.current += 1;
-    supportDataRequestIdRef.current += 1;
     loadingCardIdsRef.current.clear();
     setSending(false);
     setPostMutationBusy(false);
@@ -214,16 +215,16 @@ export function SettingsChatPanel({
 
   const loadSupportData = useCallback(async () => {
     if (!basePath) return;
-    const requestId = ++supportDataRequestIdRef.current;
+    const token = supportDataGuard.start();
 
     try {
       if (mode === "au") {
         const [project, characters, worldbuilding] = await Promise.all([
-          getProject(basePath).catch(() => null),
+          getProjectForEditing(basePath).catch(() => null),
           listLoreFiles({ au_path: basePath, category: "characters" }).catch(() => ({ files: [] })),
           listLoreFiles({ au_path: basePath, category: "worldbuilding" }).catch(() => ({ files: [] })),
         ]);
-        if (requestId !== supportDataRequestIdRef.current) return;
+        if (supportDataGuard.isStale(token)) return;
         setProjectInfo(project);
         setCharacterFiles(characters.files);
         characterFilesRef.current = characters.files;
@@ -236,17 +237,17 @@ export function SettingsChatPanel({
         listLoreFiles({ fandom_path: basePath, category: "core_characters" }).catch(() => ({ files: [] })),
         listLoreFiles({ fandom_path: basePath, category: "core_worldbuilding" }).catch(() => ({ files: [] })),
       ]);
-      if (requestId !== supportDataRequestIdRef.current) return;
+      if (supportDataGuard.isStale(token)) return;
       setProjectInfo(null);
       setCharacterFiles(characters.files);
       characterFilesRef.current = characters.files;
       setWorldbuildingFiles(worldbuilding.files);
       worldbuildingFilesRef.current = worldbuilding.files;
     } catch (error) {
-      if (requestId !== supportDataRequestIdRef.current) return;
+      if (supportDataGuard.isStale(token)) return;
       showError(error, t("error_messages.unknown"));
     }
-  }, [basePath, mode, showError, t]);
+  }, [basePath, mode, showError, supportDataGuard, t]);
 
   useEffect(() => {
     void loadSupportData();
@@ -277,20 +278,20 @@ export function SettingsChatPanel({
     );
   }, [updateMessageCards]);
 
-  const runAfterMutation = useCallback(async (expectedContextVersion: number) => {
+  const runAfterMutation = useCallback(async (expectedContextKey: string) => {
     await loadSupportData();
-    if (expectedContextVersion !== contextVersionRef.current) {
+    if (panelContextGuard.isKeyStale(expectedContextKey)) {
       return;
     }
     if (onAfterMutationRef.current) {
       await onAfterMutationRef.current();
     }
-  }, [loadSupportData]);
+  }, [loadSupportData, panelContextGuard]);
 
   const executeTool = useCallback(async (
     card: ToolCallCardState,
     nextArgs?: Record<string, unknown>,
-    contextVersion?: number
+    contextKeySnapshot?: string
   ): Promise<{ resultNote: string; undoMeta: ToolUndoMeta | null; warningMessage?: string | null }> => {
     if (!basePath) {
       throw new Error(t("error_messages.unknown"));
@@ -298,7 +299,7 @@ export function SettingsChatPanel({
 
     const args = nextArgs || card.parsedArgs;
     const toolName = getToolCallName(card);
-    const executionContextVersion = contextVersion ?? contextVersionRef.current;
+    const executionContextKey = contextKeySnapshot ?? panelContextKey;
     let latestCharacterFiles: { files: LoreFileOption[] };
     let latestWorldbuildingFiles: { files: LoreFileOption[] };
     try {
@@ -316,7 +317,7 @@ export function SettingsChatPanel({
     } catch {
       throw new Error(t("settingsMode.error.supportDataUnavailable"));
     }
-    if (executionContextVersion !== contextVersionRef.current) {
+    if (panelContextGuard.isKeyStale(executionContextKey)) {
       throw new Error("STALE_CONTEXT");
     }
     characterFilesRef.current = latestCharacterFiles.files;
@@ -351,12 +352,12 @@ export function SettingsChatPanel({
     let ensuredProject: ProjectInfo | null = null;
     if (mode === "au") {
       try {
-        ensuredProject = await getProject(basePath);
+        ensuredProject = await getProjectForEditing(basePath);
       } catch {
         throw new Error(t("settingsMode.error.projectUnavailable"));
       }
     }
-    if (executionContextVersion !== contextVersionRef.current) {
+    if (panelContextGuard.isKeyStale(executionContextKey)) {
       throw new Error("STALE_CONTEXT");
     }
     if (ensuredProject) {
@@ -393,7 +394,7 @@ export function SettingsChatPanel({
         const nextCharacters = Array.from(
           new Set([...(currentProject.cast_registry.characters || []), name])
         );
-        await updateProject(basePath, { cast_registry: { characters: nextCharacters } });
+        await saveProjectCastRegistryCharacters(basePath, nextCharacters);
       } catch (error) {
         try {
           await deleteLore({ au_path: basePath, category: "characters", filename });
@@ -582,7 +583,7 @@ export function SettingsChatPanel({
         ...(currentProject.writing_style || {}),
         [field]: value,
       };
-      await updateProject(basePath, { writing_style: writingStyle });
+      await saveProjectWritingStyle(basePath, writingStyle);
       return {
         resultNote: t("settingsMode.executedWithTarget", { target: t("common.labels.writingStyle") }),
         undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
@@ -604,7 +605,7 @@ export function SettingsChatPanel({
         throw new Error(t("settingsMode.error.coreIncludesMissingAll"));
       }
 
-      await updateProject(basePath, { core_always_include: validNames });
+      await saveProjectCoreIncludes(basePath, validNames);
       return {
         resultNote: t("settingsMode.executedWithTarget", { target: t("common.labels.coreAlwaysInclude") }),
         undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
@@ -615,14 +616,14 @@ export function SettingsChatPanel({
     }
 
     throw new Error(t("settingsMode.error.unsupportedTool", { name: toolName }));
-  }, [basePath, currentChapter, mode, t]);
+  }, [basePath, currentChapter, mode, panelContextGuard, panelContextKey, t]);
 
   const handleConfirmTool = useCallback(async (
     messageId: string,
     cardId: string,
     nextArgs?: Record<string, unknown>
   ) => {
-    const contextVersion = contextVersionRef.current;
+    const contextSnapshot = panelContextKey;
     const message = messagesRef.current.find((item) => item.id === messageId);
     const card = message?.toolCalls?.find((item) => item.id === cardId);
     if (
@@ -650,13 +651,13 @@ export function SettingsChatPanel({
     let result: { resultNote: string; undoMeta: ToolUndoMeta | null; warningMessage?: string | null };
 
     try {
-      result = await executeTool(card, nextArgs, contextVersion);
+      result = await executeTool(card, nextArgs, contextSnapshot);
     } catch (error) {
       if (error instanceof Error && error.message === "STALE_CONTEXT") {
         loadingCardIdsRef.current.delete(cardId);
         return;
       }
-      if (contextVersion !== contextVersionRef.current) {
+      if (panelContextGuard.isKeyStale(contextSnapshot)) {
         loadingCardIdsRef.current.delete(cardId);
         return;
       }
@@ -671,7 +672,7 @@ export function SettingsChatPanel({
       return;
     }
 
-    if (contextVersion !== contextVersionRef.current) {
+    if (panelContextGuard.isKeyStale(contextSnapshot)) {
       loadingCardIdsRef.current.delete(cardId);
       return;
     }
@@ -692,20 +693,20 @@ export function SettingsChatPanel({
 
     setPostMutationBusy(true);
     try {
-      await runAfterMutation(contextVersion);
+      await runAfterMutation(contextSnapshot);
     } catch (error) {
-      if (contextVersion !== contextVersionRef.current) {
+      if (panelContextGuard.isKeyStale(contextSnapshot)) {
         loadingCardIdsRef.current.delete(cardId);
         return;
       }
       showError(error, t("error_messages.unknown"));
     } finally {
-      if (contextVersion === contextVersionRef.current) {
+      if (!panelContextGuard.isKeyStale(contextSnapshot)) {
         setPostMutationBusy(false);
       }
       loadingCardIdsRef.current.delete(cardId);
     }
-  }, [disabled, executeTool, isPostMutationBusy, runAfterMutation, sending, showError, showToast, t, updateSingleCard]);
+  }, [disabled, executeTool, isPostMutationBusy, panelContextGuard, panelContextKey, runAfterMutation, sending, showError, showToast, t, updateSingleCard]);
 
   const handleSkipTool = useCallback((messageId: string, cardId: string) => {
     if (disabled || sending || isPostMutationBusy) {
@@ -720,7 +721,7 @@ export function SettingsChatPanel({
   }, [disabled, isPostMutationBusy, sending, t, updateSingleCard]);
 
   const handleUndoTool = useCallback(async (messageId: string, cardId: string) => {
-    const contextVersion = contextVersionRef.current;
+    const contextSnapshot = panelContextKey;
     const message = messagesRef.current.find((item) => item.id === messageId);
     const card = message?.toolCalls?.find((item) => item.id === cardId);
     if (
@@ -764,7 +765,7 @@ export function SettingsChatPanel({
       } else if (card.undoMeta.kind === "fact" && card.undoMeta.factId) {
         await updateFactStatus(basePath, card.undoMeta.factId, "deprecated", card.undoMeta.chapterNum || currentChapter);
       } else if (card.undoMeta.kind === "pinned") {
-        const latestProject = await getProject(basePath);
+        const latestProject = await getProjectForEditing(basePath);
         const pinnedContext = latestProject.pinned_context || [];
         const pinnedContent = (card.undoMeta.pinnedContent || "").trim();
         let pinnedIndex =
@@ -786,7 +787,7 @@ export function SettingsChatPanel({
         throw new Error(t("settingsMode.undoNotSupported"));
       }
 
-      if (contextVersion !== contextVersionRef.current) {
+      if (panelContextGuard.isKeyStale(contextSnapshot)) {
         loadingCardIdsRef.current.delete(cardId);
         return;
       }
@@ -799,10 +800,10 @@ export function SettingsChatPanel({
         undoMeta: null,
       }));
       setPostMutationBusy(true);
-      await runAfterMutation(contextVersion);
+      await runAfterMutation(contextSnapshot);
       loadingCardIdsRef.current.delete(cardId);
     } catch (error) {
-      if (contextVersion !== contextVersionRef.current) {
+      if (panelContextGuard.isKeyStale(contextSnapshot)) {
         loadingCardIdsRef.current.delete(cardId);
         return;
       }
@@ -814,11 +815,11 @@ export function SettingsChatPanel({
       showError(error, t("error_messages.unknown"));
       loadingCardIdsRef.current.delete(cardId);
     } finally {
-      if (contextVersion === contextVersionRef.current) {
+      if (!panelContextGuard.isKeyStale(contextSnapshot)) {
         setPostMutationBusy(false);
       }
     }
-  }, [basePath, currentChapter, disabled, isPostMutationBusy, mode, runAfterMutation, sending, showError, t, updateSingleCard]);
+  }, [basePath, currentChapter, disabled, isPostMutationBusy, mode, panelContextGuard, panelContextKey, runAfterMutation, sending, showError, t, updateSingleCard]);
 
   const handleConfirmAll = useCallback(async (messageId: string) => {
     if (disabled || sending || isPostMutationBusy) {
@@ -887,7 +888,7 @@ export function SettingsChatPanel({
     const trimmed = inputText.trim();
     if (!trimmed || !basePath || mutationBusy || disabled) return;
 
-    const requestId = ++chatRequestIdRef.current;
+    const token = chatGuard.start();
     const outgoing = buildOutboundUserMessage(trimmed, intent, t);
     const userMessageId = createMessageId(MESSAGE_STORAGE_PREFIX);
     const nextMessages = [
@@ -896,6 +897,7 @@ export function SettingsChatPanel({
         id: userMessageId,
         role: "user" as const,
         content: trimmed,
+        requestContent: outgoing,
       },
     ];
 
@@ -914,7 +916,7 @@ export function SettingsChatPanel({
         ...(fandomPath ? { fandom_path: fandomPath } : {}),
         ...(sessionLlm ? { session_llm: sessionLlm } : {}),
       });
-      if (requestId !== chatRequestIdRef.current) return;
+      if (chatGuard.isStale(token)) return;
       const toolCalls = Array.isArray(response.tool_calls) ? response.tool_calls : [];
 
       const assistantMessage: SettingsChatMessage = {
@@ -927,15 +929,15 @@ export function SettingsChatPanel({
       setMessages((current) => [...current, assistantMessage]);
       setInputText("");
     } catch (error) {
-      if (requestId !== chatRequestIdRef.current) return;
+      if (chatGuard.isStale(token)) return;
       setMessages((current) => current.filter((message) => message.id !== userMessageId));
       showError(error, t("error_messages.unknown"));
     } finally {
-      if (requestId === chatRequestIdRef.current) {
+      if (!chatGuard.isStale(token)) {
         setSending(false);
       }
     }
-  }, [basePath, disabled, fandomPath, inputText, mode, mutationBusy, sessionLlm, showError, t]);
+  }, [basePath, chatGuard, disabled, fandomPath, inputText, mode, mutationBusy, sessionLlm, showError, t]);
 
   const existingCharacterFileNames = useMemo(
     () => new Set(characterFiles.map((file) => file.filename)),

@@ -26,17 +26,33 @@ export type { ExtractedFactCandidate, ExtractFactsResponse } from "./facts";
 export type { ChapterInfo } from "./chapters";
 export type { DraftListItem, DraftGeneratedWith, DeleteDraftsResult } from "./drafts";
 export type {
+  AppPreferencesInput,
+  DefaultLlmSettingsInput,
+  EmbeddingSettingsSaveInput,
   EmbeddingQueryInfo,
   FontPreferences,
+  GlobalSettingsSaveInput,
   LlmQueryInfo,
   LlmSettingsInfo,
+  OnboardingDefaults,
+  SecretStorageCapabilities,
   SettingsSummary,
+  SyncSettingsSaveInput,
   TestConnectionRequest,
   TestConnectionResponse,
   WriterSessionConfig,
 } from "./settings";
-export type { ProjectLlmQueryInfo, WorkspaceSnapshot, WriterProjectContext } from "./project";
-export type { FandomInfo, FandomFileEntry, FandomFilesResponse } from "./fandoms";
+export type {
+  AuSettingsSaveInput,
+  ProjectEmbeddingOverrideInput,
+  ProjectCapabilities,
+  ProjectLlmOverrideInput,
+  ProjectLlmQueryInfo,
+  ProjectWritingStyleInput,
+  WorkspaceSnapshot,
+  WriterProjectContext,
+} from "./project";
+export type { FandomDisplayInfo, FandomInfo, FandomFileEntry, FandomFilesResponse } from "./fandoms";
 export type { TrashScope } from "./trash";
 export type { GenerateParams } from "./generate";
 export type { SettingsChatMode, SettingsChatMessagePayload, SettingsChatSessionLlm, SettingsChatToolCall, SettingsChatResponse } from "./settingsChat";
@@ -68,23 +84,35 @@ export { initEngine, getEngine, isEngineReady, getDataDir, getDisplayDataDir } f
 // ---------------------------------------------------------------------------
 
 export {
-  getSettings,
+  getSettingsForEditing,
+  getSettingsSecretCapabilities,
   getSettingsSummary,
   getFontPreferences,
+  getOnboardingDefaults,
   getWriterSessionConfig,
-  updateSettings,
+  saveAppPreferences,
+  saveDefaultLlmSettings,
+  saveFontPreferences,
+  saveGlobalSettingsForEditing,
   saveGlobalModelParams,
+  saveOnboardingSettings,
+  saveSyncSettings,
   testConnection,
   testEmbeddingConnection,
 } from "./engine-settings";
 export { getState, setChapterFocus, rebuildIndex, recalcState } from "./engine-state";
 export { listFacts, addFact, editFact, updateFactStatus, batchUpdateFactStatus, extractFacts, extractFactsBatch, submitFactsExtraction } from "./engine-facts";
 export {
-  getProject,
+  getProjectCapabilities,
+  getProjectForEditing,
   getWorkspaceSnapshot,
   getWriterProjectContext,
-  updateProject,
+  saveAuSettingsForEditing,
+  saveProjectCastRegistryAndCoreIncludes,
+  saveProjectCastRegistryCharacters,
+  saveProjectCoreIncludes,
   saveProjectModelParamsOverride,
+  saveProjectWritingStyle,
   addPinned,
   deletePinned,
 } from "./engine-project";
@@ -94,8 +122,9 @@ export { generateChapter } from "./engine-generate";
 export { listTrash, restoreTrash, permanentDeleteTrash, purgeTrash } from "./engine-trash";
 export { saveLore, readLore, deleteLore, listLoreFiles, importFromFandom, getLoreContent } from "./engine-lore";
 export { sendSettingsChat } from "./engine-settings-chat";
-export { listFandoms, createFandom, listAus, createAu, deleteFandom, deleteAu, listFandomFiles, readFandomFile, renameFandom, renameAu } from "./engine-fandom";
+export { listFandoms, getFandomDisplayInfo, createFandom, listAus, createAu, deleteFandom, deleteAu, listFandomFiles, readFandomFile, renameFandom, renameAu } from "./engine-fandom";
 export { exportChapters, importChaptersFromText } from "./engine-export";
+export { migrateLegacySecureStorage } from "./engine-security";
 
 // Logger re-exports
 export { initLogger, getLogger, logCatch } from "@ficforge/engine";

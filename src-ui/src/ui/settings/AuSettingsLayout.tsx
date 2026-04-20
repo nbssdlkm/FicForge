@@ -12,8 +12,8 @@ import { ModelSelector } from '../shared/ModelSelector';
 import { Tag } from '../shared/Tag';
 import { Modal } from '../shared/Modal';
 import { Settings, Save, Trash2, Plus } from 'lucide-react';
-import { getProject, updateProject, type ProjectInfo } from '../../api/engine-client';
-import { getSettings, type SettingsInfo } from '../../api/engine-client';
+import { getProjectForEditing, saveAuSettingsForEditing, saveProjectCastRegistryAndCoreIncludes, type ProjectInfo } from '../../api/engine-client';
+import { getSettingsForEditing, type SettingsInfo } from '../../api/engine-client';
 import { getState, recalcState, rebuildIndex } from '../../api/engine-client';
 import { GlobalSettingsModal } from './GlobalSettingsModal';
 import { LlmModeSelect } from './LlmModeSelect';
@@ -23,6 +23,12 @@ import { useFeedback } from '../../hooks/useFeedback';
 import { AuSettingsWritingSection } from './AuSettingsWritingSection';
 import { AuSettingsPinnedSection } from './AuSettingsPinnedSection';
 import { AuSettingsAdvancedSection } from './AuSettingsAdvancedSection';
+import { SecretStorageNotice } from '../shared/SecretStorageNotice';
+import {
+  buildAuSettingsSaveInput,
+  createDefaultAuSettingsFormState,
+  hydrateAuSettingsForm,
+} from './form-mappers';
 
 export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const { t } = useTranslation();
@@ -44,7 +50,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const [coreIncludes, setCoreIncludes] = useState<string[]>([]);
   
   // AU Override config states
-  const [isLlMOverride, setIsLlmOverride] = useState(false);
+  const [isLlmOverride, setIsLlmOverride] = useState(false);
   const [llmMode, setLlmMode] = useState('api');
   const [auModel, setAuModel] = useState('');
   const [auLocalModelPath, setAuLocalModelPath] = useState('');
@@ -80,37 +86,38 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
 
   useEffect(() => {
     if (!auPath) return;
+    const defaults = createDefaultAuSettingsFormState();
     setLoading(true);
     setSaving(false);
     setRecalcing(false);
     setProject(null);
     setGlobalSettings(null);
     setIndexStatus('stale');
-    setPerspective('third_person');
-    setEmotionStyle('implicit');
-    setChapterLength(2000);
-    setCustomInstructions('');
-    setPinnedContext([]);
-    setCoreIncludes([]);
-    setIsLlmOverride(false);
-    setLlmMode('api');
-    setAuModel('');
-    setAuLocalModelPath('');
-    setAuOllamaModel('');
-    setAuApiBase('');
-    setAuApiKey('');
-    setContextWindow(128000);
+    setPerspective(defaults.perspective);
+    setEmotionStyle(defaults.emotionStyle);
+    setChapterLength(defaults.chapterLength);
+    setCustomInstructions(defaults.customInstructions);
+    setPinnedContext(defaults.pinnedContext);
+    setCoreIncludes(defaults.coreIncludes);
+    setIsLlmOverride(defaults.isLlmOverride);
+    setLlmMode(defaults.llmMode);
+    setAuModel(defaults.auModel);
+    setAuLocalModelPath(defaults.auLocalModelPath);
+    setAuOllamaModel(defaults.auOllamaModel);
+    setAuApiBase(defaults.auApiBase);
+    setAuApiKey(defaults.auApiKey);
+    setContextWindow(defaults.contextWindow);
     setGlobalSettingsOpen(false);
     setCoreIncludeModalOpen(false);
-    setIsEmbeddingOverride(false);
-    setEmbModel('');
-    setEmbApiBase('');
-    setEmbApiKey('');
+    setIsEmbeddingOverride(defaults.isEmbeddingOverride);
+    setEmbModel(defaults.embModel);
+    setEmbApiBase(defaults.embApiBase);
+    setEmbApiKey(defaults.embApiKey);
 
     const token = loadGuard.start();
     Promise.allSettled([
-      getProject(auPath),
-      getSettings(),
+      getProjectForEditing(auPath),
+      getSettingsForEditing(),
       getState(auPath),
     ]).then(([projResult, settingsResult, stateResult]) => {
       if (loadGuard.isStale(token)) return;
@@ -127,41 +134,25 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
       setGlobalSettings(settings);
       setIndexStatus(state?.index_status || 'stale');
       if (proj) {
-        setPerspective(proj.writing_style?.perspective || 'third_person');
-        setEmotionStyle(proj.writing_style?.emotion_style || 'implicit');
-        setChapterLength(proj.chapter_length || 2000);
-        setCustomInstructions(proj.writing_style?.custom_instructions || '');
-        setPinnedContext(proj.pinned_context || []);
-        setCoreIncludes(proj.core_always_include || []);
-
-        // Embedding lock
-        if (proj.embedding_lock && (proj.embedding_lock.model || proj.embedding_lock.api_key)) {
-          setIsEmbeddingOverride(true);
-          setEmbModel(proj.embedding_lock.model || '');
-          setEmbApiBase(proj.embedding_lock.api_base || '');
-          setEmbApiKey(proj.embedding_lock.api_key || '');
-        }
-
-        if (
-          proj.llm
-          && (
-            proj.llm.mode !== 'api'
-            || proj.llm.model
-            || proj.llm.api_base
-            || proj.llm.api_key
-            || proj.llm.local_model_path
-            || proj.llm.ollama_model
-          )
-        ) {
-          setIsLlmOverride(true);
-          setLlmMode(proj.llm.mode || 'api');
-          setAuModel(proj.llm.model || '');
-          setAuLocalModelPath(proj.llm.local_model_path || '');
-          setAuOllamaModel(proj.llm.ollama_model || proj.llm.model || '');
-          setAuApiBase(proj.llm.api_base || '');
-          setAuApiKey(proj.llm.api_key || '');
-          setContextWindow(proj.llm.context_window || 128000);
-        }
+        const form = hydrateAuSettingsForm(proj);
+        setPerspective(form.perspective);
+        setEmotionStyle(form.emotionStyle);
+        setChapterLength(form.chapterLength);
+        setCustomInstructions(form.customInstructions);
+        setPinnedContext(form.pinnedContext);
+        setCoreIncludes(form.coreIncludes);
+        setIsEmbeddingOverride(form.isEmbeddingOverride);
+        setEmbModel(form.embModel);
+        setEmbApiBase(form.embApiBase);
+        setEmbApiKey(form.embApiKey);
+        setIsLlmOverride(form.isLlmOverride);
+        setLlmMode(form.llmMode);
+        setAuModel(form.auModel);
+        setAuLocalModelPath(form.auLocalModelPath);
+        setAuOllamaModel(form.auOllamaModel);
+        setAuApiBase(form.auApiBase);
+        setAuApiKey(form.auApiKey);
+        setContextWindow(form.contextWindow);
       }
       if (firstError) {
         showError(firstError, t('error_messages.unknown'));
@@ -177,57 +168,30 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
     const requestAuPath = auPath;
     setSaving(true);
     try {
-      if (project) {
-        const payload: any = {
-          chapter_length: chapterLength,
-          writing_style: {
-            ...project.writing_style,
-            perspective,
-            emotion_style: emotionStyle,
-            custom_instructions: customInstructions,
-          },
-          pinned_context: pinnedContext,
-          core_always_include: coreIncludes,
-        };
-        
-        // Embedding lock
-        if (isEmbeddingOverride) {
-          payload.embedding_lock = {
-            mode: embModel ? 'api' : '',
-            model: embModel,
-            api_base: embApiBase,
-            api_key: embApiKey,
-          };
-        } else {
-          payload.embedding_lock = { mode: '', model: '', api_base: '', api_key: '' };
-        }
-
-        if (isLlMOverride) {
-           payload.llm = {
-             mode: llmMode,
-             model: llmMode === 'api' ? auModel : '',
-             api_base: llmMode === 'ollama' ? (auApiBase || 'http://localhost:11434/v1') : auApiBase,
-             api_key: llmMode === 'api' ? auApiKey : '',
-             local_model_path: llmMode === 'local' ? auLocalModelPath : '',
-             ollama_model: llmMode === 'ollama' ? auOllamaModel : '',
-             context_window: contextWindow,
-           };
-        } else {
-           // Clear it so it falls back to global
-           payload.llm = {
-             mode: 'api',
-             model: '',
-             api_base: '',
-             api_key: '',
-             local_model_path: '',
-             ollama_model: '',
-             context_window: 0,
-           };
-        }
-        
-        await updateProject(auPath, payload);
-        if (loadGuard.isKeyStale(requestAuPath)) return;
+      if (!project) {
+        throw new Error(t("settingsMode.error.projectUnavailable"));
       }
+      await saveAuSettingsForEditing(auPath, buildAuSettingsSaveInput({
+        perspective,
+        emotionStyle,
+        chapterLength,
+        customInstructions,
+        pinnedContext,
+        coreIncludes,
+        isLlmOverride,
+        llmMode,
+        auModel,
+        auLocalModelPath,
+        auOllamaModel,
+        auApiBase,
+        auApiKey,
+        contextWindow,
+        isEmbeddingOverride,
+        embModel,
+        embApiBase,
+        embApiKey,
+      }));
+      if (loadGuard.isKeyStale(requestAuPath)) return;
       showSuccess(t("common.actions.save"));
     } catch (e: any) {
       if (loadGuard.isKeyStale(requestAuPath)) return;
@@ -272,6 +236,8 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
             </Button>
           </header>
 
+          <SecretStorageNotice auPath={auPath} />
+
           {/* 1. 模型与 API 配置 */}
           <section className="space-y-4">
             <h2 className="text-lg font-sans font-bold text-accent border-l-4 border-accent pl-3">{t("settings.sections.llm")}</h2>
@@ -282,12 +248,12 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                    <p className="text-xs text-text/50">{t("settings.story.inheritDescription")}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                   <Toggle checked={isLlMOverride} onChange={e => setIsLlmOverride(e.target.checked)} label={t("settings.story.overrideToggle")} />
+                   <Toggle checked={isLlmOverride} onChange={e => setIsLlmOverride(e.target.checked)} label={t("settings.story.overrideToggle")} />
                    <Button tone="neutral" fill="plain" size="sm" onClick={() => setGlobalSettingsOpen(true)}>{t("common.actions.viewGlobalSettings")}</Button>
                 </div>
               </div>
 
-              {isLlMOverride && (
+              {isLlmOverride && (
                 <div className="pt-4 border-t border-black/10 dark:border-white/10 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-text/90">{t("common.labels.searchMode")}</label>
@@ -439,7 +405,10 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                             // 同时从必带角色中移除
                             const nextPins = coreIncludes.filter(n => n !== c);
                             try {
-                              await updateProject(auPath, { cast_registry: { characters: next }, core_always_include: nextPins });
+                              await saveProjectCastRegistryAndCoreIncludes(auPath, {
+                                characters: next,
+                                core_always_include: nextPins,
+                              });
                               setProject(prev => prev ? { ...prev, cast_registry: { ...prev.cast_registry, characters: next }, core_always_include: nextPins } : prev);
                               setCoreIncludes(nextPins);
                             } catch (e) {

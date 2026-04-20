@@ -117,6 +117,13 @@ export { build_settings_context, call_settings_llm } from "./settings_chat.js";
 export type { TrashEntry } from "./trash_service.js";
 export { TrashService } from "./trash_service.js";
 
+// Secure Storage Migration
+export type {
+  SecureStorageMigrationParams,
+  SecureStorageMigrationResult,
+} from "./secure_storage_migration.js";
+export { migrate_legacy_secure_storage } from "./secure_storage_migration.js";
+
 // Recalc State
 export type { RecalcResult } from "./recalc_state.js";
 export { recalc_state } from "./recalc_state.js";
