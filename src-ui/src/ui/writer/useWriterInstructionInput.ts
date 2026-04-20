@@ -2,22 +2,32 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, useRef } from 'react';
-import { saveInstructionText } from '../../utils/writerStorage';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { readSavedInstructionText, saveInstructionText } from '../../utils/writerStorage';
 
 type UseWriterInstructionInputOptions = {
   auPath: string;
   currentChapterNum: number;
-  instructionText: string;
 };
 
 export function useWriterInstructionInput({
   auPath,
   currentChapterNum,
-  instructionText,
 }: UseWriterInstructionInputOptions) {
+  const [instructionText, setInstructionText] = useState('');
   const instructionInputRef = useRef<HTMLInputElement | null>(null);
   const instructionSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 自主 watch auPath + currentChapterNum：0 或切 AU → 清空；有章节 → 从 storage 读。
+  // 原来这段由 bootstrap.loadData 通过 bridge 反调 loadInstructionFromStorage，
+  // 现改为 hook 自己响应，消除 instructionInputBridgeRef。
+  useEffect(() => {
+    if (!currentChapterNum) {
+      setInstructionText('');
+      return;
+    }
+    setInstructionText(readSavedInstructionText(auPath, currentChapterNum));
+  }, [auPath, currentChapterNum]);
 
   useEffect(() => {
     if (!currentChapterNum) return;
@@ -45,6 +55,8 @@ export function useWriterInstructionInput({
   }, []);
 
   return {
+    instructionText,
+    setInstructionText,
     instructionInputRef,
     focusInstructionInput,
   };

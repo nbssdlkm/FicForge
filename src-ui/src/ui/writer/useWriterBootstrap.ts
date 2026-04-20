@@ -2,84 +2,42 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getChapterContent,
   getState,
   getWriterProjectContext,
   getWriterSessionConfig,
   listFacts,
-  type ContextSummary,
   type FactInfo,
   type StateInfo,
   type WriterProjectContext,
   type WriterSessionConfig,
 } from '../../api/engine-client';
-import {
-  readSavedContextSummaries,
-  readSavedGenerateRequest,
-  readSavedInstructionText,
-  type GenerateRequestState,
-} from '../../utils/writerStorage';
 import type { ActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 
-type UseWriterBootstrapOptions<TDraft extends { label: string }> = {
+type UseWriterBootstrapOptions = {
   auPath: string;
   loadGuard: ActiveRequestGuard<string>;
   refreshGuard: ActiveRequestGuard<string>;
-  getConfiguredLlmModel: (
-    llm: WriterProjectContext['llm'] | WriterSessionConfig['default_llm'] | null | undefined,
-  ) => string;
-  setSessionModel: (model: string) => void;
-  setSessionTemp: (temperature: number) => void;
-  setSessionTopP: (topP: number) => void;
-  loadDraftsForChapter: (chapterNum: number) => Promise<TDraft[]>;
-  replaceDraftSummaries: (chapterNum: number, summaries: Record<string, ContextSummary>) => void;
-  clearDraftState: () => void;
-  pendingContextSummaryRef: MutableRefObject<ContextSummary | null>;
   showError: (error: unknown, fallback: string) => void;
   t: (key: string, params?: Record<string, unknown>) => string;
-  setLoading: (loading: boolean) => void;
-  setState: (state: StateInfo | null) => void;
-  setProjectInfo: (project: WriterProjectContext | null) => void;
-  setSettingsInfo: (settings: WriterSessionConfig | null) => void;
-  setCurrentContent: (content: string) => void;
-  setUnresolvedFacts: (facts: FactInfo[]) => void;
-  setFocusSelection: (focus: string[]) => void;
-  setDrafts: (drafts: TDraft[]) => void;
-  setActiveDraftIndex: (index: number) => void;
-  setRecoveryNotice: (show: boolean) => void;
-  setLastGenerateRequest: (request: GenerateRequestState | null) => void;
-  setInstructionText: (text: string) => void;
 };
 
-export function useWriterBootstrap<TDraft extends { label: string }>({
+export function useWriterBootstrap({
   auPath,
   loadGuard,
   refreshGuard,
-  getConfiguredLlmModel,
-  setSessionModel,
-  setSessionTemp,
-  setSessionTopP,
-  loadDraftsForChapter,
-  replaceDraftSummaries,
-  clearDraftState,
-  pendingContextSummaryRef,
   showError,
   t,
-  setLoading,
-  setState,
-  setProjectInfo,
-  setSettingsInfo,
-  setCurrentContent,
-  setUnresolvedFacts,
-  setFocusSelection,
-  setDrafts,
-  setActiveDraftIndex,
-  setRecoveryNotice,
-  setLastGenerateRequest,
-  setInstructionText,
-}: UseWriterBootstrapOptions<TDraft>) {
+}: UseWriterBootstrapOptions) {
+  const [state, setState] = useState<StateInfo | null>(null);
+  const [projectInfo, setProjectInfo] = useState<WriterProjectContext | null>(null);
+  const [settingsInfo, setSettingsInfo] = useState<WriterSessionConfig | null>(null);
+  const [currentContent, setCurrentContent] = useState('');
+  const [unresolvedFacts, setUnresolvedFacts] = useState<FactInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const loadData = useCallback(async () => {
     const token = loadGuard.start();
     setLoading(true);
@@ -96,35 +54,12 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
       setProjectInfo(proj);
       setSettingsInfo(settings);
       setUnresolvedFacts(factsData);
-      setFocusSelection(stateData?.chapter_focus || []);
 
-      let defModel = 'deepseek-chat';
-      let defTemp = 1.0;
-      let defTopP = 0.95;
-
-      const globalConfiguredModel = getConfiguredLlmModel(settings?.default_llm);
-      if (globalConfiguredModel) {
-        defModel = globalConfiguredModel;
-        const globalParams = settings?.model_params?.[defModel];
-        if (globalParams) {
-          defTemp = globalParams.temperature;
-          defTopP = globalParams.top_p;
-        }
-      }
-
-      const projectConfiguredModel = getConfiguredLlmModel(proj?.llm);
-      if (projectConfiguredModel) {
-        defModel = projectConfiguredModel;
-      }
-      if (proj?.model_params_override?.[defModel]) {
-        const override = proj.model_params_override[defModel];
-        defTemp = (override.temperature as number) ?? defTemp;
-        defTopP = (override.top_p as number) ?? defTopP;
-      }
-
-      setSessionModel(defModel);
-      setSessionTemp(defTemp);
-      setSessionTopP(defTopP);
+      // 注：focus selection 的同步改由 useWriterFocusController 自己 watch state 响应；
+      // session model/temp/topP 的派生由 useSessionParams 自己 watch projectInfo/settingsInfo；
+      // instruction text 的 storage 加载由 useWriterInstructionInput 自己 watch currentChapterNum。
+      // 下面 loadData 不再反注入这些派生动作。
+      // useSessionParams 自己 watch projectInfo/settingsInfo 并派生，消除 bridge。
 
       if (stateData && stateData.current_chapter > 1) {
         const latestNum = stateData.current_chapter - 1;
@@ -140,32 +75,9 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
         setCurrentContent('');
       }
 
-      if (stateData) {
-        const loadedDrafts = await loadDraftsForChapter(stateData.current_chapter);
-        if (loadGuard.isStale(token)) return;
-        const storedSummaries = readSavedContextSummaries(auPath, stateData.current_chapter);
-        const activeLabels = new Set(loadedDrafts.map((draft) => draft.label));
-        const filteredSummaries = Object.entries(storedSummaries).reduce<Record<string, ContextSummary>>(
-          (accumulator, [label, summary]) => {
-            if (activeLabels.has(label)) {
-              accumulator[label] = summary;
-            }
-            return accumulator;
-          },
-          {},
-        );
-
-        setDrafts(loadedDrafts);
-        setActiveDraftIndex(loadedDrafts.length > 0 ? loadedDrafts.length - 1 : 0);
-        setRecoveryNotice(loadedDrafts.length > 0);
-        setLastGenerateRequest(readSavedGenerateRequest(auPath, stateData.current_chapter));
-        setInstructionText(readSavedInstructionText(auPath, stateData.current_chapter));
-        replaceDraftSummaries(stateData.current_chapter, filteredSummaries);
-        pendingContextSummaryRef.current = null;
-      } else {
-        clearDraftState();
-        setLastGenerateRequest(null);
-        setInstructionText('');
+      // 注：draft 加载、instruction storage 加载、focus 同步、session params 派生
+      // 都不再由 bootstrap.loadData 反注入执行。每个下游 hook 自主 watch state/projectInfo/settingsInfo 响应。
+      if (!stateData) {
         setProjectInfo(null);
       }
     } catch (error) {
@@ -178,27 +90,7 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
     }
   }, [
     auPath,
-    clearDraftState,
-    getConfiguredLlmModel,
-    loadDraftsForChapter,
     loadGuard,
-    pendingContextSummaryRef,
-    replaceDraftSummaries,
-    setActiveDraftIndex,
-    setCurrentContent,
-    setDrafts,
-    setFocusSelection,
-    setInstructionText,
-    setLastGenerateRequest,
-    setLoading,
-    setProjectInfo,
-    setRecoveryNotice,
-    setSessionModel,
-    setSessionTemp,
-    setSessionTopP,
-    setSettingsInfo,
-    setState,
-    setUnresolvedFacts,
     showError,
     t,
   ]);
@@ -215,7 +107,7 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
 
       if (stateData) {
         setState(stateData);
-        setFocusSelection(stateData.chapter_focus || []);
+        // focus 同步由 useWriterFocusController 自己 watch state 响应
       }
       setProjectInfo(proj);
       setUnresolvedFacts(factsData);
@@ -226,19 +118,45 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
   }, [
     auPath,
     refreshGuard,
-    setFocusSelection,
-    setProjectInfo,
-    setState,
-    setUnresolvedFacts,
     showError,
     t,
   ]);
 
   useEffect(() => {
-    void loadData();
-  }, [loadData]);
+    setState(null);
+    setProjectInfo(null);
+    setSettingsInfo(null);
+    setCurrentContent('');
+    setUnresolvedFacts([]);
+    setLoading(true);
+  }, [auPath]);
+
+  // loadData 的 useCallback 有 24 个依赖；其中某个在每次 render 时引用不稳，
+  // 直接 useEffect([loadData]) 会无限重触发 → loadData 跑一遍 → setState 触发 re-render
+  // → loadData 重建 → useEffect 又触发，每秒 100+ 次。Android 真机肉眼可见加载圈不停。
+  // 用 ref 持有最新 loadData，useEffect 仅按 auPath 触发。Phase 1 状态下沉后 deps
+  // 自然减少，可重新评估是否回到 [loadData]。
+  const loadDataRef = useRef(loadData);
+  loadDataRef.current = loadData;
+
+  useEffect(() => {
+    void loadDataRef.current();
+  }, [auPath]);
+
+  const applyStateSnapshot = useCallback((nextState: StateInfo) => {
+    setState(nextState);
+  }, []);
 
   return {
+    data: {
+      state,
+      projectInfo,
+      settingsInfo,
+      currentContent,
+      unresolvedFacts,
+    },
+    loading,
+    applyStateSnapshot,
     loadData,
     refreshSettingsModeData,
   };

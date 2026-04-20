@@ -2,9 +2,9 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
-export function useWriterChromeState() {
+export function useWriterChromeState(auPath: string) {
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [isExportOpen, setExportOpen] = useState(false);
@@ -16,6 +16,16 @@ export function useWriterChromeState() {
   const [isUndoConfirmOpen, setUndoConfirmOpen] = useState(false);
   const [dirtyBannerDismissed, setDirtyBannerDismissed] = useState(false);
   const [footerCollapsed, setFooterCollapsed] = useState(false);
+
+  useEffect(() => {
+    setMobileToolsOpen(false);
+    setExportOpen(false);
+    setDirtyOpen(false);
+    setFinalizeConfirmOpen(false);
+    setDiscardConfirmOpen(false);
+    setUndoConfirmOpen(false);
+    setDirtyBannerDismissed(false);
+  }, [auPath]);
 
   const toggleRightCollapsed = useCallback(() => {
     setRightCollapsed((current) => !current);

@@ -139,6 +139,27 @@ Platform Adapter
 枚举/清单：FONT_MANIFEST 一处声明，全项目 grep 只能找到这一个定义
 ```
 
+### Hook 设计规则（2026-04 Writer 状态下沉重构确立）
+
+**真实案例**：Codex 2026-04-19 拆 WriterLayout 时把 state 留在顶层、靠传 setter 让 hook 操作（`useWriterResetOnAuChange` 收 28 个 setter、`useWriterBootstrap` 收 26 参数）。结构上是"reshape 不是 refactor"：文件拆了，耦合没降；加新 state 要改 5-6 个文件；Android 上暴露 useEffect 死循环。后续用 4 个 Phase 把 22 个 useState 从 WriterLayout 下沉到各自 hook 内部（详见 `docs/internal/devlog/2026-04-writer-state-pushdown.md`）。
+
+**从此以后，Hook 必须遵守**：
+
+1. **Hook 不接收 setter 作为参数**。如果 hook 需要修改某个 state，那个 state 就必须住在它内部。
+   - 例外：textarea / 下拉这种受控组件**的用户事件 setter** 允许暴露（命名必须是动词，如 `selectDraft` 而不是 `setActiveDraftIndex`；`setInstructionText` 因 textarea 双向绑定是硬需求允许保留）
+   - 例外：跨 hook bridge 的语义化注入方法允许（如 `setFocusFromState(focus)` 给 bootstrap 加载后同步初始 focus —— 它是"用引擎状态同步"的语义，不是裸 setState）
+2. **State 和它的 reset 逻辑住在同一文件**。每个持有 state 的 hook 自己用 `useEffect(() => { reset }, [auPath])`（或对应的 key）处理上下文切换。**禁止**写"reset 集中 hook"那种模式 —— 它的参数列表会无限膨胀。
+3. **跨 hook 共享只传 value 不传 setter**。要修改其它 hook 的 state，调用它暴露的语义化 method（命名用动词：`appendStream` / `markGeneratedWith` / `clearDraftState`）。
+4. **依赖数组爆炸时用 ref shim**：如果一个 useEffect 的 useCallback dep 数组 > 10 个，大概率其中某个 ref 引用不稳会导致 dep 变化 → 死循环。用 `const fnRef = useRef(fn); fnRef.current = fn;` + `useEffect(() => { void fnRef.current(); }, [keyDep])` 破局。Phase 状态下沉后 dep 自然收敛，可移除 shim。
+
+**验收工具**（CI 可接入）：
+```bash
+# hook type 里不应有裸 setter 参数（允许 ≤ 5 个已知例外）
+grep -E "set[A-Z]\w*:" src/ui/**/useXxx*.ts | wc -l
+# 顶层组件应该大部分是 JSX 编排，useState 不应成堆
+grep -c "useState" src/ui/SomePage.tsx   # < 5 是健康
+```
+
 ---
 
 ## 查 Bug 的方法论
