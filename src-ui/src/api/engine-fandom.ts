@@ -7,7 +7,7 @@
 
 import { withAuLock } from "@ficforge/engine";
 import { getDataDir, getEngine } from "./engine-instance";
-import { sanitizePathSegment } from "./engine-lore";
+import { sanitizePathSegment, validateExistingPathSegment } from "./engine-lore";
 import type { AuInfo, FandomDisplayInfo } from "./fandoms";
 
 async function withOrderedAuLocks<T>(auPaths: string[], fn: () => Promise<T>): Promise<T> {
@@ -76,7 +76,7 @@ export async function createFandom(name: string) {
 }
 
 export async function listAus(fandomDirName: string): Promise<AuInfo[]> {
-  const safeFandomDir = sanitizePathSegment(fandomDirName);
+  const safeFandomDir = validateExistingPathSegment(fandomDirName);
   const dataDir = getDataDir();
   const { fandom, project } = getEngine().repos;
   const { adapter } = getEngine();
@@ -123,7 +123,7 @@ export async function createAu(fandomName: string, auName: string, fandomPath: s
 }
 
 export async function deleteFandom(fandomDirName: string) {
-  const safeFandomDir = sanitizePathSegment(fandomDirName);
+  const safeFandomDir = validateExistingPathSegment(fandomDirName);
   const dataDir = getDataDir();
   const engine = getEngine();
   const { adapter } = engine;
@@ -158,8 +158,8 @@ export async function deleteFandom(fandomDirName: string) {
 }
 
 export async function deleteAu(fandomDirName: string, auName: string) {
-  const safeFandomDir = sanitizePathSegment(fandomDirName);
-  const safeAuName = sanitizePathSegment(auName);
+  const safeFandomDir = validateExistingPathSegment(fandomDirName);
+  const safeAuName = validateExistingPathSegment(auName);
   const dataDir = getDataDir();
   const fandomRoot = `${dataDir}/fandoms/${safeFandomDir}`;
   const auPath = `${fandomRoot}/aus/${safeAuName}`;
@@ -183,7 +183,7 @@ export async function deleteAu(fandomDirName: string, auName: string) {
 }
 
 export async function listFandomFiles(fandomName: string) {
-  const safeFandomName = sanitizePathSegment(fandomName);
+  const safeFandomName = validateExistingPathSegment(fandomName);
   const dataDir = getDataDir();
   const { adapter } = getEngine();
   const base = `${dataDir}/fandoms/${safeFandomName}`;
@@ -205,9 +205,9 @@ export async function listFandomFiles(fandomName: string) {
 }
 
 export async function readFandomFile(fandomName: string, category: string, filename: string) {
-  const safeFandomName = sanitizePathSegment(fandomName);
-  const safeCategory = sanitizePathSegment(category);
-  const safeFilename = sanitizePathSegment(filename);
+  const safeFandomName = validateExistingPathSegment(fandomName);
+  const safeCategory = validateExistingPathSegment(category);
+  const safeFilename = validateExistingPathSegment(filename);
   const dataDir = getDataDir();
   const { adapter } = getEngine();
   const content = await adapter.readFile(`${dataDir}/fandoms/${safeFandomName}/${safeCategory}/${safeFilename}`);

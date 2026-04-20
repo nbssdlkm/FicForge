@@ -53,8 +53,11 @@ Platform Adapter
 - **D-0034** 架构迁移为 TypeScript 统一核心引擎
 - **D-0035** 向量存储从 ChromaDB 迁移为 JSON 分片 + 内存检索
 - **D-0036** 数据同步基于 ops 日志合并（ops 是唯一 truth，state/facts 是 ops 的投影）
+  - `rebuildFromOps` 只承诺重建 `state.yaml` / `facts.jsonl` 这类 ops-backed projection，不承诺恢复 `chapters/main/*.md` 正文文件。
+  - 如果出现 "ops 已提交但 chapter 正文写失败" 的 partial commit，必须视为人工介入事故；前端提示应引导用户检查章节文件并从幸存草稿重新定稿，而不是宣称系统可自动自愈。
 - **D-0037** 移动端 Capacitor (Android) + PWA (iOS/Web)
 - **D-0038** 桌面端和移动端各自独立管理 Embedding 模型
+- 新创建的 fandom / AU / lore 路径段统一收紧到白名单：字母、数字、Unicode 字母、空格、`-`、`_`、`.`；诸如 `? # % : * " < > / \` 的保留字符一律替换为 `_`。
 
 ## 技术栈
 
@@ -151,6 +154,10 @@ Platform Adapter
 2. **State 和它的 reset 逻辑住在同一文件**。每个持有 state 的 hook 自己用 `useEffect(() => { reset }, [auPath])`（或对应的 key）处理上下文切换。**禁止**写"reset 集中 hook"那种模式 —— 它的参数列表会无限膨胀。
 3. **跨 hook 共享只传 value 不传 setter**。要修改其它 hook 的 state，调用它暴露的语义化 method（命名用动词：`appendStream` / `markGeneratedWith` / `clearDraftState`）。
 4. **依赖数组爆炸时用 ref shim**：如果一个 useEffect 的 useCallback dep 数组 > 10 个，大概率其中某个 ref 引用不稳会导致 dep 变化 → 死循环。用 `const fnRef = useRef(fn); fnRef.current = fn;` + `useEffect(() => { void fnRef.current(); }, [keyDep])` 破局。Phase 状态下沉后 dep 自然收敛，可移除 shim。
+5. **Hook 不对外暴露 raw setter**。返回值里出现 `setX: (value) => void` 一律视为待清理（除非它服务于下面例外）。允许的例外：
+   - **受控组件的双向绑定**（`<textarea value={x} onChange={setX}>`、`<input>` 的 `setChapterTitle` / `setInstructionText`）—— 必须在返回对象里注释"受控绑定"
+   - **用户事件 setter 用动词命名**（`selectDraft` 而不是 `setActiveDraftIndex`；`dismissDirtyBanner` 而不是 `setDirtyBannerDismissed`）
+   违反示例：`useWriterChromeState` 曾一并导出 11 个 raw setter（`setMobileToolsOpen / setExportOpen / ...`）—— 2026-04-20 Phase 6.3 清理后只保留 2 个有语义理由的。
 
 **验收工具**（CI 可接入）：
 ```bash

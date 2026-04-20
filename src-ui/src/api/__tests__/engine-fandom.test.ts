@@ -46,27 +46,29 @@ describe("engine-fandom deleteFandom", () => {
     expect(adapter.raw(`${au.path}/chapters/main/ch0001.md`)).toBe("# Chapter 1");
   });
 
-  it("preserves display names while sanitizing directory names", async () => {
-    const fandom = await createFandom("My/Fandom");
-    const au = await createAu(fandom.name, "AU/One", fandom.path);
+  it("preserves display names while sanitizing directory names to a WebDAV-safe whitelist", async () => {
+    const fandom = await createFandom("Detroit: Become Human / RK800?");
+    const au = await createAu(fandom.name, "Ch.1 - Prologue: 100%?", fandom.path);
     const displayInfo = await getFandomDisplayInfo(fandom.path);
 
     const listed = await listFandoms();
 
-    expect(fandom.name).toBe("My/Fandom");
-    expect(fandom.dir_name).toBe("MyFandom");
-    expect(au.name).toBe("AU/One");
-    expect(au.dir_name).toBe("AUOne");
+    expect(fandom.name).toBe("Detroit: Become Human / RK800?");
+    expect(au.name).toBe("Ch.1 - Prologue: 100%?");
+    expect(fandom.dir_name).toMatch(/^[\p{L}\p{N}._ -]+$/u);
+    expect(au.dir_name).toMatch(/^[\p{L}\p{N}._ -]+$/u);
+    expect(fandom.dir_name).not.toMatch(/[\\/:*?"<>|#%]/);
+    expect(au.dir_name).not.toMatch(/[\\/:*?"<>|#%]/);
     expect(displayInfo).toEqual({
-      name: "My/Fandom",
-      dir_name: "MyFandom",
+      name: "Detroit: Become Human / RK800?",
+      dir_name: fandom.dir_name,
       path: fandom.path,
     });
     expect(listed).toEqual([
       {
-        name: "My/Fandom",
-        dir_name: "MyFandom",
-        aus: [{ name: "AU/One", dir_name: "AUOne" }],
+        name: "Detroit: Become Human / RK800?",
+        dir_name: fandom.dir_name,
+        aus: [{ name: "Ch.1 - Prologue: 100%?", dir_name: au.dir_name }],
       },
     ]);
   });

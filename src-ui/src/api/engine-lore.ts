@@ -8,15 +8,35 @@
 
 import { getEngine } from "./engine-instance";
 
-/** 防止路径穿越：去除 / \ .. 和开头的点，拒绝空段 */
+const SAFE_PATH_SEGMENT_PATTERN = /[^\p{L}\p{N}._ -]+/gu;
+
+/**
+ * 读取已有路径段：只校验合法性、不改写 —— 避免对磁盘已存在的历史文件名（含保留字符）做破坏性 sanitize。
+ * 新建路径段应该用 `sanitizePathSegment` 走白名单清洗。
+ * 导出给 engine-fandom.ts 等模块复用（单一真相源）。
+ */
+export function validateExistingPathSegment(segment: string): string {
+  if (!segment) throw new Error("Path segment cannot be empty");
+  const validated = segment
+    .replace(/[\x00-\x1f\x7f]/g, "")
+    .trim();
+  if (!validated) throw new Error("Invalid path segment");
+  if (/[\/\\]/.test(validated)) throw new Error("Invalid path segment");
+  if (validated === "." || validated === "..") throw new Error("Invalid path segment");
+  return validated;
+}
+
+/** Sanitize newly created path segments to a filesystem/WebDAV-safe whitelist. */
 export function sanitizePathSegment(segment: string): string {
   if (!segment) throw new Error("Path segment cannot be empty");
   const sanitized = segment
-    .replace(/[\x00-\x1f\x7f]/g, "")   // 去除 NUL 和控制字符
-    .replace(/[\/\\]/g, "")
-    .replace(/\.\./g, "")
+    .replace(/[\x00-\x1f\x7f]/g, "")
+    .replace(SAFE_PATH_SEGMENT_PATTERN, "_")
+    .replace(/\.\.+/g, "_")
     .replace(/^\.+/, "")
-    .trim();
+    .replace(/[. ]+$/g, "")
+    .trim()
+    .replace(/_+/g, "_");
   if (!sanitized) throw new Error("Invalid path segment");
   return sanitized;
 }
@@ -36,18 +56,18 @@ export async function saveLore(req: { au_path?: string; fandom_path?: string; ca
 export async function readLore(req: { au_path?: string; fandom_path?: string; category: string; filename: string }) {
   const { adapter } = getEngine();
   const basePath = req.au_path ?? req.fandom_path ?? "";
-  const safeCategory = sanitizePathSegment(req.category);
-  const safeFilename = sanitizePathSegment(req.filename);
-  const filePath = `${basePath}/${safeCategory}/${safeFilename}`;
+  const category = validateExistingPathSegment(req.category);
+  const filename = validateExistingPathSegment(req.filename);
+  const filePath = `${basePath}/${category}/${filename}`;
   const content = await adapter.readFile(filePath);
   return { content };
 }
 
 export async function deleteLore(req: { au_path?: string; fandom_path?: string; category: string; filename: string }) {
   const basePath = req.au_path ?? req.fandom_path ?? "";
-  const safeCategory = sanitizePathSegment(req.category);
-  const safeFilename = sanitizePathSegment(req.filename);
-  const relativePath = `${safeCategory}/${safeFilename}`;
+  const category = validateExistingPathSegment(req.category);
+  const filename = validateExistingPathSegment(req.filename);
+  const relativePath = `${category}/${filename}`;
   const entry = await getEngine().trash.move_to_trash(basePath, relativePath, "lore_file", req.filename);
   return { status: "ok", trash_id: entry.trash_id, deleted: relativePath };
 }
@@ -55,8 +75,8 @@ export async function deleteLore(req: { au_path?: string; fandom_path?: string; 
 export async function listLoreFiles(params: { category: string; au_path?: string; fandom_path?: string }) {
   const { adapter } = getEngine();
   const basePath = params.au_path ?? params.fandom_path ?? "";
-  const safeCategory = sanitizePathSegment(params.category);
-  const dirPath = `${basePath}/${safeCategory}`;
+  const category = validateExistingPathSegment(params.category);
+  const dirPath = `${basePath}/${category}`;
   const exists = await adapter.exists(dirPath);
   if (!exists) return { files: [] };
   const files = await adapter.listDir(dirPath);
@@ -75,15 +95,16 @@ export async function importFromFandom(req: {
   source_category?: string;
 }) {
   const { adapter } = getEngine();
-  const imported: string[] = [];
+  const imported: Array<{ from: string; to: string }> = [];
   const skipped: string[] = [];
-  const srcCat = sanitizePathSegment(req.source_category ?? "core_characters");
+  const srcCat = validateExistingPathSegment(req.source_category ?? "core_characters");
 
   for (const filename of req.filenames) {
-    const safeFilename = sanitizePathSegment(filename);
-    const srcPath = `${req.fandom_path}/${srcCat}/${safeFilename}`;
+    const sourceFilename = validateExistingPathSegment(filename);
+    const destFilename = sanitizePathSegment(filename);
+    const srcPath = `${req.fandom_path}/${srcCat}/${sourceFilename}`;
     const destCat = srcCat === "core_characters" ? "characters" : "worldbuilding";
-    const destPath = `${req.au_path}/${destCat}/${safeFilename}`;
+    const destPath = `${req.au_path}/${destCat}/${destFilename}`;
 
     if (await adapter.exists(destPath)) {
       skipped.push(filename);
@@ -95,13 +116,13 @@ export async function importFromFandom(req: {
       const dir = destPath.substring(0, destPath.lastIndexOf("/"));
       await adapter.mkdir(dir);
       await adapter.writeFile(destPath, content);
-      imported.push(filename);
+      imported.push({ from: sourceFilename, to: destFilename });
     } catch {
       skipped.push(filename);
     }
   }
 
-  return { status: "ok", imported, skipped };
+  return { status: "ok", imported: imported.map(({ from }) => from), skipped };
 }
 
 export async function getLoreContent(params: { category: string; filename: string; au_path?: string; fandom_path?: string }) {
