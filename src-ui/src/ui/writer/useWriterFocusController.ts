@@ -3,11 +3,12 @@
 // See LICENSE file in the project root for full license text.
 
 import { useCallback, useEffect, useState } from 'react';
-import { setChapterFocus, type FactInfo } from '../../api/engine-client';
+import { setChapterFocus, type FactInfo, type StateInfo } from '../../api/engine-client';
 import type { ActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 
 type UseWriterFocusControllerOptions = {
   auPath: string;
+  state: StateInfo | null;   // 取代原来的 setFocusFromState bridge 注入
   unresolvedFacts: FactInfo[];
   lastConfirmedFocus: string[];
   loadGuard: ActiveRequestGuard<string>;
@@ -18,6 +19,7 @@ type UseWriterFocusControllerOptions = {
 
 export function useWriterFocusController({
   auPath,
+  state,
   unresolvedFacts,
   lastConfirmedFocus,
   loadGuard,
@@ -27,13 +29,14 @@ export function useWriterFocusController({
 }: UseWriterFocusControllerOptions) {
   const [focusSelection, setFocusSelection] = useState<string[]>([]);
 
+  // 自主 watch state.chapter_focus（按 auPath + current_chapter 粒度）。
+  // 原来 bootstrap.loadData + refreshSettingsModeData 通过 bridge 调 setFocusFromState；
+  // 现在 hook 自己监听，消除 focusControllerBridgeRef。
+  // 用户 toggle focus 时会调 setChapterFocus 同步到 engine，下次 getState 时 state.chapter_focus
+  // 已经是用户最新值，此 effect fire 会 setFocusSelection 到同一值 → 幂等。
   useEffect(() => {
-    setFocusSelection([]);
-  }, [auPath]);
-
-  const setFocusFromState = useCallback((focus: string[]) => {
-    setFocusSelection([...focus]);
-  }, []);
+    setFocusSelection(state?.chapter_focus ? [...state.chapter_focus] : []);
+  }, [auPath, state?.current_chapter]);
 
   const handleFocusToggle = useCallback(async (factId: string) => {
     const requestAuPath = auPath;
@@ -95,7 +98,6 @@ export function useWriterFocusController({
 
   return {
     focusSelection,
-    setFocusFromState,
     handleFocusToggle,
     handleClearFocus,
     handleContinueLastFocus,

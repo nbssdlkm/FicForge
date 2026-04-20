@@ -20,7 +20,7 @@ type UseWriterChapterActionsOptions = {
   activeDraftIndex: number;
   chapterTitle: string;
   focusSelection: string[];
-  getSkipFactsPrompt: () => boolean;
+  skipFactsPrompt: boolean;
   loadGuard: ActiveRequestGuard<string>;
   clearDraftState: (discard?: boolean) => void;
   replaceDraftSummaries: (chapterNum: number, summaries: Record<string, ContextSummary>) => void;
@@ -44,7 +44,7 @@ export function useWriterChapterActions({
   activeDraftIndex,
   chapterTitle,
   focusSelection,
-  getSkipFactsPrompt,
+  skipFactsPrompt,
   loadGuard,
   clearDraftState,
   replaceDraftSummaries,
@@ -75,7 +75,6 @@ export function useWriterChapterActions({
     if (!currentDraft || !state) return;
     const requestAuPath = auPath;
     const confirmedFocus = [...focusSelection];
-    const skipFactsPrompt = getSkipFactsPrompt();
 
     setIsFinalizing(true);
     try {
@@ -123,7 +122,7 @@ export function useWriterChapterActions({
     drafts,
     focusInstructionInput,
     focusSelection,
-    getSkipFactsPrompt,
+    skipFactsPrompt,
     loadData,
     loadGuard,
     onChaptersChanged,

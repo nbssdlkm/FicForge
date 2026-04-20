@@ -9,58 +9,28 @@ import {
   getWriterProjectContext,
   getWriterSessionConfig,
   listFacts,
-  type ContextSummary,
   type FactInfo,
   type StateInfo,
   type WriterProjectContext,
   type WriterSessionConfig,
 } from '../../api/engine-client';
-import {
-  readSavedContextSummaries,
-} from '../../utils/writerStorage';
 import type { ActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 
-type UseWriterBootstrapOptions<TDraft extends { label: string }> = {
+type UseWriterBootstrapOptions = {
   auPath: string;
   loadGuard: ActiveRequestGuard<string>;
   refreshGuard: ActiveRequestGuard<string>;
-  getConfiguredLlmModel: (
-    llm: WriterProjectContext['llm'] | WriterSessionConfig['default_llm'] | null | undefined,
-  ) => string;
-  setSessionModel: (model: string) => void;
-  setSessionTemp: (temperature: number) => void;
-  setSessionTopP: (topP: number) => void;
-  loadDraftsForChapter: (chapterNum: number) => Promise<TDraft[]>;
-  replaceDraftSummaries: (chapterNum: number, summaries: Record<string, ContextSummary>) => void;
-  clearDraftState: () => void;
-  mergeDraftIntoState: (draft: TDraft) => void;
-  selectDraft: (index: number) => void;
-  markRecoveryNotice: (show: boolean) => void;
   showError: (error: unknown, fallback: string) => void;
   t: (key: string, params?: Record<string, unknown>) => string;
-  applyFocusFromState: (focus: string[]) => void;
-  loadInstructionFromStorage: (chapterNum: number) => void;
 };
 
-export function useWriterBootstrap<TDraft extends { label: string }>({
+export function useWriterBootstrap({
   auPath,
   loadGuard,
   refreshGuard,
-  getConfiguredLlmModel,
-  setSessionModel,
-  setSessionTemp,
-  setSessionTopP,
-  loadDraftsForChapter,
-  replaceDraftSummaries,
-  clearDraftState,
-  mergeDraftIntoState,
-  selectDraft,
-  markRecoveryNotice,
   showError,
   t,
-  applyFocusFromState,
-  loadInstructionFromStorage,
-}: UseWriterBootstrapOptions<TDraft>) {
+}: UseWriterBootstrapOptions) {
   const [state, setState] = useState<StateInfo | null>(null);
   const [projectInfo, setProjectInfo] = useState<WriterProjectContext | null>(null);
   const [settingsInfo, setSettingsInfo] = useState<WriterSessionConfig | null>(null);
@@ -84,35 +54,12 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
       setProjectInfo(proj);
       setSettingsInfo(settings);
       setUnresolvedFacts(factsData);
-      applyFocusFromState(stateData?.chapter_focus || []);
 
-      let defModel = 'deepseek-chat';
-      let defTemp = 1.0;
-      let defTopP = 0.95;
-
-      const globalConfiguredModel = getConfiguredLlmModel(settings?.default_llm);
-      if (globalConfiguredModel) {
-        defModel = globalConfiguredModel;
-        const globalParams = settings?.model_params?.[defModel];
-        if (globalParams) {
-          defTemp = globalParams.temperature;
-          defTopP = globalParams.top_p;
-        }
-      }
-
-      const projectConfiguredModel = getConfiguredLlmModel(proj?.llm);
-      if (projectConfiguredModel) {
-        defModel = projectConfiguredModel;
-      }
-      if (proj?.model_params_override?.[defModel]) {
-        const override = proj.model_params_override[defModel];
-        defTemp = (override.temperature as number) ?? defTemp;
-        defTopP = (override.top_p as number) ?? defTopP;
-      }
-
-      setSessionModel(defModel);
-      setSessionTemp(defTemp);
-      setSessionTopP(defTopP);
+      // 注：focus selection 的同步改由 useWriterFocusController 自己 watch state 响应；
+      // session model/temp/topP 的派生由 useSessionParams 自己 watch projectInfo/settingsInfo；
+      // instruction text 的 storage 加载由 useWriterInstructionInput 自己 watch currentChapterNum。
+      // 下面 loadData 不再反注入这些派生动作。
+      // useSessionParams 自己 watch projectInfo/settingsInfo 并派生，消除 bridge。
 
       if (stateData && stateData.current_chapter > 1) {
         const latestNum = stateData.current_chapter - 1;
@@ -128,33 +75,9 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
         setCurrentContent('');
       }
 
-      if (stateData) {
-        const loadedDrafts = await loadDraftsForChapter(stateData.current_chapter);
-        if (loadGuard.isStale(token)) return;
-        const storedSummaries = readSavedContextSummaries(auPath, stateData.current_chapter);
-        const activeLabels = new Set(loadedDrafts.map((draft) => draft.label));
-        const filteredSummaries = Object.entries(storedSummaries).reduce<Record<string, ContextSummary>>(
-          (accumulator, [label, summary]) => {
-            if (activeLabels.has(label)) {
-              accumulator[label] = summary;
-            }
-            return accumulator;
-          },
-          {},
-        );
-
-        clearDraftState();
-        loadedDrafts.forEach((draft) => {
-          mergeDraftIntoState(draft);
-        });
-        selectDraft(loadedDrafts.length > 0 ? loadedDrafts.length - 1 : 0);
-        markRecoveryNotice(loadedDrafts.length > 0);
-        loadInstructionFromStorage(stateData.current_chapter);
-        replaceDraftSummaries(stateData.current_chapter, filteredSummaries);
-      } else {
-        clearDraftState();
-        applyFocusFromState([]);
-        loadInstructionFromStorage(0);
+      // 注：draft 加载、instruction storage 加载、focus 同步、session params 派生
+      // 都不再由 bootstrap.loadData 反注入执行。每个下游 hook 自主 watch state/projectInfo/settingsInfo 响应。
+      if (!stateData) {
         setProjectInfo(null);
       }
     } catch (error) {
@@ -166,20 +89,8 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
       }
     }
   }, [
-    applyFocusFromState,
     auPath,
-    clearDraftState,
-    getConfiguredLlmModel,
-    loadDraftsForChapter,
     loadGuard,
-    loadInstructionFromStorage,
-    markRecoveryNotice,
-    mergeDraftIntoState,
-    replaceDraftSummaries,
-    setSessionModel,
-    setSessionTemp,
-    setSessionTopP,
-    selectDraft,
     showError,
     t,
   ]);
@@ -196,7 +107,7 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
 
       if (stateData) {
         setState(stateData);
-        applyFocusFromState(stateData.chapter_focus || []);
+        // focus 同步由 useWriterFocusController 自己 watch state 响应
       }
       setProjectInfo(proj);
       setUnresolvedFacts(factsData);
@@ -205,7 +116,6 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
       showError(error, t('error_messages.unknown'));
     }
   }, [
-    applyFocusFromState,
     auPath,
     refreshGuard,
     showError,

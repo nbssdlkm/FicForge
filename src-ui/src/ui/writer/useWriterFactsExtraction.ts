@@ -12,7 +12,9 @@ import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
 import { useExtractedSelection, getCandidateKey } from '../../hooks/useExtractedSelection';
 
-export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: number | null) {
+// Phase 5b-2: lastConfirmedChapter 改为 method 调用时传入（而不是 hook 构造 arg），
+// 破解与 useWriterChapterActions 的循环依赖，消除 factsExtractionBridgeRef。
+export function useWriterFactsExtraction(auPath: string) {
   const { t } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
   const activeAuPathRef = useRef(auPath);
@@ -46,7 +48,7 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
     closeFactsPrompt();
   }, [closeFactsPrompt]);
 
-  const handleOpenExtractReview = useCallback(async () => {
+  const handleOpenExtractReview = useCallback(async (lastConfirmedChapter: number | null) => {
     if (!lastConfirmedChapter) return;
     const requestAuPath = auPath;
 
@@ -70,9 +72,9 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
         setExtractingFacts(false);
       }
     }
-  }, [auPath, lastConfirmedChapter, showError, showToast, t, selectAll]);
+  }, [auPath, showError, showToast, t, selectAll]);
 
-  const handleSaveExtracted = useCallback(async () => {
+  const handleSaveExtracted = useCallback(async (lastConfirmedChapter: number | null) => {
     if (selectedExtractedKeys.length === 0) {
       setExtractReviewOpen(false);
       focusInstructionInput();
@@ -110,7 +112,7 @@ export function useWriterFactsExtraction(auPath: string, lastConfirmedChapter: n
         setSavingExtracted(false);
       }
     }
-  }, [auPath, extractedCandidates, filterSelected, focusInstructionInput, lastConfirmedChapter, clearSelection, showError, showSuccess, t]);
+  }, [auPath, extractedCandidates, filterSelected, focusInstructionInput, clearSelection, showError, showSuccess, t]);
 
   const resetExtractionState = useCallback(() => {
     setExtractingFacts(false);

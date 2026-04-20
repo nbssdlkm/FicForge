@@ -2,8 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { type ContextSummary } from '../../api/engine-client';
+import { useCallback, useEffect, useState } from 'react';
 import { useKV } from '../../hooks/useKV';
 import { useFeedback } from '../../hooks/useFeedback';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
@@ -22,7 +21,7 @@ import { WriterModals } from './WriterModals';
 import { WriterToolPanels } from './WriterToolPanels';
 import { useConfirmedChapterEditor } from './useConfirmedChapterEditor';
 import { useSessionParams } from './useSessionParams';
-import { type DraftItem, useWriterDraftController } from './useWriterDraftController';
+import { useWriterDraftController } from './useWriterDraftController';
 import { useWriterBootstrap } from './useWriterBootstrap';
 import { useWriterChapterActions } from './useWriterChapterActions';
 import { useWriterChromeState } from './useWriterChromeState';
@@ -50,89 +49,38 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const lineHeight = parseFloat(lineHeightStr) || 1.8;
   const setFontSize = useCallback((value: number) => setFontSizeKV(String(value)), [setFontSizeKV]);
   const setLineHeight = useCallback((value: number) => setLineHeightKV(String(value)), [setLineHeightKV]);
-  const bootstrapStateRef = useRef<{ current_chapter?: number } | null>(null);
-  const sessionParamsBridgeRef = useRef<Pick<ReturnType<typeof useSessionParams>, 'getConfiguredLlmModel' | 'setSessionModel' | 'setSessionTemp' | 'setSessionTopP'>>({
-    getConfiguredLlmModel: () => '',
-    setSessionModel: () => {},
-    setSessionTemp: () => {},
-    setSessionTopP: () => {},
-  });
-  const draftControllerBridgeRef = useRef<Pick<ReturnType<typeof useWriterDraftController>, 'loadDraftsForChapter' | 'replaceDraftSummaries' | 'clearDraftState'>>({
-    loadDraftsForChapter: async () => [],
-    replaceDraftSummaries: () => {},
-    clearDraftState: () => {},
-  });
-  const focusControllerBridgeRef = useRef<Pick<ReturnType<typeof useWriterFocusController>, 'setFocusFromState'>>({ setFocusFromState: () => {} });
-  const instructionInputBridgeRef = useRef<Pick<ReturnType<typeof useWriterInstructionInput>, 'loadInstructionFromStorage'>>({ loadInstructionFromStorage: () => {} });
-  const factsExtractionBridgeRef = useRef<Pick<ReturnType<typeof useWriterFactsExtraction>, 'skipFactsPrompt' | 'setFactsPromptOpen'>>({
-    skipFactsPrompt: false,
-    setFactsPromptOpen: () => {},
-  });
-
   useEffect(() => {
     setIsSettingsModeBusy(false);
   }, [auPath]);
 
-  const getConfiguredLlmModel = useCallback((llm: Parameters<ReturnType<typeof useSessionParams>['getConfiguredLlmModel']>[0]) => sessionParamsBridgeRef.current.getConfiguredLlmModel(llm), []);
-  const setSessionModel = useCallback((model: string) => sessionParamsBridgeRef.current.setSessionModel(model), []);
-  const setSessionTemp = useCallback((temperature: number) => sessionParamsBridgeRef.current.setSessionTemp(temperature), []);
-  const setSessionTopP = useCallback((topP: number) => sessionParamsBridgeRef.current.setSessionTopP(topP), []);
-  const loadDraftsForChapter = useCallback((chapterNum: number) => draftControllerBridgeRef.current.loadDraftsForChapter(chapterNum), []);
-  const replaceDraftSummaries = useCallback((chapterNum: number, summaries: Record<string, ContextSummary>) => draftControllerBridgeRef.current.replaceDraftSummaries(chapterNum, summaries), []);
-  const clearDraftState = useCallback((discard?: boolean) => draftControllerBridgeRef.current.clearDraftState(discard), []);
-  const applyFocusFromState = useCallback((focus: string[]) => focusControllerBridgeRef.current.setFocusFromState(focus), []);
-  const loadInstructionFromStorage = useCallback((chapterNum: number) => instructionInputBridgeRef.current.loadInstructionFromStorage(chapterNum), []);
-  const getSkipFactsPrompt = useCallback(() => factsExtractionBridgeRef.current.skipFactsPrompt, []);
-  const openFactsPrompt = useCallback(() => factsExtractionBridgeRef.current.setFactsPromptOpen(true), []);
   const { mode, showSettingsTooltip, handleModeChange, closeSettingsTooltip } = useWriterModeController({ isMobile, isSettingsModeBusy, showToast, t });
 
-  const currentChapterNum = bootstrapStateRef.current?.current_chapter ?? 0;
-  const instructionInput = useWriterInstructionInput({ auPath, currentChapterNum });
-  instructionInputBridgeRef.current = { loadInstructionFromStorage: instructionInput.loadInstructionFromStorage };
-
-  const draftCtrl = useWriterDraftController({
-    auPath,
-    currentChapterNum,
-    onDraftSaveError: (error) => showError(error, t('error_messages.unknown')),
-  });
-  draftControllerBridgeRef.current = {
-    loadDraftsForChapter: draftCtrl.loadDraftsForChapter,
-    replaceDraftSummaries: draftCtrl.replaceDraftSummaries,
-    clearDraftState: draftCtrl.clearDraftState,
-  };
-
-  const bootstrap = useWriterBootstrap<DraftItem>({
+  // Phase 5c: bootstrap 先跑（产 state），后面的 hook 自主 watch state。
+  // 彻底消除 draftControllerBridgeRef 和 bootstrapStateRef 的延迟绑定模式。
+  const bootstrap = useWriterBootstrap({
     auPath,
     loadGuard,
     refreshGuard,
-    getConfiguredLlmModel,
-    setSessionModel,
-    setSessionTemp,
-    setSessionTopP,
-    loadDraftsForChapter,
-    replaceDraftSummaries,
-    clearDraftState,
-    mergeDraftIntoState: draftCtrl.mergeDraftIntoState,
-    selectDraft: draftCtrl.selectDraft,
-    markRecoveryNotice: draftCtrl.markRecoveryNotice,
     showError,
     t,
-    applyFocusFromState,
-    loadInstructionFromStorage,
   });
   const { state, projectInfo, settingsInfo, currentContent, unresolvedFacts } = bootstrap.data;
   const { loading, applyStateSnapshot, loadData, refreshSettingsModeData } = bootstrap;
   const sessionParams = useSessionParams(auPath, projectInfo, settingsInfo, showSuccess, showError);
-  bootstrapStateRef.current = state;
-  sessionParamsBridgeRef.current = {
-    getConfiguredLlmModel: sessionParams.getConfiguredLlmModel,
-    setSessionModel: sessionParams.setSessionModel,
-    setSessionTemp: sessionParams.setSessionTemp,
-    setSessionTopP: sessionParams.setSessionTopP,
-  };
+
+  const currentChapterNum = state?.current_chapter ?? 0;
+  const instructionInput = useWriterInstructionInput({ auPath, currentChapterNum });
+
+  const draftCtrl = useWriterDraftController({
+    auPath,
+    state,
+    onDraftSaveError: (error) => showError(error, t('error_messages.unknown')),
+  });
+  const { clearDraftState, replaceDraftSummaries } = draftCtrl;
 
   const focusController = useWriterFocusController({
     auPath,
+    state,
     unresolvedFacts,
     lastConfirmedFocus: state?.last_confirmed_chapter_focus || [],
     loadGuard,
@@ -140,7 +88,12 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     showError,
     t,
   });
-  focusControllerBridgeRef.current = { setFocusFromState: focusController.setFocusFromState };
+
+  // 顺序调整（Phase 5b-2）：factsExtraction 现在不依赖 chapterActions.lastConfirmedChapter
+  // （lastConfirmedChapter 作为 method 调用时的参数，不进 useCallback deps），
+  // 所以可以在 chapterActions 之前调。这样 chapterActions 可以直接读 factsExtraction.skipFactsPrompt
+  // 作为 value，无需 bridge。
+  const factsExtraction = useWriterFactsExtraction(auPath);
 
   const chapterActions = useWriterChapterActions({
     auPath,
@@ -149,7 +102,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     activeDraftIndex: draftCtrl.activeDraftIndex,
     chapterTitle: chrome.chapterTitle,
     focusSelection: focusController.focusSelection,
-    getSkipFactsPrompt,
+    skipFactsPrompt: factsExtraction.skipFactsPrompt,
     loadGuard,
     clearDraftState,
     replaceDraftSummaries,
@@ -159,18 +112,12 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     onCloseFinalizeConfirm: chrome.closeFinalizeConfirm,
     onCloseDiscardConfirm: chrome.closeDiscardConfirm,
     onCloseUndoConfirm: chrome.closeUndoConfirm,
-    onOpenFactsPrompt: openFactsPrompt,
+    onOpenFactsPrompt: () => factsExtraction.setFactsPromptOpen(true),
     showSuccess,
     showToast,
     showError,
     t,
   });
-
-  const factsExtraction = useWriterFactsExtraction(auPath, chapterActions.lastConfirmedChapter);
-  factsExtractionBridgeRef.current = {
-    skipFactsPrompt: factsExtraction.skipFactsPrompt,
-    setFactsPromptOpen: factsExtraction.setFactsPromptOpen,
-  };
 
   const generation = useWriterGeneration({
     auPath,
@@ -274,11 +221,11 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     isDiscardConfirmOpen: chrome.isDiscardConfirmOpen, onCloseDiscardConfirm: chrome.closeDiscardConfirm, draftsCount: draftCtrl.drafts.length,
     onDiscardDrafts: () => void chapterActions.handleDiscardDrafts(), isDiscarding: chapterActions.isDiscarding,
     isFactsPromptOpen: factsExtraction.isFactsPromptOpen, onCloseFactsPrompt: factsExtraction.handleSkipFactsPrompt, extractingFacts: factsExtraction.extractingFacts, skipFactsPrompt: factsExtraction.skipFactsPrompt,
-    factsPromptTitle: t('drafts.finalizeSuccess', { chapter: finalizedChapter }), onOpenExtractReview: () => void factsExtraction.handleOpenExtractReview(),
+    factsPromptTitle: t('drafts.finalizeSuccess', { chapter: finalizedChapter }), onOpenExtractReview: () => void factsExtraction.handleOpenExtractReview(chapterActions.lastConfirmedChapter),
     onFactsManualNavigate: () => { factsExtraction.setFactsPromptOpen(false); onNavigate('facts'); }, onSkipFactsPrompt: factsExtraction.handleSkipFactsPrompt, onFactsPromptToggle: factsExtraction.handleFactsPromptToggle,
     isExtractReviewOpen: factsExtraction.isExtractReviewOpen, onCloseExtractReview: () => { factsExtraction.setExtractReviewOpen(false); instructionInput.focusInstructionInput(); },
     extractedCandidates: factsExtraction.extractedCandidates, selectedExtractedKeys: factsExtraction.selectedExtractedKeys, getCandidateKey: factsExtraction.getCandidateKey,
-    onToggleExtractedCandidate: factsExtraction.toggleExtractedCandidate, onSaveExtracted: () => void factsExtraction.handleSaveExtracted(), savingExtracted: factsExtraction.savingExtracted,
+    onToggleExtractedCandidate: factsExtraction.toggleExtractedCandidate, onSaveExtracted: () => void factsExtraction.handleSaveExtracted(chapterActions.lastConfirmedChapter), savingExtracted: factsExtraction.savingExtracted,
     isUndoConfirmOpen: chrome.isUndoConfirmOpen, onCloseUndoConfirm: chrome.closeUndoConfirm, undoChapterNum: displayState.currentChapter - 1, onConfirmUndo: chapterActions.handleUndoConfirmed,
   };
 

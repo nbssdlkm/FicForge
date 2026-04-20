@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useRef, useMemo, useCallback } from 'react';
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import {
   saveGlobalModelParams,
   saveProjectModelParamsOverride,
@@ -44,6 +44,48 @@ export function useSessionParams(
   const [sessionModel, setSessionModel] = useState('deepseek-chat');
   const [sessionTemp, setSessionTemp] = useState(1.0);
   const [sessionTopP, setSessionTopP] = useState(0.95);
+
+  // AU 切换时 reset 到默认值（bootstrap 随后会通过下方 useEffect 派生正确值）
+  useEffect(() => {
+    setSessionModel('deepseek-chat');
+    setSessionTemp(1.0);
+    setSessionTopP(0.95);
+  }, [auPath]);
+
+  // 从 bootstrap 加载的 projectInfo / settingsInfo 派生 session 默认值。
+  // 原来这段逻辑在 bootstrap.loadData 里，通过 setSessionModel/Temp/TopP 反注入；
+  // 现在改为 sessionParams 自己 watch + 派生，消除 sessionParamsBridgeRef。
+  useEffect(() => {
+    if (!projectInfo && !settingsInfo) return;
+
+    let defModel = 'deepseek-chat';
+    let defTemp = 1.0;
+    let defTopP = 0.95;
+
+    const globalConfiguredModel = getConfiguredLlmModel(settingsInfo?.default_llm);
+    if (globalConfiguredModel) {
+      defModel = globalConfiguredModel;
+      const globalParams = settingsInfo?.model_params?.[defModel];
+      if (globalParams) {
+        defTemp = globalParams.temperature;
+        defTopP = globalParams.top_p;
+      }
+    }
+
+    const projectConfiguredModel = getConfiguredLlmModel(projectInfo?.llm);
+    if (projectConfiguredModel) {
+      defModel = projectConfiguredModel;
+    }
+    if (projectInfo?.model_params_override?.[defModel]) {
+      const override = projectInfo.model_params_override[defModel];
+      defTemp = (override.temperature as number) ?? defTemp;
+      defTopP = (override.top_p as number) ?? defTopP;
+    }
+
+    setSessionModel(defModel);
+    setSessionTemp(defTemp);
+    setSessionTopP(defTopP);
+  }, [projectInfo, settingsInfo]);
 
   const handleSaveGlobalParams = useCallback(async () => {
     const requestAuPath = auPath;
