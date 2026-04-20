@@ -33,11 +33,7 @@ import { SettingsChatPanel } from '../shared/settings-chat/SettingsChatPanel';
 import { InlineBanner } from '../shared/InlineBanner';
 
 import { type DraftGeneratedWith } from '../../api/engine-client';
-import { type StateInfo } from '../../api/engine-client';
-import { type FactInfo } from '../../api/engine-client';
 import { type ContextSummary } from '../../api/engine-client';
-import { type WriterSessionConfig } from '../../api/engine-client';
-import { type WriterProjectContext } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
@@ -88,11 +84,6 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     closeMobileTools,
   } = useWriterChromeState();
 
-  const [state, setState] = useState<StateInfo | null>(null);
-  const [projectInfo, setProjectInfo] = useState<WriterProjectContext | null>(null);
-  const [settingsInfo, setSettingsInfo] = useState<WriterSessionConfig | null>(null);
-  const [currentContent, setCurrentContent] = useState('');
-  const [unresolvedFacts, setUnresolvedFacts] = useState<FactInfo[]>([]);
   const [focusSelection, setFocusSelection] = useState<string[]>([]);
 
   const [drafts, setDrafts] = useState<DraftItem[]>([]);
@@ -110,12 +101,49 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const [generationErrorDisplay, setGenerationErrorDisplay] = useState<{ message: string; actions: string[] } | null>(null);
   const [draftSummaries, setDraftSummaries] = useState<Record<string, ContextSummary>>({});
   const pendingContextSummaryRef = useRef<ContextSummary | null>(null);
+  const bootstrapStateRef = useRef<{ current_chapter?: number } | null>(null);
+  const sessionParamsBridgeRef = useRef<Pick<
+    ReturnType<typeof useSessionParams>,
+    'getConfiguredLlmModel' | 'setSessionModel' | 'setSessionTemp' | 'setSessionTopP'
+  >>({
+    getConfiguredLlmModel: () => '',
+    setSessionModel: () => {},
+    setSessionTemp: () => {},
+    setSessionTopP: () => {},
+  });
+  const draftControllerBridgeRef = useRef<Pick<
+    ReturnType<typeof useWriterDraftController>,
+    'loadDraftsForChapter' | 'replaceDraftSummaries' | 'clearDraftState'
+  >>({
+    loadDraftsForChapter: async () => [],
+    replaceDraftSummaries: () => {},
+    clearDraftState: () => {},
+  });
 
-  const [loading, setLoading] = useState(true);
   const [instructionText, setInstructionText] = useState('');
 
   const factsExtraction = useWriterFactsExtraction(auPath, lastConfirmedChapter);
-  const sessionParams = useSessionParams(auPath, projectInfo, settingsInfo, showSuccess, showError);
+  const getConfiguredLlmModel = useCallback((llm: Parameters<ReturnType<typeof useSessionParams>['getConfiguredLlmModel']>[0]) => (
+    sessionParamsBridgeRef.current.getConfiguredLlmModel(llm)
+  ), []);
+  const setSessionModel = useCallback((model: string) => {
+    sessionParamsBridgeRef.current.setSessionModel(model);
+  }, []);
+  const setSessionTemp = useCallback((temperature: number) => {
+    sessionParamsBridgeRef.current.setSessionTemp(temperature);
+  }, []);
+  const setSessionTopP = useCallback((topP: number) => {
+    sessionParamsBridgeRef.current.setSessionTopP(topP);
+  }, []);
+  const loadDraftsForChapter = useCallback((chapterNum: number) => (
+    draftControllerBridgeRef.current.loadDraftsForChapter(chapterNum)
+  ), []);
+  const replaceDraftSummaries = useCallback((chapterNum: number, summaries: Record<string, ContextSummary>) => {
+    draftControllerBridgeRef.current.replaceDraftSummaries(chapterNum, summaries);
+  }, []);
+  const clearDraftState = useCallback(() => {
+    draftControllerBridgeRef.current.clearDraftState();
+  }, []);
   const {
     mode,
     showSettingsTooltip,
@@ -141,13 +169,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   useWriterResetOnAuChange<DraftItem>({
     auPath,
     pendingContextSummaryRef,
-    setLoading,
     setIsSettingsModeBusy,
-    setState,
-    setProjectInfo,
-    setSettingsInfo,
-    setCurrentContent,
-    setUnresolvedFacts,
     setFocusSelection,
     setDrafts,
     setActiveDraftIndex,
@@ -175,7 +197,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
 
   // 鎸囦护鏂囨湰鎸佷箙鍖栵細鍙樺寲鏃惰嚜鍔ㄤ繚瀛樺埌 localStorage
-  const currentChapterNum = state?.current_chapter ?? 0;
+  const currentChapterNum = bootstrapStateRef.current?.current_chapter ?? 0;
   const { instructionInputRef, focusInstructionInput } = useWriterInstructionInput({
     auPath,
     currentChapterNum,
@@ -184,12 +206,12 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
 
   /** 绔嬪嵆鍐欏叆鎸傝捣鐨勮崏绋跨紪杈戯紝鐒跺悗娓呴櫎瀹氭椂鍣ㄣ€?*/
   const {
-    clearDraftState,
-    replaceDraftSummaries,
+    clearDraftState: clearDraftStateImpl,
+    replaceDraftSummaries: replaceDraftSummariesImpl,
     attachDraftSummary,
     mergeDraftIntoState,
     loadDraftByLabel,
-    loadDraftsForChapter,
+    loadDraftsForChapter: loadDraftsForChapterImpl,
     handleCurrentDraftChange,
   } = useWriterDraftController({
     auPath,
@@ -206,27 +228,32 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     setDraftSummaries,
     onDraftSaveError: (error) => showError(error, t('error_messages.unknown')),
   });
+  draftControllerBridgeRef.current = {
+    loadDraftsForChapter: loadDraftsForChapterImpl,
+    replaceDraftSummaries: replaceDraftSummariesImpl,
+    clearDraftState: clearDraftStateImpl,
+  };
 
-  const { loadData, refreshSettingsModeData } = useWriterBootstrap<DraftItem>({
+  const {
+    data: { state, projectInfo, settingsInfo, currentContent, unresolvedFacts },
+    loading,
+    applyStateSnapshot,
+    loadData,
+    refreshSettingsModeData,
+  } = useWriterBootstrap<DraftItem>({
     auPath,
     loadGuard,
     refreshGuard,
-    getConfiguredLlmModel: sessionParams.getConfiguredLlmModel,
-    setSessionModel: sessionParams.setSessionModel,
-    setSessionTemp: sessionParams.setSessionTemp,
-    setSessionTopP: sessionParams.setSessionTopP,
+    getConfiguredLlmModel,
+    setSessionModel,
+    setSessionTemp,
+    setSessionTopP,
     loadDraftsForChapter,
     replaceDraftSummaries,
     clearDraftState,
     pendingContextSummaryRef,
     showError,
     t,
-    setLoading,
-    setState,
-    setProjectInfo,
-    setSettingsInfo,
-    setCurrentContent,
-    setUnresolvedFacts,
     setFocusSelection,
     setDrafts,
     setActiveDraftIndex,
@@ -234,6 +261,14 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     setLastGenerateRequest,
     setInstructionText,
   });
+  const sessionParams = useSessionParams(auPath, projectInfo, settingsInfo, showSuccess, showError);
+  bootstrapStateRef.current = state;
+  sessionParamsBridgeRef.current = {
+    getConfiguredLlmModel: sessionParams.getConfiguredLlmModel,
+    setSessionModel: sessionParams.setSessionModel,
+    setSessionTemp: sessionParams.setSessionTemp,
+    setSessionTopP: sessionParams.setSessionTopP,
+  };
 
   const {
     handleConfirm,
@@ -366,7 +401,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     state,
     fallbackContent: fallbackDisplayContent,
     onClearViewChapter,
-    onStateChange: setState,
+    onStateChange: applyStateSnapshot,
     onDirtyBannerReset: () => setDirtyBannerDismissed(false),
     onShowSuccess: (message) => showToast(message, 'success'),
     onShowError: showError,

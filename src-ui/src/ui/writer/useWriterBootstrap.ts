@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import {
   getChapterContent,
   getState,
@@ -39,12 +39,6 @@ type UseWriterBootstrapOptions<TDraft extends { label: string }> = {
   pendingContextSummaryRef: MutableRefObject<ContextSummary | null>;
   showError: (error: unknown, fallback: string) => void;
   t: (key: string, params?: Record<string, unknown>) => string;
-  setLoading: (loading: boolean) => void;
-  setState: (state: StateInfo | null) => void;
-  setProjectInfo: (project: WriterProjectContext | null) => void;
-  setSettingsInfo: (settings: WriterSessionConfig | null) => void;
-  setCurrentContent: (content: string) => void;
-  setUnresolvedFacts: (facts: FactInfo[]) => void;
   setFocusSelection: (focus: string[]) => void;
   setDrafts: (drafts: TDraft[]) => void;
   setActiveDraftIndex: (index: number) => void;
@@ -67,12 +61,6 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
   pendingContextSummaryRef,
   showError,
   t,
-  setLoading,
-  setState,
-  setProjectInfo,
-  setSettingsInfo,
-  setCurrentContent,
-  setUnresolvedFacts,
   setFocusSelection,
   setDrafts,
   setActiveDraftIndex,
@@ -80,6 +68,13 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
   setLastGenerateRequest,
   setInstructionText,
 }: UseWriterBootstrapOptions<TDraft>) {
+  const [state, setState] = useState<StateInfo | null>(null);
+  const [projectInfo, setProjectInfo] = useState<WriterProjectContext | null>(null);
+  const [settingsInfo, setSettingsInfo] = useState<WriterSessionConfig | null>(null);
+  const [currentContent, setCurrentContent] = useState('');
+  const [unresolvedFacts, setUnresolvedFacts] = useState<FactInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const loadData = useCallback(async () => {
     const token = loadGuard.start();
     setLoading(true);
@@ -185,20 +180,14 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
     pendingContextSummaryRef,
     replaceDraftSummaries,
     setActiveDraftIndex,
-    setCurrentContent,
     setDrafts,
     setFocusSelection,
     setInstructionText,
     setLastGenerateRequest,
-    setLoading,
-    setProjectInfo,
     setRecoveryNotice,
     setSessionModel,
     setSessionTemp,
     setSessionTopP,
-    setSettingsInfo,
-    setState,
-    setUnresolvedFacts,
     showError,
     t,
   ]);
@@ -227,12 +216,18 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
     auPath,
     refreshGuard,
     setFocusSelection,
-    setProjectInfo,
-    setState,
-    setUnresolvedFacts,
     showError,
     t,
   ]);
+
+  useEffect(() => {
+    setState(null);
+    setProjectInfo(null);
+    setSettingsInfo(null);
+    setCurrentContent('');
+    setUnresolvedFacts([]);
+    setLoading(true);
+  }, [auPath]);
 
   // loadData 的 useCallback 有 24 个依赖；其中某个在每次 render 时引用不稳，
   // 直接 useEffect([loadData]) 会无限重触发 → loadData 跑一遍 → setState 触发 re-render
@@ -246,7 +241,20 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
     void loadDataRef.current();
   }, [auPath]);
 
+  const applyStateSnapshot = useCallback((nextState: StateInfo) => {
+    setState(nextState);
+  }, []);
+
   return {
+    data: {
+      state,
+      projectInfo,
+      settingsInfo,
+      currentContent,
+      unresolvedFacts,
+    },
+    loading,
+    applyStateSnapshot,
     loadData,
     refreshSettingsModeData,
   };

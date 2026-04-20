@@ -6,23 +6,13 @@ import { useEffect, type MutableRefObject } from 'react';
 import type {
   ContextSummary,
   DraftGeneratedWith,
-  FactInfo,
-  StateInfo,
-  WriterProjectContext,
-  WriterSessionConfig,
 } from '../../api/engine-client';
 import type { GenerateRequestState } from '../../utils/writerStorage';
 
 type UseWriterResetOnAuChangeOptions<TDraft> = {
   auPath: string;
   pendingContextSummaryRef: MutableRefObject<ContextSummary | null>;
-  setLoading: (loading: boolean) => void;
   setIsSettingsModeBusy: (busy: boolean) => void;
-  setState: (state: StateInfo | null) => void;
-  setProjectInfo: (project: WriterProjectContext | null) => void;
-  setSettingsInfo: (settings: WriterSessionConfig | null) => void;
-  setCurrentContent: (content: string) => void;
-  setUnresolvedFacts: (facts: FactInfo[]) => void;
   setFocusSelection: (focus: string[]) => void;
   setDrafts: (drafts: TDraft[]) => void;
   setActiveDraftIndex: (index: number) => void;
@@ -50,13 +40,7 @@ type UseWriterResetOnAuChangeOptions<TDraft> = {
 export function useWriterResetOnAuChange<TDraft>({
   auPath,
   pendingContextSummaryRef,
-  setLoading,
   setIsSettingsModeBusy,
-  setState,
-  setProjectInfo,
-  setSettingsInfo,
-  setCurrentContent,
-  setUnresolvedFacts,
   setFocusSelection,
   setDrafts,
   setActiveDraftIndex,
@@ -81,13 +65,7 @@ export function useWriterResetOnAuChange<TDraft>({
   resetFactsExtraction,
 }: UseWriterResetOnAuChangeOptions<TDraft>) {
   useEffect(() => {
-    setLoading(true);
     setIsSettingsModeBusy(false);
-    setState(null);
-    setProjectInfo(null);
-    setSettingsInfo(null);
-    setCurrentContent('');
-    setUnresolvedFacts([]);
     setFocusSelection([]);
     setDrafts([]);
     setActiveDraftIndex(0);
@@ -117,7 +95,6 @@ export function useWriterResetOnAuChange<TDraft>({
     resetFactsExtraction,
     setActiveDraftIndex,
     setBudgetReport,
-    setCurrentContent,
     setDirtyBannerDismissed,
     setDirtyOpen,
     setDiscardConfirmOpen,
@@ -134,14 +111,9 @@ export function useWriterResetOnAuChange<TDraft>({
     setIsSettingsModeBusy,
     setLastConfirmedChapter,
     setLastGenerateRequest,
-    setLoading,
     setMobileToolsOpen,
-    setProjectInfo,
     setRecoveryNotice,
-    setSettingsInfo,
-    setState,
     setStreamText,
     setUndoConfirmOpen,
-    setUnresolvedFacts,
   ]);
 }
