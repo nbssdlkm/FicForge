@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import {
   getChapterContent,
   getState,
@@ -234,9 +234,17 @@ export function useWriterBootstrap<TDraft extends { label: string }>({
     t,
   ]);
 
+  // loadData 的 useCallback 有 24 个依赖；其中某个在每次 render 时引用不稳，
+  // 直接 useEffect([loadData]) 会无限重触发 → loadData 跑一遍 → setState 触发 re-render
+  // → loadData 重建 → useEffect 又触发，每秒 100+ 次。Android 真机肉眼可见加载圈不停。
+  // 用 ref 持有最新 loadData，useEffect 仅按 auPath 触发。Phase 1 状态下沉后 deps
+  // 自然减少，可重新评估是否回到 [loadData]。
+  const loadDataRef = useRef(loadData);
+  loadDataRef.current = loadData;
+
   useEffect(() => {
-    void loadData();
-  }, [loadData]);
+    void loadDataRef.current();
+  }, [auPath]);
 
   return {
     loadData,
