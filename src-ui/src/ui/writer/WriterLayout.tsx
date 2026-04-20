@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 FicForge Contributors
+// Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
@@ -128,9 +128,9 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     t,
   });
 
-  // 缂栬緫宸茬‘璁ょ珷鑺傦紙FIX-006锛?
+  // 编辑已确认章节（FIX-006）
 
-  // 闃呰鍋忓ソ锛堣法骞冲彴 KV 鎸佷箙鍖栵級
+  // 阅读偏好（跨平台 KV 持久化）
   const [fontSizeStr, setFontSizeKV] = useKV('ficforge.fontSize', '18');
   const fontSize = parseInt(fontSizeStr, 10) || 18;
   const setFontSize = useCallback((v: number) => setFontSizeKV(String(v)), [setFontSizeKV]);
@@ -442,7 +442,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
               {isViewingHistory && (
                 <InlineBanner
                   tone="info"
-                  message={<>{t('workspace.chapterItem', { num: viewingHistoryNum })} 鈥?{t('writer.viewingHistory')}</>}
+                  message={<>{t('workspace.chapterItem', { num: viewingHistoryNum })} — {t('writer.viewingHistory')}</>}
                   actions={
                     <>
                       <Button tone="neutral" fill="plain" size="sm" onClick={startEditingConfirmed} disabled={editingConfirmed}>
