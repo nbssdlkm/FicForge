@@ -23,9 +23,11 @@ export type FontCategory = "serif" | "sans" | "mono" | "script";
 /**
  * 字体分发源。多源 failover：按 priority 升序尝试，任一源成功即通过。
  *
- * - 主源（priority=1）：推荐国内 CDN（npmmirror）
- * - 备源（priority=2）：jsDelivr / cdnjs 等多线 CDN
- * - 兜底（priority=3）：GitHub release / 自建 CDN
+ * 当前项目的源策略：
+ * - priority=1 主源：自建 CF Tunnel（nbssdlkm.cn），子集化 woff2，最优速度；
+ * - priority=2 备源：fontsource 的 jsDelivr npm 镜像 或 上游 GitHub release，
+ *   主源挂掉时兜底（体积通常更大但保证可用）。
+ * 可按需追加更多 priority 级别，downloader 按升序遍历直到成功或全部耗尽。
  */
 export interface FontSource {
   url: string;

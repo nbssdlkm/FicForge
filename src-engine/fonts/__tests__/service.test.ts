@@ -13,7 +13,7 @@ import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 
 // manifest 中已知的 id（测试依赖这两条 entry 存在）
 const BUILTIN_ID = "lxgw-wenkai-screen";
-const DOWNLOADABLE_ID = "lxgw-wenkai";
+const DOWNLOADABLE_ID = "lxgw-wenkai-gb";
 
 function makeResponse(data: Uint8Array, status = 200): Response {
   return new Response(data, {

@@ -6,9 +6,15 @@
  *
  * 新增/下线字体只需修改本文件；下载、存储、注册、UI 展示全部派生自此。
  *
- * 可下载字体的 `sha256` 字段在 Phase 1（基建阶段）留空，等 Phase 5 实际接入
- * 下载流程时用真实文件计算并回填。下载器遇到空字符串时会跳过校验并输出
- * warning —— 这是受控的"开发态"行为，生产环境必须填齐。
+ * 每条可下载字体带 **两个源**：
+ *   - priority=1 主源：自建 CF Tunnel（nbssdlkm.cn），**已子集化的 woff2**，速度最优；
+ *   - priority=2 备源：fontsource CDN（jsDelivr npm 镜像）或上游 GitHub release 的 TTF，
+ *     主源挂掉时兜底，体积通常更大但能保证可用。
+ * downloader 按 priority 升序 failover（见 src-engine/fonts/downloader.ts:65）。
+ *
+ * 可下载字体的 `sha256` 字段当前留空 —— 主源文件已部署，需要在 minipc 上对每个
+ * woff2 跑 `sha256sum` 回填，避免主源文件被静默替换时用户缓存脏数据无感知。
+ * 下载器遇到空字符串时会跳过校验并输出 warning。
  */
 
 import { createFontsConfig } from "../domain/settings.js";
@@ -49,24 +55,33 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     url: "/fonts/lxgw-wenkai-screen/result.css",
   },
 
-  // ── 可下载字体（按需拉取 · 自建源 nbssdlkm.cn） ──────
-  // 所有 woff2 已子集化（CJK 保留 GB2312+扩展 A 共 ~27000 字），immutable 缓存。
+  // ── 可下载字体（按需拉取 · 主源自建 nbssdlkm.cn + fontsource CDN 备源） ──
+  // 所有主源 woff2 已子集化（CJK 保留 GB2312+扩展 A 共 ~27000 字），immutable 缓存。
+  // 备源用 fontsource（jsDelivr npm 镜像，自带基础子集）或 GitHub release，主源失败兜底。
   // ── 中文 ──
   {
     type: "downloadable",
-    id: "source-han-serif-sc",
-    family: "Source Han Serif SC",
+    // id 与主源路径段 `/fonts/noto-serif-sc/` 对齐，并与同系列 `noto-sans-sc` 命名一致；
+    // displayName 保留用户熟悉的"思源宋体"（Adobe 品牌）。
+    id: "noto-serif-sc",
+    family: "Noto Serif SC",
     displayName: { zh: "思源宋体", en: "Noto Serif SC" },
     script: "cjk",
     category: "serif",
     license: "SIL OFL 1.1",
     sizeBytes: 5_400_000,
     sha256: "",
-    sources: [{ url: "https://nbssdlkm.cn/fonts/noto-serif-sc/v1/NotoSerifSC-Regular.subset.woff2", priority: 1 }],
+    sources: [
+      { url: "https://nbssdlkm.cn/fonts/noto-serif-sc/v1/NotoSerifSC-Regular.subset.woff2", priority: 1 },
+      { url: "https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-sc@latest/files/noto-serif-sc-chinese-simplified-400-normal.woff2", priority: 2 },
+    ],
   },
   {
     type: "downloadable",
-    id: "lxgw-wenkai",
+    // id 从 `lxgw-wenkai` 改为 `lxgw-wenkai-gb`：
+    // (a) 与 builtin 同族 `lxgw-wenkai-screen` 命名风格对齐；
+    // (b) 明确这是 GB2312 子集版（而非打印向全字库版）。
+    id: "lxgw-wenkai-gb",
     family: "LXGW WenKai GB",
     displayName: { zh: "霞鹜文楷 GB", en: "LXGW WenKai GB" },
     script: "cjk",
@@ -74,7 +89,11 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     license: "SIL OFL 1.1",
     sizeBytes: 6_500_000,
     sha256: "",
-    sources: [{ url: "https://nbssdlkm.cn/fonts/lxgw-wenkai-gb/v1/LXGWWenKaiGB-Regular.subset.woff2", priority: 1 }],
+    sources: [
+      { url: "https://nbssdlkm.cn/fonts/lxgw-wenkai-gb/v1/LXGWWenKaiGB-Regular.subset.woff2", priority: 1 },
+      // fontsource 未收录 LXGW WenKai GB；回退到上游 GitHub release 的完整 TTF（~26MB）。
+      { url: "https://github.com/lxgw/LxgwWenkaiGB/releases/download/v1.522/LXGWWenKaiGB-Regular.ttf", priority: 2 },
+    ],
   },
   {
     type: "downloadable",
@@ -86,7 +105,10 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     license: "SIL OFL 1.1",
     sizeBytes: 3_900_000,
     sha256: "",
-    sources: [{ url: "https://nbssdlkm.cn/fonts/noto-sans-sc/v1/NotoSansSC-Regular.subset.woff2", priority: 1 }],
+    sources: [
+      { url: "https://nbssdlkm.cn/fonts/noto-sans-sc/v1/NotoSansSC-Regular.subset.woff2", priority: 1 },
+      { url: "https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-sc@latest/files/noto-sans-sc-chinese-simplified-400-normal.woff2", priority: 2 },
+    ],
   },
   {
     type: "downloadable",
@@ -98,7 +120,10 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     license: "SIL OFL 1.1",
     sizeBytes: 3_200_000,
     sha256: "",
-    sources: [{ url: "https://nbssdlkm.cn/fonts/ma-shan-zheng/v1/MaShanZheng-Regular.subset.woff2", priority: 1 }],
+    sources: [
+      { url: "https://nbssdlkm.cn/fonts/ma-shan-zheng/v1/MaShanZheng-Regular.subset.woff2", priority: 1 },
+      { url: "https://cdn.jsdelivr.net/npm/@fontsource/ma-shan-zheng@latest/files/ma-shan-zheng-chinese-simplified-400-normal.woff2", priority: 2 },
+    ],
   },
   {
     type: "downloadable",
@@ -110,7 +135,10 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     license: "SIL OFL 1.1",
     sizeBytes: 2_900_000,
     sha256: "",
-    sources: [{ url: "https://nbssdlkm.cn/fonts/long-cang/v1/LongCang-Regular.subset.woff2", priority: 1 }],
+    sources: [
+      { url: "https://nbssdlkm.cn/fonts/long-cang/v1/LongCang-Regular.subset.woff2", priority: 1 },
+      { url: "https://cdn.jsdelivr.net/npm/@fontsource/long-cang@latest/files/long-cang-chinese-simplified-400-normal.woff2", priority: 2 },
+    ],
   },
   // ── 英文 ──
   {
@@ -123,7 +151,10 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     license: "SIL OFL 1.1",
     sizeBytes: 20_000,
     sha256: "",
-    sources: [{ url: "https://nbssdlkm.cn/fonts/literata/v1/Literata-Regular.subset.woff2", priority: 1 }],
+    sources: [
+      { url: "https://nbssdlkm.cn/fonts/literata/v1/Literata-Regular.subset.woff2", priority: 1 },
+      { url: "https://cdn.jsdelivr.net/npm/@fontsource/literata@latest/files/literata-latin-400-normal.woff2", priority: 2 },
+    ],
   },
   {
     type: "downloadable",
@@ -135,7 +166,10 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     license: "SIL OFL 1.1",
     sizeBytes: 20_000,
     sha256: "",
-    sources: [{ url: "https://nbssdlkm.cn/fonts/lora/v1/Lora-Regular.subset.woff2", priority: 1 }],
+    sources: [
+      { url: "https://nbssdlkm.cn/fonts/lora/v1/Lora-Regular.subset.woff2", priority: 1 },
+      { url: "https://cdn.jsdelivr.net/npm/@fontsource/lora@latest/files/lora-latin-400-normal.woff2", priority: 2 },
+    ],
   },
   {
     type: "downloadable",
@@ -147,7 +181,10 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     license: "SIL OFL 1.1",
     sizeBytes: 44_000,
     sha256: "",
-    sources: [{ url: "https://nbssdlkm.cn/fonts/merriweather/v1/Merriweather-Regular.subset.woff2", priority: 1 }],
+    sources: [
+      { url: "https://nbssdlkm.cn/fonts/merriweather/v1/Merriweather-Regular.subset.woff2", priority: 1 },
+      { url: "https://cdn.jsdelivr.net/npm/@fontsource/merriweather@latest/files/merriweather-latin-400-normal.woff2", priority: 2 },
+    ],
   },
   {
     type: "downloadable",
@@ -159,7 +196,10 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     license: "SIL OFL 1.1",
     sizeBytes: 22_000,
     sha256: "",
-    sources: [{ url: "https://nbssdlkm.cn/fonts/eb-garamond/v1/EBGaramond-Regular.subset.woff2", priority: 1 }],
+    sources: [
+      { url: "https://nbssdlkm.cn/fonts/eb-garamond/v1/EBGaramond-Regular.subset.woff2", priority: 1 },
+      { url: "https://cdn.jsdelivr.net/npm/@fontsource/eb-garamond@latest/files/eb-garamond-latin-400-normal.woff2", priority: 2 },
+    ],
   },
   {
     type: "downloadable",
@@ -171,7 +211,10 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     license: "SIL OFL 1.1",
     sizeBytes: 16_000,
     sha256: "",
-    sources: [{ url: "https://nbssdlkm.cn/fonts/crimson-pro/v1/CrimsonPro-Regular.subset.woff2", priority: 1 }],
+    sources: [
+      { url: "https://nbssdlkm.cn/fonts/crimson-pro/v1/CrimsonPro-Regular.subset.woff2", priority: 1 },
+      { url: "https://cdn.jsdelivr.net/npm/@fontsource/crimson-pro@latest/files/crimson-pro-latin-400-normal.woff2", priority: 2 },
+    ],
   },
 ];
 
