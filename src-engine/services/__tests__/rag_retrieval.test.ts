@@ -169,6 +169,23 @@ describe("retrieve_rag", () => {
     expect(chChunk?.score).toBeGreaterThan(0);
   });
 
+  it("retrieves up to CHAPTERS_TOP_K=8 chapter chunks", async () => {
+    const chapters = Array.from({ length: 12 }, (_, i) => ({
+      content: `chapter chunk ${i}`,
+      chapter_num: i + 1,
+      score: 0.9 - i * 0.01,
+      metadata: {},
+    }));
+    const repo = createMockVectorRepo({ characters: [], worldbuilding: [], chapters });
+
+    const [, , chunks] = await retrieve_rag(
+      repo, mockEmbedding, "au1", "query", 100000, null, null,
+    );
+
+    const chapterChunks = chunks.filter((c) => c._collection === "chapters");
+    expect(chapterChunks.length).toBe(8);
+  });
+
   it("returns [] chunks for empty query", async () => {
     const repo = createMockVectorRepo({});
     const [, , chunks] = await retrieve_rag(

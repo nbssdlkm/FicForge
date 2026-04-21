@@ -13,6 +13,13 @@ import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { RagChunkDetail, RagCollection } from "../domain/context_summary.js";
 import { RAG_COLLECTIONS } from "../domain/context_summary.js";
 
+// RAG 召回数量配置
+// 注：characters / worldbuilding collections 当前不被 indexer 写入（lore 走 P5 直读），
+//    保持低值；chapters 是唯一真实出 chunk 的 collection。
+const CHARACTERS_TOP_K = 3;
+const WORLDBUILDING_TOP_K = 3;
+const CHAPTERS_TOP_K = 8;
+
 // ---------------------------------------------------------------------------
 // build_rag_query
 // ---------------------------------------------------------------------------
@@ -158,8 +165,9 @@ export async function retrieve_rag(
   const allChunks: ChunkWithCollection[] = [];
 
   for (const collName of collections) {
+    const topK = collName === "characters" ? CHARACTERS_TOP_K : WORLDBUILDING_TOP_K;
     const chunks = await searchCollection(
-      vector_repo, au_id, queryEmbedding, collName, 3, char_filter,
+      vector_repo, au_id, queryEmbedding, collName, topK, char_filter,
     );
     for (const c of chunks) {
       allChunks.push({ ...c, _collection: collName });
@@ -168,7 +176,7 @@ export async function retrieve_rag(
 
   // chapters collection（带时间衰减）
   const chChunks = await searchCollection(
-    vector_repo, au_id, queryEmbedding, "chapters", 3, char_filter,
+    vector_repo, au_id, queryEmbedding, "chapters", CHAPTERS_TOP_K, char_filter,
   );
   const decayedChChunks: ChunkWithCollection[] = [];
   for (const c of chChunks) {
