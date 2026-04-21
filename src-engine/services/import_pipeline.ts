@@ -447,8 +447,8 @@ async function writeImportedSettings(
     chaptersImported: number;
     onProgress?: (progress: ImportProgress) => void;
   },
-): Promise<number> {
-  if (plan.settings.length === 0) return 0;
+): Promise<{ count: number; writtenPaths: string[] }> {
+  if (plan.settings.length === 0) return { count: 0, writtenPaths: [] };
 
   const { auId, adapter, locale, chaptersImported, onProgress } = params;
   const settingsName = locale === "zh" ? "导入设定" : "imported_settings";
@@ -473,7 +473,7 @@ async function writeImportedSettings(
         settingsTotal: plan.settings.length,
         settingsDone: plan.settings.length,
       });
-      return plan.settings.length;
+      return { count: plan.settings.length, writtenPaths };
     }
 
     const dir = `${auId}/worldbuilding`;
@@ -497,7 +497,7 @@ async function writeImportedSettings(
         settingsDone: i + 1,
       });
     }
-    return plan.settings.length;
+    return { count: plan.settings.length, writtenPaths };
   } catch (error) {
     await rollbackImportedSettings(adapter, writtenPaths);
     throw error;
@@ -637,13 +637,15 @@ async function doExecuteImport(
     result.nextChapterNum = importState.current_chapter;
   }
 
-  result.settingsImported = await writeImportedSettings(plan, {
+  const settingsResult = await writeImportedSettings(plan, {
     auId,
     adapter,
     locale,
     chaptersImported: result.chaptersImported,
     onProgress,
   });
+  result.settingsImported = settingsResult.count;
+  const writtenSettingsPaths = settingsResult.writtenPaths;
 
   // 4. 事务提交 — 只要有章节或设定就写 ops（D-0036：ops 是 sync truth）
   if (plan.chapters.length > 0 || plan.settings.length > 0) {
@@ -667,7 +669,12 @@ async function doExecuteImport(
     }));
     if (importState) tx.setState(importState);
 
-    await tx.commit(opsRepo, null, stateRepo, chapterRepo, null);
+    try {
+      await tx.commit(opsRepo, null, stateRepo, chapterRepo, null);
+    } catch (commitError) {
+      await rollbackImportedSettings(adapter, writtenSettingsPaths);
+      throw commitError;
+    }
   }
 
   // 5. 写入设定文件（tx 提交之后：worldbuilding 不受 ops 管理，非关键数据）

@@ -733,6 +733,55 @@ describe("executeImport", () => {
     expect(await opsRepo.list_all("au1")).toHaveLength(0);
   });
 
+  it("rolls back settings files when tx.commit() fails after settings succeed", async () => {
+    const failingAdapter = new FailingWriteAdapter((path) =>
+      path.includes("/chapters/main/") && path.endsWith(".md"));
+    const chapterRepo = new FileChapterRepository(failingAdapter);
+    const stateRepo = new FileStateRepository(failingAdapter);
+    const opsRepo = new FileOpsRepository(failingAdapter);
+
+    const analysis = makeChatAnalysis("chat.txt", [
+      { type: "chapter", chars: 2000 },
+      { type: "setting", chars: 800 },
+    ]);
+
+    const plan = buildImportPlan([analysis], {
+      mode: "append", startChapter: 1, settingsMode: "separate",
+    });
+
+    await expect(executeImport(plan, {
+      auId: "au1", chapterRepo, stateRepo, opsRepo, adapter: failingAdapter,
+    })).rejects.toThrow();
+
+    const remainingSettings = failingAdapter.allFiles().filter((path) =>
+      path.includes("/worldbuilding/"));
+    expect(remainingSettings).toEqual([]);
+  });
+
+  it("rolls back settings files when tx.commit() ops write fails after settings succeed", async () => {
+    const failingAdapter = new FailingWriteAdapter((path) =>
+      path.endsWith("/ops.jsonl"));
+    const chapterRepo = new FileChapterRepository(failingAdapter);
+    const stateRepo = new FileStateRepository(failingAdapter);
+    const opsRepo = new FileOpsRepository(failingAdapter);
+
+    const analysis = makeChatAnalysis("chat.txt", [
+      { type: "setting", chars: 600 },
+    ]);
+
+    const plan = buildImportPlan([analysis], {
+      mode: "append", startChapter: 1, settingsMode: "separate",
+    });
+
+    await expect(executeImport(plan, {
+      auId: "au1", chapterRepo, stateRepo, opsRepo, adapter: failingAdapter,
+    })).rejects.toThrow();
+
+    const remainingSettings = failingAdapter.allFiles().filter((path) =>
+      path.includes("/worldbuilding/"));
+    expect(remainingSettings).toEqual([]);
+  });
+
   it("progress callback fires", async () => {
     const chapterRepo = new FileChapterRepository(adapter);
     const stateRepo = new FileStateRepository(adapter);
