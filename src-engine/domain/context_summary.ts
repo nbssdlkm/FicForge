@@ -35,6 +35,8 @@ export interface ContextSummary {
   rag_chunks_retrieved: number;
   /** P4 RAG 召回的片段详情。 */
   rag_chunks: RagChunkDetail[];
+  /** 当前使用的索引可能未包含最新章节。 */
+  stale_index?: boolean;
   /** 组装完成后的总输入 token 数。 */
   total_input_tokens: number;
   /** 被截断的层标识列表。 */

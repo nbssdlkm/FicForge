@@ -1,17 +1,19 @@
 // Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 import { generate_chapter, is_empty_intent } from "../generation.js";
 import type { GenerationEvent } from "../generation.js";
 import { createProject, createLLMConfig } from "../../domain/project.js";
 import { createState } from "../../domain/state.js";
 import { createSettings } from "../../domain/settings.js";
-import { LLMMode } from "../../domain/enums.js";
+import { IndexStatus, LLMMode } from "../../domain/enums.js";
 import { FileChapterRepository } from "../../repositories/implementations/file_chapter.js";
 import { FileDraftRepository } from "../../repositories/implementations/file_draft.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
+import type { EmbeddingProvider } from "../../llm/embedding_provider.js";
 import type { LLMProvider, LLMResponse, LLMChunk } from "../../llm/provider.js";
+import type { VectorRepository } from "../../repositories/interfaces/vector.js";
 
 function createMockProvider(tokens: string[] = ["Hello", " world", "!"]): LLMProvider {
   return {
@@ -98,6 +100,9 @@ describe("generate_chapter", () => {
     expect(data.draft_label).toBe("A");
     expect(data.full_text).toBe("你好世界");
     expect(data.generated_with.model).toBe("test-model");
+
+    const contextEvent = events.find((e) => e.type === "context_summary")!;
+    expect((contextEvent.data as any).stale_index).toBe(true);
   });
 
   it("idempotent control rejects concurrent generation", async () => {
@@ -191,5 +196,57 @@ describe("generate_chapter", () => {
     });
     expect(receivedSignal).toBe(controller.signal);
     await expect(params.draft_repo.list_by_chapter("au_abort", 1)).resolves.toEqual([]);
+  });
+
+  it("runs RAG when index_status is STALE and marks stale_index", async () => {
+    const searchSpy = vi.fn(async (_auId: string, _queryEmbedding: number[], options: { collection: string }) => {
+      if (options.collection !== "chapters") return [];
+      return [{
+        content: "上一章里 Alice 看见了燃烧的钟楼。",
+        chapter_num: 1,
+        score: 0.98,
+        metadata: {},
+      }];
+    });
+    const vectorRepo: VectorRepository = {
+      async index_chunks() {},
+      search: searchSpy,
+      async delete_by_chapter() {},
+      async delete_by_source() {},
+      async rebuild_index() {},
+      async get_index_status() { return IndexStatus.READY; },
+    };
+    const embeddingProvider: EmbeddingProvider = {
+      async embed(texts: string[]) {
+        return texts.map(() => [0.1, 0.2, 0.3]);
+      },
+      get_dimension() {
+        return 3;
+      },
+      get_model_name() {
+        return "mock-embed";
+      },
+    };
+
+    const events = await collectEvents(generate_chapter(makeParams(adapter, {
+      au_id: "au_rag_stale",
+      state: createState({
+        au_id: "au_rag_stale",
+        current_chapter: 2,
+        index_status: IndexStatus.STALE,
+      }),
+      vector_repo: vectorRepo,
+      embedding_provider: embeddingProvider,
+      _provider_override: createMockProvider(["继续", "写"]),
+    })));
+
+    const contextEvent = events.find((e) => e.type === "context_summary")!;
+    const summary = contextEvent.data as any;
+    expect(searchSpy).toHaveBeenCalled();
+    expect(summary.stale_index).toBe(true);
+    expect(summary.rag_chunks_retrieved).toBe(1);
+    expect(summary.rag_chunks).toMatchObject([
+      { collection: "chapters", chapter_num: 1 },
+    ]);
   });
 });

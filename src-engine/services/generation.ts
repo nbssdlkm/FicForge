@@ -211,10 +211,10 @@ export async function* generate_chapter(
       worldbuilding_files = await loadMdFiles(adapter, joinPath(au_id, "worldbuilding"));
     }
 
-    // === 步骤 1.8：RAG 检索（STALE 索引时跳过，避免旧 chunk 污染上下文）===
+    // === 步骤 1.8：RAG 检索（STALE 时也尝试召回，并在 summary 标记索引可能过期）===
     const indexReady = state.index_status === IndexStatus.READY;
     let ragChunksDetail: ChunkWithCollection[] = [];
-    if (rag_text === null && vector_repo && embedding_provider && indexReady) {
+    if (rag_text === null && vector_repo && embedding_provider) {
       try {
         const castReg = project.cast_registry ?? { characters: [] };
         const activeChars = build_active_chars(state, user_input, project, facts, castReg);
@@ -259,6 +259,7 @@ export async function* generate_chapter(
     if (ragChunksDetail.length > 0) {
       context_summary.rag_chunks_retrieved = context_summary.rag_chunks.length;
     }
+    context_summary.stale_index = !indexReady;
 
     // === 步骤 2.5：yield context_summary ===
     yield { type: "context_summary", data: context_summary };
