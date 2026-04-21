@@ -15,6 +15,9 @@ import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 const BUILTIN_ID = "lxgw-wenkai-screen";
 const DOWNLOADABLE_ID = "lxgw-wenkai-gb";
 
+// mock 数据
+const MOCK_FONT_BYTES = new Uint8Array([1, 2, 3]);
+
 function makeResponse(data: Uint8Array, status = 200): Response {
   return new Response(data, {
     status,
@@ -35,9 +38,11 @@ describe("FontsService", () => {
     registry = new NoopFontRegistry();
     downloader = new FontDownloader({
       fetchImpl: vi.fn().mockImplementation(async () =>
-        makeResponse(new Uint8Array([1, 2, 3])),
+        makeResponse(MOCK_FONT_BYTES),
       ),
     });
+    // Spy download() 返回 mock 字节，跳过内部 sha256 校验（checksum 逻辑已有专门的 downloader 单测覆盖）。
+    vi.spyOn(downloader, "download").mockResolvedValue(MOCK_FONT_BYTES);
     service = new FontsService(storage, downloader, registry);
   });
 
