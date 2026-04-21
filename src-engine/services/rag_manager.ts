@@ -69,18 +69,26 @@ export class RagManager {
     // 清除目标 AU 的旧 chunks（准备全量重建）
     await this.vectorEngine.rebuild_index(auPath);
 
-    // 遍历所有章节：批量索引到内存，最后一次性 persist
-    const chapters = await chapterRepo.list_main(auPath);
-    onProgress?.(0, chapters.length);
-    for (let i = 0; i < chapters.length; i++) {
-      if (signal?.aborted) break;
-      const ch = chapters[i];
-      const content = await chapterRepo.get_content_only(auPath, ch.chapter_num);
-      await this.indexChapterInMemory(auPath, ch.chapter_num, content, embeddingProvider, castRegistry);
-      onProgress?.(i + 1, chapters.length);
+    try {
+      // 遍历所有章节：批量索引到内存，最后一次性 persist
+      const chapters = await chapterRepo.list_main(auPath);
+      onProgress?.(0, chapters.length);
+      for (let i = 0; i < chapters.length; i++) {
+        if (signal?.aborted) break;
+        const ch = chapters[i];
+        const content = await chapterRepo.get_content_only(auPath, ch.chapter_num);
+        await this.indexChapterInMemory(auPath, ch.chapter_num, content, embeddingProvider, castRegistry);
+        onProgress?.(i + 1, chapters.length);
+      }
+      // 无论有无章节都 persist（0 章节时需要写入空索引覆盖旧数据）
+      await this.vectorEngine.persist(vectorsDir(auPath));
+    } catch (err) {
+      // 重建中途失败：内存已被 rebuild_index 清空但 persist 没执行 → 磁盘老 chunks 还在。
+      // 必须 unload，否则 currentAu 还指向 auPath，下次 ensureLoaded 会跳过 load → 内存永远空 → RAG 0 召回。
+      // unload 后下次 ensureLoaded 强制 reload from disk，回到 rebuild 之前的状态。
+      this.unload();
+      throw err;
     }
-    // 无论有无章节都 persist（0 章节时需要写入空索引覆盖旧数据）
-    await this.vectorEngine.persist(vectorsDir(auPath));
   }
 
   /**
