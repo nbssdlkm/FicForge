@@ -23,6 +23,44 @@ function createAbortError(message = "Aborted"): DOMException {
 }
 
 /**
+ * 把外部 signal 桥接到内部 controller，返回清理函数。
+ * 调用方必须在 fetch 结束后（无论成功失败）调用清理函数，否则 listener 会泄漏。
+ */
+function attachAbort(controller: AbortController, externalSignal?: AbortSignal): () => void {
+  if (!externalSignal) return () => {};
+  if (externalSignal.aborted) {
+    controller.abort();
+    return () => {};
+  }
+  const onAbort = () => controller.abort();
+  externalSignal.addEventListener("abort", onAbort, { once: true });
+  return () => externalSignal.removeEventListener("abort", onAbort);
+}
+
+/**
+ * 可取消的延时等待。signal abort 时立即 reject 为 AbortError，
+ * 同时 clearTimeout + removeEventListener 不留垃圾。
+ */
+function waitWithAbort(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(createAbortError());
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      reject(createAbortError());
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+/**
  * 清洗字符串中可能导致 JSON 解析失败的字符。
  * 部分 LLM 提供商的 JSON parser 对 lone surrogate、NULL 等字符报
  * "unexpected end of hex escape" 错误。在序列化前移除这些字符。
@@ -233,23 +271,20 @@ export class OpenAICompatibleProvider implements LLMProvider {
     const url = `${this.apiBase}/chat/completions`;
 
     for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        if (externalSignal?.aborted) {
-          throw new LLMError("cancelled", "请求已取消", []);
-        }
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), READ_TIMEOUT);
-        if (externalSignal) {
-          externalSignal.addEventListener("abort", () => controller.abort(), { once: true });
-        }
+      if (externalSignal?.aborted) {
+        throw new LLMError("cancelled", "请求已取消", []);
+      }
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), READ_TIMEOUT);
+      const detachAbort = attachAbort(controller, externalSignal);
 
+      try {
         const resp = await fetch(url, {
           method: "POST",
           headers: this.headers(),
           body: JSON.stringify(body),
           signal: controller.signal,
         });
-        clearTimeout(timeoutId);
 
         if (resp.ok) {
           return (await resp.json()) as Record<string, unknown>;
@@ -267,9 +302,15 @@ export class OpenAICompatibleProvider implements LLMProvider {
         const text = await resp.text();
         handleError(resp.status, text);
       } catch (e) {
+        if (externalSignal?.aborted) {
+          throw new LLMError("cancelled", "请求已取消", []);
+        }
         if (e instanceof LLMError) throw e;
         if (attempt === 0) continue; // retry once on network error
         throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"]);
+      } finally {
+        clearTimeout(timeoutId);
+        detachAbort();
       }
     }
 
@@ -282,12 +323,16 @@ export class OpenAICompatibleProvider implements LLMProvider {
       if (externalSignal?.aborted) {
         throw new LLMError("cancelled", "请求已取消", []);
       }
-      await new Promise((r) => setTimeout(r, delay));
       try {
-        const controller = new AbortController();
-        if (externalSignal) {
-          externalSignal.addEventListener("abort", () => controller.abort(), { once: true });
-        }
+        await waitWithAbort(delay, externalSignal);
+      } catch {
+        // waitWithAbort 只在 signal abort 时 reject
+        throw new LLMError("cancelled", "请求已取消", []);
+      }
+
+      const controller = new AbortController();
+      const detachAbort = attachAbort(controller, externalSignal);
+      try {
         const resp = await fetch(url, {
           method: "POST",
           headers: this.headers(),
@@ -302,7 +347,10 @@ export class OpenAICompatibleProvider implements LLMProvider {
         }
       } catch (e) {
         if (externalSignal?.aborted) throw new LLMError("cancelled", "请求已取消", []);
+        if (e instanceof LLMError) throw e;
         continue;
+      } finally {
+        detachAbort();
       }
     }
     throw new LLMError("rate_limited", "请求过于频繁", ["retry", "switch_model"], 429);
