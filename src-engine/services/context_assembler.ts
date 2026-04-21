@@ -421,23 +421,11 @@ export async function assemble_context(
   let systemTokens = sysTc.count;
   report.is_fallback_estimate = sysTc.is_estimate;
 
-  let budget = Math.trunc(contextWindow * 0.60) - systemTokens;
+  // --- max_tokens（仅新增 OUTPUT_RESERVE_CEIL）---
+  const OUTPUT_RESERVE_CEIL = 15_000;
+  const OUTPUT_RESERVE_FLOOR = 10_000;
+  const SAFETY_BUFFER = 500;
 
-  // fail-safe：budget 不够 → 裁剪 custom_instructions
-  if (budget <= 0) {
-    systemPrompt = build_system_prompt(project, true, language);
-    sysTc = _count(systemPrompt, llm);
-    systemTokens = sysTc.count;
-    budget = Math.trunc(contextWindow * 0.60) - systemTokens;
-  }
-
-  if (budget <= 0) {
-    throw new Error("system_prompt_exceeds_budget");
-  }
-
-  report.system_tokens = systemTokens;
-
-  // --- max_tokens ---
   const modelName = llm?.model ?? "";
   const chapterLength = project.chapter_length ?? 1500;
   const chapterTokenCap = chapterLength ? chapterLength * 2 : Infinity;
@@ -445,8 +433,41 @@ export async function assemble_context(
     get_model_max_output(modelName),
     Math.trunc(contextWindow * 0.40),
     chapterTokenCap,
+    OUTPUT_RESERVE_CEIL,
   );
+  // 警告：超长章节被 CEIL 截断时打 warn，让用户感知
+  if (chapterTokenCap !== Infinity && chapterTokenCap > OUTPUT_RESERVE_CEIL) {
+    console.warn(
+      `[context_assembler] chapter_length=${chapterLength} 对应 ${chapterTokenCap} tokens 超过 OUTPUT_RESERVE_CEIL=${OUTPUT_RESERVE_CEIL}，maxTokens 被夹至 ${maxTokens}，章节可能被 LLM 截断`,
+    );
+  }
   report.max_output_tokens = maxTokens;
+
+  // --- input budget ---
+  // 新公式：context_window 减掉"为输出实际预留"的空间和系统提示
+  // 旧公式 (contextWindow × 0.6) 作下限兜底，保证小模型不退步
+  const reservedForOutput = Math.max(maxTokens, OUTPUT_RESERVE_FLOOR);
+  let budget = Math.max(
+    contextWindow - reservedForOutput - systemTokens - SAFETY_BUFFER,
+    Math.trunc(contextWindow * 0.60) - systemTokens,
+  );
+
+  // fail-safe：budget 不够 → 裁剪 custom_instructions 重算
+  if (budget <= 0) {
+    systemPrompt = build_system_prompt(project, true, language);
+    sysTc = _count(systemPrompt, llm);
+    systemTokens = sysTc.count;
+    budget = Math.max(
+      contextWindow - reservedForOutput - systemTokens - SAFETY_BUFFER,
+      Math.trunc(contextWindow * 0.60) - systemTokens,
+    );
+  }
+
+  if (budget <= 0) {
+    throw new Error("system_prompt_exceeds_budget");
+  }
+
+  report.system_tokens = systemTokens;
 
   // --- core_guarantee_budget 预留 ---
   const guarantee = project.core_guarantee_budget ?? 400;
