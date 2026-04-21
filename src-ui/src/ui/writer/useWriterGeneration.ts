@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ApiError,
   generateChapter,
@@ -89,12 +89,20 @@ export function useWriterGeneration({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationErrorDisplay, setGenerationErrorDisplay] = useState<{ message: string; actions: string[] } | null>(null);
   const [lastGenerateRequest, setLastGenerateRequest] = useState<GenerateRequestState | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setIsGenerating(false);
     setGenerationErrorDisplay(null);
     setLastGenerateRequest(null);
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
   }, [auPath]);
+
+  useEffect(() => () => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+  }, []);
 
   useEffect(() => {
     if (!state) {
@@ -107,6 +115,9 @@ export function useWriterGeneration({
   const handleGenerate = useCallback(async (request: GenerateRequestState) => {
     if (isGenerating || !state) return;
     const token = generateGuard.start();
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     const projectLlmUsable = projectInfo?.llm?.mode && (projectInfo.llm.mode !== 'api' || projectInfo.llm.has_api_key);
     const effectiveLlm = projectLlmUsable ? projectInfo.llm : settingsInfo?.default_llm;
@@ -143,7 +154,7 @@ export function useWriterGeneration({
         input_type: request.inputType,
         session_llm: sessionLlmPayload || undefined,
         session_params: { temperature: sessionTemp, top_p: sessionTopP },
-      })) {
+      }, { signal: controller.signal })) {
         if (generateGuard.isStale(token)) {
           attachPendingContextSummary(null);
           return;
@@ -241,10 +252,15 @@ export function useWriterGeneration({
       });
     } catch (error) {
       attachPendingContextSummary(null);
+      const isAbort = error instanceof DOMException
+        ? error.name === 'AbortError'
+        : error instanceof Error && error.name === 'AbortError';
+      if (isAbort) {
+        return;
+      }
       if (generateGuard.isStale(token)) return;
-      const isAbort = error instanceof DOMException && error.name === 'AbortError';
       const isNetwork = error instanceof TypeError && /fetch|network/i.test(error.message);
-      if (isAbort || isNetwork) {
+      if (isNetwork) {
         showToast(t('writer.generateInterrupted'), 'warning');
       } else {
         showError(error, t('writer.generateErrorFallback'));
@@ -255,6 +271,9 @@ export function useWriterGeneration({
         setGenerationErrorDisplay({ message: error.message, actions: [] });
       }
     } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
       if (!generateGuard.isStale(token)) {
         setIsGenerating(false);
       }

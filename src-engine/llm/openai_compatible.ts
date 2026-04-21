@@ -12,6 +12,16 @@ import { hasLogger, getLogger } from "../logger/index.js";
 
 const READ_TIMEOUT = 120_000;
 
+function isAbortError(error: unknown): error is DOMException | Error {
+  return error instanceof DOMException
+    ? error.name === "AbortError"
+    : error instanceof Error && error.name === "AbortError";
+}
+
+function createAbortError(message = "Aborted"): DOMException {
+  return new DOMException(message, "AbortError");
+}
+
 /**
  * 清洗字符串中可能导致 JSON 解析失败的字符。
  * 部分 LLM 提供商的 JSON parser 对 lone surrogate、NULL 等字符报
@@ -111,6 +121,9 @@ export class OpenAICompatibleProvider implements LLMProvider {
       });
     } catch (e) {
       clearTimeout(timeoutId);
+      if (params.signal?.aborted) {
+        throw createAbortError(e instanceof Error ? e.message : undefined);
+      }
       throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"]);
     }
 
@@ -122,7 +135,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
 
     try {
       if (!resp.body) {
-        throw new LLMError("network_error", "LLM 返回空响应体，无法读取流数据", ["retry"]);
+        throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"]);
       }
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
@@ -169,6 +182,14 @@ export class OpenAICompatibleProvider implements LLMProvider {
           };
         }
       }
+    } catch (e) {
+      if (params.signal?.aborted) {
+        throw createAbortError(e instanceof Error ? e.message : undefined);
+      }
+      if (isAbortError(e)) {
+        throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"]);
+      }
+      throw e;
     } finally {
       clearTimeout(timeoutId);
       params.signal?.removeEventListener("abort", onExternalAbort);

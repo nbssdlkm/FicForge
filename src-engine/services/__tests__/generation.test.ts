@@ -165,4 +165,31 @@ describe("generate_chapter", () => {
     expect((errorEvent.data as any).error_code).toBe("rate_limited");
     expect((errorEvent.data as any).partial_draft_label).toBe("A");
   });
+
+  it("passes signal to provider and rethrows AbortError without saving a partial draft", async () => {
+    const controller = new AbortController();
+    let receivedSignal: AbortSignal | undefined;
+
+    const abortProvider: LLMProvider = {
+      async generate(): Promise<LLMResponse> {
+        return { content: "", model: "mock", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
+      },
+      async *generateStream(params): AsyncIterable<LLMChunk> {
+        receivedSignal = params.signal;
+        throw new DOMException("Aborted", "AbortError");
+      },
+    };
+
+    const params = makeParams(adapter, {
+      au_id: "au_abort",
+      signal: controller.signal,
+      _provider_override: abortProvider,
+    });
+
+    await expect(collectEvents(generate_chapter(params))).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    expect(receivedSignal).toBe(controller.signal);
+    await expect(params.draft_repo.list_by_chapter("au_abort", 1)).resolves.toEqual([]);
+  });
 });
