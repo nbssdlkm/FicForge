@@ -183,7 +183,51 @@ describe("FontDownloader.download — SHA-256 verification", () => {
 
     try {
       await downloader.download(makeEntry({ sha256: "" }));
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("缺少 sha256"));
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("跳过 sha256 校验"));
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("per-source sha256 overrides entry.sha256", async () => {
+    // entry.sha256 对不上本源字节，但 source.sha256 对得上 —— 应当通过。
+    const data = new Uint8Array([1, 2, 3, 4]);
+    const sourceHash = await sha256Hex(data);
+    const fetchImpl = vi.fn().mockResolvedValue(mockResponse(data));
+    const downloader = new FontDownloader({ fetchImpl });
+
+    const result = await downloader.download(makeEntry({
+      sha256: "00".repeat(32), // entry-level 哈希故意写错
+      sources: [
+        { url: "https://mirror.example.com/font.woff2", priority: 1, sha256: sourceHash },
+      ],
+    }));
+
+    expect(result).toEqual(data);
+  });
+
+  it("falls back to source with sha256='' (explicit skip) when primary checksum mismatches", async () => {
+    // 真实场景：主源字节对应 entry.sha256，备源 fontsource 字节不同 + sha256:""
+    // 显式跳过本源校验。主源挂掉时备源应当能兜底成功。
+    const primaryBytes = new Uint8Array([1, 2, 3]);
+    const primaryHash = await sha256Hex(primaryBytes);
+    const fallbackBytes = new Uint8Array([9, 8, 7, 6, 5]); // 完全不同的字节
+    const fetchImpl = vi.fn()
+      .mockRejectedValueOnce(new Error("ECONNREFUSED primary"))
+      .mockResolvedValueOnce(mockResponse(fallbackBytes));
+    const downloader = new FontDownloader({ fetchImpl });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      const result = await downloader.download(makeEntry({
+        sha256: primaryHash,
+        sources: [
+          { url: "https://primary.example.com/font.woff2", priority: 1 },
+          { url: "https://fallback.example.com/font.woff2", priority: 2, sha256: "" },
+        ],
+      }));
+      expect(result).toEqual(fallbackBytes);
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("跳过 sha256 校验"));
     } finally {
       warnSpy.mockRestore();
     }

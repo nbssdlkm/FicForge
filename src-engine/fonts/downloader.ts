@@ -68,16 +68,24 @@ export class FontDownloader {
     for (const source of sorted) {
       try {
         const data = await this.fetchFromSource(source, entry, safeProgress, signal);
-        if (entry.sha256) {
+        // 校验优先级：source.sha256 覆盖 entry.sha256；显式 `""` = 跳过本源。
+        // - undefined：继承 entry.sha256（同一文件的多个镜像场景）
+        // - 非空字符串：本源专属哈希（镜像字节与主源不同但稳定）
+        // - ""：明确跳过（备源是 CDN 且上游可能漂移，如 fontsource @latest）
+        const expectedSha256 =
+          source.sha256 !== undefined ? source.sha256 : entry.sha256;
+        if (expectedSha256) {
           const actual = await sha256Hex(data);
-          if (actual !== entry.sha256.toLowerCase()) {
+          if (actual !== expectedSha256.toLowerCase()) {
             throw new FontError(
               "checksum",
-              `SHA-256 mismatch for ${entry.id} from ${source.url}: expected ${entry.sha256}, got ${actual}`,
+              `SHA-256 mismatch for ${entry.id} from ${source.url}: expected ${expectedSha256}, got ${actual}`,
             );
           }
         } else {
-          console.warn(`[FontDownloader] ${entry.id} 缺少 sha256 校验和，跳过校验（仅开发态可接受）`);
+          console.warn(
+            `[FontDownloader] ${entry.id} 跳过 sha256 校验（source=${source.url}，依赖 TLS 传输完整性）`,
+          );
         }
         return data;
       } catch (err) {

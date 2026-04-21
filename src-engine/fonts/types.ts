@@ -28,10 +28,19 @@ export type FontCategory = "serif" | "sans" | "mono" | "script";
  * - priority=2 备源：fontsource 的 jsDelivr npm 镜像 或 上游 GitHub release，
  *   主源挂掉时兜底（体积通常更大但保证可用）。
  * 可按需追加更多 priority 级别，downloader 按升序遍历直到成功或全部耗尽。
+ *
+ * sha256 字段语义（per-source 覆盖 entry-level）：
+ * - **缺省**（字段不存在）→ 继承 `entry.sha256` 做校验，用于同一文件的多个镜像
+ *   （镜像字节与主源完全一致）；
+ * - **非空字符串** → 本源专属哈希，覆盖 entry.sha256 做校验；
+ * - **空字符串 `""`** → 明确跳过本源校验（用于备源字节与主源不同、且上游 CDN
+ *   版本可能漂移的场景，如 fontsource `@latest`。下载时仍受 TLS 保护，但内容完整性
+ *   依赖 CDN）。
  */
 export interface FontSource {
   url: string;
   priority: number;
+  sha256?: string;
 }
 
 interface FontEntryBase {
