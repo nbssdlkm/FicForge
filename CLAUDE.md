@@ -41,7 +41,7 @@ Platform Adapter
 
 ## 活跃工作（当前分支）
 
-**`main`** —— 全部已 push origin/main。
+**`main`** —— 全部已 push origin/main（Phase 7 全线完成，真机回归待做）。
 
 ### 2026-04-20/21 完成的工作
 
@@ -51,25 +51,37 @@ Platform Adapter
 - UI 测试 0 → 13 文件 / 93 用例（`@testing-library/react` + jsdom 首次接入）
 - Codex 简报 + 4 铁律 + 第 5 条规则（hook 不暴露 raw setter）已写入本文件
 
-**Phase 7 tech debt**（详见 `docs/internal/plans/phase-7-tech-debt-plan.md`）：
+**Phase 7 tech debt**（全部关闭，详见 `docs/internal/plans/phase-7-tech-debt-plan.md`）：
 - ✅ T7-1 PartialCommitError（structured 错误码替代误导文案，commit `ab34816`）
 - ✅ T7-2 路径白名单（`? # % :` 替换 `_`，分新建 sanitize / 已有 validate 双路径，commit `2c46c4b`）
 - ✅ T7-3 端到端 AbortSignal（4 层贯通；切 AU 中途取消生成，commit `2355eb9`）
+- ✅ T7-4 Import pipeline rollback（settings 落盘后 tx.commit 失败时清理；**未扩展 WriteTransaction** —— settings 不是 ops-backed 数据，不入事务，commit `6733abd`）
+- ✅ T7-5 429 retry 可中断（`waitWithAbort` + `attachAbort` helper；addEventListener/removeEventListener 成对；commit `58963b3`）
 - ✅ T7-6 confirm 后增量索引 + RAG STALE 降级（commit `e6686f8`）
-- ✅ T7-8 rebuildForAu 中途失败 unload 恢复（commit `be7c1fc`）
+- ✅ T7-7 RAG chapters top_k 3 → 8（commit `46d4d62`）
+- ✅ T7-8 rebuildForAu 中途失败 unload 恢复 + 单测补全（修复 commit `be7c1fc`，regression test with mutation verification commit `a82c38e`；真机已验）
+
+**上下文预算重平衡**（decision D-0039）：
+- 旧公式 `budget = ctx × 60% − system` 在 128k 模型上浪费 48k tokens（`maxTokens` 被 `chapter × 2 = 3000` 绑死，40% 输出预留从不用满）
+- 新公式：`budget = max(ctx − max(maxTokens, 10k) − system − 500, ctx × 60% − system)`，旧公式作下限兜底保证小模型不退步
+- 128k 模型 input budget +52%，200k +58%，64k +38%；8k/4k 不变
+- 新增 `OUTPUT_RESERVE_CEIL=15k` 硬顶防超长章节耗预算，触发时 `console.warn`
+- commit `6ef7bd2`，决策记录 `docs/internal/decisions/D-0039-context-budget-rebalance.md`
 
 ### 待开新分支继续
 
-- **真机回归**（仅 1 项未跑）：T7-8 真机验证（生成 → 断网 → 定稿 → 手动重建 → 恢复网络 → 生成 → 看 RAG 是否非空）。理论上修对了，但没真测。开新会话先做这个。
-- **T7-7** P2：RAG 召回 top_k=3 太少 → 改 5-8（用户实测体感不够；方案 A 30 分钟）
-- **T7-4** P2：Import pipeline rollback 覆盖不全
-- **T7-5** P3：429 retry 不可中断
+- **真机回归**（必做 - 第 1 件事）：已 push 的 5 个 commit 中只有 T7-8 验过真机。场景：连续生成 2-3 章 → 看 RAG 召回详情 chunks 数是否 ~8（T7-7）；切 AU 时中途取消 → Network tab 确认 LLM 请求被 cancel（T7-5 间接路径）；import 中途断网 → 确认 worldbuilding/ 干净（T7-4）；查看生成时的 budget_remaining 是否反映新公式（budget 重平衡）。如发现回归立即 revert 对应 commit
+- **M4-E.6 Sidecar 精简**：删掉 `src-python/` 下 `api/` `core/` `repositories/` `infra/` `tests/` `fandoms/`，只留 `main_embedding.py` + `build_sidecar.py` + `requirements_embedding.txt`。先用 Explore agent 扫 `src-ui/` `src-engine/` 是否还有 import 老 Python 路径，无引用再删。需要同步检查 Tauri 的 `externalBin` 配置
+- **M6 Agent 架构**：未开始。需要先过一遍 PRD v4 第 5 章 + `D-0032-agent-redesign.md` 决策记录对齐
+- **T7-7 后续观察**：top_k=8 用一段时间后如果还不够，比起继续加 top_k 更该调 `rag_decay_coefficient` 从 0.05 → 0.03（保留远章节的相关性）
+- **Codex Prompt 归档**：`docs/internal/prompts/` 下有 `codex-t7-4-import-rollback.md`，做为未来类似任务的 brief 模板
 
 ### Codex 累计教训（写入新会话提示）
 
 - 写入含中文字符串的文件时多次引入 UTF-8 双重编码乱码（5 处已修），简报必须强约束"file 命令验证 UTF-8 no-BOM + grep 验证无乱码"
 - 诊断报告必须附 logcat / grep 实证（曾在 T7-3 之前错认为 secure-storage hang，实际是 React useEffect 死循环）
 - 拆分代码默认走 setter 注入式 reshape；必须明确"hook 不收 setter / state 与 reset 同文件 / 跨 hook 只传 value"
+- **T7-7 prompt 里 hardcoded 了 gpt-4o + contextWindow=128000 来测 CEIL 分支，但仓库里 `get_model_max_output("gpt-4o") === 4096`——Codex 正确识别并最小化 mock 了 `get_model_max_output`，没改业务代码**。好的 Codex 简报要留这种"实现细节可偏差但验证目标不偏"的弹性
 
 ## 关键决策
 
