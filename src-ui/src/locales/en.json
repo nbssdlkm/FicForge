@@ -205,6 +205,13 @@
     "readingPrefs": "Reading Preferences",
     "fontSize": "Font Size",
     "lineHeight": "Line Height",
+    "fontFamily": "Font",
+    "systemFonts": "System Fonts",
+    "downloadableFonts": "Downloadable Fonts",
+    "downloadFont": "Download",
+    "fontDownloading": "Downloading...",
+    "fontDownloaded": "Downloaded",
+    "fontDownloadFailed": "Download failed",
     "memoryLayer": {
       "pinned": "Writing Rules",
       "context": "Reference Material",

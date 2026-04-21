@@ -5,10 +5,12 @@
 import { Button } from '../shared/Button';
 import { Tag } from '../shared/Tag';
 import { SettingsPanel } from '../settings/SettingsPanel';
-import { Undo2, BookOpen, FileUp } from 'lucide-react';
+import { Undo2, BookOpen, FileUp, Loader2, Download } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
 import type { FactInfo } from '../../api/engine-client';
+import { SYSTEM_FONTS, FONT_MANIFEST } from '../../config/font-manifest';
+import type { FontDownloadStatus } from '../../api/font-manager';
 
 type ContextLayer = {
   key: string;
@@ -45,6 +47,10 @@ export interface WriterSidePanelContentProps {
   onFontSizeChange: (v: number) => void;
   lineHeight: number;
   onLineHeightChange: (v: number) => void;
+  fontFamily: string;
+  onFontFamilyChange: (id: string) => void;
+  fontDownloadStatus: Record<string, FontDownloadStatus>;
+  onDownloadFont: (fontId: string) => void;
   // Navigation
   onNavigate: (page: string) => void;
   // Mobile extras
@@ -79,6 +85,10 @@ export const WriterSidePanelContent = ({
   onFontSizeChange,
   lineHeight,
   onLineHeightChange,
+  fontFamily,
+  onFontFamilyChange,
+  fontDownloadStatus,
+  onDownloadFont,
   onNavigate,
   onUndoClick,
   onExportClick,
@@ -87,7 +97,10 @@ export const WriterSidePanelContent = ({
   writeActionsDisabled,
   isMobile,
 }: WriterSidePanelContentProps) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isZh = i18n.resolvedLanguage !== 'en';
+  const selectedManifestEntry = FONT_MANIFEST.find(f => f.id === fontFamily);
+  const needsDownload = selectedManifestEntry && (fontDownloadStatus[fontFamily] ?? 'not-downloaded') !== 'downloaded';
 
   return (
     <div className={isMobile ? 'space-y-6' : 'flex-1 overflow-y-auto p-5 space-y-8'}>
@@ -231,6 +244,45 @@ export const WriterSidePanelContent = ({
               <span className="font-mono text-text/50">{lineHeight.toFixed(1)}</span>
             </div>
             <input type="range" min="1.4" max="3.0" step="0.1" value={lineHeight} onChange={e => onLineHeightChange(parseFloat(e.target.value))} className={`w-full accent-accent ${isMobile ? 'h-2' : 'h-1.5'}`} />
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-text/70">{t('writer.fontFamily')}</span>
+            </div>
+            <select
+              value={fontFamily}
+              onChange={e => onFontFamilyChange(e.target.value)}
+              className={`w-full rounded-md border border-black/20 bg-background px-3 text-text outline-none focus:ring-1 focus:ring-accent dark:border-white/20 ${isMobile ? 'h-11 text-base' : 'h-9 text-sm'}`}
+            >
+              <optgroup label={t('writer.systemFonts')}>
+                {SYSTEM_FONTS.map(f => (
+                  <option key={f.id} value={f.id}>{isZh ? f.nameZh : f.name}</option>
+                ))}
+              </optgroup>
+              <optgroup label={t('writer.downloadableFonts')}>
+                {FONT_MANIFEST.map(f => (
+                  <option key={f.id} value={f.id}>
+                    {isZh ? f.nameZh : f.name}
+                    {fontDownloadStatus[f.id] !== 'downloaded' ? ` (${(f.fileSizeKB / 1024).toFixed(1)}MB)` : ''}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+            {needsDownload && (
+              <button
+                type="button"
+                onClick={() => onDownloadFont(fontFamily)}
+                disabled={fontDownloadStatus[fontFamily] === 'downloading'}
+                className={`flex w-full items-center justify-center gap-1.5 rounded-md border border-accent/30 bg-accent/5 px-3 text-xs font-medium text-accent transition-colors hover:bg-accent/10 disabled:opacity-50 ${isMobile ? 'h-10' : 'h-8'}`}
+              >
+                {fontDownloadStatus[fontFamily] === 'downloading'
+                  ? <><Loader2 size={14} className="animate-spin" /> {t('writer.fontDownloading')}</>
+                  : fontDownloadStatus[fontFamily] === 'error'
+                    ? <>{t('writer.fontDownloadFailed')}</>
+                    : <><Download size={14} /> {t('writer.downloadFont')}</>
+                }
+              </button>
+            )}
           </div>
         </div>
       </section>

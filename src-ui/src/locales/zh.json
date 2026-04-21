@@ -205,6 +205,13 @@
     "readingPrefs": "阅读偏好",
     "fontSize": "字号",
     "lineHeight": "行间距",
+    "fontFamily": "字体",
+    "systemFonts": "系统字体",
+    "downloadableFonts": "可下载字体",
+    "downloadFont": "下载",
+    "fontDownloading": "下载中...",
+    "fontDownloaded": "已下载",
+    "fontDownloadFailed": "下载失败",
     "memoryLayer": {
       "pinned": "写作底线",
       "context": "参考内容",

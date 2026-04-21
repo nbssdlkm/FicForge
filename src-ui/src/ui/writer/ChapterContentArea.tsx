@@ -31,6 +31,7 @@ export interface ChapterContentAreaProps {
   onNavigate: (page: string) => void;
   fontSize: number;
   lineHeight: number;
+  fontFamily?: string;
 }
 
 export const ChapterContentArea = ({
@@ -56,32 +57,33 @@ export const ChapterContentArea = ({
   onNavigate,
   fontSize,
   lineHeight,
+  fontFamily,
 }: ChapterContentAreaProps) => {
   const { t } = useTranslation();
 
   return (
     <div
-      className="rounded-[24px] border border-black/10 bg-surface/35 p-4 shadow-subtle dark:border-white/10 md:p-6"
-      style={{ fontSize: `${fontSize}px`, lineHeight }}
+      className={`rounded-[24px] border border-black/10 bg-surface/35 p-4 shadow-subtle dark:border-white/10 md:p-6${fontFamily ? '' : ' font-serif'}`}
+      style={{ fontSize: `${fontSize}px`, lineHeight, fontFamily: fontFamily || undefined }}
     >
       {loading ? (
         <div className="flex items-center justify-center py-24">
           <Loader2 className="animate-spin text-accent" size={24} />
         </div>
       ) : streamText ? (
-        <div className="font-serif text-text/90 animate-in fade-in duration-200 pb-8 opacity-90">
+        <div className="text-text/90 animate-in fade-in duration-200 pb-8 opacity-90">
           <ChapterMarkdown content={streamText} />
           {isGenerating && <span className="inline-block h-5 w-0.5 bg-accent align-middle animate-pulse" />}
         </div>
       ) : isViewingHistory && viewingHistoryContent ? (
-        <div className="font-serif text-text/90 pb-8">
+        <div className="text-text/90 pb-8">
           {editingConfirmed ? (
             <>
               <Textarea
                 value={editingContent}
                 onChange={(e) => onEditingContentChange(e.target.value)}
-                className="min-h-[440px] border-0 bg-transparent px-0 py-0 font-serif shadow-none focus:ring-0"
-                style={{ fontSize: 'inherit', lineHeight: 'inherit' }}
+                className="min-h-[440px] border-0 bg-transparent px-0 py-0 shadow-none focus:ring-0"
+                style={{ fontSize: 'inherit', lineHeight: 'inherit', fontFamily: 'inherit' }}
               />
               <div className="flex items-center gap-2 mt-4 pt-4 border-t border-black/10 dark:border-white/10">
                 <Button variant="primary" size="sm" onClick={onSaveEdit} disabled={savingEdit || editingContent === editingOriginalContent}>
@@ -109,12 +111,12 @@ export const ChapterContentArea = ({
           <Textarea
             value={currentDraft.content}
             onChange={(event) => onDraftChange(event.target.value)}
-            className="min-h-[440px] border-0 bg-transparent px-0 py-0 font-serif shadow-none focus:ring-0"
-            style={{ fontSize: 'inherit', lineHeight: 'inherit' }}
+            className="min-h-[440px] border-0 bg-transparent px-0 py-0 shadow-none focus:ring-0"
+            style={{ fontSize: 'inherit', lineHeight: 'inherit', fontFamily: 'inherit' }}
           />
         </div>
       ) : displayContent ? (
-        <div className="font-serif text-text/90 pb-8">
+        <div className="text-text/90 pb-8">
           <ChapterMarkdown content={displayContent} />
         </div>
       ) : (

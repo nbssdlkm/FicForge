@@ -124,6 +124,14 @@ function App() {
           }
         } catch { /* best effort */ }
 
+        // 初始化字体系统：注入已下载的活跃字体 @font-face
+        try {
+          const { init_active_font } = await import("./api/font-manager");
+          const eng = getEngine();
+          const activeFontId = await eng.adapter.kvGet('ficforge.fontFamily') || 'system-serif';
+          await init_active_font(activeFontId);
+        } catch { /* font init is non-critical */ }
+
         setEngineInitialized(true);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);

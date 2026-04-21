@@ -18,6 +18,7 @@ import {
 } from '../../utils/writerStorage';
 import { useWriterFactsExtraction } from './useWriterFactsExtraction';
 import { useSessionParams } from './useSessionParams';
+import { useFontManager } from '../../hooks/useFontManager';
 import { ThemeToggle } from '../shared/ThemeToggle';
 import { Button } from '../shared/Button';
 import { Tag } from '../shared/Tag';
@@ -217,6 +218,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const [lineHeightStr, setLineHeightKV] = useKV('ficforge.lineHeight', '2.0');
   const lineHeight = parseFloat(lineHeightStr) || 2.0;
   const setLineHeight = useCallback((v: number) => setLineHeightKV(String(v)), [setLineHeightKV]);
+  const fontManager = useFontManager();
 
   // 查看历史章节
   useEffect(() => {
@@ -1079,6 +1081,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
                 onNavigate={onNavigate}
                 fontSize={fontSize}
                 lineHeight={lineHeight}
+                fontFamily={fontManager.fontCSSFamily}
               />
 
               <ContextSummaryBar
@@ -1292,6 +1295,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
           onFontSizeChange={setFontSize}
           lineHeight={lineHeight}
           onLineHeightChange={setLineHeight}
+          fontFamily={fontManager.activeFontId}
+          onFontFamilyChange={fontManager.setActiveFontId}
+          fontDownloadStatus={fontManager.downloadStatus}
+          onDownloadFont={fontManager.downloadFont}
           onNavigate={onNavigate}
         />
       </Sidebar>
@@ -1326,6 +1333,10 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
           onFontSizeChange={setFontSize}
           lineHeight={lineHeight}
           onLineHeightChange={setLineHeight}
+          fontFamily={fontManager.activeFontId}
+          onFontFamilyChange={fontManager.setActiveFontId}
+          fontDownloadStatus={fontManager.downloadStatus}
+          onDownloadFont={fontManager.downloadFont}
           onNavigate={onNavigate}
         />
       </Modal>
