@@ -41,12 +41,35 @@ Platform Adapter
 
 ## 活跃工作（当前分支）
 
-**`feat/rag-chunks-detail`**（未 push）
+**`main`** —— 全部已 push origin/main。
 
-- RAG 召回详情在 ContextSummaryBar 可展开查看（来源 Tag + 相似度 + 2 行预览 + 展开全文）。新增常量 `RAG_COLLECTIONS`、类型 `RagChunkDetail`、service `toRagChunkDetail`。detail 同步完成任务后删除本节。
-- UI 扁平化一轮：AuSettings 6 个 section 大框去除 / EmptyState 虚线框去 / SettingsChatPanel compact 外框去 / ChapterArrangeStep 两层嵌套框去。原则：靠 `<h2>` 左竖条 + 留白分组，功能性卡片（list item、modal input、tab pill）保留。
-- 按钮文案统一去装饰前缀：`+` 号（6 个 i18n key）和 emoji（10 个 settingsMode.* key）全部移除，Plus icon 由组件渲染或去除。
-- 草稿按钮重组：`定稿` 从 3 处冗余改 1 处；`换一版` 与 `定稿` 紧邻 `指令` 按钮；移动端 `换一版` 改 icon-only（`title` + `aria-label`）。
+### 2026-04-20/21 完成的工作
+
+**Writer 状态下沉重构（5 phase + 6 cleanup）**：
+- WriterLayout useState 22 → 1，行数 619 → 293，setter 外泄 ~61 → 0
+- 删除 `useWriterResetOnAuChange.ts`；引入 `loadDataRef` shim 破死循环；5 个 bridge ref → 0（反转控制流）
+- UI 测试 0 → 13 文件 / 93 用例（`@testing-library/react` + jsdom 首次接入）
+- Codex 简报 + 4 铁律 + 第 5 条规则（hook 不暴露 raw setter）已写入本文件
+
+**Phase 7 tech debt**（详见 `docs/internal/plans/phase-7-tech-debt-plan.md`）：
+- ✅ T7-1 PartialCommitError（structured 错误码替代误导文案，commit `ab34816`）
+- ✅ T7-2 路径白名单（`? # % :` 替换 `_`，分新建 sanitize / 已有 validate 双路径，commit `2c46c4b`）
+- ✅ T7-3 端到端 AbortSignal（4 层贯通；切 AU 中途取消生成，commit `2355eb9`）
+- ✅ T7-6 confirm 后增量索引 + RAG STALE 降级（commit `e6686f8`）
+- ✅ T7-8 rebuildForAu 中途失败 unload 恢复（commit `be7c1fc`）
+
+### 待开新分支继续
+
+- **真机回归**（仅 1 项未跑）：T7-8 真机验证（生成 → 断网 → 定稿 → 手动重建 → 恢复网络 → 生成 → 看 RAG 是否非空）。理论上修对了，但没真测。开新会话先做这个。
+- **T7-7** P2：RAG 召回 top_k=3 太少 → 改 5-8（用户实测体感不够；方案 A 30 分钟）
+- **T7-4** P2：Import pipeline rollback 覆盖不全
+- **T7-5** P3：429 retry 不可中断
+
+### Codex 累计教训（写入新会话提示）
+
+- 写入含中文字符串的文件时多次引入 UTF-8 双重编码乱码（5 处已修），简报必须强约束"file 命令验证 UTF-8 no-BOM + grep 验证无乱码"
+- 诊断报告必须附 logcat / grep 实证（曾在 T7-3 之前错认为 secure-storage hang，实际是 React useEffect 死循环）
+- 拆分代码默认走 setter 注入式 reshape；必须明确"hook 不收 setter / state 与 reset 同文件 / 跨 hook 只传 value"
 
 ## 关键决策
 
