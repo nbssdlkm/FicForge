@@ -1,5 +1,13 @@
 import type { Config } from 'tailwindcss'
 
+// Colors are exposed as `rgb(var(--color-X-rgb) / <alpha-value>)` so that
+// Tailwind can synthesize alpha for `text-accent/40`, `bg-error/10`, etc.
+// The matching `--color-X-rgb` (space-separated R G B triplet) lives in
+// `src/App.css` next to the hex form; both must agree.
+// `rule` / `rule-soft` stay as direct vars because they are already rgba —
+// Tailwind can still apply them but `/N` modifiers are a no-op on them.
+const alphaColor = (token: string) => `rgb(var(--color-${token}-rgb) / <alpha-value>)`
+
 export default {
   content: [
     "./index.html",
@@ -8,21 +16,21 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: 'var(--color-bg)',
-        surface: 'var(--color-surface)',
-        text: 'var(--color-text)',
-        accent: 'var(--color-accent)',
-        success: 'var(--color-success)',
-        warning: 'var(--color-warning)',
-        error: 'var(--color-error)',
-        info: 'var(--color-info)',
+        background: alphaColor('bg'),
+        surface: alphaColor('surface'),
+        text: alphaColor('text'),
+        accent: alphaColor('accent'),
+        success: alphaColor('success'),
+        warning: alphaColor('warning'),
+        error: alphaColor('error'),
+        info: alphaColor('info'),
         // Ex Libris additions
-        drawer: 'var(--color-drawer)',          // sage 深绿 — drawer banner / modal header bg
-        gold: 'var(--color-gold)',              // antique — gold 文字 on parchment
-        'gold-bright': 'var(--color-gold-bright)', // brass — gold 线 on drawer
-        'inv-text': 'var(--color-inv-text)',    // cream — 深色表面上的文字
-        rule: 'var(--color-rule)',              // hairline borders / dividers (green-tinted)
-        'rule-soft': 'var(--color-rule-soft)',  // subtle fills / hover bg / dashed dividers
+        drawer: alphaColor('drawer'),              // sage 深绿 — drawer banner / modal header bg
+        gold: alphaColor('gold'),                  // antique — gold 文字 on parchment
+        'gold-bright': alphaColor('gold-bright'),  // brass — gold 线 on drawer
+        'inv-text': alphaColor('inv-text'),        // cream — 深色表面上的文字
+        rule: 'var(--color-rule)',                 // pre-mixed rgba, opacity modifiers n/a
+        'rule-soft': 'var(--color-rule-soft)',     // pre-mixed rgba, opacity modifiers n/a
       },
       fontFamily: {
         // 通过 CSS 变量解析，运行时可动态切换而无需重新渲染组件。
@@ -44,6 +52,13 @@ export default {
         'md': '8px',
         'lg': '12px',
         'xl': '16px',
+      },
+      opacity: {
+        // Ex Libris "paper-tint" step — used for banner / card tone fills
+        // (InlineBanner info/warning, active Nav / Chapter list items).
+        // Tailwind's default scale skips from /5 to /10; /8 matches the
+        // design-system-exlibris-v2.html spec (8% fill on tone color).
+        '8': '0.08',
       },
       boxShadow: {
         'subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
