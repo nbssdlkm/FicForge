@@ -188,6 +188,23 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     chaptersDirty: dirtyChapters, onOpenExport: chrome.openExport,
     onOpenDirty: () => { chrome.openDirty(dirtyChapterNum); showToast(t('writer.dirtyOpenHint'), 'info'); },
   };
+  // Chapter heading metadata resolved here so ChapterContentArea stays dumb.
+  // History view → use viewingHistoryNum + its confirmed title.
+  // Drafting / viewing current → use displayedChapter (which is currentChapter while
+  // writing, currentChapter-1 after confirm) and look up its title.
+  const chapterTitlesMap = state?.chapter_titles ?? {};
+  const headingChapter = confirmedEditor.isViewingHistory && confirmedEditor.viewingHistoryNum
+    ? confirmedEditor.viewingHistoryNum
+    : displayState.displayedChapter;
+  const headingTitle = chapterTitlesMap[headingChapter] || undefined;
+  // Show "Draft N" eyebrow only while actively drafting the current chapter.
+  const showDraftLabel = !confirmedEditor.isViewingHistory
+    && displayState.currentDraft !== null
+    && draftCtrl.drafts.length > 0;
+  const draftLabel = showDraftLabel
+    ? `Draft ${String(draftCtrl.activeDraftIndex + 1).padStart(2, '0')}`
+    : undefined;
+
   const chapterContentAreaProps = {
     loading, streamText: draftCtrl.streamText, isGenerating: generation.isGenerating, isViewingHistory: confirmedEditor.isViewingHistory,
     viewingHistoryContent: confirmedEditor.viewingHistoryContent, viewingHistoryNum: confirmedEditor.viewingHistoryNum, editingConfirmed: confirmedEditor.editingConfirmed,
@@ -195,6 +212,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     onEditingContentChange: confirmedEditor.setEditingContent, onSaveEdit: confirmedEditor.saveEditingConfirmed, onCancelEdit: confirmedEditor.cancelEditingConfirmed,
     currentDraft: displayState.currentDraft, onDraftChange: draftCtrl.handleCurrentDraftChange, displayContent,
     generationErrorDisplay: generation.generationErrorDisplay, onDismissError: generation.dismissError, onNavigate, fontSize, lineHeight,
+    displayedChapter: headingChapter, displayedChapterTitle: headingTitle, draftLabel,
   };
   const footerProps = {
     footerCollapsed: chrome.footerCollapsed, onToggleCollapsed: chrome.toggleFooterCollapsed, isGenerating: generation.isGenerating,
