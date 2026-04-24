@@ -3,13 +3,18 @@
 // See LICENSE file in the project root for full license text.
 
 import React, { useEffect, useState } from 'react';
-import { Sun, Moon, Leaf } from 'lucide-react';
+import { Sun, Moon } from 'lucide-react';
 import { Button } from './Button';
 import { useTranslation } from '../../i18n/useAppTranslation';
 
-type Theme = 'warm' | 'mint' | 'night';
+// Ex Libris ships two themes — Light (parchment + sage drawer + olive accent)
+// and Dark (charcoal + dark-sage drawer + dark-olive accent). The old mint
+// theme was retired 2026-04; if a user's localStorage still holds
+// 'mint' or any unknown value, readPersistedTheme falls back to 'warm'.
+type Theme = 'warm' | 'night';
 const THEME_KEY = 'ficforge_theme';
-const VALID_THEMES: Theme[] = ['warm', 'mint', 'night'];
+const VALID_THEMES: Theme[] = ['warm', 'night'];
+const ALL_THEME_CLASSES = ['theme-warm', 'theme-night', 'theme-mint'] as const;
 
 function readPersistedTheme(): Theme {
   try {
@@ -28,24 +33,20 @@ export const ThemeToggle: React.FC = () => {
   const [theme, setTheme] = useState<Theme>(readPersistedTheme);
 
   useEffect(() => {
-    document.documentElement.classList.remove('theme-warm', 'theme-mint', 'theme-night');
+    // Remove every possible theme class (including legacy 'theme-mint')
+    // before applying the active one, so stale classes can't linger.
+    ALL_THEME_CLASSES.forEach((cls) => document.documentElement.classList.remove(cls));
     document.documentElement.classList.add(`theme-${theme}`);
     try { localStorage.setItem(THEME_KEY, theme); } catch { /* best effort */ }
   }, [theme]);
 
-  const cycleTheme = () => {
-    setTheme(current => {
-      if (current === 'warm') return 'mint';
-      if (current === 'mint') return 'night';
-      return 'warm';
-    });
+  const toggleTheme = () => {
+    setTheme((current) => (current === 'warm' ? 'night' : 'warm'));
   };
 
   return (
-    <Button tone="neutral" fill="plain" size="sm" onClick={cycleTheme} className="h-11 w-11 rounded-full p-0 md:h-10 md:w-10" title={t("shared.theme.toggle")}>
-      {theme === 'warm' && <Sun size={18} />}
-      {theme === 'mint' && <Leaf size={18} />}
-      {theme === 'night' && <Moon size={18} />}
+    <Button tone="neutral" fill="plain" size="sm" onClick={toggleTheme} className="h-11 w-11 rounded-full p-0 md:h-10 md:w-10" title={t("shared.theme.toggle")}>
+      {theme === 'warm' ? <Sun size={18} /> : <Moon size={18} />}
     </Button>
   );
 };

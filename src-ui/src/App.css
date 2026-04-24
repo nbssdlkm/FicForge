@@ -151,35 +151,6 @@
     --color-info-rgb: 46 78 126;
   }
 
-  /*
-   * Mint Theme ('薄荷') — Legacy
-   * 旧暖色主题已退役，但保留 theme class 不破坏 ThemeToggle。
-   * TODO: 后续 ThemeToggle 简化为 light/dark 二选一时移除此块。
-   */
-  .theme-mint {
-    --color-bg: #F0F7F2;
-    --color-bg-rgb: 240 247 242;
-    --color-surface: #E6F0E9;
-    --color-surface-rgb: 230 240 233;
-    --color-text: #2D3A2E;
-    --color-text-rgb: 45 58 46;
-    --color-accent: #6BAF7A;
-    --color-accent-rgb: 107 175 122;
-    --color-drawer: #6BAF7A;
-    --color-drawer-rgb: 107 175 122;
-    --color-gold-bright: #F0CC60;
-    --color-gold-bright-rgb: 240 204 96;
-    --color-gold: #C99A38;
-    --color-gold-rgb: 201 154 56;
-    --color-inv-text: #FFFFFF;
-    --color-inv-text-rgb: 255 255 255;
-
-    --color-rule: rgba(45, 58, 46, 0.18);
-    --color-rule-soft: rgba(45, 58, 46, 0.08);
-
-    /* Status --color-{success,warning,error,info}{,-rgb} inherit from :root. */
-  }
-
   /* Night Theme — Ex Libris Dark */
   .theme-night {
     --color-bg: #0E1110;        /* near-black charcoal */

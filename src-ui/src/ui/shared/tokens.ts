@@ -44,10 +44,12 @@
  * BRAND CAVEAT (Ex Libris)
  * ────────────────────────────────────────────────────────────────────────────
  * 现行视觉为 Ex Libris (sage drawer + olive accent + gold metadata)，色板由
- * 用户画师朋友给定。actual hex differs per theme:
- *   warm (= Ex Libris Light):  accent #576148 olive · drawer #47594E sage
- *   night (= Ex Libris Dark):  accent #4D5741       · drawer #3F5048
- *   mint  (legacy, 待退役):    accent #6BAF7A       · drawer #6BAF7A
+ * 用户画师朋友给定。只有两种主题：
+ *   warm  (Light):  accent #576148 olive · drawer #47594E sage
+ *   night (Dark):   accent #4D5741 olive · drawer #3F5048 sage
+ *
+ * Mint 主题 2026-04 已退役；ThemeToggle 持久化 key 仍叫 ficforge_theme 但
+ * 只认 'warm' | 'night'，旧存的 'mint' 会 fallback 到 'warm'。
  *
  * Do NOT hardcode the hex anywhere in JS/TS; always go through this
  * indirection so themes stay coherent.
