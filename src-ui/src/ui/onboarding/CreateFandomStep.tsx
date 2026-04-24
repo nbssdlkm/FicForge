@@ -51,13 +51,13 @@ export function CreateFandomStep({
 
   return (
     <div className="max-w-lg mx-auto space-y-6 py-8">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-serif font-bold">{t('onboarding.createFandom.title')}</h2>
+      <div className="flex items-baseline justify-between">
+        <h2 className="font-display italic text-2xl font-medium text-accent">{t('onboarding.createFandom.title')}</h2>
         <StepIndicator current={3} total={4} />
       </div>
 
-      <div className="space-y-1">
-        <label className="text-sm font-medium text-text/90">{t('onboarding.createFandom.nameLabel')}</label>
+      <div className="space-y-1.5">
+        <label className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-text/60">{t('onboarding.createFandom.nameLabel')}</label>
         <Input
           value={name}
           onChange={e => { setName(e.target.value); setError(''); }}
@@ -68,22 +68,22 @@ export function CreateFandomStep({
       </div>
 
       {error && (
-        <div className="text-sm text-error bg-error/10 px-3 py-2 rounded-md">
+        <div className="rounded-sm border border-error/30 bg-error/10 px-3 py-2 font-serif text-sm text-error">
           {error}
         </div>
       )}
 
       {/* Collapsible explanation */}
-      <div className="border border-black/10 dark:border-white/10 rounded-lg">
+      <div className="rounded-sm border border-rule">
         <button
-          className="flex items-center gap-2 w-full px-4 py-3 text-sm text-text/70 hover:text-text/90 transition-colors"
+          className="flex w-full items-center gap-2 px-4 py-3 font-serif text-sm text-text/70 transition-colors hover:text-text"
           onClick={() => setExpanded(!expanded)}
         >
           {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           {t('onboarding.createFandom.whyFandom')}
         </button>
         {expanded && (
-          <div className="px-4 pb-4 text-xs text-text/50 leading-relaxed whitespace-pre-line border-t border-black/5 dark:border-white/5 pt-3">
+          <div className="whitespace-pre-line border-t border-rule px-4 pb-4 pt-3 font-serif text-xs leading-relaxed text-text/60">
             {t('onboarding.createFandom.fandomExplain')}
           </div>
         )}

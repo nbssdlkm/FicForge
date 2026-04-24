@@ -9,6 +9,7 @@ import { ApiConfigStep, type ApiConfig } from './ApiConfigStep';
 import { CreateFandomStep } from './CreateFandomStep';
 import { CompletionStep } from './CompletionStep';
 import { MobileOnboarding, type OnboardingCompletion } from './MobileOnboarding';
+import { Button } from '../shared/Button';
 import { saveDefaultLlmSettings } from '../../api/engine-client';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -97,12 +98,32 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
   }, [onComplete]);
 
   const closeConfirmDialog = showCloseConfirm && (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
-      <div className="mx-4 max-w-sm rounded-xl bg-surface p-6 shadow-xl">
-        <p className="text-sm text-text/90 leading-relaxed">{t('onboarding.closeConfirm')}</p>
-        <div className="mt-4 flex justify-end gap-2">
-          <button className="rounded-lg px-4 py-2 text-sm text-text/70 hover:bg-black/5 dark:hover:bg-white/5" onClick={() => setShowCloseConfirm(false)}>{t('common.actions.cancel')}</button>
-          <button className="rounded-lg bg-accent px-4 py-2 text-sm text-inv-text" onClick={handleConfirmClose}>{t('onboarding.closeConfirmYes')}</button>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-sm overflow-hidden rounded-sm border border-rule bg-surface shadow-strong">
+        {/* Drawer-banner header, matches Modal.tsx */}
+        <div
+          className="flex items-center justify-between bg-drawer px-5 py-3.5 text-inv-text"
+          style={{
+            boxShadow:
+              'inset 0 var(--gold-top-thick) 0 var(--color-gold-bright), inset 0 var(--gold-bottom-thick) 0 var(--color-gold-bright)',
+          }}
+        >
+          <h3 className="font-display italic text-lg font-medium">
+            {t('common.actions.close')}
+          </h3>
+        </div>
+        <div className="px-6 py-5">
+          <p className="font-serif text-sm leading-relaxed text-text/90">
+            {t('onboarding.closeConfirm')}
+          </p>
+          <div className="mt-5 flex justify-end gap-2">
+            <Button tone="neutral" fill="plain" size="sm" onClick={() => setShowCloseConfirm(false)}>
+              {t('common.actions.cancel')}
+            </Button>
+            <Button tone="accent" fill="solid" size="sm" onClick={handleConfirmClose}>
+              {t('onboarding.closeConfirmYes')}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -118,11 +139,12 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col">
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
       {/* Close button */}
-      <div className="absolute top-4 right-4">
+      <div className="absolute right-4 top-4 z-10">
         <button
-          className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-text/50 hover:text-text/70 transition-colors"
+          type="button"
+          className="rounded-full p-2 text-text/50 transition-colors hover:bg-rule-soft hover:text-text"
           onClick={handleClose}
           aria-label={t('common.actions.close')}
         >
@@ -140,7 +162,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
               initialConfig={apiConfig || undefined}
             />
             {saveError && (
-              <div className="mx-auto mt-3 max-w-lg rounded-lg border border-error/30 bg-error/5 px-4 py-2 text-sm text-error">
+              <div className="mx-auto mt-3 max-w-lg rounded-sm border border-error/30 bg-error/10 px-4 py-2 font-serif text-sm text-error">
                 {saveError}
               </div>
             )}

@@ -17,52 +17,63 @@ export function CompletionStep({
   const { t } = useTranslation();
 
   return (
-    <div className="max-w-lg mx-auto space-y-8 py-12 text-center">
+    <div className="mx-auto max-w-lg space-y-7 py-12 text-center">
       <div className="flex justify-end">
         <StepIndicator current={4} total={4} />
       </div>
 
-      <h2 className="text-2xl font-serif font-bold">{t('onboarding.completion.title')}</h2>
+      <h2 className="font-display italic text-3xl font-medium leading-tight text-accent">
+        {t('onboarding.completion.title')}
+      </h2>
 
-      <div className="space-y-3 text-left bg-surface/50 rounded-xl p-6 border border-black/5 dark:border-white/5">
-        <div className="flex items-center gap-3 text-sm">
-          <CheckCircle2 size={18} className="text-success shrink-0" />
+      {/* Checklist card — parchment body, gold left spine (same Card motif as AU cards) */}
+      <div className="space-y-3 rounded-r-sm border border-rule border-l-2 border-l-gold bg-surface p-5 text-left">
+        <div className="flex items-center gap-3 font-serif text-sm">
+          <CheckCircle2 size={18} className="shrink-0 text-success" />
           <span>{t('onboarding.completion.modelConnected')}</span>
         </div>
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex items-center gap-3 font-serif text-sm">
           {fandomName ? (
             <>
-              <CheckCircle2 size={18} className="text-success shrink-0" />
+              <CheckCircle2 size={18} className="shrink-0 text-success" />
               <span>{t('onboarding.completion.fandomCreated', { name: fandomName })}</span>
             </>
           ) : (
             <>
-              <SkipForward size={18} className="text-text/30 shrink-0" />
-              <span className="text-text/50">{t('onboarding.completion.fandomSkipped')}</span>
+              <SkipForward size={18} className="shrink-0 text-text/30" />
+              <span className="text-text/60">{t('onboarding.completion.fandomSkipped')}</span>
             </>
           )}
         </div>
       </div>
 
-      <div className="text-left space-y-2">
-        <p className="text-sm font-medium text-text/70">{t('onboarding.completion.nextSteps')}</p>
-        <ul className="text-sm text-text/50 space-y-1 list-disc list-inside">
+      {/* Next-steps list */}
+      <div className="space-y-2 text-left">
+        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-gold">
+          {t('onboarding.completion.nextSteps')}
+        </p>
+        <ul className="list-inside list-disc space-y-1 font-serif text-sm leading-relaxed text-text/65">
           <li>{t('onboarding.completion.nextCreateAu')}</li>
           <li>{t('onboarding.completion.nextAddCharacters')}</li>
           <li>{t('onboarding.completion.nextImport')}</li>
         </ul>
       </div>
 
-      <div className="text-left bg-surface/50 rounded-xl p-5 border border-black/5 dark:border-white/5 space-y-3">
-        <p className="text-sm font-medium text-text/70">{t('ethics.onboardingTitle')}</p>
-        <p className="text-xs text-text/50 whitespace-pre-line leading-relaxed">{t('ethics.onboardingBody')}</p>
+      {/* Ethics notice — neutral card with hairline border */}
+      <div className="space-y-3 rounded-sm border border-rule bg-surface p-5 text-left">
+        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-text/60">
+          {t('ethics.onboardingTitle')}
+        </p>
+        <p className="whitespace-pre-line font-serif text-xs leading-relaxed text-text/60">
+          {t('ethics.onboardingBody')}
+        </p>
       </div>
 
       <div className="space-y-2">
-        <Button tone="accent" fill="solid" className="px-8 h-12 text-base" onClick={onComplete}>
+        <Button tone="accent" fill="solid" className="h-12 px-8 text-base" onClick={onComplete}>
           {t('ethics.onboardingAcknowledge')}
         </Button>
-        <p className="text-xs text-text/30">{t('ethics.onboardingConsent')}</p>
+        <p className="font-serif text-xs italic text-text/40">{t('ethics.onboardingConsent')}</p>
       </div>
     </div>
   );

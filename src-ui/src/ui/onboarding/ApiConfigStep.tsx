@@ -90,8 +90,8 @@ export function ApiConfigStep({
 
   return (
     <div className="max-w-lg mx-auto space-y-6 py-8">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-serif font-bold">{t('onboarding.apiConfig.title')}</h2>
+      <div className="flex items-baseline justify-between">
+        <h2 className="font-display italic text-2xl font-medium text-accent">{t('onboarding.apiConfig.title')}</h2>
         <StepIndicator current={2} total={4} />
       </div>
 
@@ -120,7 +120,7 @@ export function ApiConfigStep({
       </div>
 
       {config.mode === 'api' && (
-        <div className="space-y-4 border-t border-black/10 dark:border-white/10 pt-4">
+        <div className="space-y-4 border-t border-rule pt-4">
           <div className="space-y-1">
             <label className="text-sm font-medium text-text/90">{t('onboarding.apiConfig.apiBase')}</label>
             <Input value={config.api_base} onChange={e => update('api_base', e.target.value)} placeholder="https://api.deepseek.com" disabled={llmConnection.status === 'testing'} />
@@ -142,7 +142,7 @@ export function ApiConfigStep({
       )}
 
       {config.mode === 'local' && (
-        <div className="space-y-4 border-t border-black/10 dark:border-white/10 pt-4">
+        <div className="space-y-4 border-t border-rule pt-4">
           <div className="space-y-1">
             <label className="text-sm font-medium text-text/90">{t('onboarding.apiConfig.localPath')}</label>
             <Input value={config.local_model_path} onChange={e => update('local_model_path', e.target.value)} placeholder="/path/to/model" disabled={llmConnection.status === 'testing'} />
@@ -152,7 +152,7 @@ export function ApiConfigStep({
       )}
 
       {config.mode === 'ollama' && (
-        <div className="space-y-4 border-t border-black/10 dark:border-white/10 pt-4">
+        <div className="space-y-4 border-t border-rule pt-4">
           <div className="space-y-1">
             <label className="text-sm font-medium text-text/90">{t('onboarding.apiConfig.ollamaBase')}</label>
             <Input value={config.api_base} onChange={e => update('api_base', e.target.value)} placeholder="http://localhost:11434/v1" disabled={llmConnection.status === 'testing'} />
@@ -170,7 +170,7 @@ export function ApiConfigStep({
         </Button>
 
         {llmConnection.status !== 'idle' && (
-          <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-md ${llmConnection.status === 'success' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'}`}>
+          <div className={`flex items-center gap-2 rounded-sm border px-3 py-2 font-serif text-sm ${llmConnection.status === 'success' ? 'border-success/30 bg-success/10 text-success' : 'border-error/30 bg-error/10 text-error'}`}>
             {llmConnection.status === 'success' ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
             <span>{llmConnection.message}</span>
           </div>

@@ -222,7 +222,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         <div className="flex justify-center py-12"><Spinner size="sm" className="text-accent" /></div>
       ) : (
         <div className="mt-4 space-y-6">
-          <div className="rounded-lg border border-info/20 bg-info/10 p-4 text-sm font-sans leading-relaxed text-info">
+          <div className="rounded-sm border border-info/30 bg-info/10 p-4 font-serif text-sm leading-relaxed text-info">
             {t('settings.global.description')}
           </div>
           <SecretStorageNotice enabled={isOpen} />
@@ -368,13 +368,13 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
             syncOps={syncOps}
           />
 
-          <div className="space-y-2 border-t border-black/10 pt-5 dark:border-white/10">
+          <div className="space-y-2 border-t border-rule pt-5">
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-bold text-text/90">{t('settings.global.languageLabel')}</label>
               <select
                 value={i18n.resolvedLanguage === 'en' ? 'en' : 'zh'}
                 onChange={(e) => { changeLanguage(e.target.value as AppLanguage).catch((err) => showError(err, t('error_messages.unknown'))); }}
-                className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:w-48 md:text-sm"
+                className="h-11 w-full rounded-sm border border-rule bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent md:h-10 md:w-48 md:text-sm"
               >
                 {SUPPORTED_LANGUAGES.map(lang => (
                   <option key={lang} value={lang}>
@@ -388,9 +388,9 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
 
           <FontSettingsSection />
 
-          <div className="space-y-1 border-t border-black/10 pt-5 dark:border-white/10">
+          <div className="space-y-1 border-t border-rule pt-5">
             <label className="text-sm font-bold text-text/90">{t('settings.global.dataPathLabel')}</label>
-            <p className="rounded-md bg-black/5 px-3 py-2 font-mono text-xs text-text/70 dark:bg-white/5">
+            <p className="rounded-sm border border-rule bg-rule-soft px-3 py-2 font-mono text-xs text-text/70">
               {displayDataDir || getDataDir() || t('settings.global.dataPathDefault')}
             </p>
             <p className="text-xs text-text/50">{t('settings.global.dataPathHint')}</p>
@@ -400,7 +400,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
 
           <p className="mt-4 text-xs leading-relaxed text-text/30">{t('ethics.aboutFooter')}</p>
 
-          <div className="flex justify-end gap-3 border-t border-black/10 pt-5 dark:border-white/10">
+          <div className="flex justify-end gap-3 border-t border-rule pt-5">
             <Button tone="neutral" fill="plain" onClick={onClose} disabled={saving}>{t('common.actions.cancel')}</Button>
             <Button tone="accent" fill="solid" onClick={handleSave} disabled={saving || !settings} className="w-32">
               {saving ? <Spinner size="md" /> : t('common.actions.saveGlobalSettings')}
