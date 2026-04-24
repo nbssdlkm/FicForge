@@ -35,11 +35,11 @@ export function EmptyState({
         compact ? "py-8" : "py-12"
       }`}
     >
-      <div className="mb-3 text-text/35">{icon}</div>
+      <div className="mb-3 text-ink-faint">{icon}</div>
       <h3 className="font-display text-[22px] font-semibold leading-tight text-accent">
         {title}
       </h3>
-      <div className="mt-2 max-w-xl whitespace-pre-line font-serif text-sm leading-6 text-text/70">
+      <div className="mt-2 max-w-xl whitespace-pre-line font-serif text-sm leading-6 text-ink-muted">
         {description}
       </div>
       {actions.length > 0 && (

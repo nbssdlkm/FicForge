@@ -137,10 +137,10 @@ function LibraryInner({ onNavigate }: Props) {
             <h1 className="font-display italic text-3xl font-medium uppercase leading-tight tracking-[0.04em] text-accent md:text-4xl">
               Index of Works
             </h1>
-            <p className="mt-2 font-serif text-base tracking-[0.04em] text-text/60">
+            <p className="mt-2 font-serif text-base tracking-[0.04em] text-ink-muted">
               {t("library.title")}
             </p>
-            <div className="mt-3 flex flex-wrap gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-text/55">
+            <div className="mt-3 flex flex-wrap gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">
               {stats.map(({ value, label }) => (
                 <span
                   key={label}

@@ -19,6 +19,8 @@ export default {
         background: alphaColor('bg'),
         surface: alphaColor('surface'),
         text: alphaColor('text'),
+        'ink-muted': alphaColor('ink-muted'),  // v13: solid #4A5A4F (light) / #95988F (dark) — sharper than text-text/60
+        'ink-faint': alphaColor('ink-faint'),  // v13: solid #8B9A8F (light) / #545652 (dark)
         accent: alphaColor('accent'),
         success: alphaColor('success'),
         warning: alphaColor('warning'),

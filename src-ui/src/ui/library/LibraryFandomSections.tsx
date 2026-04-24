@@ -185,7 +185,7 @@ export function LibraryFandomSections({
             {!isCollapsed && (
               <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
                 {fandom.aus.length === 0 ? (
-                  <p className="col-span-full py-6 text-center font-serif text-sm text-text/50">
+                  <p className="col-span-full py-6 text-center font-serif text-sm text-ink-faint">
                     {t("library.emptyAuList")}
                   </p>
                 ) : (
@@ -221,7 +221,7 @@ export function LibraryFandomSections({
                       <h3 className="mt-1 font-display text-lg font-medium leading-tight text-text">
                         {au.name}
                       </h3>
-                      <div className="mt-3 flex items-center font-mono text-[10px] uppercase tracking-[0.12em] text-text/50">
+                      <div className="mt-3 flex items-center font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">
                         <span>{t("library.cardType")}</span>
                       </div>
                     </Card>

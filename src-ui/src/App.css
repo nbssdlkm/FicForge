@@ -51,6 +51,10 @@
     --color-surface-rgb: 243 239 226;
     --color-text: #1A2E20;      /* deep ink green */
     --color-text-rgb: 26 46 32;
+    --color-ink-muted: #4A5A4F; /* v13: solid muted ink (crisper than text-text/60 alpha blend) */
+    --color-ink-muted-rgb: 74 90 79;
+    --color-ink-faint: #8B9A8F; /* v13: solid faint ink for caption / call-no secondary */
+    --color-ink-faint-rgb: 139 154 143;
     --color-accent: #576148;    /* olive — 动作色 / 选中态 */
     --color-accent-rgb: 87 97 72;
 
@@ -63,12 +67,17 @@
     --color-gold-rgb: 201 154 56;
     --color-inv-text: #FBF5E1;  /* cream — 深色表面上的"白"色文字 (drawer/accent bg 上) */
     --color-inv-text-rgb: 251 245 225;
+    --color-drawer-edge: rgba(251, 245, 225, 0.16); /* cream hairline on sage (for previews / dividers) */
 
-    /* Hairline rules — green-tinted for parchment cohesion.
-     * Already rgba, so opacity modifiers don't apply — these are terminal.
+    /* Hairline rules — ink-green tint matches v13 (darker & more opaque than
+     * accent-based rules we shipped originally).
+     * Already rgba, so Tailwind opacity modifiers don't apply — these are terminal.
      */
-    --color-rule: rgba(87, 97, 72, 0.18);
-    --color-rule-soft: rgba(87, 97, 72, 0.08);
+    --color-rule: rgba(26, 46, 32, 0.22);
+    --color-rule-soft: rgba(26, 46, 32, 0.08);
+
+    /* Drawer banner shadow — subtle lift off parchment (v13 --l-shadow-drawer) */
+    --shadow-drawer: 0 1px 0 rgba(26, 46, 32, 0.06), 0 4px 8px rgba(26, 46, 32, 0.04);
 
     /* === Status colors (warm parchment 调校) === */
     --color-success: #386B45;
@@ -112,6 +121,10 @@
     --color-surface-rgb: 243 239 226;
     --color-text: #1A2E20;
     --color-text-rgb: 26 46 32;
+    --color-ink-muted: #4A5A4F;
+    --color-ink-muted-rgb: 74 90 79;
+    --color-ink-faint: #8B9A8F;
+    --color-ink-faint-rgb: 139 154 143;
     --color-accent: #576148;
     --color-accent-rgb: 87 97 72;
     --color-drawer: #47594E;
@@ -122,9 +135,11 @@
     --color-gold-rgb: 201 154 56;
     --color-inv-text: #FBF5E1;
     --color-inv-text-rgb: 251 245 225;
+    --color-drawer-edge: rgba(251, 245, 225, 0.16);
 
-    --color-rule: rgba(87, 97, 72, 0.18);
-    --color-rule-soft: rgba(87, 97, 72, 0.08);
+    --color-rule: rgba(26, 46, 32, 0.22);
+    --color-rule-soft: rgba(26, 46, 32, 0.08);
+    --shadow-drawer: 0 1px 0 rgba(26, 46, 32, 0.06), 0 4px 8px rgba(26, 46, 32, 0.04);
 
     --color-success: #386B45;
     --color-success-rgb: 56 107 69;
@@ -183,9 +198,15 @@
     --color-gold-rgb: 221 181 101;
     --color-inv-text: #E5DCC4;  /* = ink（dark 下"深色表面上的文字"也是 cream） */
     --color-inv-text-rgb: 229 220 196;
+    --color-ink-muted: #95988F;  /* v13 dark: greyer than light ink-muted */
+    --color-ink-muted-rgb: 149 152 143;
+    --color-ink-faint: #545652;
+    --color-ink-faint-rgb: 84 86 82;
+    --color-drawer-edge: rgba(229, 220, 196, 0.12);
 
-    --color-rule: rgba(229, 220, 196, 0.16);
-    --color-rule-soft: rgba(229, 220, 196, 0.06);
+    --color-rule: rgba(229, 220, 196, 0.14);
+    --color-rule-soft: rgba(229, 220, 196, 0.05);
+    --shadow-drawer: 0 1px 0 rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3);
 
     /* Status — dark mode 视觉调校 */
     --color-success: #6B9577;
