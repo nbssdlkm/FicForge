@@ -21,6 +21,8 @@ export default {
         gold: 'var(--color-gold)',              // antique — gold 文字 on parchment
         'gold-bright': 'var(--color-gold-bright)', // brass — gold 线 on drawer
         'inv-text': 'var(--color-inv-text)',    // cream — 深色表面上的文字
+        rule: 'var(--color-rule)',              // hairline borders / dividers (green-tinted)
+        'rule-soft': 'var(--color-rule-soft)',  // subtle fills / hover bg / dashed dividers
       },
       fontFamily: {
         // 通过 CSS 变量解析，运行时可动态切换而无需重新渲染组件。
@@ -37,6 +39,7 @@ export default {
         // We will stick to the default spacing scale and utilize p-1, p-2, p-3, p-4, p-6, p-8, p-12 properly.
       },
       borderRadius: {
+        'xs': '2px',
         'sm': '4px',
         'md': '8px',
         'lg': '12px',

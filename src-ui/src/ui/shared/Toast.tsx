@@ -14,6 +14,8 @@ export interface ToastProps extends HTMLAttributes<HTMLDivElement> {
   message: string;
 }
 
+// Ex Libris toast — parchment body, tone carried only in the 3px left bar and the
+// icon, not the background. Serif body text, hairline border on the other 3 edges.
 const iconMap: Record<ToastTone, React.ReactNode> = {
   success: <CheckCircle size={18} className="text-success" />,
   error: <AlertCircle size={18} className="text-error" />,
@@ -21,11 +23,11 @@ const iconMap: Record<ToastTone, React.ReactNode> = {
   warning: <AlertTriangle size={18} className="text-warning" />,
 };
 
-const bgMap: Record<ToastTone, string> = {
-  success: 'bg-success/10 border-success/20',
-  error: 'bg-error/10 border-error/20',
-  info: 'bg-info/10 border-info/20',
-  warning: 'bg-warning/10 border-warning/20',
+const borderLeftMap: Record<ToastTone, string> = {
+  success: 'border-l-success',
+  error: 'border-l-error',
+  info: 'border-l-info',
+  warning: 'border-l-warning',
 };
 
 export const Toast = React.forwardRef<HTMLDivElement, ToastProps>(
@@ -34,17 +36,22 @@ export const Toast = React.forwardRef<HTMLDivElement, ToastProps>(
       <div
         ref={ref}
         className={cn(
-          "flex items-center gap-3 w-full max-w-md rounded-lg border p-4 shadow-medium font-sans text-sm text-text bg-surface pointer-events-auto",
-          bgMap[tone],
+          'flex items-center gap-3 w-full max-w-md rounded-sm border border-rule border-l-[3px] bg-surface px-3.5 py-3 shadow-medium pointer-events-auto font-serif text-sm text-text',
+          borderLeftMap[tone],
           className
         )}
         {...props}
       >
         {iconMap[tone]}
-        <div className="flex-1">{message}</div>
+        <div className="flex-1 leading-snug">{message}</div>
         {onClose && (
-          <button onClick={onClose} className="text-text hover:opacity-70 transition-opacity">
-            <X size={16} />
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-text/50 hover:text-text transition-colors"
+            aria-label="close"
+          >
+            <X size={15} />
           </button>
         )}
       </div>

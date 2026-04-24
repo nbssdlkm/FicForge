@@ -5,22 +5,36 @@
 import { HTMLAttributes, forwardRef } from 'react';
 import { cn } from './utils';
 
-export type TagTone = 'default' | 'success' | 'warning' | 'error' | 'info' | 'resolved' | 'deprecated' | 'unresolved' | 'active';
+export type TagTone =
+  | 'default'
+  | 'success'
+  | 'warning'
+  | 'error'
+  | 'info'
+  | 'gold'
+  | 'resolved'
+  | 'deprecated'
+  | 'unresolved'
+  | 'active';
 
 export interface TagProps extends HTMLAttributes<HTMLSpanElement> {
   tone?: TagTone;
 }
 
+// Ex Libris tag — an old card-catalog metadata stamp: mono caps with wide tracking,
+// 2px crisp corners, thin border in the tone color, tinted fill. `unresolved` gets
+// extra weight so it actually reads as a "needs review" beacon.
 const toneStyles: Record<TagTone, string> = {
-  default: 'bg-black/5 dark:bg-white/10 text-text',
-  success: 'bg-success/10 text-success border border-success/20',
-  warning: 'bg-warning/10 text-warning border border-warning/20',
-  error: 'bg-error/10 text-error border border-error/20',
-  info: 'bg-info/10 text-info border border-info/20',
-  unresolved: 'bg-accent/10 text-accent border border-accent/20 font-bold',
-  active: 'bg-info/10 text-info border border-info/20',
-  resolved: 'bg-black/5 dark:bg-white/10 text-text/50 border border-black/10 dark:border-white/10',
-  deprecated: 'bg-black/5 dark:bg-white/10 text-text/50 line-through border border-transparent',
+  default: 'text-text/70 border-rule bg-transparent',
+  success: 'text-success border-success/40 bg-success/10',
+  warning: 'text-warning border-warning/40 bg-warning/10',
+  error: 'text-error border-error/40 bg-error/10',
+  info: 'text-info border-info/40 bg-info/10',
+  gold: 'text-gold border-gold/50 bg-gold/10',
+  unresolved: 'text-accent border-accent bg-accent/10 font-semibold',
+  active: 'text-info border-info/40 bg-info/10',
+  resolved: 'text-text/50 border-rule bg-transparent',
+  deprecated: 'text-text/50 border-transparent bg-rule-soft line-through',
 };
 
 export const Tag = forwardRef<HTMLSpanElement, TagProps>(
@@ -28,7 +42,11 @@ export const Tag = forwardRef<HTMLSpanElement, TagProps>(
     return (
       <span
         ref={ref}
-        className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-sans font-medium", toneStyles[tone], className)}
+        className={cn(
+          'inline-flex items-center rounded-[2px] border px-2 py-[3px] font-mono text-[9px] uppercase tracking-[0.14em]',
+          toneStyles[tone],
+          className
+        )}
         {...props}
       />
     );

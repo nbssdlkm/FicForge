@@ -14,27 +14,31 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: 'sm' | 'md' | 'lg';
 }
 
+// Ex Libris signature: hairline rule borders, green-tinted soft-fill hovers,
+// gold focus ring, crisp 3px corners. Colors flow through CSS vars so both
+// light (olive on parchment) and dark (dark-olive on charcoal) share one rule set.
 const toneFillStyles: Record<`${Tone}-${Fill}`, string> = {
-  'accent-solid': 'bg-accent text-inv-text hover:opacity-90',
-  'accent-outline': 'text-accent border border-accent hover:bg-accent/10',
-  'accent-plain': 'text-accent hover:bg-accent/10',
-  'neutral-solid': 'bg-surface text-text hover:bg-surface/80 border border-black/10 dark:border-white/10',
-  'neutral-outline': 'text-text hover:bg-surface border border-black/10 dark:border-white/10',
-  'neutral-plain': 'hover:bg-surface hover:text-accent text-text',
-  'destructive-solid': 'bg-error text-inv-text hover:opacity-90',
-  'destructive-outline': 'text-error border border-error/40 hover:bg-error/10',
+  'accent-solid': 'bg-accent text-inv-text hover:brightness-110',
+  'accent-outline': 'text-accent border border-accent hover:bg-rule-soft',
+  'accent-plain': 'text-accent hover:bg-rule-soft',
+  'neutral-solid': 'bg-surface text-text border border-rule hover:bg-rule-soft',
+  'neutral-outline': 'text-text/80 border border-rule hover:text-accent hover:border-accent',
+  'neutral-plain': 'text-text/80 hover:text-accent hover:bg-rule-soft',
+  'destructive-solid': 'bg-error text-inv-text hover:brightness-110',
+  'destructive-outline': 'text-error border border-error/60 hover:bg-error/10',
   'destructive-plain': 'text-error hover:bg-error/10',
 };
 
 const sizes = {
   sm: 'h-11 md:h-8 px-3 text-sm md:text-xs',
   md: 'h-11 md:h-10 px-4 py-2',
-  lg: 'h-12 px-8 text-base',
+  lg: 'h-12 px-5 text-base',
 };
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, tone = 'accent', fill = 'solid', size = 'md', ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center rounded-md font-sans text-base md:text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:pointer-events-none disabled:opacity-50';
+    const baseStyles =
+      'inline-flex items-center justify-center gap-1.5 rounded-[3px] font-sans text-base md:text-sm font-medium tracking-[0.02em] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50';
 
     return (
       <button

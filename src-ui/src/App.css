@@ -43,6 +43,13 @@
     --color-gold: #C99A38;      /* antique gold — 金色文字 / 描边 (parchment 上) */
     --color-inv-text: #FBF5E1;  /* cream — 深色表面上的"白"色文字 (drawer/accent bg 上) */
 
+    /* Hairline rules — green-tinted for parchment cohesion
+     * --color-rule:      1px hairlines (card borders, dividers, input underlines)
+     * --color-rule-soft: subtle fills / dashed dividers / hover bg
+     */
+    --color-rule: rgba(87, 97, 72, 0.18);
+    --color-rule-soft: rgba(87, 97, 72, 0.08);
+
     /* === Status colors (warm parchment 调校) === */
     --color-success: #386B45;
     --color-warning: #B5762B;
@@ -82,6 +89,9 @@
     --color-gold: #C99A38;
     --color-inv-text: #FBF5E1;
 
+    --color-rule: rgba(87, 97, 72, 0.18);
+    --color-rule-soft: rgba(87, 97, 72, 0.08);
+
     --color-success: #386B45;
     --color-warning: #B5762B;
     --color-error: #8B2D1F;
@@ -102,6 +112,9 @@
     --color-gold-bright: #F0CC60;
     --color-gold: #C99A38;
     --color-inv-text: #FFFFFF;
+
+    --color-rule: rgba(45, 58, 46, 0.18);
+    --color-rule-soft: rgba(45, 58, 46, 0.08);
   }
 
   /* Night Theme — Ex Libris Dark */
@@ -114,6 +127,9 @@
     --color-gold-bright: #DDB565; /* brass — dark mode 下更突出 */
     --color-gold: #DDB565;      /* 同 gold-bright (charcoal paper 在两种 context 都过 8:1) */
     --color-inv-text: #E5DCC4;  /* = ink（dark 下"深色表面上的文字"也是 cream） */
+
+    --color-rule: rgba(229, 220, 196, 0.16);
+    --color-rule-soft: rgba(229, 220, 196, 0.06);
 
     /* Status — dark mode 视觉调校 */
     --color-success: #6B9577;

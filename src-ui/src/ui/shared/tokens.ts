@@ -85,6 +85,13 @@ export const color = {
     error: 'var(--color-error)',
     info: 'var(--color-info)',
   },
+  /** Hairline / divider tints (green-tinted on parchment, cream-tinted on charcoal). */
+  rule: {
+    /** 1px hairlines — card borders, dividers, input underlines */
+    default: 'var(--color-rule)',
+    /** Subtle fills — hover bg, dashed dividers, soft chips */
+    soft: 'var(--color-rule-soft)',
+  },
 } as const;
 
 /**

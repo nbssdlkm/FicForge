@@ -5,12 +5,18 @@
 import React, { HTMLAttributes } from 'react';
 import { cn } from './utils';
 
+// Ex Libris card — gold "book spine" on the left edge, parchment body, hairline frame.
+// Radius is asymmetric (0 on the spine side) so the gold stripe reads as a continuous
+// vertical rule, not a rounded pill. See `design-system-exlibris-v2.html` §06 `.card`.
 export const Card = React.forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => {
     return (
       <div
         ref={ref}
-        className={cn("rounded-lg border border-black/10 dark:border-white/10 bg-surface text-text p-4", className)}
+        className={cn(
+          'relative bg-surface text-text px-4 py-4 border border-rule border-l-2 border-l-gold rounded-r-sm',
+          className
+        )}
         {...props}
       />
     );

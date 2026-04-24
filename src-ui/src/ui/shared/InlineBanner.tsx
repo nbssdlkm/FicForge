@@ -17,14 +17,17 @@ export interface InlineBannerProps {
   className?: string;
 }
 
+// Ex Libris banner — serif voice (this is editorial text, not UI chrome).
+// `card` = rounded frame with tone-tinted bg; `bar` = bottom-rule only, sits
+// edge-to-edge above content (used at top of Library / Writer for sync notices).
 const toneStyles: Record<InlineBannerTone, string> = {
-  info: 'border-info/30 bg-info/10 text-info',
-  warning: 'border-warning/30 bg-warning/10 text-warning',
+  info: 'border-info/30 bg-info/8 text-info',
+  warning: 'border-warning/40 bg-warning/8 text-warning',
 };
 
 const layoutStyles: Record<InlineBannerLayout, string> = {
-  card: 'rounded-xl border px-4 py-3',
-  bar: 'border-b px-4 py-2 md:px-6',
+  card: 'rounded-sm border',
+  bar: 'border-b',
 };
 
 export function InlineBanner({
@@ -38,14 +41,15 @@ export function InlineBanner({
   return (
     <div
       className={cn(
-        'flex flex-col gap-2 md:flex-row md:items-center md:justify-between',
+        'flex flex-col gap-2 font-serif md:flex-row md:items-center md:justify-between',
+        layout === 'bar' ? 'px-4 py-2.5 md:px-6' : 'px-4 py-3',
         toneStyles[tone],
         layoutStyles[layout],
         compact ? 'text-xs' : 'text-sm',
         className,
       )}
     >
-      <span>{message}</span>
+      <span className="leading-relaxed">{message}</span>
       {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
     </div>
   );
