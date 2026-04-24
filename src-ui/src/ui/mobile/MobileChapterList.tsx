@@ -24,6 +24,10 @@ interface MobileChapterListProps {
   onChaptersChanged?: () => void;
 }
 
+function callNo(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
 export function MobileChapterList({
   auPath,
   auName,
@@ -69,12 +73,12 @@ export function MobileChapterList({
 
   return (
     <section className="flex h-full flex-col bg-background md:hidden">
-      <header className="safe-area-top border-b border-black/10 bg-surface/80 px-4 py-4 backdrop-blur dark:border-white/10">
-        <h1 className="truncate font-serif text-2xl font-bold text-text">{auName}</h1>
-        <p className="mt-1 text-sm text-text/50">{t("mobile.chapters.hint")}</p>
+      <header className="safe-area-top border-b border-rule bg-surface/85 px-4 py-4 backdrop-blur">
+        <h1 className="truncate font-display italic text-2xl font-medium text-text">{auName}</h1>
+        <p className="mt-1 font-serif text-sm text-text/60">{t("mobile.chapters.hint")}</p>
       </header>
 
-      <div className="flex-1 overflow-y-auto space-y-3 px-4 py-4">
+      <div className="flex-1 space-y-2 overflow-y-auto px-3 py-4">
         {loading ? (
           <div className="flex items-center justify-center py-16 text-text/50">
             <Spinner size="md" />
@@ -92,59 +96,66 @@ export function MobileChapterList({
             ]}
           />
         ) : (
-          chapters.map((chapter) => (
-            <button
-              key={chapter.chapter_num}
-              type="button"
-              onClick={() => {
-                if (editingNum === chapter.chapter_num) return;
-                onSelectChapter(chapter.chapter_num);
-              }}
-              className={cn(
-                "flex w-full items-center justify-between rounded-xl border px-4 py-4 text-left transition-colors",
-                selectedChapter === chapter.chapter_num
-                  ? "border-accent/40 bg-accent/8 text-accent"
-                  : "border-black/10 bg-surface/35 text-text hover:border-accent/20 hover:bg-surface/70 dark:border-white/10"
-              )}
-            >
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-text/50">
-                  {t("import.chapterPreview", { num: chapter.chapter_num })}
-                </p>
-                {editingNum === chapter.chapter_num ? (
-                  <input
-                    autoFocus
-                    value={editingValue}
-                    onChange={(e) => setEditingValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") { e.preventDefault(); void commitEdit(); }
-                      else if (e.key === "Escape") cancelEdit();
-                    }}
-                    onBlur={() => void commitEdit()}
-                    onClick={(e) => e.stopPropagation()}
-                    className="mt-1 w-full border-b border-accent/50 bg-transparent text-base font-medium text-text outline-none"
-                  />
-                ) : (
-                  <p className="mt-1 truncate text-base font-medium text-current">
-                    {chapter.title?.trim() || t("mobile.chapters.untitled")}
-                  </p>
+          chapters.map((chapter) => {
+            const isActive = selectedChapter === chapter.chapter_num;
+            return (
+              <button
+                key={chapter.chapter_num}
+                type="button"
+                onClick={() => {
+                  if (editingNum === chapter.chapter_num) return;
+                  onSelectChapter(chapter.chapter_num);
+                }}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-r-sm border border-rule border-l-2 px-4 py-3.5 text-left transition-colors",
+                  isActive
+                    ? "border-l-gold-bright bg-accent/10 text-accent"
+                    : "border-l-gold bg-surface text-text hover:bg-rule-soft"
                 )}
-              </div>
-              {editingNum !== chapter.chapter_num && (
-                <div className="flex shrink-0 items-center gap-1">
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => startEditing(chapter, e)}
-                    className="rounded-full p-1.5 text-text/30 active:bg-black/5 dark:active:bg-white/10"
-                  >
-                    <Pencil size={14} />
-                  </span>
-                  <ChevronRight size={18} className="opacity-55" />
+                aria-current={isActive ? "page" : undefined}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className={cn(
+                    "font-mono text-[9px] uppercase tracking-[0.1em]",
+                    isActive ? "text-gold-bright" : "text-gold"
+                  )}>
+                    № {callNo(chapter.chapter_num)}
+                  </p>
+                  {editingNum === chapter.chapter_num ? (
+                    <input
+                      autoFocus
+                      value={editingValue}
+                      onChange={(e) => setEditingValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.preventDefault(); void commitEdit(); }
+                        else if (e.key === "Escape") cancelEdit();
+                      }}
+                      onBlur={() => void commitEdit()}
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-1 w-full border-b border-accent/50 bg-transparent font-display italic text-base font-medium text-text outline-none"
+                    />
+                  ) : (
+                    <p className="mt-0.5 truncate font-display italic text-base font-medium text-current">
+                      {chapter.title?.trim() || t("mobile.chapters.untitled")}
+                    </p>
+                  )}
                 </div>
-              )}
-            </button>
-          ))
+                {editingNum !== chapter.chapter_num && (
+                  <div className="flex shrink-0 items-center gap-1">
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => startEditing(chapter, e)}
+                      className="rounded-full p-1.5 text-text/30 transition-colors active:bg-rule-soft"
+                    >
+                      <Pencil size={14} />
+                    </span>
+                    <ChevronRight size={18} className="text-text/40" />
+                  </div>
+                )}
+              </button>
+            );
+          })
         )}
       </div>
     </section>

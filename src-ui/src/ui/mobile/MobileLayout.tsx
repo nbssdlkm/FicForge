@@ -91,17 +91,19 @@ export function MobileLayout({
 
   return (
     <div className="app-height relative flex flex-col overflow-hidden bg-background text-text md:hidden">
-      {/* Global mobile header with back button */}
-      <header className="safe-area-top flex h-11 shrink-0 items-center justify-between border-b border-black/10 bg-surface/80 px-3 backdrop-blur dark:border-white/10">
+      {/* Global mobile header — hairline rule + parchment backdrop. AU name
+          sits in the middle as the "now-reading" badge; back button returns to
+          the Library (Index of Works). */}
+      <header className="safe-area-top flex h-11 shrink-0 items-center justify-between border-b border-rule bg-surface/85 px-3 backdrop-blur">
         <button
           type="button"
-          className="flex items-center gap-1 text-sm text-accent"
+          className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.12em] text-accent"
           onClick={() => onNavigate("library")}
         >
-          <ArrowLeft size={16} />
+          <ArrowLeft size={14} />
           <span>{t("library.title")}</span>
         </button>
-        <span className="truncate px-2 text-xs font-medium text-text/50">{auName}</span>
+        <span className="truncate px-2 font-display italic text-sm text-text/70">{auName}</span>
         <ThemeToggle />
       </header>
 

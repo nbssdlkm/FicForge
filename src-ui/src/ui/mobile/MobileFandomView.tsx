@@ -257,25 +257,25 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
   return (
     <section className="flex h-full flex-col bg-background md:hidden">
       {/* Header */}
-      <header className="safe-area-top border-b border-black/10 bg-surface/80 px-4 py-4 backdrop-blur dark:border-white/10">
+      <header className="safe-area-top border-b border-rule bg-surface/85 px-4 py-4 backdrop-blur">
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="flex items-center gap-1 text-sm text-accent"
+            className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.12em] text-accent"
             onClick={() => onNavigate("library")}
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={14} />
             <span>{t("library.title")}</span>
           </button>
         </div>
-        <h1 className="mt-2 text-xl font-bold text-text">
+        <h1 className="mt-2 font-display italic text-xl font-medium text-text">
           {t("common.scope.fandomTitle", { name: fandomName })}
         </h1>
       </header>
 
       {/* Category tabs */}
-      <div className="border-b border-black/5 px-4 pt-3 dark:border-white/5">
-        <div className="inline-flex w-full rounded-xl border border-black/10 bg-background/70 p-1 dark:border-white/10">
+      <div className="border-b border-rule/60 px-4 pt-3">
+        <div className="inline-flex w-full rounded-sm border border-rule bg-background/60 p-1">
           {(["core_characters", "core_worldbuilding"] as const).map((cat) => {
             const Icon = cat === "core_characters" ? Users : Globe2;
             const label = cat === "core_characters" ? t("fandomLore.category.characters") : t("fandomLore.category.worldbuilding");
@@ -286,8 +286,8 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
                 type="button"
                 onClick={() => setCategory(cat)}
                 className={cn(
-                  "flex min-h-[44px] flex-1 items-center justify-center rounded-xl text-sm font-medium transition-colors",
-                  category === cat ? "bg-accent text-inv-text" : "text-text/50",
+                  "flex min-h-[44px] flex-1 items-center justify-center rounded-[3px] text-sm font-medium transition-colors",
+                  category === cat ? "bg-accent text-inv-text" : "text-text/55 hover:bg-rule-soft",
                 )}
               >
                 <Icon size={15} className="mr-2" />
@@ -323,12 +323,12 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
             <button
               key={file.filename}
               type="button"
-              className="flex w-full items-center justify-between rounded-xl border border-black/10 bg-surface/35 px-4 py-4 text-left transition-colors dark:border-white/10"
+              className="flex w-full items-center justify-between rounded-r-sm border border-rule border-l-2 border-l-gold bg-surface px-4 py-3.5 text-left transition-colors hover:bg-rule-soft"
               onClick={() => handleSelectFile(file.filename, category)}
             >
               <div className="min-w-0">
-                <p className="truncate text-base font-medium text-text">{file.name}</p>
-                <p className="mt-1 text-xs text-text/50">{categoryLabel}</p>
+                <p className="truncate font-display italic text-base font-medium text-text">{file.name}</p>
+                <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.12em] text-gold">{categoryLabel}</p>
               </div>
               <FileText size={16} className="ml-3 shrink-0 text-text/30" />
             </button>
@@ -380,12 +380,12 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
       {/* AI assistant overlay */}
       {aiOverlayOpen && (
         <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
-          <header className="safe-area-top flex items-center justify-between border-b border-black/10 bg-surface/95 px-4 py-3 backdrop-blur dark:border-white/10">
+          <header className="safe-area-top flex items-center justify-between border-b border-rule bg-surface/95 px-4 py-3 backdrop-blur">
             <Button tone="neutral" fill="plain" size="sm" className="h-11 px-3" onClick={() => setAiOverlayOpen(false)}>
               <ArrowLeft size={16} className="mr-2" />
               {t("common.actions.back")}
             </Button>
-            <h2 className="text-base font-semibold text-text">{t("settingsMode.title")}</h2>
+            <h2 className="font-display italic text-base font-medium text-text">{t("settingsMode.title")}</h2>
             <div className="w-[68px]" />
           </header>
           <div className="flex-1 overflow-hidden">

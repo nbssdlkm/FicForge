@@ -60,7 +60,7 @@ export function MobileSettingsView({ auPath, currentChapter }: MobileSettingsVie
 
       {overlayOpen ? (
         <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
-          <header className="safe-area-top flex items-center justify-between border-b border-black/10 bg-surface/95 px-4 py-3 backdrop-blur dark:border-white/10">
+          <header className="safe-area-top flex items-center justify-between border-b border-rule bg-surface/95 px-4 py-3 backdrop-blur">
             <Button
               tone="neutral" fill="plain"
               size="sm"
@@ -70,7 +70,7 @@ export function MobileSettingsView({ auPath, currentChapter }: MobileSettingsVie
               <ArrowLeft size={16} className="mr-2" />
               {t("common.actions.back")}
             </Button>
-            <h2 className="text-base font-semibold text-text">{t("settingsMode.title")}</h2>
+            <h2 className="font-display italic text-base font-medium text-text">{t("settingsMode.title")}</h2>
             <div className="w-[68px]" />
           </header>
           <div className="flex-1 overflow-hidden">

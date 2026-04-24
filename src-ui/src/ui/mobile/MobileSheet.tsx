@@ -5,7 +5,7 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import { X } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
-import { Button } from "../shared/Button";
+import { goldLine } from "../shared/tokens";
 import { cn } from "../shared/utils";
 
 interface MobileSheetProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
@@ -14,6 +14,13 @@ interface MobileSheetProps extends Omit<HTMLAttributes<HTMLDivElement>, "title">
   title?: ReactNode;
   contentClassName?: string;
 }
+
+// Same drawer-banner header as Modal.tsx — gold top/bottom inset lines on a
+// sage background, display italic title in cream. Keeps the desktop Modal and
+// the mobile bottom-sheet visually consistent.
+const sheetHeaderGoldLines = {
+  boxShadow: `inset 0 ${goldLine.topThick} 0 var(--color-gold-bright), inset 0 ${goldLine.bottomThick} 0 var(--color-gold-bright)`,
+};
 
 export function MobileSheet({
   className,
@@ -32,30 +39,36 @@ export function MobileSheet({
     <div className="fixed inset-0 z-50 md:hidden">
       <button
         type="button"
-        className="absolute inset-0 bg-black/45 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
         aria-label={t("common.actions.close")}
       />
       <div
         className={cn(
-          "absolute inset-x-0 bottom-0 flex max-h-[calc(var(--app-height)-1rem)] min-h-[70vh] flex-col overflow-hidden rounded-t-[28px] border border-black/10 bg-background shadow-strong animate-slide-up dark:border-white/10",
+          "absolute inset-x-0 bottom-0 flex max-h-[calc(var(--app-height)-1rem)] min-h-[70vh] flex-col overflow-hidden rounded-t-sm border border-rule bg-surface shadow-strong animate-slide-up",
           className
         )}
         {...props}
       >
-        <div className="flex items-center justify-between border-b border-black/10 bg-background/95 px-4 py-3 backdrop-blur dark:border-white/10 safe-area-top">
-          <div className="min-w-0">
-            {title ? <h2 className="truncate text-base font-semibold text-text">{title}</h2> : null}
+        <div
+          className="safe-area-top flex items-center justify-between bg-drawer px-4 py-3 text-inv-text"
+          style={sheetHeaderGoldLines}
+        >
+          <div className="min-w-0 flex-1">
+            {title ? (
+              <h2 className="truncate font-display italic text-lg font-medium text-inv-text">
+                {title}
+              </h2>
+            ) : null}
           </div>
-          <Button
-            tone="neutral" fill="plain"
-            size="sm"
+          <button
+            type="button"
             onClick={onClose}
-            className="ml-3 h-11 w-11 shrink-0 rounded-full p-0"
             aria-label={t("common.actions.close")}
+            className="ml-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gold-bright text-gold-bright transition-colors hover:bg-gold-bright/10"
           >
-            <X size={18} />
-          </Button>
+            <X size={16} />
+          </button>
         </div>
         <div className={cn("flex-1 overflow-y-auto px-4 py-4 safe-area-bottom", contentClassName)}>
           {children}

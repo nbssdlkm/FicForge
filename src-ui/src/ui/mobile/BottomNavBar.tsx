@@ -22,6 +22,11 @@ const TAB_ICONS = {
 
 const TAB_IDS: MobileWorkspaceTab[] = ["chapters", "writer", "settings", "manage"];
 
+// Ex Libris bottom nav — parchment body with a gold hairline across the top
+// and a 2px gold "cursor" that hangs down over the active tab icon
+// (design-system-exlibris-v2.html §08 / library-mobile-exlibris-v13.html
+// .tab-item.active::after). Active tab uses accent color, not filled bg —
+// matches the 4-tab sidebar treatment in AuWorkspaceLayout.
 export function BottomNavBar({ activeTab, onTabChange }: BottomNavBarProps) {
   const { t } = useTranslation();
 
@@ -33,7 +38,7 @@ export function BottomNavBar({ activeTab, onTabChange }: BottomNavBarProps) {
   };
 
   return (
-    <nav className="safe-area-bottom safe-area-x fixed inset-x-0 bottom-0 z-40 border-t border-black/10 bg-surface/95 backdrop-blur md:hidden dark:border-white/10">
+    <nav className="safe-area-bottom safe-area-x fixed inset-x-0 bottom-0 z-40 border-t border-rule bg-surface/95 backdrop-blur md:hidden">
       <div className="grid grid-cols-4 gap-1 px-2 py-2">
         {TAB_IDS.map((id) => {
           const Icon = TAB_ICONS[id];
@@ -44,12 +49,19 @@ export function BottomNavBar({ activeTab, onTabChange }: BottomNavBarProps) {
               type="button"
               onClick={() => onTabChange(id)}
               className={cn(
-                "flex min-h-[56px] flex-col items-center justify-center rounded-xl px-2 py-2 text-xs font-medium transition-colors",
+                "relative flex min-h-[56px] flex-col items-center justify-center rounded-sm px-2 py-2 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors",
                 active
-                  ? "bg-accent text-inv-text shadow-subtle"
-                  : "text-text/50 hover:bg-black/5 hover:text-text dark:hover:bg-white/5"
+                  ? "text-accent"
+                  : "text-text/45 hover:bg-rule-soft hover:text-text/70"
               )}
+              aria-current={active ? "page" : undefined}
             >
+              {active && (
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -top-0.5 left-1/2 h-[2px] w-6 -translate-x-1/2 bg-gold"
+                />
+              )}
               <Icon size={18} className="mb-1" />
               <span>{tabLabels[id]}</span>
             </button>
