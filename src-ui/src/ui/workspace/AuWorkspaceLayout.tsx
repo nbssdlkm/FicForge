@@ -226,7 +226,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
                 <span className="pointer-events-none absolute inset-[2.5px] rounded-[2px] border border-accent/50 opacity-60" />
               </div>
               <div className="min-w-0 leading-tight">
-                <div className="truncate font-display italic text-base font-medium text-text" title={auName}>
+                <div className="truncate font-display text-base font-semibold text-text" title={auName}>
                   {auName}
                 </div>
                 <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-gold">

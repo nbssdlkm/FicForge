@@ -103,7 +103,7 @@ export function MobileLayout({
           <ArrowLeft size={14} />
           <span>{t("library.title")}</span>
         </button>
-        <span className="truncate px-2 font-display italic text-sm text-text/70">{auName}</span>
+        <span className="truncate px-2 font-display text-sm font-medium text-text/70">{auName}</span>
         <ThemeToggle />
       </header>
 

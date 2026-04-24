@@ -57,7 +57,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
             style={headerGoldLines}
           >
             {title && (
-              <h2 className="font-display italic text-lg font-medium text-inv-text tracking-[0.01em]">
+              <h2 className="font-display text-lg font-semibold text-inv-text tracking-[0.01em]">
                 {title}
               </h2>
             )}

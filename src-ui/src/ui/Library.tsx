@@ -106,7 +106,7 @@ function LibraryInner({ onNavigate }: Props) {
               <span className="pointer-events-none absolute inset-[3px] rounded-[2px] border border-accent/50 opacity-60" />
             </div>
             <div className="leading-tight">
-              <div className="font-display italic text-lg font-medium tracking-[0.02em] text-text">
+              <div className="font-display text-lg font-semibold tracking-[0.02em] text-text">
                 {t("common.appName")}
               </div>
               <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-gold">

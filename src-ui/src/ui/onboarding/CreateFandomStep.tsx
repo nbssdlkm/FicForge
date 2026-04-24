@@ -52,7 +52,7 @@ export function CreateFandomStep({
   return (
     <div className="max-w-lg mx-auto space-y-6 py-8">
       <div className="flex items-baseline justify-between">
-        <h2 className="font-display italic text-2xl font-medium text-accent">{t('onboarding.createFandom.title')}</h2>
+        <h2 className="font-display text-2xl font-semibold text-accent">{t('onboarding.createFandom.title')}</h2>
         <StepIndicator current={3} total={4} />
       </div>
 

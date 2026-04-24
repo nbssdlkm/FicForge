@@ -22,7 +22,7 @@ export function CompletionStep({
         <StepIndicator current={4} total={4} />
       </div>
 
-      <h2 className="font-display italic text-3xl font-medium leading-tight text-accent">
+      <h2 className="font-display text-3xl font-semibold leading-tight text-accent">
         {t('onboarding.completion.title')}
       </h2>
 
@@ -73,7 +73,7 @@ export function CompletionStep({
         <Button tone="accent" fill="solid" className="h-12 px-8 text-base" onClick={onComplete}>
           {t('ethics.onboardingAcknowledge')}
         </Button>
-        <p className="font-serif text-xs italic text-text/40">{t('ethics.onboardingConsent')}</p>
+        <p className="font-serif text-xs text-text/40">{t('ethics.onboardingConsent')}</p>
       </div>
     </div>
   );

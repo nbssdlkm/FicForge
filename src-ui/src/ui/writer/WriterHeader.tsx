@@ -47,9 +47,9 @@ export function WriterHeader({
   const hasDirty = chaptersDirty.length > 0;
 
   return (
-    <header className="flex min-h-[64px] items-center justify-between border-b border-black/5 px-4 text-xs text-text/50 dark:border-white/5 md:h-14 md:px-6">
+    <header className="flex min-h-[64px] items-center justify-between border-b border-rule/60 px-4 text-xs text-text/50 md:h-14 md:px-6">
       <div className="flex items-center gap-4">
-        <div className="hidden rounded-lg border border-black/10 bg-surface/60 p-1 dark:border-white/10 md:inline-flex">
+        <div className="hidden rounded-sm border border-rule bg-surface/60 p-1 md:inline-flex">
           <Button
             tone={mode === 'write' ? 'accent' : 'neutral'}
             fill={mode === 'write' ? 'solid' : 'plain'}

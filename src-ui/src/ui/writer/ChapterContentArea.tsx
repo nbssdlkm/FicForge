@@ -211,7 +211,7 @@ export const ChapterContentArea = ({
             </button>
           </div>
         ) : (
-          <p className="py-24 text-center font-serif italic text-text/40">{t('writer.emptyContent')}</p>
+          <p className="py-24 text-center font-serif text-text/40">{t('writer.emptyContent')}</p>
         )
       )}
     </div>

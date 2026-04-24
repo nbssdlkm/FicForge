@@ -70,7 +70,7 @@ export function MobileSettingsView({ auPath, currentChapter }: MobileSettingsVie
               <ArrowLeft size={16} className="mr-2" />
               {t("common.actions.back")}
             </Button>
-            <h2 className="font-display italic text-base font-medium text-text">{t("settingsMode.title")}</h2>
+            <h2 className="font-display text-base font-semibold text-text">{t("settingsMode.title")}</h2>
             <div className="w-[68px]" />
           </header>
           <div className="flex-1 overflow-hidden">

@@ -56,7 +56,7 @@ export function MobileSheet({
         >
           <div className="min-w-0 flex-1">
             {title ? (
-              <h2 className="truncate font-display italic text-lg font-medium text-inv-text">
+              <h2 className="truncate font-display text-lg font-semibold text-inv-text">
                 {title}
               </h2>
             ) : null}

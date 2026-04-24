@@ -24,7 +24,7 @@ export function WelcomeStep({ onNext }: { onNext: () => void }) {
       </div>
 
       <div className="space-y-3">
-        <h1 className="font-display italic text-4xl font-medium tracking-[0.01em] text-text md:text-5xl">
+        <h1 className="font-display text-4xl font-semibold tracking-[0.01em] text-text md:text-5xl">
           {t('onboarding.welcome.title')}
         </h1>
         <p className="mx-auto max-w-md font-serif text-lg leading-relaxed text-text/70">

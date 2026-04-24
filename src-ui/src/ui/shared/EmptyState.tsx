@@ -40,7 +40,7 @@ export function EmptyState({
           className="pointer-events-none absolute inset-1 rounded-[2px] border border-rule opacity-50"
         />
       </div>
-      <h3 className="font-display italic text-[22px] font-medium leading-tight text-accent">
+      <h3 className="font-display text-[22px] font-semibold leading-tight text-accent">
         {title}
       </h3>
       <div className="mt-2 max-w-xl whitespace-pre-line font-serif text-sm leading-6 text-text/70">

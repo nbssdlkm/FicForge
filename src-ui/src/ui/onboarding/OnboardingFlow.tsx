@@ -108,7 +108,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
               'inset 0 var(--gold-top-thick) 0 var(--color-gold-bright), inset 0 var(--gold-bottom-thick) 0 var(--color-gold-bright)',
           }}
         >
-          <h3 className="font-display italic text-lg font-medium">
+          <h3 className="font-display text-lg font-semibold">
             {t('common.actions.close')}
           </h3>
         </div>

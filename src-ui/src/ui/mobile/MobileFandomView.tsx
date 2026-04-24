@@ -268,7 +268,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
             <span>{t("library.title")}</span>
           </button>
         </div>
-        <h1 className="mt-2 font-display italic text-xl font-medium text-text">
+        <h1 className="mt-2 font-display text-xl font-semibold text-text">
           {t("common.scope.fandomTitle", { name: fandomName })}
         </h1>
       </header>
@@ -327,7 +327,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
               onClick={() => handleSelectFile(file.filename, category)}
             >
               <div className="min-w-0">
-                <p className="truncate font-display italic text-base font-medium text-text">{file.name}</p>
+                <p className="truncate font-display text-base font-medium text-text">{file.name}</p>
                 <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.12em] text-gold">{categoryLabel}</p>
               </div>
               <FileText size={16} className="ml-3 shrink-0 text-text/30" />
@@ -385,7 +385,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
               <ArrowLeft size={16} className="mr-2" />
               {t("common.actions.back")}
             </Button>
-            <h2 className="font-display italic text-base font-medium text-text">{t("settingsMode.title")}</h2>
+            <h2 className="font-display text-base font-semibold text-text">{t("settingsMode.title")}</h2>
             <div className="w-[68px]" />
           </header>
           <div className="flex-1 overflow-hidden">
