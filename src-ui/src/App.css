@@ -190,6 +190,35 @@
     --color-info-rgb: 136 174 220;
   }
 
+  /*
+   * Smooth theme switching — when ThemeToggle swaps the theme class on
+   * <html>, every CSS var changes at once, and any property that reads
+   * a theme var recomputes. This transition rule makes those recomputes
+   * cross-fade instead of snap. Scoped to color properties only so
+   * layout (transform / opacity / width / etc.) stays responsive.
+   *
+   * Per-element hover/active transitions (Tailwind `transition-colors`
+   * at 150ms) win on specificity, so button hovers still feel snappy.
+   * We only animate: bg, border, text, fill (SVG), stroke, outline.
+   *
+   * `prefers-reduced-motion` users get instant swap.
+   */
+  *,
+  *::before,
+  *::after {
+    transition-property: background-color, border-color, color, fill, stroke, outline-color;
+    transition-duration: 240ms;
+    transition-timing-function: ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0ms !important;
+    }
+  }
+
   html,
   body,
   #root {
@@ -198,7 +227,7 @@
   }
 
   body {
-    @apply bg-background text-text font-sans antialiased transition-colors duration-200;
+    @apply bg-background text-text font-sans antialiased;
     min-height: var(--app-height);
     overscroll-behavior-y: none;
   }
