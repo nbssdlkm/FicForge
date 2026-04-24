@@ -22,12 +22,14 @@ import type { FontEntry } from "./types.js";
 /**
  * 「跟随系统」字体栈。不进 manifest，单独常量导出。
  *
- * 浏览器/OS 自动挑选：Windows 用 Segoe UI + 微软雅黑，macOS 用苹方，
- * Android 用 Roboto + Noto Sans CJK，iOS 用苹方。用户在系统设置里换字体，
- * 应用自动跟随。
+ * Inter 放在最前面：英文/数字/标点走 Inter（index.html 从 Google Fonts 加载）。
+ * 中文字符 Inter 没有字形，浏览器按字符级 fallback 自动掉到系统 CJK：
+ *   Windows → 微软雅黑；macOS → 苹方 (PingFang SC)；
+ *   Linux → Noto Sans CJK SC (如已装)；Android → Roboto + Noto Sans CJK。
+ * 用户在系统设置里换中文字体，应用自动跟随。
  */
 export const SYSTEM_FONT_STACK =
-  'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif';
+  '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif';
 
 export const FONT_MANIFEST: readonly FontEntry[] = [
   // ── 内置字体（随包分发） ──────────────────────────
