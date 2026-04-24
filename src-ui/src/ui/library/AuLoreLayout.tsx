@@ -468,7 +468,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
               {alias}
               <button
                 type="button"
-                className="-mr-2 inline-flex h-11 w-11 items-center justify-center rounded-full text-accent/60 transition-colors hover:text-red-500 md:-mr-1 md:h-5 md:w-5"
+                className="-mr-2 inline-flex h-11 w-11 items-center justify-center rounded-full text-accent/60 transition-colors hover:text-error md:-mr-1 md:h-5 md:w-5"
                 onClick={() => setAliases(prev => prev.filter((_, j) => j !== i))}
               >
                 ×
@@ -598,7 +598,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
               <div className="flex items-center gap-2">
                 {selectedFile ? (
                   <>
-                    <Button tone="neutral" fill="plain" size="sm" className="px-3 text-red-500" onClick={() => setDeleteConfirmOpen(true)} disabled={isSaving || isReadingFile}>
+                    <Button tone="destructive" fill="plain" size="sm" className="px-3" onClick={() => setDeleteConfirmOpen(true)} disabled={isSaving || isReadingFile}>
                       <Trash2 size={16} />
                     </Button>
                     <Button tone="accent" fill="solid" size="sm" className="px-3" onClick={handleSaveLore} disabled={isSaving || isReadingFile}>
@@ -620,20 +620,20 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
 
             {selectedFile ? (
               <div className="mt-3 inline-flex rounded-md border border-black/10 bg-surface/60 p-0.5 dark:border-white/10">
-                <button className={`flex min-h-[44px] items-center gap-1 rounded px-3 py-2 text-sm ${!previewMode ? 'bg-accent text-white' : 'text-text/70 hover:text-text'}`} onClick={() => setPreviewMode(false)}>
+                <button className={`flex min-h-[44px] items-center gap-1 rounded px-3 py-2 text-sm ${!previewMode ? 'bg-accent text-inv-text' : 'text-text/70 hover:text-text'}`} onClick={() => setPreviewMode(false)}>
                   <Pencil size={12} /> {t('common.actions.edit')}
                 </button>
-                <button className={`flex min-h-[44px] items-center gap-1 rounded px-3 py-2 text-sm ${previewMode ? 'bg-accent text-white' : 'text-text/70 hover:text-text'}`} onClick={() => setPreviewMode(true)}>
+                <button className={`flex min-h-[44px] items-center gap-1 rounded px-3 py-2 text-sm ${previewMode ? 'bg-accent text-inv-text' : 'text-text/70 hover:text-text'}`} onClick={() => setPreviewMode(true)}>
                   <Eye size={12} /> {t('common.actions.preview')}
                 </button>
               </div>
             ) : (
               <>
                 <div className="mt-4 inline-flex w-full rounded-xl border border-black/10 bg-background/70 p-1 dark:border-white/10">
-                  <button type="button" onClick={() => setSelectedCategory('characters')} className={`flex min-h-[44px] flex-1 items-center justify-center rounded-xl text-sm font-medium transition-colors ${selectedCategory === 'characters' ? 'bg-accent text-white' : 'text-text/50'}`}>
+                  <button type="button" onClick={() => setSelectedCategory('characters')} className={`flex min-h-[44px] flex-1 items-center justify-center rounded-xl text-sm font-medium transition-colors ${selectedCategory === 'characters' ? 'bg-accent text-inv-text' : 'text-text/50'}`}>
                     {t('common.labels.characters')}
                   </button>
-                  <button type="button" onClick={() => setSelectedCategory('worldbuilding')} className={`flex min-h-[44px] flex-1 items-center justify-center rounded-xl text-sm font-medium transition-colors ${selectedCategory === 'worldbuilding' ? 'bg-accent text-white' : 'text-text/50'}`}>
+                  <button type="button" onClick={() => setSelectedCategory('worldbuilding')} className={`flex min-h-[44px] flex-1 items-center justify-center rounded-xl text-sm font-medium transition-colors ${selectedCategory === 'worldbuilding' ? 'bg-accent text-inv-text' : 'text-text/50'}`}>
                     {t('common.labels.worldbuilding')}
                   </button>
                 </div>
@@ -903,14 +903,14 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
                 )}
               </div>
               <div className="flex items-center gap-4">
-                <Button tone="neutral" fill="plain" size="sm" className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteConfirmOpen(true)} disabled={isSaving || isReadingFile}>
+                <Button tone="destructive" fill="plain" size="sm" className="h-8" onClick={() => setDeleteConfirmOpen(true)} disabled={isSaving || isReadingFile}>
                   <Trash2 size={14} />
                 </Button>
                 <div className="inline-flex rounded-md border border-black/10 dark:border-white/10 bg-surface/60 p-0.5 mr-2">
-                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${!previewMode ? 'bg-accent text-white' : 'text-text/70 hover:text-text'}`} onClick={() => setPreviewMode(false)}>
+                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${!previewMode ? 'bg-accent text-inv-text' : 'text-text/70 hover:text-text'}`} onClick={() => setPreviewMode(false)}>
                     <Pencil size={12} /> {t('common.actions.edit')}
                   </button>
-                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${previewMode ? 'bg-accent text-white' : 'text-text/70 hover:text-text'}`} onClick={() => setPreviewMode(true)}>
+                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${previewMode ? 'bg-accent text-inv-text' : 'text-text/70 hover:text-text'}`} onClick={() => setPreviewMode(true)}>
                     <Eye size={12} /> {t('common.actions.preview')}
                   </button>
                 </div>

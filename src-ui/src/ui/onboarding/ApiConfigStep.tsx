@@ -170,7 +170,7 @@ export function ApiConfigStep({
         </Button>
 
         {llmConnection.status !== 'idle' && (
-          <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-md ${llmConnection.status === 'success' ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300'}`}>
+          <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-md ${llmConnection.status === 'success' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'}`}>
             {llmConnection.status === 'success' ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
             <span>{llmConnection.message}</span>
           </div>

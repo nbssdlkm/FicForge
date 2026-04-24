@@ -142,7 +142,7 @@ export function FileSelectStep({
                   type="button"
                   onClick={() => removeFile(index)}
                   aria-label={t("import.removeFile")}
-                  className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-md text-text/30 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+                  className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-md text-text/30 hover:bg-error/10 hover:text-error"
                 >
                   <X size={14} />
                 </button>

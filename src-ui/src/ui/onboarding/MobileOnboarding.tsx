@@ -57,7 +57,7 @@ function StepCard({
           : 'border-black/10 bg-surface hover:border-accent/40 dark:border-white/10'
       }`}
     >
-      <div className={`mt-0.5 rounded-xl p-2 ${active ? 'bg-accent text-white' : 'bg-background text-text/70'}`}>
+      <div className={`mt-0.5 rounded-xl p-2 ${active ? 'bg-accent text-inv-text' : 'bg-background text-text/70'}`}>
         {icon}
       </div>
       <div className="min-w-0 flex-1">
@@ -359,9 +359,9 @@ export function MobileOnboarding({
                   {llmConnection.status !== 'idle' && (
                     <div className={`rounded-xl px-4 py-3 text-sm leading-relaxed ${
                       llmConnection.status === 'success'
-                        ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'
+                        ? 'bg-success/10 text-success'
                         : llmConnection.status === 'error'
-                          ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300'
+                          ? 'bg-error/10 text-error'
                           : 'bg-surface text-text/70'
                     }`}
                     >
@@ -526,15 +526,15 @@ export function MobileOnboarding({
 
                 <Card className="space-y-3 rounded-xl p-5">
                   <div className="flex items-start gap-3 text-sm text-text/90">
-                    <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-green-500" />
+                    <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-success" />
                     <span>{t('onboarding.mobile.complete.languageSummary', { language: language === 'zh' ? '中文' : 'English' })}</span>
                   </div>
                   <div className="flex items-start gap-3 text-sm text-text/90">
-                    <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-green-500" />
+                    <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-success" />
                     <span>{t('onboarding.mobile.complete.llmSummary', { model })}</span>
                   </div>
                   <div className="flex items-start gap-3 text-sm text-text/90">
-                    <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-green-500" />
+                    <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-success" />
                     <span>
                       {useCustomEmbedding
                         ? t('onboarding.mobile.complete.embeddingSummary', { model: embeddingModel })
@@ -542,7 +542,7 @@ export function MobileOnboarding({
                     </span>
                   </div>
                   <div className="flex items-start gap-3 text-sm text-text/90">
-                    <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-green-500" />
+                    <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-success" />
                     <span>
                       {setupAction === 'create'
                         ? t('onboarding.mobile.complete.createSummary', { fandomName, auName })
@@ -556,7 +556,7 @@ export function MobileOnboarding({
                 </Card>
 
                 {submitError && (
-                  <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
+                  <div className="rounded-xl bg-error/10 px-4 py-3 text-sm text-error">
                     {submitError}
                   </div>
                 )}

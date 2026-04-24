@@ -584,9 +584,9 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                   {t("fandomLore.referenceHint")}
                 </span>
                 <Button
-                  tone="neutral" fill="plain"
+                  tone="destructive" fill="plain"
                   size="sm"
-                  className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  className="h-8"
                   onClick={() => {
                     if (isEditorDirty) {
                       openDiscardChangesConfirm({ type: 'delete' });
@@ -599,10 +599,10 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                   <Trash2 size={14} />
                 </Button>
                 <div className="inline-flex rounded-md border border-black/10 dark:border-white/10 bg-surface/60 p-0.5 mr-2">
-                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${!previewMode ? 'bg-accent text-white' : 'text-text/70 hover:text-text'}`} onClick={() => setPreviewMode(false)}>
+                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${!previewMode ? 'bg-accent text-inv-text' : 'text-text/70 hover:text-text'}`} onClick={() => setPreviewMode(false)}>
                     <Pencil size={12} /> {t('common.actions.edit')}
                   </button>
-                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${previewMode ? 'bg-accent text-white' : 'text-text/70 hover:text-text'}`} onClick={() => setPreviewMode(true)}>
+                  <button className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${previewMode ? 'bg-accent text-inv-text' : 'text-text/70 hover:text-text'}`} onClick={() => setPreviewMode(true)}>
                     <Eye size={12} /> {t('common.actions.preview')}
                   </button>
                 </div>

@@ -63,7 +63,7 @@ export const DraftNavigator = ({
             key={draft.draftId}
             type="button"
             onClick={() => onSelect(index)}
-            className={`min-h-[44px] rounded-full px-3 text-sm whitespace-nowrap transition-colors ${index === activeDraftIndex ? 'bg-accent text-white' : 'bg-black/5 text-text/70 dark:bg-white/10'}`}
+            className={`min-h-[44px] rounded-full px-3 text-sm whitespace-nowrap transition-colors ${index === activeDraftIndex ? 'bg-accent text-inv-text' : 'bg-black/5 text-text/70 dark:bg-white/10'}`}
           >
             {t('drafts.count', { current: index + 1, total: drafts.length })}
           </button>

@@ -53,7 +53,7 @@ export function LibraryFandomSections({
               <Button tone="neutral" fill="plain" size="sm" className="text-text/50 hover:text-text/70" onClick={() => onOpenTrash(fandom.dir_name, fandom.name)} title={t('trash.tooltip')}>
                 <ArchiveRestore size={14} />
               </Button>
-              <Button tone="neutral" fill="plain" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => onDeleteFandom(fandom.dir_name, fandom.name)} disabled={creatingFandom || creatingAu || deleting}>
+              <Button tone="destructive" fill="plain" size="sm" onClick={() => onDeleteFandom(fandom.dir_name, fandom.name)} disabled={creatingFandom || creatingAu || deleting}>
                 <Trash2 size={14} />
               </Button>
             </div>
@@ -69,7 +69,7 @@ export function LibraryFandomSections({
                   onClick={() => onNavigate('writer', `${dataDir}/fandoms/${fandom.dir_name}/aus/${au.dir_name}`)}
                 >
                   <button
-                    className="absolute right-3 top-3 inline-flex h-11 w-11 items-center justify-center rounded-md p-0 text-text/30 opacity-100 transition-opacity hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 md:h-9 md:w-9 md:opacity-0 md:group-hover:opacity-100"
+                    className="absolute right-3 top-3 inline-flex h-11 w-11 items-center justify-center rounded-md p-0 text-text/30 opacity-100 transition-opacity hover:bg-error/10 hover:text-error md:h-9 md:w-9 md:opacity-0 md:group-hover:opacity-100"
                     onClick={(event) => {
                       event.stopPropagation();
                       onDeleteAu(fandom.dir_name, fandom.name, au.dir_name, au.name);

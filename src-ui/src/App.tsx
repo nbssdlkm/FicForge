@@ -200,7 +200,7 @@ function App() {
     return (
       <div className="min-h-screen bg-background text-text flex items-center justify-center">
         <div className="text-center max-w-md">
-          <p className="text-red-500 text-lg mb-2">{t('app.sidecar.error')}</p>
+          <p className="text-error text-lg mb-2">{t('app.sidecar.error')}</p>
           <p className="text-text/70 text-sm">{initError}</p>
           <p className="text-text/50 text-xs mt-4">{t('app.sidecar.restartHint')}</p>
         </div>

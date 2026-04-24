@@ -204,14 +204,14 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
         <div className="flex gap-2 border-b border-black/5 px-4 py-2 dark:border-white/5">
           <button
             type="button"
-            className={cn("flex items-center gap-1 rounded-lg px-3 py-2 text-sm", !previewMode ? "bg-accent text-white" : "text-text/50")}
+            className={cn("flex items-center gap-1 rounded-lg px-3 py-2 text-sm", !previewMode ? "bg-accent text-inv-text" : "text-text/50")}
             onClick={() => setPreviewMode(false)}
           >
             <Pencil size={14} /> {t("common.actions.edit")}
           </button>
           <button
             type="button"
-            className={cn("flex items-center gap-1 rounded-lg px-3 py-2 text-sm", previewMode ? "bg-accent text-white" : "text-text/50")}
+            className={cn("flex items-center gap-1 rounded-lg px-3 py-2 text-sm", previewMode ? "bg-accent text-inv-text" : "text-text/50")}
             onClick={() => setPreviewMode(true)}
           >
             <Eye size={14} /> {t("common.actions.preview")}
@@ -241,7 +241,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
             <p className="text-sm text-text/90">{t("fandomLore.deleteMessage", { name: selectedFile })}</p>
             <div className="flex justify-end gap-2">
               <Button tone="neutral" fill="plain" onClick={() => setDeleteOpen(false)}>{t("common.actions.cancel")}</Button>
-              <Button tone="accent" fill="solid" className="bg-red-600 text-white hover:bg-red-700" onClick={handleDelete}>
+              <Button tone="destructive" fill="solid" onClick={handleDelete}>
                 {t("common.actions.confirmDelete")}
               </Button>
             </div>
@@ -287,7 +287,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
                 onClick={() => setCategory(cat)}
                 className={cn(
                   "flex min-h-[44px] flex-1 items-center justify-center rounded-xl text-sm font-medium transition-colors",
-                  category === cat ? "bg-accent text-white" : "text-text/50",
+                  category === cat ? "bg-accent text-inv-text" : "text-text/50",
                 )}
               >
                 <Icon size={15} className="mr-2" />

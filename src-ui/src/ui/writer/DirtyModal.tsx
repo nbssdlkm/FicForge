@@ -210,7 +210,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
                 <span>{t('dirty.extracting')}</span>
               </div>
             ) : extractError ? (
-              <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 rounded-lg text-sm">
+              <div className="flex items-center gap-2 p-3 bg-error/10 text-error rounded-lg text-sm">
                 <AlertCircle size={14} className="shrink-0" />
                 <span>{t('dirty.extractFailed')}</span>
               </div>

@@ -285,9 +285,8 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
                           {pendingId === entry.trash_id ? <Spinner size="sm" /> : t("trash.restore")}
                         </Button>
                         <Button
-                          tone="neutral" fill="plain"
+                          tone="destructive" fill="plain"
                           size="sm"
-                          className="text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
                           onClick={() => setDeleteTarget(entry)}
                           disabled={isBusy || disabled}
                         >
@@ -299,9 +298,8 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
                 })}
                 <div className="flex justify-end pt-1">
                   <Button
-                    tone="neutral" fill="plain"
+                    tone="destructive" fill="plain"
                     size="sm"
-                    className="text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
                     onClick={() => setClearAllOpen(true)}
                     disabled={isClearingAll || disabled}
                   >
@@ -328,8 +326,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
               {t("common.actions.cancel")}
             </Button>
             <Button
-              tone="accent" fill="solid"
-              className="bg-red-600 text-white hover:bg-red-700"
+              tone="destructive" fill="solid"
               onClick={() => { void handlePermanentDelete(); }}
               disabled={pendingId !== null || disabled}
             >
@@ -353,8 +350,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
               {t("common.actions.cancel")}
             </Button>
             <Button
-              tone="accent" fill="solid"
-              className="bg-red-600 text-white hover:bg-red-700"
+              tone="destructive" fill="solid"
               onClick={() => { void handleClearAll(); }}
               disabled={isClearingAll || disabled}
             >

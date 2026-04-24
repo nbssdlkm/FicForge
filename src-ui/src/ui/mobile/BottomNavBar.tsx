@@ -46,7 +46,7 @@ export function BottomNavBar({ activeTab, onTabChange }: BottomNavBarProps) {
               className={cn(
                 "flex min-h-[56px] flex-col items-center justify-center rounded-xl px-2 py-2 text-xs font-medium transition-colors",
                 active
-                  ? "bg-accent text-white shadow-subtle"
+                  ? "bg-accent text-inv-text shadow-subtle"
                   : "text-text/50 hover:bg-black/5 hover:text-text dark:hover:bg-white/5"
               )}
             >

@@ -69,7 +69,7 @@ export function ImportProgressStep({
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <CheckCircle2 size={24} className="text-green-500" />
+          <CheckCircle2 size={24} className="text-success" />
           <h3 className="text-lg font-bold text-text">{t("import.step5Done")}</h3>
         </div>
 

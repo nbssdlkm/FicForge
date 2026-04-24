@@ -51,7 +51,7 @@ export function AnalysisStep({
           return (
             <div key={file.name} className="rounded-xl border border-black/10 bg-surface/30 p-4 dark:border-white/10">
               <div className="flex items-center gap-2">
-                {status === "done" && <CheckCircle2 size={16} className="text-green-500" />}
+                {status === "done" && <CheckCircle2 size={16} className="text-success" />}
                 {status === "error" && <XCircle size={16} className="text-error" />}
                 {(status === "analyzing" || status === "llm-detecting-chat") && <Spinner size="md" className="text-accent" />}
                 {status === "waiting" && <Clock size={16} className="text-text/30" />}

@@ -15,13 +15,13 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const toneFillStyles: Record<`${Tone}-${Fill}`, string> = {
-  'accent-solid': 'bg-accent text-white hover:opacity-90',
+  'accent-solid': 'bg-accent text-inv-text hover:opacity-90',
   'accent-outline': 'text-accent border border-accent hover:bg-accent/10',
   'accent-plain': 'text-accent hover:bg-accent/10',
   'neutral-solid': 'bg-surface text-text hover:bg-surface/80 border border-black/10 dark:border-white/10',
   'neutral-outline': 'text-text hover:bg-surface border border-black/10 dark:border-white/10',
   'neutral-plain': 'hover:bg-surface hover:text-accent text-text',
-  'destructive-solid': 'bg-error text-white hover:opacity-90',
+  'destructive-solid': 'bg-error text-inv-text hover:opacity-90',
   'destructive-outline': 'text-error border border-error/40 hover:bg-error/10',
   'destructive-plain': 'text-error hover:bg-error/10',
 };

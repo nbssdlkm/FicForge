@@ -102,7 +102,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
         <p className="text-sm text-text/90 leading-relaxed">{t('onboarding.closeConfirm')}</p>
         <div className="mt-4 flex justify-end gap-2">
           <button className="rounded-lg px-4 py-2 text-sm text-text/70 hover:bg-black/5 dark:hover:bg-white/5" onClick={() => setShowCloseConfirm(false)}>{t('common.actions.cancel')}</button>
-          <button className="rounded-lg bg-accent px-4 py-2 text-sm text-white" onClick={handleConfirmClose}>{t('onboarding.closeConfirmYes')}</button>
+          <button className="rounded-lg bg-accent px-4 py-2 text-sm text-inv-text" onClick={handleConfirmClose}>{t('onboarding.closeConfirmYes')}</button>
         </div>
       </div>
     </div>

@@ -268,7 +268,7 @@ export const UndoConfirmModal = ({
       message={
         <>
           <span className="block whitespace-pre-line">{t('undo.confirmDesc')}</span>
-          <span className="mt-2 block font-medium text-red-500">{t('undo.irreversible')}</span>
+          <span className="mt-2 block font-medium text-error">{t('undo.irreversible')}</span>
         </>
       }
       destructive

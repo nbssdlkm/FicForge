@@ -26,13 +26,13 @@ export function CompletionStep({
 
       <div className="space-y-3 text-left bg-surface/50 rounded-xl p-6 border border-black/5 dark:border-white/5">
         <div className="flex items-center gap-3 text-sm">
-          <CheckCircle2 size={18} className="text-green-500 shrink-0" />
+          <CheckCircle2 size={18} className="text-success shrink-0" />
           <span>{t('onboarding.completion.modelConnected')}</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
           {fandomName ? (
             <>
-              <CheckCircle2 size={18} className="text-green-500 shrink-0" />
+              <CheckCircle2 size={18} className="text-success shrink-0" />
               <span>{t('onboarding.completion.fandomCreated', { name: fandomName })}</span>
             </>
           ) : (
