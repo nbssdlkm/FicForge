@@ -13,6 +13,14 @@
     <link rel="preload" href="/fonts/source-serif-4.woff2" as="font" type="font/woff2" crossorigin />
     <!-- LXGW WenKai Screen (CJK, 244 subset 按 unicode-range 懒加载，首屏仅 ~60KB) -->
     <link rel="stylesheet" href="/fonts/lxgw-wenkai-screen/result.css" />
+    <!--
+      EB Garamond Italic 400/500 — Ex Libris display font (brand seal / chapter heading / drawer EN name).
+      TODO: bundle into public/fonts/ 同 Source Serif 4 模式以消除 CDN 依赖（离线场景）。
+      暂时从 Google Fonts CDN 加载，未联网时浏览器自动 fallback 到 --font-display 链中的 Source Serif 4。
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@1,400;1,500&display=swap" />
 
     <title>FicForge</title>
   </head>

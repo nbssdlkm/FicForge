@@ -41,11 +41,16 @@
  * 3. If the token maps to a Tailwind value, also update `tailwind.config.ts`.
  *
  * ════════════════════════════════════════════════════════════════════════════
- * BRAND CAVEAT
+ * BRAND CAVEAT (Ex Libris)
  * ────────────────────────────────────────────────────────────────────────────
- * `color.accent` is `var(--color-accent)` — its actual hex differs per theme
- * (warm: #C5705D / mint: #6BAF7A / night: #C5705D). Do NOT hardcode the hex
- * anywhere in JS/TS; always go through this indirection so themes stay coherent.
+ * 现行视觉为 Ex Libris (sage drawer + olive accent + gold metadata)，色板由
+ * 用户画师朋友给定。actual hex differs per theme:
+ *   warm (= Ex Libris Light):  accent #576148 olive · drawer #47594E sage
+ *   night (= Ex Libris Dark):  accent #4D5741       · drawer #3F5048
+ *   mint  (legacy, 待退役):    accent #6BAF7A       · drawer #6BAF7A
+ *
+ * Do NOT hardcode the hex anywhere in JS/TS; always go through this
+ * indirection so themes stay coherent.
  */
 
 /** Semantic color tokens. Values reference CSS vars to respect the active theme. */
@@ -55,13 +60,24 @@ export const color = {
     base: 'var(--color-bg)',
     /** Raised surfaces: cards, sidebars, inline banner backgrounds */
     raised: 'var(--color-surface)',
+    /** Drawer / modal header bg (sage in light, dark sage in night) — Ex Libris signature surface */
+    drawer: 'var(--color-drawer)',
   },
   text: {
     /** Default body text */
     default: 'var(--color-text)',
+    /** "Inverse" text — used on dark surfaces (drawer / accent button bg) */
+    inv: 'var(--color-inv-text)',
   },
-  /** Brand primary — story-anchored accent color */
+  /** Brand primary — action / 选中态 (olive in Ex Libris) */
   accent: 'var(--color-accent)',
+  /** Gold (Ex Libris signature) */
+  gold: {
+    /** Antique gold — text / 描边 on parchment surfaces */
+    antique: 'var(--color-gold)',
+    /** Polished brass — gold lines on drawer/dark surfaces */
+    bright: 'var(--color-gold-bright)',
+  },
   /** Semantic status colors, tuned for light + dark visibility */
   status: {
     success: 'var(--color-success)',
@@ -69,6 +85,15 @@ export const color = {
     error: 'var(--color-error)',
     info: 'var(--color-info)',
   },
+} as const;
+
+/**
+ * Gold line thickness — drawer banner / modal header inset shadow.
+ * Used in box-shadow as: `inset 0 var(--gold-top-thick) 0 var(--color-gold-bright)` etc.
+ */
+export const goldLine = {
+  topThick: 'var(--gold-top-thick)',
+  bottomThick: 'var(--gold-bottom-thick)',
 } as const;
 
 /** Spacing scale — matches Tailwind's default 4px grid where possible. */

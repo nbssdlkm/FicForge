@@ -16,6 +16,11 @@ export default {
         warning: 'var(--color-warning)',
         error: 'var(--color-error)',
         info: 'var(--color-info)',
+        // Ex Libris additions
+        drawer: 'var(--color-drawer)',          // sage 深绿 — drawer banner / modal header bg
+        gold: 'var(--color-gold)',              // antique — gold 文字 on parchment
+        'gold-bright': 'var(--color-gold-bright)', // brass — gold 线 on drawer
+        'inv-text': 'var(--color-inv-text)',    // cream — 深色表面上的文字
       },
       fontFamily: {
         // 通过 CSS 变量解析，运行时可动态切换而无需重新渲染组件。
@@ -24,6 +29,7 @@ export default {
         serif: ['var(--font-reading)'],
         sans: ['var(--font-ui)'],
         mono: ['var(--font-mono)'],
+        display: ['var(--font-display)'],  // EB Garamond italic — brand / hero / chapter heading
       },
       spacing: {
         // Based on 4px grid requirements (but keeping arbitrary values mapped to normal tailwind keys)

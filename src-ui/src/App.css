@@ -20,67 +20,106 @@
 
 @layer base {
   :root {
-    /* Default: Warm Theme ('暖光') */
+    /*
+     * Default: Ex Libris Light（继承 .theme-warm 命名兼容旧 ThemeToggle，但视觉
+     * 已重设计为 Ex Libris ——色板由用户画师朋友给定 (sage drawer + olive accent)，
+     * 详见 docs/internal/design-explore/library-mobile-exlibris-v13.html。
+     */
     --app-height: 100vh;
     --safe-area-top: env(safe-area-inset-top, 0px);
     --safe-area-bottom: env(safe-area-inset-bottom, 0px);
     --safe-area-left: env(safe-area-inset-left, 0px);
     --safe-area-right: env(safe-area-inset-right, 0px);
-    --color-bg: #FAF9F7;
-    --color-surface: #F2F0EB;
-    --color-text: #3D3935;
-    --color-accent: #C5705D;
 
-    --color-success: #508D69;
-    --color-warning: #D69F3C;
-    --color-error: #D35D5D;
-    --color-info: #5A85B8;
+    /* === Ex Libris core palette (light) === */
+    --color-bg: #F3EFE2;        /* parchment, page bg = paper (no surface 分层) */
+    --color-surface: #F3EFE2;   /* = bg, 砍分层 */
+    --color-text: #1A2E20;      /* deep ink green */
+    --color-accent: #576148;    /* olive — 动作色 / 选中态 */
+
+    /* Ex Libris additions (新增) */
+    --color-drawer: #47594E;    /* sage — drawer banner / modal header / 权威表面 bg */
+    --color-gold-bright: #F0CC60;  /* polished gold leaf — 金线 (drawer 上对比 4-5:1) */
+    --color-gold: #C99A38;      /* antique gold — 金色文字 / 描边 (parchment 上) */
+    --color-inv-text: #FBF5E1;  /* cream — 深色表面上的"白"色文字 (drawer/accent bg 上) */
+
+    /* === Status colors (warm parchment 调校) === */
+    --color-success: #386B45;
+    --color-warning: #B5762B;
+    --color-error: #8B2D1F;     /* oxblood (warm) */
+    --color-info: #2E4E7E;
+
+    /* === Gold line thickness (drawer banner / modal header inset shadow) === */
+    --gold-top-thick: 2px;
+    --gold-bottom-thick: -2px;
 
     /*
-     * 字体 stack（Phase 2）
+     * 字体 stack（Phase 2 + Plan C v2）
      *
-     * Tailwind font-sans / font-serif / font-mono 通过 var() 读取这两/三个变量，
-     * 字体切换 = 运行时 setProperty，零 React re-render、零组件改动。
+     * --font-ui:      UI 控件 (button / nav / form label) — Inter 第一，system-ui fallback
+     * --font-reading: 正文阅读 (body) — Source Serif 4 已 bundle
+     * --font-display: 装饰性 display (brand seal / chapter heading / drawer EN name) —
+     *                 EB Garamond italic, 当前从 Google Fonts CDN 加载（见 index.html），
+     *                 TODO: 后续按 Source Serif 4 同款方式 bundle 进 public/fonts/
+     * --font-mono:    元数据 (call no. / timestamp)
      *
-     * 默认值策略：内置字体（Source Serif 4 / LXGW WenKai Screen）被列在最前，
-     * Phase 3 前字体文件不存在，浏览器自动降级到后续 fallback（视觉无回归）；
-     * Phase 3 打包字体后自动升级为新默认。
-     *
-     * UI 默认「跟随系统」——与 src-engine/fonts/manifest.ts SYSTEM_FONT_STACK 同步。
+     * 默认值策略不变：内置字体被列在最前，浏览器自动 fallback。
      */
-    --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --font-ui: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif;
     --font-reading: "Source Serif 4", "LXGW WenKai Screen", Charter, Georgia, "Noto Serif CJK SC", "PingFang SC", SimSun, serif;
+    --font-display: "EB Garamond", "Source Serif 4", Charter, Georgia, "Noto Serif CJK SC", serif;
     --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, monospace;
   }
 
-  /* Warm Theme */
+  /* Warm Theme — Ex Libris Light (默认主题) */
   .theme-warm {
-    --color-bg: #FAF9F7;
-    --color-surface: #F2F0EB;
-    --color-text: #3D3935;
-    --color-accent: #C5705D;
+    --color-bg: #F3EFE2;
+    --color-surface: #F3EFE2;
+    --color-text: #1A2E20;
+    --color-accent: #576148;
+    --color-drawer: #47594E;
+    --color-gold-bright: #F0CC60;
+    --color-gold: #C99A38;
+    --color-inv-text: #FBF5E1;
+
+    --color-success: #386B45;
+    --color-warning: #B5762B;
+    --color-error: #8B2D1F;
+    --color-info: #2E4E7E;
   }
 
-  /* Mint Theme ('薄荷') */
+  /*
+   * Mint Theme ('薄荷') — Legacy
+   * 旧暖色主题已退役，但保留 theme class 不破坏 ThemeToggle。
+   * TODO: 后续 ThemeToggle 简化为 light/dark 二选一时移除此块。
+   */
   .theme-mint {
     --color-bg: #F0F7F2;
     --color-surface: #E6F0E9;
     --color-text: #2D3A2E;
     --color-accent: #6BAF7A;
+    --color-drawer: #6BAF7A;
+    --color-gold-bright: #F0CC60;
+    --color-gold: #C99A38;
+    --color-inv-text: #FFFFFF;
   }
 
-  /* Night Theme ('夜间') */
+  /* Night Theme — Ex Libris Dark */
   .theme-night {
-    --color-bg: #262624;
-    --color-surface: #2F2D2A;
-    --color-text: #E0DDD8;
-    --color-accent: #C5705D;
+    --color-bg: #0E1110;        /* near-black charcoal */
+    --color-surface: #12161A;   /* 比 bg 微提亮，让 AU 卡片浮出 */
+    --color-text: #E5DCC4;      /* warm cream */
+    --color-accent: #4D5741;    /* dark olive (parallel light) */
+    --color-drawer: #3F5048;    /* dark sage (parallel light) */
+    --color-gold-bright: #DDB565; /* brass — dark mode 下更突出 */
+    --color-gold: #DDB565;      /* 同 gold-bright (charcoal paper 在两种 context 都过 8:1) */
+    --color-inv-text: #E5DCC4;  /* = ink（dark 下"深色表面上的文字"也是 cream） */
 
-    /* Slightly adjusted semantics for dark mode visibility */
-    --color-success: #4A8361;
-    --color-warning: #C79437;
-    --color-error: #C25555;
-    --color-info: #527AAB;
+    /* Status — dark mode 视觉调校 */
+    --color-success: #6B9577;
+    --color-warning: #D4A763;
+    --color-error: #C26975;
+    --color-info: #88AEDC;
   }
 
   html,
