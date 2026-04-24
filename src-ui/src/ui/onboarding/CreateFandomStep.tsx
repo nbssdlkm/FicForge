@@ -57,7 +57,7 @@ export function CreateFandomStep({
       </div>
 
       <div className="space-y-1.5">
-        <label className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-text/60">{t('onboarding.createFandom.nameLabel')}</label>
+        <label className="font-sans text-[11px] font-medium uppercase tracking-[0.1em] text-ink-muted">{t('onboarding.createFandom.nameLabel')}</label>
         <Input
           value={name}
           onChange={e => { setName(e.target.value); setError(''); }}

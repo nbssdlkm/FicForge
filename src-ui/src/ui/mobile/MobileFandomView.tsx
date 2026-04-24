@@ -261,7 +261,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.12em] text-accent"
+            className="flex items-center gap-1 font-sans text-[11px] font-medium tracking-[0.04em] text-accent"
             onClick={() => onNavigate("library")}
           >
             <ArrowLeft size={14} />
@@ -328,7 +328,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
             >
               <div className="min-w-0">
                 <p className="truncate font-display text-base font-medium text-text">{file.name}</p>
-                <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.12em] text-gold">{categoryLabel}</p>
+                <p className="mt-1 font-sans text-[10px] font-medium uppercase tracking-[0.12em] text-gold">{categoryLabel}</p>
               </div>
               <FileText size={16} className="ml-3 shrink-0 text-text/30" />
             </button>

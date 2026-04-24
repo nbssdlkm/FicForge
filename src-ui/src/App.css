@@ -105,10 +105,16 @@
      *
      * 默认值策略不变：内置字体被列在最前，浏览器自动 fallback。
      */
-    --font-ui: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --font-ui: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", "LXGW WenKai Screen", sans-serif;
     --font-reading: "Source Serif 4", "LXGW WenKai Screen", Charter, Georgia, "Noto Serif CJK SC", "PingFang SC", SimSun, serif;
-    --font-display: "EB Garamond", "Source Serif 4", Charter, Georgia, "Noto Serif CJK SC", serif;
-    --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, monospace;
+    /* font-display CN fallback goes to LXGW WenKai Screen (bundled) before
+     * landing on system serif — avoids Windows default SimSun for CJK chars
+     * in display contexts (WelcomeStep h1 "开始使用FicForge", etc.). */
+    --font-display: "EB Garamond", "Source Serif 4", "LXGW WenKai Screen", Charter, Georgia, "Noto Serif CJK SC", serif;
+    /* font-mono is Latin-first but labels like "粮坊 · Fanfic" mix CJK in;
+     * LXGW WenKai Screen renders CJK glyphs cleanly — better than the
+     * browser default CJK mono (NSimSun, looks dated). */
+    --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "LXGW WenKai Screen", monospace;
   }
 
   /* Warm Theme — Ex Libris Light (默认主题)

@@ -109,7 +109,7 @@ function LibraryInner({ onNavigate }: Props) {
               <div className="font-display text-lg font-semibold tracking-[0.02em] text-text">
                 {t("common.appName")}
               </div>
-              <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-gold">
+              <div className="font-sans text-[10px] font-medium uppercase tracking-[0.18em] text-gold">
                 粮坊 · Fanfic
               </div>
             </div>
@@ -131,7 +131,7 @@ function LibraryInner({ onNavigate }: Props) {
       </header>
 
       {/* HERO — Index of Works italic + CN subtitle + stats pills + primary actions */}
-      <section className="border-b-4 border-double border-rule bg-background px-4 py-6 md:px-8 md:py-8">
+      <section className="border-b border-rule bg-background px-4 py-6 md:px-8 md:py-8">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="font-display italic text-3xl font-medium uppercase leading-tight tracking-[0.04em] text-accent md:text-4xl">

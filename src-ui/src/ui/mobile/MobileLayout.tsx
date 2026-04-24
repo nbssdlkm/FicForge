@@ -97,7 +97,7 @@ export function MobileLayout({
       <header className="safe-area-top flex h-11 shrink-0 items-center justify-between border-b border-rule bg-surface/85 px-3 backdrop-blur">
         <button
           type="button"
-          className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.12em] text-accent"
+          className="flex items-center gap-1 font-sans text-[11px] font-medium tracking-[0.04em] text-accent"
           onClick={() => onNavigate("library")}
         >
           <ArrowLeft size={14} />

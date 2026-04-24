@@ -49,7 +49,7 @@ export function CompletionStep({
 
       {/* Next-steps list */}
       <div className="space-y-2 text-left">
-        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-gold">
+        <p className="font-sans text-[11px] font-medium uppercase tracking-[0.18em] text-gold">
           {t('onboarding.completion.nextSteps')}
         </p>
         <ul className="list-inside list-disc space-y-1 font-serif text-sm leading-relaxed text-text/65">
@@ -61,7 +61,7 @@ export function CompletionStep({
 
       {/* Ethics notice — neutral card with hairline border */}
       <div className="space-y-3 rounded-sm border border-rule bg-surface p-5 text-left">
-        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-text/60">
+        <p className="font-sans text-[11px] font-medium uppercase tracking-[0.18em] text-text/60">
           {t('ethics.onboardingTitle')}
         </p>
         <p className="whitespace-pre-line font-serif text-xs leading-relaxed text-text/60">

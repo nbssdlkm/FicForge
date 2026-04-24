@@ -49,10 +49,10 @@ export function BottomNavBar({ activeTab, onTabChange }: BottomNavBarProps) {
               type="button"
               onClick={() => onTabChange(id)}
               className={cn(
-                "relative flex min-h-[56px] flex-col items-center justify-center rounded-sm px-2 py-2 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors",
+                "relative flex min-h-[56px] flex-col items-center justify-center rounded-sm px-2 py-2 font-sans text-[11px] font-medium tracking-[0.04em] transition-colors",
                 active
                   ? "text-accent"
-                  : "text-text/45 hover:bg-rule-soft hover:text-text/70"
+                  : "text-ink-faint hover:bg-rule-soft hover:text-text/70"
               )}
               aria-current={active ? "page" : undefined}
             >

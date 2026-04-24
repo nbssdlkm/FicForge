@@ -229,7 +229,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
                 <div className="truncate font-display text-base font-semibold text-text" title={auName}>
                   {auName}
                 </div>
-                <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-gold">
+                <div className="font-sans text-[10px] font-medium uppercase tracking-[0.18em] text-gold">
                   {t('navigation.workspace')}
                 </div>
               </div>
@@ -278,7 +278,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
             })}
           </div>
 
-          <div className="mt-3 flex items-center gap-2 px-4 pb-2 shrink-0 font-mono text-[9px] font-medium uppercase tracking-[0.18em] text-text/45">
+          <div className="mt-3 flex items-center gap-2 px-4 pb-2 shrink-0 font-sans text-[10px] font-medium uppercase tracking-[0.18em] text-ink-faint">
             <span className="text-gold">◆</span>
             {t('workspace.chaptersTitle')}
           </div>
