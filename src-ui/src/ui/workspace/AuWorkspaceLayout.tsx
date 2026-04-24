@@ -209,30 +209,80 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
         width="260px"
         isCollapsed={leftCollapsed}
         onToggle={() => setLeftCollapsed(!leftCollapsed)}
-        className="flex flex-col shrink-0 z-20 border-r border-black/10 dark:border-white/10"
+        className="flex flex-col shrink-0 z-20 border-r border-rule"
       >
-        <div className="p-4 border-b border-black/10 dark:border-white/10 flex flex-col gap-2 bg-surface">
-          <div className="flex items-center justify-between">
-            <div className="font-serif font-bold text-lg truncate max-w-[170px]" title={auName}>{t('common.scope.auTitle', { name: auName })}</div>
-            <Button tone="neutral" fill="plain" size="sm" onClick={() => onNavigate('library')} className="h-8 w-8 p-0 rounded-full text-text/70 hover:text-text" title={t('common.actions.back')}>
+        {/* Brand seal + AU name header — mirrors the Library topbar so the two
+            surfaces read as parts of the same catalog */}
+        <div className="flex flex-col gap-1 border-b border-rule bg-surface px-4 py-3.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                aria-hidden="true"
+                className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-sm border-[1.5px] border-accent"
+              >
+                <span className="font-display italic text-base font-semibold leading-none text-accent">
+                  F
+                </span>
+                <span className="pointer-events-none absolute inset-[2.5px] rounded-[2px] border border-accent/50 opacity-60" />
+              </div>
+              <div className="min-w-0 leading-tight">
+                <div className="truncate font-display italic text-base font-medium text-text" title={auName}>
+                  {auName}
+                </div>
+                <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-gold">
+                  {t('navigation.workspace')}
+                </div>
+              </div>
+            </div>
+            <Button tone="neutral" fill="plain" size="sm" onClick={() => onNavigate('library')} className="h-8 w-8 shrink-0 rounded-full p-0 text-text/60 hover:text-text" title={t('common.actions.back')}>
               <LogOut size={16} />
             </Button>
           </div>
-          <div className="text-xs text-text/50 font-sans font-medium">{t('navigation.workspace')}</div>
         </div>
 
         <div className="flex-1 flex flex-col pt-2 bg-surface/30 min-h-0">
-          <div className="px-2 space-y-1 mb-4 border-b border-black/10 dark:border-white/10 pb-4 shrink-0">
-            <Button tone="neutral" fill="plain" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'writer' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('writer', auPath)}>{t('writer.modeWrite')}</Button>
-            <Button tone="neutral" fill="plain" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'facts' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('facts', auPath)}>{t('navigation.facts')}</Button>
-            <Button tone="neutral" fill="plain" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'au_lore' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('au_lore', auPath)}>{t('navigation.auLore')}</Button>
-            <Button tone="neutral" fill="plain" size="sm" className={`w-full justify-start font-medium transition-colors ${activeTab === 'settings' ? 'bg-black/5 dark:bg-white/5 text-text' : 'text-text/70 hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => onNavigate('settings', auPath)}>{t('navigation.settings')}</Button>
+          {/* 4 workspace tabs — gold left-bar marks the active one */}
+          <div className="border-b border-rule px-2 pb-3 pt-1 shrink-0 space-y-0.5">
+            {(
+              [
+                { key: 'writer', label: t('writer.modeWrite') },
+                { key: 'facts', label: t('navigation.facts') },
+                { key: 'au_lore', label: t('navigation.auLore') },
+                { key: 'settings', label: t('navigation.settings') },
+              ] as const
+            ).map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <div key={tab.key} className="relative">
+                  {isActive && (
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute left-0 top-1.5 bottom-1.5 z-10 w-[2px] rounded-r bg-gold"
+                    />
+                  )}
+                  <Button
+                    tone="neutral"
+                    fill="plain"
+                    size="sm"
+                    onClick={() => onNavigate(tab.key, auPath)}
+                    className={`w-full justify-start font-medium transition-colors ${
+                      isActive
+                        ? 'bg-accent/10 text-accent hover:bg-accent/10 hover:text-accent'
+                        : 'text-text/75 hover:bg-rule-soft hover:text-text'
+                    }`}
+                  >
+                    {tab.label}
+                  </Button>
+                </div>
+              );
+            })}
           </div>
 
-          <div className="px-4 pb-2 text-xs font-sans font-medium text-text/50 shrink-0">
+          <div className="mt-3 flex items-center gap-2 px-4 pb-2 shrink-0 font-mono text-[9px] font-medium uppercase tracking-[0.18em] text-text/45">
+            <span className="text-gold">◆</span>
             {t('workspace.chaptersTitle')}
           </div>
-          <div className="flex-1 overflow-y-auto px-2 space-y-1 pb-4">
+          <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
             {loadingChapters ? (
               <div className="flex items-center justify-center py-4 text-text/50"><Spinner size="md" /></div>
             ) : chapters.length === 0 ? (
@@ -253,70 +303,86 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
                 ]}
               />
             ) : (
-              chapters.map(ch => (
-                <div
-                  key={ch.chapter_num}
-                  onClick={() => {
-                    if (editingTitleNum === ch.chapter_num) return;
-                    // Delay single click to distinguish from double click
-                    if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
-                    clickTimerRef.current = setTimeout(() => {
-                      setViewingChapter(ch.chapter_num); onNavigate('writer', auPath);
-                    }, 250);
-                  }}
-                  onDoubleClick={(e) => {
-                    e.stopPropagation();
-                    if (clickTimerRef.current) { clearTimeout(clickTimerRef.current); clickTimerRef.current = null; }
-                    editingRef.current = { num: ch.chapter_num, original: ch.title || '' };
-                    setEditingTitleNum(ch.chapter_num);
-                    setEditingTitleValue(ch.title || '');
-                  }}
-                  className={`px-3 py-2 rounded-md text-sm cursor-pointer transition-colors ${activeTab === 'writer' && viewingChapter === ch.chapter_num ? 'bg-accent/10 text-accent font-medium' : 'hover:bg-black/5 dark:hover:bg-white/5 text-text/90'}`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="opacity-50 text-xs font-mono">#{ch.chapter_num}</span>
-                    {editingTitleNum === ch.chapter_num ? (
-                      <input
-                        autoFocus
-                        value={editingTitleValue}
-                        onChange={(e) => setEditingTitleValue(e.target.value)}
-                        onKeyDown={async (e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            const ref = editingRef.current;
-                            if (!ref) return;
-                            const trimmed = editingTitleValue.trim();
-                            try {
-                              await updateChapterTitle(auPath, ref.num, trimmed);
-                              refreshChapters();
-                            } catch (err) { showError(err, t('error_messages.unknown')); return; }
-                            editingRef.current = null;
-                            setEditingTitleNum(null);
-                          } else if (e.key === 'Escape') { editingRef.current = null; setEditingTitleNum(null); }
-                        }}
-                        onBlur={async () => {
-                          const ref = editingRef.current;
-                          if (!ref) { setEditingTitleNum(null); return; }
-                          const trimmed = editingTitleValue.trim();
-                          if (trimmed !== ref.original) {
-                            try {
-                              await updateChapterTitle(auPath, ref.num, trimmed);
-                              refreshChapters();
-                            } catch (err) { showError(err, t('error_messages.unknown')); }
-                          }
-                          editingRef.current = null;
-                          setEditingTitleNum(null);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        onDoubleClick={(e) => e.stopPropagation()}
-                        className="flex-1 min-w-0 bg-transparent border-b border-accent/50 outline-none text-sm px-0 py-0"
+              chapters.map(ch => {
+                const isActive = activeTab === 'writer' && viewingChapter === ch.chapter_num;
+                return (
+                  <div key={ch.chapter_num} className="relative">
+                    {isActive && (
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute left-0 top-1.5 bottom-1.5 z-10 w-[2px] rounded-r bg-gold"
                       />
-                    ) : (
-                      <span className="truncate">{ch.title || t('workspace.chapterItem', { num: ch.chapter_num })}</span>
                     )}
+                    <div
+                      onClick={() => {
+                        if (editingTitleNum === ch.chapter_num) return;
+                        // Delay single click to distinguish from double click
+                        if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+                        clickTimerRef.current = setTimeout(() => {
+                          setViewingChapter(ch.chapter_num); onNavigate('writer', auPath);
+                        }, 250);
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        if (clickTimerRef.current) { clearTimeout(clickTimerRef.current); clickTimerRef.current = null; }
+                        editingRef.current = { num: ch.chapter_num, original: ch.title || '' };
+                        setEditingTitleNum(ch.chapter_num);
+                        setEditingTitleValue(ch.title || '');
+                      }}
+                      className={`cursor-pointer rounded-sm px-3 py-2 text-sm transition-colors ${
+                        isActive
+                          ? 'bg-accent/10 text-accent font-medium'
+                          : 'text-text/85 hover:bg-rule-soft'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`shrink-0 font-mono text-[10px] tracking-[0.04em] ${isActive ? 'text-gold' : 'text-text/40'}`}>
+                          № {String(ch.chapter_num).padStart(2, '0')}
+                        </span>
+                        {editingTitleNum === ch.chapter_num ? (
+                          <input
+                            autoFocus
+                            value={editingTitleValue}
+                            onChange={(e) => setEditingTitleValue(e.target.value)}
+                            onKeyDown={async (e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const ref = editingRef.current;
+                                if (!ref) return;
+                                const trimmed = editingTitleValue.trim();
+                                try {
+                                  await updateChapterTitle(auPath, ref.num, trimmed);
+                                  refreshChapters();
+                                } catch (err) { showError(err, t('error_messages.unknown')); return; }
+                                editingRef.current = null;
+                                setEditingTitleNum(null);
+                              } else if (e.key === 'Escape') { editingRef.current = null; setEditingTitleNum(null); }
+                            }}
+                            onBlur={async () => {
+                              const ref = editingRef.current;
+                              if (!ref) { setEditingTitleNum(null); return; }
+                              const trimmed = editingTitleValue.trim();
+                              if (trimmed !== ref.original) {
+                                try {
+                                  await updateChapterTitle(auPath, ref.num, trimmed);
+                                  refreshChapters();
+                                } catch (err) { showError(err, t('error_messages.unknown')); }
+                              }
+                              editingRef.current = null;
+                              setEditingTitleNum(null);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            onDoubleClick={(e) => e.stopPropagation()}
+                            className="min-w-0 flex-1 border-b border-accent/50 bg-transparent px-0 py-0 text-sm outline-none"
+                          />
+                        ) : (
+                          <span className="truncate">{ch.title || t('workspace.chapterItem', { num: ch.chapter_num })}</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
