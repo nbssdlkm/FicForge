@@ -17,9 +17,11 @@ interface EmptyStateProps {
   compact?: boolean;
 }
 
-// Ex Libris empty state — dashed parchment frame with a "bookplate" icon box
-// (double-line border mirroring the brand seal), display italic title in accent,
-// serif body. Feels like an empty drawer in a card catalog, not a dead 404.
+// Ex Libris empty state — minimal: muted icon + display title + serif body +
+// action row. No framing box around the whole state and no decorative icon
+// container. The Library / Writer / Chapter-list pages already have their
+// own chrome; the empty state just sits inside that chrome as typographic
+// content, not a separate card.
 export function EmptyState({
   icon,
   title,
@@ -29,17 +31,11 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
-      className={`flex flex-col items-center justify-center rounded-sm border border-dashed border-rule px-6 text-center ${
+      className={`flex flex-col items-center justify-center px-6 text-center ${
         compact ? "py-8" : "py-12"
       }`}
     >
-      <div className="relative mb-3 flex h-12 w-12 items-center justify-center rounded-sm border-[1.5px] border-rule text-text/40">
-        {icon}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-1 rounded-[2px] border border-rule opacity-50"
-        />
-      </div>
+      <div className="mb-3 text-text/35">{icon}</div>
       <h3 className="font-display text-[22px] font-semibold leading-tight text-accent">
         {title}
       </h3>
