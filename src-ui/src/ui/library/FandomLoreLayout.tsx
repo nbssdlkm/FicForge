@@ -622,11 +622,11 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
               <div className="flex flex-col gap-2 flex-1">
                 <label className="text-sm font-bold text-text/90">{selectedCategory === 'core_characters' ? t("fandomLore.category.characters") : t("fandomLore.category.worldbuilding")}</label>
                 {isReadingFile ? (
-                  <div className="flex min-h-[300px] flex-1 items-center justify-center rounded-md border border-black/10 bg-surface/30 p-4 dark:border-white/10">
+                  <div className="flex min-h-[300px] flex-1 items-center justify-center">
                     <Spinner size="md" className="text-accent" />
                   </div>
                 ) : previewMode ? (
-                  <div className="flex-1 min-h-[300px] rounded-md border border-black/10 bg-surface/30 p-6 dark:border-white/10 overflow-y-auto">
+                  <div className="flex-1 min-h-[300px] overflow-y-auto">
                     <SettingsMarkdown content={editorContent} />
                   </div>
                 ) : (
@@ -634,7 +634,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                     value={editorContent}
                     onChange={e => setEditorContent(e.target.value)}
                     disabled={editorBusy}
-                    className="font-mono flex-1 min-h-[300px] text-sm leading-relaxed bg-surface/30 p-4 resize-y"
+                    className="font-mono flex-1 min-h-[300px] text-sm leading-relaxed resize-y"
                   />
                 )}
               </div>

@@ -498,7 +498,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
       )}
 
       {previewMode ? (
-        <div className="min-h-[420px] flex-1 overflow-y-auto rounded-md border border-black/10 bg-surface/30 p-4 dark:border-white/10 md:p-6">
+        <div className="min-h-[420px] flex-1 overflow-y-auto">
           <SettingsMarkdown content={editorContent} />
         </div>
       ) : (
@@ -514,7 +514,7 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
               file.text().then(text => setEditorContent(prev => prev + '\n\n' + text));
             }
           }}
-          className="font-mono flex-1 min-h-[420px] text-sm leading-relaxed bg-surface/30 p-4 resize-y"
+          className="font-mono flex-1 min-h-[420px] text-sm leading-relaxed resize-y"
         />
       )}
     </div>
