@@ -35,9 +35,15 @@ Platform Adapter
 | M1 | Repository 接口+实现、向量存储（JSON 分片）、ChromaDB 迁移脚本 | **已完成** |
 | M2 | Facts Lifecycle、Context Assembler、RAG、LLM Provider、Generation | **已完成** |
 | M3 | Confirm/Undo Chapter、Dirty Resolve、Import/Export | **已完成** |
-| M4 | Settings Chat、Trash、Recalc、前端 API 切换、SSE 消除、Sidecar 精简 | **已完成**（E.6 Sidecar 精简待人工执行） |
-| M5 | 移动端 Capacitor/PWA、响应式 UI、ops 合并引擎、数据同步 | **已完成** |
-| M6 | Agent 架构（开关矩阵、Checker、导演细纲、任务模式、报警暂停） | 待开始 |
+| M4 | Settings Chat、Trash、Recalc、前端 API 切换、SSE 消除、Sidecar 精简 | **已完成**（E.6 Sidecar 精简推迟决策） |
+| M5 | 移动端 Capacitor/PWA、响应式 UI | **已完成**（ops 合并 + 数据同步**已废弃**，见 D-0040） |
+| M6 | Agent 架构 | **重开规划**，D-0032 作废，见 D-0043；触发条件满足后启动（预计 2026 Q3/Q4） |
+| M7 | 架构简化（同步退役 + ops 降级 audit log） | 待启动 |
+| M8 | Memory 三层架构（Fact / Chapter Summary / Thread） | 待启动 |
+| M9 | ReAct 基础设施（生成 + 选择性提取） | 待启动 |
+| M10 | Retrospective rewrite + Archive 冷热分层 | 待启动 |
+
+**新 PRD**：`docs/internal/prd/FicForge-补充PRD-v5-架构简化与Memory重设计.md`
 
 ## 活跃工作（当前分支）
 
@@ -70,11 +76,36 @@ Platform Adapter
 
 ### 待开新分支继续
 
-- **真机回归**（必做 - 第 1 件事）：已 push 的 5 个 commit 中只有 T7-8 验过真机。场景：连续生成 2-3 章 → 看 RAG 召回详情 chunks 数是否 ~8（T7-7）；切 AU 时中途取消 → Network tab 确认 LLM 请求被 cancel（T7-5 间接路径）；import 中途断网 → 确认 worldbuilding/ 干净（T7-4）；查看生成时的 budget_remaining 是否反映新公式（budget 重平衡）。如发现回归立即 revert 对应 commit
-- **M4-E.6 Sidecar 精简**：删掉 `src-python/` 下 `api/` `core/` `repositories/` `infra/` `tests/` `fandoms/`，只留 `main_embedding.py` + `build_sidecar.py` + `requirements_embedding.txt`。先用 Explore agent 扫 `src-ui/` `src-engine/` 是否还有 import 老 Python 路径，无引用再删。需要同步检查 Tauri 的 `externalBin` 配置
-- **M6 Agent 架构**：未开始。需要先过一遍 PRD v4 第 5 章 + `D-0032-agent-redesign.md` 决策记录对齐
-- **T7-7 后续观察**：top_k=8 用一段时间后如果还不够，比起继续加 top_k 更该调 `rag_decay_coefficient` 从 0.05 → 0.03（保留远章节的相关性）
-- **Codex Prompt 归档**：`docs/internal/prompts/` 下有 `codex-t7-4-import-rollback.md`，做为未来类似任务的 brief 模板
+**下次会话第 1 件事**：
+- **真机回归**（Phase 7 收尾）：已 push 的 5 个 commit 中只有 T7-8 验过真机。场景：连续生成 2-3 章 → 看 RAG 召回详情 chunks 数是否 ~8（T7-7）；切 AU 时中途取消 → Network tab 确认 LLM 请求被 cancel（T7-5 间接路径）；import 中途断网 → 确认 worldbuilding/ 干净（T7-4）；查看生成时的 budget_remaining 是否反映新公式（budget 重平衡）。如发现回归立即 revert 对应 commit
+
+**M7 架构简化**（真机过后可以启动，~3-5 天）：
+- Phase 1：UI 移除同步入口；engine 跳过 ops merge 路径；WriteTransaction 简化；关闭 `debt_webdav_auth_dup.md` / `debt_capacitor_cors.md`
+- Phase 2（2-3 月后）：删同步代码
+- 详见 PRD v5 §1 + D-0040
+
+**M8 Memory 三层架构**（M7 之后，~3-4 周）：
+- Fact Layer 2 字段 + Chapter Summary 三档 + Thread 系统
+- 详见 PRD v5 §2 + D-0041
+
+**M9 ReAct 基础设施**（M8 之后，~2-3 周）：
+- 提取流水线 + 读工具集合 + 生成阶段 ReAct 切换
+- 降级方案永远保留
+- 详见 PRD v5 §3 + D-0042
+
+**M10 Retrospective + Archive**（M9 之后，~1-2 周）
+
+**待决策（未排入任何 M）**：
+- **M4-E.6 Sidecar 精简**：同步退役后 sidecar 价值更低。倾向退役（Qwen embedding 几乎免费）；保留意味着桌面端离线可用
+- **UI 重设计**：等 M7-M9 落地后做，要适配新的 thread / 冷热分层 / ReAct 视图
+- **T7-7 后续观察**：top_k=8 用一阵如果还不够，调 `rag_decay_coefficient` 0.05 → 0.03
+
+**与 Eval Harness 的关系**：
+- Eval harness 支线独立节奏（见 `roadmap.md`），与 M7-M10 并行
+- 学习笔记在 Obsidian `D:\MY LIFE\FicForge\Eval Harness\`
+- 工程产出（harness 代码、fixture、baseline 实现）进 `src-engine/eval/`
+
+**Codex Prompt 归档**：`docs/internal/prompts/` 下 `codex-t7-4-import-rollback.md` 是未来类似任务 brief 模板
 
 ### Codex 累计教训（写入新会话提示）
 
@@ -87,11 +118,14 @@ Platform Adapter
 
 - **D-0034** 架构迁移为 TypeScript 统一核心引擎
 - **D-0035** 向量存储从 ChromaDB 迁移为 JSON 分片 + 内存检索
-- **D-0036** 数据同步基于 ops 日志合并（ops 是唯一 truth，state/facts 是 ops 的投影）
-  - `rebuildFromOps` 只承诺重建 `state.yaml` / `facts.jsonl` 这类 ops-backed projection，不承诺恢复 `chapters/main/*.md` 正文文件。
-  - 如果出现 "ops 已提交但 chapter 正文写失败" 的 partial commit，必须视为人工介入事故；前端提示应引导用户检查章节文件并从幸存草稿重新定稿，而不是宣称系统可自动自愈。
+- **D-0036** ~~数据同步基于 ops 日志合并~~ → **部分被 D-0040 取代**。ops 不再是 source of truth，降级为 audit log
 - **D-0037** 移动端 Capacitor (Android) + PWA (iOS/Web)
 - **D-0038** 桌面端和移动端各自独立管理 Embedding 模型
+- **D-0039** 上下文预算重平衡（128k 模型 input budget +52%）
+- **D-0040** 取消本地化同步 + ops 降级为 audit log（取代 D-0036 的核心契约）
+- **D-0041** Memory 三层架构重设计（Fact / Chapter Summary / Thread）
+- **D-0042** ReAct 生成 + 选择性 ReAct 提取
+- **D-0043** M6 Agent 架构重新规划（取代 D-0032；等触发条件满足后启动）
 - 新创建的 fandom / AU / lore 路径段统一收紧到白名单：字母、数字、Unicode 字母、空格、`-`、`_`、`.`；诸如 `? # % : * " < > / \` 的保留字符一律替换为 `_`。
 
 ## 技术栈
@@ -108,29 +142,37 @@ Platform Adapter
 | YAML 读写 | js-yaml |
 | Frontmatter | gray-matter |
 | Docx 导入 | mammoth.js |
-| 本地 Embedding | Python sidecar（可选，bge-small-zh） |
+| 本地 Embedding | Python sidecar（**待决策**，bge-small-zh，见下方 Python 后端章节） |
 
-## Python 后端（src-python/，迁移中）
+## Python 后端（src-python/，待决策）
 
-迁移完成前仍然保留运行。迁移后精简为 ~150 行仅做本地 embedding：
-- `POST /embed` 接受文本返回向量
-- `GET /health` 心跳检测
+**现状**：同步退役后（D-0040），sidecar 唯一职能是本地 embedding。
+
+**待决策**：保留 vs 退役
+- **保留**：桌面端用户离线可用（bge-small-zh）
+- **退役**：统一走云端 embedding API（Qwen / OpenAI），省维护成本
+
+倾向退役。但桌面端若将来真的想"离线完全可用"，则需保留。
 
 ## 内部参考文档
 
 `docs/internal/` 目录（.gitignore 排除，不进公开仓库）：
-- `prd/` — PRD v2 + 补充 PRD v2/v3/v4
+- `prd/` — PRD v2 + 补充 PRD v2/v4（**v3 已废弃**）+ **v5（新主 PRD）**
 - `audit/` — CC 审计报告
-- `decisions/` — 决策记录
+- `decisions/` — 决策记录（最新 D-0043）
 - `devlog/` — 开发日志
 - `milestone/` — 里程碑总结
 - `governance/` — 治理文档
+- `plans/` — 阶段性工作计划（`phase-7-tech-debt-plan.md` 已关闭；`roadmap.md` 是活的战略路线）
+- `prompts/` — Codex 任务简报模板
+
+**学习笔记**（非工程产出）**不进此目录**，放 Obsidian `D:\MY LIFE\FicForge\`。
 
 ## 高风险模块（迁移时重点关注）
 
-1. **undo_chapter**（10 步级联回滚，无 unit 测试）→ 迁移前先补 Python 端测试建立 golden test
-2. **context_assembler**（P0-P5 六层预算竞争）→ 固定输入/输出 golden test
-3. **ops.jsonl 多设备同步** → lamport clock + op_id 去重 + state/facts 从 ops 重建
+1. **undo_chapter**（10 步级联回滚）→ 现已有 golden test + mutation verification（commit `a82c38e`）
+2. **context_assembler**（P0-P5 六层预算竞争）→ 固定输入/输出 golden test 已完备
+3. ~~**ops.jsonl 多设备同步**~~ → **D-0040 已退役**，ops 仅作 audit log
 
 ---
 
