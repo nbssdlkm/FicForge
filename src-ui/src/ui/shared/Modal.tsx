@@ -65,9 +65,9 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
               type="button"
               onClick={onClose}
               aria-label={t('common.actions.close')}
-              className="ml-auto h-7 w-7 flex items-center justify-center rounded-full border border-gold-bright text-gold-bright hover:bg-gold-bright/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright"
+              className="ml-auto flex h-8 w-8 items-center justify-center text-inv-text/70 transition-colors hover:text-inv-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright"
             >
-              <X size={14} />
+              <X size={16} />
             </button>
           </div>
           <div className="px-6 py-5 overflow-y-auto font-serif text-[15px] leading-relaxed">

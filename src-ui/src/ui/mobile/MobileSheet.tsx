@@ -65,9 +65,9 @@ export function MobileSheet({
             type="button"
             onClick={onClose}
             aria-label={t("common.actions.close")}
-            className="ml-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gold-bright text-gold-bright transition-colors hover:bg-gold-bright/10"
+            className="ml-3 flex h-11 w-11 shrink-0 items-center justify-center text-inv-text/70 transition-colors hover:text-inv-text"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
         <div className={cn("flex-1 overflow-y-auto px-4 py-4 safe-area-bottom", contentClassName)}>
