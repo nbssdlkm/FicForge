@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useMemo, useState } from 'react';
-import { Settings, BookOpen, Trash2, Plus } from 'lucide-react';
+import { Settings, BookOpen, Trash2, Plus, Upload } from 'lucide-react';
 import { Spinner } from "./shared/Spinner";
 import { Button } from './shared/Button';
 import { InlineBanner } from './shared/InlineBanner';
@@ -121,94 +121,96 @@ function LibraryInner({ onNavigate }: Props) {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <Button
+              tone="neutral"
+              fill="plain"
+              size="sm"
+              onClick={importFlow.openImportPicker}
+              disabled={mutating}
+              className="h-10 w-10 p-0 text-ink-muted hover:text-text"
+              title={t("common.actions.importOldWork")}
+            >
+              <Upload size={18} />
+            </Button>
+            <Button
+              tone="neutral"
+              fill="plain"
+              size="sm"
+              onClick={() => setGlobalTrashOpen(true)}
+              disabled={mutating}
+              className="h-10 w-10 p-0 text-ink-muted hover:text-text"
+              title={t("trash.title")}
+            >
+              <Trash2 size={18} />
+            </Button>
+            <span className="mx-1 h-5 w-px bg-rule" aria-hidden="true" />
             <ThemeToggle />
             <Button
               tone="neutral"
               fill="plain"
               size="sm"
               onClick={() => setGlobalSettingsOpen(true)}
-              className="h-11 w-11 rounded-full p-0 md:h-10 md:w-10"
+              className="h-10 w-10 p-0 text-ink-muted hover:text-text"
               title={t("settings.global.title")}
             >
-              <Settings size={20} />
+              <Settings size={18} />
             </Button>
           </div>
         </div>
       </header>
 
-      {/* HERO — v13 .app-hero: title-anchored left, primary CTA floats top
-          right, ornament + stats pills below the subtitle, secondary
-          actions on the same row as the pills (right-aligned). */}
-      <section className="relative border-b border-rule bg-background px-4 py-6 md:px-8 md:py-9">
-        <div className="relative mx-auto flex w-full max-w-5xl flex-col gap-3">
-          {/* Primary CTA — absolute top-right of the hero, mirrors v13
-              .new-btn (sage bg + cream text, rectangular not pill). */}
-          <Button
-            size="sm"
-            onClick={mutations.openFandomModal}
-            disabled={mutating}
-            className="absolute right-0 top-0 h-9 px-4 font-sans text-[11px] font-medium uppercase tracking-[0.08em]"
-          >
-            <Plus size={14} className="mr-1" />
-            {t('library.fandomButton')}
-          </Button>
+      {/* HERO — v13 .app-hero: title left, primary CTA aligned right at the
+          same height as the title (its own row, side-by-side flex), then
+          subtitle + ornament + stats pills below. Secondary actions
+          (Import / Trash) live in the topbar so the hero stays uncluttered. */}
+      <section className="border-b border-rule bg-background px-4 py-7 md:px-8 md:py-10">
+        <div className="mx-auto w-full max-w-5xl">
+          <div className="flex items-start justify-between gap-6">
+            <div className="min-w-0 flex-1">
+              <h1 className="font-display italic text-3xl font-medium uppercase leading-[1.05] tracking-[0.04em] text-accent md:text-[42px]">
+                Index of Works
+              </h1>
+              <p className="mt-2 font-serif text-base tracking-[0.04em] text-ink-muted">
+                {t('library.title')}
+              </p>
+            </div>
 
-          <h1 className="font-display italic text-3xl font-medium uppercase leading-[1.05] tracking-[0.04em] text-accent md:text-[42px]">
-            Index of Works
-          </h1>
-          <p className="font-serif text-base tracking-[0.04em] text-ink-muted">
-            {t('library.title')}
-          </p>
+            {/* Primary CTA — only thing on the hero's right side, aligned to
+                the top-of-title baseline so it reads as the hero's call-to-
+                action, not a generic toolbar button. */}
+            <Button
+              size="sm"
+              onClick={mutations.openFandomModal}
+              disabled={mutating}
+              className="mt-1 shrink-0 h-10 px-5 font-sans text-[12px] font-medium uppercase tracking-[0.08em]"
+            >
+              <Plus size={15} className="mr-1.5" />
+              {t('library.fandomButton')}
+            </Button>
+          </div>
 
           {/* Gold ornament — typographic divider between subtitle and stats */}
           <div
             aria-hidden="true"
-            className="mt-1 select-none font-mono text-[11px] text-gold"
+            className="mt-5 select-none font-mono text-[11px] text-gold"
             style={{ letterSpacing: '1.2em', paddingLeft: '1.2em' }}
           >
             · · ·
           </div>
 
-          <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">
-              {stats.map(({ value, label }) => (
-                <span
-                  key={label}
-                  className="inline-flex items-baseline gap-1 rounded-full border border-rule bg-surface px-2.5 py-[3px]"
-                >
-                  <strong className="font-display text-sm font-semibold not-italic text-accent">
-                    {value}
-                  </strong>
-                  {label}
-                </span>
-              ))}
-            </div>
-
-            {/* Secondary actions — quieter than the floating CTA above. */}
-            <div className="flex items-center gap-1">
-              <Button
-                tone="neutral"
-                fill="plain"
-                size="sm"
-                onClick={importFlow.openImportPicker}
-                disabled={mutating}
-                className="font-sans text-[11px] uppercase tracking-[0.08em] text-ink-muted hover:text-text"
+          <div className="mt-4 flex flex-wrap gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">
+            {stats.map(({ value, label }) => (
+              <span
+                key={label}
+                className="inline-flex items-baseline gap-1 rounded-full border border-rule bg-surface px-2.5 py-[3px]"
               >
-                {t('common.actions.importOldWork')}
-              </Button>
-              <Button
-                tone="neutral"
-                fill="plain"
-                size="sm"
-                onClick={() => setGlobalTrashOpen(true)}
-                disabled={mutating}
-                className="font-sans text-[11px] uppercase tracking-[0.08em] text-ink-muted hover:text-text"
-              >
-                <Trash2 size={13} className="mr-1.5" />
-                {t('trash.title')}
-              </Button>
-            </div>
+                <strong className="font-display text-sm font-semibold not-italic text-accent">
+                  {value}
+                </strong>
+                {label}
+              </span>
+            ))}
           </div>
         </div>
       </section>
