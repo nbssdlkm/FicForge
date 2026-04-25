@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useMemo, useState } from 'react';
-import { Settings, BookOpen, Trash2 } from 'lucide-react';
+import { Settings, BookOpen, Trash2, Plus } from 'lucide-react';
 import { Spinner } from "./shared/Spinner";
 import { Button } from './shared/Button';
 import { InlineBanner } from './shared/InlineBanner';
@@ -77,11 +77,18 @@ function LibraryInner({ onNavigate }: Props) {
     });
   };
 
+  // Hero stats — 3 numbers: fandoms / AUs / total chapters across all AUs.
+  // chapter_count is enriched by listFandoms via state.yaml, falls back to 0.
   const stats = useMemo(() => {
     const totalAus = fandoms.reduce((sum, f) => sum + f.aus.length, 0);
+    const totalChapters = fandoms.reduce(
+      (sum, f) => sum + f.aus.reduce((s, au) => s + (au.chapter_count ?? 0), 0),
+      0,
+    );
     return [
       { value: fandoms.length, label: 'FANDOM' },
-      { value: totalAus, label: t("library.cardType") },
+      { value: totalAus, label: t('library.cardType') },
+      { value: totalChapters, label: '章' },
     ];
   }, [fandoms, t]);
   const mutating = mutations.creatingFandom || mutations.creatingAu || mutations.deleting;
@@ -130,17 +137,41 @@ function LibraryInner({ onNavigate }: Props) {
         </div>
       </header>
 
-      {/* HERO — Index of Works italic + CN subtitle + stats pills + primary actions */}
-      <section className="border-b border-rule bg-background px-4 py-6 md:px-8 md:py-8">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="font-display italic text-3xl font-medium uppercase leading-tight tracking-[0.04em] text-accent md:text-4xl">
-              Index of Works
-            </h1>
-            <p className="mt-2 font-serif text-base tracking-[0.04em] text-ink-muted">
-              {t("library.title")}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">
+      {/* HERO — v13 .app-hero: title-anchored left, primary CTA floats top
+          right, ornament + stats pills below the subtitle, secondary
+          actions on the same row as the pills (right-aligned). */}
+      <section className="relative border-b border-rule bg-background px-4 py-6 md:px-8 md:py-9">
+        <div className="relative mx-auto flex w-full max-w-5xl flex-col gap-3">
+          {/* Primary CTA — absolute top-right of the hero, mirrors v13
+              .new-btn (sage bg + cream text, rectangular not pill). */}
+          <Button
+            size="sm"
+            onClick={mutations.openFandomModal}
+            disabled={mutating}
+            className="absolute right-0 top-0 h-9 px-4 font-sans text-[11px] font-medium uppercase tracking-[0.08em]"
+          >
+            <Plus size={14} className="mr-1" />
+            {t('library.fandomButton')}
+          </Button>
+
+          <h1 className="font-display italic text-3xl font-medium uppercase leading-[1.05] tracking-[0.04em] text-accent md:text-[42px]">
+            Index of Works
+          </h1>
+          <p className="font-serif text-base tracking-[0.04em] text-ink-muted">
+            {t('library.title')}
+          </p>
+
+          {/* Gold ornament — typographic divider between subtitle and stats */}
+          <div
+            aria-hidden="true"
+            className="mt-1 select-none font-mono text-[11px] text-gold"
+            style={{ letterSpacing: '1.2em', paddingLeft: '1.2em' }}
+          >
+            · · ·
+          </div>
+
+          <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">
               {stats.map(({ value, label }) => (
                 <span
                   key={label}
@@ -153,30 +184,31 @@ function LibraryInner({ onNavigate }: Props) {
                 </span>
               ))}
             </div>
-          </div>
-          <div className="flex flex-row items-center gap-2 sm:gap-3">
-            <Button
-              tone="neutral"
-              fill="outline"
-              size="sm"
-              onClick={importFlow.openImportPicker}
-              disabled={mutating}
-            >
-              {t("common.actions.importOldWork")}
-            </Button>
-            <Button
-              tone="neutral"
-              fill="outline"
-              size="sm"
-              onClick={() => setGlobalTrashOpen(true)}
-              disabled={mutating}
-            >
-              <Trash2 size={14} className="mr-2" />
-              {t("trash.title")}
-            </Button>
-            <Button size="sm" onClick={mutations.openFandomModal} disabled={mutating}>
-              {t("library.fandomButton")}
-            </Button>
+
+            {/* Secondary actions — quieter than the floating CTA above. */}
+            <div className="flex items-center gap-1">
+              <Button
+                tone="neutral"
+                fill="plain"
+                size="sm"
+                onClick={importFlow.openImportPicker}
+                disabled={mutating}
+                className="font-sans text-[11px] uppercase tracking-[0.08em] text-ink-muted hover:text-text"
+              >
+                {t('common.actions.importOldWork')}
+              </Button>
+              <Button
+                tone="neutral"
+                fill="plain"
+                size="sm"
+                onClick={() => setGlobalTrashOpen(true)}
+                disabled={mutating}
+                className="font-sans text-[11px] uppercase tracking-[0.08em] text-ink-muted hover:text-text"
+              >
+                <Trash2 size={13} className="mr-1.5" />
+                {t('trash.title')}
+              </Button>
+            </div>
           </div>
         </div>
       </section>

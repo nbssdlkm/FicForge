@@ -24,7 +24,7 @@ async function withOrderedAuLocks<T>(auPaths: string[], fn: () => Promise<T>): P
 }
 
 export async function listFandoms() {
-  const { fandom } = getEngine().repos;
+  const { fandom, state: stateRepo } = getEngine().repos;
   const dataDir = getDataDir();
   const dirNames = await fandom.list_fandoms();
   const result = [];
@@ -33,10 +33,33 @@ export async function listFandoms() {
     const fandomPath = `${dataDir}/fandoms/${dirName}`;
     const fandomInfo = await fandom.get(fandomPath).catch(() => null);
     const aus = await listAus(dirName);
+
+    // Enrich AU rows with cheap stats from state.yaml so Library can render
+    // v13-style AU cards (chapter count + Draft badge) in one batched read.
+    // Each AU's state read is parallel within the fandom; failures fall back
+    // to zeroed stats so a corrupt or missing state.yaml doesn't break the
+    // whole listing.
+    const ausWithStats = await Promise.all(
+      aus.map(async (au) => {
+        const auPath = `${dataDir}/fandoms/${dirName}/aus/${au.dir_name}`;
+        try {
+          const state = await stateRepo.get(auPath);
+          // current_chapter == "next chapter to draft", so confirmed chapter
+          // count is current_chapter - 1 (clamped at 0). When chapters_dirty
+          // is non-empty, treat the AU as having a draft visible to the user.
+          const confirmed = Math.max(0, (state?.current_chapter ?? 1) - 1);
+          const dirty = state?.chapters_dirty ?? [];
+          return { ...au, chapter_count: confirmed, has_dirty: dirty.length > 0 };
+        } catch {
+          return { ...au, chapter_count: 0, has_dirty: false };
+        }
+      }),
+    );
+
     result.push({
       name: fandomInfo?.name?.trim() || dirName,
       dir_name: dirName,
-      aus,
+      aus: ausWithStats,
     });
   }
 
