@@ -307,3 +307,60 @@ currentRec[key] = { ...(currentRec[key]), ...val };
 - LLM 失败后的持久 UI 痕迹（当前只有 3.5 秒 toast，3.5 秒后再看 AnalysisStep 无任何失败提示）
 - 文件头统计数字用徽章 chip 而非嵌入文字
 - `"LLM Detected"` 文案友好化（i18n 或至少给 `chatFormat === "LLM Detected"` 特判显示"AI 识别"）
+
+---
+
+## TD-014: facts reverse cascade 未覆盖 deprecate + undo 路径
+
+**状态:** 待修复（2026-04-23 grep 代码时发现）
+**优先级:** 低（影响面窄但语义不正确，等 M8 Memory 重设计时一并修）
+**涉及文件:** `src-engine/services/facts_lifecycle.ts`, `src-engine/services/undo_chapter.ts`
+
+`collectResolvesReverse` 函数（[facts_lifecycle.ts:131](../src-engine/services/facts_lifecycle.ts#L131)）的逻辑本身是正确的：当 fact_B 不再 resolve fact_A 时，**条件性地**把 fact_A 退回 UNRESOLVED——前提是没有别的 fact 还在 resolve 它。
+
+但**只有一条 mutation 路径调用了它**：`edit_fact` 在 `oldResolves !== newResolves` 时（line 336）。
+
+**未覆盖的两条路径：**
+
+1. **`update_fact_status` 把 fact_B 设为 DEPRECATED 时**（line 349-401）：仅做 `applyDanglingFocusCleanup`（从 chapter_focus 移除），**不触发反向级联**。结果：fact_A 仍是 RESOLVED，但揭示者已作废，LLM 上下文被污染。
+
+2. **`undo_chapter` 删除该章节产生的 fact 时**（[undo_chapter.ts:114](../src-engine/services/undo_chapter.ts#L114)，调用 `tx.deleteFactsByIds`）：直接删除，**不触发反向级联**。如果被删除的 fact 中有"揭示老章节伏笔"的，老章节伏笔会留在 RESOLVED 状态。
+
+**事故场景示例：**
+
+```
+ch5: fact_A = "Connor 抽屉里有刻 Y 的钥匙"（status: UNRESOLVED）
+ch12: fact_B = "Y 是 Connor 妈妈的名字"（resolves: fact_A）
+       → 自动把 fact_A 标 RESOLVED ✓
+
+用户 undo 了 ch12 → 删除 fact_B
+预期：fact_A 退回 UNRESOLVED
+实际：fact_A 仍是 RESOLVED ❌
+
+下次 LLM 续写时，看到 fact_A 是 RESOLVED → 不再当未解之谜处理
+但揭示者已经被 undo 掉，剧情上钥匙的来历重新成为谜
+→ LLM 上下文跟剧情脱节
+```
+
+**修复方向：**
+
+不要立即开 PR 单独修，等 M8 Memory 架构重设计（PRD v5 §2 / D-0041）时一并处理。届时整个 fact lifecycle 的 mutation paths 都会被审查。
+
+修复时机到了的具体动作：
+
+1. `update_fact_status`：当 `new_status === "deprecated"` 且 `fact.resolves` 非空时，调用 `collectResolvesReverse(au_id, fact.resolves, fact.chapter, fact_repo, fact_id)`。返回的 op + fact 一并塞入 tx。
+2. `undo_chapter`：在 `deleteFactsByIds` 之前，对每个待删 fact 检查 `resolves` 字段，分别调用 `collectResolvesReverse`。注意 batch 删除时**多个 fact 同时离开**的语义：检查"还有别的 resolver"时要 exclude **所有**待删 fact_ids，不只 exclude 当前一个。
+
+**测试覆盖建议：**
+
+- `facts_lifecycle.test.ts`：新增"DEPRECATE resolver → target reverts to UNRESOLVED"
+- `facts_lifecycle.test.ts`：新增"DEPRECATE resolver but another resolver remains → target stays RESOLVED"
+- `undo_chapter.test.ts`：新增"undo chapter deleting a resolver → older fact reverts to UNRESOLVED"
+
+**为什么之前的 audit 漏了：**
+
+Codex Phase 7 audit 报告说 facts lifecycle "完全实现"——它看到 `collectResolvesReverse` 函数存在 + `edit_fact` 调用了 + 测试通过，**没核对 update_fact_status / undo_chapter 这两条 mutation path 是否也调用了**。
+
+这是 audit 工具的一个典型局限：**只检查代码存在性，不检查"在所有该被调用的地方都被调用"**。教训记入对 audit 报告的可信度评估方法论。
+
+**讨论上下文：** 2026-04-23 与用户在面试准备讨论中无意发现。当时正在用此 case 做"状态机非平凡设计"的故事素材，grep 验证时发现 gap。
