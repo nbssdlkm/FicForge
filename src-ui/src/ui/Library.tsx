@@ -99,9 +99,11 @@ function LibraryInner({ onNavigate }: Props) {
 
   return (
     <div className="min-app-height bg-background text-text flex flex-col font-sans transition-colors duration-200">
-      {/* TOP BAR — brand seal + title italic, quiet chrome */}
-      <header className="safe-area-top border-b border-rule bg-surface px-4 py-3 md:h-16 md:px-6 transition-colors duration-200">
-        <div className="flex items-center justify-between gap-3">
+      {/* TOP BAR — v13 .app-top: padding 8/16/10, actions 36×36 buttons.
+          Lighter than the previous h-16 / 40px setup so the brand seal
+          stays the visual anchor. */}
+      <header className="safe-area-top border-b border-rule bg-surface px-4 py-2.5 md:h-14 md:px-6 transition-colors duration-200">
+        <div className="flex h-full items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             {/* v13 .app-top .seal: 32x32, border-radius 3px, inner inset 3px
                 radius 1.5px opacity 0.5. */}
@@ -125,6 +127,9 @@ function LibraryInner({ onNavigate }: Props) {
               </div>
             </div>
           </div>
+          {/* All toolbar buttons sized to v13's 36×36. Secondary actions
+              (Import / Trash) use a smaller icon glyph (16px) so they
+              read as quieter than primary chrome (Theme / Settings, 18px). */}
           <div className="flex items-center gap-1">
             <Button
               tone="neutral"
@@ -132,10 +137,10 @@ function LibraryInner({ onNavigate }: Props) {
               size="sm"
               onClick={importFlow.openImportPicker}
               disabled={mutating}
-              className="h-10 w-10 p-0 text-ink-muted hover:text-text"
+              className="h-9 w-9 p-0 text-ink-muted hover:text-text"
               title={t("common.actions.importOldWork")}
             >
-              <Upload size={18} />
+              <Upload size={16} />
             </Button>
             <Button
               tone="neutral"
@@ -143,19 +148,19 @@ function LibraryInner({ onNavigate }: Props) {
               size="sm"
               onClick={() => setGlobalTrashOpen(true)}
               disabled={mutating}
-              className="h-10 w-10 p-0 text-ink-muted hover:text-text"
+              className="h-9 w-9 p-0 text-ink-muted hover:text-text"
               title={t("trash.title")}
             >
-              <Trash2 size={18} />
+              <Trash2 size={16} />
             </Button>
-            <span className="mx-1 h-5 w-px bg-rule" aria-hidden="true" />
+            <span className="mx-1 h-4 w-px bg-rule" aria-hidden="true" />
             <ThemeToggle />
             <Button
               tone="neutral"
               fill="plain"
               size="sm"
               onClick={() => setGlobalSettingsOpen(true)}
-              className="h-10 w-10 p-0 text-ink-muted hover:text-text"
+              className="h-9 w-9 p-0 text-ink-muted hover:text-text"
               title={t("settings.global.title")}
             >
               <Settings size={18} />

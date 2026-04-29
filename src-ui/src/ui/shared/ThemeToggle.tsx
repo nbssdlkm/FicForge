@@ -45,7 +45,7 @@ export const ThemeToggle: React.FC = () => {
   };
 
   return (
-    <Button tone="neutral" fill="plain" size="sm" onClick={toggleTheme} className="h-11 w-11 rounded-full p-0 md:h-10 md:w-10" title={t("shared.theme.toggle")}>
+    <Button tone="neutral" fill="plain" size="sm" onClick={toggleTheme} className="h-11 w-11 p-0 text-ink-muted hover:text-text md:h-9 md:w-9" title={t("shared.theme.toggle")}>
       {theme === 'warm' ? <Sun size={18} /> : <Moon size={18} />}
     </Button>
   );
