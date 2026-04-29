@@ -3,12 +3,11 @@
 // See LICENSE file in the project root for full license text.
 
 import { useCallback, useMemo, useState } from 'react';
-import { Plus, FileText, Trash2, ArchiveRestore, ChevronRight, ChevronDown } from 'lucide-react';
+import { Plus, FileText, Trash2, ArchiveRestore } from 'lucide-react';
 import { Button } from '../shared/Button';
 import { type FandomInfo } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { goldLine } from '../shared/tokens';
-import { cn } from '../shared/utils';
 
 type LibraryFandomSectionsProps = {
   dataDir: string;
@@ -127,34 +126,25 @@ export function LibraryFandomSections({
               aria-expanded={!isCollapsed}
               aria-label={fandom.name}
             >
-              {/* Top mono row: call no · INDEX (left) | AU count · chapter count (right) */}
+              {/* Top mono row — always shows both AU count and chapter total
+                  even when zero, so the layout doesn't jitter as the user
+                  adds first AU / first chapter (v13: stats string is fixed
+                  format "X AU · Y FICS"). */}
               <div className="mb-1 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-gold-bright">
                 <span>{callno} · INDEX</span>
-                <span className="flex items-center gap-2">
-                  <span>{auCount} AU</span>
-                  {chapterTotal > 0 && (
-                    <>
-                      <span className="opacity-60">·</span>
-                      <span>{chapterTotal} 章</span>
-                    </>
-                  )}
+                <span>
+                  {auCount} AU <span className="opacity-60">·</span> {chapterTotal} 章
                 </span>
               </div>
 
               {/* Name row + actions on a single horizontal axis on desktop */}
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-4">
-                {/* v13 .drawer-banner .name .en: 19px / weight 500 — not 22/600.
-                    Roman EB Garamond (no italic) per v13 spec. */}
-                <h2 className="flex items-baseline gap-2 truncate font-display text-[19px] font-medium leading-tight text-inv-text">
-                  <span className="truncate">{fandom.name}</span>
-                  <ChevronDown
-                    size={13}
-                    aria-hidden="true"
-                    className={cn(
-                      'shrink-0 text-gold-bright/80 transition-transform duration-200',
-                      isCollapsed ? '-rotate-90' : 'rotate-0',
-                    )}
-                  />
+                {/* v13 .drawer-banner .name: 19px / weight 500 / roman.
+                    No chevron — v5 spec note: "真实图书馆抽屉不需要箭头
+                    affordance"; the whole banner is the click target,
+                    hover-brightness is the visible affordance. */}
+                <h2 className="truncate font-display text-[19px] font-medium leading-tight text-inv-text">
+                  {fandom.name}
                 </h2>
 
                 <div
@@ -249,7 +239,11 @@ export function LibraryFandomSections({
                           }
                           // v13 .au-card padding 12px 14px 12px 16px — left
                           // padding bigger to make room for the gold spine.
-                          className="group relative cursor-pointer bg-surface py-3 pl-4 pr-[14px] transition-colors hover:bg-rule-soft"
+                          // border-bottom: 1px rule-soft on mobile/sm gives
+                          // v13's row-list feel; hidden on md+ where the
+                          // grid layout makes side-by-side borders look noisy.
+                          // last:border-b-0 to drop the trailing separator.
+                          className="group relative cursor-pointer border-b border-rule-soft bg-surface py-3 pl-4 pr-[14px] transition-colors last:border-b-0 hover:bg-rule-soft md:border-b-0"
                         >
                           {/* Gold spine — 2px tall pseudo-element echoing the
                               v13 .au-card::before. Uses absolute + opacity so
@@ -300,20 +294,24 @@ export function LibraryFandomSections({
                               `<strong>N</strong> fics · words` with the
                               number in EB Garamond display weight. We mirror
                               that with chapter_count. */}
+                          {/* v13 .au-card .row3: mt 8px, mono 11px, ink-muted.
+                              Strong is EB Garamond 600 14px accent. Trailing
+                              chevron is Unicode `›` (single-glyph, lighter
+                              than an SVG icon) per v13 spec. */}
                           <div className="mt-2 flex items-baseline justify-between font-mono text-[11px] tracking-[0.04em] text-ink-muted">
                             <span>
                               {chapters > 0 ? (
                                 <>
-                                  <strong className="font-display text-sm font-semibold not-italic text-accent">
+                                  <strong className="mr-1 font-display text-sm font-semibold not-italic text-accent">
                                     {chapters}
                                   </strong>
-                                  <span className="ml-1">章</span>
+                                  章
                                 </>
                               ) : (
                                 <span className="text-ink-faint">未开始</span>
                               )}
                             </span>
-                            <ChevronRight size={14} className="text-ink-faint/70" />
+                            <span aria-hidden="true" className="text-base leading-none text-ink-faint">›</span>
                           </div>
                         </article>
                       </li>
