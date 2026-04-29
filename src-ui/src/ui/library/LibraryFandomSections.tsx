@@ -120,7 +120,9 @@ export function LibraryFandomSections({
                   toggleCollapse(fandom.dir_name);
                 }
               }}
-              className="group relative w-full cursor-pointer select-none rounded-sm bg-drawer px-4 py-3 text-left transition-[filter] hover:brightness-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright focus-visible:ring-offset-2 focus-visible:ring-offset-background md:px-5 md:py-3.5"
+              // v13 .drawer-banner: padding 12px 14px on mobile. Slightly more
+              // generous on desktop because the banner spans the full grid width.
+              className="group relative w-full cursor-pointer select-none rounded-sm bg-drawer px-[14px] py-3 text-left transition-[filter] hover:brightness-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright focus-visible:ring-offset-2 focus-visible:ring-offset-background md:px-4 md:py-[14px]"
               style={drawerGoldLines}
               aria-expanded={!isCollapsed}
               aria-label={fandom.name}
@@ -141,10 +143,12 @@ export function LibraryFandomSections({
 
               {/* Name row + actions on a single horizontal axis on desktop */}
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-4">
-                <h2 className="flex items-baseline gap-2 truncate font-display text-xl font-semibold leading-tight text-inv-text md:text-[22px]">
+                {/* v13 .drawer-banner .name .en: 19px / weight 500 — not 22/600.
+                    Roman EB Garamond (no italic) per v13 spec. */}
+                <h2 className="flex items-baseline gap-2 truncate font-display text-[19px] font-medium leading-tight text-inv-text">
                   <span className="truncate">{fandom.name}</span>
                   <ChevronDown
-                    size={14}
+                    size={13}
                     aria-hidden="true"
                     className={cn(
                       'shrink-0 text-gold-bright/80 transition-transform duration-200',
@@ -238,7 +242,9 @@ export function LibraryFandomSections({
                               `${dataDir}/fandoms/${fandom.dir_name}/aus/${au.dir_name}`,
                             )
                           }
-                          className="group relative cursor-pointer bg-surface px-4 py-3 transition-colors hover:bg-rule-soft"
+                          // v13 .au-card padding 12px 14px 12px 16px — left
+                          // padding bigger to make room for the gold spine.
+                          className="group relative cursor-pointer bg-surface py-3 pl-4 pr-[14px] transition-colors hover:bg-rule-soft"
                         >
                           {/* Gold spine — 2px tall pseudo-element echoing the
                               v13 .au-card::before. Uses absolute + opacity so
@@ -270,10 +276,16 @@ export function LibraryFandomSections({
 
                           {/* Row 2 — title (LXGW for CN / display for EN) +
                               optional Draft badge inline. */}
-                          <h3 className="font-display text-base font-medium leading-snug text-text">
+                          {/* Title — v13 .au-card .title: 16px font-weight 500
+                              (LXGW for CN, EB Garamond for EN auto via stack). */}
+                          <h3 className="font-display text-base font-medium leading-[1.3] text-text">
                             <span className="align-middle">{au.name}</span>
                             {hasDirty && (
-                              <span className="ml-2 inline-block rounded-[2px] border border-gold/40 bg-gold/10 px-1.5 py-[1px] align-middle font-mono text-[8px] font-medium uppercase tracking-[0.14em] text-gold">
+                              // v13 .draft-badge — exact: 8px tracking-[0.14em],
+                              // padding 2/5, border-radius 1px, bg/border at
+                              // gold rgba(168,131,51,0.16/0.28). The /15 + /28
+                              // alpha gives the same washed-out gold tint.
+                              <span className="ml-1.5 inline-block rounded-[1px] border border-gold/30 bg-gold/15 px-[5px] py-[2px] align-middle font-mono text-[8px] font-medium uppercase tracking-[0.14em] text-gold">
                                 Draft
                               </span>
                             )}
