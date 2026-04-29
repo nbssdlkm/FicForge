@@ -36,7 +36,10 @@ import { fileURLToPath } from "node:url";
 // ---- Configuration (machine-specific paths) ----
 
 const JAVA_HOME = "C:\\Program Files\\Android\\Android Studio\\jbr";
-const ADB = "C:\\Users\\Administrator\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe";
+// SDK relocated to C:\Android\Sdk (2026-04 reinstall after disk cleanup);
+// previous default user-profile location no longer exists.
+const ANDROID_HOME = "C:\\Android\\Sdk";
+const ADB = `${ANDROID_HOME}\\platform-tools\\adb.exe`;
 const APP_ID = "com.ficforge.app";
 
 // ---- Helpers ----
@@ -53,7 +56,13 @@ function run(cmd, opts = {}) {
   execSync(cmd, {
     stdio: "inherit",
     cwd: projectRoot,
-    env: { ...process.env, JAVA_HOME, Path: `${JAVA_HOME}\\bin;${process.env.Path || process.env.PATH || ""}` },
+    env: {
+      ...process.env,
+      JAVA_HOME,
+      ANDROID_HOME,
+      ANDROID_SDK_ROOT: ANDROID_HOME,
+      Path: `${JAVA_HOME}\\bin;${ANDROID_HOME}\\platform-tools;${process.env.Path || process.env.PATH || ""}`,
+    },
     ...opts,
   });
 }
@@ -64,9 +73,14 @@ function preflight() {
     console.error(`        Open Android Studio → Settings → Build → Build Tools → Gradle to find your JBR location`);
     process.exit(1);
   }
+  if (!existsSync(ANDROID_HOME)) {
+    console.error(`[error] ANDROID_HOME path does not exist: ${ANDROID_HOME}`);
+    console.error(`        Reinstall the Android SDK (Android Studio → SDK Manager) or update ANDROID_HOME in this script`);
+    process.exit(1);
+  }
   if (!existsSync(ADB)) {
     console.error(`[error] adb not found at: ${ADB}`);
-    console.error(`        Install Android Studio with Platform Tools, or update the path in this script`);
+    console.error(`        Run: ${ANDROID_HOME}\\cmdline-tools\\latest\\bin\\sdkmanager.bat platform-tools`);
     process.exit(1);
   }
 
