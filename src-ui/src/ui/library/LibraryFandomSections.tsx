@@ -147,6 +147,12 @@ export function LibraryFandomSections({
                   {fandom.name}
                 </h2>
 
+                {/* Action row inside the sage banner. Two visual groups:
+                    - Primary (text + icon): Fandom 资料 / + 新建 AU
+                    - Secondary (icon only): trash list + delete fandom
+                    A 1px cream-tint divider separates them so the
+                    destructive delete button doesn't sit shoulder-to-
+                    shoulder with the primary "+ AU" CTA. */}
                 <div
                   className="flex flex-wrap items-center gap-1"
                   onClick={(e) => e.stopPropagation()}
@@ -170,13 +176,17 @@ export function LibraryFandomSections({
                   >
                     <Plus size={14} className="mr-1" /> {t('library.createAuButton')}
                   </Button>
+                  <span
+                    aria-hidden="true"
+                    className="mx-1 hidden h-4 w-px bg-[color:var(--color-drawer-edge)] md:inline-block"
+                  />
                   <Button
                     tone="neutral"
                     fill="plain"
                     size="sm"
                     onClick={() => onOpenTrash(fandom.dir_name, fandom.name)}
                     title={t('trash.tooltip')}
-                    className="h-8 w-8 p-0 text-inv-text/60 hover:bg-gold-bright/10 hover:text-gold-bright"
+                    className="h-8 w-8 p-0 text-inv-text/55 hover:bg-gold-bright/10 hover:text-gold-bright"
                   >
                     <ArchiveRestore size={14} />
                   </Button>
@@ -186,7 +196,7 @@ export function LibraryFandomSections({
                     size="sm"
                     onClick={() => onDeleteFandom(fandom.dir_name, fandom.name)}
                     disabled={mutating}
-                    className="h-8 w-8 p-0 text-inv-text/40 hover:bg-error/20 hover:text-error"
+                    className="h-8 w-8 p-0 text-inv-text/35 hover:bg-error/20 hover:text-error"
                   >
                     <Trash2 size={14} />
                   </Button>
@@ -242,8 +252,10 @@ export function LibraryFandomSections({
                           // border-bottom: 1px rule-soft on mobile/sm gives
                           // v13's row-list feel; hidden on md+ where the
                           // grid layout makes side-by-side borders look noisy.
-                          // last:border-b-0 to drop the trailing separator.
-                          className="group relative cursor-pointer border-b border-rule-soft bg-surface py-3 pl-4 pr-[14px] transition-colors last:border-b-0 hover:bg-rule-soft md:border-b-0"
+                          // active:bg-rule-soft mirrors v13 :active so mobile
+                          // touch gets feedback (iOS Safari :hover is sticky
+                          // post-tap; :active fires reliably on press).
+                          className="group relative cursor-pointer border-b border-rule-soft bg-surface py-3 pl-4 pr-[14px] transition-colors last:border-b-0 hover:bg-rule-soft active:bg-rule-soft md:border-b-0"
                         >
                           {/* Gold spine — 2px tall pseudo-element echoing the
                               v13 .au-card::before. Uses absolute + opacity so
@@ -253,14 +265,17 @@ export function LibraryFandomSections({
                             className="pointer-events-none absolute left-0 top-3 bottom-3 w-[2px] bg-gold opacity-65"
                           />
 
-                          {/* Row 1 — call no + delete affordance (which v13
-                              didn't show, but our app needs it; placed where
-                              v13 had `updated` to keep the same alignment). */}
+                          {/* Row 1 — call no on the left. v13 had `updated`
+                              timestamp on the right; we don't track that.
+                              Inline delete affordance is desktop-only (hidden
+                              on mobile where v13's mockup had no edit
+                              actions; mobile delete is a future long-press /
+                              context-menu UX, not an always-visible icon). */}
                           <div className="mb-1 flex items-baseline justify-between gap-2 font-mono text-[9px] uppercase tracking-[0.1em]">
                             <span className="text-gold">{auCn}</span>
                             <button
                               type="button"
-                              className="-mr-1 -my-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-[2px] text-text/30 opacity-100 transition-opacity hover:bg-error/10 hover:text-error md:h-6 md:w-6 md:opacity-0 md:group-hover:opacity-100"
+                              className="-mr-1 -my-1 hidden h-6 w-6 shrink-0 items-center justify-center rounded-[2px] text-text/30 opacity-0 transition-opacity hover:bg-error/10 hover:text-error md:flex md:group-hover:opacity-100"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onDeleteAu(fandom.dir_name, fandom.name, au.dir_name, au.name);
