@@ -208,8 +208,13 @@ export function LibraryFandomSections({
                   inside without expanding. We use the first AU as the
                   approximate "most recent" since we don't track open time. */}
               {isCollapsed && mostRecent && (
-                <div className="mt-2.5 flex items-center gap-2 border-t border-[color:var(--color-drawer-edge)] pt-2 font-serif text-xs italic text-inv-text/70">
-                  <span className="font-sans not-italic font-medium uppercase tracking-[0.14em] text-gold-bright text-[9px]">
+                // v13 .drawer-banner-preview: lbl is mono caps gold-bright,
+                // recent is LXGW (not italic) drawer-fg. The container's
+                // own italic from earlier was wrong — only specific elements
+                // get italic in v13 (the "更新于…" timestamp, which we don't
+                // have data for). Recent name stays roman.
+                <div className="mt-2.5 flex items-center gap-2 border-t border-[color:var(--color-drawer-edge)] pt-2 font-serif text-xs text-inv-text/70">
+                  <span className="font-sans font-medium uppercase tracking-[0.14em] text-gold-bright text-[9px]">
                     最近
                   </span>
                   <span className="truncate text-inv-text">{mostRecent.name}</span>

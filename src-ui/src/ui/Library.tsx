@@ -102,22 +102,26 @@ function LibraryInner({ onNavigate }: Props) {
       {/* TOP BAR — brand seal + title italic, quiet chrome */}
       <header className="safe-area-top border-b border-rule bg-surface px-4 py-3 md:h-16 md:px-6 transition-colors duration-200">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            {/* v13 .app-top .seal: 32x32, border-radius 3px, inner inset 3px
+                radius 1.5px opacity 0.5. */}
             <div
               aria-hidden="true"
-              className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border-[1.5px] border-accent"
+              className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[3px] border-[1.5px] border-accent"
             >
-              <span className="font-display italic text-lg font-semibold leading-none text-accent">
+              <span className="font-display italic text-[18px] font-semibold leading-none text-accent">
                 F
               </span>
-              <span className="pointer-events-none absolute inset-[3px] rounded-[2px] border border-accent/50 opacity-60" />
+              <span className="pointer-events-none absolute inset-[3px] rounded-[1.5px] border-[0.5px] border-accent opacity-50" />
             </div>
-            <div className="leading-tight">
-              <div className="font-display text-lg font-semibold tracking-[0.02em] text-text">
+            {/* v13 .app-top .name: EB Garamond 17px font-weight 600 (NOT italic)
+                + .cn LXGW 11px font-weight 400 ink-muted (NOT mono uppercase). */}
+            <div className="leading-[1.1]">
+              <div className="font-display text-[17px] font-semibold tracking-[0.02em] text-text">
                 {t("common.appName")}
               </div>
-              <div className="font-sans text-[10px] font-medium uppercase tracking-[0.18em] text-gold">
-                粮坊 · Fanfic
+              <div className="mt-[1px] font-serif text-[11px] font-normal tracking-[0.04em] text-ink-muted">
+                粮坊
               </div>
             </div>
           </div>
@@ -168,24 +172,29 @@ function LibraryInner({ onNavigate }: Props) {
         <div className="mx-auto w-full max-w-5xl">
           <div className="flex items-start justify-between gap-6">
             <div className="min-w-0 flex-1">
-              <h1 className="font-display italic text-3xl font-medium uppercase leading-[1.05] tracking-[0.04em] text-accent md:text-[42px]">
+              {/* v13 .app-hero h1: roman (NOT italic) EB Garamond, weight 500,
+                  uppercase, tracking 0.04em, accent color, line-height 1.1.
+                  Mobile mockup is 26px; we scale up on desktop while keeping
+                  the same weight/tracking proportions. */}
+              <h1 className="font-display text-3xl font-medium uppercase leading-[1.1] tracking-[0.04em] text-accent md:text-[42px]">
                 Index of Works
               </h1>
-              <p className="mt-2 font-serif text-base tracking-[0.04em] text-ink-muted">
+              {/* v13 .app-hero h1 .cn: LXGW 13px weight 400 ink-muted
+                  letter-spacing 0.06em, mt 4px (not 8). */}
+              <p className="mt-1 font-serif text-[13px] font-normal tracking-[0.06em] text-ink-muted">
                 {t('library.title')}
               </p>
             </div>
 
-            {/* Primary CTA — only thing on the hero's right side, aligned to
-                the top-of-title baseline so it reads as the hero's call-to-
-                action, not a generic toolbar button. */}
+            {/* v13 .new-btn: padding 7 12, Inter 11px tracking 0.08em
+                uppercase, border-radius 2px, accent bg + cream text. */}
             <Button
               size="sm"
               onClick={mutations.openFandomModal}
               disabled={mutating}
-              className="mt-1 shrink-0 h-10 px-5 font-sans text-[12px] font-medium uppercase tracking-[0.08em]"
+              className="mt-1 shrink-0 h-9 rounded-[2px] px-3.5 font-sans text-[11px] font-medium uppercase tracking-[0.08em]"
             >
-              <Plus size={15} className="mr-1.5" />
+              <Plus size={13} className="mr-1" />
               {t('library.fandomButton')}
             </Button>
           </div>
@@ -199,13 +208,16 @@ function LibraryInner({ onNavigate }: Props) {
             · · ·
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">
+          {/* v13 .app-hero .stats: mono 9px tracking 0.08em ink-muted; strong
+              EB Garamond weight 600 fontSize 11px accent. Pill: rounded-full
+              + 1px rule border + paper bg, padding 3 7. */}
+          <div className="mt-3 flex flex-wrap gap-1.5 font-mono text-[9px] uppercase tracking-[0.08em] text-ink-muted">
             {stats.map(({ value, label }) => (
               <span
                 key={label}
-                className="inline-flex items-baseline gap-1 rounded-full border border-rule bg-surface px-2.5 py-[3px]"
+                className="inline-flex items-baseline gap-1 rounded-full border border-rule bg-surface px-[7px] py-[3px]"
               >
-                <strong className="font-display text-sm font-semibold not-italic text-accent">
+                <strong className="font-display text-[11px] font-semibold not-italic text-accent">
                   {value}
                 </strong>
                 {label}
