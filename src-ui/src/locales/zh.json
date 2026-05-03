@@ -466,6 +466,7 @@
     },
     "global": {
       "title": "全局设置",
+      "savedToast": "全局设置已保存",
       "description": "这里的配置会作为默认值，所有新建的故事都会先用这套设置。",
       "defaultModel": "默认模型",
       "connectionSuccess": "连接成功。",

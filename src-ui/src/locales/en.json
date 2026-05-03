@@ -466,6 +466,7 @@
     },
     "global": {
       "title": "Global Settings",
+      "savedToast": "Global settings saved",
       "description": "These are the default settings. All new stories will start with this configuration.",
       "defaultModel": "Default Model",
       "connectionSuccess": "Connection successful.",

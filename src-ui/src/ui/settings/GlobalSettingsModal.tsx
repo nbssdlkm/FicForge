@@ -33,7 +33,7 @@ import {
 
 export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const { t, i18n } = useTranslation();
-  const { showError } = useFeedback();
+  const { showError, showSuccess } = useFeedback();
   const modalGuard = useActiveRequestGuard(isOpen ? 'global-settings-open' : 'global-settings-closed');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -177,7 +177,10 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         lastSync,
       }));
       if (modalGuard.isStale(token)) return;
-      onClose();
+      // Don't auto-close — user explicitly asked to keep the modal open after
+      // save so they can continue tweaking other sections without reopening.
+      // A toast confirms the save landed.
+      showSuccess(t('settings.global.savedToast'));
     } catch (error) {
       if (modalGuard.isStale(token)) return;
       showError(error, t('error_messages.unknown'));
