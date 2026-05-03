@@ -30,7 +30,7 @@ export type OnboardingCompletion = {
   openAuPath?: string;
 };
 
-type SetupAction = 'create' | 'import-local' | 'sync-directory' | 'later';
+type SetupAction = 'create' | 'import-local' | 'later';
 
 const TOTAL_STEPS = 6;
 
@@ -207,9 +207,7 @@ export function MobileOnboarding({
         nextAction:
           setupAction === 'import-local'
             ? 'open-import'
-            : setupAction === 'sync-directory'
-              ? 'open-settings'
-              : undefined,
+            : undefined,
       });
     } catch (error: any) {
       if (!isMountedRef.current) return;
@@ -455,13 +453,6 @@ export function MobileOnboarding({
                     onClick={() => setSetupAction('import-local')}
                   />
                   <StepCard
-                    active={setupAction === 'sync-directory'}
-                    title={t('onboarding.mobile.setup.syncTitle')}
-                    description={t('onboarding.mobile.setup.syncDescription')}
-                    icon={<Globe2 size={18} />}
-                    onClick={() => setSetupAction('sync-directory')}
-                  />
-                  <StepCard
                     active={setupAction === 'later'}
                     title={t('onboarding.mobile.setup.laterTitle')}
                     description={t('onboarding.mobile.setup.laterDescription')}
@@ -548,9 +539,7 @@ export function MobileOnboarding({
                         ? t('onboarding.mobile.complete.createSummary', { fandomName, auName })
                         : setupAction === 'import-local'
                           ? t('onboarding.mobile.complete.importSummary')
-                          : setupAction === 'sync-directory'
-                            ? t('onboarding.mobile.complete.syncSummary')
-                            : t('onboarding.mobile.complete.laterSummary')}
+                          : t('onboarding.mobile.complete.laterSummary')}
                     </span>
                   </div>
                 </Card>

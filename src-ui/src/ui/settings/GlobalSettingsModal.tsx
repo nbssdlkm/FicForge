@@ -10,14 +10,11 @@ import { Input } from '../shared/Input';
 import { HelpCircle, CheckCircle2, XCircle } from 'lucide-react';
 import { ModelSelector } from '../shared/ModelSelector';
 import { getSettingsForEditing, saveGlobalSettingsForEditing, LLMMode, type SettingsInfo, getDataDir, getDisplayDataDir } from '../../api/engine-client';
-import { ConflictResolveModal } from '../shared/ConflictResolveModal';
-import { useSyncOperations } from './useSyncOperations';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
 import { DebugLogsSection } from './DebugLogsSection';
 import { changeLanguage, SUPPORTED_LANGUAGES, type AppLanguage } from '../../i18n';
 import { ApiSetupHelp } from '../help/ApiSetupHelp';
-import { GlobalSettingsSyncSection } from './GlobalSettingsSyncSection';
 import { LlmModeSelect } from './LlmModeSelect';
 import { FontSettingsSection } from './FontSettingsSection';
 import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
@@ -71,14 +68,6 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     getExceptionMessage: (error) => error instanceof Error ? error.message || t('error_messages.unknown') : t('error_messages.unknown'),
   });
 
-  const syncOps = useSyncOperations({ url: syncUrl, username: syncUsername, password: syncPassword, remote_dir: syncRemoteDir });
-  const {
-    conflicts,
-    conflictModalOpen, setConflictModalOpen,
-    handleResolveConflict, handleResolveAllConflicts,
-    resetSyncState,
-  } = syncOps;
-
   const resetFormState = () => {
     const defaults = createDefaultGlobalSettingsFormState();
     setSettings(null);
@@ -100,7 +89,6 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     setSyncRemoteDir(defaults.syncRemoteDir);
     setLastSync(defaults.lastSync);
     setApiHelpOpen(false);
-    resetSyncState();
   };
 
   useEffect(() => {
@@ -350,22 +338,6 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
             </div>
           </div>
 
-          <GlobalSettingsSyncSection
-            syncMode={syncMode}
-            setSyncMode={setSyncMode}
-            syncUrl={syncUrl}
-            setSyncUrl={setSyncUrl}
-            syncUsername={syncUsername}
-            setSyncUsername={setSyncUsername}
-            syncPassword={syncPassword}
-            setSyncPassword={setSyncPassword}
-            syncRemoteDir={syncRemoteDir}
-            setSyncRemoteDir={setSyncRemoteDir}
-            lastSync={lastSync}
-            setLastSync={setLastSync}
-            syncOps={syncOps}
-          />
-
           <div className="space-y-2 border-t border-rule pt-5">
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-bold text-text/90">{t('settings.global.languageLabel')}</label>
@@ -412,13 +384,6 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         </div>
       )}
       <ApiSetupHelp isOpen={apiHelpOpen} onClose={() => setApiHelpOpen(false)} />
-      <ConflictResolveModal
-        isOpen={conflictModalOpen}
-        onClose={() => setConflictModalOpen(false)}
-        conflicts={conflicts}
-        onResolve={handleResolveConflict}
-        onResolveAll={handleResolveAllConflicts}
-      />
     </Modal>
   );
 };
