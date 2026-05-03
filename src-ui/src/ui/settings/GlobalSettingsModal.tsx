@@ -395,10 +395,15 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
 
           <p className="mt-4 text-xs leading-relaxed text-text/30">{t('ethics.aboutFooter')}</p>
 
-          <div className="flex justify-end gap-3 border-t border-rule pt-5">
+          {/* Sticky footer — modal body is overflow-y-auto, so sticky bottom-0
+              keeps the save/cancel pair pinned to the visible bottom edge no
+              matter how far the user has scrolled. Negative horizontal margin
+              cancels Modal/Sheet body padding (px-6 desktop, px-4 mobile) so
+              the bg-surface fill spans the full modal width. */}
+          <div className="sticky bottom-0 -mx-4 md:-mx-6 flex justify-end gap-3 border-t border-rule bg-surface px-4 md:px-6 py-3">
             <Button tone="neutral" fill="plain" onClick={onClose} disabled={saving}>{t('common.actions.cancel')}</Button>
-            <Button tone="accent" fill="solid" onClick={handleSave} disabled={saving || !settings} className="w-32">
-              {saving ? <Spinner size="md" /> : t('common.actions.saveGlobalSettings')}
+            <Button tone="accent" fill="solid" onClick={handleSave} disabled={saving || !settings} className="w-24">
+              {saving ? <Spinner size="md" /> : t('common.actions.save')}
             </Button>
           </div>
         </div>
