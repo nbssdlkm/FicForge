@@ -48,6 +48,8 @@ settings.sync.yaml
 .env
 .env.*
 *.key
+*.keystore
+keystores/
 credentials.json
 .pytest_cache/
 

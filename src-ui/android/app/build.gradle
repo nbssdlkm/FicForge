@@ -16,6 +16,26 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Fixed debug signing config (project-wide, not per-machine).
+    //
+    // Why: Android Gradle's default debug build uses a per-machine ~/.android/debug.keystore.
+    // Two different machines build APKs with different signatures → adb install -r refuses
+    // (INSTALL_FAILED_UPDATE_INCOMPATIBLE) and forces uninstall, which wipes user data in
+    // /data/data/com.ficforge.app/. By pinning a project-shared keystore, every build (any
+    // machine, any contributor) signs identically — `adb install -r` always overwrites
+    // cleanly and preserves user data.
+    //
+    // The keystore file itself is NOT in git (see /.gitignore `keystores/`). Distribute
+    // out-of-band (syncthing D:\sync\ ↔ ~/sync\, secure file share, etc).
+    // Build will fail loudly if keystore is missing — that's the desired behavior.
+    signingConfigs {
+        debug {
+            storeFile file('../../../keystores/ficforge-debug.keystore')
+            storePassword 'ficforge'
+            keyAlias 'ficforge'
+            keyPassword 'ficforge'
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
