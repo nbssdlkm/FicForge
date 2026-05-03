@@ -199,37 +199,50 @@ export class CapacitorAdapter implements PlatformAdapter {
   }
 
   /**
-   * @warning **未加密。** 当前实现仅在 KV 键前添加 `__secure__:` 前缀隔离，
-   * 数据以明文存于 localStorage（或内存回退）。
-   * 待接入 @capacitor-community/secure-storage (Android Keystore / iOS Keychain) 后实现真正加密。
+   * 读取敏感字段。底层走 @aparajita/capacitor-secure-storage（Android Keystore /
+   * iOS Keychain）。失败时不抛出，返回 null —— 上层 restoreSecureFields 会按
+   * "读不到" 路径处理（保留 placeholder 状态置空，不破坏 modal 加载）。
+   *
+   * 真机故障诊断靠 console.info / console.warn — 用 logcat 抓
+   * `[CapacitorAdapter.secure]` 标签。
    */
   async secureGet(key: string): Promise<string | null> {
+    console.info(`[CapacitorAdapter.secure] get enter, key=${key}`);
     const stored = await this.invokeSecureStoreGet(key);
     if (stored !== null) {
+      console.info(`[CapacitorAdapter.secure] get hit (plugin), key=${key}, len=${stored.length}`);
       this.removeLegacySecureValue(key);
       return stored;
     }
 
     const legacyValue = this.getLegacySecureValue(key);
     if (legacyValue === null) {
+      console.info(`[CapacitorAdapter.secure] get miss (plugin + legacy), key=${key}`);
       return null;
     }
 
+    console.info(`[CapacitorAdapter.secure] get hit (legacy), migrating, key=${key}, len=${legacyValue.length}`);
     await this.invokeSecureStoreSet(key, legacyValue);
     this.removeLegacySecureValue(key);
     return legacyValue;
   }
 
-  /** @see {@link CapacitorAdapter.secureGet} — 同样未加密。 */
+  /**
+   * 写入敏感字段。失败时抛出 —— 上层 saveSettings 链路会感知到错误，
+   * 在 GlobalSettingsModal 的 catch 里弹错误 toast，避免"看似成功"的静默丢数据。
+   */
   async secureSet(key: string, value: string): Promise<void> {
+    console.info(`[CapacitorAdapter.secure] set enter, key=${key}, len=${value.length}`);
     await this.invokeSecureStoreSet(key, value);
     this.removeLegacySecureValue(key);
+    console.info(`[CapacitorAdapter.secure] set OK, key=${key}`);
   }
 
-  /** @see {@link CapacitorAdapter.secureGet} — 同样未加密。 */
   async secureRemove(key: string): Promise<void> {
+    console.info(`[CapacitorAdapter.secure] remove enter, key=${key}`);
     await this.invokeSecureStoreRemove(key);
     this.removeLegacySecureValue(key);
+    console.info(`[CapacitorAdapter.secure] remove OK, key=${key}`);
   }
 
   getSecretStorageCapabilities(): SecretStorageCapabilities {
@@ -262,17 +275,34 @@ export class CapacitorAdapter implements PlatformAdapter {
   }
 
   private async invokeSecureStoreGet(key: string): Promise<string | null> {
-    const { SecureStorage } = await import("@aparajita/capacitor-secure-storage");
-    return SecureStorage.getItem(key);
+    try {
+      const { SecureStorage } = await import("@aparajita/capacitor-secure-storage");
+      const value = await SecureStorage.getItem(key);
+      // 插件返回 null = 没存过；返回字符串 = 存过。两者都是正常路径，不告警。
+      return value;
+    } catch (err) {
+      console.warn(`[CapacitorAdapter.secure] plugin getItem threw, key=${key}, err=`, err);
+      return null;
+    }
   }
 
   private async invokeSecureStoreSet(key: string, value: string): Promise<void> {
-    const { SecureStorage } = await import("@aparajita/capacitor-secure-storage");
-    await SecureStorage.setItem(key, value);
+    try {
+      const { SecureStorage } = await import("@aparajita/capacitor-secure-storage");
+      await SecureStorage.setItem(key, value);
+    } catch (err) {
+      console.warn(`[CapacitorAdapter.secure] plugin setItem threw, key=${key}, err=`, err);
+      throw err;
+    }
   }
 
   private async invokeSecureStoreRemove(key: string): Promise<void> {
-    const { SecureStorage } = await import("@aparajita/capacitor-secure-storage");
-    await SecureStorage.removeItem(key);
+    try {
+      const { SecureStorage } = await import("@aparajita/capacitor-secure-storage");
+      await SecureStorage.removeItem(key);
+    } catch (err) {
+      console.warn(`[CapacitorAdapter.secure] plugin removeItem threw, key=${key}, err=`, err);
+      throw err;
+    }
   }
 }
