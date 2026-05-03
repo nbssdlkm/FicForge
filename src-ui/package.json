@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "android:install": "node scripts/android-install.mjs",
     "android:install:fast": "node scripts/android-install.mjs --skip-build",
+    "android:install:remote": "node scripts/android-install-remote.mjs",
     "i18n:check": "tsx scripts/check-i18n-sync.ts"
   },
   "dependencies": {
