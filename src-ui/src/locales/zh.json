@@ -30,6 +30,8 @@
       "saveToStory": "记住到本篇",
       "viewGlobalSettings": "查看全局设置",
       "testConnection": "测试连接",
+      "testLlmConnection": "测试 LLM 连接",
+      "testEmbeddingConnection": "测试 Embedding 连接",
       "createFandom": "创建Fandom",
       "createAu": "创建AU",
       "importOldWork": "导入旧文",

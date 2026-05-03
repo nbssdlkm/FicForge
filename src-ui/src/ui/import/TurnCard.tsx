@@ -32,7 +32,7 @@ export function TurnCard({ turn, currentChapterNum, hasPreviousChapter, onChange
       ? "border-info/30 bg-info/5"
       : turn.classification === "uncertain"
         ? "border-warning/30 bg-warning/5"
-        : "border-black/10 dark:border-white/10";
+        : "border-text/20 bg-surface/40 opacity-70";
 
   // 构建下拉选项
   const chNum = currentChapterNum ?? 1;

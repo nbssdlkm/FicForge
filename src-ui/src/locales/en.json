@@ -30,6 +30,8 @@
       "saveToStory": "Save to This Story",
       "viewGlobalSettings": "View Global Settings",
       "testConnection": "Test Connection",
+      "testLlmConnection": "Test LLM Connection",
+      "testEmbeddingConnection": "Test Embedding Connection",
       "createFandom": "Create Fandom",
       "createAu": "Create AU",
       "importOldWork": "Import Existing Work",

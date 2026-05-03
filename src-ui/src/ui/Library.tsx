@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useMemo, useState } from 'react';
-import { Settings, BookOpen, Trash2, Plus, Upload } from 'lucide-react';
+import { Settings, BookOpen, Trash2, Plus, Import } from 'lucide-react';
 import { Spinner } from "./shared/Spinner";
 import { Button } from './shared/Button';
 import { InlineBanner } from './shared/InlineBanner';
@@ -140,7 +140,7 @@ function LibraryInner({ onNavigate }: Props) {
               className="h-9 w-9 p-0 text-ink-muted hover:text-text"
               title={t("common.actions.importOldWork")}
             >
-              <Upload size={16} />
+              <Import size={16} />
             </Button>
             <Button
               tone="neutral"
@@ -181,7 +181,7 @@ function LibraryInner({ onNavigate }: Props) {
                   uppercase, tracking 0.04em, accent color, line-height 1.1.
                   Mobile mockup is 26px; we scale up on desktop while keeping
                   the same weight/tracking proportions. */}
-              <h1 className="font-display text-3xl font-medium uppercase leading-[1.1] tracking-[0.04em] text-accent md:text-[42px]">
+              <h1 className="font-display text-3xl font-medium uppercase leading-[1.1] tracking-[0.04em] text-accent [.theme-night_&]:text-inv-text md:text-[42px]">
                 Index of Works
               </h1>
               {/* v13 .app-hero h1 .cn: LXGW 13px weight 400 ink-muted
@@ -204,19 +204,10 @@ function LibraryInner({ onNavigate }: Props) {
             </Button>
           </div>
 
-          {/* Gold ornament — typographic divider between subtitle and stats */}
-          <div
-            aria-hidden="true"
-            className="mt-5 select-none font-mono text-[11px] text-gold"
-            style={{ letterSpacing: '1.2em', paddingLeft: '1.2em' }}
-          >
-            · · ·
-          </div>
-
           {/* v13 .app-hero .stats: mono 9px tracking 0.08em ink-muted; strong
               EB Garamond weight 600 fontSize 11px accent. Pill: rounded-full
               + 1px rule border + paper bg, padding 3 7. */}
-          <div className="mt-3 flex flex-wrap gap-1.5 font-mono text-[9px] uppercase tracking-[0.08em] text-ink-muted">
+          <div className="mt-6 flex flex-wrap gap-1.5 font-mono text-[9px] uppercase tracking-[0.08em] text-ink-muted">
             {stats.map(({ value, label }) => (
               <span
                 key={label}

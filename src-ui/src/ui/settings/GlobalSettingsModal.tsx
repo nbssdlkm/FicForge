@@ -292,6 +292,21 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
               <p className="text-xs text-text/50">{t('common.help.contextWindow')}</p>
             </div>
 
+            <div className="flex items-center gap-2 pt-1">
+              <Button
+                tone="neutral"
+                fill="outline"
+                size="sm"
+                onClick={handleTest}
+                disabled={saving || llmConnection.status === 'testing' || !canRunLlmTest}
+              >
+                {llmConnection.status === 'testing' ? <Spinner size="sm" className="mr-1" /> : null}
+                {t('common.actions.testLlmConnection')}
+              </Button>
+              {llmConnection.status === 'success' && <span className="flex items-center text-xs text-success"><CheckCircle2 size={14} className="mr-1" /> {llmConnection.message}</span>}
+              {llmConnection.status === 'error' && <span className="flex items-start text-xs text-error"><XCircle size={14} className="mr-1 mt-0.5 shrink-0" /> <span className="leading-tight">{llmConnection.message}</span></span>}
+            </div>
+
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-bold text-text/90">{t('common.labels.searchEngineModel')}</label>
@@ -322,7 +337,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                   <div className="flex items-center gap-2 pt-1">
                     <Button tone="neutral" fill="outline" size="sm" onClick={handleEmbeddingTest} disabled={saving || embeddingConnection.status === 'testing' || !embeddingModel.trim()}>
                       {embeddingConnection.status === 'testing' ? <Spinner size="sm" className="mr-1" /> : null}
-                      {t('common.actions.testConnection')}
+                      {t('common.actions.testEmbeddingConnection')}
                     </Button>
                     {embeddingConnection.status === 'success' && <span className="flex items-center text-xs text-success"><CheckCircle2 size={14} className="mr-1" /> {embeddingConnection.message}</span>}
                     {embeddingConnection.status === 'error' && <span className="flex items-start text-xs text-error"><XCircle size={14} className="mr-1 mt-0.5 shrink-0" /> <span className="leading-tight">{embeddingConnection.message}</span></span>}
@@ -330,26 +345,6 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                 </div>
               )}
             </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-2">
-            <div className="flex flex-1 items-center pr-4">
-              {llmConnection.status === 'testing' && <span className="flex items-center text-xs text-text/70"><Spinner size="sm" className="mr-1" /> {t('common.status.testing')}</span>}
-              {llmConnection.status === 'success' && <span className="flex items-center text-xs text-success"><CheckCircle2 size={14} className="mr-1" /> {llmConnection.message}</span>}
-              {llmConnection.status === 'error' && <span className="flex items-start text-xs text-error"><XCircle size={14} className="mr-1 mt-0.5 shrink-0" /> <span className="leading-tight">{llmConnection.message}</span></span>}
-            </div>
-            <Button
-              tone="neutral" fill="outline"
-              size="sm"
-              onClick={handleTest}
-              disabled={
-                saving
-                || llmConnection.status === 'testing'
-                || !canRunLlmTest
-              }
-            >
-              {t('common.actions.testConnection')}
-            </Button>
           </div>
 
           <GlobalSettingsSyncSection
