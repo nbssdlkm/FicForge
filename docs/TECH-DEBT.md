@@ -364,3 +364,45 @@ Codex Phase 7 audit 报告说 facts lifecycle "完全实现"——它看到 `col
 这是 audit 工具的一个典型局限：**只检查代码存在性，不检查"在所有该被调用的地方都被调用"**。教训记入对 audit 报告的可信度评估方法论。
 
 **讨论上下文：** 2026-04-23 与用户在面试准备讨论中无意发现。当时正在用此 case 做"状态机非平凡设计"的故事素材，grep 验证时发现 gap。
+
+---
+
+## TD-015: 导入/导出范围太窄，不支持简版↔主 app 数据迁回
+
+**严重度**：P2（不阻塞当前功能，阻塞简版 fork 数据互通的体验）
+**归属**：engine + UI
+**触发场景**：用户在简版 fork（独立 APK）写了 N 章，想迁回主 app 用 RAG/facts 完整模式继续写
+
+**当前状态：**
+
+`src-engine/services/export_service.ts` 和 `import_pipeline.ts` 的导入/导出**只覆盖章节正文**（chapters/main/*.md）+ frontmatter 元数据。其他文件被忽略：
+
+- `state.yaml` — 当前章节号、focus、characters_last_seen 等核心 state 字段
+- `facts.jsonl` — facts 表
+- `chapter_summaries/*.md` —（未来 M8 实现的）章节摘要
+- `.well-known/rag_index/*.json` — RAG embedding 分片
+- `simple-chat.yaml`（简版独有）— 对话历史
+- `core_worldbuilding/*.md` / `core_characters/*.md` — 设定文件（？要确认现状）
+
+**为什么是债：**
+
+简版 MVP（见 `docs/internal/plans/simple-app-mvp-plan.md` 决策 12）的"迁回主 app"路径依赖完整 AU 数据迁移。当前导入/导出只移正文等于：用户从简版导出后导入主 app，主 app 看到 N 章正文但 state.yaml 里 `current_chapter` 仍是 0、facts.jsonl 空、RAG 索引空 —— 状态完全断裂。需要用户手动跑 `recalc + rebuild RAG`，且部分元数据（如 chapter focus / characters_last_seen 历史）**永久丢失**。
+
+**修复方向（候选）：**
+
+1. **保守方案**：导出加 manifest 列出 AU 所有文件，导入时全文件 round-trip 写入。manifest 标版本号方便后续 schema 迁移。
+2. **激进方案**：导出/导入按"AU 整体打包"语义（zip 压缩整个 AU 目录），用户体验更直接。但跨平台（Android Capacitor + Tauri）的 zip 实现要测。
+3. **结合 D-0040**：既然 ops.jsonl 降级为 audit log，导出可以**不带 ops**（避免历史泄露），只导可用的 source-of-truth 文件。
+
+**与简版 fork 的关联：**
+
+- 简版用户如果从未需要"迁回主 app"，TD-015 不影响他
+- 但简版作为主 app 未来交互重构的原型，长期看主 app 会接管简版用户的工作流，迁回路径必须通
+- M8 Memory 重设计（D-0041）是同步推进 TD-015 的好时机（schema 都在动）
+
+**修复时机建议：**
+
+- M8 启动时一并设计（导入/导出 schema 跟新的 facts/summary/thread 文件 layout 对齐）
+- 或：简版 fork 真正有用户产生迁回需求时（事件驱动）
+
+**讨论上下文：** 2026-05-03 v4-pro review simple-app-mvp-plan.md 时指出"简版章节迁回主 app 的路径缺失"是 plan 的最大 latent risk。CC 与用户讨论后定方案：不在简版 MVP 范围内自动化迁回，用 import/export 通道兜底，同时主仓库追加这条债跟踪范围扩大。
