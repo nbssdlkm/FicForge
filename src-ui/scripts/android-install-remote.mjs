@@ -35,7 +35,7 @@
  */
 
 import { execSync, spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -132,6 +132,14 @@ step(++stepNum, totalSteps, `ssh ${SSH_HOST} → ${REMOTE_BUILD_SCRIPT} ${branch
 console.log("  (vite build + cap sync + gradle assembleDebug + cp to ~/sync/)");
 console.log("  (~30-90s incremental, 3-5min cold)");
 
+// Snapshot mtime BEFORE the build so step 4 can detect "actually fresh"
+// instead of trusting whatever stale .apk + .md5 pair was already in D:\sync
+// from a previous run. Without this, a self-consistent old pair (matching
+// md5 with each other but predating this build) was passing verification
+// and adb install was loading the previous APK.
+const initialApkMtime = existsSync(SYNC_APK_PATH) ? statSync(SYNC_APK_PATH).mtimeMs : 0;
+const initialMd5Mtime = existsSync(SYNC_MD5_PATH) ? statSync(SYNC_MD5_PATH).mtimeMs : 0;
+
 const buildStart = Date.now();
 try {
   run(`ssh ${SSH_HOST} "bash ${REMOTE_BUILD_SCRIPT} ${branch}"`);
@@ -157,16 +165,25 @@ let expectedMd5 = null;
 while (Date.now() < syncDeadline) {
   if (existsSync(apkPath) && existsSync(expectedMd5Path)) {
     try {
-      // md5 file format: "<hash>  <filename>\n"
-      const md5Content = readFileSync(expectedMd5Path, "utf8").trim();
-      expectedMd5 = md5Content.split(/\s+/)[0].toLowerCase();
-      const actualMd5 = fileMd5(apkPath);
-      if (actualMd5 === expectedMd5) {
-        console.log(`  md5 verified: ${actualMd5}`);
-        synced = true;
-        break;
+      const apkStat = statSync(apkPath);
+      const md5Stat = statSync(expectedMd5Path);
+      // Freshness gate: both files must have been updated since this build
+      // started, otherwise syncthing hasn't delivered new artifacts yet
+      // and we're looking at the previous build's leftover pair (which is
+      // self-consistent — md5 matches APK — but stale).
+      if (apkStat.mtimeMs > initialApkMtime && md5Stat.mtimeMs > initialMd5Mtime) {
+        // md5 file format: "<hash>  <filename>\n"
+        const md5Content = readFileSync(expectedMd5Path, "utf8").trim();
+        expectedMd5 = md5Content.split(/\s+/)[0].toLowerCase();
+        const actualMd5 = fileMd5(apkPath);
+        if (actualMd5 === expectedMd5) {
+          console.log(`  md5 verified: ${actualMd5}`);
+          synced = true;
+          break;
+        }
+        // md5 mismatch — APK still being copied/written. Wait.
       }
-      // md5 mismatch — APK still being copied/written. Wait.
+      // mtime not advanced past the build trigger yet — still waiting on syncthing
     } catch (e) {
       // file lock / partial write — keep retrying
     }
