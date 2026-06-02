@@ -3,6 +3,10 @@
 
 /** @ficforge/engine — 统一导出。 */
 
+// FicForge writing-mode flags
+export type { SimpleFeatures, WritingMode } from "./config/simple_features.js";
+export { getSimpleFeatures, isWritingMode, WRITING_MODES } from "./config/simple_features.js";
+
 // Domain
 export * from "./domain/index.js";
 
@@ -29,6 +33,7 @@ export type {
   SearchOptions,
   SearchResult,
   SettingsRepository,
+  SimpleChatRepository,
   StateRepository,
   VectorChunk,
   VectorRepository,
@@ -43,6 +48,7 @@ export {
   FileOpsRepository,
   FileProjectRepository,
   FileSettingsRepository,
+  FileSimpleChatRepository,
   FileStateRepository,
   compute_content_hash,
   generate_fact_id,

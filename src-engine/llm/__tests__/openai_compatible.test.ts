@@ -4,6 +4,89 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { OpenAICompatibleProvider } from "../openai_compatible.js";
 
+function makeSseResponse(chunks: string[]): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const c of chunks) controller.enqueue(encoder.encode(c));
+      controller.close();
+    },
+  });
+  return new Response(stream, { status: 200, headers: { "Content-Type": "text/event-stream" } });
+}
+
+describe("OpenAICompatibleProvider.generateStream tool_call streaming (FicForge Lite C2/C3 集成依赖)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("transparently passes tool_call deltas through LLMChunk.tool_call_deltas", async () => {
+    const ssePayload = [
+      'data: {"choices":[{"delta":{"role":"assistant","content":null,"tool_calls":[{"index":0,"id":"call_abc","type":"function","function":{"name":"show_chapter","arguments":""}}]}}]}\n\n',
+      'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\\"chapter"}}]}}]}\n\n',
+      'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"_num\\":3}"}}]}}]}\n\n',
+      'data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}\n\n',
+      "data: [DONE]\n\n",
+    ];
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeSseResponse(ssePayload)));
+
+    const provider = new OpenAICompatibleProvider("https://example.com", "key", "model");
+    const chunks = [];
+    for await (const c of provider.generateStream({
+      messages: [{ role: "user", content: "看第 3 章" }],
+      max_tokens: 100, temperature: 1, top_p: 1,
+      tools: [
+        { type: "function", function: { name: "show_chapter", description: "x", parameters: { type: "object", properties: {} } } },
+      ],
+    })) {
+      chunks.push(c);
+    }
+
+    // 4 个 chunks（OpenAI 5 行减去 [DONE] —— [DONE] 是 return 不 yield）
+    expect(chunks).toHaveLength(4);
+
+    // 第一片：name 出现，无 args
+    expect(chunks[0].tool_call_deltas).toBeDefined();
+    expect(chunks[0].tool_call_deltas![0]).toMatchObject({
+      index: 0,
+      id: "call_abc",
+      type: "function",
+      function: { name: "show_chapter", arguments: "" },
+    });
+
+    // 第二、三片：args 增量
+    expect(chunks[1].tool_call_deltas![0].function?.arguments).toBe('{"chapter');
+    expect(chunks[2].tool_call_deltas![0].function?.arguments).toBe('_num":3}');
+
+    // 第四片：finish_reason='tool_calls'，无 tool_call_deltas
+    expect(chunks[3].finish_reason).toBe("tool_calls");
+    expect(chunks[3].tool_call_deltas).toBeUndefined();
+  });
+
+  it("纯 text 流式不携带 tool_call_deltas", async () => {
+    const ssePayload = [
+      'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":" world"}}]}\n\n',
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
+      "data: [DONE]\n\n",
+    ];
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(makeSseResponse(ssePayload)));
+
+    const provider = new OpenAICompatibleProvider("https://example.com", "key", "model");
+    const chunks = [];
+    for await (const c of provider.generateStream({
+      messages: [{ role: "user", content: "x" }],
+      max_tokens: 100, temperature: 1, top_p: 1,
+    })) chunks.push(c);
+
+    expect(chunks).toHaveLength(3);
+    for (const c of chunks) expect(c.tool_call_deltas).toBeUndefined();
+    expect(chunks[0].delta).toBe("Hello");
+    expect(chunks[1].delta).toBe(" world");
+    expect(chunks[2].finish_reason).toBe("stop");
+  });
+});
+
 describe("OpenAICompatibleProvider.generateStream", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -117,5 +200,69 @@ describe("OpenAICompatibleProvider.generate (T7-5: cancellable retry)", () => {
     const removeAbortCalls = removeSpy.mock.calls.filter((c) => c[0] === "abort").length;
     expect(addAbortCalls).toBe(removeAbortCalls);
     expect(addAbortCalls).toBeGreaterThan(0); // 至少加过一次，确认走过了 attachAbort 路径
+  });
+});
+
+describe("OpenAICompatibleProvider 错误处理 (BUG 3.1 错误码拆分)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("tool_choice 错误关键词触发 forced_tool_choice_unsupported", async () => {
+    const errorBody = JSON.stringify({
+      error: { message: "deepseek-reasoner does not support this tool_choice" },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(errorBody, {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+
+    const provider = new OpenAICompatibleProvider(
+      "https://example.com",
+      "key",
+      "deepseek-reasoner",
+    );
+    await expect(
+      provider.generate({
+        messages: [{ role: "user", content: "hello" }],
+        max_tokens: 32,
+        temperature: 1,
+        top_p: 1,
+      }),
+    ).rejects.toMatchObject({ error_code: "forced_tool_choice_unsupported" });
+  });
+
+  it("tools not supported 错误关键词触发 tools_unsupported（回归保护）", async () => {
+    const errorBody = JSON.stringify({
+      error: { message: "tools are not supported" },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(errorBody, {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+
+    const provider = new OpenAICompatibleProvider(
+      "https://example.com",
+      "key",
+      "model",
+    );
+    await expect(
+      provider.generate({
+        messages: [{ role: "user", content: "hello" }],
+        max_tokens: 32,
+        temperature: 1,
+        top_p: 1,
+      }),
+    ).rejects.toMatchObject({ error_code: "tools_unsupported" });
   });
 });

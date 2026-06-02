@@ -78,6 +78,11 @@ export const REQUIRED_KEYS = [
 
   // === AI chapter title generation ===
   "CHAPTER_TITLE_PROMPT",             // f-string with {content}
+
+  // === FicForge Lite: simple_assembler ===
+  "SIMPLE_SECTION_CONFIRMED_CHAPTERS",
+  "SIMPLE_CHAPTER_HEADER",            // f-string with {num}, {title_suffix}
+  "SIMPLE_CHAT_SYSTEM",               // f-string with {chapter_length}, {chapter_length_max} — 简版对话式人设 + 意图分类 + 续写细则
 ] as const;
 
 export type PromptKey = (typeof REQUIRED_KEYS)[number];

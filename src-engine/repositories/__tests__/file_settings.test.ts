@@ -221,3 +221,51 @@ describe("FileSettingsRepository fonts — dictToFontsConfig + 迁移", () => {
     expect(s.app.fonts.ui_cjk_font_id).toBe("source-serif-4");
   });
 });
+
+describe("FileSettingsRepository writing_mode — 默认值 + 校验 + round-trip", () => {
+  it("默认 writing_mode 为 full，set simple 后 round-trip 保持 simple", async () => {
+    const adapter = new MockAdapter();
+    const repo = new FileSettingsRepository(adapter, "");
+
+    const s = await repo.get();
+    // 全新配置默认 full
+    expect(s.app.writing_mode).toBe("full");
+
+    s.app.writing_mode = "simple";
+    await repo.save(s);
+
+    const reloaded = await repo.get();
+    expect(reloaded.app.writing_mode).toBe("simple");
+  });
+
+  it("旧版 YAML 无 writing_mode 字段 → 加载为 full（向后兼容）", async () => {
+    const adapter = new MockAdapter();
+    // 模拟收敛前写下的 settings.yaml（app 里没有 writing_mode）
+    const legacyYaml = yaml.dump({
+      default_llm: { mode: "api", model: "", api_base: "", api_key: "" },
+      embedding: { mode: "api", model: "", api_base: "", api_key: "" },
+      app: { language: "zh" },
+      sync: {},
+    });
+    await adapter.writeFile("settings.yaml", legacyYaml);
+
+    const repo = new FileSettingsRepository(adapter, "");
+    const s = await repo.get();
+    expect(s.app.writing_mode).toBe("full");
+  });
+
+  it("非法 writing_mode 值 \"invalid\" → 强制回退 full（不抛错）", async () => {
+    const adapter = new MockAdapter();
+    const legacyYaml = yaml.dump({
+      default_llm: { mode: "api", model: "", api_base: "", api_key: "" },
+      embedding: { mode: "api", model: "", api_base: "", api_key: "" },
+      app: { writing_mode: "invalid" },
+      sync: {},
+    });
+    await adapter.writeFile("settings.yaml", legacyYaml);
+
+    const repo = new FileSettingsRepository(adapter, "");
+    const s = await repo.get();
+    expect(s.app.writing_mode).toBe("full");
+  });
+});

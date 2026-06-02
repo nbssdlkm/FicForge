@@ -24,12 +24,26 @@ export {
 export type { AssembleContextResult } from "./context_assembler.js";
 export {
   assemble_context,
+  assemble_context_simple,
   build_core_settings_layer,
   build_facts_layer,
   build_instruction,
   build_recent_chapter_layer,
   build_system_prompt,
 } from "./context_assembler.js";
+
+// FicForge Lite simple_assembler 的轻量 token 估算入口（C5 顶栏 badge）
+export type { SimpleContextTokenEstimate, EstimateSimpleContextParams } from "./estimate_simple_tokens.js";
+export { estimate_simple_context_tokens } from "./estimate_simple_tokens.js";
+
+// FicForge Lite simple_chat dispatch — 单次 LLM streaming + tools 同时支持
+// 写章节 / show_chapter / show_setting / modify_*_file 等
+export type { SimpleChatEvent, SimpleChatDispatchParams } from "./simple_chat_dispatch.js";
+export {
+  dispatch_simple_chat,
+  SIMPLE_TOOL_SHOW_CHAPTER,
+  SIMPLE_TOOL_SHOW_SETTING,
+} from "./simple_chat_dispatch.js";
 
 // RAG Retrieval
 export {

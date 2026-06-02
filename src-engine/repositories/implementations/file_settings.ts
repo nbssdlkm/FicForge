@@ -31,6 +31,7 @@ import {
   createSyncConfig,
 } from "../../domain/settings.js";
 import { scriptSlotOf } from "../../fonts/stacks.js";
+import { isWritingMode } from "../../config/simple_features.js";
 import type { SettingsRepository } from "../interfaces/settings.js";
 import { joinPath, now_utc, obj_to_plain } from "./file_utils.js";
 import {
@@ -245,6 +246,7 @@ function dictToFontsConfig(d: Record<string, unknown> | null): FontsConfig {
 
 function dictToAppConfig(d: Record<string, unknown> | null): AppConfig {
   if (!d) return createAppConfig();
+  const writingMode = isWritingMode(d.writing_mode) ? d.writing_mode : "full";
   return createAppConfig({
     language: (d.language as string) ?? "zh",
     data_dir: (d.data_dir as string) ?? "./fandoms",
@@ -252,6 +254,7 @@ function dictToAppConfig(d: Record<string, unknown> | null): AppConfig {
     token_warning_threshold: (d.token_warning_threshold as number) ?? 32000,
     chapter_metadata_display: dictToChapterMetadataDisplay(d.chapter_metadata_display as Record<string, unknown> | null),
     fonts: dictToFontsConfig(d.fonts as Record<string, unknown> | null),
+    writing_mode: writingMode,
     schema_version: (d.schema_version as string) ?? "1.0.0",
   });
 }

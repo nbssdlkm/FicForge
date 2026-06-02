@@ -3,6 +3,7 @@
 
 /** 全局配置领域对象。参见 PRD §3.3 settings.yaml。 */
 
+import type { WritingMode } from "../config/simple_features.js";
 import { APIMode, LicenseTier, LLMMode } from "./enums.js";
 import { type LLMConfig, createLLMConfig } from "./project.js";
 
@@ -110,6 +111,7 @@ export interface AppConfig {
   token_warning_threshold: number;
   chapter_metadata_display: ChapterMetadataDisplay;
   fonts: FontsConfig;
+  writing_mode: WritingMode;
   schema_version: string;
 }
 
@@ -121,6 +123,7 @@ export function createAppConfig(partial?: Partial<AppConfig>): AppConfig {
     token_warning_threshold: 32000,
     chapter_metadata_display: createChapterMetadataDisplay(),
     fonts: createFontsConfig(),
+    writing_mode: "full",
     schema_version: "1.0.0",
     ...partial,
   };

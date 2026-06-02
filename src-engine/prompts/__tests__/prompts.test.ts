@@ -56,8 +56,8 @@ describe("Prompt templates", () => {
     expect(en.SYSTEM_NOVELIST).toBe("You are a professional fiction writer.");
   });
 
-  it("total key count is 55", () => {
-    expect(REQUIRED_KEYS.length).toBe(55);
+  it("total key count is 58", () => {
+    expect(REQUIRED_KEYS.length).toBe(58);
   });
 
   // Critical prompt snapshots — prevent accidental content drift

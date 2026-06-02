@@ -10,5 +10,6 @@ export type { FandomRepository } from "./fandom.js";
 export type { OpsRepository } from "./ops.js";
 export type { ProjectRepository } from "./project.js";
 export type { SettingsRepository } from "./settings.js";
+export type { SimpleChatRepository } from "./simple_chat.js";
 export type { StateRepository } from "./state.js";
 export type { SearchOptions, SearchResult, VectorChunk, VectorRepository } from "./vector.js";

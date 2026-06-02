@@ -8,6 +8,7 @@
  * 收集顺序 P1→P3→P2→P4→P5，reversed 后 P5→P4→P2→P3→P1。
  */
 
+import { getSimpleFeatures, type WritingMode } from "../config/simple_features.js";
 import type { BudgetReport } from "../domain/budget_report.js";
 import { createBudgetReport } from "../domain/budget_report.js";
 import type { ContextSummary } from "../domain/context_summary.js";
@@ -390,9 +391,39 @@ export function build_core_settings_layer(
 
 export interface AssembleContextResult {
   messages: Message[];
+  /** Only populated by assemble_context_simple; the full path omits this key entirely. */
+  systemMessage?: Message;
+  /** Only populated by assemble_context_simple; the full path omits this key entirely. */
+  userMessage?: Message;
   max_tokens: number;
   budget_report: BudgetReport;
   context_summary: ContextSummary;
+}
+
+/**
+ * D-0039 输出预算单一真相源：maxTokens = min(模型输出上限, contextWindow×40%, 章节长×2, 15k 硬顶)。
+ * 超长章节被 CEIL 夹断时打 warn。full 与 simple 两个 assembler 共用，避免 15_000 字面量与
+ * Math.min 公式两处手工维护漂移（D-0039 曾 rebalance 过一次，retune 时只需改这一处）。
+ * @param logTag 日志前缀（"context_assembler" / "assemble_context_simple"）
+ */
+function computeMaxOutputTokens(project: Project, contextWindow: number, logTag: string): number {
+  const OUTPUT_RESERVE_CEIL = 15_000;
+  const modelName = project.llm?.model ?? "";
+  const chapterLength = project.chapter_length ?? 1500;
+  const chapterTokenCap = chapterLength ? chapterLength * 2 : Infinity;
+  const maxTokens = Math.min(
+    get_model_max_output(modelName),
+    Math.trunc(contextWindow * 0.40),
+    chapterTokenCap,
+    OUTPUT_RESERVE_CEIL,
+  );
+  // 警告：超长章节被 CEIL 截断时打 warn，让用户感知
+  if (chapterTokenCap !== Infinity && chapterTokenCap > OUTPUT_RESERVE_CEIL) {
+    console.warn(
+      `[${logTag}] chapter_length=${chapterLength} 对应 ${chapterTokenCap} tokens 超过 OUTPUT_RESERVE_CEIL=${OUTPUT_RESERVE_CEIL}，maxTokens 被夹至 ${maxTokens}，章节可能被 LLM 截断`,
+    );
+  }
+  return maxTokens;
 }
 
 export async function assemble_context(
@@ -406,7 +437,20 @@ export async function assemble_context(
   character_files: Record<string, string> | null = null,
   worldbuilding_files: Record<string, string> | null = null,
   language = "zh",
+  writingMode: WritingMode = "full",
 ): Promise<AssembleContextResult> {
+  // simple-mode safety belt: simple_chat_dispatch calls assemble_context_simple directly; this branch
+  // only covers a future generate_chapter-under-simple call. Optional param defaults to "full" so every
+  // existing caller and golden test stays byte-identical (they never pass this arg).
+  if (getSimpleFeatures(writingMode).simpleAssembler) {
+    return assemble_context_simple(
+      project, state, user_input,
+      chapter_repo, au_id,
+      character_files, worldbuilding_files,
+      language,
+    );
+  }
+
   await ensureTokenizer();
   const llm = project.llm;
   const report = createBudgetReport();
@@ -421,26 +465,12 @@ export async function assemble_context(
   let systemTokens = sysTc.count;
   report.is_fallback_estimate = sysTc.is_estimate;
 
-  // --- max_tokens（仅新增 OUTPUT_RESERVE_CEIL）---
-  const OUTPUT_RESERVE_CEIL = 15_000;
+  // --- max_tokens（D-0039；公式单一真相源见 computeMaxOutputTokens）---
   const OUTPUT_RESERVE_FLOOR = 10_000;
   const SAFETY_BUFFER = 500;
 
-  const modelName = llm?.model ?? "";
   const chapterLength = project.chapter_length ?? 1500;
-  const chapterTokenCap = chapterLength ? chapterLength * 2 : Infinity;
-  const maxTokens = Math.min(
-    get_model_max_output(modelName),
-    Math.trunc(contextWindow * 0.40),
-    chapterTokenCap,
-    OUTPUT_RESERVE_CEIL,
-  );
-  // 警告：超长章节被 CEIL 截断时打 warn，让用户感知
-  if (chapterTokenCap !== Infinity && chapterTokenCap > OUTPUT_RESERVE_CEIL) {
-    console.warn(
-      `[context_assembler] chapter_length=${chapterLength} 对应 ${chapterTokenCap} tokens 超过 OUTPUT_RESERVE_CEIL=${OUTPUT_RESERVE_CEIL}，maxTokens 被夹至 ${maxTokens}，章节可能被 LLM 截断`,
-    );
-  }
+  const maxTokens = computeMaxOutputTokens(project, contextWindow, "context_assembler");
   report.max_output_tokens = maxTokens;
 
   // --- input budget ---
@@ -578,6 +608,196 @@ export async function assemble_context(
 
   return {
     messages,
+    max_tokens: maxTokens,
+    budget_report: report,
+    context_summary: summary,
+  };
+}
+
+/**
+ * FicForge Lite 简版 system prompt — 对话式人设 + 意图分类 + 续写细则。
+ *
+ * 跟 build_system_prompt 区别：
+ *  - 用 SIMPLE_CHAT_SYSTEM 替换 SYSTEM_NOVELIST + CONFLICT_RESOLUTION_RULES +
+ *    FORESHADOWING_RULES + GENERIC_RULES（这些续写专属规则已融进 SIMPLE_CHAT_SYSTEM）
+ *  - 保留 PINNED_CONTEXT（P0 铁律）+ 视角 / 情感 / custom_instructions（writing_style）
+ *
+ * 主仓库 build_system_prompt 0 改动（fork 隔离原则，D-0044）。
+ */
+export function build_system_prompt_simple(project: Project, language = "zh"): string {
+  const P = getPrompts(language as "zh" | "en");
+  const ws = project.writing_style;
+  const chapterLength = project.chapter_length ?? 1500;
+  const chapterLengthMax = Math.trunc(chapterLength * 1.3);
+
+  const parts: string[] = [
+    P.SIMPLE_CHAT_SYSTEM
+      .replace("{chapter_length}", String(chapterLength))
+      .replace("{chapter_length_max}", String(chapterLengthMax)),
+  ];
+
+  // P0 铁律（add_pinned_context 在简版仍有效，build_system_prompt:47-51 一致）
+  const pinned = project.pinned_context ?? [];
+  if (pinned.length > 0) {
+    const lines = pinned.map((p) => `- ${p}`).join("\n");
+    parts.push(P.PINNED_CONTEXT_HEADER.replace("{lines}", lines));
+  }
+
+  // 视角（update_writing_style 仍有效）
+  const pVal = ws?.perspective ?? "third_person";
+  if (pVal === "first_person") {
+    const pov = ws?.pov_character || (language === "zh" ? "主角" : "protagonist");
+    parts.push(P.PERSPECTIVE_FIRST_PERSON.split("{pov}").join(pov));
+  } else {
+    parts.push(P.PERSPECTIVE_THIRD_PERSON);
+  }
+
+  // 情感风格
+  const eVal = ws?.emotion_style ?? "implicit";
+  parts.push(eVal === "explicit" ? P.EMOTION_EXPLICIT : P.EMOTION_IMPLICIT);
+
+  // custom_instructions
+  const custom = ws?.custom_instructions ?? "";
+  if (custom) {
+    parts.push(P.CUSTOM_INSTRUCTIONS_HEADER.replace("{custom}", custom));
+  }
+
+  return parts.join("\n\n");
+}
+
+// ===========================================================================
+// FicForge Lite: assemble_context_simple — 全塞模式
+// ===========================================================================
+
+/**
+ * 简版组装：不做 P0-P5 预算切分，把全部 worldbuilding / characters / 已确认章节
+ * 直接拼成单个 user message。facts / RAG 在简版被禁用，调用方传入也会被忽略。
+ *
+ * 适用前提：模型 context window ≥ 几百 k（DeepSeek 1M / GPT-4o 128k 等）。
+ * 章节数 / 设定文件多到塞不下时，第一版让 LLM 自己报错（plan §九风险表"全塞 prompt 成本"）。
+ */
+export async function assemble_context_simple(
+  project: Project,
+  state: State,
+  user_input: string,
+  chapter_repo: ChapterRepository,
+  au_id: string,
+  character_files: Record<string, string> | null = null,
+  worldbuilding_files: Record<string, string> | null = null,
+  language = "zh",
+): Promise<AssembleContextResult> {
+  await ensureTokenizer();
+  const llm = project.llm;
+  const P = getPrompts(language as "zh" | "en");
+  const report = createBudgetReport();
+
+  const contextWindow = get_context_window(project);
+  report.context_window = contextWindow;
+
+  // build_system_prompt_simple 返回简版人设；下面再拼"项目参考资料"段（世界观 +
+  // 角色 + 已确认章节）一起进 system message。这样 chat history 里 user/assistant
+  // 消息可以全塞不重复正文（D-0044 follow-up：多轮对话设计）。
+  const baseSystemPrompt = build_system_prompt_simple(project, language);
+
+  // max_tokens — 跟完整模式共用 computeMaxOutputTokens（D-0039 单一真相源）。
+  const maxTokens = computeMaxOutputTokens(project, contextWindow, "assemble_context_simple");
+  report.max_output_tokens = maxTokens;
+
+  // === 项目参考资料段：世界观 + 角色 + 已确认章节，拼到 system prompt 后面 ===
+  // 这部分每轮重新生成（最新版），保证 LLM 看到的是当前真实状态。chat history 里
+  // 的 assistant 消息（章节正文 / tool args）虽然也带原文（"全塞"哲学），但 system
+  // 这份是 source of truth，LLM 优先用最新版。
+  const referenceParts: string[] = [];
+  const wbInjected: string[] = [];
+  const charInjected: string[] = [];
+
+  // 世界观（按 key 字典序）
+  if (worldbuilding_files) {
+    const wbEntries = Object.entries(worldbuilding_files).sort(([a], [b]) => a.localeCompare(b));
+    if (wbEntries.length > 0) {
+      const blocks = wbEntries.map(([name, content]) => {
+        wbInjected.push(name);
+        return `### ${name}\n${content}`;
+      });
+      referenceParts.push(P.SECTION_WORLDBUILDING + "\n" + blocks.join("\n\n"));
+    }
+  }
+
+  // 角色
+  if (character_files) {
+    const charEntries = Object.entries(character_files).sort(([a], [b]) => a.localeCompare(b));
+    if (charEntries.length > 0) {
+      const blocks = charEntries.map(([name, content]) => {
+        charInjected.push(name);
+        return `### ${name}\n${content}`;
+      });
+      referenceParts.push(P.SECTION_CHARACTERS + "\n" + blocks.join("\n\n"));
+    }
+  }
+
+  // 全部已确认章节
+  const chapters = await chapter_repo.list_main(au_id);
+  const chaptersInjected = chapters.length;
+  if (chapters.length > 0) {
+    const titlesMap = state.chapter_titles ?? {};
+    const sorted = [...chapters].sort((a, b) => a.chapter_num - b.chapter_num);
+    const blocks = sorted.map((ch) => {
+      const title = titlesMap[ch.chapter_num];
+      const titleSuffix = title ? ` ${title}` : "";
+      const header = P.SIMPLE_CHAPTER_HEADER
+        .replace("{num}", String(ch.chapter_num))
+        .replace("{title_suffix}", titleSuffix);
+      return `${header}\n${ch.content}`;
+    });
+    referenceParts.push(P.SIMPLE_SECTION_CONFIRMED_CHAPTERS + "\n" + blocks.join("\n\n"));
+  }
+
+  // 完整 system prompt = 简版人设 + 项目参考资料
+  const systemPrompt = referenceParts.length > 0
+    ? `${baseSystemPrompt}\n\n---\n\n${referenceParts.join("\n\n")}`
+    : baseSystemPrompt;
+  const sysTc = _count(systemPrompt, llm);
+  const systemTokens = sysTc.count;
+  report.is_fallback_estimate = sysTc.is_estimate;
+  report.system_tokens = systemTokens;
+
+  // === user message：当前用户输入 + 当前章节状态指引 ===
+  // CURRENT_STATUS 告诉 LLM 现在是第几章，方便它选 chapter_num（show_chapter 等）。
+  // user_input 不再包"## 请续写"模板（SIMPLE_CHAT_SYSTEM 已教 LLM 自己判断意图）。
+  const currentCh = state.current_chapter ?? 1;
+  const userContent = `${P.CURRENT_STATUS.replace("{current_ch}", String(currentCh))}\n\n${user_input}`;
+
+  const userTokens = _count(userContent, llm).count;
+
+  // 简版用 p1_tokens 记整段 user 内容（语义上是"当前指令 + 全部上下文"），其他 p* 留 0。
+  // truncated_layers 永远空 —— 简版不主动截断；超 ctx 让 LLM 自己报错。
+  // budget_remaining 在简版下含义模糊（"剩多少"在不切分时无意义），
+  // 钳到 ≥ 0 给消费方一个稳定语义；溢出靠 LLM 报错而非这里负数预警。
+  report.p1_tokens = userTokens;
+  report.total_input_tokens = systemTokens + userTokens;
+  report.budget_remaining = Math.max(0, contextWindow - report.total_input_tokens - maxTokens);
+  report.truncated_layers = [];
+
+  const summary = createContextSummary();
+  try {
+    summary.pinned_count = (project.pinned_context ?? []).length;
+    summary.characters_used = charInjected;
+    summary.worldbuilding_used = wbInjected;
+    summary.chapters_injected = chaptersInjected;
+    summary.total_input_tokens = systemTokens + userTokens;
+    summary.truncated_layers = [];
+  } catch {
+    // collection failure 不影响生成（沿用 D-0031 容错）
+  }
+
+  const systemMessage: Message = { role: "system", content: systemPrompt };
+  const userMessage: Message = { role: "user", content: userContent };
+  const messages: Message[] = [systemMessage, userMessage];
+
+  return {
+    messages,
+    systemMessage,
+    userMessage,
     max_tokens: maxTokens,
     budget_report: report,
     context_summary: summary,

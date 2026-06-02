@@ -203,16 +203,40 @@ export class OpenAICompatibleProvider implements LLMProvider {
 
           const choices = (chunkData.choices ?? []) as Record<string, unknown>[];
           let deltaText = "";
+          let reasoningDelta = "";
           let finish: string | null = null;
+          let toolCallDeltas: import("./provider.js").ToolCallChunkDelta[] | undefined;
           if (choices.length > 0) {
             const delta = (choices[0].delta ?? {}) as Record<string, unknown>;
             deltaText = (delta.content as string) ?? "";
+            // DeepSeek reasoner / R1 等 thinking 模型在 thinking 阶段把内容放
+            // delta.reasoning_content（不是 delta.content），dispatch 必须累积起来
+            // 在多轮调用时回传，否则 API 报 400（真机 2026-05-04 复现）。
+            reasoningDelta = (delta.reasoning_content as string) ?? "";
             finish = (choices[0].finish_reason as string) ?? null;
+            const rawTcs = delta.tool_calls as
+              | { index?: number; id?: string; type?: string; function?: { name?: string; arguments?: string } }[]
+              | undefined;
+            if (Array.isArray(rawTcs) && rawTcs.length > 0) {
+              toolCallDeltas = rawTcs.map((tc) => ({
+                index: typeof tc.index === "number" ? tc.index : 0,
+                id: tc.id,
+                type: tc.type === "function" ? "function" : undefined,
+                function: tc.function
+                  ? {
+                      name: tc.function.name,
+                      arguments: tc.function.arguments,
+                    }
+                  : undefined,
+              }));
+            }
           }
 
           const usage = chunkData.usage as Record<string, number> | undefined;
           yield {
             delta: deltaText,
+            ...(toolCallDeltas ? { tool_call_deltas: toolCallDeltas } : {}),
+            ...(reasoningDelta ? { reasoning_delta: reasoningDelta } : {}),
             is_final: finish !== null,
             input_tokens: usage?.prompt_tokens ?? null,
             output_tokens: usage?.completion_tokens ?? null,
@@ -251,6 +275,10 @@ export class OpenAICompatibleProvider implements LLMProvider {
       messages: params.messages.map((m) => ({
         ...m,
         content: typeof m.content === "string" ? sanitizeForJson(m.content) : m.content,
+        // reasoning_content 跟 content 同样可能含 lone surrogates，需 sanitize 后再发回
+        ...(typeof m.reasoning_content === "string"
+          ? { reasoning_content: sanitizeForJson(m.reasoning_content) }
+          : {}),
       })),
       max_tokens: params.max_tokens,
       temperature: params.temperature,
@@ -401,9 +429,46 @@ function handleError(statusCode: number, bodyText: string): never {
     if (["safety", "flagged", "content_filter"].some((k) => lower.includes(k))) {
       throw new LLMError("content_filtered", "生成被模型安全策略拦截", ["modify_input", "switch_model"], statusCode);
     }
-    // tool calling 不兼容
-    if (["tool", "function_call", "functions", "not support"].some((k) => lower.includes(k))) {
+    // tool calling 不兼容 —— 关键字过宽 false positive 修复（2026-05-04 真机回归）：
+    // 旧版任何含 "tool" 子串的 400 错误都被误判，包括 "tool_call_id mismatch" /
+    // "tool result not found" 等正常 agent loop 协议错。改为要求 "tool" 必须配上
+    // 显著词（calling / support / unsupported / not allowed），其它含 tool 关键词
+    // 的错误回落到默认分支显示原始 detail 让用户能看到真错。
+    // BUG 3.1 错误码拆分（2026-05-05）：forced tool_choice 不支持 ≠ tool calling 不支持。
+    // 前者是模型支持 function calling 但不允许指定非 "auto" 的 tool_choice（如
+    // deepseek-reasoner commit 7dc151b 真机确证）。拆分后 dispatch 可 catch
+    // forced_tool_choice_unsupported 自动降级到 "auto"，不让用户看到错误。
+    // 决策依据：D-0046 "拆分让 dispatch 能 catch forced_tool_choice_unsupported
+    // 自动降级到 'auto'"。
+    const forcedToolChoicePhrases = [
+      "tool choice",
+      "tool_choice",
+      "this tool_choice",
+    ];
+    const toolUnsupportedPhrases = [
+      "tool calling",
+      "tool_calling",
+      "tool calls are not supported",
+      "tool calls not supported",
+      "tools are not supported",
+      "tools not supported",
+      "function calling not supported",
+      "function calls are not supported",
+      "function_call is not supported",
+      "does not support function",
+      "model does not support tool",
+    ];
+    // 检查顺序：先 toolUnsupported 后 forcedToolChoice。
+    // 防御性场景：如果某模型返回 "tool_choice is not supported because tools are
+    // not supported"（同时含两组关键字），应被识别为 tools_unsupported（语义更重，
+    // 模型完全无法 tool call），而非 forced_tool_choice_unsupported（仅不支持
+    // forced 模式但能 auto）。误判会让 dispatch 无限重试 "auto" 死循环。
+    // Review A 2026-05-05 P1 修复。
+    if (toolUnsupportedPhrases.some((p) => lower.includes(p))) {
       throw new LLMError("tools_unsupported", "当前模型不支持 tool calling", ["retry"], 400);
+    }
+    if (forcedToolChoicePhrases.some((p) => lower.includes(p))) {
+      throw new LLMError("forced_tool_choice_unsupported", "当前模型不支持指定 tool_choice，请用 auto 模式", ["retry"], 400);
     }
   }
 

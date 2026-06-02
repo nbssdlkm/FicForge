@@ -7,6 +7,7 @@
  * 返回 AsyncGenerator，前端直接消费。
  */
 
+import { getSimpleFeatures } from "../config/simple_features.js";
 import type { BudgetReport } from "../domain/budget_report.js";
 import type { ContextSummary } from "../domain/context_summary.js";
 import { FactStatus, IndexStatus } from "../domain/enums.js";
@@ -214,7 +215,7 @@ export async function* generate_chapter(
     // === 步骤 1.8：RAG 检索（STALE 时也尝试召回，并在 summary 标记索引可能过期）===
     const indexReady = state.index_status === IndexStatus.READY;
     let ragChunksDetail: ChunkWithCollection[] = [];
-    if (rag_text === null && vector_repo && embedding_provider) {
+    if (!getSimpleFeatures(params.settings.app.writing_mode).disableRAG && rag_text === null && vector_repo && embedding_provider) {
       try {
         const castReg = project.cast_registry ?? { characters: [] };
         const activeChars = build_active_chars(state, user_input, project, facts, castReg);
@@ -247,6 +248,7 @@ export async function* generate_chapter(
       character_files,
       worldbuilding_files,
       language,
+      params.settings.app.writing_mode,
     );
     const { messages, max_tokens, budget_report, context_summary } = ctx;
 

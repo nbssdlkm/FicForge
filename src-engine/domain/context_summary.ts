@@ -43,6 +43,8 @@ export interface ContextSummary {
   truncated_layers: string[];
   /** 因 P5 预算不足而未注入的角色名列表。 */
   truncated_characters: string[];
+  /** 被注入的已确认章节数（FicForge Lite simple_assembler 全塞，完整模式只注入最近一章）。 */
+  chapters_injected?: number;
 }
 
 export function createContextSummary(partial?: Partial<ContextSummary>): ContextSummary {

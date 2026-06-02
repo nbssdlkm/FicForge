@@ -157,6 +157,28 @@ const _AU_TOOLS: readonly Record<string, unknown>[] = [
 ] as const;
 
 // ===========================================================================
+// FicForge Lite simple mvp — 简版 disabled tool 黑名单
+// ===========================================================================
+// 简版 assemble_context_simple 不读 facts / core_always_include，feature flag 也
+// 关闭了 facts extraction，所以这三个 tool 即便 LLM 调用、UI 接通 executor 也是
+// 死操作。从 simple tool list 物理移除（schema 层），LLM 看不到就不会调。
+// 单一真相源：黑名单一处定义，简版任何路径引用都从这里 import。
+
+const SIMPLE_DISABLED_TOOLS: ReadonlySet<string> = new Set([
+  "add_fact",
+  "modify_fact",
+  "update_core_includes",
+]);
+
+const _SIMPLE_AU_MODIFY_TOOLS: readonly Record<string, unknown>[] = _AU_TOOLS.filter(
+  (tool) => {
+    const fn = (tool as { function?: { name?: string } }).function;
+    const name = fn?.name ?? "";
+    return !SIMPLE_DISABLED_TOOLS.has(name);
+  },
+);
+
+// ===========================================================================
 // Fandom 设定模式 — 4 个 tool
 // ===========================================================================
 
@@ -226,6 +248,74 @@ const _FANDOM_TOOLS: readonly Record<string, unknown>[] = [
 ] as const;
 
 // ===========================================================================
+// FicForge Lite simple mvp — 查看类工具（不改写状态）
+// ===========================================================================
+
+const _SIMPLE_VIEW_TOOLS: readonly Record<string, unknown>[] = [
+  {
+    type: "function",
+    function: {
+      name: "show_chapter",
+      description: "在对话流中折叠展示一个已确认章节的正文（用户可点击展开）。当用户问'看一下第 N 章' / '展示第 N 章' / '让我看看第 N 章'等查看类需求时调用，不改任何文件。",
+      parameters: {
+        type: "object",
+        properties: {
+          chapter_num: {
+            type: "integer",
+            minimum: 1,
+            description: "要查看的章节号，必须是已确认的章节（用户的当前章节-1 或更小）",
+          },
+        },
+        required: ["chapter_num"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "show_setting",
+      description: "在对话流中折叠展示一个设定文件的正文（用户可点击展开）。当用户问'看一下角色 Alice' / '展示设定 X' / '让我看看世界观'等查看类需求时调用，不改任何文件。",
+      parameters: {
+        type: "object",
+        properties: {
+          file_path: {
+            type: "string",
+            description: "设定文件的相对路径，格式为 '{category}/{filename}.md'。category 取值：'characters' / 'worldbuilding'（AU 层）或 'core_characters' / 'core_worldbuilding'（Fandom 层）。例：'characters/Alice.md' / 'worldbuilding/Magic.md'",
+          },
+        },
+        required: ["file_path"],
+      },
+    },
+  },
+] as const;
+
+// ===========================================================================
+// FicForge Lite simple mvp — chat_reply 闲聊回答工具
+// ===========================================================================
+// 简版是对话式 UI：用户消息可能是续写指令、查看 / 修改设定请求、或元问题 / 闲聊 /
+// 澄清反问。前三种通过 text 路径（章节）/ show_* tool / modify_* tool 表达；
+// 闲聊回答则统一通过 chat_reply tool —— 这样 UI 才能干净区分"AI 是要回答还是
+// 写章节"，避免 text 输出无脑被识别为章节草稿。问题 7 修复（2026-05-04）。
+
+const _SIMPLE_REPLY_TOOL: Record<string, unknown> = {
+  type: "function",
+  function: {
+    name: "chat_reply",
+    description: "向用户输出对话式回答（闲聊 / 元问题 / 澄清反问 / 进度查询等）。当用户的消息不是续写章节、查看 / 修改设定的请求时调用此工具。content 字段填写你要对用户说的话（按用户语言）。不要用此工具输出章节正文 —— 章节正文应直接输出 markdown 文本不调任何工具。",
+    parameters: {
+      type: "object",
+      properties: {
+        content: {
+          type: "string",
+          description: "你要对用户说的话。建议 100-200 字内，平实自然语气。",
+        },
+      },
+      required: ["content"],
+    },
+  },
+};
+
+// ===========================================================================
 // 公共接口
 // ===========================================================================
 
@@ -234,6 +324,9 @@ export function get_tools_for_mode(mode: string): Record<string, unknown>[] {
     return [..._AU_TOOLS];
   } else if (mode === "fandom") {
     return [..._FANDOM_TOOLS];
+  } else if (mode === "simple") {
+    // FicForge Lite: 简版有效 AU 修改工具（黑名单过滤后） + 2 个查看类工具 + chat_reply
+    return [..._SIMPLE_AU_MODIFY_TOOLS, ..._SIMPLE_VIEW_TOOLS, _SIMPLE_REPLY_TOOL];
   } else {
     throw new Error(`不支持的设定模式: ${mode}`);
   }
