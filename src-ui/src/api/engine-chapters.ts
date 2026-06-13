@@ -113,7 +113,7 @@ export async function confirmChapter(
 
   // Index the confirmed chapter for RAG (F7) — delegated to RagManager
   try {
-    const embProvider = createEmbeddingProvider(sett);
+    const embProvider = createEmbeddingProvider(sett, proj);
     if (embProvider) {
       const chContent = await chapter.get_content_only(auPath, chapterNum);
       await e.ragManager.indexChapter(auPath, chapterNum, chContent, embProvider, proj.cast_registry);

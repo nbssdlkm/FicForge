@@ -68,7 +68,7 @@ export async function* generateChapter(params: {
     draft_repo: e.repos.draft,
     adapter: e.adapter,
     vector_repo: e.vectorEngine,
-    embedding_provider: createEmbeddingProvider(sett),
+    embedding_provider: createEmbeddingProvider(sett, proj),
     signal: options?.signal,
   })) {
     // Yield parsed objects (matching old sseStream format)

@@ -16,19 +16,33 @@ import {
   RemoteEmbeddingProvider,
   withAuLock,
   type Settings,
+  type Project,
 } from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
 
 /**
- * 从 settings 创建 RemoteEmbeddingProvider。
+ * 从 settings（+ 可选 project）创建 RemoteEmbeddingProvider。
  *
- * ⚠️ 严格使用 embedding 自己的 api_key + api_base，不再回退到 default_llm。
+ * 优先级：AU 级 embedding_lock（api_key + api_base 都配齐时）> 全局 settings.embedding。
+ *    embedding_lock 让单个 AU 用独立的 embedding 服务（AuSettingsLayout 暴露）。
+ *    其 api_key 在 file_project.get() 里已被 restoreSecureFields 还原为明文，
+ *    此处直接用，无需再读 secure storage。
+ *    要求 api_key + api_base **同时**存在才生效，避免半配置（如只填 key）指向空端点。
+ *
+ * ⚠️ 严格使用 embedding 自己的 api_key + api_base，不回退到 default_llm。
  *    原因：很多 LLM 提供商（如 DeepSeek）不支持 embedding 端点，
  *    或者 embedding 额度使用不同的 key。隐式复用会把错误凭据发到错误端点，
  *    排障成本高于让用户显式配置。
- *    未配置 embedding 时返回 undefined，RAG 自然降级。
+ *    两级都未配置时返回 undefined，RAG 自然降级。
  */
-export function createEmbeddingProvider(sett: Settings): RemoteEmbeddingProvider | undefined {
+export function createEmbeddingProvider(
+  sett: Settings,
+  project?: Project,
+): RemoteEmbeddingProvider | undefined {
+  const lock = project?.embedding_lock;
+  if (lock?.api_key && lock?.api_base) {
+    return new RemoteEmbeddingProvider(lock.api_base, lock.api_key, lock.model || "");
+  }
   if (!sett.embedding?.api_key || !sett.embedding?.api_base) return undefined;
   return new RemoteEmbeddingProvider(
     sett.embedding.api_base,
@@ -50,10 +64,10 @@ export async function setChapterFocus(auPath: string, focusIds: string[]) {
 export async function rebuildIndex(auPath: string) {
   const e = getEngine();
   const sett = await e.repos.settings.get();
-  const embProvider = createEmbeddingProvider(sett);
+  const proj = await e.repos.project.get(auPath);
+  const embProvider = createEmbeddingProvider(sett, proj);
 
   if (embProvider) {
-    const proj = await e.repos.project.get(auPath);
     // rebuild 可能耗时数十秒，不持 AU 锁（不写 ops/chapter/facts，只写 vector 索引）
     await e.ragManager.rebuildForAu(auPath, e.repos.chapter, embProvider, proj.cast_registry);
     // 只对"更新 index_status"这一小段持锁，避免和其它 state 写入交叉
