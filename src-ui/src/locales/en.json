@@ -1270,5 +1270,131 @@
       "startWriting": "Start Writing",
       "untitled": "Untitled chapter"
     }
+  },
+  "simple": {
+    "tabs": {
+      "chat": "Chat",
+      "reading": "Reading"
+    },
+    "history": {
+      "emptySubtitle": "Start writing by chatting with the AI",
+      "emptyTitle": "Quill at the ready",
+      "example1": "Write chapter 1 — the protagonist enters a tavern and meets a mysterious swordsman",
+      "example2": "Show me chapter 2",
+      "example3": "Open characters/Alice.md",
+      "example4": "Change Alice's hair color to silver",
+      "exampleKind": {
+        "amend": "Amend",
+        "lore": "Lore",
+        "read": "Inspect",
+        "write": "Compose"
+      },
+      "eyebrow": "§ Dialogue · Quill"
+    },
+    "thinking": {
+      "label": "AI is thinking…"
+    },
+    "input": {
+      "cancel": "Cancel",
+      "placeholder": "Continue the story / edit lore / review past chapters… Enter to send, Shift+Enter for a new line",
+      "send": "Send"
+    },
+    "clearChat": {
+      "confirm": "Clear all chat history for this AU? This cannot be undone.",
+      "done": "Chat cleared",
+      "label": "Clear chat"
+    },
+    "draftCard": {
+      "accept": "Accept as chapter {{num}}",
+      "acceptedToast": "Accepted as chapter {{num}}",
+      "chapterSlug": "Ch.{{num}} · Draft {{label}} · {{count}} chars",
+      "collapse": "Collapse",
+      "discard": "Discard",
+      "expand": "Expand full text",
+      "eyebrow": "AI Draft",
+      "regenerate": "Regenerate",
+      "regenerateNoUserMsg": "Can't find the matching user instruction to regenerate from",
+      "retryAccept": "Retry accepting as chapter {{num}}",
+      "statusAccepted": "Accepted as chapter {{num}} · rev {{rev}}",
+      "statusDiscarded": "Discarded",
+      "statusError": "Generation failed",
+      "statusPending": "Pending",
+      "statusStreaming": "Generating…",
+      "thinking": "AI is thinking…"
+    },
+    "error": {
+      "partialSavedAs": "(Partial draft saved as {{label}})"
+    },
+    "header": {
+      "chaptersLabel": "Chapters",
+      "nextLabel": "Next",
+      "tokensUnit": "tokens"
+    },
+    "settings": {
+      "openLabel": "Open writing settings",
+      "loading": "Loading settings…",
+      "title": "Writing settings",
+      "modeLabel": "Writing mode",
+      "modeSimple": "Simple · Chat",
+      "modeFull": "Full",
+      "modeDescription": "Takes effect the next time you open a work. Simple mode writes via chat; full mode is the manual editor."
+    },
+    "reader": {
+      "cancelEdit": "Cancel",
+      "chapterFull": "Chapter {{num}}",
+      "chapterSlug": "Ch.{{num}}",
+      "chaptersEyebrow": "Chapters",
+      "charCount": "{{n}} chars",
+      "edit": "Edit this chapter",
+      "emptyChapters": "No chapters yet — write the first one in the chat panel.",
+      "emptyChapter": "This chapter is empty.",
+      "fontSize": "Font Size",
+      "lineHeight": "Line Height",
+      "loadFailed": "Failed to load: {{message}}",
+      "nextChapter": "Next chapter",
+      "noChapters": "No chapters yet. Write the first one in the chat panel.",
+      "pickOne": "Pick a chapter from the list on the left to start reading.",
+      "prevChapter": "Previous chapter",
+      "savedToast": "Chapter saved",
+      "save": "Save",
+      "saving": "Saving…",
+      "toggleTypePanel": "Adjust font size and line height",
+      "untitled": "Untitled"
+    },
+    "assistant": {
+      "eyebrow": "§ AI"
+    },
+    "previewCard": {
+      "chapterEyebrow": "Chapter",
+      "chapterNum": "Chapter {{num}}",
+      "charCount": "{{n}} chars",
+      "collapse": "Collapse",
+      "expand": "Expand",
+      "loadFailed": "Failed to load: {{message}}",
+      "noFandomPath": "Please provide a fandomPath",
+      "settingEyebrow": "Lore"
+    },
+    "toolCard": {
+      "collapse": "Collapse",
+      "confirmed": "Done",
+      "confirm": "Confirm",
+      "error": "Failed",
+      "expand": "Expand",
+      "eyebrow": "Tool Call",
+      "pending": "Pending",
+      "skipped": "Skipped",
+      "skip": "Skip",
+      "undone": "Undone",
+      "undo": "Undo",
+      "undoUnsupported": "This action can't be undone"
+    },
+    "user": {
+      "eyebrow": "§ You"
+    },
+    "tool": {
+      "invalidChapterArg": "show_chapter received an invalid chapter_num: {{val}}",
+      "invalidChatReplyArg": "chat_reply received empty content",
+      "invalidSettingArg": "show_setting received an empty file_path"
+    }
   }
 }

@@ -1270,5 +1270,131 @@
       "startWriting": "开始写作",
       "untitled": "未命名章节"
     }
+  },
+  "simple": {
+    "tabs": {
+      "chat": "对话",
+      "reading": "阅读"
+    },
+    "history": {
+      "emptySubtitle": "跟 AI 对话开始写文",
+      "emptyTitle": "Quill at the ready",
+      "example1": "写第一章 主角进酒馆，遇到神秘的剑客",
+      "example2": "看一下第 2 章",
+      "example3": "看 characters/Alice.md",
+      "example4": "把 Alice 的发色改成银色",
+      "exampleKind": {
+        "amend": "Amend",
+        "lore": "Lore",
+        "read": "Inspect",
+        "write": "Compose"
+      },
+      "eyebrow": "§ Dialogue · Quill"
+    },
+    "thinking": {
+      "label": "AI 思考中…"
+    },
+    "input": {
+      "cancel": "取消",
+      "placeholder": "写续集 / 改设定 / 看历史章节…按 Enter 发送，Shift+Enter 换行",
+      "send": "发送"
+    },
+    "clearChat": {
+      "confirm": "清空当前 AU 的所有对话历史？此操作不可撤销。",
+      "done": "对话已清空",
+      "label": "清空对话"
+    },
+    "draftCard": {
+      "accept": "接受为第 {{num}} 章",
+      "acceptedToast": "已接受为第 {{num}} 章",
+      "chapterSlug": "Ch.{{num}} · Draft {{label}} · {{count}} chars",
+      "collapse": "折叠",
+      "discard": "丢弃",
+      "expand": "展开全文",
+      "eyebrow": "AI Draft",
+      "regenerate": "再生成",
+      "regenerateNoUserMsg": "找不到对应的用户指令，无法再生成",
+      "retryAccept": "重试接受为第 {{num}} 章",
+      "statusAccepted": "已接受为第 {{num}} 章 · rev {{rev}}",
+      "statusDiscarded": "已丢弃",
+      "statusError": "生成失败",
+      "statusPending": "待确认",
+      "statusStreaming": "正在生成…",
+      "thinking": "AI 正在思考…"
+    },
+    "error": {
+      "partialSavedAs": "（部分草稿已保存为 {{label}}）"
+    },
+    "header": {
+      "chaptersLabel": "Chapters",
+      "nextLabel": "Next",
+      "tokensUnit": "tokens"
+    },
+    "settings": {
+      "openLabel": "打开续写设置",
+      "loading": "加载设置中…",
+      "title": "续写设置",
+      "modeLabel": "写作模式",
+      "modeSimple": "简版 · 对话式",
+      "modeFull": "完整版",
+      "modeDescription": "切换在下次打开作品时生效。简版用对话式续写，完整版是手动编辑器。"
+    },
+    "reader": {
+      "cancelEdit": "取消",
+      "chapterFull": "第 {{num}} 章",
+      "chapterSlug": "Ch.{{num}}",
+      "chaptersEyebrow": "Chapters",
+      "charCount": "{{n}} chars",
+      "edit": "修改本章",
+      "emptyChapters": "尚无章节，去对话面板写第一章。",
+      "emptyChapter": "本章正文为空。",
+      "fontSize": "Font Size",
+      "lineHeight": "Line Height",
+      "loadFailed": "加载失败：{{message}}",
+      "nextChapter": "下一章",
+      "noChapters": "还没有章节。去对话面板写第一章。",
+      "pickOne": "从左侧章节列表选一章开始阅读。",
+      "prevChapter": "上一章",
+      "savedToast": "章节已保存",
+      "save": "保存",
+      "saving": "保存中…",
+      "toggleTypePanel": "调节字号与行距",
+      "untitled": "未命名"
+    },
+    "assistant": {
+      "eyebrow": "§ AI"
+    },
+    "previewCard": {
+      "chapterEyebrow": "Chapter",
+      "chapterNum": "第 {{num}} 章",
+      "charCount": "{{n}} chars",
+      "collapse": "折叠",
+      "expand": "展开",
+      "loadFailed": "加载失败：{{message}}",
+      "noFandomPath": "请提供 fandomPath",
+      "settingEyebrow": "Lore"
+    },
+    "toolCard": {
+      "collapse": "折叠",
+      "confirmed": "已执行",
+      "confirm": "确认",
+      "error": "执行失败",
+      "expand": "展开",
+      "eyebrow": "Tool Call",
+      "pending": "待确认",
+      "skipped": "已跳过",
+      "skip": "跳过",
+      "undone": "已撤销",
+      "undo": "撤销",
+      "undoUnsupported": "此操作不支持撤销"
+    },
+    "user": {
+      "eyebrow": "§ You"
+    },
+    "tool": {
+      "invalidChapterArg": "show_chapter 收到非法 chapter_num：{{val}}",
+      "invalidChatReplyArg": "chat_reply 收到空 content",
+      "invalidSettingArg": "show_setting 收到空 file_path"
+    }
   }
 }
