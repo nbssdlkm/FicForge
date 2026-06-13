@@ -77,6 +77,15 @@ Platform Adapter
 - footprint：**52 文件 +7330/-35**；9 commit（3 spec + 6 实现）
 - **剩**：真机 round-trip（用户 Android）+ push/合并决定
 - 相关债 **TD-015**（简版↔主 import/export 数据迁回）：非阻塞，事件驱动再做
+- **dev server 实测（2026-06-13，Claude 自测，手机视口）**：建 AU 自动落「对话」tab、底栏 5 tab（章节/阅读/对话/设定/管理）、SimpleChatPanel 渲染、切回 full 4 tab 满血 WriterLayout、0 console 报错。**唯一没验：真实 LLM 出章（无 key）。**
+
+### 下次会话第一件事
+
+1. **真实测简版出章（Claude 自测，不靠用户）**：本机 ds key 在 `~/.deepseek/config.toml`（`api_key` 字段，DeepSeek）。起 dev server（preview MCP，`.claude/launch.json` 的 `ficforge-web`，端口 1420）→ 全局设置配在线 API（`https://api.deepseek.com/v1`，`deepseek-chat`，填 ds key）→ 写作模式=简版 → 进 AU 用对话**真实写一章** → 接受草稿 → 刷新确认 `simple-chat.yaml` 落盘 + 阅读视图显示。
+2. **M7 收尾**：删已退役的同步引擎代码（sync UI 已隐藏，engine 模块待删）。
+3. **代码质量硬化**：`docs/internal/plans/system-optimization-{roadmap,execution-plan}-2026-04-19.md`（Settings/Project 契约收窄、真 SecretStore、写入串行化）。
+
+> 之后的大功能 **M8 Memory 三层架构**（Fact/ChapterSummary/Thread）本轮先不做。Phase 2 在 `feat/converge-simple-phase2`，**未 push、未合 main**；main（Phase 1 + docs）也未 push origin。
 
 ### 并行支线（正交于收敛，部分已被超越）
 
