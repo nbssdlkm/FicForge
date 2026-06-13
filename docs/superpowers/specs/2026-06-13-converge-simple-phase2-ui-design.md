@@ -1,11 +1,21 @@
 # Phase 2 Design Spec — Wire the simple-mode UI into MAIN (UI layer)
 
 **Date:** 2026-06-13
-**Status:** Design — ready for plan/implementation
+**Status:** Design **Rev 2** — post code-grounded adversarial review (4 reviewers + synthesis). Ready for implementation.
 **Scope owner:** CC
 **Source fork:** `D:\fanfic-system-simple` (branch `feat/agent-harness-v1`) — UI layer
 **Target:** `D:\fanfic-system` (branch `feat/converge-simple-phase2`)
-**Predecessor:** Phase 1 (engine convergence) — merged to `main` (commit `942913c` + `b3281af`). Spec: `2026-06-02-converge-simple-into-main-phase1-design.md`.
+**Predecessor:** Phase 1 (engine convergence) — merged to `main` (commits `942913c` + `b3281af`). Spec: `2026-06-02-converge-simple-into-main-phase1-design.md`.
+
+**Rev 2 changelog (what the review caught + changed):**
+- **Loading-race fixed (BLOCKING):** the async provider defaulting to `'full'` while loading + the mount snapshot converted a "one-frame flash" into a **session-sticky wrong mode**, and in the worst interleaving a **blank workspace** (`activeTab='chat'` with a `'full'` snapshot that has no chat tab/branch). Fixed by a **synchronous localStorage mirror** (`ficforge_writing_mode`), exactly how the project already seeds `language` (`i18n.ts:17-27`) before paint, plus a chat-route safety branch. §2.1, §3.1, §6, §10.
+- **Mobile port re-scoped (BLOCKING):** the fork's `BottomNavBar` depends on a `SegmentedTabs.tsx` that **does not exist in MAIN** (compile break), and the fork's `MobileSettingsView` **deletes the full-mode AU AI-settings FAB** (a §9 zero-churn violation). Mobile is now a **surgical additive** change, not a verbatim port. §1.4, §3.2, E8/E9.
+- **Correct landing call-site (MAJOR):** primary open-AU click is `LibraryFandomSections.tsx:245`, not the onboarding `Library.tsx:71`. §3.4, E10.
+- **Mobile snapshot threading (MAJOR):** mobile chrome must consume the workspace **snapshot via prop**, never a live `useWritingMode()`, or desktop/mobile switch semantics diverge. §3.2, E8/E9.
+- **i18n is a real task (MAJOR):** ~90 `simple.*` keys exist only as Chinese inline `defaultValue`s; **English users would see Chinese**, tests green. E12 is now full bilingual authoring + a key-coverage lint. §5.4, §7.
+- **Snapshot invariant gets a required test (MAJOR).** §7.
+- **Verified CLEAN (do NOT re-litigate):** the `saveAppPreferences`↔`dictToAppConfig` round-trip closes (serialization is structural via `obj_to_plain`, no second whitelist); and every `@ficforge/engine` symbol the fork imports is exported through the `services`/`domain` sub-barrels. Both confirmed by 3 reviewers.
+- Minor: hook-in-handler reword (§4.1), test count 7→8, E2 exact barrel diff, memoize provider value, `key={auPath}` defense-in-depth.
 
 ---
 
@@ -13,89 +23,94 @@
 
 ### 1.1 Goal
 
-Phase 1 brought the simple-mode **engine** into MAIN behind `AppConfig.writing_mode` (`'full' | 'simple'`, default `'full'`), but the mode is only switchable programmatically. Phase 2 brings the **UI** so an end user can pick simple mode in settings and actually use the chat-driven writing experience — while full mode stays the default and byte-identical to today.
+Phase 1 brought the simple-mode **engine** into MAIN behind `AppConfig.writing_mode` (`'full' | 'simple'`, default `'full'`), switchable only programmatically. Phase 2 brings the **UI** so an end user can pick simple mode in settings and use the chat-driven writing experience — while full mode stays the default and byte-identical to today.
 
 ### 1.2 Product decisions (settled with PM, 2026-06-13)
 
-- **Positioning: peer preference.** Simple and full are equal, user-toggled modes. **Both fully preserved — no feature hiding.** Full stays the default. → Port the fork's already-validated UX **as-is**; do not redesign, do not strip facts/lore from simple mode.
-- **Switch semantics: takes effect on next AU entry.** Changing `writing_mode` while an AU is open must **not** disrupt the open AU. The new mode applies the next time the user enters an AU. → Read the mode **fresh** at landing/navigation time, but **snapshot it at AU-workspace mount** so the open workspace never flips mid-session.
+- **Positioning: peer preference.** Simple and full are equal, user-toggled modes. **Both fully preserved — no feature hiding.** Full stays default. → Port the fork's validated UX **as-is**; no redesign, no stripping facts/lore from simple.
+- **Switch semantics: takes effect on next AU entry.** Changing `writing_mode` while an AU is open must **not** disrupt the open AU. → Landing reads the mode **fresh**; the AU workspace **snapshots** it at mount so the open AU never flips mid-session.
 
-### 1.3 In scope (Phase 2)
+### 1.3 In scope
 
-- A runtime mode accessor: `WritingModeProvider` (App-level) + `useWritingMode()` hook (single source for "is the app currently in simple mode").
-- Port the fork's `src-ui/src/ui/simple/` tree + 3 API wrappers (`engine-simple-dispatch`, `engine-simple-chat`, `engine-tokens`) + `engine-client` barrel exports.
-- Register `FileSimpleChatRepository` in `engine-instance.ts` (the Phase-1 wiring gap; currently `repos.simpleChat` does not exist → the ported API throws).
-- Convert the fork's **compile-time** `SIMPLE_FEATURES.simpleAssembler` gating to **runtime** `writing_mode` reads in `AuWorkspaceLayout`, `MobileLayout`, `BottomNavBar`, `landing.ts`, and `App.tsx`.
-- A `writing_mode` toggle in `GlobalSettingsModal` + the `saveAppPreferences` round-trip fix.
-- `simple.*` i18n namespace into `zh.json` + `en.json`.
-- Tests: port the fork's `ui/simple` tests; add `useWritingMode` + `saveAppPreferences` round-trip tests; keep full-mode tests green and unmodified.
+- Runtime mode accessor: `WritingModeProvider` (App-level) + `useWritingMode()` with a **synchronous localStorage mirror** (§2.1).
+- Port the fork's `src-ui/src/ui/simple/` tree + 3 API wrappers + `engine-client` barrel exports.
+- Register `FileSimpleChatRepository` in `engine-instance.ts` (Phase-1 wiring gap).
+- Convert compile-time `SIMPLE_FEATURES.simpleAssembler` gating to runtime `writing_mode` in `AuWorkspaceLayout`, `App.tsx`, `landing.ts`, and — **surgically** — `MobileLayout`/`BottomNavBar`.
+- `writing_mode` toggle in `GlobalSettingsModal` + the `saveAppPreferences` round-trip fix + the localStorage mirror write.
+- Full bilingual `simple.*` i18n (zh + en, ~90 keys) + a key-coverage lint.
+- Tests: port fork's `ui/simple` tests; new tests for `useWritingMode`, the snapshot invariant, `getAuLandingPage`, the settings round-trip, gating-render per surface, i18n coverage.
 
 ### 1.4 Out of scope (explicit)
 
-- No engine changes (Phase 1 is done; engine API is additive-complete). If a missing engine export surfaces during the port, that is a Phase-1 follow-up, not a Phase-2 redesign.
-- No data migration between modes — **TD-015** (simple↔full import/export) stays a separate, event-driven debt.
-- No new visual design — this is a faithful port of the fork's UX, not a redesign.
-- No making simple the default, no per-AU mode (the field is app-global by Phase-1 design), no onboarding mode-picker.
+- **No engine changes** (Phase 1 done; exports verified additive-complete — see §5.5). A missing export would be a Phase-1 follow-up, not a Phase-2 redesign — but the review confirmed none are missing.
+- **No data migration** between modes — **TD-015** stays a separate, event-driven debt.
+- **No new visual design** — faithful port of the fork's *simple-mode* UX, not a redesign.
+- **The fork's mobile-shell refactors are OUT of scope** and must NOT leak in via "faithful port": (a) the fork's `MobileSettingsView` **AU AI-settings FAB removal** (`'AU 级 AI 设定助手不必要'`), (b) the fork's `MobileLayout` **header redesign** (single- → double-row), (c) the fork's **`SegmentedTabs` migration** of `BottomNavBar`. These are fork-local product choices unrelated to simple mode; MAIN keeps its current mobile shell and adds only the chat tab/slot + mode-aware entry nav.
+- No making simple the default, no per-AU mode, no onboarding mode-picker.
 
 ### 1.5 Code principles honored
 
-- **Single source of truth:** "is simple mode on" is computed in exactly one place (`useWritingMode`/`getSimpleFeatures`), never re-derived ad hoc. The fork's module-scope `SIMPLE_FEATURES.simpleAssembler` reads collapse to one hook.
-- **Zero-churn under full:** every full-mode code path and test stays byte-identical (§9).
-- **Round-trip closure:** the new `writing_mode` settings field must prove write↔read symmetry (save → yaml.dump → yaml.load → `dictToAppConfig` → UI) with a test — per the project's data-chain bug methodology.
-- **Low coupling:** landing/tab decisions read a single hook, not threaded props through ~8 components.
+- **Single source of truth:** "is simple on now" derives from one hook (`useWritingMode`) over `getSimpleFeatures`; the fork's scattered `SIMPLE_FEATURES.simpleAssembler` reads collapse to it (desktop) or to a single snapshot prop (mobile).
+- **Zero-churn under full** (§9): every full-mode path + test stays byte-identical/unmodified.
+- **Round-trip closure:** the new `writing_mode` settings field proves write↔read symmetry with a test (the engine round-trip is already covered; this adds the UI→engine wrapper).
+- **No silent green:** i18n key coverage is lint-enforced so a missing English translation can't hide behind a Chinese `defaultValue`.
 
 ---
 
 ## 2. Runtime gating architecture
 
-The fork gates simple UI on a **compile-time** const (`SIMPLE_FEATURES.simpleAssembler`, imported from `@ficforge/engine`). That const no longer exists in MAIN (Phase 1 replaced it with the pure `getSimpleFeatures(mode)` + `WritingMode`/`WRITING_MODES`/`isWritingMode`). MAIN must read the **runtime** `app.writing_mode`.
+The fork gates simple UI on a **compile-time** const (`SIMPLE_FEATURES.simpleAssembler`), resolved at build time — always instantly correct. MAIN must read the **runtime** `app.writing_mode`. Replacing a synchronous build-time value with an async runtime read is the source of the race the review caught; §2.1 removes the race by seeding synchronously.
 
-### 2.1 `WritingModeProvider` + `useWritingMode()` (NEW)
+### 2.1 `WritingModeProvider` + `useWritingMode()` (NEW) — with a synchronous localStorage mirror
 
-A small App-level context (new file, e.g. `src-ui/src/hooks/useWritingMode.tsx`):
+New file `src-ui/src/hooks/useWritingMode.tsx`:
 
-- On mount, loads `app.writing_mode` once via a dedicated `getWritingMode()` read added to `engine-settings.ts` (E4) — single-purpose, avoids coupling the provider to the broader settings summary; do **not** invent a second settings-load path.
-- Exposes `{ mode: WritingMode; isSimple: boolean; refresh: () => Promise<void> }`.
-- `refresh()` is called after the settings toggle saves, so subsequent **landing** decisions use the fresh value without an app reload.
-- Default while loading: `'full'` (zero-churn — never briefly show simple chrome to a full user).
+- **Synchronous seed (the race fix):** the initial value is read **synchronously from `localStorage['ficforge_writing_mode']`** (validated via `isWritingMode`, default `'full'`), exactly as the app already seeds `language` from `ficforge_language` before first paint (`i18n.ts:17-27`). So from frame 1, landing and the workspace snapshot read the **same correct value** — there is no async-default-`'full'` window where a simple user could be mis-routed.
+- **Async reconcile:** on mount, `getWritingMode()` (new read in `engine-settings.ts`, E4) reads `settings.yaml` (the source of truth) and, if it differs from the mirror, updates both the context state and the mirror. This corrects drift (e.g., settings edited out-of-band) on the next entry.
+- **Shape:** `{ mode: WritingMode; isSimple: boolean; loaded: boolean; refresh: () => Promise<void> }`. `loaded` flips true after the first reconcile. The context value is **memoized** (`useMemo`; `refresh` via `useCallback`) so full-mode consumers don't get spurious re-renders (keeps §9 clean).
+- The mirror is **written by the toggle handler** (§4.1) alongside `saveAppPreferences`, so the next launch seeds correctly.
 
-> **Why a context, not prop-threading:** landing decisions happen at ≥3 sites *outside* the workspace (open AU, create AU, mobile entry) plus the workspace tabs — a single context read keeps it DRY and avoids async reads inside navigation handlers. Prop-threading the mode through Library → workspace → mobile was considered and rejected (more wiring, no benefit).
+> Why the mirror, not just a `loaded` gate: gating navigation on `loaded` works but adds a visible "settling" delay on every cold AU entry, worst on Capacitor/Android (slow FS). The synchronous mirror is what the codebase already does for `language` and gives a correct first frame with no delay. `loaded` is kept as defense-in-depth for the reconcile path only.
 
 ### 2.2 Snapshot-at-mount (the "next AU entry" semantics)
 
-- **Landing sites read the live value** (`useWritingMode().mode`) → a just-changed mode applies on the next AU you open.
-- **`AuWorkspaceLayout` snapshots the value at mount** into local state and uses the snapshot for tabs/content. Because the AU workspace unmounts when you return to the Library and remounts on re-entry, the snapshot is naturally re-read **once per AU entry** — and a mid-session toggle (the in-AU settings tab can open `GlobalSettingsModal`, [AuSettingsLayout.tsx:446](../../src-ui/src/ui/settings/AuSettingsLayout.tsx)) never flips the open work.
+- **Landing sites read the live value** (`useWritingMode().mode`) → a just-changed mode applies on the next AU you open. With the mirror, this value is already correct synchronously.
+- **`AuWorkspaceLayout` snapshots the value at mount** (`useState(() => isSimple)`), using it for tabs/content. The snapshot is also threaded to mobile chrome (§3.2).
 
-This is the entire mechanism — no engine state, no global mutable flag, no reactive re-render of an open AU.
+**Invariant (must hold; tested in §7):** the snapshot is re-read **once per AU entry** *iff* `AuWorkspaceLayout` unmounts on Library return and there is no AU→AU navigation bypassing Library. Verified true today: `App.tsx:215,227` renders `AuWorkspaceLayout` only while `isAuSpace`, the back button does `onNavigate('library')`, and there is no in-workspace control that jumps to a different `auPath`. **Defense-in-depth: add `key={auPath}` to `<AuWorkspaceLayout>` in `App.tsx`** so the snapshot re-initializes per AU even if a future refactor adds direct AU→AU nav. A mid-AU toggle (the in-AU settings tab can open `GlobalSettingsModal`, `AuSettingsLayout.tsx:446`) flips the provider but **not** the frozen snapshot → open AU unchanged, next entry picks up the new mode.
 
 ---
 
 ## 3. UI coexistence (desktop + mobile)
 
-The fork's `AuWorkspaceLayout.tsx` is **already coexistence-shaped** — it is MAIN's layout plus three `SIMPLE_FEATURES`-gated spots. Porting = take the fork's structure and replace the const reads with the snapshot boolean (`isSimple`).
-
 ### 3.1 Desktop — `AuWorkspaceLayout.tsx`
 
-When `isSimple`:
-1. **Prepend a `chat` tab** (label `simple.tabs.chat`, "对话") before the writer tab.
-2. **Relabel** the writer tab 续写 → **阅读** (`simple.tabs.reading`).
-3. **Swap content**: `activeTab === 'writer'` renders the read-only `SimpleReadingView` instead of `WriterLayout`; `activeTab === 'chat'` renders `SimpleChatPanel`.
-4. **facts / au_lore / settings tabs unchanged.**
+Port the fork's three simple-conditional spots, gating on the **mount snapshot** `isSimple` (not the const). When simple:
+1. Prepend a `chat` tab (`simple.tabs.chat`, "对话").
+2. Relabel writer 续写 → **阅读** (`simple.tabs.reading`).
+3. `activeTab==='writer'` → read-only `SimpleReadingView` instead of `WriterLayout`.
 
-When `!isSimple` (full, default): exactly today — no chat tab, writer = `WriterLayout`, byte-identical.
+facts/au_lore/settings tabs unchanged. Full mode = exactly today.
 
-### 3.2 Mobile — `MobileLayout.tsx` + `BottomNavBar.tsx`
+**Chat-route safety (race defense):** the content switch renders `SimpleChatPanel` whenever `activeTab==='chat'`, **independent of the snapshot** — so there is never a blank workspace even in a degenerate interleaving. Belt-and-suspenders: `App.tsx` redirects `currentPage==='chat'` → `'writer'` when the workspace snapshot resolves to `'full'`. With the §2.1 mirror this redirect should never fire, but it removes the blank-screen failure mode entirely.
 
-Same conditional: when `isSimple`, add the chat slot/tab and route the reading view; otherwise unchanged. The mobile entry navigation (`onNavigate("writer", auPath)` at [MobileLayout.tsx:87/122/127](../../src-ui/src/ui/mobile/MobileLayout.tsx)) becomes `onNavigate(getAuLandingPage(mode), auPath)`.
+### 3.2 Mobile — `MobileLayout.tsx` + `BottomNavBar.tsx` (SURGICAL, additive only)
+
+**Do NOT port the fork's mobile files verbatim** (they carry out-of-scope refactors + a missing dependency — §1.4). Instead:
+- Keep MAIN's `MobileSettingsView` (AU AI-settings FAB + `SettingsChatPanel`) and the `currentChapter` plumbing **intact** — full mode unchanged.
+- **Surgically insert** the chat tab into MAIN's existing `<nav className="grid grid-cols-4">` (→ conditional 5-tab grid when simple); do **not** introduce the fork's `SegmentedTabs.tsx`.
+- Add the read-only reading view + chat slot conditionally.
+- Entry nav (`onNavigate("writer", auPath)` at `MobileLayout.tsx:87/122/127`) → `onNavigate(getAuLandingPage(mode), auPath)`.
+
+**Snapshot threading (must):** `BottomNavBar` and `MobileLayout` receive `isSimple: boolean` **as a prop** sourced from the `AuWorkspaceLayout` mount snapshot (the prop path already exists — `AuWorkspaceLayout` renders `MobileLayout` at MAIN line 188). **Forbidden:** calling `useWritingMode()` live inside mobile chrome — that would re-introduce the mid-session flip the snapshot model prevents and diverge mobile from desktop. Tested in §7.
 
 ### 3.3 Routing — `App.tsx`
 
-- `isAuSpace` array ([App.tsx:215](../../src-ui/src/App.tsx)) currently `["writer","facts","au_lore","settings"]` → **add `"chat"`** so the chat page is recognized as AU space.
-- Wrap the top-level rendered tree in `App.tsx` in `WritingModeProvider` (covers Library landing + AU workspace + mobile) so `useWritingMode` is available at all landing/tab sites.
+- `isAuSpace` (L215) `["writer","facts","au_lore","settings"]` → **add `"chat"`**.
+- Wrap the top-level rendered tree in `WritingModeProvider` (covers Library landing + AU workspace + mobile).
+- Add `key={auPath}` to `<AuWorkspaceLayout>` (§2.2) and the `currentPage==='chat' && snapshot==='full' → 'writer'` redirect (§3.1).
 
 ### 3.4 Landing — `ui/simple/landing.ts` (PORT + MODIFY)
-
-The fork's `getAuLandingPage()` reads the const. Port it as a **pure function taking the mode**:
 
 ```ts
 export type AuLandingPage = "chat" | "writer";
@@ -104,11 +119,14 @@ export function getAuLandingPage(mode: WritingMode): AuLandingPage {
 }
 ```
 
-Call sites that hardcode `'writer'` and must pass the live mode:
-- Open AU — [Library.tsx:71](../../src-ui/src/ui/Library.tsx)
-- Create AU — [useLibraryMutations.ts:92](../../src-ui/src/ui/library/useLibraryMutations.ts)
-- Mobile entry — [MobileLayout.tsx](../../src-ui/src/ui/mobile/MobileLayout.tsx)
-- The two **in-workspace** `onNavigate('writer', …)` sites ([AuWorkspaceLayout.tsx:298/322](../../src-ui/src/ui/workspace/AuWorkspaceLayout.tsx)) use the workspace **snapshot** mode (they fire from inside the already-mounted workspace).
+Convert these hardcoded `'writer'` nav sites to `getAuLandingPage(mode)` (live mode from `useWritingMode`):
+- **`LibraryFandomSections.tsx:245`** — the **primary** AU-card click (the real open path).
+- `Library.tsx:71` — onboarding-completion `openAuPath`.
+- `useLibraryMutations.ts:92` — create-AU.
+- Mobile entry (`MobileLayout.tsx:87/122/127`) — uses the snapshot prop (it's inside the mounted workspace).
+- The two in-workspace sites (`AuWorkspaceLayout.tsx:298/322`) use the **snapshot**.
+
+**Verification step (required):** `grep -rn "onNavigate(['\"]writer" src-ui/src/ui` must return **only** the intentional in-workspace snapshot sites after this edit — any other hardcoded `'writer'` is a missed landing site.
 
 ---
 
@@ -116,19 +134,24 @@ Call sites that hardcode `'writer'` and must pass the live mode:
 
 ### 4.1 Toggle UI — `GlobalSettingsModal.tsx`
 
-Add a `writing_mode` `<select>` (options full/simple) modeled on the existing **language** select ([GlobalSettingsModal.tsx:343–355](../../src-ui/src/ui/settings/GlobalSettingsModal.tsx)), which is a **save-on-change** field (not gated behind the modal's main Save button). On change:
-1. `await saveAppPreferences({ writing_mode: next })`
-2. `await useWritingMode().refresh()` (so landing uses the new value immediately)
-3. surface errors via the existing `showError` + a short helper text explaining the switch applies on next AU entry.
+Add a `writing_mode` `<select>` (options from `WRITING_MODES`) modeled on the **pattern** of the language select (`GlobalSettingsModal.tsx:343-355`) — a **save-on-change** field, not gated behind the modal's Save button. Note: the language select's handler calls `changeLanguage()` (an i18n module fn that wraps `saveAppPreferences`), but `writing_mode` has **no i18n wrapper**, so its handler saves directly.
 
-Options/labels from `WRITING_MODES` (engine-exported) + `simple.settings.*` i18n keys. Placement: in the app-preferences group beside language/fonts (it is app-global, not per-AU → **GlobalSettingsModal, not AuSettingsLayout**).
+Wire it correctly (Rules of Hooks — call the hook at component scope, not in the handler):
+```ts
+const { refresh } = useWritingMode();            // component scope
+// in <select onChange>:
+const next = e.target.value as WritingMode;
+await saveAppPreferences({ writing_mode: next });          // persist to settings.yaml
+writeWritingModeMirror(next);                              // sync localStorage mirror (§2.1)
+await refresh();                                           // provider re-reads → landing fresh
+```
+`refresh` must be stable (`useCallback` in the provider). Surface errors via the existing `showError`; add a one-line helper text: the switch applies on the next AU you open. Labels from `simple.settings.*` i18n keys.
 
 ### 4.2 Persistence round-trip — `saveAppPreferences` + `AppPreferencesInput`
 
-`saveAppPreferences` ([engine-settings.ts:222–230](../../src-ui/src/api/engine-settings.ts)) today **silently persists only `language`** — a `writing_mode` field would be dropped (the project's "new field silently discarded" trap). Fix:
-
-- Extend `AppPreferencesInput` ([api/settings.ts:91](../../src-ui/src/api/settings.ts)) with `writing_mode?: WritingMode`.
-- In `saveAppPreferences`, persist it with validation:
+`saveAppPreferences` (`engine-settings.ts:222-230`) today persists **only `language`** — a new field is silently dropped. Fix:
+- `AppPreferencesInput += writing_mode?: WritingMode` (`api/settings.ts:91`).
+- Persist with validation (spread `current.app` first → fonts/other fields preserved):
   ```ts
   current.app = {
     ...current.app,
@@ -137,12 +160,11 @@ Options/labels from `WRITING_MODES` (engine-exported) + `simple.settings.*` i18n
         ? { writing_mode: payload.writing_mode } : {}),
   };
   ```
-  (`current.app` is spread first, so fonts and other app fields are preserved — no shallow-merge field loss.)
-- The read path already closes the loop: Phase 1's `dictToAppConfig` maps `writing_mode` (invalid/missing → `'full'`). So write (`saveAppPreferences` → `withSettingsWrite` → `settings.save` → yaml.dump) ↔ read (`settings.get` → yaml.load → `dictToAppConfig`) is symmetric **once this field is set**.
+
+> **Round-trip is VERIFIED CLEAN (do not re-investigate):** `withSettingsWrite` reads `settings.get()` (always returns `app.writing_mode` post-Phase-1), the spread preserves it, and `settings.save()` serializes structurally via `structuredClone` + `obj_to_plain` (recurses all keys, **no field whitelist** — there is no `appConfigToDict`) + `yaml.dump`. Read path `dictToAppConfig` coerces invalid→`'full'`. Engine round-trip already covered by `file_settings.test.ts:225-269`. This fix only adds the UI→engine wrapper field; §4.3 tests the wrapper.
 
 ### 4.3 Round-trip test (required)
-
-New test asserting: save `{writing_mode:'simple'}` → reload settings → `app.writing_mode === 'simple'`; default/absent → `'full'`. This is the write↔read closure proof the bug methodology mandates for a new persisted field. (Engine-side `dictToAppConfig` coercion is already covered by Phase 1's `file_settings.test.ts`; this test covers the **UI→engine** wrapper.)
+Save `{writing_mode:'simple'}` → reload → `'simple'`; preserves `language`/`fonts`; absent/invalid → `'full'`.
 
 ---
 
@@ -150,129 +172,130 @@ New test asserting: save `{writing_mode:'simple'}` → reload settings → `app.
 
 ### 5.1 New files — PORT VERBATIM from fork (mode-agnostic; rendered only when simple)
 
-All under `src-ui/src/`. Verify during port that **none** import the dead `SIMPLE_FEATURES` const (these render inside simple mode, so they shouldn't gate on it — confirm).
+Grep-confirmed: **none of these import the dead `SIMPLE_FEATURES`** (only `landing.ts` does, handled in §5.2). The fork's `SegmentedTabs.tsx` is **NOT** ported (§1.4).
 
 | Area | Files |
 |---|---|
-| Chat UI | `ui/simple/SimpleChatPanel.tsx`, `SimpleChatHistory.tsx`, `SimpleChatInput.tsx`, `SimpleReadingView.tsx`, `SimpleSettingsDrawer.tsx` |
+| Chat UI | `ui/simple/{SimpleChatPanel,SimpleChatHistory,SimpleChatInput,SimpleReadingView,SimpleSettingsDrawer}.tsx` |
 | Message cards | `ui/simple/messages/{AssistantMessage,ChapterPreviewCard,SettingPreviewCard,SystemMessage,ToolCallCard,UserMessage,WritingDraftCard}.tsx` |
 | Hooks | `ui/simple/{useSimpleChat,useSimpleDispatch,useSimpleToolExecutor,useContextTokenCount}.ts` |
-| Glue | `ui/simple/chat-to-llm.ts`, `ui/simple/types.ts` |
-| API wrappers | `api/engine-simple-dispatch.ts`, `api/engine-simple-chat.ts`, `api/engine-tokens.ts` |
-| Tests | `ui/simple/__tests__/*` (7 files) |
+| Glue | `ui/simple/{chat-to-llm,types}.ts` |
+| API wrappers | `api/{engine-simple-dispatch,engine-simple-chat,engine-tokens}.ts` |
+| Tests | `ui/simple/__tests__/*` — **8 files**: `SimpleChatPanel.toolCall`, `chat-to-llm`, `messages.memo`, `useContextTokenCount`, `useSimpleChat`, `useSimpleChat.persistence`, `useSimpleDispatch`, `useSimpleToolExecutor` |
 
 ### 5.2 New file — PORT + MODIFY
-
 | File | Modification |
 |---|---|
-| `ui/simple/landing.ts` | Drop `import { SIMPLE_FEATURES }`; make `getAuLandingPage(mode: WritingMode)` a pure fn over `getSimpleFeatures(mode)` (§3.4). |
+| `ui/simple/landing.ts` | Drop `SIMPLE_FEATURES` import; `getAuLandingPage(mode: WritingMode)` pure over `getSimpleFeatures(mode)` (§3.4). |
 
-### 5.3 New file — NET-NEW (MAIN-only)
-
+### 5.3 New files — NET-NEW (MAIN-only)
 | File | Purpose |
 |---|---|
-| `hooks/useWritingMode.tsx` | `WritingModeProvider` + `useWritingMode()` (§2). |
+| `hooks/useWritingMode.tsx` | `WritingModeProvider` + `useWritingMode()` + the localStorage mirror helpers (`readWritingModeMirror`/`writeWritingModeMirror`) (§2.1). |
 
 ### 5.4 Existing MAIN files — EDIT (surgical)
 
 | # | File | Edit |
 |---|---|---|
-| E1 | `api/engine-instance.ts` | Add `FileSimpleChatRepository` import; add `simpleChat: FileSimpleChatRepository` to `EngineInstance.repos` (L37–46) + `simpleChat: new FileSimpleChatRepository(adapter)` to `initEngine` (L62–71). **Must land first — the ported API throws without it.** Confirm the constructor signature `(adapter)` against the engine export. |
-| E2 | `api/engine-client.ts` | Re-export the 3 wrappers' functions/types (`dispatchSimpleChat`, `getSimpleChat`/`saveSimpleChat`/`clearSimpleChat`, `estimateSimpleContextTokens`) + any simple types the UI imports through the barrel. (Components may import `Message` and simple types straight from `@ficforge/engine`; verify.) |
+| E1 | `api/engine-instance.ts` | Import `FileSimpleChatRepository`; add `simpleChat: FileSimpleChatRepository` to `EngineInstance.repos` (L37-46) + `simpleChat: new FileSimpleChatRepository(adapter)` to `initEngine` (L62-71). **Lands first** — ported API throws without it. (Constructor `(adapter)` confirmed: `file_simple_chat.ts:24`.) |
+| E2 | `api/engine-client.ts` | Add exactly these re-exports: `export * from "./engine-simple-dispatch";` `export * from "./engine-simple-chat";` `export * from "./engine-tokens";` and `export { SIMPLE_TOOL_SHOW_CHAPTER, SIMPLE_TOOL_SHOW_SETTING } from "@ficforge/engine";` (SimpleChatPanel imports the two tool consts from `engine-client`). |
 | E3 | `api/settings.ts` | `AppPreferencesInput += writing_mode?: WritingMode`. |
-| E4 | `api/engine-settings.ts` | `saveAppPreferences` persists `writing_mode` with `isWritingMode` guard (§4.2). Add a `getWritingMode()` read helper for the provider (§2.1). |
-| E5 | `ui/settings/GlobalSettingsModal.tsx` | Add the `writing_mode` save-on-change `<select>` (§4.1), mirroring the language select. |
-| E6 | `App.tsx` | `isAuSpace += "chat"` (L215); wrap the relevant subtree in `WritingModeProvider`. |
-| E7 | `ui/workspace/AuWorkspaceLayout.tsx` | Port the fork's 3 simple-conditional spots; gate on the **mount snapshot** of `useWritingMode().isSimple` (not the const). Full path byte-identical. Import `SimpleChatPanel`/`SimpleReadingView`. |
-| E8 | `ui/mobile/MobileLayout.tsx` | Mobile chat slot + `getAuLandingPage(mode)` for entry nav (§3.2). |
-| E9 | `ui/mobile/BottomNavBar.tsx` | Conditional chat tab when simple. |
-| E10 | `ui/Library.tsx` | Open-AU nav (L71) → `getAuLandingPage(mode)`. |
-| E11 | `ui/library/useLibraryMutations.ts` | Create-AU nav (L92) → `getAuLandingPage(mode)`. |
-| E12 | `locales/zh.json` + `locales/en.json` | Add `simple.*` namespace (tabs/header/reader/draftCard/tool/error/clearChat/settings). UTF-8 **no-BOM**, no mojibake (Codex recurring pitfall). Inline `defaultValue`s in the fork code mean partial coverage degrades gracefully, but tab + toggle labels should be real keys. |
+| E4 | `api/engine-settings.ts` | `saveAppPreferences` persists `writing_mode` w/ `isWritingMode` guard (§4.2); add `getWritingMode()` read for the provider reconcile (§2.1). |
+| E5 | `ui/settings/GlobalSettingsModal.tsx` | `writing_mode` save-on-change `<select>` (§4.1). |
+| E6 | `App.tsx` | `isAuSpace += "chat"` (L215); wrap top tree in `WritingModeProvider`; `key={auPath}` on `<AuWorkspaceLayout>`; `chat`→`writer` redirect when snapshot full (§3.1). |
+| E7 | `ui/workspace/AuWorkspaceLayout.tsx` | Snapshot `isSimple` at mount; port the 3 conditional spots; chat branch renders on `activeTab==='chat'` regardless (§3.1); pass `isSimple` snapshot to `<MobileLayout>`. Full path byte-identical. |
+| E8 | `ui/mobile/MobileLayout.tsx` | Accept `isSimple` prop (snapshot, NOT a live hook); conditional reading view + chat slot; entry nav → `getAuLandingPage(mode)`; **keep `currentChapter` + MobileSettingsView FAB**. |
+| E9 | `ui/mobile/BottomNavBar.tsx` | Accept `isSimple` prop; **surgically** add the chat tab to the existing `<nav grid-cols-4>` (→ 5 tabs when simple); do **not** import `SegmentedTabs`; do **not** call `useWritingMode()`. |
+| E10 | `ui/library/LibraryFandomSections.tsx` (**primary**, L245), `ui/Library.tsx` (L71), `ui/library/useLibraryMutations.ts` (L92) | Open/create-AU nav → `getAuLandingPage(mode)`. Then run the §3.4 grep to prove no hardcoded `'writer'` remains outside the snapshot sites. |
+| E11 | `ui/i18n/...` registration | If a new namespace/key file is added, register it; otherwise keys go into existing `locales/zh.json` + `en.json` (E12). |
+| E12 | `locales/zh.json` + `locales/en.json` | **Full `simple.*` namespace, both languages.** Extract the complete key list (`grep "t('simple\." src-ui/src/ui/simple src-ui/src/ui/workspace src-ui/src/ui/mobile`, ~90 keys), author real **zh AND en** values for all. Today only 2 exist; the rest live as Chinese inline `defaultValue`s → English users would see Chinese. UTF-8 **no-BOM**, no mojibake. |
 
-### 5.5 Pre-flight (blocking, before porting)
-
-- **P0.1** Confirm `@ficforge/engine` exports everything `ui/simple/*` + the 3 wrappers import: `dispatch_simple_chat`, `SIMPLE_TOOL_SHOW_CHAPTER`/`SIMPLE_TOOL_SHOW_SETTING`, `estimate_simple_context_tokens`, `Message`, `WritingMode`/`WRITING_MODES`/`isWritingMode`, `getSimpleFeatures`, `SimpleChatRepository`/`FileSimpleChatRepository`. (Phase-1 scope says yes; verify by diffing fork imports vs MAIN `index.ts`.) Any gap = small Phase-1 follow-up export, **not** a Phase-2 redesign.
-- **P0.2** Confirm the fork UI's MAIN-side deps exist: `useKV`, `useFeedback`, `useSessionParams`, `shared/settings-chat/types.ts`, `frontmatter-utils.ts`, shared `Button`/`Spinner`, and the engine-client APIs the tool executor calls (`saveLore`, `readLore`, `listLoreFiles`, `getProjectForEditing`, `confirmChapter`, `getChapterContent`, `listChapters`, `updateChapterContent`, …). (Phase-1 scope confirmed present; spot-check.)
-- **P0.3** Grep the ported `ui/simple/*` for any residual `SIMPLE_FEATURES` import (should be none outside landing.ts/nav files).
+### 5.5 Pre-flight
+- **P0.1 (VERIFIED present — do not chase):** every `@ficforge/engine` symbol the port imports resolves through the `services`/`domain` sub-barrels (`export *`): `dispatch_simple_chat`, `SIMPLE_TOOL_SHOW_CHAPTER`/`SHOW_SETTING`, `estimate_simple_context_tokens`, `SimpleChatEvent`, `SimpleContextTokenEstimate`, `SimpleChatFile`, `SimpleChatMessageEnvelope`, `resolve_llm_config`, `Message`, `WritingMode`/`WRITING_MODES`/`isWritingMode`, `getSimpleFeatures`, `SimpleChatRepository`, `FileSimpleChatRepository`. `SIMPLE_FEATURES` confirmed absent (fork-only). No gap.
+- **P0.2 (present):** `useKV`, `useFeedback`, `useSessionParams`, `ui/shared/settings-chat/{types,frontmatter-utils}.ts`, shared `Button`/`Spinner`, and the 8 tool-exec engine-client APIs.
+- **P0.3:** confirm the `i18n.ts` localStorage seed pattern for `ficforge_language` (L17-27) to mirror it for `ficforge_writing_mode`.
 
 ---
 
-## 6. Edge cases & error handling (part of the deliverable)
+## 6. Edge cases & error handling
 
-1. **`repos.simpleChat` missing** → fixed by E1; without it `getSimpleChat`/`dispatchSimpleChat` throw. E1 lands first.
-2. **Mode switch while an AU is open** → mount snapshot (§2.2): the open AU keeps its mode; new mode applies on next AU entry. No mid-session tab flip, no draft/chat collision.
-3. **Corrupted/missing `simple-chat.yaml`** → `FileSimpleChatRepository` already degrades to an empty file (Phase 1, never throws).
-4. **Invalid `writing_mode` from settings** → `dictToAppConfig` coerces to `'full'` (Phase 1); `saveAppPreferences` validates with `isWritingMode` before writing (§4.2).
-5. **Loading race** → `useWritingMode` defaults to `'full'` until loaded, so a full user never briefly sees simple chrome; a simple user sees full chrome for one frame then resolves (acceptable; never the reverse).
-6. **Missing i18n keys** → inline `defaultValue` fallbacks render Chinese defaults; tab/toggle labels get real keys.
-7. **Switching modes does not mutate data** — chapters/drafts/facts/`simple-chat.yaml` are untouched by a mode flip; each mode reads its own surfaces.
+1. **`repos.simpleChat` missing** → E1 (lands first); ported API throws otherwise.
+2. **Mode switch while an AU is open** → mount snapshot (§2.2): open AU unchanged, new mode on next entry; mobile reads the same snapshot via prop (§3.2).
+3. **Corrupted/missing `simple-chat.yaml`** → `FileSimpleChatRepository` degrades to empty (Phase 1, never throws).
+4. **Invalid `writing_mode` in settings** → `dictToAppConfig` coerces `'full'`; `saveAppPreferences` validates with `isWritingMode`; the localStorage mirror validates on read.
+5. **Loading/first-paint** → the **synchronous localStorage mirror** (§2.1) gives a correct value on frame 1, so a simple user is never mis-routed to writer/reading and there is **no blank-workspace state** (the chat branch renders on `activeTab==='chat'` regardless, §3.1). First-ever launch with no mirror → `'full'` (correct default). Async reconcile corrects out-of-band drift on next entry.
+6. **Missing i18n keys** → lint-enforced coverage (E12 + §7) so English can't silently fall back to Chinese.
+7. **Mode flip mutates no data** — chapters/drafts/facts and `{au}/.well-known/simple-chat.yaml` are disjoint (verified); a flip touches none.
 
 ---
 
 ## 7. Test plan
 
-### 7.1 PORT (fork → MAIN)
-- The fork's 7 `ui/simple/__tests__/*` files — copy, fix import paths. Cover: chat panel tool-call rendering, message memoization, `useSimpleChat` (+ persistence), `useSimpleDispatch`, `useSimpleToolExecutor`, `useContextTokenCount`, `chat-to-llm`.
+### 7.1 PORT (fork → MAIN) — **8** files
+`ui/simple/__tests__/*` (the 8 in §5.1) — copy, fix import paths. They mock `engine-client` and reference no `SIMPLE_FEATURES`, so they port without const-mocking.
 
-### 7.2 NEW
-- `useWritingMode` — provider returns `'full'` while loading, resolves to persisted value; `refresh()` re-reads.
-- `saveAppPreferences` round-trip (§4.3) — save `simple` → reload → `simple`; preserves `language`/`fonts`; invalid → ignored.
-- `getAuLandingPage(mode)` — `'simple'→'chat'`, `'full'→'writer'`.
-- (Optional UI) `AuWorkspaceLayout` renders chat tab + `SimpleReadingView` when `isSimple`, and `WriterLayout` + no chat tab when full.
+### 7.2 NEW (required)
+- **`useWritingMode`** — synchronous seed from the mirror (no async-default flash); reconcile updates state+mirror; `refresh()` re-reads; memoized value identity stable.
+- **Snapshot invariant (the #1 risk)** — mount `AuWorkspaceLayout` with `isSimple=true`, flip the provider mode to full, **assert the chat tab + `SimpleReadingView` are still rendered** (snapshot held); a fresh remount picks up the new mode; the workspace unmounts when `currentPage` leaves the AU set.
+- **Mobile snapshot parity** — a mid-AU toggle does **not** change the mobile tab set (`BottomNavBar` consumes the prop, not a live hook).
+- **Gating-render per surface** — desktop `AuWorkspaceLayout`: chat tab present iff simple; mobile `BottomNavBar`: 5 vs 4 tabs by mode.
+- **`getAuLandingPage(mode)`** — `'simple'→'chat'`, `'full'→'writer'`.
+- **`saveAppPreferences` round-trip** (§4.3).
+- **i18n coverage lint/test** — fails if any referenced `simple.*` key is absent from **both** `zh.json` and `en.json` (so `defaultValue` can never mask a missing en translation).
 
 ### 7.3 KEEP-GREEN (zero-churn)
-- All existing full-mode UI tests pass **unmodified**. In particular the Writer UI test suite (the 13 files from the 2026-04 state-pushdown work) must not change — full mode is untouched.
-- `src-engine` suite stays 749/749 (no engine edits in Phase 2).
+- All full-mode UI tests pass **unmodified** (the 13 Writer-suite files in particular).
+- `src-engine` stays 749/749 (no engine edits).
 
-### 7.4 Manual dev-server round-trip (not optional — "green ≠ works")
-Run the app; with mode = simple: enter an AU → lands on chat → write a chapter via the agent → accept the draft → reload → confirm `simple-chat.yaml` persisted and the chapter is in the reading view. Toggle back to full → enter an AU → confirm the writer is byte-normal and no chat tab. Toggle mid-AU → confirm the open AU does **not** change, next entry does. Verify on Android too (mobile layout) given the project's mobile target.
+### 7.4 Manual dev-server round-trip (not optional)
+Simple: enter AU (via library card) → lands on chat → write a chapter via the agent → accept the draft → reload → `simple-chat.yaml` persisted + chapter in reading view. Toggle to full mid-AU → open AU does NOT change; next entry is byte-normal writer, no chat tab. Switch to English → simple UI is English (not Chinese). Verify on **Android** (mobile surgical insert + snapshot prop + slow-FS first-paint via the mirror).
 
 ---
 
 ## 8. Ordered implementation steps
 
-**Group 0 — pre-flight (blocking):** P0.1–P0.3 (§5.5).
+**Group 0 — pre-flight:** P0.1–P0.3 (§5.5) — mostly confirmations.
 
-**Group 1 — engine wiring + accessor (sequential keystone):**
-- S1.1 E1 `engine-instance.ts` register `simpleChat`. *(blocks all API wrappers)*
-- S1.2 E3 `AppPreferencesInput += writing_mode`; E4 `saveAppPreferences` persist + `getWritingMode` read.
-- S1.3 NEW `useWritingMode.tsx` provider/hook.
-- S1.4 round-trip + `useWritingMode` tests.
+**Group 1 — engine wiring + accessor (keystone):**
+- S1.1 E1 register `simpleChat`. *(blocks API wrappers)*
+- S1.2 E3 `AppPreferencesInput += writing_mode`; E4 `saveAppPreferences` persist + `getWritingMode`.
+- S1.3 NEW `useWritingMode.tsx` (mirror + reconcile + memoized value).
+- S1.4 tests: `useWritingMode`, round-trip, `getAuLandingPage`.
 
 **Group 2 — port additive UI (parallel, depends on S1.1):**
-- P2.1 3 API wrappers + E2 barrel.
-- P2.2 `ui/simple/*` components + messages + hooks + `chat-to-llm`/`types`.
+- P2.1 3 API wrappers + E2 barrel (exact 4 lines).
+- P2.2 `ui/simple/*` (components, messages, hooks, chat-to-llm, types).
 - P2.3 `landing.ts` (port+modify).
-- P2.4 port `ui/simple/__tests__/*`.
+- P2.4 port the **8** `ui/simple/__tests__/*`.
 
 **Group 3 — runtime gating in existing files (serialize per file):**
-- S3.1 E6 `App.tsx` (`isAuSpace += chat`, wrap provider).
-- S3.2 E7 `AuWorkspaceLayout.tsx` (snapshot gating).
-- S3.3 E8/E9 mobile.
-- S3.4 E10/E11 landing call sites.
+- S3.1 E6 `App.tsx` (provider wrap, `isAuSpace += chat`, `key={auPath}`, chat→writer redirect).
+- S3.2 E7 `AuWorkspaceLayout.tsx` (mount snapshot, 3 spots, chat-render-regardless, pass `isSimple` to mobile).
+- S3.3 E8/E9 mobile (surgical, snapshot prop, keep FAB/currentChapter).
+- S3.4 E10 landing call sites + the grep proof.
+- S3.5 gating + snapshot-invariant + mobile-parity tests (§7.2).
 
 **Group 4 — toggle + i18n:**
-- S4.1 E5 `GlobalSettingsModal` select.
-- S4.2 E12 `simple.*` i18n (zh + en, atomic).
+- S4.1 E5 `GlobalSettingsModal` select (hook at scope, mirror write).
+- S4.2 E12 full `simple.*` zh+en + coverage lint test.
 
 **Group 5 — verification gate (do not skip):**
 - S5.1 `tsc --noEmit` (src-ui) clean.
-- S5.2 src-ui test suite green; ported + new tests included; full-mode tests unmodified.
+- S5.2 src-ui suite green; ported + new tests included; full-mode tests **unmodified**; i18n coverage lint green.
 - S5.3 Manual dev-server round-trip (§7.4), desktop + Android.
-- S5.4 `git diff --stat`; stop and await human ("提交"/"合并"). Do not push/merge autonomously.
+- S5.4 `git diff --stat`; stop and await human ("提交"/"合并").
 
 ---
 
 ## 9. Zero-churn red-line (full mode unchanged)
 
 With `writing_mode='full'` (default), the UI is **behaviorally identical** to pre-Phase-2 MAIN:
-1. No chat tab anywhere; AU lands on `writer`; writer = `WriterLayout`.
-2. `useWritingMode` defaults to `'full'` → every gating boolean is `false`.
-3. `App.tsx isAuSpace` gains `"chat"` but `"chat"` is never navigated to in full mode → inert.
-4. `saveAppPreferences` for `language`-only callers behaves exactly as before (the `writing_mode` branch is additive and guard-skipped when absent).
-5. Existing full-mode tests (Writer suite, etc.) pass **unmodified, no added mocks**.
-6. `src-engine` untouched → 749/749 unchanged.
+1. No chat tab anywhere; AU lands on `writer`; writer = `WriterLayout`; mobile shell incl. the AU AI-settings FAB unchanged.
+2. `useWritingMode` seeds `'full'` (mirror absent or `'full'`) → every gating boolean false; the memoized provider value avoids spurious re-renders (the one settle-render is behavior-neutral; the red-line is behavioral identity + unmodified tests, which holds).
+3. `isAuSpace += "chat"` is inert (no full-mode path navigates to `chat`); the `chat→writer` redirect only matters if `chat` is somehow reached.
+4. `saveAppPreferences` language-only callers behave exactly as before (the `writing_mode` branch is additive, guard-skipped when absent).
+5. Existing full-mode tests pass **unmodified, no added mocks**; `src-engine` 749/749 unchanged.
+6. **Mobile is additive only** — the FAB, header, and tab-bar component are untouched in full mode (the fork's removals are out of scope, §1.4).
 
 A full-mode test requiring edits = a churn violation → stop and investigate.
 
@@ -280,8 +303,8 @@ A full-mode test requiring edits = a churn violation → stop and investigate.
 
 ## 10. Open questions / risks
 
-1. **`useWritingMode` placement of the live-read for landing vs the snapshot for the workspace** — the provider must expose the live value (for landing) while the workspace deliberately snapshots once. Implementation must keep these distinct (live = `useWritingMode().mode`; snapshot = `useState(() => mode)` at workspace mount). Mis-wiring → either landing is stale or the open AU flips. Covered by §2.2; call out in the plan.
-2. **Engine export coverage (P0.1)** — the one place a hidden gap could appear. Low risk (Phase-1 scope verified), but verify by import-diff, not assumption.
-3. **Mobile parity** — fork mobile (`MobileLayout`/`BottomNavBar`) must be ported with the same runtime conversion; do not let desktop land while mobile still reads a dead const. Verify on a real Android device.
-4. **i18n encoding** — `simple.*` block into `zh.json`/`en.json` is the highest-risk spot for UTF-8 double-encoding (Codex history). `file`-verify no-BOM + grep for mojibake after writing.
-5. **GlobalSettingsModal reachable in-AU** — confirmed; the snapshot semantics (§2.2) are what make in-AU switching safe. Verify the toggle's `refresh()` updates landing without forcing a reload.
+1. **First-paint correctness depends on the mirror being seeded before paint** — mirror the `ficforge_language` pattern exactly (synchronous `localStorage.getItem` at provider-module/init scope, not in a `useEffect`). If read in an effect, the first frame still defaults `'full'` and the race returns. Tested in §7.2.
+2. **Mobile must consume the snapshot prop, never a live hook** (§3.2) — the path of least resistance (`useWritingMode()` in `BottomNavBar`) re-introduces the mid-session flip. Enforced by the §7.2 mobile-parity test + code review.
+3. **i18n is a ~90-key bilingual task**, not a small block — the coverage lint (§7.2) is the guard against the silent-Chinese regression.
+4. **Snapshot invariant** relies on `App.tsx` unmounting the workspace on Library return + no AU→AU bypass; `key={auPath}` is defense-in-depth. Tested.
+5. **VERIFIED CLEAN — do not re-litigate:** (a) the `saveAppPreferences`↔`dictToAppConfig` round-trip closes (structural serialization, no second whitelist); (b) engine export coverage (P0.1) is satisfied via sub-barrels. Both confirmed by 3 reviewers; included here so a future reviewer doesn't re-open them.
