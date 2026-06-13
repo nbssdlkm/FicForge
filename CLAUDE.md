@@ -2,20 +2,22 @@
 
 ## 项目概况
 
-FicForge 是面向同人写手的 AI 辅助续写工具。当前正在进行 **架构迁移**：从 Python 后端 + Tauri 桌面端迁移到 TypeScript 统一核心引擎，以同时支持桌面端（Tauri）和移动端（Capacitor/PWA）。
+FicForge 是面向同人写手的 AI 辅助续写工具。**架构迁移（Python 后端 → TypeScript 统一核心引擎，M0–M5）已完成**，引擎同时支撑桌面端（Tauri）和移动端（Capacitor/PWA）。
+
+**当前主线**：把独立验证过的「简版」fork（`D:\fanfic-system-simple`，agent-harness / 工具调用、聊天式续写）收敛回主仓 —— 两种写作模式经单一运行时开关 `writing_mode: 'full' | 'simple'` 共存，而不是维护两套代码库。Phase 1（引擎层）已完成并复核可合；Phase 2（UI 接入）待启动。详见下方「活跃工作」。
 
 ## 架构（PRD v4, D-0034）
 
 ```
 TypeScript 核心引擎 (src-engine/)
   ├── domain/          数据类型、枚举、工具定义（来自 core/domain/*.py）
-  ├── prompts/         55 个中英文模板（来自 core/prompts/*.py）
+  ├── prompts/         58 个中英文模板（来自 core/prompts/*.py）
   ├── services/        全部业务逻辑（来自 core/services/*.py）
   ├── repositories/    抽象接口（9 个 TypeScript interface）
   ├── llm/             LLM 调用（openai-node SDK）
-  ├── tokenizer/       Token 计数（js-tiktoken）
+  ├── tokenizer/       Token 计数（gpt-tokenizer）
   ├── vector/          内存向量检索（JSON 分片 + cosine similarity）
-  └── sync/            多设备同步引擎（ops 合并 + state/facts 重建）
+  └── sync/            多设备同步引擎（**同步 UI 已隐藏；engine 模块待删 M7 Phase 2** — D-0040）
 
 Platform Adapter
   ├── TauriAdapter     桌面端文件 I/O
@@ -26,6 +28,8 @@ Platform Adapter
   ├── Tauri 壳 + 可选 Python sidecar（仅本地 embedding）
   └── Capacitor 壳 (Android) / PWA (iOS/Web)
 ```
+
+> **简版收敛新增（Phase 1，2026-06）**：`config/simple_features.ts`（`getSimpleFeatures(mode)` 由 `writing_mode` 派生 4 个 flag，取代编译期 `SIMPLE_FEATURES` const）；`services/` 下 `agent_loop` / `agent_telemetry` / `tool_args_repair` / `tool_stream_buffer` / `simple_chat_dispatch` / `estimate_simple_tokens`；`domain/simple_chat.ts` + `simple_tools_zod.ts`；`repositories/.../file_simple_chat.ts`。`full` 模式逐字节零回归。
 
 ## 迁移阶段（当前进度）
 
@@ -38,16 +42,44 @@ Platform Adapter
 | M4 | Settings Chat、Trash、Recalc、前端 API 切换、SSE 消除、Sidecar 精简 | **已完成**（E.6 Sidecar 精简推迟决策） |
 | M5 | 移动端 Capacitor/PWA、响应式 UI | **已完成**（ops 合并 + 数据同步**已废弃**，见 D-0040） |
 | M6 | Agent 架构 | **重开规划**，D-0032 作废，见 D-0043；触发条件满足后启动（预计 2026 Q3/Q4） |
-| M7 | 架构简化（同步退役 + ops 降级 audit log） | 待启动 |
+| M7 | 架构简化（同步退役 + ops 降级 audit log） | **部分**：同步 UI 已隐藏（`c4b0f42`），engine 模块待删（Phase 2） |
 | M8 | Memory 三层架构（Fact / Chapter Summary / Thread） | 待启动 |
 | M9 | ReAct 基础设施（生成 + 选择性提取） | 待启动 |
 | M10 | Retrospective rewrite + Archive 冷热分层 | 待启动 |
 
-**新 PRD**：`docs/internal/prd/FicForge-补充PRD-v5-架构简化与Memory重设计.md`
+> **注**：M6–M10 源自 PRD v5（架构简化 + Memory 重设计）。**PRD v5 及 D-00xx 决策记录 / devlog 已不在仓库内**（`docs/internal/` 仅余 `plans/`）—— 如需查阅在 Obsidian `D:\MY LIFE\FicForge\` 或归档处。**当前实际推进的主线是「简版收敛」**，独立于 M6–M10 排期，见下方「活跃工作」。
 
 ## 活跃工作（当前分支）
 
-**`main`** —— 全部已 push origin/main（Phase 7 全线完成，真机回归待做）。
+**当前分支：`feat/converge-simple-phase1`** —— 已 commit，tree clean，**未合并 main**（合并需人工指示，CC 不自行 merge）。
+
+### 简版收敛（当前主线）
+
+把简版 fork（`D:\fanfic-system-simple`，分支 `feat/agent-harness-v1`，agent-harness / 工具调用、聊天式续写）验证过的引擎收敛回主仓 —— 两种写作模式经 `AppConfig.writing_mode`（`'full' | 'simple'`，默认 `full`）单一运行时开关共存，**不再维护两套代码库**。设计 spec：`docs/superpowers/specs/2026-06-02-converge-simple-into-main-phase1-design.md`。
+
+**Phase 1（引擎层）—— 已完成 + 2026-06-13 独立复核可合：**
+- 端口 agent_loop / agent_telemetry / tool_args_repair / tool_stream_buffer / simple 上下文组装 / simple_chat_dispatch / simple tools / simple-chat 持久化，全部进 `src-engine/`
+- `getSimpleFeatures(mode)` 纯函数派生 4 flag 取代 `SIMPLE_FEATURES` const；`assemble_context` 加可选 `writingMode='full'` 参数（无模块级 ambient 状态）；generation RAG gate 改读 config
+- **零回归红线已验证**：`full` 默认下 golden/budget/confirm/undo 测试与 main 逐字节一致；唯二预期 delta = prompt keys 55→58 + 一个 `forced_tool_choice_unsupported` 用例
+- 复核证据（独立跑过，非信 commit message）：`vitest run` **749/749 绿**（68 文件）、`tsc --noEmit` 干净（engine + src-ui 均绿 → 引擎改动纯 additive）、0 处 `SIMPLE_FEATURES` const / ambient 残留
+- branch vs main：**44 文件，+6398/-27，纯 src-engine + 测试，零 src-ui 改动**
+- **待人工决定**：合并到 main
+
+**Phase 2（UI 接入）—— 待启动：**
+- 把 fork 的 `src-ui/src/ui/simple/` 整棵树（SimpleChatPanel / SimpleReadingView / SimpleChatHistory|Input / 4 hook / messages 卡片 / chat-to-llm）+ 3 个薄 API wrapper（engine-simple-dispatch / engine-simple-chat / engine-tokens）端口进主仓
+- **第一个 must-fix**：`engine-instance.ts` 注册 `FileSimpleChatRepository`（引擎已导出但 UI 侧未接线，否则 `repos.simpleChat` 抛错）
+- **核心设计决策**：fork 用编译期 `SIMPLE_FEATURES` 门控全部 simple UI；主仓须改为运行时读 `writing_mode`（建议 workspace 挂载时一次性读、经小 hook/context 下发，避开 ~6 处 `getAuLandingPage()` 各自 async 读）
+- `writing_mode` 开关放 GlobalSettingsModal（app 级全局），需扩 `AppPreferencesInput` + `saveAppPreferences`（当前只持久化 language —— **silent-drop 陷阱**，新字段须走完整 round-trip）
+- i18n：主仓 locales 尚无 `simple.*` 命名空间，从 fork 拷（注意 UTF-8 no-BOM）
+- 相关债 **TD-015**（简版↔主 import/export 数据迁回）：非 Phase 2 阻塞项，简版有真实迁回需求时再做
+
+### 并行支线（正交于收敛，部分已被超越）
+
+`docs/internal/plans/system-optimization-{roadmap,execution-plan}-2026-04-19.md` —— 内部代码质量 / 架构硬化计划（Settings/Project 读写契约收窄、表单 mapper 共享、SecretStore 真加密、写入串行化，Phase 0–5）。基线**部分已过时**（WriterLayout 下沉 / Library 拆分已做完；同步条目随 D-0040 失效）。**未排期、按需取用。**
+
+---
+
+**以下为已合并 main 的历史背景：**
 
 ### 2026-04-20/21 完成的工作
 
@@ -57,7 +89,7 @@ Platform Adapter
 - UI 测试 0 → 13 文件 / 93 用例（`@testing-library/react` + jsdom 首次接入）
 - Codex 简报 + 4 铁律 + 第 5 条规则（hook 不暴露 raw setter）已写入本文件
 
-**Phase 7 tech debt**（全部关闭，详见 `docs/internal/plans/phase-7-tech-debt-plan.md`）：
+**Phase 7 tech debt**（全部关闭；计划文档 `phase-7-tech-debt-plan.md` 已不在仓库内）：
 - ✅ T7-1 PartialCommitError（structured 错误码替代误导文案，commit `ab34816`）
 - ✅ T7-2 路径白名单（`? # % :` 替换 `_`，分新建 sanitize / 已有 validate 双路径，commit `2c46c4b`）
 - ✅ T7-3 端到端 AbortSignal（4 层贯通；切 AU 中途取消生成，commit `2355eb9`）
@@ -72,40 +104,15 @@ Platform Adapter
 - 新公式：`budget = max(ctx − max(maxTokens, 10k) − system − 500, ctx × 60% − system)`，旧公式作下限兜底保证小模型不退步
 - 128k 模型 input budget +52%，200k +58%，64k +38%；8k/4k 不变
 - 新增 `OUTPUT_RESERVE_CEIL=15k` 硬顶防超长章节耗预算，触发时 `console.warn`
-- commit `6ef7bd2`，决策记录 `docs/internal/decisions/D-0039-context-budget-rebalance.md`
+- commit `6ef7bd2`（决策 D-0039；记录文件已不在仓库内）
 
-### 待开新分支继续
+### 待决策 / 观察（未排期）
 
-**下次会话第 1 件事**：
-- **真机回归**（Phase 7 收尾）：已 push 的 5 个 commit 中只有 T7-8 验过真机。场景：连续生成 2-3 章 → 看 RAG 召回详情 chunks 数是否 ~8（T7-7）；切 AU 时中途取消 → Network tab 确认 LLM 请求被 cancel（T7-5 间接路径）；import 中途断网 → 确认 worldbuilding/ 干净（T7-4）；查看生成时的 budget_remaining 是否反映新公式（budget 重平衡）。如发现回归立即 revert 对应 commit
-
-**M7 架构简化**（真机过后可以启动，~3-5 天）：
-- Phase 1：UI 移除同步入口；engine 跳过 ops merge 路径；WriteTransaction 简化；关闭 `debt_webdav_auth_dup.md` / `debt_capacitor_cors.md`
-- Phase 2（2-3 月后）：删同步代码
-- 详见 PRD v5 §1 + D-0040
-
-**M8 Memory 三层架构**（M7 之后，~3-4 周）：
-- Fact Layer 2 字段 + Chapter Summary 三档 + Thread 系统
-- 详见 PRD v5 §2 + D-0041
-
-**M9 ReAct 基础设施**（M8 之后，~2-3 周）：
-- 提取流水线 + 读工具集合 + 生成阶段 ReAct 切换
-- 降级方案永远保留
-- 详见 PRD v5 §3 + D-0042
-
-**M10 Retrospective + Archive**（M9 之后，~1-2 周）
-
-**待决策（未排入任何 M）**：
-- **M4-E.6 Sidecar 精简**：同步退役后 sidecar 价值更低。倾向退役（Qwen embedding 几乎免费）；保留意味着桌面端离线可用
-- **UI 重设计**：等 M7-M9 落地后做，要适配新的 thread / 冷热分层 / ReAct 视图
-- **T7-7 后续观察**：top_k=8 用一阵如果还不够，调 `rag_decay_coefficient` 0.05 → 0.03
-
-**与 Eval Harness 的关系**：
-- Eval harness 支线独立节奏（见 `roadmap.md`），与 M7-M10 并行
-- 学习笔记在 Obsidian `D:\MY LIFE\FicForge\Eval Harness\`
-- 工程产出（harness 代码、fixture、baseline 实现）进 `src-engine/eval/`
-
-**Codex Prompt 归档**：`docs/internal/prompts/` 下 `codex-t7-4-import-rollback.md` 是未来类似任务 brief 模板
+- **简版 vs 主模式的产品定位**：简版最终是主力 UX、轻量入口、还是并存？影响 Phase 2 之后的 UI 取舍（需 PM 拍板）
+- **M6–M10**（Agent / 架构简化 / Memory 三层 / ReAct / Retrospective）：源自 PRD v5（out-of-repo），当前**不排期**，让位于简版收敛主线；概览见上方迁移阶段表
+- **M4-E.6 Sidecar 精简**：同步退役后 sidecar 唯一职能是本地 embedding，倾向退役（详见下方 Python 后端章节）
+- **T7-7 观察**：RAG top_k=8 若不够，调 `rag_decay_coefficient` 0.05 → 0.03
+- **Eval Harness** 支线独立节奏：工程产出进 `src-engine/eval/`，学习笔记在 Obsidian `D:\MY LIFE\FicForge\Eval Harness\`
 
 ### Codex 累计教训（写入新会话提示）
 
@@ -126,6 +133,8 @@ Platform Adapter
 - **D-0041** Memory 三层架构重设计（Fact / Chapter Summary / Thread）
 - **D-0042** ReAct 生成 + 选择性 ReAct 提取
 - **D-0043** M6 Agent 架构重新规划（取代 D-0032；等触发条件满足后启动）
+- **简版收敛**（2026-06，无独立 D 编号）：简版 fork → 主仓 `writing_mode` flag 共存，取代「维护两套代码库」；spec 见 `docs/superpowers/specs/2026-06-02-converge-simple-into-main-phase1-design.md`
+- **注**：D-0034…D-0043 的决策**记录文件**已不在仓库内（`docs/internal/decisions/` 已清空）；以上为决策事实摘要，原始记录见 Obsidian / 归档
 - 新创建的 fandom / AU / lore 路径段统一收紧到白名单：字母、数字、Unicode 字母、空格、`-`、`_`、`.`；诸如 `? # % : * " < > / \` 的保留字符一律替换为 `_`。
 
 ## 技术栈
@@ -137,7 +146,7 @@ Platform Adapter
 | 桌面壳 | Tauri 2 |
 | 移动壳 | Capacitor (Android) / PWA (iOS) |
 | LLM 调用 | openai-node SDK（OpenAI 兼容接口） |
-| Token 计数 | js-tiktoken |
+| Token 计数 | gpt-tokenizer |
 | 向量检索 | JSON 分片 + 内存 cosine similarity |
 | YAML 读写 | js-yaml |
 | Frontmatter | gray-matter |
@@ -156,17 +165,14 @@ Platform Adapter
 
 ## 内部参考文档
 
-`docs/internal/` 目录（.gitignore 排除，不进公开仓库）：
-- `prd/` — PRD v2 + 补充 PRD v2/v4（**v3 已废弃**）+ **v5（新主 PRD）**
-- `audit/` — CC 审计报告
-- `decisions/` — 决策记录（最新 D-0043）
-- `devlog/` — 开发日志
-- `milestone/` — 里程碑总结
-- `governance/` — 治理文档
-- `plans/` — 阶段性工作计划（`phase-7-tech-debt-plan.md` 已关闭；`roadmap.md` 是活的战略路线）
-- `prompts/` — Codex 任务简报模板
+> **2026-06 现状**：原 `docs/internal/{prd,decisions,devlog,audit,milestone,governance,prompts}` 子目录**已不在仓库内**，只剩 `plans/`。PRD（v2/v4/v5）、D-00xx 决策记录、devlog 如仍需查阅，在 Obsidian `D:\MY LIFE\FicForge\` 或已归档。**别再引用这些已失效路径。**
 
-**学习笔记**（非工程产出）**不进此目录**，放 Obsidian `D:\MY LIFE\FicForge\`。
+**仓库内现存文档：**
+- `docs/`（顶层，已 git 跟踪）— `API-REFERENCE.md`、`BUILD.md`、`DESIGN-SYSTEM.md`、`SYNC-GUIDE(_zh).md`、`TECH-DEBT.md`（**TD-001…TD-015 现行技术债清单，含简版收敛相关 TD-014/015**）、`D-0033-i18n-known-limitations.md`
+- `docs/internal/plans/` — `system-optimization-{roadmap,execution-plan}-2026-04-19.md`（代码质量硬化计划，正交支线）
+- `docs/superpowers/specs/` — `2026-06-02-converge-simple-into-main-phase1-design.md`（简版收敛 Phase 1 设计 spec；**新 spec 的归处**）
+
+**学习笔记**（非工程产出）放 Obsidian `D:\MY LIFE\FicForge\`，不进仓库。
 
 ## 高风险模块（迁移时重点关注）
 
@@ -221,7 +227,7 @@ Platform Adapter
 
 ### Hook 设计规则（2026-04 Writer 状态下沉重构确立）
 
-**真实案例**：Codex 2026-04-19 拆 WriterLayout 时把 state 留在顶层、靠传 setter 让 hook 操作（`useWriterResetOnAuChange` 收 28 个 setter、`useWriterBootstrap` 收 26 参数）。结构上是"reshape 不是 refactor"：文件拆了，耦合没降；加新 state 要改 5-6 个文件；Android 上暴露 useEffect 死循环。后续用 4 个 Phase 把 22 个 useState 从 WriterLayout 下沉到各自 hook 内部（详见 `docs/internal/devlog/2026-04-writer-state-pushdown.md`）。
+**真实案例**：Codex 2026-04-19 拆 WriterLayout 时把 state 留在顶层、靠传 setter 让 hook 操作（`useWriterResetOnAuChange` 收 28 个 setter、`useWriterBootstrap` 收 26 参数）。结构上是"reshape 不是 refactor"：文件拆了，耦合没降；加新 state 要改 5-6 个文件；Android 上暴露 useEffect 死循环。后续用 4 个 Phase 把 22 个 useState 从 WriterLayout 下沉到各自 hook 内部（对应 devlog 已不在仓库内）。
 
 **从此以后，Hook 必须遵守**：
 
@@ -279,25 +285,18 @@ grep -c "useState" src/ui/SomePage.tsx   # < 5 是健康
 
 ---
 
-## 架构迁移
+## 架构迁移（M0–M5，已完成）
 
-> 迁移总览、架构图、关键决策（D-0034 ~ D-0038）见上文对应章节，此处不重复。
+> 迁移已收尾，本节留作历史背景。架构图、关键决策见上文。
 
-### 参考文档位置（必读 / 参考）
+迁移期参考文档（PRD v4 / 迁移审计 / PRD v2 / DECISIONS-updated）**均已不在仓库内**，如需见 Obsidian / 归档。
 
-```
-docs/internal/prd/FicForge-补充PRD-v4-架构迁移与移动端-final.md  — 迁移方案（必读）
-docs/internal/audit/CC-AUDIT-migration.md                       — 源码审计报告（必读）
-docs/internal/prd/fanfic-system-PRD-v2.md                        — 原始功能设计（参考）
-docs/internal/decisions/DECISIONS-updated.md                     — 所有架构决策（参考）
-```
+迁移期沿用的原则（现为背景知识）：
 
-### 迁移原则
-
-1. **Python 源码是最权威的规格说明书**。PRD 定义"应该怎样"，Python 代码定义"实际怎样"。两者冲突时以代码为准
-2. Repository 接口签名直接复制到 TypeScript interface
-3. 不要改动现有 Python 代码（除非是补测试）
-4. 每个 Phase 完成后写 devlog 到 `docs/internal/devlog/`
+1. **Python 源码曾是最权威的规格说明书**（`src-python/` 仍在，冻结不改）。迁移完成后，**`src-engine/` TS 引擎已成为唯一现行实现 + 真相源**；新功能直接在 TS 引擎写，不再回 Python 比对
+2. Repository 接口签名直接对应 TypeScript interface
+3. 不改动现有 Python 代码（除补测试）
+4. 新 spec / 设计文档写到 `docs/superpowers/specs/`（devlog 旧目录已废）
 
 ### src-engine/ 目录补充
 
