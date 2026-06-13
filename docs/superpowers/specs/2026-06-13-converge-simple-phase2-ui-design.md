@@ -1,7 +1,7 @@
 # Phase 2 Design Spec — Wire the simple-mode UI into MAIN (UI layer)
 
 **Date:** 2026-06-13
-**Status:** Design **Rev 2** — post code-grounded adversarial review (4 reviewers + synthesis). Ready for implementation.
+**Status:** Design **Rev 3** — post two code-grounded review rounds (4-reviewer audit → Rev 2 → re-verify → Rev 3). Ready for implementation.
 **Scope owner:** CC
 **Source fork:** `D:\fanfic-system-simple` (branch `feat/agent-harness-v1`) — UI layer
 **Target:** `D:\fanfic-system` (branch `feat/converge-simple-phase2`)
@@ -16,6 +16,12 @@
 - **Snapshot invariant gets a required test (MAJOR).** §7.
 - **Verified CLEAN (do NOT re-litigate):** the `saveAppPreferences`↔`dictToAppConfig` round-trip closes (serialization is structural via `obj_to_plain`, no second whitelist); and every `@ficforge/engine` symbol the fork imports is exported through the `services`/`domain` sub-barrels. Both confirmed by 3 reviewers.
 - Minor: hook-in-handler reword (§4.1), test count 7→8, E2 exact barrel diff, memoize provider value, `key={auPath}` defense-in-depth.
+
+**Rev 3 changelog (post re-verify of Rev 2):**
+- **Dropped the `App.tsx` `chat→writer` redirect (Rev-2 BLOCKING mistake):** App.tsx can't read the workspace's internal mount snapshot, and gating it on the *live* mode would re-introduce the mid-session flip §2.2 prevents. The snapshot-independent content switch (`SimpleChatPanel` on `activeTab==='chat'`) already covers the blank-workspace case. §3.1, §3.3, E6.
+- **Fixed the §3.4/E10 verification search (MAJOR):** single-line `grep` can't match the multi-line primary site `LibraryFandomSections.tsx:245`; use `rg -U` + a negative control that the search surfaces :245 *before* editing.
+- **Broadened the i18n coverage lint (MAJOR):** scan the whole `src-ui/src` tree (incl. `ui/settings/`, where the toggle's `simple.settings.*` labels live); fail if a key is missing from **either** locale.
+- Minor: UI files import `WritingMode`/`isWritingMode`/`WRITING_MODES`/`getSimpleFeatures` from `@ficforge/engine` directly (E2); enumerated the mobile type/map edits (E9); noted the `key={auPath}` tradeoff (§9).
 
 ---
 
@@ -92,7 +98,7 @@ Port the fork's three simple-conditional spots, gating on the **mount snapshot**
 
 facts/au_lore/settings tabs unchanged. Full mode = exactly today.
 
-**Chat-route safety (race defense):** the content switch renders `SimpleChatPanel` whenever `activeTab==='chat'`, **independent of the snapshot** — so there is never a blank workspace even in a degenerate interleaving. Belt-and-suspenders: `App.tsx` redirects `currentPage==='chat'` → `'writer'` when the workspace snapshot resolves to `'full'`. With the §2.1 mirror this redirect should never fire, but it removes the blank-screen failure mode entirely.
+**Chat-route safety (race defense):** the content switch renders `SimpleChatPanel` whenever `activeTab==='chat'`, **independent of the snapshot** (ported from the fork's content switch, `AuWorkspaceLayout.tsx:410`) — so there is never a blank workspace even in a degenerate interleaving. **No App.tsx-level redirect is used:** App.tsx (the parent) cannot read the workspace's internal mount snapshot, and gating a redirect on the *live* mode would re-introduce the very mid-session flip §2.2 prevents (a mid-AU toggle to full would bounce the user out of chat). The snapshot-independent content switch is the only safety needed.
 
 ### 3.2 Mobile — `MobileLayout.tsx` + `BottomNavBar.tsx` (SURGICAL, additive only)
 
@@ -108,7 +114,7 @@ facts/au_lore/settings tabs unchanged. Full mode = exactly today.
 
 - `isAuSpace` (L215) `["writer","facts","au_lore","settings"]` → **add `"chat"`**.
 - Wrap the top-level rendered tree in `WritingModeProvider` (covers Library landing + AU workspace + mobile).
-- Add `key={auPath}` to `<AuWorkspaceLayout>` (§2.2) and the `currentPage==='chat' && snapshot==='full' → 'writer'` redirect (§3.1).
+- Add `key={auPath}` to `<AuWorkspaceLayout>` (§2.2). (No App.tsx `chat→writer` redirect — §3.1; the snapshot-independent content switch covers the blank-workspace case.)
 
 ### 3.4 Landing — `ui/simple/landing.ts` (PORT + MODIFY)
 
@@ -126,7 +132,7 @@ Convert these hardcoded `'writer'` nav sites to `getAuLandingPage(mode)` (live m
 - Mobile entry (`MobileLayout.tsx:87/122/127`) — uses the snapshot prop (it's inside the mounted workspace).
 - The two in-workspace sites (`AuWorkspaceLayout.tsx:298/322`) use the **snapshot**.
 
-**Verification step (required):** `grep -rn "onNavigate(['\"]writer" src-ui/src/ui` must return **only** the intentional in-workspace snapshot sites after this edit — any other hardcoded `'writer'` is a missed landing site.
+**Verification step (required):** use a **multiline-tolerant** search — `rg -U "onNavigate\(\s*['\"]writer" src-ui/src/ui` — because the **primary** site `LibraryFandomSections.tsx:245` is a *multi-line* call (`onNavigate(` on L245, `'writer'` on L246) that a single-line `grep` silently misses. **Negative control:** before editing, confirm the search **surfaces** `LibraryFandomSections.tsx:245` (if it doesn't, the pattern is wrong — fix the pattern, not the proof). After editing, it must return **only** the intentional in-workspace snapshot sites. Any other hardcoded `'writer'` is a missed landing site.
 
 ---
 
@@ -198,17 +204,17 @@ Grep-confirmed: **none of these import the dead `SIMPLE_FEATURES`** (only `landi
 | # | File | Edit |
 |---|---|---|
 | E1 | `api/engine-instance.ts` | Import `FileSimpleChatRepository`; add `simpleChat: FileSimpleChatRepository` to `EngineInstance.repos` (L37-46) + `simpleChat: new FileSimpleChatRepository(adapter)` to `initEngine` (L62-71). **Lands first** — ported API throws without it. (Constructor `(adapter)` confirmed: `file_simple_chat.ts:24`.) |
-| E2 | `api/engine-client.ts` | Add exactly these re-exports: `export * from "./engine-simple-dispatch";` `export * from "./engine-simple-chat";` `export * from "./engine-tokens";` and `export { SIMPLE_TOOL_SHOW_CHAPTER, SIMPLE_TOOL_SHOW_SETTING } from "@ficforge/engine";` (SimpleChatPanel imports the two tool consts from `engine-client`). |
+| E2 | `api/engine-client.ts` | Add exactly these re-exports: `export * from "./engine-simple-dispatch";` `export * from "./engine-simple-chat";` `export * from "./engine-tokens";` and `export { SIMPLE_TOOL_SHOW_CHAPTER, SIMPLE_TOOL_SHOW_SETTING } from "@ficforge/engine";` (SimpleChatPanel imports the two tool consts from `engine-client`). **Note:** new UI files import `WritingMode`/`isWritingMode`/`WRITING_MODES`/`getSimpleFeatures` **directly from `@ficforge/engine`** (project convention, `index.ts:7-8`), not through this barrel. |
 | E3 | `api/settings.ts` | `AppPreferencesInput += writing_mode?: WritingMode`. |
 | E4 | `api/engine-settings.ts` | `saveAppPreferences` persists `writing_mode` w/ `isWritingMode` guard (§4.2); add `getWritingMode()` read for the provider reconcile (§2.1). |
 | E5 | `ui/settings/GlobalSettingsModal.tsx` | `writing_mode` save-on-change `<select>` (§4.1). |
-| E6 | `App.tsx` | `isAuSpace += "chat"` (L215); wrap top tree in `WritingModeProvider`; `key={auPath}` on `<AuWorkspaceLayout>`; `chat`→`writer` redirect when snapshot full (§3.1). |
+| E6 | `App.tsx` | `isAuSpace += "chat"` (L215); wrap top tree in `WritingModeProvider`; `key={auPath}` on `<AuWorkspaceLayout>`. **No** chat→writer redirect (§3.1). |
 | E7 | `ui/workspace/AuWorkspaceLayout.tsx` | Snapshot `isSimple` at mount; port the 3 conditional spots; chat branch renders on `activeTab==='chat'` regardless (§3.1); pass `isSimple` snapshot to `<MobileLayout>`. Full path byte-identical. |
 | E8 | `ui/mobile/MobileLayout.tsx` | Accept `isSimple` prop (snapshot, NOT a live hook); conditional reading view + chat slot; entry nav → `getAuLandingPage(mode)`; **keep `currentChapter` + MobileSettingsView FAB**. |
-| E9 | `ui/mobile/BottomNavBar.tsx` | Accept `isSimple` prop; **surgically** add the chat tab to the existing `<nav grid-cols-4>` (→ 5 tabs when simple); do **not** import `SegmentedTabs`; do **not** call `useWritingMode()`. |
+| E9 | `ui/mobile/BottomNavBar.tsx` | Accept `isSimple` prop; **surgically** add the chat tab to the existing `<div className="grid grid-cols-4">` (→ conditional `grid-cols-5` when simple); do **not** import `SegmentedTabs`; do **not** call `useWritingMode()`. **Enumerate the type/map touch points** (a missing case silently routes chat→writer): `MobileLayout` `WorkspacePage` union `+= 'chat'` (L16) + `mapPageToTab` `'chat'` case (L33-37; its `else` defaults to writer); `BottomNavBar` `MobileWorkspaceTab`/`TAB_IDS`/`TAB_ICONS` 4→5; `AuWorkspaceLayout.tsx:189` page-union cast `+= 'chat'`. **Pin the mobile chat-tab position deliberately** (desktop puts chat first) to avoid desktop/mobile drift. |
 | E10 | `ui/library/LibraryFandomSections.tsx` (**primary**, L245), `ui/Library.tsx` (L71), `ui/library/useLibraryMutations.ts` (L92) | Open/create-AU nav → `getAuLandingPage(mode)`. Then run the §3.4 grep to prove no hardcoded `'writer'` remains outside the snapshot sites. |
 | E11 | `ui/i18n/...` registration | If a new namespace/key file is added, register it; otherwise keys go into existing `locales/zh.json` + `en.json` (E12). |
-| E12 | `locales/zh.json` + `locales/en.json` | **Full `simple.*` namespace, both languages.** Extract the complete key list (`grep "t('simple\." src-ui/src/ui/simple src-ui/src/ui/workspace src-ui/src/ui/mobile`, ~90 keys), author real **zh AND en** values for all. Today only 2 exist; the rest live as Chinese inline `defaultValue`s → English users would see Chinese. UTF-8 **no-BOM**, no mojibake. |
+| E12 | `locales/zh.json` + `locales/en.json` | **Full `simple.*` namespace, both languages.** Extract the complete key list by scanning the **whole `src-ui/src` tree** (`rg "t\(['\"]simple\." src-ui/src`) — **not** a hardcoded dir list — because the new toggle's `simple.settings.*` labels live in `GlobalSettingsModal.tsx` under `ui/settings/` (outside ui/simple). ~90 keys; author real **zh AND en** values for all. Today MAIN has **zero** `simple.*` keys; the rest live as Chinese inline `defaultValue`s → English users would see Chinese. UTF-8 **no-BOM**, no mojibake. |
 
 ### 5.5 Pre-flight
 - **P0.1 (VERIFIED present — do not chase):** every `@ficforge/engine` symbol the port imports resolves through the `services`/`domain` sub-barrels (`export *`): `dispatch_simple_chat`, `SIMPLE_TOOL_SHOW_CHAPTER`/`SHOW_SETTING`, `estimate_simple_context_tokens`, `SimpleChatEvent`, `SimpleContextTokenEstimate`, `SimpleChatFile`, `SimpleChatMessageEnvelope`, `resolve_llm_config`, `Message`, `WritingMode`/`WRITING_MODES`/`isWritingMode`, `getSimpleFeatures`, `SimpleChatRepository`, `FileSimpleChatRepository`. `SIMPLE_FEATURES` confirmed absent (fork-only). No gap.
@@ -241,7 +247,7 @@ Grep-confirmed: **none of these import the dead `SIMPLE_FEATURES`** (only `landi
 - **Gating-render per surface** — desktop `AuWorkspaceLayout`: chat tab present iff simple; mobile `BottomNavBar`: 5 vs 4 tabs by mode.
 - **`getAuLandingPage(mode)`** — `'simple'→'chat'`, `'full'→'writer'`.
 - **`saveAppPreferences` round-trip** (§4.3).
-- **i18n coverage lint/test** — fails if any referenced `simple.*` key is absent from **both** `zh.json` and `en.json` (so `defaultValue` can never mask a missing en translation).
+- **i18n coverage lint/test** — scans the **whole `src-ui/src` tree** for `t('simple.…')` usages (incl. `ui/settings/GlobalSettingsModal.tsx`) and fails if any referenced `simple.*` key is absent from **either** `zh.json` **or** `en.json` (so `defaultValue` can never mask a missing en — or zh — translation).
 
 ### 7.3 KEEP-GREEN (zero-churn)
 - All full-mode UI tests pass **unmodified** (the 13 Writer-suite files in particular).
@@ -269,7 +275,7 @@ Simple: enter AU (via library card) → lands on chat → write a chapter via th
 - P2.4 port the **8** `ui/simple/__tests__/*`.
 
 **Group 3 — runtime gating in existing files (serialize per file):**
-- S3.1 E6 `App.tsx` (provider wrap, `isAuSpace += chat`, `key={auPath}`, chat→writer redirect).
+- S3.1 E6 `App.tsx` (provider wrap, `isAuSpace += chat`, `key={auPath}`).
 - S3.2 E7 `AuWorkspaceLayout.tsx` (mount snapshot, 3 spots, chat-render-regardless, pass `isSimple` to mobile).
 - S3.3 E8/E9 mobile (surgical, snapshot prop, keep FAB/currentChapter).
 - S3.4 E10 landing call sites + the grep proof.
@@ -292,10 +298,11 @@ Simple: enter AU (via library card) → lands on chat → write a chapter via th
 With `writing_mode='full'` (default), the UI is **behaviorally identical** to pre-Phase-2 MAIN:
 1. No chat tab anywhere; AU lands on `writer`; writer = `WriterLayout`; mobile shell incl. the AU AI-settings FAB unchanged.
 2. `useWritingMode` seeds `'full'` (mirror absent or `'full'`) → every gating boolean false; the memoized provider value avoids spurious re-renders (the one settle-render is behavior-neutral; the red-line is behavioral identity + unmodified tests, which holds).
-3. `isAuSpace += "chat"` is inert (no full-mode path navigates to `chat`); the `chat→writer` redirect only matters if `chat` is somehow reached.
+3. `isAuSpace += "chat"` is inert (no full-mode path navigates to `chat`).
 4. `saveAppPreferences` language-only callers behave exactly as before (the `writing_mode` branch is additive, guard-skipped when absent).
 5. Existing full-mode tests pass **unmodified, no added mocks**; `src-engine` 749/749 unchanged.
 6. **Mobile is additive only** — the FAB, header, and tab-bar component are untouched in full mode (the fork's removals are out of scope, §1.4).
+7. **`key={auPath}`** is behavior-neutral *only while AU→AU navigation routes through Library* (always true today — the back button does `onNavigate('library')`, and there is no in-workspace AU switch). If a future refactor adds direct AU→AU nav, the key would reset `leftCollapsed`/toast/milestone-dismiss state on switch — a deliberate tradeoff to revisit then, not a free guarantee.
 
 A full-mode test requiring edits = a churn violation → stop and investigate.
 
