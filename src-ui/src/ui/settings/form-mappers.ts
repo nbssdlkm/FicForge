@@ -22,12 +22,6 @@ export interface GlobalSettingsFormState {
   embeddingApiBase: string;
   embeddingApiKey: string;
   useCustomEmbedding: boolean;
-  syncMode: "none" | "webdav";
-  syncUrl: string;
-  syncUsername: string;
-  syncPassword: string;
-  syncRemoteDir: string;
-  lastSync: string | null;
 }
 
 export interface AuSettingsFormState {
@@ -64,12 +58,6 @@ export function createDefaultGlobalSettingsFormState(): GlobalSettingsFormState 
     embeddingApiBase: "",
     embeddingApiKey: "",
     useCustomEmbedding: false,
-    syncMode: "none",
-    syncUrl: "",
-    syncUsername: "",
-    syncPassword: "",
-    syncRemoteDir: "/FicForge/",
-    lastSync: null,
   };
 }
 
@@ -94,17 +82,6 @@ export function hydrateGlobalSettingsForm(settings: SettingsInfo | null): Global
   form.embeddingApiKey = settings.embedding?.api_key || "";
   form.useCustomEmbedding = Boolean(settings.embedding?.model && settings.embedding?.api_key);
 
-  if (settings.sync) {
-    form.syncMode = settings.sync.mode || "none";
-    if (settings.sync.webdav) {
-      form.syncUrl = settings.sync.webdav.url || "";
-      form.syncUsername = settings.sync.webdav.username || "";
-      form.syncPassword = settings.sync.webdav.password || "";
-      form.syncRemoteDir = settings.sync.webdav.remote_dir || "/FicForge/";
-    }
-    form.lastSync = settings.sync.last_sync || null;
-  }
-
   return form;
 }
 
@@ -124,14 +101,6 @@ export function buildGlobalSettingsSaveInput(form: GlobalSettingsFormState): Glo
       model: form.embeddingModel,
       api_base: form.embeddingApiBase,
       api_key: form.embeddingApiKey,
-    },
-    sync: {
-      mode: form.syncMode,
-      url: form.syncUrl,
-      username: form.syncUsername,
-      password: form.syncPassword,
-      remote_dir: form.syncRemoteDir,
-      last_sync: form.lastSync,
     },
   };
 }

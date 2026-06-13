@@ -80,14 +80,6 @@ describe("engine-settings write queue", () => {
         api_base: "https://embed.example.com/v1",
         api_key: "embed-secret",
       },
-      sync: {
-        mode: "webdav",
-        url: "https://dav.example.com",
-        username: "alice",
-        password: "dav-secret",
-        remote_dir: "/ficforge",
-        last_sync: "2026-04-20T00:00:00.000Z",
-      },
     });
 
     const settings = await getSettingsForEditing();
@@ -95,14 +87,10 @@ describe("engine-settings write queue", () => {
 
     expect(settings.default_llm.api_key).toBe("super-secret-key");
     expect(settings.embedding.api_key).toBe("embed-secret");
-    expect(settings.sync.webdav?.password).toBe("dav-secret");
 
     expect(summary.default_llm.has_api_key).toBe(true);
     expect(summary.embedding.has_api_key).toBe(true);
-    expect(summary.sync.has_password).toBe(true);
-    expect(summary.sync.last_sync).toBe("2026-04-20T00:00:00.000Z");
     expect("api_key" in summary.default_llm).toBe(false);
     expect("api_key" in summary.embedding).toBe(false);
-    expect("password" in summary.sync).toBe(false);
   });
 });

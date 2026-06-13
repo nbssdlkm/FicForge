@@ -81,15 +81,6 @@ export interface EmbeddingSettingsSaveInput {
   api_key: string;
 }
 
-export interface SyncSettingsSaveInput {
-  mode: "none" | "webdav";
-  url: string;
-  username: string;
-  password: string;
-  remote_dir: string;
-  last_sync: string | null;
-}
-
 export interface AppPreferencesInput {
   language?: string;
   writing_mode?: WritingMode;
@@ -98,18 +89,11 @@ export interface AppPreferencesInput {
 export interface GlobalSettingsSaveInput {
   default_llm: DefaultLlmSettingsInput;
   embedding: EmbeddingSettingsSaveInput;
-  sync: SyncSettingsSaveInput;
 }
 
 export interface SettingsSummary {
   default_llm: LlmQueryInfo;
   embedding: EmbeddingQueryInfo;
-  sync: {
-    enabled: boolean;
-    mode: "none" | "webdav";
-    has_password: boolean;
-    last_sync: string | null;
-  };
   app: {
     language: string;
     fonts: FontPreferences;

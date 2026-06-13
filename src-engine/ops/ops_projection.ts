@@ -2,10 +2,14 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 /**
- * ops 合并引擎。参见 PRD v4 §3（D-0036）。
+ * ops 投影。把操作日志（ops.jsonl）确定性排序后重放，重建 state/facts；
+ * 并管理 lamport 单调时钟（每条 op 的序号）。
  *
- * ops.jsonl 是唯一 truth，state/facts 是 ops 的投影。
- * 合并算法：去重 → lamport clock 确定性排序 → 重建。
+ * 历史：ops 原为多设备同步的 single source of truth（D-0036）。同步已退役
+ * （D-0040），ops 降级为本地审计日志。本模块的排序/重建/时钟逻辑并非同步专属：
+ * 由 file_ops 在每次 append 时分配 lamport 序号，并作为 confirm/undo 的回归不变量
+ * 守卫（rebuildStateFromOps(ops) == repo state）。多设备合并/冲突检测随 D-0040
+ * 一并退役，已从本模块移除。
  */
 
 import type { OpsEntry } from "../domain/ops_entry.js";
@@ -21,52 +25,24 @@ import type { FactSource, FactStatus, FactType, NarrativeWeight } from "../domai
 import type { PlatformAdapter } from "../platform/adapter.js";
 
 // ---------------------------------------------------------------------------
-// 合并结果
-// ---------------------------------------------------------------------------
-
-export interface MergeResult {
-  ops: OpsEntry[];
-  conflicts: Conflict[];
-  newLamportClock: number;
-}
-
-export interface Conflict {
-  type: "concurrent_confirm" | "confirm_undo_conflict" | "concurrent_fact_edit";
-  description: string;
-  ops: OpsEntry[];
-}
-
-// ---------------------------------------------------------------------------
-// 合并算法
+// 排序 + 去重（重建前置）
 // ---------------------------------------------------------------------------
 
 /**
- * 合并本地和远程 ops。
- * 1. 按 op_id 去重
- * 2. 确定性排序（lamport_clock → timestamp → device_id）
- * 3. 冲突检测
+ * 对 ops 去重（按 op_id）+ 确定性排序（lamport_clock → timestamp → device_id → op_id）。
+ * rebuildStateFromOps / rebuildFactsFromOps 要求输入有序，以保证重建结果确定。
  */
-export function mergeOps(localOps: OpsEntry[], remoteOps: OpsEntry[]): MergeResult {
-  // 1. 合并 + 去重
+export function sortAndDedupeOps(ops: OpsEntry[]): OpsEntry[] {
   const seen = new Set<string>();
   const deduped: OpsEntry[] = [];
-  for (const op of [...localOps, ...remoteOps]) {
+  for (const op of ops) {
     if (!seen.has(op.op_id)) {
       seen.add(op.op_id);
       deduped.push(op);
     }
   }
-
-  // 2. 确定性排序
   deduped.sort(deterministicSort);
-
-  // 3. 冲突检测
-  const conflicts = detectConflicts(deduped);
-
-  // 4. 计算新 lamport clock
-  const maxClock = deduped.reduce((max, op) => Math.max(max, op.lamport_clock ?? 0), 0);
-
-  return { ops: deduped, conflicts, newLamportClock: maxClock + 1 };
+  return deduped;
 }
 
 /** 确定性排序比较器。 */
@@ -80,84 +56,6 @@ function deterministicSort(a: OpsEntry, b: OpsEntry): number {
   if (devA !== devB) return devA < devB ? -1 : 1;
   // 最终 tiebreaker：op_id（确保完全确定性）
   return a.op_id < b.op_id ? -1 : a.op_id > b.op_id ? 1 : 0;
-}
-
-// ---------------------------------------------------------------------------
-// 冲突检测
-// ---------------------------------------------------------------------------
-
-function detectConflicts(ops: OpsEntry[]): Conflict[] {
-  const conflicts: Conflict[] = [];
-
-  // 按章节号分组 confirm/undo
-  const confirmsByChapter = new Map<number, OpsEntry[]>();
-  const undoByChapter = new Map<number, OpsEntry[]>();
-
-  for (const op of ops) {
-    if (op.op_type === "confirm_chapter" && op.chapter_num !== null) {
-      const list = confirmsByChapter.get(op.chapter_num) ?? [];
-      list.push(op);
-      confirmsByChapter.set(op.chapter_num, list);
-    }
-    if (op.op_type === "undo_chapter" && op.chapter_num !== null) {
-      const list = undoByChapter.get(op.chapter_num) ?? [];
-      list.push(op);
-      undoByChapter.set(op.chapter_num, list);
-    }
-  }
-
-  // 两个设备对同一章节 confirm
-  for (const [ch, confirms] of confirmsByChapter) {
-    const devices = new Set(confirms.map((c) => c.device_id));
-    if (devices.size > 1) {
-      conflicts.push({
-        type: "concurrent_confirm",
-        description: `第 ${ch} 章被多个设备同时确认`,
-        ops: confirms,
-      });
-    }
-  }
-
-  // 一端 confirm，另一端 undo 同一章
-  for (const [ch, confirms] of confirmsByChapter) {
-    const undos = undoByChapter.get(ch);
-    if (undos) {
-      const confirmDevices = new Set(confirms.map((c) => c.device_id));
-      const undoDevices = new Set(undos.map((u) => u.device_id));
-      for (const ud of undoDevices) {
-        if (!confirmDevices.has(ud)) {
-          conflicts.push({
-            type: "confirm_undo_conflict",
-            description: `第 ${ch} 章：一端确认，另一端撤销`,
-            ops: [...confirms, ...undos],
-          });
-          break;
-        }
-      }
-    }
-  }
-
-  // 两端同时修改同一条 fact
-  const factEdits = new Map<string, OpsEntry[]>();
-  for (const op of ops) {
-    if (op.op_type === "edit_fact" || op.op_type === "update_fact_status") {
-      const list = factEdits.get(op.target_id) ?? [];
-      list.push(op);
-      factEdits.set(op.target_id, list);
-    }
-  }
-  for (const [factId, edits] of factEdits) {
-    const devices = new Set(edits.map((e) => e.device_id));
-    if (devices.size > 1) {
-      conflicts.push({
-        type: "concurrent_fact_edit",
-        description: `Fact ${factId} 被多个设备同时编辑`,
-        ops: edits,
-      });
-    }
-  }
-
-  return conflicts;
 }
 
 // ---------------------------------------------------------------------------
@@ -409,14 +307,6 @@ let _localClock = 0;
 
 export function getNextLamportClock(): number {
   return ++_localClock;
-}
-
-export function syncLamportClock(remoteClock: number): void {
-  _localClock = Math.max(_localClock, remoteClock);
-}
-
-export function getCurrentLamportClock(): number {
-  return _localClock;
 }
 
 /**

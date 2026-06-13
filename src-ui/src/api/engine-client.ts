@@ -37,7 +37,6 @@ export type {
   OnboardingDefaults,
   SecretStorageCapabilities,
   SettingsSummary,
-  SyncSettingsSaveInput,
   TestConnectionRequest,
   TestConnectionResponse,
   WriterSessionConfig,
@@ -70,9 +69,6 @@ export { classifyTurns } from "@ficforge/engine";
 // Enum value arrays (for UI validation)
 export { FACT_TYPE_VALUES, FACT_STATUS_VALUES, NARRATIVE_WEIGHT_VALUES } from "@ficforge/engine";
 
-// Sync types
-export type { WebDAVConfig, AggregatedSyncResult } from "./engine-sync";
-
 // ---------------------------------------------------------------------------
 // Engine 实例管理（从 engine-instance.ts re-export）
 // ---------------------------------------------------------------------------
@@ -97,7 +93,6 @@ export {
   saveGlobalSettingsForEditing,
   saveGlobalModelParams,
   saveOnboardingSettings,
-  saveSyncSettings,
   testConnection,
   testEmbeddingConnection,
 } from "./engine-settings";

@@ -157,7 +157,9 @@ See [ETHICS.md](ETHICS.md) for our full statement.
 
 ## Multi-device Sync
 
-Sync your writing across desktop and mobile. [Guide](docs/SYNC-GUIDE.md) | [中文指南](docs/SYNC-GUIDE_zh.md)
+> **Deprecated (D-0040).** In-app WebDAV sync and the multi-device ops-merge engine have been retired. You can still mirror the data directory across devices by keeping it inside an OS-level cloud folder (OneDrive / Dropbox / iCloud). The guides below are kept for historical reference only.
+
+[Legacy guide](docs/SYNC-GUIDE.md) | [历史中文指南](docs/SYNC-GUIDE_zh.md)
 
 ---
 

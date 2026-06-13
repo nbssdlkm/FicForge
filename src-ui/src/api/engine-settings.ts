@@ -18,7 +18,6 @@ import type {
   OnboardingDefaults,
   SecretStorageCapabilities,
   SettingsSummary,
-  SyncSettingsSaveInput,
   WriterSessionConfig,
 } from "./settings";
 import { isTauri } from "../utils/platform";
@@ -53,23 +52,6 @@ async function withSettingsWrite<T>(mutate: (current: Settings) => T | Promise<T
 async function readSettings(): Promise<Settings> {
   const { settings } = getEngine().repos;
   return settings.get();
-}
-
-function buildSyncSettings(input: SyncSettingsSaveInput): Settings["sync"] {
-  return {
-    mode: input.mode,
-    ...(input.mode === "webdav"
-      ? {
-          webdav: {
-            url: input.url,
-            username: input.username,
-            password: input.password,
-            remote_dir: input.remote_dir,
-          },
-        }
-      : {}),
-    ...(input.last_sync ? { last_sync: input.last_sync } : {}),
-  };
 }
 
 function hasUsableConnection(llm: {
@@ -141,12 +123,6 @@ export async function getSettingsSummary(): Promise<SettingsSummary> {
   return {
     default_llm: toLlmQueryInfo(settings.default_llm),
     embedding: toEmbeddingQueryInfo(settings.embedding),
-    sync: {
-      enabled: settings.sync.mode !== "none",
-      mode: settings.sync.mode,
-      has_password: Boolean(settings.sync.webdav?.password?.trim()),
-      last_sync: settings.sync.last_sync || null,
-    },
     app: {
       language: settings.app.language,
       fonts: toFontPreferences(settings),
@@ -238,13 +214,6 @@ export async function getWritingMode(): Promise<WritingMode> {
   return settings.app.writing_mode;
 }
 
-export async function saveSyncSettings(payload: SyncSettingsSaveInput) {
-  return withSettingsWrite((current) => {
-    current.sync = buildSyncSettings(payload);
-    return current.sync;
-  });
-}
-
 export async function saveGlobalSettingsForEditing(payload: GlobalSettingsSaveInput) {
   return withSettingsWrite((current) => {
     current.default_llm = {
@@ -269,7 +238,6 @@ export async function saveGlobalSettingsForEditing(payload: GlobalSettingsSaveIn
       api_key: useCustomEmbedding ? payload.embedding.api_key : "",
     };
 
-    current.sync = buildSyncSettings(payload.sync);
     return current;
   });
 }

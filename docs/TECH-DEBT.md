@@ -2,9 +2,9 @@
 
 ## TD-001: Capacitor 平台 WebDAV 同步 CORS 问题
 
-**状态:** 待修复  
-**优先级:** 中（移动端同步功能启用前必须解决）  
-**涉及文件:** `src-ui/src/api/engine-sync.ts`, `src-ui/capacitor.config.json`
+**状态:** 已消解（M7 / D-0040，2026-06）—— `engine-sync.ts` 及 WebDAV 同步引擎（`sync_adapter.ts` / `sync_manager.ts`）已删除，移动端不再有应用内同步，本债不再适用。以下为历史记录。  
+**优先级:** ~~中~~（已失效）  
+**涉及文件:** ~~`src-ui/src/api/engine-sync.ts`~~（已删）, `src-ui/capacitor.config.json`
 
 Tauri 桌面端已通过 `@tauri-apps/plugin-http` 绕过 CORS，但 Capacitor (Android/iOS) 平台仍使用 `globalThis.fetch`。Android WebView 运行在 `https://localhost`（`androidScheme: "https"`），向坚果云等外部 WebDAV 服务器发请求会被 CORS 拦截。
 
@@ -22,7 +22,7 @@ Tauri 桌面端已通过 `@tauri-apps/plugin-http` 绕过 CORS，但 Capacitor (
 
 ## TD-002: testWebDAVConnection 与 WebDAVSyncAdapter Auth 头重复构造
 
-**状态:** 已修复（v0.3.0）  
+**状态:** 已修复（v0.3.0）；相关代码已随同步退役整体删除（M7 / D-0040，2026-06），仅存历史记录。  
 **修复方式:** 在 `WebDAVSyncAdapter` 上新增 `testConnection()` 方法，`testWebDAVConnection()` 复用该方法，消除了 Auth 编码和 URL 构造的重复代码。
 
 ---
@@ -30,7 +30,7 @@ Tauri 桌面端已通过 `@tauri-apps/plugin-http` 绕过 CORS，但 Capacitor (
 ## TD-003: undo 手动状态回滚不产生 ops 条目
 
 **状态:** 已知缺陷（v0.3.0 审计发现）  
-**优先级:** 低（仅影响跨设备同步后的一致性）  
+**优先级:** 低（同步已退役 D-0040；现仅影响本地 ops 审计日志的 rebuild 不变量 —— `rebuildFactsFromOps()` 重建结果与 repo 不一致。由 confirm/undo golden 测试守护）  
 **涉及文件:** `src-engine/services/undo_chapter.ts`
 
 undo_latest_chapter 在撤销章节时，会通过 `collectManualStatusRollback` 恢复该章节内手动变更的 fact 状态（如 deprecated → active）。但这个回滚操作直接修改 fact repo，**不产生对应的 ops 条目**。因此 `rebuildFactsFromOps()` 重建结果与 repo 实际状态不一致。
@@ -132,9 +132,9 @@ onboarding 后 RAG 索引永远失败（createEmbeddingProvider 返回 undefined
 
 ## TD-007: WebDAV 同步冲突写入不持 AU 锁
 
-**状态:** 待修复（v0.3.0 五次审计发现）
-**优先级:** 低（冲突解决是用户主动触发的低频操作，和本地写入完全并发的概率小）
-**涉及文件:** `src-ui/src/api/engine-sync.ts`
+**状态:** 已消解（M7 / D-0040，2026-06）—— `engine-sync.ts` 的冲突解决路径已随同步退役删除，本债不再可触发。以下为历史记录。
+**优先级:** ~~低~~（已失效）
+**涉及文件:** ~~`src-ui/src/api/engine-sync.ts`~~（已删）
 
 `engine-sync.ts` 的冲突解决路径（`applyFileConflictResolution` 等）在用户选择
 "用远端覆盖本地"时调 `adapter.writeFile(localFullPath, remoteContent)` 直接覆盖

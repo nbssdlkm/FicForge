@@ -95,8 +95,8 @@ export * from "./services/index.js";
 // Tasks
 export * from "./tasks/index.js";
 
-// Sync
-export * from "./sync/index.js";
+// Ops projection (ops.jsonl audit-log projection: sort / rebuild / lamport clock)
+export * from "./ops/index.js";
 
 // Logger
 export type { LogEntry, LogLevel, LoggerOptions } from "./logger/index.js";

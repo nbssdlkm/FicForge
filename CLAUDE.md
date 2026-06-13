@@ -17,7 +17,7 @@ TypeScript 核心引擎 (src-engine/)
   ├── llm/             LLM 调用（openai-node SDK）
   ├── tokenizer/       Token 计数（gpt-tokenizer）
   ├── vector/          内存向量检索（JSON 分片 + cosine similarity）
-  └── sync/            多设备同步引擎（**同步 UI 已隐藏；engine 模块待删 M7 Phase 2** — D-0040）
+  └── ops/             ops.jsonl 审计日志投影（确定性排序 / state·facts 重建 / lamport 时钟）—— 原 sync/ops_merge.ts 迁此（**多设备同步引擎已退役删除 M7 — D-0040**）
 
 Platform Adapter
   ├── TauriAdapter     桌面端文件 I/O
@@ -42,7 +42,7 @@ Platform Adapter
 | M4 | Settings Chat、Trash、Recalc、前端 API 切换、SSE 消除、Sidecar 精简 | **已完成**（E.6 Sidecar 精简推迟决策） |
 | M5 | 移动端 Capacitor/PWA、响应式 UI | **已完成**（ops 合并 + 数据同步**已废弃**，见 D-0040） |
 | M6 | Agent 架构 | **重开规划**，D-0032 作废，见 D-0043；触发条件满足后启动（预计 2026 Q3/Q4） |
-| M7 | 架构简化（同步退役 + ops 降级 audit log） | **部分**：同步 UI 已隐藏（`c4b0f42`），engine 模块待删（Phase 2） |
+| M7 | 架构简化（同步退役 + ops 降级 audit log） | **已完成**：同步 UI 隐藏（`c4b0f42`）+ engine 同步引擎删除、`ops_merge.ts` 外科式迁 `src-engine/ops/`（剥离多设备合并/冲突检测、保留 rebuild/lamport 投影核心）、死 UI/API/locale/文档清理（feat/converge-simple-phase2，待人工合并） |
 | M8 | Memory 三层架构（Fact / Chapter Summary / Thread） | 待启动 |
 | M9 | ReAct 基础设施（生成 + 选择性提取） | 待启动 |
 | M10 | Retrospective rewrite + Archive 冷热分层 | 待启动 |
@@ -81,8 +81,8 @@ Platform Adapter
 
 ### 下次会话第一件事
 
-1. **真实测简版出章（Claude 自测，不靠用户）**：本机 ds key 在 `~/.deepseek/config.toml`（`api_key` 字段，DeepSeek）。起 dev server（preview MCP，`.claude/launch.json` 的 `ficforge-web`，端口 1420）→ 全局设置配在线 API（`https://api.deepseek.com/v1`，`deepseek-chat`，填 ds key）→ 写作模式=简版 → 进 AU 用对话**真实写一章** → 接受草稿 → 刷新确认 `simple-chat.yaml` 落盘 + 阅读视图显示。
-2. **M7 收尾**：删已退役的同步引擎代码（sync UI 已隐藏，engine 模块待删）。
+1. ✅ **已完成（2026-06-13）真实测简版出章**：ds key 走 onboarding 内置 API 配置（强制连接测试通过）→ 切简版 → 进 AU 落「对话」tab → DeepSeek 流式出 491 字中文章 → 接受 → `chapters/main/ch0001.md` + `.well-known/simple-chat.yaml` 落盘（web 端存 IndexedDB `ficforge_fs`，非 OPFS）→ 刷新全恢复，零回归。
+2. ✅ **已完成（2026-06-13）M7 同步退役**：审计发现 `sync/ops_merge.ts` 是「核心投影+同步」混合文件 → 外科式迁 `src-engine/ops/ops_projection.ts`（保留 rebuild/lamport，新增 `sortAndDedupeOps` 替 `mergeOps`，剥离多设备 `mergeOps`/`detectConflicts`/`Conflict`/`MergeResult`/`syncLamportClock`/`getCurrentLamportClock`）；删 `sync_manager.ts`/`sync_adapter.ts` + 死 UI/API（`engine-sync`/`GlobalSettingsSyncSection`/`useSyncOperations`/`ConflictResolveModal` + settings 表单 sync 插桩 + `settings.sync.*` locale 键）+ 文档标注废弃。**保留 domain `SyncConfig`/`sync_unsafe`/`dictToSyncConfig` 保旧数据反序列化**。引擎 742/742 + UI 155/155 + tsc + i18n 全绿。
 3. **代码质量硬化**：`docs/internal/plans/system-optimization-{roadmap,execution-plan}-2026-04-19.md`（Settings/Project 契约收窄、真 SecretStore、写入串行化）。
 
 > 之后的大功能 **M8 Memory 三层架构**（Fact/ChapterSummary/Thread）本轮先不做。Phase 2 在 `feat/converge-simple-phase2`，**未 push、未合 main**；main（Phase 1 + docs）也未 push origin。

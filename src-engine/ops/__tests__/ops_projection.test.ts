@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it } from "vitest";
-import { mergeOps, rebuildStateFromOps, rebuildFactsFromOps } from "../ops_merge.js";
+import { sortAndDedupeOps, rebuildStateFromOps, rebuildFactsFromOps } from "../ops_projection.js";
 import { createOpsEntry } from "../../domain/ops_entry.js";
 
 function op(overrides: Partial<ReturnType<typeof createOpsEntry>> & { op_id: string; op_type: string }) {
@@ -10,32 +10,30 @@ function op(overrides: Partial<ReturnType<typeof createOpsEntry>> & { op_id: str
 }
 
 // ===========================================================================
-// mergeOps
+// sortAndDedupeOps
 // ===========================================================================
 
-describe("mergeOps", () => {
-  it("two empty lists → empty result", () => {
-    const { ops } = mergeOps([], []);
-    expect(ops).toEqual([]);
+describe("sortAndDedupeOps", () => {
+  it("empty list → empty result", () => {
+    expect(sortAndDedupeOps([])).toEqual([]);
   });
 
-  it("one side has ops, other empty → merged includes them", () => {
-    const local = [op({ op_id: "op1", op_type: "confirm_chapter", lamport_clock: 1 })];
-    const { ops } = mergeOps(local, []);
+  it("single op → returned", () => {
+    const ops = sortAndDedupeOps([op({ op_id: "op1", op_type: "confirm_chapter", lamport_clock: 1 })]);
     expect(ops).toHaveLength(1);
   });
 
   it("deduplication by op_id", () => {
     const a = op({ op_id: "op1", op_type: "confirm_chapter", lamport_clock: 1, device_id: "d1" });
     const b = op({ op_id: "op1", op_type: "confirm_chapter", lamport_clock: 1, device_id: "d2" }); // same op_id
-    const { ops } = mergeOps([a], [b]);
+    const ops = sortAndDedupeOps([a, b]);
     expect(ops).toHaveLength(1);
   });
 
   it("deterministic sort by lamport_clock", () => {
     const a = op({ op_id: "op1", op_type: "a", lamport_clock: 2 });
     const b = op({ op_id: "op2", op_type: "b", lamport_clock: 1 });
-    const { ops } = mergeOps([a], [b]);
+    const ops = sortAndDedupeOps([a, b]);
     expect(ops[0].op_id).toBe("op2"); // lower clock first
     expect(ops[1].op_id).toBe("op1");
   });
@@ -43,7 +41,7 @@ describe("mergeOps", () => {
   it("deterministic sort tiebreak: timestamp then device_id", () => {
     const a = op({ op_id: "op1", op_type: "a", lamport_clock: 1, timestamp: "2026-01-02T00:00:00Z", device_id: "d2" });
     const b = op({ op_id: "op2", op_type: "b", lamport_clock: 1, timestamp: "2026-01-01T00:00:00Z", device_id: "d1" });
-    const { ops } = mergeOps([a], [b]);
+    const ops = sortAndDedupeOps([a, b]);
     expect(ops[0].op_id).toBe("op2"); // earlier timestamp
   });
 
@@ -54,30 +52,9 @@ describe("mergeOps", () => {
       op({ op_id: "c", op_type: "x", lamport_clock: 2 }),
     ];
     const ops2 = [ops1[2], ops1[0], ops1[1]];
-    const r1 = mergeOps(ops1, []);
-    const r2 = mergeOps(ops2, []);
-    expect(r1.ops.map((o) => o.op_id)).toEqual(r2.ops.map((o) => o.op_id));
-  });
-
-  it("conflict: concurrent confirm same chapter", () => {
-    const a = op({ op_id: "op1", op_type: "confirm_chapter", chapter_num: 5, device_id: "d1", lamport_clock: 1 });
-    const b = op({ op_id: "op2", op_type: "confirm_chapter", chapter_num: 5, device_id: "d2", lamport_clock: 2 });
-    const { conflicts } = mergeOps([a], [b]);
-    expect(conflicts.some((c) => c.type === "concurrent_confirm")).toBe(true);
-  });
-
-  it("conflict: confirm + undo same chapter from different devices", () => {
-    const a = op({ op_id: "op1", op_type: "confirm_chapter", chapter_num: 5, device_id: "d1", lamport_clock: 1 });
-    const b = op({ op_id: "op2", op_type: "undo_chapter", chapter_num: 5, device_id: "d2", lamport_clock: 2 });
-    const { conflicts } = mergeOps([a], [b]);
-    expect(conflicts.some((c) => c.type === "confirm_undo_conflict")).toBe(true);
-  });
-
-  it("newLamportClock is max + 1", () => {
-    const a = op({ op_id: "op1", op_type: "x", lamport_clock: 5 });
-    const b = op({ op_id: "op2", op_type: "x", lamport_clock: 3 });
-    const { newLamportClock } = mergeOps([a], [b]);
-    expect(newLamportClock).toBe(6);
+    const r1 = sortAndDedupeOps(ops1);
+    const r2 = sortAndDedupeOps(ops2);
+    expect(r1.map((o) => o.op_id)).toEqual(r2.map((o) => o.op_id));
   });
 });
 
@@ -137,9 +114,9 @@ describe("rebuildStateFromOps", () => {
       op({ op_id: "f1", op_type: "set_chapter_focus", lamport_clock: 3, payload: { focus: ["x"] } }),
     ];
     const shuffled = [ops[2], ops[0], ops[1]];
-    // mergeOps sorts them deterministically
-    const r1 = rebuildStateFromOps(mergeOps(ops, []).ops, "au1");
-    const r2 = rebuildStateFromOps(mergeOps(shuffled, []).ops, "au1");
+    // sortAndDedupeOps sorts them deterministically
+    const r1 = rebuildStateFromOps(sortAndDedupeOps(ops), "au1");
+    const r2 = rebuildStateFromOps(sortAndDedupeOps(shuffled), "au1");
     expect(r1.current_chapter).toBe(r2.current_chapter);
     expect(r1.chapter_focus).toEqual(r2.chapter_focus);
   });
@@ -207,8 +184,8 @@ describe("rebuildFactsFromOps", () => {
         payload: { updated_fields: { content_clean: "c1-edited" } } }),
     ];
     const shuffled = [ops[2], ops[0], ops[1]];
-    const r1 = rebuildFactsFromOps(mergeOps(ops, []).ops);
-    const r2 = rebuildFactsFromOps(mergeOps(shuffled, []).ops);
+    const r1 = rebuildFactsFromOps(sortAndDedupeOps(ops));
+    const r2 = rebuildFactsFromOps(sortAndDedupeOps(shuffled));
     const sorted1 = r1.sort((a, b) => a.id.localeCompare(b.id));
     const sorted2 = r2.sort((a, b) => a.id.localeCompare(b.id));
     expect(sorted1.map((f) => f.content_clean)).toEqual(sorted2.map((f) => f.content_clean));

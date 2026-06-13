@@ -158,7 +158,9 @@ AI 会生成角色设定文件 → 你逐条确认后保存。也可以在设定
 
 ## 多设备同步
 
-在电脑和手机之间同步你的写作数据。[中文指南](docs/SYNC-GUIDE_zh.md) | [English Guide](docs/SYNC-GUIDE.md)
+> **已废弃（D-0040）。** 应用内 WebDAV 同步与多设备 ops 合并引擎已退役。若仍需跨设备镜像，可把数据目录放进操作系统级的云盘文件夹（OneDrive / 坚果云 / iCloud）。下方指南仅作历史参考。
+
+[历史中文指南](docs/SYNC-GUIDE_zh.md) | [Legacy guide](docs/SYNC-GUIDE.md)
 
 ---
 

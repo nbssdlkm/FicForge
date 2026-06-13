@@ -21,7 +21,7 @@ import { FileDraftRepository } from "../../repositories/implementations/file_dra
 import { FileStateRepository } from "../../repositories/implementations/file_state.js";
 import { FileOpsRepository } from "../../repositories/implementations/file_ops.js";
 import { FileFactRepository } from "../../repositories/implementations/file_fact.js";
-import { rebuildStateFromOps, rebuildFactsFromOps, mergeOps } from "../../sync/ops_merge.js";
+import { rebuildStateFromOps, rebuildFactsFromOps, sortAndDedupeOps } from "../../ops/ops_projection.js";
 
 describe("undo_chapter golden: repo state vs ops rebuild", () => {
   let adapter: MockAdapter;
@@ -72,7 +72,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
   async function assertStateMatchesRebuild() {
     const repoState = await stateRepo.get("au1");
     const ops = await opsRepo.list_all("au1");
-    const { ops: sorted } = mergeOps(ops, []);
+    const sorted = sortAndDedupeOps(ops);
     const rebuilt = rebuildStateFromOps(sorted, "au1");
 
     expect(rebuilt.current_chapter).toBe(repoState.current_chapter);
@@ -90,7 +90,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
   async function assertFactsMatchRebuild() {
     const repoFacts = await factRepo.list_all("au1");
     const ops = await opsRepo.list_all("au1");
-    const { ops: sorted } = mergeOps(ops, []);
+    const sorted = sortAndDedupeOps(ops);
     const rebuilt = rebuildFactsFromOps(sorted);
 
     // Same count
@@ -392,7 +392,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     // cannot replicate this revert — the rebuilt fact stays "deprecated".
     // This is a consistency gap between repo state and ops rebuild.
     const ops = await opsRepo.list_all("au1");
-    const { ops: sorted } = mergeOps(ops, []);
+    const sorted = sortAndDedupeOps(ops);
     const rebuilt = rebuildFactsFromOps(sorted);
     const rebuiltF1 = rebuilt.find((f) => f.id === f1.id);
     expect(rebuiltF1).toBeDefined();

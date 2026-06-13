@@ -51,12 +51,6 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   const [embeddingApiBase, setEmbeddingApiBase] = useState('');
   const [embeddingApiKey, setEmbeddingApiKey] = useState('');
   const [useCustomEmbedding, setUseCustomEmbedding] = useState(false);
-  const [syncMode, setSyncMode] = useState<'none' | 'webdav'>('none');
-  const [syncUrl, setSyncUrl] = useState('');
-  const [syncUsername, setSyncUsername] = useState('');
-  const [syncPassword, setSyncPassword] = useState('');
-  const [syncRemoteDir, setSyncRemoteDir] = useState('/FicForge/');
-  const [lastSync, setLastSync] = useState<string | null>(null);
   const [apiHelpOpen, setApiHelpOpen] = useState(false);
   const [displayDataDir, setDisplayDataDir] = useState('');
 
@@ -85,12 +79,6 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     setEmbeddingApiBase(defaults.embeddingApiBase);
     setEmbeddingApiKey(defaults.embeddingApiKey);
     setUseCustomEmbedding(defaults.useCustomEmbedding);
-    setSyncMode(defaults.syncMode);
-    setSyncUrl(defaults.syncUrl);
-    setSyncUsername(defaults.syncUsername);
-    setSyncPassword(defaults.syncPassword);
-    setSyncRemoteDir(defaults.syncRemoteDir);
-    setLastSync(defaults.lastSync);
     setApiHelpOpen(false);
   };
 
@@ -121,12 +109,6 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         setEmbeddingApiBase(form.embeddingApiBase);
         setEmbeddingApiKey(form.embeddingApiKey);
         setUseCustomEmbedding(form.useCustomEmbedding);
-        setSyncMode(form.syncMode);
-        setSyncUrl(form.syncUrl);
-        setSyncUsername(form.syncUsername);
-        setSyncPassword(form.syncPassword);
-        setSyncRemoteDir(form.syncRemoteDir);
-        setLastSync(form.lastSync);
       }).catch((error) => {
         if (modalGuard.isStale(token)) return;
         showError(error, t('error_messages.unknown'));
@@ -160,12 +142,6 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         embeddingApiBase,
         embeddingApiKey,
         useCustomEmbedding,
-        syncMode,
-        syncUrl,
-        syncUsername,
-        syncPassword,
-        syncRemoteDir,
-        lastSync,
       }));
       if (modalGuard.isStale(token)) return;
       // Don't auto-close — user explicitly asked to keep the modal open after
@@ -226,7 +202,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
               <span className="text-sm font-bold text-text/90">{t('common.labels.searchMode')}</span>
               <Button tone="neutral" fill="plain" size="sm" className="text-xs text-accent" onClick={() => setApiHelpOpen(true)}>
                 <HelpCircle size={14} className="mr-1" />
-                {t('settings.sync.helpButton')}
+                {t('help.apiSetup.howToGet')}
               </Button>
             </div>
             <LlmModeSelect
@@ -306,7 +282,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                 <label className="text-sm font-bold text-text/90">{t('common.labels.searchEngineModel')}</label>
                 <Button tone="neutral" fill="plain" size="sm" className="text-xs text-accent" onClick={() => setApiHelpOpen(true)}>
                   <HelpCircle size={14} className="mr-1" />
-                  {t('settings.sync.helpButton')}
+                  {t('help.apiSetup.howToGet')}
                 </Button>
               </div>
               {isTauri() ? (

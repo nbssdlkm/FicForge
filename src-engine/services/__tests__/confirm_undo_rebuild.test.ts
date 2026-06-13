@@ -24,7 +24,7 @@ import { FileDraftRepository } from "../../repositories/implementations/file_dra
 import { FileStateRepository } from "../../repositories/implementations/file_state.js";
 import { FileOpsRepository } from "../../repositories/implementations/file_ops.js";
 import { FileFactRepository } from "../../repositories/implementations/file_fact.js";
-import { rebuildStateFromOps, rebuildFactsFromOps, mergeOps } from "../../sync/ops_merge.js";
+import { rebuildStateFromOps, rebuildFactsFromOps, sortAndDedupeOps } from "../../ops/ops_projection.js";
 
 describe("confirm-undo-rebuild closed-loop", () => {
   let adapter: MockAdapter;
@@ -73,13 +73,13 @@ describe("confirm-undo-rebuild closed-loop", () => {
 
   async function getRebuiltState() {
     const ops = await opsRepo.list_all("au1");
-    const { ops: sorted } = mergeOps(ops, []);
+    const sorted = sortAndDedupeOps(ops);
     return rebuildStateFromOps(sorted, "au1");
   }
 
   async function getRebuiltFacts() {
     const ops = await opsRepo.list_all("au1");
-    const { ops: sorted } = mergeOps(ops, []);
+    const sorted = sortAndDedupeOps(ops);
     return rebuildFactsFromOps(sorted);
   }
 

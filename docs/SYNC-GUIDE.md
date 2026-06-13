@@ -1,5 +1,7 @@
 # FicForge Multi-Device Sync Guide
 
+> **⚠️ Deprecated (D-0040, M7).** In-app WebDAV sync and the multi-device ops-merge engine have been retired and removed from the app. The "Settings → Data Sync" UI and the "Sync Now" action no longer exist. This guide is retained for historical reference and for users on older versions. Folder-level mirroring (placing the data directory in an OS cloud folder) still works as a manual practice and needs no app feature.
+
 ## Overview
 
 FicForge supports syncing data between desktop and mobile devices, so you can build your story library on your computer and continue writing on your phone.

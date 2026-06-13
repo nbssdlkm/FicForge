@@ -17,7 +17,7 @@ import { add_fact, edit_fact, update_fact_status, set_chapter_focus } from "../.
 import { edit_chapter_content } from "../../services/chapter_edit.js";
 import { FileChapterRepository } from "../../repositories/implementations/file_chapter.js";
 import { createChapter } from "../../domain/chapter.js";
-import { rebuildStateFromOps, rebuildFactsFromOps } from "../ops_merge.js";
+import { rebuildStateFromOps, rebuildFactsFromOps } from "../ops_projection.js";
 
 describe("ops roundtrip: service → ops → rebuild", () => {
   let adapter: MockAdapter;

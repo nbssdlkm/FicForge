@@ -2,14 +2,15 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 /**
- * ops_merge boundary tests.
+ * ops projection boundary tests.
  *
- * Covers: concurrent fact edits, import_chapters projection,
- * invalid enum fallback, large merge sets, edge ordering.
+ * Covers: import_chapters projection, invalid enum fallback,
+ * large sort/dedupe sets, edge ordering, recalc, mark_chapters_dirty.
+ * (Multi-device conflict detection retired with sync — D-0040.)
  */
 
 import { describe, expect, it } from "vitest";
-import { mergeOps, rebuildStateFromOps, rebuildFactsFromOps } from "../ops_merge.js";
+import { sortAndDedupeOps, rebuildStateFromOps, rebuildFactsFromOps } from "../ops_projection.js";
 import { createOpsEntry } from "../../domain/ops_entry.js";
 
 function op(overrides: Partial<ReturnType<typeof createOpsEntry>> & { op_id: string; op_type: string }) {
@@ -19,81 +20,6 @@ function op(overrides: Partial<ReturnType<typeof createOpsEntry>> & { op_id: str
     ...overrides,
   });
 }
-
-// ===========================================================================
-// Concurrent fact edit detection
-// ===========================================================================
-
-describe("mergeOps — concurrent fact edit", () => {
-  it("two devices editing same fact → concurrent_fact_edit conflict", () => {
-    const a = op({
-      op_id: "e1", op_type: "edit_fact", target_id: "f42",
-      device_id: "phone", lamport_clock: 5,
-      payload: { updated_fields: { content_clean: "phone version" } },
-    });
-    const b = op({
-      op_id: "e2", op_type: "edit_fact", target_id: "f42",
-      device_id: "desktop", lamport_clock: 6,
-      payload: { updated_fields: { content_clean: "desktop version" } },
-    });
-
-    const { conflicts } = mergeOps([a], [b]);
-    expect(conflicts).toHaveLength(1);
-    expect(conflicts[0].type).toBe("concurrent_fact_edit");
-    expect(conflicts[0].ops).toHaveLength(2);
-  });
-
-  it("two devices changing status of same fact → concurrent_fact_edit conflict", () => {
-    const a = op({
-      op_id: "s1", op_type: "update_fact_status", target_id: "f99",
-      device_id: "devA", lamport_clock: 1,
-      payload: { new_status: "deprecated" },
-    });
-    const b = op({
-      op_id: "s2", op_type: "update_fact_status", target_id: "f99",
-      device_id: "devB", lamport_clock: 2,
-      payload: { new_status: "resolved" },
-    });
-
-    const { conflicts } = mergeOps([a], [b]);
-    const factEditConflicts = conflicts.filter((c) => c.type === "concurrent_fact_edit");
-    expect(factEditConflicts).toHaveLength(1);
-  });
-
-  it("same device editing same fact twice → no conflict", () => {
-    const a = op({
-      op_id: "e1", op_type: "edit_fact", target_id: "f42",
-      device_id: "dev1", lamport_clock: 1,
-      payload: { updated_fields: { content_clean: "v1" } },
-    });
-    const b = op({
-      op_id: "e2", op_type: "edit_fact", target_id: "f42",
-      device_id: "dev1", lamport_clock: 2,
-      payload: { updated_fields: { content_clean: "v2" } },
-    });
-
-    const { conflicts } = mergeOps([a, b], []);
-    const factEditConflicts = conflicts.filter((c) => c.type === "concurrent_fact_edit");
-    expect(factEditConflicts).toHaveLength(0);
-  });
-
-  it("edit_fact + update_fact_status on same fact from different devices → conflict", () => {
-    const a = op({
-      op_id: "e1", op_type: "edit_fact", target_id: "f1",
-      device_id: "devA", lamport_clock: 1,
-      payload: { updated_fields: { content_clean: "edited" } },
-    });
-    const b = op({
-      op_id: "s1", op_type: "update_fact_status", target_id: "f1",
-      device_id: "devB", lamport_clock: 2,
-      payload: { new_status: "deprecated" },
-    });
-
-    const { conflicts } = mergeOps([a], [b]);
-    const factEditConflicts = conflicts.filter((c) => c.type === "concurrent_fact_edit");
-    expect(factEditConflicts).toHaveLength(1);
-  });
-});
 
 // ===========================================================================
 // import_chapters projection
@@ -299,22 +225,21 @@ describe("rebuildFactsFromOps — invalid enum fallback", () => {
 // Edge cases: large merge, duplicate ops, empty payloads
 // ===========================================================================
 
-describe("mergeOps — edge cases", () => {
-  it("100 ops from each side merge correctly and maintain deterministic order", () => {
-    const local = Array.from({ length: 100 }, (_, i) => op({
+describe("rebuild — edge cases", () => {
+  it("200 ops sort + dedupe correctly and maintain deterministic order", () => {
+    const setA = Array.from({ length: 100 }, (_, i) => op({
       op_id: `L${i}`, op_type: "add_fact", target_id: `fL${i}`,
       device_id: "devL", lamport_clock: i * 2,
       payload: { fact: { id: `fL${i}`, content_raw: "r", content_clean: `local${i}` } },
     }));
-    const remote = Array.from({ length: 100 }, (_, i) => op({
+    const setB = Array.from({ length: 100 }, (_, i) => op({
       op_id: `R${i}`, op_type: "add_fact", target_id: `fR${i}`,
       device_id: "devR", lamport_clock: i * 2 + 1,
       payload: { fact: { id: `fR${i}`, content_raw: "r", content_clean: `remote${i}` } },
     }));
 
-    const { ops, newLamportClock } = mergeOps(local, remote);
+    const ops = sortAndDedupeOps([...setA, ...setB]);
     expect(ops).toHaveLength(200);
-    expect(newLamportClock).toBe(200); // max clock is 199, so +1
 
     // Verify deterministic sort: lamport clocks should be monotonically non-decreasing
     for (let i = 1; i < ops.length; i++) {
