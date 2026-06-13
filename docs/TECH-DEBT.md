@@ -41,28 +41,31 @@ undo_latest_chapter 在撤销章节时，会通过 `collectManualStatusRollback`
 
 ---
 
-## TD-004: 敏感数据存储未加密
+## TD-004: 敏感数据存储未加密（仅剩 Web 平台）
 
-**状态:** 已知（v0.3.0 审计文档化）  
-**优先级:** 中（正式发布前应解决）  
-**涉及文件:** `src-engine/platform/tauri_adapter.ts`, `src-engine/platform/capacitor_adapter.ts`, `src-engine/platform/web_adapter.ts`
+**状态:** 部分修复 —— Tauri / Capacitor 已上 OS 级加密 + 旧明文迁移 + 日志脱敏均已落地（2026-06 复核）；**仅 Web 仍是 sessionStorage 明文**。原写法「所有平台明文」已严重过时。
+**优先级:** 中（Web / PWA 正式发布前应解决）
+**涉及文件:** `src-engine/platform/web_adapter.ts`（唯一剩余）
 
-所有平台的 `secureGet/secureSet/secureRemove` 当前仅在 KV 键前添加 `__secure__:` 前缀隔离，数据以明文存储。v0.3.0 审计中已在代码中添加 `@warning` 注释标记。
+复核实况：
+- **Tauri** ✅：`keyring` v3.6.3 crate（windows-native / apple-native / linux-native-sync-persistent），`secure_store.rs` 走 OS keyring。`encrypted_at_rest: true`。
+- **Capacitor** ✅：`@aparajita/capacitor-secure-storage` ^8.0.0（Android Keystore / iOS Keychain）。`encrypted_at_rest: true`。
+- **旧明文迁移** ✅：`secure_storage_migration.ts` + 启动时 `App.tsx` 触发，gate 在 `encrypted_at_rest === true`（Tauri/Capacitor 执行、Web 跳过）。
+- **日志脱敏** ✅：`logger.ts` `REDACT_RE`。
+- **Web** ❌：`web_adapter.ts` 仍 `sessionStorage` 明文（`backend: session_storage_with_memory_fallback`，`encrypted_at_rest: false`，`persistence: session_only`）。唯一缺口。
 
-**修复方向:**
-- Tauri: 接入 `@tauri-apps/plugin-stronghold`（OS keychain）
-- Capacitor: 接入 `@capacitor-community/secure-storage`（Android Keystore / iOS Keychain）
-- Web: 接入 `crypto.subtle` 派生密钥加密
+**剩余修复方向（仅 Web）:**
+- `web_adapter.ts` 的 `secureGet/Set/Remove` 用 `crypto.subtle`（AES-GCM，密钥存 IndexedDB 的不可导出 CryptoKey）加解密；`PlatformAdapter` 接口契约不变，无调用点波及（其它 6 个平台/repo 测试已覆盖该 surface）。
+- **产品取舍（需先拍板）**：Web secret 当前是「会话级」（关标签即清）。上 crypto 后是否要「跨会话持久」（移到 IndexedDB）？跨会话 = 更好 UX，但 Web 无 OS keychain，IndexedDB 里的 key 只是防窥、不防有库权限的攻击者 —— 须在 capabilities 里诚实标注，不能静默切换（roadmap 实施约束 12）。
+- 翻 `encrypted_at_rest: false → true` 会让 Web 自动进入启动迁移 gate，须先验证 web 迁移路径安全 + 迁移前 CryptoKey 已就绪。
 
-接入时 `PlatformAdapter.secureGet/secureSet/secureRemove` 的接口契约不变，仅替换实现；
-`repositories/implementations/secure_fields.ts` 的上层机制（占位符、旧明文自动迁移、
-删除 AU/Fandom 时清理）无需改动。
+**注:** 原写法把 backend 写成 Tauri Stronghold / Capacitor @capacitor-community 均与实现不符（实为 keyring crate / @aparajita）；原 XL 估值已过时，剩余仅 Web 一个文件（S/M）。`secure_fields.ts` 上层机制（占位符、迁移、删除清理）无需改动。
 
 ---
 
 ## TD-005: Embedding 功能不完整（AU 覆盖未接入；本地 sidecar 已随退役消解）
 
-**状态:** 部分修复 —— 5b（本地 sidecar embedding）随 M7 sidecar 退役消解（2026-06）；5a（AU 级 embedding_lock 覆盖）仍待修复
+**状态:** 已修复（2026-06）—— 5b（本地 sidecar embedding）随 M7 sidecar 退役消解；5a（AU 级 embedding_lock 覆盖）本轮修复：`createEmbeddingProvider` 加 `project?` 参数 + 3 个调用点（`rebuildIndex` / `generateChapter` / `confirmChapter`）传 proj，优先级 `embedding_lock`（api_key+api_base 都配齐）> 全局，半配置安全回退。测试 `src-ui/src/api/__tests__/engine-state.embedding.test.ts`。注：工厂在 `src-ui/src/api/engine-state.ts`（非 engine 层，原写法定位有误）。
 **优先级:** 中（文档/UI 承诺了该能力但实际不工作，用户无感）
 **涉及文件:** `src-engine/llm/embedding_provider.ts`, `src-engine/llm/capabilities.ts`,
 `src-ui/src/api/engine-state.ts`, `src-ui/src/api/engine-generate.ts`,
@@ -101,25 +104,19 @@ embedding 默认 mode）放在同一轮"embedding + 凭据一致性"修复批次
 
 ## TD-006: MobileOnboarding 的 embedding 默认 mode 不适合移动端
 
-**状态:** 待修复（v0.3.0 二次审计发现）
-**优先级:** 低（首次使用才触发，不影响续写主流程，仅影响 RAG 索引）
-**涉及文件:** `src-ui/src/ui/onboarding/MobileOnboarding.tsx`
+**状态:** 已消解（2026-06 复核 + 修复）。两层都已处理：① **文案早已诚实** —— onboarding embedding 步骤标「（可选）」，hint「跳过后AI仍可正常续写，只是无法自动检索历史内容」，skip「稍后到设置里补上」，用户不再被误导。② **死的 LOCAL 模式不再持久化** —— local embedding 三端均不支持（sidecar 退役），`form-mappers.ts:94` + `saveGlobalSettings`（engine-settings.ts）改为恒 `mode: api`（跳过时落空字段 → `createEmbeddingProvider` 返回 undefined → RAG 优雅 STALE）。测试 `src-ui/src/ui/onboarding/__tests__/form-mappers.test.ts`。注：原 cited line `MobileOnboarding.tsx:231` 已漂移到 `form-mappers.ts:94`；RAG 失败的真实近因是「空 api_base/api_key」而非 mode 值（`createEmbeddingProvider` 根本不读 mode）。
+**③「内置 embedding」概念已端到端清除（本轮残留消除）:** local embedding 三端均不支持，故「内置 vs 自定义」整套区分已删 —— GlobalSettingsModal 的 checkbox + 内置提示删除、三端统一恒显 embedding 输入框；连带删 `EmbeddingSettingsSaveInput.use_custom_config` 类型字段、`saveGlobalSettingsForEditing` 的 `!isTauri()` 门控、`settings/form-mappers.ts` 的 `useCustomEmbedding`、AuSettingsLayout 的 `builtinEmbeddingLabel` 回退（改 `noEmbeddingModel`）、4 个废 i18n key（中英各 4）。embedding 现在三端统一就是「填 API / 留空=未配置」。
+**优先级:** ~~低~~（已消解）
+**涉及文件:** `form-mappers.ts`(onboarding+settings)、`api/engine-settings.ts`、`api/settings.ts`、`ui/settings/{GlobalSettingsModal,AuSettingsLayout}.tsx`、`locales/{zh,en}.json`
 
-`MobileOnboarding.tsx:231` 的逻辑是
-`mode: useCustomEmbedding ? LLMMode.API : LLMMode.LOCAL`。当用户不勾选
-"使用自定义 embedding"时默认写入 `LLMMode.LOCAL`，但移动端（Capacitor/PWA）
-没有 Python sidecar，**LOCAL embedding 根本跑不了**。结果是移动端新用户首次完成
-onboarding 后 RAG 索引永远失败（createEmbeddingProvider 返回 undefined，index STALE）。
-
-**修复方向:**
-
-1. 在 MobileOnboarding 里引入 `getEmbeddingModeAvailability(platform)`；
-2. 如果 local 不可用（移动端），强制 `useCustomEmbedding = true` 并在 UI 上隐藏
-   "使用内置 embedding"这个开关（或者直接不给用户选择，引导填 API 即可）；
-3. 桌面端保持现状（内置 local embedding 可用）。
-
-**关联:** 与 P1-5b capabilities 矩阵在同一概念体系下，但涉及 onboarding UX 流程，
-适合和 TD-005 / TD-004 一起做成一次 "embedding 一致性"修复批次。
+**以下为原诊断（历史，已不准确，保留备查）:** 原写法称 `MobileOnboarding.tsx:231` 的
+`mode: useCustomEmbedding ? LLMMode.API : LLMMode.LOCAL` 会让跳过 embedding 的用户落
+`LLMMode.LOCAL` → 移动端 RAG 索引永远失败，并提议在 MobileOnboarding 内引入
+`getEmbeddingModeAvailability(platform)` 做 UI 门控。实况修正（见上方状态）：① 该三元已
+迁到 `form-mappers.ts:94`，`MobileOnboarding.tsx:231` 早不是它；② RAG 失败的真实近因是
+空 api_base/api_key 而非 mode 值；③ `getEmbeddingModeAvailability` 这个 helper **早已存在**
+于 `capabilities.ts:133`，本轮未走「UI 门控」路线，而是更简的写侧修复（恒 `api`）；桌面
+GlobalSettingsModal 的「内置 embedding」UI 也已在本轮一并删除（见上方 ③）。
 
 ---
 

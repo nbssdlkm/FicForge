@@ -76,12 +76,13 @@ export interface PlatformAdapter {
   /**
    * 敏感数据存储：用于 API key、密码等字段，使其不出现在 settings.yaml 明文中。
    *
-   * 当前平台能力并不一致：Tauri 已接入 OS keyring / keychain，Web / Capacitor
-   * 仍是基于 KV 的兼容实现。调用方应结合 `getSecretStorageCapabilities()` 判断
-   * 实际安全级别，而不是仅根据方法名推断。
+   * 当前平台能力并不一致：Tauri（keyring crate）和 Capacitor（@aparajita/
+   * capacitor-secure-storage，Android Keystore / iOS Keychain）已接入 OS 级加密存储；
+   * Web 仍是 sessionStorage 明文（仅会话级）。调用方应结合
+   * `getSecretStorageCapabilities()` 判断实际安全级别，而不是仅根据方法名推断。
    *
-   * TODO: Capacitor 接入 @capacitor-community/secure-storage (Android Keystore / iOS Keychain)；
-   *       Web 接入 crypto.subtle 派生密钥加密。
+   * TODO: Web 接入 crypto.subtle 派生密钥加密（见 docs/TECH-DEBT.md TD-004，
+   *       唯一剩余的明文平台；含「会话级 vs 跨会话持久」产品取舍）。
    */
   secureGet(key: string): Promise<string | null>;
   secureSet(key: string, value: string): Promise<void>;
