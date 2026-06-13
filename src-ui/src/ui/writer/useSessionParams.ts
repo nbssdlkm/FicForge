@@ -2,13 +2,14 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   saveGlobalModelParams,
   saveProjectModelParamsOverride,
   type WriterProjectContext,
   type WriterSessionConfig,
 } from '../../api/engine-client';
+import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { useTranslation } from '../../i18n/useAppTranslation';
 
 function hasSessionLlmOverride(llm: WriterProjectContext['llm'] | null | undefined): boolean {
@@ -38,8 +39,7 @@ export function useSessionParams(
   showError: (err: unknown, fallback: string) => void,
 ) {
   const { t } = useTranslation();
-  const activeAuPathRef = useRef(auPath);
-  activeAuPathRef.current = auPath;
+  const guard = useActiveRequestGuard(auPath);
 
   const [sessionModel, setSessionModel] = useState('deepseek-chat');
   const [sessionTemp, setSessionTemp] = useState(1.0);
@@ -91,25 +91,25 @@ export function useSessionParams(
     const requestAuPath = auPath;
     try {
       await saveGlobalModelParams(sessionModel, { temperature: sessionTemp, top_p: sessionTopP });
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (guard.isKeyStale(requestAuPath)) return;
       showSuccess(t('writer.saveGlobalSuccess'));
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (guard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     }
-  }, [auPath, sessionModel, sessionTemp, sessionTopP, showError, showSuccess, t]);
+  }, [auPath, guard, sessionModel, sessionTemp, sessionTopP, showError, showSuccess, t]);
 
   const handleSaveAuParams = useCallback(async () => {
     const requestAuPath = auPath;
     try {
       await saveProjectModelParamsOverride(auPath, sessionModel, { temperature: sessionTemp, top_p: sessionTopP });
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (guard.isKeyStale(requestAuPath)) return;
       showSuccess(t('writer.saveAuSuccess'));
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (guard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     }
-  }, [auPath, sessionModel, sessionTemp, sessionTopP, showError, showSuccess, t]);
+  }, [auPath, guard, sessionModel, sessionTemp, sessionTopP, showError, showSuccess, t]);
 
   const sessionLlmPayload = useMemo(() => {
     if (!sessionModel) return null;

@@ -4,6 +4,7 @@
 
 import { useState, useRef } from 'react';
 import { addFact, editFact, type FactInfo } from '../../api/engine-client';
+import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
 
@@ -11,8 +12,7 @@ export function useFactEditor(auPath: string, currentChapter: number, onSaved: (
   const { t } = useTranslation();
   const { showError } = useFeedback();
 
-  const activeAuPathRef = useRef(auPath);
-  activeAuPathRef.current = auPath;
+  const guard = useActiveRequestGuard(auPath);
 
   const [editingFact, setEditingFact] = useState<FactInfo | null>(null);
   const [isAddModalOpen, setAddModalOpen] = useState(false);
@@ -52,15 +52,15 @@ export function useFactEditor(auPath: string, currentChapter: number, onSaved: (
         status: newStatus,
         characters: [],
       });
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (guard.isKeyStale(requestAuPath)) return;
       setAddModalOpen(false);
       resetAddModal();
       await onSaved();
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (guard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      if (activeAuPathRef.current === requestAuPath) {
+      if (!guard.isKeyStale(requestAuPath)) {
         setAdding(false);
       }
     }
@@ -84,16 +84,16 @@ export function useFactEditor(auPath: string, currentChapter: number, onSaved: (
       if (editWeightRef.current) updatedFields.narrative_weight = editWeightRef.current.value;
 
       await editFact(requestAuPath, editingFact.id, updatedFields);
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (guard.isKeyStale(requestAuPath)) return;
       setSaveSuccess(true);
       window.setTimeout(() => setSaveSuccess(false), 2000);
       await onSaved();
       setEditingFact(prev => prev ? { ...prev, ...updatedFields } : null);
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (guard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      if (activeAuPathRef.current === requestAuPath) {
+      if (!guard.isKeyStale(requestAuPath)) {
         setSavingFact(false);
       }
     }

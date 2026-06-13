@@ -2,8 +2,9 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { extractFacts, addFact, type ExtractedFactCandidate } from '../../api/engine-client';
+import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import {
   getSkipFactsPromptDefault,
   setSkipFactsPromptPersisted,
@@ -17,8 +18,7 @@ import { useExtractedSelection, getCandidateKey } from '../../hooks/useExtracted
 export function useWriterFactsExtraction(auPath: string) {
   const { t } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
-  const activeAuPathRef = useRef(auPath);
-  activeAuPathRef.current = auPath;
+  const guard = useActiveRequestGuard(auPath);
 
   const [isFactsPromptOpen, setFactsPromptOpen] = useState(false);
   const [isExtractReviewOpen, setExtractReviewOpen] = useState(false);
@@ -55,7 +55,7 @@ export function useWriterFactsExtraction(auPath: string) {
     setExtractingFacts(true);
     try {
       const result = await extractFacts(auPath, lastConfirmedChapter);
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (guard.isKeyStale(requestAuPath)) return;
       const candidates = result.facts || [];
       setExtractedCandidates(candidates);
       selectAll(candidates);
@@ -65,14 +65,14 @@ export function useWriterFactsExtraction(auPath: string) {
         showToast(t('facts.extractNoResult'), 'info');
       }
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (guard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      if (activeAuPathRef.current === requestAuPath) {
+      if (!guard.isKeyStale(requestAuPath)) {
         setExtractingFacts(false);
       }
     }
-  }, [auPath, showError, showToast, t, selectAll]);
+  }, [auPath, guard, showError, showToast, t, selectAll]);
 
   const handleSaveExtracted = useCallback(async (lastConfirmedChapter: number | null) => {
     if (selectedExtractedKeys.length === 0) {
@@ -97,7 +97,7 @@ export function useWriterFactsExtraction(auPath: string) {
           ...(candidate.timeline ? { timeline: candidate.timeline } : {}),
         });
       }
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (guard.isKeyStale(requestAuPath)) return;
 
       showSuccess(t('facts.extractSaved', { count: selectedCandidates.length }));
       setExtractReviewOpen(false);
@@ -105,14 +105,14 @@ export function useWriterFactsExtraction(auPath: string) {
       clearSelection();
       focusInstructionInput();
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (guard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      if (activeAuPathRef.current === requestAuPath) {
+      if (!guard.isKeyStale(requestAuPath)) {
         setSavingExtracted(false);
       }
     }
-  }, [auPath, extractedCandidates, filterSelected, focusInstructionInput, clearSelection, showError, showSuccess, t]);
+  }, [auPath, guard, extractedCandidates, filterSelected, focusInstructionInput, clearSelection, showError, showSuccess, t]);
 
   const resetExtractionState = useCallback(() => {
     setExtractingFacts(false);

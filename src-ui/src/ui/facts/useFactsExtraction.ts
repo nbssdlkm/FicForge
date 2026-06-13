@@ -8,14 +8,14 @@ import { getEngine } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
 import { useExtractedSelection, getCandidateKey } from '../../hooks/useExtractedSelection';
+import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import type { TaskEvent } from '@ficforge/engine';
 
 export function useFactsExtraction(auPath: string, state: StateInfo | null, onSaved: () => void) {
   const { t } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
 
-  const activeAuPathRef = useRef(auPath);
-  activeAuPathRef.current = auPath;
+  const guard = useActiveRequestGuard(auPath);
 
   const [extracting, setExtracting] = useState(false);
   const [extractModalOpen, setExtractModalOpen] = useState(false);
@@ -38,7 +38,7 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
     unsubRef.current?.();
     const unsub = getEngine().taskRunner.onEvent((id: string, event: TaskEvent) => {
       if (id !== taskId) return;
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (guard.isKeyStale(requestAuPath)) return;
 
       if (event.type === 'progress') {
         const pct = event.total > 0 ? Math.round((event.current / event.total) * 100) : 0;
@@ -67,7 +67,7 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
       }
     });
     unsubRef.current = unsub;
-  }, [showError, showToast, t, selectAll]);
+  }, [guard, showError, showToast, t, selectAll]);
   const subscribeRef = useRef(subscribeToTask);
   subscribeRef.current = subscribeToTask;
 
@@ -143,11 +143,11 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
       taskIdRef.current = taskId;
       subscribeToTask(taskId, requestAuPath);
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (guard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
       setExtracting(false);
     }
-  }, [auPath, extractRange, showError, t, subscribeToTask]);
+  }, [auPath, guard, extractRange, showError, t, subscribeToTask]);
 
   const handleCancelExtraction = useCallback(() => {
     if (taskIdRef.current) {
@@ -175,7 +175,7 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
           characters: candidate.characters || [],
           ...(candidate.timeline ? { timeline: candidate.timeline } : {}),
         });
-        if (activeAuPathRef.current !== requestAuPath) return;
+        if (guard.isKeyStale(requestAuPath)) return;
       }
 
       showSuccess(t('facts.extractSaved', { count: selectedCandidates.length }));
@@ -184,10 +184,10 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
       clearSelection();
       await onSaved();
     } catch (error) {
-      if (activeAuPathRef.current !== requestAuPath) return;
+      if (guard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      if (activeAuPathRef.current === requestAuPath) {
+      if (!guard.isKeyStale(requestAuPath)) {
         setSavingExtraction(false);
       }
     }
