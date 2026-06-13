@@ -58,11 +58,9 @@ export interface FontPreferences {
   reading_cjk_font_id: string;
 }
 
-export interface SecretStorageCapabilities {
-  backend: "local_storage" | "local_storage_with_memory_fallback" | "session_storage_with_memory_fallback" | "memory" | "os_keyring";
-  encrypted_at_rest: boolean;
-  persistence: "persistent" | "best_effort" | "session_only" | "memory_only";
-}
+// 单一真相源：复用 engine 的 SecretStorageCapabilities，不在 UI 侧另维护一份 union
+// （否则 engine 新增 backend 值时这里会漂移、tsc 报不可赋值）。
+export type { SecretStorageCapabilities } from "@ficforge/engine";
 
 export interface DefaultLlmSettingsInput {
   mode: string;

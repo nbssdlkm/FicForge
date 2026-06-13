@@ -4,6 +4,7 @@
 
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { useSecretStorageCapabilities } from "../../hooks/useSecretStorageCapabilities";
+import type { SecretStorageCapabilities } from "../../api/engine-client";
 import { InlineBanner, type InlineBannerTone } from "./InlineBanner";
 
 export function SecretStorageNotice({
@@ -41,11 +42,7 @@ export function SecretStorageNotice({
 }
 
 function getSecretStorageCopy(
-  capabilities: {
-    backend: "local_storage" | "local_storage_with_memory_fallback" | "session_storage_with_memory_fallback" | "memory" | "os_keyring";
-    encrypted_at_rest: boolean;
-    persistence: "persistent" | "best_effort" | "session_only" | "memory_only";
-  },
+  capabilities: SecretStorageCapabilities,
   t: (key: string) => string,
 ) {
   if (capabilities.encrypted_at_rest) {

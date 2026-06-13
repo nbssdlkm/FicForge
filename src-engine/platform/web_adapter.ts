@@ -63,6 +63,155 @@ function txGetAllKeys(db: IDBDatabase): Promise<string[]> {
   });
 }
 
+// ── Web secret encryption (AES-GCM) — TD-004 ──────────────────────────────
+// Secrets in sessionStorage are AES-GCM encrypted. The 256-bit key is
+// NON-EXTRACTABLE and lives in a SEPARATE IndexedDB (`ficforge_keystore`) so it
+// never appears in file listings (the file DB's listDir enumerates all keys)
+// and can't be exported via crypto.subtle.exportKey. The ciphertext stays in
+// sessionStorage (session_only: cleared on tab close), so secrets remain
+// session-scoped exactly as before — the IDB key alone is useless without the
+// live ciphertext, and the ciphertext alone is useless without the key.
+//
+// Threat model (honest): Web has no OS keychain. This protects against passive
+// storage inspection / disk copy (an attacker with only an IndexedDB dump or
+// only a sessionStorage dump cannot decrypt). It does NOT protect against an
+// attacker running JS in the page (XSS) — they can call decrypt with the key
+// handle. Degrades to plaintext (prior behavior) when crypto.subtle /
+// IndexedDB are unavailable OR the key fails to materialize at runtime (e.g.
+// IndexedDB.open rejecting in private mode). getSecretStorageCapabilities()
+// reports encrypted_at_rest based on whether the key ACTUALLY materialized
+// (warmed in init()), not just static API presence — so it never claims
+// "encrypted" while values are actually plaintext.
+const KEY_DB_NAME = "ficforge_keystore";
+const KEY_STORE = "keys";
+const AES_KEY_ID = "secure_aes_gcm_256_v1";
+const CIPHER_PREFIX = "encv1:";
+
+function webCryptoAvailable(): boolean {
+  return typeof indexedDB !== "undefined"
+    && typeof crypto !== "undefined"
+    && !!crypto.subtle;
+}
+
+function openKeyDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(KEY_DB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(KEY_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function keyDbGet(db: IDBDatabase): Promise<CryptoKey | undefined> {
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(KEY_STORE, "readonly").objectStore(KEY_STORE).get(AES_KEY_ID);
+    req.onsuccess = () => resolve(req.result as CryptoKey | undefined);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function keyDbPut(db: IDBDatabase, key: CryptoKey): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(KEY_STORE, "readwrite");
+    tx.objectStore(KEY_STORE).put(key, AES_KEY_ID);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+// Per-origin singleton: one non-extractable key reused across the session(s).
+let _aesKeyPromise: Promise<CryptoKey | null> | null = null;
+// Whether the key ACTUALLY materialized (null = not resolved yet). Drives the
+// capability report so it can't claim "encrypted" when the runtime fell back to
+// plaintext (e.g. IndexedDB.open fails in private mode even though the APIs exist).
+let _keyMaterialized: boolean | null = null;
+
+function getSecureAesKey(): Promise<CryptoKey | null> {
+  if (_aesKeyPromise) return _aesKeyPromise;
+  _aesKeyPromise = (async () => {
+    if (!webCryptoAvailable()) {
+      _keyMaterialized = false;
+      return null;
+    }
+    try {
+      const db = await openKeyDB();
+      try {
+        const existing = await keyDbGet(db);
+        if (existing) {
+          _keyMaterialized = true;
+          return existing;
+        }
+        const key = await crypto.subtle.generateKey(
+          { name: "AES-GCM", length: 256 },
+          false, // non-extractable
+          ["encrypt", "decrypt"],
+        );
+        await keyDbPut(db, key);
+        _keyMaterialized = true;
+        return key;
+      } finally {
+        db.close();
+      }
+    } catch {
+      _keyMaterialized = false; // IDB blocked/unavailable → plaintext fallback (reported honestly)
+      return null;
+    }
+  })();
+  return _aesKeyPromise;
+}
+
+function bytesToB64(bytes: Uint8Array): string {
+  let s = "";
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s);
+}
+
+function b64ToBytes(s: string): Uint8Array {
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function encryptSecret(plaintext: string): Promise<string> {
+  const key = await getSecureAesKey();
+  if (!key) return plaintext; // no crypto → store plaintext; capability reports honestly
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    new TextEncoder().encode(plaintext),
+  );
+  return `${CIPHER_PREFIX}${bytesToB64(iv)}.${bytesToB64(new Uint8Array(ct))}`;
+}
+
+async function decryptSecret(stored: string): Promise<string | null> {
+  if (!stored.startsWith(CIPHER_PREFIX)) return stored; // legacy/plaintext value
+  const key = await getSecureAesKey();
+  if (!key) return null; // ciphertext but no key → unrecoverable → treat as missing
+  try {
+    const [ivB64, ctB64] = stored.slice(CIPHER_PREFIX.length).split(".");
+    const pt = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: b64ToBytes(ivB64) },
+      key,
+      b64ToBytes(ctB64),
+    );
+    return new TextDecoder().decode(pt);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Test seam: inject a pre-built AES key (so the encryption path can be tested
+ * without a real IndexedDB), or pass null to reset the singleton. Not used by
+ * production code.
+ */
+export function __setSecureKeyForTest(key: CryptoKey | null): void {
+  _aesKeyPromise = key === null ? null : Promise.resolve(key);
+  _keyMaterialized = key === null ? null : true;
+}
+
 export class WebAdapter implements PlatformAdapter {
   private _deviceId: string;
   private _db: IDBDatabase | null = null;
@@ -75,6 +224,9 @@ export class WebAdapter implements PlatformAdapter {
   /** 初始化（必须在使用前调用）。 */
   async init(): Promise<void> {
     this._db = await openDB();
+    // 预热 secret 加密密钥，让 getSecretStorageCapabilities() 反映「密钥是否真就位」，
+    // 而不是仅凭 crypto.subtle/IndexedDB 静态存在就乐观上报已加密。
+    await getSecureAesKey();
   }
 
   private db(): IDBDatabase {
@@ -211,15 +363,16 @@ export class WebAdapter implements PlatformAdapter {
   }
 
   /**
-   * @warning **未加密。** 当前实现仅在 KV 键前添加 `__secure__:` 前缀隔离，
-   * 数据以明文存于 localStorage（或内存回退）。
-   * 待接入 crypto.subtle 派生密钥加密后实现真正加密。
+   * 敏感字段读取。会话内 secret 以 AES-GCM 密文存于 sessionStorage（密钥不可导出，
+   * 存独立 IndexedDB `ficforge_keystore`）。旧版 localStorage 明文（`__secure__:` 前缀）
+   * 首次读取时迁移为密文并删除明文副本。crypto.subtle / IndexedDB 不可用时优雅退回
+   * 明文，且 getSecretStorageCapabilities() 如实上报 encrypted_at_rest=false（见模块顶部）。
    */
   async secureGet(key: string): Promise<string | null> {
     const stored = this.getSessionSecureValue(key);
     if (stored !== null) {
       this.removeLegacySecureValue(key);
-      return stored;
+      return await decryptSecret(stored);
     }
 
     const legacyValue = this.getLegacySecureValue(key);
@@ -227,27 +380,31 @@ export class WebAdapter implements PlatformAdapter {
       return null;
     }
 
-    this.setSessionSecureValue(key, legacyValue);
+    // 旧版明文 → 加密落 session + 删旧明文副本
+    this.setSessionSecureValue(key, await encryptSecret(legacyValue));
     this.removeLegacySecureValue(key);
     return legacyValue;
   }
 
-  /** @see {@link WebAdapter.secureGet} — 同样未加密。 */
   async secureSet(key: string, value: string): Promise<void> {
-    this.setSessionSecureValue(key, value);
+    this.setSessionSecureValue(key, await encryptSecret(value));
     this.removeLegacySecureValue(key);
   }
 
-  /** @see {@link WebAdapter.secureGet} — 同样未加密。 */
   async secureRemove(key: string): Promise<void> {
     this.removeSessionSecureValue(key);
     this.removeLegacySecureValue(key);
   }
 
   getSecretStorageCapabilities(): SecretStorageCapabilities {
+    // 只有当 AES 密钥真正就位（init() 已预热，或已发生过 secret 操作）时才报已加密。
+    // 密钥未就位（如隐私模式下 IndexedDB.open 失败）则诚实报明文 —— 既不给用户假的
+    // 「已加密」横幅，也避免在 IDB 失败时触发会销毁 YAML 明文的启动迁移
+    // （migration gate 读 encrypted_at_rest）。未预热前保守报明文（不会误报已加密）。
+    const encrypted = _keyMaterialized === true;
     return {
-      backend: "session_storage_with_memory_fallback",
-      encrypted_at_rest: false,
+      backend: encrypted ? "web_crypto_aes_gcm" : "session_storage_plaintext_fallback",
+      encrypted_at_rest: encrypted,
       persistence: "session_only",
     };
   }

@@ -14,7 +14,7 @@ export interface OpenDialogOptions {
 }
 
 export interface SecretStorageCapabilities {
-  backend: "local_storage" | "local_storage_with_memory_fallback" | "session_storage_with_memory_fallback" | "memory" | "os_keyring";
+  backend: "local_storage" | "local_storage_with_memory_fallback" | "session_storage_with_memory_fallback" | "session_storage_plaintext_fallback" | "web_crypto_aes_gcm" | "memory" | "os_keyring";
   encrypted_at_rest: boolean;
   persistence: "persistent" | "best_effort" | "session_only" | "memory_only";
 }
@@ -76,13 +76,11 @@ export interface PlatformAdapter {
   /**
    * 敏感数据存储：用于 API key、密码等字段，使其不出现在 settings.yaml 明文中。
    *
-   * 当前平台能力并不一致：Tauri（keyring crate）和 Capacitor（@aparajita/
-   * capacitor-secure-storage，Android Keystore / iOS Keychain）已接入 OS 级加密存储；
-   * Web 仍是 sessionStorage 明文（仅会话级）。调用方应结合
+   * 当前平台能力：Tauri（keyring crate）和 Capacitor（@aparajita/
+   * capacitor-secure-storage，Android Keystore / iOS Keychain）走 OS 级加密存储；
+   * Web 走 crypto.subtle AES-GCM（密钥不可导出，存独立 IndexedDB；密文存
+   * sessionStorage，仅会话级），无 OS keychain 时退回明文。调用方应结合
    * `getSecretStorageCapabilities()` 判断实际安全级别，而不是仅根据方法名推断。
-   *
-   * TODO: Web 接入 crypto.subtle 派生密钥加密（见 docs/TECH-DEBT.md TD-004，
-   *       唯一剩余的明文平台；含「会话级 vs 跨会话持久」产品取舍）。
    */
   secureGet(key: string): Promise<string | null>;
   secureSet(key: string, value: string): Promise<void>;

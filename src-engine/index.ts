@@ -19,7 +19,7 @@ export { clear_tokenizer_cache, count_tokens, ensureTokenizer } from "./tokenize
 export type { TokenCount } from "./tokenizer/index.js";
 
 // Platform
-export type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions } from "./platform/index.js";
+export type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStorageCapabilities } from "./platform/index.js";
 export { CapacitorAdapter, TauriAdapter, WebAdapter } from "./platform/index.js";
 
 // Repository interfaces

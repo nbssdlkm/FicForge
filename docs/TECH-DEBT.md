@@ -41,25 +41,26 @@ undo_latest_chapter 在撤销章节时，会通过 `collectManualStatusRollback`
 
 ---
 
-## TD-004: 敏感数据存储未加密（仅剩 Web 平台）
+## TD-004: 敏感数据存储未加密 —— 已修复（三端全加密）
 
-**状态:** 部分修复 —— Tauri / Capacitor 已上 OS 级加密 + 旧明文迁移 + 日志脱敏均已落地（2026-06 复核）；**仅 Web 仍是 sessionStorage 明文**。原写法「所有平台明文」已严重过时。
-**优先级:** 中（Web / PWA 正式发布前应解决）
-**涉及文件:** `src-engine/platform/web_adapter.ts`（唯一剩余）
+**状态:** 已修复（2026-06）—— 三端 secret 均加密落盘。原写法「所有平台明文 / XL」已严重过时。
+**涉及文件:** `src-engine/platform/{tauri_adapter,capacitor_adapter,web_adapter}.ts`、`adapter.ts`（capability 类型）
 
-复核实况：
-- **Tauri** ✅：`keyring` v3.6.3 crate（windows-native / apple-native / linux-native-sync-persistent），`secure_store.rs` 走 OS keyring。`encrypted_at_rest: true`。
+三端实况：
+- **Tauri** ✅：`keyring` v3.6.3 crate（windows / apple / linux native），`secure_store.rs` 走 OS keyring。`encrypted_at_rest: true`。
 - **Capacitor** ✅：`@aparajita/capacitor-secure-storage` ^8.0.0（Android Keystore / iOS Keychain）。`encrypted_at_rest: true`。
-- **旧明文迁移** ✅：`secure_storage_migration.ts` + 启动时 `App.tsx` 触发，gate 在 `encrypted_at_rest === true`（Tauri/Capacitor 执行、Web 跳过）。
+- **Web** ✅（本轮）：`web_adapter.ts` 用 `crypto.subtle` AES-GCM。256-bit **不可导出** key 存独立 IndexedDB `ficforge_keystore`（与文件 DB `ficforge_fs` 隔离，不污染 listDir）；密文（`encv1:iv.ct`，每次随机 12-byte IV）存 sessionStorage（**仍会话级**，关标签即清）。旧 localStorage `__secure__:` 明文首读时加密迁移。`crypto.subtle`/IndexedDB 不可用或 key 打不开（隐私模式）时优雅退回明文。`backend: web_crypto_aes_gcm`，`encrypted_at_rest: true`（动态：仅当 key **真就位**才报 true，init() 预热；防隐私模式下假「已加密」横幅 + 防迁移误删 YAML 明文）。
+- **旧明文迁移** ✅：`secure_storage_migration.ts` + `App.tsx` 启动触发，gate `encrypted_at_rest === true`（三端均执行）。
 - **日志脱敏** ✅：`logger.ts` `REDACT_RE`。
-- **Web** ❌：`web_adapter.ts` 仍 `sessionStorage` 明文（`backend: session_storage_with_memory_fallback`，`encrypted_at_rest: false`，`persistence: session_only`）。唯一缺口。
+- **capability 类型去重** ✅：`SecretStorageCapabilities` 从 engine 单一导出，UI 不再手维护 3 份 union。
 
-**剩余修复方向（仅 Web）:**
-- `web_adapter.ts` 的 `secureGet/Set/Remove` 用 `crypto.subtle`（AES-GCM，密钥存 IndexedDB 的不可导出 CryptoKey）加解密；`PlatformAdapter` 接口契约不变，无调用点波及（其它 6 个平台/repo 测试已覆盖该 surface）。
-- **产品取舍（需先拍板）**：Web secret 当前是「会话级」（关标签即清）。上 crypto 后是否要「跨会话持久」（移到 IndexedDB）？跨会话 = 更好 UX，但 Web 无 OS keychain，IndexedDB 里的 key 只是防窥、不防有库权限的攻击者 —— 须在 capabilities 里诚实标注，不能静默切换（roadmap 实施约束 12）。
-- 翻 `encrypted_at_rest: false → true` 会让 Web 自动进入启动迁移 gate，须先验证 web 迁移路径安全 + 迁移前 CryptoKey 已就绪。
+**产品决策（已拍板）:** Web secret 走**会话级**（不跨会话持久），符合 iOS = PWA 兜底定位。后果：working-crypto web 上，启动迁移把旧 YAML 明文搬进 session-only 存储 → 用户每会话重填 key（仅影响 pre-secure-fields 旧明文用户；近期保存过的用户 YAML 已是 `<secure>` 占位符，迁移 no-op）。IDB 打不开时 capability 诚实报明文 → 迁移跳过，不销毁明文。
 
-**注:** 原写法把 backend 写成 Tauri Stronghold / Capacitor @capacitor-community 均与实现不符（实为 keyring crate / @aparajita）；原 XL 估值已过时，剩余仅 Web 一个文件（S/M）。`secure_fields.ts` 上层机制（占位符、迁移、删除清理）无需改动。
+**威胁模型（诚实）:** Web 无 OS keychain。本方案防被动存储窥探 / 磁盘拷贝（单拿 IDB dump 或单拿 sessionStorage dump 都解不开），**不防** 页内 XSS（能 JS 调 decrypt）。
+
+**测试:** `web_adapter.test.ts`（明文回退 / 密文非明文 / 往返 / 旧明文加密迁移 / 解密失败→null / IDB 打开失败→诚实明文）；`secure_storage_migration.test.ts` 不变。
+
+**遗留（非阻塞）:** 迁移测试只覆盖 persistent（os_keyring）后端，未覆盖 session_only 目的地 —— web 上「迁移在会话内无损」无专测（危险路径已由 web_adapter IDB-failure 测试守护）。
 
 ---
 
