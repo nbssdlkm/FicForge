@@ -2,13 +2,13 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { memo, useState, useEffect, useRef } from "react";
-import { AlertCircle, ChevronDown, ChevronUp, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import type { SimpleSettingPreviewMessage } from "../types";
 import { Card } from "../../shared/Card";
-import { Button } from "../../shared/Button";
 import { Spinner } from "../../shared/Spinner";
 import { useTranslation } from "../../../i18n/useAppTranslation";
 import { readLore } from "../../../api/engine-client";
+import { ActionFooter, CardEyebrow, CardStatusBanner, ExpandToggle } from "./cardChrome";
 
 interface SettingPreviewCardProps {
   message: SimpleSettingPreviewMessage;
@@ -73,10 +73,9 @@ function SettingPreviewCardImpl({
 
   const Header = (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-      <span className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.18em] text-gold-bright">
-        <FileText size={11} />
+      <CardEyebrow icon={FileText}>
         {t("simple.previewCard.settingEyebrow", { defaultValue: "Lore" })}
-      </span>
+      </CardEyebrow>
       <span className="break-all font-display text-[13px] font-semibold not-italic tracking-normal text-text">
         {message.filePath}
       </span>
@@ -85,18 +84,13 @@ function SettingPreviewCardImpl({
           {t("simple.previewCard.charCount", { defaultValue: "{{n}} chars", n: charCount })}
         </span>
       )}
-      <Button
-        tone="neutral"
-        fill="plain"
-        size="sm"
-        onClick={() => onToggleExpanded(message.id)}
-        className="ml-auto font-mono text-[10px] uppercase tracking-[0.08em]"
-      >
-        {message.expanded ? <ChevronUp size={12} className="mr-1" /> : <ChevronDown size={12} className="mr-1" />}
-        {message.expanded
-          ? t("simple.previewCard.collapse", { defaultValue: "折叠" })
-          : t("simple.previewCard.expand", { defaultValue: "展开" })}
-      </Button>
+      <ExpandToggle
+        expanded={message.expanded}
+        onToggle={() => onToggleExpanded(message.id)}
+        expandLabel={t("simple.previewCard.expand", { defaultValue: "展开" })}
+        collapseLabel={t("simple.previewCard.collapse", { defaultValue: "折叠" })}
+        className="ml-auto"
+      />
     </div>
   );
 
@@ -107,22 +101,16 @@ function SettingPreviewCardImpl({
   return (
     <Card className="flex flex-col gap-3 px-4 py-3">
       {Header}
-      {missingFandomPath && (
-        <div className="flex items-start gap-2 rounded-sm border border-error/40 bg-error/8 px-3 py-2 font-serif text-xs text-error">
-          <AlertCircle size={13} className="mt-0.5 shrink-0" />
-          <span>{missingFandomPath}</span>
-        </div>
-      )}
+      {missingFandomPath && <CardStatusBanner tone="error">{missingFandomPath}</CardStatusBanner>}
       {loading && (
         <div className="flex justify-center py-6">
           <Spinner />
         </div>
       )}
       {error && (
-        <div className="flex items-start gap-2 rounded-sm border border-error/40 bg-error/8 px-3 py-2 font-serif text-xs text-error">
-          <AlertCircle size={13} className="mt-0.5 shrink-0" />
-          <span>{t("simple.previewCard.loadFailed", { defaultValue: "加载失败：{{message}}", message: error })}</span>
-        </div>
+        <CardStatusBanner tone="error">
+          {t("simple.previewCard.loadFailed", { defaultValue: "加载失败：{{message}}", message: error })}
+        </CardStatusBanner>
       )}
       {content !== null && !loading && !error && !missingFandomPath && (
         <>
@@ -132,18 +120,14 @@ function SettingPreviewCardImpl({
           >
             {content}
           </div>
-          <div className="flex justify-end border-t border-rule pt-2">
-            <Button
-              tone="neutral"
-              fill="plain"
-              size="sm"
-              onClick={() => onToggleExpanded(message.id)}
-              className="font-mono text-[10px] uppercase tracking-[0.08em]"
-            >
-              <ChevronUp size={12} className="mr-1" />
-              {t("simple.previewCard.collapse", { defaultValue: "折叠" })}
-            </Button>
-          </div>
+          <ActionFooter className="justify-end pt-2">
+            <ExpandToggle
+              expanded
+              onToggle={() => onToggleExpanded(message.id)}
+              expandLabel={t("simple.previewCard.collapse", { defaultValue: "折叠" })}
+              collapseLabel={t("simple.previewCard.collapse", { defaultValue: "折叠" })}
+            />
+          </ActionFooter>
         </>
       )}
     </Card>

@@ -2,13 +2,14 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { memo, useState } from 'react';
-import { AlertCircle, Check, ChevronDown, ChevronUp, Clock, RotateCcw, Sparkles, X } from 'lucide-react';
+import { AlertCircle, Check, Clock, RotateCcw, Sparkles, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { SimpleWritingDraftMessage } from '../types';
 import { Card } from '../../shared/Card';
 import { Button } from '../../shared/Button';
 import { Spinner } from '../../shared/Spinner';
 import { useTranslation } from '../../../i18n/useAppTranslation';
+import { ActionFooter, CardEyebrow, ExpandToggle } from './cardChrome';
 
 interface WritingDraftCardProps {
   message: SimpleWritingDraftMessage;
@@ -96,10 +97,9 @@ function WritingDraftCardImpl({
     <Card className="my-3 space-y-3 px-4 py-3">
       {/* Eyebrow row: AI label + chapter slug + word count + status badge */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <span className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.18em] text-gold-bright">
-          <Sparkles size={11} />
+        <CardEyebrow icon={Sparkles}>
           {t('simple.draftCard.eyebrow', { defaultValue: 'AI Draft' })}
-        </span>
+        </CardEyebrow>
         <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-ink-muted">
           {t('simple.draftCard.chapterSlug', { defaultValue: 'Ch.{{num}} · Draft {{label}} · {{count}} chars', num: message.chapterNum, label: message.draftLabel, count: wordCount })}
         </span>
@@ -118,23 +118,17 @@ function WritingDraftCardImpl({
 
       {!isStreaming && isLong && (
         <div className="flex">
-          <Button
-            tone="neutral"
-            fill="plain"
-            size="sm"
-            onClick={() => setExpanded((prev) => !prev)}
-            className="font-mono text-[10px] uppercase tracking-[0.08em]"
-          >
-            {expanded ? <ChevronUp size={12} className="mr-1" /> : <ChevronDown size={12} className="mr-1" />}
-            {expanded
-              ? t('simple.draftCard.collapse', { defaultValue: '折叠' })
-              : t('simple.draftCard.expand', { defaultValue: '展开全文' })}
-          </Button>
+          <ExpandToggle
+            expanded={expanded}
+            onToggle={() => setExpanded((prev) => !prev)}
+            expandLabel={t('simple.draftCard.expand', { defaultValue: '展开全文' })}
+            collapseLabel={t('simple.draftCard.collapse', { defaultValue: '折叠' })}
+          />
         </div>
       )}
 
       {showActions && (
-        <div className="flex flex-wrap gap-2 border-t border-rule pt-3">
+        <ActionFooter className="flex-wrap gap-2">
           {(message.status === 'pending' || message.status === 'error') && (
             <Button
               tone="accent"
@@ -171,7 +165,7 @@ function WritingDraftCardImpl({
             <X size={12} className="mr-1" />
             {t('simple.draftCard.discard', { defaultValue: '丢弃' })}
           </Button>
-        </div>
+        </ActionFooter>
       )}
     </Card>
   );

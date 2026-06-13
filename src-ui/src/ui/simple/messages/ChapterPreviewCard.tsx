@@ -2,13 +2,13 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { memo, useState, useEffect, useRef } from "react";
-import { AlertCircle, BookOpen, ChevronDown, ChevronUp } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import type { SimpleChapterPreviewMessage } from "../types";
 import { Card } from "../../shared/Card";
-import { Button } from "../../shared/Button";
 import { Spinner } from "../../shared/Spinner";
 import { useTranslation } from "../../../i18n/useAppTranslation";
 import { getChapterContent } from "../../../api/engine-client";
+import { ActionFooter, CardEyebrow, CardStatusBanner, ExpandToggle } from "./cardChrome";
 
 interface ChapterPreviewCardProps {
   message: SimpleChapterPreviewMessage;
@@ -56,10 +56,9 @@ function ChapterPreviewCardImpl({
 
   const Header = (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-      <span className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.18em] text-gold-bright">
-        <BookOpen size={11} />
+      <CardEyebrow icon={BookOpen}>
         {t("simple.previewCard.chapterEyebrow", { defaultValue: "Chapter" })}
-      </span>
+      </CardEyebrow>
       <span className="font-display text-[14px] font-semibold not-italic tracking-normal text-text">
         {t("simple.previewCard.chapterNum", { defaultValue: "第 {{num}} 章", num: message.chapterNum })}
       </span>
@@ -68,18 +67,13 @@ function ChapterPreviewCardImpl({
           {t("simple.previewCard.charCount", { defaultValue: "{{n}} chars", n: charCount })}
         </span>
       )}
-      <Button
-        tone="neutral"
-        fill="plain"
-        size="sm"
-        onClick={() => onToggleExpanded(message.id)}
-        className="ml-auto font-mono text-[10px] uppercase tracking-[0.08em]"
-      >
-        {message.expanded ? <ChevronUp size={12} className="mr-1" /> : <ChevronDown size={12} className="mr-1" />}
-        {message.expanded
-          ? t("simple.previewCard.collapse", { defaultValue: "折叠" })
-          : t("simple.previewCard.expand", { defaultValue: "展开" })}
-      </Button>
+      <ExpandToggle
+        expanded={message.expanded}
+        onToggle={() => onToggleExpanded(message.id)}
+        expandLabel={t("simple.previewCard.expand", { defaultValue: "展开" })}
+        collapseLabel={t("simple.previewCard.collapse", { defaultValue: "折叠" })}
+        className="ml-auto"
+      />
     </div>
   );
 
@@ -96,10 +90,9 @@ function ChapterPreviewCardImpl({
         </div>
       )}
       {error && (
-        <div className="flex items-start gap-2 rounded-sm border border-error/40 bg-error/8 px-3 py-2 font-serif text-xs text-error">
-          <AlertCircle size={13} className="mt-0.5 shrink-0" />
-          <span>{t("simple.previewCard.loadFailed", { defaultValue: "加载失败：{{message}}", message: error })}</span>
-        </div>
+        <CardStatusBanner tone="error">
+          {t("simple.previewCard.loadFailed", { defaultValue: "加载失败：{{message}}", message: error })}
+        </CardStatusBanner>
       )}
       {content !== null && !loading && !error && (
         <>
@@ -109,18 +102,14 @@ function ChapterPreviewCardImpl({
           >
             {content}
           </div>
-          <div className="flex justify-end border-t border-rule pt-2">
-            <Button
-              tone="neutral"
-              fill="plain"
-              size="sm"
-              onClick={() => onToggleExpanded(message.id)}
-              className="font-mono text-[10px] uppercase tracking-[0.08em]"
-            >
-              <ChevronUp size={12} className="mr-1" />
-              {t("simple.previewCard.collapse", { defaultValue: "折叠" })}
-            </Button>
-          </div>
+          <ActionFooter className="justify-end pt-2">
+            <ExpandToggle
+              expanded
+              onToggle={() => onToggleExpanded(message.id)}
+              expandLabel={t("simple.previewCard.collapse", { defaultValue: "折叠" })}
+              collapseLabel={t("simple.previewCard.collapse", { defaultValue: "折叠" })}
+            />
+          </ActionFooter>
         </>
       )}
     </Card>

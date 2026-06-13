@@ -2,12 +2,13 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { memo, useState } from "react";
-import { AlertCircle, Check, ChevronDown, ChevronUp, Clock, RotateCcw, Wrench, X } from "lucide-react";
+import { AlertCircle, Check, Clock, RotateCcw, Wrench, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { SimpleToolCallMessage } from "../types";
 import { Card } from "../../shared/Card";
 import { Button } from "../../shared/Button";
 import { useTranslation } from "../../../i18n/useAppTranslation";
+import { ActionFooter, CardEyebrow, ExpandToggle } from "./cardChrome";
 
 interface ToolCallCardProps {
   message: SimpleToolCallMessage;
@@ -67,10 +68,9 @@ function ToolCallCardImpl({
     <Card className="space-y-3 px-4 py-3">
       {/* Eyebrow row: TOOL CALL · toolName · status badge */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <span className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.18em] text-gold-bright">
-          <Wrench size={11} />
+        <CardEyebrow icon={Wrench}>
           {t("simple.toolCard.eyebrow", { defaultValue: "Tool Call" })}
-        </span>
+        </CardEyebrow>
         <span className="font-display text-[13px] font-semibold not-italic tracking-normal text-text">
           {message.toolName}
         </span>
@@ -85,22 +85,16 @@ function ToolCallCardImpl({
       </pre>
 
       {isLong && (
-        <Button
-          tone="neutral"
-          fill="plain"
-          size="sm"
-          onClick={() => setExpanded((p) => !p)}
-          className="font-mono text-[10px] uppercase tracking-[0.08em]"
-        >
-          {expanded ? <ChevronUp size={12} className="mr-1" /> : <ChevronDown size={12} className="mr-1" />}
-          {expanded
-            ? t("simple.toolCard.collapse", { defaultValue: "折叠" })
-            : t("simple.toolCard.expand", { defaultValue: "展开" })}
-        </Button>
+        <ExpandToggle
+          expanded={expanded}
+          onToggle={() => setExpanded((p) => !p)}
+          expandLabel={t("simple.toolCard.expand", { defaultValue: "展开" })}
+          collapseLabel={t("simple.toolCard.collapse", { defaultValue: "折叠" })}
+        />
       )}
 
       {message.status === "pending" && (
-        <div className="flex gap-2 border-t border-rule pt-3">
+        <ActionFooter className="gap-2">
           <Button
             tone="accent"
             size="sm"
@@ -122,11 +116,11 @@ function ToolCallCardImpl({
             <X size={12} className="mr-1" />
             {t("simple.toolCard.skip", { defaultValue: "跳过" })}
           </Button>
-        </div>
+        </ActionFooter>
       )}
 
       {message.status === "confirmed" && (
-        <div className="flex gap-2 border-t border-rule pt-3">
+        <ActionFooter className="gap-2">
           <Button
             tone="neutral"
             fill="outline"
@@ -138,7 +132,7 @@ function ToolCallCardImpl({
             <RotateCcw size={12} className="mr-1" />
             {t("simple.toolCard.undo", { defaultValue: "撤销" })}
           </Button>
-        </div>
+        </ActionFooter>
       )}
     </Card>
   );
