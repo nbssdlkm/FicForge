@@ -15,6 +15,8 @@ import { WriterLayout } from '../writer/WriterLayout';
 import { FactsLayout } from '../facts/FactsLayout';
 import { AuLoreLayout } from '../library/AuLoreLayout';
 import { AuSettingsLayout } from '../settings/AuSettingsLayout';
+import { SimpleChatPanel } from '../simple/SimpleChatPanel';
+import { SimpleReadingView } from '../simple/SimpleReadingView';
 import { AnimatePresence, motion } from 'framer-motion';
 import { rebuildIndex } from '../../api/engine-client';
 import { listChapters, updateChapterTitle, type ChapterInfo } from '../../api/engine-client';
@@ -26,6 +28,7 @@ import { FeedbackProvider, useFeedback } from '../../hooks/useFeedback';
 import { useMilestoneGuide } from '../../hooks/useMilestoneGuide';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { MobileLayout } from '../mobile/MobileLayout';
+import { useWritingMode } from '../../hooks/useWritingMode';
 
 type Props = {
   activeTab: string;
@@ -37,6 +40,11 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const { t } = useTranslation();
   const { showError } = useFeedback();
   const isMobile = useMediaQuery('(max-width: 768px)');
+  // Snapshot the writing mode at workspace mount (§2.2): a mid-AU toggle never flips the open
+  // AU; key={auPath} in App.tsx re-snapshots on each AU entry. Mobile chrome reads this snapshot
+  // via prop, never a live hook.
+  const { isSimple: liveWritingSimple } = useWritingMode();
+  const [isSimple] = useState(liveWritingSimple);
   const loadGuard = useActiveRequestGuard(auPath);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
@@ -186,7 +194,8 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   if (isMobile) {
     return (
       <MobileLayout
-        activePage={activeTab as 'writer' | 'facts' | 'au_lore' | 'settings'}
+        activePage={activeTab as 'writer' | 'chat' | 'facts' | 'au_lore' | 'settings'}
+        isSimple={isSimple}
         auPath={auPath}
         auName={auName}
         chapters={chapters}
@@ -245,11 +254,12 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
           <div className="border-b border-rule px-2 pb-3 pt-1 shrink-0 space-y-0.5">
             {(
               [
-                { key: 'writer', label: t('writer.modeWrite') },
-                { key: 'facts', label: t('navigation.facts') },
-                { key: 'au_lore', label: t('navigation.auLore') },
-                { key: 'settings', label: t('navigation.settings') },
-              ] as const
+                ...(isSimple ? [{ key: 'chat' as const, label: t('simple.tabs.chat', { defaultValue: '对话' }) }] : []),
+                { key: 'writer' as const, label: isSimple ? t('simple.tabs.reading', { defaultValue: '阅读' }) : t('writer.modeWrite') },
+                { key: 'facts' as const, label: t('navigation.facts') },
+                { key: 'au_lore' as const, label: t('navigation.auLore') },
+                { key: 'settings' as const, label: t('navigation.settings') },
+              ]
             ).map((tab) => {
               const isActive = activeTab === tab.key;
               return (
@@ -399,7 +409,12 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
             transition={{ duration: 0.18, ease: "easeOut" }}
             className="flex-1 flex w-full h-full overflow-hidden"
           >
-            {activeTab === 'writer' && <WriterLayout auPath={auPath} onNavigate={onNavigate} viewChapter={viewingChapter} onClearViewChapter={() => setViewingChapter(null)} onChaptersChanged={refreshChapters} />}
+            {activeTab === 'chat' && <SimpleChatPanel auPath={auPath} />}
+            {activeTab === 'writer' && (
+              isSimple
+                ? <SimpleReadingView auPath={auPath} />
+                : <WriterLayout auPath={auPath} onNavigate={onNavigate} viewChapter={viewingChapter} onClearViewChapter={() => setViewingChapter(null)} onChaptersChanged={refreshChapters} />
+            )}
             {activeTab === 'facts' && <FactsLayout auPath={auPath} />}
             {activeTab === 'au_lore' && <AuLoreLayout auPath={auPath} />}
             {activeTab === 'settings' && <AuSettingsLayout auPath={auPath} />}

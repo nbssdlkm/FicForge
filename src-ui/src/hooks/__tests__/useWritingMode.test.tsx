@@ -1,9 +1,9 @@
 // Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 const getWritingModeMock = vi.fn();
 vi.mock("../../api/engine-client", async () => {
@@ -77,5 +77,41 @@ describe("useWritingMode", () => {
     expect(result.current.mode).toBe("full");
     expect(result.current.isSimple).toBe(false);
     expect(result.current.loaded).toBe(true);
+  });
+
+  it("a mount snapshot does NOT flip when the provider mode changes (the §2.2 invariant)", async () => {
+    localStorage.setItem("ficforge_writing_mode", "simple");
+    getWritingModeMock.mockResolvedValue("simple"); // reconcile keeps simple
+
+    // Mirrors AuWorkspaceLayout: snapshot isSimple at mount via a useState initializer.
+    function Harness() {
+      const { isSimple: live, refresh } = useWritingMode();
+      const [snap] = useState(live);
+      return (
+        <div>
+          <span data-testid="live">{live ? "simple" : "full"}</span>
+          <span data-testid="snap">{snap ? "simple" : "full"}</span>
+          <button onClick={() => void refresh()}>refresh</button>
+        </div>
+      );
+    }
+
+    const { getByTestId, getByText } = render(
+      <WritingModeProvider>
+        <Harness />
+      </WritingModeProvider>,
+    );
+    await waitFor(() => expect(getByTestId("live").textContent).toBe("simple"));
+    expect(getByTestId("snap").textContent).toBe("simple");
+
+    // User toggles to full mid-session; the provider re-reads settings.yaml as 'full'.
+    getWritingModeMock.mockResolvedValue("full");
+    await act(async () => {
+      getByText("refresh").click();
+    });
+
+    await waitFor(() => expect(getByTestId("live").textContent).toBe("full"));
+    // Snapshot held → the "open AU" stays simple; only the next mount re-reads.
+    expect(getByTestId("snap").textContent).toBe("simple");
   });
 });

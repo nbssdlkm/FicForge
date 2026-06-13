@@ -12,11 +12,14 @@ import { BottomNavBar, type MobileWorkspaceTab } from "./BottomNavBar";
 import { MobileChapterList } from "./MobileChapterList";
 import { MobileManageView } from "./MobileManageView";
 import { MobileSettingsView } from "./MobileSettingsView";
+import { SimpleChatPanel } from "../simple/SimpleChatPanel";
+import { SimpleReadingView } from "../simple/SimpleReadingView";
 
-type WorkspacePage = "writer" | "facts" | "au_lore" | "settings";
+type WorkspacePage = "writer" | "chat" | "facts" | "au_lore" | "settings";
 
 interface MobileLayoutProps {
   activePage: WorkspacePage;
+  isSimple: boolean;
   auPath: string;
   auName: string;
   chapters: ChapterInfo[];
@@ -31,6 +34,7 @@ interface MobileLayoutProps {
 }
 
 function mapPageToTab(page: WorkspacePage): MobileWorkspaceTab {
+  if (page === "chat") return "chat";
   if (page === "au_lore") return "settings";
   if (page === "facts" || page === "settings") return "manage";
   return "writer";
@@ -42,6 +46,7 @@ function mapPageToManageSection(page: WorkspacePage): "facts" | "project" {
 
 export function MobileLayout({
   activePage,
+  isSimple,
   auPath,
   auName,
   chapters,
@@ -70,6 +75,11 @@ export function MobileLayout({
     setActiveTab(nextTab);
 
     if (nextTab === "chapters") {
+      return;
+    }
+
+    if (nextTab === "chat") {
+      onNavigate("chat", auPath);
       return;
     }
 
@@ -130,14 +140,20 @@ export function MobileLayout({
           />
         ) : null}
 
+        {activeTab === "chat" ? <SimpleChatPanel auPath={auPath} /> : null}
+
         {activeTab === "writer" ? (
-          <WriterLayout
-            auPath={auPath}
-            onNavigate={(page) => onNavigate(page, auPath)}
-            viewChapter={selectedChapter}
-            onClearViewChapter={onClearViewChapter}
-            onChaptersChanged={onChaptersChanged}
-          />
+          isSimple ? (
+            <SimpleReadingView auPath={auPath} />
+          ) : (
+            <WriterLayout
+              auPath={auPath}
+              onNavigate={(page) => onNavigate(page, auPath)}
+              viewChapter={selectedChapter}
+              onClearViewChapter={onClearViewChapter}
+              onChaptersChanged={onChaptersChanged}
+            />
+          )
         ) : null}
 
         {activeTab === "settings" ? (
@@ -158,7 +174,7 @@ export function MobileLayout({
         ) : null}
       </div>
 
-      <BottomNavBar activeTab={activeTab} onTabChange={handleTabChange} />
+      <BottomNavBar activeTab={activeTab} isSimple={isSimple} onTabChange={handleTabChange} />
     </div>
   );
 }

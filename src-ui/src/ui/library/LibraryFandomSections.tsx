@@ -8,6 +8,8 @@ import { Button } from '../shared/Button';
 import { type FandomInfo } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { goldLine } from '../shared/tokens';
+import { useWritingMode } from '../../hooks/useWritingMode';
+import { getAuLandingPage } from '../simple/landing';
 
 type LibraryFandomSectionsProps = {
   dataDir: string;
@@ -75,6 +77,7 @@ export function LibraryFandomSections({
   onDeleteAu,
 }: LibraryFandomSectionsProps) {
   const { t } = useTranslation();
+  const { mode } = useWritingMode();
   const mutating = creatingFandom || creatingAu || deleting;
 
   const [collapsed, setCollapsed] = useState<Set<string>>(readCollapsed);
@@ -243,7 +246,7 @@ export function LibraryFandomSections({
                         <article
                           onClick={() =>
                             onNavigate(
-                              'writer',
+                              getAuLandingPage(mode),
                               `${dataDir}/fandoms/${fandom.dir_name}/aus/${au.dir_name}`,
                             )
                           }
