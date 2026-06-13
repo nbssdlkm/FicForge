@@ -42,7 +42,7 @@ Platform Adapter
 | M4 | Settings Chat、Trash、Recalc、前端 API 切换、SSE 消除、Sidecar 精简 | **已完成**（E.6 sidecar 已退役删除 — M7，2026-06） |
 | M5 | 移动端 Capacitor/PWA、响应式 UI | **已完成**（ops 合并 + 数据同步**已废弃**，见 D-0040） |
 | M6 | Agent 架构 | **重开规划**，D-0032 作废，见 D-0043；触发条件满足后启动（预计 2026 Q3/Q4） |
-| M7 | 架构简化（同步退役 + ops 降级 audit log） | **已完成**：同步 UI 隐藏（`c4b0f42`）+ engine 同步引擎删除、`ops_merge.ts` 外科式迁 `src-engine/ops/`（剥离多设备合并/冲突检测、保留 rebuild/lamport 投影核心）、死 UI/API/locale/文档清理（feat/converge-simple-phase2，待人工合并） |
+| M7 | 架构简化（同步退役 + ops 降级 audit log） | **已完成 + 已合本地 main**（`9e44491`，origin 未 push）：同步 UI 隐藏（`c4b0f42`）+ engine 同步引擎删除、`ops_merge.ts` 外科式迁 `src-engine/ops/`（剥离多设备合并/冲突检测、保留 rebuild/lamport 投影核心）、死 UI/API/locale/文档清理 |
 | M8 | Memory 三层架构（Fact / Chapter Summary / Thread） | 待启动 |
 | M9 | ReAct 基础设施（生成 + 选择性提取） | 待启动 |
 | M10 | Retrospective rewrite + Archive 冷热分层 | 待启动 |
@@ -51,7 +51,7 @@ Platform Adapter
 
 ## 活跃工作（当前分支）
 
-**当前分支：`feat/converge-simple-phase2`** —— Phase 1 已 FF 合入 main，Phase 2 已 commit、**未 push / 未合并**（等真机 + 人工）。
+**当前分支：`chore/cleanup-sidecar-retire`** —— Phase 1 + Phase 2（UI 接入）+ M7（同步退役）+ P2-1 异步守卫硬化均已 FF 合入**本地 main**（`451d58c`，领先 `origin/main` **16**，**未 push**）。本分支在 main 之上再加 2 commit —— Python sidecar 退役（`d03db72`，已 cargo 验证）+ 代码整洁（`ff2fca8`）—— 领先 origin **18**，**未合 main / 未 push**；外加本会话工作树未提交的 card chrome 组件抽取。
 
 ### 简版收敛（当前主线）
 
@@ -65,7 +65,7 @@ Platform Adapter
 - branch vs main：**44 文件，+6398/-27，纯 src-engine + 测试，零 src-ui 改动**
 - **已合并到 main**（fast-forward，含本 CLAUDE.md 刷新）；origin 未 push
 
-**Phase 2（UI 接入）—— 已完成（代码 + 测试全绿），在 `feat/converge-simple-phase2`，待真机 + 合并：**
+**Phase 2（UI 接入）—— 已完成 + 已 FF 合入本地 main（`451d58c`，origin 未 push），剩真机 round-trip：**
 - spec：`docs/superpowers/specs/2026-06-13-converge-simple-phase2-ui-design.md`（**Rev 3**，过两轮 code-grounded 对抗 review，抓出竞态/移动端编译断/落地点错/英文看中文并修在 spec 阶段）
 - 端口整棵 `ui/simple/`（26 文件）+ 3 个 API wrapper + `landing(mode)`；`engine-instance` 注册 `simpleChat`
 - 运行时门控：`useWritingMode`（**同步 localStorage 镜像 `ficforge_writing_mode`** 防 async-默认竞态，镜像 i18n language 模式）+ `AuWorkspaceLayout` 挂载快照（`key={auPath}` 每次进 AU 重快照 → 作品内切模式不打断当前会话）
@@ -79,13 +79,20 @@ Platform Adapter
 - 相关债 **TD-015**（简版↔主 import/export 数据迁回）：非阻塞，事件驱动再做
 - **dev server 实测（2026-06-13，Claude 自测，手机视口）**：建 AU 自动落「对话」tab、底栏 5 tab（章节/阅读/对话/设定/管理）、SimpleChatPanel 渲染、切回 full 4 tab 满血 WriterLayout、0 console 报错。**唯一没验：真实 LLM 出章（无 key）。**
 
+### 已完成（2026-06-13，本轮收尾）
+
+1. ✅ **真实测简版出章**：ds key 走 onboarding 内置 API 配置（强制连接测试通过）→ 切简版 → 进 AU 落「对话」tab → DeepSeek 流式出 491 字中文章 → 接受 → `chapters/main/ch0001.md` + `.well-known/simple-chat.yaml` 落盘（web 端存 IndexedDB `ficforge_fs`，非 OPFS）→ 刷新全恢复，零回归。
+2. ✅ **M7 同步退役**：审计发现 `sync/ops_merge.ts` 是「核心投影+同步」混合文件 → 外科式迁 `src-engine/ops/ops_projection.ts`（保留 rebuild/lamport，新增 `sortAndDedupeOps` 替 `mergeOps`，剥离多设备 `mergeOps`/`detectConflicts`/`Conflict`/`MergeResult`/`syncLamportClock`/`getCurrentLamportClock`）；删 `sync_manager.ts`/`sync_adapter.ts` + 死 UI/API（`engine-sync`/`GlobalSettingsSyncSection`/`useSyncOperations`/`ConflictResolveModal` + settings 表单 sync 插桩 + `settings.sync.*` locale 键）+ 文档标注废弃。**保留 domain `SyncConfig`/`sync_unsafe`/`dictToSyncConfig` 保旧数据反序列化**。引擎 742/742 + UI 155/155 + tsc + i18n 全绿。**已合本地 main。**
+3. ✅ **Python sidecar 退役 + cargo 编译验证**：删 `src-python/`（53 文件）+ `lib.rs`（−177 行，砍 SidecarState/spawn/resolve）+ `tauri.conf.json`（移除 bundle.resources sidecar）+ capabilities/config_resolver + i18n + 文档；解 v0.1.3 PyInstaller fastembed 打包阻塞。**桌面 `cargo check` 本地实测通过**（本机装 rustc 1.96.0 MSVC + VS 2022 BuildTools；`cargo check` 2m24s，exit 0）→ Rust 改动**已编译验证，不再是合并阻塞**。在 `chore/cleanup-sidecar-retire`（`d03db72`）。
+4. ✅ **card chrome 组件抽取**：simple 消息卡片重复 markup 收敛到 `ui/simple/messages/cardChrome.tsx` 单一真相源 —— `CardEyebrow`（gold-bright eyebrow，4 卡）/ `CardStatusBanner`（icon+tinted 状态条，info/warning/error，吸收 SystemMessage 的 tone 表 + 3 处卡片 error div）/ `ExpandToggle`（chevron 展开/折叠，5 处）/ `ActionFooter`（`border-t border-rule` footer，5 处）。接入 4 卡片 + SystemMessage。`tsc` 干净 + UI **155/155**（1 例 `useContextTokenCount` 已知 load-flaky，隔离跑绿）+ dev-server 实测（eyebrow/展开-折叠/footer 渲染正确，0 新 console 报错）。**与 `ui/shared/InlineBanner` 刻意不合并**（后者是 Library/Writer 顶栏的 message+actions 编辑性 chrome，无 icon，正交）。注：drawer 段标签（5×）+ ReadingView footer/banner（3×，`text-sm` 变体）同型但元素/尺寸不同，留下一轮。**未 commit**。
+
 ### 下次会话第一件事
 
-1. ✅ **已完成（2026-06-13）真实测简版出章**：ds key 走 onboarding 内置 API 配置（强制连接测试通过）→ 切简版 → 进 AU 落「对话」tab → DeepSeek 流式出 491 字中文章 → 接受 → `chapters/main/ch0001.md` + `.well-known/simple-chat.yaml` 落盘（web 端存 IndexedDB `ficforge_fs`，非 OPFS）→ 刷新全恢复，零回归。
-2. ✅ **已完成（2026-06-13）M7 同步退役**：审计发现 `sync/ops_merge.ts` 是「核心投影+同步」混合文件 → 外科式迁 `src-engine/ops/ops_projection.ts`（保留 rebuild/lamport，新增 `sortAndDedupeOps` 替 `mergeOps`，剥离多设备 `mergeOps`/`detectConflicts`/`Conflict`/`MergeResult`/`syncLamportClock`/`getCurrentLamportClock`）；删 `sync_manager.ts`/`sync_adapter.ts` + 死 UI/API（`engine-sync`/`GlobalSettingsSyncSection`/`useSyncOperations`/`ConflictResolveModal` + settings 表单 sync 插桩 + `settings.sync.*` locale 键）+ 文档标注废弃。**保留 domain `SyncConfig`/`sync_unsafe`/`dictToSyncConfig` 保旧数据反序列化**。引擎 742/742 + UI 155/155 + tsc + i18n 全绿。
+1. **合并 + push**：`chore/cleanup-sidecar-retire`（sidecar + cleanup + card chrome）→ main，然后 main push origin（当前 main 领先 origin **16**、chore 领先 **18**，全未推）。**等用户**。
+2. **真机 Android 测简版出章**（用户侧）。
 3. **代码质量硬化**：`docs/internal/plans/system-optimization-{roadmap,execution-plan}-2026-04-19.md`（Settings/Project 契约收窄、真 SecretStore、写入串行化）。
 
-> 之后的大功能 **M8 Memory 三层架构**（Fact/ChapterSummary/Thread）本轮先不做。Phase 2 在 `feat/converge-simple-phase2`，**未 push、未合 main**；main（Phase 1 + docs）也未 push origin。
+> 之后的大功能 **M8 Memory 三层架构**（Fact/ChapterSummary/Thread）本轮先不做。**main（Phase 1+2+M7+硬化，`451d58c`）领先 origin **16**、未 push；chore 分支领先 **18**、未合 main。**
 
 ### 并行支线（正交于收敛，部分已被超越）
 
