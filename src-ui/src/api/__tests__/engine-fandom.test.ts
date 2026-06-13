@@ -40,7 +40,7 @@ describe("engine-fandom deleteFandom", () => {
     const restored = await listFandoms();
     expect(restored).toHaveLength(1);
     expect(restored[0].name).toBe("Naruto");
-    expect(restored[0].aus).toEqual([{ name: "Canon", dir_name: "Canon" }]);
+    expect(restored[0].aus).toEqual([{ name: "Canon", dir_name: "Canon", chapter_count: 0, has_dirty: false }]);
     expect(adapter.raw(`${fandom.path}/core_worldbuilding/village.md`)).toBe("# Konoha");
     expect(adapter.raw(`${au.path}/project.yaml`)).toContain("Canon");
     expect(adapter.raw(`${au.path}/chapters/main/ch0001.md`)).toBe("# Chapter 1");
@@ -68,7 +68,7 @@ describe("engine-fandom deleteFandom", () => {
       {
         name: "Detroit: Become Human / RK800?",
         dir_name: fandom.dir_name,
-        aus: [{ name: "Ch.1 - Prologue: 100%?", dir_name: au.dir_name }],
+        aus: [{ name: "Ch.1 - Prologue: 100%?", dir_name: au.dir_name, chapter_count: 0, has_dirty: false }],
       },
     ]);
   });
