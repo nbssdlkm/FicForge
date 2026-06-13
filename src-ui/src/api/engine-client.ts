@@ -127,5 +127,16 @@ export { listFandoms, getFandomDisplayInfo, createFandom, listAus, createAu, del
 export { exportChapters, importChaptersFromText } from "./engine-export";
 export { migrateLegacySecureStorage } from "./engine-security";
 
+// ---------------------------------------------------------------------------
+// Simple-mode (Phase 2) re-exports
+// ---------------------------------------------------------------------------
+export { dispatchSimpleChat } from "./engine-simple-dispatch";
+export type { DispatchSimpleChatParams, SimpleChatEvent } from "./engine-simple-dispatch";
+export { getSimpleChat, saveSimpleChat, clearSimpleChat } from "./engine-simple-chat";
+export type { SimpleChatFile, SimpleChatMessageEnvelope } from "./engine-simple-chat";
+export { estimateSimpleContextTokens } from "./engine-tokens";
+export type { SimpleContextTokenEstimate } from "./engine-tokens";
+export { SIMPLE_TOOL_SHOW_CHAPTER, SIMPLE_TOOL_SHOW_SETTING } from "@ficforge/engine";
+
 // Logger re-exports
 export { initLogger, getLogger, logCatch } from "@ficforge/engine";
