@@ -80,17 +80,9 @@ npx tauri build    # 自动调用 npm run build + Rust 编译
 - macOS: `src-tauri/target/release/bundle/dmg/`
 - Windows: `src-tauri/target/release/bundle/msi/` 或 `nsis/`
 
-#### Python Sidecar（可选，本地 Embedding）
+#### Embedding（云端 API）
 
-桌面端可选捆绑 Python sidecar 用于本地 embedding（bge-small-zh）：
-
-```bash
-cd src-python
-pip install pyinstaller
-python build_sidecar.py    # 产出 dist/fanfic-sidecar/
-```
-
-Tauri 构建时会自动从 `src-python/dist/fanfic-sidecar/` 复制到 bundle 的 `sidecar/` 目录。若该目录不存在，桌面端仍可正常运行，仅无法使用本地 embedding（可用远端 API 替代）。
+Embedding 三端统一走云端 API（OpenAI / Voyage / 智谱 / 硅基流动等，OpenAI 兼容），在全局设置里配置即可。**Python embedding sidecar 已于 M7 退役**（`src-python/` 已删除）—— 桌面端不再捆绑任何 Python 运行时，无额外构建步骤。
 
 #### 注意事项
 
@@ -143,7 +135,7 @@ JAVA_HOME="C:/Program Files/Android/Android Studio/jbr" \
 
 - `capacitor.config.json` 中 `appId` 为 `com.ficforge.app`
 - `android/app/build.gradle` 中 `versionCode` 和 `versionName` 需手动更新
-- Android 端无 Python sidecar，embedding 依赖远端 API
+- embedding 依赖远端 API（云端 OpenAI 兼容 embedding 服务）
 - 最低 SDK 版本由 `android/variables.gradle` 中 `minSdkVersion` 控制
 - `JAVA_HOME` 必须指向 Android Studio 内置的 JBR，系统 PATH 里的 java 不可用
 - Gradle wrapper（`gradlew.bat`）版本由 Android Studio 管理，Capacitor sync 后如有提示需升级则按提示操作
@@ -203,9 +195,8 @@ cp app-signed.apk release/android/FicForge_0.2.0_android.apk
 |------|------|------|
 | PWA / Capacitor web assets | `dist/` | ~2.4 MB |
 | PWA 首屏加载（不含 tokenizer） | JS + CSS | ~1.3 MB (gzip ~390 KB) |
-| Tauri Windows (NSIS, 含 sidecar) | `.exe` 安装包 | ~106 MB |
-| Tauri Windows (MSI, 含 sidecar) | `.msi` 安装包 | ~137 MB |
-| Tauri Windows (无 sidecar) | 安装包 | ~15 MB |
+| Tauri Windows (NSIS) | `.exe` 安装包 | ~15 MB |
+| Tauri Windows (MSI) | `.msi` 安装包 | ~15 MB |
 | Android APK (signed) | `.apk` | ~4 MB |
 
 ### 首屏加载明细

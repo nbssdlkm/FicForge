@@ -32,7 +32,7 @@ async function resolveFactsProvider(auPath: string): Promise<{
   const proj = await e.repos.project.get(auPath);
   const sett = await e.repos.settings.get();
   const llmConfig = resolve_llm_config(null, proj, sett);
-  // api 和 ollama 都走 OpenAI 兼容协议，均可用。local 需要 sidecar 扩展，未实现。
+  // api 和 ollama 都走 OpenAI 兼容协议，均可用。local（本地模型加载）随 sidecar 退役本版本不支持。
   if (llmConfig.mode === "local") {
     throw new Error("Facts 提取暂不支持 local 模式，请切换到 API 或 Ollama");
   }

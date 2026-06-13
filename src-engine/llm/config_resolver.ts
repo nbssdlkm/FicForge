@@ -138,8 +138,9 @@ export function resolve_llm_params(
  *                所以直接复用 OpenAICompatibleProvider。api_base 为空时默认
  *                http://localhost:11434/v1；api_key 为空时填 dummy "ollama"
  *                （Ollama 不校验 key，但 OpenAI SDK 要求非空）
- *   - "local"  → 本地模型文件。当前需要 Python sidecar 扩展支持，未实现；
- *                UI 通过 capabilities.ts 禁用此选项，此处保留运行时防护。
+ *   - "local"  → 本地模型加载。曾依赖 Python sidecar，sidecar 已退役（D-0040/M7），
+ *                本版本不支持（本地模型请用 ollama）；UI 通过 capabilities.ts 不渲染
+ *                此选项，此处保留运行时防护（防手改 YAML）。
  */
 export function create_provider(llmConfig: ResolvedLLMConfig): LLMProvider {
   const mode = llmConfig.mode;
@@ -159,7 +160,9 @@ export function create_provider(llmConfig: ResolvedLLMConfig): LLMProvider {
   }
 
   if (mode === "local") {
-    throw new Error("local 模式需要 Python sidecar 扩展支持，当前版本暂未实现");
+    // local（内置模型加载）曾依赖 Python sidecar，sidecar 已退役（D-0040 / M7）。
+    // 本地模型请改用 Ollama（ollama 模式，OpenAI 兼容，三端可用）。
+    throw new Error("本版本不支持 local 模式（本地模型加载）。请改用 Ollama 或在线 API。");
   }
 
   throw new Error(`未知的 LLM mode: ${mode}`);

@@ -25,7 +25,7 @@ Platform Adapter
   └── WebAdapter       PWA（OPFS/WebDAV）
 
 壳层
-  ├── Tauri 壳 + 可选 Python sidecar（仅本地 embedding）
+  ├── Tauri 壳（embedding 走云端 API；Python sidecar 已退役 — M7，见下方）
   └── Capacitor 壳 (Android) / PWA (iOS/Web)
 ```
 
@@ -39,7 +39,7 @@ Platform Adapter
 | M1 | Repository 接口+实现、向量存储（JSON 分片）、ChromaDB 迁移脚本 | **已完成** |
 | M2 | Facts Lifecycle、Context Assembler、RAG、LLM Provider、Generation | **已完成** |
 | M3 | Confirm/Undo Chapter、Dirty Resolve、Import/Export | **已完成** |
-| M4 | Settings Chat、Trash、Recalc、前端 API 切换、SSE 消除、Sidecar 精简 | **已完成**（E.6 Sidecar 精简推迟决策） |
+| M4 | Settings Chat、Trash、Recalc、前端 API 切换、SSE 消除、Sidecar 精简 | **已完成**（E.6 sidecar 已退役删除 — M7，2026-06） |
 | M5 | 移动端 Capacitor/PWA、响应式 UI | **已完成**（ops 合并 + 数据同步**已废弃**，见 D-0040） |
 | M6 | Agent 架构 | **重开规划**，D-0032 作废，见 D-0043；触发条件满足后启动（预计 2026 Q3/Q4） |
 | M7 | 架构简化（同步退役 + ops 降级 audit log） | **已完成**：同步 UI 隐藏（`c4b0f42`）+ engine 同步引擎删除、`ops_merge.ts` 外科式迁 `src-engine/ops/`（剥离多设备合并/冲突检测、保留 rebuild/lamport 投影核心）、死 UI/API/locale/文档清理（feat/converge-simple-phase2，待人工合并） |
@@ -124,7 +124,7 @@ Platform Adapter
 
 - **简版 vs 主模式的产品定位**：简版最终是主力 UX、轻量入口、还是并存？影响 Phase 2 之后的 UI 取舍（需 PM 拍板）
 - **M6–M10**（Agent / 架构简化 / Memory 三层 / ReAct / Retrospective）：源自 PRD v5（out-of-repo），当前**不排期**，让位于简版收敛主线；概览见上方迁移阶段表
-- **M4-E.6 Sidecar 精简**：同步退役后 sidecar 唯一职能是本地 embedding，倾向退役（详见下方 Python 后端章节）
+- ✅ **M4-E.6 Sidecar 精简（已决策退役 2026-06）**：sidecar 已删除，embedding 走云端 API（详见下方 Python 后端章节）
 - **T7-7 观察**：RAG top_k=8 若不够，调 `rag_decay_coefficient` 0.05 → 0.03
 - **Eval Harness** 支线独立节奏：工程产出进 `src-engine/eval/`，学习笔记在 Obsidian `D:\MY LIFE\FicForge\Eval Harness\`
 
@@ -165,17 +165,13 @@ Platform Adapter
 | YAML 读写 | js-yaml |
 | Frontmatter | gray-matter |
 | Docx 导入 | mammoth.js |
-| 本地 Embedding | Python sidecar（**待决策**，bge-small-zh，见下方 Python 后端章节） |
+| Embedding | 云端 API（OpenAI / Voyage / 智谱 / 硅基流动等，OpenAI 兼容） |
 
-## Python 后端（src-python/，待决策）
+## Python 后端（src-python/，已退役 M7）
 
-**现状**：同步退役后（D-0040），sidecar 唯一职能是本地 embedding。
+**已退役（2026-06，M4-E.6）**：`src-python/` 整目录删除。原 Tauri 桌面端捆绑的 Python embedding sidecar（bge-small-zh）从未接入 `createEmbeddingProvider`（`/embed` 端点无消费者、`config_resolver` 直接 block `local` 模式），属断线死重。退役收益：砍 40-80MB 桌面包体、简化 Tauri 构建、消除 v0.1.3 PyInstaller fastembed 打包阻塞。
 
-**待决策**：保留 vs 退役
-- **保留**：桌面端用户离线可用（bge-small-zh）
-- **退役**：统一走云端 embedding API（Qwen / OpenAI），省维护成本
-
-倾向退役。但桌面端若将来真的想"离线完全可用"，则需保留。
+**现状**：embedding 三端统一走云端 API（OpenAI / Voyage / 智谱 / 硅基流动等）。`capabilities.ts` 把 `local` embedding/generation 标 `platform_unsupported`（UI 不渲染）；本地模型加载请用 Ollama（OpenAI 兼容，三端可用）。若将来要"桌面离线完全可用"，重开独立 feature 分支（缓存/内置向量），不复活 sidecar。
 
 ## 内部参考文档
 
@@ -307,7 +303,7 @@ grep -c "useState" src/ui/SomePage.tsx   # < 5 是健康
 
 迁移期沿用的原则（现为背景知识）：
 
-1. **Python 源码曾是最权威的规格说明书**（`src-python/` 仍在，冻结不改）。迁移完成后，**`src-engine/` TS 引擎已成为唯一现行实现 + 真相源**；新功能直接在 TS 引擎写，不再回 Python 比对
+1. **Python 源码曾是最权威的规格说明书**（`src-python/` **已于 M7 整目录删除** —— 迁移后只剩 embedding sidecar，已随 M4-E.6 退役）。**`src-engine/` TS 引擎是唯一现行实现 + 真相源**；新功能直接在 TS 引擎写
 2. Repository 接口签名直接对应 TypeScript interface
 3. 不改动现有 Python 代码（除补测试）
 4. 新 spec / 设计文档写到 `docs/superpowers/specs/`（devlog 旧目录已废）

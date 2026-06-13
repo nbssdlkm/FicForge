@@ -60,7 +60,7 @@ export async function sendSettingsChat(params: {
   // Settings chat relies on tool calling support.
   // - api: any OpenAI-compatible endpoint that supports tools
   // - ollama: supported by newer /v1-compatible models like llama3.1 / qwen2.5
-  // - local: not implemented in the current frontend/sidecar flow
+  // - local: unsupported this version (Python sidecar retired — D-0040/M7)
   if (llmConfig.mode === "local") {
     throw new Error("设定模式对话暂不支持 local 模式，请切换到 API 或 Ollama。");
   }

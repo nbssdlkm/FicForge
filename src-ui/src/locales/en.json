@@ -852,12 +852,9 @@
     "later": "Later"
   },
   "app": {
-    "sidecar": {
-      "exited": "Backend engine exited: {{reason}}",
-      "timeout": "Backend engine startup timed out (30s). Please restart the app.",
-      "error": "Engine Error",
-      "restartHint": "Please restart the app, or check the log files.",
-      "initializing": "Initializing local engine…"
+    "initError": {
+      "title": "Engine Error",
+      "restartHint": "Please restart the app, or check the log files."
     },
     "splash": {
       "subtitle": "粮坊",

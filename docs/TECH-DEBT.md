@@ -60,9 +60,9 @@ undo_latest_chapter 在撤销章节时，会通过 `collectManualStatusRollback`
 
 ---
 
-## TD-005: Embedding 功能不完整（AU 覆盖 + 本地 sidecar 均未接入）
+## TD-005: Embedding 功能不完整（AU 覆盖未接入；本地 sidecar 已随退役消解）
 
-**状态:** 待修复（v0.3.0 二次审计发现）
+**状态:** 部分修复 —— 5b（本地 sidecar embedding）随 M7 sidecar 退役消解（2026-06）；5a（AU 级 embedding_lock 覆盖）仍待修复
 **优先级:** 中（文档/UI 承诺了该能力但实际不工作，用户无感）
 **涉及文件:** `src-engine/llm/embedding_provider.ts`, `src-engine/llm/capabilities.ts`,
 `src-ui/src/api/engine-state.ts`, `src-ui/src/api/engine-generate.ts`,
@@ -76,30 +76,23 @@ undo_latest_chapter 在撤销章节时，会通过 `collectManualStatusRollback`
 配置独立的 embedding 服务），但 `createEmbeddingProvider(sett)` 只读取全局
 `settings.embedding`，**完全无视 `project.embedding_lock`**。
 
-### 5b. 本地 Embedding（Python sidecar）从未接入引擎
+### 5b. 本地 Embedding（Python sidecar）—— 已随退役消解（M7，2026-06）
 
-TS 引擎只实现了 `RemoteEmbeddingProvider`（`/v1/embeddings` 远程端点），
-**没有 `LocalEmbeddingProvider`**。Python sidecar 的 `/embed` 端点存在，
-但 `createEmbeddingProvider` 不会构造消费它的 provider。因此：
+原缺陷：TS 引擎只有 `RemoteEmbeddingProvider`，从未接入 sidecar 的 `/embed`。
+**M7 决策直接退役 sidecar**（删 `src-python/`）而非补接入 —— 本地 embedding 不再是目标。
+`capabilities.ts` 的 `EMBEDDING_MATRIX.tauri.local` 已从 `coming_soon` 改为
+`platform_unsupported`（UI 不渲染）。本地向量需求走云端 embedding API；若将来要桌面
+离线，重开独立 feature 分支。**本子项无需再修。**
 
-- 全局 `settings.embedding.mode=LOCAL` 在代码上等价于 "不配置 embedding"
-- 本次审计已把 `capabilities.ts` 的 `EMBEDDING_MATRIX.tauri.local` 从
-  `available: true` 降级为 `coming_soon`，避免 UI 允许但实际不工作
-- 等本修复完成再改回 `available: true`
+**修复方向（仅剩 5a — AU 级 embedding_lock 覆盖）:**
 
-**修复方向:**
-
-1. 新增 `SidecarEmbeddingProvider implements EmbeddingProvider`，调用 Python
-   sidecar 的 `POST /embed`；
-2. `createEmbeddingProvider` 改签名：`(sett, project?, sidecarUrl?) => EmbeddingProvider | undefined`；
-   优先级：`project.embedding_lock.api_key` → `settings.embedding (api)` → `sidecar (local)`；
-3. 所有调用点传入 `project`（`engine-generate.ts`、`confirmChapter` 里的
+1. `createEmbeddingProvider` 改签名：`(sett, project?) => EmbeddingProvider | undefined`；
+   优先级：`project.embedding_lock.api_key` → `settings.embedding (api)`；
+2. 所有调用点传入 `project`（`engine-generate.ts`、`confirmChapter` 里的
    indexChapter 调用、`rebuildIndex`）；
-4. `embedding_lock` 在 `file_project.ts` 里已经加入了 `projectSecureSpecs`（P0-3），
-   所以 `embedding_lock.api_key` 已经不会进 `project.yaml` 明文 —— 本修复只影响
-   "读取后如何使用"；
-5. `capabilities.ts` 把 Tauri 的 local 改回 `available: true`；
-6. 补测：generation/RAG 的 "AU embedding_lock 优先于 settings"、"Tauri 回退到 sidecar" 断言。
+3. `embedding_lock` 在 `file_project.ts` 里已加入 `projectSecureSpecs`（P0-3），
+   `embedding_lock.api_key` 不进 `project.yaml` 明文 —— 本修复只影响"读取后如何使用"；
+4. 补测：generation/RAG 的 "AU embedding_lock 优先于 settings" 断言。
 
 **关联:** 与 TD-004（secureStorage 真加密）、TD-006（MobileOnboarding
 embedding 默认 mode）放在同一轮"embedding + 凭据一致性"修复批次。

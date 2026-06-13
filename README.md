@@ -42,7 +42,7 @@ FicForge takes a different approach: **you decide what matters, AI injects it pr
 
 - **All data stays on your device.** FicForge does not upload your data to any server we control — we don't have servers
 - When you use AI writing features, your content is sent to the API provider you configure (e.g. DeepSeek) — this is necessary for generation and is under your control
-- Semantic search uses local embedding on desktop (optional Python sidecar) or API embedding on mobile — your choice
+- Semantic search uses an API embedding model you configure in Global Settings (OpenAI-compatible) — your choice of provider
 
 ---
 
@@ -138,7 +138,7 @@ In the Write tab → tap the export icon → choose format (Markdown / plain tex
 - **Models**: Any OpenAI-compatible API — DeepSeek, GPT, Ollama, local models
 - **Language**: Bilingual UI (中文 / English), switch anytime
 - **Import**: txt / md / html / json with automatic chapter splitting and AI chat log parsing
-- **Embedding**: Desktop ships with local Chinese embedding model (bge-small-zh). Mobile/PWA and English users should configure an API embedding model in Global Settings
+- **Embedding**: Configure an API embedding model (OpenAI-compatible — OpenAI / Voyage / Zhipu / SiliconFlow etc.) in Global Settings; used for semantic search / RAG across all platforms
 
 ---
 
@@ -169,7 +169,7 @@ See [ETHICS.md](ETHICS.md) for our full statement.
 |-------|-----------|
 | Core Engine | TypeScript (src-engine/, shared across all platforms) |
 | Frontend | React + Vite + TailwindCSS |
-| Desktop | Tauri 2 + optional Python sidecar (local embedding) |
+| Desktop | Tauri 2 |
 | Mobile | Capacitor (Android) / PWA (iOS/Web) |
 | Vector Search | JSON shards + in-memory cosine similarity |
 | LLM | Native fetch (OpenAI-compatible API) |

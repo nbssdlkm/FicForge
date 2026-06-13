@@ -7,8 +7,8 @@
  * 规则：
  * - api 所有平台可用
  * - ollama 所有平台可用（移动端/Web 带 hintKey 提示填局域网地址）
- * - local 目前都不可用：桌面标 coming_soon（UI 会渲染但禁用），
- *   移动/Web 标 desktop_only（UI 不渲染）
+ * - local 三端都不可用：sidecar 退役后桌面标 platform_unsupported（UI 不渲染），
+ *   移动/Web 标 desktop_only（UI 不渲染）。本地模型走 ollama。
  */
 
 import { describe, it, expect } from "vitest";
@@ -19,13 +19,13 @@ import {
 } from "../capabilities.js";
 
 describe("getGenerationModeAvailability", () => {
-  it("Tauri 桌面：api/ollama 可用，local coming_soon", () => {
+  it("Tauri 桌面：api/ollama 可用，local platform_unsupported（sidecar 退役）", () => {
     const m = getGenerationModeAvailability("tauri");
     expect(m.api.available).toBe(true);
     expect(m.ollama.available).toBe(true);
     expect(m.ollama.hintKey).toBeUndefined();
     expect(m.local.available).toBe(false);
-    expect(m.local.reason).toBe("coming_soon");
+    expect(m.local.reason).toBe("platform_unsupported");
   });
 
   it("Capacitor 移动端：api/ollama 可用（ollama 带远程提示），local desktop_only", () => {
@@ -48,11 +48,9 @@ describe("getGenerationModeAvailability", () => {
 });
 
 describe("listGenerationModes", () => {
-  it("Tauri 返回 api/ollama/local 三项（local 渲染但 disabled）", () => {
+  it("Tauri 不渲染 local（sidecar 退役后 platform_unsupported）", () => {
     const list = listGenerationModes("tauri");
-    expect(list.map((m) => m.mode)).toEqual(["api", "ollama", "local"]);
-    expect(list[2].availability.available).toBe(false);
-    expect(list[2].availability.reason).toBe("coming_soon");
+    expect(list.map((m) => m.mode)).toEqual(["api", "ollama"]);
   });
 
   it("Capacitor 不渲染 local（desktop_only）", () => {
@@ -67,11 +65,11 @@ describe("listGenerationModes", () => {
 });
 
 describe("getEmbeddingModeAvailability", () => {
-  it("Tauri：api 可用；local 先标 coming_soon（sidecar 消费未接入，见 TD-005）", () => {
+  it("Tauri：api 可用；local platform_unsupported（sidecar 退役，embedding 走云端）", () => {
     const m = getEmbeddingModeAvailability("tauri");
     expect(m.api.available).toBe(true);
     expect(m.local.available).toBe(false);
-    expect(m.local.reason).toBe("coming_soon");
+    expect(m.local.reason).toBe("platform_unsupported");
   });
 
   it("移动端 / Web：只支持 api（Python 运行时不可用）", () => {

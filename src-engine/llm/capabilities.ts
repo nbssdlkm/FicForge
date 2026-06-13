@@ -60,14 +60,14 @@ export interface ModeAvailability {
  * - api：所有平台都是一等公民
  * - ollama：协议兼容 OpenAI，三端都能跑；但移动端/Web 默认 localhost 连不上，
  *   用户需要自己填局域网 IP 或反向代理地址 —— 用 hintKey 提示
- * - local：当前需要 Python sidecar 扩展（未实现），三端都暂不可用。
- *   桌面端标记 coming_soon（UI 渲染但禁用），移动端/Web 标记 desktop_only（不渲染）
+ * - local：曾计划用 Python sidecar 加载内置模型，但 sidecar 已退役（D-0040 / M7）。
+ *   三端均不支持本地加载 —— 想用本地模型请走 Ollama（OpenAI 兼容，三端可用）。
  */
 const GENERATION_MATRIX: Record<Platform, Record<LLMModeKey, ModeAvailability>> = {
   tauri: {
     api: { available: true },
     ollama: { available: true },
-    local: { available: false, reason: "coming_soon" },
+    local: { available: false, reason: "platform_unsupported" },
   },
   capacitor: {
     api: { available: true },
@@ -111,17 +111,14 @@ export function listGenerationModes(platform: Platform): {
  * Embedding 可用的模式。
  *
  * - api：所有平台 —— 远程 embedding 服务（OpenAI / Voyage / 智谱等）
- * - local：
- *   - 桌面端(Tauri) 设计上通过 Python sidecar 跑内置 bge-small-zh；
- *     但 TS 引擎目前**只实现了 RemoteEmbeddingProvider**，sidecar `/embed` 端点
- *     尚未接入 createEmbeddingProvider（见 TD-005）。为避免"UI 允许但实际不工作"
- *     的断层，桌面端也先标 coming_soon。等 sidecar 消费路径接好后再改回 available。
- *   - 移动端 / Web：Python 运行时本来就不可用，标 desktop_only。
+ * - local：曾计划桌面端通过 Python sidecar 跑内置 bge-small-zh，但 sidecar 已退役
+ *   （D-0040 / M7）—— embedding 统一走云端 API（OpenAI / Voyage / 智谱 / 硅基流动等）。
+ *   三端均不支持本地 embedding。
  */
 const EMBEDDING_MATRIX: Record<Platform, Record<EmbeddingModeKey, ModeAvailability>> = {
   tauri: {
     api: { available: true },
-    local: { available: false, reason: "coming_soon" },
+    local: { available: false, reason: "platform_unsupported" },
   },
   capacitor: {
     api: { available: true },

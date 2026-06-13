@@ -7,14 +7,15 @@
 - Node.js 18+
 - A valid API key for any OpenAI-compatible LLM (DeepSeek recommended)
 
-### Backend
+### Engine (TypeScript core)
 ```bash
-cd src-python
-pip install -r requirements.txt
-PYTHONPATH=. python main.py
+cd src-engine
+npm install
+npm test          # vitest
 ```
 
-### Frontend
+### Frontend / App
+```
 ```bash
 cd src-ui
 npm install
@@ -27,8 +28,8 @@ npm run dev
 2. Create a feature branch (`git checkout -b feat/your-feature`)
 3. Make your changes
 4. Run tests:
-   - Backend: `cd src-python && python -m pytest -x -q`
-   - Frontend: `cd src-ui && npm run build`
+   - Engine: `cd src-engine && npm test`
+   - Frontend: `cd src-ui && npm run build && npm test`
    - i18n sync: `cd src-ui && npm run i18n:check`
 5. Submit a Pull Request
 

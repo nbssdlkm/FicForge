@@ -27,9 +27,9 @@ export async function* generateChapter(params: {
   const sett = await e.repos.settings.get();
 
   // 验证 LLM 模式。api 和 ollama 走 OpenAI 兼容协议，正常放行。
-  // local 需要 Python sidecar 扩展，当前未实现 —— 在 create_provider 里抛错之前
-  // 提前拦截，给前端友好的 error_code（UI 层 capabilities.ts 已禁用选项，
-  // 此处作为防手改 YAML 的最后防线）。
+  // local（内置模型加载）随 Python sidecar 退役（D-0040/M7）本版本不支持 —— 在
+  // create_provider 里抛错之前提前拦截，给前端友好的 error_code（UI 层 capabilities.ts
+  // 已不渲染该选项，此处作为防手改 YAML 的最后防线）。
   const llmConfig = resolve_llm_config(
     params.session_llm ?? null,
     proj,
@@ -40,7 +40,7 @@ export async function* generateChapter(params: {
       event: "error",
       data: {
         error_code: "UNSUPPORTED_MODE",
-        message: "local 模式需要 Python sidecar 扩展支持，当前版本暂未实现。请在设置中切换到 API 或 Ollama 模式。",
+        message: "本版本不支持 local 模式（本地模型加载）。请在设置中切换到 API 或 Ollama 模式。",
         actions: ["check_settings"],
       },
     };

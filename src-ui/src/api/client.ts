@@ -3,17 +3,10 @@
 // See LICENSE file in the project root for full license text.
 
 /**
- * API Client — 错误处理 + sidecar URL 构建。
+ * API Client — 错误码 → 友好消息映射（i18n）。
  */
 
 import i18n from "../i18n";
-
-/** Sidecar 默认端口（开发环境 FastAPI 端口） */
-const SIDECAR_BASE = "http://127.0.0.1:54284";
-
-export function buildApiUrl(path: string): string {
-  return `${SIDECAR_BASE}${path}`;
-}
 
 export class ApiError extends Error {
   constructor(

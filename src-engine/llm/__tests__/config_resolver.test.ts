@@ -109,10 +109,10 @@ describe("create_provider", () => {
     ).toThrow(/ollama_model/i);
   });
 
-  it("mode=local 抛错（未实现）", () => {
+  it("mode=local 抛错（sidecar 退役后本版本不支持）", () => {
     expect(() =>
       create_provider({ mode: "local", model: "", api_base: "", api_key: "" }),
-    ).toThrow(/local.*未实现|not.*implemented|sidecar/i);
+    ).toThrow(/不支持.*local|local.*不支持|本地模型|not.*implemented/i);
   });
 
   it("未知 mode 抛错", () => {

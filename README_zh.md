@@ -139,7 +139,7 @@ AI 会生成角色设定文件 → 你逐条确认后保存。也可以在设定
 - **模型**：支持所有 OpenAI 兼容 API——DeepSeek、GPT、Ollama、本地模型
 - **语言**：中英双语界面，随时切换
 - **导入**：支持 txt / md / html / json，自动切分章节 + AI 对话记录解析
-- **向量检索**：桌面端自带中文向量模型（bge-small-zh）。移动端和英文写作用户请在全局设置中配置 API Embedding 模型
+- **向量检索**：在全局设置中配置 API Embedding 模型（OpenAI 兼容 —— OpenAI / Voyage / 智谱 / 硅基流动等），三端通用，用于语义检索 / RAG
 
 ---
 
@@ -170,7 +170,7 @@ AI 会生成角色设定文件 → 你逐条确认后保存。也可以在设定
 |------|------|
 | 核心引擎 | TypeScript (src-engine/，三端共用) |
 | 前端 | React + Vite + TailwindCSS |
-| 桌面端 | Tauri 2 + 可选 Python sidecar（本地 embedding） |
+| 桌面端 | Tauri 2 |
 | 移动端 | Capacitor (Android) / PWA (iOS/Web) |
 | 向量检索 | JSON 分片 + 内存余弦相似度 |
 | LLM 调用 | 原生 fetch（OpenAI 兼容接口） |

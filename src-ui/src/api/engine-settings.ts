@@ -316,7 +316,7 @@ export async function testConnection(params: {
     if (params.mode === "local") {
       return {
         success: false,
-        message: "local 模式续写生成暂未实现（需要 Python sidecar 扩展）",
+        message: "本版本不支持 local 模式（本地模型加载）。请切换到 API 或 Ollama。",
         error_code: "mode_not_implemented",
       };
     }

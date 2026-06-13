@@ -55,7 +55,7 @@ export async function* dispatchSimpleChat(
       type: "error",
       data: {
         error_code: "UNSUPPORTED_MODE",
-        message: "local 模式需要 Python sidecar 支持，简版未实现。请切换到 API 或 Ollama 模式。",
+        message: "本版本不支持 local 模式（本地模型加载）。请切换到 API 或 Ollama 模式。",
         actions: ["check_settings"],
         partial_draft_label: null,
       },
