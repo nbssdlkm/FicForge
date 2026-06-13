@@ -5,7 +5,7 @@
  * Engine Settings query/command layer.
  */
 
-import { OpenAICompatibleProvider, RemoteEmbeddingProvider, type Settings } from "@ficforge/engine";
+import { OpenAICompatibleProvider, RemoteEmbeddingProvider, isWritingMode, type Settings, type WritingMode } from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
 import type {
   AppPreferencesInput,
@@ -224,9 +224,18 @@ export async function saveAppPreferences(payload: AppPreferencesInput) {
     current.app = {
       ...current.app,
       ...(payload.language ? { language: payload.language as Settings["app"]["language"] } : {}),
+      ...(payload.writing_mode && isWritingMode(payload.writing_mode)
+        ? { writing_mode: payload.writing_mode }
+        : {}),
     };
     return current.app;
   });
+}
+
+/** Read the persisted writing mode. settings.yaml is the source of truth. */
+export async function getWritingMode(): Promise<WritingMode> {
+  const settings = await readSettings();
+  return settings.app.writing_mode;
 }
 
 export async function saveSyncSettings(payload: SyncSettingsSaveInput) {

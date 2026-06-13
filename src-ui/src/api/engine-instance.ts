@@ -19,6 +19,7 @@ import {
   FileProjectRepository,
   FileSettingsRepository,
   FileStateRepository,
+  FileSimpleChatRepository,
   TrashService,
   RagManager,
   JsonVectorEngine,
@@ -43,6 +44,7 @@ export interface EngineInstance {
     project: FileProjectRepository;
     settings: FileSettingsRepository;
     state: FileStateRepository;
+    simpleChat: FileSimpleChatRepository;
   };
   trash: TrashService;
   vectorEngine: JsonVectorEngine;
@@ -68,6 +70,7 @@ export function initEngine(adapter: PlatformAdapter, dataDir: string): void {
       project: new FileProjectRepository(adapter),
       settings: new FileSettingsRepository(adapter, dataDir),
       state: new FileStateRepository(adapter),
+      simpleChat: new FileSimpleChatRepository(adapter),
     },
     trash: new TrashService(adapter),
     vectorEngine,
