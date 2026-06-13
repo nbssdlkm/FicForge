@@ -51,27 +51,32 @@ Platform Adapter
 
 ## 活跃工作（当前分支）
 
-**当前分支：`feat/converge-simple-phase1`** —— 已 commit，tree clean，**未合并 main**（合并需人工指示，CC 不自行 merge）。
+**当前分支：`feat/converge-simple-phase2`** —— Phase 1 已 FF 合入 main，Phase 2 已 commit、**未 push / 未合并**（等真机 + 人工）。
 
 ### 简版收敛（当前主线）
 
 把简版 fork（`D:\fanfic-system-simple`，分支 `feat/agent-harness-v1`，agent-harness / 工具调用、聊天式续写）验证过的引擎收敛回主仓 —— 两种写作模式经 `AppConfig.writing_mode`（`'full' | 'simple'`，默认 `full`）单一运行时开关共存，**不再维护两套代码库**。设计 spec：`docs/superpowers/specs/2026-06-02-converge-simple-into-main-phase1-design.md`。
 
-**Phase 1（引擎层）—— 已完成 + 2026-06-13 独立复核可合：**
+**Phase 1（引擎层）—— 已完成 + 复核可合 + 已 FF 合入 main（origin 未 push）：**
 - 端口 agent_loop / agent_telemetry / tool_args_repair / tool_stream_buffer / simple 上下文组装 / simple_chat_dispatch / simple tools / simple-chat 持久化，全部进 `src-engine/`
 - `getSimpleFeatures(mode)` 纯函数派生 4 flag 取代 `SIMPLE_FEATURES` const；`assemble_context` 加可选 `writingMode='full'` 参数（无模块级 ambient 状态）；generation RAG gate 改读 config
 - **零回归红线已验证**：`full` 默认下 golden/budget/confirm/undo 测试与 main 逐字节一致；唯二预期 delta = prompt keys 55→58 + 一个 `forced_tool_choice_unsupported` 用例
 - 复核证据（独立跑过，非信 commit message）：`vitest run` **749/749 绿**（68 文件）、`tsc --noEmit` 干净（engine + src-ui 均绿 → 引擎改动纯 additive）、0 处 `SIMPLE_FEATURES` const / ambient 残留
 - branch vs main：**44 文件，+6398/-27，纯 src-engine + 测试，零 src-ui 改动**
-- **待人工决定**：合并到 main
+- **已合并到 main**（fast-forward，含本 CLAUDE.md 刷新）；origin 未 push
 
-**Phase 2（UI 接入）—— 待启动：**
-- 把 fork 的 `src-ui/src/ui/simple/` 整棵树（SimpleChatPanel / SimpleReadingView / SimpleChatHistory|Input / 4 hook / messages 卡片 / chat-to-llm）+ 3 个薄 API wrapper（engine-simple-dispatch / engine-simple-chat / engine-tokens）端口进主仓
-- **第一个 must-fix**：`engine-instance.ts` 注册 `FileSimpleChatRepository`（引擎已导出但 UI 侧未接线，否则 `repos.simpleChat` 抛错）
-- **核心设计决策**：fork 用编译期 `SIMPLE_FEATURES` 门控全部 simple UI；主仓须改为运行时读 `writing_mode`（建议 workspace 挂载时一次性读、经小 hook/context 下发，避开 ~6 处 `getAuLandingPage()` 各自 async 读）
-- `writing_mode` 开关放 GlobalSettingsModal（app 级全局），需扩 `AppPreferencesInput` + `saveAppPreferences`（当前只持久化 language —— **silent-drop 陷阱**，新字段须走完整 round-trip）
-- i18n：主仓 locales 尚无 `simple.*` 命名空间，从 fork 拷（注意 UTF-8 no-BOM）
-- 相关债 **TD-015**（简版↔主 import/export 数据迁回）：非 Phase 2 阻塞项，简版有真实迁回需求时再做
+**Phase 2（UI 接入）—— 已完成（代码 + 测试全绿），在 `feat/converge-simple-phase2`，待真机 + 合并：**
+- spec：`docs/superpowers/specs/2026-06-13-converge-simple-phase2-ui-design.md`（**Rev 3**，过两轮 code-grounded 对抗 review，抓出竞态/移动端编译断/落地点错/英文看中文并修在 spec 阶段）
+- 端口整棵 `ui/simple/`（26 文件）+ 3 个 API wrapper + `landing(mode)`；`engine-instance` 注册 `simpleChat`
+- 运行时门控：`useWritingMode`（**同步 localStorage 镜像 `ficforge_writing_mode`** 防 async-默认竞态，镜像 i18n language 模式）+ `AuWorkspaceLayout` 挂载快照（`key={auPath}` 每次进 AU 重快照 → 作品内切模式不打断当前会话）
+- 移动端**外科式**加「对话」tab/slot（grid 4→5），`isSimple` 走 prop（禁移动端调 live hook），**保留** MAIN 的 `MobileSettingsView` FAB + `currentChapter`（fork 的删除属 out-of-scope）
+- 落地点 `getAuLandingPage(mode)`：`LibraryFandomSections:245`（主入口）/ `Library:71` / `useLibraryMutations:92`
+- `GlobalSettingsModal` 加 `writing_mode` 开关（save-on-change）；`saveAppPreferences` round-trip 修复（原只默存 language）
+- i18n：**92 个 `simple.*` key 全量双语** + 覆盖 lint（扫全 `src-ui/src`，任一语言缺 key 即失败）
+- 验证：`tsc` 干净、src-ui **198 例全绿**、引擎 749 不变、**零回归（未改任何 full 模式行为测试）**
+- footprint：**52 文件 +7330/-35**；9 commit（3 spec + 6 实现）
+- **剩**：真机 round-trip（用户 Android）+ push/合并决定
+- 相关债 **TD-015**（简版↔主 import/export 数据迁回）：非阻塞，事件驱动再做
 
 ### 并行支线（正交于收敛，部分已被超越）
 
