@@ -10,6 +10,7 @@ import {
   type WriterSessionConfig,
 } from '../../api/engine-client';
 import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
+import { DEFAULT_DEEPSEEK_MODEL } from '../../config/defaults';
 import { useTranslation } from '../../i18n/useAppTranslation';
 
 function hasSessionLlmOverride(llm: WriterProjectContext['llm'] | null | undefined): boolean {
@@ -41,13 +42,13 @@ export function useSessionParams(
   const { t } = useTranslation();
   const guard = useActiveRequestGuard(auPath);
 
-  const [sessionModel, setSessionModel] = useState('deepseek-chat');
+  const [sessionModel, setSessionModel] = useState(DEFAULT_DEEPSEEK_MODEL);
   const [sessionTemp, setSessionTemp] = useState(1.0);
   const [sessionTopP, setSessionTopP] = useState(0.95);
 
   // AU 切换时 reset 到默认值（bootstrap 随后会通过下方 useEffect 派生正确值）
   useEffect(() => {
-    setSessionModel('deepseek-chat');
+    setSessionModel(DEFAULT_DEEPSEEK_MODEL);
     setSessionTemp(1.0);
     setSessionTopP(0.95);
   }, [auPath]);
@@ -58,7 +59,7 @@ export function useSessionParams(
   useEffect(() => {
     if (!projectInfo && !settingsInfo) return;
 
-    let defModel = 'deepseek-chat';
+    let defModel = DEFAULT_DEEPSEEK_MODEL;
     let defTemp = 1.0;
     let defTopP = 0.95;
 

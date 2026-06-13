@@ -21,6 +21,7 @@ import type {
   WriterSessionConfig,
 } from "./settings";
 import { isTauri } from "../utils/platform";
+import { DEFAULT_OLLAMA_BASE_URL, DEFAULT_CONTEXT_WINDOW } from "../config/defaults";
 
 let settingsWriteQueue: Promise<void> = Promise.resolve();
 
@@ -221,7 +222,7 @@ export async function saveGlobalSettingsForEditing(payload: GlobalSettingsSaveIn
       mode: payload.default_llm.mode as Settings["default_llm"]["mode"],
       model: payload.default_llm.mode === "api" ? payload.default_llm.model : "",
       api_base: payload.default_llm.mode === "ollama"
-        ? (payload.default_llm.api_base || "http://localhost:11434/v1")
+        ? (payload.default_llm.api_base || DEFAULT_OLLAMA_BASE_URL)
         : payload.default_llm.api_base,
       api_key: payload.default_llm.mode === "api" ? payload.default_llm.api_key : "",
       local_model_path: payload.default_llm.mode === "local" ? payload.default_llm.local_model_path : "",
@@ -279,7 +280,7 @@ export async function saveOnboardingSettings(payload: {
       api_key: payload.default_llm.api_key,
       local_model_path: payload.default_llm.local_model_path,
       ollama_model: payload.default_llm.ollama_model,
-      context_window: current.default_llm.context_window || 128000,
+      context_window: current.default_llm.context_window || DEFAULT_CONTEXT_WINDOW,
     };
     current.embedding = {
       ...current.embedding,
@@ -321,7 +322,7 @@ export async function testConnection(params: {
       };
     }
     if (params.mode === "ollama") {
-      const raw = (params.api_base || "http://localhost:11434/v1").replace(/\/+$/, "");
+      const raw = (params.api_base || DEFAULT_OLLAMA_BASE_URL).replace(/\/+$/, "");
       const nativeBase = raw.replace(/\/v1$/, "");
       const resp = await fetch(`${nativeBase}/api/tags`);
       if (resp.ok) {

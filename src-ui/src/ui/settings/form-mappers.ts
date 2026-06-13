@@ -9,6 +9,14 @@ import {
   type ProjectInfo,
   type SettingsInfo,
 } from "../../api/engine-client";
+import {
+  DEFAULT_OLLAMA_BASE_URL,
+  DEFAULT_CONTEXT_WINDOW,
+  DEFAULT_DEEPSEEK_MODEL,
+  DEFAULT_DEEPSEEK_API_BASE,
+  DEFAULT_PERSPECTIVE,
+  DEFAULT_EMOTION_STYLE,
+} from "../../config/defaults";
 
 export interface GlobalSettingsFormState {
   mode: LLMMode;
@@ -48,12 +56,12 @@ export interface AuSettingsFormState {
 export function createDefaultGlobalSettingsFormState(): GlobalSettingsFormState {
   return {
     mode: LLMMode.API,
-    model: "deepseek-chat",
+    model: DEFAULT_DEEPSEEK_MODEL,
     localModelPath: "",
     ollamaModel: "",
-    apiBase: "https://api.deepseek.com",
+    apiBase: DEFAULT_DEEPSEEK_API_BASE,
     apiKey: "",
-    contextWindow: 128000,
+    contextWindow: DEFAULT_CONTEXT_WINDOW,
     embeddingModel: "",
     embeddingApiBase: "",
     embeddingApiKey: "",
@@ -68,13 +76,13 @@ export function hydrateGlobalSettingsForm(settings: SettingsInfo | null): Global
   if (settings.default_llm) {
     const nextMode = settings.default_llm.mode || LLMMode.API;
     form.mode = nextMode;
-    form.model = settings.default_llm.model || "deepseek-chat";
+    form.model = settings.default_llm.model || DEFAULT_DEEPSEEK_MODEL;
     form.localModelPath = settings.default_llm.local_model_path || "";
     form.ollamaModel = settings.default_llm.ollama_model || settings.default_llm.model || "";
     form.apiBase = settings.default_llm.api_base
-      || (nextMode === "ollama" ? "http://localhost:11434/v1" : "https://api.deepseek.com");
+      || (nextMode === "ollama" ? DEFAULT_OLLAMA_BASE_URL : DEFAULT_DEEPSEEK_API_BASE);
     form.apiKey = settings.default_llm.api_key || "";
-    form.contextWindow = settings.default_llm.context_window || 128000;
+    form.contextWindow = settings.default_llm.context_window || DEFAULT_CONTEXT_WINDOW;
   }
 
   form.embeddingModel = settings.embedding?.model || "";
@@ -107,8 +115,8 @@ export function buildGlobalSettingsSaveInput(form: GlobalSettingsFormState): Glo
 
 export function createDefaultAuSettingsFormState(): AuSettingsFormState {
   return {
-    perspective: "third_person",
-    emotionStyle: "implicit",
+    perspective: DEFAULT_PERSPECTIVE,
+    emotionStyle: DEFAULT_EMOTION_STYLE,
     chapterLength: 2000,
     customInstructions: "",
     pinnedContext: [],
@@ -120,7 +128,7 @@ export function createDefaultAuSettingsFormState(): AuSettingsFormState {
     auOllamaModel: "",
     auApiBase: "",
     auApiKey: "",
-    contextWindow: 128000,
+    contextWindow: DEFAULT_CONTEXT_WINDOW,
     isEmbeddingOverride: false,
     embModel: "",
     embApiBase: "",
@@ -132,8 +140,8 @@ export function hydrateAuSettingsForm(project: ProjectInfo | null): AuSettingsFo
   const form = createDefaultAuSettingsFormState();
   if (!project) return form;
 
-  form.perspective = project.writing_style?.perspective || "third_person";
-  form.emotionStyle = project.writing_style?.emotion_style || "implicit";
+  form.perspective = project.writing_style?.perspective || DEFAULT_PERSPECTIVE;
+  form.emotionStyle = project.writing_style?.emotion_style || DEFAULT_EMOTION_STYLE;
   form.chapterLength = project.chapter_length || 2000;
   form.customInstructions = project.writing_style?.custom_instructions || "";
   form.pinnedContext = project.pinned_context || [];

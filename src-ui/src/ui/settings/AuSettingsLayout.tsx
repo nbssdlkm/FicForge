@@ -17,6 +17,7 @@ import { getSettingsForEditing, type SettingsInfo } from '../../api/engine-clien
 import { getState, recalcState, rebuildIndex } from '../../api/engine-client';
 import { GlobalSettingsModal } from './GlobalSettingsModal';
 import { LlmModeSelect } from './LlmModeSelect';
+import { DEFAULT_PERSPECTIVE, DEFAULT_EMOTION_STYLE, DEFAULT_CONTEXT_WINDOW } from '../../config/defaults';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
 import { useFeedback } from '../../hooks/useFeedback';
@@ -42,8 +43,8 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const [isGlobalSettingsOpen, setGlobalSettingsOpen] = useState(false);
 
   // Editable state (initialised from project)
-  const [perspective, setPerspective] = useState('third_person');
-  const [emotionStyle, setEmotionStyle] = useState('implicit');
+  const [perspective, setPerspective] = useState(DEFAULT_PERSPECTIVE);
+  const [emotionStyle, setEmotionStyle] = useState(DEFAULT_EMOTION_STYLE);
   const [chapterLength, setChapterLength] = useState(2000);
   const [customInstructions, setCustomInstructions] = useState('');
   const [pinnedContext, setPinnedContext] = useState<string[]>([]);
@@ -57,7 +58,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const [auOllamaModel, setAuOllamaModel] = useState('');
   const [auApiBase, setAuApiBase] = useState('');
   const [auApiKey, setAuApiKey] = useState('');
-  const [contextWindow, setContextWindow] = useState(128000);
+  const [contextWindow, setContextWindow] = useState(DEFAULT_CONTEXT_WINDOW);
   const [coreIncludeModalOpen, setCoreIncludeModalOpen] = useState(false);
   const [recalcing, setRecalcing] = useState(false);
 

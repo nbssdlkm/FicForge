@@ -61,10 +61,10 @@ export const FontSettingsSection = () => {
     uiCjkFontId,
     readingLatinFontId,
     readingCjkFontId,
-    setUiLatinFontId,
-    setUiCjkFontId,
-    setReadingLatinFontId,
-    setReadingCjkFontId,
+    selectUiLatinFont,
+    selectUiCjkFont,
+    selectReadingLatinFont,
+    selectReadingCjkFont,
   } = useFontSelection();
   const {
     statuses,
@@ -103,14 +103,14 @@ export const FontSettingsSection = () => {
           <ScriptSelect
             label={t("settings.fonts.latinLabel")}
             value={uiLatinFontId}
-            onChange={setUiLatinFontId}
+            onChange={selectUiLatinFont}
             options={latinOptions}
             isZh={isZh}
           />
           <ScriptSelect
             label={t("settings.fonts.cjkLabel")}
             value={uiCjkFontId}
-            onChange={setUiCjkFontId}
+            onChange={selectUiCjkFont}
             options={cjkOptions}
             isZh={isZh}
           />
@@ -125,14 +125,14 @@ export const FontSettingsSection = () => {
           <ScriptSelect
             label={t("settings.fonts.latinLabel")}
             value={readingLatinFontId}
-            onChange={setReadingLatinFontId}
+            onChange={selectReadingLatinFont}
             options={latinOptions}
             isZh={isZh}
           />
           <ScriptSelect
             label={t("settings.fonts.cjkLabel")}
             value={readingCjkFontId}
-            onChange={setReadingCjkFontId}
+            onChange={selectReadingCjkFont}
             options={cjkOptions}
             isZh={isZh}
           />

@@ -29,6 +29,7 @@ import {
   createDefaultGlobalSettingsFormState,
   hydrateGlobalSettingsForm,
 } from './form-mappers';
+import { DEFAULT_DEEPSEEK_MODEL, DEFAULT_DEEPSEEK_API_BASE, DEFAULT_CONTEXT_WINDOW } from '../../config/defaults';
 
 export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const { t, i18n } = useTranslation();
@@ -41,12 +42,12 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   const [settings, setSettings] = useState<SettingsInfo | null>(null);
 
   const [mode, setMode] = useState<LLMMode>(LLMMode.API);
-  const [model, setModel] = useState('deepseek-chat');
+  const [model, setModel] = useState(DEFAULT_DEEPSEEK_MODEL);
   const [localModelPath, setLocalModelPath] = useState('');
   const [ollamaModel, setOllamaModel] = useState('');
-  const [apiBase, setApiBase] = useState('https://api.deepseek.com');
+  const [apiBase, setApiBase] = useState(DEFAULT_DEEPSEEK_API_BASE);
   const [apiKey, setApiKey] = useState('');
-  const [contextWindow, setContextWindow] = useState(128000);
+  const [contextWindow, setContextWindow] = useState(DEFAULT_CONTEXT_WINDOW);
   const [embeddingModel, setEmbeddingModel] = useState('');
   const [embeddingApiBase, setEmbeddingApiBase] = useState('');
   const [embeddingApiKey, setEmbeddingApiKey] = useState('');

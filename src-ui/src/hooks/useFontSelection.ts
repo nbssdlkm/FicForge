@@ -164,10 +164,10 @@ export interface FontSelectionState {
   uiCjkFontId: string;
   readingLatinFontId: string;
   readingCjkFontId: string;
-  setUiLatinFontId: (id: string) => void;
-  setUiCjkFontId: (id: string) => void;
-  setReadingLatinFontId: (id: string) => void;
-  setReadingCjkFontId: (id: string) => void;
+  selectUiLatinFont: (id: string) => void;
+  selectUiCjkFont: (id: string) => void;
+  selectReadingLatinFont: (id: string) => void;
+  selectReadingCjkFont: (id: string) => void;
 }
 
 export function useFontSelection(): FontSelectionState {
@@ -263,7 +263,7 @@ export function useFontSelection(): FontSelectionState {
     [],
   );
 
-  const setUiLatinFontId = useCallback((id: string) => {
+  const selectUiLatinFont = useCallback((id: string) => {
     setUiLatinFontIdState(id);
     writeLocal(LS_KEYS.ui_latin, id);
     const next = { ...latestFontsRef.current, ui_latin: id };
@@ -272,7 +272,7 @@ export function useFontSelection(): FontSelectionState {
     persist(next);
   }, [persist]);
 
-  const setUiCjkFontId = useCallback((id: string) => {
+  const selectUiCjkFont = useCallback((id: string) => {
     setUiCjkFontIdState(id);
     writeLocal(LS_KEYS.ui_cjk, id);
     const next = { ...latestFontsRef.current, ui_cjk: id };
@@ -281,7 +281,7 @@ export function useFontSelection(): FontSelectionState {
     persist(next);
   }, [persist]);
 
-  const setReadingLatinFontId = useCallback((id: string) => {
+  const selectReadingLatinFont = useCallback((id: string) => {
     setReadingLatinFontIdState(id);
     writeLocal(LS_KEYS.reading_latin, id);
     const next = { ...latestFontsRef.current, reading_latin: id };
@@ -290,7 +290,7 @@ export function useFontSelection(): FontSelectionState {
     persist(next);
   }, [persist]);
 
-  const setReadingCjkFontId = useCallback((id: string) => {
+  const selectReadingCjkFont = useCallback((id: string) => {
     setReadingCjkFontIdState(id);
     writeLocal(LS_KEYS.reading_cjk, id);
     const next = { ...latestFontsRef.current, reading_cjk: id };
@@ -304,9 +304,9 @@ export function useFontSelection(): FontSelectionState {
     uiCjkFontId,
     readingLatinFontId,
     readingCjkFontId,
-    setUiLatinFontId,
-    setUiCjkFontId,
-    setReadingLatinFontId,
-    setReadingCjkFontId,
+    selectUiLatinFont,
+    selectUiCjkFont,
+    selectReadingLatinFont,
+    selectReadingCjkFont,
   };
 }

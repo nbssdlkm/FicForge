@@ -11,6 +11,7 @@
 import type { Project } from "@ficforge/engine";
 import { withAuLock } from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
+import { DEFAULT_OLLAMA_BASE_URL } from "../config/defaults";
 import type { ModelParamInfo } from "./settings";
 import type {
   AuSettingsSaveInput,
@@ -165,7 +166,7 @@ export async function saveAuSettingsForEditing(auPath: string, payload: AuSettin
           mode: payload.llm_override.mode as Project["llm"]["mode"],
           model: payload.llm_override.mode === "api" ? payload.llm_override.model : "",
           api_base: payload.llm_override.mode === "ollama"
-            ? (payload.llm_override.api_base || "http://localhost:11434/v1")
+            ? (payload.llm_override.api_base || DEFAULT_OLLAMA_BASE_URL)
             : payload.llm_override.api_base,
           api_key: payload.llm_override.mode === "api" ? payload.llm_override.api_key : "",
           local_model_path: payload.llm_override.mode === "local" ? payload.llm_override.local_model_path : "",

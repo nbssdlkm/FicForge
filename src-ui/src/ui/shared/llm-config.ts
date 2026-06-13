@@ -3,6 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import type { DefaultLlmSettingsInput } from "../../api/engine-client";
+import { DEFAULT_OLLAMA_BASE_URL } from "../../config/defaults";
 
 export interface LlmConfigFields {
   mode: string;
@@ -17,7 +18,7 @@ export function buildLlmConnectionTestRequest(fields: LlmConfigFields) {
   return {
     mode: fields.mode,
     model: fields.mode === "ollama" ? fields.ollamaModel : fields.model,
-    api_base: fields.mode === "ollama" ? (fields.apiBase || "http://localhost:11434/v1") : fields.apiBase,
+    api_base: fields.mode === "ollama" ? (fields.apiBase || DEFAULT_OLLAMA_BASE_URL) : fields.apiBase,
     api_key: fields.mode === "api" ? fields.apiKey : "",
     local_model_path: fields.mode === "local" ? fields.localModelPath : "",
     ollama_model: fields.mode === "ollama" ? fields.ollamaModel : "",
