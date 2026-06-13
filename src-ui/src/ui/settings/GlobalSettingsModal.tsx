@@ -20,7 +20,6 @@ import { ApiSetupHelp } from '../help/ApiSetupHelp';
 import { LlmModeSelect } from './LlmModeSelect';
 import { FontSettingsSection } from './FontSettingsSection';
 import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
-import { isTauri } from '../../utils/platform';
 import { useEmbeddingConnectionTest, useLlmConnectionTest } from '../../hooks/useConnectionTest';
 import { canTestLlmConnection } from '../shared/llm-config';
 import { SecretStorageNotice } from '../shared/SecretStorageNotice';
@@ -51,7 +50,6 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   const [embeddingModel, setEmbeddingModel] = useState('');
   const [embeddingApiBase, setEmbeddingApiBase] = useState('');
   const [embeddingApiKey, setEmbeddingApiKey] = useState('');
-  const [useCustomEmbedding, setUseCustomEmbedding] = useState(false);
   const [apiHelpOpen, setApiHelpOpen] = useState(false);
   const [displayDataDir, setDisplayDataDir] = useState('');
 
@@ -79,7 +77,6 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     setEmbeddingModel(defaults.embeddingModel);
     setEmbeddingApiBase(defaults.embeddingApiBase);
     setEmbeddingApiKey(defaults.embeddingApiKey);
-    setUseCustomEmbedding(defaults.useCustomEmbedding);
     setApiHelpOpen(false);
   };
 
@@ -109,7 +106,6 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         setEmbeddingModel(form.embeddingModel);
         setEmbeddingApiBase(form.embeddingApiBase);
         setEmbeddingApiKey(form.embeddingApiKey);
-        setUseCustomEmbedding(form.useCustomEmbedding);
       }).catch((error) => {
         if (modalGuard.isStale(token)) return;
         showError(error, t('error_messages.unknown'));
@@ -142,7 +138,6 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         embeddingModel,
         embeddingApiBase,
         embeddingApiKey,
-        useCustomEmbedding,
       }));
       if (modalGuard.isStale(token)) return;
       // Don't auto-close — user explicitly asked to keep the modal open after
@@ -286,35 +281,22 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                   {t('help.apiSetup.howToGet')}
                 </Button>
               </div>
-              {isTauri() ? (
-                <>
-                  <p className="text-xs text-text/50">{t('settings.global.builtinEmbedding')}</p>
-                  <label className="flex min-h-[44px] items-center gap-2 cursor-pointer text-sm text-text/70">
-                    <input type="checkbox" checked={useCustomEmbedding} onChange={e => setUseCustomEmbedding(e.target.checked)} disabled={saving} className="accent-accent" />
-                    {t('settings.global.useCustomEmbedding')}
-                  </label>
-                </>
-              ) : (
-                <p className="text-xs text-text/50">{t('settings.global.embeddingMobileHint')}</p>
-              )}
-              {(useCustomEmbedding || !isTauri()) && (
-                <div className="space-y-2 pl-2 border-l-2 border-accent/30">
-                  <p className="text-xs leading-relaxed text-warning">
-                    {t('settings.global.embeddingIndependentHint')}
-                  </p>
-                  <Input value={embeddingModel} onChange={e => setEmbeddingModel(e.target.value)} placeholder={t('settings.global.embeddingModelPlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
-                  <Input value={embeddingApiBase} onChange={e => setEmbeddingApiBase(e.target.value)} placeholder={t('settings.global.embeddingApiBasePlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
-                  <Input value={embeddingApiKey} onChange={e => setEmbeddingApiKey(e.target.value)} placeholder={t('settings.global.embeddingApiKeyPlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" type="password" />
-                  <div className="flex items-center gap-2 pt-1">
-                    <Button tone="neutral" fill="outline" size="sm" onClick={handleEmbeddingTest} disabled={saving || embeddingConnection.status === 'testing' || !embeddingModel.trim()}>
-                      {embeddingConnection.status === 'testing' ? <Spinner size="sm" className="mr-1" /> : null}
-                      {t('common.actions.testEmbeddingConnection')}
-                    </Button>
-                    {embeddingConnection.status === 'success' && <span className="flex items-center text-xs text-success"><CheckCircle2 size={14} className="mr-1" /> {embeddingConnection.message}</span>}
-                    {embeddingConnection.status === 'error' && <span className="flex items-start text-xs text-error"><XCircle size={14} className="mr-1 mt-0.5 shrink-0" /> <span className="leading-tight">{embeddingConnection.message}</span></span>}
-                  </div>
+              <div className="space-y-2 pl-2 border-l-2 border-accent/30">
+                <p className="text-xs leading-relaxed text-warning">
+                  {t('settings.global.embeddingIndependentHint')}
+                </p>
+                <Input value={embeddingModel} onChange={e => setEmbeddingModel(e.target.value)} placeholder={t('settings.global.embeddingModelPlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
+                <Input value={embeddingApiBase} onChange={e => setEmbeddingApiBase(e.target.value)} placeholder={t('settings.global.embeddingApiBasePlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
+                <Input value={embeddingApiKey} onChange={e => setEmbeddingApiKey(e.target.value)} placeholder={t('settings.global.embeddingApiKeyPlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" type="password" />
+                <div className="flex items-center gap-2 pt-1">
+                  <Button tone="neutral" fill="outline" size="sm" onClick={handleEmbeddingTest} disabled={saving || embeddingConnection.status === 'testing' || !embeddingModel.trim()}>
+                    {embeddingConnection.status === 'testing' ? <Spinner size="sm" className="mr-1" /> : null}
+                    {t('common.actions.testEmbeddingConnection')}
+                  </Button>
+                  {embeddingConnection.status === 'success' && <span className="flex items-center text-xs text-success"><CheckCircle2 size={14} className="mr-1" /> {embeddingConnection.message}</span>}
+                  {embeddingConnection.status === 'error' && <span className="flex items-start text-xs text-error"><XCircle size={14} className="mr-1 mt-0.5 shrink-0" /> <span className="leading-tight">{embeddingConnection.message}</span></span>}
                 </div>
-              )}
+              </div>
             </div>
           </div>
 

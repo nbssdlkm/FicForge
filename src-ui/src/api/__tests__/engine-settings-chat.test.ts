@@ -46,7 +46,6 @@ describe("engine-settings-chat config validation", () => {
         context_window: 128000,
       },
       embedding: {
-        use_custom_config: false,
         model: "",
         api_base: "",
         api_key: "",

@@ -75,7 +75,6 @@ describe("engine-settings write queue", () => {
         context_window: 128000,
       },
       embedding: {
-        use_custom_config: true,
         model: "embed-test",
         api_base: "https://embed.example.com/v1",
         api_key: "embed-secret",
@@ -92,5 +91,47 @@ describe("engine-settings write queue", () => {
     expect(summary.embedding.has_api_key).toBe(true);
     expect("api_key" in summary.default_llm).toBe(false);
     expect("api_key" in summary.embedding).toBe(false);
+  });
+
+  // TD-006 / 残留消除: 「内置 embedding vs 自定义」概念已删（local embedding 三端均不
+  // 支持）。embedding 现在只有 API 一种，恒落 mode=api 并原样持久化用户填的字段，
+  // 不再有平台分支、不再落死的 "local"。
+  it("always persists embedding mode 'api' with the provided fields (no built-in gating)", async () => {
+    await saveGlobalSettingsForEditing({
+      default_llm: {
+        mode: "api",
+        model: "gpt-test",
+        api_base: "https://example.com/v1",
+        api_key: "k",
+        local_model_path: "",
+        ollama_model: "",
+        context_window: 128000,
+      },
+      embedding: { model: "bge-m3", api_base: "https://embed.example/v1", api_key: "ek" },
+    });
+
+    const settings = await getSettingsForEditing();
+    expect(settings.embedding.mode).toBe("api"); // 修复前在 Tauri「内置」分支会是 "local"
+    expect(settings.embedding.model).toBe("bge-m3");
+    expect(settings.embedding.api_base).toBe("https://embed.example/v1");
+  });
+
+  it("persists empty embedding fields as 'not configured' (mode stays 'api')", async () => {
+    await saveGlobalSettingsForEditing({
+      default_llm: {
+        mode: "api",
+        model: "gpt-test",
+        api_base: "https://example.com/v1",
+        api_key: "k",
+        local_model_path: "",
+        ollama_model: "",
+        context_window: 128000,
+      },
+      embedding: { model: "", api_base: "", api_key: "" },
+    });
+
+    const settings = await getSettingsForEditing();
+    expect(settings.embedding.mode).toBe("api");
+    expect(settings.embedding.api_key).toBe("");
   });
 });

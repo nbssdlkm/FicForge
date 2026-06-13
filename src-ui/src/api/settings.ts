@@ -75,7 +75,6 @@ export interface DefaultLlmSettingsInput {
 }
 
 export interface EmbeddingSettingsSaveInput {
-  use_custom_config: boolean;
   model: string;
   api_base: string;
   api_key: string;

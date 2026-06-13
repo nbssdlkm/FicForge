@@ -29,7 +29,6 @@ export interface GlobalSettingsFormState {
   embeddingModel: string;
   embeddingApiBase: string;
   embeddingApiKey: string;
-  useCustomEmbedding: boolean;
 }
 
 export interface AuSettingsFormState {
@@ -65,7 +64,6 @@ export function createDefaultGlobalSettingsFormState(): GlobalSettingsFormState 
     embeddingModel: "",
     embeddingApiBase: "",
     embeddingApiKey: "",
-    useCustomEmbedding: false,
   };
 }
 
@@ -88,7 +86,6 @@ export function hydrateGlobalSettingsForm(settings: SettingsInfo | null): Global
   form.embeddingModel = settings.embedding?.model || "";
   form.embeddingApiBase = settings.embedding?.api_base || "";
   form.embeddingApiKey = settings.embedding?.api_key || "";
-  form.useCustomEmbedding = Boolean(settings.embedding?.model && settings.embedding?.api_key);
 
   return form;
 }
@@ -105,7 +102,6 @@ export function buildGlobalSettingsSaveInput(form: GlobalSettingsFormState): Glo
       context_window: form.contextWindow,
     },
     embedding: {
-      use_custom_config: form.useCustomEmbedding,
       model: form.embeddingModel,
       api_base: form.embeddingApiBase,
       api_key: form.embeddingApiKey,

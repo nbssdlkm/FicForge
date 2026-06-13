@@ -20,7 +20,6 @@ import type {
   SettingsSummary,
   WriterSessionConfig,
 } from "./settings";
-import { isTauri } from "../utils/platform";
 import { DEFAULT_OLLAMA_BASE_URL, DEFAULT_CONTEXT_WINDOW } from "../config/defaults";
 
 let settingsWriteQueue: Promise<void> = Promise.resolve();
@@ -230,13 +229,14 @@ export async function saveGlobalSettingsForEditing(payload: GlobalSettingsSaveIn
       context_window: payload.default_llm.context_window,
     };
 
-    const useCustomEmbedding = payload.embedding.use_custom_config || !isTauri();
+    // embedding 只有 API 一种模式（本地 embedding 三端均不支持，sidecar 退役 D-0040/M7）。
+    // 直接落用户填的字段；留空即「未配置」→ createEmbeddingProvider 返回 undefined → RAG STALE。
     current.embedding = {
       ...current.embedding,
-      mode: (useCustomEmbedding ? "api" : "local") as Settings["embedding"]["mode"],
-      model: useCustomEmbedding ? payload.embedding.model : "",
-      api_base: useCustomEmbedding ? payload.embedding.api_base : "",
-      api_key: useCustomEmbedding ? payload.embedding.api_key : "",
+      mode: "api" as Settings["embedding"]["mode"],
+      model: payload.embedding.model,
+      api_base: payload.embedding.api_base,
+      api_key: payload.embedding.api_key,
     };
 
     return current;

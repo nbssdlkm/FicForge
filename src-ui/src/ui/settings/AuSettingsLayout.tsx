@@ -315,7 +315,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-bold text-text/90">{t("common.labels.searchEngineModel")}</label>
                 {!isEmbeddingOverride && (
-                  <Input value={globalSettings?.embedding?.model || t("settings.global.builtinEmbeddingLabel")} readOnly className="h-11 bg-background/70 font-mono text-base md:h-10 md:text-sm" />
+                  <Input value={globalSettings?.embedding?.model || t("settings.global.noEmbeddingModel")} readOnly className="h-11 bg-background/70 font-mono text-base md:h-10 md:text-sm" />
                 )}
                 <label className="flex min-h-[44px] items-center gap-2 text-sm cursor-pointer">
                   <input type="checkbox" checked={isEmbeddingOverride} onChange={e => setIsEmbeddingOverride(e.target.checked)} disabled={saving} className="accent-accent" />

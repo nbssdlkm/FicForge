@@ -91,7 +91,10 @@ export function buildOnboardingSettingsSaveInput(state: MobileOnboardingSettings
       ollama_model: "",
     },
     embedding: {
-      mode: state.useCustomEmbedding ? LLMMode.API : LLMMode.LOCAL,
+      // 本地 embedding 三端均不支持（Python sidecar 退役 D-0040/M7），embedding 只有 API 一种。
+      // 跳过时存 mode=API + 空字段 → createEmbeddingProvider 返回 undefined → RAG 优雅降级 STALE，
+      // 而不是落一个谁也不认的 LOCAL 死模式。用户可稍后在设置里补 embedding。
+      mode: LLMMode.API,
       model: state.useCustomEmbedding ? state.embeddingModel.trim() : "",
       api_base: state.useCustomEmbedding ? state.embeddingApiBase.trim() : "",
       api_key: state.useCustomEmbedding ? state.embeddingApiKey.trim() : "",
