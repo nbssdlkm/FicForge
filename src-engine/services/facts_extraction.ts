@@ -8,6 +8,7 @@
 
 import { count_tokens, ensureTokenizer } from "../tokenizer/index.js";
 import { getPrompts } from "../prompts/index.js";
+import { normalizeCharacters } from "./facts_lifecycle.js";
 import type { LLMProvider } from "../llm/provider.js";
 
 // ---------------------------------------------------------------------------
@@ -156,36 +157,6 @@ export function parseLLMOutput(text: string): Record<string, unknown>[] {
 }
 
 // ---------------------------------------------------------------------------
-// 别名归一化（大小写不敏感，适用于 LLM 提取结果）
-// ---------------------------------------------------------------------------
-
-function normalizeExtractedCharacters(
-  characters: string[],
-  character_aliases: Record<string, string[]> | null,
-): string[] {
-  if (!character_aliases) return characters;
-
-  const aliasMap = new Map<string, string>();
-  for (const [mainName, aliases] of Object.entries(character_aliases)) {
-    aliasMap.set(mainName.toLowerCase(), mainName);
-    for (const alias of aliases) {
-      aliasMap.set(alias.toLowerCase(), mainName);
-    }
-  }
-
-  const result: string[] = [];
-  const seen = new Set<string>();
-  for (const name of characters) {
-    const main = aliasMap.get(name.toLowerCase()) ?? aliasMap.get(name) ?? name;
-    if (!seen.has(main)) {
-      result.push(main);
-      seen.add(main);
-    }
-  }
-  return result;
-}
-
-// ---------------------------------------------------------------------------
 // 分块
 // ---------------------------------------------------------------------------
 
@@ -220,7 +191,7 @@ function rawToExtracted(
 
   let characters = (raw.characters as string[]) ?? [];
   if (Array.isArray(characters)) {
-    characters = normalizeExtractedCharacters(characters, character_aliases);
+    characters = normalizeCharacters(characters, character_aliases);
   }
 
   return {
@@ -240,7 +211,8 @@ function rawToExtracted(
 // 主函数：单章提取
 // ---------------------------------------------------------------------------
 
-const MAX_FACTS_PER_CHAPTER = 5;
+/** LLM prompt 约定每条 chunk 最多返回的 fact 数。仅作安全网，正常情况下 LLM 自限。 */
+const MAX_FACTS_PER_CHUNK = 5;
 
 export interface ExtractFactsOptions {
   max_chunk_tokens?: number;
@@ -268,7 +240,7 @@ export async function extract_facts_from_chapter(
   if (!chapter_text.trim()) return [];
 
   const chunks = splitTextForExtraction(chapter_text, max_chunk_tokens, llm_config);
-  const allRaw: Record<string, unknown>[] = [];
+  const allResults: ExtractedFact[] = [];
 
   for (const chunkText of chunks) {
     if (signal?.aborted) break;
@@ -293,19 +265,19 @@ export async function extract_facts_from_chapter(
         signal,
       });
       const parsed = parseLLMOutput(response.content);
-      allRaw.push(...parsed);
+      // 每 chunk 独立 cap，防止 LLM 单 chunk 返回过多
+      for (const raw of parsed.slice(0, MAX_FACTS_PER_CHUNK)) {
+        const fact = rawToExtracted(raw, chapter_num, character_aliases);
+        if (fact) allResults.push(fact);
+      }
     } catch {
-      // LLM 调用失败，跳过
+      // LLM 调用失败，跳过该 chunk
     }
   }
 
-  const results: ExtractedFact[] = [];
-  for (const raw of allRaw) {
-    const fact = rawToExtracted(raw, chapter_num, character_aliases);
-    if (fact) results.push(fact);
-  }
-
-  return results.slice(0, MAX_FACTS_PER_CHAPTER);
+  // 每 chunk 已由 MAX_FACTS_PER_CHUNK 独立 cap，splitTextForExtraction 最多 2 chunk，
+  // 因此总事实数上界 = 2 × 5 = 10，无需额外的总安全网。
+  return allResults;
 }
 
 // ---------------------------------------------------------------------------

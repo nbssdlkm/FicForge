@@ -3,12 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  ANNOTATION_SCHEMA_VERSION,
-  createAnnotation,
   createBudgetReport,
   createChapter,
-  createChapterAnnotations,
-  createChunk,
   createContextSummary,
   createDraft,
   createFact,
@@ -126,30 +122,6 @@ describe("Domain object factories — field names and defaults match Python", ()
     expect(b.context_window).toBe(0);
     expect(b.is_fallback_estimate).toBe(false);
     expect(b.truncated_layers).toEqual([]);
-  });
-
-  it("createAnnotation defaults", () => {
-    const a = createAnnotation({ id: "ann_001", type: "highlight", start_offset: 0, end_offset: 10 });
-    expect(a.id).toBe("ann_001");
-    expect(a.type).toBe("highlight");
-    expect(a.color).toBe("yellow");
-    expect(a.comment).toBe("");
-    expect(a.created_at).toBe("");
-  });
-
-  it("createChapterAnnotations defaults", () => {
-    const ca = createChapterAnnotations();
-    expect(ca.schema_version).toBe(ANNOTATION_SCHEMA_VERSION);
-    expect(ca.chapter_num).toBe(0);
-    expect(ca.annotations).toEqual([]);
-  });
-
-  it("createChunk defaults", () => {
-    const c = createChunk({ content: "text", chapter_num: 3, score: 0.95 });
-    expect(c.content).toBe("text");
-    expect(c.chapter_num).toBe(3);
-    expect(c.score).toBe(0.95);
-    expect(c.metadata).toEqual({});
   });
 
   it("createContextSummary defaults", () => {

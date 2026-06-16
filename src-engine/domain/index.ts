@@ -24,17 +24,11 @@ export {
 } from "./enums.js";
 
 // Domain objects
-export type { Annotation, ChapterAnnotations } from "./annotation.js";
-export { ANNOTATION_SCHEMA_VERSION, createAnnotation, createChapterAnnotations } from "./annotation.js";
-
 export type { BudgetReport } from "./budget_report.js";
 export { createBudgetReport } from "./budget_report.js";
 
 export type { Chapter } from "./chapter.js";
 export { createChapter } from "./chapter.js";
-
-export type { Chunk } from "./chunk.js";
-export { createChunk } from "./chunk.js";
 
 export type { ContextSummary, RagChunkDetail, RagCollection } from "./context_summary.js";
 export { createContextSummary, RAG_COLLECTIONS } from "./context_summary.js";

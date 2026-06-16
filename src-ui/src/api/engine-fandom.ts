@@ -236,11 +236,3 @@ export async function readFandomFile(fandomName: string, category: string, filen
   const content = await adapter.readFile(`${dataDir}/fandoms/${safeFandomName}/${safeCategory}/${safeFilename}`);
   return { filename, category, content };
 }
-
-export async function renameFandom(_fandomDirName: string, _newName: string) {
-  throw new Error("renameFandom not yet implemented in engine-client");
-}
-
-export async function renameAu(_fandomDirName: string, _auName: string, _newName: string) {
-  throw new Error("renameAu not yet implemented in engine-client");
-}

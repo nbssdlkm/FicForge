@@ -72,6 +72,8 @@ export class FileLogger implements Logger {
   private flushing = false;
   private visibilityHandler: (() => void) | null = null;
   private destroyed = false;
+  /** 最近一次 flush 的 Promise，destroy() 用来链式等待。 */
+  private _lastFlush: Promise<void> = Promise.resolve();
 
   constructor(adapter: PlatformAdapter, dataDir: string, options?: LoggerOptions) {
     this.adapter = adapter;
@@ -114,33 +116,38 @@ export class FileLogger implements Logger {
   }
 
   async flush(): Promise<void> {
-    if (this.buffer.length === 0 || this.flushing) return;
+    if (this.buffer.length === 0 || this.flushing) return this._lastFlush;
     this.flushing = true;
     const batch = this.buffer.splice(0);
     const chunk = batch.join("\n") + "\n";
-    try {
-      const path = this.todayPath();
-      await this.adapter.mkdir(this.logsDir).catch(() => {});
-      // 追加写入：读现有内容 + 拼接（PlatformAdapter 只有 writeFile 没有 appendFile）
-      let existing = "";
+    this._lastFlush = (async () => {
       try {
-        existing = await this.adapter.readFile(path);
+        const path = this.todayPath();
+        await this.adapter.mkdir(this.logsDir).catch(() => {});
+        // 追加写入：读现有内容 + 拼接（PlatformAdapter 只有 writeFile 没有 appendFile）
+        let existing = "";
+        try {
+          existing = await this.adapter.readFile(path);
+        } catch {
+          // 文件不存在，正常
+        }
+        const merged = existing + chunk;
+        // 超出日限则轮转
+        if (new TextEncoder().encode(merged).length > this.maxDailyFileBytes) {
+          await this.rotateFile(path, existing);
+          await this.adapter.writeFile(path, chunk);
+        } else {
+          await this.adapter.writeFile(path, merged);
+        }
       } catch {
-        // 文件不存在，正常
+        // 写入失败：把 batch 放回 buffer 头部，下次 flush 重试。
+        // 不放回会导致 splice(0) 已清空的日志条目永久丢失。
+        this.buffer.unshift(...batch);
+      } finally {
+        this.flushing = false;
       }
-      const merged = existing + chunk;
-      // 超出日限则轮转
-      if (new TextEncoder().encode(merged).length > this.maxDailyFileBytes) {
-        await this.rotateFile(path, existing);
-        await this.adapter.writeFile(path, chunk);
-      } else {
-        await this.adapter.writeFile(path, merged);
-      }
-    } catch {
-      // 日志写入本身失败不能再抛异常，否则死循环
-    } finally {
-      this.flushing = false;
-    }
+    })();
+    return this._lastFlush;
   }
 
   async readToday(): Promise<string> {
@@ -178,8 +185,10 @@ export class FileLogger implements Logger {
       document.removeEventListener("visibilitychange", this.visibilityHandler);
       this.visibilityHandler = null;
     }
-    // 尽力 flush 剩余
-    void this.flush();
+    // 等当前 flush（如果有）完成，再 flush 剩余 buffer。
+    // 如果不等待直接调 flush()，正在进行的 flush 持有 this.flushing=true
+    // 会导致最终 flush 短路，残留 buffer 丢失。
+    void this._lastFlush.then(() => this.flush());
   }
 
   // --- Internal ---

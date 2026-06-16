@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { getSettingsSummary, type SettingsSummary } from '../../api/engine-client';
+import { catchAndLog } from '../../utils/ui-logger';
 import { isOnboardingCompleted, isOnboardingDismissedForSession } from '../onboarding/OnboardingFlow';
 
 function hasUsableConnectionConfig(settings: SettingsSummary | null | undefined) {
@@ -22,7 +23,7 @@ export function useLibraryOnboardingGate() {
         if (!cancelled && !hasUsableConnectionConfig(settings)) {
           setShowApiWarning(true);
         }
-      }).catch(() => {});
+      }).catch(catchAndLog('onboardingGate', 'getSettingsSummary failed'));
     } else {
       getSettingsSummary().then((settings) => {
         if (!cancelled && !hasUsableConnectionConfig(settings)) {

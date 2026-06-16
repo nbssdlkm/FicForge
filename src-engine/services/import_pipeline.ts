@@ -677,37 +677,6 @@ async function doExecuteImport(
     }
   }
 
-  // 5. 写入设定文件（tx 提交之后：worldbuilding 不受 ops 管理，非关键数据）
-  if (false && plan.settings.length > 0) { // Legacy path disabled in favor of writeImportedSettings().
-    const settingsName = locale === "zh" ? "导入设定" : "imported_settings";
-    if (plan.conflictOptions.settingsMode === "merge") {
-      const merged = plan.settings.map((s) => s.content).join("\n\n---\n\n");
-      let settingsPath = `${auId}/worldbuilding/${settingsName}.md`;
-      if (await adapter.exists(settingsPath)) {
-        const ts = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-        settingsPath = `${auId}/worldbuilding/${settingsName}_${ts}.md`;
-      }
-      const dir = settingsPath.substring(0, settingsPath.lastIndexOf("/"));
-      await adapter.mkdir(dir);
-      await adapter.writeFile(settingsPath, `---\ntitle: ${settingsName}\n---\n\n${merged}`);
-    } else {
-      const dir = `${auId}/worldbuilding`;
-      await adapter.mkdir(dir);
-      for (let i = 0; i < plan.settings.length; i++) {
-        let filePath = `${dir}/${settingsName}_${i + 1}.md`;
-        if (await adapter.exists(filePath)) {
-          const ts = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-          filePath = `${dir}/${settingsName}_${i + 1}_${ts}.md`;
-        }
-        await adapter.writeFile(
-          filePath,
-          `---\ntitle: ${settingsName} ${i + 1}\n---\n\n${plan.settings[i].content}`,
-        );
-      }
-    }
-    result.settingsImported = plan.settings.length;
-  }
-
   return result;
 }
 

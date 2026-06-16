@@ -266,3 +266,108 @@ describe("OpenAICompatibleProvider 错误处理 (BUG 3.1 错误码拆分)", () =
     ).rejects.toMatchObject({ error_code: "tools_unsupported" });
   });
 });
+
+describe("OpenAICompatibleProvider.generate non-streaming success", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns LLMResponse with content and token counts on 200", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: "hello world" }, finish_reason: "stop" }],
+            usage: { prompt_tokens: 10, completion_tokens: 2 },
+            model: "test-model",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      ),
+    );
+
+    const provider = new OpenAICompatibleProvider("https://example.com", "key", "model");
+    const result = await provider.generate({
+      messages: [{ role: "user", content: "hello" }],
+      max_tokens: 32, temperature: 1, top_p: 1,
+    });
+
+    expect(result.content).toBe("hello world");
+    expect(result.finish_reason).toBe("stop");
+    expect(result.input_tokens).toBe(10);
+    expect(result.output_tokens).toBe(2);
+    expect(result.model).toBe("test-model");
+    expect(result.tool_calls).toBeUndefined();
+  });
+
+  it("sanitizeForJson: null bytes and lone surrogates stripped from message content in request body", async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+        capturedBody = JSON.parse(init?.body as string);
+        return new Response(
+          JSON.stringify({
+            choices: [{ message: { content: "ok" }, finish_reason: "stop" }],
+            usage: { prompt_tokens: 1, completion_tokens: 1 },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }),
+    );
+
+    const provider = new OpenAICompatibleProvider("https://example.com", "key", "model");
+    // 包含 NULL 和 lone high surrogate（不成对）
+    await provider.generate({
+      messages: [{ role: "user", content: "hello world\uD800bad" }],
+      max_tokens: 32, temperature: 1, top_p: 1,
+    });
+
+    // NULL 和 lone surrogate 被移除，合法字符保留
+    const userMsg = (capturedBody?.messages as Array<{ content: string }>)[0];
+    expect(userMsg.content).not.toContain(" ");
+    expect(userMsg.content).not.toContain("\uD800");
+    expect(userMsg.content).toContain("hello");
+    expect(userMsg.content).toContain("world");
+    expect(userMsg.content).toContain("bad");
+  });
+});
+
+describe("OpenAICompatibleProvider requestWithRetry error translation", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("translates AbortError without external signal to LLMError with network_error (timeout path)", async () => {
+    // 模拟内部 AbortController 触发（timeout）导致 fetch 抛 AbortError。
+    // 无 externalSignal 时，retry 一次后返回 network_error。
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new DOMException("The operation was aborted", "AbortError")),
+    );
+
+    const provider = new OpenAICompatibleProvider("https://example.com", "key", "model");
+    await expect(
+      provider.generate({
+        messages: [{ role: "user", content: "hello" }],
+        max_tokens: 32, temperature: 1, top_p: 1,
+      }),
+    ).rejects.toMatchObject({ error_code: "network_error" });
+  });
+
+  it("translates TypeError (network down) to LLMError with network code", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
+    );
+
+    const provider = new OpenAICompatibleProvider("https://example.com", "key", "model");
+    await expect(
+      provider.generate({
+        messages: [{ role: "user", content: "hello" }],
+        max_tokens: 32, temperature: 1, top_p: 1,
+      }),
+    ).rejects.toMatchObject({ error_code: "network_error" });
+  });
+});

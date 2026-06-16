@@ -32,12 +32,16 @@ export class FactsLifecycleError extends Error {
 }
 
 // ---------------------------------------------------------------------------
-// 别名归一化
+// 别名归一化（大小写不敏感。LLM 输出和手动编辑都可能大小写不一致。）
 // ---------------------------------------------------------------------------
 
-function normalizeCharacters(
+/**
+ * 将角色名按别名表归一化为正式名。大小写不敏感。
+ * 同时被 facts_lifecycle（手动编辑路径）和 facts_extraction（LLM 提取路径）使用。
+ */
+export function normalizeCharacters(
   characters: string[],
-  character_aliases: Record<string, string[]>,
+  character_aliases: Record<string, string[]> | null,
 ): string[] {
   if (!character_aliases || Object.keys(character_aliases).length === 0) {
     return characters;
@@ -45,15 +49,16 @@ function normalizeCharacters(
 
   const aliasMap = new Map<string, string>();
   for (const [mainName, aliases] of Object.entries(character_aliases)) {
+    aliasMap.set(mainName.toLowerCase(), mainName);
     for (const alias of aliases) {
-      aliasMap.set(alias, mainName);
+      aliasMap.set(alias.toLowerCase(), mainName);
     }
   }
 
   const result: string[] = [];
   const seen = new Set<string>();
   for (const name of characters) {
-    const main = aliasMap.get(name) ?? name;
+    const main = aliasMap.get(name.toLowerCase()) ?? name;
     if (!seen.has(main)) {
       result.push(main);
       seen.add(main);

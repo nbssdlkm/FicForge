@@ -14,6 +14,7 @@ import { WRITING_MODES, type WritingMode } from '@ficforge/engine';
 import { useWritingMode, writeWritingModeMirror } from '../../hooks/useWritingMode';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
+import { catchAndLog } from '../../utils/ui-logger';
 import { DebugLogsSection } from './DebugLogsSection';
 import { changeLanguage, SUPPORTED_LANGUAGES, type AppLanguage } from '../../i18n';
 import { ApiSetupHelp } from '../help/ApiSetupHelp';
@@ -91,7 +92,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
       resetFormState();
       getDisplayDataDir().then((dir) => {
         if (!modalGuard.isStale(token)) setDisplayDataDir(dir);
-      }).catch(() => {});
+      }).catch(catchAndLog('globalSettings', 'getDisplayDataDir failed'));
       getSettingsForEditing().then((res) => {
         if (modalGuard.isStale(token)) return;
         setSettings(res);

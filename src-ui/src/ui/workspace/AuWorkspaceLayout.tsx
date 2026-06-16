@@ -29,6 +29,7 @@ import { useMilestoneGuide } from '../../hooks/useMilestoneGuide';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { MobileLayout } from '../mobile/MobileLayout';
 import { useWritingMode } from '../../hooks/useWritingMode';
+import { catchAndLog } from '../../utils/ui-logger';
 
 type Props = {
   activeTab: string;
@@ -107,7 +108,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
         if (loadGuard.isStale(token)) return;
         setChapters(res);
       })
-      .catch(() => {})
+      .catch(catchAndLog('workspace', 'listChapters failed'))
       .finally(() => {
         if (!loadGuard.isStale(token)) {
           setLoadingChapters(false);
@@ -120,12 +121,12 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
       if (s.index_status === 'stale' || s.index_status === 'interrupted') {
         setEmbeddingStale(true);
       }
-    }).catch(() => {});
+    }).catch(catchAndLog('workspace', 'embedding check getState failed'));
 
     getWorkspaceSnapshot(auPath).then((snapshot) => {
       if (loadGuard.isStale(token)) return;
       setAuName(snapshot.au_name || fallbackAuName);
-    }).catch(() => {});
+    }).catch(catchAndLog('workspace', 'getWorkspaceSnapshot failed'));
   }, [auPath, fallbackAuName, loadGuard]);
 
   // Milestone data — refreshes when auPath changes OR after mutations (refreshKey)
@@ -138,19 +139,19 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
       if (loadGuard.isKeyStale(auPath)) return;
       setCurrentChapter(state.current_chapter || 1);
       setChapterFocusEmpty(!state.chapter_focus || state.chapter_focus.length === 0);
-    }).catch(() => {});
+    }).catch(catchAndLog('workspace', 'milestone getState failed'));
 
     listFacts(auPath).then(facts => {
       if (loadGuard.isKeyStale(auPath)) return;
       setFactsCount(facts.length);
       const firstUnresolved = facts.find((f: FactInfo) => f.status === 'unresolved');
       setUnresolvedFact(firstUnresolved ? (firstUnresolved.content_clean || '').slice(0, 20) + '...' : null);
-    }).catch(() => {});
+    }).catch(catchAndLog('workspace', 'milestone listFacts failed'));
 
     getWorkspaceSnapshot(auPath).then((snapshot) => {
       if (loadGuard.isKeyStale(auPath)) return;
       setPinnedCount(snapshot.pinned_count);
-    }).catch(() => {});
+    }).catch(catchAndLog('workspace', 'milestone snapshot failed'));
   }, [auPath, milestoneRefreshKey, shouldShow]);
 
   // 里程碑 banner 在 mobile early return 之前计算，供 MobileLayout 渲染
@@ -428,7 +429,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
           <p className="text-sm text-text/90">{t('embedding.staleDesc')}</p>
           <div className="flex justify-end gap-2">
             <Button tone="neutral" fill="plain" onClick={() => setEmbeddingDismissed(true)}>{t('embedding.skipRebuild')}</Button>
-            <Button tone="accent" fill="solid" onClick={() => { setEmbeddingDismissed(true); rebuildIndex(auPath).catch(() => {}); }}>{t('embedding.rebuild')}</Button>
+            <Button tone="accent" fill="solid" onClick={() => { setEmbeddingDismissed(true); rebuildIndex(auPath).catch((e) => showError(e, t('error_messages.unknown'))); }}>{t('embedding.rebuild')}</Button>
           </div>
         </div>
       </Modal>

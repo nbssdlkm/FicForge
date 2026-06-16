@@ -13,6 +13,7 @@ import { listFacts, extractFacts, addFact, type FactInfo, type ExtractedFactCand
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { useFeedback } from '../../hooks/useFeedback';
+import { catchAndLog } from '../../utils/ui-logger';
 
 type FactDecision = 'keep' | 'deprecate';
 
@@ -63,7 +64,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
         chapterFacts.forEach(f => { initial[f.id] = 'keep'; });
         setDecisions(initial);
       })
-      .catch(() => {})
+      .catch(catchAndLog('dirtyModal', 'listFacts for old facts failed'))
       .finally(() => {
         if (!contextGuard.isStale(token)) setLoadingOld(false);
       });

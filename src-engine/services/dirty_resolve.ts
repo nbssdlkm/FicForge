@@ -74,14 +74,7 @@ async function doResolve(params: ResolveDirtyParams): Promise<ResolveDirtyResult
     throw new DirtyResolveError(`章节 ${chapter_num} 文件不存在`);
   }
 
-  // === 步骤 2：执行 facts 变更 ===
-  const timestamp = now_utc();
-  await applyFactChanges(au_id, chapter_num, confirmed_fact_changes, fact_repo, ops_repo, state_repo);
-
-  // 重新读取 state（fact 级联可能已修改并保存）
-  state = await state_repo.get(au_id);
-
-  // === 步骤 3：最新章 / 历史章分流 ===
+  // === 步骤 2：最新章 / 历史章分流 ===
   const isLatest = chapter_num === state.current_chapter - 1;
   let content: string;
 
@@ -95,19 +88,24 @@ async function doResolve(params: ResolveDirtyParams): Promise<ResolveDirtyResult
     content = await chapter_repo.get_content_only(au_id, chapter_num);
   }
 
-  // === 步骤 4：重算 content_hash ===
+  // === 步骤 3：重算 content_hash ===
   const newHash = await compute_content_hash(content);
   const chapter = await chapter_repo.get(au_id, chapter_num);
   chapter.content_hash = newHash;
   chapter.revision += 1;
   chapter.confirmed_at = now_utc();
 
-  // === 步骤 5：更新 state（内存） ===
+  // === 步骤 4：更新 state（内存） ===
   const dirtyIdx = state.chapters_dirty.indexOf(chapter_num);
   if (dirtyIdx >= 0) state.chapters_dirty.splice(dirtyIdx, 1);
   state.index_status = IndexStatus.STALE;
 
-  // === 步骤 6：事务提交（D-0036：ops → chapter → state） ===
+  // === 步骤 5：事务提交（D-0036：ops → chapter → state） ===
+  // 先提交 chapter + state，再应用 fact 变更。如果 fact 变更失败，dirty resolve
+  // 本身已完成（chapter 已 clean、state 已更新），fact 变更可手动重做。
+  // 旧顺序（fact 先 → chapter/state 后）的问题：fact 各自独立 commit，
+  // chapter/state commit 失败时无法回滚已提交的 fact，留下不一致的中间状态。
+  const timestamp = now_utc();
   const tx = new WriteTransaction();
   tx.appendOp(au_id, createOpsEntry({
     op_id: generate_op_id(),
@@ -120,6 +118,9 @@ async function doResolve(params: ResolveDirtyParams): Promise<ResolveDirtyResult
   tx.saveChapter(au_id, chapter);
   tx.setState(state);
   await tx.commit(ops_repo, null, state_repo, chapter_repo, null);
+
+  // === 步骤 6：执行 facts 变更（在 chapter/state 成功提交之后） ===
+  await applyFactChanges(au_id, chapter_num, confirmed_fact_changes, fact_repo, ops_repo, state_repo);
 
   return {
     chapter_num,
