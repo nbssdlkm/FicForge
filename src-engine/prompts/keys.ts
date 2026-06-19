@@ -44,6 +44,11 @@ export const REQUIRED_KEYS = [
   "RAG_LABEL_CHARACTERS",
   "RAG_LABEL_WORLDBUILDING",
   "RAG_LABEL_CHAPTERS",
+  "RAG_LABEL_SUMMARIES",
+
+  // === chapter_summary (M8-C) ===
+  "SUMMARY_STANDARD_SYSTEM",
+  "SUMMARY_STANDARD_USER",           // f-string with {chapter_num}, {chapter_text}
 
   // === facts_extraction ===
   "FACTS_SYSTEM_PROMPT",

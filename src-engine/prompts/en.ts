@@ -128,6 +128,15 @@ const en: PromptModule = {
   RAG_LABEL_CHARACTERS: "Character Profiles",
   RAG_LABEL_WORLDBUILDING: "Worldbuilding",
   RAG_LABEL_CHAPTERS: "Historical Chapter Excerpts",
+  RAG_LABEL_SUMMARIES: "Past Chapter Summaries",
+
+  SUMMARY_STANDARD_SYSTEM:
+    "You are a novel editor writing a 180-250 word narrative summary of a single chapter. " +
+    "Requirements: (1) keep key plot progression and turns; (2) preserve emotional beats and " +
+    "character tension (do NOT filter out emotion the way a fact list would); (3) third person, " +
+    "past tense, one coherent paragraph, no bullet points; (4) output only the summary prose, no preamble or title.",
+  SUMMARY_STANDARD_USER:
+    "Write a 180-250 word narrative summary of chapter {chapter_num}:\n\n{chapter_text}",
 
   // ===========================================================================
   // facts_extraction

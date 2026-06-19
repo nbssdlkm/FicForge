@@ -120,6 +120,14 @@ const zh: PromptModule = {
   RAG_LABEL_CHARACTERS: "角色设定",
   RAG_LABEL_WORLDBUILDING: "世界观",
   RAG_LABEL_CHAPTERS: "历史章节片段",
+  RAG_LABEL_SUMMARIES: "往期章节摘要",
+
+  SUMMARY_STANDARD_SYSTEM:
+    "你是一名小说编辑，为单个章节写一段 180-250 字的中文叙事摘要。要求：" +
+    "①保留关键情节推进与转折；②保留情绪节拍与人物张力（不要像事实清单那样过滤情感）；" +
+    "③第三人称、过去时、连贯成段，不要分点；④只输出摘要正文，不要前言或标题。",
+  SUMMARY_STANDARD_USER:
+    "为第 {chapter_num} 章写 180-250 字叙事摘要：\n\n{chapter_text}",
 
   // ===========================================================================
   // facts_extraction
