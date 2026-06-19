@@ -19,6 +19,7 @@ import { RAG_COLLECTIONS } from "../domain/context_summary.js";
 const CHARACTERS_TOP_K = 3;
 const WORLDBUILDING_TOP_K = 3;
 const CHAPTERS_TOP_K = 8;
+const SUMMARIES_TOP_K = 4;
 
 // ---------------------------------------------------------------------------
 // build_rag_query
@@ -132,7 +133,7 @@ export function toRagChunkDetail(c: ChunkWithCollection): RagChunkDetail | null 
     collection: c._collection as RagCollection,
     score: c.score,
   };
-  if (c._collection === "chapters" && c.chapter_num > 0) {
+  if ((c._collection === "chapters" || c._collection === "summaries") && c.chapter_num > 0) {
     detail.chapter_num = c.chapter_num;
   }
   const srcFile = c.metadata?.source_file;
@@ -188,6 +189,19 @@ export async function retrieve_rag(
   decayedChChunks.sort((a, b) => b.score - a.score);
   allChunks.push(...decayedChChunks);
 
+  // summaries collection（M8-C，带时间衰减）。
+  // 决策③ + codex MAJOR4：排除"最近已确认章 current-1"（其全文已在 P2，避免同章既全文又摘要）。
+  // retrieve_rag 收到的 current_chapter 是"待写章"，P2 注入的是 current-1，故排除 chNum >= current-1。
+  const sumChunks = await searchCollection(
+    vector_repo, au_id, queryEmbedding, "summaries", SUMMARIES_TOP_K, char_filter,
+  );
+  for (const c of sumChunks) {
+    const chNum = c.chapter_num ?? 0;
+    if (chNum >= current_chapter - 1) continue;
+    const decay = Math.exp(-rag_decay_coefficient * Math.max(0, current_chapter - chNum));
+    allChunks.push({ ...c, score: c.score * decay, _collection: "summaries" });
+  }
+
   // --- 去重 ---
   const seenContent = new Set<string>();
   let deduped: ChunkWithCollection[] = [];
@@ -213,7 +227,7 @@ export async function retrieve_rag(
 
   // 仍超预算：按 collection 优先级丢弃
   if (tokens > budget_remaining && budget_remaining > 0) {
-    const priority = ["characters", "chapters", "worldbuilding"];
+    const priority = ["characters", "summaries", "chapters", "worldbuilding"];
     const kept: ChunkWithCollection[] = [];
     let usedTokens = 0;
     for (const prioColl of priority) {
@@ -243,7 +257,7 @@ async function searchCollection(
   vector_repo: VectorRepository,
   au_id: string,
   queryEmbedding: number[],
-  collection: "chapters" | "characters" | "worldbuilding",
+  collection: RagCollection,
   top_k: number,
   char_filter: string[] | null,
 ): Promise<SearchResult[]> {
@@ -307,11 +321,12 @@ function formatRagChunks(chunks: ChunkWithCollection[], language = "zh"): string
   const labelMap: Record<string, string> = {
     characters: P.RAG_LABEL_CHARACTERS,
     worldbuilding: P.RAG_LABEL_WORLDBUILDING,
+    summaries: P.RAG_LABEL_SUMMARIES,
     chapters: P.RAG_LABEL_CHAPTERS,
   };
 
   const parts: string[] = [];
-  for (const coll of ["characters", "worldbuilding", "chapters"]) {
+  for (const coll of ["characters", "worldbuilding", "summaries", "chapters"]) {
     const items = groups[coll];
     if (items?.length) {
       parts.push(`### ${labelMap[coll] ?? coll}`);
