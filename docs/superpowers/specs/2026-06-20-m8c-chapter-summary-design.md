@@ -1,7 +1,7 @@
 # M8-C · Chapter Summary 层设计（A2：RAG 嵌入）
 
 - Date: 2026-06-20
-- Status: Approved（设计获用户确认，待 writing-plans → 实现）
+- Status: Implemented（2026-06-20 实现完成，引擎 778 + UI 164 全绿，tsc 双端干净；codex 计划审 2 BLOCKER+5 MAJOR 已折叠修复；待 codex 实现审 triage + 用户复核 + 真机出章）
 - Source: D-0041 Memory 架构重设计（§5 Summary 三层生成）
 - Owner: Human PM + CC
 - Decisions baked in（用户 2026-06-20 确认）: ① 只做 standard 一档 ② 生成挂 confirm 后、失败不回滚 ③ 检索排除当前章自身摘要 ④ 复用既有 `disableChapterSummary` flag

@@ -956,6 +956,14 @@ codex plan review 出 2 BLOCKER + 5 MAJOR，逐条对代码验证均属实，修
 - **[MAJOR6 → 去范围]** spec §8 的"检索/重建时 hash 不符 warn"需要 retrieve_rag 拿章节内容/repo，当前无此依赖，欠定义。→ **本轮删除该 warn**（留 M10）。编辑后的新鲜度靠全量重建解决。
 - **[MAJOR7 → T9]** 编辑 (`chapter_edit.ts:61`) 标 `index_status=STALE` 且不增量重索引 chunk。只对摘要做 per-edit 重生成会造成"新摘要 + 陈旧 chunk"混态且不一致。→ **T9 删除 per-edit 摘要重生成**；编辑后摘要随全量重建（Recalc）一起刷新，与 chunk 行为一致。
 
+## Codex 实现审修正（2026-06-20，实现完成后 codex 审，已修复 commit d26915f）
+
+实现完成后 codex 复审：先确认计划阶段 a-f 修正全部生效，再出 3 新 finding：
+
+- **[#1+#2 MAJOR → 已修]** 编辑章节只标 `index_status=STALE`，不失效摘要文件/向量；而 `rebuildForAu` 只盲目重索引现存 `.summary.jsonl`、不校验 `source_chapter_hash`、不重生成摘要 → 编辑后再 rebuild 会把**陈旧摘要永久提升回 READY 索引**（chunk 被重切刷新，摘要却是旧的）。根因：rebuild 无 LLM 无法重生成摘要，故计划阶段 MAJOR7「等同 chunk」不足。**修法**：在 `updateChapterContent` 编辑成功后 `chapterSummary.remove()` 失效该章摘要文件 → rebuild 因无文件而跳过（不会重索引陈旧摘要）→ 编辑章退化为 chunk-only RAG，真正重生成留 M10。避开了「rebuild 内 hash 比对」的等值脆弱性（confirm 的 content_hash 与 get_content_only 是否逐字节一致无保证）。
+- **[#3 MINOR → 已修]** 撤销删章节但留孤儿 `.summary.jsonl`，且 `repo.remove()` 是死代码。**修法**：`undoChapter` 在 `undo_latest_chapter` 后 `chapterSummary.remove(result.chapter_num)`，给 remove() 真实消费者。
+- **已知遗留（记 M10）**：`source_chapter_hash` 在 M8-C 为 write-only（M10 staleness/retrospective 消费）；编辑→未 rebuild 的瞬时窗口仍会注入旧摘要向量（与陈旧 chunk 行为一致，非 M8-C 独有）；dirty_resolve 等非主编辑路径暂不失效摘要。
+
 ## Codex 审阅协议（每块完成后，非阻塞）
 
 每个 Task commit 后，后台发：
