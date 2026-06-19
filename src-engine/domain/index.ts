@@ -30,6 +30,9 @@ export { createBudgetReport } from "./budget_report.js";
 export type { Chapter } from "./chapter.js";
 export { createChapter } from "./chapter.js";
 
+export type { ChapterSummary, SummaryTier } from "./chapter_summary.js";
+export { createChapterSummary } from "./chapter_summary.js";
+
 export type { ContextSummary, RagChunkDetail, RagCollection } from "./context_summary.js";
 export { createContextSummary, RAG_COLLECTIONS } from "./context_summary.js";
 

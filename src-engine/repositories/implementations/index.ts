@@ -4,6 +4,7 @@
 /** Repository 文件 I/O 实现导出。 */
 
 export { FileChapterRepository } from "./file_chapter.js";
+export { FileChapterSummaryRepository, summaryPath } from "./file_chapter_summary.js";
 export { FileDraftRepository } from "./file_draft.js";
 export { FileFactRepository } from "./file_fact.js";
 export { FileFandomRepository } from "./file_fandom.js";

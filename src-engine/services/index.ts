@@ -132,6 +132,10 @@ export { build_settings_context, call_settings_llm } from "./settings_chat.js";
 export type { TrashEntry } from "./trash_service.js";
 export { TrashService } from "./trash_service.js";
 
+// Chapter Summary (M8-C)
+export type { GenerateSummaryOptions, SummaryOrchestrateDeps } from "./chapter_summary.js";
+export { generate_standard_summary, generate_and_index_summary } from "./chapter_summary.js";
+
 // Secure Storage Migration
 export type {
   SecureStorageMigrationParams,

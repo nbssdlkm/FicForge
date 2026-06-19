@@ -4,6 +4,7 @@
 /** Repository 抽象接口导出。 */
 
 export type { ChapterRepository } from "./chapter.js";
+export type { ChapterSummaryRepository } from "./chapter_summary.js";
 export type { DraftRepository } from "./draft.js";
 export type { FactRepository } from "./fact.js";
 export type { FandomRepository } from "./fandom.js";
