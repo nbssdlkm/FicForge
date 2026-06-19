@@ -4,25 +4,28 @@
 /** VectorRepository 抽象接口。参见 PRD §2.6.2。 */
 
 import type { IndexStatus } from "../../domain/enums.js";
+import type { RagCollection } from "../../domain/context_summary.js";
 
 /** 向量化后的 chunk 数据（含 embedding）。 */
 export interface VectorChunk {
   id: string;
-  collection: "chapters" | "characters" | "worldbuilding";
+  collection: RagCollection;
   content: string;
   embedding: number[];
   metadata: {
     au_id: string;
     chapter?: number;
-    chunk_index: number;
-    branch_id: string;
+    // chunk_index / branch_id 仅 chapters chunk 有；summaries 这类整章单向量无此概念，故可选。
+    chunk_index?: number;
+    branch_id?: string;
     characters?: string;
     source_file?: string;
+    kind?: string;
   };
 }
 
 export interface SearchOptions {
-  collection: "chapters" | "characters" | "worldbuilding";
+  collection: RagCollection;
   top_k: number;
   char_filter?: string[] | null;
 }

@@ -11,6 +11,7 @@
 
 import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
+import type { ChapterSummaryRepository } from "../repositories/interfaces/chapter_summary.js";
 import type { JsonVectorEngine } from "../vector/engine.js";
 import { split_chapter_into_chunks, type CastRegistryLike } from "../vector/chunker.js";
 
@@ -50,6 +51,29 @@ export class RagManager {
   }
 
   /**
+   * 索引单章 standard 摘要为 summaries collection 的 1 个向量（M8-C）。
+   * id `sum{N}`，index_chunks 按 id 去重 → 重新生成自动覆盖。空摘要跳过。
+   */
+  async indexChapterSummary(
+    auPath: string,
+    chapterNum: number,
+    summaryText: string,
+    embeddingProvider: EmbeddingProvider,
+  ): Promise<void> {
+    if (!summaryText.trim()) return;
+    await this.ensureLoaded(auPath);
+    const [embedding] = await embeddingProvider.embed([summaryText]);
+    await this.vectorEngine.index_chunks([{
+      id: `sum${chapterNum}`,
+      collection: "summaries",
+      content: summaryText,
+      embedding,
+      metadata: { au_id: auPath, chapter: chapterNum, kind: "standard" },
+    }]);
+    await this.vectorEngine.persist(vectorsDir(auPath));
+  }
+
+  /**
    * 全量重建：删除旧索引 → 遍历所有章节 → 逐章 indexChapter。
    * chapter_repo 和 embedding_provider 由调用方传入（DI 模式）。
    */
@@ -60,6 +84,7 @@ export class RagManager {
     castRegistry?: CastRegistryLike | null,
     signal?: AbortSignal,
     onProgress?: (current: number, total: number) => void,
+    summaryRepo?: ChapterSummaryRepository,
   ): Promise<void> {
     // 先切换到目标 AU（ensureLoaded 会清空内存并从磁盘重新加载，
     // 确保不残留前一个 AU 的 chunks）
@@ -78,6 +103,21 @@ export class RagManager {
         const ch = chapters[i];
         const content = await chapterRepo.get_content_only(auPath, ch.chapter_num);
         await this.indexChapterInMemory(auPath, ch.chapter_num, content, embeddingProvider, castRegistry);
+        // M8-C：若该章有 standard 摘要，一并索引进 summaries collection（仅内存，循环后统一 persist）
+        if (summaryRepo) {
+          const sum = await summaryRepo.get(auPath, ch.chapter_num);
+          const text = sum?.standard?.text;
+          if (text && text.trim()) {
+            const [embedding] = await embeddingProvider.embed([text]);
+            await this.vectorEngine.index_chunks([{
+              id: `sum${ch.chapter_num}`,
+              collection: "summaries",
+              content: text,
+              embedding,
+              metadata: { au_id: auPath, chapter: ch.chapter_num, kind: "standard" },
+            }]);
+          }
+        }
         onProgress?.(i + 1, chapters.length);
       }
       // 无论有无章节都 persist（0 章节时需要写入空索引覆盖旧数据）
