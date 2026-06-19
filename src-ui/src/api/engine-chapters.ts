@@ -161,12 +161,19 @@ export async function confirmChapter(
 }
 
 export async function undoChapter(auPath: string) {
-  const { chapter, draft, state, ops, fact, project } = getEngine().repos;
+  const { chapter, draft, state, ops, fact, project, chapterSummary } = getEngine().repos;
   const proj = await project.get(auPath);
-  return await undo_latest_chapter({
+  const result = await undo_latest_chapter({
     au_id: auPath, cast_registry: proj.cast_registry,
     chapter_repo: chapter, draft_repo: draft, state_repo: state, ops_repo: ops, fact_repo: fact,
   });
+  // M8-C（codex 实现审 #3）：撤销删了章节，连带删其摘要文件，避免孤儿 .summary.jsonl。best-effort。
+  try {
+    await chapterSummary.remove(auPath, result.chapter_num);
+  } catch (err) {
+    logCatch("summary", `Failed to remove summary after undo ${result.chapter_num}`, err);
+  }
+  return result;
 }
 
 export async function updateChapterTitle(auPath: string, chapterNum: number, title: string) {
@@ -202,10 +209,18 @@ export async function resolveDirtyChapter(auPath: string, chapterNum: number, co
 }
 
 export async function updateChapterContent(auPath: string, chapterNum: number, content: string) {
-  const { chapter, state, ops } = getEngine().repos;
+  const { chapter, state, ops, chapterSummary } = getEngine().repos;
   // edit_chapter_content 属于"底层 service"，本身不加锁（避免被 dirty_resolve
   // 等已持锁的 orchestrator 调用时死锁）。UI 直接调用路径必须在此顶层加锁。
-  return withAuLock(auPath, () =>
+  const result = await withAuLock(auPath, () =>
     edit_chapter_content(auPath, chapterNum, content, chapter, state, ops),
   );
+  // M8-C（codex 实现审 #1/#2）：编辑使该章摘要陈旧。删摘要文件，避免后续 rebuild 把陈旧摘要
+  // 重新提升进 READY 索引（rebuild 不重生成摘要）。编辑后该章退化为 chunk-only RAG，真正重生成留 M10。best-effort。
+  try {
+    await chapterSummary.remove(auPath, chapterNum);
+  } catch (err) {
+    logCatch("summary", `Failed to invalidate summary after edit ${chapterNum}`, err);
+  }
+  return result;
 }
