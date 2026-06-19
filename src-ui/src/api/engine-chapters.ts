@@ -15,6 +15,8 @@ import {
   IndexStatus,
   resolve_llm_config,
   create_provider,
+  getSimpleFeatures,
+  generate_and_index_summary,
   generateChapterTitle,
   createOpsEntry,
   generate_op_id,
@@ -127,6 +129,32 @@ export async function confirmChapter(
   } catch (err) {
     // RAG indexing failure doesn't block confirm；保留 STALE 作为真实状态。
     logCatch("rag", `Failed to index chapter ${chapterNum} after confirm`, err);
+  }
+
+  // M8-C：章节摘要生成。独立 best-effort 边界，放在 RAG 索引 / READY 升级之后/之外
+  // —— 摘要失败绝不影响 index_status 或章节确认（决策② / codex MAJOR5）。
+  try {
+    if (!getSimpleFeatures(sett.app.writing_mode).disableChapterSummary) {
+      const embProvider = createEmbeddingProvider(sett, proj);
+      const llmCfg = resolve_llm_config(null, proj, sett);
+      const canGen = llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key);
+      if (embProvider && canGen) {
+        const chContent = await chapter.get_content_only(auPath, chapterNum);
+        await generate_and_index_summary({
+          auPath,
+          chapterNum,
+          chapterText: chContent,
+          contentHash: result.content_hash,
+          llmProvider: create_provider(llmCfg),
+          embeddingProvider: embProvider,
+          summaryRepo: e.repos.chapterSummary,
+          ragManager: e.ragManager,
+          language: sett.app?.language || "zh",
+        });
+      }
+    }
+  } catch (err) {
+    logCatch("summary", `Failed to generate chapter summary after confirm ${chapterNum}`, err);
   }
 
   return result;

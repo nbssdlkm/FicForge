@@ -12,6 +12,7 @@
 import type { PlatformAdapter } from "@ficforge/engine";
 import {
   FileChapterRepository,
+  FileChapterSummaryRepository,
   FileDraftRepository,
   FileFactRepository,
   FileFandomRepository,
@@ -37,6 +38,7 @@ export interface EngineInstance {
   dataDir: string;
   repos: {
     chapter: FileChapterRepository;
+    chapterSummary: FileChapterSummaryRepository;
     draft: FileDraftRepository;
     fact: FileFactRepository;
     fandom: FileFandomRepository;
@@ -63,6 +65,7 @@ export function initEngine(adapter: PlatformAdapter, dataDir: string): void {
     dataDir,
     repos: {
       chapter: new FileChapterRepository(adapter),
+      chapterSummary: new FileChapterSummaryRepository(adapter),
       draft: new FileDraftRepository(adapter),
       fact: new FileFactRepository(adapter),
       fandom: new FileFandomRepository(adapter, dataDir),

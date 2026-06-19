@@ -69,7 +69,7 @@ export async function rebuildIndex(auPath: string) {
 
   if (embProvider) {
     // rebuild 可能耗时数十秒，不持 AU 锁（不写 ops/chapter/facts，只写 vector 索引）
-    await e.ragManager.rebuildForAu(auPath, e.repos.chapter, embProvider, proj.cast_registry);
+    await e.ragManager.rebuildForAu(auPath, e.repos.chapter, embProvider, proj.cast_registry, undefined, undefined, e.repos.chapterSummary);
     // 只对"更新 index_status"这一小段持锁，避免和其它 state 写入交叉
     await withAuLock(auPath, async () => {
       await e.repos.state.update(auPath, (st) => { st.index_status = IndexStatus.READY; });

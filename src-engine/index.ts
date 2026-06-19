@@ -37,11 +37,13 @@ export type {
   StateRepository,
   VectorChunk,
   VectorRepository,
+  ChapterSummaryRepository,
 } from "./repositories/interfaces/index.js";
 
 // Repository implementations
 export {
   FileChapterRepository,
+  FileChapterSummaryRepository,
   FileDraftRepository,
   FileFactRepository,
   FileFandomRepository,
