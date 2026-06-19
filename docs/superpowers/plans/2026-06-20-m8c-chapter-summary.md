@@ -944,6 +944,18 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - [ ] simple 模式不生成摘要、full 模式生成（代码走查 + 测试）
 - [ ] 每个 commit 已发后台 codex 审，findings 已 triage
 
+## Codex 复审修正（2026-06-20，计划阶段 codex 审，已折叠进下列任务）
+
+codex plan review 出 2 BLOCKER + 5 MAJOR，逐条对代码验证均属实，修正如下（T1–T4 不受影响，已合）：
+
+- **[BLOCKER1 → T6]** `repositories/interfaces/vector.ts`：`VectorChunk.collection` 与 `SearchOptions.collection` 是字面量联合 `"chapters"|"characters"|"worldbuilding"`，且 `metadata` 要求 `chunk_index`+`branch_id`。→ T6 先改 vector.ts：collection 用 `RagCollection`（domain 单一真相源），`metadata.chunk_index`/`branch_id` 改可选，加 `kind?: string`。
+- **[BLOCKER2 → T9]** `resolve_llm_config` 真实签名是 `(session_llm, project, settings)`，既有 seam 用 `resolve_llm_config(null, proj, sett)`。→ T9 用 `resolve_llm_config(null, proj, sett)`，不是 `(sett, proj)`。
+- **[MAJOR3 → T9]** `engine-state.ts:68` 的 `rebuildForAu(auPath, e.repos.chapter, embProvider, proj.cast_registry)` 没传 summaryRepo → 全量重建漏摘要。→ T9 更新该调用传 `e.chapterSummary`。
+- **[MAJOR4 → T7]** `retrieve_rag` 收 `state.current_chapter`（待写章）；P2 注入 `current-1`（最近已确认章）。排除 `chapter === current_chapter` 排错对象。→ T7 改为排除 `chapter >= current_chapter - 1`（真正在 P2 的那章）。
+- **[MAJOR5 → T9]** 摘要生成若塞进 confirm 现有 RAG try（promote READY 那段），摘要失败会阻止 READY、留 STALE，违反决策②。→ T9 把摘要生成放**独立 try/catch**，在 READY 升级**之后/之外**，自带 `logCatch("summary",...)`。
+- **[MAJOR6 → 去范围]** spec §8 的"检索/重建时 hash 不符 warn"需要 retrieve_rag 拿章节内容/repo，当前无此依赖，欠定义。→ **本轮删除该 warn**（留 M10）。编辑后的新鲜度靠全量重建解决。
+- **[MAJOR7 → T9]** 编辑 (`chapter_edit.ts:61`) 标 `index_status=STALE` 且不增量重索引 chunk。只对摘要做 per-edit 重生成会造成"新摘要 + 陈旧 chunk"混态且不一致。→ **T9 删除 per-edit 摘要重生成**；编辑后摘要随全量重建（Recalc）一起刷新，与 chunk 行为一致。
+
 ## Codex 审阅协议（每块完成后，非阻塞）
 
 每个 Task commit 后，后台发：
