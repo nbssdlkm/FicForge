@@ -4,7 +4,7 @@
 /** ContextSummary 旁路统计数据结构。参见 D-0031。 */
 
 /** RAG 支持的 collection 类型。新增时只需更新此列表，类型与 UI 白名单自动对齐。 */
-export const RAG_COLLECTIONS = ["chapters", "characters", "worldbuilding"] as const;
+export const RAG_COLLECTIONS = ["chapters", "characters", "worldbuilding", "summaries"] as const;
 export type RagCollection = typeof RAG_COLLECTIONS[number];
 
 export interface RagChunkDetail {
