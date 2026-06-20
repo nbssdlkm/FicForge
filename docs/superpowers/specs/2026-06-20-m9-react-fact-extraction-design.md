@@ -749,4 +749,16 @@ async function extractFacts(auPath, chapterNum) {
 
 ---
 
-*Spec 版本 v0.1 — 待 CC 审核定稿后升 v1.0 并更新 CLAUDE.md 的「活跃工作」节*
+## 9. 实现前独立审修订（2026-06-21，workflow 9 confirmed；codex 当时限额未跑）
+
+独立 3-lens workflow 审（reuse/loop/hops，adversarial verify）确认本 spec 主体可行，三处修正：
+
+1. **【§2.4 reuse 纠偏，MAJOR】`runAgentLoop` 是「复用 + stub」非「全字段零改动复用」**。实测 loop body（agent_loop.ts ~140-319）**从不读取**这 6 个 `AgentLoopConfig` 字段：`isReadOnlyTool` / `isMutatingTool` / `isTerminalTool` / `executeReadTool` / `zodSchemas` / `pathFields` —— 它们是**调用方约定**（simple_chat_dispatch 在自己 `onForceToolPath` 里用），harness 本体不碰。harness 真读的是 `maxIter/onIterStart/tools/toolChoice/onTokenChunk/onToolCallDelta/onGuardRetry/onForceToolPath/onTextPathTerminal/telemetry/agentName/onPartialRescue`。**M9 结论**：harness 零改动可复用，但要给那 6 字段**提供 stub** 满足结构类型；M9 全部工具执行逻辑写在自己的 `onForceToolPath` 里，不靠这 6 个 hook。
+
+2. **【§3.2 drop point 纠偏 + P0 已落地】** 实际位置：`handleSaveExtracted` 在 `useWriterFactsExtraction.ts:90-98`（非 spec 写的 169-177）、`DirtyModal.handleResolve` 在 `:117-126`、另有第三处 `useFactsExtraction.ts:169`（FactsPage 批量提取确认）。三处都 hand-pick **7** 字段（非 6）。**P0 已治本（commit `1530863`）**：`ExtractedFactCandidate` 补全富化字段声明 + 新增 `extractedEnrichment()` 单一真相源助手，三处统一 spread；`caused_by` + 9 个 M8-A 字段不再在确认步丢，3 单测护住边界。**M9 剩余仅**：① engine `ExtractedFact` 加 `thread_ids?`（现无 producer，留到 M9 加自动挂线）；② dispatch 产出 thread_ids 后经已就位的 `extractedEnrichment`（已含 thread_ids 转发）自动落库，**无需再动这三处 UI**。
+
+3. **【§3 hop 确认】** `thread_ids ∈ EDITABLE_FIELDS`、`factToDict`/`dictToFact`/`factFromPayload`/`add_fact` 读 thread_ids/thread_roles —— 审实测全部属实，M9 产出字段的落库链已通。
+
+> **codex 二审待补**：codex 当时撞限额（次日恢复），M9 动手前最好再跑一轮 codex 独立审（尤其 ReAct 工具粒度 PD-1 与终止/预算 PD-2）。
+
+*Spec 版本 v0.2 — 实现前 workflow 审已过、P0 已落地；待 codex 二审 + CC 定稿升 v1.0*
