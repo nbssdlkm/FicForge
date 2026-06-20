@@ -13,7 +13,6 @@ import type { ChapterSummaryRepository } from "../repositories/interfaces/chapte
 import type { RagManager } from "./rag_manager.js";
 import { createChapterSummary } from "../domain/chapter_summary.js";
 import { now_utc } from "../repositories/implementations/file_utils.js";
-import { logCatch } from "../logger/index.js";
 
 export interface GenerateSummaryOptions {
   language?: string;
@@ -55,38 +54,28 @@ export async function generate_standard_summary(
   }
 }
 
-export interface SummaryOrchestrateDeps {
+export interface PersistSummaryDeps {
   auPath: string;
   chapterNum: number;
-  chapterText: string;
+  text: string;
   contentHash: string;
-  llmProvider: LLMProvider;
   embeddingProvider: EmbeddingProvider;
   summaryRepo: ChapterSummaryRepository;
   ragManager: RagManager;
-  language?: string;
-  signal?: AbortSignal;
 }
 
 /**
- * 生成→存→索引；全程 best-effort，失败 log 后返回 false，绝不抛（决策②）。
- * 返回是否成功生成并落盘。
+ * 落盘 + 索引一条【已生成】的摘要。
+ *
+ * - **index 先于 save**：超长摘要被 embedding 拒会先在 index 抛出，从而不落下脏的
+ *   .summary.jsonl（否则后续 rebuild 反复读它再抛 — codex 对抗审 BLOCKER）。
+ * - 不在此 try/catch、不加锁：生成在锁外（慢 LLM），调用方负责把本函数 + 章节存在性
+ *   CAS 一起放进 withAuLock，避免并发 undo/edit 后把过期摘要写回（codex 对抗审 race）。
  */
-export async function generate_and_index_summary(deps: SummaryOrchestrateDeps): Promise<boolean> {
-  try {
-    const text = await generate_standard_summary(
-      deps.chapterText, deps.chapterNum, deps.llmProvider,
-      { language: deps.language, signal: deps.signal },
-    );
-    if (!text) return false;
-    const summary = createChapterSummary({
-      standard: { version: 1, text, generated_at: now_utc(), source_chapter_hash: deps.contentHash },
-    });
-    await deps.summaryRepo.save(deps.auPath, deps.chapterNum, summary);
-    await deps.ragManager.indexChapterSummary(deps.auPath, deps.chapterNum, text, deps.embeddingProvider);
-    return true;
-  } catch (err) {
-    logCatch("summary", `Failed to generate/index summary for chapter ${deps.chapterNum}`, err);
-    return false;
-  }
+export async function persist_chapter_summary(deps: PersistSummaryDeps): Promise<void> {
+  await deps.ragManager.indexChapterSummary(deps.auPath, deps.chapterNum, deps.text, deps.embeddingProvider);
+  const summary = createChapterSummary({
+    standard: { version: 1, text: deps.text, generated_at: now_utc(), source_chapter_hash: deps.contentHash },
+  });
+  await deps.summaryRepo.save(deps.auPath, deps.chapterNum, summary);
 }

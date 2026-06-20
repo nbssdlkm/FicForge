@@ -133,8 +133,8 @@ export type { TrashEntry } from "./trash_service.js";
 export { TrashService } from "./trash_service.js";
 
 // Chapter Summary (M8-C)
-export type { GenerateSummaryOptions, SummaryOrchestrateDeps } from "./chapter_summary.js";
-export { generate_standard_summary, generate_and_index_summary } from "./chapter_summary.js";
+export type { GenerateSummaryOptions, PersistSummaryDeps } from "./chapter_summary.js";
+export { generate_standard_summary, persist_chapter_summary } from "./chapter_summary.js";
 
 // Secure Storage Migration
 export type {

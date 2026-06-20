@@ -16,7 +16,8 @@ import {
   resolve_llm_config,
   create_provider,
   getSimpleFeatures,
-  generate_and_index_summary,
+  generate_standard_summary,
+  persist_chapter_summary,
   generateChapterTitle,
   createOpsEntry,
   generate_op_id,
@@ -140,17 +141,33 @@ export async function confirmChapter(
       const canGen = llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key);
       if (embProvider && canGen) {
         const chContent = await chapter.get_content_only(auPath, chapterNum);
-        await generate_and_index_summary({
-          auPath,
-          chapterNum,
-          chapterText: chContent,
-          contentHash: result.content_hash,
-          llmProvider: create_provider(llmCfg),
-          embeddingProvider: embProvider,
-          summaryRepo: e.repos.chapterSummary,
-          ragManager: e.ragManager,
+        // 生成（慢 LLM）在锁外，避免长时间占 AU 锁。
+        const summaryText = await generate_standard_summary(chContent, chapterNum, create_provider(llmCfg), {
           language: sett.app?.language || "zh",
         });
+        if (summaryText) {
+          // 落盘+索引在锁内，并 CAS 校验章节内容未被并发 undo/edit 改动（codex 对抗审 race）：
+          // A 生成期间 B 若 undo/edit 本章，A 在锁内 re-check content_hash 不符 → 丢弃过期摘要不写回。
+          await withAuLock(auPath, async () => {
+            let stillCurrent = false;
+            try {
+              const ch = await chapter.get(auPath, chapterNum);
+              stillCurrent = ch.content_hash === result.content_hash;
+            } catch {
+              stillCurrent = false; // 章节已被 undo
+            }
+            if (!stillCurrent) return;
+            await persist_chapter_summary({
+              auPath,
+              chapterNum,
+              text: summaryText,
+              contentHash: result.content_hash,
+              embeddingProvider: embProvider,
+              summaryRepo: e.repos.chapterSummary,
+              ragManager: e.ragManager,
+            });
+          });
+        }
       }
     }
   } catch (err) {
