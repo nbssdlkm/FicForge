@@ -98,3 +98,48 @@ export async function setFactThreads(
 ): Promise<void> {
   await editFact(auPath, factId, { thread_ids: threadIds });
 }
+
+/** 把一条 Fact 挂到某剧情线（成员关系 = fact.thread_ids）。已挂则 no-op。 */
+export async function addFactToThread(
+  auPath: string,
+  factId: string,
+  threadId: string,
+  currentIds: string[] | undefined,
+): Promise<void> {
+  const ids = currentIds ?? [];
+  if (ids.includes(threadId)) return;
+  await editFact(auPath, factId, { thread_ids: [...ids, threadId] });
+}
+
+/** 把一条 Fact 从某剧情线摘除：同时清 thread_ids 与 thread_roles[threadId]，不留孤儿。 */
+export async function removeFactFromThread(
+  auPath: string,
+  factId: string,
+  threadId: string,
+  currentIds: string[] | undefined,
+  currentRoles: Record<string, string> | undefined,
+): Promise<void> {
+  const patch: Record<string, unknown> = {
+    thread_ids: (currentIds ?? []).filter((t) => t !== threadId),
+  };
+  if (currentRoles && threadId in currentRoles) {
+    const { [threadId]: _drop, ...rest } = currentRoles;
+    patch.thread_roles = rest;
+  }
+  await editFact(auPath, factId, patch);
+}
+
+/** 设/清某 Fact 在某线里的角色（thread_role）。role 空串=清除该键。 */
+export async function setFactThreadRole(
+  auPath: string,
+  factId: string,
+  threadId: string,
+  role: string,
+  currentRoles: Record<string, string> | undefined,
+): Promise<void> {
+  const next: Record<string, string> = { ...(currentRoles ?? {}) };
+  const trimmed = role.trim();
+  if (trimmed) next[threadId] = trimmed;
+  else delete next[threadId];
+  await editFact(auPath, factId, { thread_roles: next });
+}

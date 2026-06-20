@@ -1379,6 +1379,24 @@
       "status": "状态"
     },
     "nodeCount_one": "{{count}} 条笔记",
-    "nodeCount_other": "{{count}} 条笔记"
+    "nodeCount_other": "{{count}} 条笔记",
+    "detail": {
+      "back": "返回",
+      "editThread": "编辑线",
+      "nodesTitle": "节点（按章）",
+      "addNode": "挂节点",
+      "emptyNodesTitle": "这条线还没有节点",
+      "emptyNodesDesc": "把相关的剧情笔记挂到这条线上，按章排成节点；续写时这条线的进展会注入上下文。",
+      "removeNode": "从本线移除",
+      "setRole": "标角色",
+      "roleLabel": "节点角色",
+      "rolePlaceholder": "如：触发 / 转折 / 高潮",
+      "pickerTitle": "挂节点：选剧情笔记",
+      "pickerSearch": "搜索剧情笔记或角色…",
+      "pickerEmpty": "没有可挂的剧情笔记（都已在本线，或还没有笔记）",
+      "tag": {
+        "readerOnly": "仅读者知"
+      }
+    }
   }
 }

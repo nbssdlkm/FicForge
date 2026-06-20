@@ -21,6 +21,7 @@ import { EmptyState } from '../shared/EmptyState';
 import { Modal } from '../shared/Modal';
 import { goldLine } from '../shared/tokens';
 import { Spline, Plus, Trash2 } from 'lucide-react';
+import { ThreadDetail } from './ThreadDetail';
 import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { useFeedback } from '../../hooks/useFeedback';
 import { useTranslation } from '../../i18n/useAppTranslation';
@@ -55,6 +56,7 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
   const [editing, setEditing] = useState<DraftThread | null>(null);  // 建线 / 改线共用一个 modal
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);  // 进 ThreadDetail
 
   const load = async () => {
     if (!auPath) return;
@@ -74,7 +76,7 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
   };
 
   useEffect(() => {
-    setThreads([]); setFacts([]); setEditing(null);
+    setThreads([]); setFacts([]); setEditing(null); setSelectedThreadId(null);
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auPath]);
@@ -153,8 +155,21 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
     }
   };
 
+  const selectedThread = selectedThreadId ? threads.find(th => th.id === selectedThreadId) : null;
+
   return (
     <div className="flex h-full w-full flex-col bg-background">
+      {selectedThread ? (
+        <ThreadDetail
+          auPath={auPath}
+          thread={selectedThread}
+          facts={facts}
+          onBack={() => setSelectedThreadId(null)}
+          onEdit={(th) => setEditing({ id: th.id, title: th.title, description: th.description, state: th.state, status: th.status })}
+          onChanged={load}
+        />
+      ) : (
+      <>
       {/* 面板头 */}
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-rule bg-surface px-5 py-4 md:px-6">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -201,7 +216,7 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
                       <button
                         key={th.id}
                         type="button"
-                        onClick={() => setEditing({ id: th.id, title: th.title, description: th.description, state: th.state, status: th.status })}
+                        onClick={() => setSelectedThreadId(th.id)}
                         className="group relative flex flex-col gap-2 rounded-sm border border-rule bg-surface py-3 pl-5 pr-4 text-left transition-colors hover:border-gold/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright"
                       >
                         {/* 金色书脊 */}
@@ -224,6 +239,8 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
           </div>
         )}
       </div>
+      </>
+      )}
 
       {/* 建线 / 改线 modal */}
       <Modal

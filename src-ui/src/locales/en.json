@@ -1379,6 +1379,24 @@
       "status": "Status"
     },
     "nodeCount_one": "{{count}} note",
-    "nodeCount_other": "{{count}} notes"
+    "nodeCount_other": "{{count}} notes",
+    "detail": {
+      "back": "Back",
+      "editThread": "Edit thread",
+      "nodesTitle": "Nodes (by chapter)",
+      "addNode": "Add node",
+      "emptyNodesTitle": "No nodes on this thread yet",
+      "emptyNodesDesc": "Attach related plot points to this thread as chapter-ordered nodes. The thread’s current state is injected into context while writing.",
+      "removeNode": "Remove from thread",
+      "setRole": "Set role",
+      "roleLabel": "Node role",
+      "rolePlaceholder": "e.g. trigger / turn / climax",
+      "pickerTitle": "Add node: pick a plot point",
+      "pickerSearch": "Search plot points or characters…",
+      "pickerEmpty": "No plot points available (all already on this thread, or none yet)",
+      "tag": {
+        "readerOnly": "reader-only"
+      }
+    }
   }
 }
