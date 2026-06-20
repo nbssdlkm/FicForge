@@ -195,12 +195,16 @@ export async function retrieve_rag(
   const sumChunks = await searchCollection(
     vector_repo, au_id, queryEmbedding, "summaries", SUMMARIES_TOP_K, char_filter,
   );
+  const decayedSumChunks: ChunkWithCollection[] = [];
   for (const c of sumChunks) {
     const chNum = c.chapter_num ?? 0;
     if (chNum >= current_chapter - 1) continue;
     const decay = Math.exp(-rag_decay_coefficient * Math.max(0, current_chapter - chNum));
-    allChunks.push({ ...c, score: c.score * decay, _collection: "summaries" });
+    decayedSumChunks.push({ ...c, score: c.score * decay, _collection: "summaries" });
   }
+  // 衰减后重排序（与 chapters 一致）。否则保持 cosine 序，预算裁剪 reduceTopK 可能留旧弃新（codex 对抗审）。
+  decayedSumChunks.sort((a, b) => b.score - a.score);
+  allChunks.push(...decayedSumChunks);
 
   // --- 去重 ---
   const seenContent = new Set<string>();

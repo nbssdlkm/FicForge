@@ -31,4 +31,25 @@ describe("retrieve_rag summaries", () => {
     expect(text).toContain("第四章摘要");
     expect(text).not.toContain("第五章摘要"); // ch5 = current-1（决策③ + codex MAJOR4）
   });
+
+  it("摘要按衰减后分数排序，而非原始 cosine（codex 对抗审）", async () => {
+    // current=50：ch2 原始 0.95 但衰减重；ch48 原始 0.90 但衰减轻 → 排序后 ch48 在前。
+    const repo = {
+      async search(_au: string, _q: number[], opts: any) {
+        if (opts.collection === "summaries") {
+          return [
+            { content: "ch2sum", chapter_num: 2, score: 0.95, metadata: { chapter: 2 } },
+            { content: "ch48sum", chapter_num: 48, score: 0.90, metadata: { chapter: 48 } },
+          ];
+        }
+        return [];
+      },
+    } as any;
+    const [text] = await retrieve_rag(repo, emb, "/au", "q", 100000, null, { mode: "api" }, 0.05, 50, "zh");
+    const i48 = text.indexOf("ch48sum");
+    const i2 = text.indexOf("ch2sum");
+    expect(i48).toBeGreaterThanOrEqual(0);
+    expect(i2).toBeGreaterThanOrEqual(0);
+    expect(i48).toBeLessThan(i2); // ch48 衰减后更高 → 排在前
+  });
 });

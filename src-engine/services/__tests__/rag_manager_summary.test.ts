@@ -60,4 +60,27 @@ describe("RagManager.indexChapterSummary", () => {
     expect(results.map((r) => r.content)).toContain("第一章摘要");
     expect(results.length).toBe(1); // 仅 ch1 有摘要，ch2 无
   });
+
+  it("rebuild 不因单章摘要 poison/损坏而中断（codex 对抗审 BLOCKER + 损坏文件）", async () => {
+    const engine = new JsonVectorEngine(memAdapter());
+    const mgr = new RagManager(engine);
+    const pickyEmb = { embed: vi.fn(async (t: string[]) => {
+      if (t[0] === "POISON") throw new Error("input too long"); // 超长摘要被 embedding 拒
+      return t.map(() => [0.1, 0.2, 0.3]);
+    }) } as any;
+    const chapterRepo = {
+      async list_main() { return [{ chapter_num: 1 }, { chapter_num: 2 }, { chapter_num: 3 }]; },
+      async get_content_only() { return "正文"; },
+    } as any;
+    const summaryRepo = {
+      async get(_au: string, ch: number) {
+        if (ch === 1) return { standard: { version: 1, text: "POISON", generated_at: "t", source_chapter_hash: "h" } };
+        if (ch === 2) return { standard: { version: 1, text: 42 } }; // 语义损坏：text 非 string
+        return { standard: { version: 1, text: "第三章摘要", generated_at: "t", source_chapter_hash: "h" } };
+      },
+    } as any;
+    await mgr.rebuildForAu("/au", chapterRepo, pickyEmb, null, undefined, undefined, summaryRepo); // 不应抛
+    const results = await engine.search("/au", [0.1, 0.2, 0.3], { collection: "summaries", top_k: 5, char_filter: null });
+    expect(results.map((r) => r.content)).toEqual(["第三章摘要"]); // ch1 poison + ch2 损坏被跳过
+  });
 });

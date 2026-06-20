@@ -105,17 +105,23 @@ export class RagManager {
         await this.indexChapterInMemory(auPath, ch.chapter_num, content, embeddingProvider, castRegistry);
         // M8-C：若该章有 standard 摘要，一并索引进 summaries collection（仅内存，循环后统一 persist）
         if (summaryRepo) {
-          const sum = await summaryRepo.get(auPath, ch.chapter_num);
-          const text = sum?.standard?.text;
-          if (text && text.trim()) {
-            const [embedding] = await embeddingProvider.embed([text]);
-            await this.vectorEngine.index_chunks([{
-              id: `sum${ch.chapter_num}`,
-              collection: "summaries",
-              content: text,
-              embedding,
-              metadata: { au_id: auPath, chapter: ch.chapter_num, kind: "standard" },
-            }]);
+          // best-effort：单章摘要 embed/index 失败（超长被 embedding 拒、或文件语义损坏 text 非 string）
+          // 不能中断整个 rebuild（codex 对抗审 BLOCKER + 损坏文件）。typeof 守卫挡住 {"text":42} 这类。
+          try {
+            const sum = await summaryRepo.get(auPath, ch.chapter_num);
+            const text = sum?.standard?.text;
+            if (typeof text === "string" && text.trim()) {
+              const [embedding] = await embeddingProvider.embed([text]);
+              await this.vectorEngine.index_chunks([{
+                id: `sum${ch.chapter_num}`,
+                collection: "summaries",
+                content: text,
+                embedding,
+                metadata: { au_id: auPath, chapter: ch.chapter_num, kind: "standard" },
+              }]);
+            }
+          } catch (err) {
+            console.warn(`[m8c] skip summary for ch${ch.chapter_num} during rebuild:`, err);
           }
         }
         onProgress?.(i + 1, chapters.length);
