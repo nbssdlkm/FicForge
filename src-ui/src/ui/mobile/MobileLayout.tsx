@@ -15,7 +15,7 @@ import { MobileSettingsView } from "./MobileSettingsView";
 import { SimpleChatPanel } from "../simple/SimpleChatPanel";
 import { SimpleReadingView } from "../simple/SimpleReadingView";
 
-type WorkspacePage = "writer" | "chat" | "facts" | "au_lore" | "settings";
+type WorkspacePage = "writer" | "chat" | "facts" | "threads" | "au_lore" | "settings";
 
 interface MobileLayoutProps {
   activePage: WorkspacePage;
@@ -36,11 +36,13 @@ interface MobileLayoutProps {
 function mapPageToTab(page: WorkspacePage): MobileWorkspaceTab {
   if (page === "chat") return "chat";
   if (page === "au_lore") return "settings";
-  if (page === "facts" || page === "settings") return "manage";
+  // facts / threads / 故事设置 都落到「管理」tab，内部再用段控切 section
+  if (page === "facts" || page === "threads" || page === "settings") return "manage";
   return "writer";
 }
 
-function mapPageToManageSection(page: WorkspacePage): "facts" | "project" {
+function mapPageToManageSection(page: WorkspacePage): "facts" | "threads" | "project" {
+  if (page === "threads") return "threads";
   return page === "settings" ? "project" : "facts";
 }
 

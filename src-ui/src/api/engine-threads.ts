@@ -25,7 +25,7 @@ export async function listThreads(auPath: string): Promise<Thread[]> {
 
 export async function addThread(
   auPath: string,
-  data: { title: string; description?: string; state?: string },
+  data: { title: string; description?: string; state?: string; status?: ThreadStatus },
 ): Promise<Thread> {
   const ts = now_utc();
   const thread = createThread({
@@ -33,7 +33,9 @@ export async function addThread(
     title: data.title,
     description: data.description ?? "",
     state: data.state ?? "",
-    status: ThreadStatus.ACTIVE,
+    // 单次写入即定状态（codex 审 MAJOR：原先固定 ACTIVE + 二次 setThreadStatus，
+    // 二次写失败不回滚 → 用户再保存会重复建线）。
+    status: data.status ?? ThreadStatus.ACTIVE,
     created_at: ts,
     updated_at: ts,
   });
@@ -57,8 +59,28 @@ export async function setThreadStatus(
   await getEngine().repos.thread.update(auPath, { ...t, status });
 }
 
+/**
+ * 删线。成员关系单一真相源 = fact.thread_ids，故删线前先把各 fact 上对本线的引用清掉
+ * （含 thread_roles[id]），否则留下 orphaned 引用、数据层不一致（codex 审 MAJOR）。
+ *
+ * 先扫 fact、后删 thread：若中途某条 fact 清理失败抛出，thread 仍在 → 用户可重试删除，
+ * 不会出现「thread 没了但 fact 还引用」的状态。每条 editFact 各自 withAuLock（非单事务原子，
+ * 但顺序保证可重入收敛）。
+ */
 export async function removeThread(auPath: string, id: string): Promise<void> {
-  await getEngine().repos.thread.remove(auPath, id);
+  const e = getEngine();
+  const facts = await e.repos.fact.list_all(auPath);
+  for (const f of facts) {
+    const ids = f.thread_ids ?? [];
+    if (!ids.includes(id)) continue;
+    const patch: Record<string, unknown> = { thread_ids: ids.filter((tid) => tid !== id) };
+    if (f.thread_roles && id in f.thread_roles) {
+      const { [id]: _drop, ...rest } = f.thread_roles;
+      patch.thread_roles = rest;
+    }
+    await editFact(auPath, f.id, patch);
+  }
+  await e.repos.thread.remove(auPath, id);
 }
 
 /**

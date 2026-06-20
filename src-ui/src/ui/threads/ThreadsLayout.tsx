@@ -25,7 +25,7 @@ import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { useFeedback } from '../../hooks/useFeedback';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import {
-  listThreads, addThread, updateThread, setThreadStatus, removeThread,
+  listThreads, addThread, updateThread, removeThread,
   listFacts, type FactInfo,
 } from '../../api/engine-client';
 import { ThreadStatus } from '@ficforge/engine';
@@ -73,7 +73,11 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
     }
   };
 
-  useEffect(() => { setThreads([]); setFacts([]); setEditing(null); void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [auPath]);
+  useEffect(() => {
+    setThreads([]); setFacts([]); setEditing(null);
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auPath]);
 
   // 每条线挂了多少 Fact（成员关系真相源 = fact.thread_ids）。
   const nodeCount = useMemo(() => {
@@ -100,25 +104,26 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
     try {
       if (editing.id) {
         const existing = threads.find(th => th.id === editing.id);
-        if (existing) {
-          await updateThread(requestAuPath, {
-            ...existing,
-            title: editing.title.trim(),
-            description: editing.description,
-            state: editing.state,
-            status: editing.status,
-          });
+        // 本地态可能已过期（线被外部删了）→ find 落空。不静默假成功，报错让用户知道（codex/workflow 审）。
+        if (!existing) {
+          showError(new Error('thread not found'), t('error_messages.unknown'));
+          return;
         }
-      } else {
-        const created = await addThread(requestAuPath, {
+        await updateThread(requestAuPath, {
+          ...existing,
           title: editing.title.trim(),
           description: editing.description,
           state: editing.state,
+          status: editing.status,
         });
-        // 新建默认 active；若用户在 modal 改了状态，补一次状态写入。
-        if (editing.status !== ThreadStatus.ACTIVE) {
-          await setThreadStatus(requestAuPath, created.id, editing.status);
-        }
+      } else {
+        // 单次写入即定状态，避免「建成 active 再二次改状态、二次失败留重复线」（codex 审）。
+        await addThread(requestAuPath, {
+          title: editing.title.trim(),
+          description: editing.description,
+          state: editing.state,
+          status: editing.status,
+        });
       }
       if (loadGuard.isKeyStale(requestAuPath)) return;
       setEditing(null);
@@ -181,10 +186,10 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
         ) : (
           <div className="mx-auto flex max-w-3xl flex-col gap-7">
             {STATUS_ORDER.filter(s => (grouped[s]?.length ?? 0) > 0).map(status => (
-              <section key={status} className="flex flex-col gap-3">
+              <section key={status} className="flex flex-col gap-3" aria-labelledby={`thread-group-${status}`}>
                 {/* sage drawer banner — gold 内嵌线，同 Modal / Library */}
                 <div className="rounded-sm bg-drawer px-4 py-2.5 text-inv-text" style={headerGoldLines}>
-                  <span className="font-mono text-[9px] font-medium uppercase tracking-[0.18em] text-gold-bright">
+                  <span id={`thread-group-${status}`} className="font-mono text-[9px] font-medium uppercase tracking-[0.18em] text-gold-bright">
                     {statusLabel(status)} · {grouped[status].length}
                   </span>
                 </div>
@@ -232,6 +237,7 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
               <label className="block text-sm font-bold text-text/90">{t('threads.field.title')} *</label>
               <Input
                 autoFocus
+                aria-label={t('threads.field.title')}
                 value={editing.title}
                 onChange={e => setEditing({ ...editing, title: e.target.value })}
                 placeholder={t('threads.field.titlePlaceholder')}
@@ -240,6 +246,7 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
             <div className="space-y-1">
               <label className="block text-sm font-bold text-text/90">{t('threads.field.state')}</label>
               <Textarea
+                aria-label={t('threads.field.state')}
                 value={editing.state}
                 onChange={e => setEditing({ ...editing, state: e.target.value })}
                 placeholder={t('threads.field.statePlaceholder')}
@@ -250,6 +257,7 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
             <div className="space-y-1">
               <label className="block text-sm font-bold text-text/90">{t('threads.field.description')}</label>
               <Textarea
+                aria-label={t('threads.field.description')}
                 value={editing.description}
                 onChange={e => setEditing({ ...editing, description: e.target.value })}
                 placeholder={t('threads.field.descriptionPlaceholder')}
@@ -259,6 +267,7 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
             <div className="space-y-1">
               <label className="block text-sm font-bold text-text/90">{t('threads.field.status')}</label>
               <select
+                aria-label={t('threads.field.status')}
                 value={editing.status}
                 onChange={e => setEditing({ ...editing, status: e.target.value as ThreadStatus })}
                 className="h-11 w-full rounded-md border border-black/20 bg-surface px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"

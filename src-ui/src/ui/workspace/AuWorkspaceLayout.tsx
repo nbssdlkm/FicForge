@@ -196,7 +196,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   if (isMobile) {
     return (
       <MobileLayout
-        activePage={activeTab as 'writer' | 'chat' | 'facts' | 'au_lore' | 'settings'}
+        activePage={activeTab as 'writer' | 'chat' | 'facts' | 'threads' | 'au_lore' | 'settings'}
         isSimple={isSimple}
         auPath={auPath}
         auName={auName}

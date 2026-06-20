@@ -1362,7 +1362,6 @@
     "emptyTitle": "No threads yet",
     "emptyDesc": "Turn a multi-chapter arc (e.g. clearing a father’s name, a slow-burn romance) into a thread with a one-line current state. It gets injected while writing to keep the long arc consistent.",
     "noState": "(no current state)",
-    "nodeCount": "{{count}} notes",
     "delete": "Delete",
     "status": {
       "active": "Active",
@@ -1378,6 +1377,8 @@
       "description": "Description",
       "descriptionPlaceholder": "What this thread is (optional)",
       "status": "Status"
-    }
+    },
+    "nodeCount_one": "{{count}} note",
+    "nodeCount_other": "{{count}} notes"
   }
 }

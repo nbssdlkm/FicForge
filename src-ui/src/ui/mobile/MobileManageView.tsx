@@ -3,14 +3,15 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useState } from "react";
-import { SlidersHorizontal, Trash2 } from "lucide-react";
+import { SlidersHorizontal, Spline, Trash2 } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { FactsLayout } from "../facts/FactsLayout";
+import { ThreadsLayout } from "../threads/ThreadsLayout";
 import { AuSettingsLayout } from "../settings/AuSettingsLayout";
 import { TrashPanel } from "../shared/TrashPanel";
 import { cn } from "../shared/utils";
 
-type ManageSection = "facts" | "project";
+type ManageSection = "facts" | "threads" | "project";
 
 interface MobileManageViewProps {
   auPath: string;
@@ -37,6 +38,7 @@ export function MobileManageView({
         <div className="mt-2 inline-flex w-full rounded-sm border border-rule bg-background/60 p-1">
           {[
             { id: "facts", label: t("facts.title"), Icon: SlidersHorizontal },
+            { id: "threads", label: t("navigation.threads"), Icon: Spline },
             { id: "project", label: t("workspace.projectSection"), Icon: Trash2 },
           ].map(({ id, label, Icon }) => (
             <button
@@ -58,6 +60,8 @@ export function MobileManageView({
       <div className="mt-2 min-h-[calc(var(--app-height)-11rem)]">
         {section === "facts" ? (
           <FactsLayout auPath={auPath} />
+        ) : section === "threads" ? (
+          <ThreadsLayout auPath={auPath} />
         ) : (
           <div className="space-y-4">
             <AuSettingsLayout auPath={auPath} />

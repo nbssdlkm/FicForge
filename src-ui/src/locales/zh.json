@@ -1362,7 +1362,6 @@
     "emptyTitle": "还没有剧情线",
     "emptyDesc": "把跨越多章的长线（如「为父翻案」「双向暗恋」）建成剧情线，写一句当前进展；续写时会自动注入，帮模型守住长线。",
     "noState": "（未填当前进展）",
-    "nodeCount": "{{count}} 条笔记",
     "delete": "删除",
     "status": {
       "active": "进行中",
@@ -1378,6 +1377,8 @@
       "description": "简介",
       "descriptionPlaceholder": "这条线是什么（可空）",
       "status": "状态"
-    }
+    },
+    "nodeCount_one": "{{count}} 条笔记",
+    "nodeCount_other": "{{count}} 条笔记"
   }
 }
