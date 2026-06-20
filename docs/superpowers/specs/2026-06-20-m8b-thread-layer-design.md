@@ -17,6 +17,14 @@
   4. `edit_fact` 服务经通用 `key in fact` 循环已天然支持 thread_ids（fact 总经 dictToFact 加载，属性恒存在）；EDITABLE_FIELDS 管 rebuild 侧。两侧均测。
   5. ThreadStatus 断言放 `enums.test.ts` 值稳定性（非 contract_enums——threads 不是 LLM 工具，无 schema 可对）。
   - 结果：引擎 931/931 + 双端 tsc 干净；src-ui 163/164（唯一失败 useContextTokenCount 系既有 async-timing flake，隔离跑 4/4 绿，与本支线无关）。
+- v3（2026-06-20，实现审 codex + workflow 修正）：两路独立审（codex CLI + 3-lens workflow，均带 M8-A BLOCKER 怀疑度）**独立确认主链 hop 无漏、门控零回归、edit_fact 边界安全**（M8-A 那类坑未复发）。据审收口：
+  1. **【接受 BLOCKER 但判定为「文档化的工程分层」非架构死步】codex：生产 UI 无入口调 thread API → 发版后 `build_threads_layer` 恒拿 []，M8-B 能力不落地**。CC 拍板：M8-B 是**引擎层增量**（与 M8-C 摘要、M10 archival sweep 同节奏——引擎闭环完成+测试，UI 是显式下一块）。引擎链路真实完整且测试覆盖；缺的是**用户入口（UI）**，不是数据链消费者。**但与 M8-C 不同**（摘要 confirm 自动触发、零用户操作即有可观测产出），M8-B 剧情线是**手动**的，没 UI 就没用户可达入口 → 发版无可观测价值，纯基础设施。**→ 决策：先合引擎+API 增量，「M8-B-UI（剧情线面板 + 挂线交互）」列为价值落地的下一块，向用户显式 flag 可改排期。**
+  2. workflow MAJOR（确认）：门控测试漏断言 p2/p4_tokens → 已补全 P 层断言。
+  3. codex MINOR：engine-generate 线程读失败 `catch(()=>[])` 静默 → 改 logCatch 记录（沿用本会话 bughunt 非静默吞错铁律）。
+  4. codex MINOR：thread_roles 潜在漂移 → v1 无生产者实际不会发生，setFactThreads 注释标 M9 维护责任。
+  5. build_threads_layer sort 加 `?? ""` 兜底防损坏行 undefined updated_at；simple 模式不注入 threads 加显式注释（spec D5）。
+  - 延后（记 §十）：ExtractedFact(Candidate)/FactInfo 加 thread_ids（提取产出剧情线归属是 M9 的活，现加=死字段）。
+  - 复验：引擎 931/931 + 双端 tsc 干净。
 
 ---
 
@@ -250,3 +258,4 @@ threads 完全镜像 `facts` 的流动方式（`facts` 由 UI 层 `e.repos.fact.
 - simple 模式注入剧情线（fork 隔离，未来可加）。
 - thread_roles 的注入消费（v1 只序列化留位）。
 - Thread 元数据进 undo 级联（直写设计，不需要，见 D3）。
+- **`ExtractedFact` / `ExtractedFactCandidate` / `FactInfo` 加 thread_ids 字段**（M8-B 实现审 MINOR/NIT）：当前 LLM 提取**不产出** thread_ids（剧情线手动建/手动挂，非提取），故这些「提取候选」类型留 thread_ids 是死字段、无生产者。**留给 M9**——M9 若让提取产出剧情线归属，再在 ExtractedFact→rawToExtracted→addFact 候选链补字段。手动挂线路径（setFactThreads→edit_fact）不经这些类型，已通。

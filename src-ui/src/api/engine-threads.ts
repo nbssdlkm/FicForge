@@ -64,6 +64,10 @@ export async function removeThread(auPath: string, id: string): Promise<void> {
 /**
  * 给一条 Fact 设置所属剧情线（成员关系单一真相源 = fact.thread_ids）。
  * 走 edit_fact op（thread_ids 已在 EDITABLE_FIELDS 白名单），ops rebuild 可还原。
+ *
+ * 注意：thread_roles 是 M8-B 留位字段，v1 无任何生产者（没有 API / 提取会写它），
+ * 故此处只动 thread_ids 不会造成 thread_roles 漂移。M9 若开始用 thread_roles，
+ * 需在此处（及 removeThread）同步裁剪 thread_roles 使其键与 thread_ids 一致。
  */
 export async function setFactThreads(
   auPath: string,

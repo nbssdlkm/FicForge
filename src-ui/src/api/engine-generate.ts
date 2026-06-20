@@ -8,6 +8,7 @@
 import {
   generate_chapter as engineGenerateChapter,
   resolve_llm_config,
+  logCatch,
 } from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
 import { createEmbeddingProvider } from "./engine-state";
@@ -24,8 +25,11 @@ export async function* generateChapter(params: {
   const proj = await e.repos.project.get(params.au_path);
   const st = await e.repos.state.get(params.au_path);
   const allFacts = await e.repos.fact.list_all(params.au_path);
-  // M8-B: 活跃剧情线注入。best-effort — 读失败降级 []，绝不阻断续写。
-  const threads = await e.repos.thread.list(params.au_path).catch(() => []);
+  // M8-B: 活跃剧情线注入。best-effort — 读失败降级 [] 不阻断续写，但记日志（非静默吞错）。
+  const threads = await e.repos.thread.list(params.au_path).catch((err) => {
+    logCatch("generate", "thread list load failed; degrading to no thread injection", err);
+    return [];
+  });
   const sett = await e.repos.settings.get();
 
   // 验证 LLM 模式。api 和 ollama 走 OpenAI 兼容协议，正常放行。

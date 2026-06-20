@@ -345,7 +345,8 @@ export function build_threads_layer(
 ): string {
   const active = threads
     .filter((t) => t.status === ThreadStatus.ACTIVE)
-    .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+    // ?? "" 兜底：手编/损坏的 threads.jsonl 行可能缺 updated_at，localeCompare(undefined) 会抛
+    .sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""));
   if (active.length === 0) return "";
 
   const lines: string[] = [];
@@ -551,6 +552,8 @@ export async function assemble_context(
   // simple-mode safety belt: simple_chat_dispatch calls assemble_context_simple directly; this branch
   // only covers a future generate_chapter-under-simple call. Optional param defaults to "full" so every
   // existing caller and golden test stays byte-identical (they never pass this arg).
+  // 注意：simple 模式【有意】不注入剧情线（threads 被丢弃，spec D5 fork 隔离 D-0044）；
+  // 未来若要 simple 也注入，在 assemble_context_simple 内显式加，不在此默默透传。
   if (getSimpleFeatures(writingMode).simpleAssembler) {
     return assemble_context_simple(
       project, state, user_input,

@@ -101,7 +101,10 @@ describe("assemble_context thread injection (M8-B)", () => {
     const empty = await assemble_context(project(), state(), "写", [], chapterRepo, "au", null, null, null, "zh", "full", []);
     expect(empty.messages[1].content).toBe(omitted.messages[1].content);
     expect(empty.budget_report.thread_tokens).toBe(0);
+    // 全 P 层预算逐字节不变（防未来 thread 收集步错用 used 快照偷走 P2/P4/P5 预算）
+    expect(empty.budget_report.p2_tokens).toBe(omitted.budget_report.p2_tokens);
     expect(empty.budget_report.p3_tokens).toBe(omitted.budget_report.p3_tokens);
+    expect(empty.budget_report.p4_tokens).toBe(omitted.budget_report.p4_tokens);
     expect(empty.budget_report.p5_tokens).toBe(omitted.budget_report.p5_tokens);
   });
 
