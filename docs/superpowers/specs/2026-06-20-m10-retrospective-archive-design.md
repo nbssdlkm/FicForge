@@ -1,10 +1,26 @@
 # M10 · Retrospective Rewrite + 冷热分层设计
 
 - Date: 2026-06-20
-- Status: Draft（待人工拍板决策清单后方可进入 Codex 计划阶段）
+- Status: Draft-decided（CC 全权拍板见下；实现仍**推后**——前置 M8-A 合入 + 本支线 35 任务体量大；动手前须先修复文末「可行性复核」的 2 BLOCKER）
 - Source: D-0041 Memory 架构重设计（§5 Retrospective §6 冷热分层）
 - Owner: Human PM + CC
 - 前置依赖: M8-C（standard 摘要已落盘 + summaries RAG collection 已存在）
+
+---
+
+## CC 拍板（2026-06-20，用户全权授权）+ 动手前必修
+
+**产品决策（已定，随时可推翻）：**
+- **Q1 回望触发** → 每写完第 5 章**自动**（D-0041 基准），间隔抽成常量 `RETROSPECTIVE_INTERVAL=5` 便于调；best-effort、仅 full 模式 + LLM 已配。理由：自动给「记忆越来越聪明」的价值且不打断写作流；不先做手动按钮 UI（YAGNI）。
+- **Q2 固化阈值** → 距当前章 **≥10 + narrative_weight=low**（D-0041 保守基准），抽常量 `ARCHIVE_DISTANCE=10`；不做用户可配（YAGNI）。理由：保守=不会误埋重要老 fact。
+- **Q3 温区 fact 格式标注** → v1 **不加**标注；冷热分层靠「注入与否」本身传达 recency。理由：格式标注属 prompt 调参、需 eval 验证（参照字数控制 prompt 的 AB-test 教训），不在设计阶段定死。
+- **Q4 固化 UI** → **必须用户确认，非静默**。草案选项 A(静默) **作废**——D-0041 §6 明确「系统识别候选 → UI 提示是否归档 → 用户确认后 archived」。最简实现：confirm 后列出候选 + 一个确认入口（toast/inline，UI 细节实现期定）。理由：fact 是用户资产，静默隐藏=违 D-0041 + 惊吓用户。
+
+**动手前必修（文末「可行性复核」的 2 BLOCKER，治本/上下游）：**
+- **B1**：`archived` 是 Fact 新状态，须贯穿 ops 链——`OpType` 加 `archive_fact`/`unarchive_fact` + `ops_projection.rebuildFactsFromOps` 补 case（否则审计日志重建丢 archived），且 `EDITABLE_FIELDS`/`factFromPayload`/`add_fact payload` 同 M8-A 全链处理。
+- **B2**：`run_retrospective` 要扩 `ChapterSummaryRepository` 接口（`promote_to_v2`/`update_micro`）→ `FileChapterSummaryRepository` 实现 + `createChapterSummary` 工厂同步认 `micro`/`standard_v1` 键（否则读回丢字段，草案 M1）+ `engine-instance.ts` 类型。micro 生成沿用 M8-C「锁外生成、锁内写+CAS」双阶段（草案 M2）。
+
+> 与 M8-A 撞车点：两支线都改 `domain/fact.ts` + `context_assembler` P3 → **M8-A 先合 main，M10 再开**。
 
 ---
 

@@ -1,10 +1,44 @@
 # M8-A · Fact Enrichment 设计（Layer 2/3 字段扩展）
 
 - Date: 2026-06-20
-- Status: Draft（待人工拍板后启动）
+- Status: Approved-rev2（CC 全权拍板 + 治本修复，实现就绪 —— 见「修订 v2」节）
 - Source: D-0041 Memory 架构重设计（§3 Fact 字段扩展 + §7 开放问题 Q4/Q5）
 - Owner: Human PM + CC
 - Dependencies: M8-C（Chapter Summary 层，已完成）；M8-B（Thread 层，未做）；M9/D-0042（ReAct 完整提取）
+
+---
+
+## 修订 v2（2026-06-20，CC 全权拍板 + 治本修复，**覆盖下方草案的冲突处**）
+
+> 用户授权 CC 自行拍板产品决策 + 治本（不怕动文件，考虑上下游）。本节为权威口径，与下方草案冲突时以本节为准。
+
+### 已拍板的产品决策
+
+- **Q4 known_to 粒度** → **复用 `normalizeCharacters`，与 `characters` 字段同款**。类型 `"all" | "reader_only" | string[]`；数组分支：先 `.filter(x => typeof x === "string")` 元素类型守卫，再 `normalizeCharacters(arr, character_aliases)` 归一化（修复草案 MAJOR-3 数字元素崩溃 + MAJOR-4 归一化矛盾）。**不造 group 概念**——未识别字符串原样留存（无害），不丢弃、不报错。默认值 `"all"`（共识=无戏剧反讽）。
+- **Q5 emotional_beat_prose** → **不加**。情感保真已由 M8-C Chapter Summary 层在章节级承担；fact 级再加=重复 + hallucination 风险 + 无下游消费者。下方 §九 FLAG Q5 作废。
+- **confidence 追踪（草案 §3.3）裁出 M8-A** → 提取新字段即可；per-field confidence 的「低置信 UI 高亮」是 UI 层 review 功能，单独排期，不进本支线（避免 P3 注入门控复杂度爆炸，草案 topRisk #3）。
+
+### 治本：Fact 新字段必须贯穿【全部 6 个序列化/反序列化 hop】（草案 BLOCKER-1 根因）
+
+新增任一 Fact 字段，下列每一环都要处理，缺一即静默丢字段（CLAUDE.md「新字段被沉默丢弃」铁律）：
+
+| # | hop | 文件:行 | 草案是否覆盖 |
+|---|-----|---------|------|
+| 1 | `interface Fact` + `createFact` 默认 | `domain/fact.ts` | ✓ |
+| 2 | `factToDict` / `dictToFact`（jsonl 读写） | `file_fact.ts:19` / `:40` | ✓ |
+| 3 | **`factFromPayload`（ops add_fact payload→Fact）** | `ops_projection.ts:221` | ✗ **补** |
+| 4 | **`EDITABLE_FIELDS` 白名单（edit_fact op 回放）** | `ops_projection.ts:262` | ✗ **补**（加全部新字段名） |
+| 5 | **`add_fact` op 的 `payload.fact:{…}` 快照** | `services/facts_lifecycle.ts`（add_fact 内 fact 快照对象） | ✗ **补**（不加则新字段永不进 op，hop 3 无从恢复） |
+| 6 | `ExtractedFact` + `rawToExtracted` + `build_facts_layer` 注入 | `facts_extraction.ts` / `context_assembler.ts:168` | ✓ |
+
+> round-trip 测试必须覆盖 hop 3+4+5：构造含新字段的 add_fact + edit_fact ops → `rebuildFactsFromOps` → 断言新字段还原（不只测 file_fact 的 jsonl round-trip）。
+
+### 其余草案修正
+
+- **TimeKind = 6 值**（normal/flashback/insert/dream/parallel/imagined），草案 §二「5 值」是笔误（MAJOR-1）。
+- `rawToExtracted` 伪代码用真实联合类型 `"all" | "reader_only" | string[] | null`，删除未定义的 `base` 变量引用（MAJOR-2）。
+- **BLOCKER-2**：新增 prompt key 后同步更新 `prompts/__tests__/prompts.test.ts` 的 `REQUIRED_KEYS.length` 断言（当前 61，按实际新增数 +N）。
+- 实现顺序紧接本节；下方草案 §三–§十一 的字段定义/测试计划仍有效，仅以本节覆盖冲突项。
 
 ---
 
