@@ -10,7 +10,7 @@
  * 左 sidebar 元数据 + olive current_state banner，右主区「Index of nodes」金色书脊节点卡。
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { Modal } from '../shared/Modal';
@@ -53,6 +53,8 @@ export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged 
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [roleDraft, setRoleDraft] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const busyRef = useRef<Set<string>>(new Set());      // 同步 in-flight 哨兵（state 是异步、防不住快速双触发）
+  const pendingEscapeRef = useRef(false);              // Escape 丢弃意图：拦下随后被动 blur 的误存
 
   const nodes = useMemo(
     () => facts
@@ -70,6 +72,8 @@ export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged 
   }, [facts, thread.id, pickerFilter]);
 
   const guard = async (id: string, fn: () => Promise<void>) => {
+    if (busyRef.current.has(id)) return;  // 同步去重：同一 fact 在飞的操作不重入
+    busyRef.current.add(id);
     setBusyId(id);
     try {
       await fn();
@@ -77,14 +81,19 @@ export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged 
     } catch (err) {
       showError(err, t('error_messages.unknown'));
     } finally {
+      busyRef.current.delete(id);
       setBusyId(null);
     }
   };
 
-  const addNode = (f: FactInfo) => guard(f.id, () => addFactToThread(auPath, f.id, thread.id, f.thread_ids));
-  const removeNode = (f: FactInfo) => guard(f.id, () => removeFactFromThread(auPath, f.id, thread.id, f.thread_ids, f.thread_roles));
+  // 助手已改为内部读 fresh fact，这里不再传 UI 旧值（防 lost-update）。
+  const addNode = (f: FactInfo) => guard(f.id, async () => {
+    await addFactToThread(auPath, f.id, thread.id);
+    setPickerOpen(false);  // 挂成功即关 picker（审 MINOR：原先不关、列表已变但弹窗滞留）
+  });
+  const removeNode = (f: FactInfo) => guard(f.id, () => removeFactFromThread(auPath, f.id, thread.id));
   const saveRole = (f: FactInfo) => guard(f.id, async () => {
-    await setFactThreadRole(auPath, f.id, thread.id, roleDraft, f.thread_roles);
+    await setFactThreadRole(auPath, f.id, thread.id, roleDraft);
     setEditingRoleId(null);
   });
 
@@ -104,6 +113,7 @@ export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged 
         <button
           type="button"
           onClick={onBack}
+          aria-label={`${t('threads.detail.back')}: ${thread.title}`}
           className="flex items-center gap-1 font-sans text-[11px] font-medium tracking-[0.04em] text-accent hover:underline"
         >
           <ArrowLeft size={14} /> {t('threads.detail.back')}
@@ -160,7 +170,7 @@ export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged 
                 actions={[{ key: 'add', element: <Button tone="accent" fill="solid" size="sm" onClick={() => { setPickerFilter(''); setPickerOpen(true); }}>{t('threads.detail.addNode')}</Button> }]}
               />
             ) : (
-              nodes.map(f => {
+              nodes.map((f, idx) => {
                 const role = f.thread_roles?.[thread.id] ?? '';
                 const tags = nodeTags(f);
                 return (
@@ -168,7 +178,8 @@ export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged 
                     <span aria-hidden className="pointer-events-none absolute left-0 top-3 bottom-3 w-[2px] rounded-r bg-gold opacity-65" />
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-2 font-mono text-[10px] text-text/45">
-                        <span className="text-gold">№ {String(f.chapter ?? 0).padStart(2, '0')}</span>
+                        {/* № = 本线内节点序，ch.X = 章号（审 NIT：两处别都显示章号） */}
+                        <span className="text-gold">№ {String(idx + 1).padStart(2, '0')}</span>
                         <span>ch.{f.chapter ?? 0}</span>
                       </div>
                       <button
@@ -193,8 +204,8 @@ export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged 
                           aria-label={t('threads.detail.roleLabel')}
                           value={roleDraft}
                           onChange={e => setRoleDraft(e.target.value)}
-                          onBlur={() => saveRole(f)}
-                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveRole(f); } else if (e.key === 'Escape') setEditingRoleId(null); }}
+                          onBlur={() => { if (pendingEscapeRef.current) { pendingEscapeRef.current = false; return; } saveRole(f); }}
+                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveRole(f); } else if (e.key === 'Escape') { pendingEscapeRef.current = true; setEditingRoleId(null); } }}
                           placeholder={t('threads.detail.rolePlaceholder')}
                           className="h-7 w-40 text-xs"
                         />

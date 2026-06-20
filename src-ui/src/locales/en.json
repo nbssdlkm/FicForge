@@ -799,6 +799,20 @@
     "origin_ref": {
       "fandom": "Origin: Canon {{name}}",
       "original": "Origin: Original Character"
+    },
+    "time_kind": {
+      "normal": "Normal",
+      "flashback": "Flashback",
+      "insert": "Insert",
+      "dream": "Dream",
+      "parallel": "Parallel",
+      "imagined": "Imagined"
+    },
+    "suspense_type": {
+      "foreshadow": "Foreshadow",
+      "secret": "Secret",
+      "misunderstanding": "Misunderstanding",
+      "setup": "Setup"
     }
   },
   "contextMenu": {
@@ -1397,6 +1411,11 @@
       "tag": {
         "readerOnly": "reader-only"
       }
+    },
+    "appearsIn": {
+      "title": "Appears in",
+      "empty": "Not in any thread",
+      "noRole": "(no role)"
     }
   }
 }

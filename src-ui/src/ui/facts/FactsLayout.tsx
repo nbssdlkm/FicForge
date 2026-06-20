@@ -8,6 +8,7 @@ import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
 import { FactCard } from './FactCard';
+import { FactThreadsSection } from '../threads/FactThreadsSection';
 import { Modal } from '../shared/Modal';
 import { EmptyState } from '../shared/EmptyState';
 import { Search, Filter, Check, Sparkles, BookOpenText, X } from 'lucide-react';
@@ -175,6 +176,9 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           <Input ref={editor.editCharactersRef} defaultValue={(editor.editingFact.characters || []).join(', ')} className="h-11 text-base md:h-10 md:text-sm" />
           <p className="text-xs text-text/50">{t('facts.charactersHint')}</p>
         </div>
+
+        {/* Fact 反向视图（M8-B）：这条笔记归入哪些剧情线 + 各线里的角色（只读，挂线在 ThreadDetail 做） */}
+        <FactThreadsSection auPath={auPath} threadIds={editor.editingFact.thread_ids} threadRoles={editor.editingFact.thread_roles} />
 
         {showFooter ? (
           <div className="flex items-center justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">

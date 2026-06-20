@@ -99,45 +99,37 @@ export async function setFactThreads(
   await editFact(auPath, factId, { thread_ids: threadIds });
 }
 
+// 这三个操作都先从仓库读 fresh fact 再算 patch（不信 UI 传入的旧 thread_ids/thread_roles），
+// 否则 editFact 整字段覆写会丢更新（workflow 审 MAJOR：lost-update）。残留窄窗：fresh 读与
+// editFact 自身 withAuLock 非同一把锁，但 ThreadDetail 用 busyRef 同步串行同一 fact 操作 +
+// 单用户低频，实际不触发。彻底原子需给 edit_fact 加 in-lock transform 回调（记 TD 后续硬化）。
+
 /** 把一条 Fact 挂到某剧情线（成员关系 = fact.thread_ids）。已挂则 no-op。 */
-export async function addFactToThread(
-  auPath: string,
-  factId: string,
-  threadId: string,
-  currentIds: string[] | undefined,
-): Promise<void> {
-  const ids = currentIds ?? [];
+export async function addFactToThread(auPath: string, factId: string, threadId: string): Promise<void> {
+  const fresh = await getEngine().repos.fact.get(auPath, factId);
+  const ids = fresh?.thread_ids ?? [];
   if (ids.includes(threadId)) return;
   await editFact(auPath, factId, { thread_ids: [...ids, threadId] });
 }
 
 /** 把一条 Fact 从某剧情线摘除：同时清 thread_ids 与 thread_roles[threadId]，不留孤儿。 */
-export async function removeFactFromThread(
-  auPath: string,
-  factId: string,
-  threadId: string,
-  currentIds: string[] | undefined,
-  currentRoles: Record<string, string> | undefined,
-): Promise<void> {
+export async function removeFactFromThread(auPath: string, factId: string, threadId: string): Promise<void> {
+  const fresh = await getEngine().repos.fact.get(auPath, factId);
+  if (!fresh) return;
   const patch: Record<string, unknown> = {
-    thread_ids: (currentIds ?? []).filter((t) => t !== threadId),
+    thread_ids: (fresh.thread_ids ?? []).filter((t) => t !== threadId),
   };
-  if (currentRoles && threadId in currentRoles) {
-    const { [threadId]: _drop, ...rest } = currentRoles;
+  if (fresh.thread_roles && threadId in fresh.thread_roles) {
+    const { [threadId]: _drop, ...rest } = fresh.thread_roles;
     patch.thread_roles = rest;
   }
   await editFact(auPath, factId, patch);
 }
 
 /** 设/清某 Fact 在某线里的角色（thread_role）。role 空串=清除该键。 */
-export async function setFactThreadRole(
-  auPath: string,
-  factId: string,
-  threadId: string,
-  role: string,
-  currentRoles: Record<string, string> | undefined,
-): Promise<void> {
-  const next: Record<string, string> = { ...(currentRoles ?? {}) };
+export async function setFactThreadRole(auPath: string, factId: string, threadId: string, role: string): Promise<void> {
+  const fresh = await getEngine().repos.fact.get(auPath, factId);
+  const next: Record<string, string> = { ...(fresh?.thread_roles ?? {}) };
   const trimmed = role.trim();
   if (trimmed) next[threadId] = trimmed;
   else delete next[threadId];

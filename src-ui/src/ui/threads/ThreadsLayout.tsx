@@ -146,6 +146,7 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
       await removeThread(requestAuPath, editing.id);
       if (loadGuard.isKeyStale(requestAuPath)) return;
       setEditing(null);
+      setSelectedThreadId(null);  // 若在 ThreadDetail 删的正是当前线，立即退回 Index（不依赖 load 成功，审 MAJOR）
       await load();
     } catch (err) {
       if (loadGuard.isKeyStale(requestAuPath)) return;

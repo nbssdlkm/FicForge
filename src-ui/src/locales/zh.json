@@ -799,6 +799,20 @@
     "origin_ref": {
       "fandom": "来源：Fandom{{name}}",
       "original": "来源：原创角色"
+    },
+    "time_kind": {
+      "normal": "正常",
+      "flashback": "闪回",
+      "insert": "插叙",
+      "dream": "梦境",
+      "parallel": "平行线",
+      "imagined": "想象"
+    },
+    "suspense_type": {
+      "foreshadow": "铺垫",
+      "secret": "秘密",
+      "misunderstanding": "误解",
+      "setup": "铺设"
     }
   },
   "contextMenu": {
@@ -1397,6 +1411,11 @@
       "tag": {
         "readerOnly": "仅读者知"
       }
+    },
+    "appearsIn": {
+      "title": "出现在剧情线",
+      "empty": "未归入任何剧情线",
+      "noRole": "（未标角色）"
     }
   }
 }
