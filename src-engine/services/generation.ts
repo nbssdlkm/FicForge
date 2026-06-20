@@ -12,6 +12,7 @@ import type { BudgetReport } from "../domain/budget_report.js";
 import type { ContextSummary } from "../domain/context_summary.js";
 import { FactStatus, IndexStatus } from "../domain/enums.js";
 import type { Fact } from "../domain/fact.js";
+import type { Thread } from "../domain/thread.js";
 import type { GeneratedWith } from "../domain/generated_with.js";
 import { createGeneratedWith } from "../domain/generated_with.js";
 import type { Project } from "../domain/project.js";
@@ -141,6 +142,8 @@ export interface GenerateChapterParams {
   state: State;
   settings: Settings;
   facts: Fact[];
+  /** 活跃剧情线（M8-B）；省略 ⇒ 无剧情线注入，续写上下文逐字节不变。 */
+  threads?: Thread[];
   chapter_repo: ChapterRepository;
   draft_repo: DraftRepository;
   /** 文件系统适配器（用于加载角色/世界观设定文件）。 */
@@ -249,6 +252,7 @@ export async function* generate_chapter(
       worldbuilding_files,
       language,
       params.settings.app.writing_mode,
+      params.threads ?? [],
     );
     const { messages, max_tokens, budget_report, context_summary } = ctx;
 

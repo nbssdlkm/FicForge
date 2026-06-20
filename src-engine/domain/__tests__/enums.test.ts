@@ -15,6 +15,7 @@ import {
   OpType,
   Perspective,
   Provenance,
+  ThreadStatus,
 } from "../enums.js";
 
 describe("Enums match Python values", () => {
@@ -101,5 +102,11 @@ describe("Enums match Python values", () => {
     // M10-B: cold-tier archival ops
     expect(OpType.ARCHIVE_FACT).toBe("archive_fact");
     expect(OpType.UNARCHIVE_FACT).toBe("unarchive_fact");
+  });
+
+  it("ThreadStatus values (M8-B)", () => {
+    expect(ThreadStatus.ACTIVE).toBe("active");
+    expect(ThreadStatus.RESOLVED).toBe("resolved");
+    expect(ThreadStatus.DORMANT).toBe("dormant");
   });
 });

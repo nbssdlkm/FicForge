@@ -92,6 +92,7 @@ const zh: PromptModule = {
   // ===========================================================================
 
   SECTION_PLOT_STATE: "## 当前剧情状态",
+  SECTION_PLOT_THREADS: "## 当前剧情线（守住这些长线的连贯，别遗忘也别重复收束）",
 
   UNRESOLVED_DROPPED_HINT: "（另有 {count} 条未解决伏笔暂未展示，详见事实表）",
 

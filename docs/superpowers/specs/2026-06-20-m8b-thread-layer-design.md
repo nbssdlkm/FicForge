@@ -10,6 +10,13 @@
 ## 0. 修订记录
 
 - v1（2026-06-20）：初稿。引擎层范围；手动建线（D-0041 §7 Q2「初期手动建 3-5 条线」）；剧情线摘要数字化注入续写上下文（真实消费者，非死步）。
+- v2（2026-06-20，实现 + 双审修正）：3-lens workflow 对抗审 + 实现中读真代码发现并治本：
+  1. **【治本，M8-A 同款 BLOCKER】hop 5 实为两步**：除 add_fact op payload 快照外，`add_fact` 服务的 `createFact` 调用本身也必须从 `fact_data` 转发 `thread_ids/thread_roles`（facts_lifecycle.ts:232 区）——否则 fact 对象拿不到值，快照与持久化全空。spec 初稿把这步压进 hop 5，实现时单独补上。**测试用服务级 add_fact（非手搓 op）跑通整条链**，正是 M8-A 测试手搓 op 反而抓不到自己 hop5 BLOCKER 的教训。
+  2. **【避坑】§6.3 措辞修正**：generation.ts:251 已显式传 `params.settings.app.writing_mode`（非隐式默认）。**不得**改成硬编码 `"full"`（会让 simple 模式停走 assemble_context_simple）。正确做法：仅在其后追加 `params.threads ?? []`。
+  3. **【避红测】REQUIRED_KEYS 计数有两处断言**：`prompts.test.ts:61` + `m8a_facts_enrichment.test.ts:470`，都需 66→67。
+  4. `edit_fact` 服务经通用 `key in fact` 循环已天然支持 thread_ids（fact 总经 dictToFact 加载，属性恒存在）；EDITABLE_FIELDS 管 rebuild 侧。两侧均测。
+  5. ThreadStatus 断言放 `enums.test.ts` 值稳定性（非 contract_enums——threads 不是 LLM 工具，无 schema 可对）。
+  - 结果：引擎 931/931 + 双端 tsc 干净；src-ui 163/164（唯一失败 useContextTokenCount 系既有 async-timing flake，隔离跑 4/4 绿，与本支线无关）。
 
 ---
 
@@ -134,7 +141,8 @@ export interface ThreadRepository {
 | 2 | `factToDict` / `dictToFact` | `file_fact.ts:19` / `:58` | factToDict：`if (fact.thread_ids?.length) d.thread_ids = fact.thread_ids;` `if (fact.thread_roles && Object.keys(fact.thread_roles).length) d.thread_roles = fact.thread_roles;`。dictToFact：`thread_ids: Array.isArray(d.thread_ids)?d.thread_ids as string[]:[]`（mirror caused_by 默认 []）、`thread_roles: (typeof d.thread_roles==="object"&&d.thread_roles!==null)?d.thread_roles as Record<string,string>:undefined`（mirror _confidence 默认 undefined） |
 | 3 | `factFromPayload`（ops add_fact payload→Fact） | `ops_projection.ts:223` | 加 thread_ids（数组兜底 []）、thread_roles（对象兜底 undefined），逐字镜像 caused_by/_confidence 处理 |
 | 4 | `EDITABLE_FIELDS`（edit_fact op 回放白名单） | `ops_projection.ts:286` | 加 `"thread_ids"`、`"thread_roles"` —— 这同时让「给 Fact 挂线」复用既有 edit_fact 机制，**不新增 op 类型** |
-| 5 | `add_fact` op 的 `payload.fact:{…}` 快照 | `services/facts_lifecycle.ts`（add_fact 内 fact 快照对象） | 快照对象补 thread_ids / thread_roles（不加则新字段永不进 op，hop 3 无从恢复） |
+| 5a | **`add_fact` 的 `createFact` 转发** | `services/facts_lifecycle.ts:232`（createFact 调用） | 从 `fact_data` 读 thread_ids/thread_roles 传进 createFact（**v2 补**：不加则 fact 对象为空，5b 快照与 hop2 持久化全空） |
+| 5b | `add_fact` op 的 `payload.fact:{…}` 快照 | `services/facts_lifecycle.ts`（add_fact 内 fact 快照对象） | 快照对象补 thread_ids / thread_roles（不加则新字段永不进 op，hop 3 无从恢复） |
 | 6 | 消费者 | `context_assembler.ts` | **不在 per-fact 行注入**（thread_ids 本身不进 fact 行）；消费走 §六 `build_threads_layer`。给 Fact 挂线 = `setFactThreads` API → edit_fact op（hop 4 已支持） |
 
 > 注意：与 M8-A 不同，hop 6 对 thread 字段**不是** `build_facts_layer` 的 per-fact 后缀注入——`thread_ids` 是机器引用、无叙事价值、不该进 prompt 的 fact 行。它的价值在 §六的剧情线摘要段。

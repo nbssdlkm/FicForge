@@ -31,6 +31,9 @@ export const REQUIRED_KEYS = [
   "SECTION_PLOT_STATE",
   "UNRESOLVED_DROPPED_HINT",        // f-string with {count}
 
+  // === context_assembler: build_threads_layer (M8-B) ===
+  "SECTION_PLOT_THREADS",
+
   // === context_assembler: build_recent_chapter_layer ===
   "SECTION_LAST_ENDING",            // f-string with {content}
   "SECTION_LAST_ENDING_TRUNCATED",  // f-string with {end_text}

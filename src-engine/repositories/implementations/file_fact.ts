@@ -45,6 +45,9 @@ export function factToDict(fact: Fact): Record<string, unknown> {
   if (fact.known_to       != null) d.known_to        = fact.known_to;
   if (fact.hidden_from?.length)    d.hidden_from     = fact.hidden_from;
   if (fact.suspense_type  != null) d.suspense_type   = fact.suspense_type;
+  // Thread 关联（M8-B）：成员关系单一真相源，仅非空时写入
+  if (fact.thread_ids?.length)     d.thread_ids      = fact.thread_ids;
+  if (fact.thread_roles && Object.keys(fact.thread_roles).length) d.thread_roles = fact.thread_roles;
   // _confidence (旁路，持久化供 UI 高亮用)
   if (fact._confidence)            d._confidence     = fact._confidence;
   // M10-B: 冷热分层 — archived 字段仅 true 时写入（节约存储，false 为默认）
@@ -89,6 +92,11 @@ function dictToFact(d: Record<string, unknown>): Fact {
     suspense_type:     (Object.values(SuspenseType) as string[]).includes(d.suspense_type as string)
                          ? (d.suspense_type as SuspenseType)
                          : null,
+    // Thread 关联（M8-B）：thread_ids 默认 []（mirror caused_by）、thread_roles 默认 undefined（mirror _confidence）
+    thread_ids:        Array.isArray(d.thread_ids) ? (d.thread_ids as string[]) : [],
+    thread_roles:      (typeof d.thread_roles === "object" && d.thread_roles !== null)
+                         ? (d.thread_roles as Record<string, string>)
+                         : undefined,
     // _confidence
     _confidence:       (typeof d._confidence === "object" && d._confidence !== null)
                          ? (d._confidence as FactFieldConfidence)

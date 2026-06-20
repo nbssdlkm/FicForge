@@ -98,6 +98,7 @@ export {
 } from "./engine-settings";
 export { getState, setChapterFocus, rebuildIndex, recalcState } from "./engine-state";
 export { listFacts, addFact, editFact, updateFactStatus, batchUpdateFactStatus, extractFacts, extractFactsBatch, submitFactsExtraction } from "./engine-facts";
+export { listThreads, addThread, updateThread, setThreadStatus, removeThread, setFactThreads } from "./engine-threads";
 export {
   getProjectCapabilities,
   getProjectForEditing,

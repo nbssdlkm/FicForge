@@ -9,6 +9,7 @@ export interface BudgetReport {
   p1_tokens: number;           // 当前指令
   p2_tokens: number;           // 最近章节
   p3_tokens: number;           // 事实表
+  thread_tokens: number;       // 剧情线摘要（M8-B；空线时恒 0）
   p4_tokens: number;           // RAG
   p5_tokens: number;           // 核心设定
   total_input_tokens: number;
@@ -26,6 +27,7 @@ export function createBudgetReport(partial?: Partial<BudgetReport>): BudgetRepor
     p1_tokens: 0,
     p2_tokens: 0,
     p3_tokens: 0,
+    thread_tokens: 0,
     p4_tokens: 0,
     p5_tokens: 0,
     total_input_tokens: 0,

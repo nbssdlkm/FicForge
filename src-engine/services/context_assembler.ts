@@ -5,7 +5,8 @@
  * 上下文组装器。参见 PRD §4.1。
  *
  * 六层结构 P0-P5，按优先级截断，reversed 后注入。
- * 收集顺序 P1→P3→P2→P4→P5，reversed 后 P5→P4→P2→P3→P1。
+ * 收集顺序 P1→P3→thread→P2→P4→P5，reversed 后 P5→P4→P2→thread→P3→P1。
+ * （thread = 剧情线摘要层，M8-B；空线时为 ""，filter 后逐字节回退到无该层。）
  */
 
 import { getSimpleFeatures, type WritingMode } from "../config/simple_features.js";
@@ -13,8 +14,9 @@ import type { BudgetReport } from "../domain/budget_report.js";
 import { createBudgetReport } from "../domain/budget_report.js";
 import type { ContextSummary } from "../domain/context_summary.js";
 import { createContextSummary } from "../domain/context_summary.js";
-import { FactStatus, NarrativeWeight } from "../domain/enums.js";
+import { FactStatus, NarrativeWeight, ThreadStatus } from "../domain/enums.js";
 import type { Fact, ConfidenceLevel } from "../domain/fact.js";
+import type { Thread } from "../domain/thread.js";
 import { get_context_window, get_model_max_output } from "../domain/model_context_map.js";
 import type { Project } from "../domain/project.js";
 import type { State } from "../domain/state.js";
@@ -321,6 +323,48 @@ function sortByWeightAndRecency(facts: Fact[]): Fact[] {
 }
 
 // ===========================================================================
+// build_threads_layer（剧情线摘要层，M8-B）
+// ===========================================================================
+
+/**
+ * 把活跃剧情线（status=active）的「当前进展」拼成一段注入文本。
+ *
+ * - 仅 active 线注入（resolved/dormant 不需要模型注意力）。
+ * - 按 updated_at 倒序（最近推进的在前）。
+ * - 预算截断：超预算丢尾部线（mirror build_facts_layer 截断语义）。
+ * - 空 / 全非 active ⇒ 返回 ""（调用方 filter(Boolean) 后逐字节回退，golden 零回归）。
+ *
+ * 成员关系（哪些 Fact 属于线）的真相源是 fact.thread_ids，本函数不反查 fact，
+ * 只读 thread.title + thread.state，避免双向状态（spec D1）。
+ */
+export function build_threads_layer(
+  threads: Thread[],
+  budget_tokens: number,
+  llm_config: unknown,
+  language = "zh",
+): string {
+  const active = threads
+    .filter((t) => t.status === ThreadStatus.ACTIVE)
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  if (active.length === 0) return "";
+
+  const lines: string[] = [];
+  let used = 0;
+  for (const t of active) {
+    const stateText = (t.state?.trim() || t.description?.trim() || "");
+    const line = stateText ? `- 【${t.title}】${stateText}` : `- 【${t.title}】`;
+    const tk = _count(line, llm_config).count;
+    if (used + tk > budget_tokens) break;   // 预算截断，丢尾部
+    lines.push(line);
+    used += tk;
+  }
+  if (lines.length === 0) return "";
+
+  const P = getPrompts(language as "zh" | "en");
+  return P.SECTION_PLOT_THREADS + "\n" + lines.join("\n");
+}
+
+// ===========================================================================
 // build_recent_chapter_layer（P2 最近章节）
 // ===========================================================================
 
@@ -502,6 +546,7 @@ export async function assemble_context(
   worldbuilding_files: Record<string, string> | null = null,
   language = "zh",
   writingMode: WritingMode = "full",
+  threads: Thread[] = [],
 ): Promise<AssembleContextResult> {
   // simple-mode safety belt: simple_chat_dispatch calls assemble_context_simple directly; this branch
   // only covers a future generate_chapter-under-simple call. Optional param defaults to "full" so every
@@ -585,6 +630,14 @@ export async function assemble_context(
   report.unresolved_soft_degraded = softDegraded;
   if (softDegraded) truncatedLayers.push("P3");
 
+  // === 剧情线摘要层（M8-B）：P3 之后、P2 之前 ===
+  // 空 threads ⇒ "" ⇒ thread_tokens=0、used 不变 ⇒ 后续 P2/P4/P5 预算逐字节不变。
+  const threadBudget = Math.max(0, budget - used - guarantee);
+  const threadText = build_threads_layer(threads, threadBudget, llm, language);
+  const threadTokens = _count(threadText, llm).count;
+  used += threadTokens;
+  report.thread_tokens = threadTokens;
+
   // === P2：最近章节 ===
   const p2Budget = Math.max(0, budget - used - guarantee);
   const p2Text = await build_recent_chapter_layer(state, chapter_repo, au_id, p2Budget, llm, language);
@@ -665,9 +718,9 @@ export async function assemble_context(
   }
 
   // --- 组装 messages ---
-  // 收集顺序 P1→P3→P2→P4→P5
-  // reversed 后 P5→P4→P2→P3→P1
-  const layers = [p1Text, p3Text, p2Text, p4Text, p5Text];
+  // 收集顺序 P1→P3→thread→P2→P4→P5
+  // reversed 后 P5→P4→P2→thread→P3→P1（threadText 空时 filter 滤掉，逐字节回退）
+  const layers = [p1Text, p3Text, threadText, p2Text, p4Text, p5Text];
   const userParts = layers.reverse().filter(Boolean);
   const userContent = userParts.join("\n\n");
 

@@ -215,3 +215,12 @@ export function generate_op_id(): string {
   ).join("");
   return `op_${ts}_${rand}`;
 }
+
+/** 生成全局唯一剧情线 ID：t_{unix时间戳}_{4位随机}（M8-B）。 */
+export function generate_thread_id(): string {
+  const ts = Math.floor(Date.now() / 1000);
+  const rand = Array.from({ length: 4 }, () =>
+    "abcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 36)],
+  ).join("");
+  return `t_${ts}_${rand}`;
+}

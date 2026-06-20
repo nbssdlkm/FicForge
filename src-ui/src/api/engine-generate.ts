@@ -24,6 +24,8 @@ export async function* generateChapter(params: {
   const proj = await e.repos.project.get(params.au_path);
   const st = await e.repos.state.get(params.au_path);
   const allFacts = await e.repos.fact.list_all(params.au_path);
+  // M8-B: 活跃剧情线注入。best-effort — 读失败降级 []，绝不阻断续写。
+  const threads = await e.repos.thread.list(params.au_path).catch(() => []);
   const sett = await e.repos.settings.get();
 
   // 验证 LLM 模式。api 和 ollama 走 OpenAI 兼容协议，正常放行。
@@ -64,6 +66,7 @@ export async function* generateChapter(params: {
     state: st,
     settings: sett,
     facts: allFacts,
+    threads,
     chapter_repo: e.repos.chapter,
     draft_repo: e.repos.draft,
     adapter: e.adapter,

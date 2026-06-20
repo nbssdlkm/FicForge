@@ -38,6 +38,7 @@ export type {
   VectorChunk,
   VectorRepository,
   ChapterSummaryRepository,
+  ThreadRepository,
 } from "./repositories/interfaces/index.js";
 
 // Repository implementations
@@ -52,9 +53,11 @@ export {
   FileSettingsRepository,
   FileSimpleChatRepository,
   FileStateRepository,
+  FileThreadRepository,
   compute_content_hash,
   generate_fact_id,
   generate_op_id,
+  generate_thread_id,
   now_utc,
 } from "./repositories/implementations/index.js";
 

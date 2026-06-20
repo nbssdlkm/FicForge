@@ -261,6 +261,11 @@ function factFromPayload(id: string, d: Record<string, unknown>): Fact {
     _confidence:       (typeof d._confidence === "object" && d._confidence !== null)
                          ? (d._confidence as FactFieldConfidence)
                          : undefined,
+    // Thread 关联（M8-B）：default [] / undefined，mirror caused_by / _confidence
+    thread_ids:        Array.isArray(d.thread_ids) ? (d.thread_ids as string[]) : [],
+    thread_roles:      (typeof d.thread_roles === "object" && d.thread_roles !== null)
+                         ? (d.thread_roles as Record<string, string>)
+                         : undefined,
     // M10-B: cold-tier archival (default false; undefined on old facts treated as false)
     archived:          typeof d.archived === "boolean" ? d.archived : false,
     archived_at:       typeof d.archived_at === "string" ? d.archived_at : undefined,
@@ -289,6 +294,8 @@ export function rebuildFactsFromOps(ops: OpsEntry[]): Fact[] {
             // M8-A Layer 2 + Layer 3 enrichment fields
             "location", "story_time_tag", "story_time_order", "time_kind", "action_verb",
             "caused_by", "known_to", "hidden_from", "suspense_type", "_confidence",
+            // M8-B: thread 关联（setFactThreads 走 edit_fact op → 这两个键必须在白名单内才能 replay）
+            "thread_ids", "thread_roles",
             // M10-B: cold-tier archival fields
             "archived", "archived_at",
           ]);

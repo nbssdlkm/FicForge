@@ -106,6 +106,14 @@ export enum SuspenseType {
 }
 export const SUSPENSE_TYPE_VALUES = Object.values(SuspenseType) as [SuspenseType, ...SuspenseType[]];
 
+/** 剧情线状态（M8-B）。 */
+export enum ThreadStatus {
+  ACTIVE   = "active",    // 进行中的剧情线（注入续写上下文）
+  RESOLVED = "resolved",  // 已收束
+  DORMANT  = "dormant",   // 暂时搁置
+}
+export const THREAD_STATUS_VALUES = Object.values(ThreadStatus) as [ThreadStatus, ...ThreadStatus[]];
+
 /** 操作日志类型。参见 PRD §2.6.5。 */
 export enum OpType {
   CONFIRM_CHAPTER = "confirm_chapter",

@@ -100,6 +100,7 @@ const en: PromptModule = {
   // ===========================================================================
 
   SECTION_PLOT_STATE: "## Current Plot State",
+  SECTION_PLOT_THREADS: "## Active Plot Threads (keep these long arcs coherent; do not forget them or resolve them twice)",
 
   UNRESOLVED_DROPPED_HINT: "({count} additional unresolved thread(s) not shown — see fact sheet)",
 

@@ -21,6 +21,8 @@ export {
   OpType,
   Perspective,
   Provenance,
+  ThreadStatus,
+  THREAD_STATUS_VALUES,
 } from "./enums.js";
 
 // Domain objects
@@ -41,6 +43,9 @@ export { createDraft } from "./draft.js";
 
 export type { Fact } from "./fact.js";
 export { createFact } from "./fact.js";
+
+export type { Thread } from "./thread.js";
+export { createThread } from "./thread.js";
 
 export type { FactChange } from "./fact_change.js";
 export { createFactChange } from "./fact_change.js";

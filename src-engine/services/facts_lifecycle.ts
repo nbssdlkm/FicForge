@@ -240,6 +240,11 @@ export async function add_fact(
     known_to:          knownTo,
     hidden_from:       Array.isArray(fact_data.hidden_from) ? (fact_data.hidden_from as string[]) : [],
     suspense_type:     (rawSuspense && SUSPENSE_SET.has(rawSuspense)) ? rawSuspense as SuspenseType : null,
+    // Thread 关联（M8-B）—— 必须从 fact_data 转发进 fact，否则下面的快照 / 持久化拿不到（M8-A 教训）
+    thread_ids:        Array.isArray(fact_data.thread_ids) ? (fact_data.thread_ids as string[]) : [],
+    thread_roles:      (typeof fact_data.thread_roles === "object" && fact_data.thread_roles !== null)
+                         ? (fact_data.thread_roles as Record<string, string>)
+                         : undefined,
     // _confidence
     _confidence:       (typeof fact_data._confidence === "object" && fact_data._confidence !== null)
                          ? (fact_data._confidence as FactFieldConfidence)
@@ -284,6 +289,9 @@ export async function add_fact(
         ...(fact.known_to        != null ? { known_to:         fact.known_to }         : {}),
         ...(fact.hidden_from?.length     ? { hidden_from:      fact.hidden_from }      : {}),
         ...(fact.suspense_type   != null ? { suspense_type:    fact.suspense_type }    : {}),
+        // Thread 关联（M8-B）—— 不进快照则 hop 3 无从恢复（M8-A 同款 BLOCKER 教训）
+        ...(fact.thread_ids?.length      ? { thread_ids:       fact.thread_ids }       : {}),
+        ...(fact.thread_roles && Object.keys(fact.thread_roles).length ? { thread_roles: fact.thread_roles } : {}),
         // _confidence
         ...(fact._confidence             ? { _confidence:      fact._confidence }      : {}),
       },
