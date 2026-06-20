@@ -418,6 +418,8 @@
     "detailRag": "🔍 智能检索（{{count}}条匹配）",
     "ragChunkLabelChapter": "第 {{num}} 章",
     "ragChunkLabelChapterNoNum": "历史章节",
+    "ragChunkLabelSummary": "第 {{num}} 章摘要",
+    "ragChunkLabelSummaryNoNum": "章节摘要",
     "ragChunkLabelCharacter": "角色：{{name}}",
     "ragChunkLabelCharacterGeneric": "角色设定",
     "ragChunkLabelWorldbuilding": "世界观：{{name}}",

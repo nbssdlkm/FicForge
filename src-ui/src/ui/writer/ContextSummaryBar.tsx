@@ -67,6 +67,11 @@ function buildRagChunkLabel(chunk: RagChunkDetail, t: TranslateFn): string {
       ? t('contextSummary.ragChunkLabelCharacter', { name: source })
       : t('contextSummary.ragChunkLabelCharacterGeneric');
   }
+  if (chunk.collection === 'summaries') {
+    return chunk.chapter_num
+      ? t('contextSummary.ragChunkLabelSummary', { num: chunk.chapter_num })
+      : t('contextSummary.ragChunkLabelSummaryNoNum');
+  }
   return source
     ? t('contextSummary.ragChunkLabelWorldbuilding', { name: source })
     : t('contextSummary.ragChunkLabelWorldbuildingGeneric');

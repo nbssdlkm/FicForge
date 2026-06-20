@@ -418,6 +418,8 @@
     "detailRag": "🔍 RAG Retrieval ({{count}} matches)",
     "ragChunkLabelChapter": "Chapter {{num}}",
     "ragChunkLabelChapterNoNum": "Past Chapter",
+    "ragChunkLabelSummary": "Chapter {{num}} summary",
+    "ragChunkLabelSummaryNoNum": "Chapter summary",
     "ragChunkLabelCharacter": "Character: {{name}}",
     "ragChunkLabelCharacterGeneric": "Character",
     "ragChunkLabelWorldbuilding": "Worldbuilding: {{name}}",
