@@ -46,31 +46,34 @@ export function shouldRunRetrospective(
   return targetChapterNum >= 1;
 }
 
+/** generate_retrospective 的返回结构（供调用方在锁内写盘） */
+export interface RetrospectiveGenResult {
+  v2Text: string;
+  contentHash: string;
+}
+
 /**
- * 为目标章节生成「后见之明」standard v2 摘要。
+ * 第一阶段（锁外）：读取章节/摘要/micro 并调 LLM 生成 v2 文本。
+ * 成功返回 { v2Text, contentHash }，任何失败均返回 null（调用方静默跳过）。
  *
  * 步骤：
  * 1. 读取 targetChapterNum 章节全文（失败则跳过，不浪费 LLM）
  * 2. 读取 targetChapterNum 的 standard 摘要（作 prior_summary）
- * 3. 收集 targetChapterNum+1 ~ min(targetChapterNum+5, currentChapter-1) 的 micro 摘要
+ * 3. 收集 targetChapterNum+1 ~ min(targetChapterNum+RETROSPECTIVE_INTERVAL, currentChapter-1) 的 micro 摘要
  * 4. 若 micro 全缺 → 跳过（无后见之明可用）
  * 5. 调 LLM 生成 v2
- * 6. 写 v2：summaryRepo.promote_to_v2（v1 备份 + 新 standard v2）
- * 7. 覆盖向量索引：indexChapterSummary（id=sum{N} 去重覆盖）
  *
  * 所有步骤失败均不抛出（由调用方 catch + logCatch 处理）。
  */
-export async function run_retrospective(
+export async function generate_retrospective(
   auPath: string,
   targetChapterNum: number,
   chapterRepo: ChapterRepository,
   summaryRepo: ChapterSummaryRepository,
-  ragManager: RagManager,
-  embeddingProvider: EmbeddingProvider,
   llmProvider: LLMProvider,
   currentChapter: number,
   opts?: RetrospectiveOptions,
-): Promise<void> {
+): Promise<RetrospectiveGenResult | null> {
   const language = opts?.language ?? "zh";
   const P = getPrompts(language as "zh" | "en");
 
@@ -80,16 +83,20 @@ export async function run_retrospective(
     chapterText = await chapterRepo.get_content_only(auPath, targetChapterNum);
   } catch {
     // 章节不存在或读取失败 → 无法生成 → 静默跳过
-    return;
+    return null;
   }
-  if (!chapterText?.trim()) return;
+  if (!chapterText?.trim()) return null;
 
   // Step 2: 读取目标章节的 prior standard 摘要（可为 null）
   let priorSummary = "";
+  let contentHash = "";
   try {
     const summaryDoc = await summaryRepo.get(auPath, targetChapterNum);
     // 优先用 standard_v1（若已存在则是最原始版本，v1 备份已有），否则用 standard
     priorSummary = summaryDoc?.standard_v1?.text ?? summaryDoc?.standard?.text ?? "";
+    contentHash = summaryDoc?.standard?.source_chapter_hash
+      ?? summaryDoc?.standard_v1?.source_chapter_hash
+      ?? "";
   } catch {
     // 读取失败视为无 prior summary（继续）
   }
@@ -109,7 +116,7 @@ export async function run_retrospective(
   }
 
   // Step 4: 无后续 micro → 无后见之明可用 → 跳过
-  if (microLines.length === 0) return;
+  if (microLines.length === 0) return null;
 
   // Step 5: 调 LLM 生成 v2
   const microSummaries = microLines.join("\n");
@@ -137,19 +144,29 @@ export async function run_retrospective(
     v2Text = (response.content ?? "").trim();
   } catch (err) {
     logCatch("retrospective", `Retrospective LLM generation failed for chapter ${targetChapterNum}`, err);
-    return;
+    return null;
   }
-  if (!v2Text) return;
+  if (!v2Text) return null;
 
+  return { v2Text, contentHash };
+}
+
+/**
+ * 第二阶段（锁内）：写 v2 并覆盖向量索引。
+ * 由调用方在 AU 锁内、CAS 校验章节仍存在后调用。
+ * 失败不抛出（best-effort）。
+ */
+export async function commit_retrospective(
+  auPath: string,
+  targetChapterNum: number,
+  genResult: RetrospectiveGenResult,
+  summaryRepo: ChapterSummaryRepository,
+  ragManager: RagManager,
+  embeddingProvider: EmbeddingProvider,
+): Promise<void> {
   // Step 6: 写 v2（promote_to_v2：备份 v1 + 写 standard v2）
-  // 注意：调用方负责在 AU 锁内调用本函数之外的写锁逻辑（此处写入为 best-effort）
   try {
-    // content_hash: 使用 prior summary 的 hash（v2 仍描述同一章节内容）
-    const summaryDoc = await summaryRepo.get(auPath, targetChapterNum);
-    const contentHash = summaryDoc?.standard?.source_chapter_hash
-      ?? summaryDoc?.standard_v1?.source_chapter_hash
-      ?? "";
-    await summaryRepo.promote_to_v2(auPath, targetChapterNum, v2Text, contentHash);
+    await summaryRepo.promote_to_v2(auPath, targetChapterNum, genResult.v2Text, genResult.contentHash);
   } catch (err) {
     logCatch("retrospective", `promote_to_v2 failed for chapter ${targetChapterNum}`, err);
     return;
@@ -157,9 +174,39 @@ export async function run_retrospective(
 
   // Step 7: 覆盖向量索引（id=sum{N} 去重覆盖）
   try {
-    await ragManager.indexChapterSummary(auPath, targetChapterNum, v2Text, embeddingProvider);
+    await ragManager.indexChapterSummary(auPath, targetChapterNum, genResult.v2Text, embeddingProvider);
   } catch (err) {
     // 向量索引失败不回滚 v2（v2 文本已落盘，下次 rebuild 会重新索引）
     logCatch("retrospective", `indexChapterSummary failed for chapter ${targetChapterNum} v2`, err);
   }
+}
+
+/**
+ * 为目标章节生成「后见之明」standard v2 摘要（单阶段合并版，供测试 / 向后兼容使用）。
+ *
+ * 步骤 1-5（锁外生成）+ 步骤 6-7（锁内写盘）合并在同一函数内。
+ * 生产代码（engine-chapters.ts）应使用 generate_retrospective + commit_retrospective
+ * 的双阶段形式，把写盘纳入 withAuLock + CAS，避免与并发 undo 产生孤儿 .summary.jsonl。
+ *
+ * 所有步骤失败均不抛出（由调用方 catch + logCatch 处理）。
+ */
+export async function run_retrospective(
+  auPath: string,
+  targetChapterNum: number,
+  chapterRepo: ChapterRepository,
+  summaryRepo: ChapterSummaryRepository,
+  ragManager: RagManager,
+  embeddingProvider: EmbeddingProvider,
+  llmProvider: LLMProvider,
+  currentChapter: number,
+  opts?: RetrospectiveOptions,
+): Promise<void> {
+  const genResult = await generate_retrospective(
+    auPath, targetChapterNum, chapterRepo, summaryRepo, llmProvider, currentChapter, opts,
+  );
+  if (!genResult) return;
+
+  await commit_retrospective(
+    auPath, targetChapterNum, genResult, summaryRepo, ragManager, embeddingProvider,
+  );
 }

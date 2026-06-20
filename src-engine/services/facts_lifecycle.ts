@@ -14,9 +14,10 @@
  * 分层策略详见 services/au_lock.ts。
  */
 
-import { FactSource, FactStatus, FactType, NarrativeWeight } from "../domain/enums.js";
+import { FactSource, FactStatus, FactType, NarrativeWeight, TimeKind, SuspenseType } from "../domain/enums.js";
 import type { Fact } from "../domain/fact.js";
 import { createFact } from "../domain/fact.js";
+import type { FactFieldConfidence } from "../domain/fact.js";
 import { createOpsEntry } from "../domain/ops_entry.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
@@ -30,6 +31,13 @@ export class FactsLifecycleError extends Error {
     this.name = "FactsLifecycleError";
   }
 }
+
+// ---------------------------------------------------------------------------
+// M8-A 枚举校验集合（add_fact 路径与 rawToExtracted 对齐）
+// ---------------------------------------------------------------------------
+
+const TIME_KIND_SET   = new Set(Object.values(TimeKind)    as string[]);
+const SUSPENSE_SET    = new Set(Object.values(SuspenseType) as string[]);
 
 // ---------------------------------------------------------------------------
 // 别名归一化（大小写不敏感。LLM 输出和手动编辑都可能大小写不一致。）
@@ -191,6 +199,20 @@ export async function add_fact(
     characters = normalizeCharacters(characters, character_aliases);
   }
 
+  // M8-A: time_kind / suspense_type — validate enum, illegal → null (与 rawToExtracted 对齐)
+  const rawTimeKind    = fact_data.time_kind    as string | undefined;
+  const rawSuspense    = fact_data.suspense_type as string | undefined;
+
+  // M8-A: known_to — 数组分支先 filter 非字符串元素，再归一化角色名（与 rawToExtracted 对齐）
+  let knownTo: "all" | "reader_only" | string[] | null = null;
+  const rawKnownTo = fact_data.known_to;
+  if (typeof rawKnownTo === "string") {
+    knownTo = rawKnownTo as "all" | "reader_only";
+  } else if (Array.isArray(rawKnownTo)) {
+    const filtered = (rawKnownTo as unknown[]).filter((x) => typeof x === "string") as string[];
+    knownTo = character_aliases ? normalizeCharacters(filtered, character_aliases) : filtered;
+  }
+
   const fact = createFact({
     id: generate_fact_id(),
     content_raw: (fact_data.content_raw as string) ?? "",
@@ -207,6 +229,21 @@ export async function add_fact(
     revision: 1,
     created_at: ts,
     updated_at: ts,
+    // Layer 2 (M8-A) — forwarded from fact_data, not silently dropped
+    location:          (fact_data.location       as string  | undefined) ?? null,
+    story_time_tag:    (fact_data.story_time_tag as string  | undefined) ?? null,
+    story_time_order:  typeof fact_data.story_time_order === "number" ? fact_data.story_time_order : null,
+    time_kind:         (rawTimeKind && TIME_KIND_SET.has(rawTimeKind)) ? rawTimeKind as TimeKind : null,
+    action_verb:       (fact_data.action_verb    as string  | undefined) ?? null,
+    caused_by:         Array.isArray(fact_data.caused_by) ? (fact_data.caused_by as string[]) : [],
+    // Layer 3 (M8-A)
+    known_to:          knownTo,
+    hidden_from:       Array.isArray(fact_data.hidden_from) ? (fact_data.hidden_from as string[]) : [],
+    suspense_type:     (rawSuspense && SUSPENSE_SET.has(rawSuspense)) ? rawSuspense as SuspenseType : null,
+    // _confidence
+    _confidence:       (typeof fact_data._confidence === "object" && fact_data._confidence !== null)
+                         ? (fact_data._confidence as FactFieldConfidence)
+                         : undefined,
   });
 
   // WriteTransaction 保证 D-0036 写入顺序：ops → facts
@@ -539,8 +576,14 @@ export async function unarchive_fact(
  *   && status ∈ {active, unresolved}（不扫 deprecated/resolved，避免无意义写操作）
  *   && !fact.archived
  *
- * 调用者：engine-chapters.ts:confirmChapter（best-effort，失败静默）。
  * 调用者必须已持 AU 锁。
+ *
+ * ⚠️ 引擎半成品——等待 UI 确认流程消费（M10-B 待接线）。
+ * 本函数已实现并有测试，但**未接入** confirmChapter 等自动触发路径。
+ * 原因：CC 拍板 Q4「固化必须用户确认、非静默自动触发」——自动 = 违反 Q4。
+ * 后续 UI 确认流程（用户看到归档提示后点「确认」）消费此函数时，
+ * 须在 withAuLock 内调用，并展示将被归档的 fact 列表供用户审核。
+ * 非死代码；请勿将此函数自动接入 confirm 或任何隐式触发路径。
  *
  * @returns 被归档的 fact_id 列表
  */

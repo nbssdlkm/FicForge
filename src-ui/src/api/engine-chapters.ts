@@ -19,7 +19,8 @@ import {
   generate_standard_summary,
   generate_micro_summary,
   persist_chapter_summary,
-  run_retrospective,
+  generate_retrospective,
+  commit_retrospective,
   shouldRunRetrospective,
   RETROSPECTIVE_INTERVAL,
   generateChapterTitle,
@@ -197,6 +198,7 @@ export async function confirmChapter(
 
   // M10-A：Retrospective Rewrite。独立 best-effort 边界，在摘要生成之后运行。
   // 触发条件：每 RETROSPECTIVE_INTERVAL 章，对 N-interval 章执行后见之明重写。
+  // 双阶段：锁外生成（慢 LLM）+ 锁内 CAS 写盘，防止并发 undo 产生孤儿 .summary.jsonl。
   try {
     if (!getSimpleFeatures(sett.app?.writing_mode).disableChapterSummary) {
       if (shouldRunRetrospective(chapterNum, RETROSPECTIVE_INTERVAL)) {
@@ -205,17 +207,37 @@ export async function confirmChapter(
         const canGen = llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key);
         if (embProvider && canGen) {
           const targetChapterNum = chapterNum - RETROSPECTIVE_INTERVAL;
-          await run_retrospective(
+
+          // Phase 1（锁外）：LLM 生成 v2 文本
+          const genResult = await generate_retrospective(
             auPath,
             targetChapterNum,
             chapter,
             e.repos.chapterSummary,
-            e.ragManager,
-            embProvider,
             create_provider(llmCfg),
             chapterNum,
             { language: sett.app?.language || "zh" },
           );
+
+          // Phase 2（锁内）：CAS 校验章节还在，再写 v2 + 更新向量索引
+          if (genResult) {
+            await withAuLock(auPath, async () => {
+              let targetStillPresent = false;
+              try {
+                const targetCh = await chapter.get(auPath, targetChapterNum);
+                // CAS：章节文件存在即视为有效（targetChapterNum 是历史章，content_hash 不变）
+                targetStillPresent = !!targetCh;
+              } catch {
+                targetStillPresent = false; // 章节已被 undo 删除
+              }
+              if (!targetStillPresent) return;
+
+              await commit_retrospective(
+                auPath, targetChapterNum, genResult,
+                e.repos.chapterSummary, e.ragManager, embProvider,
+              );
+            });
+          }
         }
       }
     }

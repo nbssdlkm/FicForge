@@ -77,13 +77,18 @@ function dictToFact(d: Record<string, unknown>): Fact {
     location:          (d.location       as string  | undefined) ?? null,
     story_time_tag:    (d.story_time_tag as string  | undefined) ?? null,
     story_time_order:  (d.story_time_order as number | undefined) ?? null,
-    time_kind:         (d.time_kind      as TimeKind | undefined) ?? null,
+    // time_kind / suspense_type: validate enum on read, non-legal → null (align with ops_projection)
+    time_kind:         (Object.values(TimeKind) as string[]).includes(d.time_kind as string)
+                         ? (d.time_kind as TimeKind)
+                         : null,
     action_verb:       (d.action_verb    as string  | undefined) ?? null,
     caused_by:         Array.isArray(d.caused_by)   ? (d.caused_by  as string[]) : [],
     // Layer 3 (M8-A)
     known_to:          (d.known_to as ("all" | "reader_only" | string[]) | undefined) ?? null,
     hidden_from:       Array.isArray(d.hidden_from) ? (d.hidden_from as string[]) : [],
-    suspense_type:     (d.suspense_type  as SuspenseType | undefined) ?? null,
+    suspense_type:     (Object.values(SuspenseType) as string[]).includes(d.suspense_type as string)
+                         ? (d.suspense_type as SuspenseType)
+                         : null,
     // _confidence
     _confidence:       (typeof d._confidence === "object" && d._confidence !== null)
                          ? (d._confidence as FactFieldConfidence)

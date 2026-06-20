@@ -2,8 +2,8 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { FileFactRepository } from "../implementations/file_fact.js";
-import { FactStatus, FactType, NarrativeWeight } from "../../domain/enums.js";
+import { FileFactRepository, factToDict } from "../implementations/file_fact.js";
+import { FactStatus, FactType, NarrativeWeight, TimeKind, SuspenseType } from "../../domain/enums.js";
 import { createFact } from "../../domain/fact.js";
 import { generate_fact_id } from "../implementations/file_utils.js";
 import { MockAdapter } from "./mock_adapter.js";
@@ -107,5 +107,88 @@ describe("FileFactRepository", () => {
 
     const loaded = await repo.get("au1", "f_zh");
     expect(loaded!.content_raw).toBe("第3章中，Connor 发现了隐藏的线索");
+  });
+
+  // ----------------------------------------------------------
+  // M8-A MAJOR: dictToFact enum validation (time_kind / suspense_type)
+  // Aligns with ops_projection.factFromPayload behaviour.
+  // ----------------------------------------------------------
+
+  it("dictToFact: valid time_kind round-trips correctly", async () => {
+    const fact = createFact({
+      id: "f_tk",
+      content_raw: "r", content_clean: "c",
+      time_kind: TimeKind.FLASHBACK,
+    });
+    await repo.append("au1", fact);
+    const loaded = await repo.get("au1", "f_tk");
+    expect(loaded!.time_kind).toBe(TimeKind.FLASHBACK);
+  });
+
+  it("dictToFact: illegal time_kind in JSONL is read back as null (not stored garbage)", async () => {
+    // Manually write a bad JSONL line with an invalid time_kind
+    const fact = createFact({ id: "f_bad_tk", content_raw: "r", content_clean: "c" });
+    const d = factToDict(fact);
+    (d as Record<string, unknown>).time_kind = "teleport"; // illegal value
+
+    // Seed the raw JSONL directly into MockAdapter
+    adapter.seed("au1/facts.jsonl", JSON.stringify(d) + "\n");
+
+    const loaded = await repo.get("au1", "f_bad_tk");
+    expect(loaded).not.toBeNull();
+    // Illegal value must be normalised to null, not kept as-is
+    expect(loaded!.time_kind).toBeNull();
+  });
+
+  it("dictToFact: valid suspense_type round-trips correctly", async () => {
+    const fact = createFact({
+      id: "f_st",
+      content_raw: "r", content_clean: "c",
+      suspense_type: SuspenseType.SECRET,
+    });
+    await repo.append("au1", fact);
+    const loaded = await repo.get("au1", "f_st");
+    expect(loaded!.suspense_type).toBe(SuspenseType.SECRET);
+  });
+
+  it("dictToFact: illegal suspense_type in JSONL is read back as null", async () => {
+    const fact = createFact({ id: "f_bad_st", content_raw: "r", content_clean: "c" });
+    const d = factToDict(fact);
+    (d as Record<string, unknown>).suspense_type = "cliffhanger_typo"; // illegal
+
+    adapter.seed("au1/facts.jsonl", JSON.stringify(d) + "\n");
+
+    const loaded = await repo.get("au1", "f_bad_st");
+    expect(loaded).not.toBeNull();
+    expect(loaded!.suspense_type).toBeNull();
+  });
+
+  it("M8-A fields round-trip correctly through append/list", async () => {
+    const fact = createFact({
+      id: "f_m8a",
+      content_raw: "r", content_clean: "c",
+      location: "御书房",
+      story_time_tag: "Y1 冬末",
+      story_time_order: 10,
+      time_kind: TimeKind.NORMAL,
+      action_verb: "决裂",
+      caused_by: ["f_001"],
+      known_to: ["Alice", "Bob"],
+      hidden_from: ["Charlie"],
+      suspense_type: SuspenseType.FORESHADOW,
+      _confidence: { location: "high", time_kind: "medium" },
+    });
+    await repo.append("au1", fact);
+    const loaded = await repo.get("au1", "f_m8a");
+    expect(loaded!.location).toBe("御书房");
+    expect(loaded!.story_time_tag).toBe("Y1 冬末");
+    expect(loaded!.story_time_order).toBe(10);
+    expect(loaded!.time_kind).toBe(TimeKind.NORMAL);
+    expect(loaded!.action_verb).toBe("决裂");
+    expect(loaded!.caused_by).toEqual(["f_001"]);
+    expect(loaded!.known_to).toEqual(["Alice", "Bob"]);
+    expect(loaded!.hidden_from).toEqual(["Charlie"]);
+    expect(loaded!.suspense_type).toBe(SuspenseType.FORESHADOW);
+    expect(loaded!._confidence).toEqual({ location: "high", time_kind: "medium" });
   });
 });

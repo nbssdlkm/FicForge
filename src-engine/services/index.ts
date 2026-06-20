@@ -141,8 +141,14 @@ export type { GenerateSummaryOptions, PersistSummaryDeps } from "./chapter_summa
 export { generate_micro_summary, generate_standard_summary, persist_chapter_summary } from "./chapter_summary.js";
 
 // Retrospective Rewrite (M10-A)
-export type { RetrospectiveOptions } from "./retrospective.js";
-export { run_retrospective, shouldRunRetrospective, RETROSPECTIVE_INTERVAL } from "./retrospective.js";
+export type { RetrospectiveOptions, RetrospectiveGenResult } from "./retrospective.js";
+export {
+  run_retrospective,
+  generate_retrospective,
+  commit_retrospective,
+  shouldRunRetrospective,
+  RETROSPECTIVE_INTERVAL,
+} from "./retrospective.js";
 
 // Secure Storage Migration
 export type {

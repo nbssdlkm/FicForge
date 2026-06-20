@@ -11,8 +11,8 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { undo_latest_chapter } from "../undo_chapter.js";
 import { confirm_chapter } from "../confirm_chapter.js";
-import { add_fact, update_fact_status } from "../facts_lifecycle.js";
-import { FactStatus } from "../../domain/enums.js";
+import { add_fact, update_fact_status, archive_fact } from "../facts_lifecycle.js";
+import { FactStatus, NarrativeWeight } from "../../domain/enums.js";
 import { createDraft } from "../../domain/draft.js";
 import { createState } from "../../domain/state.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
@@ -398,5 +398,62 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     expect(rebuiltF1).toBeDefined();
     // Rebuilt fact stays "deprecated" because no rollback op was emitted
     expect(rebuiltF1!.status).toBe("deprecated");
+  });
+
+  // ---------------------------------------------------------
+  // 6.1.9 Archived fact: undo correctly handles archived facts
+  // (M10-B regression: cold-tier facts must survive / be deleted correctly)
+  // ---------------------------------------------------------
+
+  it("archived fact created in chapter → undo deletes it from repo", async () => {
+    await stateRepo.save(createState({ au_id: "au1" }));
+    await confirmChapter(1, "Alice走了。");
+
+    // Add a low-weight fact for chapter 1, then archive it (simulating run_archival_sweep)
+    const f1 = await add_fact("au1", 1, {
+      content_raw: "r", content_clean: "低权重背景细节",
+      status: "active", type: "character_detail",
+      narrative_weight: NarrativeWeight.LOW,
+    }, factRepo, opsRepo);
+    await archive_fact("au1", f1.id, factRepo, opsRepo);
+
+    let facts = await factRepo.list_all("au1");
+    expect(facts).toHaveLength(1);
+    expect(facts[0].archived).toBe(true);
+
+    // Undo chapter 1 should delete the archived fact (it was created in ch1)
+    await doUndo();
+
+    facts = await factRepo.list_all("au1");
+    expect(facts).toHaveLength(0);
+
+    // Ops rebuild should also have 0 facts (add_fact + archive ops from ch1 deleted by undo)
+    await assertFactsMatchRebuild();
+  });
+
+  it("archived fact from earlier chapter survives undo of later chapter", async () => {
+    await stateRepo.save(createState({ au_id: "au1" }));
+
+    // Add a pre-existing fact from chapter 0, then archive it
+    const f0 = await add_fact("au1", 0, {
+      content_raw: "r", content_clean: "前情提要细节",
+      status: "active", type: "backstory",
+      narrative_weight: NarrativeWeight.LOW,
+    }, factRepo, opsRepo);
+    await archive_fact("au1", f0.id, factRepo, opsRepo);
+
+    await confirmChapter(1, "第一章。");
+
+    // Undo chapter 1 should NOT delete f0 (it came from chapter 0, not chapter 1)
+    await doUndo();
+
+    const facts = await factRepo.list_all("au1");
+    expect(facts).toHaveLength(1);
+    expect(facts[0].id).toBe(f0.id);
+    expect(facts[0].archived).toBe(true);  // archived state preserved
+
+    // State and facts both match rebuild
+    await assertStateMatchesRebuild();
+    await assertFactsMatchRebuild();
   });
 });

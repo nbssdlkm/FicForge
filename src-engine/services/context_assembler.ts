@@ -181,10 +181,14 @@ export function buildFactEnrichmentSuffix(fact: Fact): string {
   const INJECT_LEVELS = new Set<ConfidenceLevel>(["high", "medium"]);
   const parts: string[] = [];
 
-  // known_to（高价值）
+  // known_to（高价值）：[] 空数组不注入（无信息量，避免渲染 "known_to: "）
   if (fact.known_to != null && INJECT_LEVELS.has(c.known_to!)) {
-    const v = Array.isArray(fact.known_to) ? fact.known_to.join(", ") : fact.known_to;
-    parts.push(`known_to: ${v}`);
+    const isNonEmptyArray = Array.isArray(fact.known_to) && fact.known_to.length > 0;
+    const isString = typeof fact.known_to === "string";
+    if (isString || isNonEmptyArray) {
+      const v = Array.isArray(fact.known_to) ? fact.known_to.join(", ") : fact.known_to;
+      parts.push(`known_to: ${v}`);
+    }
   }
 
   // time_kind（高价值；normal 无信息量，跳过）
@@ -247,8 +251,9 @@ export function build_facts_layer(
   let unresolvedDropped = 0;
 
   if (sortedUnresolved.length > 0) {
+    // Budget includes both content_clean and the enrichment suffix that will be appended.
     const totalUrTokens = sortedUnresolved.reduce(
-      (sum, f) => sum + _count(f.content_clean, llm_config).count,
+      (sum, f) => sum + _count(f.content_clean + buildFactEnrichmentSuffix(f), llm_config).count,
       0,
     );
 
@@ -258,7 +263,7 @@ export function build_facts_layer(
       softDegraded = true;
       let used = 0;
       for (const f of sortedUnresolved) {
-        const t = _count(f.content_clean, llm_config).count;
+        const t = _count(f.content_clean + buildFactEnrichmentSuffix(f), llm_config).count;
         if (used + t > budget_tokens) {
           unresolvedDropped++;
         } else {
@@ -270,7 +275,10 @@ export function build_facts_layer(
   }
 
   const remainingBudget =
-    budget_tokens - unresolvedKept.reduce((sum, f) => sum + _count(f.content_clean, llm_config).count, 0);
+    budget_tokens - unresolvedKept.reduce(
+      (sum, f) => sum + _count(f.content_clean + buildFactEnrichmentSuffix(f), llm_config).count,
+      0,
+    );
 
   // --- active 截断 ---
   const activeKept: Fact[] = [];
@@ -278,7 +286,7 @@ export function build_facts_layer(
     const sortedActive = sortByWeightAndRecency(active);
     let used = 0;
     for (const f of sortedActive) {
-      const t = _count(f.content_clean, llm_config).count;
+      const t = _count(f.content_clean + buildFactEnrichmentSuffix(f), llm_config).count;
       if (used + t > remainingBudget) break;
       activeKept.push(f);
       used += t;

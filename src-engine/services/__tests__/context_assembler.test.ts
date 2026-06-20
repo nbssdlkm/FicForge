@@ -7,12 +7,13 @@ import {
   build_instruction,
   build_facts_layer,
   build_core_settings_layer,
+  buildFactEnrichmentSuffix,
   assemble_context,
 } from "../context_assembler.js";
 import { createProject } from "../../domain/project.js";
 import { createState } from "../../domain/state.js";
 import { createFact } from "../../domain/fact.js";
-import { FactStatus, NarrativeWeight } from "../../domain/enums.js";
+import { FactStatus, NarrativeWeight, SuspenseType, TimeKind } from "../../domain/enums.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 import { FileChapterRepository } from "../../repositories/implementations/file_chapter.js";
 
@@ -125,6 +126,98 @@ describe("build_facts_layer", () => {
     const [text] = build_facts_layer(facts, [], 10000, null, "zh");
     // high weight should appear, and facts sorted by chapter in final output
     expect(text).toContain("high ch2");
+  });
+});
+
+describe("buildFactEnrichmentSuffix", () => {
+  it("returns empty string when no _confidence", () => {
+    const fact = createFact({ id: "f1", content_raw: "r", content_clean: "c" });
+    expect(buildFactEnrichmentSuffix(fact)).toBe("");
+  });
+
+  it("returns empty string when known_to is empty array (M8-A MINOR fix)", () => {
+    const fact = createFact({
+      id: "f1", content_raw: "r", content_clean: "c",
+      known_to: [],
+      _confidence: { known_to: "high" },
+    });
+    // Empty array must NOT inject "known_to: " (no information value)
+    const suffix = buildFactEnrichmentSuffix(fact);
+    expect(suffix).not.toContain("known_to:");
+  });
+
+  it("injects known_to when it is a non-empty array", () => {
+    const fact = createFact({
+      id: "f1", content_raw: "r", content_clean: "c",
+      known_to: ["Alice", "Bob"],
+      _confidence: { known_to: "high" },
+    });
+    const suffix = buildFactEnrichmentSuffix(fact);
+    expect(suffix).toContain("known_to: Alice, Bob");
+  });
+
+  it("injects known_to when it is a string value 'all'", () => {
+    const fact = createFact({
+      id: "f1", content_raw: "r", content_clean: "c",
+      known_to: "all",
+      _confidence: { known_to: "high" },
+    });
+    const suffix = buildFactEnrichmentSuffix(fact);
+    expect(suffix).toContain("known_to: all");
+  });
+
+  it("does not inject time_kind when it is 'normal'", () => {
+    const fact = createFact({
+      id: "f1", content_raw: "r", content_clean: "c",
+      time_kind: TimeKind.NORMAL,
+      _confidence: { time_kind: "high" },
+    });
+    const suffix = buildFactEnrichmentSuffix(fact);
+    expect(suffix).not.toContain("time_kind");
+  });
+
+  it("injects suspense_type when confidence is medium", () => {
+    const fact = createFact({
+      id: "f1", content_raw: "r", content_clean: "c",
+      suspense_type: SuspenseType.SECRET,
+      _confidence: { suspense_type: "medium" },
+    });
+    const suffix = buildFactEnrichmentSuffix(fact);
+    expect(suffix).toContain("suspense_type: secret");
+  });
+});
+
+describe("build_facts_layer enrichment budget (M8-A MAJOR fix)", () => {
+  it("enriched fact that fits budget+suffix is kept", () => {
+    // Budget large enough for content + suffix
+    const fact = createFact({
+      id: "f1", content_raw: "r", content_clean: "short fact",
+      status: FactStatus.UNRESOLVED,
+      known_to: ["Alice"],
+      _confidence: { known_to: "high" },
+    });
+    const [text] = build_facts_layer([fact], [], 10000, null, "zh");
+    expect(text).toContain("short fact");
+    expect(text).toContain("known_to: Alice");
+  });
+
+  it("enriched fact that overflows tight budget is excluded (suffix counted in budget)", () => {
+    // Make 20 facts each with long content + enrichment suffix
+    // Budget is 1 token — everything should be excluded
+    const facts = Array.from({ length: 5 }, (_, i) =>
+      createFact({
+        id: `f${i}`, content_raw: "r",
+        content_clean: "这是一段很长的内容需要占用大量 token ".repeat(20),
+        status: FactStatus.UNRESOLVED,
+        narrative_weight: NarrativeWeight.MEDIUM,
+        chapter: i,
+        known_to: ["Alice", "Bob"],
+        _confidence: { known_to: "high" },
+      }),
+    );
+    // Budget = 1 → nothing should fit (content alone already > 1 token)
+    const [_text, degraded] = build_facts_layer(facts, [], 1, null, "zh");
+    expect(degraded).toBe(true);
   });
 });
 
