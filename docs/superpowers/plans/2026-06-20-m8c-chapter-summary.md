@@ -964,6 +964,21 @@ codex plan review 出 2 BLOCKER + 5 MAJOR，逐条对代码验证均属实，修
 - **[#3 MINOR → 已修]** 撤销删章节但留孤儿 `.summary.jsonl`，且 `repo.remove()` 是死代码。**修法**：`undoChapter` 在 `undo_latest_chapter` 后 `chapterSummary.remove(result.chapter_num)`，给 remove() 真实消费者。
 - **已知遗留（记 M10）**：`source_chapter_hash` 在 M8-C 为 write-only（M10 staleness/retrospective 消费）；编辑→未 rebuild 的瞬时窗口仍会注入旧摘要向量（与陈旧 chunk 行为一致，非 M8-C 独有）；dirty_resolve 等非主编辑路径暂不失效摘要。
 
+## Workflow 对抗审修正（2026-06-20，7 维度 × 3-skeptic 多数票，已修复 commit adfc9d0/a776f8d/c5313ad/d00a5e2）
+
+实现完成后又跑了一轮 workflow 对抗审（codex 实现审之外的独立交叉），7 维度找茬、每条 3 个 skeptic 试图驳倒、多数票存活。出 5 confirmed（decay-sort 那条被 0/3 驳回 —— 因 verifier 在我已修后才跑、看到已修正）：
+
+- **[BLOCKER → adfc9d0]** rebuild 单章摘要 embed 失败/text 非 string 会中断**整个** rebuild（poison 20k 摘要、或 `{"text":42}` 损坏文件）→ 加 try/catch + `typeof` 守卫，跳过坏的不中断。
+- **[MAJOR → adfc9d0]** summaries 衰减后未重排序（chapters 有）→ 预算裁剪 reduceTopK 留旧弃新 → 加 `sort`。
+- **[MAJOR → a776f8d]** 摘要生成/写入在 AU 锁外 → 并发 undo/edit 后把过期摘要写回（orphan）→ 拆 generate（锁外）/ persist（锁内 + content_hash CAS），并发改动后丢弃过期摘要。index 先于 save → poison 不落盘。
+- **[MAJOR 3/3 → d00a5e2]** `generate_standard_summary` LLM 失败静默吞错零日志 → 加 `logCatch`。
+- **[MINOR 3/3 → d00a5e2]** summaries 无 characters metadata → char_filter 非空时主查必返 0、每次触发兜底全局查 = 双查 → summaries 检索直接传 `null` char_filter（单查）。
+- **[MAJOR 2/3 → d00a5e2 缓解 + 派生 TD]** `indexChapterSummary` embed 慢 I/O 期间并发切 AU → 写错 AU 磁盘索引（cross-AU 污染）。embed 后重 `ensureLoaded` 缓解；**底层 `indexChapter`/`indexChapterInMemory` 同 pre-existing gap，已 spawn 独立 TD 任务**（向量引擎加串行队列/锁）。
+- **[MINOR 2/3 → 记 M10]** 摘要生成无 AbortSignal，undo racing 取消不了在途 LLM+embed（CAS 已保证结果被丢弃、无正确性问题，仅浪费一次调用）。
+- **[UI MINOR → c5313ad]** 上下文面板未处理 summaries 标签 → 误标为 worldbuilding → 加 `ragChunkLabelSummary` 双语 key。
+
+工具坑：本环境 Workflow 子 agent 默认模型被 ccswitch 重映射到够不到的 deepseek，**显式传真模型 ID `claude-sonnet-4-6`（非别名）** 才跑通，见 memory `env-workflow-subagent-model-broken`。
+
 ## Codex 审阅协议（每块完成后，非阻塞）
 
 每个 Task commit 后，后台发：
