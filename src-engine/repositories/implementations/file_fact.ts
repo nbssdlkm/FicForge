@@ -47,6 +47,11 @@ export function factToDict(fact: Fact): Record<string, unknown> {
   if (fact.suspense_type  != null) d.suspense_type   = fact.suspense_type;
   // _confidence (旁路，持久化供 UI 高亮用)
   if (fact._confidence)            d._confidence     = fact._confidence;
+  // M10-B: 冷热分层 — archived 字段仅 true 时写入（节约存储，false 为默认）
+  if (fact.archived === true) {
+    d.archived    = true;
+    if (fact.archived_at) d.archived_at = fact.archived_at;
+  }
   return d;
 }
 
@@ -83,6 +88,9 @@ function dictToFact(d: Record<string, unknown>): Fact {
     _confidence:       (typeof d._confidence === "object" && d._confidence !== null)
                          ? (d._confidence as FactFieldConfidence)
                          : undefined,
+    // M10-B: 冷热分层 — 旧 fact 无此字段时 undefined !== true → 兜底为 false
+    archived:          d.archived === true ? true : false,
+    archived_at:       typeof d.archived_at === "string" ? d.archived_at : undefined,
   });
 }
 

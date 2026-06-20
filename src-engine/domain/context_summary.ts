@@ -45,6 +45,8 @@ export interface ContextSummary {
   truncated_characters: string[];
   /** 被注入的已确认章节数（FicForge Lite simple_assembler 全塞，完整模式只注入最近一章）。 */
   chapters_injected?: number;
+  /** M10-B: 本次组装中被冷区过滤（archived=true）、未进 P3 的 fact 数量。 */
+  facts_archived_count: number;
 }
 
 export function createContextSummary(partial?: Partial<ContextSummary>): ContextSummary {
@@ -59,6 +61,7 @@ export function createContextSummary(partial?: Partial<ContextSummary>): Context
     total_input_tokens: 0,
     truncated_layers: [],
     truncated_characters: [],
+    facts_archived_count: 0,  // M10-B
     ...partial,
   };
 }

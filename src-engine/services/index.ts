@@ -6,9 +6,13 @@
 // Facts Lifecycle
 export {
   add_fact,
+  archive_fact,
+  ARCHIVE_DISTANCE,
   edit_fact,
   FactsLifecycleError,
+  run_archival_sweep,
   set_chapter_focus,
+  unarchive_fact,
   update_fact_status,
 } from "./facts_lifecycle.js";
 

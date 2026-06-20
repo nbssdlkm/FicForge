@@ -53,6 +53,7 @@ describe("writerStorage", () => {
         total_input_tokens: 1000,
         truncated_layers: [],
         truncated_characters: [],
+        facts_archived_count: 0,  // M10-B
       },
     };
     saveContextSummaries("au1", 1, summaries);
@@ -76,6 +77,7 @@ describe("writerStorage", () => {
         total_input_tokens: 100,
         truncated_layers: [],
         truncated_characters: [],
+        facts_archived_count: 0,  // M10-B
       },
     };
     saveContextSummaries("au1", 1, summaries);

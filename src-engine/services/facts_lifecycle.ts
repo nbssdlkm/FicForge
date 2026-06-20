@@ -459,3 +459,122 @@ export async function set_chapter_focus(
 
   return { focus_ids: [...focus_ids] };
 }
+
+// ===========================================================================
+// M10-B: 冷热分层 — archive_fact / unarchive_fact / run_archival_sweep
+// ===========================================================================
+
+/** 距当前章节 ≥ ARCHIVE_DISTANCE 的 low-weight active/unresolved fact 进入冷区。抽为常量便于调参。 */
+export const ARCHIVE_DISTANCE = 10;
+
+/**
+ * 将指定 fact 标记为 archived（写 ops + 更新 fact）。
+ * 调用者必须已持 AU 锁（同 facts_lifecycle 其他函数约定）。
+ */
+export async function archive_fact(
+  au_id: string,
+  fact_id: string,
+  fact_repo: FactRepository,
+  ops_repo: OpsRepository,
+): Promise<void> {
+  const fact = await fact_repo.get(au_id, fact_id);
+  if (fact === null) {
+    throw new FactsLifecycleError(`archive_fact: Fact 不存在: ${fact_id}`);
+  }
+
+  const ts = now_utc();
+  fact.archived = true;
+  fact.archived_at = ts;
+
+  // WriteTransaction 保证顺序：ops → fact
+  const tx = new WriteTransaction();
+  tx.appendOp(au_id, createOpsEntry({
+    op_id: generate_op_id(),
+    op_type: "archive_fact",
+    target_id: fact_id,
+    timestamp: ts,
+    payload: { archived_at: ts },
+  }));
+  tx.updateFact(au_id, fact);
+  await tx.commit(ops_repo, fact_repo, null);
+}
+
+/**
+ * 解除指定 fact 的归档状态（写 ops + 更新 fact）。
+ * 调用者必须已持 AU 锁。
+ */
+export async function unarchive_fact(
+  au_id: string,
+  fact_id: string,
+  fact_repo: FactRepository,
+  ops_repo: OpsRepository,
+): Promise<void> {
+  const fact = await fact_repo.get(au_id, fact_id);
+  if (fact === null) {
+    throw new FactsLifecycleError(`unarchive_fact: Fact 不存在: ${fact_id}`);
+  }
+
+  const ts = now_utc();
+  fact.archived = false;
+  fact.archived_at = undefined;
+
+  // WriteTransaction 保证顺序：ops → fact
+  const tx = new WriteTransaction();
+  tx.appendOp(au_id, createOpsEntry({
+    op_id: generate_op_id(),
+    op_type: "unarchive_fact",
+    target_id: fact_id,
+    timestamp: ts,
+    payload: {},
+  }));
+  tx.updateFact(au_id, fact);
+  await tx.commit(ops_repo, fact_repo, null);
+}
+
+/**
+ * 扫描所有 active/unresolved facts，对满足冷区条件的 fact 批量归档。
+ * 固化条件（spec §七.2，CC 拍板 Q2）：
+ *   fact.chapter <= currentChapter - cold_threshold_chapters
+ *   && fact.narrative_weight === NarrativeWeight.LOW
+ *   && status ∈ {active, unresolved}（不扫 deprecated/resolved，避免无意义写操作）
+ *   && !fact.archived
+ *
+ * 调用者：engine-chapters.ts:confirmChapter（best-effort，失败静默）。
+ * 调用者必须已持 AU 锁。
+ *
+ * @returns 被归档的 fact_id 列表
+ */
+export async function run_archival_sweep(
+  au_id: string,
+  current_chapter: number,
+  fact_repo: FactRepository,
+  ops_repo: OpsRepository,
+  cold_threshold_chapters: number = ARCHIVE_DISTANCE,
+): Promise<string[]> {
+  const all = await fact_repo.list_all(au_id);
+  const archived_ids: string[] = [];
+
+  for (const fact of all) {
+    // 只扫 active/unresolved（spec §七.2 + MAJOR M4 修正）
+    if (fact.status !== FactStatus.ACTIVE && fact.status !== FactStatus.UNRESOLVED) {
+      continue;
+    }
+    // 只扫 low weight
+    if (fact.narrative_weight !== NarrativeWeight.LOW) {
+      continue;
+    }
+    // 距离条件
+    if (fact.chapter > current_chapter - cold_threshold_chapters) {
+      continue;
+    }
+    // 未归档才处理（幂等：跳过已归档）
+    if (fact.archived === true) {
+      continue;
+    }
+
+    await archive_fact(au_id, fact.id, fact_repo, ops_repo);
+    archived_ids.push(fact.id);
+  }
+
+  return archived_ids;
+}

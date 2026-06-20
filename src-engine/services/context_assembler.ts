@@ -229,7 +229,9 @@ export function build_facts_layer(
   const eligible = facts.filter(
     (f) =>
       (f.status === FactStatus.ACTIVE || f.status === FactStatus.UNRESOLVED) &&
-      !focus_ids.includes(f.id),
+      !focus_ids.includes(f.id) &&
+      // M10-B: 冷 fact 不进 P3。旧 fact 无 archived 字段时 undefined !== true → 保留注入（向后兼容）
+      f.archived !== true,
   );
 
   if (eligible.length === 0) return ["", false];
@@ -630,6 +632,12 @@ export async function assemble_context(
     }
 
     summary.facts_injected = p3Text.split("\n").filter((line) => line.startsWith("- [")).length;
+    // M10-B: 统计被冷区过滤的 fact 数（旧 fact 无 archived 字段时 undefined !== true → 不计入）
+    summary.facts_archived_count = facts.filter(
+      (f) =>
+        (f.status === FactStatus.ACTIVE || f.status === FactStatus.UNRESOLVED) &&
+        f.archived === true,
+    ).length;
 
     if (p4Text) {
       const ragContentLines = p4Text

@@ -39,6 +39,10 @@ export interface Fact {
 
   // ---------- 置信度旁路（M8-A）----------
   _confidence?:       FactFieldConfidence;    // per-field LLM 置信度，非叙事内容不注入 prompt
+
+  // ---------- 冷热分层（M10-B）----------
+  archived?:          boolean;               // 冷 fact 标志；默认 false；undefined 视同 false（向后兼容）
+  archived_at?:       string;                // ISO 8601；仅 archived=true 时写入
 }
 
 export type ConfidenceLevel = "high" | "medium" | "low";
@@ -70,6 +74,7 @@ export function createFact(partial: Pick<Fact, "id" | "content_raw" | "content_c
     revision: 1,
     created_at: "",
     updated_at: "",
+    archived: false,  // M10-B: default false; undefined on old facts treated as false
     ...partial,
   };
 }

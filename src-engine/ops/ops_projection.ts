@@ -261,6 +261,9 @@ function factFromPayload(id: string, d: Record<string, unknown>): Fact {
     _confidence:       (typeof d._confidence === "object" && d._confidence !== null)
                          ? (d._confidence as FactFieldConfidence)
                          : undefined,
+    // M10-B: cold-tier archival (default false; undefined on old facts treated as false)
+    archived:          typeof d.archived === "boolean" ? d.archived : false,
+    archived_at:       typeof d.archived_at === "string" ? d.archived_at : undefined,
   });
 }
 
@@ -286,6 +289,8 @@ export function rebuildFactsFromOps(ops: OpsEntry[]): Fact[] {
             // M8-A Layer 2 + Layer 3 enrichment fields
             "location", "story_time_tag", "story_time_order", "time_kind", "action_verb",
             "caused_by", "known_to", "hidden_from", "suspense_type", "_confidence",
+            // M10-B: cold-tier archival fields
+            "archived", "archived_at",
           ]);
           const changes = (op.payload.updated_fields ?? op.payload.changes ?? {}) as Record<string, unknown>;
           for (const [key, value] of Object.entries(changes)) {
@@ -315,6 +320,27 @@ export function rebuildFactsFromOps(ops: OpsEntry[]): Fact[] {
         for (const fd of batchFacts) {
           const id = (fd.id as string) ?? op.target_id;
           facts.set(id, factFromPayload(id, fd));
+        }
+        break;
+      }
+
+      // M10-B: cold-tier archival — restore archived state on rebuild
+      case "archive_fact": {
+        const f = facts.get(op.target_id);
+        if (f) {
+          f.archived = true;
+          if (typeof op.payload.archived_at === "string") {
+            f.archived_at = op.payload.archived_at;
+          }
+        }
+        break;
+      }
+
+      case "unarchive_fact": {
+        const f = facts.get(op.target_id);
+        if (f) {
+          f.archived = false;
+          f.archived_at = undefined;
         }
         break;
       }

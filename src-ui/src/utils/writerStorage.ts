@@ -95,6 +95,10 @@ export function normalizeContextSummary(value: unknown): ContextSummary | null {
     total_input_tokens: candidate.total_input_tokens,
     truncated_layers: candidate.truncated_layers,
     truncated_characters: candidate.truncated_characters,
+    // M10-B: backward-compat; old saved summaries won't have this field
+    facts_archived_count: typeof candidate.facts_archived_count === "number"
+      ? candidate.facts_archived_count
+      : 0,
   };
 }
 

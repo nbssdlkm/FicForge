@@ -98,5 +98,8 @@ describe("Enums match Python values", () => {
     expect(OpType.REBUILD_INDEX).toBe("rebuild_index");
     expect(OpType.RECALC_GLOBAL_STATE).toBe("recalc_global_state");
     expect(OpType.UPDATE_PINNED).toBe("update_pinned");
+    // M10-B: cold-tier archival ops
+    expect(OpType.ARCHIVE_FACT).toBe("archive_fact");
+    expect(OpType.UNARCHIVE_FACT).toBe("unarchive_fact");
   });
 });

@@ -119,4 +119,6 @@ export enum OpType {
   REBUILD_INDEX = "rebuild_index",
   RECALC_GLOBAL_STATE = "recalc_global_state",
   UPDATE_PINNED = "update_pinned",
+  ARCHIVE_FACT = "archive_fact",       // M10-B: 冷 fact 固化
+  UNARCHIVE_FACT = "unarchive_fact",   // M10-B: 冷 fact 解除固化
 }
