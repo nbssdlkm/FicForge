@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { addFact, submitFactsExtraction, type StateInfo, type ExtractedFactCandidate } from '../../api/engine-client';
+import { addFact, submitFactsExtraction, extractedEnrichment, type StateInfo, type ExtractedFactCandidate } from '../../api/engine-client';
 import { getEngine } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
@@ -174,6 +174,7 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
           status: candidate.status || 'active',
           characters: candidate.characters || [],
           ...(candidate.timeline ? { timeline: candidate.timeline } : {}),
+          ...extractedEnrichment(candidate),  // caused_by + M8-A 富化（此前在此丢）
         });
         if (guard.isKeyStale(requestAuPath)) return;
       }

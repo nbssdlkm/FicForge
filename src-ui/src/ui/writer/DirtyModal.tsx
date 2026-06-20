@@ -9,7 +9,7 @@ import { AlertCircle, Check } from 'lucide-react';
 import { Tag } from '../shared/Tag';
 import { useState, useEffect } from 'react';
 import { resolveDirtyChapter } from '../../api/engine-client';
-import { listFacts, extractFacts, addFact, type FactInfo, type ExtractedFactCandidate } from '../../api/engine-client';
+import { listFacts, extractFacts, addFact, extractedEnrichment, type FactInfo, type ExtractedFactCandidate } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { useFeedback } from '../../hooks/useFeedback';
@@ -122,6 +122,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
             narrative_weight: c.narrative_weight || 'medium',
             status: c.status || 'active',
             timeline: c.timeline || '',
+            ...extractedEnrichment(c),  // caused_by + M8-A 富化（此前在此丢）
           });
         } catch {
           failCount++;

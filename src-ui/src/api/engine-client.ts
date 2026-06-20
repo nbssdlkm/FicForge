@@ -23,6 +23,7 @@ export { FactStatus, IndexStatus, LLMMode, Provenance } from "@ficforge/engine";
 
 // UI-specific types (no engine equivalent)
 export type { ExtractedFactCandidate, ExtractFactsResponse } from "./facts";
+export { extractedEnrichment } from "./facts";
 export type { ChapterInfo } from "./chapters";
 export type { DraftListItem, DraftGeneratedWith, DeleteDraftsResult } from "./drafts";
 export type {

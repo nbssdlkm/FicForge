@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useCallback, useEffect } from 'react';
-import { extractFacts, addFact, type ExtractedFactCandidate } from '../../api/engine-client';
+import { extractFacts, addFact, extractedEnrichment, type ExtractedFactCandidate } from '../../api/engine-client';
 import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import {
   getSkipFactsPromptDefault,
@@ -95,6 +95,7 @@ export function useWriterFactsExtraction(auPath: string) {
           status: candidate.status || 'active',
           characters: candidate.characters || [],
           ...(candidate.timeline ? { timeline: candidate.timeline } : {}),
+          ...extractedEnrichment(candidate),  // caused_by + M8-A 富化（此前在此丢）
         });
       }
       if (guard.isKeyStale(requestAuPath)) return;
