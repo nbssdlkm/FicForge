@@ -52,6 +52,7 @@ export const REQUIRED_KEYS = [
 
   // === facts_extraction ===
   "FACTS_SYSTEM_PROMPT",
+  "FACTS_ENRICH_SYSTEM_PROMPT",  // M8-A: 单章提取（含新字段）
   "FACTS_BATCH_SYSTEM_PROMPT",
   "FACTS_KNOWN_CHARS_HEADER",
   "FACTS_ALIAS_FORMAT",             // f-string with {name}, {aliases}

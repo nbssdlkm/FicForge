@@ -236,6 +236,19 @@ export async function add_fact(
         revision: fact.revision,
         created_at: fact.created_at,
         updated_at: fact.updated_at,
+        // Layer 2 (M8-A) — only include if present, keeps op payload lean
+        ...(fact.location        != null ? { location:         fact.location }        : {}),
+        ...(fact.story_time_tag  != null ? { story_time_tag:   fact.story_time_tag }  : {}),
+        ...(fact.story_time_order != null ? { story_time_order: fact.story_time_order } : {}),
+        ...(fact.time_kind       != null ? { time_kind:        fact.time_kind }        : {}),
+        ...(fact.action_verb     != null ? { action_verb:      fact.action_verb }      : {}),
+        ...(fact.caused_by?.length       ? { caused_by:        fact.caused_by }        : {}),
+        // Layer 3 (M8-A)
+        ...(fact.known_to        != null ? { known_to:         fact.known_to }         : {}),
+        ...(fact.hidden_from?.length     ? { hidden_from:      fact.hidden_from }      : {}),
+        ...(fact.suspense_type   != null ? { suspense_type:    fact.suspense_type }    : {}),
+        // _confidence
+        ...(fact._confidence             ? { _confidence:      fact._confidence }      : {}),
       },
     },
   }));

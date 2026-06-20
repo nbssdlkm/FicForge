@@ -19,9 +19,11 @@ import type { Fact } from "../domain/fact.js";
 import { createFact } from "../domain/fact.js";
 import {
   FACT_SOURCE_VALUES, FACT_STATUS_VALUES, FACT_TYPE_VALUES, NARRATIVE_WEIGHT_VALUES,
+  TIME_KIND_VALUES, SUSPENSE_TYPE_VALUES,
 } from "../domain/enums.js";
 import { hasLogger, getLogger } from "../logger/index.js";
-import type { FactSource, FactStatus, FactType, NarrativeWeight } from "../domain/enums.js";
+import type { FactSource, FactStatus, FactType, NarrativeWeight, TimeKind, SuspenseType } from "../domain/enums.js";
+import type { FactFieldConfidence } from "../domain/fact.js";
 import type { PlatformAdapter } from "../platform/adapter.js";
 
 // ---------------------------------------------------------------------------
@@ -240,6 +242,25 @@ function factFromPayload(id: string, d: Record<string, unknown>): Fact {
     revision: (d.revision as number) ?? 1,
     created_at: (d.created_at as string) ?? "",
     updated_at: (d.updated_at as string) ?? "",
+    // Layer 2 (M8-A)
+    location:          (d.location       as string  | undefined) ?? null,
+    story_time_tag:    (d.story_time_tag as string  | undefined) ?? null,
+    story_time_order:  (d.story_time_order as number | undefined) ?? null,
+    time_kind:         (TIME_KIND_VALUES as readonly string[]).includes(d.time_kind as string)
+                         ? (d.time_kind as TimeKind)
+                         : null,
+    action_verb:       (d.action_verb    as string  | undefined) ?? null,
+    caused_by:         Array.isArray(d.caused_by)   ? (d.caused_by  as string[]) : [],
+    // Layer 3 (M8-A)
+    known_to:          (d.known_to as ("all" | "reader_only" | string[]) | undefined) ?? null,
+    hidden_from:       Array.isArray(d.hidden_from) ? (d.hidden_from as string[]) : [],
+    suspense_type:     (SUSPENSE_TYPE_VALUES as readonly string[]).includes(d.suspense_type as string)
+                         ? (d.suspense_type as SuspenseType)
+                         : null,
+    // _confidence
+    _confidence:       (typeof d._confidence === "object" && d._confidence !== null)
+                         ? (d._confidence as FactFieldConfidence)
+                         : undefined,
   });
 }
 
@@ -259,7 +280,13 @@ export function rebuildFactsFromOps(ops: OpsEntry[]): Fact[] {
       case "edit_fact": {
         const existing = facts.get(op.target_id);
         if (existing) {
-          const EDITABLE_FIELDS = new Set(["content_raw", "content_clean", "characters", "status", "type", "narrative_weight", "source", "timeline", "story_time", "resolves", "chapter"]);
+          const EDITABLE_FIELDS = new Set([
+            "content_raw", "content_clean", "characters", "status", "type",
+            "narrative_weight", "source", "timeline", "story_time", "resolves", "chapter",
+            // M8-A Layer 2 + Layer 3 enrichment fields
+            "location", "story_time_tag", "story_time_order", "time_kind", "action_verb",
+            "caused_by", "known_to", "hidden_from", "suspense_type", "_confidence",
+          ]);
           const changes = (op.payload.updated_fields ?? op.payload.changes ?? {}) as Record<string, unknown>;
           for (const [key, value] of Object.entries(changes)) {
             if (EDITABLE_FIELDS.has(key)) {

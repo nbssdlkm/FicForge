@@ -86,6 +86,26 @@ export enum Provenance {
   IMPORTED = "imported",
 }
 
+/** 叙事时间种类（M8-A）。 */
+export enum TimeKind {
+  NORMAL    = "normal",     // 正常叙事时序
+  FLASHBACK = "flashback",  // 闪回
+  INSERT    = "insert",     // 插叙（非闪回的非线性片段）
+  DREAM     = "dream",      // 梦境/幻觉
+  PARALLEL  = "parallel",   // 平行时间线
+  IMAGINED  = "imagined",   // 想象/假设
+}
+export const TIME_KIND_VALUES = Object.values(TimeKind) as [TimeKind, ...TimeKind[]];
+
+/** 悬念类型（M8-A）。 */
+export enum SuspenseType {
+  FORESHADOW       = "foreshadow",       // 铺垫/预示
+  SECRET           = "secret",           // 秘密（读者已知角色不知）
+  MISUNDERSTANDING = "misunderstanding", // 误解
+  SETUP            = "setup",            // 铺设（待 payoff 的前置条件）
+}
+export const SUSPENSE_TYPE_VALUES = Object.values(SuspenseType) as [SuspenseType, ...SuspenseType[]];
+
 /** 操作日志类型。参见 PRD §2.6.5。 */
 export enum OpType {
   CONFIRM_CHAPTER = "confirm_chapter",

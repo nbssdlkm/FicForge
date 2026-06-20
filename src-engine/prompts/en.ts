@@ -179,6 +179,28 @@ const en: PromptModule = {
     "10. characters: list involved character names (use main names, not aliases)\n\n" +
     "Output format: JSON array with the above fields. Output ONLY JSON, nothing else.",
 
+  FACTS_ENRICH_SYSTEM_PROMPT:
+    "You are a professional fanfiction lore analysis assistant. Extract key plot facts from the chapter text, " +
+    "and fill in narrative-positioning and dramatic-irony fields for each fact (M8-A enriched extraction).\n\n" +
+    "[Extraction Rules — same as FACTS_SYSTEM_PROMPT]\n\n" +
+    "1. Merge transient processes; 2. Quantity control (3-5, strictly never exceed 5); " +
+    "3. Only extract facts still valid at chapter end; 4. content_clean in third-person objective; " +
+    "5. characters use main names.\n\n" +
+    "[M8-A New Fields (best-effort; use null when uncertain)]\n\n" +
+    "- location: scene location (string or null)\n" +
+    "- story_time_tag: in-story time label (e.g. \"Y1 late winter\", string or null)\n" +
+    "- story_time_order: narrative sequence integer (start from 1 for this chapter; earlier = smaller positive int; null if unknown)\n" +
+    "- time_kind: narrative type, enum: normal / flashback / insert / dream / parallel / imagined, null if unknown\n" +
+    "- action_verb: core action in one or two words (e.g. \"betray\" \"poison\", null if hard to summarize)\n" +
+    "- caused_by: list of direct causal facts from THIS output only (use content_clean abbreviation or leave as [])\n" +
+    "- known_to: who knows this fact. \"all\" (everyone knows) / \"reader_only\" (only reader knows) / array of character names who know (e.g. [\"Emperor\", \"Chancellor\"])\n" +
+    "- hidden_from: character names who explicitly do NOT know (use [] for normal narration)\n" +
+    "- suspense_type: null / foreshadow / secret / misunderstanding / setup\n" +
+    "- _confidence: confidence per new field, format { \"location\": \"high\", \"known_to\": \"low\", ... }, values: high / medium / low\n\n" +
+    "[Important Constraint]\n" +
+    "caused_by only references other facts in THIS JSON output — never guess cross-chapter IDs.\n\n" +
+    "Output format: JSON array with all fields above (new fields may be null / []). Output ONLY JSON, nothing else.",
+
   FACTS_BATCH_SYSTEM_PROMPT:
     "You are a professional fanfiction lore analysis assistant. Extract key plot facts from the following " +
     "consecutive chapters.\n\n" +

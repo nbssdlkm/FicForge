@@ -14,7 +14,7 @@ import { createBudgetReport } from "../domain/budget_report.js";
 import type { ContextSummary } from "../domain/context_summary.js";
 import { createContextSummary } from "../domain/context_summary.js";
 import { FactStatus, NarrativeWeight } from "../domain/enums.js";
-import type { Fact } from "../domain/fact.js";
+import type { Fact, ConfidenceLevel } from "../domain/fact.js";
 import { get_context_window, get_model_max_output } from "../domain/model_context_map.js";
 import type { Project } from "../domain/project.js";
 import type { State } from "../domain/state.js";
@@ -162,6 +162,60 @@ export function build_instruction(
 }
 
 // ===========================================================================
+// buildFactEnrichmentSuffix（M8-A P3 注入辅助，纯函数）
+// ===========================================================================
+
+/**
+ * 根据 _confidence 构建 fact 行的括号内补充字符串。
+ * 规则（spec §七）：
+ *   - 无 _confidence → 返回 ""（不注入任何新字段）
+ *   - confidence >= medium 才注入对应字段
+ *   - 高价值：known_to（非 null）、time_kind（非 normal）、action_verb
+ *   - 中价值：location、suspense_type
+ *   - 低价值（不注入）：story_time_tag、story_time_order、caused_by、hidden_from
+ */
+export function buildFactEnrichmentSuffix(fact: Fact): string {
+  const c = fact._confidence;
+  if (!c) return "";
+
+  const INJECT_LEVELS = new Set<ConfidenceLevel>(["high", "medium"]);
+  const parts: string[] = [];
+
+  // known_to（高价值）
+  if (fact.known_to != null && INJECT_LEVELS.has(c.known_to!)) {
+    const v = Array.isArray(fact.known_to) ? fact.known_to.join(", ") : fact.known_to;
+    parts.push(`known_to: ${v}`);
+  }
+
+  // time_kind（高价值；normal 无信息量，跳过）
+  if (
+    fact.time_kind != null &&
+    fact.time_kind !== "normal" &&
+    INJECT_LEVELS.has(c.time_kind!)
+  ) {
+    parts.push(`time_kind: ${fact.time_kind}`);
+  }
+
+  // action_verb（高价值）
+  if (fact.action_verb != null && INJECT_LEVELS.has(c.action_verb!)) {
+    parts.push(`action_verb: ${fact.action_verb}`);
+  }
+
+  // location（中价值）
+  if (fact.location != null && INJECT_LEVELS.has(c.location!)) {
+    parts.push(`location: ${fact.location}`);
+  }
+
+  // suspense_type（中价值）
+  if (fact.suspense_type != null && INJECT_LEVELS.has(c.suspense_type!)) {
+    parts.push(`suspense_type: ${fact.suspense_type}`);
+  }
+
+  if (parts.length === 0) return "";
+  return ` (${parts.join("; ")})`;
+}
+
+// ===========================================================================
 // build_facts_layer（P3 事实表）
 // ===========================================================================
 
@@ -233,7 +287,7 @@ export function build_facts_layer(
   const allKept = [...unresolvedKept, ...activeKept];
   allKept.sort((a, b) => a.chapter - b.chapter);
 
-  const lines = allKept.map((f) => `- [${f.status}] ${f.content_clean}`);
+  const lines = allKept.map((f) => `- [${f.status}] ${f.content_clean}${buildFactEnrichmentSuffix(f)}`);
 
   if (unresolvedDropped > 0) {
     const P = getPrompts(language as "zh" | "en");

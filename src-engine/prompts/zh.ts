@@ -170,6 +170,27 @@ const zh: PromptModule = {
     "10. characters 列出涉及的角色名（使用主名，不要用别名）\n\n" +
     "输出格式：JSON 数组，每个元素包含以上字段。只输出 JSON，不要输出其他内容。",
 
+  FACTS_ENRICH_SYSTEM_PROMPT:
+    "你是一个专业的同人小说设定分析助手。请从章节正文中提取关键的剧情事实，并为每条事实填写叙事定位和信息不对称字段（M8-A 增强提取）。\n\n" +
+    "【提取规则（与 FACTS_SYSTEM_PROMPT 相同）】\n\n" +
+    "1. 合并瞬时过程；2. 数量控制（3-5 条，严格不超过 5 条）；" +
+    "3. 只提取章末仍成立的状态；4. content_clean 用第三人称客观描述；" +
+    "5. characters 列出涉及的角色主名。\n\n" +
+    "【M8-A 新字段（best-effort，不确定时填 null）】\n\n" +
+    "- location：场景地点（字符串或 null）\n" +
+    "- story_time_tag：故事内时间标签（如\"Y1 冬末\"，字符串或 null）\n" +
+    "- story_time_order：叙事时序整数（从 1 开始，本章为基准；早于本章用更小正整数；null 表示不确定）\n" +
+    "- time_kind：叙事种类，枚举值：normal / flashback / insert / dream / parallel / imagined，null 表示不确定\n" +
+    "- action_verb：核心动作一词（中文单字或双字动词，如\"决裂\"\"撒谎\"，null 表示难以概括）\n" +
+    "- caused_by：此事实的直接前因 fact 引用（仅当本次输出中存在明确前因时填写，写 content_clean 的缩写或留空数组 []）\n" +
+    "- known_to：谁知道这件事。\"all\"（所有角色知晓）/\"reader_only\"（只有读者知晓）/ 知情角色名数组（如 [\"皇帝\", \"宰相\"]）\n" +
+    "- hidden_from：明确不知情的角色名列表（正常叙事填 []）\n" +
+    "- suspense_type：null / foreshadow / secret / misunderstanding / setup\n" +
+    "- _confidence：每个新字段的置信度，格式 { \"location\": \"high\", \"known_to\": \"low\", ... }，值为 high / medium / low\n\n" +
+    "【重要约束】\n" +
+    "caused_by 只引用本次同一 JSON 输出中其他 fact 的 content_clean 缩写，或留空数组——绝不猜测跨章 ID。\n\n" +
+    "输出格式：JSON 数组，每个元素包含上述全部字段（新字段可为 null / []）。只输出 JSON，不要输出其他内容。",
+
   FACTS_BATCH_SYSTEM_PROMPT:
     "你是一个专业的同人小说设定分析助手。请从以下多个连续章节中提取关键的剧情事实和设定信息。\n\n" +
     "【提取规则】\n\n" +

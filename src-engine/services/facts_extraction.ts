@@ -10,6 +10,8 @@ import { count_tokens, ensureTokenizer } from "../tokenizer/index.js";
 import { getPrompts } from "../prompts/index.js";
 import { normalizeCharacters } from "./facts_lifecycle.js";
 import type { LLMProvider } from "../llm/provider.js";
+import { TimeKind, SuspenseType } from "../domain/enums.js";
+import type { FactFieldConfidence } from "../domain/fact.js";
 
 // ---------------------------------------------------------------------------
 // 数据结构
@@ -25,6 +27,18 @@ export interface ExtractedFact {
   chapter: number;
   timeline: string;
   source: string;
+
+  // M8-A 新增（全部可选；LLM 可不填）
+  location?:          string | null;
+  story_time_tag?:    string | null;
+  story_time_order?:  number | null;
+  time_kind?:         string | null;    // LLM 输出字符串，rawToExtracted 时校验枚举
+  action_verb?:       string | null;
+  caused_by?:         string[];         // fact_id 引用；本轮只存，不校验引用有效性
+  known_to?:          "all" | "reader_only" | string[] | null;
+  hidden_from?:       string[];
+  suspense_type?:     string | null;    // 同 time_kind
+  _confidence?:       FactFieldConfidence;
 }
 
 // ---------------------------------------------------------------------------
@@ -178,10 +192,21 @@ function splitTextForExtraction(
 }
 
 // ---------------------------------------------------------------------------
+// 枚举集合（rawToExtracted 用于校验 LLM 输出）
+// ---------------------------------------------------------------------------
+
+const TIME_KIND_SET   = new Set(Object.values(TimeKind)    as string[]);
+const SUSPENSE_SET    = new Set(Object.values(SuspenseType) as string[]);
+
+// ---------------------------------------------------------------------------
 // raw → ExtractedFact
 // ---------------------------------------------------------------------------
 
-function rawToExtracted(
+/**
+ * 将 LLM 原始 JSON 行转为 ExtractedFact。
+ * 已导出供 M8-A 单元测试（T4）直接调用。
+ */
+export function rawToExtracted(
   raw: Record<string, unknown>,
   chapter_num: number,
   character_aliases: Record<string, string[]> | null,
@@ -194,6 +219,22 @@ function rawToExtracted(
     characters = normalizeCharacters(characters, character_aliases);
   }
 
+  // M8-A 新字段
+  const timeKindRaw   = raw.time_kind    as string | undefined;
+  const suspenseRaw   = raw.suspense_type as string | undefined;
+
+  // known_to: string | string[] | null（数组分支先 filter 元素类型）
+  let knownTo: "all" | "reader_only" | string[] | null = null;
+  const rawKnownTo = raw.known_to;
+  if (typeof rawKnownTo === "string") {
+    knownTo = rawKnownTo as "all" | "reader_only";
+  } else if (Array.isArray(rawKnownTo)) {
+    // filter 非字符串元素（防 LLM 输出 [1, 2, "Alice"]）
+    const filtered = (rawKnownTo as unknown[]).filter((x) => typeof x === "string") as string[];
+    // normalizeCharacters 归一化
+    knownTo = normalizeCharacters(filtered, character_aliases);
+  }
+
   return {
     content_raw: (raw.content_raw as string) ?? contentClean,
     content_clean: contentClean,
@@ -204,6 +245,19 @@ function rawToExtracted(
     chapter: (raw.chapter as number) ?? chapter_num,
     timeline: (raw.timeline as string) ?? "现在线",
     source: "extract_auto",
+    // M8-A 新字段
+    location:          (raw.location        as string  | undefined) ?? null,
+    story_time_tag:    (raw.story_time_tag  as string  | undefined) ?? null,
+    story_time_order:  typeof raw.story_time_order === "number" ? raw.story_time_order : null,
+    time_kind:         (timeKindRaw && TIME_KIND_SET.has(timeKindRaw)) ? timeKindRaw : null,
+    action_verb:       (raw.action_verb     as string  | undefined) ?? null,
+    caused_by:         Array.isArray(raw.caused_by) ? (raw.caused_by as string[]) : [],
+    known_to:          knownTo,
+    hidden_from:       Array.isArray(raw.hidden_from) ? (raw.hidden_from as string[]) : [],
+    suspense_type:     (suspenseRaw && SUSPENSE_SET.has(suspenseRaw)) ? suspenseRaw : null,
+    _confidence:       (typeof raw._confidence === "object" && raw._confidence !== null)
+                         ? (raw._confidence as FactFieldConfidence)
+                         : undefined,
   };
 }
 
@@ -246,7 +300,7 @@ export async function extract_facts_from_chapter(
     if (signal?.aborted) break;
 
     const messages = [
-      { role: "system" as const, content: P.FACTS_SYSTEM_PROMPT },
+      { role: "system" as const, content: P.FACTS_ENRICH_SYSTEM_PROMPT },
       {
         role: "user" as const,
         content: buildUserMessage(

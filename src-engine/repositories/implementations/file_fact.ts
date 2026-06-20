@@ -4,8 +4,8 @@
 /** LocalFileFactRepository — facts.jsonl 读写实现。参见 PRD §3.6、D-0003。 */
 
 import type { PlatformAdapter } from "../../platform/adapter.js";
-import { FactSource, FactStatus, FactType, NarrativeWeight } from "../../domain/enums.js";
-import type { Fact } from "../../domain/fact.js";
+import { FactSource, FactStatus, FactType, NarrativeWeight, TimeKind, SuspenseType } from "../../domain/enums.js";
+import type { Fact, FactFieldConfidence } from "../../domain/fact.js";
 import { createFact } from "../../domain/fact.js";
 import type { FactRepository } from "../interfaces/fact.js";
 import { append_jsonl, joinPath, now_utc, read_jsonl, rewrite_jsonl, validateBasePath, withWriteLock } from "./file_utils.js";
@@ -34,6 +34,19 @@ export function factToDict(fact: Fact): Record<string, unknown> {
   };
   if (fact.story_time) d.story_time = fact.story_time;
   if (fact.resolves !== null) d.resolves = fact.resolves;
+  // Layer 2 (M8-A)
+  if (fact.location       != null) d.location        = fact.location;
+  if (fact.story_time_tag != null) d.story_time_tag  = fact.story_time_tag;
+  if (fact.story_time_order != null) d.story_time_order = fact.story_time_order;
+  if (fact.time_kind      != null) d.time_kind       = fact.time_kind;
+  if (fact.action_verb    != null) d.action_verb     = fact.action_verb;
+  if (fact.caused_by?.length)      d.caused_by       = fact.caused_by;
+  // Layer 3 (M8-A)
+  if (fact.known_to       != null) d.known_to        = fact.known_to;
+  if (fact.hidden_from?.length)    d.hidden_from     = fact.hidden_from;
+  if (fact.suspense_type  != null) d.suspense_type   = fact.suspense_type;
+  // _confidence (旁路，持久化供 UI 高亮用)
+  if (fact._confidence)            d._confidence     = fact._confidence;
   return d;
 }
 
@@ -55,6 +68,21 @@ function dictToFact(d: Record<string, unknown>): Fact {
     revision: (d.revision as number) ?? 1,
     created_at: (d.created_at as string) || now,
     updated_at: (d.updated_at as string) || now,
+    // Layer 2 (M8-A)
+    location:          (d.location       as string  | undefined) ?? null,
+    story_time_tag:    (d.story_time_tag as string  | undefined) ?? null,
+    story_time_order:  (d.story_time_order as number | undefined) ?? null,
+    time_kind:         (d.time_kind      as TimeKind | undefined) ?? null,
+    action_verb:       (d.action_verb    as string  | undefined) ?? null,
+    caused_by:         Array.isArray(d.caused_by)   ? (d.caused_by  as string[]) : [],
+    // Layer 3 (M8-A)
+    known_to:          (d.known_to as ("all" | "reader_only" | string[]) | undefined) ?? null,
+    hidden_from:       Array.isArray(d.hidden_from) ? (d.hidden_from as string[]) : [],
+    suspense_type:     (d.suspense_type  as SuspenseType | undefined) ?? null,
+    // _confidence
+    _confidence:       (typeof d._confidence === "object" && d._confidence !== null)
+                         ? (d._confidence as FactFieldConfidence)
+                         : undefined,
   });
 }
 
