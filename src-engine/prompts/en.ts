@@ -135,9 +135,11 @@ const en: PromptModule = {
     "Requirements: (1) keep key plot progression and turns; (2) preserve emotional beats and " +
     "character tension (do NOT filter out emotion the way a fact list would); (3) third person, " +
     "past tense, one coherent paragraph, no bullet points; (4) output only the summary prose, no preamble or title; " +
-    "(5) faithful compression — summarize only the plot and emotion already present in the source; never add scenes, " +
-    "dialogue, inner thoughts, or judgements not in the source, and when unsure leave it out; " +
-    "(6) strictly no more than 250 words.",
+    "(5) faithful compression: you MUST preserve emotional beats and character tension — even when the source conveys " +
+    "them indirectly through action, tone, or atmosphere, still capture them (this is the point; do not reduce the " +
+    "summary to a bare fact skeleton); but do NOT invent plot, scenes, or dialogue that did not occur in the source, " +
+    "and do not add interpretations unsupported by the source; " +
+    "(6) target 180-250 words, and never exceed 250 words.",
   SUMMARY_STANDARD_USER:
     "Write a 180-250 word narrative summary of chapter {chapter_num}:\n\n{chapter_text}",
 
@@ -149,8 +151,8 @@ const en: PromptModule = {
     "You are a novel editor writing a 30-50 word 'chapter card' for a single chapter. " +
     "Requirements: (1) capture the 1-2 most critical plot or emotional turns; (2) third person, " +
     "past tense, one or two sentences; (3) no bullet points, no title, no preamble; " +
-    "(4) summarize only what the source contains, do not fabricate; " +
-    "(5) strictly no more than 50 words, output only the card prose.",
+    "(4) do not fabricate anything not in the source; " +
+    "(5) target 30-50 words, never exceed 50 words, output only the card prose.",
   SUMMARY_MICRO_USER:
     "Write a 30-50 word chapter card for chapter {chapter_num}:\n\n{chapter_text}",
 
@@ -162,11 +164,13 @@ const en: PromptModule = {
     "You are a novel editor revising a chapter summary with the benefit of hindsight from subsequent chapters. " +
     "Requirements: (1) based on the original summary and new information from subsequent chapters, " +
     "revise or supplement causal and foreshadowing judgements about the target chapter; " +
-    "(2) 180-250 words (strictly no more than 250 words), third person, past tense, one coherent paragraph; " +
+    "(2) target 180-250 words, never exceed 250 words, third person, past tense, one coherent paragraph; " +
     "(3) output only the revised summary prose — do not describe what was changed; " +
     "(4) the revision is the narrator's hindsight: you may clarify causes and foreshadowing, but do NOT give the " +
-    "chapter's characters knowledge or decisions they only gain in later chapters (do not rewrite their awareness " +
-    "at the time), and do NOT alter concrete details already present in the original chapter.",
+    "chapter's characters knowledge they only acquire later, or decisions they only make later (do not rewrite their " +
+    "awareness at the time), and do NOT alter concrete details already present in the original chapter; " +
+    "(5) your hindsight must be grounded only in the original chapter and the subsequent-chapter glimpses provided — " +
+    "do not invent causes or commentary unsupported by either.",
   SUMMARY_RETROSPECTIVE_USER:
     "Target chapter: Chapter {chapter_num}\n\n" +
     "[Original chapter text (excerpt)]\n{chapter_text}\n\n" +
