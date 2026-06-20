@@ -213,7 +213,7 @@ function App() {
     return <SplashScreen visible={splashVisible} />;
   }
 
-  const isAuSpace = ["writer", "chat", "facts", "au_lore", "settings"].includes(currentPage);
+  const isAuSpace = ["writer", "chat", "facts", "threads", "au_lore", "settings"].includes(currentPage);
 
   return (
     <WritingModeProvider>

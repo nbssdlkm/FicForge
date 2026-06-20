@@ -13,6 +13,7 @@ import { Modal } from '../shared/Modal';
 import { LogOut, BookOpen } from 'lucide-react';
 import { WriterLayout } from '../writer/WriterLayout';
 import { FactsLayout } from '../facts/FactsLayout';
+import { ThreadsLayout } from '../threads/ThreadsLayout';
 import { AuLoreLayout } from '../library/AuLoreLayout';
 import { AuSettingsLayout } from '../settings/AuSettingsLayout';
 import { SimpleChatPanel } from '../simple/SimpleChatPanel';
@@ -258,6 +259,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
                 ...(isSimple ? [{ key: 'chat' as const, label: t('simple.tabs.chat', { defaultValue: '对话' }) }] : []),
                 { key: 'writer' as const, label: isSimple ? t('simple.tabs.reading', { defaultValue: '阅读' }) : t('writer.modeWrite') },
                 { key: 'facts' as const, label: t('navigation.facts') },
+                { key: 'threads' as const, label: t('navigation.threads') },
                 { key: 'au_lore' as const, label: t('navigation.auLore') },
                 { key: 'settings' as const, label: t('navigation.settings') },
               ]
@@ -417,6 +419,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
                 : <WriterLayout auPath={auPath} onNavigate={onNavigate} viewChapter={viewingChapter} onClearViewChapter={() => setViewingChapter(null)} onChaptersChanged={refreshChapters} />
             )}
             {activeTab === 'facts' && <FactsLayout auPath={auPath} />}
+            {activeTab === 'threads' && <ThreadsLayout auPath={auPath} />}
             {activeTab === 'au_lore' && <AuLoreLayout auPath={auPath} />}
             {activeTab === 'settings' && <AuSettingsLayout auPath={auPath} />}
           </motion.div>

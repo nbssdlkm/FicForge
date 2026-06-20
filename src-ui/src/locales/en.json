@@ -143,7 +143,8 @@
     "chapters": "Chapters",
     "manage": "Manage",
     "mobileWriter": "Write",
-    "mobileSettings": "Lore"
+    "mobileSettings": "Lore",
+    "threads": "Threads"
   },
   "library": {
     "title": "Library",
@@ -900,7 +901,7 @@
     "dropzone": "Click to select files, or drag and drop here",
     "dropzoneMulti": "You can select multiple files at once",
     "selectedFile": "Selected: {{name}} ({{size}})",
-    "removeFile": "Remove",
+    "removeFile": "Remove file",
     "moveUp": "Move up",
     "moveDown": "Move down",
     "formatError": "Unsupported file format: {{ext}}",
@@ -927,9 +928,6 @@
     "step3Skipped": "Skipped: {{count}} turns (user messages / short replies)",
     "step3Expand": "Expand details",
     "step3Collapse": "Collapse",
-    "moveUp": "Move up",
-    "moveDown": "Move down",
-    "removeFile": "Remove file",
     "expand": "Expand",
     "collapse": "Collapse",
     "step3BatchSkipUser": "All user messages → skip",
@@ -1354,6 +1352,32 @@
       "invalidChapterArg": "show_chapter received an invalid chapter_num: {{val}}",
       "invalidChatReplyArg": "chat_reply received empty content",
       "invalidSettingArg": "show_setting received an empty file_path"
+    }
+  },
+  "threads": {
+    "title": "Threads",
+    "subtitle": "Group related notes under one named arc, injected while writing to hold cross-chapter continuity",
+    "newThread": "New thread",
+    "editTitle": "Edit thread",
+    "emptyTitle": "No threads yet",
+    "emptyDesc": "Turn a multi-chapter arc (e.g. clearing a father’s name, a slow-burn romance) into a thread with a one-line current state. It gets injected while writing to keep the long arc consistent.",
+    "noState": "(no current state)",
+    "nodeCount": "{{count}} notes",
+    "delete": "Delete",
+    "status": {
+      "active": "Active",
+      "resolved": "Resolved",
+      "dormant": "Dormant"
+    },
+    "field": {
+      "title": "Thread name",
+      "titlePlaceholder": "e.g. Clearing Father’s Name",
+      "state": "Current state",
+      "statePlaceholder": "One line: where this arc stands now",
+      "stateHint": "This line is injected into context while writing to keep the long arc on track.",
+      "description": "Description",
+      "descriptionPlaceholder": "What this thread is (optional)",
+      "status": "Status"
     }
   }
 }
