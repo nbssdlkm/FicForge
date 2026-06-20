@@ -50,6 +50,14 @@ export const REQUIRED_KEYS = [
   "SUMMARY_STANDARD_SYSTEM",
   "SUMMARY_STANDARD_USER",           // f-string with {chapter_num}, {chapter_text}
 
+  // === chapter_summary micro (M10-A) ===
+  "SUMMARY_MICRO_SYSTEM",
+  "SUMMARY_MICRO_USER",              // f-string with {chapter_num}, {chapter_text}
+
+  // === retrospective rewrite (M10-A) ===
+  "SUMMARY_RETROSPECTIVE_SYSTEM",
+  "SUMMARY_RETROSPECTIVE_USER",      // f-string with {chapter_num}, {chapter_text}, {prior_summary}, {micro_summaries}
+
   // === facts_extraction ===
   "FACTS_SYSTEM_PROMPT",
   "FACTS_ENRICH_SYSTEM_PROMPT",  // M8-A: 单章提取（含新字段）

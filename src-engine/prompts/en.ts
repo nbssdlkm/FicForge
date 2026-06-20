@@ -139,6 +139,35 @@ const en: PromptModule = {
     "Write a 180-250 word narrative summary of chapter {chapter_num}:\n\n{chapter_text}",
 
   // ===========================================================================
+  // chapter_summary micro (M10-A)
+  // ===========================================================================
+
+  SUMMARY_MICRO_SYSTEM:
+    "You are a novel editor writing a 30-50 word 'chapter card' for a single chapter. " +
+    "Requirements: (1) capture the 1-2 most critical plot or emotional turns; (2) third person, " +
+    "past tense, one or two sentences; (3) no bullet points, no title, no preamble; " +
+    "(4) output only the card prose.",
+  SUMMARY_MICRO_USER:
+    "Write a 30-50 word chapter card for chapter {chapter_num}:\n\n{chapter_text}",
+
+  // ===========================================================================
+  // retrospective rewrite (M10-A)
+  // ===========================================================================
+
+  SUMMARY_RETROSPECTIVE_SYSTEM:
+    "You are a novel editor revising a chapter summary with the benefit of hindsight from subsequent chapters. " +
+    "Requirements: (1) based on the original summary and new information from subsequent chapters, " +
+    "revise or supplement causal and foreshadowing judgements about the target chapter; " +
+    "(2) 180-250 words, third person, past tense, one coherent paragraph; " +
+    "(3) output only the revised summary prose — do not describe what was changed.",
+  SUMMARY_RETROSPECTIVE_USER:
+    "Target chapter: Chapter {chapter_num}\n\n" +
+    "[Original chapter text (excerpt)]\n{chapter_text}\n\n" +
+    "[Original summary]\n{prior_summary}\n\n" +
+    "[Subsequent chapters at a glance (hindsight)]\n{micro_summaries}\n\n" +
+    "Please revise the narrative summary for Chapter {chapter_num} (180-250 words) using the hindsight above:",
+
+  // ===========================================================================
   // facts_extraction
   // ===========================================================================
 

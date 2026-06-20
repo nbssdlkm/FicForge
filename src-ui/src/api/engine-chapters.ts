@@ -17,7 +17,11 @@ import {
   create_provider,
   getSimpleFeatures,
   generate_standard_summary,
+  generate_micro_summary,
   persist_chapter_summary,
+  run_retrospective,
+  shouldRunRetrospective,
+  RETROSPECTIVE_INTERVAL,
   generateChapterTitle,
   createOpsEntry,
   generate_op_id,
@@ -135,19 +139,23 @@ export async function confirmChapter(
   // M8-C：章节摘要生成。独立 best-effort 边界，放在 RAG 索引 / READY 升级之后/之外
   // —— 摘要失败绝不影响 index_status 或章节确认（决策② / codex MAJOR5）。
   try {
-    if (!getSimpleFeatures(sett.app.writing_mode).disableChapterSummary) {
+    if (!getSimpleFeatures(sett.app?.writing_mode).disableChapterSummary) {
       const embProvider = createEmbeddingProvider(sett, proj);
       const llmCfg = resolve_llm_config(null, proj, sett);
       const canGen = llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key);
       if (embProvider && canGen) {
         const chContent = await chapter.get_content_only(auPath, chapterNum);
-        // 生成（慢 LLM）在锁外，避免长时间占 AU 锁。
-        const summaryText = await generate_standard_summary(chContent, chapterNum, create_provider(llmCfg), {
-          language: sett.app?.language || "zh",
-        });
-        if (summaryText) {
-          // 落盘+索引在锁内，并 CAS 校验章节内容未被并发 undo/edit 改动（codex 对抗审 race）：
-          // A 生成期间 B 若 undo/edit 本章，A 在锁内 re-check content_hash 不符 → 丢弃过期摘要不写回。
+        const lang = sett.app?.language || "zh";
+        const llmProvider = create_provider(llmCfg);
+
+        // Standard 摘要：生成（慢 LLM）在锁外，落盘+索引在锁内 + CAS 校验（M8-C）
+        const summaryText = await generate_standard_summary(chContent, chapterNum, llmProvider, { language: lang });
+
+        // Micro 摘要：同样在锁外生成（M10-A）
+        const microText = await generate_micro_summary(chContent, chapterNum, llmProvider, { language: lang });
+
+        if (summaryText || microText) {
+          // 落盘在锁内，CAS 校验章节内容未被并发 undo/edit 改动
           await withAuLock(auPath, async () => {
             let stillCurrent = false;
             try {
@@ -157,21 +165,62 @@ export async function confirmChapter(
               stillCurrent = false; // 章节已被 undo
             }
             if (!stillCurrent) return;
-            await persist_chapter_summary({
-              auPath,
-              chapterNum,
-              text: summaryText,
-              contentHash: result.content_hash,
-              embeddingProvider: embProvider,
-              summaryRepo: e.repos.chapterSummary,
-              ragManager: e.ragManager,
-            });
+
+            // Standard 落盘 + 索引（M8-C）
+            if (summaryText) {
+              await persist_chapter_summary({
+                auPath,
+                chapterNum,
+                text: summaryText,
+                contentHash: result.content_hash,
+                embeddingProvider: embProvider,
+                summaryRepo: e.repos.chapterSummary,
+                ragManager: e.ragManager,
+              });
+            }
+
+            // Micro 落盘（M10-A）：update_micro 合并写入，不进向量库
+            if (microText) {
+              try {
+                await e.repos.chapterSummary.update_micro(auPath, chapterNum, microText, result.content_hash);
+              } catch (microErr) {
+                logCatch("summary", `Failed to save micro summary for chapter ${chapterNum}`, microErr);
+              }
+            }
           });
         }
       }
     }
   } catch (err) {
     logCatch("summary", `Failed to generate chapter summary after confirm ${chapterNum}`, err);
+  }
+
+  // M10-A：Retrospective Rewrite。独立 best-effort 边界，在摘要生成之后运行。
+  // 触发条件：每 RETROSPECTIVE_INTERVAL 章，对 N-interval 章执行后见之明重写。
+  try {
+    if (!getSimpleFeatures(sett.app?.writing_mode).disableChapterSummary) {
+      if (shouldRunRetrospective(chapterNum, RETROSPECTIVE_INTERVAL)) {
+        const embProvider = createEmbeddingProvider(sett, proj);
+        const llmCfg = resolve_llm_config(null, proj, sett);
+        const canGen = llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key);
+        if (embProvider && canGen) {
+          const targetChapterNum = chapterNum - RETROSPECTIVE_INTERVAL;
+          await run_retrospective(
+            auPath,
+            targetChapterNum,
+            chapter,
+            e.repos.chapterSummary,
+            e.ragManager,
+            embProvider,
+            create_provider(llmCfg),
+            chapterNum,
+            { language: sett.app?.language || "zh" },
+          );
+        }
+      }
+    }
+  } catch (err) {
+    logCatch("retrospective", `Retrospective failed after ch${chapterNum}`, err);
   }
 
   return result;

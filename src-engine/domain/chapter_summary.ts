@@ -19,9 +19,15 @@ export interface SummaryTier {
 /** 单章摘要文件的内存表示。 */
 export interface ChapterSummary {
   standard: SummaryTier | null;
-  // micro / detailed 键预留（M8-C 不生成）
+  standard_v1?: SummaryTier;  // Retrospective 前的原始版本备份（M10-A 新增）
+  micro: SummaryTier | null;  // 30-50 字叙事节点（M10-A 新增）
+  // detailed 键预留（有消费者时再做）
 }
 
 export function createChapterSummary(partial: Partial<ChapterSummary>): ChapterSummary {
-  return { standard: partial.standard ?? null };
+  return {
+    standard: partial.standard ?? null,
+    micro: partial.micro ?? null,
+    ...(partial.standard_v1 !== undefined ? { standard_v1: partial.standard_v1 } : {}),
+  };
 }

@@ -20,6 +20,43 @@ export interface GenerateSummaryOptions {
   signal?: AbortSignal;
 }
 
+export async function generate_micro_summary(
+  chapter_text: string,
+  chapter_num: number,
+  llm_provider: LLMProvider,
+  opts?: GenerateSummaryOptions,
+): Promise<string | null> {
+  if (!chapter_text.trim()) return null;
+  const language = opts?.language ?? "zh";
+  const P = getPrompts(language as "zh" | "en");
+
+  const messages = [
+    { role: "system" as const, content: P.SUMMARY_MICRO_SYSTEM },
+    {
+      role: "user" as const,
+      content: P.SUMMARY_MICRO_USER
+        .replace("{chapter_num}", String(chapter_num))
+        .replace("{chapter_text}", chapter_text),
+    },
+  ];
+
+  try {
+    const response = await llm_provider.generate({
+      messages,
+      max_tokens: 150,   // micro 短文本，150 token 上限足够 50 字
+      temperature: 0.4,
+      top_p: 0.95,
+      signal: opts?.signal,
+    });
+    const text = (response.content ?? "").trim();
+    return text.length > 0 ? text : null;
+  } catch (err) {
+    // 与 standard 相同的降级策略：失败返回 null，不抛（决策②）
+    logCatch("summary", `Micro summary LLM generation failed for chapter ${chapter_num}`, err);
+    return null;
+  }
+}
+
 export async function generate_standard_summary(
   chapter_text: string,
   chapter_num: number,

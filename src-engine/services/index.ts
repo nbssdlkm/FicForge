@@ -132,9 +132,13 @@ export { build_settings_context, call_settings_llm } from "./settings_chat.js";
 export type { TrashEntry } from "./trash_service.js";
 export { TrashService } from "./trash_service.js";
 
-// Chapter Summary (M8-C)
+// Chapter Summary (M8-C + M10-A)
 export type { GenerateSummaryOptions, PersistSummaryDeps } from "./chapter_summary.js";
-export { generate_standard_summary, persist_chapter_summary } from "./chapter_summary.js";
+export { generate_micro_summary, generate_standard_summary, persist_chapter_summary } from "./chapter_summary.js";
+
+// Retrospective Rewrite (M10-A)
+export type { RetrospectiveOptions } from "./retrospective.js";
+export { run_retrospective, shouldRunRetrospective, RETROSPECTIVE_INTERVAL } from "./retrospective.js";
 
 // Secure Storage Migration
 export type {
