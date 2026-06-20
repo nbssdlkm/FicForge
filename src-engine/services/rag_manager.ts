@@ -63,6 +63,10 @@ export class RagManager {
     if (!summaryText.trim()) return;
     await this.ensureLoaded(auPath);
     const [embedding] = await embeddingProvider.embed([summaryText]);
+    // embed 是慢 I/O：期间并发 confirm 可能切走 currentAu，导致 index/persist 落到错误 AU
+    // （cross-AU 污染，codex workflow 审）。重新 ensureLoaded 保证回到目标 AU 的内存索引。
+    // 注：底层 indexChapter/indexChapterInMemory 有同样的 pre-existing gap，见 TD 标记。
+    await this.ensureLoaded(auPath);
     await this.vectorEngine.index_chunks([{
       id: `sum${chapterNum}`,
       collection: "summaries",

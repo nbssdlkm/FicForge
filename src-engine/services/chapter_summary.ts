@@ -13,6 +13,7 @@ import type { ChapterSummaryRepository } from "../repositories/interfaces/chapte
 import type { RagManager } from "./rag_manager.js";
 import { createChapterSummary } from "../domain/chapter_summary.js";
 import { now_utc } from "../repositories/implementations/file_utils.js";
+import { logCatch } from "../logger/index.js";
 
 export interface GenerateSummaryOptions {
   language?: string;
@@ -49,8 +50,10 @@ export async function generate_standard_summary(
     });
     const text = (response.content ?? "").trim();
     return text.length > 0 ? text : null;
-  } catch {
-    return null; // 决策②：降级，不抛
+  } catch (err) {
+    // 决策②：降级返回 null，不抛；但必须记录，避免静默吞错（codex workflow 审 MAJOR）。
+    logCatch("summary", `Summary LLM generation failed for chapter ${chapter_num}`, err);
+    return null;
   }
 }
 

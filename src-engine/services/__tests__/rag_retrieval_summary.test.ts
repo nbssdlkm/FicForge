@@ -52,4 +52,23 @@ describe("retrieve_rag summaries", () => {
     expect(i2).toBeGreaterThanOrEqual(0);
     expect(i48).toBeLessThan(i2); // ch48 衰减后更高 → 排在前
   });
+
+  it("summaries 检索传 null char_filter，避免每次双查（codex workflow 审）", async () => {
+    let summariesCalls = 0;
+    let lastCharFilter: unknown = "unset";
+    const repo = {
+      async search(_au: string, _q: number[], opts: any) {
+        if (opts.collection === "summaries") {
+          summariesCalls++;
+          lastCharFilter = opts.char_filter;
+          return [{ content: "s1", chapter_num: 1, score: 0.9, metadata: { chapter: 1 } }];
+        }
+        return [];
+      },
+    } as any;
+    // 即便 retrieve_rag 收到 char_filter ["张三"]，summaries 仍走 null（单查、不触发兜底双查）
+    await retrieve_rag(repo, emb, "/au", "q", 100000, ["张三"], { mode: "api" }, 0.05, 50, "zh");
+    expect(summariesCalls).toBe(1);
+    expect(lastCharFilter).toBeNull();
+  });
 });

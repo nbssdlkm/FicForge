@@ -192,8 +192,10 @@ export async function retrieve_rag(
   // summaries collection（M8-C，带时间衰减）。
   // 决策③ + codex MAJOR4：排除"最近已确认章 current-1"（其全文已在 P2，避免同章既全文又摘要）。
   // retrieve_rag 收到的 current_chapter 是"待写章"，P2 注入的是 current-1，故排除 chNum >= current-1。
+  // 摘要是整章级、非角色作用域，且其 chunk 无 characters metadata：若传 char_filter，
+  // 主查询必返 0 再触发兜底全局查询 = 每次双查（codex workflow 审）。直接传 null 走单查询。
   const sumChunks = await searchCollection(
-    vector_repo, au_id, queryEmbedding, "summaries", SUMMARIES_TOP_K, char_filter,
+    vector_repo, au_id, queryEmbedding, "summaries", SUMMARIES_TOP_K, null,
   );
   const decayedSumChunks: ChunkWithCollection[] = [];
   for (const c of sumChunks) {
