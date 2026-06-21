@@ -16,11 +16,13 @@ import { describe, it, expect } from "vitest";
 
 import { OpenAICompatibleProvider } from "../llm/openai_compatible.js";
 import { reactExtractFromChapter } from "../services/react_extraction_dispatch.js";
+import { add_fact } from "../services/facts_lifecycle.js";
 import { createFact } from "../domain/fact.js";
 import { createThread } from "../domain/thread.js";
 import { ThreadStatus } from "../domain/enums.js";
 import { FileFactRepository } from "../repositories/implementations/file_fact.js";
 import { FileThreadRepository } from "../repositories/implementations/file_thread.js";
+import { FileOpsRepository } from "../repositories/implementations/file_ops.js";
 import { MockAdapter } from "../repositories/__tests__/mock_adapter.js";
 import { consoleSink } from "../services/agent_telemetry.js";
 
@@ -78,6 +80,7 @@ describe("M9 ReAct 提取真 LLM 探针", () => {
     for (const f of SEEDED_FACTS) await factRepo.append("au", f);
     const threadRepo = new FileThreadRepository(adapter);
     await threadRepo.add("au", SEEDED_THREAD);
+    const opsRepo = new FileOpsRepository(adapter);
 
     const existingSummary = SEEDED_FACTS.map((f) => ({ content_clean: f.content_clean }));
 
@@ -112,5 +115,40 @@ describe("M9 ReAct 提取真 LLM 探针", () => {
       for (const cb of f.caused_by ?? []) expect(validFactIds.has(cb)).toBe(true);
       for (const tid of f.thread_ids ?? []) expect(tid).toBe("t_vindicate");
     }
+
+    // ===== 模拟 UI「接受候选」→ M8-B 反向视图，验完整数据链（无浏览器，用真实引擎函数）=====
+    // 这是 UI 确认提取时实际走的引擎路径：add_fact（候选含 caused_by/thread_ids）。
+    const extractedWithThread = res.facts.filter((f) => (f.thread_ids ?? []).includes("t_vindicate"));
+    const extractedWithCause = res.facts.filter((f) => (f.caused_by ?? []).length > 0);
+
+    for (const f of res.facts) {
+      await add_fact("au", 5, {
+        content_raw: f.content_raw,
+        content_clean: f.content_clean,
+        characters: f.characters,
+        type: f.fact_type,
+        narrative_weight: f.narrative_weight,
+        caused_by: f.caused_by,
+        thread_ids: f.thread_ids,
+        // M8-A 富化（与 UI extractedEnrichment 转发一致，验整批不丢字段）
+        location: f.location, story_time_tag: f.story_time_tag, story_time_order: f.story_time_order,
+        time_kind: f.time_kind, action_verb: f.action_verb, known_to: f.known_to,
+        hidden_from: f.hidden_from, suspense_type: f.suspense_type, _confidence: f._confidence,
+      }, factRepo, opsRepo);
+    }
+
+    // M8-B 反向视图 / ThreadDetail 的真实查询：facts.filter(thread_ids 含本线 id)
+    const allFacts = await factRepo.list_all("au");
+    const threadMembership = allFacts.filter((f) => (f.thread_ids ?? []).includes("t_vindicate"));
+    const landedWithCause = allFacts.filter((f) => (f.caused_by ?? []).some((c) => validFactIds.has(c)));
+
+    console.log(`\n[M8-B 反向视图] 「${SEEDED_THREAD.title}」现挂 ${threadMembership.length} 条 Fact 节点：`);
+    threadMembership.forEach((f) => console.log(`  · ${f.content_clean}  (caused_by=${JSON.stringify(f.caused_by ?? [])})`));
+
+    // 数据链闭环：提取产出的 thread_ids/caused_by，经 add_fact 落库后，反向视图查询能查到。
+    // 用 >= 而非 === 防 add_fact 内部去重/归一带来的微小偏差，但核心：提取挂了线的都进得了反向视图。
+    expect(threadMembership.length).toBeGreaterThanOrEqual(extractedWithThread.length);
+    expect(landedWithCause.length).toBeGreaterThanOrEqual(extractedWithCause.length);
+    if (extractedWithThread.length > 0) expect(threadMembership.length).toBeGreaterThan(0);
   }, 120_000);
 });
