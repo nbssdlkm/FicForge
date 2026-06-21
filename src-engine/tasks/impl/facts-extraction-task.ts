@@ -14,6 +14,7 @@ import type { LLMProvider } from "../../llm/provider.js";
 import type { ChapterRepository } from "../../repositories/interfaces/chapter.js";
 import type { FactRepository } from "../../repositories/interfaces/fact.js";
 import type { ProjectRepository } from "../../repositories/interfaces/project.js";
+import type { ThreadRepository } from "../../repositories/interfaces/thread.js";
 
 // ---------------------------------------------------------------------------
 // Params & Result
@@ -25,6 +26,8 @@ export interface FactsExtractionParams {
   toChapter: number;
   batchSize: number;
   language: string;
+  /** M9：开启则批量路径也走 ReAct 提取（逐章），产出跨章 caused_by + 自动挂剧情线。默认 false（兼容旧行为）。 */
+  reactExtractionEnabled?: boolean;
 }
 
 export interface FactsExtractionResult {
@@ -52,9 +55,11 @@ export function createFactsExtractionTask(
     factRepo: FactRepository;
     projectRepo: ProjectRepository;
     llmProvider: LLMProvider;
+    /** M9：reactExtractionEnabled 时用于自动挂剧情线（不传则 thread_ids 为空）。 */
+    threadRepo?: ThreadRepository;
   },
 ): TaskDefinition<FactsExtractionParams, FactsExtractionResult> {
-  const { chapterRepo, factRepo, projectRepo, llmProvider } = deps;
+  const { chapterRepo, factRepo, projectRepo, llmProvider, threadRepo } = deps;
 
   return {
     type: "facts_extraction",
@@ -78,8 +83,9 @@ export function createFactsExtractionTask(
   ): AsyncGenerator<TaskEvent, FactsExtractionResult> {
     // Lazy import to avoid circular deps
     const { extract_facts_batch } = await import("../../services/facts_extraction.js");
+    const { reactExtractFromChapter } = await import("../../services/react_extraction_dispatch.js");
 
-    const { auPath, fromChapter, toChapter, batchSize, language } = p;
+    const { auPath, fromChapter, toChapter, batchSize, language, reactExtractionEnabled } = p;
     const totalChapters = toChapter - fromChapter + 1;
     const allFacts: ExtractedFact[] = [...previousFacts];
 
@@ -107,13 +113,32 @@ export function createFactsExtractionTask(
 
       if (ctx.signal.aborted) break;
 
-      // 调用 LLM 批量提取
-      const batchFacts = await extract_facts_batch(
-        chapters, existingFacts, proj.cast_registry, null,
-        llmProvider, language, ctx.signal,
-      ).catch(() => [] as ExtractedFact[]);
-
-      allFacts.push(...batchFacts);
+      if (reactExtractionEnabled) {
+        // M9：逐章跑 ReAct（产 caused_by + thread_ids）。某章 degraded&空 → 回退该章单次调用兜底。
+        for (const { chapter_num, content } of chapters) {
+          if (ctx.signal.aborted) break;
+          const r = await reactExtractFromChapter(
+            content, chapter_num, existingFacts, proj.cast_registry, null, llmProvider,
+            { language: language as "zh" | "en", factRepo, threadRepo, auPath, signal: ctx.signal },
+          ).catch(() => ({ facts: [] as ExtractedFact[], status: "degraded" as const }));
+          if (r.status === "degraded" && r.facts.length === 0) {
+            const single = await extract_facts_batch(
+              [{ chapter_num, content }], existingFacts, proj.cast_registry, null,
+              llmProvider, language, ctx.signal,
+            ).catch(() => [] as ExtractedFact[]);
+            allFacts.push(...single);
+          } else {
+            allFacts.push(...r.facts);
+          }
+        }
+      } else {
+        // 原批量单次调用路径
+        const batchFacts = await extract_facts_batch(
+          chapters, existingFacts, proj.cast_registry, null,
+          llmProvider, language, ctx.signal,
+        ).catch(() => [] as ExtractedFact[]);
+        allFacts.push(...batchFacts);
+      }
       done += chapters.length;
 
       yield { type: "progress", current: done, total: totalChapters, message: `${done}/${totalChapters}` };

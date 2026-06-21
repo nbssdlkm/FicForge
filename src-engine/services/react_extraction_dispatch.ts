@@ -76,8 +76,11 @@ export interface ReactExtractOptions {
   _telemetry_override?: TelemetrySink;
 }
 
-// 提取专用固定生成参数（对齐单次调用 extract_facts_from_chapter：低温聚焦任务）。
-const EXTRACT_GEN_PARAMS = { max_tokens: 2000, temperature: 0.3, top_p: 0.95 } as const;
+// 提取专用固定生成参数（低温聚焦任务）。max_tokens 给 8000 而非单次调用的 2000：
+// reasoning 模型（如 deepseek-v4-pro）会先花大量 token 在 reasoning_content 上，2000 会把
+// 后面的 tool-call JSON 截断（实测 v4-pro 在 598 字符处被切、propose args 不完整 → 0 事实）。
+// 8000 给推理 + 工具输出留足空间；非 reasoning 模型（v4-flash）正常 finalize，不会用满。
+const EXTRACT_GEN_PARAMS = { max_tokens: 8000, temperature: 0.3, top_p: 0.95 } as const;
 
 /** grounding 用：去空白 + 小写，让 evidence 跨换行 / 大小写仍能逐字匹配。 */
 function normalizeForMatch(s: string): string {

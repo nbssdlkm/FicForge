@@ -31,7 +31,10 @@ function deepseekKey(): string {
   return m[1];
 }
 
-const llm = new OpenAICompatibleProvider("https://api.deepseek.com", deepseekKey(), "deepseek-chat");
+// 现行 deepseek 主流模型（2026-06）：v4-flash（快，loop 用）/ v4-pro（强）。
+// 默认用 flash 跑探针（贴近真实用户出章场景）；改 M9_PROBE_MODEL 环境变量可切 v4-pro。
+const PROBE_MODEL = process.env.M9_PROBE_MODEL || "deepseek-v4-flash";
+const llm = new OpenAICompatibleProvider("https://api.deepseek.com", deepseekKey(), PROBE_MODEL);
 
 // 第 5 章「面圣」——承接前文：沈砚出示残角，太傅反咬，皇帝问话。
 const CHAPTER_5 = `面圣那日，金殿的砖比灯阁的夜还要冷。
