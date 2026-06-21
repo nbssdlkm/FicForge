@@ -81,6 +81,7 @@ export interface EmbeddingSettingsSaveInput {
 export interface AppPreferencesInput {
   language?: string;
   writing_mode?: WritingMode;
+  react_extraction_enabled?: boolean;
 }
 
 export interface GlobalSettingsSaveInput {

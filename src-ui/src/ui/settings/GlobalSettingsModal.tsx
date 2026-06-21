@@ -53,6 +53,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   const [embeddingApiKey, setEmbeddingApiKey] = useState('');
   const [apiHelpOpen, setApiHelpOpen] = useState(false);
   const [displayDataDir, setDisplayDataDir] = useState('');
+  const [reactExtractionEnabled, setReactExtractionEnabled] = useState(true); // M9，默认开（PD-4）
 
   const llmConnection = useLlmConnectionTest({
     getSuccessMessage: () => t('settings.global.connectionSuccess'),
@@ -79,6 +80,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     setEmbeddingApiBase(defaults.embeddingApiBase);
     setEmbeddingApiKey(defaults.embeddingApiKey);
     setApiHelpOpen(false);
+    setReactExtractionEnabled(true);
   };
 
   useEffect(() => {
@@ -107,6 +109,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         setEmbeddingModel(form.embeddingModel);
         setEmbeddingApiBase(form.embeddingApiBase);
         setEmbeddingApiKey(form.embeddingApiKey);
+        setReactExtractionEnabled(res.app?.react_extraction_enabled !== false);
       }).catch((error) => {
         if (modalGuard.isStale(token)) return;
         showError(error, t('error_messages.unknown'));
@@ -345,6 +348,30 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                 ))}
               </select>
               <p className="text-xs text-text/50">{t('simple.settings.modeDescription', { defaultValue: '切换在下次打开作品时生效。简版用对话式续写，完整版是手动编辑器。' })}</p>
+            </div>
+          </div>
+
+          <div className="space-y-2 border-t border-rule pt-5">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-bold text-text/90">{t('settings.global.reactExtractionLabel', { defaultValue: '增强事实提取' })}</label>
+              <select
+                value={reactExtractionEnabled ? 'on' : 'off'}
+                onChange={async (e) => {
+                  const next = e.target.value === 'on';
+                  setReactExtractionEnabled(next);
+                  try {
+                    await saveAppPreferences({ react_extraction_enabled: next });
+                  } catch (err) {
+                    setReactExtractionEnabled(!next);
+                    showError(err, t('error_messages.unknown'));
+                  }
+                }}
+                className="h-11 w-full rounded-sm border border-rule bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent md:h-10 md:w-48 md:text-sm"
+              >
+                <option value="on">{t('settings.global.reactExtractionOn', { defaultValue: '开启（推荐）' })}</option>
+                <option value="off">{t('settings.global.reactExtractionOff', { defaultValue: '关闭' })}</option>
+              </select>
+              <p className="text-xs text-text/50">{t('settings.global.reactExtractionDescription', { defaultValue: '确认章节后用 AI 自动给笔记找跨章因果、归入剧情线。会多花几秒；关闭则用更快的基础提取。' })}</p>
             </div>
           </div>
 

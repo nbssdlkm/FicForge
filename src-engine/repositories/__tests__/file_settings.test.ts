@@ -118,6 +118,38 @@ describe("FileSettingsRepository embedding fallback removed (P1-4)", () => {
   });
 });
 
+describe("FileSettingsRepository react_extraction_enabled (M9 default-on, PD-4)", () => {
+  it("空 yaml / 缺字段（老 settings）首次 get → 默认开（true）", async () => {
+    const adapter = new MockAdapter();
+    const repo = new FileSettingsRepository(adapter, "");
+    const s = await repo.get();
+    expect(s.app.react_extraction_enabled).toBe(true);
+  });
+
+  it("缺字段的老 yaml 也读成 true（默认开兜底）", async () => {
+    const adapter = new MockAdapter();
+    const legacyYaml = yaml.dump({
+      default_llm: { mode: "api", model: "", api_base: "", api_key: "" },
+      embedding: { mode: "api", model: "", api_base: "", api_key: "" },
+      app: { language: "zh" }, // 无 react_extraction_enabled
+      sync: {},
+    });
+    await adapter.writeFile("settings.yaml", legacyYaml);
+    const s = await new FileSettingsRepository(adapter, "").get();
+    expect(s.app.react_extraction_enabled).toBe(true);
+  });
+
+  it("显式 false round-trip：关掉后读回仍是 false（不被默认开覆盖）", async () => {
+    const adapter = new MockAdapter();
+    const repo = new FileSettingsRepository(adapter, "");
+    const s = await repo.get();
+    s.app.react_extraction_enabled = false;
+    await repo.save(s);
+    const reloaded = await repo.get();
+    expect(reloaded.app.react_extraction_enabled).toBe(false);
+  });
+});
+
 describe("FileSettingsRepository fonts — dictToFontsConfig + 迁移", () => {
   it("空 yaml 首次 get → app.fonts 为 createFontsConfig() 默认值", async () => {
     const adapter = new MockAdapter();

@@ -112,7 +112,7 @@ export interface AppConfig {
   chapter_metadata_display: ChapterMetadataDisplay;
   fonts: FontsConfig;
   writing_mode: WritingMode;
-  /** M9：开启 ReAct 增强事实提取（跨章 caused_by + 自动挂剧情线）。默认关，opt-in（PD-4）。 */
+  /** M9：开启 ReAct 增强事实提取（跨章 caused_by + 自动挂剧情线）。默认开（PD-4，用户 2026-06-21 拍板）；可在全局设置关。 */
   react_extraction_enabled: boolean;
   schema_version: string;
 }
@@ -126,7 +126,7 @@ export function createAppConfig(partial?: Partial<AppConfig>): AppConfig {
     chapter_metadata_display: createChapterMetadataDisplay(),
     fonts: createFontsConfig(),
     writing_mode: "full",
-    react_extraction_enabled: false,
+    react_extraction_enabled: true,
     schema_version: "1.0.0",
     ...partial,
   };

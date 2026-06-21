@@ -255,7 +255,8 @@ function dictToAppConfig(d: Record<string, unknown> | null): AppConfig {
     chapter_metadata_display: dictToChapterMetadataDisplay(d.chapter_metadata_display as Record<string, unknown> | null),
     fonts: dictToFontsConfig(d.fonts as Record<string, unknown> | null),
     writing_mode: writingMode,
-    react_extraction_enabled: d.react_extraction_enabled === true,
+    // 默认开（PD-4）：缺字段（老 settings.yaml）视为开；仅显式 false 才关。
+    react_extraction_enabled: d.react_extraction_enabled !== false,
     schema_version: (d.schema_version as string) ?? "1.0.0",
   });
 }

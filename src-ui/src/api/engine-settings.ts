@@ -203,6 +203,10 @@ export async function saveAppPreferences(payload: AppPreferencesInput) {
       ...(payload.writing_mode && isWritingMode(payload.writing_mode)
         ? { writing_mode: payload.writing_mode }
         : {}),
+      // boolean：用 !== undefined 而非 truthiness，否则 false（关闭）会被跳过
+      ...(payload.react_extraction_enabled !== undefined
+        ? { react_extraction_enabled: payload.react_extraction_enabled }
+        : {}),
     };
     return current.app;
   });

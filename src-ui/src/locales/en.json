@@ -484,6 +484,10 @@
       "apiModeLabel": "Connection Mode",
       "languageLabel": "Language",
       "languageDescription": "Change the app display language.",
+      "reactExtractionLabel": "Enhanced fact extraction",
+      "reactExtractionOn": "On (recommended)",
+      "reactExtractionOff": "Off",
+      "reactExtractionDescription": "After confirming a chapter, AI finds cross-chapter causes for notes and assigns them to storylines. Takes a few extra seconds; turn off for faster basic extraction.",
       "dataPathLabel": "Data Storage Path",
       "dataPathDefault": "App internal storage",
       "dataPathHint": "All your work is saved at this location. We recommend regular backups via export or sync."
