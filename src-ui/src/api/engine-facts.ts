@@ -27,6 +27,7 @@ async function resolveFactsProvider(auPath: string): Promise<{
   llmConfig: ResolvedLLMConfig;
   proj: Project;
   lang: string;
+  reactEnabled: boolean;
 }> {
   const e = getEngine();
   const proj = await e.repos.project.get(auPath);
@@ -38,7 +39,8 @@ async function resolveFactsProvider(auPath: string): Promise<{
   }
   const provider = create_provider(llmConfig);
   const lang = sett.app?.language || "zh";
-  return { provider, llmConfig, proj, lang };
+  const reactEnabled = sett.app?.react_extraction_enabled === true;
+  return { provider, llmConfig, proj, lang, reactEnabled };
 }
 
 // ---------------------------------------------------------------------------
@@ -98,11 +100,27 @@ export async function batchUpdateFactStatus(auPath: string, factIds: string[], n
 // ---------------------------------------------------------------------------
 
 export async function extractFacts(auPath: string, chapterNum: number) {
-  const { extract_facts_from_chapter } = await import("@ficforge/engine");
+  const { extract_facts_from_chapter, reactExtractFromChapter } = await import("@ficforge/engine");
   const e = getEngine();
-  const { provider, llmConfig, proj, lang } = await resolveFactsProvider(auPath);
+  const { provider, llmConfig, proj, lang, reactEnabled } = await resolveFactsProvider(auPath);
   const chapterContent = await e.repos.chapter.get_content_only(auPath, chapterNum);
   const existingFacts = await e.repos.fact.list_all(auPath);
+
+  // M9：ReAct 增强提取（opt-in）。跑通则用其结果（含跨章 caused_by + 自动 thread_ids）。
+  // 仅当 status=degraded（abort/错误/maxIter 未收尾）且空时回退单次调用——status=ok 的空
+  // 结果是合法的「本章无事实」，不该再跑一次单次调用（codex 二审 MAJOR-3）。
+  if (reactEnabled) {
+    const { facts: reactFacts, status } = await reactExtractFromChapter(
+      chapterContent, chapterNum, existingFacts,
+      proj.cast_registry, null, provider,
+      { language: lang as "zh" | "en", factRepo: e.repos.fact, threadRepo: e.repos.thread, auPath },
+    );
+    if (!(status === "degraded" && reactFacts.length === 0)) {
+      return { facts: reactFacts };
+    }
+    // degraded + 空 → 落到下面单次调用兜底
+  }
+
   const facts = await extract_facts_from_chapter(
     chapterContent, chapterNum, existingFacts,
     proj.cast_registry, null, provider, llmConfig,

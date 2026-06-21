@@ -112,6 +112,8 @@ export interface AppConfig {
   chapter_metadata_display: ChapterMetadataDisplay;
   fonts: FontsConfig;
   writing_mode: WritingMode;
+  /** M9：开启 ReAct 增强事实提取（跨章 caused_by + 自动挂剧情线）。默认关，opt-in（PD-4）。 */
+  react_extraction_enabled: boolean;
   schema_version: string;
 }
 
@@ -124,6 +126,7 @@ export function createAppConfig(partial?: Partial<AppConfig>): AppConfig {
     chapter_metadata_display: createChapterMetadataDisplay(),
     fonts: createFontsConfig(),
     writing_mode: "full",
+    react_extraction_enabled: false,
     schema_version: "1.0.0",
     ...partial,
   };

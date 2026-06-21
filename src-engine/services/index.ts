@@ -24,6 +24,13 @@ export {
   parseLLMOutput,
 } from "./facts_extraction.js";
 
+// M9 ReAct 事实提取
+export type { ReactExtractOptions, ReactExtractResult, ReactExtractStatus } from "./react_extraction_dispatch.js";
+export { reactExtractFromChapter, REACT_EXTRACTION_MAX_ITER } from "./react_extraction_dispatch.js";
+export { EXTRACTION_TOOLS, EXTRACTION_TOOL_SCHEMAS } from "./react_extraction_tools.js";
+export type { FactSearchHit } from "./react_extraction_search.js";
+export { executeSearchExistingFacts } from "./react_extraction_search.js";
+
 // Context Assembler
 export type { AssembleContextResult } from "./context_assembler.js";
 export {

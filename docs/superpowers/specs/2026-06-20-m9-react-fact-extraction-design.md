@@ -1,7 +1,7 @@
 # M9 ReAct 事实提取 — 工程设计 Spec
 
 **文档路径（建议）**：`docs/superpowers/specs/2026-06-20-m9-react-fact-extraction-design.md`
-**状态**：DRAFT — 待 CC 审核定稿
+**状态**：v1.0 实现完成 — codex 二审已过、PD 终裁、全测试绿（见 §10）
 **日期**：2026-06-20
 **关联决策**：D-0041（Memory 三层架构）、D-0042（ReAct 生成 + 选择性 ReAct 提取）
 
@@ -762,3 +762,59 @@ async function extractFacts(auPath, chapterNum) {
 > **codex 二审待补**：codex 当时撞限额（次日恢复），M9 动手前最好再跑一轮 codex 独立审（尤其 ReAct 工具粒度 PD-1 与终止/预算 PD-2）。
 
 *Spec 版本 v0.2 — 实现前 workflow 审已过、P0 已落地；待 codex 二审 + CC 定稿升 v1.0*
+
+---
+
+## 10. v1.0 实现记录（2026-06-21，codex 二审已过 + 实现落地）
+
+### 10.1 codex 二审结论（gpt-5.4，154k token 深读）+ 处理
+
+| 编号 | codex 评级 | 问题 | 处理 |
+|---|---|---|---|
+| C1 | BLOCKER | deviation-guard 只拦「零事实」纯文本终止，不拦「已 propose 但没补 caused_by/thread_ids 就纯文本收尾」→ M9 核心可能做空 | **采纳**：新增显式 `finalize_extraction` 终止工具（不把纯文本当合法完成信号）；`onGuardRetry` 在 `proposedFacts>0` 时仍 nudge「先 search/annotate 补 caused_by/thread_ids 再 finalize」 |
+| C2 | MAJOR | `annotate_fact` 合并 link+thread 破坏 search-then-link 正确性 | **部分采纳 + 防御**：保留合并（少一轮迭代），但 dispatch 把 `caused_by_fact_ids` 过滤到真实存在的 `fact_id`（knownFactIds）、`thread_ids` 过滤到真实剧情线 id —— 编造的直接丢。这比「只允许最近一次 search 结果」**更强**（任何真实历史 fact 都是合法成因；fact_id 格式 `f_{ts}_{4hex}` LLM 无法凭空猜中）。 |
+| C3 | MAJOR | 空数组就 fallback 单次调用会掩盖「合法空结果」、浪费调用、可能重新幻觉 | **采纳**：`reactExtractFromChapter` 返回 `{facts, status}`；`status=ok`（finalize / 纯文本干净收尾）哪怕 0 事实也不回退；只在 `status=degraded`（abort/错误/maxIter 未收尾）**且空**时 fallback |
+| C4 | MAJOR | 丢 verify 又无 grounding，会把 caused_by/thread_ids 挂到幻觉事实上 | **采纳（轻量版）**：`propose_facts` 加可选 `evidence`（本章原文逐字摘录），dispatch 做确定性子串校验（去空白+小写）；**未 grounded 的事实拒绝 annotate**（基础提取仍提议，不丢）。不做 verify 的「3 次重试 + _confidence 降级」状态机。人工确认仍是最终落库闸（PD-5）。 |
+| C5 | MINOR | `ThreadRepository` 是 `list()` 非 `list_all()`；批量路径无 threadRepo | 代码已正确用 `list()`；批量路径 ReAct 化属 Phase 2（见 10.3 范围外），单章/批量行为差异已显式记录 |
+
+codex 确认无误的三点：6 字段 stub 安全、internalHistory 手工维护是硬要求、caused_by/thread_ids 落库 round-trip 链已通。
+
+### 10.2 产品决策 PD-1..6 终裁（CC 拍板，记录在案；用户可推翻）
+
+- **PD-1（工具粒度）**：4 工具 = `search_existing_facts` / `propose_facts` / `annotate_fact`（合并 link+thread）/ `finalize_extraction`。合并安全性由 knownFactIds 过滤兜底（见 C2）。
+- **PD-2（迭代 cap）**：常量 `REACT_EXTRACTION_MAX_ITER=6`（仿 `SIMPLE_AGENT_MAX_ITER=5` 既有模式，非 AppConfig 字段——技术参数非业务规则，可后续配置化）。
+- **PD-3（替换 vs 并行）**：fallback 模式。wrapper 先跑 ReAct，仅 `degraded && 空` 回退单次调用。
+- **PD-4（默认值）**：`AppConfig.react_extraction_enabled` 默认 **false（opt-in）**。round-trip 已闭环（domain 默认 + dictToAppConfig 读 `=== true` + yaml.dump 全量写）。**GlobalSettings UI 开关延后到 UI 接入阶段**（本阶段引擎为主，与 M8-B「引擎先落、UI 后接」同节奏）；测试 / live probe 直接传 flag 或改 settings.yaml 启用。
+- **PD-5（thread_ids 处理）**：方案 B-lite。提取候选携带 thread_ids，经已就位的 `extractedEnrichment` 转发，用户在既有提取审查 UI **确认整条候选**时一并落库（非静默）；专门的「建议归入剧情线」展示标签属 UI 阶段增量。
+- **PD-6（单章 vs 批量）**：Phase 1 只做单章路径（Path A/B = `extractFacts`）。批量 `extract_facts_batch`（Path C / TaskRunner）保持单次调用，ReAct 化延后。
+
+### 10.3 实现产物 + 范围外
+
+**新增**（`src-engine/services/`）：`react_extraction_tools.ts`（zod schema + `z.toJSONSchema` 单一真相源派生 ToolDefinition）、`react_extraction_search.ts`、`react_extraction_context.ts`、`react_extraction_dispatch.ts` + 3 测试（29 用例，含 round-trip 闭环）。**改动**：`facts_extraction.ts`（`ExtractedFact.thread_ids?` + 导出 `buildCharacterInfoBlock` 复用）、`settings.ts` + `file_settings.ts`（`react_extraction_enabled` 字段 + round-trip）、`engine-facts.ts`（wrapper 门控 + fallback）、`services/index.ts`（导出）。footprint：5 改 +37/−4，4 新引擎文件 + 3 测试。
+
+**验收**：引擎 960/960、UI 167/167、双端 tsc、i18n 1139 同步、no-hardcoding 门 0。
+
+**Phase 1 范围外（明确延后）**：① 批量路径 ReAct 化（PD-6）；② GlobalSettings UI「增强事实提取」开关（PD-4，UI 阶段）；③ 完整 verify_fact 状态机（C4 轻量 grounding 已覆盖核心防幻觉）；④ thread_roles 自动填（M9 只填 thread_ids）；⑤ 真 LLM 出章质量验证（待 live probe，见 [[reference-real-llm-test-keys]]）。
+
+### 10.4 实测驱动的设计修订（真 LLM probe + codex 实现审）—— 覆盖 10.1-10.3 的相关细节
+
+实现后用 deepseek-chat 跑真 LLM 探针（`src-engine/livetest/m9_react_extraction.probe.ts`，宫廷悬疑 5 章 fixture），**发现 mock 测试抓不到的真实行为问题**，据此把设计从「多步 ReAct」改成「propose 内联挂边」：
+
+**① 真 LLM 不肯走多步 ReAct（核心发现）**：deepseek 会反复调 propose（一条重复、撞 maxIter→degraded），**从不**主动调 search / annotate / finalize —— spec 原设计的 propose→search→annotate→finalize 四步循环在真 LLM 上做空了 caused_by + thread_ids（M9 全部价值）。三轮探针迭代修正：
+   - 加 steering（propose 结果里强引导下一步）+ dedupe（normalized content_clean 去重）+ 显式 finalize 工具 → 解决重复 / maxIter，但 caused_by/thread_ids 仍空。
+   - **关键转向（印证 codex 一审 C2 的另一面）**：把 `thread_ids` + `caused_by_fact_ids` **内联进 propose_facts 的每条事实**（上下文里把已有事实带 `[fact_id]` 展示给 LLM），search/annotate 降级为「成因不在展示窗口时」的兜底。真 LLM 实测：3 条事实全部正确挂上 `thread_ids`（点亮 M8-B），承前事实正确挂上跨章 `caused_by`（如「取出残角」→ ch1「发现残角」fact_id）。
+   - **grounding 由「门控」改「flag」**：真 LLM 不肯写 evidence，硬门控会把 caused_by 压没。改为：caused_by target 必须真实存在（knownFactIds 过滤防编造），但未 grounded 不丢边，只标 `_confidence.caused_by="low"` 供人审重点核（PD-5 人审是最终闸）。
+
+**② codex 实现审（gpt-5.4，独立第二轮）修复 4 项**：
+   - BLOCKER（纯文本空手收尾被记 ok 吞掉）→ `onTextPathTerminal` 改为 `proposedFacts>0 ? ok : degraded`，空收尾 degraded → wrapper 兜底；prompt 已在内联改版中删除「纯文本结束」矛盾措辞，强制 finalize。
+   - MAJOR（grounding 被单字/标点绕过）→ evidence 标准化后须 ≥4 字符才算 grounded。
+   - MAJOR（propose 整批因一条坏 enrichment 字段被拒）→ propose 走宽松解析：repair 失败退回裸 JSON.parse 逐条交 rawToExtracted，一条坏字段不拖死整批。
+   - MAJOR（annotate 覆盖写丢前值）→ caused_by/thread_ids 改 union 合并。
+   - MINOR（fallback tool_call id 用 Date.now() 同毫秒可能撞）→ 属 `tool_stream_buffer` 共享 harness 既有代码、非 M9 引入、真 provider 都给 id，本期不动（记录）。
+   - codex 确认无误：max_iter 不会把已 terminal 的 ok 打回、grounded[]/proposedFacts[] 对齐、同章事实不被当跨章因果、AppConfig round-trip 闭环。
+
+**③ 最终工具集（4 个）**：`propose_facts`（**主路径**：内联 content + 富化 + thread_ids + caused_by_fact_ids + evidence）/ `search_existing_facts`（兜底：成因超出展示窗口时）/ `annotate_fact`（兜底：search 后补 caused_by，union 合并）/ `finalize_extraction`（显式终止）。
+
+**④ 验收（最终）**：引擎 **965/965**（34 M9 用例，含 round-trip 闭环 + codex 修复回归）+ UI 167/167 + 双端 tsc + i18n 1139 + no-hardcoding 0 + **真 LLM 探针实测 caused_by + thread_ids 正确产出**。
+
+*Spec 版本 v1.1 — 真 LLM probe + codex 实现审驱动「内联挂边」修订；caused_by + thread_ids 实测可用。PD-4 default-on 待用户拍板（见交付说明）。*

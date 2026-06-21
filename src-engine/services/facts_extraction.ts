@@ -38,6 +38,10 @@ export interface ExtractedFact {
   known_to?:          "all" | "reader_only" | string[] | null;
   hidden_from?:       string[];
   suspense_type?:     string | null;    // 同 time_kind
+  // M9 新增：自动挂线（ReAct propose_thread_assignment 产出；单次调用路径恒空）。
+  // 落库链已通（add_fact 读 thread_ids → ops 快照 → dictToFact 还原），UI 端
+  // ExtractedFactCandidate.thread_ids + extractedEnrichment 已就位转发。
+  thread_ids?:        string[];
   _confidence?:       FactFieldConfidence;
 }
 
@@ -45,7 +49,7 @@ export interface ExtractedFact {
 // 角色名 + 别名注入
 // ---------------------------------------------------------------------------
 
-function buildCharacterInfoBlock(
+export function buildCharacterInfoBlock(
   cast_registry: { characters?: string[] },
   character_aliases: Record<string, string[]> | null,
   language = "zh",

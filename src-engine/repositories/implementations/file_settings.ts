@@ -255,6 +255,7 @@ function dictToAppConfig(d: Record<string, unknown> | null): AppConfig {
     chapter_metadata_display: dictToChapterMetadataDisplay(d.chapter_metadata_display as Record<string, unknown> | null),
     fonts: dictToFontsConfig(d.fonts as Record<string, unknown> | null),
     writing_mode: writingMode,
+    react_extraction_enabled: d.react_extraction_enabled === true,
     schema_version: (d.schema_version as string) ?? "1.0.0",
   });
 }
