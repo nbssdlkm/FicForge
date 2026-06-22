@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { add_fact, run_archival_sweep } from "../facts_lifecycle.js";
+import { add_fact, run_archival_sweep, find_archival_candidates, archive_facts } from "../facts_lifecycle.js";
 import { NarrativeWeight, FactStatus } from "../../domain/enums.js";
 import { FileFactRepository } from "../../repositories/implementations/file_fact.js";
 import { FileOpsRepository } from "../../repositories/implementations/file_ops.js";
@@ -171,5 +171,61 @@ describe("run_archival_sweep", () => {
     const archived = await run_archival_sweep("au1", 7, factRepo, opsRepo, 5);
 
     expect(archived).toContain(fact.id);
+  });
+});
+
+// Q4 用户确认流的两个原语：find（只读预览） + archive_facts（归档确认子集）。
+describe("find_archival_candidates (read-only preview)", () => {
+  let adapter: MockAdapter;
+  let factRepo: FileFactRepository;
+  let opsRepo: FileOpsRepository;
+  beforeEach(() => {
+    adapter = new MockAdapter();
+    factRepo = new FileFactRepository(adapter);
+    opsRepo = new FileOpsRepository(adapter);
+  });
+
+  it("returns cold candidates WITHOUT mutating them (no archive op written)", async () => {
+    const cold = await add_fact("au1", 1, {
+      content_raw: "r", content_clean: "old low", narrative_weight: NarrativeWeight.LOW, status: FactStatus.ACTIVE,
+    }, factRepo, opsRepo);
+    await add_fact("au1", 1, {
+      content_raw: "r", content_clean: "old high", narrative_weight: NarrativeWeight.HIGH, status: FactStatus.ACTIVE,
+    }, factRepo, opsRepo);
+
+    const candidates = await find_archival_candidates("au1", 11, factRepo);
+    expect(candidates.map((f) => f.id)).toEqual([cold.id]);
+    // 只读：没写 archive op，fact 也没被标 archived
+    expect((await factRepo.get("au1", cold.id))!.archived).toBe(false);
+    expect((await opsRepo.list_all("au1")).filter((o) => o.op_type === "archive_fact")).toHaveLength(0);
+  });
+});
+
+describe("archive_facts (archive confirmed subset)", () => {
+  let adapter: MockAdapter;
+  let factRepo: FileFactRepository;
+  let opsRepo: FileOpsRepository;
+  beforeEach(() => {
+    adapter = new MockAdapter();
+    factRepo = new FileFactRepository(adapter);
+    opsRepo = new FileOpsRepository(adapter);
+  });
+
+  it("archives only the given ids (user's confirmed subset), leaves the rest untouched", async () => {
+    const a = await add_fact("au1", 1, { content_raw: "r", content_clean: "a", narrative_weight: NarrativeWeight.LOW, status: FactStatus.ACTIVE }, factRepo, opsRepo);
+    const b = await add_fact("au1", 1, { content_raw: "r", content_clean: "b", narrative_weight: NarrativeWeight.LOW, status: FactStatus.ACTIVE }, factRepo, opsRepo);
+
+    const archived = await archive_facts("au1", [a.id], factRepo, opsRepo);
+
+    expect(archived).toEqual([a.id]);
+    expect((await factRepo.get("au1", a.id))!.archived).toBe(true);
+    expect((await factRepo.get("au1", b.id))!.archived).toBe(false); // 没勾的不动
+  });
+
+  it("is idempotent: skips already-archived and missing ids", async () => {
+    const a = await add_fact("au1", 1, { content_raw: "r", content_clean: "a", narrative_weight: NarrativeWeight.LOW, status: FactStatus.ACTIVE }, factRepo, opsRepo);
+    await archive_facts("au1", [a.id], factRepo, opsRepo);
+    const archived = await archive_facts("au1", [a.id, "f_missing"], factRepo, opsRepo);
+    expect(archived).toEqual([]); // 已归档 + 不存在都跳过
   });
 });

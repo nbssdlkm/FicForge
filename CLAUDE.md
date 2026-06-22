@@ -69,7 +69,7 @@ Platform Adapter
 
 ### 待办 / 未排期
 
-- **M10**（Retrospective + Archive 冷热分层）：M10-A 部分已落地（micro 摘要 + retrospective 每 N 章重写），冷热分层待启动。
+- **M10**（Retrospective + Archive 冷热分层）：M10-A（micro 摘要 + retrospective 每 N 章重写）+ **M10-B 冷热分层（已端到端接线，2026-06-22）** —— 引擎本就建好（`archived` fact 字段 + ops 链 + context_assembler P3 过滤冷 fact），本会话补上 Q4 用户确认 UI：AU 设置「整理旧剧情笔记」(`ArchiveCandidatesModal`，扫冷候选→勾选→归档) + 剧情笔记「冷存」标 + 编辑区恢复。`find_archival_candidates`(只读) / `archive_facts`(确认子集) / `unarchiveFact`。`run_archival_sweep` 自动档仍未接 confirm（Q4 故意不自动）。
 - **TD-014**（低）：facts 反向级联漏 deprecate/undo 路径（`collectResolvesReverse` 只在 edit_fact 调）。**TD-015**（P2）：import/export 只带正文+frontmatter，不带 state/facts/摘要/RAG/threads → 简版↔主迁移丢记忆，事件驱动修。
 - **代码质量硬化**：`docs/internal/plans/system-optimization-{roadmap,execution-plan}-2026-04-19.md`（Settings/Project 契约收窄、真 SecretStore、写入串行化）。基线部分已过时，正交支线、按需取用。
 

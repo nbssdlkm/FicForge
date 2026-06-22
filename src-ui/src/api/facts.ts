@@ -14,6 +14,7 @@ export interface FactInfo {
   narrative_weight: string;
   chapter: number;
   timeline: string;
+  archived?: boolean;   // M10-B 冷热分层：true=已固化（不进生成 P3），UI 标「冷存」+ 可恢复
 }
 
 export interface ExtractedFactCandidate {

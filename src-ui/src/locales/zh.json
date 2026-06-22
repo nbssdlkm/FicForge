@@ -615,6 +615,10 @@
     "extractSourceChapter": "来自第 {{chapter}} 章",
     "extractThreadTag": "归入剧情线",
     "extractCausedByTag": "跨章因果",
+    "archivedBadge": "冷存",
+    "archivedHint": "这条笔记已收起，不再进入 AI 续写的事实表（仍保留在此，可随时恢复）。",
+    "unarchive": "恢复",
+    "unarchiveSuccess": "已恢复，重新纳入续写。",
     "createModal": {
       "title": "记一笔",
       "rawPlaceholder": "比如：第3章里林深说“我不会再回来了”，随后离开了叶澜。",
@@ -906,7 +910,18 @@
     "rebuildIndexFail": "索引重建失败",
     "backfillSummaries": "补全旧章摘要",
     "backfillSummariesDesc": "给配 embedding 之前写的、还没摘要的旧章补生成摘要",
+    "archiveFacts": "整理旧剧情笔记",
+    "archiveFactsDesc": "把很久以前、标为次要的旧笔记收起，不再占用 AI 续写的篇幅（可随时恢复）",
     "advancedHint": "这些操作仅在外部修改了文件或状态异常时需要使用。"
+  },
+  "archive": {
+    "title": "整理旧剧情笔记",
+    "scanning": "正在挑出可以收起的旧笔记…",
+    "noneTitle": "没有可整理的旧笔记",
+    "none": "没有符合条件的旧笔记（需距当前章 10 章以上、且标为次要）。",
+    "intro": "以下旧笔记距今较远、又标为次要。收起后它们不再进入 AI 续写的事实表，但仍保留在剧情笔记里，可随时恢复。",
+    "archiveSelected": "收起选中（{{count}}）",
+    "done": "已收起 {{count}} 条旧笔记。"
   },
   "backfill": {
     "title": "补全旧章摘要",

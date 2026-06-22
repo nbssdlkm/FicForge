@@ -25,6 +25,7 @@ import { AuSettingsWritingSection } from './AuSettingsWritingSection';
 import { AuSettingsPinnedSection } from './AuSettingsPinnedSection';
 import { AuSettingsAdvancedSection } from './AuSettingsAdvancedSection';
 import { BackfillSummaryModal } from './BackfillSummaryModal';
+import { ArchiveCandidatesModal } from './ArchiveCandidatesModal';
 import { SecretStorageNotice } from '../shared/SecretStorageNotice';
 import {
   buildAuSettingsSaveInput,
@@ -63,6 +64,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const [coreIncludeModalOpen, setCoreIncludeModalOpen] = useState(false);
   const [recalcing, setRecalcing] = useState(false);
   const [backfillOpen, setBackfillOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
 
   // AU Embedding override
   const [isEmbeddingOverride, setIsEmbeddingOverride] = useState(false);
@@ -113,6 +115,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
     setGlobalSettingsOpen(false);
     setCoreIncludeModalOpen(false);
     setBackfillOpen(false);
+    setArchiveOpen(false);
     setIsEmbeddingOverride(defaults.isEmbeddingOverride);
     setEmbModel(defaults.embModel);
     setEmbApiBase(defaults.embApiBase);
@@ -443,6 +446,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
               }
             }}
             handleBackfillSummaries={() => setBackfillOpen(true)}
+            handleArchiveFacts={() => setArchiveOpen(true)}
           />
 
           <div className="h-10 md:h-20"></div>
@@ -450,6 +454,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
       </main>
       <GlobalSettingsModal isOpen={isGlobalSettingsOpen} onClose={() => setGlobalSettingsOpen(false)} />
       <BackfillSummaryModal auPath={auPath} isOpen={backfillOpen} onClose={() => setBackfillOpen(false)} />
+      <ArchiveCandidatesModal auPath={auPath} isOpen={archiveOpen} onClose={() => setArchiveOpen(false)} />
       <Modal isOpen={coreIncludeModalOpen} onClose={() => setCoreIncludeModalOpen(false)} title={t("settings.createCoreIncludeTitle")}>
         <div className="space-y-4">
           {(() => {

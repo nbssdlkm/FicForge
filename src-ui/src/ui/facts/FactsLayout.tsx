@@ -13,7 +13,7 @@ import { Modal } from '../shared/Modal';
 import { EmptyState } from '../shared/EmptyState';
 import { Search, Filter, Check, Sparkles, BookOpenText, X } from 'lucide-react';
 import { ProgressBar } from '../shared/ProgressBar';
-import { listFacts, updateFactStatus, FactStatus, type FactInfo } from '../../api/engine-client';
+import { listFacts, updateFactStatus, unarchiveFact, FactStatus, type FactInfo } from '../../api/engine-client';
 import { getState, type StateInfo } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
@@ -27,7 +27,7 @@ import { ExtractReviewModal } from '../writer/WriterModals';
 
 export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const { t } = useTranslation();
-  const { showError } = useFeedback();
+  const { showError, showSuccess } = useFeedback();
   const isMobile = useMediaQuery('(max-width: 768px)');
   const loadGuard = useActiveRequestGuard(auPath);
   const [facts, setFacts] = useState<FactInfo[]>([]);
@@ -101,6 +101,24 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     }
   };
 
+  // M10-B：取消归档（恢复冷存的笔记，重新纳入 AI 续写的事实表）。
+  const handleUnarchive = async (factId: string) => {
+    if (!auPath) return;
+    const requestAuPath = auPath;
+    try {
+      await unarchiveFact(requestAuPath, factId);
+      if (loadGuard.isKeyStale(requestAuPath)) return;
+      await loadFacts();
+      if (editor.editingFact?.id === factId) {
+        editor.setEditingFact(prev => prev ? { ...prev, archived: false } : null);
+      }
+      showSuccess(t('facts.unarchiveSuccess'));
+    } catch (error) {
+      if (loadGuard.isKeyStale(requestAuPath)) return;
+      showError(error, t('error_messages.unknown'));
+    }
+  };
+
   const totalCount = allFactsCounts.total ?? facts.length;
   const activeCount = allFactsCounts.active ?? 0;
   const unresolvedCount = allFactsCounts.unresolved ?? 0;
@@ -129,6 +147,14 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
 
     return (
       <div key={editor.editingFact.id} className="space-y-6">
+        {editor.editingFact.archived && (
+          <div className="flex flex-col gap-2 rounded-lg border border-black/10 bg-surface/60 px-4 py-3 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-sm text-text/70">{t('facts.archivedHint')}</span>
+            <Button tone="neutral" fill="outline" size="sm" onClick={() => handleUnarchive(editor.editingFact!.id)}>
+              {t('facts.unarchive')}
+            </Button>
+          </div>
+        )}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="flex flex-col gap-2">
             <label className="text-sm font-bold text-text/90">{t('common.labels.factStatus')}</label>

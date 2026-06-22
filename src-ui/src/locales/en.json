@@ -615,6 +615,10 @@
     "extractSourceChapter": "From Chapter {{chapter}}",
     "extractThreadTag": "In storyline",
     "extractCausedByTag": "Cross-chapter cause",
+    "archivedBadge": "Archived",
+    "archivedHint": "This plot point is archived — kept here but no longer fed into AI continuation. Restore anytime.",
+    "unarchive": "Restore",
+    "unarchiveSuccess": "Restored — back in AI continuation.",
     "createModal": {
       "title": "Add Plot Point",
       "rawPlaceholder": "e.g. In Chapter 3, Alex said \"I'm never coming back\" and left Jamie.",
@@ -906,7 +910,18 @@
     "rebuildIndexFail": "Index rebuild failed",
     "backfillSummaries": "Backfill Summaries",
     "backfillSummariesDesc": "Generate summaries for older chapters written before embedding was configured",
+    "archiveFacts": "Tidy Old Plot Points",
+    "archiveFactsDesc": "Archive old, low-importance plot points so they stop taking up room in AI continuation (reversible anytime)",
     "advancedHint": "These actions are only needed when files were modified externally or state is inconsistent."
+  },
+  "archive": {
+    "title": "Tidy Old Plot Points",
+    "scanning": "Finding old plot points that can be tucked away…",
+    "noneTitle": "Nothing to tidy",
+    "none": "No eligible old plot points (must be 10+ chapters back and marked low-importance).",
+    "intro": "These old plot points are far back and marked low-importance. Archiving keeps them out of the AI continuation fact list, but they stay in your plot points and can be restored anytime.",
+    "archiveSelected": "Archive selected ({{count}})",
+    "done": "Archived {{count}} old plot point(s)."
   },
   "backfill": {
     "title": "Backfill Chapter Summaries",

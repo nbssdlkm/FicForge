@@ -10,6 +10,9 @@ import {
   add_fact,
   edit_fact,
   update_fact_status,
+  find_archival_candidates,
+  archive_facts,
+  unarchive_fact,
   FactStatus,
   resolve_llm_config,
   create_provider,
@@ -93,6 +96,31 @@ export async function batchUpdateFactStatus(auPath: string, factIds: string[], n
     }
     return { updated, failed };
   });
+}
+
+// ---------------------------------------------------------------------------
+// 冷热分层（M10-B）：旧的低权重 fact 固化为「冷」→ 不再注入生成 P3，省预算。
+// Q4 用户确认流：findArchivalCandidates（只读预览）→ 用户勾选 → archiveFacts（归档子集）。
+// unarchiveFact 提供反悔/恢复（fact 是用户资产，归档须可逆）。
+// ---------------------------------------------------------------------------
+
+/** 只读：扫出可固化的冷候选 fact（距当前章 ≥10 + 低权重 + active/unresolved + 未归档）。 */
+export async function findArchivalCandidates(auPath: string) {
+  const { fact, state } = getEngine().repos;
+  const st = await state.get(auPath);
+  return find_archival_candidates(auPath, st.current_chapter, fact);
+}
+
+/** 归档用户在预览里确认勾选的 fact 子集（不重新扫，只动用户看过的那些）。 */
+export async function archiveFacts(auPath: string, factIds: string[]) {
+  const { fact, ops } = getEngine().repos;
+  return withAuLock(auPath, () => archive_facts(auPath, factIds, fact, ops));
+}
+
+/** 取消归档（恢复为热/温，重新进 P3）。 */
+export async function unarchiveFact(auPath: string, factId: string) {
+  const { fact, ops } = getEngine().repos;
+  return withAuLock(auPath, () => unarchive_fact(auPath, factId, fact, ops));
 }
 
 // ---------------------------------------------------------------------------

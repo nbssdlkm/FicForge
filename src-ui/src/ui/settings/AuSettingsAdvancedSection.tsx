@@ -11,6 +11,7 @@ export type AuSettingsAdvancedSectionProps = {
   handleRecalc: () => void;
   handleRebuildIndex: () => void;
   handleBackfillSummaries: () => void;
+  handleArchiveFacts: () => void;
 };
 
 export function AuSettingsAdvancedSection({
@@ -18,6 +19,7 @@ export function AuSettingsAdvancedSection({
   handleRecalc,
   handleRebuildIndex,
   handleBackfillSummaries,
+  handleArchiveFacts,
 }: AuSettingsAdvancedSectionProps) {
   const { t } = useTranslation();
 
@@ -43,6 +45,12 @@ export function AuSettingsAdvancedSection({
             {t('advanced.backfillSummaries')}
           </Button>
           <p className="text-xs text-text/50">{t('advanced.backfillSummariesDesc')}</p>
+        </div>
+        <div className="space-y-2">
+          <Button tone="neutral" fill="outline" size="sm" className="w-full mb-2" onClick={handleArchiveFacts}>
+            {t('advanced.archiveFacts')}
+          </Button>
+          <p className="text-xs text-text/50">{t('advanced.archiveFactsDesc')}</p>
         </div>
       </div>
       <p className="text-xs text-text/30">{t('advanced.advancedHint')}</p>

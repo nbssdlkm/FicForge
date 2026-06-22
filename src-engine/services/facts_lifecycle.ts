@@ -525,6 +525,62 @@ export async function set_chapter_focus(
 export const ARCHIVE_DISTANCE = 10;
 
 /**
+ * 冷区固化判据（单一真相源）。spec §七.2 / CC 拍板 Q2：
+ *   active/unresolved + narrative_weight=low + 距当前章 ≥ threshold + 未归档。
+ * find_archival_candidates（预览）与 run_archival_sweep（实归档）共用，避免两处对「冷」漂移。
+ */
+export function isArchivalCandidate(
+  fact: Fact,
+  current_chapter: number,
+  cold_threshold_chapters: number = ARCHIVE_DISTANCE,
+): boolean {
+  return (
+    (fact.status === FactStatus.ACTIVE || fact.status === FactStatus.UNRESOLVED) &&
+    fact.narrative_weight === NarrativeWeight.LOW &&
+    fact.chapter <= current_chapter - cold_threshold_chapters &&
+    fact.archived !== true
+  );
+}
+
+/**
+ * 只读：列出满足冷区判据的 fact（不写任何东西）。
+ * Q4 用户确认流的预览步——UI 先拿这个给用户看「打算归档哪些」，确认后才调 archive_facts。
+ */
+export async function find_archival_candidates(
+  au_id: string,
+  current_chapter: number,
+  fact_repo: FactRepository,
+  cold_threshold_chapters: number = ARCHIVE_DISTANCE,
+): Promise<Fact[]> {
+  const all = await fact_repo.list_all(au_id);
+  return all.filter((f) => isArchivalCandidate(f, current_chapter, cold_threshold_chapters));
+}
+
+/**
+ * 批量归档「用户确认过的」指定 fact_id。逐条 archive_fact；不存在/已归档幂等跳过。
+ * 调用者须已持 AU 锁。Q4：UI 传进来的是用户在预览里勾选确认的子集，不重新扫（防 TOCTOU 把
+ * 预览后新变冷的 fact 也一起归了——只动用户实际看过、确认过的那些）。
+ * @returns 实际归档掉的 fact_id 列表
+ */
+export async function archive_facts(
+  au_id: string,
+  fact_ids: string[],
+  fact_repo: FactRepository,
+  ops_repo: OpsRepository,
+): Promise<string[]> {
+  // ponytail: 逐条 archive_fact = 每条重写整个 facts.jsonl（O(n²)，与 batchUpdateFactStatus 同款既存特性）。
+  // 单次锁内、正确性无碍；只有「一次性归档上百条冷 fact」才会有秒级卡顿。真撞上再给 repo 加 bulk 写一次过。
+  const archived: string[] = [];
+  for (const id of fact_ids) {
+    const fact = await fact_repo.get(au_id, id);
+    if (fact === null || fact.archived === true) continue;
+    await archive_fact(au_id, id, fact_repo, ops_repo);
+    archived.push(id);
+  }
+  return archived;
+}
+
+/**
  * 将指定 fact 标记为 archived（写 ops + 更新 fact）。
  * 调用者必须已持 AU 锁（同 facts_lifecycle 其他函数约定）。
  */
@@ -614,30 +670,7 @@ export async function run_archival_sweep(
   ops_repo: OpsRepository,
   cold_threshold_chapters: number = ARCHIVE_DISTANCE,
 ): Promise<string[]> {
-  const all = await fact_repo.list_all(au_id);
-  const archived_ids: string[] = [];
-
-  for (const fact of all) {
-    // 只扫 active/unresolved（spec §七.2 + MAJOR M4 修正）
-    if (fact.status !== FactStatus.ACTIVE && fact.status !== FactStatus.UNRESOLVED) {
-      continue;
-    }
-    // 只扫 low weight
-    if (fact.narrative_weight !== NarrativeWeight.LOW) {
-      continue;
-    }
-    // 距离条件
-    if (fact.chapter > current_chapter - cold_threshold_chapters) {
-      continue;
-    }
-    // 未归档才处理（幂等：跳过已归档）
-    if (fact.archived === true) {
-      continue;
-    }
-
-    await archive_fact(au_id, fact.id, fact_repo, ops_repo);
-    archived_ids.push(fact.id);
-  }
-
-  return archived_ids;
+  // 判据走 find_archival_candidates、归档走 archive_facts —— 与 Q4 预览/确认流同源，无重复判据。
+  const candidates = await find_archival_candidates(au_id, current_chapter, fact_repo, cold_threshold_chapters);
+  return archive_facts(au_id, candidates.map((f) => f.id), fact_repo, ops_repo);
 }

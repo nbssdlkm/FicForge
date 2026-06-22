@@ -7,9 +7,12 @@
 export {
   add_fact,
   archive_fact,
+  archive_facts,
   ARCHIVE_DISTANCE,
   edit_fact,
   FactsLifecycleError,
+  find_archival_candidates,
+  isArchivalCandidate,
   run_archival_sweep,
   set_chapter_focus,
   unarchive_fact,

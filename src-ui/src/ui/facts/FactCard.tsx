@@ -16,6 +16,7 @@ export const FactCard = ({ fact }: { fact: any }) => {
       <div className="flex justify-between items-start mb-2">
         <div className="flex gap-2 items-center">
           <Tag tone={fact.status}>{getEnumLabel('fact_status', fact.status, fact.status)}</Tag>
+          {fact.archived && <Tag tone="default" title={t('facts.archivedHint')}>{t('facts.archivedBadge')}</Tag>}
           <span className="text-xs font-mono text-text/50">#{fact.chapter}</span>
         </div>
         <span
