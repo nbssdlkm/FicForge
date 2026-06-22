@@ -32,7 +32,7 @@ import { runAgentLoop, type AgentLoopConfig, type IterContext } from "./agent_lo
 import { repairAndValidateToolArgs } from "./tool_args_repair.js";
 import { createTelemetry, type TelemetrySink } from "./agent_telemetry.js";
 import { rawToExtracted, type ExtractedFact } from "./facts_extraction.js";
-import { buildExtractionMessages, type ExistingFactForContext } from "./react_extraction_context.js";
+import { buildExtractionMessages, REACT_MAX_FACTS_PER_CHAPTER, type ExistingFactForContext } from "./react_extraction_context.js";
 import {
   EXTRACTION_TOOLS,
   EXTRACTION_TOOL_SCHEMAS,
@@ -214,9 +214,12 @@ export async function reactExtractFromChapter(
       }
       const acceptedIndices: number[] = [];
       let dupCount = 0;
+      let cappedCount = 0;
       for (const raw of items) {
         const fact = rawToExtracted(raw, chapter_num, character_aliases);
         if (!fact) continue;
+        // 软上限兜底：一章最多 REACT_MAX_FACTS_PER_CHAPTER 条（prompt 已引导少而精，cap 防失控）。
+        if (proposedFacts.length >= REACT_MAX_FACTS_PER_CHAPTER) { cappedCount++; continue; }
         // dedupe：同一 normalized content_clean 只收一次（真 LLM 会跨轮 re-propose）。
         const key = normalizeForMatch(fact.content_clean);
         if (seenContent.has(key)) { dupCount++; continue; }
@@ -255,6 +258,7 @@ export async function reactExtractFromChapter(
         accepted_indices: acceptedIndices,
         count: acceptedIndices.length,
         ...(dupCount > 0 ? { ignored_duplicates: dupCount } : {}),
+        ...(cappedCount > 0 ? { ignored_over_cap: cappedCount, cap: REACT_MAX_FACTS_PER_CHAPTER } : {}),
         next_step: nextStep,
       });
     }

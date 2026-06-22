@@ -10,6 +10,7 @@
 
 import { describe, expect, it } from "vitest";
 import { reactExtractFromChapter } from "../react_extraction_dispatch.js";
+import { REACT_MAX_FACTS_PER_CHAPTER } from "../react_extraction_context.js";
 import {
   REACT_TOOL_SEARCH,
   REACT_TOOL_PROPOSE,
@@ -279,6 +280,16 @@ describe("reactExtractFromChapter — codex 二审修复回归", () => {
       factRepo, auPath: "au", _telemetry_override: silentTelemetry,
     });
     expect((res.facts[0].caused_by ?? []).sort()).toEqual(["f_seed_2", "f_seed_3"]);
+  });
+
+  it("一章 propose 超量 → 按 REACT_MAX_FACTS_PER_CHAPTER 软上限截断（防过度提取）", async () => {
+    const facts = Array.from({ length: REACT_MAX_FACTS_PER_CHAPTER + 4 }, (_, i) => ({ content_clean: `第${i}条独立有效的事实内容`, characters: [] }));
+    const provider = scriptedProvider([
+      toolIter([{ name: REACT_TOOL_PROPOSE, args: { facts } }]),
+      toolIter([{ name: REACT_TOOL_FINALIZE, args: {} }]),
+    ]);
+    const res = await reactExtractFromChapter(CHAPTER, 5, [], { characters: [] }, null, provider, { _telemetry_override: silentTelemetry });
+    expect(res.facts).toHaveLength(REACT_MAX_FACTS_PER_CHAPTER);
   });
 
   it("空手纯文本收尾（guard 用尽仍不 propose）→ status degraded（让 wrapper 兜底）", async () => {

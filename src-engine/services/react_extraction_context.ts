@@ -21,10 +21,19 @@ import { buildCharacterInfoBlock } from "./facts_extraction.js";
 // ReAct 提取系统 prompt（zh / en）—— 工具调用协议，非 JSON 输出
 // ---------------------------------------------------------------------------
 
+/**
+ * 一章提取事实的目标条数与硬顶（单一真相源：prompt 文案 + dispatch 兜底 cap 都引用）。
+ * 旧单次调用路径一章 ~10 条（MAX_FACTS_PER_CHUNK=5×2 chunk）；M9 早期无 cap + prompt 说"全部"
+ * 导致一章 7-11 条、把单场景拆碎。改为引导少而精 + 硬顶兜底。
+ */
+export const REACT_FACTS_TARGET_MIN = 3;
+export const REACT_FACTS_TARGET_MAX = 6;
+export const REACT_MAX_FACTS_PER_CHAPTER = 8;
+
 const SYSTEM_PROMPT_ZH = `你是一个事实提取助手。从给定章节中提取结构化「事实」（事件 / 关系 / 状态 / 设定），并尽量建立跨章因果与剧情线归属。你通过调用工具完成，**不要直接输出 JSON 文本**。
 
 严格按这个顺序，每步只做一次：
-1. **只调用一次 propose_facts**，把本章发现的全部重要事实一次性提议出来。**在 propose 的每条事实里直接填好**（这是关键，不要拖到后面）：
+1. **只调用一次 propose_facts**，提取本章**真正重要、值得长期记住**的事实。**宁可少而精，不要多而碎**：把同一场景里连续的细碎动作**合并成一条**，不要把一个场景拆成很多条原子事实。**通常一章 ${REACT_FACTS_TARGET_MIN}-${REACT_FACTS_TARGET_MAX} 条关键事件就够，最多别超 ${REACT_MAX_FACTS_PER_CHAPTER} 条**。**在 propose 的每条事实里直接填好**（这是关键，不要拖到后面）：
    - content_clean、characters、fact_type、narrative_weight，以及力所能及的富化字段 location / time_kind / known_to / action_verb；
    - **thread_ids**：这条事实属于下方「可用剧情线」里的哪条，就填它的 id（可多条）；
    - **caused_by_fact_ids**：这条事实由上方「已有事实」列表里的哪条（更早章节）导致，就填它的 [fact_id]（要生效必须同时给 evidence——本章原文逐字摘录）。
@@ -33,7 +42,7 @@ const SYSTEM_PROMPT_ZH = `你是一个事实提取助手。从给定章节中提
 3. **最后必须调用 finalize_extraction 结束**（不要用纯文本结束，也不要反复 propose）。
 
 铁律：
-- 全过程只 propose 一次。
+- 全过程只 propose 一次；少而精，同一场景的连续动作合并成一条，别超 ${REACT_MAX_FACTS_PER_CHAPTER} 条。
 - caused_by_fact_ids 只能用真实 fact_id（上方列表的 [id] 或 search 返回的），绝不凭空编造。
 - thread_ids 只能用下方「可用剧情线」列表里的 id；没有列出就不要填。
 - 没有可填的因果 / 剧情线就留空，直接 finalize_extraction 结束。`;
@@ -41,7 +50,7 @@ const SYSTEM_PROMPT_ZH = `你是一个事实提取助手。从给定章节中提
 const SYSTEM_PROMPT_EN = `You are a fact-extraction assistant. Extract structured "facts" (events / relationships / states / settings) from the given chapter, and establish cross-chapter causality and storyline membership where possible. You do this by calling tools — **do not output raw JSON text**.
 
 Follow this order strictly, each step once:
-1. **Call propose_facts exactly once**, proposing ALL important facts from this chapter. **Fill these directly on each fact inside propose** (this is the key step, do not defer it):
+1. **Call propose_facts exactly once**, extracting only the **genuinely important, worth-remembering** facts of this chapter. **Prefer few and significant over many and fragmented**: merge consecutive small actions within the same scene into ONE fact; do not split one scene into many atomic facts. **Usually ${REACT_FACTS_TARGET_MIN}-${REACT_FACTS_TARGET_MAX} key events per chapter is enough, never exceed ${REACT_MAX_FACTS_PER_CHAPTER}.** **Fill these directly on each fact inside propose** (this is the key step, do not defer it):
    - content_clean, characters, fact_type, narrative_weight, plus enrichment like location / time_kind / known_to / action_verb where you can;
    - **thread_ids**: which of the "Available storylines" below this fact belongs to, by id (may be several);
    - **caused_by_fact_ids**: which earlier fact in the "Existing facts" list above caused this one, by its [fact_id] (to take effect you must also include a verbatim evidence excerpt from this chapter).
@@ -50,7 +59,7 @@ Follow this order strictly, each step once:
 3. **You MUST end by calling finalize_extraction** (do not finish with plain text, and do not keep proposing).
 
 Hard rules:
-- Call propose only once.
+- Call propose only once; few and significant, merge consecutive actions of one scene, never exceed ${REACT_MAX_FACTS_PER_CHAPTER}.
 - caused_by_fact_ids may only use real fact_ids (the [id]s above or ones returned by search). Never fabricate them.
 - thread_ids may only use ids from the "Available storylines" list below; if none are listed, leave it empty.
 - If there is nothing to fill for causality / storylines, leave them empty and just call finalize_extraction.`;
