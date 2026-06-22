@@ -458,6 +458,18 @@ export async function update_fact_status(
     }));
     tx.setState(state);
   }
+  // TD-014: 作废一个 resolver → 反向级联。若没有别的 fact 仍 resolve 其目标，把目标退回 UNRESOLVED
+  // （揭示者作废后伏笔不该还挂 RESOLVED）。exclude=fact_id：被作废的 fact 其 resolves 字段还在盘上，
+  // 但已不该算作有效 resolver，从「仍 resolves」检查中排除。
+  // 仅 deprecate 触发：其它状态（resolved/active）不影响 fact 作为 resolver 的有效性。
+  // undo 路径的同款反向级联已由 undo_chapter.ts 的 collectResolvesRollback 覆盖，不在此处理。
+  if (fact.status === FactStatus.DEPRECATED && fact.resolves) {
+    const effect = await collectResolvesReverse(au_id, fact.resolves, chapter_num, fact_repo, fact_id);
+    if (effect) {
+      tx.appendOp(au_id, effect.op);
+      tx.updateFact(au_id, effect.fact);
+    }
+  }
   await tx.commit(ops_repo, fact_repo, state_repo);
 
   return { fact_id, new_status, focus_warning: focusWarning };

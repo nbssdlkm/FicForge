@@ -139,6 +139,34 @@ describe("undo_latest_chapter", () => {
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
   });
 
+  // TD-014 undo 对称性：deprecate 一个 resolver 触发的反向级联，其反向 op 用 deprecate 的 chapter_num 打标，
+  // 该章被 undo 时 collectManualStatusRollback 回放，把目标恢复回 RESOLVED（揭示者也回来）。
+  it("undo of a chapter that deprecated a resolver restores the target to RESOLVED (TD-014)", async () => {
+    await stateRepo.save(createState({ au_id: "au1" }));
+    const f1 = await add_fact("au1", 0, {
+      content_raw: "r", content_clean: "mystery", status: "unresolved", type: "foreshadowing",
+    }, factRepo, opsRepo);
+
+    await confirmChapter(1, "Alice found the answer.");
+    const f2 = await add_fact("au1", 1, {
+      content_raw: "r", content_clean: "answer", resolves: f1.id,
+    }, factRepo, opsRepo);
+    expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.RESOLVED);
+
+    // 在 ch2 里作废揭示者 f2 → TD-014 反向级联把 f1 退回 UNRESOLVED
+    await confirmChapter(2, "Bob doubts the answer.");
+    const { update_fact_status } = await import("../facts_lifecycle.js");
+    await update_fact_status("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
+    expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
+
+    // undo ch2 → 回放 deprecate + 反向 op（都标 chapter_num=2）→ f1 回到 RESOLVED
+    await undo_latest_chapter({
+      au_id: "au1", chapter_repo: chapterRepo, draft_repo: draftRepo,
+      state_repo: stateRepo, ops_repo: opsRepo, fact_repo: factRepo,
+    });
+    expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.RESOLVED);
+  });
+
   it("undo after two chapters: two undos work correctly", async () => {
     await stateRepo.save(createState({ au_id: "au1" }));
     await confirmChapter(1, "第一章内容。Alice出场。");

@@ -303,9 +303,13 @@ currentRec[key] = { ...(currentRec[key]), ...val };
 
 ## TD-014: facts reverse cascade 未覆盖 deprecate + undo 路径
 
-**状态:** 待修复（2026-04-23 grep 代码时发现）
-**优先级:** 低（影响面窄但语义不正确，等 M8 Memory 重设计时一并修）
-**涉及文件:** `src-engine/services/facts_lifecycle.ts`, `src-engine/services/undo_chapter.ts`
+**状态:** ✅ 已修复（2026-06-22）。复查发现 **undo 路径其实早已覆盖**（`undo_chapter.ts` 的 `collectResolvesRollback` 步骤 3a 正确处理反向级联 + batch 排除全部待删 id，且有 `undo_chapter.test.ts:112` / `undo_chapter_golden.test.ts:157` 双测覆盖）—— 本条最初的 undo 诊断在该函数落地前写的，已过时。**真正的遗留缺口只有 deprecate 路径**，本次补上：`update_fact_status` 在 `fact.status === DEPRECATED && fact.resolves` 时调 `collectResolvesReverse`（exclude 被作废 fact）+ 2 个新测试（reverts / 另有 resolver 仍 RESOLVED）。引擎 980 绿。
+**优先级:** 低（影响面窄但语义不正确）
+**涉及文件:** `src-engine/services/facts_lifecycle.ts`（已改）, `src-engine/services/undo_chapter.ts`（早已正确，未改）
+
+**已知边界（独立审 2026-06-22 提出，本次不修，留作记录）：**
+- **反向不对称**：把已作废的 resolver 重新设回 active/resolved（`update_fact_status`）**不会**把目标重新标 RESOLVED —— `collectResolvesForward` 只在 `add_fact` / `edit_fact` 改 resolves 字段时触发。这是本 bug 的镜像方向，罕见（取消作废少见）、且是否该自动 re-resolve 有产品讨论空间，故不在 TD-014 范围内。
+- **批量 chapter_num=0**：`engine-facts.ts` 的 `batchUpdateFactStatus` 用 `chapter_num: 0` 调用，批量作废 resolver 产生的反向 op 也标 0，永不被 undo 回放（undo 不处理 N=0）。是 deprecate op 本身就有的既存特性，本次反向级联沿用，非新引入。
 
 `collectResolvesReverse` 函数（[facts_lifecycle.ts:131](../src-engine/services/facts_lifecycle.ts#L131)）的逻辑本身是正确的：当 fact_B 不再 resolve fact_A 时，**条件性地**把 fact_A 退回 UNRESOLVED——前提是没有别的 fact 还在 resolve 它。
 

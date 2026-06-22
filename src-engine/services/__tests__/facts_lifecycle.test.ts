@@ -135,6 +135,76 @@ describe("Facts Lifecycle", () => {
     expect(state.chapter_focus).toEqual([]);
   });
 
+  // TD-014: 作废一个 resolver → 若没有别的 fact 仍 resolve 其目标，目标退回 UNRESOLVED。
+  // 此前 deprecate 路径漏了反向级联（揭示者作废但伏笔仍挂 RESOLVED → LLM 上下文脱节）。
+  it("update_fact_status deprecate resolver → target reverts to UNRESOLVED (TD-014)", async () => {
+    const f1 = await add_fact("au1", 1, {
+      content_raw: "r", content_clean: "mystery", status: "unresolved",
+    }, factRepo, opsRepo);
+    const f2 = await add_fact("au1", 2, {
+      content_raw: "r", content_clean: "answer", resolves: f1.id,
+    }, factRepo, opsRepo);
+    expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.RESOLVED);
+
+    // 作废揭示者 f2
+    await update_fact_status("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
+
+    expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
+  });
+
+  it("update_fact_status deprecate resolver but another resolver remains → target stays RESOLVED (TD-014)", async () => {
+    const f1 = await add_fact("au1", 1, {
+      content_raw: "r", content_clean: "mystery", status: "unresolved",
+    }, factRepo, opsRepo);
+    const f2 = await add_fact("au1", 2, {
+      content_raw: "r", content_clean: "partial answer", resolves: f1.id,
+    }, factRepo, opsRepo);
+    await add_fact("au1", 3, {
+      content_raw: "r", content_clean: "another answer", resolves: f1.id,
+    }, factRepo, opsRepo);
+
+    // 只作废 f2；f3 仍 resolve f1
+    await update_fact_status("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
+
+    expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.RESOLVED);
+  });
+
+  it("update_fact_status deprecate resolver whose target isn't RESOLVED → no-op (TD-014)", async () => {
+    // target 当前不是 RESOLVED（手动维持 unresolved）→ 反向级联应 no-op，不冒出多余 op
+    const f1 = await add_fact("au1", 1, {
+      content_raw: "r", content_clean: "mystery", status: "unresolved",
+    }, factRepo, opsRepo);
+    const f2 = await add_fact("au1", 2, {
+      content_raw: "r", content_clean: "answer", resolves: f1.id,
+    }, factRepo, opsRepo);
+    // 强制 f1 回到 unresolved（模拟 target 不在 RESOLVED 态）
+    await update_fact_status("au1", f1.id, "unresolved", 1, factRepo, opsRepo, stateRepo);
+    expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
+    const opsBefore = (await opsRepo.list_all("au1")).length;
+
+    await update_fact_status("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
+
+    expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
+    // 只多了 f2 自己的 deprecate op，没有反向级联 op
+    expect((await opsRepo.list_all("au1")).length).toBe(opsBefore + 1);
+  });
+
+  it("update_fact_status re-deprecate is idempotent → target stays UNRESOLVED, no double-revert (TD-014)", async () => {
+    const f1 = await add_fact("au1", 1, {
+      content_raw: "r", content_clean: "mystery", status: "unresolved",
+    }, factRepo, opsRepo);
+    const f2 = await add_fact("au1", 2, {
+      content_raw: "r", content_clean: "answer", resolves: f1.id,
+    }, factRepo, opsRepo);
+
+    await update_fact_status("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
+    expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
+
+    // 再次作废已作废的 f2 → f1 已是 UNRESOLVED（collectResolvesReverse 仅当 target RESOLVED 才动）→ 不变
+    await update_fact_status("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
+    expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
+  });
+
   it("set_chapter_focus validates max 2", async () => {
     const f1 = await add_fact("au1", 1, { content_raw: "r", content_clean: "c", status: "unresolved" }, factRepo, opsRepo);
     const f2 = await add_fact("au1", 1, { content_raw: "r", content_clean: "c", status: "unresolved" }, factRepo, opsRepo);
