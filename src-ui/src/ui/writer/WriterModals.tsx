@@ -199,6 +199,13 @@ export const ExtractReviewModal = ({
               const candidateType = candidate.fact_type || candidate.type || 'plot_event';
               const key = getCandidateKey(candidate, index);
               const checked = selectedExtractedKeys.includes(key);
+              // M9 自动归类标签：让用户接受前看到 AI 把这条挂进了哪种关系（剧情线 / 跨章因果）。
+              // 这里只读候选自带的 thread_ids / caused_by（已是真实 id，dispatch 过滤过），
+              // 不解析名字 —— review 卡片要的是「AI 归类了」这个信号，挂哪条线在确认后的剧情线面板看。
+              // 用 Set 去重再计数：inline-propose 路径只过滤不去重（dispatch:232），LLM 偶尔重复列同一 id
+              // 会让 ×N 虚高；计数只是提示，按唯一关系数显示才诚实。
+              const threadCount = new Set(candidate.thread_ids ?? []).size;
+              const causedByCount = new Set(candidate.caused_by ?? []).size;
 
               return (
                 <label key={key} className={`flex cursor-pointer gap-3 rounded-lg border p-4 dark:border-white/10 ${checked ? 'border-accent/40 bg-accent/5' : 'border-black/10 bg-surface/40'}`}>
@@ -213,6 +220,12 @@ export const ExtractReviewModal = ({
                       <Tag tone="info">{getEnumLabel('fact_type', candidateType, candidateType)}</Tag>
                       <Tag tone="warning">{getEnumLabel('narrative_weight', candidate.narrative_weight, candidate.narrative_weight)}</Tag>
                       <Tag tone="default">{getEnumLabel('fact_status', candidate.status, candidate.status)}</Tag>
+                      {threadCount > 0 && (
+                        <Tag tone="gold">{t('facts.extractThreadTag')}{threadCount > 1 ? ` ×${threadCount}` : ''}</Tag>
+                      )}
+                      {causedByCount > 0 && (
+                        <Tag tone="success">{t('facts.extractCausedByTag')}{causedByCount > 1 ? ` ×${causedByCount}` : ''}</Tag>
+                      )}
                       <span className="text-xs text-text/50">{t('facts.extractSourceChapter', { chapter: candidate.chapter })}</span>
                     </div>
                     <p className="text-sm text-text/90">{candidate.content_clean}</p>

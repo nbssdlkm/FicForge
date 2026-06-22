@@ -51,66 +51,31 @@ Platform Adapter
 
 ## 活跃工作（当前分支）
 
-**当前分支：`main`** —— 与 `origin/main` 同步。Phase 1 + Phase 2（UI 接入）+ M7（同步退役）+ Python sidecar 退役 + card chrome + TD-004/005/006（AES-GCM + embedding 修复）+ 本轮 bughunt 均已合入 main。
+**当前分支：`main`** —— `origin/main @ 3e5e567`，全 pushed。简版收敛（Phase 1+2，`writing_mode` 单运行时开关）、M7 同步退役、Python sidecar 退役、M8 记忆三层、M9 ReAct 事实提取 **均已完成并合入 main**。本会话有未提交的「打磨」改动（见下，待用户拍板 commit+push）。
 
-### 简版收敛（当前主线）
+### 主线现状：M8 记忆三层 + M9 ReAct（均已完成 + 真机验过）
 
-把简版 fork（`D:\fanfic-system-simple`，分支 `feat/agent-harness-v1`，agent-harness / 工具调用、聊天式续写）验证过的引擎收敛回主仓 —— 两种写作模式经 `AppConfig.writing_mode`（`'full' | 'simple'`，默认 `full`）单一运行时开关共存，**不再维护两套代码库**。设计 spec：`docs/superpowers/specs/2026-06-02-converge-simple-into-main-phase1-design.md`。
+- **M8-A Fact 富化**（9 个 Layer2/3 字段 + `_confidence`）/ **M8-B Thread 剧情线**（引擎 + UI 三屏：Index / 详情挂笔记标 `thread_role` / Fact 反向视图，桌面+移动）/ **M8-C Chapter Summary**（standard 档，confirm 时生成 → 嵌入 `summaries` collection → P4 RAG 注入；**需配 embedding 才跑**）全部落地。
+- **M9 ReAct 事实提取**（默认开，PD-4 用户拍板 + GlobalSettings「增强事实提取」开关）：复用 `runAgentLoop` 跑 propose 内联挂边 → 跨章 `caused_by` + 自动挂剧情线 `thread_ids`（**点亮 M8-B 自动有数据**）。reasoning 模型适配（`EXTRACT_GEN_PARAMS.max_tokens` 8000）；过度提取已修（prompt 引导少而精 + `REACT_MAX_FACTS_PER_CHAPTER=8` 软上限，context 单一真相源）。批量提取路径（FactsPage）也接了 M9。
+- **真机全旅程验过**（2026-06-22，用户 Chrome + Claude-in-Chrome MCP）：建 AU → v4-flash 出 5 章 → 提取候选 → 接受 → 剧情线面板；读 IndexedDB `ficforge_fs` 定量验 facts/threads/`.summary.jsonl`/`.vectors` 全活（thread_ids 100% 自动挂、caused_by 跨章真实 id、摘要+RAG 配 embedding（硅基 bge-m3）后真生成）。记忆栈四层（Facts / Thread / Summary / RAG）全部跑通。
+- 引擎 ~971 + 双端 tsc + i18n 全绿。spec：`docs/superpowers/specs/2026-06-20-m9-react-fact-extraction-design.md`（v1.1）/ `2026-06-20-m8b-thread-layer-design.md`。
 
-**Phase 1（引擎层）—— 已完成 + 复核可合 + 已 FF 合入 main（origin 未 push）：**
-- 端口 agent_loop / agent_telemetry / tool_args_repair / tool_stream_buffer / simple 上下文组装 / simple_chat_dispatch / simple tools / simple-chat 持久化，全部进 `src-engine/`
-- `getSimpleFeatures(mode)` 纯函数派生 4 flag 取代 `SIMPLE_FEATURES` const；`assemble_context` 加可选 `writingMode='full'` 参数（无模块级 ambient 状态）；generation RAG gate 改读 config
-- **零回归红线已验证**：`full` 默认下 golden/budget/confirm/undo 测试与 main 逐字节一致；唯二预期 delta = prompt keys 55→58 + 一个 `forced_tool_choice_unsupported` 用例
-- 复核证据（独立跑过，非信 commit message）：`vitest run` **749/749 绿**（68 文件）、`tsc --noEmit` 干净（engine + src-ui 均绿 → 引擎改动纯 additive）、0 处 `SIMPLE_FEATURES` const / ambient 残留
-- branch vs main：**44 文件，+6398/-27，纯 src-engine + 测试，零 src-ui 改动**
-- **已合并到 main**（fast-forward，含本 CLAUDE.md 刷新）；origin 未 push
+### 本会话打磨（2026-06-22，未提交，待用户 commit+push）
 
-**Phase 2（UI 接入）—— 已完成 + 已 FF 合入本地 main（`451d58c`，origin 未 push），剩真机 round-trip：**
-- spec：`docs/superpowers/specs/2026-06-13-converge-simple-phase2-ui-design.md`（**Rev 3**，过两轮 code-grounded 对抗 review，抓出竞态/移动端编译断/落地点错/英文看中文并修在 spec 阶段）
-- 端口整棵 `ui/simple/`（26 文件）+ 3 个 API wrapper + `landing(mode)`；`engine-instance` 注册 `simpleChat`
-- 运行时门控：`useWritingMode`（**同步 localStorage 镜像 `ficforge_writing_mode`** 防 async-默认竞态，镜像 i18n language 模式）+ `AuWorkspaceLayout` 挂载快照（`key={auPath}` 每次进 AU 重快照 → 作品内切模式不打断当前会话）
-- 移动端**外科式**加「对话」tab/slot（grid 4→5），`isSimple` 走 prop（禁移动端调 live hook），**保留** MAIN 的 `MobileSettingsView` FAB + `currentChapter`（fork 的删除属 out-of-scope）
-- 落地点 `getAuLandingPage(mode)`：`LibraryFandomSections:245`（主入口）/ `Library:71` / `useLibraryMutations:92`
-- `GlobalSettingsModal` 加 `writing_mode` 开关（save-on-change）；`saveAppPreferences` round-trip 修复（原只默存 language）
-- i18n：**92 个 `simple.*` key 全量双语** + 覆盖 lint（扫全 `src-ui/src`，任一语言缺 key 即失败）
-- 验证：`tsc` 干净、src-ui **198 例全绿**、引擎 749 不变、**零回归（未改任何 full 模式行为测试）**
-- footprint：**52 文件 +7330/-35**；9 commit（3 spec + 6 实现）
-- **剩**：真机 round-trip（用户 Android）+ push/合并决定
-- 相关债 **TD-015**（简版↔主 import/export 数据迁回）：非阻塞，事件驱动再做
-- **dev server 实测（2026-06-13，Claude 自测，手机视口）**：建 AU 自动落「对话」tab、底栏 5 tab（章节/阅读/对话/设定/管理）、SimpleChatPanel 渲染、切回 full 4 tab 满血 WriterLayout、0 console 报错。**唯一没验：真实 LLM 出章（无 key）。**
+1. ✅ **PD-5 候选卡片归类标签**：提取结果预览 modal（`ExtractReviewModal`）候选卡片显示「归入剧情线」/「跨章因果」标签（读 `candidate.thread_ids` / `caused_by`，`Set` 去重计数，>1 带 ×N）。`WriterModals.tsx` + i18n 2 key + 4 render 测试。codex 审过（P2 dedup 已采纳）。
+2. ✅ **批量补摘要工具**（用户 A 拍板）：AU 设置「高级操作」加「补全旧章摘要」按钮 —— 摘要本来只在 confirm 那刻生成（需当时已配 embedding），晚配 embedding 的旧章永久没摘要、无 backfill。流程：扫缺 standard 摘要的章 → 显示数量+花费提示 → 逐章生成+嵌入（进度条 + 可中断）。引擎 `find_chapters_missing_summary` / `backfill_chapter_summaries`（standard-only，章边界中断，CAS-in-lock 防陈旧摘要向量 —— codex P1）；API `countChaptersMissingSummary` / `backfillChapterSummaries`；UI `BackfillSummaryModal`（unmount-abort，codex P2）。i18n 15 key + 11 测试（engine 7 + modal 4）。codex 审过（P1 CAS + P2 unmount-abort 已修）。
+3. ✅ **CLAUDE.md 活跃工作段刷新**（本段）。
+- 验证：引擎 **978** + UI **175** + 双端 tsc + i18n **1160** 全绿。**剩**：commit + push（用户拍板）；真机眼验补摘要 UI（preview 无 AU 数据没法 live 验，逻辑已单测覆盖）。
 
-### 已完成（2026-06-16，bughunt 收尾）
+### 待办 / 未排期
 
-1. ✅ **真实测简版出章**（2026-06-13）：ds key 走 onboarding 内置 API 配置（强制连接测试通过）→ 切简版 → 进 AU 落「对话」tab → DeepSeek 流式出 491 字中文章 → 接受 → `chapters/main/ch0001.md` + `.well-known/simple-chat.yaml` 落盘（web 端存 IndexedDB `ficforge_fs`，非 OPFS）→ 刷新全恢复，零回归。
-2. ✅ **M7 同步退役**：审计发现 `sync/ops_merge.ts` 是「核心投影+同步」混合文件 → 外科式迁 `src-engine/ops/ops_projection.ts`。引擎 742/742 + UI 155/155 + tsc + i18n 全绿。**已合本地 main。**
-3. ✅ **Python sidecar 退役 + cargo 编译验证**：删 `src-python/`（53 文件）+ `lib.rs`（−177 行）+ `tauri.conf.json`。**cargo check 本地实测通过**。
-4. ✅ **card chrome 组件抽取**：simple 消息卡片重复 markup 收敛到 `ui/simple/messages/cardChrome.tsx` 单一真相源。
-5. ✅ **系统性 bughunt（本轮）**：3 个 explore agent 并行扫全仓发现 20 项问题。经 Codex 审阅计划纠正诊断错误后，逐条读代码验证并修复 8 个根因 bug + 10 处静默吞错 + 死代码清理 + 补 11 个测试用例：
-   - **Logger buffer-loss**：`splice(0)` 在写成功前清空 buffer，写失败日志丢失 → `unshift` 回放
-   - **Logger destroy race**：`destroy()` 调 `flush()` 因 `flushing=true` 短路，残留 buffer 丢失 → `_lastFlush` 链式等待
-   - **Dirty resolve 事务 gap**：facts 先提交 chapter/state 后提交，后者失败无法回滚 → 重排序
-   - **10 处 UI 静默吞错**：`.catch(() => {})` → `catchAndLog` 工厂 + `showError`
-   - **Facts 截断**：长章多 chunk 结果被 `slice(0,5)` 一刀切 → 按 chunk cap
-   - **别名归一化不一致**：两套实现大小写策略不同 → 统一 case-insensitive + 单一导出
-   - **content_hash 无校验** → save 时 mismatch warn
-   - **死代码清理**：annotation.ts / chunk.ts / if(false) 块 / renameFandom/renameAu 桩
-   - **dirty_resolve 测试**：8 用例覆盖最新章/历史章/fact 变更/事务顺序
-   - **openai_compatible 测试**：补 generate() 200 路径、sanitizeForJson、错误转译
-   - 引擎 **757/757** ✅ + UI **164/164** ✅ + tsc 双端 ✅
-
-### 下次会话第一件事
-
-1. **真机 Android 测简版出章**（用户侧）。
-2. **代码质量硬化**：`docs/internal/plans/system-optimization-{roadmap,execution-plan}-2026-04-19.md`（Settings/Project 契约收窄、真 SecretStore、写入串行化）。
-3. **commit + push**：本轮 bughunt 改动提交（19 文件，+217/-221，净删 4 行）。
-
-### 并行支线（正交于收敛，部分已被超越）
-
-`docs/internal/plans/system-optimization-{roadmap,execution-plan}-2026-04-19.md` —— 内部代码质量 / 架构硬化计划（Settings/Project 读写契约收窄、表单 mapper 共享、SecretStore 真加密、写入串行化，Phase 0–5）。基线**部分已过时**（WriterLayout 下沉 / Library 拆分已做完；同步条目随 D-0040 失效）。**未排期、按需取用。**
+- **M10**（Retrospective + Archive 冷热分层）：M10-A 部分已落地（micro 摘要 + retrospective 每 N 章重写），冷热分层待启动。
+- **TD-014**（低）：facts 反向级联漏 deprecate/undo 路径（`collectResolvesReverse` 只在 edit_fact 调）。**TD-015**（P2）：import/export 只带正文+frontmatter，不带 state/facts/摘要/RAG/threads → 简版↔主迁移丢记忆，事件驱动修。
+- **代码质量硬化**：`docs/internal/plans/system-optimization-{roadmap,execution-plan}-2026-04-19.md`（Settings/Project 契约收窄、真 SecretStore、写入串行化）。基线部分已过时，正交支线、按需取用。
 
 ---
 
-**以下为已合并 main 的历史背景：**
+**以下为已合并 main 的历史背景（简版收敛 Phase 1/2 + bughunt 收尾等，均已合入 main）：**
 
 ### 2026-04-20/21 完成的工作
 

@@ -613,6 +613,8 @@
     "extractSaveAll": "Save All",
     "extractSaved": "Saved {{count}} plot point(s).",
     "extractSourceChapter": "From Chapter {{chapter}}",
+    "extractThreadTag": "In storyline",
+    "extractCausedByTag": "Cross-chapter cause",
     "createModal": {
       "title": "Add Plot Point",
       "rawPlaceholder": "e.g. In Chapter 3, Alex said \"I'm never coming back\" and left Jamie.",
@@ -902,7 +904,24 @@
     "rebuildIndexDesc": "Reprocess all lore files",
     "rebuildIndexSuccess": "Index rebuild started",
     "rebuildIndexFail": "Index rebuild failed",
+    "backfillSummaries": "Backfill Summaries",
+    "backfillSummariesDesc": "Generate summaries for older chapters written before embedding was configured",
     "advancedHint": "These actions are only needed when files were modified externally or state is inconsistent."
+  },
+  "backfill": {
+    "title": "Backfill Chapter Summaries",
+    "scanning": "Checking which chapters have no summary…",
+    "disabledMode": "Chapter summaries are off in the current (simple) writing mode — nothing to backfill.",
+    "needConfig": "Configure a writing model and embedding (vector search) above before generating summaries.",
+    "noneMissing": "All finalized chapters already have summaries — nothing to backfill.",
+    "confirmPrompt": "{{count}} chapter(s) have no summary yet.",
+    "costHint": "Backfilling calls the AI once per chapter to generate and embed it. A few dozen chapters take a minute or two at minimal cost; you can stop anytime.",
+    "start": "Start",
+    "running": "Backfilling {{done}} / {{total}} chapters…",
+    "stop": "Stop",
+    "doneSuccess": "Done: generated {{generated}} summary(ies).",
+    "doneWithFailures": "Finished: {{generated}} succeeded, {{failed}} failed (retry later).",
+    "aborted": "Stopped: backfilled {{generated}} this run; run again for the rest."
   },
   "embedding": {
     "staleTitle": "Search Engine Needs Update",

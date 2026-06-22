@@ -24,6 +24,7 @@ import { useFeedback } from '../../hooks/useFeedback';
 import { AuSettingsWritingSection } from './AuSettingsWritingSection';
 import { AuSettingsPinnedSection } from './AuSettingsPinnedSection';
 import { AuSettingsAdvancedSection } from './AuSettingsAdvancedSection';
+import { BackfillSummaryModal } from './BackfillSummaryModal';
 import { SecretStorageNotice } from '../shared/SecretStorageNotice';
 import {
   buildAuSettingsSaveInput,
@@ -61,6 +62,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const [contextWindow, setContextWindow] = useState(DEFAULT_CONTEXT_WINDOW);
   const [coreIncludeModalOpen, setCoreIncludeModalOpen] = useState(false);
   const [recalcing, setRecalcing] = useState(false);
+  const [backfillOpen, setBackfillOpen] = useState(false);
 
   // AU Embedding override
   const [isEmbeddingOverride, setIsEmbeddingOverride] = useState(false);
@@ -110,6 +112,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
     setContextWindow(defaults.contextWindow);
     setGlobalSettingsOpen(false);
     setCoreIncludeModalOpen(false);
+    setBackfillOpen(false);
     setIsEmbeddingOverride(defaults.isEmbeddingOverride);
     setEmbModel(defaults.embModel);
     setEmbApiBase(defaults.embApiBase);
@@ -439,12 +442,14 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                 showError(e, t('advanced.rebuildIndexFail'));
               }
             }}
+            handleBackfillSummaries={() => setBackfillOpen(true)}
           />
 
           <div className="h-10 md:h-20"></div>
         </div>
       </main>
       <GlobalSettingsModal isOpen={isGlobalSettingsOpen} onClose={() => setGlobalSettingsOpen(false)} />
+      <BackfillSummaryModal auPath={auPath} isOpen={backfillOpen} onClose={() => setBackfillOpen(false)} />
       <Modal isOpen={coreIncludeModalOpen} onClose={() => setCoreIncludeModalOpen(false)} title={t("settings.createCoreIncludeTitle")}>
         <div className="space-y-4">
           {(() => {

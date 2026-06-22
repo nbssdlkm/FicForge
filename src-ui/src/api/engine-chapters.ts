@@ -19,6 +19,10 @@ import {
   generate_standard_summary,
   generate_micro_summary,
   persist_chapter_summary,
+  find_chapters_missing_summary,
+  backfill_chapter_summaries,
+  type BackfillSummaryTarget,
+  type BackfillSummaryResult,
   generate_retrospective,
   commit_retrospective,
   shouldRunRetrospective,
@@ -311,4 +315,97 @@ export async function updateChapterContent(auPath: string, chapterNum: number, c
     logCatch("summary", `Failed to invalidate summary after edit ${chapterNum}`, err);
   }
   return result;
+}
+
+// ---- 批量补摘要（用户手动触发）：给「配 embedding 之前确认、永久没摘要」的旧章补 standard 摘要。----
+// 摘要本来只在 confirmChapter 那一刻生成（且需当时已配 embedding），晚配 embedding 的旧章无 backfill 路径。
+
+export interface BackfillSummaryAvailability {
+  missingChapters: number[];   // 缺 standard 摘要的确认章号
+  totalConfirmed: number;      // 已确认章总数
+  embeddingConfigured: boolean;
+  llmConfigured: boolean;
+  summaryDisabled: boolean;    // writing_mode=simple 关了章节摘要
+}
+
+/** 预览：扫出缺摘要的章 + 当前配置能否跑（embedding + 写作模型）。UI 先调它显示数量/前置条件。 */
+export async function countChaptersMissingSummary(auPath: string): Promise<BackfillSummaryAvailability> {
+  const e = getEngine();
+  const { chapter, project, settings, chapterSummary } = e.repos;
+  const [proj, sett] = await Promise.all([project.get(auPath), settings.get()]);
+  const llmCfg = resolve_llm_config(null, proj, sett);
+  const chapters = await chapter.list_main(auPath);
+  const nums = chapters.map((c) => c.chapter_num);
+  const missingChapters = await find_chapters_missing_summary(auPath, nums, chapterSummary);
+  return {
+    missingChapters,
+    totalConfirmed: nums.length,
+    embeddingConfigured: !!createEmbeddingProvider(sett, proj),
+    llmConfigured: llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key),
+    summaryDisabled: getSimpleFeatures(sett.app?.writing_mode).disableChapterSummary,
+  };
+}
+
+/** 实跑：逐章补 standard 摘要。配置不全/无缺章则抛错或空跑（UI 应在前置条件满足时才让点）。 */
+export async function backfillChapterSummaries(
+  auPath: string,
+  onProgress?: (done: number, total: number) => void,
+  signal?: AbortSignal,
+): Promise<BackfillSummaryResult> {
+  const e = getEngine();
+  const { chapter, project, settings, chapterSummary } = e.repos;
+  const [proj, sett] = await Promise.all([project.get(auPath), settings.get()]);
+  if (getSimpleFeatures(sett.app?.writing_mode).disableChapterSummary) {
+    throw new Error("chapter summary disabled in current writing mode");
+  }
+  const embProvider = createEmbeddingProvider(sett, proj);
+  const llmCfg = resolve_llm_config(null, proj, sett);
+  const llmConfigured = llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key);
+  if (!embProvider || !llmConfigured) {
+    throw new Error("embedding and LLM must be configured to backfill summaries");
+  }
+
+  const chapters = await chapter.list_main(auPath);
+  const byNum = new Map(chapters.map((c) => [c.chapter_num, c]));
+  const missing = await find_chapters_missing_summary(auPath, [...byNum.keys()], chapterSummary);
+
+  // targets：content 用 get_content_only（= confirm 喂 LLM 同款，去 frontmatter），hash 用章节 content_hash。
+  const targets: BackfillSummaryTarget[] = [];
+  for (const n of missing) {
+    const ch = byNum.get(n);
+    if (!ch) continue;
+    const content = await chapter.get_content_only(auPath, n);
+    targets.push({ chapterNum: n, content, contentHash: ch.content_hash });
+  }
+
+  return backfill_chapter_summaries({
+    targets,
+    llmProvider: create_provider(llmCfg),
+    language: sett.app?.language || "zh",
+    signal,
+    // CAS-in-lock（= confirm 同款）：慢 LLM 在锁外生成，落盘在锁内并校验章节 content_hash 未变。
+    // 批量跑期间用户 edit/undo 了某章 → hash 不符 → 不写陈旧摘要向量（向量被检索消费，比孤儿文件更毒）。
+    persistChapter: async (target, text) =>
+      withAuLock(auPath, async () => {
+        let current = false;
+        try {
+          const ch = await chapter.get(auPath, target.chapterNum);
+          current = ch.content_hash === target.contentHash;
+        } catch {
+          current = false; // 章节已被 undo 删除
+        }
+        if (!current) return false;
+        await persist_chapter_summary({
+          auPath,
+          chapterNum: target.chapterNum,
+          text,
+          contentHash: target.contentHash,
+          embeddingProvider: embProvider,
+          summaryRepo: chapterSummary,
+          ragManager: e.ragManager,
+        });
+        return true;
+      }),
+    onProgress: onProgress ? (info) => onProgress(info.done, info.total) : undefined,
+  });
 }

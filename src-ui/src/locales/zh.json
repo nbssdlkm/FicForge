@@ -613,6 +613,8 @@
     "extractSaveAll": "全部记下",
     "extractSaved": "已记下 {{count}} 条剧情笔记。",
     "extractSourceChapter": "来自第 {{chapter}} 章",
+    "extractThreadTag": "归入剧情线",
+    "extractCausedByTag": "跨章因果",
     "createModal": {
       "title": "记一笔",
       "rawPlaceholder": "比如：第3章里林深说“我不会再回来了”，随后离开了叶澜。",
@@ -902,7 +904,24 @@
     "rebuildIndexDesc": "重新处理所有设定文件",
     "rebuildIndexSuccess": "索引重建已启动",
     "rebuildIndexFail": "索引重建失败",
+    "backfillSummaries": "补全旧章摘要",
+    "backfillSummariesDesc": "给配 embedding 之前写的、还没摘要的旧章补生成摘要",
     "advancedHint": "这些操作仅在外部修改了文件或状态异常时需要使用。"
+  },
+  "backfill": {
+    "title": "补全旧章摘要",
+    "scanning": "正在检查哪些章节还没有摘要…",
+    "disabledMode": "当前写作模式（简版）没有开启章节摘要，无需补全。",
+    "needConfig": "需要先在上面配置好写作模型和 embedding（向量检索），才能生成摘要。",
+    "noneMissing": "所有已定稿章节都已经有摘要，无需补全。",
+    "confirmPrompt": "发现 {{count}} 章还没有摘要。",
+    "costHint": "补全会逐章调用一次 AI 生成并嵌入，几十章大约一两分钟、花费很小，过程中可以随时停止。",
+    "start": "开始补全",
+    "running": "正在补全 {{done}} / {{total}} 章…",
+    "stop": "停止",
+    "doneSuccess": "补全完成：成功生成 {{generated}} 章摘要。",
+    "doneWithFailures": "补全结束：成功 {{generated}} 章，{{failed}} 章失败（可稍后重试）。",
+    "aborted": "已停止：本次补了 {{generated}} 章，其余未补的可再次运行。"
   },
   "embedding": {
     "staleTitle": "搜索引擎需要更新",

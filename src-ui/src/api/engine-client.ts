@@ -114,7 +114,8 @@ export {
   addPinned,
   deletePinned,
 } from "./engine-project";
-export { listChapters, getChapter, getChapterContent, confirmChapter, undoChapter, updateChapterTitle, resolveDirtyChapter, updateChapterContent } from "./engine-chapters";
+export { listChapters, getChapter, getChapterContent, confirmChapter, undoChapter, updateChapterTitle, resolveDirtyChapter, updateChapterContent, countChaptersMissingSummary, backfillChapterSummaries } from "./engine-chapters";
+export type { BackfillSummaryAvailability } from "./engine-chapters";
 export { listDrafts, getDraft, saveDraft, deleteDrafts } from "./engine-drafts";
 export { generateChapter } from "./engine-generate";
 export { listTrash, restoreTrash, permanentDeleteTrash, purgeTrash } from "./engine-trash";
