@@ -52,6 +52,9 @@ interface Scenario {
   watch?: string;             // 这个题材重点观察什么（给读者）
 }
 
+// ⚠️ 以下 SCENARIOS 全是【合成测试固件】——角色名/情节/剧情线均为本探针编造，非任何真实 AU 内容，
+// 仅用于给 caused_by/thread 挂错率提供可量化的 ground truth。本文件经 vitest.live.config.ts 隔离，
+// 不进 CI（需本地 deepseek key、打真实网络）。
 const SCENARIOS: Scenario[] = [
   {
     id: "office", genre: "现代职场·数据造假悬疑", chapterNum: 3,
