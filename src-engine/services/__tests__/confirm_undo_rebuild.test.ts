@@ -268,7 +268,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
   // 6.4.4 Status change + undo: manual deprecation reversed
   // ---------------------------------------------------------
 
-  it("manual fact status change → undo reverts in repo (known ops rebuild gap)", async () => {
+  it("manual fact status change → undo reverts in repo AND ops rebuild (TD-003, closed loop)", async () => {
     await stateRepo.save(createState({ au_id: "au1" }));
 
     // Pre-existing fact
@@ -293,17 +293,15 @@ describe("confirm-undo-rebuild closed-loop", () => {
 
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.ACTIVE);
 
-    // KNOWN GAP: undo's collectManualStatusRollback reverts the fact in repo
-    // but does NOT emit an ops entry for the rollback. rebuildFactsFromOps
-    // therefore still shows "deprecated". This is a consistency gap.
+    // TD-003: undo's collectManualStatusRollback now emits an `update_fact_status`
+    // rollback op, so rebuildFactsFromOps replicates the revert — the closed loop
+    // (repo state ≡ ops rebuild) holds again, just like before the undo.
     repoFacts = await factRepo.list_all("au1");
     rebuiltFacts = await getRebuiltFacts();
     expect(repoFacts).toHaveLength(1);
     expect(rebuiltFacts).toHaveLength(1);
-    // Repo: correctly reverted to "active"
     expect(repoFacts[0].status).toBe("active");
-    // Rebuild: stays "deprecated" (no rollback op emitted)
-    expect(rebuiltFacts[0].status).toBe("deprecated");
+    assertFactsMatch(repoFacts, rebuiltFacts);
   });
 
   // ---------------------------------------------------------

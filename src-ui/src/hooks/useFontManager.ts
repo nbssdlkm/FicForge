@@ -74,7 +74,22 @@ export function useFontManager(): FontManagerState {
       }),
     );
     const nextStatuses: Record<string, RuntimeStatus> = Object.fromEntries(entries);
-    setStatuses(nextStatuses);
+    // 保留 "error" 状态：它由下载失败显式置位，storage 派生不出（statusOf 只会
+    // 返回 not-installed），仅在重试 / 卸载时清除。否则后台下载 settle 触发的
+    // refresh 会把失败态冲掉，用户看不到出错原因。见 TD-011。
+    //
+    // 作用域（有意为之）：error 是**会话级**的本组件状态，不下沉到 service 单例
+    // （progress 才下沉）。若下载在 Modal 关闭期间于后台失败，重开后新组件从
+    // statusOf 播种为 not-installed —— 这是诚实的：失败的字体确实没装上，用户可直接
+    // 重新下载。代价仅是丢失上一次的失败原因文案，不影响可操作性。跨生命周期保留失败
+    // 原因价值低、surface 大（要在 service 加 error Map + 事件），故不做。
+    setStatuses((prev) => {
+      const merged: Record<string, RuntimeStatus> = { ...nextStatuses };
+      for (const [id, s] of Object.entries(prev)) {
+        if (s === "error") merged[id] = "error";
+      }
+      return merged;
+    });
     // totalSize 走真实 storage 层（fonts/ 目录下实际文件字节累加），
     // 比用 manifest.sizeBytes 估算更准 —— 后者是 Phase 1 占位估算值。
     try {
@@ -91,6 +106,29 @@ export function useFontManager(): FontManagerState {
     refresh().catch((e) => console.warn("[useFontManager] refresh failed:", e));
   }, [refresh]);
 
+  // 订阅 service 单例的下载事件，让进度条跨 Modal 生命周期存活（TD-011）。
+  // service 是进度真相源：mount 时先用 currentProgresses() 播种当前快照（续上
+  // 上一个 Modal 生命周期发起、仍在后台进行的下载），再订阅增量。settle 时清掉
+  // 该 id 的进度并 refresh（让后台完成的下载把状态翻成 installed / 容量更新）。
+  useEffect(() => {
+    const svc = getFontsService();
+    setProgresses(svc.currentProgresses());
+    const unsubscribe = svc.subscribeDownloads((event) => {
+      if (event.type === "progress") {
+        setProgresses((prev) => ({ ...prev, [event.id]: event.progress }));
+        return;
+      }
+      setProgresses((prev) => {
+        if (!(event.id in prev)) return prev;
+        const next = { ...prev };
+        delete next[event.id];
+        return next;
+      });
+      refresh().catch((e) => console.warn("[useFontManager] refresh failed:", e));
+    });
+    return unsubscribe;
+  }, [refresh]);
+
   const download = useCallback(async (id: string) => {
     // 防抖：如果 service 侧已有该字体的 pending 下载（用户快速连点、或多组件同时触发），
     // 直接返回，不再触发第二次 install（会被并发锁抛 "network: Already downloading"，
@@ -104,22 +142,21 @@ export function useFontManager(): FontManagerState {
       return next;
     });
     try {
-      await getFontsService().install(id, {
-        onProgress: (p) => setProgresses((prev) => ({ ...prev, [id]: p })),
-      });
+      // 进度与进度清理由 service 订阅驱动（见上方 effect），不在此处接 onProgress —
+      // 这样即便下载中途关闭 Modal，重开后仍能续上同一进度。TD-011。
+      await getFontsService().install(id);
       setStatuses((prev) => ({ ...prev, [id]: "installed" }));
       // 触发 totalSize 刷新（复用 refresh 的求和逻辑）
       await refresh();
     } catch (err) {
+      // 用户主动取消（cancel → abort）不是错误：停回 not-installed，不显示红色错误行
+      // 和「重试」按钮（那会让人误以为下载失败）。进度条已由订阅的 'settled' 事件清掉。
+      if (err instanceof FontError && err.code === "aborted") {
+        setStatuses((prev) => ({ ...prev, [id]: "not-installed" }));
+        return;
+      }
       setStatuses((prev) => ({ ...prev, [id]: "error" }));
       setErrors((prev) => ({ ...prev, [id]: formatError(err) }));
-    } finally {
-      setProgresses((prev) => {
-        if (!(id in prev)) return prev;
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
     }
   }, [refresh]);
 

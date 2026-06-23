@@ -2,13 +2,13 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { FontsService } from "../service.js";
+import { FontsService, type FontDownloadEvent } from "../service.js";
 import { FontStorage } from "../storage.js";
 import { FontDownloader } from "../downloader.js";
 import { NoopFontRegistry } from "../registry.js";
 import type { FontRegistry } from "../registry.js";
 import { FONT_MANIFEST, getFontById } from "../manifest.js";
-import { FontError } from "../types.js";
+import { FontError, type DownloadProgress } from "../types.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 
 // manifest 中已知的 id（测试依赖这两条 entry 存在）
@@ -274,6 +274,112 @@ describe("FontsService", () => {
 
       await expect(svc.install(DOWNLOADABLE_ID)).rejects.toBeDefined();
       expect(svc.isDownloading(DOWNLOADABLE_ID)).toBe(false);
+    });
+  });
+
+  describe("download progress tracking + subscription (TD-011)", () => {
+    it("tracks in-flight progress via currentProgresses and clears on completion", async () => {
+      let resolveDownload!: (bytes: Uint8Array) => void;
+      vi.spyOn(downloader, "download").mockImplementation(
+        async (_entry, onProgress) => {
+          onProgress?.({ loaded: 4, total: 10 });
+          return new Promise<Uint8Array>((resolve) => {
+            resolveDownload = resolve;
+          });
+        },
+      );
+
+      const installed = service.install(DOWNLOADABLE_ID);
+      // 让同步触发的 onProgress 落进 progresses
+      await Promise.resolve();
+      expect(service.currentProgresses()).toEqual({
+        [DOWNLOADABLE_ID]: { loaded: 4, total: 10 },
+      });
+
+      resolveDownload(MOCK_FONT_BYTES);
+      await installed;
+      // 下载结束后进度被清空
+      expect(service.currentProgresses()).toEqual({});
+    });
+
+    it("notifies subscribers of progress then settled, and stops after unsubscribe", async () => {
+      vi.spyOn(downloader, "download").mockImplementation(
+        async (_entry, onProgress) => {
+          onProgress?.({ loaded: 7, total: 7 });
+          return MOCK_FONT_BYTES;
+        },
+      );
+
+      const events: FontDownloadEvent[] = [];
+      const unsubscribe = service.subscribeDownloads((e) => events.push(e));
+
+      await service.install(DOWNLOADABLE_ID);
+      expect(events).toEqual([
+        { type: "progress", id: DOWNLOADABLE_ID, progress: { loaded: 7, total: 7 } },
+        { type: "settled", id: DOWNLOADABLE_ID },
+      ]);
+
+      // 退订后不再投递
+      unsubscribe();
+      events.length = 0;
+      await service.install(DOWNLOADABLE_ID);
+      expect(events).toEqual([]);
+    });
+
+    it("emits settled and clears progress even when the download fails", async () => {
+      vi.spyOn(downloader, "download").mockImplementation(
+        async (_entry, onProgress) => {
+          onProgress?.({ loaded: 2, total: 10 });
+          throw new FontError("network", "boom");
+        },
+      );
+
+      const events: FontDownloadEvent[] = [];
+      service.subscribeDownloads((e) => events.push(e));
+
+      await expect(service.install(DOWNLOADABLE_ID)).rejects.toMatchObject({
+        code: "network",
+      });
+      expect(events).toEqual([
+        { type: "progress", id: DOWNLOADABLE_ID, progress: { loaded: 2, total: 10 } },
+        { type: "settled", id: DOWNLOADABLE_ID },
+      ]);
+      expect(service.currentProgresses()).toEqual({});
+    });
+
+    it("isolates a throwing listener from the download and other listeners", async () => {
+      vi.spyOn(downloader, "download").mockImplementation(
+        async (_entry, onProgress) => {
+          onProgress?.({ loaded: 1, total: 1 });
+          return MOCK_FONT_BYTES;
+        },
+      );
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      service.subscribeDownloads(() => {
+        throw new Error("listener boom");
+      });
+      const good: FontDownloadEvent[] = [];
+      service.subscribeDownloads((e) => good.push(e));
+
+      // 监听器抛错被隔离 —— install 仍正常完成，其他监听器照常收事件
+      await expect(service.install(DOWNLOADABLE_ID)).resolves.toBeUndefined();
+      expect(good.map((e) => e.type)).toEqual(["progress", "settled"]);
+      expect(warnSpy).toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
+    it("still forwards progress to a caller-provided onProgress", async () => {
+      vi.spyOn(downloader, "download").mockImplementation(
+        async (_entry, onProgress) => {
+          onProgress?.({ loaded: 3, total: 9 });
+          return MOCK_FONT_BYTES;
+        },
+      );
+
+      const seen: DownloadProgress[] = [];
+      await service.install(DOWNLOADABLE_ID, { onProgress: (p) => seen.push(p) });
+      expect(seen).toEqual([{ loaded: 3, total: 9 }]);
     });
   });
 });

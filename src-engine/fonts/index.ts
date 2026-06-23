@@ -22,7 +22,11 @@ export type { FontRegistry } from "./registry.js";
 export { FontStorage } from "./storage.js";
 
 export { FontsService } from "./service.js";
-export type { InstallOptions } from "./service.js";
+export type {
+  FontDownloadEvent,
+  FontDownloadListener,
+  InstallOptions,
+} from "./service.js";
 
 export {
   FontError,

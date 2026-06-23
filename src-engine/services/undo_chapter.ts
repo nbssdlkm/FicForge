@@ -30,6 +30,15 @@ export class UndoChapterError extends Error {
   }
 }
 
+/**
+ * undo 流程自身记账产生的 `update_fact_status` op 的 reason —— 生产端与过滤端共用，
+ * 避免「字面量散落 + 前缀约定」两处独立维护漂移（单一真相源）。
+ * 这些 op 不代表本章「真实发生过」的状态变更，故被 isUndoGeneratedStatusOp 排除回放。
+ */
+const UNDO_REASON_PREFIX = "undo_";
+const UNDO_RESOLVES_CASCADE_REASON = `${UNDO_REASON_PREFIX}resolves_cascade`;
+const UNDO_MANUAL_ROLLBACK_REASON = `${UNDO_REASON_PREFIX}manual_rollback`;
+
 export interface UndoChapterParams {
   au_id: string;
   cast_registry?: { characters?: string[] };
@@ -96,9 +105,10 @@ async function doUndo(params: UndoChapterParams): Promise<UndoChapterResult> {
     tx.updateFact(au_id, fact);
   }
 
-  // 步骤 3b：回放 update_fact_status（收集待更新 facts）
+  // 步骤 3b：回放 update_fact_status（收集待更新 facts + 反向 op，TD-003）
   const manualRollbacks = await collectManualStatusRollback(au_id, n, ops_repo, fact_repo);
-  for (const fact of manualRollbacks) {
+  for (const { op, fact } of manualRollbacks) {
+    tx.appendOp(au_id, op);
     tx.updateFact(au_id, fact);
   }
 
@@ -217,7 +227,7 @@ async function collectResolvesRollback(
           payload: {
             old_status: oldStatus,
             new_status: FactStatus.UNRESOLVED,
-            reason: "undo_resolves_cascade",
+            reason: UNDO_RESOLVES_CASCADE_REASON,
           },
         }),
         fact: target,
@@ -237,18 +247,36 @@ async function collectManualStatusRollback(
   n: number,
   ops_repo: OpsRepository,
   fact_repo: FactRepository,
-): Promise<Fact[]> {
-  const result: Fact[] = [];
+): Promise<ResolvesRollbackItem[]> {
+  const result: ResolvesRollbackItem[] = [];
 
   const allOps = await ops_repo.list_all(au_id);
   const statusOps = allOps.filter(
-    (op) => op.op_type === "update_fact_status" && op.chapter_num === n,
+    (op) =>
+      op.op_type === "update_fact_status" &&
+      op.chapter_num === n &&
+      // 排除 undo 自身记账产生的 update_fact_status op（undo_resolves_cascade /
+      // undo_manual_rollback）。它们不是本章「真实发生过」的状态变更，回放会把上一次
+      // undo 的反向操作再反一次 → 二次 undo 歧义（TD-003 修复要求）。单次 undo 中这些 op
+      // 还在事务里未落盘，本过滤为空操作；只在「章节 confirm→undo→reconfirm→undo」时生效。
+      !isUndoGeneratedStatusOp(op),
   );
 
   if (statusOps.length === 0) return result;
 
-  // 按时间戳逆序回放
-  statusOps.sort((a, b) => (a.timestamp > b.timestamp ? -1 : a.timestamp < b.timestamp ? 1 : 0));
+  // 逆序回放：按 lamport_clock 降序（与 ops_projection.deterministicSort 的升序镜像，
+  // timestamp / op_id 作 tiebreaker）。**不能只按 timestamp** —— now_utc() 截到整秒
+  // （file_utils.ts），同一秒内对同一 fact 的多次状态变更 timestamp 相同、比较器返回 0、
+  // 排序退化为升序（正放），导致只回滚到「最后一次变更的 old_status」而非本章真正的章前态。
+  // lamport_clock 在 append 时单调分配，对同秒 op 也严格有序。回放的最早一条 op（携带章前
+  // old_status）最后被 push、其 tx.updateFact 最后生效（last-write-win），故须降序。
+  statusOps.sort((a, b) => {
+    const clockA = a.lamport_clock ?? 0;
+    const clockB = b.lamport_clock ?? 0;
+    if (clockA !== clockB) return clockB - clockA;                       // lamport 降序
+    if (a.timestamp !== b.timestamp) return a.timestamp < b.timestamp ? 1 : -1;
+    return a.op_id < b.op_id ? 1 : a.op_id > b.op_id ? -1 : 0;
+  });
 
   for (const op of statusOps) {
     const oldStatus = op.payload.old_status as string | undefined;
@@ -257,11 +285,34 @@ async function collectManualStatusRollback(
     const fact = await fact_repo.get(au_id, op.target_id);
     if (fact === null) continue;
 
+    // 反向 op：把 fact 从当前状态退回 oldStatus，并落一条审计 op，使
+    // rebuildFactsFromOps 重建结果与 repo 一致（TD-003 —— 此前只改 repo 不落 op，重建发散）。
+    const currentStatus = fact.status;
     fact.status = oldStatus as FactStatus;
-    result.push(fact);
+    result.push({
+      op: createOpsEntry({
+        op_id: generate_op_id(),
+        op_type: "update_fact_status",
+        target_id: op.target_id,
+        chapter_num: n,
+        timestamp: now_utc(),
+        payload: {
+          old_status: currentStatus,
+          new_status: oldStatus,
+          reason: UNDO_MANUAL_ROLLBACK_REASON,
+        },
+      }),
+      fact,
+    });
   }
 
   return result;
+}
+
+/** 该 update_fact_status op 是否为 undo 流程自身记账产生（不应被后续 undo 再反向）。 */
+function isUndoGeneratedStatusOp(op: OpsEntry): boolean {
+  const reason = op.payload.reason;
+  return typeof reason === "string" && reason.startsWith(UNDO_REASON_PREFIX);
 }
 
 // -----------------------------------------------------------------

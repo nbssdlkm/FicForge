@@ -23,6 +23,7 @@ import type { FontRegistry } from "./registry.js";
 import type { FontStorage } from "./storage.js";
 import {
   FontError,
+  type DownloadProgress,
   type FontEntry,
   type FontStatus,
 } from "./types.js";
@@ -32,8 +33,32 @@ export interface InstallOptions {
   signal?: AbortSignal;
 }
 
+/**
+ * 下载生命周期事件。订阅者用它在 service 单例层（而非组件层）跟踪进度，
+ * 从而让进度条跨 UI 生命周期（如 Modal 关闭再打开）存活。见 TD-011。
+ *
+ * - `progress`：下载推进，携带最新 loaded/total。
+ * - `settled`：下载结束（成功 / 失败 / 取消任一）。订阅者应据此清理该 id 的
+ *   进度并重新查询状态 —— `settled` 不区分结果，因为成功与否由 `statusOf`
+ *   （读 storage）决定，失败 / 取消的错误展示由发起方自行处理。
+ */
+export type FontDownloadEvent =
+  | { readonly type: "progress"; readonly id: string; readonly progress: DownloadProgress }
+  | { readonly type: "settled"; readonly id: string };
+
+export type FontDownloadListener = (event: FontDownloadEvent) => void;
+
 export class FontsService {
   private readonly pendingDownloads = new Map<string, AbortController>();
+
+  /**
+   * 进行中下载的进度真相源。key = 字体 id。下载结束时删除。
+   * UI 晚挂载（Modal 重开）时用 `currentProgresses()` 读它做进度条初值。
+   */
+  private readonly progresses = new Map<string, DownloadProgress>();
+
+  /** 下载事件订阅者。install 推进 / 结束时通知，用于驱动跨生命周期的进度 UI。 */
+  private readonly downloadListeners = new Set<FontDownloadListener>();
 
   constructor(
     private readonly storage: FontStorage,
@@ -93,8 +118,15 @@ export class FontsService {
     }
 
     this.pendingDownloads.set(id, controller);
+    // 进度真相源住在 service：无论调用方是否传 onProgress（也无论调用方所属的
+    // UI 是否还挂载），service 都记录并广播进度，使晚挂载的订阅者能续上。
+    const trackProgress: ProgressCallback = (progress) => {
+      this.progresses.set(id, progress);
+      this.emitDownloadEvent({ type: "progress", id, progress });
+      options.onProgress?.(progress);
+    };
     try {
-      const data = await this.downloader.download(entry, options.onProgress, controller.signal);
+      const data = await this.downloader.download(entry, trackProgress, controller.signal);
       await this.storage.write(id, data);
       try {
         await this.registry.registerFromData(entry, data);
@@ -108,7 +140,44 @@ export class FontsService {
       }
     } finally {
       this.pendingDownloads.delete(id);
+      // 先清进度再广播 settled：订阅者在回调里查 currentProgresses() 即见已清状态。
+      this.progresses.delete(id);
+      this.emitDownloadEvent({ type: "settled", id });
       options.signal?.removeEventListener("abort", onExternalAbort);
+    }
+  }
+
+  /**
+   * 进行中下载的进度快照（id → loaded/total）。
+   *
+   * 供晚挂载的 UI（如设置 Modal 重新打开）在订阅前读取初值，从而即时显示
+   * 已进行的下载进度，而不是等下一个 progress 事件。见 TD-011。
+   */
+  currentProgresses(): Record<string, DownloadProgress> {
+    return Object.fromEntries(this.progresses);
+  }
+
+  /**
+   * 订阅下载进度 / 结束事件。返回取消订阅函数（在 UI 卸载时调用）。
+   *
+   * 让进度条跨组件生命周期存活：组件卸载只是退订，service 仍持续记录后台下载；
+   * 重新挂载时先 `currentProgresses()` 播种、再订阅增量。
+   */
+  subscribeDownloads(listener: FontDownloadListener): () => void {
+    this.downloadListeners.add(listener);
+    return () => {
+      this.downloadListeners.delete(listener);
+    };
+  }
+
+  /** 向所有订阅者广播下载事件。单个监听器抛错被隔离，不影响下载或其他监听器。 */
+  private emitDownloadEvent(event: FontDownloadEvent): void {
+    for (const listener of this.downloadListeners) {
+      try {
+        listener(event);
+      } catch (e) {
+        console.warn(`[FontsService] download listener threw for ${event.id}:`, e);
+      }
     }
   }
 

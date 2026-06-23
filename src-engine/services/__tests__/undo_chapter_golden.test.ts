@@ -365,7 +365,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
   // 6.1.8 Manual status rollback during undo
   // ---------------------------------------------------------
 
-  it("manual fact status change during chapter → undo reverts it in repo", async () => {
+  it("manual fact status change during chapter → undo reverts it in repo AND ops rebuild (TD-003)", async () => {
     await stateRepo.save(createState({ au_id: "au1" }));
 
     // Pre-existing active fact
@@ -387,17 +387,57 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     // f1 should revert to ACTIVE in repo (undo's collectManualStatusRollback)
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.ACTIVE);
 
-    // KNOWN GAP: undo reverts manual status changes in the fact repo but does
-    // NOT emit an ops entry for the rollback. rebuildFactsFromOps therefore
-    // cannot replicate this revert — the rebuilt fact stays "deprecated".
-    // This is a consistency gap between repo state and ops rebuild.
+    // TD-003 fix: undo now emits an `update_fact_status` rollback op (reason
+    // "undo_manual_rollback"), so rebuildFactsFromOps replicates the revert —
+    // rebuilt state matches the repo (active), closing the prior consistency gap.
     const ops = await opsRepo.list_all("au1");
+    const rollbackOp = ops.find(
+      (op) => op.op_type === "update_fact_status" &&
+        op.target_id === f1.id &&
+        op.payload.reason === "undo_manual_rollback",
+    );
+    expect(rollbackOp).toBeDefined();
+    expect(rollbackOp!.payload.old_status).toBe("deprecated");
+    expect(rollbackOp!.payload.new_status).toBe("active");
+
     const sorted = sortAndDedupeOps(ops);
     const rebuilt = rebuildFactsFromOps(sorted);
     const rebuiltF1 = rebuilt.find((f) => f.id === f1.id);
     expect(rebuiltF1).toBeDefined();
-    // Rebuilt fact stays "deprecated" because no rollback op was emitted
-    expect(rebuiltF1!.status).toBe("deprecated");
+    // Rebuilt fact is "active" — consistent with the repo (TD-003 closed).
+    expect(rebuiltF1!.status).toBe("active");
+  });
+
+  it("TWO manual status changes to one fact in a chapter → undo restores the TRUE pre-chapter status (lamport-ordered replay)", async () => {
+    await stateRepo.save(createState({ au_id: "au1" }));
+
+    // Pre-chapter fact starts UNRESOLVED.
+    const f1 = await add_fact("au1", 0, {
+      content_raw: "r", content_clean: "一条伏笔",
+      status: "unresolved", type: "foreshadowing",
+    }, factRepo, opsRepo);
+
+    await confirmChapter(1, "内容。");
+
+    // During chapter 1, change f1 TWICE: unresolved → resolved → deprecated.
+    // now_utc() truncates to whole seconds, so these two ops typically share an
+    // identical timestamp; only lamport_clock distinguishes their order.
+    await update_fact_status("au1", f1.id, "resolved", 1, factRepo, opsRepo, stateRepo);
+    await update_fact_status("au1", f1.id, "deprecated", 1, factRepo, opsRepo, stateRepo);
+    expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.DEPRECATED);
+
+    await doUndo();
+
+    // Must restore the TRUE pre-chapter status (UNRESOLVED), NOT the intermediate
+    // "resolved". A timestamp-only sort would tie on the same second and restore
+    // "resolved" — this asserts the lamport-ordered replay (TD-003 follow-up fix).
+    expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
+
+    // Closed loop holds: repo state ≡ ops rebuild.
+    const ops = await opsRepo.list_all("au1");
+    const rebuilt = rebuildFactsFromOps(sortAndDedupeOps(ops));
+    const rebuiltF1 = rebuilt.find((f) => f.id === f1.id);
+    expect(rebuiltF1!.status).toBe("unresolved");
   });
 
   // ---------------------------------------------------------

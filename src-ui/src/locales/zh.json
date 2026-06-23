@@ -531,6 +531,7 @@
       "overrideToggle": "启用覆盖",
       "storyModel": "本篇模型",
       "searchMode": "接入方式",
+      "apiKeyEmptyHint": "本篇 API Key 为空。删除并从回收站恢复 AU 会清除已保存的密钥，恢复后需要重新填写。",
       "chapterLengthDescription": "控制单次续写时的目标字数。",
       "customInstructionsPlaceholder": "比如：多写环境细节，台词短一点，情绪主要靠动作来带。",
       "pinnedDescription": "写作底线会在每次续写时都被优先参考，尽量只写最不能出错的几条。",

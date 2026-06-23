@@ -531,6 +531,7 @@
       "overrideToggle": "Override",
       "storyModel": "Story Model",
       "searchMode": "Connection Mode",
+      "apiKeyEmptyHint": "This story's API key is empty. Deleting an AU and restoring it from trash clears its saved key — re-enter it after restoring.",
       "chapterLengthDescription": "Controls the target word count for each generation.",
       "customInstructionsPlaceholder": "e.g. More environmental detail, shorter dialogue, convey emotions through actions.",
       "pinnedDescription": "Writing rules are always prioritized during generation. Keep only the most critical ones.",

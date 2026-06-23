@@ -132,6 +132,8 @@ export type {
   DownloaderOptions,
   FetchLike,
   FontCategory,
+  FontDownloadEvent,
+  FontDownloadListener,
   FontEntry,
   FontRegistry,
   FontRole,

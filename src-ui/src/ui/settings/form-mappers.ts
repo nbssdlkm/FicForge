@@ -202,3 +202,28 @@ export function buildAuSettingsSaveInput(form: AuSettingsFormState): AuSettingsS
     },
   };
 }
+
+/**
+ * 是否提示「本篇 AU 的 API Key 为空」（TD-008）。
+ *
+ * 触发条件：覆盖被识别为开启（`isLlmOverride`）+ API 模式 + key 留空。常见成因是
+ * AU 被删除后从回收站恢复 —— 删除时会**立即清除**密钥（缩小凭据泄漏窗口，见
+ * engine-fandom `deleteAu`/`removeSecureStorage`），project.yaml 里只剩 `<secure>`
+ * 占位符，恢复后读出来是空字符串，用户会困惑「之前填过怎么没了」。也覆盖「开了覆盖
+ * 但一直没填 key」的情形。措辞只陈述「为空 + 恢复会清除」这一事实、不断言成因，故无误报。
+ *
+ * **已知局限（见 TECH-DEBT TD-008 + 后续任务）**：`isLlmOverride` 目前由
+ * `hydrateAuSettingsForm` 从 llm 各字段「真值推断」，没有独立持久化的开关位。对一个
+ * **只覆盖了 key**（model / api_base 都沿用全局）的 AU，删除→恢复把唯一非空字段
+ * （key）也清空后，推断结果退回 `false` —— 覆盖区整体折叠，本提示不会出现。此时
+ * 用户的真实问题更深（覆盖被静默丢失），需要持久化「覆盖开启」标志位才能根治，且涉及
+ * 运行时 has_override 的产品取舍，单列后续任务跟踪。本提示对「整段覆盖（model/api_base
+ * 非空）+ key 被清」这一更常见场景工作正常。
+ */
+export function shouldWarnEmptyAuApiKey(
+  isLlmOverride: boolean,
+  llmMode: string,
+  auApiKey: string,
+): boolean {
+  return isLlmOverride && llmMode === "api" && auApiKey.trim() === "";
+}

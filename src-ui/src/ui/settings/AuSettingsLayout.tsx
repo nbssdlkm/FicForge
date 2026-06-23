@@ -31,6 +31,7 @@ import {
   buildAuSettingsSaveInput,
   createDefaultAuSettingsFormState,
   hydrateAuSettingsForm,
+  shouldWarnEmptyAuApiKey,
 } from './form-mappers';
 
 export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
@@ -275,7 +276,9 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                       <div className="flex flex-col gap-1.5">
                          <label className="text-xs font-bold text-text/90">{t("common.labels.apiKey")}</label>
                          <Input type="password" value={auApiKey} onChange={e => setAuApiKey(e.target.value)} placeholder="sk-..." className="h-11 text-base md:h-9 md:text-sm" />
-                         <p className="text-xs text-text/50">{t("common.help.apiKey")}</p>
+                         {shouldWarnEmptyAuApiKey(isLlmOverride, llmMode, auApiKey)
+                           ? <p className="text-xs text-amber-600 dark:text-amber-500">{t("settings.story.apiKeyEmptyHint")}</p>
+                           : <p className="text-xs text-text/50">{t("common.help.apiKey")}</p>}
                       </div>
                       <div className="flex flex-col gap-1.5 md:col-span-2">
                          <label className="text-xs font-bold text-text/90">{t("common.labels.apiBase")}</label>
