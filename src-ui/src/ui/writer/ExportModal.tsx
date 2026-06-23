@@ -5,10 +5,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
-import { FileUp } from 'lucide-react';
+import { FileUp, Archive } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
-import { exportChapters, logCatch } from '../../api/engine-client';
+import { exportChapters, exportAuBundle, logCatch } from '../../api/engine-client';
 import { isTauri, isCapacitor } from '../../utils/platform';
 
 async function saveWithTauriDialog(blob: Blob, filename: string): Promise<'saved' | 'cancelled' | 'error'> {
@@ -79,6 +79,43 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onCl
     }
   };
 
+  // 把 blob 落盘：Tauri 走原生对话框、Capacitor 走分享表/Documents、Web 走浏览器下载。
+  // 章节文本导出与完整备份导出共用同一条保存路由。
+  const dispatchSave = async (blob: Blob, filename: string) => {
+    if (isTauri()) {
+      const result = await saveWithTauriDialog(blob, filename);
+      if (abortRef.current) return;
+      if (result === 'saved') onClose();
+      else if (result === 'error') {
+        setError(t('export.saveFailed'));
+        setPendingBrowserFallback({ blob, filename });
+      }
+    } else if (isCapacitor()) {
+      // Capacitor mobile: prefer the platform share sheet when available.
+      const file = new File([blob], filename, { type: blob.type });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: filename });
+        onClose();
+      } else {
+        // Fallback for mobile environments without share-sheet file support.
+        const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
+        const text = await blob.text();
+        await Filesystem.writeFile({
+          path: filename,
+          data: text,
+          directory: Directory.Documents,
+          encoding: Encoding.UTF8,
+          recursive: true,
+        });
+        showToast(t('export.savedToDocuments', { filename }), 'success');
+        onClose();
+      }
+    } else {
+      saveWithBrowserDownload(blob, filename);
+      onClose();
+    }
+  };
+
   const handleExport = async () => {
     setExporting(true);
     setError(null);
@@ -95,38 +132,25 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onCl
         blob = new Blob([text + '\n\n---\n\n' + disclaimer + '\n'], { type: blob.type });
       }
 
-      if (isTauri()) {
-        const result = await saveWithTauriDialog(blob, filename);
-        if (abortRef.current) return;
-        if (result === 'saved') onClose();
-        else if (result === 'error') {
-          setError(t('export.saveFailed'));
-          setPendingBrowserFallback({ blob, filename });
-        }
-      } else if (isCapacitor()) {
-        // Capacitor mobile: prefer the platform share sheet when available.
-        const file = new File([blob], filename, { type: blob.type });
-        if (navigator.canShare?.({ files: [file] })) {
-          await navigator.share({ files: [file], title: filename });
-          onClose();
-        } else {
-          // Fallback for mobile environments without share-sheet file support.
-          const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
-          const text = await blob.text();
-          await Filesystem.writeFile({
-            path: filename,
-            data: text,
-            directory: Directory.Documents,
-            encoding: Encoding.UTF8,
-            recursive: true,
-          });
-          showToast(t('export.savedToDocuments', { filename }), 'success');
-          onClose();
-        }
-      } else {
-        saveWithBrowserDownload(blob, filename);
-        onClose();
-      }
+      await dispatchSave(blob, filename);
+    } catch (e: unknown) {
+      if (abortRef.current) return;
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      if (!abortRef.current) setExporting(false);
+    }
+  };
+
+  // 完整备份：导出整个 AU（进度/事实/线索/聊天/章节），用于换设备或简版迁回主 app。
+  const handleExportBundle = async () => {
+    setExporting(true);
+    setError(null);
+    setPendingBrowserFallback(null);
+    abortRef.current = false;
+    try {
+      const { blob, filename } = await exportAuBundle(auPath);
+      if (abortRef.current) return;
+      await dispatchSave(blob, filename);
     } catch (e: unknown) {
       if (abortRef.current) return;
       setError(e instanceof Error ? e.message : String(e));
@@ -179,6 +203,14 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean, onCl
         <Button tone="accent" fill="solid" className="w-full gap-2 shadow-md" onClick={handleExport} disabled={exporting}>
           <FileUp size={16}/> {exporting ? t('export.writing') : t('export.submit')}
         </Button>
+
+        <div className="border-t border-black/10 pt-5 dark:border-white/10">
+          <label className="text-sm font-bold text-text/90">{t('export.bundleLabel')}</label>
+          <p className="mt-1 mb-3 text-xs text-text/50">{t('export.bundleDescription')}</p>
+          <Button tone="neutral" fill="outline" className="w-full gap-2" onClick={handleExportBundle} disabled={exporting}>
+            <Archive size={16}/> {exporting ? t('export.writing') : t('export.bundleSubmit')}
+          </Button>
+        </div>
       </div>
     </Modal>
   );

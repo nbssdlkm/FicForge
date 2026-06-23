@@ -138,6 +138,23 @@ export {
 export type { ExportParams } from "./export_service.js";
 export { export_chapters } from "./export_service.js";
 
+// 全量 AU 备份导出/导入（TD-015）
+export type {
+  AuBundle,
+  AuBundleManifest,
+  CollectAuBundleOptions,
+  ImportAuBundleOptions,
+  ImportAuBundleResult,
+} from "./au_bundle.js";
+export {
+  AU_BUNDLE_VERSION,
+  AU_BUNDLE_EXCLUDED_DIRS,
+  AuBundleError,
+  collectAuBundle,
+  importAuBundle,
+  validateBundle,
+} from "./au_bundle.js";
+
 // Settings Chat
 export type { SettingsChatParams, SettingsChatResult } from "./settings_chat.js";
 export { build_settings_context, call_settings_llm } from "./settings_chat.js";

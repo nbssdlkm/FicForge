@@ -361,11 +361,13 @@ Codex Phase 7 audit 报告说 facts lifecycle "完全实现"——它看到 `col
 
 ## TD-015: 导入/导出范围太窄，不支持简版↔主 app 数据迁回
 
-**严重度**：P2（不阻塞当前功能，阻塞简版 fork 数据互通的体验）
-**归属**：engine + UI
-**触发场景**：用户在简版 fork（独立 APK）写了 N 章，想迁回主 app 用 RAG/facts 完整模式继续写
+**状态:** ✅ 已修复（2026-06-23）—— 新增**全量 AU 备份 bundle**（`src-engine/services/au_bundle.ts`）：`collectAuBundle` 递归打包整篇文（章节 / state / facts / threads / ops / 章节摘要 / simple-chat / worldbuilding / project），`importAuBundle` 还原。源真相全量带走；`.vectors`(RAG，与 embedding 模型绑定) + `.drafts` 排除，导入侧 `index_status` 无损置 STALE 后重建。UI：`ExportModal` 加「导出完整备份」、`RestoreBundleModal`（选 .ffbundle.json 文件 **或** 原始 AU 文件夹 → 新建文还原）、Library 工具栏入口。两条通道（bundle / 原始文件夹）+ 全保真。**经多代理对抗审阅修了 17 个数据完整性问题**（详见下）。引擎 1015 + UI 202 全绿。
 
-**当前状态：**
+**多代理审阅修复（2026-06-23，86 agent / 17 confirmed）：** 导出侧——遗留明文 api_key 强制脱敏（防密钥随包外泄）、读不出的文件**中止备份不静默丢**（区分真机空目录 vs 不可读文件）；导入侧——`index_status` 行级文本无损置 STALE（不走 dictToState 白名单，保留简版可能带的未知字段）、中途失败**回滚半张 AU 进回收站**（防缺章半成品冒充完整 + 让同名重试可行）、跳过的文件**告警而非报成功**；原始文件夹——AU-root 校验（挡「选错上层」）、修 `.well-known`/`.vectors` 被贪婪剥点前缀的 bug、Capacitor 隐藏选文件夹入口（webkitdirectory 不支持）；外加备份文件名加时间戳防覆盖、同名冲突本地化提示。新增测试 13(engine au_bundle) + RestoreBundleModal/ExportModal/restoreAuBundle 集成 + 回滚。
+
+**原诊断（历史）：** P2（不阻塞当前功能，阻塞简版 fork 数据互通的体验）。归属 engine + UI。触发：用户在简版 fork（独立 APK）写了 N 章，想迁回主 app 用 RAG/facts 完整模式继续写。
+
+**当时状态：**
 
 `src-engine/services/export_service.ts` 和 `import_pipeline.ts` 的导入/导出**只覆盖章节正文**（chapters/main/*.md）+ frontmatter 元数据。其他文件被忽略：
 

@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useMemo, useState } from 'react';
-import { Settings, BookOpen, Trash2, Plus, Import } from 'lucide-react';
+import { Settings, BookOpen, Trash2, Plus, Import, Archive } from 'lucide-react';
 import { Spinner } from "./shared/Spinner";
 import { Button } from './shared/Button';
 import { InlineBanner } from './shared/InlineBanner';
@@ -19,6 +19,7 @@ import { FeedbackProvider, useFeedback } from '../hooks/useFeedback';
 import { OnboardingFlow } from './onboarding/OnboardingFlow';
 import type { OnboardingCompletion } from './onboarding/MobileOnboarding';
 import { LibraryModals } from './LibraryModals';
+import { RestoreBundleModal } from './RestoreBundleModal';
 import { LibraryFandomSections } from './library/LibraryFandomSections';
 import { LibraryImportPanel } from './library/LibraryImportPanel';
 import { useLibraryImportFlow } from './library/useLibraryImportFlow';
@@ -39,6 +40,7 @@ function LibraryInner({ onNavigate }: Props) {
   const { fandoms, loading, loadFandoms } = useLibraryData();
   const [isGlobalSettingsOpen, setGlobalSettingsOpen] = useState(false);
   const [isGlobalTrashOpen, setGlobalTrashOpen] = useState(false);
+  const [isRestoreOpen, setRestoreOpen] = useState(false);
   const [trashTarget, setTrashTarget] = useState<{ fandomDir: string; fandomName: string } | null>(null);
   const [trashRefreshToken, setTrashRefreshToken] = useState(0);
   const {
@@ -155,6 +157,17 @@ function LibraryInner({ onNavigate }: Props) {
               title={t("trash.title")}
             >
               <Trash2 size={16} />
+            </Button>
+            <Button
+              tone="neutral"
+              fill="plain"
+              size="sm"
+              onClick={() => setRestoreOpen(true)}
+              disabled={mutating}
+              className="h-9 w-9 p-0 text-ink-muted hover:text-text"
+              title={t("restoreBundle.title")}
+            >
+              <Archive size={16} />
             </Button>
             <span className="mx-1 h-4 w-px bg-rule" aria-hidden="true" />
             <ThemeToggle />
@@ -306,6 +319,14 @@ function LibraryInner({ onNavigate }: Props) {
       />
 
       <GlobalSettingsModal isOpen={isGlobalSettingsOpen} onClose={() => setGlobalSettingsOpen(false)} />
+
+      <RestoreBundleModal
+        isOpen={isRestoreOpen}
+        onClose={() => setRestoreOpen(false)}
+        fandoms={fandoms}
+        dataDir={dataDir}
+        onComplete={loadFandoms}
+      />
 
       <Modal isOpen={isGlobalTrashOpen} onClose={() => setGlobalTrashOpen(false)} title={t('trash.title')}>
         <TrashPanel

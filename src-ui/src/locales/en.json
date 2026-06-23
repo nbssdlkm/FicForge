@@ -722,7 +722,29 @@
     "writing": "Writing to local file…",
     "submit": "Export",
     "saveFailed": "Export failed. Check file permissions.",
-    "savedToDocuments": "Saved to Documents: {{filename}}"
+    "savedToDocuments": "Saved to Documents: {{filename}}",
+    "bundleLabel": "Full backup (migrate / new device)",
+    "bundleDescription": "Bundle the whole story: chapters + writing progress + facts + threads + simple-mode chat, into one .ffbundle.json file. The search index (RAG) is not included and is rebuilt after import.",
+    "bundleSubmit": "Export full backup"
+  },
+  "restoreBundle": {
+    "title": "Import full backup",
+    "description": "Restore a story from a backup file (.ffbundle.json) or raw AU files exported from the simple app, including progress / facts / chat. Creates a new story; existing content is untouched.",
+    "pickFile": "Choose a backup file (.ffbundle.json)",
+    "pickRaw": "Or: choose raw AU files (multi-select)",
+    "fandomLabel": "Add to which collection",
+    "nameLabel": "New story name",
+    "summary": "{{chapters}} chapters · {{files}} files",
+    "submit": "Restore",
+    "restoring": "Restoring…",
+    "success": "Restored \"{{name}}\" ({{chapters}} chapters). The search index will rebuild next time you open this story.",
+    "badFile": "Failed to read backup file: {{message}}",
+    "noFandom": "Pick a collection first",
+    "nameRequired": "Enter a name for the new story",
+    "notAuRoot": "This doesn't look like a story's root folder. Pick the folder that directly contains project.yaml / chapters.",
+    "partialWarning": "Restored, but {{count}} file(s) were skipped (unsafe or non-text). Verify before deleting your original backup.",
+    "nameExists": "A story with this name already exists in this collection — try a different name.",
+    "rawDesktopOnly": "Folder selection is desktop-only; on mobile, import a .ffbundle.json backup file instead."
   },
   "emptyState": {
     "library": {

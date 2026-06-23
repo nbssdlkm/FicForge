@@ -722,7 +722,29 @@
     "writing": "正在写入本地文件…",
     "submit": "确认导出",
     "saveFailed": "导出失败，请检查文件权限。",
-    "savedToDocuments": "已保存到文档目录：{{filename}}"
+    "savedToDocuments": "已保存到文档目录：{{filename}}",
+    "bundleLabel": "完整备份（迁移 / 换设备）",
+    "bundleDescription": "把整篇文打包：章节 + 写作进度 + 事实 + 线索 + 简版聊天记录，存成一个 .ffbundle.json 文件。检索索引（RAG）不含在内，导入后会自动重建。",
+    "bundleSubmit": "导出完整备份"
+  },
+  "restoreBundle": {
+    "title": "导入完整备份",
+    "description": "从备份文件（.ffbundle.json）或简版导出的原始 AU 文件恢复一篇文，含进度 / 事实 / 聊天记录。会新建一篇文，不影响现有内容。",
+    "pickFile": "选择备份文件（.ffbundle.json）",
+    "pickRaw": "或：选择原始 AU 文件（可多选）",
+    "fandomLabel": "归到哪个合集",
+    "nameLabel": "新文名称",
+    "summary": "{{chapters}} 章 · {{files}} 个文件",
+    "submit": "恢复",
+    "restoring": "正在恢复…",
+    "success": "已恢复「{{name}}」（{{chapters}} 章）。检索索引会在下次打开这篇文时重建。",
+    "badFile": "读取备份文件失败：{{message}}",
+    "noFandom": "请先选一个合集",
+    "nameRequired": "请填写新文名称",
+    "notAuRoot": "这看起来不是一篇文的根目录。请选直接包含 project.yaml / chapters 的那一层文件夹。",
+    "partialWarning": "已恢复，但有 {{count}} 个文件被跳过（不安全或非文本）。请核对后再删除原始备份。",
+    "nameExists": "这个合集里已经有同名的文了，换个名字再试。",
+    "rawDesktopOnly": "「选文件夹」只在桌面端可用；手机上请改用 .ffbundle.json 备份文件导入。"
   },
   "emptyState": {
     "library": {

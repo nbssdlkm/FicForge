@@ -123,6 +123,13 @@ export { saveLore, readLore, deleteLore, listLoreFiles, importFromFandom, getLor
 export { sendSettingsChat } from "./engine-settings-chat";
 export { listFandoms, getFandomDisplayInfo, createFandom, listAus, createAu, deleteFandom, deleteAu, listFandomFiles, readFandomFile } from "./engine-fandom";
 export { exportChapters, importChaptersFromText } from "./engine-export";
+export {
+  exportAuBundle,
+  parseAuBundle,
+  bundleFromRawFiles,
+  restoreAuBundle,
+  type RestoreAuBundleResult,
+} from "./engine-export";
 export { migrateLegacySecureStorage } from "./engine-security";
 
 // ---------------------------------------------------------------------------
