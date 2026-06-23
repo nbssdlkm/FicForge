@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Button } from "../shared/Button";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
+import { useFeedback } from "../../hooks/useFeedback";
 import { TurnCard } from "./TurnCard";
 import { classifyTurns, type FileAnalysis, type ClassifiedTurn, type ClassificationThresholds } from "../../api/engine-client";
 
@@ -18,6 +19,7 @@ interface ChapterArrangeStepProps {
 
 export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onNext, onBack }: ChapterArrangeStepProps) {
   const { t } = useTranslation();
+  const { showToast } = useFeedback();
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
   const [visibleCounts, setVisibleCounts] = useState<Map<string, number>>(new Map());
   const PAGE_SIZE = 30;
@@ -158,7 +160,9 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
                 <p className="text-sm font-medium text-text truncate">{analysis.filename}</p>
                 <p className="text-xs text-text/50 mt-0.5">
                   {analysis.mode === "chat"
-                    ? `${t("import.chatDetected", { format: analysis.chatFormat ?? "" })} — `
+                    ? `${analysis.chatFormat === "LLM Detected"
+                        ? t("import.llmDetectedFriendly")
+                        : t("import.chatDetected", { format: analysis.chatFormat ?? "" })} — `
                     : `${t("import.textDetected")} — `}
                   {fileSummary(analysis)}
                 </p>
@@ -172,29 +176,45 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
             {/* Expanded turns list */}
             {isExpanded && analysis.mode === "chat" && analysis.turns && (
               <div className="border-t border-black/5 px-4 pb-4 pt-3 dark:border-white/5">
-                {/* Batch actions */}
+                {/* Uncertain guidance (TD-013) */}
+                {analysis.turns.some((tn) => tn.classification === "uncertain") && (
+                  <p className="mb-2 rounded-md bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
+                    {t("import.uncertainHint", { count: analysis.turns.filter((tn) => tn.classification === "uncertain").length })}
+                  </p>
+                )}
+                {/* Batch actions (TD-013: outline 提权重 + toast 反馈) */}
                 <div className="mb-3 flex flex-wrap gap-2">
                   <Button
-                    tone="neutral" fill="plain"
-                    size="sm"
-                    className="text-xs"
-                    onClick={() => batchAction(analyses, fileIndex, "skipAllUser", onUpdateAnalyses)}
+                    tone="neutral" fill="outline" size="sm" className="text-xs"
+                    onClick={() => { batchAction(analyses, fileIndex, "skipAllUser", onUpdateAnalyses); showToast(t("import.batchApplied"), "success"); }}
                   >
                     {t("import.step3BatchSkipUser")}
                   </Button>
                   <Button
-                    tone="neutral" fill="plain"
-                    size="sm"
-                    className="text-xs"
-                    onClick={() => batchAction(analyses, fileIndex, "allAiChapter", onUpdateAnalyses)}
+                    tone="neutral" fill="outline" size="sm" className="text-xs"
+                    onClick={() => { batchAction(analyses, fileIndex, "allAiChapter", onUpdateAnalyses); showToast(t("import.batchApplied"), "success"); }}
                   >
                     {t("import.step3BatchAllChapter")}
                   </Button>
+                  {analysis.turns.some((tn) => tn.classification === "uncertain") && (
+                    <>
+                      <Button
+                        tone="neutral" fill="outline" size="sm" className="text-xs"
+                        onClick={() => { batchAction(analyses, fileIndex, "uncertainSetting", onUpdateAnalyses); showToast(t("import.batchApplied"), "success"); }}
+                      >
+                        {t("import.batchUncertainSetting")}
+                      </Button>
+                      <Button
+                        tone="neutral" fill="outline" size="sm" className="text-xs"
+                        onClick={() => { batchAction(analyses, fileIndex, "uncertainSkip", onUpdateAnalyses); showToast(t("import.batchApplied"), "success"); }}
+                      >
+                        {t("import.batchUncertainSkip")}
+                      </Button>
+                    </>
+                  )}
                   <Button
-                    tone="neutral" fill="plain"
-                    size="sm"
-                    className="text-xs"
-                    onClick={() => handleReapplyThresholds(fileIndex)}
+                    tone="neutral" fill="outline" size="sm" className="text-xs"
+                    onClick={() => { handleReapplyThresholds(fileIndex); showToast(t("import.batchApplied"), "success"); }}
                   >
                     {t("import.step3BatchReapply")}
                   </Button>
@@ -348,7 +368,7 @@ function getChapterContextGlobal(
 function batchAction(
   analyses: FileAnalysis[],
   fileIndex: number,
-  action: "skipAllUser" | "allAiChapter",
+  action: "skipAllUser" | "allAiChapter" | "uncertainSetting" | "uncertainSkip",
   onUpdate: (updated: FileAnalysis[]) => void,
 ) {
   const updated = [...analyses];
@@ -368,6 +388,14 @@ function batchAction(
     for (const turn of turns) {
       if (turn.role === "assistant" && turn.charCount > 0) {
         turn.assignedType = "chapter";
+      }
+    }
+  } else if (action === "uncertainSetting" || action === "uncertainSkip") {
+    const target = action === "uncertainSetting" ? "setting" : "skip";
+    for (const turn of turns) {
+      if (turn.classification === "uncertain") {
+        turn.assignedType = target;
+        turn.assignedChapter = null;
       }
     }
   }

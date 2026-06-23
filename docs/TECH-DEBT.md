@@ -267,8 +267,8 @@ currentRec[key] = { ...(currentRec[key]), ...val };
 
 ## TD-013: ImportFlow `TurnCard` 视觉层级不清 + `setting` / `chapter_continue` 埋得深
 
-**状态:** 待修复
-**优先级:** 中（功能已可用，但发现性差 + 批量编辑笨拙）
+**状态:** ✅ 已修复（2026-06-23，核心项）—— `TurnCard` 用 **4 类型 pill 组**取代 `<select>` 下拉：chapter / chapter_continue / setting / skip 全部一眼可见（解决「setting/续埋在下拉里发现性差」），`chapter_continue` 在前面没有章时**禁用而非隐藏**（UI 稳定）。视觉层级重排：role + 类型 pill 为主，reason/preview 退次淡，preview 60→~140 字。`ChapterArrangeStep`：批量按钮 plain→outline 提权重 + 操作后 toast 反馈，新增「待定→全设定 / 全跳过」批量键 + uncertain 引导提示，`"LLM Detected"` 文案友好化为「AI 对话格式」。新增 `TurnCard.test.tsx` 5 例（pill 渲染 / 续禁用 / 点击切换 / 待定标）。i18n 1201。**进阶项（多选 checkbox + 粘性操作栏）未做**，留作后续。
+**优先级:** ~~中~~（核心已修；多选进阶为后续）
 **涉及文件:** `src-ui/src/ui/import/TurnCard.tsx`, `src-ui/src/ui/import/ChapterArrangeStep.tsx`
 
 波 2 LLM 对话识别完成后（commits `8139a6a`/`f93f6f0`），对话文件的 Import 流程完整 work，但用户在 `ChapterArrangeStep` 手动确认每轮类型时 UX 不佳。**等 Codex 当前架构大改完成后再动手**。
