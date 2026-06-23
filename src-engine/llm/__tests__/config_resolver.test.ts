@@ -42,6 +42,42 @@ describe("resolve_llm_config", () => {
     );
     expect(result.api_key).toBe("sk-real-key");
   });
+
+  // --- AU api_key override on the writer path (session_llm carries no key) ---
+
+  it("session w/ no key + AU override has its own key → uses the AU key, not global", () => {
+    // Mirrors the writer path: sessionLlmPayload sends the AU model/api_base but
+    // strips api_key; the AU points at its own provider (own api_base + own key).
+    // Must authenticate with the AU key, else requests hit the AU base with the
+    // global key → 401 (the bug this fixes).
+    const result = resolve_llm_config(
+      { mode: "api", model: "au-model", api_base: "https://au.provider/v1" },
+      { llm: { mode: "api", model: "au-model", api_base: "https://au.provider/v1", api_key: "sk-AU" } },
+      { default_llm: { mode: "api", model: "g", api_base: "https://global/v1", api_key: "sk-GLOBAL" } },
+    );
+    expect(result.api_base).toBe("https://au.provider/v1");
+    expect(result.api_key).toBe("sk-AU");
+  });
+
+  it("session w/ no key + AU override has NO key → falls back to the global key", () => {
+    // Model-only / no-key override: the AU reuses the global account, so the
+    // global key is correct.
+    const result = resolve_llm_config(
+      { mode: "api", model: "au-model", api_base: "" },
+      { llm: { mode: "api", model: "au-model", api_base: "", api_key: "" } },
+      { default_llm: { mode: "api", model: "g", api_base: "", api_key: "sk-GLOBAL" } },
+    );
+    expect(result.api_key).toBe("sk-GLOBAL");
+  });
+
+  it("session w/ no key + AU key is a placeholder/masked → falls back to the global key", () => {
+    const result = resolve_llm_config(
+      { mode: "api", model: "au-model", api_base: "https://au.provider/v1" },
+      { llm: { mode: "api", model: "au-model", api_base: "https://au.provider/v1", api_key: "<secure>" } },
+      { default_llm: { mode: "api", model: "g", api_base: "", api_key: "sk-GLOBAL" } },
+    );
+    expect(result.api_key).toBe("sk-GLOBAL");
+  });
 });
 
 describe("resolve_llm_params", () => {

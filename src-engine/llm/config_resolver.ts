@@ -46,12 +46,26 @@ export function resolve_llm_config(
   cfg.api_key = cfg.api_key ?? "";
   cfg.ollama_model = cfg.ollama_model ?? "";
 
-  // 掩码 / 占位符 api_key 防御
+  // 掩码 / 占位符 api_key 防御。
+  //
+  // 前端 session_llm **不携带 api_key**（见 useSessionParams：key 只留在后端），
+  // 所以走 session 分支时 cfg.api_key 为空，需在此回填真实 key。
+  //
+  // 关键：key 必须与 model/api_base **同源**。AU 覆盖了自己的 key（project.llm.api_key
+  // 非空，意味着用户为本 AU 配了独立 key/provider）时，**优先用 AU 的 key**，再回退全局。
+  // 否则换了 provider 的 AU 会带着全局 key 发到 AU 自己的 api_base → 401 invalid_api_key。
+  // 全局/无覆盖场景：project.llm.api_key 为空（saveAuSettings 关闭覆盖时会清空），
+  // 自然回退到 settings.default_llm.api_key。
   const isMasked = !cfg.api_key || cfg.api_key.startsWith("****") || cfg.api_key === "<secure>";
   if (isMasked) {
-    const realKey = settings.default_llm?.api_key;
-    if (typeof realKey === "string" && realKey && !realKey.startsWith("****") && realKey !== "<secure>") {
-      cfg.api_key = realKey;
+    const isUsableKey = (k: unknown): k is string =>
+      typeof k === "string" && k !== "" && !k.startsWith("****") && k !== "<secure>";
+    const projectKey = project.llm?.api_key;
+    const globalKey = settings.default_llm?.api_key;
+    if (isUsableKey(projectKey)) {
+      cfg.api_key = projectKey;
+    } else if (isUsableKey(globalKey)) {
+      cfg.api_key = globalKey;
     }
   }
 
