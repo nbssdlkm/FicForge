@@ -168,6 +168,9 @@ export async function saveAuSettingsForEditing(auPath: string, payload: AuSettin
           api_base: payload.llm_override.mode === "ollama"
             ? (payload.llm_override.api_base || DEFAULT_OLLAMA_BASE_URL)
             : payload.llm_override.api_base,
+          // 非 API 模式置空 api_key —— TD-016 修复后这会**真的删掉** secure storage 里的密钥
+          // （extractSecureFields 对空值改为 remove），故切到 ollama/local 再切回 API 需重填 key。
+          // 有意如此：让磁盘配置成为「有无密钥」唯一真相源，不留陈旧密钥被水合的隐患。
           api_key: payload.llm_override.mode === "api" ? payload.llm_override.api_key : "",
           local_model_path: payload.llm_override.mode === "local" ? payload.llm_override.local_model_path : "",
           ollama_model: payload.llm_override.mode === "ollama" ? payload.llm_override.ollama_model : "",

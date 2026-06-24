@@ -161,7 +161,9 @@ describe("useFontManager — progress persistence (TD-011)", () => {
     expect(result.current.statuses[DOWNLOADABLE_ID]).toBe("error");
   });
 
-  it("cross-modal headline: a download that settles while UNMOUNTED converges on the next mount via seed (TD-011)", async () => {
+  it("cross-modal: a download that settles while UNMOUNTED has its STATUS re-derived on the next mount (via refresh/statusOf, no live event)", async () => {
+    // 注：本测试守的是「重挂载时靠 refresh()->statusOf() 重新推导状态」这条路径，
+    // **不是** progress 播种（settled 后进度本就空，无从播种；in-flight 播种由上面那个测试守）。
     // 第一个 Modal 生命周期：挂载并订阅，然后关闭(卸载) → 订阅者消失
     const first = renderHook(() => useFontManager());
     await waitFor(() => expect(h.listeners.size).toBe(1));
@@ -172,8 +174,8 @@ describe("useFontManager — progress persistence (TD-011)", () => {
     h.state.statuses[DOWNLOADABLE_ID] = "installed";
     delete h.state.progresses[DOWNLOADABLE_ID];
 
-    // 重开 Modal（全新 hook 实例）→ 仅靠 mount 时的 currentProgresses()+statusOf() 播种收敛，
-    // 不依赖任何实时订阅事件。这正是 TD-011 跨 Modal 保证的核心路径。
+    // 重开 Modal（全新 hook 实例）→ mount 的 refresh()->statusOf() 把状态重新推导成 installed，
+    // 不依赖任何实时订阅事件。这是 TD-011 跨 Modal「状态最终一致」的核心路径。
     const second = renderHook(() => useFontManager());
     await waitFor(() => expect(second.result.current.statuses[DOWNLOADABLE_ID]).toBe("installed"));
     expect(second.result.current.progresses[DOWNLOADABLE_ID]).toBeUndefined();

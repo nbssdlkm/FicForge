@@ -176,10 +176,11 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
             {/* Expanded turns list */}
             {isExpanded && analysis.mode === "chat" && analysis.turns && (
               <div className="border-t border-black/5 px-4 pb-4 pt-3 dark:border-white/5">
-                {/* Uncertain guidance (TD-013) */}
-                {analysis.turns.some((tn) => tn.classification === "uncertain") && (
+                {/* Uncertain guidance (TD-013)。计数/按钮可见性与批量动作共用 isUncertainPending 同一判据：
+                    已被用户手动定成「章节」的待定轮不再算「待处理」，三处一致（全量审阅 R2 修过度计数）。*/}
+                {analysis.turns.some(isUncertainPending) && (
                   <p className="mb-2 rounded-md bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
-                    {t("import.uncertainHint", { count: analysis.turns.filter((tn) => tn.classification === "uncertain").length })}
+                    {t("import.uncertainHint", { count: analysis.turns.filter(isUncertainPending).length })}
                   </p>
                 )}
                 {/* Batch actions (TD-013: outline 提权重 + toast 反馈) */}
@@ -196,7 +197,7 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
                   >
                     {t("import.step3BatchAllChapter")}
                   </Button>
-                  {analysis.turns.some((tn) => tn.classification === "uncertain") && (
+                  {analysis.turns.some(isUncertainPending) && (
                     <>
                       <Button
                         tone="neutral" fill="outline" size="sm" className="text-xs"
@@ -303,6 +304,17 @@ function reassignChapterNumbersFrom(turns: ClassifiedTurn[], startChapter: numbe
   }
 }
 
+/**
+ * 「待处理的待定轮」：AI 标了 uncertain，且用户**还没**把它手动定成正式章节/续。
+ * 章节是用户的写作，绝不能被批量动作覆盖；已定成章节的待定轮也不应再算进「N 轮待处理」。
+ * 计数 / 按钮可见性 / 批量动作三处共用此判据，保证「看到的数字」=「按钮会动的范围」。
+ */
+function isUncertainPending(turn: ClassifiedTurn): boolean {
+  return turn.classification === "uncertain"
+    && turn.assignedType !== "chapter"
+    && turn.assignedType !== "chapter_continue";
+}
+
 function computeStats(turns: ClassifiedTurn[]): FileAnalysis["stats"] {
   return {
     totalChars: turns.reduce((sum, t) => sum + t.charCount, 0),
@@ -392,12 +404,10 @@ function batchAction(
     }
   } else if (action === "uncertainSetting" || action === "uncertainSkip") {
     const target = action === "uncertainSetting" ? "setting" : "skip";
+    // 只动「待处理的待定轮」（isUncertainPending）—— 绝不覆盖用户已手动定成章节/续的轮次，
+    // 否则点「待定→全跳过」会把用户特意保留的一章悄悄抹掉并把后续章号前挪（全量审阅 HIGH 数据丢失）。
     for (const turn of turns) {
-      // 只清「仍待定」的轮次，且**绝不覆盖用户已手动定成章节的轮次**——否则点「待定→全跳过」
-      // 会把用户特意保留的一章悄悄抹掉并把后续章号往前挪（TD-013 全量审阅 HIGH 数据丢失）。
-      if (turn.classification === "uncertain"
-        && turn.assignedType !== "chapter"
-        && turn.assignedType !== "chapter_continue") {
+      if (isUncertainPending(turn)) {
         turn.assignedType = target;
         turn.assignedChapter = null;
       }

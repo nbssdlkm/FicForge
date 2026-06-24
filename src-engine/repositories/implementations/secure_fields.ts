@@ -45,6 +45,7 @@
 
 import type { PlatformAdapter } from "../../platform/adapter.js";
 import { createAdapterSecretStore } from "../../platform/secret_store.js";
+import { getLogger, hasLogger } from "../../logger/index.js";
 
 /** YAML 中占位符。固定不变，跨 repo 共享语义。 */
 export const SECURE_PLACEHOLDER = "<secure>";
@@ -85,8 +86,16 @@ export async function extractSecureFields<T>(
       // 「有没有密钥」的唯一真相源。
       try {
         await secretStore.remove(spec.secureKey);
-      } catch {
-        // best-effort：清除失败不阻断 save 主流程。
+      } catch (err) {
+        // best-effort：清除失败不阻断 save，但**不能全静默** —— 若 remove 真失败，磁盘 YAML 写成
+        // 空、secure storage 仍留旧值，下次 restoreSecureFields 会把陈旧密钥水合回来，TD-016 的
+        // 401 会悄悄复发。至少落一条 error 日志让这种「盘空/库旧」分裂可诊断。
+        if (hasLogger()) {
+          getLogger().error("secure", "secureRemove failed on clear", {
+            key: spec.secureKey,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
       }
     }
   }

@@ -457,12 +457,22 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     await confirmChapter(1, "内容2。");
     await doUndo();
 
-    // 只回放真正的手动 op（active→deprecated 反成 active），排除 undo 自身记账 op → f1 仍 active。
-    // 若排除失效，rollback op（deprecated→active）会被再反向成 deprecated。
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.ACTIVE);
     const ops = await opsRepo.list_all("au1");
     const rebuilt = rebuildFactsFromOps(sortAndDedupeOps(ops));
     expect(rebuilt.find((f) => f.id === f1.id)!.status).toBe("active");
+
+    // 关键判别（repo 与 rebuild 因 last-write-win 两种情况都落 active，故不能只看它们）：
+    // **排除一旦失效**，二次 undo 会把上一次的 rollback op（deprecated→active）再反向，必然新落一条
+    // reason=undo_manual_rollback 且 new_status=deprecated 的 op。排除生效时绝不该出现这种 op。
+    // 这条断言才真正守住 isUndoGeneratedStatusOp（把过滤改成 true 它会变红）。
+    const rollbackToDeprecated = ops.filter(
+      (op) => op.op_type === "update_fact_status"
+        && op.target_id === f1.id
+        && op.payload.reason === "undo_manual_rollback"
+        && op.payload.new_status === "deprecated",
+    );
+    expect(rollbackToDeprecated).toEqual([]);
   });
 
   // ---------------------------------------------------------

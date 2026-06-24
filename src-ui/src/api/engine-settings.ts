@@ -227,6 +227,8 @@ export async function saveGlobalSettingsForEditing(payload: GlobalSettingsSaveIn
       api_base: payload.default_llm.mode === "ollama"
         ? (payload.default_llm.api_base || DEFAULT_OLLAMA_BASE_URL)
         : payload.default_llm.api_base,
+      // 非 API 模式置空 = 删除 secure storage 密钥（TD-016 修复后行为）；切回 API 需重填。详见
+      // engine-project.ts 同款注释。有意如此：磁盘配置即唯一真相源。
       api_key: payload.default_llm.mode === "api" ? payload.default_llm.api_key : "",
       local_model_path: payload.default_llm.mode === "local" ? payload.default_llm.local_model_path : "",
       ollama_model: payload.default_llm.mode === "ollama" ? payload.default_llm.ollama_model : "",
