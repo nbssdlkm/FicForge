@@ -64,7 +64,8 @@ export interface SecureFieldSpec<T> {
 /**
  * 持久化前脱敏。对每个 spec：
  *   非空、非占位符 → 写 secure storage，对象字段替换为占位符
- *   其它情况（空 / 已是占位符）→ 不动
+ *   显式置空（""）→ **删除** secure storage 里的旧值（清除密钥）
+ *   已是占位符 → 不动（沿用已存的密钥）
  */
 export async function extractSecureFields<T>(
   obj: T,
@@ -77,6 +78,16 @@ export async function extractSecureFields<T>(
     if (value && value !== SECURE_PLACEHOLDER) {
       await secretStore.set(spec.secureKey, value);
       spec.set(obj, SECURE_PLACEHOLDER);
+    } else if (value === "") {
+      // 显式置空 = 清除密钥（如关闭 AU 覆盖、用户删掉 key）。必须同步删掉 secure storage
+      // 里的旧值——否则 restoreSecureFields 会把陈旧密钥重新水合回这个空字段，造成「关了
+      // 覆盖却仍发旧 key 到全局 base」的错配 401（TD-016 全量对抗审阅发现）。让磁盘成为
+      // 「有没有密钥」的唯一真相源。
+      try {
+        await secretStore.remove(spec.secureKey);
+      } catch {
+        // best-effort：清除失败不阻断 save 主流程。
+      }
     }
   }
 }

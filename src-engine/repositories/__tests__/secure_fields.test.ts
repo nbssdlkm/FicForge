@@ -54,6 +54,21 @@ describe("extractSecureFields", () => {
     expect(await adapter.secureGet("test.password")).toBe("hunter2");
   });
 
+  it("显式置空清除 secure storage 里的旧密钥，再读不会水合陈旧 key（TD-016 全量审阅）", async () => {
+    const adapter = new MockAdapter();
+    await adapter.secureSet("test.api_key", "sk-STALE");
+
+    // 用户置空该字段后再次保存（如关闭 AU 覆盖）
+    const obj: TestObj = { api_key: "", password: "", not_secret: "x" };
+    await extractSecureFields(obj, specs, adapter);
+    expect(await adapter.secureGet("test.api_key")).toBeNull();
+
+    // 关键：再读回来不会被陈旧密钥水合，磁盘的「空」就是真的空
+    const reread: TestObj = { api_key: "", password: "", not_secret: "x" };
+    await restoreSecureFields(reread, specs, adapter);
+    expect(reread.api_key).toBe("");
+  });
+
   it("已是占位符的字段不回写 secure storage", async () => {
     const adapter = new MockAdapter();
     // 预先写入真实值

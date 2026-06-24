@@ -163,13 +163,36 @@ describe("collectAuBundle aborts on unreadable files (review fix — no silent d
     }
   }
 
-  it("throws instead of silently dropping a present-but-unreadable file", async () => {
+  it("throws instead of silently dropping a present-but-unreadable file (native: listDir throws)", async () => {
     const root = "data/aus/p";
     const poison = `${root}/chapters/main/ch0002.md`;
     const adapter = new PoisonAdapter(poison);
     await adapter.writeFile(`${root}/state.yaml`, "current_chapter: 2");
     await adapter.writeFile(`${root}/chapters/main/ch0001.md`, "ok");
     await adapter.writeFile(poison, "this file will fail to read");
+
+    await expect(collectAuBundle(root, adapter)).rejects.toThrow(AuBundleError);
+  });
+
+  // 模拟 WEB 平台（简版 fork 实际导出环境）：对文件 listDir **不抛错、返回 []**，只 readFile 抛错。
+  // getPlatform() === "web"（MockAdapter 默认），不能靠 listDir 抛错来识别文件。
+  class WebReadFailAdapter extends MockAdapter {
+    constructor(private readonly poison: string) { super(); }
+    async readFile(path: string): Promise<string> {
+      if (strip(path) === strip(this.poison)) throw new Error("EIO");
+      return super.readFile(path);
+    }
+    // listDir 不覆盖 → 对文件返回 []（web 语义）
+  }
+
+  it("throws on web platform too where listDir returns [] for an unreadable file (全量审阅 HIGH)", async () => {
+    const root = "data/aus/web";
+    const poison = `${root}/chapters/main/ch0002.md`;
+    const adapter = new WebReadFailAdapter(poison);
+    expect(adapter.getPlatform()).toBe("web");
+    await adapter.writeFile(`${root}/state.yaml`, "current_chapter: 2");
+    await adapter.writeFile(`${root}/chapters/main/ch0001.md`, "ok");
+    await adapter.writeFile(poison, "unreadable on web");
 
     await expect(collectAuBundle(root, adapter)).rejects.toThrow(AuBundleError);
   });

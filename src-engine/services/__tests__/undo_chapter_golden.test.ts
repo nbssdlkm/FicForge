@@ -440,6 +440,31 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     expect(rebuiltF1!.status).toBe("unresolved");
   });
 
+  it("double-undo (confirm→undo→reconfirm→undo) does NOT re-reverse the prior rollback op (isUndoGeneratedStatusOp is load-bearing)", async () => {
+    await stateRepo.save(createState({ au_id: "au1" }));
+    const f1 = await add_fact("au1", 0, {
+      content_raw: "r", content_clean: "背景事实",
+      status: "active", type: "backstory",
+    }, factRepo, opsRepo);
+
+    await confirmChapter(1, "内容。");
+    await update_fact_status("au1", f1.id, "deprecated", 1, factRepo, opsRepo, stateRepo);
+    await doUndo();
+    expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.ACTIVE);
+
+    // 重新确认 ch1 再 undo —— 上一次 undo 落的 undo_manual_rollback op（chapter_num 1）必须被
+    // isUndoGeneratedStatusOp 排除，不能在二次 undo 里被当成「本章手动变更」再反向一次。
+    await confirmChapter(1, "内容2。");
+    await doUndo();
+
+    // 只回放真正的手动 op（active→deprecated 反成 active），排除 undo 自身记账 op → f1 仍 active。
+    // 若排除失效，rollback op（deprecated→active）会被再反向成 deprecated。
+    expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.ACTIVE);
+    const ops = await opsRepo.list_all("au1");
+    const rebuilt = rebuildFactsFromOps(sortAndDedupeOps(ops));
+    expect(rebuilt.find((f) => f.id === f1.id)!.status).toBe("active");
+  });
+
   // ---------------------------------------------------------
   // 6.1.9 Archived fact: undo correctly handles archived facts
   // (M10-B regression: cold-tier facts must survive / be deleted correctly)

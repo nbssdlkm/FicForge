@@ -241,9 +241,13 @@ async function collectFiles(root: string, adapter: PlatformAdapter, prefix: stri
     }
     if (content !== null) {
       result.entries.push({ rel, content });
-    } else if (child === null) {
-      // 确定是文件（listDir 抛错）却读不出 → 真不可读，报告。
-      // （child === [] 多为真机空目录，不记 unreadable。）
+    } else if (child === null || adapter.getPlatform() === "web") {
+      // 读不出且确定是文件 → 报告为不可读（不能静默丢，否则备份缺章还报成功）。
+      // 判「确定是文件」分两种平台语义：
+      //   · 真机(tauri/capacitor)：对文件 listDir 抛错 → child===null。空目录则 child===[]，静默跳过。
+      //   · web/IndexedDB(含 MockAdapter)：目录是 key 前缀派生的，**空目录不存在**于列表里，
+      //     所以一个出现在父级 listDir 里、自身 listDir 又返回 [] 的条目必是文件 —— 读不出即不可读。
+      // 简版 fork 正是从 web 平台导出，这条分支堵的就是「web 上静默丢文件」（全量审阅 HIGH）。
       result.unreadable.push(rel);
     }
   }

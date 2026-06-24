@@ -270,6 +270,9 @@ async function collectManualStatusRollback(
   // 排序退化为升序（正放），导致只回滚到「最后一次变更的 old_status」而非本章真正的章前态。
   // lamport_clock 在 append 时单调分配，对同秒 op 也严格有序。回放的最早一条 op（携带章前
   // old_status）最后被 push、其 tx.updateFact 最后生效（last-write-win），故须降序。
+  // 前提：所有 status op 都经 file_ops.append 拿到真实 lamport_clock。导入路径（如 bundle）
+  // 直接搬运 ops.jsonl 也保留原 lamport，故成立；唯有「lamport 缺失记 0」的远古遗留 op 同秒
+  // 同 fact 并存时才会退到 op_id tiebreak（确定但非因果序）—— 当前数据形态不存在，见 TECH-DEBT。
   statusOps.sort((a, b) => {
     const clockA = a.lamport_clock ?? 0;
     const clockB = b.lamport_clock ?? 0;

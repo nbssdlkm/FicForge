@@ -268,6 +268,8 @@ currentRec[key] = { ...(currentRec[key]), ...val };
 ## TD-013: ImportFlow `TurnCard` 视觉层级不清 + `setting` / `chapter_continue` 埋得深
 
 **状态:** ✅ 已修复（2026-06-23，核心项）—— `TurnCard` 用 **4 类型 pill 组**取代 `<select>` 下拉：chapter / chapter_continue / setting / skip 全部一眼可见（解决「setting/续埋在下拉里发现性差」），`chapter_continue` 在前面没有章时**禁用而非隐藏**（UI 稳定）。视觉层级重排：role + 类型 pill 为主，reason/preview 退次淡，preview 60→~140 字。`ChapterArrangeStep`：批量按钮 plain→outline 提权重 + 操作后 toast 反馈，新增「待定→全设定 / 全跳过」批量键 + uncertain 引导提示，`"LLM Detected"` 文案友好化为「AI 对话格式」。新增 `TurnCard.test.tsx` 5 例（pill 渲染 / 续禁用 / 点击切换 / 待定标）。i18n 1201。**进阶项（多选 checkbox + 粘性操作栏）未做**，留作后续。
+
+**全量对抗审阅追修（2026-06-23）：** 新增的「待定→全设定/全跳过」批量键按**不可变的** `classification` 判定，会把用户已手动定成「章节」的轮次也一起回退 → 用户保留的一章被悄悄抹掉 + 后续章号前挪（数据丢失）。修复：批量循环跳过 `assignedType` 已是 chapter/chapter_continue 的轮次。新增 `ChapterArrangeStep.test.tsx` 回归测试。
 **优先级:** ~~中~~（核心已修；多选进阶为后续）
 **涉及文件:** `src-ui/src/ui/import/TurnCard.tsx`, `src-ui/src/ui/import/ChapterArrangeStep.tsx`
 
@@ -365,6 +367,8 @@ Codex Phase 7 audit 报告说 facts lifecycle "完全实现"——它看到 `col
 
 **多代理审阅修复（2026-06-23，86 agent / 17 confirmed）：** 导出侧——遗留明文 api_key 强制脱敏（防密钥随包外泄）、读不出的文件**中止备份不静默丢**（区分真机空目录 vs 不可读文件）；导入侧——`index_status` 行级文本无损置 STALE（不走 dictToState 白名单，保留简版可能带的未知字段）、中途失败**回滚半张 AU 进回收站**（防缺章半成品冒充完整 + 让同名重试可行）、跳过的文件**告警而非报成功**；原始文件夹——AU-root 校验（挡「选错上层」）、修 `.well-known`/`.vectors` 被贪婪剥点前缀的 bug、Capacitor 隐藏选文件夹入口（webkitdirectory 不支持）；外加备份文件名加时间戳防覆盖、同名冲突本地化提示。新增测试 13(engine au_bundle) + RestoreBundleModal/ExportModal/restoreAuBundle 集成 + 回滚。
 
+**全量对抗审阅追修（2026-06-23）：** 「读不出文件就中止备份」的判定原本只在真机（listDir 对文件抛错）生效；**web 平台**（简版 fork 实际导出环境）listDir 对文件返回 `[]` 不抛错，导致存在但读不出的文件仍被**静默丢弃**还报成功。修复：按 `getPlatform()==="web"` 补判（web 上 listDir 返回 `[]` 的条目必是文件，因 IndexedDB 无空目录键）。新增 web 语义回归测试（只覆盖 readFile 抛错）。
+
 **原诊断（历史）：** P2（不阻塞当前功能，阻塞简版 fork 数据互通的体验）。归属 engine + UI。触发：用户在简版 fork（独立 APK）写了 N 章，想迁回主 app 用 RAG/facts 完整模式继续写。
 
 **当时状态：**
@@ -406,6 +410,8 @@ Codex Phase 7 audit 报告说 facts lifecycle "完全实现"——它看到 `col
 ## TD-016: AU 级 LLM api_key/api_base 覆盖在「正文续写」路径上失效（401）
 
 **状态:** ✅ 已修复（2026-06-23）—— `resolve_llm_config` 的掩码 key 回填改为**优先 `project.llm.api_key`、再回退 `settings.default_llm.api_key`**，让 key 与 model/api_base 同源。`src-engine/llm/config_resolver.ts`，单测 `config_resolver.test.ts`（+3）。
+
+**全量对抗审阅追修（2026-06-23）：** 上面这个改动暴露了一个**既存陷阱**：关闭 AU 覆盖时 `saveAuSettingsForEditing` 把 `api_key` 写成 `""`，但 `extractSecureFields` 对空值是 skip，secure storage 里的旧密钥不删，`restoreSecureFields` 又会把它**水合回**空字段 → 本改动让这条陈旧 key 被配上全局 base 发出去 → 401。根治：`extractSecureFields` 对显式空值改为**删除** secure storage 条目（`secure_fields.ts`），让磁盘成为「有无密钥」唯一真相源；顺带修了 `hasProjectLlmOverride` 因陈旧 key 误判 override 仍开的问题。单测 `secure_fields.test.ts`（置空→不水合）。
 **优先级:** ~~中~~（已修复；换 provider 的 AU 正文续写曾必 401）
 **涉及文件:** `src-engine/llm/config_resolver.ts`、`src-ui/src/ui/writer/useSessionParams.ts`（payload 不带 key，设计如此，未改）
 

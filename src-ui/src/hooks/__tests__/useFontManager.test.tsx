@@ -160,4 +160,22 @@ describe("useFontManager — progress persistence (TD-011)", () => {
     await waitFor(() => expect(h.listeners.size).toBe(1));
     expect(result.current.statuses[DOWNLOADABLE_ID]).toBe("error");
   });
+
+  it("cross-modal headline: a download that settles while UNMOUNTED converges on the next mount via seed (TD-011)", async () => {
+    // 第一个 Modal 生命周期：挂载并订阅，然后关闭(卸载) → 订阅者消失
+    const first = renderHook(() => useFontManager());
+    await waitFor(() => expect(h.listeners.size).toBe(1));
+    first.unmount();
+    expect(h.listeners.size).toBe(0);
+
+    // 后台在「无订阅者」时 settle：service 状态变 installed、进度清空（没有 listener 收到事件）
+    h.state.statuses[DOWNLOADABLE_ID] = "installed";
+    delete h.state.progresses[DOWNLOADABLE_ID];
+
+    // 重开 Modal（全新 hook 实例）→ 仅靠 mount 时的 currentProgresses()+statusOf() 播种收敛，
+    // 不依赖任何实时订阅事件。这正是 TD-011 跨 Modal 保证的核心路径。
+    const second = renderHook(() => useFontManager());
+    await waitFor(() => expect(second.result.current.statuses[DOWNLOADABLE_ID]).toBe("installed"));
+    expect(second.result.current.progresses[DOWNLOADABLE_ID]).toBeUndefined();
+  });
 });

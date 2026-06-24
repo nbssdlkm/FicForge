@@ -393,7 +393,11 @@ function batchAction(
   } else if (action === "uncertainSetting" || action === "uncertainSkip") {
     const target = action === "uncertainSetting" ? "setting" : "skip";
     for (const turn of turns) {
-      if (turn.classification === "uncertain") {
+      // 只清「仍待定」的轮次，且**绝不覆盖用户已手动定成章节的轮次**——否则点「待定→全跳过」
+      // 会把用户特意保留的一章悄悄抹掉并把后续章号往前挪（TD-013 全量审阅 HIGH 数据丢失）。
+      if (turn.classification === "uncertain"
+        && turn.assignedType !== "chapter"
+        && turn.assignedType !== "chapter_continue") {
         turn.assignedType = target;
         turn.assignedChapter = null;
       }
