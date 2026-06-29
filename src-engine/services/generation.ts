@@ -7,10 +7,9 @@
  * 返回 AsyncGenerator，前端直接消费。
  */
 
-import { getSimpleFeatures } from "../config/simple_features.js";
 import type { BudgetReport } from "../domain/budget_report.js";
 import type { ContextSummary } from "../domain/context_summary.js";
-import { FactStatus, IndexStatus } from "../domain/enums.js";
+import { IndexStatus } from "../domain/enums.js";
 import type { Fact } from "../domain/fact.js";
 import type { Thread } from "../domain/thread.js";
 import type { GeneratedWith } from "../domain/generated_with.js";
@@ -30,7 +29,7 @@ import type { ResolvedLLMConfig, ResolvedLLMParams } from "../llm/config_resolve
 import { create_provider, resolve_llm_config, resolve_llm_params } from "../llm/config_resolver.js";
 import { assemble_context } from "./context_assembler.js";
 import type { ChunkWithCollection } from "./rag_retrieval.js";
-import { build_active_chars, build_rag_query, retrieve_rag, toRagChunkDetail } from "./rag_retrieval.js";
+import { retrieveRagForContext, toRagChunkDetail } from "./rag_retrieval.js";
 import { now_utc, joinPath } from "../repositories/implementations/file_utils.js";
 import { withAuLock } from "./au_lock.js";
 
@@ -216,30 +215,19 @@ export async function* generate_chapter(
     }
 
     // === 步骤 1.8：RAG 检索（STALE 时也尝试召回，并在 summary 标记索引可能过期）===
+    // RAG 编排已抽到 rag_retrieval.ts:retrieveRagForContext（单一真相源,对话路径共用,融合 plan §1.0）。
+    // 融合后无简版,写文生成期 RAG 恒开:原 disableRAG gate 已删（full 模式本就 disableRAG=false,逐字节不变）。
     const indexReady = state.index_status === IndexStatus.READY;
     let ragChunksDetail: ChunkWithCollection[] = [];
-    if (!getSimpleFeatures(params.settings.app.writing_mode).disableRAG && rag_text === null && vector_repo && embedding_provider) {
-      try {
-        const castReg = project.cast_registry ?? { characters: [] };
-        const activeChars = build_active_chars(state, user_input, project, facts, castReg);
-        const focusTexts = facts.filter((f) => f.status === FactStatus.ACTIVE).map((f) => f.content_clean);
-        const lastEnding = state.last_scene_ending ?? "";
-        const query = build_rag_query(focusTexts, lastEnding, user_input);
-        if (query) {
-          const ragBudget = Math.max(0, Math.trunc((project.llm?.context_window || 128000) / 4));
-          const [ragResult, , chunks] = await retrieve_rag(
-            vector_repo, embedding_provider, au_id, query,
-            ragBudget, activeChars, llmConfig,
-            project.rag_decay_coefficient ?? 0.05,
-            state.current_chapter ?? 1, language,
-          );
-          if (ragResult) {
-            rag_text = ragResult;
-            ragChunksDetail = chunks;
-          }
-        }
-      } catch {
-        // RAG 失败不中断生成
+    if (rag_text === null && vector_repo && embedding_provider) {
+      const rag = await retrieveRagForContext({
+        project, state, user_input, facts,
+        vector_repo, embedding_provider, au_id,
+        llm_config: llmConfig, language,
+      });
+      if (rag.ragText) {
+        rag_text = rag.ragText;
+        ragChunksDetail = rag.chunks;
       }
     }
 

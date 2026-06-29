@@ -91,41 +91,17 @@ async function collectEvents(gen: AsyncGenerator<GenerationEvent>): Promise<Gene
   return events;
 }
 
-describe("generate_chapter — writing_mode gate（简版跳过 RAG）", () => {
+// 融合(plan §1.0):generate_chapter 不再按 writing_mode gate RAG —— 删了 disableRAG,
+// 写文路径 RAG 恒开。原「writing_mode='simple' 跳过 RAG」用例已随全塞退役删除;保留下方
+// full 路径用例,作为 RAG 编排抽到 retrieveRagForContext 后的端到端回归守护。
+describe("generate_chapter — RAG 检索(写文路径恒开)", () => {
   let adapter: MockAdapter;
 
   beforeEach(() => {
     adapter = new MockAdapter();
   });
 
-  it("writing_mode='simple' 即便 index_status=STALE 也跳过 RAG（getSimpleFeatures.disableRAG=true）", async () => {
-    const searchSpy = vi.fn<VectorRepository["search"]>(async () => []);
-
-    const events = await collectEvents(generate_chapter(makeParams(adapter, {
-      au_id: "au_simple_skip_rag",
-      settings: createSettings({ app: createAppConfig({ writing_mode: "simple" }) }),
-      state: createState({
-        au_id: "au_simple_skip_rag",
-        current_chapter: 2,
-        index_status: IndexStatus.STALE,
-      }),
-      vector_repo: makeVectorRepo(searchSpy),
-      embedding_provider: makeEmbeddingProvider(),
-      _provider_override: createMockProvider(["继续", "写"]),
-    })));
-
-    // 核心断言：disableRAG 推导为 true → vector_repo.search 从未被调用。
-    expect(searchSpy).not.toHaveBeenCalled();
-
-    // LLM 文本仍正常产出草稿（流程没有因跳过 RAG 而中断）。
-    const doneEvent = events.find((e) => e.type === "done");
-    expect(doneEvent).toBeDefined();
-    const data = doneEvent!.data as { full_text: string; draft_label: string };
-    expect(data.full_text).toBe("继续写");
-    expect(data.draft_label).toBe("A");
-  });
-
-  it("writing_mode='full'（默认）+ index_status=READY 时仍执行 RAG（vector_repo.search 被调用）", async () => {
+  it("repo+embedding 就位 + index READY 时执行 RAG（vector_repo.search 被调用,rag_chunks_retrieved=1）", async () => {
     const searchSpy = vi.fn<VectorRepository["search"]>(async (_auId, _queryEmbedding, options) => {
       if (options.collection !== "chapters") return [];
       return [{
@@ -150,11 +126,35 @@ describe("generate_chapter — writing_mode gate（简版跳过 RAG）", () => {
       _provider_override: createMockProvider(["继续", "写"]),
     })));
 
-    // 核心断言：full 模式 disableRAG=false → vector_repo.search 被调用。
+    // 核心断言：rag_text===null + repo/embedding 就位 → 内部检索触发,vector_repo.search 被调用
+    //（disableRAG gate 已删,触发条件与 writing_mode 无关）。
     expect(searchSpy).toHaveBeenCalled();
 
     const contextEvent = events.find((e) => e.type === "context_summary");
     expect(contextEvent).toBeDefined();
     expect((contextEvent!.data as { rag_chunks_retrieved: number }).rag_chunks_retrieved).toBe(1);
+  });
+
+  it("外部已传入 rag_text → 跳过内部检索（caller gate rag_text===null,vector_repo.search 不被调用）", async () => {
+    const searchSpy = vi.fn<VectorRepository["search"]>(async () => [
+      { content: "不该被检索到的内部 chunk", chapter_num: 1, score: 0.9, metadata: {} },
+    ]);
+
+    const events = await collectEvents(generate_chapter(makeParams(adapter, {
+      au_id: "au_external_rag",
+      settings: createSettings({ app: createAppConfig({ writing_mode: "full" }) }),
+      state: createState({ au_id: "au_external_rag", current_chapter: 2, index_status: IndexStatus.READY }),
+      vector_repo: makeVectorRepo(searchSpy),
+      embedding_provider: makeEmbeddingProvider(),
+      rag_text: "外部已检索并注入的上下文",
+      _provider_override: createMockProvider(["继续", "写"]),
+    })));
+
+    // caller gate `rag_text === null`:外部已传 rag_text → 内部 retrieveRagForContext 不触发。
+    expect(searchSpy).not.toHaveBeenCalled();
+    // 且外部 rag_text 确实被转发进 assemble_context(P4 按行计数 → context_summary 非零),
+    // 锁住「gate 跳过内部检索」的同时「外部 rag_text 不被静默丢弃」。
+    const ctx = events.find((e) => e.type === "context_summary");
+    expect((ctx!.data as { rag_chunks_retrieved: number }).rag_chunks_retrieved).toBeGreaterThan(0);
   });
 });

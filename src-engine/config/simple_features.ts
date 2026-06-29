@@ -17,7 +17,9 @@
 export interface SimpleFeatures {
   /** assemble_context 走"全塞"分支：不做 P0-P5 预算切分，直接把全部 worldbuilding + characters + chapters 拼成 user message。 */
   readonly simpleAssembler: boolean;
-  /** confirm_chapter 后跳过 RAG 增量索引；保持 ragManager 代码可调用，但简版入口不再触发。 */
+  /** 原 gate 写文生成期 RAG 检索（generation.ts）。**融合后(plan §1.0)已删该 gate、写文 RAG 恒开,
+   *  本字段已无生产消费者**(仅 simple_features.test.ts 快照断言仍引用)—— 保留仅因 simple_features
+   *  整体在 P2 与模式系统一并退役删除,届时本字段及其快照断言同删。 */
   readonly disableRAG: boolean;
   /** 跳过 facts 提取流水线（confirm 完不弹"是否提取事实"提示，也不调 extract_facts_from_chapter）。 */
   readonly disableFactsExtraction: boolean;

@@ -64,7 +64,9 @@ export {
   build_active_chars,
   build_rag_query,
   retrieve_rag,
+  retrieveRagForContext,
 } from "./rag_retrieval.js";
+export type { RetrieveRagForContextArgs } from "./rag_retrieval.js";
 
 // Generation
 export type {

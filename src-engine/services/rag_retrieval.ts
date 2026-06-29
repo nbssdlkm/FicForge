@@ -12,6 +12,8 @@ import type { VectorRepository, SearchResult } from "../repositories/interfaces/
 import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { RagChunkDetail, RagCollection } from "../domain/context_summary.js";
 import { RAG_COLLECTIONS } from "../domain/context_summary.js";
+import { FactStatus } from "../domain/enums.js";
+import { get_context_window } from "../domain/model_context_map.js";
 
 // RAG 召回数量配置
 // 注：characters / worldbuilding collections 当前不被 indexer 写入（lore 走 P5 直读），
@@ -341,4 +343,71 @@ function formatRagChunks(chunks: ChunkWithCollection[], language = "zh"): string
   }
 
   return parts.join("\n\n");
+}
+
+// ---------------------------------------------------------------------------
+// retrieveRagForContext —— RAG 检索编排(单一真相源)
+// ---------------------------------------------------------------------------
+//
+// 把「build_active_chars → focusTexts → build_rag_query → retrieve_rag」这套编排
+// 从 generation.ts 抽出,已 export 并接入 services barrel。当前 caller = generate_chapter
+// (写文路径);融合后续步骤(plan §1.1-1.3)对话路径(simple_chat_dispatch)复用本函数 ——
+// 目的是杜绝两套手工维护的 RAG 编排漂移(单一真相源)。
+//
+// 行为与原 generation.ts:218-244 内联块逐字节等价:空 query → 不检索;retrieve_rag
+// 抛错 → 静默回退(RAG 失败不中断生成)。调用方负责 gate(rag_text 已有 / repo 就位)。
+export interface RetrieveRagForContextArgs {
+  project: {
+    cast_registry?: { characters?: string[] };
+    core_always_include?: string[];
+    llm?: { context_window?: number; model?: string };
+    rag_decay_coefficient?: number;
+  };
+  state: {
+    current_chapter?: number;
+    characters_last_seen?: Record<string, number>;
+    chapter_focus?: string[];
+    last_scene_ending?: string;
+  };
+  user_input: string;
+  facts: { id: string; status: string; content_clean: string; characters?: string[] }[];
+  vector_repo: VectorRepository;
+  embedding_provider: EmbeddingProvider;
+  au_id: string;
+  llm_config: unknown;
+  language?: string;
+}
+
+export async function retrieveRagForContext(
+  args: RetrieveRagForContextArgs,
+): Promise<{ ragText: string | null; chunks: ChunkWithCollection[] }> {
+  const {
+    project, state, user_input, facts,
+    vector_repo, embedding_provider, au_id, llm_config, language = "zh",
+  } = args;
+  try {
+    const castReg = project.cast_registry ?? { characters: [] };
+    const activeChars = build_active_chars(state, user_input, project, facts, castReg);
+    const focusTexts = facts
+      .filter((f) => f.status === FactStatus.ACTIVE)
+      .map((f) => f.content_clean);
+    const lastEnding = state.last_scene_ending ?? "";
+    const query = build_rag_query(focusTexts, lastEnding, user_input);
+    if (!query) return { ragText: null, chunks: [] };
+
+    // 用 get_context_window(支持 context_window=0 自动按 model 推断),与 context_assembler 同源;
+    // 原内联块写死 `|| 128000`,在 context_window=0 + 大上下文模型时会把预算算小(审计 R2 修)。
+    const ragBudget = Math.max(0, Math.trunc(get_context_window(project) / 4));
+    const [ragResult, , chunks] = await retrieve_rag(
+      vector_repo, embedding_provider, au_id, query,
+      ragBudget, activeChars, llm_config,
+      project.rag_decay_coefficient ?? 0.05,
+      state.current_chapter ?? 1, language,
+    );
+    if (ragResult) return { ragText: ragResult, chunks };
+    return { ragText: null, chunks: [] };
+  } catch {
+    // RAG 失败不中断生成(与原内联块一致)
+    return { ragText: null, chunks: [] };
+  }
 }
