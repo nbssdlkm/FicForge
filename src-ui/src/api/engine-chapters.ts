@@ -15,7 +15,6 @@ import {
   IndexStatus,
   resolve_llm_config,
   create_provider,
-  getSimpleFeatures,
   generate_standard_summary,
   generate_micro_summary,
   persist_chapter_summary,
@@ -144,56 +143,54 @@ export async function confirmChapter(
   // M8-C：章节摘要生成。独立 best-effort 边界，放在 RAG 索引 / READY 升级之后/之外
   // —— 摘要失败绝不影响 index_status 或章节确认（决策② / codex MAJOR5）。
   try {
-    if (!getSimpleFeatures(sett.app?.writing_mode).disableChapterSummary) {
-      const embProvider = createEmbeddingProvider(sett, proj);
-      const llmCfg = resolve_llm_config(null, proj, sett);
-      const canGen = llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key);
-      if (embProvider && canGen) {
-        const chContent = await chapter.get_content_only(auPath, chapterNum);
-        const lang = sett.app?.language || "zh";
-        const llmProvider = create_provider(llmCfg);
+    const embProvider = createEmbeddingProvider(sett, proj);
+    const llmCfg = resolve_llm_config(null, proj, sett);
+    const canGen = llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key);
+    if (embProvider && canGen) {
+      const chContent = await chapter.get_content_only(auPath, chapterNum);
+      const lang = sett.app?.language || "zh";
+      const llmProvider = create_provider(llmCfg);
 
-        // Standard 摘要：生成（慢 LLM）在锁外，落盘+索引在锁内 + CAS 校验（M8-C）
-        const summaryText = await generate_standard_summary(chContent, chapterNum, llmProvider, { language: lang });
+      // Standard 摘要：生成（慢 LLM）在锁外，落盘+索引在锁内 + CAS 校验（M8-C）
+      const summaryText = await generate_standard_summary(chContent, chapterNum, llmProvider, { language: lang });
 
-        // Micro 摘要：同样在锁外生成（M10-A）
-        const microText = await generate_micro_summary(chContent, chapterNum, llmProvider, { language: lang });
+      // Micro 摘要：同样在锁外生成（M10-A）
+      const microText = await generate_micro_summary(chContent, chapterNum, llmProvider, { language: lang });
 
-        if (summaryText || microText) {
-          // 落盘在锁内，CAS 校验章节内容未被并发 undo/edit 改动
-          await withAuLock(auPath, async () => {
-            let stillCurrent = false;
+      if (summaryText || microText) {
+        // 落盘在锁内，CAS 校验章节内容未被并发 undo/edit 改动
+        await withAuLock(auPath, async () => {
+          let stillCurrent = false;
+          try {
+            const ch = await chapter.get(auPath, chapterNum);
+            stillCurrent = ch.content_hash === result.content_hash;
+          } catch {
+            stillCurrent = false; // 章节已被 undo
+          }
+          if (!stillCurrent) return;
+
+          // Standard 落盘 + 索引（M8-C）
+          if (summaryText) {
+            await persist_chapter_summary({
+              auPath,
+              chapterNum,
+              text: summaryText,
+              contentHash: result.content_hash,
+              embeddingProvider: embProvider,
+              summaryRepo: e.repos.chapterSummary,
+              ragManager: e.ragManager,
+            });
+          }
+
+          // Micro 落盘（M10-A）：update_micro 合并写入，不进向量库
+          if (microText) {
             try {
-              const ch = await chapter.get(auPath, chapterNum);
-              stillCurrent = ch.content_hash === result.content_hash;
-            } catch {
-              stillCurrent = false; // 章节已被 undo
+              await e.repos.chapterSummary.update_micro(auPath, chapterNum, microText, result.content_hash);
+            } catch (microErr) {
+              logCatch("summary", `Failed to save micro summary for chapter ${chapterNum}`, microErr);
             }
-            if (!stillCurrent) return;
-
-            // Standard 落盘 + 索引（M8-C）
-            if (summaryText) {
-              await persist_chapter_summary({
-                auPath,
-                chapterNum,
-                text: summaryText,
-                contentHash: result.content_hash,
-                embeddingProvider: embProvider,
-                summaryRepo: e.repos.chapterSummary,
-                ragManager: e.ragManager,
-              });
-            }
-
-            // Micro 落盘（M10-A）：update_micro 合并写入，不进向量库
-            if (microText) {
-              try {
-                await e.repos.chapterSummary.update_micro(auPath, chapterNum, microText, result.content_hash);
-              } catch (microErr) {
-                logCatch("summary", `Failed to save micro summary for chapter ${chapterNum}`, microErr);
-              }
-            }
-          });
-        }
+          }
+        });
       }
     }
   } catch (err) {
@@ -204,44 +201,42 @@ export async function confirmChapter(
   // 触发条件：每 RETROSPECTIVE_INTERVAL 章，对 N-interval 章执行后见之明重写。
   // 双阶段：锁外生成（慢 LLM）+ 锁内 CAS 写盘，防止并发 undo 产生孤儿 .summary.jsonl。
   try {
-    if (!getSimpleFeatures(sett.app?.writing_mode).disableChapterSummary) {
-      if (shouldRunRetrospective(chapterNum, RETROSPECTIVE_INTERVAL)) {
-        const embProvider = createEmbeddingProvider(sett, proj);
-        const llmCfg = resolve_llm_config(null, proj, sett);
-        const canGen = llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key);
-        if (embProvider && canGen) {
-          const targetChapterNum = chapterNum - RETROSPECTIVE_INTERVAL;
+    if (shouldRunRetrospective(chapterNum, RETROSPECTIVE_INTERVAL)) {
+      const embProvider = createEmbeddingProvider(sett, proj);
+      const llmCfg = resolve_llm_config(null, proj, sett);
+      const canGen = llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key);
+      if (embProvider && canGen) {
+        const targetChapterNum = chapterNum - RETROSPECTIVE_INTERVAL;
 
-          // Phase 1（锁外）：LLM 生成 v2 文本
-          const genResult = await generate_retrospective(
-            auPath,
-            targetChapterNum,
-            chapter,
-            e.repos.chapterSummary,
-            create_provider(llmCfg),
-            chapterNum,
-            { language: sett.app?.language || "zh" },
-          );
+        // Phase 1（锁外）：LLM 生成 v2 文本
+        const genResult = await generate_retrospective(
+          auPath,
+          targetChapterNum,
+          chapter,
+          e.repos.chapterSummary,
+          create_provider(llmCfg),
+          chapterNum,
+          { language: sett.app?.language || "zh" },
+        );
 
-          // Phase 2（锁内）：CAS 校验章节还在，再写 v2 + 更新向量索引
-          if (genResult) {
-            await withAuLock(auPath, async () => {
-              let targetStillPresent = false;
-              try {
-                const targetCh = await chapter.get(auPath, targetChapterNum);
-                // CAS：章节文件存在即视为有效（targetChapterNum 是历史章，content_hash 不变）
-                targetStillPresent = !!targetCh;
-              } catch {
-                targetStillPresent = false; // 章节已被 undo 删除
-              }
-              if (!targetStillPresent) return;
+        // Phase 2（锁内）：CAS 校验章节还在，再写 v2 + 更新向量索引
+        if (genResult) {
+          await withAuLock(auPath, async () => {
+            let targetStillPresent = false;
+            try {
+              const targetCh = await chapter.get(auPath, targetChapterNum);
+              // CAS：章节文件存在即视为有效（targetChapterNum 是历史章，content_hash 不变）
+              targetStillPresent = !!targetCh;
+            } catch {
+              targetStillPresent = false; // 章节已被 undo 删除
+            }
+            if (!targetStillPresent) return;
 
-              await commit_retrospective(
-                auPath, targetChapterNum, genResult,
-                e.repos.chapterSummary, e.ragManager, embProvider,
-              );
-            });
-          }
+            await commit_retrospective(
+              auPath, targetChapterNum, genResult,
+              e.repos.chapterSummary, e.ragManager, embProvider,
+            );
+          });
         }
       }
     }
@@ -325,7 +320,8 @@ export interface BackfillSummaryAvailability {
   totalConfirmed: number;      // 已确认章总数
   embeddingConfigured: boolean;
   llmConfigured: boolean;
-  summaryDisabled: boolean;    // writing_mode=simple 关了章节摘要
+  /** 融合后恒 false（摘要不再被写作模式禁用）。字段保留仅供 UI 兼容，P2 随模式系统物理删。 */
+  summaryDisabled: boolean;
 }
 
 /** 预览：扫出缺摘要的章 + 当前配置能否跑（embedding + 写作模型）。UI 先调它显示数量/前置条件。 */
@@ -342,7 +338,8 @@ export async function countChaptersMissingSummary(auPath: string): Promise<Backf
     totalConfirmed: nums.length,
     embeddingConfigured: !!createEmbeddingProvider(sett, proj),
     llmConfigured: llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key),
-    summaryDisabled: getSimpleFeatures(sett.app?.writing_mode).disableChapterSummary,
+    // 融合后无写作模式 gate：摘要永不被模式禁用，恒 false（字段保留供 UI 兼容，P2 物理删）。
+    summaryDisabled: false,
   };
 }
 
@@ -355,9 +352,6 @@ export async function backfillChapterSummaries(
   const e = getEngine();
   const { chapter, project, settings, chapterSummary } = e.repos;
   const [proj, sett] = await Promise.all([project.get(auPath), settings.get()]);
-  if (getSimpleFeatures(sett.app?.writing_mode).disableChapterSummary) {
-    throw new Error("chapter summary disabled in current writing mode");
-  }
   const embProvider = createEmbeddingProvider(sett, proj);
   const llmCfg = resolve_llm_config(null, proj, sett);
   const llmConfigured = llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key);
