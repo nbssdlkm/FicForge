@@ -17,11 +17,15 @@ import {
 import { createProject, createLLMConfig } from "../../domain/project.js";
 import { createState } from "../../domain/state.js";
 import { createSettings } from "../../domain/settings.js";
-import { LLMMode } from "../../domain/enums.js";
+import { createFact } from "../../domain/fact.js";
+import { createThread } from "../../domain/thread.js";
+import { LLMMode, FactStatus, IndexStatus } from "../../domain/enums.js";
 import { FileChapterRepository } from "../../repositories/implementations/file_chapter.js";
 import { FileDraftRepository } from "../../repositories/implementations/file_draft.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
-import type { LLMProvider, LLMResponse, LLMChunk } from "../../llm/provider.js";
+import type { LLMProvider, LLMResponse, LLMChunk, Message } from "../../llm/provider.js";
+import type { VectorRepository } from "../../repositories/interfaces/vector.js";
+import type { EmbeddingProvider } from "../../llm/embedding_provider.js";
 import type { TelemetryEvent, TelemetrySink } from "../agent_telemetry.js";
 
 function makeStreamProvider(chunks: LLMChunk[]): LLMProvider {
@@ -959,5 +963,155 @@ describe("dispatch_simple_chat", () => {
     // draft 不应落盘（forceToolOnly 不写 draft）
     const drafts = await new FileDraftRepository(adapter).list_by_chapter("au_test", 1);
     expect(drafts).toHaveLength(0);
+  });
+
+  // ===========================================================================
+  // 对话式 × 记忆栈融合 P1.3 — dispatch 改接 assemble_chat_context
+  // ===========================================================================
+
+  /** 多 iter mock：每轮按 callIndex 取 chunks，并捕获每轮 generateStream 收到的 messages。
+   *  用于断言「组装只在循环外一次」（system message 跨轮 byte-identical）+ 记忆注入。 */
+  function makeCapturingProvider(iterChunks: LLMChunk[][]): { provider: LLMProvider; calls: Message[][] } {
+    let callIndex = 0;
+    const calls: Message[][] = [];
+    const provider: LLMProvider = {
+      async generate(): Promise<LLMResponse> {
+        return { content: "", model: "mock", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
+      },
+      async *generateStream(req: { messages: Message[] }): AsyncIterable<LLMChunk> {
+        calls.push(req.messages);
+        const chunks = iterChunks[callIndex] ?? [];
+        callIndex++;
+        for (const c of chunks) yield c;
+      },
+    };
+    return { provider, calls };
+  }
+
+  it("分层上下文：facts / 剧情线 进 system message（走 assemble_chat_context，非全塞）", async () => {
+    const adapter = new MockAdapter();
+    const { provider, calls } = makeCapturingProvider([
+      [{ delta: "好的", is_final: true, input_tokens: 10, output_tokens: 2, finish_reason: "stop" }],
+    ]);
+
+    const base = makeBaseParams(adapter, provider, "写第一章 主角登场");
+    await collect(dispatch_simple_chat({
+      ...base,
+      facts: [createFact({ id: "f1", content_raw: "x", content_clean: "主角名叫林夜，是隐世剑客", status: FactStatus.ACTIVE, chapter: 1 })],
+      threads: [createThread({ id: "t1", title: "复仇主线", state: "林夜在追查灭门凶手" })],
+    }));
+
+    expect(calls.length).toBeGreaterThanOrEqual(1);
+    const systemContent = calls[0][0].content ?? "";
+    expect(calls[0][0].role).toBe("system");
+    expect(systemContent).toContain("主角名叫林夜");
+    expect(systemContent).toContain("复仇主线");
+    expect(systemContent).toContain("林夜在追查灭门凶手");
+  });
+
+  it("组装只在循环外一次：多 iter（read-only continue）下 RAG 只检索一次（embed 调用计数 = 1）", async () => {
+    const adapter = new MockAdapter();
+    await adapter.mkdir("au_test/chapters/main");
+    await adapter.writeFile(
+      "au_test/chapters/main/ch0001.md",
+      "---\nau_id: au_test\nchapter_num: 1\nrevision: 1\nfinalized_at: '2026-05-01T10:00:00Z'\nshow_in_text: true\n---\n第一章正文：风起。",
+    );
+    const { provider, calls } = makeCapturingProvider([
+      // iter 0: show_chapter(1) → read-only continue
+      [
+        {
+          delta: "",
+          tool_call_deltas: [{ index: 0, id: "tc_show", type: "function", function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' } }],
+          is_final: false, input_tokens: 50, output_tokens: null, finish_reason: null,
+        },
+        { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" },
+      ],
+      // iter 1: chat_reply → terminal
+      [
+        {
+          delta: "",
+          tool_call_deltas: [{ index: 0, id: "tc_reply", type: "function", function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"读完了"}' } }],
+          is_final: false, input_tokens: 200, output_tokens: null, finish_reason: null,
+        },
+        { delta: "", is_final: true, input_tokens: null, output_tokens: 10, finish_reason: "tool_calls" },
+      ],
+    ]);
+
+    // 注入 vector_repo + 计数 embedding：assemble_chat_context 每跑一次 → retrieveRagForContext
+    // → embed([query]) 一次。所以 embed 调用次数 === 组装次数。这是"组装只一次、循环内不重算 RAG"
+    // 的**载荷断言** —— 仅靠 system message byte-identity 抓不住（systemMessage 是同一对象引用，
+    // 即便组装搬进循环、确定性重算出逐字节相同内容，引用比较仍 true，是伪命题）。
+    let embedCount = 0;
+    const embedding_provider: EmbeddingProvider = {
+      async embed(texts: string[]): Promise<number[][]> { embedCount++; return texts.map(() => [1, 0, 0]); },
+      get_dimension() { return 3; },
+      get_model_name() { return "mock"; },
+    };
+    const vector_repo: VectorRepository = {
+      async search() { return []; }, // 返空：RAG 无结果，但 embed 仍被调用一次/组装
+      async index_chunks() {}, async delete_by_chapter() {}, async delete_by_source() {},
+      async rebuild_index() {}, async get_index_status() { return IndexStatus.READY; },
+    };
+
+    const base = makeBaseParams(adapter, provider, "看第 1 章");
+    await collect(dispatch_simple_chat({
+      ...base,
+      facts: [createFact({ id: "f1", content_raw: "x", content_clean: "世界设定：剑与魔法", status: FactStatus.ACTIVE })],
+      vector_repo,
+      embedding_provider,
+    }));
+
+    // 两轮 LLM call，但 RAG 只检索一次 ⇒ 组装只发生在循环外一次（循环内若重组会 embed 两次）。
+    expect(calls.length).toBe(2);
+    expect(embedCount).toBe(1);
+    // 辅证：system message 含记忆层（facts 进 prompt）+ 跨轮一致（同一对象，逐字节自然相同）。
+    expect(calls[0][0].content ?? "").toContain("世界设定：剑与魔法");
+    expect(calls[0][0].content).toBe(calls[1][0].content);
+    // 第二轮 internalHistory 增长（多了 assistant + tool 消息）。
+    expect(calls[1].length).toBeGreaterThan(calls[0].length);
+  });
+
+  it("read-only fetch 结果按上限截断后注入 internalHistory（B3 防多轮爆 context）", async () => {
+    const adapter = new MockAdapter();
+    await adapter.mkdir("au_test/chapters/main");
+    // 病态超长章节（远超 MAX_READ_FETCH_TOKENS=6000）
+    const huge = "情节".repeat(4500); // ≈ 9000 字，token 数远超上限
+    await adapter.writeFile(
+      "au_test/chapters/main/ch0001.md",
+      `---\nau_id: au_test\nchapter_num: 1\nrevision: 1\nfinalized_at: '2026-05-01T10:00:00Z'\nshow_in_text: true\n---\n${huge}`,
+    );
+    const { provider, calls } = makeCapturingProvider([
+      [
+        {
+          delta: "",
+          tool_call_deltas: [{ index: 0, id: "tc_show", type: "function", function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' } }],
+          is_final: false, input_tokens: 50, output_tokens: null, finish_reason: null,
+        },
+        { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" },
+      ],
+      [
+        {
+          delta: "",
+          tool_call_deltas: [{ index: 0, id: "tc_reply", type: "function", function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"ok"}' } }],
+          is_final: false, input_tokens: 200, output_tokens: null, finish_reason: null,
+        },
+        { delta: "", is_final: true, input_tokens: null, output_tokens: 10, finish_reason: "tool_calls" },
+      ],
+    ]);
+
+    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "看第 1 章")));
+
+    // 第二轮 internalHistory 里的 tool 消息内容被截断（远短于原文）
+    const iter1ToolMsg = calls[1].find((m) => m.role === "tool");
+    expect(iter1ToolMsg).toBeDefined();
+    expect((iter1ToolMsg!.content ?? "").length).toBeLessThan(huge.length);
+    expect(iter1ToolMsg!.content ?? "").toContain("截断");
+
+    // 但 emit 给 UI 的 tool_result 仍是全文（持久化不丢）
+    const toolResult = events.find((e) => e.type === "tool_result");
+    expect(toolResult).toBeDefined();
+    if (toolResult && toolResult.type === "tool_result") {
+      expect(toolResult.data.content.length).toBeGreaterThan(huge.length / 2);
+    }
   });
 });

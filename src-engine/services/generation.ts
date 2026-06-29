@@ -239,7 +239,6 @@ export async function* generate_chapter(
       character_files,
       worldbuilding_files,
       language,
-      params.settings.app.writing_mode,
       params.threads ?? [],
     );
     const { messages, max_tokens, budget_report, context_summary } = ctx;

@@ -98,7 +98,7 @@ describe("assemble_context thread injection (M8-B)", () => {
 
   it("threads=[] (explicit) → byte-identical to omitted threads + thread_tokens 0", async () => {
     const omitted = await assemble_context(project(), state(), "写", [], chapterRepo, "au");
-    const empty = await assemble_context(project(), state(), "写", [], chapterRepo, "au", null, null, null, "zh", "full", []);
+    const empty = await assemble_context(project(), state(), "写", [], chapterRepo, "au", null, null, null, "zh", []);
     expect(empty.messages[1].content).toBe(omitted.messages[1].content);
     expect(empty.budget_report.thread_tokens).toBe(0);
     // 全 P 层预算逐字节不变（防未来 thread 收集步错用 used 快照偷走 P2/P4/P5 预算）
@@ -111,7 +111,7 @@ describe("assemble_context thread injection (M8-B)", () => {
   it("active threads → injected into user message + thread_tokens > 0", async () => {
     const r = await assemble_context(
       project(), state(), "写", [], chapterRepo, "au",
-      null, null, null, "zh", "full", [T()],
+      null, null, null, "zh", [T()],
     );
     expect(r.messages[1].content).toContain("为父翻案");
     expect(r.messages[1].content).toContain("准备面圣");
@@ -122,7 +122,7 @@ describe("assemble_context thread injection (M8-B)", () => {
     const facts = [createFact({ id: "f1", content_raw: "r", content_clean: "某条事实内容", status: FactStatus.ACTIVE, chapter: 1 })];
     const r = await assemble_context(
       project(), state(), "写", facts, chapterRepo, "au",
-      null, null, null, "zh", "full", [T()],
+      null, null, null, "zh", [T()],
     );
     const msg = r.messages[1].content;
     // reversed 注入顺序 P5→P4→P2→thread→P3→P1：剧情线在事实表之前

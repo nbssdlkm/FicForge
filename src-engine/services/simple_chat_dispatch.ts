@@ -24,10 +24,15 @@ import type { Settings } from "../domain/settings.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { DraftRepository } from "../repositories/interfaces/draft.js";
 import type { PlatformAdapter } from "../platform/adapter.js";
+import type { Fact } from "../domain/fact.js";
+import type { Thread } from "../domain/thread.js";
+import type { VectorRepository } from "../repositories/interfaces/vector.js";
+import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { LLMProvider, Message, ToolCall, ToolDefinition } from "../llm/provider.js";
 import { LLMError } from "../llm/provider.js";
 import { create_provider, resolve_llm_config, resolve_llm_params } from "../llm/config_resolver.js";
-import { assemble_context_simple } from "./context_assembler.js";
+import { assemble_chat_context } from "./context_assembler.js";
+import { count_tokens } from "../tokenizer/index.js";
 import { withAuLock } from "./au_lock.js";
 import { createDraft } from "../domain/draft.js";
 import { createGeneratedWith } from "../domain/generated_with.js";
@@ -88,6 +93,41 @@ function isReadOnlyTool(name: string): boolean {
   return SIMPLE_READ_ONLY_TOOLS.has(name);
 }
 
+/**
+ * read-only fetch（show_chapter / show_setting）结果注入 internalHistory 的 token 上限
+ * （融合 plan §1.3 B3）。
+ *
+ * 为什么要截断：agent loop 多轮里，LLM 可能连续 show 多个大章节，每个结果都 append 进
+ * internalHistory 喂下一轮 —— 不设上限会让 internalHistory 单调增长撑爆 context（组装期
+ * assemble_chat_context 的 chatHistoryReserve 只为"对话历史"留余量，管不到循环内 fetch）。
+ *
+ * 截断只作用于 LLM 可见的 internalHistory 副本；emit 给 UI 的 tool_result 仍是全文（持久化
+ * 不丢）。正常章节（1500-3000 字 ≈ 2-4k tokens）原样通过；仅病态超长文件被截断，保留头部 +
+ * 自然语言截断标记（让 LLM 知道这是节选，可再 show 具体段落）。
+ *
+ * 实测观察点：MAX_READ_FETCH_TOKENS 是保守上限，若多轮长章节场景仍偏紧可下调。
+ */
+const MAX_READ_FETCH_TOKENS = 6000;
+
+function truncateReadResultForHistory(
+  content: string,
+  llm_config: unknown,
+  language: "zh" | "en",
+): string {
+  const tk = (s: string) => count_tokens(s, llm_config as { mode?: string }).count;
+  const total = tk(content);
+  if (total <= MAX_READ_FETCH_TOKENS) return content;
+  // 按 token/char 比例首切（留 10% 余量让首切大概率落在预算内），再线性微调（保留头部）。
+  let head = content.slice(0, Math.max(1, Math.trunc(content.length * MAX_READ_FETCH_TOKENS * 0.9 / total)));
+  while (tk(head) > MAX_READ_FETCH_TOKENS && head.length > 1) {
+    head = head.slice(0, Math.trunc(head.length * 0.9));
+  }
+  const marker = language === "en"
+    ? "\n\n[... fetched content truncated to fit context; ask to show a specific section if needed ...]"
+    : "\n\n[……读取内容过长，已截断以适配上下文；如需具体段落请指明……]";
+  return head + marker;
+}
+
 // ---------------------------------------------------------------------------
 // 事件 + 参数 schema
 // ---------------------------------------------------------------------------
@@ -132,6 +172,15 @@ export interface SimpleChatDispatchParams {
   chapter_repo: ChapterRepository;
   draft_repo: DraftRepository;
   adapter: PlatformAdapter;
+  /**
+   * 记忆栈接线(融合 plan §1.1):分层对话上下文 assemble_chat_context(§1.2 消费)所需。
+   * 全部可选 —— 缺省视为无记忆/无 RAG,现有 caller / 单测不传不破坏;真实路径由上游
+   * engine-simple-dispatch.ts 注入(与 generate_chapter 同源)。
+   */
+  facts?: Fact[];
+  threads?: Thread[];
+  vector_repo?: VectorRepository;
+  embedding_provider?: EmbeddingProvider;
   language?: "zh" | "en";
   signal?: AbortSignal;
   /** 测试注入：override LLM provider。 */
@@ -370,6 +419,8 @@ export async function* dispatch_simple_chat(
     history = [],
     session_llm, session_params,
     project, state, settings,
+    facts = [], threads = [],
+    vector_repo, embedding_provider,
     chapter_repo, draft_repo, adapter,
     language = "zh", signal,
     _provider_override, _tools_override, _telemetry_override,
@@ -415,17 +466,20 @@ export async function* dispatch_simple_chat(
       loadMdDir(adapter, joinPath(au_id, "worldbuilding")),
     ]);
 
-    const ctx = await assemble_context_simple(
+    // 分层对话上下文（融合 plan §1.2/§1.3）：记忆栈（facts/剧情线/上一章/RAG/核心设定）进
+    // systemContent，最新一轮 user 进 latestUserContent。**组装只在此处发生一次**（runAgentLoop
+    // 之前）：systemContent 进 startMessages[0]，循环内不重组、不重算 RAG（否则每轮重检索）。
+    const ctx = await assemble_chat_context({
       project, state, user_input,
+      facts, threads,
       chapter_repo, au_id,
-      character_files, worldbuilding_files, language,
-    );
-    const { systemMessage, userMessage, max_tokens } = ctx;
-    // assemble_context_simple 必定填充 systemMessage/userMessage；AssembleContextResult 上的
-    // 可选标记只是为了让完整模式路径可以不带这两个 key（A3 零回归约定）。此处收窄类型并兜底。
-    if (!systemMessage || !userMessage) {
-      throw new Error("assemble_context_simple 未返回 systemMessage/userMessage");
-    }
+      character_files, worldbuilding_files,
+      vector_repo, embedding_provider,
+      language,
+    });
+    const { systemContent, latestUserContent, max_tokens } = ctx;
+    const systemMessage: Message = { role: "system", content: systemContent };
+    const userMessage: Message = { role: "user", content: latestUserContent };
 
     const tools = _tools_override ?? (get_tools_for_mode("simple") as unknown as ToolDefinition[]);
 
@@ -570,10 +624,12 @@ export async function* dispatch_simple_chat(
               type: "tool_result",
               data: { tool_call_id: c.id, tool_name: c.function.name, content: result.content, ...(result.errorMessage !== undefined ? { error_message: result.errorMessage } : {}) },
             });
+            // internalHistory 副本按上限截断（B3）：防多轮大章节 fetch 累积撑爆 context。
+            // 上面 emit 给 UI 的 tool_result 仍是全文（持久化不丢）。
             iterCtx.internalHistory.push({
               role: "tool",
               tool_call_id: c.id,
-              content: result.content,
+              content: truncateReadResultForHistory(result.content, project.llm, language),
             });
           }
           return { mode: "continue", events };

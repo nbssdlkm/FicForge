@@ -16,6 +16,7 @@ import {
   type SimpleChatEvent,
 } from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
+import { createEmbeddingProvider } from "./engine-state";
 
 export type {
   SimpleChatEvent,
@@ -65,6 +66,11 @@ export async function* dispatchSimpleChat(
 
   const lang = (sett.app?.language === "en" ? "en" : "zh") as "zh" | "en";
 
+  // 记忆栈注入(融合 plan §1.1,与 generate_chapter 同源):facts / threads / 向量 / embedding,
+  // 供 assemble_chat_context(§1.2)分层组装。threads 取失败不致命,回退空。
+  const allFacts = await e.repos.fact.list_all(params.au_path);
+  const threads = await e.repos.thread.list(params.au_path).catch(() => []);
+
   for await (const ev of dispatch_simple_chat({
     au_id: params.au_path,
     chapter_num: params.chapter_num,
@@ -75,6 +81,10 @@ export async function* dispatchSimpleChat(
     project: proj,
     state: st,
     settings: sett,
+    facts: allFacts,
+    threads,
+    vector_repo: e.vectorEngine,
+    embedding_provider: createEmbeddingProvider(sett, proj),
     chapter_repo: e.repos.chapter,
     draft_repo: e.repos.draft,
     adapter: e.adapter,
