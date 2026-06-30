@@ -10,7 +10,6 @@ export type MobileWorkspaceTab = "chapters" | "writer" | "chat" | "settings" | "
 
 interface BottomNavBarProps {
   activeTab: MobileWorkspaceTab;
-  isSimple: boolean;
   onTabChange: (tab: MobileWorkspaceTab) => void;
 }
 
@@ -22,34 +21,29 @@ const TAB_ICONS = {
   manage: SlidersHorizontal,
 } as const;
 
-// Simple mode inserts a "对话" tab between writer and settings (5 tabs); full mode = 4.
-const FULL_TAB_IDS: MobileWorkspaceTab[] = ["chapters", "writer", "settings", "manage"];
-const SIMPLE_TAB_IDS: MobileWorkspaceTab[] = ["chapters", "writer", "chat", "settings", "manage"];
+// 融合后单一主力版：底栏恒为统一 5-tab 集合（对话 + 写文/阅读并列，共用同一记忆栈）。
+const TAB_IDS: MobileWorkspaceTab[] = ["chapters", "writer", "chat", "settings", "manage"];
 
 // Ex Libris bottom nav — parchment body with a gold hairline across the top
 // and a 2px gold "cursor" that hangs down over the active tab icon
 // (design-system-exlibris-v2.html §08 / library-mobile-exlibris-v13.html
 // .tab-item.active::after). Active tab uses accent color, not filled bg —
-// matches the 4-tab sidebar treatment in AuWorkspaceLayout.
-export function BottomNavBar({ activeTab, isSimple, onTabChange }: BottomNavBarProps) {
+// matches the sidebar treatment in AuWorkspaceLayout.
+export function BottomNavBar({ activeTab, onTabChange }: BottomNavBarProps) {
   const { t } = useTranslation();
 
   const tabLabels: Record<MobileWorkspaceTab, string> = {
     chapters: t("navigation.chapters"),
-    writer: isSimple
-      ? t("simple.tabs.reading", { defaultValue: "阅读" })
-      : t("navigation.mobileWriter"),
+    writer: t("navigation.mobileWriter"),
     chat: t("simple.tabs.chat", { defaultValue: "对话" }),
     settings: t("navigation.mobileSettings"),
     manage: t("navigation.manage"),
   };
 
-  const tabIds = isSimple ? SIMPLE_TAB_IDS : FULL_TAB_IDS;
-
   return (
     <nav className="safe-area-bottom safe-area-x fixed inset-x-0 bottom-0 z-40 border-t border-rule bg-surface/95 backdrop-blur md:hidden">
-      <div className={cn("grid gap-1 px-2 py-2", isSimple ? "grid-cols-5" : "grid-cols-4")}>
-        {tabIds.map((id) => {
+      <div className="grid grid-cols-5 gap-1 px-2 py-2">
+        {TAB_IDS.map((id) => {
           const Icon = TAB_ICONS[id];
           const active = activeTab === id;
           return (

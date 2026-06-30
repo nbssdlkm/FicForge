@@ -5,20 +5,21 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { BottomNavBar } from "../BottomNavBar";
 
-// BottomNavBar is gated purely on its `isSimple` PROP (the AuWorkspaceLayout mount snapshot),
-// never a live useWritingMode() — so a mid-AU mode toggle cannot flip the mobile tab set
-// independently of the desktop snapshot (Phase 2 spec §3.2 / mobile-parity invariant).
-describe("BottomNavBar gating", () => {
-  it("renders 4 tabs (no chat) in full mode", () => {
-    render(<BottomNavBar activeTab="writer" isSimple={false} onTabChange={() => {}} />);
-    expect(screen.getAllByRole("button")).toHaveLength(4);
-    expect(screen.queryByText("对话")).toBeNull();
+// 融合后无写作模式分叉：底栏恒为统一 5-tab 集合
+// （chapters / writer / chat / settings / manage），不再有 isSimple prop。
+describe("BottomNavBar (融合统一底栏)", () => {
+  it("恒渲染 5 个 tab，含「对话」(chat)；writer 不再被改标成「阅读」", () => {
+    render(<BottomNavBar activeTab="chat" onTabChange={() => {}} />);
+    expect(screen.getAllByRole("button")).toHaveLength(5);
+    // 对话 tab 恒在（chat），用 defaultValue 兜底文案断言。
+    expect(screen.getByText("对话")).toBeTruthy();
+    // 旧 simple 模式把 writer tab 改标「阅读」(SimpleReadingView)；融合后 writer = 完整 WriterLayout，不再有「阅读」。
+    expect(screen.queryByText("阅读")).toBeNull();
   });
 
-  it("renders 5 tabs incl. chat in simple mode, with writer relabeled 阅读", () => {
-    render(<BottomNavBar activeTab="chat" isSimple={true} onTabChange={() => {}} />);
+  it("activeTab=writer 时也是 5 tab（与 chat 同一集合，无模式分叉）", () => {
+    render(<BottomNavBar activeTab="writer" onTabChange={() => {}} />);
     expect(screen.getAllByRole("button")).toHaveLength(5);
     expect(screen.getByText("对话")).toBeTruthy();
-    expect(screen.getByText("阅读")).toBeTruthy();
   });
 });

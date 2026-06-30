@@ -13,13 +13,11 @@ import { MobileChapterList } from "./MobileChapterList";
 import { MobileManageView } from "./MobileManageView";
 import { MobileSettingsView } from "./MobileSettingsView";
 import { SimpleChatPanel } from "../simple/SimpleChatPanel";
-import { SimpleReadingView } from "../simple/SimpleReadingView";
 
 type WorkspacePage = "writer" | "chat" | "facts" | "threads" | "au_lore" | "settings";
 
 interface MobileLayoutProps {
   activePage: WorkspacePage;
-  isSimple: boolean;
   auPath: string;
   auName: string;
   chapters: ChapterInfo[];
@@ -48,7 +46,6 @@ function mapPageToManageSection(page: WorkspacePage): "facts" | "threads" | "pro
 
 export function MobileLayout({
   activePage,
-  isSimple,
   auPath,
   auName,
   chapters,
@@ -145,17 +142,13 @@ export function MobileLayout({
         {activeTab === "chat" ? <SimpleChatPanel auPath={auPath} /> : null}
 
         {activeTab === "writer" ? (
-          isSimple ? (
-            <SimpleReadingView auPath={auPath} />
-          ) : (
-            <WriterLayout
-              auPath={auPath}
-              onNavigate={(page) => onNavigate(page, auPath)}
-              viewChapter={selectedChapter}
-              onClearViewChapter={onClearViewChapter}
-              onChaptersChanged={onChaptersChanged}
-            />
-          )
+          <WriterLayout
+            auPath={auPath}
+            onNavigate={(page) => onNavigate(page, auPath)}
+            viewChapter={selectedChapter}
+            onClearViewChapter={onClearViewChapter}
+            onChaptersChanged={onChaptersChanged}
+          />
         ) : null}
 
         {activeTab === "settings" ? (
@@ -176,7 +169,7 @@ export function MobileLayout({
         ) : null}
       </div>
 
-      <BottomNavBar activeTab={activeTab} isSimple={isSimple} onTabChange={handleTabChange} />
+      <BottomNavBar activeTab={activeTab} onTabChange={handleTabChange} />
     </div>
   );
 }

@@ -36,7 +36,10 @@ describe("simple.* i18n coverage", () => {
   const keys = collectSimpleKeys();
 
   it("finds a substantial simple.* key surface", () => {
-    expect(keys.length).toBeGreaterThan(80);
+    // 阈值随融合下调（原 80 是融合前简版模式 + 对话 UI 合计）：P2 删简版模式专属 key
+    // （tabs.reading / settings.mode* 等），但对话(chat) UI 的 simple.* key 全保留 ——
+    // 这里只做"glob 真扫到大量 key"的健全性兜底；真正防漏的是下面两条 zh/en 存在性断言。
+    expect(keys.length).toBeGreaterThan(50);
   });
 
   it("every referenced simple.* key exists in zh.json", () => {

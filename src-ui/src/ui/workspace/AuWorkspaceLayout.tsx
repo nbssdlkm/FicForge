@@ -17,7 +17,6 @@ import { ThreadsLayout } from '../threads/ThreadsLayout';
 import { AuLoreLayout } from '../library/AuLoreLayout';
 import { AuSettingsLayout } from '../settings/AuSettingsLayout';
 import { SimpleChatPanel } from '../simple/SimpleChatPanel';
-import { SimpleReadingView } from '../simple/SimpleReadingView';
 import { AnimatePresence, motion } from 'framer-motion';
 import { rebuildIndex } from '../../api/engine-client';
 import { listChapters, updateChapterTitle, type ChapterInfo } from '../../api/engine-client';
@@ -29,7 +28,6 @@ import { FeedbackProvider, useFeedback } from '../../hooks/useFeedback';
 import { useMilestoneGuide } from '../../hooks/useMilestoneGuide';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { MobileLayout } from '../mobile/MobileLayout';
-import { useWritingMode } from '../../hooks/useWritingMode';
 import { catchAndLog } from '../../utils/ui-logger';
 
 type Props = {
@@ -42,11 +40,6 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const { t } = useTranslation();
   const { showError } = useFeedback();
   const isMobile = useMediaQuery('(max-width: 768px)');
-  // Snapshot the writing mode at workspace mount (§2.2): a mid-AU toggle never flips the open
-  // AU; key={auPath} in App.tsx re-snapshots on each AU entry. Mobile chrome reads this snapshot
-  // via prop, never a live hook.
-  const { isSimple: liveWritingSimple } = useWritingMode();
-  const [isSimple] = useState(liveWritingSimple);
   const loadGuard = useActiveRequestGuard(auPath);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
@@ -197,7 +190,6 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
     return (
       <MobileLayout
         activePage={activeTab as 'writer' | 'chat' | 'facts' | 'threads' | 'au_lore' | 'settings'}
-        isSimple={isSimple}
         auPath={auPath}
         auName={auName}
         chapters={chapters}
@@ -256,8 +248,8 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
           <div className="border-b border-rule px-2 pb-3 pt-1 shrink-0 space-y-0.5">
             {(
               [
-                ...(isSimple ? [{ key: 'chat' as const, label: t('simple.tabs.chat', { defaultValue: '对话' }) }] : []),
-                { key: 'writer' as const, label: isSimple ? t('simple.tabs.reading', { defaultValue: '阅读' }) : t('writer.modeWrite') },
+                { key: 'chat' as const, label: t('simple.tabs.chat', { defaultValue: '对话' }) },
+                { key: 'writer' as const, label: t('writer.modeWrite') },
                 { key: 'facts' as const, label: t('navigation.facts') },
                 { key: 'threads' as const, label: t('navigation.threads') },
                 { key: 'au_lore' as const, label: t('navigation.auLore') },
@@ -414,9 +406,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
           >
             {activeTab === 'chat' && <SimpleChatPanel auPath={auPath} />}
             {activeTab === 'writer' && (
-              isSimple
-                ? <SimpleReadingView auPath={auPath} />
-                : <WriterLayout auPath={auPath} onNavigate={onNavigate} viewChapter={viewingChapter} onClearViewChapter={() => setViewingChapter(null)} onChaptersChanged={refreshChapters} />
+              <WriterLayout auPath={auPath} onNavigate={onNavigate} viewChapter={viewingChapter} onClearViewChapter={() => setViewingChapter(null)} onChaptersChanged={refreshChapters} />
             )}
             {activeTab === 'facts' && <FactsLayout auPath={auPath} />}
             {activeTab === 'threads' && <ThreadsLayout auPath={auPath} />}
