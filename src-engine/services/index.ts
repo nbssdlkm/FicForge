@@ -169,17 +169,21 @@ export { TrashService } from "./trash_service.js";
 export type {
   GenerateSummaryOptions,
   PersistSummaryDeps,
-  BackfillSummaryTarget,
-  BackfillSummaryDeps,
-  BackfillSummaryResult,
 } from "./chapter_summary.js";
 export {
   generate_micro_summary,
   generate_standard_summary,
   persist_chapter_summary,
   find_chapters_missing_summary,
-  backfill_chapter_summaries,
 } from "./chapter_summary.js";
+
+// 补全旧章记忆（plan 3.1）—— 逐章统一 pass（摘要 + 笔记 + 向量）
+export type {
+  BackfillMemoryTarget,
+  BackfillMemoryDeps,
+  BackfillMemoryResult,
+} from "./backfill_memory.js";
+export { backfill_chapter_memory } from "./backfill_memory.js";
 
 // Retrospective Rewrite (M10-A)
 export type { RetrospectiveOptions, RetrospectiveGenResult } from "./retrospective.js";

@@ -62,8 +62,8 @@ Platform Adapter
 - **Phase 2（UI 统一 + 模式系统物理删 + M9 接线）全完 + pushed**：恒并列双 tab（桌面 + 移动 5-tab 底栏）、物理删 `useWritingMode`/`getSimpleFeatures`/landing 分叉；对话接受自动触发 M9 提取（双 gate：`react_extraction_enabled !== false` + `default_llm.has_usable_connection`）弹 `ExtractReviewModal` + header「提取剧情笔记中…」指示。最后一块 P2.3 = commit `be83996`。
 - **Phase 3（迁移 + 打磨）进行中**：
   - ✅ **清理块（未提交）**：`writing_mode` 字段退役（`domain/settings` + `file_settings` + `config/simple_features`（仅留 `SIMPLE_AGENT_MAX_ITER`）+ `index` re-export；round-trip 测试改「容忍读取 + 不再持久化」）+ `summaryDisabled` 死字段 + `backfill.disabledMode` 死 i18n 清理；`get_tools_for_mode` 评估=**不动**（它是 settings-chat scope au/fandom/simple，非 writing_mode）。引擎 1020 + UI 206 + 双 tsc + i18n 1176 全绿 + 独立对抗审 opus 判 safe。
-  - ✅ **真机眼验（preview，无 key）**：零 console 报错；建/开 AU 落地对话 tab；双 tab 切换；token badge；管理→故事设置→高级操作四按钮 + 补摘要 modal 走 needConfig 路径（**无 `disabledMode` 死分支泄漏**）全活。LLM 出章→接受→提取全流程靠绿测试兜底（填 key 受安全规则禁，未真机实跑）。
-  - ⏸ **3.1「补全旧章记忆」一键工具：暂缓** —— 经调研三件套已各自存在（facts = FactsPage 批量提取 `submitFactsExtraction` 自动落库 / 摘要 = 高级操作「补全旧章摘要」/ RAG = 高级操作「重建索引」），统一一键价值偏窄（bundle 导入本就带记忆，仅「导入原始文件夹」那条路缺记忆）。
+  - ✅ **真机眼验（preview，无 key）**：清理块 + 3.1 modal 均零 console 报错；建/开 AU 落地对话 tab；双 tab 切换；token badge；高级操作「补全旧章记忆」按钮（已取代「补全旧章摘要」）开 modal 走 needConfig 路径全活。LLM 实跑流程靠绿测试兜底（填 key 受安全规则禁）。
+  - ✅ **3.1「补全旧章记忆」（未提交）**：用户拍板做（有真实用户）。逐章统一 pass（新引擎服务 `backfill_chapter_memory`：loop/章边界中断/CAS-in-lock/半成功）补 摘要（缺则补）+ 笔记（用户勾选章，自动落库，默认勾零笔记章）+ 向量（处理到的章正文+摘要）。API `scanChapterMemory`/`backfillChapterMemory`；新 `BackfillMemoryModal`（四阶段 + 笔记章选择器 + unmount-abort）**取代**旧「补全旧章摘要」；**旧 summary-only 全栈物理删**（engine `backfill_chapter_summaries` + API `backfillChapterSummaries`/`countChaptersMissingSummary`，`find_chapters_missing_summary` 保留复用）。spec：`docs/superpowers/specs/2026-06-30-backfill-chapter-memory-design.md`。引擎 1024 + UI 214 + 双 tsc + i18n 1186 全绿 + **三轮独立对抗审 opus**（正确性 / 数据完整性 / 删除安全），采纳 HIGH 重复提取警告 + MEDIUM 半成功标 STALE + NIT 强制 t.chapterNum 归属 + LOW 空态提示。
 
 ### 背景：记忆栈（M8 / M9 / M10，均已完成并合入 main）
 
@@ -71,7 +71,7 @@ Platform Adapter
 
 ### 待办 / 未排期
 
-- **3.1 补旧章记忆一键工具**（暂缓，见上；真用武之地依赖未来的「导入原始文件夹」场景）。
+- **3.1「导入原始文件夹」联动**：补全旧章记忆已建好；其杀手场景（导入只含正文的原始文件夹后一键建记忆）待「导入原始文件夹」流程成常用入口后再验。
 - **TD-014**（低）：facts 反向级联漏 deprecate/undo 路径（`collectResolvesReverse` 只在 edit_fact 调）。
 - ~~**TD-015**~~ **已修**（2026-06-23）：全量 AU bundle（`src-engine/services/au_bundle.ts` `collectAuBundle`/`importAuBundle` + `RestoreBundleModal` + ExportModal「导出完整备份」+ Library「导入完整备份」），带 chapters/state/facts/threads/摘要/simple-chat/worldbuilding/project，排除 `.vectors`（导入置 `index_status=STALE` 重建 RAG）。
 - **代码质量硬化**：`docs/internal/plans/system-optimization-{roadmap,execution-plan}-2026-04-19.md`（Settings/Project 契约收窄、真 SecretStore、写入串行化）。基线部分已过时，正交支线、按需取用。

@@ -24,7 +24,7 @@ import { useFeedback } from '../../hooks/useFeedback';
 import { AuSettingsWritingSection } from './AuSettingsWritingSection';
 import { AuSettingsPinnedSection } from './AuSettingsPinnedSection';
 import { AuSettingsAdvancedSection } from './AuSettingsAdvancedSection';
-import { BackfillSummaryModal } from './BackfillSummaryModal';
+import { BackfillMemoryModal } from './BackfillMemoryModal';
 import { ArchiveCandidatesModal } from './ArchiveCandidatesModal';
 import { SecretStorageNotice } from '../shared/SecretStorageNotice';
 import {
@@ -448,7 +448,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                 showError(e, t('advanced.rebuildIndexFail'));
               }
             }}
-            handleBackfillSummaries={() => setBackfillOpen(true)}
+            handleBackfillMemory={() => setBackfillOpen(true)}
             handleArchiveFacts={() => setArchiveOpen(true)}
           />
 
@@ -456,7 +456,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
         </div>
       </main>
       <GlobalSettingsModal isOpen={isGlobalSettingsOpen} onClose={() => setGlobalSettingsOpen(false)} />
-      <BackfillSummaryModal auPath={auPath} isOpen={backfillOpen} onClose={() => setBackfillOpen(false)} />
+      <BackfillMemoryModal auPath={auPath} isOpen={backfillOpen} onClose={() => setBackfillOpen(false)} />
       <ArchiveCandidatesModal auPath={auPath} isOpen={archiveOpen} onClose={() => setArchiveOpen(false)} />
       <Modal isOpen={coreIncludeModalOpen} onClose={() => setCoreIncludeModalOpen(false)} title={t("settings.createCoreIncludeTitle")}>
         <div className="space-y-4">

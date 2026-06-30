@@ -19,9 +19,10 @@ import {
   generate_micro_summary,
   persist_chapter_summary,
   find_chapters_missing_summary,
-  backfill_chapter_summaries,
-  type BackfillSummaryTarget,
-  type BackfillSummaryResult,
+  add_fact,
+  backfill_chapter_memory,
+  type BackfillMemoryTarget,
+  type BackfillMemoryResult,
   generate_retrospective,
   commit_retrospective,
   shouldRunRetrospective,
@@ -37,6 +38,8 @@ import {
 } from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
 import { createEmbeddingProvider } from "./engine-state";
+import { extractFacts } from "./engine-facts";
+import { extractedEnrichment, type ExtractedFactCandidate } from "./facts";
 
 export async function listChapters(auPath: string) {
   const { chapter, state } = getEngine().repos;
@@ -312,89 +315,161 @@ export async function updateChapterContent(auPath: string, chapterNum: number, c
   return result;
 }
 
-// ---- 批量补摘要（用户手动触发）：给「配 embedding 之前确认、永久没摘要」的旧章补 standard 摘要。----
-// 摘要本来只在 confirmChapter 那一刻生成（且需当时已配 embedding），晚配 embedding 的旧章无 backfill 路径。
+// ---- 补全旧章记忆（plan 3.1）：逐章统一 pass 补 摘要 + 笔记（+剧情线）+ 向量。----
+// 摘要/向量自动补缺；笔记只对用户勾选的章提取（自动落库）。复用 backfill_chapter_memory 引擎服务
+// （loop/中断/CAS/半成功）+ 现成原语（generate_standard_summary / extractFacts / add_fact /
+// persist_chapter_summary / indexChapter），不重写逻辑。
 
-export interface BackfillSummaryAvailability {
-  missingChapters: number[];   // 缺 standard 摘要的确认章号
-  totalConfirmed: number;      // 已确认章总数
+export interface ChapterMemoryScan {
+  totalConfirmed: number;
+  chaptersMissingSummary: number[];            // 缺 standard 摘要的章
+  chaptersZeroFacts: number[];                 // 一条笔记都没有的章（默认勾选提取）
+  factCountByChapter: Record<number, number>;  // 每章现有笔记数（给选择器显示）
   embeddingConfigured: boolean;
   llmConfigured: boolean;
 }
 
-/** 预览：扫出缺摘要的章 + 当前配置能否跑（embedding + 写作模型）。UI 先调它显示数量/前置条件。 */
-export async function countChaptersMissingSummary(auPath: string): Promise<BackfillSummaryAvailability> {
+/** 预览：扫出缺摘要 / 零笔记的章 + 前置配置。UI 先调它显示清单与默认勾选。 */
+export async function scanChapterMemory(auPath: string): Promise<ChapterMemoryScan> {
   const e = getEngine();
-  const { chapter, project, settings, chapterSummary } = e.repos;
+  const { chapter, project, settings, chapterSummary, fact } = e.repos;
   const [proj, sett] = await Promise.all([project.get(auPath), settings.get()]);
   const llmCfg = resolve_llm_config(null, proj, sett);
   const chapters = await chapter.list_main(auPath);
   const nums = chapters.map((c) => c.chapter_num);
-  const missingChapters = await find_chapters_missing_summary(auPath, nums, chapterSummary);
+
+  const chaptersMissingSummary = await find_chapters_missing_summary(auPath, nums, chapterSummary);
+
+  const allFacts = await fact.list_all(auPath);
+  const factCountByChapter: Record<number, number> = {};
+  for (const n of nums) factCountByChapter[n] = 0;
+  for (const f of allFacts) {
+    if (typeof f.chapter === "number" && f.chapter in factCountByChapter) {
+      factCountByChapter[f.chapter] += 1;
+    }
+  }
+  const chaptersZeroFacts = nums.filter((n) => factCountByChapter[n] === 0);
+
   return {
-    missingChapters,
     totalConfirmed: nums.length,
+    chaptersMissingSummary,
+    chaptersZeroFacts,
+    factCountByChapter,
     embeddingConfigured: !!createEmbeddingProvider(sett, proj),
     llmConfigured: llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key),
   };
 }
 
-/** 实跑：逐章补 standard 摘要。配置不全/无缺章则抛错或空跑（UI 应在前置条件满足时才让点）。 */
-export async function backfillChapterSummaries(
+/** 实跑：逐章补记忆。摘要补所有缺的；笔记只对 factsChapters 提取。配置不全则抛错。 */
+export async function backfillChapterMemory(
   auPath: string,
+  opts: { factsChapters: number[] },
   onProgress?: (done: number, total: number) => void,
   signal?: AbortSignal,
-): Promise<BackfillSummaryResult> {
+): Promise<BackfillMemoryResult> {
   const e = getEngine();
-  const { chapter, project, settings, chapterSummary } = e.repos;
+  const { chapter, project, settings, chapterSummary, fact, ops } = e.repos;
   const [proj, sett] = await Promise.all([project.get(auPath), settings.get()]);
   const embProvider = createEmbeddingProvider(sett, proj);
   const llmCfg = resolve_llm_config(null, proj, sett);
   const llmConfigured = llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key);
   if (!embProvider || !llmConfigured) {
-    throw new Error("embedding and LLM must be configured to backfill summaries");
+    throw new Error("embedding and LLM must be configured to backfill chapter memory");
   }
+  const llmProvider = create_provider(llmCfg);
+  const language = sett.app?.language || "zh";
 
   const chapters = await chapter.list_main(auPath);
   const byNum = new Map(chapters.map((c) => [c.chapter_num, c]));
-  const missing = await find_chapters_missing_summary(auPath, [...byNum.keys()], chapterSummary);
+  const nums = [...byNum.keys()];
+  const missingSummary = new Set(await find_chapters_missing_summary(auPath, nums, chapterSummary));
+  const factsSet = new Set(opts.factsChapters);
 
-  // targets：content 用 get_content_only（= confirm 喂 LLM 同款，去 frontmatter），hash 用章节 content_hash。
-  const targets: BackfillSummaryTarget[] = [];
-  for (const n of missing) {
+  // in-scope = 缺摘要章 ∪ 勾选提笔记章；这些章顺带把正文进向量索引。
+  const inScope = nums.filter((n) => missingSummary.has(n) || factsSet.has(n)).sort((a, b) => a - b);
+
+  const targets: BackfillMemoryTarget[] = [];
+  for (const n of inScope) {
     const ch = byNum.get(n);
     if (!ch) continue;
     const content = await chapter.get_content_only(auPath, n);
-    targets.push({ chapterNum: n, content, contentHash: ch.content_hash });
+    targets.push({
+      chapterNum: n,
+      content,
+      contentHash: ch.content_hash,
+      needSummary: missingSummary.has(n),
+      extractFacts: factsSet.has(n),
+    });
   }
 
-  return backfill_chapter_summaries({
+  return backfill_chapter_memory({
     targets,
-    llmProvider: create_provider(llmCfg),
-    language: sett.app?.language || "zh",
     signal,
-    // CAS-in-lock（= confirm 同款）：慢 LLM 在锁外生成，落盘在锁内并校验章节 content_hash 未变。
-    // 批量跑期间用户 edit/undo 了某章 → hash 不符 → 不写陈旧摘要向量（向量被检索消费，比孤儿文件更毒）。
-    persistChapter: async (target, text) =>
+    // 慢 LLM，锁外
+    generateSummary: (t) =>
+      generate_standard_summary(t.content, t.chapterNum, llmProvider, { language }),
+    extractFacts: async (t) => (await extractFacts(auPath, t.chapterNum)).facts,
+    // 锁内 CAS 落盘（= backfill 摘要同款）：章节中途被 edit/undo → hash 不符 → 跳过，不写陈旧数据。
+    persistChapter: async (t, { summaryText, facts }) =>
       withAuLock(auPath, async () => {
         let current = false;
         try {
-          const ch = await chapter.get(auPath, target.chapterNum);
-          current = ch.content_hash === target.contentHash;
+          const ch = await chapter.get(auPath, t.chapterNum);
+          current = ch.content_hash === t.contentHash;
         } catch {
           current = false; // 章节已被 undo 删除
         }
-        if (!current) return false;
-        await persist_chapter_summary({
-          auPath,
-          chapterNum: target.chapterNum,
-          text,
-          contentHash: target.contentHash,
-          embeddingProvider: embProvider,
-          summaryRepo: chapterSummary,
-          ragManager: e.ragManager,
-        });
-        return true;
+        if (!current) return { persisted: false, factsAdded: 0 };
+
+        try {
+          if (summaryText) {
+            await persist_chapter_summary({
+              auPath,
+              chapterNum: t.chapterNum,
+              text: summaryText,
+              contentHash: t.contentHash,
+              embeddingProvider: embProvider,
+              summaryRepo: chapterSummary,
+              ragManager: e.ragManager,
+            });
+          }
+
+          let factsAdded = 0;
+          for (const c of facts as ExtractedFactCandidate[]) {
+            await add_fact(
+              auPath,
+              // 归属强制用 t.chapterNum —— backfill 明确知道笔记提自哪一章，不信任 LLM 候选里
+              // 可能幻觉的 chapter 字段（防错章归属，对抗审 NIT）。
+              t.chapterNum,
+              {
+                content_raw: c.content_raw || c.content_clean,
+                content_clean: c.content_clean,
+                type: c.fact_type || c.type || "plot_event",
+                narrative_weight: c.narrative_weight || "medium",
+                status: c.status || "active",
+                characters: c.characters || [],
+                ...(c.timeline ? { timeline: c.timeline } : {}),
+                ...extractedEnrichment(c), // caused_by + M8-A 富化
+              },
+              fact,
+              ops,
+            );
+            factsAdded += 1;
+          }
+
+          // 章正文进向量索引（idempotent overwrite）
+          await e.ragManager.indexChapter(auPath, t.chapterNum, t.content, embProvider, proj.cast_registry);
+          return { persisted: true, factsAdded };
+        } catch (err) {
+          // 半成功（如摘要/部分笔记已落但正文未索引）→ 标 index_status=STALE，让「重建索引」或重跑修复
+          // （= confirm 索引失败同款降级，对抗审 MEDIUM）。已在 AU 锁内，直接 state.update。
+          try {
+            await e.repos.state.update(auPath, (st) => { st.index_status = IndexStatus.STALE; });
+          } catch (stErr) {
+            logCatch("backfill_memory", `Failed to mark index STALE after persist error (chapter ${t.chapterNum})`, stErr);
+          }
+          throw err; // 让引擎服务计 failed（半成功隔离）
+        }
       }),
     onProgress: onProgress ? (info) => onProgress(info.done, info.total) : undefined,
   });
