@@ -1,5 +1,7 @@
 # FicForge 系统优化执行细化方案（2026-04-19）
 
+> **【2026-06-30 核对：本计划已基本被后续工作实现/覆盖】** 详见 `system-optimization-roadmap-2026-04-19.md` 顶部核对结论。下次「质量审计」应对*当前*代码做新鲜结构审，而非执行本旧细化方案。本文保留作历史参考。
+
 > 本文是 [system-optimization-roadmap-2026-04-19.md](D:\fanfic-system\docs\internal\plans\system-optimization-roadmap-2026-04-19.md) 的执行层细化版。
 > 
 > 路线图解决“为什么做、按什么顺序做”；本文解决“每个阶段具体做什么、做完会看到什么变化、如何衡量效果”。

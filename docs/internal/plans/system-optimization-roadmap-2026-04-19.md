@@ -1,5 +1,20 @@
 # FicForge 系统性优化路线图（2026-04-19）
 
+> **【2026-06-30 核对结论 — 本计划已基本被后续工作实现/覆盖，无大块硬化项剩余】**
+> 本计划制定于 2026-04-19，其后 M7（settings 串行化 `withSettingsWriteLock`、三端 secret 加密）、Writer 状态下沉重构（`WriterLayout` 拆 `useWriterBootstrap`/`useWriterGeneration`/drafts/focus）、简版收敛 + 对话×记忆栈融合（`Library` 拆 `useLibraryOnboardingGate`/`useLibraryMutations`、`form-mappers`、`LlmConnectionForm`、`useLlmConnectionTest`）、以及 TD-004/008/009/010/016 等已**陆续把本路线图的绝大部分落地**：
+> - **A 契约收口** ✅：`getSettingsSummary` / `getSettingsForEditing` / `getProjectForEditing` / `getWorkspaceSnapshot` / `getWriterSessionConfig` / `saveGlobalSettings` / `saveAppPreferences` / `saveProjectWritingStyle` / `saveProjectLlmOverride` 等查询+命令均已存在；旧 `updateSettings`/`updateProject` 宽 patch 已删（M7）。
+> - **B 表单/控制器** ✅：form-mappers + 连接测试 hook + `LlmConnectionForm` + WriterLayout/Library 拆分均已落地。
+> - **C 异步/一致性** ✅(部分)：settings 写入串行化（`withSettingsWriteLock`）+ `useActiveRequestGuard` 已统一；**sync 相关项随 M7 同步退役全部 MOOT**。
+> - **D 安全** ✅：`src-engine/platform/secret_store.ts` 三端实现 + `migrateLegacySecureStorage` + `useSecretStorageCapabilities` + `SecretStorageNotice`；summary query 不返回真 secret（只 `has_api_key`）。
+> - **E 业务语义** ✅(主体)：`TrashService`/`TrashEntry` + 路径白名单（T7-2）。
+> - **F 测试** ✅(主体)：UI 测试 0→13+ 文件，命令/集成层测试随各特性补齐。
+>
+> **残留小项（下次按需，非大工程）：** ① ~8 处 UI 产品代码 `console.error/warn` 脱敏；② 专用 `getProjectSummary`（目标已由 `getWorkspaceSnapshot`/`getProjectForEditing` 服务）；③ import staged-semantics / delete 语义的**深度**统一（主体基建已在，需逐点复核）。
+>
+> **结论：下次「全量代码质量审计 + 硬化」不应是“执行本旧计划”（已基本完成），而应是对*当前*代码（尤其新落地的 融合 / 3.1 补全旧章记忆 / 记忆栈）做一次*新鲜的*结构性审，对照 `CLAUDE.md` 方法论找新问题。** 本文件保留作历史参考。
+>
+> ——以下为 2026-04-19 原文——
+
 > 基于当前代码库现状制定，目标不是“最低成本修补”，而是在保证功能持续可交付的前提下，系统性提升实现质量、减少冗余、增强健壮性、可维护性与可扩展性。
 > 
 > 适用范围：`src-engine/`、`src-ui/src/`
