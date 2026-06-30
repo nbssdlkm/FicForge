@@ -4,7 +4,8 @@
 
 FicForge 是面向同人写手的 AI 辅助续写工具。**架构迁移（Python 后端 → TypeScript 统一核心引擎，M0–M5）已完成**，引擎同时支撑桌面端（Tauri）和移动端（Capacitor/PWA）。
 
-**当前主线**：把独立验证过的「简版」fork（`D:\fanfic-system-simple`，agent-harness / 工具调用、聊天式续写）收敛回主仓 —— 两种写作模式经单一运行时开关 `writing_mode: 'full' | 'simple'` 共存，而不是维护两套代码库。Phase 1（引擎层）已完成并复核可合；Phase 2（UI 接入）待启动。详见下方「活跃工作」。
+**当前主线**：「对话式 × 记忆栈融合」—— 把简版 fork 的聊天式续写（agent-harness / 工具调用）收敛进主仓后，进一步删 `writing_mode` 模式开关、做成**单一主力版**：一篇作品里「对话」+「写文/阅读」双 tab 并列、共用同一套记忆栈（facts / 剧情线 / 摘要 / RAG），背后同一条「生成→接受→记忆」流水线。Phase 1（引擎+API）+ Phase 2（UI 统一 + 模式系统物理删 + 对话接受接 M9 提取）已完成并合 main；Phase 3（迁移+打磨）进行中。详见下方「活跃工作」。
+> **历史**：更早的「简版收敛」（两模式经 `writing_mode: 'full' | 'simple'` 运行时开关共存）已被本主线取代 —— `writing_mode` 开关与字段均已物理退役，不再维护两套模式。
 
 ## 架构（PRD v4, D-0034）
 
@@ -43,34 +44,36 @@ Platform Adapter
 | M5 | 移动端 Capacitor/PWA、响应式 UI | **已完成**（ops 合并 + 数据同步**已废弃**，见 D-0040） |
 | M6 | Agent 架构 | **重开规划**，D-0032 作废，见 D-0043；触发条件满足后启动（预计 2026 Q3/Q4） |
 | M7 | 架构简化（同步退役 + ops 降级 audit log） | **已完成 + 已合本地 main**（`9e44491`，origin 未 push）：同步 UI 隐藏（`c4b0f42`）+ engine 同步引擎删除、`ops_merge.ts` 外科式迁 `src-engine/ops/`（剥离多设备合并/冲突检测、保留 rebuild/lamport 投影核心）、死 UI/API/locale/文档清理 |
-| M8 | Memory 三层架构（Fact / Chapter Summary / Thread） | 待启动 |
-| M9 | ReAct 基础设施（生成 + 选择性提取） | 待启动 |
-| M10 | Retrospective rewrite + Archive 冷热分层 | 待启动 |
+| M8 | Memory 三层架构（Fact / Chapter Summary / Thread） | **已完成**（合入 main，2026-06） |
+| M9 | ReAct 基础设施（生成 + 选择性提取） | **已完成**（合入 main，2026-06） |
+| M10 | Retrospective rewrite + Archive 冷热分层 | **已完成**（M10-A + M10-B 合入 main，2026-06） |
 
-> **注**：M6–M10 源自 PRD v5（架构简化 + Memory 重设计）。**PRD v5 及 D-00xx 决策记录 / devlog 已不在仓库内**（`docs/internal/` 仅余 `plans/`）—— 如需查阅在 Obsidian `D:\MY LIFE\FicForge\` 或归档处。**当前实际推进的主线是「简版收敛」**，独立于 M6–M10 排期，见下方「活跃工作」。
+> **注**：M6–M10 源自 PRD v5（架构简化 + Memory 重设计）。**PRD v5 及 D-00xx 决策记录 / devlog 已不在仓库内**（`docs/internal/` 仅余 `plans/`）—— 如需查阅在 Obsidian `D:\MY LIFE\FicForge\` 或归档处。M8–M10 已完成；**当前实际推进的主线是「对话式 × 记忆栈融合」（单一主力版）**，Phase 1+2 已合 main、Phase 3 进行中，见下方「活跃工作」。
 
 ## 活跃工作（当前分支）
 
-**当前分支：`main`** —— `origin/main @ 3e5e567`，全 pushed。简版收敛（Phase 1+2，`writing_mode` 单运行时开关）、M7 同步退役、Python sidecar 退役、M8 记忆三层、M9 ReAct 事实提取 **均已完成并合入 main**。本会话有未提交的「打磨」改动（见下，待用户拍板 commit+push）。
+**当前分支：`main`** —— `origin/main @ be83996`，融合主线 Phase 1+2 全 pushed。本会话有未提交的 Phase 3 清理块（见下，待用户拍板 commit）。
 
-### 主线现状：M8 记忆三层 + M9 ReAct（均已完成 + 真机验过）
+### 主线：对话式 × 记忆栈融合（单一主力版）
 
-- **M8-A Fact 富化**（9 个 Layer2/3 字段 + `_confidence`）/ **M8-B Thread 剧情线**（引擎 + UI 三屏：Index / 详情挂笔记标 `thread_role` / Fact 反向视图，桌面+移动）/ **M8-C Chapter Summary**（standard 档，confirm 时生成 → 嵌入 `summaries` collection → P4 RAG 注入；**需配 embedding 才跑**）全部落地。
-- **M9 ReAct 事实提取**（默认开，PD-4 用户拍板 + GlobalSettings「增强事实提取」开关）：复用 `runAgentLoop` 跑 propose 内联挂边 → 跨章 `caused_by` + 自动挂剧情线 `thread_ids`（**点亮 M8-B 自动有数据**）。reasoning 模型适配（`EXTRACT_GEN_PARAMS.max_tokens` 8000）；过度提取已修（prompt 引导少而精 + `REACT_MAX_FACTS_PER_CHAPTER=8` 软上限，context 单一真相源）。批量提取路径（FactsPage）也接了 M9。
-- **真机全旅程验过**（2026-06-22，用户 Chrome + Claude-in-Chrome MCP）：建 AU → v4-flash 出 5 章 → 提取候选 → 接受 → 剧情线面板；读 IndexedDB `ficforge_fs` 定量验 facts/threads/`.summary.jsonl`/`.vectors` 全活（thread_ids 100% 自动挂、caused_by 跨章真实 id、摘要+RAG 配 embedding（硅基 bge-m3）后真生成）。记忆栈四层（Facts / Thread / Summary / RAG）全部跑通。
-- 引擎 ~971 + 双端 tsc + i18n 全绿。spec：`docs/superpowers/specs/2026-06-20-m9-react-fact-extraction-design.md`（v1.1）/ `2026-06-20-m8b-thread-layer-design.md`。
+**目标**（用户拍板）：删 `writing_mode` 模式开关，做成单一主力版 —— 一篇作品里「对话」tab +「写文/阅读」tab 并列、共用同一套记忆栈（facts / 剧情线 / 摘要 / RAG）。对话与手动只是两种输入，背后同一条「生成→接受→记忆」流水线；记忆=自动为主（接受后自动提取）。
+- spec：`docs/superpowers/specs/2026-06-28-fuse-chat-into-main-memory-design.md`；plan：`docs/superpowers/plans/2026-06-28-fuse-chat-into-main-memory-plan.md`（两轮独立审）。
+- **Phase 1（引擎 + API）全完**：对话路径走 `assemble_chat_context`（分层记忆进 systemContent）、`computeInputBudget` 单一真相源、confirm 内摘要/回顾不再受 mode gate。
+- **Phase 2（UI 统一 + 模式系统物理删 + M9 接线）全完 + pushed**：恒并列双 tab（桌面 + 移动 5-tab 底栏）、物理删 `useWritingMode`/`getSimpleFeatures`/landing 分叉；对话接受自动触发 M9 提取（双 gate：`react_extraction_enabled !== false` + `default_llm.has_usable_connection`）弹 `ExtractReviewModal` + header「提取剧情笔记中…」指示。最后一块 P2.3 = commit `be83996`。
+- **Phase 3（迁移 + 打磨）进行中**：
+  - ✅ **清理块（未提交）**：`writing_mode` 字段退役（`domain/settings` + `file_settings` + `config/simple_features`（仅留 `SIMPLE_AGENT_MAX_ITER`）+ `index` re-export；round-trip 测试改「容忍读取 + 不再持久化」）+ `summaryDisabled` 死字段 + `backfill.disabledMode` 死 i18n 清理；`get_tools_for_mode` 评估=**不动**（它是 settings-chat scope au/fandom/simple，非 writing_mode）。引擎 1020 + UI 206 + 双 tsc + i18n 1176 全绿 + 独立对抗审 opus 判 safe。
+  - ✅ **真机眼验（preview，无 key）**：零 console 报错；建/开 AU 落地对话 tab；双 tab 切换；token badge；管理→故事设置→高级操作四按钮 + 补摘要 modal 走 needConfig 路径（**无 `disabledMode` 死分支泄漏**）全活。LLM 出章→接受→提取全流程靠绿测试兜底（填 key 受安全规则禁，未真机实跑）。
+  - ⏸ **3.1「补全旧章记忆」一键工具：暂缓** —— 经调研三件套已各自存在（facts = FactsPage 批量提取 `submitFactsExtraction` 自动落库 / 摘要 = 高级操作「补全旧章摘要」/ RAG = 高级操作「重建索引」），统一一键价值偏窄（bundle 导入本就带记忆，仅「导入原始文件夹」那条路缺记忆）。
 
-### 本会话打磨（2026-06-22，未提交，待用户 commit+push）
+### 背景：记忆栈（M8 / M9 / M10，均已完成并合入 main）
 
-1. ✅ **PD-5 候选卡片归类标签**：提取结果预览 modal（`ExtractReviewModal`）候选卡片显示「归入剧情线」/「跨章因果」标签（读 `candidate.thread_ids` / `caused_by`，`Set` 去重计数，>1 带 ×N）。`WriterModals.tsx` + i18n 2 key + 4 render 测试。codex 审过（P2 dedup 已采纳）。
-2. ✅ **批量补摘要工具**（用户 A 拍板）：AU 设置「高级操作」加「补全旧章摘要」按钮 —— 摘要本来只在 confirm 那刻生成（需当时已配 embedding），晚配 embedding 的旧章永久没摘要、无 backfill。流程：扫缺 standard 摘要的章 → 显示数量+花费提示 → 逐章生成+嵌入（进度条 + 可中断）。引擎 `find_chapters_missing_summary` / `backfill_chapter_summaries`（standard-only，章边界中断，CAS-in-lock 防陈旧摘要向量 —— codex P1）；API `countChaptersMissingSummary` / `backfillChapterSummaries`；UI `BackfillSummaryModal`（unmount-abort，codex P2）。i18n 15 key + 11 测试（engine 7 + modal 4）。codex 审过（P1 CAS + P2 unmount-abort 已修）。
-3. ✅ **CLAUDE.md 活跃工作段刷新**（本段）。
-- 验证：引擎 **978** + UI **175** + 双端 tsc + i18n **1160** 全绿。**剩**：commit + push（用户拍板）；真机眼验补摘要 UI（preview 无 AU 数据没法 live 验，逻辑已单测覆盖）。
+- M8-A Fact 富化 / M8-B Thread 剧情线 / M8-C Chapter Summary（standard，需配 embedding）；M9 ReAct 提取（复用 `runAgentLoop`，跨章 `caused_by` + 自动挂 `thread_ids`，`REACT_MAX_FACTS_PER_CHAPTER=8` 软上限）；M10-A retrospective + M10-B 冷热分层（`archived` fact 字段 + 高级操作「整理旧剧情笔记」`ArchiveCandidatesModal`）。真机全旅程 2026-06-22 验过（记忆栈四层 Facts/Thread/Summary/RAG 全跑通，配硅基 bge-m3）。spec：`docs/superpowers/specs/2026-06-20-m9-react-fact-extraction-design.md` / `2026-06-20-m8b-thread-layer-design.md`。
 
 ### 待办 / 未排期
 
-- **M10**（Retrospective + Archive 冷热分层）：M10-A（micro 摘要 + retrospective 每 N 章重写）+ **M10-B 冷热分层（已端到端接线，2026-06-22）** —— 引擎本就建好（`archived` fact 字段 + ops 链 + context_assembler P3 过滤冷 fact），本会话补上 Q4 用户确认 UI：AU 设置「整理旧剧情笔记」(`ArchiveCandidatesModal`，扫冷候选→勾选→归档) + 剧情笔记「冷存」标 + 编辑区恢复。`find_archival_candidates`(只读) / `archive_facts`(确认子集) / `unarchiveFact`。`run_archival_sweep` 自动档仍未接 confirm（Q4 故意不自动）。
-- **TD-014**（低）：facts 反向级联漏 deprecate/undo 路径（`collectResolvesReverse` 只在 edit_fact 调）。**TD-015**（P2）：import/export 只带正文+frontmatter，不带 state/facts/摘要/RAG/threads → 简版↔主迁移丢记忆，事件驱动修。
+- **3.1 补旧章记忆一键工具**（暂缓，见上；真用武之地依赖未来的「导入原始文件夹」场景）。
+- **TD-014**（低）：facts 反向级联漏 deprecate/undo 路径（`collectResolvesReverse` 只在 edit_fact 调）。
+- ~~**TD-015**~~ **已修**（2026-06-23）：全量 AU bundle（`src-engine/services/au_bundle.ts` `collectAuBundle`/`importAuBundle` + `RestoreBundleModal` + ExportModal「导出完整备份」+ Library「导入完整备份」），带 chapters/state/facts/threads/摘要/simple-chat/worldbuilding/project，排除 `.vectors`（导入置 `index_status=STALE` 重建 RAG）。
 - **代码质量硬化**：`docs/internal/plans/system-optimization-{roadmap,execution-plan}-2026-04-19.md`（Settings/Project 契约收窄、真 SecretStore、写入串行化）。基线部分已过时，正交支线、按需取用。
 
 ---
