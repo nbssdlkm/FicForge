@@ -25,8 +25,6 @@ import { LibraryImportPanel } from './library/LibraryImportPanel';
 import { useLibraryImportFlow } from './library/useLibraryImportFlow';
 import { useLibraryMutations } from './library/useLibraryMutations';
 import { useLibraryOnboardingGate } from './library/useLibraryOnboardingGate';
-import { useWritingMode } from '../hooks/useWritingMode';
-import { getAuLandingPage } from './simple/landing';
 
 type Props = {
   onNavigate: (page: string, auPath?: string) => void;
@@ -35,7 +33,6 @@ type Props = {
 function LibraryInner({ onNavigate }: Props) {
   const { t } = useTranslation();
   const { showError } = useFeedback();
-  const { mode } = useWritingMode();
   const dataDir = getDataDir();
   const { fandoms, loading, loadFandoms } = useLibraryData();
   const [isGlobalSettingsOpen, setGlobalSettingsOpen] = useState(false);
@@ -73,7 +70,7 @@ function LibraryInner({ onNavigate }: Props) {
     setShowOnboarding(false);
     void loadFandoms().finally(() => {
       if (result?.openAuPath) {
-        onNavigate(getAuLandingPage(mode), result.openAuPath);
+        onNavigate('chat', result.openAuPath);
       } else if (result?.nextAction === 'open-import') {
         importFlow.openImportPicker();
       } else if (result?.nextAction === 'open-settings') {

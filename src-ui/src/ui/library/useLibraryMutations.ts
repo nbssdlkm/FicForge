@@ -4,8 +4,6 @@
 
 import { useState } from 'react';
 import { createFandom, createAu, deleteFandom, deleteAu } from '../../api/engine-client';
-import { useWritingMode } from '../../hooks/useWritingMode';
-import { getAuLandingPage } from '../simple/landing';
 
 export type LibraryDeleteTarget = {
   type: 'fandom' | 'au';
@@ -32,7 +30,6 @@ export function useLibraryMutations({
   onCreatedFandom,
   onCloseFandomModal,
 }: UseLibraryMutationsOptions) {
-  const { mode } = useWritingMode();
   const [isFandomModalOpen, setFandomModalOpen] = useState(false);
   const [isAuModalOpen, setAuModalOpen] = useState(false);
   const [creatingFandom, setCreatingFandom] = useState(false);
@@ -92,7 +89,8 @@ export function useLibraryMutations({
       const createdAu = await createAu(selectedFandom, auName, fandomPath);
       setAuModalOpen(false);
       setNewAuName('');
-      onNavigate(getAuLandingPage(mode), createdAu.path);
+      // 融合后单一主力版:新建作品恒落地「对话」tab(共用记忆栈,对话为主力入口)。
+      onNavigate('chat', createdAu.path);
     } catch (error) {
       onError(error);
     } finally {

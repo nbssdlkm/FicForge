@@ -2,8 +2,6 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import type { WritingMode } from "@ficforge/engine";
-
 /** Settings API */
 
 export interface LlmSettingsInfo {
@@ -80,7 +78,6 @@ export interface EmbeddingSettingsSaveInput {
 
 export interface AppPreferencesInput {
   language?: string;
-  writing_mode?: WritingMode;
   react_extraction_enabled?: boolean;
 }
 

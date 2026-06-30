@@ -1312,8 +1312,7 @@
   },
   "simple": {
     "tabs": {
-      "chat": "对话",
-      "reading": "阅读"
+      "chat": "对话"
     },
     "history": {
       "emptySubtitle": "跟 AI 对话开始写文",
@@ -1372,33 +1371,7 @@
     "settings": {
       "openLabel": "打开续写设置",
       "loading": "加载设置中…",
-      "title": "续写设置",
-      "modeLabel": "写作模式",
-      "modeSimple": "简版 · 对话式",
-      "modeFull": "完整版",
-      "modeDescription": "切换在下次打开作品时生效。简版用对话式续写，完整版是手动编辑器。"
-    },
-    "reader": {
-      "cancelEdit": "取消",
-      "chapterFull": "第 {{num}} 章",
-      "chapterSlug": "Ch.{{num}}",
-      "chaptersEyebrow": "Chapters",
-      "charCount": "{{n}} chars",
-      "edit": "修改本章",
-      "emptyChapters": "尚无章节，去对话面板写第一章。",
-      "emptyChapter": "本章正文为空。",
-      "fontSize": "Font Size",
-      "lineHeight": "Line Height",
-      "loadFailed": "加载失败：{{message}}",
-      "nextChapter": "下一章",
-      "noChapters": "还没有章节。去对话面板写第一章。",
-      "pickOne": "从左侧章节列表选一章开始阅读。",
-      "prevChapter": "上一章",
-      "savedToast": "章节已保存",
-      "save": "保存",
-      "saving": "保存中…",
-      "toggleTypePanel": "调节字号与行距",
-      "untitled": "未命名"
+      "title": "续写设置"
     },
     "assistant": {
       "eyebrow": "§ AI"

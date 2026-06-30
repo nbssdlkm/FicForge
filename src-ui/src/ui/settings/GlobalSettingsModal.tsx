@@ -10,8 +10,6 @@ import { Input } from '../shared/Input';
 import { HelpCircle, CheckCircle2, XCircle } from 'lucide-react';
 import { ModelSelector } from '../shared/ModelSelector';
 import { getSettingsForEditing, saveAppPreferences, saveGlobalSettingsForEditing, LLMMode, type SettingsInfo, getDataDir, getDisplayDataDir } from '../../api/engine-client';
-import { WRITING_MODES, type WritingMode } from '@ficforge/engine';
-import { useWritingMode, writeWritingModeMirror } from '../../hooks/useWritingMode';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
 import { catchAndLog } from '../../utils/ui-logger';
@@ -34,7 +32,6 @@ import { DEFAULT_DEEPSEEK_MODEL, DEFAULT_DEEPSEEK_API_BASE, DEFAULT_CONTEXT_WIND
 export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const { t, i18n } = useTranslation();
   const { showError, showSuccess } = useFeedback();
-  const { mode: writingMode, refresh: refreshWritingMode } = useWritingMode();
   const modalGuard = useActiveRequestGuard(isOpen ? 'global-settings-open' : 'global-settings-closed');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -319,35 +316,6 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                 ))}
               </select>
               <p className="text-xs text-text/50">{t('settings.global.languageDescription')}</p>
-            </div>
-          </div>
-
-          <div className="space-y-2 border-t border-rule pt-5">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-bold text-text/90">{t('simple.settings.modeLabel', { defaultValue: '写作模式' })}</label>
-              <select
-                value={writingMode}
-                onChange={async (e) => {
-                  const next = e.target.value as WritingMode;
-                  try {
-                    await saveAppPreferences({ writing_mode: next });
-                    writeWritingModeMirror(next);
-                    await refreshWritingMode();
-                  } catch (err) {
-                    showError(err, t('error_messages.unknown'));
-                  }
-                }}
-                className="h-11 w-full rounded-sm border border-rule bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent md:h-10 md:w-48 md:text-sm"
-              >
-                {WRITING_MODES.map((m) => (
-                  <option key={m} value={m}>
-                    {m === 'simple'
-                      ? t('simple.settings.modeSimple', { defaultValue: '简版 · 对话式' })
-                      : t('simple.settings.modeFull', { defaultValue: '完整版' })}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-text/50">{t('simple.settings.modeDescription', { defaultValue: '切换在下次打开作品时生效。简版用对话式续写，完整版是手动编辑器。' })}</p>
             </div>
           </div>
 

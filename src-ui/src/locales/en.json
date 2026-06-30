@@ -1312,8 +1312,7 @@
   },
   "simple": {
     "tabs": {
-      "chat": "Chat",
-      "reading": "Reading"
+      "chat": "Chat"
     },
     "history": {
       "emptySubtitle": "Start writing by chatting with the AI",
@@ -1372,33 +1371,7 @@
     "settings": {
       "openLabel": "Open writing settings",
       "loading": "Loading settings…",
-      "title": "Writing settings",
-      "modeLabel": "Writing mode",
-      "modeSimple": "Simple · Chat",
-      "modeFull": "Full",
-      "modeDescription": "Takes effect the next time you open a work. Simple mode writes via chat; full mode is the manual editor."
-    },
-    "reader": {
-      "cancelEdit": "Cancel",
-      "chapterFull": "Chapter {{num}}",
-      "chapterSlug": "Ch.{{num}}",
-      "chaptersEyebrow": "Chapters",
-      "charCount": "{{n}} chars",
-      "edit": "Edit this chapter",
-      "emptyChapters": "No chapters yet — write the first one in the chat panel.",
-      "emptyChapter": "This chapter is empty.",
-      "fontSize": "Font Size",
-      "lineHeight": "Line Height",
-      "loadFailed": "Failed to load: {{message}}",
-      "nextChapter": "Next chapter",
-      "noChapters": "No chapters yet. Write the first one in the chat panel.",
-      "pickOne": "Pick a chapter from the list on the left to start reading.",
-      "prevChapter": "Previous chapter",
-      "savedToast": "Chapter saved",
-      "save": "Save",
-      "saving": "Saving…",
-      "toggleTypePanel": "Adjust font size and line height",
-      "untitled": "Untitled"
+      "title": "Writing settings"
     },
     "assistant": {
       "eyebrow": "§ AI"

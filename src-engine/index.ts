@@ -3,9 +3,9 @@
 
 /** @ficforge/engine — 统一导出。 */
 
-// FicForge writing-mode flags
-export type { SimpleFeatures, WritingMode } from "./config/simple_features.js";
-export { getSimpleFeatures, isWritingMode, WRITING_MODES } from "./config/simple_features.js";
+// 写作模式类型 + 校验（融合后 flag 体系已删，仅留 writing_mode 字段的容忍读取所需）
+export type { WritingMode } from "./config/simple_features.js";
+export { isWritingMode, WRITING_MODES } from "./config/simple_features.js";
 
 // Domain
 export * from "./domain/index.js";

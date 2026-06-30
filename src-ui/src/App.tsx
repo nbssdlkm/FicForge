@@ -14,7 +14,6 @@ import { useTranslation } from "./i18n/useAppTranslation";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 import { isTauri as detectTauri, isCapacitor as detectCapacitor } from "./utils/platform";
 import { logUiError } from "./utils/ui-logger";
-import { WritingModeProvider } from "./hooks/useWritingMode";
 
 /** 获取或创建持久化设备 ID（同步，用于 adapter 构造前）。 */
 function getOrCreateDeviceId(): string {
@@ -216,7 +215,7 @@ function App() {
   const isAuSpace = ["writer", "chat", "facts", "threads", "au_lore", "settings"].includes(currentPage);
 
   return (
-    <WritingModeProvider>
+    <>
       <SplashScreen visible={splashVisible} />
       {!isAuSpace && currentPage === "library" && <Library onNavigate={handleNavigate} />}
       {!isAuSpace && currentPage === "fandom_lore" && (
@@ -224,7 +223,7 @@ function App() {
           ? <MobileFandomView fandomPath={currentAuPath} onNavigate={handleNavigate} />
           : <FandomLoreLayout fandomPath={currentAuPath} onNavigate={handleNavigate} />
       )}
-      
+
       {isAuSpace && (
         <AuWorkspaceLayout
           key={currentAuPath}
@@ -233,7 +232,7 @@ function App() {
           auPath={currentAuPath}
         />
       )}
-    </WritingModeProvider>
+    </>
   );
 }
 

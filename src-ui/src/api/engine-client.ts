@@ -87,7 +87,6 @@ export {
   getFontPreferences,
   getOnboardingDefaults,
   getWriterSessionConfig,
-  getWritingMode,
   saveAppPreferences,
   saveDefaultLlmSettings,
   saveFontPreferences,
