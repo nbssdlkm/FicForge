@@ -92,6 +92,10 @@ export interface SettingsSummary {
   app: {
     language: string;
     fonts: FontPreferences;
+    // 增强事实提取开关（GlobalSettings 同名 toggle）。运行时 FileSettingsRepository 已归一为
+    // 具体 boolean（默认 true），不会是 undefined；此处声明可选只为类型容错（手构 summary /
+    // 非 repo 路径可缺）。消费侧统一按 `!== false`（默认开）解释——对话接受后是否自动触发 M9 提取的 gate。
+    react_extraction_enabled?: boolean;
   };
 }
 

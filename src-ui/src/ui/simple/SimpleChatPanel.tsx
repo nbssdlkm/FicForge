@@ -22,15 +22,20 @@ import { useFeedback } from "../../hooks/useFeedback";
 import { useKV } from "../../hooks/useKV";
 import {
   confirmChapter,
+  getSettingsSummary,
   getState,
   getWriterProjectContext,
   getWriterSessionConfig,
   SIMPLE_TOOL_SHOW_CHAPTER,
   SIMPLE_TOOL_SHOW_SETTING,
+  type SettingsSummary,
   type WriterProjectContext,
   type WriterSessionConfig,
 } from "../../api/engine-client";
 import { useSessionParams } from "../writer/useSessionParams";
+import { useWriterFactsExtraction } from "../writer/useWriterFactsExtraction";
+import { ExtractReviewModal } from "../writer/WriterModals";
+import { Spinner } from "../shared/Spinner";
 import { SimpleSettingsDrawer } from "./SimpleSettingsDrawer";
 import { SimpleChatHistory } from "./SimpleChatHistory";
 import { SimpleChatInput } from "./SimpleChatInput";
@@ -64,6 +69,9 @@ export function SimpleChatPanel({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [projectInfo, setProjectInfo] = useState<WriterProjectContext | null>(null);
   const [settingsInfo, setSettingsInfo] = useState<WriterSessionConfig | null>(null);
+  const [settingsSummary, setSettingsSummary] = useState<SettingsSummary | null>(null);
+  // 接受草稿后自动提取的目标章号 —— 兜底 handleSaveExtracted（candidate.chapter 缺时用它）。
+  const [extractReviewChapter, setExtractReviewChapter] = useState<number | null>(null);
   // Transient "AI 思考中…" 占位 — 不进 chat.messages 避免 persist 到 chat.yaml
   // 后切 tab / 重启时残留 (用户报告: 切 tab thinking 卡死)。
   const [thinkingActive, setThinkingActive] = useState(false);
@@ -84,6 +92,8 @@ export function SimpleChatPanel({
     setDrawerOpen(false);
     setProjectInfo(null);
     setSettingsInfo(null);
+    setSettingsSummary(null);
+    setExtractReviewChapter(null);
     setThinkingActive(false);
   }, [auPath]);
 
@@ -92,15 +102,27 @@ export function SimpleChatPanel({
     Promise.all([
       getWriterProjectContext(auPath).catch(() => null),
       getWriterSessionConfig().catch(() => null),
-    ]).then(([proj, settings]) => {
+      getSettingsSummary().catch(() => null),
+    ]).then(([proj, settings, summary]) => {
       if (cancelled) return;
       setProjectInfo(proj);
       setSettingsInfo(settings);
+      setSettingsSummary(summary);
     });
     return () => { cancelled = true; };
   }, [auPath]);
 
   const sessionParams = useSessionParams(auPath, projectInfo, settingsInfo, showSuccess, showError);
+
+  // M9 接线：复用 writer 侧事实提取 hook（自带 review 状态机 + 落库）。对话接受走自动触发，
+  // 不再单独弹 FactsPromptModal —— 对话路径「记忆=自动为主」。
+  const factsExtraction = useWriterFactsExtraction(auPath);
+
+  // 自动提取 gate：① 增强事实提取开关未被显式关闭（默认开，对齐 GlobalSettings `!== false`）
+  // ② LLM 就位（extractFacts 内部 react/plain 都需 LLM；未配会空跑报错）。任一不满足静默跳过。
+  const canAutoExtract =
+    settingsSummary?.app?.react_extraction_enabled !== false &&
+    Boolean(settingsSummary?.default_llm?.has_usable_connection);
 
   const refreshChapterContext = useCallback(async () => {
     try {
@@ -351,6 +373,13 @@ export function SimpleChatPanel({
           }),
         );
         await refreshChapterContext();
+        // M9：接受落章后自动跑事实提取（异步、不阻塞接受收尾）。gate 满足才弹 review；
+        // 否则静默跳过（增强提取关 / LLM 未配）。extractFacts 内部再按 react_extraction_enabled
+        // 决定 react vs plain，这里只 gate「是否自动触发」。
+        if (canAutoExtract) {
+          setExtractReviewChapter(target.chapterNum);
+          void factsExtraction.handleOpenExtractReview(target.chapterNum);
+        }
       } catch (err) {
         chat.setDraftStatus(messageId, "error", {
           errorMessage: err instanceof Error ? err.message : String(err),
@@ -360,7 +389,7 @@ export function SimpleChatPanel({
         setAcceptingDraftId(null);
       }
     },
-    [auPath, chat, refreshChapterContext, showError, showSuccess, t],
+    [auPath, canAutoExtract, chat, factsExtraction.handleOpenExtractReview, refreshChapterContext, showError, showSuccess, t],
   );
 
   const handleAcceptDraftSync = useCallback(
@@ -542,6 +571,14 @@ export function SimpleChatPanel({
           </strong>
         </span>
         {tokenBadge}
+        {factsExtraction.extractingFacts && (
+          <span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.08em] text-accent">
+            <Spinner size="sm" />
+            <span className="font-serif tracking-normal normal-case">
+              {t("simple.header.extracting", { defaultValue: "提取剧情笔记中…" })}
+            </span>
+          </span>
+        )}
         <button
           type="button"
           onClick={() => {
@@ -614,6 +651,19 @@ export function SimpleChatPanel({
         onFontSizeChange={(v) => setFontSizeKV(String(v))}
         lineHeight={lineHeight}
         onLineHeightChange={(v) => setLineHeightKV(String(v))}
+      />
+      <ExtractReviewModal
+        isOpen={factsExtraction.isExtractReviewOpen}
+        onClose={() => {
+          factsExtraction.setExtractReviewOpen(false);
+          setExtractReviewChapter(null);
+        }}
+        extractedCandidates={factsExtraction.extractedCandidates}
+        selectedExtractedKeys={factsExtraction.selectedExtractedKeys}
+        getCandidateKey={factsExtraction.getCandidateKey}
+        onToggleCandidate={factsExtraction.toggleExtractedCandidate}
+        onSave={() => void factsExtraction.handleSaveExtracted(extractReviewChapter)}
+        savingExtracted={factsExtraction.savingExtracted}
       />
     </div>
   );

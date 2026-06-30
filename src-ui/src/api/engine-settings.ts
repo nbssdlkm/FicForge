@@ -126,6 +126,7 @@ export async function getSettingsSummary(): Promise<SettingsSummary> {
     app: {
       language: settings.app.language,
       fonts: toFontPreferences(settings),
+      react_extraction_enabled: settings.app.react_extraction_enabled,
     },
   };
 }

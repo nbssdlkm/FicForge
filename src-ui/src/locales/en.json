@@ -1366,7 +1366,8 @@
     "header": {
       "chaptersLabel": "Chapters",
       "nextLabel": "Next",
-      "tokensUnit": "tokens"
+      "tokensUnit": "tokens",
+      "extracting": "Extracting plot notes…"
     },
     "settings": {
       "openLabel": "Open writing settings",

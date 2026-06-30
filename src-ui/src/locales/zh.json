@@ -1366,7 +1366,8 @@
     "header": {
       "chaptersLabel": "Chapters",
       "nextLabel": "Next",
-      "tokensUnit": "tokens"
+      "tokensUnit": "tokens",
+      "extracting": "提取剧情笔记中…"
     },
     "settings": {
       "openLabel": "打开续写设置",
