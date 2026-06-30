@@ -89,7 +89,6 @@ export function BackfillSummaryModal({ auPath, isOpen, onClose }: { auPath: stri
         )}
 
         {phase === 'confirm' && avail && (() => {
-          if (avail.summaryDisabled) return <p className="text-sm text-text/70">{t('backfill.disabledMode')}</p>;
           if (!avail.embeddingConfigured || !avail.llmConfigured) return <p className="text-sm text-text/70">{t('backfill.needConfig')}</p>;
           if (avail.missingChapters.length === 0) return <p className="text-sm text-text/70">{t('backfill.noneMissing')}</p>;
           return (
@@ -120,7 +119,7 @@ export function BackfillSummaryModal({ auPath, isOpen, onClose }: { auPath: stri
         )}
 
         <div className="flex justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
-          {phase === 'confirm' && avail && !avail.summaryDisabled && avail.embeddingConfigured && avail.llmConfigured && avail.missingChapters.length > 0 ? (
+          {phase === 'confirm' && avail && avail.embeddingConfigured && avail.llmConfigured && avail.missingChapters.length > 0 ? (
             <>
               <Button tone="neutral" fill="plain" onClick={onClose}>{t('common.actions.cancel')}</Button>
               <Button tone="accent" fill="solid" onClick={handleStart}>{t('backfill.start')}</Button>

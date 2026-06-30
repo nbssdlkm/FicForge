@@ -3,7 +3,6 @@
 
 /** 全局配置领域对象。参见 PRD §3.3 settings.yaml。 */
 
-import type { WritingMode } from "../config/simple_features.js";
 import { APIMode, LicenseTier, LLMMode } from "./enums.js";
 import { type LLMConfig, createLLMConfig } from "./project.js";
 
@@ -111,7 +110,6 @@ export interface AppConfig {
   token_warning_threshold: number;
   chapter_metadata_display: ChapterMetadataDisplay;
   fonts: FontsConfig;
-  writing_mode: WritingMode;
   /** M9：开启 ReAct 增强事实提取（跨章 caused_by + 自动挂剧情线）。默认开（PD-4，用户 2026-06-21 拍板）；可在全局设置关。 */
   react_extraction_enabled: boolean;
   schema_version: string;
@@ -125,7 +123,6 @@ export function createAppConfig(partial?: Partial<AppConfig>): AppConfig {
     token_warning_threshold: 32000,
     chapter_metadata_display: createChapterMetadataDisplay(),
     fonts: createFontsConfig(),
-    writing_mode: "full",
     react_extraction_enabled: true,
     schema_version: "1.0.0",
     ...partial,

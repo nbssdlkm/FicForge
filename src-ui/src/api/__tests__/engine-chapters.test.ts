@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as engineModule from "@ficforge/engine";
 import { createDraft, IndexStatus, LLMMode } from "@ficforge/engine";
 import { MockAdapter } from "../../../../src-engine/repositories/__tests__/mock_adapter.js";
-import { confirmChapter, countChaptersMissingSummary, backfillChapterSummaries } from "../engine-chapters";
+import { confirmChapter, backfillChapterSummaries } from "../engine-chapters";
 import { createAu, createFandom } from "../engine-fandom";
 import { getEngine, initEngine } from "../engine-instance";
 
@@ -93,12 +93,6 @@ describe("engine-chapters 章节摘要不再受 writing_mode gate（融合 P1.4�
     await getEngine().repos.project.save(proj);
   }
 
-  async function setSimpleMode() {
-    const sett = await getEngine().repos.settings.get();
-    sett.app.writing_mode = "simple";
-    await getEngine().repos.settings.save(sett);
-  }
-
   beforeEach(async () => {
     vi.restoreAllMocks();
     adapter = new MockAdapter();
@@ -112,10 +106,9 @@ describe("engine-chapters 章节摘要不再受 writing_mode gate（融合 P1.4�
     }));
   });
 
-  it("confirmChapter 在 writing_mode=simple 下仍生成 standard 摘要（gate 已删，只受 embedding+LLM 约束）", async () => {
+  it("confirmChapter 生成 standard 摘要（无写作模式 gate，只受 embedding+LLM 约束）", async () => {
     await enableEmbeddingSettings();
     await enableLLM();
-    await setSimpleMode();
 
     vi.spyOn(getEngine().ragManager, "indexChapter").mockResolvedValue(undefined);
     const genSpy = vi.spyOn(engineModule, "generate_standard_summary").mockResolvedValue("章节摘要文本");
@@ -124,16 +117,14 @@ describe("engine-chapters 章节摘要不再受 writing_mode gate（融合 P1.4�
 
     await confirmChapter(auPath, 1, "ch0001_draft_A.md");
 
-    // 旧逻辑：writing_mode=simple → disableChapterSummary → 整段跳过 → genSpy 不被调用。
-    // 融合后：无 mode gate，simple 也走摘要（embedding+LLM 已就位）。
+    // 融合后：写作模式 gate（及 writing_mode 字段）已退役，摘要只受 embedding+LLM 约束。
     expect(genSpy).toHaveBeenCalledOnce();
     expect(persistSpy).toHaveBeenCalledOnce();
   });
 
-  it("confirmChapter 在 writing_mode=simple 下回顾(M10-A) gate 也已删：触发条件满足时仍执行", async () => {
+  it("confirmChapter 回顾(M10-A) 无写作模式 gate：触发条件满足时仍执行", async () => {
     await enableEmbeddingSettings();
     await enableLLM();
-    await setSimpleMode();
 
     vi.spyOn(getEngine().ragManager, "indexChapter").mockResolvedValue(undefined);
     // 摘要块也会跑（同 gate），spy 掉避免真 LLM/embed；返回空 → 不落盘。
@@ -145,20 +136,12 @@ describe("engine-chapters 章节摘要不再受 writing_mode gate（融合 P1.4�
 
     await confirmChapter(auPath, 1, "ch0001_draft_A.md");
 
-    // 旧逻辑：simple → disableChapterSummary → 回顾块整段跳过 → retroSpy 不被调。
-    // 融合后：gate 删，shouldRunRetrospective=true + embedding+LLM 就位 → 回顾执行。
+    // 融合后：写作模式 gate 已退役，shouldRunRetrospective=true + embedding+LLM 就位 → 回顾执行。
     expect(retroSpy).toHaveBeenCalledOnce();
   });
 
-  it("countChaptersMissingSummary 在 simple 模式返回 summaryDisabled=false（gate 已删）", async () => {
-    await setSimpleMode();
-    const avail = await countChaptersMissingSummary(auPath);
-    expect(avail.summaryDisabled).toBe(false);
-  });
-
-  it("backfillChapterSummaries 在 simple 模式不再抛 writing-mode 禁用错误（只受 embedding+LLM 前置约束）", async () => {
-    await setSimpleMode();
-    // 未配 embedding/LLM：删 gate 后应抛"需配 embedding+LLM"而非"writing mode 禁用"。
+  it("backfillChapterSummaries 未配 embedding/LLM 时抛前置错误（无写作模式禁用分支）", async () => {
+    // 删 gate 后只剩 embedding+LLM 前置约束：未配时抛"需配 embedding+LLM"。
     await expect(backfillChapterSummaries(auPath)).rejects.toThrow(/embedding and LLM must be configured/);
   });
 });

@@ -949,7 +949,6 @@
   "backfill": {
     "title": "补全旧章摘要",
     "scanning": "正在检查哪些章节还没有摘要…",
-    "disabledMode": "当前写作模式（简版）没有开启章节摘要，无需补全。",
     "needConfig": "需要先在上面配置好写作模型和 embedding（向量检索），才能生成摘要。",
     "noneMissing": "所有已定稿章节都已经有摘要，无需补全。",
     "confirmPrompt": "发现 {{count}} 章还没有摘要。",

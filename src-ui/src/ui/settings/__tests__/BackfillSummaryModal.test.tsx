@@ -23,7 +23,6 @@ const baseAvail = {
   totalConfirmed: 5,
   embeddingConfigured: true,
   llmConfigured: true,
-  summaryDisabled: false,
 };
 
 function renderModal() {

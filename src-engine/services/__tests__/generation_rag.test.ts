@@ -114,8 +114,8 @@ describe("generate_chapter — RAG 检索(写文路径恒开)", () => {
 
     const events = await collectEvents(generate_chapter(makeParams(adapter, {
       au_id: "au_full_rag",
-      // 默认 createSettings() 的 writing_mode 即 "full"；显式写出以表意。
-      settings: createSettings({ app: createAppConfig({ writing_mode: "full" }) }),
+      // 融合后无写作模式：RAG 恒开，与任何模式无关（disableRAG gate 已删）。
+      settings: createSettings({ app: createAppConfig() }),
       state: createState({
         au_id: "au_full_rag",
         current_chapter: 2,
@@ -142,7 +142,7 @@ describe("generate_chapter — RAG 检索(写文路径恒开)", () => {
 
     const events = await collectEvents(generate_chapter(makeParams(adapter, {
       au_id: "au_external_rag",
-      settings: createSettings({ app: createAppConfig({ writing_mode: "full" }) }),
+      settings: createSettings({ app: createAppConfig() }),
       state: createState({ au_id: "au_external_rag", current_chapter: 2, index_status: IndexStatus.READY }),
       vector_repo: makeVectorRepo(searchSpy),
       embedding_provider: makeEmbeddingProvider(),

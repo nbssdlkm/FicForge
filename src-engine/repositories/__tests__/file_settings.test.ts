@@ -254,50 +254,35 @@ describe("FileSettingsRepository fonts — dictToFontsConfig + 迁移", () => {
   });
 });
 
-describe("FileSettingsRepository writing_mode — 默认值 + 校验 + round-trip", () => {
-  it("默认 writing_mode 为 full，set simple 后 round-trip 保持 simple", async () => {
+describe("FileSettingsRepository writing_mode 字段退役 — 容忍读取 + 不再持久化", () => {
+  it("旧 settings.yaml 含 writing_mode → 加载不崩，该字段被丢弃，同块其它字段无损", async () => {
+    const adapter = new MockAdapter();
+    // 模拟融合前写下的 settings.yaml（app 里还带 writing_mode 开关）
+    const legacyYaml = yaml.dump({
+      default_llm: { mode: "api", model: "", api_base: "", api_key: "" },
+      embedding: { mode: "api", model: "", api_base: "", api_key: "" },
+      app: { language: "en", writing_mode: "simple" },
+      sync: {},
+    });
+    await adapter.writeFile("settings.yaml", legacyYaml);
+
+    const repo = new FileSettingsRepository(adapter, "");
+    const s = await repo.get();
+
+    // 字段已退役：domain 不再携带 writing_mode（dict→domain 映射不读它，自然丢弃）
+    expect("writing_mode" in (s.app as unknown as Record<string, unknown>)).toBe(false);
+    // 丢弃 writing_mode 不影响同 app 块其它字段的读取
+    expect(s.app.language).toBe("en");
+  });
+
+  it("save 回写的 yaml 不再包含 writing_mode 字段", async () => {
     const adapter = new MockAdapter();
     const repo = new FileSettingsRepository(adapter, "");
 
     const s = await repo.get();
-    // 全新配置默认 full
-    expect(s.app.writing_mode).toBe("full");
-
-    s.app.writing_mode = "simple";
     await repo.save(s);
 
-    const reloaded = await repo.get();
-    expect(reloaded.app.writing_mode).toBe("simple");
-  });
-
-  it("旧版 YAML 无 writing_mode 字段 → 加载为 full（向后兼容）", async () => {
-    const adapter = new MockAdapter();
-    // 模拟收敛前写下的 settings.yaml（app 里没有 writing_mode）
-    const legacyYaml = yaml.dump({
-      default_llm: { mode: "api", model: "", api_base: "", api_key: "" },
-      embedding: { mode: "api", model: "", api_base: "", api_key: "" },
-      app: { language: "zh" },
-      sync: {},
-    });
-    await adapter.writeFile("settings.yaml", legacyYaml);
-
-    const repo = new FileSettingsRepository(adapter, "");
-    const s = await repo.get();
-    expect(s.app.writing_mode).toBe("full");
-  });
-
-  it("非法 writing_mode 值 \"invalid\" → 强制回退 full（不抛错）", async () => {
-    const adapter = new MockAdapter();
-    const legacyYaml = yaml.dump({
-      default_llm: { mode: "api", model: "", api_base: "", api_key: "" },
-      embedding: { mode: "api", model: "", api_base: "", api_key: "" },
-      app: { writing_mode: "invalid" },
-      sync: {},
-    });
-    await adapter.writeFile("settings.yaml", legacyYaml);
-
-    const repo = new FileSettingsRepository(adapter, "");
-    const s = await repo.get();
-    expect(s.app.writing_mode).toBe("full");
+    const written = await adapter.readFile("settings.yaml");
+    expect(written).not.toContain("writing_mode");
   });
 });

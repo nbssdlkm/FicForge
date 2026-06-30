@@ -949,7 +949,6 @@
   "backfill": {
     "title": "Backfill Chapter Summaries",
     "scanning": "Checking which chapters have no summary…",
-    "disabledMode": "Chapter summaries are off in the current (simple) writing mode — nothing to backfill.",
     "needConfig": "Configure a writing model and embedding (vector search) above before generating summaries.",
     "noneMissing": "All finalized chapters already have summaries — nothing to backfill.",
     "confirmPrompt": "{{count}} chapter(s) have no summary yet.",

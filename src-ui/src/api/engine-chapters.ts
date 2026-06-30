@@ -320,8 +320,6 @@ export interface BackfillSummaryAvailability {
   totalConfirmed: number;      // 已确认章总数
   embeddingConfigured: boolean;
   llmConfigured: boolean;
-  /** 融合后恒 false（摘要不再被写作模式禁用）。字段保留仅供 UI 兼容，P2 随模式系统物理删。 */
-  summaryDisabled: boolean;
 }
 
 /** 预览：扫出缺摘要的章 + 当前配置能否跑（embedding + 写作模型）。UI 先调它显示数量/前置条件。 */
@@ -338,8 +336,6 @@ export async function countChaptersMissingSummary(auPath: string): Promise<Backf
     totalConfirmed: nums.length,
     embeddingConfigured: !!createEmbeddingProvider(sett, proj),
     llmConfigured: llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key),
-    // 融合后无写作模式 gate：摘要永不被模式禁用，恒 false（字段保留供 UI 兼容，P2 物理删）。
-    summaryDisabled: false,
   };
 }
 

@@ -31,7 +31,6 @@ import {
   createSyncConfig,
 } from "../../domain/settings.js";
 import { scriptSlotOf } from "../../fonts/stacks.js";
-import { isWritingMode } from "../../config/simple_features.js";
 import type { SettingsRepository } from "../interfaces/settings.js";
 import { joinPath, now_utc, obj_to_plain } from "./file_utils.js";
 import {
@@ -246,7 +245,8 @@ function dictToFontsConfig(d: Record<string, unknown> | null): FontsConfig {
 
 function dictToAppConfig(d: Record<string, unknown> | null): AppConfig {
   if (!d) return createAppConfig();
-  const writingMode = isWritingMode(d.writing_mode) ? d.writing_mode : "full";
+  // 注：旧 settings.yaml 里可能仍带 writing_mode 字段（融合前的写作模式开关，已退役）。
+  // 此处不映射 → 读取时自然丢弃，save 也不再写回，无损同块其它字段（向后兼容）。
   return createAppConfig({
     language: (d.language as string) ?? "zh",
     data_dir: (d.data_dir as string) ?? "./fandoms",
@@ -254,7 +254,6 @@ function dictToAppConfig(d: Record<string, unknown> | null): AppConfig {
     token_warning_threshold: (d.token_warning_threshold as number) ?? 32000,
     chapter_metadata_display: dictToChapterMetadataDisplay(d.chapter_metadata_display as Record<string, unknown> | null),
     fonts: dictToFontsConfig(d.fonts as Record<string, unknown> | null),
-    writing_mode: writingMode,
     // 默认开（PD-4）：缺字段（老 settings.yaml）视为开；仅显式 false 才关。
     react_extraction_enabled: d.react_extraction_enabled !== false,
     schema_version: (d.schema_version as string) ?? "1.0.0",
