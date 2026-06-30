@@ -157,12 +157,11 @@ const _AU_TOOLS: readonly Record<string, unknown>[] = [
 ] as const;
 
 // ===========================================================================
-// FicForge Lite simple mvp — 简版 disabled tool 黑名单
+// 对话路径 disabled tool 黑名单
 // ===========================================================================
-// 简版 assemble_context_simple 不读 facts / core_always_include，feature flag 也
-// 关闭了 facts extraction，所以这三个 tool 即便 LLM 调用、UI 接通 executor 也是
-// 死操作。从 simple tool list 物理移除（schema 层），LLM 看不到就不会调。
-// 单一真相源：黑名单一处定义，简版任何路径引用都从这里 import。
+// 融合后单一主力版「记忆=自动为主」：对话接受后由 M9 自动提取事实，不给对话加 facts
+// 手编工具（add_fact / modify_fact / update_core_includes）。从对话 tool list 物理移除
+// （schema 层），LLM 看不到就不会调。单一真相源：黑名单一处定义，对话任何路径都从这里 import。
 
 const SIMPLE_DISABLED_TOOLS: ReadonlySet<string> = new Set([
   "add_fact",
