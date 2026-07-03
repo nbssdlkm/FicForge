@@ -210,7 +210,7 @@ export class CapacitorAdapter implements PlatformAdapter {
     console.info(`[CapacitorAdapter.secure] get enter, key=${key}`);
     const stored = await this.invokeSecureStoreGet(key);
     if (stored !== null) {
-      console.info(`[CapacitorAdapter.secure] get hit (plugin), key=${key}, len=${stored.length}`);
+      console.info(`[CapacitorAdapter.secure] get hit (plugin), key=${key}, empty=${stored.length === 0}`);
       this.removeLegacySecureValue(key);
       return stored;
     }
@@ -221,7 +221,7 @@ export class CapacitorAdapter implements PlatformAdapter {
       return null;
     }
 
-    console.info(`[CapacitorAdapter.secure] get hit (legacy), migrating, key=${key}, len=${legacyValue.length}`);
+    console.info(`[CapacitorAdapter.secure] get hit (legacy), migrating, key=${key}, empty=${legacyValue.length === 0}`);
     await this.invokeSecureStoreSet(key, legacyValue);
     this.removeLegacySecureValue(key);
     return legacyValue;
@@ -232,7 +232,7 @@ export class CapacitorAdapter implements PlatformAdapter {
    * 在 GlobalSettingsModal 的 catch 里弹错误 toast，避免"看似成功"的静默丢数据。
    */
   async secureSet(key: string, value: string): Promise<void> {
-    console.info(`[CapacitorAdapter.secure] set enter, key=${key}, len=${value.length}`);
+    console.info(`[CapacitorAdapter.secure] set enter, key=${key}, empty=${value.length === 0}`);
     await this.invokeSecureStoreSet(key, value);
     this.removeLegacySecureValue(key);
     console.info(`[CapacitorAdapter.secure] set OK, key=${key}`);

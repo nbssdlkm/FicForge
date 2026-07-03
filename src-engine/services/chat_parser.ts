@@ -242,7 +242,10 @@ ${sample}`;
     const result = extractJsonResult(response.content);
     if (!result) {
       // LLM 响应里找不到合法 JSON 结构 → LLM 层问题（没按指令输出）
-      console.warn("[import] llmDetectChatStructure: no valid JSON in response:", response.content);
+      // 脱敏：response.content 可能回显用户导入正文，只打长度 + 短前缀便于判断"为何 parse 不出 JSON"
+      console.warn(
+        `[import] llmDetectChatStructure: no valid JSON in response (${response.content.length} chars, prefix: ${JSON.stringify(response.content.slice(0, 80))})`,
+      );
       return emptyResult({ error: "llm_error" });
     }
     if (!result.isChat) {
@@ -270,7 +273,12 @@ ${sample}`;
     // LLM 说是对话但既没选已知格式也没填 custom → 未按 prompt 规则输出
     // 归类为 llm_error：LLM 调用链虽 OK 但未能产出可用结果，UX 上和"真错"一样需要 toast，
     // 且 LLM 对 prompt 规则的把握不足大概率也会影响 chapter detect，retry guard 一并关闭下游合理
-    console.warn("[import] llmDetectChatStructure: isChat=true but neither matchKnownFormat nor customSamples provided:", result);
+    // 脱敏：result 可能含 customUserSample / customAssistantSample（用户正文片段），只打结构信号
+    console.warn("[import] llmDetectChatStructure: isChat=true but neither matchKnownFormat nor customSamples provided:", {
+      matchKnownFormat: result.matchKnownFormat,
+      hasCustomUserSample: !!result.customUserSample,
+      hasCustomAssistantSample: !!result.customAssistantSample,
+    });
     return emptyResult({ error: "llm_error" });
   } catch (err) {
     // LLM 调用抛错（网络、timeout、key 无效等）→ LLM 层问题；warn 保留线索便于排查

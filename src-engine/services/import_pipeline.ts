@@ -203,10 +203,12 @@ export async function analyzeFile(
         chatFormat = candidate;
       } else {
         // LLM 声称是对话但识别结果在原文验证不过 → 幻觉 / LLM 判断错误
+        // 脱敏：customUserSample / customAssistantSample 是用户导入正文的片段，不进日志；
+        // 只留结构性诊断信号（是否命中已知格式 / 样本是否存在及长度 / candidate 是否构造成功）。
         console.warn("[import] LLM chat detection failed validation, falling back to text mode:", {
           matchKnownFormat: llmResult.matchKnownFormat,
-          customUserSample: llmResult.customUserSample,
-          customAssistantSample: llmResult.customAssistantSample,
+          customUserSampleLen: llmResult.customUserSample?.length ?? 0,
+          customAssistantSampleLen: llmResult.customAssistantSample?.length ?? 0,
           candidateNull: !candidate,
         });
         options.onStage?.("llm-chat-failed");
