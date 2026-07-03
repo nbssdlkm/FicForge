@@ -56,7 +56,10 @@ export function useWriterFactsExtraction(auPath: string) {
     try {
       const result = await extractFacts(auPath, lastConfirmedChapter);
       if (guard.isKeyStale(requestAuPath)) return;
-      const candidates = result.facts || [];
+      // 归属规范化（审计⑧）：本次提取是对单章 lastConfirmedChapter 跑的，所有候选都归该章。
+      // 把 candidate.chapter 统一钉到该章 —— 既保证落库归属正确，也让 ExtractReviewModal
+      // 展示的来源章与实际存储一致，不再显示 LLM 可能幻觉的章号（展示/存储不一致，对抗审 MEDIUM）。
+      const candidates = (result.facts || []).map((c) => ({ ...c, chapter: lastConfirmedChapter }));
       setExtractedCandidates(candidates);
       selectAll(candidates);
       setFactsPromptOpen(false);
@@ -87,7 +90,10 @@ export function useWriterFactsExtraction(auPath: string) {
       const selectedCandidates = filterSelected(extractedCandidates);
 
       for (const candidate of selectedCandidates) {
-        await addFact(auPath, candidate.chapter || lastConfirmedChapter || 1, {
+        // 归属用「本次提取所处理的确定章号」lastConfirmedChapter，而非 LLM 候选里可能幻觉的
+        // candidate.chapter —— 对齐 backfill persistChapter「不信任 LLM chapter 字段」的口径（审计⑧）。
+        // 提取是对单章 lastConfirmedChapter 跑的，所有候选都归该章；仅在极端缺失时才回退。
+        await addFact(auPath, lastConfirmedChapter ?? candidate.chapter ?? 1, {
           content_raw: candidate.content_raw || candidate.content_clean,
           content_clean: candidate.content_clean,
           type: candidate.fact_type || candidate.type || 'plot_event',
