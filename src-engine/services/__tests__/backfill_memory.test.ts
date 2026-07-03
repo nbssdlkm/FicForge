@@ -129,4 +129,50 @@ describe("backfill_chapter_memory", () => {
     expect(res).toMatchObject({ total: 1, summariesGenerated: 0, indexed: 0, aborted: true });
     expect(d.persistChapter).not.toHaveBeenCalled();
   });
+
+  it("审计⑨:慢回调期间用户点停(回调返回但 signal 已 abort) → 不落该章、不计 failed、干净停止", async () => {
+    const controller = new AbortController();
+    const d = deps([target(1, { needSummary: true }), target(2, { needSummary: true })], {
+      signal: controller.signal,
+      generateSummary: vi.fn(async (t: BackfillMemoryTarget) => {
+        if (t.chapterNum === 1) controller.abort(); // 生成第 1 章时用户点停（在飞请求被取消）
+        return `摘要-${t.chapterNum}`;
+      }),
+    });
+    const res = await backfill_chapter_memory(d);
+    expect(res.aborted).toBe(true);
+    expect(res.failed).toBe(0);   // 不误记 failed
+    expect(res.indexed).toBe(0);  // 第 1 章未落盘（中断）
+    expect(d.persistChapter).not.toHaveBeenCalled(); // 慢回调后 signal 检查拦下，不落陈旧/半成品
+  });
+
+  it("审计⑨:慢回调抛真 AbortError(取消) → 干净停止、不计 failed", async () => {
+    const controller = new AbortController();
+    const d = deps([target(1, { needSummary: true })], {
+      signal: controller.signal,
+      generateSummary: vi.fn(async () => {
+        controller.abort();
+        throw Object.assign(new Error("Aborted"), { name: "AbortError" }); // LLM 请求被取消抛 AbortError
+      }),
+    });
+    const res = await backfill_chapter_memory(d);
+    expect(res.aborted).toBe(true);
+    expect(res.failed).toBe(0); // AbortError 按取消处理，不误记 failed
+    expect(d.persistChapter).not.toHaveBeenCalled();
+  });
+
+  it("审计⑨:persist 阶段真失败恰逢用户点停 → 仍计 failed，不被 signal.aborted 误吞成干净停止", async () => {
+    const controller = new AbortController();
+    const d = deps([target(1, { needSummary: true })], {
+      signal: controller.signal,
+      generateSummary: vi.fn(async () => "摘要-1"), // 慢回调成功（此刻未 abort）
+      persistChapter: vi.fn(async () => {
+        controller.abort();                             // persist 期间用户点停
+        throw new Error("indexChapter embedding 拒绝"); // 且 persist 因真错误抛出（非 AbortError）
+      }),
+    });
+    const res = await backfill_chapter_memory(d);
+    // 真失败必须计入，不能因 signal.aborted 就误判干净停止（否则丢 failed + 遗留悬空 STALE）
+    expect(res.failed).toBe(1);
+  });
 });

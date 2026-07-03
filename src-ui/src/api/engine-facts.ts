@@ -145,7 +145,7 @@ export async function unarchiveFact(auPath: string, factId: string) {
 // 提取
 // ---------------------------------------------------------------------------
 
-export async function extractFacts(auPath: string, chapterNum: number) {
+export async function extractFacts(auPath: string, chapterNum: number, opts?: { signal?: AbortSignal }) {
   const { extract_facts_from_chapter, reactExtractFromChapter } = await import("@ficforge/engine");
   const e = getEngine();
   const { provider, llmConfig, proj, lang, reactEnabled } = await resolveFactsProvider(auPath);
@@ -155,11 +155,12 @@ export async function extractFacts(auPath: string, chapterNum: number) {
   // M9：ReAct 增强提取（opt-in）。跑通则用其结果（含跨章 caused_by + 自动 thread_ids）。
   // 仅当 status=degraded（abort/错误/maxIter 未收尾）且空时回退单次调用——status=ok 的空
   // 结果是合法的「本章无事实」，不该再跑一次单次调用（codex 二审 MAJOR-3）。
+  // signal 透传给慢 LLM（审计⑨：backfill 点停时立刻取消在飞的提取请求，不空跑到完成）。
   if (reactEnabled) {
     const { facts: reactFacts, status } = await reactExtractFromChapter(
       chapterContent, chapterNum, existingFacts,
       proj.cast_registry, null, provider,
-      { language: lang as "zh" | "en", factRepo: e.repos.fact, threadRepo: e.repos.thread, auPath },
+      { language: lang as "zh" | "en", factRepo: e.repos.fact, threadRepo: e.repos.thread, auPath, signal: opts?.signal },
     );
     if (!(status === "degraded" && reactFacts.length === 0)) {
       return { facts: reactFacts };
@@ -170,7 +171,7 @@ export async function extractFacts(auPath: string, chapterNum: number) {
   const facts = await extract_facts_from_chapter(
     chapterContent, chapterNum, existingFacts,
     proj.cast_registry, null, provider, llmConfig,
-    { language: lang },
+    { language: lang, signal: opts?.signal },
   );
   return { facts };
 }

@@ -406,10 +406,10 @@ export async function backfillChapterMemory(
   return backfill_chapter_memory({
     targets,
     signal,
-    // 慢 LLM，锁外
+    // 慢 LLM，锁外。signal 透传 → 用户点停时在飞的摘要/提取请求被立刻取消（审计⑨）。
     generateSummary: (t) =>
-      generate_standard_summary(t.content, t.chapterNum, llmProvider, { language }),
-    extractFacts: async (t) => (await extractFacts(auPath, t.chapterNum)).facts,
+      generate_standard_summary(t.content, t.chapterNum, llmProvider, { language, signal }),
+    extractFacts: async (t) => (await extractFacts(auPath, t.chapterNum, { signal })).facts,
     // 锁内 CAS 落盘（= backfill 摘要同款）：章节中途被 edit/undo → hash 不符 → 跳过，不写陈旧数据。
     persistChapter: async (t, { summaryText, facts }) =>
       withAuLock(auPath, async () => {

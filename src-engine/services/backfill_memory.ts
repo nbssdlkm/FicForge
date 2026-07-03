@@ -14,6 +14,11 @@
 
 import { logCatch } from "../logger/index.js";
 
+/** 该错误本身是否为「取消」错误（AbortError）。用于区分「用户取消」与「真失败」。 */
+function isAbortError(err: unknown): boolean {
+  return typeof err === "object" && err !== null && (err as { name?: unknown }).name === "AbortError";
+}
+
 export interface BackfillMemoryTarget {
   chapterNum: number;
   content: string;       // 章节正文（去 frontmatter，= confirm 喂 LLM 同款）
@@ -55,8 +60,10 @@ export interface BackfillMemoryResult {
 /**
  * 逐章补记忆。每章独立 try/catch，单章失败不拖垮整批（CLAUDE.md 半成功处理）。
  *
- * 中断语义：每章开头查 signal → 立即停（当前章已开跑的让它跑完，下一章不再起），已补全部保留。
- * 不把 signal 传给慢回调 —— 在章边界停更干净，避免把「中途取消」误记成 failed。
+ * 中断语义（审计⑨）：signal 透传给慢回调（generateSummary/extractFacts），用户点停时在飞的
+ * 当前章 LLM 请求被立刻取消（不再空跑到完成，省时省 token）。三处查 signal —— 每章开头、慢回调
+ * 之后、回调抛错时：中断则「干净停止」（当前章未落盘，不计 failed / 不标 STALE，下次 backfill
+ * 再补），已补全部保留。慢回调因取消抛 AbortError 或提前返回空，两种情形都按中断处理、不误记 failed。
  */
 export async function backfill_chapter_memory(deps: BackfillMemoryDeps): Promise<BackfillMemoryResult> {
   const total = deps.targets.length;
@@ -67,15 +74,18 @@ export async function backfill_chapter_memory(deps: BackfillMemoryDeps): Promise
   let skipped = 0;
   let failed = 0;
 
+  const result = (aborted: boolean): BackfillMemoryResult =>
+    ({ total, summariesGenerated, factsChapters, factsAdded, indexed, skipped, failed, aborted });
+
   for (let i = 0; i < total; i++) {
-    if (deps.signal?.aborted) {
-      return { total, summariesGenerated, factsChapters, factsAdded, indexed, skipped, failed, aborted: true };
-    }
+    if (deps.signal?.aborted) return result(true);
     const target = deps.targets[i];
     let ok = false;
     try {
       const summaryText = target.needSummary ? await deps.generateSummary(target) : null;
       const facts = target.extractFacts ? await deps.extractFacts(target) : [];
+      // 慢回调期间用户点停（回调可能提前返回空而非抛错）→ 不落该章未完成的生成/提取，干净停止。
+      if (deps.signal?.aborted) return result(true);
       const r = await deps.persistChapter(target, { summaryText, facts });
       if (r.persisted) {
         ok = true;
@@ -87,11 +97,16 @@ export async function backfill_chapter_memory(deps: BackfillMemoryDeps): Promise
         skipped++; // 章节中途被改/删，CAS 拒绝 → 不落陈旧数据
       }
     } catch (err) {
+      // 只认「错误本身是 AbortError」才当干净停止（不计 failed）—— 不能用 deps.signal.aborted 判断：
+      // persist 阶段的真失败（indexChapter/落盘 IO 抛错）若恰逢用户点停，signal.aborted 已置位，
+      // 用 signal 判断会把真失败误吞成干净停止、丢 failed 计数且遗留悬空 STALE（对抗审 MEDIUM）。
+      // 注：三条慢回调 abort 时都返回空/降级而非抛错（走上面的 signal 检查分支），故此支实际只拦真 AbortError。
+      if (isAbortError(err)) return result(true);
       logCatch("backfill_memory", `Backfill memory failed for chapter ${target.chapterNum}`, err);
       failed++;
     }
     deps.onProgress?.({ done: i + 1, total, chapterNum: target.chapterNum, ok });
   }
 
-  return { total, summariesGenerated, factsChapters, factsAdded, indexed, skipped, failed, aborted: false };
+  return result(false);
 }
