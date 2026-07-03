@@ -45,6 +45,15 @@ export interface Fact {
   archived_at?:       string;                // ISO 8601；仅 archived=true 时写入
 }
 
+/**
+ * 该 fact 是否为「冷」（M10-B 冷热分层已归档）。archived=true 即冷；旧 fact 无 archived
+ * 字段时 undefined → 非冷（向后兼容）。单一真相源：所有「排除已归档 fact」的判据都走此谓词，
+ * 避免 `f.archived === true` / `!== true` 散落在生成各读路径而漂移（审计⑥）。
+ */
+export function isColdFact(f: Pick<Fact, "archived">): boolean {
+  return f.archived === true;
+}
+
 export type ConfidenceLevel = "high" | "medium" | "low";
 
 /** LLM 对每个新字段的置信度。字段不存在 = 未生成（等同 null 字段未评估）。 */

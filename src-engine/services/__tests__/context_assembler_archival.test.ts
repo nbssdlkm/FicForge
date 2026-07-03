@@ -6,8 +6,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { build_facts_layer } from "../context_assembler.js";
+import { build_facts_layer, build_instruction } from "../context_assembler.js";
 import { createFact } from "../../domain/fact.js";
+import { createState } from "../../domain/state.js";
 import { FactStatus, NarrativeWeight } from "../../domain/enums.js";
 
 describe("context_assembler archival filter", () => {
@@ -107,6 +108,46 @@ describe("context_assembler archival filter", () => {
     expect(text).toContain("active1");
     expect(text).not.toContain("archived1");
     expect(text).not.toContain("archived2");
+  });
+});
+
+describe("build_instruction archival filter（审计⑥：冷 fact 不进 FOCUS_GOAL / 本章特别注意）", () => {
+  it("已归档 fact 即便仍挂在 chapter_focus 里，也不作为 FOCUS_GOAL 注入", () => {
+    const cold = createFact({
+      id: "fc", content_raw: "r", content_clean: "冷藏的伏笔线",
+      status: FactStatus.UNRESOLVED, narrative_weight: NarrativeWeight.LOW, archived: true,
+    });
+    const warm = createFact({
+      id: "fw", content_raw: "r", content_clean: "热的推进目标",
+      status: FactStatus.UNRESOLVED, narrative_weight: NarrativeWeight.HIGH, archived: false,
+    });
+    const state = createState({ au_id: "au1" });
+    state.current_chapter = 5;
+    state.chapter_focus = ["fc", "fw"]; // archive_fact 不清 focus → 冷 fact 可能残留在此
+
+    const text = build_instruction(state, "继续", [cold, warm], "zh");
+
+    expect(text).toContain("热的推进目标");
+    expect(text).not.toContain("冷藏的伏笔线");
+  });
+
+  it("已归档的高权重 unresolved fact 不进「本章特别注意」", () => {
+    const focusFact = createFact({
+      id: "ff", content_raw: "r", content_clean: "焦点目标",
+      status: FactStatus.UNRESOLVED, narrative_weight: NarrativeWeight.HIGH, archived: false,
+    });
+    const coldHigh = createFact({
+      id: "fc", content_raw: "r", content_clean: "冷藏高权重悬念",
+      status: FactStatus.UNRESOLVED, narrative_weight: NarrativeWeight.HIGH, archived: true,
+    });
+    const state = createState({ au_id: "au1" });
+    state.current_chapter = 5;
+    state.chapter_focus = ["ff"]; // 有一个热焦点 → 进入 focus 分支（含「本章特别注意」子块）
+
+    const text = build_instruction(state, "继续", [focusFact, coldHigh], "zh");
+
+    expect(text).toContain("焦点目标");
+    expect(text).not.toContain("冷藏高权重悬念");
   });
 });
 

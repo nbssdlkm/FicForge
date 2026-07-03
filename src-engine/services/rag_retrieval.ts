@@ -13,6 +13,7 @@ import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { RagChunkDetail, RagCollection } from "../domain/context_summary.js";
 import { RAG_COLLECTIONS } from "../domain/context_summary.js";
 import { FactStatus } from "../domain/enums.js";
+import { isColdFact } from "../domain/fact.js";
 import { get_context_window } from "../domain/model_context_map.js";
 
 // RAG 召回数量配置
@@ -57,7 +58,7 @@ export function build_active_chars(
   state: { current_chapter?: number; characters_last_seen?: Record<string, number>; chapter_focus?: string[] },
   user_input: string,
   project: { core_always_include?: string[] },
-  facts: { id: string; characters?: string[] }[],
+  facts: { id: string; characters?: string[]; archived?: boolean }[],
   cast_registry: { characters?: string[] },
   character_aliases: Record<string, string[]> | null = null,
 ): string[] | null {
@@ -90,10 +91,11 @@ export function build_active_chars(
     if (user_input.includes(alias)) chars.add(mainName);
   }
 
-  // chapter_focus 涉及角色
+  // chapter_focus 涉及角色。审计⑥：已归档冷 fact 即便还挂在 focus，也不把其角色带进 RAG
+  // 角色过滤器（与 focusTexts 同源 isColdFact），否则冷 fact 的角色仍会把召回拉向冷线。
   const focusIds = state.chapter_focus ?? [];
   for (const fact of facts) {
-    if (focusIds.includes(fact.id)) {
+    if (focusIds.includes(fact.id) && !isColdFact(fact)) {
       for (const chName of fact.characters ?? []) {
         chars.add(chName);
       }
@@ -370,7 +372,7 @@ export interface RetrieveRagForContextArgs {
     last_scene_ending?: string;
   };
   user_input: string;
-  facts: { id: string; status: string; content_clean: string; characters?: string[] }[];
+  facts: { id: string; status: string; content_clean: string; characters?: string[]; archived?: boolean }[];
   vector_repo: VectorRepository;
   embedding_provider: EmbeddingProvider;
   au_id: string;
@@ -388,8 +390,10 @@ export async function retrieveRagForContext(
   try {
     const castReg = project.cast_registry ?? { characters: [] };
     const activeChars = build_active_chars(state, user_input, project, facts, castReg);
+    // 审计⑥：已归档冷 fact 的 content_clean 不进 RAG 检索 query，避免把召回拉向本应冷藏的旧线
+    // （与 build_facts_layer / FOCUS_GOAL 同用 isColdFact 单一真相源）。
     const focusTexts = facts
-      .filter((f) => f.status === FactStatus.ACTIVE)
+      .filter((f) => f.status === FactStatus.ACTIVE && !isColdFact(f))
       .map((f) => f.content_clean);
     const lastEnding = state.last_scene_ending ?? "";
     const query = build_rag_query(focusTexts, lastEnding, user_input);

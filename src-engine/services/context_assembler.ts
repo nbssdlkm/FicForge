@@ -15,6 +15,7 @@ import type { ContextSummary } from "../domain/context_summary.js";
 import { createContextSummary } from "../domain/context_summary.js";
 import { FactStatus, NarrativeWeight, ThreadStatus } from "../domain/enums.js";
 import type { Fact, ConfidenceLevel } from "../domain/fact.js";
+import { isColdFact } from "../domain/fact.js";
 import type { Thread } from "../domain/thread.js";
 import { get_context_window, get_model_max_output } from "../domain/model_context_map.js";
 import type { Project } from "../domain/project.js";
@@ -121,9 +122,12 @@ export function build_instruction(
     parts.push(P.LAST_ENDING_INLINE.replace("{last_ending}", lastEnding));
   }
 
-  // chapter_focus 分支
+  // chapter_focus 分支。审计⑥：已归档（冷）fact 即便还挂在 chapter_focus 里，也不再作为
+  // 「本章推进目标」注入 prompt —— 与 build_facts_layer / RAG query 同用 isColdFact 单一真相源。
   const focusIds = state.chapter_focus ?? [];
-  const focusFacts = focusIds.length > 0 ? facts.filter((f) => focusIds.includes(f.id)) : [];
+  const focusFacts = focusIds.length > 0
+    ? facts.filter((f) => focusIds.includes(f.id) && !isColdFact(f))
+    : [];
 
   if (focusFacts.length > 0) {
     // 推进目标块
@@ -131,12 +135,13 @@ export function build_instruction(
     parts.push(P.FOCUS_GOAL_HEADER);
     parts.push(P.FOCUS_GOAL_DEFINITION.replace("{focus_lines}", focusLines));
 
-    // 本章特别注意（非 focus 的高权重 unresolved，最多 2 条）
+    // 本章特别注意（非 focus 的高权重 unresolved，最多 2 条）。审计⑥：排除已归档冷 fact。
     const nonFocusUnresolved = facts.filter(
       (f) =>
         !focusIds.includes(f.id) &&
         f.status === FactStatus.UNRESOLVED &&
-        f.narrative_weight === NarrativeWeight.HIGH,
+        f.narrative_weight === NarrativeWeight.HIGH &&
+        !isColdFact(f),
     );
     if (nonFocusUnresolved.length > 0) {
       const cautionLines = nonFocusUnresolved
@@ -149,8 +154,8 @@ export function build_instruction(
 
     // 背景信息使用规则
     parts.push(P.BG_RULES);
-  } else if (facts.some((f) => f.status === FactStatus.UNRESOLVED)) {
-    // 铺陈指令
+  } else if (facts.some((f) => f.status === FactStatus.UNRESOLVED && !isColdFact(f))) {
+    // 铺陈指令（审计⑥：只在存在「非冷」未决 fact 时才铺陈；全部已归档则无需）
     parts.push(P.PACING_INSTRUCTION);
   }
 
@@ -238,8 +243,8 @@ export function build_facts_layer(
     (f) =>
       (f.status === FactStatus.ACTIVE || f.status === FactStatus.UNRESOLVED) &&
       !focus_ids.includes(f.id) &&
-      // M10-B: 冷 fact 不进 P3。旧 fact 无 archived 字段时 undefined !== true → 保留注入（向后兼容）
-      f.archived !== true,
+      // M10-B: 冷 fact 不进 P3（单一真相源 isColdFact）
+      !isColdFact(f),
   );
 
   if (eligible.length === 0) return ["", false];
@@ -698,7 +703,7 @@ export async function assemble_context(
     summary.facts_archived_count = facts.filter(
       (f) =>
         (f.status === FactStatus.ACTIVE || f.status === FactStatus.UNRESOLVED) &&
-        f.archived === true,
+        isColdFact(f),
     ).length;
 
     if (p4Text) {
@@ -1003,7 +1008,7 @@ export async function assemble_chat_context(
     summary.facts_archived_count = facts.filter(
       (f) =>
         (f.status === FactStatus.ACTIVE || f.status === FactStatus.UNRESOLVED) &&
-        f.archived === true,
+        isColdFact(f),
     ).length;
     if (p4Text) {
       summary.rag_chunks_retrieved = p4Text

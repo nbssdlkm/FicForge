@@ -77,6 +77,20 @@ describe("build_active_chars", () => {
     );
     expect(result).toBeNull();
   });
+
+  it("审计⑥：已归档 fact 在 chapter_focus 里也不把其角色加入 RAG char_filter", () => {
+    const result = build_active_chars(
+      { current_chapter: 1, chapter_focus: ["fc", "fw"] },
+      "", {},
+      [
+        { id: "fw", characters: ["热角色"], archived: false },
+        { id: "fc", characters: ["冷角色"], archived: true },
+      ],
+      { characters: [] },
+    );
+    expect(result).toContain("热角色");
+    expect(result).not.toContain("冷角色");
+  });
 });
 
 describe("retrieve_rag", () => {
@@ -239,6 +253,33 @@ describe("retrieveRagForContext (融合:RAG 编排单一真相源)", () => {
     expect(res.ragText).toBeNull();
     expect(res.chunks).toEqual([]);
     expect(searchSpy).not.toHaveBeenCalled();
+  });
+
+  it("审计⑥：已归档 fact 的 content_clean 不进 RAG 检索 query（热 fact 仍进）", async () => {
+    let capturedQuery = "";
+    const capturingEmbedding: EmbeddingProvider = {
+      async embed(texts: string[]): Promise<number[][]> {
+        capturedQuery = texts[0] ?? "";
+        return texts.map(() => [1, 0, 0]);
+      },
+      get_dimension() { return 3; },
+      get_model_name() { return "cap"; },
+    };
+    const repo = createMockVectorRepo({ chapters: [] });
+
+    await retrieveRagForContext({
+      ...baseArgs,
+      user_input: "继续写",
+      facts: [
+        { id: "fw", status: "active", content_clean: "热线索应进query", characters: [], archived: false },
+        { id: "fc", status: "active", content_clean: "冷线索不该进query", characters: [], archived: true },
+      ],
+      vector_repo: repo,
+      embedding_provider: capturingEmbedding,
+    });
+
+    expect(capturedQuery).toContain("热线索应进query");
+    expect(capturedQuery).not.toContain("冷线索不该进query");
   });
 
   it("embed 抛错 → 静默回退 null + []（真正命中 retrieveRagForContext 的 catch）", async () => {
