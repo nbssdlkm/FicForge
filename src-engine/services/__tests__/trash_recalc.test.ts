@@ -15,6 +15,25 @@ import { FileOpsRepository } from "../../repositories/implementations/file_ops.j
 import { FileProjectRepository } from "../../repositories/implementations/file_project.js";
 import { FileFactRepository } from "../../repositories/implementations/file_fact.js";
 
+/**
+ * 可注入故障的 adapter：在指定路径的 writeFile / deleteFile 上抛错，
+ * 用于验证 move_to_trash 的半成功回滚（审计①②）。
+ */
+class FaultyAdapter extends MockAdapter {
+  failWrite: (path: string) => boolean = () => false;
+  failDelete: (path: string) => boolean = () => false;
+
+  async writeFile(path: string, content: string): Promise<void> {
+    if (this.failWrite(path)) throw new Error(`simulated write failure: ${path}`);
+    return super.writeFile(path, content);
+  }
+
+  async deleteFile(path: string): Promise<void> {
+    if (this.failDelete(path)) throw new Error(`simulated delete failure: ${path}`);
+    return super.deleteFile(path);
+  }
+}
+
 // ===========================================================================
 // Trash Service
 // ===========================================================================
@@ -113,6 +132,93 @@ describe("TrashService", () => {
     await expect(
       trash.move_to_trash("au1", "../etc/passwd", "file", "bad"),
     ).rejects.toThrow("非法路径");
+  });
+
+  // --- 半成功回滚（审计①②）---
+
+  it("move_to_trash: manifest 写失败时源不删、无孤儿、名册不动（审计①②）", async () => {
+    const faulty = new FaultyAdapter();
+    faulty.failWrite = (p) => p.includes("manifest.jsonl");
+    faulty.seed("au1/characters/Zoe.md", "---\nname: Zoe\n---\n# Zoe");
+    faulty.seed("au1/project.yaml", "cast_registry:\n  characters:\n    - Zoe\n    - Max\n");
+    const t = new TrashService(faulty, 30);
+
+    await expect(
+      t.move_to_trash("au1", "characters/Zoe.md", "character_file", "Zoe"),
+    ).rejects.toThrow("移动文件失败");
+
+    // ① 源文件仍在（未丢失）——旧代码此时源已被删、manifest 无记录 = 孤儿
+    expect(faulty.raw("au1/characters/Zoe.md")).toBe("---\nname: Zoe\n---\n# Zoe");
+    // ① 无孤儿：.trash 下没有 Zoe 的残留副本，且 list_trash 为空
+    expect(faulty.allFiles().filter((f) => f.includes(".trash") && /Zoe/.test(f))).toHaveLength(0);
+    expect(await t.list_trash("au1")).toHaveLength(0);
+    // ② 名册未被改：Zoe 仍在 cast_registry（旧代码在 appendManifest 前就删了它 → 永久丢失）
+    expect(faulty.raw("au1/project.yaml")).toContain("Zoe");
+  });
+
+  it("move_to_trash: 删源失败时撤销 manifest 登记、清理副本、源保留（审计①）", async () => {
+    const faulty = new FaultyAdapter();
+    faulty.failDelete = (p) => p.endsWith("au1/notes/n.md"); // 仅源删除失败，回收站副本删除仍可成功
+    faulty.seed("au1/notes/n.md", "content");
+    const t = new TrashService(faulty, 30);
+
+    await expect(
+      t.move_to_trash("au1", "notes/n.md", "file", "n"),
+    ).rejects.toThrow("移动文件失败");
+
+    // 源仍在
+    expect(faulty.raw("au1/notes/n.md")).toBe("content");
+    // manifest 登记被撤销（无孤儿 entry）
+    expect(await t.list_trash("au1")).toHaveLength(0);
+    // .trash 副本被回滚清掉
+    expect(faulty.allFiles().filter((f) => f.includes(".trash") && f.endsWith(".md"))).toHaveLength(0);
+  });
+
+  it("move_to_trash: 成功删除角色时仍从 cast_registry 移除（联动未被回滚改动破坏）", async () => {
+    adapter.seed("au1/characters/Ann.md", "---\nname: Ann\n---\n# Ann");
+    adapter.seed("au1/project.yaml", "cast_registry:\n  characters:\n    - Ann\n    - Ben\n");
+
+    await trash.move_to_trash("au1", "characters/Ann.md", "character_file", "Ann");
+
+    const proj = adapter.raw("au1/project.yaml")!;
+    expect(proj).not.toContain("Ann");
+    expect(proj).toContain("Ben");
+    // 且确实进了回收站
+    expect(await trash.list_trash("au1")).toHaveLength(1);
+  });
+
+  it("move_to_trash: 同一路径重复删除时 trash_path 唯一(shortId)、副本互不覆盖（审计① defect 1）", async () => {
+    adapter.seed("au1/dup.md", "v1");
+    const e1 = await trash.move_to_trash("au1", "dup.md", "file", "dup");
+    adapter.seed("au1/dup.md", "v2"); // 同名重建后再删
+    const e2 = await trash.move_to_trash("au1", "dup.md", "file", "dup");
+
+    // trash_path 必须不同（否则第二次副本覆盖第一次、且回滚会误删共享副本 → 孤儿）
+    expect(e1.trash_path).not.toBe(e2.trash_path);
+    expect(await trash.list_trash("au1")).toHaveLength(2);
+    // 两份 .trash 副本都在
+    const trashMd = adapter.allFiles().filter((f) => f.includes(".trash") && f.endsWith(".md"));
+    expect(trashMd).toHaveLength(2);
+  });
+
+  it("并发 move_to_trash 同一 scope：两条 entry 都保留、无 manifest 竞态丢失（审计②③串行化）", async () => {
+    adapter.seed("au1/a.md", "A");
+    adapter.seed("au1/b.md", "B");
+
+    // 不逐个 await——并发触发，两个操作的 appendManifest 读改写会交错；
+    // runExclusive 按 scopeRoot 串行化保证两条都落 manifest（否则后写者覆盖先写者=孤儿）。
+    const [ea, eb] = await Promise.all([
+      trash.move_to_trash("au1", "a.md", "file", "a"),
+      trash.move_to_trash("au1", "b.md", "file", "b"),
+    ]);
+
+    const list = await trash.list_trash("au1");
+    expect(list).toHaveLength(2);
+    expect(list.map((e) => e.trash_id).sort()).toEqual([ea.trash_id, eb.trash_id].sort());
+    // 两源都删除、两副本都在
+    expect(adapter.raw("au1/a.md")).toBeUndefined();
+    expect(adapter.raw("au1/b.md")).toBeUndefined();
+    expect(adapter.allFiles().filter((f) => f.includes(".trash") && f.endsWith(".md"))).toHaveLength(2);
   });
 });
 

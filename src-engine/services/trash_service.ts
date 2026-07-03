@@ -36,7 +36,34 @@ export class TrashService {
     private retentionDays = 30,
   ) {}
 
+  /**
+   * 按 scopeRoot 串行化所有「会读改写 manifest（及 cast_registry）」的操作。
+   * manifest.jsonl 的 append/remove/write 都是非原子读改写：多个删除/恢复/清理并发时会
+   * 互相覆盖对方刚写入的条目 → 条目丢失（副本在但 manifest 无记录=孤儿=数据永久丢失，审计②③）。
+   * 同一 scopeRoot 排队执行，不同 scopeRoot 并行；这也顺带串行化了 cast_registry 的写。
+   */
+  private opChain = new Map<string, Promise<unknown>>();
+
+  private runExclusive<T>(scopeRoot: string, fn: () => Promise<T>): Promise<T> {
+    const prev = this.opChain.get(scopeRoot) ?? Promise.resolve();
+    // 前一个成功/失败都接着跑，避免一次失败卡死整条链；结果/错误照常返回给各自调用方。
+    const next = prev.then(fn, fn);
+    this.opChain.set(scopeRoot, next.then(() => undefined, () => undefined));
+    return next;
+  }
+
   async move_tree_to_trash(
+    scopeRoot: string,
+    relativePath: string,
+    entityType: string,
+    entityName: string,
+  ): Promise<TrashEntry> {
+    return this.runExclusive(scopeRoot, () =>
+      this._moveTreeToTrash(scopeRoot, relativePath, entityType, entityName),
+    );
+  }
+
+  private async _moveTreeToTrash(
     scopeRoot: string,
     relativePath: string,
     entityType: string,
@@ -55,7 +82,9 @@ export class TrashService {
     const ts = Math.floor(Date.now() / 1000);
     const shortId = crypto.randomUUID().slice(0, 4);
     const trashId = `tr_${ts}_${shortId}`;
-    const trashRel = `${relativePath}_${ts}`;
+    // trash_path 带上 shortId 保唯一：秒级 ts 在同秒同路径重复删除时会碰撞，
+    // 导致副本互相覆盖 + 回滚误删他项副本（审计① defect 1）。
+    const trashRel = `${relativePath}_${ts}_${shortId}`;
     const trashRoot = joinPath(scopeRoot, ".trash", trashRel);
     const copiedFiles: Array<{ source: string; trash: string }> = [];
 
@@ -102,6 +131,17 @@ export class TrashService {
     entityType: string,
     entityName: string,
   ): Promise<TrashEntry> {
+    return this.runExclusive(scopeRoot, () =>
+      this._moveToTrash(scopeRoot, relativePath, entityType, entityName),
+    );
+  }
+
+  private async _moveToTrash(
+    scopeRoot: string,
+    relativePath: string,
+    entityType: string,
+    entityName: string,
+  ): Promise<TrashEntry> {
     // 路径遍历防护
     if (relativePath.includes("..") || relativePath.startsWith("/")) {
       throw new Error(`非法路径: ${relativePath}`);
@@ -122,7 +162,9 @@ export class TrashService {
     const lastSlash = relativePath.lastIndexOf("/");
     const stem = lastDot > lastSlash ? relativePath.slice(0, lastDot) : relativePath;
     const ext = lastDot > lastSlash ? relativePath.slice(lastDot) : "";
-    const trashRel = `${stem}_${ts}${ext}`;
+    // trash_path 带上 shortId 保唯一（审计① defect 1）：秒级 ts 在同秒同路径重复删除时碰撞，
+    // 会让第二次的副本覆盖第一次的、且回滚 deleteFile 误删第一条仍引用的副本 → 孤儿。
+    const trashRel = `${stem}_${ts}_${shortId}${ext}`;
 
     const trashDir = joinPath(scopeRoot, ".trash");
     const trashTarget = joinPath(trashDir, trashRel);
@@ -143,25 +185,8 @@ export class TrashService {
       characterName = await this.readCharacterName(source);
     }
 
-    // 移动（read + write + delete）
-    try {
-      const content = await this.adapter.readFile(source);
-      const dir = trashTarget.substring(0, trashTarget.lastIndexOf("/"));
-      await this.adapter.mkdir(dir);
-      await this.adapter.writeFile(trashTarget, content);
-      await this.adapter.deleteFile(source);
-    } catch {
-      throw new Error(`移动文件失败: ${source} → ${trashTarget}`);
-    }
-
-    // cast_registry 联动
-    if (characterName) {
-      await this.updateCastRegistry(scopeRoot, characterName, "remove");
-    }
-
     const now = new Date();
     const expires = new Date(now.getTime() + this.retentionDays * 86400000);
-
     const entry: TrashEntry = {
       trash_id: trashId,
       original_path: relativePath,
@@ -173,7 +198,57 @@ export class TrashService {
       metadata: meta,
     };
 
-    await this.appendManifest(scopeRoot, entry);
+    // 顺序即数据安全（审计①）：先写 .trash 副本 + 登记 manifest（此刻源文件仍在），
+    // manifest 落库成功后才删源。任何一步失败都不会出现「源已删但 manifest 无记录」的孤儿
+    // ——那种孤儿在 list_trash / restore（都以 manifest 为准）里不可见、不可恢复=数据永久丢失。
+    // 对齐 move_tree_to_trash 的原子语义；失败时回滚 .trash 副本与 manifest 登记，保证源不丢。
+    let trashCopyWritten = false;
+    let manifestAppended = false;
+    try {
+      const content = await this.adapter.readFile(source);
+      const dir = trashTarget.substring(0, trashTarget.lastIndexOf("/"));
+      await this.adapter.mkdir(dir);
+      await this.adapter.writeFile(trashTarget, content);
+      trashCopyWritten = true;
+      await this.appendManifest(scopeRoot, entry);
+      manifestAppended = true;
+      // manifest 已落库，此时删源才安全
+      await this.adapter.deleteFile(source);
+    } catch {
+      // 源保持原样（尚未删除，或删除本身失败）→ 撤销已登记 manifest（仅当 append 成功过）+
+      // 清掉可能已写的 .trash 副本。回滚步骤全部 best-effort，绝不用回滚自身的失败掩盖主错误。
+      if (manifestAppended) {
+        try {
+          await this.removeFromManifest(scopeRoot, trashId);
+        } catch {
+          // best effort
+        }
+      }
+      if (trashCopyWritten) {
+        try {
+          if (await this.adapter.exists(trashTarget)) await this.adapter.deleteFile(trashTarget);
+        } catch {
+          // best effort
+        }
+      }
+      throw new Error(`移动文件失败: ${source} → ${trashTarget}`);
+    }
+
+    // cast_registry 联动放在 manifest + 删源都成功之后（审计②）：即便这步失败，项已在回收站，
+    // restore 会重新把角色 add 回名册，故此处失败只告警、不回退删除。
+    // 反例（旧代码）：在 appendManifest 之前就 writeFile(project.yaml) 删掉角色，若随后 manifest
+    // 失败，角色从名册永久消失且无 restore 可依（manifest 无记录）。
+    if (characterName) {
+      try {
+        await this.updateCastRegistry(scopeRoot, characterName, "remove");
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[trash] cast_registry remove 失败；名册可能残留该角色，可经 restore 修正: ${(err as Error).message}`,
+        );
+      }
+    }
+
     return entry;
   }
 
@@ -182,6 +257,10 @@ export class TrashService {
   }
 
   async restore(scopeRoot: string, trashId: string): Promise<TrashEntry> {
+    return this.runExclusive(scopeRoot, () => this._restore(scopeRoot, trashId));
+  }
+
+  private async _restore(scopeRoot: string, trashId: string): Promise<TrashEntry> {
     const entries = await this.readManifest(scopeRoot);
     const targetEntry = entries.find((e) => e.trash_id === trashId);
     if (!targetEntry) throw new Error(`垃圾箱项不存在: ${trashId}`);
@@ -219,6 +298,10 @@ export class TrashService {
   }
 
   async permanent_delete(scopeRoot: string, trashId: string): Promise<TrashEntry> {
+    return this.runExclusive(scopeRoot, () => this._permanentDelete(scopeRoot, trashId));
+  }
+
+  private async _permanentDelete(scopeRoot: string, trashId: string): Promise<TrashEntry> {
     const entries = await this.readManifest(scopeRoot);
     const targetEntry = entries.find((e) => e.trash_id === trashId);
     if (!targetEntry) throw new Error(`垃圾箱项不存在: ${trashId}`);
@@ -241,6 +324,10 @@ export class TrashService {
   }
 
   async purge_expired(scopeRoot: string, maxAgeDays?: number | null): Promise<TrashEntry[]> {
+    return this.runExclusive(scopeRoot, () => this._purgeExpired(scopeRoot, maxAgeDays));
+  }
+
+  private async _purgeExpired(scopeRoot: string, maxAgeDays?: number | null): Promise<TrashEntry[]> {
     const entries = await this.readManifest(scopeRoot);
     const now = Date.now();
     const forceAll = maxAgeDays !== undefined && maxAgeDays !== null && maxAgeDays === 0;
