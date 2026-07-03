@@ -140,3 +140,78 @@ describe("engine-chapters 章节摘要不再受 writing_mode gate（融合 P1.4�
     expect(retroSpy).toHaveBeenCalledOnce();
   });
 });
+
+describe("engine-chapters 回顾 Phase2 CAS 比对 content_hash（审计⑤）", () => {
+  let adapter: MockAdapter;
+  let auPath: string;
+
+  async function enableEmbeddingSettings() {
+    const settings = await getEngine().repos.settings.get();
+    settings.embedding.api_base = "https://embed.example.com/v1";
+    settings.embedding.api_key = "embed-secret";
+    settings.embedding.model = "embed-test";
+    await getEngine().repos.settings.save(settings);
+  }
+  async function enableLLM() {
+    const proj = await getEngine().repos.project.get(auPath);
+    proj.llm.mode = LLMMode.API;
+    proj.llm.model = "gpt-test";
+    proj.llm.api_base = "https://llm.example.com/v1";
+    proj.llm.api_key = "llm-secret";
+    await getEngine().repos.project.save(proj);
+  }
+  async function confirmN(n: number) {
+    for (let i = 1; i <= n; i++) {
+      await getEngine().repos.draft.save(createDraft({
+        au_id: auPath, chapter_num: i, variant: "A",
+        content: `第 ${i} 章正文。Alice 在场。`,
+      }));
+      await confirmChapter(auPath, i, `ch${String(i).padStart(4, "0")}_draft_A.md`);
+    }
+  }
+
+  beforeEach(async () => {
+    vi.restoreAllMocks();
+    adapter = new MockAdapter();
+    initEngine(adapter, "/data");
+    const fandom = await createFandom("Naruto");
+    const au = await createAu(fandom.name, "Canon", fandom.path);
+    auPath = au.path;
+    await enableEmbeddingSettings();
+    await enableLLM();
+    // 摘要与索引全 spy 掉，避免真 LLM/embed；回顾在 ch1-9 real shouldRunRetrospective=false 不触发。
+    vi.spyOn(getEngine().ragManager, "indexChapter").mockResolvedValue(undefined);
+    vi.spyOn(engineModule, "generate_standard_summary").mockResolvedValue("");
+    vi.spyOn(engineModule, "generate_micro_summary").mockResolvedValue("");
+  });
+
+  it("content_hash 与 Phase1 不一致（历史章被编辑）→ 跳过 commit_retrospective", async () => {
+    await confirmN(9); // ch5 存在（回顾 target = 10-5）
+    vi.spyOn(engineModule, "shouldRunRetrospective").mockReturnValue(true);
+    vi.spyOn(engineModule, "generate_retrospective").mockResolvedValue({
+      v2Text: "v2 文本", contentHash: "STALE_MISMATCH", // 模拟 Phase1 读取后章节被编辑、hash 已变
+    });
+    const commitSpy = vi.spyOn(engineModule, "commit_retrospective").mockResolvedValue(undefined);
+
+    await getEngine().repos.draft.save(createDraft({ au_id: auPath, chapter_num: 10, variant: "A", content: "第 10 章。" }));
+    await confirmChapter(auPath, 10, "ch0010_draft_A.md");
+
+    // CAS 检出 hash 不一致 → 不提交（不会用旧内容重建 ch5 摘要 + 污染向量）
+    expect(commitSpy).not.toHaveBeenCalled();
+  });
+
+  it("content_hash 与 Phase1 一致（未编辑）→ 提交 commit_retrospective 一次", async () => {
+    await confirmN(9);
+    const ch5 = await getEngine().repos.chapter.get(auPath, 5);
+    vi.spyOn(engineModule, "shouldRunRetrospective").mockReturnValue(true);
+    vi.spyOn(engineModule, "generate_retrospective").mockResolvedValue({
+      v2Text: "v2 文本", contentHash: ch5.content_hash, // Phase1 读到的 hash 与锁内一致
+    });
+    const commitSpy = vi.spyOn(engineModule, "commit_retrospective").mockResolvedValue(undefined);
+
+    await getEngine().repos.draft.save(createDraft({ au_id: auPath, chapter_num: 10, variant: "A", content: "第 10 章。" }));
+    await confirmChapter(auPath, 10, "ch0010_draft_A.md");
+
+    expect(commitSpy).toHaveBeenCalledOnce();
+  });
+});

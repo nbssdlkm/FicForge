@@ -77,26 +77,28 @@ export async function generate_retrospective(
   const language = opts?.language ?? "zh";
   const P = getPrompts(language as "zh" | "en");
 
-  // Step 1: 读取目标章节正文（失败则跳过）
+  // Step 1: 读取目标章节（正文 + 当前 content_hash）。用 get 而非 get_content_only，
+  // 一并拿到 live content_hash：它既是 v2 的 source_chapter_hash（v2 概括的正是这份正文），
+  // 也是 Phase2 CAS 的比对基准——审计⑤：Phase1 慢 LLM 期间用户若编辑该历史章，Phase2 靠此
+  // hash 检出内容已变则跳过提交，不再用「编辑前的旧正文」重建摘要 + 覆盖向量。
   let chapterText: string;
+  let contentHash: string;
   try {
-    chapterText = await chapterRepo.get_content_only(auPath, targetChapterNum);
+    const ch = await chapterRepo.get(auPath, targetChapterNum);
+    chapterText = ch.content;
+    contentHash = ch.content_hash;
   } catch {
     // 章节不存在或读取失败 → 无法生成 → 静默跳过
     return null;
   }
   if (!chapterText?.trim()) return null;
 
-  // Step 2: 读取目标章节的 prior standard 摘要（可为 null）
+  // Step 2: 读取目标章节的 prior standard 摘要（作 prior_summary，可为 null）
   let priorSummary = "";
-  let contentHash = "";
   try {
     const summaryDoc = await summaryRepo.get(auPath, targetChapterNum);
     // 优先用 standard_v1（若已存在则是最原始版本，v1 备份已有），否则用 standard
     priorSummary = summaryDoc?.standard_v1?.text ?? summaryDoc?.standard?.text ?? "";
-    contentHash = summaryDoc?.standard?.source_chapter_hash
-      ?? summaryDoc?.standard_v1?.source_chapter_hash
-      ?? "";
   } catch {
     // 读取失败视为无 prior summary（继续）
   }

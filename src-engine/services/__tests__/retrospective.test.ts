@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { run_retrospective, shouldRunRetrospective, RETROSPECTIVE_INTERVAL } from "../retrospective.js";
+import { run_retrospective, generate_retrospective, shouldRunRetrospective, RETROSPECTIVE_INTERVAL } from "../retrospective.js";
 
 function fakeProvider(reply: string) {
   return { generate: vi.fn(async () => ({ content: reply })) } as any;
@@ -27,8 +27,8 @@ function fakeSummaryRepo(perChapter: Record<number, { standard?: { text: string;
   } as any;
 }
 
-function fakeChapterRepo(content: string) {
-  return { get_content_only: vi.fn(async () => content) } as any;
+function fakeChapterRepo(content: string, contentHash = "h-live") {
+  return { get: vi.fn(async () => ({ content, content_hash: contentHash })) } as any;
 }
 
 function fakeRagManager() {
@@ -117,7 +117,7 @@ describe("run_retrospective", () => {
       6: { micro: { version: 1, text: "ch6 micro", source_chapter_hash: "h6", generated_at: "t" } },
     });
     const chapterRepo = {
-      get_content_only: vi.fn(async () => { throw new Error("chapter not found"); }),
+      get: vi.fn(async () => { throw new Error("chapter not found"); }),
     } as any;
     const llmProvider = fakeProvider("v2");
     const ragManager = fakeRagManager();
@@ -145,6 +145,23 @@ describe("run_retrospective", () => {
     // Should still generate because at least some micros exist
     expect(llmProvider.generate).toHaveBeenCalledOnce();
     expect(summaryRepo.promote_to_v2).toHaveBeenCalledOnce();
+  });
+
+  it("审计⑤：genResult.contentHash 是章节 live content_hash（非摘要 source_chapter_hash），供 Phase2 CAS 比对", async () => {
+    // 摘要里记的 source_chapter_hash 陈旧/不同 —— 修复前 contentHash 取的是这个（错），
+    // 修复后取章节 get() 的 live content_hash，Phase2 才能检出「Phase1 后章节被编辑」。
+    const summaryRepo = fakeSummaryRepo({
+      5: { standard: { version: 1, text: "ch5 standard", source_chapter_hash: "STALE_SUMMARY_HASH", generated_at: "t" } },
+      6: { micro: { version: 1, text: "ch6 micro", source_chapter_hash: "h6", generated_at: "t" } },
+    });
+    const chapterRepo = fakeChapterRepo("chapter 5 text", "LIVE_CHAPTER_HASH");
+    const llmProvider = fakeProvider("v2 text");
+
+    const res = await generate_retrospective("/au", 5, chapterRepo, summaryRepo, llmProvider, 11);
+
+    expect(res).not.toBeNull();
+    expect(res!.contentHash).toBe("LIVE_CHAPTER_HASH");
+    expect(res!.contentHash).not.toBe("STALE_SUMMARY_HASH");
   });
 
   it("limits subsequent micros to chapters up to currentChapter - 1", async () => {

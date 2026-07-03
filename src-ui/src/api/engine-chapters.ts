@@ -225,15 +225,16 @@ export async function confirmChapter(
         // Phase 2（锁内）：CAS 校验章节还在，再写 v2 + 更新向量索引
         if (genResult) {
           await withAuLock(auPath, async () => {
-            let targetStillPresent = false;
+            let targetCh;
             try {
-              const targetCh = await chapter.get(auPath, targetChapterNum);
-              // CAS：章节文件存在即视为有效（targetChapterNum 是历史章，content_hash 不变）
-              targetStillPresent = !!targetCh;
+              targetCh = await chapter.get(auPath, targetChapterNum);
             } catch {
-              targetStillPresent = false; // 章节已被 undo 删除
+              return; // 章节已被 undo 删除 → 跳过
             }
-            if (!targetStillPresent) return;
+            // CAS：章节仍在 **且内容未变**（content_hash 与 Phase1 读取时一致）才提交。
+            // 审计⑤：Phase1 慢 LLM 期间用户若编辑该历史章（编辑=作废旧摘要），content_hash 变化
+            // → 跳过提交，避免用「编辑前的旧正文」重建摘要 + 覆盖向量。与当前章摘要 / backfill 的 CAS 同口径。
+            if (!targetCh || targetCh.content_hash !== genResult.contentHash) return;
 
             await commit_retrospective(
               auPath, targetChapterNum, genResult,
