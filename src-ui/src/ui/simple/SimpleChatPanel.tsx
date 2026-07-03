@@ -22,6 +22,7 @@ import { useFeedback } from "../../hooks/useFeedback";
 import { useKV } from "../../hooks/useKV";
 import {
   confirmChapter,
+  getFactsExtractionReadiness,
   getSettingsSummary,
   getState,
   getWriterProjectContext,
@@ -70,6 +71,9 @@ export function SimpleChatPanel({
   const [projectInfo, setProjectInfo] = useState<WriterProjectContext | null>(null);
   const [settingsInfo, setSettingsInfo] = useState<WriterSessionConfig | null>(null);
   const [settingsSummary, setSettingsSummary] = useState<SettingsSummary | null>(null);
+  // 自动提取就位（审计④）：与 resolveFactsProvider 同源的「有无可用连接」判断，
+  // 由引擎按 project+settings 解析得出，取代 UI 侧只看全局 default_llm 的旧口径。
+  const [extractionReady, setExtractionReady] = useState<{ has_usable_connection: boolean } | null>(null);
   // 接受草稿后自动提取的目标章号 —— 兜底 handleSaveExtracted（candidate.chapter 缺时用它）。
   const [extractReviewChapter, setExtractReviewChapter] = useState<number | null>(null);
   // Transient "AI 思考中…" 占位 — 不进 chat.messages 避免 persist 到 chat.yaml
@@ -93,6 +97,7 @@ export function SimpleChatPanel({
     setProjectInfo(null);
     setSettingsInfo(null);
     setSettingsSummary(null);
+    setExtractionReady(null);
     setExtractReviewChapter(null);
     setThinkingActive(false);
   }, [auPath]);
@@ -103,11 +108,13 @@ export function SimpleChatPanel({
       getWriterProjectContext(auPath).catch(() => null),
       getWriterSessionConfig().catch(() => null),
       getSettingsSummary().catch(() => null),
-    ]).then(([proj, settings, summary]) => {
+      getFactsExtractionReadiness(auPath).catch(() => null),
+    ]).then(([proj, settings, summary, readiness]) => {
       if (cancelled) return;
       setProjectInfo(proj);
       setSettingsInfo(settings);
       setSettingsSummary(summary);
+      setExtractionReady(readiness);
     });
     return () => { cancelled = true; };
   }, [auPath]);
@@ -118,11 +125,15 @@ export function SimpleChatPanel({
   // 不再单独弹 FactsPromptModal —— 对话路径「记忆=自动为主」。
   const factsExtraction = useWriterFactsExtraction(auPath);
 
-  // 自动提取 gate：① 增强事实提取开关未被显式关闭（默认开，对齐 GlobalSettings `!== false`）
+  // 自动提取 gate：① settings 已加载且「增强事实提取」开关未被显式关闭（默认开，对齐 `!== false`）；
+  //   settingsSummary 为 null（加载失败）时 fail-closed，不擅自提取。
   // ② LLM 就位（extractFacts 内部 react/plain 都需 LLM；未配会空跑报错）。任一不满足静默跳过。
+  // 注：② 用 extractionReady（引擎按 project+settings 解析，与实际提取的 resolveFactsProvider 同源），
+  // 不再用只看全局 default_llm 的 settingsSummary.default_llm——否则 AU 级独立配 LLM 时会误判为不可用（审计④）。
   const canAutoExtract =
-    settingsSummary?.app?.react_extraction_enabled !== false &&
-    Boolean(settingsSummary?.default_llm?.has_usable_connection);
+    settingsSummary != null &&
+    settingsSummary.app?.react_extraction_enabled !== false &&
+    Boolean(extractionReady?.has_usable_connection);
 
   const refreshChapterContext = useCallback(async () => {
     try {

@@ -71,6 +71,15 @@ export async function* dispatchSimpleChat(
   const allFacts = await e.repos.fact.list_all(params.au_path);
   const threads = await e.repos.thread.list(params.au_path).catch(() => []);
 
+  // 加载当前 AU 的向量索引供 RAG 检索（与 generateChapter engine-generate.ts:58 对称，审计③修复）。
+  // 缺此步时冷启动/切 AU 后 e.vectorEngine 尚未 load 该 AU 索引，assemble_chat_context 的
+  // P4 RAG 层会静默返回空——对话与写文「共用同一记忆栈」的承诺在 RAG 这层会漏。
+  try {
+    await e.ragManager.ensureLoaded(params.au_path);
+  } catch {
+    // 向量索引尚未建立 —— search 返回空结果，不阻断对话
+  }
+
   for await (const ev of dispatch_simple_chat({
     au_id: params.au_path,
     chapter_num: params.chapter_num,

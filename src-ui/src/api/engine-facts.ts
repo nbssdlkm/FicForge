@@ -20,6 +20,7 @@ import {
 } from "@ficforge/engine";
 import type { LLMProvider, ResolvedLLMConfig, Project } from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
+import { hasUsableConnection } from "./engine-settings";
 
 // ---------------------------------------------------------------------------
 // 共享 helper：LLM 配置解析（仅本文件内使用）
@@ -44,6 +45,23 @@ async function resolveFactsProvider(auPath: string): Promise<{
   const lang = sett.app?.language || "zh";
   const reactEnabled = sett.app?.react_extraction_enabled === true;
   return { provider, llmConfig, proj, lang, reactEnabled };
+}
+
+/**
+ * 当前 AU 的事实提取是否有可用 LLM 连接。与 resolveFactsProvider 同源
+ * （resolve_llm_config 优先级 session>project>default_llm + api_key 回填），
+ * 供 SimpleChatPanel 对话自动提取 gate 使用——修正「gate 只看全局 default_llm」
+ * 与「实际提取用 project 级解析」两处口径漂移导致 AU 独立配 LLM 时自动提取被
+ * 静默跳过的问题（审计④）。判据复用 engine-settings.hasUsableConnection（单一真相源）。
+ */
+export async function getFactsExtractionReadiness(
+  auPath: string,
+): Promise<{ has_usable_connection: boolean }> {
+  const e = getEngine();
+  const proj = await e.repos.project.get(auPath);
+  const sett = await e.repos.settings.get();
+  const llmConfig = resolve_llm_config(null, proj, sett);
+  return { has_usable_connection: hasUsableConnection(llmConfig) };
 }
 
 // ---------------------------------------------------------------------------

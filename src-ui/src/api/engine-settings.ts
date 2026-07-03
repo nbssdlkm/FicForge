@@ -54,7 +54,13 @@ async function readSettings(): Promise<Settings> {
   return settings.get();
 }
 
-function hasUsableConnection(llm: {
+/**
+ * 判断一份 LLM 配置是否有可用连接。接受 Settings.default_llm、Project.llm 或
+ * resolve_llm_config 的解析结果（ResolvedLLMConfig）—— 字段形状兼容。
+ * 单一真相源：facts 提取 readiness（engine-facts.getFactsExtractionReadiness）复用此谓词，
+ * 避免 UI 侧重复实现「可用连接」判据（审计④）。
+ */
+export function hasUsableConnection(llm: {
   mode?: string;
   api_key?: string;
   local_model_path?: string;

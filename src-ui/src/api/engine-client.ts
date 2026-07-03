@@ -97,7 +97,7 @@ export {
   testEmbeddingConnection,
 } from "./engine-settings";
 export { getState, setChapterFocus, rebuildIndex, recalcState } from "./engine-state";
-export { listFacts, addFact, editFact, updateFactStatus, batchUpdateFactStatus, extractFacts, extractFactsBatch, submitFactsExtraction, findArchivalCandidates, archiveFacts, unarchiveFact } from "./engine-facts";
+export { listFacts, addFact, editFact, updateFactStatus, batchUpdateFactStatus, extractFacts, extractFactsBatch, submitFactsExtraction, findArchivalCandidates, archiveFacts, unarchiveFact, getFactsExtractionReadiness } from "./engine-facts";
 export { listThreads, addThread, updateThread, setThreadStatus, removeThread, setFactThreads, addFactToThread, removeFactFromThread, setFactThreadRole } from "./engine-threads";
 export {
   getProjectCapabilities,

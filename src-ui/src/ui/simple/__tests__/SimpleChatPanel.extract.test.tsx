@@ -46,6 +46,7 @@ vi.mock("../../../api/engine-client", async () => {
     getSimpleChat: vi.fn(),
     saveSimpleChat: vi.fn(),
     getSettingsSummary: vi.fn(),
+    getFactsExtractionReadiness: vi.fn(),
     extractFacts: vi.fn(),
   };
 });
@@ -94,7 +95,11 @@ function mockWriteDraftStream() {
   );
 }
 
-/** 设置 gate 相关的 settings summary（react 开关 + LLM 就位）。 */
+/**
+ * 设置 gate 相关的 settings summary（react 开关）+ 提取就位（readiness）。
+ * gate ② 现读 getFactsExtractionReadiness（引擎按 project+settings 解析，审计④），
+ * 故 opts.usable 同步驱动 readiness；settingsSummary.default_llm 仅保留形状，不再被 gate 读取。
+ */
 function mockSettingsSummary(opts: { reactEnabled?: boolean; usable: boolean }) {
   mocked.getSettingsSummary.mockResolvedValue({
     default_llm: { has_usable_connection: opts.usable },
@@ -107,6 +112,7 @@ function mockSettingsSummary(opts: { reactEnabled?: boolean; usable: boolean }) 
         : { react_extraction_enabled: opts.reactEnabled }),
     },
   } as unknown as Awaited<ReturnType<typeof engineClient.getSettingsSummary>>);
+  mocked.getFactsExtractionReadiness.mockResolvedValue({ has_usable_connection: opts.usable });
 }
 
 function setupBaseMocks() {
@@ -129,6 +135,8 @@ function setupBaseMocks() {
   mocked.confirmChapter.mockResolvedValue({ revision: 2 } as unknown as Awaited<
     ReturnType<typeof engineClient.confirmChapter>
   >);
+  // 默认提取就位（gate ② 通过）；各用例可经 mockSettingsSummary 或直接覆盖调整。
+  mocked.getFactsExtractionReadiness.mockResolvedValue({ has_usable_connection: true });
   mocked.extractFacts.mockResolvedValue({ facts: [CANDIDATE] });
 }
 
@@ -219,8 +227,9 @@ describe("SimpleChatPanel P2.3 — 接受草稿接通 M9 提取", () => {
     expect(screen.queryByText("提取结果预览")).not.toBeInTheDocument();
   });
 
-  it("LLM 未就位：接受后不触发提取、不弹 modal", async () => {
+  it("LLM 未就位（readiness=false）：接受后不触发提取、不弹 modal", async () => {
     const user = userEvent.setup();
+    // 全局与 project 都无可用连接 → 引擎 readiness=false → gate ② 关
     mockSettingsSummary({ reactEnabled: true, usable: false });
 
     await sendAndAcceptDraft(user);
@@ -228,6 +237,22 @@ describe("SimpleChatPanel P2.3 — 接受草稿接通 M9 提取", () => {
 
     expect(mocked.extractFacts).not.toHaveBeenCalled();
     expect(screen.queryByText("提取结果预览")).not.toBeInTheDocument();
+  });
+
+  it("全局 default_llm 空但 AU 级独立配可用：readiness 为真仍触发提取（审计④ gate 口径修正）", async () => {
+    const user = userEvent.setup();
+    // 旧口径只看全局 default_llm.has_usable_connection=false → 会误判为不可提取而静默跳过。
+    mockSettingsSummary({ reactEnabled: true, usable: false });
+    // 新口径：引擎按 resolve_llm_config(project 优先) 解析后 readiness=true（AU 级独立配了 LLM）。
+    mocked.getFactsExtractionReadiness.mockResolvedValue({ has_usable_connection: true });
+
+    await sendAndAcceptDraft(user);
+
+    // 修复后：与写文路径一致，能自动触发提取
+    await waitFor(() => {
+      expect(mocked.extractFacts).toHaveBeenCalledWith(AU, 2);
+    });
+    expect(await screen.findByText("提取结果预览")).toBeInTheDocument();
   });
 
   it("settings summary 加载失败（null）：fail-closed，不触发提取", async () => {
