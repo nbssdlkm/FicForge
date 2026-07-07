@@ -476,6 +476,8 @@ export async function* dispatch_simple_chat(
       character_files, worldbuilding_files,
       vector_repo, embedding_provider,
       language,
+      // H4：窗口/输出上限按实际生效模型（resolve 三层结果）算，不再只看 project.llm。
+      effective_llm: llmConfig,
     });
     const { systemContent, latestUserContent, max_tokens } = ctx;
     const systemMessage: Message = { role: "system", content: systemContent };
@@ -626,10 +628,11 @@ export async function* dispatch_simple_chat(
             });
             // internalHistory 副本按上限截断（B3）：防多轮大章节 fetch 累积撑爆 context。
             // 上面 emit 给 UI 的 tool_result 仍是全文（持久化不丢）。
+            // H4：token 计数配置用实际生效 LLM（count_tokens 现只看 mode，行为等价；保持同源）。
             iterCtx.internalHistory.push({
               role: "tool",
               tool_call_id: c.id,
-              content: truncateReadResultForHistory(result.content, project.llm, language),
+              content: truncateReadResultForHistory(result.content, llmConfig, language),
             });
           }
           return { mode: "continue", events };

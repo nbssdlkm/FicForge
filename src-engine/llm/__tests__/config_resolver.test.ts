@@ -157,3 +157,61 @@ describe("create_provider", () => {
     ).toThrow(/mode/i);
   });
 });
+
+describe("resolve_llm_config — context_window 同层同源（审计 H4）", () => {
+  it("project 层胜出：取 project.llm 的手动 context_window", () => {
+    const r = resolve_llm_config(
+      null,
+      { llm: { mode: "api", model: "m-proj", context_window: 64_000 } },
+      { default_llm: { mode: "api", model: "m-set", context_window: 128_000 } },
+    );
+    expect(r.model).toBe("m-proj");
+    expect(r.context_window).toBe(64_000);
+  });
+
+  it("settings 层胜出（主流配置：全局默认 + AU 无覆盖）：取 default_llm 的手动窗口", () => {
+    const r = resolve_llm_config(
+      null,
+      { llm: { mode: "api", model: "" } },
+      { default_llm: { mode: "api", model: "m-set", context_window: 131_072 } },
+    );
+    expect(r.model).toBe("m-set");
+    expect(r.context_window).toBe(131_072);
+  });
+
+  it("session 显式带 context_window（字符串形态）：直接生效", () => {
+    const r = resolve_llm_config(
+      { mode: "api", model: "m-sess", context_window: "200000" },
+      { llm: { mode: "api", model: "m-proj", context_window: 64_000 } },
+      { default_llm: {} },
+    );
+    expect(r.context_window).toBe(200_000);
+  });
+
+  it("session 不带窗口但模型与 settings 配置一致：继承该层手动窗口", () => {
+    const r = resolve_llm_config(
+      { mode: "api", model: "m-set", api_base: "http://x" },
+      { llm: { mode: "api", model: "" } },
+      { default_llm: { mode: "api", model: "m-set", context_window: 131_072 } },
+    );
+    expect(r.context_window).toBe(131_072);
+  });
+
+  it("session 模型与任何层都不一致：不继承（undefined 交给映射表推断）", () => {
+    const r = resolve_llm_config(
+      { mode: "api", model: "another-model" },
+      { llm: { mode: "api", model: "m-proj", context_window: 64_000 } },
+      { default_llm: { mode: "api", model: "m-set", context_window: 131_072 } },
+    );
+    expect(r.context_window).toBeUndefined();
+  });
+
+  it("context_window = 0 是「自动推断」哨兵：视同未指定", () => {
+    const r = resolve_llm_config(
+      null,
+      { llm: { mode: "api", model: "m-proj", context_window: 0 } },
+      { default_llm: {} },
+    );
+    expect(r.context_window).toBeUndefined();
+  });
+});

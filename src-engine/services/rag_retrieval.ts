@@ -378,6 +378,12 @@ export interface RetrieveRagForContextArgs {
   au_id: string;
   llm_config: unknown;
   language?: string;
+  /**
+   * H4：实际生效 LLM 视图（resolve_llm_config 结果，{model, context_window} 足够）。
+   * ragBudget（≈ctx/4）按它算窗口；可选 + 缺省回退 project.llm —— 旧调用方不传时
+   * 行为不变（向后兼容硬约束）。
+   */
+  effective_llm?: { model?: string; context_window?: number } | null;
 }
 
 export async function retrieveRagForContext(
@@ -386,6 +392,7 @@ export async function retrieveRagForContext(
   const {
     project, state, user_input, facts,
     vector_repo, embedding_provider, au_id, llm_config, language = "zh",
+    effective_llm = null,
   } = args;
   try {
     const castReg = project.cast_registry ?? { characters: [] };
@@ -401,7 +408,8 @@ export async function retrieveRagForContext(
 
     // 用 get_context_window(支持 context_window=0 自动按 model 推断),与 context_assembler 同源;
     // 原内联块写死 `|| 128000`,在 context_window=0 + 大上下文模型时会把预算算小(审计 R2 修)。
-    const ragBudget = Math.max(0, Math.trunc(get_context_window(project) / 4));
+    // H4：给了 effective 视图则按实际生效模型算窗口（缺省回退 project.llm，向后兼容）。
+    const ragBudget = Math.max(0, Math.trunc(get_context_window(effective_llm ? { llm: effective_llm } : project) / 4));
     const [ragResult, , chunks] = await retrieve_rag(
       vector_repo, embedding_provider, au_id, query,
       ragBudget, activeChars, llm_config,

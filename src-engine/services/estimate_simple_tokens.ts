@@ -14,12 +14,14 @@
  */
 
 import type { Project } from "../domain/project.js";
+import type { Settings } from "../domain/settings.js";
 import type { State } from "../domain/state.js";
 import type { Fact } from "../domain/fact.js";
 import type { Thread } from "../domain/thread.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { PlatformAdapter } from "../platform/adapter.js";
 import type { Message } from "../llm/provider.js";
+import { resolve_llm_config } from "../llm/config_resolver.js";
 import { assemble_chat_context } from "./context_assembler.js";
 import { count_tokens, ensureTokenizer } from "../tokenizer/index.js";
 import { joinPath } from "../repositories/implementations/file_utils.js";
@@ -81,12 +83,24 @@ export interface EstimateSimpleContextParams {
   facts?: Fact[];
   /** 活跃剧情线（M8-B）；省略 ⇒ badge 不计剧情线。 */
   threads?: Thread[];
+  /**
+   * H4：全局 settings。传入时经 resolve_llm_config(session_llm, project, settings)
+   * 得到实际生效 LLM 视图喂 assembler —— badge 的窗口/预算与真实组装同源（badge 是
+   * 「全塞」历史哲学下唯一的超窗预警防线，双链漂移 = 预警失真）。省略回退 project.llm（旧行为）。
+   */
+  settings?: Settings;
+  /** H4：会话级 LLM 覆盖（与 dispatch 收到的 session_llm 同物，UI 的 sessionLlmPayload）。 */
+  session_llm?: Record<string, string> | null;
 }
 
 export async function estimate_simple_context_tokens(
   params: EstimateSimpleContextParams,
 ): Promise<SimpleContextTokenEstimate> {
-  const { au_id, project, state, chapter_repo, adapter, language = "zh", history = [], facts = [], threads = [] } = params;
+  const { au_id, project, state, chapter_repo, adapter, language = "zh", history = [], facts = [], threads = [], settings, session_llm = null } = params;
+
+  // H4：与 dispatch 同一条解析链（session > project > settings.default_llm），
+  // badge 的窗口/输出上限/预算跟真实请求走同一个模型。
+  const effectiveLlm = settings ? resolve_llm_config(session_llm, project, settings) : null;
 
   const [characterFiles, worldbuildingFiles] = await Promise.all([
     loadMdDir(adapter, joinPath(au_id, "characters")),
@@ -99,6 +113,7 @@ export async function estimate_simple_context_tokens(
     chapter_repo, au_id,
     character_files: characterFiles, worldbuilding_files: worldbuildingFiles,
     language,
+    effective_llm: effectiveLlm,
     // 有意不传 vector_repo/embedding_provider：badge 路径跳过 RAG（见文件头注释）。
   });
 
@@ -110,7 +125,8 @@ export async function estimate_simple_context_tokens(
     for (const msg of history) {
       // OpenAI 格式：每条 message 实际 token = role token + content token + 几个 framing token。
       // 简版估算只算 content（与 assembler 同口径，badge 是估算非精确账单）。
-      historyTokens += count_tokens(msg.content ?? "", project.llm).count;
+      // H4：编码选择与 assembler 同源（count_tokens 现只看 mode，行为等价）。
+      historyTokens += count_tokens(msg.content ?? "", effectiveLlm ?? project.llm).count;
     }
   }
 

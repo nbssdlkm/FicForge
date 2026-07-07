@@ -224,6 +224,7 @@ export async function* generate_chapter(
         project, state, user_input, facts,
         vector_repo, embedding_provider, au_id,
         llm_config: llmConfig, language,
+        effective_llm: llmConfig,   // H4：ragBudget 按实际生效模型的窗口算
       });
       if (rag.ragText) {
         rag_text = rag.ragText;
@@ -232,6 +233,8 @@ export async function* generate_chapter(
     }
 
     // === 步骤 2：组装上下文 ===
+    // H4：把 resolve_llm_config 的结果传给 assembler —— 窗口/输出上限按实际生效模型
+    // （可能来自 settings.default_llm / session 覆盖）计算，不再只看 project.llm。
     const ctx = await assemble_context(
       project, state, user_input, facts,
       chapter_repo, au_id,
@@ -240,6 +243,7 @@ export async function* generate_chapter(
       worldbuilding_files,
       language,
       params.threads ?? [],
+      llmConfig,
     );
     const { messages, max_tokens, budget_report, context_summary } = ctx;
 

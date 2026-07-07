@@ -17,6 +17,63 @@ export interface ResolvedLLMConfig {
   api_key: string;
   /** Ollama 模式下的模型名（对应 LLMConfig.ollama_model）。api 模式下忽略。 */
   ollama_model?: string;
+  /**
+   * 手动指定的 context window（审计 H4）。undefined = 未手动指定，消费方
+   * （get_context_window）按 model 名走 MODEL_CONTEXT_MAP 推断。
+   *
+   * 与 model **同层同源**：取「胜出的那一层配置」里的 context_window，不跨层混配 ——
+   * 否则 A 层的手动窗口会误配到 B 层的模型上（与 api_key 回填的同源原则一致）。
+   * 唯一例外见 resolveContextWindow：session 覆盖通常不带 context_window（前端
+   * payload 只传 mode/model/api_base），此时若 session 的模型与某层配置的模型
+   * 一致，则继承该层的手动窗口（本质仍是"窗口描述该模型"的同源语义）。
+   */
+  context_window?: number;
+}
+
+/** 归一化手动 context_window：仅正数有效（0 = "自动推断"哨兵值，视同未指定）。 */
+function toManualContextWindow(v: unknown): number | undefined {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+type LLMConfigLike = {
+  mode?: string | { value: string };
+  model?: string;
+  api_base?: string;
+  api_key?: string;
+  ollama_model?: string;
+  context_window?: number;
+};
+
+/**
+ * 解析生效的 context_window（审计 H4），与 resolve_llm_config 选出的层同源。
+ *
+ * - project / settings 层胜出：直接取该层的手动 context_window。
+ * - session 层胜出：session payload 通常不带 context_window（前端 useSessionParams
+ *   只传 mode/model/api_base），此时按「手动窗口描述的是某层配置里的那个模型」原则：
+ *   session 模型与 project.llm（优先）或 settings.default_llm 配置的模型一致时，
+ *   继承该层手动窗口；模型不一致则不继承（避免 A 模型的手动窗口误配 B 模型），
+ *   返回 undefined 交给 MODEL_CONTEXT_MAP 按模型名推断。
+ */
+function resolveContextWindow(
+  layer: "session" | "project" | "settings" | "none",
+  sessionModel: string,
+  session_llm: Record<string, string> | null,
+  project: { llm?: LLMConfigLike },
+  settings: { default_llm?: LLMConfigLike },
+): number | undefined {
+  if (layer === "project") return toManualContextWindow(project.llm?.context_window);
+  if (layer === "settings") return toManualContextWindow(settings.default_llm?.context_window);
+  if (layer !== "session") return undefined;
+
+  const explicit = toManualContextWindow(session_llm?.context_window);
+  if (explicit !== undefined) return explicit;
+
+  const matches = (l: LLMConfigLike | undefined): boolean =>
+    Boolean(l && sessionModel && (l.model === sessionModel || l.ollama_model === sessionModel));
+  if (matches(project.llm)) return toManualContextWindow(project.llm?.context_window);
+  if (matches(settings.default_llm)) return toManualContextWindow(settings.default_llm?.context_window);
+  return undefined;
 }
 
 /**
@@ -25,19 +82,24 @@ export interface ResolvedLLMConfig {
  */
 export function resolve_llm_config(
   session_llm: Record<string, string> | null,
-  project: { llm?: { mode?: string | { value: string }; model?: string; api_base?: string; api_key?: string; ollama_model?: string } },
-  settings: { default_llm?: { mode?: string | { value: string }; model?: string; api_base?: string; api_key?: string; ollama_model?: string } },
+  project: { llm?: LLMConfigLike },
+  settings: { default_llm?: LLMConfigLike },
 ): ResolvedLLMConfig {
   let cfg: Record<string, string>;
+  let layer: "session" | "project" | "settings" | "none";
 
   if (session_llm && session_llm.model) {
     cfg = { ...session_llm };
+    layer = "session";
   } else if (project.llm && (project.llm.model || project.llm.ollama_model)) {
     cfg = llmObjToDict(project.llm);
+    layer = "project";
   } else if (settings.default_llm) {
     cfg = llmObjToDict(settings.default_llm);
+    layer = "settings";
   } else {
     cfg = {};
+    layer = "none";
   }
 
   cfg.mode = cfg.mode ?? "api";
@@ -75,6 +137,7 @@ export function resolve_llm_config(
     api_base: cfg.api_base,
     api_key: cfg.api_key,
     ollama_model: cfg.ollama_model,
+    context_window: resolveContextWindow(layer, cfg.model, session_llm, project, settings),
   };
 }
 

@@ -19,6 +19,7 @@ export type { SimpleContextTokenEstimate };
 export async function estimateSimpleContextTokens(
   auPath: string,
   history?: Message[],
+  sessionLlm?: Record<string, string> | null,
 ): Promise<SimpleContextTokenEstimate> {
   const e = getEngine();
   // facts/threads 取失败不致命：badge 是按键级（防抖）高频 UI chrome，一次记忆读失败应静默回退空、
@@ -41,5 +42,9 @@ export async function estimateSimpleContextTokens(
     history,
     facts,
     threads,
+    // H4：settings + 会话覆盖一并传入 —— badge 的窗口/预算与 dispatch 的
+    // resolve_llm_config 三层解析同源，不再只看 project.llm。
+    settings,
+    session_llm: sessionLlm ?? null,
   });
 }

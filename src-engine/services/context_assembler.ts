@@ -36,6 +36,32 @@ function _count(text: string, llm_config: unknown): { count: number; is_estimate
   return count_tokens(text, llm_config as { mode?: string } | undefined);
 }
 
+// ---------------------------------------------------------------------------
+// EffectiveLLM —— 实际生效 LLM 的最小视图（审计 H4）
+// ---------------------------------------------------------------------------
+
+/**
+ * 「实际生效 LLM」最小视图（审计 H4）。
+ *
+ * 实际发请求的模型由 resolve_llm_config(session_llm, project, settings) 三层解析，
+ * 可能落在 settings.default_llm（最主流配置：全局默认 + AU 无覆盖）——而 assembler
+ * 历史上只看 project.llm，导致该场景按 DEFAULT_CONTEXT_WINDOW=32k / max_output("")=4096
+ * 计算，64k+ 模型的大半输入预算被白白扔掉；反向的小窗口 session 模型则可能超窗。
+ *
+ * 调用方（generation / simple_chat_dispatch / estimate）把 resolve 结果传进来即可 ——
+ * ResolvedLLMConfig 结构上就满足本视图（mode/model/context_window）。
+ *
+ * **为什么是可选参数 + 缺省回退 project.llm**：向后兼容是硬约束。已有调用方 / golden
+ * test 只传 project，不传本视图时必须与修改前逐字节一致（窗口、输出上限、预算、messages
+ * 全部不变）；接线只在「手里有 resolve 结果」的调用点显式 opt-in。
+ */
+export interface EffectiveLLM {
+  mode?: string;
+  model?: string;
+  /** 手动指定的 context window；undefined/0 = 按 model 名走 MODEL_CONTEXT_MAP 推断。 */
+  context_window?: number;
+}
+
 // ===========================================================================
 // build_system_prompt（P0 + 规则）
 // ===========================================================================
@@ -517,10 +543,17 @@ export interface AssembleContextResult {
  * 超长章节被 CEIL 夹断时打 warn。写文 assemble_context 与对话 assemble_chat_context 共用，避免
  * 15_000 字面量与 Math.min 公式两处手工维护漂移（D-0039 曾 rebalance 过一次，retune 时只需改这一处）。
  * @param logTag 日志前缀（"context_assembler" / "assemble_chat_context"）
+ * @param effective_llm 实际生效 LLM 视图（H4）；缺省回退 project.llm（向后兼容）。
+ *        chapter_length 仍来自 project —— 章节长度是作品属性，与用哪个模型无关。
  */
-function computeMaxOutputTokens(project: Project, contextWindow: number, logTag: string): number {
+function computeMaxOutputTokens(
+  project: Project,
+  contextWindow: number,
+  logTag: string,
+  effective_llm?: EffectiveLLM,
+): number {
   const OUTPUT_RESERVE_CEIL = 15_000;
-  const modelName = project.llm?.model ?? "";
+  const modelName = (effective_llm ? effective_llm.model : project.llm?.model) ?? "";
   const chapterLength = project.chapter_length ?? 1500;
   const chapterTokenCap = chapterLength ? chapterLength * 2 : Infinity;
   const maxTokens = Math.min(
@@ -575,15 +608,19 @@ export async function assemble_context(
   worldbuilding_files: Record<string, string> | null = null,
   language = "zh",
   threads: Thread[] = [],
+  // H4：实际生效 LLM 视图（resolve_llm_config 结果）。可选 + 缺省回退 project.llm，
+  // 保证旧调用方 / golden test 逐字节不变（理由见 EffectiveLLM 文档注释）。
+  effective_llm: EffectiveLLM | null = null,
 ): Promise<AssembleContextResult> {
   // 融合（plan §1.3/§1.5）：原"simple 模式委托 assemble_context_simple"分支已删 —— 对话路径
   // 改走 assemble_chat_context（分层），写文路径恒走下面的 P0-P5 预算切分（逐字节不回归）。
   await ensureTokenizer();
-  const llm = project.llm;
+  // tokenizer 编码选择也跟 effective 走（count_tokens 现只看 mode，行为等价；语义上保持同源）。
+  const llm = effective_llm ?? project.llm;
   const report = createBudgetReport();
 
-  // --- context_window ---
-  const contextWindow = get_context_window(project);
+  // --- context_window（H4：给了 effective 视图则按实际生效模型算窗口）---
+  const contextWindow = get_context_window(effective_llm ? { llm: effective_llm } : project);
   report.context_window = contextWindow;
 
   // --- System prompt ---
@@ -594,7 +631,7 @@ export async function assemble_context(
 
   // --- max_tokens（D-0039；公式单一真相源见 computeMaxOutputTokens）---
   const chapterLength = project.chapter_length ?? 1500;
-  const maxTokens = computeMaxOutputTokens(project, contextWindow, "context_assembler");
+  const maxTokens = computeMaxOutputTokens(project, contextWindow, "context_assembler", effective_llm ?? undefined);
   report.max_output_tokens = maxTokens;
 
   // --- input budget（公式单一真相源见 computeInputBudget）---
@@ -853,6 +890,11 @@ export interface AssembleChatContextParams {
   /** 预计算 RAG 文本，传入（非 null）则跳过内部检索（与 generate_chapter 同款 gate）。 */
   rag_text?: string | null;
   language?: string;
+  /**
+   * H4：实际生效 LLM 视图（resolve_llm_config 结果）。可选 + 缺省回退 project.llm，
+   * 旧调用方 / 测试不传时行为逐字节不变（理由见 EffectiveLLM 文档注释）。
+   */
+  effective_llm?: EffectiveLLM | null;
 }
 
 /**
@@ -884,15 +926,18 @@ export async function assemble_chat_context(
     character_files = null, worldbuilding_files = null,
     vector_repo, embedding_provider,
     language = "zh",
+    effective_llm = null,
   } = params;
   let { rag_text = null } = params;
 
   await ensureTokenizer();
-  const llm = project.llm;
+  // tokenizer 编码选择也跟 effective 走（count_tokens 现只看 mode，行为等价；语义上保持同源）。
+  const llm = effective_llm ?? project.llm;
   const P = getPrompts(language as "zh" | "en");
   const report = createBudgetReport();
 
-  const contextWindow = get_context_window(project);
+  // H4：给了 effective 视图则按实际生效模型算窗口（缺省回退 project.llm，向后兼容）。
+  const contextWindow = get_context_window(effective_llm ? { llm: effective_llm } : project);
   report.context_window = contextWindow;
 
   // --- 对话人设（system prompt 单一真相源：build_system_prompt_simple）---
@@ -903,7 +948,7 @@ export async function assemble_chat_context(
   report.system_tokens = systemTokens;
 
   // --- max_tokens（D-0039 单一真相源）---
-  const maxTokens = computeMaxOutputTokens(project, contextWindow, "assemble_chat_context");
+  const maxTokens = computeMaxOutputTokens(project, contextWindow, "assemble_chat_context", effective_llm ?? undefined);
   report.max_output_tokens = maxTokens;
 
   // --- input budget（公式单一真相源见 computeInputBudget，与 assemble_context 同源）---
@@ -937,6 +982,7 @@ export async function assemble_chat_context(
       project, state, user_input, facts,
       vector_repo, embedding_provider, au_id,
       llm_config: llm, language,
+      effective_llm,   // H4：ragBudget（≈ctx/4）随实际生效模型的窗口走
     });
     rag_text = rag.ragText;
   }
