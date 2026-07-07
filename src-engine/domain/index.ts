@@ -105,7 +105,23 @@ export {
   MODEL_MAX_OUTPUT,
   get_context_window,
   get_model_max_output,
+  normalizeModelId,
 } from "./model_context_map.js";
+
+// Provider manifest（供应商主导模型选择器 · 单一真相源）
+export type {
+  LocalizedName,
+  ModelKind,
+  ModelTag,
+  ProviderEntry,
+  RecommendedModel,
+} from "./provider_manifest.js";
+export {
+  contextWindowForModel,
+  findRecommendedModel,
+  getProvider,
+  listProviders,
+} from "./provider_manifest.js";
 
 // Settings tools
 export { get_tools_for_mode } from "./settings_tools.js";
