@@ -117,6 +117,11 @@ export interface NewImportResult {
   settingsImported: number;
   trashedChapters: number[];
   nextChapterNum: number;
+  /**
+   * 覆盖模式下「旧章既进不了回收站、也备份失败」而被跳过覆盖的章节号（审计 M29）。
+   * 这些章的旧内容原样保留、新内容未写入；UI 应以警告形式展示。
+   */
+  overwriteSkippedChapters: number[];
 }
 
 export interface ImportProgress {
@@ -536,12 +541,17 @@ async function doExecuteImport(
     settingsImported: 0,
     trashedChapters: [],
     nextChapterNum: 1,
+    overwriteSkippedChapters: [],
   };
   const importedChapterTitles: Record<number, string> = {};
 
   const timestamp = now_utc();
 
-  // 1. 覆盖/自定义模式：被覆盖的章节移入垃圾桶
+  // 1. 覆盖/自定义模式：被覆盖的章节移入垃圾桶。
+  // trash 失败不能再静默放行覆盖（审计 M29：旧章会被 tx.saveChapter 覆盖 → 永失且不在回收站）：
+  // 降级用 backup_chapter 兜底（chapters/backups/ 目录）；备份也失败则跳过该章覆盖，
+  // 旧章原样保留并记入 overwriteSkippedChapters 让 UI 警告。
+  const overwriteSkipped = new Set<number>();
   if (plan.conflictOptions.mode !== "append" && trashService) {
     const importedNums = new Set(plan.chapters.map((c) => c.chapterNum));
     for (const num of importedNums) {
@@ -552,16 +562,29 @@ async function doExecuteImport(
           await trashService.move_to_trash(auId, chPath, "chapter", String(num));
           result.trashedChapters.push(num);
         } catch {
-          // trash 失败不阻断导入
+          try {
+            await chapterRepo.backup_chapter(auId, num);
+          } catch (backupErr) {
+            overwriteSkipped.add(num);
+            // eslint-disable-next-line no-console
+            console.warn(
+              `[import] ch${num} 旧章无法移入回收站且备份失败，跳过覆盖以保留旧章: ` +
+              `${(backupErr as Error).message}`,
+            );
+          }
         }
       }
     }
   }
+  result.overwriteSkippedChapters = [...overwriteSkipped].sort((a, b) => a - b);
+
+  // 被跳过覆盖的章不进事务：后续 state / ops 也只反映真正落盘的章
+  const chaptersToWrite = plan.chapters.filter((ch) => !overwriteSkipped.has(ch.chapterNum));
 
   // 2. 逐章构建（收集到 tx，不立即写入）
   const tx = new WriteTransaction();
   const allCharactersLastSeen: Record<string, number> = {};
-  for (const ch of plan.chapters) {
+  for (const ch of chaptersToWrite) {
     const contentHash = await compute_content_hash(ch.content);
     const chapter = createChapter({
       au_id: auId,
@@ -598,11 +621,11 @@ async function doExecuteImport(
     });
   }
 
-  // 3. 更新 state（仅在有章节时需要）
+  // 3. 更新 state（仅在有真正落盘的章节时需要；跳过覆盖的章不参与，其旧章数据未变）
   let importState: ReturnType<typeof createState> | null = null;
-  if (plan.chapters.length > 0) {
-    const maxChapterNum = Math.max(...plan.chapters.map((c) => c.chapterNum));
-    const lastContent = plan.chapters[plan.chapters.length - 1].content;
+  if (chaptersToWrite.length > 0) {
+    const maxChapterNum = Math.max(...chaptersToWrite.map((c) => c.chapterNum));
+    const lastContent = chaptersToWrite[chaptersToWrite.length - 1].content;
     const lastSceneEnding = extract_last_scene_ending(lastContent, 50);
 
     let existingState;
@@ -650,7 +673,8 @@ async function doExecuteImport(
   const writtenSettingsPaths = settingsResult.writtenPaths;
 
   // 4. 事务提交 — 只要有章节或设定就写 ops（D-0036：ops 是 sync truth）
-  if (plan.chapters.length > 0 || plan.settings.length > 0) {
+  // payload 一律取 chaptersToWrite：ops 审计与重建投影只应反映真正落盘的章（审计 M29）
+  if (chaptersToWrite.length > 0 || plan.settings.length > 0) {
     tx.appendOp(auId, createOpsEntry({
       op_id: generate_op_id(),
       op_type: "import_chapters",
@@ -660,11 +684,11 @@ async function doExecuteImport(
         total_chapters: result.chaptersImported,
         total_settings: result.settingsImported,
         trashed_chapters: result.trashedChapters,
-        source_files: [...new Set(plan.chapters.map((c) => c.sourceFile))],
+        source_files: [...new Set(chaptersToWrite.map((c) => c.sourceFile))],
         characters_found: Object.keys(allCharactersLastSeen),
         // 供 rebuildStateFromOps 使用（跨设备同步时重建 state）
-        last_chapter_num: plan.chapters.length > 0 ? Math.max(...plan.chapters.map((c) => c.chapterNum)) : 0,
-        last_scene_ending: plan.chapters.length > 0 ? extract_last_scene_ending(plan.chapters[plan.chapters.length - 1].content, 50) : "",
+        last_chapter_num: chaptersToWrite.length > 0 ? Math.max(...chaptersToWrite.map((c) => c.chapterNum)) : 0,
+        last_scene_ending: chaptersToWrite.length > 0 ? extract_last_scene_ending(chaptersToWrite[chaptersToWrite.length - 1].content, 50) : "",
         characters_last_seen: allCharactersLastSeen,
         chapter_titles: importedChapterTitles,
       },

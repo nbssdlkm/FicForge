@@ -10,6 +10,7 @@ import {
   type ImportConflictOptions,
 } from "../import_pipeline.js";
 import type { LLMProvider } from "../../llm/provider.js";
+import type { TrashService } from "../trash_service.js";
 import { export_chapters } from "../export_service.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 import { FileChapterRepository } from "../../repositories/implementations/file_chapter.js";
@@ -22,7 +23,10 @@ class FailingWriteAdapter extends MockAdapter {
   }
 
   override async writeFile(path: string, content: string): Promise<void> {
-    if (this.shouldFailWrite(path)) {
+    // atomicWrite 会先写 <path>.tmp 再 rename 到最终路径（审计 H5 改造后 writeFile 只见 .tmp）。
+    // 故障注入按「最终目标路径」判定，保证测试意图（该文件写不进去）在两种写路径下都成立。
+    const finalPath = path.endsWith(".tmp") ? path.slice(0, -".tmp".length) : path;
+    if (this.shouldFailWrite(finalPath)) {
       throw new Error(`write failed: ${path}`);
     }
     await super.writeFile(path, content);
@@ -857,6 +861,79 @@ describe("executeImport", () => {
     // 2 ops logged (one per import)
     const ops = await opsRepo.list_all("au1");
     expect(ops).toHaveLength(2);
+  });
+
+  // --- overwrite 模式 trash 失败兜底（审计 M29）---
+
+  it("overwrite: trash 失败降级 backup_chapter，备份成功则继续覆盖（审计 M29）", async () => {
+    const chapterRepo = new FileChapterRepository(adapter);
+    const stateRepo = new FileStateRepository(adapter);
+    const opsRepo = new FileOpsRepository(adapter);
+    adapter.seed(
+      "au1/chapters/main/ch0001.md",
+      "---\nchapter_id: ch_old00001\nrevision: 1\n---\n\n旧章正文，覆盖前必须有副本。",
+    );
+    const failingTrash = {
+      move_to_trash: vi.fn(async () => { throw new Error("trash backend down"); }),
+    } as unknown as TrashService;
+
+    const plan = buildImportPlan(
+      [makeTextAnalysis("file.txt", 1)],
+      { mode: "overwrite", startChapter: 1, settingsMode: "merge" },
+    );
+    const result = await executeImport(plan, {
+      auId: "au1", chapterRepo, stateRepo, opsRepo, adapter, trashService: failingTrash,
+    });
+
+    expect(result.chaptersImported).toBe(1);
+    expect(result.trashedChapters).toEqual([]);
+    expect(result.overwriteSkippedChapters).toEqual([]);
+    // 新内容已覆盖
+    expect(await chapterRepo.get_content_only("au1", 1)).toContain("Content of chapter 1");
+    // 旧章降级进了 backups 目录（旧代码此处静默覆盖 → 旧章永失且不在回收站）
+    expect(adapter.raw("au1/chapters/backups/ch0001_v1.md")).toContain("旧章正文");
+  });
+
+  it("overwrite: trash+backup 双失败时跳过该章覆盖，旧章原样保留并计入警告清单（审计 M29）", async () => {
+    const chapterRepo = new FileChapterRepository(adapter);
+    const stateRepo = new FileStateRepository(adapter);
+    const opsRepo = new FileOpsRepository(adapter);
+    adapter.seed(
+      "au1/chapters/main/ch0001.md",
+      "---\nchapter_id: ch_old00001\nrevision: 1\n---\n\n旧章正文，不能丢。",
+    );
+    const failingTrash = {
+      move_to_trash: vi.fn(async () => { throw new Error("trash backend down"); }),
+    } as unknown as TrashService;
+    vi.spyOn(chapterRepo, "backup_chapter").mockRejectedValue(new Error("backup disk full"));
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      // ch1 与旧章冲突（双失败 → 跳过），ch2 为新章（正常导入）
+      const plan = buildImportPlan(
+        [makeTextAnalysis("file.txt", 2)],
+        { mode: "overwrite", startChapter: 1, settingsMode: "merge" },
+      );
+      const result = await executeImport(plan, {
+        auId: "au1", chapterRepo, stateRepo, opsRepo, adapter, trashService: failingTrash,
+      });
+
+      // 警告清单带出被跳过的章；导入本身不中断
+      expect(result.overwriteSkippedChapters).toEqual([1]);
+      expect(result.chaptersImported).toBe(1); // 仅 ch2
+      // 判别断言：旧章内容原样保留（旧代码会被新内容覆盖）
+      expect(await chapterRepo.get_content_only("au1", 1)).toBe("旧章正文，不能丢。");
+      expect(await chapterRepo.exists("au1", 2)).toBe(true);
+      // state / ops 只反映真正落盘的章
+      const state = await stateRepo.get("au1");
+      expect(state.current_chapter).toBe(3);
+      const ops = await opsRepo.list_all("au1");
+      expect(ops).toHaveLength(1);
+      expect((ops[0].payload as { total_chapters: number }).total_chapters).toBe(1);
+      expect(warnSpy).toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });
 

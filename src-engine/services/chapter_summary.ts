@@ -114,9 +114,15 @@ export interface PersistSummaryDeps {
  */
 export async function persist_chapter_summary(deps: PersistSummaryDeps): Promise<void> {
   await deps.ragManager.indexChapterSummary(deps.auPath, deps.chapterNum, deps.text, deps.embeddingProvider);
-  const summary = createChapterSummary({
+  // 合并写而非整档重写（审计 M2）：confirm 时 standard 失败/micro 成功会留下 micro-only 文件，
+  // backfill 判「缺摘要」后走到这里 —— 整档 createChapterSummary({standard}) 会把 micro 抹掉，
+  // 而 micro 没有补生成路径 → retrospective 输入永久缺章。对齐 update_micro / promote_to_v2
+  // 的 `...existing` 合并语义：保留 micro / standard_v1 等既有字段，只更新 standard。
+  const existing = (await deps.summaryRepo.get(deps.auPath, deps.chapterNum)) ?? createChapterSummary({});
+  const summary = {
+    ...existing,
     standard: { version: 1, text: deps.text, generated_at: now_utc(), source_chapter_hash: deps.contentHash },
-  });
+  };
   await deps.summaryRepo.save(deps.auPath, deps.chapterNum, summary);
 }
 

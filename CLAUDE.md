@@ -69,7 +69,7 @@ Platform Adapter
 
 - M8-A Fact 富化 / M8-B Thread 剧情线 / M8-C Chapter Summary（standard，需配 embedding）；M9 ReAct 提取（复用 `runAgentLoop`，跨章 `caused_by` + 自动挂 `thread_ids`，`REACT_MAX_FACTS_PER_CHAPTER=8` 软上限）；M10-A retrospective + M10-B 冷热分层（`archived` fact 字段 + 高级操作「整理旧剧情笔记」`ArchiveCandidatesModal`）。真机全旅程 2026-06-22 验过（记忆栈四层 Facts/Thread/Summary/RAG 全跑通，配硅基 bge-m3）。spec：`docs/superpowers/specs/2026-06-20-m9-react-fact-extraction-design.md` / `2026-06-20-m8b-thread-layer-design.md`。
 
-> **技术债现状（2026-06-30 核对 `docs/TECH-DEBT.md`）：TD-001…TD-016 全部 ✅ 已修复 / 已消解，无 open 技术债。** 别再把任何 TD-0xx 当待办列在这里 —— 引用前必查 TECH-DEBT.md 的「状态」行。
+> **技术债现状（2026-07-07 核对 `docs/TECH-DEBT.md`）：TD-001…TD-016 全部 ✅ 已修复 / 已消解；TD-017（RagManager 跨 AU 向量竞态，第二轮审计 M3）open · 待排期。** 别把其他 TD-0xx 当待办列在这里 —— 引用前必查 TECH-DEBT.md 的「状态」行。
 
 - **3.1「导入原始文件夹」联动**：补全旧章记忆已建好；其杀手场景（导入只含正文的原始文件夹后一键建记忆）待「导入原始文件夹」流程成常用入口后再验。
 - **真机全 LLM 旅程**（唯一未跑的验证）：配真 key 端到端跑 对话出章→接受→提取候选→落库→切写文 tab 看同篇记忆→补记忆工具实跑。一直因填 key 受安全规则禁、用户没精力手填而跳过，靠绿测试兜底。

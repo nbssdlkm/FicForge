@@ -81,6 +81,15 @@ export function ImportProgressStep({
           {result.trashedChapters.length > 0 && (
             <p className="text-text/50">{t("import.step5TrashedChapters", { n: result.trashedChapters.length })}</p>
           )}
+          {/* 审计 M29：旧章无法安全移入回收站/备份时跳过覆盖，必须让用户看到 */}
+          {result.overwriteSkippedChapters.length > 0 && (
+            <p className="text-warning">
+              {t("import.step5OverwriteSkipped", {
+                n: result.overwriteSkippedChapters.length,
+                chapters: result.overwriteSkippedChapters.join(", "),
+              })}
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-2 pt-2">

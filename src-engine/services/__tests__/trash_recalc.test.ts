@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 import { TrashService } from "../trash_service.js";
 import { recalc_state } from "../recalc_state.js";
 import { confirm_chapter } from "../confirm_chapter.js";
@@ -22,6 +22,8 @@ import { FileFactRepository } from "../../repositories/implementations/file_fact
 class FaultyAdapter extends MockAdapter {
   failWrite: (path: string) => boolean = () => false;
   failDelete: (path: string) => boolean = () => false;
+  /** 记录所有 deleteFile 调用（含失败的），用于断言「manifest 未落库前不删源」的顺序。 */
+  deleteCalls: string[] = [];
 
   async writeFile(path: string, content: string): Promise<void> {
     if (this.failWrite(path)) throw new Error(`simulated write failure: ${path}`);
@@ -29,6 +31,7 @@ class FaultyAdapter extends MockAdapter {
   }
 
   async deleteFile(path: string): Promise<void> {
+    this.deleteCalls.push(path);
     if (this.failDelete(path)) throw new Error(`simulated delete failure: ${path}`);
     return super.deleteFile(path);
   }
@@ -187,6 +190,34 @@ describe("TrashService", () => {
     expect(await trash.list_trash("au1")).toHaveLength(1);
   });
 
+  it("角色文件正文含 `---` 分割线：删除→恢复内容逐字节不丢、cast_registry 联动仍工作", async () => {
+    adapter.seed("au1/project.yaml", "cast_registry:\n  characters:\n    - 阿离\n    - Ben\n");
+    // 真 frontmatter（name 已知键）+ 正文以 `---` 场景分割线开头
+    const body = "---\nname: 阿离\naliases: [离]\n---\n---\n\n场景一。\n\n---\n\n场景二。";
+    adapter.seed("au1/characters/阿离.md", body);
+
+    const entry = await trash.move_to_trash("au1", "characters/阿离.md", "character_file", "阿离");
+    // safeMatter 从真 frontmatter 提取到 name → 名册移除
+    expect(adapter.raw("au1/project.yaml")).not.toContain("阿离");
+
+    await trash.restore("au1", entry.trash_id);
+    // 内容经 trash 流转逐字节无损
+    expect(adapter.raw("au1/characters/阿离.md")).toBe(body);
+    // restore 侧的 readCharacterName 同样解析成功 → 名册加回
+    expect(adapter.raw("au1/project.yaml")).toContain("阿离");
+  });
+
+  it("无 frontmatter、正文以 `---` 开头的角色文件：删除→恢复不抛错、内容不丢", async () => {
+    // 裸 matter() 在这种形态会吞正文/对非法 YAML 抛错（H6 同族）；
+    // safeMatter 零已知键整文回退 → name 判定为 null，流转纯走复制路径
+    const body = "---\n\n夜色如墨。\n\n---\n\n第二场。";
+    adapter.seed("au1/characters/未名.md", body);
+
+    const entry = await trash.move_to_trash("au1", "characters/未名.md", "character_file", "未名");
+    await trash.restore("au1", entry.trash_id);
+    expect(adapter.raw("au1/characters/未名.md")).toBe(body);
+  });
+
   it("move_to_trash: 同一路径重复删除时 trash_path 唯一(shortId)、副本互不覆盖（审计① defect 1）", async () => {
     adapter.seed("au1/dup.md", "v1");
     const e1 = await trash.move_to_trash("au1", "dup.md", "file", "dup");
@@ -199,6 +230,65 @@ describe("TrashService", () => {
     // 两份 .trash 副本都在
     const trashMd = adapter.allFiles().filter((f) => f.includes(".trash") && f.endsWith(".md"));
     expect(trashMd).toHaveLength(2);
+  });
+
+  // --- 整树删除回滚双失败（审计 H7）---
+
+  it("move_tree_to_trash: 删源中断 + copy-back 双失败时，.trash 副本必须存活（审计 H7）", async () => {
+    const faulty = new FaultyAdapter();
+    faulty.seed("fandom1/aus/AU1/a.md", "A-content");
+    faulty.seed("fandom1/aus/AU1/b.md", "B-content");
+    // 删源阶段：a.md 删除成功后，b.md 删除失败 → 触发回滚
+    faulty.failDelete = (p) => p === "fandom1/aus/AU1/b.md";
+    // 回滚阶段：a.md 的 copy-back 写回原位失败（双失败叠加）
+    faulty.failWrite = (p) => p === "fandom1/aus/AU1/a.md";
+    const t = new TrashService(faulty, 30);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      await expect(
+        t.move_tree_to_trash("fandom1", "aus/AU1", "au", "AU1"),
+      ).rejects.toThrow("simulated delete failure");
+
+      // a.md：源已删、copy-back 失败 → .trash 副本是唯一幸存数据，必须保留。
+      // 旧代码在 restoreCopiedTree 吞错后无条件 deleteCopiedTree = 源、副本双灭（永久丢失）。
+      const aTrashCopies = faulty.allFiles().filter((f) => f.includes("/.trash/") && f.endsWith("/a.md"));
+      expect(aTrashCopies).toHaveLength(1);
+      expect(faulty.raw(aTrashCopies[0])).toBe("A-content");
+
+      // b.md：源从未丢（删除失败）→ 冗余副本按回滚正常清理
+      expect(faulty.raw("fandom1/aus/AU1/b.md")).toBe("B-content");
+      expect(faulty.allFiles().filter((f) => f.includes("/.trash/") && f.endsWith("/b.md"))).toHaveLength(0);
+
+      // manifest 登记被撤销：半成功状态不冒充「已入回收站」
+      expect(await t.list_trash("fandom1")).toHaveLength(0);
+
+      // copy-back 失败不再裸吞：console.warn 指路 .trash 副本
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining(".trash"));
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("move_tree_to_trash: manifest 写失败发生在删源之前 → 源全程未动（审计 H7 顺序对齐审计①）", async () => {
+    const faulty = new FaultyAdapter();
+    faulty.seed("fandom1/aus/AU1/a.md", "A");
+    faulty.seed("fandom1/aus/AU1/b.md", "B");
+    faulty.failWrite = (p) => p.includes("manifest.jsonl");
+    const t = new TrashService(faulty, 30);
+
+    await expect(
+      t.move_tree_to_trash("fandom1", "aus/AU1", "au", "AU1"),
+    ).rejects.toThrow("simulated write failure");
+
+    // 顺序判别：manifest 未落库前，任何源文件都不应被尝试删除
+    // （旧顺序「copy→删源→append」在此场景已把源全删，只能靠 copy-back 救回）
+    expect(faulty.deleteCalls.filter((p) => p.startsWith("fandom1/aus/AU1/"))).toHaveLength(0);
+    // 源原样保留、冗余副本清理、manifest 无记录
+    expect(faulty.raw("fandom1/aus/AU1/a.md")).toBe("A");
+    expect(faulty.raw("fandom1/aus/AU1/b.md")).toBe("B");
+    expect(faulty.allFiles().filter((f) => f.includes("/.trash/") && f.endsWith(".md"))).toHaveLength(0);
+    expect(await t.list_trash("fandom1")).toHaveLength(0);
   });
 
   it("并发 move_to_trash 同一 scope：两条 entry 都保留、无 manifest 竞态丢失（审计②③串行化）", async () => {

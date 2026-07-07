@@ -436,3 +436,26 @@ Codex Phase 7 audit 报告说 facts lifecycle "完全实现"——它看到 `col
 **修复后：** writer 路径在 session key 被掩码时优先取 AU key，换 provider 的 AU 续写走通；`project.llm.api_key` 为空（仅 model / 无覆盖）时自然回退全局，行为不变。facts 路径本就用 AU key，不受影响。
 
 **遗留（非本次范围）：** 「仅 key、不带 model」的覆盖仍较含糊（session 会带全局 model + AU key + 空 base）；AU 级覆盖「开启」态仍靠真值推断、无持久化标志（TD-008 已记，且实测表明不值得为不工作的 key-only 场景加标志）。
+
+---
+
+## TD-017: RagManager / vectorEngine 单例跨 AU 并发窗口（load 竞态可污染索引落盘）
+
+**状态:** open · 待排期（2026-07-07 第二轮全量审计 M3 记回；`rag_manager.ts` 注释里自认「见 TD 标记」的 pre-existing gap，此前 TECH-DEBT 无对应条目 —— 本条即补账）
+**优先级:** 中（触发窗口窄，但后果是整个 AU 的 `.vectors` 索引被写入他 AU 内容 → 检索污染/报废；可用全量重建恢复，非 source-of-truth 丢失）
+**涉及文件:** `src-engine/services/rag_manager.ts`（`ensureLoaded` / `indexChapter` / `indexChapterInMemory` / `indexChapterSummary`）、`src-engine/vector/engine.ts`（单例内存 chunks）
+
+**问题：** `JsonVectorEngine` 是全局单例，内存里只有一份 chunks；`RagManager.ensureLoaded(auPath)` 切换 `currentAu` 时整体替换这份内存。索引路径是「ensureLoaded → 慢 embed（网络 I/O，秒级）→ index_chunks → persist(au 的 .vectors)」：embed 期间若另一个 AU 的操作调了 `ensureLoaded(AU2)`，内存已被换成 AU2 的 chunks，随后第一个操作把 AU2 的内存 index 进去并 **persist 到 AU1 的 index.json** —— AU1 索引落盘即污染。`indexChapterSummary` 在 embed 后已补一次 re-ensureLoaded（部分缓解），但 re-ensureLoaded 与 persist 之间窗口仍在；`indexChapter` / `indexChapterInMemory` 连这层缓解都没有。
+
+**为什么现有锁挡不住：** `withAuLock` 按 AU 分把锁，跨 AU 操作互不排队；vectorEngine 的内存态却是跨 AU 共享的单例 —— 锁的粒度与共享资源的粒度不匹配。
+
+**触发条件：** 同一会话内两个 AU 的「索引/persist」操作在时间上重叠。典型放大器是 **backfill 补全旧章记忆**（`backfill_chapter_memory` 逐章 LLM+embed 长跑，窗口从毫秒级拉长到分钟级）期间用户切到另一篇作品做 confirm / 重建索引。当前 UI 形态（单窗口 + backfill modal 占屏）让实际触发概率低，属「低概率/中后果」。
+
+**现状风险与可恢复性：** 污染只影响 `.vectors/`（RAG 检索层），章节/facts/threads 等 source of truth 不受影响；「重建索引」（rebuildForAu，全量重 embed）可完全恢复正确索引 —— 代价是一次全量 embedding 花费与用户察觉成本（污染表现为跨作品串味的召回，用户未必能归因）。
+
+**修复方向（二选一）：**
+
+1. **per-AU engine 实例（推荐）**：`RagManager` 持 `Map<auPath, JsonVectorEngine>`，彻底消除跨 AU 共享内存；`unload` 变成从 Map 驱逐（控内存上限可用 LRU=1~2）。改动集中在 RagManager 构造与 `ensureLoaded`，vectorEngine 本身不用动。
+2. **load 世代号 CAS**：`load()` 时自增 generation，`index_chunks` / `persist` 前校验 generation 未变，变了则重新 `ensureLoaded` 后重试（或丢弃本次并上报）。改动小但每个索引路径都要补校验点，漏一处就回到原状（与 `indexChapterSummary` 现有的「补一次 re-ensureLoaded」同属打补丁思路）。
+
+**测试建议：** 判别性并发测试 —— AU1 `indexChapter` 的 embed 挂起期间并发 `ensureLoaded(AU2)`，断言 AU1 的 `.vectors/index.json` 不含 AU2 chunk（回退单例共享即挂）。

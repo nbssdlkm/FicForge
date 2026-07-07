@@ -6,10 +6,19 @@
  * .trash/ + manifest.jsonl 实现软删除与恢复。默认保留 30 天。
  */
 
-import matter from "gray-matter";
 import yaml from "js-yaml";
+import { safeMatter } from "../domain/frontmatter.js";
 import type { PlatformAdapter } from "../platform/adapter.js";
 import { joinPath } from "../repositories/implementations/file_utils.js";
+
+/**
+ * 角色设定文件 frontmatter 的合法键集合（settings-chat 提示词约定的 schema：
+ * name / aliases / importance，见 prompts/zh.ts「提取 frontmatter 元数据」段）。
+ * readCharacterName 用它区分真 frontmatter 与「正文以 `---` 分割线开头」——
+ * 裸 matter() 在后者会吞正文/对非法 YAML 抛错（审计 H6 同族），safeMatter
+ * 只认含已知键的真 frontmatter。schema 增删键时此集合必须同步。
+ */
+const KNOWN_CHARACTER_META_KEYS: ReadonlySet<string> = new Set(["name", "aliases", "importance"]);
 
 // ---------------------------------------------------------------------------
 // 数据模型
@@ -88,16 +97,16 @@ export class TrashService {
     const trashRoot = joinPath(scopeRoot, ".trash", trashRel);
     const copiedFiles: Array<{ source: string; trash: string }> = [];
 
+    // 顺序即数据安全（对齐 _moveToTrash 审计①，本处审计 H7）：copy 全部 → 登记 manifest →
+    // 删源。manifest 落库时源文件全部仍在，任何一步失败都不会出现「源已删但 manifest 无记录」
+    // 的不可恢复孤儿；删源阶段哪怕中断，副本 + manifest 都已就位，回滚有依。
+    let manifestAppended = false;
     try {
       for (const fileRel of files) {
         const source = joinPath(sourceRoot, fileRel);
         const trashTarget = joinPath(trashRoot, fileRel);
         await this.copyTextFile(source, trashTarget);
         copiedFiles.push({ source, trash: trashTarget });
-      }
-
-      for (const { source } of copiedFiles) {
-        await this.adapter.deleteFile(source);
       }
 
       const now = new Date();
@@ -117,10 +126,34 @@ export class TrashService {
       };
 
       await this.appendManifest(scopeRoot, entry);
+      manifestAppended = true;
+
+      for (const { source } of copiedFiles) {
+        await this.adapter.deleteFile(source);
+      }
+
       return entry;
     } catch (error) {
-      await this.restoreCopiedTree(copiedFiles);
-      await this.deleteCopiedTree(copiedFiles.map((item) => item.trash));
+      // 回滚。关键约束（审计 H7）：清理 .trash 副本前必须验证「对应源文件确实存在」——
+      // 删源中断 + copy-back 又失败的双失败叠加时，.trash 副本是该文件唯一幸存数据，
+      // 旧代码在这里无条件删副本 = 永久销毁。回滚各步 best-effort，不掩盖主错误。
+      if (manifestAppended) {
+        try {
+          await this.removeFromManifest(scopeRoot, trashId);
+        } catch {
+          // best effort：残留条目最多让 restore 报「文件已丢失」后自清，不丢数据
+        }
+      }
+      const restoreFailures = await this.restoreCopiedTree(copiedFiles);
+      await this.deleteCopiesWithVerifiedSource(copiedFiles);
+      if (restoreFailures.length > 0) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[trash] 目录删除回滚不完整：${restoreFailures.length} 个文件未能恢复到原位，` +
+          `其 .trash 副本已保留，可手工找回: ` +
+          restoreFailures.map((f) => `${f.source} ← ${f.trash} (${f.message})`).join("; "),
+        );
+      }
       throw error;
     }
   }
@@ -501,13 +534,47 @@ export class TrashService {
     await this.adapter.writeFile(dest, content);
   }
 
-  private async restoreCopiedTree(copiedFiles: Array<{ source: string; trash: string }>): Promise<void> {
+  /**
+   * 回滚：把「源已被删」的文件从 .trash 副本 copy-back 回原位。
+   * 失败不再裸吞（审计 H7）——返回失败清单，调用方据此保留对应副本并警告指路。
+   */
+  private async restoreCopiedTree(
+    copiedFiles: Array<{ source: string; trash: string }>,
+  ): Promise<Array<{ source: string; trash: string; message: string }>> {
+    const failures: Array<{ source: string; trash: string; message: string }> = [];
     for (const item of [...copiedFiles].reverse()) {
-      if (await this.adapter.exists(item.source)) continue;
       try {
+        if (await this.adapter.exists(item.source)) continue;
         await this.copyTextFile(item.trash, item.source);
+      } catch (err) {
+        // exists() 探测失败也按「未恢复」记：宁可多保留一个副本，不冒销毁唯一数据的险
+        failures.push({ source: item.source, trash: item.trash, message: (err as Error).message });
+      }
+    }
+    return failures;
+  }
+
+  /**
+   * 回滚清理：只删「对应源文件已验证存在」的 .trash 副本（审计 H7）。
+   * 源不存在（删源成功但 copy-back 失败）时该副本是唯一幸存数据，必须保留。
+   */
+  private async deleteCopiesWithVerifiedSource(
+    copiedFiles: Array<{ source: string; trash: string }>,
+  ): Promise<void> {
+    for (const item of [...copiedFiles].reverse()) {
+      let sourceExists = false;
+      try {
+        sourceExists = await this.adapter.exists(item.source);
       } catch {
-        // best effort rollback
+        sourceExists = false; // 探测失败按不存在处理 → 保留副本
+      }
+      if (!sourceExists) continue;
+      try {
+        if (await this.adapter.exists(item.trash)) {
+          await this.adapter.deleteFile(item.trash);
+        }
+      } catch {
+        // best effort cleanup：残留副本只是磁盘垃圾，不是数据风险
       }
     }
   }
@@ -533,8 +600,9 @@ export class TrashService {
   private async readCharacterName(path: string): Promise<string | null> {
     try {
       const content = await this.adapter.readFile(path);
-      const parsed = matter(content);
-      const name = parsed.data?.name;
+      // safeMatter 不抛错；try/catch 只兜 readFile 失败
+      const parsed = safeMatter(content, KNOWN_CHARACTER_META_KEYS);
+      const name = parsed.data.name;
       if (typeof name === "string" && name.trim()) return name.trim();
       return null;
     } catch {
