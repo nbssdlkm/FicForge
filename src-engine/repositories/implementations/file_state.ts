@@ -9,7 +9,7 @@ import { IndexStatus } from "../../domain/enums.js";
 import type { EmbeddingFingerprint, State } from "../../domain/state.js";
 import { createEmbeddingFingerprint, createState } from "../../domain/state.js";
 import type { StateRepository } from "../interfaces/state.js";
-import { joinPath, now_utc, obj_to_plain, validateBasePath, withWriteLock } from "./file_utils.js";
+import { atomicWrite, joinPath, now_utc, obj_to_plain, validateBasePath, withWriteLock } from "./file_utils.js";
 
 export class FileStateRepository implements StateRepository {
   constructor(private adapter: PlatformAdapter) {}
@@ -44,7 +44,8 @@ export class FileStateRepository implements StateRepository {
       const content = yaml.dump(raw, { sortKeys: false, lineWidth: -1 });
       const dir = path.substring(0, path.lastIndexOf("/"));
       await this.adapter.mkdir(dir);
-      await this.adapter.writeFile(path, content);
+      // state.yaml 截断会丢 index_status / dirty 标记等推进状态 —— 原子写（审计 H5）
+      await atomicWrite(this.adapter, path, content);
     });
   }
 
@@ -59,7 +60,7 @@ export class FileStateRepository implements StateRepository {
       const content = yaml.dump(raw, { sortKeys: false, lineWidth: -1 });
       const dir = path.substring(0, path.lastIndexOf("/"));
       await this.adapter.mkdir(dir);
-      await this.adapter.writeFile(path, content);
+      await atomicWrite(this.adapter, path, content);
       return state;
     });
   }

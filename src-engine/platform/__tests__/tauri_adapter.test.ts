@@ -12,6 +12,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 import { TauriAdapter } from "../tauri_adapter.js";
+import { SecretStoreReadError } from "../adapter.js";
 
 function createLocalStorageMock(): Storage {
   const data = new Map<string, string>();
@@ -109,5 +110,24 @@ describe("TauriAdapter secret storage", () => {
     await adapter.secureRemove("project.au-1.llm.api_key");
     expect(secureStore.has("project.au-1.llm.api_key")).toBe(false);
     expect(localStorage.getItem("__secure__:project.au-1.llm.api_key")).toBeNull();
+  });
+
+  // ── 审计 H8：keyring 抛错与「没存过」区分（三端同口径） ─────────────────
+  it("wraps keyring read failures in SecretStoreReadError instead of failing raw or returning null", async () => {
+    invokeMock.mockRejectedValue(new Error("keyring backend unavailable"));
+
+    const adapter = new TauriAdapter("device-id");
+
+    await expect(adapter.secureGet("settings.default_llm.api_key")).rejects.toBeInstanceOf(SecretStoreReadError);
+  });
+
+  it("returns the legacy localStorage value during a keyring outage without migrating", async () => {
+    invokeMock.mockRejectedValue(new Error("keyring backend unavailable"));
+    localStorage.setItem("__secure__:settings.default_llm.api_key", "legacy-survivor");
+
+    const adapter = new TauriAdapter("device-id");
+
+    await expect(adapter.secureGet("settings.default_llm.api_key")).resolves.toBe("legacy-survivor");
+    expect(localStorage.getItem("__secure__:settings.default_llm.api_key")).toBe("legacy-survivor");
   });
 });

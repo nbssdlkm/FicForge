@@ -103,10 +103,18 @@ export async function extractSecureFields<T>(
 
 /**
  * 读取后还原。兼容三种历史格式：
- *   1) 新格式（占位符）→ 从 secure storage 读；读不到置空
+ *   1) 新格式（占位符）→ 从 secure storage 读；确认没存过才置空
  *   2) 空值 → 可能是新设备首次读，尝试从 secure storage 读
  *   3) 明文（未迁移的旧 YAML）→ 保留明文的同时写进 secure storage，
  *      下次 save 时 extractSecureFields 会替换为占位符 —— 无感迁移
+ *
+ * 读失败 ≠ 空值（审计 H8 核心不变量）：secure storage 读取**抛错**
+ * （SecretStoreReadError，如 Android Keystore 瞬时故障）与「返回 null =
+ * 确认没存过」必须区别对待。抛错时字段保持原样 —— 占位符留在对象上，
+ * UI 显示为掩码占位（"已存储"语义），后续 save 时 extractSecureFields
+ * 对占位符不动，**绝不因读失败按空值语义删掉已存的真 key**。
+ * 若按旧逻辑置空：UI 显示 key 为空 → 用户随手保存 → extract 的空值分支
+ * remove 掉 secure storage 旧值 → 真 key 永丢（Keystore 恢复后也找不回）。
  */
 export async function restoreSecureFields<T>(
   obj: T,
@@ -117,11 +125,26 @@ export async function restoreSecureFields<T>(
   for (const spec of specs) {
     const current = spec.get(obj);
     if (current === SECURE_PLACEHOLDER || current === "") {
-      const stored = await secretStore.get(spec.secureKey);
+      let stored: string | null;
+      try {
+        stored = await secretStore.get(spec.secureKey);
+      } catch (err) {
+        // 读失败：保持字段原样（占位符/空），不降级为「没存过」。
+        // 捕获所有错误而非仅 SecretStoreReadError —— 任何 throw 都不等于
+        // 「确认为空」，且避免单字段故障拖垮整条 settings/project 加载链。
+        console.warn(`[secure_fields] secure storage read failed, keeping field as-is: ${spec.secureKey}`, err);
+        if (hasLogger()) {
+          getLogger().warn("secure", "secureGet failed on restore, field kept as-is", {
+            key: spec.secureKey,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+        continue;
+      }
       if (stored) {
         spec.set(obj, stored);
       } else if (current === SECURE_PLACEHOLDER) {
-        // 占位符但读不到 —— 可能是 secure storage 被清空，置空让用户重填
+        // 占位符且**确认读到 null**（没存过 / 被清空）—— 置空让用户重填
         spec.set(obj, "");
       }
     } else if (current && current !== SECURE_PLACEHOLDER) {

@@ -62,19 +62,13 @@ export function withWriteLock<T>(key: string, fn: () => Promise<T>): Promise<T> 
 // JSONL helpers
 // ---------------------------------------------------------------------------
 
-/** 逐行读取 JSONL 文件，返回 [解析结果, 错误日志]。 */
-export async function read_jsonl<T>(
-  adapter: PlatformAdapter,
-  path: string,
+/** 逐行解析 JSONL 文本。read_jsonl 主文件与 .tmp 恢复共用同一解析判据。 */
+function parseJsonlText<T>(
+  text: string,
   parse: (d: Record<string, unknown>) => T,
-): Promise<[T[], string[]]> {
-  const fileExists = await adapter.exists(path);
-  if (!fileExists) return [[], []];
-
-  const text = await adapter.readFile(path);
+): [T[], string[]] {
   const items: T[] = [];
   const errors: string[] = [];
-
   const lines = text.split("\n");
   for (let i = 0; i < lines.length; i++) {
     const stripped = lines[i].trim();
@@ -90,18 +84,87 @@ export async function read_jsonl<T>(
 }
 
 /**
- * 原子写入辅助：先写 .tmp，再写正式路径，最后删除 .tmp。
- * 如果正式写入中途崩溃，.tmp 保留完整内容供恢复。
+ * 逐行读取 JSONL 文件，返回 [解析结果, 错误日志]。
+ *
+ * 含遗留 .tmp 恢复（审计 H5，迁移期兜底）：旧版 atomicWrite 是「写 .tmp →
+ * 二次全量写正式路径 → 删 .tmp」，二次写中途崩溃会留下「正式文件截断/缺失 +
+ * .tmp 完整」。新版 atomicWrite 经 rename 原子提交后**不会再产生**这种状态
+ * （成功即无 .tmp，失败则正式文件原样），此逻辑只为修复老版本崩溃留下的存量损伤：
+ * 仅当主文件缺失或含坏行、且同名 .tmp 能解析出**严格更多**合法行时，才用 .tmp
+ * 重建主文件。健康主文件零额外 I/O；行数不占优的 .tmp（如新版写完 .tmp 尚未
+ * rename 就崩溃的「未提交写入」残留）不启用，避免复活未提交内容。
  */
-async function atomicWrite(
+export async function read_jsonl<T>(
+  adapter: PlatformAdapter,
+  path: string,
+  parse: (d: Record<string, unknown>) => T,
+): Promise<[T[], string[]]> {
+  const fileExists = await adapter.exists(path);
+  let items: T[] = [];
+  let errors: string[] = [];
+  if (fileExists) {
+    const text = await adapter.readFile(path);
+    [items, errors] = parseJsonlText(text, parse);
+  }
+  if (!fileExists || errors.length > 0) {
+    const recovered = await tryRecoverFromTmp(adapter, path, parse, items.length);
+    if (recovered) return recovered;
+    if (!fileExists) return [[], []];
+  }
+  return [items, errors];
+}
+
+/** read_jsonl 的 .tmp 恢复分支。恢复成功返回 [items, errors]，否则 null。 */
+async function tryRecoverFromTmp<T>(
+  adapter: PlatformAdapter,
+  path: string,
+  parse: (d: Record<string, unknown>) => T,
+  mainValidCount: number,
+): Promise<[T[], string[]] | null> {
+  const tmpPath = path + ".tmp";
+  try {
+    if (!(await adapter.exists(tmpPath))) return null;
+    const tmpText = await adapter.readFile(tmpPath);
+    const [tmpItems, tmpErrors] = parseJsonlText(tmpText, parse);
+    // 严格更多合法行才恢复：等量/更少说明 .tmp 不比主文件完整（或是未提交写入），不动主文件。
+    if (tmpItems.length <= mainValidCount) return null;
+    console.warn(
+      `[read_jsonl] recovering ${path} from leftover .tmp: ` +
+      `main has ${mainValidCount} valid line(s), .tmp has ${tmpItems.length} (legacy crash-truncation repair)`,
+    );
+    // atomicWrite 会重写 .tmp（同内容）后 rename 到主路径 —— 主文件修复的同时消费掉 .tmp。
+    try {
+      await atomicWrite(adapter, path, tmpText);
+    } catch (e) {
+      // 修复落盘失败仍返回更完整的数据供本次读取使用；下次读取会再尝试修复。
+      console.warn(`[read_jsonl] failed to persist .tmp recovery for ${path}:`, e);
+    }
+    return [tmpItems, tmpErrors];
+  } catch {
+    // 恢复是 best-effort：探测/读取 .tmp 本身出错时退回主文件解析结果
+    return null;
+  }
+}
+
+/**
+ * 原子写入辅助（审计 H5）：写 .tmp → rename 到正式路径。
+ *
+ * rename 是文件系统级原子替换（三端契约见 PlatformAdapter.rename），任一时刻
+ * 正式路径要么是完整旧内容、要么是完整新内容 —— 不存在旧版「二次全量写正式路径」
+ * 崩溃时的半截文件。写入经 `atomicWrite:` 前缀锁串行化：并发写同一路径共用同一
+ * .tmp，交错会让后一个 rename 因 .tmp 已被移走而抛错；用独立前缀（而非裸 path
+ * key）避免与调用方已持有的 withWriteLock(path) 重入死锁（withWriteLock 不可重入）。
+ */
+export function atomicWrite(
   adapter: PlatformAdapter,
   path: string,
   content: string,
 ): Promise<void> {
-  const tmpPath = path + ".tmp";
-  await adapter.writeFile(tmpPath, content);
-  await adapter.writeFile(path, content);
-  try { await adapter.deleteFile(tmpPath); } catch { /* 清理失败不阻断 */ }
+  return withWriteLock(`atomicWrite:${path}`, async () => {
+    const tmpPath = path + ".tmp";
+    await adapter.writeFile(tmpPath, content);
+    await adapter.rename(tmpPath, path);
+  });
 }
 
 /** 追加一行 JSON 到 JSONL 文件。 */

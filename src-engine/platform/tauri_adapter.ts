@@ -10,6 +10,7 @@
  */
 
 import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStorageCapabilities } from "./adapter.js";
+import { SecretStoreReadError } from "./adapter.js";
 
 const LEGACY_SECURE_KEY_PREFIX = "__secure__:";
 
@@ -36,6 +37,14 @@ export class TauriAdapter implements PlatformAdapter {
     if (!path) throw new Error("deleteFile: path must not be empty");
     const { remove } = await import("@tauri-apps/plugin-fs");
     await remove(path);
+  }
+
+  async rename(oldPath: string, newPath: string): Promise<void> {
+    if (!oldPath || !newPath) throw new Error("rename: paths must not be empty");
+    // Rust std::fs::rename：Unix 走 rename(2)、Windows 走 MoveFileExW +
+    // MOVEFILE_REPLACE_EXISTING —— 两端目标存在时都原子覆盖，符合接口契约。
+    const { rename } = await import("@tauri-apps/plugin-fs");
+    await rename(oldPath, newPath);
   }
 
   async readBinary(path: string): Promise<Uint8Array> {
@@ -125,9 +134,23 @@ export class TauriAdapter implements PlatformAdapter {
   /**
    * Tauri 端通过 Rust command 调用 OS keyring / keychain。
    * 首次读取旧版 `__secure__:` localStorage 条目时会自动迁移并清理明文副本。
+   *
+   * keyring 读取抛错时抛 SecretStoreReadError（审计 H8）：读失败 ≠ 没存过，
+   * 不能返回 null（会被上层当空值、保存时误删真 key），也不裸抛（统一三端错误类型，
+   * 让 restoreSecureFields 按「已存储但读不到」降级而不是整条加载链崩掉）。
    */
   async secureGet(key: string): Promise<string | null> {
-    const stored = await this.invokeSecureStore<string | null>("secure_store_get", { key });
+    let stored: string | null;
+    try {
+      stored = await this.invokeSecureStore<string | null>("secure_store_get", { key });
+    } catch (err) {
+      // keyring 故障窗口内如果旧版 localStorage 明文还在（未迁移用户），直接返回真值；
+      // 不在故障期做迁移写入（set 可能同样失败/半成功）。
+      const legacyValue = this.getLegacySecureValue(key);
+      if (legacyValue !== null) return legacyValue;
+      console.warn(`[TauriAdapter.secure] keyring get threw, key=${key}, err=`, err);
+      throw new SecretStoreReadError(key, err);
+    }
     if (stored !== null) {
       this.removeLegacySecureValue(key);
       return stored;

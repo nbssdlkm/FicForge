@@ -15,7 +15,7 @@ import {
   createWritingStyle,
 } from "../../domain/project.js";
 import type { ProjectRepository } from "../interfaces/project.js";
-import { joinPath, now_utc, obj_to_plain, validateBasePath } from "./file_utils.js";
+import { atomicWrite, joinPath, now_utc, obj_to_plain, validateBasePath } from "./file_utils.js";
 import {
   extractSecureFields,
   hasLegacyPlaintextSecureFields,
@@ -92,7 +92,8 @@ export class FileProjectRepository implements ProjectRepository {
     const content = yaml.dump(raw, { sortKeys: false, lineWidth: -1 });
     const dir = path.substring(0, path.lastIndexOf("/"));
     await this.adapter.mkdir(dir);
-    await this.adapter.writeFile(path, content);
+    // project.yaml 损坏时 get() 直接抛错、整 AU 不可开 —— 原子写（审计 H5）
+    await atomicWrite(this.adapter, path, content);
   }
 
   async list_aus(fandom: string): Promise<Project[]> {
@@ -152,7 +153,7 @@ export class FileProjectRepository implements ProjectRepository {
     const sanitized = structuredClone(project);
     await extractSecureFields(sanitized, specs, this.adapter);
     const content = yaml.dump(obj_to_plain(sanitized), { sortKeys: false, lineWidth: -1 });
-    await this.adapter.writeFile(path, content);
+    await atomicWrite(this.adapter, path, content);
     return true;
   }
 }

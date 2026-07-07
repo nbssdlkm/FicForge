@@ -8,7 +8,7 @@ import type { PlatformAdapter } from "../../platform/adapter.js";
 import type { Fandom } from "../../domain/fandom.js";
 import { createFandom } from "../../domain/fandom.js";
 import type { FandomRepository } from "../interfaces/fandom.js";
-import { joinPath, obj_to_plain, validateBasePath } from "./file_utils.js";
+import { atomicWrite, joinPath, obj_to_plain, validateBasePath } from "./file_utils.js";
 
 export class FileFandomRepository implements FandomRepository {
   constructor(
@@ -50,7 +50,8 @@ export class FileFandomRepository implements FandomRepository {
     const content = yaml.dump(raw, { sortKeys: false, lineWidth: -1 });
     const dir = path.substring(0, path.lastIndexOf("/"));
     await this.adapter.mkdir(dir);
-    await this.adapter.writeFile(path, content);
+    // fandom.yaml 是列表发现的判据（list_fandoms 只认它存在），截断即整个 fandom 不可见 —— 原子写（审计 H5）
+    await atomicWrite(this.adapter, path, content);
   }
 
   async list_fandoms(): Promise<string[]> {

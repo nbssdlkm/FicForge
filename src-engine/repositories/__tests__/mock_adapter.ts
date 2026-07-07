@@ -27,6 +27,24 @@ export class MockAdapter implements PlatformAdapter {
     this.binaryFiles.delete(this.norm(path));
   }
 
+  /** 契约与真实 adapter 一致：目标存在则覆盖，源不存在抛错。 */
+  async rename(oldPath: string, newPath: string): Promise<void> {
+    const from = this.norm(oldPath);
+    const to = this.norm(newPath);
+    const text = this.files.get(from);
+    const bin = this.binaryFiles.get(from);
+    if (text === undefined && bin === undefined) {
+      throw new Error(`rename: source not found: ${oldPath}`);
+    }
+    // 覆盖目标：同路径只留一份最新内容（文本/二进制互斥，同 writeFile 约定）
+    this.files.delete(to);
+    this.binaryFiles.delete(to);
+    if (text !== undefined) this.files.set(to, text);
+    if (bin !== undefined) this.binaryFiles.set(to, bin);
+    this.files.delete(from);
+    this.binaryFiles.delete(from);
+  }
+
   async readBinary(path: string): Promise<Uint8Array> {
     const data = this.binaryFiles.get(this.norm(path));
     if (data === undefined) throw new Error(`File not found: ${path}`);

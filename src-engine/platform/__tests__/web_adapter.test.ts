@@ -3,6 +3,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WebAdapter, __setSecureKeyForTest } from "../web_adapter.js";
+import { SecretStoreReadError } from "../adapter.js";
 
 function createStorageMock(): Storage {
   const data = new Map<string, string>();
@@ -131,10 +132,20 @@ describe("WebAdapter secret encryption (web crypto available)", () => {
     expect(localStorage.getItem("__secure__:settings.embedding.api_key")).toBeNull(); // plaintext copy gone
   });
 
-  it("returns null when ciphertext can't be decrypted (corrupt / wrong key)", async () => {
+  it("throws SecretStoreReadError (not null) when ciphertext can't be decrypted — H8: read failure ≠ never stored", async () => {
     sessionStorage.setItem("__secure__:settings.default_llm.api_key", "encv1:bogus.ciphertext");
     const adapter = new WebAdapter("device-id");
-    await expect(adapter.secureGet("settings.default_llm.api_key")).resolves.toBeNull();
+    // 旧行为返回 null 会被消费层当「没存过」，保存设置时按空值语义删掉已存值
+    await expect(adapter.secureGet("settings.default_llm.api_key")).rejects.toBeInstanceOf(SecretStoreReadError);
+  });
+
+  it("falls back to legacy plaintext when ciphertext is undecryptable, without deleting the legacy copy", async () => {
+    sessionStorage.setItem("__secure__:settings.default_llm.api_key", "encv1:bogus.ciphertext");
+    localStorage.setItem("__secure__:settings.default_llm.api_key", "legacy-survivor");
+    const adapter = new WebAdapter("device-id");
+    await expect(adapter.secureGet("settings.default_llm.api_key")).resolves.toBe("legacy-survivor");
+    // 失败路径上不做迁移/清理 —— legacy 是唯一可读来源，必须保留
+    expect(localStorage.getItem("__secure__:settings.default_llm.api_key")).toBe("legacy-survivor");
   });
 });
 

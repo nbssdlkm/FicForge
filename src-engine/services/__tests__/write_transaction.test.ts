@@ -33,6 +33,15 @@ class FailingWriteAdapter extends MockAdapter {
     }
     await super.writeFile(path, content);
   }
+
+  // atomicWrite（审计 H5）后正式路径的落盘经 rename 提交 —— 注入点需同时拦
+  // rename 目标路径，保持「对该路径的任何写入都失败」的模拟语义。
+  override async rename(oldPath: string, newPath: string): Promise<void> {
+    if (this.blockedWrites.has(normalizePath(newPath))) {
+      throw new Error(`Injected write failure: ${newPath}`);
+    }
+    await super.rename(oldPath, newPath);
+  }
 }
 
 describe("WriteTransaction partial commit errors", () => {

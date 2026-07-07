@@ -16,6 +16,12 @@ function memAdapter() {
     async writeFile(p: string, c: string) { fs.set(p, c); },
     async mkdir(_p: string) {},
     async deleteFile(p: string) { fs.delete(p); },
+    async rename(from: string, to: string) {
+      const v = fs.get(from);
+      if (v === undefined) throw new Error("ENOENT");
+      fs.set(to, v);
+      fs.delete(from);
+    },
   } as any;
 }
 

@@ -16,7 +16,7 @@ export type { TokenCount } from "./tokenizer/index.js";
 
 // Platform
 export type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStorageCapabilities } from "./platform/index.js";
-export { CapacitorAdapter, TauriAdapter, WebAdapter } from "./platform/index.js";
+export { CapacitorAdapter, SecretStoreReadError, TauriAdapter, WebAdapter } from "./platform/index.js";
 
 // Repository interfaces
 export type {

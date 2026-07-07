@@ -16,6 +16,7 @@ vi.mock("@aparajita/capacitor-secure-storage", () => ({
 }));
 
 import { CapacitorAdapter } from "../capacitor_adapter.js";
+import { SecretStoreReadError } from "../adapter.js";
 
 function createLocalStorageMock(): Storage {
   const data = new Map<string, string>();
@@ -103,5 +104,27 @@ describe("CapacitorAdapter secret storage", () => {
     await adapter.secureRemove("project.au-1.llm.api_key");
     expect(secureStore.has("project.au-1.llm.api_key")).toBe(false);
     expect(localStorage.getItem("__secure__:project.au-1.llm.api_key")).toBeNull();
+  });
+
+  // ── 审计 H8：Keystore 瞬时故障 ≠ 「没存过」 ──────────────────────────────
+  it("throws SecretStoreReadError (not null) when the plugin getItem throws — H8", async () => {
+    secureStorageMock.getItem.mockRejectedValue(new Error("Keystore unavailable (device locked)"));
+
+    const adapter = new CapacitorAdapter("device-id");
+
+    // 旧行为 catch-all 返回 null，与「没存过」不可区分 → 保存设置时空值语义删真 key
+    await expect(adapter.secureGet("settings.default_llm.api_key")).rejects.toBeInstanceOf(SecretStoreReadError);
+  });
+
+  it("returns the legacy localStorage value during a keystore outage, deferring migration", async () => {
+    secureStorageMock.getItem.mockRejectedValue(new Error("Keystore unavailable"));
+    localStorage.setItem("__secure__:settings.default_llm.api_key", "legacy-survivor");
+
+    const adapter = new CapacitorAdapter("device-id");
+
+    await expect(adapter.secureGet("settings.default_llm.api_key")).resolves.toBe("legacy-survivor");
+    // 故障窗口内不做迁移写入（setItem 大概率同样失败），legacy 明文必须原地保留
+    expect(secureStorageMock.setItem).not.toHaveBeenCalled();
+    expect(localStorage.getItem("__secure__:settings.default_llm.api_key")).toBe("legacy-survivor");
   });
 });

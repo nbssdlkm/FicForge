@@ -7,6 +7,7 @@
  */
 
 import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStorageCapabilities } from "./adapter.js";
+import { SecretStoreReadError } from "./adapter.js";
 
 const LEGACY_SECURE_KEY_PREFIX = "__secure__:";
 
@@ -74,6 +75,29 @@ export class CapacitorAdapter implements PlatformAdapter {
     if (!path || !this.normPath(path)) throw new Error("deleteFile: path must not be empty");
     const { Filesystem, Directory } = await import("@capacitor/filesystem");
     await Filesystem.deleteFile({ path: this.normPath(path), directory: Directory.Data });
+  }
+
+  async rename(oldPath: string, newPath: string): Promise<void> {
+    if (!oldPath || !this.normPath(oldPath)) throw new Error("rename: oldPath must not be empty");
+    if (!newPath || !this.normPath(newPath)) throw new Error("rename: newPath must not be empty");
+    const { Filesystem, Directory } = await import("@capacitor/filesystem");
+    // 接口契约要求「目标存在则覆盖」，但 Capacitor 原生实现（iOS NSFileManager
+    // moveItem / Android File.renameTo 的部分路径）在目标已存在时会抛错而不是覆盖。
+    // 先删目标再 rename 保证契约一致。代价：删除与 rename 之间崩溃会留下
+    // 「正式文件缺失 + .tmp 完整」——JSONL 由 read_jsonl 的 .tmp 恢复兜底，
+    // 其余文件此窗口极窄且内容仍完整可手工恢复，严格优于旧版「截断正式文件」。
+    try {
+      await Filesystem.stat({ path: this.normPath(newPath), directory: Directory.Data });
+      await Filesystem.deleteFile({ path: this.normPath(newPath), directory: Directory.Data });
+    } catch {
+      // stat 抛错 = 目标不存在，无需预删
+    }
+    await Filesystem.rename({
+      from: this.normPath(oldPath),
+      to: this.normPath(newPath),
+      directory: Directory.Data,
+      toDirectory: Directory.Data,
+    });
   }
 
   async readBinary(path: string): Promise<Uint8Array> {
@@ -200,15 +224,31 @@ export class CapacitorAdapter implements PlatformAdapter {
 
   /**
    * 读取敏感字段。底层走 @aparajita/capacitor-secure-storage（Android Keystore /
-   * iOS Keychain）。失败时不抛出，返回 null —— 上层 restoreSecureFields 会按
-   * "读不到" 路径处理（保留 placeholder 状态置空，不破坏 modal 加载）。
+   * iOS Keychain）。
+   *
+   * 插件抛错（Keystore 瞬时故障：Samsung 已知抖动 / 解锁窗口 / 备份恢复）时抛
+   * SecretStoreReadError 而不是返回 null（审计 H8）：null 与「没存过」不可区分，
+   * 会让 UI 显示 key 为空、用户随手保存设置时按空值语义**删掉 secure storage 里的
+   * 真 key**。上层 restoreSecureFields 捕获该错误后保持字段「已存储」占位语义。
    *
    * 真机故障诊断靠 console.info / console.warn — 用 logcat 抓
    * `[CapacitorAdapter.secure]` 标签。
    */
   async secureGet(key: string): Promise<string | null> {
     console.info(`[CapacitorAdapter.secure] get enter, key=${key}`);
-    const stored = await this.invokeSecureStoreGet(key);
+    let stored: string | null;
+    try {
+      stored = await this.invokeSecureStoreGet(key);
+    } catch (err) {
+      // Keystore 故障窗口内如果旧版 localStorage 明文还在（未迁移用户），直接返回真值；
+      // 但不在故障期做迁移写入（setItem 大概率同样失败，且半成功会丢明文副本）。
+      const legacyValue = this.getLegacySecureValue(key);
+      if (legacyValue !== null) {
+        console.warn(`[CapacitorAdapter.secure] plugin get failed but legacy value present, key=${key} (migration deferred)`);
+        return legacyValue;
+      }
+      throw err;
+    }
     if (stored !== null) {
       console.info(`[CapacitorAdapter.secure] get hit (plugin), key=${key}, empty=${stored.length === 0}`);
       this.removeLegacySecureValue(key);
@@ -281,8 +321,9 @@ export class CapacitorAdapter implements PlatformAdapter {
       // 插件返回 null = 没存过；返回字符串 = 存过。两者都是正常路径，不告警。
       return value;
     } catch (err) {
+      // 抛错 ≠ 没存过（审计 H8）：吞成 null 会让保存链路误删真 key。抛专用错误上浮。
       console.warn(`[CapacitorAdapter.secure] plugin getItem threw, key=${key}, err=`, err);
-      return null;
+      throw new SecretStoreReadError(key, err);
     }
   }
 

@@ -11,7 +11,7 @@
  * - 删除 → 清理 secure storage（防孤儿 key）
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   extractSecureFields,
   restoreSecureFields,
@@ -20,6 +20,22 @@ import {
   type SecureFieldSpec,
 } from "../implementations/secure_fields.js";
 import { MockAdapter } from "./mock_adapter.js";
+import { SecretStoreReadError } from "../../platform/adapter.js";
+
+/** 模拟 Keystore 瞬时故障：secureGet 抛错，set/remove 也失败（典型整库不可用）。 */
+class OutageAdapter extends MockAdapter {
+  outage = false;
+
+  override async secureGet(key: string): Promise<string | null> {
+    if (this.outage) throw new SecretStoreReadError(key, new Error("keystore outage"));
+    return super.secureGet(key);
+  }
+
+  override async secureRemove(key: string): Promise<void> {
+    if (this.outage) throw new Error("keystore outage");
+    return super.secureRemove(key);
+  }
+}
 
 interface TestObj {
   api_key: string;
@@ -128,6 +144,74 @@ describe("restoreSecureFields", () => {
     await restoreSecureFields(obj, specs, adapter);
 
     expect(obj.api_key).toBe("from-another-device");
+  });
+
+  // ── 审计 H8 核心不变量：读失败 ≠ 空值，保存绝不因读失败删已存 secret ──────
+  it("读失败时占位符字段保持占位符（不置空）", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const adapter = new OutageAdapter();
+      await adapter.secureSet("test.api_key", "sk-real");
+      adapter.outage = true;
+
+      const obj: TestObj = { api_key: SECURE_PLACEHOLDER, password: "", not_secret: "" };
+      await restoreSecureFields(obj, specs, adapter);
+
+      // 旧行为把读不到的占位符置空 —— 空值语义会在下次 save 时删掉真 key
+      expect(obj.api_key).toBe(SECURE_PLACEHOLDER);
+      expect(warnSpy).toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("Keystore 故障全周期：load（读失败）→ 用户保存 → 真 key 仍在 secure storage", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const adapter = new OutageAdapter();
+
+      // 1) 正常时期：用户存过真 key（save 提取到 secure storage）
+      const saved: TestObj = { api_key: "sk-precious", password: "", not_secret: "" };
+      await extractSecureFields(saved, specs, adapter);
+      expect(await adapter.kvGet("__secure__:test.api_key")).toBe("sk-precious");
+
+      // 2) Keystore 故障期：加载设置（yaml 里是占位符，读失败）
+      adapter.outage = true;
+      const loaded: TestObj = { api_key: SECURE_PLACEHOLDER, password: "", not_secret: "" };
+      await restoreSecureFields(loaded, specs, adapter);
+
+      // 3) 瞬时故障已过去，用户没改任何东西直接保存（H8 事故路径）——
+      //    危险的是加载期残留在内存里的字段值：旧代码把它置成 ""，
+      //    此刻 Keystore 已恢复，extract 的空值分支会真的 remove 掉真 key
+      adapter.outage = false;
+      await extractSecureFields(loaded, specs, adapter);
+
+      // 4) 真 key 必须还在 —— 这是本轮修复要守住的不变量
+      expect(await adapter.secureGet("test.api_key")).toBe("sk-precious");
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("读失败不拖垮整条加载链：其余字段照常还原", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const adapter = new MockAdapter();
+      await adapter.secureSet("test.password", "pw-ok");
+      const flakyGet = adapter.secureGet.bind(adapter);
+      adapter.secureGet = async (key: string) => {
+        if (key === "test.api_key") throw new SecretStoreReadError(key);
+        return flakyGet(key);
+      };
+
+      const obj: TestObj = { api_key: SECURE_PLACEHOLDER, password: SECURE_PLACEHOLDER, not_secret: "" };
+      await restoreSecureFields(obj, specs, adapter);
+
+      expect(obj.api_key).toBe(SECURE_PLACEHOLDER); // 故障字段保持已存储语义
+      expect(obj.password).toBe("pw-ok");           // 健康字段正常还原
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it("完整 round-trip：save → restore 还原一致", async () => {

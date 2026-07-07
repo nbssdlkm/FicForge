@@ -10,7 +10,7 @@ import type { PlatformAdapter } from "../../platform/adapter.js";
 import type { ChapterSummary, SummaryTier } from "../../domain/chapter_summary.js";
 import { createChapterSummary } from "../../domain/chapter_summary.js";
 import type { ChapterSummaryRepository } from "../interfaces/chapter_summary.js";
-import { joinPath, now_utc } from "./file_utils.js";
+import { atomicWrite, joinPath, now_utc } from "./file_utils.js";
 
 /** ch{NNNN}.summary.jsonl 路径。NNNN 为 4 位零填充章节号。 */
 export function summaryPath(auPath: string, chapterNum: number): string {
@@ -37,7 +37,9 @@ export class FileChapterSummaryRepository implements ChapterSummaryRepository {
     const path = summaryPath(auPath, chapterNum);
     const dir = path.substring(0, path.lastIndexOf("/"));
     await this.adapter.mkdir(dir);
-    await this.adapter.writeFile(path, JSON.stringify(summary, null, 2));
+    // 摘要是 LLM 生成成本换来的数据、损坏按「无摘要」静默降级（get 的 catch）——
+    // 截断不会报错但会丢层级，原子写防固化（审计 H5）
+    await atomicWrite(this.adapter, path, JSON.stringify(summary, null, 2));
   }
 
   async remove(auPath: string, chapterNum: number): Promise<void> {

@@ -20,6 +20,28 @@ export interface SecretStorageCapabilities {
 }
 
 /**
+ * secure storage「读取失败」专用错误（审计 H8）。
+ *
+ * 核心不变量：**读失败 ≠ 空值**。OS keystore 瞬时故障（Android Keystore 抖动 /
+ * 解锁窗口 / 备份恢复）若被吞成 null，上层无法区分「没存过」和「存过但读不到」，
+ * 会在保存设置时按空值语义删掉 secure storage 里的真 key。适配器在底层后端
+ * 抛错时必须抛出本错误（而不是返回 null），让消费方（如 restoreSecureFields）
+ * 把字段保持「已存储」占位语义。
+ */
+export class SecretStoreReadError extends Error {
+  readonly key: string;
+
+  constructor(key: string, cause?: unknown) {
+    super(`secure storage read failed for key "${key}"${cause instanceof Error ? `: ${cause.message}` : ""}`);
+    this.name = "SecretStoreReadError";
+    this.key = key;
+    if (cause !== undefined) {
+      (this as { cause?: unknown }).cause = cause;
+    }
+  }
+}
+
+/**
  * 路径语义约定：
  * - readFile / writeFile / deleteFile：path 不得为空字符串，否则抛出异常。
  * - listDir / exists / mkdir：空字符串视为数据根目录。
@@ -30,6 +52,21 @@ export interface PlatformAdapter {
   readFile(path: string): Promise<string>;
   writeFile(path: string, content: string): Promise<void>;
   deleteFile(path: string): Promise<void>;
+
+  /**
+   * 同目录移动 / 重命名（审计 H5，服务于 write-tmp-then-rename 真原子写）。
+   *
+   * 语义契约：
+   * - 目标已存在时**覆盖**（POSIX rename 语义）；
+   * - 仅承诺同目录移动（原子写的 .tmp 与正式文件同目录），跨目录/跨挂载点行为不保证；
+   * - 源不存在时抛错。
+   *
+   * 三端原子性：Tauri（Rust std::fs::rename，Unix rename / Windows
+   * MoveFileExW+REPLACE_EXISTING）与 Capacitor（原生 FS move）为文件系统级原子替换；
+   * Web（IndexedDB）以单记录 put 模拟——见 WebAdapter.rename 注释。
+   */
+  rename(oldPath: string, newPath: string): Promise<void>;
+
   listDir(path: string): Promise<string[]>;
   exists(path: string): Promise<boolean>;
   mkdir(path: string): Promise<void>;

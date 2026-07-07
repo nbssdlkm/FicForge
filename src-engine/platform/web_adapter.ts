@@ -10,6 +10,7 @@
  */
 
 import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStorageCapabilities } from "./adapter.js";
+import { SecretStoreReadError } from "./adapter.js";
 
 const DB_NAME = "ficforge_fs";
 const STORE_NAME = "files";
@@ -255,6 +256,23 @@ export class WebAdapter implements PlatformAdapter {
     await txDelete(this.db(), this.norm(path));
   }
 
+  async rename(oldPath: string, newPath: string): Promise<void> {
+    if (!oldPath || !this.norm(oldPath)) throw new Error("rename: oldPath must not be empty");
+    if (!newPath || !this.norm(newPath)) throw new Error("rename: newPath must not be empty");
+    // IndexedDB 无原生 rename：get(old) → put(new) → delete(old)。
+    // put 是单记录原子操作（目标键要么整体换成新值、要么不变，不会出现截断内容），
+    // 这正是原子写需要的提交语义。put 与 delete 之间崩溃会留下新旧两条记录并存
+    // （正式文件已是完整新内容 + .tmp 残留），可接受且严格优于旧版「正式文件写一半」；
+    // 残留 .tmp 会被下一次同路径原子写覆盖后消费。
+    const db = this.db();
+    const from = this.norm(oldPath);
+    const to = this.norm(newPath);
+    const content = await txGet<unknown>(db, from);
+    if (content === undefined) throw new Error(`rename: source not found: ${oldPath}`);
+    await txPut(db, to, content);
+    await txDelete(db, from);
+  }
+
   async readBinary(path: string): Promise<Uint8Array> {
     if (!path || !this.norm(path)) throw new Error("readBinary: path must not be empty");
     const content = await txGet<ArrayBuffer | Uint8Array>(this.db(), this.norm(path));
@@ -367,12 +385,25 @@ export class WebAdapter implements PlatformAdapter {
    * 存独立 IndexedDB `ficforge_keystore`）。旧版 localStorage 明文（`__secure__:` 前缀）
    * 首次读取时迁移为密文并删除明文副本。crypto.subtle / IndexedDB 不可用时优雅退回
    * 明文，且 getSecretStorageCapabilities() 如实上报 encrypted_at_rest=false（见模块顶部）。
+   *
+   * 与 Capacitor/Tauri 同口径（审计 H8）：密文**存在但解不开**（密钥库被清 / 密文损坏）
+   * 是「读失败」而不是「没存过」，抛 SecretStoreReadError 而不是返回 null ——
+   * 否则保存链路会按空值语义删掉已存值。
    */
   async secureGet(key: string): Promise<string | null> {
     const stored = this.getSessionSecureValue(key);
     if (stored !== null) {
+      const decrypted = await decryptSecret(stored);
+      if (decrypted === null) {
+        // 有密文但无法解密 —— 读失败，不等于空。旧版明文副本若还在则作为真值返回
+        // （与 Capacitor/Tauri 故障路径同口径，且不在失败路径上做迁移写入）。
+        const legacyFallback = this.getLegacySecureValue(key);
+        if (legacyFallback !== null) return legacyFallback;
+        console.warn(`[WebAdapter] secureGet: ciphertext present but undecryptable, key=${key}`);
+        throw new SecretStoreReadError(key);
+      }
       this.removeLegacySecureValue(key);
-      return await decryptSecret(stored);
+      return decrypted;
     }
 
     const legacyValue = this.getLegacySecureValue(key);
