@@ -2,10 +2,17 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { beforeEach, describe, expect, it } from "vitest";
-import { initEngine } from "../engine-instance";
-import { createAu, createFandom, deleteFandom, getFandomDisplayInfo, listFandoms } from "../engine-fandom";
+import { getEngine, initEngine } from "../engine-instance";
+import { createAu, createFandom, deleteAu, deleteFandom, getFandomDisplayInfo, listFandoms } from "../engine-fandom";
 import { listTrash, restoreTrash } from "../engine-trash";
 import { MockAdapter } from "../../../../src-engine/repositories/__tests__/mock_adapter.js";
+
+/** 测试用确定性 embedding provider（种向量用，不走网络）。 */
+const fakeEmb = {
+  embed: async (texts: string[]) => texts.map((_, i) => [1, 0, 0, i / 10]),
+  get_dimension: () => 4,
+  get_model_name: () => "fake-embed",
+};
 
 describe("engine-fandom deleteFandom", () => {
   const dataDir = "/data";
@@ -81,5 +88,54 @@ describe("engine-fandom deleteFandom", () => {
     const trashEntries = await listTrash("fandom", `${dataDir}/fandoms`);
     expect(trashEntries).toHaveLength(1);
     expect(trashEntries[0].entity_name).toBe("My/Fandom");
+  });
+
+  it("H9c: deleteFandom unloads any in-memory vector index of AUs under the tree", async () => {
+    const fandom = await createFandom("Naruto");
+    const au = await createAu(fandom.name, "Canon", fandom.path);
+    const e = getEngine();
+    await e.ragManager.indexChapter(au.path, 1, "第一章正文。足够长的文本以生成chunk数据用于测试。", fakeEmb);
+    expect(e.ragManager.loadedAu).toBe(au.path);
+
+    await deleteFandom(fandom.dir_name);
+
+    expect(e.ragManager.loadedAu).toBeNull();
+  });
+});
+
+describe("engine-fandom deleteAu 向量卸载（H9c）", () => {
+  const dataDir = "/data";
+  let adapter: MockAdapter;
+
+  beforeEach(() => {
+    adapter = new MockAdapter();
+    initEngine(adapter, dataDir);
+  });
+
+  it("deleteAu 卸载内存向量;同名重建不继承;trash 恢复后从磁盘重载原向量", async () => {
+    const fandom = await createFandom("Naruto");
+    const au = await createAu(fandom.name, "Canon", fandom.path);
+    const e = getEngine();
+
+    await e.ragManager.indexChapter(au.path, 1, "第一章正文。足够长的文本以生成chunk数据用于测试。", fakeEmb);
+    expect(e.ragManager.loadedAu).toBe(au.path);
+    const seededCount = e.vectorEngine.chunkCount;
+    expect(seededCount).toBeGreaterThan(0);
+
+    const deleted = await deleteAu(fandom.dir_name, au.dir_name);
+    // 内存索引已卸载,不残留已删作品的向量
+    expect(e.ragManager.loadedAu).toBeNull();
+
+    // 同名重建:ensureLoaded 必须从磁盘 load(空索引),不复用旧内存 chunks
+    const recreated = await createAu(fandom.name, "Canon", fandom.path);
+    expect(recreated.path).toBe(au.path);
+    await e.ragManager.ensureLoaded(recreated.path);
+    expect(e.vectorEngine.chunkCount).toBe(0);
+
+    // 对称性:删掉重建的占位 AU 后恢复原 AU → 首次 ensureLoaded 从磁盘载回原 chunks
+    await deleteAu(fandom.dir_name, recreated.dir_name);
+    await restoreTrash("au", fandom.path, deleted.trash_id);
+    await e.ragManager.ensureLoaded(au.path);
+    expect(e.vectorEngine.chunkCount).toBe(seededCount);
   });
 });

@@ -169,6 +169,9 @@ export async function deleteFandom(fandomDirName: string) {
     );
 
     for (const auPath of auPaths) {
+      // H9c：树已移入 trash，卸载其中任何仍驻留内存的 AU 向量索引 ——
+      // 否则同名重建会经 ensureLoaded 跳过 load、继承已删作品的内存向量并在下次 persist 落盘固化。
+      getEngine().ragManager.unloadIfCurrent(auPath);
       try {
         await getEngine().repos.project.removeSecureStorage(auPath);
       } catch {
@@ -196,6 +199,11 @@ export async function deleteAu(fandomDirName: string, auName: string) {
       "au",
       displayName,
     );
+    // H9c：AU 已移入 trash，卸载其内存向量索引（不 persist —— 数据已移走）。
+    // 否则同名重建的 AU 会经 ensureLoaded 跳过 load、直接继承已删作品的内存向量，
+    // 且首次 indexChapter 的 persist 会把它落盘固化进新 AU。trash 恢复路径天然对称：
+    // 恢复后首次 ensureLoaded 从磁盘重新 load 原 .vectors/。
+    getEngine().ragManager.unloadIfCurrent(auPath);
     try {
       await getEngine().repos.project.removeSecureStorage(auPath);
     } catch {

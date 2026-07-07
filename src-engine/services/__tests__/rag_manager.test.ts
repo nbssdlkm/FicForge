@@ -198,6 +198,40 @@ describe("RagManager", () => {
   });
 
   describe("indexChapter — overwrite", () => {
+    it("H9: re-indexing with shorter content leaves no stale tail chunk ch{N}_{k}", async () => {
+      // 两段各 400 字 → 2 个 chunk（ch1_0 / ch1_1）
+      const longContent = `${"甲".repeat(400)}\n\n${"乙".repeat(400)}`;
+      await ragManager.indexChapter("au1", 1, longContent, embProvider);
+      const idsBefore = JSON.parse(adapter.raw("au1/.vectors/index.json")!)
+        .chunks.map((c: { id: string }) => c.id);
+      expect(idsBefore).toContain("ch1_1");
+
+      // 重索引成 1 个 chunk 的短内容 → 旧尾部 ch1_1 必须消失（内存 + 落盘）
+      const shortContent = "短文本内容。".repeat(30);
+      await ragManager.indexChapter("au1", 1, shortContent, embProvider);
+
+      expect(vectorEngine.chunkCount).toBe(1);
+      const idsAfter = JSON.parse(adapter.raw("au1/.vectors/index.json")!)
+        .chunks.map((c: { id: string }) => c.id);
+      expect(idsAfter).toEqual(["ch1_0"]);
+
+      // 冷启动重载后同样不复活
+      ragManager.unload();
+      await ragManager.ensureLoaded("au1");
+      expect(vectorEngine.chunkCount).toBe(1);
+    });
+
+    it("H9: re-indexing chapter content keeps the chapter's still-valid summary vector sum{N}", async () => {
+      // backfill 场景：章已有摘要向量，仅重索引正文 → 不能误删 sum{N}
+      await ragManager.indexChapterSummary("au1", 1, "第一章的摘要文本。", embProvider);
+      await ragManager.indexChapter("au1", 1, "第一章正文。足够长的文本以生成chunk数据用于测试。", embProvider);
+
+      const ids = JSON.parse(adapter.raw("au1/.vectors/index.json")!)
+        .chunks.map((c: { id: string }) => c.id);
+      expect(ids).toContain("sum1");
+      expect(ids).toContain("ch1_0");
+    });
+
     it("replaces chunks when re-indexing the same chapter", async () => {
       const contentV1 = "第一版内容。Alice在这里。足够长的文本以生成chunk数据。";
       await ragManager.indexChapter("au1", 1, contentV1, embProvider);
@@ -219,6 +253,71 @@ describe("RagManager", () => {
         const chunkData = JSON.parse(chunkFile!);
         expect(chunkData.content).not.toContain("第一版");
       }
+    });
+  });
+
+  describe("removeChapter (H9)", () => {
+    it("removes ch{N}_* chunks and sum{N} from memory and persisted index; survives cold reload", async () => {
+      await ragManager.indexChapter("au1", 1, "第一章正文。足够长的文本以生成chunk数据用于测试。", embProvider);
+      await ragManager.indexChapterSummary("au1", 1, "第一章摘要。", embProvider);
+      await ragManager.indexChapter("au1", 2, "第二章正文。足够长的文本以生成chunk数据用于测试。", embProvider);
+      await ragManager.indexChapterSummary("au1", 2, "第二章摘要。", embProvider);
+
+      await ragManager.removeChapter("au1", 1);
+
+      // 内存：ch1_* 与 sum1 消失，第 2 章完好
+      const idsInMemory = JSON.parse(adapter.raw("au1/.vectors/index.json")!)
+        .chunks.map((c: { id: string }) => c.id);
+      expect(idsInMemory.some((id: string) => id.startsWith("ch1_"))).toBe(false);
+      expect(idsInMemory).not.toContain("sum1");
+      expect(idsInMemory).toContain("ch2_0");
+      expect(idsInMemory).toContain("sum2");
+
+      // 冷启动重载（rebuild-from-disk）：被删向量不复活
+      ragManager.unload();
+      await ragManager.ensureLoaded("au1");
+      const survivors = JSON.parse(adapter.raw("au1/.vectors/index.json")!)
+        .chunks.map((c: { id: string }) => c.id);
+      expect(survivors.some((id: string) => id.startsWith("ch1_") || id === "sum1")).toBe(false);
+      expect(vectorEngine.chunkCount).toBe(2); // ch2_0 + sum2
+    });
+
+    it("works without any embedding provider involvement (deletion needs no embedding)", async () => {
+      await ragManager.indexChapter("au1", 1, "第一章正文。足够长的文本以生成chunk数据用于测试。", embProvider);
+      // 换一个全新 manager（模拟另一会话 / 冷启动），不传任何 embedding 即可删除
+      const freshManager = new RagManager(vectorEngine);
+      await freshManager.removeChapter("au1", 1);
+      expect(vectorEngine.chunkCount).toBe(0);
+    });
+
+    it("is a no-op for never-indexed AUs and does not create an empty .vectors/", async () => {
+      await ragManager.removeChapter("au-no-vectors", 3);
+      expect(adapter.raw("au-no-vectors/.vectors/index.json")).toBeUndefined();
+    });
+  });
+
+  describe("unloadIfCurrent (H9)", () => {
+    it("unloads only when the given AU is the currently loaded one", async () => {
+      await ragManager.ensureLoaded("au1");
+
+      ragManager.unloadIfCurrent("au2");
+      expect(ragManager.loadedAu).toBe("au1");
+
+      ragManager.unloadIfCurrent("au1");
+      expect(ragManager.loadedAu).toBeNull();
+    });
+
+    it("prevents a recreated same-path AU from inheriting the deleted AU's in-memory chunks", async () => {
+      await ragManager.indexChapter("au1", 1, "已删作品的正文。足够长的文本以生成chunk数据用于测试。", embProvider);
+      expect(vectorEngine.chunkCount).toBeGreaterThan(0);
+
+      // 模拟 deleteAu：树移入 trash（磁盘索引消失）+ 卸载内存
+      await adapter.deleteFile("au1/.vectors/index.json");
+      ragManager.unloadIfCurrent("au1");
+
+      // 同名重建后首次 ensureLoaded 必须从磁盘 load（空），不得复用旧内存 chunks
+      await ragManager.ensureLoaded("au1");
+      expect(vectorEngine.chunkCount).toBe(0);
     });
   });
 

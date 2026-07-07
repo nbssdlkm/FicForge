@@ -60,7 +60,7 @@ describe("JsonVectorEngine", () => {
   let adapter: MockAdapter;
   let engine: JsonVectorEngine;
 
-  function makeChunk(id: string, collection: "chapters" | "characters" | "worldbuilding", embedding: number[], meta: Record<string, unknown> = {}): VectorChunk {
+  function makeChunk(id: string, collection: "chapters" | "characters" | "worldbuilding" | "summaries", embedding: number[], meta: Record<string, unknown> = {}): VectorChunk {
     return {
       id,
       collection,
@@ -120,6 +120,51 @@ describe("JsonVectorEngine", () => {
     const results = await engine.search("au1", [1, 0], { collection: "chapters", top_k: 10 });
     expect(results).toHaveLength(1);
     expect(results[0].content).toBe("Content of c2");
+  });
+
+  it("delete_by_chapter without collection removes the chapter's vectors across collections (ch chunks + summary)", async () => {
+    await engine.index_chunks([
+      makeChunk("ch1_0", "chapters", [1, 0], { chapter: 1 }),
+      makeChunk("sum1", "summaries", [0, 1], { chapter: 1, kind: "standard" }),
+      makeChunk("ch2_0", "chapters", [0, 1], { chapter: 2 }),
+      makeChunk("sum2", "summaries", [1, 0], { chapter: 2, kind: "standard" }),
+    ]);
+
+    await engine.delete_by_chapter("au1", 1);
+
+    expect(engine.chunkCount).toBe(2);
+    expect((await engine.search("au1", [1, 0], { collection: "chapters", top_k: 10 }))
+      .map((r) => r.chapter_num)).toEqual([2]);
+    expect((await engine.search("au1", [1, 0], { collection: "summaries", top_k: 10 }))
+      .map((r) => r.chapter_num)).toEqual([2]);
+  });
+
+  it("delete_by_chapter with collection only removes that collection (keeps valid summary vector)", async () => {
+    await engine.index_chunks([
+      makeChunk("ch1_0", "chapters", [1, 0], { chapter: 1 }),
+      makeChunk("ch1_1", "chapters", [0.5, 0.5], { chapter: 1, chunk_index: 1 }),
+      makeChunk("sum1", "summaries", [0, 1], { chapter: 1, kind: "standard" }),
+    ]);
+
+    await engine.delete_by_chapter("au1", 1, "chapters");
+
+    expect(engine.chunkCount).toBe(1);
+    expect(await engine.search("au1", [1, 0], { collection: "chapters", top_k: 10 })).toEqual([]);
+    const summaries = await engine.search("au1", [0, 1], { collection: "summaries", top_k: 10 });
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0].chapter_num).toBe(1);
+  });
+
+  it("delete_by_chapter respects AU isolation", async () => {
+    await engine.index_chunks([
+      makeChunk("ch1_0", "chapters", [1, 0], { au_id: "au1", chapter: 1 }),
+      makeChunk("ch1_0b", "chapters", [1, 0], { au_id: "au2", chapter: 1 }),
+    ]);
+
+    await engine.delete_by_chapter("au1", 1);
+
+    expect(engine.chunkCount).toBe(1);
+    expect(await engine.search("au2", [1, 0], { collection: "chapters", top_k: 10 })).toHaveLength(1);
   });
 
   it("delete_by_source removes chunks", async () => {

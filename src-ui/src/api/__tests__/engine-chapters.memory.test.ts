@@ -149,6 +149,19 @@ describe("backfillChapterMemory", () => {
     expect(res).toMatchObject({ summariesGenerated: 2, factsChapters: 1, factsAdded: 1, indexed: 2 });
   });
 
+  it("M1b:全量成功(全部目标章处理完、零 failed、未中断) → index_status 升 READY", async () => {
+    // confirmChapters 时 embedding 未配 → 此刻是默认 STALE;backfill 全量成功后应解除
+    const before = await getEngine().repos.state.get(auPath);
+    expect(before.index_status).toBe(engineModule.IndexStatus.STALE);
+
+    const res = await backfillChapterMemory(auPath, { factsChapters: [1, 2] });
+
+    expect(res.failed).toBe(0);
+    expect(res.aborted).toBe(false);
+    const st = await getEngine().repos.state.get(auPath);
+    expect(st.index_status).toBe(engineModule.IndexStatus.READY);
+  });
+
   it("落盘中途抛错(indexChapter 失败) → 标 index_status=STALE 且计 failed", async () => {
     // ch1 的正文索引失败 → 半成功(摘要/笔记可能已落)→ 标 STALE 让用户重建/重跑修复。
     vi.spyOn(getEngine().ragManager, "indexChapter").mockImplementation(
@@ -157,6 +170,7 @@ describe("backfillChapterMemory", () => {
     const res = await backfillChapterMemory(auPath, { factsChapters: [1, 2] });
     expect(res.failed).toBe(1);          // ch1 计 failed
     expect(res.indexed).toBe(1);         // ch2 正常
+    // M1b:含 failed → 不升 READY,半成功标 STALE 的既有逻辑保持
     const st = await getEngine().repos.state.get(auPath);
     expect(st.index_status).toBe(engineModule.IndexStatus.STALE);
   });

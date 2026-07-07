@@ -74,6 +74,14 @@ export async function confirmChapter(
   const e = getEngine();
   const { chapter, draft, state, ops, project, settings } = e.repos;
   const proj = await project.get(auPath);
+  // M1a：记录 confirm 前的 index_status。engineConfirmChapter 内部会悲观置 STALE，
+  // 增量索引成功后是否升回 READY 取决于 confirm 之前索引是否本就完整（见下方注释）。
+  let preConfirmIndexStatus: IndexStatus | null = null;
+  try {
+    preConfirmIndexStatus = (await state.get(auPath)).index_status;
+  } catch {
+    // state 读取失败 → 视为未知，保守不升 READY（首章除外）
+  }
   const result = await engineConfirmChapter({
     au_id: auPath, chapter_num: chapterNum, draft_id: draftId,
     generated_with: generatedWith as GeneratedWith | undefined,
@@ -131,12 +139,20 @@ export async function confirmChapter(
     if (embProvider) {
       const chContent = await chapter.get_content_only(auPath, chapterNum);
       await e.ragManager.indexChapter(auPath, chapterNum, chContent, embProvider, proj.cast_registry);
-      // confirm_chapter 里先悲观标记 STALE；增量索引成功后再升级回 READY。
-      await withAuLock(auPath, async () => {
-        await e.repos.state.update(auPath, (st) => {
-          st.index_status = IndexStatus.READY;
+      // confirm_chapter 里先悲观标记 STALE；增量索引成功后仅在两种情形升回 READY（M1a）：
+      //  - confirm 前就是 READY —— 本次增量索引把索引重新补齐到完整；
+      //  - 首章 confirm（chapterNum === 1，此前零章）—— 索引天然完整，否则新 AU 永远卡 STALE。
+      // confirm 前已是 STALE / INTERRUPTED → 保持不动：index_status 是单 bit，无法区分 stale
+      // 成因（编辑未重索引 / backfill 半成功 / undo 清理失败 / 旧章从未索引…），而增量索引
+      // 只覆盖本章 —— 无条件升 READY 会掩盖既有降级提示。存量 STALE 由「重建索引」或
+      // backfill 全量成功（M1b）解除。
+      if (preConfirmIndexStatus === IndexStatus.READY || chapterNum === 1) {
+        await withAuLock(auPath, async () => {
+          await e.repos.state.update(auPath, (st) => {
+            st.index_status = IndexStatus.READY;
+          });
         });
-      });
+      }
     }
   } catch (err) {
     // RAG indexing failure doesn't block confirm；保留 STALE 作为真实状态。
@@ -252,8 +268,17 @@ export async function confirmChapter(
 }
 
 export async function undoChapter(auPath: string) {
-  const { chapter, draft, state, ops, fact, project, chapterSummary } = getEngine().repos;
+  const e = getEngine();
+  const { chapter, draft, state, ops, fact, project, chapterSummary } = e.repos;
   const proj = await project.get(auPath);
+  // H9a：记录 undo 前的 index_status。undo 服务内部会悲观置 STALE（10 步级联，golden 逻辑不动）；
+  // 向量删除不需要 embedding，删除成功后索引即与剩余章节一致，可恢复原状态。
+  let preUndoIndexStatus: IndexStatus | null = null;
+  try {
+    preUndoIndexStatus = (await state.get(auPath)).index_status;
+  } catch {
+    // 读不到就不恢复，保持 undo 服务置下的 STALE
+  }
   const result = await undo_latest_chapter({
     au_id: auPath, cast_registry: proj.cast_registry,
     chapter_repo: chapter, draft_repo: draft, state_repo: state, ops_repo: ops, fact_repo: fact,
@@ -263,6 +288,19 @@ export async function undoChapter(auPath: string) {
     await chapterSummary.remove(auPath, result.chapter_num);
   } catch (err) {
     logCatch("summary", `Failed to remove summary after undo ${result.chapter_num}`, err);
+  }
+  // H9a：undo = 用户明确拒绝该章 —— 删其正文 chunks + sum{N} 摘要向量（内存 + 落盘），
+  // 否则被拒正文以 decay=1 最高时间权重残留召回、污染重写。删除成功且 undo 前是 READY
+  // → 恢复 READY（索引仍完整）；删除失败 → 保持 undo 置下的 STALE，等「重建索引」修复。
+  try {
+    await e.ragManager.removeChapter(auPath, result.chapter_num);
+    if (preUndoIndexStatus === IndexStatus.READY) {
+      await withAuLock(auPath, async () => {
+        await state.update(auPath, (st) => { st.index_status = IndexStatus.READY; });
+      });
+    }
+  } catch (err) {
+    logCatch("rag", `Failed to remove vectors after undo ${result.chapter_num}`, err);
   }
   return result;
 }
@@ -300,7 +338,16 @@ export async function resolveDirtyChapter(auPath: string, chapterNum: number, co
 }
 
 export async function updateChapterContent(auPath: string, chapterNum: number, content: string) {
-  const { chapter, state, ops, chapterSummary } = getEngine().repos;
+  const e = getEngine();
+  const { chapter, state, ops, chapterSummary, project, settings } = e.repos;
+  // H9b：记录编辑前的 index_status（edit_chapter_content 会置 STALE）。
+  // 重索引成功后是否恢复 READY 取决于编辑前索引是否本就完整（与 confirm 的 M1a 同口径）。
+  let preEditIndexStatus: IndexStatus | null = null;
+  try {
+    preEditIndexStatus = (await state.get(auPath)).index_status;
+  } catch {
+    // 读不到就不恢复，保持 edit 服务置下的 STALE
+  }
   // edit_chapter_content 属于"底层 service"，本身不加锁（避免被 dirty_resolve
   // 等已持锁的 orchestrator 调用时死锁）。UI 直接调用路径必须在此顶层加锁。
   const result = await withAuLock(auPath, () =>
@@ -312,6 +359,28 @@ export async function updateChapterContent(auPath: string, chapterNum: number, c
     await chapterSummary.remove(auPath, chapterNum);
   } catch (err) {
     logCatch("summary", `Failed to invalidate summary after edit ${chapterNum}`, err);
+  }
+  // H9b：编辑历史章 → 旧正文 chunks + sum{N} 立即失效。宁缺勿旧：
+  //  1. 先删旧向量（删除不需要 embedding）—— 残缺召回好过被拒/过时内容进生成；
+  //  2. embedding 可用 → 立刻增量重索引新正文（对齐 confirm 的增量索引路径），
+  //     成功且编辑前 READY → 恢复 READY（不再留悬空 STALE）；
+  //  3. embedding 不可用 / 重索引失败 → 删完保持 edit 服务置下的 STALE。
+  try {
+    await e.ragManager.removeChapter(auPath, chapterNum);
+    const [proj, sett] = await Promise.all([project.get(auPath), settings.get()]);
+    const embProvider = createEmbeddingProvider(sett, proj);
+    if (embProvider) {
+      // 用落盘后的正文重索引（与 confirm 同源），不直接用入参，防 save 路径归一化产生偏差。
+      const chContent = await chapter.get_content_only(auPath, chapterNum);
+      await e.ragManager.indexChapter(auPath, chapterNum, chContent, embProvider, proj.cast_registry);
+      if (preEditIndexStatus === IndexStatus.READY) {
+        await withAuLock(auPath, async () => {
+          await state.update(auPath, (st) => { st.index_status = IndexStatus.READY; });
+        });
+      }
+    }
+  } catch (err) {
+    logCatch("rag", `Failed to refresh vectors after edit ${chapterNum}`, err);
   }
   return result;
 }
@@ -403,7 +472,7 @@ export async function backfillChapterMemory(
     });
   }
 
-  return backfill_chapter_memory({
+  const result = await backfill_chapter_memory({
     targets,
     signal,
     // 慢 LLM，锁外。signal 透传 → 用户点停时在飞的摘要/提取请求被立刻取消（审计⑨）。
@@ -474,4 +543,19 @@ export async function backfillChapterMemory(
       }),
     onProgress: onProgress ? (info) => onProgress(info.done, info.total) : undefined,
   });
+
+  // M1b：全量成功（有目标章、全部处理完、零 failed、未中断）→ 升 READY。杀手场景（导入后
+  // 一键建记忆）跑完不再滞留「索引过期」误导用户重复全量重建。skipped（CAS 拒绝）不阻断：
+  // 被并发 edit/undo 的章由其自身路径负责删/重索引（H9）。有 failed / 中断 → 保持现状
+  // （半成功标 STALE 的既有逻辑不动）。best-effort：状态写失败不推翻已成功的 backfill。
+  if (targets.length > 0 && result.failed === 0 && !result.aborted) {
+    try {
+      await withAuLock(auPath, async () => {
+        await e.repos.state.update(auPath, (st) => { st.index_status = IndexStatus.READY; });
+      });
+    } catch (err) {
+      logCatch("backfill_memory", "Failed to mark index READY after fully successful backfill", err);
+    }
+  }
+  return result;
 }

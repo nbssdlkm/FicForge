@@ -65,7 +65,7 @@ export class RagManager {
     const [embedding] = await embeddingProvider.embed([summaryText]);
     // embed 是慢 I/O：期间并发 confirm 可能切走 currentAu，导致 index/persist 落到错误 AU
     // （cross-AU 污染，codex workflow 审）。重新 ensureLoaded 保证回到目标 AU 的内存索引。
-    // 注：底层 indexChapter/indexChapterInMemory 有同样的 pre-existing gap，见 TD 标记。
+    // 注：底层 indexChapter/indexChapterInMemory 有同样的 pre-existing gap，见 TECH-DEBT.md TD-017。
     await this.ensureLoaded(auPath);
     await this.vectorEngine.index_chunks([{
       id: `sum${chapterNum}`,
@@ -75,6 +75,30 @@ export class RagManager {
       metadata: { au_id: auPath, chapter: chapterNum, kind: "standard" },
     }]);
     await this.vectorEngine.persist(vectorsDir(auPath));
+  }
+
+  /**
+   * 删除单章的全部向量（正文 `ch{N}_*` chunks + `sum{N}` 摘要向量），内存与落盘双清（H9）。
+   * 删除不需要 embedding —— undo / 编辑历史章即使没配 embedding 也能立即清理，
+   * 避免被拒/过时正文以最高时间权重残留在召回里。persist 保证冷启动重载后不复活。
+   */
+  async removeChapter(auPath: string, chapterNum: number): Promise<void> {
+    await this.ensureLoaded(auPath);
+    const before = this.vectorEngine.chunkCount;
+    await this.vectorEngine.delete_by_chapter(auPath, chapterNum);
+    // 没删掉任何 chunk（该章从未被索引 / AU 根本没有索引）→ 不写盘，
+    // 避免给未配 embedding 的 AU 凭空创建 .vectors/ 空索引。
+    if (this.vectorEngine.chunkCount === before) return;
+    await this.vectorEngine.persist(vectorsDir(auPath));
+  }
+
+  /**
+   * 仅当内存加载的正是该 AU 时卸载（H9：deleteAu / 删 fandom 移入回收站后调用）。
+   * 故意不 persist —— 数据已移入 trash，persist 会把内存索引写回已删路径。
+   * 不卸载则同名重建的 AU 会经 ensureLoaded 跳过 load、直接继承已删作品的内存向量。
+   */
+  unloadIfCurrent(auPath: string): void {
+    if (this.currentAu === auPath) this.unload();
   }
 
   /**
@@ -154,16 +178,23 @@ export class RagManager {
     await this.ensureLoaded(auPath);
 
     const chunks = split_chapter_into_chunks(content, chapterNum, 500, 1, castRegistry);
-    if (chunks.length === 0) return;
 
+    // embed（慢 I/O）放在删除之前：embed 失败时内存索引未被改动，旧 chunks 仍可召回（fail-safe）。
     const texts = chunks.map((c) => c.content);
-    const embeddings = await embeddingProvider.embed(texts);
+    const embeddings = chunks.length > 0 ? await embeddingProvider.embed(texts) : [];
 
     if (embeddings.length !== texts.length) {
       throw new Error(
         `Embedding count mismatch: expected ${texts.length}, got ${embeddings.length}`,
       );
     }
+
+    // H9：重索引同章前先删旧正文 chunks —— index_chunks 只按 id 覆盖，新内容变短（chunk 数变少）
+    // 时旧尾部 ch{N}_{k} 会永久残留进召回。只删 chapters collection：sum{N} 摘要向量由摘要自身的
+    // 生成/删除路径管理（backfill 对已有摘要的章调本方法时不能误删其仍有效的摘要向量）。
+    // delete 按 au_id 过滤，慢 embed 期间并发切 AU 时对错误 AU 的内存是 no-op（不加剧 M3 竞态）。
+    await this.vectorEngine.delete_by_chapter(auPath, chapterNum, "chapters");
+    if (chunks.length === 0) return;
 
     const vectorChunks = chunks.map((c, i) => ({
       id: `ch${chapterNum}_${c.chunk_index}`,
