@@ -3,3 +3,4 @@
 // See LICENSE file in the project root for full license text.
 
 /// <reference types="vite/client" />
+/// <reference types="vite-plugin-pwa/client" />

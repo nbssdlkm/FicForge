@@ -286,4 +286,65 @@ describe("WriterLayout integration sentinels", () => {
   });
 });
 
+describe("WriterLayout keep-mounted 外部章节变更接线（审计 M9）", () => {
+  it("可见时 externalChaptersVersion 变化 → 立即重载 bootstrap", async () => {
+    const { rerender } = render(
+      <WriterLayout {...defaultProps} isActiveTab={true} externalChaptersVersion={0} />,
+    );
+    await waitFor(() => {
+      expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(1);
+    });
+
+    rerender(
+      <WriterLayout {...defaultProps} isActiveTab={true} externalChaptersVersion={1} />,
+    );
+    await waitFor(() => {
+      expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("隐藏时 version 变化只挂起，切回可见才重载（不重载则读到过期章号）", async () => {
+    const { rerender } = render(
+      <WriterLayout {...defaultProps} isActiveTab={false} externalChaptersVersion={0} />,
+    );
+    await waitFor(() => {
+      expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(1);
+    });
+
+    // 隐藏期间外部变更（对话 tab 接受章节）：不应立即打 API
+    rerender(
+      <WriterLayout {...defaultProps} isActiveTab={false} externalChaptersVersion={1} />,
+    );
+    // flush 微任务队列，确认没有偷跑的 loadData
+    await Promise.resolve();
+    expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(1);
+
+    // 切回可见：挂起的刷新执行
+    rerender(
+      <WriterLayout {...defaultProps} isActiveTab={true} externalChaptersVersion={1} />,
+    );
+    await waitFor(() => {
+      expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("无外部变更时的可见性切换不触发任何重载（防误刷）", async () => {
+    const { rerender } = render(
+      <WriterLayout {...defaultProps} isActiveTab={true} externalChaptersVersion={0} />,
+    );
+    await waitFor(() => {
+      expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(1);
+    });
+
+    rerender(
+      <WriterLayout {...defaultProps} isActiveTab={false} externalChaptersVersion={0} />,
+    );
+    rerender(
+      <WriterLayout {...defaultProps} isActiveTab={true} externalChaptersVersion={0} />,
+    );
+    await Promise.resolve();
+    expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(1);
+  });
+});
+
 // Cleanup is handled by src/test/setup.ts (afterEach → cleanup)

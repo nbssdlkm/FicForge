@@ -24,6 +24,7 @@ import {
   confirmChapter,
   getChapterContent,
   getFactsExtractionReadiness,
+  getFriendlyErrorMessage,
   getSettingsSummary,
   getState,
   getWriterProjectContext,
@@ -39,6 +40,7 @@ import {
 import { useSessionParams } from "../writer/useSessionParams";
 import { useWriterFactsExtraction } from "../writer/useWriterFactsExtraction";
 import { ExtractReviewModal } from "../writer/WriterModals";
+import { ConfirmDialog } from "../shared/ConfirmDialog";
 import { Spinner } from "../shared/Spinner";
 import { SimpleSettingsDrawer } from "./SimpleSettingsDrawer";
 import { SimpleChatHistory } from "./SimpleChatHistory";
@@ -78,6 +80,7 @@ export function SimpleChatPanel({
   const [executingToolId, setExecutingToolId] = useState<string | null>(null);
   const [chapterCount, setChapterCount] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [clearChatConfirmOpen, setClearChatConfirmOpen] = useState(false);
   const [projectInfo, setProjectInfo] = useState<WriterProjectContext | null>(null);
   const [settingsInfo, setSettingsInfo] = useState<WriterSessionConfig | null>(null);
   const [settingsSummary, setSettingsSummary] = useState<SettingsSummary | null>(null);
@@ -102,6 +105,7 @@ export function SimpleChatPanel({
     setExecutingToolId(null);
     setChapterCount(0);
     setDrawerOpen(false);
+    setClearChatConfirmOpen(false);
     setProjectInfo(null);
     setSettingsInfo(null);
     setSettingsSummary(null);
@@ -155,6 +159,19 @@ export function SimpleChatPanel({
   useEffect(() => {
     void refreshChapterContext();
   }, [refreshChapterContext]);
+
+  // 切回对话 tab 时刷新章节上下文（对抗审 F3）：常驻挂载后，写文 tab 的 confirm/undo
+  // 推进 current_chapter 但对话面板拿不到通知 —— 不刷新的话下一次 dispatch 会带过期
+  // chapter_num 打到已确认章（接受侧另有 H3 章号 guard 兜底，这里把源头对齐）。
+  const wasActiveTabRef = useRef(isActiveTab !== false);
+  useEffect(() => {
+    const nowActive = isActiveTab !== false;
+    const wasActive = wasActiveTabRef.current;
+    wasActiveTabRef.current = nowActive;
+    if (nowActive && !wasActive) {
+      void refreshChapterContext();
+    }
+  }, [isActiveTab, refreshChapterContext]);
 
   // chat.yaml load 完成后一次性清理 stale state（上次 session 中断遗留）：
   //  1. streaming-status draft → discarded（dispatch 没收尾就被切 tab 中断了）
@@ -319,14 +336,21 @@ export function SimpleChatPanel({
             // partial draft / partial chat_reply 内容应该完整落地后再显示 error。
             chat.flushStreamingChunks();
             clearThinking();
-            const codeSuffix = data.error_code ? `[${data.error_code}] ` : "";
+            // M26：走 friendly 映射（对齐写文路径 useWriterGeneration），把 error_code
+            // 翻成用户可读文案（含 UNSUPPORTED_MODE → error_messages.unsupported_mode 的
+            // 中英对称 i18n）。旧代码直接拼 `[code] message` 把机器码 + 引擎原始中文串
+            // 抛给用户。partialSuffix 仍单独拼接（friendly 映射不含它）。
+            const friendly = getFriendlyErrorMessage({
+              error_code: data.error_code,
+              message: data.message,
+            });
             const partialSuffix = data.partial_draft_label
               ? t("simple.error.partialSavedAs", {
                   defaultValue: "（部分草稿已保存为 {{label}}）",
                   label: data.partial_draft_label,
                 })
               : "";
-            const message = `${codeSuffix}${data.message ?? "unknown"}${partialSuffix}`;
+            const message = `${friendly}${partialSuffix}`;
             if (draftId) {
               chat.setDraftStatus(draftId, "error", { errorMessage: message });
             } else {
@@ -668,14 +692,9 @@ export function SimpleChatPanel({
           type="button"
           onClick={() => {
             if (chat.messages.length === 0) return;
-            const confirmText = t("simple.clearChat.confirm", {
-              defaultValue: "清空当前 AU 的所有对话历史？此操作不可撤销。",
-            });
-            // 简版仅 Capacitor / Web，window.confirm 在两端可用且原生 modal UX 一致
-            if (typeof window !== "undefined" && window.confirm(confirmText)) {
-              chat.clearMessages();
-              showSuccess(t("simple.clearChat.done", { defaultValue: "对话已清空" }));
-            }
+            // 应用内 ConfirmDialog 替代 window.confirm（审计 M13）：融合后本面板恒挂
+            // Tauri 桌面，wry 对 window.confirm 支持不完整（可能点了无反应）。
+            setClearChatConfirmOpen(true);
           }}
           disabled={chat.messages.length === 0 || dispatch.isStreaming}
           className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-sm text-ink-muted transition-colors hover:bg-rule-soft hover:text-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-ink-muted"
@@ -737,6 +756,20 @@ export function SimpleChatPanel({
         onFontSizeChange={(v) => setFontSizeKV(String(v))}
         lineHeight={lineHeight}
         onLineHeightChange={(v) => setLineHeightKV(String(v))}
+      />
+      <ConfirmDialog
+        isOpen={clearChatConfirmOpen}
+        onClose={() => setClearChatConfirmOpen(false)}
+        onConfirm={() => {
+          setClearChatConfirmOpen(false);
+          chat.clearMessages();
+          showSuccess(t("simple.clearChat.done", { defaultValue: "对话已清空" }));
+        }}
+        title={t("simple.clearChat.label", { defaultValue: "清空对话" })}
+        message={t("simple.clearChat.confirm", {
+          defaultValue: "清空当前 AU 的所有对话历史？此操作不可撤销。",
+        })}
+        destructive
       />
       <ExtractReviewModal
         isOpen={factsExtraction.isExtractReviewOpen}

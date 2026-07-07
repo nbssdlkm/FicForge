@@ -290,6 +290,7 @@
     "historyProcessedTools": "Processed actions:\n{{tools}}",
     "toolActionBusy": "An action is in progress. Please wait.",
     "busyWriteBlocked": "Lore edits in progress. Please wait before switching back to Write.",
+    "busyCloseBlocked": "Lore edits in progress. Please wait before closing.",
     "statusSummary": {
       "executed": "Done: {{name}}",
       "skipped": "Skipped: {{name}}",
@@ -865,6 +866,7 @@
     "connection_failed": "Can't reach the AI service. Check your network and API endpoint.",
     "api_base_missing": "API endpoint not configured. Set it up in Story Settings.",
     "unknown": "Something went wrong. Please retry or check settings.",
+    "unsupported_mode": "The local model mode is not supported. Please switch to API or Ollama mode in settings.",
     "fandom_already_exists": "A fandom with this name already exists",
     "au_already_exists": "An AU with this name already exists"
   },

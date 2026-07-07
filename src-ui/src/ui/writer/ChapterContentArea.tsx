@@ -150,8 +150,19 @@ export const ChapterContentArea = ({
         </div>
       ) : streamText ? (
         <div className="font-serif text-text/90 animate-in fade-in duration-200 pb-8 opacity-90">
-          <ChapterMarkdown content={streamText} />
-          {isGenerating && <span className="inline-block h-5 w-0.5 bg-accent align-middle animate-pulse" />}
+          {/* 流式期绕过 react-markdown（审计 M11）：Markdown 组件对累积全文做整棵
+              remark AST 重解析，每帧一次 = 低端机流式 3000 字肉眼卡顿；且流式中途
+              的半个 **标记 会解析抖动。流式中用 whitespace-pre-wrap 轻量渲染（与
+              简版 WritingDraftCard 流式同款），isGenerating 落 false 的终态帧再上
+              Markdown 排版（单次解析，随后 resetStream 交还 draft 视图）。 */}
+          {isGenerating ? (
+            <div className="whitespace-pre-wrap break-words">
+              {streamText}
+              <span className="inline-block h-5 w-0.5 bg-accent align-middle animate-pulse" />
+            </div>
+          ) : (
+            <ChapterMarkdown content={streamText} />
+          )}
         </div>
       ) : isViewingHistory && viewingHistoryContent ? (
         <div className="font-serif text-text/90 pb-8">

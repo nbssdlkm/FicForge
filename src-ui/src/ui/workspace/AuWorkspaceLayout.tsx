@@ -53,6 +53,14 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
     listChapters(auPath).then(chs => { if (!loadGuard.isKeyStale(auPath)) setChapters(chs); }).catch((err) => logCatch('workspace', 'refreshChapters failed', err));
     setMilestoneRefreshKey(k => k + 1);
   }, [auPath, loadGuard]);
+  // 写文面板常驻挂载（审计 M9）后，WriterLayout 不再靠重挂拿新数据。写文 tab 之外的
+  // 章节变更（对话接受 / 标题编辑 / 导入完成）必须走这个带版本号的通道通知它重载；
+  // 写文自己发起的 confirm/undo 仍走裸 refreshChapters（其内部状态已同步，不需自通知）。
+  const [externalChaptersVersion, setExternalChaptersVersion] = useState(0);
+  const refreshChaptersExternal = useCallback(() => {
+    refreshChapters();
+    setExternalChaptersVersion((v) => v + 1);
+  }, [refreshChapters]);
   const { shouldShow, dismiss } = useMilestoneGuide();
 
   // Milestone data (loaded once, from existing page data)
@@ -200,7 +208,15 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
         onSelectChapter={setViewingChapter}
         onClearViewChapter={() => setViewingChapter(null)}
         onChaptersChanged={refreshChapters}
+        onChaptersChangedExternal={refreshChaptersExternal}
+        externalChaptersVersion={externalChaptersVersion}
         milestoneElement={milestoneElement}
+        embeddingStale={embeddingStale && !embeddingDismissed}
+        onEmbeddingRebuild={() => {
+          setEmbeddingDismissed(true);
+          rebuildIndex(auPath).catch((e) => showError(e, t('error_messages.unknown')));
+        }}
+        onEmbeddingDismiss={() => setEmbeddingDismissed(true)}
       />
     );
   }
@@ -357,7 +373,8 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
                                 const trimmed = editingTitleValue.trim();
                                 try {
                                   await updateChapterTitle(auPath, ref.num, trimmed);
-                                  refreshChapters();
+                                  // external：常驻挂载的写文面板标题（state.chapter_titles）要跟着刷（审计 M9）
+                                  refreshChaptersExternal();
                                 } catch (err) { showError(err, t('error_messages.unknown')); return; }
                                 editingRef.current = null;
                                 setEditingTitleNum(null);
@@ -370,7 +387,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
                               if (trimmed !== ref.original) {
                                 try {
                                   await updateChapterTitle(auPath, ref.num, trimmed);
-                                  refreshChapters();
+                                  refreshChaptersExternal();
                                 } catch (err) { showError(err, t('error_messages.unknown')); }
                               }
                               editingRef.current = null;
@@ -399,14 +416,31 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
             状态全住在面板里，跟随 AnimatePresence 卸载会静默丢提取结果、丢接受标记。
             其余 tab 保持按需挂载 + 过渡动画不变。 */}
         <div className={activeTab === 'chat' ? 'flex-1 flex w-full h-full overflow-hidden' : 'hidden'}>
-          <SimpleChatPanel auPath={auPath} onChaptersChanged={refreshChapters} isActiveTab={activeTab === 'chat'} />
+          <SimpleChatPanel auPath={auPath} onChaptersChanged={refreshChaptersExternal} isActiveTab={activeTab === 'chat'} />
         </div>
-        {/* 外层 hidden 门（对抗审 A-2）：切到 chat 时旧 tab 的 exit 动画（0.18s）仍占
-            flex-1，与 chat div 双双平分高度造成半高闪跳 —— 立即 display:none 掉整个
-            动画容器（exit 在隐藏中无声完成），非 chat 间的切换动画不受影响。 */}
-        <div className={activeTab === 'chat' ? 'hidden' : 'flex-1 flex w-full h-full overflow-hidden'}>
+        {/* 写文面板同样常驻挂载、CSS 隐藏（审计 M9）：卸载会 abort 在飞的写文生成流
+            （useWriterGeneration unmount cleanup）+ 丢草稿防抖保存，双 tab 并列后切
+            tab 是高频动作，不能再当作「离开写作」处理。外部章节变更经
+            externalChaptersVersion 通知其重载。facts/threads/au_lore/settings
+            维持按需挂载 + 过渡动画不变。 */}
+        <div className={activeTab === 'writer' ? 'flex-1 flex w-full h-full overflow-hidden' : 'hidden'}>
+          <WriterLayout
+            auPath={auPath}
+            onNavigate={onNavigate}
+            viewChapter={viewingChapter}
+            onClearViewChapter={() => setViewingChapter(null)}
+            onChaptersChanged={refreshChapters}
+            isActiveTab={activeTab === 'writer'}
+            externalChaptersVersion={externalChaptersVersion}
+          />
+        </div>
+        {/* 外层 hidden 门（对抗审 A-2）：切到常驻 tab（chat/writer）时旧 tab 的 exit
+            动画（0.18s）仍占 flex-1，与常驻 div 双双平分高度造成半高闪跳 —— 立即
+            display:none 掉整个动画容器（exit 在隐藏中无声完成），其余 tab 间的切换
+            动画不受影响。 */}
+        <div className={activeTab === 'chat' || activeTab === 'writer' ? 'hidden' : 'flex-1 flex w-full h-full overflow-hidden'}>
         <AnimatePresence mode="wait">
-          {activeTab !== 'chat' && (
+          {activeTab !== 'chat' && activeTab !== 'writer' && (
             <motion.div
               key={activeTab}
               initial={{ opacity: 0, y: 15, filter: 'blur(8px)' }}
@@ -415,9 +449,6 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
               transition={{ duration: 0.18, ease: "easeOut" }}
               className="flex-1 flex w-full h-full overflow-hidden"
             >
-              {activeTab === 'writer' && (
-                <WriterLayout auPath={auPath} onNavigate={onNavigate} viewChapter={viewingChapter} onClearViewChapter={() => setViewingChapter(null)} onChaptersChanged={refreshChapters} />
-              )}
               {activeTab === 'facts' && <FactsLayout auPath={auPath} />}
               {activeTab === 'threads' && <ThreadsLayout auPath={auPath} />}
               {activeTab === 'au_lore' && <AuLoreLayout auPath={auPath} />}

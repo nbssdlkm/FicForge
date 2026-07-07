@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useKV } from '../../hooks/useKV';
 import { useFeedback } from '../../hooks/useFeedback';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
@@ -32,9 +32,24 @@ import { useWriterInstructionInput } from './useWriterInstructionInput';
 import { useWriterModeController } from './useWriterModeController';
 import { deriveWriterDisplayState } from './writerDisplayState';
 
-type WriterLayoutProps = { auPath: string; onNavigate: (page: string) => void; viewChapter?: number | null; onClearViewChapter?: () => void; onChaptersChanged?: () => void };
+type WriterLayoutProps = {
+  auPath: string;
+  onNavigate: (page: string) => void;
+  viewChapter?: number | null;
+  onClearViewChapter?: () => void;
+  onChaptersChanged?: () => void;
+  /** 面板当前是否为可见 tab。写文面板常驻挂载（隐藏不卸载，审计 M9）——卸载会 abort
+   * 在飞的生成流（useWriterGeneration unmount cleanup）+ 丢草稿防抖保存窗口。
+   * undefined 视为可见（独立使用 / 测试场景）。 */
+  isActiveTab?: boolean;
+  /** 外部章节数据版本号（审计 M9 keep-mounted 配套）：对话 tab 接受章节、章节列表改
+   * 标题、导入完成等「写文 tab 之外」的章节变更发生时由宿主自增。卸载时代靠重挂
+   * bootstrap 拿新数据；常驻挂载后必须显式刷新，否则 state.current_chapter 过期 →
+   * 生成会打到已确认的章号上。写文自己发起的 confirm/undo 不 bump（内部已刷新）。 */
+  externalChaptersVersion?: number;
+};
 
-export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapter, onChaptersChanged }: WriterLayoutProps) => {
+export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapter, onChaptersChanged, isActiveTab, externalChaptersVersion }: WriterLayoutProps) => {
   const { t, i18n } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -68,6 +83,19 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   const { loading, applyStateSnapshot, loadData, refreshSettingsModeData } = bootstrap;
   const sessionParams = useSessionParams(auPath, projectInfo, settingsInfo, showSuccess, showError);
 
+  // 常驻挂载后的外部变更接线（审计 M9）：externalChaptersVersion 变化 = 章节数据被
+  // 写文 tab 之外的路径改写（对话接受 / 标题编辑 / 导入）。可见时立即重载（用户正看着，
+  // 不能停留在旧章号）；隐藏时只标记，等切回可见再重载（省掉隐藏期的无效 API 轮次）。
+  // loadData 走 ref shim（hook 铁律 4 同款）：它的 useCallback 依赖里有引用不稳成员，
+  // 直接进 dep 数组会重复触发。
+  const loadDataRef = useRef(loadData);
+  loadDataRef.current = loadData;
+  const seenExternalVersionRef = useRef(externalChaptersVersion);
+  const pendingExternalRefreshRef = useRef(false);
+  useEffect(() => {
+    // AU 切换：bootstrap 自己会全量重载，挂起的外部刷新标记随之作废
+    pendingExternalRefreshRef.current = false;
+  }, [auPath]);
   const currentChapterNum = state?.current_chapter ?? 0;
   const instructionInput = useWriterInstructionInput({ auPath, currentChapterNum });
 
@@ -134,6 +162,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     mergeDraftIntoState: draftCtrl.mergeDraftIntoState,
     attachDraftSummary: draftCtrl.attachDraftSummary,
     appendStream: draftCtrl.appendStream,
+    flushStream: draftCtrl.flushStream,
     resetStream: draftCtrl.resetStream,
     markGeneratedWith: draftCtrl.markGeneratedWith,
     markBudgetReport: draftCtrl.markBudgetReport,
@@ -145,6 +174,27 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     t,
   });
 
+  // 外部章节变更的重载时机（审计 M9 + 对抗审 F4）：可见且**不在生成中**才立即 loadData；
+  // 隐藏或生成中都走挂起标记，等两个条件同时满足再刷。生成中刷会：(a) loading 态把直播
+  // 流换成 spinner；(b) current_chapter 推进触发草稿控制器 reset，清掉在飞流缓冲 ——
+  // keep-mounted 之前该场景不可达（切 tab 即 abort），是常驻挂载引入的新可达面。
+  useEffect(() => {
+    if (externalChaptersVersion === undefined) return;
+    if (seenExternalVersionRef.current === externalChaptersVersion) return;
+    seenExternalVersionRef.current = externalChaptersVersion;
+    if (isActiveTab === false || generation.isGenerating) {
+      pendingExternalRefreshRef.current = true;
+    } else {
+      void loadDataRef.current();
+    }
+  }, [externalChaptersVersion, isActiveTab, generation.isGenerating]);
+  useEffect(() => {
+    if (isActiveTab !== false && !generation.isGenerating && pendingExternalRefreshRef.current) {
+      pendingExternalRefreshRef.current = false;
+      void loadDataRef.current();
+    }
+  }, [isActiveTab, generation.isGenerating]);
+
   const displayState = deriveWriterDisplayState({
     auPath,
     state,
@@ -154,6 +204,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     isGenerating: generation.isGenerating,
     isFinalizing: chapterActions.isFinalizing,
     isDiscarding: chapterActions.isDiscarding,
+    isUndoing: chapterActions.isUndoing,
     isSettingsModeBusy,
     currentContent,
     streamText: draftCtrl.streamText,
@@ -244,7 +295,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     isExtractReviewOpen: factsExtraction.isExtractReviewOpen, onCloseExtractReview: () => { factsExtraction.closeExtractReview(); instructionInput.focusInstructionInput(); },
     extractedCandidates: factsExtraction.extractedCandidates, selectedExtractedKeys: factsExtraction.selectedExtractedKeys, getCandidateKey: factsExtraction.getCandidateKey,
     onToggleExtractedCandidate: factsExtraction.toggleExtractedCandidate, onSaveExtracted: () => void factsExtraction.handleSaveExtracted(chapterActions.lastConfirmedChapter), savingExtracted: factsExtraction.savingExtracted,
-    isUndoConfirmOpen: chrome.isUndoConfirmOpen, onCloseUndoConfirm: chrome.closeUndoConfirm, undoChapterNum: displayState.currentChapter - 1, onConfirmUndo: chapterActions.handleUndoConfirmed,
+    isUndoConfirmOpen: chrome.isUndoConfirmOpen, onCloseUndoConfirm: chrome.closeUndoConfirm, undoChapterNum: displayState.currentChapter - 1, onConfirmUndo: chapterActions.handleUndoConfirmed, isUndoing: chapterActions.isUndoing,
   };
 
   return (

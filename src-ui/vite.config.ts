@@ -1,13 +1,54 @@
 import path from "path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { VitePWA } from "vite-plugin-pwa";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // PWA service worker（审计 M21）：D-0037 把 PWA 定为 iOS 唯一方案，此前无 SW
+    // → 离线打开 = 白屏（数据都在 IndexedDB 里但壳打不开）。
+    // dist 三端共用（Tauri frontendDist / Capacitor webDir / Web），插件在所有构建
+    // 里都生成 sw.js（几 KB，无害），但**注册**在 main.tsx 用运行时平台判定门控：
+    // 仅非 Tauri 且非 Capacitor 时 registerSW —— 壳内资源本地加载不需要缓存层，
+    // 也避免 SW 缓存壳资源在壳更新后产生陈旧风险。
+    VitePWA({
+      registerType: "autoUpdate",
+      // 不自动注入注册脚本 —— main.tsx 手动 import virtual:pwa-register 做平台门控
+      injectRegister: false,
+      // 复用 public/manifest.json（index.html 已 link），不让插件另生成 webmanifest
+      manifest: false,
+      workbox: {
+        // 预缓存 app shell：js/css/html + 图标 + manifest + 拉丁字体（52KB）+
+        // 字体声明 css。LXGW CJK 子集（244 片 / 13MB，按 unicode-range 懒加载）
+        // 不进预缓存 —— 每次 SW 更新全量校验/重下 13MB 不可接受，改走下方
+        // CacheFirst 运行时缓存（用到哪片缓存哪片，离线时已访问过的字形照常显示，
+        // 未缓存的子集回退系统 CJK 字体，文本仍可读）。
+        globPatterns: [
+          "**/*.{js,css,html}",
+          "icon-*.png",
+          "favicon.ico",
+          "manifest.json",
+          "fonts/source-serif-4.woff2",
+        ],
+        globIgnores: ["fonts/lxgw-wenkai-screen/**/*.woff2"],
+        runtimeCaching: [
+          {
+            urlPattern: /\/fonts\/lxgw-wenkai-screen\/.*\.woff2$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "ficforge-cjk-fonts",
+              expiration: { maxEntries: 300 },
+            },
+          },
+        ],
+      },
+    }),
+  ],
   resolve: {
     alias: {
       "@ficforge/engine": path.resolve(__dirname, "../src-engine/index.ts"),

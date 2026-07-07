@@ -7,6 +7,8 @@ import { ArrowLeft } from "lucide-react";
 import type { ChapterInfo } from "../../api/engine-client";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { ThemeToggle } from "../shared/ThemeToggle";
+import { Button } from "../shared/Button";
+import { InlineBanner } from "../shared/InlineBanner";
 import { WriterLayout } from "../writer/WriterLayout";
 import { BottomNavBar, type MobileWorkspaceTab } from "./BottomNavBar";
 import { MobileChapterList } from "./MobileChapterList";
@@ -27,8 +29,18 @@ interface MobileLayoutProps {
   onNavigate: (page: string, path?: string) => void;
   onSelectChapter: (chapterNum: number) => void;
   onClearViewChapter: () => void;
+  /** 写文 tab 自己发起的章节变更（confirm/undo）——只刷宿主章节列表。 */
   onChaptersChanged?: () => void;
+  /** 写文 tab 之外的章节变更（对话接受 / 标题编辑 / 导入）——刷宿主列表并 bump
+   * externalChaptersVersion 通知常驻挂载的 WriterLayout 重载（审计 M9）。 */
+  onChaptersChangedExternal?: () => void;
+  externalChaptersVersion?: number;
   milestoneElement?: React.ReactNode;
+  /** embedding 索引过期（审计 M10）：桌面用 Modal，移动端用顶部 banner 对等呈现。
+   * 宿主已合并 dismissed 状态，true 即应展示。 */
+  embeddingStale?: boolean;
+  onEmbeddingRebuild?: () => void;
+  onEmbeddingDismiss?: () => void;
 }
 
 function mapPageToTab(page: WorkspacePage): MobileWorkspaceTab {
@@ -56,7 +68,12 @@ export function MobileLayout({
   onSelectChapter,
   onClearViewChapter,
   onChaptersChanged,
+  onChaptersChangedExternal,
+  externalChaptersVersion,
   milestoneElement,
+  embeddingStale,
+  onEmbeddingRebuild,
+  onEmbeddingDismiss,
 }: MobileLayoutProps) {
   const [activeTab, setActiveTab] = useState<MobileWorkspaceTab>(() => mapPageToTab(activePage));
   const previousPageRef = useRef<WorkspacePage>(activePage);
@@ -102,8 +119,12 @@ export function MobileLayout({
     <div className="app-height relative flex flex-col overflow-hidden bg-background text-text md:hidden">
       {/* Global mobile header — hairline rule + parchment backdrop. AU name
           sits in the middle as the "now-reading" badge; back button returns to
-          the Library (Index of Works). */}
-      <header className="safe-area-top flex h-11 shrink-0 items-center justify-between border-b border-rule bg-surface/85 px-3 backdrop-blur">
+          the Library (Index of Works).
+          几何（审计 M12）：safe-area-top 是 padding-top:env(safe-area-inset-top)，
+          border-box 下固定 h-11 会被这份 padding 吃掉内容高度（刘海机 inset 44-59px
+          > 44px → 内容被压成 0）。改为 min-height = 44px 内容 + inset，让 header
+          随 inset 自然长高。 */}
+      <header className="safe-area-top flex min-h-[calc(2.75rem+var(--safe-area-top))] shrink-0 items-center justify-between border-b border-rule bg-surface/85 px-3 backdrop-blur">
         <button
           type="button"
           className="flex items-center gap-1 font-sans text-[11px] font-medium tracking-[0.04em] text-accent"
@@ -116,7 +137,33 @@ export function MobileLayout({
         <ThemeToggle />
       </header>
 
-      <div className="flex-1 overflow-hidden pb-24">
+      {/* embedding stale 提醒（审计 M10）：桌面在 early-return 之后弹 Modal，移动端
+          此前完全不可达 → RAG 静默降级无人知晓。这里用顶部 banner 对等呈现，复用
+          桌面同一组 i18n key 与「重建/忽略」动作。 */}
+      {embeddingStale ? (
+        <InlineBanner
+          tone="warning"
+          layout="bar"
+          compact
+          message={`${t("embedding.staleTitle")} · ${t("embedding.staleDesc")}`}
+          actions={
+            <>
+              <Button tone="neutral" fill="plain" size="sm" className="h-9 text-xs" onClick={onEmbeddingDismiss}>
+                {t("embedding.skipRebuild")}
+              </Button>
+              <Button tone="accent" fill="solid" size="sm" className="h-9 text-xs" onClick={onEmbeddingRebuild}>
+                {t("embedding.rebuild")}
+              </Button>
+            </>
+          }
+        />
+      ) : null}
+
+      {/* 内容区底部让位（审计 M12）：BottomNavBar 实高 = min-h-56px 内容 + py-2×2
+          + border-t 1px + safe-area-bottom inset ≈ 73px + inset（iOS 全面屏 inset
+          34px → ~107px）。旧 pb-24（96px）在 iOS 少了 ~11px，输入框底部被遮。
+          改用 calc 精确让位：73px + inset。 */}
+      <div className="flex-1 overflow-hidden pb-[calc(4.5625rem+var(--safe-area-bottom))]">
         {activeTab === "writer" && milestoneElement}
         {activeTab === "chapters" ? (
           <MobileChapterList
@@ -135,7 +182,7 @@ export function MobileLayout({
               setActiveTab("writer");
               onNavigate("writer", auPath);
             }}
-            onChaptersChanged={onChaptersChanged}
+            onChaptersChanged={onChaptersChangedExternal ?? onChaptersChanged}
           />
         ) : null}
 
@@ -144,20 +191,26 @@ export function MobileLayout({
         <div className={activeTab === "chat" ? "h-full" : "hidden"}>
           <SimpleChatPanel
             auPath={auPath}
-            onChaptersChanged={onChaptersChanged}
+            onChaptersChanged={onChaptersChangedExternal ?? onChaptersChanged}
             isActiveTab={activeTab === "chat"}
           />
         </div>
 
-        {activeTab === "writer" ? (
+        {/* 写文面板同样常驻挂载、CSS 隐藏（审计 M9）：条件渲染卸载会 abort 在飞的
+            写文生成流（useWriterGeneration unmount cleanup）且无 toast 无部分落地。
+            外部章节变更（对话接受等）经 externalChaptersVersion 通知其重载。
+            chapters/settings/manage 维持按需挂载不变。 */}
+        <div className={activeTab === "writer" ? "h-full" : "hidden"}>
           <WriterLayout
             auPath={auPath}
             onNavigate={(page) => onNavigate(page, auPath)}
             viewChapter={selectedChapter}
             onClearViewChapter={onClearViewChapter}
             onChaptersChanged={onChaptersChanged}
+            isActiveTab={activeTab === "writer"}
+            externalChaptersVersion={externalChaptersVersion}
           />
-        ) : null}
+        </div>
 
         {activeTab === "settings" ? (
           <MobileSettingsView auPath={auPath} currentChapter={currentChapter} />
@@ -167,7 +220,7 @@ export function MobileLayout({
           <MobileManageView
             auPath={auPath}
             defaultSection={manageSection}
-            onImportComplete={onChaptersChanged}
+            onImportComplete={onChaptersChangedExternal ?? onChaptersChanged}
             onNavigateAfterImport={(target) => {
               onClearViewChapter();
               setActiveTab("writer");

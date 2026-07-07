@@ -62,6 +62,7 @@ function renderGenerationHook(initialAuPath = "/data/fandoms/F/aus/A1") {
     mergeDraftIntoState: vi.fn(),
     attachDraftSummary: vi.fn(),
     appendStream: vi.fn(),
+    flushStream: vi.fn(),
     resetStream: vi.fn(),
     markGeneratedWith: vi.fn(),
     markBudgetReport: vi.fn(),

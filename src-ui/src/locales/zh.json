@@ -290,6 +290,7 @@
     "historyProcessedTools": "本轮已处理的操作：\n{{tools}}",
     "toolActionBusy": "有操作正在执行，请等待完成。",
     "busyWriteBlocked": "设定操作进行中，请等待完成后再切回写文。",
+    "busyCloseBlocked": "设定操作进行中，请等待完成后再退出。",
     "statusSummary": {
       "executed": "已执行 {{name}}",
       "skipped": "已跳过 {{name}}",
@@ -865,6 +866,7 @@
     "connection_failed": "连不上AI服务，检查一下网络和接口地址？",
     "api_base_missing": "还没有配置接口地址，去「故事设置」填一下",
     "unknown": "出了点问题，请重试或检查设置",
+    "unsupported_mode": "当前不支持 local 本地模型模式，请在设置中切换到 API 或 Ollama 模式",
     "fandom_already_exists": "同名Fandom已存在，请换个名字",
     "au_already_exists": "同名AU已存在，请换个名字"
   },

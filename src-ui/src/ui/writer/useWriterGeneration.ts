@@ -50,6 +50,8 @@ type UseWriterGenerationOptions = {
   mergeDraftIntoState: (draft: DraftItem) => void;
   attachDraftSummary: (chapterNum: number, label: string, summary: ContextSummary) => void;
   appendStream: (text: string) => void;
+  /** 终态前强制 flush rAF 流式缓冲（审计 M11）——契约与 useSimpleChat.flushStreamingChunks 同款。 */
+  flushStream: () => void;
   resetStream: () => void;
   markGeneratedWith: (generatedWith: DraftGeneratedWith | null) => void;
   markBudgetReport: (report: any) => void;
@@ -76,6 +78,7 @@ export function useWriterGeneration({
   mergeDraftIntoState,
   attachDraftSummary,
   appendStream,
+  flushStream,
   resetStream,
   markGeneratedWith,
   markBudgetReport,
@@ -195,6 +198,10 @@ export function useWriterGeneration({
         }
       }
 
+      // 流结束（正常完成或 error 事件 break）：先把 rAF 缓冲里的尾部 chunks 落到
+      // streamText，再进入终态处理，否则终态视图短暂缺失末尾内容（审计 M11）。
+      flushStream();
+
       if (generationError) {
         if (!nextContextSummary) {
           nextContextSummary = getPendingContextSummary();
@@ -251,6 +258,8 @@ export function useWriterGeneration({
         if (!generateGuard.isStale(token)) resetStream();
       });
     } catch (error) {
+      // 迭代器中途抛错（网络断 / abort）：同样先 flush，让画面完整停在中断点
+      flushStream();
       attachPendingContextSummary(null);
       const isAbort = error instanceof DOMException
         ? error.name === 'AbortError'
@@ -281,6 +290,7 @@ export function useWriterGeneration({
   }, [
     attachDraftSummary,
     appendStream,
+    flushStream,
     attachPendingContextSummary,
     auPath,
     generateGuard,

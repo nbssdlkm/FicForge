@@ -67,6 +67,11 @@ type UseWriterDraftControllerOptions = {
   onDraftSaveError?: (error: unknown) => void;
 };
 
+/** 流式缓冲超此字节数强制同步 flush，绕过 rAF——与 useSimpleChat 的
+ * BUFFER_FLUSH_THRESHOLD 同款兜底：tab 切后台时 rAF 被 throttle（低端设备后台
+ * 1fps），buffer 无限增长会积压整章内存。 */
+const STREAM_FLUSH_THRESHOLD = 50_000;
+
 export function useWriterDraftController({
   auPath,
   state,
@@ -113,13 +118,65 @@ export function useWriterDraftController({
     pendingDraftSaveRef.current = null;
   }, [persistDraft]);
 
-  const appendStream = useCallback((text: string) => {
-    setStreamText((current) => current + text);
+  // 流式渲染 rAF 缓冲（审计 M11）：原版每 chunk 一次 setStreamText → ChapterContentArea
+  // 每 token 全量重渲染累积全文，低端 Android 真机流式 3000 字肉眼卡顿——与简版
+  // useSimpleChat 已修掉的模式同源。chunks 先积到 ref buffer，rAF 回调时一次
+  // setState 批量应用；终态前调 flushStream 保证 buffer 落地。
+  const pendingStreamRef = useRef('');
+  const streamRafRef = useRef<number | null>(null);
+
+  const flushStreamBuffer = useCallback(() => {
+    streamRafRef.current = null;
+    const pending = pendingStreamRef.current;
+    if (!pending) return;
+    pendingStreamRef.current = '';
+    setStreamText((current) => current + pending);
   }, []);
 
+  const appendStream = useCallback((text: string) => {
+    pendingStreamRef.current += text;
+    if (pendingStreamRef.current.length > STREAM_FLUSH_THRESHOLD) {
+      if (streamRafRef.current !== null) {
+        cancelAnimationFrame(streamRafRef.current);
+      }
+      flushStreamBuffer();
+      return;
+    }
+    if (streamRafRef.current === null) {
+      streamRafRef.current = requestAnimationFrame(flushStreamBuffer);
+    }
+  }, [flushStreamBuffer]);
+
+  /** 强制立即把缓冲 chunks 应用到 streamText。生成终态（done / error-partial）前
+   * 必须调用一次，否则 rAF 未跑的尾部 chunks 会在流式视图上短暂缺失。 */
+  const flushStream = useCallback(() => {
+    if (streamRafRef.current !== null) {
+      cancelAnimationFrame(streamRafRef.current);
+      streamRafRef.current = null;
+    }
+    flushStreamBuffer();
+  }, [flushStreamBuffer]);
+
   const resetStream = useCallback(() => {
+    // 丢弃未 flush 的缓冲：reset 语义是「这轮流式显示作废」，缓冲残余不该泄漏到下一轮
+    pendingStreamRef.current = '';
+    if (streamRafRef.current !== null) {
+      cancelAnimationFrame(streamRafRef.current);
+      streamRafRef.current = null;
+    }
     setStreamText('');
   }, []);
+
+  // AU 切换 / unmount：取消挂着的 rAF 并清空缓冲，防旧 AU 的 chunks 错位灌进新 AU
+  useEffect(() => {
+    return () => {
+      pendingStreamRef.current = '';
+      if (streamRafRef.current !== null) {
+        cancelAnimationFrame(streamRafRef.current);
+        streamRafRef.current = null;
+      }
+    };
+  }, [auPath]);
 
   const markGeneratedWith = useCallback((value: DraftGeneratedWith | null) => {
     setGeneratedWith(value);
@@ -246,7 +303,7 @@ export function useWriterDraftController({
     if (!state) {
       setDrafts([]);
       setActiveDraftIndex(0);
-      setStreamText('');
+      resetStream();
       setGeneratedWith(null);
       setBudgetReport(null);
       setRecoveryNotice(false);
@@ -292,7 +349,7 @@ export function useWriterDraftController({
         );
 
         // 重置然后 populate（顺序：先清、再设）
-        setStreamText('');
+        resetStream();
         setGeneratedWith(null);
         setBudgetReport(null);
         pendingContextSummaryRef.current = null;
@@ -310,7 +367,7 @@ export function useWriterDraftController({
     return () => {
       cancelled = true;
     };
-  }, [auPath, state?.current_chapter, flushPendingDraftSave]);
+  }, [auPath, state?.current_chapter, flushPendingDraftSave, resetStream]);
 
   useEffect(() => () => flushPendingDraftSave(), [flushPendingDraftSave]);
 
@@ -323,6 +380,7 @@ export function useWriterDraftController({
     recoveryNotice,
     draftSummaries,
     appendStream,
+    flushStream,
     resetStream,
     markGeneratedWith,
     markBudgetReport,

@@ -118,7 +118,7 @@ export type { ChapterMemoryScan } from "./engine-chapters";
 export { listDrafts, getDraft, saveDraft, deleteDrafts } from "./engine-drafts";
 export { generateChapter } from "./engine-generate";
 export { listTrash, restoreTrash, permanentDeleteTrash, purgeTrash } from "./engine-trash";
-export { saveLore, readLore, deleteLore, listLoreFiles, importFromFandom, getLoreContent } from "./engine-lore";
+export { saveLore, readLore, deleteLore, listLoreFiles, importFromFandom, getLoreContent, sanitizePathSegment } from "./engine-lore";
 export { sendSettingsChat } from "./engine-settings-chat";
 export { listFandoms, getFandomDisplayInfo, createFandom, listAus, createAu, deleteFandom, deleteAu, listFandomFiles, readFandomFile } from "./engine-fandom";
 export { exportChapters, importChaptersFromText } from "./engine-export";
