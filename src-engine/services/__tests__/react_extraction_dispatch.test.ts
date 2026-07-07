@@ -17,7 +17,8 @@ import {
   REACT_TOOL_ANNOTATE,
   REACT_TOOL_FINALIZE,
 } from "../react_extraction_tools.js";
-import { createFact, type Fact } from "../../domain/fact.js";
+import { createFact, type Fact, type FactFieldConfidence } from "../../domain/fact.js";
+import { buildFactEnrichmentSuffix } from "../context_assembler.js";
 import { createThread } from "../../domain/thread.js";
 import { ThreadStatus } from "../../domain/enums.js";
 import { FileFactRepository } from "../../repositories/implementations/file_fact.js";
@@ -301,6 +302,113 @@ describe("reactExtractFromChapter — codex 二审修复回归", () => {
     const res = await reactExtractFromChapter(CHAPTER, 5, [], { characters: [] }, null, provider, { _telemetry_override: silentTelemetry });
     expect(res.facts).toHaveLength(0);
     expect(res.status).toBe("degraded");
+  });
+});
+
+describe("reactExtractFromChapter — H10 富化字段置信度合成（回归锚：删合成逻辑必挂）", () => {
+  it("propose 带 location+known_to+time_kind → _confidence 各字段=medium，且 P3 注入门控产出非空后缀", async () => {
+    const provider = scriptedProvider([
+      toolIter([{ name: REACT_TOOL_PROPOSE, args: { facts: [{
+        content_clean: "林晚月在藏书阁察觉灵力虚弱",
+        characters: ["林晚月"],
+        location: "藏书阁",
+        known_to: ["林晚月"],
+        time_kind: "flashback",
+      }] } }]),
+      toolIter([{ name: REACT_TOOL_FINALIZE, args: {} }]),
+    ]);
+    const res = await reactExtractFromChapter(CHAPTER, 5, [], { characters: ["林晚月"] }, null, provider, { _telemetry_override: silentTelemetry });
+    expect(res.facts).toHaveLength(1);
+    const c = res.facts[0]._confidence as FactFieldConfidence;
+    expect(c?.location).toBe("medium");
+    expect(c?.known_to).toBe("medium");
+    expect(c?.time_kind).toBe("medium");
+    // 未出现的字段不合成（不凭空造置信度）
+    expect(c?.action_verb).toBeUndefined();
+    expect(c?.suspense_type).toBeUndefined();
+    // 关键回归锚：门控（_confidence 存在 + per-field ≥ medium）现在放行 ReAct 提取的富化字段
+    const suffix = buildFactEnrichmentSuffix(res.facts[0] as unknown as Fact);
+    expect(suffix).not.toBe("");
+    expect(suffix).toContain("location: 藏书阁");
+    expect(suffix).toContain("known_to: 林晚月");
+    expect(suffix).toContain("time_kind: flashback");
+  });
+
+  it("已有 _confidence.caused_by=low（未 grounded 因果）不被合成覆盖（merge 不 replace）", async () => {
+    const { factRepo, threadRepo } = await seededRepos([SEED_FACT], [SEED_THREAD]);
+    const provider = scriptedProvider([
+      // evidence「皇宫夜宴」不在 CHAPTER → ungrounded → 内联 caused_by 标 low；location 同时出现
+      toolIter([{ name: REACT_TOOL_PROPOSE, args: { facts: [{
+        content_clean: "这是一条无依据的因果事实",
+        characters: [],
+        evidence: "皇宫夜宴",
+        caused_by_fact_ids: ["f_seed_3"],
+        location: "御书房",
+      }] } }]),
+      toolIter([{ name: REACT_TOOL_FINALIZE, args: {} }]),
+    ]);
+    const res = await reactExtractFromChapter(CHAPTER, 5, [], { characters: [] }, null, provider, {
+      factRepo, threadRepo, auPath: "au", _telemetry_override: silentTelemetry,
+    });
+    const c = res.facts[0]._confidence as FactFieldConfidence;
+    expect(c?.caused_by).toBe("low");     // grounding 标的 low 存活
+    expect(c?.location).toBe("medium");   // 合成的 medium 并存
+  });
+
+  it("富化字段全空 → 不凭空造 _confidence（保持 undefined，与门控 `!c` 短路语义兼容）", async () => {
+    const provider = scriptedProvider([
+      toolIter([{ name: REACT_TOOL_PROPOSE, args: { facts: [{ content_clean: "无任何富化字段的事实", characters: [] }] } }]),
+      toolIter([{ name: REACT_TOOL_FINALIZE, args: {} }]),
+    ]);
+    const res = await reactExtractFromChapter(CHAPTER, 5, [], { characters: [] }, null, provider, { _telemetry_override: silentTelemetry });
+    expect(res.facts).toHaveLength(1);
+    expect(res.facts[0]._confidence).toBeUndefined();
+    expect(buildFactEnrichmentSuffix(res.facts[0] as unknown as Fact)).toBe("");
+  });
+
+  it("端到端：ReAct 提取 → add_fact 落库 → jsonl 读回 + ops rebuild 的 fact 过门控均产非空后缀", async () => {
+    const provider = scriptedProvider([
+      toolIter([{ name: REACT_TOOL_PROPOSE, args: { facts: [{
+        content_clean: "林晚月与沈砚在城郊结盟",
+        characters: ["林晚月"],
+        location: "城郊",
+        action_verb: "结盟",
+        suspense_type: "secret",
+        known_to: "reader_only",
+      }] } }]),
+      toolIter([{ name: REACT_TOOL_FINALIZE, args: {} }]),
+    ]);
+    const res = await reactExtractFromChapter(CHAPTER, 5, [], { characters: ["林晚月"] }, null, provider, { _telemetry_override: silentTelemetry });
+    const extracted = res.facts[0];
+
+    // 模拟 UI 确认落库（extractedEnrichment spread 等价形状：仅带有值的富化键 + _confidence）
+    const adapter = new MockAdapter();
+    const factRepo = new FileFactRepository(adapter);
+    const opsRepo = new FileOpsRepository(adapter);
+    await add_fact("au_e2e", 5, {
+      content_raw: extracted.content_raw,
+      content_clean: extracted.content_clean,
+      characters: extracted.characters,
+      type: extracted.fact_type,
+      narrative_weight: extracted.narrative_weight,
+      location: extracted.location,
+      action_verb: extracted.action_verb,
+      suspense_type: extracted.suspense_type,
+      known_to: extracted.known_to,
+      _confidence: extracted._confidence,
+    }, factRepo, opsRepo);
+
+    // jsonl 读回 → 门控放行
+    const persisted = (await factRepo.list_all("au_e2e"))[0];
+    const suffix = buildFactEnrichmentSuffix(persisted);
+    expect(suffix).toContain("location: 城郊");
+    expect(suffix).toContain("action_verb: 结盟");
+    expect(suffix).toContain("suspense_type: secret");
+    expect(suffix).toContain("known_to: reader_only");
+
+    // ops 快照 rebuild → 门控同样放行（_confidence 走 ops payload 存活）
+    const rebuilt = rebuildFactsFromOps(await opsRepo.list_all("au_e2e"));
+    expect(buildFactEnrichmentSuffix(rebuilt[0])).toBe(suffix);
   });
 });
 

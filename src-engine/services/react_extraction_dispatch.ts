@@ -24,7 +24,7 @@
  */
 
 import type { LLMProvider, Message, ToolCall } from "../llm/provider.js";
-import type { Fact } from "../domain/fact.js";
+import type { Fact, FactFieldConfidence } from "../domain/fact.js";
 import type { Thread } from "../domain/thread.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { ThreadRepository } from "../repositories/interfaces/thread.js";
@@ -85,6 +85,52 @@ const EXTRACT_GEN_PARAMS = { max_tokens: 8000, temperature: 0.3, top_p: 0.95 } a
 /** grounding 用：去空白 + 小写，让 evidence 跨换行 / 大小写仍能逐字匹配。 */
 function normalizeForMatch(s: string): string {
   return s.replace(/\s+/g, "").toLowerCase();
+}
+
+/**
+ * H10（审计第二轮）：为 ReAct propose 的 M8-A 富化字段合成 per-field _confidence=medium。
+ *
+ * 为什么需要：P3 注入门控 buildFactEnrichmentSuffix 要求 fact._confidence 存在且对应
+ * 字段 ≥ medium 才注入。单次调用路径的 prompt 要求 LLM 自评 _confidence；而 ReAct 的
+ * proposeFactItemSchema 不含 _confidence（zod 剥离未知键）、system prompt 也不要求——
+ * 结果 known_to / time_kind / action_verb / location / suspense_type 落库后全部被门控
+ * 静默丢弃，M8-A 富化在默认（ReAct）路径下永不生效。
+ *
+ * 为什么是 medium：ReAct 是结构化工具输出，这些字段全部 optional、模型显式填写才出现
+ * （不填无惩罚），不是自由文本里顺嘴猜的——可信度语义与单次调用路径 LLM 自评 medium 对齐。
+ *
+ * 语义约定：
+ * - 只给「实际出现」的字段合成（null / undefined / 空数组不算，与门控的非空判定对齐）；
+ * - merge 不 replace：已有的 per-field 置信度一律保留（grounding 逻辑标的 caused_by=low、
+ *   宽松解析 fallback 路径 LLM 自带的 _confidence 都不被覆盖）；
+ * - 富化字段全空 → 不凭空造 _confidence（保持 undefined：门控 `!c` 短路语义等价，
+ *   且不给 facts.jsonl 添冗余空对象）；
+ * - caused_by 不在合成范围：其置信度由 grounding 逻辑专管（未 grounded 标 low；grounded
+ *   不标——门控把 caused_by 列为低价值不注入，合成 medium 只会误导 UI 高亮）；
+ * - hidden_from / story_time_tag / story_time_order 门控目前不读，但一并合成，保持
+ *   「字段出现即有置信度」的不变量，未来门控扩展时不再漏。
+ */
+/** 字符串字段「实际出现」= 非空白文本。`""`/纯空格若拿到 medium，门控对
+ * location/action_verb 无非空检查，会把 `location: `（空值）注进 prompt（对抗审 C-1）。 */
+function hasText(v: unknown): v is string {
+  return typeof v === "string" && v.trim() !== "";
+}
+
+function synthesizeEnrichmentConfidence(fact: ExtractedFact): void {
+  const synth: FactFieldConfidence = {};
+  if (hasText(fact.location)) synth.location = "medium";
+  if (hasText(fact.story_time_tag)) synth.story_time_tag = "medium";
+  if (typeof fact.story_time_order === "number") synth.story_time_order = "medium";
+  if (fact.time_kind != null) synth.time_kind = "medium";
+  if (hasText(fact.action_verb)) synth.action_verb = "medium";
+  if (hasText(fact.known_to) || (Array.isArray(fact.known_to) && fact.known_to.length > 0)) {
+    synth.known_to = "medium";
+  }
+  if (Array.isArray(fact.hidden_from) && fact.hidden_from.length > 0) synth.hidden_from = "medium";
+  if (fact.suspense_type != null) synth.suspense_type = "medium";
+  if (Object.keys(synth).length === 0) return;
+  // 后展开已有值 → 已有键赢（merge 不 replace）
+  fact._confidence = { ...synth, ...(fact._confidence ?? {}) };
 }
 
 function repairExtractionArgs(toolName: string, rawArgs: string): {
@@ -242,6 +288,9 @@ export async function reactExtractFromChapter(
             if (!isGrounded) fact._confidence = { ...(fact._confidence ?? {}), caused_by: "low" };
           }
         }
+        // H10：出现的富化字段合成 _confidence=medium（不覆盖上面 grounding 标的 caused_by=low），
+        // 否则 P3 注入门控 buildFactEnrichmentSuffix 会把 ReAct 提取的富化字段全部静默丢弃。
+        synthesizeEnrichmentConfidence(fact);
         proposedFacts.push(fact);
         grounded.push(isGrounded);
         acceptedIndices.push(proposedFacts.length - 1);
