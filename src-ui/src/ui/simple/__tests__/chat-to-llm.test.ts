@@ -110,6 +110,56 @@ describe("chatToOpenAIMessages", () => {
     }
   });
 
+  it("M18: 半配对 assistant.toolCalls（a 有 result、b 没有）→ downgrade 同时剔除已配对的 tool 消息 a（防 orphan tool 400）", () => {
+    // 真机复现：assistant 声明 tool_calls=[a,b]，但只有 a 的 tool-result 落盘（b 漏 fetch）。
+    // 旧代码 downgrade 时只丢 assistant 的 tool_calls，却把先前 push 的 a 那条 role:"tool"
+    // 留在结果里 → a 没了前置 tool_calls 父消息，成 orphan tool → OpenAI 400 钉死整段 history。
+    // 修复后：downgrade 时把 a 那条配对 tool 消息一并剔除。
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const out = chatToOpenAIMessages([
+        { id: "u", kind: "user", timestamp: "t", content: "看第 5 章和 Alice 设定" },
+        {
+          id: "a1",
+          kind: "assistant",
+          timestamp: "t",
+          content: "让我查一下",
+          toolCalls: [
+            { id: "call_a", name: "show_chapter", args: '{"chapter_num":5}' },
+            { id: "call_b", name: "show_setting", args: '{"file_path":"characters/Alice.md"}' },
+          ],
+        },
+        // 只有 call_a 的 result；call_b 漏 fetch（半配对）
+        {
+          id: "tr_a",
+          kind: "tool-result",
+          timestamp: "t",
+          toolCallId: "call_a",
+          toolName: "show_chapter",
+          content: "第五章正文...",
+        },
+        { id: "a2", kind: "assistant", timestamp: "t", content: "查到了" },
+      ]);
+
+      // 结果里绝不能出现任何 role:"tool" 消息（call_a 那条已被同步剔除）。
+      expect(out.some((m) => m.role === "tool")).toBe(false);
+      // 半配对 assistant downgrade 为 plain content（content 非空 → 保留）。
+      expect(out).toEqual([
+        { role: "user", content: "看第 5 章和 Alice 设定" },
+        { role: "assistant", content: "让我查一下" },
+        { role: "assistant", content: "查到了" },
+      ]);
+      // 断言剔除的 tool 消息数被记进 warn（回退旧码时 out 会含 orphan tool → 此断言挂）。
+      expect(warnSpy).toHaveBeenCalled();
+      const warnMsg = String(warnSpy.mock.calls[0]?.[0] ?? "");
+      expect(warnMsg).toContain("orphan assistant.tool_calls");
+      expect(warnMsg).toContain("call_b");
+      expect(warnMsg).toContain("paired tool message");
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   it("orphan assistant.toolCalls 但 content 非空 → downgrade 为 plain content 保留", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {

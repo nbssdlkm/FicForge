@@ -15,6 +15,7 @@ import {
   type SimpleChatEvent,
 } from "../simple_chat_dispatch.js";
 import { createProject, createLLMConfig } from "../../domain/project.js";
+import { chapterInflightKey, markChapterInflight, releaseChapterInflight } from "../chapter_inflight.js";
 import { createState } from "../../domain/state.js";
 import { createSettings } from "../../domain/settings.js";
 import { createFact } from "../../domain/fact.js";
@@ -1113,5 +1114,138 @@ describe("dispatch_simple_chat", () => {
     if (toolResult && toolResult.type === "tool_result") {
       expect(toolResult.data.content.length).toBeGreaterThan(huge.length / 2);
     }
+  });
+
+  // ---------------------------------------------------------------------------
+  // M15：未知工具名（LLM 幻觉）不再原样 emit，而是走 repair retryHint 路径
+  // ---------------------------------------------------------------------------
+  it("M15: 未知工具名 → 不 emit tool_call，注 retryHint tool_result 让 LLM 改选", async () => {
+    const adapter = new MockAdapter();
+    // iter 0 调一个没声明的工具名（既非 mutating/read-only/chat_reply，也无 schema）。
+    // iter 1 兜底 chat_reply，保证 loop 收敛。
+    const provider = makeMultiIterProvider([
+      [
+        {
+          delta: "",
+          tool_call_deltas: [{
+            index: 0, id: "tc_hallucinated", type: "function",
+            function: { name: "write_the_whole_book", arguments: '{"foo":"bar"}' },
+          }],
+          is_final: false, input_tokens: 40, output_tokens: null, finish_reason: null,
+        },
+        { delta: "", is_final: true, input_tokens: null, output_tokens: 3, finish_reason: "tool_calls" },
+      ],
+      [
+        {
+          delta: "",
+          tool_call_deltas: [{
+            index: 0, id: "tc_reply", type: "function",
+            function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"抱歉，我改用对话回复。"}' },
+          }],
+          is_final: false, input_tokens: 60, output_tokens: null, finish_reason: null,
+        },
+        { delta: "", is_final: true, input_tokens: null, output_tokens: 10, finish_reason: "tool_calls" },
+      ],
+    ]);
+
+    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "帮我写完整本书")));
+
+    // 未知工具不该被 emit 成 tool_call（否则 UI 弹出无法执行的待确认卡片）。
+    const emittedToolNames = events
+      .filter((e): e is Extract<SimpleChatEvent, { type: "tool_call" }> => e.type === "tool_call")
+      .map((e) => e.data.function.name);
+    expect(emittedToolNames).not.toContain("write_the_whole_book");
+
+    // 应注一条针对该未知工具的 tool_result，内容含"工具名是否正确"式 retryHint。
+    const tr = events.find(
+      (e): e is Extract<SimpleChatEvent, { type: "tool_result" }> =>
+        e.type === "tool_result" && e.data.tool_call_id === "tc_hallucinated",
+    );
+    expect(tr).toBeDefined();
+    expect(tr!.data.content).toContain("工具名");
+
+    // loop 收敛到 chat_reply（iter 1），未卡死也未把幻觉工具当 terminal。
+    const chatChunks = events.filter((e) => e.type === "chat_reply_chunk");
+    expect(chatChunks.length).toBeGreaterThan(0);
+  });
+
+  // ---------------------------------------------------------------------------
+  // M17：同 (au, chapter) 并发 dispatch → 第二个直接 409 拒绝，不覆盖草稿
+  // ---------------------------------------------------------------------------
+  it("M17: 并发 dispatch 同章 → 第二个 emit DISPATCH_IN_PROGRESS 且不产出草稿", async () => {
+    const adapter = new MockAdapter();
+
+    // 慢 provider：第一个 dispatch 卡在流式中途，制造"在飞"窗口。
+    let releaseFirst!: () => void;
+    const firstGate = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    const slowProvider: LLMProvider = {
+      async generate(): Promise<LLMResponse> {
+        return { content: "", model: "mock", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
+      },
+      async *generateStream(): AsyncIterable<LLMChunk> {
+        yield { delta: "半", is_final: false, input_tokens: 10, output_tokens: null, finish_reason: null };
+        await firstGate; // 挂起，保持 dispatch 在飞
+        yield { delta: "章", is_final: true, input_tokens: null, output_tokens: 2, finish_reason: "stop" };
+      },
+    };
+    const fastProvider = makeStreamProvider([
+      { delta: "second", is_final: true, input_tokens: 5, output_tokens: 1, finish_reason: "stop" },
+    ]);
+
+    // 启动第一个 dispatch 并推进到第一个 token（占用并发锁），但不排空。
+    const firstGen = dispatch_simple_chat(makeBaseParams(adapter, slowProvider, "写第一章"));
+    const firstEvents: SimpleChatEvent[] = [];
+    const firstToken = await firstGen.next();
+    if (!firstToken.done) firstEvents.push(firstToken.value);
+
+    // 第一个仍在飞时，第二个同 (au, chapter) dispatch 应立即 409。
+    const secondEvents = await collect(dispatch_simple_chat(makeBaseParams(adapter, fastProvider, "写第一章")));
+    const secondErr = secondEvents.find(
+      (e): e is Extract<SimpleChatEvent, { type: "error" }> => e.type === "error",
+    );
+    expect(secondErr).toBeDefined();
+    expect(secondErr!.data.error_code).toBe("DISPATCH_IN_PROGRESS");
+    // 第二个不该产出任何 done_text（不覆盖第一个的草稿）。
+    expect(secondEvents.some((e) => e.type === "done_text")).toBe(false);
+
+    // 放行第一个跑完并排空，锁释放。
+    releaseFirst();
+    for await (const ev of firstGen) firstEvents.push(ev);
+    expect(firstEvents.some((e) => e.type === "done_text")).toBe(true);
+
+    // 锁已释放：第一个跑完后再起一个同章 dispatch 应能正常进入（不再 409）。
+    const thirdEvents = await collect(dispatch_simple_chat(makeBaseParams(adapter, fastProvider, "写第一章")));
+    expect(thirdEvents.some((e) => e.type === "error" && e.data.error_code === "DISPATCH_IN_PROGRESS")).toBe(false);
+  });
+
+  // ---------------------------------------------------------------------------
+  // F1：写文 generate_chapter 与对话 dispatch 共用 chapter_inflight 互斥表 ——
+  // 跨路径并发（对话流式中切写文 tab 点生成，反之亦然）同样被 409 拦下。
+  // 回退旧码（两张独立 Map）此测试必挂：dispatch 看不到 generate 侧的占用。
+  // ---------------------------------------------------------------------------
+  it("F1: 写文路径占用同章互斥表时，dispatch 被 409 拒绝（跨路径共享）", async () => {
+    const adapter = new MockAdapter();
+    const fastProvider = makeStreamProvider([
+      { delta: "text", is_final: true, input_tokens: 5, output_tokens: 1, finish_reason: "stop" },
+    ]);
+
+    // 模拟写文 generate_chapter 在飞：以 "generate" 身份占用同 (au, chapter) key。
+    const key = chapterInflightKey("au_test", 1);
+    markChapterInflight(key, "generate");
+    try {
+      const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, fastProvider, "写第一章")));
+      const err = events.find(
+        (e): e is Extract<SimpleChatEvent, { type: "error" }> => e.type === "error",
+      );
+      expect(err).toBeDefined();
+      expect(err!.data.error_code).toBe("DISPATCH_IN_PROGRESS");
+      expect(events.some((e) => e.type === "done_text")).toBe(false);
+    } finally {
+      releaseChapterInflight(key);
+    }
+
+    // 释放后同章 dispatch 恢复可用。
+    const after = await collect(dispatch_simple_chat(makeBaseParams(adapter, fastProvider, "写第一章")));
+    expect(after.some((e) => e.type === "error" && e.data.error_code === "DISPATCH_IN_PROGRESS")).toBe(false);
   });
 });

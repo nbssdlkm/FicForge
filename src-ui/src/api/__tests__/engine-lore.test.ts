@@ -94,4 +94,24 @@ describe("engine-lore path sanitization", () => {
     expect(imported.imported).toEqual(["Connor: RK800?.md"]);
     expect(adapter.raw(`${au.path}/characters/Connor_ RK800_.md`)).toBe("# legacy character");
   });
+
+  it("M28: saveLore 回传实际落盘的 sanitized filename/category（供 undo/modify 回填读写闭环）", async () => {
+    // 传入含全角标点的名字：磁盘名会被 sanitize 成 _；返回值必须是磁盘真名，
+    // 否则调用方用传入名去 undo/read 会找不到文件（写读双路径不对称，M28）。
+    const saved = await saveLore({
+      au_path: "au1",
+      category: "characters",
+      filename: "林黛玉：初见？.md",
+      content: "# 林黛玉",
+    });
+
+    // 返回的 filename/category 与磁盘 path 末两段一致，且是 sanitize 后的白名单形态。
+    expect(saved.category).toBe("characters");
+    expect(saved.filename).toBe(saved.path.split("/").at(-1));
+    expect(saved.filename).not.toMatch(/[：？]/); // 全角标点已被换掉
+    expect(saved.filename).toMatch(/^[\p{L}\p{N}._ -]+$/u);
+    // 用返回的真名能读回内容（闭环验证）。
+    const back = await readLore({ au_path: "au1", category: saved.category, filename: saved.filename });
+    expect(back.content).toBe("# 林黛玉");
+  });
 });

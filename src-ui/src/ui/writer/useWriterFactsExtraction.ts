@@ -33,6 +33,10 @@ export function useWriterFactsExtraction(auPath: string) {
   // 在飞提取的取消句柄。提取是多秒 LLM 调用：AU 切换 / 宿主卸载时 abort，
   // 避免结果无宿主可落还继续烧 token（审计 H2）。
   const extractAbortRef = useRef<AbortController | null>(null);
+  // M25：半成功去重。逐条 addFact 中途抛错（网络/磁盘）时，已入库的前半条要记下来，
+  // 重试只补余下 —— 否则整批候选原封不动，重试把前半再存一遍产生重复 fact。
+  // 用对象引用集合（candidate 引用在一轮 review 内稳定，不受索引 key 位移影响）。
+  const savedCandidatesRef = useRef<Set<ExtractedFactCandidate>>(new Set());
 
   const focusInstructionInput = useCallback(() => {
     // The parent component should provide its own focus mechanism;
@@ -72,6 +76,8 @@ export function useWriterFactsExtraction(auPath: string) {
       // 把 candidate.chapter 统一钉到该章 —— 既保证落库归属正确，也让 ExtractReviewModal
       // 展示的来源章与实际存储一致，不再显示 LLM 可能幻觉的章号（展示/存储不一致，对抗审 MEDIUM）。
       const candidates = (result.facts || []).map((c) => ({ ...c, chapter: lastConfirmedChapter }));
+      // 新一轮候选 → 清空上一轮的「已保存」登记（M25），避免跨轮误跳过。
+      savedCandidatesRef.current = new Set();
       setExtractedCandidates(candidates);
       selectAll(candidates);
       setFactsPromptOpen(false);
@@ -106,10 +112,13 @@ export function useWriterFactsExtraction(auPath: string) {
     // hook 内部记录的提取目标章优先（handleOpenExtractReview 设置），参数仅作
     // 旧调用方（写文 modal 链）兼容回退 —— 两者本应同值，内部值消除影子状态漂移。
     const targetChapter = extractTargetChapter ?? lastConfirmedChapter;
+    let savedThisRun = 0;
     try {
       const selectedCandidates = filterSelected(extractedCandidates);
 
       for (const candidate of selectedCandidates) {
+        // M25：跳过本轮已成功入库的候选（上一次半成功遗留），只补余下。
+        if (savedCandidatesRef.current.has(candidate)) continue;
         // 归属用「本次提取所处理的确定章号」targetChapter，而非 LLM 候选里可能幻觉的
         // candidate.chapter —— 对齐 backfill persistChapter「不信任 LLM chapter 字段」的口径（审计⑧）。
         // 提取是对单章跑的，所有候选都归该章；仅在极端缺失时才回退。
@@ -123,17 +132,23 @@ export function useWriterFactsExtraction(auPath: string) {
           ...(candidate.timeline ? { timeline: candidate.timeline } : {}),
           ...extractedEnrichment(candidate),  // caused_by + M8-A 富化（此前在此丢）
         });
+        // 每条成功后立即登记：即便下一条抛错，这条也不会在重试时重存。
+        savedCandidatesRef.current.add(candidate);
+        savedThisRun += 1;
       }
       if (guard.isKeyStale(requestAuPath)) return;
 
-      showSuccess(t('facts.extractSaved', { count: selectedCandidates.length }));
+      showSuccess(t('facts.extractSaved', { count: savedThisRun }));
       setExtractReviewOpen(false);
       setExtractedCandidates([]);
       setExtractTargetChapter(null);
+      savedCandidatesRef.current = new Set();
       clearSelection();
       focusInstructionInput();
     } catch (error) {
       if (guard.isKeyStale(requestAuPath)) return;
+      // 半成功：已入库的候选已登记进 savedCandidatesRef，modal 保持打开、候选/勾选原封不动，
+      // 用户点重试时只补未存的余下部分。
       showError(error, t('error_messages.unknown'));
     } finally {
       if (!guard.isKeyStale(requestAuPath)) {
@@ -153,6 +168,7 @@ export function useWriterFactsExtraction(auPath: string) {
     setSavingExtracted(false);
     setExtractedCandidates([]);
     setExtractTargetChapter(null);
+    savedCandidatesRef.current = new Set();
     clearSelection();
     setFactsPromptOpen(false);
     setExtractReviewOpen(false);

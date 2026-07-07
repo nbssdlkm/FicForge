@@ -50,7 +50,10 @@ export async function saveLore(req: { au_path?: string; fandom_path?: string; ca
   const dir = filePath.substring(0, filePath.lastIndexOf("/"));
   await adapter.mkdir(dir);
   await adapter.writeFile(filePath, req.content);
-  return { status: "ok", path: filePath };
+  // M28：回传实际落盘的 filename / category（已过 sanitizePathSegment 白名单清洗）。
+  // 调用方传进来的 filename 若含被清洗字符（如全角标点），磁盘名 ≠ 传入名 —— 后续
+  // undo/modify/read 用传入名找不到文件。用返回值回填 undoMeta 才能闭环。
+  return { status: "ok", path: filePath, filename: safeFilename, category: safeCategory };
 }
 
 export async function readLore(req: { au_path?: string; fandom_path?: string; category: string; filename: string }) {

@@ -49,6 +49,23 @@ import { createTelemetry, type TelemetrySink } from "./agent_telemetry.js";
 const SIMPLE_AGENT_NAME = "simple_chat";
 
 // ---------------------------------------------------------------------------
+// 幂等 / 并发防护（M17）
+// ---------------------------------------------------------------------------
+//
+// 融合后「对话」tab 与「写文」tab 恒并列，共用同一 AU 的草稿标签空间。dispatch 在
+// loop 前一次性分配草稿 label（nextDraftLabel 读当时的 existingDrafts），无重入防护时
+// 两个并发生成（对话×对话、或对话流式中切写文 tab 再点生成的对话×写文跨路径）会各自
+// 读到同一 existingDrafts → 拿到同一 label → 后完成者静默覆盖先完成者的草稿。
+//
+// 互斥表与 generate_chapter 共用 chapter_inflight 单一真相源（对抗审 F1）：独立 Map
+// 只能封住自身重入，封不住跨路径并发。key 用 au+chapter（label 竞争只在同章内发生）。
+import { chapterInflightKey, isChapterInflight, markChapterInflight, releaseChapterInflight } from "./chapter_inflight.js";
+
+function dispatchKey(au_id: string, chapter_num: number): string {
+  return chapterInflightKey(au_id, chapter_num);
+}
+
+// ---------------------------------------------------------------------------
 // 常量 — UI 端 switch case 引用，避免字符串散落
 // ---------------------------------------------------------------------------
 
@@ -91,6 +108,21 @@ function isMutatingTool(name: string): boolean {
 
 function isReadOnlyTool(name: string): boolean {
   return SIMPLE_READ_ONLY_TOOLS.has(name);
+}
+
+/**
+ * 已知（受声明）的工具集合：read-only + mutating + chat_reply + 有 zod schema 的。
+ * LLM 幻觉出未声明的工具名（M15）时 isKnownTool=false —— 此类调用参数一律视为无效，
+ * 走 repair 的 retryHint 路径让 LLM 改选合法工具，而不是原样 emit 成"无名待确认卡片"
+ * （既无 schema 也无执行器，用户 confirm 也执行不了）。
+ */
+function isKnownTool(name: string): boolean {
+  return (
+    isReadOnlyTool(name)
+    || isMutatingTool(name)
+    || name === SIMPLE_TOOL_CHAT_REPLY
+    || Object.prototype.hasOwnProperty.call(SIMPLE_TOOL_SCHEMAS, name)
+  );
 }
 
 /**
@@ -426,6 +458,24 @@ export async function* dispatch_simple_chat(
     _provider_override, _tools_override, _telemetry_override,
   } = params;
 
+  // M17+F1：同 (au, chapter) 已有在飞生成（对话或写文任一路径）→ 直接 409 拒绝，
+  // 不进 loop、不分配 label。
+  const concurrencyKey = dispatchKey(au_id, chapter_num);
+  if (isChapterInflight(concurrencyKey)) {
+    yield {
+      type: "error",
+      data: {
+        error_code: "DISPATCH_IN_PROGRESS",
+        message: language === "en"
+          ? "This chapter is already being generated. Please wait for it to finish."
+          : "该章节正在生成中，请等待完成",
+        actions: [],
+        partial_draft_label: null,
+      },
+    };
+    return;
+  }
+
   const telemetry = _telemetry_override ?? createTelemetry();
 
   const emitRepairTelemetry = (
@@ -454,7 +504,13 @@ export async function* dispatch_simple_chat(
   let label = "";
   const startTime = performance.now();
   let lastIterFullText = "";
+  // L9：rescue 是否真的把 partial 存进了 draft repo。error 事件的 partial_draft_label
+  // 只有在 rescue 成功时才该指向 label —— 否则 UI「部分草稿已保存为 X」是空指针，
+  // 用户点开找不到草稿。仅当 onPartialRescue 落盘成功才置 true。
+  let rescueSucceeded = false;
 
+  // M17：占用并发标志紧贴 try —— finally 保证释放，中间无可抛点，避免标志泄漏锁死本章。
+  markChapterInflight(concurrencyKey, "dispatch");
   try {
     const llmConfig = resolve_llm_config(session_llm, project, settings);
     const modelName = llmConfig.model;
@@ -600,6 +656,21 @@ export async function* dispatch_simple_chat(
           const restCalls = calls.filter((c) => !isReadOnlyTool(c.function.name));
           for (const c of restCalls) {
             if (c.function.name === SIMPLE_TOOL_CHAT_REPLY && chatReplyStreamingActive) continue;
+            // M15：chat_reply 以外的 mutating 调用同样过 repair —— 修复后的 args 才是
+            // UI confirm 卡片该展示/执行的（旧代码原样透传 LLM 未修复 args，路径污染
+            // 无从纠正）。chat_reply 本身不 emit tool_call（它是 terminal 文本气泡），
+            // 无需 repair。
+            if (c.function.name !== SIMPLE_TOOL_CHAT_REPLY) {
+              const repaired = repairToolArgs(c.function.name, c.function.arguments);
+              emitRepairTelemetry(c.function.name, repaired);
+              if (repaired.success) {
+                events.push({
+                  type: "tool_call",
+                  data: { ...c, function: { ...c.function, arguments: JSON.stringify(repaired.args) } },
+                });
+                continue;
+              }
+            }
             events.push({ type: "tool_call", data: c });
           }
           events.push({ type: "business", data: { kind: "done_tools", data: { tool_calls: calls } } });
@@ -645,11 +716,19 @@ export async function* dispatch_simple_chat(
           return {
             call: c,
             isMutating: isMutatingTool(c.function.name),
+            known: isKnownTool(c.function.name),
             valid: repaired.success,
             retryHint: repaired.retryHint,
+            // F6：valid 路径 emit 修复后的 args（与 Branch 1 的 M15 口径一致）——
+            // UI confirm 卡片展示/执行的必须是修复产物，原样透传的路径污染无从纠正。
+            repairedArgs: repaired.args,
           };
         });
-        const hasInvalidArgs = validations.some((v) => v.isMutating && !v.valid);
+        // M15：未知工具（LLM 幻觉的工具名，非 mutating/read-only/chat_reply、无 schema）
+        // 同样触发 retry 路径 —— repairToolArgs 对无 schema 的工具返回 success=false +
+        // "工具名是否正确" retryHint，但旧 hasInvalidArgs 只看 isMutating，未知工具
+        // 被漏过、原样 emit 成无法执行的待确认卡片，"注 hint 让 LLM 改正"死路。
+        const hasInvalidArgs = validations.some((v) => (v.isMutating || !v.known) && !v.valid);
 
         if (hasInvalidArgs) {
           iterCtx.internalHistory.push({
@@ -681,8 +760,13 @@ export async function* dispatch_simple_chat(
           return { mode: "continue", events };
         }
 
-        // mutating valid → emit + terminal break
-        for (const c of calls) events.push({ type: "tool_call", data: c });
+        // mutating valid → emit 修复后 args + terminal break（F6：与 Branch 1 同口径）
+        for (const v of validations) {
+          events.push({
+            type: "tool_call",
+            data: { ...v.call, function: { ...v.call.function, arguments: JSON.stringify(v.repairedArgs) } },
+          });
+        }
         events.push({ type: "business", data: { kind: "done_tools", data: { tool_calls: calls } } });
         return { mode: "terminal", events };
       },
@@ -720,6 +804,7 @@ export async function* dispatch_simple_chat(
         const partial = createDraft({ au_id, chapter_num, variant: label, content: text });
         try {
           await withAuLock(au_id, async () => { await draft_repo.save(partial); });
+          rescueSucceeded = true;
           telemetry.emit({
             kind: "partial_draft_rescued",
             agentName: SIMPLE_AGENT_NAME,
@@ -799,7 +884,10 @@ export async function* dispatch_simple_chat(
     if (e instanceof DOMException ? e.name === "AbortError" : e instanceof Error && e.name === "AbortError") {
       throw e;
     }
-    // partial rescue 已在 onPartialRescue 内处理，这里只 emit error event
+    // partial rescue 已在 onPartialRescue 内处理，这里只 emit error event。
+    // L9：partial_draft_label 只有在 rescue 真落盘成功时才给 label —— 有 lastIterFullText
+    // 但 draft_repo.save 抛错（磁盘满 / 权限）时草稿并不存在，给 label 会让 UI 提示
+    // 「部分草稿已保存为 X」但用户找不到。
     if (e instanceof LLMError) {
       yield {
         type: "error",
@@ -807,7 +895,7 @@ export async function* dispatch_simple_chat(
           error_code: e.error_code,
           message: e.message,
           actions: e.actions,
-          partial_draft_label: lastIterFullText ? label : null,
+          partial_draft_label: rescueSucceeded ? label : null,
         },
       };
       return;
@@ -818,8 +906,12 @@ export async function* dispatch_simple_chat(
         error_code: "DISPATCH_FAILURE",
         message: e instanceof Error ? e.message : String(e),
         actions: [],
-        partial_draft_label: lastIterFullText ? label : null,
+        partial_draft_label: rescueSucceeded ? label : null,
       },
     };
+  } finally {
+    // M17：无论正常结束 / error / abort throw，都要释放并发标志，否则该 (au, chapter)
+    // 永久被锁死无法再生成。
+    releaseChapterInflight(concurrencyKey);
   }
 }

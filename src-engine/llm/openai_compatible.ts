@@ -136,42 +136,79 @@ export class OpenAICompatibleProvider implements LLMProvider {
 
     const controller = new AbortController();
     // 可重置超时：每次收到数据后重置，防止长生成被误杀
-    let timeoutId = setTimeout(() => controller.abort(), READ_TIMEOUT);
-    const resetTimeout = () => {
-      clearTimeout(timeoutId);
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const armTimeout = () => {
+      if (timeoutId !== null) clearTimeout(timeoutId);
       timeoutId = setTimeout(() => controller.abort(), READ_TIMEOUT);
     };
+    const clearTimeoutIfSet = () => {
+      if (timeoutId !== null) { clearTimeout(timeoutId); timeoutId = null; }
+    };
 
-    // 外部 signal 触发时同步 abort 内部 controller
+    // 外部 signal 触发时同步 abort 内部 controller。
+    // L6：listener + timer 的清理统一放最外层 finally（覆盖 fetch 失败 / !ok /
+    // 无 body / 流中断等所有 throw 路径），旧代码只在 reader-loop 的 finally 清理，
+    // 前置几条 throw 会泄漏 abort listener。
     const onExternalAbort = () => controller.abort();
+    let listenerAttached = false;
     if (params.signal) {
       if (params.signal.aborted) { controller.abort(); }
-      else { params.signal.addEventListener("abort", onExternalAbort, { once: true }); }
+      else { params.signal.addEventListener("abort", onExternalAbort, { once: true }); listenerAttached = true; }
     }
 
-    let resp: Response;
     try {
-      resp = await fetch(url, {
-        method: "POST",
-        headers: this.headers(),
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-    } catch (e) {
-      clearTimeout(timeoutId);
-      if (params.signal?.aborted) {
-        throw createAbortError(e instanceof Error ? e.message : undefined);
+      armTimeout();
+
+      // L5：首包前 429/5xx 自动重试（复用非流式 requestWithRetry 的等待口径）。
+      // 只在还没 yield 任何数据的安全窗口内重试 —— 一旦进 reader 循环产出 chunk 就不能
+      // 重发（会重复正文）。指数退避，可被外部 signal / 内部超时中断。
+      const STREAM_OPEN_DELAYS = [0, 1000, 2000];
+      let resp: Response | null = null;
+      for (let attempt = 0; attempt < STREAM_OPEN_DELAYS.length; attempt++) {
+        if (params.signal?.aborted) {
+          throw createAbortError();
+        }
+        if (STREAM_OPEN_DELAYS[attempt] > 0) {
+          // waitWithAbort 只在 signal abort 时 reject；此处把它归一成 AbortError
+          await waitWithAbort(STREAM_OPEN_DELAYS[attempt], params.signal);
+          armTimeout();
+        }
+
+        let candidate: Response;
+        try {
+          candidate = await fetch(url, {
+            method: "POST",
+            headers: this.headers(),
+            body: JSON.stringify(body),
+            signal: controller.signal,
+          });
+        } catch (e) {
+          if (params.signal?.aborted) {
+            throw createAbortError(e instanceof Error ? e.message : undefined);
+          }
+          // 建连阶段网络失败：还有重试机会就退避重试，否则报 network_error。
+          if (attempt < STREAM_OPEN_DELAYS.length - 1) continue;
+          throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"]);
+        }
+
+        if (candidate.ok) { resp = candidate; break; }
+
+        // 429 / 5xx：首包前的安全窗口，退避后重试；末次仍失败则走标准错误分类。
+        const retryable = candidate.status === 429 || candidate.status >= 500;
+        if (retryable && attempt < STREAM_OPEN_DELAYS.length - 1) {
+          // drain body 避免连接泄漏（best-effort）
+          try { await candidate.text(); } catch { /* ignore */ }
+          continue;
+        }
+        const text = await candidate.text();
+        handleError(candidate.status, text);
       }
-      throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"]);
-    }
 
-    if (!resp.ok) {
-      clearTimeout(timeoutId);
-      const text = await resp.text();
-      handleError(resp.status, text);
-    }
+      if (!resp) {
+        // 理论不可达（循环要么 break/return 要么 throw），防御性兜底。
+        throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"]);
+      }
 
-    try {
       if (!resp.body) {
         throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"]);
       }
@@ -183,7 +220,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
         const { done, value } = await reader.read();
         if (done) break;
 
-        resetTimeout(); // 收到数据，重置超时计时器
+        armTimeout(); // 收到数据，重置超时计时器
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
@@ -248,13 +285,24 @@ export class OpenAICompatibleProvider implements LLMProvider {
       if (params.signal?.aborted) {
         throw createAbortError(e instanceof Error ? e.message : undefined);
       }
+      // LLMError / AbortError 保持既有语义：AbortError = 内部 READ_TIMEOUT 触发的
+      // controller.abort()（外部未 abort），归 network_error 带重试。
+      if (e instanceof LLMError) throw e;
       if (isAbortError(e)) {
+        throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"]);
+      }
+      // M16：流中途断网。fetch 的 ReadableStream reader.read() 在连接被 RST / DNS 丢失
+      // 时抛 TypeError（"network error" / "Failed to fetch" 等），不是 AbortError。
+      // 旧代码裸 `throw e` → 上游归 INTERNAL_ERROR/DISPATCH_FAILURE（无重试按钮），
+      // 与"首包前断网正确报 network_error"不一致。这里统一分类为 network_error 带
+      // retry；partial draft 由上层 rescue 保住，仅错误分类被修正。
+      if (e instanceof TypeError) {
         throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"]);
       }
       throw e;
     } finally {
-      clearTimeout(timeoutId);
-      params.signal?.removeEventListener("abort", onExternalAbort);
+      clearTimeoutIfSet();
+      if (listenerAttached) params.signal?.removeEventListener("abort", onExternalAbort);
     }
   }
 

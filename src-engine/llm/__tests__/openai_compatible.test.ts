@@ -131,6 +131,72 @@ describe("OpenAICompatibleProvider.generateStream", () => {
       name: "AbortError",
     });
   });
+
+  // M16：流中途断网（reader.read() 抛 TypeError，非 AbortError）→ 归 network_error 带重试。
+  it("M16: mid-stream network TypeError → LLMError network_error with retry action", async () => {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        // 先正常吐一片，随后模拟连接被 RST：pull 时抛 TypeError（fetch 流断网的真实形态）。
+        controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"半"}}]}\n\n'));
+      },
+      pull() {
+        throw new TypeError("network error");
+      },
+    });
+    const resp = new Response(stream, { status: 200, headers: { "Content-Type": "text/event-stream" } });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(resp));
+
+    const provider = new OpenAICompatibleProvider("https://example.com", "key", "model");
+    const received: string[] = [];
+    let caught: unknown;
+    try {
+      for await (const c of provider.generateStream({
+        messages: [{ role: "user", content: "hello" }],
+        max_tokens: 32, temperature: 1, top_p: 1,
+      })) {
+        received.push(c.delta);
+      }
+    } catch (e) {
+      caught = e;
+    }
+
+    // 首片正常收到（partial 有救），但断网被正确分类为 network_error + retry（不是裸 TypeError → INTERNAL_ERROR）。
+    expect(received).toContain("半");
+    expect(caught).toMatchObject({ error_code: "network_error" });
+    expect((caught as { actions: string[] }).actions).toContain("retry");
+    expect((caught as { name?: string }).name).not.toBe("TypeError");
+  });
+
+  // L5：首包前 429 → 自动重试，第二次 200 正常出流（重试窗口只在 yield 任何 chunk 之前）。
+  it("L5: retries on 429 before first packet, then streams normally on retry", async () => {
+    const encoder = new TextEncoder();
+    const okStream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"ok"}}]}\n\n'));
+        controller.enqueue(encoder.encode('data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n'));
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        controller.close();
+      },
+    });
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(new Response("rate limited", { status: 429 }))
+      .mockResolvedValueOnce(new Response(okStream, { status: 200, headers: { "Content-Type": "text/event-stream" } }));
+    vi.stubGlobal("fetch", fetchImpl);
+
+    const provider = new OpenAICompatibleProvider("https://example.com", "key", "model");
+    const received: string[] = [];
+    for await (const c of provider.generateStream({
+      messages: [{ role: "user", content: "hi" }],
+      max_tokens: 32, temperature: 1, top_p: 1,
+    })) {
+      if (c.delta) received.push(c.delta);
+    }
+
+    // 第一次 429 被吞并重试，第二次成功 → 用户看到正常输出，无错误。
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(received).toContain("ok");
+  });
 });
 
 describe("OpenAICompatibleProvider.generate (T7-5: cancellable retry)", () => {

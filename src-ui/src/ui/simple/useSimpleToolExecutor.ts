@@ -32,6 +32,7 @@ import {
   listLoreFiles,
   readLore,
   saveLore,
+  sanitizePathSegment,
   saveProjectCastRegistryCharacters,
   saveProjectWritingStyle,
   type ProjectInfo,
@@ -170,7 +171,11 @@ export function useSimpleToolExecutor(
           { ...args, name },
           CHARACTER_FRONTMATTER_KEYS,
         );
-        await saveLore({ au_path: auPath, category: "characters", filename, content });
+        // M28：以 saveLore 实际落盘的 filename 为准 —— saveLore 内部 sanitizePathSegment
+        // 会把全角标点等非白名单字符换成 _，磁盘名可能 ≠ 传入 filename。undo/rollback
+        // 必须用磁盘真名，否则 deleteLore 找不到文件。
+        const saved = await saveLore({ au_path: auPath, category: "characters", filename, content });
+        const savedFilename = saved.filename;
 
         // cast_registry 同步失败要 rollback lore（沿用主仓库 D-0029 防原子性破坏）
         try {
@@ -180,31 +185,35 @@ export function useSimpleToolExecutor(
           await saveProjectCastRegistryCharacters(auPath, nextCharacters);
         } catch (error) {
           try {
-            await deleteLore({ au_path: auPath, category: "characters", filename });
+            await deleteLore({ au_path: auPath, category: "characters", filename: savedFilename });
           } catch {
             throw new Error(
-              t("settingsMode.error.createCharacterRollbackFailed", { name: filename }),
+              t("settingsMode.error.createCharacterRollbackFailed", { name: savedFilename }),
             );
           }
           throw error;
         }
 
         return {
-          resultNote: t("settingsMode.executedWithTarget", { target: filename }),
-          undoMeta: { kind: "lore", category: "characters", filename },
+          resultNote: t("settingsMode.executedWithTarget", { target: savedFilename }),
+          undoMeta: { kind: "lore", category: "characters", filename: savedFilename },
           warningMessage: null,
         };
       }
 
       if (toolName === "modify_character_file") {
-        const filename = normalizeMarkdownFilename(coerceString(args.filename));
+        // M28：先按磁盘白名单口径归一 filename（sanitizePathSegment），再读旧内容 ——
+        // 否则 LLM 给的含全角标点的 filename 与磁盘真名不符，preserveManagedFrontmatter
+        // 读不到旧文件、受管 frontmatter 白守护失效。
+        const requestedFilename = normalizeMarkdownFilename(coerceString(args.filename));
+        const diskFilename = sanitizePathSegment(requestedFilename);
         let finalContent = coerceString(args.new_content);
         // 守护 frontmatter 受管字段（name / aliases / importance / origin_ref）防 LLM 误覆盖
         try {
           const { content: oldContent } = await readLore({
             au_path: auPath,
             category: "characters",
-            filename,
+            filename: diskFilename,
           });
           finalContent = preserveManagedFrontmatter(
             oldContent,
@@ -214,14 +223,14 @@ export function useSimpleToolExecutor(
         } catch {
           // 旧文件不存在的 race 直接用新内容
         }
-        await saveLore({
+        const saved = await saveLore({
           au_path: auPath,
           category: "characters",
-          filename,
+          filename: diskFilename,
           content: finalContent,
         });
         return {
-          resultNote: t("settingsMode.executedWithTarget", { target: filename }),
+          resultNote: t("settingsMode.executedWithTarget", { target: saved.filename }),
           undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
           warningMessage: null,
         };
@@ -230,29 +239,30 @@ export function useSimpleToolExecutor(
       if (toolName === "create_worldbuilding_file") {
         const name = coerceTrimmedString(args.name) || t("common.none");
         const filename = normalizeMarkdownFilename(name);
-        await saveLore({
+        // M28：undoMeta 用 saveLore 回传的磁盘真名（sanitize 后），保证 undo 能删到文件。
+        const saved = await saveLore({
           au_path: auPath,
           category: "worldbuilding",
           filename,
           content: coerceString(args.content),
         });
         return {
-          resultNote: t("settingsMode.executedWithTarget", { target: filename }),
-          undoMeta: { kind: "lore", category: "worldbuilding", filename },
+          resultNote: t("settingsMode.executedWithTarget", { target: saved.filename }),
+          undoMeta: { kind: "lore", category: "worldbuilding", filename: saved.filename },
           warningMessage: null,
         };
       }
 
       if (toolName === "modify_worldbuilding_file") {
         const filename = normalizeMarkdownFilename(coerceString(args.filename));
-        await saveLore({
+        const saved = await saveLore({
           au_path: auPath,
           category: "worldbuilding",
           filename,
           content: coerceString(args.new_content),
         });
         return {
-          resultNote: t("settingsMode.executedWithTarget", { target: filename }),
+          resultNote: t("settingsMode.executedWithTarget", { target: saved.filename }),
           undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
           warningMessage: null,
         };

@@ -162,11 +162,44 @@ export function chatToOpenAIMessages(messages: SimpleChatMessage[]): OpenAIChatM
   // 处理：tool_calls 对应的 tool_call_ids 不全配对时，downgrade 该 assistant 消息
   // 为纯 content；若 content 也空则整体 drop。
   const cleaned: OpenAIChatMessage[] = [];
+  // downgrade 半配对 assistant 时，同步剔除它已配对的那几条 role:"tool" 消息（M18）。
+  // 收集要跳过的 tool 消息 index —— 若只丢 assistant 的 tool_calls、留下先前 push 的
+  // 匹配 tool 消息，那些 tool 就没了前置 tool_calls 父消息，成 orphan → OpenAI 400
+  // "Messages with role 'tool' must be a response to a preceding message with
+  // 'tool_calls'"，整段 history 被钉死无法再发送。
+  const orphanedToolIndexes = new Set<number>();
   for (let i = 0; i < result.length; i++) {
     const m = result[i];
+    if (m.role !== "assistant" || !m.tool_calls || m.tool_calls.length === 0) continue;
+    // 收集后续 tool messages 的 tool_call_id（直到遇到非-tool 消息为止；OpenAI 协议下
+    // tool_calls 后立即跟 N 个 tool messages，再之后是其它 role）
+    const requiredIds = new Set(m.tool_calls.map((tc) => tc.id));
+    const seenIds = new Set<string>();
+    const followingToolIndexes: number[] = [];
+    for (let j = i + 1; j < result.length; j++) {
+      const next = result[j];
+      if (next.role !== "tool") break;
+      if (next.tool_call_id) seenIds.add(next.tool_call_id);
+      followingToolIndexes.push(j);
+    }
+    const allMatched = [...requiredIds].every((id) => seenIds.has(id));
+    if (!allMatched) {
+      const missing = [...requiredIds].filter((id) => !seenIds.has(id));
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[chat-to-llm] orphan assistant.tool_calls dropped: missing tool messages for ids [${missing.join(", ")}]; ` +
+        `downgrading to plain assistant content and dropping ${followingToolIndexes.length} paired tool message(s). ` +
+        `This is likely a chat.yaml inconsistency from a previous failed dispatch.`,
+      );
+      // 丢 tool_calls 后，它已配对的那几条 tool 消息就没有父消息了 → 标记跳过。
+      for (const idx of followingToolIndexes) orphanedToolIndexes.add(idx);
+    }
+  }
+
+  for (let i = 0; i < result.length; i++) {
+    if (orphanedToolIndexes.has(i)) continue;
+    const m = result[i];
     if (m.role === "assistant" && m.tool_calls && m.tool_calls.length > 0) {
-      // 收集后续 tool messages 的 tool_call_id（直到遇到非-tool 消息为止；OpenAI
-      // 协议下 tool_calls 后立即跟 N 个 tool messages，再之后是其它 role）
       const requiredIds = new Set(m.tool_calls.map((tc) => tc.id));
       const seenIds = new Set<string>();
       for (let j = i + 1; j < result.length; j++) {
@@ -178,12 +211,6 @@ export function chatToOpenAIMessages(messages: SimpleChatMessage[]): OpenAIChatM
       if (allMatched) {
         cleaned.push(m);
       } else {
-        const missing = [...requiredIds].filter((id) => !seenIds.has(id));
-        // eslint-disable-next-line no-console
-        console.warn(
-          `[chat-to-llm] orphan assistant.tool_calls dropped: missing tool messages for ids [${missing.join(", ")}]; ` +
-          `downgrading to plain assistant content. This is likely a chat.yaml inconsistency from a previous failed dispatch.`,
-        );
         // downgrade：保留 content / reasoning_content（如有），丢 tool_calls
         const downgraded: OpenAIChatMessage = {
           role: "assistant",

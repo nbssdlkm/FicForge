@@ -27,6 +27,7 @@ import { LLMError } from "../llm/provider.js";
 import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { ResolvedLLMConfig, ResolvedLLMParams } from "../llm/config_resolver.js";
 import { create_provider, resolve_llm_config, resolve_llm_params } from "../llm/config_resolver.js";
+import { chapterInflightKey, isChapterInflight, markChapterInflight, releaseChapterInflight } from "./chapter_inflight.js";
 import { assemble_context } from "./context_assembler.js";
 import type { ChunkWithCollection } from "./rag_retrieval.js";
 import { retrieveRagForContext, toRagChunkDetail } from "./rag_retrieval.js";
@@ -58,13 +59,12 @@ export interface GenerationErrorData {
 }
 
 // ---------------------------------------------------------------------------
-// 幂等控制
+// 幂等控制 —— 互斥表与对话 dispatch 共享（chapter_inflight 单一真相源，对抗审 F1）：
+// 双方共用草稿标签空间，独立 Map 封不住跨路径并发的同 label 覆盖。
 // ---------------------------------------------------------------------------
 
-const _generating = new Map<string, boolean>();
-
 function genKey(au_id: string, chapter_num: number): string {
-  return `${au_id}:${chapter_num}`;
+  return chapterInflightKey(au_id, chapter_num);
 }
 
 // ---------------------------------------------------------------------------
@@ -181,7 +181,7 @@ export async function* generate_chapter(
   const key = genKey(au_id, chapter_num);
 
   // --- 幂等 409 ---
-  if (_generating.get(key)) {
+  if (isChapterInflight(key)) {
     yield {
       type: "error",
       data: {
@@ -194,7 +194,7 @@ export async function* generate_chapter(
     return;
   }
 
-  _generating.set(key, true);
+  markChapterInflight(key, "generate");
   let label = "";
   let fullText = "";
   const startTime = performance.now();
@@ -363,6 +363,6 @@ export async function* generate_chapter(
       };
     }
   } finally {
-    _generating.delete(key);
+    releaseChapterInflight(key);
   }
 }

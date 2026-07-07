@@ -26,6 +26,7 @@ type WriterDisplayStateOptions = {
   isGenerating: boolean;
   isFinalizing: boolean;
   isDiscarding: boolean;
+  isUndoing: boolean;
   isSettingsModeBusy: boolean;
   currentContent: string;
   streamText: string;
@@ -76,6 +77,7 @@ export function deriveWriterDisplayState({
   isGenerating,
   isFinalizing,
   isDiscarding,
+  isUndoing,
   isSettingsModeBusy,
   currentContent,
   streamText,
@@ -87,7 +89,7 @@ export function deriveWriterDisplayState({
 }: WriterDisplayStateOptions) {
   const currentChapter = state?.current_chapter || 1;
   const hasPendingDrafts = drafts.length > 0;
-  const writeActionsDisabled = isGenerating || isFinalizing || isDiscarding || isSettingsModeBusy;
+  const writeActionsDisabled = isGenerating || isFinalizing || isDiscarding || isUndoing || isSettingsModeBusy;
   const currentDraft = drafts[activeDraftIndex] || null;
   // 「正在显示的章节」：当正在生成 / 有草稿时显示 current_chapter（正在写的一章），
   // 否则显示 current_chapter - 1（最近已定稿的那一章，也就是主区此刻展示的内容）。

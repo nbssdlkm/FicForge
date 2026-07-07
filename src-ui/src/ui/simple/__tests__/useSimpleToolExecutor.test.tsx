@@ -52,7 +52,14 @@ function setupBaseMocks(opts?: {
     cast_registry: { characters: opts?.castCharacters ?? [] },
     writing_style: opts?.writingStyle ?? {},
   } as unknown as Awaited<ReturnType<typeof engineClient.getProjectForEditing>>);
-  mocked.saveLore.mockResolvedValue(undefined as never);
+  // saveLore 回传实际落盘 filename/category（M28）。ASCII 文件名 sanitize 后不变，
+  // 直接 echo 传入值即可覆盖 executor 从返回值回填 undoMeta 的新路径。
+  mocked.saveLore.mockImplementation(async (req) => ({
+    status: "ok",
+    path: `${req.au_path ?? req.fandom_path ?? ""}/${req.category}/${req.filename}`,
+    filename: req.filename,
+    category: req.category,
+  }) as never);
   mocked.deleteLore.mockResolvedValue(undefined as never);
   mocked.addPinned.mockResolvedValue(undefined as never);
   mocked.deletePinned.mockResolvedValue(undefined as never);
@@ -91,6 +98,31 @@ describe("useSimpleToolExecutor — execute", () => {
       expect.arrayContaining(["Bob", "Alice"]),
     );
     expect(res.undoMeta).toEqual({ kind: "lore", category: "characters", filename: "Alice.md" });
+  });
+
+  it("M28: create_character_file 用 saveLore 回传的磁盘真名回填 undoMeta（含 sanitize 差异）", async () => {
+    // 模拟 saveLore 把全角标点 sanitize 掉，返回与传入 filename 不同的磁盘真名。
+    // executor 必须以返回值（磁盘真名）回填 undoMeta，否则 undo 的 deleteLore 找不到文件。
+    setupBaseMocks();
+    mocked.saveLore.mockImplementationOnce(async (req) => ({
+      status: "ok",
+      path: `${req.au_path}/${req.category}/林黛玉_初见_.md`,
+      filename: "林黛玉_初见_.md", // sanitize 后与传入 "林黛玉：初见？.md" 不同
+      category: req.category,
+    }) as never);
+    const { result } = renderHook(() => useSimpleToolExecutor({ auPath: AU }));
+
+    let res!: Awaited<ReturnType<typeof result.current.execute>>;
+    await act(async () => {
+      res = await result.current.execute("create_character_file", {
+        name: "林黛玉：初见？",
+        content: "# 林黛玉",
+      });
+    });
+
+    // undoMeta.filename = 磁盘真名（saveLore 返回值），不是 executor 本地算的传入名。
+    expect(res.undoMeta).toEqual({ kind: "lore", category: "characters", filename: "林黛玉_初见_.md" });
+    expect((res.undoMeta as { filename: string }).filename).not.toContain("：");
   });
 
   it("create_character_file: cast_registry save 失败 → rollback 删 lore", async () => {

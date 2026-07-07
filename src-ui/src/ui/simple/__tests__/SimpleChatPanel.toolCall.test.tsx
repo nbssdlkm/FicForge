@@ -97,7 +97,13 @@ function setupBaseMocks() {
     cast_registry: { characters: ["Alice"] },
     writing_style: {},
   } as unknown as Awaited<ReturnType<typeof engineClient.getProjectForEditing>>);
-  mocked.saveLore.mockResolvedValue(undefined as never);
+  // saveLore 回传实际落盘 filename/category（M28）：executor 从返回值回填 undoMeta。
+  mocked.saveLore.mockImplementation(async (req) => ({
+    status: "ok",
+    path: `${req.au_path ?? req.fandom_path ?? ""}/${req.category}/${req.filename}`,
+    filename: req.filename,
+    category: req.category,
+  }) as never);
   mocked.deleteLore.mockResolvedValue(undefined as never);
   mocked.readLore.mockResolvedValue({ content: "" });
   mocked.addPinned.mockResolvedValue(undefined as never);

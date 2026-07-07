@@ -72,4 +72,43 @@ describe("useWriterFactsExtraction 笔记归属（审计⑧）", () => {
       AU, 12, expect.objectContaining({ content_clean: "主角觉醒" }),
     );
   });
+
+  it("M25: 半成功重试不重复落库 —— 首轮存到第 2 条抛错，重试只补剩余，不重存前面已存的", async () => {
+    mocked.extractFacts.mockResolvedValue({
+      facts: [
+        { content_raw: "r1", content_clean: "候选甲", characters: [], fact_type: "plot_event", narrative_weight: "high", status: "active", chapter: 5 },
+        { content_raw: "r2", content_clean: "候选乙", characters: [], fact_type: "plot_event", narrative_weight: "high", status: "active", chapter: 5 },
+        { content_raw: "r3", content_clean: "候选丙", characters: [], fact_type: "plot_event", narrative_weight: "high", status: "active", chapter: 5 },
+      ],
+    } as unknown as Awaited<ReturnType<typeof engineClient.extractFacts>>);
+
+    const { result } = renderHook(() => useWriterFactsExtraction(AU));
+    await act(async () => {
+      await result.current.handleOpenExtractReview(5);
+    });
+
+    // 首轮：第 1 条成功、第 2 条抛错 → 只存了甲，modal 保持打开、候选不清。
+    mocked.addFact
+      .mockResolvedValueOnce({ fact_id: "fa" } as unknown as never)
+      .mockRejectedValueOnce(new Error("disk full"));
+    await act(async () => {
+      await result.current.handleSaveExtracted(5);
+    });
+    expect(mocked.addFact).toHaveBeenCalledTimes(2); // 甲成功 + 乙失败（丙未触达）
+    expect(result.current.isExtractReviewOpen).toBe(true); // 半成功 → modal 不关
+    expect(result.current.extractedCandidates).toHaveLength(3); // 候选原封不动
+
+    // 重试：甲已登记 → 跳过；只补乙、丙。
+    mocked.addFact.mockClear();
+    mocked.addFact.mockResolvedValue({ fact_id: "ok" } as unknown as never);
+    await act(async () => {
+      await result.current.handleSaveExtracted(5);
+    });
+    // 关键判别：重试只调 2 次（乙+丙），甲不重存 —— 回退旧码会调 3 次（甲重复）。
+    expect(mocked.addFact).toHaveBeenCalledTimes(2);
+    const retriedContents = mocked.addFact.mock.calls.map((c) => (c[2] as { content_clean: string }).content_clean);
+    expect(retriedContents).toEqual(expect.arrayContaining(["候选乙", "候选丙"]));
+    expect(retriedContents).not.toContain("候选甲");
+    expect(result.current.isExtractReviewOpen).toBe(false); // 全部落库 → 关闭
+  });
 });

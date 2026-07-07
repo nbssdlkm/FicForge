@@ -262,6 +262,7 @@ export interface UndoConfirmModalProps {
   onClose: () => void;
   chapterNum: number;
   onConfirm: () => void;
+  isUndoing: boolean;
 }
 
 export const UndoConfirmModal = ({
@@ -269,6 +270,7 @@ export const UndoConfirmModal = ({
   onClose,
   chapterNum,
   onConfirm,
+  isUndoing,
 }: UndoConfirmModalProps) => {
   const { t } = useTranslation();
 
@@ -287,6 +289,7 @@ export const UndoConfirmModal = ({
       destructive
       confirmLabel={t('undo.confirmAction')}
       cancelLabel={t('undo.cancel')}
+      loading={isUndoing}
     />
   );
 };
@@ -334,6 +337,7 @@ export interface WriterModalsProps {
   onCloseUndoConfirm: () => void;
   undoChapterNum: number;
   onConfirmUndo: () => void;
+  isUndoing: boolean;
 }
 
 export const WriterModals = (props: WriterModalsProps) => {
@@ -382,6 +386,7 @@ export const WriterModals = (props: WriterModalsProps) => {
         onClose={props.onCloseUndoConfirm}
         chapterNum={props.undoChapterNum}
         onConfirm={props.onConfirmUndo}
+        isUndoing={props.isUndoing}
       />
     </>
   );

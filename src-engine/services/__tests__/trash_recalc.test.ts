@@ -310,6 +310,73 @@ describe("TrashService", () => {
     expect(adapter.raw("au1/b.md")).toBeUndefined();
     expect(adapter.allFiles().filter((f) => f.includes(".trash") && f.endsWith(".md"))).toHaveLength(2);
   });
+
+  // ---------------------------------------------------------------------------
+  // M30：目录 restore 半途失败可续传；permanent_delete 不误删未恢复副本
+  // ---------------------------------------------------------------------------
+  it("M30: 目录 restore 逐文件写回中途失败 → 抛可续传错误 + 已恢复部分与 trash 均保留", async () => {
+    const faulty = new FaultyAdapter();
+    faulty.seed("fandom1/aus/AU1/a.md", "A-content");
+    faulty.seed("fandom1/aus/AU1/b.md", "B-content");
+    const t = new TrashService(faulty, 30);
+    const entry = await t.move_tree_to_trash("fandom1", "aus/AU1", "au", "AU1");
+
+    // restore 时 b.md 写回原位失败（a.md 先成功）→ 半成品状态。
+    faulty.failWrite = (p) => p === "fandom1/aus/AU1/b.md";
+    await expect(t.restore("fandom1", entry.trash_id)).rejects.toThrow(/未完成|续传/);
+
+    // a.md 已恢复到原位；b.md 仍未恢复。两者的 trash 副本都还在（可续传）。
+    expect(faulty.raw("fandom1/aus/AU1/a.md")).toBe("A-content");
+    expect(faulty.raw("fandom1/aus/AU1/b.md")).toBeUndefined();
+    expect(faulty.allFiles().filter((f) => f.includes("/.trash/") && f.endsWith(".md"))).toHaveLength(2);
+    // manifest 仍在 —— 半成品未被误判为已恢复。
+    expect(await t.list_trash("fandom1")).toHaveLength(1);
+
+    // 修好写入后再次 restore：跳过已恢复的 a.md（预检不再撞自身冲突），只补 b.md → 成功。
+    faulty.failWrite = () => false;
+    await t.restore("fandom1", entry.trash_id);
+    expect(faulty.raw("fandom1/aus/AU1/a.md")).toBe("A-content");
+    expect(faulty.raw("fandom1/aus/AU1/b.md")).toBe("B-content");
+    // trash 副本清空、manifest 移除。
+    expect(faulty.allFiles().filter((f) => f.includes("/.trash/") && f.endsWith(".md"))).toHaveLength(0);
+    expect(await t.list_trash("fandom1")).toHaveLength(0);
+  });
+
+  it("M30: 原位已有不同内容的同名文件 → 仍报真冲突（半成品放行不误伤真冲突）", async () => {
+    const a = new MockAdapter();
+    a.seed("fandom1/aus/AU1/a.md", "original");
+    const t = new TrashService(a, 30);
+    const entry = await t.move_tree_to_trash("fandom1", "aus/AU1", "au", "AU1");
+    // 原位置放一个内容不同的同名文件（真冲突，不是半成品）。
+    a.seed("fandom1/aus/AU1/a.md", "someone else's file");
+    await expect(t.restore("fandom1", entry.trash_id)).rejects.toThrow("restore conflict");
+    // trash 副本保留（未被破坏），可另行处理。
+    expect(a.allFiles().filter((f) => f.includes("/.trash/") && f.endsWith(".md"))).toHaveLength(1);
+  });
+
+  it("M30: 半恢复态 permanent_delete 拒绝执行，未恢复文件的唯一副本不被销毁", async () => {
+    const faulty = new FaultyAdapter();
+    faulty.seed("fandom1/aus/AU1/a.md", "A-content");
+    faulty.seed("fandom1/aus/AU1/b.md", "B-content");
+    const t = new TrashService(faulty, 30);
+    const entry = await t.move_tree_to_trash("fandom1", "aus/AU1", "au", "AU1");
+
+    // 制造半恢复：a.md 恢复成功、b.md 失败。
+    faulty.failWrite = (p) => p === "fandom1/aus/AU1/b.md";
+    await expect(t.restore("fandom1", entry.trash_id)).rejects.toThrow(/未完成|续传/);
+    faulty.failWrite = () => false;
+
+    // 此时用户改用 permanent_delete「自救」——旧代码会删整棵 trash 树，把只在 trash 的 b.md 一并销毁。
+    // 修复后：检测到半恢复态 → 拒绝，保住 b.md 的唯一副本。
+    await expect(t.permanent_delete("fandom1", entry.trash_id)).rejects.toThrow(/半恢复|尚未恢复/);
+    // b.md 的 trash 副本仍在（唯一版本未丢）；manifest 未被移除。
+    expect(faulty.allFiles().filter((f) => f.includes("/.trash/") && f.endsWith("/b.md"))).toHaveLength(1);
+    expect(await t.list_trash("fandom1")).toHaveLength(1);
+
+    // 续传恢复后一切归位（验证拒绝不是死路，用户有出路）。
+    await t.restore("fandom1", entry.trash_id);
+    expect(faulty.raw("fandom1/aus/AU1/b.md")).toBe("B-content");
+  });
 });
 
 // ===========================================================================

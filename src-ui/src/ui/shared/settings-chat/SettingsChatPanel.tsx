@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { sendSettingsChat, type SettingsChatSessionLlm } from "../../../api/engine-client";
 import { addFact, editFact, updateFactStatus } from "../../../api/engine-client";
-import { deleteLore, listLoreFiles, readLore, saveLore } from "../../../api/engine-client";
+import { deleteLore, listLoreFiles, readLore, saveLore, sanitizePathSegment } from "../../../api/engine-client";
 import { addPinned, deletePinned, getProjectForEditing, saveProjectCastRegistryCharacters, saveProjectCoreIncludes, saveProjectWritingStyle, type ProjectInfo } from "../../../api/engine-client";
 import { useFeedback } from "../../../hooks/useFeedback";
 import { useActiveRequestGuard } from "../../../hooks/useActiveRequestGuard";
@@ -388,7 +388,9 @@ export function SettingsChatPanel({
         { ...args, name },
         CHARACTER_FRONTMATTER_KEYS
       );
-      await saveLore({ au_path: basePath, category: "characters", filename, content });
+      // M28/F2：saveLore 会对 filename 做白名单清洗（全角标点 → _），磁盘名可能 ≠ 传入名。
+      // 回滚 / undoMeta / 展示一律用返回的实际落盘名，否则 undo 报「源不存在」、回滚失败留孤儿。
+      const saved = await saveLore({ au_path: basePath, category: "characters", filename, content });
 
       try {
         const nextCharacters = Array.from(
@@ -397,38 +399,40 @@ export function SettingsChatPanel({
         await saveProjectCastRegistryCharacters(basePath, nextCharacters);
       } catch (error) {
         try {
-          await deleteLore({ au_path: basePath, category: "characters", filename });
+          await deleteLore({ au_path: basePath, category: "characters", filename: saved.filename });
         } catch {
           throw new Error(
-            t("settingsMode.error.createCharacterRollbackFailed", { name: filename })
+            t("settingsMode.error.createCharacterRollbackFailed", { name: saved.filename })
           );
         }
         throw error;
       }
 
       return {
-        resultNote: t("settingsMode.executedWithTarget", { target: filename }),
-        undoMeta: { kind: "lore", category: "characters", filename },
+        resultNote: t("settingsMode.executedWithTarget", { target: saved.filename }),
+        undoMeta: { kind: "lore", category: "characters", filename: saved.filename },
         warningMessage: null,
       };
     }
 
     if (toolName === "modify_character_file") {
-      const filename = normalizeMarkdownFilename(coerceString(args.filename));
+      // M28/F2：先按写路径同款白名单清洗再读 —— LLM 给的名字含全角标点时磁盘名是清洗后的，
+      // 用原名读必 miss → frontmatter 守护静默失效（与 useSimpleToolExecutor 同口径）。
+      const filename = sanitizePathSegment(normalizeMarkdownFilename(coerceString(args.filename)));
       // 读旧文件，保留受管 frontmatter（name, aliases, importance, origin_ref）
       let finalContent = coerceString(args.new_content);
       try {
         const { content: oldContent } = await readLore({ au_path: basePath, category: "characters", filename });
         finalContent = preserveManagedFrontmatter(oldContent, finalContent, CHARACTER_FRONTMATTER_KEYS);
       } catch { /* 旧文件不存在时直接使用新内容 */ }
-      await saveLore({
+      const saved = await saveLore({
         au_path: basePath,
         category: "characters",
         filename,
         content: finalContent,
       });
       return {
-        resultNote: t("settingsMode.executedWithTarget", { target: filename }),
+        resultNote: t("settingsMode.executedWithTarget", { target: saved.filename }),
         undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
         warningMessage: null,
       };
@@ -437,7 +441,8 @@ export function SettingsChatPanel({
     if (toolName === "create_core_character_file") {
       const name = normalizeDisplayName(args.name) || t("common.unknownFandom");
       const filename = normalizeMarkdownFilename(name);
-      await saveLore({
+      // M28/F2：undoMeta 用实际落盘名（清洗后），否则含全角标点时 undo 报「源不存在」
+      const saved = await saveLore({
         fandom_path: basePath,
         category: "core_characters",
         filename,
@@ -448,28 +453,29 @@ export function SettingsChatPanel({
         ),
       });
       return {
-        resultNote: t("settingsMode.executedWithTarget", { target: filename }),
-        undoMeta: { kind: "lore", category: "core_characters", filename },
+        resultNote: t("settingsMode.executedWithTarget", { target: saved.filename }),
+        undoMeta: { kind: "lore", category: "core_characters", filename: saved.filename },
         warningMessage: null,
       };
     }
 
     if (toolName === "modify_core_character_file") {
-      const filename = normalizeMarkdownFilename(coerceString(args.filename));
+      // M28/F2：写路径同款清洗后再读，保住 frontmatter 守护（同 modify_character_file）
+      const filename = sanitizePathSegment(normalizeMarkdownFilename(coerceString(args.filename)));
       // 读旧文件，保留受管 frontmatter（name）
       let finalContent = coerceString(args.new_content);
       try {
         const { content: oldContent } = await readLore({ fandom_path: basePath, category: "core_characters", filename });
         finalContent = preserveManagedFrontmatter(oldContent, finalContent, CORE_CHARACTER_FRONTMATTER_KEYS);
       } catch { /* 旧文件不存在时直接使用新内容 */ }
-      await saveLore({
+      const saved = await saveLore({
         fandom_path: basePath,
         category: "core_characters",
         filename,
         content: finalContent,
       });
       return {
-        resultNote: t("settingsMode.executedWithTarget", { target: filename }),
+        resultNote: t("settingsMode.executedWithTarget", { target: saved.filename }),
         undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
         warningMessage: null,
       };
@@ -481,26 +487,28 @@ export function SettingsChatPanel({
       const request = mode === "au"
         ? { au_path: basePath, category: "worldbuilding", filename, content: coerceString(args.content) }
         : { fandom_path: basePath, category: "core_worldbuilding", filename, content: coerceString(args.content) };
-      await saveLore(request);
+      // M28/F2：undoMeta 用实际落盘名
+      const saved = await saveLore(request);
       return {
-        resultNote: t("settingsMode.executedWithTarget", { target: filename }),
+        resultNote: t("settingsMode.executedWithTarget", { target: saved.filename }),
         undoMeta: {
           kind: "lore",
           category: mode === "au" ? "worldbuilding" : "core_worldbuilding",
-          filename,
+          filename: saved.filename,
         },
         warningMessage: null,
       };
     }
 
     if (toolName === "modify_worldbuilding_file") {
-      const filename = normalizeMarkdownFilename(coerceString(args.filename));
+      // M28/F2：写路径同款清洗（worldbuilding 无 frontmatter 守护，但磁盘名对齐避免重名分裂）
+      const filename = sanitizePathSegment(normalizeMarkdownFilename(coerceString(args.filename)));
       const request = mode === "au"
         ? { au_path: basePath, category: "worldbuilding", filename, content: coerceString(args.new_content) }
         : { fandom_path: basePath, category: "core_worldbuilding", filename, content: coerceString(args.new_content) };
-      await saveLore(request);
+      const saved = await saveLore(request);
       return {
-        resultNote: t("settingsMode.executedWithTarget", { target: filename }),
+        resultNote: t("settingsMode.executedWithTarget", { target: saved.filename }),
         undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
         warningMessage: null,
       };

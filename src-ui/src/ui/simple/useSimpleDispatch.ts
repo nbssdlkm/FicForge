@@ -94,6 +94,11 @@ export function useSimpleDispatch(auPath: string): UseSimpleDispatchResult {
       }
       cancelCallbackRef.current?.();
       cancelCallbackRef.current = null;
+      // L20：auPath 原地变更（当前被 App 的 key remount 掩盖，但契约上 hook 应自洽）
+      // 时复位 isStreaming —— 否则 abort 后 dispatch 的 finally 只在「非 abort」分支复位，
+      // 切 AU 会让新宿主继承 isStreaming=true 卡住输入框。unmount cleanup 里 setState
+      // React 会静默忽略（组件已卸载），原地变更时才真正生效，两种情形都安全。
+      setIsStreaming(false);
     };
   }, [auPath]);
 

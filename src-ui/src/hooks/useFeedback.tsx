@@ -20,10 +20,14 @@ import { logUiError } from "../utils/ui-logger";
 
 type ToastVariant = "success" | "error" | "info" | "warning";
 
+const TOAST_TTL_MS = 3500;
+
 interface ToastItem {
   id: number;
   variant: ToastVariant;
   message: string;
+  /** 该 toast 的到期时刻（push 时定死）。用于 per-toast 计时，避免新 toast 重置旧 toast。 */
+  deadline: number;
 }
 
 interface ErrorDialogState {
@@ -69,7 +73,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
 
   const showToast = useCallback((message: string, variant: ToastVariant = "info") => {
     const id = Date.now() + Math.floor(Math.random() * 1000);
-    setToasts((current) => [...current, { id, message, variant }]);
+    setToasts((current) => [...current, { id, message, variant, deadline: Date.now() + TOAST_TTL_MS }]);
   }, []);
 
   const showSuccess = useCallback((message: string) => {
@@ -91,8 +95,12 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (toasts.length === 0) return undefined;
 
+    // L22：per-toast 计时。每个 toast 按自己 push 时定死的 deadline 计算剩余时间，
+    // 而不是每次队列变化就把所有 toast 统一重排 3500ms —— 后者会让连续报错时先出现
+    // 的 toast 被反复续命、滞留远超 TTL。deadline 已过的立即移除（钳到 0）。
+    const now = Date.now();
     const timers = toasts.map((toast) =>
-      window.setTimeout(() => removeToast(toast.id), 3500)
+      window.setTimeout(() => removeToast(toast.id), Math.max(0, toast.deadline - now))
     );
 
     return () => {

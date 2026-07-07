@@ -12,6 +12,24 @@ import { SecretStoreReadError } from "./adapter.js";
 const LEGACY_SECURE_KEY_PREFIX = "__secure__:";
 
 /**
+ * secure storage 诊断日志的 debug gate（L13）。
+ *
+ * secureGet/Set/Remove 的 console.info 诊断行里带 `key=`，而 key 名含作品/AU 名（如
+ * `apiKey:某同人作品`）。生产构建这些 info 会打进 logcat，明文外泄作品名到设备日志。
+ * 默认关闭；真机排障时可在启动前置 `globalThis.__FICFORGE_SECURE_DEBUG__ = true` 打开。
+ * 失败路径的 console.warn 不受此 gate 影响（诊断价值高、频率低，保持恒开）。
+ */
+function secureDebugEnabled(): boolean {
+  return (globalThis as { __FICFORGE_SECURE_DEBUG__?: boolean }).__FICFORGE_SECURE_DEBUG__ === true;
+}
+
+function secureDebugLog(message: string): void {
+  if (!secureDebugEnabled()) return;
+  // eslint-disable-next-line no-console
+  console.info(message);
+}
+
+/**
  * Uint8Array ↔ base64 分块转换。
  *
  * 直接 `String.fromCharCode(...u8)` 在数组长度 ≥ 约 65535 时触发 "Maximum call stack
@@ -231,11 +249,11 @@ export class CapacitorAdapter implements PlatformAdapter {
    * 会让 UI 显示 key 为空、用户随手保存设置时按空值语义**删掉 secure storage 里的
    * 真 key**。上层 restoreSecureFields 捕获该错误后保持字段「已存储」占位语义。
    *
-   * 真机故障诊断靠 console.info / console.warn — 用 logcat 抓
-   * `[CapacitorAdapter.secure]` 标签。
+   * 真机故障诊断靠 secureDebugLog（默认关，L13 gate）/ console.warn — 用 logcat 抓
+   * `[CapacitorAdapter.secure]` 标签（info 级需先开 __FICFORGE_SECURE_DEBUG__）。
    */
   async secureGet(key: string): Promise<string | null> {
-    console.info(`[CapacitorAdapter.secure] get enter, key=${key}`);
+    secureDebugLog(`[CapacitorAdapter.secure] get enter, key=${key}`);
     let stored: string | null;
     try {
       stored = await this.invokeSecureStoreGet(key);
@@ -250,18 +268,18 @@ export class CapacitorAdapter implements PlatformAdapter {
       throw err;
     }
     if (stored !== null) {
-      console.info(`[CapacitorAdapter.secure] get hit (plugin), key=${key}, empty=${stored.length === 0}`);
+      secureDebugLog(`[CapacitorAdapter.secure] get hit (plugin), key=${key}, empty=${stored.length === 0}`);
       this.removeLegacySecureValue(key);
       return stored;
     }
 
     const legacyValue = this.getLegacySecureValue(key);
     if (legacyValue === null) {
-      console.info(`[CapacitorAdapter.secure] get miss (plugin + legacy), key=${key}`);
+      secureDebugLog(`[CapacitorAdapter.secure] get miss (plugin + legacy), key=${key}`);
       return null;
     }
 
-    console.info(`[CapacitorAdapter.secure] get hit (legacy), migrating, key=${key}, empty=${legacyValue.length === 0}`);
+    secureDebugLog(`[CapacitorAdapter.secure] get hit (legacy), migrating, key=${key}, empty=${legacyValue.length === 0}`);
     await this.invokeSecureStoreSet(key, legacyValue);
     this.removeLegacySecureValue(key);
     return legacyValue;
@@ -272,17 +290,17 @@ export class CapacitorAdapter implements PlatformAdapter {
    * 在 GlobalSettingsModal 的 catch 里弹错误 toast，避免"看似成功"的静默丢数据。
    */
   async secureSet(key: string, value: string): Promise<void> {
-    console.info(`[CapacitorAdapter.secure] set enter, key=${key}, empty=${value.length === 0}`);
+    secureDebugLog(`[CapacitorAdapter.secure] set enter, key=${key}, empty=${value.length === 0}`);
     await this.invokeSecureStoreSet(key, value);
     this.removeLegacySecureValue(key);
-    console.info(`[CapacitorAdapter.secure] set OK, key=${key}`);
+    secureDebugLog(`[CapacitorAdapter.secure] set OK, key=${key}`);
   }
 
   async secureRemove(key: string): Promise<void> {
-    console.info(`[CapacitorAdapter.secure] remove enter, key=${key}`);
+    secureDebugLog(`[CapacitorAdapter.secure] remove enter, key=${key}`);
     await this.invokeSecureStoreRemove(key);
     this.removeLegacySecureValue(key);
-    console.info(`[CapacitorAdapter.secure] remove OK, key=${key}`);
+    secureDebugLog(`[CapacitorAdapter.secure] remove OK, key=${key}`);
   }
 
   getSecretStorageCapabilities(): SecretStorageCapabilities {

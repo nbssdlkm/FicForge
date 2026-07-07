@@ -342,6 +342,35 @@ export class TrashService {
     if (this.isDirectoryEntry(targetEntry)) {
       const trashRoot = joinPath(scopeRoot, ".trash", targetEntry.trash_path);
       const files = await this.collectTreeFiles(trashRoot);
+
+      // M30：半成品保护。若该目录处于"半恢复"状态（部分文件已写回原位、其余仍只在 trash），
+      // 直接删整棵 trash 树会把"未恢复的那些文件"的唯一副本一并销毁 —— 用户本想用
+      // permanent_delete 清掉一个"恢复失败"的残局，结果反而丢了还没恢复的数据。
+      // 判据：存在至少一个文件其原位副本与 trash 副本逐字节一致（= 已恢复过）。
+      // 命中则拒绝删除，提示先完成恢复（restore 现已支持续传）或手工处理，避免静默丢数据。
+      let anyRestored = false;
+      let anyUnrestored = false;
+      for (const fileRel of files) {
+        const originalDest = joinPath(scopeRoot, targetEntry.original_path, fileRel);
+        if (!(await this.adapter.exists(originalDest))) { anyUnrestored = true; continue; }
+        const [destContent, srcContent] = await Promise.all([
+          this.adapter.readFile(originalDest).catch(() => null),
+          this.adapter.readFile(joinPath(trashRoot, fileRel)).catch(() => null),
+        ]);
+        if (destContent !== null && srcContent !== null && destContent === srcContent) {
+          anyRestored = true;
+        } else {
+          // 原位有同名但内容不同的文件：视作未恢复（trash 副本仍是该数据的唯一版本）。
+          anyUnrestored = true;
+        }
+      }
+      if (anyRestored && anyUnrestored) {
+        throw new Error(
+          `无法永久删除：该目录处于半恢复状态，部分文件尚未恢复到原位，` +
+          `直接删除会丢失这些文件。请先点击"恢复"完成续传后再删除。`,
+        );
+      }
+
       await this.deleteCopiedTree(files.map((fileRel) => joinPath(trashRoot, fileRel)));
       await this.removeFromManifest(scopeRoot, trashId);
       return targetEntry;
@@ -468,19 +497,51 @@ export class TrashService {
     }
 
     const files = await this.collectTreeFiles(trashRoot);
-    for (const fileRel of files) {
-      const originalDest = joinPath(scopeRoot, entry.original_path, fileRel);
-      if (await this.adapter.exists(originalDest)) {
-        throw new Error(`restore conflict: ${entry.original_path}/${fileRel}`);
-      }
-    }
 
+    // M30：冲突预检可续传。逐文件 copy 中途失败会留下"半成品"（部分文件已落回原位、
+    // 但 trash 副本 + manifest 都还在）。旧代码的预检对任何已存在的 originalDest 一律
+    // 报 restore conflict → 重试永远撞在自己上一轮恢复的那几个文件上，恢复被永久卡死。
+    // 修法：预检时区分"半成品自身"（内容与 trash 副本逐字节一致 = 上一轮已恢复）与
+    // "真冲突"（原位置已有不同内容的同名文件）。前者可跳过续传，仅后者才是硬冲突。
+    const pending: string[] = [];
     for (const fileRel of files) {
       const trashSource = joinPath(trashRoot, fileRel);
       const originalDest = joinPath(scopeRoot, entry.original_path, fileRel);
-      await this.copyTextFile(trashSource, originalDest);
+      if (await this.adapter.exists(originalDest)) {
+        // 已存在：只有内容一致（半成品）才放行续传；否则是真冲突，中止（trash 完整保留）。
+        const [destContent, srcContent] = await Promise.all([
+          this.adapter.readFile(originalDest).catch(() => null),
+          this.adapter.readFile(trashSource).catch(() => null),
+        ]);
+        if (destContent !== null && srcContent !== null && destContent === srcContent) {
+          continue; // 上一轮已恢复该文件，续传时跳过
+        }
+        throw new Error(`restore conflict: ${entry.original_path}/${fileRel}`);
+      }
+      pending.push(fileRel);
     }
 
+    // 只 copy 尚未恢复的文件。逐文件失败不再让整体不可重试：收集失败清单，
+    // 若有失败则抛错但保留已恢复部分 + trash 副本（下次 restore 从断点续传）。
+    const failures: string[] = [];
+    for (const fileRel of pending) {
+      const trashSource = joinPath(trashRoot, fileRel);
+      const originalDest = joinPath(scopeRoot, entry.original_path, fileRel);
+      try {
+        await this.copyTextFile(trashSource, originalDest);
+      } catch (err) {
+        failures.push(`${fileRel} (${(err as Error).message})`);
+      }
+    }
+    if (failures.length > 0) {
+      // trash 副本 + manifest 保留：已恢复的文件留在原位，未恢复的仍在 trash，
+      // 再次 restore 会跳过已恢复者、只补剩余（续传）。
+      throw new Error(
+        `目录恢复未完成，${failures.length} 个文件未能写回原位（可再次点击恢复续传）: ${failures.join("; ")}`,
+      );
+    }
+
+    // 全部文件已就位 → 清 trash 副本 + manifest（best-effort 删除，残留只是磁盘垃圾）。
     await this.deleteCopiedTree(files.map((fileRel) => joinPath(trashRoot, fileRel)));
     await this.removeFromManifest(scopeRoot, entry.trash_id);
     return entry;
