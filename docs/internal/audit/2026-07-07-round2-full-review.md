@@ -9,8 +9,10 @@
 > - `c7f16fe` fix(budget)：H4（badge 三层同源含 UI 端）✅
 > - `1fd11be` fix(chat)：H1 / H2 / H3 + 对抗审 A1-A8 ✅
 > - `d38837f` fix(mobile)：M20 ✅
-> - **待修**：P2 批次（M9-M14 移动端体验、M15-18 管线、M21 PWA SW、M24-28/M30 UI 杂项、LOW 系）+ 模型选择器实施（含 MODEL_CONTEXT_MAP 刷新，方案 B 已拍板）。
-> - 每笔修复均经独立对抗审或判别性回归测试（回退旧码即挂）钉死；对抗审对首波三批的 8 条 UI 侧发现（A1-A8）与 3 条漏网同族洞（B1-B3）已全部整改。
+> - **第二波（2026-07-07，续）**：`fb30c26` feat(models) MODEL_CONTEXT_MAP 刷新 + org/ 前缀匹配修复 + PROVIDER_MANIFEST ✅；`1be7fe2` fix(pipeline) M15-18/M24-26/M28/M30 + LOW 系 + 对抗审 F1/F2/F6 ✅；`a430bf2` fix(mobile) M9-M14/M21 + 对抗审 F3/F4 ✅。
+> - **对抗审第二轮发现处置**：F1（跨路径互斥）/F2（settings-chat 同族）/F3（通知双向）/F4（生成中重载）/F6（分支口径）已修；**F5（trash 恢复死锁态，MEDIUM-PLAUSIBLE：非原子恢复崩溃或用户编辑半恢复文件后 restore/permanent_delete 双拒，数据不丢但 UI 无解）、F7（M18 只剔紧随配对）、F8（停止后立即重发撞 409 文案困惑）、F9（legacy 非白名单文件名 modify 丢 frontmatter 守护）— 记录未修**，F5 建议随 trash 后续迭代补显式选择 UI。
+> - **剩余未做**：模型选择器 UI 阶段（引擎侧接口已就绪）；审计中标注「仅真机可证」项（M12 safe-area / M21 离线 / M11 帧率 / iOS IDB 连接回收 L12）；LOW 观察项 L7/L8/L10/L11/L14-L18/L21/L23-L25。
+> - 每笔修复均经独立对抗审或判别性回归测试（回退旧码即挂）钉死；两轮对抗审共抓 20 条整改（A1-8 / B1-3 / C1 / F1-4 / F6），全部落地。
 
 - **日期**：2026-07-07
 - **基线**：main @ `2657163`（与 origin/main 同步，工作区干净）
