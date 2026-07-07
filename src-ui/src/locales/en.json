@@ -1060,6 +1060,7 @@
     "step5SettingsImported": "{{n}} lore item(s)",
     "step5Skipped": "{{n}} turn(s) skipped",
     "step5TrashedChapters": "{{n}} chapter(s) moved to trash",
+    "step5OverwriteSkipped": "Skipped overwriting {{n}} chapter(s) (chapter {{chapters}}) because the existing chapter(s) could not be trashed or backed up; original content was preserved",
     "step5Next1": "Go to Lore page to organize imported lore",
     "step5Next2": "Go to Facts page to extract plot points",
     "step5Next3": "Start writing Chapter {{n}}!",
@@ -1354,7 +1355,9 @@
     "draftCard": {
       "accept": "Accept as chapter {{num}}",
       "acceptedToast": "Accepted as chapter {{num}}",
+      "alreadyAccepted": "This draft was already accepted as chapter {{num}}; marker restored",
       "chapterSlug": "Ch.{{num}} · Draft {{label}} · {{count}} chars",
+      "chapterTaken": "Chapter {{num}} does not match the current progress (next chapter is {{expected}}); accept skipped",
       "collapse": "Collapse",
       "discard": "Discard",
       "expand": "Expand full text",
@@ -1363,6 +1366,7 @@
       "regenerateNoUserMsg": "Can't find the matching user instruction to regenerate from",
       "retryAccept": "Retry accepting as chapter {{num}}",
       "statusAccepted": "Accepted as chapter {{num}} · rev {{rev}}",
+      "statusAcceptedNoRev": "Accepted as chapter {{num}}",
       "statusDiscarded": "Discarded",
       "statusError": "Generation failed",
       "statusPending": "Pending",
@@ -1371,6 +1375,9 @@
     },
     "error": {
       "partialSavedAs": "(Partial draft saved as {{label}})"
+    },
+    "extract": {
+      "readyWhileAway": "Plot note extraction finished — open the Chat tab to review"
     },
     "header": {
       "chaptersLabel": "Chapters",

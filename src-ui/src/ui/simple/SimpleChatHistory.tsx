@@ -26,6 +26,9 @@ interface SimpleChatHistoryProps {
    * 到 chat.yaml 后切 tab / 重启时残留卡死，问题 #切 tab thinking 卡死）。
    */
   thinkingActive: boolean;
+  /** 面板常驻挂载后，display:none 期间 scrollTop 赋值无效；重新可见时若用户
+   * 原本贴底，需要主动重新贴底（对抗审 A-3）。 */
+  isActiveTab?: boolean;
   onAcceptDraft: (messageId: string) => void;
   onRegenerateDraft: (messageId: string) => void;
   onDiscardDraft: (messageId: string) => void;
@@ -54,6 +57,7 @@ export function SimpleChatHistory({
   isStreaming,
   globalBusy,
   thinkingActive,
+  isActiveTab,
   onAcceptDraft,
   onRegenerateDraft,
   onDiscardDraft,
@@ -127,6 +131,18 @@ export function SimpleChatHistory({
     programmaticUntilRef.current = performance.now() + PROGRAMMATIC_WINDOW_MS;
     el.scrollTop = el.scrollHeight;
   }, [messages, thinkingActive]);
+
+  // 从隐藏 tab 切回时重新贴底（对抗审 A-3）：display:none 期间 scrollHeight=0、
+  // 上面 effect 的贴底动作全部无效；若用户离开前贴底（isPinned），回来应回到底部
+  // 而不是停在历史顶部。用户离开前主动滚上去看历史的（isPinned=false）不打扰。
+  useEffect(() => {
+    if (isActiveTab !== true) return;
+    if (!isPinnedRef.current) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    programmaticUntilRef.current = performance.now() + PROGRAMMATIC_WINDOW_MS;
+    el.scrollTop = el.scrollHeight;
+  }, [isActiveTab]);
 
   const { t } = useTranslation();
 

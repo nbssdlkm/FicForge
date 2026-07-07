@@ -241,7 +241,7 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     isFactsPromptOpen: factsExtraction.isFactsPromptOpen, onCloseFactsPrompt: factsExtraction.handleSkipFactsPrompt, extractingFacts: factsExtraction.extractingFacts, skipFactsPrompt: factsExtraction.skipFactsPrompt,
     factsPromptTitle: t('drafts.finalizeSuccess', { chapter: finalizedChapter }), onOpenExtractReview: () => void factsExtraction.handleOpenExtractReview(chapterActions.lastConfirmedChapter),
     onFactsManualNavigate: () => { factsExtraction.setFactsPromptOpen(false); onNavigate('facts'); }, onSkipFactsPrompt: factsExtraction.handleSkipFactsPrompt, onFactsPromptToggle: factsExtraction.handleFactsPromptToggle,
-    isExtractReviewOpen: factsExtraction.isExtractReviewOpen, onCloseExtractReview: () => { factsExtraction.setExtractReviewOpen(false); instructionInput.focusInstructionInput(); },
+    isExtractReviewOpen: factsExtraction.isExtractReviewOpen, onCloseExtractReview: () => { factsExtraction.closeExtractReview(); instructionInput.focusInstructionInput(); },
     extractedCandidates: factsExtraction.extractedCandidates, selectedExtractedKeys: factsExtraction.selectedExtractedKeys, getCandidateKey: factsExtraction.getCandidateKey,
     onToggleExtractedCandidate: factsExtraction.toggleExtractedCandidate, onSaveExtracted: () => void factsExtraction.handleSaveExtracted(chapterActions.lastConfirmedChapter), savingExtracted: factsExtraction.savingExtracted,
     isUndoConfirmOpen: chrome.isUndoConfirmOpen, onCloseUndoConfirm: chrome.closeUndoConfirm, undoChapterNum: displayState.currentChapter - 1, onConfirmUndo: chapterActions.handleUndoConfirmed,

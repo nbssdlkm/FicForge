@@ -140,6 +140,78 @@ describe("useSimpleChat persistence (C2)", () => {
     expect(result.current.messages).toHaveLength(1);
   });
 
+  it("卸载 flush：防抖窗口内的最后一笔变更在 unmount 时立即落盘（审计 H3）", async () => {
+    mockedGet.mockResolvedValue(emptyChatFile("au_flush"));
+    mockedSave.mockResolvedValue();
+
+    const { result, unmount } = renderHook(() => useSimpleChat("au_flush"));
+    await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+    act(() => { result.current.appendUserMessage("last-words"); });
+    // 还在 200ms 防抖窗口内，正常路径尚未 save
+    expect(mockedSave).not.toHaveBeenCalled();
+
+    unmount();
+    // 回退旧码（cleanup 只 clearTimeout）此处必挂：变更被静默丢弃
+    expect(mockedSave).toHaveBeenCalledTimes(1);
+    expect(mockedSave).toHaveBeenCalledWith(
+      "au_flush",
+      expect.arrayContaining([expect.objectContaining({ kind: "user", content: "last-words" })]),
+    );
+  });
+
+  it("AU 切换 flush：未落盘变更写到旧 AU，不串到新 AU", async () => {
+    mockedGet.mockResolvedValue(emptyChatFile("au_1"));
+    mockedSave.mockResolvedValue();
+
+    const { result, rerender } = renderHook(({ au }) => useSimpleChat(au), {
+      initialProps: { au: "au_1" },
+    });
+    await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+    act(() => { result.current.appendUserMessage("for-au-1"); });
+    rerender({ au: "au_2" });
+
+    expect(mockedSave).toHaveBeenCalledWith(
+      "au_1",
+      expect.arrayContaining([expect.objectContaining({ content: "for-au-1" })]),
+    );
+    // 新 AU 不应收到旧 AU 的消息
+    expect(mockedSave).not.toHaveBeenCalledWith(
+      "au_2",
+      expect.arrayContaining([expect.objectContaining({ content: "for-au-1" })]),
+    );
+  });
+
+  it("无未落盘变更时卸载不触发写入（load 内容不被原样重写）", async () => {
+    mockedGet.mockResolvedValue({
+      version: 1, au_path: "au_clean", created_at: "t", updated_at: "t",
+      messages: [{ id: "m1", timestamp: "t", kind: "user", content: "existing" }],
+    });
+    mockedSave.mockResolvedValue();
+
+    const { result, unmount } = renderHook(() => useSimpleChat("au_clean"));
+    await waitFor(() => expect(result.current.isLoaded).toBe(true));
+    // 静置超过防抖窗口：load 后没有任何变更，防抖也不应 fire
+    await sleep(300);
+    unmount();
+
+    expect(mockedSave).not.toHaveBeenCalled();
+  });
+
+  it("load 失败时卸载 flush 同样禁写（沿用防空覆盖口径）", async () => {
+    mockedGet.mockRejectedValue(new Error("disk full"));
+    mockedSave.mockResolvedValue();
+
+    const { result, unmount } = renderHook(() => useSimpleChat("au_errflush"));
+    await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+    act(() => { result.current.appendUserMessage("memory-only"); });
+    unmount();
+
+    expect(mockedSave).not.toHaveBeenCalled();
+  });
+
   it("AU 快速切换：旧 load resolve 不会污染新 AU 的 state", async () => {
     let resolveOld: (file: ReturnType<typeof emptyChatFile>) => void = () => {};
     mockedGet.mockImplementationOnce(() => new Promise((r) => { resolveOld = r; }));

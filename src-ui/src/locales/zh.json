@@ -1060,6 +1060,7 @@
     "step5SettingsImported": "{{n}} 条设定",
     "step5Skipped": "{{n}} 轮跳过",
     "step5TrashedChapters": "{{n}} 章移入垃圾桶",
+    "step5OverwriteSkipped": "有 {{n}} 章因旧章无法移入回收站且备份失败而跳过覆盖（第 {{chapters}} 章），原有内容已保留",
     "step5Next1": "去设定页面整理导入的设定文件",
     "step5Next2": "去管理页面提取剧情笔记",
     "step5Next3": "开始续写第 {{n}} 章！",
@@ -1354,7 +1355,9 @@
     "draftCard": {
       "accept": "接受为第 {{num}} 章",
       "acceptedToast": "已接受为第 {{num}} 章",
+      "alreadyAccepted": "该草稿此前已接受为第 {{num}} 章，已恢复标记",
       "chapterSlug": "Ch.{{num}} · Draft {{label}} · {{count}} chars",
+      "chapterTaken": "第 {{num}} 章与当前写作进度不符（下一章应为第 {{expected}} 章），未执行接受",
       "collapse": "折叠",
       "discard": "丢弃",
       "expand": "展开全文",
@@ -1363,6 +1366,7 @@
       "regenerateNoUserMsg": "找不到对应的用户指令，无法再生成",
       "retryAccept": "重试接受为第 {{num}} 章",
       "statusAccepted": "已接受为第 {{num}} 章 · rev {{rev}}",
+      "statusAcceptedNoRev": "已接受为第 {{num}} 章",
       "statusDiscarded": "已丢弃",
       "statusError": "生成失败",
       "statusPending": "待确认",
@@ -1371,6 +1375,9 @@
     },
     "error": {
       "partialSavedAs": "（部分草稿已保存为 {{label}}）"
+    },
+    "extract": {
+      "readyWhileAway": "剧情笔记提取完成，回「对话」查看"
     },
     "header": {
       "chaptersLabel": "Chapters",

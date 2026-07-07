@@ -32,3 +32,34 @@ export async function clearSimpleChat(auPath: string): Promise<void> {
   const { simpleChat } = getEngine().repos;
   await simpleChat.clear(auPath);
 }
+
+/**
+ * 把某条写作草稿的 accepted 终态直接钉进 simple-chat.yaml（锁内 read-modify-write）。
+ *
+ * 为什么不走 UI 内存 + 防抖 save：confirmChapter 内部串行跑多个 LLM 调用（数秒~数十秒），
+ * 期间用户切走 / 离开工作区会让内存标记与防抖保存双双失效 → 章节已定稿但草稿永远显示
+ * 可点「接受」，再点一次就重复确认覆写同章（审计 H3）。这里的写入不依赖组件存活。
+ *
+ * revision 传 null 表示未知（标记恢复场景），只钉 status/acceptedAt 不写 acceptedRevision。
+ */
+export async function markSimpleChatDraftAccepted(
+  auPath: string,
+  messageId: string,
+  revision: number | null,
+): Promise<void> {
+  const { simpleChat } = getEngine().repos;
+  await simpleChat.update(auPath, (messages) =>
+    messages.map((m) => {
+      if (m.id !== messageId || m.kind !== "writing-draft") return m;
+      const next: SimpleChatMessageEnvelope = {
+        ...m,
+        status: "accepted",
+        acceptedAt: new Date().toISOString(),
+        ...(revision !== null ? { acceptedRevision: revision } : {}),
+      };
+      // 终态清掉历史错误文案，避免「accepted 却挂着 error 信息」的矛盾展示
+      delete next.errorMessage;
+      return next;
+    }),
+  );
+}

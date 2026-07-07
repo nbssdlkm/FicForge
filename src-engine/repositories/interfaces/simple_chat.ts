@@ -19,6 +19,17 @@ export interface SimpleChatRepository {
    */
   save(au_id: string, messages: SimpleChatMessageEnvelope[]): Promise<void>;
 
+  /**
+   * 锁内 read-modify-write：以磁盘当前内容为基底应用 updater 后写回。
+   * 供「不依赖 UI 组件存活」的状态回写使用（如接受草稿后钉 accepted 标记）——
+   * UI 侧防抖 save 走内存快照，组件卸载后快照即失效；这里保证关键终态仍能落盘，
+   * 且不会覆盖 updater 之外的并发变更（读写同锁）。
+   */
+  update(
+    au_id: string,
+    updater: (messages: SimpleChatMessageEnvelope[]) => SimpleChatMessageEnvelope[],
+  ): Promise<void>;
+
   /** 清空对话历史（删除文件 / 写空 messages）。 */
   clear(au_id: string): Promise<void>;
 }

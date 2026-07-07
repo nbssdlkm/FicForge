@@ -15,7 +15,7 @@ import type { PlatformAdapter } from "../../platform/adapter.js";
 import type { SimpleChatFile, SimpleChatMessageEnvelope } from "../../domain/simple_chat.js";
 import { createSimpleChatFile, SIMPLE_CHAT_VERSION } from "../../domain/simple_chat.js";
 import type { SimpleChatRepository } from "../interfaces/simple_chat.js";
-import { joinPath, now_utc, obj_to_plain, validateBasePath, withWriteLock } from "./file_utils.js";
+import { atomicWrite, joinPath, now_utc, obj_to_plain, validateBasePath, withWriteLock } from "./file_utils.js";
 
 const CHAT_FILE_NAME = "simple-chat.yaml";
 const WELL_KNOWN_DIR = ".well-known";
@@ -111,7 +111,32 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
       const content = yaml.dump(obj_to_plain(file), { sortKeys: false, lineWidth: -1 });
       const dir = path.substring(0, path.lastIndexOf("/"));
       await this.adapter.mkdir(dir);
-      await this.adapter.writeFile(path, content);
+      // 对话历史无 ops 背书，截断即永损 —— 原子写（审计 H5）
+      await atomicWrite(this.adapter, path, content);
+    });
+  }
+
+  async update(
+    au_id: string,
+    updater: (messages: SimpleChatMessageEnvelope[]) => SimpleChatMessageEnvelope[],
+  ): Promise<void> {
+    const path = this.chatPath(au_id);
+    await withWriteLock(path, async () => {
+      // get() 不取锁，可安全在锁内复用；以磁盘现状为基底，避免调用方拿内存快照
+      // 整体覆盖时丢掉别处刚写入的消息（接受标记 vs 防抖 save 的并发场景）。
+      const file = await this.get(au_id);
+      const nextMessages = updater(file.messages);
+      const out: SimpleChatFile = {
+        version: SIMPLE_CHAT_VERSION,
+        au_path: au_id,
+        created_at: file.created_at,
+        updated_at: now_utc(),
+        messages: nextMessages,
+      };
+      const content = yaml.dump(obj_to_plain(out), { sortKeys: false, lineWidth: -1 });
+      const dir = path.substring(0, path.lastIndexOf("/"));
+      await this.adapter.mkdir(dir);
+      await atomicWrite(this.adapter, path, content);
     });
   }
 

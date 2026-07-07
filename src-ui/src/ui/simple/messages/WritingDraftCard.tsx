@@ -52,11 +52,17 @@ function StatusBadge({ message, t }: { message: SimpleWritingDraftMessage; t: Re
       case 'pending':
         return t('simple.draftCard.statusPending', { defaultValue: '待确认' });
       case 'accepted':
-        return t('simple.draftCard.statusAccepted', {
-          defaultValue: '已接受为第 {{num}} 章 · rev {{rev}}',
-          num: message.chapterNum,
-          rev: message.acceptedRevision ?? 1,
-        });
+        // revision 未知（标记恢复场景，对抗审 A-7）时不显示 rev，避免恒显 rev 1 的错值
+        return message.acceptedRevision != null
+          ? t('simple.draftCard.statusAccepted', {
+              defaultValue: '已接受为第 {{num}} 章 · rev {{rev}}',
+              num: message.chapterNum,
+              rev: message.acceptedRevision,
+            })
+          : t('simple.draftCard.statusAcceptedNoRev', {
+              defaultValue: '已接受为第 {{num}} 章',
+              num: message.chapterNum,
+            });
       case 'rejected':
       case 'discarded':
         return t('simple.draftCard.statusDiscarded', { defaultValue: '已丢弃' });

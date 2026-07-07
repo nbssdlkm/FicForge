@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { extractFacts, addFact, extractedEnrichment, type ExtractedFactCandidate } from '../../api/engine-client';
 import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import {
@@ -27,6 +27,12 @@ export function useWriterFactsExtraction(auPath: string) {
   const [extractedCandidates, setExtractedCandidates] = useState<ExtractedFactCandidate[]>([]);
   const { selectedExtractedKeys, selectAll, clearSelection, toggleExtractedCandidate, filterSelected } = useExtractedSelection();
   const [skipFactsPrompt, setSkipFactsPrompt] = useState(getSkipFactsPromptDefault());
+  // 本轮提取的目标章号，随提取一起住在 hook 内 —— 调用方（对话面板/写文 modal）
+  // 不必再各自维护一份「提取给哪章」的影子状态（审计 H2 状态上移的一部分）。
+  const [extractTargetChapter, setExtractTargetChapter] = useState<number | null>(null);
+  // 在飞提取的取消句柄。提取是多秒 LLM 调用：AU 切换 / 宿主卸载时 abort，
+  // 避免结果无宿主可落还继续烧 token（审计 H2）。
+  const extractAbortRef = useRef<AbortController | null>(null);
 
   const focusInstructionInput = useCallback(() => {
     // The parent component should provide its own focus mechanism;
@@ -52,10 +58,16 @@ export function useWriterFactsExtraction(auPath: string) {
     if (!lastConfirmedChapter) return;
     const requestAuPath = auPath;
 
+    // 连续触发（连着接受两章）时旧一轮结果已无意义，先取消再起新一轮
+    extractAbortRef.current?.abort();
+    const controller = new AbortController();
+    extractAbortRef.current = controller;
+
+    setExtractTargetChapter(lastConfirmedChapter);
     setExtractingFacts(true);
     try {
-      const result = await extractFacts(auPath, lastConfirmedChapter);
-      if (guard.isKeyStale(requestAuPath)) return;
+      const result = await extractFacts(auPath, lastConfirmedChapter, { signal: controller.signal });
+      if (controller.signal.aborted || guard.isKeyStale(requestAuPath)) return;
       // 归属规范化（审计⑧）：本次提取是对单章 lastConfirmedChapter 跑的，所有候选都归该章。
       // 把 candidate.chapter 统一钉到该章 —— 既保证落库归属正确，也让 ExtractReviewModal
       // 展示的来源章与实际存储一致，不再显示 LLM 可能幻觉的章号（展示/存储不一致，对抗审 MEDIUM）。
@@ -63,15 +75,19 @@ export function useWriterFactsExtraction(auPath: string) {
       setExtractedCandidates(candidates);
       selectAll(candidates);
       setFactsPromptOpen(false);
-      setExtractReviewOpen(true);
+      // 零候选不开空 modal（对抗审 A-8）：只 toast——否则「提取完成回对话查看」的
+      // 异地提示会把用户叫回来看一个空列表。
       if (candidates.length === 0) {
         showToast(t('facts.extractNoResult'), 'info');
+      } else {
+        setExtractReviewOpen(true);
       }
     } catch (error) {
-      if (guard.isKeyStale(requestAuPath)) return;
+      // 主动取消（AU 切换 / 宿主卸载 / 新一轮顶替）不是错误，静默收尾
+      if (controller.signal.aborted || guard.isKeyStale(requestAuPath)) return;
       showError(error, t('error_messages.unknown'));
     } finally {
-      if (!guard.isKeyStale(requestAuPath)) {
+      if (!controller.signal.aborted && !guard.isKeyStale(requestAuPath)) {
         setExtractingFacts(false);
       }
     }
@@ -80,20 +96,24 @@ export function useWriterFactsExtraction(auPath: string) {
   const handleSaveExtracted = useCallback(async (lastConfirmedChapter: number | null) => {
     if (selectedExtractedKeys.length === 0) {
       setExtractReviewOpen(false);
+      setExtractTargetChapter(null);
       focusInstructionInput();
       return;
     }
 
     setSavingExtracted(true);
     const requestAuPath = auPath;
+    // hook 内部记录的提取目标章优先（handleOpenExtractReview 设置），参数仅作
+    // 旧调用方（写文 modal 链）兼容回退 —— 两者本应同值，内部值消除影子状态漂移。
+    const targetChapter = extractTargetChapter ?? lastConfirmedChapter;
     try {
       const selectedCandidates = filterSelected(extractedCandidates);
 
       for (const candidate of selectedCandidates) {
-        // 归属用「本次提取所处理的确定章号」lastConfirmedChapter，而非 LLM 候选里可能幻觉的
+        // 归属用「本次提取所处理的确定章号」targetChapter，而非 LLM 候选里可能幻觉的
         // candidate.chapter —— 对齐 backfill persistChapter「不信任 LLM chapter 字段」的口径（审计⑧）。
-        // 提取是对单章 lastConfirmedChapter 跑的，所有候选都归该章；仅在极端缺失时才回退。
-        await addFact(auPath, lastConfirmedChapter ?? candidate.chapter ?? 1, {
+        // 提取是对单章跑的，所有候选都归该章；仅在极端缺失时才回退。
+        await addFact(auPath, targetChapter ?? candidate.chapter ?? 1, {
           content_raw: candidate.content_raw || candidate.content_clean,
           content_clean: candidate.content_clean,
           type: candidate.fact_type || candidate.type || 'plot_event',
@@ -109,6 +129,7 @@ export function useWriterFactsExtraction(auPath: string) {
       showSuccess(t('facts.extractSaved', { count: selectedCandidates.length }));
       setExtractReviewOpen(false);
       setExtractedCandidates([]);
+      setExtractTargetChapter(null);
       clearSelection();
       focusInstructionInput();
     } catch (error) {
@@ -119,12 +140,19 @@ export function useWriterFactsExtraction(auPath: string) {
         setSavingExtracted(false);
       }
     }
-  }, [auPath, guard, extractedCandidates, filterSelected, focusInstructionInput, clearSelection, showError, showSuccess, t]);
+  }, [auPath, guard, extractedCandidates, extractTargetChapter, filterSelected, focusInstructionInput, clearSelection, showError, showSuccess, t]);
+
+  /** 关闭提取预览（不落库）。动词方法，取代调用方直接摸 setExtractReviewOpen。 */
+  const closeExtractReview = useCallback(() => {
+    setExtractReviewOpen(false);
+    setExtractTargetChapter(null);
+  }, []);
 
   const resetExtractionState = useCallback(() => {
     setExtractingFacts(false);
     setSavingExtracted(false);
     setExtractedCandidates([]);
+    setExtractTargetChapter(null);
     clearSelection();
     setFactsPromptOpen(false);
     setExtractReviewOpen(false);
@@ -132,6 +160,15 @@ export function useWriterFactsExtraction(auPath: string) {
 
   useEffect(() => {
     resetExtractionState();
+  }, [auPath]);
+
+  // AU 切换 / 宿主卸载：取消在飞提取。提取结果只有 review modal 一个出口，
+  // 宿主没了结果无处可落，继续跑纯属白烧 token（审计 H2）。
+  useEffect(() => {
+    return () => {
+      extractAbortRef.current?.abort();
+      extractAbortRef.current = null;
+    };
   }, [auPath]);
 
   return {
@@ -157,6 +194,7 @@ export function useWriterFactsExtraction(auPath: string) {
     handleSkipFactsPrompt,
     handleOpenExtractReview,
     handleSaveExtracted,
+    closeExtractReview,
     toggleExtractedCandidate,
 
     // helper

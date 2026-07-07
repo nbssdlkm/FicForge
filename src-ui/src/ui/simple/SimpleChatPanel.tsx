@@ -15,18 +15,21 @@
  * Hook 5 铁律：state + reset 同文件、不暴露 raw setter、跨 hook 只传 value。
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3, Eraser, Settings } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { useFeedback } from "../../hooks/useFeedback";
 import { useKV } from "../../hooks/useKV";
 import {
   confirmChapter,
+  getChapterContent,
   getFactsExtractionReadiness,
   getSettingsSummary,
   getState,
   getWriterProjectContext,
   getWriterSessionConfig,
+  logCatch,
+  markSimpleChatDraftAccepted,
   SIMPLE_TOOL_SHOW_CHAPTER,
   SIMPLE_TOOL_SHOW_SETTING,
   type SettingsSummary,
@@ -50,12 +53,19 @@ interface SimpleChatPanelProps {
   auPath: string;
   fandomPath?: string;
   className?: string;
+  /** 对话接受章节落库后通知宿主刷新章节列表（桌面侧栏 / 移动「章节」tab，审计 H1）。 */
+  onChaptersChanged?: () => void;
+  /** 面板当前是否为可见 tab。面板常驻挂载（隐藏不卸载，审计 H2/H3），提取完成时
+   * 若用户在别的 tab，用 toast 提示回来看 —— modal 挂在隐藏容器里用户看不见。 */
+  isActiveTab?: boolean;
 }
 
 export function SimpleChatPanel({
   auPath,
   fandomPath,
   className = "",
+  onChaptersChanged,
+  isActiveTab,
 }: SimpleChatPanelProps) {
   const { t } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
@@ -74,8 +84,6 @@ export function SimpleChatPanel({
   // 自动提取就位（审计④）：与 resolveFactsProvider 同源的「有无可用连接」判断，
   // 由引擎按 project+settings 解析得出，取代 UI 侧只看全局 default_llm 的旧口径。
   const [extractionReady, setExtractionReady] = useState<{ has_usable_connection: boolean } | null>(null);
-  // 接受草稿后自动提取的目标章号 —— 兜底 handleSaveExtracted（candidate.chapter 缺时用它）。
-  const [extractReviewChapter, setExtractReviewChapter] = useState<number | null>(null);
   // Transient "AI 思考中…" 占位 — 不进 chat.messages 避免 persist 到 chat.yaml
   // 后切 tab / 重启时残留 (用户报告: 切 tab thinking 卡死)。
   const [thinkingActive, setThinkingActive] = useState(false);
@@ -98,7 +106,6 @@ export function SimpleChatPanel({
     setSettingsInfo(null);
     setSettingsSummary(null);
     setExtractionReady(null);
-    setExtractReviewChapter(null);
     setThinkingActive(false);
   }, [auPath]);
 
@@ -364,16 +371,63 @@ export function SimpleChatPanel({
       const target = chat.messages.find((m) => m.id === messageId);
       if (!target || target.kind !== "writing-draft") return;
       if (target.status !== "pending" && target.status !== "error") return;
+      // 防重入（对抗审 A-1）：confirm 是数秒~数十秒的多 LLM 串行调用，期间内存状态
+      // 未变，双击同一按钮或给同章的另一条 pending 草稿点接受都能二次进入 ——
+      // 下面的章号 guard 是 TOCTOU（两次都读到旧 current_chapter），拦不住并发形态。
+      if (acceptingDraftId) return;
       setAcceptingDraftId(messageId);
       const draftLabel = target.draftLabel && target.draftLabel !== "?" ? target.draftLabel : "A";
       const draftFileId = `ch${String(target.chapterNum).padStart(4, "0")}_draft_${draftLabel}.md`;
       try {
+        // 防重复接受（审计 H3）：接受只对「下一章」合法。三种到得了这里的非法状态 ——
+        // 接受标记落盘失败后的残留 pending、连点、陈旧会话里的旧草稿 —— 都会覆写
+        // 已确认章节 + 重复触发提取，必须在 confirm 之前拦下。
+        const st = await getState(auPath);
+        const expectedChapter = st.current_chapter ?? 1;
+        if (target.chapterNum !== expectedChapter) {
+          const existing = await getChapterContent(auPath, target.chapterNum).catch(() => null);
+          if (existing !== null && existing.trim() === target.content.trim()) {
+            // 章节内容与草稿逐字一致 → 此前已接受过、只是标记没落盘（切 tab 竞态遗留），
+            // 补回标记而不是再确认一次。
+            await markSimpleChatDraftAccepted(auPath, messageId, null).catch((e) =>
+              logCatch("simple", "restore accepted marker failed", e),
+            );
+            chat.markDraftAccepted(messageId, null);
+            showToast(
+              t("simple.draftCard.alreadyAccepted", {
+                defaultValue: "该草稿此前已接受为第 {{num}} 章，已恢复标记",
+                num: target.chapterNum,
+              }),
+              "info",
+            );
+          } else {
+            // 覆盖三种场景（对抗审 A-6，避免误导性断言）：章已被其他内容确认、
+            // 草稿超前于当前进度（undo 后遗留）、章内容读取瞬时失败 —— 统一用
+            // 「与当前进度不符」的中性表述，不声称「已确认过其他内容」。
+            showToast(
+              t("simple.draftCard.chapterTaken", {
+                defaultValue: "第 {{num}} 章与当前写作进度不符（下一章应为第 {{expected}} 章），未执行接受",
+                num: target.chapterNum,
+                expected: expectedChapter,
+              }),
+              "warning",
+            );
+          }
+          return;
+        }
+
         const result = await confirmChapter(
           auPath,
           target.chapterNum,
           draftFileId,
           target.generatedWith,
           target.content,
+        );
+        // 立即把 accepted 终态直写 chat.yaml（锁内 read-modify-write，不依赖组件存活）。
+        // confirm 要串行跑多个 LLM 调用，期间用户完全可能已离开工作区 —— 只靠下面的
+        // 内存标记 + 防抖保存，标记会静默丢失（审计 H3 根因）。
+        await markSimpleChatDraftAccepted(auPath, messageId, result.revision).catch((e) =>
+          logCatch("simple", "persist accepted marker failed", e),
         );
         chat.markDraftAccepted(messageId, result.revision);
         chat.appendChapterPreviewMessage(target.chapterNum);
@@ -384,11 +438,13 @@ export function SimpleChatPanel({
           }),
         );
         await refreshChapterContext();
+        // 通知宿主刷新章节列表（桌面侧栏 / 移动「章节」tab），否则对话里接受的新章
+        // 在另一个 tab 看不见（审计 H1）。
+        onChaptersChanged?.();
         // M9：接受落章后自动跑事实提取（异步、不阻塞接受收尾）。gate 满足才弹 review；
         // 否则静默跳过（增强提取关 / LLM 未配）。extractFacts 内部再按 react_extraction_enabled
-        // 决定 react vs plain，这里只 gate「是否自动触发」。
+        // 决定 react vs plain，这里只 gate「是否自动触发」。目标章号由 hook 内部记录。
         if (canAutoExtract) {
-          setExtractReviewChapter(target.chapterNum);
           void factsExtraction.handleOpenExtractReview(target.chapterNum);
         }
       } catch (err) {
@@ -400,7 +456,7 @@ export function SimpleChatPanel({
         setAcceptingDraftId(null);
       }
     },
-    [auPath, canAutoExtract, chat, factsExtraction.handleOpenExtractReview, refreshChapterContext, showError, showSuccess, t],
+    [acceptingDraftId, auPath, canAutoExtract, chat, factsExtraction.handleOpenExtractReview, onChaptersChanged, refreshChapterContext, showError, showSuccess, showToast, t],
   );
 
   const handleAcceptDraftSync = useCallback(
@@ -534,11 +590,29 @@ export function SimpleChatPanel({
     [chat, executingToolId, showError, showToast, t, toolExecutor],
   );
 
+  // 提取完成弹 review 时若面板处于隐藏 tab（常驻挂载，modal 在 display:none 容器里
+  // 用户看不见），用 toast（挂在工作区级 FeedbackProvider，任何 tab 可见）提示回来看。
+  const extractReviewWasOpenRef = useRef(false);
+  useEffect(() => {
+    const opened = factsExtraction.isExtractReviewOpen && !extractReviewWasOpenRef.current;
+    extractReviewWasOpenRef.current = factsExtraction.isExtractReviewOpen;
+    if (opened && isActiveTab === false) {
+      showToast(
+        t("simple.extract.readyWhileAway", {
+          defaultValue: "剧情笔记提取完成，回「对话」查看",
+        }),
+        "info",
+      );
+    }
+  }, [factsExtraction.isExtractReviewOpen, isActiveTab, showToast, t]);
+
   const globalBusy =
     dispatch.isStreaming || acceptingDraftId !== null || executingToolId !== null;
 
-  // C5: token 估算。chapterCount 变化（接受后）触发重算。
-  const tokenCount = useContextTokenCount(auPath, chapterCount, chat.messages);
+  // C5: token 估算。chapterCount 变化（接受后）触发重算。面板常驻挂载后隐藏期
+  // 暂停 30s 兜底轮询（对抗审 A-4）。sessionLlmPayload 让 badge 与 dispatch 同走
+  // 三层解析（H4）——会话切模型时窗口/预警即时跟随。
+  const tokenCount = useContextTokenCount(auPath, chapterCount, chat.messages, isActiveTab !== false, sessionParams.sessionLlmPayload);
 
   const tokenBadge = useMemo(() => {
     const est = tokenCount.estimate;
@@ -628,6 +702,7 @@ export function SimpleChatPanel({
           isStreaming={dispatch.isStreaming}
           globalBusy={globalBusy}
           thinkingActive={thinkingActive}
+          isActiveTab={isActiveTab}
           onAcceptDraft={handleAcceptDraftSync}
           onRegenerateDraft={handleRegenerateDraft}
           onDiscardDraft={handleDiscardDraft}
@@ -665,15 +740,12 @@ export function SimpleChatPanel({
       />
       <ExtractReviewModal
         isOpen={factsExtraction.isExtractReviewOpen}
-        onClose={() => {
-          factsExtraction.setExtractReviewOpen(false);
-          setExtractReviewChapter(null);
-        }}
+        onClose={factsExtraction.closeExtractReview}
         extractedCandidates={factsExtraction.extractedCandidates}
         selectedExtractedKeys={factsExtraction.selectedExtractedKeys}
         getCandidateKey={factsExtraction.getCandidateKey}
         onToggleCandidate={factsExtraction.toggleExtractedCandidate}
-        onSave={() => void factsExtraction.handleSaveExtracted(extractReviewChapter)}
+        onSave={() => void factsExtraction.handleSaveExtracted(null)}
         savingExtracted={factsExtraction.savingExtracted}
       />
     </div>

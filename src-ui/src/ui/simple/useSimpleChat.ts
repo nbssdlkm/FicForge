@@ -75,8 +75,9 @@ export interface UseSimpleChatResult {
   setDraftGeneratedWith: (id: string, generatedWith: Record<string, unknown>) => void;
   /** 修改草稿状态（streaming → pending → accepted/rejected/discarded/error）。 */
   setDraftStatus: (id: string, status: DraftStatus, opts?: { errorMessage?: string; revision?: number }) => void;
-  /** 接受草稿后回填元数据（acceptedAt + revision），同时把 status 设为 'accepted'。 */
-  markDraftAccepted: (id: string, revision: number) => void;
+  /** 接受草稿后回填元数据（acceptedAt + revision），同时把 status 设为 'accepted'。
+   * revision 传 null 表示未知（标记恢复场景），不写 acceptedRevision。 */
+  markDraftAccepted: (id: string, revision: number | null) => void;
   /** 添加 tool call 消息（status='pending'）。 */
   appendToolCallMessage: (init: { toolName: string; toolArgs: Record<string, unknown> }) => string;
   /** 修改 tool call 状态；可一并写入 resultNote / errorMessage / undoMeta。
@@ -119,6 +120,12 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
   const loadTokenRef = useRef(0);
   /** 区分 save token 同样防 AU 切换后旧 save 串到新 AU。 */
   const auPathRef = useRef(auPath);
+  /** 离场 flush 需要在 cleanup 里读到最新值（cleanup 闭包捕获的是旧 render 的 state）。 */
+  const isLoadedRef = useRef(false);
+  const loadErrorRef = useRef<string | null>(null);
+  /** 最后一次已交给 saveSimpleChat 的 messages 数组引用 —— 离场时与当前引用比对，
+   * 相同说明防抖窗口里没有未落盘变更，跳过多余写入。 */
+  const lastSavedMessagesRef = useRef<SimpleChatMessage[] | null>(null);
   /** 流式 chunk 缓冲：messageId → 待 append 的累积 chunk 字符串。rAF 触发批量
    * 应用到 messages，避免每 chunk 一次 setMessages 让 SimpleChatHistory 整列
    * 重 reconcile（V1 真机卡顿根因之一）。 */
@@ -133,6 +140,14 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
     auPathRef.current = auPath;
   }, [auPath]);
 
+  useEffect(() => {
+    isLoadedRef.current = isLoaded;
+  }, [isLoaded]);
+
+  useEffect(() => {
+    loadErrorRef.current = loadError;
+  }, [loadError]);
+
   // AU 切换：清空 + 异步 load chat.yaml（铁律 2：state 与 reset 同文件）。
   useEffect(() => {
     setMessages([]);
@@ -145,7 +160,10 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
         if (loadTokenRef.current !== token) return;
         // engine envelope → UI discriminated union 直接 cast；engine repo 已校验
         // id/timestamp/kind 三件套；详细字段不验证（向后兼容旧版 message 形状）。
-        setMessages(file.messages as unknown as SimpleChatMessage[]);
+        const loaded = file.messages as unknown as SimpleChatMessage[];
+        // 刚 load 的内容即磁盘现状，标记为"已保存"，避免离场 flush / 防抖把它原样重写一遍
+        lastSavedMessagesRef.current = loaded;
+        setMessages(loaded);
         setIsLoaded(true);
       })
       .catch((err) => {
@@ -162,15 +180,33 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
   useEffect(() => {
     if (!isLoaded) return;
     if (loadError !== null) return;
+    if (messages === lastSavedMessagesRef.current) return;
     const targetAuPath = auPathRef.current;
     const timeout = setTimeout(() => {
       if (auPathRef.current !== targetAuPath) return;
+      lastSavedMessagesRef.current = messages;
       void saveSimpleChat(targetAuPath, messages as unknown as SimpleChatMessageEnvelope[]).catch(() => {
         // save 失败不阻断 UX；这里静默吞，等 C2 进一步加 toast / banner 兜底
       });
     }, DEBOUNCE_MS);
     return () => clearTimeout(timeout);
   }, [auPath, isLoaded, loadError, messages]);
+
+  // 离场 flush（审计 H3）：AU 切换 / 卸载时，200ms 防抖窗口内未落盘的最后一笔立即写出。
+  // 没有它，「已接受」等收尾状态回写恰好落在离场前的防抖窗口里就静默丢失 —— 重载后草稿
+  // 回到 pending，用户可再点一次接受重复确认同章。cleanup 先于新 auPath 的 effect 运行，
+  // 各 ref 里还是旧 AU 的值，闭包 auPath 也是旧值，不会串写到新 AU。
+  useEffect(() => {
+    return () => {
+      if (!isLoadedRef.current || loadErrorRef.current !== null) return;
+      const msgs = messagesRef.current;
+      if (msgs === lastSavedMessagesRef.current) return;
+      lastSavedMessagesRef.current = msgs;
+      void saveSimpleChat(auPath, msgs as unknown as SimpleChatMessageEnvelope[]).catch(() => {
+        // 离场路径连 toast 都没宿主可挂，与防抖路径同口径静默
+      });
+    };
+  }, [auPath]);
 
   const appendMessage = useCallback((message: SimpleChatMessage) => {
     setMessages((prev) => [...prev, message]);
@@ -373,14 +409,14 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
   );
 
   const markDraftAccepted = useCallback(
-    (id: string, revision: number) => {
+    (id: string, revision: number | null) => {
       updateMessage(id, (prev) => {
         if (prev.kind !== "writing-draft") return prev;
         return {
           ...prev,
           status: "accepted",
           acceptedAt: nowIso(),
-          acceptedRevision: revision,
+          ...(revision !== null ? { acceptedRevision: revision } : {}),
           errorMessage: undefined,
         };
       });

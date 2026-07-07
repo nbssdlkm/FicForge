@@ -48,6 +48,8 @@ vi.mock("../../../api/engine-client", async () => {
     getSettingsSummary: vi.fn(),
     getFactsExtractionReadiness: vi.fn(),
     extractFacts: vi.fn(),
+    getChapterContent: vi.fn(),
+    markSimpleChatDraftAccepted: vi.fn(),
   };
 });
 
@@ -138,6 +140,29 @@ function setupBaseMocks() {
   // 默认提取就位（gate ② 通过）；各用例可经 mockSettingsSummary 或直接覆盖调整。
   mocked.getFactsExtractionReadiness.mockResolvedValue({ has_usable_connection: true });
   mocked.extractFacts.mockResolvedValue({ facts: [CANDIDATE] });
+  mocked.getChapterContent.mockResolvedValue("");
+  mocked.markSimpleChatDraftAccepted.mockResolvedValue(undefined as never);
+}
+
+/** 预置一条 pending 草稿进 chat.yaml（模拟历史会话遗留），用于防重复接受用例。 */
+function mockPreloadedPendingDraft(chapterNum: number, content: string) {
+  mocked.getSimpleChat.mockResolvedValue({
+    version: 1,
+    au_path: AU,
+    created_at: "t",
+    updated_at: "t",
+    messages: [
+      {
+        id: "draft-stale-1",
+        timestamp: "t",
+        kind: "writing-draft",
+        chapterNum,
+        draftLabel: "A",
+        content,
+        status: "pending",
+      },
+    ],
+  } as unknown as Awaited<ReturnType<typeof engineClient.getSimpleChat>>);
 }
 
 /** 渲染 → 发送写章节指令 → 等草稿到 pending → 点接受。 */
@@ -195,9 +220,13 @@ describe("SimpleChatPanel P2.3 — 接受草稿接通 M9 提取", () => {
         expect.any(String),
       );
     });
-    // extractFacts 以刚确认的章号被调用
+    // accepted 终态被引擎级直写落盘（审计 H3：不依赖组件存活）
     await waitFor(() => {
-      expect(mocked.extractFacts).toHaveBeenCalledWith(AU, 2);
+      expect(mocked.markSimpleChatDraftAccepted).toHaveBeenCalledWith(AU, expect.any(String), 2);
+    });
+    // extractFacts 以刚确认的章号被调用（带取消 signal，审计 H2）
+    await waitFor(() => {
+      expect(mocked.extractFacts).toHaveBeenCalledWith(AU, 2, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     });
     // 提取结果预览 modal 出现 + 候选内容可见
     expect(await screen.findByText("提取结果预览")).toBeInTheDocument();
@@ -211,7 +240,7 @@ describe("SimpleChatPanel P2.3 — 接受草稿接通 M9 提取", () => {
     await sendAndAcceptDraft(user);
 
     await waitFor(() => {
-      expect(mocked.extractFacts).toHaveBeenCalledWith(AU, 2);
+      expect(mocked.extractFacts).toHaveBeenCalledWith(AU, 2, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     });
     expect(await screen.findByText("提取结果预览")).toBeInTheDocument();
   });
@@ -250,7 +279,7 @@ describe("SimpleChatPanel P2.3 — 接受草稿接通 M9 提取", () => {
 
     // 修复后：与写文路径一致，能自动触发提取
     await waitFor(() => {
-      expect(mocked.extractFacts).toHaveBeenCalledWith(AU, 2);
+      expect(mocked.extractFacts).toHaveBeenCalledWith(AU, 2, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     });
     expect(await screen.findByText("提取结果预览")).toBeInTheDocument();
   });
@@ -295,5 +324,53 @@ describe("SimpleChatPanel P2.3 — 接受草稿接通 M9 提取", () => {
       expect(screen.queryByText("提取剧情笔记中…")).not.toBeInTheDocument();
     });
     expect(await screen.findByText("提取结果预览")).toBeInTheDocument();
+  });
+
+  // ==========================================================================
+  // 审计 H3 — 防重复接受：接受只对「下一章」（current_chapter）合法
+  // ==========================================================================
+
+  it("防重复接受：目标章已被其他内容确认 → 拒绝，不 confirm 不提取（审计 H3）", async () => {
+    const user = userEvent.setup();
+    mockSettingsSummary({ reactEnabled: true, usable: true });
+    // current_chapter=2 → 章 1 已确认；磁盘章 1 内容与草稿不同 → 必须拒绝
+    mockPreloadedPendingDraft(1, "旧草稿正文");
+    mocked.getChapterContent.mockResolvedValue("已确认的另一版正文");
+
+    render(<SimpleChatPanel auPath={AU} />);
+    const acceptBtn = await screen.findByRole("button", { name: /接受为第/ });
+    await act(async () => {
+      await user.click(acceptBtn);
+    });
+
+    await waitFor(() => {
+      expect(mocked.getChapterContent).toHaveBeenCalledWith(AU, 1);
+    });
+    // 回退旧码（无章号 guard）此处必挂：confirmChapter 会被调用、覆写已确认章节
+    expect(mocked.confirmChapter).not.toHaveBeenCalled();
+    expect(mocked.extractFacts).not.toHaveBeenCalled();
+    expect(mocked.markSimpleChatDraftAccepted).not.toHaveBeenCalled();
+  });
+
+  it("标记恢复：章内容与草稿逐字一致 → 补 accepted 标记而非重复 confirm（审计 H3）", async () => {
+    const user = userEvent.setup();
+    mockSettingsSummary({ reactEnabled: true, usable: true });
+    // 章 1 此前已接受但标记丢失（切 tab 竞态遗留）：磁盘内容 == 草稿内容
+    mockPreloadedPendingDraft(1, "旧草稿正文");
+    mocked.getChapterContent.mockResolvedValue("旧草稿正文");
+
+    render(<SimpleChatPanel auPath={AU} />);
+    const acceptBtn = await screen.findByRole("button", { name: /接受为第/ });
+    await act(async () => {
+      await user.click(acceptBtn);
+    });
+
+    // 标记以 revision=null（未知）补写落盘，且不重复确认
+    await waitFor(() => {
+      expect(mocked.markSimpleChatDraftAccepted).toHaveBeenCalledWith(AU, "draft-stale-1", null);
+    });
+    expect(mocked.confirmChapter).not.toHaveBeenCalled();
+    // UI 状态同步翻到 accepted
+    expect(await screen.findByText(/已接受为第 1 章/)).toBeInTheDocument();
   });
 });

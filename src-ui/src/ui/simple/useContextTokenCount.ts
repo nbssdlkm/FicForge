@@ -34,6 +34,12 @@ export function useContextTokenCount(
   auPath: string,
   refreshKey?: number | string,
   messages?: SimpleChatMessage[],
+  /** 面板是否可见。false 时暂停 30s 兜底轮询（常驻挂载后隐藏 tab 不做背景
+   * tokenize，对抗审 A-4）；重新可见时补跑一次覆盖隐藏期漏掉的外部变化。 */
+  enabled: boolean = true,
+  /** H4：会话级 LLM 覆盖（useSessionParams.sessionLlmPayload，useMemo 稳定）。
+   * badge 与 dispatch 同走三层解析，会话切模型时窗口/预警即时跟随。 */
+  sessionLlm?: Record<string, string> | null,
 ): UseContextTokenCountResult {
   const [estimate, setEstimate] = useState<SimpleContextTokenEstimate | null>(null);
   const [loading, setLoading] = useState(false);
@@ -57,13 +63,23 @@ export function useContextTokenCount(
     return () => { mountedRef.current = false; };
   }, []);
 
-  // 30s autoTick：兜底覆盖 refreshKey 漏掉的 state 变化（外部 tab 改设定 / undo 等）
+  // 30s autoTick：兜底覆盖 refreshKey 漏掉的 state 变化（外部 tab 改设定 / undo 等）。
+  // 仅在可见时轮询；隐藏期外部变化由下面的「重新可见补跑」覆盖。
   useEffect(() => {
+    if (!enabled) return;
     const id = setInterval(() => {
       if (mountedRef.current) setAutoTick((n) => n + 1);
     }, AUTO_REFRESH_MS);
     return () => clearInterval(id);
-  }, []);
+  }, [enabled]);
+
+  // 隐藏 → 可见的边沿补跑一次（初始挂载不触发，避免与主 effect 重复请求）
+  const prevEnabledRef = useRef(enabled);
+  useEffect(() => {
+    const was = prevEnabledRef.current;
+    prevEnabledRef.current = enabled;
+    if (enabled && !was) setAutoTick((n) => n + 1);
+  }, [enabled]);
 
   useEffect(() => {
     if (!auPath) return;
@@ -72,7 +88,7 @@ export function useContextTokenCount(
     const myToken = ++tokenRef.current;
 
     const timer = setTimeout(() => {
-      void estimateSimpleContextTokens(auPath, historyForLLM)
+      void estimateSimpleContextTokens(auPath, historyForLLM, sessionLlm)
         .then((data) => {
           if (!mountedRef.current) return;
           if (tokenRef.current !== myToken) return;
@@ -88,7 +104,7 @@ export function useContextTokenCount(
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [auPath, refreshKey, autoTick, historyForLLM]);
+  }, [auPath, refreshKey, autoTick, historyForLLM, sessionLlm]);
 
   return { estimate, loading, error };
 }

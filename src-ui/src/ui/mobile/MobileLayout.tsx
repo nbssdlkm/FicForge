@@ -139,7 +139,15 @@ export function MobileLayout({
           />
         ) : null}
 
-        {activeTab === "chat" ? <SimpleChatPanel auPath={auPath} /> : null}
+        {/* 对话面板常驻挂载、CSS 隐藏（审计 H2/H3）：5-tab 底栏让切 tab 成为高频动作，
+            卸载会杀掉在飞的对话生成、丢提取结果、丢接受标记。hidden 时不占布局。 */}
+        <div className={activeTab === "chat" ? "h-full" : "hidden"}>
+          <SimpleChatPanel
+            auPath={auPath}
+            onChaptersChanged={onChaptersChanged}
+            isActiveTab={activeTab === "chat"}
+          />
+        </div>
 
         {activeTab === "writer" ? (
           <WriterLayout

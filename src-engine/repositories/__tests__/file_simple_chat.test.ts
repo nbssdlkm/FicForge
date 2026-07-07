@@ -275,3 +275,62 @@ describe("FileSimpleChatRepository", () => {
     expect(["p1", "p2", "p3"]).toContain(loaded.messages[0].id);
   });
 });
+
+describe("FileSimpleChatRepository.update（锁内 read-modify-write，审计 H3）", () => {
+  let adapter: MockAdapter;
+  let repo: FileSimpleChatRepository;
+
+  beforeEach(() => {
+    adapter = new MockAdapter();
+    repo = new FileSimpleChatRepository(adapter);
+  });
+
+  it("以磁盘现状为基底应用 updater：钉 accepted 标记不丢其他消息", async () => {
+    await repo.save("au_u1", [
+      { id: "m1", timestamp: "t1", kind: "user", content: "写第一章" },
+      { id: "d1", timestamp: "t2", kind: "writing-draft", chapterNum: 1, content: "正文", status: "pending", errorMessage: "旧错误" },
+    ]);
+
+    await repo.update("au_u1", (messages) =>
+      messages.map((m) => (m.id === "d1" ? { ...m, status: "accepted", acceptedRevision: 3 } : m)),
+    );
+
+    const loaded = await repo.get("au_u1");
+    expect(loaded.messages).toHaveLength(2);
+    expect(loaded.messages[0]).toMatchObject({ id: "m1", content: "写第一章" });
+    expect(loaded.messages[1]).toMatchObject({ id: "d1", status: "accepted", acceptedRevision: 3 });
+  });
+
+  it("文件不存在时 update 等价于对空列表应用 updater", async () => {
+    await repo.update("au_u2", (messages) => [
+      ...messages,
+      { id: "n1", timestamp: "t", kind: "system", tone: "info", content: "seed" },
+    ]);
+    const loaded = await repo.get("au_u2");
+    expect(loaded.messages).toHaveLength(1);
+    expect(loaded.messages[0].id).toBe("n1");
+  });
+
+  it("update 与 save 并发不丢 update 的写入（同锁串行化）", async () => {
+    await repo.save("au_u3", [
+      { id: "d1", timestamp: "t", kind: "writing-draft", chapterNum: 1, content: "正文", status: "pending" },
+    ]);
+    // 并发：save 整体覆盖 vs update 钉标记。两者同锁串行，最终状态必是两种合法顺序之一，
+    // 不会出现半截/混合写入。
+    await Promise.all([
+      repo.save("au_u3", [
+        { id: "d1", timestamp: "t", kind: "writing-draft", chapterNum: 1, content: "正文", status: "pending" },
+        { id: "m2", timestamp: "t2", kind: "user", content: "后续消息" },
+      ]),
+      repo.update("au_u3", (messages) =>
+        messages.map((m) => (m.id === "d1" ? { ...m, status: "accepted" } : m)),
+      ),
+    ]);
+    const loaded = await repo.get("au_u3");
+    const draft = loaded.messages.find((m) => m.id === "d1");
+    expect(draft).toBeDefined();
+    expect(["accepted", "pending"]).toContain(draft!.status);
+    // 文件始终是合法 YAML 且消息结构完整
+    expect(loaded.messages.every((m) => typeof m.id === "string" && typeof m.kind === "string")).toBe(true);
+  });
+});

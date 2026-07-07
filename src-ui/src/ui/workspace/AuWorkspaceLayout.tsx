@@ -395,25 +395,37 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
 
       <div className="flex-1 flex flex-col overflow-hidden relative z-10 bg-background">
         {milestoneElement}
+        {/* 对话面板常驻挂载、CSS 隐藏（审计 H2/H3）：接受→confirm→提取这条多秒异步链的
+            状态全住在面板里，跟随 AnimatePresence 卸载会静默丢提取结果、丢接受标记。
+            其余 tab 保持按需挂载 + 过渡动画不变。 */}
+        <div className={activeTab === 'chat' ? 'flex-1 flex w-full h-full overflow-hidden' : 'hidden'}>
+          <SimpleChatPanel auPath={auPath} onChaptersChanged={refreshChapters} isActiveTab={activeTab === 'chat'} />
+        </div>
+        {/* 外层 hidden 门（对抗审 A-2）：切到 chat 时旧 tab 的 exit 动画（0.18s）仍占
+            flex-1，与 chat div 双双平分高度造成半高闪跳 —— 立即 display:none 掉整个
+            动画容器（exit 在隐藏中无声完成），非 chat 间的切换动画不受影响。 */}
+        <div className={activeTab === 'chat' ? 'hidden' : 'flex-1 flex w-full h-full overflow-hidden'}>
         <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 15, filter: 'blur(8px)' }}
-            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, y: -15, filter: 'blur(4px)' }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
-            className="flex-1 flex w-full h-full overflow-hidden"
-          >
-            {activeTab === 'chat' && <SimpleChatPanel auPath={auPath} />}
-            {activeTab === 'writer' && (
-              <WriterLayout auPath={auPath} onNavigate={onNavigate} viewChapter={viewingChapter} onClearViewChapter={() => setViewingChapter(null)} onChaptersChanged={refreshChapters} />
-            )}
-            {activeTab === 'facts' && <FactsLayout auPath={auPath} />}
-            {activeTab === 'threads' && <ThreadsLayout auPath={auPath} />}
-            {activeTab === 'au_lore' && <AuLoreLayout auPath={auPath} />}
-            {activeTab === 'settings' && <AuSettingsLayout auPath={auPath} />}
-          </motion.div>
+          {activeTab !== 'chat' && (
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 15, filter: 'blur(8px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: -15, filter: 'blur(4px)' }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="flex-1 flex w-full h-full overflow-hidden"
+            >
+              {activeTab === 'writer' && (
+                <WriterLayout auPath={auPath} onNavigate={onNavigate} viewChapter={viewingChapter} onClearViewChapter={() => setViewingChapter(null)} onChaptersChanged={refreshChapters} />
+              )}
+              {activeTab === 'facts' && <FactsLayout auPath={auPath} />}
+              {activeTab === 'threads' && <ThreadsLayout auPath={auPath} />}
+              {activeTab === 'au_lore' && <AuLoreLayout auPath={auPath} />}
+              {activeTab === 'settings' && <AuSettingsLayout auPath={auPath} />}
+            </motion.div>
+          )}
         </AnimatePresence>
+        </div>
       </div>
 
       {/* Embedding stale modal (sub-task 5) */}
