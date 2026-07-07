@@ -7,10 +7,23 @@ import matter from "gray-matter";
 import type { PlatformAdapter } from "../../platform/adapter.js";
 import type { Draft } from "../../domain/draft.js";
 import { createDraft } from "../../domain/draft.js";
+// 草稿解析必须走 safeMatter（审计 B-1，H6 同族）：AI 常以 `---` 场景分割线开草稿，
+// 裸 matter(text) 会把首段正文吞成 frontmatter；用户未编辑直接 confirm 时
+// confirm_chapter 回退 draft.content，截断内容会固化进正式章节。
+import { safeMatter } from "../../domain/frontmatter.js";
 import type { GeneratedWith } from "../../domain/generated_with.js";
 import { createGeneratedWith } from "../../domain/generated_with.js";
 import type { DraftRepository } from "../interfaces/draft.js";
-import { joinPath, validateBasePath, validatePathSegment } from "./file_utils.js";
+import { atomicWrite, joinPath, validateBasePath, validatePathSegment } from "./file_utils.js";
+
+/**
+ * 草稿 frontmatter 的合法键集合。真相源 = 下方 save() 的 meta 构造 —— 本仓库
+ * 唯一写草稿 frontmatter 的地方，只会写 generated_with 一个键（generated_with
+ * 为 null 时 meta 为空，gray-matter 不输出 frontmatter 块，文件即纯正文）。
+ * 与章节不同（无 chapter_id / provenance 等），必须单独定义。save() 增删键时
+ * 此集合必须同步。
+ */
+const KNOWN_DRAFT_META_KEYS: ReadonlySet<string> = new Set(["generated_with"]);
 
 export class FileDraftRepository implements DraftRepository {
   constructor(private adapter: PlatformAdapter) {}
@@ -42,8 +55,8 @@ export class FileDraftRepository implements DraftRepository {
     }
 
     const text = await this.adapter.readFile(path);
-    const parsed = matter(text);
-    const meta = (parsed.data ?? {}) as Record<string, unknown>;
+    const parsed = safeMatter(text, KNOWN_DRAFT_META_KEYS);
+    const meta = parsed.data;
 
     let generated_with: GeneratedWith | null = null;
     const gwRaw = meta.generated_with as Record<string, unknown> | undefined;
@@ -87,10 +100,14 @@ export class FileDraftRepository implements DraftRepository {
         generated_at: gw.generated_at,
       };
     }
-    const text = matter.stringify(draft.content, meta);
+    // 必须以 { content } 对象形式传入（审计 B-1，同 file_chapter 写路径）：
+    // matter.stringify 收到字符串时会先把正文按 frontmatter 再解析一遍，
+    // `---` 开头的草稿在写入这一刻就被吞掉首段/搅碎；对象形式跳过这次解析。
+    const text = matter.stringify({ content: draft.content }, meta);
     const dir = path.substring(0, path.lastIndexOf("/"));
     await this.adapter.mkdir(dir);
-    await this.adapter.writeFile(path, text);
+    // 覆盖已有 variant 时截断会毁掉旧稿 —— 原子写（审计 H5）
+    await atomicWrite(this.adapter, path, text);
   }
 
   async list_by_chapter(au_id: string, chapter_num: number): Promise<Draft[]> {

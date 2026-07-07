@@ -5,7 +5,7 @@
  * 章节文本切块。参见 PRD §5.2。
  *
  * 切分规则：
- * - frontmatter 剥离（gray-matter）
+ * - frontmatter 剥离（safeMatter，仅剥真章节 frontmatter）
  * - 按段落切（空行或 ## 标题为边界）
  * - 切分点在句号/叹号/问号处
  * - < 100 字合并到相邻段
@@ -13,7 +13,8 @@
  * - Overlap 用"最后一整句"
  */
 
-import matter from "gray-matter";
+import { KNOWN_CHAPTER_META_KEYS } from "../domain/chapter.js";
+import { safeMatter } from "../domain/frontmatter.js";
 import { scan_characters_in_chapter } from "../domain/character_scanner.js";
 
 /** 切块结果。 */
@@ -44,8 +45,12 @@ export function split_chapter_into_chunks(
   overlap_sentences = 1,
   cast_registry?: CastRegistryLike | null,
 ): ChunkData[] {
-  // 剥离 frontmatter
-  const parsed = matter(text);
+  // 剥离 frontmatter（审计 B-2）：输入通常已是 content-only 正文（rag_manager 传
+  // get_content_only 结果），这里的剥离只是对「误传整文件」的防御。裸 matter()
+  // 会把 `---` 开头的首场景吞成 frontmatter（该场景永不进向量索引），非法 YAML
+  // 形态则直接抛错（indexChapter 失败）—— safeMatter 只在有真章节 frontmatter
+  // 时才剥，其余整文进分块。
+  const parsed = safeMatter(text, KNOWN_CHAPTER_META_KEYS);
   const body = parsed.content.trim();
 
   if (!body) return [];

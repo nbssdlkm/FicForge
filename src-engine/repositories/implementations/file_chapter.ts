@@ -6,11 +6,15 @@
 import matter from "gray-matter";
 import type { PlatformAdapter } from "../../platform/adapter.js";
 import type { Chapter } from "../../domain/chapter.js";
-import { createChapter } from "../../domain/chapter.js";
+import { KNOWN_CHAPTER_META_KEYS, createChapter } from "../../domain/chapter.js";
+// 章节解析必须走 safeMatter（审计 H6 + M27 + B-3 全套防御，见 domain/frontmatter.ts）：
+// 裸 matter(raw) 会把 `---` 开头的正文吞成 frontmatter，导致该章不可读、
+// list_main 整 AU 崩、get_content_only 静默丢正文。
+import { safeMatter } from "../../domain/frontmatter.js";
 import type { GeneratedWith } from "../../domain/generated_with.js";
 import { createGeneratedWith } from "../../domain/generated_with.js";
 import type { ChapterRepository } from "../interfaces/chapter.js";
-import { compute_content_hash, joinPath, now_utc, validateBasePath } from "./file_utils.js";
+import { atomicWrite, compute_content_hash, joinPath, now_utc, validateBasePath } from "./file_utils.js";
 
 export class FileChapterRepository implements ChapterRepository {
   constructor(private adapter: PlatformAdapter) {}
@@ -45,12 +49,16 @@ export class FileChapterRepository implements ChapterRepository {
     }
 
     const text = await this.adapter.readFile(path);
-    const parsed = matter(text);
-    const meta = (parsed.data ?? {}) as Record<string, unknown>;
+    const { data: meta, content: rawContent } = safeMatter(text, KNOWN_CHAPTER_META_KEYS);
     // gray-matter preserves blank lines between frontmatter delimiter and body.
     // python-frontmatter strips all leading/trailing newlines.
     // Use /^\n+/ and /\n+$/ to handle hand-edited files with extra blank lines.
-    const content = parsed.content.replace(/^\n+/, "").replace(/\n+$/, "");
+    const content = rawContent.replace(/^\n+/, "").replace(/\n+$/, "");
+
+    // frontmatter 有无必须在补齐之前采样：下面的补齐会直接往 meta 里加键，
+    // 补齐后再数键会把所有章都误判成「有 frontmatter」（provenance 恒为 "ai"，
+    // 导入的裸正文永远拿不到 "imported"）。
+    const hadFrontmatter = Object.keys(meta).length > 0;
 
     // --- 缺失字段自动补齐（§2.6.7）---
     // 仅在内存中补齐，不写回磁盘。修复后的值在下次 save() 时持久化。
@@ -68,7 +76,7 @@ export class FileChapterRepository implements ChapterRepository {
     }
 
     if (!meta.provenance) {
-      meta.provenance = Object.keys(parsed.data ?? {}).length > 0 ? "ai" : "imported";
+      meta.provenance = hadFrontmatter ? "ai" : "imported";
     }
 
     if (!("revision" in meta)) {
@@ -103,10 +111,14 @@ export class FileChapterRepository implements ChapterRepository {
     }
     const path = this.chapterPath(chapter.au_id, chapter.chapter_num);
     const meta = chapterToMeta(chapter);
-    const text = matter.stringify(chapter.content, meta);
+    // 必须以 { content } 对象形式传入：matter.stringify 收到字符串时会先把
+    // 正文按 frontmatter 再解析一遍，正文以 `---` 开头会被吞掉一段（H6 的
+    // 写路径变体，实测正文首段会混进 frontmatter）；对象形式跳过这次解析。
+    const text = matter.stringify({ content: chapter.content }, meta);
     const dir = path.substring(0, path.lastIndexOf("/"));
     await this.adapter.mkdir(dir);
-    await this.adapter.writeFile(path, text);
+    // 章节正文是用户唯一副本，写盘必须原子（审计 H5）：崩溃击中写入中途时保旧文完整
+    await atomicWrite(this.adapter, path, text);
   }
 
   async delete(au_id: string, chapter_num: number): Promise<void> {
@@ -149,9 +161,9 @@ export class FileChapterRepository implements ChapterRepository {
       throw new Error(`Chapter not found: ${path}`);
     }
     const text = await this.adapter.readFile(path);
-    const parsed = matter(text);
+    const { content } = safeMatter(text, KNOWN_CHAPTER_META_KEYS);
     // Normalize leading/trailing newlines (see get() comment for rationale).
-    return parsed.content.replace(/^\n+/, "").replace(/\n+$/, "");
+    return content.replace(/^\n+/, "").replace(/\n+$/, "");
   }
 
   async backup_chapter(au_id: string, chapter_num: number): Promise<string> {
@@ -173,7 +185,8 @@ export class FileChapterRepository implements ChapterRepository {
 
     const dest = joinPath(backupsDir, `ch${String(chapter_num).padStart(4, "0")}_v${version}.md`);
     const content = await this.adapter.readFile(src);
-    await this.adapter.writeFile(dest, content);
+    // 备份供 undo 级联回滚使用：原子写保证要么完整存在、要么不存在，不会留半截备份被回滚误用
+    await atomicWrite(this.adapter, dest, content);
     return dest;
   }
 }
@@ -218,6 +231,8 @@ function metaToChapter(
   });
 }
 
+// 注意：这里写入的键集合是 KNOWN_CHAPTER_META_KEYS（domain/chapter.ts）的真相源，
+// 增删字段必须同步。
 function chapterToMeta(chapter: Chapter): Record<string, unknown> {
   const meta: Record<string, unknown> = {
     chapter_id: chapter.chapter_id,

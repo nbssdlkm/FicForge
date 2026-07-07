@@ -83,3 +83,38 @@ describe("split_chapter_into_chunks", () => {
     expect(chunks.length).toBeGreaterThanOrEqual(1);
   });
 });
+
+/**
+ * frontmatter 剥离安全性判别性测试（审计 B-2，H6 同族）。
+ * 回退到裸 matter(text) 的旧实现必挂：`---` 开头的首场景被吞成 frontmatter
+ * （永不进向量索引），非法 YAML 形态直接抛错（indexChapter 失败）。
+ */
+describe("split_chapter_into_chunks frontmatter safety (B-2)", () => {
+  it("`---` 开头的正文分块包含首场景文本", () => {
+    const text = "---\n\n夜色如墨，山径无人，唯有风声掠过林梢，走了很久。\n\n---\n\n第二场，晨光初现，旅人抵达山门。";
+    const chunks = split_chapter_into_chunks(text, 1, 500, 0);
+    const all = chunks.map((c) => c.content).join("\n");
+    expect(all).toContain("夜色如墨");
+    expect(all).toContain("第二场");
+  });
+
+  it("B-3: `---\\n\\n---` 开头的正文不丢分割线后内容", () => {
+    const text = "---\n\n---\n\n正文从分割线后开始，讲述一段完整的故事。";
+    const chunks = split_chapter_into_chunks(text, 1, 500, 0);
+    expect(chunks.map((c) => c.content).join("\n")).toContain("正文从分割线后开始");
+  });
+
+  it("非法 YAML 形态正文不抛错、全文进分块", () => {
+    const text = "---\nfoo: [unclosed\n---\n正文内容在此，一句完整的话。";
+    expect(() => split_chapter_into_chunks(text, 1, 500, 0)).not.toThrow();
+    const all = split_chapter_into_chunks(text, 1, 500, 0).map((c) => c.content).join("\n");
+    expect(all).toContain("正文内容在此");
+  });
+
+  it("真章节 frontmatter（含未知键混合）仍被剥离", () => {
+    const text = "---\nchapter_id: abc\nrevision: 2\n---\n正文内容，不含元数据。";
+    const all = split_chapter_into_chunks(text, 1, 500, 0).map((c) => c.content).join("\n");
+    expect(all).not.toContain("chapter_id");
+    expect(all).toContain("正文内容");
+  });
+});
