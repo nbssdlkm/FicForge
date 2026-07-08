@@ -3,11 +3,11 @@
 //
 // M9 ReAct 提取真 LLM 探针（NOT a unit test — hits network, needs local key）。
 // 跑法：npx vitest run --config vitest.live.config.ts livetest/m9_react_extraction.probe.ts
-// 目的：mock 单测证明了循环接线对；这里证明真 LLM（deepseek-chat）会按协议调
+// 目的：mock 单测证明了循环接线对；这里证明真 LLM（deepseek-v4-flash，M9_PROBE_MODEL 可覆盖）会按协议调
 //       propose_facts → search_existing_facts → annotate_fact → finalize_extraction，
 //       真的产出跨章 caused_by + 自动 thread_ids。「测试绿 ≠ 真 works」那一层。
 //
-// LLM = deepseek-chat（~/.deepseek/config.toml）。无 embedding 需求（M9 走关键词本地过滤）。
+// LLM = deepseek-v4-flash（key 取 ~/.deepseek/config.toml）。无 embedding 需求（M9 走关键词本地过滤）。
 
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";

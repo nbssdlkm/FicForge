@@ -6,7 +6,9 @@
 // 目的：肉眼验 M8-C 摘要情感保真 / M8-A 富化字段合理性 / M10 回望后见之明。
 // 单测覆盖不到「测试绿≠真 works」那一层。故意放 livetest/（不在 __tests__，正常 suite 不收）。
 //
-// LLM = deepseek-chat（~/.deepseek/config.toml）；Embedding = 硅基流动 bge-m3（~/.siliconflow/api_key）。
+// LLM = deepseek-v4-flash（key 取 ~/.deepseek/config.toml；M8_PROBE_MODEL 环境变量可覆盖）；
+// Embedding = 硅基流动 bge-m3（~/.siliconflow/api_key）。
+// 注：历史基线在 deepseek-chat 上测（2026-07-24 官方停用），换模型后质量观感不可直接对旧记录比。
 
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -36,7 +38,8 @@ function siliconflowKey(): string {
   return readFileSync(join(homedir(), ".siliconflow", "api_key"), "utf8").trim();
 }
 
-const llm = new OpenAICompatibleProvider("https://api.deepseek.com", deepseekKey(), "deepseek-chat");
+const PROBE_MODEL = process.env.M8_PROBE_MODEL || "deepseek-v4-flash";
+const llm = new OpenAICompatibleProvider("https://api.deepseek.com", deepseekKey(), PROBE_MODEL);
 const embed = new RemoteEmbeddingProvider("https://api.siliconflow.cn/v1", siliconflowKey(), "BAAI/bge-m3");
 const llmConfig = { mode: "api" };
 
