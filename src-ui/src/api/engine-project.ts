@@ -176,7 +176,8 @@ export async function saveAuSettingsForEditing(auPath: string, payload: AuSettin
           api_key: payload.llm_override.mode === "api" ? payload.llm_override.api_key : "",
           local_model_path: payload.llm_override.mode === "local" ? payload.llm_override.local_model_path : "",
           ollama_model: payload.llm_override.mode === "ollama" ? payload.llm_override.ollama_model : "",
-          context_window: payload.llm_override.context_window,
+          // 缺省（「窗口未知」）→ 0 哨兵（引擎按模型推断），不补 UI 默认值（审计鲜眼 R2-3）。
+          context_window: payload.llm_override.context_window ?? 0,
           // chat_path：只在 API 模式非空时落库（optional）；空/非 API → undefined（dump 省略，
           // 不残留旧路径）。归一化复用 engine-settings.normalizeChatPath（单一规则源）。
           chat_path: normalizeChatPath(payload.llm_override.mode === "api" ? payload.llm_override.chat_path : undefined),

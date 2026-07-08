@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { Spinner } from "../shared/Spinner";
 import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
+import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { Input } from '../shared/Input';
 import { HelpCircle, CheckCircle2, XCircle } from 'lucide-react';
 import { ProviderModelPicker } from './model-picker/ProviderModelPicker';
@@ -26,8 +27,9 @@ import {
   buildGlobalSettingsSaveInput,
   createDefaultGlobalSettingsFormState,
   hydrateGlobalSettingsForm,
+  type GlobalSettingsFormState,
 } from './form-mappers';
-import { DEFAULT_DEEPSEEK_MODEL, DEFAULT_DEEPSEEK_API_BASE, DEFAULT_CONTEXT_WINDOW } from '../../config/defaults';
+import { DEFAULT_DEEPSEEK_MODEL, DEFAULT_DEEPSEEK_API_BASE } from '../../config/defaults';
 
 export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const { t, i18n } = useTranslation();
@@ -44,7 +46,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   const [ollamaModel, setOllamaModel] = useState('');
   const [apiBase, setApiBase] = useState(DEFAULT_DEEPSEEK_API_BASE);
   const [apiKey, setApiKey] = useState('');
-  const [contextWindow, setContextWindow] = useState(DEFAULT_CONTEXT_WINDOW);
+  const [contextWindow, setContextWindow] = useState(''); // 表单态："" = 窗口未知（R2-3）
   const [chatPath, setChatPath] = useState('');
   const [embeddingModel, setEmbeddingModel] = useState('');
   const [embeddingApiBase, setEmbeddingApiBase] = useState('');
@@ -52,6 +54,9 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   const [apiHelpOpen, setApiHelpOpen] = useState(false);
   const [displayDataDir, setDisplayDataDir] = useState('');
   const [reactExtractionEnabled, setReactExtractionEnabled] = useState(true); // M9，默认开（PD-4）
+  // 脏检查基线：hydrate / 保存成功后的表单快照（R2-5）。null = 尚未加载完成（视为不脏）。
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
 
   const llmConnection = useLlmConnectionTest({
     getSuccessMessage: () => t('settings.global.connectionSuccess'),
@@ -80,11 +85,32 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     setEmbeddingApiKey(defaults.embeddingApiKey);
     setApiHelpOpen(false);
     setReactExtractionEnabled(true);
+    setSavedSnapshot(null);
+    setDiscardConfirmOpen(false);
   };
+
+  /**
+   * 脏检查快照（R2-5）：只含「保存」按钮管辖的连接与模型选择字段。
+   * 语言 / 提取开关 / 字体 / 服务商目录与模型清单是即时保存的，不计脏。
+   * 用固定序数组序列化（对象键序随构造点漂移，字符串比对会误报）。
+   *
+   * contextWindow 刻意不计脏：选择器会在打开后对权威模型自动校正 ctx（系统行为，
+   * 与用户手改无法区分），计入会让「打开就脏 → 关个窗还弹确认」成为常态误报。
+   * 取舍：ctx 单独漂移不弹确认（保存 payload 仍照常携带；其余任一字段改动照弹）。
+   */
+  const formSnapshot = (f: GlobalSettingsFormState): string => JSON.stringify([
+    f.mode, f.model, f.localModelPath, f.ollamaModel, f.apiBase, f.apiKey,
+    f.chatPath, f.embeddingModel, f.embeddingApiBase, f.embeddingApiKey,
+  ]);
+  const currentForm = (): GlobalSettingsFormState => ({
+    mode, model, localModelPath, ollamaModel, apiBase, apiKey,
+    contextWindow, chatPath, embeddingModel, embeddingApiBase, embeddingApiKey,
+  });
+  const isDirty = savedSnapshot !== null && formSnapshot(currentForm()) !== savedSnapshot;
 
   useEffect(() => {
     llmConnection.reset();
-  }, [mode, model, localModelPath, ollamaModel, apiBase, apiKey, contextWindow, embeddingModel]);
+  }, [mode, model, localModelPath, ollamaModel, apiBase, apiKey, contextWindow, chatPath, embeddingModel]);
 
   useEffect(() => {
     if (isOpen) {
@@ -110,6 +136,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         setEmbeddingApiBase(form.embeddingApiBase);
         setEmbeddingApiKey(form.embeddingApiKey);
         setReactExtractionEnabled(res.app?.react_extraction_enabled !== false);
+        setSavedSnapshot(formSnapshot(form));
       }).catch((error) => {
         if (modalGuard.isStale(token)) return;
         showError(error, t('error_messages.unknown'));
@@ -131,23 +158,13 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     const token = modalGuard.start();
     setSaving(true);
     try {
-      await saveGlobalSettingsForEditing(buildGlobalSettingsSaveInput({
-        mode,
-        model,
-        localModelPath,
-        ollamaModel,
-        apiBase,
-        apiKey,
-        contextWindow,
-        chatPath,
-        embeddingModel,
-        embeddingApiBase,
-        embeddingApiKey,
-      }));
+      const form = currentForm();
+      await saveGlobalSettingsForEditing(buildGlobalSettingsSaveInput(form));
       if (modalGuard.isStale(token)) return;
       // Don't auto-close — user explicitly asked to keep the modal open after
       // save so they can continue tweaking other sections without reopening.
       // A toast confirms the save landed.
+      setSavedSnapshot(formSnapshot(form));
       showSuccess(t('settings.global.savedToast'));
     } catch (error) {
       if (modalGuard.isStale(token)) return;
@@ -167,7 +184,19 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
       apiKey,
       localModelPath,
       ollamaModel,
+      // 自定义 chatPath 网关：测试必须打真实生成同款 URL（R2-2）
+      chatPath,
     });
+  };
+
+  /** 关闭入口统一走脏检查（R2-5）：X / 取消都先确认再丢弃。 */
+  const requestClose = () => {
+    if (saving) return;
+    if (isDirty) {
+      setDiscardConfirmOpen(true);
+      return;
+    }
+    onClose();
   };
 
   const handleEmbeddingTest = async () => {
@@ -188,7 +217,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   });
 
   return (
-    <Modal isOpen={isOpen} onClose={saving ? () => {} : onClose} title={t('settings.global.title')}>
+    <Modal isOpen={isOpen} onClose={requestClose} title={t('settings.global.title')}>
       {loading ? (
         <div className="flex justify-center py-12"><Spinner size="sm" className="text-accent" /></div>
       ) : (
@@ -271,8 +300,11 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
             {mode !== 'api' && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-bold text-text/90">{t('common.labels.contextWindow')}</label>
-                <Input type="number" value={contextWindow} onChange={(e) => setContextWindow(parseInt(e.target.value, 10) || 0)} disabled={saving} />
-                <p className="text-xs text-text/50">{t('common.help.contextWindow')}</p>
+                <Input type="number" value={contextWindow} onChange={(e) => setContextWindow(e.target.value)} disabled={saving} />
+                {/* "" = 窗口未知（R2-3）：显式警示，不静默按默认处理 */}
+                {contextWindow.trim() === ''
+                  ? <p className="text-xs text-warning">{t('modelPicker.ctxUnknown')}</p>
+                  : <p className="text-xs text-text/50">{t('common.help.contextWindow')}</p>}
               </div>
             )}
 
@@ -390,7 +422,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
               cancels Modal/Sheet body padding (px-6 desktop, px-4 mobile) so
               the bg-surface fill spans the full modal width. */}
           <div className="sticky bottom-0 -mx-4 md:-mx-6 flex justify-end gap-3 border-t border-rule bg-surface px-4 md:px-6 py-3">
-            <Button tone="neutral" fill="plain" onClick={onClose} disabled={saving}>{t('common.actions.cancel')}</Button>
+            <Button tone="neutral" fill="plain" onClick={requestClose} disabled={saving}>{t('common.actions.cancel')}</Button>
             <Button tone="accent" fill="solid" onClick={handleSave} disabled={saving || !settings} className="w-24">
               {saving ? <Spinner size="md" /> : t('common.actions.save')}
             </Button>
@@ -398,6 +430,19 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         </div>
       )}
       <ApiSetupHelp isOpen={apiHelpOpen} onClose={() => setApiHelpOpen(false)} />
+      {/* 脏检查确认（R2-5）：仅覆盖「保存」按钮管辖的连接与模型选择字段 */}
+      <ConfirmDialog
+        isOpen={discardConfirmOpen}
+        onClose={() => setDiscardConfirmOpen(false)}
+        onConfirm={() => {
+          setDiscardConfirmOpen(false);
+          onClose();
+        }}
+        title={t('settings.global.discardConfirmTitle')}
+        message={t('settings.global.discardConfirmMessage')}
+        confirmLabel={t('settings.global.discardConfirmYes')}
+        destructive
+      />
     </Modal>
   );
 };

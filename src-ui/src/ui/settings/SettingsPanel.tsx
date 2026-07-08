@@ -7,6 +7,7 @@ import { Button } from '../shared/Button';
 import { SessionModelPicker } from './model-picker/SessionModelPicker';
 import type { PickerModelOption, SessionLayer } from './model-picker/model-picker-utils';
 import { useTranslation } from '../../i18n/useAppTranslation';
+import { DEFAULT_DEEPSEEK_MODEL } from '../../config/defaults';
 
 interface SettingsPanelProps {
   model?: string;
@@ -36,12 +37,12 @@ export const SettingsPanel = ({
   sessionModelOptions = [],
 }: SettingsPanelProps = {}) => {
   const { t } = useTranslation();
-  const [localModel, setLocalModel] = useState(externalModel || 'deepseek-chat');
+  const [localModel, setLocalModel] = useState(externalModel || DEFAULT_DEEPSEEK_MODEL);
   const [temp, setTemp] = useState(externalTemp ?? 1.0);
   const [topP, setTopP] = useState(externalTopP ?? 0.95);
 
   useEffect(() => {
-    setLocalModel(externalModel || 'deepseek-chat');
+    setLocalModel(externalModel || DEFAULT_DEEPSEEK_MODEL);
   }, [externalModel]);
 
   useEffect(() => {

@@ -43,7 +43,8 @@ export interface ProjectLlmOverrideInput {
   api_key: string;
   local_model_path: string;
   ollama_model: string;
-  context_window: number;
+  /** 缺省 = 窗口未知 → 引擎存 0 哨兵（按模型推断），不补 UI 默认值。 */
+  context_window?: number;
   /** 非标聊天补全路径（自定义供应商 chatPath）。缺省 = 默认 /chat/completions。 */
   chat_path?: string;
 }

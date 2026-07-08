@@ -31,7 +31,7 @@ import type {
   SettingsSummary,
   WriterSessionConfig,
 } from "./settings";
-import { DEFAULT_OLLAMA_BASE_URL, DEFAULT_CONTEXT_WINDOW } from "../config/defaults";
+import { DEFAULT_OLLAMA_BASE_URL } from "../config/defaults";
 
 /**
  * 归一化 chat_path：非空字符串 → trim 后原样；空/非串 → undefined。
@@ -278,6 +278,26 @@ export async function saveEnabledModels(providerId: string, models: CustomModelE
 const FETCH_MODELS_TIMEOUT_MS = 15_000;
 
 /**
+ * fetchProviderModels 的错误分类（审计鲜眼 R2-4）：
+ *   auth    — 401/403（密钥无效或未填）
+ *   network — 超时 / fetch 网络层失败（复用 error_messages.connection_failed 口径）
+ *   http    — 其余非 2xx（带 status 供 UI 简述）
+ * UI（FetchModelsSheet）按 code 映射 i18n 文案；API 层不做 i18n。
+ */
+export type FetchModelsErrorCode = "auth" | "network" | "http";
+
+export class FetchModelsError extends Error {
+  code: FetchModelsErrorCode;
+  status?: number;
+  constructor(message: string, code: FetchModelsErrorCode, status?: number) {
+    super(message);
+    this.name = "FetchModelsError";
+    this.code = code;
+    if (status !== undefined) this.status = status;
+  }
+}
+
+/**
  * 「从 API 获取列表」—— GET {api_base}/models（OpenAI 兼容），带超时。
  * 路径口径与 OpenAICompatibleProvider 的 `{api_base}/chat/completions` 一致：
  * api_base 含不含 /v1 由供应商条目决定，这里只拼 /models。
@@ -291,15 +311,28 @@ export async function fetchProviderModels(params: { api_base: string; api_key: s
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_MODELS_TIMEOUT_MS);
   try {
-    const resp = await fetch(`${base}/models`, {
-      method: "GET",
-      headers: {
-        ...(params.api_key.trim() ? { Authorization: `Bearer ${params.api_key.trim()}` } : {}),
-      },
-      signal: controller.signal,
-    });
+    let resp: Response;
+    try {
+      resp = await fetch(`${base}/models`, {
+        method: "GET",
+        headers: {
+          ...(params.api_key.trim() ? { Authorization: `Bearer ${params.api_key.trim()}` } : {}),
+        },
+        signal: controller.signal,
+      });
+    } catch (e: unknown) {
+      if (e instanceof DOMException && e.name === "AbortError") {
+        throw new FetchModelsError(`timeout after ${FETCH_MODELS_TIMEOUT_MS / 1000}s`, "network");
+      }
+      // fetch 网络层失败（DNS / 拒连 / CORS）—— 统一归 network
+      throw new FetchModelsError(e instanceof Error ? e.message : String(e), "network");
+    }
     if (!resp.ok) {
-      throw new Error(`HTTP ${resp.status}`);
+      throw new FetchModelsError(
+        `HTTP ${resp.status}`,
+        resp.status === 401 || resp.status === 403 ? "auth" : "http",
+        resp.status,
+      );
     }
     const data = (await resp.json()) as { data?: unknown };
     const list = Array.isArray(data?.data) ? data.data : [];
@@ -307,11 +340,6 @@ export async function fetchProviderModels(params: { api_base: string; api_key: s
       .map((item) => (item && typeof item === "object" ? (item as { id?: unknown }).id : undefined))
       .filter((id): id is string => typeof id === "string" && id.length > 0);
     return { ids: [...new Set(ids)] };
-  } catch (e: unknown) {
-    if (e instanceof DOMException && e.name === "AbortError") {
-      throw new Error(`timeout after ${FETCH_MODELS_TIMEOUT_MS / 1000}s`);
-    }
-    throw e;
   } finally {
     clearTimeout(timer);
   }
@@ -328,6 +356,7 @@ export async function getOnboardingDefaults(): Promise<OnboardingDefaults> {
       local_model_path: settings.default_llm.local_model_path,
       ollama_model: settings.default_llm.ollama_model,
       context_window: settings.default_llm.context_window,
+      ...(settings.default_llm.chat_path ? { chat_path: settings.default_llm.chat_path } : {}),
     },
     embedding: {
       mode: settings.embedding.mode,
@@ -350,7 +379,9 @@ export async function saveDefaultLlmSettings(payload: DefaultLlmSettingsInput) {
       api_key: payload.api_key,
       local_model_path: payload.local_model_path,
       ollama_model: payload.ollama_model,
-      context_window: payload.context_window,
+      // 缺省（表单「窗口未知」）→ 0 = 引擎「按模型推断」哨兵（LLMConfig 注释），
+      // 不再静默补 128000 伪装成用户手填值（审计鲜眼 R2-3）。
+      context_window: payload.context_window ?? 0,
       // 与 saveGlobalSettingsForEditing 同口径：显式覆盖，空/缺 → undefined（dump 省略）。
       chat_path: normalizeChatPath(payload.chat_path),
     };
@@ -399,7 +430,8 @@ export async function saveGlobalSettingsForEditing(payload: GlobalSettingsSaveIn
       api_key: payload.default_llm.mode === "api" ? payload.default_llm.api_key : "",
       local_model_path: payload.default_llm.mode === "local" ? payload.default_llm.local_model_path : "",
       ollama_model: payload.default_llm.mode === "ollama" ? payload.default_llm.ollama_model : "",
-      context_window: payload.default_llm.context_window,
+      // 缺省（「窗口未知」）→ 0 哨兵（引擎按模型推断），round-trip 读回仍是「未知」。
+      context_window: payload.default_llm.context_window ?? 0,
       // chat_path：只在 API 模式且非空时落库（optional，缺省即默认路径 /chat/completions）。
       // 显式赋值（在 ...current.default_llm 之后）覆盖旧值：空/非 API → undefined，
       // js-yaml dump 会省略 undefined 键 → 旧路径不残留（与 api_key 置空同口径）。
@@ -439,6 +471,10 @@ export async function saveOnboardingSettings(payload: {
     api_key: string;
     local_model_path: string;
     ollama_model: string;
+    /** 选择器带出的 ctx；缺省 = 未知 → 0 哨兵（引擎按模型推断）。 */
+    context_window?: number;
+    /** 选择器带出的非标聊天路径；缺省/空 = 默认 /chat/completions。 */
+    chat_path?: string;
   };
   embedding: {
     mode: string;
@@ -457,7 +493,10 @@ export async function saveOnboardingSettings(payload: {
       api_key: payload.default_llm.api_key,
       local_model_path: payload.default_llm.local_model_path,
       ollama_model: payload.default_llm.ollama_model,
-      context_window: current.default_llm.context_window || DEFAULT_CONTEXT_WINDOW,
+      // ctx / chat_path 与本次选的模型同源：不沿用描述旧模型的存量值，也不硬塞
+      // 128000 默认（0 = 引擎「按模型推断」哨兵；chat_path 空 → dump 省略）。
+      context_window: payload.default_llm.context_window ?? 0,
+      chat_path: normalizeChatPath(payload.default_llm.chat_path),
     };
     current.embedding = {
       ...current.embedding,
@@ -489,14 +528,14 @@ export async function testConnection(params: {
   api_key?: string;
   local_model_path?: string;
   ollama_model?: string;
+  /** 非标聊天补全路径 —— 测试连接必须与真实生成同 URL（缺省 /chat/completions）。 */
+  chat_path?: string;
 }) {
   try {
     if (params.mode === "local") {
-      return {
-        success: false,
-        message: "本版本不支持 local 模式（本地模型加载）。请切换到 API 或 Ollama。",
-        error_code: "mode_not_implemented",
-      };
+      // 不在 API 层硬编码中文文案：只回 error_code，i18n 映射在 UI 层
+      // （useLlmConnectionTest → error_messages.unsupported_mode）。
+      return { success: false, error_code: "unsupported_mode" };
     }
     if (params.mode === "ollama") {
       const raw = (params.api_base || DEFAULT_OLLAMA_BASE_URL).replace(/\/+$/, "");
@@ -505,13 +544,17 @@ export async function testConnection(params: {
       if (resp.ok) {
         return { success: true, model: params.ollama_model ?? "ollama" };
       }
-      return { success: false, message: "无法连接 Ollama 服务", error_code: "connection_failed" };
+      // 同上：error_code 交 UI 层映射 error_messages.connection_failed。
+      return { success: false, error_code: "connection_failed" };
     }
 
     const provider = new OpenAICompatibleProvider(
       params.api_base ?? "",
       params.api_key ?? "",
       params.model ?? "",
+      // 与生成路径同口径：自定义 chatPath 的网关，测试也得打同一 URL，
+      // 否则「测试通过、生成 404」（审计 5b）。
+      normalizeChatPath(params.chat_path),
     );
     const resp = await provider.generate({
       messages: [{ role: "user", content: "Hi" }],

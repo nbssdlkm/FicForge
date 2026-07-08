@@ -31,7 +31,7 @@ describe("SessionModelPicker", () => {
     expect(screen.getByTestId("session-layer-badge").textContent).toBe("会话临时");
 
     rerender(<SessionModelPicker model="a" onModelChange={() => {}} layer="au" options={options} />);
-    expect(screen.getByTestId("session-layer-badge").textContent).toBe("本篇覆盖中");
+    expect(screen.getByTestId("session-layer-badge").textContent).toBe("本篇单独设置");
 
     rerender(<SessionModelPicker model="a" onModelChange={() => {}} layer="global" options={options} />);
     expect(screen.getByTestId("session-layer-badge").textContent).toBe("全局默认");

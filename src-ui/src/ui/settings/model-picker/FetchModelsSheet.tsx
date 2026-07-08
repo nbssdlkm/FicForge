@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, XCircle } from "lucide-react";
 import { Modal } from "../../shared/Modal";
 import { Button } from "../../shared/Button";
@@ -10,7 +10,7 @@ import { Input } from "../../shared/Input";
 import { Spinner } from "../../shared/Spinner";
 import { useTranslation } from "../../../i18n/useAppTranslation";
 import { useActiveRequestGuard } from "../../../hooks/useActiveRequestGuard";
-import { fetchProviderModels, type CustomModelEntry } from "../../../api/engine-client";
+import { fetchProviderModels, FetchModelsError, type CustomModelEntry } from "../../../api/engine-client";
 import {
   MODEL_GROUP_ORDER,
   isLikelyEmbeddingId,
@@ -59,15 +59,22 @@ export function FetchModelsSheet({
   const [search, setSearch] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (!isOpen) return;
+  /** 错误分类 → 用户可懂文案（R2-4）：401/403 指向密钥；超时/网络复用 connection_failed 口径；其余带状态码简述。 */
+  const describeFetchError = useCallback((error: unknown): string => {
+    if (error instanceof FetchModelsError) {
+      if (error.code === "auth") return t("modelPicker.fetchSheet.errorAuth");
+      if (error.code === "network") return t("error_messages.connection_failed");
+      return t("modelPicker.fetchSheet.errorHttp", { status: error.status ?? "?" });
+    }
+    return t("modelPicker.fetchSheet.error", { message: error instanceof Error ? error.message : String(error) });
+  }, [t]);
+
+  /** 拉取（打开时自动跑一次；error 态「重试」按钮复用）。 */
+  const runFetch = useCallback(() => {
     const token = guard.start();
     setStatus("loading");
     setErrorMessage("");
     setFetchedIds([]);
-    setSearch("");
-    setCollapsed(new Set());
-    setSelected(new Set(existingEntries.map((m) => m.id)));
     fetchProviderModels({ api_base: apiBase, api_key: apiKey })
       .then((res) => {
         if (guard.isStale(token)) return;
@@ -76,9 +83,17 @@ export function FetchModelsSheet({
       })
       .catch((error: unknown) => {
         if (guard.isStale(token)) return;
-        setErrorMessage(error instanceof Error ? error.message : String(error));
+        setErrorMessage(describeFetchError(error));
         setStatus("error");
       });
+  }, [apiBase, apiKey, describeFetchError, guard]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setSearch("");
+    setCollapsed(new Set());
+    setSelected(new Set(existingEntries.map((m) => m.id)));
+    runFetch();
     // existingEntries 是打开瞬间的快照语义，刻意不进依赖（打开期间父层不变）
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
@@ -172,9 +187,14 @@ export function FetchModelsSheet({
         )}
 
         {status === "error" && (
-          <div className="flex items-start gap-2 rounded-sm border border-error/30 bg-error/10 p-3 text-sm text-error">
-            <XCircle size={16} className="mt-0.5 shrink-0" />
-            <span>{t("modelPicker.fetchSheet.error", { message: errorMessage })}</span>
+          <div className="space-y-2">
+            <div className="flex items-start gap-2 rounded-sm border border-error/30 bg-error/10 p-3 text-sm text-error">
+              <XCircle size={16} className="mt-0.5 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+            <Button tone="neutral" fill="outline" size="sm" onClick={runFetch}>
+              {t("modelPicker.fetchSheet.retry")}
+            </Button>
           </div>
         )}
 

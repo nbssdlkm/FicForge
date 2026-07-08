@@ -13,7 +13,7 @@ import { Button } from '../shared/Button';
 import { saveDefaultLlmSettings } from '../../api/engine-client';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { useTranslation } from '../../i18n/useAppTranslation';
-import { buildDefaultLlmSettingsInput } from '../shared/llm-config';
+import { buildDefaultLlmSettingsInput, formCtxToSaveInput } from '../shared/llm-config';
 
 const ONBOARDING_KEY = 'ficforge.onboarding.completed';
 const ONBOARDING_DISMISSED_SESSION_KEY = 'ficforge.onboarding.dismissed_session';
@@ -51,6 +51,7 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
     setSaveError(null);
     // 保存配置到 settings
     try {
+      // ctx / chat_path 随选择器带出（R2-7）："" → 省略（引擎按模型推断 / 默认路径）。
       await saveDefaultLlmSettings(buildDefaultLlmSettingsInput({
         mode: config.mode,
         model: config.model,
@@ -58,7 +59,8 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
         apiKey: config.api_key,
         localModelPath: config.local_model_path,
         ollamaModel: config.ollama_model,
-      }, 0));
+        chatPath: config.chat_path,
+      }, formCtxToSaveInput(config.context_window)));
       setConfigSaved(true);
       setStep(2);
     } catch (e: any) {

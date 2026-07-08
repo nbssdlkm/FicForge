@@ -76,7 +76,7 @@ function ControlledPicker({ spies }: {
 }) {
   const [model, setModel] = useState("");
   const [apiBase, setApiBase] = useState("");
-  const [ctx, setCtx] = useState(128000);
+  const [ctx, setCtx] = useState("");
   return (
     <ProviderModelPicker
       kind="chat"
@@ -103,7 +103,7 @@ describe("ProviderModelPicker", () => {
     const onApiBaseAutoFill = vi.fn();
     renderPicker(<ControlledPicker spies={{ onApiBaseAutoFill }} />);
 
-    const providerSelect = await screen.findByLabelText("供应商");
+    const providerSelect = await screen.findByLabelText("服务商");
     fireEvent.change(providerSelect, { target: { value: "deepseek" } });
     expect(onApiBaseAutoFill).toHaveBeenCalledWith("https://api.deepseek.com");
 
@@ -116,15 +116,15 @@ describe("ProviderModelPicker", () => {
     const onContextWindowChange = vi.fn();
     renderPicker(<ControlledPicker spies={{ onModelChange, onContextWindowChange }} />);
 
-    fireEvent.change(await screen.findByLabelText("供应商"), { target: { value: "deepseek" } });
+    fireEvent.change(await screen.findByLabelText("服务商"), { target: { value: "deepseek" } });
     fireEvent.change(screen.getByLabelText("模型"), { target: { value: "deepseek-v4-flash" } });
 
     expect(onModelChange).toHaveBeenCalledWith("deepseek-v4-flash");
-    expect(onContextWindowChange).toHaveBeenCalledWith(1_000_000);
+    expect(onContextWindowChange).toHaveBeenCalledWith("1000000");
     const ctxInput = screen.getByLabelText("一次能读多少字 (context window)") as HTMLInputElement;
     expect(ctxInput.readOnly).toBe(true);
     expect(ctxInput.value).toBe("1000000");
-    expect(screen.getByText(/内置权威值/)).toBeTruthy();
+    expect(screen.getByText(/官方值/)).toBeTruthy();
     // 推荐模型标签胶囊
     expect(screen.getByText("便宜")).toBeTruthy();
     expect(screen.getByText("长上下文")).toBeTruthy();
@@ -134,28 +134,28 @@ describe("ProviderModelPicker", () => {
     const onContextWindowChange = vi.fn();
     renderPicker(<ControlledPicker spies={{ onContextWindowChange }} />);
 
-    fireEvent.change(await screen.findByLabelText("供应商"), { target: { value: "deepseek" } });
+    fireEvent.change(await screen.findByLabelText("服务商"), { target: { value: "deepseek" } });
     // 切手填输入
     fireEvent.click(screen.getByRole("button", { name: "手填" }));
     const modelInput = screen.getByPlaceholderText(/输入模型 id/);
     fireEvent.change(modelInput, { target: { value: "made-up-model-9000" } });
 
-    expect(screen.getByText(/窗口未知/)).toBeTruthy();
+    expect(screen.getByText(/查不到这个模型/)).toBeTruthy();
     const ctxInput = screen.getByLabelText("一次能读多少字 (context window)") as HTMLInputElement;
     expect(ctxInput.readOnly).toBe(false);
     fireEvent.change(ctxInput, { target: { value: "256000" } });
-    expect(onContextWindowChange).toHaveBeenLastCalledWith(256000);
+    expect(onContextWindowChange).toHaveBeenLastCalledWith("256000");
 
     // 数据链末端：表单 ctx → buildGlobalSettingsSaveInput → default_llm.context_window
     const form = createDefaultGlobalSettingsFormState();
-    form.contextWindow = 256000;
+    form.contextWindow = "256000";
     expect(buildGlobalSettingsSaveInput(form).default_llm.context_window).toBe(256000);
   });
 
   it("手填 fuzzy 可推的模型 → 显式「按 XXk 估算」提示（禁静默 fallback）", async () => {
     renderPicker(<ControlledPicker spies={{}} />);
 
-    fireEvent.change(await screen.findByLabelText("供应商"), { target: { value: "deepseek" } });
+    fireEvent.change(await screen.findByLabelText("服务商"), { target: { value: "deepseek" } });
     fireEvent.click(screen.getByRole("button", { name: "手填" }));
     fireEvent.change(screen.getByPlaceholderText(/输入模型 id/), { target: { value: "kimi-k2.6" } });
 
@@ -166,7 +166,7 @@ describe("ProviderModelPicker", () => {
     renderPicker(
       <FetchlessEmbeddingHarness />,
     );
-    fireEvent.change(await screen.findByLabelText("供应商"), { target: { value: "siliconflow" } });
+    fireEvent.change(await screen.findByLabelText("服务商"), { target: { value: "siliconflow" } });
 
     const modelSelect = screen.getByLabelText("模型") as HTMLSelectElement;
     const optionValues = [...modelSelect.querySelectorAll("option")].map((o) => o.value).filter(Boolean);
@@ -180,7 +180,7 @@ describe("ProviderModelPicker", () => {
     const onApiKeyAutoFill = vi.fn();
     renderPicker(<ControlledPicker spies={{ onApiKeyAutoFill }} />);
 
-    const providerSelect = await screen.findByLabelText("供应商");
+    const providerSelect = await screen.findByLabelText("服务商");
     await waitFor(() => {
       expect([...providerSelect.querySelectorAll("option")].some((o) => o.value === "custom-r1")).toBe(true);
     });
@@ -200,7 +200,7 @@ describe("ProviderModelPicker", () => {
     (saveEnabledModels as Mock).mockReset().mockResolvedValue(undefined);
     renderPicker(<ControlledPicker spies={{}} />);
 
-    const providerSelect = (await screen.findByLabelText("供应商")) as HTMLSelectElement;
+    const providerSelect = (await screen.findByLabelText("服务商")) as HTMLSelectElement;
     await waitFor(() => {
       expect([...providerSelect.querySelectorAll("option")].some((o) => o.value === "custom-m2")).toBe(true);
     });
@@ -236,7 +236,7 @@ describe("ProviderModelPicker", () => {
     (saveEnabledModels as Mock).mockReset().mockResolvedValue(undefined);
 
     renderPicker(<FetchlessEmbeddingHarness />);
-    fireEvent.change(await screen.findByLabelText("供应商"), { target: { value: "siliconflow" } });
+    fireEvent.change(await screen.findByLabelText("服务商"), { target: { value: "siliconflow" } });
 
     fireEvent.click(screen.getByRole("button", { name: "从 API 获取列表" }));
     // fresh enabled 的 A/B 出现在「未返回」分组并默认保持勾选
@@ -266,7 +266,7 @@ describe("ProviderModelPicker", () => {
     const onContextWindowChange = vi.fn();
     renderPicker(<ControlledPicker spies={{ onContextWindowChange }} />);
 
-    fireEvent.change(await screen.findByLabelText("供应商"), { target: { value: "deepseek" } });
+    fireEvent.change(await screen.findByLabelText("服务商"), { target: { value: "deepseek" } });
     const modelSelect = screen.getByLabelText("模型") as HTMLSelectElement;
     await waitFor(() => {
       expect([...modelSelect.querySelectorAll("option")].some((o) => o.value === "made-up-model-9000")).toBe(true);
@@ -274,14 +274,29 @@ describe("ProviderModelPicker", () => {
 
     // 先选权威大 ctx 模型（1M）
     fireEvent.change(modelSelect, { target: { value: "deepseek-v4-flash" } });
-    expect(onContextWindowChange).toHaveBeenLastCalledWith(1_000_000);
+    expect(onContextWindowChange).toHaveBeenLastCalledWith("1000000");
 
-    // 再选未知窗口模型 → ctx 清空为 0（不残留 1M），警示文案照旧
+    // 再选未知窗口模型 → ctx 清空为 ""（不残留 1M、不发 0 哨兵被 || 吞掉），警示文案照旧
     fireEvent.change(modelSelect, { target: { value: "made-up-model-9000" } });
-    expect(onContextWindowChange).toHaveBeenLastCalledWith(0);
+    expect(onContextWindowChange).toHaveBeenLastCalledWith("");
     const ctxInput = screen.getByLabelText("一次能读多少字 (context window)") as HTMLInputElement;
-    expect(ctxInput.value).toBe("0");
-    expect(screen.getByText(/窗口未知/)).toBeTruthy();
+    expect(ctxInput.value).toBe("");
+    expect(screen.getByText(/查不到这个模型/)).toBeTruthy();
+  });
+
+  it("R2-4：开拉取 sheet 前的目录新读失败 → 阻断打开 + 报错（不再拿 stale 快照照常开门）", async () => {
+    // 挂载读成功，开门前的 fresh 读失败
+    (getModelCatalog as Mock)
+      .mockResolvedValueOnce(emptyCatalog)
+      .mockRejectedValueOnce(new Error("disk gone"));
+    renderPicker(<ControlledPicker spies={{}} />);
+
+    fireEvent.change(await screen.findByLabelText("服务商"), { target: { value: "deepseek" } });
+    fireEvent.click(screen.getByRole("button", { name: "从 API 获取列表" }));
+
+    // 错误提示出现，sheet 没开（无 sheet 标题）
+    expect(await screen.findByText(/读取模型目录失败/)).toBeTruthy();
+    expect(screen.queryByText("从 API 获取模型列表")).toBeNull();
   });
 
   it("选中带 chatPath 的供应商 → onChatPathAutoFill 带出该路径；切到无 chatPath 供应商 → 清空", async () => {
@@ -289,7 +304,7 @@ describe("ProviderModelPicker", () => {
     const onChatPathAutoFill = vi.fn();
     renderPicker(<ControlledPicker spies={{ onChatPathAutoFill }} />);
 
-    const providerSelect = await screen.findByLabelText("供应商");
+    const providerSelect = await screen.findByLabelText("服务商");
     await waitFor(() => {
       expect([...providerSelect.querySelectorAll("option")].some((o) => o.value === "custom-gw")).toBe(true);
     });

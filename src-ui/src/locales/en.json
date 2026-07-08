@@ -444,6 +444,7 @@
     "topP": "Sampling Range (top_p)"
   },
   "modelPicker": {
+    "embeddingEmpty": "This provider has no embedding models listed; you can enter one manually",
     "providerLabel": "Provider",
     "providerUnmatched": "Unmatched (manual setup)",
     "addCustomProvider": "+ Add custom provider…",
@@ -465,16 +466,20 @@
       "long_context": "Long context",
       "creative": "Creative"
     },
-    "ctxAuthoritative": "Context window {{ctx}} (built-in authoritative value, auto-filled)",
+    "ctxAuthoritative": "Official value for this model, filled in automatically",
     "ctxEstimated": "Window unverified, estimated at {{ctx}} — editable",
-    "ctxManual": "Manually entered value (saved as the context window for this connection)",
-    "ctxUnknown": "Unknown window: check the provider docs and fill it in, otherwise the budget falls back to a conservative value",
+    "ctxManual": "Your manually entered value; takes effect after saving",
+    "ctxUnknown": "We couldn't find how much this model can read at once. Fill it in per your provider's docs; if left empty, a conservative value is used",
     "layer": {
       "session": "Session override",
-      "au": "Story override",
+      "au": "Set for this story",
       "global": "Global default"
     },
     "fetchSheet": {
+      "catalogRefreshFailed": "Failed to load the model catalog. Please try again.",
+      "errorAuth": "Invalid or missing API key. Please check your API Key.",
+      "errorHttp": "The server returned an error (HTTP {{status}})",
+      "retry": "Retry",
       "title": "Fetch model list from API",
       "loading": "Fetching model list…",
       "error": "Fetch failed: {{message}}",
@@ -538,6 +543,9 @@
       "mobileRemoteHint": "⚠️ Mobile/Web cannot reach your local Ollama at localhost. Change the API endpoint to your Ollama host's LAN IP (e.g. http://192.168.1.10:11434/v1)."
     },
     "global": {
+      "discardConfirmMessage": "You have unsaved changes. Discard them? Provider and model list changes are saved immediately; this only covers the connection and model selection.",
+      "discardConfirmTitle": "Discard unsaved changes?",
+      "discardConfirmYes": "Discard",
       "title": "Global Settings",
       "savedToast": "Global settings saved",
       "description": "These are the default settings. All new stories will start with this configuration.",
@@ -546,7 +554,6 @@
       "testFailedPrefix": "Connection failed: ",
       "searchEngineDescription": "Finds the most relevant lore for your current scene.",
       "noEmbeddingModel": "(not configured)",
-      "embeddingModelPlaceholder": "Model name (e.g. text-embedding-3-small)",
       "embeddingApiBasePlaceholder": "API endpoint (e.g. https://api.openai.com/v1)",
       "embeddingApiKeyPlaceholder": "API key",
       "embeddingIndependentHint": "⚠️ Embedding uses its own API configuration and does NOT reuse the LLM API key above. Many LLM providers (e.g. DeepSeek) do not offer an embedding endpoint — fill in the embedding service you actually use.",
@@ -933,10 +940,11 @@
     "context_length_exceeded": "Too much lore for the AI to process. Try reducing character profiles or shortening writing rules.",
     "content_filtered": "The AI provider rejected this request (possibly content moderation). Try rephrasing?",
     "connection_failed": "Can't reach the AI service. Check your network and API endpoint.",
-    "busy_in_progress": "The previous generation is still wrapping up (just hit stop? wait a second or two before resending).",
+    "busy_in_progress": "A generation for this chapter is already in progress — possibly in another tab, or still wrapping up after you hit stop. Please wait, or stop that generation first.",
+    "chapter_generation_in_flight": "A generation for this chapter is in progress — stop it or wait for it to finish.",
     "api_base_missing": "API endpoint not configured. Set it up in Story Settings.",
     "unknown": "Something went wrong. Please retry or check settings.",
-    "unsupported_mode": "The local model mode is not supported. Please switch to API or Ollama mode in settings.",
+    "unsupported_mode": "Local models are not supported on this device. Switch to an online API or Ollama in settings.",
     "fandom_already_exists": "A fandom with this name already exists",
     "au_already_exists": "An AU with this name already exists"
   },
@@ -952,9 +960,9 @@
     "confirmDelete": "Permanently delete \"{{name}}\"? This cannot be undone.",
     "confirmClearAll": "Permanently delete all {{count}} items in trash? This cannot be undone.",
     "restoreSuccess": "Restored: {{name}}",
-    "restoreConflict": "A file with the same name but different content already exists at the original location, so it can't be restored directly. Delete or rename the existing file and retry, or choose \"Restore from trash (overwrite current)\" — the current file is backed up into trash before being overwritten.",
+    "restoreConflict": "A file with the same name but different content already exists at the original location, so it can't be restored directly. Delete or rename the existing file and retry, or choose \"Restore from trash (overwrite current)\" — a backup of the current file is kept locally before it is overwritten.",
     "restoreConflictOverwrite": "Restore from trash (overwrite current)",
-    "restoreOverwriteSuccess": "Overwrote with the trash version: {{name}} (the previous file was backed up into trash)",
+    "restoreOverwriteSuccess": "Overwrote with the trash version: {{name}} (a backup of the previous file is kept locally)",
     "halfRestored": "Can't delete this yet: some files with the same names already exist at the original location (they may come from an earlier restore, or may have been created since), while other files exist only in the trash — deleting now would lose them. Deal with the files at the original location first — click \"Restore\" to finish, or use \"Restore from trash (overwrite current)\" — then delete.",
     "deleteSuccess": "Permanently deleted",
     "clearSuccess": "Trash emptied",
@@ -981,6 +989,11 @@
       "subtitle": "粮坊",
       "sloganZh": "再冷的圈，也值得一个故事。",
       "sloganEn": "Every ship deserves a story."
+    },
+    "swUpdate": {
+      "ready": "A new version is ready — update whenever convenient",
+      "update": "Update now",
+      "dismiss": "Dismiss"
     }
   },
   "focus": {
@@ -1038,7 +1051,7 @@
     "costHint": "This backfills {{summaries}} summary chapter(s) and extracts notes from {{facts}} chapter(s). Summaries and vectors are cheap; note extraction makes one AI call per chapter. You can stop anytime.",
     "factsDupWarning": "Some selected chapters already have notes; extraction will append more and may duplicate (you can delete them in Plot Notes).",
     "nothingToDo": "Nothing to backfill.",
-    "overCapNote": "{{count}} extracted note(s) were skipped due to the per-chapter limit (only the most important few are kept per chapter).",
+    "overCapNote": "{{count}} extracted note(s) were skipped due to the per-chapter limit (only the 8 most important are kept per chapter).",
     "start": "Start",
     "running": "Backfilling {{done}} / {{total}} chapters…",
     "stop": "Stop",
@@ -1217,9 +1230,6 @@
       "apiKey": "API Key",
       "apiKeyHint": "Get this from your AI provider's website",
       "apiKeyTooltip": "Created on your provider's API Keys page.\nUsually starts with sk-. Only shown once.\nStored locally on your device only.",
-      "model": "Model",
-      "modelPlaceholder": "See your provider's docs",
-      "modelTooltip": "Exact model name from your provider.\nCommon:\n• DeepSeek: deepseek-chat\n• SiliconFlow: deepseek-ai/DeepSeek-V3",
       "testConnection": "Test Connection",
       "testing": "Testing...",
       "testSuccess": "Connected! Model: {{model}}",
@@ -1264,13 +1274,7 @@
       "llm": {
         "title": "Connect AI Writing Model",
         "subtitle": "FicForge needs an AI model to help write your stories. You'll need an API Key from a provider to get started.",
-        "techDetails": "This key is used to call the LLM Chat Completions endpoint. Any OpenAI-compatible API works: DeepSeek / GPT / Ollama / SiliconFlow / etc.",
-        "deepseekTitle": "DeepSeek",
-        "deepseekDescription": "Affordable, strong multilingual. Sign up at platform.deepseek.com",
-        "openaiTitle": "OpenAI",
-        "openaiDescription": "Widely available, requires prepaid balance. Sign up at platform.openai.com",
-        "customTitle": "Other Provider",
-        "customDescription": "SiliconFlow, Ollama, or any OpenAI-compatible service."
+        "techDetails": "This key is used to call the LLM Chat Completions endpoint. Any OpenAI-compatible API works: DeepSeek / GPT / Ollama / SiliconFlow / etc."
       },
       "embedding": {
         "title": "Help AI Remember Your Lore (Optional)",
@@ -1343,7 +1347,7 @@
       "whatIsKey": "What is an API Key?",
       "whatIsKeyDesc": "An API Key is a credential from your AI provider — like a password. FicForge uses it to call AI services for writing. Each provider has its own key, created after you sign up.",
       "modelTitle": "What model name to use?",
-      "modelDesc": "The model name must exactly match what your provider shows. Go to the provider's model list page and copy the name.",
+      "modelDesc": "You can pick a model straight from the picker. When typing one manually, use the model name your provider lists (copy it from the provider's model list page).",
       "provider": "Provider",
       "writingModel": "Writing Model",
       "siliconflow": "SiliconFlow",
@@ -1434,6 +1438,7 @@
       "alreadyAccepted": "This draft was already accepted as chapter {{num}}; marker restored",
       "chapterSlug": "Ch.{{num}} · Draft {{label}} · {{count}} chars",
       "chapterTaken": "Chapter {{num}} does not match the current progress (next chapter is {{expected}}); accept skipped",
+      "chapterTakenSameNum": "Chapter {{num}} already has different content; nothing was overwritten. To replace it, edit that chapter on the writing tab first.",
       "collapse": "Collapse",
       "discard": "Discard",
       "expand": "Expand full text",
@@ -1456,6 +1461,7 @@
       "readyWhileAway": "Plot note extraction finished — open the Chat tab to review"
     },
     "header": {
+      "cancelExtract": "Cancel extraction",
       "chaptersLabel": "Chapters",
       "nextLabel": "Next",
       "tokensUnit": "tokens",

@@ -6,48 +6,33 @@ import {
   LLMMode,
   type OnboardingDefaults,
 } from "../../api/engine-client";
-
-export type LlmProvider = "deepseek" | "openai" | "custom";
+import {
+  DEFAULT_DEEPSEEK_API_BASE,
+  DEFAULT_DEEPSEEK_MODEL,
+} from "../../config/defaults";
+import { formCtxToSaveInput, persistedCtxToForm } from "../shared/llm-config";
 
 export type MobileOnboardingSettingsState = {
-  provider: LlmProvider;
   apiBase: string;
   apiKey: string;
   model: string;
+  /** 表单态 ctx（选择器带出/手填）；"" = 窗口未知 → 保存时省略、引擎按模型推断。 */
+  contextWindow: string;
+  /** 非标聊天补全路径（选中带 chatPath 的服务商时随 apiBase 带出）；"" = 默认。 */
+  chatPath: string;
   useCustomEmbedding: boolean;
   embeddingModel: string;
   embeddingApiBase: string;
   embeddingApiKey: string;
 };
 
-export const PROVIDER_PRESETS: Record<LlmProvider, { apiBase: string; model: string }> = {
-  deepseek: {
-    apiBase: "https://api.deepseek.com",
-    model: "deepseek-chat",
-  },
-  openai: {
-    apiBase: "https://api.openai.com/v1",
-    model: "",
-  },
-  custom: {
-    apiBase: "",
-    model: "",
-  },
-};
-
-export function inferProvider(apiBase: string): LlmProvider {
-  const normalized = apiBase.toLowerCase();
-  if (normalized.includes("deepseek")) return "deepseek";
-  if (normalized.includes("openai")) return "openai";
-  return "custom";
-}
-
 export function createDefaultMobileOnboardingSettings(): MobileOnboardingSettingsState {
   return {
-    provider: "deepseek",
-    apiBase: PROVIDER_PRESETS.deepseek.apiBase,
+    apiBase: DEFAULT_DEEPSEEK_API_BASE,
     apiKey: "",
-    model: PROVIDER_PRESETS.deepseek.model,
+    model: DEFAULT_DEEPSEEK_MODEL,
+    contextWindow: "",
+    chatPath: "",
     useCustomEmbedding: false,
     embeddingModel: "BAAI/bge-m3",
     embeddingApiBase: "https://api.siliconflow.cn/v1",
@@ -63,11 +48,12 @@ export function hydrateMobileOnboardingSettings(
 
   const llm = settings.default_llm;
   if (llm?.api_base || llm?.model || llm?.api_key) {
-    const nextBase = llm.api_base || PROVIDER_PRESETS.deepseek.apiBase;
-    state.provider = inferProvider(nextBase);
-    state.apiBase = nextBase;
+    state.apiBase = llm.api_base || DEFAULT_DEEPSEEK_API_BASE;
     state.apiKey = llm.api_key || "";
-    state.model = llm.model || PROVIDER_PRESETS.deepseek.model;
+    state.model = llm.model || DEFAULT_DEEPSEEK_MODEL;
+    // 0/undefined = 「按模型推断」哨兵 → 表单 ""（窗口未知），不吞成默认值（R2-3）
+    state.contextWindow = persistedCtxToForm(llm.context_window);
+    state.chatPath = llm.chat_path || "";
   }
 
   const embedding = settings.embedding;
@@ -81,6 +67,7 @@ export function hydrateMobileOnboardingSettings(
 }
 
 export function buildOnboardingSettingsSaveInput(state: MobileOnboardingSettingsState) {
+  const ctx = formCtxToSaveInput(state.contextWindow);
   return {
     default_llm: {
       mode: LLMMode.API,
@@ -89,6 +76,9 @@ export function buildOnboardingSettingsSaveInput(state: MobileOnboardingSettings
       api_key: state.apiKey.trim(),
       local_model_path: "",
       ollama_model: "",
+      // "" → 省略（API 层落 0 哨兵，引擎按模型推断）；chat_path 空 → API 层归一不落盘。
+      ...(ctx !== undefined ? { context_window: ctx } : {}),
+      ...(state.chatPath.trim() ? { chat_path: state.chatPath.trim() } : {}),
     },
     embedding: {
       // 本地 embedding 三端均不支持（Python sidecar 退役 D-0040/M7），embedding 只有 API 一种。

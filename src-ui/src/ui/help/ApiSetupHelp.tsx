@@ -34,9 +34,9 @@ export function ApiSetupHelp({ isOpen, onClose }: ApiSetupHelpProps) {
                 <th className="px-3 py-2 text-left">Embedding</th>
               </tr></thead>
               <tbody className="divide-y divide-black/5 dark:divide-white/5">
-                <tr><td className="px-3 py-2">DeepSeek</td><td className="px-3 py-2 font-mono">deepseek-chat</td><td className="px-3 py-2">—</td></tr>
+                <tr><td className="px-3 py-2">DeepSeek</td><td className="px-3 py-2 font-mono">deepseek-v4-flash</td><td className="px-3 py-2">—</td></tr>
                 <tr><td className="px-3 py-2">OpenAI</td><td className="px-3 py-2">—</td><td className="px-3 py-2 font-mono">text-embedding-3-small</td></tr>
-                <tr><td className="px-3 py-2">{t("help.apiSetup.siliconflow")}</td><td className="px-3 py-2 font-mono">deepseek-ai/DeepSeek-V3</td><td className="px-3 py-2 font-mono">BAAI/bge-m3</td></tr>
+                <tr><td className="px-3 py-2">{t("help.apiSetup.siliconflow")}</td><td className="px-3 py-2 font-mono">deepseek-ai/DeepSeek-V4-Pro</td><td className="px-3 py-2 font-mono">BAAI/bge-m3</td></tr>
               </tbody>
             </table>
           </div>

@@ -11,12 +11,12 @@ import {
 } from "../../api/engine-client";
 import {
   DEFAULT_OLLAMA_BASE_URL,
-  DEFAULT_CONTEXT_WINDOW,
   DEFAULT_DEEPSEEK_MODEL,
   DEFAULT_DEEPSEEK_API_BASE,
   DEFAULT_PERSPECTIVE,
   DEFAULT_EMOTION_STYLE,
 } from "../../config/defaults";
+import { formCtxToSaveInput, persistedCtxToForm } from "../shared/llm-config";
 
 export interface GlobalSettingsFormState {
   mode: LLMMode;
@@ -25,7 +25,12 @@ export interface GlobalSettingsFormState {
   ollamaModel: string;
   apiBase: string;
   apiKey: string;
-  contextWindow: number;
+  /**
+   * 表单态 ctx：字符串，"" = 窗口未知（审计鲜眼 R2-3）。
+   * 持久层 0/undefined 哨兵 ↔ 表单 "" 双向对称（persistedCtxToForm / formCtxToSaveInput），
+   * 不再用 || 默认值把「未知」吞成 128000 回显并固化。
+   */
+  contextWindow: string;
   /** 非标聊天补全路径（选中带 chatPath 的供应商时随 apiBase 带出；默认空 = /chat/completions）。 */
   chatPath: string;
   embeddingModel: string;
@@ -47,7 +52,8 @@ export interface AuSettingsFormState {
   auOllamaModel: string;
   auApiBase: string;
   auApiKey: string;
-  contextWindow: number;
+  /** 表单态 ctx：字符串，"" = 窗口未知（同 GlobalSettingsFormState.contextWindow）。 */
+  contextWindow: string;
   /** AU 覆盖的非标聊天补全路径（随 apiBase 带出；默认空 = /chat/completions）。 */
   chatPath: string;
   isEmbeddingOverride: boolean;
@@ -64,7 +70,8 @@ export function createDefaultGlobalSettingsFormState(): GlobalSettingsFormState 
     ollamaModel: "",
     apiBase: DEFAULT_DEEPSEEK_API_BASE,
     apiKey: "",
-    contextWindow: DEFAULT_CONTEXT_WINDOW,
+    // "" = 未知：默认模型的 ctx 由选择器权威值自动带出，不预填魔法数。
+    contextWindow: "",
     chatPath: "",
     embeddingModel: "",
     embeddingApiBase: "",
@@ -85,7 +92,8 @@ export function hydrateGlobalSettingsForm(settings: SettingsInfo | null): Global
     form.apiBase = settings.default_llm.api_base
       || (nextMode === "ollama" ? DEFAULT_OLLAMA_BASE_URL : DEFAULT_DEEPSEEK_API_BASE);
     form.apiKey = settings.default_llm.api_key || "";
-    form.contextWindow = settings.default_llm.context_window || DEFAULT_CONTEXT_WINDOW;
+    // 0/undefined = 「按模型推断」哨兵 → 表单 ""（窗口未知），不吞成 128000（审计鲜眼 R2-3）。
+    form.contextWindow = persistedCtxToForm(settings.default_llm.context_window);
     form.chatPath = settings.default_llm.chat_path || "";
   }
 
@@ -97,6 +105,7 @@ export function hydrateGlobalSettingsForm(settings: SettingsInfo | null): Global
 }
 
 export function buildGlobalSettingsSaveInput(form: GlobalSettingsFormState): GlobalSettingsSaveInput {
+  const ctx = formCtxToSaveInput(form.contextWindow);
   return {
     default_llm: {
       mode: form.mode,
@@ -105,7 +114,8 @@ export function buildGlobalSettingsSaveInput(form: GlobalSettingsFormState): Glo
       api_key: form.apiKey,
       local_model_path: form.localModelPath,
       ollama_model: form.ollamaModel,
-      context_window: form.contextWindow,
+      // "" / 非正数 → 省略（引擎落 0 哨兵，按模型推断）；显式正数（如存量 128000）原样保留。
+      ...(ctx !== undefined ? { context_window: ctx } : {}),
       // 空串 → 走 API 层 normalizeChatPath 归一为 undefined（不落盘）；非空即自定义路径。
       chat_path: form.chatPath,
     },
@@ -132,7 +142,7 @@ export function createDefaultAuSettingsFormState(): AuSettingsFormState {
     auOllamaModel: "",
     auApiBase: "",
     auApiKey: "",
-    contextWindow: DEFAULT_CONTEXT_WINDOW,
+    contextWindow: "",
     chatPath: "",
     isEmbeddingOverride: false,
     embModel: "",
@@ -178,7 +188,7 @@ export function hydrateAuSettingsForm(project: ProjectInfo | null): AuSettingsFo
     form.auOllamaModel = project.llm.ollama_model || project.llm.model || "";
     form.auApiBase = project.llm.api_base || "";
     form.auApiKey = project.llm.api_key || "";
-    form.contextWindow = project.llm.context_window || 128000;
+    form.contextWindow = persistedCtxToForm(project.llm.context_window);
     form.chatPath = project.llm.chat_path || "";
   }
 
@@ -186,6 +196,7 @@ export function hydrateAuSettingsForm(project: ProjectInfo | null): AuSettingsFo
 }
 
 export function buildAuSettingsSaveInput(form: AuSettingsFormState): AuSettingsSaveInput {
+  const ctx = formCtxToSaveInput(form.contextWindow);
   return {
     chapter_length: form.chapterLength,
     writing_style: {
@@ -209,7 +220,8 @@ export function buildAuSettingsSaveInput(form: AuSettingsFormState): AuSettingsS
       api_key: form.auApiKey,
       local_model_path: form.auLocalModelPath,
       ollama_model: form.auOllamaModel,
-      context_window: form.contextWindow,
+      // "" / 非正数 → 省略（引擎落 0 哨兵，按模型推断）；显式正数原样保留。
+      ...(ctx !== undefined ? { context_window: ctx } : {}),
       // 空串 → API 层 normalizeChatPath 归一为 undefined（不落盘）；非空即自定义路径。
       chat_path: form.chatPath,
     },

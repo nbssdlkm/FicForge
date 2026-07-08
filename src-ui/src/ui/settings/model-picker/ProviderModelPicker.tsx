@@ -50,9 +50,12 @@ export interface ProviderModelPickerProps {
   apiKey: string;
   /** 自定义供应商存有 key 时选中自动带出。 */
   onApiKeyAutoFill?: (apiKey: string) => void;
-  /** 受控绑定（仅 kind=chat）：ctx 数值 —— 权威/估算自动带出 + 用户手改。 */
-  contextWindow?: number;
-  onContextWindowChange?: (contextWindow: number) => void;
+  /**
+   * 受控绑定（仅 kind=chat）：ctx 表单态 —— 字符串，"" = 窗口未知（审计鲜眼 R2-3）。
+   * 权威/估算值自动带出、用户可手改；未知模型清空而不是塞 0/默认值哨兵。
+   */
+  contextWindow?: string;
+  onContextWindowChange?: (contextWindow: string) => void;
   disabled?: boolean;
 }
 
@@ -121,8 +124,8 @@ export function ProviderModelPicker({
   // 收敛写入，无循环（写入后两值相等，效应不再触发）。
   useEffect(() => {
     if (kind !== "chat" || !onContextWindowChange) return;
-    if (ctxInfo.source === "authoritative" && ctxInfo.value !== undefined && contextWindow !== ctxInfo.value) {
-      onContextWindowChange(ctxInfo.value);
+    if (ctxInfo.source === "authoritative" && ctxInfo.value !== undefined && contextWindow !== String(ctxInfo.value)) {
+      onContextWindowChange(String(ctxInfo.value));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctxInfo.source, ctxInfo.value, contextWindow, kind]);
@@ -157,21 +160,27 @@ export function ProviderModelPicker({
     onModelChange(id);
     if (kind !== "chat" || !onContextWindowChange) return;
     // 权威 / 手填 / 估算值自动带出（估算态在 ctx 行显式提示「按 XXk 估算」）；
-    // 未知模型清空 ctx（F-5：不沿用上一模型残留的大数伪装成已知值），警示文案照旧、
-    // 交由用户在可编辑输入框里确认，不静默塞默认值。
+    // 未知模型清空 ctx 为 ""（F-5 + R2-3：不沿用上一模型残留的大数，也不再发 0 哨兵
+    // 被下游 || 默认吞掉），警示文案照旧、交由用户在可编辑输入框里确认。
     const info = ctxInfoForModel(options, id);
-    onContextWindowChange(info.value ?? 0);
+    onContextWindowChange(info.value !== undefined ? String(info.value) : "");
   };
 
   // F-4：打开拉取 sheet 前新读目录 —— 另一槽位（chat / embedding）的选择器实例可能已改
   // 同供应商的 enabled_models，本实例挂载时的 catalog 快照 stale 会让 sheet 初始勾选缺失、
-  // 确认覆写时把别槽启用的模型清掉。新读失败时照常打开（确认时的保留合并仍兜底）。
+  // 确认覆写时把别槽启用的模型清掉。
+  // R2-4：新读失败**阻断打开**（终审证实「stale 快照照常打开」的保护是假的 —— 确认时
+  // 会以 stale 勾选覆写），报错让用户重点（重试 = 再点一次拉取按钮）。
   const handleOpenFetchSheet = async () => {
     try {
       const fresh = await getModelCatalog();
       setCatalog(fresh);
     } catch (error) {
+      // 细节进日志；toast 给上下文文案（showError 对 Error 会优先取 error.message，
+      // 那样用户只看到裸底层报错、不知道发生了什么 —— 故传 null 让 fallback 生效）。
       catchAndLog("modelPicker", "getModelCatalog refresh failed")(error);
+      showError(null, t("modelPicker.fetchSheet.catalogRefreshFailed"));
+      return;
     }
     setFetchSheetOpen(true);
   };
@@ -200,7 +209,8 @@ export function ProviderModelPicker({
         enabled_models: { ...prev.enabled_models, [selectedProvider.id]: merged },
       }));
       setFetchSheetOpen(false);
-      showSuccess(t("modelPicker.fetchSheet.savedToast", { num: merged.length }));
+      // 计数 = 用户本次勾选数（宇宙外保留合并的条目不算「本次启用」，计进去会虚高）。
+      showSuccess(t("modelPicker.fetchSheet.savedToast", { num: models.length }));
     } catch (error) {
       showError(error, t("error_messages.unknown"));
     } finally {
@@ -363,6 +373,10 @@ export function ProviderModelPicker({
             ))}
           </div>
         )}
+        {/* embedding 槽位空清单空态：该服务商没有向量模型可选时提示走手填（R2-6） */}
+        {kind === "embedding" && !manualModel && selectedProvider && options.length === 0 && (
+          <p className="text-xs text-text/50">{t("modelPicker.embeddingEmpty")}</p>
+        )}
       </div>
 
       {/* ctx 行（仅 chat 槽位） */}
@@ -373,22 +387,20 @@ export function ProviderModelPicker({
             <>
               <Input
                 type="number"
-                value={contextWindow ?? ctxInfo.value ?? 0}
+                value={contextWindow ?? (ctxInfo.value !== undefined ? String(ctxInfo.value) : "")}
                 readOnly
                 disabled={disabled}
                 aria-label={t("common.labels.contextWindow")}
                 className="h-11 bg-background/70 text-base md:h-9 md:text-sm"
               />
-              <p className="text-xs text-text/50">
-                {t("modelPicker.ctxAuthoritative", { ctx: formatCtx(ctxInfo.value ?? 0) })}
-              </p>
+              <p className="text-xs text-text/50">{t("modelPicker.ctxAuthoritative")}</p>
             </>
           ) : (
             <>
               <Input
                 type="number"
-                value={contextWindow ?? 0}
-                onChange={(e) => onContextWindowChange?.(parseInt(e.target.value, 10) || 0)}
+                value={contextWindow ?? ""}
+                onChange={(e) => onContextWindowChange?.(e.target.value)}
                 disabled={disabled || !editableCtx}
                 aria-label={t("common.labels.contextWindow")}
                 className="h-11 text-base md:h-9 md:text-sm"
@@ -398,10 +410,11 @@ export function ProviderModelPicker({
                   {t("modelPicker.ctxEstimated", { ctx: formatCtx(ctxInfo.value ?? 0) })}
                 </p>
               )}
-              {ctxInfo.source === "manual" && (
+              {ctxInfo.source === "manual" && (contextWindow ?? "").trim() !== "" && (
                 <p className="text-xs text-text/50">{t("modelPicker.ctxManual")}</p>
               )}
-              {ctxInfo.source === "unknown" && (
+              {/* 空值恒配「窗口未知」警示（含手清空场景），不静默显示空框（R2-3 显示层） */}
+              {(ctxInfo.source === "unknown" || (ctxInfo.source === "manual" && (contextWindow ?? "").trim() === "")) && (
                 <p className="text-xs text-warning">{t("modelPicker.ctxUnknown")}</p>
               )}
             </>

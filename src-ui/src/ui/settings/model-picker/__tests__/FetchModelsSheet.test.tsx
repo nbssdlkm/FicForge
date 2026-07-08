@@ -13,7 +13,7 @@ vi.mock("../../../../api/engine-client", async (importActual) => {
   };
 });
 
-import { fetchProviderModels } from "../../../../api/engine-client";
+import { fetchProviderModels, FetchModelsError } from "../../../../api/engine-client";
 
 function renderSheet(overrides: Partial<Parameters<typeof FetchModelsSheet>[0]> = {}) {
   return render(
@@ -98,11 +98,41 @@ describe("FetchModelsSheet", () => {
     expect(onConfirm.mock.calls[0][1]).toEqual(new Set(["deepseek-v4-flash", "legacy-model"]));
   });
 
-  it("拉取失败 → 错误提示（含 message），确认按钮禁用", async () => {
-    (fetchProviderModels as Mock).mockRejectedValue(new Error("HTTP 401"));
+  it("拉取失败（未分类错误）→ 通用错误提示（含 message），确认按钮禁用", async () => {
+    (fetchProviderModels as Mock).mockRejectedValue(new Error("boom"));
     renderSheet();
 
-    expect(await screen.findByText(/获取失败：HTTP 401/)).toBeTruthy();
+    expect(await screen.findByText(/获取失败：boom/)).toBeTruthy();
     expect((screen.getByRole("button", { name: "保存勾选" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("R2-4：401 → 「密钥无效或未填」；超时/网络 → connection_failed 口径；其余带状态码", async () => {
+    (fetchProviderModels as Mock).mockRejectedValueOnce(new FetchModelsError("HTTP 401", "auth", 401));
+    const { unmount } = renderSheet();
+    expect(await screen.findByText(/密钥无效或未填，请检查 API Key/)).toBeTruthy();
+    unmount();
+
+    (fetchProviderModels as Mock).mockRejectedValueOnce(new FetchModelsError("timeout after 15s", "network"));
+    const second = renderSheet();
+    expect(await screen.findByText(/连不上AI服务/)).toBeTruthy();
+    second.unmount();
+
+    (fetchProviderModels as Mock).mockRejectedValueOnce(new FetchModelsError("HTTP 500", "http", 500));
+    renderSheet();
+    expect(await screen.findByText(/服务器返回错误（HTTP 500）/)).toBeTruthy();
+  });
+
+  it("R2-4：error 态「重试」按钮重新拉取，成功后进入 ready", async () => {
+    (fetchProviderModels as Mock)
+      .mockRejectedValueOnce(new FetchModelsError("HTTP 500", "http", 500))
+      .mockResolvedValueOnce({ ids: ["deepseek-v4-flash"] });
+    renderSheet();
+
+    const retry = await screen.findByRole("button", { name: "重试" });
+    fireEvent.click(retry);
+
+    expect(await screen.findByText("deepseek-v4-flash")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "保存勾选" }) as HTMLButtonElement).disabled).toBe(false);
+    expect(fetchProviderModels).toHaveBeenCalledTimes(2);
   });
 });

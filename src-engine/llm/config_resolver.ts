@@ -23,15 +23,16 @@ export interface ResolvedLLMConfig {
    *
    * 与 model **同层同源**：取「胜出的那一层配置」里的 context_window，不跨层混配 ——
    * 否则 A 层的手动窗口会误配到 B 层的模型上（与 api_key 回填的同源原则一致）。
-   * 唯一例外见 resolveContextWindow：session 覆盖通常不带 context_window（前端
-   * payload 只传 mode/model/api_base），此时若 session 的模型与某层配置的模型
-   * 一致，则继承该层的手动窗口（本质仍是"窗口描述该模型"的同源语义）。
+   * 唯一例外见 resolveInheritedLayerField：session 覆盖通常不带 context_window（前端
+   * payload 只传 mode/model/api_base），此时若 session 的模型 + api_base 与某层配置
+   * 一致，则继承该层的手动窗口（本质仍是"窗口描述该模型@该端点"的同源语义）。
    */
   context_window?: number;
   /**
    * 非标聊天补全路径（对应 LLMConfig.chat_path / CustomProviderEntry.chatPath）。
    * undefined = 未设置，Provider 回退 /chat/completions。与 context_window 同法
-   * **同层同源**：取胜出层的 chat_path，session 不带时按模型一致继承（见 resolveChatPath）。
+   * **同层同源**：取胜出层的 chat_path，session 不带时按模型 + api_base 一致继承
+   * （见 resolveInheritedLayerField）。
    */
   chat_path?: string;
 }
@@ -58,65 +59,75 @@ type LLMConfigLike = {
 };
 
 /**
- * 解析生效的 context_window（审计 H4），与 resolve_llm_config 选出的层同源。
+ * 归一化 api_base 用于「同一端点」判定：去尾斜杠 + 小写 scheme://host 段
+ * （URL 主机大小写不敏感，路径段大小写敏感故保留原样）。
  *
- * - project / settings 层胜出：直接取该层的手动 context_window。
- * - session 层胜出：session payload 通常不带 context_window（前端 useSessionParams
- *   只传 mode/model/api_base），此时按「手动窗口描述的是某层配置里的那个模型」原则：
- *   session 模型与 project.llm（优先）或 settings.default_llm 配置的模型一致时，
- *   继承该层手动窗口；模型不一致则不继承（避免 A 模型的手动窗口误配 B 模型），
- *   返回 undefined 交给 MODEL_CONTEXT_MAP 按模型名推断。
+ * 刻意不 import UI 侧 model-picker-utils 的同名函数 —— 引擎不依赖 UI 层；
+ * 且语义不同：这里「双空视为相等」（两层都没配 base = 同为默认端点，如 Ollama），
+ * UI 侧的供应商匹配则把双空视为不匹配。
  */
-function resolveContextWindow(
-  layer: "session" | "project" | "settings" | "none",
-  sessionModel: string,
-  session_llm: Record<string, string> | null,
-  project: { llm?: LLMConfigLike },
-  settings: { default_llm?: LLMConfigLike },
-): number | undefined {
-  if (layer === "project") return toManualContextWindow(project.llm?.context_window);
-  if (layer === "settings") return toManualContextWindow(settings.default_llm?.context_window);
-  if (layer !== "session") return undefined;
-
-  const explicit = toManualContextWindow(session_llm?.context_window);
-  if (explicit !== undefined) return explicit;
-
-  const matches = (l: LLMConfigLike | undefined): boolean =>
-    Boolean(l && sessionModel && (l.model === sessionModel || l.ollama_model === sessionModel));
-  if (matches(project.llm)) return toManualContextWindow(project.llm?.context_window);
-  if (matches(settings.default_llm)) return toManualContextWindow(settings.default_llm?.context_window);
-  return undefined;
+function normalizeBaseUrl(url: string): string {
+  const trimmed = url.trim().replace(/\/+$/, "");
+  // 前半 = 可选 scheme:// + 首个斜杠前的 host（无 scheme 的裸 host 也命中），后半 = 路径。
+  const m = /^((?:[a-zA-Z][a-zA-Z0-9+.-]*:\/\/)?[^/]*)(.*)$/.exec(trimmed);
+  return m ? m[1].toLowerCase() + m[2] : trimmed.toLowerCase();
 }
 
 /**
- * 解析生效的 chat_path，与 resolve_llm_config 选出的层**同层同源**——
- * 完全仿照 resolveContextWindow（审计 H4）的模式：chat_path 描述的是「某层配置里那个
- * 模型 / 供应商」的非标路径，跟 api_base/model 绑在同一层，跨层混配会把 A 层的路径
- * 误配到 B 层的端点上。
+ * session 层继承判据：session 的模型**且端点**都与某层配置一致，才视为「同一份配置」。
  *
- * - project / settings 层胜出：直接取该层的 chat_path。
- * - session 层胜出：session payload 通常不带 chat_path（前端只传 mode/model/api_base），
- *   此时若 session 模型与某层配置的模型一致，继承该层 chat_path（同「路径描述该模型/端点」
- *   语义）；不一致则不继承，返回 undefined 交给 Provider 回退 /chat/completions。
+ * 终审跑码实证（审计 3-A）：只按模型名匹配会跨供应商渗漏 —— AU 用官方 DeepSeek、
+ * 全局是自建网关上的**同名模型**（手动 ctx + 非标 chat_path）时，会话切到该模型名
+ * 会把网关的窗口/路径误配到官方端点上。session payload 恒带 api_base
+ * （useSessionParams 发 mode/model/api_base），据此加同源判据。
  */
-function resolveChatPath(
+function sessionMatchesLayer(
+  layer: LLMConfigLike | undefined,
+  sessionModel: string,
+  sessionApiBase: string,
+): boolean {
+  return Boolean(
+    layer
+    && sessionModel
+    && (layer.model === sessionModel || layer.ollama_model === sessionModel)
+    && normalizeBaseUrl(layer.api_base ?? "") === normalizeBaseUrl(sessionApiBase),
+  );
+}
+
+/**
+ * 「同层同源」字段（context_window / chat_path）的统一解析骨架（审计 H4 + NIT 去双拷贝）。
+ * 这类字段描述的是「某层配置里那个模型 / 端点」的属性，必须取 resolve_llm_config
+ * 选出的胜出层，跨层混配会把 A 层的值误配到 B 层的模型/端点上。
+ *
+ * - project / settings 层胜出：直接取该层字段。
+ * - session 层胜出：session payload 显式带了就用；没带（前端通常只传 mode/model/api_base）
+ *   时，若 session 的模型 + api_base 与某层配置一致（见 sessionMatchesLayer），继承该层
+ *   字段（本质仍是「字段描述该模型@该端点」的同源语义）；不一致则不继承，返回
+ *   undefined 交给下游兜底（ctx → MODEL_CONTEXT_MAP 推断；chat_path → /chat/completions）。
+ */
+function resolveInheritedLayerField<T>(
+  field: "context_window" | "chat_path",
+  normalize: (v: unknown) => T | undefined,
   layer: "session" | "project" | "settings" | "none",
   sessionModel: string,
   session_llm: Record<string, string> | null,
   project: { llm?: LLMConfigLike },
   settings: { default_llm?: LLMConfigLike },
-): string | undefined {
-  if (layer === "project") return toChatPath(project.llm?.chat_path);
-  if (layer === "settings") return toChatPath(settings.default_llm?.chat_path);
+): T | undefined {
+  if (layer === "project") return normalize(project.llm?.[field]);
+  if (layer === "settings") return normalize(settings.default_llm?.[field]);
   if (layer !== "session") return undefined;
 
-  const explicit = toChatPath(session_llm?.chat_path);
+  const explicit = normalize(session_llm?.[field]);
   if (explicit !== undefined) return explicit;
 
-  const matches = (l: LLMConfigLike | undefined): boolean =>
-    Boolean(l && sessionModel && (l.model === sessionModel || l.ollama_model === sessionModel));
-  if (matches(project.llm)) return toChatPath(project.llm?.chat_path);
-  if (matches(settings.default_llm)) return toChatPath(settings.default_llm?.chat_path);
+  const sessionApiBase = session_llm?.api_base ?? "";
+  if (sessionMatchesLayer(project.llm, sessionModel, sessionApiBase)) {
+    return normalize(project.llm?.[field]);
+  }
+  if (sessionMatchesLayer(settings.default_llm, sessionModel, sessionApiBase)) {
+    return normalize(settings.default_llm?.[field]);
+  }
   return undefined;
 }
 
@@ -175,14 +186,14 @@ export function resolve_llm_config(
     }
   }
 
-  const chatPath = resolveChatPath(layer, cfg.model, session_llm, project, settings);
+  const chatPath = resolveInheritedLayerField("chat_path", toChatPath, layer, cfg.model, session_llm, project, settings);
   return {
     mode: cfg.mode,
     model: cfg.model,
     api_base: cfg.api_base,
     api_key: cfg.api_key,
     ollama_model: cfg.ollama_model,
-    context_window: resolveContextWindow(layer, cfg.model, session_llm, project, settings),
+    context_window: resolveInheritedLayerField("context_window", toManualContextWindow, layer, cfg.model, session_llm, project, settings),
     ...(chatPath !== undefined ? { chat_path: chatPath } : {}),
   };
 }

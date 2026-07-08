@@ -444,10 +444,11 @@
     "topP": "取样范围 (top_p)"
   },
   "modelPicker": {
-    "providerLabel": "供应商",
+    "embeddingEmpty": "该服务商暂无向量模型，可手动输入",
+    "providerLabel": "服务商",
     "providerUnmatched": "未匹配（手动配置）",
-    "addCustomProvider": "＋ 添加自定义供应商…",
-    "editCustomProvider": "编辑自定义供应商",
+    "addCustomProvider": "+ 添加自定义服务商…",
+    "editCustomProvider": "编辑自定义服务商",
     "selectModelHint": "选择模型…",
     "manualModelPlaceholder": "输入模型 id，如 deepseek-v4-flash",
     "manualInput": "手填",
@@ -465,16 +466,20 @@
       "long_context": "长上下文",
       "creative": "文笔"
     },
-    "ctxAuthoritative": "上下文窗口 {{ctx}}（内置权威值，随模型自动带出）",
+    "ctxAuthoritative": "这个模型的官方值，已自动填好",
     "ctxEstimated": "窗口未确认，按 {{ctx}} 估算 —— 可手改",
-    "ctxManual": "手填值（将作为当前连接的上下文窗口保存）",
-    "ctxUnknown": "窗口未知：请查供应商文档手动填写，否则预算按保守值计算",
+    "ctxManual": "你手填的值，保存后生效",
+    "ctxUnknown": "查不到这个模型一次能读多少字，请按服务商说明填写；不填则按较保守值处理",
     "layer": {
       "session": "会话临时",
-      "au": "本篇覆盖中",
+      "au": "本篇单独设置",
       "global": "全局默认"
     },
     "fetchSheet": {
+      "catalogRefreshFailed": "读取模型目录失败，请重试",
+      "errorAuth": "密钥无效或未填，请检查 API Key",
+      "errorHttp": "服务器返回错误（HTTP {{status}}）",
+      "retry": "重试",
       "title": "从 API 获取模型列表",
       "loading": "正在获取模型列表…",
       "error": "获取失败：{{message}}",
@@ -503,8 +508,8 @@
       }
     },
     "customProvider": {
-      "addTitle": "添加自定义供应商",
-      "editTitle": "编辑自定义供应商",
+      "addTitle": "添加自定义服务商",
+      "editTitle": "编辑自定义服务商",
       "name": "名称",
       "namePlaceholder": "如：我的中转站",
       "baseUrlHint": "OpenAI 兼容接口地址（通常以 /v1 结尾）",
@@ -513,10 +518,10 @@
       "advanced": "高级选项",
       "chatPath": "自定义 Chat 路径",
       "chatPathHint": "默认 /chat/completions，特殊网关才需要改",
-      "delete": "删除供应商",
-      "deleteConfirmTitle": "删除自定义供应商",
+      "delete": "删除服务商",
+      "deleteConfirmTitle": "删除自定义服务商",
       "deleteConfirmMessage": "将删除「{{name}}」及其模型清单，已保存的密钥一并清除。",
-      "deleteInUseWarning": "当前配置正在使用此供应商的接口地址，删除后请重新选择供应商。"
+      "deleteInUseWarning": "当前配置正在使用此服务商的接口地址，删除后请重新选择服务商。"
     }
   },
   "settings": {
@@ -538,6 +543,9 @@
       "mobileRemoteHint": "⚠️ 移动端/网页版无法连接本机的 Ollama（localhost）。请把 API 地址改成你 Ollama 服务所在机器的局域网 IP（如 http://192.168.1.10:11434/v1）。"
     },
     "global": {
+      "discardConfirmMessage": "有未保存的修改，确定放弃？服务商与模型清单的修改是即时保存的，此处指连接与模型选择。",
+      "discardConfirmTitle": "放弃未保存的修改？",
+      "discardConfirmYes": "放弃修改",
       "title": "全局设置",
       "savedToast": "全局设置已保存",
       "description": "这里的配置会作为默认值，所有新建的故事都会先用这套设置。",
@@ -546,10 +554,9 @@
       "testFailedPrefix": "连接失败：",
       "searchEngineDescription": "用来从你的设定里找到和当前剧情最相关的内容。",
       "noEmbeddingModel": "（未配置）",
-      "embeddingModelPlaceholder": "模型名（如 BAAI/bge-m3）",
       "embeddingApiBasePlaceholder": "API 地址（如 https://api.siliconflow.cn/v1）",
       "embeddingApiKeyPlaceholder": "API 密钥",
-      "embeddingIndependentHint": "⚠️ Embedding 使用独立的 API 配置，不会复用上面 LLM 的 API Key。很多 LLM 供应商（如 DeepSeek）不提供 embedding 端点，请按实际使用的 embedding 服务填写。",
+      "embeddingIndependentHint": "⚠️ Embedding 使用独立的 API 配置，不会复用上面 LLM 的 API Key。很多 LLM 服务商（如 DeepSeek）不提供 embedding 端点，请按实际使用的 embedding 服务填写。",
       "apiCredentialsDescription": "如果某篇故事没有单独指定，就会用这里的设置。",
       "apiModeLabel": "接入方式",
       "languageLabel": "界面语言",
@@ -933,10 +940,11 @@
     "context_length_exceeded": "这章的设定太多了，AI读不完。试试减少一些角色设定或缩短底线。",
     "content_filtered": "AI服务商拒绝了这次请求（可能触发了内容审查），换个说法试试？",
     "connection_failed": "连不上AI服务，检查一下网络和接口地址？",
-    "busy_in_progress": "上一次生成还在收尾（刚点过停止？稍候一两秒再发）",
+    "busy_in_progress": "这一章已有生成正在进行——可能在另一个页签里，或刚点停止还在收尾。请稍候，或先停止那次生成。",
+    "chapter_generation_in_flight": "该章有生成正在进行，请先停止或等它完成",
     "api_base_missing": "还没有配置接口地址，去「故事设置」填一下",
     "unknown": "出了点问题，请重试或检查设置",
-    "unsupported_mode": "当前不支持 local 本地模型模式，请在设置中切换到 API 或 Ollama 模式",
+    "unsupported_mode": "此设备不支持本地模型，请在设置中改用在线 API 或 Ollama",
     "fandom_already_exists": "同名Fandom已存在，请换个名字",
     "au_already_exists": "同名AU已存在，请换个名字"
   },
@@ -952,10 +960,10 @@
     "confirmDelete": "永久删除「{{name}}」？此操作不可恢复。",
     "confirmClearAll": "永久删除垃圾箱中的所有 {{count}} 个条目？此操作不可恢复。",
     "restoreSuccess": "已恢复：{{name}}",
-    "restoreConflict": "原位置已有内容不同的同名文件，无法直接恢复。你可以删除或重命名现有文件后再试，或选择「以回收站版本恢复（覆盖当前）」——覆盖前会先把当前文件备份进回收站。",
+    "restoreConflict": "原位置已有内容不同的同名文件，无法直接恢复。你可以删除或重命名现有文件后再试，或选择「以回收站版本恢复（覆盖当前）」——覆盖前会在本地保留当前文件的备份。",
     "restoreConflictOverwrite": "以回收站版本恢复（覆盖当前）",
-    "restoreOverwriteSuccess": "已用回收站版本覆盖恢复：{{name}}（原文件已备份进回收站）",
-    "halfRestored": "无法直接删除：原位置已有部分同名文件（可能来自先前的恢复，也可能是后来新建的），其余文件仍只存在于回收站，现在删除会丢失它们。建议先处理原位置的文件——点「恢复」完成续传，或用「以回收站版本恢复（覆盖当前）」——再进行删除。",
+    "restoreOverwriteSuccess": "已用回收站版本覆盖恢复：{{name}}（原文件已在本地保留备份）",
+    "halfRestored": "部分文件已回到原位置，其余仍只在回收站；现在删除会丢失后者。请先点「恢复」补齐（或用覆盖恢复），再删除。",
     "deleteSuccess": "已永久删除",
     "clearSuccess": "已清空垃圾箱",
     "tooltip": "查看已删除的设定和数据，可在30天内恢复"
@@ -981,6 +989,11 @@
       "subtitle": "粮坊",
       "sloganZh": "再冷的圈，也值得一个故事。",
       "sloganEn": "Every ship deserves a story."
+    },
+    "swUpdate": {
+      "ready": "新版本已就绪，空闲时点击更新",
+      "update": "立即更新",
+      "dismiss": "关闭"
     }
   },
   "focus": {
@@ -1038,7 +1051,7 @@
     "costHint": "本次将补 {{summaries}} 章摘要，并对 {{facts}} 章提取笔记。摘要与向量花费很小；提取笔记每章调用一次 AI。过程中可随时停止。",
     "factsDupWarning": "勾选的章里有些已经有笔记了，会再追加提取，可能产生重复（可在「剧情笔记」页删）。",
     "nothingToDo": "没有需要补全的内容。",
-    "overCapNote": "有 {{count}} 条提取到的笔记因单章数量上限被略过（每章最多保留若干条最重要的）。",
+    "overCapNote": "有 {{count}} 条提取到的笔记因单章数量上限被略过（每章最多保留 8 条最重要的）。",
     "start": "开始补全",
     "running": "正在补全 {{done}} / {{total}} 章…",
     "stop": "停止",
@@ -1217,9 +1230,6 @@
       "apiKey": "密钥",
       "apiKeyHint": "在AI服务商网站获取",
       "apiKeyTooltip": "在服务商网站的「API Key」页面创建。\n通常以 sk- 开头，创建后只显示一次。\n密钥只存在你自己的设备上。",
-      "model": "模型",
-      "modelPlaceholder": "按官网文档填写",
-      "modelTooltip": "填写模型的准确名称，必须和服务商一致。\n常见：\n• DeepSeek: deepseek-chat\n• 硅基流动: deepseek-ai/DeepSeek-V3",
       "testConnection": "测试连接",
       "testing": "正在测试...",
       "testSuccess": "连接成功！模型：{{model}}",
@@ -1264,13 +1274,7 @@
       "llm": {
         "title": "连接AI写作模型",
         "subtitle": "FicForge需要连接一个AI模型来帮你续写故事。你需要填入一个API Key（密钥）来启用。",
-        "techDetails": "此Key用于调用LLM（大语言模型）的Chat Completions接口。支持所有OpenAI兼容接口：DeepSeek / GPT / Ollama / 硅基流动等。",
-        "deepseekTitle": "DeepSeek（深度求索）",
-        "deepseekDescription": "中文写作质量高，价格便宜。注册地址：platform.deepseek.com",
-        "openaiTitle": "OpenAI",
-        "openaiDescription": "全球通用，需预充值。注册地址：platform.openai.com",
-        "customTitle": "其他服务商",
-        "customDescription": "硅基流动、Ollama等兼容OpenAI协议的服务均可使用。"
+        "techDetails": "此Key用于调用LLM（大语言模型）的Chat Completions接口。支持所有OpenAI兼容接口：DeepSeek / GPT / Ollama / 硅基流动等。"
       },
       "embedding": {
         "title": "让AI记住你的设定（可选）",
@@ -1343,7 +1347,7 @@
       "whatIsKey": "什么是API Key？",
       "whatIsKeyDesc": "API Key（密钥）是AI服务商分配给你的身份凭证，类似一个密码。FicForge用它来调用AI服务帮你续写故事。每个服务商有自己的 API Key，需要注册账号后创建。",
       "modelTitle": "模型名称怎么填？",
-      "modelDesc": "模型名称必须和服务商网站上显示的一模一样，不能自己起名。去服务商网站的「模型列表」页面，复制你想用的模型名称。",
+      "modelDesc": "推荐直接在选择器里选模型；手填时请使用服务商提供的模型名称，可在服务商网站的「模型列表」页面复制。",
       "provider": "服务商",
       "writingModel": "写作模型",
       "siliconflow": "硅基流动",
@@ -1434,6 +1438,7 @@
       "alreadyAccepted": "该草稿此前已接受为第 {{num}} 章，已恢复标记",
       "chapterSlug": "Ch.{{num}} · Draft {{label}} · {{count}} chars",
       "chapterTaken": "第 {{num}} 章与当前写作进度不符（下一章应为第 {{expected}} 章），未执行接受",
+      "chapterTakenSameNum": "第 {{num}} 章当前已有不同内容，未覆盖；如需替换请先在写文页处理该章",
       "collapse": "折叠",
       "discard": "丢弃",
       "expand": "展开全文",
@@ -1456,6 +1461,7 @@
       "readyWhileAway": "剧情笔记提取完成，回「对话」查看"
     },
     "header": {
+      "cancelExtract": "取消提取",
       "chaptersLabel": "Chapters",
       "nextLabel": "Next",
       "tokensUnit": "tokens",

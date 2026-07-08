@@ -16,11 +16,19 @@
 /** Ollama 本地服务默认 /v1 端点（api_base 为空时的兜底） */
 export const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434/v1";
 
-/** UI 表单默认 context window（tokens）。允许最大历史上下文。 */
+/**
+ * UI 表单默认 context window（tokens）。
+ * R2-3 后表单不再预填此值（"" = 未知，引擎按模型推断 / 0 哨兵），当前无消费者；
+ * 保留仅作历史锚点，新代码不应再引用 —— 需要默认时走引擎推断链。
+ */
 export const DEFAULT_CONTEXT_WINDOW = 128000;
 
-/** 默认 LLM 模型标识（DeepSeek） */
-export const DEFAULT_DEEPSEEK_MODEL = "deepseek-chat";
+/**
+ * 默认 LLM 模型标识（DeepSeek）。
+ * R2-8：deepseek-chat 官方 2026-07-24 停用，新配置默认改 v4-flash（ctx 1M，
+ * MODEL_CONTEXT_MAP 已有条目）；存量用户已保存的配置不受默认值影响。
+ */
+export const DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash";
 
 /** 默认在线 API 端点（DeepSeek） */
 export const DEFAULT_DEEPSEEK_API_BASE = "https://api.deepseek.com";

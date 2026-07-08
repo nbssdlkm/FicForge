@@ -9,7 +9,18 @@ import {
   type TestConnectionResponse,
 } from "../api/engine-client";
 import { useActiveRequestGuard } from "./useActiveRequestGuard";
+import { useTranslation } from "../i18n/useAppTranslation";
 import { buildLlmConnectionTestRequest, type LlmConfigFields } from "../ui/shared/llm-config";
+
+/**
+ * testConnection 只回 error_code、不带 message 的失败分支（local / Ollama 探测），
+ * 在此统一映射 i18n —— API 层不做 i18n，各调用方也不必逐个复刻映射。
+ * code 值即 error_messages.* 的 key（unsupported_mode / connection_failed）。
+ */
+const TEST_CONNECTION_CODE_I18N: Record<string, string> = {
+  unsupported_mode: "error_messages.unsupported_mode",
+  connection_failed: "error_messages.connection_failed",
+};
 
 export type ConnectionTestStatus = "idle" | "testing" | "success" | "error";
 
@@ -73,9 +84,16 @@ function useConnectionTestState<TParams, TResult extends { success: boolean }>(
 export function useLlmConnectionTest(
   options: Omit<ConnectionTestOptions<LlmConfigFields, TestConnectionResponse>, "runTest">,
 ) {
+  const { t } = useTranslation();
   return useConnectionTestState<LlmConfigFields, TestConnectionResponse>({
     ...options,
     runTest: (params) => testConnection(buildLlmConnectionTestRequest(params)),
+    getFailureMessage: (result, params) => {
+      if (!result.message && result.error_code && TEST_CONNECTION_CODE_I18N[result.error_code]) {
+        return t(TEST_CONNECTION_CODE_I18N[result.error_code]);
+      }
+      return options.getFailureMessage(result, params);
+    },
   });
 }
 

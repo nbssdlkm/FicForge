@@ -13,9 +13,11 @@ import { getEngine } from '../../api/engine-instance';
 import { listGenerationModes, type Platform } from '@ficforge/engine';
 import { StepIndicator } from './StepIndicator';
 import { ApiSetupHelp } from '../help/ApiSetupHelp';
+import { ProviderModelPicker } from '../settings/model-picker/ProviderModelPicker';
 import { useLlmConnectionTest } from '../../hooks/useConnectionTest';
 import { canTestLlmConnection } from '../shared/llm-config';
 import { SecretStorageNotice } from '../shared/SecretStorageNotice';
+import { DEFAULT_DEEPSEEK_MODEL, DEFAULT_DEEPSEEK_API_BASE } from '../../config/defaults';
 
 type Mode = LLMMode;
 
@@ -26,15 +28,21 @@ export type ApiConfig = {
   api_key: string;
   local_model_path: string;
   ollama_model: string;
+  /** 表单态 ctx（选择器带出/手填）；"" = 窗口未知 → 保存时省略、引擎按模型推断。 */
+  context_window: string;
+  /** 非标聊天补全路径（选中带 chatPath 的服务商时随 apiBase 带出）；"" = 默认。 */
+  chat_path: string;
 };
 
 const DEFAULT_CONFIG: ApiConfig = {
   mode: LLMMode.API,
-  model: 'deepseek-chat',
-  api_base: 'https://api.deepseek.com',
+  model: DEFAULT_DEEPSEEK_MODEL,
+  api_base: DEFAULT_DEEPSEEK_API_BASE,
   api_key: '',
   local_model_path: '',
   ollama_model: '',
+  context_window: '',
+  chat_path: '',
 };
 
 export function ApiConfigStep({
@@ -74,6 +82,7 @@ export function ApiConfigStep({
       apiKey: config.api_key,
       localModelPath: config.local_model_path,
       ollamaModel: config.ollama_model,
+      chatPath: config.chat_path,
     });
   };
 
@@ -121,6 +130,20 @@ export function ApiConfigStep({
 
       {config.mode === 'api' && (
         <div className="space-y-4 border-t border-rule pt-4">
+          {/* 服务商主导选择器（与全局设置同一组件，R2-7）：服务商 → 模型 → ctx 三态 */}
+          <ProviderModelPicker
+            kind="chat"
+            model={config.model}
+            onModelChange={(v) => update('model', v)}
+            apiBase={config.api_base}
+            onApiBaseAutoFill={(v) => update('api_base', v)}
+            onChatPathAutoFill={(v) => update('chat_path', v)}
+            apiKey={config.api_key}
+            onApiKeyAutoFill={(v) => update('api_key', v)}
+            contextWindow={config.context_window}
+            onContextWindowChange={(v) => update('context_window', v)}
+            disabled={llmConnection.status === 'testing'}
+          />
           <div className="space-y-1">
             <label className="text-sm font-medium text-text/90">{t('onboarding.apiConfig.apiBase')}</label>
             <Input value={config.api_base} onChange={e => update('api_base', e.target.value)} placeholder="https://api.deepseek.com" disabled={llmConnection.status === 'testing'} />
@@ -133,10 +156,6 @@ export function ApiConfigStep({
               {t('onboarding.apiConfig.apiKeyHint')}{' '}
               <button type="button" className="text-accent hover:underline" onClick={() => setHelpOpen(true)}>{t('help.apiSetup.howToGet')}</button>
             </p>
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-text/90">{t('onboarding.apiConfig.model')}</label>
-            <Input value={config.model} onChange={e => update('model', e.target.value)} placeholder={t('onboarding.apiConfig.modelPlaceholder')} disabled={llmConnection.status === 'testing'} />
           </div>
         </div>
       )}

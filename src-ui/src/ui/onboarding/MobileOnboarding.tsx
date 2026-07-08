@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, CheckCircle2, Database, Download, FolderPlus, Globe2, Sparkles, X } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Database, Download, FolderPlus, Globe2, X } from 'lucide-react';
 import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
 import { Card } from '../shared/Card';
@@ -11,6 +11,7 @@ import { Input } from '../shared/Input';
 import { HelpTooltip } from '../shared/HelpTooltip';
 import { StepIndicator } from './StepIndicator';
 import { ApiSetupHelp } from '../help/ApiSetupHelp';
+import { ProviderModelPicker } from '../settings/model-picker/ProviderModelPicker';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { changeLanguage, type AppLanguage } from '../../i18n';
 import { createAu, createFandom, getOnboardingDefaults, saveOnboardingSettings } from '../../api/engine-client';
@@ -18,11 +19,10 @@ import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { useLlmConnectionTest } from '../../hooks/useConnectionTest';
 import { canTestLlmConnection } from '../shared/llm-config';
 import { SecretStorageNotice } from '../shared/SecretStorageNotice';
+import { DEFAULT_DEEPSEEK_API_BASE, DEFAULT_DEEPSEEK_MODEL } from '../../config/defaults';
 import {
   buildOnboardingSettingsSaveInput,
   hydrateMobileOnboardingSettings,
-  PROVIDER_PRESETS,
-  type LlmProvider,
 } from './form-mappers';
 
 export type OnboardingCompletion = {
@@ -80,10 +80,11 @@ export function MobileOnboarding({
   const loadGuard = useActiveRequestGuard('mobile-onboarding-defaults');
   const [step, setStep] = useState(0);
   const [loadingSettings, setLoadingSettings] = useState(true);
-  const [provider, setProvider] = useState<LlmProvider>('deepseek');
-  const [apiBase, setApiBase] = useState(PROVIDER_PRESETS.deepseek.apiBase);
+  const [apiBase, setApiBase] = useState(DEFAULT_DEEPSEEK_API_BASE);
   const [apiKey, setApiKey] = useState('');
-  const [model, setModel] = useState(PROVIDER_PRESETS.deepseek.model);
+  const [model, setModel] = useState(DEFAULT_DEEPSEEK_MODEL);
+  const [contextWindow, setContextWindow] = useState(''); // 表单态："" = 窗口未知（R2-3）
+  const [chatPath, setChatPath] = useState('');
   const [useCustomEmbedding, setUseCustomEmbedding] = useState(false);
   const [embeddingModel, setEmbeddingModel] = useState('BAAI/bge-m3');
   const [embeddingApiBase, setEmbeddingApiBase] = useState('https://api.siliconflow.cn/v1');
@@ -108,10 +109,11 @@ export function MobileOnboarding({
     getOnboardingDefaults().then(settings => {
       if (loadGuard.isStale(token)) return;
       const defaults = hydrateMobileOnboardingSettings(settings);
-      setProvider(defaults.provider);
       setApiBase(defaults.apiBase);
       setApiKey(defaults.apiKey);
       setModel(defaults.model);
+      setContextWindow(defaults.contextWindow);
+      setChatPath(defaults.chatPath);
       setUseCustomEmbedding(defaults.useCustomEmbedding);
       setEmbeddingModel(defaults.embeddingModel);
       setEmbeddingApiBase(defaults.embeddingApiBase);
@@ -131,7 +133,7 @@ export function MobileOnboarding({
 
   useEffect(() => {
     llmConnection.reset();
-  }, [apiBase, apiKey, model, provider]);
+  }, [apiBase, apiKey, model, chatPath]);
 
   const language = (i18n.resolvedLanguage === 'en' ? 'en' : 'zh') as AppLanguage;
   const currentStep = step + 1;
@@ -149,18 +151,6 @@ export function MobileOnboarding({
     return true;
   }, [auName, llmConnection.status, embeddingApiBase, embeddingApiKey, embeddingModel, ethicsAccepted, fandomName, setupAction, step, useCustomEmbedding]);
 
-  const applyProviderPreset = (nextProvider: LlmProvider) => {
-    setProvider(nextProvider);
-    const preset = PROVIDER_PRESETS[nextProvider];
-    if (nextProvider !== 'custom') {
-      setApiBase(preset.apiBase);
-      setModel(preset.model);
-    } else if (!apiBase.trim() && !model.trim()) {
-      setApiBase(preset.apiBase);
-      setModel(preset.model);
-    }
-  };
-
   const handleLanguageChange = async (nextLanguage: AppLanguage) => {
     await changeLanguage(nextLanguage);
   };
@@ -173,6 +163,7 @@ export function MobileOnboarding({
       apiKey,
       localModelPath: '',
       ollamaModel: '',
+      chatPath,
     });
   };
 
@@ -182,10 +173,11 @@ export function MobileOnboarding({
     setSubmitError('');
     try {
       await saveOnboardingSettings(buildOnboardingSettingsSaveInput({
-        provider,
         apiBase,
         apiKey,
         model,
+        contextWindow,
+        chatPath,
         useCustomEmbedding,
         embeddingModel,
         embeddingApiBase,
@@ -288,31 +280,20 @@ export function MobileOnboarding({
 
                 <SecretStorageNotice />
 
-                <div className="grid gap-3">
-                  <StepCard
-                    active={provider === 'deepseek'}
-                    title={t('onboarding.mobile.llm.deepseekTitle')}
-                    description={t('onboarding.mobile.llm.deepseekDescription')}
-                    icon={<Sparkles size={18} />}
-                    onClick={() => applyProviderPreset('deepseek')}
-                  />
-                  <StepCard
-                    active={provider === 'openai'}
-                    title={t('onboarding.mobile.llm.openaiTitle')}
-                    description={t('onboarding.mobile.llm.openaiDescription')}
-                    icon={<Sparkles size={18} />}
-                    onClick={() => applyProviderPreset('openai')}
-                  />
-                  <StepCard
-                    active={provider === 'custom'}
-                    title={t('onboarding.mobile.llm.customTitle')}
-                    description={t('onboarding.mobile.llm.customDescription')}
-                    icon={<Sparkles size={18} />}
-                    onClick={() => applyProviderPreset('custom')}
-                  />
-                </div>
-
                 <Card className="space-y-4 rounded-xl p-4">
+                  {/* 服务商主导选择器（与全局设置同一组件，R2-7）：服务商 → 模型 → ctx 三态 */}
+                  <ProviderModelPicker
+                    kind="chat"
+                    model={model}
+                    onModelChange={setModel}
+                    apiBase={apiBase}
+                    onApiBaseAutoFill={setApiBase}
+                    onChatPathAutoFill={setChatPath}
+                    apiKey={apiKey}
+                    onApiKeyAutoFill={setApiKey}
+                    contextWindow={contextWindow}
+                    onContextWindowChange={setContextWindow}
+                  />
                   <div className="flex items-center gap-1">
                     <span className="text-sm font-medium text-text">{t('onboarding.apiConfig.apiBase')}</span>
                     <HelpTooltip text={t('onboarding.apiConfig.apiBaseTooltip')} />
@@ -335,15 +316,6 @@ export function MobileOnboarding({
                   <p className="text-xs text-text/50">
                     <button type="button" className="text-accent hover:underline" onClick={() => setHelpOpen(true)}>{t('help.apiSetup.howToGet')}</button>
                   </p>
-                  <div className="flex items-center gap-1">
-                    <span className="text-sm font-medium text-text">{t('onboarding.apiConfig.model')}</span>
-                    <HelpTooltip text={t('onboarding.apiConfig.modelTooltip')} />
-                  </div>
-                  <Input
-                    value={model}
-                    onChange={event => setModel(event.target.value)}
-                    placeholder={t('onboarding.apiConfig.modelPlaceholder')}
-                  />
 
                   <Button
                     tone="neutral" fill="outline"
@@ -398,11 +370,15 @@ export function MobileOnboarding({
 
                 {useCustomEmbedding && (
                   <Card className="space-y-4 rounded-xl p-4">
-                    <Input
-                      label={t('common.labels.model')}
-                      value={embeddingModel}
-                      onChange={event => setEmbeddingModel(event.target.value)}
-                      placeholder={t('settings.global.embeddingModelPlaceholder')}
+                    {/* embedding 槽位复用同一选择器（kind=embedding：只显示向量模型 + 手填，R2-7） */}
+                    <ProviderModelPicker
+                      kind="embedding"
+                      model={embeddingModel}
+                      onModelChange={setEmbeddingModel}
+                      apiBase={embeddingApiBase}
+                      onApiBaseAutoFill={setEmbeddingApiBase}
+                      apiKey={embeddingApiKey}
+                      onApiKeyAutoFill={setEmbeddingApiKey}
                     />
                     <Input
                       label={t('common.labels.apiBase')}

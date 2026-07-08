@@ -89,6 +89,7 @@ export { initEngine, getEngine, isEngineReady, getDataDir, getDisplayDataDir } f
 export {
   deleteCustomProvider,
   fetchProviderModels,
+  FetchModelsError,
   getCustomProviderApiKey,
   getModelCatalog,
   getSettingsForEditing,
@@ -129,7 +130,7 @@ export { listChapters, getChapter, getChapterContent, confirmChapter, undoChapte
 export type { ChapterMemoryScan } from "./engine-chapters";
 export { listDrafts, getDraft, saveDraft, deleteDrafts } from "./engine-drafts";
 export { generateChapter } from "./engine-generate";
-export { listTrash, restoreTrash, permanentDeleteTrash, purgeTrash } from "./engine-trash";
+export { listTrash, restoreTrash, permanentDeleteTrash, purgeTrash, chapterNumFromTrashEntry } from "./engine-trash";
 export { saveLore, readLore, readLoreWithLegacyFallback, deleteLore, listLoreFiles, importFromFandom, getLoreContent, sanitizePathSegment } from "./engine-lore";
 export { sendSettingsChat } from "./engine-settings-chat";
 export { listFandoms, getFandomDisplayInfo, createFandom, listAus, createAu, deleteFandom, deleteAu, listFandomFiles, readFandomFile } from "./engine-fandom";

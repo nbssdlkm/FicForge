@@ -17,7 +17,7 @@ import { getSettingsForEditing, type SettingsInfo } from '../../api/engine-clien
 import { getState, recalcState, rebuildIndex } from '../../api/engine-client';
 import { GlobalSettingsModal } from './GlobalSettingsModal';
 import { LlmModeSelect } from './LlmModeSelect';
-import { DEFAULT_PERSPECTIVE, DEFAULT_EMOTION_STYLE, DEFAULT_CONTEXT_WINDOW } from '../../config/defaults';
+import { DEFAULT_PERSPECTIVE, DEFAULT_EMOTION_STYLE } from '../../config/defaults';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
 import { useFeedback } from '../../hooks/useFeedback';
@@ -61,7 +61,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const [auOllamaModel, setAuOllamaModel] = useState('');
   const [auApiBase, setAuApiBase] = useState('');
   const [auApiKey, setAuApiKey] = useState('');
-  const [contextWindow, setContextWindow] = useState(DEFAULT_CONTEXT_WINDOW);
+  const [contextWindow, setContextWindow] = useState(''); // 表单态："" = 窗口未知（R2-3）
   const [chatPath, setChatPath] = useState('');
   const [coreIncludeModalOpen, setCoreIncludeModalOpen] = useState(false);
   const [recalcing, setRecalcing] = useState(false);
@@ -328,8 +328,11 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                   {llmMode !== 'api' && (
                     <div className="flex flex-col gap-1.5 md:col-span-2">
                        <label className="text-xs font-bold text-text/90">{t("common.labels.contextWindow")}</label>
-                       <Input type="number" value={contextWindow} onChange={e => setContextWindow(parseInt(e.target.value, 10) || 0)} className="h-11 text-base md:h-9 md:text-sm" />
-                       <p className="text-xs text-text/50">{t("common.help.contextWindow")}</p>
+                       <Input type="number" value={contextWindow} onChange={e => setContextWindow(e.target.value)} className="h-11 text-base md:h-9 md:text-sm" />
+                       {/* "" = 窗口未知（R2-3）：显式警示，不静默按默认处理 */}
+                       {contextWindow.trim() === ''
+                         ? <p className="text-xs text-warning">{t("modelPicker.ctxUnknown")}</p>
+                         : <p className="text-xs text-text/50">{t("common.help.contextWindow")}</p>}
                     </div>
                   )}
                 </div>
