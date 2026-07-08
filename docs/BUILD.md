@@ -65,7 +65,7 @@ npm run build    # tsc + vite build → dist/
 
 注意事项：
 - 需要 HTTPS（Service Worker 要求）
-- 如需离线支持，需额外配置 Service Worker（当前未内置）
+- **离线支持已内置**（2026-07，vite-plugin-pwa）：构建自动生成 `sw.js` 预缓存 app shell（js/css/html/图标/拉丁字体）；CJK 字体分片走运行时 CacheFirst 按需缓存。更新采用 **prompt 模式**——新版本就绪时应用内弹「点击更新」横幅，不静默强刷（保护写作中的未落盘内容）。SW 仅在纯 Web/PWA 环境注册，Tauri/Capacitor 壳内运行时门控跳过
 - `manifest.json` 中 `start_url: "/"` 要求部署在域名根路径
 
 ### 3. Tauri 桌面端

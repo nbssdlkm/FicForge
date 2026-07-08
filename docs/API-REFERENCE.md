@@ -1,8 +1,8 @@
 # FicForge API 契约速查表
 
-> 50 个端点，基于 API-ALIGNMENT 审计（2026-04-01 更新）。
+> **⚠️ 已废弃（M4 前端 API 切换后失效，2026-07-08 标注）。** 本文档记录的是 Python HTTP 后端时代的 50 个端点——该后端已随 M4-M7 退役删除，**现行唯一 API 真相源是 `src-ui/src/api/engine-client.ts`**（barrel re-export，前端经 `@ficforge/engine` 直调 TS 引擎，无 HTTP 层）。函数按领域拆分在 `src-ui/src/api/engine-*.ts`，签名即契约。本文档仅作 HTTP 时代端点语义的历史参考。
+>
 > 参数标注：(q) = query, (b) = body, (p) = path
-> 本文档为前端开发唯一参考，后端变更时必须同步更新。
 
 ---
 
