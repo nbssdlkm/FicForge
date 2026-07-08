@@ -10,15 +10,11 @@
 //   ③ thread 归属（自动挂对线没） ④ 防幻觉（所有 id 都真实吗）
 // 硬断言只卡「幻觉 + 循环坏掉」；质量指标打印出来由人读判（"测试绿 ≠ 真 works" 那层）。
 //
-// LLM = deepseek v4-flash（贴近用户出章）。M9_PROBE_MODEL=deepseek-v4-pro 可切强模型对比。
-// M9 走关键词本地过滤，无 embedding 需求。
+// LLM = ~/.deepseek/config.toml 的 base_url + flash_model（火山方舟 deepseek-v4-flash-260425，贴近用户出章）。
+// DEEPSEEK_PROBE_MODEL / M9_PROBE_MODEL 可切强模型对比。M9 走关键词本地过滤，无 embedding 需求。
 
-import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import { describe, it, expect, afterAll } from "vitest";
 
-import { OpenAICompatibleProvider } from "../llm/openai_compatible.js";
 import { reactExtractFromChapter } from "../services/react_extraction_dispatch.js";
 import { createFact } from "../domain/fact.js";
 import { createThread } from "../domain/thread.js";
@@ -26,16 +22,12 @@ import { ThreadStatus } from "../domain/enums.js";
 import { FileFactRepository } from "../repositories/implementations/file_fact.js";
 import { FileThreadRepository } from "../repositories/implementations/file_thread.js";
 import { MockAdapter } from "../repositories/__tests__/mock_adapter.js";
+import { makeDeepseekProbeProvider } from "./_deepseek.js";
 
-function deepseekKey(): string {
-  const toml = readFileSync(join(homedir(), ".deepseek", "config.toml"), "utf8");
-  const m = toml.match(/api_key\s*=\s*"([^"]+)"/);
-  if (!m) throw new Error("no deepseek api_key");
-  return m[1];
-}
-
-const PROBE_MODEL = process.env.M9_PROBE_MODEL || "deepseek-v4-flash";
-const llm = new OpenAICompatibleProvider("https://api.deepseek.com", deepseekKey(), PROBE_MODEL);
+const { provider: llm, model: PROBE_MODEL, baseUrl: PROBE_BASE } = makeDeepseekProbeProvider({
+  legacyEnvVar: "M9_PROBE_MODEL",
+});
+console.log(`[M9 breadth probe] LLM = ${PROBE_MODEL} @ ${PROBE_BASE}`);
 
 interface Scenario {
   id: string;

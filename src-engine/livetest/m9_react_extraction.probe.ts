@@ -7,14 +7,11 @@
 //       propose_facts → search_existing_facts → annotate_fact → finalize_extraction，
 //       真的产出跨章 caused_by + 自动 thread_ids。「测试绿 ≠ 真 works」那一层。
 //
-// LLM = deepseek-v4-flash（key 取 ~/.deepseek/config.toml）。无 embedding 需求（M9 走关键词本地过滤）。
+// LLM = ~/.deepseek/config.toml 的 base_url + flash_model（现为火山方舟 deepseek-v4-flash-260425）。
+// 无 embedding 需求（M9 走关键词本地过滤）。
 
-import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 
-import { OpenAICompatibleProvider } from "../llm/openai_compatible.js";
 import { reactExtractFromChapter } from "../services/react_extraction_dispatch.js";
 import { add_fact } from "../services/facts_lifecycle.js";
 import { createFact } from "../domain/fact.js";
@@ -25,18 +22,14 @@ import { FileThreadRepository } from "../repositories/implementations/file_threa
 import { FileOpsRepository } from "../repositories/implementations/file_ops.js";
 import { MockAdapter } from "../repositories/__tests__/mock_adapter.js";
 import { consoleSink } from "../services/agent_telemetry.js";
+import { makeDeepseekProbeProvider } from "./_deepseek.js";
 
-function deepseekKey(): string {
-  const toml = readFileSync(join(homedir(), ".deepseek", "config.toml"), "utf8");
-  const m = toml.match(/api_key\s*=\s*"([^"]+)"/);
-  if (!m) throw new Error("no deepseek api_key");
-  return m[1];
-}
-
-// 现行 deepseek 主流模型（2026-06）：v4-flash（快，loop 用）/ v4-pro（强）。
-// 默认用 flash 跑探针（贴近真实用户出章场景）；改 M9_PROBE_MODEL 环境变量可切 v4-pro。
-const PROBE_MODEL = process.env.M9_PROBE_MODEL || "deepseek-v4-flash";
-const llm = new OpenAICompatibleProvider("https://api.deepseek.com", deepseekKey(), PROBE_MODEL);
+// 现行 deepseek 主流模型（2026-07）：v4-flash（快，loop 用）/ v4-pro（强）。
+// 默认用 flash 跑探针（贴近真实用户出章场景）；改 DEEPSEEK_PROBE_MODEL / M9_PROBE_MODEL 可切 v4-pro。
+const { provider: llm, model: PROBE_MODEL, baseUrl: PROBE_BASE } = makeDeepseekProbeProvider({
+  legacyEnvVar: "M9_PROBE_MODEL",
+});
+console.log(`[M9 probe] LLM = ${PROBE_MODEL} @ ${PROBE_BASE}`);
 
 // 第 5 章「面圣」——承接前文：沈砚出示残角，太傅反咬，皇帝问话。
 const CHAPTER_5 = `面圣那日，金殿的砖比灯阁的夜还要冷。

@@ -6,17 +6,15 @@
 // 目的：肉眼验 M8-C 摘要情感保真 / M8-A 富化字段合理性 / M10 回望后见之明。
 // 单测覆盖不到「测试绿≠真 works」那一层。故意放 livetest/（不在 __tests__，正常 suite 不收）。
 //
-// LLM = deepseek-v4-flash（key 取 ~/.deepseek/config.toml；M8_PROBE_MODEL 环境变量可覆盖）；
+// LLM = ~/.deepseek/config.toml 的 base_url + flash_model（现为火山方舟 deepseek-v4-flash-260425）；
+//       DEEPSEEK_PROBE_MODEL / 旧 M8_PROBE_MODEL 环境变量可覆盖模型。
 // Embedding = 硅基流动 bge-m3（~/.siliconflow/api_key）。
 // 注：历史基线在 deepseek-chat 上测（2026-07-24 官方停用），换模型后质量观感不可直接对旧记录比。
 
-import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 
-import { OpenAICompatibleProvider } from "../llm/openai_compatible.js";
 import { RemoteEmbeddingProvider } from "../llm/embedding_provider.js";
+import { makeDeepseekProbeProvider, siliconflowKey } from "./_deepseek.js";
 import { generate_standard_summary, generate_micro_summary } from "../services/chapter_summary.js";
 import { extract_facts_from_chapter } from "../services/facts_extraction.js";
 import { run_retrospective } from "../services/retrospective.js";
@@ -25,23 +23,15 @@ import type { ChapterSummaryRepository } from "../repositories/interfaces/chapte
 import type { RagManager } from "../services/rag_manager.js";
 
 // ---------------------------------------------------------------------------
-// Keys
+// Keys / providers（网关 + 模型走 config.toml 单一真相源，见 _deepseek.ts）
 // ---------------------------------------------------------------------------
 
-function deepseekKey(): string {
-  const toml = readFileSync(join(homedir(), ".deepseek", "config.toml"), "utf8");
-  const m = toml.match(/api_key\s*=\s*"([^"]+)"/);
-  if (!m) throw new Error("no deepseek api_key");
-  return m[1];
-}
-function siliconflowKey(): string {
-  return readFileSync(join(homedir(), ".siliconflow", "api_key"), "utf8").trim();
-}
-
-const PROBE_MODEL = process.env.M8_PROBE_MODEL || "deepseek-v4-flash";
-const llm = new OpenAICompatibleProvider("https://api.deepseek.com", deepseekKey(), PROBE_MODEL);
+const { provider: llm, model: PROBE_MODEL, baseUrl: PROBE_BASE } = makeDeepseekProbeProvider({
+  legacyEnvVar: "M8_PROBE_MODEL",
+});
 const embed = new RemoteEmbeddingProvider("https://api.siliconflow.cn/v1", siliconflowKey(), "BAAI/bge-m3");
 const llmConfig = { mode: "api" };
+console.log(`[M8 probe] LLM = ${PROBE_MODEL} @ ${PROBE_BASE}`);
 
 // ---------------------------------------------------------------------------
 // 样例：原创、题材中立的宫廷悬疑短篇（无真实游戏/品牌名）。
@@ -160,7 +150,10 @@ describe("M8 real-LLM quality probe", () => {
       }
     }
 
+    // generate_retrospective 步骤1 用 chapterRepo.get()（拿 content + content_hash 供 CAS），
+    // 不是 get_content_only —— stub 必须实现 get，否则 undefined 调用即抛 → 回望静默返回 null。
     const chapterRepo = {
+      get: async (_au: string, n: number) => ({ content: CHAPTERS[n], content_hash: `hash-ch${n}` }),
       get_content_only: async (_au: string, n: number) => CHAPTERS[n],
     } as unknown as ChapterRepository;
 
