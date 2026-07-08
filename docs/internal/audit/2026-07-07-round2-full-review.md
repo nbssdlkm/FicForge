@@ -15,7 +15,9 @@
 > - **第三轮对抗审发现处置**：F-1（会话模型 payload 失真，考古至 2026-04 stabilize 扫荡）/F-2（L24 off-by-one 回归）/F-3（同 baseUrl 弹回）/F-4（跨槽位 stale catalog 丢勾选）/F-5/F-6/F-7/F-8/F-9/F-10 全部整改，F-1~F-4 变异验证。
 > - **审计闭环**：62 条发现全部处置完毕（修复 / 有据跳过），三轮对抗审共 30 条发现全部整改。最终基线：引擎 1229 + UI 332 全绿、双 tsc 零错、i18n 1255 对称、golden 零改动。
 > - **环境边界（无法在本机完成）**：L15 Android 工程文件入库（Manifest/variables.gradle 在 Windows 构建机）；真机体感验证（M12 刘海 safe-area / M21 iOS 离线冷启动 / M11 低端机流式帧率 / L12 iOS Safari IDB 回收——代码路径均有测试钉住，表现待真机例行验证）；真 key 端到端 LLM 旅程（填 key 受安全规则禁）。
-> - 每笔修复均经独立对抗审或判别性回归测试（回退旧码即挂）钉死。
+> - **整合终审（2026-07-08，用户拍板加开）**：三路审 17 commit 集成态（跨批次交互 / 未过审整改与 chatPath / 发版鲜眼旅程）。攻破项全部整改于 `c0ccddf`（R1：keep-mounted 配置永久 stale[HIGH]、confirm 不查互斥表、trash 恢复章绕过生命周期、PWA 静默强刷[HIGH]→prompt 模式+pagehide flush、提取取消按钮、same-num 文案）与 `857f96c`（R2：继承键补 api_base 同源[跑码实证]、testConnection 传 chat_path[HIGH]、ctx=0 写读不对称、拉取失败体验、脏检查、**新手引导接选择器**、术语统一「服务商」、deepseek-chat 默认值换 v4-flash）。守住面：生成打错章矩阵、badge/预算/请求三方一致、原子写无双删、rAF 次序——均有依据记录。
+> - **终审后遗留（低危已登记）**：F-8 备份 sidecar 无上限 GC、chat_inflight HMR 隔离（仅 dev）、Capacitor rename 预删窗口对非 JSONL 文件（对抗审已判可接受）、livetest 探针仍写死 deepseek-chat（chip 已挂）、F-4 双 picker 共享 catalog 的多标签页形态（M19 家族）。
+> - 最终基线：**引擎 1236 + UI 391 全绿、双 tsc 零错、i18n 1259 对称、golden 零改动**。每笔修复均经独立对抗审或判别性回归测试（回退旧码即挂）钉死。
 
 - **日期**：2026-07-07
 - **基线**：main @ `2657163`（与 origin/main 同步，工作区干净）
