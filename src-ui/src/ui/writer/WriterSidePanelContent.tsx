@@ -5,6 +5,7 @@
 import { Button } from '../shared/Button';
 import { Tag } from '../shared/Tag';
 import { SettingsPanel } from '../settings/SettingsPanel';
+import type { PickerModelOption, SessionLayer } from '../settings/model-picker/model-picker-utils';
 import { Undo2, BookOpen, FileUp } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
@@ -34,6 +35,8 @@ export interface WriterSidePanelContentProps {
   // Session params (for SettingsPanel)
   sessionModel: string;
   onModelChange: (v: string) => void;
+  sessionLayer: SessionLayer;
+  sessionModelOptions: PickerModelOption[];
   sessionTemp: number;
   onTempChange: (v: number) => void;
   sessionTopP: number;
@@ -69,6 +72,8 @@ export const WriterSidePanelContent = ({
   layerSum,
   sessionModel,
   onModelChange,
+  sessionLayer,
+  sessionModelOptions,
   sessionTemp,
   onTempChange,
   sessionTopP,
@@ -206,6 +211,8 @@ export const WriterSidePanelContent = ({
         <SettingsPanel
           model={sessionModel}
           onModelChange={onModelChange}
+          sessionLayer={sessionLayer}
+          sessionModelOptions={sessionModelOptions}
           temperature={sessionTemp}
           onTemperatureChange={onTempChange}
           topP={sessionTopP}

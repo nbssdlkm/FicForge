@@ -400,6 +400,60 @@ describe("OpenAICompatibleProvider.generate non-streaming success", () => {
   });
 });
 
+describe("OpenAICompatibleProvider chat_path URL 构造（自定义网关路径接线）", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubCapture(): { getUrl: () => string } {
+    let capturedUrl = "";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        capturedUrl = url;
+        return new Response(
+          JSON.stringify({
+            choices: [{ message: { content: "ok" }, finish_reason: "stop" }],
+            usage: { prompt_tokens: 1, completion_tokens: 1 },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }),
+    );
+    return { getUrl: () => capturedUrl };
+  }
+
+  it("未传 chatPath：回退默认 /chat/completions（api_base 去尾斜杠后拼接）", async () => {
+    const cap = stubCapture();
+    const provider = new OpenAICompatibleProvider("https://relay.example.com/v1/", "key", "model");
+    await provider.generate({
+      messages: [{ role: "user", content: "hi" }],
+      max_tokens: 1, temperature: 1, top_p: 1,
+    });
+    expect(cap.getUrl()).toBe("https://relay.example.com/v1/chat/completions");
+  });
+
+  it("传自定义 chatPath：命中该路径（不再打 /chat/completions）", async () => {
+    const cap = stubCapture();
+    const provider = new OpenAICompatibleProvider("https://gateway.example.com", "key", "model", "/openai/v1/chat");
+    await provider.generate({
+      messages: [{ role: "user", content: "hi" }],
+      max_tokens: 1, temperature: 1, top_p: 1,
+    });
+    expect(cap.getUrl()).toBe("https://gateway.example.com/openai/v1/chat");
+  });
+
+  it("chatPath 缺前导斜杠：自动补斜杠（防拼成 basepath 相连）", async () => {
+    const cap = stubCapture();
+    const provider = new OpenAICompatibleProvider("https://gateway.example.com", "key", "model", "relay/completions");
+    await provider.generate({
+      messages: [{ role: "user", content: "hi" }],
+      max_tokens: 1, temperature: 1, top_p: 1,
+    });
+    expect(cap.getUrl()).toBe("https://gateway.example.com/relay/completions");
+  });
+});
+
 describe("OpenAICompatibleProvider requestWithRetry error translation", () => {
   afterEach(() => {
     vi.unstubAllGlobals();

@@ -21,6 +21,7 @@ interface Result {
   skipped: number;
   failed: number;
   aborted: boolean;
+  overCap: number; // L16：因每章 8 条软上限被丢弃的笔记数
 }
 
 /**
@@ -91,11 +92,11 @@ export function BackfillMemoryModal({ auPath, isOpen, onClose }: { auPath: strin
         (done, total) => setProgress({ done, total }),
         controller.signal,
       );
-      setResult({ summaries: res.summariesGenerated, facts: res.factsAdded, skipped: res.skipped, failed: res.failed, aborted: res.aborted });
+      setResult({ summaries: res.summariesGenerated, facts: res.factsAdded, skipped: res.skipped, failed: res.failed, aborted: res.aborted, overCap: res.factsOverCapCount });
       setPhase('done');
     } catch (e) {
       showError(e, t('error_messages.unknown'));
-      setResult({ summaries: 0, facts: 0, skipped: 0, failed: 0, aborted: true });
+      setResult({ summaries: 0, facts: 0, skipped: 0, failed: 0, aborted: true, overCap: 0 });
       setPhase('done');
     } finally {
       abortRef.current = null;
@@ -184,13 +185,18 @@ export function BackfillMemoryModal({ auPath, isOpen, onClose }: { auPath: strin
         )}
 
         {phase === 'done' && result && (
-          <p className="text-sm text-text/80">
-            {result.aborted
-              ? t('backfillMemory.aborted', { summaries: result.summaries, facts: result.facts })
-              : result.failed > 0
-                ? t('backfillMemory.doneWithFailures', { summaries: result.summaries, facts: result.facts, failed: result.failed })
-                : t('backfillMemory.doneSuccess', { summaries: result.summaries, facts: result.facts })}
-          </p>
+          <>
+            <p className="text-sm text-text/80">
+              {result.aborted
+                ? t('backfillMemory.aborted', { summaries: result.summaries, facts: result.facts })
+                : result.failed > 0
+                  ? t('backfillMemory.doneWithFailures', { summaries: result.summaries, facts: result.facts, failed: result.failed })
+                  : t('backfillMemory.doneSuccess', { summaries: result.summaries, facts: result.facts })}
+            </p>
+            {result.overCap > 0 && (
+              <p className="text-xs text-text/50">{t('backfillMemory.overCapNote', { count: result.overCap })}</p>
+            )}
+          </>
         )}
 
         <div className="flex justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">

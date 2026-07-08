@@ -13,6 +13,12 @@ export interface LLMConfig {
   local_model_path: string;
   ollama_model: string;
   context_window: number;    // 0 = 自动推断
+  /**
+   * 非标聊天补全路径（默认 /chat/completions）。特殊网关（自定义供应商 chatPath）用。
+   * 与 api_base 同源随层持久化：缺省 = 未设置（消费方回退默认路径），不写默认值 ——
+   * 与 CustomProviderEntry.chatPath 的「缺省即默认」语义一致，避免把默认伪装成用户配置。
+   */
+  chat_path?: string;
 }
 
 export function createLLMConfig(partial?: Partial<LLMConfig>): LLMConfig {
@@ -24,6 +30,8 @@ export function createLLMConfig(partial?: Partial<LLMConfig>): LLMConfig {
     local_model_path: "",
     ollama_model: "",
     context_window: 0,
+    // chat_path 有意不设默认：optional 字段，只在用户配了自定义路径时才存在，
+    // 缺省交给消费方回退 /chat/completions（禁静默把默认写进持久化层）。
     ...partial,
   };
 }

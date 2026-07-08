@@ -28,12 +28,23 @@ export interface ResolvedLLMConfig {
    * 一致，则继承该层的手动窗口（本质仍是"窗口描述该模型"的同源语义）。
    */
   context_window?: number;
+  /**
+   * 非标聊天补全路径（对应 LLMConfig.chat_path / CustomProviderEntry.chatPath）。
+   * undefined = 未设置，Provider 回退 /chat/completions。与 context_window 同法
+   * **同层同源**：取胜出层的 chat_path，session 不带时按模型一致继承（见 resolveChatPath）。
+   */
+  chat_path?: string;
 }
 
 /** 归一化手动 context_window：仅正数有效（0 = "自动推断"哨兵值，视同未指定）。 */
 function toManualContextWindow(v: unknown): number | undefined {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+/** 归一化 chat_path：仅非空字符串有效（空串/非串视同未指定，回退默认路径）。 */
+function toChatPath(v: unknown): string | undefined {
+  return typeof v === "string" && v.trim() ? v : undefined;
 }
 
 type LLMConfigLike = {
@@ -43,6 +54,7 @@ type LLMConfigLike = {
   api_key?: string;
   ollama_model?: string;
   context_window?: number;
+  chat_path?: string;
 };
 
 /**
@@ -73,6 +85,38 @@ function resolveContextWindow(
     Boolean(l && sessionModel && (l.model === sessionModel || l.ollama_model === sessionModel));
   if (matches(project.llm)) return toManualContextWindow(project.llm?.context_window);
   if (matches(settings.default_llm)) return toManualContextWindow(settings.default_llm?.context_window);
+  return undefined;
+}
+
+/**
+ * 解析生效的 chat_path，与 resolve_llm_config 选出的层**同层同源**——
+ * 完全仿照 resolveContextWindow（审计 H4）的模式：chat_path 描述的是「某层配置里那个
+ * 模型 / 供应商」的非标路径，跟 api_base/model 绑在同一层，跨层混配会把 A 层的路径
+ * 误配到 B 层的端点上。
+ *
+ * - project / settings 层胜出：直接取该层的 chat_path。
+ * - session 层胜出：session payload 通常不带 chat_path（前端只传 mode/model/api_base），
+ *   此时若 session 模型与某层配置的模型一致，继承该层 chat_path（同「路径描述该模型/端点」
+ *   语义）；不一致则不继承，返回 undefined 交给 Provider 回退 /chat/completions。
+ */
+function resolveChatPath(
+  layer: "session" | "project" | "settings" | "none",
+  sessionModel: string,
+  session_llm: Record<string, string> | null,
+  project: { llm?: LLMConfigLike },
+  settings: { default_llm?: LLMConfigLike },
+): string | undefined {
+  if (layer === "project") return toChatPath(project.llm?.chat_path);
+  if (layer === "settings") return toChatPath(settings.default_llm?.chat_path);
+  if (layer !== "session") return undefined;
+
+  const explicit = toChatPath(session_llm?.chat_path);
+  if (explicit !== undefined) return explicit;
+
+  const matches = (l: LLMConfigLike | undefined): boolean =>
+    Boolean(l && sessionModel && (l.model === sessionModel || l.ollama_model === sessionModel));
+  if (matches(project.llm)) return toChatPath(project.llm?.chat_path);
+  if (matches(settings.default_llm)) return toChatPath(settings.default_llm?.chat_path);
   return undefined;
 }
 
@@ -131,6 +175,7 @@ export function resolve_llm_config(
     }
   }
 
+  const chatPath = resolveChatPath(layer, cfg.model, session_llm, project, settings);
   return {
     mode: cfg.mode,
     model: cfg.model,
@@ -138,6 +183,7 @@ export function resolve_llm_config(
     api_key: cfg.api_key,
     ollama_model: cfg.ollama_model,
     context_window: resolveContextWindow(layer, cfg.model, session_llm, project, settings),
+    ...(chatPath !== undefined ? { chat_path: chatPath } : {}),
   };
 }
 
@@ -223,7 +269,9 @@ export function create_provider(llmConfig: ResolvedLLMConfig): LLMProvider {
   const mode = llmConfig.mode;
 
   if (mode === "api") {
-    return new OpenAICompatibleProvider(llmConfig.api_base, llmConfig.api_key, llmConfig.model);
+    // chat_path 随层带进 Provider（自定义供应商非标网关路径）；缺省 Provider 内部回退
+    // /chat/completions。ollama 模式不传：其端点恒为标准 /v1/chat/completions。
+    return new OpenAICompatibleProvider(llmConfig.api_base, llmConfig.api_key, llmConfig.model, llmConfig.chat_path);
   }
 
   if (mode === "ollama") {

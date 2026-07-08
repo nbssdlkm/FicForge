@@ -10,7 +10,7 @@ export { FileFactRepository } from "./file_fact.js";
 export { FileFandomRepository } from "./file_fandom.js";
 export { FileOpsRepository } from "./file_ops.js";
 export { FileProjectRepository } from "./file_project.js";
-export { FileSettingsRepository } from "./file_settings.js";
+export { customProviderApiKeySecureKey, FileSettingsRepository } from "./file_settings.js";
 export { FileSimpleChatRepository } from "./file_simple_chat.js";
 export { FileStateRepository } from "./file_state.js";
 export { FileThreadRepository, threadToDict } from "./file_thread.js";

@@ -5,22 +5,44 @@
  * Engine Settings query/command layer.
  */
 
-import { OpenAICompatibleProvider, RemoteEmbeddingProvider, type Settings } from "@ficforge/engine";
+import {
+  OpenAICompatibleProvider,
+  RemoteEmbeddingProvider,
+  customProviderApiKeySecureKey,
+  type CustomModelEntry,
+  type CustomProviderEntry,
+  type Settings,
+} from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
 import type {
   AppPreferencesInput,
+  CustomProviderInfo,
+  CustomProviderSaveInput,
   DefaultLlmSettingsInput,
   EmbeddingQueryInfo,
   FontPreferences,
   GlobalSettingsSaveInput,
   LlmQueryInfo,
+  ModelCatalog,
   ModelParamInfo,
   OnboardingDefaults,
+  RemoteModelListing,
   SecretStorageCapabilities,
   SettingsSummary,
   WriterSessionConfig,
 } from "./settings";
 import { DEFAULT_OLLAMA_BASE_URL, DEFAULT_CONTEXT_WINDOW } from "../config/defaults";
+
+/**
+ * 归一化 chat_path：非空字符串 → trim 后原样；空/非串 → undefined。
+ * undefined 让 js-yaml dump 省略该键（不落盘），实现「缺省即默认 /chat/completions」+
+ * 「置空即清除旧路径」，与 engine config_resolver.toChatPath 口径一致（单一语义源）。
+ * 导出供 engine-project.ts 复用，避免两处手工维护同一归一化规则。
+ */
+export function normalizeChatPath(v: string | undefined): string | undefined {
+  const trimmed = v?.trim();
+  return trimmed ? trimmed : undefined;
+}
 
 let settingsWriteQueue: Promise<void> = Promise.resolve();
 
@@ -147,7 +169,152 @@ export async function getWriterSessionConfig(): Promise<WriterSessionConfig> {
   return {
     default_llm: toLlmQueryInfo(settings.default_llm),
     model_params: structuredClone(settings.model_params) as Record<string, ModelParamInfo>,
+    catalog: toModelCatalog(settings),
   };
+}
+
+// ---------------------------------------------------------------------------
+// 模型目录（供应商主导选择器）
+// ---------------------------------------------------------------------------
+
+function toCustomProviderInfo(p: CustomProviderEntry): CustomProviderInfo {
+  return {
+    id: p.id,
+    displayName: p.displayName,
+    baseUrl: p.baseUrl,
+    ...(p.chatPath ? { chatPath: p.chatPath } : {}),
+    has_api_key: Boolean(p.api_key?.trim()),
+    models: structuredClone(p.models),
+  };
+}
+
+function toModelCatalog(settings: Settings): ModelCatalog {
+  return {
+    custom_providers: (settings.custom_providers ?? []).map(toCustomProviderInfo),
+    enabled_models: structuredClone(settings.enabled_models ?? {}),
+  };
+}
+
+export async function getModelCatalog(): Promise<ModelCatalog> {
+  const settings = await readSettings();
+  return toModelCatalog(settings);
+}
+
+/**
+ * 自定义供应商 id：`custom-` 前缀 + 时间戳 base36 + 随机段。
+ * 全局唯一且**删除后不复用** —— secure storage key 以它为 namespace，
+ * 唯一性保证「删供应商后残留的孤儿密钥」永远不会错误水合回新条目。
+ */
+function generateCustomProviderId(): string {
+  return `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/** 新建或更新自定义供应商（按 id 定位；id 缺省 = 新建）。返回查询视图。 */
+export async function saveCustomProvider(input: CustomProviderSaveInput): Promise<CustomProviderInfo> {
+  return withSettingsWrite((current) => {
+    current.custom_providers = current.custom_providers ?? [];
+    const existing = input.id
+      ? current.custom_providers.find((p) => p.id === input.id)
+      : undefined;
+
+    const entry: CustomProviderEntry = {
+      id: existing?.id ?? input.id ?? generateCustomProviderId(),
+      displayName: input.displayName,
+      baseUrl: input.baseUrl,
+      ...(input.chatPath?.trim() ? { chatPath: input.chatPath.trim() } : {}),
+      // undefined = 保持已存密钥；字符串（含空串=清除）= 覆盖。
+      // 空串清除语义与 secure_fields.extractSecureFields 的「显式置空即删密钥」一致。
+      api_key: input.api_key !== undefined ? input.api_key : (existing?.api_key ?? ""),
+      models: structuredClone(input.models),
+    };
+
+    if (existing) {
+      current.custom_providers = current.custom_providers.map((p) => (p.id === existing.id ? entry : p));
+    } else {
+      current.custom_providers = [...current.custom_providers, entry];
+    }
+    return toCustomProviderInfo(entry);
+  });
+}
+
+/**
+ * 删除自定义供应商：条目 + 关联 enabled_models 一并清除，
+ * 并 best-effort 移除 secure storage 里的供应商密钥（孤儿清理）。
+ * 「正被全局/AU 配置引用」的提示在 UI 层做（api_base 匹配判据）——此处只负责数据一致性。
+ */
+export async function deleteCustomProvider(providerId: string): Promise<void> {
+  await withSettingsWrite((current) => {
+    current.custom_providers = (current.custom_providers ?? []).filter((p) => p.id !== providerId);
+    if (current.enabled_models && providerId in current.enabled_models) {
+      const next = { ...current.enabled_models };
+      delete next[providerId];
+      current.enabled_models = next;
+    }
+  });
+  try {
+    await getEngine().adapter.secureRemove(customProviderApiKeySecureKey(providerId));
+  } catch {
+    // best-effort：id 不复用（见 generateCustomProviderId），孤儿密钥无水合路径，仅占存储
+  }
+}
+
+/** 读取某自定义供应商已存的真实 api_key（选中该供应商时自动带入配置表单）。 */
+export async function getCustomProviderApiKey(providerId: string): Promise<string> {
+  const settings = await readSettings();
+  return settings.custom_providers?.find((p) => p.id === providerId)?.api_key ?? "";
+}
+
+/** 覆写某供应商（内置或自定义）的「已启用模型」清单（拉取 sheet 勾选确认时调用）。 */
+export async function saveEnabledModels(providerId: string, models: CustomModelEntry[]): Promise<void> {
+  await withSettingsWrite((current) => {
+    current.enabled_models = {
+      ...(current.enabled_models ?? {}),
+      [providerId]: structuredClone(models),
+    };
+  });
+}
+
+/** /models 端点超时（毫秒）。 */
+const FETCH_MODELS_TIMEOUT_MS = 15_000;
+
+/**
+ * 「从 API 获取列表」—— GET {api_base}/models（OpenAI 兼容），带超时。
+ * 路径口径与 OpenAICompatibleProvider 的 `{api_base}/chat/completions` 一致：
+ * api_base 含不含 /v1 由供应商条目决定，这里只拼 /models。
+ * key 传参来自表单态（与 testConnection 同路径：表单持有 secure 还原后的真实 key）。
+ */
+export async function fetchProviderModels(params: { api_base: string; api_key: string }): Promise<RemoteModelListing> {
+  const base = params.api_base.trim().replace(/\/+$/, "");
+  if (!base) {
+    throw new Error("api_base is empty");
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_MODELS_TIMEOUT_MS);
+  try {
+    const resp = await fetch(`${base}/models`, {
+      method: "GET",
+      headers: {
+        ...(params.api_key.trim() ? { Authorization: `Bearer ${params.api_key.trim()}` } : {}),
+      },
+      signal: controller.signal,
+    });
+    if (!resp.ok) {
+      throw new Error(`HTTP ${resp.status}`);
+    }
+    const data = (await resp.json()) as { data?: unknown };
+    const list = Array.isArray(data?.data) ? data.data : [];
+    const ids = list
+      .map((item) => (item && typeof item === "object" ? (item as { id?: unknown }).id : undefined))
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+    return { ids: [...new Set(ids)] };
+  } catch (e: unknown) {
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new Error(`timeout after ${FETCH_MODELS_TIMEOUT_MS / 1000}s`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function getOnboardingDefaults(): Promise<OnboardingDefaults> {
@@ -184,6 +351,8 @@ export async function saveDefaultLlmSettings(payload: DefaultLlmSettingsInput) {
       local_model_path: payload.local_model_path,
       ollama_model: payload.ollama_model,
       context_window: payload.context_window,
+      // 与 saveGlobalSettingsForEditing 同口径：显式覆盖，空/缺 → undefined（dump 省略）。
+      chat_path: normalizeChatPath(payload.chat_path),
     };
     return current.default_llm;
   });
@@ -231,6 +400,10 @@ export async function saveGlobalSettingsForEditing(payload: GlobalSettingsSaveIn
       local_model_path: payload.default_llm.mode === "local" ? payload.default_llm.local_model_path : "",
       ollama_model: payload.default_llm.mode === "ollama" ? payload.default_llm.ollama_model : "",
       context_window: payload.default_llm.context_window,
+      // chat_path：只在 API 模式且非空时落库（optional，缺省即默认路径 /chat/completions）。
+      // 显式赋值（在 ...current.default_llm 之后）覆盖旧值：空/非 API → undefined，
+      // js-yaml dump 会省略 undefined 键 → 旧路径不残留（与 api_key 置空同口径）。
+      chat_path: normalizeChatPath(payload.default_llm.mode === "api" ? payload.default_llm.chat_path : undefined),
     };
 
     // embedding 只有 API 一种模式（本地 embedding 三端均不支持，sidecar 退役 D-0040/M7）。

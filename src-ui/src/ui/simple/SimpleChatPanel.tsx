@@ -746,6 +746,8 @@ export function SimpleChatPanel({
         onClose={() => setDrawerOpen(false)}
         model={sessionParams.sessionModel}
         onModelChange={sessionParams.setSessionModel}
+        sessionLayer={sessionParams.sessionLayer}
+        sessionModelOptions={sessionParams.sessionModelOptions}
         temperature={sessionParams.sessionTemp}
         onTemperatureChange={sessionParams.setSessionTemp}
         topP={sessionParams.sessionTopP}

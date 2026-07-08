@@ -279,7 +279,8 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
     mode, unresolvedFacts, focusSelection: focusController.focusSelection, onFocusToggle: focusController.handleFocusToggle,
     onClearFocus: focusController.handleClearFocus, onContinueLastFocus: focusController.handleContinueLastFocus, lastConfirmedFocus,
     budgetReport: draftCtrl.budgetReport, contextLayers: displayState.contextLayers, layerSum: displayState.layerSum,
-    sessionModel: sessionParams.sessionModel, onModelChange: sessionParams.setSessionModel, sessionTemp: sessionParams.sessionTemp, onTempChange: sessionParams.setSessionTemp,
+    sessionModel: sessionParams.sessionModel, onModelChange: sessionParams.setSessionModel, sessionLayer: sessionParams.sessionLayer, sessionModelOptions: sessionParams.sessionModelOptions,
+    sessionTemp: sessionParams.sessionTemp, onTempChange: sessionParams.setSessionTemp,
     sessionTopP: sessionParams.sessionTopP, onTopPChange: sessionParams.setSessionTopP, onSaveGlobal: sessionParams.handleSaveGlobalParams, onSaveAu: sessionParams.handleSaveAuParams,
     fontSize, onFontSizeChange: setFontSize, lineHeight, onLineHeightChange: setLineHeight, onNavigate,
   };

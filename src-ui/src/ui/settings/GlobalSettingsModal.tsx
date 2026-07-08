@@ -8,7 +8,7 @@ import { Modal } from '../shared/Modal';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { HelpCircle, CheckCircle2, XCircle } from 'lucide-react';
-import { ModelSelector } from '../shared/ModelSelector';
+import { ProviderModelPicker } from './model-picker/ProviderModelPicker';
 import { getSettingsForEditing, saveAppPreferences, saveGlobalSettingsForEditing, LLMMode, type SettingsInfo, getDataDir, getDisplayDataDir } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
@@ -45,6 +45,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
   const [apiBase, setApiBase] = useState(DEFAULT_DEEPSEEK_API_BASE);
   const [apiKey, setApiKey] = useState('');
   const [contextWindow, setContextWindow] = useState(DEFAULT_CONTEXT_WINDOW);
+  const [chatPath, setChatPath] = useState('');
   const [embeddingModel, setEmbeddingModel] = useState('');
   const [embeddingApiBase, setEmbeddingApiBase] = useState('');
   const [embeddingApiKey, setEmbeddingApiKey] = useState('');
@@ -73,6 +74,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
     setApiBase(defaults.apiBase);
     setApiKey(defaults.apiKey);
     setContextWindow(defaults.contextWindow);
+    setChatPath(defaults.chatPath);
     setEmbeddingModel(defaults.embeddingModel);
     setEmbeddingApiBase(defaults.embeddingApiBase);
     setEmbeddingApiKey(defaults.embeddingApiKey);
@@ -103,6 +105,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         setApiBase(form.apiBase);
         setApiKey(form.apiKey);
         setContextWindow(form.contextWindow);
+        setChatPath(form.chatPath);
         setEmbeddingModel(form.embeddingModel);
         setEmbeddingApiBase(form.embeddingApiBase);
         setEmbeddingApiKey(form.embeddingApiKey);
@@ -136,6 +139,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
         apiBase,
         apiKey,
         contextWindow,
+        chatPath,
         embeddingModel,
         embeddingApiBase,
         embeddingApiKey,
@@ -210,10 +214,20 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
 
             {mode === 'api' && (
               <>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-bold text-text/90">{t('settings.global.defaultModel')}</label>
-                  <ModelSelector value={model} onChange={setModel} onApiBaseAutoFill={setApiBase} disabled={saving} />
-                </div>
+                {/* 供应商主导选择器：供应商 → 模型（推荐/已启用/自定义 + 拉取 + 手填）→ ctx 三态 */}
+                <ProviderModelPicker
+                  kind="chat"
+                  model={model}
+                  onModelChange={setModel}
+                  apiBase={apiBase}
+                  onApiBaseAutoFill={setApiBase}
+                  onChatPathAutoFill={setChatPath}
+                  apiKey={apiKey}
+                  onApiKeyAutoFill={setApiKey}
+                  contextWindow={contextWindow}
+                  onContextWindowChange={setContextWindow}
+                  disabled={saving}
+                />
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-bold text-text/90">{t('common.labels.apiBase')}</label>
@@ -253,11 +267,14 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
               </>
             )}
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-bold text-text/90">{t('common.labels.contextWindow')}</label>
-              <Input type="number" value={contextWindow} onChange={(e) => setContextWindow(parseInt(e.target.value, 10) || 0)} disabled={saving} />
-              <p className="text-xs text-text/50">{t('common.help.contextWindow')}</p>
-            </div>
+            {/* api 模式的 ctx 由 ProviderModelPicker 内联管理（权威只读/估算提示）；其余模式保留手填 */}
+            {mode !== 'api' && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-text/90">{t('common.labels.contextWindow')}</label>
+                <Input type="number" value={contextWindow} onChange={(e) => setContextWindow(parseInt(e.target.value, 10) || 0)} disabled={saving} />
+                <p className="text-xs text-text/50">{t('common.help.contextWindow')}</p>
+              </div>
+            )}
 
             <div className="flex items-center gap-2 pt-1">
               <Button
@@ -286,7 +303,17 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                 <p className="text-xs leading-relaxed text-warning">
                   {t('settings.global.embeddingIndependentHint')}
                 </p>
-                <Input value={embeddingModel} onChange={e => setEmbeddingModel(e.target.value)} placeholder={t('settings.global.embeddingModelPlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
+                {/* embedding 槽位复用同一选择器：kind="embedding" 只显示 embedding 类型模型（+手填） */}
+                <ProviderModelPicker
+                  kind="embedding"
+                  model={embeddingModel}
+                  onModelChange={setEmbeddingModel}
+                  apiBase={embeddingApiBase}
+                  onApiBaseAutoFill={setEmbeddingApiBase}
+                  apiKey={embeddingApiKey}
+                  onApiKeyAutoFill={setEmbeddingApiKey}
+                  disabled={saving}
+                />
                 <Input value={embeddingApiBase} onChange={e => setEmbeddingApiBase(e.target.value)} placeholder={t('settings.global.embeddingApiBasePlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
                 <Input value={embeddingApiKey} onChange={e => setEmbeddingApiKey(e.target.value)} placeholder={t('settings.global.embeddingApiKeyPlaceholder')} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" type="password" />
                 <div className="flex items-center gap-2 pt-1">

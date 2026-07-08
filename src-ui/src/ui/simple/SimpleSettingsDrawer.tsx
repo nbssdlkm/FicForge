@@ -1,13 +1,12 @@
 // Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 
-import { MODEL_PRESETS } from "../shared/ModelSelector";
 import { Modal } from "../shared/Modal";
 import { Button } from "../shared/Button";
 import { Spinner } from "../shared/Spinner";
+import { SessionModelPicker } from "../settings/model-picker/SessionModelPicker";
+import type { PickerModelOption, SessionLayer } from "../settings/model-picker/model-picker-utils";
 import { useTranslation } from "../../i18n/useAppTranslation";
-
-const ALL_PRESET_NAMES = MODEL_PRESETS.flatMap(g => g.models.map(m => m.name));
 
 interface SimpleSettingsDrawerProps {
   isOpen: boolean;
@@ -16,6 +15,10 @@ interface SimpleSettingsDrawerProps {
 
   model: string;
   onModelChange: (value: string) => void;
+  /** 当前生效层级（badge 三态：会话临时 / AU 覆盖中 / 全局默认）。 */
+  sessionLayer: SessionLayer;
+  /** 当前生效供应商的可选模型（useSessionParams 派生）。 */
+  sessionModelOptions: PickerModelOption[];
   temperature: number;
   onTemperatureChange: (value: number) => void;
   topP: number;
@@ -35,6 +38,8 @@ export function SimpleSettingsDrawer({
   isLoading,
   model,
   onModelChange,
+  sessionLayer,
+  sessionModelOptions,
   temperature,
   onTemperatureChange,
   topP,
@@ -62,22 +67,12 @@ export function SimpleSettingsDrawer({
           <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-gold-bright mb-2">
             {t("common.labels.model", { defaultValue: "Model" })}
           </div>
-          <select
-            value={model}
-            onChange={(e) => onModelChange(e.target.value)}
-            className="h-10 w-full rounded-sm border border-rule bg-background px-3 text-sm text-text outline-none focus:ring-1 focus:ring-gold-bright"
-          >
-            {!ALL_PRESET_NAMES.includes(model) && model ? (
-              <option value={model}>{model}</option>
-            ) : null}
-            {MODEL_PRESETS.map((group) => (
-              <optgroup key={group.group} label={group.group}>
-                {group.models.map((m) => (
-                  <option key={m.name} value={m.name}>{m.name}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+          <SessionModelPicker
+            model={model}
+            onModelChange={onModelChange}
+            layer={sessionLayer}
+            options={sessionModelOptions}
+          />
         </div>
 
         <div>

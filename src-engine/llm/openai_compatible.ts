@@ -76,11 +76,25 @@ export class OpenAICompatibleProvider implements LLMProvider {
   private apiBase: string;
   private apiKey: string;
   private model: string;
+  private chatPath: string;
 
-  constructor(apiBase: string, apiKey: string, model: string) {
+  /**
+   * @param chatPath 非标聊天补全路径（特殊网关用）。缺省 = /chat/completions。
+   *                 只影响 chat completions；/models 拉取路径不走此处（见 engine-settings
+   *                 fetchProviderModels，恒拼 /models）。
+   */
+  constructor(apiBase: string, apiKey: string, model: string, chatPath?: string) {
     this.apiBase = apiBase.replace(/\/+$/, "");
     this.apiKey = apiKey;
     this.model = model;
+    // 归一化：非空才用自定义，且保证前导斜杠（api_base 已去尾斜杠，拼接即 `{base}{path}`）。
+    const trimmed = chatPath?.trim();
+    this.chatPath = trimmed ? (trimmed.startsWith("/") ? trimmed : `/${trimmed}`) : "/chat/completions";
+  }
+
+  /** 聊天补全端点完整 URL（单一真相源，流式 / 非流式 / 429 重试共用）。 */
+  private chatUrl(): string {
+    return `${this.apiBase}${this.chatPath}`;
   }
 
   // ------------------------------------------------------------------
@@ -132,7 +146,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
 
   async *generateStream(params: GenerateParams): AsyncIterable<LLMChunk> {
     const body = this.buildBody(params, true);
-    const url = `${this.apiBase}/chat/completions`;
+    const url = this.chatUrl();
 
     const controller = new AbortController();
     // 可重置超时：每次收到数据后重置，防止长生成被误杀
@@ -344,7 +358,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
   }
 
   private async requestWithRetry(body: Record<string, unknown>, externalSignal?: AbortSignal): Promise<Record<string, unknown>> {
-    const url = `${this.apiBase}/chat/completions`;
+    const url = this.chatUrl();
 
     for (let attempt = 0; attempt < 2; attempt++) {
       if (externalSignal?.aborted) {

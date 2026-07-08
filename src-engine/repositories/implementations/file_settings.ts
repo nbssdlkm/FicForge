@@ -12,6 +12,8 @@ import type {
   AppConfig,
   ChapterMetadataDisplay,
   ChapterMetadataField,
+  CustomModelEntry,
+  CustomProviderEntry,
   EmbeddingConfig,
   FontsConfig,
   LicenseConfig,
@@ -23,6 +25,8 @@ import {
   createAppConfig,
   createChapterMetadataDisplay,
   createChapterMetadataField,
+  createCustomModelEntry,
+  createCustomProviderEntry,
   createEmbeddingConfig,
   createFontsConfig,
   createLicenseConfig,
@@ -63,6 +67,36 @@ const SETTINGS_SECURE_SPECS: SecureFieldSpec<Settings>[] = [
   },
 ];
 
+/**
+ * 自定义供应商 api_key 的 secure storage key（单一真相源）。
+ * UI 删除供应商时用它做孤儿密钥清理（adapter.secureRemove）——供应商 id 由 UI 生成且
+ * 全局唯一、删除后不复用，故即使清理失败也不会有旧密钥错误水合回新条目的风险。
+ */
+export function customProviderApiKeySecureKey(providerId: string): string {
+  return `settings.custom_providers.${providerId}.api_key`;
+}
+
+/**
+ * 动态生成自定义供应商的 SecureFieldSpec（数组长度随 settings 内容变化，
+ * 无法进静态 SETTINGS_SECURE_SPECS）。读写路径各自基于**同一份** settings
+ * 对象生成，保证 spec 与条目一一对应。
+ */
+function customProviderSecureSpecs(settings: Settings): SecureFieldSpec<Settings>[] {
+  return settings.custom_providers.map((provider) => ({
+    secureKey: customProviderApiKeySecureKey(provider.id),
+    get: (s: Settings) => s.custom_providers.find((p) => p.id === provider.id)?.api_key ?? "",
+    set: (s: Settings, v: string) => {
+      const target = s.custom_providers.find((p) => p.id === provider.id);
+      if (target) target.api_key = v;
+    },
+  }));
+}
+
+/** 静态 + 动态（自定义供应商）secure specs 合集。 */
+function allSecureSpecs(settings: Settings): SecureFieldSpec<Settings>[] {
+  return [...SETTINGS_SECURE_SPECS, ...customProviderSecureSpecs(settings)];
+}
+
 export class FileSettingsRepository implements SettingsRepository {
   private path: string;
 
@@ -90,7 +124,8 @@ export class FileSettingsRepository implements SettingsRepository {
     const settings = dictToSettings(raw);
 
     // 还原敏感字段：占位符 → secure storage；旧明文 → 自动迁移到 secure storage
-    await restoreSecureFields(settings, SETTINGS_SECURE_SPECS, this.adapter);
+    // （含自定义供应商 api_key 的动态 spec）
+    await restoreSecureFields(settings, allSecureSpecs(settings), this.adapter);
 
     return settings;
   }
@@ -99,8 +134,8 @@ export class FileSettingsRepository implements SettingsRepository {
     const copy = structuredClone(settings);
     copy.updated_at = now_utc();
 
-    // 把敏感字段抽到 secure storage，YAML 文本里只剩占位符
-    await extractSecureFields(copy, SETTINGS_SECURE_SPECS, this.adapter);
+    // 把敏感字段抽到 secure storage，YAML 文本里只剩占位符（含自定义供应商 api_key）
+    await extractSecureFields(copy, allSecureSpecs(copy), this.adapter);
 
     const stripped = { ...copy } as unknown as Record<string, unknown>;
     const raw = obj_to_plain(stripped);
@@ -124,13 +159,13 @@ export class FileSettingsRepository implements SettingsRepository {
     }
 
     const settings = dictToSettings(raw);
-    if (!hasLegacyPlaintextSecureFields(settings, SETTINGS_SECURE_SPECS)) {
+    if (!hasLegacyPlaintextSecureFields(settings, allSecureSpecs(settings))) {
       return false;
     }
 
-    await restoreSecureFields(settings, SETTINGS_SECURE_SPECS, this.adapter);
+    await restoreSecureFields(settings, allSecureSpecs(settings), this.adapter);
     const sanitized = structuredClone(settings);
-    await extractSecureFields(sanitized, SETTINGS_SECURE_SPECS, this.adapter);
+    await extractSecureFields(sanitized, allSecureSpecs(sanitized), this.adapter);
     const content = yaml.dump(obj_to_plain(sanitized), { sortKeys: false, lineWidth: -1 });
     await atomicWrite(this.adapter, this.path, content);
     return true;
@@ -151,6 +186,9 @@ function dictToLLMConfig(d: Record<string, unknown> | null): LLMConfig {
     local_model_path: (d.local_model_path as string) ?? "",
     ollama_model: (d.ollama_model as string) ?? "",
     context_window: (d.context_window as number) ?? 0,
+    // chat_path：optional，只在 YAML 真有非空值时映射（缺省 = 未设置，走默认路径）。
+    // 与同文件 custom_providers.chatPath 的「未知≠默认」映射口径一致。
+    ...(typeof d.chat_path === "string" && d.chat_path ? { chat_path: d.chat_path } : {}),
   });
 }
 
@@ -287,6 +325,60 @@ function dictToSyncConfig(d: Record<string, unknown> | null): SyncConfig {
   });
 }
 
+/**
+ * 用户模型条目映射。
+ * 注意：contextWindow / maxOutputTokens **只在 YAML 里真有数值时才设置** ——
+ * 缺失=「未知」是有语义的（UI 走"按 XXk 估算"显式提示路径），
+ * 不能在这里静默补默认值把猜测伪装成用户手填的权威数据。
+ */
+function dictToCustomModelEntry(d: Record<string, unknown>): CustomModelEntry {
+  const id = (d.id as string) ?? "";
+  return createCustomModelEntry({
+    id,
+    displayName: (d.displayName as string) || id,
+    type: d.type === "embedding" ? "embedding" : "chat",
+    ...(typeof d.contextWindow === "number" ? { contextWindow: d.contextWindow } : {}),
+    ...(typeof d.maxOutputTokens === "number" ? { maxOutputTokens: d.maxOutputTokens } : {}),
+  });
+}
+
+function dictToCustomProviders(arr: unknown): CustomProviderEntry[] {
+  if (!Array.isArray(arr)) return [];
+  const result: CustomProviderEntry[] = [];
+  for (const item of arr) {
+    if (!item || typeof item !== "object") continue;
+    const d = item as Record<string, unknown>;
+    const id = (d.id as string) ?? "";
+    if (!id) continue; // 无 id 的条目无法定位 secure key，直接丢弃（防御脏数据）
+    const models = Array.isArray(d.models)
+      ? (d.models as unknown[])
+          .filter((m): m is Record<string, unknown> => Boolean(m) && typeof m === "object")
+          .map(dictToCustomModelEntry)
+      : [];
+    result.push(createCustomProviderEntry({
+      id,
+      displayName: (d.displayName as string) || id,
+      baseUrl: (d.baseUrl as string) ?? "",
+      api_key: (d.api_key as string) ?? "",
+      models,
+      ...(typeof d.chatPath === "string" && d.chatPath ? { chatPath: d.chatPath } : {}),
+    }));
+  }
+  return result;
+}
+
+function dictToEnabledModels(d: Record<string, unknown> | null): Record<string, CustomModelEntry[]> {
+  if (!d) return {};
+  const result: Record<string, CustomModelEntry[]> = {};
+  for (const [providerId, models] of Object.entries(d)) {
+    if (!Array.isArray(models)) continue;
+    result[providerId] = (models as unknown[])
+      .filter((m): m is Record<string, unknown> => Boolean(m) && typeof m === "object")
+      .map(dictToCustomModelEntry);
+  }
+  return result;
+}
+
 function dictToSettings(d: Record<string, unknown>): Settings {
   return createSettings({
     updated_at: (d.updated_at as string) ?? "",
@@ -296,5 +388,8 @@ function dictToSettings(d: Record<string, unknown>): Settings {
     app: dictToAppConfig(d.app as Record<string, unknown> | null),
     license: dictToLicenseConfig(d.license as Record<string, unknown> | null),
     sync: dictToSyncConfig(d.sync as Record<string, unknown> | null),
+    // 旧 settings.yaml 无以下两字段 → 各自回退空集合（向后兼容，读入不炸）
+    custom_providers: dictToCustomProviders(d.custom_providers),
+    enabled_models: dictToEnabledModels(d.enabled_models as Record<string, unknown> | null),
   });
 }

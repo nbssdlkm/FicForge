@@ -39,6 +39,7 @@ export type {
 
 // Repository implementations
 export {
+  customProviderApiKeySecureKey,
   FileChapterRepository,
   FileChapterSummaryRepository,
   FileDraftRepository,

@@ -11,6 +11,7 @@
 import type { Project } from "@ficforge/engine";
 import { withAuLock } from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
+import { normalizeChatPath } from "./engine-settings";
 import { DEFAULT_OLLAMA_BASE_URL } from "../config/defaults";
 import type { ModelParamInfo } from "./settings";
 import type {
@@ -45,6 +46,7 @@ function hasProjectLlmOverride(llm: Project["llm"] | null | undefined): boolean 
       || llm.api_key
       || llm.local_model_path
       || llm.ollama_model
+      || llm.chat_path
     )
   );
 }
@@ -175,8 +177,12 @@ export async function saveAuSettingsForEditing(auPath: string, payload: AuSettin
           local_model_path: payload.llm_override.mode === "local" ? payload.llm_override.local_model_path : "",
           ollama_model: payload.llm_override.mode === "ollama" ? payload.llm_override.ollama_model : "",
           context_window: payload.llm_override.context_window,
+          // chat_path：只在 API 模式非空时落库（optional）；空/非 API → undefined（dump 省略，
+          // 不残留旧路径）。归一化复用 engine-settings.normalizeChatPath（单一规则源）。
+          chat_path: normalizeChatPath(payload.llm_override.mode === "api" ? payload.llm_override.chat_path : undefined),
         } as Project["llm"]
       : {
+          // 关闭覆盖：整段回落，chat_path 一并清空（缺省即不写）。
           mode: "api",
           model: "",
           api_base: "",

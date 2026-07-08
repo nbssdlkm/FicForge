@@ -5,6 +5,7 @@
 
 import { APIMode, LicenseTier, LLMMode } from "./enums.js";
 import { type LLMConfig, createLLMConfig } from "./project.js";
+import type { ModelKind } from "./provider_manifest.js";
 
 export interface ModelParams {
   temperature: number;
@@ -36,6 +37,74 @@ export function createEmbeddingConfig(partial?: Partial<EmbeddingConfig>): Embed
     api_key: "",
     local_model_path: "",
     ollama_model: "nomic-embed-text",
+    ...partial,
+  };
+}
+
+/**
+ * 用户模型条目（供应商主导模型选择器，方案 B）。
+ *
+ * 形状与 manifest 的 RecommendedModel 同构（蓝图硬性要求）。当前（v1）唯一写入来源：
+ *   「从 API 获取列表」sheet 勾选写入 Settings.enabled_models[providerId]。
+ * CustomProviderEntry.models 复用同一形状但 v1 表单不提供逐模型手填入口（恒为空，留作扩展点）；
+ * 自定义模型的 ctx 经拉取 sheet 的已有条目保留 / 槽位级手填维护，逐模型编辑待后续。
+ *
+ * contextWindow 语义（与 provider_manifest.contextWindowForModel 分层一致）：
+ *   - 有值 = 用户手填/确认的权威值（喂 computeInputBudget）
+ *   - 缺失 = 未知 —— UI 必须按 MODEL_CONTEXT_MAP fuzzy 估算并**显式提示「按 XXk 估算」**，
+ *     禁止在持久化层静默补一个默认值伪装成权威数据（决策文档明令禁静默 fallback）。
+ */
+export interface CustomModelEntry {
+  /** 模型 id（发给 API 的名字，可带 org/ 前缀）。 */
+  id: string;
+  /** UI 展示名（默认与 id 相同）。 */
+  displayName: string;
+  /** 用户手填/确认的 context window（缺 = 未知，UI 走估算提示路径）。 */
+  contextWindow?: number;
+  /** 单次输出上限（可选）。 */
+  maxOutputTokens?: number;
+  /** chat / embedding（拉取清单按 id 启发式预标，用户可改）。 */
+  type: ModelKind;
+}
+
+export function createCustomModelEntry(partial?: Partial<CustomModelEntry>): CustomModelEntry {
+  return {
+    id: "",
+    displayName: "",
+    type: "chat",
+    ...partial,
+  };
+}
+
+/**
+ * 用户自定义供应商（与 manifest 的 ProviderEntry 同构：id/displayName/baseUrl/chatPath?/models[]）。
+ *
+ * 差异（有意为之）：
+ *   - displayName 是单一字符串（用户手填，不做中英双语）
+ *   - api_key 持久化在供应商条目上（Kelivo 模式）——落盘走 secure storage
+ *     （见 file_settings 的动态 SecureFieldSpec），YAML 里只留占位符
+ *   - models = 逐模型清单扩展点（v1 表单无手填入口，恒为空）；「拉取勾选」的模型统一存
+ *     Settings.enabled_models[id]
+ */
+export interface CustomProviderEntry {
+  /** 稳定 id（UI 生成，唯一；secure storage key 的 namespace 组成部分）。 */
+  id: string;
+  displayName: string;
+  baseUrl: string;
+  /** 可选自定义 chat 路径（默认 /chat/completions）。 */
+  chatPath?: string;
+  /** 供应商级 API key（选中该供应商时自动带出；secure storage 管理）。 */
+  api_key: string;
+  models: CustomModelEntry[];
+}
+
+export function createCustomProviderEntry(partial?: Partial<CustomProviderEntry>): CustomProviderEntry {
+  return {
+    id: "",
+    displayName: "",
+    baseUrl: "",
+    api_key: "",
+    models: [],
     ...partial,
   };
 }
@@ -171,6 +240,10 @@ export interface Settings {
   app: AppConfig;
   license: LicenseConfig;
   sync: SyncConfig;
+  /** 用户自定义供应商清单（选择器方案 B 硬性要求）。 */
+  custom_providers: CustomProviderEntry[];
+  /** 每供应商「已启用模型」（拉取清单勾选写入）。key = providerId（内置或自定义）。 */
+  enabled_models: Record<string, CustomModelEntry[]>;
 }
 
 export function createSettings(partial?: Partial<Settings>): Settings {
@@ -182,6 +255,8 @@ export function createSettings(partial?: Partial<Settings>): Settings {
     app: createAppConfig(),
     license: createLicenseConfig(),
     sync: createSyncConfig(),
+    custom_providers: [],
+    enabled_models: {},
     ...partial,
   };
 }

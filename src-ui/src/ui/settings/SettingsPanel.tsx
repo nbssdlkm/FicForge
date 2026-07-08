@@ -4,10 +4,9 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '../shared/Button';
-import { MODEL_PRESETS } from '../shared/ModelSelector';
+import { SessionModelPicker } from './model-picker/SessionModelPicker';
+import type { PickerModelOption, SessionLayer } from './model-picker/model-picker-utils';
 import { useTranslation } from '../../i18n/useAppTranslation';
-
-const ALL_PRESET_NAMES = MODEL_PRESETS.flatMap(g => g.models.map(m => m.name));
 
 interface SettingsPanelProps {
   model?: string;
@@ -18,6 +17,10 @@ interface SettingsPanelProps {
   onTopPChange?: (topP: number) => void;
   onSaveGlobal?: () => void;
   onSaveAu?: () => void;
+  /** 当前生效层级（badge 三态）。 */
+  sessionLayer?: SessionLayer;
+  /** 当前生效供应商的可选模型（useSessionParams 派生）。 */
+  sessionModelOptions?: PickerModelOption[];
 }
 
 export const SettingsPanel = ({
@@ -28,7 +31,9 @@ export const SettingsPanel = ({
   topP: externalTopP,
   onTopPChange,
   onSaveGlobal,
-  onSaveAu
+  onSaveAu,
+  sessionLayer = 'global',
+  sessionModelOptions = [],
 }: SettingsPanelProps = {}) => {
   const { t } = useTranslation();
   const [localModel, setLocalModel] = useState(externalModel || 'deepseek-chat');
@@ -66,19 +71,12 @@ export const SettingsPanel = ({
 
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-text/70">{t("common.labels.model")}</label>
-        <select value={localModel} onChange={e => handleModelChange(e.target.value)}
-          className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base text-text outline-none focus:ring-1 focus:ring-accent dark:border-white/20 md:h-8 md:px-2 md:text-xs">
-          {!ALL_PRESET_NAMES.includes(localModel) && localModel ? (
-            <option value={localModel}>{localModel}</option>
-          ) : null}
-          {MODEL_PRESETS.map(group => (
-            <optgroup key={group.group} label={group.group}>
-              {group.models.map(m => (
-                <option key={m.name} value={m.name}>{m.name}</option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+        <SessionModelPicker
+          model={localModel}
+          onModelChange={handleModelChange}
+          layer={sessionLayer}
+          options={sessionModelOptions}
+        />
       </div>
 
       <div className="flex flex-col gap-2 md:gap-1.5">

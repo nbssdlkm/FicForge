@@ -9,8 +9,8 @@
  * `api_base || 默认` 兜底），**不是**引擎的 fallback floor —— 引擎自有
  * `model_context_map.ts` 的 DEFAULT_CONTEXT_WINDOW(32000)，语义不同，刻意不对齐。
  *
- * 不收录：ModelSelector 的预设模型目录（catalog ≠ 默认）、测试字面量
- * （测试要显式值）、纯展示性的 placeholder 示例文案。
+ * 不收录：供应商/模型目录（engine provider manifest + ModelCatalog，目录 ≠ 默认值）、
+ * 测试字面量（测试要显式值）、纯展示性的 placeholder 示例文案。
  */
 
 /** Ollama 本地服务默认 /v1 端点（api_base 为空时的兜底） */

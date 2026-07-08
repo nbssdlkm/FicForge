@@ -72,13 +72,15 @@ describe("BackfillMemoryModal", () => {
     (scanChapterMemory as Mock).mockResolvedValue(baseScan);
     (backfillChapterMemory as Mock).mockResolvedValue({
       total: 3, summariesGenerated: 2, factsChapters: 2, factsAdded: 5,
-      indexed: 3, skipped: 0, failed: 0, aborted: false,
+      indexed: 3, skipped: 0, failed: 0, aborted: false, factsOverCapCount: 0,
     });
     renderModal();
 
     fireEvent.click(await screen.findByText("开始补全"));
 
     await waitFor(() => expect(screen.getByText("补全完成：生成 2 章摘要，提取 5 条笔记。")).toBeTruthy());
+    // overCap=0 → 不显示上限说明行
+    expect(screen.queryByText(/因单章数量上限被略过/)).toBeNull();
     // 默认勾选 [2,3] 作为 factsChapters 传入
     expect(backfillChapterMemory as Mock).toHaveBeenCalledWith(
       "/au",
@@ -86,6 +88,20 @@ describe("BackfillMemoryModal", () => {
       expect.any(Function),
       expect.any(Object),
     );
+  });
+
+  // L16(审计第二轮):factsOverCapCount>0 时 done 区多显示一行软上限说明。
+  it("L16:提取命中软上限时显示 overCapNote 行", async () => {
+    (scanChapterMemory as Mock).mockResolvedValue(baseScan);
+    (backfillChapterMemory as Mock).mockResolvedValue({
+      total: 3, summariesGenerated: 2, factsChapters: 2, factsAdded: 5,
+      indexed: 3, skipped: 0, failed: 0, aborted: false, factsOverCapCount: 4,
+    });
+    renderModal();
+    fireEvent.click(await screen.findByText("开始补全"));
+    await waitFor(() => expect(screen.getByText("补全完成：生成 2 章摘要，提取 5 条笔记。")).toBeTruthy());
+    // 4 条被上限略过 → 显示说明行
+    expect(screen.getByText(/有 4 条提取到的笔记因单章数量上限被略过/)).toBeTruthy();
   });
 
   it("勾选已有笔记的章 → 显示重复警告(透明,不阻止)", async () => {

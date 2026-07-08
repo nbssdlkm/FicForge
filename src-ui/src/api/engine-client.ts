@@ -28,6 +28,10 @@ export type { ChapterInfo } from "./chapters";
 export type { DraftListItem, DraftGeneratedWith, DeleteDraftsResult } from "./drafts";
 export type {
   AppPreferencesInput,
+  CustomModelEntry,
+  CustomProviderEntry,
+  CustomProviderInfo,
+  CustomProviderSaveInput,
   DefaultLlmSettingsInput,
   EmbeddingSettingsSaveInput,
   EmbeddingQueryInfo,
@@ -35,7 +39,9 @@ export type {
   GlobalSettingsSaveInput,
   LlmQueryInfo,
   LlmSettingsInfo,
+  ModelCatalog,
   OnboardingDefaults,
+  RemoteModelListing,
   SecretStorageCapabilities,
   SettingsSummary,
   TestConnectionRequest,
@@ -81,6 +87,10 @@ export { initEngine, getEngine, isEngineReady, getDataDir, getDisplayDataDir } f
 // ---------------------------------------------------------------------------
 
 export {
+  deleteCustomProvider,
+  fetchProviderModels,
+  getCustomProviderApiKey,
+  getModelCatalog,
   getSettingsForEditing,
   getSettingsSecretCapabilities,
   getSettingsSummary,
@@ -88,7 +98,9 @@ export {
   getOnboardingDefaults,
   getWriterSessionConfig,
   saveAppPreferences,
+  saveCustomProvider,
   saveDefaultLlmSettings,
+  saveEnabledModels,
   saveFontPreferences,
   saveGlobalSettingsForEditing,
   saveGlobalModelParams,
@@ -118,7 +130,7 @@ export type { ChapterMemoryScan } from "./engine-chapters";
 export { listDrafts, getDraft, saveDraft, deleteDrafts } from "./engine-drafts";
 export { generateChapter } from "./engine-generate";
 export { listTrash, restoreTrash, permanentDeleteTrash, purgeTrash } from "./engine-trash";
-export { saveLore, readLore, deleteLore, listLoreFiles, importFromFandom, getLoreContent, sanitizePathSegment } from "./engine-lore";
+export { saveLore, readLore, readLoreWithLegacyFallback, deleteLore, listLoreFiles, importFromFandom, getLoreContent, sanitizePathSegment } from "./engine-lore";
 export { sendSettingsChat } from "./engine-settings-chat";
 export { listFandoms, getFandomDisplayInfo, createFandom, listAus, createAu, deleteFandom, deleteAu, listFandomFiles, readFandomFile } from "./engine-fandom";
 export { exportChapters, importChaptersFromText } from "./engine-export";

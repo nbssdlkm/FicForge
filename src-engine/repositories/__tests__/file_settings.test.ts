@@ -74,6 +74,33 @@ describe("FileSettingsRepository secure fields (P0-3)", () => {
     expect(s2.embedding.api_key).toBe("emb-b");
     expect(s2.default_llm.model).toBe("gpt-4o");
   });
+
+  it("default_llm.chat_path round-trip：设了自定义路径读回一致（新字段不被映射沉默丢弃）", async () => {
+    const adapter = new MockAdapter();
+    const repo = new FileSettingsRepository(adapter, "");
+
+    const s1 = await repo.get();
+    s1.default_llm.chat_path = "/openai/v1/chat";
+    await repo.save(s1);
+
+    // 真落盘（新字段确实写进 YAML，不是只在内存里）
+    const yamlText = await adapter.readFile("settings.yaml");
+    expect(yamlText).toContain("chat_path");
+
+    const s2 = await repo.get();
+    expect(s2.default_llm.chat_path).toBe("/openai/v1/chat");
+  });
+
+  it("default_llm 未设 chat_path：round-trip 后仍缺省（不静默补默认路径）", async () => {
+    const adapter = new MockAdapter();
+    const repo = new FileSettingsRepository(adapter, "");
+
+    const s1 = await repo.get();
+    await repo.save(s1);
+
+    const s2 = await repo.get();
+    expect(s2.default_llm.chat_path).toBeUndefined();
+  });
 });
 
 describe("FileSettingsRepository embedding fallback removed (P1-4)", () => {
@@ -251,6 +278,124 @@ describe("FileSettingsRepository fonts — dictToFontsConfig + 迁移", () => {
 
     // 旧 ui_font_id=lxgw 按 script 应迁到 ui_cjk，但新字段 ui_cjk=source-serif-4 覆盖它
     expect(s.app.fonts.ui_cjk_font_id).toBe("source-serif-4");
+  });
+});
+
+describe("FileSettingsRepository custom_providers / enabled_models（选择器方案 B）", () => {
+  const fullProvider = {
+    id: "custom-abc123",
+    displayName: "我的中转站",
+    baseUrl: "https://relay.example.com/v1",
+    chatPath: "/custom/chat",
+    api_key: "sk-custom-secret",
+    models: [
+      {
+        id: "org/some-model",
+        displayName: "Some Model",
+        contextWindow: 200_000,
+        maxOutputTokens: 16_384,
+        type: "chat" as const,
+      },
+      {
+        id: "bge-large-zh",
+        displayName: "BGE Large",
+        contextWindow: 8_192,
+        type: "embedding" as const,
+      },
+    ],
+  };
+
+  it("全字段 round-trip：自定义供应商（含 chatPath/maxOutputTokens/type）+ enabled_models", async () => {
+    const adapter = new MockAdapter();
+    const repo = new FileSettingsRepository(adapter, "");
+
+    const s1 = await repo.get();
+    s1.custom_providers = [structuredClone(fullProvider)];
+    s1.enabled_models = {
+      deepseek: [
+        { id: "deepseek-v4-flash", displayName: "deepseek-v4-flash", type: "chat" },
+      ],
+      "custom-abc123": [
+        { id: "org/pulled-model", displayName: "org/pulled-model", contextWindow: 131_072, type: "chat" },
+      ],
+    };
+    await repo.save(s1);
+
+    const s2 = await repo.get();
+    expect(s2.custom_providers).toEqual([fullProvider]);
+    expect(s2.enabled_models).toEqual({
+      deepseek: [
+        { id: "deepseek-v4-flash", displayName: "deepseek-v4-flash", type: "chat" },
+      ],
+      "custom-abc123": [
+        { id: "org/pulled-model", displayName: "org/pulled-model", contextWindow: 131_072, type: "chat" },
+      ],
+    });
+  });
+
+  it("contextWindow 缺失的模型 round-trip 后仍缺失（未知≠默认值，禁静默兜底）", async () => {
+    const adapter = new MockAdapter();
+    const repo = new FileSettingsRepository(adapter, "");
+
+    const s1 = await repo.get();
+    s1.enabled_models = { moonshot: [{ id: "kimi-x", displayName: "kimi-x", type: "chat" }] };
+    await repo.save(s1);
+
+    const s2 = await repo.get();
+    expect(s2.enabled_models.moonshot[0].contextWindow).toBeUndefined();
+    expect("contextWindow" in s2.enabled_models.moonshot[0]).toBe(false);
+  });
+
+  it("自定义供应商 api_key 走 secure storage：YAML 无明文、读回还原", async () => {
+    const adapter = new MockAdapter();
+    const repo = new FileSettingsRepository(adapter, "");
+
+    const s1 = await repo.get();
+    s1.custom_providers = [structuredClone(fullProvider)];
+    await repo.save(s1);
+
+    const yamlText = await adapter.readFile("settings.yaml");
+    expect(yamlText).not.toContain("sk-custom-secret");
+    expect(await adapter.secureGet("settings.custom_providers.custom-abc123.api_key")).toBe("sk-custom-secret");
+
+    const s2 = await repo.get();
+    expect(s2.custom_providers[0].api_key).toBe("sk-custom-secret");
+  });
+
+  it("旧 settings.yaml 无新字段 → 读入不炸，回退空集合", async () => {
+    const adapter = new MockAdapter();
+    const legacyYaml = yaml.dump({
+      default_llm: { mode: "api", model: "gpt-4o", api_base: "", api_key: "" },
+      embedding: { mode: "api", model: "", api_base: "", api_key: "" },
+      sync: {},
+    });
+    await adapter.writeFile("settings.yaml", legacyYaml);
+
+    const s = await new FileSettingsRepository(adapter, "").get();
+    expect(s.custom_providers).toEqual([]);
+    expect(s.enabled_models).toEqual({});
+    expect(s.default_llm.model).toBe("gpt-4o"); // 同文件其它字段无损
+  });
+
+  it("脏数据防御：无 id 的供应商条目被丢弃、非数组 enabled_models 值被忽略", async () => {
+    const adapter = new MockAdapter();
+    const dirtyYaml = yaml.dump({
+      default_llm: { mode: "api", model: "", api_base: "", api_key: "" },
+      embedding: { mode: "api", model: "", api_base: "", api_key: "" },
+      custom_providers: [
+        { displayName: "无 id 条目", baseUrl: "https://x.example.com" },
+        { id: "ok-1", displayName: "正常条目", baseUrl: "https://y.example.com", api_key: "" },
+      ],
+      enabled_models: { deepseek: "not-an-array", zhipu: [{ id: "glm-5.2", type: "chat" }] },
+      sync: {},
+    });
+    await adapter.writeFile("settings.yaml", dirtyYaml);
+
+    const s = await new FileSettingsRepository(adapter, "").get();
+    expect(s.custom_providers).toHaveLength(1);
+    expect(s.custom_providers[0].id).toBe("ok-1");
+    expect(Object.keys(s.enabled_models)).toEqual(["zhipu"]);
+    expect(s.enabled_models.zhipu[0].displayName).toBe("glm-5.2"); // displayName 缺失回退 id
   });
 });
 

@@ -440,15 +440,84 @@
   },
   "settingsPanel": {
     "title": "Generation Parameters",
-    "modelCustom": "custom-model (configure in settings)",
     "temperature": "Creativity (temperature)",
     "topP": "Sampling Range (top_p)"
   },
-  "modelSelector": {
-    "customPlaceholder": "Enter model name, e.g. gpt-4o",
-    "presets": "Presets",
-    "custom": "Custom",
-    "selectHint": "Select model..."
+  "modelPicker": {
+    "providerLabel": "Provider",
+    "providerUnmatched": "Unmatched (manual setup)",
+    "addCustomProvider": "+ Add custom provider…",
+    "editCustomProvider": "Edit custom provider",
+    "selectModelHint": "Select a model…",
+    "manualModelPlaceholder": "Enter model id, e.g. deepseek-v4-flash",
+    "manualInput": "Manual",
+    "backToList": "Back to list",
+    "fetchModels": "Fetch from API",
+    "typeEmbedding": "embedding",
+    "originGroup": {
+      "recommended": "Recommended",
+      "enabled": "Enabled (fetched)",
+      "custom": "Custom models"
+    },
+    "tag": {
+      "flagship": "Flagship",
+      "value": "Budget",
+      "long_context": "Long context",
+      "creative": "Creative"
+    },
+    "ctxAuthoritative": "Context window {{ctx}} (built-in authoritative value, auto-filled)",
+    "ctxEstimated": "Window unverified, estimated at {{ctx}} — editable",
+    "ctxManual": "Manually entered value (saved as the context window for this connection)",
+    "ctxUnknown": "Unknown window: check the provider docs and fill it in, otherwise the budget falls back to a conservative value",
+    "layer": {
+      "session": "Session override",
+      "au": "Story override",
+      "global": "Global default"
+    },
+    "fetchSheet": {
+      "title": "Fetch model list from API",
+      "loading": "Fetching model list…",
+      "error": "Fetch failed: {{message}}",
+      "searchPlaceholder": "Search models…",
+      "selectAllFiltered": "Select all filtered",
+      "clearFiltered": "Deselect all",
+      "empty": "This endpoint returned no models",
+      "selectedCount": "{{num}} selected",
+      "confirm": "Save selection",
+      "savedToast": "Enabled {{num}} models",
+      "group": {
+        "missing": "Enabled but not returned this time",
+        "gpt": "GPT",
+        "claude": "Claude",
+        "gemini": "Gemini",
+        "deepseek": "DeepSeek",
+        "qwen": "Qwen",
+        "glm": "Zhipu GLM",
+        "kimi": "Kimi / Moonshot",
+        "doubao": "Doubao",
+        "minimax": "MiniMax",
+        "llama": "Llama",
+        "mistral": "Mistral",
+        "embedding": "Embedding",
+        "other": "Other"
+      }
+    },
+    "customProvider": {
+      "addTitle": "Add custom provider",
+      "editTitle": "Edit custom provider",
+      "name": "Name",
+      "namePlaceholder": "e.g. My relay",
+      "baseUrlHint": "OpenAI-compatible endpoint (usually ends with /v1)",
+      "apiKeyKeepPlaceholder": "Saved (leave blank to keep)",
+      "apiKeyKeepHint": "Leave blank to keep the saved key",
+      "advanced": "Advanced",
+      "chatPath": "Custom chat path",
+      "chatPathHint": "Defaults to /chat/completions; only special gateways need this",
+      "delete": "Delete provider",
+      "deleteConfirmTitle": "Delete custom provider",
+      "deleteConfirmMessage": "This removes \"{{name}}\" and its model list; the saved key is cleared too.",
+      "deleteInUseWarning": "The current configuration uses this provider's endpoint. Re-select a provider after deleting."
+    }
   },
   "settings": {
     "title": "Story Settings",
@@ -864,6 +933,7 @@
     "context_length_exceeded": "Too much lore for the AI to process. Try reducing character profiles or shortening writing rules.",
     "content_filtered": "The AI provider rejected this request (possibly content moderation). Try rephrasing?",
     "connection_failed": "Can't reach the AI service. Check your network and API endpoint.",
+    "busy_in_progress": "The previous generation is still wrapping up (just hit stop? wait a second or two before resending).",
     "api_base_missing": "API endpoint not configured. Set it up in Story Settings.",
     "unknown": "Something went wrong. Please retry or check settings.",
     "unsupported_mode": "The local model mode is not supported. Please switch to API or Ollama mode in settings.",
@@ -882,7 +952,10 @@
     "confirmDelete": "Permanently delete \"{{name}}\"? This cannot be undone.",
     "confirmClearAll": "Permanently delete all {{count}} items in trash? This cannot be undone.",
     "restoreSuccess": "Restored: {{name}}",
-    "restoreConflict": "A file with the same name already exists. Please delete or rename it first.",
+    "restoreConflict": "A file with the same name but different content already exists at the original location, so it can't be restored directly. Delete or rename the existing file and retry, or choose \"Restore from trash (overwrite current)\" — the current file is backed up into trash before being overwritten.",
+    "restoreConflictOverwrite": "Restore from trash (overwrite current)",
+    "restoreOverwriteSuccess": "Overwrote with the trash version: {{name}} (the previous file was backed up into trash)",
+    "halfRestored": "Can't delete this yet: some files with the same names already exist at the original location (they may come from an earlier restore, or may have been created since), while other files exist only in the trash — deleting now would lose them. Deal with the files at the original location first — click \"Restore\" to finish, or use \"Restore from trash (overwrite current)\" — then delete.",
     "deleteSuccess": "Permanently deleted",
     "clearSuccess": "Trash emptied",
     "tooltip": "View deleted lore and data, recoverable within 30 days"
@@ -965,6 +1038,7 @@
     "costHint": "This backfills {{summaries}} summary chapter(s) and extracts notes from {{facts}} chapter(s). Summaries and vectors are cheap; note extraction makes one AI call per chapter. You can stop anytime.",
     "factsDupWarning": "Some selected chapters already have notes; extraction will append more and may duplicate (you can delete them in Plot Notes).",
     "nothingToDo": "Nothing to backfill.",
+    "overCapNote": "{{count}} extracted note(s) were skipped due to the per-chapter limit (only the most important few are kept per chapter).",
     "start": "Start",
     "running": "Backfilling {{done}} / {{total}} chapters…",
     "stop": "Stop",

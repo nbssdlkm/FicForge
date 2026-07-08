@@ -440,15 +440,84 @@
   },
   "settingsPanel": {
     "title": "续写参数",
-    "modelCustom": "custom-model（到设置里填写）",
     "temperature": "发散度 (temperature)",
     "topP": "取样范围 (top_p)"
   },
-  "modelSelector": {
-    "customPlaceholder": "输入模型名称，如 gpt-4o",
-    "presets": "预设",
-    "custom": "自定义",
-    "selectHint": "选择模型..."
+  "modelPicker": {
+    "providerLabel": "供应商",
+    "providerUnmatched": "未匹配（手动配置）",
+    "addCustomProvider": "＋ 添加自定义供应商…",
+    "editCustomProvider": "编辑自定义供应商",
+    "selectModelHint": "选择模型…",
+    "manualModelPlaceholder": "输入模型 id，如 deepseek-v4-flash",
+    "manualInput": "手填",
+    "backToList": "返回列表",
+    "fetchModels": "从 API 获取列表",
+    "typeEmbedding": "向量",
+    "originGroup": {
+      "recommended": "推荐模型",
+      "enabled": "已启用（拉取勾选）",
+      "custom": "自定义模型"
+    },
+    "tag": {
+      "flagship": "旗舰",
+      "value": "便宜",
+      "long_context": "长上下文",
+      "creative": "文笔"
+    },
+    "ctxAuthoritative": "上下文窗口 {{ctx}}（内置权威值，随模型自动带出）",
+    "ctxEstimated": "窗口未确认，按 {{ctx}} 估算 —— 可手改",
+    "ctxManual": "手填值（将作为当前连接的上下文窗口保存）",
+    "ctxUnknown": "窗口未知：请查供应商文档手动填写，否则预算按保守值计算",
+    "layer": {
+      "session": "会话临时",
+      "au": "本篇覆盖中",
+      "global": "全局默认"
+    },
+    "fetchSheet": {
+      "title": "从 API 获取模型列表",
+      "loading": "正在获取模型列表…",
+      "error": "获取失败：{{message}}",
+      "searchPlaceholder": "搜索模型…",
+      "selectAllFiltered": "全选过滤结果",
+      "clearFiltered": "取消全选",
+      "empty": "该接口没有返回任何模型",
+      "selectedCount": "已勾选 {{num}} 个",
+      "confirm": "保存勾选",
+      "savedToast": "已启用 {{num}} 个模型",
+      "group": {
+        "missing": "已启用但本次未返回",
+        "gpt": "GPT",
+        "claude": "Claude",
+        "gemini": "Gemini",
+        "deepseek": "DeepSeek",
+        "qwen": "通义千问 Qwen",
+        "glm": "智谱 GLM",
+        "kimi": "Kimi / Moonshot",
+        "doubao": "豆包 Doubao",
+        "minimax": "MiniMax",
+        "llama": "Llama",
+        "mistral": "Mistral",
+        "embedding": "Embedding 向量",
+        "other": "其他"
+      }
+    },
+    "customProvider": {
+      "addTitle": "添加自定义供应商",
+      "editTitle": "编辑自定义供应商",
+      "name": "名称",
+      "namePlaceholder": "如：我的中转站",
+      "baseUrlHint": "OpenAI 兼容接口地址（通常以 /v1 结尾）",
+      "apiKeyKeepPlaceholder": "已保存（留空保持不变）",
+      "apiKeyKeepHint": "留空表示沿用已保存的密钥",
+      "advanced": "高级选项",
+      "chatPath": "自定义 Chat 路径",
+      "chatPathHint": "默认 /chat/completions，特殊网关才需要改",
+      "delete": "删除供应商",
+      "deleteConfirmTitle": "删除自定义供应商",
+      "deleteConfirmMessage": "将删除「{{name}}」及其模型清单，已保存的密钥一并清除。",
+      "deleteInUseWarning": "当前配置正在使用此供应商的接口地址，删除后请重新选择供应商。"
+    }
   },
   "settings": {
     "title": "故事设置",
@@ -864,6 +933,7 @@
     "context_length_exceeded": "这章的设定太多了，AI读不完。试试减少一些角色设定或缩短底线。",
     "content_filtered": "AI服务商拒绝了这次请求（可能触发了内容审查），换个说法试试？",
     "connection_failed": "连不上AI服务，检查一下网络和接口地址？",
+    "busy_in_progress": "上一次生成还在收尾（刚点过停止？稍候一两秒再发）",
     "api_base_missing": "还没有配置接口地址，去「故事设置」填一下",
     "unknown": "出了点问题，请重试或检查设置",
     "unsupported_mode": "当前不支持 local 本地模型模式，请在设置中切换到 API 或 Ollama 模式",
@@ -882,7 +952,10 @@
     "confirmDelete": "永久删除「{{name}}」？此操作不可恢复。",
     "confirmClearAll": "永久删除垃圾箱中的所有 {{count}} 个条目？此操作不可恢复。",
     "restoreSuccess": "已恢复：{{name}}",
-    "restoreConflict": "原位置已有同名文件，无法恢复。请先删除或重命名现有文件。",
+    "restoreConflict": "原位置已有内容不同的同名文件，无法直接恢复。你可以删除或重命名现有文件后再试，或选择「以回收站版本恢复（覆盖当前）」——覆盖前会先把当前文件备份进回收站。",
+    "restoreConflictOverwrite": "以回收站版本恢复（覆盖当前）",
+    "restoreOverwriteSuccess": "已用回收站版本覆盖恢复：{{name}}（原文件已备份进回收站）",
+    "halfRestored": "无法直接删除：原位置已有部分同名文件（可能来自先前的恢复，也可能是后来新建的），其余文件仍只存在于回收站，现在删除会丢失它们。建议先处理原位置的文件——点「恢复」完成续传，或用「以回收站版本恢复（覆盖当前）」——再进行删除。",
     "deleteSuccess": "已永久删除",
     "clearSuccess": "已清空垃圾箱",
     "tooltip": "查看已删除的设定和数据，可在30天内恢复"
@@ -965,6 +1038,7 @@
     "costHint": "本次将补 {{summaries}} 章摘要，并对 {{facts}} 章提取笔记。摘要与向量花费很小；提取笔记每章调用一次 AI。过程中可随时停止。",
     "factsDupWarning": "勾选的章里有些已经有笔记了，会再追加提取，可能产生重复（可在「剧情笔记」页删）。",
     "nothingToDo": "没有需要补全的内容。",
+    "overCapNote": "有 {{count}} 条提取到的笔记因单章数量上限被略过（每章最多保留若干条最重要的）。",
     "start": "开始补全",
     "running": "正在补全 {{done}} / {{total}} 章…",
     "stop": "停止",

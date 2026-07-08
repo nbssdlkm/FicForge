@@ -162,8 +162,8 @@ export type { SettingsChatParams, SettingsChatResult } from "./settings_chat.js"
 export { build_settings_context, call_settings_llm } from "./settings_chat.js";
 
 // Trash Service
-export type { TrashEntry } from "./trash_service.js";
-export { TrashService } from "./trash_service.js";
+export type { TrashEntry, RestoreConflictPolicy } from "./trash_service.js";
+export { TrashService, RESTORE_CONFLICT_MARKER, HALF_RESTORED_MARKER } from "./trash_service.js";
 
 // Chapter Summary (M8-C + M10-A)
 export type {

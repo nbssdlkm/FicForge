@@ -12,12 +12,20 @@ import {
 import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { DEFAULT_DEEPSEEK_MODEL } from '../../config/defaults';
 import { useTranslation } from '../../i18n/useAppTranslation';
+import {
+  buildPickerProviders,
+  matchProviderByBaseUrl,
+  modelOptionsForProvider,
+  resolveSessionLayer,
+  type PickerModelOption,
+  type SessionLayer,
+} from '../settings/model-picker/model-picker-utils';
 
-function hasSessionLlmOverride(llm: WriterProjectContext['llm'] | null | undefined): boolean {
+export function hasSessionLlmOverride(llm: WriterProjectContext['llm'] | null | undefined): boolean {
   return Boolean(llm?.has_override);
 }
 
-function getConfiguredLlmModel(llm: WriterProjectContext['llm'] | WriterSessionConfig['default_llm'] | null | undefined): string {
+export function getConfiguredLlmModel(llm: WriterProjectContext['llm'] | WriterSessionConfig['default_llm'] | null | undefined): string {
   if (!llm) return '';
   if (llm.mode === 'ollama') {
     return llm.ollama_model || llm.model || '';
@@ -39,7 +47,7 @@ export function useSessionParams(
   showSuccess: (msg: string) => void,
   showError: (err: unknown, fallback: string) => void,
 ) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const guard = useActiveRequestGuard(auPath);
 
   const [sessionModel, setSessionModel] = useState(DEFAULT_DEEPSEEK_MODEL);
@@ -112,19 +120,41 @@ export function useSessionParams(
     }
   }, [auPath, guard, sessionModel, sessionTemp, sessionTopP, showError, showSuccess, t]);
 
+  // 当前生效配置源（AU 覆盖 > 全局默认）—— 会话层级 badge / 会话模型下拉共用判据
+  const effectiveLlm = hasSessionLlmOverride(projectInfo?.llm)
+    ? projectInfo?.llm
+    : settingsInfo?.default_llm;
+
+  /** 会话下拉的可选模型 = 生效供应商（按 api_base 匹配）的推荐 + 已启用 + 自定义模型。 */
+  const sessionModelOptions: PickerModelOption[] = useMemo(() => {
+    if (!effectiveLlm || (effectiveLlm.mode || 'api') !== 'api') return [];
+    const lang: 'zh' | 'en' = i18n.resolvedLanguage === 'en' ? 'en' : 'zh';
+    const providers = buildPickerProviders(settingsInfo?.catalog ?? null, lang);
+    const provider = matchProviderByBaseUrl(providers, effectiveLlm.api_base || '');
+    return provider ? modelOptionsForProvider(provider, 'chat') : [];
+  }, [effectiveLlm, settingsInfo, i18n.resolvedLanguage]);
+
+  /** 生效层级三态：会话临时 / AU 覆盖中 / 全局默认。 */
+  const sessionLayer: SessionLayer = useMemo(() => resolveSessionLayer({
+    sessionModel,
+    configuredModel: getConfiguredLlmModel(effectiveLlm),
+    hasAuOverride: hasSessionLlmOverride(projectInfo?.llm),
+  }), [sessionModel, effectiveLlm, projectInfo]);
+
   const sessionLlmPayload = useMemo(() => {
     if (!sessionModel) return null;
 
     const source = hasSessionLlmOverride(projectInfo?.llm)
       ? projectInfo?.llm
       : settingsInfo?.default_llm;
-    const configuredModel = getConfiguredLlmModel(source) || sessionModel;
 
-    // 注意：不发送 api_key —— 前端只持有掩码值（如 ****9cb2），
-    // 后端 resolve_llm_config 会从磁盘读取真实 key。
+    // model 发会话层的 sessionModel：默认由上方 useEffect 镜像配置层模型（等价），
+    // 用户在会话下拉临时改过时就是会话模型 —— 与 resolveSessionLayer 的「会话临时」badge 同口径。
+    // （F-1 修复：旧实现发 getConfiguredLlmModel(source) 优先，会话选择永远不生效。）
+    // 注意：不发送 api_key —— 后端 resolve_llm_config 会从磁盘读取真实 key。
     return {
       mode: source?.mode || 'api',
-      model: configuredModel,
+      model: sessionModel,
       api_base: source?.api_base || '',
       local_model_path: source?.local_model_path || '',
       ollama_model: source?.ollama_model || '',
@@ -146,6 +176,8 @@ export function useSessionParams(
 
     // derived
     sessionLlmPayload,
+    sessionLayer,
+    sessionModelOptions,
 
     // helpers (re-exported for consumers that need them)
     hasSessionLlmOverride,

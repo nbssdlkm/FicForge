@@ -26,6 +26,8 @@ export interface GlobalSettingsFormState {
   apiBase: string;
   apiKey: string;
   contextWindow: number;
+  /** 非标聊天补全路径（选中带 chatPath 的供应商时随 apiBase 带出；默认空 = /chat/completions）。 */
+  chatPath: string;
   embeddingModel: string;
   embeddingApiBase: string;
   embeddingApiKey: string;
@@ -46,6 +48,8 @@ export interface AuSettingsFormState {
   auApiBase: string;
   auApiKey: string;
   contextWindow: number;
+  /** AU 覆盖的非标聊天补全路径（随 apiBase 带出；默认空 = /chat/completions）。 */
+  chatPath: string;
   isEmbeddingOverride: boolean;
   embModel: string;
   embApiBase: string;
@@ -61,6 +65,7 @@ export function createDefaultGlobalSettingsFormState(): GlobalSettingsFormState 
     apiBase: DEFAULT_DEEPSEEK_API_BASE,
     apiKey: "",
     contextWindow: DEFAULT_CONTEXT_WINDOW,
+    chatPath: "",
     embeddingModel: "",
     embeddingApiBase: "",
     embeddingApiKey: "",
@@ -81,6 +86,7 @@ export function hydrateGlobalSettingsForm(settings: SettingsInfo | null): Global
       || (nextMode === "ollama" ? DEFAULT_OLLAMA_BASE_URL : DEFAULT_DEEPSEEK_API_BASE);
     form.apiKey = settings.default_llm.api_key || "";
     form.contextWindow = settings.default_llm.context_window || DEFAULT_CONTEXT_WINDOW;
+    form.chatPath = settings.default_llm.chat_path || "";
   }
 
   form.embeddingModel = settings.embedding?.model || "";
@@ -100,6 +106,8 @@ export function buildGlobalSettingsSaveInput(form: GlobalSettingsFormState): Glo
       local_model_path: form.localModelPath,
       ollama_model: form.ollamaModel,
       context_window: form.contextWindow,
+      // 空串 → 走 API 层 normalizeChatPath 归一为 undefined（不落盘）；非空即自定义路径。
+      chat_path: form.chatPath,
     },
     embedding: {
       model: form.embeddingModel,
@@ -125,6 +133,7 @@ export function createDefaultAuSettingsFormState(): AuSettingsFormState {
     auApiBase: "",
     auApiKey: "",
     contextWindow: DEFAULT_CONTEXT_WINDOW,
+    chatPath: "",
     isEmbeddingOverride: false,
     embModel: "",
     embApiBase: "",
@@ -159,6 +168,7 @@ export function hydrateAuSettingsForm(project: ProjectInfo | null): AuSettingsFo
       || project.llm.api_key
       || project.llm.local_model_path
       || project.llm.ollama_model
+      || project.llm.chat_path
     )
   ) {
     form.isLlmOverride = true;
@@ -169,6 +179,7 @@ export function hydrateAuSettingsForm(project: ProjectInfo | null): AuSettingsFo
     form.auApiBase = project.llm.api_base || "";
     form.auApiKey = project.llm.api_key || "";
     form.contextWindow = project.llm.context_window || 128000;
+    form.chatPath = project.llm.chat_path || "";
   }
 
   return form;
@@ -199,6 +210,8 @@ export function buildAuSettingsSaveInput(form: AuSettingsFormState): AuSettingsS
       local_model_path: form.auLocalModelPath,
       ollama_model: form.auOllamaModel,
       context_window: form.contextWindow,
+      // 空串 → API 层 normalizeChatPath 归一为 undefined（不落盘）；非空即自定义路径。
+      chat_path: form.chatPath,
     },
   };
 }

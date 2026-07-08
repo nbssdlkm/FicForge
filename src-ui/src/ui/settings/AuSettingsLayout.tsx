@@ -8,7 +8,7 @@ import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { Toggle } from '../shared/Toggle';
-import { ModelSelector } from '../shared/ModelSelector';
+import { ProviderModelPicker } from './model-picker/ProviderModelPicker';
 import { Tag } from '../shared/Tag';
 import { Modal } from '../shared/Modal';
 import { Settings, Save, Trash2, Plus } from 'lucide-react';
@@ -62,6 +62,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const [auApiBase, setAuApiBase] = useState('');
   const [auApiKey, setAuApiKey] = useState('');
   const [contextWindow, setContextWindow] = useState(DEFAULT_CONTEXT_WINDOW);
+  const [chatPath, setChatPath] = useState('');
   const [coreIncludeModalOpen, setCoreIncludeModalOpen] = useState(false);
   const [recalcing, setRecalcing] = useState(false);
   const [backfillOpen, setBackfillOpen] = useState(false);
@@ -113,6 +114,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
     setAuApiBase(defaults.auApiBase);
     setAuApiKey(defaults.auApiKey);
     setContextWindow(defaults.contextWindow);
+    setChatPath(defaults.chatPath);
     setGlobalSettingsOpen(false);
     setCoreIncludeModalOpen(false);
     setBackfillOpen(false);
@@ -161,6 +163,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
         setAuApiBase(form.auApiBase);
         setAuApiKey(form.auApiKey);
         setContextWindow(form.contextWindow);
+        setChatPath(form.chatPath);
       }
       if (firstError) {
         showError(firstError, t('error_messages.unknown'));
@@ -194,6 +197,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
         auApiBase,
         auApiKey,
         contextWindow,
+        chatPath,
         isEmbeddingOverride,
         embModel,
         embApiBase,
@@ -269,9 +273,21 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                   </div>
                   {llmMode === 'api' && (
                     <>
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-text/90">{t("settings.story.storyModel")}</label>
-                        <ModelSelector value={auModel} onChange={setAuModel} onApiBaseAutoFill={setAuApiBase} />
+                      {/* 供应商主导选择器（与全局设置同一组件）：含 ctx 三态行 */}
+                      <div className="md:col-span-2">
+                        <ProviderModelPicker
+                          kind="chat"
+                          model={auModel}
+                          onModelChange={setAuModel}
+                          apiBase={auApiBase}
+                          onApiBaseAutoFill={setAuApiBase}
+                          onChatPathAutoFill={setChatPath}
+                          apiKey={auApiKey}
+                          onApiKeyAutoFill={setAuApiKey}
+                          contextWindow={contextWindow}
+                          onContextWindowChange={setContextWindow}
+                          disabled={saving}
+                        />
                       </div>
                       <div className="flex flex-col gap-1.5">
                          <label className="text-xs font-bold text-text/90">{t("common.labels.apiKey")}</label>
@@ -280,7 +296,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                            ? <p className="text-xs text-amber-600 dark:text-amber-500">{t("settings.story.apiKeyEmptyHint")}</p>
                            : <p className="text-xs text-text/50">{t("common.help.apiKey")}</p>}
                       </div>
-                      <div className="flex flex-col gap-1.5 md:col-span-2">
+                      <div className="flex flex-col gap-1.5">
                          <label className="text-xs font-bold text-text/90">{t("common.labels.apiBase")}</label>
                          <Input value={auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="https://api.deepseek.com" className="h-11 text-base md:h-9 md:text-sm" />
                          <p className="text-xs text-text/50">{t("common.help.apiBase")}</p>
@@ -308,11 +324,14 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                       </div>
                     </>
                   )}
-                  <div className="flex flex-col gap-1.5 md:col-span-2">
-                     <label className="text-xs font-bold text-text/90">{t("common.labels.contextWindow")}</label>
-                     <Input type="number" value={contextWindow} onChange={e => setContextWindow(parseInt(e.target.value, 10) || 0)} className="h-11 text-base md:h-9 md:text-sm" />
-                     <p className="text-xs text-text/50">{t("common.help.contextWindow")}</p>
-                  </div>
+                  {/* api 模式的 ctx 由 ProviderModelPicker 内联管理；其余模式保留手填 */}
+                  {llmMode !== 'api' && (
+                    <div className="flex flex-col gap-1.5 md:col-span-2">
+                       <label className="text-xs font-bold text-text/90">{t("common.labels.contextWindow")}</label>
+                       <Input type="number" value={contextWindow} onChange={e => setContextWindow(parseInt(e.target.value, 10) || 0)} className="h-11 text-base md:h-9 md:text-sm" />
+                       <p className="text-xs text-text/50">{t("common.help.contextWindow")}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -332,7 +351,17 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                 </label>
                 {isEmbeddingOverride && (
                   <div className="space-y-2 pl-6 border-l-2 border-info/30">
-                    <Input value={embModel} onChange={e => setEmbModel(e.target.value)} placeholder={t("settings.global.embeddingModelPlaceholder")} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
+                    {/* embedding 槽位复用同一选择器（只显示 embedding 类型模型 + 手填） */}
+                    <ProviderModelPicker
+                      kind="embedding"
+                      model={embModel}
+                      onModelChange={setEmbModel}
+                      apiBase={embApiBase}
+                      onApiBaseAutoFill={setEmbApiBase}
+                      apiKey={embApiKey}
+                      onApiKeyAutoFill={setEmbApiKey}
+                      disabled={saving}
+                    />
                     <Input value={embApiBase} onChange={e => setEmbApiBase(e.target.value)} placeholder={t("settings.global.embeddingApiBasePlaceholder")} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
                     <Input value={embApiKey} onChange={e => setEmbApiKey(e.target.value)} placeholder={t("settings.global.embeddingApiKeyPlaceholder")} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" type="password" />
                   </div>

@@ -172,6 +172,9 @@ function dictToLLMConfig(d: Record<string, unknown> | null): LLMConfig {
     local_model_path: (d.local_model_path as string) ?? "",
     ollama_model: (d.ollama_model as string) ?? "",
     context_window: (d.context_window as number) ?? 0,
+    // chat_path：optional，只在 YAML 真有非空值时映射（缺省 = 未设置，走默认路径）。
+    // 与同文件 chatPath / contextWindow 的「未知≠默认」映射口径一致。
+    ...(typeof d.chat_path === "string" && d.chat_path ? { chat_path: d.chat_path } : {}),
   });
 }
 

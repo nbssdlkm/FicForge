@@ -57,6 +57,36 @@ describe("FileProjectRepository secure fields", () => {
     expect(p2.embedding_lock.api_key).toBe("emb-b");
   });
 
+  it("llm.chat_path round-trip：AU 覆盖设了自定义路径读回一致（新字段不被沉默丢弃）", async () => {
+    const adapter = new MockAdapter();
+    const repo = new FileProjectRepository(adapter);
+    const auPath = "fandoms/F/aus/chatpath";
+
+    const p1 = createProject({ au_id: auPath, project_id: "p1", name: "x", fandom: "F" });
+    p1.llm.model = "gw-model";
+    p1.llm.chat_path = "/gateway/completions";
+    await repo.save(p1);
+
+    // 新字段确实写进 project.yaml（不是只在内存）
+    const yamlText = await adapter.readFile(`${auPath}/project.yaml`);
+    expect(yamlText).toContain("chat_path");
+
+    const p2 = await repo.get(auPath);
+    expect(p2.llm.chat_path).toBe("/gateway/completions");
+  });
+
+  it("llm 未设 chat_path：round-trip 后仍缺省（不静默补默认路径）", async () => {
+    const adapter = new MockAdapter();
+    const repo = new FileProjectRepository(adapter);
+    const auPath = "fandoms/F/aus/nochatpath";
+
+    const p1 = createProject({ au_id: auPath, project_id: "p1", name: "x", fandom: "F" });
+    await repo.save(p1);
+
+    const p2 = await repo.get(auPath);
+    expect(p2.llm.chat_path).toBeUndefined();
+  });
+
   it("旧明文 project.yaml 可以自动迁移到 secure storage", async () => {
     const adapter = new MockAdapter();
     const auPath = "fandoms/F/aus/legacy";

@@ -215,3 +215,43 @@ describe("resolve_llm_config — context_window 同层同源（审计 H4）", ()
     expect(r.context_window).toBeUndefined();
   });
 });
+
+describe("resolve_llm_config — chat_path 同层同源（仿 H4 context_window）", () => {
+  it("project 层胜出：取 project.llm 的 chat_path，不串 settings 层", () => {
+    const r = resolve_llm_config(
+      null,
+      { llm: { mode: "api", model: "m-proj", chat_path: "/proj/chat" } },
+      { default_llm: { mode: "api", model: "m-set", chat_path: "/set/chat" } },
+    );
+    expect(r.model).toBe("m-proj");
+    expect(r.chat_path).toBe("/proj/chat");
+  });
+
+  it("settings 层胜出（全局默认 + AU 无覆盖）：取 default_llm 的 chat_path", () => {
+    const r = resolve_llm_config(
+      null,
+      { llm: { mode: "api", model: "" } },
+      { default_llm: { mode: "api", model: "m-set", chat_path: "/v1/messages" } },
+    );
+    expect(r.model).toBe("m-set");
+    expect(r.chat_path).toBe("/v1/messages");
+  });
+
+  it("session 不带 chat_path 但模型与 settings 一致：继承该层 chat_path（同源语义）", () => {
+    const r = resolve_llm_config(
+      { mode: "api", model: "m-set", api_base: "http://x" },
+      { llm: { mode: "api", model: "" } },
+      { default_llm: { mode: "api", model: "m-set", chat_path: "/gateway/completions" } },
+    );
+    expect(r.chat_path).toBe("/gateway/completions");
+  });
+
+  it("三层皆无 chat_path：字段缺省（交给 Provider 回退 /chat/completions）", () => {
+    const r = resolve_llm_config(
+      null,
+      { llm: { mode: "api", model: "m-proj" } },
+      { default_llm: { mode: "api", model: "m-set" } },
+    );
+    expect(r.chat_path).toBeUndefined();
+  });
+});
