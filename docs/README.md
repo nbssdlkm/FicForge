@@ -6,6 +6,7 @@
 
 | 文档 | 内容 | 状态 |
 |---|---|---|
+| [../PROGRESS.md](../PROGRESS.md) | **进度追踪**（当前状态 / 待办 / 里程碑，人读的前瞻文件，会话收尾更新） | 现行 |
 | [TECH-DEBT.md](TECH-DEBT.md) | 技术债清单（**引用任何 TD-0xx 前必查其「状态」行**；当前唯一 open：TD-017） | 现行 |
 | [BUILD.md](BUILD.md) | 三端打包指南（Tauri / Capacitor Android / PWA，含内置 SW 说明） | 现行 |
 | [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) | 视觉设计 token、UI 原语与贡献约定 | 现行 |
