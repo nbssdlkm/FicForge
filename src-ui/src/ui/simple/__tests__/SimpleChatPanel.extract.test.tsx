@@ -127,7 +127,8 @@ function setupBaseMocks() {
     project: { llm: { mode: "api", model: "test" }, pinned_context: [] },
   } as unknown as Awaited<ReturnType<typeof engineClient.getWriterProjectContext>>);
   mocked.getWriterSessionConfig.mockResolvedValue({
-    default_llm: { mode: "api", model: "test", has_usable_connection: true },
+    // has_api_key: handleSend 配置就绪 gate（R1-2）读取；无 key 时发送会被拦下。
+    default_llm: { mode: "api", model: "test", has_api_key: true, has_usable_connection: true },
     model_params: {},
   } as unknown as Awaited<ReturnType<typeof engineClient.getWriterSessionConfig>>);
   mocked.getSimpleChat.mockResolvedValue({ messages: [] } as unknown as Awaited<
@@ -140,7 +141,9 @@ function setupBaseMocks() {
   // 默认提取就位（gate ② 通过）；各用例可经 mockSettingsSummary 或直接覆盖调整。
   mocked.getFactsExtractionReadiness.mockResolvedValue({ has_usable_connection: true });
   mocked.extractFacts.mockResolvedValue({ facts: [CANDIDATE] });
-  mocked.getChapterContent.mockResolvedValue("");
+  // 对齐真实引擎语义：目标章尚不存在 → get_content_only 抛错（面板 .catch(()=>null)）。
+  // R1-8 的 same-num guard 依赖这个区分（null=不存在 → 放行；""=存在空章 → 拦截）。
+  mocked.getChapterContent.mockRejectedValue(new Error("Chapter not found"));
   mocked.markSimpleChatDraftAccepted.mockResolvedValue(undefined as never);
 }
 
@@ -372,5 +375,93 @@ describe("SimpleChatPanel P2.3 — 接受草稿接通 M9 提取", () => {
     expect(mocked.confirmChapter).not.toHaveBeenCalled();
     // UI 状态同步翻到 accepted
     expect(await screen.findByText(/已接受为第 1 章/)).toBeInTheDocument();
+  });
+
+  // ==========================================================================
+  // R1-8 — num === expected 但该章已有不同内容：拒绝覆盖（专用文案，不再自相矛盾）
+  // ==========================================================================
+
+  it("R1-8：num===expected 且章已有不同内容 → 拒绝接受（不 confirm 不提取），草稿保持 pending", async () => {
+    const user = userEvent.setup();
+    mockSettingsSummary({ reactEnabled: true, usable: true });
+    // current_chapter=2、草稿也是章 2（undo/confirm 半成功、回收站恢复等造成 ch2 文件已在）
+    mockPreloadedPendingDraft(2, "旧草稿正文");
+    mocked.getChapterContent.mockResolvedValue("另一份已存在的第 2 章内容");
+
+    render(<SimpleChatPanel auPath={AU} />);
+    const acceptBtn = await screen.findByRole("button", { name: /接受为第/ });
+    await act(async () => {
+      await user.click(acceptBtn);
+    });
+
+    await waitFor(() => {
+      expect(mocked.getChapterContent).toHaveBeenCalledWith(AU, 2);
+    });
+    // 回退旧码（num===expected 无条件 confirm）此处必挂：已存在的 ch2 内容被静默覆盖
+    expect(mocked.confirmChapter).not.toHaveBeenCalled();
+    expect(mocked.extractFacts).not.toHaveBeenCalled();
+    expect(mocked.markSimpleChatDraftAccepted).not.toHaveBeenCalled();
+    // 草稿保持 pending，可在写文页处理完后重试
+    expect(screen.getByRole("button", { name: /接受为第/ })).toBeInTheDocument();
+  });
+
+  it("R1-8：num===expected 且章内容与草稿一致（confirm 半成功后重试）→ 放行 confirm 修复进度", async () => {
+    const user = userEvent.setup();
+    mockSettingsSummary({ reactEnabled: true, usable: true });
+    mockPreloadedPendingDraft(2, "旧草稿正文");
+    mocked.getChapterContent.mockResolvedValue("旧草稿正文");
+
+    render(<SimpleChatPanel auPath={AU} />);
+    const acceptBtn = await screen.findByRole("button", { name: /接受为第/ });
+    await act(async () => {
+      await user.click(acceptBtn);
+    });
+
+    // 引擎带备份覆盖 + 推进 state，正是修复半成功所需 → 不能被 guard 误拦。
+    // 注：预置草稿无 generatedWith（arg4 = undefined），逐参断言而非 expect.anything()。
+    await waitFor(() => {
+      expect(mocked.confirmChapter).toHaveBeenCalledTimes(1);
+    });
+    const call = mocked.confirmChapter.mock.calls[0];
+    expect(call[0]).toBe(AU);
+    expect(call[1]).toBe(2);
+    expect(call[4]).toBe("旧草稿正文");
+  });
+
+  // ==========================================================================
+  // R1-7 — 提取可用户取消：header 指示旁 × → abort 在飞提取 → 指示消失
+  // ==========================================================================
+
+  it("R1-7：提取中点 × → extractFacts 的 signal 被 abort，指示消失且不弹 modal", async () => {
+    const user = userEvent.setup();
+    mockSettingsSummary({ reactEnabled: true, usable: true });
+
+    // 永不 resolve 的提取，捕获 signal 供断言
+    let capturedSignal: AbortSignal | undefined;
+    mocked.extractFacts.mockImplementation(((
+      _au: string, _num: number, opts?: { signal?: AbortSignal },
+    ) => {
+      capturedSignal = opts?.signal;
+      return new Promise(() => { /* 永不 resolve，模拟多秒 LLM 调用 */ });
+    }) as unknown as typeof engineClient.extractFacts);
+
+    await sendAndAcceptDraft(user);
+
+    // 提取在飞：指示 + 取消按钮可见
+    expect(await screen.findByText("提取剧情笔记中…")).toBeInTheDocument();
+    const cancelBtn = await screen.findByRole("button", { name: "取消提取" });
+
+    await act(async () => {
+      await user.click(cancelBtn);
+    });
+
+    // 在飞请求被真实 abort（不是只藏指示继续烧 token）
+    expect(capturedSignal).toBeDefined();
+    expect(capturedSignal!.aborted).toBe(true);
+    // 指示消失、modal 不弹
+    await waitFor(() => {
+      expect(screen.queryByText("提取剧情笔记中…")).not.toBeInTheDocument();
+    });
+    expect(screen.queryByText("提取结果预览")).not.toBeInTheDocument();
   });
 });

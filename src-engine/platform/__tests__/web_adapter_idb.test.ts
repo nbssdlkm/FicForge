@@ -66,6 +66,31 @@ describe("WebAdapter 文件 I/O (fake-indexeddb)", () => {
     await expect(adapter.readFile("k2")).resolves.toBe("hello");
   });
 
+  // ── R1-10: rename = get(old) → put(new) → delete(old) 三段 withDb，
+  //    中途连接被回收（InvalidStateError）也要经重开重试完成 ──
+  it("R1-10: rename 中途（get 成功后、put 之前）连接被回收 → withDb 重开重试，rename 完整完成", async () => {
+    await adapter.writeFile("old/path.md", "章节正文");
+
+    // 在第二段 withDb（put(new)）开始前关闭当前连接：该段对旧连接开 transaction 会
+    // 同步抛 InvalidStateError → withDb 捕获 → 重开 DB → 用新连接重试完成。
+    type WithDb = <T>(op: (db: IDBDatabase) => Promise<T>) => Promise<T>;
+    const anyAdapter = adapter as unknown as { withDb: WithDb; _db: IDBDatabase };
+    const realWithDb = anyAdapter.withDb.bind(adapter) as WithDb;
+    let segment = 0;
+    anyAdapter.withDb = ((op) => {
+      segment += 1;
+      if (segment === 2) {
+        anyAdapter._db.close(); // 模拟 iOS Safari 在 rename 半路回收连接
+      }
+      return realWithDb(op);
+    }) as WithDb;
+
+    await expect(adapter.rename("old/path.md", "new/path.md")).resolves.toBeUndefined();
+    // 新路径可读、旧路径已删（用重开后的活连接验证）
+    await expect(adapter.readFile("new/path.md")).resolves.toBe("章节正文");
+    await expect(adapter.readFile("old/path.md")).rejects.toThrow(/not found/i);
+  });
+
   it("L12: 只重试一次——重开后仍失败则抛（不无限循环）", async () => {
     await adapter.writeFile("k3", "x");
     const closed = (adapter as unknown as { _db: IDBDatabase })._db;

@@ -371,6 +371,15 @@ export function useWriterDraftController({
 
   useEffect(() => () => flushPendingDraftSave(), [flushPendingDraftSave]);
 
+  // pagehide flush（R1-6）：关标签页 / PWA 进后台被回收 / SW 更新强刷时 unmount cleanup
+  // 不保证执行，1.5s 防抖窗口内的草稿手改会静默丢。与离场 flush 同一逻辑：
+  // flushPendingDraftSave 只在 pendingDraftSaveRef 有未落盘内容时才写。
+  useEffect(() => {
+    const flushOnPageHide = () => flushPendingDraftSave();
+    window.addEventListener("pagehide", flushOnPageHide);
+    return () => window.removeEventListener("pagehide", flushOnPageHide);
+  }, [flushPendingDraftSave]);
+
   return {
     drafts,
     activeDraftIndex,

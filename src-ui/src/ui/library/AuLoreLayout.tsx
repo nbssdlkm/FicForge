@@ -13,7 +13,7 @@ import type { TrashEntry } from '../../api/engine-client';
 import { Search, Plus, FileText, ChevronDown, ChevronRight, Folder, Trash2, Download, Pin, Eye, Pencil } from 'lucide-react';
 import { SettingsMarkdown } from '../shared/SettingsMarkdown';
 import { getProjectForEditing, saveProjectCastRegistryCharacters, saveProjectCoreIncludes, type ProjectInfo } from '../../api/engine-client';
-import { saveLore, readLore, deleteLore, listLoreFiles, importFromFandom, getLoreContent } from '../../api/engine-client';
+import { saveLore, readLore, deleteLore, listLoreFiles, importFromFandom, getLoreContent, chapterNumFromTrashEntry } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
 import { useMilestoneGuide } from '../../hooks/useMilestoneGuide';
@@ -45,7 +45,11 @@ function getRestoredCharacterFile(entry: TrashEntry): LoreFileEntry | null {
   };
 }
 
-export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
+export const AuLoreLayout = ({ auPath, onChaptersChanged }: {
+  auPath: string;
+  /** 回收站恢复了章节文件时通知宿主刷新章节列表 + 常驻挂载的写文/对话面板（R1-5）。 */
+  onChaptersChanged?: () => void;
+}) => {
   const { t } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -415,6 +419,13 @@ export const AuLoreLayout = ({ auPath }: { auPath: string }) => {
   };
 
   const handleTrashRestore = (entry: TrashEntry) => {
+    // R1-5：恢复的是章节文件 → 通知宿主走 external 通道刷新（章节侧栏 + keep-mounted
+    // 的写文/对话面板），否则恢复的章在别的 tab 看不见、生成还拿旧 state。
+    if (chapterNumFromTrashEntry(entry) !== null) {
+      onChaptersChanged?.();
+      return;
+    }
+
     const restoredFile = getRestoredCharacterFile(entry);
     if (!restoredFile) return;
 

@@ -137,15 +137,22 @@ describe("AuWorkspaceLayout 桌面双常驻 tab（审计 M9）", () => {
     expect(screen.getByTestId("stub-chat-panel")).toBeInTheDocument();
   });
 
-  it("writer → chat → writer 往返不触发重新 bootstrap（旧实现重挂必多打一轮 API）", async () => {
+  it("writer → chat → writer 往返不触发重新 bootstrap，但边沿轻量刷新配置（R1-1）", async () => {
     const { rerender, onNavigate } = renderWorkspace("writer");
     await waitForWriterBootstrap(1);
+    // 初次 bootstrap：state 就位后 draft 控制器 load 一次
+    await waitFor(() => expect(mocked.listDrafts).toHaveBeenCalledTimes(1));
 
     rerender(<AuWorkspaceLayout activeTab="chat" auPath={AU} onNavigate={onNavigate} />);
     rerender(<AuWorkspaceLayout activeTab="writer" auPath={AU} onNavigate={onNavigate} />);
 
-    await Promise.resolve();
-    expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(1);
+    // R1-1 新契约：切回边沿走 refreshSettingsModeData（配置不 stale）……
+    await waitFor(() => {
+      expect(mocked.getWriterSessionConfig).toHaveBeenCalledTimes(2);
+      expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(2);
+    });
+    // ……但不是重挂/全量 bootstrap：草稿控制器不重载（旧实现重挂此处必是 2）
+    expect(mocked.listDrafts).toHaveBeenCalledTimes(1);
   });
 
   it("chat tab 接受章节（onChaptersChanged）→ 隐藏 writer 挂起刷新，切回时重载", async () => {

@@ -98,10 +98,11 @@ export function useWriterBootstrap({
   const refreshSettingsModeData = useCallback(async () => {
     const token = refreshGuard.start();
     try {
-      const [stateData, factsData, proj] = await Promise.all([
+      const [stateData, factsData, proj, settings] = await Promise.all([
         getState(auPath).catch(() => null),
         listFacts(auPath, 'unresolved').catch(() => []),
         getWriterProjectContext(auPath).catch(() => null),
+        getWriterSessionConfig().catch(() => null),
       ]);
       if (refreshGuard.isStale(token)) return;
 
@@ -110,6 +111,12 @@ export function useWriterBootstrap({
         // focus 同步由 useWriterFocusController 自己 watch state 响应
       }
       setProjectInfo(proj);
+      // R1-1：settingsInfo 一并刷新 —— settings-chat 改写全局配置 / settings tab 改 LLM
+      // 后，生成 payload 的 sessionParams 输入必须跟着新鲜。瞬时失败（null）时保留旧值：
+      // 刷新是增量动作，不该把「可用但略旧」降级成「不可用」。
+      if (settings) {
+        setSettingsInfo(settings);
+      }
       setUnresolvedFacts(factsData);
     } catch (error) {
       if (refreshGuard.isStale(token)) return;

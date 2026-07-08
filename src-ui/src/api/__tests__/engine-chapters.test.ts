@@ -3,7 +3,15 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as engineModule from "@ficforge/engine";
-import { createDraft, IndexStatus, LLMMode } from "@ficforge/engine";
+import {
+  chapterInflightKey,
+  createDraft,
+  IndexStatus,
+  LLMMode,
+  markChapterInflight,
+  releaseChapterInflight,
+} from "@ficforge/engine";
+import { ApiError } from "../client";
 import { MockAdapter } from "../../../../src-engine/repositories/__tests__/mock_adapter.js";
 import { confirmChapter, undoChapter, updateChapterContent } from "../engine-chapters";
 import { createAu, createFandom } from "../engine-fandom";
@@ -83,6 +91,61 @@ describe("engine-chapters confirmChapter RAG orchestration", () => {
       "Failed to index chapter 1 after confirm",
       expect.any(Error),
     );
+  });
+});
+
+describe("engine-chapters confirmChapter 在飞互斥（R1-3）", () => {
+  let auPath: string;
+
+  beforeEach(async () => {
+    vi.restoreAllMocks();
+    initEngine(new MockAdapter(), "/data");
+    const fandom = await createFandom("Naruto");
+    const au = await createAu(fandom.name, "Canon", fandom.path);
+    auPath = au.path;
+    await getEngine().repos.draft.save(createDraft({
+      au_id: auPath, chapter_num: 1, variant: "A",
+      content: "Alice走进了房间。\n\n她看到了Bob。",
+    }));
+  });
+
+  it("该章生成在飞（写文/对话任一路径）→ confirm 拒绝，带专用 error code，不动在飞流", async () => {
+    const key = chapterInflightKey(auPath, 1);
+    markChapterInflight(key, "dispatch");
+    try {
+      const err = await confirmChapter(auPath, 1, "ch0001_draft_A.md").then(
+        () => null,
+        (e: unknown) => e,
+      );
+      expect(err).toBeInstanceOf(ApiError);
+      expect((err as ApiError).errorCode).toBe("CHAPTER_GENERATION_IN_FLIGHT");
+      // 章节未被写入（confirm 在动手前就被拦下）
+      await expect(getEngine().repos.chapter.exists(auPath, 1)).resolves.toBe(false);
+    } finally {
+      releaseChapterInflight(key);
+    }
+  });
+
+  it("释放在飞标记后重试 → confirm 正常通过", async () => {
+    const key = chapterInflightKey(auPath, 1);
+    markChapterInflight(key, "generate");
+    await expect(confirmChapter(auPath, 1, "ch0001_draft_A.md")).rejects.toBeInstanceOf(ApiError);
+
+    releaseChapterInflight(key);
+    const result = await confirmChapter(auPath, 1, "ch0001_draft_A.md");
+    expect(result.chapter_num).toBe(1);
+    await expect(getEngine().repos.chapter.exists(auPath, 1)).resolves.toBe(true);
+  });
+
+  it("别的章在飞不影响本章 confirm（互斥粒度 = au+chapter）", async () => {
+    const otherKey = chapterInflightKey(auPath, 2);
+    markChapterInflight(otherKey, "generate");
+    try {
+      const result = await confirmChapter(auPath, 1, "ch0001_draft_A.md");
+      expect(result.chapter_num).toBe(1);
+    } finally {
+      releaseChapterInflight(otherKey);
+    }
   });
 });
 

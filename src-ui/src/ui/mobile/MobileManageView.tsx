@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { SlidersHorizontal, Spline, Trash2 } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
+import { chapterNumFromTrashEntry } from "../../api/engine-client";
 import { FactsLayout } from "../facts/FactsLayout";
 import { ThreadsLayout } from "../threads/ThreadsLayout";
 import { AuSettingsLayout } from "../settings/AuSettingsLayout";
@@ -18,6 +19,9 @@ interface MobileManageViewProps {
   defaultSection?: ManageSection;
   onImportComplete?: () => void;
   onNavigateAfterImport?: (target: "writer" | "au_lore" | "facts") => void;
+  /** 回收站恢复了章节文件时通知宿主走 external 通道刷新（R1-5：章节列表 +
+   * keep-mounted 写文/对话面板，不刷新则恢复的章在别的 tab 不可见）。 */
+  onChaptersChanged?: () => void;
 }
 
 export function MobileManageView({
@@ -25,6 +29,7 @@ export function MobileManageView({
   defaultSection = "facts",
   onImportComplete: _onImportComplete,
   onNavigateAfterImport: _onNavigateAfterImport,
+  onChaptersChanged,
 }: MobileManageViewProps) {
   const { t } = useTranslation();
   const [section, setSection] = useState<ManageSection>(defaultSection);
@@ -67,7 +72,16 @@ export function MobileManageView({
             <AuSettingsLayout auPath={auPath} />
             <div className="px-4 pb-28">
               <div className="overflow-hidden rounded-sm border border-rule bg-surface">
-                <TrashPanel scope="au" path={auPath} />
+                <TrashPanel
+                  scope="au"
+                  path={auPath}
+                  onRestore={(entry) => {
+                    // R1-5：章文件恢复 → 通知宿主刷新（与桌面 AuLoreLayout 同口径）。
+                    if (chapterNumFromTrashEntry(entry) !== null) {
+                      onChaptersChanged?.();
+                    }
+                  }}
+                />
               </div>
             </div>
           </div>

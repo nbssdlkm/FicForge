@@ -16,7 +16,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, Eraser, Settings } from "lucide-react";
+import { BarChart3, Eraser, Settings, X } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { useFeedback } from "../../hooks/useFeedback";
 import { useKV } from "../../hooks/useKV";
@@ -113,22 +113,29 @@ export function SimpleChatPanel({
     setThinkingActive(false);
   }, [auPath]);
 
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([
+  // 面板配置四件套（projectInfo / settingsInfo / settingsSummary / extractionReady）的
+  // 可重调用加载函数（R1-1）：挂载时跑一次；面板常驻挂载后，settings tab 改 LLM 配置 /
+  // 开关提取开关不会重挂本面板 —— 切回对话 tab 的边沿也要重拉，否则 dispatch payload
+  // 与 canAutoExtract gate 永久用旧配置。token 防 AU 快切/并发刷新的旧结果倒灌。
+  const configLoadTokenRef = useRef(0);
+  const refreshPanelConfig = useCallback(async () => {
+    const token = ++configLoadTokenRef.current;
+    const [proj, settings, summary, readiness] = await Promise.all([
       getWriterProjectContext(auPath).catch(() => null),
       getWriterSessionConfig().catch(() => null),
       getSettingsSummary().catch(() => null),
       getFactsExtractionReadiness(auPath).catch(() => null),
-    ]).then(([proj, settings, summary, readiness]) => {
-      if (cancelled) return;
-      setProjectInfo(proj);
-      setSettingsInfo(settings);
-      setSettingsSummary(summary);
-      setExtractionReady(readiness);
-    });
-    return () => { cancelled = true; };
+    ]);
+    if (configLoadTokenRef.current !== token) return;
+    setProjectInfo(proj);
+    setSettingsInfo(settings);
+    setSettingsSummary(summary);
+    setExtractionReady(readiness);
   }, [auPath]);
+
+  useEffect(() => {
+    void refreshPanelConfig();
+  }, [refreshPanelConfig]);
 
   const sessionParams = useSessionParams(auPath, projectInfo, settingsInfo, showSuccess, showError);
 
@@ -163,6 +170,8 @@ export function SimpleChatPanel({
   // 切回对话 tab 时刷新章节上下文（对抗审 F3）：常驻挂载后，写文 tab 的 confirm/undo
   // 推进 current_chapter 但对话面板拿不到通知 —— 不刷新的话下一次 dispatch 会带过期
   // chapter_num 打到已确认章（接受侧另有 H3 章号 guard 兜底，这里把源头对齐）。
+  // R1-1（终审 1-A）：同一边沿一并重拉配置四件套 —— settings tab 改 LLM 配置 / 开关
+  // 「增强事实提取」后，dispatch payload 与 canAutoExtract 必须用新值，不能停在挂载时快照。
   const wasActiveTabRef = useRef(isActiveTab !== false);
   useEffect(() => {
     const nowActive = isActiveTab !== false;
@@ -170,8 +179,9 @@ export function SimpleChatPanel({
     wasActiveTabRef.current = nowActive;
     if (nowActive && !wasActive) {
       void refreshChapterContext();
+      void refreshPanelConfig();
     }
-  }, [isActiveTab, refreshChapterContext]);
+  }, [isActiveTab, refreshChapterContext, refreshPanelConfig]);
 
   // chat.yaml load 完成后一次性清理 stale state（上次 session 中断遗留）：
   //  1. streaming-status draft → discarded（dispatch 没收尾就被切 tab 中断了）
@@ -374,13 +384,24 @@ export function SimpleChatPanel({
     if (dispatch.isStreaming) return;
     if (acceptingDraftId) return;
 
+    // 配置就绪 gate（R1-2，对齐 useWriterGeneration 同款判据）：settingsInfo 未加载 /
+    // 加载失败 / resolve 无可用连接时，不发出捏造 payload 让引擎端报错，直接 toast 指路。
+    // session 层覆盖（sessionLlmPayload）只换模型不带 key，可用性仍由 project/settings 决定。
+    const projectLlmUsable = projectInfo?.llm?.mode && (projectInfo.llm.mode !== "api" || projectInfo.llm.has_api_key);
+    const effectiveLlm = projectLlmUsable ? projectInfo!.llm : settingsInfo?.default_llm;
+    const llmMode = effectiveLlm?.mode || "api";
+    if (llmMode === "api" && !effectiveLlm?.has_api_key) {
+      showError(null, t("error_messages.no_api_key"));
+      return;
+    }
+
     // 转 history 时 chat.messages 还不含当前 user（appendUserMessage 是 setState 异步）。
     // 简版"全塞"哲学：不截取不简化，token 消耗在顶部 badge 显示让用户监控。
     const history = chatToOpenAIMessages(chat.messages);
     chat.appendUserMessage(text);
     setInputText("");
     startDispatchForUserInput(text, history);
-  }, [acceptingDraftId, chat, dispatch.isStreaming, inputText, startDispatchForUserInput]);
+  }, [acceptingDraftId, chat, dispatch.isStreaming, inputText, projectInfo, settingsInfo, showError, startDispatchForUserInput, t]);
 
   const handleCancel = useCallback(() => {
     dispatch.cancelDispatch();
@@ -437,6 +458,24 @@ export function SimpleChatPanel({
               "warning",
             );
           }
+          return;
+        }
+
+        // R1-8（终审鲜眼）：num === expected 但该章已有**不同**内容 —— undo/confirm 半成功
+        // 残留、回收站恢复等会造成「进度指针在 N、ch{N} 文件却已存在」。直接 confirm 会静默
+        // 覆盖那份内容（用户资产）。旧文案复用 chapterTaken 会产出「第 3 章与当前进度不符
+        //（下一章应为第 3 章）」的自相矛盾句 —— 拆专用 key，指路写文页处理。
+        // 内容逐字一致（同章重接、confirm 半成功后重试）→ 放行 confirm：引擎带备份覆盖 +
+        // 推进 state，正是修复半成功所需。
+        const existingCurrent = await getChapterContent(auPath, target.chapterNum).catch(() => null);
+        if (existingCurrent !== null && existingCurrent.trim() !== target.content.trim()) {
+          showToast(
+            t("simple.draftCard.chapterTakenSameNum", {
+              defaultValue: "第 {{num}} 章当前已有不同内容，未覆盖；如需替换请先在写文页处理该章",
+              num: target.chapterNum,
+            }),
+            "warning",
+          );
           return;
         }
 
@@ -686,6 +725,16 @@ export function SimpleChatPanel({
             <span className="font-serif tracking-normal normal-case">
               {t("simple.header.extracting", { defaultValue: "提取剧情笔记中…" })}
             </span>
+            {/* R1-7：提取是多秒 LLM 调用，给用户一个当场取消的出口（abort 静默收尾，不 toast 报错） */}
+            <button
+              type="button"
+              onClick={factsExtraction.cancelExtraction}
+              className="inline-flex h-5 w-5 items-center justify-center rounded-sm text-ink-muted transition-colors hover:bg-rule-soft hover:text-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright"
+              aria-label={t("simple.header.cancelExtract", { defaultValue: "取消提取" })}
+              title={t("simple.header.cancelExtract", { defaultValue: "取消提取" })}
+            >
+              <X size={12} />
+            </button>
           </span>
         )}
         <button

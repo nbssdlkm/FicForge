@@ -221,6 +221,7 @@ export function MobileLayout({
             auPath={auPath}
             defaultSection={manageSection}
             onImportComplete={onChaptersChangedExternal ?? onChaptersChanged}
+            onChaptersChanged={onChaptersChangedExternal ?? onChaptersChanged}
             onNavigateAfterImport={(target) => {
               onClearViewChapter();
               setActiveTab("writer");

@@ -451,7 +451,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
             >
               {activeTab === 'facts' && <FactsLayout auPath={auPath} />}
               {activeTab === 'threads' && <ThreadsLayout auPath={auPath} />}
-              {activeTab === 'au_lore' && <AuLoreLayout auPath={auPath} />}
+              {activeTab === 'au_lore' && <AuLoreLayout auPath={auPath} onChaptersChanged={refreshChaptersExternal} />}
               {activeTab === 'settings' && <AuSettingsLayout auPath={auPath} />}
             </motion.div>
           )}

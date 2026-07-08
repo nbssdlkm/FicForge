@@ -31,13 +31,25 @@ import "./App.css";
 import { ContextMenuProvider } from "./ui/shared/ContextMenu";
 import { registerSW } from "virtual:pwa-register";
 import { isCapacitor, isTauri } from "./utils/platform";
+import { SW_UPDATE_READY_EVENT, type SwUpdateReadyDetail } from "./utils/swUpdate";
 
 // PWA service worker 注册（审计 M21）：仅 Web/PWA 场景注册。dist 三端共用，
 // Tauri（tauri:// 本地资源）/ Capacitor（app 内置资源）不需要离线缓存层，
 // 且 SW 缓存壳资源会在壳升级后引入陈旧资源风险 —— 用运行时平台判定而非构建分叉。
-// registerType: 'autoUpdate'（vite.config.ts）：新版本 SW 就绪后自动接管 + 刷新预缓存。
+// registerType: 'prompt'（vite.config.ts，R1-6 终审 5-A）：新版本 SW 就绪后不自动接管
+// 强刷页面（用户写作/生成中被静默刷新会丢未落盘内容），改为派发自定义事件，
+// App.tsx 显示低调可关横幅，用户空闲时点击才 updateSW(true) 激活并刷新。
 if (!isTauri() && !isCapacitor() && "serviceWorker" in navigator) {
-  registerSW({ immediate: true });
+  const updateSW = registerSW({
+    immediate: true,
+    onNeedRefresh() {
+      window.dispatchEvent(
+        new CustomEvent<SwUpdateReadyDetail>(SW_UPDATE_READY_EVENT, {
+          detail: { update: () => { void updateSW(true); } },
+        }),
+      );
+    },
+  });
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

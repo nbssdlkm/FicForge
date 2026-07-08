@@ -188,10 +188,46 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
       void loadDataRef.current();
     }
   }, [externalChaptersVersion, isActiveTab, generation.isGenerating]);
+
+  // R1-1（终审 1-A）：常驻挂载后配置只在挂载时快照 —— settings tab / 全局设置改 LLM 配置
+  // 不 bump externalChaptersVersion，切回写文 tab 的 payload（projectInfo/settingsInfo →
+  // sessionParams）会永久 stale。在 isActiveTab false→true 边沿走轻量刷新
+  // refreshSettingsModeData（state/facts/projectInfo/settingsInfo，不置 loading、不清草稿）。
+  // 生成中不刷（对齐 F4 口径：外部 state 变化可能连带草稿控制器动作），挂起等生成结束。
+  // 同边沿若已有挂起的外部全量刷新（loadData ⊇ refreshSettingsModeData 的取数面），轻量
+  // 刷新让位不重复打 API —— 本 effect 必须声明在下方 pending 执行 effect 之前，
+  // 才能在标记被消费前读到它。
+  const refreshSettingsModeDataRef = useRef(refreshSettingsModeData);
+  refreshSettingsModeDataRef.current = refreshSettingsModeData;
+  const wasActiveTabRef = useRef(isActiveTab !== false);
+  const pendingConfigRefreshRef = useRef(false);
+  useEffect(() => {
+    pendingConfigRefreshRef.current = false;
+  }, [auPath]);
+  useEffect(() => {
+    const nowActive = isActiveTab !== false;
+    const wasActive = wasActiveTabRef.current;
+    wasActiveTabRef.current = nowActive;
+    if (nowActive && !wasActive && !pendingExternalRefreshRef.current) {
+      if (generation.isGenerating) {
+        pendingConfigRefreshRef.current = true;
+      } else {
+        void refreshSettingsModeDataRef.current();
+      }
+    }
+  }, [isActiveTab, generation.isGenerating]);
+
   useEffect(() => {
     if (isActiveTab !== false && !generation.isGenerating && pendingExternalRefreshRef.current) {
       pendingExternalRefreshRef.current = false;
+      pendingConfigRefreshRef.current = false; // 全量刷新覆盖轻量刷新
       void loadDataRef.current();
+    }
+  }, [isActiveTab, generation.isGenerating]);
+  useEffect(() => {
+    if (isActiveTab !== false && !generation.isGenerating && pendingConfigRefreshRef.current) {
+      pendingConfigRefreshRef.current = false;
+      void refreshSettingsModeDataRef.current();
     }
   }, [isActiveTab, generation.isGenerating]);
 

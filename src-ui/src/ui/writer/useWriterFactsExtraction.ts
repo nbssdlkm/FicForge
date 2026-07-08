@@ -163,6 +163,16 @@ export function useWriterFactsExtraction(auPath: string) {
     setExtractTargetChapter(null);
   }, []);
 
+  /** 用户主动取消在飞提取（R1-7）：abort 请求 + 复位 extracting 指示。
+   * handleOpenExtractReview 的 catch/finally 对 aborted signal 静默收尾（不 toast 报错），
+   * 这里直接复位 extractingFacts —— 其 finally 在 aborted 时不会碰它。 */
+  const cancelExtraction = useCallback(() => {
+    extractAbortRef.current?.abort();
+    extractAbortRef.current = null;
+    setExtractingFacts(false);
+    setExtractTargetChapter(null);
+  }, []);
+
   const resetExtractionState = useCallback(() => {
     setExtractingFacts(false);
     setSavingExtracted(false);
@@ -211,6 +221,7 @@ export function useWriterFactsExtraction(auPath: string) {
     handleOpenExtractReview,
     handleSaveExtracted,
     closeExtractReview,
+    cancelExtraction,
     toggleExtractedCandidate,
 
     // helper

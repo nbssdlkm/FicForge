@@ -77,6 +77,16 @@ export type {
 } from "./generation.js";
 export { generate_chapter, is_empty_intent } from "./generation.js";
 
+// Chapter Inflight — 同 (au, chapter) 的「草稿生成在飞」互斥表（写文/对话共享单一真相源）。
+// 导出给 UI 编排层：confirm 等「会改写目标章」的入口在动手前查表拒绝（R1-3），
+// 避免接受/定稿覆盖一条正在流式写入的草稿。
+export {
+  chapterInflightKey,
+  isChapterInflight,
+  markChapterInflight,
+  releaseChapterInflight,
+} from "./chapter_inflight.js";
+
 // Confirm Chapter
 export type { ConfirmChapterParams, ConfirmChapterResult } from "./confirm_chapter.js";
 export { confirm_chapter, ConfirmChapterError } from "./confirm_chapter.js";

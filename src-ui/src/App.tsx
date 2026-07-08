@@ -13,6 +13,7 @@ import { hydrateFontsOnStartup } from "./api/engine-fonts";
 import { useTranslation } from "./i18n/useAppTranslation";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 import { isTauri as detectTauri, isCapacitor as detectCapacitor } from "./utils/platform";
+import { SW_UPDATE_READY_EVENT, type SwUpdateReadyDetail } from "./utils/swUpdate";
 import { logUiError } from "./utils/ui-logger";
 
 /** 获取或创建持久化设备 ID（同步，用于 adapter 构造前）。 */
@@ -36,6 +37,8 @@ function App() {
   const [engineInitialized, setEngineInitialized] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const [splashVisible, setSplashVisible] = useState(true);
+  // PWA 新版本就绪（R1-6）：registerType=prompt 后新 SW 不自动接管，等用户点横幅再更新。
+  const [swUpdate, setSwUpdate] = useState<SwUpdateReadyDetail | null>(null);
   const initRef = useRef(false);
   const splashStartRef = useRef(Date.now());
 
@@ -180,6 +183,17 @@ function App() {
     };
   }, []);
 
+  // PWA SW 更新就绪事件（R1-6）：main.tsx 的 onNeedRefresh 派发，这里落成低调可关横幅。
+  useEffect(() => {
+    const onUpdateReady = (event: Event) => {
+      // detail 来自跨模块 CustomEvent，运行时可能缺失 → 显式验形，不信任 cast
+      const detail = (event as CustomEvent<Partial<SwUpdateReadyDetail> | undefined>).detail;
+      if (typeof detail?.update === "function") setSwUpdate({ update: detail.update });
+    };
+    window.addEventListener(SW_UPDATE_READY_EVENT, onUpdateReady);
+    return () => window.removeEventListener(SW_UPDATE_READY_EVENT, onUpdateReady);
+  }, []);
+
   // Splash fade-out: ensure minimum 1s display, then fade
   const dismissSplash = useCallback(() => {
     const elapsed = Date.now() - splashStartRef.current;
@@ -235,6 +249,31 @@ function App() {
           onNavigate={handleNavigate}
           auPath={currentAuPath}
         />
+      )}
+
+      {/* PWA 新版本横幅（R1-6）：低调、可关，点「立即更新」才激活新 SW 并刷新。 */}
+      {swUpdate && (
+        <div
+          role="status"
+          className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-sm border border-rule bg-surface px-4 py-2 text-sm text-text shadow-subtle"
+        >
+          <span>{t("app.swUpdate.ready")}</span>
+          <button
+            type="button"
+            className="shrink-0 font-medium text-accent underline-offset-2 hover:underline"
+            onClick={() => swUpdate.update()}
+          >
+            {t("app.swUpdate.update")}
+          </button>
+          <button
+            type="button"
+            aria-label={t("app.swUpdate.dismiss")}
+            className="shrink-0 text-text/50 hover:text-text"
+            onClick={() => setSwUpdate(null)}
+          >
+            ×
+          </button>
+        </div>
       )}
     </>
   );

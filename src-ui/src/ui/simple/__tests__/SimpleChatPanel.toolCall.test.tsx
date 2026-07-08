@@ -79,7 +79,9 @@ function setupBaseMocks() {
     project: { llm: { mode: "api", model: "test" }, pinned_context: [] },
   } as unknown as Awaited<ReturnType<typeof engineClient.getWriterProjectContext>>);
   mocked.getWriterSessionConfig.mockResolvedValue({
-    settings: { default_llm: { mode: "api", model: "test" } },
+    // has_api_key: handleSend 配置就绪 gate（R1-2）读取；无 key 时发送会被拦下。
+    default_llm: { mode: "api", model: "test", has_api_key: true, has_usable_connection: true },
+    model_params: {},
   } as unknown as Awaited<ReturnType<typeof engineClient.getWriterSessionConfig>>);
   mocked.getSimpleChat.mockResolvedValue({ messages: [] } as unknown as Awaited<
     ReturnType<typeof engineClient.getSimpleChat>

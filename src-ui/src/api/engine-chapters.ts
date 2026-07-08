@@ -12,6 +12,8 @@ import {
   undo_latest_chapter,
   resolve_dirty_chapter,
   edit_chapter_content,
+  chapterInflightKey,
+  isChapterInflight,
   IndexStatus,
   resolve_llm_config,
   create_provider,
@@ -36,6 +38,7 @@ import {
   withAuLock,
   type GeneratedWith,
 } from "@ficforge/engine";
+import { ApiError, getFriendlyErrorMessage } from "./client";
 import { getEngine } from "./engine-instance";
 import { createEmbeddingProvider } from "./engine-state";
 import { extractFacts } from "./engine-facts";
@@ -71,6 +74,16 @@ export async function confirmChapter(
   auPath: string, chapterNum: number, draftId: string,
   generatedWith?: object, content?: string | null, title?: string | null,
 ) {
+  // R1-3（对抗审 2-A）：confirm 动手前查「生成在飞」互斥表。该章正被写文/对话任一路径
+  // 流式生成时，接受/定稿会与在飞流竞写同一章 —— 拒绝并让 UI 提示「先停止或等它完成」。
+  // 不自动 abort 在飞流：那是用户资产，不替他丢。释放（用户点停/流结束）后重试即通过。
+  if (isChapterInflight(chapterInflightKey(auPath, chapterNum))) {
+    throw new ApiError(
+      "CHAPTER_GENERATION_IN_FLIGHT",
+      getFriendlyErrorMessage({ error_code: "CHAPTER_GENERATION_IN_FLIGHT" }),
+      [],
+    );
+  }
   const e = getEngine();
   const { chapter, draft, state, ops, project, settings } = e.repos;
   const proj = await project.get(auPath);

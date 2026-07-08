@@ -183,6 +183,43 @@ describe("useSimpleChat persistence (C2)", () => {
     );
   });
 
+  it("pagehide flush（R1-6）：防抖窗口内未落盘的变更在 pagehide 时立即写出", async () => {
+    mockedGet.mockResolvedValue(emptyChatFile("au_pagehide"));
+    mockedSave.mockResolvedValue();
+
+    const { result } = renderHook(() => useSimpleChat("au_pagehide"));
+    await waitFor(() => expect(result.current.isLoaded).toBe(true));
+
+    act(() => { result.current.appendUserMessage("closing-tab"); });
+    // 还在 200ms 防抖窗口内
+    expect(mockedSave).not.toHaveBeenCalled();
+
+    // 关标签页 / PWA 进后台：组件 cleanup 不保证执行，pagehide 必须兜底
+    act(() => { window.dispatchEvent(new Event("pagehide")); });
+
+    expect(mockedSave).toHaveBeenCalledTimes(1);
+    expect(mockedSave).toHaveBeenCalledWith(
+      "au_pagehide",
+      expect.arrayContaining([expect.objectContaining({ kind: "user", content: "closing-tab" })]),
+    );
+  });
+
+  it("pagehide flush：无未落盘变更时不写（有未落盘才写）", async () => {
+    mockedGet.mockResolvedValue({
+      version: 1, au_path: "au_ph_clean", created_at: "t", updated_at: "t",
+      messages: [{ id: "m1", timestamp: "t", kind: "user", content: "existing" }],
+    });
+    mockedSave.mockResolvedValue();
+
+    const { result } = renderHook(() => useSimpleChat("au_ph_clean"));
+    await waitFor(() => expect(result.current.isLoaded).toBe(true));
+    await sleep(300); // 静置过防抖窗口，load 内容无变更
+
+    act(() => { window.dispatchEvent(new Event("pagehide")); });
+
+    expect(mockedSave).not.toHaveBeenCalled();
+  });
+
   it("无未落盘变更时卸载不触发写入（load 内容不被原样重写）", async () => {
     mockedGet.mockResolvedValue({
       version: 1, au_path: "au_clean", created_at: "t", updated_at: "t",

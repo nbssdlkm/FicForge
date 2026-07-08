@@ -208,6 +208,23 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
     };
   }, [auPath]);
 
+  // pagehide flush（R1-6）：关标签页 / PWA 进后台被回收 / SW 更新强刷时组件 cleanup
+  // 不保证执行，防抖窗口内的最后一笔会静默丢。与离场 flush 同一判定逻辑（有未落盘才写），
+  // 全走 ref 读最新值 —— pagehide 时闭包 state 可能已 stale。
+  useEffect(() => {
+    const flushOnPageHide = () => {
+      if (!isLoadedRef.current || loadErrorRef.current !== null) return;
+      const msgs = messagesRef.current;
+      if (msgs === lastSavedMessagesRef.current) return;
+      lastSavedMessagesRef.current = msgs;
+      void saveSimpleChat(auPathRef.current, msgs as unknown as SimpleChatMessageEnvelope[]).catch(() => {
+        // 页面正在离场，无宿主可提示，静默
+      });
+    };
+    window.addEventListener("pagehide", flushOnPageHide);
+    return () => window.removeEventListener("pagehide", flushOnPageHide);
+  }, []);
+
   const appendMessage = useCallback((message: SimpleChatMessage) => {
     setMessages((prev) => [...prev, message]);
   }, []);

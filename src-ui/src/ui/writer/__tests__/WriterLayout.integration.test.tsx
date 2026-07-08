@@ -328,22 +328,42 @@ describe("WriterLayout keep-mounted 外部章节变更接线（审计 M9）", ()
     });
   });
 
-  it("无外部变更时的可见性切换不触发任何重载（防误刷）", async () => {
+  it("R1-1：切回可见边沿轻量刷新配置（settingsInfo/projectInfo），不触发全量重载", async () => {
+    // 旧契约「可见性切换零重载」已被 R1-1 有意推翻：常驻挂载后 settings tab 改 LLM
+    // 配置不 bump externalChaptersVersion，不边沿刷新的话生成 payload 永久 stale。
+    // 新契约：false→true 边沿走 refreshSettingsModeData（state/facts/project/settings），
+    // 但不是 loadData 全量重载（getChapterContent 不重拉、不闪 loading）。
     const { rerender } = render(
       <WriterLayout {...defaultProps} isActiveTab={true} externalChaptersVersion={0} />,
     );
     await waitFor(() => {
       expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(1);
+      expect(mocked.getWriterSessionConfig).toHaveBeenCalledTimes(1);
+      expect(mocked.getChapterContent).toHaveBeenCalledTimes(1);
     });
 
     rerender(
       <WriterLayout {...defaultProps} isActiveTab={false} externalChaptersVersion={0} />,
     );
+    // 隐藏边沿不刷
+    await Promise.resolve();
+    expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(1);
+
+    // 模拟用户在别的 tab 改了配置：mock 换新值，切回时必须拉到它
+    mocked.getWriterSessionConfig.mockResolvedValue({
+      default_llm: { mode: "api", model: "new-model", has_api_key: true },
+      model_params: {},
+    });
     rerender(
       <WriterLayout {...defaultProps} isActiveTab={true} externalChaptersVersion={0} />,
     );
-    await Promise.resolve();
-    expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      // 回退旧码（无边沿刷新）此处必挂：两个 mock 停在 1 次调用
+      expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(2);
+      expect(mocked.getWriterSessionConfig).toHaveBeenCalledTimes(2);
+    });
+    // 轻量刷新不做全量重载：previous chapter 内容不重拉
+    expect(mocked.getChapterContent).toHaveBeenCalledTimes(1);
   });
 });
 
