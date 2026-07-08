@@ -11,8 +11,11 @@
 > - `d38837f` fix(mobile)：M20 ✅
 > - **第二波（2026-07-07，续）**：`fb30c26` feat(models) MODEL_CONTEXT_MAP 刷新 + org/ 前缀匹配修复 + PROVIDER_MANIFEST ✅；`1be7fe2` fix(pipeline) M15-18/M24-26/M28/M30 + LOW 系 + 对抗审 F1/F2/F6 ✅；`a430bf2` fix(mobile) M9-M14/M21 + 对抗审 F3/F4 ✅。
 > - **对抗审第二轮发现处置**：F1（跨路径互斥）/F2（settings-chat 同族）/F3（通知双向）/F4（生成中重载）/F6（分支口径）已修；**F5（trash 恢复死锁态，MEDIUM-PLAUSIBLE：非原子恢复崩溃或用户编辑半恢复文件后 restore/permanent_delete 双拒，数据不丢但 UI 无解）、F7（M18 只剔紧随配对）、F8（停止后立即重发撞 409 文案困惑）、F9（legacy 非白名单文件名 modify 丢 frontmatter 守护）— 记录未修**，F5 建议随 trash 后续迭代补显式选择 UI。
-> - **剩余未做**：模型选择器 UI 阶段（引擎侧接口已就绪）；审计中标注「仅真机可证」项（M12 safe-area / M21 离线 / M11 帧率 / iOS IDB 连接回收 L12）；LOW 观察项 L7/L8/L10/L11/L14-L18/L21/L23-L25。
-> - 每笔修复均经独立对抗审或判别性回归测试（回退旧码即挂）钉死；两轮对抗审共抓 20 条整改（A1-8 / B1-3 / C1 / F1-4 / F6），全部落地。
+> - **第三波（2026-07-07/08，续）**：`04db727` feat(models) 选择器 UI 阶段 + chatPath 全链 + 第三轮对抗审 F-1/F-3/F-4/F-5/F-6 整改 ✅；`65bca8e` fix(trash-chat) F5/F7/F8/F9 + F-7/F-8/F-9 整改 ✅；`2cb64b9` fix(sweep) LOW 全量清扫（L7/L8/L10-L12/L14/L16-L18/L21/L23-L25）+ F-2/F-10 整改 ✅。
+> - **第三轮对抗审发现处置**：F-1（会话模型 payload 失真，考古至 2026-04 stabilize 扫荡）/F-2（L24 off-by-one 回归）/F-3（同 baseUrl 弹回）/F-4（跨槽位 stale catalog 丢勾选）/F-5/F-6/F-7/F-8/F-9/F-10 全部整改，F-1~F-4 变异验证。
+> - **审计闭环**：62 条发现全部处置完毕（修复 / 有据跳过），三轮对抗审共 30 条发现全部整改。最终基线：引擎 1229 + UI 332 全绿、双 tsc 零错、i18n 1255 对称、golden 零改动。
+> - **环境边界（无法在本机完成）**：L15 Android 工程文件入库（Manifest/variables.gradle 在 Windows 构建机）；真机体感验证（M12 刘海 safe-area / M21 iOS 离线冷启动 / M11 低端机流式帧率 / L12 iOS Safari IDB 回收——代码路径均有测试钉住，表现待真机例行验证）；真 key 端到端 LLM 旅程（填 key 受安全规则禁）。
+> - 每笔修复均经独立对抗审或判别性回归测试（回退旧码即挂）钉死。
 
 - **日期**：2026-07-07
 - **基线**：main @ `2657163`（与 origin/main 同步，工作区干净）
