@@ -66,6 +66,43 @@ export async function readLore(req: { au_path?: string; fandom_path?: string; ca
   return { content };
 }
 
+/**
+ * 读旧 lore 内容，含 legacy 文件名回退（F9）。单一真相源，供 modify_* 各路径复用
+ * （useSimpleToolExecutor / SettingsChatPanel）。
+ *
+ * modify_* 写盘统一落 `diskName`（sanitizePathSegment 白名单清洗名），但早期未清洗即落盘的
+ * 含全角标点文件其磁盘真名 = `legacyName`（validateExistingPathSegment 允许保留、saveLore
+ * 之前的历史遗留）。先按 diskName 读，miss 时用 legacyName 再读一次（readLore 内部走
+ * validateExistingPathSegment，允许 legacy 名）；读到则返回内容供 preserveManagedFrontmatter
+ * 守护受管字段。两者都 miss（真·新建 / race）返回 null。diskName === legacyName 时不重复读盘。
+ *
+ * base 参数二选一（au_path / fandom_path），与 readLore 同款。
+ */
+export async function readLoreWithLegacyFallback(req: {
+  au_path?: string;
+  fandom_path?: string;
+  category: string;
+  diskFilename: string;
+  legacyFilename: string;
+}): Promise<string | null> {
+  const base = req.au_path !== undefined ? { au_path: req.au_path } : { fandom_path: req.fandom_path ?? "" };
+  try {
+    const { content } = await readLore({ ...base, category: req.category, filename: req.diskFilename });
+    return content;
+  } catch {
+    // diskFilename miss
+  }
+  if (req.legacyFilename && req.legacyFilename !== req.diskFilename) {
+    try {
+      const { content } = await readLore({ ...base, category: req.category, filename: req.legacyFilename });
+      return content;
+    } catch {
+      // legacy 名也 miss
+    }
+  }
+  return null;
+}
+
 export async function deleteLore(req: { au_path?: string; fandom_path?: string; category: string; filename: string }) {
   const basePath = req.au_path ?? req.fandom_path ?? "";
   const category = validateExistingPathSegment(req.category);

@@ -19,7 +19,7 @@ vi.mock("../../../api/engine-client", async () => {
     getProjectForEditing: vi.fn(),
     saveLore: vi.fn(),
     deleteLore: vi.fn(),
-    readLore: vi.fn(),
+    readLoreWithLegacyFallback: vi.fn(),
     addPinned: vi.fn(),
     deletePinned: vi.fn(),
     saveProjectCastRegistryCharacters: vi.fn(),
@@ -65,7 +65,8 @@ function setupBaseMocks(opts?: {
   mocked.deletePinned.mockResolvedValue(undefined as never);
   mocked.saveProjectCastRegistryCharacters.mockResolvedValue(undefined as never);
   mocked.saveProjectWritingStyle.mockResolvedValue(undefined as never);
-  mocked.readLore.mockResolvedValue({ content: "" });
+  // readLoreWithLegacyFallback 返回 string | null（null = 旧文件不存在，直接用新内容）。
+  mocked.readLoreWithLegacyFallback.mockResolvedValue(null);
 }
 
 describe("useSimpleToolExecutor — execute", () => {
@@ -147,9 +148,9 @@ describe("useSimpleToolExecutor — execute", () => {
 
   it("modify_character_file: 守护 frontmatter（preserveManagedFrontmatter）", async () => {
     setupBaseMocks({ characters: [{ name: "Alice", filename: "Alice.md" }] });
-    mocked.readLore.mockResolvedValueOnce({
-      content: "---\nname: Alice\naliases:\n  - Al\nimportance: main\n---\n# 旧正文",
-    });
+    mocked.readLoreWithLegacyFallback.mockResolvedValueOnce(
+      "---\nname: Alice\naliases:\n  - Al\nimportance: main\n---\n# 旧正文",
+    );
     const { result } = renderHook(() => useSimpleToolExecutor({ auPath: AU }));
 
     await act(async () => {
@@ -160,8 +161,8 @@ describe("useSimpleToolExecutor — execute", () => {
       });
     });
 
-    expect(mocked.readLore).toHaveBeenCalledWith(
-      expect.objectContaining({ au_path: AU, category: "characters", filename: "Alice.md" }),
+    expect(mocked.readLoreWithLegacyFallback).toHaveBeenCalledWith(
+      expect.objectContaining({ au_path: AU, category: "characters", diskFilename: "Alice.md" }),
     );
     const savedContent = (mocked.saveLore.mock.calls[0][0] as { content: string }).content;
     // preserveManagedFrontmatter 应把 name/aliases/importance 重新塞回去
@@ -173,7 +174,7 @@ describe("useSimpleToolExecutor — execute", () => {
 
   it("modify_character_file: 旧文件不存在时直接用新内容（不阻断）", async () => {
     setupBaseMocks({ characters: [{ name: "Alice", filename: "Alice.md" }] });
-    mocked.readLore.mockRejectedValueOnce(new Error("ENOENT"));
+    mocked.readLoreWithLegacyFallback.mockResolvedValueOnce(null);
     const { result } = renderHook(() => useSimpleToolExecutor({ auPath: AU }));
 
     await act(async () => {
@@ -187,6 +188,51 @@ describe("useSimpleToolExecutor — execute", () => {
     expect(mocked.saveLore).toHaveBeenCalledWith(
       expect.objectContaining({ content: "新内容" }),
     );
+  });
+
+  it("F9: modify_character_file legacy 全角标点名 → sanitize 名 read miss 时回退原名读到、frontmatter 受管字段保留、写落 sanitize 名", async () => {
+    // 预置：磁盘上的 legacy 文件名是未清洗的 "苏：黛.md"（validateExistingPathSegment 允许），
+    // LLM modify 时给同名 → sanitize 后 diskFilename="苏_黛.md"。readLoreWithLegacyFallback 收到
+    // diskFilename + legacyFilename，内部先按 disk 名读 miss、回退 legacy 名读到旧 frontmatter。
+    // 这里直接断言 hook 把两个名都透传给 fallback helper，且读到的 frontmatter 被 preserve、
+    // saveLore 落 sanitize 名。回退旧码（用原名 read 无 fallback）时 helper 参数形状会变、断言挂。
+    setupBaseMocks({ characters: [{ name: "苏黛", filename: "苏：黛.md" }] });
+    mocked.readLoreWithLegacyFallback.mockResolvedValueOnce(
+      "---\nname: 苏黛\nimportance: main\n---\n# 旧正文",
+    );
+    // saveLore echo，验证写路径落 sanitize 名。
+    mocked.saveLore.mockImplementationOnce(async (req) => ({
+      status: "ok",
+      path: `${req.au_path}/${req.category}/${req.filename}`,
+      filename: req.filename,
+      category: req.category,
+    }) as never);
+    const { result } = renderHook(() => useSimpleToolExecutor({ auPath: AU }));
+
+    await act(async () => {
+      await result.current.execute("modify_character_file", {
+        filename: "苏：黛",
+        new_content: "# 全新正文",
+        change_summary: "rewrite",
+      });
+    });
+
+    // helper 同时收到 disk 名（sanitize：： → _）与 legacy 原名，供 miss 时回退。
+    expect(mocked.readLoreWithLegacyFallback).toHaveBeenCalledWith(
+      expect.objectContaining({
+        au_path: AU,
+        category: "characters",
+        diskFilename: "苏_黛.md",
+        legacyFilename: "苏：黛.md",
+      }),
+    );
+    const savedCall = mocked.saveLore.mock.calls[0][0] as { filename: string; content: string };
+    // 写落 sanitize 名（迁移语义：新写统一新名）。
+    expect(savedCall.filename).toBe("苏_黛.md");
+    // 受管 frontmatter 从 legacy 旧文件保留下来（守护未失效）。
+    expect(savedCall.content).toMatch(/name:\s*"?苏黛"?/);
+    expect(savedCall.content).toMatch(/importance:\s*"?main"?/);
+    expect(savedCall.content).toContain("# 全新正文");
   });
 
   it("create_worldbuilding_file: saveLore 落盘 + lore undoMeta", async () => {
@@ -223,7 +269,7 @@ describe("useSimpleToolExecutor — execute", () => {
       });
     });
 
-    expect(mocked.readLore).not.toHaveBeenCalled(); // 世界观不守护 frontmatter
+    expect(mocked.readLoreWithLegacyFallback).not.toHaveBeenCalled(); // 世界观不守护 frontmatter
     expect(mocked.saveLore).toHaveBeenCalledWith(
       expect.objectContaining({ content: "新魔法" }),
     );

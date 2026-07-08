@@ -12,7 +12,7 @@
  * 对 LLM 无意义。thinking placeholder 也是 system kind 自然被跳。
  *
  * 当前 user_input 不应通过此 helper 转换 —— 它由 dispatch.user_input 参数单独
- * 传，engine 端 assemble_context_simple 自己拼。caller 调用前应过滤掉刚 append
+ * 传，engine 端 assemble_chat_context 自己拼。caller 调用前应过滤掉刚 append
  * 的当前 user message。
  */
 
@@ -226,5 +226,37 @@ export function chatToOpenAIMessages(messages: SimpleChatMessage[]): OpenAIChatM
       cleaned.push(m);
     }
   }
-  return cleaned;
+
+  // 全局兜底校验（F7）：上面 orphanedToolIndexes 扫描只处理「紧随」被 downgrade 的
+  // assistant 的那几条 tool 消息；若某条 role:"tool" 与它的 tool_calls 父消息之间被别的
+  // 消息隔开（外部编辑 / 历史重排造成的非相邻配对），前面的相邻扫描 break 在首个非-tool
+  // 消息处会漏掉它。OpenAI 协议硬要求 role:"tool" 紧跟在声明该 tool_call_id 的 assistant
+  // 之后（相邻），否则整段 history 被 400 拒。故对最终产物再过一遍：任何 role:"tool" 若其
+  // tool_call_id 不在**紧邻前方** assistant.tool_calls 里，一并剔除，保证输出零孤儿 tool。
+  const finalMessages: OpenAIChatMessage[] = [];
+  let precedingToolCallIds: Set<string> | null = null;
+  for (const m of cleaned) {
+    if (m.role === "tool") {
+      if (m.tool_call_id && precedingToolCallIds?.has(m.tool_call_id)) {
+        finalMessages.push(m);
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[chat-to-llm] non-adjacent orphan tool message dropped: tool_call_id=${m.tool_call_id ?? "<none>"}; ` +
+          `not owned by the immediately-preceding assistant.tool_calls. Likely reordered/edited chat.yaml.`,
+        );
+      }
+      // role:"tool" 不改变「上一条 assistant 的 tool_calls 上下文」——OpenAI 允许一条
+      // assistant.tool_calls 后跟多条 tool 消息，故不在此清空 precedingToolCallIds。
+      continue;
+    }
+    if (m.role === "assistant" && m.tool_calls && m.tool_calls.length > 0) {
+      precedingToolCallIds = new Set(m.tool_calls.map((tc) => tc.id));
+    } else {
+      // 任何非-tool、非-带-tool_calls-assistant 的消息都会打断相邻关系。
+      precedingToolCallIds = null;
+    }
+    finalMessages.push(m);
+  }
+  return finalMessages;
 }

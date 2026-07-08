@@ -160,6 +160,53 @@ describe("chatToOpenAIMessages", () => {
     }
   });
 
+  it("F7: 非相邻孤儿 tool 消息（被别的消息隔开的配对）→ 全局兜底剔除，输出零孤儿 tool", () => {
+    // 相邻扫描（首个非-tool 消息即 break）漏网的形态：assistant(tool_calls=[call_x]) 后面
+    // 先来一条别的 assistant 文本，才轮到 call_x 的 tool-result。OpenAI 协议要求 role:"tool"
+    // 紧跟声明它的 assistant，被隔开就是孤儿 → 400。旧代码（无全局兜底）会把这条 tool 留在
+    // 结果里；F7 全局校验剔除它。
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const out = chatToOpenAIMessages([
+        { id: "u", kind: "user", timestamp: "t", content: "看第 5 章" },
+        {
+          id: "a1",
+          kind: "assistant",
+          timestamp: "t",
+          content: "让我查一下",
+          toolCalls: [
+            { id: "call_x", name: "show_chapter", args: '{"chapter_num":5}' },
+          ],
+        },
+        // 插入一条别的 assistant 文本，把 call_x 的 tool-result 从其父消息隔开。
+        { id: "a_mid", kind: "assistant", timestamp: "t", content: "顺便说一句" },
+        {
+          id: "tr_x",
+          kind: "tool-result",
+          timestamp: "t",
+          toolCallId: "call_x",
+          toolName: "show_chapter",
+          content: "第五章正文...",
+        },
+      ]);
+
+      // 关键断言：输出里不能有任何 role:"tool"（那条非相邻孤儿被剔除）。回退旧码即挂。
+      expect(out.some((m) => m.role === "tool")).toBe(false);
+      // a1 因 call_x 无相邻配对被 downgrade 为 plain content；a_mid 原样保留。
+      expect(out).toEqual([
+        { role: "user", content: "看第 5 章" },
+        { role: "assistant", content: "让我查一下" },
+        { role: "assistant", content: "顺便说一句" },
+      ]);
+      expect(warnSpy).toHaveBeenCalled();
+      const allWarns = warnSpy.mock.calls.map((c) => String(c?.[0] ?? "")).join("\n");
+      expect(allWarns).toContain("non-adjacent orphan tool message dropped");
+      expect(allWarns).toContain("call_x");
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   it("orphan assistant.toolCalls 但 content 非空 → downgrade 为 plain content 保留", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {

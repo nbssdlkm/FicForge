@@ -54,6 +54,11 @@ export function getFriendlyErrorMessage(
     stream_error: "connection_failed",
     timeout_error: "timeout",
     http_429: "rate_limited",
+    // F8：上一次生成/对话仍在收尾时的 409（引擎 _generating 409 防重入）。两条 409 语义
+    // 相同（都是「在飞请求未释放」），共用一条 friendly 文案，避免用户见到裸机器码困惑
+    // ——尤其「刚点过停止立刻重发」时，取消的 finally 尚未跑完、锁未释放会撞这个码。
+    dispatch_in_progress: "busy_in_progress",
+    generation_in_progress: "busy_in_progress",
   };
 
   const key = aliases[normalized] || normalized;

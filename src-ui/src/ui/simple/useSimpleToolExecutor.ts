@@ -7,7 +7,7 @@
  * 简版 tool call 执行 hook。复用主仓库 settings-chat 的所有 helper：
  *  - validation：getToolValidationError / Missing / Overwrite / Duplicate
  *  - frontmatter：CHARACTER_FRONTMATTER_KEYS / applyManagedFrontmatter / preserve…
- *  - API：saveLore / readLore / deleteLore / addPinned / deletePinned /
+ *  - API：saveLore / readLoreWithLegacyFallback / deleteLore / addPinned / deletePinned /
  *    getProjectForEditing / saveProjectCastRegistryCharacters / saveProjectWritingStyle
  *
  * 此 hook 仅 dispatch 简版支持的 6 个 modify tool（按 P2 物理收紧后 simple
@@ -30,7 +30,7 @@ import {
   deleteLore,
   getProjectForEditing,
   listLoreFiles,
-  readLore,
+  readLoreWithLegacyFallback,
   saveLore,
   sanitizePathSegment,
   saveProjectCastRegistryCharacters,
@@ -208,20 +208,23 @@ export function useSimpleToolExecutor(
         const requestedFilename = normalizeMarkdownFilename(coerceString(args.filename));
         const diskFilename = sanitizePathSegment(requestedFilename);
         let finalContent = coerceString(args.new_content);
-        // 守护 frontmatter 受管字段（name / aliases / importance / origin_ref）防 LLM 误覆盖
-        try {
-          const { content: oldContent } = await readLore({
-            au_path: auPath,
-            category: "characters",
-            filename: diskFilename,
-          });
+        // 守护 frontmatter 受管字段（name / aliases / importance / origin_ref）防 LLM 误覆盖。
+        // F9：sanitize 名 read miss 时回退用原名（validateExistingPathSegment 允许的 legacy
+        // 磁盘名）再读一次 —— 早期未清洗即落盘的含全角标点文件，磁盘真名 ≠ sanitize 名，
+        // 若只按 sanitize 名读会 miss → 静默丢失受管字段守护。迁移语义：旧名内容保留守护、
+        // 新写统一落 sanitize 名（下方 saveLore 仍用 diskFilename）。
+        const oldContent = await readLoreWithLegacyFallback({
+          au_path: auPath,
+          category: "characters",
+          diskFilename,
+          legacyFilename: requestedFilename,
+        });
+        if (oldContent !== null) {
           finalContent = preserveManagedFrontmatter(
             oldContent,
             finalContent,
             CHARACTER_FRONTMATTER_KEYS,
           );
-        } catch {
-          // 旧文件不存在的 race 直接用新内容
         }
         const saved = await saveLore({
           au_path: auPath,

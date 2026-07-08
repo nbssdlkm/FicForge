@@ -9,7 +9,7 @@
 import yaml from "js-yaml";
 import { safeMatter } from "../domain/frontmatter.js";
 import type { PlatformAdapter } from "../platform/adapter.js";
-import { joinPath } from "../repositories/implementations/file_utils.js";
+import { atomicWrite, joinPath } from "../repositories/implementations/file_utils.js";
 
 /**
  * 角色设定文件 frontmatter 的合法键集合（settings-chat 提示词约定的 schema：
@@ -34,6 +34,23 @@ export interface TrashEntry {
   expires_at: string;
   metadata: Record<string, unknown>;
 }
+
+/**
+ * restore 冲突策略（F5）：
+ * - `abort`（默认，= 历史行为）：原位已有不同内容的同名文件时中止，回收站完整保留，抛冲突错误。
+ * - `overwrite`：以回收站副本为准覆盖原位。**覆盖前先把原位当前文件备份进本条目的
+ *   overwrite-backup sidecar**（`.trash/<trash_path>.overwrite-backup/…`），绝不无备份覆盖
+ *   —— 用户「原位被自己编辑过 / 被半恢复文件占住」时得以强制恢复，且被覆盖的当前版本可从
+ *   sidecar 手工找回。
+ */
+export type RestoreConflictPolicy = "abort" | "overwrite";
+
+/**
+ * 冲突错误码常量（单一真相源）：API 层据此把 message 映射成 friendly i18n 文案。
+ * restore 冲突用 `RESTORE_CONFLICT` 前缀，permanent_delete 半恢复用 `HALF_RESTORED` 前缀。
+ */
+export const RESTORE_CONFLICT_MARKER = "RESTORE_CONFLICT";
+export const HALF_RESTORED_MARKER = "HALF_RESTORED";
 
 // ---------------------------------------------------------------------------
 // 核心服务
@@ -241,7 +258,8 @@ export class TrashService {
       const content = await this.adapter.readFile(source);
       const dir = trashTarget.substring(0, trashTarget.lastIndexOf("/"));
       await this.adapter.mkdir(dir);
-      await this.adapter.writeFile(trashTarget, content);
+      // 原子写（F5）：崩溃只会留下 .tmp，正式路径要么完整要么缺失，不出现半截副本。
+      await atomicWrite(this.adapter, trashTarget, content);
       trashCopyWritten = true;
       await this.appendManifest(scopeRoot, entry);
       manifestAppended = true;
@@ -289,22 +307,38 @@ export class TrashService {
     return this.readManifest(scopeRoot);
   }
 
-  async restore(scopeRoot: string, trashId: string): Promise<TrashEntry> {
-    return this.runExclusive(scopeRoot, () => this._restore(scopeRoot, trashId));
+  async restore(
+    scopeRoot: string,
+    trashId: string,
+    onConflict: RestoreConflictPolicy = "abort",
+  ): Promise<TrashEntry> {
+    return this.runExclusive(scopeRoot, () => this._restore(scopeRoot, trashId, onConflict));
   }
 
-  private async _restore(scopeRoot: string, trashId: string): Promise<TrashEntry> {
+  private async _restore(
+    scopeRoot: string,
+    trashId: string,
+    onConflict: RestoreConflictPolicy,
+  ): Promise<TrashEntry> {
     const entries = await this.readManifest(scopeRoot);
     const targetEntry = entries.find((e) => e.trash_id === trashId);
     if (!targetEntry) throw new Error(`垃圾箱项不存在: ${trashId}`);
 
     if (this.isDirectoryEntry(targetEntry)) {
-      return this.restoreDirectoryEntry(scopeRoot, targetEntry);
+      return this.restoreDirectoryEntry(scopeRoot, targetEntry, onConflict);
     }
 
     const originalDest = joinPath(scopeRoot, targetEntry.original_path);
     if (await this.adapter.exists(originalDest)) {
-      throw new Error(`无法恢复，原路径已存在: ${targetEntry.original_path}`);
+      if (onConflict !== "overwrite") {
+        // F5：区分场景文案 —— 原位已有不同内容的同名文件（用户新建 / 编辑过），
+        // API 层据 RESTORE_CONFLICT_MARKER 映射成 friendly 文案，UI 提供「以回收站版本覆盖」出路。
+        throw new Error(
+          `${RESTORE_CONFLICT_MARKER}: 无法恢复，原路径已存在同名文件（内容可能已被改动）: ${targetEntry.original_path}`,
+        );
+      }
+      // overwrite：覆盖前先把原位当前文件备份进本条目 sidecar（不许无备份覆盖）。
+      await this.backupBeforeOverwrite(scopeRoot, targetEntry, "");
     }
 
     const trashSource = joinPath(scopeRoot, ".trash", targetEntry.trash_path);
@@ -313,11 +347,12 @@ export class TrashService {
       throw new Error(`垃圾箱中的文件已丢失: ${targetEntry.trash_path}`);
     }
 
-    // 兼容 adapter：使用 read + write + delete 实现“移动”
+    // 兼容 adapter：使用 read + write + delete 实现“移动”。写入原子（F5）：
+    // 崩溃只留 .tmp，原位要么完整恢复要么保持缺失，不出现半截文件。
     const content = await this.adapter.readFile(trashSource);
     const dir = originalDest.substring(0, originalDest.lastIndexOf("/"));
     await this.adapter.mkdir(dir);
-    await this.adapter.writeFile(originalDest, content);
+    await atomicWrite(this.adapter, originalDest, content);
     await this.adapter.deleteFile(trashSource);
     await this.removeFromManifest(scopeRoot, trashId);
 
@@ -343,30 +378,31 @@ export class TrashService {
       const trashRoot = joinPath(scopeRoot, ".trash", targetEntry.trash_path);
       const files = await this.collectTreeFiles(trashRoot);
 
-      // M30：半成品保护。若该目录处于"半恢复"状态（部分文件已写回原位、其余仍只在 trash），
-      // 直接删整棵 trash 树会把"未恢复的那些文件"的唯一副本一并销毁 —— 用户本想用
+      // M30 + F5：半成品保护。若该目录处于"半恢复"状态（部分文件已在原位、其余仍只在 trash），
+      // 直接删整棵 trash 树会把"只在 trash 的那些文件"的唯一副本一并销毁 —— 用户本想用
       // permanent_delete 清掉一个"恢复失败"的残局，结果反而丢了还没恢复的数据。
-      // 判据：存在至少一个文件其原位副本与 trash 副本逐字节一致（= 已恢复过）。
-      // 命中则拒绝删除，提示先完成恢复（restore 现已支持续传）或手工处理，避免静默丢数据。
-      let anyRestored = false;
-      let anyUnrestored = false;
+      // 判据（F5 修正）：以「文件是否已回到原位」而非「是否与 trash 逐字节一致」判定 ——
+      //   anyInPlace   = 至少一个文件已在原位（不论已被用户编辑：编辑过=依旧在原位）
+      //   anyOnlyInTrash = 至少一个文件原位缺失（trash 副本是唯一版本）
+      // 二者同真 = 半恢复：删 trash 会丢 only-in-trash 的文件。旧判据只认「逐字节一致=已恢复」，
+      // 用户编辑了已恢复文件后该文件不再字节一致 → 被误判为未恢复 → anyRestored 全 false →
+      // 放行删除，静默丢掉仍只在 trash 的兄弟文件（F5 死锁态的第二半）。改按「在原位与否」后，
+      // 编辑过的已恢复文件仍算 in-place，半恢复态被正确识别、拒绝，逼用户走 restore（含覆盖）出路。
+      let anyInPlace = false;
+      let anyOnlyInTrash = false;
       for (const fileRel of files) {
         const originalDest = joinPath(scopeRoot, targetEntry.original_path, fileRel);
-        if (!(await this.adapter.exists(originalDest))) { anyUnrestored = true; continue; }
-        const [destContent, srcContent] = await Promise.all([
-          this.adapter.readFile(originalDest).catch(() => null),
-          this.adapter.readFile(joinPath(trashRoot, fileRel)).catch(() => null),
-        ]);
-        if (destContent !== null && srcContent !== null && destContent === srcContent) {
-          anyRestored = true;
+        if (await this.adapter.exists(originalDest)) {
+          anyInPlace = true;
         } else {
-          // 原位有同名但内容不同的文件：视作未恢复（trash 副本仍是该数据的唯一版本）。
-          anyUnrestored = true;
+          anyOnlyInTrash = true;
         }
       }
-      if (anyRestored && anyUnrestored) {
+      if (anyInPlace && anyOnlyInTrash) {
+        // F5：带 HALF_RESTORED_MARKER，API 层映射成 friendly 文案指引用户先完成恢复
+        //（restore 支持续传；原位被编辑过的冲突文件可用「以回收站版本覆盖」出路）。
         throw new Error(
-          `无法永久删除：该目录处于半恢复状态，部分文件尚未恢复到原位，` +
+          `${HALF_RESTORED_MARKER}: 无法永久删除：该目录处于半恢复状态，部分文件尚未恢复到原位，` +
           `直接删除会丢失这些文件。请先点击"恢复"完成续传后再删除。`,
         );
       }
@@ -461,7 +497,8 @@ export class TrashService {
     const content = entries.length > 0
       ? entries.map((e) => JSON.stringify(e)).join("\n") + "\n"
       : "";
-    await this.adapter.writeFile(mp, content);
+    // 原子写（F5）：manifest 是回收站的唯一真相源，截断即孤儿；rename 提交保完整。
+    await atomicWrite(this.adapter, mp, content);
   }
 
   private async appendManifest(scopeRoot: string, entry: TrashEntry): Promise<void> {
@@ -470,12 +507,13 @@ export class TrashService {
     await this.adapter.mkdir(dir);
     const line = JSON.stringify(entry) + "\n";
     const exists = await this.adapter.exists(mp);
+    // 原子写（F5）：读改写 manifest 中途崩溃会截断唯一真相源 → 条目丢失 = 副本孤儿。
     if (exists) {
       const existing = await this.adapter.readFile(mp);
       const prefix = existing.length > 0 && !existing.endsWith("\n") ? "\n" : "";
-      await this.adapter.writeFile(mp, existing + prefix + line);
+      await atomicWrite(this.adapter, mp, existing + prefix + line);
     } else {
-      await this.adapter.writeFile(mp, line);
+      await atomicWrite(this.adapter, mp, line);
     }
   }
 
@@ -489,7 +527,11 @@ export class TrashService {
     return entry.metadata?.is_directory === true;
   }
 
-  private async restoreDirectoryEntry(scopeRoot: string, entry: TrashEntry): Promise<TrashEntry> {
+  private async restoreDirectoryEntry(
+    scopeRoot: string,
+    entry: TrashEntry,
+    onConflict: RestoreConflictPolicy,
+  ): Promise<TrashEntry> {
     const trashRoot = joinPath(scopeRoot, ".trash", entry.trash_path);
     if (!(await this.adapter.exists(trashRoot))) {
       await this.removeFromManifest(scopeRoot, entry.trash_id);
@@ -503,12 +545,15 @@ export class TrashService {
     // 报 restore conflict → 重试永远撞在自己上一轮恢复的那几个文件上，恢复被永久卡死。
     // 修法：预检时区分"半成品自身"（内容与 trash 副本逐字节一致 = 上一轮已恢复）与
     // "真冲突"（原位置已有不同内容的同名文件）。前者可跳过续传，仅后者才是硬冲突。
+    // F5：真冲突时若 onConflict='overwrite'，先把原位当前文件备份进本条目 sidecar，
+    // 再列入 pending 覆盖（不许无备份覆盖）；否则维持 abort 行为、抛带 marker 的冲突错误
+    // ——这修复「用户编辑了半恢复目录里已恢复的文件后 restore/permanent_delete 双拒」的死锁。
     const pending: string[] = [];
     for (const fileRel of files) {
       const trashSource = joinPath(trashRoot, fileRel);
       const originalDest = joinPath(scopeRoot, entry.original_path, fileRel);
       if (await this.adapter.exists(originalDest)) {
-        // 已存在：只有内容一致（半成品）才放行续传；否则是真冲突，中止（trash 完整保留）。
+        // 已存在：只有内容一致（半成品）才放行续传；否则是真冲突。
         const [destContent, srcContent] = await Promise.all([
           this.adapter.readFile(originalDest).catch(() => null),
           this.adapter.readFile(trashSource).catch(() => null),
@@ -516,7 +561,12 @@ export class TrashService {
         if (destContent !== null && srcContent !== null && destContent === srcContent) {
           continue; // 上一轮已恢复该文件，续传时跳过
         }
-        throw new Error(`restore conflict: ${entry.original_path}/${fileRel}`);
+        if (onConflict === "overwrite") {
+          await this.backupBeforeOverwrite(scopeRoot, entry, fileRel);
+          pending.push(fileRel); // 备份后列入覆盖
+          continue;
+        }
+        throw new Error(`${RESTORE_CONFLICT_MARKER}: restore conflict: ${entry.original_path}/${fileRel}`);
       }
       pending.push(fileRel);
     }
@@ -592,7 +642,57 @@ export class TrashService {
     const content = await this.adapter.readFile(source);
     const dir = dest.substring(0, dest.lastIndexOf("/"));
     await this.adapter.mkdir(dir);
-    await this.adapter.writeFile(dest, content);
+    // 原子写（F5）：copyTextFile 被树入回收站 / restore copy-back 复用；直写非原子在
+    // Android 后台杀进程/断电时会留半截副本，损伤固化。atomicWrite 经 rename 提交，
+    // 崩溃只剩 .tmp、目标要么完整要么缺失，回滚判据（源存在性 / 逐字节比对）不被污染。
+    await atomicWrite(this.adapter, dest, content);
+  }
+
+  /** overwrite 恢复的备份 sidecar 根：`.trash/<trash_path>.overwrite-backup`。 */
+  private overwriteBackupRoot(scopeRoot: string, entry: TrashEntry): string {
+    return joinPath(scopeRoot, ".trash", `${entry.trash_path}.overwrite-backup`);
+  }
+
+  /**
+   * overwrite 恢复覆盖原位文件前，把原位当前内容备份进本条目 sidecar（F5）。
+   * fileRel="" 表示单文件条目（备份到 `<root>/__file__`）；目录条目按相对路径分层备份。
+   * 「不许无备份覆盖」硬约束：备份写失败即抛错，让上层中止覆盖（宁可不恢复也不销毁当前版本）。
+   * 原位文件确实不存在（exists→read 探测竞态）时无需备份，静默跳过 —— 此时覆盖不毁任何数据；
+   * 但「存在却读失败」是故障，上抛中止（F-7）。备份目标已存在时追加 -2/-3 后缀不覆盖旧备份（F-8）。
+   */
+  private async backupBeforeOverwrite(scopeRoot: string, entry: TrashEntry, fileRel: string): Promise<void> {
+    const originalDest = fileRel
+      ? joinPath(scopeRoot, entry.original_path, fileRel)
+      : joinPath(scopeRoot, entry.original_path);
+    let current: string;
+    try {
+      current = await this.adapter.readFile(originalDest);
+    } catch (err) {
+      // F-7：只吞「文件确实不存在」（exists→read 之间的探测竞态）—— 此时覆盖不销毁任何数据。
+      // 其余读失败（权限 / IO 故障）说明原位有文件却读不出，吞掉会变成「无备份覆盖」，
+      // 必须上抛让 overwrite 中止；exists 复探失败也按仍存在处理（宁可中止，不冒险）。
+      let stillExists = true;
+      try {
+        stillExists = await this.adapter.exists(originalDest);
+      } catch {
+        stillExists = true;
+      }
+      if (!stillExists) return;
+      throw err;
+    }
+    const backupBase = fileRel
+      ? joinPath(this.overwriteBackupRoot(scopeRoot, entry), fileRel)
+      : joinPath(this.overwriteBackupRoot(scopeRoot, entry), "__file__");
+    // F-8：同条目重复 overwrite（如上一轮覆盖恢复中途失败后重试）不覆盖旧备份 ——
+    // 目标已存在时找空闲后缀（-2 / -3 …），每一轮被覆盖的原位版本各留一份。
+    let backupTarget = backupBase;
+    for (let i = 2; await this.adapter.exists(backupTarget); i++) {
+      backupTarget = `${backupBase}-${i}`;
+    }
+    const dir = backupTarget.substring(0, backupTarget.lastIndexOf("/"));
+    await this.adapter.mkdir(dir);
+    // 原子写：备份本身也不能留半截；失败向上抛，overwrite 中止（不无备份覆盖）。
+    await atomicWrite(this.adapter, backupTarget, current);
   }
 
   /**
@@ -696,7 +796,8 @@ export class TrashService {
       castRegistry.characters = names;
       raw.cast_registry = castRegistry;
       const content = yaml.dump(raw, { sortKeys: false, lineWidth: -1 });
-      await this.adapter.writeFile(projectPath, content);
+      // 原子写（F5）：project.yaml 截断会连带丢整份工程配置，损失远超 cast_registry 一行。
+      await atomicWrite(this.adapter, projectPath, content);
     } catch {
       // ignore
     }

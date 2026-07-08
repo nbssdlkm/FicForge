@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { MockAdapter } from "../../../../src-engine/repositories/__tests__/mock_adapter.js";
 import { createAu, createFandom } from "../engine-fandom";
 import { initEngine } from "../engine-instance";
-import { importFromFandom, readLore, sanitizePathSegment, saveLore } from "../engine-lore";
+import { importFromFandom, readLore, readLoreWithLegacyFallback, sanitizePathSegment, saveLore } from "../engine-lore";
 
 describe("engine-lore path sanitization", () => {
   const dataDir = "/data";
@@ -113,5 +113,46 @@ describe("engine-lore path sanitization", () => {
     // 用返回的真名能读回内容（闭环验证）。
     const back = await readLore({ au_path: "au1", category: saved.category, filename: saved.filename });
     expect(back.content).toBe("# 林黛玉");
+  });
+
+  it("F9: readLoreWithLegacyFallback — sanitize 名 miss 时回退 legacy 原名读到旧内容", async () => {
+    // 磁盘上是未清洗的 legacy 文件名（含全角标点，validateExistingPathSegment 允许保留）。
+    // modify_* 会先按 sanitize 后的 diskFilename 读（miss），再回退 legacy 名读到守护用的旧内容。
+    const legacyContent = "---\nname: 苏黛\nimportance: main\n---\n# 旧正文";
+    adapter.seed("au1/characters/苏：黛.md", legacyContent);
+
+    const content = await readLoreWithLegacyFallback({
+      au_path: "au1",
+      category: "characters",
+      diskFilename: "苏_黛.md", // sanitize 后（： → _），磁盘上不存在此名
+      legacyFilename: "苏：黛.md", // 磁盘真名
+    });
+
+    expect(content).toBe(legacyContent);
+  });
+
+  it("F9: readLoreWithLegacyFallback — disk 名存在时优先读 disk（不误读 legacy）", async () => {
+    adapter.seed("au1/characters/苏_黛.md", "# 已迁移正文");
+    adapter.seed("au1/characters/苏：黛.md", "# 旧遗留正文");
+
+    const content = await readLoreWithLegacyFallback({
+      au_path: "au1",
+      category: "characters",
+      diskFilename: "苏_黛.md",
+      legacyFilename: "苏：黛.md",
+    });
+
+    // disk 名命中即返回，不回退 legacy（迁移后统一新名，旧名不该再被读到）。
+    expect(content).toBe("# 已迁移正文");
+  });
+
+  it("F9: readLoreWithLegacyFallback — 两名皆不存在（真·新建）返回 null", async () => {
+    const content = await readLoreWithLegacyFallback({
+      au_path: "au1",
+      category: "characters",
+      diskFilename: "全新.md",
+      legacyFilename: "全新.md",
+    });
+    expect(content).toBeNull();
   });
 });

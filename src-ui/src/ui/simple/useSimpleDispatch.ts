@@ -103,6 +103,13 @@ export function useSimpleDispatch(auPath: string): UseSimpleDispatchResult {
   }, [auPath]);
 
   const cancelDispatch = useCallback(() => {
+    // F8：立即 abort + 复位 isStreaming 保证输入框秒回可用（用户体验优先）。engine 侧的
+    // chapter_inflight 锁在被 abort 的 async generator 被 `for await` 循环 break 后经其
+    // finally（simple_chat_dispatch.ts）异步释放，`cancelDispatch` 拿不到该迭代器句柄、
+    // 也不宜同步 await（会卡住 UI，且 generator 可能不立即终止）。故不在此等待锁释放；
+    // 「刚点停立刻重发」撞上尚未释放的 DISPATCH_IN_PROGRESS/GENERATION_IN_PROGRESS 409 时，
+    // 由 getFriendlyErrorMessage 的 busy_in_progress 文案兜底（提示稍候一两秒再发），
+    // 而非把裸机器码抛给用户。
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;

@@ -85,7 +85,7 @@ function getEntryLabel(entry: TrashEntry): string {
 
 export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled = false }: TrashPanelProps) {
   const { t, i18n } = useTranslation();
-  const { showError, showSuccess } = useFeedback();
+  const { showError, showSuccess, showToast } = useFeedback();
   const [isExpanded, setIsExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [entries, setEntries] = useState<TrashEntry[]>([]);
@@ -93,7 +93,8 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
   const [isClearingAll, setIsClearingAll] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<TrashEntry | null>(null);
   const [clearAllOpen, setClearAllOpen] = useState(false);
-  const [restoreConflictOpen, setRestoreConflictOpen] = useState(false);
+  // F5：冲突时记住是哪个条目，供「以回收站版本恢复（覆盖当前）」按钮走 overwrite 路径。
+  const [restoreConflictEntry, setRestoreConflictEntry] = useState<TrashEntry | null>(null);
   const requestGuard = useActiveRequestGuard(`${scope}:${path ?? ""}`);
   const timeLocale = i18n.resolvedLanguage === "en" ? "en-US" : "zh-CN";
 
@@ -104,7 +105,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
     setIsClearingAll(false);
       setDeleteTarget(null);
       setClearAllOpen(false);
-      setRestoreConflictOpen(false);
+      setRestoreConflictEntry(null);
   }, [path, scope]);
 
   const loadEntries = async () => {
@@ -138,24 +139,34 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
     void loadEntries();
   }, [isExpanded]);
 
-  const handleRestore = async (entry: TrashEntry) => {
+  const handleRestore = async (entry: TrashEntry, onConflict: "abort" | "overwrite" = "abort") => {
     if (!path || disabled) return;
     const contextKey = `${scope}:${path}`;
     setPendingId(entry.trash_id);
     try {
-      await restoreTrash(scope, path, entry.trash_id);
+      await restoreTrash(scope, path, entry.trash_id, onConflict);
       if (requestGuard.isKeyStale(contextKey)) return;
       setEntries((current) => current.filter((item) => item.trash_id !== entry.trash_id));
+      setRestoreConflictEntry(null);
       try {
         await onRestore?.(entry);
       } catch {
         // Restore already succeeded; avoid surfacing a conflicting generic error toast.
       }
-      showSuccess(t("trash.restoreSuccess", { name: getEntryLabel(entry) }));
+      showSuccess(
+        onConflict === "overwrite"
+          ? t("trash.restoreOverwriteSuccess", { name: getEntryLabel(entry) })
+          : t("trash.restoreSuccess", { name: getEntryLabel(entry) }),
+      );
     } catch (error) {
       if (requestGuard.isKeyStale(contextKey)) return;
-      if (error instanceof ApiError && error.errorCode.toLowerCase() === "restore_conflict") {
-        setRestoreConflictOpen(true);
+      // F5：仅 abort 路径撞冲突时弹「以回收站版本覆盖」出路；overwrite 已备份仍失败则照常报错。
+      if (
+        onConflict === "abort"
+        && error instanceof ApiError
+        && error.errorCode.toLowerCase() === "restore_conflict"
+      ) {
+        setRestoreConflictEntry(entry);
         return;
       }
       showError(error, t("error_messages.unknown"));
@@ -178,7 +189,15 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
       setDeleteTarget(null);
     } catch (error) {
       if (requestGuard.isKeyStale(contextKey)) return;
-      showError(error, t("error_messages.unknown"));
+      // F5：半恢复态拒绝删除 → 展示 friendly 指引（先完成恢复 / 覆盖），而非裸引擎 message。
+      // ApiError.userMessage 里是带 marker 的引擎原文，getMessage 会优先它、忽略 fallback，
+      // 故这里直接 showToast 友好文案，不走 showError。
+      if (error instanceof ApiError && error.errorCode.toLowerCase() === "trash_half_restored") {
+        showToast(t("trash.halfRestored"), "error");
+        setDeleteTarget(null);
+      } else {
+        showError(error, t("error_messages.unknown"));
+      }
       await loadEntries();
     } finally {
       if (!requestGuard.isKeyStale(contextKey)) {
@@ -361,15 +380,29 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
       </Modal>
 
       <Modal
-        isOpen={restoreConflictOpen}
-        onClose={() => setRestoreConflictOpen(false)}
+        isOpen={restoreConflictEntry !== null}
+        onClose={() => setRestoreConflictEntry(null)}
         title={t("trash.restore")}
       >
         <div className="space-y-4">
           <p className="text-sm text-text/90">{t("trash.restoreConflict")}</p>
-          <div className="flex justify-end">
-            <Button tone="accent" fill="solid" onClick={() => setRestoreConflictOpen(false)}>
-              {t("shared.feedback.acknowledge")}
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button tone="neutral" fill="plain" onClick={() => setRestoreConflictEntry(null)}>
+              {t("common.actions.cancel")}
+            </Button>
+            {/* F5：以回收站版本覆盖当前（引擎覆盖前会先备份当前文件进回收站）。 */}
+            <Button
+              tone="accent"
+              fill="solid"
+              disabled={pendingId !== null || disabled}
+              onClick={() => {
+                const entry = restoreConflictEntry;
+                if (!entry) return;
+                setRestoreConflictEntry(null);
+                void handleRestore(entry, "overwrite");
+              }}
+            >
+              {t("trash.restoreConflictOverwrite")}
             </Button>
           </div>
         </div>

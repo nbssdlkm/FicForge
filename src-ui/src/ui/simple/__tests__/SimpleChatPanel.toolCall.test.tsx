@@ -42,7 +42,7 @@ vi.mock("../../../api/engine-client", async () => {
     getSimpleChat: vi.fn(),
     saveSimpleChat: vi.fn(),
     saveLore: vi.fn(),
-    readLore: vi.fn(),
+    readLoreWithLegacyFallback: vi.fn(),
     deleteLore: vi.fn(),
     listLoreFiles: vi.fn(),
     addPinned: vi.fn(),
@@ -105,7 +105,7 @@ function setupBaseMocks() {
     category: req.category,
   }) as never);
   mocked.deleteLore.mockResolvedValue(undefined as never);
-  mocked.readLore.mockResolvedValue({ content: "" });
+  mocked.readLoreWithLegacyFallback.mockResolvedValue(null);
   mocked.addPinned.mockResolvedValue(undefined as never);
   mocked.deletePinned.mockResolvedValue(undefined as never);
   mocked.saveProjectCastRegistryCharacters.mockResolvedValue(undefined as never);

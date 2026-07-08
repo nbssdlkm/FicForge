@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { TrashService } from "../trash_service.js";
+import { TrashService, RESTORE_CONFLICT_MARKER, HALF_RESTORED_MARKER } from "../trash_service.js";
 import { recalc_state } from "../recalc_state.js";
 import { confirm_chapter } from "../confirm_chapter.js";
 import { createState } from "../../domain/state.js";
@@ -18,16 +18,43 @@ import { FileFactRepository } from "../../repositories/implementations/file_fact
 /**
  * 可注入故障的 adapter：在指定路径的 writeFile / deleteFile 上抛错，
  * 用于验证 move_to_trash 的半成功回滚（审计①②）。
+ *
+ * F5：trash_service 的写入已收编 atomicWrite（写 `<path>.tmp` → rename 到 `<path>`），
+ * 故 failWrite 的判据对「逻辑目标路径」生效 —— writeFile 收到 `<path>.tmp` 时按去掉 .tmp
+ * 的逻辑路径匹配，rename 提交到目标路径时也按目标路径匹配。这样测试注入「写 X 失败」不必
+ * 关心 atomicWrite 的 .tmp 中间态，语义仍是「X 这个文件写不成」。
  */
 class FaultyAdapter extends MockAdapter {
   failWrite: (path: string) => boolean = () => false;
   failDelete: (path: string) => boolean = () => false;
+  /** F-7：指定路径 readFile 抛错（文件仍存在 —— 模拟权限 / IO 故障，非「不存在」）。 */
+  failRead: (path: string) => boolean = () => false;
   /** 记录所有 deleteFile 调用（含失败的），用于断言「manifest 未落库前不删源」的顺序。 */
   deleteCalls: string[] = [];
 
+  private logicalTarget(path: string): string {
+    return path.endsWith(".tmp") ? path.slice(0, -".tmp".length) : path;
+  }
+
+  async readFile(path: string): Promise<string> {
+    if (this.failRead(path)) throw new Error(`simulated read failure: ${path}`);
+    return super.readFile(path);
+  }
+
   async writeFile(path: string, content: string): Promise<void> {
-    if (this.failWrite(path)) throw new Error(`simulated write failure: ${path}`);
+    if (this.failWrite(this.logicalTarget(path))) {
+      throw new Error(`simulated write failure: ${this.logicalTarget(path)}`);
+    }
     return super.writeFile(path, content);
+  }
+
+  async rename(oldPath: string, newPath: string): Promise<void> {
+    // atomicWrite 的提交步：按目标路径判据（.tmp 已在 writeFile 阶段放行，这里模拟
+    // 「提交到 X 失败」——但为避免双重触发，rename 只在目标命中且 .tmp 源确实存在时抛）。
+    if (this.failWrite(this.logicalTarget(newPath))) {
+      throw new Error(`simulated write failure: ${this.logicalTarget(newPath)}`);
+    }
+    return super.rename(oldPath, newPath);
   }
 
   async deleteFile(path: string): Promise<void> {
@@ -376,6 +403,142 @@ describe("TrashService", () => {
     // 续传恢复后一切归位（验证拒绝不是死路，用户有出路）。
     await t.restore("fandom1", entry.trash_id);
     expect(faulty.raw("fandom1/aus/AU1/b.md")).toBe("B-content");
+  });
+
+  // ---------------------------------------------------------------------------
+  // F5：半恢复 + 用户编辑过已恢复文件 → 死锁态破解（abort/overwrite/permanent_delete 三态）
+  // ---------------------------------------------------------------------------
+  it("F5: 半恢复目录中用户编辑了已恢复文件 → abort 报冲突（带 marker）、overwrite 覆盖成功且原文件有备份、permanent_delete 仍拒", async () => {
+    const faulty = new FaultyAdapter();
+    faulty.seed("fandom1/aus/AU1/a.md", "A-content");
+    faulty.seed("fandom1/aus/AU1/b.md", "B-content");
+    const t = new TrashService(faulty, 30);
+    const entry = await t.move_tree_to_trash("fandom1", "aus/AU1", "au", "AU1");
+
+    // 制造半恢复：a.md 恢复成功、b.md 写回失败 → 半成品（a 已在原位、b 仍只在 trash）。
+    faulty.failWrite = (p) => p === "fandom1/aus/AU1/b.md";
+    await expect(t.restore("fandom1", entry.trash_id)).rejects.toThrow(/未完成|续传/);
+    faulty.failWrite = () => false;
+
+    // 用户此刻编辑了已恢复的 a.md（原位内容 ≠ trash 副本）→ a 成「真冲突」，b 仍未恢复。
+    // 这正是死锁态：abort restore 撞 a 的冲突、permanent_delete 撞半恢复保护，两头堵死。
+    faulty.seed("fandom1/aus/AU1/a.md", "A-content-EDITED-by-user");
+
+    // (1) abort 恢复：撞 a 的真冲突 → 抛带 RESTORE_CONFLICT_MARKER 的错误（供 API 映射 friendly）。
+    await expect(t.restore("fandom1", entry.trash_id, "abort"))
+      .rejects.toThrow(new RegExp(RESTORE_CONFLICT_MARKER));
+
+    // (2) permanent_delete 仍拒（半恢复保护未被 F5 削弱）：带 HALF_RESTORED_MARKER。
+    await expect(t.permanent_delete("fandom1", entry.trash_id))
+      .rejects.toThrow(new RegExp(HALF_RESTORED_MARKER));
+    // b.md 的 trash 副本仍在（唯一版本未丢）。
+    expect(faulty.allFiles().filter((f) => f.includes("/.trash/") && f.endsWith("/b.md"))).toHaveLength(1);
+
+    // (3) overwrite 恢复：以回收站版本覆盖 a（用户编辑丢弃但已备份）、补齐 b → 全部归位。
+    await t.restore("fandom1", entry.trash_id, "overwrite");
+    // a.md 原位 = 回收站原始版本（A-content），用户的编辑被覆盖但……
+    expect(faulty.raw("fandom1/aus/AU1/a.md")).toBe("A-content");
+    // b.md 也补齐了。
+    expect(faulty.raw("fandom1/aus/AU1/b.md")).toBe("B-content");
+    // ……用户被覆盖的编辑版本有备份进本条目 sidecar（不无备份覆盖）。
+    const backups = faulty.allFiles().filter((f) => f.includes(".overwrite-backup"));
+    const aBackup = backups.find((f) => f.endsWith("/a.md"));
+    expect(aBackup).toBeDefined();
+    expect(faulty.raw(aBackup!)).toBe("A-content-EDITED-by-user");
+    // manifest 清空、trash 树副本清掉（恢复真正完成）；备份 sidecar 有意保留（不计入）。
+    expect(await t.list_trash("fandom1")).toHaveLength(0);
+    const leftoverTreeCopies = faulty.allFiles().filter(
+      (f) => f.includes("/.trash/aus/") && f.endsWith(".md") && !f.includes(".overwrite-backup"),
+    );
+    expect(leftoverTreeCopies).toHaveLength(0);
+  });
+
+  it("F5: 单文件 restore 原位被占（内容不同）→ abort 抛 marker；overwrite 覆盖并备份原文件", async () => {
+    const adapter2 = new MockAdapter();
+    adapter2.seed("au1/notes/n.md", "original");
+    const t = new TrashService(adapter2, 30);
+    const entry = await t.move_to_trash("au1", "notes/n.md", "file", "n");
+    // 原位被一个内容不同的同名文件占住。
+    adapter2.seed("au1/notes/n.md", "someone else's edit");
+
+    // abort：抛带 marker 的冲突（旧「原路径已存在」文案升级为 marker 前缀）。
+    await expect(t.restore("au1", entry.trash_id, "abort"))
+      .rejects.toThrow(new RegExp(RESTORE_CONFLICT_MARKER));
+
+    // overwrite：备份当前 + 覆盖成回收站版本。
+    await t.restore("au1", entry.trash_id, "overwrite");
+    expect(adapter2.raw("au1/notes/n.md")).toBe("original");
+    // 当前被覆盖的版本备份进 sidecar（单文件条目备份到 __file__）。
+    const fileBackup = adapter2.allFiles().find((f) => f.includes(".overwrite-backup") && f.endsWith("/__file__"));
+    expect(fileBackup).toBeDefined();
+    expect(adapter2.raw(fileBackup!)).toBe("someone else's edit");
+    expect(await t.list_trash("au1")).toHaveLength(0);
+  });
+
+  it("F-7: overwrite 备份前原位读失败（文件仍存在）→ 中止覆盖、原位不动、条目保留", async () => {
+    const faulty = new FaultyAdapter();
+    faulty.seed("au1/notes/n.md", "original");
+    const t = new TrashService(faulty, 30);
+    const entry = await t.move_to_trash("au1", "notes/n.md", "file", "n");
+    faulty.seed("au1/notes/n.md", "user current edit");
+
+    // 原位文件存在但读失败（权限 / IO 故障）——不是「不存在」的探测竞态，
+    // 吞掉会变成无备份覆盖，必须上抛中止。
+    faulty.failRead = (p) => p === "au1/notes/n.md";
+    await expect(t.restore("au1", entry.trash_id, "overwrite")).rejects.toThrow(/simulated read failure/);
+
+    // 原位当前文件未被覆盖，也没有写出任何备份（备份内容都读不出）。
+    expect(faulty.raw("au1/notes/n.md")).toBe("user current edit");
+    expect(faulty.allFiles().some((f) => f.includes(".overwrite-backup"))).toBe(false);
+    // trash 副本 + manifest 仍在（用户可待故障排除后重试）。
+    expect(await t.list_trash("au1")).toHaveLength(1);
+  });
+
+  it("F-8: 同条目两轮 overwrite → 两份备份并存（空闲后缀 -2），不覆盖旧备份", async () => {
+    const faulty = new FaultyAdapter();
+    faulty.seed("au1/notes/n.md", "original");
+    const t = new TrashService(faulty, 30);
+    const entry = await t.move_to_trash("au1", "notes/n.md", "file", "n");
+    faulty.seed("au1/notes/n.md", "edit-round-1");
+
+    // 第一轮 overwrite：备份成功后原位写回失败 → 条目保留、可重试。
+    faulty.failWrite = (p) => p === "au1/notes/n.md";
+    await expect(t.restore("au1", entry.trash_id, "overwrite")).rejects.toThrow(/simulated write failure/);
+    faulty.failWrite = () => false;
+
+    // 用户在重试前又改了原位内容 —— 两轮被覆盖的版本各不相同，都该留档。
+    faulty.seed("au1/notes/n.md", "edit-round-2");
+
+    // 第二轮 overwrite 成功：原位 = 回收站版本。
+    await t.restore("au1", entry.trash_id, "overwrite");
+    expect(faulty.raw("au1/notes/n.md")).toBe("original");
+
+    // 两份备份并存：第一轮 __file__、第二轮 __file__-2（旧备份没有被覆盖）。
+    const backups = faulty.allFiles().filter((f) => f.includes(".overwrite-backup"));
+    expect(backups).toHaveLength(2);
+    const first = backups.find((f) => f.endsWith("/__file__"));
+    const second = backups.find((f) => f.endsWith("/__file__-2"));
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+    expect(faulty.raw(first!)).toBe("edit-round-1");
+    expect(faulty.raw(second!)).toBe("edit-round-2");
+    expect(await t.list_trash("au1")).toHaveLength(0);
+  });
+
+  it("F5: overwrite 覆盖前备份写失败 → 中止覆盖（不无备份覆盖）、原位当前文件不被销毁", async () => {
+    const faulty = new FaultyAdapter();
+    faulty.seed("au1/notes/n.md", "original");
+    const t = new TrashService(faulty, 30);
+    const entry = await t.move_to_trash("au1", "notes/n.md", "file", "n");
+    faulty.seed("au1/notes/n.md", "user current edit");
+
+    // 备份目标写失败（sidecar 路径含 .overwrite-backup）→ overwrite 应在覆盖前中止。
+    faulty.failWrite = (p) => p.includes(".overwrite-backup");
+    await expect(t.restore("au1", entry.trash_id, "overwrite")).rejects.toThrow(/simulated write failure/);
+    // 原位当前文件未被覆盖（不无备份覆盖硬约束）。
+    expect(faulty.raw("au1/notes/n.md")).toBe("user current edit");
+    // trash 副本 + manifest 仍在（可另行处理）。
+    expect(await t.list_trash("au1")).toHaveLength(1);
   });
 });
 

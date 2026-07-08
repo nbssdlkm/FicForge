@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { sendSettingsChat, type SettingsChatSessionLlm } from "../../../api/engine-client";
 import { addFact, editFact, updateFactStatus } from "../../../api/engine-client";
-import { deleteLore, listLoreFiles, readLore, saveLore, sanitizePathSegment } from "../../../api/engine-client";
+import { deleteLore, listLoreFiles, readLoreWithLegacyFallback, saveLore, sanitizePathSegment } from "../../../api/engine-client";
 import { addPinned, deletePinned, getProjectForEditing, saveProjectCastRegistryCharacters, saveProjectCoreIncludes, saveProjectWritingStyle, type ProjectInfo } from "../../../api/engine-client";
 import { useFeedback } from "../../../hooks/useFeedback";
 import { useActiveRequestGuard } from "../../../hooks/useActiveRequestGuard";
@@ -418,13 +418,21 @@ export function SettingsChatPanel({
     if (toolName === "modify_character_file") {
       // M28/F2：先按写路径同款白名单清洗再读 —— LLM 给的名字含全角标点时磁盘名是清洗后的，
       // 用原名读必 miss → frontmatter 守护静默失效（与 useSimpleToolExecutor 同口径）。
-      const filename = sanitizePathSegment(normalizeMarkdownFilename(coerceString(args.filename)));
-      // 读旧文件，保留受管 frontmatter（name, aliases, importance, origin_ref）
+      const requestedFilename = normalizeMarkdownFilename(coerceString(args.filename));
+      const filename = sanitizePathSegment(requestedFilename);
+      // 读旧文件，保留受管 frontmatter（name, aliases, importance, origin_ref）。
+      // F9：sanitize 名 read miss 时回退用原名（legacy 磁盘名）再读，早期未清洗即落盘的
+      // 含全角标点文件才不丢守护；写仍统一落 sanitize 名（迁移语义）。
       let finalContent = coerceString(args.new_content);
-      try {
-        const { content: oldContent } = await readLore({ au_path: basePath, category: "characters", filename });
+      const oldContent = await readLoreWithLegacyFallback({
+        au_path: basePath,
+        category: "characters",
+        diskFilename: filename,
+        legacyFilename: requestedFilename,
+      });
+      if (oldContent !== null) {
         finalContent = preserveManagedFrontmatter(oldContent, finalContent, CHARACTER_FRONTMATTER_KEYS);
-      } catch { /* 旧文件不存在时直接使用新内容 */ }
+      }
       const saved = await saveLore({
         au_path: basePath,
         category: "characters",
@@ -461,13 +469,20 @@ export function SettingsChatPanel({
 
     if (toolName === "modify_core_character_file") {
       // M28/F2：写路径同款清洗后再读，保住 frontmatter 守护（同 modify_character_file）
-      const filename = sanitizePathSegment(normalizeMarkdownFilename(coerceString(args.filename)));
-      // 读旧文件，保留受管 frontmatter（name）
+      const requestedFilename = normalizeMarkdownFilename(coerceString(args.filename));
+      const filename = sanitizePathSegment(requestedFilename);
+      // 读旧文件，保留受管 frontmatter（name）。
+      // F9：sanitize 名 read miss 时回退用原名（legacy 磁盘名）再读（同 modify_character_file）。
       let finalContent = coerceString(args.new_content);
-      try {
-        const { content: oldContent } = await readLore({ fandom_path: basePath, category: "core_characters", filename });
+      const oldContent = await readLoreWithLegacyFallback({
+        fandom_path: basePath,
+        category: "core_characters",
+        diskFilename: filename,
+        legacyFilename: requestedFilename,
+      });
+      if (oldContent !== null) {
         finalContent = preserveManagedFrontmatter(oldContent, finalContent, CORE_CHARACTER_FRONTMATTER_KEYS);
-      } catch { /* 旧文件不存在时直接使用新内容 */ }
+      }
       const saved = await saveLore({
         fandom_path: basePath,
         category: "core_characters",
