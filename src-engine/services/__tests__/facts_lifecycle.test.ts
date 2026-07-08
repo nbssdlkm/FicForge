@@ -89,6 +89,27 @@ describe("Facts Lifecycle", () => {
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
   });
 
+  it("edit_fact 拒绝非法枚举值（防静默写坏 status 让 fact 从所有筛选视图消失）", async () => {
+    const f = await add_fact("au1", 1, {
+      content_raw: "r", content_clean: "原内容", status: "active",
+    }, factRepo, opsRepo);
+
+    // status:"resloved"（拼错）非法 + content_clean 合法：旧代码 `v as FactStatus` 会把 "resloved"
+    // 直接写进 facts.jsonl，fact 从此从 list_by_status / 上下文组装里消失。新代码拒绝非法枚举、保留原值。
+    await edit_fact("au1", f.id, { status: "resloved", content_clean: "改后内容" }, factRepo, opsRepo, stateRepo);
+
+    const got = await factRepo.get("au1", f.id);
+    expect(got!.status).toBe(FactStatus.ACTIVE);   // 非法 status 被拒，保留原合法值
+    expect(got!.content_clean).toBe("改后内容");    // 合法字段照常生效
+
+    // op 只记实际生效字段，不把垃圾 status 写进 ops.jsonl（rebuild 时不会重新引入）
+    const ops = await opsRepo.list_all("au1");
+    const editOp = ops.find((o) => o.op_type === "edit_fact")!;
+    const uf = editOp.payload.updated_fields as Record<string, unknown>;
+    expect(uf.status).toBeUndefined();
+    expect(uf.content_clean).toBe("改后内容");
+  });
+
   it("edit_fact keeps RESOLVED if other fact still resolves", async () => {
     const f1 = await add_fact("au1", 1, {
       content_raw: "r", content_clean: "mystery",

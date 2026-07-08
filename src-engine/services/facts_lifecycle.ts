@@ -24,6 +24,7 @@ import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
 import { generate_fact_id, generate_op_id, now_utc } from "../repositories/implementations/file_utils.js";
 import { WriteTransaction } from "./write_transaction.js";
+import { hasLogger, getLogger } from "../logger/index.js";
 
 export class FactsLifecycleError extends Error {
   constructor(message: string) {
@@ -338,18 +339,26 @@ export async function edit_fact(
     );
   }
 
-  // 应用字段更新
-  const enumFields: Record<string, (v: string) => string> = {
-    status: (v) => v as FactStatus,
-    type: (v) => v as FactType,
-    narrative_weight: (v) => v as NarrativeWeight,
-    source: (v) => v as FactSource,
+  // 应用字段更新。H-fix：枚举字段必须运行时校验 —— 旧代码 `(v)=>v as FactStatus` 是纯类型 cast，
+  // 非法枚举（如 status:"resloved"）会静默写进 facts.jsonl，让 fact 从所有按 status 筛选的视图 +
+  // 上下文组装里消失（dictToFact 读回时也不校验这 4 个字段）。非法值一律拒绝（保留 fact 现有合法
+  // 值）+ 记警告；op 只记实际生效的字段，avoid 把垃圾写进 ops.jsonl。
+  const enumValueSets: Record<string, ReadonlySet<string>> = {
+    status: new Set<string>(Object.values(FactStatus)),
+    type: new Set<string>(Object.values(FactType)),
+    narrative_weight: new Set<string>(Object.values(NarrativeWeight)),
+    source: new Set<string>(Object.values(FactSource)),
   };
+  const applied_fields: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(updated_fields)) {
-    if (key in fact) {
-      (fact as unknown as Record<string, unknown>)[key] =
-        key in enumFields && typeof value === "string" ? enumFields[key](value) : value;
+    if (!(key in fact)) continue;
+    const enumSet = enumValueSets[key];
+    if (enumSet && !(typeof value === "string" && enumSet.has(value))) {
+      if (hasLogger()) getLogger().warn("facts", `edit_fact 拒绝非法枚举 ${key}`, { fact_id, value: String(value) });
+      continue; // 保留现值，不落库垃圾
     }
+    (fact as unknown as Record<string, unknown>)[key] = value;
+    applied_fields[key] = value;
   }
 
   // 悬空 ID 级联清理（内存操作，不落盘）
@@ -372,7 +381,7 @@ export async function edit_fact(
     op_type: "edit_fact",
     target_id: fact_id,
     timestamp: now_utc(),
-    payload: { updated_fields },
+    payload: { updated_fields: applied_fields },
   }));
   tx.updateFact(au_id, fact);
   if (needStateSave && state) {

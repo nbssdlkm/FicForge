@@ -198,6 +198,25 @@ describe("reactExtractFromChapter — 内联挂边（propose 时直接填，真 
     expect(res.facts[0].thread_ids).toEqual(["t_seed"]);
     expect(res.facts[0].caused_by).toEqual(["f_seed_3"]);
   });
+
+  it("H-fix：loose-parse 路径下 raw.caused_by 的幻觉 id 被 knownFactIds 过滤", async () => {
+    // fact_type 非法 → proposeFactsSchema 校验失败 → 走 dispatch 的裸 JSON.parse 兜底（zod 不再
+    // 剥掉 schema 外的 raw.caused_by）。这条 raw 用的是 caused_by（非 caused_by_fact_ids），
+    // 混了真实 seeded id + 幻觉 id。旧代码 rawToExtracted 无过滤读入 → 幻觉 id 落库；新代码统一过滤。
+    const { factRepo, threadRepo } = await seededRepos([SEED_FACT], [SEED_THREAD]);
+    const provider = scriptedProvider([
+      toolIter([{ name: REACT_TOOL_PROPOSE, args: { facts: [{
+        content_clean: "林晚月与人结盟对抗强敌", characters: ["林晚月"],
+        fact_type: "NOT_A_REAL_ENUM", caused_by: ["f_seed_3", "f_HALLUCINATED"],
+      }] } }]),
+      toolIter([{ name: REACT_TOOL_FINALIZE, args: {} }]),
+    ]);
+    const res = await reactExtractFromChapter(CHAPTER, 5, [], { characters: ["林晚月"] }, null, provider, {
+      factRepo, threadRepo, auPath: "au", _telemetry_override: silentTelemetry,
+    });
+    expect(res.facts).toHaveLength(1);
+    expect(res.facts[0].caused_by).toEqual(["f_seed_3"]); // 幻觉 f_HALLUCINATED 被丢（旧代码会保留）
+  });
 });
 
 describe("reactExtractFromChapter — 终止 / 降级语义", () => {

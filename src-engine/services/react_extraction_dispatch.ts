@@ -284,6 +284,13 @@ export async function reactExtractFromChapter(
       for (const raw of items) {
         const fact = rawToExtracted(raw, chapter_num, character_aliases);
         if (!fact) continue;
+        // 防幻觉（H-fix）：rawToExtracted 从 raw.caused_by 无过滤读入（facts_extraction「本轮只存不校验」）。
+        // zod 成功路径会剥掉 schema 外的 raw.caused_by，但 loose-parse / salvage 兜底路径不会 → 幻觉
+        // fact_id 绕过下方 caused_by_fact_ids 的 knownFactIds 过滤直接落库（salvage 让此路径更常命中）。
+        // 这里统一按真实 fact_id 过滤，与 caused_by_fact_ids / annotate 同一口径。
+        if (Array.isArray(fact.caused_by) && fact.caused_by.length > 0) {
+          fact.caused_by = fact.caused_by.filter((id) => knownFactIds.has(id));
+        }
         // 软上限兜底：一章最多 REACT_MAX_FACTS_PER_CHAPTER 条（prompt 已引导少而精，cap 防失控）。
         if (proposedFacts.length >= REACT_MAX_FACTS_PER_CHAPTER) { cappedCount++; totalCappedCount++; continue; }
         // dedupe：同一 normalized content_clean 只收一次（真 LLM 会跨轮 re-propose）。

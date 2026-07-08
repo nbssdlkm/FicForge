@@ -304,11 +304,21 @@ export function rebuildFactsFromOps(ops: OpsEntry[]): Fact[] {
             // M10-B: cold-tier archival fields
             "archived", "archived_at",
           ]);
+          // 枚举字段防御性校验（与 edit_fact 写路径对称）：非法枚举不 replay，防旧 ops /
+          // 手改 ops.jsonl 引入的垃圾把 fact 从筛选视图里抹掉。
+          const EDIT_ENUM: Record<string, readonly string[]> = {
+            status: FACT_STATUS_VALUES, type: FACT_TYPE_VALUES,
+            narrative_weight: NARRATIVE_WEIGHT_VALUES, source: FACT_SOURCE_VALUES,
+          };
           const changes = (op.payload.updated_fields ?? op.payload.changes ?? {}) as Record<string, unknown>;
           for (const [key, value] of Object.entries(changes)) {
-            if (EDITABLE_FIELDS.has(key)) {
-              (existing as unknown as Record<string, unknown>)[key] = value;
+            if (!EDITABLE_FIELDS.has(key)) continue;
+            const validVals = EDIT_ENUM[key];
+            if (validVals && !(typeof value === "string" && (validVals as readonly string[]).includes(value))) {
+              if (hasLogger()) getLogger().warn("ops_merge", `edit_fact 跳过非法枚举 ${key}`, { id: op.target_id, value: String(value) });
+              continue;
             }
+            (existing as unknown as Record<string, unknown>)[key] = value;
           }
         }
         break;
