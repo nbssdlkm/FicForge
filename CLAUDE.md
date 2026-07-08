@@ -4,7 +4,7 @@
 
 FicForge 是面向同人写手的 AI 辅助续写工具。**架构迁移（Python 后端 → TypeScript 统一核心引擎，M0–M5）已完成**，引擎同时支撑桌面端（Tauri）和移动端（Capacitor/PWA）。
 
-**当前主线**：「对话式 × 记忆栈融合」—— 把简版 fork 的聊天式续写（agent-harness / 工具调用）收敛进主仓后，进一步删 `writing_mode` 模式开关、做成**单一主力版**：一篇作品里「对话」+「写文/阅读」双 tab 并列、共用同一套记忆栈（facts / 剧情线 / 摘要 / RAG），背后同一条「生成→接受→记忆」流水线。Phase 1（引擎+API）+ Phase 2（UI 统一 + 模式系统物理删 + 对话接受接 M9 提取）已完成并合 main；Phase 3（迁移+打磨）进行中。详见下方「活跃工作」。
+**当前主线**：「对话式 × 记忆栈融合」—— 把简版 fork 的聊天式续写（agent-harness / 工具调用）收敛进主仓后，进一步删 `writing_mode` 模式开关、做成**单一主力版**：一篇作品里「对话」+「写文/阅读」双 tab 并列、共用同一套记忆栈（facts / 剧情线 / 摘要 / RAG），背后同一条「生成→接受→记忆」流水线。Phase 1-3 全部完成并合 main；2026-07 第二轮全量审计闭环 + 供应商模型选择器已落地。详见下方「活跃工作」。
 > **历史**：更早的「简版收敛」（两模式经 `writing_mode: 'full' | 'simple'` 运行时开关共存）已被本主线取代 —— `writing_mode` 开关与字段均已物理退役，不再维护两套模式。
 
 ## 架构（PRD v4, D-0034）
@@ -48,11 +48,11 @@ Platform Adapter
 | M9 | ReAct 基础设施（生成 + 选择性提取） | **已完成**（合入 main，2026-06） |
 | M10 | Retrospective rewrite + Archive 冷热分层 | **已完成**（M10-A + M10-B 合入 main，2026-06） |
 
-> **注**：M6–M10 源自 PRD v5（架构简化 + Memory 重设计）。**PRD v5 及 D-00xx 决策记录 / devlog 已不在仓库内**（`docs/internal/` 仅余 `plans/`）—— 如需查阅在 Obsidian `D:\MY LIFE\FicForge\` 或归档处。M8–M10 已完成；**当前实际推进的主线是「对话式 × 记忆栈融合」（单一主力版）**，Phase 1+2 已合 main、Phase 3 进行中，见下方「活跃工作」。
+> **注**：M6–M10 源自 PRD v5（架构简化 + Memory 重设计）。**PRD v5 及 D-00xx 决策记录 / devlog 已不在仓库内**（`docs/internal/` 仅余 `plans/`）—— 如需查阅在 Obsidian `D:\MY LIFE\FicForge\` 或归档处。M8–M10 已完成；**当前实际推进的主线是「对话式 × 记忆栈融合」（单一主力版）**，融合 Phase 1-3 与 2026-07 审计修复均已合 main，见下方「活跃工作」。
 
 ## 活跃工作（当前分支）
 
-**当前分支：`main`** —— `origin/main @ be83996`，融合主线 Phase 1+2 全 pushed。本会话有未提交的 Phase 3 清理块（见下，待用户拍板 commit）。
+**当前分支：`main`** —— `origin/main @ 439fec1`，全部 pushed、工作区干净。融合主线 Phase 1-3、第二轮全量审计的全部修复、供应商模型选择器均已合入（见下方「2026-07 审计与修复」）。
 
 ### 主线：对话式 × 记忆栈融合（单一主力版）
 
@@ -60,10 +60,18 @@ Platform Adapter
 - spec：`docs/superpowers/specs/2026-06-28-fuse-chat-into-main-memory-design.md`；plan：`docs/superpowers/plans/2026-06-28-fuse-chat-into-main-memory-plan.md`（两轮独立审）。
 - **Phase 1（引擎 + API）全完**：对话路径走 `assemble_chat_context`（分层记忆进 systemContent）、`computeInputBudget` 单一真相源、confirm 内摘要/回顾不再受 mode gate。
 - **Phase 2（UI 统一 + 模式系统物理删 + M9 接线）全完 + pushed**：恒并列双 tab（桌面 + 移动 5-tab 底栏）、物理删 `useWritingMode`/`getSimpleFeatures`/landing 分叉；对话接受自动触发 M9 提取（双 gate：`react_extraction_enabled !== false` + `default_llm.has_usable_connection`）弹 `ExtractReviewModal` + header「提取剧情笔记中…」指示。最后一块 P2.3 = commit `be83996`。
-- **Phase 3（迁移 + 打磨）进行中**：
-  - ✅ **清理块（未提交）**：`writing_mode` 字段退役（`domain/settings` + `file_settings` + `config/simple_features`（仅留 `SIMPLE_AGENT_MAX_ITER`）+ `index` re-export；round-trip 测试改「容忍读取 + 不再持久化」）+ `summaryDisabled` 死字段 + `backfill.disabledMode` 死 i18n 清理；`get_tools_for_mode` 评估=**不动**（它是 settings-chat scope au/fandom/simple，非 writing_mode）。引擎 1020 + UI 206 + 双 tsc + i18n 1176 全绿 + 独立对抗审 opus 判 safe。
+- **Phase 3（迁移 + 打磨）已完成**：
+  - ✅ **清理块（已提交）**：`writing_mode` 字段退役（`domain/settings` + `file_settings` + `config/simple_features`（仅留 `SIMPLE_AGENT_MAX_ITER`）+ `index` re-export；round-trip 测试改「容忍读取 + 不再持久化」）+ `summaryDisabled` 死字段 + `backfill.disabledMode` 死 i18n 清理；`get_tools_for_mode` 评估=**不动**（它是 settings-chat scope au/fandom/simple，非 writing_mode）。引擎 1020 + UI 206 + 双 tsc + i18n 1176 全绿 + 独立对抗审 opus 判 safe。
   - ✅ **真机眼验（preview，无 key）**：清理块 + 3.1 modal 均零 console 报错；建/开 AU 落地对话 tab；双 tab 切换；token badge；高级操作「补全旧章记忆」按钮（已取代「补全旧章摘要」）开 modal 走 needConfig 路径全活。LLM 实跑流程靠绿测试兜底（填 key 受安全规则禁）。
-  - ✅ **3.1「补全旧章记忆」（未提交）**：用户拍板做（有真实用户）。逐章统一 pass（新引擎服务 `backfill_chapter_memory`：loop/章边界中断/CAS-in-lock/半成功）补 摘要（缺则补）+ 笔记（用户勾选章，自动落库，默认勾零笔记章）+ 向量（处理到的章正文+摘要）。API `scanChapterMemory`/`backfillChapterMemory`；新 `BackfillMemoryModal`（四阶段 + 笔记章选择器 + unmount-abort）**取代**旧「补全旧章摘要」；**旧 summary-only 全栈物理删**（engine `backfill_chapter_summaries` + API `backfillChapterSummaries`/`countChaptersMissingSummary`，`find_chapters_missing_summary` 保留复用）。spec：`docs/superpowers/specs/2026-06-30-backfill-chapter-memory-design.md`。引擎 1024 + UI 214 + 双 tsc + i18n 1186 全绿 + **三轮独立对抗审 opus**（正确性 / 数据完整性 / 删除安全），采纳 HIGH 重复提取警告 + MEDIUM 半成功标 STALE + NIT 强制 t.chapterNum 归属 + LOW 空态提示。
+  - ✅ **3.1「补全旧章记忆」（已提交）**：用户拍板做（有真实用户）。逐章统一 pass（新引擎服务 `backfill_chapter_memory`：loop/章边界中断/CAS-in-lock/半成功）补 摘要（缺则补）+ 笔记（用户勾选章，自动落库，默认勾零笔记章）+ 向量（处理到的章正文+摘要）。API `scanChapterMemory`/`backfillChapterMemory`；新 `BackfillMemoryModal`（四阶段 + 笔记章选择器 + unmount-abort）**取代**旧「补全旧章摘要」；**旧 summary-only 全栈物理删**（engine `backfill_chapter_summaries` + API `backfillChapterSummaries`/`countChaptersMissingSummary`，`find_chapters_missing_summary` 保留复用）。spec：`docs/superpowers/specs/2026-06-30-backfill-chapter-memory-design.md`。引擎 1024 + UI 214 + 双 tsc + i18n 1186 全绿 + **三轮独立对抗审 opus**（正确性 / 数据完整性 / 删除安全），采纳 HIGH 重复提取警告 + MEDIUM 半成功标 STALE + NIT 强制 t.chapterNum 归属 + LOW 空态提示。
+
+### 2026-07-07/08：第二轮全量审计 + 全量修复 + 模型选择器（已完成，全 pushed）
+
+- **审计**：8 维并行审阅全仓（重点移动端 + 设计符合性），62 条发现（10 HIGH）全部闭环；四轮独立对抗审累计 40+ 条附加发现全部整改。报告与发现→commit 映射：`docs/internal/audit/2026-07-07-round2-full-review.md`（force-add 入库，docs/internal 默认被 gitignore）。
+- **结构性变更（改相关代码前必知）**：①对话与写文双面板**常驻挂载 + CSS 隐藏**（不随切 tab 卸载；配套 `externalChaptersVersion` 与 tab 边沿配置重拉两条刷新通道，动刷新逻辑先读 AuWorkspaceLayout/WriterLayout 注释）；②全平台**真原子写**（adapter.rename + write-tmp-rename，`file_utils.atomicWrite`）；③写文与对话共用 `services/chapter_inflight.ts` 章级互斥（confirmChapter 也查表）；④向量层接通删除生命周期（undo/编辑/删 AU 清理 + index_status 双向修）；⑤`domain/frontmatter.safeMatter` 统一 frontmatter 解析（`---` 开头正文防吞）；⑥PWA prompt 更新模式 + pagehide flush。
+- **供应商模型选择器（方案 B，用户拍板）**：`domain/provider_manifest.ts` 单一真相源（12 家内置）+ MODEL_CONTEXT_MAP 刷至 2026-07 行情（org/ 前缀 fuzzy 修复）+ ProviderModelPicker / FetchModelsSheet / CustomProviderModal（自定义服务商 key 走动态 secure 字段）+ `chat_path` 全链 + 新手引导同源接入；术语统一「服务商」。**新配置默认模型 deepseek-v4-flash**（deepseek-chat 2026-07-24 官方停用；存量配置未动）。
+- **剩余（环境边界）**：真机体感验证（safe-area / iOS 离线 / 流式帧率 / PWA 更新横幅）、真 key 端到端旅程（含自定义 chatPath 网关）、Android Manifest 入库（文件在 Windows 构建机）。
+- **下一个产品迭代候选（记忆栈「最后一公里」：数据从「能存」到「用起来」，未排期）**：caused_by 生成端消费、Thread.state 自动维护提醒、归档候选自动提示、导入→backfill 引导衔接、选择器 per-model ctx 编辑、覆盖备份进回收站列表。
 
 ### 背景：记忆栈（M8 / M9 / M10，均已完成并合入 main）
 
