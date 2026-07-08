@@ -29,7 +29,7 @@ import type { Thread } from "../domain/thread.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { ThreadRepository } from "../repositories/interfaces/thread.js";
 import { runAgentLoop, type AgentLoopConfig, type IterContext } from "./agent_loop.js";
-import { repairAndValidateToolArgs } from "./tool_args_repair.js";
+import { repairAndValidateToolArgs, salvageMalformedJson } from "./tool_args_repair.js";
 import { createTelemetry, type TelemetrySink } from "./agent_telemetry.js";
 import { rawToExtracted, type ExtractedFact } from "./facts_extraction.js";
 import { buildExtractionMessages, REACT_MAX_FACTS_PER_CHAPTER, type ExistingFactForContext } from "./react_extraction_context.js";
@@ -254,16 +254,29 @@ export async function reactExtractFromChapter(
       proposeCallCount++;
       // 宽松取 facts：repair 成功用其结果；失败（某条 enrichment 形状 union/nested-null 不符）退回裸
       // JSON.parse，逐条交 rawToExtracted 归一化——一条坏字段不该拖死整批（codex 二审 MAJOR）。
+      // 裸 parse 也失败时（字符串值含字面换行等控制字符写坏 JSON）再走 salvage 兜底，
+      // 覆盖「JSON 畸形 + 枚举也不合法」这种双重失败——否则 repair 因枚举 fail、裸 parse 因畸形 fail，整批丢空。
       let items: Record<string, unknown>[] = [];
       if (repaired.success && Array.isArray((repaired.args as { facts?: unknown }).facts)) {
         items = (repaired.args as { facts: Record<string, unknown>[] }).facts;
       } else {
+        const rawArgs = call.function.arguments || "{}";
+        let parsed: { facts?: unknown } | null = null;
         try {
-          const parsed = JSON.parse(call.function.arguments || "{}") as { facts?: unknown };
-          if (parsed && typeof parsed === "object" && Array.isArray(parsed.facts)) {
-            items = parsed.facts as Record<string, unknown>[];
+          parsed = JSON.parse(rawArgs) as { facts?: unknown };
+        } catch {
+          const salvaged = salvageMalformedJson(rawArgs);
+          if (salvaged !== null) {
+            try {
+              parsed = JSON.parse(salvaged) as { facts?: unknown };
+              // 准则 5：修复全程 trace。此路径绕过 repairAndValidateToolArgs 的 trace，补发 telemetry。
+              telemetry.emit({ kind: "tool_input_repaired", agentName: REACT_AGENT_NAME, toolName: name, repairKind: "salvage_malformed_json", field: [] });
+            } catch { parsed = null; }
           }
-        } catch { /* leave empty */ }
+        }
+        if (parsed && typeof parsed === "object" && Array.isArray(parsed.facts)) {
+          items = parsed.facts as Record<string, unknown>[];
+        }
       }
       const acceptedIndices: number[] = [];
       let dupCount = 0;

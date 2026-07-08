@@ -37,7 +37,7 @@ const SYSTEM_PROMPT_ZH = `你是一个事实提取助手。从给定章节中提
 1. **只调用一次 propose_facts**，提取本章**真正重要、值得长期记住**的事实。**宁可少而精，不要多而碎**：把同一场景里连续的细碎动作**合并成一条**，不要把一个场景拆成很多条原子事实。**通常一章 ${REACT_FACTS_TARGET_MIN}-${REACT_FACTS_TARGET_MAX} 条关键事件就够，最多别超 ${REACT_MAX_FACTS_PER_CHAPTER} 条**。**在 propose 的每条事实里直接填好**（这是关键，不要拖到后面）：
    - content_clean、characters、fact_type、narrative_weight，以及力所能及的富化字段 location / time_kind / known_to / action_verb；
    - **thread_ids**：这条事实属于下方「可用剧情线」里的哪条，就填它的 id（可多条）；
-   - **caused_by_fact_ids**：这条事实由上方「已有事实」列表里的哪条（更早章节）导致，就填它的 [fact_id]（要生效必须同时给 evidence——本章原文逐字摘录）。
+   - **caused_by_fact_ids**：这条事实由上方「已有事实」列表里的哪条（更早章节）导致，就填它的 [fact_id]（要生效需同时给 evidence——本章原文里一句可定位的**短**语，8-20字即可，**单行、不要包含任何引号**，别抄整段）。
    **之后不要再调用 propose_facts。**
 2. 仅当某条事实的成因不在上方「已有事实」列表里时，才用 search_existing_facts 检索更多，再用 annotate_fact 给对应事实（fact_index）补 caused_by_fact_ids。
 3. **最后必须调用 finalize_extraction 结束**（不要用纯文本结束，也不要反复 propose）。
@@ -54,7 +54,7 @@ Follow this order strictly, each step once:
 1. **Call propose_facts exactly once**, extracting only the **genuinely important, worth-remembering** facts of this chapter. **Prefer few and significant over many and fragmented**: merge consecutive small actions within the same scene into ONE fact; do not split one scene into many atomic facts. **Usually ${REACT_FACTS_TARGET_MIN}-${REACT_FACTS_TARGET_MAX} key events per chapter is enough, never exceed ${REACT_MAX_FACTS_PER_CHAPTER}.** **Fill these directly on each fact inside propose** (this is the key step, do not defer it):
    - content_clean, characters, fact_type, narrative_weight, plus enrichment like location / time_kind / known_to / action_verb where you can;
    - **thread_ids**: which of the "Available storylines" below this fact belongs to, by id (may be several);
-   - **caused_by_fact_ids**: which earlier fact in the "Existing facts" list above caused this one, by its [fact_id] (to take effect you must also include a verbatim evidence excerpt from this chapter).
+   - **caused_by_fact_ids**: which earlier fact in the "Existing facts" list above caused this one, by its [fact_id] (to take effect, also include a short locating evidence phrase from this chapter — 8-20 chars, **single line, no quotation marks**, do not copy a whole paragraph).
    **Do not call propose_facts again afterwards.**
 2. Only if a fact's cause is NOT in the "Existing facts" list above, call search_existing_facts to find more, then annotate_fact to set caused_by_fact_ids on the matching fact (by fact_index).
 3. **You MUST end by calling finalize_extraction** (do not finish with plain text, and do not keep proposing).

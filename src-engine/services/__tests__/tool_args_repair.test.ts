@@ -15,7 +15,7 @@
 
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { repairAndValidateToolArgs } from "../tool_args_repair.js";
+import { repairAndValidateToolArgs, salvageMalformedJson } from "../tool_args_repair.js";
 
 describe("repairAndValidateToolArgs", () => {
   // -------------------------------------------------------------------------
@@ -376,6 +376,92 @@ describe("repairAndValidateToolArgs", () => {
       // 保守：不修，给 hint。这是有意的安全侧失败。
       expect(result.success).toBe(false);
       expect(result.retryHint).toContain("origin_ref");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Malformed-JSON 抢救（只补串内字面控制字符；刻意不猜未转义引号——见函数注释）。
+  // 判别性：字面换行写坏的 JSON 在旧代码里 JSON.parse 直接抛 → success:false 丢空；
+  // 新代码补转义后 success:true。引号类一律不静默改数据（安全回退 retryHint）。
+  // -------------------------------------------------------------------------
+  describe("malformed JSON 抢救", () => {
+    const factsSchema = z.object({
+      facts: z.array(z.object({
+        content_clean: z.string(),
+        characters: z.array(z.string()),
+        evidence: z.string().optional(),
+      })).min(1),
+    });
+
+    it("字符串值里字面换行（逐字抄多行原文）→ 补转义抢救成功（旧代码此处丢空）", () => {
+      const broken = '{"facts":[{"content_clean":"多行事实","characters":["沈砚"],"evidence":"第一行\n第二行"}]}';
+      expect(() => JSON.parse(broken)).toThrow(); // 前提：字面换行确实是坏 JSON
+      const r = repairAndValidateToolArgs("propose_facts", broken, factsSchema);
+      expect(r.success).toBe(true);
+      const facts = (r.data as { facts: { evidence?: string }[] }).facts;
+      expect(facts[0].evidence).toBe("第一行\n第二行");
+      expect(r.repairs.some((x) => x.kind === "salvage_malformed_json")).toBe(true);
+    });
+
+    it("字面制表符 → 补转义抢救成功", () => {
+      const broken = '{"facts":[{"content_clean":"a\tb","characters":["A"]}]}';
+      expect(() => JSON.parse(broken)).toThrow();
+      const r = repairAndValidateToolArgs("propose_facts", broken, factsSchema);
+      expect(r.success).toBe(true);
+      expect((r.data as { facts: { content_clean: string }[] }).facts[0].content_clean).toBe("a\tb");
+    });
+
+    it("未转义引号：不静默截断，安全回退（对抗审 HIGH 防回归）", () => {
+      // 内容引号后跟 ", —— 旧贪心启发式会误判为闭合、静默截断 value 再让残余恰好 parse 成功。
+      // 现在一律不猜：串状态错位 → 再 parse 必失败 → success:false，绝不写错数据。
+      const broken = '{"facts":[{"content_clean":"c","characters":["A"],"evidence":"note "x", "y":"z"}]}';
+      expect(() => JSON.parse(broken)).toThrow();
+      const r = repairAndValidateToolArgs("propose_facts", broken, factsSchema);
+      expect(r.success).toBe(false);
+      expect(r.retryHint).toContain("无法解析");
+    });
+
+    it("引号 + 换行同时坏：残余引号仍让 parse 失败 → 安全回退（不静默改数据）", () => {
+      const broken = '{"facts":[{"content_clean":"面圣","characters":["沈砚"],"evidence":"太傅出列："陛下\n私藏宫档""}]}';
+      expect(() => JSON.parse(broken)).toThrow();
+      const r = repairAndValidateToolArgs("propose_facts", broken, factsSchema);
+      expect(r.success).toBe(false);
+    });
+
+    it("合法 JSON（含已正确转义的引号 + 换行）→ 抢救不触发，逐字节不动（零回归）", () => {
+      const valid = JSON.stringify({ facts: [{ content_clean: '他说"好"', characters: ["A"], evidence: "line1\nline2" }] });
+      const r = repairAndValidateToolArgs("propose_facts", valid, factsSchema);
+      expect(r.success).toBe(true);
+      expect(r.repairs).toEqual([]); // 没跑抢救
+      expect((r.data as { facts: { evidence?: string }[] }).facts[0].evidence).toBe("line1\nline2");
+    });
+
+    it("全角引号本就合法 → 不误改", () => {
+      const valid = '{"facts":[{"content_clean":"他说“好”","characters":["A"]}]}';
+      expect(() => JSON.parse(valid)).not.toThrow();
+      const r = repairAndValidateToolArgs("propose_facts", valid, factsSchema);
+      expect(r.success).toBe(true);
+      expect(r.repairs).toEqual([]);
+    });
+
+    it("截断 / 非控制字符类畸形 → 抢救不了，仍返回 retryHint（不谎报修好）", () => {
+      const truncated = '{"facts":[{"content_clean":"foo';
+      const r = repairAndValidateToolArgs("propose_facts", truncated, factsSchema);
+      expect(r.success).toBe(false);
+      expect(r.retryHint).toContain("无法解析");
+    });
+
+    it("salvageMalformedJson 单元：合法 / 纯引号问题 → null（只碰控制字符，不猜引号）", () => {
+      expect(salvageMalformedJson('{"a":"b"}')).toBeNull();                 // 合法
+      expect(salvageMalformedJson('{"a":"he said \\"hi\\""}')).toBeNull();  // 已转义引号不动
+      expect(salvageMalformedJson('{"x":"a"b"}')).toBeNull();               // 未转义引号：不猜、不动
+      expect(salvageMalformedJson('{"e":"note "x", "y":"z"}')).toBeNull();  // 对抗审 HIGH 形态：不动
+    });
+
+    it("salvageMalformedJson 单元：只把串内字面控制字符补成转义", () => {
+      const out = salvageMalformedJson('{"x":"a\nb"}');
+      expect(out).toBe('{"x":"a\\nb"}');
+      expect(JSON.parse(out as string)).toEqual({ x: "a\nb" });
     });
   });
 });

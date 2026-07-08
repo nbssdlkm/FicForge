@@ -5,15 +5,21 @@
 
 ## 当前状态（2026-07-08）
 
-第二轮全量审计（62 发现，10 高危）**全部修复闭环**，四轮独立对抗审的 40+ 附加发现全部整改；**供应商模型选择器**（含新手引导接入、自定义服务商、2026-07 模型行情数据）已上线。全部推送 origin/main，测试基线：引擎 1236 + UI 391 全绿。**等待真机验证反馈，之后再排下一个产品迭代。**
+第二轮全量审计（62 发现，10 高危）**全部修复闭环**，四轮独立对抗审的 40+ 附加发现全部整改；**供应商模型选择器**（含新手引导接入、自定义服务商、2026-07 模型行情数据）已上线（这些已 push origin/main）。**2026-07-08 真 key 端到端旅程已跑 + M9 JSON-break（模式 A）已修**（引擎 1245 全绿，**未提交**，等发话）。M9 模式 B（模型不调工具）未修，属模型取舍。
 
 ## 待办
 
 ### 需要人工（真机/异机）
 - [ ] 真机日常写作流验证：改配置立即生效、切 tab 生成存活、PWA 更新横幅、iOS 刘海 safe-area、离线冷启动、低端机流式帧率
-- [ ] 真 key 端到端旅程：对话出章→接受→提取→落库→写文 tab 同篇记忆→补记忆实跑（顺带验自定义 chatPath 网关）
-- [ ] `~/.deepseek` 配置模型名换 `deepseek-v4-flash`（**deepseek-chat 2026-07-24 官方停用**）
+- [x] 真 key 端到端旅程（2026-07-08 跑完）：livetest 探针全跑 + preview 走应用真实引擎模块（testConnection→建圈建 AU→导章→**真 M9 提取→落库→列为同篇记忆**→1M 窗口 badge→补记忆 scan 入口）。摘要/富化/回望/embedding 质量优。**未做**：纯 UI 点击（弹窗/切 tab/badge 像素）+ backfill 实跑 LLM（本机浏览器够不到硅基流动 embedding，走代理才通）+ 自定义 chatPath 网关
+- [x] `~/.deepseek` 配置模型名换 `deepseek-v4-flash`（配置已在 `deepseek-v4-flash-260425`/火山方舟；探针 hardcode 也已改成读 config 单一真相源）
 - [ ] Android Manifest / variables.gradle 入库（文件在 Windows 构建机）
+
+### M9 v4-flash 降级：模式 A 已修（选项①），模式 B 待定
+用户拍板选①（改 evidence 字段，理由=没法确保用户用什么模型，要 model-agnostic 根因解）。发现 M9 有**两种**间歇失败：
+- **模式 A（tool-call JSON 写坏）—— 已修，未提交**：evidence 逐字抄含引号/跨行原文 → 非法 JSON → 0 事实。两层修：①Layer A `evidence` 改「单行/8-20字/免引号短摘录」（schema+prompt，源头压低+省 token）；②Layer B `tool_args_repair.salvageMalformedJson`——严格 parse 失败后**只补串内字面控制字符**（换行/制表符），model-agnostic、全 agent 工具受益。**刻意不猜未转义引号**（贪心猜会静默截断写错数据，对抗审判 HIGH；引号类安全回退 retryHint 不改数据）。判别性单测 + 对抗审 HIGH 防回归测试全绿（引擎 1245）。
+- **模式 B（模型不调 propose、纯文本收尾）—— 未修**：v4-flash 作为 tool-caller 的能力弱点，与 JSON 无关。要根治=换更强 tool-caller / 加 tool 强制，属产品×模型取舍，未排期。广度探针 3/4↔1/4 大幅波动主要来自模式 B 高方差。
+- 两模式生产都有兜底（回退单次调用，提取仍成功只丢该章跨章链）。详见 `src-engine/livetest/BASELINE-v4flash.md`。
 
 ### 下一个产品迭代候选（记忆栈「最后一公里」：数据从「能存」到「用起来」，等真机反馈后排优先级）
 - [ ] 因果链（caused_by）进续写 prompt —— 「AI 记得跨章因果」承诺的后半截
@@ -28,6 +34,8 @@
 
 ## 里程碑（倒序）
 
+- **2026-07-08（下午）** — M9 JSON-break（模式 A）修复：Layer A（evidence 短/单行/免引号）+ Layer B（`salvageMalformedJson` 只补串内控制字符，model-agnostic）。独立对抗审 opus 抓出贪心引号启发式的 HIGH 静默截断风险 → 改成不猜引号只补控制字符 + 加防回归测试。引擎 1245 全绿、tsc 0 错。未提交。
+- **2026-07-08** — 真 key 端到端验证：3 个 livetest 探针从 hardcode `api.deepseek.com` 改成读 `~/.deepseek/config.toml`（新 `_deepseek.ts` 单一真相源，配合 key 已切火山方舟 v4-flash-260425）+ 修 retrospective 探针 stale stub（`chapterRepo.get` 非 `get_content_only`）；跑通摘要/富化/回望/embedding（质量优，`BASELINE-v4flash.md`）；preview 走应用真实引擎模块验完整数据链（testConnection→建圈建 AU→导章→真 M9 提取→落库→同篇记忆→1M badge→backfill scan）。**发现 M9 v4-flash 间歇降级，待拍板（见待办）。**
 - **2026-07-07/08** — 第二轮全量审计闭环（62 发现 + 四轮对抗审 40+ 项全整改）；结构性硬化：双面板常驻挂载、全平台真原子写、章级生成互斥、向量删除生命周期、safeMatter 解析加固、PWA prompt 更新；供应商模型选择器（方案 B）+ 新手引导接入 + 默认模型换 v4-flash；文档整理（审计报告入库、docs/README 索引、API-REFERENCE 标废弃）
 - **2026-07-03** — 第一轮代码质量审计：9 发现 → 8 修 + push（trash 回滚/RAG 冷启动/archived 排除/CAS/提取钉章/backfill 取消）
 - **2026-06-28 ~ 07-02** — 对话式 × 记忆栈融合 Phase 1-3：单一主力版（双 tab 恒并列、writing_mode 物理退役）、对话接受自动提取、「补全旧章记忆」工具

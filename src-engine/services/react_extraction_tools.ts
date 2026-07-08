@@ -62,7 +62,10 @@ const proposeFactItemSchema = z.object({
   // grounding（codex 二审 MAJOR-4）：想给这条事实标 caused_by / thread_ids，必须给一段
   // 本章原文逐字摘录。dispatch 做确定性子串校验，匹配不上则拒绝 annotate（防把因果/剧情线
   // 挂到幻觉事实上）。基础提取（不挂边）不强制 evidence。
-  evidence: z.string().optional().describe("本章原文的一段逐字摘录，作为此事实的文本依据（要挂 caused_by/thread_ids 时必填）"),
+  // 只要一小段可定位的短语（不是整段）：短 + 单行 + 无引号，能大幅降低 tool-call JSON 被
+  // 未转义引号 / 字面换行写坏的概率（部分模型逐字抄含引号原文时不转义 → JSON.parse 失败 →
+  // 整批提取丢空）。grounding 只做子串匹配，一句短语足够定位。
+  evidence: z.string().optional().describe("本章原文里一句可定位的短语（8-20字即可，单行、不要包含任何引号），用来把这条事实锚回原文"),
   characters: z.array(z.string()).describe("涉及角色名（可空数组）"),
   fact_type: z.enum(FACT_TYPE_VALUES).optional().describe("事实类型"),
   narrative_weight: z.enum(NARRATIVE_WEIGHT_VALUES).optional().describe("叙事权重"),

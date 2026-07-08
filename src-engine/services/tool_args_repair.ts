@@ -29,7 +29,8 @@ export type ShapeRepairKind =
   | "unwrap_array_placeholder"
   | "wrap_bare_to_array"
   | "drop_null_optional"
-  | "strip_degenerate_markdown_link";
+  | "strip_degenerate_markdown_link"
+  | "salvage_malformed_json";
 
 export interface RepairTrace {
   field: (string | number)[];
@@ -108,6 +109,68 @@ function deleteAtPath(obj: unknown, path: (string | number)[]): unknown {
   }
   delete cur[path[path.length - 1]];
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Malformed-JSON salvage（model-agnostic 兜底，只在严格 JSON.parse 已失败后跑）
+// ---------------------------------------------------------------------------
+
+/**
+ * 抢救「字符串值里含字面控制字符」写坏的 tool-call JSON —— LLM 把跨行原文逐字抄进字符串
+ * 字段时的高频失败（如 M9 提取的 evidence 字段：真换行 / 制表符不转义 → JSON.parse 失败 →
+ * 整批提取丢空）。**仅在标准 JSON.parse 已抛错后调用**（合法输入永不进这里，零回归风险）；
+ * 抢救后仍需再 JSON.parse 验证，失败则返回 null 走原有 retryHint 路径。model-agnostic。
+ *
+ * **只处理无歧义的一类：串内字面控制字符（<0x20）补转义。** 刻意**不**去猜「未转义引号」是
+ * 内容还是闭合 —— 那本质歧义（`内容"，...` 与 `值闭合"，下一键` 局部无法区分），猜错会**静默
+ * 截断**字符串值再让残余 JSON 恰好 parse 成功、写进错数据（对抗审 HIGH）。这里对所有 `"` 一律
+ * 按标准 JSON 语义当闭合：若某个其实是内容引号，串状态会错位、再 parse 必然失败 → 安全回退
+ * retryHint，绝不静默改数据（"首先，不伤害"）。未转义引号交给 Layer A（短、单行、免引号的
+ * evidence）压低发生率 + 模型重试兜底。
+ *
+ * 单趟状态机（JSON 无嵌套字符串，状态只有「在串内 / 串外」）：
+ *   - 串内遇 `\`：合法转义序列，原样复制它和下一个字符（不误判 `\"` / `\\`）。
+ *   - 串内遇 `"`：按标准 JSON 当闭合，退出串。
+ *   - 串内遇字面控制字符（<0x20）：补成 `\n` / `\t` / `\r` / `\uXXXX`（JSON 规范里必须转义）。
+ *
+ * 只有真正补过转义才返回新串（没改 = 畸形不属本类，返回 null 不重复 parse）。
+ */
+export function salvageMalformedJson(raw: string): string | null {
+  let out = "";
+  let inStr = false;
+  let changed = false;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (!inStr) {
+      out += ch;
+      if (ch === '"') inStr = true;
+      continue;
+    }
+    // ----- 串内 -----
+    if (ch === "\\") {
+      // 合法转义序列：原样带走 `\` 和其后一个字符
+      out += ch;
+      if (i + 1 < raw.length) { out += raw[i + 1]; i++; }
+      continue;
+    }
+    if (ch === '"') {
+      // 标准闭合（不猜内容引号——见函数注释）
+      out += ch;
+      inStr = false;
+      continue;
+    }
+    const code = raw.charCodeAt(i);
+    if (code < 0x20) {
+      if (ch === "\n") out += "\\n";
+      else if (ch === "\t") out += "\\t";
+      else if (ch === "\r") out += "\\r";
+      else out += "\\u" + code.toString(16).padStart(4, "0");
+      changed = true;
+      continue;
+    }
+    out += ch;
+  }
+  return changed ? out : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -325,17 +388,33 @@ export function repairAndValidateToolArgs<T>(
 ): RepairResult<T> {
   // 步 ①
   let parsed: unknown;
+  const preTraces: RepairTrace[] = [];
   try {
     parsed = JSON.parse(rawArgs || "{}");
   } catch (e) {
-    return {
-      success: false,
-      repairs: [],
-      remainingIssues: [],
-      retryHint: `注意：工具 ${toolName} 收到无法解析的 JSON 参数。请重发完整、合法的 JSON 对象。错误：${
-        e instanceof Error ? e.message : String(e)
-      }`,
-    };
+    // 抢救兜底：字符串值里未转义引号 / 字面控制字符写坏的 JSON（LLM 逐字抄原文的高频失败）。
+    // 只在标准 parse 已失败后跑，抢救后必须再 parse 验证，仍失败才放弃走 retryHint（零回归）。
+    const salvaged = salvageMalformedJson(rawArgs || "");
+    let recovered = false;
+    if (salvaged !== null) {
+      try {
+        parsed = JSON.parse(salvaged);
+        recovered = true;
+        preTraces.push({ field: [], kind: "salvage_malformed_json", before: rawArgs, after: salvaged });
+      } catch {
+        /* 抢救后仍非法 → 放弃 */
+      }
+    }
+    if (!recovered) {
+      return {
+        success: false,
+        repairs: [],
+        remainingIssues: [],
+        retryHint: `注意：工具 ${toolName} 收到无法解析的 JSON 参数。请重发完整、合法的 JSON 对象。错误：${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      };
+    }
   }
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
     return {
@@ -348,7 +427,7 @@ export function repairAndValidateToolArgs<T>(
     };
   }
 
-  const allTraces: RepairTrace[] = [];
+  const allTraces: RepairTrace[] = [...preTraces];
   let current: unknown = parsed;
 
   // 步 ②
