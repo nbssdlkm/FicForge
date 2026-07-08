@@ -431,7 +431,15 @@ export async function build_recent_chapter_layer(
 
   // 从末尾截取，最少 500 字
   const minChars = 500;
-  if (content.length <= minChars) {
+  // L7：500 字下限本身可能仍超 budget —— 小窗口模型极端时，「不低于 500 字」的硬下限会突破
+  // P2 层预算，把 P4/P5 挤爆甚至整体超窗（API 400）。下限退让为「不超过剩余可用预算」：
+  // 仅当 500 字对应 token 确实 > budget 时，把有效下限从 500 降到 0（宁可更短也不越层预算）；
+  // 正常/充足预算下 floorBudgetOk=true → 有效下限恒为 500，与旧行为逐字节等价（golden 不变）。
+  const floorBudgetOk = _count(content.slice(-minChars), llm_config).count <= budget_tokens;
+  const effMinChars = floorBudgetOk ? minChars : 0;
+
+  if (content.length <= minChars && floorBudgetOk) {
+    // 整段短于下限且能塞进预算：原样返回（与旧行为一致）。
     return P.SECTION_LAST_ENDING.replace("{content}", content);
   }
 
@@ -439,7 +447,7 @@ export async function build_recent_chapter_layer(
   while (_count(endText, llm_config).count < budget_tokens && endText.length < content.length) {
     endText = content.slice(-(endText.length + 200));
   }
-  while (_count(endText, llm_config).count > budget_tokens && endText.length > minChars) {
+  while (_count(endText, llm_config).count > budget_tokens && endText.length > effMinChars) {
     endText = endText.slice(200);
   }
 

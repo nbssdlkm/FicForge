@@ -32,8 +32,12 @@ export interface BackfillMemoryDeps {
   signal?: AbortSignal;
   /** 慢 LLM，锁外。返回 null = 生成降级（不落摘要，但仍可落笔记/索引）。仅 needSummary 时调用。 */
   generateSummary: (target: BackfillMemoryTarget) => Promise<string | null>;
-  /** 慢 LLM，锁外。返回该章提取出的笔记候选（对本模块不透明，原样回传 persistChapter）。仅 extractFacts 时调用。 */
-  extractFacts: (target: BackfillMemoryTarget) => Promise<unknown[]>;
+  /**
+   * 慢 LLM，锁外。返回该章提取出的笔记候选（对本模块不透明，原样回传 persistChapter）+
+   * cappedCount（L16：因 REACT_MAX_FACTS_PER_CHAPTER 软上限被丢弃的条数，供结果汇总提示用户）。
+   * 仅 extractFacts 时调用。
+   */
+  extractFacts: (target: BackfillMemoryTarget) => Promise<{ facts: unknown[]; cappedCount: number }>;
   /**
    * 锁内 CAS 落盘：重查 content_hash 未变才落（摘要 persist+索引、笔记 save、正文 index）。
    * 返回 persisted=false 表示章节中途被 edit/undo（hash 不符或已删）→ 跳过，不写陈旧数据。
@@ -55,6 +59,7 @@ export interface BackfillMemoryResult {
   skipped: number;            // CAS 拒绝（章节中途被改/删）
   failed: number;             // 生成 / 提取 / 落盘抛错（已记录，不中断整批）
   aborted: boolean;           // 用户中途停止（已补的保留）
+  factsOverCapCount: number;  // L16：react 提取因 8 条软上限被丢弃的笔记总数（跨已落盘的章累计）
 }
 
 /**
@@ -73,9 +78,10 @@ export async function backfill_chapter_memory(deps: BackfillMemoryDeps): Promise
   let indexed = 0;
   let skipped = 0;
   let failed = 0;
+  let factsOverCapCount = 0;
 
   const result = (aborted: boolean): BackfillMemoryResult =>
-    ({ total, summariesGenerated, factsChapters, factsAdded, indexed, skipped, failed, aborted });
+    ({ total, summariesGenerated, factsChapters, factsAdded, indexed, skipped, failed, aborted, factsOverCapCount });
 
   for (let i = 0; i < total; i++) {
     if (deps.signal?.aborted) return result(true);
@@ -83,7 +89,8 @@ export async function backfill_chapter_memory(deps: BackfillMemoryDeps): Promise
     let ok = false;
     try {
       const summaryText = target.needSummary ? await deps.generateSummary(target) : null;
-      const facts = target.extractFacts ? await deps.extractFacts(target) : [];
+      const extracted = target.extractFacts ? await deps.extractFacts(target) : { facts: [], cappedCount: 0 };
+      const facts = extracted.facts;
       // 慢回调期间用户点停（回调可能提前返回空而非抛错）→ 不落该章未完成的生成/提取，干净停止。
       if (deps.signal?.aborted) return result(true);
       const r = await deps.persistChapter(target, { summaryText, facts });
@@ -93,6 +100,8 @@ export async function backfill_chapter_memory(deps: BackfillMemoryDeps): Promise
         if (summaryText) summariesGenerated++;
         factsAdded += r.factsAdded;
         if (r.factsAdded > 0) factsChapters++;
+        // L16：仅在该章真正落盘时累计软上限丢弃数（skipped/CAS 拒绝的章其提取未生效，不计）。
+        factsOverCapCount += extracted.cappedCount;
       } else {
         skipped++; // 章节中途被改/删，CAS 拒绝 → 不落陈旧数据
       }

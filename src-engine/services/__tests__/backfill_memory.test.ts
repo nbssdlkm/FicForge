@@ -25,7 +25,7 @@ function deps(targets: BackfillMemoryTarget[], over: Partial<Parameters<typeof b
   return {
     targets,
     generateSummary: vi.fn(async (t: BackfillMemoryTarget) => `摘要-${t.chapterNum}`),
-    extractFacts: vi.fn(async (t: BackfillMemoryTarget) => [{ chapter: t.chapterNum }]),
+    extractFacts: vi.fn(async (t: BackfillMemoryTarget) => ({ facts: [{ chapter: t.chapterNum }], cappedCount: 0 })),
     persistChapter: vi.fn(async (_t: BackfillMemoryTarget, p: { facts: unknown[] }) => ({
       persisted: true,
       factsAdded: p.facts.length,
@@ -44,7 +44,7 @@ describe("backfill_chapter_memory", () => {
     expect(d.persistChapter.mock.calls[0][1]).toEqual({ summaryText: "摘要-1", facts: [] });
     expect(res).toEqual({
       total: 1, summariesGenerated: 1, factsChapters: 0, factsAdded: 0,
-      indexed: 1, skipped: 0, failed: 0, aborted: false,
+      indexed: 1, skipped: 0, failed: 0, aborted: false, factsOverCapCount: 0,
     });
   });
 
@@ -74,11 +74,31 @@ describe("backfill_chapter_memory", () => {
 
   it("提取出 0 条笔记的章:indexed 计、factsChapters 不计(无新笔记)", async () => {
     const d = deps([target(1, { extractFacts: true })], {
-      extractFacts: vi.fn(async () => []),
+      extractFacts: vi.fn(async () => ({ facts: [], cappedCount: 0 })),
       persistChapter: vi.fn(async () => ({ persisted: true, factsAdded: 0 })),
     });
     const res = await backfill_chapter_memory(d);
     expect(res).toMatchObject({ factsChapters: 0, factsAdded: 0, indexed: 1 });
+  });
+
+  // L16（审计第二轮）:extractFacts 的 cappedCount 透传到结果 factsOverCapCount(仅落盘章累计)。
+  it("L16:落盘章的软上限丢弃数累计进 factsOverCapCount", async () => {
+    const d = deps([target(1, { extractFacts: true }), target(2, { extractFacts: true })], {
+      extractFacts: vi.fn(async (t: BackfillMemoryTarget) => ({ facts: [{ chapter: t.chapterNum }], cappedCount: t.chapterNum === 1 ? 3 : 0 })),
+    });
+    const res = await backfill_chapter_memory(d);
+    // ch1 丢弃 3 条、ch2 丢弃 0 → 累计 3
+    expect(res.factsOverCapCount).toBe(3);
+  });
+
+  it("L16:CAS 拒绝的章其 cappedCount 不计(提取未生效)", async () => {
+    const d = deps([target(1, { extractFacts: true })], {
+      extractFacts: vi.fn(async () => ({ facts: [{ chapter: 1 }], cappedCount: 5 })),
+      persistChapter: vi.fn(async () => ({ persisted: false, factsAdded: 0 })),
+    });
+    const res = await backfill_chapter_memory(d);
+    expect(res.factsOverCapCount).toBe(0);
+    expect(res.skipped).toBe(1);
   });
 
   it("CAS 拒绝(persist persisted=false):计 skipped,不计 indexed/summaries/facts", async () => {

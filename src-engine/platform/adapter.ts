@@ -47,10 +47,23 @@ export class SecretStoreReadError extends Error {
  * - listDir / exists / mkdir：空字符串视为数据根目录。
  * - Tauri 使用绝对路径；Capacitor 使用 Directory.Data 相对路径（前导 `/` 自动去除）；
  *   Web 使用虚拟路径（归一化后无前导/尾随 `/`）。
+ *
+ * 文件不存在时的三端语义（L11 契约测试核对后如实登记——**存在漂移，调用方勿假设统一**）：
+ * - readFile / readBinary：一律抛错（三端一致）。
+ * - deleteFile：**漂移** —— Web/内存 mock 静默幂等；Tauri（fs.remove）/ Capacitor
+ *   （Filesystem.deleteFile）对不存在路径**抛错**。需要「删除即达期望态」的调用方应自行
+ *   吞掉不存在错误或先 exists 判断。
+ * - listDir：**漂移** —— Web/内存 mock 对不存在目录返回 `[]`；Tauri（fs.readDir）/
+ *   Capacitor（Filesystem.readdir）**抛错**。遍历前不确定目录是否存在时应先 exists 或 try/catch。
+ * - exists：三端一致——存在返回 true，不存在返回 false（不抛）；有子文件的路径视为「目录存在」。
+ * - mkdir：三端幂等（已存在不抛）。
+ * - getFileSize：不存在返回 -1（不抛，见下方方法注释）。
+ * - rename：目标存在则覆盖，源不存在抛错（三端一致，见 rename 注释）。
  */
 export interface PlatformAdapter {
   readFile(path: string): Promise<string>;
   writeFile(path: string, content: string): Promise<void>;
+  /** 删除文件。**不存在时**：Web/内存幂等不抛；Tauri/Capacitor 抛错（见接口顶部漂移说明）。 */
   deleteFile(path: string): Promise<void>;
 
   /**
@@ -67,6 +80,7 @@ export interface PlatformAdapter {
    */
   rename(oldPath: string, newPath: string): Promise<void>;
 
+  /** 列出直接子项名。**目录不存在时**：Web/内存返回 `[]`；Tauri/Capacitor 抛错（见顶部漂移说明）。 */
   listDir(path: string): Promise<string[]>;
   exists(path: string): Promise<boolean>;
   mkdir(path: string): Promise<void>;
@@ -98,6 +112,12 @@ export interface PlatformAdapter {
   getPlatform(): "tauri" | "capacitor" | "web";
   getDataDir(): Promise<string>;
   getDeviceId(): string;
+  /**
+   * 采用一个已持久化的 device_id（L14）。受限环境（localStorage 不可用）下构造时会生成新随机
+   * ID，但 KV 里可能已存旧 ID —— init 阶段读到已存值时用本方法采用，让 ops device_id 归属稳定，
+   * 不再每次重开漂移。仅覆盖内存中的 device_id，不触发任何持久化写。
+   */
+  setDeviceId(deviceId: string): void;
 
   /**
    * 键值存储：跨平台安全的 localStorage 替代。

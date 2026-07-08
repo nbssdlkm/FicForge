@@ -87,6 +87,28 @@ describe("FileChapterRepository", () => {
     expect(backupPath2).toContain("ch0001_v2.md");
   });
 
+  // L23（审计第二轮）：版本号用 max(现存版本号)+1 而非文件数+1。外部清理 v1、只留 v2 后，
+  // 新备份必须是 v3（旧码算 length+1 = 2 会覆盖既有 v2）。回退旧码即挂。
+  it("backup_chapter 版本号用 max+1：外部删 v1 留 v2 后新备份是 v3", async () => {
+    await repo.save(createChapter({ au_id: "au1", chapter_num: 1, content: "original" }));
+    const v1 = await repo.backup_chapter("au1", 1); // v1
+    const v2 = await repo.backup_chapter("au1", 1); // v2
+    expect(v1).toContain("ch0001_v1.md");
+    expect(v2).toContain("ch0001_v2.md");
+
+    // 外部清理掉 v1（模拟用户/清理工具删了旧备份，只剩 v2）
+    await adapter.deleteFile(v1);
+    expect(await adapter.exists(v1)).toBe(false);
+    expect(await adapter.exists(v2)).toBe(true);
+
+    // 现存文件数=1，但现存最大版本号=2 → 新备份必须是 v3，绝不能覆盖 v2
+    const v3 = await repo.backup_chapter("au1", 1);
+    expect(v3).toContain("ch0001_v3.md");
+    expect(v3).not.toBe(v2);
+    // v2 仍在（未被覆盖）
+    expect(await adapter.exists(v2)).toBe(true);
+  });
+
   it("preserves generated_with metadata", async () => {
     const gw = createGeneratedWith({
       mode: "api",

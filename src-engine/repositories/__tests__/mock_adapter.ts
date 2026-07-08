@@ -116,8 +116,14 @@ export class MockAdapter implements PlatformAdapter {
     return "/mock/data";
   }
 
+  private _deviceId = "mock-device";
+
   getDeviceId(): string {
-    return "mock-device";
+    return this._deviceId;
+  }
+
+  setDeviceId(deviceId: string): void {
+    this._deviceId = deviceId;
   }
 
   /** Helper: seed a file for testing. */

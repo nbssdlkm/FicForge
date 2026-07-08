@@ -61,6 +61,10 @@ export class CapacitorAdapter implements PlatformAdapter {
     this._deviceId = deviceId ?? crypto.randomUUID();
   }
 
+  setDeviceId(deviceId: string): void {
+    this._deviceId = deviceId;
+  }
+
   /** Capacitor Filesystem 使用 Directory.Data 为根，path 必须是相对路径。 */
   private normPath(path: string): string {
     return path.replace(/^\/+/, "");

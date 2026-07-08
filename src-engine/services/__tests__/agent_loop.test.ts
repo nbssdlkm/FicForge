@@ -8,7 +8,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import type { LLMProvider, LLMChunk, ToolCallChunkDelta } from "../../llm/provider.js";
+import type { LLMProvider, LLMChunk, ToolCallChunkDelta, Message } from "../../llm/provider.js";
 import type { ToolBuffer } from "../tool_stream_buffer.js";
 import {
   runAgentLoop,
@@ -523,5 +523,58 @@ describe("runAgentLoop", () => {
     if (error instanceof Error) {
       expect(error.message).toBe("LLM streaming failure");
     }
+  });
+
+  // -------------------------------------------------------------------------
+  // L10（审计第二轮）：deviation 重试时，被丢弃的偏离文本先以 assistant 消息入 history，
+  // 模型能看到自己上一条说了什么。回退旧码（只 push hint）→ 重试轮 messages 无该 assistant → 挂。
+  // -------------------------------------------------------------------------
+  it("L10: deviation 重试轮的 messages 含被丢弃的偏离 assistant 文本", async () => {
+    // 每次 generateStream 记录收到的 messages。
+    const capturedMessages: Message[][] = [];
+    const iterChunks: LLMChunk[][] = [
+      // iter 0: 纯文本偏离（hasFullText && !hasTools）→ 触发 deviation guard
+      [chunk({ delta: "我先聊两句而不是续写。", is_final: true, finish_reason: "stop" })],
+      // iter 1: 重试后走文本路径收尾
+      [chunk({ delta: "好的，这次照做。", is_final: true, finish_reason: "stop" })],
+    ];
+    let callIndex = 0;
+    const provider: LLMProvider = {
+      async generate() {
+        return { content: "", model: "mock", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
+      },
+      async *generateStream(params: { messages: Message[] }): AsyncIterable<LLMChunk> {
+        capturedMessages.push(params.messages);
+        const chunks = iterChunks[callIndex] ?? [];
+        callIndex++;
+        for (const c of chunks) yield c;
+      },
+    };
+
+    const HINT = "[system] 请改用工具重说，不要用纯文本。";
+    let deviationCalls = 0;
+    const config = buildConfig({
+      onGuardRetry: (kind) => {
+        // 只在第一次 deviation 注入 hint 触发重试；iter1 再偏离时返 null 让文本路径收尾。
+        if (kind === "deviation" && deviationCalls++ === 0) return { role: "user", content: HINT };
+        return null;
+      },
+      onTextPathTerminal: async () => [{ type: "business", data: "TEXT_DONE" }],
+    });
+
+    await collect(runAgentLoop(config, provider, [{ role: "user", content: "开始" }], { max_tokens: 100, temperature: 0, top_p: 1 }));
+
+    // 两次 LLM 调用（iter0 偏离 + iter1 重试收尾）
+    expect(capturedMessages).toHaveLength(2);
+    const retryMessages = capturedMessages[1];
+    // 重试轮的 messages 必须包含 iter0 的偏离文本作为 assistant 消息……
+    const deviationAssistant = retryMessages.find(
+      (m) => m.role === "assistant" && m.content === "我先聊两句而不是续写。",
+    );
+    expect(deviationAssistant).toBeDefined();
+    // ……且紧随其后是 hint（顺序：assistant 偏离 → user hint）
+    const idxAssistant = retryMessages.findIndex((m) => m.role === "assistant" && m.content === "我先聊两句而不是续写。");
+    const idxHint = retryMessages.findIndex((m) => m.role === "user" && m.content === HINT);
+    expect(idxHint).toBe(idxAssistant + 1);
   });
 });

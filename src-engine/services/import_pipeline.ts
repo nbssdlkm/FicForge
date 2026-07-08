@@ -623,10 +623,17 @@ async function doExecuteImport(
 
   // 3. 更新 state（仅在有真正落盘的章节时需要；跳过覆盖的章不参与，其旧章数据未变）
   let importState: ReturnType<typeof createState> | null = null;
+  // L24：last_scene_ending 是「续写衔接锚点」，只应反映进度末尾章的结尾。仅当本次导入触及
+  // 「当前进度末章及之后」才更新它 —— current_chapter 是「下一章指针」，现末章 = 指针−1，
+  // 判据为 maxChapterNum + 1 >= 指针（重导当前末章 maxCh=指针−1 也必须刷新锚点，F-2）；
+  // 低章号补导（如补 3~5 章到已写到 20 章的作品）不动锚点，否则续写会从旧章结尾接、剧情错位。
+  // reachedTail 同口径喂 ops。
+  let reachedTail = false;
+  let tailSceneEnding = "";
   if (chaptersToWrite.length > 0) {
     const maxChapterNum = Math.max(...chaptersToWrite.map((c) => c.chapterNum));
-    const lastContent = chaptersToWrite[chaptersToWrite.length - 1].content;
-    const lastSceneEnding = extract_last_scene_ending(lastContent, 50);
+    // 结尾取「最大章号」那一章的正文（chaptersToWrite 顺序不保证有序，不能取数组末位）。
+    const maxChapter = chaptersToWrite.reduce((a, b) => (b.chapterNum > a.chapterNum ? b : a));
 
     let existingState;
     try {
@@ -635,11 +642,17 @@ async function doExecuteImport(
       existingState = null;
     }
 
+    // 无既有进度 ⇒ 本次导入即是全部进度，总是更新锚点；有既有进度 ⇒ 仅当导入触及/越过现末章
+    // （含重导当前末章：maxCh = 指针−1）。
+    reachedTail = !existingState || maxChapterNum + 1 >= existingState.current_chapter;
+    tailSceneEnding = reachedTail ? extract_last_scene_ending(maxChapter.content, 50) : "";
+
     importState = existingState
       ? {
           ...existingState,
           current_chapter: Math.max(existingState.current_chapter, maxChapterNum + 1),
-          last_scene_ending: lastSceneEnding,
+          // 未触及末尾的低章号补导：保留旧锚点不动。
+          last_scene_ending: reachedTail ? tailSceneEnding : existingState.last_scene_ending,
           characters_last_seen: {
             ...existingState.characters_last_seen,
             ...allCharactersLastSeen,
@@ -654,7 +667,7 @@ async function doExecuteImport(
       : createState({
           au_id: auId,
           current_chapter: maxChapterNum + 1,
-          last_scene_ending: lastSceneEnding,
+          last_scene_ending: tailSceneEnding,
           characters_last_seen: allCharactersLastSeen,
           chapter_titles: importedChapterTitles,
           index_status: IndexStatus.STALE,
@@ -688,7 +701,8 @@ async function doExecuteImport(
         characters_found: Object.keys(allCharactersLastSeen),
         // 供 rebuildStateFromOps 使用（跨设备同步时重建 state）
         last_chapter_num: chaptersToWrite.length > 0 ? Math.max(...chaptersToWrite.map((c) => c.chapterNum)) : 0,
-        last_scene_ending: chaptersToWrite.length > 0 ? extract_last_scene_ending(chaptersToWrite[chaptersToWrite.length - 1].content, 50) : "",
+        // L24：仅在导入触及进度末尾时带 last_scene_ending（否则空串，projection 端不覆盖旧锚点）。
+        last_scene_ending: tailSceneEnding,
         characters_last_seen: allCharactersLastSeen,
         chapter_titles: importedChapterTitles,
       },

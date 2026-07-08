@@ -59,6 +59,12 @@ export interface ReactExtractResult {
   facts: ExtractedFact[];
   /** ok=LLM 干净收尾（finalize / 纯文本终止）；degraded=abort / 错误 / maxIter 未收尾。 */
   status: ReactExtractStatus;
+  /**
+   * L16（审计第二轮）：本章因 REACT_MAX_FACTS_PER_CHAPTER 软上限被丢弃的提议条数（跨所有
+   * propose 调用累计）。backfill 自动落库路径据此告知用户「某章命中上限、部分笔记未收」，
+   * 否则截断在结果计数里完全隐形。0 = 未触发上限。
+   */
+  cappedCount: number;
 }
 
 export interface ReactExtractOptions {
@@ -170,7 +176,7 @@ export async function reactExtractFromChapter(
   const telemetry = opts._telemetry_override ?? createTelemetry();
   const maxIter = opts.maxIter ?? REACT_EXTRACTION_MAX_ITER;
 
-  if (!chapter_text.trim()) return { facts: [], status: "ok" };
+  if (!chapter_text.trim()) return { facts: [], status: "ok", cappedCount: 0 };
 
   // --- 一次性加载 search / thread 数据（spec R5：不在每次 search 打 repo）---
   let allFacts: Fact[] = [];
@@ -202,6 +208,7 @@ export async function reactExtractFromChapter(
   const seenContent = new Set<string>(); // dedupe：normalized content_clean，防真 LLM 反复 re-propose 同一事实
   let proposeCallCount = 0;              // 真 LLM 实测会反复 propose 不前进；据此 steer 向 search/finalize
   let status: ReactExtractStatus = "degraded"; // 悲观默认；干净收尾才升 ok
+  let totalCappedCount = 0;              // L16：跨所有 propose 调用累计的软上限丢弃条数（透传给 backfill）
 
   const emitRepairs = (toolName: string, repaired: ReturnType<typeof repairExtractionArgs>) => {
     for (const r of repaired.repairs) {
@@ -265,7 +272,7 @@ export async function reactExtractFromChapter(
         const fact = rawToExtracted(raw, chapter_num, character_aliases);
         if (!fact) continue;
         // 软上限兜底：一章最多 REACT_MAX_FACTS_PER_CHAPTER 条（prompt 已引导少而精，cap 防失控）。
-        if (proposedFacts.length >= REACT_MAX_FACTS_PER_CHAPTER) { cappedCount++; continue; }
+        if (proposedFacts.length >= REACT_MAX_FACTS_PER_CHAPTER) { cappedCount++; totalCappedCount++; continue; }
         // dedupe：同一 normalized content_clean 只收一次（真 LLM 会跨轮 re-propose）。
         const key = normalizeForMatch(fact.content_clean);
         if (seenContent.has(key)) { dupCount++; continue; }
@@ -449,5 +456,5 @@ export async function reactExtractFromChapter(
     status = "degraded";
   }
 
-  return { facts: proposedFacts, status };
+  return { facts: proposedFacts, status, cappedCount: totalCappedCount };
 }

@@ -34,6 +34,8 @@ function txGet<T = string>(db: IDBDatabase, key: string): Promise<T | undefined>
     const req = tx.objectStore(STORE_NAME).get(key);
     req.onsuccess = () => resolve(req.result as T | undefined);
     req.onerror = () => reject(req.error);
+    // L12：事务被 abort（配额超限 / 连接回收 / 显式 abort）时若不 reject 会永久挂起。
+    tx.onabort = () => reject(tx.error ?? new DOMException("transaction aborted", "AbortError"));
   });
 }
 
@@ -43,6 +45,8 @@ function txPut<T>(db: IDBDatabase, key: string, value: T): Promise<void> {
     tx.objectStore(STORE_NAME).put(value as unknown, key);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
+    // L12：oncomplete/onerror 都不触发的 abort 场景（配额/连接回收）不再挂死，显式 reject。
+    tx.onabort = () => reject(tx.error ?? new DOMException("transaction aborted", "AbortError"));
   });
 }
 
@@ -52,6 +56,8 @@ function txDelete(db: IDBDatabase, key: string): Promise<void> {
     tx.objectStore(STORE_NAME).delete(key);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
+    // L12：同上。
+    tx.onabort = () => reject(tx.error ?? new DOMException("transaction aborted", "AbortError"));
   });
 }
 
@@ -61,6 +67,8 @@ function txGetAllKeys(db: IDBDatabase): Promise<string[]> {
     const req = tx.objectStore(STORE_NAME).getAllKeys();
     req.onsuccess = () => resolve(req.result as string[]);
     req.onerror = () => reject(req.error);
+    // L12：abort 时也 reject，避免挂起。
+    tx.onabort = () => reject(tx.error ?? new DOMException("transaction aborted", "AbortError"));
   });
 }
 
@@ -222,6 +230,10 @@ export class WebAdapter implements PlatformAdapter {
     this._deviceId = deviceId ?? crypto.randomUUID();
   }
 
+  setDeviceId(deviceId: string): void {
+    this._deviceId = deviceId;
+  }
+
   /** 初始化（必须在使用前调用）。 */
   async init(): Promise<void> {
     this._db = await openDB();
@@ -235,25 +247,45 @@ export class WebAdapter implements PlatformAdapter {
     return this._db;
   }
 
+  /**
+   * L12：iOS Safari 在页面进后台时会强制关闭 IndexedDB 连接，之后对旧连接调
+   * `db.transaction()` 会**同步抛 InvalidStateError**（"The database connection is closing"）。
+   * 旧代码不处理 → 回前台后所有保存永久失败直到用户手动刷新。这里对 tx 操作做一次性容错：
+   * 捕获 InvalidStateError → 重开 DB（连接被回收，重开会拿到新的活连接）→ 用新连接重试一次。
+   * 只重试一次：若重开后仍抛，说明是真故障（配额/损坏），继续重试只会无限循环、掩盖真问题。
+   */
+  private async withDb<T>(op: (db: IDBDatabase) => Promise<T>): Promise<T> {
+    try {
+      return await op(this.db());
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "InvalidStateError") {
+        // 连接被回收 → 重开一次，用新连接重试。
+        this._db = await openDB();
+        return await op(this.db());
+      }
+      throw err;
+    }
+  }
+
   private norm(p: string): string {
     return p.replace(/\/+/g, "/").replace(/^\//, "").replace(/\/$/, "");
   }
 
   async readFile(path: string): Promise<string> {
     if (!path || !this.norm(path)) throw new Error("readFile: path must not be empty");
-    const content = await txGet(this.db(), this.norm(path));
+    const content = await this.withDb((db) => txGet(db, this.norm(path)));
     if (content === undefined) throw new Error(`File not found: ${path}`);
     return content;
   }
 
   async writeFile(path: string, content: string): Promise<void> {
     if (!path || !this.norm(path)) throw new Error("writeFile: path must not be empty");
-    await txPut(this.db(), this.norm(path), content);
+    await this.withDb((db) => txPut(db, this.norm(path), content));
   }
 
   async deleteFile(path: string): Promise<void> {
     if (!path || !this.norm(path)) throw new Error("deleteFile: path must not be empty");
-    await txDelete(this.db(), this.norm(path));
+    await this.withDb((db) => txDelete(db, this.norm(path)));
   }
 
   async rename(oldPath: string, newPath: string): Promise<void> {
@@ -264,18 +296,17 @@ export class WebAdapter implements PlatformAdapter {
     // 这正是原子写需要的提交语义。put 与 delete 之间崩溃会留下新旧两条记录并存
     // （正式文件已是完整新内容 + .tmp 残留），可接受且严格优于旧版「正式文件写一半」；
     // 残留 .tmp 会被下一次同路径原子写覆盖后消费。
-    const db = this.db();
     const from = this.norm(oldPath);
     const to = this.norm(newPath);
-    const content = await txGet<unknown>(db, from);
+    const content = await this.withDb((db) => txGet<unknown>(db, from));
     if (content === undefined) throw new Error(`rename: source not found: ${oldPath}`);
-    await txPut(db, to, content);
-    await txDelete(db, from);
+    await this.withDb((db) => txPut(db, to, content));
+    await this.withDb((db) => txDelete(db, from));
   }
 
   async readBinary(path: string): Promise<Uint8Array> {
     if (!path || !this.norm(path)) throw new Error("readBinary: path must not be empty");
-    const content = await txGet<ArrayBuffer | Uint8Array>(this.db(), this.norm(path));
+    const content = await this.withDb((db) => txGet<ArrayBuffer | Uint8Array>(db, this.norm(path)));
     if (content === undefined) throw new Error(`File not found: ${path}`);
     return content instanceof Uint8Array ? content : new Uint8Array(content);
   }
@@ -284,12 +315,12 @@ export class WebAdapter implements PlatformAdapter {
     if (!path || !this.norm(path)) throw new Error("writeBinary: path must not be empty");
     // 存为 ArrayBuffer 切片，避免保留原 Uint8Array 的 view 引用。
     const buf = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-    await txPut(this.db(), this.norm(path), buf);
+    await this.withDb((db) => txPut(db, this.norm(path), buf));
   }
 
   async getFileSize(path: string): Promise<number> {
     if (!path || !this.norm(path)) return -1;
-    const content = await txGet<ArrayBuffer | Uint8Array | string>(this.db(), this.norm(path));
+    const content = await this.withDb((db) => txGet<ArrayBuffer | Uint8Array | string>(db, this.norm(path)));
     if (content === undefined) return -1;
     if (typeof content === "string") return new TextEncoder().encode(content).length;
     return content.byteLength;
@@ -297,7 +328,7 @@ export class WebAdapter implements PlatformAdapter {
 
   async listDir(path: string): Promise<string[]> {
     const normed = this.norm(path);
-    const allKeys = await txGetAllKeys(this.db());
+    const allKeys = await this.withDb((db) => txGetAllKeys(db));
     const names = new Set<string>();
     if (normed === "") {
       // 根目录：提取所有顶层名称
@@ -321,11 +352,11 @@ export class WebAdapter implements PlatformAdapter {
   async exists(path: string): Promise<boolean> {
     const normed = this.norm(path);
     // 检查精确文件
-    const content = await txGet(this.db(), normed);
+    const content = await this.withDb((db) => txGet(db, normed));
     if (content !== undefined) return true;
     // 检查是否有子文件（目录存在性）
     const prefix = normed + "/";
-    const allKeys = await txGetAllKeys(this.db());
+    const allKeys = await this.withDb((db) => txGetAllKeys(db));
     return allKeys.some((k) => k.startsWith(prefix));
   }
 

@@ -194,6 +194,72 @@ describe("JsonVectorEngine", () => {
     expect(results).toHaveLength(1);
   });
 
+  // L18（审计第二轮）：persist 清理孤儿分片——chunk 数变少后旧 .json 分片不该永久残留。
+  it("L18: persist 删除不在本次写入集合中的旧分片文件，load 仍正常", async () => {
+    // 第一次：3 章 chunk 落盘
+    await engine.index_chunks([
+      makeChunk("ch1_0", "chapters", [1, 0, 0], { chapter: 1 }),
+      makeChunk("ch2_0", "chapters", [0, 1, 0], { chapter: 2 }),
+      makeChunk("ch3_0", "chapters", [0, 0, 1], { chapter: 3 }),
+    ]);
+    await engine.persist("/vectors");
+    expect(await adapter.exists("/vectors/chapters/ch3_0.json")).toBe(true);
+
+    // 模拟 undo 第 3 章：删该章 chunk，再 persist —— 旧 ch3_0.json 应被清理
+    await engine.delete_by_chapter("au1", 3);
+    await engine.persist("/vectors");
+
+    // 孤儿分片文件消失
+    expect(await adapter.exists("/vectors/chapters/ch3_0.json")).toBe(false);
+    // 保留的分片仍在
+    expect(await adapter.exists("/vectors/chapters/ch1_0.json")).toBe(true);
+    expect(await adapter.exists("/vectors/chapters/ch2_0.json")).toBe(true);
+
+    // load 正常：只剩 2 个 chunk，index.json 与磁盘一致
+    const engine2 = new JsonVectorEngine(adapter as any);
+    await engine2.load("/vectors");
+    expect(engine2.chunkCount).toBe(2);
+    const results = await engine2.search("au1", [0, 0, 1], { collection: "chapters", top_k: 3 });
+    // ch3 已删，不该被召回
+    expect(results.find((r) => r.content.includes("ch3_0"))).toBeUndefined();
+  });
+
+  // F-10（第三波对抗审）：GC 必须在 index.json 写成功之后 —— 若先删分片再写 index，
+  // 中间崩溃会留下「旧 index 引用已删分片」的损伤形态；改序后崩溃最多留孤儿分片（无害）。
+  it("F-10: persist 先写 index.json、后 GC 孤儿分片（操作顺序断言）", async () => {
+    const ops: string[] = [];
+    class OrderAdapter extends MockAdapter {
+      async writeFile(path: string, content: string) {
+        ops.push(`write:${path}`);
+        return super.writeFile(path, content);
+      }
+      async deleteFile(path: string) {
+        ops.push(`delete:${path}`);
+        return super.deleteFile(path);
+      }
+    }
+    const orderAdapter = new OrderAdapter();
+    const eng = new JsonVectorEngine(orderAdapter as any);
+    await eng.index_chunks([
+      makeChunk("ch1_0", "chapters", [1, 0, 0], { chapter: 1 }),
+      makeChunk("ch2_0", "chapters", [0, 1, 0], { chapter: 2 }),
+    ]);
+    await eng.persist("/vectors");
+
+    // 删第 2 章后再 persist：ch2_0.json 成孤儿，应在 index.json 写入之后才被 GC。
+    await eng.delete_by_chapter("au1", 2);
+    ops.length = 0;
+    await eng.persist("/vectors");
+
+    const indexWriteIdx = ops.indexOf("write:/vectors/index.json");
+    const orphanDeleteIdx = ops.indexOf("delete:/vectors/chapters/ch2_0.json");
+    expect(indexWriteIdx).toBeGreaterThanOrEqual(0);
+    expect(orphanDeleteIdx).toBeGreaterThan(indexWriteIdx);
+    // GC 结果不变：孤儿已清、保留分片仍在
+    expect(await orderAdapter.exists("/vectors/chapters/ch2_0.json")).toBe(false);
+    expect(await orderAdapter.exists("/vectors/chapters/ch1_0.json")).toBe(true);
+  });
+
   it("empty index returns empty search results", async () => {
     const results = await engine.search("au1", [1, 0], { collection: "chapters", top_k: 5 });
     expect(results).toEqual([]);

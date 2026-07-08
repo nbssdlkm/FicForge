@@ -255,6 +255,8 @@ export async function confirmChapter(
             await commit_retrospective(
               auPath, targetChapterNum, genResult,
               e.repos.chapterSummary, e.ragManager, embProvider,
+              // L17：向量覆盖失败时置 index_status=STALE（既在 withAuLock 内，state 写锁安全）。
+              e.repos.state,
             );
           });
         }
@@ -478,7 +480,10 @@ export async function backfillChapterMemory(
     // 慢 LLM，锁外。signal 透传 → 用户点停时在飞的摘要/提取请求被立刻取消（审计⑨）。
     generateSummary: (t) =>
       generate_standard_summary(t.content, t.chapterNum, llmProvider, { language, signal }),
-    extractFacts: async (t) => (await extractFacts(auPath, t.chapterNum, { signal })).facts,
+    extractFacts: async (t) => {
+      const r = await extractFacts(auPath, t.chapterNum, { signal });
+      return { facts: r.facts, cappedCount: r.cappedCount ?? 0 };
+    },
     // 锁内 CAS 落盘（= backfill 摘要同款）：章节中途被 edit/undo → hash 不符 → 跳过，不写陈旧数据。
     persistChapter: async (t, { summaryText, facts }) =>
       withAuLock(auPath, async () => {

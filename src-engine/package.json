@@ -30,6 +30,7 @@
     "@tauri-apps/plugin-dialog": "^2.7.0",
     "@tauri-apps/plugin-fs": "^2.5.0",
     "@types/js-yaml": "^4.0.9",
+    "fake-indexeddb": "^6.2.5",
     "typescript": "~5.8.3",
     "vitest": "^3.2.1"
   }

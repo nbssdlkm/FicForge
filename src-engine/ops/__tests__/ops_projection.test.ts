@@ -229,6 +229,50 @@ describe("rebuildStateFromOps — additional cases", () => {
     expect(state.characters_last_seen.Alice).toBe(4);
   });
 
+  // L24（审计第二轮）：import_chapters 的 last_scene_ending 只在导入触及进度末尾时生效。
+  it("L24: 低章号补导（maxCh < 现进度）不覆盖 last_scene_ending", () => {
+    const ops = [
+      // 先导入到第 20 章，锚点=「第20章结尾」→ current_chapter=21
+      op({ op_id: "imp1", op_type: "import_chapters", lamport_clock: 1,
+        payload: { last_chapter_num: 20, last_scene_ending: "第20章结尾", chapter_titles: {} } }),
+      // 再补导第 3~5 章（低章号）→ maxCh=5 < 现 current_chapter=21 → 不动锚点
+      op({ op_id: "imp2", op_type: "import_chapters", lamport_clock: 2,
+        payload: { last_chapter_num: 5, last_scene_ending: "第5章结尾（不该覆盖）", chapter_titles: {} } }),
+    ];
+    const state = rebuildStateFromOps(ops, "au1");
+    expect(state.current_chapter).toBe(21);           // 进度指针不被低章号回退
+    expect(state.last_scene_ending).toBe("第20章结尾"); // 锚点保持进度末尾
+  });
+
+  it("L24: 触及/越过进度末尾的导入更新 last_scene_ending", () => {
+    const ops = [
+      op({ op_id: "imp1", op_type: "import_chapters", lamport_clock: 1,
+        payload: { last_chapter_num: 5, last_scene_ending: "第5章结尾", chapter_titles: {} } }),
+      // 续导第 6~10 章 → maxCh=10 >= 现 current_chapter=6 → 更新锚点
+      op({ op_id: "imp2", op_type: "import_chapters", lamport_clock: 2,
+        payload: { last_chapter_num: 10, last_scene_ending: "第10章结尾", chapter_titles: {} } }),
+    ];
+    const state = rebuildStateFromOps(ops, "au1");
+    expect(state.current_chapter).toBe(11);
+    expect(state.last_scene_ending).toBe("第10章结尾");
+  });
+
+  // F-2（第三波对抗审）：current_chapter 是「下一章指针」，重导当前末章 maxCh = 指针−1 时
+  // 锚点必须刷新（旧判据 maxCh+1 > current_chapter 差一，把重导末章误判成低章号补导）。
+  it("F-2: 重导当前末章（maxCh = 指针−1）→ 锚点更新、指针不回退", () => {
+    const ops = [
+      // 先导入到第 20 章 → current_chapter=21，锚点=旧结尾
+      op({ op_id: "imp1", op_type: "import_chapters", lamport_clock: 1,
+        payload: { last_chapter_num: 20, last_scene_ending: "第20章旧结尾", chapter_titles: {} } }),
+      // 重导第 20 章（maxCh=20 = 21−1，触及现末章）→ 锚点应换成重导后的新结尾
+      op({ op_id: "imp2", op_type: "import_chapters", lamport_clock: 2,
+        payload: { last_chapter_num: 20, last_scene_ending: "第20章重导新结尾", chapter_titles: {} } }),
+    ];
+    const state = rebuildStateFromOps(ops, "au1");
+    expect(state.current_chapter).toBe(21);
+    expect(state.last_scene_ending).toBe("第20章重导新结尾");
+  });
+
   it("resolve_dirty_chapter removes from dirty list", () => {
     const state = rebuildStateFromOps([], "au1");
     state.chapters_dirty = [3, 5, 7];

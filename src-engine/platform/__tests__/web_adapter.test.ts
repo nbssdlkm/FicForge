@@ -29,6 +29,17 @@ function createStorageMock(): Storage {
   };
 }
 
+// ── L14: setDeviceId 采用已持久化的 device_id ──
+describe("WebAdapter device id (L14)", () => {
+  it("setDeviceId 覆盖构造时的随机 ID，getDeviceId 返回采用值", () => {
+    const adapter = new WebAdapter("fresh-random-id");
+    expect(adapter.getDeviceId()).toBe("fresh-random-id");
+    // 受限环境重开：init 阶段读到 KV 里的旧 ID 后采用之
+    adapter.setDeviceId("persisted-old-id");
+    expect(adapter.getDeviceId()).toBe("persisted-old-id");
+  });
+});
+
 // ── Fallback path: no web crypto (no IndexedDB) → plaintext, honestly reported ──
 describe("WebAdapter secret storage (plaintext fallback when web crypto unavailable)", () => {
   beforeEach(() => {

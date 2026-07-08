@@ -16,6 +16,8 @@ import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 import { FileChapterRepository } from "../../repositories/implementations/file_chapter.js";
 import { FileStateRepository } from "../../repositories/implementations/file_state.js";
 import { FileOpsRepository } from "../../repositories/implementations/file_ops.js";
+import { createState } from "../../domain/state.js";
+import { rebuildStateFromOps } from "../../ops/ops_projection.js";
 
 class FailingWriteAdapter extends MockAdapter {
   constructor(private readonly shouldFailWrite: (path: string) => boolean) {
@@ -993,3 +995,97 @@ function makeChatAnalysis(
     },
   };
 }
+
+// ===========================================================================
+// L24（审计第二轮）：executeImport 的 last_scene_ending 只在导入触及进度末尾时更新
+// ===========================================================================
+
+describe("executeImport — L24 last_scene_ending 锚点", () => {
+  it("低章号补导（maxCh < 现进度）不改 last_scene_ending", async () => {
+    const adapter = new MockAdapter();
+    const chapterRepo = new FileChapterRepository(adapter);
+    const stateRepo = new FileStateRepository(adapter);
+    const opsRepo = new FileOpsRepository(adapter);
+
+    // 现有进度：已写到第 20 章，锚点=旧结尾
+    await stateRepo.save(createState({
+      au_id: "au1", current_chapter: 21, last_scene_ending: "第二十章的旧结尾",
+    }));
+
+    // 补导第 3~5 章（低章号，maxCh=5 < 21）
+    const plan = {
+      chapters: [
+        { chapterNum: 3, content: "第三章新导入正文的结尾句。", sourceFile: "back.txt", sourceTurns: [] },
+        { chapterNum: 4, content: "第四章新导入正文的结尾句。", sourceFile: "back.txt", sourceTurns: [] },
+        { chapterNum: 5, content: "第五章新导入正文的结尾句。", sourceFile: "back.txt", sourceTurns: [] },
+      ],
+      settings: [],
+      conflictOptions: { mode: "custom" as const, settingsMode: "merge" as const },
+    };
+
+    await executeImport(plan, { auId: "au1", chapterRepo, stateRepo, opsRepo, adapter });
+
+    const state = await stateRepo.get("au1");
+    // 锚点保持旧结尾（不被低章号覆盖）；进度指针不回退
+    expect(state.last_scene_ending).toBe("第二十章的旧结尾");
+    expect(state.current_chapter).toBe(21);
+  });
+
+  it("导入触及/越过进度末尾则更新 last_scene_ending 为最大章结尾", async () => {
+    const adapter = new MockAdapter();
+    const chapterRepo = new FileChapterRepository(adapter);
+    const stateRepo = new FileStateRepository(adapter);
+    const opsRepo = new FileOpsRepository(adapter);
+
+    await stateRepo.save(createState({
+      au_id: "au1", current_chapter: 6, last_scene_ending: "第五章旧结尾",
+    }));
+
+    // 续导第 6~8 章（maxCh=8 >= 6），结尾取「最大章号」那章正文——即便数组顺序打乱。
+    const plan = {
+      chapters: [
+        { chapterNum: 7, content: "第七章正文。", sourceFile: "next.txt", sourceTurns: [] },
+        { chapterNum: 8, content: "这是第八章的真正结尾。", sourceFile: "next.txt", sourceTurns: [] },
+        { chapterNum: 6, content: "第六章正文。", sourceFile: "next.txt", sourceTurns: [] },
+      ],
+      settings: [],
+      conflictOptions: { mode: "custom" as const, settingsMode: "merge" as const },
+    };
+
+    await executeImport(plan, { auId: "au1", chapterRepo, stateRepo, opsRepo, adapter });
+
+    const state = await stateRepo.get("au1");
+    expect(state.current_chapter).toBe(9);
+    // 锚点来自第 8 章（最大章号），不是数组末位的第 6 章
+    expect(state.last_scene_ending).toContain("第八章");
+  });
+
+  // F-2（第三波对抗审）：current_chapter 是「下一章指针」，重导当前末章 maxCh = 指针−1
+  // 必须刷新锚点（旧判据 maxCh >= 指针差一，把重导末章误判成低章号补导 → 续写接旧结尾）。
+  it("F-2: 重导当前末章（maxCh = 指针−1）→ 锚点更新为重导后的新结尾、指针不动", async () => {
+    const adapter = new MockAdapter();
+    const chapterRepo = new FileChapterRepository(adapter);
+    const stateRepo = new FileStateRepository(adapter);
+    const opsRepo = new FileOpsRepository(adapter);
+
+    // 现有进度：已写到第 20 章（指针=21），锚点=旧结尾
+    await stateRepo.save(createState({
+      au_id: "au1", current_chapter: 21, last_scene_ending: "第二十章的旧结尾",
+    }));
+
+    // 重导第 20 章（maxCh=20 = 21−1，触及现末章）
+    const plan = {
+      chapters: [
+        { chapterNum: 20, content: "重导后的第二十章新结尾句。", sourceFile: "re.txt", sourceTurns: [] },
+      ],
+      settings: [],
+      conflictOptions: { mode: "custom" as const, settingsMode: "merge" as const },
+    };
+
+    await executeImport(plan, { auId: "au1", chapterRepo, stateRepo, opsRepo, adapter });
+
+    const state = await stateRepo.get("au1");
+    expect(state.current_chapter).toBe(21);
+    expect(state.last_scene_ending).toContain("第二十章新结尾");
+  });
+});

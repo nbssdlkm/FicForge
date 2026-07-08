@@ -136,10 +136,15 @@ function applyOpToState(state: State, op: OpsEntry): void {
 
     case "import_chapters": {
       const maxCh = op.payload.last_chapter_num as number | undefined;
+      // L24：与 executeImport 同口径——last_scene_ending（续写衔接锚点）只在本次导入触及现末章
+      // 及之后（maxCh + 1 >= current_chapter；current_chapter 是「下一章指针」，现末章 = 指针−1，
+      // 重导当前末章也必须刷新锚点，F-2）时才更新；低章号补导不动它。
+      // 先用更新前的 current_chapter 判定，再推进指针。
+      const reachedTail = typeof maxCh === "number" && maxCh + 1 >= state.current_chapter;
       if (typeof maxCh === "number") {
         state.current_chapter = Math.max(state.current_chapter, maxCh + 1);
       }
-      if (typeof op.payload.last_scene_ending === "string") {
+      if (reachedTail && typeof op.payload.last_scene_ending === "string") {
         state.last_scene_ending = op.payload.last_scene_ending as string;
       }
       if (op.payload.characters_last_seen && typeof op.payload.characters_last_seen === "object") {
@@ -172,7 +177,7 @@ function applyOpToState(state: State, op: OpsEntry): void {
           }
         }
       } else if (Array.isArray(op.payload.chapters_dirty)) {
-        // 旧快照格式���向后兼容
+        // 旧快照格式——向后兼容
         state.chapters_dirty = op.payload.chapters_dirty as number[];
       }
       break;

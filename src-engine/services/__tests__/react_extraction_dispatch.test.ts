@@ -97,6 +97,40 @@ describe("reactExtractFromChapter — happy path", () => {
   });
 });
 
+describe("reactExtractFromChapter — L16 软上限计数透传", () => {
+  it("propose 超 REACT_MAX_FACTS_PER_CHAPTER 条 → 多余被丢，cappedCount = 超出数", async () => {
+    const over = 2;
+    const n = REACT_MAX_FACTS_PER_CHAPTER + over;
+    // n 条各不相同、evidence 均 grounded（「结盟」在 CHAPTER 里）→ 无重复/无 grounding 丢弃，
+    // 唯一被丢的原因就是软上限。
+    const facts = Array.from({ length: n }, (_, i) => ({
+      content_clean: `事件编号第${i}条内容各不相同`,
+      characters: [],
+      evidence: "结盟",
+    }));
+    const provider = scriptedProvider([
+      toolIter([{ name: REACT_TOOL_PROPOSE, args: { facts } }]),
+      toolIter([{ name: REACT_TOOL_FINALIZE, args: {} }]),
+    ]);
+    const res = await reactExtractFromChapter(CHAPTER, 5, [], { characters: [] }, null, provider, {
+      _telemetry_override: silentTelemetry,
+    });
+    expect(res.facts).toHaveLength(REACT_MAX_FACTS_PER_CHAPTER);
+    expect(res.cappedCount).toBe(over);
+  });
+
+  it("未触发上限时 cappedCount = 0", async () => {
+    const provider = scriptedProvider([
+      toolIter([{ name: REACT_TOOL_PROPOSE, args: { facts: [{ content_clean: "只有一条事实内容", characters: [], evidence: "结盟" }] } }]),
+      toolIter([{ name: REACT_TOOL_FINALIZE, args: {} }]),
+    ]);
+    const res = await reactExtractFromChapter(CHAPTER, 5, [], { characters: [] }, null, provider, {
+      _telemetry_override: silentTelemetry,
+    });
+    expect(res.cappedCount).toBe(0);
+  });
+});
+
 describe("reactExtractFromChapter — 防幻觉过滤", () => {
   it("annotate 编造的 fact_id / thread_id 被丢弃（只保真实存在的）", async () => {
     const { factRepo, threadRepo } = await seededRepos([SEED_FACT], [SEED_THREAD]);
@@ -204,7 +238,7 @@ describe("reactExtractFromChapter — 终止 / 降级语义", () => {
   it("空章节 → 空结果 status ok（不跑 LLM）", async () => {
     const provider = scriptedProvider([textIter("never called")]);
     const res = await reactExtractFromChapter("   ", 5, [], { characters: [] }, null, provider, { _telemetry_override: silentTelemetry });
-    expect(res).toEqual({ facts: [], status: "ok" });
+    expect(res).toEqual({ facts: [], status: "ok", cappedCount: 0 });
   });
 });
 

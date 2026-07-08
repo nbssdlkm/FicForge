@@ -21,6 +21,10 @@ export class TauriAdapter implements PlatformAdapter {
     this._deviceId = deviceId ?? crypto.randomUUID();
   }
 
+  setDeviceId(deviceId: string): void {
+    this._deviceId = deviceId;
+  }
+
   async readFile(path: string): Promise<string> {
     if (!path) throw new Error("readFile: path must not be empty");
     const { readTextFile } = await import("@tauri-apps/plugin-fs");

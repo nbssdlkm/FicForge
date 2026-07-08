@@ -114,6 +114,10 @@ function App() {
           const kvStored = await eng.adapter.kvGet("ficforge_device_id");
           if (!kvStored) {
             await eng.adapter.kvSet("ficforge_device_id", deviceId);
+          } else if (kvStored !== deviceId) {
+            // L14：受限环境（localStorage 不可用）下 getOrCreateDeviceId 每次生成新随机 ID，但 KV
+            // 里已有旧 ID。采用已存值，让 ops device_id 归属稳定，不再每次重开漂移。
+            eng.adapter.setDeviceId(kvStored);
           }
         } catch { /* best effort */ }
 

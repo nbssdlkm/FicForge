@@ -128,8 +128,8 @@ export async function persist_chapter_summary(deps: PersistSummaryDeps): Promise
 
 // ---- 批量补摘要（backfill）：给「配 embedding 之前确认、永久没摘要」的旧章补 standard 摘要。----
 // 复用 confirm 同款原语（generate_standard_summary + persist_chapter_summary）。
-// 只补 standard（RAG 实际消费的那档）；micro 是 M10 留位、当前无消费者，confirm 顺带生成，
-// backfill 不为它多调一次 LLM。
+// 只补 standard（RAG 实际消费的那档）；micro 由 retrospective 消费（每 N 章注入后续 micro
+// 作「后见之明」重写 standard v2），confirm 顺带生成，backfill 不为它多调一次 LLM。
 
 /**
  * 找出「缺 standard 摘要」的章节号。

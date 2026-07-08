@@ -57,6 +57,15 @@ async function loadMdDir(
   return result;
 }
 
+/**
+ * L8（审计第二轮）：每条 OpenAI chat message 除 content 外还有固定 framing 开销
+ * （role token + `<|im_start|>`/`<|im_end|>` 类分隔符 + name 字段）。OpenAI tiktoken
+ * cookbook 给的经验值是 tokens_per_message≈3~4（外加整个请求 +3 priming）。取 4 作单条
+ * 保守常量：badge 是「全塞」哲学下唯一的超窗预警防线，宁可略高估也不让 framing 系统性漏计
+ * 导致临界时误判未超窗。单处定义，避免与将来别处的估算漂移。
+ */
+export const CHAT_MESSAGE_FRAMING_TOKENS = 4;
+
 export interface SimpleContextTokenEstimate {
   inputTokens: number;
   contextWindow: number;
@@ -122,11 +131,21 @@ export async function estimate_simple_context_tokens(
   let historyTokens = 0;
   if (history.length > 0) {
     await ensureTokenizer(); // assembler 已 ensure 过，这里 idempotent
+    const llmForCount = effectiveLlm ?? project.llm;
     for (const msg of history) {
-      // OpenAI 格式：每条 message 实际 token = role token + content token + 几个 framing token。
-      // 简版估算只算 content（与 assembler 同口径，badge 是估算非精确账单）。
+      // OpenAI 格式：每条 message 实际 token = content + tool_calls args + 固定 framing。
       // H4：编码选择与 assembler 同源（count_tokens 现只看 mode，行为等价）。
-      historyTokens += count_tokens(msg.content ?? "", effectiveLlm ?? project.llm).count;
+      historyTokens += count_tokens(msg.content ?? "", llmForCount).count;
+      // L8：assistant 携 tool_calls 时，args JSON 也随请求发送、真实占 token，旧代码漏计
+      // 导致带工具调用的多轮对话被系统性低估。逐 call 计其 arguments（+函数名少量）。
+      if (msg.tool_calls && msg.tool_calls.length > 0) {
+        for (const call of msg.tool_calls) {
+          historyTokens += count_tokens(call.function?.arguments ?? "", llmForCount).count;
+          historyTokens += count_tokens(call.function?.name ?? "", llmForCount).count;
+        }
+      }
+      // L8：每条 message 的固定 framing 开销（role/分隔符），单处常量避免漂移。
+      historyTokens += CHAT_MESSAGE_FRAMING_TOKENS;
     }
   }
 

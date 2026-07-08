@@ -7,7 +7,8 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { run_retrospective, generate_retrospective, shouldRunRetrospective, RETROSPECTIVE_INTERVAL } from "../retrospective.js";
+import { run_retrospective, generate_retrospective, commit_retrospective, shouldRunRetrospective, RETROSPECTIVE_INTERVAL } from "../retrospective.js";
+import { IndexStatus } from "../../domain/enums.js";
 
 function fakeProvider(reply: string) {
   return { generate: vi.fn(async () => ({ content: reply })) } as any;
@@ -186,5 +187,53 @@ describe("run_retrospective", () => {
     expect(getCalls).toContain(6);
     expect(getCalls).toContain(10);
     expect(getCalls).not.toContain(11);
+  });
+});
+
+// L17（审计第二轮）：v2 落盘成功但摘要向量覆盖失败 → 置 index_status=STALE，让既有 stale 横幅接管。
+describe("commit_retrospective — L17 向量覆盖失败置 STALE", () => {
+  const genResult = { v2Text: "v2 text", contentHash: "h" };
+
+  function fakeStateRepo() {
+    const state = { index_status: IndexStatus.READY } as { index_status: IndexStatus };
+    return {
+      repo: {
+        get: vi.fn(async () => state),
+        save: vi.fn(async () => {}),
+        update: vi.fn(async (_au: string, mut: (s: any) => void) => { mut(state); return state; }),
+      } as any,
+      state,
+    };
+  }
+
+  it("indexChapterSummary 抛错 → state.update 置 STALE", async () => {
+    const summaryRepo = fakeSummaryRepo({});
+    const ragManager = { indexChapterSummary: vi.fn(async () => { throw new Error("embed fail"); }) } as any;
+    const { repo, state } = fakeStateRepo();
+
+    await commit_retrospective("/au", 5, genResult, summaryRepo, ragManager, fakeEmbeddingProvider(), repo);
+
+    expect(summaryRepo.promote_to_v2).toHaveBeenCalledOnce(); // v2 已落盘
+    expect(repo.update).toHaveBeenCalledOnce();
+    expect(state.index_status).toBe(IndexStatus.STALE);
+  });
+
+  it("向量覆盖成功 → 不置 STALE（不误伤）", async () => {
+    const summaryRepo = fakeSummaryRepo({});
+    const ragManager = fakeRagManager();
+    const { repo, state } = fakeStateRepo();
+
+    await commit_retrospective("/au", 5, genResult, summaryRepo, ragManager, fakeEmbeddingProvider(), repo);
+
+    expect(repo.update).not.toHaveBeenCalled();
+    expect(state.index_status).toBe(IndexStatus.READY);
+  });
+
+  it("未传 stateRepo → 向量失败时不抛（向后兼容 best-effort）", async () => {
+    const summaryRepo = fakeSummaryRepo({});
+    const ragManager = { indexChapterSummary: vi.fn(async () => { throw new Error("embed fail"); }) } as any;
+    await expect(
+      commit_retrospective("/au", 5, genResult, summaryRepo, ragManager, fakeEmbeddingProvider()),
+    ).resolves.toBeUndefined();
   });
 });

@@ -19,6 +19,8 @@ import type { LLMProvider } from "../llm/provider.js";
 import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { ChapterSummaryRepository } from "../repositories/interfaces/chapter_summary.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
+import type { StateRepository } from "../repositories/interfaces/state.js";
+import { IndexStatus } from "../domain/enums.js";
 import type { RagManager } from "./rag_manager.js";
 import { logCatch } from "../logger/index.js";
 
@@ -165,6 +167,10 @@ export async function commit_retrospective(
   summaryRepo: ChapterSummaryRepository,
   ragManager: RagManager,
   embeddingProvider: EmbeddingProvider,
+  // L17：传入则在「v2 落盘成功但摘要向量覆盖失败」时置 index_status=STALE，让既有 stale 横幅
+  // 接管提示（否则 sum{N} 摘要向量长期停在 v1、正文与摘要向量不一致，无人促发 rebuild）。
+  // 调用方在 AU 锁内调用本函数，state.update 与其它锁内写盘一致。
+  stateRepo?: StateRepository,
 ): Promise<void> {
   // Step 6: 写 v2（promote_to_v2：备份 v1 + 写 standard v2）
   try {
@@ -178,8 +184,16 @@ export async function commit_retrospective(
   try {
     await ragManager.indexChapterSummary(auPath, targetChapterNum, genResult.v2Text, embeddingProvider);
   } catch (err) {
-    // 向量索引失败不回滚 v2（v2 文本已落盘，下次 rebuild 会重新索引）
+    // 向量索引失败不回滚 v2（v2 文本已落盘）。L17：置 STALE 让既有 stale 横幅提示用户重建，
+    // 不再默默等下次 rebuild（可能永不发生）。置 STALE 本身失败只记日志（best-effort）。
     logCatch("retrospective", `indexChapterSummary failed for chapter ${targetChapterNum} v2`, err);
+    if (stateRepo) {
+      try {
+        await stateRepo.update(auPath, (st) => { st.index_status = IndexStatus.STALE; });
+      } catch (stErr) {
+        logCatch("retrospective", `Failed to mark index STALE after summary vector overwrite failed (chapter ${targetChapterNum})`, stErr);
+      }
+    }
   }
 }
 

@@ -157,23 +157,25 @@ export async function extractFacts(auPath: string, chapterNum: number, opts?: { 
   // 结果是合法的「本章无事实」，不该再跑一次单次调用（codex 二审 MAJOR-3）。
   // signal 透传给慢 LLM（审计⑨：backfill 点停时立刻取消在飞的提取请求，不空跑到完成）。
   if (reactEnabled) {
-    const { facts: reactFacts, status } = await reactExtractFromChapter(
+    const { facts: reactFacts, status, cappedCount } = await reactExtractFromChapter(
       chapterContent, chapterNum, existingFacts,
       proj.cast_registry, null, provider,
       { language: lang as "zh" | "en", factRepo: e.repos.fact, threadRepo: e.repos.thread, auPath, signal: opts?.signal },
     );
     if (!(status === "degraded" && reactFacts.length === 0)) {
-      return { facts: reactFacts };
+      // L16：透传软上限丢弃数（backfill 据此提示用户某章命中上限、部分笔记未收）。
+      return { facts: reactFacts, cappedCount };
     }
     // degraded + 空 → 落到下面单次调用兜底
   }
 
+  // 单次调用路径无软上限概念（不截断），cappedCount=0。
   const facts = await extract_facts_from_chapter(
     chapterContent, chapterNum, existingFacts,
     proj.cast_registry, null, provider, llmConfig,
     { language: lang, signal: opts?.signal },
   );
-  return { facts };
+  return { facts, cappedCount: 0 };
 }
 
 export async function extractFactsBatch(auPath: string, chapterNums: number[]) {

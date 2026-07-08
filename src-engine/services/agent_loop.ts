@@ -250,6 +250,12 @@ export async function* runAgentLoop<E>(
           fullText,
         });
         if (hint) {
+          // L10：被丢弃的偏离回复先以 assistant 消息入 history，模型能看到自己上一条说了什么，
+          // 否则紧随的 hint（如"改用工具重说"）指涉的是模型看不见的内容。reasoning_content 一并
+          // 带回（DeepSeek reasoner 多轮要求回传，否则 400）。
+          const deviationMsg: Message = { role: "assistant", content: fullText };
+          if (reasoningContent) deviationMsg.reasoning_content = reasoningContent;
+          internalHistory.push(deviationMsg);
           internalHistory.push(hint);
           deviationGuardCount++;
           continue;

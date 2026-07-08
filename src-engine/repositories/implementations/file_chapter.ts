@@ -177,11 +177,21 @@ export class FileChapterRepository implements ChapterRepository {
     const backupsDir = joinPath(au_id, "chapters", "backups");
     await this.adapter.mkdir(backupsDir);
 
-    // 确定版本号
+    // 确定版本号（L23）：用「现存最大版本号 + 1」而非「文件数 + 1」。外部清理掉 v1、只留 v2 时，
+    // 文件数=1 会算出 v2 覆盖既有 v2（备份被覆盖 = undo 级联回滚拿到错内容）。解析文件名里的
+    // 版本号取 max，保证新备份编号严格大于任何现存备份。
     const prefix = `ch${String(chapter_num).padStart(4, "0")}_v`;
     const existingFiles = await this.adapter.listDir(backupsDir);
-    const existing = existingFiles.filter((f) => f.startsWith(prefix));
-    const version = existing.length + 1;
+    let maxVersion = 0;
+    for (const f of existingFiles) {
+      if (!f.startsWith(prefix)) continue;
+      const m = f.slice(prefix.length).match(/^(\d+)/);
+      if (m) {
+        const v = parseInt(m[1], 10);
+        if (v > maxVersion) maxVersion = v;
+      }
+    }
+    const version = maxVersion + 1;
 
     const dest = joinPath(backupsDir, `ch${String(chapter_num).padStart(4, "0")}_v${version}.md`);
     const content = await this.adapter.readFile(src);

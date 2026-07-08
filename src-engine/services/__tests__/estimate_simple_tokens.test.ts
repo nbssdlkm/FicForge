@@ -113,4 +113,55 @@ describe("estimate_simple_context_tokens", () => {
     expect(populated.inputTokens).toBeGreaterThan(empty.inputTokens);
     expect(populated.inputTokens).toBeGreaterThan(empty.inputTokens + 100);
   });
+
+  // L8（审计第二轮）：assistant.tool_calls 的 args JSON + 每条 framing 常量必须计入，
+  // 否则带工具调用的多轮对话被系统性低估。回退旧码（只算 content）即挂。
+  it("L8: assistant.tool_calls 的 args 计入 inputTokens（即使 content 为空）", async () => {
+    const adapter = new MockAdapter();
+    const chapterRepo = new FileChapterRepository(adapter);
+    const project = createProject({ project_id: "p", au_id: "au_tc" });
+    const state = createState({ au_id: "au_tc", current_chapter: 1 });
+
+    const baseArgs = { au_id: "au_tc", project, state, chapter_repo: chapterRepo, adapter, language: "zh" as const };
+
+    // content 空、只带一个 tool_call —— 旧码 count_tokens("") = 0，只有 framing。
+    const withToolCall = await estimate_simple_context_tokens({
+      ...baseArgs,
+      history: [
+        { role: "assistant", content: "", tool_calls: [
+          { id: "c1", type: "function", function: { name: "write_chapter", arguments: JSON.stringify({ instruction: "继续写下一章，推进主线剧情，注意人物弧光的连续性。".repeat(10) }) } },
+        ] },
+      ],
+    });
+    // 同样一条 content 空的 assistant，但无 tool_calls —— 只贡献 framing。
+    const withoutToolCall = await estimate_simple_context_tokens({
+      ...baseArgs,
+      history: [{ role: "assistant", content: "" }],
+    });
+
+    // args JSON 实打实占 token（几十上百）；旧码两者相等（都只 content=""）。
+    expect(withToolCall.inputTokens).toBeGreaterThan(withoutToolCall.inputTokens + 20);
+  });
+
+  it("L8: 每条 message 计固定 framing 常量（N 条空 message 也非零增长）", async () => {
+    const adapter = new MockAdapter();
+    const chapterRepo = new FileChapterRepository(adapter);
+    const project = createProject({ project_id: "p", au_id: "au_fr" });
+    const state = createState({ au_id: "au_fr", current_chapter: 1 });
+    const baseArgs = { au_id: "au_fr", project, state, chapter_repo: chapterRepo, adapter, language: "zh" as const };
+
+    const zeroMsg = await estimate_simple_context_tokens({ ...baseArgs, history: [] });
+    const fourEmptyMsgs = await estimate_simple_context_tokens({
+      ...baseArgs,
+      history: [
+        { role: "user", content: "" },
+        { role: "assistant", content: "" },
+        { role: "user", content: "" },
+        { role: "assistant", content: "" },
+      ],
+    });
+    // 4 条空 message 的 content 都是 0 token，但每条 framing 常量累加 → 严格大于 0 条。
+    // 旧码全 0，两者相等 → 该断言回退即挂。
+    expect(fourEmptyMsgs.inputTokens).toBeGreaterThan(zeroMsg.inputTokens);
+  });
 });

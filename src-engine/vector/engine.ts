@@ -178,6 +178,8 @@ export class JsonVectorEngine implements VectorRepository {
     // 按 collection 分组写入 JSON 文件
     const indexEntries: IndexEntry[] = [];
     const collectionDirs = new Set<string>();
+    // L18：本次写入的分片文件全集（相对 dir 的 `collection/id.json`），用于清理孤儿分片。
+    const writtenRel = new Set<string>();
 
     for (const chunk of this.chunks) {
       const collDir = `${dir}/${chunk.collection}`;
@@ -189,6 +191,7 @@ export class JsonVectorEngine implements VectorRepository {
       const fileName = `${chunk.id}.json`;
       const filePath = `${collDir}/${fileName}`;
       await this.adapter.writeFile(filePath, JSON.stringify(chunk, null, 2));
+      writtenRel.add(`${chunk.collection}/${fileName}`);
 
       indexEntries.push({
         id: chunk.id,
@@ -201,7 +204,7 @@ export class JsonVectorEngine implements VectorRepository {
       });
     }
 
-    // 写入 index.json
+    // 写入 index.json（先于孤儿分片 GC —— 见下方 F-10 说明）
     const dimension = this.chunks.length > 0 ? this.chunks[0].embedding.length : 0;
     const index: VectorIndex = {
       model: "",
@@ -210,6 +213,40 @@ export class JsonVectorEngine implements VectorRepository {
       chunks: indexEntries,
     };
     await this.adapter.writeFile(`${dir}/index.json`, JSON.stringify(index, null, 2));
+
+    // L18：清理孤儿分片——undo/编辑/重确认后 chunk 数变少时，旧的 `.json` 分片不再被本次写入
+    // 覆盖，会永久残留（load 靠 index.json 不读它们，但纯磁盘垃圾逐轮膨胀）。列出 dir 下各
+    // collection 子目录里的 `.json`，删掉不在本次写入集合中的（index.json 在 dir 顶层，不在
+    // 任何 collection 子目录，天然不受影响）。清理失败不影响主写入（best-effort）。
+    // F-10：GC 放在 index.json 写成功**之后** —— 若 GC 先行、index 写入前崩溃，磁盘上会留下
+    // 「旧 index 引用已删分片」的损伤形态（load 报 chunk 缺失）；改序后崩溃最多留孤儿分片
+    // （无害垃圾，下轮 persist 再清）。
+    try {
+      const topEntries = await this.adapter.listDir(dir);
+      for (const collName of topEntries) {
+        if (collName === "index.json") continue; // 顶层文件，非 collection 目录
+        const collDir = `${dir}/${collName}`;
+        let files: string[] = [];
+        try {
+          files = await this.adapter.listDir(collDir);
+        } catch {
+          continue; // 不是目录 / 读不到 → 跳过
+        }
+        for (const f of files) {
+          if (!f.endsWith(".json")) continue;
+          const rel = `${collName}/${f}`;
+          if (writtenRel.has(rel)) continue; // 本次写入的，保留
+          try {
+            await this.adapter.deleteFile(`${collDir}/${f}`);
+          } catch {
+            // 单个删除失败不阻断（下轮再试）
+          }
+        }
+      }
+    } catch {
+      // listDir(dir) 失败（罕见）→ 跳过清理，不影响已写入的分片与 index.json
+    }
+
     this.indexStatus = IndexStatus.READY;
   }
 
