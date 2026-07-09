@@ -14,10 +14,13 @@ import {
   createThread,
   generate_thread_id,
   now_utc,
+  computeThreadStaleness,
+  threadMemberFacts,
+  regenerate_thread_state,
 } from "@ficforge/engine";
-import type { Thread } from "@ficforge/engine";
+import type { Thread, ThreadStaleness } from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
-import { editFact } from "./engine-facts";
+import { editFact, resolveFactsProvider } from "./engine-facts";
 
 export async function listThreads(auPath: string): Promise<Thread[]> {
   return getEngine().repos.thread.list(auPath);
@@ -46,6 +49,37 @@ export async function addThread(
 /** 整条更新（标题/描述/进展/状态）。updated_at 由仓库刷新。 */
 export async function updateThread(auPath: string, thread: Thread): Promise<void> {
   await getEngine().repos.thread.update(auPath, thread);
+}
+
+/**
+ * 最后一公里 B2：确定性找出「当前进展可能已过时」的剧情线（零 LLM）——挂了晚于 state 上次
+ * 更新的新事实即算陈旧。UI 据此在剧情线上提示「进展待更新」，让隐性陈旧变显性。
+ */
+export async function getStaleThreads(auPath: string): Promise<ThreadStaleness[]> {
+  const e = getEngine();
+  const [threads, facts] = await Promise.all([
+    e.repos.thread.list(auPath),
+    e.repos.fact.list_all(auPath),
+  ]);
+  return computeThreadStaleness(threads, facts);
+}
+
+/**
+ * 按需（用户点「刷新进展」）用 LLM 从成员事实重算某条线的「当前进展」并落库。返回新 state 文本；
+ * null = 无成员事实 / LLM 失败（未改动，保留旧 state）。落库时刷新 updated_at → 陈旧判定清零。
+ * 成本可控：只有用户显式触发才烧 token，不在 confirm 后自动重算。
+ */
+export async function regenerateThreadState(auPath: string, threadId: string): Promise<string | null> {
+  const e = getEngine();
+  const thread = await e.repos.thread.get(auPath, threadId);
+  if (!thread) return null;
+  const facts = await e.repos.fact.list_all(auPath);
+  const members = threadMemberFacts(thread, facts);
+  const { provider, lang } = await resolveFactsProvider(auPath);
+  const state = await regenerate_thread_state(thread, members, provider, { language: lang as "zh" | "en" });
+  if (state == null) return null;
+  await e.repos.thread.update(auPath, { ...thread, state, updated_at: now_utc() });
+  return state;
 }
 
 /** 改状态（收束 resolved / 搁置 dormant / 重新激活 active）。 */

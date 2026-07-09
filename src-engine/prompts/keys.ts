@@ -61,6 +61,10 @@ export const REQUIRED_KEYS = [
   "SUMMARY_RETROSPECTIVE_SYSTEM",
   "SUMMARY_RETROSPECTIVE_USER",      // f-string with {chapter_num}, {chapter_text}, {prior_summary}, {micro_summaries}
 
+  // === thread state regeneration (最后一公里 B2) ===
+  "THREAD_STATE_SYSTEM",
+  "THREAD_STATE_USER",               // f-string with {title}, {description}, {facts}
+
   // === facts_extraction ===
   "FACTS_SYSTEM_PROMPT",
   "FACTS_ENRICH_SYSTEM_PROMPT",  // M8-A: 单章提取（含新字段）

@@ -205,6 +205,14 @@ export {
   RETROSPECTIVE_INTERVAL,
 } from "./retrospective.js";
 
+export type { ThreadStaleness } from "./thread_state.js";
+export {
+  computeThreadStaleness,
+  threadMemberFacts,
+  regenerate_thread_state,
+  THREAD_STATE_MAX_FACTS,
+} from "./thread_state.js";
+
 // Secure Storage Migration
 export type {
   SecureStorageMigrationParams,

@@ -157,6 +157,14 @@ const en: PromptModule = {
   SUMMARY_MICRO_USER:
     "Write a 30-50 word chapter card for chapter {chapter_num}:\n\n{chapter_text}",
 
+  THREAD_STATE_SYSTEM:
+    "You maintain the 'current progress' of a storyline. Given a storyline's name, description, and the " +
+    "events that have happened, write ONE sentence (max 30 words) summarizing where the line stands now. " +
+    "Requirements: (1) third person, objective; (2) output only that one sentence — no explanation, no quotes, " +
+    "no bullets, no preamble; (3) do not fabricate anything not in the events.",
+  THREAD_STATE_USER:
+    "Storyline: {title}\nDescription: {description}\n\nEvents so far (chronological):\n{facts}\n\nSummarize the current progress in one sentence:",
+
   // ===========================================================================
   // retrospective rewrite (M10-A)
   // ===========================================================================

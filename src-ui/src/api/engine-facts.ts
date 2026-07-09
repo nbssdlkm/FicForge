@@ -26,7 +26,7 @@ import { hasUsableConnection } from "./engine-settings";
 // 共享 helper：LLM 配置解析（仅本文件内使用）
 // ---------------------------------------------------------------------------
 
-async function resolveFactsProvider(auPath: string): Promise<{
+export async function resolveFactsProvider(auPath: string): Promise<{
   provider: LLMProvider;
   llmConfig: ResolvedLLMConfig;
   proj: Project;

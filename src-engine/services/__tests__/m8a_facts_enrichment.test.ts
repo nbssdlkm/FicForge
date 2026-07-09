@@ -490,8 +490,8 @@ describe("T7: FACTS_ENRICH_SYSTEM_PROMPT prompt key (M8-A)", () => {
     expect(REQUIRED_KEYS).toContain("FACTS_ENRICH_SYSTEM_PROMPT");
   });
 
-  it("total key count is 67 (M8-A +1 + M10-A +4 + M8-B +1)", () => {
-    expect(REQUIRED_KEYS.length).toBe(67);
+  it("total key count is 69 (M8-A +1 + M10-A +4 + M8-B +1 + B2 +2)", () => {
+    expect(REQUIRED_KEYS.length).toBe(69);
   });
 
   it("zh module has FACTS_ENRICH_SYSTEM_PROMPT and it is non-empty", () => {
