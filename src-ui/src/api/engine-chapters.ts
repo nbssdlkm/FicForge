@@ -519,6 +519,7 @@ export async function backfillChapterMemory(
               embeddingProvider: embProvider,
               summaryRepo: chapterSummary,
               ragManager: e.ragManager,
+              signal, // 点停时摘要向量化立即中止（MED-2）
             });
           }
 
@@ -545,8 +546,8 @@ export async function backfillChapterMemory(
             factsAdded += 1;
           }
 
-          // 章正文进向量索引（idempotent overwrite）
-          await e.ragManager.indexChapter(auPath, t.chapterNum, t.content, embProvider, proj.cast_registry);
+          // 章正文进向量索引（idempotent overwrite）；signal 透传 → 点停时中止在飞 embed（MED-2）
+          await e.ragManager.indexChapter(auPath, t.chapterNum, t.content, embProvider, proj.cast_registry, signal);
           return { persisted: true, factsAdded };
         } catch (err) {
           // 半成功（如摘要/部分笔记已落但正文未索引）→ 标 index_status=STALE，让「重建索引」或重跑修复

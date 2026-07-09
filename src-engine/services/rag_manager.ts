@@ -45,8 +45,9 @@ export class RagManager {
     content: string,
     embeddingProvider: EmbeddingProvider,
     castRegistry?: CastRegistryLike | null,
+    signal?: AbortSignal,
   ): Promise<void> {
-    await this.indexChapterInMemory(auPath, chapterNum, content, embeddingProvider, castRegistry);
+    await this.indexChapterInMemory(auPath, chapterNum, content, embeddingProvider, castRegistry, signal);
     await this.vectorEngine.persist(vectorsDir(auPath));
   }
 
@@ -59,10 +60,11 @@ export class RagManager {
     chapterNum: number,
     summaryText: string,
     embeddingProvider: EmbeddingProvider,
+    signal?: AbortSignal,
   ): Promise<void> {
     if (!summaryText.trim()) return;
     await this.ensureLoaded(auPath);
-    const [embedding] = await embeddingProvider.embed([summaryText]);
+    const [embedding] = await embeddingProvider.embed([summaryText], { signal });
     // embed 是慢 I/O：期间并发 confirm 可能切走 currentAu，导致 index/persist 落到错误 AU
     // （cross-AU 污染，codex workflow 审）。重新 ensureLoaded 保证回到目标 AU 的内存索引。
     // 注：底层 indexChapter/indexChapterInMemory 有同样的 pre-existing gap，见 TECH-DEBT.md TD-017。
@@ -130,7 +132,7 @@ export class RagManager {
         if (signal?.aborted) break;
         const ch = chapters[i];
         const content = await chapterRepo.get_content_only(auPath, ch.chapter_num);
-        await this.indexChapterInMemory(auPath, ch.chapter_num, content, embeddingProvider, castRegistry);
+        await this.indexChapterInMemory(auPath, ch.chapter_num, content, embeddingProvider, castRegistry, signal);
         // M8-C：若该章有 standard 摘要，一并索引进 summaries collection（仅内存，循环后统一 persist）
         if (summaryRepo) {
           // best-effort：单章摘要 embed/index 失败（超长被 embedding 拒、或文件语义损坏 text 非 string）
@@ -139,7 +141,7 @@ export class RagManager {
             const sum = await summaryRepo.get(auPath, ch.chapter_num);
             const text = sum?.standard?.text;
             if (typeof text === "string" && text.trim()) {
-              const [embedding] = await embeddingProvider.embed([text]);
+              const [embedding] = await embeddingProvider.embed([text], { signal });
               await this.vectorEngine.index_chunks([{
                 id: `sum${ch.chapter_num}`,
                 collection: "summaries",
@@ -174,6 +176,7 @@ export class RagManager {
     content: string,
     embeddingProvider: EmbeddingProvider,
     castRegistry?: CastRegistryLike | null,
+    signal?: AbortSignal,
   ): Promise<void> {
     await this.ensureLoaded(auPath);
 
@@ -181,7 +184,7 @@ export class RagManager {
 
     // embed（慢 I/O）放在删除之前：embed 失败时内存索引未被改动，旧 chunks 仍可召回（fail-safe）。
     const texts = chunks.map((c) => c.content);
-    const embeddings = chunks.length > 0 ? await embeddingProvider.embed(texts) : [];
+    const embeddings = chunks.length > 0 ? await embeddingProvider.embed(texts, { signal }) : [];
 
     if (embeddings.length !== texts.length) {
       throw new Error(

@@ -102,6 +102,8 @@ export interface PersistSummaryDeps {
   embeddingProvider: EmbeddingProvider;
   summaryRepo: ChapterSummaryRepository;
   ragManager: RagManager;
+  /** 外部取消（backfill 点停）：透传给摘要向量化，取消时立即中止在飞 embed。 */
+  signal?: AbortSignal;
 }
 
 /**
@@ -113,7 +115,7 @@ export interface PersistSummaryDeps {
  *   CAS 一起放进 withAuLock，避免并发 undo/edit 后把过期摘要写回（codex 对抗审 race）。
  */
 export async function persist_chapter_summary(deps: PersistSummaryDeps): Promise<void> {
-  await deps.ragManager.indexChapterSummary(deps.auPath, deps.chapterNum, deps.text, deps.embeddingProvider);
+  await deps.ragManager.indexChapterSummary(deps.auPath, deps.chapterNum, deps.text, deps.embeddingProvider, deps.signal);
   // 合并写而非整档重写（审计 M2）：confirm 时 standard 失败/micro 成功会留下 micro-only 文件，
   // backfill 判「缺摘要」后走到这里 —— 整档 createChapterSummary({standard}) 会把 micro 抹掉，
   // 而 micro 没有补生成路径 → retrospective 输入永久缺章。对齐 update_micro / promote_to_v2

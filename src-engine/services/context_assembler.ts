@@ -202,9 +202,13 @@ export function build_instruction(
 
 /**
  * 根据 _confidence 构建 fact 行的括号内补充字符串。
- * 规则（spec §七）：
- *   - 无 _confidence → 返回 ""（不注入任何新字段）
- *   - confidence >= medium 才注入对应字段
+ *
+ * 门控语义 = 「过滤 ReAct 的低置信猜测」，不是「必须有 _confidence 才注入」（MED-3 修正）：
+ *   - **有 _confidence**（ReAct 合成，见 react_extraction_dispatch H10）：对应字段 confidence
+ *     ≥ medium 才注入 —— 挡掉 LLM 低置信的富化猜测污染 prompt。
+ *   - **无 _confidence**（手动录入 / 导入的 ground truth：源头即确定，非 LLM 猜测）：present 即注入。
+ *     否则用户/导入设定的 location/known_to 被置信度门控静默丢弃、永远进不了 P3（第三轮审计 MED）。
+ *     注：ReAct 若某 fact 富化字段全空则保持 _confidence=undefined，此时也无字段可注入，语义仍一致。
  *   - 高价值：known_to（非 null）、time_kind（非 normal）、action_verb
  *   - 中价值：location、suspense_type
  *   - 低价值（不注入）：story_time_tag、story_time_order、hidden_from
@@ -213,16 +217,20 @@ export function build_instruction(
  */
 export function buildFactEnrichmentSuffix(fact: Fact): string {
   const c = fact._confidence;
-  if (!c) return "";
-
   const INJECT_LEVELS = new Set<ConfidenceLevel>(["high", "medium"]);
+  // 无 _confidence（手动/导入）→ 无条件注入；有 _confidence（ReAct）→ 按 high/medium gate。
+  const inject = (level: ConfidenceLevel | undefined): boolean => !c || INJECT_LEVELS.has(level!);
+  // 空/纯空白字符串不注入（避免渲染 "location: " 空行）——手动录入留空、或 LLM 吐 "" 时都挡掉
+  // （对抗审发现 2：MED-3 放开无 _confidence 路径后，空串字段会渲染无信息量空行）。
+  const hasText = (s: string | null | undefined): boolean => typeof s === "string" && s.trim() !== "";
+
   const parts: string[] = [];
 
-  // known_to（高价值）：[] 空数组不注入（无信息量，避免渲染 "known_to: "）
-  if (fact.known_to != null && INJECT_LEVELS.has(c.known_to!)) {
+  // known_to（高价值）：[] 空数组 / 空串不注入（无信息量）
+  if (fact.known_to != null && inject(c?.known_to)) {
     const isNonEmptyArray = Array.isArray(fact.known_to) && fact.known_to.length > 0;
-    const isString = typeof fact.known_to === "string";
-    if (isString || isNonEmptyArray) {
+    const isNonEmptyString = hasText(fact.known_to as string);
+    if (isNonEmptyString || isNonEmptyArray) {
       const v = Array.isArray(fact.known_to) ? fact.known_to.join(", ") : fact.known_to;
       parts.push(`known_to: ${v}`);
     }
@@ -232,23 +240,23 @@ export function buildFactEnrichmentSuffix(fact: Fact): string {
   if (
     fact.time_kind != null &&
     fact.time_kind !== "normal" &&
-    INJECT_LEVELS.has(c.time_kind!)
+    inject(c?.time_kind)
   ) {
     parts.push(`time_kind: ${fact.time_kind}`);
   }
 
   // action_verb（高价值）
-  if (fact.action_verb != null && INJECT_LEVELS.has(c.action_verb!)) {
+  if (hasText(fact.action_verb) && inject(c?.action_verb)) {
     parts.push(`action_verb: ${fact.action_verb}`);
   }
 
   // location（中价值）
-  if (fact.location != null && INJECT_LEVELS.has(c.location!)) {
+  if (hasText(fact.location) && inject(c?.location)) {
     parts.push(`location: ${fact.location}`);
   }
 
   // suspense_type（中价值）
-  if (fact.suspense_type != null && INJECT_LEVELS.has(c.suspense_type!)) {
+  if (fact.suspense_type != null && inject(c?.suspense_type)) {
     parts.push(`suspense_type: ${fact.suspense_type}`);
   }
 

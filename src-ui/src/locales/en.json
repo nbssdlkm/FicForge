@@ -685,6 +685,7 @@
     "extractStart": "Start Extraction",
     "extractNoChapter": "No finalized chapters yet. Nothing to extract.",
     "extractNoResult": "No new plot points extracted from this chapter.",
+    "extractChapterUndone": "The chapter was undone, so these notes weren't saved.",
     "extractReviewTitle": "Extraction Preview",
     "extractReviewDescription": "Review what the AI extracted before saving to your plot points.",
     "extractReviewEmpty": "No usable plot points were extracted.",

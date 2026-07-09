@@ -84,6 +84,86 @@ export async function addFact(auPath: string, chapterNum: number, factData: Reco
   });
 }
 
+// ---------------------------------------------------------------------------
+// 批量落库（交互式接受提取事实）—— 单锁 + 逐章存在性 CAS
+// ---------------------------------------------------------------------------
+
+export interface BatchFactInput {
+  chapterNum: number;
+  data: Record<string, unknown>;
+}
+
+export interface AddFactsBatchResult {
+  /** 成功写入的条数（= writtenIndices.length）。 */
+  added: number;
+  /** 因目标章已被并发 undo 删除而跳过的条数（不写孤儿事实）。 */
+  skipped: number;
+  /**
+   * 实际落盘的**输入下标**（升序，指向传入的 `facts`）。调用方据此精确登记「哪几条已存」
+   * 做半成功去重——不靠 `slice(0, added)` 反推前缀（混章批次里 skip 与 add 交错，added
+   * 计数不等于前缀，对抗审发现 3）。
+   */
+  writtenIndices: number[];
+}
+
+/**
+ * 半成功错误：批量落库过程中某条 add_fact 抛错（磁盘/序列化）时抛出，携带此前已成功
+ * 落盘的输入下标，供调用方登记已存部分、重试只补余下（M25 半成功去重）。
+ */
+export class PartialAddFactsError extends Error {
+  constructor(public readonly writtenIndices: number[], public readonly cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause));
+    this.name = "PartialAddFactsError";
+  }
+  /** 已成功落盘的条数。 */
+  get added(): number {
+    return this.writtenIndices.length;
+  }
+}
+
+/**
+ * 批量把「接受的提取事实」落库——整批在**一次** withAuLock 内完成，取代调用方逐条 addFact
+ * （每条各自加锁、锁间隙可被并发 undo 插入：撤销目标章后剩余几条仍写向已撤销章 = 孤儿事实，
+ * 第三轮审计 MED-1）。与 backfill 同款「单锁 + 章节存在性 CAS」：进锁后按章缓存存在性
+ * （`chapter.exists`），目标章缺失（被并发 undo 删）→ 该章的候选整体跳过、不落孤儿。
+ *
+ * 顺序处理，返回实际落盘的输入下标（`writtenIndices`）供精确去重。
+ * 某条 add_fact 抛错 → 抛 {@link PartialAddFactsError}（携已落盘下标），整批不再续写。
+ */
+export async function addFactsBatch(
+  auPath: string,
+  facts: BatchFactInput[],
+): Promise<AddFactsBatchResult> {
+  const { fact, ops, chapter } = getEngine().repos;
+  return withAuLock(auPath, async () => {
+    const existsCache = new Map<number, boolean>();
+    const chapterExists = async (n: number): Promise<boolean> => {
+      const cached = existsCache.get(n);
+      if (cached !== undefined) return cached;
+      const ok = await chapter.exists(auPath, n);
+      existsCache.set(n, ok);
+      return ok;
+    };
+
+    const writtenIndices: number[] = [];
+    let skipped = 0;
+    for (let i = 0; i < facts.length; i++) {
+      const f = facts[i];
+      if (!(await chapterExists(f.chapterNum))) {
+        skipped += 1; // 目标章被并发 undo 删除 → 跳过，不写孤儿事实
+        continue;
+      }
+      try {
+        await add_fact(auPath, f.chapterNum, f.data, fact, ops);
+        writtenIndices.push(i);
+      } catch (err) {
+        throw new PartialAddFactsError(writtenIndices, err);
+      }
+    }
+    return { added: writtenIndices.length, skipped, writtenIndices };
+  });
+}
+
 export async function editFact(auPath: string, factId: string, updatedFields: Record<string, unknown>) {
   const { fact, ops, state } = getEngine().repos;
   return withAuLock(auPath, () =>

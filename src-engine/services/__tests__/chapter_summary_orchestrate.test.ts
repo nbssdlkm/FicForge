@@ -12,7 +12,8 @@ describe("persist_chapter_summary", () => {
       auPath: "/au", chapterNum: 7, text: "第七章摘要", contentHash: "h7",
       embeddingProvider: { embed: vi.fn() } as any, summaryRepo, ragManager,
     });
-    expect(ragManager.indexChapterSummary).toHaveBeenCalledWith("/au", 7, "第七章摘要", expect.anything());
+    // MED-2：新增第 5 参 signal 透传（本用例未传 → undefined）
+    expect(ragManager.indexChapterSummary).toHaveBeenCalledWith("/au", 7, "第七章摘要", expect.anything(), undefined);
     expect(summaryRepo.save).toHaveBeenCalledOnce();
     const saved = summaryRepo.save.mock.calls[0][2];
     expect(saved.standard.source_chapter_hash).toBe("h7");

@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { addFact, submitFactsExtraction, extractedEnrichment, type StateInfo, type ExtractedFactCandidate } from '../../api/engine-client';
+import { addFactsBatch, PartialAddFactsError, submitFactsExtraction, extractedEnrichment, type BatchFactInput, type StateInfo, type ExtractedFactCandidate } from '../../api/engine-client';
 import { getEngine } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
@@ -32,6 +32,9 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
   // 清理：组件卸载时取消订阅
   const unsubRef = useRef<(() => void) | null>(null);
 
+  // M25 半成功去重：本轮已成功落库的候选（对象引用）。半成功重试时跳过，避免重复落库（对抗审发现 1）。
+  const savedCandidatesRef = useRef<Set<ExtractedFactCandidate>>(new Set());
+
   // 订阅事件的复用逻辑（submit 和 reconnect 共用）
   // 用 ref 持有，避免 identity 变化触发 reconnect effect 重跑
   const subscribeToTask = useCallback((taskId: string, requestAuPath: string) => {
@@ -46,6 +49,7 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
       } else if (event.type === 'completed') {
         const result = event.result as { facts: ExtractedFactCandidate[] } | undefined;
         const facts = result?.facts ?? [];
+        savedCandidatesRef.current = new Set(); // 新一轮候选 → 清空上轮「已保存」登记
         setExtractedCandidates(facts);
         selectAll(facts);
         setExtractModalOpen(true);
@@ -105,6 +109,7 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
       const result = completed.result as { facts: ExtractedFactCandidate[] } | undefined;
       const facts = result?.facts ?? [];
       if (facts.length > 0) {
+        savedCandidatesRef.current = new Set(); // 恢复已完成结果 → 清空登记
         setExtractedCandidates(facts);
         selectAll(facts);
         setExtractModalOpen(true);
@@ -113,6 +118,7 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
       runner.removeCompleted(completed.id);
     } else {
       // 无活跃也无已完成 → 完全重置（处理 AU 切换时的陈旧状态）
+      savedCandidatesRef.current = new Set();
       setExtractModalOpen(false);
       setExtractedCandidates([]);
     }
@@ -165,8 +171,13 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
     setSavingExtraction(true);
     try {
       const selectedCandidates = filterSelected(extractedCandidates);
-      for (const candidate of selectedCandidates) {
-        await addFact(requestAuPath, candidate.chapter || 1, {
+      // M25：只补本轮尚未入库的候选（上一次半成功遗留），保持顺序以便 writtenIndices 对齐。
+      const pending = selectedCandidates.filter((c) => !savedCandidatesRef.current.has(c));
+      // 整批单锁落库（MED-1）：范围提取的候选跨多章，逐条各自加锁的间隙可被并发 undo 插入，
+      // 撤销某章后仍写向该章 = 孤儿事实。批量 API 单锁 + 逐章存在性 CAS，被撤销的章整体跳过。
+      const inputs: BatchFactInput[] = pending.map((candidate) => ({
+        chapterNum: candidate.chapter || 1,
+        data: {
           content_raw: candidate.content_raw || candidate.content_clean,
           content_clean: candidate.content_clean,
           type: candidate.fact_type || candidate.type || 'plot_event',
@@ -175,17 +186,39 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
           characters: candidate.characters || [],
           ...(candidate.timeline ? { timeline: candidate.timeline } : {}),
           ...extractedEnrichment(candidate),  // caused_by + M8-A 富化（此前在此丢）
-        });
-        if (guard.isKeyStale(requestAuPath)) return;
-      }
+        },
+      }));
 
-      showSuccess(t('facts.extractSaved', { count: selectedCandidates.length }));
+      let added = 0;
+      let skipped = 0;
+      try {
+        const r = await addFactsBatch(requestAuPath, inputs);
+        added = r.added;
+        skipped = r.skipped;
+        // 用精确的 writtenIndices 登记（多章批次 skip/add 交错时前缀 slice 会错位，对抗审发现 3）。
+        r.writtenIndices.forEach((i) => savedCandidatesRef.current.add(pending[i]));
+      } catch (err) {
+        if (err instanceof PartialAddFactsError) {
+          // 半成功：已落盘的按下标精确登记，modal 保持打开、候选不清，重试只补余下（发现 1）。
+          err.writtenIndices.forEach((i) => savedCandidatesRef.current.add(pending[i]));
+        }
+        throw err;
+      }
+      if (guard.isKeyStale(requestAuPath)) return;
+
+      if (added === 0 && skipped > 0) {
+        showToast(t('facts.extractChapterUndone'), 'info');
+      } else {
+        showSuccess(t('facts.extractSaved', { count: added }));
+      }
       setExtractModalOpen(false);
       setExtractedCandidates([]);
+      savedCandidatesRef.current = new Set();
       clearSelection();
       await onSaved();
     } catch (error) {
       if (guard.isKeyStale(requestAuPath)) return;
+      // 半成功（PartialAddFactsError）：已入库的已登记，modal 保持打开，用户点重试只补未存的。
       showError(error, t('error_messages.unknown'));
     } finally {
       if (!guard.isKeyStale(requestAuPath)) {

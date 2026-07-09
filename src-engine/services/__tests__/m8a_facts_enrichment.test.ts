@@ -359,19 +359,19 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
     expect(text).not.toContain("known_to:");
   });
 
-  it("no _confidence → no new fields injected", () => {
+  it("no _confidence（手动/导入的 ground truth）→ 富化字段注入（MED-3）", () => {
     const fact = createFact({
       id: "f1", content_raw: "r", content_clean: "普通事件",
       status: FactStatus.ACTIVE, chapter: 1,
       known_to: "reader_only" as "reader_only",
       time_kind: "flashback" as any,
       action_verb: "决裂",
-      // No _confidence
+      // 无 _confidence = 非 ReAct 低置信猜测 = 源头确定 → 应注入（旧码在此静默丢弃）
     });
     const [text] = build_facts_layer([fact], [], 10000, null, "zh");
-    expect(text).not.toContain("known_to:");
-    expect(text).not.toContain("time_kind:");
-    expect(text).not.toContain("action_verb:");
+    expect(text).toContain("known_to: reader_only");
+    expect(text).toContain("time_kind: flashback");
+    expect(text).toContain("action_verb: 决裂");
   });
 
   it("time_kind 'flashback' with medium confidence → injected", () => {
@@ -431,14 +431,20 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
 });
 
 describe("T6: buildFactEnrichmentSuffix — pure function (M8-A)", () => {
-  it("returns empty string when no _confidence", () => {
+  it("no _confidence（手动/导入）→ present 富化字段无条件注入（MED-3）", () => {
     const fact = createFact({
       id: "f1", content_raw: "r", content_clean: "c",
       known_to: "reader_only" as "reader_only",
       time_kind: "flashback" as any,
     });
     const suffix = buildFactEnrichmentSuffix(fact);
-    expect(suffix).toBe("");
+    expect(suffix).toContain("known_to: reader_only");
+    expect(suffix).toContain("time_kind: flashback");
+  });
+
+  it("no _confidence 且无富化字段 → 仍返回空（无字段可注入）", () => {
+    const fact = createFact({ id: "f1", content_raw: "r", content_clean: "c" });
+    expect(buildFactEnrichmentSuffix(fact)).toBe("");
   });
 
   it("returns parenthesized suffix with high-confidence fields", () => {
@@ -468,6 +474,18 @@ describe("T6: buildFactEnrichmentSuffix — pure function (M8-A)", () => {
     const suffix = buildFactEnrichmentSuffix(fact);
     expect(suffix).toContain("known_to: reader_only");
     expect(suffix).not.toContain("location:");
+  });
+
+  it("_confidence 存在但某字段无条目 → 该字段抑制（ReAct 行为不变，MED-3 只放开无 _confidence 的手动路径）", () => {
+    const fact = createFact({
+      id: "f1", content_raw: "r", content_clean: "c",
+      known_to: "reader_only" as "reader_only",
+      location: "御书房", // location 在 _confidence 里无条目
+      _confidence: { known_to: "high" },
+    });
+    const suffix = buildFactEnrichmentSuffix(fact);
+    expect(suffix).toContain("known_to: reader_only");
+    expect(suffix).not.toContain("location:"); // c 存在 → 缺条目按未确信处理，抑制
   });
 
   it("time_kind 'normal' is NOT included even if high confidence", () => {

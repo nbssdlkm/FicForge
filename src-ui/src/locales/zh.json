@@ -685,6 +685,7 @@
     "extractStart": "开始提取",
     "extractNoChapter": "还没有已定稿章节，暂时没法提取。",
     "extractNoResult": "这一章暂时没有提取出新的剧情笔记。",
+    "extractChapterUndone": "对应章节已被撤销，这些笔记没有记录。",
     "extractReviewTitle": "提取结果预览",
     "extractReviewDescription": "先看看AI提取了什么，确认没问题再记进剧情笔记里。",
     "extractReviewEmpty": "这次没有提取到可用的剧情笔记。",

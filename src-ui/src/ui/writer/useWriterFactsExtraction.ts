@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { extractFacts, addFact, extractedEnrichment, type ExtractedFactCandidate } from '../../api/engine-client';
+import { extractFacts, addFactsBatch, PartialAddFactsError, extractedEnrichment, type BatchFactInput, type ExtractedFactCandidate } from '../../api/engine-client';
 import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import {
   getSkipFactsPromptDefault,
@@ -112,17 +112,17 @@ export function useWriterFactsExtraction(auPath: string) {
     // hook 内部记录的提取目标章优先（handleOpenExtractReview 设置），参数仅作
     // 旧调用方（写文 modal 链）兼容回退 —— 两者本应同值，内部值消除影子状态漂移。
     const targetChapter = extractTargetChapter ?? lastConfirmedChapter;
-    let savedThisRun = 0;
     try {
       const selectedCandidates = filterSelected(extractedCandidates);
+      // M25：只补本轮尚未入库的候选（上一次半成功遗留），保持顺序以便按序登记。
+      const pending = selectedCandidates.filter((c) => !savedCandidatesRef.current.has(c));
 
-      for (const candidate of selectedCandidates) {
-        // M25：跳过本轮已成功入库的候选（上一次半成功遗留），只补余下。
-        if (savedCandidatesRef.current.has(candidate)) continue;
-        // 归属用「本次提取所处理的确定章号」targetChapter，而非 LLM 候选里可能幻觉的
-        // candidate.chapter —— 对齐 backfill persistChapter「不信任 LLM chapter 字段」的口径（审计⑧）。
-        // 提取是对单章跑的，所有候选都归该章；仅在极端缺失时才回退。
-        await addFact(auPath, targetChapter ?? candidate.chapter ?? 1, {
+      // 归属用「本次提取所处理的确定章号」targetChapter，而非 LLM 候选里可能幻觉的
+      // candidate.chapter —— 对齐 backfill persistChapter「不信任 LLM chapter 字段」的口径（审计⑧）。
+      // 提取是对单章跑的，所有候选都归该章；仅在极端缺失时才回退。
+      const inputs: BatchFactInput[] = pending.map((candidate) => ({
+        chapterNum: targetChapter ?? candidate.chapter ?? 1,
+        data: {
           content_raw: candidate.content_raw || candidate.content_clean,
           content_clean: candidate.content_clean,
           type: candidate.fact_type || candidate.type || 'plot_event',
@@ -131,14 +131,33 @@ export function useWriterFactsExtraction(auPath: string) {
           characters: candidate.characters || [],
           ...(candidate.timeline ? { timeline: candidate.timeline } : {}),
           ...extractedEnrichment(candidate),  // caused_by + M8-A 富化（此前在此丢）
-        });
-        // 每条成功后立即登记：即便下一条抛错，这条也不会在重试时重存。
-        savedCandidatesRef.current.add(candidate);
-        savedThisRun += 1;
+        },
+      }));
+
+      // 整批单锁落库（MED-1）：并发 undo 无法插进批次；目标章被撤销则整批 skipped，不写孤儿。
+      let added = 0;
+      let skipped = 0;
+      try {
+        const r = await addFactsBatch(auPath, inputs);
+        added = r.added;
+        skipped = r.skipped;
+        // 用精确的 writtenIndices 登记（不靠前缀 slice，混章也不错位）。
+        r.writtenIndices.forEach((i) => savedCandidatesRef.current.add(pending[i]));
+      } catch (err) {
+        if (err instanceof PartialAddFactsError) {
+          // 半成功：已落盘的按下标精确登记，重试只补余下。
+          err.writtenIndices.forEach((i) => savedCandidatesRef.current.add(pending[i]));
+        }
+        throw err;
       }
       if (guard.isKeyStale(requestAuPath)) return;
 
-      showSuccess(t('facts.extractSaved', { count: savedThisRun }));
+      if (added === 0 && skipped > 0) {
+        // 目标章被并发 undo 撤销 → 未写任何笔记，如实告知而非假报成功。
+        showToast(t('facts.extractChapterUndone'), 'info');
+      } else {
+        showSuccess(t('facts.extractSaved', { count: added }));
+      }
       setExtractReviewOpen(false);
       setExtractedCandidates([]);
       setExtractTargetChapter(null);
@@ -155,7 +174,7 @@ export function useWriterFactsExtraction(auPath: string) {
         setSavingExtracted(false);
       }
     }
-  }, [auPath, guard, extractedCandidates, extractTargetChapter, filterSelected, focusInstructionInput, clearSelection, showError, showSuccess, t]);
+  }, [auPath, guard, extractedCandidates, extractTargetChapter, filterSelected, focusInstructionInput, clearSelection, showError, showSuccess, showToast, t]);
 
   /** 关闭提取预览（不落库）。动词方法，取代调用方直接摸 setExtractReviewOpen。 */
   const closeExtractReview = useCallback(() => {

@@ -130,9 +130,30 @@ describe("build_facts_layer", () => {
 });
 
 describe("buildFactEnrichmentSuffix", () => {
-  it("returns empty string when no _confidence", () => {
+  it("returns empty string when no _confidence and no enrichment fields", () => {
     const fact = createFact({ id: "f1", content_raw: "r", content_clean: "c" });
     expect(buildFactEnrichmentSuffix(fact)).toBe("");
+  });
+
+  it("no _confidence but has enrichment fields (manual/import ground truth) → injects (MED-3)", () => {
+    const fact = createFact({
+      id: "f1", content_raw: "r", content_clean: "c",
+      location: "御书房", known_to: "reader_only",
+    });
+    const suffix = buildFactEnrichmentSuffix(fact);
+    expect(suffix).toContain("location: 御书房");
+    expect(suffix).toContain("known_to: reader_only");
+  });
+
+  it("空/纯空白字符串富化字段不注入空行（对抗审发现 2）", () => {
+    const fact = createFact({
+      id: "f1", content_raw: "r", content_clean: "c",
+      location: "", action_verb: "   ", known_to: "",  // 空串 / 纯空白
+    });
+    const suffix = buildFactEnrichmentSuffix(fact);
+    expect(suffix).toBe(""); // 无 _confidence 也不注入空值行
+    expect(suffix).not.toContain("location:");
+    expect(suffix).not.toContain("action_verb:");
   });
 
   it("returns empty string when known_to is empty array (M8-A MINOR fix)", () => {
