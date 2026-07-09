@@ -5,7 +5,7 @@
 
 ## 当前状态（2026-07-08）
 
-供应商模型选择器 + 第二轮审计已 push origin/main。**2026-07-08 大会话：真 key 端到端旅程 + 第三轮全量审计（4 维）+ 一批治本修复 + 记忆栈最后一公里 B1/B2**——本地 main 领先 origin **7 个 commit（未 push，等发话）**，引擎 1262 全绿、双 tsc 0 错。
+供应商模型选择器 + 第二轮审计已 push origin/main。**2026-07-08 大会话：真 key 端到端旅程 + 第三轮全量审计（4 维）+ 一批治本修复 + 记忆栈最后一公里 B1/B2**——本地 main 领先 origin **10 个 commit（未 push，等发话）**，引擎 1262 全绿、双 tsc 0 错。
 
 ## 待办
 
@@ -15,7 +15,7 @@
 - [x] `~/.deepseek` 配置模型名换 `deepseek-v4-flash`（配置已在 `deepseek-v4-flash-260425`/火山方舟；探针 hardcode 也已改成读 config 单一真相源）
 - [ ] Android Manifest / variables.gradle 入库（文件在 Windows 构建机）
 
-### 2026-07-08 大会话：治本修复 + 最后一公里（7 commit 未 push）
+### 2026-07-08 大会话：治本修复 + 最后一公里（10 commit 未 push）
 - [x] **M9 模式 A（JSON 写坏）** `32009be`：evidence 短/单行/免引号 + `salvageMalformedJson` 只补控制字符（对抗审砍掉贪心猜引号的 HIGH 静默截断）。
 - [x] **两处 fact-write 数据完整性 HIGH** `d63cf95`：caused_by 幻觉过滤（loose-parse 绕过，被 salvage 放大）+ edit_fact 枚举运行时校验（旧 `v as FactStatus` 静默写坏 status）。
 - [x] **M9 模式 B（模型不调工具）根治** `fc16bfe`：agent_loop per-iter tool_choice → 首轮强制 propose_facts + 补齐 forced_tool_choice 降级消费者 + 早停省 token。实测 v4-flash 接受强制、提议率显著上升；对抗审 opus 判 sound、simple_chat inert。
