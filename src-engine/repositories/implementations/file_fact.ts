@@ -163,14 +163,19 @@ export class FileFactRepository implements FactRepository {
   }
 
   async update(au_id: string, fact: Fact): Promise<void> {
-    fact.updated_at = now_utc();
-    fact.revision += 1;
     const path = this.factsPath(au_id);
     await withWriteLock(path, async () => {
       const [facts, errors] = await read_jsonl(this.adapter, path, dictToFact);
       if (errors.length > 0) {
         if (hasLogger()) getLogger().warn("file_fact", "bad lines on update", { path, count: errors.length });
       }
+      // revision / updated_at 在**锁内**自增，且 revision 基于磁盘当前值 +1（LOW）：
+      // 原实现在锁外 `fact.revision += 1`，且基于 caller 传入值——并发对同一 fact 的 update
+      // 会各自算出相同 revision（都读到 N → 都写 N+1）；锁内读盘 +1 保证 revision 单调，
+      // 也避免锁获取/写入失败时 caller 对象已被留下未持久化的自增值。
+      const current = facts.find((f) => f.id === fact.id);
+      fact.revision = (current?.revision ?? fact.revision) + 1;
+      fact.updated_at = now_utc();
       const items = facts.map((f) => (f.id === fact.id ? factToDict(fact) : factToDict(f)));
       await rewrite_jsonl(this.adapter, path, items);
     });

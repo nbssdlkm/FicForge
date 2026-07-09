@@ -85,6 +85,23 @@ describe("FileFactRepository", () => {
     expect(updated!.revision).toBe(2); // update increments 1 → 2
   });
 
+  it("并发对同一 fact 的 update：revision 锁内基于磁盘单调自增（LOW）", async () => {
+    await repo.append("au1", createFact({ id: "f1", content_raw: "r", content_clean: "v0", revision: 1 }));
+    // 两个调用方各自读到 rev 1 的独立对象，并发提交更新。
+    const f1 = (await repo.get("au1", "f1"))!;
+    const f2 = (await repo.get("au1", "f1"))!;
+    expect(f1.revision).toBe(1);
+    expect(f2.revision).toBe(1);
+    f1.content_clean = "a";
+    f2.content_clean = "b";
+    await Promise.all([repo.update("au1", f1), repo.update("au1", f2)]);
+
+    // 锁内基于磁盘 +1 → 串行后 rev 1→2→3。
+    // 回退旧码（锁外基于 caller 值 +1）两者都算 1→2 → 终态 revision=2（此断言即挂）。
+    const final = (await repo.get("au1", "f1"))!;
+    expect(final.revision).toBe(3);
+  });
+
   it("delete_by_ids removes specific facts", async () => {
     await repo.append("au1", createFact({ id: "f1", content_raw: "r", content_clean: "c" }));
     await repo.append("au1", createFact({ id: "f2", content_raw: "r", content_clean: "c" }));

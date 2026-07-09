@@ -158,6 +158,41 @@ describe("TrashService", () => {
     expect(list).toHaveLength(0);
   });
 
+  it("purge_expired：expires_at 损坏时回退 deleted_at + retention 判定（LOW）", async () => {
+    const day = 86400000;
+    const nowMs = Date.now();
+    const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
+    // 三条 expires_at 全损坏的条目，靠 deleted_at 回退判定：
+    //  A：删于 40 天前（> 30 天保留）→ 应清
+    //  B：刚删（保留期内）→ 应留
+    //  C：deleted_at 也损坏 → 无法推断，视为过期应清（不永久占盘）
+    const mkEntry = (id: string, deletedMs: number | null) => ({
+      trash_id: id, original_path: `${id}.md`, trash_path: `${id}_x.md`,
+      entity_type: "file", entity_name: id,
+      deleted_at: deletedMs === null ? "garbage-date" : iso(deletedMs),
+      expires_at: "not-a-date", metadata: {},
+    });
+    const entries = [
+      mkEntry("A", nowMs - 40 * day),
+      mkEntry("B", nowMs),
+      mkEntry("C", null),
+    ];
+    adapter.seed("au1/.trash/manifest.jsonl", entries.map((e) => JSON.stringify(e)).join("\n") + "\n");
+    adapter.seed("au1/.trash/A_x.md", "a");
+    adapter.seed("au1/.trash/B_x.md", "b");
+    adapter.seed("au1/.trash/C_x.md", "c");
+
+    // 常规清理（不传 maxAgeDays，非 forceAll）。旧码 `now >= NaN` 恒 false → 三条全留（此断言即挂）。
+    const purged = await trash.purge_expired("au1");
+    expect(purged.map((e) => e.trash_id).sort()).toEqual(["A", "C"]);
+    const remaining = await trash.list_trash("au1");
+    expect(remaining.map((e) => e.trash_id)).toEqual(["B"]);
+    // 被清条目的 .trash 副本也删掉，B 的保留
+    expect(adapter.raw("au1/.trash/A_x.md")).toBeUndefined();
+    expect(adapter.raw("au1/.trash/C_x.md")).toBeUndefined();
+    expect(adapter.raw("au1/.trash/B_x.md")).toBe("b");
+  });
+
   it("path traversal blocked", async () => {
     await expect(
       trash.move_to_trash("au1", "../etc/passwd", "file", "bad"),
@@ -232,6 +267,23 @@ describe("TrashService", () => {
     expect(adapter.raw("au1/characters/阿离.md")).toBe(body);
     // restore 侧的 readCharacterName 同样解析成功 → 名册加回
     expect(adapter.raw("au1/project.yaml")).toContain("阿离");
+  });
+
+  it("恢复名对称（LOW）：删除时角色不在名册（文件在）→ 恢复不凭空注入该名", async () => {
+    // 用户把角色移出 cast 列表但保留了文件（file-exists-not-registered 是合法状态）。
+    adapter.seed("au1/project.yaml", "cast_registry:\n  characters:\n    - Ben\n");
+    adapter.seed("au1/characters/Ghost.md", "---\nname: Ghost\n---\n# Ghost");
+
+    const entry = await trash.move_to_trash("au1", "characters/Ghost.md", "character_file", "Ghost");
+    // 删除时 Ghost 不在册 → remove no-op、metadata.cast_registry_removed=false
+    expect(adapter.raw("au1/project.yaml")).not.toContain("Ghost");
+
+    await trash.restore("au1", entry.trash_id);
+    // 关键判别：恢复不能把 Ghost 塞进名册（旧码无条件 add → 会含 Ghost，此断言即挂）。
+    expect(adapter.raw("au1/project.yaml")).not.toContain("Ghost");
+    expect(adapter.raw("au1/project.yaml")).toContain("Ben");
+    // 文件本身正常恢复
+    expect(adapter.raw("au1/characters/Ghost.md")).toBe("---\nname: Ghost\n---\n# Ghost");
   });
 
   it("无 frontmatter、正文以 `---` 开头的角色文件：删除→恢复不抛错、内容不丢", async () => {

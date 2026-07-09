@@ -233,6 +233,13 @@ export class TrashService {
     let characterName: string | null = null;
     if (this.shouldSyncCastRegistry(relativePath, scopeRoot)) {
       characterName = await this.readCharacterName(source);
+      // 对称性（LOW）：预判该名此刻是否在册 → 存进 metadata。恢复时只在删除确实移除过
+      // （flag=true）才补回，避免「用户已把角色移出名册但留了文件 / 改了 frontmatter 名」时，
+      // 删→恢复把一个本不在册的名字静默注入（remove 有条件、add 无条件的不对称）。
+      // 预判在 runExclusive(scopeRoot) 串行段内，与稍后的实际 remove 之间名册不会变，故准确。
+      meta.cast_registry_removed = characterName
+        ? await this.castRegistryContains(scopeRoot, characterName)
+        : false;
     }
 
     const now = new Date();
@@ -356,13 +363,32 @@ export class TrashService {
     await this.adapter.deleteFile(trashSource);
     await this.removeFromManifest(scopeRoot, trashId);
 
-    // cast_registry 联动
-    if (this.shouldSyncCastRegistry(targetEntry.original_path, scopeRoot)) {
+    // cast_registry 联动（对称性 LOW）：只在删除时确实从名册移除过（cast_registry_removed===true）
+    // 才补回。旧条目 / 无此字段 → undefined（!== false）→ 保持旧的无条件 add 语义（不回归）。
+    if (
+      this.shouldSyncCastRegistry(targetEntry.original_path, scopeRoot) &&
+      targetEntry.metadata?.cast_registry_removed !== false
+    ) {
       const name = await this.readCharacterName(originalDest);
       if (name) await this.updateCastRegistry(scopeRoot, name, "add");
     }
 
     return targetEntry;
+  }
+
+  /** project.yaml 的 cast_registry.characters 是否含指定名（删除时预判是否需在恢复时补回，对称性 LOW）。 */
+  private async castRegistryContains(scopeRoot: string, name: string): Promise<boolean> {
+    const projectPath = joinPath(scopeRoot, "project.yaml");
+    if (!(await this.adapter.exists(projectPath))) return false;
+    try {
+      const text = await this.adapter.readFile(projectPath);
+      const raw = (yaml.load(text) ?? {}) as Record<string, unknown>;
+      const castRegistry = (raw.cast_registry ?? {}) as Record<string, unknown>;
+      const names = (castRegistry.characters ?? []) as unknown[];
+      return names.some((n) => n === name);
+    } catch {
+      return false;
+    }
   }
 
   async permanent_delete(scopeRoot: string, trashId: string): Promise<TrashEntry> {
@@ -434,11 +460,16 @@ export class TrashService {
     for (const entry of entries) {
       let shouldPurge = forceAll;
       if (!shouldPurge) {
-        try {
-          const expires = new Date(entry.expires_at).getTime();
+        const expires = new Date(entry.expires_at).getTime();
+        if (!Number.isNaN(expires)) {
           shouldPurge = now >= expires;
-        } catch {
-          continue;
+        } else {
+          // expires_at 损坏/缺失（Invalid Date → NaN）：原实现 `now >= NaN` 恒 false → 该条目
+          // 永不被常规清理、永久占盘（LOW）。回退用 deleted_at + retentionDays 判定；deleted_at
+          // 也损坏则视为已过期清理（无法推断保留期的垃圾条目不该永久滞留）。
+          const deleted = new Date(entry.deleted_at).getTime();
+          shouldPurge =
+            Number.isNaN(deleted) || now >= deleted + this.retentionDays * 86400000;
         }
       }
 
