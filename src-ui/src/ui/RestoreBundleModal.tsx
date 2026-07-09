@@ -49,6 +49,9 @@ export function RestoreBundleModal({
   const [fandomDir, setFandomDir] = useState('');
   const [restoring, setRestoring] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 最后一公里：导入完成态。成功后不立即关，展示摘要 + 「补全旧章记忆」引导（杀手场景：
+  // 只含正文的原始文件夹导入后，一键生成摘要/剧情笔记/检索索引）。null = 尚未完成。
+  const [doneInfo, setDoneInfo] = useState<{ chapters: number; name: string; skipped: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const rawRef = useRef<HTMLInputElement>(null);
 
@@ -56,6 +59,7 @@ export function RestoreBundleModal({
     setBundle(null);
     setAuName('');
     setError(null);
+    setDoneInfo(null);
   };
 
   const close = () => {
@@ -133,9 +137,15 @@ export function RestoreBundleModal({
       } else {
         showToast(t('restoreBundle.success', { name: auName.trim(), chapters: result.chapterCount }), 'success');
       }
-      reset();
-      await onComplete();
-      onClose();
+      // 先落定「恢复成功」的完成态（部分恢复也带 skipped 数进去，完成态里如实透出告警，
+      // 不让正向引导盖过跳过警示，对抗审②）；再 best-effort 刷新库——onComplete 失败只记日志，
+      // 不掩盖已成功的恢复（对抗审③）。
+      setDoneInfo({ chapters: result.chapterCount, name: auName.trim(), skipped: result.skipped.length });
+      try {
+        await onComplete();
+      } catch (e) {
+        logCatch('restore-bundle', 'onComplete refresh failed after successful restore', e);
+      }
     } catch (err) {
       logCatch('restore-bundle', 'restore failed', err);
       // createAu 的「已存在」是裸英文引擎串，映射成可读的本地化提示让用户改名。
@@ -145,6 +155,32 @@ export function RestoreBundleModal({
       setRestoring(false);
     }
   };
+
+  if (doneInfo) {
+    // 完成态：引导用户去补全记忆（原始文件夹通常只含正文，摘要/剧情笔记/检索还没生成）。
+    return (
+      <Modal isOpen={isOpen} onClose={close} title={t('restoreBundle.doneTitle')}>
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-sm text-text/80">
+            <Archive size={16} />
+            <span>{t('restoreBundle.doneSummary', { name: doneInfo.name, chapters: doneInfo.chapters })}</span>
+          </div>
+          {doneInfo.skipped > 0 && (
+            <div className="rounded-lg bg-warning/10 p-3 text-sm text-warning">
+              {t('restoreBundle.partialWarning', { count: doneInfo.skipped })}
+            </div>
+          )}
+          <div className="rounded-lg border border-accent/30 bg-accent/5 p-3 text-sm leading-relaxed text-text/80">
+            <p className="mb-1 font-bold text-text/90">{t('restoreBundle.backfillGuideTitle')}</p>
+            <p>{t('restoreBundle.backfillGuideBody')}</p>
+          </div>
+          <div className="flex justify-end border-t border-black/10 pt-4 dark:border-white/10">
+            <Button tone="accent" fill="solid" onClick={close}>{t('common.actions.close')}</Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal isOpen={isOpen} onClose={close} title={t('restoreBundle.title')}>

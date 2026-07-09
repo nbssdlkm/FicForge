@@ -85,6 +85,45 @@ describe("RestoreBundleModal raw-folder import (review fix #7)", () => {
     );
   });
 
+  it("恢复成功后进入完成态，展示「补全记忆」引导、不立即关闭（最后一公里）", async () => {
+    bundleFromRawFiles.mockReturnValue(auRootBundle());
+    restoreAuBundle.mockResolvedValue({ skipped: [], chapterCount: 2 });
+    const { container } = renderModal();
+
+    // 选原始文件夹 → bundle 就位
+    const rawInput = container.querySelectorAll('input[type="file"]')[1] as HTMLInputElement;
+    fireEvent.change(rawInput, { target: { files: [rawFile("project.yaml", "myAU/project.yaml")] } });
+    await waitFor(() => expect(bundleFromRawFiles).toHaveBeenCalled());
+
+    // 选合集 + 填名 + 恢复
+    fireEvent.change(container.querySelector("select")!, { target: { value: "yuanchuang" } });
+    const nameInput = container.querySelector('input[type="text"], input:not([type])') as HTMLInputElement;
+    fireEvent.change(nameInput, { target: { value: "迁回的文" } });
+    fireEvent.click(screen.getByText("恢复"));
+
+    // 完成态：出现补全记忆引导，且不再有「恢复」提交按钮（未自动关）
+    await waitFor(() => expect(screen.getByText(/一键补全记忆/)).toBeTruthy());
+    expect(screen.getByText(/补全旧章记忆/)).toBeTruthy();
+    expect(screen.queryByText("恢复")).toBeNull();
+  });
+
+  it("部分恢复（skipped>0）→ 完成态如实透出跳过告警，不被正向引导盖过（对抗审②）", async () => {
+    bundleFromRawFiles.mockReturnValue(auRootBundle());
+    restoreAuBundle.mockResolvedValue({ skipped: ["a.md", "b.md"], chapterCount: 2 });
+    const { container } = renderModal();
+
+    const rawInput = container.querySelectorAll('input[type="file"]')[1] as HTMLInputElement;
+    fireEvent.change(rawInput, { target: { files: [rawFile("project.yaml", "myAU/project.yaml")] } });
+    await waitFor(() => expect(bundleFromRawFiles).toHaveBeenCalled());
+    fireEvent.change(container.querySelector("select")!, { target: { value: "yuanchuang" } });
+    fireEvent.change(container.querySelector('input[type="text"], input:not([type])') as HTMLInputElement, { target: { value: "半迁回" } });
+    fireEvent.click(screen.getByText("恢复"));
+
+    // 完成态同时含跳过告警（2 个）+ 补记忆引导
+    await waitFor(() => expect(screen.getByText(/2 个文件被跳过/)).toBeTruthy());
+    expect(screen.getByText(/一键补全记忆/)).toBeTruthy();
+  });
+
   it("rejects a non-AU-root selection (no project.yaml/state.yaml, 0 chapters) with a clear error", async () => {
     bundleFromRawFiles.mockReturnValue({
       manifest: { bundle_version: "1.0.0", exported_at: "t", au_name: "", fandom: "", chapter_count: 0, file_count: 1, excluded_dirs: [] },

@@ -822,7 +822,11 @@
     "notAuRoot": "This doesn't look like a story's root folder. Pick the folder that directly contains project.yaml / chapters.",
     "partialWarning": "Restored, but {{count}} file(s) were skipped (unsafe or non-text). Verify before deleting your original backup.",
     "nameExists": "A story with this name already exists in this collection — try a different name.",
-    "rawDesktopOnly": "Folder selection is desktop-only; on mobile, import a .ffbundle.json backup file instead."
+    "rawDesktopOnly": "Folder selection is desktop-only; on mobile, import a .ffbundle.json backup file instead.",
+    "doneTitle": "Import complete",
+    "doneSummary": "Imported \"{{name}}\" ({{chapters}} chapters).",
+    "backfillGuideTitle": "Next: build memory in one tap",
+    "backfillGuideBody": "If you imported a raw folder with only chapter text, the chapter summaries, plot notes, and search index the AI needs haven't been generated yet. Open this story and go to Settings → Advanced → Backfill Chapter Memory to generate them chapter by chapter (chapters that already have memory are skipped)."
   },
   "emptyState": {
     "library": {
@@ -1024,6 +1028,7 @@
     "backfillMemoryDesc": "Fill summaries, plot notes, and vectors for old chapters missing memory (notes are per-chapter)",
     "archiveFacts": "Tidy Old Plot Points",
     "archiveFactsDesc": "Archive old, low-importance plot points so they stop taking up room in AI continuation (reversible anytime)",
+    "archiveFactsCount": "{{count}} old plot point(s) ready to tidy up — take a look (reversible anytime)",
     "advancedHint": "These actions are only needed when files were modified externally or state is inconsistent."
   },
   "archive": {

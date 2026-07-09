@@ -822,7 +822,11 @@
     "notAuRoot": "这看起来不是一篇文的根目录。请选直接包含 project.yaml / chapters 的那一层文件夹。",
     "partialWarning": "已恢复，但有 {{count}} 个文件被跳过（不安全或非文本）。请核对后再删除原始备份。",
     "nameExists": "这个合集里已经有同名的文了，换个名字再试。",
-    "rawDesktopOnly": "「选文件夹」只在桌面端可用；手机上请改用 .ffbundle.json 备份文件导入。"
+    "rawDesktopOnly": "「选文件夹」只在桌面端可用；手机上请改用 .ffbundle.json 备份文件导入。",
+    "doneTitle": "导入完成",
+    "doneSummary": "已导入「{{name}}」，共 {{chapters}} 章。",
+    "backfillGuideTitle": "下一步：一键补全记忆",
+    "backfillGuideBody": "如果导入的是只含正文的原始文件夹，AI 需要的章节摘要、剧情笔记和检索索引还没生成。打开这篇作品，进入「设置 → 高级操作 → 补全旧章记忆」，一键逐章生成即可（已有记忆的章会自动跳过）。"
   },
   "emptyState": {
     "library": {
@@ -1024,6 +1028,7 @@
     "backfillMemoryDesc": "给缺记忆的旧章补摘要、剧情笔记和向量索引（笔记可逐章选）",
     "archiveFacts": "整理旧剧情笔记",
     "archiveFactsDesc": "把很久以前、标为次要的旧笔记收起，不再占用 AI 续写的篇幅（可随时恢复）",
+    "archiveFactsCount": "有 {{count}} 条旧笔记可以整理归档，点开看看（可随时恢复）",
     "advancedHint": "这些操作仅在外部修改了文件或状态异常时需要使用。"
   },
   "archive": {

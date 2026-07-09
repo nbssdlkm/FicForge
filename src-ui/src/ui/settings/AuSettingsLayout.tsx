@@ -14,7 +14,7 @@ import { Modal } from '../shared/Modal';
 import { Settings, Save, Trash2, Plus } from 'lucide-react';
 import { getProjectForEditing, saveAuSettingsForEditing, saveProjectCastRegistryAndCoreIncludes, type ProjectInfo } from '../../api/engine-client';
 import { getSettingsForEditing, type SettingsInfo } from '../../api/engine-client';
-import { getState, recalcState, rebuildIndex } from '../../api/engine-client';
+import { getState, recalcState, rebuildIndex, findArchivalCandidates } from '../../api/engine-client';
 import { GlobalSettingsModal } from './GlobalSettingsModal';
 import { LlmModeSelect } from './LlmModeSelect';
 import { DEFAULT_PERSPECTIVE, DEFAULT_EMOTION_STYLE } from '../../config/defaults';
@@ -67,6 +67,9 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const [recalcing, setRecalcing] = useState(false);
   const [backfillOpen, setBackfillOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  // 最后一公里：归档候选数徽标——让「整理旧剧情笔记」的可用性一眼可见（功能在但用户发现不了）。
+  // 只读扫描（findArchivalCandidates 不改数据）；archive modal 关闭后重扫，反映刚归档掉的数量。
+  const [archiveCandidateCount, setArchiveCandidateCount] = useState<number | null>(null);
 
   // AU Embedding override
   const [isEmbeddingOverride, setIsEmbeddingOverride] = useState(false);
@@ -90,6 +93,19 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
       }
     }
   };
+
+  // 扫归档候选数（只读）→ 供高级操作按钮徽标。auPath 变或 archive modal 关闭后重扫。
+  useEffect(() => {
+    if (!auPath || archiveOpen) return; // modal 开着时不重扫（它自己在扫），关闭后再刷新计数
+    let cancelled = false;
+    const requestAuPath = auPath;
+    findArchivalCandidates(auPath)
+      .then((list) => {
+        if (!cancelled && !loadGuard.isKeyStale(requestAuPath)) setArchiveCandidateCount(list.length);
+      })
+      .catch(() => { if (!cancelled) setArchiveCandidateCount(null); }); // 扫失败静默（不干扰设置页）
+    return () => { cancelled = true; };
+  }, [auPath, archiveOpen, loadGuard]);
 
   useEffect(() => {
     if (!auPath) return;
@@ -119,6 +135,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
     setCoreIncludeModalOpen(false);
     setBackfillOpen(false);
     setArchiveOpen(false);
+    setArchiveCandidateCount(null); // 切 AU 先清零，避免揭开高级区时闪现上一篇的候选数（对抗审①）
     setIsEmbeddingOverride(defaults.isEmbeddingOverride);
     setEmbModel(defaults.embModel);
     setEmbApiBase(defaults.embApiBase);
@@ -482,6 +499,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
             }}
             handleBackfillMemory={() => setBackfillOpen(true)}
             handleArchiveFacts={() => setArchiveOpen(true)}
+            archiveCandidateCount={archiveCandidateCount}
           />
 
           <div className="h-10 md:h-20"></div>
