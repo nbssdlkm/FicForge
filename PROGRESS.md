@@ -20,8 +20,8 @@
 - [x] **两处 fact-write 数据完整性 HIGH** `d63cf95`：caused_by 幻觉过滤（loose-parse 绕过，被 salvage 放大）+ edit_fact 枚举运行时校验（旧 `v as FactStatus` 静默写坏 status）。
 - [x] **M9 模式 B（模型不调工具）根治** `fc16bfe`：agent_loop per-iter tool_choice → 首轮强制 propose_facts + 补齐 forced_tool_choice 降级消费者 + 早停省 token。实测 v4-flash 接受强制、提议率显著上升；对抗审 opus 判 sound、simple_chat inert。
 - [x] **最后一公里 B1：caused_by 进续写 prompt** `4f03db5`：build_facts_layer 解析 fact_id → 起因短句（控 token、防裸 id）。
-- [x] **最后一公里 B2：剧情线进展陈旧检测 + 按需重算（引擎+API）** `c60dc89`：`computeThreadStaleness`（零 LLM）+ `regenerate_thread_state`（按需 LLM）+ THREAD_STATE prompt + `getStaleThreads`/`regenerateThreadState` API。
-  - **剩：** ①剧情线面板的「陈旧徽标 + 刷新进展」React 按钮（机械收尾）；②**待拍板**：是否 confirm 后自动重算 state（烧 token vs 按需，默认按需/省钱）。
+- [x] **最后一公里 B2：剧情线进展陈旧检测 + 按需重算（全栈完）** `c60dc89`(引擎+API) + `554a72e`(React)：`computeThreadStaleness`（零 LLM）+ `regenerate_thread_state`（按需 LLM）+ THREAD_STATE prompt + `getStaleThreads`/`regenerateThreadState` API + ThreadDetail「陈旧徽标 + 刷新进展」按钮。真机眼验：徽标「有 N 条新进展，可能已过时」+ 刷新按钮端到端准确。
+  - **仅剩待拍板**：是否 confirm 后**自动**重算 state（烧 token vs 按需）。当前=纯按需（用户点才烧），自动可日后加成开关。
 
 ### 第三轮审计其余待排（MED，未修）
 - [ ] 交互式接受事实非批量锁（并发 undo 可插进批次产生孤儿事实）——mirror backfill 的单锁批量落库
