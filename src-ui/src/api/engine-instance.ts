@@ -51,7 +51,6 @@ export interface EngineInstance {
     thread: FileThreadRepository;
   };
   trash: TrashService;
-  vectorEngine: JsonVectorEngine;
   ragManager: RagManager;
   taskRunner: TaskRunner;
 }
@@ -61,7 +60,6 @@ let _engine: EngineInstance | null = null;
 export function initEngine(adapter: PlatformAdapter, dataDir: string): void {
   if (hasLogger()) getLogger().info("engine", "initEngine", { platform: adapter.getPlatform(), dataDir });
 
-  const vectorEngine = new JsonVectorEngine(adapter);
   _engine = {
     adapter,
     dataDir,
@@ -79,8 +77,8 @@ export function initEngine(adapter: PlatformAdapter, dataDir: string): void {
       thread: new FileThreadRepository(adapter),
     },
     trash: new TrashService(adapter),
-    vectorEngine,
-    ragManager: new RagManager(vectorEngine),
+    // TD-017：per-AU 引擎工厂 —— 每 AU 独立 JsonVectorEngine 实例，消除跨 AU 共享内存竞态。
+    ragManager: new RagManager(() => new JsonVectorEngine(adapter)),
     taskRunner: new TaskRunner(adapter, dataDir),
   };
 }

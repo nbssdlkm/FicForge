@@ -53,12 +53,10 @@ export async function* generateChapter(params: {
     return;
   }
 
-  // Load vector index for RAG retrieval (F7) — delegated to RagManager
-  try {
-    await e.ragManager.ensureLoaded(params.au_path);
-  } catch {
-    // Vector index not yet created — search will return empty results
-  }
+  // Load vector index for RAG retrieval (F7) — delegated to RagManager。
+  // TD-017：vectorRepoFor 返回该 AU 独立引擎（per-AU 隔离）；索引损坏/未建时返回空库（搜索得 0
+  // 结果而非抛错），等价旧 e.vectorEngine 空态回退。
+  const vectorRepo = await e.ragManager.vectorRepoFor(params.au_path);
 
   for await (const event of engineGenerateChapter({
     au_id: params.au_path,
@@ -74,7 +72,7 @@ export async function* generateChapter(params: {
     chapter_repo: e.repos.chapter,
     draft_repo: e.repos.draft,
     adapter: e.adapter,
-    vector_repo: e.vectorEngine,
+    vector_repo: vectorRepo,
     embedding_provider: createEmbeddingProvider(sett, proj),
     signal: options?.signal,
   })) {

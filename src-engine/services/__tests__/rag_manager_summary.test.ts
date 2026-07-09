@@ -22,7 +22,7 @@ const emb = { embed: vi.fn(async (t: string[]) => t.map(() => [0.1, 0.2, 0.3])) 
 describe("RagManager.indexChapterSummary", () => {
   it("indexes the summary text into the summaries collection", async () => {
     const engine = new JsonVectorEngine(memAdapter());
-    const mgr = new RagManager(engine);
+    const mgr = new RagManager(() => engine);
     await mgr.indexChapterSummary("/au", 7, "第七章摘要", emb);
 
     const results = await engine.search("/au", [0.1, 0.2, 0.3], { collection: "summaries", top_k: 5, char_filter: null });
@@ -33,7 +33,7 @@ describe("RagManager.indexChapterSummary", () => {
 
   it("skips empty summary text", async () => {
     const engine = new JsonVectorEngine(memAdapter());
-    const mgr = new RagManager(engine);
+    const mgr = new RagManager(() => engine);
     await mgr.indexChapterSummary("/au", 7, "   ", emb);
     const results = await engine.search("/au", [0.1, 0.2, 0.3], { collection: "summaries", top_k: 5, char_filter: null });
     expect(results.length).toBe(0);
@@ -41,7 +41,7 @@ describe("RagManager.indexChapterSummary", () => {
 
   it("rebuildForAu indexes summaries for chapters that have them (MAJOR3)", async () => {
     const engine = new JsonVectorEngine(memAdapter());
-    const mgr = new RagManager(engine);
+    const mgr = new RagManager(() => engine);
     const chapterRepo = {
       async list_main() { return [{ chapter_num: 1 }, { chapter_num: 2 }]; },
       async get_content_only() { return "章节正文内容。"; },
@@ -63,7 +63,7 @@ describe("RagManager.indexChapterSummary", () => {
 
   it("rebuild 不因单章摘要 poison/损坏而中断（codex 对抗审 BLOCKER + 损坏文件）", async () => {
     const engine = new JsonVectorEngine(memAdapter());
-    const mgr = new RagManager(engine);
+    const mgr = new RagManager(() => engine);
     const pickyEmb = { embed: vi.fn(async (t: string[]) => {
       if (t[0] === "POISON") throw new Error("input too long"); // 超长摘要被 embedding 拒
       return t.map(() => [0.1, 0.2, 0.3]);

@@ -119,7 +119,7 @@ describe("engine-fandom deleteAu 向量卸载（H9c）", () => {
 
     await e.ragManager.indexChapter(au.path, 1, "第一章正文。足够长的文本以生成chunk数据用于测试。", fakeEmb);
     expect(e.ragManager.loadedAu).toBe(au.path);
-    const seededCount = e.vectorEngine.chunkCount;
+    const seededCount = e.ragManager.chunkCountFor(au.path);
     expect(seededCount).toBeGreaterThan(0);
 
     const deleted = await deleteAu(fandom.dir_name, au.dir_name);
@@ -130,12 +130,12 @@ describe("engine-fandom deleteAu 向量卸载（H9c）", () => {
     const recreated = await createAu(fandom.name, "Canon", fandom.path);
     expect(recreated.path).toBe(au.path);
     await e.ragManager.ensureLoaded(recreated.path);
-    expect(e.vectorEngine.chunkCount).toBe(0);
+    expect(e.ragManager.chunkCountFor(au.path)).toBe(0);
 
     // 对称性:删掉重建的占位 AU 后恢复原 AU → 首次 ensureLoaded 从磁盘载回原 chunks
     await deleteAu(fandom.dir_name, recreated.dir_name);
     await restoreTrash("au", fandom.path, deleted.trash_id);
     await e.ragManager.ensureLoaded(au.path);
-    expect(e.vectorEngine.chunkCount).toBe(seededCount);
+    expect(e.ragManager.chunkCountFor(au.path)).toBe(seededCount);
   });
 });

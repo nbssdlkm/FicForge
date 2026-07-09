@@ -172,21 +172,21 @@ describe("engine-chapters undoChapter 向量清理（H9a）", () => {
     const e = getEngine();
     await e.ragManager.indexChapter(auPath, 1, "第一章正文。足够长的文本以生成chunk数据用于测试。", fakeEmb);
     await e.ragManager.indexChapterSummary(auPath, 1, "第一章摘要。", fakeEmb);
-    expect(e.vectorEngine.chunkCount).toBeGreaterThan(0);
+    expect(e.ragManager.chunkCountFor(auPath)).toBeGreaterThan(0);
     await e.repos.state.update(auPath, (st) => { st.index_status = IndexStatus.READY; });
 
     const result = await undoChapter(auPath);
     expect(result.chapter_num).toBe(1);
 
     // 内存已清
-    expect(e.vectorEngine.chunkCount).toBe(0);
+    expect(e.ragManager.chunkCountFor(auPath)).toBe(0);
     // 落盘已清（index.json 不再引用 ch1_* / sum1）
     const ids = persistedIds(adapter, auPath)!;
     expect(ids.some((id) => id.startsWith("ch1_") || id === "sum1")).toBe(false);
     // 冷启动重载（rebuild-from-disk）后依然不在
     e.ragManager.unload();
     await e.ragManager.ensureLoaded(auPath);
-    expect(e.vectorEngine.chunkCount).toBe(0);
+    expect(e.ragManager.chunkCountFor(auPath)).toBe(0);
     // 删除不需要 embedding、已成功 → 恢复 undo 前的 READY
     const st = await e.repos.state.get(auPath);
     expect(st.index_status).toBe(IndexStatus.READY);
@@ -199,7 +199,7 @@ describe("engine-chapters undoChapter 向量清理（H9a）", () => {
 
     await undoChapter(auPath);
 
-    expect(e.vectorEngine.chunkCount).toBe(0);
+    expect(e.ragManager.chunkCountFor(auPath)).toBe(0);
     const st = await e.repos.state.get(auPath);
     expect(st.index_status).toBe(IndexStatus.STALE);
   });
@@ -261,7 +261,7 @@ describe("engine-chapters updateChapterContent 向量刷新（H9b）", () => {
     await updateChapterContent(auPath, 1, "全新的第一章正文内容。");
 
     // 旧向量内存 + 落盘双清（removeChapter 真跑）
-    expect(e.vectorEngine.chunkCount).toBe(0);
+    expect(e.ragManager.chunkCountFor(auPath)).toBe(0);
     const ids = persistedIds(adapter, auPath)!;
     expect(ids.some((id) => id.startsWith("ch1_") || id === "sum1")).toBe(false);
     // 新正文走 confirm 同款增量索引路径（内容取落盘后的正文）
@@ -282,7 +282,7 @@ describe("engine-chapters updateChapterContent 向量刷新（H9b）", () => {
 
     await updateChapterContent(auPath, 1, "另一个新内容。");
 
-    expect(e.vectorEngine.chunkCount).toBe(0);
+    expect(e.ragManager.chunkCountFor(auPath)).toBe(0);
     const ids = persistedIds(adapter, auPath)!;
     expect(ids.some((id) => id.startsWith("ch1_") || id === "sum1")).toBe(false);
     const st = await e.repos.state.get(auPath);

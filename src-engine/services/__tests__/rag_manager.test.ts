@@ -29,16 +29,15 @@ class FakeEmbeddingProvider implements EmbeddingProvider {
 
 describe("RagManager", () => {
   let adapter: MockAdapter;
-  let vectorEngine: JsonVectorEngine;
   let chapterRepo: FileChapterRepository;
   let ragManager: RagManager;
   let embProvider: FakeEmbeddingProvider;
 
   beforeEach(() => {
     adapter = new MockAdapter();
-    vectorEngine = new JsonVectorEngine(adapter);
     chapterRepo = new FileChapterRepository(adapter);
-    ragManager = new RagManager(vectorEngine);
+    // TD-017：per-AU 引擎工厂 —— 每 AU 独立实例。chunk 数用 ragManager.chunkCountFor(au) 探。
+    ragManager = new RagManager(() => new JsonVectorEngine(adapter));
     embProvider = new FakeEmbeddingProvider();
   });
 
@@ -52,11 +51,11 @@ describe("RagManager", () => {
       await ragManager.ensureLoaded("au1");
       // Index a chapter so we can verify chunks survive
       await ragManager.indexChapter("au1", 1, "Some test content for the chapter.", embProvider);
-      expect(vectorEngine.chunkCount).toBeGreaterThan(0);
+      expect(ragManager.chunkCountFor("au1")).toBeGreaterThan(0);
 
       // ensureLoaded again — should NOT reload (would clear chunks)
       await ragManager.ensureLoaded("au1");
-      expect(vectorEngine.chunkCount).toBeGreaterThan(0);
+      expect(ragManager.chunkCountFor("au1")).toBeGreaterThan(0);
     });
 
     it("switches AU: unloads previous, loads new", async () => {
@@ -73,20 +72,20 @@ describe("RagManager", () => {
       const content = "Alice走进了房间。她看到了Bob。一切开始改变。这是一段足够长的文本来确保能生成chunk。";
       await ragManager.indexChapter("au1", 1, content, embProvider);
 
-      expect(vectorEngine.chunkCount).toBeGreaterThan(0);
+      expect(ragManager.chunkCountFor("au1")).toBeGreaterThan(0);
       // Verify persistence: index.json should exist
       expect(adapter.raw("au1/.vectors/index.json")).toBeTruthy();
     });
 
     it("does nothing for empty content", async () => {
       await ragManager.indexChapter("au1", 1, "", embProvider);
-      expect(vectorEngine.chunkCount).toBe(0);
+      expect(ragManager.chunkCountFor("au1")).toBe(0);
     });
 
     it("does not pollute across AUs", async () => {
       const content = "Alice走进了房间。她看到了Bob。一切开始改变。这是一段足够长的文本。";
       await ragManager.indexChapter("au1", 1, content, embProvider);
-      const au1Count = vectorEngine.chunkCount;
+      const au1Count = ragManager.chunkCountFor("au1");
 
       // Switch to au2 and index there
       await ragManager.indexChapter("au2", 1, content, embProvider);
@@ -98,7 +97,7 @@ describe("RagManager", () => {
 
       // Reload au1 and verify its persisted chunks are intact
       await ragManager.ensureLoaded("au1");
-      expect(vectorEngine.chunkCount).toBe(au1Count);
+      expect(ragManager.chunkCountFor("au1")).toBe(au1Count);
     });
   });
 
@@ -116,19 +115,19 @@ describe("RagManager", () => {
 
       await ragManager.rebuildForAu("au1", chapterRepo, embProvider);
 
-      expect(vectorEngine.chunkCount).toBeGreaterThan(0);
+      expect(ragManager.chunkCountFor("au1")).toBeGreaterThan(0);
       expect(adapter.raw("au1/.vectors/index.json")).toBeTruthy();
     });
 
     it("handles 0 chapters gracefully", async () => {
       // Pre-index a chapter, then rebuild with no chapters in repo
       await ragManager.indexChapter("au1", 1, "旧内容。足够长的文本以生成chunk数据。", embProvider);
-      expect(vectorEngine.chunkCount).toBeGreaterThan(0);
+      expect(ragManager.chunkCountFor("au1")).toBeGreaterThan(0);
 
       // Rebuild with empty repo → should produce empty index
       await ragManager.rebuildForAu("au1", chapterRepo, embProvider);
 
-      expect(vectorEngine.chunkCount).toBe(0);
+      expect(ragManager.chunkCountFor("au1")).toBe(0);
       const indexJson = JSON.parse(adapter.raw("au1/.vectors/index.json")!);
       expect(indexJson.total_chunks).toBe(0);
     });
@@ -144,7 +143,7 @@ describe("RagManager", () => {
         "第一章内容。Alice 出场。足够长的文本以生成 chunk 数据用于测试。",
         embProvider,
       );
-      const seededCount = vectorEngine.chunkCount;
+      const seededCount = ragManager.chunkCountFor("au1");
       expect(seededCount).toBeGreaterThan(0);
 
       // 2. embedding provider 在第 1 次调用时成功（让 rebuild_index 已清内存），
@@ -172,13 +171,13 @@ describe("RagManager", () => {
       // 6. 再次 ensureLoaded 应从磁盘重新载入，内存恢复到 rebuild 之前的状态
       await ragManager.ensureLoaded("au1");
       expect(ragManager.loadedAu).toBe("au1");
-      expect(vectorEngine.chunkCount).toBe(seededCount);
+      expect(ragManager.chunkCountFor("au1")).toBe(seededCount);
     });
 
     it("clears old index before rebuilding", async () => {
       // Index a chapter first
       await ragManager.indexChapter("au1", 1, "旧的内容。足够长的文本以生成chunk数据用于测试。", embProvider);
-      const oldCount = vectorEngine.chunkCount;
+      const oldCount = ragManager.chunkCountFor("au1");
       expect(oldCount).toBeGreaterThan(0);
 
       // Seed only chapter 2 (chapter 1 no longer in repo)
@@ -210,7 +209,7 @@ describe("RagManager", () => {
       const shortContent = "短文本内容。".repeat(30);
       await ragManager.indexChapter("au1", 1, shortContent, embProvider);
 
-      expect(vectorEngine.chunkCount).toBe(1);
+      expect(ragManager.chunkCountFor("au1")).toBe(1);
       const idsAfter = JSON.parse(adapter.raw("au1/.vectors/index.json")!)
         .chunks.map((c: { id: string }) => c.id);
       expect(idsAfter).toEqual(["ch1_0"]);
@@ -218,7 +217,7 @@ describe("RagManager", () => {
       // 冷启动重载后同样不复活
       ragManager.unload();
       await ragManager.ensureLoaded("au1");
-      expect(vectorEngine.chunkCount).toBe(1);
+      expect(ragManager.chunkCountFor("au1")).toBe(1);
     });
 
     it("H9: re-indexing chapter content keeps the chapter's still-valid summary vector sum{N}", async () => {
@@ -235,12 +234,12 @@ describe("RagManager", () => {
     it("replaces chunks when re-indexing the same chapter", async () => {
       const contentV1 = "第一版内容。Alice在这里。足够长的文本以生成chunk数据。";
       await ragManager.indexChapter("au1", 1, contentV1, embProvider);
-      const countV1 = vectorEngine.chunkCount;
+      const countV1 = ragManager.chunkCountFor("au1");
 
       // Re-index same chapter with different content
       const contentV2 = "第二版内容。Bob在这里。同样足够长的文本以生成chunk数据。";
       await ragManager.indexChapter("au1", 1, contentV2, embProvider);
-      const countV2 = vectorEngine.chunkCount;
+      const countV2 = ragManager.chunkCountFor("au1");
 
       // Chunk count should be the same (replaced, not appended)
       expect(countV2).toBe(countV1);
@@ -279,15 +278,16 @@ describe("RagManager", () => {
       const survivors = JSON.parse(adapter.raw("au1/.vectors/index.json")!)
         .chunks.map((c: { id: string }) => c.id);
       expect(survivors.some((id: string) => id.startsWith("ch1_") || id === "sum1")).toBe(false);
-      expect(vectorEngine.chunkCount).toBe(2); // ch2_0 + sum2
+      expect(ragManager.chunkCountFor("au1")).toBe(2); // ch2_0 + sum2
     });
 
     it("works without any embedding provider involvement (deletion needs no embedding)", async () => {
       await ragManager.indexChapter("au1", 1, "第一章正文。足够长的文本以生成chunk数据用于测试。", embProvider);
       // 换一个全新 manager（模拟另一会话 / 冷启动），不传任何 embedding 即可删除
-      const freshManager = new RagManager(vectorEngine);
+      const freshManager = new RagManager(() => new JsonVectorEngine(adapter));
       await freshManager.removeChapter("au1", 1);
-      expect(vectorEngine.chunkCount).toBe(0);
+      // 由 freshManager 执行删除 → 探它自己的引擎（ragManager 的 au1 引擎未重载，仍持旧内存）
+      expect(freshManager.chunkCountFor("au1")).toBe(0);
     });
 
     it("is a no-op for never-indexed AUs and does not create an empty .vectors/", async () => {
@@ -309,7 +309,7 @@ describe("RagManager", () => {
 
     it("prevents a recreated same-path AU from inheriting the deleted AU's in-memory chunks", async () => {
       await ragManager.indexChapter("au1", 1, "已删作品的正文。足够长的文本以生成chunk数据用于测试。", embProvider);
-      expect(vectorEngine.chunkCount).toBeGreaterThan(0);
+      expect(ragManager.chunkCountFor("au1")).toBeGreaterThan(0);
 
       // 模拟 deleteAu：树移入 trash（磁盘索引消失）+ 卸载内存
       await adapter.deleteFile("au1/.vectors/index.json");
@@ -317,7 +317,7 @@ describe("RagManager", () => {
 
       // 同名重建后首次 ensureLoaded 必须从磁盘 load（空），不得复用旧内存 chunks
       await ragManager.ensureLoaded("au1");
-      expect(vectorEngine.chunkCount).toBe(0);
+      expect(ragManager.chunkCountFor("au1")).toBe(0);
     });
   });
 
@@ -338,7 +338,98 @@ describe("RagManager", () => {
       await ragManager.ensureLoaded("au1");
       expect(ragManager.loadedAu).toBe("au1");
       // After fresh load from persisted data, chunks should be restored
-      expect(vectorEngine.chunkCount).toBeGreaterThan(0);
+      expect(ragManager.chunkCountFor("au1")).toBeGreaterThan(0);
+    });
+  });
+
+  describe("TD-017: 跨 AU 并发隔离", () => {
+    it("AU1 的 embed 挂起期间并发索引 AU2 → 两 AU 的 .vectors 各自纯净、无交叉污染", async () => {
+      // 可控 embedding：au1 的 embed 挂起直到手动释放；au2 立即返回。
+      let releaseAu1: () => void = () => {};
+      const au1Gate = new Promise<void>((r) => { releaseAu1 = r; });
+      const controllableEmb: EmbeddingProvider = {
+        async embed(texts: string[]): Promise<number[][]> {
+          if (texts.some((t) => t.includes("AU1内容"))) await au1Gate; // au1 卡在 embed
+          return texts.map((_, i) => [1, 0, 0, (i + 1) / 100]);
+        },
+        get_dimension: () => 4,
+        get_model_name: () => "ctrl",
+      };
+
+      // 并发：au1 索引（embed 挂起）与 au2 索引（立即完成 + persist）。
+      const au1P = ragManager.indexChapter("au1", 1, "AU1内容。".repeat(80), controllableEmb);
+      const au2P = ragManager.indexChapter("au2", 1, "AU2内容。".repeat(80), controllableEmb);
+      await au2P;        // au2 在 au1 仍卡 embed 期间完成并落盘（正是竞态窗口）
+      releaseAu1();
+      await au1P;        // 释放后 au1 完成并落盘
+
+      // 断言：每个 AU 的落盘索引分片只含**自身** au_id / 内容。
+      // 回退到单例共享引擎：au1 的 post-embed index/persist 会把 au2 的 chunk 一并写进 au1/index.json
+      // （au_id=au2）→ 下面断言即挂。
+      for (const au of ["au1", "au2"] as const) {
+        const index = JSON.parse(adapter.raw(`${au}/.vectors/index.json`)!);
+        expect(index.chunks.length).toBeGreaterThan(0);
+        for (const entry of index.chunks) {
+          const chunk = JSON.parse(adapter.raw(`${au}/.vectors/${entry.file}`)!);
+          expect(chunk.metadata.au_id).toBe(au);
+          expect(chunk.content).toContain(au === "au1" ? "AU1内容" : "AU2内容");
+        }
+      }
+    });
+
+    it("发现1: 加载在飞期间被 unloadIfCurrent → epoch 守卫使续约不复活该 AU 引擎", async () => {
+      // au1 已索引落盘（磁盘有向量）
+      await ragManager.indexChapter("au1", 1, "au1内容。".repeat(80), embProvider);
+
+      // 可控 load 的工厂：load 挂起直到释放
+      let releaseLoad: () => void = () => {};
+      const gate = new Promise<void>((r) => { releaseLoad = r; });
+      const gatedMgr = new RagManager(() => {
+        const eng = new JsonVectorEngine(adapter);
+        const origLoad = eng.load.bind(eng);
+        eng.load = async (dir: string) => { await gate; return origLoad(dir); };
+        return eng;
+      });
+
+      const loadP = gatedMgr.ensureLoaded("au1"); // load 在飞
+      gatedMgr.unloadIfCurrent("au1");            // 删除该 AU（evict：从 loading 移除本 promise）
+      releaseLoad();
+      await loadP;
+
+      // 续约检查 loading.get(au1) !== 本 promise → 不落库。
+      // 回退旧码（无 epoch 守卫）会 engines.set(au1) 复活已删向量 → chunkCountFor>0、loadedAu=au1（此断言即挂）。
+      expect(gatedMgr.chunkCountFor("au1")).toBe(0);
+      expect(gatedMgr.loadedAu).toBeNull();
+    });
+
+    it("发现2: 在用引擎被 pin，同 AU 并发操作复用之，更新不因 LRU 驱逐丢失", async () => {
+      const mgr = new RagManager(() => new JsonVectorEngine(adapter), 1); // maxEngines=1 激进驱逐
+      let release: () => void = () => {};
+      const gate = new Promise<void>((r) => { release = r; });
+      const gatedEmb: EmbeddingProvider = {
+        async embed(texts: string[]): Promise<number[][]> {
+          if (texts.some((t) => t.includes("GATE"))) await gate;
+          return texts.map((_, i) => [1, 0, 0, (i + 1) / 100]);
+        },
+        get_dimension: () => 4,
+        get_model_name: () => "g",
+      };
+
+      // au1 索引 ch1：embed 挂起（withEngine pin 住 au1）
+      const au1ch1 = mgr.indexChapter("au1", 1, "GATE内容。".repeat(80), gatedEmb);
+      // 让 au1ch1 推进到 pin + embed 挂起（宏任务让步，确保 load 完成、pin 已置）
+      await new Promise((r) => setTimeout(r, 0));
+      // 并发 au2 索引：engineFor(au2) 触发 evictExcess（size 2 > 1），au1 pinned → 不被驱逐
+      await mgr.indexChapter("au2", 1, "AU2内容。".repeat(80), gatedEmb);
+      // 同 AU 并发索引 ch2：复用未被驱逐的同一引擎（回退无 pin 会重载出第二引擎）
+      await mgr.indexChapter("au1", 2, "au1第二章。".repeat(80), gatedEmb);
+      release();
+      await au1ch1;
+
+      // au1 落盘同时含 ch1 与 ch2 —— 无 pin + maxEngines=1 时 au1 被驱逐、两操作各自引擎互覆 → ch2 丢（断言挂）。
+      const ids = JSON.parse(adapter.raw("au1/.vectors/index.json")!).chunks.map((c: { id: string }) => c.id);
+      expect(ids.some((id: string) => id.startsWith("ch1_"))).toBe(true);
+      expect(ids.some((id: string) => id.startsWith("ch2_"))).toBe(true);
     });
   });
 });
