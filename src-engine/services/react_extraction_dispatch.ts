@@ -23,7 +23,7 @@
  * maxIter 未收尾。wrapper 只在 degraded 且空时 fallback 单次调用。
  */
 
-import type { LLMProvider, Message, ToolCall } from "../llm/provider.js";
+import type { LLMProvider, Message, ToolCall, ToolChoice } from "../llm/provider.js";
 import type { Fact, FactFieldConfidence } from "../domain/fact.js";
 import type { Thread } from "../domain/thread.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
@@ -400,7 +400,11 @@ export async function reactExtractFromChapter(
     agentName: REACT_AGENT_NAME,
     maxIter,
     tools: EXTRACTION_TOOLS,
-    toolChoice: "auto",
+    // 首轮强制 propose_facts（根治 mode B：某些模型/reasoning 模型会以纯文本收尾、压根不提议 →
+    // 0 事实静默降级）。之后放回 auto，让 search / annotate / finalize 自由。harness 在模型拒绝
+    // 强制 tool_choice 时自动同轮降级 auto（forced_tool_choice_fallback），对不支持的模型无回归。
+    toolChoice: (iter: number): ToolChoice =>
+      iter === 0 ? { type: "function", function: { name: REACT_TOOL_PROPOSE } } : "auto",
     zodSchemas: EXTRACTION_TOOL_SCHEMAS,
     pathFields: EXTRACTION_TOOL_PATH_FIELDS,
     isReadOnlyTool: () => false,
@@ -411,6 +415,14 @@ export async function reactExtractFromChapter(
       runToolBatch(calls, ctx);
       // 显式终止：本批含 finalize → 干净收尾。
       if (calls.some((c) => c.function.name === REACT_TOOL_FINALIZE)) {
+        status = "ok";
+        return { mode: "terminal", events: [] };
+      }
+      // 早停省 token（Finding 3）：已产出事实后模型又重复 propose（proposeCallCount>=2）而非
+      // search/annotate/finalize —— 真 LLM（v4-flash）常这样空转到 maxIter(8) 才停，每轮 8k token
+      // 白烧。已有事实即算干净收尾（status=ok），不再干等 finalize。search 路径不触发本条（它意在
+      // annotate 跨章因，需后续轮次），故不误伤跨章因果补全。
+      if (proposedFacts.length > 0 && proposeCallCount >= 2 && calls.some((c) => c.function.name === REACT_TOOL_PROPOSE)) {
         status = "ok";
         return { mode: "terminal", events: [] };
       }

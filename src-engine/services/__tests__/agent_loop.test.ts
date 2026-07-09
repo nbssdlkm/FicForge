@@ -9,6 +9,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import type { LLMProvider, LLMChunk, ToolCallChunkDelta, Message } from "../../llm/provider.js";
+import { LLMError } from "../../llm/provider.js";
+import type { TelemetryEvent } from "../agent_telemetry.js";
 import type { ToolBuffer } from "../tool_stream_buffer.js";
 import {
   runAgentLoop,
@@ -576,5 +578,76 @@ describe("runAgentLoop", () => {
     const idxAssistant = retryMessages.findIndex((m) => m.role === "assistant" && m.content === "我先聊两句而不是续写。");
     const idxHint = retryMessages.findIndex((m) => m.role === "user" && m.content === HINT);
     expect(idxHint).toBe(idxAssistant + 1);
+  });
+});
+
+// ===========================================================================
+// forced tool_choice：per-iter 求值 + 拒绝降级（审计 HIGH：mode B 根治 + 补齐消费者）
+// ===========================================================================
+
+describe("runAgentLoop — forced tool_choice", () => {
+  const FORCED = { type: "function" as const, function: { name: "x" } };
+  const readChunk = [chunk({ tool_call_deltas: [td(0, "r", FAKE_READ_TOOL, "{}")], finish_reason: "tool_calls", is_final: true })];
+  const termChunk = [chunk({ tool_call_deltas: [td(0, "t", FAKE_TERMINAL_TOOL, "{}")], finish_reason: "tool_calls", is_final: true })];
+
+  // 记录每次 generateStream 收到的 tool_choice（forced 归一成 "forced"）；rejectForced 时对 forced 抛 unsupported。
+  function choiceProbeProvider(opts: { rejectForced?: boolean; yields: LLMChunk[][] }) {
+    const seen: unknown[] = [];
+    let call = 0;
+    const provider: LLMProvider = {
+      async generate() { return { content: "", model: "m", input_tokens: 0, output_tokens: 0, finish_reason: "stop" }; },
+      async *generateStream(params) {
+        const tc = params.tool_choice;
+        const forced = typeof tc === "object" && tc !== null && (tc as { type?: string }).type === "function";
+        seen.push(forced ? "forced" : tc);
+        if (forced && opts.rejectForced) throw new LLMError("forced_tool_choice_unsupported", "不支持", ["retry"], 400);
+        const out = opts.yields[Math.min(call, opts.yields.length - 1)];
+        call++;
+        for (const c of out) yield c;
+      },
+    };
+    return { provider, seen };
+  }
+
+  it("per-iter toolChoice 函数逐轮求值：iter0 forced、iter1 auto", async () => {
+    const { provider, seen } = choiceProbeProvider({ yields: [readChunk, termChunk] });
+    const config = buildConfig({
+      toolChoice: (iter: number) => (iter === 0 ? FORCED : "auto"),
+      onForceToolPath: async (calls) =>
+        calls.some((c) => c.function.name === FAKE_TERMINAL_TOOL)
+          ? { mode: "terminal" as const, events: [] }
+          : { mode: "continue" as const },
+    });
+    await collect(runAgentLoop(config, provider, [], { max_tokens: 10, temperature: 0, top_p: 1 }));
+    expect(seen).toEqual(["forced", "auto"]);
+  });
+
+  it("模型拒绝 forced → 同轮降级 auto 重试 + emit forced_tool_choice_fallback + 干净完成", async () => {
+    const { provider, seen } = choiceProbeProvider({ rejectForced: true, yields: [termChunk] });
+    const emitted: TelemetryEvent[] = [];
+    const config = buildConfig({
+      toolChoice: () => FORCED,
+      telemetry: { emit: (e) => emitted.push(e) },
+      onForceToolPath: async () => ({ mode: "terminal" as const, events: [{ type: "business", data: "TOOL_TERMINAL" }] }),
+    });
+    const events = await collect(runAgentLoop(config, provider, [], { max_tokens: 10, temperature: 0, top_p: 1 }));
+    expect(seen).toEqual(["forced", "auto"]); // 首次 forced 被拒 → 同轮改 auto 重发
+    expect(emitted.some((e) => e.kind === "forced_tool_choice_fallback")).toBe(true);
+    expect(events.some((e) => e.type === "business" && (e as { data?: string }).data === "TOOL_TERMINAL")).toBe(true);
+  });
+
+  it("降级是 sticky：拒绝一次后同 run 后续 iter 不再重试 forced", async () => {
+    // iter0 forced 被拒 → auto（read）→ continue；iter1 请求 forced 但已 sticky-disabled → 直接 auto（term）。
+    const { provider, seen } = choiceProbeProvider({ rejectForced: true, yields: [readChunk, termChunk] });
+    const config = buildConfig({
+      toolChoice: () => FORCED, // 每轮都请求 forced
+      onForceToolPath: async (calls) =>
+        calls.some((c) => c.function.name === FAKE_TERMINAL_TOOL)
+          ? { mode: "terminal" as const, events: [] }
+          : { mode: "continue" as const },
+    });
+    await collect(runAgentLoop(config, provider, [], { max_tokens: 10, temperature: 0, top_p: 1 }));
+    // iter0: forced(拒)→auto。iter1: 已 sticky → 直接 auto（不再试 forced）。
+    expect(seen).toEqual(["forced", "auto", "auto"]);
   });
 });

@@ -199,6 +199,21 @@ describe("reactExtractFromChapter — 内联挂边（propose 时直接填，真 
     expect(res.facts[0].caused_by).toEqual(["f_seed_3"]);
   });
 
+  it("早停（Finding 3）：已产出事实后再次 propose → 终止 status ok，不空转到 maxIter", async () => {
+    const { factRepo, threadRepo } = await seededRepos([SEED_FACT], [SEED_THREAD]);
+    // propose 两次（模型空转、从不 finalize）。旧行为：一路 continue 到脚本耗尽 → 空响应 → degraded。
+    // 新行为：第 2 次 propose 时（已有事实）判定空转 → 干净收尾 status=ok。判别点即 status。
+    const provider = scriptedProvider([
+      toolIter([{ name: REACT_TOOL_PROPOSE, args: { facts: [{ content_clean: "林晚月首次提议的关键事实", characters: ["林晚月"], evidence: "结盟" }] } }]),
+      toolIter([{ name: REACT_TOOL_PROPOSE, args: { facts: [{ content_clean: "林晚月第二次重复提议", characters: ["林晚月"] }] } }]),
+    ]);
+    const res = await reactExtractFromChapter(CHAPTER, 5, [], { characters: ["林晚月"] }, null, provider, {
+      factRepo, threadRepo, auPath: "au", _telemetry_override: silentTelemetry,
+    });
+    expect(res.status).toBe("ok");                    // 已产出事实即干净收尾（旧代码会 degraded）
+    expect(res.facts.length).toBeGreaterThan(0);
+  });
+
   it("H-fix：loose-parse 路径下 raw.caused_by 的幻觉 id 被 knownFactIds 过滤", async () => {
     // fact_type 非法 → proposeFactsSchema 校验失败 → 走 dispatch 的裸 JSON.parse 兜底（zod 不再
     // 剥掉 schema 外的 raw.caused_by）。这条 raw 用的是 caused_by（非 caused_by_fact_ids），

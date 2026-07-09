@@ -8,6 +8,7 @@
  */
 
 import type { Message, ToolCall, ToolDefinition, ToolChoice, LLMProvider, GenerateParams } from "../llm/provider.js";
+import { LLMError } from "../llm/provider.js";
 import type { ZodType } from "zod";
 import type { ToolBuffer } from "./tool_stream_buffer.js";
 import { applyToolDelta, finalizeToolCalls } from "./tool_stream_buffer.js";
@@ -60,7 +61,8 @@ export interface AgentLoopConfig<E> {
   agentName: string;
   maxIter: number;
   tools: ToolDefinition[];
-  toolChoice: ToolChoice;
+  /** 静态 tool_choice，或 per-iter 函数（如 ReAct 首轮强制 propose_facts、之后放回 auto）。 */
+  toolChoice: ToolChoice | ((iter: number) => ToolChoice);
   zodSchemas: Record<string, ZodType>;
   pathFields: Record<string, (string | number)[][]>;
 
@@ -133,6 +135,11 @@ function checkAbort(signal?: AbortSignal): void {
   }
 }
 
+/** tool_choice 是否为「强制某个函数」形态（`{type:"function",...}`）。 */
+function isForcedChoice(c: ToolChoice): boolean {
+  return typeof c === "object" && c !== null && c.type === "function";
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -150,6 +157,8 @@ export async function* runAgentLoop<E>(
   let reasoningContent = "";
   let emptyGuardCount = 0;
   let deviationGuardCount = 0;
+  // 一旦某模型拒绝强制 tool_choice，本 run 后续不再强制（sticky）。
+  let forcedChoiceDisabled = false;
 
   try {
     for (let iter = 0; iter < config.maxIter; iter++) {
@@ -160,54 +169,90 @@ export async function* runAgentLoop<E>(
       yield { type: "iter_start", data: { iter } };
       await config.onIterStart?.(iter, internalHistory);
 
-      // --- stream ---
+      // --- stream（含 forced tool_choice 降级重试）---
+      const messages: Message[] = [...startMessages, ...internalHistory];
       const toolBuffers = new Map<number, ToolBuffer>();
-      fullText = "";
-      reasoningContent = "";
       let finishReason: string | null = null;
       let inputTokens = 0;
       let outputTokens: number | null = null;
 
-      const messages: Message[] = [...startMessages, ...internalHistory];
+      // 每轮 tool_choice：支持 per-iter 函数（如 ReAct 首轮强制 propose_facts、之后放回 auto）。
+      const requestedChoice: ToolChoice =
+        typeof config.toolChoice === "function" ? config.toolChoice(iter) : config.toolChoice;
 
-      for await (const chunk of provider.generateStream({
-        messages,
-        max_tokens: generateParams.max_tokens,
-        temperature: generateParams.temperature,
-        top_p: generateParams.top_p,
-        tools: config.tools,
-        tool_choice: config.toolChoice,
-        signal,
-      })) {
-        checkAbort(signal);
+      // 部分模型（deepseek-reasoner 等）拒绝非 auto 的 tool_choice，抛 forced_tool_choice_unsupported。
+      // 此时同轮改 auto 重试 + sticky —— 补上 openai_compatible.ts 注释里承诺却从没写的消费者（审计 HIGH）。
+      // 该错误在首包前抛出（0 chunk yield），故重试不会重复 yield token/tool-delta。
+      streamRetry: while (true) {
+        toolBuffers.clear();
+        fullText = "";
+        reasoningContent = "";
+        finishReason = null;
+        inputTokens = 0;
+        outputTokens = null;
+        const effectiveChoice: ToolChoice =
+          forcedChoiceDisabled && isForcedChoice(requestedChoice) ? "auto" : requestedChoice;
+        // 显式化「本 pass 是否已向 caller yield / 已收到实质内容」不变量：只有一个 chunk 都没吐过
+        // 才允许 forced 降级重试。当前 provider 的该错误是首包前的 HTTP 400（对抗审确认零 yield），
+        // 但把隐式契约做成显式 guard，未来若有网关 200-then-error-mid-stream 也不会重复 yield。
+        let sawContentThisPass = false;
+        try {
+          for await (const chunk of provider.generateStream({
+            messages,
+            max_tokens: generateParams.max_tokens,
+            temperature: generateParams.temperature,
+            top_p: generateParams.top_p,
+            tools: config.tools,
+            tool_choice: effectiveChoice,
+            signal,
+          })) {
+            checkAbort(signal);
 
-        if (chunk.delta) {
-          fullText += chunk.delta;
-          const shouldYield = config.onTokenChunk?.(chunk.delta, { iter });
-          if (shouldYield !== false) {
-            yield { type: "token", data: chunk.delta };
-          }
-        }
-
-        if (chunk.reasoning_delta) {
-          reasoningContent += chunk.reasoning_delta;
-        }
-
-        if (chunk.tool_call_deltas) {
-          for (const d of chunk.tool_call_deltas) applyToolDelta(toolBuffers, d);
-          if (config.onToolCallDelta) {
-            for (const buf of toolBuffers.values()) {
-              const events = config.onToolCallDelta(buf, { iter });
-              if (events) {
-                for (const ev of events) yield ev;
+            if (chunk.delta) {
+              sawContentThisPass = true;
+              fullText += chunk.delta;
+              const shouldYield = config.onTokenChunk?.(chunk.delta, { iter });
+              if (shouldYield !== false) {
+                yield { type: "token", data: chunk.delta };
               }
             }
-          }
-        }
 
-        if (chunk.finish_reason !== null) finishReason = chunk.finish_reason;
-        if (chunk.input_tokens !== null) inputTokens = chunk.input_tokens;
-        if (chunk.output_tokens !== null) outputTokens = chunk.output_tokens;
+            if (chunk.reasoning_delta) {
+              reasoningContent += chunk.reasoning_delta;
+            }
+
+            if (chunk.tool_call_deltas) {
+              sawContentThisPass = true;
+              for (const d of chunk.tool_call_deltas) applyToolDelta(toolBuffers, d);
+              if (config.onToolCallDelta) {
+                for (const buf of toolBuffers.values()) {
+                  const events = config.onToolCallDelta(buf, { iter });
+                  if (events) {
+                    for (const ev of events) yield ev;
+                  }
+                }
+              }
+            }
+
+            if (chunk.finish_reason !== null) finishReason = chunk.finish_reason;
+            if (chunk.input_tokens !== null) inputTokens = chunk.input_tokens;
+            if (chunk.output_tokens !== null) outputTokens = chunk.output_tokens;
+          }
+          break streamRetry; // 流正常完成
+        } catch (e) {
+          if (
+            e instanceof LLMError &&
+            e.error_code === "forced_tool_choice_unsupported" &&
+            isForcedChoice(effectiveChoice) &&
+            !forcedChoiceDisabled &&
+            !sawContentThisPass
+          ) {
+            forcedChoiceDisabled = true;
+            config.telemetry?.emit({ kind: "forced_tool_choice_fallback", agentName: config.agentName, model: "" });
+            continue streamRetry; // 同轮改 auto 重试
+          }
+          throw e;
+        }
       }
 
       // --- post-stream guard ---

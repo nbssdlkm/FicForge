@@ -23,9 +23,9 @@ v4-flash 下 M9 有**两种**间歇失败，别混为一谈：
 - **修法**：①Layer A：evidence 改「单行、8-20字、免引号的短摘录」（schema + prompt），从源头压低发生率 + 省 token。②Layer B：`tool_args_repair` 加 `salvageMalformedJson` —— 严格 parse 失败后**只补串内字面控制字符**（换行/制表符），model-agnostic、任何模型任何工具都受益。**刻意不猜未转义引号**（那本质歧义，贪心猜会静默截断写错数据——对抗审 HIGH），引号类一律安全回退 retryHint，绝不静默改数据。判别性单测在 `tool_args_repair.test.ts`「malformed JSON 抢救」。
 - **成功时质量优**：不炸的题材，跨章 caused_by 召回 2/2、自动挂线正确、零幻觉、零过度提取（含红鲱鱼题材也挂对）。
 
-**模式 B — 模型不按工具协议走（未修，模型能力问题）**
-- **现象**：v4-flash 有时不调 propose_facts、以纯文本收尾 → `status=degraded, facts=0`（无 `tool_input_invalid`、salvage 不触发）。这是 v4-flash 作为 tool-caller 的能力弱点，与 JSON 转义无关，本次未处理。
-- **附带成本**：也常不调 `finalize_extraction`，即使已产出事实也把循环跑满 maxIter(8) 才停——白烧 token。
-- 广度探针单次 3/4 通过↔1/4 通过 大幅波动，主要来自模式 B 的高方差。
+**模式 B — 模型不按工具协议走（已修，2026-07-08）**
+- **现象**：v4-flash 有时不调 propose_facts、以纯文本收尾 → `status=degraded, facts=0`（无 `tool_input_invalid`、salvage 不触发）。
+- **修法（治本）**：agent_loop 支持 per-iter tool_choice → ReAct **首轮强制 propose_facts**，模型无法再以纯文本收尾。配套补上 openai_compatible 里「注释承诺却从没写」的降级消费者：模型若拒绝强制 tool_choice（抛 forced_tool_choice_unsupported），同轮改 auto 重试 + sticky（对不支持的模型零回归）。**实测 v4-flash 接受强制**（fallback 事件 0）。另加早停：已产出事实后模型再 propose（空转）即干净收尾，不干等 finalize 跑满 maxIter 白烧 token。
+- **实测**：修后 m9_breadth 提议率显著上升（4 题材从「多题材 0 事实」→ 多数产出事实）。残留失败多为「已产出事实但 status=degraded」（生产仍用该批事实，非崩溃）+ 高方差单次 miss。独立对抗审 opus 判 change sound、simple_chat 全 inert。
 
 **两种模式生产上都有兜底**：`engine-facts.ts` `degraded && facts==0` 回退单次调用（提取仍成功，只丢该章跨章 caused_by + 自动挂线）。非崩溃。**模式 B 若要根治 = 属"换更强 tool-caller 模型 / 加 tool 强制"的产品/模型取舍**，未排期。
