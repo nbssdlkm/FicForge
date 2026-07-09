@@ -82,7 +82,7 @@ describe("GlobalSettingsModal — 脏检查（R2-5）", () => {
     expect(screen.queryByText("放弃未保存的修改？")).toBeNull();
   });
 
-  it("ctx 单独漂移不计脏（选择器权威校正是系统行为，防「打开就脏」误报）", async () => {
+  it("只改 ctx 覆盖 → 点取消弹丢弃确认（per-model 覆盖后 ctx 计脏，防覆盖被静默丢失）", async () => {
     const onClose = vi.fn();
     await renderModal(onClose);
 
@@ -90,9 +90,10 @@ describe("GlobalSettingsModal — 脏检查（R2-5）", () => {
     expect(ctxInput.value).toBe("131072");
     fireEvent.change(ctxInput, { target: { value: "999999" } });
 
+    // 关窗前弹确认（ctx 覆盖也是用户改动，不该无声丢弃）；未确认前不关闭。
     fireEvent.click(screen.getByRole("button", { name: "取消" }));
-    expect(screen.queryByText("放弃未保存的修改？")).toBeNull();
-    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("放弃未保存的修改？")).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("改了 api key → 点取消弹确认；确认后才关闭", async () => {

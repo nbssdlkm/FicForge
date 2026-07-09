@@ -94,13 +94,15 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
    * 语言 / 提取开关 / 字体 / 服务商目录与模型清单是即时保存的，不计脏。
    * 用固定序数组序列化（对象键序随构造点漂移，字符串比对会误报）。
    *
-   * contextWindow 刻意不计脏：选择器会在打开后对权威模型自动校正 ctx（系统行为，
-   * 与用户手改无法区分），计入会让「打开就脏 → 关个窗还弹确认」成为常态误报。
-   * 取舍：ctx 单独漂移不弹确认（保存 payload 仍照常携带；其余任一字段改动照弹）。
+   * contextWindow 计脏（per-model 覆盖后）：选择器的自动校正已放宽为「仅表单为空时 seed 一次」，
+   * 不再每次打开就强制回填官方值 —— 常见情况（配置已存 ctx 值 → 打开时字段非空 → 不触发 seed）
+   * 不再误报「打开就脏」。故把它纳入脏检查，让「只改了 ctx 覆盖就关窗」也能弹丢弃确认（否则该覆盖
+   * 会被静默丢失）。仅遗留「权威模型 + 空 ctx 的迁移旧配置」打开时 seed 一次 → 罕见的一次性误报，
+   * 首次保存后自愈。
    */
   const formSnapshot = (f: GlobalSettingsFormState): string => JSON.stringify([
     f.mode, f.model, f.localModelPath, f.ollamaModel, f.apiBase, f.apiKey,
-    f.chatPath, f.embeddingModel, f.embeddingApiBase, f.embeddingApiKey,
+    f.contextWindow, f.chatPath, f.embeddingModel, f.embeddingApiBase, f.embeddingApiKey,
   ]);
   const currentForm = (): GlobalSettingsFormState => ({
     mode, model, localModelPath, ollamaModel, apiBase, apiKey,

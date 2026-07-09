@@ -467,6 +467,9 @@
       "creative": "Creative"
     },
     "ctxAuthoritative": "Official value for this model, filled in automatically",
+    "ctxAuthoritativeEditable": "Official spec is {{ctx}}, filled in automatically; edit it if your deployment differs",
+    "ctxOverride": "Overriding the official default {{ctx}} — your value takes effect after saving.",
+    "ctxResetDefault": "Reset to official default",
     "ctxEstimated": "Window unverified, estimated at {{ctx}} — editable",
     "ctxManual": "Your manually entered value; takes effect after saving",
     "ctxUnknown": "We couldn't find how much this model can read at once. Fill it in per your provider's docs; if left empty, a conservative value is used",

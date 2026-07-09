@@ -497,8 +497,12 @@ describe("TrashService", () => {
     const aBackup = backups.find((f) => f.endsWith("/a.md"));
     expect(aBackup).toBeDefined();
     expect(faulty.raw(aBackup!)).toBe("A-content-EDITED-by-user");
-    // manifest 清空、trash 树副本清掉（恢复真正完成）；备份 sidecar 有意保留（不计入）。
-    expect(await t.list_trash("fandom1")).toHaveLength(0);
+    // 父条目已从 manifest 移除、trash 树副本清掉（恢复真正完成）；被覆盖的 a.md 版本作为
+    // overwrite_backup 条目进回收站列表（最后一公里），可恢复/永久删除。
+    const list = await t.list_trash("fandom1");
+    expect(list).toHaveLength(1);
+    expect(list[0].entity_type).toBe("overwrite_backup");
+    expect(list[0].original_path).toBe("aus/AU1/a.md");
     const leftoverTreeCopies = faulty.allFiles().filter(
       (f) => f.includes("/.trash/aus/") && f.endsWith(".md") && !f.includes(".overwrite-backup"),
     );
@@ -524,7 +528,38 @@ describe("TrashService", () => {
     const fileBackup = adapter2.allFiles().find((f) => f.includes(".overwrite-backup") && f.endsWith("/__file__"));
     expect(fileBackup).toBeDefined();
     expect(adapter2.raw(fileBackup!)).toBe("someone else's edit");
-    expect(await t.list_trash("au1")).toHaveLength(0);
+    // 最后一公里：被覆盖版本作为 overwrite_backup 条目进回收站列表，可恢复 + 可永久删除。
+    const list = await t.list_trash("au1");
+    expect(list).toHaveLength(1);
+    expect(list[0].entity_type).toBe("overwrite_backup");
+    expect(list[0].original_path).toBe("notes/n.md");
+    // 恢复此备份：原位已被回收站版本占住 → abort 撞冲突（诚实弹「以回收站版本覆盖」）。
+    await expect(t.restore("au1", list[0].trash_id, "abort")).rejects.toThrow(new RegExp(RESTORE_CONFLICT_MARKER));
+    // overwrite 恢复：原位写回被覆盖的编辑版本。
+    await t.restore("au1", list[0].trash_id, "overwrite");
+    expect(adapter2.raw("au1/notes/n.md")).toBe("someone else's edit");
+  });
+
+  it("覆盖备份条目 cast_registry_removed=false → 恢复角色文件备份不向名册误加名字（复用 LOW-3）", async () => {
+    const a = new MockAdapter();
+    a.seed("au1/project.yaml", "cast_registry:\n  characters:\n    - Ann\n    - Ben\n");
+    a.seed("au1/characters/Ann.md", "---\nname: Ann\n---\n# Ann");
+    const t = new TrashService(a, 30);
+    await t.move_to_trash("au1", "characters/Ann.md", "character_file", "Ann"); // Ann 移出名册
+    // 原位被一个 frontmatter name 不同（Ghost）的同名文件占住
+    a.seed("au1/characters/Ann.md", "---\nname: Ghost\n---\n# occupant");
+    const parent = (await t.list_trash("au1"))[0];
+    // overwrite 恢复原 Ann → 父恢复把 Ann 加回名册；占位(Ghost)版本备份成 overwrite_backup 条目
+    await t.restore("au1", parent.trash_id, "overwrite");
+    expect(a.raw("au1/project.yaml")).toContain("Ann");
+    const backup = (await t.list_trash("au1")).find((e) => e.entity_type === "overwrite_backup")!;
+    expect(backup).toBeDefined();
+    expect(backup.metadata.cast_registry_removed).toBe(false);
+    // 恢复该备份（Ghost 版本）→ 关键判别：cast_registry_removed=false 命中 _restore `!== false` 门 → 跳过 add，
+    // 不把 Ghost 误塞进名册（回退到无条件 add 会加 Ghost → 断言挂）。
+    await t.restore("au1", backup.trash_id, "overwrite");
+    expect(a.raw("au1/project.yaml")).not.toContain("Ghost");
+    expect(a.raw("au1/project.yaml")).toContain("Ann");
   });
 
   it("F-7: overwrite 备份前原位读失败（文件仍存在）→ 中止覆盖、原位不动、条目保留", async () => {
@@ -574,7 +609,11 @@ describe("TrashService", () => {
     expect(second).toBeDefined();
     expect(faulty.raw(first!)).toBe("edit-round-1");
     expect(faulty.raw(second!)).toBe("edit-round-2");
-    expect(await t.list_trash("au1")).toHaveLength(0);
+    // 最后一公里：两份被覆盖版本各作为独立 overwrite_backup 条目进回收站列表（可分别恢复/删除）。
+    // 注：第一轮 overwrite 在原位写回失败前已备份 + 登记（__file__），故父条目撤销后共 2 条备份。
+    const list = await t.list_trash("au1");
+    expect(list.filter((e) => e.entity_type === "overwrite_backup")).toHaveLength(2);
+    expect(list.every((e) => e.original_path === "notes/n.md")).toBe(true);
   });
 
   it("F5: overwrite 覆盖前备份写失败 → 中止覆盖（不无备份覆盖）、原位当前文件不被销毁", async () => {

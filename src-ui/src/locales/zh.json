@@ -467,6 +467,9 @@
       "creative": "文笔"
     },
     "ctxAuthoritative": "这个模型的官方值，已自动填好",
+    "ctxAuthoritativeEditable": "官方标定 {{ctx}}，已自动填好；如你的部署实际不同，可直接改",
+    "ctxOverride": "已覆盖官方默认 {{ctx}}，保存后按你填的值生效。",
+    "ctxResetDefault": "恢复官方默认",
     "ctxEstimated": "窗口未确认，按 {{ctx}} 估算 —— 可手改",
     "ctxManual": "你手填的值，保存后生效",
     "ctxUnknown": "查不到这个模型一次能读多少字，请按服务商说明填写；不填则按较保守值处理",

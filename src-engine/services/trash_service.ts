@@ -52,6 +52,13 @@ export type RestoreConflictPolicy = "abort" | "overwrite";
 export const RESTORE_CONFLICT_MARKER = "RESTORE_CONFLICT";
 export const HALF_RESTORED_MARKER = "HALF_RESTORED";
 
+/**
+ * overwrite 恢复时被覆盖的原位版本备份，其在回收站里的 entity_type。
+ * 走单文件生命周期（metadata.is_directory=false），TrashPanel 对未知类型归为文件（不得以 `_dir` 结尾、
+ * 不得是 fandom/au，否则被误判为目录）。
+ */
+export const OVERWRITE_BACKUP_ENTITY_TYPE = "overwrite_backup";
+
 // ---------------------------------------------------------------------------
 // 核心服务
 // ---------------------------------------------------------------------------
@@ -336,6 +343,14 @@ export class TrashService {
     }
 
     const originalDest = joinPath(scopeRoot, targetEntry.original_path);
+    const trashSource = joinPath(scopeRoot, ".trash", targetEntry.trash_path);
+    // 先确认回收站副本仍在，再决定是否备份原位 —— 副本已丢时直接失败，不白备份 + 登记多余
+    // overwrite_backup 条目（对抗审 LOW：备份前置在存在性检查之前会造一条冗余备份条目）。
+    if (!(await this.adapter.exists(trashSource))) {
+      await this.removeFromManifest(scopeRoot, trashId);
+      throw new Error(`垃圾箱中的文件已丢失: ${targetEntry.trash_path}`);
+    }
+
     if (await this.adapter.exists(originalDest)) {
       if (onConflict !== "overwrite") {
         // F5：区分场景文案 —— 原位已有不同内容的同名文件（用户新建 / 编辑过），
@@ -346,12 +361,6 @@ export class TrashService {
       }
       // overwrite：覆盖前先把原位当前文件备份进本条目 sidecar（不许无备份覆盖）。
       await this.backupBeforeOverwrite(scopeRoot, targetEntry, "");
-    }
-
-    const trashSource = joinPath(scopeRoot, ".trash", targetEntry.trash_path);
-    if (!(await this.adapter.exists(trashSource))) {
-      await this.removeFromManifest(scopeRoot, trashId);
-      throw new Error(`垃圾箱中的文件已丢失: ${targetEntry.trash_path}`);
     }
 
     // 兼容 adapter：使用 read + write + delete 实现“移动”。写入原子（F5）：
@@ -711,19 +720,47 @@ export class TrashService {
       if (!stillExists) return;
       throw err;
     }
-    const backupBase = fileRel
-      ? joinPath(this.overwriteBackupRoot(scopeRoot, entry), fileRel)
-      : joinPath(this.overwriteBackupRoot(scopeRoot, entry), "__file__");
-    // F-8：同条目重复 overwrite（如上一轮覆盖恢复中途失败后重试）不覆盖旧备份 ——
-    // 目标已存在时找空闲后缀（-2 / -3 …），每一轮被覆盖的原位版本各留一份。
-    let backupTarget = backupBase;
-    for (let i = 2; await this.adapter.exists(backupTarget); i++) {
-      backupTarget = `${backupBase}-${i}`;
+    // leaf（相对 sidecar 根的文件名）单一真相源：absolute backupTarget 与相对 trash_path 都由它派生，
+    // 不依赖 joinPath 内部拼法。F-8：同条目重复 overwrite 不覆盖旧备份 —— 目标已存在时找空闲后缀
+    // （-2 / -3 …），每一轮被覆盖的原位版本各留一份，各自独立登记进回收站可恢复。
+    const sidecarRoot = this.overwriteBackupRoot(scopeRoot, entry);
+    const sidecarRel = `${entry.trash_path}.overwrite-backup`; // 相对 .trash/ 的 sidecar 根
+    const leafBase = fileRel || "__file__";
+    let leaf = leafBase;
+    for (let i = 2; await this.adapter.exists(joinPath(sidecarRoot, leaf)); i++) {
+      leaf = `${leafBase}-${i}`;
     }
+    const backupTarget = joinPath(sidecarRoot, leaf);
     const dir = backupTarget.substring(0, backupTarget.lastIndexOf("/"));
     await this.adapter.mkdir(dir);
     // 原子写：备份本身也不能留半截；失败向上抛，overwrite 中止（不无备份覆盖）。
     await atomicWrite(this.adapter, backupTarget, current);
+
+    // 登记进回收站列表（最后一公里）：让被覆盖的原位版本可在回收站里看到、恢复、永久删除。
+    // 单文件条目（is_directory=false → 走 _restore / permanent_delete / purge 的单文件分支，全链原生正确，
+    // 无需改那些方法）。cast_registry_removed=false：命中 _restore 的 `!== false` 门 → 恢复角色文件备份
+    // 时不向名册误加名字（正向复用 LOW-3 引入的同一机制）。恢复此备份时其 original_path 已被父恢复内容占住
+    // → 触发既有 abort/overwrite 冲突处理（诚实弹「以回收站版本覆盖」），无需专用「撤销 restore」逻辑。
+    const backupOriginalPath = fileRel ? joinPath(entry.original_path, fileRel) : entry.original_path;
+    const now = new Date();
+    const expires = new Date(now.getTime() + this.retentionDays * 86400000);
+    await this.appendManifest(scopeRoot, {
+      // 8 位随机（非 4 位）：目录 overwrite 恢复会在同一秒的循环里为多个冲突文件各登记一条备份，
+      // 4 位（2^16）在文件数上百时有生日碰撞风险 → 同 id 会让第二条备份变孤儿/删不掉（对抗审 MED）。
+      trash_id: `tr_${Math.floor(Date.now() / 1000)}_${crypto.randomUUID().slice(0, 8)}`,
+      original_path: backupOriginalPath,
+      trash_path: `${sidecarRel}/${leaf}`,
+      entity_type: OVERWRITE_BACKUP_ENTITY_TYPE,
+      entity_name: backupOriginalPath.split("/").pop() || backupOriginalPath,
+      deleted_at: now.toISOString().replace(/\.\d{3}Z$/, "Z"),
+      expires_at: expires.toISOString().replace(/\.\d{3}Z$/, "Z"),
+      metadata: {
+        is_directory: false,
+        overwrite_backup: true,
+        source_trash_id: entry.trash_id,
+        cast_registry_removed: false,
+      },
+    });
   }
 
   /**

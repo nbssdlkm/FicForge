@@ -111,7 +111,7 @@ describe("ProviderModelPicker", () => {
     expect(onApiBaseAutoFill).toHaveBeenLastCalledWith("https://open.bigmodel.cn/api/paas/v4");
   });
 
-  it("选择推荐模型 → 模型 + 权威 ctx 一并带出，ctx 输入只读并标注权威值", async () => {
+  it("选择推荐模型 → 模型 + 权威 ctx 一并带出，ctx 可编辑（per-model 覆盖）+ 标注官方值", async () => {
     const onModelChange = vi.fn();
     const onContextWindowChange = vi.fn();
     renderPicker(<ControlledPicker spies={{ onModelChange, onContextWindowChange }} />);
@@ -122,12 +122,36 @@ describe("ProviderModelPicker", () => {
     expect(onModelChange).toHaveBeenCalledWith("deepseek-v4-flash");
     expect(onContextWindowChange).toHaveBeenCalledWith("1000000");
     const ctxInput = screen.getByLabelText("一次能读多少字 (context window)") as HTMLInputElement;
-    expect(ctxInput.readOnly).toBe(true);
+    // per-model 覆盖：权威模型的 ctx 现在也可编辑（不再只读），默认带出官方值
+    expect(ctxInput.readOnly).toBe(false);
     expect(ctxInput.value).toBe("1000000");
-    expect(screen.getByText(/官方值/)).toBeTruthy();
+    expect(screen.getByText(/官方标定/)).toBeTruthy();
     // 推荐模型标签胶囊
     expect(screen.getByText("便宜")).toBeTruthy();
     expect(screen.getByText("长上下文")).toBeTruthy();
+  });
+
+  it("覆盖权威模型 ctx → 显示「已覆盖官方默认」+「恢复默认」还原（per-model 编辑，数据链末端进 context_window）", async () => {
+    const onContextWindowChange = vi.fn();
+    renderPicker(<ControlledPicker spies={{ onContextWindowChange }} />);
+
+    fireEvent.change(await screen.findByLabelText("服务商"), { target: { value: "deepseek" } });
+    fireEvent.change(screen.getByLabelText("模型"), { target: { value: "deepseek-v4-flash" } });
+    const ctxInput = screen.getByLabelText("一次能读多少字 (context window)") as HTMLInputElement;
+
+    // 用户改小窗口（如为省 token / 服务商实际限额）
+    fireEvent.change(ctxInput, { target: { value: "200000" } });
+    expect(onContextWindowChange).toHaveBeenLastCalledWith("200000");
+    // 覆盖提示 + 恢复默认按钮
+    expect(screen.getByText(/已覆盖官方默认/)).toBeTruthy();
+    const resetBtn = screen.getByRole("button", { name: "恢复官方默认" });
+    fireEvent.click(resetBtn);
+    expect(onContextWindowChange).toHaveBeenLastCalledWith("1000000"); // 还原官方值
+
+    // 数据链末端：覆盖值 → buildGlobalSettingsSaveInput → default_llm.context_window（生成端 get_context_window 优先认它）
+    const form = createDefaultGlobalSettingsFormState();
+    form.contextWindow = "200000";
+    expect(buildGlobalSettingsSaveInput(form).default_llm.context_window).toBe(200000);
   });
 
   it("手填未知模型 → ctx 可编辑 + 未知警示；手改 ctx 进 onContextWindowChange（保存 payload 链）", async () => {

@@ -120,11 +120,12 @@ export function ProviderModelPicker({
   const selectedOption = options.find((o) => o.id === model);
   const ctxInfo = useMemo(() => ctxInfoForModel(options, model), [options, model]);
 
-  // 权威 ctx 与表单值不一致时自动校正（旧配置存了过时 ctx 的场景）；
-  // 收敛写入，无循环（写入后两值相等，效应不再触发）。
+  // 权威模型：仅当 ctx 表单为空（未选/初次进无保存值）时自动带出官方值。
+  // 不再强制覆盖非空表单值 —— 允许 per-model 覆盖上下文窗口（get_context_window 会优先认保存的
+  // context_window，故覆盖真生效）；用户显式改小/改大的值得以保留，官方值仅作默认与「恢复默认」目标。
   useEffect(() => {
     if (kind !== "chat" || !onContextWindowChange) return;
-    if (ctxInfo.source === "authoritative" && ctxInfo.value !== undefined && contextWindow !== String(ctxInfo.value)) {
+    if (ctxInfo.source === "authoritative" && ctxInfo.value !== undefined && (contextWindow ?? "").trim() === "") {
       onContextWindowChange(String(ctxInfo.value));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -248,7 +249,14 @@ export function ProviderModelPicker({
     if (selectedProviderId === providerId) setSelectedProviderId(UNMATCHED_VALUE);
   };
 
-  const editableCtx = kind === "chat" && ctxInfo.source !== "authoritative";
+  // ctx 现在对所有模型可编辑（含权威——允许 per-model 覆盖，见上方自动校正 effect 说明）。
+  // 「已覆盖官方默认」判据：权威模型 + 表单值非空 + 与官方值不等 → 提供「恢复默认」还原。
+  const ctxOverridesAuthoritative =
+    kind === "chat" &&
+    ctxInfo.source === "authoritative" &&
+    ctxInfo.value !== undefined &&
+    (contextWindow ?? "").trim() !== "" &&
+    contextWindow !== String(ctxInfo.value);
   const selectClass = "h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base text-text outline-none focus:ring-1 focus:ring-accent dark:border-white/20 md:h-9 md:text-sm";
 
   const optionLabel = (o: PickerModelOption) =>
@@ -383,41 +391,43 @@ export function ProviderModelPicker({
       {kind === "chat" && (
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-bold text-text/70">{t("common.labels.contextWindow")}</label>
-          {ctxInfo.source === "authoritative" ? (
-            <>
-              <Input
-                type="number"
-                value={contextWindow ?? (ctxInfo.value !== undefined ? String(ctxInfo.value) : "")}
-                readOnly
-                disabled={disabled}
-                aria-label={t("common.labels.contextWindow")}
-                className="h-11 bg-background/70 text-base md:h-9 md:text-sm"
-              />
-              <p className="text-xs text-text/50">{t("modelPicker.ctxAuthoritative")}</p>
-            </>
-          ) : (
-            <>
-              <Input
-                type="number"
-                value={contextWindow ?? ""}
-                onChange={(e) => onContextWindowChange?.(e.target.value)}
-                disabled={disabled || !editableCtx}
-                aria-label={t("common.labels.contextWindow")}
-                className="h-11 text-base md:h-9 md:text-sm"
-              />
-              {ctxInfo.source === "estimated" && (
-                <p className="text-xs text-warning">
-                  {t("modelPicker.ctxEstimated", { ctx: formatCtx(ctxInfo.value ?? 0) })}
-                </p>
-              )}
-              {ctxInfo.source === "manual" && (contextWindow ?? "").trim() !== "" && (
-                <p className="text-xs text-text/50">{t("modelPicker.ctxManual")}</p>
-              )}
-              {/* 空值恒配「窗口未知」警示（含手清空场景），不静默显示空框（R2-3 显示层） */}
-              {(ctxInfo.source === "unknown" || (ctxInfo.source === "manual" && (contextWindow ?? "").trim() === "")) && (
-                <p className="text-xs text-warning">{t("modelPicker.ctxUnknown")}</p>
-              )}
-            </>
+          <Input
+            type="number"
+            value={contextWindow ?? ""}
+            onChange={(e) => onContextWindowChange?.(e.target.value)}
+            disabled={disabled}
+            aria-label={t("common.labels.contextWindow")}
+            className="h-11 text-base md:h-9 md:text-sm"
+          />
+          {ctxInfo.source === "authoritative" && (
+            ctxOverridesAuthoritative ? (
+              // 已覆盖官方默认 → 提示 + 一键恢复官方值
+              <p className="flex flex-wrap items-center gap-x-2 text-xs text-warning">
+                {t("modelPicker.ctxOverride", { ctx: formatCtx(ctxInfo.value ?? 0) })}
+                <button
+                  type="button"
+                  className="underline hover:text-text/80 disabled:opacity-50"
+                  onClick={() => onContextWindowChange?.(String(ctxInfo.value))}
+                  disabled={disabled}
+                >
+                  {t("modelPicker.ctxResetDefault")}
+                </button>
+              </p>
+            ) : (
+              <p className="text-xs text-text/50">{t("modelPicker.ctxAuthoritativeEditable", { ctx: formatCtx(ctxInfo.value ?? 0) })}</p>
+            )
+          )}
+          {ctxInfo.source === "estimated" && (
+            <p className="text-xs text-warning">
+              {t("modelPicker.ctxEstimated", { ctx: formatCtx(ctxInfo.value ?? 0) })}
+            </p>
+          )}
+          {ctxInfo.source === "manual" && (contextWindow ?? "").trim() !== "" && (
+            <p className="text-xs text-text/50">{t("modelPicker.ctxManual")}</p>
+          )}
+          {/* 空值恒配「窗口未知」警示（含手清空场景），不静默显示空框（R2-3 显示层） */}
+          {(ctxInfo.source === "unknown" || (ctxInfo.source === "manual" && (contextWindow ?? "").trim() === "")) && (
+            <p className="text-xs text-warning">{t("modelPicker.ctxUnknown")}</p>
           )}
         </div>
       )}
