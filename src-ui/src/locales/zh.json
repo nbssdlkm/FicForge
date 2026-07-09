@@ -1550,7 +1550,10 @@
       "pickerEmpty": "没有可挂的剧情笔记（都已在本线，或还没有笔记）",
       "tag": {
         "readerOnly": "仅读者知"
-      }
+      },
+      "refreshState": "刷新进展",
+      "refreshing": "刷新中…",
+      "stateStale": "有 {{count}} 条新进展，「当前进展」可能已过时"
     },
     "appearsIn": {
       "title": "出现在剧情线",

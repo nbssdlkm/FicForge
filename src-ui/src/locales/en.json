@@ -1550,7 +1550,10 @@
       "pickerEmpty": "No plot points available (all already on this thread, or none yet)",
       "tag": {
         "readerOnly": "reader-only"
-      }
+      },
+      "refreshState": "Refresh progress",
+      "refreshing": "Refreshing…",
+      "stateStale": "{{count}} new since last update — progress may be stale"
     },
     "appearsIn": {
       "title": "Appears in",

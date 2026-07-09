@@ -10,18 +10,18 @@
  * 左 sidebar 元数据 + olive current_state banner，右主区「Index of nodes」金色书脊节点卡。
  */
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { Modal } from '../shared/Modal';
 import { EmptyState } from '../shared/EmptyState';
 import { Tag } from '../shared/Tag';
 import { goldLine } from '../shared/tokens';
-import { ArrowLeft, Plus, Pencil, X, Search } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, X, Search, RefreshCw } from 'lucide-react';
 import { useFeedback } from '../../hooks/useFeedback';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
-import { addFactToThread, removeFactFromThread, setFactThreadRole, type FactInfo } from '../../api/engine-client';
+import { addFactToThread, removeFactFromThread, setFactThreadRole, getStaleThreads, regenerateThreadState, type FactInfo } from '../../api/engine-client';
 import { ThreadStatus } from '@ficforge/engine';
 import type { Thread } from '@ficforge/engine';
 
@@ -86,6 +86,33 @@ export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged 
     }
   };
 
+  // B2 最后一公里：进展陈旧检测（零 LLM，engine 侧算）+ 按需刷新（点击才烧 token）。
+  const [staleCount, setStaleCount] = useState(0);
+  const [refreshingState, setRefreshingState] = useState(false);
+
+  // 陈旧数随 thread.id / updated_at 变化重算（刷新成功后 onChanged 会带来新 updated_at → 自动清零）。
+  useEffect(() => {
+    let alive = true;
+    getStaleThreads(auPath)
+      .then((stale) => { if (alive) setStaleCount(stale.find((s) => s.thread_id === thread.id)?.new_fact_count ?? 0); })
+      .catch(() => { if (alive) setStaleCount(0); });
+    return () => { alive = false; };
+  }, [auPath, thread.id, thread.updated_at]);
+
+  const handleRefreshState = async () => {
+    if (refreshingState) return;
+    setRefreshingState(true);
+    try {
+      const next = await regenerateThreadState(auPath, thread.id);
+      if (next == null) { showError(new Error('empty'), t('error_messages.unknown')); return; }
+      await onChanged(); // 重载 → 拿到新 state + 新 updated_at → useEffect 重算陈旧清零
+    } catch (err) {
+      showError(err, t('error_messages.unknown'));
+    } finally {
+      setRefreshingState(false);
+    }
+  };
+
   // 助手已改为内部读 fresh fact，这里不再传 UI 旧值（防 lost-update）。
   const addNode = (f: FactInfo) => guard(f.id, async () => {
     await addFactToThread(auPath, f.id, thread.id);
@@ -139,12 +166,28 @@ export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged 
             </div>
           ) : null}
           <div>
-            <div className="mb-1 font-mono text-[9px] uppercase tracking-[0.18em] text-ink-faint">{t('threads.field.state')}</div>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-ink-faint">{t('threads.field.state')}</span>
+              {nodes.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={handleRefreshState}
+                  disabled={refreshingState}
+                  className="flex items-center gap-1 font-sans text-[10px] font-medium text-accent hover:underline disabled:opacity-50"
+                >
+                  <RefreshCw size={11} className={refreshingState ? 'animate-spin' : ''} />
+                  {refreshingState ? t('threads.detail.refreshing') : t('threads.detail.refreshState')}
+                </button>
+              ) : null}
+            </div>
             {thread.state ? (
               <p className="border-l-[3px] border-accent bg-accent/8 px-3 py-2 font-serif text-[13px] leading-relaxed text-text/90">{thread.state}</p>
             ) : (
               <p className="font-sans text-xs italic text-ink-faint">{t('threads.noState')}</p>
             )}
+            {staleCount > 0 ? (
+              <p className="mt-1.5 font-sans text-[10px] leading-snug text-gold">{t('threads.detail.stateStale', { count: staleCount })}</p>
+            ) : null}
           </div>
           <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-ink-faint">
             {t('threads.nodeCount', { count: nodes.length })}
