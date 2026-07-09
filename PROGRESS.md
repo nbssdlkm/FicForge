@@ -5,7 +5,7 @@
 
 ## 当前状态（2026-07-09）
 
-**2026-07-09 大会话：第三轮审计 MED/LOW 全清 + TD-017 根治（最后一条技术债）+ 最后一公里剩项收尾。** 至此已知 bug / 技术债 / 审计待排全部闭环。本地 main 领先 origin **17 个 commit（未 push，等发话）**——本会话新增 5 个（`734eaa4`→`47599a7`）。引擎 1276 + UI 403 全绿、双 tsc 0 错、i18n 对称、工作区干净。**代码层面已达可打包发布**（剩余仅真机/异机人工验证，见下）。
+**2026-07-09 大会话：第三轮审计 MED/LOW 全清 + TD-017 根治（最后一条技术债）+ 最后一公里全部做完（含用户追问后治本的两剩项）。** 至此已知 bug / 技术债 / 审计待排 / 最后一公里全部闭环。本地 main 领先 origin **19 个 commit（未 push，等发话）**——本会话新增 7 个（`734eaa4`→`a8160d6`，另 2 docs）。引擎 1277 + UI 404 全绿、双 tsc 0 错、i18n 1271 对称、工作区干净。**代码层面已达可打包发布**（剩余仅真机/异机人工验证，见下）。
 
 ## 待办
 
@@ -19,14 +19,15 @@
 - [x] **第三轮审计 MED 三修** `734eaa4`：①交互式接受事实改批量单锁落库（`addFactsBatch` 单锁 + 逐章存在性 CAS + `writtenIndices` 精确半成功去重，防并发 undo 插批次产生孤儿）②embedding 加 AbortSignal（与内部 30s 超时联动，取消 backfill 时在飞 embed 立即中止）③手动 fact 富化字段进 prompt（`buildFactEnrichmentSuffix` 门控改「无 _confidence=手动 ground truth 即注入；有=ReAct 按 gate」，ReAct 逐字节不变）。对抗审采纳 3 发现（Facts 页半成功去重 + 空串守卫 + slice 混章错位改 writtenIndices）。
 - [x] **第三轮审计 LOW 三修** `f5d4c88`：①trash NaN 日期回退 deleted_at+retention（原恒 false 永不清）②file_fact revision 锁内基于磁盘自增（原锁外基于 caller 值，并发算出同 revision）③trash 恢复名对称（删除侧 remove 有条件、恢复侧 add 无条件的不幂等 → 删除时预判在册存 metadata、恢复据 flag 补）。对抗审精准定位 LOW-3。
 - [x] **TD-017 根治（最后一条技术债）** `16fdc5b` + `622f093`(doc)：RagManager 改 per-AU 引擎实例（`Map<auPath, JsonVectorEngine>` + promise 缓存 get-or-create + LRU 驱逐），彻底消除跨 AU 共享内存竞态污染。对抗审两 MEDIUM 整改：in-flight load 被 evict 后 epoch 守卫防复活 + pin 在飞引擎防驱逐丢更新。
-- [x] **最后一公里剩项** `47599a7`：①归档候选徽标（AU 设置扫候选数 → 高级操作按钮显示 N，提升可发现性）②导入完成态补记忆引导（RestoreBundleModal 成功后引导去「补全旧章记忆」，部分恢复告警如实透出）。核实 per-model ctx 编辑**已实现**（非权威模型本就可编辑）；覆盖备份进回收站**暂缓**（触 trash 核心、语义歧义、备份未丢，边际价值）。
+- [x] **最后一公里剩项** `47599a7`：①归档候选徽标（AU 设置扫候选数 → 高级操作按钮显示 N，提升可发现性）②导入完成态补记忆引导（RestoreBundleModal 成功后引导去「补全旧章记忆」，部分恢复告警如实透出）。
+- [x] **两剩项治本**（用户追问「怎么还有剩项」→ 做完）`a8160d6`：①per-model 上下文窗口**可覆盖**——工作流 trace 证实生成端 `get_context_window` 优先认保存的 `context_window`（覆盖真生效非假功能），解锁权威模型 ctx 编辑 + 恢复默认 + 自动校正放宽为「仅空值 seed」②覆盖备份**进回收站列表**——`backupBeforeOverwrite` 写完 sidecar 后 append 单文件 TrashEntry（`overwrite_backup` 类型、`cast_registry_removed:false` 复用 LOW-3 门），restore/list/purge/permanent_delete 单文件分支原生正确、零改动。对抗审采纳 3 发现（backup id 4→8 位防碰撞、trashSource 检查前移、ctx 纳入脏快照）。
 
 ### 技术债
 - ✅ **全部闭环**：TD-001…TD-017 全部已修复 / 已消解（2026-07-09 TD-017 收官）。
 
 ## 里程碑（倒序）
 
-- **2026-07-09** — 第三轮审计 MED/LOW 全清（交互接受批量单锁 / embedding 可取消 / 手动 fact 富化 / trash NaN 清理 / revision 锁内自增 / 恢复名对称）+ **TD-017 根治**（RagManager per-AU 引擎，最后一条技术债）+ 最后一公里剩项（归档徽标 / 导入补记忆引导）。5 commit 未 push；每批修→独立对抗审（opus）→判别性测试→提交，累计采纳对抗审发现 8 条全整改。引擎 1262→1276、UI 391→403 全绿、双 tsc 0。**已知 bug / 技术债 / 审计待排全部闭环，代码层达可打包发布。**
+- **2026-07-09** — 第三轮审计 MED/LOW 全清（交互接受批量单锁 / embedding 可取消 / 手动 fact 富化 / trash NaN 清理 / revision 锁内自增 / 恢复名对称）+ **TD-017 根治**（RagManager per-AU 引擎，最后一条技术债）+ 最后一公里全部做完（归档徽标 / 导入补记忆引导 / per-model ctx 覆盖 / 覆盖备份进回收站）。7 commit 未 push；每批修→独立对抗审（opus）→判别性测试→提交，最后两项还先用工作流并行 trace 数据流确认可干净落地；累计采纳对抗审发现 11 条全整改。引擎 1262→1277、UI 391→404 全绿、双 tsc 0。**已知 bug / 技术债 / 审计待排 / 最后一公里全部闭环，代码层达可打包发布。**
 
 - **2026-07-08（晚）** — 第三轮全量审计（4 维并行：harness 可靠性 / 记忆最后一公里 / 上下文组装 / 跨切面正确性）+ 治本修复批次（10 commit 未 push）：B2 全栈（含 React 陈旧徽标+刷新按钮）：M9 模式 A/B 双修、两处 fact-write HIGH 数据完整性、最后一公里 B1(caused_by 进 prompt) + B2(剧情线进展陈旧检测+按需重算)。引擎 1236→1262，两轮独立对抗审（各抓一条真 HIGH：salvage 静默截断 / 无，均整改）。
 - **2026-07-08（下午）** — M9 JSON-break（模式 A）修复：Layer A（evidence 短/单行/免引号）+ Layer B（`salvageMalformedJson` 只补串内控制字符，model-agnostic）。独立对抗审 opus 抓出贪心引号启发式的 HIGH 静默截断风险 → 改成不猜引号只补控制字符 + 加防回归测试。引擎 1245 全绿、tsc 0 错。未提交。
