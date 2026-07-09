@@ -207,7 +207,9 @@ export function build_instruction(
  *   - confidence >= medium 才注入对应字段
  *   - 高价值：known_to（非 null）、time_kind（非 normal）、action_verb
  *   - 中价值：location、suspense_type
- *   - 低价值（不注入）：story_time_tag、story_time_order、caused_by、hidden_from
+ *   - 低价值（不注入）：story_time_tag、story_time_order、hidden_from
+ * 注：caused_by（跨章因果）不走本函数——它需解析 fact_id → 起因短句，在 build_facts_layer 里用
+ * factById 渲染（见那里的 causedByClause / lineBody，B1 最后一公里）。
  */
 export function buildFactEnrichmentSuffix(fact: Fact): string {
   const c = fact._confidence;
@@ -275,6 +277,26 @@ export function build_facts_layer(
 
   if (eligible.length === 0) return ["", false];
 
+  // B1（最后一公里）：把 caused_by 跨章因果渲进 fact 行。数据已存/已防幻觉，但此前 context_assembler
+  // 明确「不注入」（低价值），导致「AI 记得跨章因果」承诺落空。这里解析 fact_id → 起因短句
+  // （最多 2 条、各截 20 字控 token）；解析不到的 id（跨 AU / 已删 / 不在本次 facts 集）跳过，绝不
+  // 渲染裸 id。budget 计数与行渲染统一走 lineBody，保持预算/输出一致（context_assembler 高风险不变量）。
+  const factById = new Map(facts.map((f) => [f.id, f]));
+  const causedByClause = (f: Fact): string => {
+    const ids = f.caused_by ?? [];
+    if (ids.length === 0) return "";
+    const refs: string[] = [];
+    for (const id of ids) {
+      const ref = factById.get(id);
+      if (!ref) continue;
+      refs.push(ref.content_clean.length > 20 ? ref.content_clean.slice(0, 20) + "…" : ref.content_clean);
+      if (refs.length >= 2) break;
+    }
+    if (refs.length === 0) return "";
+    return language === "en" ? ` [caused by: ${refs.join("; ")}]` : `（起因：${refs.join("；")}）`;
+  };
+  const lineBody = (f: Fact): string => f.content_clean + buildFactEnrichmentSuffix(f) + causedByClause(f);
+
   const unresolved = eligible.filter((f) => f.status === FactStatus.UNRESOLVED);
   const active = eligible.filter((f) => f.status === FactStatus.ACTIVE);
 
@@ -288,7 +310,7 @@ export function build_facts_layer(
   if (sortedUnresolved.length > 0) {
     // Budget includes both content_clean and the enrichment suffix that will be appended.
     const totalUrTokens = sortedUnresolved.reduce(
-      (sum, f) => sum + _count(f.content_clean + buildFactEnrichmentSuffix(f), llm_config).count,
+      (sum, f) => sum + _count(lineBody(f), llm_config).count,
       0,
     );
 
@@ -298,7 +320,7 @@ export function build_facts_layer(
       softDegraded = true;
       let used = 0;
       for (const f of sortedUnresolved) {
-        const t = _count(f.content_clean + buildFactEnrichmentSuffix(f), llm_config).count;
+        const t = _count(lineBody(f), llm_config).count;
         if (used + t > budget_tokens) {
           unresolvedDropped++;
         } else {
@@ -311,7 +333,7 @@ export function build_facts_layer(
 
   const remainingBudget =
     budget_tokens - unresolvedKept.reduce(
-      (sum, f) => sum + _count(f.content_clean + buildFactEnrichmentSuffix(f), llm_config).count,
+      (sum, f) => sum + _count(lineBody(f), llm_config).count,
       0,
     );
 
@@ -321,7 +343,7 @@ export function build_facts_layer(
     const sortedActive = sortByWeightAndRecency(active);
     let used = 0;
     for (const f of sortedActive) {
-      const t = _count(f.content_clean + buildFactEnrichmentSuffix(f), llm_config).count;
+      const t = _count(lineBody(f), llm_config).count;
       if (used + t > remainingBudget) break;
       activeKept.push(f);
       used += t;
@@ -332,7 +354,7 @@ export function build_facts_layer(
   const allKept = [...unresolvedKept, ...activeKept];
   allKept.sort((a, b) => a.chapter - b.chapter);
 
-  const lines = allKept.map((f) => `- [${f.status}] ${f.content_clean}${buildFactEnrichmentSuffix(f)}`);
+  const lines = allKept.map((f) => `- [${f.status}] ${lineBody(f)}`);
 
   if (unresolvedDropped > 0) {
     const P = getPrompts(language as "zh" | "en");

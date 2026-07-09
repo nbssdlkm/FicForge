@@ -323,6 +323,30 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
     expect(text).toContain("known_to: reader_only");
   });
 
+  it("B1: caused_by 渲染为「起因：<被引用事实内容>」（跨章因果进 prompt）", () => {
+    const cause = createFact({
+      id: "f_cause", content_raw: "r", content_clean: "沈砚发现父亲笔迹残页",
+      status: FactStatus.ACTIVE, chapter: 1,
+    });
+    const effect = createFact({
+      id: "f_effect", content_raw: "r", content_clean: "沈砚决意面圣翻案",
+      status: FactStatus.ACTIVE, chapter: 3, caused_by: ["f_cause"],
+    });
+    const [text] = build_facts_layer([cause, effect], [], 10000, null, "zh");
+    // 旧代码明确不注入 caused_by；新代码解析 fact_id → 起因短句
+    expect(text).toContain("起因：沈砚发现父亲笔迹残页");
+  });
+
+  it("B1: caused_by 指向不存在的 id → 跳过，绝不渲染裸 id", () => {
+    const f = createFact({
+      id: "f1", content_raw: "r", content_clean: "某个事件",
+      status: FactStatus.ACTIVE, chapter: 2, caused_by: ["f_nonexistent"],
+    });
+    const [text] = build_facts_layer([f], [], 10000, null, "zh");
+    expect(text).not.toContain("起因");
+    expect(text).not.toContain("f_nonexistent");
+  });
+
   it("known_to 'all' with low confidence → NOT injected", () => {
     const fact = createFact({
       id: "f1", content_raw: "r", content_clean: "普通事件",
