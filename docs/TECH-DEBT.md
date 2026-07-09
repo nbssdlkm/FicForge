@@ -441,8 +441,8 @@ Codex Phase 7 audit 报告说 facts lifecycle "完全实现"——它看到 `col
 
 ## TD-017: RagManager / vectorEngine 单例跨 AU 并发窗口（load 竞态可污染索引落盘）
 
-**状态:** open · 待排期（2026-07-07 第二轮全量审计 M3 记回；`rag_manager.ts` 注释里自认「见 TD 标记」的 pre-existing gap，此前 TECH-DEBT 无对应条目 —— 本条即补账）
-**优先级:** 中（触发窗口窄，但后果是整个 AU 的 `.vectors` 索引被写入他 AU 内容 → 检索污染/报废；可用全量重建恢复，非 source-of-truth 丢失）
+**状态:** ✅ 已修复（2026-07-09，采纳方案 1 per-AU 引擎实例）—— `RagManager` 改持 `Map<auPath, JsonVectorEngine>`（每 AU 独立引擎实例）+ promise 缓存的 get-or-create（并发首访同一 AU 只 load 一次，杜绝两引擎并存 persist 互覆）+ LRU 驱逐（`maxEngines=2` 控内存）。彻底消除跨 AU 共享内存：不同 AU 的操作用不同引擎，在飞 embed 的引擎被本操作独占持有，persist 落各自 AU 目录，无从污染。构造改工厂 `() => new JsonVectorEngine(adapter)`（`engine-instance.ts`），删 `e.vectorEngine` 单例；搜索路径改走 `ragManager.vectorRepoFor(auPath)`（`engine-generate.ts` / `engine-simple-dispatch.ts`）；删 `indexChapterSummary` 旧的「embed 后 re-ensureLoaded」补丁（共享单例时代的缓解，per-AU 下无必要）。**独立对抗审（opus）采纳两条 MEDIUM 整改：** ①in-flight load 被 `unloadIfCurrent` 后续约无 epoch 守卫 → 复活已删向量（修：续约加 `loading.get===本 promise` 守卫）；②LRU 驱逐在用引擎 → 同 AU 并发写重载出第二引擎 persist 互覆丢更新（修：pin 机制，在飞写操作 `withEngine` 全程 pin 住引擎不参与驱逐）。判别性测试：跨 AU 并发隔离 + 发现1（load 被 evict 不复活）+ 发现2（pin 住不丢更新）。引擎 1276 + UI 398 全绿。以下为原诊断（历史）。
+**优先级:** ~~中~~（已修复）（触发窗口窄，但后果是整个 AU 的 `.vectors` 索引被写入他 AU 内容 → 检索污染/报废；可用全量重建恢复，非 source-of-truth 丢失）
 **涉及文件:** `src-engine/services/rag_manager.ts`（`ensureLoaded` / `indexChapter` / `indexChapterInMemory` / `indexChapterSummary`）、`src-engine/vector/engine.ts`（单例内存 chunks）
 
 **问题：** `JsonVectorEngine` 是全局单例，内存里只有一份 chunks；`RagManager.ensureLoaded(auPath)` 切换 `currentAu` 时整体替换这份内存。索引路径是「ensureLoaded → 慢 embed（网络 I/O，秒级）→ index_chunks → persist(au 的 .vectors)」：embed 期间若另一个 AU 的操作调了 `ensureLoaded(AU2)`，内存已被换成 AU2 的 chunks，随后第一个操作把 AU2 的内存 index 进去并 **persist 到 AU1 的 index.json** —— AU1 索引落盘即污染。`indexChapterSummary` 在 embed 后已补一次 re-ensureLoaded（部分缓解），但 re-ensureLoaded 与 persist 之间窗口仍在；`indexChapter` / `indexChapterInMemory` 连这层缓解都没有。
