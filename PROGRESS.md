@@ -13,6 +13,8 @@
 
 **2026-07-09 追加（worktree 分支 `claude/suspicious-mcnulty-c2dcb4`，未提交等确认）：长期债④ chat-to-llm 下沉引擎两步走完成**——kind union 正式化进 domain + 转换函数迁 `services/chat_to_llm.ts`，golden 基线证输出逐字节不变，双包 tsc + 测试全绿。详见里程碑「长期债④偿清」条。
 
+**2026-07-10 长期债②第五块（worktree 分支 `claude/vigilant-turing-df40c1`，未提交等确认）：GlobalSettingsModal 状态下沉完成** —— 19 useState → 0（450 → 320 行），按 hook 铁律复制 AuSettingsLayout 打法拆 4 个 hooks（`useGlobalSettingsData` 数据拉取 / `useGlobalSettingsForm` 表单+脏检查基线+保存 / `useGlobalSettingsModals` 子弹窗 / `useReactExtractionPref` 提取开关即时保存+失败回滚）；表单收敛为 `GlobalSettingsFormState` 单对象，hydrate 以 loadKey 触发 + settings 走 ref shim；form-mappers 与保存 payload 零改动（盲审「有意不动」判定守住）。新增 4 条状态下沉回归测试（关→开重灌不残留 / 提取开关 hydrate+即时落库 / 落库失败回滚 / 加载失败基线保持 null），既有脏检查行为锁 4 条原样全绿。顺手：vite.config 端口支持 PORT 环境变量覆盖（默认仍 1420，tauri dev 不受影响；解决 preview 多会话端口冲突）。验证：双 tsc 0 错 + UI 508 测试全绿（504→508）+ preview 眼验全流程零 console 告警（hydrate 回显 / 脏检查弹确认+丢弃 / 保存 round-trip 关窗重开回显 / LLM 测试连接错误路径+改字段重置 / embedding 选商带出 apiBase+按钮门控 / 提取开关跨开关持久化）。
+
 ## 待办
 
 ### 需要人工（真机/异机，代码无法覆盖）
@@ -36,7 +38,7 @@
 
 ### 长期债（盲审 2026-07-09 判定为低息，渐进还）
 - [ ] snake/camel 命名同文件混用（迁移遗产，5 文件 + React 组件声明风格）
-- [ ] 巨型组件状态下沉（按 hook 铁律分批）：✅ AuSettingsLayout（2026-07-09，31 useState→0，4 hooks + 4 回归测试）；剩 AuLoreLayout(946行/26) / SettingsChatPanel(1026行) / FandomLoreLayout(734行/22) / GlobalSettingsModal(450行/20) / MobileOnboarding(571行/19)，逐会话复制同打法
+- [ ] 巨型组件状态下沉（按 hook 铁律分批）：✅ AuSettingsLayout（2026-07-09，31 useState→0，4 hooks + 4 回归测试）；✅ GlobalSettingsModal（2026-07-10，19 useState→0，4 hooks + 4 回归测试，见当前状态）；剩 AuLoreLayout(946行/26) / SettingsChatPanel(1026行) / FandomLoreLayout(734行/22) / MobileOnboarding(571行/19)，逐会话复制同打法
 - [ ] 存量引擎测试的内联 LLM mock 迁移共享 helper（`services/__tests__/mock_llm_provider.ts` 已建；跟随性重构——哪个测试文件被触碰就顺手迁哪个，不做专门迁移趟）。UI hooks 测试补全已于 2026-07-09 首批清偿（见里程碑）。对抗审留的两条可选尾巴：useFactEditor saveSuccess 的 2s timer 无 clearTimeout（卸载后空转，无害泄漏，改需动 impl）；onboarding gate 三条静默负向断言依赖单次微任务冲刷（当前实现下已核实非假绿，impl 加深 await 链时需改 waitFor 正向信号）
 - [ ] @vitejs/plugin-react 6.x（长期债⑤唯一剩项）：6.x 的 peer 依赖是 vite ^8.0.0（现 vite 7.3.6），待将来 vite 大版本升级时顺手带上；已停在 5.2.0（peer 兼容 vite ^4–^8）
 - ✅ tailwind 4 浏览器底线：**已拍板（2026-07-10，用户）不考虑旧设备兼容**，按 Safari 16.4+ / Chrome 111+ 底线走；真机验证无需专门留意此项。（背景存档：旧设备上 var 基 /N 底纹会回退 100% 实心、同色对不可读；字面色遮罩不受影响）
