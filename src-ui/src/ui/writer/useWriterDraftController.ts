@@ -2,6 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
+import type { BudgetReport } from "@ficforge/engine";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   draftFilename,
@@ -83,7 +84,7 @@ export function useWriterDraftController({
   const [activeDraftIndex, setActiveDraftIndex] = useState(0);
   const [streamText, setStreamText] = useState('');
   const [generatedWith, setGeneratedWith] = useState<DraftGeneratedWith | null>(null);
-  const [budgetReport, setBudgetReport] = useState<any>(null);
+  const [budgetReport, setBudgetReport] = useState<BudgetReport | null>(null);
   const [recoveryNotice, setRecoveryNotice] = useState(false);
   const [draftSummaries, setDraftSummaries] = useState<Record<string, ContextSummary>>({});
   const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -183,7 +184,7 @@ export function useWriterDraftController({
     setGeneratedWith(value);
   }, []);
 
-  const markBudgetReport = useCallback((report: any) => {
+  const markBudgetReport = useCallback((report: BudgetReport | null) => {
     setBudgetReport(report);
   }, []);
 

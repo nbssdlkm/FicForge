@@ -133,7 +133,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
       if (failedChanges > 0) {
         showError(new Error(t('dirty.factChangesFailed', { count: failedChanges })), t('error_messages.unknown'));
       }
-    } catch (e: any) {
+    } catch (e) {
       if (contextGuard.isKeyStale(snapshotKey)) return;
       showError(e, t('error_messages.unknown'));
     } finally {

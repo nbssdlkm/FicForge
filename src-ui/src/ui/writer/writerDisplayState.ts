@@ -2,6 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
+import type { BudgetReport } from "@ficforge/engine";
 import {
   type ContextSummary,
   type DraftGeneratedWith,
@@ -31,7 +32,7 @@ type WriterDisplayStateOptions = {
   currentContent: string;
   streamText: string;
   generatedWith: DraftGeneratedWith | null;
-  budgetReport: any;
+  budgetReport: BudgetReport | null;
   sessionModel: string;
   locale: string;
   t: (key: string, params?: Record<string, unknown>) => string;

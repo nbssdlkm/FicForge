@@ -39,9 +39,9 @@ export function CreateFandomStep({
       await createFandom(trimmed);
       if (createGuard.isStale(token)) return;
       onNext(trimmed);
-    } catch (e: any) {
+    } catch (e) {
       if (createGuard.isStale(token)) return;
-      setError(e.message || t('error_messages.unknown'));
+      setError(e instanceof Error && e.message ? e.message : t('error_messages.unknown'));
     } finally {
       if (!createGuard.isStale(token)) {
         setCreating(false);

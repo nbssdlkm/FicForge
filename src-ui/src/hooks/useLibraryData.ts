@@ -23,7 +23,7 @@ export function useLibraryData() {
       const data = await listFandoms();
       if (loadGuard.isStale(token)) return;
       setFandoms(data);
-    } catch (e: any) {
+    } catch (e) {
       if (loadGuard.isStale(token)) return;
       showError(e, t("error_messages.unknown"));
     } finally {

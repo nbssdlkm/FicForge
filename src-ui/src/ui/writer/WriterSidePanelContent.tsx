@@ -2,6 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
+import type { BudgetReport } from "@ficforge/engine";
 import { Button } from '../shared/Button';
 import { Tag } from '../shared/Tag';
 import { SettingsPanel } from '../settings/SettingsPanel';
@@ -29,7 +30,7 @@ export interface WriterSidePanelContentProps {
   onContinueLastFocus: () => void;
   lastConfirmedFocus: string[];
   // Memory
-  budgetReport: any;
+  budgetReport: BudgetReport | null;
   contextLayers: ContextLayer[];
   layerSum: number;
   // Session params (for SettingsPanel)

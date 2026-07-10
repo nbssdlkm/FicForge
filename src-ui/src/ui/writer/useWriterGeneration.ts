@@ -2,6 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
+import type { BudgetReport } from "@ficforge/engine";
 import { isAbortError } from "@ficforge/engine";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -55,7 +56,7 @@ type UseWriterGenerationOptions = {
   flushStream: () => void;
   resetStream: () => void;
   markGeneratedWith: (generatedWith: DraftGeneratedWith | null) => void;
-  markBudgetReport: (report: any) => void;
+  markBudgetReport: (report: BudgetReport | null) => void;
   markRecoveryNotice: (show: boolean) => void;
   attachPendingContextSummary: (summary: ContextSummary | null) => void;
   getPendingContextSummary: () => ContextSummary | null;
@@ -144,7 +145,7 @@ export function useWriterGeneration({
 
     let nextDraftLabel = '';
     let nextGeneratedWith: DraftGeneratedWith | null = null;
-    let nextBudgetReport: any = null;
+    let nextBudgetReport: BudgetReport | null = null;
     let nextText = '';
     let partialDraftLabel = '';
     let generationError: unknown = null;

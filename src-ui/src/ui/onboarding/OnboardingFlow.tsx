@@ -63,8 +63,8 @@ export function OnboardingFlow({ onComplete }: { onComplete: (result?: Onboardin
       }, formCtxToSaveInput(config.context_window)));
       setConfigSaved(true);
       setStep(2);
-    } catch (e: any) {
-      setSaveError(e?.message || t('error_messages.unknown'));
+    } catch (e) {
+      setSaveError(e instanceof Error && e.message ? e.message : t('error_messages.unknown'));
       // 保存失败——不跳到下一步
     }
   }, [t]);
