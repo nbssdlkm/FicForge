@@ -271,4 +271,14 @@ export class JsonVectorEngine implements VectorRepository {
   get chunkCount(): number {
     return this.chunks.length;
   }
+
+  /** 内存中出现过的章号集合（rebuild 快段做陈旧孤儿清扫用，只读）。 */
+  listChapterNums(): number[] {
+    const nums = new Set<number>();
+    for (const c of this.chunks) {
+      const n = c.metadata.chapter;
+      if (typeof n === "number") nums.add(n);
+    }
+    return [...nums];
+  }
 }

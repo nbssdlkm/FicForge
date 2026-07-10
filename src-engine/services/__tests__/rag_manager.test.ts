@@ -161,9 +161,10 @@ describe("RagManager", () => {
         ragManager.rebuildForAu("au1", chapterRepo, failingEmb),
       ).rejects.toThrow("network_error");
 
-      // 4. 关键断言：T7-8 修复点——currentAu 必须已被 unload 重置为 null，
-      //    否则下次 ensureLoaded 会跳过 load → 内存永远空 → RAG 0 召回
-      expect(ragManager.loadedAu).toBeNull();
+      // 4. 关键断言（T7-8 真不变量：失败的 rebuild 不得造成 0 召回）。
+      //    缓冲式重建（盲审 2026-07-11 B3）后 embed 失败发生在触碰引擎之前 ——
+      //    内存根本未被清空，旧 chunks 原样可召回，比旧「清空→驱逐→靠 reload 恢复」更强。
+      expect(ragManager.chunkCountFor("au1")).toBe(seededCount);
 
       // 5. 磁盘上的旧 chunks 仍然完好（rebuild_index 只清内存，persist 没执行）
       expect(adapter.raw("au1/.vectors/index.json")).toBeTruthy();
@@ -419,17 +420,143 @@ describe("RagManager", () => {
       const au1ch1 = mgr.indexChapter("au1", 1, "GATE内容。".repeat(80), gatedEmb);
       // 让 au1ch1 推进到 pin + embed 挂起（宏任务让步，确保 load 完成、pin 已置）
       await new Promise((r) => setTimeout(r, 0));
-      // 并发 au2 索引：engineFor(au2) 触发 evictExcess（size 2 > 1），au1 pinned → 不被驱逐
+      // 并发 au2 索引：engineFor(au2) 触发 evictExcess（size 2 > 1），au1 pinned → 不被驱逐；
+      // 跨 AU 不进 au1 的写队列，照常并行完成
       await mgr.indexChapter("au2", 1, "AU2内容。".repeat(80), gatedEmb);
-      // 同 AU 并发索引 ch2：复用未被驱逐的同一引擎（回退无 pin 会重载出第二引擎）
-      await mgr.indexChapter("au1", 2, "au1第二章。".repeat(80), gatedEmb);
+      // 同 AU 索引 ch2：盲审 2026-07-11 写队列串行化后它会排在 ch1 之后 —— 只发起不 await
+      //（旧断言意图不变：pin 保证复用同一引擎、ch2 不因驱逐/互覆丢失）
+      const au1ch2 = mgr.indexChapter("au1", 2, "au1第二章。".repeat(80), gatedEmb);
       release();
-      await au1ch1;
+      await Promise.all([au1ch1, au1ch2]);
 
       // au1 落盘同时含 ch1 与 ch2 —— 无 pin + maxEngines=1 时 au1 被驱逐、两操作各自引擎互覆 → ch2 丢（断言挂）。
       const ids = JSON.parse(adapter.raw("au1/.vectors/index.json")!).chunks.map((c: { id: string }) => c.id);
       expect(ids.some((id: string) => id.startsWith("ch1_"))).toBe(true);
       expect(ids.some((id: string) => id.startsWith("ch2_"))).toBe(true);
     });
+  });
+});
+
+describe("同 AU 并发写串行化（盲审 2026-07-11：persist 孤儿分片 GC 竞态）", () => {
+  /** 可手动放行的 embedding provider：精确控制交错时序。 */
+  class GatedEmbeddingProvider implements EmbeddingProvider {
+    gates: Array<() => void> = [];
+    calls = 0;
+    async embed(texts: string[]): Promise<number[][]> {
+      this.calls++;
+      await new Promise<void>((resolve) => this.gates.push(resolve));
+      return texts.map((_, i) => [1, 0, 0, (this.calls * 10 + i) / 100]);
+    }
+    get_dimension(): number { return 4; }
+    get_model_name(): string { return "gated-embed"; }
+    /** 放行下一个在等待的 embed。 */
+    release(): void {
+      const g = this.gates.shift();
+      if (g) g();
+    }
+    async waitForPending(n: number): Promise<void> {
+      while (this.gates.length < n) await new Promise((r) => setTimeout(r, 0));
+    }
+  }
+
+  it("并发 rebuild 与 indexChapter：embed 并发跑（不占队），persist 快段严格互斥，端态三章齐全", async () => {
+    const adapter = new MockAdapter();
+    const chapterRepo = new FileChapterRepository(adapter);
+    // 追踪 persist 区间：写队列存在时同 AU 的 persist 必须严格串行（enter 后必先 exit 才能再 enter）
+    const persistLog: string[] = [];
+    class TrackingEngine extends JsonVectorEngine {
+      async persist(dir: string): Promise<void> {
+        persistLog.push("enter");
+        try {
+          return await super.persist(dir);
+        } finally {
+          persistLog.push("exit");
+        }
+      }
+    }
+    const ragManager = new RagManager(() => new TrackingEngine(adapter));
+    const gated = new GatedEmbeddingProvider();
+
+    await chapterRepo.save(createChapter({ au_id: "auC", chapter_num: 1, content: "第一章正文内容。" }));
+    await chapterRepo.save(createChapter({ au_id: "auC", chapter_num: 2, content: "第二章正文内容。" }));
+
+    // rebuild 慢段阻塞在 ch1 embed（快慢分离：此期间不占写队列）
+    const rebuild = ragManager.rebuildForAu("auC", chapterRepo, gated);
+    await gated.waitForPending(1);
+
+    // 并发 indexChapter(ch3)：其 embed 与 rebuild 的 embed 并发挂起（B3 整改后的预期行为）。
+    // 章文件先落盘（真实 confirm 流的顺序）—— 否则 rebuild 快段的孤儿清扫会把
+    // 「内存有向量但磁盘无章文件」的 ch3 正确地当漂移垃圾清掉。
+    await chapterRepo.save(createChapter({ au_id: "auC", chapter_num: 3, content: "第三章正文内容。" }));
+    const index3 = ragManager.indexChapter("auC", 3, "第三章正文内容。", gated);
+    await gated.waitForPending(2);
+    expect(gated.gates.length).toBe(2); // 两个 embed 并发在等 —— 慢段确实不互斥
+
+    // 同一 tick 全部放行，逼两个快段同时争队列
+    gated.release();
+    gated.release();
+    await gated.waitForPending(1); // rebuild ch2 embed
+    gated.release();
+    await Promise.all([rebuild, index3]);
+
+    // 快段严格互斥：persist 区间不得交错（无串行化时 enter,enter 交错 → GC 竞态窗口）
+    for (let i = 0; i < persistLog.length; i += 2) {
+      expect(persistLog[i]).toBe("enter");
+      expect(persistLog[i + 1]).toBe("exit");
+    }
+
+    // 端到端完整性：全新加载，三章向量齐全（rebuild 的选择性清扫不误删快照外新章）
+    const fresh = new JsonVectorEngine(adapter);
+    await fresh.load("auC/.vectors");
+    const nums = fresh.listChapterNums().sort();
+    expect(nums).toEqual([1, 2, 3]);
+  });
+
+  it("排队等待期 AU 被删除（unloadIfCurrent）：出队写静默跳过，不复活 .vectors", async () => {
+    const adapter = new MockAdapter();
+    const ragManager = new RagManager(() => new JsonVectorEngine(adapter));
+    const gated = new GatedEmbeddingProvider();
+
+    // indexChapter 慢段（embed）挂起期间删除 AU
+    const write = ragManager.indexChapter("auG", 1, "内容。", gated);
+    await gated.waitForPending(1);
+    ragManager.unloadIfCurrent("auG"); // deleteAu 语义：epoch +1
+    gated.release();
+    await write; // 出队时 epoch 不符 → 跳过，不抛错（AU 已删，写无意义）
+
+    expect(adapter.raw("auG/.vectors/index.json")).toBeUndefined();
+  });
+
+  it("前序写失败不阻塞后续写（队尾已 catch）", async () => {
+    const adapter = new MockAdapter();
+    const ragManager = new RagManager(() => new JsonVectorEngine(adapter));
+    const failing: EmbeddingProvider = {
+      embed: async () => { throw new Error("embed down"); },
+      get_dimension: () => 4,
+      get_model_name: () => "failing",
+    };
+    await expect(ragManager.indexChapter("auD", 1, "内容一。", failing)).rejects.toThrow("embed down");
+
+    const good = new FakeEmbeddingProvider();
+    await ragManager.indexChapter("auD", 2, "内容二。", good);
+    expect(ragManager.chunkCountFor("auD")).toBeGreaterThan(0);
+  });
+
+  it("不同 AU 的写互不排队（跨 AU 仍并行）", async () => {
+    const adapter = new MockAdapter();
+    const ragManager = new RagManager(() => new JsonVectorEngine(adapter));
+    const gated = new GatedEmbeddingProvider();
+
+    // auE 的写阻塞在 embed 上
+    const slow = ragManager.indexChapter("auE", 1, "E 章内容。", gated);
+    await gated.waitForPending(1);
+
+    // auF 的写不该被 auE 的队列挡住 —— 用 Fake 直接完成
+    const fast = new FakeEmbeddingProvider();
+    await ragManager.indexChapter("auF", 1, "F 章内容。", fast);
+    expect(ragManager.chunkCountFor("auF")).toBeGreaterThan(0);
+
+    gated.release();
+    await slow;
   });
 });

@@ -22,6 +22,7 @@ import type { JsonVectorEngine } from "../vector/engine.js";
 import type { VectorRepository } from "../repositories/interfaces/vector.js";
 import { split_chapter_into_chunks, type CastRegistryLike } from "../vector/chunker.js";
 import { logCatch, warnAlways } from "../logger/index.js";
+import { createAbortError } from "../utils/abort_error.js";
 
 function vectorsDir(auPath: string): string {
   return `${auPath}/.vectors`;
@@ -36,6 +37,16 @@ export class RagManager {
   private lru: string[] = [];
   /** 被在飞操作持有的引擎的引用计数（>0 = 正在用，不参与 LRU 驱逐）。 */
   private pins = new Map<string, number>();
+  /**
+   * 同 AU 写操作串行队列（盲审 2026-07-11 正确性维，TD-017 的下一层）：per-AU 引擎
+   * 消除了跨 AU 竞态，但同 AU 的并发写（如 rebuildForAu 长跑期间 confirm/编辑触发
+   * indexChapter）仍共享同一引擎实例 —— 二者并发改 chunks 并各自 persist，persist 的
+   * 孤儿分片 GC 会把「不在本次 writtenRel 里」的对方新分片删掉，且对方的 index.json
+   * 仍引用它 → 向量静默丢失。写口按 AU 串行（跨 AU 仍并行；搜索路径不进队列）。
+   */
+  private writeQueues = new Map<string, Promise<void>>();
+  /** 删除纪元：unloadIfCurrent（deleteAu 语义）时自增，作废该 AU 所有在队写。 */
+  private epochs = new Map<string, number>();
   private readonly maxEngines: number;
 
   /**
@@ -58,6 +69,11 @@ export class RagManager {
     this.loading.delete(auPath);
     const i = this.lru.indexOf(auPath);
     if (i >= 0) this.lru.splice(i, 1);
+  }
+
+  /** 当前删除纪元（写操作起点捕获，随 withAuWriteLock opts.epoch 传入）。 */
+  private epochOf(auPath: string): number {
+    return this.epochs.get(auPath) ?? 0;
   }
 
   private pin(auPath: string): void {
@@ -152,6 +168,43 @@ export class RagManager {
   }
 
   /**
+   * 同 AU 写操作串行化（见 writeQueues 字段注释）。队尾恒为已 catch 的 promise，
+   * 前序失败不阻塞后续写（与 au_lock 同语义）；错误照常抛给本次调用方。
+   *
+   * 出队三查（B3 对抗审）：
+   * ① signal —— 排队等待期用户已取消则立即以 AbortError 收尾，不空跑；
+   * ② epoch —— 入队后该 AU 被删除（unloadIfCurrent 已 bump）则静默跳过，
+   *    防止排队写在 deleteAu 之后 persist 复活 <au>/.vectors（同名重建继承已删向量）；
+   * ③ 正常执行 fn。
+   */
+  private withAuWriteLock(
+    auPath: string,
+    fn: () => Promise<void>,
+    opts?: { signal?: AbortSignal; epoch?: number },
+  ): Promise<void> {
+    const signal = opts?.signal;
+    // epoch 必须在**操作起点**（慢段 embed 之前）捕获并传入 —— 若在入队时才捕获，
+    // 慢段期间发生的 deleteAu 已把纪元推进，入队时捕获到的就是删除后的新纪元，
+    // 检查恒通过、排队写照样复活 .vectors（B3 整改自测抓到的捕获点错误）。
+    const epochAtEnqueue = opts?.epoch ?? this.epochs.get(auPath) ?? 0;
+    const prev = this.writeQueues.get(auPath) ?? Promise.resolve();
+    const run = prev.then(() => {
+      if (signal?.aborted) throw createAbortError();
+      if ((this.epochs.get(auPath) ?? 0) !== epochAtEnqueue) {
+        warnAlways("rag_manager", "queued vector write skipped: AU unloaded (deleted) while waiting", { auPath });
+        return;
+      }
+      return fn();
+    });
+    const tail = run.then(() => undefined, () => undefined);
+    this.writeQueues.set(auPath, tail);
+    void tail.then(() => {
+      if (this.writeQueues.get(auPath) === tail) this.writeQueues.delete(auPath);
+    });
+    return run;
+  }
+
+  /**
    * 取得该 AU 引擎并在**整个操作期间 pin 住**（不被 LRU 驱逐），跑完 unpin。
    * 保证同 AU 的并发写操作复用同一引擎实例，杜绝「驱逐 → 两引擎各自 persist 丢更新」（发现 2）。
    */
@@ -182,10 +235,17 @@ export class RagManager {
     castRegistry?: CastRegistryLike | null,
     signal?: AbortSignal,
   ): Promise<void> {
-    await this.withEngine(auPath, async (eng) => {
-      await this.indexChapterInMemory(eng, auPath, chapterNum, content, embeddingProvider, castRegistry, signal);
+    const epoch = this.epochOf(auPath);
+    // 慢段（embed，秒级）不占队列 —— 队列只串行毫秒级的「内存变更 + persist」快段。
+    // 否则持 au_lock 的调用方（confirm 摘要块 / backfill persistChapter）会在队列里
+    // 等其它写的 embed 甚至整个 rebuild，把 au_lock 握持时间放大成分钟级、冻结全 AU
+    // 写操作（B3 对抗审 MEDIUM：优先级反转）。embed 不碰引擎状态，天然可并发。
+    const prepared = await this.prepareChapterChunks(auPath, chapterNum, content, embeddingProvider, castRegistry, signal);
+    await this.withAuWriteLock(auPath, () => this.withEngine(auPath, async (eng) => {
+      await eng.delete_by_chapter(auPath, chapterNum, "chapters");
+      if (prepared.length > 0) await eng.index_chunks(prepared);
       await eng.persist(vectorsDir(auPath));
-    });
+    }), { signal, epoch });
   }
 
   /**
@@ -203,8 +263,10 @@ export class RagManager {
     signal?: AbortSignal,
   ): Promise<void> {
     if (!summaryText.trim()) return;
-    await this.withEngine(auPath, async (eng) => {
-      const [embedding] = await embeddingProvider.embed([summaryText], { signal });
+    const epoch = this.epochOf(auPath);
+    // 慢段（embed）出队列，理由同 indexChapter —— 本方法正是 confirm 在 au_lock 内调用的那条链
+    const [embedding] = await embeddingProvider.embed([summaryText], { signal });
+    await this.withAuWriteLock(auPath, () => this.withEngine(auPath, async (eng) => {
       await eng.index_chunks([{
         id: `sum${chapterNum}`,
         collection: "summaries",
@@ -213,7 +275,7 @@ export class RagManager {
         metadata: { au_id: auPath, chapter: chapterNum, kind: "standard" },
       }]);
       await eng.persist(vectorsDir(auPath));
-    });
+    }), { signal, epoch });
   }
 
   /**
@@ -221,14 +283,14 @@ export class RagManager {
    * 删除不需要 embedding —— undo / 编辑历史章即使没配 embedding 也能立即清理。
    */
   async removeChapter(auPath: string, chapterNum: number): Promise<void> {
-    await this.withEngine(auPath, async (eng) => {
+    await this.withAuWriteLock(auPath, () => this.withEngine(auPath, async (eng) => {
       const before = eng.chunkCount;
       await eng.delete_by_chapter(auPath, chapterNum);
       // 没删掉任何 chunk（该章从未被索引 / AU 根本没有索引）→ 不写盘，
       // 避免给未配 embedding 的 AU 凭空创建 .vectors/ 空索引。
       if (eng.chunkCount === before) return;
       await eng.persist(vectorsDir(auPath));
-    });
+    }));
   }
 
   /**
@@ -238,6 +300,9 @@ export class RagManager {
    */
   unloadIfCurrent(auPath: string): void {
     this.evict(auPath);
+    // 删除纪元 +1：该 AU 已移入回收站，排队中的向量写全部作废（出队时 epoch 不符即跳过），
+    // 防止出队写从空路径 reload → persist 重新 mkdir 出 <au>/.vectors（B3 对抗审 LOW）。
+    this.epochs.set(auPath, (this.epochs.get(auPath) ?? 0) + 1);
   }
 
   /**
@@ -252,74 +317,92 @@ export class RagManager {
     onProgress?: (current: number, total: number) => void,
     summaryRepo?: ChapterSummaryRepository,
   ): Promise<void> {
-    // rebuild 是最长的写操作（逐章 embed，秒~分钟级）：全程 pin 住引擎，防被 LRU 驱逐后同 AU
-    // 并发写重载出第二个引擎、两引擎 persist 互覆丢更新（对抗审发现 2）。
-    // pin 先于 await engineFor（盲审 2026-07-09 复核修正，理由见 withEngine）。
-    this.pin(auPath);
-    try {
-      const eng = await this.engineFor(auPath);
-      // 清除目标 AU 的旧 chunks（准备全量重建）
-      await eng.rebuild_index(auPath);
-      // 遍历所有章节：批量索引到内存，最后一次性 persist
-      const chapters = await chapterRepo.list_main(auPath);
-      onProgress?.(0, chapters.length);
-      for (let i = 0; i < chapters.length; i++) {
-        if (signal?.aborted) break;
-        const ch = chapters[i];
-        const content = await chapterRepo.get_content_only(auPath, ch.chapter_num);
-        await this.indexChapterInMemory(eng, auPath, ch.chapter_num, content, embeddingProvider, castRegistry, signal);
-        // M8-C：若该章有 standard 摘要，一并索引进 summaries collection（仅内存，循环后统一 persist）
-        if (summaryRepo) {
-          // best-effort：单章摘要 embed/index 失败（超长被 embedding 拒、或文件语义损坏 text 非 string）
-          // 不能中断整个 rebuild（codex 对抗审 BLOCKER + 损坏文件）。typeof 守卫挡住 {"text":42} 这类。
-          try {
-            const sum = await summaryRepo.get(auPath, ch.chapter_num);
-            const text = sum?.standard?.text;
-            if (typeof text === "string" && text.trim()) {
-              const [embedding] = await embeddingProvider.embed([text], { signal });
-              await eng.index_chunks([{
-                id: `sum${ch.chapter_num}`,
-                collection: "summaries",
-                content: text,
-                embedding,
-                metadata: { au_id: auPath, chapter: ch.chapter_num, kind: "standard" },
-              }]);
-            }
-          } catch (err) {
-            warnAlways("m8c", `skip summary for ch${ch.chapter_num} during rebuild`, {
-              error: err instanceof Error ? err.message : String(err),
+    // 缓冲式重建（B3 对抗审 MEDIUM 整改）：慢段（逐章 embed，秒~分钟级）**不占写队列、
+    // 不碰引擎**，把 chunks 攒进局部缓冲；只有毫秒级快段（清扫 + 注入 + persist）进队列。
+    // 旧实现全程占队会让持 au_lock 的 confirm/backfill 写在队列里等整个 rebuild —— au_lock
+    // 被跨等待持有，冻结该 AU 全部写操作（优先级反转）。
+    //
+    // 附带收益：embed 中途失败/取消时引擎与磁盘均未被改动（旧实现先 rebuild_index 清内存，
+    // 取消即 persist 半成品、未处理章的向量丢失）—— 现在直接 return，旧索引原样保留。
+    const epoch = this.epochOf(auPath);
+    const chapters = await chapterRepo.list_main(auPath);
+    const snapshotNums = new Set(chapters.map((ch) => ch.chapter_num));
+    const buffered: Parameters<JsonVectorEngine["index_chunks"]>[0] = [];
+    onProgress?.(0, chapters.length);
+    for (let i = 0; i < chapters.length; i++) {
+      if (signal?.aborted) return; // 旧索引未动，安全中止
+      const ch = chapters[i];
+      const content = await chapterRepo.get_content_only(auPath, ch.chapter_num);
+      buffered.push(...await this.prepareChapterChunks(auPath, ch.chapter_num, content, embeddingProvider, castRegistry, signal));
+      // M8-C：若该章有 standard 摘要，一并缓冲进 summaries collection
+      if (summaryRepo) {
+        // best-effort：单章摘要 embed 失败（超长被 embedding 拒、或文件语义损坏 text 非 string）
+        // 不能中断整个 rebuild（codex 对抗审 BLOCKER + 损坏文件）。typeof 守卫挡住 {"text":42} 这类。
+        try {
+          const sum = await summaryRepo.get(auPath, ch.chapter_num);
+          const text = sum?.standard?.text;
+          if (typeof text === "string" && text.trim()) {
+            const [embedding] = await embeddingProvider.embed([text], { signal });
+            buffered.push({
+              id: `sum${ch.chapter_num}`,
+              collection: "summaries",
+              content: text,
+              embedding,
+              metadata: { au_id: auPath, chapter: ch.chapter_num, kind: "standard" },
             });
           }
+        } catch (err) {
+          warnAlways("m8c", `skip summary for ch${ch.chapter_num} during rebuild`, {
+            error: err instanceof Error ? err.message : String(err),
+          });
         }
-        onProgress?.(i + 1, chapters.length);
       }
-      // 无论有无章节都 persist（0 章节时需要写入空索引覆盖旧数据）
-      await eng.persist(vectorsDir(auPath));
-    } catch (err) {
-      // 重建中途失败：内存已被 rebuild_index 清空但 persist 没执行 → 磁盘老 chunks 还在。
-      // 驱逐该 AU 引擎，下次 engineFor 强制从磁盘 reload，回到 rebuild 之前的状态（不留空内存 → 0 召回）。
-      this.evict(auPath);
-      throw err;
-    } finally {
-      this.unpin(auPath);
+      onProgress?.(i + 1, chapters.length);
     }
+    if (signal?.aborted) return;
+
+    // 快段：清扫 + 注入 + persist（毫秒级占队）
+    await this.withAuWriteLock(auPath, () => this.withEngine(auPath, async (eng) => {
+      try {
+        // 只清「快照内章节」的旧向量 —— 慢段期间新确认的章（不在快照里）由其自身
+        // indexChapter 维护，盲清会误删它刚写的向量（旧实现 rebuild_index 全清无此问题，
+        // 因为旧实现同时把并发写也锁死了；缓冲式必须选择性清扫）。
+        for (const n of snapshotNums) {
+          await eng.delete_by_chapter(auPath, n);
+        }
+        // 陈旧孤儿清扫：内存里属于「快照外且磁盘上已不存在的章」的向量是漂移垃圾
+        // （removeChapter 失败残留等），rebuild 的修复语义要求把它们一并清掉。
+        for (const n of eng.listChapterNums()) {
+          if (snapshotNums.has(n)) continue;
+          if (!(await chapterRepo.exists(auPath, n))) {
+            await eng.delete_by_chapter(auPath, n);
+          }
+        }
+        await eng.index_chunks(buffered);
+        // 无论有无章节都 persist（0 章节时需要写入空索引覆盖旧数据）
+        await eng.persist(vectorsDir(auPath));
+      } catch (err) {
+        // 快段中途失败：内存可能已清但 persist 未成 → 驱逐该 AU 引擎，下次 engineFor 强制
+        // 从磁盘 reload，回到 rebuild 之前的状态（不留空内存 → 0 召回）。
+        this.evict(auPath);
+        throw err;
+      }
+    }), { signal, epoch });
   }
 
   /**
-   * 仅索引到内存（传入已加载的目标 AU 引擎），不 persist。供 indexChapter / rebuildForAu 复用。
+   * 慢段：切块 + embed，产出待注入的 chunks（**不碰引擎状态**，可并发）。
+   * embed（慢 I/O）先于任何引擎变更：embed 失败时索引未被改动，旧 chunks 仍可召回（fail-safe）。
    */
-  private async indexChapterInMemory(
-    eng: JsonVectorEngine,
+  private async prepareChapterChunks(
     auPath: string,
     chapterNum: number,
     content: string,
     embeddingProvider: EmbeddingProvider,
     castRegistry?: CastRegistryLike | null,
     signal?: AbortSignal,
-  ): Promise<void> {
+  ): Promise<Parameters<JsonVectorEngine["index_chunks"]>[0]> {
     const chunks = split_chapter_into_chunks(content, chapterNum, 500, 1, castRegistry);
-
-    // embed（慢 I/O）放在删除之前：embed 失败时内存索引未被改动，旧 chunks 仍可召回（fail-safe）。
     const texts = chunks.map((c) => c.content);
     const embeddings = chunks.length > 0 ? await embeddingProvider.embed(texts, { signal }) : [];
 
@@ -329,13 +412,7 @@ export class RagManager {
       );
     }
 
-    // H9：重索引同章前先删旧正文 chunks —— index_chunks 只按 id 覆盖，新内容变短（chunk 数变少）
-    // 时旧尾部 ch{N}_{k} 会永久残留进召回。只删 chapters collection：sum{N} 摘要向量由摘要自身的
-    // 生成/删除路径管理（backfill 对已有摘要的章调本方法时不能误删其仍有效的摘要向量）。
-    await eng.delete_by_chapter(auPath, chapterNum, "chapters");
-    if (chunks.length === 0) return;
-
-    const vectorChunks = chunks.map((c, i) => ({
+    return chunks.map((c, i) => ({
       id: `ch${chapterNum}_${c.chunk_index}`,
       collection: "chapters" as const,
       content: c.content,
@@ -348,8 +425,6 @@ export class RagManager {
         characters: c.characters.join(","),
       },
     }));
-
-    await eng.index_chunks(vectorChunks);
   }
 
   /**
