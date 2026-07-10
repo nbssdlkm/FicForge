@@ -1,6 +1,69 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* dark: 变体接到应用主题开关（.theme-night 类），而非默认的 OS
+ * prefers-color-scheme 媒体查询 —— 本应用主题由 ThemeToggle 切类名驱动，
+ * 全仓 ~183 处 dark:* 此前只跟 OS 走：浅色 OS 上开夜间主题时
+ * dark:border-white/* 发丝线永不触发（黑线画在炭黑底上不可见），
+ * 深色 OS 上开日间主题则反向误触发。接线后四种组合全部正确。 */
+@custom-variant dark (&:where(.theme-night, .theme-night *));
+
+/*
+ * Tailwind v4 主题（CSS-first，取代原 tailwind.config.ts）。
+ *
+ * 用 `@theme inline` 而非 `@theme`：inline 让 utilities 直接内联右值
+ * （如 `border-rule` 直接发射 border-color: var(--color-rule)）。
+ * 关键在于 --color-rule / --color-rule-soft / --font-mono /
+ * --font-display 四个令牌与下方 @layer base :root 里的源变量同名 ——
+ * 实测（v4.3 构建产物）inline 下这四个 var 引用型令牌仍会以
+ * `--color-rule: var(--color-rule)` 形式发射进最低优先级的 theme 层，
+ * 但被后声明的 base 层 :root 真值覆盖屏蔽，自引用不参与级联；
+ * utilities 本身内联右值、不依赖被发射的令牌，所以行为正确。
+ * 主题切换（.theme-warm / .theme-night 改写源变量）与字体 hook 的
+ * setProperty 覆盖照常运行时生效。
+ */
+@theme inline {
+  /* colors — 引用 :root 的 -rgb 三元组；/N 透明度修饰符由 v4 的
+   * color-mix 合成（v3 时代靠 <alpha-value> 模板，语义等价） */
+  --color-background: rgb(var(--color-bg-rgb));
+  --color-surface: rgb(var(--color-surface-rgb));
+  --color-text: rgb(var(--color-text-rgb));
+  --color-ink-muted: rgb(var(--color-ink-muted-rgb));
+  --color-ink-faint: rgb(var(--color-ink-faint-rgb));
+  --color-accent: rgb(var(--color-accent-rgb));
+  --color-success: rgb(var(--color-success-rgb));
+  --color-warning: rgb(var(--color-warning-rgb));
+  --color-error: rgb(var(--color-error-rgb));
+  --color-info: rgb(var(--color-info-rgb));
+  /* Ex Libris additions */
+  --color-drawer: rgb(var(--color-drawer-rgb));
+  --color-gold: rgb(var(--color-gold-rgb));
+  --color-gold-bright: rgb(var(--color-gold-bright-rgb));
+  --color-inv-text: rgb(var(--color-inv-text-rgb));
+  /* 已预混 rgba 的 hairline —— 引用 :root 源变量（勿加 /N 修饰符，
+   * v4 下会二次叠加透明度） */
+  --color-rule: var(--color-rule);
+  --color-rule-soft: var(--color-rule-soft);
+
+  /* 字体经 CSS 变量解析，运行时可动态切换而无需重新渲染组件。
+   * 变量默认值在下方 :root，hook 通过 setProperty 覆盖。 */
+  --font-serif: var(--font-reading);
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-mono);
+  --font-display: var(--font-display);
+
+  /* 4px-grid 圆角刻度，整套显式锚定防上游默认值漂移：md/lg/xl 与 v4
+   * 默认（6/8/12px）不同是真覆盖；xs/sm 数值恰与 v4 默认一致，留着是
+   * 为了刻度完整可读。2xl 及以上沿用 v4 默认值。 */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --shadow-subtle: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-medium: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-strong: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
 
 /*
  * 内置字体声明（Phase 3）
@@ -39,9 +102,9 @@
      *   --color-X        hex / rgba → used by direct CSS (`color-mix(...)`,
      *                    `box-shadow: inset 0 2px 0 var(--color-gold-bright)`)
      *                    and by JS tokens.ts for inline styles.
-     *   --color-X-rgb    space-separated R G B triplet → consumed by
-     *                    tailwind.config.ts as `rgb(var(--color-X-rgb) /
-     *                    <alpha-value>)`, which makes /N modifiers work.
+     *   --color-X-rgb    space-separated R G B triplet → consumed by the
+     *                    @theme inline block above as `rgb(var(--color-X-rgb))`,
+     *                    which lets Tailwind /N modifiers synthesize alpha.
      * Keep the two in lock-step when editing. Grep for --color-accent-rgb
      * before changing --color-accent and vice versa.
      */
@@ -247,29 +310,50 @@
   ::selection {
     background: color-mix(in srgb, var(--color-accent) 22%, transparent);
   }
+
+  /* === Tailwind v4 preflight 兼容（升级 3.4 → 4.x 时加入）===
+   * ① v4 把默认边框色从 v3 的 gray-200 改为 currentColor。经元素级穷举
+   *   （2083 个 className 含 clsx 全分支），当前所有带边框宽度的元素都在
+   *   某分支带显式颜色 —— 此规则今天无人消费，纯粹兜未来：新代码写裸
+   *   border 时走主题发丝线（随 .theme-warm/.theme-night 变化），而不是
+   *   v4 的 currentColor 粗黑线或 v3 的设计系统外冷灰。
+   * ② v4 preflight 把 button cursor 改为 default（跟随原生），恢复 v3
+   *   的 pointer。 */
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-rule);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }
 
-@layer utilities {
-  .app-height {
-    height: var(--app-height);
-  }
+/* 自定义 utilities —— v4 用 @utility 声明（可参与 variant / 排序），
+ * 取代 v3 的 @layer utilities 写法。 */
+@utility app-height {
+  height: var(--app-height);
+}
 
-  .min-app-height {
-    min-height: var(--app-height);
-  }
+@utility min-app-height {
+  min-height: var(--app-height);
+}
 
-  .safe-area-top {
-    padding-top: var(--safe-area-top);
-  }
+@utility safe-area-top {
+  padding-top: var(--safe-area-top);
+}
 
-  .safe-area-bottom {
-    padding-bottom: var(--safe-area-bottom);
-  }
+@utility safe-area-bottom {
+  padding-bottom: var(--safe-area-bottom);
+}
 
-  .safe-area-x {
-    padding-left: var(--safe-area-left);
-    padding-right: var(--safe-area-right);
-  }
+@utility safe-area-x {
+  padding-left: var(--safe-area-left);
+  padding-right: var(--safe-area-right);
 }
 
 @keyframes slide-up {
@@ -283,8 +367,6 @@
   }
 }
 
-@layer utilities {
-  .animate-slide-up {
-    animation: slide-up 180ms ease-out;
-  }
+@utility animate-slide-up {
+  animation: slide-up 180ms ease-out;
 }

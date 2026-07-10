@@ -230,7 +230,7 @@ export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged 
                         onClick={() => removeNode(f)}
                         disabled={busyId === f.id}
                         aria-label={t('threads.detail.removeNode')}
-                        className="shrink-0 rounded p-0.5 text-text/35 opacity-0 transition-opacity hover:bg-error/10 hover:text-error group-hover:opacity-100 focus-visible:opacity-100"
+                        className="shrink-0 rounded p-0.5 text-text/35 opacity-0 transition-opacity hover:bg-error/10 hover:text-error group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
                       >
                         <X size={14} />
                       </button>

@@ -257,7 +257,7 @@ export function ProviderModelPicker({
     ctxInfo.value !== undefined &&
     (contextWindow ?? "").trim() !== "" &&
     contextWindow !== String(ctxInfo.value);
-  const selectClass = "h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base text-text outline-none focus:ring-1 focus:ring-accent dark:border-white/20 md:h-9 md:text-sm";
+  const selectClass = "h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base text-text outline-hidden focus:ring-1 focus:ring-accent dark:border-white/20 md:h-9 md:text-sm";
 
   const optionLabel = (o: PickerModelOption) =>
     o.ctx.value !== undefined ? `${o.displayName} · ${formatCtx(o.ctx.value)}` : o.displayName;

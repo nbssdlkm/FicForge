@@ -43,7 +43,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
     }
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
         <div
           ref={ref}
           className={cn(
@@ -65,7 +65,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
               type="button"
               onClick={onClose}
               aria-label={t('common.actions.close')}
-              className="ml-auto flex h-8 w-8 items-center justify-center text-inv-text/70 transition-colors hover:text-inv-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright"
+              className="ml-auto flex h-8 w-8 items-center justify-center text-inv-text/70 transition-colors hover:text-inv-text focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-bright"
             >
               <X size={16} />
             </button>

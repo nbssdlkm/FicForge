@@ -38,7 +38,8 @@
  * ────────────────────────────────────────────────────────────────────────────
  * 1. Change the CSS var in `App.css` (source of truth for colors).
  * 2. Mirror any new semantic field here (TS-side reference).
- * 3. If the token maps to a Tailwind value, also update `tailwind.config.ts`.
+ * 3. If the token maps to a Tailwind value, also update the `@theme inline`
+ *    block at the top of `App.css` (replaced `tailwind.config.ts` in v4).
  *
  * ════════════════════════════════════════════════════════════════════════════
  * BRAND CAVEAT (Ex Libris)
@@ -115,7 +116,7 @@ export const spacing = {
   '2xl': '32px',
 } as const;
 
-/** Border radius scale — mirrors `tailwind.config.ts` overrides. */
+/** Border radius scale — mirrors the `--radius-*` overrides in `App.css` `@theme inline`. */
 export const radius = {
   sm: '4px',
   md: '8px',

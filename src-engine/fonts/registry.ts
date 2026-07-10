@@ -53,8 +53,8 @@ export class BrowserFontRegistry implements FontRegistry {
 
   async registerFromData(entry: FontEntry, data: Uint8Array): Promise<void> {
     this.ensureBrowser();
-    // 切片成独立 ArrayBuffer，避免与调用方的 Uint8Array 共享底层 buffer。
-    const buf = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+    // 拷贝成独立 ArrayBuffer，避免与调用方的 Uint8Array 共享底层 buffer。
+    const buf = new Uint8Array(data).buffer;
     const face = new FontFace(entry.family, buf);
     try {
       await face.load();

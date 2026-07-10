@@ -40,7 +40,7 @@ const ScriptSelect = ({ label, value, onChange, options, isZh }: ScriptSelectPro
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
+      className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
     >
       {options.map((opt) => (
         <option key={opt.id} value={opt.id}>

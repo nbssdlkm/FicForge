@@ -730,7 +730,7 @@ export function SimpleChatPanel({
             <button
               type="button"
               onClick={factsExtraction.cancelExtraction}
-              className="inline-flex h-5 w-5 items-center justify-center rounded-sm text-ink-muted transition-colors hover:bg-rule-soft hover:text-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright"
+              className="inline-flex h-5 w-5 items-center justify-center rounded-sm text-ink-muted transition-colors hover:bg-rule-soft hover:text-text focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-gold-bright"
               aria-label={t("simple.header.cancelExtract", { defaultValue: "取消提取" })}
               title={t("simple.header.cancelExtract", { defaultValue: "取消提取" })}
             >
@@ -747,7 +747,7 @@ export function SimpleChatPanel({
             setClearChatConfirmOpen(true);
           }}
           disabled={chat.messages.length === 0 || dispatch.isStreaming}
-          className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-sm text-ink-muted transition-colors hover:bg-rule-soft hover:text-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-ink-muted"
+          className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-sm text-ink-muted transition-colors hover:bg-rule-soft hover:text-text focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-gold-bright disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-ink-muted"
           aria-label={t("simple.clearChat.label", { defaultValue: "清空对话" })}
           title={t("simple.clearChat.label", { defaultValue: "清空对话" })}
         >
@@ -756,7 +756,7 @@ export function SimpleChatPanel({
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-ink-muted transition-colors hover:bg-rule-soft hover:text-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold-bright"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-ink-muted transition-colors hover:bg-rule-soft hover:text-text focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-gold-bright"
           aria-label={t("simple.settings.openLabel", { defaultValue: "打开续写设置" })}
         >
           <Settings size={14} />

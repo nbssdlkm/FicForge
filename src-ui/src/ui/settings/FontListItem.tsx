@@ -85,7 +85,7 @@ export const FontListItem: React.FC<Props> = ({
         )}
       </div>
 
-      <div className="flex-shrink-0">
+      <div className="shrink-0">
         {entry.type === "builtin" && (
           <span className="text-xs text-success">{t("settings.fonts.installedTag")}</span>
         )}

@@ -395,7 +395,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
                             }}
                             onClick={(e) => e.stopPropagation()}
                             onDoubleClick={(e) => e.stopPropagation()}
-                            className="min-w-0 flex-1 border-b border-accent/50 bg-transparent px-0 py-0 text-sm outline-none"
+                            className="min-w-0 flex-1 border-b border-accent/50 bg-transparent px-0 py-0 text-sm outline-hidden"
                           />
                         ) : (
                           <span className="truncate">{ch.title || t('workspace.chapterItem', { num: ch.chapter_num })}</span>

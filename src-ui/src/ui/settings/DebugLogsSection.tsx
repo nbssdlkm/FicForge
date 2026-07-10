@@ -87,7 +87,7 @@ export function DebugLogsSection() {
             <select
               value={levelFilter}
               onChange={(e) => setLevelFilter(e.target.value as 'all' | 'warn' | 'error')}
-              className="h-8 rounded-md border border-black/20 bg-background px-2 text-xs outline-none dark:border-white/20"
+              className="h-8 rounded-md border border-black/20 bg-background px-2 text-xs outline-hidden dark:border-white/20"
             >
               <option value="all">{t('settings.debugLogs.filterAll')}</option>
               <option value="warn">{t('settings.debugLogs.filterWarn')}</option>

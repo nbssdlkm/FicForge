@@ -151,7 +151,7 @@ export function WriterFooter(props: WriterFooterProps) {
                 triggerGenerate();
               }}
               disabled={writeActionsDisabled}
-              className="h-9 w-full rounded-lg border border-black/10 bg-background px-3 text-sm text-text placeholder:text-text/50 outline-none focus:ring-2 focus:ring-accent/50 dark:border-white/10"
+              className="h-9 w-full rounded-lg border border-black/10 bg-background px-3 text-sm text-text placeholder:text-text/50 outline-hidden focus:ring-2 focus:ring-accent/50 dark:border-white/10"
             />
           </div>
 

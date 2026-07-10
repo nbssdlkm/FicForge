@@ -50,7 +50,7 @@ export function SimpleChatInput({
     placeholder ?? t("simple.input.placeholder", { defaultValue: "写续集 / 改设定 / 看历史章节…按 Enter 发送，Shift+Enter 换行" });
 
   return (
-    <div className="border-t border-rule bg-surface/50 px-4 py-3 backdrop-blur">
+    <div className="border-t border-rule bg-surface/50 px-4 py-3 backdrop-blur-sm">
       <div className="mx-auto flex w-full max-w-3xl items-end gap-2">
         <textarea
           ref={inputRef}
@@ -59,7 +59,7 @@ export function SimpleChatInput({
           onKeyDown={handleKeyDown}
           placeholder={inputPlaceholder}
           rows={2}
-          className="min-h-[3rem] flex-1 resize-none rounded-sm border border-rule bg-background px-3 py-2 font-serif text-[13px] leading-relaxed text-text placeholder:text-ink-faint outline-none transition-colors focus:border-gold-bright/60 focus:ring-1 focus:ring-gold-bright/40"
+          className="min-h-[3rem] flex-1 resize-none rounded-sm border border-rule bg-background px-3 py-2 font-serif text-[13px] leading-relaxed text-text placeholder:text-ink-faint outline-hidden transition-colors focus:border-gold-bright/60 focus:ring-1 focus:ring-gold-bright/40"
           disabled={busy && !isStreaming}
         />
         {isStreaming ? (

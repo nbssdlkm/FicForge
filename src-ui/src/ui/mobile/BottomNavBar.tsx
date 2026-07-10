@@ -41,7 +41,7 @@ export function BottomNavBar({ activeTab, onTabChange }: BottomNavBarProps) {
   };
 
   return (
-    <nav className="safe-area-bottom safe-area-x fixed inset-x-0 bottom-0 z-40 border-t border-rule bg-surface/95 backdrop-blur md:hidden">
+    <nav className="safe-area-bottom safe-area-x fixed inset-x-0 bottom-0 z-40 border-t border-rule bg-surface/95 backdrop-blur-sm md:hidden">
       <div className="grid grid-cols-5 gap-1 px-2 py-2">
         {TAB_IDS.map((id) => {
           const Icon = TAB_ICONS[id];

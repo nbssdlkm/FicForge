@@ -73,7 +73,7 @@ export function MobileChapterList({
 
   return (
     <section className="flex h-full flex-col bg-background md:hidden">
-      <header className="safe-area-top border-b border-rule bg-surface/85 px-4 py-4 backdrop-blur">
+      <header className="safe-area-top border-b border-rule bg-surface/85 px-4 py-4 backdrop-blur-sm">
         <h1 className="truncate font-display text-2xl font-semibold text-text">{auName}</h1>
         <p className="mt-1 font-serif text-sm text-text/60">{t("mobile.chapters.hint")}</p>
       </header>
@@ -132,7 +132,7 @@ export function MobileChapterList({
                       }}
                       onBlur={() => void commitEdit()}
                       onClick={(e) => e.stopPropagation()}
-                      className="mt-1 w-full border-b border-accent/50 bg-transparent font-display text-base font-medium text-text outline-none"
+                      className="mt-1 w-full border-b border-accent/50 bg-transparent font-display text-base font-medium text-text outline-hidden"
                     />
                   ) : (
                     <p className="mt-0.5 truncate font-display text-base font-medium text-current">

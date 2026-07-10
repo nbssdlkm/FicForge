@@ -50,7 +50,7 @@ export class TauriAdapter implements PlatformAdapter {
     await rename(oldPath, newPath);
   }
 
-  async readBinary(path: string): Promise<Uint8Array> {
+  async readBinary(path: string): Promise<Uint8Array<ArrayBuffer>> {
     if (!path) throw new Error("readBinary: path must not be empty");
     const { readFile } = await import("@tauri-apps/plugin-fs");
     return readFile(path);

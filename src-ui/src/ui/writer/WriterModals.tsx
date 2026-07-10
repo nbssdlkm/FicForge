@@ -52,7 +52,7 @@ export const FinalizeConfirmModal = ({
             value={chapterTitle}
             onChange={(e) => onChapterTitleChange(e.target.value)}
             placeholder={t('writer.chapterTitlePlaceholder')}
-            className="w-full rounded-lg border border-black/10 bg-surface/40 px-3 py-2 text-base text-text focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent dark:border-white/10 md:text-sm"
+            className="w-full rounded-lg border border-black/10 bg-surface/40 px-3 py-2 text-base text-text focus:border-accent focus:outline-hidden focus:ring-1 focus:ring-accent dark:border-white/10 md:text-sm"
           />
           <p className="text-xs text-text/50 mt-1">{t('writer.chapterTitleAutoHint')}</p>
         </div>

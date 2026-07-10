@@ -55,7 +55,7 @@ Dark mode 对应 `border-white/5` / `/10` / `/20`。
 
 基础 primitive（Button / Input / Card / InlineBanner）一律无阴影，靠 hairline border 分层。
 
-### 2.5 圆角（5 档，见 `tailwind.config.ts`）
+### 2.5 圆角（5 档，见 `src-ui/src/App.css` 的 `@theme inline` 块）
 
 | Class | px | 用途 |
 |-------|-----|------|
