@@ -10,7 +10,7 @@ import {
   resolve_llm_config,
   logCatch,
 } from "@ficforge/engine";
-import { getEngine } from "./engine-instance";
+import { getEngine, getProjectOrThrow } from "./engine-instance";
 import { createEmbeddingProvider } from "./engine-state";
 
 export async function* generateChapter(params: {
@@ -22,7 +22,7 @@ export async function* generateChapter(params: {
   session_params?: Record<string, number> | null;
 }, options?: { signal?: AbortSignal }): AsyncGenerator<{ event: string; data: any }> {
   const e = getEngine();
-  const proj = await e.repos.project.get(params.au_path);
+  const proj = await getProjectOrThrow(params.au_path);
   const st = await e.repos.state.get(params.au_path);
   const allFacts = await e.repos.fact.list_all(params.au_path);
   // M8-B: 活跃剧情线注入。best-effort — 读失败降级 [] 不阻断续写，但记日志（非静默吞错）。

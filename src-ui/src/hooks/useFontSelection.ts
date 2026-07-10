@@ -13,7 +13,8 @@
  *
  * 双层存储：
  * - `localStorage`：启动时同步读、模块加载即时应用 CSS 变量，避免 FOUC；
- * - `engine settings`：异步读写、跨设备同步（WebDAV sync 生效）。
+ * - `engine settings`：异步读写、随设置文件持久化（多设备同步已退役 D-0040，
+ *   此层的价值是导出/备份时偏好随 settings 带走）。
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -29,6 +30,7 @@ import {
   type FontScript,
 } from "@ficforge/engine";
 import { getFontPreferences, saveFontPreferences } from "../api/engine-client";
+import { warnUi } from "../utils/ui-logger";
 
 const LS_KEYS = {
   ui_latin: "ficforge_font_ui_latin",
@@ -256,8 +258,8 @@ export function useFontSelection(): FontSelectionState {
         reading_latin_font_id: snapshot.reading_latin,
         reading_cjk_font_id: snapshot.reading_cjk,
       }).catch((err) => {
-        // 本地 localStorage 已写入，用户感知无异常；但跨设备同步失效，debug 需要可见。
-        console.warn("[useFontSelection] engine settings persist failed:", err);
+        // 本地 localStorage 已写入，用户感知无异常；但引擎侧持久化失效，debug 需要可见。
+        warnUi("useFontSelection", "engine settings persist failed", err);
       });
     },
     [],

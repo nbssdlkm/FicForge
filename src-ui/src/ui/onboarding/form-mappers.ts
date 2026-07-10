@@ -9,6 +9,8 @@ import {
 import {
   DEFAULT_DEEPSEEK_API_BASE,
   DEFAULT_DEEPSEEK_MODEL,
+  DEFAULT_EMBEDDING_API_BASE,
+  DEFAULT_EMBEDDING_MODEL,
 } from "../../config/defaults";
 import { formCtxToSaveInput, persistedCtxToForm } from "../shared/llm-config";
 
@@ -34,8 +36,8 @@ export function createDefaultMobileOnboardingSettings(): MobileOnboardingSetting
     contextWindow: "",
     chatPath: "",
     useCustomEmbedding: false,
-    embeddingModel: "BAAI/bge-m3",
-    embeddingApiBase: "https://api.siliconflow.cn/v1",
+    embeddingModel: DEFAULT_EMBEDDING_MODEL,
+    embeddingApiBase: DEFAULT_EMBEDDING_API_BASE,
     embeddingApiKey: "",
   };
 }

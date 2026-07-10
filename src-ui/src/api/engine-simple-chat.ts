@@ -27,12 +27,6 @@ export async function saveSimpleChat(
   await simpleChat.save(auPath, messages);
 }
 
-/** 清空 AU 的 chat 历史。 */
-export async function clearSimpleChat(auPath: string): Promise<void> {
-  const { simpleChat } = getEngine().repos;
-  await simpleChat.clear(auPath);
-}
-
 /**
  * 把某条写作草稿的 accepted 终态直接钉进 simple-chat.yaml（锁内 read-modify-write）。
  *

@@ -18,7 +18,7 @@ import {
   type Settings,
   type Project,
 } from "@ficforge/engine";
-import { getEngine } from "./engine-instance";
+import { getEngine, getProjectOrThrow } from "./engine-instance";
 
 /**
  * 从 settings（+ 可选 project）创建 RemoteEmbeddingProvider。
@@ -64,7 +64,7 @@ export async function setChapterFocus(auPath: string, focusIds: string[]) {
 export async function rebuildIndex(auPath: string) {
   const e = getEngine();
   const sett = await e.repos.settings.get();
-  const proj = await e.repos.project.get(auPath);
+  const proj = await getProjectOrThrow(auPath);
   const embProvider = createEmbeddingProvider(sett, proj);
 
   if (embProvider) {

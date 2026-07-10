@@ -10,7 +10,7 @@
 
 import type { Project } from "@ficforge/engine";
 import { withAuLock } from "@ficforge/engine";
-import { getEngine } from "./engine-instance";
+import { getEngine, getProjectOrThrow } from "./engine-instance";
 import { normalizeChatPath } from "./engine-settings";
 import { DEFAULT_OLLAMA_BASE_URL } from "../config/defaults";
 import type { ModelParamInfo } from "./settings";
@@ -26,6 +26,7 @@ async function withProjectWrite<T>(auPath: string, mutate: (current: Project) =>
   const { project } = getEngine().repos;
   return withAuLock(auPath, async () => {
     const current = await project.get(auPath);
+    if (!current) throw new Error(`project.yaml not found: ${auPath}/project.yaml`);
     const result = await mutate(current);
     await project.save(current);
     return result;
@@ -33,8 +34,7 @@ async function withProjectWrite<T>(auPath: string, mutate: (current: Project) =>
 }
 
 async function readProject(auPath: string): Promise<Project> {
-  const { project } = getEngine().repos;
-  return project.get(auPath);
+  return getProjectOrThrow(auPath);
 }
 
 function hasProjectLlmOverride(llm: Project["llm"] | null | undefined): boolean {
@@ -209,11 +209,8 @@ export async function saveProjectModelParamsOverride(auPath: string, model: stri
 }
 
 export async function addPinned(auPath: string, text: string) {
-  const { project } = getEngine().repos;
-  return withAuLock(auPath, async () => {
-    const proj = await project.get(auPath);
+  return withProjectWrite(auPath, (proj) => {
     proj.pinned_context.push(text);
-    await project.save(proj);
     return { status: "ok", revision: proj.revision };
   });
 }
@@ -222,6 +219,8 @@ export async function deletePinned(auPath: string, index: number) {
   const { project } = getEngine().repos;
   return withAuLock(auPath, async () => {
     const proj = await project.get(auPath);
+    if (!proj) throw new Error(`project.yaml not found: ${auPath}/project.yaml`);
+    // index 无效时不 save（save 会 bump revision，无效请求不该产生写入）
     if (index >= 0 && index < proj.pinned_context.length) {
       proj.pinned_context.splice(index, 1);
       await project.save(proj);

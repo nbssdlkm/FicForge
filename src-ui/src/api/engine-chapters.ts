@@ -39,7 +39,7 @@ import {
   type GeneratedWith,
 } from "@ficforge/engine";
 import { ApiError, getFriendlyErrorMessage } from "./client";
-import { getEngine } from "./engine-instance";
+import { getEngine, getProjectOrThrow } from "./engine-instance";
 import { createEmbeddingProvider } from "./engine-state";
 import { extractFacts } from "./engine-facts";
 import { extractedEnrichment, type ExtractedFactCandidate } from "./facts";
@@ -57,12 +57,6 @@ export async function listChapters(auPath: string) {
     provenance: ch.provenance,
     title: st.chapter_titles[ch.chapter_num] ?? undefined,
   }));
-}
-
-export async function getChapter(auPath: string, chapterNum: number) {
-  const { chapter } = getEngine().repos;
-  const ch = await chapter.get(auPath, chapterNum);
-  return ch;
 }
 
 export async function getChapterContent(auPath: string, chapterNum: number) {
@@ -85,8 +79,8 @@ export async function confirmChapter(
     );
   }
   const e = getEngine();
-  const { chapter, draft, state, ops, project, settings } = e.repos;
-  const proj = await project.get(auPath);
+  const { chapter, draft, state, ops, settings } = e.repos;
+  const proj = await getProjectOrThrow(auPath);
   // M1a：记录 confirm 前的 index_status。engineConfirmChapter 内部会悲观置 STALE，
   // 增量索引成功后是否升回 READY 取决于 confirm 之前索引是否本就完整（见下方注释）。
   let preConfirmIndexStatus: IndexStatus | null = null;
@@ -192,13 +186,9 @@ export async function confirmChapter(
       if (summaryText || microText) {
         // 落盘在锁内，CAS 校验章节内容未被并发 undo/edit 改动
         await withAuLock(auPath, async () => {
-          let stillCurrent = false;
-          try {
-            const ch = await chapter.get(auPath, chapterNum);
-            stillCurrent = ch.content_hash === result.content_hash;
-          } catch {
-            stillCurrent = false; // 章节已被 undo
-          }
+          // CAS：章节被并发 undo 删除（get 返回 null）或内容已变 → 摘要作废不落盘
+          const ch = await chapter.get(auPath, chapterNum);
+          const stillCurrent = ch !== null && ch.content_hash === result.content_hash;
           if (!stillCurrent) return;
 
           // Standard 落盘 + 索引（M8-C）
@@ -284,8 +274,8 @@ export async function confirmChapter(
 
 export async function undoChapter(auPath: string) {
   const e = getEngine();
-  const { chapter, draft, state, ops, fact, project, chapterSummary } = e.repos;
-  const proj = await project.get(auPath);
+  const { chapter, draft, state, ops, fact, chapterSummary } = e.repos;
+  const proj = await getProjectOrThrow(auPath);
   // H9a：记录 undo 前的 index_status。undo 服务内部会悲观置 STALE（10 步级联，golden 逻辑不动）；
   // 向量删除不需要 embedding，删除成功后索引即与剩余章节一致，可恢复原状态。
   let preUndoIndexStatus: IndexStatus | null = null;
@@ -343,8 +333,8 @@ export async function updateChapterTitle(auPath: string, chapterNum: number, tit
 }
 
 export async function resolveDirtyChapter(auPath: string, chapterNum: number, confirmedFactChanges: any[] = []) {
-  const { chapter, state, ops, fact, project } = getEngine().repos;
-  const proj = await project.get(auPath);
+  const { chapter, state, ops, fact } = getEngine().repos;
+  const proj = await getProjectOrThrow(auPath);
   return await resolve_dirty_chapter({
     au_id: auPath, chapter_num: chapterNum, confirmed_fact_changes: confirmedFactChanges,
     cast_registry: proj.cast_registry,
@@ -354,7 +344,7 @@ export async function resolveDirtyChapter(auPath: string, chapterNum: number, co
 
 export async function updateChapterContent(auPath: string, chapterNum: number, content: string) {
   const e = getEngine();
-  const { chapter, state, ops, chapterSummary, project, settings } = e.repos;
+  const { chapter, state, ops, chapterSummary, settings } = e.repos;
   // H9b：记录编辑前的 index_status（edit_chapter_content 会置 STALE）。
   // 重索引成功后是否恢复 READY 取决于编辑前索引是否本就完整（与 confirm 的 M1a 同口径）。
   let preEditIndexStatus: IndexStatus | null = null;
@@ -382,7 +372,7 @@ export async function updateChapterContent(auPath: string, chapterNum: number, c
   //  3. embedding 不可用 / 重索引失败 → 删完保持 edit 服务置下的 STALE。
   try {
     await e.ragManager.removeChapter(auPath, chapterNum);
-    const [proj, sett] = await Promise.all([project.get(auPath), settings.get()]);
+    const [proj, sett] = await Promise.all([getProjectOrThrow(auPath), settings.get()]);
     const embProvider = createEmbeddingProvider(sett, proj);
     if (embProvider) {
       // 用落盘后的正文重索引（与 confirm 同源），不直接用入参，防 save 路径归一化产生偏差。
@@ -417,8 +407,8 @@ export interface ChapterMemoryScan {
 /** 预览：扫出缺摘要 / 零笔记的章 + 前置配置。UI 先调它显示清单与默认勾选。 */
 export async function scanChapterMemory(auPath: string): Promise<ChapterMemoryScan> {
   const e = getEngine();
-  const { chapter, project, settings, chapterSummary, fact } = e.repos;
-  const [proj, sett] = await Promise.all([project.get(auPath), settings.get()]);
+  const { chapter, settings, chapterSummary, fact } = e.repos;
+  const [proj, sett] = await Promise.all([getProjectOrThrow(auPath), settings.get()]);
   const llmCfg = resolve_llm_config(null, proj, sett);
   const chapters = await chapter.list_main(auPath);
   const nums = chapters.map((c) => c.chapter_num);
@@ -453,8 +443,8 @@ export async function backfillChapterMemory(
   signal?: AbortSignal,
 ): Promise<BackfillMemoryResult> {
   const e = getEngine();
-  const { chapter, project, settings, chapterSummary, fact, ops } = e.repos;
-  const [proj, sett] = await Promise.all([project.get(auPath), settings.get()]);
+  const { chapter, settings, chapterSummary, fact, ops } = e.repos;
+  const [proj, sett] = await Promise.all([getProjectOrThrow(auPath), settings.get()]);
   const embProvider = createEmbeddingProvider(sett, proj);
   const llmCfg = resolve_llm_config(null, proj, sett);
   const llmConfigured = llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key);
@@ -500,13 +490,9 @@ export async function backfillChapterMemory(
     // 锁内 CAS 落盘（= backfill 摘要同款）：章节中途被 edit/undo → hash 不符 → 跳过，不写陈旧数据。
     persistChapter: async (t, { summaryText, facts }) =>
       withAuLock(auPath, async () => {
-        let current = false;
-        try {
-          const ch = await chapter.get(auPath, t.chapterNum);
-          current = ch.content_hash === t.contentHash;
-        } catch {
-          current = false; // 章节已被 undo 删除
-        }
+        // CAS：章节被并发 undo 删除（get 返回 null）或内容已变 → 本章结果作废
+        const ch = await chapter.get(auPath, t.chapterNum);
+        const current = ch !== null && ch.content_hash === t.contentHash;
         if (!current) return { persisted: false, factsAdded: 0 };
 
         try {

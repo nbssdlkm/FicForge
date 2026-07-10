@@ -12,7 +12,7 @@ import {
   type SimpleContextTokenEstimate,
   type Message,
 } from "@ficforge/engine";
-import { getEngine } from "./engine-instance";
+import { getEngine, getProjectOrThrow } from "./engine-instance";
 
 export type { SimpleContextTokenEstimate };
 
@@ -25,7 +25,7 @@ export async function estimateSimpleContextTokens(
   // facts/threads 取失败不致命：badge 是按键级（防抖）高频 UI chrome，一次记忆读失败应静默回退空、
   // 让 badge 仍出数，而不是每次按键抛错。生成主路径（engine-simple-dispatch）才让 fact 读失败显式冒泡。
   const [project, state, settings, facts] = await Promise.all([
-    e.repos.project.get(auPath),
+    getProjectOrThrow(auPath),
     e.repos.state.get(auPath),
     e.repos.settings.get(),
     e.repos.fact.list_all(auPath).catch(() => []),

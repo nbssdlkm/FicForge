@@ -15,7 +15,14 @@ import { useExtractedSelection, getCandidateKey } from '../../hooks/useExtracted
 
 // Phase 5b-2: lastConfirmedChapter 改为 method 调用时传入（而不是 hook 构造 arg），
 // 破解与 useWriterChapterActions 的循环依赖，消除 factsExtractionBridgeRef。
-export function useWriterFactsExtraction(auPath: string) {
+//
+// options.focusInstructionInput：提示/审核收口后的焦点回归，由宿主注入真实实现
+// （写文侧 = useWriterInstructionInput.focusInstructionInput；对话面板无指令输入框，
+// 不传 = 不回归）。此前这里是内部空壳 no-op、焦点从未回归过（盲审 2026-07-09 接线修复）。
+export function useWriterFactsExtraction(
+  auPath: string,
+  options?: { focusInstructionInput?: () => void },
+) {
   const { t } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
   const guard = useActiveRequestGuard(auPath);
@@ -38,10 +45,11 @@ export function useWriterFactsExtraction(auPath: string) {
   // 用对象引用集合（candidate 引用在一轮 review 内稳定，不受索引 key 位移影响）。
   const savedCandidatesRef = useRef<Set<ExtractedFactCandidate>>(new Set());
 
+  // 宿主注入的焦点回归；未注入（对话面板）时为 no-op。ref shim 保持 callback 依赖稳定。
+  const focusFnRef = useRef(options?.focusInstructionInput);
+  focusFnRef.current = options?.focusInstructionInput;
   const focusInstructionInput = useCallback(() => {
-    // The parent component should provide its own focus mechanism;
-    // this is a placeholder that mirrors the original inline helper.
-    // Consumers can override via the returned closeFactsPrompt / handleSkipFactsPrompt.
+    focusFnRef.current?.();
   }, []);
 
   const handleFactsPromptToggle = useCallback((checked: boolean) => {

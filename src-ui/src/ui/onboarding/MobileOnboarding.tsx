@@ -19,7 +19,7 @@ import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { useLlmConnectionTest } from '../../hooks/useConnectionTest';
 import { canTestLlmConnection } from '../shared/llm-config';
 import { SecretStorageNotice } from '../shared/SecretStorageNotice';
-import { DEFAULT_DEEPSEEK_API_BASE, DEFAULT_DEEPSEEK_MODEL } from '../../config/defaults';
+import { DEFAULT_DEEPSEEK_API_BASE, DEFAULT_DEEPSEEK_MODEL, DEFAULT_EMBEDDING_API_BASE, DEFAULT_EMBEDDING_MODEL } from '../../config/defaults';
 import {
   buildOnboardingSettingsSaveInput,
   hydrateMobileOnboardingSettings,
@@ -86,8 +86,8 @@ export function MobileOnboarding({
   const [contextWindow, setContextWindow] = useState(''); // 表单态："" = 窗口未知（R2-3）
   const [chatPath, setChatPath] = useState('');
   const [useCustomEmbedding, setUseCustomEmbedding] = useState(false);
-  const [embeddingModel, setEmbeddingModel] = useState('BAAI/bge-m3');
-  const [embeddingApiBase, setEmbeddingApiBase] = useState('https://api.siliconflow.cn/v1');
+  const [embeddingModel, setEmbeddingModel] = useState(DEFAULT_EMBEDDING_MODEL);
+  const [embeddingApiBase, setEmbeddingApiBase] = useState(DEFAULT_EMBEDDING_API_BASE);
   const [embeddingApiKey, setEmbeddingApiKey] = useState('');
   const [setupAction, setSetupAction] = useState<SetupAction>('create');
   const [fandomName, setFandomName] = useState('');

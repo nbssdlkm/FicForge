@@ -15,7 +15,7 @@ import {
   type Message,
   type SimpleChatEvent,
 } from "@ficforge/engine";
-import { getEngine } from "./engine-instance";
+import { getEngine, getProjectOrThrow } from "./engine-instance";
 import { createEmbeddingProvider } from "./engine-state";
 
 export type {
@@ -45,7 +45,7 @@ export async function* dispatchSimpleChat(
   options?: { signal?: AbortSignal },
 ): AsyncGenerator<SimpleChatEvent> {
   const e = getEngine();
-  const proj = await e.repos.project.get(params.au_path);
+  const proj = await getProjectOrThrow(params.au_path);
   const st = await e.repos.state.get(params.au_path);
   const sett = await e.repos.settings.get();
 

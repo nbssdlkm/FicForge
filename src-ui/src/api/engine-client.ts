@@ -19,7 +19,9 @@ export type { Project as ProjectInfo } from "@ficforge/engine";
 export type { Settings as SettingsInfo } from "@ficforge/engine";
 export type { WritingStyle, CastRegistry, EmbeddingLock, ContextSummary, RagChunkDetail, RagCollection } from "@ficforge/engine";
 export { RAG_COLLECTIONS } from "@ficforge/engine";
-export { FactStatus, IndexStatus, LLMMode, Provenance } from "@ficforge/engine";
+export { EmotionStyle, FactStatus, IndexStatus, LLMMode, Perspective, Provenance } from "@ficforge/engine";
+// 章节/草稿文件命名判据（引擎 domain/paths 单一真相源）
+export { draftFilename, parseChapterMainPath } from "@ficforge/engine";
 
 // UI-specific types (no engine equivalent)
 export type { ExtractedFactCandidate, ExtractFactsResponse } from "./facts";
@@ -62,7 +64,6 @@ export type { FandomDisplayInfo, FandomInfo, FandomFileEntry, FandomFilesRespons
 export type { TrashScope } from "./trash";
 export type { GenerateParams } from "./generate";
 export type { SettingsChatMode, SettingsChatMessagePayload, SettingsChatSessionLlm, SettingsChatToolCall, SettingsChatResponse } from "./settingsChat";
-export type { ChapterPreview, ImportUploadResponse, ImportConfirmResponse } from "./importExport";
 export type { TrashEntry } from "@ficforge/engine";
 
 // Re-export ApiError for compatibility with components that use it for error handling
@@ -110,9 +111,9 @@ export {
   testEmbeddingConnection,
 } from "./engine-settings";
 export { getState, setChapterFocus, rebuildIndex, recalcState } from "./engine-state";
-export { listFacts, addFact, addFactsBatch, PartialAddFactsError, editFact, updateFactStatus, batchUpdateFactStatus, extractFacts, extractFactsBatch, submitFactsExtraction, findArchivalCandidates, archiveFacts, unarchiveFact, getFactsExtractionReadiness } from "./engine-facts";
+export { listFacts, addFact, addFactsBatch, PartialAddFactsError, editFact, updateFactStatus, batchUpdateFactStatus, extractFacts, submitFactsExtraction, findArchivalCandidates, archiveFacts, unarchiveFact, getFactsExtractionReadiness } from "./engine-facts";
 export type { BatchFactInput, AddFactsBatchResult } from "./engine-facts";
-export { listThreads, addThread, updateThread, setThreadStatus, removeThread, setFactThreads, addFactToThread, removeFactFromThread, setFactThreadRole, getStaleThreads, regenerateThreadState } from "./engine-threads";
+export { listThreads, addThread, updateThread, removeThread, addFactToThread, removeFactFromThread, setFactThreadRole, getStaleThreads, regenerateThreadState } from "./engine-threads";
 export {
   getProjectCapabilities,
   getProjectForEditing,
@@ -127,7 +128,7 @@ export {
   addPinned,
   deletePinned,
 } from "./engine-project";
-export { listChapters, getChapter, getChapterContent, confirmChapter, undoChapter, updateChapterTitle, resolveDirtyChapter, updateChapterContent, scanChapterMemory, backfillChapterMemory } from "./engine-chapters";
+export { listChapters, getChapterContent, confirmChapter, undoChapter, updateChapterTitle, resolveDirtyChapter, updateChapterContent, scanChapterMemory, backfillChapterMemory } from "./engine-chapters";
 export type { ChapterMemoryScan } from "./engine-chapters";
 export { listDrafts, getDraft, saveDraft, deleteDrafts } from "./engine-drafts";
 export { generateChapter } from "./engine-generate";
@@ -135,7 +136,7 @@ export { listTrash, restoreTrash, permanentDeleteTrash, purgeTrash, chapterNumFr
 export { saveLore, readLore, readLoreWithLegacyFallback, deleteLore, listLoreFiles, importFromFandom, getLoreContent, sanitizePathSegment } from "./engine-lore";
 export { sendSettingsChat } from "./engine-settings-chat";
 export { listFandoms, getFandomDisplayInfo, createFandom, listAus, createAu, deleteFandom, deleteAu, listFandomFiles, readFandomFile } from "./engine-fandom";
-export { exportChapters, importChaptersFromText } from "./engine-export";
+export { exportChapters } from "./engine-export";
 export {
   exportAuBundle,
   parseAuBundle,
@@ -150,11 +151,11 @@ export { migrateLegacySecureStorage } from "./engine-security";
 // ---------------------------------------------------------------------------
 export { dispatchSimpleChat } from "./engine-simple-dispatch";
 export type { DispatchSimpleChatParams, SimpleChatEvent } from "./engine-simple-dispatch";
-export { getSimpleChat, saveSimpleChat, clearSimpleChat, markSimpleChatDraftAccepted } from "./engine-simple-chat";
+export { getSimpleChat, saveSimpleChat, markSimpleChatDraftAccepted } from "./engine-simple-chat";
 export type { SimpleChatFile, SimpleChatMessageEnvelope } from "./engine-simple-chat";
 export { estimateSimpleContextTokens } from "./engine-tokens";
 export type { SimpleContextTokenEstimate } from "./engine-tokens";
 export { SIMPLE_TOOL_SHOW_CHAPTER, SIMPLE_TOOL_SHOW_SETTING } from "@ficforge/engine";
 
 // Logger re-exports
-export { initLogger, getLogger, logCatch } from "@ficforge/engine";
+export { hasLogger, initLogger, getLogger, logCatch } from "@ficforge/engine";

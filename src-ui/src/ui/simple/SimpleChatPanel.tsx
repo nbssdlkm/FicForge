@@ -22,6 +22,7 @@ import { useFeedback } from "../../hooks/useFeedback";
 import { useKV } from "../../hooks/useKV";
 import {
   confirmChapter,
+  draftFilename,
   getChapterContent,
   getFactsExtractionReadiness,
   getFriendlyErrorMessage,
@@ -422,7 +423,7 @@ export function SimpleChatPanel({
       if (acceptingDraftId) return;
       setAcceptingDraftId(messageId);
       const draftLabel = target.draftLabel && target.draftLabel !== "?" ? target.draftLabel : "A";
-      const draftFileId = `ch${String(target.chapterNum).padStart(4, "0")}_draft_${draftLabel}.md`;
+      const draftFileId = draftFilename(target.chapterNum, draftLabel);
       try {
         // 防重复接受（审计 H3）：接受只对「下一章」合法。三种到得了这里的非法状态 ——
         // 接受标记落盘失败后的残留 pending、连点、陈旧会话里的旧草稿 —— 都会覆写

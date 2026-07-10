@@ -121,7 +121,9 @@ export const WriterLayout = ({ auPath, onNavigate, viewChapter, onClearViewChapt
   // （lastConfirmedChapter 作为 method 调用时的参数，不进 useCallback deps），
   // 所以可以在 chapterActions 之前调。这样 chapterActions 可以直接读 factsExtraction.skipFactsPrompt
   // 作为 value，无需 bridge。
-  const factsExtraction = useWriterFactsExtraction(auPath);
+  const factsExtraction = useWriterFactsExtraction(auPath, {
+    focusInstructionInput: instructionInput.focusInstructionInput,
+  });
 
   const chapterActions = useWriterChapterActions({
     auPath,

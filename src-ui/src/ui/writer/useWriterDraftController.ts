@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  draftFilename,
   getDraft,
   listDrafts,
   saveDraft,
@@ -23,7 +24,7 @@ export type DraftItem = {
 };
 
 function buildDraftId(chapterNum: number, label: string): string {
-  return `ch${String(chapterNum).padStart(4, '0')}_draft_${label}.md`;
+  return draftFilename(chapterNum, label);
 }
 
 export function createDraftItem(
@@ -258,10 +259,12 @@ export function useWriterDraftController({
   ): Promise<DraftItem> => {
     try {
       const detail = await getDraft(auPath, chapterNum, label);
-      return createDraftItemFromDetail(chapterNum, detail);
+      // 草稿缺失（get 契约返回 null）与读取失败同走 fallback（占位草稿）
+      if (detail) return createDraftItemFromDetail(chapterNum, detail);
     } catch {
-      return createDraftItem(chapterNum, label, fallbackContent, fallbackGeneratedWith || null);
+      // 读取失败 → fallback
     }
+    return createDraftItem(chapterNum, label, fallbackContent, fallbackGeneratedWith || null);
   }, [auPath]);
 
   // Phase 6.3: 删掉 loadDraftsForChapter 对外导出。Phase 5c 后所有 draft 加载
@@ -334,7 +337,10 @@ export function useWriterDraftController({
         if (cancelled) return;
 
         const loadedDrafts = sortDrafts(
-          details.map((detail) => createDraftItemFromDetail(chapterNum, detail)),
+          details
+            // list 与 get 之间被并发删除（confirm/discard）的窄窗 → null，跳过
+            .filter((detail): detail is NonNullable<typeof detail> => detail !== null)
+            .map((detail) => createDraftItemFromDetail(chapterNum, detail)),
         );
         const storedSummaries = readSavedContextSummaries(auPath, chapterNum);
         const activeLabels = new Set(loadedDrafts.map((draft) => draft.label));

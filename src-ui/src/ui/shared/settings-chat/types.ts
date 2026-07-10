@@ -44,7 +44,7 @@ export interface LoreFileOption {
   filename: string;
 }
 
-import { FACT_TYPE_VALUES, FACT_STATUS_VALUES, NARRATIVE_WEIGHT_VALUES } from "../../../api/engine-client";
+import { EmotionStyle, FACT_TYPE_VALUES, FACT_STATUS_VALUES, NARRATIVE_WEIGHT_VALUES, Perspective } from "../../../api/engine-client";
 
 export const FACT_TYPE_OPTIONS = FACT_TYPE_VALUES;
 export const FACT_STATUS_OPTIONS = FACT_STATUS_VALUES;
@@ -291,10 +291,10 @@ export function getToolValidationError(
     if (!["perspective", "emotion_style", "custom_instructions"].includes(field)) {
       return t("settingsMode.validation.styleFieldInvalid");
     }
-    if (field === "perspective" && !["third_person", "first_person"].includes(value)) {
+    if (field === "perspective" && !Object.values(Perspective).includes(value as Perspective)) {
       return t("settingsMode.validation.stylePerspectiveInvalid");
     }
-    if (field === "emotion_style" && !["implicit", "explicit"].includes(value)) {
+    if (field === "emotion_style" && !Object.values(EmotionStyle).includes(value as EmotionStyle)) {
       return t("settingsMode.validation.styleEmotionInvalid");
     }
     return null;

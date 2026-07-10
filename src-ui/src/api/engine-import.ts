@@ -19,9 +19,6 @@ import type {
 import {
   resolve_llm_config,
   create_provider,
-  split_into_chapters,
-  parse_html,
-  import_chapters as engineImportChapters,
 } from "@ficforge/engine";
 
 import { getEngine } from "./engine-instance";
@@ -124,46 +121,5 @@ export async function getExistingChapterNums(auPath: string): Promise<number[]> 
   return chapters.map(c => c.chapter_num).sort((a, b) => a - b);
 }
 
-// ===========================================================================
-// Legacy Import functions (backward-compatible)
-// ===========================================================================
-
-export async function uploadImportFile(file: File): Promise<{
-  chapters: { chapter_num: number; title: string; preview: string }[];
-  split_method: string;
-  total_chapters: number;
-}> {
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  if (ext === "docx") {
-    throw Object.assign(new Error("DOCX import is not supported in the local app yet."), {
-      error_code: "UNSUPPORTED_IMPORT_FORMAT",
-    });
-  }
-
-  const rawText = await file.text();
-  const text = ext === "html" || ext === "htm" ? parse_html(rawText) : rawText;
-  const chapters = split_into_chapters(text);
-  const { get_split_method } = await import("@ficforge/engine");
-  return {
-    chapters: chapters.map((c) => ({ chapter_num: c.chapter_num, title: c.title, preview: c.content.slice(0, 100) })),
-    split_method: get_split_method(text),
-    total_chapters: chapters.length,
-  };
-}
-
-export async function confirmImport(params: {
-  au_path: string;
-  chapters: { chapter_num: number; title: string; content: string }[];
-  split_method?: string;
-}) {
-  const { chapter, state, ops } = getEngine().repos;
-  const result = await engineImportChapters({
-    au_id: params.au_path,
-    chapters: params.chapters.map((c) => ({ chapter_num: c.chapter_num, title: c.title, content: c.content })),
-    chapter_repo: chapter,
-    state_repo: state,
-    ops_repo: ops,
-    split_method: params.split_method,
-  });
-  return result;
-}
+// 旧版导入入口 uploadImportFile / confirmImport 已删除（2026-07-09 盲审孤儿管线清理）：
+// 全仓零调用点、未挂 barrel；现行导入走 analyzeFile → buildImportPlan → executeImport。

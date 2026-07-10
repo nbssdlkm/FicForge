@@ -19,7 +19,7 @@ import {
   withAuLock,
 } from "@ficforge/engine";
 import type { LLMProvider, ResolvedLLMConfig, Project } from "@ficforge/engine";
-import { getEngine } from "./engine-instance";
+import { getEngine, getProjectOrThrow } from "./engine-instance";
 import { hasUsableConnection } from "./engine-settings";
 
 // ---------------------------------------------------------------------------
@@ -34,7 +34,7 @@ export async function resolveFactsProvider(auPath: string): Promise<{
   reactEnabled: boolean;
 }> {
   const e = getEngine();
-  const proj = await e.repos.project.get(auPath);
+  const proj = await getProjectOrThrow(auPath);
   const sett = await e.repos.settings.get();
   const llmConfig = resolve_llm_config(null, proj, sett);
   // api 和 ollama 都走 OpenAI 兼容协议，均可用。local（本地模型加载）随 sidecar 退役本版本不支持。
@@ -58,7 +58,7 @@ export async function getFactsExtractionReadiness(
   auPath: string,
 ): Promise<{ has_usable_connection: boolean }> {
   const e = getEngine();
-  const proj = await e.repos.project.get(auPath);
+  const proj = await getProjectOrThrow(auPath);
   const sett = await e.repos.settings.get();
   const llmConfig = resolve_llm_config(null, proj, sett);
   return { has_usable_connection: hasUsableConnection(llmConfig) };
@@ -256,20 +256,6 @@ export async function extractFacts(auPath: string, chapterNum: number, opts?: { 
     { language: lang, signal: opts?.signal },
   );
   return { facts, cappedCount: 0 };
-}
-
-export async function extractFactsBatch(auPath: string, chapterNums: number[]) {
-  const { extract_facts_batch } = await import("@ficforge/engine");
-  const e = getEngine();
-  const { provider, proj, lang } = await resolveFactsProvider(auPath);
-  const chapters = [];
-  for (const num of chapterNums) {
-    const content = await e.repos.chapter.get_content_only(auPath, num);
-    chapters.push({ chapter_num: num, content });
-  }
-  const existingFacts = await e.repos.fact.list_all(auPath);
-  const facts = await extract_facts_batch(chapters, existingFacts, proj.cast_registry, null, provider, lang);
-  return { facts };
 }
 
 /**

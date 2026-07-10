@@ -11,14 +11,15 @@ import {
   collectAuBundle,
   export_chapters as engineExportChapters,
   importAuBundle,
+  parseChapterMainPath,
   validateBundle,
   type AuBundle,
 } from "@ficforge/engine";
-import { getEngine } from "./engine-instance";
+import { getEngine, getProjectOrThrow } from "./engine-instance";
 import { createAu } from "./engine-fandom";
 
-/** chapters/main/chNNNN.md（正文章节，不含 .summary.jsonl）。 */
-const CHAPTER_FILE_RE = /^chapters\/main\/ch\d{4}\.md$/;
+/** 正文章节判据（不含 .summary.jsonl）：引擎 domain/paths.parseChapterMainPath 单一真相源。 */
+const isChapterFile = (p: string): boolean => parseChapterMainPath(p) !== null;
 
 export async function exportChapters(params: {
   au_path: string;
@@ -27,10 +28,10 @@ export async function exportChapters(params: {
   end_chapter?: number;
   include_title?: boolean;
 }) {
-  const { chapter, state, project } = getEngine().repos;
+  const { chapter, state } = getEngine().repos;
   const [st, proj] = await Promise.all([
     state.get(params.au_path),
-    project.get(params.au_path),
+    getProjectOrThrow(params.au_path),
   ]);
   const text = await engineExportChapters({
     au_id: params.au_path,
@@ -47,19 +48,6 @@ export async function exportChapters(params: {
   return { blob, filename };
 }
 
-export async function importChaptersFromText(auPath: string, text: string, splitMethod?: string) {
-  const { split_into_chapters, import_chapters } = await import("@ficforge/engine");
-  const chapters = split_into_chapters(text);
-  const { chapter, state, ops } = getEngine().repos;
-  return await import_chapters({
-    au_id: auPath,
-    chapters,
-    chapter_repo: chapter,
-    state_repo: state,
-    ops_repo: ops,
-    split_method: splitMethod,
-  });
-}
 
 // ============================================================
 // TD-015：全量 AU 备份导出 / 导入（简版 fork ↔ 主 app 数据迁移）
@@ -115,7 +103,7 @@ export function bundleFromRawFiles(
     if (rel.split("/").some((seg) => AU_BUNDLE_EXCLUDED_DIRS.includes(seg))) continue;
     map[rel] = f.content;
   }
-  const chapterCount = Object.keys(map).filter((p) => CHAPTER_FILE_RE.test(p)).length;
+  const chapterCount = Object.keys(map).filter(isChapterFile).length;
   return {
     manifest: {
       bundle_version: AU_BUNDLE_VERSION,

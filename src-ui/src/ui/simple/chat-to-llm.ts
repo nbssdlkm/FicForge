@@ -17,6 +17,7 @@
  */
 
 import type { Message } from "@ficforge/engine";
+import { warnUi } from "../../utils/ui-logger";
 import type { SimpleChatMessage } from "./types";
 
 /**
@@ -132,10 +133,10 @@ export function chatToOpenAIMessages(messages: SimpleChatMessage[]): OpenAIChatM
         } else {
           // orphan tool-result：可能是 onToolCall 漏写 assistant.toolCalls 的早期 chat
           // 历史，或外部编辑器把 chat.yaml 改坏。skip 让 history 仍合法。
-          // console.warn 在 production 也输出，方便用户 export 日志诊断。
-          // eslint-disable-next-line no-console
-          console.warn(
-            `[chat-to-llm] orphan tool-result skipped: tool_call_id=${msg.toolCallId} tool=${msg.toolName}; ` +
+          // warnUi 落日志文件，条目可随「导出日志」带走诊断。
+          warnUi(
+            "chat-to-llm",
+            `orphan tool-result skipped: tool_call_id=${msg.toolCallId} tool=${msg.toolName}; ` +
             `no preceding assistant.toolCalls match. Likely legacy chat.yaml prior to 2026-05-04 fix.`,
           );
         }

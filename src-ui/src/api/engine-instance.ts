@@ -101,3 +101,23 @@ export function getDataDir(): string {
 export async function getDisplayDataDir(): Promise<string> {
   return getEngine().adapter.getDataDir();
 }
+
+/**
+ * 读取 AU 项目配置，缺失即抛（get 契约 2026-07-09：repo.get 缺失返回 null）。
+ * API 层大多数路径要求 project.yaml 必须存在（合法 AU 的结构前提），
+ * 统一经此 helper 取，避免各处手写 null 检查。错误文案与旧 repo 抛错一致。
+ */
+export async function getProjectOrThrow(auPath: string) {
+  const proj = await getEngine().repos.project.get(auPath);
+  if (!proj) throw new Error(`project.yaml not found: ${auPath}/project.yaml`);
+  return proj;
+}
+
+/**
+ * 读取章节，缺失即抛（同上契约）。用于「章节必须存在」的 API 路径。
+ */
+export async function getChapterOrThrow(auPath: string, chapterNum: number) {
+  const ch = await getEngine().repos.chapter.get(auPath, chapterNum);
+  if (!ch) throw new Error(`Chapter not found: ${auPath} ch${chapterNum}`);
+  return ch;
+}

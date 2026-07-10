@@ -14,6 +14,7 @@ import {
   HALF_RESTORED_MARKER,
   IndexStatus,
   logCatch,
+  parseChapterMainPath,
   withAuLock,
 } from "@ficforge/engine";
 
@@ -22,18 +23,13 @@ export async function listTrash(_scope: string, path: string) {
 }
 
 /**
- * 章文件回收站条目的路径判据（单一真相源）：import_pipeline 移章入回收站时
- * original_path 固定为 `chapters/main/ch{NNNN}.md`（file_chapter 布局）。
+ * 章文件回收站条目的路径判据：original_path 固定为 `chapters/main/ch{NNNN}.md`
+ * （file_chapter 布局），判据本体在引擎 domain/paths.parseChapterMainPath ——
+ * 此前本文件自持一份正则且只认 4 位章号，与 file_chapter 的 \d{4,} 已漂移。
  * UI（AuLoreLayout / MobileManageView 恢复回调）与本文件的恢复后生命周期共用此判据。
  */
-const CHAPTER_TRASH_PATH_RE = /^chapters\/main\/ch(\d{4})\.md$/;
-
-/** 从回收站条目解析章号；非章文件条目（lore / 目录）返回 null。 */
 export function chapterNumFromTrashEntry(entry: Pick<TrashEntry, "original_path">): number | null {
-  const match = CHAPTER_TRASH_PATH_RE.exec(entry.original_path);
-  if (!match) return null;
-  const num = Number.parseInt(match[1], 10);
-  return Number.isFinite(num) && num > 0 ? num : null;
+  return parseChapterMainPath(entry.original_path);
 }
 
 /**

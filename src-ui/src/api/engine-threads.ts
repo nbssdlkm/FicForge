@@ -82,16 +82,9 @@ export async function regenerateThreadState(auPath: string, threadId: string): P
   return state;
 }
 
-/** 改状态（收束 resolved / 搁置 dormant / 重新激活 active）。 */
-export async function setThreadStatus(
-  auPath: string,
-  id: string,
-  status: ThreadStatus,
-): Promise<void> {
-  const t = await getEngine().repos.thread.get(auPath, id);
-  if (!t) return;
-  await getEngine().repos.thread.update(auPath, { ...t, status });
-}
+// setThreadStatus / setFactThreads 已删除（2026-07-09 盲审孤儿管线清理）：全仓零调用点。
+// 改状态走 updateThread 整对象更新；成员关系走 addFactToThread / removeFactFromThread
+// （fresh-read 版，防 lost-update）。
 
 /**
  * 删线。成员关系单一真相源 = fact.thread_ids，故删线前先把各 fact 上对本线的引用清掉
@@ -117,23 +110,7 @@ export async function removeThread(auPath: string, id: string): Promise<void> {
   await e.repos.thread.remove(auPath, id);
 }
 
-/**
- * 给一条 Fact 设置所属剧情线（成员关系单一真相源 = fact.thread_ids）。
- * 走 edit_fact op（thread_ids 已在 EDITABLE_FIELDS 白名单），ops rebuild 可还原。
- *
- * 注意：thread_roles 是 M8-B 留位字段，v1 无任何生产者（没有 API / 提取会写它），
- * 故此处只动 thread_ids 不会造成 thread_roles 漂移。M9 若开始用 thread_roles，
- * 需在此处（及 removeThread）同步裁剪 thread_roles 使其键与 thread_ids 一致。
- */
-export async function setFactThreads(
-  auPath: string,
-  factId: string,
-  threadIds: string[],
-): Promise<void> {
-  await editFact(auPath, factId, { thread_ids: threadIds });
-}
-
-// 这三个操作都先从仓库读 fresh fact 再算 patch（不信 UI 传入的旧 thread_ids/thread_roles），
+// 以下操作都先从仓库读 fresh fact 再算 patch（不信 UI 传入的旧 thread_ids/thread_roles），
 // 否则 editFact 整字段覆写会丢更新（workflow 审 MAJOR：lost-update）。残留窄窗：fresh 读与
 // editFact 自身 withAuLock 非同一把锁，但 ThreadDetail 用 busyRef 同步串行同一 fact 操作 +
 // 单用户低频，实际不触发。彻底原子需给 edit_fact 加 in-lock transform 回调（记 TD 后续硬化）。

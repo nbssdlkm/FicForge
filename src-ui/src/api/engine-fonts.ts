@@ -4,8 +4,8 @@
 /**
  * Engine Fonts — FontsService 单例入口。
  *
- * Phase 4 仅用于启动时 hydrateAll（当前无可下载字体，实际为 no-op，但保留
- * 入口让 Phase 5 的下载功能无需动 App.tsx）。
+ * 启动时 hydrateAll 把已下载安装的字体（FONT_MANIFEST 的 downloadable 条目）
+ * 从本地存储读回并注册进 FontFace registry。
  *
  * UI 组件切换字体偏好不走此处，见 `hooks/useFontSelection.ts`：那是轻量的
  * settings + localStorage 双写，不依赖 FontsService。
@@ -17,6 +17,7 @@ import {
   FontStorage,
   FontsService,
 } from "@ficforge/engine";
+import { warnUi } from "../utils/ui-logger";
 import { getEngine } from "./engine-instance";
 
 let _fontsService: FontsService | null = null;
@@ -38,16 +39,14 @@ export function getFontsService(): FontsService {
 }
 
 /**
- * 启动时恢复已下载字体到 FontFace registry。幂等。
- *
- * Phase 4 阶段：manifest 中无已下载字体 → 实际 no-op。
- * Phase 5 接入下载 UI 后：本函数会把此前 install 过的字体从本地读回并注册。
+ * 启动时恢复已下载字体到 FontFace registry。幂等；
+ * 用户从未下载过字体时自然为 no-op。
  */
 export async function hydrateFontsOnStartup(): Promise<void> {
   try {
     await getFontsService().hydrateAll();
   } catch (e) {
     // 字体 hydrate 失败不阻断启动 —— 最差情况是用户看到系统字体而非应用内置字体。
-    console.warn("[fonts] hydrateAll failed:", e);
+    warnUi("fonts", "hydrateAll failed", e);
   }
 }

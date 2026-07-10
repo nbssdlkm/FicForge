@@ -2,10 +2,27 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { logCatch } from "../api/engine-client";
+import { hasLogger, logCatch } from "../api/engine-client";
 
 export function logUiError(tag: string, message: string, error?: unknown): void {
   logCatch(tag, message, error);
+}
+
+/**
+ * 后台路径告警（与引擎 platformWarn 同口径）：logger 就绪时进日志文件——
+ * 只有文件里的条目能随「导出日志」带走诊断，console 输出带不走；
+ * logger 未就绪（引导早期）降级 console.warn 保证诊断不丢。
+ * 用它替代 UI 生产代码里的裸 console.warn。
+ */
+export function warnUi(tag: string, message: string, error?: unknown): void {
+  if (hasLogger()) {
+    logCatch(tag, message, error);
+    return;
+  }
+  /* eslint-disable no-console */
+  if (error !== undefined) console.warn(`[${tag}] ${message}`, error);
+  else console.warn(`[${tag}] ${message}`);
+  /* eslint-enable no-console */
 }
 
 /**

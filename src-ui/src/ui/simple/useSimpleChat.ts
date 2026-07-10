@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSimpleChat, saveSimpleChat, type SimpleChatMessageEnvelope } from "../../api/engine-client";
+import { warnUi } from "../../utils/ui-logger";
 import {
   makeMessageId,
   nowIso,
@@ -124,8 +125,19 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
   const isLoadedRef = useRef(false);
   const loadErrorRef = useRef<string | null>(null);
   /** 最后一次已交给 saveSimpleChat 的 messages 数组引用 —— 离场时与当前引用比对，
-   * 相同说明防抖窗口里没有未落盘变更，跳过多余写入。 */
+   * 相同说明防抖窗口里没有未落盘变更，跳过多余写入。
+   * 语义（盲审 2026-07-09 中危修复）：发起 save 前乐观置位（防并发重复写），
+   * save **失败时必须回滚为 null** —— 否则后续离场/pagehide flush 会把这批消息
+   * 误判为「已保存」而跳过，磁盘满/权限瞬时拒绝一次就永久丢消息。 */
   const lastSavedMessagesRef = useRef<SimpleChatMessage[] | null>(null);
+
+  /** save 失败统一处理：撤销「已保存」标记让后续 flush 重试，并落日志。 */
+  const rollbackSaveMark = useCallback((attempted: SimpleChatMessage[], err: unknown) => {
+    if (lastSavedMessagesRef.current === attempted) {
+      lastSavedMessagesRef.current = null;
+    }
+    warnUi("useSimpleChat", "saveSimpleChat failed; save mark rolled back for retry on next flush", err);
+  }, []);
   /** 流式 chunk 缓冲：messageId → 待 append 的累积 chunk 字符串。rAF 触发批量
    * 应用到 messages，避免每 chunk 一次 setMessages 让 SimpleChatHistory 整列
    * 重 reconcile（V1 真机卡顿根因之一）。 */
@@ -185,12 +197,13 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
     const timeout = setTimeout(() => {
       if (auPathRef.current !== targetAuPath) return;
       lastSavedMessagesRef.current = messages;
-      void saveSimpleChat(targetAuPath, messages as unknown as SimpleChatMessageEnvelope[]).catch(() => {
-        // save 失败不阻断 UX；这里静默吞，等 C2 进一步加 toast / banner 兜底
+      void saveSimpleChat(targetAuPath, messages as unknown as SimpleChatMessageEnvelope[]).catch((err) => {
+        // save 失败不阻断 UX，但必须回滚标记让离场/pagehide flush 重试（否则永久丢消息）
+        rollbackSaveMark(messages, err);
       });
     }, DEBOUNCE_MS);
     return () => clearTimeout(timeout);
-  }, [auPath, isLoaded, loadError, messages]);
+  }, [auPath, isLoaded, loadError, messages, rollbackSaveMark]);
 
   // 离场 flush（审计 H3）：AU 切换 / 卸载时，200ms 防抖窗口内未落盘的最后一笔立即写出。
   // 没有它，「已接受」等收尾状态回写恰好落在离场前的防抖窗口里就静默丢失 —— 重载后草稿
@@ -202,11 +215,12 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
       const msgs = messagesRef.current;
       if (msgs === lastSavedMessagesRef.current) return;
       lastSavedMessagesRef.current = msgs;
-      void saveSimpleChat(auPath, msgs as unknown as SimpleChatMessageEnvelope[]).catch(() => {
-        // 离场路径连 toast 都没宿主可挂，与防抖路径同口径静默
+      void saveSimpleChat(auPath, msgs as unknown as SimpleChatMessageEnvelope[]).catch((err) => {
+        // 离场路径无宿主可提示；回滚标记 + 落日志（pagehide flush 仍可能兜到）
+        rollbackSaveMark(msgs, err);
       });
     };
-  }, [auPath]);
+  }, [auPath, rollbackSaveMark]);
 
   // pagehide flush（R1-6）：关标签页 / PWA 进后台被回收 / SW 更新强刷时组件 cleanup
   // 不保证执行，防抖窗口内的最后一笔会静默丢。与离场 flush 同一判定逻辑（有未落盘才写），
@@ -217,13 +231,14 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
       const msgs = messagesRef.current;
       if (msgs === lastSavedMessagesRef.current) return;
       lastSavedMessagesRef.current = msgs;
-      void saveSimpleChat(auPathRef.current, msgs as unknown as SimpleChatMessageEnvelope[]).catch(() => {
-        // 页面正在离场，无宿主可提示，静默
+      void saveSimpleChat(auPathRef.current, msgs as unknown as SimpleChatMessageEnvelope[]).catch((err) => {
+        // 页面正在离场，无宿主可提示；回滚标记 +落日志（bfcache 回退后还有机会重试）
+        rollbackSaveMark(msgs, err);
       });
     };
     window.addEventListener("pagehide", flushOnPageHide);
     return () => window.removeEventListener("pagehide", flushOnPageHide);
-  }, []);
+  }, [rollbackSaveMark]);
 
   const appendMessage = useCallback((message: SimpleChatMessage) => {
     setMessages((prev) => [...prev, message]);

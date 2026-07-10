@@ -20,6 +20,7 @@ import {
   getFontById,
 } from "@ficforge/engine";
 import { getFontsService } from "../api/engine-fonts";
+import { warnUi } from "../utils/ui-logger";
 
 export type RuntimeStatus = "not-installed" | "downloading" | "installed" | "error";
 
@@ -103,7 +104,7 @@ export function useFontManager(): FontManagerState {
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
-    refresh().catch((e) => console.warn("[useFontManager] refresh failed:", e));
+    refresh().catch((e) => warnUi("useFontManager", "refresh failed", e));
   }, [refresh]);
 
   // 订阅 service 单例的下载事件，让进度条跨 Modal 生命周期存活（TD-011）。
@@ -124,7 +125,7 @@ export function useFontManager(): FontManagerState {
         delete next[event.id];
         return next;
       });
-      refresh().catch((e) => console.warn("[useFontManager] refresh failed:", e));
+      refresh().catch((e) => warnUi("useFontManager", "refresh failed", e));
     });
     return unsubscribe;
   }, [refresh]);

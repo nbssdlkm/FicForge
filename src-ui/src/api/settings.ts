@@ -4,33 +4,22 @@
 
 /** Settings API */
 
-import type { CustomModelEntry } from "@ficforge/engine";
+import type { CustomModelEntry, EmbeddingConfig, LLMConfig } from "@ficforge/engine";
 
-export interface LlmSettingsInfo {
-  mode?: string;
-  model?: string;
-  api_base?: string;
-  api_key?: string;
-  local_model_path?: string;
-  ollama_model?: string;
-  context_window?: number;
-  /** 非标聊天补全路径（自定义供应商 chatPath）。缺省 = 默认 /chat/completions。 */
-  chat_path?: string;
-}
+/**
+ * engine LLMConfig 的 API 查询/编辑视图：全字段可选 + mode 放宽为 string
+ * （API 边界不传 enum）。从引擎类型派生 —— 引擎增删字段时这里自动跟随，
+ * 不再手工镜像（盲审 2026-07-09 单源化）。
+ */
+export type LlmSettingsInfo = Partial<Omit<LLMConfig, "mode">> & { mode?: string };
 
 export interface ModelParamInfo {
   temperature: number;
   top_p: number;
 }
 
-export interface EmbeddingSettingsInfo {
-  mode?: string;
-  model?: string;
-  api_base?: string;
-  api_key?: string;
-  local_model_path?: string;
-  ollama_model?: string;
-}
+/** engine EmbeddingConfig 的 API 查询/编辑视图（同 LlmSettingsInfo 的派生策略）。 */
+export type EmbeddingSettingsInfo = Partial<Omit<EmbeddingConfig, "mode">> & { mode?: string };
 
 export interface LlmQueryInfo {
   mode: string;
