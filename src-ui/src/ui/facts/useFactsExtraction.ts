@@ -3,7 +3,8 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { addFactsBatch, PartialAddFactsError, submitFactsExtraction, extractedEnrichment, type BatchFactInput, type StateInfo, type ExtractedFactCandidate } from '../../api/engine-client';
+import { submitFactsExtraction, type StateInfo, type ExtractedFactCandidate } from '../../api/engine-client';
+import { saveAcceptedCandidates } from './acceptExtracted';
 import { getEngine } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useFeedback } from '../../hooks/useFeedback';
@@ -175,35 +176,14 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
       const pending = selectedCandidates.filter((c) => !savedCandidatesRef.current.has(c));
       // 整批单锁落库（MED-1）：范围提取的候选跨多章，逐条各自加锁的间隙可被并发 undo 插入，
       // 撤销某章后仍写向该章 = 孤儿事实。批量 API 单锁 + 逐章存在性 CAS，被撤销的章整体跳过。
-      const inputs: BatchFactInput[] = pending.map((candidate) => ({
-        chapterNum: candidate.chapter || 1,
-        data: {
-          content_raw: candidate.content_raw || candidate.content_clean,
-          content_clean: candidate.content_clean,
-          type: candidate.fact_type || candidate.type || 'plot_event',
-          narrative_weight: candidate.narrative_weight || 'medium',
-          status: candidate.status || 'active',
-          characters: candidate.characters || [],
-          ...(candidate.timeline ? { timeline: candidate.timeline } : {}),
-          ...extractedEnrichment(candidate),  // caused_by + M8-A 富化（此前在此丢）
-        },
-      }));
-
-      let added = 0;
-      let skipped = 0;
-      try {
-        const r = await addFactsBatch(requestAuPath, inputs);
-        added = r.added;
-        skipped = r.skipped;
-        // 用精确的 writtenIndices 登记（多章批次 skip/add 交错时前缀 slice 会错位，对抗审发现 3）。
-        r.writtenIndices.forEach((i) => savedCandidatesRef.current.add(pending[i]));
-      } catch (err) {
-        if (err instanceof PartialAddFactsError) {
-          // 半成功：已落盘的按下标精确登记，modal 保持打开、候选不清，重试只补余下（发现 1）。
-          err.writtenIndices.forEach((i) => savedCandidatesRef.current.add(pending[i]));
-        }
-        throw err;
-      }
+      // 共享落库流程（映射/半成功登记/单锁 CAS 单源，见 ./acceptExtracted.ts）。
+      // 范围提取的候选跨多章：章号归属用候选自带 chapter（与 writer 的钉章判据不同，经 chapterOf 注入）。
+      const { added, skipped } = await saveAcceptedCandidates({
+        auPath: requestAuPath,
+        pending,
+        chapterOf: (candidate) => candidate.chapter || 1,
+        registerSaved: (c) => savedCandidatesRef.current.add(c),
+      });
       if (guard.isKeyStale(requestAuPath)) return;
 
       if (added === 0 && skipped > 0) {
@@ -227,16 +207,21 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
     }
   };
 
+  /** 关闭候选审阅弹窗（保留候选与勾选 —— 半成功重试语义不受影响）。 */
+  const closeExtractModal = () => setExtractModalOpen(false);
+
+  /** 关闭范围选择弹窗。 */
+  const closeExtractRange = () => setExtractRangeOpen(false);
+
   return {
     extracting,
-    setExtracting,
     extractModalOpen,
-    setExtractModalOpen,
+    closeExtractModal,
     extractedCandidates,
-    setExtractedCandidates,
     selectedExtractedKeys,
     extractRangeOpen,
-    setExtractRangeOpen,
+    closeExtractRange,
+    // setExtractRange：范围双数字输入的受控绑定（铁律允许的例外）
     extractRange,
     setExtractRange,
     extractProgress,

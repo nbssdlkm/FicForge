@@ -99,11 +99,31 @@ export function useFactEditor(auPath: string, currentChapter: number, onSaved: (
     }
   };
 
+  /** 打开某条笔记的编辑视图。 */
+  const startEditFact = (fact: FactInfo) => setEditingFact(fact);
+
+  /** 关闭编辑视图（取消选择 / 关弹窗共用）。 */
+  const closeEditFact = () => setEditingFact(null);
+
+  /**
+   * 生命周期操作（弃用/取消归档等）成功后，把编辑视图里的这条同步为最新字段 ——
+   * 语义化注入方法（用引擎结果同步），不是裸 setState。
+   */
+  const patchEditingFact = (patch: Partial<FactInfo>) =>
+    setEditingFact((prev) => (prev ? { ...prev, ...patch } : null));
+
+  const openAddModal = () => setAddModalOpen(true);
+  const closeAddModal = () => setAddModalOpen(false);
+
   return {
     editingFact,
-    setEditingFact,
+    startEditFact,
+    closeEditFact,
+    patchEditingFact,
     isAddModalOpen,
-    setAddModalOpen,
+    openAddModal,
+    closeAddModal,
+    // 以下 setNew*：新建/编辑表单字段的受控绑定（textarea/select 双向绑定，铁律允许的例外）
     newContentRaw,
     setNewContentRaw,
     newContentClean,

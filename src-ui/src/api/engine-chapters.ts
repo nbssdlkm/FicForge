@@ -42,7 +42,7 @@ import { ApiError, getFriendlyErrorMessage } from "./client";
 import { getEngine, getProjectOrThrow } from "./engine-instance";
 import { createEmbeddingProvider } from "./engine-state";
 import { extractFacts } from "./engine-facts";
-import { extractedEnrichment, type ExtractedFactCandidate } from "./facts";
+import { buildFactDataFromCandidate, type ExtractedFactCandidate } from "./facts";
 
 export async function listChapters(auPath: string) {
   const { chapter, state } = getEngine().repos;
@@ -516,16 +516,8 @@ export async function backfillChapterMemory(
               // 归属强制用 t.chapterNum —— backfill 明确知道笔记提自哪一章，不信任 LLM 候选里
               // 可能幻觉的 chapter 字段（防错章归属，对抗审 NIT）。
               t.chapterNum,
-              {
-                content_raw: c.content_raw || c.content_clean,
-                content_clean: c.content_clean,
-                type: c.fact_type || c.type || "plot_event",
-                narrative_weight: c.narrative_weight || "medium",
-                status: c.status || "active",
-                characters: c.characters || [],
-                ...(c.timeline ? { timeline: c.timeline } : {}),
-                ...extractedEnrichment(c), // caused_by + M8-A 富化
-              },
+              buildFactDataFromCandidate(c), // 单源映射（盲审 2026-07-11）
+
               fact,
               ops,
             );

@@ -99,7 +99,7 @@ describe("useFactsFilter · 分页与分组", () => {
     expect(result.current.paginatedFacts).toHaveLength(50);
     expect(result.current.hasMoreFacts).toBe(true);
 
-    act(() => result.current.setVisibleCount(100));
+    act(() => result.current.showMoreFacts());
     expect(result.current.paginatedFacts).toHaveLength(60);
     expect(result.current.hasMoreFacts).toBe(false);
 
@@ -123,8 +123,8 @@ describe("useFactsFilter · 分页与分组", () => {
       result.current.setStatusFilter("stale");
       result.current.setChapterFilter(2);
       result.current.setCharacterFilter("甲");
-      result.current.setVisibleCount(100);
-      result.current.setFilterOpen(true);
+      result.current.showMoreFacts();
+      result.current.toggleFilterPanel();
     });
 
     act(() => result.current.resetFilters());

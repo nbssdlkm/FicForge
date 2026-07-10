@@ -47,6 +47,25 @@ export interface ExtractFactsResponse {
 }
 
 /**
+ * 「提取候选 → 事实入库 payload」的单一映射（盲审 2026-07-11 重复维：此前在
+ * DirtyModal / useWriterFactsExtraction / useFactsExtraction / engine-chapters 四处
+ * 手写并已实际漂移 —— DirtyModal 缺 content_raw 兜底、timeline 落空串）。
+ * 兜底口径：content_raw 为空回退 content_clean；timeline 无值不带键。
+ */
+export function buildFactDataFromCandidate(c: ExtractedFactCandidate): Record<string, unknown> {
+  return {
+    content_raw: c.content_raw || c.content_clean,
+    content_clean: c.content_clean,
+    type: c.fact_type || c.type || 'plot_event',
+    narrative_weight: c.narrative_weight || 'medium',
+    status: c.status || 'active',
+    characters: c.characters || [],
+    ...(c.timeline ? { timeline: c.timeline } : {}),
+    ...extractedEnrichment(c),  // caused_by + M8-A 富化
+  };
+}
+
+/**
  * 从提取候选里抽出「确认落库时该一并带上」的富化/因果字段，供 addFact spread。
  * 单一真相源：三处确认路径（writer / FactsPage / DirtyModal）都用它，避免各自手维字段清单漂移。
  * 仅带「有值」的键（null/空数组/undefined 跳过），保持 addFact payload 干净。

@@ -60,7 +60,7 @@ describe("useFactEditor · handleAddFact", () => {
   it("成功：挂在最近定稿章（current_chapter-1）、raw 缺省回退 clean、关 modal 重置字段", async () => {
     const { hook, onSaved } = setup(5);
     act(() => {
-      hook.result.current.setAddModalOpen(true);
+      hook.result.current.openAddModal();
       hook.result.current.setNewContentClean("主角拿到钥匙");
       hook.result.current.setNewType("relationship");
     });
@@ -91,7 +91,7 @@ describe("useFactEditor · handleAddFact", () => {
     vi.mocked(addFact).mockRejectedValueOnce(new Error("EACCES"));
     const { hook, onSaved } = setup();
     act(() => {
-      hook.result.current.setAddModalOpen(true);
+      hook.result.current.openAddModal();
       hook.result.current.setNewContentClean("会失败的笔记");
     });
 
@@ -127,7 +127,7 @@ describe("useFactEditor · handleAddFact", () => {
     vi.mocked(addFact).mockReturnValue(pending.promise as never);
     const { hook, onSaved } = setup();
     act(() => {
-      hook.result.current.setAddModalOpen(true);
+      hook.result.current.openAddModal();
       hook.result.current.setNewContentClean("笔记");
     });
 
@@ -163,7 +163,7 @@ describe("useFactEditor · handleSaveFact", () => {
 
   it("成功：从编辑 refs 收集字段（characters 去空白/去空项）、saveSuccess 亮起、editingFact 就地合并", async () => {
     const { hook, onSaved } = setup();
-    act(() => hook.result.current.setEditingFact(FACT));
+    act(() => hook.result.current.startEditFact(FACT));
     attachEditRefs(hook);
 
     await act(() => hook.result.current.handleSaveFact());
@@ -183,7 +183,7 @@ describe("useFactEditor · handleSaveFact", () => {
   it("失败：showError、编辑态保留、saving 复位", async () => {
     vi.mocked(editFact).mockRejectedValueOnce(new Error("conflict"));
     const { hook, onSaved } = setup();
-    act(() => hook.result.current.setEditingFact(FACT));
+    act(() => hook.result.current.startEditFact(FACT));
     attachEditRefs(hook);
 
     await act(() => hook.result.current.handleSaveFact());
@@ -193,5 +193,23 @@ describe("useFactEditor · handleSaveFact", () => {
     expect(hook.result.current.saveSuccess).toBe(false);
     expect(onSaved).not.toHaveBeenCalled();
     expect(hook.result.current.savingFact).toBe(false);
+  });
+});
+
+describe("patchEditingFact（B4 对抗审：空守卫分支）", () => {
+  const FACT = { id: "f1", content_clean: "旧内容", characters: ["A"] } as unknown as FactInfo;
+
+  it("编辑中：按 patch 合并字段", () => {
+    const { hook } = setup();
+    act(() => hook.result.current.startEditFact(FACT));
+    act(() => hook.result.current.patchEditingFact({ status: "deprecated" } as Partial<FactInfo>));
+    expect((hook.result.current.editingFact as unknown as { status: string })?.status).toBe("deprecated");
+    expect(hook.result.current.editingFact?.id).toBe(FACT.id);
+  });
+
+  it("编辑视图已关（异步生命周期操作迟到 resolve）：保持 null 不复活", () => {
+    const { hook } = setup();
+    act(() => hook.result.current.patchEditingFact({ archived: false } as Partial<FactInfo>));
+    expect(hook.result.current.editingFact).toBeNull();
   });
 });

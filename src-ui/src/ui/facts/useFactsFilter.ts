@@ -52,6 +52,12 @@ export function useFactsFilter(facts: FactInfo[], state: StateInfo | null) {
     return [...groups.entries()].sort((a, b) => a[0] - b[0]);
   }, [paginatedFacts]);
 
+  /** 展开/收起筛选面板（动词方法，hook 铁律：不外泄裸 setter）。 */
+  const toggleFilterPanel = () => setFilterOpen((prev) => !prev);
+
+  /** 「加载更多」分页翻页 —— FACTS_PAGE_SIZE 判据留在本 hook（此前 FactsLayout 各自复刻常量）。 */
+  const showMoreFacts = () => setVisibleCount((prev) => prev + FACTS_PAGE_SIZE);
+
   const resetFilters = () => {
     setFilter('');
     setStatusFilter('');
@@ -62,18 +68,20 @@ export function useFactsFilter(facts: FactInfo[], state: StateInfo | null) {
   };
 
   return {
+    // setFilter/setStatusFilter/setChapterFilter/setCharacterFilter：筛选控件的受控绑定
+    //（input/select value+onChange 双向绑定，hook 铁律允许的例外）
     filter,
     setFilter,
     statusFilter,
     setStatusFilter,
     filterOpen,
-    setFilterOpen,
+    toggleFilterPanel,
     chapterFilter,
     setChapterFilter,
     characterFilter,
     setCharacterFilter,
     visibleCount,
-    setVisibleCount,
+    showMoreFacts,
     uniqueChapters,
     uniqueCharacters,
     filteredFacts,

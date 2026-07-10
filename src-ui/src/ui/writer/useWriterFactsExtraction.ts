@@ -3,7 +3,8 @@
 // See LICENSE file in the project root for full license text.
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { extractFacts, addFactsBatch, PartialAddFactsError, extractedEnrichment, type BatchFactInput, type ExtractedFactCandidate } from '../../api/engine-client';
+import { extractFacts, type ExtractedFactCandidate } from '../../api/engine-client';
+import { saveAcceptedCandidates } from '../facts/acceptExtracted';
 import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import {
   getSkipFactsPromptDefault,
@@ -128,36 +129,13 @@ export function useWriterFactsExtraction(
       // 归属用「本次提取所处理的确定章号」targetChapter，而非 LLM 候选里可能幻觉的
       // candidate.chapter —— 对齐 backfill persistChapter「不信任 LLM chapter 字段」的口径（审计⑧）。
       // 提取是对单章跑的，所有候选都归该章；仅在极端缺失时才回退。
-      const inputs: BatchFactInput[] = pending.map((candidate) => ({
-        chapterNum: targetChapter ?? candidate.chapter ?? 1,
-        data: {
-          content_raw: candidate.content_raw || candidate.content_clean,
-          content_clean: candidate.content_clean,
-          type: candidate.fact_type || candidate.type || 'plot_event',
-          narrative_weight: candidate.narrative_weight || 'medium',
-          status: candidate.status || 'active',
-          characters: candidate.characters || [],
-          ...(candidate.timeline ? { timeline: candidate.timeline } : {}),
-          ...extractedEnrichment(candidate),  // caused_by + M8-A 富化（此前在此丢）
-        },
-      }));
-
-      // 整批单锁落库（MED-1）：并发 undo 无法插进批次；目标章被撤销则整批 skipped，不写孤儿。
-      let added = 0;
-      let skipped = 0;
-      try {
-        const r = await addFactsBatch(auPath, inputs);
-        added = r.added;
-        skipped = r.skipped;
-        // 用精确的 writtenIndices 登记（不靠前缀 slice，混章也不错位）。
-        r.writtenIndices.forEach((i) => savedCandidatesRef.current.add(pending[i]));
-      } catch (err) {
-        if (err instanceof PartialAddFactsError) {
-          // 半成功：已落盘的按下标精确登记，重试只补余下。
-          err.writtenIndices.forEach((i) => savedCandidatesRef.current.add(pending[i]));
-        }
-        throw err;
-      }
+      // 共享落库流程（映射/半成功登记/单锁 CAS 单源，见 facts/acceptExtracted.ts）
+      const { added, skipped } = await saveAcceptedCandidates({
+        auPath,
+        pending,
+        chapterOf: (candidate) => targetChapter ?? candidate.chapter ?? 1,
+        registerSaved: (c) => savedCandidatesRef.current.add(c),
+      });
       if (guard.isKeyStale(requestAuPath)) return;
 
       if (added === 0 && skipped > 0) {
@@ -224,22 +202,26 @@ export function useWriterFactsExtraction(
     };
   }, [auPath]);
 
+  /** 打开「提取剧情笔记？」提示条（动词方法，取代外泄裸 setter —— 盲审 2026-07-11 架构维）。 */
+  const openFactsPrompt = useCallback(() => setFactsPromptOpen(true), []);
+
+  /** 关提示条但**不回焦**写作输入框 —— 供「用户明确离开写作 tab」的路径用
+   *（B4 对抗审：closeFactsPrompt 的 focus 副作用不该跟着导航离开走）。 */
+  const dismissFactsPrompt = useCallback(() => setFactsPromptOpen(false), []);
+
   return {
-    // state
+    // state（内部状态一律不再外泄裸 setter；其余 5 个旧 setter 均无外部消费方，直接停止导出）
     isFactsPromptOpen,
-    setFactsPromptOpen,
+    openFactsPrompt,
+    closeFactsPrompt,
+    dismissFactsPrompt,
     isExtractReviewOpen,
-    setExtractReviewOpen,
     extractingFacts,
-    setExtractingFacts,
     savingExtracted,
-    setSavingExtracted,
     extractedCandidates,
-    setExtractedCandidates,
     selectedExtractedKeys,
     clearSelection,
     skipFactsPrompt,
-    setSkipFactsPrompt,
 
     // handlers
     handleFactsPromptToggle,
