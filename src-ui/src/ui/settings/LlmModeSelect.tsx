@@ -64,7 +64,7 @@ export function LlmModeSelect({
         disabled={disabled}
         className={
           className ??
-          'h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent disabled:opacity-60 dark:border-white/20 md:h-10 md:text-sm'
+          'h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent disabled:opacity-60 dark:border-white/20 md:h-10 md:text-sm'
         }
       >
         {options.map(({ mode, availability }) => (

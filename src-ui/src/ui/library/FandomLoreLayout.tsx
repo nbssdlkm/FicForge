@@ -697,7 +697,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
         <Button
           tone="neutral" fill="plain"
           size="sm"
-          className="fixed right-3 top-16 z-20 h-8 px-2 bg-surface border border-black/10 dark:border-white/10 shadow-sm"
+          className="fixed right-3 top-16 z-20 h-8 px-2 bg-surface border border-black/10 dark:border-white/10 shadow-xs"
           onClick={() => setAiPanelOpen(true)}
         >
           <MessageSquare size={14} className="mr-1" /> AI

@@ -368,7 +368,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
               <select
                 value={i18n.resolvedLanguage === 'en' ? 'en' : 'zh'}
                 onChange={(e) => { changeLanguage(e.target.value as AppLanguage).catch((err) => showError(err, t('error_messages.unknown'))); }}
-                className="h-11 w-full rounded-sm border border-rule bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent md:h-10 md:w-48 md:text-sm"
+                className="h-11 w-full rounded-sm border border-rule bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent md:h-10 md:w-48 md:text-sm"
               >
                 {SUPPORTED_LANGUAGES.map(lang => (
                   <option key={lang} value={lang}>
@@ -395,7 +395,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean, onCl
                     showError(err, t('error_messages.unknown'));
                   }
                 }}
-                className="h-11 w-full rounded-sm border border-rule bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent md:h-10 md:w-48 md:text-sm"
+                className="h-11 w-full rounded-sm border border-rule bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent md:h-10 md:w-48 md:text-sm"
               >
                 <option value="on">{t('settings.global.reactExtractionOn', { defaultValue: '开启（推荐）' })}</option>
                 <option value="off">{t('settings.global.reactExtractionOff', { defaultValue: '关闭' })}</option>

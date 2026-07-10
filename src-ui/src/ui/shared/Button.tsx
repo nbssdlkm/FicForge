@@ -38,7 +38,7 @@ const sizes = {
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, tone = 'accent', fill = 'solid', size = 'md', ...props }, ref) => {
     const baseStyles =
-      'inline-flex items-center justify-center gap-1.5 rounded-[3px] font-sans text-base md:text-sm font-medium tracking-[0.02em] transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50';
+      'inline-flex items-center justify-center gap-1.5 rounded-[3px] font-sans text-base md:text-sm font-medium tracking-[0.02em] transition-all duration-150 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50';
 
     return (
       <button

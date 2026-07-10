@@ -159,7 +159,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           <div className="flex flex-col gap-2">
             <label className="text-sm font-bold text-text/90">{t('common.labels.factStatus')}</label>
             <select
-              className="h-11 rounded-md border border-black/20 bg-surface px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
+              className="h-11 rounded-md border border-black/20 bg-surface px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
               value={editor.editingFact.status}
               onChange={(e) => handleStatusChange(editor.editingFact!.id, e.target.value)}
             >
@@ -175,7 +175,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             <select
               ref={editor.editWeightRef}
               defaultValue={editor.editingFact.narrative_weight || 'medium'}
-              className="h-11 rounded-md border border-black/20 bg-surface px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
+              className="h-11 rounded-md border border-black/20 bg-surface px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
             >
               <option value="low">{getEnumLabel('narrative_weight', 'low', 'low')}</option>
               <option value="medium">{getEnumLabel('narrative_weight', 'medium', 'medium')}</option>
@@ -341,7 +341,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
     return (
       <>
         <div className="min-h-full bg-background pb-28 md:hidden">
-          <header className="safe-area-top sticky top-0 z-20 border-b border-black/10 bg-surface/90 px-4 py-4 backdrop-blur dark:border-white/10">
+          <header className="safe-area-top sticky top-0 z-20 border-b border-black/10 bg-surface/90 px-4 py-4 backdrop-blur-sm dark:border-white/10">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h1 className="font-serif text-2xl font-bold">{t('facts.title')}</h1>
@@ -382,7 +382,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 <select
                   value={factsFilter.chapterFilter ?? ''}
                   onChange={e => factsFilter.setChapterFilter(e.target.value ? Number(e.target.value) : null)}
-                  className="h-11 rounded-md border border-black/10 bg-background px-3 text-base outline-none focus:ring-1 focus:ring-accent dark:border-white/15 md:text-sm"
+                  className="h-11 rounded-md border border-black/10 bg-background px-3 text-base outline-hidden focus:ring-1 focus:ring-accent dark:border-white/15 md:text-sm"
                 >
                   <option value="">{t('facts.filterAllChapters')}</option>
                   {factsFilter.uniqueChapters.map(ch => (
@@ -392,7 +392,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 <select
                   value={factsFilter.characterFilter}
                   onChange={e => factsFilter.setCharacterFilter(e.target.value)}
-                  className="h-11 rounded-md border border-black/10 bg-background px-3 text-base outline-none focus:ring-1 focus:ring-accent dark:border-white/15 md:text-sm"
+                  className="h-11 rounded-md border border-black/10 bg-background px-3 text-base outline-hidden focus:ring-1 focus:ring-accent dark:border-white/15 md:text-sm"
                 >
                   <option value="">{t('facts.filterAllCharacters')}</option>
                   {factsFilter.uniqueCharacters.map(c => (
@@ -539,7 +539,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             ) : (
               factsFilter.groupedFacts.map(([chapterNum, chapterFacts]) => (
                 <div key={chapterNum} className="space-y-3">
-                  <div className="sticky top-[148px] z-10 rounded-xl border border-black/5 bg-background/92 px-3 py-2 text-xs font-medium text-text/50 backdrop-blur dark:border-white/5">
+                  <div className="sticky top-[148px] z-10 rounded-xl border border-black/5 bg-background/92 px-3 py-2 text-xs font-medium text-text/50 backdrop-blur-sm dark:border-white/5">
                     {t('facts.chapterGroup', { num: chapterNum })} ({chapterFacts.length})
                   </div>
                   {chapterFacts.map(fact => (
@@ -603,7 +603,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
             </div>
             <Button
               tone={factsFilter.filterOpen || factsFilter.chapterFilter !== null || factsFilter.characterFilter ? 'accent' : 'neutral'} fill={factsFilter.filterOpen || factsFilter.chapterFilter !== null || factsFilter.characterFilter ? 'solid' : 'outline'}
-              className="px-2.5 h-8 flex-shrink-0"
+              className="px-2.5 h-8 shrink-0"
               title={t('facts.filterTitle')}
               onClick={() => factsFilter.setFilterOpen(!factsFilter.filterOpen)}
             >
@@ -616,7 +616,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               <select
                 value={factsFilter.chapterFilter ?? ''}
                 onChange={e => factsFilter.setChapterFilter(e.target.value ? Number(e.target.value) : null)}
-                className="h-7 rounded-md border border-black/10 dark:border-white/15 bg-background px-2 text-xs focus:ring-1 focus:ring-accent outline-none"
+                className="h-7 rounded-md border border-black/10 dark:border-white/15 bg-background px-2 text-xs focus:ring-1 focus:ring-accent outline-hidden"
               >
                 <option value="">{t('facts.filterAllChapters')}</option>
                 {factsFilter.uniqueChapters.map(ch => (
@@ -626,7 +626,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               <select
                 value={factsFilter.characterFilter}
                 onChange={e => factsFilter.setCharacterFilter(e.target.value)}
-                className="h-7 rounded-md border border-black/10 dark:border-white/15 bg-background px-2 text-xs focus:ring-1 focus:ring-accent outline-none"
+                className="h-7 rounded-md border border-black/10 dark:border-white/15 bg-background px-2 text-xs focus:ring-1 focus:ring-accent outline-hidden"
               >
                 <option value="">{t('facts.filterAllCharacters')}</option>
                 {factsFilter.uniqueCharacters.map(c => (
@@ -778,7 +778,7 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
           ) : (
             factsFilter.groupedFacts.map(([chapterNum, chapterFacts]) => (
               <div key={chapterNum}>
-                <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm px-1 py-1.5 text-xs font-medium text-text/50 border-b border-black/5 dark:border-white/5">
+                <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-xs px-1 py-1.5 text-xs font-medium text-text/50 border-b border-black/5 dark:border-white/5">
                   {t('facts.chapterGroup', { num: chapterNum })} ({chapterFacts.length})
                 </div>
                 <div className="space-y-3 pt-2">

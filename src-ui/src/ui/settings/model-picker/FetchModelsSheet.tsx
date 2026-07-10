@@ -236,9 +236,9 @@ export function FetchModelsSheet({
                       <span className="ml-auto font-normal text-text/40">{group.ids.length}</span>
                     </button>
                     {!collapsed.has(group.key) && (
-                      <div className="divide-y divide-rule/50">
+                      <div className="divide-y divide-rule">
                         {group.ids.map((id) => (
-                          <label key={id} className="flex min-h-[38px] cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-rule-soft/50">
+                          <label key={id} className="flex min-h-[38px] cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-rule-soft">
                             <input
                               type="checkbox"
                               className="accent-accent"

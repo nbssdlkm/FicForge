@@ -121,7 +121,7 @@ export function LibraryFandomSections({
               }}
               // v13 .drawer-banner: padding 12px 14px on mobile. Slightly more
               // generous on desktop because the banner spans the full grid width.
-              className="group relative w-full cursor-pointer select-none rounded-sm bg-drawer px-[14px] py-3 text-left transition-[filter] hover:brightness-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright focus-visible:ring-offset-2 focus-visible:ring-offset-background md:px-4 md:py-[14px]"
+              className="group relative w-full cursor-pointer select-none rounded-sm bg-drawer px-[14px] py-3 text-left transition-[filter] hover:brightness-[1.04] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-bright focus-visible:ring-offset-2 focus-visible:ring-offset-background md:px-4 md:py-[14px]"
               style={drawerGoldLines}
               aria-expanded={!isCollapsed}
               aria-label={fandom.name}

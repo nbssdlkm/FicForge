@@ -111,7 +111,7 @@ export function MobileSettingsView({ auPath, currentChapter }: MobileSettingsVie
 
       {overlayOpen ? (
         <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
-          <header className="safe-area-top flex items-center justify-between border-b border-rule bg-surface/95 px-4 py-3 backdrop-blur">
+          <header className="safe-area-top flex items-center justify-between border-b border-rule bg-surface/95 px-4 py-3 backdrop-blur-sm">
             <Button
               tone="neutral" fill="plain"
               size="sm"

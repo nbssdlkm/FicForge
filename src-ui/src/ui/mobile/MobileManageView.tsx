@@ -39,7 +39,7 @@ export function MobileManageView({
 
   return (
     <section className="flex h-full flex-col overflow-y-auto bg-background md:hidden">
-      <header className="safe-area-top border-b border-rule bg-surface/85 px-4 py-4 backdrop-blur">
+      <header className="safe-area-top border-b border-rule bg-surface/85 px-4 py-4 backdrop-blur-sm">
         <div className="mt-2 inline-flex w-full rounded-sm border border-rule bg-background/60 p-1">
           {[
             { id: "facts", label: t("facts.title"), Icon: SlidersHorizontal },

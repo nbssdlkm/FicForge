@@ -55,7 +55,7 @@ export function SessionModelPicker({ model, onModelChange, layer, options, disab
             onChange={(e) => onModelChange(e.target.value)}
             placeholder={t("modelPicker.manualModelPlaceholder")}
             disabled={disabled}
-            className="h-11 min-w-0 flex-1 rounded-md border border-black/20 bg-background px-3 text-base text-text placeholder:text-text/50 outline-none focus:ring-1 focus:ring-accent dark:border-white/20 md:h-8 md:px-2 md:text-xs"
+            className="h-11 min-w-0 flex-1 rounded-md border border-black/20 bg-background px-3 text-base text-text placeholder:text-text/50 outline-hidden focus:ring-1 focus:ring-accent dark:border-white/20 md:h-8 md:px-2 md:text-xs"
           />
           {options.length > 0 && (
             <button
@@ -75,7 +75,7 @@ export function SessionModelPicker({ model, onModelChange, layer, options, disab
             onChange={(e) => onModelChange(e.target.value)}
             disabled={disabled}
             aria-label={t("common.labels.model")}
-            className="h-11 min-w-0 flex-1 rounded-md border border-black/20 bg-background px-3 text-base text-text outline-none focus:ring-1 focus:ring-accent dark:border-white/20 md:h-8 md:px-2 md:text-xs"
+            className="h-11 min-w-0 flex-1 rounded-md border border-black/20 bg-background px-3 text-base text-text outline-hidden focus:ring-1 focus:ring-accent dark:border-white/20 md:h-8 md:px-2 md:text-xs"
           >
             {!modelInOptions && (
               <option value="" disabled>{model || t("modelPicker.selectModelHint")}</option>

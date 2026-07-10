@@ -37,14 +37,14 @@ export function AuSettingsWritingSection({
         <div className="flex flex-col gap-4">
            <div className="flex flex-col gap-2">
              <label className="text-sm font-bold text-text/90">{t("common.labels.perspective")}</label>
-             <select value={perspective} onChange={e => setPerspective(e.target.value)} className="h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm">
+             <select value={perspective} onChange={e => setPerspective(e.target.value)} className="h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm">
                <option value="third_person">{getEnumLabel("perspective", "third_person", "third_person")}</option>
                <option value="first_person">{getEnumLabel("perspective", "first_person", "first_person")}</option>
              </select>
            </div>
            <div className="flex flex-col gap-2">
              <label className="text-sm font-bold text-text/90">{t("common.labels.emotionStyle")}</label>
-             <select value={emotionStyle} onChange={e => setEmotionStyle(e.target.value)} className="h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm">
+             <select value={emotionStyle} onChange={e => setEmotionStyle(e.target.value)} className="h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm">
                <option value="implicit">{getEnumLabel("emotion_style", "implicit", "implicit")}</option>
                <option value="explicit">{getEnumLabel("emotion_style", "explicit", "explicit")}</option>
              </select>

@@ -246,7 +246,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
         <div className="border-t border-black/10 dark:border-white/10 pt-4">
           <Button
             tone="accent" fill="solid"
-            className="w-full h-11 text-sm shadow-sm"
+            className="w-full h-11 text-sm shadow-xs"
             onClick={handleResolve}
             disabled={resolving || isLoading}
           >

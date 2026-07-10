@@ -180,7 +180,7 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
             <p className="truncate font-sans text-xs text-ink-faint">{t('threads.subtitle')}</p>
           </div>
         </div>
-        <Button tone="accent" fill="solid" size="sm" className="shrink-0 gap-1 shadow-sm" onClick={() => setEditing(emptyDraft())}>
+        <Button tone="accent" fill="solid" size="sm" className="shrink-0 gap-1 shadow-xs" onClick={() => setEditing(emptyDraft())}>
           <Plus size={15} /> {t('threads.newThread')}
         </Button>
       </header>
@@ -218,7 +218,7 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
                         key={th.id}
                         type="button"
                         onClick={() => setSelectedThreadId(th.id)}
-                        className="group relative flex flex-col gap-2 rounded-sm border border-rule bg-surface py-3 pl-5 pr-4 text-left transition-colors hover:border-gold/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-bright"
+                        className="group relative flex flex-col gap-2 rounded-sm border border-rule bg-surface py-3 pl-5 pr-4 text-left transition-colors hover:border-gold/50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-bright"
                       >
                         {/* 金色书脊 */}
                         <span aria-hidden className="pointer-events-none absolute left-0 top-3 bottom-3 w-[2px] rounded-r bg-gold opacity-65" />
@@ -288,7 +288,7 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
                 aria-label={t('threads.field.status')}
                 value={editing.status}
                 onChange={e => setEditing({ ...editing, status: e.target.value as ThreadStatus })}
-                className="h-11 w-full rounded-md border border-black/20 bg-surface px-3 text-base outline-none focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
+                className="h-11 w-full rounded-md border border-black/20 bg-surface px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
               >
                 {STATUS_ORDER.map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
               </select>

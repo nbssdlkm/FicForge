@@ -487,7 +487,7 @@ export const AuLoreLayout = ({ auPath, onChaptersChanged }: {
             </span>
           ))}
           <input
-            className="min-w-[80px] flex-1 bg-transparent text-xs font-sans outline-none placeholder:text-text/30"
+            className="min-w-[80px] flex-1 bg-transparent text-xs font-sans outline-hidden placeholder:text-text/30"
             placeholder={t('auLore.aliasPlaceholder')}
             value={newAlias}
             onChange={e => setNewAlias(e.target.value)}
@@ -588,7 +588,7 @@ export const AuLoreLayout = ({ auPath, onChaptersChanged }: {
     return (
       <>
         <div className="min-h-full bg-background pb-28 md:hidden">
-          <header className="safe-area-top sticky top-0 z-20 border-b border-black/10 bg-surface/90 px-4 py-4 backdrop-blur dark:border-white/10">
+          <header className="safe-area-top sticky top-0 z-20 border-b border-black/10 bg-surface/90 px-4 py-4 backdrop-blur-sm dark:border-white/10">
             <div className="flex items-center justify-between gap-3">
               {selectedFile ? (
                 <div className="flex min-w-0 items-center gap-2">

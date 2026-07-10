@@ -181,7 +181,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
     const displayName = selectedFile.replace(/\.md$/, "");
     return (
       <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
-        <header className="safe-area-top flex items-center justify-between border-b border-black/10 bg-surface/95 px-4 py-3 backdrop-blur dark:border-white/10">
+        <header className="safe-area-top flex items-center justify-between border-b border-black/10 bg-surface/95 px-4 py-3 backdrop-blur-sm dark:border-white/10">
           <Button tone="neutral" fill="plain" size="sm" className="h-11 px-3" onClick={() => setSelectedFile(null)}>
             <ArrowLeft size={16} className="mr-2" />
             {t("common.actions.back")}
@@ -257,7 +257,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
   return (
     <section className="flex h-full flex-col bg-background md:hidden">
       {/* Header */}
-      <header className="safe-area-top border-b border-rule bg-surface/85 px-4 py-4 backdrop-blur">
+      <header className="safe-area-top border-b border-rule bg-surface/85 px-4 py-4 backdrop-blur-sm">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -274,7 +274,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
       </header>
 
       {/* Category tabs */}
-      <div className="border-b border-rule/60 px-4 pt-3">
+      <div className="border-b border-rule px-4 pt-3">
         <div className="inline-flex w-full rounded-sm border border-rule bg-background/60 p-1">
           {(["core_characters", "core_worldbuilding"] as const).map((cat) => {
             const Icon = cat === "core_characters" ? Users : Globe2;
@@ -380,7 +380,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
       {/* AI assistant overlay */}
       {aiOverlayOpen && (
         <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
-          <header className="safe-area-top flex items-center justify-between border-b border-rule bg-surface/95 px-4 py-3 backdrop-blur">
+          <header className="safe-area-top flex items-center justify-between border-b border-rule bg-surface/95 px-4 py-3 backdrop-blur-sm">
             <Button tone="neutral" fill="plain" size="sm" className="h-11 px-3" onClick={() => setAiOverlayOpen(false)}>
               <ArrowLeft size={16} className="mr-2" />
               {t("common.actions.back")}

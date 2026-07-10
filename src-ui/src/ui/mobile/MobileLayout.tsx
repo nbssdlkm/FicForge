@@ -124,7 +124,7 @@ export function MobileLayout({
           border-box 下固定 h-11 会被这份 padding 吃掉内容高度（刘海机 inset 44-59px
           > 44px → 内容被压成 0）。改为 min-height = 44px 内容 + inset，让 header
           随 inset 自然长高。 */}
-      <header className="safe-area-top flex min-h-[calc(2.75rem+var(--safe-area-top))] shrink-0 items-center justify-between border-b border-rule bg-surface/85 px-3 backdrop-blur">
+      <header className="safe-area-top flex min-h-[calc(2.75rem+var(--safe-area-top))] shrink-0 items-center justify-between border-b border-rule bg-surface/85 px-3 backdrop-blur-sm">
         <button
           type="button"
           className="flex items-center gap-1 font-sans text-[11px] font-medium tracking-[0.04em] text-accent"
