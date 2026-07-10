@@ -5,6 +5,8 @@
 
 ## 当前状态（2026-07-09/10）
 
+**2026-07-10 长期债②第二块（worktree 分支 `claude/practical-blackwell-0baf08`，已提交等人工确认合并）**：AuLoreLayout 状态下沉完成 —— 946 → 600 行、25 useState → 0（原台账记 26），完全复制 AuSettingsLayout 打法拆 4 hooks：`useAuLoreData`（project/角色/世界观双列表 + loadKey + trash token，列表局部更新走语义化方法）/ `useAuLoreEditor`（选中/正文/别名/预览/搜索/折叠，loadKey 触发 reconcile + 列表 ref shim）/ `useAuLoreModals`（四弹窗 + 新建名 + pin 里程碑横幅）/ `useAuLoreActions`（保存/删除/新建/导入/pin 五个写路径共用单一 isSaving 互斥闸 → 单 owner；deps 只传值+动词方法、整体 ref shim）；AuLoreModals props 语义化（setXxxOpen → closeXxx）。顺手修 3 个存量 bug：①`files` 列表误按当时 selectedCategory 拉取（停在世界观分类时切 AU/导入会把世界观列表灌进角色区）→ 固定拉 characters 并 reconcile 按分类对表；②新建/读失败路径不重置别名 → 上一文件的别名会被误写进新文件；③回收站恢复角色 `entity_name` 带 .md 后缀 → 列表显示 `x.md.md` 且 cast registry 被插入带后缀名（preview 实测抓到，修复 + 测试锁定）。新增 9 条布局回归测试（双列表加载判据/别名 round-trip/新建回滚链/删除清理/导入过滤+reload/pin 引导/回收站分流/切 AU）。验证：UI tsc 0 错 + 513 测试全绿（+9）+ i18n 1271 对称 + preview 双端眼验（桌面 1280：新建→别名→保存→重开 round-trip、pin 三连+去编辑、导入空态、删除→恢复、世界观分区；移动 375：5-tab 设定、分类切换、开文件/返回）零 console 告警。
+
 **2026-07-09 长期债②第一块**：AuSettingsLayout 状态下沉完成 —— 31 useState → 0（534 → 338 行），按 hook 铁律拆 4 个职责单一 hooks（`useAuSettingsData` 数据拉取 / `useAuSettingsForm` 表单+保存 / `useAuSettingsModals` 弹窗 / `useAuSettingsAdvancedOps` 高级操作）；表单收敛为 `AuSettingsFormState` 单对象，hydrate 以 loadKey 触发 + project 走 ref shim（cast 移除局部更新不吞未保存编辑）；新增 4 条布局回归测试锁 hydrate/保存 payload/切 AU 重灌/cast 移除。验证：UI tsc 0 错 + 415 测试全绿（+4），headless Chrome 真 UI 眼验 15 步（建 AU→设置页表单/保存 round-trip/双覆盖开合/四弹窗/recalc）零 console error。剩余五个大组件同打法逐会话复制。
 
 **2026-07-09（夜）长期债③首批清偿：零测试 UI hooks 按风险清单①-⑦全部补齐。** 10 个新测试文件 / 102 用例，失败路径优先：useWriterBootstrap（auPath 切换竞态丢弃迟到响应 / 四路部分失败降级 / refresh 瞬时失败保旧值）、useConfirmedChapterEditor（保存失败保留用户改动）、writerDisplayState（章号口径回归 / meta 回退链 / 分层条占比）、useConnectionTest（reset 中断在途请求 / error_code→i18n 兜底映射 / 双 run 竞态）、useFontSelection（双层存储对称性 / persist 失败 warnUi / 同帧双 setter stale-closure 防护 / legacy 迁移）、facts 三 hook（批量失败保留选择 / AU 切换竞态 / stale 伪筛选判据）、library 两 hook（导入中建 fandom 断点续流 / 引导 vs API 警告分流门不对称失败策略）。引擎测试 LLM mock 迁移按「触碰才迁」门槛本次零对象（未触碰引擎测试文件）。质量验证三层：4 处变异验证（bootstrap stale 检查 / font ref 同步 / connection stale 检查 / editor catch 清空，均精准命中对应测试且不误伤）+ 独立对抗审 opus 判 **safe-with-nits**（无 HIGH/MEDIUM；采纳 2 LOW：失败清空断言改「先建立非空态再断言清空」+ 补切章 cancelled 竞态覆盖 + 台账文件数 9→10 笔误修正）。终验：引擎 1300 + UI 513（411→513）全绿、双 tsc 0 错。
@@ -36,7 +38,7 @@
 
 ### 长期债（盲审 2026-07-09 判定为低息，渐进还）
 - [ ] snake/camel 命名同文件混用（迁移遗产，5 文件 + React 组件声明风格）
-- [ ] 巨型组件状态下沉（按 hook 铁律分批）：✅ AuSettingsLayout（2026-07-09，31 useState→0，4 hooks + 4 回归测试）；剩 AuLoreLayout(946行/26) / SettingsChatPanel(1026行) / FandomLoreLayout(734行/22) / GlobalSettingsModal(450行/20) / MobileOnboarding(571行/19)，逐会话复制同打法
+- [ ] 巨型组件状态下沉（按 hook 铁律分批）：✅ AuSettingsLayout（2026-07-09，31 useState→0，4 hooks + 4 回归测试）；✅ AuLoreLayout（2026-07-10，25 useState→0，4 hooks + 9 回归测试 + 顺手修 3 存量 bug）；剩 SettingsChatPanel(1026行) / FandomLoreLayout(734行/22) / GlobalSettingsModal(450行/20) / MobileOnboarding(571行/19)，逐会话复制同打法
 - [ ] 存量引擎测试的内联 LLM mock 迁移共享 helper（`services/__tests__/mock_llm_provider.ts` 已建；跟随性重构——哪个测试文件被触碰就顺手迁哪个，不做专门迁移趟）。UI hooks 测试补全已于 2026-07-09 首批清偿（见里程碑）。对抗审留的两条可选尾巴：useFactEditor saveSuccess 的 2s timer 无 clearTimeout（卸载后空转，无害泄漏，改需动 impl）；onboarding gate 三条静默负向断言依赖单次微任务冲刷（当前实现下已核实非假绿，impl 加深 await 链时需改 waitFor 正向信号）
 - [ ] @vitejs/plugin-react 6.x（长期债⑤唯一剩项）：6.x 的 peer 依赖是 vite ^8.0.0（现 vite 7.3.6），待将来 vite 大版本升级时顺手带上；已停在 5.2.0（peer 兼容 vite ^4–^8）
 - ✅ tailwind 4 浏览器底线：**已拍板（2026-07-10，用户）不考虑旧设备兼容**，按 Safari 16.4+ / Chrome 111+ 底线走；真机验证无需专门留意此项。（背景存档：旧设备上 var 基 /N 底纹会回退 100% 实心、同色对不可读；字面色遮罩不受影响）

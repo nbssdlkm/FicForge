@@ -10,30 +10,26 @@ import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { EmptyState } from '../shared/EmptyState';
 import { Download } from 'lucide-react';
 import { useTranslation } from '../../i18n/useAppTranslation';
-
-type LoreFileEntry = {
-  name: string;
-  filename: string;
-};
+import type { LoreCategory, LoreFileEntry } from './lore-utils';
 
 export type AuLoreModalsProps = {
   // Create modal
   createModalOpen: boolean;
-  setCreateModalOpen: (open: boolean) => void;
+  closeCreate: () => void;
   createName: string;
-  setCreateName: (name: string) => void;
-  selectedCategory: 'characters' | 'worldbuilding';
+  setCreateName: (name: string) => void; // 受控绑定（新建名 Input）
+  selectedCategory: LoreCategory;
   handleCreate: () => void;
 
   // Delete modal
   deleteConfirmOpen: boolean;
-  setDeleteConfirmOpen: (open: boolean) => void;
+  closeDeleteConfirm: () => void;
   selectedFile: string | null;
   handleDeleteLore: () => void;
 
   // Import modal
   importModalOpen: boolean;
-  setImportModalOpen: (open: boolean) => void;
+  closeImport: () => void;
   importLoading: boolean;
   importCandidates: LoreFileEntry[];
   selectedImports: string[];
@@ -43,24 +39,25 @@ export type AuLoreModalsProps = {
 
   // Core limit modal
   coreLimitModalOpen: boolean;
-  setCoreLimitModalOpen: (open: boolean) => void;
+  closeCoreLimit: () => void;
   coreLimitTarget: string | null;
-  loadFileContent: (name: string) => void;
+  /** 「去补核心限制」→ 打开该角色文件进入编辑。 */
+  openCharacterFile: (name: string) => void;
 };
 
 export function AuLoreModals({
   createModalOpen,
-  setCreateModalOpen,
+  closeCreate,
   createName,
   setCreateName,
   selectedCategory,
   handleCreate,
   deleteConfirmOpen,
-  setDeleteConfirmOpen,
+  closeDeleteConfirm,
   selectedFile,
   handleDeleteLore,
   importModalOpen,
-  setImportModalOpen,
+  closeImport,
   importLoading,
   importCandidates,
   selectedImports,
@@ -68,20 +65,20 @@ export function AuLoreModals({
   handleImportSelected,
   isSaving,
   coreLimitModalOpen,
-  setCoreLimitModalOpen,
+  closeCoreLimit,
   coreLimitTarget,
-  loadFileContent,
+  openCharacterFile,
 }: AuLoreModalsProps) {
   const { t } = useTranslation();
 
   return (
     <>
-      <Modal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} title={selectedCategory === 'worldbuilding' ? t('auLore.createTitleWorldbuilding') : t('auLore.createTitle')}>
+      <Modal isOpen={createModalOpen} onClose={closeCreate} title={selectedCategory === 'worldbuilding' ? t('auLore.createTitleWorldbuilding') : t('auLore.createTitle')}>
         <div className="space-y-4">
           <p className="text-sm text-text/70">{selectedCategory === 'worldbuilding' ? t('auLore.createDescriptionWorldbuilding') : t('auLore.createDescription')}</p>
           <Input value={createName} onChange={e => setCreateName(e.target.value)} placeholder={selectedCategory === 'worldbuilding' ? t('auLore.createPlaceholderWorldbuilding') : t('auLore.createPlaceholder')} autoFocus />
           <div className="flex justify-end gap-2">
-            <Button tone="neutral" fill="plain" onClick={() => setCreateModalOpen(false)}>{t('common.actions.cancel')}</Button>
+            <Button tone="neutral" fill="plain" onClick={closeCreate}>{t('common.actions.cancel')}</Button>
             <Button tone="accent" fill="solid" onClick={handleCreate} disabled={!createName.trim()}>{t('common.actions.create')}</Button>
           </div>
         </div>
@@ -89,7 +86,7 @@ export function AuLoreModals({
 
       <ConfirmDialog
         isOpen={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
+        onClose={closeDeleteConfirm}
         onConfirm={handleDeleteLore}
         title={t('auLore.deleteTitle')}
         message={t('auLore.deleteMessage', { name: `${selectedFile}.md` })}
@@ -99,10 +96,10 @@ export function AuLoreModals({
 
       <ConfirmDialog
         isOpen={coreLimitModalOpen}
-        onClose={() => setCoreLimitModalOpen(false)}
+        onClose={closeCoreLimit}
         onConfirm={() => {
-          setCoreLimitModalOpen(false);
-          if (coreLimitTarget) loadFileContent(coreLimitTarget);
+          closeCoreLimit();
+          if (coreLimitTarget) openCharacterFile(coreLimitTarget);
         }}
         title={t('coreIncludes.missingCoreLimit')}
         message={t('coreIncludes.missingCoreLimitDesc')}
@@ -110,7 +107,7 @@ export function AuLoreModals({
         cancelLabel={t('coreIncludes.later')}
       />
 
-      <Modal isOpen={importModalOpen} onClose={isSaving ? () => {} : () => setImportModalOpen(false)} title={t('auLore.importTitle')}>
+      <Modal isOpen={importModalOpen} onClose={isSaving ? () => {} : closeImport} title={t('auLore.importTitle')}>
         <div className="space-y-4">
           <p className="text-sm text-text/70">{t('auLore.importDescription')}</p>
           <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-lg border border-black/10 p-2 dark:border-white/10">
@@ -133,7 +130,7 @@ export function AuLoreModals({
             )}
           </div>
           <div className="flex justify-end gap-2">
-            <Button tone="neutral" fill="plain" onClick={() => setImportModalOpen(false)} disabled={isSaving}>{t('common.actions.cancel')}</Button>
+            <Button tone="neutral" fill="plain" onClick={closeImport} disabled={isSaving}>{t('common.actions.cancel')}</Button>
             <Button tone="accent" fill="solid" onClick={handleImportSelected} disabled={selectedImports.length === 0 || isSaving}>
               {isSaving ? <Spinner size="md" /> : t('common.actions.importSelected')}
             </Button>
