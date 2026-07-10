@@ -3,7 +3,9 @@
 > 人读的前瞻进度文件（AI 地图见 CLAUDE.md，历史细节见 git log 与 `docs/internal/audit/`）。
 > 约定：每个工作会话收尾时更新「当前状态」与「待办」；完成的待办移入「里程碑」一行带走。
 
-## 当前状态（2026-07-09/10）
+## 当前状态（2026-07-09/11）
+
+**2026-07-11 第二轮九维盲审（同口径复跑，防锚定：打分后才开盲对照）**：**84.1/B**（第一轮 55/F → +29.1，修后自评 88.5 偏乐观 4.4），39 发现（1 高 / 19 中 / 19 低）只报未修等拍板；唯一 HIGH（导出 fs scope）+ 功能维 1M 同根于盲审修复批的 Tauri 收权、待真机冒烟裁决（该待办升优先级）；修复不彻底残边 5 条（fandom get 契约漏网 / redactCtx 三面 / TD-017 后同 AU 残余竞态）；重复维 5 中危全为上轮漏报（建议上 CI 防线）。报告全录：`docs/internal/audit/2026-07-11-blind-audit-round2.md`。
 
 **2026-07-10 五路合并 + 合并后统一审阅（长期债②全六块收官）**：五个并行拆组件会话合入 main（冲突仅 PROGRESS/vite.config 注释/lore-utils 类型区，代码零冲突）；因各会话未单独跑审阅，合并后统一跑 high 档 8 视角审阅（24 候选 → 去重 20 → 5 组逐条验证：15 确认 + 2 存疑 + 3 有据驳回）。**15 项当场修复**：4 条存量正确性（AuLore 导入后重读静默覆盖未保存编辑→补 savedContent 脏判据门控 + markContentSaved；移动端新建无重名校验静默覆盖→接 toCanonicalCreateKey 同源判据；移动端写路径无 guard 切圈污染脏标记→补 writeGuard；空态「添加角色」分类错位→锁 characters）+ 8 条并行盲区单源化（FandomCategory 平行类型、fandomDirNameOf 内联、新建模板三处各写且移动端给 worldbuilding 塞 frontmatter→统一 buildDefaultFandomLoreContent、脏判据抽 isLoreEditorDirty、invalidateInflightLoad 口头不变量内聚进 appendFile/removeFile、同 key 双 guard 死代码并一）+ 3 条效率（列表过滤/脏快照 memo、新建并行请求）+ 1 条规约改名（chooseCustomEmbedding）。记录不动：loadFiles 桌面/移动同构（跟随性抽取）、注入风格差异（裁决：两边都没传 setter，纯一致性，下次触碰收敛）、卸载保护两套机制（笔记）。驳回有据：回收站路径结构上恒扁平、SupportData sync effect 实为承重、AuLoreActionDeps 定性错误（正是铁律教科书姿势）。终验：UI tsc 0 + 85 文件 540 测试全绿（新增重名拦截用例）、引擎 1315 不动、preview 冒烟零告警。
 
