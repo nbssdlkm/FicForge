@@ -19,16 +19,20 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": [
+    "config/**/*.ts",
     "domain/**/*.ts",
-    "prompts/**/*.ts",
-    "services/**/*.ts",
-    "repositories/**/*.ts",
-    "llm/**/*.ts",
-    "tokenizer/**/*.ts",
-    "vector/**/*.ts",
-    "platform/**/*.ts",
-    "sync/**/*.ts",
     "fonts/**/*.ts",
+    "llm/**/*.ts",
+    "logger/**/*.ts",
+    "ops/**/*.ts",
+    "platform/**/*.ts",
+    "prompts/**/*.ts",
+    "repositories/**/*.ts",
+    "services/**/*.ts",
+    "tasks/**/*.ts",
+    "tokenizer/**/*.ts",
+    "utils/**/*.ts",
+    "vector/**/*.ts",
     "index.ts"
   ],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]

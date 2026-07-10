@@ -51,6 +51,10 @@ settings.sync.yaml
 *.keystore
 keystores/
 credentials.json
+*.pem
+*.p12
+*.jks
+service-account*.json
 .pytest_cache/
 
 # === Claude Code ===
