@@ -5,6 +5,8 @@
 
 ## 当前状态（2026-07-09/10）
 
+**2026-07-10 长期债②第四块**：FandomLoreLayout 状态下沉完成 —— 21 useState + 4 pending ref → 0（734 → 413 行），完全复制 AuSettingsLayout 打法拆 4 个职责单一 hooks（`useFandomLoreFiles` 侧栏数据+垃圾箱恢复 / `useFandomLoreEditor` 选中+编辑+增删改读 / `useFandomLoreChrome` 弹窗+AI面板+搜索+折叠 / `useFandomLoreDirtyGuard` 弃改确认，4 个互斥 pending ref 收敛为单判别联合）；跨 hook 全走语义化方法（appendFile/removeFile/invalidateInflightLoad 等），FandomLoreModals 契约同步去裸 setter；顺手抽 `FandomLoreCategory`/`fandomDirNameOf` 进 lore-utils 单一真相源 + 删除按钮补 aria-label。新增 9 条布局回归测试锁 加载回显/读入/保存 payload/弃改三分支/新建含重名拦截/删除级联/切 fandom 复位。验证：UI tsc 0 错 + 513 测试全绿（+9），preview 眼验 建圈→资料页→新建双分类→脏编辑弃改接续→保存→删除进垃圾箱→AI 面板开合 零 console 报错（顺手把 vite/launch.json 改成支持 PORT 改派端口，preview 不再抢 1420）。剩 AuLoreLayout / SettingsChatPanel / GlobalSettingsModal / MobileOnboarding 同打法逐会话复制。
+
 **2026-07-09 长期债②第一块**：AuSettingsLayout 状态下沉完成 —— 31 useState → 0（534 → 338 行），按 hook 铁律拆 4 个职责单一 hooks（`useAuSettingsData` 数据拉取 / `useAuSettingsForm` 表单+保存 / `useAuSettingsModals` 弹窗 / `useAuSettingsAdvancedOps` 高级操作）；表单收敛为 `AuSettingsFormState` 单对象，hydrate 以 loadKey 触发 + project 走 ref shim（cast 移除局部更新不吞未保存编辑）；新增 4 条布局回归测试锁 hydrate/保存 payload/切 AU 重灌/cast 移除。验证：UI tsc 0 错 + 415 测试全绿（+4），headless Chrome 真 UI 眼验 15 步（建 AU→设置页表单/保存 round-trip/双覆盖开合/四弹窗/recalc）零 console error。剩余五个大组件同打法逐会话复制。
 
 **2026-07-09（夜）长期债③首批清偿：零测试 UI hooks 按风险清单①-⑦全部补齐。** 10 个新测试文件 / 102 用例，失败路径优先：useWriterBootstrap（auPath 切换竞态丢弃迟到响应 / 四路部分失败降级 / refresh 瞬时失败保旧值）、useConfirmedChapterEditor（保存失败保留用户改动）、writerDisplayState（章号口径回归 / meta 回退链 / 分层条占比）、useConnectionTest（reset 中断在途请求 / error_code→i18n 兜底映射 / 双 run 竞态）、useFontSelection（双层存储对称性 / persist 失败 warnUi / 同帧双 setter stale-closure 防护 / legacy 迁移）、facts 三 hook（批量失败保留选择 / AU 切换竞态 / stale 伪筛选判据）、library 两 hook（导入中建 fandom 断点续流 / 引导 vs API 警告分流门不对称失败策略）。引擎测试 LLM mock 迁移按「触碰才迁」门槛本次零对象（未触碰引擎测试文件）。质量验证三层：4 处变异验证（bootstrap stale 检查 / font ref 同步 / connection stale 检查 / editor catch 清空，均精准命中对应测试且不误伤）+ 独立对抗审 opus 判 **safe-with-nits**（无 HIGH/MEDIUM；采纳 2 LOW：失败清空断言改「先建立非空态再断言清空」+ 补切章 cancelled 竞态覆盖 + 台账文件数 9→10 笔误修正）。终验：引擎 1300 + UI 513（411→513）全绿、双 tsc 0 错。
@@ -36,7 +38,7 @@
 
 ### 长期债（盲审 2026-07-09 判定为低息，渐进还）
 - [ ] snake/camel 命名同文件混用（迁移遗产，5 文件 + React 组件声明风格）
-- [ ] 巨型组件状态下沉（按 hook 铁律分批）：✅ AuSettingsLayout（2026-07-09，31 useState→0，4 hooks + 4 回归测试）；剩 AuLoreLayout(946行/26) / SettingsChatPanel(1026行) / FandomLoreLayout(734行/22) / GlobalSettingsModal(450行/20) / MobileOnboarding(571行/19)，逐会话复制同打法
+- [ ] 巨型组件状态下沉（按 hook 铁律分批）：✅ AuSettingsLayout（2026-07-09，31 useState→0，4 hooks + 4 回归测试）；✅ FandomLoreLayout（2026-07-10，21 useState + 4 ref→0，4 hooks + 9 回归测试）；剩 AuLoreLayout(946行/26) / SettingsChatPanel(1026行) / GlobalSettingsModal(450行/20) / MobileOnboarding(571行/19)，逐会话复制同打法
 - [ ] 存量引擎测试的内联 LLM mock 迁移共享 helper（`services/__tests__/mock_llm_provider.ts` 已建；跟随性重构——哪个测试文件被触碰就顺手迁哪个，不做专门迁移趟）。UI hooks 测试补全已于 2026-07-09 首批清偿（见里程碑）。对抗审留的两条可选尾巴：useFactEditor saveSuccess 的 2s timer 无 clearTimeout（卸载后空转，无害泄漏，改需动 impl）；onboarding gate 三条静默负向断言依赖单次微任务冲刷（当前实现下已核实非假绿，impl 加深 await 链时需改 waitFor 正向信号）
 - [ ] @vitejs/plugin-react 6.x（长期债⑤唯一剩项）：6.x 的 peer 依赖是 vite ^8.0.0（现 vite 7.3.6），待将来 vite 大版本升级时顺手带上；已停在 5.2.0（peer 兼容 vite ^4–^8）
 - ✅ tailwind 4 浏览器底线：**已拍板（2026-07-10，用户）不考虑旧设备兼容**，按 Safari 16.4+ / Chrome 111+ 底线走；真机验证无需专门留意此项。（背景存档：旧设备上 var 基 /N 底纹会回退 100% 实心、同色对不可读；字面色遮罩不受影响）

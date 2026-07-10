@@ -7,6 +7,13 @@
  */
 
 // ---------------------------------------------------------------------------
+// 类型
+// ---------------------------------------------------------------------------
+
+/** Fandom 资料的两个分类目录（单一真相源，layout / hooks / modals 共用） */
+export type FandomLoreCategory = 'core_characters' | 'core_worldbuilding';
+
+// ---------------------------------------------------------------------------
 // 模板
 // ---------------------------------------------------------------------------
 
@@ -75,4 +82,9 @@ export function toCanonicalCreateKey(value: string): string {
 
 export function deriveFandomPath(auPath: string): string {
   return auPath.replace(/\/aus\/[^/]+$/, '');
+}
+
+/** fandom 路径 → 目录名（listFandomFiles 等 API 以目录名寻址） */
+export function fandomDirNameOf(fandomPath: string | undefined): string {
+  return fandomPath?.split('/').pop() || '';
 }
