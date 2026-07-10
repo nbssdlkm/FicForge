@@ -9,10 +9,9 @@
     "dialog:default",
     "dialog:allow-save",
     "fs:default",
-    "http:default",
     {
       "identifier": "fs:allow-write-file",
-      "allow": [{ "path": "**" }]
+      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**" }]
     }
   ]
 }
