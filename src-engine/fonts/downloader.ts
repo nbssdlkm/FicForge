@@ -47,7 +47,7 @@ export class FontDownloader {
     entry: DownloadableFont,
     onProgress?: ProgressCallback,
     signal?: AbortSignal,
-  ): Promise<Uint8Array> {
+  ): Promise<Uint8Array<ArrayBuffer>> {
     if (entry.sources.length === 0) {
       throw new FontError("invalid-manifest", `Font ${entry.id} has no sources`);
     }
@@ -120,7 +120,7 @@ export class FontDownloader {
     entry: DownloadableFont,
     onProgress: ProgressCallback | undefined,
     signal: AbortSignal | undefined,
-  ): Promise<Uint8Array> {
+  ): Promise<Uint8Array<ArrayBuffer>> {
     const response = await this.fetchImpl(source.url, { signal });
     if (!response.ok) {
       // 非 2xx 时主动释放 body 流，避免 ReadableStream 资源泄漏。
@@ -175,7 +175,7 @@ export class FontDownloader {
   }
 }
 
-function concatChunks(chunks: Uint8Array[], total: number): Uint8Array {
+function concatChunks(chunks: Uint8Array[], total: number): Uint8Array<ArrayBuffer> {
   const out = new Uint8Array(total);
   let offset = 0;
   for (const chunk of chunks) {
@@ -186,7 +186,7 @@ function concatChunks(chunks: Uint8Array[], total: number): Uint8Array {
 }
 
 /** 计算 Uint8Array 的 SHA-256 十六进制（小写）。 */
-export async function sha256Hex(data: Uint8Array): Promise<string> {
+export async function sha256Hex(data: Uint8Array<ArrayBuffer>): Promise<string> {
   if (typeof crypto === "undefined" || !crypto.subtle) {
     throw new FontError("checksum", "crypto.subtle is required for SHA-256 verification");
   }

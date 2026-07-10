@@ -14,8 +14,7 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Engine alias */
-    "baseUrl": ".",
+    /* Engine alias（paths 相对本 tsconfig 目录解析；baseUrl 已被 TS7 移除） */
     "paths": {
       "@ficforge/engine": ["../src-engine/index.ts"]
     },
