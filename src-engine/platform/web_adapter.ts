@@ -300,11 +300,13 @@ export class WebAdapter implements PlatformAdapter {
     await this.withDb((db) => txDelete(db, from));
   }
 
-  async readBinary(path: string): Promise<Uint8Array> {
+  async readBinary(path: string): Promise<Uint8Array<ArrayBuffer>> {
     if (!path || !this.norm(path)) throw new Error("readBinary: path must not be empty");
     const content = await this.withDb((db) => txGet<ArrayBuffer | Uint8Array>(db, this.norm(path)));
     if (content === undefined) throw new Error(`File not found: ${path}`);
-    return content instanceof Uint8Array ? content : new Uint8Array(content);
+    // writeBinary 只存 ArrayBuffer（零拷贝建视图）；Uint8Array 分支是旧库
+    // 防御路径，拷贝一次保证 ArrayBuffer 底座。
+    return content instanceof Uint8Array ? new Uint8Array(content) : new Uint8Array(content);
   }
 
   async writeBinary(path: string, data: Uint8Array): Promise<void> {

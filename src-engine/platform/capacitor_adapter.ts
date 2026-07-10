@@ -107,7 +107,7 @@ export class CapacitorAdapter implements PlatformAdapter {
     });
   }
 
-  async readBinary(path: string): Promise<Uint8Array> {
+  async readBinary(path: string): Promise<Uint8Array<ArrayBuffer>> {
     if (!path || !this.normPath(path)) throw new Error("readBinary: path must not be empty");
     const { Filesystem, Directory } = await import("@capacitor/filesystem");
     // 不指定 encoding：Capacitor 返回 base64 string（web）或 Blob（native Android/iOS）。

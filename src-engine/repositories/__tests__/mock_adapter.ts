@@ -7,7 +7,7 @@ import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStora
 
 export class MockAdapter implements PlatformAdapter {
   private files = new Map<string, string>();
-  private binaryFiles = new Map<string, Uint8Array>();
+  private binaryFiles = new Map<string, Uint8Array<ArrayBuffer>>();
 
   async readFile(path: string): Promise<string> {
     const content = this.files.get(this.norm(path));
@@ -45,7 +45,7 @@ export class MockAdapter implements PlatformAdapter {
     this.binaryFiles.delete(from);
   }
 
-  async readBinary(path: string): Promise<Uint8Array> {
+  async readBinary(path: string): Promise<Uint8Array<ArrayBuffer>> {
     const data = this.binaryFiles.get(this.norm(path));
     if (data === undefined) throw new Error(`File not found: ${path}`);
     return data;
@@ -53,7 +53,9 @@ export class MockAdapter implements PlatformAdapter {
 
   async writeBinary(path: string, data: Uint8Array): Promise<void> {
     const normed = this.norm(path);
-    this.binaryFiles.set(normed, data);
+    // 拷贝入库：与真实适配器一致（读出的是独立 ArrayBuffer 底座的新字节，
+    // 调用方后续改自己的 buffer 不会穿透到"磁盘"）。
+    this.binaryFiles.set(normed, new Uint8Array(data));
     // 同 writeFile：保证同路径只留最新版本。
     this.files.delete(normed);
   }

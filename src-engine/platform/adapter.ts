@@ -92,7 +92,7 @@ export interface PlatformAdapter {
    * 大文件注意事项：Capacitor 端会通过 base64 中转，单次写入 ≥50MB 时可能
    * 因 WebView 内存压力失败，调用方应对该场景做分块处理。
    */
-  readBinary(path: string): Promise<Uint8Array>;
+  readBinary(path: string): Promise<Uint8Array<ArrayBuffer>>;
   writeBinary(path: string, data: Uint8Array): Promise<void>;
 
   /**

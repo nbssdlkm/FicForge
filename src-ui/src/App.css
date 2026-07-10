@@ -1,15 +1,25 @@
 @import "tailwindcss";
 
+/* dark: 变体接到应用主题开关（.theme-night 类），而非默认的 OS
+ * prefers-color-scheme 媒体查询 —— 本应用主题由 ThemeToggle 切类名驱动，
+ * 全仓 ~183 处 dark:* 此前只跟 OS 走：浅色 OS 上开夜间主题时
+ * dark:border-white/* 发丝线永不触发（黑线画在炭黑底上不可见），
+ * 深色 OS 上开日间主题则反向误触发。接线后四种组合全部正确。 */
+@custom-variant dark (&:where(.theme-night, .theme-night *));
+
 /*
  * Tailwind v4 主题（CSS-first，取代原 tailwind.config.ts）。
  *
  * 用 `@theme inline` 而非 `@theme`：inline 让 utilities 直接内联右值
- * （如 background-color: rgb(var(--color-bg-rgb))），不把 --color-* /
- * --font-* 重复发射到 :root —— 关键在于 --color-rule / --color-rule-soft /
- * --font-mono / --font-display 四个令牌与下方 @layer base :root 里的
- * 源变量同名，非 inline 会发射 `--color-rule: var(--color-rule)` 这类
- * 自引用声明。主题切换（.theme-warm / .theme-night 改写源变量）与
- * 字体 hook 的 setProperty 覆盖照常运行时生效。
+ * （如 `border-rule` 直接发射 border-color: var(--color-rule)）。
+ * 关键在于 --color-rule / --color-rule-soft / --font-mono /
+ * --font-display 四个令牌与下方 @layer base :root 里的源变量同名 ——
+ * 实测（v4.3 构建产物）inline 下这四个 var 引用型令牌仍会以
+ * `--color-rule: var(--color-rule)` 形式发射进最低优先级的 theme 层，
+ * 但被后声明的 base 层 :root 真值覆盖屏蔽，自引用不参与级联；
+ * utilities 本身内联右值、不依赖被发射的令牌，所以行为正确。
+ * 主题切换（.theme-warm / .theme-night 改写源变量）与字体 hook 的
+ * setProperty 覆盖照常运行时生效。
  */
 @theme inline {
   /* colors — 引用 :root 的 -rgb 三元组；/N 透明度修饰符由 v4 的
@@ -41,7 +51,9 @@
   --font-mono: var(--font-mono);
   --font-display: var(--font-display);
 
-  /* 4px-grid 圆角刻度（覆盖 v4 默认；2xl 及以上沿用 v4 默认值） */
+  /* 4px-grid 圆角刻度，整套显式锚定防上游默认值漂移：md/lg/xl 与 v4
+   * 默认（6/8/12px）不同是真覆盖；xs/sm 数值恰与 v4 默认一致，留着是
+   * 为了刻度完整可读。2xl 及以上沿用 v4 默认值。 */
   --radius-xs: 2px;
   --radius-sm: 4px;
   --radius-md: 8px;
@@ -299,10 +311,12 @@
     background: color-mix(in srgb, var(--color-accent) 22%, transparent);
   }
 
-  /* === Tailwind v4 preflight 兼容（升级 3.4 → 4.x 时加入，维持 v3 视觉）===
-   * ① v3 默认边框色是 gray-200，v4 改为 currentColor。绝大多数 border
-   *   都带显式颜色（border-rule / border-black/20 等），此规则兜住少数
-   *   裸 border 片段。
+  /* === Tailwind v4 preflight 兼容（升级 3.4 → 4.x 时加入）===
+   * ① v4 把默认边框色从 v3 的 gray-200 改为 currentColor。经元素级穷举
+   *   （2083 个 className 含 clsx 全分支），当前所有带边框宽度的元素都在
+   *   某分支带显式颜色 —— 此规则今天无人消费，纯粹兜未来：新代码写裸
+   *   border 时走主题发丝线（随 .theme-warm/.theme-night 变化），而不是
+   *   v4 的 currentColor 粗黑线或 v3 的设计系统外冷灰。
    * ② v4 preflight 把 button cursor 改为 default（跟随原生），恢复 v3
    *   的 pointer。 */
   *,
@@ -310,7 +324,7 @@
   ::before,
   ::backdrop,
   ::file-selector-button {
-    border-color: #e5e7eb; /* = v3 默认 gray-200 */
+    border-color: var(--color-rule);
   }
 
   button:not(:disabled),

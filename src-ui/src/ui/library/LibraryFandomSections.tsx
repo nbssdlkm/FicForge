@@ -267,15 +267,18 @@ export function LibraryFandomSections({
 
                           {/* Row 1 — call no on the left. v13 had `updated`
                               timestamp on the right; we don't track that.
-                              Inline delete affordance is desktop-only (hidden
-                              on mobile where v13's mockup had no edit
-                              actions; mobile delete is a future long-press /
-                              context-menu UX, not an always-visible icon). */}
+                              Inline delete affordance is ≥md only (hidden on
+                              phones where v13's mockup had no edit actions;
+                              mobile delete is a future long-press /
+                              context-menu UX). pointer-coarse:opacity-100:
+                              v4 把 group-hover 门控在 hover:hover 后，≥md
+                              触屏设备（无悬停平板等）上按钮永不显形——它是
+                              全应用唯一 AU 删除入口，粗指针下常显。 */}
                           <div className="mb-1 flex items-baseline justify-between gap-2 font-mono text-[9px] uppercase tracking-[0.1em]">
                             <span className="text-gold">{auCn}</span>
                             <button
                               type="button"
-                              className="-mr-1 -my-1 hidden h-6 w-6 shrink-0 items-center justify-center rounded-[2px] text-text/30 opacity-0 transition-opacity hover:bg-error/10 hover:text-error md:flex md:group-hover:opacity-100"
+                              className="-mr-1 -my-1 hidden h-6 w-6 shrink-0 items-center justify-center rounded-[2px] text-text/30 opacity-0 transition-opacity hover:bg-error/10 hover:text-error md:flex md:group-hover:opacity-100 pointer-coarse:opacity-100"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onDeleteAu(fandom.dir_name, fandom.name, au.dir_name, au.name);

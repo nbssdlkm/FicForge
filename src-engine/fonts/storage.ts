@@ -32,7 +32,7 @@ export class FontStorage {
   }
 
   /** 读取已下载的字体字节。 */
-  async read(id: string): Promise<Uint8Array> {
+  async read(id: string): Promise<Uint8Array<ArrayBuffer>> {
     return this.adapter.readBinary(this.pathOf(id));
   }
 
