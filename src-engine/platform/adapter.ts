@@ -1,6 +1,8 @@
 // Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 
+import { redactSecureKey, scrubKeyFromError } from "./shared.js";
+
 /** PlatformAdapter 接口定义。 */
 
 export interface SaveDialogOptions {
@@ -32,7 +34,12 @@ export class SecretStoreReadError extends Error {
   readonly key: string;
 
   constructor(key: string, cause?: unknown) {
-    super(`secure storage read failed for key "${key}"${cause instanceof Error ? `: ${cause.message}` : ""}`);
+    // message 在构造期即脱敏（B2 对抗审）：key 名内嵌作品/AU 标题，而本错误的 message
+    // 会被各层 catch 原样送进日志/console —— 源头不放明文，下游想漏都漏不了。
+    // 内层 cause.message（keyring/插件错误串）同样可能拼着原始 key，一并擦。
+    super(`secure storage read failed for key "${redactSecureKey(key)}"${
+      cause instanceof Error ? `: ${scrubKeyFromError(cause, key)}` : ""
+    }`);
     this.name = "SecretStoreReadError";
     this.key = key;
     if (cause !== undefined) {

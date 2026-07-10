@@ -4,11 +4,11 @@
 /** Logger 单例管理。初始化后全局可用，模式同 getEngine()。 */
 
 import type { PlatformAdapter } from "../platform/adapter.js";
-import { FileLogger } from "./logger.js";
+import { FileLogger, redactCtx } from "./logger.js";
 import type { Logger, LoggerOptions } from "./logger.js";
 
 export type { Logger, LogEntry, LogLevel, LoggerOptions } from "./logger.js";
-export { FileLogger } from "./logger.js";
+export { FileLogger, redactCtx } from "./logger.js";
 
 // ---------------------------------------------------------------------------
 // Singleton
@@ -52,7 +52,8 @@ export function warnAlways(tag: string, msg: string, ctx?: Record<string, unknow
     return;
   }
   /* eslint-disable no-console */
-  if (ctx) console.warn(`[${tag}] ${msg}`, ctx);
+  // console 降级同样过脱敏（B2 对抗审）：logger 就绪前传入敏感 ctx 的未来调用方不该明文入 console
+  if (ctx) console.warn(`[${tag}] ${msg}`, redactCtx(ctx));
   else console.warn(`[${tag}] ${msg}`);
   /* eslint-enable no-console */
 }

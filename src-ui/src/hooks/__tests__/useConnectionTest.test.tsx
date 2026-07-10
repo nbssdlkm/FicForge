@@ -221,3 +221,44 @@ describe("useEmbeddingConnectionTest", () => {
     expect(result.current.message).toBe("embedding 失败");
   });
 });
+
+describe("useLlmConnectionTest — 明文 HTTP 告警透出（盲审 2026-07-11 安全维）", () => {
+  it("success + warning_code=plaintext_http：状态仍 success，文案追加告警句", async () => {
+    vi.mocked(testConnection).mockResolvedValue({
+      success: true, model: "m", warning_code: "plaintext_http",
+    } as never);
+    const { hook, options } = setupLlm();
+    await act(() => hook.result.current.run(makeFields({ apiBase: "http://relay.example.com/v1" })));
+    await waitFor(() => expect(hook.result.current.status).toBe("success"));
+    expect(options.getSuccessMessage).toHaveBeenCalled();
+    // t() 被 mock 成回 key —— 断言告警键被拼进成功文案
+    expect(hook.result.current.message).toContain("成功文案");
+    expect(hook.result.current.message).toContain("error_messages.plaintext_http_warning");
+  });
+
+  it("success 无 warning_code：文案不带告警", async () => {
+    vi.mocked(testConnection).mockResolvedValue({ success: true, model: "m" } as never);
+    const { hook } = setupLlm();
+    await act(() => hook.result.current.run(makeFields()));
+    await waitFor(() => expect(hook.result.current.status).toBe("success"));
+    expect(hook.result.current.message).toBe("成功文案");
+  });
+});
+
+describe("useEmbeddingConnectionTest — 明文 HTTP 告警透出（与 LLM 侧同口径）", () => {
+  it("success + warning_code：成功文案追加告警句", async () => {
+    vi.mocked(testEmbeddingConnection).mockResolvedValue({
+      success: true, dimension: 1024, warning_code: "plaintext_http",
+    } as never);
+    const options = {
+      getSuccessMessage: vi.fn(() => "embedding ok"),
+      getFailureMessage: vi.fn(() => "embedding fail"),
+      getExceptionMessage: vi.fn(() => "embedding err"),
+    };
+    const { result } = renderHook(() => useEmbeddingConnectionTest(options));
+    await act(() => result.current.run({ model: "bge-m3", apiBase: "http://192.168.1.5/v1", apiKey: "k" }));
+    await waitFor(() => expect(result.current.status).toBe("success"));
+    expect(result.current.message).toContain("embedding ok");
+    expect(result.current.message).toContain("error_messages.plaintext_http_warning");
+  });
+});

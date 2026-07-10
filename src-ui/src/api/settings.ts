@@ -167,4 +167,6 @@ export interface TestConnectionResponse {
   model?: string;
   message?: string;
   error_code?: string;
+  /** 连接可用但存在安全隐患（如明文 HTTP 远端）—— UI 在成功文案上追加告警。 */
+  warning_code?: "plaintext_http";
 }

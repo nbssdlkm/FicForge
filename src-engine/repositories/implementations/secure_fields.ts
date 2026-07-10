@@ -45,7 +45,7 @@
 
 import type { PlatformAdapter } from "../../platform/adapter.js";
 import { createAdapterSecretStore } from "../../platform/secret_store.js";
-import { platformWarn, redactSecureKey } from "../../platform/shared.js";
+import { platformWarn, redactSecureKey, scrubKeyFromError } from "../../platform/shared.js";
 import { getLogger, hasLogger } from "../../logger/index.js";
 
 /** YAML 中占位符。固定不变，跨 repo 共享语义。 */
@@ -94,7 +94,7 @@ export async function extractSecureFields<T>(
         if (hasLogger()) {
           getLogger().error("secure", "secureRemove failed on clear", {
             key_redacted: redactSecureKey(spec.secureKey),
-            error: err instanceof Error ? err.message : String(err),
+            error: scrubKeyFromError(err, spec.secureKey),
           });
         }
       }
@@ -136,7 +136,8 @@ export async function restoreSecureFields<T>(
         // key 名可能含作品/AU 名，进日志/console 前一律脱敏。
         platformWarn("secure", "secureGet failed on restore, field kept as-is", {
           key_redacted: redactSecureKey(spec.secureKey),
-          error: err instanceof Error ? err.message : String(err),
+          // 错误串可能拼原始 key 名（含作品/AU 标题）—— 与四个适配器泄漏位点同款源头擦洗（B2 对抗审）
+          error: scrubKeyFromError(err, spec.secureKey),
         });
         continue;
       }

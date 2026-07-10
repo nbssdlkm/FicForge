@@ -11,7 +11,7 @@
 
 import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStorageCapabilities } from "./adapter.js";
 import { SecretStoreReadError } from "./adapter.js";
-import { legacySecureStorageKey, OS_KEYRING_CAPABILITIES, platformWarn, redactSecureKey } from "./shared.js";
+import { legacySecureStorageKey, OS_KEYRING_CAPABILITIES, platformWarn, redactSecureKey, scrubKeyFromError } from "./shared.js";
 
 export class TauriAdapter implements PlatformAdapter {
   private _deviceId: string;
@@ -153,7 +153,9 @@ export class TauriAdapter implements PlatformAdapter {
       if (legacyValue !== null) return legacyValue;
       platformWarn("TauriAdapter.secure", "keyring get threw", {
         key_redacted: redactSecureKey(key),
-        error: err instanceof Error ? err.message : String(err),
+        // Rust 侧错误串会拼原始 key 名（内嵌作品/AU 标题）—— 源头替换成脱敏形态，
+        // 不依赖 logger 的字段名规则兜底（盲审 2026-07-11 安全维）
+        error: scrubKeyFromError(err, key),
       });
       throw new SecretStoreReadError(key, err);
     }

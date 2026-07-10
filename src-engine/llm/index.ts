@@ -15,7 +15,7 @@ export { LLMError } from "./provider.js";
 export { OpenAICompatibleProvider } from "./openai_compatible.js";
 
 export type { ResolvedLLMConfig, ResolvedLLMParams } from "./config_resolver.js";
-export { create_provider, resolve_llm_config, resolve_llm_params } from "./config_resolver.js";
+export { create_provider, isPlaintextRemoteHttp, resolve_llm_config, resolve_llm_params, warnIfPlaintextRemote } from "./config_resolver.js";
 
 export type { EmbeddingProvider } from "./embedding_provider.js";
 export { RemoteEmbeddingProvider } from "./embedding_provider.js";

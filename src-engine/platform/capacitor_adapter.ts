@@ -17,6 +17,7 @@ import {
   OS_KEYRING_CAPABILITIES,
   platformWarn,
   redactSecureKey,
+  scrubKeyFromError,
   uint8ToBase64,
 } from "./shared.js";
 
@@ -230,7 +231,7 @@ export class CapacitorAdapter implements PlatformAdapter {
    * `[CapacitorAdapter.secure]` 标签（info 级需先开 __FICFORGE_SECURE_DEBUG__）。
    */
   async secureGet(key: string): Promise<string | null> {
-    secureDebugLog(`[CapacitorAdapter.secure] get enter, key=${key}`);
+    secureDebugLog(`[CapacitorAdapter.secure] get enter, key=${redactSecureKey(key)}`);
     let stored: string | null;
     try {
       stored = await this.invokeSecureStoreGet(key);
@@ -247,18 +248,18 @@ export class CapacitorAdapter implements PlatformAdapter {
       throw err;
     }
     if (stored !== null) {
-      secureDebugLog(`[CapacitorAdapter.secure] get hit (plugin), key=${key}, empty=${stored.length === 0}`);
+      secureDebugLog(`[CapacitorAdapter.secure] get hit (plugin), key=${redactSecureKey(key)}, empty=${stored.length === 0}`);
       this.removeLegacySecureValue(key);
       return stored;
     }
 
     const legacyValue = this.getLegacySecureValue(key);
     if (legacyValue === null) {
-      secureDebugLog(`[CapacitorAdapter.secure] get miss (plugin + legacy), key=${key}`);
+      secureDebugLog(`[CapacitorAdapter.secure] get miss (plugin + legacy), key=${redactSecureKey(key)}`);
       return null;
     }
 
-    secureDebugLog(`[CapacitorAdapter.secure] get hit (legacy), migrating, key=${key}, empty=${legacyValue.length === 0}`);
+    secureDebugLog(`[CapacitorAdapter.secure] get hit (legacy), migrating, key=${redactSecureKey(key)}, empty=${legacyValue.length === 0}`);
     await this.invokeSecureStoreSet(key, legacyValue);
     this.removeLegacySecureValue(key);
     return legacyValue;
@@ -269,17 +270,17 @@ export class CapacitorAdapter implements PlatformAdapter {
    * 在 GlobalSettingsModal 的 catch 里弹错误 toast，避免"看似成功"的静默丢数据。
    */
   async secureSet(key: string, value: string): Promise<void> {
-    secureDebugLog(`[CapacitorAdapter.secure] set enter, key=${key}, empty=${value.length === 0}`);
+    secureDebugLog(`[CapacitorAdapter.secure] set enter, key=${redactSecureKey(key)}, empty=${value.length === 0}`);
     await this.invokeSecureStoreSet(key, value);
     this.removeLegacySecureValue(key);
-    secureDebugLog(`[CapacitorAdapter.secure] set OK, key=${key}`);
+    secureDebugLog(`[CapacitorAdapter.secure] set OK, key=${redactSecureKey(key)}`);
   }
 
   async secureRemove(key: string): Promise<void> {
-    secureDebugLog(`[CapacitorAdapter.secure] remove enter, key=${key}`);
+    secureDebugLog(`[CapacitorAdapter.secure] remove enter, key=${redactSecureKey(key)}`);
     await this.invokeSecureStoreRemove(key);
     this.removeLegacySecureValue(key);
-    secureDebugLog(`[CapacitorAdapter.secure] remove OK, key=${key}`);
+    secureDebugLog(`[CapacitorAdapter.secure] remove OK, key=${redactSecureKey(key)}`);
   }
 
   getSecretStorageCapabilities(): SecretStorageCapabilities {
@@ -317,7 +318,7 @@ export class CapacitorAdapter implements PlatformAdapter {
       // 抛错 ≠ 没存过（审计 H8）：吞成 null 会让保存链路误删真 key。抛专用错误上浮。
       platformWarn("CapacitorAdapter.secure", "plugin getItem threw", {
         key_redacted: redactSecureKey(key),
-        error: err instanceof Error ? err.message : String(err),
+        error: scrubKeyFromError(err, key),
       });
       throw new SecretStoreReadError(key, err);
     }
@@ -330,7 +331,7 @@ export class CapacitorAdapter implements PlatformAdapter {
     } catch (err) {
       platformWarn("CapacitorAdapter.secure", "plugin setItem threw", {
         key_redacted: redactSecureKey(key),
-        error: err instanceof Error ? err.message : String(err),
+        error: scrubKeyFromError(err, key),
       });
       throw err;
     }
@@ -343,7 +344,7 @@ export class CapacitorAdapter implements PlatformAdapter {
     } catch (err) {
       platformWarn("CapacitorAdapter.secure", "plugin removeItem threw", {
         key_redacted: redactSecureKey(key),
-        error: err instanceof Error ? err.message : String(err),
+        error: scrubKeyFromError(err, key),
       });
       throw err;
     }

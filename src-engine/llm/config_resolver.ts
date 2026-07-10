@@ -6,6 +6,7 @@
 import type { LLMProvider } from "./provider.js";
 import { OpenAICompatibleProvider } from "./openai_compatible.js";
 import { OLLAMA_DEFAULT_BASE_URL } from "../domain/provider_manifest.js";
+import { warnAlways } from "../logger/index.js";
 
 // ---------------------------------------------------------------------------
 // resolve_llm_config（三层模型配置）
@@ -277,10 +278,47 @@ export function resolve_llm_params(
  *                本版本不支持（本地模型请用 ollama）；UI 通过 capabilities.ts 不渲染
  *                此选项，此处保留运行时防护（防手改 YAML）。
  */
+
+/**
+ * api_base 是否为「明文 HTTP 且非本机回环」—— 密钥将不加密传输的判据（单一真相源：
+ * 生成路径的 warnAlways 与 UI「测试连接」的告警透出共用；盲审 2026-07-11 安全维）。
+ * 桌面 CSP 保留 http: 通配是为支持局域网自建端点（如局域网 Ollama）这一真实场景，
+ * 拦截层因此不能一刀切 —— 改为让用户知情：明文远端 → 告警不阻断。
+ */
+export function isPlaintextRemoteHttp(apiBase: string): boolean {
+  const base = (apiBase ?? "").trim();
+  if (!/^http:\/\//i.test(base)) return false;
+  try {
+    const host = new URL(base).hostname.toLowerCase();
+    return !(
+      host === "localhost"
+      || host === "127.0.0.1"
+      || host === "::1"
+      || host === "[::1]"
+      || host.endsWith(".localhost")
+    );
+  } catch {
+    return true; // 以 http:// 开头但解析失败 → 按远端保守告警
+  }
+}
+
+// 每主机只告警一次（create_provider 每次生成都会被调用，避免刷日志）
+const _warnedPlaintextHosts = new Set<string>();
+
+export function warnIfPlaintextRemote(apiBase: string): void {
+  if (!isPlaintextRemoteHttp(apiBase)) return;
+  let host = apiBase;
+  try { host = new URL(apiBase.trim()).host; } catch { /* 保留原串 */ }
+  if (_warnedPlaintextHosts.has(host)) return;
+  _warnedPlaintextHosts.add(host);
+  warnAlways("llm", "api_base 为明文 HTTP 非本机端点，API 密钥将不加密传输（仅建议可信局域网使用）", { host });
+}
+
 export function create_provider(llmConfig: ResolvedLLMConfig): LLMProvider {
   const mode = llmConfig.mode;
 
   if (mode === "api") {
+    warnIfPlaintextRemote(llmConfig.api_base);
     // chat_path 随层带进 Provider（自定义供应商非标网关路径）；缺省 Provider 内部回退
     // /chat/completions。ollama 模式不传：其端点恒为标准 /v1/chat/completions。
     return new OpenAICompatibleProvider(llmConfig.api_base, llmConfig.api_key, llmConfig.model, llmConfig.chat_path);
@@ -288,6 +326,7 @@ export function create_provider(llmConfig: ResolvedLLMConfig): LLMProvider {
 
   if (mode === "ollama") {
     const base = (llmConfig.api_base || OLLAMA_DEFAULT_BASE_URL).replace(/\/+$/, "");
+    warnIfPlaintextRemote(base);
     const key = llmConfig.api_key || "ollama";  // dummy —— Ollama 不校验
     const model = llmConfig.ollama_model || llmConfig.model;
     if (!model) {

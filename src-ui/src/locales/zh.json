@@ -955,7 +955,8 @@
     "unknown": "出了点问题，请重试或检查设置",
     "unsupported_mode": "此设备不支持本地模型，请在设置中改用在线 API 或 Ollama",
     "fandom_already_exists": "同名Fandom已存在，请换个名字",
-    "au_already_exists": "同名AU已存在，请换个名字"
+    "au_already_exists": "同名AU已存在，请换个名字",
+    "plaintext_http_warning": "注意：该地址为明文 HTTP（非本机），API 密钥将不加密传输，仅建议在可信局域网使用。"
   },
   "trash": {
     "title": "垃圾箱",

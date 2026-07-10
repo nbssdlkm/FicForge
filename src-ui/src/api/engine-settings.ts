@@ -5,7 +5,7 @@
  * Engine Settings query/command layer.
  */
 
-import { isAbortError } from "@ficforge/engine";
+import { isAbortError, isPlaintextRemoteHttp } from "@ficforge/engine";
 import {
   OpenAICompatibleProvider,
   RemoteEmbeddingProvider,
@@ -515,7 +515,12 @@ export async function testEmbeddingConnection(params: { api_base: string; api_ke
   try {
     const provider = new RemoteEmbeddingProvider(params.api_base, params.api_key, params.model);
     await provider.embed(["connection test"]);
-    return { success: true, model: params.model, dimension: provider.get_dimension() };
+    return {
+      success: true,
+      model: params.model,
+      dimension: provider.get_dimension(),
+      ...(isPlaintextRemoteHttp(params.api_base) ? { warning_code: "plaintext_http" as const } : {}),
+    };
   } catch (e: unknown) {
     const err = e as { message?: string };
     return { success: false, message: err.message };
@@ -543,7 +548,11 @@ export async function testConnection(params: {
       const nativeBase = raw.replace(/\/v1$/, "");
       const resp = await fetch(`${nativeBase}/api/tags`);
       if (resp.ok) {
-        return { success: true, model: params.ollama_model ?? "ollama" };
+        return {
+          success: true,
+          model: params.ollama_model ?? "ollama",
+          ...(isPlaintextRemoteHttp(raw) ? { warning_code: "plaintext_http" as const } : {}),
+        };
       }
       // 同上：error_code 交 UI 层映射 error_messages.connection_failed。
       return { success: false, error_code: "connection_failed" };
@@ -563,7 +572,13 @@ export async function testConnection(params: {
       temperature: 0,
       top_p: 1,
     });
-    return { success: true, model: resp.model };
+    // 判据与引擎生成路径同源（isPlaintextRemoteHttp）：明文 HTTP 远端连接「能通」，
+    // 但密钥不加密传输 —— 成功 + 告警，让用户知情而不阻断局域网自建端点（盲审 2026-07-11）
+    return {
+      success: true,
+      model: resp.model,
+      ...(isPlaintextRemoteHttp(params.api_base ?? "") ? { warning_code: "plaintext_http" as const } : {}),
+    };
   } catch (e: unknown) {
     const err = e as { message?: string; error_code?: string };
     return { success: false, message: err.message, error_code: err.error_code };

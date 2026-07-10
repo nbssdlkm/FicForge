@@ -9,7 +9,7 @@
  */
 
 import type { SecretStorageCapabilities } from "./adapter.js";
-import { getLogger, hasLogger } from "../logger/index.js";
+import { getLogger, hasLogger, redactCtx } from "../logger/index.js";
 
 // ---------------------------------------------------------------------------
 // 日志
@@ -26,7 +26,8 @@ export function platformWarn(tag: string, msg: string, ctx?: Record<string, unkn
     return;
   }
   /* eslint-disable no-console */
-  if (ctx) console.warn(`[${tag}] ${msg}`, ctx);
+  // console 降级同样过脱敏（B2 对抗审）—— 与 warnAlways 同口径
+  if (ctx) console.warn(`[${tag}] ${msg}`, redactCtx(ctx));
   else console.warn(`[${tag}] ${msg}`);
   /* eslint-enable no-console */
 }
@@ -89,6 +90,16 @@ function fnv1aHex(input: string): string {
  *     au_id 是含作品/AU 名的路径 → 替换为定长哈希，保留可诊断的键类型后缀；
  *   - 未知形态整体哈希 —— 宁可少信息，不可泄用户内容。
  */
+/**
+ * 把错误消息里出现的原始 secure key（内嵌作品/AU 标题）替换成脱敏形态。
+ * keyring/插件的错误串常拼原始 key 名 —— 必须在源头擦掉，不依赖 logger
+ * 字段名规则兜底（盲审 2026-07-11 安全维；四个适配器泄漏位点共用）。
+ */
+export function scrubKeyFromError(err: unknown, key: string): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  return key ? msg.split(key).join(redactSecureKey(key)) : msg;
+}
+
 export function redactSecureKey(key: string): string {
   if (key.startsWith("settings.")) return key;
   const m = key.match(/^project\.(.+)\.(llm\.api_key|embedding_lock\.api_key)$/);

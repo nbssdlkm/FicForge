@@ -955,7 +955,8 @@
     "unknown": "Something went wrong. Please retry or check settings.",
     "unsupported_mode": "Local models are not supported on this device. Switch to an online API or Ollama in settings.",
     "fandom_already_exists": "A fandom with this name already exists",
-    "au_already_exists": "An AU with this name already exists"
+    "au_already_exists": "An AU with this name already exists",
+    "plaintext_http_warning": "Warning: this endpoint uses plain HTTP (non-local). Your API key is sent unencrypted; use only on a trusted network."
   },
   "trash": {
     "title": "Trash",

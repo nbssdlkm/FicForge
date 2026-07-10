@@ -261,15 +261,47 @@ export class FileLogger implements Logger {
 // Redaction
 // ---------------------------------------------------------------------------
 
-function redactCtx(ctx: Record<string, unknown>): Record<string, unknown> {
+// 字符串值级擦洗（盲审 2026-07-11 日志维根治）：redactCtx 旧实现只按字段名匹配，
+// err.message 携带的提供商响应体片段 / Bearer 头 / URL query 里的密钥可经 ctx.error
+// 等不命中字段名规则的字符串值直通日志（该日志随「导出日志」外发）。按已知敏感形态
+// 在值层擦洗 —— 宁可多擦（把无害的 key= 参数也掩掉），不可漏擦。
+const STRING_REDACT_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
+  // Authorization: Bearer <token>
+  [/\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/g, "Bearer [REDACTED]"],
+  // OpenAI 风格裸 key（sk-xxx / sk-proj-xxx）
+  [/\bsk-[A-Za-z0-9_-]{8,}/g, "[REDACTED_KEY]"],
+  // URL query 里的 key/token 参数值
+  [/([?&](?:api[_-]?key|apikey|key|token|access[_-]?token|secret)=)[^&\s"']+/gi, "$1[REDACTED]"],
+  // JSON / kv 形态 "api_key":"xxx"、token=xxx（B2 对抗审：token 并入 —— 网关 4xx 回显常用）
+  [/(\b(?:api[_-]?key|apikey|access[_-]?token|token|secret|password|authorization)["']?\s*[:=]\s*["']?)[^\s"',;{}]{4,}/gi, "$1[REDACTED]"],
+  // secure key 名内嵌的作品/AU 标题（Rust/adapter 错误串会拼原始 key 名）。
+  // `.+?` 而非 `\S+?`：au_id 路径段白名单允许空格（"Harry Potter" 极常见），\S 遇空格即断导致
+  // 整段标题直通（B2 对抗审 MEDIUM，测试曾用无空格标题给了假信心）；后缀锚定保证不跨行贪吃。
+  // 负向前瞻跳过 redactSecureKey 已产出的 #<fnv 哈希> 形态 —— 那是刻意保留的诊断关联哈希。
+  [/\bproject\.(?!#[0-9a-f]{8}\.)[^\n]+?\.(llm\.api_key|embedding_lock\.api_key)/g, "project.[REDACTED].$1"],
+];
+
+function redactString(v: string): string {
+  let out = v;
+  for (const [re, sub] of STRING_REDACT_PATTERNS) out = out.replace(re, sub);
+  return out;
+}
+
+function redactValue(value: unknown): unknown {
+  if (typeof value === "string") return redactString(value);
+  // 数组逐元素递归（盲审 2026-07-11：旧实现数组值原样保留，内层敏感字段绕过掩码）
+  if (Array.isArray(value)) return value.map(redactValue);
+  if (value && typeof value === "object") return redactCtx(value as Record<string, unknown>);
+  return value;
+}
+
+export function redactCtx(ctx: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(ctx)) {
     if (REDACT_RE.test(key) || KEY_FIELD_RE.test(key)) {
       result[key] = "[REDACTED]";
-    } else if (value && typeof value === "object" && !Array.isArray(value)) {
-      result[key] = redactCtx(value as Record<string, unknown>);
     } else {
-      result[key] = value;
+      result[key] = redactValue(value);
     }
   }
   return result;

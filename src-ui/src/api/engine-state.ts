@@ -14,6 +14,7 @@ import {
   now_utc,
   WriteTransaction,
   RemoteEmbeddingProvider,
+  warnIfPlaintextRemote,
   withAuLock,
   type Settings,
   type Project,
@@ -41,9 +42,13 @@ export function createEmbeddingProvider(
 ): RemoteEmbeddingProvider | undefined {
   const lock = project?.embedding_lock;
   if (lock?.api_key && lock?.api_base) {
+    // 明文远端告警与 LLM 生成路径同判据同口径（B2 对抗审：embedding 恰是局域网自建
+    // HTTP 端点最常见的通路，此前整面漏保护）
+    warnIfPlaintextRemote(lock.api_base);
     return new RemoteEmbeddingProvider(lock.api_base, lock.api_key, lock.model || "");
   }
   if (!sett.embedding?.api_key || !sett.embedding?.api_base) return undefined;
+  warnIfPlaintextRemote(sett.embedding.api_base);
   return new RemoteEmbeddingProvider(
     sett.embedding.api_base,
     sett.embedding.api_key,

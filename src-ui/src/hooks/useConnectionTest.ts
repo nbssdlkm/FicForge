@@ -35,6 +35,7 @@ type EmbeddingConnectionResponse = {
   model?: string;
   message?: string;
   dimension?: number;
+  warning_code?: "plaintext_http";
 };
 
 interface ConnectionTestOptions<TParams, TResult extends { success: boolean }> {
@@ -88,6 +89,15 @@ export function useLlmConnectionTest(
   return useConnectionTestState<LlmConfigFields, TestConnectionResponse>({
     ...options,
     runTest: (params) => testConnection(buildLlmConnectionTestRequest(params)),
+    // 成功但有安全告警（明文 HTTP 远端）：在成功文案后追加告警句 —— 单点接管，
+    // 各调用方（设置/引导/移动端）无需各自处理（盲审 2026-07-11 安全维）
+    getSuccessMessage: (result, params) => {
+      const base = options.getSuccessMessage(result, params);
+      if (result.warning_code === "plaintext_http") {
+        return `${base} ${t("error_messages.plaintext_http_warning")}`;
+      }
+      return base;
+    },
     getFailureMessage: (result, params) => {
       if (!result.message && result.error_code && TEST_CONNECTION_CODE_I18N[result.error_code]) {
         return t(TEST_CONNECTION_CODE_I18N[result.error_code]);
@@ -100,6 +110,7 @@ export function useLlmConnectionTest(
 export function useEmbeddingConnectionTest(
   options: Omit<ConnectionTestOptions<EmbeddingConnectionFields, EmbeddingConnectionResponse>, "runTest">,
 ) {
+  const { t } = useTranslation();
   return useConnectionTestState<EmbeddingConnectionFields, EmbeddingConnectionResponse>({
     ...options,
     runTest: (params) => testEmbeddingConnection({
@@ -107,5 +118,13 @@ export function useEmbeddingConnectionTest(
       api_key: params.apiKey,
       model: params.model,
     }),
+    // 与 LLM 侧同口径：明文 HTTP 远端 → 成功文案追加告警（B2 对抗审：embedding 通路补齐）
+    getSuccessMessage: (result, params) => {
+      const base = options.getSuccessMessage(result, params);
+      if (result.warning_code === "plaintext_http") {
+        return `${base} ${t("error_messages.plaintext_http_warning")}`;
+      }
+      return base;
+    },
   });
 }

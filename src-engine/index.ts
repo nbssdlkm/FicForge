@@ -81,6 +81,8 @@ export type {
 } from "./llm/index.js";
 export {
   create_provider,
+  isPlaintextRemoteHttp,
+  warnIfPlaintextRemote,
   getEmbeddingModeAvailability,
   getGenerationModeAvailability,
   listGenerationModes,
