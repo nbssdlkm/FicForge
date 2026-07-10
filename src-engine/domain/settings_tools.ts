@@ -330,3 +330,49 @@ export function get_tools_for_mode(mode: string): Record<string, unknown>[] {
     throw new Error(`不支持的设定模式: ${mode}`);
   }
 }
+
+// ===========================================================================
+// 工具名契约（单一真相源，盲审 2026-07-11 架构维）
+//
+// 此前引擎 schema 用 `name: "add_fact"` 声明、UI 执行器用 `toolName === "add_fact"`
+// 分派，两侧是独立字面量 —— 只改一侧则 LLM 工具调用静默落空且无编译错误。
+// 现在：UI 分派点以本联合类型窄化 + assertNever 收尾（改名/漏分支即编译红）；
+// 与上方工具定义的字面量之间由 settings_tools.test 的集合相等断言锁双向漂移。
+// ===========================================================================
+
+/** 全部修改类设定工具（AU 9 个 + Fandom core_* 2 个；view/chat_reply 不在内）。 */
+export const SETTINGS_MUTATING_TOOL_NAMES = [
+  "create_character_file",
+  "modify_character_file",
+  "create_worldbuilding_file",
+  "modify_worldbuilding_file",
+  "add_fact",
+  "modify_fact",
+  "add_pinned_context",
+  "update_writing_style",
+  "update_core_includes",
+  "create_core_character_file",
+  "modify_core_character_file",
+] as const;
+
+export type SettingsMutatingToolName = (typeof SETTINGS_MUTATING_TOOL_NAMES)[number];
+
+export function isSettingsMutatingToolName(name: string): name is SettingsMutatingToolName {
+  return (SETTINGS_MUTATING_TOOL_NAMES as readonly string[]).includes(name);
+}
+
+/** 简版对话可执行的修改类工具（= get_tools_for_mode("simple") 的修改类子集）。 */
+export const SIMPLE_MUTATING_TOOL_NAMES = [
+  "create_character_file",
+  "modify_character_file",
+  "create_worldbuilding_file",
+  "modify_worldbuilding_file",
+  "add_pinned_context",
+  "update_writing_style",
+] as const;
+
+export type SimpleMutatingToolName = (typeof SIMPLE_MUTATING_TOOL_NAMES)[number];
+
+export function isSimpleMutatingToolName(name: string): name is SimpleMutatingToolName {
+  return (SIMPLE_MUTATING_TOOL_NAMES as readonly string[]).includes(name);
+}

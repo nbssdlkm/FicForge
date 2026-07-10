@@ -154,7 +154,14 @@ export {
 } from "./paths.js";
 
 // Settings tools
-export { get_tools_for_mode } from "./settings_tools.js";
+export {
+  get_tools_for_mode,
+  isSettingsMutatingToolName,
+  isSimpleMutatingToolName,
+  SETTINGS_MUTATING_TOOL_NAMES,
+  SIMPLE_MUTATING_TOOL_NAMES,
+} from "./settings_tools.js";
+export type { SettingsMutatingToolName, SimpleMutatingToolName } from "./settings_tools.js";
 
 // Utility functions
 export { scan_characters_in_chapter } from "./character_scanner.js";

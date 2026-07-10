@@ -149,3 +149,4 @@ export type {
 // 不导出则 UI 侧被结构性排除在单源之外，只能各自手写 instanceof 判据）
 // ---------------------------------------------------------------------------
 export { createAbortError, isAbortError } from "./utils/abort_error.js";
+export { assertNever } from "./utils/assert_never.js";

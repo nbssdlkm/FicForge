@@ -22,6 +22,7 @@
  * 不暴露 raw setter；返回值仅含 execute / undo 两个动词命名 method。
  */
 
+import { assertNever, isSimpleMutatingToolName, type SimpleMutatingToolName } from "@ficforge/engine";
 import { useCallback } from "react";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import {
@@ -90,12 +91,18 @@ export function useSimpleToolExecutor(
 
   const execute = useCallback(
     async (
-      toolName: string,
+      rawToolName: string,
       args: Record<string, unknown>,
     ): Promise<SimpleToolExecutionResult> => {
       if (!auPath) {
         throw new Error(t("error_messages.unknown"));
       }
+      // 工具名契约单源（盲审 2026-07-11）：入口即校验并窄化为引擎导出的联合类型，
+      // 未知工具提前失败（不白跑支撑 IO）；链尾 assertNever 锁引擎侧改名/增删。
+      if (!isSimpleMutatingToolName(rawToolName)) {
+        throw new Error(t("settingsMode.error.unsupportedTool", { name: rawToolName }));
+      }
+      const toolName: SimpleMutatingToolName = rawToolName;
 
       // === 1. 拉最新 lore 列表（防覆盖 / 防缺失校验依据）===
       let latestCharacterFiles: { files: LoreFileOption[] };
@@ -301,7 +308,9 @@ export function useSimpleToolExecutor(
         };
       }
 
-      throw new Error(t("settingsMode.error.unsupportedTool", { name: toolName }));
+      // 全部联合成员均已在上方分支 return —— toolName 在此收窄为 never（引擎新增
+      // 简版工具而这里没接分支时，这行就是编译错误落点）。
+      return assertNever(toolName, "unhandled simple tool");
     },
     [auPath, t],
   );

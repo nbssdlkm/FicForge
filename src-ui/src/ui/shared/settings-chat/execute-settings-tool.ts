@@ -14,6 +14,7 @@
  * （无 fact / core_includes / core_character 工具），演进节奏不同。
  */
 
+import { assertNever, isSettingsMutatingToolName, type SettingsMutatingToolName } from "@ficforge/engine";
 import {
   addFact,
   addPinned,
@@ -106,7 +107,14 @@ export async function executeSettingsTool(
   }
 
   const args = nextArgs || card.parsedArgs;
-  const toolName = getToolCallName(card);
+  const rawToolName = getToolCallName(card);
+  // 工具名契约单源（盲审 2026-07-11）：入口即校验并窄化为引擎导出的联合类型。
+  // 未知工具提前失败（旧实现走完 listLoreFiles/ensureProject 才在链尾抛，白做支撑 IO）；
+  // 链尾 assertNever 保证引擎侧改名/增删工具时这里编译红，不再可能静默落空。
+  if (!isSettingsMutatingToolName(rawToolName)) {
+    throw new Error(t("settingsMode.error.unsupportedTool", { name: rawToolName }));
+  }
+  const toolName: SettingsMutatingToolName = rawToolName;
   let latestCharacterFiles: { files: LoreFileOption[] };
   let latestWorldbuildingFiles: { files: LoreFileOption[] };
   try {
@@ -444,7 +452,9 @@ export async function executeSettingsTool(
     };
   }
 
-  throw new Error(t("settingsMode.error.unsupportedTool", { name: toolName }));
+  // 全部联合成员均已在上方分支 return —— toolName 在此收窄为 never；
+  // 引擎新增修改类工具而这里没接分支时，这行就是编译错误的落点。
+  return assertNever(toolName, "unhandled settings tool");
 }
 
 /** 按 undoMeta 撤销一次已执行的工具；不支持 / 找不到目标时 throw。 */
