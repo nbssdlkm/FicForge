@@ -83,7 +83,7 @@ export default defineConfig(async () => ({
   // 1. prevent Vite from obscuring rust errors
   clearScreen: false,
   // 2. tauri expects a fixed port, fail if that port is not available
-  //    （PORT 环境变量仅供浏览器 preview 等场景改派端口，Tauri 流程不设它，默认仍 1420）
+  //    （PORT 环境变量可覆盖：preview/多会话并行时 1420 可能被占用；tauri dev 不设 PORT，行为不变）
   server: {
     port: Number(process.env.PORT) || 1420,
     strictPort: true,
