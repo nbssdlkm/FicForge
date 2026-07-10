@@ -5,6 +5,8 @@
 
 ## 当前状态（2026-07-09/10）
 
+**2026-07-09 长期债②第一块（本会话，未提交等确认）**：AuSettingsLayout 状态下沉完成 —— 31 useState → 0（534 → 338 行），按 hook 铁律拆 4 个职责单一 hooks（`useAuSettingsData` 数据拉取 / `useAuSettingsForm` 表单+保存 / `useAuSettingsModals` 弹窗 / `useAuSettingsAdvancedOps` 高级操作）；表单收敛为 `AuSettingsFormState` 单对象，hydrate 以 loadKey 触发 + project 走 ref shim（cast 移除局部更新不吞未保存编辑）；新增 4 条布局回归测试锁 hydrate/保存 payload/切 AU 重灌/cast 移除。验证：UI tsc 0 错 + 415 测试全绿（+4），headless Chrome 真 UI 眼验 15 步（建 AU→设置页表单/保存 round-trip/双覆盖开合/四弹窗/recalc）零 console error。剩余五个大组件同打法逐会话复制。
+
 **2026-07-09/10 盲审会话：网上下载 code-audit 技能做 9 维盲审（55/F 基线）→ 用户拍板「最全面最治本」→ A-H 八阶段修复全部完成（未提交，等确认）。** 盲审 86 条发现中产品关键四维（正确性/安全/功能实现/日志）全部清零；依赖漏洞双包清零（引擎 audit 0，UI 剩 1 条 dev-only LOW 被父包锁住）；单一真相源抽取（章节/草稿命名 9 处副本收敛 `domain/paths.ts`、平台适配器共享层、默认值单源）；仓储 get 契约统一（缺失=null / fs 错误=抛）；3 组 inert 配置 + WebDAV 序列化残留 + 8 个孤儿 API 物理清退；Tauri CSP/fs 收权；新增 30 测试（TaskRunner 从零到 12 用例，顺手修 1 真 bug）。修复后自评约 88.5/B。终验：引擎 1300 + UI 411 全绿、双 tsc 0 错、i18n 1271 对称。报告：`docs/internal/audit/2026-07-09-blind-audit-9dim.md`（含发现全录 + 修复对照 + 长期债清单）。
 
 ## 待办
@@ -29,7 +31,7 @@
 
 ### 长期债（盲审 2026-07-09 判定为低息，渐进还）
 - [ ] snake/camel 命名同文件混用（迁移遗产，5 文件 + React 组件声明风格）
-- [ ] 巨型组件状态下沉（AuSettingsLayout 31 useState / AuLoreLayout / SettingsChatPanel / FandomLore / GlobalSettings / Mobile 两个，按 hook 铁律分批）
+- [ ] 巨型组件状态下沉（按 hook 铁律分批）：✅ AuSettingsLayout（2026-07-09，31 useState→0，4 hooks + 4 回归测试）；剩 AuLoreLayout(946行/26) / SettingsChatPanel(1026行) / FandomLoreLayout(734行/22) / GlobalSettingsModal(450行/20) / MobileOnboarding(571行/19)，逐会话复制同打法
 - [ ] UI hooks 测试补全（写文侧 useWriterBootstrap 等 / facts 三 hook / useConnectionTest / useFontSelection）+ 存量 LLM mock 迁移共享 helper（`services/__tests__/mock_llm_provider.ts` 已建）
 - [ ] chat-to-llm 业务规则下沉引擎（前置：消息 kind schema 先在引擎 domain 正式化）
 - [ ] devDep 大版本三件（TS 7 / tailwind 4 / plugin-react 6）择机升级
