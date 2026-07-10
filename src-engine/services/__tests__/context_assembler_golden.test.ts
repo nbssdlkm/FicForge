@@ -16,7 +16,7 @@ import { createChapter } from "../../domain/chapter.js";
 import { FactStatus, NarrativeWeight, FactType, FactSource } from "../../domain/enums.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 import { FileChapterRepository } from "../../repositories/implementations/file_chapter.js";
-import { compute_content_hash } from "../../repositories/implementations/file_utils.js";
+import { compute_content_hash } from "../../utils/file_utils.js";
 
 const golden = JSON.parse(
   readFileSync(new URL("./fixtures/context_golden.json", import.meta.url), "utf-8"),

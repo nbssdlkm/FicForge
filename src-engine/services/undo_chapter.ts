@@ -10,6 +10,7 @@
 
 import { scan_characters_in_chapter } from "../domain/character_scanner.js";
 import { FactStatus, IndexStatus } from "../domain/enums.js";
+import { logCatch } from "../logger/index.js";
 import type { OpsEntry } from "../domain/ops_entry.js";
 import { createOpsEntry } from "../domain/ops_entry.js";
 import type { Fact } from "../domain/fact.js";
@@ -19,7 +20,7 @@ import type { DraftRepository } from "../repositories/interfaces/draft.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
-import { generate_op_id, now_utc } from "../repositories/implementations/file_utils.js";
+import { generate_op_id, now_utc } from "../utils/file_utils.js";
 import { withAuLock } from "./au_lock.js";
 import { WriteTransaction } from "./write_transaction.js";
 
@@ -86,12 +87,10 @@ async function doUndo(params: UndoChapterParams): Promise<UndoChapterResult> {
   // 步骤 1：确定被撤销的章节号 N
   // =================================================================
   let chapterId = "";
-  try {
-    const oldChapter = await chapter_repo.get(au_id, n);
-    chapterId = oldChapter.chapter_id;
-  } catch {
-    // 章节文件已不存在（异常状态），继续回滚
-  }
+  // 章节文件已不存在（get 返回 null，异常状态）时继续回滚；fs 读错误照抛中止 undo
+  // —— 旧的裸 catch 会把真实读错误也吞成"不存在"，读失败时不该带病级联。
+  const oldChapter = await chapter_repo.get(au_id, n);
+  if (oldChapter) chapterId = oldChapter.chapter_id;
 
   // =================================================================
   // 读取阶段：收集所有待写入操作（不实际写入）
@@ -448,8 +447,10 @@ async function rollbackConfirmedFocus(
   if (n <= 1) return [];
   try {
     const prevCh = await chapter_repo.get(au_id, n - 1);
-    return [...prevCh.confirmed_focus];
-  } catch {
+    return prevCh ? [...prevCh.confirmed_focus] : [];
+  } catch (err) {
+    // best-effort：focus 回滚不值得让 undo 级联失败，但读错误落日志可诊断
+    logCatch("undo", `rollbackConfirmedFocus read failed for ch${n - 1}`, err);
     return [];
   }
 }

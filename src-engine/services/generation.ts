@@ -14,6 +14,7 @@ import type { Fact } from "../domain/fact.js";
 import type { Thread } from "../domain/thread.js";
 import type { GeneratedWith } from "../domain/generated_with.js";
 import { createGeneratedWith } from "../domain/generated_with.js";
+import { nextDraftLabel } from "../domain/paths.js";
 import type { Project } from "../domain/project.js";
 import type { Settings } from "../domain/settings.js";
 import type { State } from "../domain/state.js";
@@ -31,7 +32,7 @@ import { chapterInflightKey, isChapterInflight, markChapterInflight, releaseChap
 import { assemble_context } from "./context_assembler.js";
 import type { ChunkWithCollection } from "./rag_retrieval.js";
 import { retrieveRagForContext, toRagChunkDetail } from "./rag_retrieval.js";
-import { now_utc, joinPath } from "../repositories/implementations/file_utils.js";
+import { now_utc, joinPath } from "../utils/file_utils.js";
 import { withAuLock } from "./au_lock.js";
 
 // ---------------------------------------------------------------------------
@@ -65,27 +66,6 @@ export interface GenerationErrorData {
 
 function genKey(au_id: string, chapter_num: number): string {
   return chapterInflightKey(au_id, chapter_num);
-}
-
-// ---------------------------------------------------------------------------
-// 草稿标签分配
-// ---------------------------------------------------------------------------
-
-export class DraftLabelExhaustedError extends Error {
-  constructor() {
-    super("草稿标签已用尽（A-Z），请先定稿或删除部分草稿");
-    this.name = "DraftLabelExhaustedError";
-  }
-}
-
-function nextDraftLabel(existingLabels: string[]): string {
-  if (existingLabels.length === 0) return "A";
-  const used = new Set(existingLabels);
-  for (let i = 0; i < 26; i++) {
-    const label = String.fromCharCode(65 + i);
-    if (!used.has(label)) return label;
-  }
-  throw new DraftLabelExhaustedError();
 }
 
 // ---------------------------------------------------------------------------

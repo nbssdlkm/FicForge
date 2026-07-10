@@ -22,7 +22,7 @@ import { createOpsEntry } from "../domain/ops_entry.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
-import { generate_fact_id, generate_op_id, now_utc } from "../repositories/implementations/file_utils.js";
+import { generate_fact_id, generate_op_id, now_utc } from "../utils/file_utils.js";
 import { WriteTransaction } from "./write_transaction.js";
 import { hasLogger, getLogger } from "../logger/index.js";
 

@@ -8,7 +8,7 @@ import { ThreadStatus, THREAD_STATUS_VALUES } from "../../domain/enums.js";
 import type { Thread } from "../../domain/thread.js";
 import { createThread } from "../../domain/thread.js";
 import type { ThreadRepository } from "../interfaces/thread.js";
-import { append_jsonl, joinPath, now_utc, read_jsonl, rewrite_jsonl, validateBasePath, withWriteLock } from "./file_utils.js";
+import { append_jsonl, joinPath, now_utc, read_jsonl, rewrite_jsonl, validateBasePath, withWriteLock } from "../../utils/file_utils.js";
 import { hasLogger, getLogger } from "../../logger/index.js";
 
 // ---------------------------------------------------------------------------

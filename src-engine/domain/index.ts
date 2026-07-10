@@ -70,8 +70,6 @@ export {
 
 export type {
   AppConfig,
-  ChapterMetadataDisplay,
-  ChapterMetadataField,
   CustomModelEntry,
   CustomProviderEntry,
   EmbeddingConfig,
@@ -79,12 +77,9 @@ export type {
   LicenseConfig,
   ModelParams,
   Settings,
-  SyncConfig,
 } from "./settings.js";
 export {
   createAppConfig,
-  createChapterMetadataDisplay,
-  createChapterMetadataField,
   createCustomModelEntry,
   createCustomProviderEntry,
   createEmbeddingConfig,
@@ -92,7 +87,6 @@ export {
   createLicenseConfig,
   createModelParams,
   createSettings,
-  createSyncConfig,
 } from "./settings.js";
 
 export type { SimpleChatFile, SimpleChatMessageEnvelope } from "./simple_chat.js";
@@ -125,7 +119,21 @@ export {
   findRecommendedModel,
   getProvider,
   listProviders,
+  OLLAMA_DEFAULT_BASE_URL,
 } from "./provider_manifest.js";
+
+// 章节 / 草稿文件命名与路径判据（单一真相源）
+export {
+  CHAPTERS_MAIN_DIR,
+  chapterFilename,
+  chapterMainPath,
+  draftFilename,
+  DraftLabelExhaustedError,
+  nextDraftLabel,
+  parseChapterFilename,
+  parseChapterMainPath,
+  parseDraftFilename,
+} from "./paths.js";
 
 // Settings tools
 export { get_tools_for_mode } from "./settings_tools.js";

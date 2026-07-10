@@ -9,7 +9,8 @@
 import yaml from "js-yaml";
 import { safeMatter } from "../domain/frontmatter.js";
 import type { PlatformAdapter } from "../platform/adapter.js";
-import { atomicWrite, joinPath } from "../repositories/implementations/file_utils.js";
+import { atomicWrite, joinPath } from "../utils/file_utils.js";
+import { warnAlways } from "../logger/index.js";
 
 /**
  * 角色设定文件 frontmatter 的合法键集合（settings-chat 提示词约定的 schema：
@@ -171,12 +172,9 @@ export class TrashService {
       const restoreFailures = await this.restoreCopiedTree(copiedFiles);
       await this.deleteCopiesWithVerifiedSource(copiedFiles);
       if (restoreFailures.length > 0) {
-        // eslint-disable-next-line no-console
-        console.warn(
-          `[trash] 目录删除回滚不完整：${restoreFailures.length} 个文件未能恢复到原位，` +
-          `其 .trash 副本已保留，可手工找回: ` +
-          restoreFailures.map((f) => `${f.source} ← ${f.trash} (${f.message})`).join("; "),
-        );
+        warnAlways("trash", `目录删除回滚不完整：${restoreFailures.length} 个文件未能恢复到原位，其 .trash 副本已保留，可手工找回`, {
+          failures: restoreFailures.map((f) => `${f.source} ← ${f.trash} (${f.message})`),
+        });
       }
       throw error;
     }
@@ -307,10 +305,9 @@ export class TrashService {
       try {
         await this.updateCastRegistry(scopeRoot, characterName, "remove");
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn(
-          `[trash] cast_registry remove 失败；名册可能残留该角色，可经 restore 修正: ${(err as Error).message}`,
-        );
+        warnAlways("trash", "cast_registry remove 失败；名册可能残留该角色，可经 restore 修正", {
+          error: (err as Error).message,
+        });
       }
     }
 

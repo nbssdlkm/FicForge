@@ -10,8 +10,6 @@ import type { LLMConfig } from "../../domain/project.js";
 import { createLLMConfig } from "../../domain/project.js";
 import type {
   AppConfig,
-  ChapterMetadataDisplay,
-  ChapterMetadataField,
   CustomModelEntry,
   CustomProviderEntry,
   EmbeddingConfig,
@@ -19,12 +17,9 @@ import type {
   LicenseConfig,
   ModelParams,
   Settings,
-  SyncConfig,
 } from "../../domain/settings.js";
 import {
   createAppConfig,
-  createChapterMetadataDisplay,
-  createChapterMetadataField,
   createCustomModelEntry,
   createCustomProviderEntry,
   createEmbeddingConfig,
@@ -32,11 +27,10 @@ import {
   createLicenseConfig,
   createModelParams,
   createSettings,
-  createSyncConfig,
 } from "../../domain/settings.js";
 import { scriptSlotOf } from "../../fonts/stacks.js";
 import type { SettingsRepository } from "../interfaces/settings.js";
-import { atomicWrite, joinPath, now_utc, obj_to_plain } from "./file_utils.js";
+import { atomicWrite, joinPath, now_utc, obj_to_plain } from "../../utils/file_utils.js";
 import {
   extractSecureFields,
   hasLegacyPlaintextSecureFields,
@@ -60,11 +54,7 @@ const SETTINGS_SECURE_SPECS: SecureFieldSpec<Settings>[] = [
     get: (s) => s.embedding.api_key,
     set: (s, v) => { s.embedding.api_key = v; },
   },
-  {
-    secureKey: "settings.sync.webdav.password",
-    get: (s) => s.sync.webdav?.password ?? "",
-    set: (s, v) => { if (s.sync.webdav) s.sync.webdav.password = v; },
-  },
+  // settings.sync.webdav.password spec 已随 SyncConfig 清退（D-0040 落实，2026-07-09）。
 ];
 
 /**
@@ -219,27 +209,6 @@ function dictToEmbeddingConfig(d: Record<string, unknown> | null): EmbeddingConf
   });
 }
 
-function dictToChapterMetadataField(d: Record<string, unknown> | null): ChapterMetadataField {
-  if (!d) return createChapterMetadataField();
-  return createChapterMetadataField({
-    model: (d.model as boolean) ?? true,
-    char_count: (d.char_count as boolean) ?? true,
-    token_usage: (d.token_usage as boolean) ?? true,
-    duration: (d.duration as boolean) ?? true,
-    timestamp: (d.timestamp as boolean) ?? true,
-    temperature: (d.temperature as boolean) ?? true,
-    top_p: (d.top_p as boolean) ?? true,
-  });
-}
-
-function dictToChapterMetadataDisplay(d: Record<string, unknown> | null): ChapterMetadataDisplay {
-  if (!d) return createChapterMetadataDisplay();
-  return createChapterMetadataDisplay({
-    enabled: (d.enabled as boolean) ?? true,
-    fields: dictToChapterMetadataField(d.fields as Record<string, unknown> | null),
-  });
-}
-
 /**
  * `app.fonts` 字典 → FontsConfig，**含 Phase 4 → Phase 7 字段迁移**。
  *
@@ -284,14 +253,12 @@ function dictToFontsConfig(d: Record<string, unknown> | null): FontsConfig {
 
 function dictToAppConfig(d: Record<string, unknown> | null): AppConfig {
   if (!d) return createAppConfig();
-  // 注：旧 settings.yaml 里可能仍带 writing_mode 字段（融合前的写作模式开关，已退役）。
+  // 注：旧 settings.yaml 里可能仍带已退役字段（writing_mode / token_count_fallback /
+  // token_warning_threshold / chapter_metadata_display —— 2026-07-09 盲审死配置清退）。
   // 此处不映射 → 读取时自然丢弃，save 也不再写回，无损同块其它字段（向后兼容）。
   return createAppConfig({
     language: (d.language as string) ?? "zh",
     data_dir: (d.data_dir as string) ?? "./fandoms",
-    token_count_fallback: (d.token_count_fallback as string) ?? "char_mul1.5",
-    token_warning_threshold: (d.token_warning_threshold as number) ?? 32000,
-    chapter_metadata_display: dictToChapterMetadataDisplay(d.chapter_metadata_display as Record<string, unknown> | null),
     fonts: dictToFontsConfig(d.fonts as Record<string, unknown> | null),
     // 默认开（PD-4）：缺字段（老 settings.yaml）视为开；仅显式 false 才关。
     react_extraction_enabled: d.react_extraction_enabled !== false,
@@ -305,23 +272,6 @@ function dictToLicenseConfig(d: Record<string, unknown> | null): LicenseConfig {
     tier: LicenseTier[(d.tier as string)?.toUpperCase() as keyof typeof LicenseTier] ?? LicenseTier.FREE,
     feature_flags: (d.feature_flags as string[]) ?? [],
     api_mode: APIMode[(d.api_mode as string)?.toUpperCase() as keyof typeof APIMode] ?? APIMode.SELF_HOSTED,
-  });
-}
-
-function dictToSyncConfig(d: Record<string, unknown> | null): SyncConfig {
-  if (!d) return createSyncConfig();
-  const webdav = d.webdav as Record<string, string> | undefined;
-  return createSyncConfig({
-    mode: (d.mode as "none" | "webdav") ?? "none",
-    ...(webdav ? {
-      webdav: {
-        url: webdav.url ?? "",
-        username: webdav.username ?? "",
-        password: webdav.password ?? "",
-        remote_dir: webdav.remote_dir ?? "/FicForge/",
-      },
-    } : {}),
-    ...(d.last_sync ? { last_sync: d.last_sync as string } : {}),
   });
 }
 
@@ -387,7 +337,7 @@ function dictToSettings(d: Record<string, unknown>): Settings {
     embedding: dictToEmbeddingConfig(d.embedding as Record<string, unknown> | null),
     app: dictToAppConfig(d.app as Record<string, unknown> | null),
     license: dictToLicenseConfig(d.license as Record<string, unknown> | null),
-    sync: dictToSyncConfig(d.sync as Record<string, unknown> | null),
+    // 旧 settings.yaml 的 `sync:` 键不再映射（D-0040 同步退役落实）→ 读取时容忍忽略
     // 旧 settings.yaml 无以下两字段 → 各自回退空集合（向后兼容，读入不炸）
     custom_providers: dictToCustomProviders(d.custom_providers),
     enabled_models: dictToEnabledModels(d.enabled_models as Record<string, unknown> | null),

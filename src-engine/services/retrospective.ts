@@ -87,10 +87,14 @@ export async function generate_retrospective(
   let contentHash: string;
   try {
     const ch = await chapterRepo.get(auPath, targetChapterNum);
+    // 章节不存在（null）→ 无法生成 → 静默跳过
+    if (!ch) return null;
     chapterText = ch.content;
     contentHash = ch.content_hash;
-  } catch {
-    // 章节不存在或读取失败 → 无法生成 → 静默跳过
+  } catch (err) {
+    // 读取失败（fs 错误）→ best-effort 服务不阻断确认流程，但落日志可诊断
+    // （get 契约下 null 只表缺失，catch 不再吞掉真实读错误）
+    logCatch("retrospective", `chapter read failed for ch${targetChapterNum}; skip`, err);
     return null;
   }
   if (!chapterText?.trim()) return null;

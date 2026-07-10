@@ -2,17 +2,17 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import type { PlatformAdapter } from "../platform/adapter.js";
-import type { FileFandomRepository } from "../repositories/implementations/file_fandom.js";
-import type { FileProjectRepository } from "../repositories/implementations/file_project.js";
-import type { FileSettingsRepository } from "../repositories/implementations/file_settings.js";
-import { joinPath } from "../repositories/implementations/file_utils.js";
+import type { FandomRepository } from "../repositories/interfaces/fandom.js";
+import type { ProjectRepository } from "../repositories/interfaces/project.js";
+import type { SettingsRepository } from "../repositories/interfaces/settings.js";
+import { joinPath } from "../utils/file_utils.js";
 
 export interface SecureStorageMigrationParams {
   adapter: PlatformAdapter;
   dataDir: string;
-  fandomRepo: FileFandomRepository;
-  projectRepo: FileProjectRepository;
-  settingsRepo: FileSettingsRepository;
+  fandomRepo: FandomRepository;
+  projectRepo: ProjectRepository;
+  settingsRepo: SettingsRepository;
 }
 
 export interface SecureStorageMigrationResult {

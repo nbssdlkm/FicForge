@@ -5,7 +5,7 @@ import { describe, expect, it, beforeEach } from "vitest";
 import { FileFactRepository, factToDict } from "../implementations/file_fact.js";
 import { FactStatus, FactType, NarrativeWeight, TimeKind, SuspenseType } from "../../domain/enums.js";
 import { createFact } from "../../domain/fact.js";
-import { generate_fact_id } from "../implementations/file_utils.js";
+import { generate_fact_id } from "../../utils/file_utils.js";
 import { MockAdapter } from "./mock_adapter.js";
 
 describe("FileFactRepository", () => {

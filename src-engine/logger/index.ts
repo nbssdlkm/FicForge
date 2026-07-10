@@ -40,3 +40,19 @@ export function logCatch(tag: string, msg: string, err?: unknown): void {
   const errMsg = err instanceof Error ? err.message : err != null ? String(err) : undefined;
   _logger.warn(tag, msg, errMsg ? { error: errMsg } : undefined);
 }
+
+/**
+ * 告警必达：logger 就绪时落日志文件（ctx 经脱敏，条目可随「导出日志」带走），
+ * 未就绪（引导早期）降级 console.warn 保证诊断不丢。
+ * 生产代码的告警一律用它，不允许裸 console.warn（console 输出无法随导出带走）。
+ */
+export function warnAlways(tag: string, msg: string, ctx?: Record<string, unknown>): void {
+  if (_logger) {
+    _logger.warn(tag, msg, ctx);
+    return;
+  }
+  /* eslint-disable no-console */
+  if (ctx) console.warn(`[${tag}] ${msg}`, ctx);
+  else console.warn(`[${tag}] ${msg}`);
+  /* eslint-enable no-console */
+}

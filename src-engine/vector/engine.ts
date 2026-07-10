@@ -11,7 +11,8 @@
 import type { PlatformAdapter } from "../platform/adapter.js";
 import { IndexStatus } from "../domain/enums.js";
 import type { SearchOptions, SearchResult, VectorChunk, VectorRepository } from "../repositories/interfaces/vector.js";
-import { logCatch } from "../logger/index.js";
+import { logCatch, warnAlways } from "../logger/index.js";
+import { atomicWrite } from "../utils/file_utils.js";
 
 /** 内存中的 chunk 条目。 */
 interface MemoryChunk {
@@ -70,7 +71,20 @@ export class JsonVectorEngine implements VectorRepository {
     }
 
     const indexText = await this.adapter.readFile(indexPath);
-    const index = JSON.parse(indexText) as VectorIndex;
+    let index: VectorIndex;
+    try {
+      index = JSON.parse(indexText) as VectorIndex;
+    } catch (err) {
+      // index.json 损坏（老版本非原子写崩溃截断）：不抛给上层 —— 搜索路径会静默降级
+      // 空召回且无人把状态翻回 STALE，RAG 从此永久失效（盲审 2026-07-09）。
+      // 自愈：按 STALE 空索引处理，让 index_status 消费方（badge / recalc）看到需重建。
+      warnAlways("vector", `index.json corrupted at ${indexPath}; treating as STALE empty index (rebuild required)`, {
+        error: err instanceof Error ? err.message : String(err),
+        bytes: indexText.length,
+      });
+      this.indexStatus = IndexStatus.STALE;
+      return;
+    }
 
     for (const entry of index.chunks) {
       const filePath = `${vectorsDir}/${entry.file}`;
@@ -190,7 +204,8 @@ export class JsonVectorEngine implements VectorRepository {
 
       const fileName = `${chunk.id}.json`;
       const filePath = `${collDir}/${fileName}`;
-      await this.adapter.writeFile(filePath, JSON.stringify(chunk, null, 2));
+      // atomicWrite（与全仓崩溃安全策略一致）：中途崩溃不留半截 JSON 分片
+      await atomicWrite(this.adapter, filePath, JSON.stringify(chunk, null, 2));
       writtenRel.add(`${chunk.collection}/${fileName}`);
 
       indexEntries.push({
@@ -212,7 +227,9 @@ export class JsonVectorEngine implements VectorRepository {
       total_chunks: this.chunks.length,
       chunks: indexEntries,
     };
-    await this.adapter.writeFile(`${dir}/index.json`, JSON.stringify(index, null, 2));
+    // index.json 是加载判据，必须原子提交：截断的 index 会让 load 走「损坏 → STALE 空索引」
+    // 自愈路径（可恢复），但仍应尽力不产生这种状态。
+    await atomicWrite(this.adapter, `${dir}/index.json`, JSON.stringify(index, null, 2));
 
     // L18：清理孤儿分片——undo/编辑/重确认后 chunk 数变少时，旧的 `.json` 分片不再被本次写入
     // 覆盖，会永久残留（load 靠 index.json 不读它们，但纯磁盘垃圾逐轮膨胀）。列出 dir 下各

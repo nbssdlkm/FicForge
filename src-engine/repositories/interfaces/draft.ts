@@ -6,8 +6,8 @@
 import type { Draft } from "../../domain/draft.js";
 
 export interface DraftRepository {
-  /** 获取指定章节的指定草稿变体。 */
-  get(au_id: string, chapter_num: number, variant: string): Promise<Draft>;
+  /** 获取指定章节的指定草稿变体；不存在返回 null（get 契约见 ChapterRepository 档注）。 */
+  get(au_id: string, chapter_num: number, variant: string): Promise<Draft | null>;
 
   /** 保存草稿。 */
   save(draft: Draft): Promise<void>;

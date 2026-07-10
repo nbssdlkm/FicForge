@@ -24,7 +24,7 @@ import type { Message } from "../llm/provider.js";
 import { resolve_llm_config } from "../llm/config_resolver.js";
 import { assemble_chat_context } from "./context_assembler.js";
 import { count_tokens, ensureTokenizer } from "../tokenizer/index.js";
-import { joinPath } from "../repositories/implementations/file_utils.js";
+import { joinPath } from "../utils/file_utils.js";
 
 async function loadMdDir(
   adapter: PlatformAdapter,

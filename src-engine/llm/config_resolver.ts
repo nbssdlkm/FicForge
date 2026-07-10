@@ -5,6 +5,7 @@
 
 import type { LLMProvider } from "./provider.js";
 import { OpenAICompatibleProvider } from "./openai_compatible.js";
+import { OLLAMA_DEFAULT_BASE_URL } from "../domain/provider_manifest.js";
 
 // ---------------------------------------------------------------------------
 // resolve_llm_config（三层模型配置）
@@ -286,7 +287,7 @@ export function create_provider(llmConfig: ResolvedLLMConfig): LLMProvider {
   }
 
   if (mode === "ollama") {
-    const base = (llmConfig.api_base || "http://localhost:11434/v1").replace(/\/+$/, "");
+    const base = (llmConfig.api_base || OLLAMA_DEFAULT_BASE_URL).replace(/\/+$/, "");
     const key = llmConfig.api_key || "ollama";  // dummy —— Ollama 不校验
     const model = llmConfig.ollama_model || llmConfig.model;
     if (!model) {

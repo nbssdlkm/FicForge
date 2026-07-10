@@ -11,12 +11,13 @@ import { scan_characters_in_chapter } from "../domain/character_scanner.js";
 import { IndexStatus } from "../domain/enums.js";
 import type { GeneratedWith } from "../domain/generated_with.js";
 import { createOpsEntry } from "../domain/ops_entry.js";
+import { parseDraftFilename } from "../domain/paths.js";
 import { extract_last_scene_ending } from "../domain/text_utils.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { DraftRepository } from "../repositories/interfaces/draft.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
-import { compute_content_hash, generate_op_id, now_utc } from "../repositories/implementations/file_utils.js";
+import { compute_content_hash, generate_op_id, now_utc } from "../utils/file_utils.js";
 import { withAuLock } from "./au_lock.js";
 import { WriteTransaction } from "./write_transaction.js";
 
@@ -32,8 +33,8 @@ export class ConfirmChapterError extends Error {
 // ---------------------------------------------------------------------------
 
 function parseDraftId(draftId: string): [number, string] | null {
-  const m = draftId.match(/^ch(\d{4,})_draft_(\w+)\.md$/);
-  return m ? [Number(m[1]), m[2]] : null;
+  const parsed = parseDraftFilename(draftId);
+  return parsed ? [parsed.chapter_num, parsed.variant] : null;
 }
 
 export interface ConfirmChapterParams {
@@ -91,10 +92,8 @@ async function doConfirm(params: ConfirmChapterParams): Promise<ConfirmChapterRe
     throw new ConfirmChapterError(`draft_id 章节号 ${draftChapterNum} 与请求章节号 ${chapter_num} 不匹配`);
   }
 
-  let draft;
-  try {
-    draft = await draft_repo.get(au_id, chapter_num, draftVariant);
-  } catch {
+  const draft = await draft_repo.get(au_id, chapter_num, draftVariant);
+  if (!draft) {
     throw new ConfirmChapterError(`草稿文件不存在: ${draft_id}`);
   }
 
@@ -107,9 +106,12 @@ async function doConfirm(params: ConfirmChapterParams): Promise<ConfirmChapterRe
   const chapterExists = await chapter_repo.exists(au_id, chapter_num);
   if (chapterExists) {
     const oldChapter = await chapter_repo.get(au_id, chapter_num);
-    oldChapterId = oldChapter.chapter_id;
-    oldRevision = oldChapter.revision;
-    await chapter_repo.backup_chapter(au_id, chapter_num);
+    // exists 与 get 之间被并发删除的窄窗：按「无旧章」继续（等价 chapterExists=false 分支）
+    if (oldChapter) {
+      oldChapterId = oldChapter.chapter_id;
+      oldRevision = oldChapter.revision;
+      await chapter_repo.backup_chapter(au_id, chapter_num);
+    }
   }
 
   // === 步骤 2：构建章节对象 ===

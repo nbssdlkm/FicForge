@@ -319,7 +319,7 @@ describe("FontDownloader.download — onProgress error isolation", () => {
       expect(throwingProgress).toHaveBeenCalled();
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining("onProgress callback threw"),
-        expect.any(Error),
+        expect.objectContaining({ error: expect.any(String) }),
       );
       // 关键断言：仅命中主源，未触发 failover。
       expect(fetchImpl).toHaveBeenCalledTimes(1);

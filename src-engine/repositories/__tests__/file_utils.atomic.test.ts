@@ -14,7 +14,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { MockAdapter } from "./mock_adapter.js";
-import { atomicWrite, read_jsonl } from "../implementations/file_utils.js";
+import { atomicWrite, read_jsonl } from "../../utils/file_utils.js";
 
 /** 对**正式路径**（非 .tmp）的 writeFile 模拟「写一半掉电」：落半截内容后抛错。 */
 class TruncatingCrashAdapter extends MockAdapter {

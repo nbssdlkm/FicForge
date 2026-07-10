@@ -11,6 +11,13 @@ class MockAdapter {
   async readFile(path: string) { const c = this.files.get(path); if (!c) throw new Error("Not found"); return c; }
   async writeFile(path: string, content: string) { this.files.set(path, content); }
   async deleteFile(path: string) { this.files.delete(path); }
+  // atomicWrite 依赖（写 .tmp → rename 原子替换），与真实三端 adapter 契约一致
+  async rename(oldPath: string, newPath: string) {
+    const c = this.files.get(oldPath);
+    if (c === undefined) throw new Error(`rename: source not found: ${oldPath}`);
+    this.files.set(newPath, c);
+    this.files.delete(oldPath);
+  }
   async listDir(path: string) {
     const prefix = path + "/";
     const names = new Set<string>();
@@ -237,6 +244,11 @@ describe("JsonVectorEngine", () => {
         ops.push(`delete:${path}`);
         return super.deleteFile(path);
       }
+      // atomicWrite 时代 index.json 的「提交点」是 rename（.tmp → 正式路径）
+      async rename(oldPath: string, newPath: string) {
+        ops.push(`rename:${newPath}`);
+        return super.rename(oldPath, newPath);
+      }
     }
     const orderAdapter = new OrderAdapter();
     const eng = new JsonVectorEngine(orderAdapter as any);
@@ -251,10 +263,10 @@ describe("JsonVectorEngine", () => {
     ops.length = 0;
     await eng.persist("/vectors");
 
-    const indexWriteIdx = ops.indexOf("write:/vectors/index.json");
+    const indexCommitIdx = ops.indexOf("rename:/vectors/index.json");
     const orphanDeleteIdx = ops.indexOf("delete:/vectors/chapters/ch2_0.json");
-    expect(indexWriteIdx).toBeGreaterThanOrEqual(0);
-    expect(orphanDeleteIdx).toBeGreaterThan(indexWriteIdx);
+    expect(indexCommitIdx).toBeGreaterThanOrEqual(0);
+    expect(orphanDeleteIdx).toBeGreaterThan(indexCommitIdx);
     // GC 结果不变：孤儿已清、保留分片仍在
     expect(await orderAdapter.exists("/vectors/chapters/ch2_0.json")).toBe(false);
     expect(await orderAdapter.exists("/vectors/chapters/ch1_0.json")).toBe(true);

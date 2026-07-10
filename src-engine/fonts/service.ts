@@ -21,6 +21,7 @@ import {
 import { FontDownloader, type ProgressCallback } from "./downloader.js";
 import type { FontRegistry } from "./registry.js";
 import type { FontStorage } from "./storage.js";
+import { warnAlways } from "../logger/index.js";
 import {
   FontError,
   type DownloadProgress,
@@ -176,7 +177,9 @@ export class FontsService {
       try {
         listener(event);
       } catch (e) {
-        console.warn(`[FontsService] download listener threw for ${event.id}:`, e);
+        warnAlways("FontsService", `download listener threw for ${event.id}`, {
+          error: e instanceof Error ? e.message : String(e),
+        });
       }
     }
   }

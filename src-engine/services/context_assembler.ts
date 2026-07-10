@@ -13,15 +13,16 @@ import type { BudgetReport } from "../domain/budget_report.js";
 import { createBudgetReport } from "../domain/budget_report.js";
 import type { ContextSummary } from "../domain/context_summary.js";
 import { createContextSummary } from "../domain/context_summary.js";
-import { FactStatus, NarrativeWeight, ThreadStatus } from "../domain/enums.js";
+import { EmotionStyle, FactStatus, NarrativeWeight, Perspective, ThreadStatus } from "../domain/enums.js";
 import type { Fact, ConfidenceLevel } from "../domain/fact.js";
 import { isColdFact } from "../domain/fact.js";
 import type { Thread } from "../domain/thread.js";
 import { get_context_window, get_model_max_output } from "../domain/model_context_map.js";
-import type { Project } from "../domain/project.js";
+import type { Project, WritingStyle } from "../domain/project.js";
 import type { State } from "../domain/state.js";
 import { count_tokens, ensureTokenizer } from "../tokenizer/index.js";
 import { getPrompts } from "../prompts/index.js";
+import { warnAlways } from "../logger/index.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { VectorRepository } from "../repositories/interfaces/vector.js";
 import type { EmbeddingProvider } from "../llm/embedding_provider.js";
@@ -63,6 +64,43 @@ export interface EffectiveLLM {
 }
 
 // ===========================================================================
+// writing_style / pinned_context 共用块 —— 完整版与对话版 system prompt 共享。
+// 此前两处各自复制维护（盲审 2026-07-09 高危重复项），改动只允许改这里。
+// ===========================================================================
+
+type PromptModule = ReturnType<typeof getPrompts>;
+
+/** P0 铁律（pinned_context）块；无 pinned 时返回 null 不产出。 */
+function pinnedContextBlock(P: PromptModule, project: Project): string | null {
+  const pinned = project.pinned_context ?? [];
+  if (pinned.length === 0) return null;
+  const lines = pinned.map((p) => `- ${p}`).join("\n");
+  return P.PINNED_CONTEXT_HEADER.replace("{lines}", lines);
+}
+
+/** 叙事视角块。 */
+function perspectiveBlock(P: PromptModule, ws: WritingStyle | undefined, language: string): string {
+  if ((ws?.perspective ?? Perspective.THIRD_PERSON) === Perspective.FIRST_PERSON) {
+    const pov = ws?.pov_character || (language === "zh" ? "主角" : "protagonist");
+    return P.PERSPECTIVE_FIRST_PERSON.split("{pov}").join(pov);
+  }
+  return P.PERSPECTIVE_THIRD_PERSON;
+}
+
+/** 情感风格块。 */
+function emotionBlock(P: PromptModule, ws: WritingStyle | undefined): string {
+  return (ws?.emotion_style ?? EmotionStyle.IMPLICIT) === EmotionStyle.EXPLICIT
+    ? P.EMOTION_EXPLICIT
+    : P.EMOTION_IMPLICIT;
+}
+
+/** custom_instructions 块；为空时返回 null 不产出。 */
+function customInstructionsBlock(P: PromptModule, ws: WritingStyle | undefined): string | null {
+  const custom = ws?.custom_instructions ?? "";
+  return custom ? P.CUSTOM_INSTRUCTIONS_HEADER.replace("{custom}", custom) : null;
+}
+
+// ===========================================================================
 // build_system_prompt（P0 + 规则）
 // ===========================================================================
 
@@ -75,33 +113,18 @@ export function build_system_prompt(
   const parts: string[] = [P.SYSTEM_NOVELIST];
 
   // --- P0 Pinned Context ---
-  const pinned = project.pinned_context ?? [];
-  if (pinned.length > 0) {
-    const lines = pinned.map((p) => `- ${p}`).join("\n");
-    parts.push(P.PINNED_CONTEXT_HEADER.replace("{lines}", lines));
-  }
+  const pinned = pinnedContextBlock(P, project);
+  if (pinned) parts.push(pinned);
 
   // --- 冲突解决规则 ---
   parts.push(P.CONFLICT_RESOLUTION_RULES);
 
   // --- 叙事视角 ---
   const ws = project.writing_style;
-  const pVal = ws?.perspective ?? "third_person";
-
-  if (pVal === "first_person") {
-    const pov = ws?.pov_character || (language === "zh" ? "主角" : "protagonist");
-    parts.push(P.PERSPECTIVE_FIRST_PERSON.split("{pov}").join(pov));
-  } else {
-    parts.push(P.PERSPECTIVE_THIRD_PERSON);
-  }
+  parts.push(perspectiveBlock(P, ws, language));
 
   // --- 情感风格 ---
-  const eVal = ws?.emotion_style ?? "implicit";
-  if (eVal === "explicit") {
-    parts.push(P.EMOTION_EXPLICIT);
-  } else {
-    parts.push(P.EMOTION_IMPLICIT);
-  }
+  parts.push(emotionBlock(P, ws));
 
   // --- 伏笔规约 ---
   parts.push(P.FORESHADOWING_RULES);
@@ -117,10 +140,8 @@ export function build_system_prompt(
 
   // --- custom_instructions ---
   if (!trim_custom) {
-    const custom = ws?.custom_instructions ?? "";
-    if (custom) {
-      parts.push(P.CUSTOM_INSTRUCTIONS_HEADER.replace("{custom}", custom));
-    }
+    const custom = customInstructionsBlock(P, ws);
+    if (custom) parts.push(custom);
   }
 
   return parts.join("\n\n");
@@ -602,9 +623,7 @@ function computeMaxOutputTokens(
   );
   // 警告：超长章节被 CEIL 截断时打 warn，让用户感知
   if (chapterTokenCap !== Infinity && chapterTokenCap > OUTPUT_RESERVE_CEIL) {
-    console.warn(
-      `[${logTag}] chapter_length=${chapterLength} 对应 ${chapterTokenCap} tokens 超过 OUTPUT_RESERVE_CEIL=${OUTPUT_RESERVE_CEIL}，maxTokens 被夹至 ${maxTokens}，章节可能被 LLM 截断`,
-    );
+    warnAlways(logTag, `chapter_length=${chapterLength} 对应 ${chapterTokenCap} tokens 超过 OUTPUT_RESERVE_CEIL=${OUTPUT_RESERVE_CEIL}，maxTokens 被夹至 ${maxTokens}，章节可能被 LLM 截断`);
   }
   return maxTokens;
 }
@@ -824,9 +843,8 @@ export async function assemble_context(
  * 跟 build_system_prompt 区别：
  *  - 用 SIMPLE_CHAT_SYSTEM 替换 SYSTEM_NOVELIST + CONFLICT_RESOLUTION_RULES +
  *    FORESHADOWING_RULES + GENERIC_RULES（这些续写专属规则已融进 SIMPLE_CHAT_SYSTEM）
- *  - 保留 PINNED_CONTEXT（P0 铁律）+ 视角 / 情感 / custom_instructions（writing_style）
- *
- * 主仓库 build_system_prompt 0 改动（fork 隔离原则，D-0044）。
+ *  - 保留 PINNED_CONTEXT（P0 铁律）+ 视角 / 情感 / custom_instructions（writing_style），
+ *    这四块与 build_system_prompt 共用同一组 block 函数（见文件顶部），不再各自复制。
  */
 export function build_system_prompt_simple(project: Project, language = "zh"): string {
   const P = getPrompts(language as "zh" | "en");
@@ -840,31 +858,19 @@ export function build_system_prompt_simple(project: Project, language = "zh"): s
       .replace("{chapter_length_max}", String(chapterLengthMax)),
   ];
 
-  // P0 铁律（add_pinned_context 在简版仍有效，build_system_prompt:47-51 一致）
-  const pinned = project.pinned_context ?? [];
-  if (pinned.length > 0) {
-    const lines = pinned.map((p) => `- ${p}`).join("\n");
-    parts.push(P.PINNED_CONTEXT_HEADER.replace("{lines}", lines));
-  }
+  // P0 铁律（add_pinned_context 在对话版仍有效）
+  const pinned = pinnedContextBlock(P, project);
+  if (pinned) parts.push(pinned);
 
   // 视角（update_writing_style 仍有效）
-  const pVal = ws?.perspective ?? "third_person";
-  if (pVal === "first_person") {
-    const pov = ws?.pov_character || (language === "zh" ? "主角" : "protagonist");
-    parts.push(P.PERSPECTIVE_FIRST_PERSON.split("{pov}").join(pov));
-  } else {
-    parts.push(P.PERSPECTIVE_THIRD_PERSON);
-  }
+  parts.push(perspectiveBlock(P, ws, language));
 
   // 情感风格
-  const eVal = ws?.emotion_style ?? "implicit";
-  parts.push(eVal === "explicit" ? P.EMOTION_EXPLICIT : P.EMOTION_IMPLICIT);
+  parts.push(emotionBlock(P, ws));
 
   // custom_instructions
-  const custom = ws?.custom_instructions ?? "";
-  if (custom) {
-    parts.push(P.CUSTOM_INSTRUCTIONS_HEADER.replace("{custom}", custom));
-  }
+  const custom = customInstructionsBlock(P, ws);
+  if (custom) parts.push(custom);
 
   return parts.join("\n\n");
 }

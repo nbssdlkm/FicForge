@@ -8,8 +8,17 @@
 
 import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStorageCapabilities } from "./adapter.js";
 import { SecretStoreReadError } from "./adapter.js";
-
-const LEGACY_SECURE_KEY_PREFIX = "__secure__:";
+import {
+  base64ToUint8,
+  kvGetWithFallback,
+  kvRemoveWithFallback,
+  kvSetWithFallback,
+  legacySecureStorageKey,
+  OS_KEYRING_CAPABILITIES,
+  platformWarn,
+  redactSecureKey,
+  uint8ToBase64,
+} from "./shared.js";
 
 /**
  * secure storage 诊断日志的 debug gate（L13）。
@@ -17,7 +26,8 @@ const LEGACY_SECURE_KEY_PREFIX = "__secure__:";
  * secureGet/Set/Remove 的 console.info 诊断行里带 `key=`，而 key 名含作品/AU 名（如
  * `apiKey:某同人作品`）。生产构建这些 info 会打进 logcat，明文外泄作品名到设备日志。
  * 默认关闭；真机排障时可在启动前置 `globalThis.__FICFORGE_SECURE_DEBUG__ = true` 打开。
- * 失败路径的 console.warn 不受此 gate 影响（诊断价值高、频率低，保持恒开）。
+ * 失败路径的告警不受此 gate 影响（诊断价值高、频率低，保持恒开），但 key 名一律经
+ * redactSecureKey 脱敏 —— 恒开路径不允许出现明文 key 名。
  */
 function secureDebugEnabled(): boolean {
   return (globalThis as { __FICFORGE_SECURE_DEBUG__?: boolean }).__FICFORGE_SECURE_DEBUG__ === true;
@@ -27,31 +37,6 @@ function secureDebugLog(message: string): void {
   if (!secureDebugEnabled()) return;
   // eslint-disable-next-line no-console
   console.info(message);
-}
-
-/**
- * Uint8Array ↔ base64 分块转换。
- *
- * 直接 `String.fromCharCode(...u8)` 在数组长度 ≥ 约 65535 时触发 "Maximum call stack
- * size exceeded"。我们按 32KB 分块处理，对 ~10MB 字体文件安全。
- */
-const BASE64_CHUNK = 0x8000; // 32 KiB
-
-function uint8ToBase64(data: Uint8Array): string {
-  // 数组收集 + 末端 join("")：O(n)。比 `binary += ...` 累加字符串
-  // （在某些 JS 引擎实现下是 O(n²)）更稳，对 7MB 字体数据差异显著。
-  const parts: string[] = [];
-  for (let i = 0; i < data.length; i += BASE64_CHUNK) {
-    parts.push(String.fromCharCode(...data.subarray(i, i + BASE64_CHUNK)));
-  }
-  return btoa(parts.join(""));
-}
-
-function base64ToUint8(b64: string): Uint8Array {
-  const binary = atob(b64);
-  const out = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
-  return out;
 }
 
 export class CapacitorAdapter implements PlatformAdapter {
@@ -221,27 +206,15 @@ export class CapacitorAdapter implements PlatformAdapter {
   private _kvFallback = new Map<string, string>();
 
   async kvGet(key: string): Promise<string | null> {
-    try { return localStorage.getItem(key); }
-    catch {
-      console.warn(`[CapacitorAdapter] kvGet: localStorage 不可用，使用内存回退（数据不持久化）`);
-      return this._kvFallback.get(key) ?? null;
-    }
+    return kvGetWithFallback("CapacitorAdapter", this._kvFallback, key);
   }
 
   async kvSet(key: string, value: string): Promise<void> {
-    try { localStorage.setItem(key, value); }
-    catch {
-      console.warn(`[CapacitorAdapter] kvSet: localStorage 不可用，使用内存回退（数据不持久化）`);
-      this._kvFallback.set(key, value);
-    }
+    kvSetWithFallback("CapacitorAdapter", this._kvFallback, key, value);
   }
 
   async kvRemove(key: string): Promise<void> {
-    try { localStorage.removeItem(key); }
-    catch {
-      console.warn(`[CapacitorAdapter] kvRemove: localStorage 不可用，使用内存回退`);
-      this._kvFallback.delete(key);
-    }
+    kvRemoveWithFallback("CapacitorAdapter", this._kvFallback, key);
   }
 
   /**
@@ -266,7 +239,9 @@ export class CapacitorAdapter implements PlatformAdapter {
       // 但不在故障期做迁移写入（setItem 大概率同样失败，且半成功会丢明文副本）。
       const legacyValue = this.getLegacySecureValue(key);
       if (legacyValue !== null) {
-        console.warn(`[CapacitorAdapter.secure] plugin get failed but legacy value present, key=${key} (migration deferred)`);
+        platformWarn("CapacitorAdapter.secure", "plugin get failed but legacy value present (migration deferred)", {
+          key_redacted: redactSecureKey(key),
+        });
         return legacyValue;
       }
       throw err;
@@ -308,15 +283,11 @@ export class CapacitorAdapter implements PlatformAdapter {
   }
 
   getSecretStorageCapabilities(): SecretStorageCapabilities {
-    return {
-      backend: "os_keyring",
-      encrypted_at_rest: true,
-      persistence: "persistent",
-    };
+    return OS_KEYRING_CAPABILITIES;
   }
 
   private getLegacySecureStorageKey(key: string): string {
-    return `${LEGACY_SECURE_KEY_PREFIX}${key}`;
+    return legacySecureStorageKey(key);
   }
 
   private getLegacySecureValue(key: string): string | null {
@@ -344,7 +315,10 @@ export class CapacitorAdapter implements PlatformAdapter {
       return value;
     } catch (err) {
       // 抛错 ≠ 没存过（审计 H8）：吞成 null 会让保存链路误删真 key。抛专用错误上浮。
-      console.warn(`[CapacitorAdapter.secure] plugin getItem threw, key=${key}, err=`, err);
+      platformWarn("CapacitorAdapter.secure", "plugin getItem threw", {
+        key_redacted: redactSecureKey(key),
+        error: err instanceof Error ? err.message : String(err),
+      });
       throw new SecretStoreReadError(key, err);
     }
   }
@@ -354,7 +328,10 @@ export class CapacitorAdapter implements PlatformAdapter {
       const { SecureStorage } = await import("@aparajita/capacitor-secure-storage");
       await SecureStorage.setItem(key, value);
     } catch (err) {
-      console.warn(`[CapacitorAdapter.secure] plugin setItem threw, key=${key}, err=`, err);
+      platformWarn("CapacitorAdapter.secure", "plugin setItem threw", {
+        key_redacted: redactSecureKey(key),
+        error: err instanceof Error ? err.message : String(err),
+      });
       throw err;
     }
   }
@@ -364,7 +341,10 @@ export class CapacitorAdapter implements PlatformAdapter {
       const { SecureStorage } = await import("@aparajita/capacitor-secure-storage");
       await SecureStorage.removeItem(key);
     } catch (err) {
-      console.warn(`[CapacitorAdapter.secure] plugin removeItem threw, key=${key}, err=`, err);
+      platformWarn("CapacitorAdapter.secure", "plugin removeItem threw", {
+        key_redacted: redactSecureKey(key),
+        error: err instanceof Error ? err.message : String(err),
+      });
       throw err;
     }
   }

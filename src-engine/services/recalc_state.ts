@@ -9,6 +9,7 @@
 import { scan_characters_in_chapter } from "../domain/character_scanner.js";
 import { createState } from "../domain/state.js";
 import { extract_last_scene_ending } from "../domain/text_utils.js";
+import { logCatch } from "../logger/index.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { ProjectRepository } from "../repositories/interfaces/project.js";
@@ -40,13 +41,14 @@ export async function recalc_state(
     state = createState({ au_id });
   }
 
-  // 读取 cast_registry
+  // 读取 cast_registry：project.yaml 缺失（null）或读失败都回退空名册（recalc 为
+  // best-effort 修复工具，不因 project 读不出而中止），读失败落日志可诊断。
   let castRegistry: { characters?: string[] } = { characters: [] };
   try {
     const project = await project_repo.get(au_id);
-    castRegistry = project.cast_registry ?? { characters: [] };
-  } catch {
-    // ignore
+    castRegistry = project?.cast_registry ?? { characters: [] };
+  } catch (err) {
+    logCatch("recalc", "project read failed; using empty cast_registry", err);
   }
 
   // 获取所有已确认章节

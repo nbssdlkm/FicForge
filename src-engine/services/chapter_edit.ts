@@ -18,7 +18,7 @@ import { createOpsEntry } from "../domain/ops_entry.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
-import { compute_content_hash, generate_op_id, now_utc } from "../repositories/implementations/file_utils.js";
+import { compute_content_hash, generate_op_id, now_utc } from "../utils/file_utils.js";
 import { WriteTransaction } from "./write_transaction.js";
 
 export interface EditChapterContentResult {
@@ -48,6 +48,7 @@ export async function edit_chapter_content(
 ): Promise<EditChapterContentResult> {
   // 1. 读取并更新章节（内存）
   const ch = await chapter_repo.get(au_id, chapter_num);
+  if (!ch) throw new Error(`Chapter not found: ${au_id} ch${chapter_num}`);
   ch.content = new_content;
   ch.content_hash = await compute_content_hash(new_content);
   ch.provenance = "mixed";

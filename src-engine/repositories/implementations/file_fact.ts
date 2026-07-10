@@ -8,7 +8,7 @@ import { FactSource, FactStatus, FactType, NarrativeWeight, TimeKind, SuspenseTy
 import type { Fact, FactFieldConfidence } from "../../domain/fact.js";
 import { createFact } from "../../domain/fact.js";
 import type { FactRepository } from "../interfaces/fact.js";
-import { append_jsonl, joinPath, now_utc, read_jsonl, rewrite_jsonl, validateBasePath, withWriteLock } from "./file_utils.js";
+import { append_jsonl, joinPath, now_utc, read_jsonl, rewrite_jsonl, validateBasePath, withWriteLock } from "../../utils/file_utils.js";
 import { hasLogger, getLogger } from "../../logger/index.js";
 
 // ---------------------------------------------------------------------------

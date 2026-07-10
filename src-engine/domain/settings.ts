@@ -109,42 +109,6 @@ export function createCustomProviderEntry(partial?: Partial<CustomProviderEntry>
   };
 }
 
-export interface ChapterMetadataField {
-  model: boolean;
-  char_count: boolean;
-  token_usage: boolean;
-  duration: boolean;
-  timestamp: boolean;
-  temperature: boolean;
-  top_p: boolean;
-}
-
-export function createChapterMetadataField(partial?: Partial<ChapterMetadataField>): ChapterMetadataField {
-  return {
-    model: true,
-    char_count: true,
-    token_usage: true,
-    duration: true,
-    timestamp: true,
-    temperature: true,
-    top_p: true,
-    ...partial,
-  };
-}
-
-export interface ChapterMetadataDisplay {
-  enabled: boolean;
-  fields: ChapterMetadataField;
-}
-
-export function createChapterMetadataDisplay(partial?: Partial<ChapterMetadataDisplay>): ChapterMetadataDisplay {
-  return {
-    enabled: true,
-    fields: createChapterMetadataField(),
-    ...partial,
-  };
-}
-
 /**
  * 字体偏好：界面 / 阅读两档，每档各选西文字体 + 中文字体。
  *
@@ -172,12 +136,12 @@ export function createFontsConfig(partial?: Partial<FontsConfig>): FontsConfig {
   };
 }
 
+// 2026-07-09 盲审清退的死配置（写读 round-trip 完整但全仓零消费者，「写而不读」断链）：
+// token_count_fallback（tokenizer 直接内置 char×1.5 降级）、token_warning_threshold、
+// chapter_metadata_display 整组。读取侧对旧 YAML 里的这些键容忍忽略，不再持久化。
 export interface AppConfig {
   language: string;
   data_dir: string;
-  token_count_fallback: string;
-  token_warning_threshold: number;
-  chapter_metadata_display: ChapterMetadataDisplay;
   fonts: FontsConfig;
   /** M9：开启 ReAct 增强事实提取（跨章 caused_by + 自动挂剧情线）。默认开（PD-4，用户 2026-06-21 拍板）；可在全局设置关。 */
   react_extraction_enabled: boolean;
@@ -188,9 +152,6 @@ export function createAppConfig(partial?: Partial<AppConfig>): AppConfig {
   return {
     language: "zh",
     data_dir: "./fandoms",
-    token_count_fallback: "char_mul1.5",
-    token_warning_threshold: 32000,
-    chapter_metadata_display: createChapterMetadataDisplay(),
     fonts: createFontsConfig(),
     react_extraction_enabled: true,
     schema_version: "1.0.0",
@@ -213,23 +174,10 @@ export function createLicenseConfig(partial?: Partial<LicenseConfig>): LicenseCo
   };
 }
 
-export interface SyncConfig {
-  mode: "none" | "webdav";
-  webdav?: {
-    url: string;
-    username: string;
-    password: string;
-    remote_dir: string;
-  };
-  last_sync?: string;
-}
-
-export function createSyncConfig(partial?: Partial<SyncConfig>): SyncConfig {
-  return {
-    mode: "none",
-    ...partial,
-  };
-}
+// SyncConfig/WebDAV 序列化链已物理清退（2026-07-09 盲审 + D-0040 同步退役落实）：
+// 多设备同步引擎 M7 已删除，此前仅剩「序列化 + secure-key spec」死管线。旧 settings.yaml
+// 里的 `sync:` 键读取时容忍忽略；keyring 中遗留的 settings.sync.webdav.password 条目
+// 无消费者、无泄露路径，不做主动清理。
 
 /** 全局配置。字段名与 PRD §3.3 settings.yaml 一致。 */
 export interface Settings {
@@ -239,7 +187,6 @@ export interface Settings {
   embedding: EmbeddingConfig;
   app: AppConfig;
   license: LicenseConfig;
-  sync: SyncConfig;
   /** 用户自定义供应商清单（选择器方案 B 硬性要求）。 */
   custom_providers: CustomProviderEntry[];
   /** 每供应商「已启用模型」（拉取清单勾选写入）。key = providerId（内置或自定义）。 */
@@ -254,7 +201,6 @@ export function createSettings(partial?: Partial<Settings>): Settings {
     embedding: createEmbeddingConfig(),
     app: createAppConfig(),
     license: createLicenseConfig(),
-    sync: createSyncConfig(),
     custom_providers: [],
     enabled_models: {},
     ...partial,

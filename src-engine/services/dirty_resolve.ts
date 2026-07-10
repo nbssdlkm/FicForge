@@ -15,7 +15,7 @@ import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
-import { compute_content_hash, generate_op_id, now_utc } from "../repositories/implementations/file_utils.js";
+import { compute_content_hash, generate_op_id, now_utc } from "../utils/file_utils.js";
 import { withAuLock } from "./au_lock.js";
 import { edit_fact, update_fact_status } from "./facts_lifecycle.js";
 import { WriteTransaction } from "./write_transaction.js";
@@ -91,6 +91,7 @@ async function doResolve(params: ResolveDirtyParams): Promise<ResolveDirtyResult
   // === 步骤 3：重算 content_hash ===
   const newHash = await compute_content_hash(content);
   const chapter = await chapter_repo.get(au_id, chapter_num);
+  if (!chapter) throw new Error(`Chapter not found: ${au_id} ch${chapter_num}`);
   chapter.content_hash = newHash;
   chapter.revision += 1;
   chapter.confirmed_at = now_utc();

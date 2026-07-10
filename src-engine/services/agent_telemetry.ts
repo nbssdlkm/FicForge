@@ -11,12 +11,14 @@
  *   - Provider capability fallback（forced_tool_choice 降级）
  *   - Partial draft 救援触发
  *
- * 当前仅 console sink；远程上报（Sentry / 自建端点）留扩展点 —— D-0046 决策推迟到
- * 多 agent 上线后真有需要再加。所有 sink 通过 createTelemetry compose，dispatch /
- * agent_loop 视它为不透明 sink，只调 emit()。
+ * 内置 loggerSink（默认，落日志文件）与 consoleSink（终端调试）；远程上报
+ * （Sentry / 自建端点）留扩展点 —— D-0046 决策推迟到多 agent 上线后真有需要再加。
+ * 所有 sink 通过 createTelemetry compose，dispatch / agent_loop 视它为不透明 sink，
+ * 只调 emit()。
  */
 
 import type { ShapeRepairKind } from "./tool_args_repair.js";
+import { getLogger, hasLogger } from "../logger/index.js";
 
 // ---------------------------------------------------------------------------
 // Event types — discriminated union，新增事件加新 kind 不破坏旧 sink
@@ -65,7 +67,7 @@ export interface TelemetrySink {
  * Console sink —— emit 到 console.info（不是 console.warn，避免被监控当 error）。
  * 格式：[telemetry] <kind> <JSON 字段>
  *
- * 测试 / 开发时直接看终端；生产可换其它 sink（远程上报 / file log）。
+ * 测试 / 开发时直接看终端；生产默认走 loggerSink（见下）。
  */
 export const consoleSink: TelemetrySink = {
   emit(event) {
@@ -75,16 +77,50 @@ export const consoleSink: TelemetrySink = {
 };
 
 /**
+ * 退化路径事件集合 —— 这些 kind 表示 agent 已偏离正常轨道（触顶 / guard / 降级 /
+ * 救援），进日志文件时用 warn 级（此前 console 时代刻意压成 info 是怕被监控当
+ * error；文件日志无此顾虑，warn 让「导出日志排障」一眼看到退化点）。
+ */
+const DEGRADED_EVENT_KINDS: ReadonlySet<TelemetryEvent["kind"]> = new Set([
+  "agent_iter_max_reached",
+  "chat_reply_deviation_guard",
+  "empty_response_guard",
+  "double_emit_with_mutating_tool",
+  "partial_draft_rescued",
+  "forced_tool_choice_fallback",
+]);
+
+/**
+ * Logger sink（生产默认）—— logger 就绪时事件落日志文件（可随「导出日志」带走），
+ * 退化路径 warn 级、常规观测 info 级；logger 未就绪降级 console.info。
+ */
+export const loggerSink: TelemetrySink = {
+  emit(event) {
+    const { kind, ...rest } = event;
+    if (hasLogger()) {
+      const logger = getLogger();
+      if (DEGRADED_EVENT_KINDS.has(kind)) {
+        logger.warn("telemetry", kind, rest as Record<string, unknown>);
+      } else {
+        logger.info("telemetry", kind, rest as Record<string, unknown>);
+      }
+      return;
+    }
+    console.info(`[telemetry] ${kind}`, rest);
+  },
+};
+
+/**
  * Compose 多个 sink fan-out emit。dispatch / agent_loop 总是拿一个 sink，sink
  * 内部可以是 single 或 composed —— 调用方看不到差异。
  *
- * 默认 sinks=[consoleSink]，dispatch 不传 telemetry 参数时用此 fallback（行为
- * 等同 commit 接入前的 console.warn flood，但格式结构化）。
+ * 默认 sinks=[loggerSink]，dispatch 不传 telemetry 参数时用此 fallback（logger
+ * 就绪进日志文件，未就绪行为等同旧 consoleSink，但格式结构化）。
  *
  * 单个 sink emit 抛错不阻塞其它 sink 也不阻塞业务（telemetry 永远是 fire-and-forget，
  * 不能因为日志 sink 挂了导致 agent dispatch 中断）。
  */
-export function createTelemetry(sinks: TelemetrySink[] = [consoleSink]): TelemetrySink {
+export function createTelemetry(sinks: TelemetrySink[] = [loggerSink]): TelemetrySink {
   return {
     emit(event) {
       for (const sink of sinks) {

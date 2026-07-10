@@ -9,7 +9,7 @@ import { IndexStatus } from "../../domain/enums.js";
 import type { EmbeddingFingerprint, State } from "../../domain/state.js";
 import { createEmbeddingFingerprint, createState } from "../../domain/state.js";
 import type { StateRepository } from "../interfaces/state.js";
-import { atomicWrite, joinPath, now_utc, obj_to_plain, validateBasePath, withWriteLock } from "./file_utils.js";
+import { atomicWrite, joinPath, now_utc, obj_to_plain, validateBasePath, withWriteLock } from "../../utils/file_utils.js";
 
 export class FileStateRepository implements StateRepository {
   constructor(private adapter: PlatformAdapter) {}

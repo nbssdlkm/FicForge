@@ -8,7 +8,7 @@ import type { PlatformAdapter } from "../../platform/adapter.js";
 import type { Fandom } from "../../domain/fandom.js";
 import { createFandom } from "../../domain/fandom.js";
 import type { FandomRepository } from "../interfaces/fandom.js";
-import { atomicWrite, joinPath, obj_to_plain, validateBasePath } from "./file_utils.js";
+import { atomicWrite, joinPath, obj_to_plain, validateBasePath } from "../../utils/file_utils.js";
 
 export class FileFandomRepository implements FandomRepository {
   constructor(

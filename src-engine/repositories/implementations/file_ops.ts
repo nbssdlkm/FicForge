@@ -7,7 +7,7 @@ import type { PlatformAdapter } from "../../platform/adapter.js";
 import type { OpsEntry } from "../../domain/ops_entry.js";
 import { createOpsEntry } from "../../domain/ops_entry.js";
 import type { OpsRepository } from "../interfaces/ops.js";
-import { append_jsonl, atomicWrite, joinPath, read_jsonl, rewrite_jsonl, validateBasePath, withWriteLock } from "./file_utils.js";
+import { append_jsonl, atomicWrite, joinPath, read_jsonl, rewrite_jsonl, validateBasePath, withWriteLock } from "../../utils/file_utils.js";
 import { getNextLamportClock, initLamportClockFromOps, loadLamportClock, saveLamportClock } from "../../ops/ops_projection.js";
 import { hasLogger, getLogger } from "../../logger/index.js";
 

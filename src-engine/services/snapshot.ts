@@ -10,7 +10,7 @@ import type { PlatformAdapter } from "../platform/adapter.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
-import { joinPath } from "../repositories/implementations/file_utils.js";
+import { joinPath } from "../utils/file_utils.js";
 import { withAuLock } from "./au_lock.js";
 
 export interface Snapshot {

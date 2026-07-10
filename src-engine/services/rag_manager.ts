@@ -21,7 +21,7 @@ import type { ChapterSummaryRepository } from "../repositories/interfaces/chapte
 import type { JsonVectorEngine } from "../vector/engine.js";
 import type { VectorRepository } from "../repositories/interfaces/vector.js";
 import { split_chapter_into_chunks, type CastRegistryLike } from "../vector/chunker.js";
-import { logCatch } from "../logger/index.js";
+import { logCatch, warnAlways } from "../logger/index.js";
 
 function vectorsDir(auPath: string): string {
   return `${auPath}/.vectors`;
@@ -156,9 +156,14 @@ export class RagManager {
    * 保证同 AU 的并发写操作复用同一引擎实例，杜绝「驱逐 → 两引擎各自 persist 丢更新」（发现 2）。
    */
   private async withEngine<T>(auPath: string, fn: (eng: JsonVectorEngine) => Promise<T>): Promise<T> {
-    const eng = await this.engineFor(auPath); // engineFor 返回后同步 pin，其间无 await 让步，不会被驱逐
+    // pin 先于任何 await（盲审 2026-07-09 复核修正）：旧序「await engineFor 后再 pin」
+    // 存在微任务间隙 —— await 本身让步（即使命中缓存也让步一次），间隙里其它操作
+    // finally 中的 evictExcess 可把刚入 Map、尚未 pin 的引擎驱逐；随后同 AU 并发写
+    // 会从磁盘重载出第二个引擎，两引擎各自 persist 互相丢更新（正是 pin 要防的
+    // 「发现 2」）。pin 是纯计数、不要求引擎已存在，先 pin 后取无此窗口。
     this.pin(auPath);
     try {
+      const eng = await this.engineFor(auPath);
       return await fn(eng);
     } finally {
       this.unpin(auPath);
@@ -247,11 +252,12 @@ export class RagManager {
     onProgress?: (current: number, total: number) => void,
     summaryRepo?: ChapterSummaryRepository,
   ): Promise<void> {
-    const eng = await this.engineFor(auPath);
     // rebuild 是最长的写操作（逐章 embed，秒~分钟级）：全程 pin 住引擎，防被 LRU 驱逐后同 AU
     // 并发写重载出第二个引擎、两引擎 persist 互覆丢更新（对抗审发现 2）。
+    // pin 先于 await engineFor（盲审 2026-07-09 复核修正，理由见 withEngine）。
     this.pin(auPath);
     try {
+      const eng = await this.engineFor(auPath);
       // 清除目标 AU 的旧 chunks（准备全量重建）
       await eng.rebuild_index(auPath);
       // 遍历所有章节：批量索引到内存，最后一次性 persist
@@ -280,7 +286,9 @@ export class RagManager {
               }]);
             }
           } catch (err) {
-            console.warn(`[m8c] skip summary for ch${ch.chapter_num} during rebuild:`, err);
+            warnAlways("m8c", `skip summary for ch${ch.chapter_num} during rebuild`, {
+              error: err instanceof Error ? err.message : String(err),
+            });
           }
         }
         onProgress?.(i + 1, chapters.length);

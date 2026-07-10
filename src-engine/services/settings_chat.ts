@@ -13,7 +13,7 @@ import type { PlatformAdapter } from "../platform/adapter.js";
 import type { LLMProvider, Message, ToolCall } from "../llm/provider.js";
 import { LLMError } from "../llm/provider.js";
 import { hasLogger, getLogger } from "../logger/index.js";
-import { joinPath } from "../repositories/implementations/file_utils.js";
+import { joinPath } from "../utils/file_utils.js";
 import yaml from "js-yaml";
 
 // ---------------------------------------------------------------------------

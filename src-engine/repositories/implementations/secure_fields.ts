@@ -45,6 +45,7 @@
 
 import type { PlatformAdapter } from "../../platform/adapter.js";
 import { createAdapterSecretStore } from "../../platform/secret_store.js";
+import { platformWarn, redactSecureKey } from "../../platform/shared.js";
 import { getLogger, hasLogger } from "../../logger/index.js";
 
 /** YAML 中占位符。固定不变，跨 repo 共享语义。 */
@@ -92,7 +93,7 @@ export async function extractSecureFields<T>(
         // 401 会悄悄复发。至少落一条 error 日志让这种「盘空/库旧」分裂可诊断。
         if (hasLogger()) {
           getLogger().error("secure", "secureRemove failed on clear", {
-            key: spec.secureKey,
+            key_redacted: redactSecureKey(spec.secureKey),
             error: err instanceof Error ? err.message : String(err),
           });
         }
@@ -132,13 +133,11 @@ export async function restoreSecureFields<T>(
         // 读失败：保持字段原样（占位符/空），不降级为「没存过」。
         // 捕获所有错误而非仅 SecretStoreReadError —— 任何 throw 都不等于
         // 「确认为空」，且避免单字段故障拖垮整条 settings/project 加载链。
-        console.warn(`[secure_fields] secure storage read failed, keeping field as-is: ${spec.secureKey}`, err);
-        if (hasLogger()) {
-          getLogger().warn("secure", "secureGet failed on restore, field kept as-is", {
-            key: spec.secureKey,
-            error: err instanceof Error ? err.message : String(err),
-          });
-        }
+        // key 名可能含作品/AU 名，进日志/console 前一律脱敏。
+        platformWarn("secure", "secureGet failed on restore, field kept as-is", {
+          key_redacted: redactSecureKey(spec.secureKey),
+          error: err instanceof Error ? err.message : String(err),
+        });
         continue;
       }
       if (stored) {

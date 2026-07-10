@@ -14,6 +14,12 @@ function memAdapter() {
     async mkdir(_p: string) {},
     async deleteFile(p: string) { fs.delete(p); },
     async listDir() { return []; },
+    // atomicWrite 依赖（写 .tmp → rename 原子替换）
+    async rename(o: string, n: string) {
+      const v = fs.get(o);
+      if (v === undefined) throw new Error(`rename: source not found: ${o}`);
+      fs.set(n, v); fs.delete(o);
+    },
   } as any;
 }
 

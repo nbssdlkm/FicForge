@@ -10,7 +10,7 @@ import type { PlatformAdapter } from "../../platform/adapter.js";
 import type { ChapterSummary, SummaryTier } from "../../domain/chapter_summary.js";
 import { createChapterSummary } from "../../domain/chapter_summary.js";
 import type { ChapterSummaryRepository } from "../interfaces/chapter_summary.js";
-import { atomicWrite, joinPath, now_utc } from "./file_utils.js";
+import { atomicWrite, joinPath, now_utc } from "../../utils/file_utils.js";
 
 /** ch{NNNN}.summary.jsonl 路径。NNNN 为 4 位零填充章节号。 */
 export function summaryPath(auPath: string, chapterNum: number): string {

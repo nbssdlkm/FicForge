@@ -15,7 +15,7 @@ import {
   createWritingStyle,
 } from "../../domain/project.js";
 import type { ProjectRepository } from "../interfaces/project.js";
-import { atomicWrite, joinPath, now_utc, obj_to_plain, validateBasePath } from "./file_utils.js";
+import { atomicWrite, joinPath, now_utc, obj_to_plain, validateBasePath } from "../../utils/file_utils.js";
 import {
   extractSecureFields,
   hasLegacyPlaintextSecureFields,
@@ -56,13 +56,12 @@ export function projectSecureKeysFor(au_id: string): string[] {
 export class FileProjectRepository implements ProjectRepository {
   constructor(private adapter: PlatformAdapter) {}
 
-  async get(au_id: string): Promise<Project> {
+  async get(au_id: string): Promise<Project | null> {
     validateBasePath(au_id, "au_id");
     const path = joinPath(au_id, "project.yaml");
     const exists = await this.adapter.exists(path);
-    if (!exists) {
-      throw new Error(`project.yaml not found: ${path}`);
-    }
+    // 缺失返回 null、fs 错误照抛（get 契约，盲审 2026-07-09 全仓储统一）
+    if (!exists) return null;
 
     const text = await this.adapter.readFile(path);
     let raw: Record<string, unknown>;
@@ -108,7 +107,8 @@ export class FileProjectRepository implements ProjectRepository {
       const auPath = joinPath(ausDir, name);
       try {
         const project = await this.get(auPath);
-        result.push(project);
+        // 无 project.yaml 的目录（非 AU / 半删除残留）→ 跳过
+        if (project) result.push(project);
       } catch {
         continue;
       }

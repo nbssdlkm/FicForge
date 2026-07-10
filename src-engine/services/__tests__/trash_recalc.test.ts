@@ -342,8 +342,11 @@ describe("TrashService", () => {
       // manifest 登记被撤销：半成功状态不冒充「已入回收站」
       expect(await t.list_trash("fandom1")).toHaveLength(0);
 
-      // copy-back 失败不再裸吞：console.warn 指路 .trash 副本
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining(".trash"));
+      // copy-back 失败不再裸吞：告警指路 .trash 副本（warnAlways：消息 + ctx.failures）
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("副本已保留"),
+        expect.objectContaining({ failures: [expect.stringContaining("/.trash/")] }),
+      );
     } finally {
       warnSpy.mockRestore();
     }

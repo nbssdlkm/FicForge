@@ -20,7 +20,8 @@
 
 import type { PlatformAdapter } from "../platform/adapter.js";
 import { IndexStatus } from "../domain/enums.js";
-import { joinPath, now_utc } from "../repositories/implementations/file_utils.js";
+import { joinPath, now_utc } from "../utils/file_utils.js";
+import { warnAlways } from "../logger/index.js";
 import { SECURE_PLACEHOLDER } from "../repositories/implementations/secure_fields.js";
 
 export class AuBundleError extends Error {
@@ -143,21 +144,39 @@ export async function importAuBundle(
   const written: string[] = [];
   const skipped: string[] = [];
 
-  for (const [rel, content] of Object.entries(bundle.files)) {
-    if (!isSafeRelPath(rel) || isExcludedPath(rel) || typeof content !== "string") {
-      skipped.push(rel);
-      continue;
+  try {
+    for (const [rel, content] of Object.entries(bundle.files)) {
+      if (!isSafeRelPath(rel) || isExcludedPath(rel) || typeof content !== "string") {
+        skipped.push(rel);
+        continue;
+      }
+      // index_status 无损置 stale：行级文本替换，保留 state.yaml 其余所有键/顺序，
+      // 不走 dictToState 白名单（跨程序迁移时简版可能带主 app 不认识的字段，白名单会吞掉）。
+      const toWrite = (opts.staleIndexStatus && rel === "state.yaml")
+        ? forceStaleIndexStatus(content)
+        : content;
+      const dest = joinPath(targetAuPath, rel);
+      const slash = dest.lastIndexOf("/");
+      if (slash > 0) await adapter.mkdir(dest.substring(0, slash));
+      await adapter.writeFile(dest, toWrite);
+      written.push(rel);
     }
-    // index_status 无损置 stale：行级文本替换，保留 state.yaml 其余所有键/顺序，
-    // 不走 dictToState 白名单（跨程序迁移时简版可能带主 app 不认识的字段，白名单会吞掉）。
-    const toWrite = (opts.staleIndexStatus && rel === "state.yaml")
-      ? forceStaleIndexStatus(content)
-      : content;
-    const dest = joinPath(targetAuPath, rel);
-    const slash = dest.lastIndexOf("/");
-    if (slash > 0) await adapter.mkdir(dest.substring(0, slash));
-    await adapter.writeFile(dest, toWrite);
-    written.push(rel);
+  } catch (err) {
+    // 中途失败不留半成品（盲审 2026-07-09）：目标语义是新建/空 AU，部分文件已落的
+    // 迷惑状态会让重试导入面对脏目标。best-effort 删除本次已写文件后原样抛出；
+    // 单个删除失败不掩盖原始错误（剩余残留由用户删除目标 AU 兜底）。
+    for (const rel of [...written].reverse()) {
+      try {
+        await adapter.deleteFile(joinPath(targetAuPath, rel));
+      } catch {
+        /* best-effort cleanup */
+      }
+    }
+    warnAlways("au_bundle", "importAuBundle failed mid-way; partial files cleaned up", {
+      written_before_failure: written.length,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
   }
 
   const chapterCount = written.filter((p) => CHAPTER_FILE_RE.test(p)).length;

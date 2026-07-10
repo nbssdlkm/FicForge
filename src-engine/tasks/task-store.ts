@@ -12,7 +12,7 @@
 
 import type { PlatformAdapter } from "../platform/index.js";
 import type { TaskCheckpoint } from "./types.js";
-import { joinPath } from "../repositories/implementations/file_utils.js";
+import { joinPath } from "../utils/file_utils.js";
 import { logCatch } from "../logger/index.js";
 
 const TASKS_DIR = ".ficforge/tasks";

@@ -77,7 +77,7 @@ describe("Domain object factories — field names and defaults match Python", ()
     expect(s.embedding.ollama_model).toBe("nomic-embed-text");
     expect(s.app.language).toBe("zh");
     expect(s.app.data_dir).toBe("./fandoms");
-    expect(s.app.chapter_metadata_display.enabled).toBe(true);
+    expect(s.app.react_extraction_enabled).toBe(true);
   });
 
   it("createState defaults", () => {

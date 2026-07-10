@@ -36,8 +36,9 @@ import { count_tokens } from "../tokenizer/index.js";
 import { withAuLock } from "./au_lock.js";
 import { createDraft } from "../domain/draft.js";
 import { createGeneratedWith } from "../domain/generated_with.js";
+import { nextDraftLabel } from "../domain/paths.js";
 import type { GeneratedWith } from "../domain/generated_with.js";
-import { now_utc, joinPath } from "../repositories/implementations/file_utils.js";
+import { now_utc, joinPath } from "../utils/file_utils.js";
 import { get_tools_for_mode } from "../domain/settings_tools.js";
 import { SIMPLE_AGENT_MAX_ITER } from "../config/simple_features.js";
 import { extractPartialJsonStringField } from "./tool_stream_buffer.js";
@@ -223,14 +224,6 @@ export interface SimpleChatDispatchParams {
   _telemetry_override?: TelemetrySink;
 }
 
-function nextDraftLabel(existingLabels: string[]): string {
-  const used = new Set(existingLabels);
-  for (let i = 0; i < 26; i++) {
-    const label = String.fromCharCode(65 + i);
-    if (!used.has(label)) return label;
-  }
-  throw new Error("草稿标签已用尽（A-Z）");
-}
 
 /**
  * 续写意图判据：用户消息含明确续写动词 / 长场景描述 → 续写。

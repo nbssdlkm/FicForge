@@ -12,7 +12,7 @@ import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { ChapterSummaryRepository } from "../repositories/interfaces/chapter_summary.js";
 import type { RagManager } from "./rag_manager.js";
 import { createChapterSummary } from "../domain/chapter_summary.js";
-import { now_utc } from "../repositories/implementations/file_utils.js";
+import { now_utc } from "../utils/file_utils.js";
 import { logCatch } from "../logger/index.js";
 
 export interface GenerateSummaryOptions {

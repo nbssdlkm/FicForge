@@ -407,6 +407,19 @@ export function getProvider(providerId: string): ProviderEntry | undefined {
   return _PROVIDERS.find((p) => p.id === providerId);
 }
 
+/** 内置条目必取（manifest 静态数据，缺条目属编码错误，fail-fast 而非静默回退）。 */
+function mustProvider(providerId: string): ProviderEntry {
+  const provider = getProvider(providerId);
+  if (!provider) throw new Error(`provider manifest 缺少内置条目 ${providerId}`);
+  return provider;
+}
+
+/**
+ * Ollama 默认 /v1 端点 —— 字面量唯一定义在上方 manifest 条目内，
+ * 引擎兜底（config_resolver）与 UI 表单默认值均从此导出取值。
+ */
+export const OLLAMA_DEFAULT_BASE_URL = mustProvider("ollama").baseUrl;
+
 /**
  * 在指定供应商内查推荐模型（精确 id 匹配）。
  * providerId 未命中 → undefined；modelId 未命中 → undefined。

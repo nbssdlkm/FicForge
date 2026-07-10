@@ -15,7 +15,8 @@ import type { PlatformAdapter } from "../../platform/adapter.js";
 import type { SimpleChatFile, SimpleChatMessageEnvelope } from "../../domain/simple_chat.js";
 import { createSimpleChatFile, SIMPLE_CHAT_VERSION } from "../../domain/simple_chat.js";
 import type { SimpleChatRepository } from "../interfaces/simple_chat.js";
-import { atomicWrite, joinPath, now_utc, obj_to_plain, validateBasePath, withWriteLock } from "./file_utils.js";
+import { atomicWrite, joinPath, now_utc, obj_to_plain, validateBasePath, withWriteLock } from "../../utils/file_utils.js";
+import { warnAlways } from "../../logger/index.js";
 
 const CHAT_FILE_NAME = "simple-chat.yaml";
 const WELL_KNOWN_DIR = ".well-known";
@@ -53,11 +54,13 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
     } catch (err) {
       // YAML 损坏时降级到空文件，但日志要可见 —— 否则用户外部编辑器破坏格式后
       // 对话历史"静默消失"，无任何提示（v4 盲审 P1-6）。
-      console.warn(`[simple_chat] yaml.load failed for ${au_id}: ${(err as Error).message}; serving empty chat`);
+      warnAlways("simple_chat", `yaml.load failed for ${au_id}; serving empty chat`, {
+        error: (err as Error).message,
+      });
       return createSimpleChatFile({ au_path: au_id });
     }
     if (!raw || typeof raw !== "object") {
-      console.warn(`[simple_chat] non-object root in chat.yaml for ${au_id}; serving empty chat`);
+      warnAlways("simple_chat", `non-object root in chat.yaml for ${au_id}; serving empty chat`);
       return createSimpleChatFile({ au_path: au_id });
     }
 

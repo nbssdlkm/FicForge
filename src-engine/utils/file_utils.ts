@@ -1,9 +1,17 @@
 // Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 
-/** 文件操作工具函数（对应 Python infra/storage_local/file_utils.py）。 */
+/**
+ * 文件操作工具函数（对应 Python infra/storage_local/file_utils.py）。
+ * 原属 repositories/implementations/ —— 2026-07 架构治本上移：service 层此前
+ * 为拿这些通用工具被迫 import repository *实现*层，工具放错层。
+ * 纯路径工具在 ./paths.ts（此处 re-export，importer 无需区分两个模块）。
+ */
 
-import type { PlatformAdapter } from "../../platform/adapter.js";
+import type { PlatformAdapter } from "../platform/adapter.js";
+import { warnAlways } from "../logger/index.js";
+
+export { joinPath, validateBasePath, validatePathSegment } from "./paths.js";
 
 /** 返回当前 UTC 时间的 ISO 8601 字符串。 */
 export function now_utc(): string {
@@ -128,16 +136,18 @@ async function tryRecoverFromTmp<T>(
     const [tmpItems, tmpErrors] = parseJsonlText(tmpText, parse);
     // 严格更多合法行才恢复：等量/更少说明 .tmp 不比主文件完整（或是未提交写入），不动主文件。
     if (tmpItems.length <= mainValidCount) return null;
-    console.warn(
-      `[read_jsonl] recovering ${path} from leftover .tmp: ` +
-      `main has ${mainValidCount} valid line(s), .tmp has ${tmpItems.length} (legacy crash-truncation repair)`,
-    );
+    warnAlways("read_jsonl", `recovering ${path} from leftover .tmp (legacy crash-truncation repair)`, {
+      main_valid_lines: mainValidCount,
+      tmp_valid_lines: tmpItems.length,
+    });
     // atomicWrite 会重写 .tmp（同内容）后 rename 到主路径 —— 主文件修复的同时消费掉 .tmp。
     try {
       await atomicWrite(adapter, path, tmpText);
     } catch (e) {
       // 修复落盘失败仍返回更完整的数据供本次读取使用；下次读取会再尝试修复。
-      console.warn(`[read_jsonl] failed to persist .tmp recovery for ${path}:`, e);
+      warnAlways("read_jsonl", `failed to persist .tmp recovery for ${path}`, {
+        error: e instanceof Error ? e.message : String(e),
+      });
     }
     return [tmpItems, tmpErrors];
   } catch {
@@ -202,88 +212,28 @@ export async function rewrite_jsonl(
 }
 
 // ---------------------------------------------------------------------------
-// Path safety
-// ---------------------------------------------------------------------------
-
-/**
- * 基础路径安全验证：拒绝空路径、空字节和 '..' 遍历序列。
- * 允许绝对路径和反斜杠，用于系统级路径如 au_id、fandom_path。
- * Windows 桌面端 appDataDir() 返回带反斜杠的路径（如 C:\Users\...），必须允许。
- * '..' 遍历检查同时覆盖正斜杠和反斜杠分隔符。
- *
- * ⚠️ 不要对"数据根目录"（dataDir）调用此函数 —— Capacitor/Web 平台约定
- * 空字符串表示平台 Data 根，此处会被误拒。使用 joinPath(dataDir, ...)
- * 来拼接子路径，joinPath 自动过滤空段。
- */
-export function validateBasePath(value: string, name: string): void {
-  if (!value) {
-    throw new Error(`Path validation failed: ${name} must not be empty`);
-  }
-  if (value.includes("\0")) {
-    throw new Error(`Path validation failed: ${name} contains null byte`);
-  }
-  // Split on both / and \ to catch traversal on all platforms
-  const segments = value.split(/[/\\]/);
-  for (const seg of segments) {
-    if (seg === "..") {
-      throw new Error(`Path validation failed: ${name} contains '..' traversal`);
-    }
-  }
-}
-
-/**
- * 严格路径段验证：除基础检查外，还拒绝绝对路径和反斜杠。
- * 仅用于纯用户输入的相对段名（如 variant 名称），不用于可能为绝对路径的参数。
- */
-export function validatePathSegment(value: string, name: string): void {
-  validateBasePath(value, name);
-  if (value.startsWith("/")) {
-    throw new Error(`Path validation failed: ${name} must be a relative path`);
-  }
-  if (value.includes("\\")) {
-    throw new Error(`Path validation failed: ${name} contains backslash`);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Path helpers
-// ---------------------------------------------------------------------------
-
-/** 拼接路径（简单字符串拼接，确保单个 /）。 */
-export function joinPath(...parts: string[]): string {
-  return parts
-    .map((p, i) => (i === 0 ? p.replace(/\/+$/, "") : p.replace(/^\/+|\/+$/g, "")))
-    .filter(Boolean)
-    .join("/");
-}
-
-// ---------------------------------------------------------------------------
 // ID generation
 // ---------------------------------------------------------------------------
 
+const ID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+function randomIdSuffix(): string {
+  return Array.from({ length: 4 }, () =>
+    ID_ALPHABET[Math.floor(Math.random() * ID_ALPHABET.length)],
+  ).join("");
+}
+
 /** 生成全局唯一 Fact ID：f_{unix时间戳}_{4位随机}。 */
 export function generate_fact_id(): string {
-  const ts = Math.floor(Date.now() / 1000);
-  const rand = Array.from({ length: 4 }, () =>
-    "abcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 36)],
-  ).join("");
-  return `f_${ts}_${rand}`;
+  return `f_${Math.floor(Date.now() / 1000)}_${randomIdSuffix()}`;
 }
 
 /** 生成全局唯一操作 ID：op_{unix时间戳}_{4位随机}。 */
 export function generate_op_id(): string {
-  const ts = Math.floor(Date.now() / 1000);
-  const rand = Array.from({ length: 4 }, () =>
-    "abcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 36)],
-  ).join("");
-  return `op_${ts}_${rand}`;
+  return `op_${Math.floor(Date.now() / 1000)}_${randomIdSuffix()}`;
 }
 
 /** 生成全局唯一剧情线 ID：t_{unix时间戳}_{4位随机}（M8-B）。 */
 export function generate_thread_id(): string {
-  const ts = Math.floor(Date.now() / 1000);
-  const rand = Array.from({ length: 4 }, () =>
-    "abcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 36)],
-  ).join("");
-  return `t_${ts}_${rand}`;
+  return `t_${Math.floor(Date.now() / 1000)}_${randomIdSuffix()}`;
 }

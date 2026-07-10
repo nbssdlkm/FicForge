@@ -11,8 +11,7 @@
 
 import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStorageCapabilities } from "./adapter.js";
 import { SecretStoreReadError } from "./adapter.js";
-
-const LEGACY_SECURE_KEY_PREFIX = "__secure__:";
+import { legacySecureStorageKey, OS_KEYRING_CAPABILITIES, platformWarn, redactSecureKey } from "./shared.js";
 
 export class TauriAdapter implements PlatformAdapter {
   private _deviceId: string;
@@ -152,7 +151,10 @@ export class TauriAdapter implements PlatformAdapter {
       // 不在故障期做迁移写入（set 可能同样失败/半成功）。
       const legacyValue = this.getLegacySecureValue(key);
       if (legacyValue !== null) return legacyValue;
-      console.warn(`[TauriAdapter.secure] keyring get threw, key=${key}, err=`, err);
+      platformWarn("TauriAdapter.secure", "keyring get threw", {
+        key_redacted: redactSecureKey(key),
+        error: err instanceof Error ? err.message : String(err),
+      });
       throw new SecretStoreReadError(key, err);
     }
     if (stored !== null) {
@@ -183,15 +185,11 @@ export class TauriAdapter implements PlatformAdapter {
   }
 
   getSecretStorageCapabilities(): SecretStorageCapabilities {
-    return {
-      backend: "os_keyring",
-      encrypted_at_rest: true,
-      persistence: "persistent",
-    };
+    return OS_KEYRING_CAPABILITIES;
   }
 
   private getLegacySecureStorageKey(key: string): string {
-    return `${LEGACY_SECURE_KEY_PREFIX}${key}`;
+    return legacySecureStorageKey(key);
   }
 
   private getLegacySecureValue(key: string): string | null {

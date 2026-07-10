@@ -11,11 +11,20 @@
 
 import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStorageCapabilities } from "./adapter.js";
 import { SecretStoreReadError } from "./adapter.js";
+import {
+  base64ToUint8,
+  kvGetWithFallback,
+  kvRemoveWithFallback,
+  kvSetWithFallback,
+  legacySecureStorageKey,
+  platformWarn,
+  redactSecureKey,
+  uint8ToBase64,
+} from "./shared.js";
 
 const DB_NAME = "ficforge_fs";
 const STORE_NAME = "files";
 const DB_VERSION = 1;
-const LEGACY_SECURE_KEY_PREFIX = "__secure__:";
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -169,19 +178,6 @@ function getSecureAesKey(): Promise<CryptoKey | null> {
   return _aesKeyPromise;
 }
 
-function bytesToB64(bytes: Uint8Array): string {
-  let s = "";
-  for (const b of bytes) s += String.fromCharCode(b);
-  return btoa(s);
-}
-
-function b64ToBytes(s: string): Uint8Array {
-  const bin = atob(s);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
 async function encryptSecret(plaintext: string): Promise<string> {
   const key = await getSecureAesKey();
   if (!key) return plaintext; // no crypto → store plaintext; capability reports honestly
@@ -191,7 +187,7 @@ async function encryptSecret(plaintext: string): Promise<string> {
     key,
     new TextEncoder().encode(plaintext),
   );
-  return `${CIPHER_PREFIX}${bytesToB64(iv)}.${bytesToB64(new Uint8Array(ct))}`;
+  return `${CIPHER_PREFIX}${uint8ToBase64(iv)}.${uint8ToBase64(new Uint8Array(ct))}`;
 }
 
 async function decryptSecret(stored: string): Promise<string | null> {
@@ -201,9 +197,9 @@ async function decryptSecret(stored: string): Promise<string | null> {
   try {
     const [ivB64, ctB64] = stored.slice(CIPHER_PREFIX.length).split(".");
     const pt = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: b64ToBytes(ivB64) },
+      { name: "AES-GCM", iv: base64ToUint8(ivB64) },
       key,
-      b64ToBytes(ctB64),
+      base64ToUint8(ctB64),
     );
     return new TextDecoder().decode(pt);
   } catch {
@@ -388,27 +384,15 @@ export class WebAdapter implements PlatformAdapter {
   private _kvFallback = new Map<string, string>();
 
   async kvGet(key: string): Promise<string | null> {
-    try { return localStorage.getItem(key); }
-    catch {
-      console.warn(`[WebAdapter] kvGet: localStorage 不可用，使用内存回退（数据不持久化）`);
-      return this._kvFallback.get(key) ?? null;
-    }
+    return kvGetWithFallback("WebAdapter", this._kvFallback, key);
   }
 
   async kvSet(key: string, value: string): Promise<void> {
-    try { localStorage.setItem(key, value); }
-    catch {
-      console.warn(`[WebAdapter] kvSet: localStorage 不可用，使用内存回退（数据不持久化）`);
-      this._kvFallback.set(key, value);
-    }
+    kvSetWithFallback("WebAdapter", this._kvFallback, key, value);
   }
 
   async kvRemove(key: string): Promise<void> {
-    try { localStorage.removeItem(key); }
-    catch {
-      console.warn(`[WebAdapter] kvRemove: localStorage 不可用，使用内存回退`);
-      this._kvFallback.delete(key);
-    }
+    kvRemoveWithFallback("WebAdapter", this._kvFallback, key);
   }
 
   /**
@@ -430,7 +414,9 @@ export class WebAdapter implements PlatformAdapter {
         // （与 Capacitor/Tauri 故障路径同口径，且不在失败路径上做迁移写入）。
         const legacyFallback = this.getLegacySecureValue(key);
         if (legacyFallback !== null) return legacyFallback;
-        console.warn(`[WebAdapter] secureGet: ciphertext present but undecryptable, key=${key}`);
+        platformWarn("WebAdapter", "secureGet: ciphertext present but undecryptable", {
+          key_redacted: redactSecureKey(key),
+        });
         throw new SecretStoreReadError(key);
       }
       this.removeLegacySecureValue(key);
@@ -472,7 +458,7 @@ export class WebAdapter implements PlatformAdapter {
   }
 
   private getSecureStorageKey(key: string): string {
-    return `${LEGACY_SECURE_KEY_PREFIX}${key}`;
+    return legacySecureStorageKey(key);
   }
 
   private getSessionSecureValue(key: string): string | null {
@@ -489,7 +475,7 @@ export class WebAdapter implements PlatformAdapter {
     try {
       sessionStorage.setItem(storageKey, value);
     } catch {
-      console.warn(`[WebAdapter] secureSet: sessionStorage unavailable, using in-memory fallback (not persisted beyond this session)`);
+      platformWarn("WebAdapter", "secureSet: sessionStorage unavailable, using in-memory fallback (not persisted beyond this session)");
       this._secureFallback.set(storageKey, value);
     }
   }

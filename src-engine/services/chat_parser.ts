@@ -7,6 +7,7 @@
  */
 
 import type { LLMProvider } from "../llm/provider.js";
+import { warnAlways } from "../logger/index.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -242,10 +243,13 @@ ${sample}`;
     const result = extractJsonResult(response.content);
     if (!result) {
       // LLM 响应里找不到合法 JSON 结构 → LLM 层问题（没按指令输出）
-      // 脱敏：response.content 可能回显用户导入正文，只打长度 + 短前缀便于判断"为何 parse 不出 JSON"
-      console.warn(
-        `[import] llmDetectChatStructure: no valid JSON in response (${response.content.length} chars, prefix: ${JSON.stringify(response.content.slice(0, 80))})`,
-      );
+      // 脱敏：response.content 可能回显用户导入正文 —— 即使 80 字符前缀也可能是正文，
+      // 一律不打内容，只留长度与首字符类别这类纯结构信号。
+      const first = response.content.trimStart().charAt(0);
+      warnAlways("import", "llmDetectChatStructure: no valid JSON in response", {
+        content_length: response.content.length,
+        first_char_kind: first === "{" || first === "[" ? "json-like" : first === "" ? "empty" : "text",
+      });
       return emptyResult({ error: "llm_error" });
     }
     if (!result.isChat) {
@@ -274,7 +278,7 @@ ${sample}`;
     // 归类为 llm_error：LLM 调用链虽 OK 但未能产出可用结果，UX 上和"真错"一样需要 toast，
     // 且 LLM 对 prompt 规则的把握不足大概率也会影响 chapter detect，retry guard 一并关闭下游合理
     // 脱敏：result 可能含 customUserSample / customAssistantSample（用户正文片段），只打结构信号
-    console.warn("[import] llmDetectChatStructure: isChat=true but neither matchKnownFormat nor customSamples provided:", {
+    warnAlways("import", "llmDetectChatStructure: isChat=true but neither matchKnownFormat nor customSamples provided", {
       matchKnownFormat: result.matchKnownFormat,
       hasCustomUserSample: !!result.customUserSample,
       hasCustomAssistantSample: !!result.customAssistantSample,
@@ -282,7 +286,9 @@ ${sample}`;
     return emptyResult({ error: "llm_error" });
   } catch (err) {
     // LLM 调用抛错（网络、timeout、key 无效等）→ LLM 层问题；warn 保留线索便于排查
-    console.warn("[import] llmDetectChatStructure threw, falling back to non-chat:", err);
+    warnAlways("import", "llmDetectChatStructure threw, falling back to non-chat", {
+      error: err instanceof Error ? err.message : String(err),
+    });
     return emptyResult({ error: "llm_error" });
   }
 }

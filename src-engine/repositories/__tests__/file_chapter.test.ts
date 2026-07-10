@@ -5,7 +5,7 @@ import { describe, expect, it, beforeEach } from "vitest";
 import { FileChapterRepository } from "../implementations/file_chapter.js";
 import { createChapter } from "../../domain/chapter.js";
 import { createGeneratedWith } from "../../domain/generated_with.js";
-import { compute_content_hash } from "../implementations/file_utils.js";
+import { compute_content_hash } from "../../utils/file_utils.js";
 import { MockAdapter } from "./mock_adapter.js";
 
 describe("FileChapterRepository", () => {
@@ -48,8 +48,8 @@ describe("FileChapterRepository", () => {
     expect(loaded.revision).toBe(1);
   });
 
-  it("throws on missing chapter", async () => {
-    await expect(repo.get("au1", 99)).rejects.toThrow("Chapter not found");
+  it("returns null on missing chapter (get 契约：缺失 null、fs 错误照抛)", async () => {
+    await expect(repo.get("au1", 99)).resolves.toBeNull();
   });
 
   it("delete removes file", async () => {

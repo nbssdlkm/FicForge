@@ -20,6 +20,7 @@ import {
   type DownloadProgress,
   type FontSource,
 } from "./types.js";
+import { warnAlways } from "../logger/index.js";
 
 export type FetchLike = typeof fetch;
 export type ProgressCallback = (progress: DownloadProgress) => void;
@@ -52,13 +53,17 @@ export class FontDownloader {
     }
     if (signal?.aborted) throw new FontError("aborted", `Download aborted before start: ${entry.id}`);
 
-    // 保护用户进度回调：回调抛错只 console.warn，绝不传播到下载流程——
+    // 保护用户进度回调：回调抛错只告警，绝不传播到下载流程——
     // 否则 UI 回调的 bug 会被误判为"该源失败"，错误 failover 到所有源并最终
     // 抛 network error，既浪费带宽又掩盖真正的错误原因。
     const safeProgress: ProgressCallback | undefined = onProgress
       ? (progress) => {
           try { onProgress(progress); }
-          catch (e) { console.warn(`[FontDownloader] ${entry.id} onProgress callback threw:`, e); }
+          catch (e) {
+            warnAlways("FontDownloader", `${entry.id} onProgress callback threw`, {
+              error: e instanceof Error ? e.message : String(e),
+            });
+          }
         }
       : undefined;
 
@@ -83,9 +88,7 @@ export class FontDownloader {
             );
           }
         } else {
-          console.warn(
-            `[FontDownloader] ${entry.id} 跳过 sha256 校验（source=${source.url}，依赖 TLS 传输完整性）`,
-          );
+          warnAlways("FontDownloader", `${entry.id} 跳过 sha256 校验（source=${source.url}，依赖 TLS 传输完整性）`);
         }
         return data;
       } catch (err) {

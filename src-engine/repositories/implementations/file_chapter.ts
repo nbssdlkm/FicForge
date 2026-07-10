@@ -13,8 +13,10 @@ import { KNOWN_CHAPTER_META_KEYS, createChapter } from "../../domain/chapter.js"
 import { safeMatter } from "../../domain/frontmatter.js";
 import type { GeneratedWith } from "../../domain/generated_with.js";
 import { createGeneratedWith } from "../../domain/generated_with.js";
+import { chapterFilename, parseChapterFilename } from "../../domain/paths.js";
 import type { ChapterRepository } from "../interfaces/chapter.js";
-import { atomicWrite, compute_content_hash, joinPath, now_utc, validateBasePath } from "./file_utils.js";
+import { atomicWrite, compute_content_hash, joinPath, now_utc, validateBasePath } from "../../utils/file_utils.js";
+import { warnAlways } from "../../logger/index.js";
 
 export class FileChapterRepository implements ChapterRepository {
   constructor(private adapter: PlatformAdapter) {}
@@ -24,12 +26,11 @@ export class FileChapterRepository implements ChapterRepository {
   // ------------------------------------------------------------------
 
   private chapterFilename(chapter_num: number): string {
-    return `ch${String(chapter_num).padStart(4, "0")}.md`;
+    return chapterFilename(chapter_num);
   }
 
   private parseChapterFilename(filename: string): number | null {
-    const m = filename.match(/^ch(\d{4,})\.md$/);
-    return m ? Number(m[1]) : null;
+    return parseChapterFilename(filename);
   }
 
   private chapterPath(au_id: string, chapter_num: number): string {
@@ -40,13 +41,12 @@ export class FileChapterRepository implements ChapterRepository {
   // 接口实现
   // ------------------------------------------------------------------
 
-  async get(au_id: string, chapter_num: number): Promise<Chapter> {
+  async get(au_id: string, chapter_num: number): Promise<Chapter | null> {
     validateBasePath(au_id, "au_id");
     const path = this.chapterPath(au_id, chapter_num);
     const exists = await this.adapter.exists(path);
-    if (!exists) {
-      throw new Error(`Chapter not found: ${path}`);
-    }
+    // 缺失返回 null、fs 错误照抛（get 契约，盲审 2026-07-09 全仓储统一）
+    if (!exists) return null;
 
     const text = await this.adapter.readFile(path);
     const { data: meta, content: rawContent } = safeMatter(text, KNOWN_CHAPTER_META_KEYS);
@@ -101,11 +101,12 @@ export class FileChapterRepository implements ChapterRepository {
     if (chapter.content_hash) {
       compute_content_hash(chapter.content).then((actual) => {
         if (actual !== chapter.content_hash) {
-          console.warn(
-            `[file_chapter] content_hash mismatch on save: ` +
-            `au=${chapter.au_id} ch=${chapter.chapter_num} ` +
-            `stored=${chapter.content_hash.slice(0, 8)}... actual=${actual.slice(0, 8)}...`,
-          );
+          warnAlways("file_chapter", "content_hash mismatch on save", {
+            au_id: chapter.au_id,
+            chapter_num: chapter.chapter_num,
+            stored_prefix: chapter.content_hash.slice(0, 8),
+            actual_prefix: actual.slice(0, 8),
+          });
         }
       }).catch(() => { /* hash 校验失败不阻断 */ });
     }
@@ -142,7 +143,8 @@ export class FileChapterRepository implements ChapterRepository {
       const num = this.parseChapterFilename(f);
       if (num !== null) {
         const ch = await this.get(au_id, num);
-        chapters.push(ch);
+        // listDir 与 get 之间被并发删除的窄窗 → 跳过而非报错
+        if (ch) chapters.push(ch);
       }
     }
     return chapters;

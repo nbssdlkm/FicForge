@@ -89,8 +89,9 @@ export function createFactsExtractionTask(
     const totalChapters = toChapter - fromChapter + 1;
     const allFacts: ExtractedFact[] = [...previousFacts];
 
-    // 读取项目和已有 facts
+    // 读取项目和已有 facts（project.yaml 缺失 = AU 结构损坏，提取无法继续）
     const proj = await projectRepo.get(auPath);
+    if (!proj) throw new Error(`project.yaml not found: ${auPath}`);
     const existingFacts = await factRepo.list_all(auPath);
 
     // 计算起始点（断点续传时跳过已完成的）

@@ -11,7 +11,7 @@
  */
 
 import type { PlatformAdapter } from "../platform/adapter.js";
-import { joinPath } from "../repositories/implementations/file_utils.js";
+import { joinPath } from "../utils/file_utils.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -53,6 +53,10 @@ export interface Logger {
 
 const LEVEL_ORDER: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
 const REDACT_RE = /api_key|apikey|password|secret|token|authorization|credential/i;
+// 字段名为 key / *_key 的 ctx 值也可能是 secure key 名（内嵌作品/AU 标题）——
+// 一并掩码（盲审 2026-07-09）。需要可诊断值时用 key_redacted 字段传
+// redactSecureKey() 的结果（"redacted" 后缀不命中此规则）。
+const KEY_FIELD_RE = /(^|_)key$/i;
 const LOGS_DIR_SUFFIX = ".ficforge/logs";
 
 // ---------------------------------------------------------------------------
@@ -260,7 +264,7 @@ export class FileLogger implements Logger {
 function redactCtx(ctx: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(ctx)) {
-    if (REDACT_RE.test(key)) {
+    if (REDACT_RE.test(key) || KEY_FIELD_RE.test(key)) {
       result[key] = "[REDACTED]";
     } else if (value && typeof value === "object" && !Array.isArray(value)) {
       result[key] = redactCtx(value as Record<string, unknown>);

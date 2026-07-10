@@ -13,8 +13,9 @@ import { createDraft } from "../../domain/draft.js";
 import { safeMatter } from "../../domain/frontmatter.js";
 import type { GeneratedWith } from "../../domain/generated_with.js";
 import { createGeneratedWith } from "../../domain/generated_with.js";
+import { draftFilename, parseDraftFilename } from "../../domain/paths.js";
 import type { DraftRepository } from "../interfaces/draft.js";
-import { atomicWrite, joinPath, validateBasePath, validatePathSegment } from "./file_utils.js";
+import { atomicWrite, joinPath, validateBasePath, validatePathSegment } from "../../utils/file_utils.js";
 
 /**
  * 草稿 frontmatter 的合法键集合。真相源 = 下方 save() 的 meta 构造 —— 本仓库
@@ -29,12 +30,12 @@ export class FileDraftRepository implements DraftRepository {
   constructor(private adapter: PlatformAdapter) {}
 
   private draftFilename(chapter_num: number, variant: string): string {
-    return `ch${String(chapter_num).padStart(4, "0")}_draft_${variant}.md`;
+    return draftFilename(chapter_num, variant);
   }
 
   private parseDraftFilename(filename: string): [number, string] | null {
-    const m = filename.match(/^ch(\d{4,})_draft_(\w+)\.md$/);
-    return m ? [Number(m[1]), m[2]] : null;
+    const parsed = parseDraftFilename(filename);
+    return parsed ? [parsed.chapter_num, parsed.variant] : null;
   }
 
   private draftsDir(au_id: string): string {
@@ -47,12 +48,11 @@ export class FileDraftRepository implements DraftRepository {
     return joinPath(this.draftsDir(au_id), this.draftFilename(chapter_num, variant));
   }
 
-  async get(au_id: string, chapter_num: number, variant: string): Promise<Draft> {
+  async get(au_id: string, chapter_num: number, variant: string): Promise<Draft | null> {
     const path = this.draftPath(au_id, chapter_num, variant);
     const exists = await this.adapter.exists(path);
-    if (!exists) {
-      throw new Error(`Draft not found: ${path}`);
-    }
+    // 缺失返回 null、fs 错误照抛（get 契约，盲审 2026-07-09 全仓储统一）
+    if (!exists) return null;
 
     const text = await this.adapter.readFile(path);
     const parsed = safeMatter(text, KNOWN_DRAFT_META_KEYS);
@@ -121,7 +121,8 @@ export class FileDraftRepository implements DraftRepository {
       const parsed = this.parseDraftFilename(f);
       if (parsed && parsed[0] === chapter_num) {
         const draft = await this.get(au_id, parsed[0], parsed[1]);
-        result.push(draft);
+        // listDir 与 get 之间被并发删除的窄窗 → 跳过而非报错
+        if (draft) result.push(draft);
       }
     }
     return result;

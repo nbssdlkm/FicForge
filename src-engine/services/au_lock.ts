@@ -72,7 +72,7 @@
  * key 碰撞。未来如需 chapter 级 / fandom 级锁可在此模块新增同构函数。
  */
 
-import { withWriteLock } from "../repositories/implementations/file_utils.js";
+import { withWriteLock } from "../utils/file_utils.js";
 
 export function withAuLock<T>(au_id: string, fn: () => Promise<T>): Promise<T> {
   return withWriteLock(`au:${au_id}`, fn);

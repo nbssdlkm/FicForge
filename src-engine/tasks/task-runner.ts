@@ -25,7 +25,7 @@ import type {
   TaskStatusListener,
 } from "./types.js";
 import { TaskStore } from "./task-store.js";
-import { now_utc } from "../repositories/implementations/file_utils.js";
+import { now_utc } from "../utils/file_utils.js";
 import type { PlatformAdapter } from "../platform/index.js";
 
 // ---------------------------------------------------------------------------
@@ -128,6 +128,9 @@ export class TaskRunner {
     if (qIdx >= 0) {
       const task = this.queue.splice(qIdx, 1)[0];
       task.handle.status = "cancelled";
+      // 与运行中取消同口径进 completed 池 —— 否则 getTask() 查无此人，
+      // UI 无法呈现「已取消」终态（本文件测试建立时发现的不对称）。
+      this.addCompleted(task.handle);
       this.notifyStatus(taskId, "cancelled", task.handle);
       this.notifyEvent(taskId, { type: "cancelled" });
       void this.store.remove(taskId);

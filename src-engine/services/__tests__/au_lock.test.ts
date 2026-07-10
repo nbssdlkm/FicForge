@@ -75,7 +75,7 @@ describe("withAuLock", () => {
   it("命名空间隔离：au_lock 的 key 不与裸文件路径碰撞", async () => {
     // withAuLock("foo/bar") 应该不与 withWriteLock("foo/bar") 同队列。
     // 通过观察：两个不同命名空间的任务应该并行跑完。
-    const { withWriteLock } = await import("../../repositories/implementations/file_utils.js");
+    const { withWriteLock } = await import("../../utils/file_utils.js");
 
     const timeline: string[] = [];
     const t1 = withAuLock("foo/bar", async () => {

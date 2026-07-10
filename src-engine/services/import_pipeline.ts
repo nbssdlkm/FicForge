@@ -13,13 +13,15 @@ import { createChapter } from "../domain/chapter.js";
 import { scan_characters_in_chapter } from "../domain/character_scanner.js";
 import { IndexStatus } from "../domain/enums.js";
 import { createOpsEntry } from "../domain/ops_entry.js";
+import { chapterMainPath } from "../domain/paths.js";
 import { createState } from "../domain/state.js";
 import { extract_last_scene_ending } from "../domain/text_utils.js";
 import type { PlatformAdapter } from "../platform/adapter.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
-import { compute_content_hash, generate_op_id, now_utc } from "../repositories/implementations/file_utils.js";
+import { compute_content_hash, generate_op_id, now_utc } from "../utils/file_utils.js";
+import { warnAlways } from "../logger/index.js";
 import { withAuLock } from "./au_lock.js";
 import { WriteTransaction } from "./write_transaction.js";
 
@@ -210,7 +212,7 @@ export async function analyzeFile(
         // LLM 声称是对话但识别结果在原文验证不过 → 幻觉 / LLM 判断错误
         // 脱敏：customUserSample / customAssistantSample 是用户导入正文的片段，不进日志；
         // 只留结构性诊断信号（是否命中已知格式 / 样本是否存在及长度 / candidate 是否构造成功）。
-        console.warn("[import] LLM chat detection failed validation, falling back to text mode:", {
+        warnAlways("import", "LLM chat detection failed validation, falling back to text mode", {
           matchKnownFormat: llmResult.matchKnownFormat,
           customUserSampleLen: llmResult.customUserSample?.length ?? 0,
           customAssistantSampleLen: llmResult.customAssistantSample?.length ?? 0,
@@ -547,7 +549,22 @@ async function doExecuteImport(
 
   const timestamp = now_utc();
 
-  // 1. 覆盖/自定义模式：被覆盖的章节移入垃圾桶。
+  // 1. 设定文件先行落盘（writeImportedSettings 内部失败会回滚已写部分并抛出）。
+  // 必须在移旧章入回收站**之前**：若放在其后，设定写盘失败会把导入中止在
+  // 「旧章已进回收站、新章未提交」的中间态，作品章节凭空变少（盲审 2026-07-09 中危）。
+  // 先写设定则失败时整个导入原地中止、章节区零触碰。progress 的 chaptersDone
+  // 此阶段恒为 0（章节尚未构建），如实反映顺序。
+  const settingsResult = await writeImportedSettings(plan, {
+    auId,
+    adapter,
+    locale,
+    chaptersImported: 0,
+    onProgress,
+  });
+  result.settingsImported = settingsResult.count;
+  const writtenSettingsPaths = settingsResult.writtenPaths;
+
+  // 2. 覆盖/自定义模式：被覆盖的章节移入垃圾桶。
   // trash 失败不能再静默放行覆盖（审计 M29：旧章会被 tx.saveChapter 覆盖 → 永失且不在回收站）：
   // 降级用 backup_chapter 兜底（chapters/backups/ 目录）；备份也失败则跳过该章覆盖，
   // 旧章原样保留并记入 overwriteSkippedChapters 让 UI 警告。
@@ -557,7 +574,7 @@ async function doExecuteImport(
     for (const num of importedNums) {
       const exists = await chapterRepo.exists(auId, num);
       if (exists) {
-        const chPath = `chapters/main/ch${String(num).padStart(4, "0")}.md`;
+        const chPath = chapterMainPath(num);
         try {
           await trashService.move_to_trash(auId, chPath, "chapter", String(num));
           result.trashedChapters.push(num);
@@ -566,11 +583,9 @@ async function doExecuteImport(
             await chapterRepo.backup_chapter(auId, num);
           } catch (backupErr) {
             overwriteSkipped.add(num);
-            // eslint-disable-next-line no-console
-            console.warn(
-              `[import] ch${num} 旧章无法移入回收站且备份失败，跳过覆盖以保留旧章: ` +
-              `${(backupErr as Error).message}`,
-            );
+            warnAlways("import", `ch${num} 旧章无法移入回收站且备份失败，跳过覆盖以保留旧章`, {
+              error: (backupErr as Error).message,
+            });
           }
         }
       }
@@ -581,7 +596,7 @@ async function doExecuteImport(
   // 被跳过覆盖的章不进事务：后续 state / ops 也只反映真正落盘的章
   const chaptersToWrite = plan.chapters.filter((ch) => !overwriteSkipped.has(ch.chapterNum));
 
-  // 2. 逐章构建（收集到 tx，不立即写入）
+  // 3. 逐章构建（收集到 tx，不立即写入）
   const tx = new WriteTransaction();
   const allCharactersLastSeen: Record<string, number> = {};
   for (const ch of chaptersToWrite) {
@@ -621,7 +636,7 @@ async function doExecuteImport(
     });
   }
 
-  // 3. 更新 state（仅在有真正落盘的章节时需要；跳过覆盖的章不参与，其旧章数据未变）
+  // 4. 更新 state（仅在有真正落盘的章节时需要；跳过覆盖的章不参与，其旧章数据未变）
   let importState: ReturnType<typeof createState> | null = null;
   // L24：last_scene_ending 是「续写衔接锚点」，只应反映进度末尾章的结尾。仅当本次导入触及
   // 「当前进度末章及之后」才更新它 —— current_chapter 是「下一章指针」，现末章 = 指针−1，
@@ -675,17 +690,7 @@ async function doExecuteImport(
     result.nextChapterNum = importState.current_chapter;
   }
 
-  const settingsResult = await writeImportedSettings(plan, {
-    auId,
-    adapter,
-    locale,
-    chaptersImported: result.chaptersImported,
-    onProgress,
-  });
-  result.settingsImported = settingsResult.count;
-  const writtenSettingsPaths = settingsResult.writtenPaths;
-
-  // 4. 事务提交 — 只要有章节或设定就写 ops（D-0036：ops 是 sync truth）
+  // 5. 事务提交 — 只要有章节或设定就写 ops（D-0036：ops 是 sync truth）
   // payload 一律取 chaptersToWrite：ops 审计与重建投影只应反映真正落盘的章（审计 M29）
   if (chaptersToWrite.length > 0 || plan.settings.length > 0) {
     tx.appendOp(auId, createOpsEntry({
