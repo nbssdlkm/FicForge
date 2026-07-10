@@ -151,7 +151,7 @@ export { migrateLegacySecureStorage } from "./engine-security";
 // ---------------------------------------------------------------------------
 export { dispatchSimpleChat } from "./engine-simple-dispatch";
 export type { DispatchSimpleChatParams, SimpleChatEvent } from "./engine-simple-dispatch";
-export { getSimpleChat, saveSimpleChat, markSimpleChatDraftAccepted } from "./engine-simple-chat";
+export { getSimpleChat, saveSimpleChat, markSimpleChatDraftAccepted, asSimpleChatMessages } from "./engine-simple-chat";
 export type { SimpleChatFile, SimpleChatMessageEnvelope } from "./engine-simple-chat";
 export { estimateSimpleContextTokens } from "./engine-tokens";
 export type { SimpleContextTokenEstimate } from "./engine-tokens";

@@ -11,6 +11,9 @@ import type { SimpleChatFile, SimpleChatMessageEnvelope } from "@ficforge/engine
 import { getEngine } from "./engine-instance";
 
 export type { SimpleChatFile, SimpleChatMessageEnvelope };
+// 仓储宽容读取 → 正式 SimpleChatMessage union 的唯一窄化点（domain 提供），
+// UI 端经此消费，不得自行 cast。
+export { asSimpleChatMessages } from "@ficforge/engine";
 
 /** 读取 AU 的 chat 历史。文件不存在 / 损坏时返回空白 SimpleChatFile（不抛错）。 */
 export async function getSimpleChat(auPath: string): Promise<SimpleChatFile> {

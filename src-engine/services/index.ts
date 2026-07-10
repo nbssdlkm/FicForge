@@ -59,6 +59,10 @@ export {
   SIMPLE_TOOL_SHOW_SETTING,
 } from "./simple_chat_dispatch.js";
 
+// FicForge Lite chat history → OpenAI messages 转换（盲审长期债④下沉；UI 薄 re-export）
+export type { OpenAIChatMessage } from "./chat_to_llm.js";
+export { chatToOpenAIMessages } from "./chat_to_llm.js";
+
 // RAG Retrieval
 export {
   build_active_chars,

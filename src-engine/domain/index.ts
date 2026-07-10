@@ -89,8 +89,26 @@ export {
   createSettings,
 } from "./settings.js";
 
-export type { SimpleChatFile, SimpleChatMessageEnvelope } from "./simple_chat.js";
-export { createSimpleChatFile, SIMPLE_CHAT_VERSION } from "./simple_chat.js";
+export type {
+  SimpleChatFile,
+  SimpleChatMessageEnvelope,
+  SimpleMessageKind,
+  SimpleDraftStatus,
+  SimpleToolCallStatus,
+  SimpleSystemTone,
+  ToolUndoMeta,
+  SimpleUserMessage,
+  SimpleAssistantToolCall,
+  SimpleAssistantMessage,
+  SimpleToolResultMessage,
+  SimpleWritingDraftMessage,
+  SimpleToolCallMessage,
+  SimpleChapterPreviewMessage,
+  SimpleSettingPreviewMessage,
+  SimpleSystemMessage,
+  SimpleChatMessage,
+} from "./simple_chat.js";
+export { createSimpleChatFile, SIMPLE_CHAT_VERSION, asSimpleChatMessages } from "./simple_chat.js";
 
 export type { EmbeddingFingerprint, State } from "./state.js";
 export { createEmbeddingFingerprint, createState } from "./state.js";

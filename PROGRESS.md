@@ -7,6 +7,8 @@
 
 **2026-07-09/10 盲审会话：网上下载 code-audit 技能做 9 维盲审（55/F 基线）→ 用户拍板「最全面最治本」→ A-H 八阶段修复全部完成（未提交，等确认）。** 盲审 86 条发现中产品关键四维（正确性/安全/功能实现/日志）全部清零；依赖漏洞双包清零（引擎 audit 0，UI 剩 1 条 dev-only LOW 被父包锁住）；单一真相源抽取（章节/草稿命名 9 处副本收敛 `domain/paths.ts`、平台适配器共享层、默认值单源）；仓储 get 契约统一（缺失=null / fs 错误=抛）；3 组 inert 配置 + WebDAV 序列化残留 + 8 个孤儿 API 物理清退；Tauri CSP/fs 收权；新增 30 测试（TaskRunner 从零到 12 用例，顺手修 1 真 bug）。修复后自评约 88.5/B。终验：引擎 1300 + UI 411 全绿、双 tsc 0 错、i18n 1271 对称。报告：`docs/internal/audit/2026-07-09-blind-audit-9dim.md`（含发现全录 + 修复对照 + 长期债清单）。
 
+**2026-07-09 追加（worktree 分支 `claude/suspicious-mcnulty-c2dcb4`，未提交等确认）：长期债④ chat-to-llm 下沉引擎两步走完成**——kind union 正式化进 domain + 转换函数迁 `services/chat_to_llm.ts`，golden 基线证输出逐字节不变，双包 tsc + 测试全绿。详见里程碑「长期债④偿清」条。
+
 ## 待办
 
 ### 需要人工（真机/异机，代码无法覆盖）
@@ -31,11 +33,11 @@
 - [ ] snake/camel 命名同文件混用（迁移遗产，5 文件 + React 组件声明风格）
 - [ ] 巨型组件状态下沉（AuSettingsLayout 31 useState / AuLoreLayout / SettingsChatPanel / FandomLore / GlobalSettings / Mobile 两个，按 hook 铁律分批）
 - [ ] UI hooks 测试补全（写文侧 useWriterBootstrap 等 / facts 三 hook / useConnectionTest / useFontSelection）+ 存量 LLM mock 迁移共享 helper（`services/__tests__/mock_llm_provider.ts` 已建）
-- [ ] chat-to-llm 业务规则下沉引擎（前置：消息 kind schema 先在引擎 domain 正式化）
 - [ ] devDep 大版本三件（TS 7 / tailwind 4 / plugin-react 6）择机升级
 
 ## 里程碑（倒序）
 
+- **2026-07-09（长期债④偿清）** — chat-to-llm 两步下沉引擎（worktree 分支 `claude/suspicious-mcnulty-c2dcb4`，等人工确认合并）：①消息 kind 判别 union 正式化进 `src-engine/domain/simple_chat.ts`（顶层消息 type alias 化使 union 直赋宽容壳、`asSimpleChatMessages` 唯一窄化点、ToolUndoMeta 一并入 domain），UI `simple/types.ts` / `settings-chat` 改薄 re-export，useSimpleChat 四处 `as unknown as` 双向 cast 清零，仓储宽容读取契约与测试零改动；②`chatToOpenAIMessages` 移至 `services/chat_to_llm.ts`（裸 console.warn 收编 warnAlways 日志纪律），UI 保薄 re-export 让 import 路径不变，14 用例行为测试随迁引擎。硬约束达成：搬前对旧实现捕获 golden 基线（32 消息固定输入全分支覆盖，JSON.stringify 全串 + 告警文案逐字节断言），搬后经 re-export 路径同基线全绿。引擎 1315 + UI 397 + 双 tsc 0 错。
 - **2026-07-09/10** — 九维盲审（下载 nud3l/code-audit 技能 + 自定 3 维 + 透明评分公式，9 个 opus 盲审员并行，55/F 基线）→ 同日「最全面最治本」修复 A-H 八阶段：依赖漏洞双包清零（js-yaml 免大版本）、单一真相源大扫除（章节/草稿命名 9 副本→domain/paths、适配器共享层、默认值单源、prompt 块共享）、密钥 key 名泄露 5 处脱敏 + warnAlways 日志纪律、正确性 5 项（聊天保存失败回滚重试 / 导入顺序重排 / 向量原子写+损坏自愈 / RagManager pin 前移 / bundle 半成品清理）、死配置与孤儿管线物理清退、仓储 get 契约统一（顺手消灭 5 处吞 fs 错误的静默回退）、Tauri CSP/fs 收权、新增 30 测试修 1 真 bug。1277→1300 + 404→411 全绿。自评 55→88.5。
 - **2026-07-09** — 第三轮审计 MED/LOW 全清（交互接受批量单锁 / embedding 可取消 / 手动 fact 富化 / trash NaN 清理 / revision 锁内自增 / 恢复名对称）+ **TD-017 根治**（RagManager per-AU 引擎，最后一条技术债）+ 最后一公里全部做完（归档徽标 / 导入补记忆引导 / per-model ctx 覆盖 / 覆盖备份进回收站）。7 commit 未 push；每批修→独立对抗审（opus）→判别性测试→提交，最后两项还先用工作流并行 trace 数据流确认可干净落地；累计采纳对抗审发现 11 条全整改。引擎 1262→1277、UI 391→404 全绿、双 tsc 0。**已知 bug / 技术债 / 审计待排 / 最后一公里全部闭环，代码层达可打包发布。**
 
