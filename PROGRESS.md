@@ -5,6 +5,8 @@
 
 ## 当前状态（2026-07-09/10）
 
+**2026-07-09 长期债②第一块**：AuSettingsLayout 状态下沉完成 —— 31 useState → 0（534 → 338 行），按 hook 铁律拆 4 个职责单一 hooks（`useAuSettingsData` 数据拉取 / `useAuSettingsForm` 表单+保存 / `useAuSettingsModals` 弹窗 / `useAuSettingsAdvancedOps` 高级操作）；表单收敛为 `AuSettingsFormState` 单对象，hydrate 以 loadKey 触发 + project 走 ref shim（cast 移除局部更新不吞未保存编辑）；新增 4 条布局回归测试锁 hydrate/保存 payload/切 AU 重灌/cast 移除。验证：UI tsc 0 错 + 415 测试全绿（+4），headless Chrome 真 UI 眼验 15 步（建 AU→设置页表单/保存 round-trip/双覆盖开合/四弹窗/recalc）零 console error。剩余五个大组件同打法逐会话复制。
+
 **2026-07-09（夜）长期债③首批清偿：零测试 UI hooks 按风险清单①-⑦全部补齐。** 10 个新测试文件 / 102 用例，失败路径优先：useWriterBootstrap（auPath 切换竞态丢弃迟到响应 / 四路部分失败降级 / refresh 瞬时失败保旧值）、useConfirmedChapterEditor（保存失败保留用户改动）、writerDisplayState（章号口径回归 / meta 回退链 / 分层条占比）、useConnectionTest（reset 中断在途请求 / error_code→i18n 兜底映射 / 双 run 竞态）、useFontSelection（双层存储对称性 / persist 失败 warnUi / 同帧双 setter stale-closure 防护 / legacy 迁移）、facts 三 hook（批量失败保留选择 / AU 切换竞态 / stale 伪筛选判据）、library 两 hook（导入中建 fandom 断点续流 / 引导 vs API 警告分流门不对称失败策略）。引擎测试 LLM mock 迁移按「触碰才迁」门槛本次零对象（未触碰引擎测试文件）。质量验证三层：4 处变异验证（bootstrap stale 检查 / font ref 同步 / connection stale 检查 / editor catch 清空，均精准命中对应测试且不误伤）+ 独立对抗审 opus 判 **safe-with-nits**（无 HIGH/MEDIUM；采纳 2 LOW：失败清空断言改「先建立非空态再断言清空」+ 补切章 cancelled 竞态覆盖 + 台账文件数 9→10 笔误修正）。终验：引擎 1300 + UI 513（411→513）全绿、双 tsc 0 错。
 
 **2026-07-09/10 盲审会话：网上下载 code-audit 技能做 9 维盲审（55/F 基线）→ 用户拍板「最全面最治本」→ A-H 八阶段修复全部完成（未提交，等确认）。** 盲审 86 条发现中产品关键四维（正确性/安全/功能实现/日志）全部清零；依赖漏洞双包清零（引擎 audit 0，UI 剩 1 条 dev-only LOW 被父包锁住）；单一真相源抽取（章节/草稿命名 9 处副本收敛 `domain/paths.ts`、平台适配器共享层、默认值单源）；仓储 get 契约统一（缺失=null / fs 错误=抛）；3 组 inert 配置 + WebDAV 序列化残留 + 8 个孤儿 API 物理清退；Tauri CSP/fs 收权；新增 30 测试（TaskRunner 从零到 12 用例，顺手修 1 真 bug）。修复后自评约 88.5/B。终验：引擎 1300 + UI 411 全绿、双 tsc 0 错、i18n 1271 对称。报告：`docs/internal/audit/2026-07-09-blind-audit-9dim.md`（含发现全录 + 修复对照 + 长期债清单）。
@@ -34,7 +36,7 @@
 
 ### 长期债（盲审 2026-07-09 判定为低息，渐进还）
 - [ ] snake/camel 命名同文件混用（迁移遗产，5 文件 + React 组件声明风格）
-- [ ] 巨型组件状态下沉（AuSettingsLayout 31 useState / AuLoreLayout / SettingsChatPanel / FandomLore / GlobalSettings / Mobile 两个，按 hook 铁律分批）
+- [ ] 巨型组件状态下沉（按 hook 铁律分批）：✅ AuSettingsLayout（2026-07-09，31 useState→0，4 hooks + 4 回归测试）；剩 AuLoreLayout(946行/26) / SettingsChatPanel(1026行) / FandomLoreLayout(734行/22) / GlobalSettingsModal(450行/20) / MobileOnboarding(571行/19)，逐会话复制同打法
 - [ ] 存量引擎测试的内联 LLM mock 迁移共享 helper（`services/__tests__/mock_llm_provider.ts` 已建；跟随性重构——哪个测试文件被触碰就顺手迁哪个，不做专门迁移趟）。UI hooks 测试补全已于 2026-07-09 首批清偿（见里程碑）。对抗审留的两条可选尾巴：useFactEditor saveSuccess 的 2s timer 无 clearTimeout（卸载后空转，无害泄漏，改需动 impl）；onboarding gate 三条静默负向断言依赖单次微任务冲刷（当前实现下已核实非假绿，impl 加深 await 链时需改 waitFor 正向信号）
 - [ ] devDep 大版本三件（TS 7 / tailwind 4 / plugin-react 6）择机升级
 

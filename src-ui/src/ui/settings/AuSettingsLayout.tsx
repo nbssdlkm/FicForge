@@ -2,9 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useEffect } from 'react';
 import { Spinner } from "../shared/Spinner";
-import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { Button } from '../shared/Button';
 import { Input } from '../shared/Input';
 import { Toggle } from '../shared/Toggle';
@@ -12,12 +10,9 @@ import { ProviderModelPicker } from './model-picker/ProviderModelPicker';
 import { Tag } from '../shared/Tag';
 import { Modal } from '../shared/Modal';
 import { Settings, Save, Trash2, Plus } from 'lucide-react';
-import { getProjectForEditing, saveAuSettingsForEditing, saveProjectCastRegistryAndCoreIncludes, type ProjectInfo } from '../../api/engine-client';
-import { getSettingsForEditing, type SettingsInfo } from '../../api/engine-client';
-import { getState, recalcState, rebuildIndex, findArchivalCandidates } from '../../api/engine-client';
+import { saveProjectCastRegistryAndCoreIncludes } from '../../api/engine-client';
 import { GlobalSettingsModal } from './GlobalSettingsModal';
 import { LlmModeSelect } from './LlmModeSelect';
-import { DEFAULT_PERSPECTIVE, DEFAULT_EMOTION_STYLE } from '../../config/defaults';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
 import { useFeedback } from '../../hooks/useFeedback';
@@ -27,216 +22,46 @@ import { AuSettingsAdvancedSection } from './AuSettingsAdvancedSection';
 import { BackfillMemoryModal } from './BackfillMemoryModal';
 import { ArchiveCandidatesModal } from './ArchiveCandidatesModal';
 import { SecretStorageNotice } from '../shared/SecretStorageNotice';
-import {
-  buildAuSettingsSaveInput,
-  createDefaultAuSettingsFormState,
-  hydrateAuSettingsForm,
-  shouldWarnEmptyAuApiKey,
-} from './form-mappers';
+import { shouldWarnEmptyAuApiKey } from './form-mappers';
+import { useAuSettingsData } from './useAuSettingsData';
+import { useAuSettingsForm } from './useAuSettingsForm';
+import { useAuSettingsModals } from './useAuSettingsModals';
+import { useAuSettingsAdvancedOps } from './useAuSettingsAdvancedOps';
 
 export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const { t } = useTranslation();
-  const { showError, showSuccess } = useFeedback();
-  const loadGuard = useActiveRequestGuard(auPath);
-  const [project, setProject] = useState<ProjectInfo | null>(null);
-  const [globalSettings, setGlobalSettings] = useState<SettingsInfo | null>(null);
-  const [indexStatus, setIndexStatus] = useState('stale');
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [isGlobalSettingsOpen, setGlobalSettingsOpen] = useState(false);
+  const { showError } = useFeedback();
 
-  // Editable state (initialised from project)
-  const [perspective, setPerspective] = useState(DEFAULT_PERSPECTIVE);
-  const [emotionStyle, setEmotionStyle] = useState(DEFAULT_EMOTION_STYLE);
-  const [chapterLength, setChapterLength] = useState(2000);
-  const [customInstructions, setCustomInstructions] = useState('');
-  const [pinnedContext, setPinnedContext] = useState<string[]>([]);
-  const [coreIncludes, setCoreIncludes] = useState<string[]>([]);
-  
-  // AU Override config states
-  const [isLlmOverride, setIsLlmOverride] = useState(false);
-  const [llmMode, setLlmMode] = useState('api');
-  const [auModel, setAuModel] = useState('');
-  const [auLocalModelPath, setAuLocalModelPath] = useState('');
-  const [auOllamaModel, setAuOllamaModel] = useState('');
-  const [auApiBase, setAuApiBase] = useState('');
-  const [auApiKey, setAuApiKey] = useState('');
-  const [contextWindow, setContextWindow] = useState(''); // 表单态："" = 窗口未知（R2-3）
-  const [chatPath, setChatPath] = useState('');
-  const [coreIncludeModalOpen, setCoreIncludeModalOpen] = useState(false);
-  const [recalcing, setRecalcing] = useState(false);
-  const [backfillOpen, setBackfillOpen] = useState(false);
-  const [archiveOpen, setArchiveOpen] = useState(false);
-  // 最后一公里：归档候选数徽标——让「整理旧剧情笔记」的可用性一眼可见（功能在但用户发现不了）。
-  // 只读扫描（findArchivalCandidates 不改数据）；archive modal 关闭后重扫，反映刚归档掉的数量。
-  const [archiveCandidateCount, setArchiveCandidateCount] = useState<number | null>(null);
+  const { project, globalSettings, indexStatus, loading, loadKey, syncCastRegistry } = useAuSettingsData(auPath);
+  const {
+    form, saving, save,
+    setPerspective, setEmotionStyle, setChapterLength, setCustomInstructions,
+    setIsLlmOverride, setLlmMode, setAuModel, setAuLocalModelPath, setAuOllamaModel,
+    setAuApiBase, setAuApiKey, setContextWindow, setChatPath,
+    setIsEmbeddingOverride, setEmbModel, setEmbApiBase, setEmbApiKey,
+    addPinnedRule, removePinnedRule, updatePinnedRule,
+    addCoreInclude, removeCoreInclude, replaceCoreIncludes,
+  } = useAuSettingsForm(auPath, project, loadKey);
 
-  // AU Embedding override
-  const [isEmbeddingOverride, setIsEmbeddingOverride] = useState(false);
-  const [embModel, setEmbModel] = useState('');
-  const [embApiBase, setEmbApiBase] = useState('');
-  const [embApiKey, setEmbApiKey] = useState('');
+  const modals = useAuSettingsModals(auPath);
+  const advanced = useAuSettingsAdvancedOps(auPath, modals.isArchiveOpen);
 
-  const handleRecalc = async () => {
-    const requestAuPath = auPath;
-    setRecalcing(true);
+  const handleRemoveCastCharacter = async (name: string) => {
+    if (!project) return;
+    const nextCharacters = (project.cast_registry.characters || []).filter((n: string) => n !== name);
+    // 同时从必带角色中移除
+    const nextPins = form.coreIncludes.filter(n => n !== name);
     try {
-      const result = await recalcState(auPath);
-      if (loadGuard.isKeyStale(requestAuPath)) return;
-      showSuccess(t('advanced.recalcSuccess', { scanned: result.chapters_scanned, dirty: result.cleaned_dirty_count }));
-    } catch (error) {
-      if (loadGuard.isKeyStale(requestAuPath)) return;
-      showError(error, t('error_messages.unknown'));
-    } finally {
-      if (!loadGuard.isKeyStale(requestAuPath)) {
-        setRecalcing(false);
-      }
+      await saveProjectCastRegistryAndCoreIncludes(auPath, {
+        characters: nextCharacters,
+        core_always_include: nextPins,
+      });
+      syncCastRegistry(nextCharacters, nextPins);
+      replaceCoreIncludes(nextPins);
+    } catch (e) {
+      showError(e, t("settings.removeCastFail"));
     }
   };
-
-  // 扫归档候选数（只读）→ 供高级操作按钮徽标。auPath 变或 archive modal 关闭后重扫。
-  useEffect(() => {
-    if (!auPath || archiveOpen) return; // modal 开着时不重扫（它自己在扫），关闭后再刷新计数
-    let cancelled = false;
-    const requestAuPath = auPath;
-    findArchivalCandidates(auPath)
-      .then((list) => {
-        if (!cancelled && !loadGuard.isKeyStale(requestAuPath)) setArchiveCandidateCount(list.length);
-      })
-      .catch(() => { if (!cancelled) setArchiveCandidateCount(null); }); // 扫失败静默（不干扰设置页）
-    return () => { cancelled = true; };
-  }, [auPath, archiveOpen, loadGuard]);
-
-  useEffect(() => {
-    if (!auPath) return;
-    const defaults = createDefaultAuSettingsFormState();
-    setLoading(true);
-    setSaving(false);
-    setRecalcing(false);
-    setProject(null);
-    setGlobalSettings(null);
-    setIndexStatus('stale');
-    setPerspective(defaults.perspective);
-    setEmotionStyle(defaults.emotionStyle);
-    setChapterLength(defaults.chapterLength);
-    setCustomInstructions(defaults.customInstructions);
-    setPinnedContext(defaults.pinnedContext);
-    setCoreIncludes(defaults.coreIncludes);
-    setIsLlmOverride(defaults.isLlmOverride);
-    setLlmMode(defaults.llmMode);
-    setAuModel(defaults.auModel);
-    setAuLocalModelPath(defaults.auLocalModelPath);
-    setAuOllamaModel(defaults.auOllamaModel);
-    setAuApiBase(defaults.auApiBase);
-    setAuApiKey(defaults.auApiKey);
-    setContextWindow(defaults.contextWindow);
-    setChatPath(defaults.chatPath);
-    setGlobalSettingsOpen(false);
-    setCoreIncludeModalOpen(false);
-    setBackfillOpen(false);
-    setArchiveOpen(false);
-    setArchiveCandidateCount(null); // 切 AU 先清零，避免揭开高级区时闪现上一篇的候选数（对抗审①）
-    setIsEmbeddingOverride(defaults.isEmbeddingOverride);
-    setEmbModel(defaults.embModel);
-    setEmbApiBase(defaults.embApiBase);
-    setEmbApiKey(defaults.embApiKey);
-
-    const token = loadGuard.start();
-    Promise.allSettled([
-      getProjectForEditing(auPath),
-      getSettingsForEditing(),
-      getState(auPath),
-    ]).then(([projResult, settingsResult, stateResult]) => {
-      if (loadGuard.isStale(token)) return;
-      let firstError: unknown = null;
-      const proj = projResult.status === 'fulfilled' ? projResult.value : null;
-      const settings = settingsResult.status === 'fulfilled' ? settingsResult.value : null;
-      const state = stateResult.status === 'fulfilled' ? stateResult.value : null;
-
-      if (projResult.status === 'rejected') firstError = firstError || projResult.reason;
-      if (settingsResult.status === 'rejected') firstError = firstError || settingsResult.reason;
-      if (stateResult.status === 'rejected') firstError = firstError || stateResult.reason;
-
-      setProject(proj);
-      setGlobalSettings(settings);
-      setIndexStatus(state?.index_status || 'stale');
-      if (proj) {
-        const form = hydrateAuSettingsForm(proj);
-        setPerspective(form.perspective);
-        setEmotionStyle(form.emotionStyle);
-        setChapterLength(form.chapterLength);
-        setCustomInstructions(form.customInstructions);
-        setPinnedContext(form.pinnedContext);
-        setCoreIncludes(form.coreIncludes);
-        setIsEmbeddingOverride(form.isEmbeddingOverride);
-        setEmbModel(form.embModel);
-        setEmbApiBase(form.embApiBase);
-        setEmbApiKey(form.embApiKey);
-        setIsLlmOverride(form.isLlmOverride);
-        setLlmMode(form.llmMode);
-        setAuModel(form.auModel);
-        setAuLocalModelPath(form.auLocalModelPath);
-        setAuOllamaModel(form.auOllamaModel);
-        setAuApiBase(form.auApiBase);
-        setAuApiKey(form.auApiKey);
-        setContextWindow(form.contextWindow);
-        setChatPath(form.chatPath);
-      }
-      if (firstError) {
-        showError(firstError, t('error_messages.unknown'));
-      }
-    }).finally(() => {
-      if (!loadGuard.isStale(token)) {
-        setLoading(false);
-      }
-    });
-  }, [auPath]);
-
-  const handleSave = async () => {
-    const requestAuPath = auPath;
-    setSaving(true);
-    try {
-      if (!project) {
-        throw new Error(t("settingsMode.error.projectUnavailable"));
-      }
-      await saveAuSettingsForEditing(auPath, buildAuSettingsSaveInput({
-        perspective,
-        emotionStyle,
-        chapterLength,
-        customInstructions,
-        pinnedContext,
-        coreIncludes,
-        isLlmOverride,
-        llmMode,
-        auModel,
-        auLocalModelPath,
-        auOllamaModel,
-        auApiBase,
-        auApiKey,
-        contextWindow,
-        chatPath,
-        isEmbeddingOverride,
-        embModel,
-        embApiBase,
-        embApiKey,
-      }));
-      if (loadGuard.isKeyStale(requestAuPath)) return;
-      showSuccess(t("common.actions.save"));
-    } catch (e: any) {
-      if (loadGuard.isKeyStale(requestAuPath)) return;
-      showError(e, t("error_messages.unknown"));
-    } finally {
-      if (!loadGuard.isKeyStale(requestAuPath)) {
-        setSaving(false);
-      }
-    }
-  };
-
-  const addPinnedRule = () => setPinnedContext(prev => [...prev, '']);
-  const removePinnedRule = (idx: number) => setPinnedContext(prev => prev.filter((_, i) => i !== idx));
-  const updatePinnedRule = (idx: number, value: string) => setPinnedContext(prev => prev.map((v, i) => i === idx ? value : v));
-
-  const removeCoreInclude = (idx: number) => setCoreIncludes(prev => prev.filter((_, i) => i !== idx));
 
   const auName = project?.name || auPath.split('/').pop() || t('common.unknownAu');
 
@@ -260,7 +85,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                 {t("settings.headerTitle")} <span className="text-lg font-normal opacity-50 ml-2">{t("settings.story.scopeLabel", { name: auName })}</span>
               </h1>
             </div>
-            <Button tone="accent" fill="solid" className="w-full gap-2 shadow-md md:w-24" onClick={handleSave} disabled={saving}>
+            <Button tone="accent" fill="solid" className="w-full gap-2 shadow-md md:w-24" onClick={save} disabled={saving}>
               <Save size={16}/> {saving ? t("common.status.saving") : t("common.actions.save")}
             </Button>
           </header>
@@ -277,77 +102,77 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                    <p className="text-xs text-text/50">{t("settings.story.inheritDescription")}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                   <Toggle checked={isLlmOverride} onChange={e => setIsLlmOverride(e.target.checked)} label={t("settings.story.overrideToggle")} />
-                   <Button tone="neutral" fill="plain" size="sm" onClick={() => setGlobalSettingsOpen(true)}>{t("common.actions.viewGlobalSettings")}</Button>
+                   <Toggle checked={form.isLlmOverride} onChange={e => setIsLlmOverride(e.target.checked)} label={t("settings.story.overrideToggle")} />
+                   <Button tone="neutral" fill="plain" size="sm" onClick={modals.openGlobalSettings}>{t("common.actions.viewGlobalSettings")}</Button>
                 </div>
               </div>
 
-              {isLlmOverride && (
+              {form.isLlmOverride && (
                 <div className="pt-4 border-t border-black/10 dark:border-white/10 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-text/90">{t("common.labels.searchMode")}</label>
-                    <LlmModeSelect value={llmMode} onChange={setLlmMode} />
+                    <LlmModeSelect value={form.llmMode} onChange={setLlmMode} />
                   </div>
-                  {llmMode === 'api' && (
+                  {form.llmMode === 'api' && (
                     <>
                       {/* 供应商主导选择器（与全局设置同一组件）：含 ctx 三态行 */}
                       <div className="md:col-span-2">
                         <ProviderModelPicker
                           kind="chat"
-                          model={auModel}
+                          model={form.auModel}
                           onModelChange={setAuModel}
-                          apiBase={auApiBase}
+                          apiBase={form.auApiBase}
                           onApiBaseAutoFill={setAuApiBase}
                           onChatPathAutoFill={setChatPath}
-                          apiKey={auApiKey}
+                          apiKey={form.auApiKey}
                           onApiKeyAutoFill={setAuApiKey}
-                          contextWindow={contextWindow}
+                          contextWindow={form.contextWindow}
                           onContextWindowChange={setContextWindow}
                           disabled={saving}
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
                          <label className="text-xs font-bold text-text/90">{t("common.labels.apiKey")}</label>
-                         <Input type="password" value={auApiKey} onChange={e => setAuApiKey(e.target.value)} placeholder="sk-..." className="h-11 text-base md:h-9 md:text-sm" />
-                         {shouldWarnEmptyAuApiKey(isLlmOverride, llmMode, auApiKey)
+                         <Input type="password" value={form.auApiKey} onChange={e => setAuApiKey(e.target.value)} placeholder="sk-..." className="h-11 text-base md:h-9 md:text-sm" />
+                         {shouldWarnEmptyAuApiKey(form.isLlmOverride, form.llmMode, form.auApiKey)
                            ? <p className="text-xs text-amber-600 dark:text-amber-500">{t("settings.story.apiKeyEmptyHint")}</p>
                            : <p className="text-xs text-text/50">{t("common.help.apiKey")}</p>}
                       </div>
                       <div className="flex flex-col gap-1.5">
                          <label className="text-xs font-bold text-text/90">{t("common.labels.apiBase")}</label>
-                         <Input value={auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="https://api.deepseek.com" className="h-11 text-base md:h-9 md:text-sm" />
+                         <Input value={form.auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="https://api.deepseek.com" className="h-11 text-base md:h-9 md:text-sm" />
                          <p className="text-xs text-text/50">{t("common.help.apiBase")}</p>
                       </div>
                     </>
                   )}
-                  {llmMode === 'local' && (
+                  {form.llmMode === 'local' && (
                     <div className="flex flex-col gap-1.5 md:col-span-2">
                       <label className="text-xs font-bold text-text/90">{t("common.labels.localModelPath")}</label>
-                      <Input value={auLocalModelPath} onChange={e => setAuLocalModelPath(e.target.value)} placeholder="/path/to/model" className="h-11 text-base md:h-9 md:text-sm" />
+                      <Input value={form.auLocalModelPath} onChange={e => setAuLocalModelPath(e.target.value)} placeholder="/path/to/model" className="h-11 text-base md:h-9 md:text-sm" />
                       <p className="text-xs text-text/50">{t("common.help.localModelPath")}</p>
                     </div>
                   )}
-                  {llmMode === 'ollama' && (
+                  {form.llmMode === 'ollama' && (
                     <>
                       <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-text/90">{t("common.labels.ollamaModel")}</label>
-                        <Input value={auOllamaModel} onChange={e => setAuOllamaModel(e.target.value)} placeholder="llama3" className="h-11 text-base md:h-9 md:text-sm" />
+                        <Input value={form.auOllamaModel} onChange={e => setAuOllamaModel(e.target.value)} placeholder="llama3" className="h-11 text-base md:h-9 md:text-sm" />
                         <p className="text-xs text-text/50">{t("common.help.ollamaModel")}</p>
                       </div>
                       <div className="flex flex-col gap-1.5">
                          <label className="text-xs font-bold text-text/90">{t("common.labels.apiBase")}</label>
-                         <Input value={auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="http://localhost:11434/v1" className="h-11 text-base md:h-9 md:text-sm" />
+                         <Input value={form.auApiBase} onChange={e => setAuApiBase(e.target.value)} placeholder="http://localhost:11434/v1" className="h-11 text-base md:h-9 md:text-sm" />
                          <p className="text-xs text-text/50">{t("common.help.apiBase")}</p>
                       </div>
                     </>
                   )}
                   {/* api 模式的 ctx 由 ProviderModelPicker 内联管理；其余模式保留手填 */}
-                  {llmMode !== 'api' && (
+                  {form.llmMode !== 'api' && (
                     <div className="flex flex-col gap-1.5 md:col-span-2">
                        <label className="text-xs font-bold text-text/90">{t("common.labels.contextWindow")}</label>
-                       <Input type="number" value={contextWindow} onChange={e => setContextWindow(e.target.value)} className="h-11 text-base md:h-9 md:text-sm" />
+                       <Input type="number" value={form.contextWindow} onChange={e => setContextWindow(e.target.value)} className="h-11 text-base md:h-9 md:text-sm" />
                        {/* "" = 窗口未知（R2-3）：显式警示，不静默按默认处理 */}
-                       {contextWindow.trim() === ''
+                       {form.contextWindow.trim() === ''
                          ? <p className="text-xs text-warning">{t("modelPicker.ctxUnknown")}</p>
                          : <p className="text-xs text-text/50">{t("common.help.contextWindow")}</p>}
                     </div>
@@ -362,28 +187,28 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
             <div className="space-y-4">
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-bold text-text/90">{t("common.labels.searchEngineModel")}</label>
-                {!isEmbeddingOverride && (
+                {!form.isEmbeddingOverride && (
                   <Input value={globalSettings?.embedding?.model || t("settings.global.noEmbeddingModel")} readOnly className="h-11 bg-background/70 font-mono text-base md:h-10 md:text-sm" />
                 )}
                 <label className="flex min-h-[44px] items-center gap-2 text-sm cursor-pointer">
-                  <input type="checkbox" checked={isEmbeddingOverride} onChange={e => setIsEmbeddingOverride(e.target.checked)} disabled={saving} className="accent-accent" />
+                  <input type="checkbox" checked={form.isEmbeddingOverride} onChange={e => setIsEmbeddingOverride(e.target.checked)} disabled={saving} className="accent-accent" />
                   {t("settings.au.useCustomEmbedding")}
                 </label>
-                {isEmbeddingOverride && (
+                {form.isEmbeddingOverride && (
                   <div className="space-y-2 pl-6 border-l-2 border-info/30">
                     {/* embedding 槽位复用同一选择器（只显示 embedding 类型模型 + 手填） */}
                     <ProviderModelPicker
                       kind="embedding"
-                      model={embModel}
+                      model={form.embModel}
                       onModelChange={setEmbModel}
-                      apiBase={embApiBase}
+                      apiBase={form.embApiBase}
                       onApiBaseAutoFill={setEmbApiBase}
-                      apiKey={embApiKey}
+                      apiKey={form.embApiKey}
                       onApiKeyAutoFill={setEmbApiKey}
                       disabled={saving}
                     />
-                    <Input value={embApiBase} onChange={e => setEmbApiBase(e.target.value)} placeholder={t("settings.global.embeddingApiBasePlaceholder")} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
-                    <Input value={embApiKey} onChange={e => setEmbApiKey(e.target.value)} placeholder={t("settings.global.embeddingApiKeyPlaceholder")} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" type="password" />
+                    <Input value={form.embApiBase} onChange={e => setEmbApiBase(e.target.value)} placeholder={t("settings.global.embeddingApiBasePlaceholder")} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" />
+                    <Input value={form.embApiKey} onChange={e => setEmbApiKey(e.target.value)} placeholder={t("settings.global.embeddingApiKeyPlaceholder")} disabled={saving} className="h-11 text-base md:h-8 md:text-sm" type="password" />
                   </div>
                 )}
               </div>
@@ -396,19 +221,19 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
 
           {/* 2. 文风与结构控制 */}
           <AuSettingsWritingSection
-            perspective={perspective}
+            perspective={form.perspective}
             setPerspective={setPerspective}
-            emotionStyle={emotionStyle}
+            emotionStyle={form.emotionStyle}
             setEmotionStyle={setEmotionStyle}
-            chapterLength={chapterLength}
+            chapterLength={form.chapterLength}
             setChapterLength={setChapterLength}
-            customInstructions={customInstructions}
+            customInstructions={form.customInstructions}
             setCustomInstructions={setCustomInstructions}
           />
 
           {/* 3. 铁律 Pinned Context */}
           <AuSettingsPinnedSection
-            pinnedContext={pinnedContext}
+            pinnedContext={form.pinnedContext}
             addPinnedRule={addPinnedRule}
             removePinnedRule={removePinnedRule}
             updatePinnedRule={updatePinnedRule}
@@ -416,7 +241,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
 
           {/* 浮动保存按钮 — 编辑底线后方便保存 */}
           <div className="flex justify-end">
-            <Button tone="accent" fill="solid" className="shadow-md gap-2" onClick={handleSave} disabled={saving}>
+            <Button tone="accent" fill="solid" className="shadow-md gap-2" onClick={save} disabled={saving}>
               <Save size={16}/> {saving ? t("common.status.saving") : t("common.actions.save")}
             </Button>
           </div>
@@ -425,19 +250,19 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
           <section className="space-y-6">
             <h2 className="text-lg font-sans font-bold text-success border-l-4 border-success pl-3">{t("settings.sections.coreIncludes")}</h2>
             <p className="text-sm text-text/70">{t("settings.story.coreIncludesDescription")}</p>
-            
+
             <div className="flex gap-3 flex-wrap">
-              {coreIncludes.length === 0 ? (
+              {form.coreIncludes.length === 0 ? (
                 <p className="text-sm text-text/50">{t("settings.emptyCoreIncludes")}</p>
               ) : (
-                coreIncludes.map((file, idx) => (
+                form.coreIncludes.map((file, idx) => (
                   <Tag key={idx} tone="success" className="px-3 py-1.5 text-sm gap-2">
                     <span>{file}</span>
                     <button className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:text-success/50 md:h-auto md:w-auto" onClick={() => removeCoreInclude(idx)}><Trash2 size={14}/></button>
                   </Tag>
                 ))
               )}
-              <Button tone="neutral" fill="plain" size="sm" className="h-11 border border-dashed border-success/30 text-sm text-success hover:bg-success/5 md:h-8 md:text-xs" onClick={() => setCoreIncludeModalOpen(true)}>
+              <Button tone="neutral" fill="plain" size="sm" className="h-11 border border-dashed border-success/30 text-sm text-success hover:bg-success/5 md:h-8 md:text-xs" onClick={modals.openCoreInclude}>
                 <Plus size={14} className="mr-1"/> {t("common.actions.addFile")}
               </Button>
             </div>
@@ -459,21 +284,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                         <button
                           className="text-text/30 hover:text-error transition-colors"
                           title={t("settings.removeCastCharacter")}
-                          onClick={async () => {
-                            const next = (project.cast_registry.characters || []).filter((n: string) => n !== c);
-                            // 同时从必带角色中移除
-                            const nextPins = coreIncludes.filter(n => n !== c);
-                            try {
-                              await saveProjectCastRegistryAndCoreIncludes(auPath, {
-                                characters: next,
-                                core_always_include: nextPins,
-                              });
-                              setProject(prev => prev ? { ...prev, cast_registry: { ...prev.cast_registry, characters: next }, core_always_include: nextPins } : prev);
-                              setCoreIncludes(nextPins);
-                            } catch (e) {
-                              showError(e, t("settings.removeCastFail"));
-                            }
-                          }}
+                          onClick={() => handleRemoveCastCharacter(c)}
                         >
                           ×
                         </button>
@@ -487,35 +298,28 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
 
           {/* 高级操作 (sub-task 4) */}
           <AuSettingsAdvancedSection
-            recalcing={recalcing}
-            handleRecalc={handleRecalc}
-            handleRebuildIndex={async () => {
-              try {
-                await rebuildIndex(auPath);
-                showSuccess(t('advanced.rebuildIndexSuccess'));
-              } catch (e) {
-                showError(e, t('advanced.rebuildIndexFail'));
-              }
-            }}
-            handleBackfillMemory={() => setBackfillOpen(true)}
-            handleArchiveFacts={() => setArchiveOpen(true)}
-            archiveCandidateCount={archiveCandidateCount}
+            recalcing={advanced.recalcing}
+            handleRecalc={advanced.recalc}
+            handleRebuildIndex={advanced.rebuildIndex}
+            handleBackfillMemory={modals.openBackfill}
+            handleArchiveFacts={modals.openArchive}
+            archiveCandidateCount={advanced.archiveCandidateCount}
           />
 
           <div className="h-10 md:h-20"></div>
         </div>
       </main>
-      <GlobalSettingsModal isOpen={isGlobalSettingsOpen} onClose={() => setGlobalSettingsOpen(false)} />
-      <BackfillMemoryModal auPath={auPath} isOpen={backfillOpen} onClose={() => setBackfillOpen(false)} />
-      <ArchiveCandidatesModal auPath={auPath} isOpen={archiveOpen} onClose={() => setArchiveOpen(false)} />
-      <Modal isOpen={coreIncludeModalOpen} onClose={() => setCoreIncludeModalOpen(false)} title={t("settings.createCoreIncludeTitle")}>
+      <GlobalSettingsModal isOpen={modals.isGlobalSettingsOpen} onClose={modals.closeGlobalSettings} />
+      <BackfillMemoryModal auPath={auPath} isOpen={modals.isBackfillOpen} onClose={modals.closeBackfill} />
+      <ArchiveCandidatesModal auPath={auPath} isOpen={modals.isArchiveOpen} onClose={modals.closeArchive} />
+      <Modal isOpen={modals.isCoreIncludeOpen} onClose={modals.closeCoreInclude} title={t("settings.createCoreIncludeTitle")}>
         <div className="space-y-4">
           {(() => {
-            const available = (project?.cast_registry?.characters || []).filter(c => !coreIncludes.includes(c));
+            const available = (project?.cast_registry?.characters || []).filter(c => !form.coreIncludes.includes(c));
             return available.length > 0 ? (
               <div className="space-y-2">
                 {available.map(name => (
-                  <button key={name} className="min-h-[44px] w-full rounded-lg border border-black/10 px-3 py-2 text-left text-sm transition-colors hover:border-accent/30 hover:bg-accent/10 dark:border-white/10" onClick={() => { setCoreIncludes(prev => [...prev, name]); setCoreIncludeModalOpen(false); }}>
+                  <button key={name} className="min-h-[44px] w-full rounded-lg border border-black/10 px-3 py-2 text-left text-sm transition-colors hover:border-accent/30 hover:bg-accent/10 dark:border-white/10" onClick={() => { addCoreInclude(name); modals.closeCoreInclude(); }}>
                     {name}
                   </button>
                 ))}
@@ -525,7 +329,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
             );
           })()}
           <div className="flex justify-end">
-            <Button tone="neutral" fill="plain" onClick={() => setCoreIncludeModalOpen(false)}>{t("common.actions.cancel")}</Button>
+            <Button tone="neutral" fill="plain" onClick={modals.closeCoreInclude}>{t("common.actions.cancel")}</Button>
           </div>
         </div>
       </Modal>
