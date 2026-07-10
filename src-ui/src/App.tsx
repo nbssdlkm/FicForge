@@ -59,23 +59,15 @@ function App() {
           currentStep = "loading Tauri modules";
           const { TauriAdapter } = await import("@ficforge/engine");
           const { appDataDir } = await import("@tauri-apps/api/path");
-          const { exists } = await import("@tauri-apps/plugin-fs");
           const adapter = new TauriAdapter(deviceId);
 
-          // 数据目录检测：优先使用 appDataDir，如果旧路径有数据则使用旧路径（兼容迁移）
+          // 数据目录 = appDataDir（收权后的唯一根）。
+          // 旧「./fandoms 兼容迁移」分支已物理清退（盲审 2026-07-11 功能维）：fs 收权后
+          // cwd 相对路径的 exists() 必然被 scope 拒绝进 catch —— 该分支在所有收权构建上
+          // 是不可达死代码，且会让极早期 cwd 数据用户误以为兼容仍生效（实际数据静默不可见）。
+          // 极早期用户如有 ./fandoms 数据：手动拷贝到 %APPDATA% 数据目录即可（真机清单有验证项）。
           currentStep = "resolving data directory";
-          let dataDir = await appDataDir();
-          const oldDataDir = "./fandoms";
-          try {
-            const oldExists = await exists(`${oldDataDir}/settings.yaml`);
-            const newExists = await exists(`${dataDir}/settings.yaml`);
-            if (oldExists && !newExists) {
-              // 旧路径有数据但新路径没有 → 使用旧路径（兼容模式）
-              dataDir = oldDataDir;
-            }
-          } catch {
-            // 检测失败，使用默认 appDataDir
-          }
+          const dataDir = await appDataDir();
 
           currentStep = "initializing logger";
           initLogger(adapter, dataDir);
