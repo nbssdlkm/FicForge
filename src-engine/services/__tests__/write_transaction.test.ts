@@ -136,3 +136,102 @@ describe("WriteTransaction partial commit errors", () => {
     expect((await stateRepo.get("au1")).current_chapter).toBe(1);
   });
 });
+
+describe("WriteTransaction 写序与 facts/drafts 失败分支（盲审 2026-07-11 测试维）", () => {
+  let adapter: FailingWriteAdapter;
+  let chapterRepo: FileChapterRepository;
+  let opsRepo: FileOpsRepository;
+  let stateRepo: FileStateRepository;
+
+  beforeEach(async () => {
+    adapter = new FailingWriteAdapter();
+    chapterRepo = new FileChapterRepository(adapter);
+    opsRepo = new FileOpsRepository(adapter);
+    stateRepo = new FileStateRepository(adapter);
+    await stateRepo.save(createState({ au_id: "au1", current_chapter: 1 }));
+  });
+
+  function stageAll(tx: WriteTransaction) {
+    // 每阶段 ≥2 条写（state 除外，单值）—— 才能断言「阶段内全部写先于下阶段任何写」
+    // 而不只是单条样本的阶段间顺序（B5/B6 对抗审 NIT）。
+    tx.appendOp("au1", createOpsEntry({ op_id: "op1", op_type: "confirm_chapter", chapter_num: 1, timestamp: "t" }));
+    tx.appendOp("au1", createOpsEntry({ op_id: "op2", op_type: "confirm_chapter", chapter_num: 2, timestamp: "t2" }));
+    tx.saveChapter("au1", createChapter({ au_id: "au1", chapter_num: 1, content: "正文" }));
+    tx.saveChapter("au1", createChapter({ au_id: "au1", chapter_num: 2, content: "正文二" }));
+    tx.appendFact("au1", { fact_id: "f1", au_id: "au1", chapter: 1, content_clean: "线索", status: "active", revision: 0 } as never);
+    tx.appendFact("au1", { fact_id: "f2", au_id: "au1", chapter: 2, content_clean: "线索二", status: "active", revision: 0 } as never);
+    tx.deleteDraftByChapter("au1", 1);
+    tx.deleteDraftByChapter("au1", 2);
+    tx.setState(createState({ au_id: "au1", current_chapter: 2 }));
+  }
+
+  it("落盘顺序恒为 ops → chapters → facts → drafts → state（D-0036：ops 先行）", async () => {
+    const order: string[] = [];
+    const rec = (stage: string, obj: Record<string, unknown>, methods: string[]) => {
+      const out: Record<string, unknown> = Object.create(obj);
+      for (const m of methods) {
+        out[m] = async (...a: unknown[]) => {
+          order.push(stage);
+          return (obj[m] as (...x: unknown[]) => unknown).apply(obj, a);
+        };
+      }
+      return out;
+    };
+    const ops = rec("ops", opsRepo as never, ["append"]);
+    const chapters = rec("chapters", chapterRepo as never, ["save", "delete"]);
+    const facts = rec("facts", { append: async () => {}, update: async () => {}, delete_by_ids: async () => {} }, ["append", "update", "delete_by_ids"]);
+    const drafts = rec("drafts", { delete_by_chapter: async () => {}, delete_from_chapter: async () => {} }, ["delete_by_chapter", "delete_from_chapter"]);
+    const state = rec("state", stateRepo as never, ["save"]);
+
+    const tx = new WriteTransaction();
+    stageAll(tx);
+    await tx.commit(ops as never, facts as never, state as never, chapters as never, drafts as never);
+
+    // 每个阶段的**全部**写必须先于下一阶段的**任何**写 —— ops 作为审计源必须最先落盘
+    expect(order).toEqual(["ops", "ops", "chapters", "chapters", "facts", "facts", "drafts", "drafts", "state"]);
+  });
+
+  it("facts 写失败：ops/chapters 已落，state 仍尝试写入，抛 PartialCommitError 且 failed 含 facts", async () => {
+    const failingFacts = {
+      append: async () => { throw new Error("facts io down"); },
+      update: async () => {},
+      delete_by_ids: async () => {},
+    };
+    const drafts = { delete_by_chapter: async () => {}, delete_from_chapter: async () => {} };
+
+    const tx = new WriteTransaction();
+    stageAll(tx);
+    let caught: unknown;
+    try {
+      await tx.commit(opsRepo, failingFacts as never, stateRepo, chapterRepo, drafts as never);
+    } catch (e) { caught = e; }
+
+    expect(caught).toBeInstanceOf(PartialCommitError);
+    const err = caught as PartialCommitError;
+    expect(err.failed).toContain("facts");
+    expect(err.completed).toEqual(expect.arrayContaining(["ops", "chapters", "state"]));
+    // 记账语义：单阶段失败不连坐后续阶段 —— state 已推进
+    const st = await stateRepo.get("au1");
+    expect(st.current_chapter).toBe(2);
+  });
+
+  it("drafts 清理失败：failed 含 drafts，其余阶段照常完成", async () => {
+    const facts = { append: async () => {}, update: async () => {}, delete_by_ids: async () => {} };
+    const failingDrafts = {
+      delete_by_chapter: async () => { throw new Error("drafts io down"); },
+      delete_from_chapter: async () => {},
+    };
+
+    const tx = new WriteTransaction();
+    stageAll(tx);
+    let caught: unknown;
+    try {
+      await tx.commit(opsRepo, facts as never, stateRepo, chapterRepo, failingDrafts as never);
+    } catch (e) { caught = e; }
+
+    expect(caught).toBeInstanceOf(PartialCommitError);
+    const err = caught as PartialCommitError;
+    expect(err.failed).toEqual(["drafts"]);
+    expect(err.completed).toEqual(expect.arrayContaining(["ops", "chapters", "facts", "state"]));
+  });
+});

@@ -41,7 +41,10 @@ const noopAdapter = {
   getDeviceId() { return "mock"; },
 };
 
-describe("Vector engine performance benchmark", () => {
+// 性能基准非正确性断言（盲审 2026-07-11 测试维：墙钟阈值在慢/负载 runner 上
+// 非确定性变红、阻塞合并却无代码回归）。默认套件跳过，需要时显式开：
+//   FICFORGE_BENCH=1 npx vitest run vector/__tests__/benchmark.test.ts
+describe.skipIf(!process.env.FICFORGE_BENCH)("Vector engine performance benchmark", () => {
   it("5000 chunks: search completes in < 50ms", async () => {
     const engine = new JsonVectorEngine(noopAdapter as any);
     const dim = 384; // bge-small-zh dimension

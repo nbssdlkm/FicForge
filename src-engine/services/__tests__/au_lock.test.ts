@@ -44,13 +44,10 @@ describe("withAuLock", () => {
       });
     }
 
-    const start = Date.now();
     await Promise.all([task("auA", "A"), task("auB", "B"), task("auC", "C")]);
-    const elapsed = Date.now() - start;
 
-    // 三个不同 AU 如果串行会 ≥ 60ms；并行应该 < 50ms
-    expect(elapsed).toBeLessThan(50);
-    // 由于并行 + setTimeout 抖动，严格顺序不确定；但 enter 集中在前半段
+    // 事件时序断言（盲审 2026-07-11：弃墙钟阈值 —— CI 负载下并行任务也可能超时限）：
+    // 三个 enter 全部先于任何 exit ⇒ 三任务确实并发重叠；串行时序必为 enter,exit 交替。
     const firstThree = timeline.slice(0, 3).sort();
     expect(firstThree).toEqual(["A:enter", "B:enter", "C:enter"]);
   });
@@ -89,11 +86,10 @@ describe("withAuLock", () => {
       timeline.push("file:exit");
     });
 
-    const start = Date.now();
     await Promise.all([t1, t2]);
-    const elapsed = Date.now() - start;
 
-    // 如果 key 碰撞会串行 ≥ 40ms；命名空间隔离则 < 35ms
-    expect(elapsed).toBeLessThan(35);
+    // 事件时序断言：两个 enter 都先于任何 exit ⇒ 两命名空间并行；key 碰撞串行则必为
+    // enter,exit,enter,exit。
+    expect(timeline.slice(0, 2).sort()).toEqual(["au:enter", "file:enter"]);
   });
 });
