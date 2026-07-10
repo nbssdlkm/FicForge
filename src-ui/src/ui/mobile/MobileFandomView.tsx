@@ -2,12 +2,9 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, FileText, Pencil, Eye, Trash2, Users, Globe2, Sparkles } from "lucide-react";
 import { Spinner } from "../shared/Spinner";
 import { useTranslation } from "../../i18n/useAppTranslation";
-import { getFandomDisplayInfo, listFandomFiles, readFandomFile, saveLore, deleteLore, type FandomFileEntry } from "../../api/engine-client";
-import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
 import { TrashPanel } from "../shared/TrashPanel";
 import { Button } from "../shared/Button";
 import { Input, Textarea } from "../shared/Input";
@@ -16,14 +13,15 @@ import { EmptyState } from "../shared/EmptyState";
 import { SettingsMarkdown } from "../shared/SettingsMarkdown";
 import { SettingsChatPanel } from "../shared/settings-chat/SettingsChatPanel";
 import { cn } from "../shared/utils";
-import { FeedbackProvider, useFeedback } from "../../hooks/useFeedback";
+import { FeedbackProvider } from "../../hooks/useFeedback";
+import { useMobileFandomFiles } from "./useMobileFandomFiles";
+import { useMobileFandomFileEditor } from "./useMobileFandomFileEditor";
+import { useMobileFandomViewChrome } from "./useMobileFandomViewChrome";
 
 interface MobileFandomViewProps {
   fandomPath: string;
   onNavigate: (page: string, path?: string) => void;
 }
-
-type FandomCategory = "core_characters" | "core_worldbuilding";
 
 export function MobileFandomView(props: MobileFandomViewProps) {
   return (
@@ -35,154 +33,40 @@ export function MobileFandomView(props: MobileFandomViewProps) {
 
 function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps) {
   const { t } = useTranslation();
-  const { showError } = useFeedback();
   const fandomDirName = fandomPath.split("/").pop() || "";
-  const fallbackFandomName = fandomDirName || t("common.unknownFandom");
-  const [fandomName, setFandomName] = useState(fallbackFandomName);
 
-  // --- State ---
-  const [category, setCategory] = useState<FandomCategory>("core_characters");
-  const [characterFiles, setCharacterFiles] = useState<FandomFileEntry[]>([]);
-  const [worldbuildingFiles, setWorldbuildingFiles] = useState<FandomFileEntry[]>([]);
-  const [loading, setLoading] = useState(false);
+  const files = useMobileFandomFiles(fandomPath, fandomDirName);
+  const editor = useMobileFandomFileEditor(fandomPath, fandomDirName);
+  const chrome = useMobileFandomViewChrome(fandomPath);
 
-  // File detail overlay
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<FandomCategory>("core_characters");
-  const [editorContent, setEditorContent] = useState("");
-  const [savedContent, setSavedContent] = useState("");
-  const [previewMode, setPreviewMode] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [readingFile, setReadingFile] = useState(false);
+  const currentFiles = chrome.category === "core_characters" ? files.characterFiles : files.worldbuildingFiles;
+  const categoryLabel = chrome.category === "core_characters" ? t("fandomLore.category.characters") : t("fandomLore.category.worldbuilding");
 
-  // AI assistant overlay
-  const [aiOverlayOpen, setAiOverlayOpen] = useState(false);
-
-  // Create modal
-  const [createOpen, setCreateOpen] = useState(false);
-  const [createName, setCreateName] = useState("");
-
-  // Delete confirm
-  const [deleteOpen, setDeleteOpen] = useState(false);
-
-  const loadGuard = useActiveRequestGuard(`${fandomPath}:load`);
-  const readGuard = useActiveRequestGuard(`${fandomPath}:read`);
-
-  const currentFiles = category === "core_characters" ? characterFiles : worldbuildingFiles;
-
-  // --- Load files ---
-  const loadFiles = useCallback(async () => {
-    if (!fandomDirName) return;
-    const token = loadGuard.start();
-    setLoading(true);
-    try {
-      const [displayInfo, data] = await Promise.all([
-        getFandomDisplayInfo(fandomPath).catch(() => null),
-        listFandomFiles(fandomDirName),
-      ]);
-      if (loadGuard.isStale(token)) return;
-      setFandomName(displayInfo?.name || fallbackFandomName);
-      setCharacterFiles(data.characters);
-      setWorldbuildingFiles(data.worldbuilding);
-    } catch (error) {
-      if (loadGuard.isStale(token)) return;
-      showError(error, t("error_messages.unknown"));
-    } finally {
-      if (!loadGuard.isStale(token)) setLoading(false);
-    }
-  }, [fallbackFandomName, fandomDirName, fandomPath, loadGuard, showError, t]);
-
-  useEffect(() => {
-    setFandomName(fallbackFandomName);
-    void loadFiles();
-  }, [fallbackFandomName, loadFiles]);
-
-  // --- Select file ---
-  const handleSelectFile = async (filename: string, cat: FandomCategory) => {
-    if (!fandomDirName) return;
-    const token = readGuard.start();
-    setSelectedFile(filename);
-    setSelectedCategory(cat);
-    setEditorContent("");
-    setSavedContent("");
-    setPreviewMode(true);
-    setReadingFile(true);
-    try {
-      const result = await readFandomFile(fandomDirName, cat, filename);
-      if (readGuard.isStale(token)) return;
-      setEditorContent(result.content);
-      setSavedContent(result.content);
-    } catch (error) {
-      if (readGuard.isStale(token)) return;
-      showError(error, t("error_messages.unknown"));
-      setSelectedFile(null);
-    } finally {
-      if (!readGuard.isStale(token)) setReadingFile(false);
-    }
-  };
-
-  // --- Save ---
-  const handleSave = async () => {
-    if (!selectedFile || !fandomPath) return;
-    setSaving(true);
-    try {
-      await saveLore({ fandom_path: fandomPath, category: selectedCategory, filename: selectedFile, content: editorContent });
-      setSavedContent(editorContent);
-    } catch (error) {
-      showError(error, t("error_messages.unknown"));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // --- Create ---
+  // 新建 → 关弹窗 → 刷列表 → 直接打开新文件（跨 hook 编排只在组件层，hook 间不互持状态）
   const handleCreate = async () => {
-    const name = createName.trim();
-    if (!name || !fandomPath) return;
-    setSaving(true);
-    try {
-      const filename = `${name}.md`;
-      const template = `---\nname: ${name}\n---\n\n# ${name}\n\n`;
-      await saveLore({ fandom_path: fandomPath, category, filename, content: template });
-      setCreateOpen(false);
-      setCreateName("");
-      await loadFiles();
-      await handleSelectFile(filename, category);
-    } catch (error) {
-      showError(error, t("error_messages.unknown"));
-    } finally {
-      setSaving(false);
-    }
+    const filename = await editor.createFile(chrome.createName, chrome.category);
+    if (!filename) return;
+    chrome.closeCreate();
+    await files.reload();
+    await editor.openFile(filename, chrome.category);
   };
 
-  // --- Delete ---
   const handleDelete = async () => {
-    if (!selectedFile || !fandomPath) return;
-    setSaving(true);
-    try {
-      await deleteLore({ fandom_path: fandomPath, category: selectedCategory, filename: selectedFile });
-      setDeleteOpen(false);
-      setSelectedFile(null);
-      await loadFiles();
-    } catch (error) {
-      showError(error, t("error_messages.unknown"));
-    } finally {
-      setSaving(false);
-    }
+    const deleted = await editor.deleteSelected();
+    if (!deleted) return;
+    chrome.closeDelete();
+    await files.reload();
   };
-
-  const isDirty = selectedFile !== null && editorContent !== savedContent;
-  const categoryLabel = category === "core_characters" ? t("fandomLore.category.characters") : t("fandomLore.category.worldbuilding");
 
   // ==========================================================================
   // File Detail Overlay
   // ==========================================================================
-  if (selectedFile) {
-    const displayName = selectedFile.replace(/\.md$/, "");
+  if (editor.selectedFile) {
+    const displayName = editor.selectedFile.replace(/\.md$/, "");
     return (
       <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
         <header className="safe-area-top flex items-center justify-between border-b border-black/10 bg-surface/95 px-4 py-3 backdrop-blur-sm dark:border-white/10">
-          <Button tone="neutral" fill="plain" size="sm" className="h-11 px-3" onClick={() => setSelectedFile(null)}>
+          <Button tone="neutral" fill="plain" size="sm" className="h-11 px-3" onClick={editor.closeFile}>
             <ArrowLeft size={16} className="mr-2" />
             {t("common.actions.back")}
           </Button>
@@ -191,11 +75,11 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
             <p className="text-xs text-text/50">{categoryLabel}</p>
           </div>
           <div className="flex items-center gap-1">
-            <Button tone="neutral" fill="plain" size="sm" className="h-11 w-11 p-0" onClick={() => setDeleteOpen(true)}>
+            <Button tone="neutral" fill="plain" size="sm" className="h-11 w-11 p-0" onClick={chrome.openDelete}>
               <Trash2 size={16} className="text-error" />
             </Button>
-            <Button tone="accent" fill="solid" size="sm" className="h-11 px-4" onClick={handleSave} disabled={saving || !isDirty}>
-              {saving ? <Spinner size="sm" /> : t("common.actions.save")}
+            <Button tone="accent" fill="solid" size="sm" className="h-11 px-4" onClick={editor.save} disabled={editor.saving || !editor.isDirty}>
+              {editor.saving ? <Spinner size="sm" /> : t("common.actions.save")}
             </Button>
           </div>
         </header>
@@ -204,15 +88,15 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
         <div className="flex gap-2 border-b border-black/5 px-4 py-2 dark:border-white/5">
           <button
             type="button"
-            className={cn("flex items-center gap-1 rounded-lg px-3 py-2 text-sm", !previewMode ? "bg-accent text-inv-text" : "text-text/50")}
-            onClick={() => setPreviewMode(false)}
+            className={cn("flex items-center gap-1 rounded-lg px-3 py-2 text-sm", !editor.previewMode ? "bg-accent text-inv-text" : "text-text/50")}
+            onClick={editor.showEditor}
           >
             <Pencil size={14} /> {t("common.actions.edit")}
           </button>
           <button
             type="button"
-            className={cn("flex items-center gap-1 rounded-lg px-3 py-2 text-sm", previewMode ? "bg-accent text-inv-text" : "text-text/50")}
-            onClick={() => setPreviewMode(true)}
+            className={cn("flex items-center gap-1 rounded-lg px-3 py-2 text-sm", editor.previewMode ? "bg-accent text-inv-text" : "text-text/50")}
+            onClick={editor.showPreview}
           >
             <Eye size={14} /> {t("common.actions.preview")}
           </button>
@@ -220,27 +104,27 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
-          {readingFile ? (
+          {editor.readingFile ? (
             <div className="flex items-center justify-center py-24">
               <Spinner size="lg" className="text-accent" />
             </div>
-          ) : previewMode ? (
-            <SettingsMarkdown content={editorContent} />
+          ) : editor.previewMode ? (
+            <SettingsMarkdown content={editor.editorContent} />
           ) : (
             <Textarea
-              value={editorContent}
-              onChange={(e) => setEditorContent(e.target.value)}
+              value={editor.editorContent}
+              onChange={(e) => editor.setEditorContent(e.target.value)}
               className="min-h-[60vh] font-mono text-sm"
             />
           )}
         </div>
 
         {/* Delete confirm modal */}
-        <Modal isOpen={deleteOpen} onClose={() => setDeleteOpen(false)} title={t("fandomLore.deleteTitle")}>
+        <Modal isOpen={chrome.deleteOpen} onClose={chrome.closeDelete} title={t("fandomLore.deleteTitle")}>
           <div className="space-y-4">
-            <p className="text-sm text-text/90">{t("fandomLore.deleteMessage", { name: selectedFile })}</p>
+            <p className="text-sm text-text/90">{t("fandomLore.deleteMessage", { name: editor.selectedFile })}</p>
             <div className="flex justify-end gap-2">
-              <Button tone="neutral" fill="plain" onClick={() => setDeleteOpen(false)}>{t("common.actions.cancel")}</Button>
+              <Button tone="neutral" fill="plain" onClick={chrome.closeDelete}>{t("common.actions.cancel")}</Button>
               <Button tone="destructive" fill="solid" onClick={handleDelete}>
                 {t("common.actions.confirmDelete")}
               </Button>
@@ -269,7 +153,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
           </button>
         </div>
         <h1 className="mt-2 font-display text-xl font-semibold text-text">
-          {t("common.scope.fandomTitle", { name: fandomName })}
+          {t("common.scope.fandomTitle", { name: files.fandomName })}
         </h1>
       </header>
 
@@ -279,15 +163,15 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
           {(["core_characters", "core_worldbuilding"] as const).map((cat) => {
             const Icon = cat === "core_characters" ? Users : Globe2;
             const label = cat === "core_characters" ? t("fandomLore.category.characters") : t("fandomLore.category.worldbuilding");
-            const count = cat === "core_characters" ? characterFiles.length : worldbuildingFiles.length;
+            const count = cat === "core_characters" ? files.characterFiles.length : files.worldbuildingFiles.length;
             return (
               <button
                 key={cat}
                 type="button"
-                onClick={() => setCategory(cat)}
+                onClick={() => chrome.selectCategory(cat)}
                 className={cn(
                   "flex min-h-[44px] flex-1 items-center justify-center rounded-[3px] text-sm font-medium transition-colors",
-                  category === cat ? "bg-accent text-inv-text" : "text-text/55 hover:bg-rule-soft",
+                  chrome.category === cat ? "bg-accent text-inv-text" : "text-text/55 hover:bg-rule-soft",
                 )}
               >
                 <Icon size={15} className="mr-2" />
@@ -300,20 +184,20 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
 
       {/* File list */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {loading ? (
+        {files.loading ? (
           <div className="flex items-center justify-center py-24">
             <Spinner size="lg" className="text-accent" />
           </div>
         ) : currentFiles.length === 0 ? (
           <EmptyState
             icon={<FileText size={32} />}
-            title={category === "core_characters" ? t("fandomLore.emptyCharacters.title") : t("fandomLore.emptyWorldbuilding.title")}
-            description={category === "core_characters" ? t("fandomLore.emptyCharacters.description") : t("fandomLore.emptyWorldbuilding.description")}
+            title={chrome.category === "core_characters" ? t("fandomLore.emptyCharacters.title") : t("fandomLore.emptyWorldbuilding.title")}
+            description={chrome.category === "core_characters" ? t("fandomLore.emptyCharacters.description") : t("fandomLore.emptyWorldbuilding.description")}
             actions={[{
               key: "create",
               element: (
-                <Button tone="accent" fill="solid" size="sm" onClick={() => { setCreateName(""); setCreateOpen(true); }}>
-                  {category === "core_characters" ? t("common.actions.addCharacter") : t("common.actions.addWorldbuilding")}
+                <Button tone="accent" fill="solid" size="sm" onClick={chrome.openCreate}>
+                  {chrome.category === "core_characters" ? t("common.actions.addCharacter") : t("common.actions.addWorldbuilding")}
                 </Button>
               ),
             }]}
@@ -324,7 +208,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
               key={file.filename}
               type="button"
               className="flex w-full items-center justify-between rounded-r-sm border border-rule border-l-2 border-l-gold bg-surface px-4 py-3.5 text-left transition-colors hover:bg-rule-soft"
-              onClick={() => handleSelectFile(file.filename, category)}
+              onClick={() => editor.openFile(file.filename, chrome.category)}
             >
               <div className="min-w-0">
                 <p className="truncate font-display text-base font-medium text-text">{file.name}</p>
@@ -336,10 +220,10 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
         )}
 
         {/* Add button when list not empty */}
-        {!loading && currentFiles.length > 0 && (
+        {!files.loading && currentFiles.length > 0 && (
           <div className="pt-2">
-            <Button tone="neutral" fill="outline" size="sm" className="w-full" onClick={() => { setCreateName(""); setCreateOpen(true); }}>
-              {category === "core_characters" ? t("common.actions.addCharacter") : t("common.actions.addWorldbuilding")}
+            <Button tone="neutral" fill="outline" size="sm" className="w-full" onClick={chrome.openCreate}>
+              {chrome.category === "core_characters" ? t("common.actions.addCharacter") : t("common.actions.addWorldbuilding")}
             </Button>
           </div>
         )}
@@ -348,18 +232,18 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
       </div>
 
       {/* Create modal */}
-      <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title={category === "core_characters" ? t("fandomLore.createCharacterTitle") : t("fandomLore.createWorldbuildingTitle")}>
+      <Modal isOpen={chrome.createOpen} onClose={chrome.closeCreate} title={chrome.category === "core_characters" ? t("fandomLore.createCharacterTitle") : t("fandomLore.createWorldbuildingTitle")}>
         <div className="space-y-4">
           <Input
-            value={createName}
-            onChange={(e) => setCreateName(e.target.value)}
-            placeholder={category === "core_characters" ? t("fandomLore.characterPlaceholder") : t("fandomLore.worldbuildingPlaceholder")}
+            value={chrome.createName}
+            onChange={(e) => chrome.setCreateName(e.target.value)}
+            placeholder={chrome.category === "core_characters" ? t("fandomLore.characterPlaceholder") : t("fandomLore.worldbuildingPlaceholder")}
             autoFocus
           />
           <div className="flex justify-end gap-2">
-            <Button tone="neutral" fill="plain" onClick={() => setCreateOpen(false)}>{t("common.actions.cancel")}</Button>
-            <Button tone="accent" fill="solid" onClick={handleCreate} disabled={!createName.trim() || saving}>
-              {saving ? <Spinner size="sm" /> : t("common.actions.create")}
+            <Button tone="neutral" fill="plain" onClick={chrome.closeCreate}>{t("common.actions.cancel")}</Button>
+            <Button tone="accent" fill="solid" onClick={handleCreate} disabled={!chrome.createName.trim() || editor.saving}>
+              {editor.saving ? <Spinner size="sm" /> : t("common.actions.create")}
             </Button>
           </div>
         </div>
@@ -370,7 +254,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
         <Button
           tone="accent" fill="solid"
           className="pointer-events-auto h-12 rounded-full px-5 shadow-strong"
-          onClick={() => setAiOverlayOpen(true)}
+          onClick={chrome.openAiOverlay}
         >
           <Sparkles size={16} className="mr-2" />
           {t("settingsMode.title")}
@@ -378,10 +262,10 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
       </div>
 
       {/* AI assistant overlay */}
-      {aiOverlayOpen && (
+      {chrome.aiOverlayOpen && (
         <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
           <header className="safe-area-top flex items-center justify-between border-b border-rule bg-surface/95 px-4 py-3 backdrop-blur-sm">
-            <Button tone="neutral" fill="plain" size="sm" className="h-11 px-3" onClick={() => setAiOverlayOpen(false)}>
+            <Button tone="neutral" fill="plain" size="sm" className="h-11 px-3" onClick={chrome.closeAiOverlay}>
               <ArrowLeft size={16} className="mr-2" />
               {t("common.actions.back")}
             </Button>
@@ -395,7 +279,7 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
               fandomPath={fandomPath}
               placeholder={t("settingsMode.fandomPlaceholder")}
               className="h-full"
-              onAfterMutation={async () => { await loadFiles(); }}
+              onAfterMutation={async () => { await files.reload(); }}
             />
           </div>
         </div>

@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { ArrowRight, CheckCircle2, Database, Download, FolderPlus, Globe2, X } from 'lucide-react';
 import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
@@ -14,25 +14,12 @@ import { ApiSetupHelp } from '../help/ApiSetupHelp';
 import { ProviderModelPicker } from '../settings/model-picker/ProviderModelPicker';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { changeLanguage, type AppLanguage } from '../../i18n';
-import { createAu, createFandom, getOnboardingDefaults, saveOnboardingSettings } from '../../api/engine-client';
-import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
-import { useLlmConnectionTest } from '../../hooks/useConnectionTest';
-import { canTestLlmConnection } from '../shared/llm-config';
 import { SecretStorageNotice } from '../shared/SecretStorageNotice';
-import { DEFAULT_DEEPSEEK_API_BASE, DEFAULT_DEEPSEEK_MODEL, DEFAULT_EMBEDDING_API_BASE, DEFAULT_EMBEDDING_MODEL } from '../../config/defaults';
-import {
-  buildOnboardingSettingsSaveInput,
-  hydrateMobileOnboardingSettings,
-} from './form-mappers';
+import { useMobileOnboardingSettingsForm } from './useMobileOnboardingSettingsForm';
+import { TOTAL_STEPS, useMobileOnboardingFlow, type OnboardingCompletion } from './useMobileOnboardingFlow';
 
-export type OnboardingCompletion = {
-  nextAction?: 'open-import' | 'open-settings';
-  openAuPath?: string;
-};
-
-type SetupAction = 'create' | 'import-local' | 'later';
-
-const TOTAL_STEPS = 6;
+// 完成回调契约随流程 hook 走，此处 re-export 保持既有 import 路径不变
+export type { OnboardingCompletion } from './useMobileOnboardingFlow';
 
 function StepCard({
   active,
@@ -76,139 +63,41 @@ export function MobileOnboarding({
   onClose: () => void;
 }) {
   const { t, i18n } = useTranslation();
-  const isMountedRef = useRef(true);
-  const loadGuard = useActiveRequestGuard('mobile-onboarding-defaults');
-  const [step, setStep] = useState(0);
-  const [loadingSettings, setLoadingSettings] = useState(true);
-  const [apiBase, setApiBase] = useState(DEFAULT_DEEPSEEK_API_BASE);
-  const [apiKey, setApiKey] = useState('');
-  const [model, setModel] = useState(DEFAULT_DEEPSEEK_MODEL);
-  const [contextWindow, setContextWindow] = useState(''); // 表单态："" = 窗口未知（R2-3）
-  const [chatPath, setChatPath] = useState('');
-  const [useCustomEmbedding, setUseCustomEmbedding] = useState(false);
-  const [embeddingModel, setEmbeddingModel] = useState(DEFAULT_EMBEDDING_MODEL);
-  const [embeddingApiBase, setEmbeddingApiBase] = useState(DEFAULT_EMBEDDING_API_BASE);
-  const [embeddingApiKey, setEmbeddingApiKey] = useState('');
-  const [setupAction, setSetupAction] = useState<SetupAction>('create');
-  const [fandomName, setFandomName] = useState('');
-  const [auName, setAuName] = useState('');
-  const [ethicsAccepted, setEthicsAccepted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
-  const [helpOpen, setHelpOpen] = useState(false);
-  const llmConnection = useLlmConnectionTest({
-    getSuccessMessage: (result, fields) => t('onboarding.apiConfig.testSuccess', { model: result.model || fields.model }),
-    getFailureMessage: (result) => result.message || t('error_messages.unknown'),
-    getExceptionMessage: (error) => error instanceof Error ? error.message || t('error_messages.unknown') : t('error_messages.unknown'),
-  });
 
-  useEffect(() => {
-    isMountedRef.current = true;
-    const token = loadGuard.start();
-    setLoadingSettings(true);
-    getOnboardingDefaults().then(settings => {
-      if (loadGuard.isStale(token)) return;
-      const defaults = hydrateMobileOnboardingSettings(settings);
-      setApiBase(defaults.apiBase);
-      setApiKey(defaults.apiKey);
-      setModel(defaults.model);
-      setContextWindow(defaults.contextWindow);
-      setChatPath(defaults.chatPath);
-      setUseCustomEmbedding(defaults.useCustomEmbedding);
-      setEmbeddingModel(defaults.embeddingModel);
-      setEmbeddingApiBase(defaults.embeddingApiBase);
-      setEmbeddingApiKey(defaults.embeddingApiKey);
-    }).catch(() => {
-      // 引导页默认配置足够继续
-    }).finally(() => {
-      if (!loadGuard.isStale(token)) {
-        setLoadingSettings(false);
-      }
-    });
+  const {
+    form, loading: loadingSettings,
+    connectionStatus, connectionMessage, canTestConnection, testConnection,
+    helpOpen, openHelp, closeHelp,
+    setApiBase, setApiKey, setModel, setContextWindow, setChatPath,
+    setUseCustomEmbedding, setEmbeddingModel, setEmbeddingApiBase, setEmbeddingApiKey,
+  } = useMobileOnboardingSettingsForm();
 
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    llmConnection.reset();
-  }, [apiBase, apiKey, model, chatPath]);
+  const {
+    step, setupAction, chooseSetupAction,
+    fandomName, setFandomName, auName, setAuName,
+    ethicsAccepted, setEthicsAccepted,
+    submitting, submitError,
+    goPrev, goNext, finish,
+  } = useMobileOnboardingFlow(onComplete);
 
   const language = (i18n.resolvedLanguage === 'en' ? 'en' : 'zh') as AppLanguage;
   const currentStep = step + 1;
 
   const canAdvance = useMemo(() => {
     if (step === 0) return true;
-    if (step === 1) return llmConnection.status === 'success';
+    if (step === 1) return connectionStatus === 'success';
     if (step === 2) {
-      return !useCustomEmbedding || Boolean(embeddingModel.trim() && embeddingApiBase.trim() && embeddingApiKey.trim());
+      return !form.useCustomEmbedding || Boolean(form.embeddingModel.trim() && form.embeddingApiBase.trim() && form.embeddingApiKey.trim());
     }
     if (step === 3) {
       return setupAction !== 'create' || Boolean(fandomName.trim() && auName.trim());
     }
     if (step === 4) return ethicsAccepted;
     return true;
-  }, [auName, llmConnection.status, embeddingApiBase, embeddingApiKey, embeddingModel, ethicsAccepted, fandomName, setupAction, step, useCustomEmbedding]);
+  }, [auName, connectionStatus, form.embeddingApiBase, form.embeddingApiKey, form.embeddingModel, ethicsAccepted, fandomName, setupAction, step, form.useCustomEmbedding]);
 
   const handleLanguageChange = async (nextLanguage: AppLanguage) => {
     await changeLanguage(nextLanguage);
-  };
-
-  const handleTestConnection = async () => {
-    await llmConnection.run({
-      mode: 'api',
-      model,
-      apiBase,
-      apiKey,
-      localModelPath: '',
-      ollamaModel: '',
-      chatPath,
-    });
-  };
-
-  const handleFinish = async () => {
-    if (submitting) return;
-    setSubmitting(true);
-    setSubmitError('');
-    try {
-      await saveOnboardingSettings(buildOnboardingSettingsSaveInput({
-        apiBase,
-        apiKey,
-        model,
-        contextWindow,
-        chatPath,
-        useCustomEmbedding,
-        embeddingModel,
-        embeddingApiBase,
-        embeddingApiKey,
-      }));
-
-      let openAuPath: string | undefined;
-
-      if (setupAction === 'create' && fandomName.trim() && auName.trim()) {
-        const fandom = await createFandom(fandomName.trim());
-        const au = await createAu(fandom.name, auName.trim(), fandom.path);
-        openAuPath = au.path;
-      }
-
-      if (!isMountedRef.current) return;
-
-      onComplete({
-        openAuPath,
-        nextAction:
-          setupAction === 'import-local'
-            ? 'open-import'
-            : undefined,
-      });
-    } catch (error: any) {
-      if (!isMountedRef.current) return;
-      setSubmitError(error?.message || t('error_messages.unknown'));
-    } finally {
-      if (isMountedRef.current) {
-        setSubmitting(false);
-      }
-    }
   };
 
   return (
@@ -284,14 +173,14 @@ export function MobileOnboarding({
                   {/* 服务商主导选择器（与全局设置同一组件，R2-7）：服务商 → 模型 → ctx 三态 */}
                   <ProviderModelPicker
                     kind="chat"
-                    model={model}
+                    model={form.model}
                     onModelChange={setModel}
-                    apiBase={apiBase}
+                    apiBase={form.apiBase}
                     onApiBaseAutoFill={setApiBase}
                     onChatPathAutoFill={setChatPath}
-                    apiKey={apiKey}
+                    apiKey={form.apiKey}
                     onApiKeyAutoFill={setApiKey}
-                    contextWindow={contextWindow}
+                    contextWindow={form.contextWindow}
                     onContextWindowChange={setContextWindow}
                   />
                   <div className="flex items-center gap-1">
@@ -299,7 +188,7 @@ export function MobileOnboarding({
                     <HelpTooltip text={t('onboarding.apiConfig.apiBaseTooltip')} />
                   </div>
                   <Input
-                    value={apiBase}
+                    value={form.apiBase}
                     onChange={event => setApiBase(event.target.value)}
                     placeholder="https://api.deepseek.com"
                   />
@@ -309,33 +198,33 @@ export function MobileOnboarding({
                   </div>
                   <Input
                     type="password"
-                    value={apiKey}
+                    value={form.apiKey}
                     onChange={event => setApiKey(event.target.value)}
                     placeholder="sk-..."
                   />
                   <p className="text-xs text-text/50">
-                    <button type="button" className="text-accent hover:underline" onClick={() => setHelpOpen(true)}>{t('help.apiSetup.howToGet')}</button>
+                    <button type="button" className="text-accent hover:underline" onClick={openHelp}>{t('help.apiSetup.howToGet')}</button>
                   </p>
 
                   <Button
                     tone="neutral" fill="outline"
                     className="w-full"
-                    onClick={handleTestConnection}
-                    disabled={!canTestLlmConnection({ mode: 'api', model, apiBase, apiKey, localModelPath: '', ollamaModel: '' }) || llmConnection.status === 'testing'}
+                    onClick={testConnection}
+                    disabled={!canTestConnection || connectionStatus === 'testing'}
                   >
-                    {llmConnection.status === 'testing' ? <><Spinner size="md" className="mr-2" />{t('onboarding.apiConfig.testing')}</> : t('onboarding.apiConfig.testConnection')}
+                    {connectionStatus === 'testing' ? <><Spinner size="md" className="mr-2" />{t('onboarding.apiConfig.testing')}</> : t('onboarding.apiConfig.testConnection')}
                   </Button>
 
-                  {llmConnection.status !== 'idle' && (
+                  {connectionStatus !== 'idle' && (
                     <div className={`rounded-xl px-4 py-3 text-sm leading-relaxed ${
-                      llmConnection.status === 'success'
+                      connectionStatus === 'success'
                         ? 'bg-success/10 text-success'
-                        : llmConnection.status === 'error'
+                        : connectionStatus === 'error'
                           ? 'bg-error/10 text-error'
                           : 'bg-surface text-text/70'
                     }`}
                     >
-                      {llmConnection.message}
+                      {connectionMessage}
                     </div>
                   )}
                 </Card>
@@ -354,47 +243,47 @@ export function MobileOnboarding({
                 </div>
 
                 <StepCard
-                  active={useCustomEmbedding}
+                  active={form.useCustomEmbedding}
                   title={t('onboarding.mobile.embedding.recommendedTitle')}
                   description={t('onboarding.mobile.embedding.recommendedDescription')}
                   icon={<Database size={18} />}
                   onClick={() => setUseCustomEmbedding(true)}
                 />
                 <StepCard
-                  active={!useCustomEmbedding}
+                  active={!form.useCustomEmbedding}
                   title={t('onboarding.mobile.embedding.skipTitle')}
                   description={t('onboarding.mobile.embedding.skipDescription')}
                   icon={<ArrowRight size={18} />}
                   onClick={() => setUseCustomEmbedding(false)}
                 />
 
-                {useCustomEmbedding && (
+                {form.useCustomEmbedding && (
                   <Card className="space-y-4 rounded-xl p-4">
                     {/* embedding 槽位复用同一选择器（kind=embedding：只显示向量模型 + 手填，R2-7） */}
                     <ProviderModelPicker
                       kind="embedding"
-                      model={embeddingModel}
+                      model={form.embeddingModel}
                       onModelChange={setEmbeddingModel}
-                      apiBase={embeddingApiBase}
+                      apiBase={form.embeddingApiBase}
                       onApiBaseAutoFill={setEmbeddingApiBase}
-                      apiKey={embeddingApiKey}
+                      apiKey={form.embeddingApiKey}
                       onApiKeyAutoFill={setEmbeddingApiKey}
                     />
                     <Input
                       label={t('common.labels.apiBase')}
-                      value={embeddingApiBase}
+                      value={form.embeddingApiBase}
                       onChange={event => setEmbeddingApiBase(event.target.value)}
                       placeholder={t('settings.global.embeddingApiBasePlaceholder')}
                     />
                     <Input
                       label={t('common.labels.apiKey')}
                       type="password"
-                      value={embeddingApiKey}
+                      value={form.embeddingApiKey}
                       onChange={event => setEmbeddingApiKey(event.target.value)}
                       placeholder="sk-..."
                     />
                     <p className="text-xs text-text/50">
-                      <button type="button" className="text-accent hover:underline" onClick={() => setHelpOpen(true)}>{t('help.apiSetup.howToGet')}</button>
+                      <button type="button" className="text-accent hover:underline" onClick={openHelp}>{t('help.apiSetup.howToGet')}</button>
                     </p>
                     <p className="text-sm leading-relaxed text-text/50">{t('onboarding.mobile.embedding.recommendedHint')}</p>
                   </Card>
@@ -419,21 +308,21 @@ export function MobileOnboarding({
                     title={t('onboarding.mobile.setup.createTitle')}
                     description={t('onboarding.mobile.setup.createDescription')}
                     icon={<FolderPlus size={18} />}
-                    onClick={() => setSetupAction('create')}
+                    onClick={() => chooseSetupAction('create')}
                   />
                   <StepCard
                     active={setupAction === 'import-local'}
                     title={t('onboarding.mobile.setup.importTitle')}
                     description={t('onboarding.mobile.setup.importDescription')}
                     icon={<Download size={18} />}
-                    onClick={() => setSetupAction('import-local')}
+                    onClick={() => chooseSetupAction('import-local')}
                   />
                   <StepCard
                     active={setupAction === 'later'}
                     title={t('onboarding.mobile.setup.laterTitle')}
                     description={t('onboarding.mobile.setup.laterDescription')}
                     icon={<ArrowRight size={18} />}
-                    onClick={() => setSetupAction('later')}
+                    onClick={() => chooseSetupAction('later')}
                   />
                 </div>
 
@@ -498,13 +387,13 @@ export function MobileOnboarding({
                   </div>
                   <div className="flex items-start gap-3 text-sm text-text/90">
                     <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-success" />
-                    <span>{t('onboarding.mobile.complete.llmSummary', { model })}</span>
+                    <span>{t('onboarding.mobile.complete.llmSummary', { model: form.model })}</span>
                   </div>
                   <div className="flex items-start gap-3 text-sm text-text/90">
                     <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-success" />
                     <span>
-                      {useCustomEmbedding
-                        ? t('onboarding.mobile.complete.embeddingSummary', { model: embeddingModel })
+                      {form.useCustomEmbedding
+                        ? t('onboarding.mobile.complete.embeddingSummary', { model: form.embeddingModel })
                         : t('onboarding.mobile.complete.embeddingSkipped')}
                     </span>
                   </div>
@@ -537,10 +426,7 @@ export function MobileOnboarding({
             <Button
               tone="neutral" fill="plain"
               className="flex-1"
-              onClick={() => {
-                setSubmitError('');
-                setStep(prev => Math.max(0, prev - 1));
-              }}
+              onClick={goPrev}
               disabled={step === 0 || submitting}
             >
               {t('onboarding.common.prev')}
@@ -549,23 +435,20 @@ export function MobileOnboarding({
               <Button
                 tone="accent" fill="solid"
                 className="flex-1"
-                onClick={() => {
-                  setSubmitError('');
-                  setStep(prev => Math.min(TOTAL_STEPS - 1, prev + 1));
-                }}
+                onClick={goNext}
                 disabled={!canAdvance || submitting}
               >
                 {t('onboarding.common.next')}
               </Button>
             ) : (
-              <Button tone="accent" fill="solid" className="flex-1" onClick={handleFinish} disabled={submitting}>
+              <Button tone="accent" fill="solid" className="flex-1" onClick={() => { void finish(form); }} disabled={submitting}>
                 {submitting ? <><Spinner size="md" className="mr-2" />{t('common.status.saving')}</> : t('ethics.onboardingAcknowledge')}
               </Button>
             )}
           </div>
         </footer>
       )}
-      <ApiSetupHelp isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
+      <ApiSetupHelp isOpen={helpOpen} onClose={closeHelp} />
     </div>
   );
 }
