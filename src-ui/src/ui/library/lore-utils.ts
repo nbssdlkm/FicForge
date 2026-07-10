@@ -7,10 +7,14 @@
  */
 
 // ---------------------------------------------------------------------------
-// 共享类型（AuLore 各 hook / 组件的单一定义点）
+// 共享类型（AuLore / FandomLore 各 hook / 组件的单一定义点）
 // ---------------------------------------------------------------------------
 
+/** AU 资料的两个分类目录 */
 export type LoreCategory = 'characters' | 'worldbuilding';
+
+/** Fandom 资料的两个分类目录 */
+export type FandomLoreCategory = 'core_characters' | 'core_worldbuilding';
 
 export type LoreFileEntry = {
   name: string;
@@ -86,4 +90,9 @@ export function toCanonicalCreateKey(value: string): string {
 
 export function deriveFandomPath(auPath: string): string {
   return auPath.replace(/\/aus\/[^/]+$/, '');
+}
+
+/** fandom 路径 → 目录名（listFandomFiles 等 API 以目录名寻址） */
+export function fandomDirNameOf(fandomPath: string | undefined): string {
+  return fandomPath?.split('/').pop() || '';
 }

@@ -7,20 +7,21 @@ import { Input } from '../shared/Input';
 import { Modal } from '../shared/Modal';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { useTranslation } from '../../i18n/useAppTranslation';
+import type { FandomLoreCategory } from './lore-utils';
 
 export type FandomLoreModalsProps = {
   // Create modal
   createModalOpen: boolean;
-  setCreateModalOpen: (open: boolean) => void;
-  createModalCategory: 'core_characters' | 'core_worldbuilding';
+  closeCreateModal: () => void;
+  createModalCategory: FandomLoreCategory;
   createName: string;
-  setCreateName: (name: string) => void;
+  setCreateName: (name: string) => void; // 受控绑定（新建输入框）
   handleCreateLore: () => void;
   editorBusy: boolean;
 
   // Delete modal
   deleteConfirmOpen: boolean;
-  setDeleteConfirmOpen: (open: boolean) => void;
+  closeDeleteConfirm: () => void;
   selectedEntry: { filename: string } | null;
   selectedFile: string | null;
   handleDeleteLore: () => void;
@@ -33,14 +34,14 @@ export type FandomLoreModalsProps = {
 
 export function FandomLoreModals({
   createModalOpen,
-  setCreateModalOpen,
+  closeCreateModal,
   createModalCategory,
   createName,
   setCreateName,
   handleCreateLore,
   editorBusy,
   deleteConfirmOpen,
-  setDeleteConfirmOpen,
+  closeDeleteConfirm,
   selectedEntry,
   selectedFile,
   handleDeleteLore,
@@ -52,7 +53,7 @@ export function FandomLoreModals({
 
   return (
     <>
-      <Modal isOpen={createModalOpen} onClose={() => setCreateModalOpen(false)} title={createModalCategory === 'core_characters' ? t('fandomLore.createCharacterTitle') : t('fandomLore.createWorldbuildingTitle')}>
+      <Modal isOpen={createModalOpen} onClose={closeCreateModal} title={createModalCategory === 'core_characters' ? t('fandomLore.createCharacterTitle') : t('fandomLore.createWorldbuildingTitle')}>
         <div className="flex flex-col gap-4">
           <Input
             placeholder={createModalCategory === 'core_characters' ? t('fandomLore.characterPlaceholder') : t('fandomLore.worldbuildingPlaceholder')}
@@ -62,7 +63,7 @@ export function FandomLoreModals({
             autoFocus
           />
           <div className="flex justify-end gap-2">
-            <Button tone="neutral" fill="plain" onClick={() => setCreateModalOpen(false)}>{t("common.actions.cancel")}</Button>
+            <Button tone="neutral" fill="plain" onClick={closeCreateModal}>{t("common.actions.cancel")}</Button>
             <Button tone="accent" fill="solid" onClick={handleCreateLore} disabled={!createName.trim() || editorBusy}>{t("common.actions.create")}</Button>
           </div>
         </div>
@@ -70,7 +71,7 @@ export function FandomLoreModals({
 
       <ConfirmDialog
         isOpen={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
+        onClose={closeDeleteConfirm}
         onConfirm={handleDeleteLore}
         title={t("fandomLore.deleteTitle")}
         message={t("fandomLore.deleteMessage", { name: selectedEntry?.filename || selectedFile || '' })}
