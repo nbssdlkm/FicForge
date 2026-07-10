@@ -15,7 +15,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getSimpleChat, saveSimpleChat, type SimpleChatMessageEnvelope } from "../../api/engine-client";
+import { asSimpleChatMessages, getSimpleChat, saveSimpleChat } from "../../api/engine-client";
 import { warnUi } from "../../utils/ui-logger";
 import {
   makeMessageId,
@@ -170,9 +170,10 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
     void getSimpleChat(auPath)
       .then((file) => {
         if (loadTokenRef.current !== token) return;
-        // engine envelope → UI discriminated union 直接 cast；engine repo 已校验
-        // id/timestamp/kind 三件套；详细字段不验证（向后兼容旧版 message 形状）。
-        const loaded = file.messages as unknown as SimpleChatMessage[];
+        // engine 宽容读取壳 → 正式 domain union，走 domain 的唯一窄化点
+        // asSimpleChatMessages（repo 已校验 id/timestamp/kind 三件套；详细字段
+        // 不验证，向后兼容旧版 message 形状）。
+        const loaded = asSimpleChatMessages(file.messages);
         // 刚 load 的内容即磁盘现状，标记为"已保存"，避免离场 flush / 防抖把它原样重写一遍
         lastSavedMessagesRef.current = loaded;
         setMessages(loaded);
@@ -197,7 +198,7 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
     const timeout = setTimeout(() => {
       if (auPathRef.current !== targetAuPath) return;
       lastSavedMessagesRef.current = messages;
-      void saveSimpleChat(targetAuPath, messages as unknown as SimpleChatMessageEnvelope[]).catch((err) => {
+      void saveSimpleChat(targetAuPath, messages).catch((err) => {
         // save 失败不阻断 UX，但必须回滚标记让离场/pagehide flush 重试（否则永久丢消息）
         rollbackSaveMark(messages, err);
       });
@@ -215,7 +216,7 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
       const msgs = messagesRef.current;
       if (msgs === lastSavedMessagesRef.current) return;
       lastSavedMessagesRef.current = msgs;
-      void saveSimpleChat(auPath, msgs as unknown as SimpleChatMessageEnvelope[]).catch((err) => {
+      void saveSimpleChat(auPath, msgs).catch((err) => {
         // 离场路径无宿主可提示；回滚标记 + 落日志（pagehide flush 仍可能兜到）
         rollbackSaveMark(msgs, err);
       });
@@ -231,7 +232,7 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
       const msgs = messagesRef.current;
       if (msgs === lastSavedMessagesRef.current) return;
       lastSavedMessagesRef.current = msgs;
-      void saveSimpleChat(auPathRef.current, msgs as unknown as SimpleChatMessageEnvelope[]).catch((err) => {
+      void saveSimpleChat(auPathRef.current, msgs).catch((err) => {
         // 页面正在离场，无宿主可提示；回滚标记 +落日志（bfcache 回退后还有机会重试）
         rollbackSaveMark(msgs, err);
       });

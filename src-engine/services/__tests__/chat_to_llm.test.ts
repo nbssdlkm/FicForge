@@ -2,8 +2,8 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it, vi } from "vitest";
-import { chatToOpenAIMessages } from "../chat-to-llm";
-import type { SimpleChatMessage } from "../types";
+import { chatToOpenAIMessages } from "../chat_to_llm.js";
+import type { SimpleChatMessage } from "../../domain/simple_chat.js";
 
 describe("chatToOpenAIMessages", () => {
   it("user message → role:user content", () => {

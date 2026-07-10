@@ -8,16 +8,11 @@ export type SettingsMode = "au" | "fandom";
 export type ToolCallStatus = "pending" | "executed" | "skipped" | "undone" | "error";
 export type LargeTextIntent = "character" | "worldbuilding" | "instruction";
 
-export interface ToolUndoMeta {
-  kind: "lore" | "fact" | "pinned" | "unsupported";
-  category?: string;
-  filename?: string;
-  factId?: string;
-  pinnedIndex?: number;
-  pinnedContent?: string;
-  chapterNum?: number;
-  note?: string;
-}
+// 真相源在引擎 domain/simple_chat.ts（它随简版 tool-call 消息持久化进 chat.yaml，
+// 是领域数据；settings-chat 的内存卡片状态共用同一形状）。import + re-export 保
+// 本文件内使用与外部 import 路径都不变。
+import type { ToolUndoMeta } from "@ficforge/engine";
+export type { ToolUndoMeta };
 
 export interface ToolCallCardState {
   id: string;
