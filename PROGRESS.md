@@ -32,10 +32,12 @@
 - [ ] 巨型组件状态下沉（AuSettingsLayout 31 useState / AuLoreLayout / SettingsChatPanel / FandomLore / GlobalSettings / Mobile 两个，按 hook 铁律分批）
 - [ ] UI hooks 测试补全（写文侧 useWriterBootstrap 等 / facts 三 hook / useConnectionTest / useFontSelection）+ 存量 LLM mock 迁移共享 helper（`services/__tests__/mock_llm_provider.ts` 已建）
 - [ ] chat-to-llm 业务规则下沉引擎（前置：消息 kind schema 先在引擎 domain 正式化）
-- [ ] devDep 大版本三件（TS 7 / tailwind 4 / plugin-react 6）择机升级
+- [ ] @vitejs/plugin-react 6.x（长期债⑤唯一剩项）：6.x 的 peer 依赖是 vite ^8.0.0（现 vite 7.3.6），待将来 vite 大版本升级时顺手带上；已停在 5.2.0（peer 兼容 vite ^4–^8）
+- [ ] tailwind 4 浏览器底线确认（产品层面）：v4 需要 Safari 16.4+ / Chrome 111+，iOS ≤16.3 老设备 PWA 样式会降级 —— 需确认目标用户群可接受，真机验证时留意
 
 ## 里程碑（倒序）
 
+- **2026-07-10** — 长期债⑤ devDep 大版本升级 3 件（worktree 分支 3 commit，等确认）：①@vitejs/plugin-react 4.x→5.2（6.x 被 vite ^8 peer 阻塞，留待办）②typescript ~5.8.3→~7.0.2 双包（UI tsconfig 删 baseUrl + engine 3 处 BufferSource 类型收窄，零运行时改动；连带 i18next/react-i18next 小版本刷新解 TS7 peerOptional 冲突）③tailwindcss 3.4→4.3（官方迁移工具两跑两崩 → 手动迁移：App.css 换 @import + `@theme inline` 规避 4 处同名自引用、postcss 换 @tailwindcss/postcss、删 tailwind.config.ts/autoprefixer/postcss、模板类名 v4 改名 55+ 处、preflight 兼容补丁、摘掉 4 处 v3 静默无效的 rule/N 修饰符防 v4 生效后线条变淡）。每步全套验证：引擎 1300 + UI 411 + 双 tsc 0 + build + i18n 1271；tailwind 另做 dist CSS 实证 + preview 全站眼验（明暗双主题 × 桌面/移动 × 库/对话/写文/弹窗，console 零报错）。
 - **2026-07-09/10** — 九维盲审（下载 nud3l/code-audit 技能 + 自定 3 维 + 透明评分公式，9 个 opus 盲审员并行，55/F 基线）→ 同日「最全面最治本」修复 A-H 八阶段：依赖漏洞双包清零（js-yaml 免大版本）、单一真相源大扫除（章节/草稿命名 9 副本→domain/paths、适配器共享层、默认值单源、prompt 块共享）、密钥 key 名泄露 5 处脱敏 + warnAlways 日志纪律、正确性 5 项（聊天保存失败回滚重试 / 导入顺序重排 / 向量原子写+损坏自愈 / RagManager pin 前移 / bundle 半成品清理）、死配置与孤儿管线物理清退、仓储 get 契约统一（顺手消灭 5 处吞 fs 错误的静默回退）、Tauri CSP/fs 收权、新增 30 测试修 1 真 bug。1277→1300 + 404→411 全绿。自评 55→88.5。
 - **2026-07-09** — 第三轮审计 MED/LOW 全清（交互接受批量单锁 / embedding 可取消 / 手动 fact 富化 / trash NaN 清理 / revision 锁内自增 / 恢复名对称）+ **TD-017 根治**（RagManager per-AU 引擎，最后一条技术债）+ 最后一公里全部做完（归档徽标 / 导入补记忆引导 / per-model ctx 覆盖 / 覆盖备份进回收站）。7 commit 未 push；每批修→独立对抗审（opus）→判别性测试→提交，最后两项还先用工作流并行 trace 数据流确认可干净落地；累计采纳对抗审发现 11 条全整改。引擎 1262→1277、UI 391→404 全绿、双 tsc 0。**已知 bug / 技术债 / 审计待排 / 最后一公里全部闭环，代码层达可打包发布。**
 
