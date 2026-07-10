@@ -39,7 +39,7 @@
 - [ ] 巨型组件状态下沉（按 hook 铁律分批）：✅ AuSettingsLayout（2026-07-09，31 useState→0，4 hooks + 4 回归测试）；剩 AuLoreLayout(946行/26) / SettingsChatPanel(1026行) / FandomLoreLayout(734行/22) / GlobalSettingsModal(450行/20) / MobileOnboarding(571行/19)，逐会话复制同打法
 - [ ] 存量引擎测试的内联 LLM mock 迁移共享 helper（`services/__tests__/mock_llm_provider.ts` 已建；跟随性重构——哪个测试文件被触碰就顺手迁哪个，不做专门迁移趟）。UI hooks 测试补全已于 2026-07-09 首批清偿（见里程碑）。对抗审留的两条可选尾巴：useFactEditor saveSuccess 的 2s timer 无 clearTimeout（卸载后空转，无害泄漏，改需动 impl）；onboarding gate 三条静默负向断言依赖单次微任务冲刷（当前实现下已核实非假绿，impl 加深 await 链时需改 waitFor 正向信号）
 - [ ] @vitejs/plugin-react 6.x（长期债⑤唯一剩项）：6.x 的 peer 依赖是 vite ^8.0.0（现 vite 7.3.6），待将来 vite 大版本升级时顺手带上；已停在 5.2.0（peer 兼容 vite ^4–^8）
-- [ ] tailwind 4 浏览器底线确认（产品层面）：v4 需要 Safari 16.4+ / Chrome 111+。审阅已查明确切失效形态：旧设备上不是「变淡」而是 96 条 var 基主题色 /N 底纹**回退为 100% 实心**（8% 底纹变整块实色、`bg-error/10 text-error` 同色对文字糊底不可读）；字面色 `bg-black/50` 遮罩不受影响（alpha 烘进回退值）—— 需确认目标用户群可接受，真机验证时留意
+- ✅ tailwind 4 浏览器底线：**已拍板（2026-07-10，用户）不考虑旧设备兼容**，按 Safari 16.4+ / Chrome 111+ 底线走；真机验证无需专门留意此项。（背景存档：旧设备上 var 基 /N 底纹会回退 100% 实心、同色对不可读；字面色遮罩不受影响）
 
 ## 里程碑（倒序）
 
