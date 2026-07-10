@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CONTEXT_WINDOW } from "../model_context_map.js";
+import { DEFAULT_CONTEXT_WINDOW, lookup_model_context_window, lookup_model_max_output } from "../model_context_map.js";
 import {
   contextWindowForModel,
   findRecommendedModel,
@@ -146,5 +146,30 @@ describe("contextWindowForModel — 三层优先级判别", () => {
     // 调用方拿到 undefined 后自己兜 DEFAULT（本 helper 不代劳）
     const cw = contextWindowForModel("totally-unknown-model-xyz") ?? DEFAULT_CONTEXT_WINDOW;
     expect(cw).toBe(DEFAULT_CONTEXT_WINDOW);
+  });
+});
+
+describe("provider_manifest — ctx/out 单一真相源派生（盲审 2026-07-11）", () => {
+  // 注（B1 对抗审 NIT 裁决）：toBe(lookup(...)) 在当前实现下与赋值同源、看似同义反复，
+  // 但它守的是「日后有人把 ctx 字面量加回 manifest 条目」这一回潜路径 —— 那时左边=字面量、
+  // 右边=map 值，漂移即红。缺 map 条目的情形由 withModelContext 的模块加载期 fail-fast 兜底
+  // （本文件 import 即崩，同样会被 CI 捕获，只是报错信息更粗）。
+  it("每个推荐模型的 ctx 均派生自 MODEL_CONTEXT_MAP（非 DEFAULT 兜底伪装）", () => {
+    for (const provider of listProviders()) {
+      for (const m of provider.recommendedModels) {
+        expect(lookup_model_context_window(m.id), `${provider.id}/${m.id} 缺 MODEL_CONTEXT_MAP 条目`).not.toBeNull();
+        expect(m.contextWindow).toBe(lookup_model_context_window(m.id));
+        expect(m.contextWindow).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("chat 模型的 maxOutputTokens 与 MODEL_MAX_OUTPUT 同源", () => {
+    for (const provider of listProviders()) {
+      for (const m of provider.recommendedModels.filter((x) => x.type === "chat")) {
+        expect(lookup_model_max_output(m.id), `${provider.id}/${m.id} 缺 MODEL_MAX_OUTPUT 条目`).not.toBeNull();
+        expect(m.maxOutputTokens).toBe(lookup_model_max_output(m.id));
+      }
+    }
   });
 });

@@ -13,7 +13,6 @@ import { IndexStatus } from "../domain/enums.js";
 import type { Fact } from "../domain/fact.js";
 import type { Thread } from "../domain/thread.js";
 import type { GeneratedWith } from "../domain/generated_with.js";
-import { createGeneratedWith } from "../domain/generated_with.js";
 import { nextDraftLabel } from "../domain/paths.js";
 import type { Project } from "../domain/project.js";
 import type { Settings } from "../domain/settings.js";
@@ -28,12 +27,14 @@ import { LLMError } from "../llm/provider.js";
 import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { ResolvedLLMConfig, ResolvedLLMParams } from "../llm/config_resolver.js";
 import { create_provider, resolve_llm_config, resolve_llm_params } from "../llm/config_resolver.js";
+import { isAbortError } from "../utils/abort_error.js";
 import { chapterInflightKey, isChapterInflight, markChapterInflight, releaseChapterInflight } from "./chapter_inflight.js";
 import { assemble_context } from "./context_assembler.js";
 import type { ChunkWithCollection } from "./rag_retrieval.js";
 import { retrieveRagForContext, toRagChunkDetail } from "./rag_retrieval.js";
-import { now_utc, joinPath } from "../utils/file_utils.js";
+import { joinPath } from "../utils/file_utils.js";
 import { withAuLock } from "./au_lock.js";
+import { persistGeneratedDraft } from "./draft_persist.js";
 
 // ---------------------------------------------------------------------------
 // 事件类型
@@ -266,31 +267,19 @@ export async function* generate_chapter(
 
     // === 步骤 5：写入草稿 ===
     const elapsedMs = Math.trunc(performance.now() - startTime);
-    const ts = now_utc();
-
-    const gw = createGeneratedWith({
+    const { generated_with: gw } = await persistGeneratedDraft({
+      au_id,
+      chapter_num,
+      variant: label,
+      content: fullText,
       mode: llmConfig.mode,
       model: modelName,
       temperature: llmParams.temperature,
       top_p: llmParams.top_p,
       input_tokens: budget_report.total_input_tokens,
       output_tokens: outputTokens ?? 0,
-      char_count: fullText.length,
       duration_ms: elapsedMs,
-      generated_at: ts,
-    });
-
-    const draft = createDraft({
-      au_id,
-      chapter_num,
-      variant: label,
-      content: fullText,
-      generated_with: gw,
-    });
-    // 只对"写 draft"这一小段持 AU 锁，不锁整个生成流程 —— 否则 30 秒的
-    // 流式生成会阻塞 UI 对同 AU 的所有其它写操作（confirm / undo / editFact 等）。
-    await withAuLock(au_id, async () => {
-      await draft_repo.save(draft);
+      draft_repo,
     });
 
     // === 步骤 6：yield done ===
@@ -304,7 +293,7 @@ export async function* generate_chapter(
       },
     };
   } catch (e) {
-    if (e instanceof DOMException ? e.name === "AbortError" : e instanceof Error && e.name === "AbortError") {
+    if (isAbortError(e)) {
       throw e;
     }
 

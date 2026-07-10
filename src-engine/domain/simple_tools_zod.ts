@@ -57,18 +57,8 @@ export const SIMPLE_TOOL_SCHEMAS: Record<string, z.ZodType> = {
     value: requiredString(),
   }),
 
-  // -- Fandom mutating (来自 _FANDOM_TOOLS，simple 跨 fandom 也用) --
-
-  create_core_character_file: z.object({
-    name: requiredString(),
-    content: requiredString(),
-  }),
-
-  modify_core_character_file: z.object({
-    filename: requiredString(),
-    new_content: requiredString(),
-    change_summary: requiredString(),
-  }),
+  // 注：core_* 工具（_FANDOM_TOOLS）不在此表 —— 简版 dispatch 从不下发它们，
+  // 留 schema 会让 isKnownTool 放行幻觉调用、渲染成不可执行的确认卡（盲审 2026-07-11）。
 
   // -- Read-only / view (来自 _SIMPLE_VIEW_TOOLS) --
 
@@ -94,6 +84,5 @@ export const SIMPLE_TOOL_SCHEMAS: Record<string, z.ZodType> = {
 export const SIMPLE_TOOL_PATH_FIELDS: Record<string, (string | number)[][]> = {
   modify_character_file: [["filename"]],
   modify_worldbuilding_file: [["filename"]],
-  modify_core_character_file: [["filename"]],
   show_setting: [["file_path"]],
 };

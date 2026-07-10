@@ -13,11 +13,8 @@
  */
 
 import { logCatch } from "../logger/index.js";
+import { isAbortError } from "../utils/abort_error.js";
 
-/** 该错误本身是否为「取消」错误（AbortError）。用于区分「用户取消」与「真失败」。 */
-function isAbortError(err: unknown): boolean {
-  return typeof err === "object" && err !== null && (err as { name?: unknown }).name === "AbortError";
-}
 
 export interface BackfillMemoryTarget {
   chapterNum: number;

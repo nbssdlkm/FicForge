@@ -6,8 +6,8 @@
 import type { Fandom } from "../../domain/fandom.js";
 
 export interface FandomRepository {
-  /** 读取 fandom.yaml。文件不存在时抛出错误。 */
-  get(fandom_path: string): Promise<Fandom>;
+  /** 读取 fandom.yaml。缺失返回 null，fs 错误照抛（全仓储统一 get 契约；盲审 2026-07-11 补齐 fandom 漏网）。 */
+  get(fandom_path: string): Promise<Fandom | null>;
 
   /** 保存 fandom.yaml。 */
   save(fandom_path: string, fandom: Fandom): Promise<void>;

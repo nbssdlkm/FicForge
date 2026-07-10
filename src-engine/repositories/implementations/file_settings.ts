@@ -30,7 +30,7 @@ import {
 } from "../../domain/settings.js";
 import { scriptSlotOf } from "../../fonts/stacks.js";
 import type { SettingsRepository } from "../interfaces/settings.js";
-import { atomicWrite, joinPath, now_utc, obj_to_plain } from "../../utils/file_utils.js";
+import { atomicWrite, dumpYaml, joinPath, now_utc, obj_to_plain } from "../../utils/file_utils.js";
 import {
   extractSecureFields,
   hasLegacyPlaintextSecureFields,
@@ -129,7 +129,7 @@ export class FileSettingsRepository implements SettingsRepository {
 
     const stripped = { ...copy } as unknown as Record<string, unknown>;
     const raw = obj_to_plain(stripped);
-    const content = yaml.dump(raw, { sortKeys: false, lineWidth: -1 });
+    const content = dumpYaml(raw);
     // settings.yaml 无 ops 背书，截断即全局配置丢失 —— 原子写（审计 H5）
     await atomicWrite(this.adapter, this.path, content);
   }
@@ -156,7 +156,7 @@ export class FileSettingsRepository implements SettingsRepository {
     await restoreSecureFields(settings, allSecureSpecs(settings), this.adapter);
     const sanitized = structuredClone(settings);
     await extractSecureFields(sanitized, allSecureSpecs(sanitized), this.adapter);
-    const content = yaml.dump(obj_to_plain(sanitized), { sortKeys: false, lineWidth: -1 });
+    const content = dumpYaml(obj_to_plain(sanitized));
     await atomicWrite(this.adapter, this.path, content);
     return true;
   }

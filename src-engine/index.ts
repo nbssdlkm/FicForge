@@ -141,3 +141,9 @@ export type {
   InstallOptions,
   ProgressCallback,
 } from "./fonts/index.js";
+
+// ---------------------------------------------------------------------------
+// utils —— 取消错误单一判据（UI 与引擎共用，盲审 2026-07-11 对抗审：
+// 不导出则 UI 侧被结构性排除在单源之外，只能各自手写 instanceof 判据）
+// ---------------------------------------------------------------------------
+export { createAbortError, isAbortError } from "./utils/abort_error.js";

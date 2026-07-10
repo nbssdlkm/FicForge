@@ -790,6 +790,7 @@
     "confirmResolve": "Confirm Edit & Update",
     "confirmResolveSubtitle": "Save selected points + clear edit flag",
     "saveFailed": "{{count}} fact(s) failed to save",
+    "factChangesFailed": "Chapter resolved, but {{count}} fact change(s) could not be applied. Please handle them in the memory panel.",
     "banner": "{{count}} chapter(s) need updated character data (Chapter {{chapters}}). The AI may reference outdated info.",
     "goResolve": "Fix Now",
     "dismissBanner": "Later"

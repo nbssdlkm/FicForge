@@ -6,21 +6,13 @@
  * 使用原生 fetch（无外部依赖，移动端兼容）。
  */
 
+import { createAbortError, isAbortError } from "../utils/abort_error.js";
 import type { GenerateParams, LLMChunk, LLMProvider, LLMResponse, ToolCall } from "./provider.js";
 import { LLMError } from "./provider.js";
 import { hasLogger, getLogger } from "../logger/index.js";
 
 const READ_TIMEOUT = 120_000;
 
-function isAbortError(error: unknown): error is DOMException | Error {
-  return error instanceof DOMException
-    ? error.name === "AbortError"
-    : error instanceof Error && error.name === "AbortError";
-}
-
-function createAbortError(message = "Aborted"): DOMException {
-  return new DOMException(message, "AbortError");
-}
 
 /**
  * 把外部 signal 桥接到内部 controller，返回清理函数。

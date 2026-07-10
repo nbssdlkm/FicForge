@@ -2,6 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
+import { isAbortError } from "@ficforge/engine";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ApiError,
@@ -261,10 +262,7 @@ export function useWriterGeneration({
       // 迭代器中途抛错（网络断 / abort）：同样先 flush，让画面完整停在中断点
       flushStream();
       attachPendingContextSummary(null);
-      const isAbort = error instanceof DOMException
-        ? error.name === 'AbortError'
-        : error instanceof Error && error.name === 'AbortError';
-      if (isAbort) {
+      if (isAbortError(error)) {
         return;
       }
       if (generateGuard.isStale(token)) return;
@@ -276,7 +274,7 @@ export function useWriterGeneration({
       }
       if (error instanceof ApiError) {
         setGenerationErrorDisplay({ message: error.userMessage || error.message, actions: error.actions });
-      } else if (error instanceof Error && !isAbort && !isNetwork) {
+      } else if (error instanceof Error && !isNetwork) {
         setGenerationErrorDisplay({ message: error.message, actions: [] });
       }
     } finally {

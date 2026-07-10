@@ -105,7 +105,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
         fact_id: f.id,
         action: decisions[f.id] || 'keep',
       }));
-      await resolveDirtyChapter(auPath, chapterNum, confirmedChanges);
+      const resolveResult = await resolveDirtyChapter(auPath, chapterNum, confirmedChanges);
 
       // 2. Save selected new candidates (fault-tolerant: one failure doesn't block others)
       let failCount = 0;
@@ -134,6 +134,12 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
       if (onResolved) onResolved();
       if (failCount > 0) {
         showError(new Error(t('dirty.saveFailed', { count: failCount })), t('error_messages.unknown'));
+      }
+      // 解除本身成功但个别 fact 变更失败（引擎逐条尽力应用后如实带回）——
+      // 明示用户去记忆面板手工处理，而不是伪装成整体失败（盲审 2026-07-11）
+      const failedChanges = resolveResult?.failed_fact_changes?.length ?? 0;
+      if (failedChanges > 0) {
+        showError(new Error(t('dirty.factChangesFailed', { count: failedChanges })), t('error_messages.unknown'));
       }
     } catch (e: any) {
       if (contextGuard.isKeyStale(snapshotKey)) return;

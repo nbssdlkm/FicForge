@@ -14,6 +14,7 @@
  * 不负责：存储（storage.ts）、注册（registry.ts）、重试策略（未来 Phase 6）。
  */
 
+import { isAbortError } from "../utils/abort_error.js";
 import {
   FontError,
   type DownloadableFont,
@@ -94,7 +95,7 @@ export class FontDownloader {
       } catch (err) {
         // AbortError 立即向上抛，不再尝试其他源。
         if (err instanceof FontError && err.code === "aborted") throw err;
-        if (err instanceof DOMException && err.name === "AbortError") {
+        if (isAbortError(err)) {
           throw new FontError("aborted", `Download aborted: ${entry.id}`, err);
         }
         errors.push({ source, error: err });

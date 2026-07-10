@@ -34,11 +34,12 @@ import { create_provider, resolve_llm_config, resolve_llm_params } from "../llm/
 import { assemble_chat_context } from "./context_assembler.js";
 import { count_tokens } from "../tokenizer/index.js";
 import { withAuLock } from "./au_lock.js";
+import { persistGeneratedDraft } from "./draft_persist.js";
 import { createDraft } from "../domain/draft.js";
-import { createGeneratedWith } from "../domain/generated_with.js";
 import { nextDraftLabel } from "../domain/paths.js";
 import type { GeneratedWith } from "../domain/generated_with.js";
-import { now_utc, joinPath } from "../utils/file_utils.js";
+import { joinPath } from "../utils/file_utils.js";
+import { createAbortError, isAbortError } from "../utils/abort_error.js";
 import { get_tools_for_mode } from "../domain/settings_tools.js";
 import { SIMPLE_AGENT_MAX_ITER } from "../config/simple_features.js";
 import { extractPartialJsonStringField } from "./tool_stream_buffer.js";
@@ -74,34 +75,25 @@ export const SIMPLE_TOOL_SHOW_CHAPTER = "show_chapter";
 export const SIMPLE_TOOL_SHOW_SETTING = "show_setting";
 export const SIMPLE_TOOL_CHAT_REPLY = "chat_reply";
 
-/**
- * 修改类工具集合（agent loop 走 human-in-the-loop：emit ToolCallCard → break → 用户
- * confirm 后另起 dispatch round）。跟 settings_tools.ts SIMPLE_DISABLED_TOOLS 配合：
- * 这里列的是"在简版有效的修改类"，对应 _SIMPLE_AU_MODIFY_TOOLS 过滤后的剩余 6 个 +
- * fandom 模式下的 core_* 2 个（简版 fork 沿用 fandom layer）。
- *
- * 对齐 settings_tools.ts: _AU_TOOLS (9) - SIMPLE_DISABLED_TOOLS (3 = add_fact /
- * modify_fact / update_core_includes) = _SIMPLE_AU_MODIFY_TOOLS (6) + _FANDOM_TOOLS
- * 中 create_/modify_core_character_file (2) = 8 个，跟下面集合大小一致（v4-pro C3
- * review P2-11 对齐确认）。修改任一侧时同步另一侧 + 跑 agent loop 测试验证。
- *
- * 单一真相源：UI 端 isMutatingSimpleTool / settings 校验逻辑统一从此 import。
- */
-export const SIMPLE_MUTATING_TOOLS: ReadonlySet<string> = new Set([
-  "create_character_file",
-  "modify_character_file",
-  "create_worldbuilding_file",
-  "modify_worldbuilding_file",
-  "add_pinned_context",
-  "update_writing_style",
-  "create_core_character_file",
-  "modify_core_character_file",
-]);
-
 const SIMPLE_READ_ONLY_TOOLS: ReadonlySet<string> = new Set([
   SIMPLE_TOOL_SHOW_CHAPTER,
   SIMPLE_TOOL_SHOW_SETTING,
 ]);
+
+/**
+ * 修改类工具集合（agent loop 走 human-in-the-loop：emit ToolCallCard → break → 用户
+ * confirm 后另起 dispatch round）。
+ *
+ * 从「实际下发给 LLM 的工具集」get_tools_for_mode("simple") 派生，不再手工双列
+ * （盲审 2026-07-11 功能维：旧手工列表额外含 create_/modify_core_character_file —— 它们
+ * 从不下发给简版 LLM、UI 执行器也无实现，LLM 幻觉调用会渲染成「可确认却执行不了」的
+ * 卡片。派生保证：能出确认卡的 ≡ 真正下发且 UI 可执行的修改类工具，两侧永不漂移）。
+ */
+export const SIMPLE_MUTATING_TOOLS: ReadonlySet<string> = new Set(
+  (get_tools_for_mode("simple") as { function: { name: string } }[])
+    .map((t) => t.function.name)
+    .filter((n) => n !== SIMPLE_TOOL_CHAT_REPLY && !SIMPLE_READ_ONLY_TOOLS.has(n)),
+);
 
 function isMutatingTool(name: string): boolean {
   return SIMPLE_MUTATING_TOOLS.has(name);
@@ -600,20 +592,20 @@ export async function* dispatch_simple_chat(
 
         if (emitText) {
           const elapsedMs = Math.trunc(performance.now() - startTime);
-          const ts = now_utc();
-          const gw = createGeneratedWith({
+          const { generated_with: gw } = await persistGeneratedDraft({
+            au_id,
+            chapter_num,
+            variant: label,
+            content: iterCtx.fullText,
             mode: llmConfig.mode,
             model: modelName,
             temperature: llmParams.temperature,
             top_p: llmParams.top_p,
             input_tokens: iterCtx.inputTokens,
             output_tokens: iterCtx.outputTokens ?? 0,
-            char_count: iterCtx.fullText.length,
             duration_ms: elapsedMs,
-            generated_at: ts,
+            draft_repo,
           });
-          const draft = createDraft({ au_id, chapter_num, variant: label, content: iterCtx.fullText, generated_with: gw });
-          await withAuLock(au_id, async () => { await draft_repo.save(draft); });
           events.push({
             type: "business",
             data: { kind: "done_text", data: { full_text: iterCtx.fullText, draft_label: label, chapter_num, generated_with: gw } },
@@ -635,12 +627,12 @@ export async function* dispatch_simple_chat(
         if (hasChatReply) {
           const readOnlyCalls = calls.filter((c) => isReadOnlyTool(c.function.name));
           for (const c of readOnlyCalls) {
-            if (signal?.aborted) throw new DOMException("aborted", "AbortError");
+            if (signal?.aborted) throw createAbortError();
             events.push({ type: "tool_call", data: c });
             const repaired = repairToolArgs(c.function.name, c.function.arguments);
             emitRepairTelemetry(c.function.name, repaired);
             const result = await executeReadTool(c.function.name, repaired.args, { au_id, chapter_repo, adapter });
-            if (signal?.aborted) throw new DOMException("aborted", "AbortError");
+            if (signal?.aborted) throw createAbortError();
             events.push({
               type: "tool_result",
               data: { tool_call_id: c.id, tool_name: c.function.name, content: result.content, ...(result.errorMessage !== undefined ? { error_message: result.errorMessage } : {}) },
@@ -680,12 +672,12 @@ export async function* dispatch_simple_chat(
             ...(iterCtx.reasoningContent ? { reasoning_content: iterCtx.reasoningContent } : {}),
           });
           for (const c of calls) {
-            if (signal?.aborted) throw new DOMException("aborted", "AbortError");
+            if (signal?.aborted) throw createAbortError();
             events.push({ type: "tool_call", data: c });
             const repaired = repairToolArgs(c.function.name, c.function.arguments);
             emitRepairTelemetry(c.function.name, repaired);
             const result = await executeReadTool(c.function.name, repaired.args, { au_id, chapter_repo, adapter });
-            if (signal?.aborted) throw new DOMException("aborted", "AbortError");
+            if (signal?.aborted) throw createAbortError();
             events.push({
               type: "tool_result",
               data: { tool_call_id: c.id, tool_name: c.function.name, content: result.content, ...(result.errorMessage !== undefined ? { error_message: result.errorMessage } : {}) },
@@ -874,7 +866,7 @@ export async function* dispatch_simple_chat(
       }
     }
   } catch (e) {
-    if (e instanceof DOMException ? e.name === "AbortError" : e instanceof Error && e.name === "AbortError") {
+    if (isAbortError(e)) {
       throw e;
     }
     // partial rescue 已在 onPartialRescue 内处理，这里只 emit error event。

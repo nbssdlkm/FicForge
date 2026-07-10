@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   dispatch_simple_chat,
+  SIMPLE_MUTATING_TOOLS,
   SIMPLE_TOOL_CHAT_REPLY,
   SIMPLE_TOOL_SHOW_CHAPTER,
   type SimpleChatEvent,
@@ -1247,5 +1248,24 @@ describe("dispatch_simple_chat", () => {
     // 释放后同章 dispatch 恢复可用。
     const after = await collect(dispatch_simple_chat(makeBaseParams(adapter, fastProvider, "写第一章")));
     expect(after.some((e) => e.type === "error" && e.data.error_code === "DISPATCH_IN_PROGRESS")).toBe(false);
+  });
+});
+
+describe("SIMPLE_MUTATING_TOOLS 派生不变量（盲审 2026-07-11 + B1 对抗审）", () => {
+  it("恰为 simple 模式下发的 6 个修改类工具，不含 core_* / chat_reply / show_*", () => {
+    expect([...SIMPLE_MUTATING_TOOLS].sort()).toEqual([
+      "add_pinned_context",
+      "create_character_file",
+      "create_worldbuilding_file",
+      "modify_character_file",
+      "modify_worldbuilding_file",
+      "update_writing_style",
+    ]);
+  });
+
+  it("core_* 工具不再是已知工具形态：zod schema 表中无条目（幻觉调用走 retry 而非确认卡）", async () => {
+    const { SIMPLE_TOOL_SCHEMAS } = await import("../../domain/simple_tools_zod.js");
+    expect(Object.keys(SIMPLE_TOOL_SCHEMAS)).not.toContain("create_core_character_file");
+    expect(Object.keys(SIMPLE_TOOL_SCHEMAS)).not.toContain("modify_core_character_file");
   });
 });

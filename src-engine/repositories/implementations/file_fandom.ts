@@ -8,7 +8,7 @@ import type { PlatformAdapter } from "../../platform/adapter.js";
 import type { Fandom } from "../../domain/fandom.js";
 import { createFandom } from "../../domain/fandom.js";
 import type { FandomRepository } from "../interfaces/fandom.js";
-import { atomicWrite, joinPath, obj_to_plain, validateBasePath } from "../../utils/file_utils.js";
+import { atomicWrite, dumpYaml, joinPath, obj_to_plain, validateBasePath } from "../../utils/file_utils.js";
 
 export class FileFandomRepository implements FandomRepository {
   constructor(
@@ -21,12 +21,14 @@ export class FileFandomRepository implements FandomRepository {
     // 与 FileSettingsRepository 构造注入的语义保持一致。
   }
 
-  async get(fandom_path: string): Promise<Fandom> {
+  // 缺失返回 null、fs 错误照抛 —— 与 project/chapter/fact/thread/draft 的 get 契约一致
+  // （2026-07-09 全仓储统一时本仓储漏网，盲审 2026-07-11 规范维补齐）。
+  async get(fandom_path: string): Promise<Fandom | null> {
     validateBasePath(fandom_path, "fandom_path");
     const path = joinPath(fandom_path, "fandom.yaml");
     const exists = await this.adapter.exists(path);
     if (!exists) {
-      throw new Error(`fandom.yaml not found: ${path}`);
+      return null;
     }
 
     const text = await this.adapter.readFile(path);
@@ -47,7 +49,7 @@ export class FileFandomRepository implements FandomRepository {
     validateBasePath(fandom_path, "fandom_path");
     const path = joinPath(fandom_path, "fandom.yaml");
     const raw = obj_to_plain(fandom);
-    const content = yaml.dump(raw, { sortKeys: false, lineWidth: -1 });
+    const content = dumpYaml(raw);
     const dir = path.substring(0, path.lastIndexOf("/"));
     await this.adapter.mkdir(dir);
     // fandom.yaml 是列表发现的判据（list_fandoms 只认它存在），截断即整个 fandom 不可见 —— 原子写（审计 H5）

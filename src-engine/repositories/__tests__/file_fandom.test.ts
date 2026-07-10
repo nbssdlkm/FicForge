@@ -87,10 +87,10 @@ describe("FileFandomRepository.get/save", () => {
     expect(loaded.wiki_source).toBe("https://example.com");
   });
 
-  it("get 不存在的 fandom 抛错", async () => {
+  it("get 不存在的 fandom 返回 null（缺失=null、fs 错误=抛，全仓储统一契约）", async () => {
     const adapter = new MockAdapter();
     const repo = new FileFandomRepository(adapter, "");
-    await expect(repo.get("fandoms/Missing")).rejects.toThrow(/not found/);
+    await expect(repo.get("fandoms/Missing")).resolves.toBeNull();
   });
 
   it("get/save 拒绝空 fandom_path（validateBasePath 守卫）", async () => {

@@ -5,6 +5,7 @@
  * Engine fandom query/command layer.
  */
 
+import { warnUi } from "../utils/ui-logger";
 import { withAuLock } from "@ficforge/engine";
 import { getDataDir, getEngine } from "./engine-instance";
 import { sanitizePathSegment, validateExistingPathSegment } from "./engine-lore";
@@ -31,7 +32,11 @@ export async function listFandoms() {
 
   for (const dirName of dirNames) {
     const fandomPath = `${dataDir}/fandoms/${dirName}`;
-    const fandomInfo = await fandom.get(fandomPath).catch(() => null);
+    const fandomInfo = await fandom.get(fandomPath).catch((e) => {
+      // get 契约：缺失=null（走 ?? 兜底显示 dirName），真 fs 错误落日志不再静默吞
+      warnUi("engine-fandom", `read fandom.yaml failed: ${fandomPath}`, e);
+      return null;
+    });
     const aus = await listAus(dirName);
 
     // Enrich AU rows with cheap stats from state.yaml so Library can render
@@ -69,7 +74,10 @@ export async function listFandoms() {
 export async function getFandomDisplayInfo(fandomPath: string): Promise<FandomDisplayInfo> {
   const { fandom } = getEngine().repos;
   const dirName = fandomPath.split("/").pop() || "";
-  const fandomInfo = await fandom.get(fandomPath).catch(() => null);
+  const fandomInfo = await fandom.get(fandomPath).catch((e) => {
+    warnUi("engine-fandom", `read fandom.yaml failed: ${fandomPath}`, e);
+    return null;
+  });
   return {
     name: fandomInfo?.name?.trim() || dirName,
     dir_name: dirName,
@@ -112,7 +120,10 @@ export async function listAus(fandomDirName: string): Promise<AuInfo[]> {
       continue;
     }
 
-    const projectInfo = await project.get(auPath).catch(() => null);
+    const projectInfo = await project.get(auPath).catch((e) => {
+      warnUi("engine-fandom", `read project.yaml failed: ${auPath}`, e);
+      return null;
+    });
     validAus.push({
       name: projectInfo?.name?.trim() || dirName,
       dir_name: dirName,
@@ -152,7 +163,10 @@ export async function deleteFandom(fandomDirName: string) {
   const { adapter } = engine;
   const fandomsRoot = `${dataDir}/fandoms`;
   const fandomRoot = `${dataDir}/fandoms/${safeFandomDir}`;
-  const fandomInfo = await engine.repos.fandom.get(fandomRoot).catch(() => null);
+  const fandomInfo = await engine.repos.fandom.get(fandomRoot).catch((e) => {
+    warnUi("engine-fandom", `read fandom.yaml failed: ${fandomRoot}`, e);
+    return null;
+  });
   const displayName = fandomInfo?.name?.trim() || safeFandomDir;
 
   const ausDir = `${fandomRoot}/aus`;
@@ -191,7 +205,10 @@ export async function deleteAu(fandomDirName: string, auName: string) {
   const auPath = `${fandomRoot}/aus/${safeAuName}`;
 
   return withAuLock(auPath, async () => {
-    const projectInfo = await getEngine().repos.project.get(auPath).catch(() => null);
+    const projectInfo = await getEngine().repos.project.get(auPath).catch((e) => {
+    warnUi("engine-fandom", `read project.yaml failed: ${auPath}`, e);
+    return null;
+  });
     const displayName = projectInfo?.name?.trim() || safeAuName;
     const entry = await getEngine().trash.move_tree_to_trash(
       fandomRoot,

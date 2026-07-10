@@ -15,7 +15,7 @@ import type { PlatformAdapter } from "../../platform/adapter.js";
 import type { SimpleChatFile, SimpleChatMessageEnvelope } from "../../domain/simple_chat.js";
 import { createSimpleChatFile, SIMPLE_CHAT_VERSION } from "../../domain/simple_chat.js";
 import type { SimpleChatRepository } from "../interfaces/simple_chat.js";
-import { atomicWrite, joinPath, now_utc, obj_to_plain, validateBasePath, withWriteLock } from "../../utils/file_utils.js";
+import { atomicWrite, dumpYaml, joinPath, now_utc, obj_to_plain, validateBasePath, withWriteLock } from "../../utils/file_utils.js";
 import { warnAlways } from "../../logger/index.js";
 
 const CHAT_FILE_NAME = "simple-chat.yaml";
@@ -111,7 +111,7 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
         updated_at: now_utc(),
         messages,
       };
-      const content = yaml.dump(obj_to_plain(file), { sortKeys: false, lineWidth: -1 });
+      const content = dumpYaml(obj_to_plain(file));
       const dir = path.substring(0, path.lastIndexOf("/"));
       await this.adapter.mkdir(dir);
       // 对话历史无 ops 背书，截断即永损 —— 原子写（审计 H5）
@@ -136,7 +136,7 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
         updated_at: now_utc(),
         messages: nextMessages,
       };
-      const content = yaml.dump(obj_to_plain(out), { sortKeys: false, lineWidth: -1 });
+      const content = dumpYaml(obj_to_plain(out));
       const dir = path.substring(0, path.lastIndexOf("/"));
       await this.adapter.mkdir(dir);
       await atomicWrite(this.adapter, path, content);

@@ -7,6 +7,7 @@
  * 任何 agent (facts 提取 / chapter summary / ReAct) 复用此模块。
  */
 
+import { createAbortError, isAbortError } from "../utils/abort_error.js";
 import type { Message, ToolCall, ToolDefinition, ToolChoice, LLMProvider, GenerateParams } from "../llm/provider.js";
 import { LLMError } from "../llm/provider.js";
 import type { ZodType } from "zod";
@@ -123,15 +124,9 @@ export interface AgentLoopConfig<E> {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function isAbortError(e: unknown): boolean {
-  if (e instanceof DOMException && e.name === "AbortError") return true;
-  if (e instanceof Error && e.name === "AbortError") return true;
-  return false;
-}
-
 function checkAbort(signal?: AbortSignal): void {
   if (signal?.aborted) {
-    throw new DOMException("aborted", "AbortError");
+    throw createAbortError();
   }
 }
 

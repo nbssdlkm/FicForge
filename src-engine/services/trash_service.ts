@@ -9,7 +9,7 @@
 import yaml from "js-yaml";
 import { safeMatter } from "../domain/frontmatter.js";
 import type { PlatformAdapter } from "../platform/adapter.js";
-import { atomicWrite, joinPath } from "../utils/file_utils.js";
+import { atomicWrite, dumpYaml, joinPath } from "../utils/file_utils.js";
 import { warnAlways } from "../logger/index.js";
 
 /**
@@ -860,7 +860,7 @@ export class TrashService {
 
       castRegistry.characters = names;
       raw.cast_registry = castRegistry;
-      const content = yaml.dump(raw, { sortKeys: false, lineWidth: -1 });
+      const content = dumpYaml(raw);
       // 原子写（F5）：project.yaml 截断会连带丢整份工程配置，损失远超 cast_registry 一行。
       await atomicWrite(this.adapter, projectPath, content);
     } catch {

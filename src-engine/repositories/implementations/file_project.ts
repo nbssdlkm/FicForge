@@ -15,7 +15,7 @@ import {
   createWritingStyle,
 } from "../../domain/project.js";
 import type { ProjectRepository } from "../interfaces/project.js";
-import { atomicWrite, joinPath, now_utc, obj_to_plain, validateBasePath } from "../../utils/file_utils.js";
+import { atomicWrite, dumpYaml, joinPath, now_utc, obj_to_plain, validateBasePath } from "../../utils/file_utils.js";
 import {
   extractSecureFields,
   hasLegacyPlaintextSecureFields,
@@ -88,7 +88,7 @@ export class FileProjectRepository implements ProjectRepository {
     // 防止项目工作目录备份 / 同步 / 导出时凭据扩散（审计 P1）
     await extractSecureFields(copy, projectSecureSpecs(copy.au_id), this.adapter);
     const raw = obj_to_plain(copy);
-    const content = yaml.dump(raw, { sortKeys: false, lineWidth: -1 });
+    const content = dumpYaml(raw);
     const dir = path.substring(0, path.lastIndexOf("/"));
     await this.adapter.mkdir(dir);
     // project.yaml 损坏时 get() 直接抛错、整 AU 不可开 —— 原子写（审计 H5）
@@ -152,7 +152,7 @@ export class FileProjectRepository implements ProjectRepository {
     await restoreSecureFields(project, specs, this.adapter);
     const sanitized = structuredClone(project);
     await extractSecureFields(sanitized, specs, this.adapter);
-    const content = yaml.dump(obj_to_plain(sanitized), { sortKeys: false, lineWidth: -1 });
+    const content = dumpYaml(obj_to_plain(sanitized));
     await atomicWrite(this.adapter, path, content);
     return true;
   }

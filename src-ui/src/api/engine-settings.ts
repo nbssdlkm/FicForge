@@ -5,6 +5,7 @@
  * Engine Settings query/command layer.
  */
 
+import { isAbortError } from "@ficforge/engine";
 import {
   OpenAICompatibleProvider,
   RemoteEmbeddingProvider,
@@ -321,7 +322,7 @@ export async function fetchProviderModels(params: { api_base: string; api_key: s
         signal: controller.signal,
       });
     } catch (e: unknown) {
-      if (e instanceof DOMException && e.name === "AbortError") {
+      if (isAbortError(e)) {
         throw new FetchModelsError(`timeout after ${FETCH_MODELS_TIMEOUT_MS / 1000}s`, "network");
       }
       // fetch 网络层失败（DNS / 拒连 / CORS）—— 统一归 network

@@ -42,10 +42,13 @@ export interface SplitResult {
 // Constants
 // ---------------------------------------------------------------------------
 
-const STANDARD_PATTERNS = [
-  /^第[一二三四五六七八九十百千\d]+章/mu,
-  /^Chapter\s+\d+/imu,
-  /^第[一二三四五六七八九十百千\d]+节/mu,
+// 层级化标题 pattern（盲审 2026-07-11 + 对抗审回归修正）：
+// 第 1 层 = 章级标题（「第X章」与「Chapter N」是同级同义词，中英混排文档二者都算章边界）；
+// 第 2 层 = 节级标题（仅当全文没有任何章级标题时才降级启用 —— 「章+节」混排文档里
+// 节是章内小节，不得当章边界，否则导入正文被过度碎片化）。
+const STANDARD_PATTERN_TIERS: RegExp[][] = [
+  [/^第[一二三四五六七八九十百千\d]+章/mu, /^Chapter\s+\d+/imu],
+  [/^第[一二三四五六七八九十百千\d]+节/mu],
 ];
 
 const INTEGER_PATTERN = /^\d{1,3}\s*$/gm;
@@ -97,12 +100,21 @@ export async function splitChapters(text: string, options?: SplitOptions): Promi
 // ---------------------------------------------------------------------------
 
 export function trySplitByStandardHeaders(text: string): SplitChapter[] | null {
-  const matches: [number, string][] = [];
-  for (const pat of STANDARD_PATTERNS) {
-    const re = new RegExp(pat.source, pat.flags.includes("g") ? pat.flags : pat.flags + "g");
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(text)) !== null) {
-      matches.push([m.index, m[0]]);
+  // 按层级降级：第一个有命中的**层**独占本次切分（层内多个 pattern 的匹配合并按位置排序，
+  // 保持中英章标题混排文档的既有行为；层间不混 —— 「节」只在无任何章级标题时启用）。
+  let matches: [number, string][] = [];
+  for (const tier of STANDARD_PATTERN_TIERS) {
+    const tierMatches: [number, string][] = [];
+    for (const pat of tier) {
+      const re = new RegExp(pat.source, pat.flags.includes("g") ? pat.flags : pat.flags + "g");
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(text)) !== null) {
+        tierMatches.push([m.index, m[0]]);
+      }
+    }
+    if (tierMatches.length > 0) {
+      matches = tierMatches;
+      break;
     }
   }
 

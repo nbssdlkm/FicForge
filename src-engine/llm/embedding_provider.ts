@@ -1,6 +1,8 @@
 // Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 
+import { createAbortError } from "../utils/abort_error.js";
+
 /** Embedding Provider 接口 + OpenAI 兼容实现。 */
 
 export interface EmbeddingProvider {
@@ -14,12 +16,6 @@ export interface EmbeddingProvider {
   get_model_name(): string;
 }
 
-/** 构造 name="AbortError" 的取消错误，让上层（backfill.isAbortError）识别为干净取消。 */
-function makeAbortError(): Error {
-  const e = new Error("Embedding request aborted");
-  e.name = "AbortError";
-  return e;
-}
 
 /**
  * 远程 Embedding Provider（调用 OpenAI 兼容 /embeddings 端点；apiBase 需包含 /v1）。
@@ -38,7 +34,7 @@ export class RemoteEmbeddingProvider implements EmbeddingProvider {
 
     const external = opts?.signal;
     // 外部已取消 → 不发起请求，立即以 AbortError 收尾。
-    if (external?.aborted) throw makeAbortError();
+    if (external?.aborted) throw createAbortError("Embedding request aborted");
 
     const url = `${this.apiBase.replace(/\/+$/, "")}/embeddings`;
     const controller = new AbortController();
@@ -65,7 +61,7 @@ export class RemoteEmbeddingProvider implements EmbeddingProvider {
     } catch (e) {
       cleanup();
       // 外部取消优先于超时判定：用户点停时不误报为网络/超时错误。
-      if (external?.aborted) throw makeAbortError();
+      if (external?.aborted) throw createAbortError("Embedding request aborted");
       if (controller.signal.aborted) {
         throw new Error("Embedding API timeout (30s)");
       }

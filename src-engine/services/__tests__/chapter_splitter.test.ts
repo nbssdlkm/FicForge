@@ -330,3 +330,44 @@ describe("llmDetectChapterPattern", () => {
     expect(result.chapters[0].title).toContain("黎明前");
   });
 });
+
+describe("章/节混排降级（盲审 2026-07-11：pattern 逐级独占，不合并匹配集）", () => {
+  it("「第X章」作章、「第X节」作章内小节的文档只按章切分", async () => {
+    const text = [
+      "第一章 开端", "正文A", "第一节 相遇", "正文B", "第二节 冲突", "正文C",
+      "第二章 转折", "正文D", "第一节 重逢", "正文E",
+    ].join("\n");
+    const result = await splitChapters(text);
+    expect(result.method).toBe("standard_headers");
+    expect(result.chapters).toHaveLength(2);
+    expect(result.chapters[0].title).toContain("第一章");
+    expect(result.chapters[1].title).toContain("第二章");
+    // 「节」标题应留在章正文内而不是成为独立章
+    expect(result.chapters[0].content).toContain("第一节 相遇");
+    expect(result.chapters[0].content).toContain("第二节 冲突");
+  });
+
+  it("全文只有「第X节」时降级用节切分（保持旧能力）", async () => {
+    const text = ["第一节 起", "正文A", "第二节 承", "正文B"].join("\n");
+    const result = await splitChapters(text);
+    expect(result.method).toBe("standard_headers");
+    expect(result.chapters).toHaveLength(2);
+  });
+});
+
+describe("中英章标题混排（B1 对抗审回归修正：章级 pattern 同层合并）", () => {
+  it("「第X章」与「Chapter N」混用的文档两者都算章边界", async () => {
+    const text = ["第一章 序", "正文A", "Chapter 2 The Meeting", "正文B", "第三章 结局", "正文C"].join("\n");
+    const result = await splitChapters(text);
+    expect(result.method).toBe("standard_headers");
+    expect(result.chapters).toHaveLength(3);
+    expect(result.chapters[1].title).toContain("Chapter 2");
+  });
+
+  it("章级标题存在时「节」仍不参与切分（层间不混）", async () => {
+    const text = ["Chapter 1 Start", "正文A", "第一节 场景", "正文B", "Chapter 2 End", "正文C"].join("\n");
+    const result = await splitChapters(text);
+    expect(result.chapters).toHaveLength(2);
+    expect(result.chapters[0].content).toContain("第一节 场景");
+  });
+});

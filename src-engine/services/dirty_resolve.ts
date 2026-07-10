@@ -15,6 +15,7 @@ import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
+import { logCatch } from "../logger/index.js";
 import { compute_content_hash, generate_op_id, now_utc } from "../utils/file_utils.js";
 import { withAuLock } from "./au_lock.js";
 import { edit_fact, update_fact_status } from "./facts_lifecycle.js";
@@ -43,6 +44,20 @@ export interface ResolveDirtyResult {
   chapter_num: number;
   is_latest: boolean;
   content_hash: string;
+  /**
+   * 步骤 6 中应用失败的 fact 变更（章节本身已成功解除脏）。
+   * 旧行为是整体抛错 —— 但此时 chapter/state 已提交、该章已不在 chapters_dirty，
+   * 同路径重试必然被前置校验拒绝，用户勾选的变更静默丢失（盲审 2026-07-11 正确性维）。
+   * 现在改为逐条尽力应用 + 如实带回失败清单，由 UI 明示「章节已解除，N 条笔记变更
+   * 未应用」引导去 Facts 面板手工处理，不再把半成功伪装成整体失败。
+   */
+  failed_fact_changes: FailedFactChange[];
+}
+
+export interface FailedFactChange {
+  fact_id: string;
+  action: "update" | "deprecate";
+  error: string;
 }
 
 /**
@@ -102,8 +117,8 @@ async function doResolve(params: ResolveDirtyParams): Promise<ResolveDirtyResult
   state.index_status = IndexStatus.STALE;
 
   // === 步骤 5：事务提交（D-0036：ops → chapter → state） ===
-  // 先提交 chapter + state，再应用 fact 变更。如果 fact 变更失败，dirty resolve
-  // 本身已完成（chapter 已 clean、state 已更新），fact 变更可手动重做。
+  // 先提交 chapter + state，再应用 fact 变更。fact 变更失败不再整体抛错 ——
+  // 逐条尽力应用并把失败清单随结果带回（见 ResolveDirtyResult.failed_fact_changes）。
   // 旧顺序（fact 先 → chapter/state 后）的问题：fact 各自独立 commit，
   // chapter/state commit 失败时无法回滚已提交的 fact，留下不一致的中间状态。
   const timestamp = now_utc();
@@ -121,12 +136,13 @@ async function doResolve(params: ResolveDirtyParams): Promise<ResolveDirtyResult
   await tx.commit(ops_repo, null, state_repo, chapter_repo, null);
 
   // === 步骤 6：执行 facts 变更（在 chapter/state 成功提交之后） ===
-  await applyFactChanges(au_id, chapter_num, confirmed_fact_changes, fact_repo, ops_repo, state_repo);
+  const failedFactChanges = await applyFactChanges(au_id, chapter_num, confirmed_fact_changes, fact_repo, ops_repo, state_repo);
 
   return {
     chapter_num,
     is_latest: isLatest,
     content_hash: newHash,
+    failed_fact_changes: failedFactChanges,
   };
 }
 
@@ -134,6 +150,10 @@ async function doResolve(params: ResolveDirtyParams): Promise<ResolveDirtyResult
 // 步骤 2：facts 变更
 // -----------------------------------------------------------------
 
+/**
+ * 逐条尽力应用 fact 变更，失败不中断后续条目（单条 IO 失败不该连坐拖垮其余变更），
+ * 失败清单返回给调用方透出。每条失败都落日志（可随「导出日志」带走诊断）。
+ */
 async function applyFactChanges(
   au_id: string,
   chapter_num: number,
@@ -141,16 +161,27 @@ async function applyFactChanges(
   fact_repo: FactRepository,
   ops_repo: OpsRepository,
   state_repo: StateRepository,
-): Promise<void> {
+): Promise<FailedFactChange[]> {
+  const failed: FailedFactChange[] = [];
   for (const change of changes) {
     if (change.action === "keep") continue;
 
-    if (change.action === "update" && change.updated_fields) {
-      await edit_fact(au_id, change.fact_id, change.updated_fields, fact_repo, ops_repo, state_repo);
-    } else if (change.action === "deprecate") {
-      await update_fact_status(au_id, change.fact_id, "deprecated", chapter_num, fact_repo, ops_repo, state_repo);
+    try {
+      if (change.action === "update" && change.updated_fields) {
+        await edit_fact(au_id, change.fact_id, change.updated_fields, fact_repo, ops_repo, state_repo);
+      } else if (change.action === "deprecate") {
+        await update_fact_status(au_id, change.fact_id, "deprecated", chapter_num, fact_repo, ops_repo, state_repo);
+      }
+    } catch (e) {
+      logCatch("dirty_resolve", `apply fact change failed: ${change.action} ${change.fact_id}`, e);
+      failed.push({
+        fact_id: change.fact_id,
+        action: change.action as "update" | "deprecate",
+        error: e instanceof Error ? e.message : String(e),
+      });
     }
   }
+  return failed;
 }
 
 // -----------------------------------------------------------------

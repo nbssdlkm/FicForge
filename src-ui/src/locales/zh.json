@@ -790,6 +790,7 @@
     "confirmResolve": "确认修改，更新状态",
     "confirmResolveSubtitle": "保存选中的笔记 + 清除修改标记",
     "saveFailed": "有 {{count}} 条笔记保存失败",
+    "factChangesFailed": "章节已解除修改标记，但有 {{count}} 条笔记变更未应用，请到记忆面板手工处理",
     "banner": "有 {{count}} 章的角色出场信息需要更新（第 {{chapters}} 章）。AI续写时可能参考旧版信息。",
     "goResolve": "去处理",
     "dismissBanner": "稍后"

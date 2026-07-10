@@ -23,6 +23,7 @@
  * maxIter 未收尾。wrapper 只在 degraded 且空时 fallback 单次调用。
  */
 
+import { createAbortError } from "../utils/abort_error.js";
 import type { LLMProvider, Message, ToolCall, ToolChoice } from "../llm/provider.js";
 import type { Fact, FactFieldConfidence } from "../domain/fact.js";
 import type { Thread } from "../domain/thread.js";
@@ -384,7 +385,7 @@ export async function reactExtractFromChapter(
       ...(ctx.reasoningContent ? { reasoning_content: ctx.reasoningContent } : {}),
     });
     for (const c of calls) {
-      if (opts.signal?.aborted) throw new DOMException("aborted", "AbortError");
+      if (opts.signal?.aborted) throw createAbortError();
       if (c.function.name === REACT_TOOL_FINALIZE) {
         // 终止信号：给个空 ack（协议要求每个 tool_call 有 result），不跑业务。
         ctx.internalHistory.push({ role: "tool", tool_call_id: c.id, content: JSON.stringify({ ok: true }) });

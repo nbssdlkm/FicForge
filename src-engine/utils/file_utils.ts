@@ -8,6 +8,7 @@
  * 纯路径工具在 ./paths.ts（此处 re-export，importer 无需区分两个模块）。
  */
 
+import yaml from "js-yaml";
 import type { PlatformAdapter } from "../platform/adapter.js";
 import { warnAlways } from "../logger/index.js";
 
@@ -25,6 +26,15 @@ export async function compute_content_hash(content: string): Promise<string> {
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * 全仓统一的 YAML 落盘序列化（盲审 2026-07-11 重复维：选项字面量此前散落 10+ 处）。
+ * sortKeys:false 保持字段书写顺序稳定（diff 友好）；lineWidth:-1 禁止长行折行
+ * （折行会破坏 frontmatter / 长 URL 的逐字节可比性）。调整输出口径只改这里。
+ */
+export function dumpYaml(obj: unknown): string {
+  return yaml.dump(obj, { sortKeys: false, lineWidth: -1 });
 }
 
 /** 递归将对象中的 enum 值转为字符串。用于 YAML 序列化前。 */

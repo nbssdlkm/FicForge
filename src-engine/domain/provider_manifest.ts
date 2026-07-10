@@ -16,7 +16,7 @@
  *       manifest 推荐模型的 ctx（权威） > MODEL_CONTEXT_MAP fuzzy（按 id 推断） > undefined（调用方兜 DEFAULT）。
  */
 
-import { MODEL_CONTEXT_MAP, get_context_window, normalizeModelId } from "./model_context_map.js";
+import { MODEL_CONTEXT_MAP, get_context_window, lookup_model_context_window, lookup_model_max_output, normalizeModelId } from "./model_context_map.js";
 
 // ---------------------------------------------------------------------------
 // 类型（参照 Kelivo ProviderConfig + Cherry ModelInfo，蓝图 §三.3-4）
@@ -78,11 +78,19 @@ export interface ProviderEntry {
 // 内置供应商清单（单一真相源）
 //
 // 排序 = 对中文写手重要性（蓝图 §三；DeepSeek/硅基流动/Kimi/GLM 靠前）。
-// baseUrl 来源见调研表第 1 节；ctx/max out 与 MODEL_CONTEXT_MAP 同源同值。
+// baseUrl 来源见调研表第 1 节；ctx/max out 不在此双写 —— 构建期从
+// MODEL_CONTEXT_MAP / MODEL_MAX_OUTPUT 派生（单一真相源，盲审 2026-07-11 重复维）。
 // ⚠️ = 二手/未官方确证，取保守值。
 // ---------------------------------------------------------------------------
 
-const _PROVIDERS: readonly ProviderEntry[] = [
+// 内置清单的「原始」形态：不含 ctx/out —— 这两个数字唯一活在 MODEL_CONTEXT_MAP /
+// MODEL_MAX_OUTPUT（domain/model_context_map.ts），构建期注入，防两处字面量漂移。
+type RawRecommendedModel = Omit<RecommendedModel, "contextWindow" | "maxOutputTokens">;
+type RawProviderEntry = Omit<ProviderEntry, "recommendedModels"> & {
+  recommendedModels: RawRecommendedModel[];
+};
+
+const _RAW_PROVIDERS: readonly RawProviderEntry[] = [
   {
     id: "deepseek",
     displayName: { zh: "DeepSeek 深度求索", en: "DeepSeek" },
@@ -92,16 +100,12 @@ const _PROVIDERS: readonly ProviderEntry[] = [
       {
         id: "deepseek-v4-flash",
         displayName: "DeepSeek V4 Flash",
-        contextWindow: 1_000_000,
-        maxOutputTokens: 384_000,
         type: "chat",
         tags: ["value", "long_context"],
       },
       {
         id: "deepseek-v4-pro",
         displayName: "DeepSeek V4 Pro",
-        contextWindow: 1_000_000,
-        maxOutputTokens: 384_000,
         type: "chat",
         tags: ["flagship", "long_context"],
       },
@@ -117,16 +121,12 @@ const _PROVIDERS: readonly ProviderEntry[] = [
       {
         id: "deepseek-ai/DeepSeek-V4-Pro",
         displayName: "DeepSeek V4 Pro",
-        contextWindow: 1_000_000,
-        maxOutputTokens: 384_000,
         type: "chat",
         tags: ["flagship", "long_context"],
       },
       {
         id: "zai-org/GLM-4.7",
         displayName: "GLM-4.7",
-        contextWindow: 200_000,
-        maxOutputTokens: 128_000,
         type: "chat",
         tags: ["creative"],
       },
@@ -134,7 +134,6 @@ const _PROVIDERS: readonly ProviderEntry[] = [
         // embedding：bge-m3（免费状态待真机核，调研 ⚠️）。来源：SiliconFlow docs
         id: "BAAI/bge-m3",
         displayName: "BGE-M3 (embedding)",
-        contextWindow: 8_192,
         type: "embedding",
       },
     ],
@@ -149,16 +148,12 @@ const _PROVIDERS: readonly ProviderEntry[] = [
       {
         id: "kimi-k2.7-code",
         displayName: "Kimi K2.7 Code",
-        contextWindow: 262_144,
-        maxOutputTokens: 16_384,
         type: "chat",
         tags: ["flagship", "long_context"],
       },
       {
         id: "kimi-k2.6",
         displayName: "Kimi K2.6",
-        contextWindow: 262_144,
-        maxOutputTokens: 16_384,
         type: "chat",
         tags: ["long_context", "creative"],
       },
@@ -173,8 +168,6 @@ const _PROVIDERS: readonly ProviderEntry[] = [
       {
         id: "glm-5.2",
         displayName: "GLM-5.2",
-        contextWindow: 1_000_000,
-        maxOutputTokens: 128_000,
         type: "chat",
         tags: ["flagship", "long_context"],
       },
@@ -182,8 +175,6 @@ const _PROVIDERS: readonly ProviderEntry[] = [
         // 官方点名 creative writing / roleplay 强（调研）
         id: "glm-4.7",
         displayName: "GLM-4.7",
-        contextWindow: 200_000,
-        maxOutputTokens: 128_000,
         type: "chat",
         tags: ["creative", "value"],
       },
@@ -198,24 +189,18 @@ const _PROVIDERS: readonly ProviderEntry[] = [
       {
         id: "qwen3.7-max",
         displayName: "Qwen3.7 Max",
-        contextWindow: 1_000_000,
-        maxOutputTokens: 8_192,
         type: "chat",
         tags: ["flagship", "long_context"],
       },
       {
         id: "qwen3.7-plus",
         displayName: "Qwen3.7 Plus",
-        contextWindow: 1_000_000,
-        maxOutputTokens: 8_192,
         type: "chat",
         tags: ["value", "long_context"],
       },
       {
         id: "qwen-long",
         displayName: "Qwen Long (10M)",
-        contextWindow: 10_000_000,
-        maxOutputTokens: 8_192,
         type: "chat",
         tags: ["long_context"],
       },
@@ -230,16 +215,12 @@ const _PROVIDERS: readonly ProviderEntry[] = [
       {
         id: "doubao-seed-2-0-pro-260215",
         displayName: "Doubao Seed 2.0 Pro",
-        contextWindow: 256_000,
-        maxOutputTokens: 128_000,
         type: "chat",
         tags: ["flagship", "long_context"],
       },
       {
         id: "doubao-seed-2-0-lite-260215",
         displayName: "Doubao Seed 2.0 Lite",
-        contextWindow: 256_000,
-        maxOutputTokens: 16_384,
         type: "chat",
         tags: ["value", "long_context"],
       },
@@ -254,16 +235,12 @@ const _PROVIDERS: readonly ProviderEntry[] = [
       {
         id: "MiniMax-M3",
         displayName: "MiniMax M3",
-        contextWindow: 1_000_000,
-        maxOutputTokens: 16_384,
         type: "chat",
         tags: ["flagship", "long_context"],
       },
       {
         id: "MiniMax-M2.7",
         displayName: "MiniMax M2.7",
-        contextWindow: 204_800,
-        maxOutputTokens: 196_000,
         type: "chat",
         tags: ["long_context"],
       },
@@ -279,16 +256,12 @@ const _PROVIDERS: readonly ProviderEntry[] = [
       {
         id: "anthropic/claude-sonnet-4-6",
         displayName: "Claude Sonnet 4.6",
-        contextWindow: 1_000_000,
-        maxOutputTokens: 128_000,
         type: "chat",
         tags: ["flagship", "creative", "long_context"],
       },
       {
         id: "z-ai/glm-4.7",
         displayName: "GLM-4.7",
-        contextWindow: 200_000,
-        maxOutputTokens: 128_000,
         type: "chat",
         tags: ["creative", "value"],
       },
@@ -303,24 +276,18 @@ const _PROVIDERS: readonly ProviderEntry[] = [
       {
         id: "gpt-5.5",
         displayName: "GPT-5.5",
-        contextWindow: 1_000_000,
-        maxOutputTokens: 128_000,
         type: "chat",
         tags: ["flagship", "long_context"],
       },
       {
         id: "gpt-5.4",
         displayName: "GPT-5.4",
-        contextWindow: 1_000_000,
-        maxOutputTokens: 128_000,
         type: "chat",
         tags: ["long_context"],
       },
       {
         id: "gpt-5.4-mini",
         displayName: "GPT-5.4 Mini",
-        contextWindow: 400_000,
-        maxOutputTokens: 128_000,
         type: "chat",
         tags: ["value"],
       },
@@ -335,16 +302,12 @@ const _PROVIDERS: readonly ProviderEntry[] = [
       {
         id: "gemini-3.1-pro-preview",
         displayName: "Gemini 3.1 Pro",
-        contextWindow: 1_000_000,
-        maxOutputTokens: 64_000,
         type: "chat",
         tags: ["flagship", "long_context"],
       },
       {
         id: "gemini-3.5-flash",
         displayName: "Gemini 3.5 Flash",
-        contextWindow: 1_000_000,
-        maxOutputTokens: 64_000,
         type: "chat",
         tags: ["value", "long_context"],
       },
@@ -360,24 +323,18 @@ const _PROVIDERS: readonly ProviderEntry[] = [
       {
         id: "claude-opus-4-8",
         displayName: "Claude Opus 4.8",
-        contextWindow: 1_000_000,
-        maxOutputTokens: 128_000,
         type: "chat",
         tags: ["flagship", "creative", "long_context"],
       },
       {
         id: "claude-sonnet-5",
         displayName: "Claude Sonnet 5",
-        contextWindow: 1_000_000,
-        maxOutputTokens: 128_000,
         type: "chat",
         tags: ["creative", "long_context"],
       },
       {
         id: "claude-haiku-4-5",
         displayName: "Claude Haiku 4.5",
-        contextWindow: 200_000,
-        maxOutputTokens: 64_000,
         type: "chat",
         tags: ["value"],
       },
@@ -392,6 +349,26 @@ const _PROVIDERS: readonly ProviderEntry[] = [
     recommendedModels: [],
   },
 ];
+
+/**
+ * 构建期注入 ctx/out（fail-fast：manifest 推荐模型必须在 MODEL_CONTEXT_MAP 有条目，
+ * 缺条目属编码错误 —— 与 mustProvider 同哲学，不静默兜底成 DEFAULT 伪装权威值）。
+ * maxOutputTokens 查不到则省略（RecommendedModel 该字段可选，调用方自兜）。
+ */
+function withModelContext(m: RawRecommendedModel): RecommendedModel {
+  const ctx = lookup_model_context_window(m.id);
+  if (ctx === null) {
+    throw new Error(`MODEL_CONTEXT_MAP 缺少 provider manifest 推荐模型 "${m.id}" 的条目`);
+  }
+  const out = lookup_model_max_output(m.id);
+  return { ...m, contextWindow: ctx, ...(out !== null ? { maxOutputTokens: out } : {}) };
+}
+
+const _PROVIDERS: readonly ProviderEntry[] = _RAW_PROVIDERS.map((p) => ({
+  ...p,
+  recommendedModels: p.recommendedModels.map(withModelContext),
+}));
+
 
 // ---------------------------------------------------------------------------
 // 查询函数（纯函数）

@@ -158,7 +158,7 @@ describe("resolve_dirty_chapter", () => {
     expect(resolveOp?.chapter_num).toBe(2);
   });
 
-  it("fact changes after commit: chapter still clean even if fact op fails", async () => {
+  it("fact op 失败：解除本身成功返回，失败变更如实带回 failed_fact_changes（盲审 2026-07-11：不再伪装整体失败）", async () => {
     await seedState({ current_chapter: 3, chapters_dirty: [2] });
     await seedChapter("au1", 2, "Chapter two content.");
 
@@ -167,12 +167,18 @@ describe("resolve_dirty_chapter", () => {
       createFactChange({ fact_id: "nonexistent", action: "update", updated_fields: { status: "deprecated" } }),
     ];
 
-    await expect(resolve_dirty_chapter({
+    const result = await resolve_dirty_chapter({
       au_id: "au1", chapter_num: 2,
       confirmed_fact_changes: changes,
       chapter_repo: chapterRepo, state_repo: stateRepo,
       ops_repo: opsRepo, fact_repo: factRepo,
-    })).rejects.toThrow();
+    });
+
+    // 旧行为整体 rejects —— 但此时章节已 clean、重试必被「不在 dirty 列表」拒绝，
+    // 用户勾选的变更静默丢失。新契约：resolve 成功 + 失败清单透出。
+    expect(result.failed_fact_changes).toHaveLength(1);
+    expect(result.failed_fact_changes[0]).toMatchObject({ fact_id: "nonexistent", action: "update" });
+    expect(result.failed_fact_changes[0].error).toContain("Fact 不存在");
 
     // Key assertion: chapter is clean even though facts failed
     // (new order: chapter/state committed BEFORE facts)
@@ -182,6 +188,34 @@ describe("resolve_dirty_chapter", () => {
     // Ops should still have the resolve_dirty_chapter op
     const ops = await opsRepo.list_all("au1");
     expect(ops.some(o => o.op_type === "resolve_dirty_chapter")).toBe(true);
+  });
+
+  it("fact op 单条失败不连坐：其余变更照常应用", async () => {
+    await seedState({ current_chapter: 3, chapters_dirty: [2] });
+    await seedChapter("au1", 2, "Chapter two content.");
+    const fact = createFact({
+      id: "fact_ok1", au_id: "au1", chapter: 2,
+      content_clean: "hero met villain",
+      status: FactStatus.ACTIVE,
+    });
+    await factRepo.append("au1", fact);
+
+    const changes = [
+      createFactChange({ fact_id: "nonexistent", action: "deprecate" }),
+      createFactChange({ fact_id: "fact_ok1", action: "deprecate" }),
+    ];
+
+    const result = await resolve_dirty_chapter({
+      au_id: "au1", chapter_num: 2,
+      confirmed_fact_changes: changes,
+      chapter_repo: chapterRepo, state_repo: stateRepo,
+      ops_repo: opsRepo, fact_repo: factRepo,
+    });
+
+    expect(result.failed_fact_changes).toHaveLength(1);
+    expect(result.failed_fact_changes[0].fact_id).toBe("nonexistent");
+    const updated = await factRepo.get("au1", "fact_ok1");
+    expect(updated?.status).toBe(FactStatus.DEPRECATED);
   });
 
   // ── ops and state consistency ─────────────────────────────────────

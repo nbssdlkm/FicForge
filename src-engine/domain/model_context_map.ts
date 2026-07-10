@@ -90,6 +90,10 @@ export const MODEL_CONTEXT_MAP: Record<string, number> = {
   "claude-3-5-sonnet": 200_000,
   "claude-3-7-sonnet": 200_000,
 
+  // --- Embedding（provider manifest 派生用；不参与生成预算，仅供选择器展示）---
+  // bge-m3：8K ctx。来源：BAAI model card（官方）
+  "bge-m3": 8_192,
+
   // --- 本地 / Ollama 常见基座（保留旧条目）---
   // 来源：Meta（官方，遗留）
   "llama3": 131_072,
@@ -218,4 +222,21 @@ export function get_context_window(project: { llm?: { context_window?: number; m
 /** 获取模型单次输出 token 上限（PRD §4.1）。 */
 export function get_model_max_output(model_name: string): number {
   return fuzzyLookup(model_name, MODEL_MAX_OUTPUT, DEFAULT_MAX_OUTPUT);
+}
+
+/**
+ * 按模型名查 context window（fuzzy：strip org/ 前缀 + 小写 + 最长前缀）。
+ * provider_manifest 的推荐模型 ctx/out 从本表派生（盲审 2026-07-11 重复维：
+ * 此前 manifest 双写同值字面量，口径变化时两处漂移）。查不到返回 null，
+ * 让调用方显式处理「本表未收录」而不是拿到兜底值误当官方口径。
+ */
+export function lookup_model_context_window(model_name: string): number | null {
+  const v = fuzzyLookup(model_name, MODEL_CONTEXT_MAP, -1);
+  return v === -1 ? null : v;
+}
+
+/** 同 lookup_model_context_window，输出上限侧。 */
+export function lookup_model_max_output(model_name: string): number | null {
+  const v = fuzzyLookup(model_name, MODEL_MAX_OUTPUT, -1);
+  return v === -1 ? null : v;
 }
