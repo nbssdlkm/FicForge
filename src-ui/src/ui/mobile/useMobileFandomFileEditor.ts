@@ -3,11 +3,16 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useState } from "react";
-import { deleteLore, readFandomFile, saveLore } from "../../api/engine-client";
+import { deleteLore, listFandomFiles, readFandomFile, saveLore } from "../../api/engine-client";
 import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
 import { useFeedback } from "../../hooks/useFeedback";
 import { useTranslation } from "../../i18n/useAppTranslation";
-import type { FandomCategory } from "./useMobileFandomFiles";
+import {
+  buildDefaultFandomLoreContent,
+  isLoreEditorDirty,
+  toCanonicalCreateKey,
+  type FandomLoreCategory,
+} from "../library/lore-utils";
 
 /**
  * useMobileFandomFileEditor — 圈子文件详情态：选中文件的读取 / 编辑 / 保存 / 新建 / 删除。
@@ -17,11 +22,14 @@ import type { FandomCategory } from "./useMobileFandomFiles";
  */
 export function useMobileFandomFileEditor(fandomPath: string, fandomDirName: string) {
   const { t } = useTranslation();
-  const { showError } = useFeedback();
+  const { showError, showToast } = useFeedback();
   const readGuard = useActiveRequestGuard(`${fandomPath}:read`);
+  // 写路径 guard（合并审阅：save/create/delete 原先无 guard，切圈子后迟到的成功分支
+  // 会把旧圈正文写进新圈的 savedContent，污染脏判据）
+  const writeGuard = useActiveRequestGuard(`${fandomPath}:write`);
 
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<FandomCategory>("core_characters");
+  const [selectedCategory, setSelectedCategory] = useState<FandomLoreCategory>("core_characters");
   const [editorContent, setEditorContent] = useState("");
   const [savedContent, setSavedContent] = useState("");
   const [previewMode, setPreviewMode] = useState(true);
@@ -39,7 +47,7 @@ export function useMobileFandomFileEditor(fandomPath: string, fandomDirName: str
     setReadingFile(false);
   }, [fandomPath]);
 
-  const openFile = async (filename: string, cat: FandomCategory) => {
+  const openFile = async (filename: string, cat: FandomLoreCategory) => {
     if (!fandomDirName) return;
     const token = readGuard.start();
     setSelectedFile(filename);
@@ -69,50 +77,70 @@ export function useMobileFandomFileEditor(fandomPath: string, fandomDirName: str
 
   const save = async () => {
     if (!selectedFile || !fandomPath) return;
+    const token = writeGuard.start();
     setSaving(true);
     try {
       await saveLore({ fandom_path: fandomPath, category: selectedCategory, filename: selectedFile, content: editorContent });
+      if (writeGuard.isStale(token)) return; // 已切圈：写盘目标（旧圈）正确，但不许污染新圈状态
       setSavedContent(editorContent);
     } catch (error) {
+      if (writeGuard.isStale(token)) return;
       showError(error, t("error_messages.unknown"));
     } finally {
-      setSaving(false);
+      if (!writeGuard.isStale(token)) setSaving(false);
     }
   };
 
-  const createFile = async (name: string, cat: FandomCategory): Promise<string | null> => {
+  const createFile = async (name: string, cat: FandomLoreCategory): Promise<string | null> => {
     const trimmed = name.trim();
     if (!trimmed || !fandomPath) return null;
+    const token = writeGuard.start();
     setSaving(true);
     try {
-      const filename = `${trimmed}.md`;
-      const template = `---\nname: ${trimmed}\n---\n\n# ${trimmed}\n\n`;
-      await saveLore({ fandom_path: fandomPath, category: cat, filename, content: template });
+      const displayName = trimmed.replace(/\.md$/i, "").trim();
+      if (!displayName) return null;
+      const filename = `${displayName}.md`;
+      // 重名校验（合并审阅：桌面 createLore 有 canonical-key 去重，移动端原先缺失 →
+      // 同名/大小写变体静默覆盖已有文件）。判据与桌面同源 toCanonicalCreateKey。
+      const latest = await listFandomFiles(fandomDirName);
+      if (writeGuard.isStale(token)) return null;
+      const existing = cat === "core_characters" ? latest.characters : latest.worldbuilding;
+      if (existing.some((file) => toCanonicalCreateKey(file.filename) === toCanonicalCreateKey(filename))) {
+        showToast(t("fandomLore.createDuplicate", { name: filename }), "warning");
+        return null;
+      }
+      // 模板与桌面同源（原先移动端硬编码且给 worldbuilding 塞多余 name frontmatter）
+      await saveLore({ fandom_path: fandomPath, category: cat, filename, content: buildDefaultFandomLoreContent(displayName) });
+      if (writeGuard.isStale(token)) return null;
       return filename;
     } catch (error) {
+      if (writeGuard.isStale(token)) return null;
       showError(error, t("error_messages.unknown"));
       return null;
     } finally {
-      setSaving(false);
+      if (!writeGuard.isStale(token)) setSaving(false);
     }
   };
 
   const deleteSelected = async (): Promise<boolean> => {
     if (!selectedFile || !fandomPath) return false;
+    const token = writeGuard.start();
     setSaving(true);
     try {
       await deleteLore({ fandom_path: fandomPath, category: selectedCategory, filename: selectedFile });
+      if (writeGuard.isStale(token)) return false;
       setSelectedFile(null);
       return true;
     } catch (error) {
+      if (writeGuard.isStale(token)) return false;
       showError(error, t("error_messages.unknown"));
       return false;
     } finally {
-      setSaving(false);
+      if (!writeGuard.isStale(token)) setSaving(false);
     }
   };
 
-  const isDirty = selectedFile !== null && editorContent !== savedContent;
+  const isDirty = isLoreEditorDirty(selectedFile, editorContent, savedContent);
 
   return {
     selectedFile,

@@ -38,6 +38,10 @@ export function useAuLoreEditor(
   const [selectedCategory, setSelectedCategory] = useState<LoreCategory>('characters');
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [editorContent, setEditorContent] = useState('');
+  // 最近一次与磁盘一致的正文（打开/新建/保存成功时更新）。脏判据 = 与 editorContent 不等；
+  // reconcile 重读仅在不脏时执行 —— 否则「打开文件→编辑未保存→导入成功触发 reload」会
+  // 重读磁盘静默覆盖未保存编辑（2026-07-10 合并审阅确认的存量数据丢失路径）。
+  const [savedContent, setSavedContent] = useState('');
   const [aliases, setAliases] = useState<string[]>([]);
   const [newAlias, setNewAlias] = useState('');
   const [previewMode, setPreviewMode] = useState(true);
@@ -48,10 +52,15 @@ export function useAuLoreEditor(
   const listsRef = useRef({ files, worldbuildingFiles });
   listsRef.current = { files, worldbuildingFiles };
 
+  // markContentSaved 在 actions 的 async 收尾里被调，经 ref 读最新正文（闭包会陈旧）
+  const editorContentRef = useRef(editorContent);
+  editorContentRef.current = editorContent;
+
   // 切 AU：关掉上一篇打开的文件
   useEffect(() => {
     setSelectedFile(null);
     setEditorContent('');
+    setSavedContent('');
     setAliases([]);
     setNewAlias('');
     setIsReadingFile(false);
@@ -69,12 +78,14 @@ export function useAuLoreEditor(
       if (readGuard.isStale(token)) return;
       const content = result.content || buildDefaultContent(name, category);
       setEditorContent(content);
+      setSavedContent(content);
       setAliases(category === 'characters' ? parseAliasesFromContent(content) : []);
       setNewAlias('');
     } catch {
       if (readGuard.isStale(token)) return;
       const fallback = buildDefaultContent(name, category);
       setEditorContent(fallback);
+      setSavedContent(fallback);
       // 读失败也要重置别名，否则残留上一个文件的别名、保存时被误写入
       setAliases(category === 'characters' ? parseAliasesFromContent(fallback) : []);
       setNewAlias('');
@@ -91,20 +102,24 @@ export function useAuLoreEditor(
   const closeFile = useCallback(() => {
     setSelectedFile(null);
     setEditorContent('');
+    setSavedContent('');
     setAliases([]);
     setNewAlias('');
   }, []);
 
-  // 全量列表刷新后（导入成功 reload）：选中文件仍在 → 重读正文；已消失 → 关闭
+  // 全量列表刷新后（导入成功 reload）：选中文件仍在且无未保存编辑 → 重读正文；
+  // 有未保存编辑 → 保留内存内容不重读（用户编辑优先于磁盘回显）；已消失 → 关闭
   useEffect(() => {
     if (loadKey === 0 || !selectedFile) return;
     const list = selectedCategory === 'worldbuilding' ? listsRef.current.worldbuildingFiles : listsRef.current.files;
     if (list.some((file) => file.name === selectedFile)) {
-      void openFile(selectedFile, selectedCategory);
+      if (editorContent === savedContent) {
+        void openFile(selectedFile, selectedCategory);
+      }
     } else {
       closeFile();
     }
-    // 只应由 loadKey 驱动；selectedFile/selectedCategory 取触发时刻的值
+    // 只应由 loadKey 驱动；selectedFile/selectedCategory/脏判据 取触发时刻的值
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadKey]);
 
@@ -147,10 +162,16 @@ export function useAuLoreEditor(
     setSelectedCategory(category);
     setSelectedFile(name);
     setEditorContent(content);
+    setSavedContent(content);
     // 别名同步重置，否则新文件会带着上一个文件的别名、保存时被误写入
     setAliases(category === 'characters' ? parseAliasesFromContent(content) : []);
     setNewAlias('');
     setPreviewMode(false);
+  }, []);
+
+  /** 保存成功后由 actions 调用：把当前正文标记为「与磁盘一致」（脏判据基线）。 */
+  const markContentSaved = useCallback(() => {
+    setSavedContent(editorContentRef.current);
   }, []);
 
   const clearSearch = useCallback(() => setSearchTerm(''), []);
@@ -176,6 +197,7 @@ export function useAuLoreEditor(
     popLastAlias,
     appendDroppedText,
     applyCreated,
+    markContentSaved,
     clearSearch,
     // 受控绑定 setter（hook 规则 5 例外①）
     setEditorContent, // 正文 textarea

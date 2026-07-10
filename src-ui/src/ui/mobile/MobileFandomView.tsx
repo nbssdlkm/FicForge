@@ -12,6 +12,7 @@ import { Modal } from "../shared/Modal";
 import { EmptyState } from "../shared/EmptyState";
 import { SettingsMarkdown } from "../shared/SettingsMarkdown";
 import { SettingsChatPanel } from "../shared/settings-chat/SettingsChatPanel";
+import { fandomDirNameOf } from "../library/lore-utils";
 import { cn } from "../shared/utils";
 import { FeedbackProvider } from "../../hooks/useFeedback";
 import { useMobileFandomFiles } from "./useMobileFandomFiles";
@@ -33,7 +34,8 @@ export function MobileFandomView(props: MobileFandomViewProps) {
 
 function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps) {
   const { t } = useTranslation();
-  const fandomDirName = fandomPath.split("/").pop() || "";
+  // 路径→目录名判据走 lore-utils 单一真相源（合并审阅：原为内联手写副本）
+  const fandomDirName = fandomDirNameOf(fandomPath);
 
   const files = useMobileFandomFiles(fandomPath, fandomDirName);
   const editor = useMobileFandomFileEditor(fandomPath, fandomDirName);
@@ -42,13 +44,13 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
   const currentFiles = chrome.category === "core_characters" ? files.characterFiles : files.worldbuildingFiles;
   const categoryLabel = chrome.category === "core_characters" ? t("fandomLore.category.characters") : t("fandomLore.category.worldbuilding");
 
-  // 新建 → 关弹窗 → 刷列表 → 直接打开新文件（跨 hook 编排只在组件层，hook 间不互持状态）
+  // 新建 → 关弹窗 → 刷列表 + 打开新文件（跨 hook 编排只在组件层，hook 间不互持状态；
+  // 刷列表与读新文件互不依赖，可并行省一个 round-trip）
   const handleCreate = async () => {
     const filename = await editor.createFile(chrome.createName, chrome.category);
     if (!filename) return;
     chrome.closeCreate();
-    await files.reload();
-    await editor.openFile(filename, chrome.category);
+    await Promise.all([files.reload(), editor.openFile(filename, chrome.category)]);
   };
 
   const handleDelete = async () => {

@@ -33,6 +33,31 @@ export function buildDefaultWorldbuildingContent(name: string): string {
   return `# ${name}\n\n`;
 }
 
+/**
+ * Fandom 核心资料（core_characters / core_worldbuilding 通用）的新建模板。
+ * 桌面与移动端共用 —— 此前移动端各写一版且给 worldbuilding 塞了多余的 name
+ * frontmatter（2026-07-10 合并审阅：跨端产物结构漂移，收敛单源）。
+ */
+export function buildDefaultFandomLoreContent(displayName: string): string {
+  return `# ${displayName}\n\n[]`;
+}
+
+// ---------------------------------------------------------------------------
+// 编辑器判据
+// ---------------------------------------------------------------------------
+
+/**
+ * 编辑器脏判据（弃改确认 / 保存禁用 / reconcile 重读的门槛）——
+ * 桌面 FandomLore 与移动端共用同一判据，禁两处各写（会随时间漂移）。
+ */
+export function isLoreEditorDirty(
+  selectedFile: string | null,
+  editorContent: string,
+  savedContent: string,
+): boolean {
+  return selectedFile !== null && editorContent !== savedContent;
+}
+
 // ---------------------------------------------------------------------------
 // Alias 操作
 // ---------------------------------------------------------------------------

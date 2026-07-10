@@ -67,7 +67,9 @@ export function useGlobalSettingsForm(isOpen: boolean, settings: SettingsInfo | 
     setSavedSnapshot(current ? formSnapshot(hydrated) : null);
   }, [loadKey]);
 
-  const isDirty = savedSnapshot !== null && formSnapshot(form) !== savedSnapshot;
+  // memo：快照序列化只应随 form 变化重算，不随无关 re-render（如弹窗开合）重跑
+  const currentSnapshot = useMemo(() => formSnapshot(form), [form]);
+  const isDirty = savedSnapshot !== null && currentSnapshot !== savedSnapshot;
 
   // 受控绑定 setter（hook 规则 5 例外①：input / select / picker 双向绑定）
   const fieldSetters = useMemo(() => {

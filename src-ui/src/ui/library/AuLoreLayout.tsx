@@ -2,6 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
+import { useMemo } from 'react';
 import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
@@ -65,6 +66,7 @@ export const AuLoreLayout = ({ auPath, onChaptersChanged }: {
     removeFileEntry: data.removeFileEntry,
     bumpTrashRefresh: data.bumpTrashRefresh,
     applyCreated: editor.applyCreated,
+    markContentSaved: editor.markContentSaved,
     closeFile: editor.closeFile,
     clearSearch: editor.clearSearch,
     closeCreate: modals.closeCreate,
@@ -105,14 +107,15 @@ export const AuLoreLayout = ({ auPath, onChaptersChanged }: {
     data.restoreCharacterFile(restoredFile);
   };
 
-  const filteredFiles = files.filter(file => {
-    if (!searchTerm.trim()) return true;
-    return file.name.includes(searchTerm.trim());
-  });
-  const filteredWorldbuildingFiles = worldbuildingFiles.filter(file => {
-    if (!searchTerm.trim()) return true;
-    return file.name.includes(searchTerm.trim());
-  });
+  // memo：正文 textarea 每键入一字触发全组件 re-render，列表过滤只应随列表/搜索词重算
+  const filteredFiles = useMemo(() => {
+    const term = searchTerm.trim();
+    return term ? files.filter((file) => file.name.includes(term)) : files;
+  }, [files, searchTerm]);
+  const filteredWorldbuildingFiles = useMemo(() => {
+    const term = searchTerm.trim();
+    return term ? worldbuildingFiles.filter((file) => file.name.includes(term)) : worldbuildingFiles;
+  }, [worldbuildingFiles, searchTerm]);
 
   const auName = project?.name || auPath.split('/').pop() || t('common.unknownAu');
 
@@ -192,7 +195,17 @@ export const AuLoreLayout = ({ auPath, onChaptersChanged }: {
         {
           key: 'create-character-empty',
           element: (
-            <Button tone="accent" fill="solid" onClick={modals.openCreate}>
+            // 按钮文案是「添加角色」→ 必须锁定 characters 分类：selectedCategory 可能停留
+            // 在 worldbuilding（点过世界观「+」再取消），否则文件落错目录且漏挂 cast_registry
+            // （2026-07-10 合并审阅确认的存量缺陷）
+            <Button
+              tone="accent"
+              fill="solid"
+              onClick={() => {
+                editor.selectCategory('characters');
+                modals.openCreate();
+              }}
+            >
               {t('common.actions.addCharacter')}
             </Button>
           ),

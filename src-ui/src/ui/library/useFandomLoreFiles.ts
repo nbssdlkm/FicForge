@@ -36,7 +36,7 @@ function getRestoredFandomFile(entry: TrashEntry): { category: FandomLoreCategor
  * useFandomLoreFiles — Fandom 资料页侧栏数据（两类文件列表 / 显示名 / 垃圾箱刷新）。
  *
  * 编辑器操作（新建/删除）经下方语义化方法改列表（hook 规则 3），不拿 setter；
- * 乐观更新前先 invalidateInflightLoad 作废在途 loadFiles，防旧响应回写覆盖。
+ * appendFile/removeFile 内部自行作废在途 loadFiles，防旧全量响应回写覆盖乐观更新。
  */
 export function useFandomLoreFiles(fandomPath: string | undefined) {
   const { t } = useTranslation();
@@ -90,28 +90,29 @@ export function useFandomLoreFiles(fandomPath: string | undefined) {
     void loadFiles();
   }, [loadFiles]);
 
-  /** 新建成功后把新文件追加进对应分类（乐观更新，不重拉） */
+  /**
+   * 新建成功后把新文件追加进对应分类（乐观更新，不重拉）。
+   * 内部先作废在途 loadFiles —— 否则旧全量响应回来会整表覆盖、抹掉本次乐观追加
+   * （2026-07-10 合并审阅：原来靠调用方「记得先 invalidate」的口头不变量，已内聚）。
+   */
   const appendFile = useCallback((category: FandomLoreCategory, file: FandomFileEntry) => {
+    guard.start();
     if (category === 'core_characters') setCharacterFiles((prev) => [...prev, file]);
     else setWorldbuildingFiles((prev) => [...prev, file]);
-  }, []);
+  }, [guard]);
 
-  /** 删除成功后从对应分类移除 */
+  /** 删除成功后从对应分类移除（同 appendFile：内部先作废在途 loadFiles）。 */
   const removeFile = useCallback((category: FandomLoreCategory, filename: string) => {
+    guard.start();
     if (category === 'core_characters') setCharacterFiles((prev) => prev.filter((f) => f.filename !== filename));
     else setWorldbuildingFiles((prev) => prev.filter((f) => f.filename !== filename));
-  }, []);
+  }, [guard]);
 
   /** 新建前重名校验拉到的最新列表整体回填 */
   const applyFileLists = useCallback((data: FandomFileLists) => {
     setCharacterFiles(data.characters);
     setWorldbuildingFiles(data.worldbuilding);
   }, []);
-
-  /** 作废在途 loadFiles（增删乐观更新前调用，防旧响应回写覆盖） */
-  const invalidateInflightLoad = useCallback(() => {
-    guard.start();
-  }, [guard]);
 
   /** 删除落库后驱动 TrashPanel 重拉 */
   const bumpTrashRefresh = useCallback(() => {
@@ -144,7 +145,6 @@ export function useFandomLoreFiles(fandomPath: string | undefined) {
     appendFile,
     removeFile,
     applyFileLists,
-    invalidateInflightLoad,
     bumpTrashRefresh,
     applyTrashRestore,
   };

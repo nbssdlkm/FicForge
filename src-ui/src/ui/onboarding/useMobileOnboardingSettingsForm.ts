@@ -59,7 +59,7 @@ export function useMobileOnboardingSettingsForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.apiBase, form.apiKey, form.model, form.chatPath]);
 
-  // 受控绑定 setter（hook 规则 5 例外①：input / picker / StepCard 单选双向绑定）
+  // 受控绑定 setter（hook 规则 5 例外①：input / picker 双向绑定）
   const fieldSetters = useMemo(() => {
     const set = <K extends keyof MobileOnboardingSettingsState>(key: K) =>
       (value: MobileOnboardingSettingsState[K]) => setForm((prev) => ({ ...prev, [key]: value }));
@@ -69,7 +69,8 @@ export function useMobileOnboardingSettingsForm() {
       setModel: set('model'),
       setContextWindow: set('contextWindow'),
       setChatPath: set('chatPath'),
-      setUseCustomEmbedding: set('useCustomEmbedding'),
+      // StepCard onClick 单选是用户事件而非双向绑定 → 动词命名（hook 规则 1/5，合并审阅）
+      chooseCustomEmbedding: set('useCustomEmbedding'),
       setEmbeddingModel: set('embeddingModel'),
       setEmbeddingApiBase: set('embeddingApiBase'),
       setEmbeddingApiKey: set('embeddingApiKey'),

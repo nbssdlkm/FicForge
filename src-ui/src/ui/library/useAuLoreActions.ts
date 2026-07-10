@@ -48,6 +48,7 @@ export type AuLoreActionDeps = {
   bumpTrashRefresh: () => void;
   // useAuLoreEditor 语义方法
   applyCreated: (name: string, category: LoreCategory, content: string) => void;
+  markContentSaved: () => void;
   closeFile: () => void;
   clearSearch: () => void;
   // useAuLoreModals 语义方法
@@ -139,6 +140,8 @@ export function useAuLoreActions(auPath: string, deps: AuLoreActionDeps) {
         content: contentToSave,
       });
       if (guard.isKeyStale(requestAuPath)) return;
+      // 落盘成功 → 刷新编辑器脏判据基线（reconcile 据此决定能否安全重读）
+      depsRef.current.markContentSaved();
       showSuccess(t('common.actions.save'));
     } catch (error) {
       if (guard.isKeyStale(requestAuPath)) return;

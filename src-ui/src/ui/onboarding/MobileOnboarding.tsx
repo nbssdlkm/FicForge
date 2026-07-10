@@ -69,7 +69,7 @@ export function MobileOnboarding({
     connectionStatus, connectionMessage, canTestConnection, testConnection,
     helpOpen, openHelp, closeHelp,
     setApiBase, setApiKey, setModel, setContextWindow, setChatPath,
-    setUseCustomEmbedding, setEmbeddingModel, setEmbeddingApiBase, setEmbeddingApiKey,
+    chooseCustomEmbedding, setEmbeddingModel, setEmbeddingApiBase, setEmbeddingApiKey,
   } = useMobileOnboardingSettingsForm();
 
   const {
@@ -247,14 +247,14 @@ export function MobileOnboarding({
                   title={t('onboarding.mobile.embedding.recommendedTitle')}
                   description={t('onboarding.mobile.embedding.recommendedDescription')}
                   icon={<Database size={18} />}
-                  onClick={() => setUseCustomEmbedding(true)}
+                  onClick={() => chooseCustomEmbedding(true)}
                 />
                 <StepCard
                   active={!form.useCustomEmbedding}
                   title={t('onboarding.mobile.embedding.skipTitle')}
                   description={t('onboarding.mobile.embedding.skipDescription')}
                   icon={<ArrowRight size={18} />}
-                  onClick={() => setUseCustomEmbedding(false)}
+                  onClick={() => chooseCustomEmbedding(false)}
                 />
 
                 {form.useCustomEmbedding && (

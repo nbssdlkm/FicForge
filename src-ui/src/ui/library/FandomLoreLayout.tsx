@@ -2,6 +2,8 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
+import { useMemo } from 'react';
+
 import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
 import { Input, Textarea } from '../shared/Input';
@@ -51,10 +53,13 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
     }
   });
 
-  const selectedEntry = editor.selectedFile
-    ? (editor.selectedCategory === 'core_characters' ? files.characterFiles : files.worldbuildingFiles)
-      .find((file) => file.filename === editor.selectedFile)
-    : null;
+  // memo：正文 textarea 每键入一字触发全组件 re-render，选中项/过滤只应随列表/搜索词重算
+  const selectedEntry = useMemo(() => (
+    editor.selectedFile
+      ? (editor.selectedCategory === 'core_characters' ? files.characterFiles : files.worldbuildingFiles)
+        .find((file) => file.filename === editor.selectedFile) ?? null
+      : null
+  ), [editor.selectedFile, editor.selectedCategory, files.characterFiles, files.worldbuildingFiles]);
   const normalizedSearch = chrome.searchTerm.trim().toLowerCase();
   const filterBySearch = (list: FandomFileEntry[]) => normalizedSearch
     ? list.filter((file) =>
@@ -62,8 +67,16 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
         || file.filename.toLowerCase().includes(normalizedSearch)
       )
     : list;
-  const filteredCharacterFiles = filterBySearch(files.characterFiles);
-  const filteredWorldbuildingFiles = filterBySearch(files.worldbuildingFiles);
+  const filteredCharacterFiles = useMemo(
+    () => filterBySearch(files.characterFiles),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [files.characterFiles, normalizedSearch],
+  );
+  const filteredWorldbuildingFiles = useMemo(
+    () => filterBySearch(files.worldbuildingFiles),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [files.worldbuildingFiles, normalizedSearch],
+  );
 
   // ——— 意图层：编辑器脏时先走弃改确认，干净则直接执行 ———
 

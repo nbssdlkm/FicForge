@@ -13,7 +13,7 @@ import {
 import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
 import { useFeedback } from '../../hooks/useFeedback';
 import { useTranslation } from '../../i18n/useAppTranslation';
-import { fandomDirNameOf, toCanonicalCreateKey, type FandomLoreCategory } from './lore-utils';
+import { buildDefaultFandomLoreContent, fandomDirNameOf, isLoreEditorDirty, toCanonicalCreateKey, type FandomLoreCategory } from './lore-utils';
 import type { useFandomLoreFiles } from './useFandomLoreFiles';
 
 type FandomLoreFilesApi = ReturnType<typeof useFandomLoreFiles>;
@@ -29,8 +29,9 @@ export function useFandomLoreEditor(fandomPath: string | undefined, files: Fando
   const { showError, showToast } = useFeedback();
   const contextKey = fandomPath ?? '';
   const fandomDirName = fandomDirNameOf(fandomPath);
+  // 单实例双语义：start/isStale 保 openFile latest-wins；isKeyStale 做「是否已离开此 fandom」
+  // 导航检查（合并审阅：原先同 key 开两个 guard，第二个的 id 计数器是死代码，已并一）。
   const selectFileGuard = useActiveRequestGuard(contextKey);
-  const contextGuard = useActiveRequestGuard(contextKey);
 
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<FandomLoreCategory>('core_characters');
@@ -53,7 +54,7 @@ export function useFandomLoreEditor(fandomPath: string | undefined, files: Fando
     setSettingsChatBusy(false);
   }, [fandomPath]);
 
-  const isEditorDirty = selectedFile !== null && editorContent !== savedEditorContent;
+  const isEditorDirty = isLoreEditorDirty(selectedFile, editorContent, savedEditorContent);
   const editorBusy = isSaving || isReadingFile || settingsChatBusy;
   const settingsChatDisabled = isSaving || isReadingFile || isEditorDirty;
 
@@ -91,13 +92,13 @@ export function useFandomLoreEditor(fandomPath: string | undefined, files: Fando
         filename: selectedFile,
         content: editorContent,
       });
-      if (contextGuard.isKeyStale(contextSnapshot)) { setIsSaving(false); return; }
+      if (selectFileGuard.isKeyStale(contextSnapshot)) { setIsSaving(false); return; }
       setSavedEditorContent(editorContent);
     } catch (e: any) {
-      if (contextGuard.isKeyStale(contextSnapshot)) { setIsSaving(false); return; }
+      if (selectFileGuard.isKeyStale(contextSnapshot)) { setIsSaving(false); return; }
       showError(e, t("error_messages.unknown"));
     } finally {
-      if (!contextGuard.isKeyStale(contextSnapshot)) {
+      if (!selectFileGuard.isKeyStale(contextSnapshot)) {
         setIsSaving(false);
       }
     }
@@ -124,10 +125,10 @@ export function useFandomLoreEditor(fandomPath: string | undefined, files: Fando
 
     try {
       latestFiles = await listFandomFiles(fandomDirName);
-      if (contextGuard.isKeyStale(contextSnapshot)) { setIsSaving(false); return; }
+      if (selectFileGuard.isKeyStale(contextSnapshot)) { setIsSaving(false); return; }
       files.applyFileLists(latestFiles);
     } catch (e: any) {
-      if (contextGuard.isKeyStale(contextSnapshot)) { setIsSaving(false); return; }
+      if (selectFileGuard.isKeyStale(contextSnapshot)) { setIsSaving(false); return; }
       showError(e, t("error_messages.unknown"));
       setIsSaving(false);
       return;
@@ -142,10 +143,9 @@ export function useFandomLoreEditor(fandomPath: string | undefined, files: Fando
       return;
     }
 
-    const defaultContent = `# ${displayName}\n\n[]`;
+    const defaultContent = buildDefaultFandomLoreContent(displayName);
 
     closeCreateModal();
-    files.invalidateInflightLoad();
     selectFileGuard.start();
     try {
       await saveLore({
@@ -154,7 +154,7 @@ export function useFandomLoreEditor(fandomPath: string | undefined, files: Fando
         filename,
         content: defaultContent,
       });
-      if (contextGuard.isKeyStale(contextSnapshot)) return;
+      if (selectFileGuard.isKeyStale(contextSnapshot)) return;
       setSelectedFile(filename);
       setSelectedCategory(category);
       setPreviewMode(false);
@@ -163,10 +163,10 @@ export function useFandomLoreEditor(fandomPath: string | undefined, files: Fando
       setIsReadingFile(false);
       files.appendFile(category, { name: displayName, filename });
     } catch (e: any) {
-      if (contextGuard.isKeyStale(contextSnapshot)) return;
+      if (selectFileGuard.isKeyStale(contextSnapshot)) return;
       showError(e, t("error_messages.unknown"));
     } finally {
-      if (!contextGuard.isKeyStale(contextSnapshot)) {
+      if (!selectFileGuard.isKeyStale(contextSnapshot)) {
         setIsSaving(false);
       }
     }
@@ -176,7 +176,6 @@ export function useFandomLoreEditor(fandomPath: string | undefined, files: Fando
     if (!selectedFile || !fandomPath) return;
     const contextSnapshot = contextKey;
     setIsSaving(true);
-    files.invalidateInflightLoad();
     selectFileGuard.start();
     try {
       await deleteLore({
@@ -184,7 +183,7 @@ export function useFandomLoreEditor(fandomPath: string | undefined, files: Fando
         category: selectedCategory,
         filename: selectedFile,
       });
-      if (contextGuard.isKeyStale(contextSnapshot)) { setIsSaving(false); return; }
+      if (selectFileGuard.isKeyStale(contextSnapshot)) { setIsSaving(false); return; }
       files.removeFile(selectedCategory, selectedFile);
       setSelectedFile(null);
       setEditorContent('');
@@ -192,10 +191,10 @@ export function useFandomLoreEditor(fandomPath: string | undefined, files: Fando
       setIsReadingFile(false);
       files.bumpTrashRefresh();
     } catch (e: any) {
-      if (contextGuard.isKeyStale(contextSnapshot)) { setIsSaving(false); return; }
+      if (selectFileGuard.isKeyStale(contextSnapshot)) { setIsSaving(false); return; }
       showError(e, t("error_messages.unknown"));
     } finally {
-      if (!contextGuard.isKeyStale(contextSnapshot)) {
+      if (!selectFileGuard.isKeyStale(contextSnapshot)) {
         setIsSaving(false);
       }
     }

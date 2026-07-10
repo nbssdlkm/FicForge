@@ -7,9 +7,14 @@ import { getFandomDisplayInfo, listFandomFiles, type FandomFileEntry } from "../
 import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
 import { useFeedback } from "../../hooks/useFeedback";
 import { useTranslation } from "../../i18n/useAppTranslation";
+import type { FandomLoreCategory } from "../library/lore-utils";
 
-/** 圈子 lore 的两类目录（与 engine 落盘目录名一致）。 */
-export type FandomCategory = "core_characters" | "core_worldbuilding";
+/**
+ * 圈子 lore 分类：真相源在 library/lore-utils.FandomLoreCategory（合并审阅：
+ * 原先此处平行定义同字面 union，两个真相源会随分类增删静默漂移）。
+ * re-export 保持既有 import 路径可用。
+ */
+export type FandomCategory = FandomLoreCategory;
 
 /**
  * useMobileFandomFiles — 圈子视图的数据面：显示名 + 两类文件列表。

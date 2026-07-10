@@ -100,25 +100,38 @@ describe("MobileFandomView — 状态下沉回归", () => {
     });
   });
 
-  it("新建：落模板文件 → 刷新列表 → 自动打开新文件", async () => {
+  it("新建：重名校验 → 落统一模板文件 → 刷新列表 → 自动打开新文件", async () => {
     await renderView();
-    (readFandomFile as Mock).mockResolvedValue({ filename: "汉克.md", category: "core_characters", content: "---\nname: 汉克\n---\n\n# 汉克\n\n" });
+    (readFandomFile as Mock).mockResolvedValue({ filename: "汉克.md", category: "core_characters", content: "# 汉克\n\n[]" });
 
     fireEvent.click(screen.getByRole("button", { name: "添加角色" }));
     fireEvent.change(screen.getByPlaceholderText(/角色名/), { target: { value: "汉克" } });
     fireEvent.click(screen.getByRole("button", { name: "创建" }));
 
     await waitFor(() => expect(saveLore).toHaveBeenCalledTimes(1));
+    // 模板走 lore-utils.buildDefaultFandomLoreContent（与桌面同源，合并审阅后统一）
     expect(saveLore).toHaveBeenCalledWith({
       fandom_path: FANDOM_PATH,
       category: "core_characters",
       filename: "汉克.md",
-      content: "---\nname: 汉克\n---\n\n# 汉克\n\n",
+      content: "# 汉克\n\n[]",
     });
-    // 刷新列表（初始 1 次 + 新建后 1 次）并自动打开详情
-    await waitFor(() => expect(listFandomFiles).toHaveBeenCalledTimes(2));
+    // 列表调用：初始 1 次 + 新建前重名校验 1 次 + 新建后刷新 1 次
+    await waitFor(() => expect(listFandomFiles).toHaveBeenCalledTimes(3));
     await waitFor(() => expect(readFandomFile).toHaveBeenCalledWith("圈子目录", "core_characters", "汉克.md"));
     await screen.findByTestId("markdown-preview");
+  });
+
+  it("新建重名（含大小写/空格变体）：拦截告警，不落盘", async () => {
+    await renderView();
+
+    fireEvent.click(screen.getByRole("button", { name: "添加角色" }));
+    fireEvent.change(screen.getByPlaceholderText(/角色名/), { target: { value: "康纳" } });
+    fireEvent.click(screen.getByRole("button", { name: "创建" }));
+
+    // 重名校验拉一次列表后拦下：saveLore 不被调用
+    await waitFor(() => expect(listFandomFiles).toHaveBeenCalledTimes(2));
+    expect(saveLore).not.toHaveBeenCalled();
   });
 
   it("删除：确认后回列表并刷新", async () => {
