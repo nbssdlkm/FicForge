@@ -3,7 +3,7 @@
 
 /** LocalFileFandomRepository — fandom.yaml 读写实现。参见 PRD §3.2。 */
 
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 import type { PlatformAdapter } from "../../platform/adapter.js";
 import type { Fandom } from "../../domain/fandom.js";
 import { createFandom } from "../../domain/fandom.js";

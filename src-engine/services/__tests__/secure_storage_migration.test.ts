@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it } from "vitest";
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 import { createProject } from "../../domain/project.js";
 import { FileFandomRepository } from "../../repositories/implementations/file_fandom.js";
 import { FileProjectRepository } from "../../repositories/implementations/file_project.js";

@@ -6,7 +6,7 @@
  * .trash/ + manifest.jsonl 实现软删除与恢复。默认保留 30 天。
  */
 
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 import { safeMatter } from "../domain/frontmatter.js";
 import type { PlatformAdapter } from "../platform/adapter.js";
 import { atomicWrite, dumpYaml, joinPath } from "../utils/file_utils.js";

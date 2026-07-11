@@ -3,7 +3,7 @@
 
 /** LocalFileSettingsRepository — settings.yaml 读写实现。参见 PRD §3.3。 */
 
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 import type { PlatformAdapter } from "../../platform/adapter.js";
 import { APIMode, LicenseTier, LLMMode } from "../../domain/enums.js";
 import type { LLMConfig } from "../../domain/project.js";

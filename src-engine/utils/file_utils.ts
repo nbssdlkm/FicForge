@@ -8,7 +8,7 @@
  * 纯路径工具在 ./paths.ts（此处 re-export，importer 无需区分两个模块）。
  */
 
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 import type { PlatformAdapter } from "../platform/adapter.js";
 import { warnAlways } from "../logger/index.js";
 

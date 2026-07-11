@@ -3,7 +3,7 @@
 
 /** LocalFileStateRepository — state.yaml 读写实现。参见 PRD §3.5。 */
 
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 import type { PlatformAdapter } from "../../platform/adapter.js";
 import { IndexStatus } from "../../domain/enums.js";
 import type { EmbeddingFingerprint, State } from "../../domain/state.js";

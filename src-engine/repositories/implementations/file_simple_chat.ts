@@ -10,7 +10,7 @@
  * - YAML lineWidth=-1 让长 message content 不被换行，方便 grep / 人工编辑
  */
 
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 import type { PlatformAdapter } from "../../platform/adapter.js";
 import type { SimpleChatFile, SimpleChatMessageEnvelope } from "../../domain/simple_chat.js";
 import { createSimpleChatFile, SIMPLE_CHAT_VERSION } from "../../domain/simple_chat.js";

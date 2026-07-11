@@ -14,7 +14,7 @@ import type { LLMProvider, Message, ToolCall } from "../llm/provider.js";
 import { LLMError } from "../llm/provider.js";
 import { hasLogger, getLogger } from "../logger/index.js";
 import { joinPath } from "../utils/file_utils.js";
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 
 // ---------------------------------------------------------------------------
 // 对话历史截断

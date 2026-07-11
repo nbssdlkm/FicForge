@@ -3,7 +3,7 @@
 
 /** LocalFileProjectRepository — project.yaml 读写实现。参见 PRD §3.4。 */
 
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 import type { PlatformAdapter } from "../../platform/adapter.js";
 import { EmotionStyle, LLMMode, Perspective } from "../../domain/enums.js";
 import type { CastRegistry, EmbeddingLock, LLMConfig, Project, WritingStyle } from "../../domain/project.js";

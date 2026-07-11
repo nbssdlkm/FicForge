@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 import { FileSettingsRepository } from "../implementations/file_settings.js";
 import { MockAdapter } from "./mock_adapter.js";
 
