@@ -6,9 +6,9 @@
  * 用户确认章节后，可选让 AI 从新章节中提取事实条目。
  */
 
-import { count_tokens, ensureTokenizer } from "../tokenizer/index.js";
+import { count_tokens, ensure_tokenizer } from "../tokenizer/index.js";
 import { getPrompts } from "../prompts/index.js";
-import { normalizeCharacters } from "./facts_lifecycle.js";
+import { normalize_characters } from "./facts_lifecycle.js";
 import type { LLMProvider } from "../llm/provider.js";
 import { TimeKind, SuspenseType } from "../domain/enums.js";
 import type { FactFieldConfidence } from "../domain/fact.js";
@@ -220,7 +220,7 @@ export function rawToExtracted(
 
   let characters = (raw.characters as string[]) ?? [];
   if (Array.isArray(characters)) {
-    characters = normalizeCharacters(characters, character_aliases);
+    characters = normalize_characters(characters, character_aliases);
   }
 
   // M8-A 新字段
@@ -235,8 +235,8 @@ export function rawToExtracted(
   } else if (Array.isArray(rawKnownTo)) {
     // filter 非字符串元素（防 LLM 输出 [1, 2, "Alice"]）
     const filtered = (rawKnownTo as unknown[]).filter((x) => typeof x === "string") as string[];
-    // normalizeCharacters 归一化
-    knownTo = normalizeCharacters(filtered, character_aliases);
+    // normalize_characters 归一化
+    knownTo = normalize_characters(filtered, character_aliases);
   }
 
   return {
@@ -278,7 +278,7 @@ export interface ExtractFactsOptions {
   signal?: AbortSignal;
 }
 
-export async function extract_facts_from_chapter(
+export async function extractFactsFromChapter(
   chapter_text: string,
   chapter_num: number,
   existing_facts: { content_clean?: string }[],
@@ -292,7 +292,7 @@ export async function extract_facts_from_chapter(
   const language = opts?.language ?? "zh";
   const signal = opts?.signal;
 
-  await ensureTokenizer();
+  await ensure_tokenizer();
   const P = getPrompts(language as "zh" | "en");
 
   if (!chapter_text.trim()) return [];
@@ -342,7 +342,7 @@ export async function extract_facts_from_chapter(
 // 批量提取
 // ---------------------------------------------------------------------------
 
-export async function extract_facts_batch(
+export async function extractFactsBatch(
   chapters: { chapter_num: number; content: string }[],
   existing_facts: { content_clean?: string }[],
   cast_registry: { characters?: string[] },

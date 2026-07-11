@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it, vi } from "vitest";
-import { build_rag_query, build_active_chars, retrieve_rag, retrieveRagForContext } from "../rag_retrieval.js";
+import { build_rag_query, build_active_chars, retrieve_rag, retrieve_rag_for_context } from "../rag_retrieval.js";
 import type { VectorRepository, SearchOptions, SearchResult, VectorChunk } from "../../repositories/interfaces/vector.js";
 import type { EmbeddingProvider } from "../../llm/embedding_provider.js";
 import { IndexStatus } from "../../domain/enums.js";
@@ -209,7 +209,7 @@ describe("retrieve_rag", () => {
   });
 });
 
-describe("retrieveRagForContext (融合:RAG 编排单一真相源)", () => {
+describe("retrieve_rag_for_context (融合:RAG 编排单一真相源)", () => {
   const baseArgs = {
     project: { llm: { context_window: 128000 }, rag_decay_coefficient: 0.05 },
     state: { current_chapter: 2, last_scene_ending: "" },
@@ -222,7 +222,7 @@ describe("retrieveRagForContext (融合:RAG 编排单一真相源)", () => {
     const repo = createMockVectorRepo({
       chapters: [{ content: "前情提要", chapter_num: 1, score: 0.9, metadata: {} }],
     });
-    const res = await retrieveRagForContext({
+    const res = await retrieve_rag_for_context({
       ...baseArgs,
       user_input: "继续写",
       facts: [{ id: "f1", status: "active", content_clean: "林夏发现了真相", characters: [] }],
@@ -243,7 +243,7 @@ describe("retrieveRagForContext (融合:RAG 编排单一真相源)", () => {
       async rebuild_index() {},
       async get_index_status() { return IndexStatus.READY; },
     };
-    const res = await retrieveRagForContext({
+    const res = await retrieve_rag_for_context({
       ...baseArgs,
       user_input: "",
       facts: [],
@@ -267,7 +267,7 @@ describe("retrieveRagForContext (融合:RAG 编排单一真相源)", () => {
     };
     const repo = createMockVectorRepo({ chapters: [] });
 
-    await retrieveRagForContext({
+    await retrieve_rag_for_context({
       ...baseArgs,
       user_input: "继续写",
       facts: [
@@ -282,9 +282,9 @@ describe("retrieveRagForContext (融合:RAG 编排单一真相源)", () => {
     expect(capturedQuery).not.toContain("冷线索不该进query");
   });
 
-  it("embed 抛错 → 静默回退 null + []（真正命中 retrieveRagForContext 的 catch）", async () => {
+  it("embed 抛错 → 静默回退 null + []（真正命中 retrieve_rag_for_context 的 catch）", async () => {
     // 注:让 embed 抛错而非 search —— retrieve_rag 内部对 search 有 try/catch 会吞掉。
-    // embed / ensureTokenizer 等 retrieve_rag 内未被内部 try 包住的 await 抛错,才会冒泡到本函数 catch。
+    // embed / ensure_tokenizer 等 retrieve_rag 内未被内部 try 包住的 await 抛错,才会冒泡到本函数 catch。
     const throwingEmbedding: EmbeddingProvider = {
       async embed(): Promise<number[][]> { throw new Error("embedding service down"); },
       get_dimension() { return 3; },
@@ -293,7 +293,7 @@ describe("retrieveRagForContext (融合:RAG 编排单一真相源)", () => {
     const repo = createMockVectorRepo({
       chapters: [{ content: "不该到达", chapter_num: 1, score: 0.9, metadata: {} }],
     });
-    const res = await retrieveRagForContext({
+    const res = await retrieve_rag_for_context({
       ...baseArgs,
       user_input: "继续",
       facts: [{ id: "f1", status: "active", content_clean: "关键线索", characters: [] }],

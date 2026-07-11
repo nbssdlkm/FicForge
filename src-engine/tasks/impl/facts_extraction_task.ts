@@ -82,7 +82,7 @@ export function createFactsExtractionTask(
     previousFacts: ExtractedFact[],
   ): AsyncGenerator<TaskEvent, FactsExtractionResult> {
     // Lazy import to avoid circular deps
-    const { extract_facts_batch } = await import("../../services/facts_extraction.js");
+    const { extractFactsBatch } = await import("../../services/facts_extraction.js");
     const { reactExtractFromChapter } = await import("../../services/react_extraction_dispatch.js");
 
     const { auPath, fromChapter, toChapter, batchSize, language, reactExtractionEnabled } = p;
@@ -123,7 +123,7 @@ export function createFactsExtractionTask(
             { language: language as "zh" | "en", factRepo, threadRepo, auPath, signal: ctx.signal },
           ).catch(() => ({ facts: [] as ExtractedFact[], status: "degraded" as const }));
           if (r.status === "degraded" && r.facts.length === 0) {
-            const single = await extract_facts_batch(
+            const single = await extractFactsBatch(
               [{ chapter_num, content }], existingFacts, proj.cast_registry, null,
               llmProvider, language, ctx.signal,
             ).catch(() => [] as ExtractedFact[]);
@@ -134,7 +134,7 @@ export function createFactsExtractionTask(
         }
       } else {
         // 原批量单次调用路径
-        const batchFacts = await extract_facts_batch(
+        const batchFacts = await extractFactsBatch(
           chapters, existingFacts, proj.cast_registry, null,
           llmProvider, language, ctx.signal,
         ).catch(() => [] as ExtractedFact[]);

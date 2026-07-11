@@ -1042,7 +1042,7 @@ describe("dispatch_simple_chat", () => {
       ],
     ]);
 
-    // 注入 vector_repo + 计数 embedding：assemble_chat_context 每跑一次 → retrieveRagForContext
+    // 注入 vector_repo + 计数 embedding：assemble_chat_context 每跑一次 → retrieve_rag_for_context
     // → embed([query]) 一次。所以 embed 调用次数 === 组装次数。这是"组装只一次、循环内不重算 RAG"
     // 的**载荷断言** —— 仅靠 system message byte-identity 抓不住（systemMessage 是同一对象引用，
     // 即便组装搬进循环、确定性重算出逐字节相同内容，引用比较仍 true，是伪命题）。

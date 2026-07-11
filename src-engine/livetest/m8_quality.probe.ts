@@ -16,7 +16,7 @@ import { describe, it, expect } from "vitest";
 import { RemoteEmbeddingProvider } from "../llm/embedding_provider.js";
 import { makeDeepseekProbeProvider, siliconflowKey } from "./_deepseek.js";
 import { generate_standard_summary, generate_micro_summary } from "../services/chapter_summary.js";
-import { extract_facts_from_chapter } from "../services/facts_extraction.js";
+import { extractFactsFromChapter } from "../services/facts_extraction.js";
 import { run_retrospective } from "../services/retrospective.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { ChapterSummaryRepository } from "../repositories/interfaces/chapter_summary.js";
@@ -109,7 +109,7 @@ describe("M8 real-LLM quality probe", () => {
 
   it("M8-A fact enrichment (富化字段合理性)", async () => {
     for (const num of [1, 3, 4]) {
-      const facts = await extract_facts_from_chapter(
+      const facts = await extractFactsFromChapter(
         CHAPTERS[num], num, [], CAST, null, llm, llmConfig, { language: "zh" },
       );
       line(`第 ${num} 章 提取事实（${facts.length} 条）`);

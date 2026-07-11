@@ -12,7 +12,7 @@ export {
   edit_fact,
   FactsLifecycleError,
   find_archival_candidates,
-  isArchivalCandidate,
+  is_archival_candidate,
   run_archival_sweep,
   set_chapter_focus,
   unarchive_fact,
@@ -22,8 +22,8 @@ export {
 // Facts Extraction
 export type { ExtractedFact, ExtractFactsOptions } from "./facts_extraction.js";
 export {
-  extract_facts_batch,
-  extract_facts_from_chapter,
+  extractFactsBatch,
+  extractFactsFromChapter,
   parseLLMOutput,
 } from "./facts_extraction.js";
 
@@ -68,7 +68,7 @@ export {
   build_active_chars,
   build_rag_query,
   retrieve_rag,
-  retrieveRagForContext,
+  retrieve_rag_for_context,
 } from "./rag_retrieval.js";
 export type { RetrieveRagForContextArgs } from "./rag_retrieval.js";
 
@@ -120,7 +120,7 @@ export type {
   ImportSetting,
   NewImportResult,
 } from "./import_pipeline.js";
-export { analyzeFile, buildImportPlan, executeImport } from "./import_pipeline.js";
+export { analyze_file, build_import_plan, execute_import } from "./import_pipeline.js";
 
 // Chat Parser
 export type {
@@ -205,7 +205,7 @@ export {
   run_retrospective,
   generate_retrospective,
   commit_retrospective,
-  shouldRunRetrospective,
+  should_run_retrospective,
   RETROSPECTIVE_INTERVAL,
 } from "./retrospective.js";
 
@@ -213,7 +213,7 @@ export type { ThreadStaleness } from "./thread_state.js";
 export {
   computeThreadStaleness,
   threadMemberFacts,
-  regenerate_thread_state,
+  regenerateThreadState,
   THREAD_STATE_MAX_FACTS,
 } from "./thread_state.js";
 

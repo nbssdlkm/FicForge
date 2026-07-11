@@ -20,14 +20,14 @@ import type { Thread } from "../domain/thread.js";
 import { get_context_window, get_model_max_output } from "../domain/model_context_map.js";
 import type { Project, WritingStyle } from "../domain/project.js";
 import type { State } from "../domain/state.js";
-import { count_tokens, ensureTokenizer } from "../tokenizer/index.js";
+import { count_tokens, ensure_tokenizer } from "../tokenizer/index.js";
 import { getPrompts } from "../prompts/index.js";
 import { warnAlways } from "../logger/index.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { VectorRepository } from "../repositories/interfaces/vector.js";
 import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { Message } from "../llm/provider.js";
-import { retrieveRagForContext } from "./rag_retrieval.js";
+import { retrieve_rag_for_context } from "./rag_retrieval.js";
 
 // ---------------------------------------------------------------------------
 // 辅助：token 计数
@@ -71,7 +71,7 @@ export interface EffectiveLLM {
 type PromptModule = ReturnType<typeof getPrompts>;
 
 /** P0 铁律（pinned_context）块；无 pinned 时返回 null 不产出。 */
-function pinnedContextBlock(P: PromptModule, project: Project): string | null {
+function pinned_context_block(P: PromptModule, project: Project): string | null {
   const pinned = project.pinned_context ?? [];
   if (pinned.length === 0) return null;
   const lines = pinned.map((p) => `- ${p}`).join("\n");
@@ -79,7 +79,7 @@ function pinnedContextBlock(P: PromptModule, project: Project): string | null {
 }
 
 /** 叙事视角块。 */
-function perspectiveBlock(P: PromptModule, ws: WritingStyle | undefined, language: string): string {
+function perspective_block(P: PromptModule, ws: WritingStyle | undefined, language: string): string {
   if ((ws?.perspective ?? Perspective.THIRD_PERSON) === Perspective.FIRST_PERSON) {
     const pov = ws?.pov_character || (language === "zh" ? "主角" : "protagonist");
     return P.PERSPECTIVE_FIRST_PERSON.split("{pov}").join(pov);
@@ -88,14 +88,14 @@ function perspectiveBlock(P: PromptModule, ws: WritingStyle | undefined, languag
 }
 
 /** 情感风格块。 */
-function emotionBlock(P: PromptModule, ws: WritingStyle | undefined): string {
+function emotion_block(P: PromptModule, ws: WritingStyle | undefined): string {
   return (ws?.emotion_style ?? EmotionStyle.IMPLICIT) === EmotionStyle.EXPLICIT
     ? P.EMOTION_EXPLICIT
     : P.EMOTION_IMPLICIT;
 }
 
 /** custom_instructions 块；为空时返回 null 不产出。 */
-function customInstructionsBlock(P: PromptModule, ws: WritingStyle | undefined): string | null {
+function custom_instructions_block(P: PromptModule, ws: WritingStyle | undefined): string | null {
   const custom = ws?.custom_instructions ?? "";
   return custom ? P.CUSTOM_INSTRUCTIONS_HEADER.replace("{custom}", custom) : null;
 }
@@ -113,7 +113,7 @@ export function build_system_prompt(
   const parts: string[] = [P.SYSTEM_NOVELIST];
 
   // --- P0 Pinned Context ---
-  const pinned = pinnedContextBlock(P, project);
+  const pinned = pinned_context_block(P, project);
   if (pinned) parts.push(pinned);
 
   // --- 冲突解决规则 ---
@@ -121,10 +121,10 @@ export function build_system_prompt(
 
   // --- 叙事视角 ---
   const ws = project.writing_style;
-  parts.push(perspectiveBlock(P, ws, language));
+  parts.push(perspective_block(P, ws, language));
 
   // --- 情感风格 ---
-  parts.push(emotionBlock(P, ws));
+  parts.push(emotion_block(P, ws));
 
   // --- 伏笔规约 ---
   parts.push(P.FORESHADOWING_RULES);
@@ -140,7 +140,7 @@ export function build_system_prompt(
 
   // --- custom_instructions ---
   if (!trim_custom) {
-    const custom = customInstructionsBlock(P, ws);
+    const custom = custom_instructions_block(P, ws);
     if (custom) parts.push(custom);
   }
 
@@ -218,7 +218,7 @@ export function build_instruction(
 }
 
 // ===========================================================================
-// buildFactEnrichmentSuffix（M8-A P3 注入辅助，纯函数）
+// build_fact_enrichment_suffix（M8-A P3 注入辅助，纯函数）
 // ===========================================================================
 
 /**
@@ -236,7 +236,7 @@ export function build_instruction(
  * 注：caused_by（跨章因果）不走本函数——它需解析 fact_id → 起因短句，在 build_facts_layer 里用
  * factById 渲染（见那里的 causedByClause / lineBody，B1 最后一公里）。
  */
-export function buildFactEnrichmentSuffix(fact: Fact): string {
+export function build_fact_enrichment_suffix(fact: Fact): string {
   const c = fact._confidence;
   const INJECT_LEVELS = new Set<ConfidenceLevel>(["high", "medium"]);
   // 无 _confidence（手动/导入）→ 无条件注入；有 _confidence（ReAct）→ 按 high/medium gate。
@@ -324,7 +324,7 @@ export function build_facts_layer(
     if (refs.length === 0) return "";
     return language === "en" ? ` [caused by: ${refs.join("; ")}]` : `（起因：${refs.join("；")}）`;
   };
-  const lineBody = (f: Fact): string => f.content_clean + buildFactEnrichmentSuffix(f) + causedByClause(f);
+  const lineBody = (f: Fact): string => f.content_clean + build_fact_enrichment_suffix(f) + causedByClause(f);
 
   const unresolved = eligible.filter((f) => f.status === FactStatus.UNRESOLVED);
   const active = eligible.filter((f) => f.status === FactStatus.ACTIVE);
@@ -332,7 +332,7 @@ export function build_facts_layer(
   let softDegraded = false;
 
   // --- unresolved 软降级 ---
-  const sortedUnresolved = sortByWeightAndRecency(unresolved);
+  const sortedUnresolved = sort_by_weight_and_recency(unresolved);
   let unresolvedKept: Fact[] = [];
   let unresolvedDropped = 0;
 
@@ -369,7 +369,7 @@ export function build_facts_layer(
   // --- active 截断 ---
   const activeKept: Fact[] = [];
   if (active.length > 0 && remainingBudget > 0) {
-    const sortedActive = sortByWeightAndRecency(active);
+    const sortedActive = sort_by_weight_and_recency(active);
     let used = 0;
     for (const f of sortedActive) {
       const t = _count(lineBody(f), llm_config).count;
@@ -396,7 +396,7 @@ export function build_facts_layer(
   return [P.SECTION_PLOT_STATE + "\n" + lines.join("\n"), softDegraded];
 }
 
-function sortByWeightAndRecency(facts: Fact[]): Fact[] {
+function sort_by_weight_and_recency(facts: Fact[]): Fact[] {
   const weightOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
   return [...facts].sort((a, b) => {
     const wa = weightOrder[a.narrative_weight] ?? 1;
@@ -605,7 +605,7 @@ export interface AssembleContextResult {
  * @param effective_llm 实际生效 LLM 视图（H4）；缺省回退 project.llm（向后兼容）。
  *        chapter_length 仍来自 project —— 章节长度是作品属性，与用哪个模型无关。
  */
-function computeMaxOutputTokens(
+function compute_max_output_tokens(
   project: Project,
   contextWindow: number,
   logTag: string,
@@ -641,7 +641,7 @@ const SAFETY_BUFFER = 500;
  * 不在此钳零：写文路径靠返回值 ≤0 触发裁剪 custom_instructions 的 fail-safe 再重算；对话路径在
  * 外层自己套 Math.max(0, …)。把公式抽到这一处后，retune 只改这里，杜绝两 assembler 手抄漂移。
  */
-export function computeInputBudget(
+export function compute_input_budget(
   contextWindow: number,
   systemTokens: number,
   maxOutputTokens: number,
@@ -671,7 +671,7 @@ export async function assemble_context(
 ): Promise<AssembleContextResult> {
   // 融合（plan §1.3/§1.5）：原"simple 模式委托 assemble_context_simple"分支已删 —— 对话路径
   // 改走 assemble_chat_context（分层），写文路径恒走下面的 P0-P5 预算切分（逐字节不回归）。
-  await ensureTokenizer();
+  await ensure_tokenizer();
   // tokenizer 编码选择也跟 effective 走（count_tokens 现只看 mode，行为等价；语义上保持同源）。
   const llm = effective_llm ?? project.llm;
   const report = createBudgetReport();
@@ -686,20 +686,20 @@ export async function assemble_context(
   let systemTokens = sysTc.count;
   report.is_fallback_estimate = sysTc.is_estimate;
 
-  // --- max_tokens（D-0039；公式单一真相源见 computeMaxOutputTokens）---
+  // --- max_tokens（D-0039；公式单一真相源见 compute_max_output_tokens）---
   const chapterLength = project.chapter_length ?? 1500;
-  const maxTokens = computeMaxOutputTokens(project, contextWindow, "context_assembler", effective_llm ?? undefined);
+  const maxTokens = compute_max_output_tokens(project, contextWindow, "context_assembler", effective_llm ?? undefined);
   report.max_output_tokens = maxTokens;
 
-  // --- input budget（公式单一真相源见 computeInputBudget）---
-  let budget = computeInputBudget(contextWindow, systemTokens, maxTokens);
+  // --- input budget（公式单一真相源见 compute_input_budget）---
+  let budget = compute_input_budget(contextWindow, systemTokens, maxTokens);
 
   // fail-safe：budget 不够 → 裁剪 custom_instructions 重算
   if (budget <= 0) {
     systemPrompt = build_system_prompt(project, true, language);
     sysTc = _count(systemPrompt, llm);
     systemTokens = sysTc.count;
-    budget = computeInputBudget(contextWindow, systemTokens, maxTokens);
+    budget = compute_input_budget(contextWindow, systemTokens, maxTokens);
   }
 
   if (budget <= 0) {
@@ -859,17 +859,17 @@ export function build_system_prompt_simple(project: Project, language = "zh"): s
   ];
 
   // P0 铁律（add_pinned_context 在对话版仍有效）
-  const pinned = pinnedContextBlock(P, project);
+  const pinned = pinned_context_block(P, project);
   if (pinned) parts.push(pinned);
 
   // 视角（update_writing_style 仍有效）
-  parts.push(perspectiveBlock(P, ws, language));
+  parts.push(perspective_block(P, ws, language));
 
   // 情感风格
-  parts.push(emotionBlock(P, ws));
+  parts.push(emotion_block(P, ws));
 
   // custom_instructions
-  const custom = customInstructionsBlock(P, ws);
+  const custom = custom_instructions_block(P, ws);
   if (custom) parts.push(custom);
 
   return parts.join("\n\n");
@@ -903,7 +903,7 @@ export interface AssembleChatContextResult {
   systemContent: string;
   /** 最新一轮 user message 内容 = 当前章节状态 + 用户输入。 */
   latestUserContent: string;
-  /** D-0039 输出预算（单一真相源 computeMaxOutputTokens）。 */
+  /** D-0039 输出预算（单一真相源 compute_max_output_tokens）。 */
   max_tokens: number;
   /** 预算报告（token badge / 调试）。 */
   budget_report: BudgetReport;
@@ -925,7 +925,7 @@ export interface AssembleChatContextParams {
   /** 预加载的世界观设定文件（P5 核心设定）。 */
   worldbuilding_files?: Record<string, string> | null;
   /**
-   * 向量仓库 + embedding（RAG 检索用）。两者都给 → 内部走 retrieveRagForContext
+   * 向量仓库 + embedding（RAG 检索用）。两者都给 → 内部走 retrieve_rag_for_context
    * 检索一次（单一真相源，与 generate_chapter 同函数）。任一缺省 ⇒ 跳过 RAG。
    * estimate token badge 路径【有意】不传，避免每次估算触发 embedding 调用。
    */
@@ -946,7 +946,7 @@ export interface AssembleChatContextParams {
  *
  * 与 assemble_context（完整写文路径）共用同一套 builder（build_facts_layer /
  * build_threads_layer / build_recent_chapter_layer / build_core_settings_layer）+
- * retrieveRagForContext，但：
+ * retrieve_rag_for_context，但：
  *  - system prompt 用对话人设 build_system_prompt_simple（不是续写体 build_system_prompt）。
  *  - 产物切成 systemContent（人设 + 记忆层）+ latestUserContent（最新轮），而不是单 user
  *    message —— 因为对话要 [system, ...history, latestUser]，记忆进 system 才不会随历史
@@ -974,7 +974,7 @@ export async function assemble_chat_context(
   } = params;
   let { rag_text = null } = params;
 
-  await ensureTokenizer();
+  await ensure_tokenizer();
   // tokenizer 编码选择也跟 effective 走（count_tokens 现只看 mode，行为等价；语义上保持同源）。
   const llm = effective_llm ?? project.llm;
   const P = getPrompts(language as "zh" | "en");
@@ -992,13 +992,13 @@ export async function assemble_chat_context(
   report.system_tokens = systemTokens;
 
   // --- max_tokens（D-0039 单一真相源）---
-  const maxTokens = computeMaxOutputTokens(project, contextWindow, "assemble_chat_context", effective_llm ?? undefined);
+  const maxTokens = compute_max_output_tokens(project, contextWindow, "assemble_chat_context", effective_llm ?? undefined);
   report.max_output_tokens = maxTokens;
 
-  // --- input budget（公式单一真相源见 computeInputBudget，与 assemble_context 同源）---
+  // --- input budget（公式单一真相源见 compute_input_budget，与 assemble_context 同源）---
   // 对话人设较紧凑，无 custom_instructions 二次裁剪（build_system_prompt_simple 无 trim 开关）；
   // budget ≤ 0（极小 ctx）时钳到 0，记忆层拿不到预算、只剩人设 + 核心设定低保（不抛，逐字节"不崩"）。
-  const budget = Math.max(0, computeInputBudget(contextWindow, systemTokens, maxTokens));
+  const budget = Math.max(0, compute_input_budget(contextWindow, systemTokens, maxTokens));
 
   const guarantee = project.core_guarantee_budget ?? 400;
 
@@ -1019,10 +1019,10 @@ export async function assemble_chat_context(
 
   const truncatedLayers: string[] = [];
 
-  // --- RAG 检索（一次性，单一真相源 retrieveRagForContext）---
+  // --- RAG 检索（一次性，单一真相源 retrieve_rag_for_context）---
   // gate 与 generate_chapter 一致：rag_text 已给则跳过；否则两 repo 都在才检索。
   if (rag_text === null && vector_repo && embedding_provider) {
-    const rag = await retrieveRagForContext({
+    const rag = await retrieve_rag_for_context({
       project, state, user_input, facts,
       vector_repo, embedding_provider, au_id,
       llm_config: llm, language,

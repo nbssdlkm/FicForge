@@ -85,7 +85,7 @@ export { getPrompts } from "./prompts/index.js";
 export type { PromptKey, PromptModule } from "./prompts/index.js";
 
 // Tokenizer
-export { clear_tokenizer_cache, count_tokens, ensureTokenizer } from "./tokenizer/index.js";
+export { clear_tokenizer_cache, count_tokens, ensure_tokenizer } from "./tokenizer/index.js";
 export type { TokenCount } from "./tokenizer/index.js";
 
 // Platform
@@ -209,21 +209,21 @@ export {
   migrate_legacy_secure_storage,
   persist_chapter_summary,
   recalc_state,
-  regenerate_thread_state,
+  regenerateThreadState,
   releaseChapterInflight,
   resolve_dirty_chapter,
   set_chapter_focus,
-  shouldRunRetrospective,
+  should_run_retrospective,
   threadMemberFacts,
   unarchive_fact,
   undo_latest_chapter,
   update_fact_status,
   validateBundle,
   withAuLock,
-  analyzeFile,
-  buildImportPlan,
-  executeImport,
-  extract_facts_from_chapter,
+  analyze_file,
+  build_import_plan,
+  execute_import,
+  extractFactsFromChapter,
   parse_html,
   reactExtractFromChapter,
 } from "./services/index.js";

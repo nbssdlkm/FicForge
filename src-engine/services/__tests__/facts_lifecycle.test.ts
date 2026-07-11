@@ -221,7 +221,7 @@ describe("Facts Lifecycle", () => {
     await update_fact_status("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
 
-    // 再次作废已作废的 f2 → f1 已是 UNRESOLVED（collectResolvesReverse 仅当 target RESOLVED 才动）→ 不变
+    // 再次作废已作废的 f2 → f1 已是 UNRESOLVED（collect_resolves_reverse 仅当 target RESOLVED 才动）→ 不变
     await update_fact_status("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
   });

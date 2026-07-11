@@ -121,7 +121,7 @@ export {
   MODEL_MAX_OUTPUT,
   get_context_window,
   get_model_max_output,
-  normalizeModelId,
+  normalize_model_id,
 } from "./model_context_map.js";
 
 // Provider manifest（供应商主导模型选择器 · 单一真相源）

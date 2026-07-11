@@ -48,7 +48,7 @@ const SUSPENSE_SET    = new Set(Object.values(SuspenseType) as string[]);
  * 将角色名按别名表归一化为正式名。大小写不敏感。
  * 同时被 facts_lifecycle（手动编辑路径）和 facts_extraction（LLM 提取路径）使用。
  */
-export function normalizeCharacters(
+export function normalize_characters(
   characters: string[],
   character_aliases: Record<string, string[]> | null,
 ): string[] {
@@ -81,7 +81,7 @@ export function normalizeCharacters(
 // ---------------------------------------------------------------------------
 
 /** 纯内存操作：从 state 的 focus 列表中移除指定 fact_id。不落盘。 */
-function applyDanglingFocusCleanup(
+function apply_dangling_focus_cleanup(
   state: { chapter_focus: string[]; last_confirmed_chapter_focus: string[] },
   fact_id: string,
 ): { wasInFocus: boolean; changed: boolean } {
@@ -113,7 +113,7 @@ interface ResolvesEffect {
   fact: Fact;
 }
 
-async function collectResolvesForward(
+async function collect_resolves_forward(
   au_id: string,
   resolves_target_id: string,
   chapter_num: number,
@@ -142,7 +142,7 @@ async function collectResolvesForward(
   return null;
 }
 
-async function collectResolvesReverse(
+async function collect_resolves_reverse(
   au_id: string,
   old_resolves_target_id: string,
   chapter_num: number,
@@ -197,7 +197,7 @@ export async function add_fact(
 
   let characters = (fact_data.characters as string[]) ?? [];
   if (character_aliases) {
-    characters = normalizeCharacters(characters, character_aliases);
+    characters = normalize_characters(characters, character_aliases);
   }
 
   // M8-A: time_kind / suspense_type — validate enum, illegal → null (与 rawToExtracted 对齐)
@@ -211,7 +211,7 @@ export async function add_fact(
     knownTo = rawKnownTo as "all" | "reader_only";
   } else if (Array.isArray(rawKnownTo)) {
     const filtered = (rawKnownTo as unknown[]).filter((x) => typeof x === "string") as string[];
-    knownTo = character_aliases ? normalizeCharacters(filtered, character_aliases) : filtered;
+    knownTo = character_aliases ? normalize_characters(filtered, character_aliases) : filtered;
   }
 
   const fact = createFact({
@@ -302,7 +302,7 @@ export async function add_fact(
 
   // resolves 联动：读取 target fact，构造 op + fact 更新，塞进同一个 tx
   if (fact.resolves) {
-    const effect = await collectResolvesForward(au_id, fact.resolves, chapter_num, fact_repo);
+    const effect = await collect_resolves_forward(au_id, fact.resolves, chapter_num, fact_repo);
     if (effect) {
       tx.appendOp(au_id, effect.op);
       tx.updateFact(au_id, effect.fact);
@@ -333,7 +333,7 @@ export async function edit_fact(
 
   // 别名归一化
   if ("characters" in updated_fields && character_aliases) {
-    updated_fields.characters = normalizeCharacters(
+    updated_fields.characters = normalize_characters(
       updated_fields.characters as string[],
       character_aliases,
     );
@@ -370,7 +370,7 @@ export async function edit_fact(
     oldStatus !== newStatus
   ) {
     state = await state_repo.get(au_id);
-    const { changed } = applyDanglingFocusCleanup(state, fact_id);
+    const { changed } = apply_dangling_focus_cleanup(state, fact_id);
     needStateSave = changed;
   }
 
@@ -398,14 +398,14 @@ export async function edit_fact(
   const newResolves = fact.resolves;
   if (oldResolves !== newResolves) {
     if (newResolves) {
-      const effect = await collectResolvesForward(au_id, newResolves, fact.chapter, fact_repo);
+      const effect = await collect_resolves_forward(au_id, newResolves, fact.chapter, fact_repo);
       if (effect) {
         tx.appendOp(au_id, effect.op);
         tx.updateFact(au_id, effect.fact);
       }
     }
     if (oldResolves) {
-      const effect = await collectResolvesReverse(au_id, oldResolves, fact.chapter, fact_repo, fact_id);
+      const effect = await collect_resolves_reverse(au_id, oldResolves, fact.chapter, fact_repo, fact_id);
       if (effect) {
         tx.appendOp(au_id, effect.op);
         tx.updateFact(au_id, effect.fact);
@@ -441,7 +441,7 @@ export async function update_fact_status(
   let state: Awaited<ReturnType<StateRepository["get"]>> | null = null;
   if (new_status === "deprecated" || new_status === "resolved") {
     state = await state_repo.get(au_id);
-    const { wasInFocus, changed } = applyDanglingFocusCleanup(state, fact_id);
+    const { wasInFocus, changed } = apply_dangling_focus_cleanup(state, fact_id);
     focusWarning = wasInFocus;
     needStateSave = changed;
   }
@@ -473,7 +473,7 @@ export async function update_fact_status(
   // 仅 deprecate 触发：其它状态（resolved/active）不影响 fact 作为 resolver 的有效性。
   // undo 路径的同款反向级联已由 undo_chapter.ts 的 collectResolvesRollback 覆盖，不在此处理。
   if (fact.status === FactStatus.DEPRECATED && fact.resolves) {
-    const effect = await collectResolvesReverse(au_id, fact.resolves, chapter_num, fact_repo, fact_id);
+    const effect = await collect_resolves_reverse(au_id, fact.resolves, chapter_num, fact_repo, fact_id);
     if (effect) {
       tx.appendOp(au_id, effect.op);
       tx.updateFact(au_id, effect.fact);
@@ -538,7 +538,7 @@ export const ARCHIVE_DISTANCE = 10;
  *   active/unresolved + narrative_weight=low + 距当前章 ≥ threshold + 未归档。
  * find_archival_candidates（预览）与 run_archival_sweep（实归档）共用，避免两处对「冷」漂移。
  */
-export function isArchivalCandidate(
+export function is_archival_candidate(
   fact: Fact,
   current_chapter: number,
   cold_threshold_chapters: number = ARCHIVE_DISTANCE,
@@ -562,7 +562,7 @@ export async function find_archival_candidates(
   cold_threshold_chapters: number = ARCHIVE_DISTANCE,
 ): Promise<Fact[]> {
   const all = await fact_repo.list_all(au_id);
-  return all.filter((f) => isArchivalCandidate(f, current_chapter, cold_threshold_chapters));
+  return all.filter((f) => is_archival_candidate(f, current_chapter, cold_threshold_chapters));
 }
 
 /**

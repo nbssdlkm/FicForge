@@ -5,7 +5,7 @@
  * 对话式 × 记忆栈融合 P1.2：assemble_chat_context — 分层对话上下文。
  *
  * 与 assemble_context_simple（全塞）的区别：
- *  - 复用 P0-P5 builder（facts / threads / 上一章 / 核心设定）+ retrieveRagForContext，
+ *  - 复用 P0-P5 builder（facts / threads / 上一章 / 核心设定）+ retrieve_rag_for_context，
  *    按 D-0039 预算切分，而不是无脑全塞。
  *  - 产物切成 { systemContent, latestUserContent, budget_report }：记忆进 system，
  *    最新轮 user 进 latestUserContent（dispatch 把 history 夹在中间）。
@@ -17,7 +17,7 @@ import { describe, expect, it } from "vitest";
 import {
   assemble_chat_context,
   build_system_prompt_simple,
-  computeInputBudget,
+  compute_input_budget,
   CHAT_HISTORY_RESERVE_RATIO,
   CHAT_HISTORY_RESERVE_CEIL,
 } from "../context_assembler.js";
@@ -27,7 +27,7 @@ import { createChapter } from "../../domain/chapter.js";
 import { createFact } from "../../domain/fact.js";
 import { createThread } from "../../domain/thread.js";
 import { FactStatus, NarrativeWeight, LLMMode } from "../../domain/enums.js";
-import { count_tokens, ensureTokenizer } from "../../tokenizer/index.js";
+import { count_tokens, ensure_tokenizer } from "../../tokenizer/index.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 import { FileChapterRepository } from "../../repositories/implementations/file_chapter.js";
 import type { VectorRepository, SearchOptions, SearchResult, VectorChunk } from "../../repositories/interfaces/vector.js";
@@ -258,7 +258,7 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
   });
 
   it("历史预留：记忆层选择预算被压在 memBudget=budget−reserve 内（抓 reserve 回归）", async () => {
-    await ensureTokenizer();
+    await ensure_tokenizer();
     const adapter = new MockAdapter();
     const chapterRepo = new FileChapterRepository(adapter);
     // ctx 收窄到 12000 让"记忆远超 memBudget"可判定（默认 32k 下小 fixture 塞得下不降级）。
@@ -289,7 +289,7 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
     expect(br.unresolved_soft_degraded).toBe(true);
 
     // 复算 budget / reserve / memBudget（用 export 的单一真相源公式 + 常量，不手抄）。
-    const budget = Math.max(0, computeInputBudget(br.context_window, br.system_tokens, br.max_output_tokens));
+    const budget = Math.max(0, compute_input_budget(br.context_window, br.system_tokens, br.max_output_tokens));
     const reserve = Math.min(Math.trunc(budget * CHAT_HISTORY_RESERVE_RATIO), CHAT_HISTORY_RESERVE_CEIL);
     const memBudget = budget - reserve;
     expect(reserve).toBeGreaterThan(0); // fixture 前提：reserve 确实非零

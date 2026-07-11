@@ -39,7 +39,7 @@ export interface RetrospectiveOptions {
  *     ch=5 → target=0 < 1 → false
  *     ch=7 → 7%5≠0 → false
  */
-export function shouldRunRetrospective(
+export function should_run_retrospective(
   chapterNum: number,
   triggerInterval: number,
 ): boolean {

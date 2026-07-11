@@ -4,8 +4,8 @@
 /**
  * M8-A Fact Enrichment — TDD tests (T4, T5, T6, T7, T8 partial).
  * T4: rawToExtracted enum validation
- * T5: extract_facts_from_chapter with new fields
- * T6: build_facts_layer enrichment injection (buildFactEnrichmentSuffix)
+ * T5: extractFactsFromChapter with new fields
+ * T6: build_facts_layer enrichment injection (build_fact_enrichment_suffix)
  * T7: FACTS_ENRICH_SYSTEM_PROMPT in prompt keys
  * T8: round-trip via ops (hop 3+4+5)
  *
@@ -14,8 +14,8 @@
 
 import { describe, expect, it } from "vitest";
 import { rawToExtracted } from "../facts_extraction.js";
-import { extract_facts_from_chapter } from "../facts_extraction.js";
-import { build_facts_layer, buildFactEnrichmentSuffix } from "../context_assembler.js";
+import { extractFactsFromChapter } from "../facts_extraction.js";
+import { build_facts_layer, build_fact_enrichment_suffix } from "../context_assembler.js";
 import { createFact } from "../../domain/fact.js";
 import { FactStatus } from "../../domain/enums.js";
 import { getPrompts, REQUIRED_KEYS } from "../../prompts/index.js";
@@ -183,10 +183,10 @@ describe("T4: rawToExtracted — M8-A field validation", () => {
 });
 
 // ===========================================================================
-// T5: extract_facts_from_chapter with new fields
+// T5: extractFactsFromChapter with new fields
 // ===========================================================================
 
-describe("T5: extract_facts_from_chapter — M8-A new fields", () => {
+describe("T5: extractFactsFromChapter — M8-A new fields", () => {
   const enrichedProvider: LLMProvider = {
     async generate(_params: GenerateParams): Promise<LLMResponse> {
       return {
@@ -226,7 +226,7 @@ describe("T5: extract_facts_from_chapter — M8-A new fields", () => {
   };
 
   it("new fields are correctly parsed from LLM response", async () => {
-    const results = await extract_facts_from_chapter(
+    const results = await extractFactsFromChapter(
       "皇帝在御书房暗中密谋，赐毒于使者。",
       1, [], { characters: ["皇帝", "皇后"] }, null,
       enrichedProvider, null,
@@ -269,7 +269,7 @@ describe("T5: extract_facts_from_chapter — M8-A new fields", () => {
       async *generateStream(): AsyncIterable<LLMChunk> {},
     };
 
-    const results = await extract_facts_from_chapter(
+    const results = await extractFactsFromChapter(
       "Chapter content here.", 1, [], { characters: [] }, null, badProvider, null,
     );
     expect(results).toHaveLength(1);
@@ -295,7 +295,7 @@ describe("T5: extract_facts_from_chapter — M8-A new fields", () => {
       async *generateStream(): AsyncIterable<LLMChunk> {},
     };
 
-    const results = await extract_facts_from_chapter(
+    const results = await extractFactsFromChapter(
       "Alice遇到了Bob。", 1, [], { characters: ["Alice", "Bob"] }, null, plainProvider, null,
     );
     expect(results).toHaveLength(1);
@@ -430,21 +430,21 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
   });
 });
 
-describe("T6: buildFactEnrichmentSuffix — pure function (M8-A)", () => {
+describe("T6: build_fact_enrichment_suffix — pure function (M8-A)", () => {
   it("no _confidence（手动/导入）→ present 富化字段无条件注入（MED-3）", () => {
     const fact = createFact({
       id: "f1", content_raw: "r", content_clean: "c",
       known_to: "reader_only" as "reader_only",
       time_kind: "flashback" as any,
     });
-    const suffix = buildFactEnrichmentSuffix(fact);
+    const suffix = build_fact_enrichment_suffix(fact);
     expect(suffix).toContain("known_to: reader_only");
     expect(suffix).toContain("time_kind: flashback");
   });
 
   it("no _confidence 且无富化字段 → 仍返回空（无字段可注入）", () => {
     const fact = createFact({ id: "f1", content_raw: "r", content_clean: "c" });
-    expect(buildFactEnrichmentSuffix(fact)).toBe("");
+    expect(build_fact_enrichment_suffix(fact)).toBe("");
   });
 
   it("returns parenthesized suffix with high-confidence fields", () => {
@@ -455,7 +455,7 @@ describe("T6: buildFactEnrichmentSuffix — pure function (M8-A)", () => {
       action_verb: "决裂",
       _confidence: { known_to: "high", time_kind: "medium", action_verb: "high" },
     });
-    const suffix = buildFactEnrichmentSuffix(fact);
+    const suffix = build_fact_enrichment_suffix(fact);
     expect(suffix).toContain("known_to: reader_only");
     expect(suffix).toContain("time_kind: flashback");
     expect(suffix).toContain("action_verb: 决裂");
@@ -471,7 +471,7 @@ describe("T6: buildFactEnrichmentSuffix — pure function (M8-A)", () => {
       location: "某地",
       _confidence: { known_to: "high", location: "low" },
     });
-    const suffix = buildFactEnrichmentSuffix(fact);
+    const suffix = build_fact_enrichment_suffix(fact);
     expect(suffix).toContain("known_to: reader_only");
     expect(suffix).not.toContain("location:");
   });
@@ -483,7 +483,7 @@ describe("T6: buildFactEnrichmentSuffix — pure function (M8-A)", () => {
       location: "御书房", // location 在 _confidence 里无条目
       _confidence: { known_to: "high" },
     });
-    const suffix = buildFactEnrichmentSuffix(fact);
+    const suffix = build_fact_enrichment_suffix(fact);
     expect(suffix).toContain("known_to: reader_only");
     expect(suffix).not.toContain("location:"); // c 存在 → 缺条目按未确信处理，抑制
   });
@@ -494,7 +494,7 @@ describe("T6: buildFactEnrichmentSuffix — pure function (M8-A)", () => {
       time_kind: "normal" as any,
       _confidence: { time_kind: "high" },
     });
-    const suffix = buildFactEnrichmentSuffix(fact);
+    const suffix = build_fact_enrichment_suffix(fact);
     expect(suffix).not.toContain("time_kind:");
   });
 });

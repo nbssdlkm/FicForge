@@ -23,7 +23,7 @@ import type { PlatformAdapter } from "../platform/adapter.js";
 import type { Message } from "../llm/provider.js";
 import { resolve_llm_config } from "../llm/config_resolver.js";
 import { assemble_chat_context } from "./context_assembler.js";
-import { count_tokens, ensureTokenizer } from "../tokenizer/index.js";
+import { count_tokens, ensure_tokenizer } from "../tokenizer/index.js";
 import { joinPath } from "../utils/file_utils.js";
 
 async function loadMdDir(
@@ -130,7 +130,7 @@ export async function estimate_simple_context_tokens(
   // 直接用 count_tokens 跟 budget_report.system_tokens / p1_tokens 同源。
   let historyTokens = 0;
   if (history.length > 0) {
-    await ensureTokenizer(); // assembler 已 ensure 过，这里 idempotent
+    await ensure_tokenizer(); // assembler 已 ensure 过，这里 idempotent
     const llmForCount = effectiveLlm ?? project.llm;
     for (const msg of history) {
       // OpenAI 格式：每条 message 实际 token = content + tool_calls args + 固定 framing。

@@ -93,7 +93,7 @@ async function collectEvents(gen: AsyncGenerator<GenerationEvent>): Promise<Gene
 
 // 融合(plan §1.0):generate_chapter 不再按 writing_mode gate RAG —— 删了 disableRAG,
 // 写文路径 RAG 恒开。原「writing_mode='simple' 跳过 RAG」用例已随全塞退役删除;保留下方
-// full 路径用例,作为 RAG 编排抽到 retrieveRagForContext 后的端到端回归守护。
+// full 路径用例,作为 RAG 编排抽到 retrieve_rag_for_context 后的端到端回归守护。
 describe("generate_chapter — RAG 检索(写文路径恒开)", () => {
   let adapter: MockAdapter;
 
@@ -150,7 +150,7 @@ describe("generate_chapter — RAG 检索(写文路径恒开)", () => {
       _provider_override: createMockProvider(["继续", "写"]),
     })));
 
-    // caller gate `rag_text === null`:外部已传 rag_text → 内部 retrieveRagForContext 不触发。
+    // caller gate `rag_text === null`:外部已传 rag_text → 内部 retrieve_rag_for_context 不触发。
     expect(searchSpy).not.toHaveBeenCalled();
     // 且外部 rag_text 确实被转发进 assemble_context(P4 按行计数 → context_summary 非零),
     // 锁住「gate 跳过内部检索」的同时「外部 rag_text 不被静默丢弃」。

@@ -31,7 +31,7 @@ import { isAbortError } from "../utils/abort_error.js";
 import { chapterInflightKey, isChapterInflight, markChapterInflight, releaseChapterInflight } from "./chapter_inflight.js";
 import { assemble_context } from "./context_assembler.js";
 import type { ChunkWithCollection } from "./rag_retrieval.js";
-import { retrieveRagForContext, toRagChunkDetail } from "./rag_retrieval.js";
+import { retrieve_rag_for_context, to_rag_chunk_detail } from "./rag_retrieval.js";
 import { joinPath } from "../utils/file_utils.js";
 import { withAuLock } from "./au_lock.js";
 import { persistGeneratedDraft } from "./draft_persist.js";
@@ -196,12 +196,12 @@ export async function* generate_chapter(
     }
 
     // === 步骤 1.8：RAG 检索（STALE 时也尝试召回，并在 summary 标记索引可能过期）===
-    // RAG 编排已抽到 rag_retrieval.ts:retrieveRagForContext（单一真相源,对话路径共用,融合 plan §1.0）。
+    // RAG 编排已抽到 rag_retrieval.ts:retrieve_rag_for_context（单一真相源,对话路径共用,融合 plan §1.0）。
     // 融合后无简版,写文生成期 RAG 恒开:原 disableRAG gate 已删（full 模式本就 disableRAG=false,逐字节不变）。
     const indexReady = state.index_status === IndexStatus.READY;
     let ragChunksDetail: ChunkWithCollection[] = [];
     if (rag_text === null && vector_repo && embedding_provider) {
-      const rag = await retrieveRagForContext({
+      const rag = await retrieve_rag_for_context({
         project, state, user_input, facts,
         vector_repo, embedding_provider, au_id,
         llm_config: llmConfig, language,
@@ -230,7 +230,7 @@ export async function* generate_chapter(
 
     // 把结构化 RAG 片段挂到 summary（assemble_context 只看纯文本，这里外挂 detail）
     context_summary.rag_chunks = ragChunksDetail
-      .map(toRagChunkDetail)
+      .map(to_rag_chunk_detail)
       .filter((d): d is NonNullable<typeof d> => d !== null);
     // 用 chunks 数覆盖原按行统计，保证 UI 数字与展示条数一致。
     // 仅在走了内部 RAG（即拿到结构化 chunks）时覆盖；外部传入 rag_text 场景保留 context_assembler 按行算的值。

@@ -22,7 +22,7 @@ export interface GenerateSummaryOptions {
 
 export async function generate_micro_summary(
   chapter_text: string,
-  chapter_num: number,
+  chapterNum: number,
   llm_provider: LLMProvider,
   opts?: GenerateSummaryOptions,
 ): Promise<string | null> {
@@ -35,7 +35,7 @@ export async function generate_micro_summary(
     {
       role: "user" as const,
       content: P.SUMMARY_MICRO_USER
-        .replace("{chapter_num}", String(chapter_num))
+        .replace("{chapter_num}", String(chapterNum))
         .replace("{chapter_text}", chapter_text),
     },
   ];
@@ -52,14 +52,14 @@ export async function generate_micro_summary(
     return text.length > 0 ? text : null;
   } catch (err) {
     // 与 standard 相同的降级策略：失败返回 null，不抛（决策②）
-    logCatch("summary", `Micro summary LLM generation failed for chapter ${chapter_num}`, err);
+    logCatch("summary", `Micro summary LLM generation failed for chapter ${chapterNum}`, err);
     return null;
   }
 }
 
 export async function generate_standard_summary(
   chapter_text: string,
-  chapter_num: number,
+  chapterNum: number,
   llm_provider: LLMProvider,
   opts?: GenerateSummaryOptions,
 ): Promise<string | null> {
@@ -72,7 +72,7 @@ export async function generate_standard_summary(
     {
       role: "user" as const,
       content: P.SUMMARY_STANDARD_USER
-        .replace("{chapter_num}", String(chapter_num))
+        .replace("{chapter_num}", String(chapterNum))
         .replace("{chapter_text}", chapter_text),
     },
   ];
@@ -89,7 +89,7 @@ export async function generate_standard_summary(
     return text.length > 0 ? text : null;
   } catch (err) {
     // 决策②：降级返回 null，不抛；但必须记录，避免静默吞错（codex workflow 审 MAJOR）。
-    logCatch("summary", `Summary LLM generation failed for chapter ${chapter_num}`, err);
+    logCatch("summary", `Summary LLM generation failed for chapter ${chapterNum}`, err);
     return null;
   }
 }

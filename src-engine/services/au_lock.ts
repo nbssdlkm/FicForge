@@ -25,7 +25,7 @@
  * 1) 引擎内部的 orchestrator service（自带事务 + 级联逻辑）
  *    在其对外入口函数的第一行包 withAuLock：
  *      - confirm_chapter / undo_latest_chapter / resolve_dirty_chapter
- *      - executeImport / import_chapters
+ *      - execute_import / import_chapters
  *    它们内部调用 facts_lifecycle / chapter_edit 等底层函数时，底层不应再加锁。
  *
  * 2) 长流程中的"写段"（不能全程持锁）

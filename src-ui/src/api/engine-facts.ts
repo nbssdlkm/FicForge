@@ -226,7 +226,7 @@ export async function unarchiveFact(auPath: string, factId: string) {
 // ---------------------------------------------------------------------------
 
 export async function extractFacts(auPath: string, chapterNum: number, opts?: { signal?: AbortSignal }) {
-  const { extract_facts_from_chapter, reactExtractFromChapter } = await import("@ficforge/engine");
+  const { extractFactsFromChapter, reactExtractFromChapter } = await import("@ficforge/engine");
   const e = getEngine();
   const { provider, llmConfig, proj, lang, reactEnabled } = await resolveFactsProvider(auPath);
   const chapterContent = await e.repos.chapter.get_content_only(auPath, chapterNum);
@@ -250,7 +250,7 @@ export async function extractFacts(auPath: string, chapterNum: number, opts?: { 
   }
 
   // 单次调用路径无软上限概念（不截断），cappedCount=0。
-  const facts = await extract_facts_from_chapter(
+  const facts = await extractFactsFromChapter(
     chapterContent, chapterNum, existingFacts,
     proj.cast_registry, null, provider, llmConfig,
     { language: lang, signal: opts?.signal },

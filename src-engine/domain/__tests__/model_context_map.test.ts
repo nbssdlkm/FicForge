@@ -7,7 +7,7 @@ import {
   DEFAULT_MAX_OUTPUT,
   get_context_window,
   get_model_max_output,
-  normalizeModelId,
+  normalize_model_id,
 } from "../model_context_map.js";
 
 describe("model_context_map", () => {
@@ -70,11 +70,11 @@ describe("model_context_map", () => {
   // fuzzy 匹配修复：strip org/ 前缀 + 小写化
   // -------------------------------------------------------------------------
 
-  it("normalizeModelId — strip org/ 前缀 + 小写", () => {
-    expect(normalizeModelId("deepseek-ai/DeepSeek-V4-Pro")).toBe("deepseek-v4-pro");
-    expect(normalizeModelId("moonshotai/Kimi-K2.6")).toBe("kimi-k2.6");
-    expect(normalizeModelId("GPT-4o")).toBe("gpt-4o");
-    expect(normalizeModelId("deepseek-chat")).toBe("deepseek-chat");
+  it("normalize_model_id — strip org/ 前缀 + 小写", () => {
+    expect(normalize_model_id("deepseek-ai/DeepSeek-V4-Pro")).toBe("deepseek-v4-pro");
+    expect(normalize_model_id("moonshotai/Kimi-K2.6")).toBe("kimi-k2.6");
+    expect(normalize_model_id("GPT-4o")).toBe("gpt-4o");
+    expect(normalize_model_id("deepseek-chat")).toBe("deepseek-chat");
   });
 
   it("fuzzy 修复 — SiliconFlow/OpenRouter org/ 形态命中裸名条目（判别测试）", () => {

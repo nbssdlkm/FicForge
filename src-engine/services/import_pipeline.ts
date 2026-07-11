@@ -5,7 +5,7 @@
  * 导入流水线 v2。
  * 支持多文件导入、AI 对话格式解析、冲突处理、设定提取。
  *
- * 新 API：analyzeFile → buildImportPlan → executeImport
+ * 新 API：analyze_file → build_import_plan → execute_import
  * 旧 API（向后兼容）：split_into_chapters / import_chapters / parse_html
  */
 
@@ -58,7 +58,7 @@ export type { SplitChapter } from "./chapter_splitter.js";
 // ---------------------------------------------------------------------------
 
 /**
- * analyzeFile 进度阶段。
+ * analyze_file 进度阶段。
  * - "llm-chat-detect": 正要调 LLM 识别对话结构（UI 应显示"AI 正在识别..."）
  * - "llm-chat-failed": LLM 调用出错或 sample 幻觉被 validate 拦截（UI 应 toast "AI 识别失败"）；LLM 合理判断"非对话"不触发此阶段。
  */
@@ -148,14 +148,14 @@ export interface ExecuteImportParams {
 }
 
 // ---------------------------------------------------------------------------
-// New API: analyzeFile
+// New API: analyze_file
 // ---------------------------------------------------------------------------
 
 /**
  * 分析单个文件内容，检测格式（对话 or 纯正文），返回分析结果。
  * text 应为已提取的纯文本（前端负责 docx/html 转换）。
  */
-export async function analyzeFile(
+export async function analyze_file(
   text: string,
   filename: string,
   options: AnalysisOptions = {},
@@ -171,14 +171,14 @@ export async function analyzeFile(
       if (isJsonChatExport(data)) {
         const turns = parseChatExport(data);
         const classified = classifyTurns(turns, thresholds);
-        return buildChatAnalysis(filename, "json", "JSON", classified, totalChars);
+        return build_chat_analysis(filename, "json", "JSON", classified, totalChars);
       }
     } catch {
       // JSON 解析失败，尝试 JSONL（每行一个 JSON 对象）
-      const jsonlTurns = tryParseJsonl(text);
+      const jsonlTurns = try_parse_jsonl(text);
       if (jsonlTurns.length > 0) {
         const classified = classifyTurns(jsonlTurns, thresholds);
-        return buildChatAnalysis(filename, ext, "JSONL", classified, totalChars);
+        return build_chat_analysis(filename, ext, "JSONL", classified, totalChars);
       }
     }
   }
@@ -227,7 +227,7 @@ export async function analyzeFile(
   if (chatFormat) {
     const turns = splitByRole(text, chatFormat);
     const classified = classifyTurns(turns, thresholds);
-    return buildChatAnalysis(filename, ext, chatFormat.name, classified, totalChars);
+    return build_chat_analysis(filename, ext, chatFormat.name, classified, totalChars);
   }
 
   // 纯正文模式
@@ -252,7 +252,7 @@ export async function analyzeFile(
   };
 }
 
-function buildChatAnalysis(
+function build_chat_analysis(
   filename: string,
   ext: string,
   chatFormatName: string,
@@ -284,7 +284,7 @@ function buildChatAnalysis(
  * 尝试按 JSONL 格式解析（每行一个 JSON 对象）。
  * 用于 SillyTavern 等导出格式。
  */
-function tryParseJsonl(text: string): ChatTurn[] {
+function try_parse_jsonl(text: string): ChatTurn[] {
   const lines = text.split("\n").filter((l) => l.trim());
   if (lines.length < 2) return [];
 
@@ -315,7 +315,7 @@ function tryParseJsonl(text: string): ChatTurn[] {
 }
 
 // ---------------------------------------------------------------------------
-// New API: buildImportPlan
+// New API: build_import_plan
 // ---------------------------------------------------------------------------
 
 /**
@@ -323,7 +323,7 @@ function tryParseJsonl(text: string): ChatTurn[] {
  * 处理多文件章节号接续、"续"合并、设定收集。
  * analyses 中的 ClassifiedTurn 可能已被前端用户修改过 assignedType/assignedChapter。
  */
-export function buildImportPlan(
+export function build_import_plan(
   analyses: FileAnalysis[],
   conflictOptions: ImportConflictOptions,
 ): ImportPlan {
@@ -352,7 +352,7 @@ export function buildImportPlan(
   for (const analysis of analyses) {
     if (analysis.mode === "chat" && analysis.turns) {
       // 对话模式：从 ClassifiedTurn 中提取
-      const result = extractFromTurns(analysis.turns, analysis.filename, nextChapter, lastChapterIndex, chapters);
+      const result = extract_from_turns(analysis.turns, analysis.filename, nextChapter, lastChapterIndex, chapters);
       settings.push(...result.settings);
       nextChapter = result.nextChapter;
       lastChapterIndex = result.lastChapterIndex;
@@ -374,7 +374,7 @@ export function buildImportPlan(
   return { chapters, settings, conflictOptions };
 }
 
-function extractFromTurns(
+function extract_from_turns(
   turns: ClassifiedTurn[],
   filename: string,
   startChapter: number,
@@ -434,7 +434,7 @@ function extractFromTurns(
   return { settings, nextChapter, lastChapterIndex };
 }
 
-async function rollbackImportedSettings(
+async function rollback_imported_settings(
   adapter: PlatformAdapter,
   writtenPaths: string[],
 ): Promise<void> {
@@ -447,7 +447,7 @@ async function rollbackImportedSettings(
   }
 }
 
-async function writeImportedSettings(
+async function write_imported_settings(
   plan: ImportPlan,
   params: {
     auId: string;
@@ -508,27 +508,27 @@ async function writeImportedSettings(
     }
     return { count: plan.settings.length, writtenPaths };
   } catch (error) {
-    await rollbackImportedSettings(adapter, writtenPaths);
+    await rollback_imported_settings(adapter, writtenPaths);
     throw error;
   }
 }
 
 // ---------------------------------------------------------------------------
-// New API: executeImport
+// New API: execute_import
 // ---------------------------------------------------------------------------
 
 /**
  * 执行导入计划。写入章节、设定、ops，更新 state。
  * AU 级锁：整个导入流程期间阻止其它 service 对同一 AU 的并发写入。
  */
-export async function executeImport(
+export async function execute_import(
   plan: ImportPlan,
   params: ExecuteImportParams,
 ): Promise<NewImportResult> {
-  return withAuLock(params.auId, () => doExecuteImport(plan, params));
+  return withAuLock(params.auId, () => do_execute_import(plan, params));
 }
 
-async function doExecuteImport(
+async function do_execute_import(
   plan: ImportPlan,
   params: ExecuteImportParams,
 ): Promise<NewImportResult> {
@@ -549,12 +549,12 @@ async function doExecuteImport(
 
   const timestamp = now_utc();
 
-  // 1. 设定文件先行落盘（writeImportedSettings 内部失败会回滚已写部分并抛出）。
+  // 1. 设定文件先行落盘（write_imported_settings 内部失败会回滚已写部分并抛出）。
   // 必须在移旧章入回收站**之前**：若放在其后，设定写盘失败会把导入中止在
   // 「旧章已进回收站、新章未提交」的中间态，作品章节凭空变少（盲审 2026-07-09 中危）。
   // 先写设定则失败时整个导入原地中止、章节区零触碰。progress 的 chaptersDone
   // 此阶段恒为 0（章节尚未构建），如实反映顺序。
-  const settingsResult = await writeImportedSettings(plan, {
+  const settingsResult = await write_imported_settings(plan, {
     auId,
     adapter,
     locale,
@@ -717,7 +717,7 @@ async function doExecuteImport(
     try {
       await tx.commit(opsRepo, null, stateRepo, chapterRepo, null);
     } catch (commitError) {
-      await rollbackImportedSettings(adapter, writtenSettingsPaths);
+      await rollback_imported_settings(adapter, writtenSettingsPaths);
       throw commitError;
     }
   }
@@ -793,13 +793,13 @@ export interface ImportChaptersParams {
 
 /**
  * 旧接口：导入章节并初始化 state。
- * @deprecated 使用 executeImport() 替代
+ * @deprecated 使用 execute_import() 替代
  */
 export async function import_chapters(params: ImportChaptersParams): Promise<ImportResult> {
-  return withAuLock(params.au_id, () => doImportChapters(params));
+  return withAuLock(params.au_id, () => do_import_chapters(params));
 }
 
-async function doImportChapters(params: ImportChaptersParams): Promise<ImportResult> {
+async function do_import_chapters(params: ImportChaptersParams): Promise<ImportResult> {
   const {
     au_id, chapters,
     chapter_repo, state_repo, ops_repo,

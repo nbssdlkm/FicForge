@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it } from "vitest";
-import { parseLLMOutput, extract_facts_from_chapter } from "../facts_extraction.js";
+import { parseLLMOutput, extractFactsFromChapter } from "../facts_extraction.js";
 import type { LLMProvider, LLMResponse, LLMChunk, GenerateParams } from "../../llm/provider.js";
 
 describe("parseLLMOutput", () => {
@@ -31,7 +31,7 @@ describe("parseLLMOutput", () => {
   });
 });
 
-describe("extract_facts_from_chapter", () => {
+describe("extractFactsFromChapter", () => {
   const mockProvider: LLMProvider = {
     async generate(params: GenerateParams): Promise<LLMResponse> {
       return {
@@ -49,7 +49,7 @@ describe("extract_facts_from_chapter", () => {
   };
 
   it("extracts facts from chapter", async () => {
-    const results = await extract_facts_from_chapter(
+    const results = await extractFactsFromChapter(
       "Alice走进房间，看到了Bob。他们发现了一条线索。",
       1, [], { characters: ["Alice", "Bob"] }, null,
       mockProvider, null,
@@ -61,7 +61,7 @@ describe("extract_facts_from_chapter", () => {
   });
 
   it("returns empty for empty chapter", async () => {
-    const results = await extract_facts_from_chapter(
+    const results = await extractFactsFromChapter(
       "", 1, [], { characters: [] }, null, mockProvider, null,
     );
     expect(results).toEqual([]);
@@ -79,7 +79,7 @@ describe("extract_facts_from_chapter", () => {
       async *generateStream(): AsyncIterable<LLMChunk> {},
     };
 
-    const results = await extract_facts_from_chapter(
+    const results = await extractFactsFromChapter(
       "Long chapter text here. " + "Content. ".repeat(100),
       1, [], { characters: [] }, null, manyFactsProvider, null,
     );

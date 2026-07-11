@@ -103,11 +103,11 @@ describe("backfillChapterMemory", () => {
     vi.spyOn(engineModule, "generate_standard_summary").mockImplementation(
       async (_text: string, num: number) => `摘要-${num}`,
     );
-    vi.spyOn(engineModule, "extract_facts_from_chapter").mockImplementation(
+    vi.spyOn(engineModule, "extractFactsFromChapter").mockImplementation(
       (async (_content: string, num: number) => [{
         content_raw: "", content_clean: `第${num}章事实`, characters: [],
         narrative_weight: "medium", status: "active", fact_type: "plot_event", chapter: num,
-      }]) as unknown as typeof engineModule.extract_facts_from_chapter,
+      }]) as unknown as typeof engineModule.extractFactsFromChapter,
     );
   });
 
@@ -144,7 +144,7 @@ describe("backfillChapterMemory", () => {
     const facts = await getEngine().repos.fact.list_all(auPath);
     expect(facts.length).toBe(1);
     expect(facts[0].chapter).toBe(1);
-    expect(engineModule.extract_facts_from_chapter).toHaveBeenCalledTimes(1);
+    expect(engineModule.extractFactsFromChapter).toHaveBeenCalledTimes(1);
     // 两章都缺摘要 → 都补
     expect(res).toMatchObject({ summariesGenerated: 2, factsChapters: 1, factsAdded: 1, indexed: 2 });
   });

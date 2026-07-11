@@ -74,8 +74,8 @@ export async function analyzeImportFile(
       options = { ...options, useAiAssist: false };
     }
   }
-  const { analyzeFile } = await import("@ficforge/engine");
-  return analyzeFile(text, filename, options);
+  const { analyze_file } = await import("@ficforge/engine");
+  return analyze_file(text, filename, options);
 }
 
 /**
@@ -85,8 +85,8 @@ export async function buildImportPlanFromAnalyses(
   analyses: FileAnalysis[],
   conflictOptions: ImportConflictOptions,
 ): Promise<ImportPlan> {
-  const { buildImportPlan } = await import("@ficforge/engine");
-  return buildImportPlan(analyses, conflictOptions);
+  const { build_import_plan } = await import("@ficforge/engine");
+  return build_import_plan(analyses, conflictOptions);
 }
 
 /**
@@ -98,9 +98,9 @@ export async function executeImportPlan(
   onProgress?: (progress: ImportProgress) => void,
   locale?: "zh" | "en",
 ): Promise<NewImportResult> {
-  const { executeImport } = await import("@ficforge/engine");
+  const { execute_import } = await import("@ficforge/engine");
   const { adapter, repos, trash } = getEngine();
-  return executeImport(plan, {
+  return execute_import(plan, {
     auId: auPath,
     chapterRepo: repos.chapter,
     stateRepo: repos.state,
@@ -122,4 +122,4 @@ export async function getExistingChapterNums(auPath: string): Promise<number[]> 
 }
 
 // 旧版导入入口 uploadImportFile / confirmImport 已删除（2026-07-09 盲审孤儿管线清理）：
-// 全仓零调用点、未挂 barrel；现行导入走 analyzeFile → buildImportPlan → executeImport。
+// 全仓零调用点、未挂 barrel；现行导入走 analyze_file → build_import_plan → execute_import。

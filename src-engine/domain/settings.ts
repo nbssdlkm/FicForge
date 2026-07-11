@@ -50,7 +50,7 @@ export function createEmbeddingConfig(partial?: Partial<EmbeddingConfig>): Embed
  * 自定义模型的 ctx 经拉取 sheet 的已有条目保留 / 槽位级手填维护，逐模型编辑待后续。
  *
  * contextWindow 语义（与 provider_manifest.contextWindowForModel 分层一致）：
- *   - 有值 = 用户手填/确认的权威值（喂 computeInputBudget）
+ *   - 有值 = 用户手填/确认的权威值（喂 compute_input_budget）
  *   - 缺失 = 未知 —— UI 必须按 MODEL_CONTEXT_MAP fuzzy 估算并**显式提示「按 XXk 估算」**，
  *     禁止在持久化层静默补一个默认值伪装成权威数据（决策文档明令禁静默 fallback）。
  */

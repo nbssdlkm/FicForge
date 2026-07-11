@@ -8,7 +8,7 @@
 //
 // 数据口径（调研 2026-07-07-model-landscape-research.md）：
 //   - ctx / max output 优先官方文档；`⚠️` 注释 = 二手/未官方确证，取保守值。
-//   - key 用「裸模型名小写」形态（不含 org/ 前缀）；fuzzyLookup 会先 strip
+//   - key 用「裸模型名小写」形态（不含 org/ 前缀）；fuzzy_lookup 会先 strip
 //     `org/` 前缀 + 小写化再匹配，故 SiliconFlow/OpenRouter 的 `org/Model`
 //     形态 id（如 `deepseek-ai/DeepSeek-V4-Pro`）也能命中同一条目。
 //   - **保留旧条目**（deepseek-chat=65536 等）：存量用户配置仍在用（deepseek-chat
@@ -63,7 +63,7 @@ export const MODEL_CONTEXT_MAP: Record<string, number> = {
   // --- OpenAI ---
   // gpt-5.5 / 5.4：1M ctx / 128K out；5.4-mini 400K。来源：OpenAI developers docs（官方）
   "gpt-5.5": 1_000_000,
-  "gpt-5.4-mini": 400_000,  // 更长前缀须排在 gpt-5.4 之前的逻辑由 fuzzyLookup 最长前缀保证
+  "gpt-5.4-mini": 400_000,  // 更长前缀须排在 gpt-5.4 之前的逻辑由 fuzzy_lookup 最长前缀保证
   "gpt-5.4": 1_000_000,
   // 旧条目：保留兜底。来源：OpenAI（官方，遗留）
   "gpt-4o": 128_000,
@@ -173,14 +173,14 @@ export const DEFAULT_MAX_OUTPUT = 4_096;
  * 此处只取最后一段 `/` 之后的部分并小写化：`deepseek-ai/DeepSeek-V4-Pro` → `deepseek-v4-pro`。
  * MODEL_CONTEXT_MAP 的 key 也统一存裸名小写形态，两侧同源比较。
  */
-export function normalizeModelId(model_name: string): string {
+export function normalize_model_id(model_name: string): string {
   const lastSlash = model_name.lastIndexOf("/");
   const bare = lastSlash >= 0 ? model_name.slice(lastSlash + 1) : model_name;
   return bare.toLowerCase();
 }
 
-function fuzzyLookup(model_name: string, table: Record<string, number>, defaultVal: number): number {
-  const normalized = normalizeModelId(model_name);
+function fuzzy_lookup(model_name: string, table: Record<string, number>, defaultVal: number): number {
+  const normalized = normalize_model_id(model_name);
 
   if (normalized in table) {
     return table[normalized];
@@ -212,7 +212,7 @@ export function get_context_window(project: { llm?: { context_window?: number; m
   // 第 2 层：映射表
   const model = project.llm?.model;
   if (typeof model === "string" && model) {
-    return fuzzyLookup(model, MODEL_CONTEXT_MAP, DEFAULT_CONTEXT_WINDOW);
+    return fuzzy_lookup(model, MODEL_CONTEXT_MAP, DEFAULT_CONTEXT_WINDOW);
   }
 
   // 第 3 层：默认值
@@ -221,7 +221,7 @@ export function get_context_window(project: { llm?: { context_window?: number; m
 
 /** 获取模型单次输出 token 上限（PRD §4.1）。 */
 export function get_model_max_output(model_name: string): number {
-  return fuzzyLookup(model_name, MODEL_MAX_OUTPUT, DEFAULT_MAX_OUTPUT);
+  return fuzzy_lookup(model_name, MODEL_MAX_OUTPUT, DEFAULT_MAX_OUTPUT);
 }
 
 /**
@@ -231,12 +231,12 @@ export function get_model_max_output(model_name: string): number {
  * 让调用方显式处理「本表未收录」而不是拿到兜底值误当官方口径。
  */
 export function lookup_model_context_window(model_name: string): number | null {
-  const v = fuzzyLookup(model_name, MODEL_CONTEXT_MAP, -1);
+  const v = fuzzy_lookup(model_name, MODEL_CONTEXT_MAP, -1);
   return v === -1 ? null : v;
 }
 
 /** 同 lookup_model_context_window，输出上限侧。 */
 export function lookup_model_max_output(model_name: string): number | null {
-  const v = fuzzyLookup(model_name, MODEL_MAX_OUTPUT, -1);
+  const v = fuzzy_lookup(model_name, MODEL_MAX_OUTPUT, -1);
   return v === -1 ? null : v;
 }

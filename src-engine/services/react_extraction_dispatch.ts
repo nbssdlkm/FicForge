@@ -97,7 +97,7 @@ function normalizeForMatch(s: string): string {
 /**
  * H10（审计第二轮）：为 ReAct propose 的 M8-A 富化字段合成 per-field _confidence=medium。
  *
- * 为什么需要：P3 注入门控 buildFactEnrichmentSuffix 要求 fact._confidence 存在且对应
+ * 为什么需要：P3 注入门控 build_fact_enrichment_suffix 要求 fact._confidence 存在且对应
  * 字段 ≥ medium 才注入。单次调用路径的 prompt 要求 LLM 自评 _confidence；而 ReAct 的
  * proposeFactItemSchema 不含 _confidence（zod 剥离未知键）、system prompt 也不要求——
  * 结果 known_to / time_kind / action_verb / location / suspense_type 落库后全部被门控
@@ -317,7 +317,7 @@ export async function reactExtractFromChapter(
           }
         }
         // H10：出现的富化字段合成 _confidence=medium（不覆盖上面 grounding 标的 caused_by=low），
-        // 否则 P3 注入门控 buildFactEnrichmentSuffix 会把 ReAct 提取的富化字段全部静默丢弃。
+        // 否则 P3 注入门控 build_fact_enrichment_suffix 会把 ReAct 提取的富化字段全部静默丢弃。
         synthesizeEnrichmentConfidence(fact);
         proposedFacts.push(fact);
         grounded.push(isGrounded);

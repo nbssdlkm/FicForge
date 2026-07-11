@@ -16,7 +16,7 @@
  *       manifest 推荐模型的 ctx（权威） > MODEL_CONTEXT_MAP fuzzy（按 id 推断） > undefined（调用方兜 DEFAULT）。
  */
 
-import { MODEL_CONTEXT_MAP, get_context_window, lookup_model_context_window, lookup_model_max_output, normalizeModelId } from "./model_context_map.js";
+import { MODEL_CONTEXT_MAP, get_context_window, lookup_model_context_window, lookup_model_max_output, normalize_model_id } from "./model_context_map.js";
 
 // ---------------------------------------------------------------------------
 // 类型（参照 Kelivo ProviderConfig + Cherry ModelInfo，蓝图 §三.3-4）
@@ -38,14 +38,14 @@ export interface LocalizedName {
  * 推荐模型条目。
  *
  * 与「用户自定义模型」同构：UI 阶段用户手填的模型也用这个形状，
- * 故 contextWindow 是必填权威值（喂 computeInputBudget），maxOutputTokens 可选。
+ * 故 contextWindow 是必填权威值（喂 compute_input_budget），maxOutputTokens 可选。
  */
 export interface RecommendedModel {
   /** 模型 id（发给 API 的名字，可能带 org/ 前缀，如 SiliconFlow 的 `deepseek-ai/DeepSeek-V4-Pro`）。 */
   id: string;
   /** UI 展示名（简短，不含 org/ 前缀）。 */
   displayName: string;
-  /** context window（权威值，喂 computeInputBudget）。 */
+  /** context window（权威值，喂 compute_input_budget）。 */
   contextWindow: number;
   /** 单次输出上限（可选；官方未明示时省略，调用方回退 MODEL_MAX_OUTPUT / DEFAULT）。 */
   maxOutputTokens?: number;
@@ -435,8 +435,8 @@ export function contextWindowForModel(model: string, providerId?: string): numbe
 
   // 第 2 层：MODEL_CONTEXT_MAP fuzzy —— 仅当归一化 id 真的落在表内（exact 或前缀）才算命中，
   // 否则 get_context_window 会返回 DEFAULT，那属于"没查到"，应交给调用方兜（第 3 层）。
-  // 复用 MODEL_CONTEXT_MAP 的 key 集合做命中判据（单一真相源，不重复实现 fuzzyLookup）。
-  const normalized = normalizeModelId(model);
+  // 复用 MODEL_CONTEXT_MAP 的 key 集合做命中判据（单一真相源，不重复实现 fuzzy_lookup）。
+  const normalized = normalize_model_id(model);
   const hit = Object.keys(MODEL_CONTEXT_MAP).some(
     (key) => normalized === key || normalized.startsWith(key),
   );

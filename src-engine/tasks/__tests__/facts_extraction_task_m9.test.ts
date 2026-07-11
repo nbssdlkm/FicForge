@@ -74,7 +74,7 @@ describe("批量提取任务 — M9 接线", () => {
   });
 
   it("reactExtractionEnabled=false：走原批量单次调用（无 thread_ids）", async () => {
-    // 批量路径走 extract_facts_batch（一次 generate JSON），非工具循环
+    // 批量路径走 extractFactsBatch（一次 generate JSON），非工具循环
     const provider: LLMProvider = {
       async generate(): Promise<LLMResponse> {
         return { content: JSON.stringify([{ content_clean: "批量提取的事实", characters: ["林晚月"], chapter: 1 }]), model: "m", input_tokens: 1, output_tokens: 1, finish_reason: "stop" };

@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { run_retrospective, generate_retrospective, commit_retrospective, shouldRunRetrospective, RETROSPECTIVE_INTERVAL } from "../retrospective.js";
+import { run_retrospective, generate_retrospective, commit_retrospective, should_run_retrospective, RETROSPECTIVE_INTERVAL } from "../retrospective.js";
 import { IndexStatus } from "../../domain/enums.js";
 
 function fakeProvider(reply: string) {
@@ -40,25 +40,25 @@ function fakeEmbeddingProvider() {
   return { embed: vi.fn() } as any;
 }
 
-describe("shouldRunRetrospective", () => {
+describe("should_run_retrospective", () => {
   it("returns true when chapterNum is multiple of interval AND target >= 1", () => {
     // ch=10, interval=5 → target=5 ≥ 1 → true
-    expect(shouldRunRetrospective(10, 5)).toBe(true);
-    expect(shouldRunRetrospective(15, 5)).toBe(true);
-    expect(shouldRunRetrospective(20, 5)).toBe(true);
+    expect(should_run_retrospective(10, 5)).toBe(true);
+    expect(should_run_retrospective(15, 5)).toBe(true);
+    expect(should_run_retrospective(20, 5)).toBe(true);
   });
 
   it("returns false when chapterNum is not a multiple of interval", () => {
-    expect(shouldRunRetrospective(3, 5)).toBe(false);
-    expect(shouldRunRetrospective(7, 5)).toBe(false);
-    expect(shouldRunRetrospective(11, 5)).toBe(false);
+    expect(should_run_retrospective(3, 5)).toBe(false);
+    expect(should_run_retrospective(7, 5)).toBe(false);
+    expect(should_run_retrospective(11, 5)).toBe(false);
   });
 
   it("returns false when targetChapterNum (chapterNum - interval) < 1", () => {
     // ch=5, interval=5 → target=0 → false (N must be ≥ interval+1)
-    expect(shouldRunRetrospective(5, 5)).toBe(false);
+    expect(should_run_retrospective(5, 5)).toBe(false);
     // ch=6 → 6%5 !== 0 → false
-    expect(shouldRunRetrospective(6, 5)).toBe(false);
+    expect(should_run_retrospective(6, 5)).toBe(false);
   });
 
   it("RETROSPECTIVE_INTERVAL constant equals 5", () => {

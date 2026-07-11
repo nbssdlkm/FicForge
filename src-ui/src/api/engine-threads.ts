@@ -16,7 +16,7 @@ import {
   now_utc,
   computeThreadStaleness,
   threadMemberFacts,
-  regenerate_thread_state,
+  regenerateThreadState as regenerateThreadStateEngine,
 } from "@ficforge/engine";
 import type { Thread, ThreadStaleness } from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
@@ -76,7 +76,7 @@ export async function regenerateThreadState(auPath: string, threadId: string): P
   const facts = await e.repos.fact.list_all(auPath);
   const members = threadMemberFacts(thread, facts);
   const { provider, lang } = await resolveFactsProvider(auPath);
-  const state = await regenerate_thread_state(thread, members, provider, { language: lang as "zh" | "en" });
+  const state = await regenerateThreadStateEngine(thread, members, provider, { language: lang as "zh" | "en" });
   if (state == null) return null;
   await e.repos.thread.update(auPath, { ...thread, state, updated_at: now_utc() });
   return state;

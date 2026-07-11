@@ -11,7 +11,7 @@
  * 本模块给两件**便宜**的东西（不默认烧 token）：
  *   1. computeThreadStaleness —— 纯确定性，零 LLM：某条线挂了「晚于 state 上次更新」的新事实
  *      就算陈旧。UI 据此提示「进展待更新」，让隐性陈旧变显性。
- *   2. regenerate_thread_state —— 按需（用户点「刷新进展」）用 LLM 从成员事实重算一句话。
+ *   2. regenerateThreadState —— 按需（用户点「刷新进展」）用 LLM 从成员事实重算一句话。
  *      失败降级返回 null（不抛）。是否在 confirm 后自动重算属产品×成本取舍，不在此默认触发。
  */
 
@@ -59,7 +59,7 @@ export function threadMemberFacts(thread: Thread, facts: Fact[]): Fact[] {
     .sort((a, b) => (a.chapter - b.chapter) || (a.created_at || "").localeCompare(b.created_at || ""));
 }
 
-/** regenerate_thread_state 单章最多喂给 LLM 的成员事实数（控 token；取最近的）。 */
+/** regenerateThreadState 单章最多喂给 LLM 的成员事实数（控 token；取最近的）。 */
 export const THREAD_STATE_MAX_FACTS = 12;
 
 /**
@@ -67,7 +67,7 @@ export const THREAD_STATE_MAX_FACTS = 12;
  * 返回 null（降级不抛，调用方静默跳过或保留旧 state）。**本函数只生成、不落盘**——调用方拿到
  * 文本后自行 thread.update（并刷新 updated_at，使陈旧判定清零）。
  */
-export async function regenerate_thread_state(
+export async function regenerateThreadState(
   thread: Thread,
   member_facts: Fact[],
   llm_provider: LLMProvider,

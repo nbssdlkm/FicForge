@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { add_fact, run_archival_sweep, find_archival_candidates, archive_facts, isArchivalCandidate } from "../facts_lifecycle.js";
+import { add_fact, run_archival_sweep, find_archival_candidates, archive_facts, is_archival_candidate } from "../facts_lifecycle.js";
 import { createFact } from "../../domain/fact.js";
 import type { Fact } from "../../domain/fact.js";
 import { NarrativeWeight, FactStatus } from "../../domain/enums.js";
@@ -177,34 +177,34 @@ describe("run_archival_sweep", () => {
 });
 
 // 判据单一真相源的直接边界测试（codex 审 P2：之前只经 sweep 间接验）。
-describe("isArchivalCandidate (predicate boundaries)", () => {
+describe("is_archival_candidate (predicate boundaries)", () => {
   const base = (over: Partial<Fact> = {}): Fact => createFact({
     id: "f", content_raw: "r", content_clean: "c", chapter: 1,
     narrative_weight: NarrativeWeight.LOW, status: FactStatus.ACTIVE, ...over,
   });
 
   it("distance == threshold exactly → candidate (chapter 1, current 11, thr 10)", () => {
-    expect(isArchivalCandidate(base({ chapter: 1 }), 11, 10)).toBe(true);
+    expect(is_archival_candidate(base({ chapter: 1 }), 11, 10)).toBe(true);
   });
   it("distance one short of threshold → not a candidate (chapter 2, current 11)", () => {
-    expect(isArchivalCandidate(base({ chapter: 2 }), 11, 10)).toBe(false);
+    expect(is_archival_candidate(base({ chapter: 2 }), 11, 10)).toBe(false);
   });
   it("archived === undefined (legacy fact) → treated as not-archived → candidate", () => {
-    expect(isArchivalCandidate({ ...base({ chapter: 1 }), archived: undefined as unknown as boolean }, 11, 10)).toBe(true);
+    expect(is_archival_candidate({ ...base({ chapter: 1 }), archived: undefined as unknown as boolean }, 11, 10)).toBe(true);
   });
   it("archived === true → excluded", () => {
-    expect(isArchivalCandidate(base({ chapter: 1, archived: true }), 11, 10)).toBe(false);
+    expect(is_archival_candidate(base({ chapter: 1, archived: true }), 11, 10)).toBe(false);
   });
   it("RESOLVED / DEPRECATED status → excluded", () => {
-    expect(isArchivalCandidate(base({ chapter: 1, status: FactStatus.RESOLVED }), 11, 10)).toBe(false);
-    expect(isArchivalCandidate(base({ chapter: 1, status: FactStatus.DEPRECATED }), 11, 10)).toBe(false);
+    expect(is_archival_candidate(base({ chapter: 1, status: FactStatus.RESOLVED }), 11, 10)).toBe(false);
+    expect(is_archival_candidate(base({ chapter: 1, status: FactStatus.DEPRECATED }), 11, 10)).toBe(false);
   });
   it("non-low weight → excluded", () => {
-    expect(isArchivalCandidate(base({ chapter: 1, narrative_weight: NarrativeWeight.MEDIUM }), 11, 10)).toBe(false);
-    expect(isArchivalCandidate(base({ chapter: 1, narrative_weight: NarrativeWeight.HIGH }), 11, 10)).toBe(false);
+    expect(is_archival_candidate(base({ chapter: 1, narrative_weight: NarrativeWeight.MEDIUM }), 11, 10)).toBe(false);
+    expect(is_archival_candidate(base({ chapter: 1, narrative_weight: NarrativeWeight.HIGH }), 11, 10)).toBe(false);
   });
   it("current_chapter 0 (new AU) → nothing qualifies (distance math is safe, not a false-positive)", () => {
-    expect(isArchivalCandidate(base({ chapter: 1 }), 0, 10)).toBe(false);
+    expect(is_archival_candidate(base({ chapter: 1 }), 0, 10)).toBe(false);
   });
 });
 

@@ -7,7 +7,7 @@ import {
   build_instruction,
   build_facts_layer,
   build_core_settings_layer,
-  buildFactEnrichmentSuffix,
+  build_fact_enrichment_suffix,
   assemble_context,
 } from "../context_assembler.js";
 import { createProject } from "../../domain/project.js";
@@ -129,10 +129,10 @@ describe("build_facts_layer", () => {
   });
 });
 
-describe("buildFactEnrichmentSuffix", () => {
+describe("build_fact_enrichment_suffix", () => {
   it("returns empty string when no _confidence and no enrichment fields", () => {
     const fact = createFact({ id: "f1", content_raw: "r", content_clean: "c" });
-    expect(buildFactEnrichmentSuffix(fact)).toBe("");
+    expect(build_fact_enrichment_suffix(fact)).toBe("");
   });
 
   it("no _confidence but has enrichment fields (manual/import ground truth) → injects (MED-3)", () => {
@@ -140,7 +140,7 @@ describe("buildFactEnrichmentSuffix", () => {
       id: "f1", content_raw: "r", content_clean: "c",
       location: "御书房", known_to: "reader_only",
     });
-    const suffix = buildFactEnrichmentSuffix(fact);
+    const suffix = build_fact_enrichment_suffix(fact);
     expect(suffix).toContain("location: 御书房");
     expect(suffix).toContain("known_to: reader_only");
   });
@@ -150,7 +150,7 @@ describe("buildFactEnrichmentSuffix", () => {
       id: "f1", content_raw: "r", content_clean: "c",
       location: "", action_verb: "   ", known_to: "",  // 空串 / 纯空白
     });
-    const suffix = buildFactEnrichmentSuffix(fact);
+    const suffix = build_fact_enrichment_suffix(fact);
     expect(suffix).toBe(""); // 无 _confidence 也不注入空值行
     expect(suffix).not.toContain("location:");
     expect(suffix).not.toContain("action_verb:");
@@ -163,7 +163,7 @@ describe("buildFactEnrichmentSuffix", () => {
       _confidence: { known_to: "high" },
     });
     // Empty array must NOT inject "known_to: " (no information value)
-    const suffix = buildFactEnrichmentSuffix(fact);
+    const suffix = build_fact_enrichment_suffix(fact);
     expect(suffix).not.toContain("known_to:");
   });
 
@@ -173,7 +173,7 @@ describe("buildFactEnrichmentSuffix", () => {
       known_to: ["Alice", "Bob"],
       _confidence: { known_to: "high" },
     });
-    const suffix = buildFactEnrichmentSuffix(fact);
+    const suffix = build_fact_enrichment_suffix(fact);
     expect(suffix).toContain("known_to: Alice, Bob");
   });
 
@@ -183,7 +183,7 @@ describe("buildFactEnrichmentSuffix", () => {
       known_to: "all",
       _confidence: { known_to: "high" },
     });
-    const suffix = buildFactEnrichmentSuffix(fact);
+    const suffix = build_fact_enrichment_suffix(fact);
     expect(suffix).toContain("known_to: all");
   });
 
@@ -193,7 +193,7 @@ describe("buildFactEnrichmentSuffix", () => {
       time_kind: TimeKind.NORMAL,
       _confidence: { time_kind: "high" },
     });
-    const suffix = buildFactEnrichmentSuffix(fact);
+    const suffix = build_fact_enrichment_suffix(fact);
     expect(suffix).not.toContain("time_kind");
   });
 
@@ -203,7 +203,7 @@ describe("buildFactEnrichmentSuffix", () => {
       suspense_type: SuspenseType.SECRET,
       _confidence: { suspense_type: "medium" },
     });
-    const suffix = buildFactEnrichmentSuffix(fact);
+    const suffix = build_fact_enrichment_suffix(fact);
     expect(suffix).toContain("suspense_type: secret");
   });
 });

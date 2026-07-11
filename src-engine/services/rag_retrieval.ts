@@ -6,7 +6,7 @@
  * 从向量引擎检索相关设定和历史章节片段，格式化后注入上下文组装器 P4 层。
  */
 
-import { count_tokens, ensureTokenizer } from "../tokenizer/index.js";
+import { count_tokens, ensure_tokenizer } from "../tokenizer/index.js";
 import { getPrompts } from "../prompts/index.js";
 import type { VectorRepository, SearchResult } from "../repositories/interfaces/vector.js";
 import type { EmbeddingProvider } from "../llm/embedding_provider.js";
@@ -130,7 +130,7 @@ export interface ChunkWithCollection {
  * 在此集中：合法 collection 校验、chapter_num 正数 guard、source_file 非空 guard。
  * 非法 collection 的 chunk 返回 null（UI 层 normalize 也有同类守卫，此处是源头）。
  */
-export function toRagChunkDetail(c: ChunkWithCollection): RagChunkDetail | null {
+export function to_rag_chunk_detail(c: ChunkWithCollection): RagChunkDetail | null {
   if (!RAG_COLLECTIONS.includes(c._collection as RagCollection)) return null;
   const detail: RagChunkDetail = {
     content: c.content,
@@ -159,7 +159,7 @@ export async function retrieve_rag(
   current_chapter = 1,
   language = "zh",
 ): Promise<[string, number, ChunkWithCollection[]]> {
-  await ensureTokenizer();
+  await ensure_tokenizer();
   if (!query.trim()) return ["", 0, []];
 
   // 获取查询向量
@@ -171,7 +171,7 @@ export async function retrieve_rag(
 
   for (const collName of collections) {
     const topK = collName === "characters" ? CHARACTERS_TOP_K : WORLDBUILDING_TOP_K;
-    const chunks = await searchCollection(
+    const chunks = await search_collection(
       vector_repo, au_id, queryEmbedding, collName, topK, char_filter,
     );
     for (const c of chunks) {
@@ -180,7 +180,7 @@ export async function retrieve_rag(
   }
 
   // chapters collection（带时间衰减）
-  const chChunks = await searchCollection(
+  const chChunks = await search_collection(
     vector_repo, au_id, queryEmbedding, "chapters", CHAPTERS_TOP_K, char_filter,
   );
   const decayedChChunks: ChunkWithCollection[] = [];
@@ -198,7 +198,7 @@ export async function retrieve_rag(
   // retrieve_rag 收到的 current_chapter 是"待写章"，P2 注入的是 current-1，故排除 chNum >= current-1。
   // 摘要是整章级、非角色作用域，且其 chunk 无 characters metadata：若传 char_filter，
   // 主查询必返 0 再触发兜底全局查询 = 每次双查（codex workflow 审）。直接传 null 走单查询。
-  const sumChunks = await searchCollection(
+  const sumChunks = await search_collection(
     vector_repo, au_id, queryEmbedding, "summaries", SUMMARIES_TOP_K, null,
   );
   const decayedSumChunks: ChunkWithCollection[] = [];
@@ -208,7 +208,7 @@ export async function retrieve_rag(
     const decay = Math.exp(-rag_decay_coefficient * Math.max(0, current_chapter - chNum));
     decayedSumChunks.push({ ...c, score: c.score * decay, _collection: "summaries" });
   }
-  // 衰减后重排序（与 chapters 一致）。否则保持 cosine 序，预算裁剪 reduceTopK 可能留旧弃新（codex 对抗审）。
+  // 衰减后重排序（与 chapters 一致）。否则保持 cosine 序，预算裁剪 reduce_top_k 可能留旧弃新（codex 对抗审）。
   decayedSumChunks.sort((a, b) => b.score - a.score);
   allChunks.push(...decayedSumChunks);
 
@@ -223,13 +223,13 @@ export async function retrieve_rag(
   }
 
   // --- 超预算处理 ---
-  let text = formatRagChunks(deduped, language);
+  let text = format_rag_chunks(deduped, language);
   let tokens = count_tokens(text, llm_config as { mode?: string }).count;
 
   if (tokens > budget_remaining && budget_remaining > 0) {
     for (const reducedK of [2, 1]) {
-      deduped = reduceTopK(deduped, reducedK);
-      text = formatRagChunks(deduped, language);
+      deduped = reduce_top_k(deduped, reducedK);
+      text = format_rag_chunks(deduped, language);
       tokens = count_tokens(text, llm_config as { mode?: string }).count;
       if (tokens <= budget_remaining) break;
     }
@@ -252,7 +252,7 @@ export async function retrieve_rag(
       }
     }
     deduped = kept;
-    text = formatRagChunks(deduped, language);
+    text = format_rag_chunks(deduped, language);
     tokens = count_tokens(text, llm_config as { mode?: string }).count;
   }
 
@@ -263,7 +263,7 @@ export async function retrieve_rag(
 // 辅助
 // ---------------------------------------------------------------------------
 
-async function searchCollection(
+async function search_collection(
   vector_repo: VectorRepository,
   au_id: string,
   queryEmbedding: number[],
@@ -304,7 +304,7 @@ async function searchCollection(
   return results.slice(0, top_k);
 }
 
-function reduceTopK(
+function reduce_top_k(
   chunks: ChunkWithCollection[],
   maxPerCollection: number,
 ): ChunkWithCollection[] {
@@ -319,7 +319,7 @@ function reduceTopK(
   return result;
 }
 
-function formatRagChunks(chunks: ChunkWithCollection[], language = "zh"): string {
+function format_rag_chunks(chunks: ChunkWithCollection[], language = "zh"): string {
   if (chunks.length === 0) return "";
 
   const P = getPrompts(language as "zh" | "en");
@@ -348,7 +348,7 @@ function formatRagChunks(chunks: ChunkWithCollection[], language = "zh"): string
 }
 
 // ---------------------------------------------------------------------------
-// retrieveRagForContext —— RAG 检索编排(单一真相源)
+// retrieve_rag_for_context —— RAG 检索编排(单一真相源)
 // ---------------------------------------------------------------------------
 //
 // 把「build_active_chars → focusTexts → build_rag_query → retrieve_rag」这套编排
@@ -386,7 +386,7 @@ export interface RetrieveRagForContextArgs {
   effective_llm?: { model?: string; context_window?: number } | null;
 }
 
-export async function retrieveRagForContext(
+export async function retrieve_rag_for_context(
   args: RetrieveRagForContextArgs,
 ): Promise<{ ragText: string | null; chunks: ChunkWithCollection[] }> {
   const {

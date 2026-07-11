@@ -27,7 +27,7 @@ import {
   type BackfillMemoryResult,
   generate_retrospective,
   commit_retrospective,
-  shouldRunRetrospective,
+  should_run_retrospective,
   RETROSPECTIVE_INTERVAL,
   generateChapterTitle,
   createOpsEntry,
@@ -223,7 +223,7 @@ export async function confirmChapter(
   // 触发条件：每 RETROSPECTIVE_INTERVAL 章，对 N-interval 章执行后见之明重写。
   // 双阶段：锁外生成（慢 LLM）+ 锁内 CAS 写盘，防止并发 undo 产生孤儿 .summary.jsonl。
   try {
-    if (shouldRunRetrospective(chapterNum, RETROSPECTIVE_INTERVAL)) {
+    if (should_run_retrospective(chapterNum, RETROSPECTIVE_INTERVAL)) {
       const embProvider = createEmbeddingProvider(sett, proj);
       const llmCfg = resolve_llm_config(null, proj, sett);
       const canGen = llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key);

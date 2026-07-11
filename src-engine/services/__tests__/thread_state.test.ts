@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it } from "vitest";
-import { computeThreadStaleness, threadMemberFacts, regenerate_thread_state } from "../thread_state.js";
+import { computeThreadStaleness, threadMemberFacts, regenerateThreadState } from "../thread_state.js";
 import { createThread } from "../../domain/thread.js";
 import { createFact } from "../../domain/fact.js";
 import { ThreadStatus, FactStatus } from "../../domain/enums.js";
@@ -72,28 +72,28 @@ describe("threadMemberFacts", () => {
   });
 });
 
-describe("regenerate_thread_state", () => {
+describe("regenerateThreadState", () => {
   it("从成员事实生成一句进展", async () => {
     const t = T();
     const facts = [F({ id: "f1", thread_ids: ["t1"], content_clean: "沈砚发现残页" })];
-    const s = await regenerate_thread_state(t, facts, mockLLM("已确认名录被篡改，准备面圣"));
+    const s = await regenerateThreadState(t, facts, mockLLM("已确认名录被篡改，准备面圣"));
     expect(s).toBe("已确认名录被篡改，准备面圣");
   });
 
   it("无成员事实 → null（不调 LLM）", async () => {
-    const s = await regenerate_thread_state(T(), [], mockLLM("x"));
+    const s = await regenerateThreadState(T(), [], mockLLM("x"));
     expect(s).toBeNull();
   });
 
   it("LLM 失败 → 降级 null，不抛", async () => {
     const facts = [F({ id: "f1", thread_ids: ["t1"] })];
-    const s = await regenerate_thread_state(T(), facts, throwingLLM());
+    const s = await regenerateThreadState(T(), facts, throwingLLM());
     expect(s).toBeNull();
   });
 
   it("空白输出 → null", async () => {
     const facts = [F({ id: "f1", thread_ids: ["t1"] })];
-    const s = await regenerate_thread_state(T(), facts, mockLLM("   "));
+    const s = await regenerateThreadState(T(), facts, mockLLM("   "));
     expect(s).toBeNull();
   });
 });

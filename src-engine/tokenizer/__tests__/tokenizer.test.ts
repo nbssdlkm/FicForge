@@ -2,10 +2,10 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it, beforeAll } from "vitest";
-import { clear_tokenizer_cache, count_tokens, ensureTokenizer } from "../index.js";
+import { clear_tokenizer_cache, count_tokens, ensure_tokenizer } from "../index.js";
 
 beforeAll(async () => {
-  await ensureTokenizer();
+  await ensure_tokenizer();
 });
 
 describe("count_tokens", () => {

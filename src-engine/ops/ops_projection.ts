@@ -136,7 +136,7 @@ function applyOpToState(state: State, op: OpsEntry): void {
 
     case "import_chapters": {
       const maxCh = op.payload.last_chapter_num as number | undefined;
-      // L24：与 executeImport 同口径——last_scene_ending（续写衔接锚点）只在本次导入触及现末章
+      // L24：与 execute_import 同口径——last_scene_ending（续写衔接锚点）只在本次导入触及现末章
       // 及之后（maxCh + 1 >= current_chapter；current_chapter 是「下一章指针」，现末章 = 指针−1，
       // 重导当前末章也必须刷新锚点，F-2）时才更新；低章号补导不动它。
       // 先用更新前的 current_chapter 判定，再推进指针。
