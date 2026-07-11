@@ -4,6 +4,7 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { generate_chapter, is_empty_intent } from "../generation.js";
 import type { GenerationEvent } from "../generation.js";
+import { chapterInflightKey, isChapterInflight } from "../chapter_inflight.js";
 import { createProject, createLLMConfig } from "../../domain/project.js";
 import { createState } from "../../domain/state.js";
 import { createSettings } from "../../domain/settings.js";
@@ -196,6 +197,60 @@ describe("generate_chapter", () => {
     });
     expect(receivedSignal).toBe(controller.signal);
     await expect(params.draft_repo.list_by_chapter("au_abort", 1)).resolves.toEqual([]);
+    // M5：AbortError rethrow 后 finally 必须释放 inflight，否则该章永久锁死返 409
+    expect(isChapterInflight(chapterInflightKey("au_abort", 1))).toBe(false);
+  });
+
+  // --- 盲审 R3 M5：错误/中断路径必须释放 chapter_inflight（finally 非 catch）---
+
+  it("LLM 错误路径结束后释放 inflight，同章可再次生成（不被 409 卡死）", async () => {
+    const errorProvider: LLMProvider = {
+      async generate(): Promise<LLMResponse> { throw new Error("boom"); },
+      async *generateStream(): AsyncIterable<LLMChunk> {
+        yield { delta: "partial", is_final: false, input_tokens: null, output_tokens: null, finish_reason: null };
+        throw new (await import("../../llm/provider.js")).LLMError("rate_limited", "Too many requests", ["retry"]);
+      },
+    };
+    const key = chapterInflightKey("au_inflight_err", 1);
+
+    const events1 = await collectEvents(generate_chapter(makeParams(adapter, {
+      au_id: "au_inflight_err", _provider_override: errorProvider,
+    })));
+    expect((events1.find((e) => e.type === "error")!.data as any).error_code).toBe("rate_limited");
+    // 释放判据：错误路径退出后 inflight 表不残留该 key
+    expect(isChapterInflight(key)).toBe(false);
+
+    // 端到端复核：同章第二次生成不再返回 GENERATION_IN_PROGRESS
+    const events2 = await collectEvents(generate_chapter(makeParams(adapter, {
+      au_id: "au_inflight_err", _provider_override: createMockProvider(["重试", "成功"]),
+    })));
+    expect(events2.find((e) => e.type === "error" && (e.data as any).error_code === "GENERATION_IN_PROGRESS")).toBeUndefined();
+    expect(events2.find((e) => e.type === "done")).toBeTruthy();
+  });
+
+  it("AbortError 中断后 inflight 已释放，同章可重新发起生成", async () => {
+    const controller = new AbortController();
+    const abortProvider: LLMProvider = {
+      async generate(): Promise<LLMResponse> {
+        return { content: "", model: "mock", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
+      },
+      async *generateStream(): AsyncIterable<LLMChunk> {
+        throw new DOMException("Aborted", "AbortError");
+      },
+    };
+    const key = chapterInflightKey("au_inflight_abort", 1);
+
+    await expect(collectEvents(generate_chapter(makeParams(adapter, {
+      au_id: "au_inflight_abort", signal: controller.signal, _provider_override: abortProvider,
+    })))).rejects.toMatchObject({ name: "AbortError" });
+    expect(isChapterInflight(key)).toBe(false);
+
+    // 中断后重新生成应当放行（若漏 release 会被 409）
+    const events = await collectEvents(generate_chapter(makeParams(adapter, {
+      au_id: "au_inflight_abort", _provider_override: createMockProvider(["再来", "一次"]),
+    })));
+    expect(events.find((e) => e.type === "error" && (e.data as any).error_code === "GENERATION_IN_PROGRESS")).toBeUndefined();
+    expect(events.find((e) => e.type === "done")).toBeTruthy();
   });
 
   it("runs RAG when index_status is STALE and marks stale_index", async () => {
