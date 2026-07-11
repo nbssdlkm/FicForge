@@ -587,6 +587,117 @@ export function build_core_settings_layer(
 }
 
 // ===========================================================================
+// 记忆层预算级联（P3→thread→P2→P4→P5）—— 写文 assemble_context 与对话
+// assemble_chat_context 的单一真相源（盲审 R3 M7）。
+//
+// 此前两条路径各手抄一份 P3→thread→P2→P4→P5 的「budget = base − used − guarantee →
+// build → count → used +=」状态机，仅靠注释维系同源，改一条忘另一条即静默漂移。
+// 两者结构逐字节相同，唯二差异是：base（写文=budget / 对话=memBudget）与 P3 的
+// focus_ids（写文=chapter_focus / 对话=[]）—— 全部作为入参外提。
+//
+// 副作用契约：就地写入 report 的 p3/thread/p2/p4/p5_tokens 与 unresolved_soft_degraded，
+// 并向 truncated_layers push 被截断的层名（与原两处逐字节一致）。
+// ===========================================================================
+
+interface MemoryCascadeParams {
+  /** 记忆层可用预算基数：写文=budget，对话=memBudget（已扣 chatHistoryReserve）。 */
+  base_budget: number;
+  guarantee: number;
+  /** 进入级联前已计入的 token（写文=P1，对话=最新轮 user），级联在此基础上累加。 */
+  used: number;
+  /** P3 事实层的 focus 过滤集：写文=chapter_focus，对话=[]。 */
+  focus_ids: string[];
+  facts: Fact[];
+  threads: Thread[];
+  state: State;
+  chapter_repo: ChapterRepository;
+  au_id: string;
+  rag_text: string | null;
+  project: Project;
+  character_files: Record<string, string> | null;
+  worldbuilding_files: Record<string, string> | null;
+  llm: unknown;
+  language: string;
+  /** 就地写入各层 token 数与 soft-degraded 标记。 */
+  report: BudgetReport;
+  /** 就地 push 被截断的层名。 */
+  truncated_layers: string[];
+}
+
+interface MemoryCascadeResult {
+  p3Text: string;
+  threadText: string;
+  p2Text: string;
+  p4Text: string;
+  p5Text: string;
+  p5Injected: string[];
+  p5Truncated: string[];
+  p5WbInjected: string[];
+  /** 级联结束后的累计 used（含传入的初始值）。 */
+  used: number;
+}
+
+async function run_memory_layer_cascade(p: MemoryCascadeParams): Promise<MemoryCascadeResult> {
+  const {
+    base_budget, guarantee, focus_ids, facts, threads, state, chapter_repo, au_id,
+    project, character_files, worldbuilding_files, llm, language, report, truncated_layers,
+  } = p;
+  let used = p.used;
+  const rag_text = p.rag_text;
+
+  // === P3 事实表（记忆最高优先级）===
+  const p3Budget = Math.max(0, base_budget - used - guarantee);
+  const [p3Text, softDegraded] = build_facts_layer(facts, focus_ids, p3Budget, llm, language);
+  const p3Tokens = _count(p3Text, llm).count;
+  used += p3Tokens;
+  report.p3_tokens = p3Tokens;
+  report.unresolved_soft_degraded = softDegraded;
+  if (softDegraded) truncated_layers.push("P3");
+
+  // === 剧情线摘要层（M8-B）：P3 之后、P2 之前 ===
+  const threadBudget = Math.max(0, base_budget - used - guarantee);
+  const threadText = build_threads_layer(threads, threadBudget, llm, language);
+  const threadTokens = _count(threadText, llm).count;
+  used += threadTokens;
+  report.thread_tokens = threadTokens;
+
+  // === P2 最近章节 ===
+  const p2Budget = Math.max(0, base_budget - used - guarantee);
+  const p2Text = await build_recent_chapter_layer(state, chapter_repo, au_id, p2Budget, llm, language);
+  const p2Tokens = _count(p2Text, llm).count;
+  if (p2Tokens > p2Budget && p2Budget > 0) truncated_layers.push("P2");
+  used += p2Tokens;
+  report.p2_tokens = p2Tokens;
+
+  // === P4 RAG ===
+  let p4Text = rag_text ?? "";
+  let p4Tokens = 0;
+  if (p4Text) {
+    p4Tokens = _count(p4Text, llm).count;
+    const p4Budget = Math.max(0, base_budget - used - guarantee);
+    if (p4Tokens > p4Budget) {
+      p4Text = "";
+      p4Tokens = 0;
+      truncated_layers.push("P4");
+    }
+    used += p4Tokens;
+  }
+  report.p4_tokens = p4Tokens;
+
+  // === P5 核心设定（最低优先级，但有 core_guarantee 低保）===
+  const p5Budget = Math.max(guarantee, base_budget - used);
+  const [p5Text, p5Injected, p5Truncated, p5WbInjected] = build_core_settings_layer(
+    project, character_files, p5Budget, llm, language, worldbuilding_files,
+  );
+  const p5Tokens = _count(p5Text, llm).count;
+  used += p5Tokens;
+  report.p5_tokens = p5Tokens;
+  if (p5Truncated.length > 0) truncated_layers.push("P5_core_settings");
+
+  return { p3Text, threadText, p2Text, p4Text, p5Text, p5Injected, p5Truncated, p5WbInjected, used };
+}
+
+// ===========================================================================
 // assemble_context 主函数
 // ===========================================================================
 
@@ -721,60 +832,16 @@ export async function assemble_context(
   used += p1Tokens;
   report.p1_tokens = p1Tokens;
 
-  // === P3：事实表 ===
-  const p3Budget = Math.max(0, budget - used - guarantee);
-  const [p3Text, softDegraded] = build_facts_layer(facts, focusIds, p3Budget, llm, language);
-  const p3Tokens = _count(p3Text, llm).count;
-  used += p3Tokens;
-  report.p3_tokens = p3Tokens;
-  report.unresolved_soft_degraded = softDegraded;
-  if (softDegraded) truncatedLayers.push("P3");
-
-  // === 剧情线摘要层（M8-B）：P3 之后、P2 之前 ===
-  // 空 threads ⇒ "" ⇒ thread_tokens=0、used 不变 ⇒ 后续 P2/P4/P5 预算逐字节不变。
-  const threadBudget = Math.max(0, budget - used - guarantee);
-  const threadText = build_threads_layer(threads, threadBudget, llm, language);
-  const threadTokens = _count(threadText, llm).count;
-  used += threadTokens;
-  report.thread_tokens = threadTokens;
-
-  // === P2：最近章节 ===
-  const p2Budget = Math.max(0, budget - used - guarantee);
-  const p2Text = await build_recent_chapter_layer(state, chapter_repo, au_id, p2Budget, llm, language);
-  const p2Tokens = _count(p2Text, llm).count;
-  if (p2Tokens > p2Budget && p2Budget > 0) truncatedLayers.push("P2");
-  used += p2Tokens;
-  report.p2_tokens = p2Tokens;
-
-  // === P4：RAG ===
-  let p4Text = rag_results ?? "";
-  let p4Tokens = 0;
-  if (p4Text) {
-    p4Tokens = _count(p4Text, llm).count;
-    const p4Budget = Math.max(0, budget - used - guarantee);
-    if (p4Tokens > p4Budget) {
-      p4Text = "";
-      p4Tokens = 0;
-      truncatedLayers.push("P4");
-    }
-    used += p4Tokens;
-  }
-  report.p4_tokens = p4Tokens;
-
-  // === P5：核心设定（用剩余 budget，含低保）===
-  const p5Budget = Math.max(guarantee, budget - used);
-  const [p5Text, p5Injected, p5Truncated, p5WbInjected] = build_core_settings_layer(
-    project,
-    character_files,
-    p5Budget,
-    llm,
-    language,
-    worldbuilding_files,
-  );
-  const p5Tokens = _count(p5Text, llm).count;
-  used += p5Tokens;
-  report.p5_tokens = p5Tokens;
-  if (p5Truncated.length > 0) truncatedLayers.push("P5_core_settings");
+  // === P3→thread→P2→P4→P5：记忆层级联（与 assemble_chat_context 共用单一真相源）===
+  // 写文路径 base = budget（无 chatHistoryReserve），P3 focus = chapter_focus。
+  const cascade = await run_memory_layer_cascade({
+    base_budget: budget, guarantee, used, focus_ids: focusIds,
+    facts, threads, state, chapter_repo, au_id, rag_text: rag_results,
+    project, character_files, worldbuilding_files, llm, language,
+    report, truncated_layers: truncatedLayers,
+  });
+  const { p3Text, threadText, p2Text, p4Text, p5Text, p5Injected, p5Truncated, p5WbInjected } = cascade;
+  used = cascade.used;
 
   // --- 汇总 ---
   report.total_input_tokens = systemTokens + used;
@@ -1031,56 +1098,18 @@ export async function assemble_chat_context(
     rag_text = rag.ragText;
   }
 
-  // === P3 事实表（记忆最高优先级）===
-  // 对话路径无"chapter_focus 推进目标"概念（那是续写体 P1 build_instruction 的机制），
-  // 故 focus_ids 传空数组：所有 active/unresolved fact 都进 P3，不会被 focus 排除后凭空丢失。
-  const p3Budget = Math.max(0, memBudget - used - guarantee);
-  const [p3Text, softDegraded] = build_facts_layer(facts, [], p3Budget, llm, language);
-  const p3Tokens = _count(p3Text, llm).count;
-  used += p3Tokens;
-  report.p3_tokens = p3Tokens;
-  report.unresolved_soft_degraded = softDegraded;
-  if (softDegraded) truncatedLayers.push("P3");
-
-  // === 剧情线摘要层（M8-B）===
-  const threadBudget = Math.max(0, memBudget - used - guarantee);
-  const threadText = build_threads_layer(threads, threadBudget, llm, language);
-  const threadTokens = _count(threadText, llm).count;
-  used += threadTokens;
-  report.thread_tokens = threadTokens;
-
-  // === P2 最近章节 ===
-  const p2Budget = Math.max(0, memBudget - used - guarantee);
-  const p2Text = await build_recent_chapter_layer(state, chapter_repo, au_id, p2Budget, llm, language);
-  const p2Tokens = _count(p2Text, llm).count;
-  if (p2Tokens > p2Budget && p2Budget > 0) truncatedLayers.push("P2");
-  used += p2Tokens;
-  report.p2_tokens = p2Tokens;
-
-  // === P4 RAG ===
-  let p4Text = rag_text ?? "";
-  let p4Tokens = 0;
-  if (p4Text) {
-    p4Tokens = _count(p4Text, llm).count;
-    const p4Budget = Math.max(0, memBudget - used - guarantee);
-    if (p4Tokens > p4Budget) {
-      p4Text = "";
-      p4Tokens = 0;
-      truncatedLayers.push("P4");
-    }
-    used += p4Tokens;
-  }
-  report.p4_tokens = p4Tokens;
-
-  // === P5 核心设定（最低优先级，但有 core_guarantee 低保）===
-  const p5Budget = Math.max(guarantee, memBudget - used);
-  const [p5Text, p5Injected, p5Truncated, p5WbInjected] = build_core_settings_layer(
-    project, character_files, p5Budget, llm, language, worldbuilding_files,
-  );
-  const p5Tokens = _count(p5Text, llm).count;
-  used += p5Tokens;
-  report.p5_tokens = p5Tokens;
-  if (p5Truncated.length > 0) truncatedLayers.push("P5_core_settings");
+  // === P3→thread→P2→P4→P5：记忆层级联（与 assemble_context 共用单一真相源）===
+  // 对话路径 base = memBudget（已扣 chatHistoryReserve）；对话无"chapter_focus 推进目标"
+  // 概念（那是续写体 P1 build_instruction 的机制），故 focus_ids 传空数组 —— 所有
+  // active/unresolved fact 都进 P3，不会被 focus 排除后凭空丢失。
+  const cascade = await run_memory_layer_cascade({
+    base_budget: memBudget, guarantee, used, focus_ids: [],
+    facts, threads, state, chapter_repo, au_id, rag_text,
+    project, character_files, worldbuilding_files, llm, language,
+    report, truncated_layers: truncatedLayers,
+  });
+  const { p3Text, threadText, p2Text, p4Text, p5Text, p5Injected, p5Truncated, p5WbInjected } = cascade;
+  used = cascade.used;
 
   // --- 汇总（账面口径与 assemble_context 一致：total = system + used）---
   report.total_input_tokens = systemTokens + used;
