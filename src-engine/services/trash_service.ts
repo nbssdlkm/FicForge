@@ -11,6 +11,7 @@ import { safeMatter } from "../domain/frontmatter.js";
 import type { PlatformAdapter } from "../platform/adapter.js";
 import { atomicWrite, dumpYaml, joinPath } from "../utils/file_utils.js";
 import { warnAlways } from "../logger/index.js";
+import { withProjectFileLock } from "./au_lock.js";
 
 /**
  * 角色设定文件 frontmatter 的合法键集合（settings-chat 提示词约定的 schema：
@@ -840,31 +841,36 @@ export class TrashService {
     const projectPath = joinPath(scopeRoot, "project.yaml");
     if (!(await this.adapter.exists(projectPath))) return;
 
-    try {
-      const text = await this.adapter.readFile(projectPath);
-      const raw = (yaml.load(text) ?? {}) as Record<string, unknown>;
-      if (typeof raw !== "object") return;
+    // 读改写整段包进 project.yaml 文件锁：与设置保存链（withProjectWrite / deletePinned）
+    // 共享同一把锁，消除 cast_registry 并发丢更新（盲审 R3 M1）。文件锁是叶锁，
+    // 此处已在 trash-mutex 内再取它不构成锁序反转（见 au_lock.withProjectFileLock 注释）。
+    await withProjectFileLock(scopeRoot, async () => {
+      try {
+        const text = await this.adapter.readFile(projectPath);
+        const raw = (yaml.load(text) ?? {}) as Record<string, unknown>;
+        if (typeof raw !== "object") return;
 
-      const castRegistry = (raw.cast_registry ?? {}) as Record<string, unknown>;
-      let names = (castRegistry.characters ?? []) as string[];
-      names = names.filter((n) => typeof n === "string" && n.trim());
+        const castRegistry = (raw.cast_registry ?? {}) as Record<string, unknown>;
+        let names = (castRegistry.characters ?? []) as string[];
+        names = names.filter((n) => typeof n === "string" && n.trim());
 
-      if (action === "remove") {
-        const updated = names.filter((n) => n !== characterName);
-        if (updated.length === names.length) return;
-        names = updated;
-      } else {
-        if (names.includes(characterName)) return;
-        names.push(characterName);
+        if (action === "remove") {
+          const updated = names.filter((n) => n !== characterName);
+          if (updated.length === names.length) return;
+          names = updated;
+        } else {
+          if (names.includes(characterName)) return;
+          names.push(characterName);
+        }
+
+        castRegistry.characters = names;
+        raw.cast_registry = castRegistry;
+        const content = dumpYaml(raw);
+        // 原子写（F5）：project.yaml 截断会连带丢整份工程配置，损失远超 cast_registry 一行。
+        await atomicWrite(this.adapter, projectPath, content);
+      } catch {
+        // ignore
       }
-
-      castRegistry.characters = names;
-      raw.cast_registry = castRegistry;
-      const content = dumpYaml(raw);
-      // 原子写（F5）：project.yaml 截断会连带丢整份工程配置，损失远超 cast_registry 一行。
-      await atomicWrite(this.adapter, projectPath, content);
-    } catch {
-      // ignore
-    }
+    });
   }
 }

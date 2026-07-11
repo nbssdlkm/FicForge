@@ -72,8 +72,31 @@
  * key 碰撞。未来如需 chapter 级 / fandom 级锁可在此模块新增同构函数。
  */
 
-import { withWriteLock } from "../utils/file_utils.js";
+import { joinPath, withWriteLock } from "../utils/file_utils.js";
 
 export function withAuLock<T>(au_id: string, fn: () => Promise<T>): Promise<T> {
   return withWriteLock(`au:${au_id}`, fn);
+}
+
+/**
+ * project.yaml 文件级读改写锁（盲审 R3 M1）。
+ *
+ * cast_registry 有两条独立的 project.yaml 读改写路径：设置保存链（engine-project
+ * 的 withProjectWrite，持 au_lock）与 TrashService.updateCastRegistry（持 trash-mutex）。
+ * 二者锁域不同 → 并发时 cast_registry 丢更新。让**两条路径都把 get→改→save 包在这把
+ * 文件锁里**即可完全串行化（读也在锁内，消除 TOCTOU）。
+ *
+ * 为什么不复用 au_lock：import 编排持 au_lock 后再取 trash-mutex（au_lock→trash-mutex），
+ * 若在 trash 侧的 updateCastRegistry 反向取 au_lock（trash-mutex→au_lock）会构成锁序反转
+ * 死锁。文件锁是**叶锁**（持有期间不再取任何其它锁），永不参与死锁环。
+ *
+ * key 前缀 `projfile:` 与 au_lock 的 `au:` / 文件级 withWriteLock 的裸路径都不碰撞。
+ * 路径经 joinPath 归一（去尾斜杠），保证不同调用点对同一 AU 得到同一把锁。
+ *
+ * 不变量（对抗审 LOW）：joinPath 不做大小写 / 前导斜杠归一，锁的正确性依赖**所有
+ * 调用点从同一处派生 auPath**（当前均来自 AU 目录路径）。新增调用点若传入大小写 /
+ * 相对-绝对 变体的同一 AU 路径，会静默拿到不同锁 —— 传参前须确保是同一份规范路径。
+ */
+export function withProjectFileLock<T>(au_path: string, fn: () => Promise<T>): Promise<T> {
+  return withWriteLock(`projfile:${joinPath(au_path, "project.yaml")}`, fn);
 }

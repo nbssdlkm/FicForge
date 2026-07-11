@@ -220,6 +220,7 @@ export {
   update_fact_status,
   validateBundle,
   withAuLock,
+  withProjectFileLock,
   analyze_file,
   build_import_plan,
   execute_import,

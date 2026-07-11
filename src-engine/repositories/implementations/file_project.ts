@@ -78,6 +78,15 @@ export class FileProjectRepository implements ProjectRepository {
     return project;
   }
 
+  /**
+   * 全量覆盖写 project.yaml。**不自持文件锁**（避免与调用方持有的 withProjectFileLock
+   * 同 key 重入死锁；本方法内部只再取 atomicWrite 的独立文件锁，key 不同不自锁）。
+   * 契约：任何「读 project → 改 → save」的调用方，必须把 get+save 整段包在
+   * withProjectFileLock(auPath) 内，否则会与 TrashService 的 cast_registry 读改写
+   * 并发丢更新（盲审 R3 M1）。当前所有 RMW 入口都已就位：
+   * engine-project.withProjectWrite / deletePinned / TrashService.updateCastRegistry /
+   * secure_storage_migration（对 migrateLegacySecureStorage 的调用）。
+   */
   async save(project: Project): Promise<void> {
     validateBasePath(project.au_id, "au_id");
     const path = joinPath(project.au_id, "project.yaml");

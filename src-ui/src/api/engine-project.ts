@@ -9,7 +9,7 @@
  */
 
 import type { Project } from "@ficforge/engine";
-import { withAuLock } from "@ficforge/engine";
+import { withAuLock, withProjectFileLock } from "@ficforge/engine";
 import { getEngine, getProjectOrThrow } from "./engine-instance";
 import { normalizeChatPath } from "./engine-settings";
 import { DEFAULT_OLLAMA_BASE_URL } from "../config/defaults";
@@ -24,13 +24,15 @@ import type {
 
 async function withProjectWrite<T>(auPath: string, mutate: (current: Project) => T | Promise<T>): Promise<T> {
   const { project } = getEngine().repos;
-  return withAuLock(auPath, async () => {
+  // get→改→save 整段包在 project.yaml 文件锁内（读也在锁内），与 TrashService 的
+  // cast_registry 读改写共享同一把锁，消除并发丢更新（盲审 R3 M1）。外层 au_lock 保留。
+  return withAuLock(auPath, () => withProjectFileLock(auPath, async () => {
     const current = await project.get(auPath);
     if (!current) throw new Error(`project.yaml not found: ${auPath}/project.yaml`);
     const result = await mutate(current);
     await project.save(current);
     return result;
-  });
+  }));
 }
 
 async function readProject(auPath: string): Promise<Project> {
@@ -217,7 +219,8 @@ export async function addPinned(auPath: string, text: string) {
 
 export async function deletePinned(auPath: string, index: number) {
   const { project } = getEngine().repos;
-  return withAuLock(auPath, async () => {
+  // 同 withProjectWrite：get→改→save 包进 project.yaml 文件锁（盲审 R3 M1）。
+  return withAuLock(auPath, () => withProjectFileLock(auPath, async () => {
     const proj = await project.get(auPath);
     if (!proj) throw new Error(`project.yaml not found: ${auPath}/project.yaml`);
     // index 无效时不 save（save 会 bump revision，无效请求不该产生写入）
@@ -226,5 +229,5 @@ export async function deletePinned(auPath: string, index: number) {
       await project.save(proj);
     }
     return { status: "ok", revision: proj.revision };
-  });
+  }));
 }

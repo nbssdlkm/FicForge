@@ -6,6 +6,7 @@ import type { FandomRepository } from "../repositories/interfaces/fandom.js";
 import type { ProjectRepository } from "../repositories/interfaces/project.js";
 import type { SettingsRepository } from "../repositories/interfaces/settings.js";
 import { joinPath } from "../utils/file_utils.js";
+import { withProjectFileLock } from "./au_lock.js";
 
 export interface SecureStorageMigrationParams {
   adapter: PlatformAdapter;
@@ -56,7 +57,10 @@ export async function migrate_legacy_secure_storage(
       const auPath = joinPath(fandomPath, "aus", auName);
       scannedProjects += 1;
       try {
-        if (await params.projectRepo.migrateLegacySecureStorage(auPath)) {
+        // project.yaml 的 legacy 迁移是一次全量读改写：与其它 RMW 入口共享文件锁
+        // （盲审 R3 M1 对抗审 LOW，让「所有 RMW 入口都持锁」的枚举诚实）。启动期串行，
+        // 实际并发概率为零，但持锁不伤且守住不变量。
+        if (await withProjectFileLock(auPath, () => params.projectRepo.migrateLegacySecureStorage(auPath))) {
           migratedProjects += 1;
         }
       } catch {

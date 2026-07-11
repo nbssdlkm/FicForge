@@ -10,7 +10,7 @@ import {
   type ImportConflictOptions,
 } from "../import_pipeline.js";
 import type { LLMProvider } from "../../llm/provider.js";
-import type { TrashService } from "../trash_service.js";
+import { TrashService } from "../trash_service.js";
 import { export_chapters } from "../export_service.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 import { FileChapterRepository } from "../../repositories/implementations/file_chapter.js";
@@ -933,6 +933,80 @@ describe("execute_import", () => {
       expect(ops).toHaveLength(1);
       expect((ops[0].payload as { total_chapters: number }).total_chapters).toBe(1);
       expect(warnSpy).toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  // --- overwrite commit 失败还原旧章（盲审 R3 M2）---
+
+  it("overwrite: commit 的 chapters 写失败 → 已移入回收站的旧章被还原、原位不缺章（盲审 R3 M2）", async () => {
+    const chapterRepo = new FileChapterRepository(adapter);
+    const stateRepo = new FileStateRepository(adapter);
+    const opsRepo = new FileOpsRepository(adapter);
+    const trash = new TrashService(adapter);
+    adapter.seed(
+      "au1/chapters/main/ch0001.md",
+      "---\nchapter_id: ch_old00001\nrevision: 1\n---\n\n旧章正文，绝不能丢。",
+    );
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    // 让新章在 tx.commit 的 chapters 块写入失败 → PartialCommitError(failed=[chapters])
+    vi.spyOn(chapterRepo, "save").mockRejectedValue(new Error("disk full on new chapter"));
+
+    try {
+      const plan = build_import_plan(
+        [makeTextAnalysis("file.txt", 1)],
+        { mode: "overwrite", startChapter: 1, settingsMode: "merge" },
+      );
+      await expect(execute_import(plan, {
+        auId: "au1", chapterRepo, stateRepo, opsRepo, adapter, trashService: trash,
+      })).rejects.toThrow();
+
+      // 判别点：旧章从回收站被还原回原位（修前只回滚设定 → 旧章永留回收站、原位缺章）。
+      // 用 adapter 直读绕过被 mock 的 chapterRepo.save（restore 走 adapter 原始 I/O）。
+      expect(await adapter.exists("au1/chapters/main/ch0001.md")).toBe(true);
+      expect(await adapter.readFile("au1/chapters/main/ch0001.md")).toContain("旧章正文，绝不能丢。");
+      // 回收站该条已被 restore 移除，不残留
+      const list = await trash.list_trash("au1");
+      expect(list.some((e) => e.original_path.includes("ch0001"))).toBe(false);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("overwrite: 仅 state 写失败（新章已落盘）→ 不还原旧章，避免旧内容覆盖新章（盲审 R3 M2 对抗审）", async () => {
+    // 高风险反面分支：chaptersLanded=true 时**必须不还原**，否则旧章会覆盖刚落盘的新章。
+    // 若把 chaptersLanded 判据写反 / 无脑还原，本用例会红。
+    const chapterRepo = new FileChapterRepository(adapter);
+    const stateRepo = new FileStateRepository(adapter);
+    const opsRepo = new FileOpsRepository(adapter);
+    const trash = new TrashService(adapter);
+    adapter.seed(
+      "au1/chapters/main/ch0001.md",
+      "---\nchapter_id: ch_old00001\nrevision: 1\n---\n\n旧章正文。",
+    );
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    // chapters 块成功（新章落盘），仅 state 写失败 → PartialCommitError(failed=[state])
+    vi.spyOn(stateRepo, "save").mockRejectedValue(new Error("state.yaml write failed"));
+
+    try {
+      const plan = build_import_plan(
+        [makeTextAnalysis("file.txt", 1)],
+        { mode: "overwrite", startChapter: 1, settingsMode: "merge" },
+      );
+      await expect(execute_import(plan, {
+        auId: "au1", chapterRepo, stateRepo, opsRepo, adapter, trashService: trash,
+      })).rejects.toThrow();
+
+      // 新章内容仍在原位（未被旧章还原覆盖）
+      const now = await adapter.readFile("au1/chapters/main/ch0001.md");
+      expect(now).toContain("Content of chapter 1");
+      expect(now).not.toContain("旧章正文");
+      // 旧章按 M29 语义留在回收站（intended overwrite backup），不被误还原
+      const list = await trash.list_trash("au1");
+      expect(list.some((e) => e.original_path.includes("ch0001"))).toBe(true);
     } finally {
       warnSpy.mockRestore();
     }

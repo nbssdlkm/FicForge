@@ -23,7 +23,7 @@ import type { StateRepository } from "../repositories/interfaces/state.js";
 import { compute_content_hash, generate_op_id, now_utc } from "../utils/file_utils.js";
 import { warnAlways } from "../logger/index.js";
 import { withAuLock } from "./au_lock.js";
-import { WriteTransaction } from "./write_transaction.js";
+import { PartialCommitError, WriteTransaction } from "./write_transaction.js";
 
 import {
   detectChatFormat,
@@ -569,6 +569,9 @@ async function do_execute_import(
   // 降级用 backup_chapter 兜底（chapters/backups/ 目录）；备份也失败则跳过该章覆盖，
   // 旧章原样保留并记入 overwriteSkippedChapters 让 UI 警告。
   const overwriteSkipped = new Set<number>();
+  // 记录成功移入回收站的旧章（含 trash_id）：commit 失败且新章未落盘时据此还原，
+  // 否则旧章仅存于回收站、新章又没写成 → 用户看到凭空缺章（盲审 R3 M2）。
+  const trashedEntries: Array<{ num: number; trashId: string }> = [];
   if (plan.conflictOptions.mode !== "append" && trashService) {
     const importedNums = new Set(plan.chapters.map((c) => c.chapterNum));
     for (const num of importedNums) {
@@ -576,8 +579,9 @@ async function do_execute_import(
       if (exists) {
         const chPath = chapterMainPath(num);
         try {
-          await trashService.move_to_trash(auId, chPath, "chapter", String(num));
+          const trashedEntry = await trashService.move_to_trash(auId, chPath, "chapter", String(num));
           result.trashedChapters.push(num);
+          trashedEntries.push({ num, trashId: trashedEntry.trash_id });
         } catch {
           try {
             await chapterRepo.backup_chapter(auId, num);
@@ -717,6 +721,24 @@ async function do_execute_import(
     try {
       await tx.commit(opsRepo, null, stateRepo, chapterRepo, null);
     } catch (commitError) {
+      // 新章是否真正落盘：仅当 PartialCommitError 且 chapters 块未在 failed 里，才算落盘成功。
+      // 其它情形（ops 先行失败 / chapters 块失败）新章都没写成 → 必须把旧章从回收站还原，
+      // 否则覆盖导入把旧章移进回收站后就永久缺章（盲审 R3 M2）。chapters 已落盘时不还原，
+      // 否则旧章会与新章重复。
+      const chaptersLanded =
+        commitError instanceof PartialCommitError && !commitError.failed.includes("chapters");
+      if (!chaptersLanded && trashService) {
+        for (const { num, trashId } of trashedEntries) {
+          try {
+            // overwrite：防御 chapters 块中途失败时某些新章已部分落盘，强制以旧章还原。
+            await trashService.restore(auId, trashId, "overwrite");
+          } catch (restoreErr) {
+            warnAlways("import", `覆盖导入回滚：ch${num} 从回收站还原失败，旧章仍在回收站可手动恢复`, {
+              error: (restoreErr as Error).message,
+            });
+          }
+        }
+      }
       await rollback_imported_settings(adapter, writtenSettingsPaths);
       throw commitError;
     }
