@@ -228,3 +228,110 @@
 
 - 本报告与发现均由 9 个并行盲审 agent（opus-4.8）产出（正确性、功能两员各经一次 stall 自动重试），主模型仅做去重复核（0 条跨维度合并，3 处同根机制标注）、打分与汇总，未增删实质发现。打分完成前主模型未读第一轮报告。
 - 发现只报告不修，等用户拍板。
+
+---
+---
+
+# 第三轮九维盲审（2026-07-11 修复战役收官复跑）
+
+## 背景
+
+用户对第二轮 39 条拍板「A+B 类立即治本 + C 类」后，8 个 B 批 + 7 个 C 批全部落地（17 commit，每批过独立对抗审、累计整改对抗审发现 32 条），双包 tsc 0 / 引擎 1361+3 gated / UI 558 全绿。随后**同口径复跑全量九维盲审**（9 名全新 opus 盲审员，禁读文档/git，与前两轮完全同纪律）出收官分数。
+
+## 总分卡
+
+**总分 83.2 / 100 —— 等级 B**（发现合计 39 条：2 高 / 13 中 / 24 低；跨维度去重复核后无同缺陷重复计分）
+
+| 维度 | 高 | 中 | 低 | 得分 | 权重 | 加权贡献 |
+|------|----|----|----|------|------|---------|
+| 正确性/健壮性 | 1 | 2 | 1 | **73** | 18% | 13.1 |
+| 安全（密钥与环境） | 1 | 0 | 1 | **83** | 15% | 12.5 |
+| 功能实现程度 | 0 | 1 | 3 | **89** | 14% | 12.5 |
+| 测试质量 | 0 | 2 | 1 | **88** | 13% | 11.4 |
+| 架构可维护性 | 0 | 2 | 3 | **84** | 10% | 8.4 |
+| 代码重复 | 0 | 2 | 4 | **82** | 10% | 8.2 |
+| 规范一致性 | 0 | 2 | 4 | **82** | 8% | 6.6 |
+| 依赖健康 | 0 | 1 | 4 | **87** | 7% | 6.1 |
+| 日志卫生 | 0 | 1 | 3 | **89** | 5% | 4.4 |
+
+### 怎么读这个分：84.1 → 83.2 的「持平」才是最重要的信号
+
+**三轮盲审对盲审：55/F（R1）→ 84.1/B（R2，修 8 批后）→ 83.2/B（R3，再修 15 批后）。** 第三轮分数没有因为又修了 15 批而继续上冲，反而与第二轮基本持平（−0.9）。这不是没进步，恰恰是**盲审边际发现规律**的第三次印证，且比前两轮更强：
+
+1. **上轮 39 条在本轮的复现率接近零**。逐条核对：第二轮的两个重灾指认（fs 收权 HIGH、RagManager 同 AU 竞态）本轮双双消失；重复维 5M、架构维 4M、工具名 SSOT、裸 setter、benchmark flaky…—— 全部未复现。**唯一半复现**是 CSP `http:` 通配（第二轮 MEDIUM → 本轮降 LOW，因 B2 加了明文告警、审阅员认可缓解所以降级），以及 file_thread/chapter_summary 实现层 auPath（C6 第一层明确留给「第二层」的记账项，本轮如约被点名）。
+2. **分数持平 = 修复零回归的硬证据**。17 批 commit（含 3 个大版本升级、6 个组件/函数下沉、export 边界收窄）若引入任何回归，正确性/架构维分数会跌 —— 实际全部维持或回升。
+3. **每轮深度采样翻出等量新存量债**。本轮 2 个 HIGH（confirm 丢章 + bundle 泄漏全局 key）是前两轮 18 个盲审员都没碰到的真·产品级缺陷。这印证了第二轮报告里就写下的判断（当时限于重复维）：**盲审的价值是"未知未知"，不是清单递减**。修完一批已知问题，新一双眼睛在更深的数据链/攻击面上找到新一批 —— 这条规律本轮从重复维扩展到了正确性维和安全维。
+
+**结论**：分数在 83-84 的 B 段进入稳态，不再是"修家务债就能拉分"的阶段。要继续上探，得转向**测试防线深挖**（把 write_transaction/paths 穿越/inflight 释放这些"实现正确但无红测试守护"的点补上）和**攻击面加固**（bundle 校验），这些不会显著拉分（盲审仍会找到新的），但会实打实降低产品事故概率。
+
+---
+
+## 发现全录（第三轮）
+
+### 高危（2 条，均为前两轮漏报的真·存量缺陷）
+
+- **[正确性] confirm_chapter 事务：章节写入失败后仍删源草稿并推进 state，该章内容永久丢失** — src-engine/services/write_transaction.ts:229-253（触发方 confirm_chapter.ts:194-198）
+  同一事务 `saveChapter + deleteDraftByChapter + setState`；commit 里 chapters 块失败只 push failed 并继续，drafts 删除与 state 保存无条件执行。移动端 chapters/main 写入瞬时故障（权限回收/rename 失败）而 state.yaml 小文件与草稿 deleteFile 仍成功时：章节从未落盘、承载唯一内容的草稿被删、current_chapter 却已 +1 越过不存在的章。D-0036 规定的「草稿是可恢复源」被违背，PartialCommitError 建议的「从草稿重确认」此刻已无草稿可用。**治本方向**：commit 里 chapters 失败则**跳过** drafts 删除与 state 推进（用 completed 记账门控后续块），或整体阻断 —— 保证草稿在章节确证落盘前不删、指针不越过缺失章。
+- **[安全] 导入的 AU bundle 可把用户全局 API 密钥泄漏到攻击者服务器** — src-engine/llm/config_resolver.ts:150-189（叠加 au_bundle.ts:161 导入不校验 llm）
+  恶意 bundle 的 project.yaml 填 `llm.model=非空` + `llm.api_base=攻击者https主机` + `api_key=<secure>占位`。受害者导入后（validateBundle 只校验路径/版本，不剥离/校验 llm.api_base）在该 AU 触发生成：resolve_llm_config 因 model 非空选 project 层 → api_base=攻击者；api_key 占位 → isMasked → 回退 `settings.default_llm.api_key`（真·全局密钥）且**不校验 key 与 api_base 同源** → `Authorization: Bearer <全局密钥>` 发到攻击者主机。https 使 isPlaintextRemoteHttp 不触发，全程无告警。注释 173-177 只防了「AU 自带 key」正方向，漏了「AU 自带 api_base 但无 key」反方向。**治本方向**：①resolve 时若 api_key 需跨层回退（project 层的 api_base + settings 层的 key）则视为不同源，拒绝回退/要求显式 key；②importAuBundle 剥离或强校验导入 bundle 的 llm.api_base（导入的 AU 不应携带可控端点）。
+
+### 中危（13 条）
+
+**正确性（2）**
+- project.yaml 两条互不加锁写路径（FileProjectRepository.save 无 withWriteLock vs TrashService.updateCastRegistry 读-改-写），cast_registry 并发丢更新 — file_project.ts:81
+- 覆盖导入先移旧章入回收站再提交事务，commit 失败只回滚设定不还原章节，正文凭空缺章 — import_pipeline.ts:719（与 HIGH-1 的 WriteTransaction 部分提交语义叠加）
+
+**功能（1）**
+- 事实字段 hidden_from / story_time_order / story_time_tag 被提取并持久化但全链无读取消费（写而不读）：hidden_from 承诺的 POV 门控从不生效、story_time_order 承诺的剧情时序排序从不发生，每次提取白耗 LLM token — react_extraction_dispatch.ts:117
+
+**测试（2）**
+- 路径穿越安全守卫（validateBasePath/validatePathSegment 拒 `..`/空字节/绝对路径/反斜杠）关键分支零测试，仅空路径分支被覆盖 → 误删判断即重开越权读写他人 AU，全测试绿 — utils/paths.ts:36
+- 章级互斥锁 chapter_inflight 的错误/中断路径释放无任何断言 → finally 改 catch 或漏 release 会把该章永久锁死返 409，现有生成/派发错误用例全通过 — generation.test.ts:131
+
+**架构（2）**
+- 两套 UI 工具执行器（execute-settings-tool / useSimpleToolExecutor）重复实现同一批 6 个工具的「建档→注册→回滚」事务编排，注释自认必须手工同步 — execute-settings-tool.ts:196
+- assemble_context 与 assemble_chat_context 各手抄一份 P3→thread→P2→P4→P5 预算级联状态机，仅注释维系同源 — context_assembler.ts:1034
+
+**重复（2）**
+- GeneratedWith↔YAML 映射 4 处复制粘贴（file_draft/file_chapter 各读各写），新增第 10 个字段会被静默丢弃 → 项目自述「新字段沉默丢弃」持久化断链 — file_draft.ts:64
+- toCanonicalCreateKey 业务判据两文件各一份（lore-utils 已 export vs settings-chat 私有拷贝），漂移则同名文件「是否已存在」两处结论不一、可静默覆盖用户文件 — settings-chat/types.ts:71
+
+**规范（2）**
+- 仓储实现 file_thread.ts / file_chapter_summary.ts 全用 auPath，与接口档注声明的「已统一 au_id」及其余 9 个实现分裂（rename 只做一半）— file_thread.ts:69 *(C6 第一层明确记账的「第二层」项，如约被点名)*
+- domain/simple_chat.ts 通篇 camelCase 持久化字段，偏离全 domain 层 snake_case，磁盘键随文件而异 — simple_chat.ts:135
+
+**依赖（1）**
+- 两个 lockfile 混用第三方镜像 registry.npmmirror.com（164 包）与官方 registry.npmjs.org，破坏海外/CI 可复现安装 + 供应链来源不一致 — package-lock.json *(环境产物，非代码)*
+
+**日志（1）**
+- 事实提取链 LLM/网络失败三层静默吞错无日志（facts_extraction.ts:331/379 + task 层 ×3），与同类服务 chapter_summary/retrospective 走 logCatch 不一致 → 用户排障看不到「LLM 链挂了」，核心记忆功能的成规模静默黑洞 — facts_extraction.ts:331
+
+### 低危（24 条，摘要）
+
+正确性：snapshot/ops_archive 非原子 writeFile 违背全仓 atomicWrite 纪律。安全：CSP `http:` 通配过宽（第二轮 M→本轮 L，告警已缓解）。功能：DOCX 导入死桩、RestoreBundleModal「一键补记忆」引导无按钮、本地模型模式死脚手架。测试：别名规范化 undo 断言空转（仅验 map 非空）。架构：assemble_context 12 位置参数、AuWorkspaceLayout milestone 子域混入、task_runner/logger 直依赖 document 绕过 platform。重复：正则转义 3 处、deriveFandomPath 私有重定义、导出文件名黑名单 2 处、react_extraction_enabled 门控 `===true` vs `!==false` 分叉。规范：ChapterSummaryRepository 单签名 snake/camel 混、ApiError vs plain Error 混用、swUpdate.ts 命名、FactCard fact:any。依赖：esbuild LOW、@types/js-yaml 与 js-yaml5 错位冗余、TS7 大跳、vite 落后 1 major。日志：logCatch 未初始化静默 return、AI 标题生成失败吞错、草稿加载失败吞错。
+
+---
+
+## 与第二轮逐维对比（84.1 → 83.2）
+
+| 维度 | R2 | R3 | Δ | 归因 |
+|------|-----|-----|-----|------|
+| 正确性 | 91 | 73 | **−18** | R2 的 RagManager 竞态已 B3 修、未复现；R3 新挖 1H（confirm 丢章）+2M（project 双写/导入回滚）+1L，全是更深数据链的存量 |
+| 安全 | 91 | 83 | **−8** | R2 无 H；R3 新挖 bundle 泄漏 HIGH（全新攻击面）；CSP 从 M 降 L（B2 告警缓解） |
+| 功能 | 78 | 89 | **+11** | R2 的 fs scope HIGH + './fandoms' 均 B8 修、未复现；R3 剩 1M+3L 是新的写而不读/死桩 |
+| 测试 | 89 | 88 | −1 | 基本持平；R3 新挖 paths 穿越 + inflight 释放无断言 |
+| 架构 | 76 | 84 | **+8** | R2 的 SimpleChatPanel/dispatch/工具名/裸setter 4M 经 C1/C2/B5/B4 全修、未复现；R3 新 2M 是别的重复编排 |
+| 重复 | 73 | 82 | **+9** | R2 的 5M（映射/isAbortError/draft持久化/manifest/hook）经 B1/B4 全修、未复现；R3 新 2M |
+| 规范 | 74 | 82 | **+8** | R2 的 fandom get（B1）/同文件 snake-camel（C6）修掉；R3 是 C6 明确留的实现层 auPath + simple_chat camelCase |
+| 依赖 | 87 | 87 | 0 | esbuild LOW 依旧；vitest 分裂（C5a 修）/js-yaml major（C5b 修）未复现；R3 新 registry 镜像混用 M（环境） |
+| 日志 | 93 | 89 | −4 | R2 的脱敏机制全绿未复现；R3 新挖 facts_extraction 三层吞错 M（B2 未覆盖此链） |
+
+**四个回升维（功能+11/架构+8/重复+9/规范+8）= C 类与 B1/B4 治理的直接兑现，上轮发现复现率~0。两个下降维（正确性−18/安全−8）= 全新的更深存量 HIGH，非回归。** 这个「修掉的不再来、每轮挖出新的」格局，第三次印证盲审是概率采样而非确定性清单。
+
+## 修复战役成果（第二轮 → 第三轮之间）
+
+17 commit 全部本地提交未 push：B1 `baeee08` / B2 / B3 `d062398` / B4 `17ac0e8` / B5 `2dba115` / B6 `9e15816` / B7 `189b7fb` / B8 `a750211` / C1 `2c4d903` / C2 `06b8d75` / C3 `5c5534b` / C4 `e157f5f` / C5a `2877fe9` / C5b `45a5b7b` / C7 / C6 `54c0ab4`。每批经 2-3 视角独立对抗审（opus），累计采纳整改 32 条。测试净增：引擎 1345→1361（+16 有效，另 3 条 benchmark 转 env 门控）、UI 546→558（+12）。
+
+## 收官待决
+
+**第三轮 2 个 HIGH 是超出原「第二轮 39 条」范围的新发现，均已验证真实。** confirm 丢章（HIGH-1）治本方案无争议；bundle 泄漏（HIGH-2）的修法涉及「导入 AU 是否信任其 api_base」的产品安全决策。**是否开第三轮修复战役（D 批：2 HIGH + 择要 M）待用户拍板。** 剩余 13 M / 24 L 中，多数为写而不读死字段清理、重复单源化、实现层命名对齐、静默吞错补日志 —— 与前两轮同性质的渐进债。
