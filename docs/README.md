@@ -7,6 +7,8 @@
 | 文档 | 内容 | 状态 |
 |---|---|---|
 | [../PROGRESS.md](../PROGRESS.md) | **进度追踪**（当前状态 / 待办 / 里程碑，人读的前瞻文件，会话收尾更新） | 现行 |
+| [../DECISIONS.md](../DECISIONS.md) | 早期决策记录 D-0001~0031（含 Superseded 标注；后续决策摘要见 CLAUDE.md「关键决策」） | 现行 |
+| [../INTEGRATION_CHECKLIST.md](../INTEGRATION_CHECKLIST.md) | 合并前自检清单（2026-07 按现行工作流修订） | 现行 |
 | [TECH-DEBT.md](TECH-DEBT.md) | 技术债清单（**引用任何 TD-0xx 前必查其「状态」行**；当前唯一 open：TD-017） | 现行 |
 | [BUILD.md](BUILD.md) | 三端打包指南（Tauri / Capacitor Android / PWA，含内置 SW 说明） | 现行 |
 | [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) | 视觉设计 token、UI 原语与贡献约定 | 现行 |
@@ -18,7 +20,9 @@
 
 | 文档 | 内容 |
 |---|---|
-| [internal/audit/2026-07-07-round2-full-review.md](internal/audit/2026-07-07-round2-full-review.md) | 第二轮全量审计报告：62 发现 + 设计符合性核对 + 发现→修复 commit 映射 + 四轮对抗审处置（**查历史缺陷与修复依据的首选入口**） |
+| [internal/audit/2026-07-07-round2-full-review.md](internal/audit/2026-07-07-round2-full-review.md) | 第二轮全量审计报告：62 发现 + 设计符合性核对 + 发现→修复 commit 映射 + 四轮对抗审处置 |
+| [internal/audit/2026-07-09-blind-audit-9dim.md](internal/audit/2026-07-09-blind-audit-9dim.md) | 九维盲审报告（55/F 基线）+ A-H 八阶段治本修复对照 + 长期债清单 |
+| [internal/audit/2026-07-11-blind-audit-round2.md](internal/audit/2026-07-11-blind-audit-round2.md) | 第二轮九维盲审（84.1/B）+ 修复战役处置 + 第三轮收官复跑（83.2/B，末尾含 2 条存量 HIGH 待拍板）—— **查历史缺陷与修复依据先看这三份审计报告（新→旧）** |
 | [internal/plans/2026-07-07-model-picker-decision.md](internal/plans/2026-07-07-model-picker-decision.md) | 模型选择器方案 B 决策记录（已拍板并落地） |
 | [internal/plans/2026-07-07-model-landscape-research.md](internal/plans/2026-07-07-model-landscape-research.md) | 2026-07 各服务商模型行情调研（MODEL_CONTEXT_MAP 数据来源） |
 | [internal/plans/2026-07-07-kelivo-model-picker-notes.md](internal/plans/2026-07-07-kelivo-model-picker-notes.md) | Kelivo/Cherry Studio 选择器拆解与实施蓝图 |

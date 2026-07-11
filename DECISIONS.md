@@ -2,6 +2,9 @@
 
 > Architecture decisions that affect state machine semantics, data models, sync boundaries, or platform capabilities.
 > New decisions are appended. If a new decision supersedes an old one, it must explicitly state “Supersedes: D-XXXX”.
+>
+> **覆盖范围（2026-07 核对）**：本文件收录 **D-0001 ~ D-0031**（Python 后端 / 架构迁移前期）。D-0033 见 `docs/D-0033-i18n-known-limitations.md`；D-0032、D-0034 ~ D-0043 的事实摘要见 `CLAUDE.md`「关键决策」节，原始记录在 Obsidian / 归档。
+> **阅读提示**：①早期条目日期未记录（`YYYY-MM-DD` 为占位符，多为 2026-02~03 迁移前）；②条目中 FastAPI / SSE / sidecar / ChromaDB / run_in_threadpool 等实现细节属 Python HTTP 后端时代，已随 M0–M7 迁移演进——除非 Status 标注 Superseded / Deprecated，**决策意图仍然有效**，以现行 TS 引擎实现为准。
 
 ---
 
@@ -249,7 +252,7 @@
 
 ## D-0018 流式传输使用 SSE
 - Date: YYYY-MM-DD
-- Status: Accepted
+- Status: **Superseded**（M4「SSE 消除」：HTTP 后端已删除，前端直调 TS 引擎，流式为进程内 stream 回调）
 - Owner: Team
 - Context: 生成是单向推送，不需要 WebSocket 的双向通信。
 - Decision: FastAPI 端点返回 StreamingResponse（SSE），前端用 EventSource 或 fetch+ReadableStream 消费。
@@ -274,7 +277,7 @@
 
 ## D-0020 .drafts/ Phase 2D 默认不同步
 - Date: YYYY-MM-DD
-- Status: Accepted
+- Status: **Deprecated**（D-0040 多设备同步整体退役，「远端可见性」语境不复存在；「草稿仅本机、不入同步/导出」的现状不变）
 - Owner: Team
 - Context: 草稿同步涉及冲突解决、稳定 ID、是否可续写等复杂决策。
 - Decision: Phase 2D 草稿仅限本机，远端看不到未确认草稿。Phase 3 视需求再开放。
@@ -286,7 +289,7 @@
 
 ## D-0021 Repository 层使用同步方法
 - Date: 2026-03-26
-- Status: Accepted
+- Status: **Superseded**（Python filelock 时代决策；TS 引擎 Repository 接口与 PlatformAdapter I/O 均为 async）
 - Owner: Team
 - Context: filelock 是同步阻塞的，async Repository 方法无法被 run_in_threadpool 正确包装。
 - Decision: 所有 Repository 方法为同步（def，非 async def）。FastAPI async 路由调用时须通过 run_in_threadpool() 包装。

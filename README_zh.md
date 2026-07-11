@@ -36,6 +36,7 @@ FicForge 的做法不同：**你来决定什么重要，AI 负责在写作时精
 - **AI 设定助手**：用大白话告诉 AI"帮我建一个角色"，它会给你建议，你逐条确认后才生效——AI 只建议，不擅自动手
 - **语义搜索**：AI 写作时自动检索你的设定和历史章节中最相关的片段，不需要你手动复制粘贴
 - **多稿对比**：同一章生成多个版本，翻页对比，选最满意的那个定稿
+- **对话式续写**：「对话」与「写文」双页并列，聊着天把章节聊出来——两边共用同一套记忆（剧情笔记 / 剧情线 / 章节摘要 / 语义检索）
 
 ---
 
@@ -43,7 +44,7 @@ FicForge 的做法不同：**你来决定什么重要，AI 负责在写作时精
 
 - **所有数据保存在你自己的设备上。** 粮坊不会把你的设定、章节、任何东西上传到我们的服务器——我们没有服务器
 - 当你使用 AI 写作功能时，内容会发送到你自己配置的 API 提供商（如 DeepSeek）——这是 AI 生成必需的，完全由你控制
-- 语义搜索在桌面端可使用本地向量模型，移动端使用 API Embedding——由你选择
+- 语义搜索使用你在全局设置中配置的 API Embedding 模型（OpenAI 兼容），三端一致——用哪家服务商由你选择
 
 ---
 
@@ -51,13 +52,13 @@ FicForge 的做法不同：**你来决定什么重要，AI 负责在写作时精
 
 ### Windows（桌面端）
 
-1. 从 [Releases](../../releases) 下载 `FicForge_0.3.0_x64-setup.exe`
+1. 从 [Releases](../../releases) 下载最新版 `FicForge_x.x.x_x64-setup.exe`
 2. 运行安装包
 3. 打开粮坊 → 配置 API 密钥（推荐 [DeepSeek](https://platform.deepseek.com)，便宜好用）→ 开始写
 
 ### Android
 
-1. 从 [Releases](../../releases) 下载 `FicForge_0.3.0_android.apk`
+1. 从 [Releases](../../releases) 下载最新版 `FicForge_x.x.x_android.apk`
 2. 安装到手机（可能需要开启"允许安装未知来源应用"）
 3. 打开粮坊 → 配置 API 密钥 → 开始写
 
@@ -91,7 +92,7 @@ cd android && ./gradlew.bat assembleDebug
 
 打开**全局设置**（齿轮图标）→ 填写 API 密钥和接口地址。
 
-- 推荐：[DeepSeek](https://platform.deepseek.com)（`api_base: https://api.deepseek.com`，模型：`deepseek-chat`）
+- 推荐：[DeepSeek](https://platform.deepseek.com)（`api_base: https://api.deepseek.com`，模型：`deepseek-v4-flash`）
 - 支持所有 OpenAI 兼容接口（GPT、Claude 中转、Ollama、本地模型等）
 
 ### 第 2 步：创建 Fandom（圈子）
@@ -173,7 +174,7 @@ AI 会生成角色设定文件 → 你逐条确认后保存。也可以在设定
 | 桌面端 | Tauri 2 |
 | 移动端 | Capacitor (Android) / PWA (iOS/Web) |
 | 向量检索 | JSON 分片 + 内存余弦相似度 |
-| LLM 调用 | 原生 fetch（OpenAI 兼容接口） |
+| LLM 调用 | openai-node SDK（OpenAI 兼容接口） |
 
 ## 参与贡献
 

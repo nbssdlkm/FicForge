@@ -35,6 +35,7 @@ FicForge takes a different approach: **you decide what matters, AI injects it pr
 - **AI Settings Assistant**: Describe what you want in plain language. AI suggests changes, you confirm each one — AI proposes, never acts alone
 - **Semantic Search**: AI automatically retrieves the most relevant snippets from your settings and past chapters. No manual copy-paste
 - **Multi-draft**: Generate multiple versions of the same chapter, compare side by side, finalize the one you like
+- **Chat co-writing**: A chat tab sits right next to the writing tab — draft chapters by talking with AI; both tabs share the same memory stack (plot points / threads / summaries / semantic retrieval)
 
 ---
 
@@ -50,13 +51,13 @@ FicForge takes a different approach: **you decide what matters, AI injects it pr
 
 ### Windows (Desktop)
 
-1. Download `FicForge_0.3.0_x64-setup.exe` from [Releases](../../releases)
+1. Download the latest `FicForge_x.x.x_x64-setup.exe` from [Releases](../../releases)
 2. Run the installer
 3. Open FicForge → configure your API key ([DeepSeek](https://platform.deepseek.com) recommended) → start writing
 
 ### Android
 
-1. Download `FicForge_0.3.0_android.apk` from [Releases](../../releases)
+1. Download the latest `FicForge_x.x.x_android.apk` from [Releases](../../releases)
 2. Install on your device (you may need to enable "Install from unknown sources")
 3. Open FicForge → configure your API key → start writing
 
@@ -90,7 +91,7 @@ Requires Node.js 18+. Android build requires JDK 17+ and Android SDK.
 
 Open **Global Settings** (gear icon) → enter your API key and base URL.
 
-- Recommended: [DeepSeek](https://platform.deepseek.com) (`api_base: https://api.deepseek.com`, model: `deepseek-chat`)
+- Recommended: [DeepSeek](https://platform.deepseek.com) (`api_base: https://api.deepseek.com`, model: `deepseek-v4-flash`)
 - Any OpenAI-compatible API works (GPT, Claude via proxy, Ollama, etc.)
 
 ### Step 2: Create a Fandom
@@ -172,7 +173,7 @@ See [ETHICS.md](ETHICS.md) for our full statement.
 | Desktop | Tauri 2 |
 | Mobile | Capacitor (Android) / PWA (iOS/Web) |
 | Vector Search | JSON shards + in-memory cosine similarity |
-| LLM | Native fetch (OpenAI-compatible API) |
+| LLM | openai-node SDK (OpenAI-compatible API) |
 
 ## Contributing
 

@@ -48,79 +48,35 @@ Platform Adapter
 | M9 | ReAct 基础设施（生成 + 选择性提取） | **已完成**（合入 main，2026-06） |
 | M10 | Retrospective rewrite + Archive 冷热分层 | **已完成**（M10-A + M10-B 合入 main，2026-06） |
 
-> **注**：M6–M10 源自 PRD v5（架构简化 + Memory 重设计）。**PRD v5 及 D-00xx 决策记录 / devlog 已不在仓库内**（`docs/internal/` 仅余 `plans/`）—— 如需查阅在 Obsidian `D:\MY LIFE\FicForge\` 或归档处。M8–M10 已完成；**当前实际推进的主线是「对话式 × 记忆栈融合」（单一主力版）**，融合 Phase 1-3 与 2026-07 审计修复均已合 main，见下方「活跃工作」。
+> **注**：M6–M10 源自 PRD v5（架构简化 + Memory 重设计）。**PRD v5 及 D-00xx 决策记录 / devlog 已不在仓库内**（`docs/internal/` 现存 `plans/` 与 force-add 入库的 `audit/`）—— 如需查阅在 Obsidian `D:\MY LIFE\FicForge\` 或归档处。M8–M10 已完成；**当前实际推进的主线是「对话式 × 记忆栈融合」（单一主力版）**，融合 Phase 1-3 与 2026-07 审计修复均已合 main，见下方「活跃工作」。
 
-## 活跃工作（当前分支）
+## 活跃工作与进度（真相源 = PROGRESS.md）
 
-**当前分支：`main`** —— 全部 pushed、工作区干净。融合主线 Phase 1-3、第二轮全量审计的全部修复、供应商模型选择器均已合入（见下方「2026-07 审计与修复」）。
+> **实时状态（当前分支 / 未 push 提交 / 待办 / 里程碑）一律以仓库根 `PROGRESS.md` 为准** —— 每个工作会话收尾时更新它（完成的待办移入里程碑一行带走），用户的 obsidian-report 台账会扫它。**本节只保留稳定背景，不随会话滚动**；历史缺陷与修复依据查 `docs/internal/audit/` 三份审计报告。
 
-> **进度追踪约定**：人读的前瞻进度在仓库根 `PROGRESS.md`（当前状态/待办/里程碑）——**每个工作会话收尾时更新它**（完成的待办移入里程碑一行带走），用户的 obsidian-report 台账会扫它。
+### 主线：对话式 × 记忆栈融合（单一主力版，已全部落地）
 
-### 主线：对话式 × 记忆栈融合（单一主力版）
+删 `writing_mode` 模式开关后的最终形态：一篇作品里「对话」tab +「写文/阅读」tab 恒并列、共用同一套记忆栈（facts / 剧情线 / 摘要 / RAG）；对话与手动只是两种输入，背后同一条「生成→接受→记忆」流水线（接受后自动 M9 提取，双 gate：`react_extraction_enabled !== false` + `default_llm.has_usable_connection`）。Phase 1-3、「补全旧章记忆」工具（`backfill_chapter_memory`）、2026-07 多轮全量审计修复、供应商模型选择器均已合 main。spec：`docs/superpowers/specs/2026-06-28-fuse-chat-into-main-memory-design.md`、`2026-06-30-backfill-chapter-memory-design.md`。
 
-**目标**（用户拍板）：删 `writing_mode` 模式开关，做成单一主力版 —— 一篇作品里「对话」tab +「写文/阅读」tab 并列、共用同一套记忆栈（facts / 剧情线 / 摘要 / RAG）。对话与手动只是两种输入，背后同一条「生成→接受→记忆」流水线；记忆=自动为主（接受后自动提取）。
-- spec：`docs/superpowers/specs/2026-06-28-fuse-chat-into-main-memory-design.md`；plan：`docs/superpowers/plans/2026-06-28-fuse-chat-into-main-memory-plan.md`（两轮独立审）。
-- **Phase 1（引擎 + API）全完**：对话路径走 `assemble_chat_context`（分层记忆进 systemContent）、`computeInputBudget` 单一真相源、confirm 内摘要/回顾不再受 mode gate。
-- **Phase 2（UI 统一 + 模式系统物理删 + M9 接线）全完 + pushed**：恒并列双 tab（桌面 + 移动 5-tab 底栏）、物理删 `useWritingMode`/`getSimpleFeatures`/landing 分叉；对话接受自动触发 M9 提取（双 gate：`react_extraction_enabled !== false` + `default_llm.has_usable_connection`）弹 `ExtractReviewModal` + header「提取剧情笔记中…」指示。最后一块 P2.3 = commit `be83996`。
-- **Phase 3（迁移 + 打磨）已完成**：
-  - ✅ **清理块（已提交）**：`writing_mode` 字段退役（`domain/settings` + `file_settings` + `config/simple_features`（仅留 `SIMPLE_AGENT_MAX_ITER`）+ `index` re-export；round-trip 测试改「容忍读取 + 不再持久化」）+ `summaryDisabled` 死字段 + `backfill.disabledMode` 死 i18n 清理；`get_tools_for_mode` 评估=**不动**（它是 settings-chat scope au/fandom/simple，非 writing_mode）。引擎 1020 + UI 206 + 双 tsc + i18n 1176 全绿 + 独立对抗审 opus 判 safe。
-  - ✅ **真机眼验（preview，无 key）**：清理块 + 3.1 modal 均零 console 报错；建/开 AU 落地对话 tab；双 tab 切换；token badge；高级操作「补全旧章记忆」按钮（已取代「补全旧章摘要」）开 modal 走 needConfig 路径全活。LLM 实跑流程靠绿测试兜底（填 key 受安全规则禁）。
-  - ✅ **3.1「补全旧章记忆」（已提交）**：用户拍板做（有真实用户）。逐章统一 pass（新引擎服务 `backfill_chapter_memory`：loop/章边界中断/CAS-in-lock/半成功）补 摘要（缺则补）+ 笔记（用户勾选章，自动落库，默认勾零笔记章）+ 向量（处理到的章正文+摘要）。API `scanChapterMemory`/`backfillChapterMemory`；新 `BackfillMemoryModal`（四阶段 + 笔记章选择器 + unmount-abort）**取代**旧「补全旧章摘要」；**旧 summary-only 全栈物理删**（engine `backfill_chapter_summaries` + API `backfillChapterSummaries`/`countChaptersMissingSummary`，`find_chapters_missing_summary` 保留复用）。spec：`docs/superpowers/specs/2026-06-30-backfill-chapter-memory-design.md`。引擎 1024 + UI 214 + 双 tsc + i18n 1186 全绿 + **三轮独立对抗审 opus**（正确性 / 数据完整性 / 删除安全），采纳 HIGH 重复提取警告 + MEDIUM 半成功标 STALE + NIT 强制 t.chapterNum 归属 + LOW 空态提示。
+### 结构性事实（改相关代码前必知）
 
-### 2026-07-07/08：第二轮全量审计 + 全量修复 + 模型选择器（已完成，全 pushed）
-
-- **审计**：8 维并行审阅全仓（重点移动端 + 设计符合性），62 条发现（10 HIGH）全部闭环；四轮独立对抗审累计 40+ 条附加发现全部整改。报告与发现→commit 映射：`docs/internal/audit/2026-07-07-round2-full-review.md`（force-add 入库，docs/internal 默认被 gitignore）。
-- **结构性变更（改相关代码前必知）**：①对话与写文双面板**常驻挂载 + CSS 隐藏**（不随切 tab 卸载；配套 `externalChaptersVersion` 与 tab 边沿配置重拉两条刷新通道，动刷新逻辑先读 AuWorkspaceLayout/WriterLayout 注释）；②全平台**真原子写**（adapter.rename + write-tmp-rename，`file_utils.atomicWrite`）；③写文与对话共用 `services/chapter_inflight.ts` 章级互斥（confirmChapter 也查表）；④向量层接通删除生命周期（undo/编辑/删 AU 清理 + index_status 双向修）；⑤`domain/frontmatter.safeMatter` 统一 frontmatter 解析（`---` 开头正文防吞）；⑥PWA prompt 更新模式 + pagehide flush。
-- **供应商模型选择器（方案 B，用户拍板）**：`domain/provider_manifest.ts` 单一真相源（12 家内置）+ MODEL_CONTEXT_MAP 刷至 2026-07 行情（org/ 前缀 fuzzy 修复）+ ProviderModelPicker / FetchModelsSheet / CustomProviderModal（自定义服务商 key 走动态 secure 字段）+ `chat_path` 全链 + 新手引导同源接入；术语统一「服务商」。**新配置默认模型 deepseek-v4-flash**（deepseek-chat 2026-07-24 官方停用；存量配置未动）。
-- **剩余（环境边界）**：真机体感验证（safe-area / iOS 离线 / 流式帧率 / PWA 更新横幅）、真 key 端到端旅程（含自定义 chatPath 网关）、Android Manifest 入库（文件在 Windows 构建机）。
-- **下一个产品迭代候选（记忆栈「最后一公里」：数据从「能存」到「用起来」，未排期）**：caused_by 生成端消费、Thread.state 自动维护提醒、归档候选自动提示、导入→backfill 引导衔接、选择器 per-model ctx 编辑、覆盖备份进回收站列表。
+- ①对话与写文双面板**常驻挂载 + CSS 隐藏**（不随切 tab 卸载；配套 `externalChaptersVersion` 与 tab 边沿配置重拉两条刷新通道，动刷新逻辑先读 AuWorkspaceLayout/WriterLayout 注释）；②全平台**真原子写**（adapter.rename + write-tmp-rename，`file_utils.atomicWrite`）；③写文与对话共用 `services/chapter_inflight.ts` 章级互斥（confirmChapter 也查表）；④向量层接通删除生命周期（undo/编辑/删 AU 清理 + index_status 双向修）；⑤`domain/frontmatter.safeMatter` 统一 frontmatter 解析（`---` 开头正文防吞）；⑥PWA prompt 更新模式 + pagehide flush。
+- **RagManager 为 per-AU 引擎实例**（TD-017 根治，2026-07-09）：`Map<auPath, JsonVectorEngine>` + promise 缓存 get-or-create + pin/LRU 驱逐，跨 AU 向量彻底隔离；搜索路径走 `ragManager.vectorRepoFor(auPath)`。
+- **供应商模型选择器**：`domain/provider_manifest.ts` 单一真相源（12 家内置）+ MODEL_CONTEXT_MAP + `chat_path` 全链；术语统一「服务商」。**新配置默认模型 deepseek-v4-flash**（deepseek-chat 2026-07-24 官方停用；存量配置未动）。
+- **上下文预算（D-0039）**：`budget = max(ctx − max(maxTokens, 10k) − system − 500, ctx × 60% − system)`（旧公式作下限兜底），`OUTPUT_RESERVE_CEIL=15k` 硬顶；per-model `context_window` 可被用户保存值覆盖（`get_context_window` 优先认保存值）。
 
 ### 背景：记忆栈（M8 / M9 / M10，均已完成并合入 main）
 
 - M8-A Fact 富化 / M8-B Thread 剧情线 / M8-C Chapter Summary（standard，需配 embedding）；M9 ReAct 提取（复用 `runAgentLoop`，跨章 `caused_by` + 自动挂 `thread_ids`，`REACT_MAX_FACTS_PER_CHAPTER=8` 软上限）；M10-A retrospective + M10-B 冷热分层（`archived` fact 字段 + 高级操作「整理旧剧情笔记」`ArchiveCandidatesModal`）。真机全旅程 2026-06-22 验过（记忆栈四层 Facts/Thread/Summary/RAG 全跑通，配硅基 bge-m3）。spec：`docs/superpowers/specs/2026-06-20-m9-react-fact-extraction-design.md` / `2026-06-20-m8b-thread-layer-design.md`。
 
-> **技术债现状（2026-07-07 核对 `docs/TECH-DEBT.md`）：TD-001…TD-016 全部 ✅ 已修复 / 已消解；TD-017（RagManager 跨 AU 向量竞态，第二轮审计 M3）open · 待排期。** 别把其他 TD-0xx 当待办列在这里 —— 引用前必查 TECH-DEBT.md 的「状态」行。
+> **技术债现状（2026-07-09 收官核对 `docs/TECH-DEBT.md`）：TD-001…TD-017 全部 ✅ 已修复 / 已消解，当前零 open 条目。** 长期债（低息、渐进还）与新增债一律记在 PROGRESS.md / TECH-DEBT.md —— 引用任何 TD-0xx 前必查其「状态」行。
 
-- **3.1「导入原始文件夹」联动**：补全旧章记忆已建好；其杀手场景（导入只含正文的原始文件夹后一键建记忆）待「导入原始文件夹」流程成常用入口后再验。
-- **真机全 LLM 旅程**（唯一未跑的验证）：配真 key 端到端跑 对话出章→接受→提取候选→落库→切写文 tab 看同篇记忆→补记忆工具实跑。一直因填 key 受安全规则禁、用户没精力手填而跳过，靠绿测试兜底。
-- **代码质量硬化**（正交支线，非 TECH-DEBT）：`docs/internal/plans/system-optimization-{roadmap,execution-plan}-2026-04-19.md`（Settings/Project 契约收窄、真 SecretStore、写入串行化）。基线部分已过时，按需取用、需先重新核对现状。
-- **M6 Agent 架构**（PRD v5 / D-0043）：触发条件未满足，不排期。
+### 未排期 / 观察
 
----
-
-**以下为已合并 main 的历史背景（简版收敛 Phase 1/2 + bughunt 收尾等，均已合入 main）：**
-
-### 2026-04-20/21 完成的工作
-
-**Writer 状态下沉重构（5 phase + 6 cleanup）**：
-- WriterLayout useState 22 → 1，行数 619 → 293，setter 外泄 ~61 → 0
-- 删除 `useWriterResetOnAuChange.ts`；引入 `loadDataRef` shim 破死循环；5 个 bridge ref → 0（反转控制流）
-- UI 测试 0 → 13 文件 / 93 用例（`@testing-library/react` + jsdom 首次接入）
-- Codex 简报 + 4 铁律 + 第 5 条规则（hook 不暴露 raw setter）已写入本文件
-
-**Phase 7 tech debt**（全部关闭；计划文档 `phase-7-tech-debt-plan.md` 已不在仓库内）：
-- ✅ T7-1 PartialCommitError（structured 错误码替代误导文案，commit `ab34816`）
-- ✅ T7-2 路径白名单（`? # % :` 替换 `_`，分新建 sanitize / 已有 validate 双路径，commit `2c46c4b`）
-- ✅ T7-3 端到端 AbortSignal（4 层贯通；切 AU 中途取消生成，commit `2355eb9`）
-- ✅ T7-4 Import pipeline rollback（settings 落盘后 tx.commit 失败时清理；**未扩展 WriteTransaction** —— settings 不是 ops-backed 数据，不入事务，commit `6733abd`）
-- ✅ T7-5 429 retry 可中断（`waitWithAbort` + `attachAbort` helper；addEventListener/removeEventListener 成对；commit `58963b3`）
-- ✅ T7-6 confirm 后增量索引 + RAG STALE 降级（commit `e6686f8`）
-- ✅ T7-7 RAG chapters top_k 3 → 8（commit `46d4d62`）
-- ✅ T7-8 rebuildForAu 中途失败 unload 恢复 + 单测补全（修复 commit `be7c1fc`，regression test with mutation verification commit `a82c38e`；真机已验）
-
-**上下文预算重平衡**（decision D-0039）：
-- 旧公式 `budget = ctx × 60% − system` 在 128k 模型上浪费 48k tokens（`maxTokens` 被 `chapter × 2 = 3000` 绑死，40% 输出预留从不用满）
-- 新公式：`budget = max(ctx − max(maxTokens, 10k) − system − 500, ctx × 60% − system)`，旧公式作下限兜底保证小模型不退步
-- 128k 模型 input budget +52%，200k +58%，64k +38%；8k/4k 不变
-- 新增 `OUTPUT_RESERVE_CEIL=15k` 硬顶防超长章节耗预算，触发时 `console.warn`
-- commit `6ef7bd2`（决策 D-0039；记录文件已不在仓库内）
-
-### 待决策 / 观察（未排期）
-
-- **简版 vs 主模式的产品定位**：简版最终是主力 UX、轻量入口、还是并存？影响 Phase 2 之后的 UI 取舍（需 PM 拍板）
-- **M6–M10**（Agent / 架构简化 / Memory 三层 / ReAct / Retrospective）：源自 PRD v5（out-of-repo），当前**不排期**，让位于简版收敛主线；概览见上方迁移阶段表
-- ✅ **M4-E.6 Sidecar 精简（已决策退役 2026-06）**：sidecar 已删除，embedding 走云端 API（详见下方 Python 后端章节）
-- **T7-7 观察**：RAG top_k=8 若不够，调 `rag_decay_coefficient` 0.05 → 0.03
+- 真机体感验证、真 key 端到端旅程、Android Manifest 入库等**环境边界类待办见 PROGRESS.md「需要人工」节**。
+- **T7-7 观察**：RAG top_k=8 若不够，调 `rag_decay_coefficient` 0.05 → 0.03。
+- **代码质量硬化**（正交支线）：`docs/internal/plans/system-optimization-*.md`，基线大部分已被后续工作落地，取用前先核对现状。
+- **M6 Agent 架构**（D-0043）：触发条件未满足，不排期。
 - **Eval Harness** 支线独立节奏：工程产出进 `src-engine/eval/`，学习笔记在 Obsidian `D:\MY LIFE\FicForge\Eval Harness\`
 
 ### Codex 累计教训（写入新会话提示）
@@ -143,7 +99,7 @@ Platform Adapter
 - **D-0042** ReAct 生成 + 选择性 ReAct 提取
 - **D-0043** M6 Agent 架构重新规划（取代 D-0032；等触发条件满足后启动）
 - **简版收敛**（2026-06，无独立 D 编号）：简版 fork → 主仓 `writing_mode` flag 共存，取代「维护两套代码库」；spec 见 `docs/superpowers/specs/2026-06-02-converge-simple-into-main-phase1-design.md`
-- **注**：D-0034…D-0043 的决策**记录文件**已不在仓库内（`docs/internal/decisions/` 已清空）；以上为决策事实摘要，原始记录见 Obsidian / 归档
+- **注**：早期决策 **D-0001~D-0031 见仓库根 `DECISIONS.md`**（含 Superseded 标注）；D-0033 见 `docs/D-0033-i18n-known-limitations.md`；D-0032、D-0034…D-0043 的**记录文件**已不在仓库内（`docs/internal/decisions/` 已清空），以上为决策事实摘要，原始记录见 Obsidian / 归档
 - 新创建的 fandom / AU / lore 路径段统一收紧到白名单：字母、数字、Unicode 字母、空格、`-`、`_`、`.`；诸如 `? # % : * " < > / \` 的保留字符一律替换为 `_`。
 
 ## 技术栈
@@ -170,12 +126,14 @@ Platform Adapter
 
 ## 内部参考文档
 
-> **2026-06 现状**：原 `docs/internal/{prd,decisions,devlog,audit,milestone,governance,prompts}` 子目录**已不在仓库内**，只剩 `plans/`。PRD（v2/v4/v5）、D-00xx 决策记录、devlog 如仍需查阅，在 Obsidian `D:\MY LIFE\FicForge\` 或已归档。**别再引用这些已失效路径。**
+> **现状（2026-07 核对）**：原 `docs/internal/{prd,decisions,devlog,milestone,governance,prompts}` 子目录**已不在仓库内**，现存 `plans/` 与 force-add 入库的 `audit/`。PRD（v2/v4/v5）、D-0032/0034+ 决策记录原文、devlog 如仍需查阅，在 Obsidian `D:\MY LIFE\FicForge\` 或已归档。**别再引用这些已失效路径。**
 
-**仓库内现存文档：**
-- `docs/`（顶层，已 git 跟踪）— `API-REFERENCE.md`、`BUILD.md`、`DESIGN-SYSTEM.md`、`SYNC-GUIDE(_zh).md`、`TECH-DEBT.md`（**TD-001…TD-015 现行技术债清单，含简版收敛相关 TD-014/015**）、`D-0033-i18n-known-limitations.md`
-- `docs/internal/plans/` — `system-optimization-{roadmap,execution-plan}-2026-04-19.md`（代码质量硬化计划，正交支线）
-- `docs/superpowers/specs/` — `2026-06-02-converge-simple-into-main-phase1-design.md`（简版收敛 Phase 1 设计 spec；**新 spec 的归处**）
+**仓库内现存文档（找文档先看 `docs/README.md` 索引）：**
+- 仓库根 — `PROGRESS.md`（**进度真相源**）、`DECISIONS.md`（D-0001~0031 早期决策，含 Superseded 标注）、`INTEGRATION_CHECKLIST.md`（合并前自检清单）
+- `docs/`（顶层，已 git 跟踪）— `BUILD.md`、`DESIGN-SYSTEM.md`、`TECH-DEBT.md`（技术债台账，**TD-001…TD-017 全部闭环**，引用前必查「状态」行）、`D-0033-i18n-known-limitations.md`；已废弃留档：`API-REFERENCE.md`（HTTP 后端时代，现行 API 真相源 = `src-ui/src/api/engine-client.ts`）、`SYNC-GUIDE(_zh).md`（同步已退役 D-0040）
+- `docs/internal/audit/` — 2026-07 三份全量审计报告（**查历史缺陷与修复依据的首选入口**）
+- `docs/internal/plans/` — 模型选择器决策/调研 3 份 + `system-optimization-*`（2026-04 硬化计划，大部分已被落地）
+- `docs/superpowers/specs/` + `plans/` — 功能设计 spec 与实施计划（**新 spec 的归处**）
 
 **学习笔记**（非工程产出）放 Obsidian `D:\MY LIFE\FicForge\`，不进仓库。
 
