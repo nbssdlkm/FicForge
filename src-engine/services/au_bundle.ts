@@ -16,8 +16,11 @@
  *
  * 安全：bundle 不含明文密钥。project.yaml 里的 api_key 是 `<secure>` 占位符，
  * 真正的密钥在 OS keystore（不导出），导入后为空待用户重填（见 TD-008）。
+ * 导入侧另做 project.yaml 消毒（api_key 重脱敏 + api_base/chat_path 剥离，
+ * 防外部构造的恶意 bundle 携带可控端点 —— 盲审 R3 HIGH-2，见 sanitizeImportedProjectYaml）。
  */
 
+import * as yaml from "js-yaml";
 import type { PlatformAdapter } from "../platform/adapter.js";
 import { IndexStatus } from "../domain/enums.js";
 import { joinPath, now_utc } from "../utils/file_utils.js";
@@ -152,9 +155,17 @@ export async function importAuBundle(
       }
       // index_status 无损置 stale：行级文本替换，保留 state.yaml 其余所有键/顺序，
       // 不走 dictToState 白名单（跨程序迁移时简版可能带主 app 不认识的字段，白名单会吞掉）。
-      const toWrite = (opts.staleIndexStatus && rel === "state.yaml")
-        ? forceStaleIndexStatus(content)
-        : content;
+      // 判据用「OS 归一化后的 basename」（盲审 R3 HIGH-2 二次对抗审）：大小写不敏感 FS
+      // 会把 `Project.yaml`、`./project.yaml`、`project.yaml `（尾空格）、`project.yaml.`
+      // 都读回成仓储路径 `project.yaml`；若判据不同步归一，这些形态会绕过消毒直接落盘。
+      // isSafeRelPath 已拒绝 `.`/尾空格/尾点段作第一道，这里的 canon 判据是第二道。
+      const canonBase = canonicalizedBasename(rel);
+      let toWrite = content;
+      if (canonBase === "project.yaml") {
+        toWrite = sanitizeImportedProjectYaml(content);
+      } else if (opts.staleIndexStatus && canonBase === "state.yaml") {
+        toWrite = forceStaleIndexStatus(content);
+      }
       const dest = joinPath(targetAuPath, rel);
       const slash = dest.lastIndexOf("/");
       if (slash > 0) await adapter.mkdir(dest.substring(0, slash));
@@ -278,6 +289,58 @@ function redactSecrets(projectYaml: string): string {
   return projectYaml.replace(/^(\s*api_key:).*$/gm, `$1 ${SECURE_PLACEHOLDER}`);
 }
 
+/** 需在导入 project.yaml 里擦除的字段（小写归一比较）：密钥→占位符，端点/路径→空串。 */
+const IMPORT_SECRET_KEYS = new Set(["api_key"]);
+const IMPORT_ENDPOINT_KEYS = new Set(["api_base", "chat_path"]);
+
+/** 递归擦除已解析对象里的密钥/端点字段（表示无关：flow/引号键/显式键解析后都是同名键）。 */
+function scrubEndpointsDeep(node: unknown): void {
+  if (Array.isArray(node)) {
+    for (const el of node) scrubEndpointsDeep(el);
+    return;
+  }
+  if (!node || typeof node !== "object") return;
+  const obj = node as Record<string, unknown>;
+  for (const key of Object.keys(obj)) {
+    const k = key.toLowerCase();
+    if (IMPORT_SECRET_KEYS.has(k)) {
+      obj[key] = SECURE_PLACEHOLDER;
+    } else if (IMPORT_ENDPOINT_KEYS.has(k)) {
+      obj[key] = "";
+    } else {
+      scrubEndpointsDeep(obj[key]);
+    }
+  }
+}
+
+/**
+ * 导入侧 project.yaml 消毒（盲审 R3 HIGH-2 纵深防御）：
+ * - api_key 重脱敏：外部构造的 bundle 可能带明文 key，不得原样落盘。
+ * - api_base / chat_path 置空：导入的 AU 不携带可控端点（防内容外泄 + 模型响应注入）。
+ *   与「导入后密钥为空待用户重填」（TD-008）语义一致 —— 用户重配 key 时本就要重选服务商。
+ *
+ * 用 **解析→深度擦除→重序列化**（而非行级正则）：行级正则被 YAML 流式映射
+ * `{api_base: x}`、引号键 `"api_base":`、显式键 `? api_base` 等表示形式全面绕过
+ * （对抗审实证）。yaml.load→dump 保留所有键（非白名单，跨程序未知字段不丢），
+ * 仅损失注释/顺序 —— 对结构化 project.yaml 可接受（导出器本就 yaml.dump 产出）。
+ * 解析失败（无法被下游 yaml.load 消费、AU 本就打不开）时回退行级 best-effort + 告警。
+ */
+function sanitizeImportedProjectYaml(projectYaml: string): string {
+  let doc: unknown;
+  try {
+    doc = yaml.load(projectYaml);
+  } catch {
+    warnAlways("au_bundle", "导入 project.yaml 解析失败，回退行级消毒", {});
+    return redactSecrets(projectYaml)
+      .replace(/^(\s*api_base:).*$/gm, `$1 ""`)
+      .replace(/^(\s*chat_path:).*$/gm, `$1 ""`);
+  }
+  // 标量 / null / 非对象：无端点字段可注入，原样返回（保留原字节）。
+  if (!doc || typeof doc !== "object") return projectYaml;
+  scrubEndpointsDeep(doc);
+  return yaml.dump(doc, { lineWidth: -1, noRefs: true });
+}
+
 /** 把 state.yaml 的 index_status 行无损置为 stale（保留其余键/顺序/注释）。 */
 function forceStaleIndexStatus(stateYaml: string): string {
   const line = `index_status: ${IndexStatus.STALE}`;
@@ -287,11 +350,32 @@ function forceStaleIndexStatus(stateYaml: string): string {
   return `${stateYaml.replace(/\s*$/, "")}\n${line}\n`;
 }
 
-/** 相对路径安全：非空、无绝对前导、无 `..` 越界段。 */
+/**
+ * 相对路径安全：非空、无绝对前导、无 `..`/`.` 越界段，且无「OS 会归一化掉」的段
+ * （前后空白 / 尾点）—— 这些段会让写入路径与仓储读取路径不对称，从而绕过 basename
+ * 判据的消毒/置 stale（盲审 R3 HIGH-2 二次对抗审：`./project.yaml`、`project.yaml `）。
+ */
 function isSafeRelPath(rel: string): boolean {
   if (!rel || rel.startsWith("/") || rel.startsWith("\\")) return false;
   if (/^[a-zA-Z]:/.test(rel)) return false;                       // Windows 盘符
-  return !rel.split(/[\\/]/).some((seg) => seg === ".." || seg === "");
+  return !rel.split(/[\\/]/).some(
+    (seg) =>
+      seg === ".."
+      || seg === "."
+      || seg === ""
+      || seg !== seg.trim()                                       // 前后空白（Windows 会剥离）
+      || /\.$/.test(seg),                                         // 尾点（Windows 会剥离）
+  );
+}
+
+/**
+ * 取 rel 的「OS 归一化后 basename」用于 project.yaml / state.yaml 判据：末段 + 剥离
+ * 尾部空白/点（Windows/macOS 文件系统会做同样归一）+ 小写（大小写不敏感 FS）。
+ * 与 isSafeRelPath 的段级拒绝互为双保险。
+ */
+function canonicalizedBasename(rel: string): string {
+  const base = rel.split(/[\\/]/).pop() ?? "";
+  return base.trim().replace(/[.\s]+$/, "").toLowerCase();
 }
 
 /** 任意层级落在排除目录下 → 跳过（防原始文件夹导入夹带 .vectors）。 */

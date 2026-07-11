@@ -34,11 +34,11 @@ describe("resolve_llm_config", () => {
     expect(result.model).toBe("settings-model");
   });
 
-  it("masked api_key falls back to settings", () => {
+  it("masked api_key falls back to settings when the endpoint matches（同源，含尾斜杠/大小写归一）", () => {
     const result = resolve_llm_config(
       { mode: "api", model: "m", api_base: "http://x", api_key: "****xxxx" },
       {},
-      { default_llm: { api_key: "sk-real-key" } },
+      { default_llm: { api_base: "HTTP://X/", api_key: "sk-real-key" } },
     );
     expect(result.api_key).toBe("sk-real-key");
   });
@@ -70,13 +70,79 @@ describe("resolve_llm_config", () => {
     expect(result.api_key).toBe("sk-GLOBAL");
   });
 
-  it("session w/ no key + AU key is a placeholder/masked → falls back to the global key", () => {
+  it("session w/ no key + AU key 为占位符且 AU 端点 ≠ 全局端点 → 拒绝跨源回填全局 key（盲审 R3 HIGH-2）", () => {
+    // 修前此场景回填 sk-GLOBAL —— 即全局密钥被发往 au.provider（泄漏形状本身）。
+    // 修后宁缺勿漏：留空让下游按「未配置密钥」失败，用户为该端点显式配 key。
     const result = resolve_llm_config(
       { mode: "api", model: "au-model", api_base: "https://au.provider/v1" },
       { llm: { mode: "api", model: "au-model", api_base: "https://au.provider/v1", api_key: "<secure>" } },
       { default_llm: { mode: "api", model: "g", api_base: "", api_key: "sk-GLOBAL" } },
     );
+    expect(result.api_key).toBe("");
+  });
+
+  // --- 同源门（盲审 R3 HIGH-2：恶意 bundle 泄漏全局 key）---
+
+  it("恶意 bundle 攻击面回归：project 层带陌生 api_base + 占位 key → 全局 key 不回填", () => {
+    // 攻击构造：导入的 AU 的 project.yaml 填 model 非空 + 攻击者 https 端点 + <secure>
+    // 占位 key（keystore 无 per-AU 条目）。修前：isMasked → 回退全局 key →
+    // Authorization: Bearer <全局密钥> 发往攻击者主机，https 下全程无告警。
+    const result = resolve_llm_config(
+      null,
+      { llm: { mode: "api", model: "deepseek-chat", api_base: "https://attacker.example/v1", api_key: "<secure>" } },
+      { default_llm: { mode: "api", model: "deepseek-chat", api_base: "https://api.deepseek.com", api_key: "sk-GLOBAL" } },
+    );
+    expect(result.api_base).toBe("https://attacker.example/v1");
+    expect(result.api_key).toBe("");
+  });
+
+  it("project 层同端点 model-only 覆盖：全局 key 正常回填（同源允许，归一化判等）", () => {
+    const result = resolve_llm_config(
+      null,
+      { llm: { mode: "api", model: "deepseek-reasoner", api_base: "HTTPS://API.deepseek.com/", api_key: "" } },
+      { default_llm: { mode: "api", model: "deepseek-chat", api_base: "https://api.deepseek.com", api_key: "sk-GLOBAL" } },
+    );
     expect(result.api_key).toBe("sk-GLOBAL");
+  });
+
+  it("session 指向全局端点时不误借 AU key（同源门双向：修 401 误配，也堵反向渗漏）", () => {
+    const result = resolve_llm_config(
+      { mode: "api", model: "g", api_base: "https://global/v1" },
+      { llm: { mode: "api", model: "au-model", api_base: "https://au.provider/v1", api_key: "sk-AU" } },
+      { default_llm: { mode: "api", model: "g", api_base: "https://global/v1", api_key: "sk-GLOBAL" } },
+    );
+    expect(result.api_key).toBe("sk-GLOBAL");
+  });
+
+  // --- chat_path 宿主注入（盲审 R3 HIGH-2 对抗审：同源门盲区）---
+
+  it("宿主注入 chat_path（协议相对 //host）被拒，不带出 resolve 结果", () => {
+    const result = resolve_llm_config(
+      null,
+      { llm: { mode: "api", model: "m", api_base: "https://api.deepseek.com", api_key: "sk-x", chat_path: "//attacker.example/v1/chat/completions" } },
+      { default_llm: {} },
+    );
+    expect(result.chat_path).toBeUndefined();
+  });
+
+  it("绝对 URL / 反斜杠形态的 chat_path 一律被拒", () => {
+    for (const bad of ["https://attacker/v1/chat", "http://x/y", "\\\\attacker\\path", "path\\with\\backslash", "x://y"]) {
+      const r = resolve_llm_config(
+        null,
+        { llm: { mode: "api", model: "m", api_base: "https://ok.example", api_key: "k", chat_path: bad } },
+        { default_llm: {} },
+      );
+      expect(r.chat_path, `should reject ${bad}`).toBeUndefined();
+    }
+  });
+
+  it("合法路径段 chat_path 正常带出（回归：自定义网关路径不误伤）", () => {
+    const result = resolve_llm_config(
+      null,
+      { llm: { mode: "api", model: "m", api_base: "https://gw.example", api_key: "k", chat_path: "/custom/v1/chat" } },
+      { default_llm: {} },
+    );
+    expect(result.chat_path).toBe("/custom/v1/chat");
   });
 });
 
@@ -129,6 +195,15 @@ describe("create_provider", () => {
       mode: "api", model: "gpt-4o", api_base: "https://api.openai.com/v1", api_key: "sk-x",
     });
     expect(p).toBeInstanceOf(OpenAICompatibleProvider);
+  });
+
+  it("mode=api 空 api_base 抛错（堵死相对 URL / 协议相对 chat_path 外泄链——盲审 R3 HIGH-2）", () => {
+    expect(() =>
+      create_provider({ mode: "api", model: "m", api_base: "", api_key: "sk-x" }),
+    ).toThrow(/api_base/);
+    expect(() =>
+      create_provider({ mode: "api", model: "m", api_base: "   ", api_key: "sk-x", chat_path: "//attacker/v1" }),
+    ).toThrow(/api_base/);
   });
 
   it("mode=ollama 走 OpenAI 兼容协议（默认 base = localhost:11434/v1）", () => {

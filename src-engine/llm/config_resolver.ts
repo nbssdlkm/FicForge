@@ -45,9 +45,34 @@ function toManualContextWindow(v: unknown): number | undefined {
   return Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
-/** 归一化 chat_path：仅非空字符串有效（空串/非串视同未指定，回退默认路径）。 */
+/**
+ * chat_path 是否会改变请求宿主（authority）—— 安全关键（盲审 R3 HIGH-2 对抗审）。
+ * chat_path 只应是「api_base 之后的路径段」；绝对 URL / 协议相对 `//host` / 反斜杠
+ * 都能把请求（连同回填的密钥）导向任意主机。恶意 bundle 正是用
+ * `chat_path: "//attacker/v1/chat/completions"` + 空 api_base 偷渡宿主。
+ */
+function chatPathChangesHost(path: string): boolean {
+  const p = path.trim();
+  return (
+    p.startsWith("//")            // 协议相对：webview 解析为 //host
+    || p.startsWith("\\")         // 反斜杠变体
+    || p.includes("\\")
+    || /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(p)  // scheme://host 绝对 URL
+    || p.includes("://")
+  );
+}
+
+/**
+ * 归一化 chat_path：仅非空、且**不改变宿主**的路径有效（空串/非串/宿主注入视同未指定，
+ * 回退默认 /chat/completions）。宿主注入值被拒时告警——它要么是配置错误，要么是攻击。
+ */
 function toChatPath(v: unknown): string | undefined {
-  return typeof v === "string" && v.trim() ? v : undefined;
+  if (typeof v !== "string" || !v.trim()) return undefined;
+  if (chatPathChangesHost(v)) {
+    warnAlways("llm", "chat_path 被拒绝：含宿主/协议前缀，只允许 api_base 之后的路径段", { chat_path: v });
+    return undefined;
+  }
+  return v;
 }
 
 type LLMConfigLike = {
@@ -175,16 +200,32 @@ export function resolve_llm_config(
   // 否则换了 provider 的 AU 会带着全局 key 发到 AU 自己的 api_base → 401 invalid_api_key。
   // 全局/无覆盖场景：project.llm.api_key 为空（saveAuSettings 关闭覆盖时会清空），
   // 自然回退到 settings.default_llm.api_key。
+  //
+  // 同源门（盲审 R3 HIGH-2）：候选 key 只能回填到「它被配置时所属的端点」。
+  // 反例（攻击面）：导入的恶意 AU 覆盖带陌生 api_base + 占位符 key —— 若无此门，
+  // 全局 key 会被回填后随请求发往该陌生主机，等于把全局密钥泄漏给任意端点。
+  // 「双空视为相等」沿用 normalizeBaseUrl 的既有语义（两层都没配 = 同为默认端点）。
   const isMasked = !cfg.api_key || cfg.api_key.startsWith("****") || cfg.api_key === "<secure>";
   if (isMasked) {
+    // 掩码/占位符本质不可用：先清空，回填失败时保持空串 —— 下游按「未配置密钥」
+    // 失败，而不是把 "<secure>"/"****" 字面量当 bearer token 发出去。
+    cfg.api_key = "";
     const isUsableKey = (k: unknown): k is string =>
       typeof k === "string" && k !== "" && !k.startsWith("****") && k !== "<secure>";
+    const sameOrigin = (layerBase: unknown): boolean =>
+      normalizeBaseUrl(cfg.api_base) === normalizeBaseUrl(typeof layerBase === "string" ? layerBase : "");
     const projectKey = project.llm?.api_key;
     const globalKey = settings.default_llm?.api_key;
-    if (isUsableKey(projectKey)) {
+    if (isUsableKey(projectKey) && sameOrigin(project.llm?.api_base)) {
       cfg.api_key = projectKey;
-    } else if (isUsableKey(globalKey)) {
+    } else if (isUsableKey(globalKey) && sameOrigin(settings.default_llm?.api_base)) {
       cfg.api_key = globalKey;
+    } else if (isUsableKey(projectKey) || isUsableKey(globalKey)) {
+      // 有可用 key 但端点不同源 → 宁缺勿漏：留空让下游按「未配置密钥」失败，
+      // 用户需为该端点显式配置密钥。
+      warnAlways("llm", "api_key 跨层回填被拒绝：目标 api_base 与已存密钥的端点不同源，请为该端点显式配置密钥", {
+        api_base: cfg.api_base,
+      });
     }
   }
 
@@ -318,6 +359,12 @@ export function create_provider(llmConfig: ResolvedLLMConfig): LLMProvider {
   const mode = llmConfig.mode;
 
   if (mode === "api") {
+    // api 模式必须有非空 api_base：空 base 会让 Provider 拼出相对 URL，在 webview 中
+    // 被解析到 app 自身 origin 或（配合协议相对 chat_path）任意主机 —— 是全局密钥外泄链
+    // 的使能点（盲审 R3 HIGH-2 对抗审）。宁可清晰报错，不静默发往错误端点。
+    if (!llmConfig.api_base || !llmConfig.api_base.trim()) {
+      throw new Error("api 模式需要非空 api_base（请在设置中为该服务商配置端点）");
+    }
     warnIfPlaintextRemote(llmConfig.api_base);
     // chat_path 随层带进 Provider（自定义供应商非标网关路径）；缺省 Provider 内部回退
     // /chat/completions。ollama 模式不传：其端点恒为标准 /v1/chat/completions。

@@ -5,6 +5,7 @@
  * TD-015 全量 AU 备份导出/导入 round-trip + 安全/版本边界。
  */
 
+import * as yaml from "js-yaml";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   AU_BUNDLE_VERSION,
@@ -130,6 +131,105 @@ describe("importAuBundle (TD-015 import)", () => {
     // 越界文件没被写到任何地方
     expect(await adapter.exists("data/aus/evil.md")).toBe(false);
     expect(await adapter.exists("data/evil.md")).toBe(false);
+  });
+
+  // 消毒后按解析值断言（yaml.dump 输出的引号/缩进/顺序不稳定，字符串匹配会脆）。
+  async function importAndParseProject(projectYaml: string): Promise<Record<string, any>> {
+    const adapter = new MockAdapter();
+    const bundle: AuBundle = {
+      manifest: {
+        bundle_version: AU_BUNDLE_VERSION, exported_at: "2026-07-11T00:00:00Z",
+        au_name: "恶意AU", fandom: "y", chapter_count: 0, file_count: 1, excluded_dirs: [],
+      },
+      files: { "project.yaml": projectYaml },
+    };
+    await importAuBundle("data/aus/sanitized", bundle, adapter);
+    const written = await adapter.readFile("data/aus/sanitized/project.yaml");
+    // 明文密钥/攻击者端点绝不落盘（无论何种表示形式）
+    expect(written).not.toContain("attacker.example");
+    expect(written).not.toContain("sk-leaked-plaintext");
+    expect(written).not.toContain("emb-leaked-plaintext");
+    expect(written).not.toContain("/steal");
+    return (yaml.load(written) as Record<string, any>) ?? {};
+  }
+
+  it("导入消毒（块式）：api_key 重脱敏 + api_base/chat_path 剥离，含 embedding_lock（盲审 R3 HIGH-2）", async () => {
+    const doc = await importAndParseProject([
+      "name: 恶意AU",
+      "llm:",
+      "  mode: api",
+      "  model: deepseek-chat",
+      "  api_base: https://attacker.example/v1",
+      "  api_key: sk-leaked-plaintext",
+      "  chat_path: /steal/v1/chat",
+      "embedding_lock:",
+      "  api_base: https://attacker.example/v1",
+      "  api_key: emb-leaked-plaintext",
+      "",
+    ].join("\n"));
+    expect(doc.name).toBe("恶意AU");           // 无关键完好
+    expect(doc.llm.model).toBe("deepseek-chat"); // 非端点键完好
+    expect(doc.llm.api_key).toBe("<secure>");
+    expect(doc.llm.api_base).toBe("");
+    expect(doc.llm.chat_path).toBe("");
+    expect(doc.embedding_lock.api_key).toBe("<secure>");
+    expect(doc.embedding_lock.api_base).toBe("");
+  });
+
+  it("导入消毒（YAML 表示无关）：flow 映射 / 引号键 / 显式键均被擦除（对抗审绕过样本）", async () => {
+    // flow 映射
+    const flow = await importAndParseProject(
+      'name: x\nllm: {mode: api, model: deepseek-chat, api_base: "https://attacker.example/v1", api_key: "sk-leaked-plaintext", chat_path: "//attacker.example/steal"}\n',
+    );
+    expect(flow.llm.api_base).toBe("");
+    expect(flow.llm.api_key).toBe("<secure>");
+    expect(flow.llm.chat_path).toBe("");
+
+    // 引号键 + 键后空格
+    const quoted = await importAndParseProject(
+      'name: x\nllm:\n  "api_base": https://attacker.example/v1\n  api_key : sk-leaked-plaintext\n',
+    );
+    expect(quoted.llm.api_base).toBe("");
+    expect(quoted.llm.api_key).toBe("<secure>");
+  });
+
+  it("导入消毒：文件名归一化绕过（./project.yaml / 尾空格）被拒写，不落未消毒内容（HIGH-2 二次对抗审）", async () => {
+    const mkBundle = (name: string): AuBundle => ({
+      manifest: {
+        bundle_version: AU_BUNDLE_VERSION, exported_at: "t", au_name: "x", fandom: "y",
+        chapter_count: 0, file_count: 1, excluded_dirs: [],
+      },
+      files: { [name]: "llm:\n  api_base: https://attacker.example/v1\n  api_key: sk-leaked-plaintext\n" },
+    });
+    // OS 归一化平台上这些名字都会读回成 project.yaml —— 必须被 isSafeRelPath 拒写
+    for (const evil of ["./project.yaml", "project.yaml ", " project.yaml", "project.yaml."]) {
+      const adapter = new MockAdapter();
+      const result = await importAuBundle("data/aus/canon", mkBundle(evil), adapter);
+      expect(result.written, `${evil} 不应被写入`).toEqual([]);
+      expect(result.skipped, `${evil} 应进 skipped`).toContain(evil);
+      // 未消毒的攻击者端点绝不落盘
+      expect(await adapter.exists("data/aus/canon/project.yaml")).toBe(false);
+    }
+  });
+
+  it("导入消毒：文件名大小写绕过（Project.yaml）也被消毒（大小写不敏感 FS 攻击面）", async () => {
+    const adapter = new MockAdapter();
+    const bundle: AuBundle = {
+      manifest: {
+        bundle_version: AU_BUNDLE_VERSION, exported_at: "t", au_name: "x", fandom: "y",
+        chapter_count: 0, file_count: 1, excluded_dirs: [],
+      },
+      files: {
+        "Project.yaml": "name: x\nllm:\n  model: deepseek-chat\n  api_base: https://attacker.example/v1\n  api_key: sk-leaked-plaintext\n",
+      },
+    };
+    await importAuBundle("data/aus/case", bundle, adapter);
+    const written = await adapter.readFile("data/aus/case/Project.yaml");
+    expect(written).not.toContain("attacker.example");
+    expect(written).not.toContain("sk-leaked-plaintext");
+    const doc = yaml.load(written) as Record<string, any>;
+    expect(doc.llm.api_base).toBe("");
+    expect(doc.llm.api_key).toBe("<secure>");
   });
 });
 

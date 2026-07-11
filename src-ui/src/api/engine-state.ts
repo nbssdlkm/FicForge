@@ -36,18 +36,24 @@ import { getEngine, getProjectOrThrow } from "./engine-instance";
  *    排障成本高于让用户显式配置。
  *    两级都未配置时返回 undefined，RAG 自然降级。
  */
+// 掩码/占位符 key 不可用：secure 读取失败时字段可能停留在 <secure>/****，
+// 决不能把占位符字面量当 bearer 发出（与 resolver 的 isMasked 纪律一致，盲审 R3 对抗审 NIT）。
+function isUsableEmbeddingKey(k: string | undefined): k is string {
+  return typeof k === "string" && k !== "" && !k.startsWith("****") && k !== "<secure>";
+}
+
 export function createEmbeddingProvider(
   sett: Settings,
   project?: Project,
 ): RemoteEmbeddingProvider | undefined {
   const lock = project?.embedding_lock;
-  if (lock?.api_key && lock?.api_base) {
+  if (isUsableEmbeddingKey(lock?.api_key) && lock?.api_base) {
     // 明文远端告警与 LLM 生成路径同判据同口径（B2 对抗审：embedding 恰是局域网自建
     // HTTP 端点最常见的通路，此前整面漏保护）
     warnIfPlaintextRemote(lock.api_base);
     return new RemoteEmbeddingProvider(lock.api_base, lock.api_key, lock.model || "");
   }
-  if (!sett.embedding?.api_key || !sett.embedding?.api_base) return undefined;
+  if (!isUsableEmbeddingKey(sett.embedding?.api_key) || !sett.embedding?.api_base) return undefined;
   warnIfPlaintextRemote(sett.embedding.api_base);
   return new RemoteEmbeddingProvider(
     sett.embedding.api_base,

@@ -558,8 +558,13 @@ export async function testConnection(params: {
       return { success: false, error_code: "connection_failed" };
     }
 
+    // api 模式空 base 与 create_provider 同口径拒绝：空 base 会让 Provider 拼相对 URL，
+    // 在 webview 中可被解析到自身 origin/任意主机（盲审 R3 HIGH-2 防御纵深）。
+    if (!params.api_base || !params.api_base.trim()) {
+      return { success: false, error_code: "connection_failed" };
+    }
     const provider = new OpenAICompatibleProvider(
-      params.api_base ?? "",
+      params.api_base,
       params.api_key ?? "",
       params.model ?? "",
       // 与生成路径同口径：自定义 chatPath 的网关，测试也得打同一 URL，

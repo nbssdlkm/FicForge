@@ -80,8 +80,16 @@ export class OpenAICompatibleProvider implements LLMProvider {
     this.apiKey = apiKey;
     this.model = model;
     // 归一化：非空才用自定义，且保证前导斜杠（api_base 已去尾斜杠，拼接即 `{base}{path}`）。
-    const trimmed = chatPath?.trim();
-    this.chatPath = trimmed ? (trimmed.startsWith("/") ? trimmed : `/${trimmed}`) : "/chat/completions";
+    // 防御纵深（盲审 R3 HIGH-2）：拒绝能改变宿主的 chatPath（协议相对 `//`、`\`、
+    // scheme://）—— 主校验在 config_resolver.toChatPath，此处兜住直接 new Provider 的路径。
+    // 先剥离控制字符（\n\r\t 等）：webview 会在解析 URL 前吃掉它们，`/\n/host` 剥离后
+    // 变协议相对 `//host` —— 若不先清除会绕过下面的 startsWith("//") 判据。
+    const trimmed = chatPath?.replace(/[\u0000-\u001f\u007f]/g, "").trim();
+    const safe = trimmed
+      && !trimmed.startsWith("//")
+      && !trimmed.includes("\\")
+      && !trimmed.includes("://");
+    this.chatPath = safe ? (trimmed.startsWith("/") ? trimmed : `/${trimmed}`) : "/chat/completions";
   }
 
   /** 聊天补全端点完整 URL（单一真相源，流式 / 非流式 / 429 重试共用）。 */
