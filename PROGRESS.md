@@ -5,6 +5,9 @@
 
 ## 当前状态（2026-07-09/11）
 
+**2026-07-11 D 批修复战役（第三轮发现治本，9 commit 未 push，等确认）**：用户拍板「继续修+审阅循环」→ 对第三轮 2 HIGH + 13 M 全量评估，**能治本的治本、判断/产品/环境类以裁决收尾**。**已治本 9 项**（7 commit）：D1 `5240bb5` confirm 丢章根治（chapters 失败门控 drafts/state）/ D2 `dc736d5` 恶意 bundle 泄漏全局 key 根治（同源门 + api 空 base 报错 + chat_path 宿主注入拦截 + bundle 消毒改解析式 + 文件名归一化）/ D3 `7dd8a92` cast_registry 双写竞态（共享 project.yaml 文件叶锁，避锁序反转死锁）+ 覆盖导入回滚缺章 / D4 `d7905ba` 路径穿越守卫 + inflight 释放测试 / D5 `51c6995` 事实提取静默吞错补 logCatch / D6 `4d68a86` GeneratedWith↔YAML + toCanonicalCreateKey 单源化 / D7 `f7ec38c` 记忆层预算级联单源化（P0 高风险，byte-identical 对抗审）。每批过 opus 独立对抗审（累计 6 路 + 采纳整改约 9 条）。终验：引擎 1361→1403、UI 558→561、双 tsc 0、i18n 1273 对称、工作区干净。**5 M + 24 L 以裁决收尾**（有意不修、理由在案，详见审计文件「D 批」段）：M3 写而不读字段=**待用户拍板**（建 POV/时间线功能 vs 删规划脚手架，决策五段在审计文件末尾）；M6 双工具执行器=既有「平行不合并」裁决；M10 file_thread/summary 的 auPath=C6 第二层记账（长期债①）；M11 simple_chat camelCase=破坏持久化的深度改名（长期债①）；M12 lockfile 镜像 registry=环境产物构建机侧做。报告全录：`docs/internal/audit/2026-07-11-blind-audit-round2.md`「D 批修复战役」段。
+
+
 **2026-07-11 第二轮九维盲审（同口径复跑，防锚定：打分后才开盲对照）**：**84.1/B**（第一轮 55/F → +29.1，修后自评 88.5 偏乐观 4.4），39 发现（1 高 / 19 中 / 19 低）只报未修等拍板；唯一 HIGH（导出 fs scope）+ 功能维 1M 同根于盲审修复批的 Tauri 收权、待真机冒烟裁决（该待办升优先级）；修复不彻底残边 5 条（fandom get 契约漏网 / redactCtx 三面 / TD-017 后同 AU 残余竞态）；重复维 5 中危全为上轮漏报（建议上 CI 防线）。报告全录：`docs/internal/audit/2026-07-11-blind-audit-round2.md`。
 
 **2026-07-11 第二轮修复战役 + 收官复跑（17 commit 未 push，等确认）**：用户拍板「A+B 立即治本 + C 类」→ 8 个 B 批（单源化 / 日志安全脱敏根治 / RAG 同 AU 并发根治 / facts 管线 / 工具名契约 / 测试债 / 类型 / fs scope）+ 7 个 C 批（SimpleChatPanel+dispatch 上帝函数下沉 / export 边界收窄 / 风格孤岛 / vitest+js-yaml 大版本 / 命名统一第一层 / 版本计数器硬化）全部落地，每批过 2-3 视角独立对抗审、累计整改 32 条。终验引擎 1361+3 gated / UI 558 / 双 tsc 0 / i18n 1273 全绿。**同口径收官复跑第三轮盲审 83.2/B**（与 R2 持平 −0.9）：上轮 39 条复现率~0（证修复零回归）、四维回升（功能/架构/重复/规范），但深度采样翻出 **2 个前两轮漏报的真·存量 HIGH**——①confirm 章节写失败仍删草稿+推进 state 致永久丢章（write_transaction/confirm_chapter）②恶意 AU bundle 泄漏全局 API key（config_resolver 回退不校验 api_base 同源 + bundle 不校验 llm）——加 13 M。**2 HIGH 超出原 39 条范围，待拍板是否开第三轮修复（D 批）**。commit：B1 baeee08 / B3 d062398 / B4 17ac0e8 / B5 2dba115 / B6 9e15816 / B7 189b7fb / B8 a750211 / C1 2c4d903 / C2 06b8d75 / C3 5c5534b / C4 e157f5f / C5a 2877fe9 / C5b 45a5b7b / C6 54c0ab4。第三轮报告：同上审计文件末尾追加。
@@ -31,6 +34,9 @@
 ## 待办
 
 ### 需要人工（真机/异机，代码无法覆盖）
+- [ ] **D 批修复战役 push**（9 commit `5240bb5`→`f7ec38c`，本地 main，origin 未 push，等人工确认）
+- [ ] **M3 产品拍板**：写而不读字段（hidden_from / story_time_order / story_time_tag）—— 建 POV 门控 + 时间线排序功能 vs 停止提取删规划脚手架（决策五段见审计文件末尾）
+- [ ] **M12 环境侧**：构建机上用官方 registry 重生成双包 lockfile（现混用 registry.npmmirror.com，破坏海外/CI 可复现安装）
 - [ ] **盲审修复批 push**（已分 5 commit 提交并合本地 main `647e67c`，origin 未 push，等人工确认）
 - [ ] **长期债③测试批合入**（分支 `claude/zen-ramanujan-3e370b` 1 commit：10 测试文件 + PROGRESS，已过对抗审 + 变异验证，等人工说「合并」）
 - [ ] Tauri 壳收权冒烟（盲审修复引入）：CSP 开启后桌面端全流程 + 导出到任意路径（依赖 v2 对话框自动入 scope）；构建机上顺手移除 tauri-plugin-http 的 Rust 注册 + npm 依赖（前端零调用）
@@ -50,7 +56,8 @@
 - ✅ **全部闭环**：TD-001…TD-017 全部已修复 / 已消解（2026-07-09 TD-017 收官）。
 
 ### 长期债（盲审 2026-07-09 判定为低息，渐进还）
-- [ ] snake/camel 命名同文件混用（迁移遗产，5 文件 + React 组件声明风格）
+- [ ] snake/camel 命名同文件混用（迁移遗产，5 文件 + React 组件声明风格）。**盲审 R3 新增两个具体实例**：M10 file_thread/chapter_summary 实现层用 auPath（C6 第一层明确记账的「第二层」，纯参数名）；M11 domain/simple_chat.ts camelCase 持久化键（改键破坏存量 simple-chat.yaml 读取，需 tolerant-read 迁移层）。随命名统一批次推进。
+- [ ] 两套 UI 工具执行器（execute-settings-tool / useSimpleToolExecutor，盲审 R3 M6）—— **既有「平行不合并」设计裁决**（同一 helper 栈两种工具面），非待办，记此备忘防重复指认。
 - [x] 巨型组件状态下沉（按 hook 铁律分批）：✅ AuSettingsLayout（2026-07-09，31 useState→0，4 hooks + 4 回归测试）；✅ AuLoreLayout（2026-07-10，25 useState→0，4 hooks + 9 回归测试 + 顺手修 3 存量 bug）；✅ SettingsChatPanel（2026-07-10，1026→115 行，3 hooks + 执行器纯模块 + 4 回归测试）；✅ FandomLoreLayout（2026-07-10，21 useState + 4 ref→0，4 hooks + 9 回归测试）；✅ GlobalSettingsModal（2026-07-10，19 useState→0，4 hooks + 4 回归测试）；✅ MobileOnboarding + MobileFandomView（2026-07-10，19+17 useState→0，5 hooks + 9 回归测试）。**六块全部清完，长期债②收官**
 - [ ] 存量引擎测试的内联 LLM mock 迁移共享 helper（`services/__tests__/mock_llm_provider.ts` 已建；跟随性重构——哪个测试文件被触碰就顺手迁哪个，不做专门迁移趟）。UI hooks 测试补全已于 2026-07-09 首批清偿（见里程碑）。对抗审留的两条可选尾巴：useFactEditor saveSuccess 的 2s timer 无 clearTimeout（卸载后空转，无害泄漏，改需动 impl）；onboarding gate 三条静默负向断言依赖单次微任务冲刷（当前实现下已核实非假绿，impl 加深 await 链时需改 waitFor 正向信号）
 - [ ] @vitejs/plugin-react 6.x（长期债⑤唯一剩项）：6.x 的 peer 依赖是 vite ^8.0.0（现 vite 7.3.6），待将来 vite 大版本升级时顺手带上；已停在 5.2.0（peer 兼容 vite ^4–^8）

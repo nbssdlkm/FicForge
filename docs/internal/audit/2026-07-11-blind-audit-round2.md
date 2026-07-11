@@ -335,3 +335,42 @@
 ## 收官待决
 
 **第三轮 2 个 HIGH 是超出原「第二轮 39 条」范围的新发现，均已验证真实。** confirm 丢章（HIGH-1）治本方案无争议；bundle 泄漏（HIGH-2）的修法涉及「导入 AU 是否信任其 api_base」的产品安全决策。**是否开第三轮修复战役（D 批：2 HIGH + 择要 M）待用户拍板。** 剩余 13 M / 24 L 中，多数为写而不读死字段清理、重复单源化、实现层命名对齐、静默吞错补日志 —— 与前两轮同性质的渐进债。
+
+---
+
+# D 批修复战役（第三轮发现 → 治本，2026-07-11，7 commit 未 push）
+
+用户拍板「继续修+审阅循环」，对第三轮 2 HIGH + 13 M 全量评估，**能治本的治本、判断/产品/环境类以裁决收尾**。每批 修复 → 双包 tsc + 全测试绿 → 独立对抗审（opus，多为 2-3 路并行）→ 整改 → 提交。终验：引擎 1361→1403、UI 558→561、双 tsc 0、i18n 1273 对称、工作区干净。
+
+## 已治本（9 项：2 HIGH + 7 M）
+
+| 批 | commit | 维/编号 | 内容 | 对抗审 |
+|----|--------|---------|------|--------|
+| D1 | `5240bb5` | 正确性 HIGH-1 | confirm 丢章根治：WriteTransaction chapters 块失败 → 门控跳过 drafts/state（`skipped` 记账），防「章未落盘+草稿被删+指针越章」永久丢章；facts 不连坐 | 正确性/契约双路 safe-with-nits，3 整改（文案按 skipped 生成 / undo 章删失败注入测试 / ops↔state 分叉注释） |
+| D2 | `dc736d5` | 安全 HIGH-2 | 恶意 bundle 泄漏全局 key 根治：resolver 掩码 key 跨层回填加**同源门** + api 模式空 base 报错 + chat_path 拒宿主注入（`//`/`\`/`://`/控制字符）+ bundle 消毒改**解析→深度擦除→重序列化** + 文件名 OS 归一化 basename 判据（杀 `Project.yaml`/`./project.yaml`/尾空格绕过） | 安全×2 + 正确性 3 路，含二次闭合验证：HIGH-1 全局 key 链双重闭合、残留文件名归一化绕过一并堵死 |
+| D3 | `7dd8a92` | 正确性 M1+M2 | M1 cast_registry 并发丢更新：新增 `withProjectFileLock`（project.yaml 文件路径叶锁），设置保存链 + trash updateCastRegistry 共享（读改写整段持锁）；不复用 au_lock 避锁序反转死锁。M2 覆盖导入 commit 失败：捕获 trash trash_id，新章未落盘时 restore 还原旧章 | 并发/回滚 safe-with-nits，3 整改（migrate 迁移纳入锁 / M2 state-fail 不还原正向测试 / 锁 key 不变量注释） |
+| D4 | `d7905ba` | 测试 M4+M5 | M4 路径穿越守卫（`..`/空字节/绝对/反斜杠拒绝分支）+ M5 chapter_inflight 错误/中断释放，各补判别测试（变异验证） | 纯测试，无需 |
+| D5 | `51c6995` | 日志 M13 | facts_extraction + react_extraction_dispatch 的 LLM/网络/仓储读失败 silent catch → logCatch（对齐 chapter_summary 纪律，isAbortError 守卫不刷屏） | 低风险，变异验证代替 |
+| D6 | `4d68a86` | 重复 M8+M9 | M8 GeneratedWith↔YAML 4 处映射 → `generatedWithFromYaml/ToYaml` 单源（round-trip 全字段测试防新增字段丢弃）。M9 toCanonicalCreateKey 私有拷贝 → import lore-utils 单源 | 纯重构 + 判别测试 |
+| D7 | `f7ec38c` | 架构 M7 | assemble_context / assemble_chat_context 的 P3→thread→P2→P4→P5 预算级联 → 共享 `run_memory_layer_cascade`，唯二差异（base_budget / focus_ids）外提 | P0 高风险：byte-identical 对抗审（HEAD 重建 + token-canonical 机器 diff 双验证），golden 21 用例全绿 |
+
+累计对抗审 6 路 + 采纳整改约 9 条；净增测试引擎 +42（1361→1403）、UI +3（558→561）。
+
+## 以裁决收尾（5 M + 24 L，有意不修、理由在案）
+
+**MEDIUM（5）：**
+- **M3 写而不读字段（功能）** — `hidden_from` / `story_time_order` / `story_time_tag` 被提取+持久化+ops 投影，但全链**零行为消费者**（grep 实证：无 POV 门控读 hidden_from、无排序读 story_time_order）。修法二选一是**产品拍板**：①建 POV 门控 / 叙事时序排序功能（消费这些字段），②停止提取（删规划脚手架、省 token）。属「记忆栈最后一公里」候选，不应单方面删规划或建未请求功能 → **待用户拍板**（决策五段见下）。
+- **M6 两套 UI 工具执行器（架构）** — execute-settings-tool / useSimpleToolExecutor 重复「建档→注册→回滚」编排。**既有设计裁决**（SettingsChatPanel 下沉里程碑）：「平行不合并 —— 同一 helper 栈的两种工具面」，本轮裁决维持。
+- **M10 file_thread/chapter_summary 用 auPath（规范）** — 与接口档注声明的 au_id 分裂。**C6 第一层明确记账的「第二层」项**，纯实现层参数名，属长期债①（snake/camel 命名混用，churn 大收益纯观感）。随命名统一批次推进，本轮不单独 churn。
+- **M11 simple_chat.ts camelCase 持久化（规范）** — 偏离全 domain snake_case。改持久化键会**破坏存量 simple-chat.yaml 读取**，需 tolerant-read 迁移层兜底，深度 churn + 兼容负担，属长期债①。
+- **M12 lockfile 混用镜像 registry（依赖）** — 报告自标「环境产物，非代码」。需在干净网络环境重生成 lockfile（避免连带拉新传递版本），构建机侧顺手做，不在代码批次内。
+
+**LOW（24）：** 与前两轮同性质渐进债（非原子 writeFile 收编 atomicWrite、CSP http 通配收窄、DOCX 死桩清理、断言空转补正、参数对象化、命名对齐、静默 return 补日志等）。按「触碰哪个顺手清哪个」的跟随性节奏还，不专门排趟。
+
+## M3 决策五段（供用户拍板）
+
+- **背景**：记忆提取会额外抽取 3 个字段（角色不知情名单 / 叙事时序序号 / 时间标签），存进磁盘，但产品里没有任何地方**用**它们。
+- **影响**：每次提取都白花 LLM token 抽这 3 个字段；承诺过的「按视角隐藏信息」「按剧情内时间排序」两个能力其实从没生效。
+- **后果**：不处理 = 持续白耗 token + 两个「假功能」留在数据里误导后续开发；删字段 = 未来若要做这两个功能得重来；建功能 = 一笔独立的产品开发投入。
+- **为何推荐**：建议先**停止提取**（省 token、消除假功能），把这两个能力当独立需求重新排期 —— 除非你近期就打算做视角门控/时间线，那就保留字段并补消费端。
+- **为何要你拍板**：这是产品要不要做这两个功能的取舍，不是纯技术债；删了规划脚手架或贸然建功能都超出「修 bug」范围，得你定方向。
