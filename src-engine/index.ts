@@ -4,7 +4,81 @@
 /** @ficforge/engine — 统一导出。 */
 
 // Domain
-export * from "./domain/index.js";
+// C3 边界收窄（盲审 2026-07-11 架构维）：不再 export * —— 公共 API = UI 实际消费面的
+// 显式清单。新增对外符号必须手动加进来（UI 侧 tsc 会红给你看），内部 helper 不再
+// 因 barrel 顺手导出而意外成为对外契约。引擎内部代码一律走相对路径/子 barrel，不受影响。
+export {
+  EmotionStyle,
+  FACT_STATUS_VALUES,
+  FACT_TYPE_VALUES,
+  FactStatus,
+  IndexStatus,
+  LLMMode,
+  NARRATIVE_WEIGHT_VALUES,
+  OLLAMA_DEFAULT_BASE_URL,
+  Perspective,
+  Provenance,
+  RAG_COLLECTIONS,
+  ThreadStatus,
+  asSimpleChatMessages,
+  contextWindowForModel,
+  createChapterSummary,
+  createDraft,
+  createFontsConfig,
+  createOpsEntry,
+  createProject,
+  createSettings,
+  createThread,
+  draftFilename,
+  findRecommendedModel,
+  getProvider,
+  isSettingsMutatingToolName,
+  isSimpleMutatingToolName,
+  listProviders,
+  parseChapterMainPath,
+} from "./domain/index.js";
+export type {
+  BudgetReport,
+  CastRegistry,
+  ContextSummary,
+  CustomModelEntry,
+  CustomProviderEntry,
+  Draft,
+  EmbeddingConfig,
+  EmbeddingLock,
+  Fact,
+  GeneratedWith,
+  LLMConfig,
+  ModelKind,
+  ModelTag,
+  Project,
+  RagChunkDetail,
+  RagCollection,
+  RecommendedModel,
+  Settings,
+  SettingsMutatingToolName,
+  SimpleAssistantMessage,
+  SimpleAssistantToolCall,
+  SimpleChapterPreviewMessage,
+  SimpleChatFile,
+  SimpleChatMessage,
+  SimpleChatMessageEnvelope,
+  SimpleDraftStatus,
+  SimpleMessageKind,
+  SimpleMutatingToolName,
+  SimpleSettingPreviewMessage,
+  SimpleSystemMessage,
+  SimpleSystemTone,
+  SimpleToolCallMessage,
+  SimpleToolCallStatus,
+  SimpleToolResultMessage,
+  SimpleUserMessage,
+  SimpleWritingDraftMessage,
+  State,
+  Thread,
+  ToolUndoMeta,
+  WritingStyle,
+} from "./domain/index.js";
 
 // Prompts
 export { getPrompts } from "./prompts/index.js";
@@ -94,13 +168,98 @@ export {
 } from "./llm/index.js";
 
 // Services
-export * from "./services/index.js";
+export {
+  AU_BUNDLE_EXCLUDED_DIRS,
+  AU_BUNDLE_VERSION,
+  HALF_RESTORED_MARKER,
+  RESTORE_CONFLICT_MARKER,
+  RETROSPECTIVE_INTERVAL,
+  RagManager,
+  SIMPLE_TOOL_SHOW_CHAPTER,
+  SIMPLE_TOOL_SHOW_SETTING,
+  TrashService,
+  WriteTransaction,
+  add_fact,
+  archive_facts,
+  backfill_chapter_memory,
+  build_settings_context,
+  call_settings_llm,
+  chapterInflightKey,
+  chatToOpenAIMessages,
+  classifyTurns,
+  collectAuBundle,
+  commit_retrospective,
+  computeThreadStaleness,
+  confirm_chapter,
+  dispatch_simple_chat,
+  edit_chapter_content,
+  edit_fact,
+  estimate_simple_context_tokens,
+  export_chapters,
+  find_archival_candidates,
+  find_chapters_missing_summary,
+  generateChapterTitle,
+  generate_chapter,
+  generate_micro_summary,
+  generate_retrospective,
+  generate_standard_summary,
+  importAuBundle,
+  isChapterInflight,
+  markChapterInflight,
+  migrate_legacy_secure_storage,
+  persist_chapter_summary,
+  recalc_state,
+  regenerate_thread_state,
+  releaseChapterInflight,
+  resolve_dirty_chapter,
+  set_chapter_focus,
+  shouldRunRetrospective,
+  threadMemberFacts,
+  unarchive_fact,
+  undo_latest_chapter,
+  update_fact_status,
+  validateBundle,
+  withAuLock,
+  analyzeFile,
+  buildImportPlan,
+  executeImport,
+  extract_facts_from_chapter,
+  parse_html,
+  reactExtractFromChapter,
+} from "./services/index.js";
+export type {
+  AnalysisOptions,
+  AnalysisStage,
+  AuBundle,
+  BackfillMemoryResult,
+  BackfillMemoryTarget,
+  ClassificationReason,
+  ClassificationThresholds,
+  ClassifiedTurn,
+  FileAnalysis,
+  ImportConflictOptions,
+  ImportPlan,
+  ImportProgress,
+  NewImportResult,
+  OpenAIChatMessage,
+  RestoreConflictPolicy,
+  SimpleChatEvent,
+  SimpleContextTokenEstimate,
+  ThreadStaleness,
+  TrashEntry,
+} from "./services/index.js";
 
 // Tasks
-export * from "./tasks/index.js";
+export {
+  TaskRunner,
+  createFactsExtractionTask,
+} from "./tasks/index.js";
+export type {
+  TaskEvent,
+} from "./tasks/index.js";
 
 // Ops projection (ops.jsonl audit-log projection: sort / rebuild / lamport clock)
-export * from "./ops/index.js";
+// ops 层零对外消费（D-0040 后仅审计日志投影，引擎内部使用）—— 不再进入公共 API。
 
 // Logger
 export type { LogEntry, LogLevel, LoggerOptions } from "./logger/index.js";
