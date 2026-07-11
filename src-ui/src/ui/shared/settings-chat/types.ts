@@ -40,6 +40,10 @@ export interface LoreFileOption {
 }
 
 import { EmotionStyle, FACT_TYPE_VALUES, FACT_STATUS_VALUES, NARRATIVE_WEIGHT_VALUES, Perspective } from "../../../api/engine-client";
+// 单一真相源（盲审 R3 M9）：同名文件「是否已存在」的规范化判据 —— 与 lore 新建路径
+// （useAuLoreActions / useFandomLoreEditor / 移动端）共用同一函数，避免两处漂移后
+// 「是否已存在」结论不一、静默覆盖用户文件。
+import { toCanonicalCreateKey } from "../../library/lore-utils";
 
 export const FACT_TYPE_OPTIONS = FACT_TYPE_VALUES;
 export const FACT_STATUS_OPTIONS = FACT_STATUS_VALUES;
@@ -66,14 +70,6 @@ export function normalizeMarkdownFilename(value: string): string {
 
 function hasUsableMarkdownStem(value: unknown): boolean {
   return coerceString(value).trim().replace(/\.md$/i, "").trim().length > 0;
-}
-
-function toCanonicalCreateKey(value: string): string {
-  return value
-    .trim()
-    .replace(/\.md$/i, "")
-    .toLowerCase()
-    .replace(/[\s_]+/g, "_");
 }
 
 export function getToolOverwriteWarning(

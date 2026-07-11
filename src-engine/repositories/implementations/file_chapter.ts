@@ -11,8 +11,7 @@ import { KNOWN_CHAPTER_META_KEYS, createChapter } from "../../domain/chapter.js"
 // 裸 matter(raw) 会把 `---` 开头的正文吞成 frontmatter，导致该章不可读、
 // list_main 整 AU 崩、get_content_only 静默丢正文。
 import { safeMatter } from "../../domain/frontmatter.js";
-import type { GeneratedWith } from "../../domain/generated_with.js";
-import { createGeneratedWith } from "../../domain/generated_with.js";
+import { generatedWithFromYaml, generatedWithToYaml } from "../../domain/generated_with.js";
 import { chapterFilename, parseChapterFilename } from "../../domain/paths.js";
 import type { ChapterRepository } from "../interfaces/chapter.js";
 import { atomicWrite, compute_content_hash, joinPath, now_utc, validateBasePath } from "../../utils/file_utils.js";
@@ -213,21 +212,7 @@ function metaToChapter(
   meta: Record<string, unknown>,
   content: string,
 ): Chapter {
-  let generated_with: GeneratedWith | null = null;
-  const gwRaw = meta.generated_with as Record<string, unknown> | undefined;
-  if (gwRaw && typeof gwRaw === "object") {
-    generated_with = createGeneratedWith({
-      mode: (gwRaw.mode as string) ?? "",
-      model: (gwRaw.model as string) ?? "",
-      temperature: Number(gwRaw.temperature ?? 0),
-      top_p: Number(gwRaw.top_p ?? 0),
-      input_tokens: Number(gwRaw.input_tokens ?? 0),
-      output_tokens: Number(gwRaw.output_tokens ?? 0),
-      char_count: Number(gwRaw.char_count ?? 0),
-      duration_ms: Number(gwRaw.duration_ms ?? 0),
-      generated_at: (gwRaw.generated_at as string) ?? "",
-    });
-  }
+  const generated_with = generatedWithFromYaml(meta.generated_with);
 
   return createChapter({
     au_id,
@@ -255,18 +240,7 @@ function chapterToMeta(chapter: Chapter): Record<string, unknown> {
     provenance: chapter.provenance,
   };
   if (chapter.generated_with !== null) {
-    const gw = chapter.generated_with;
-    meta.generated_with = {
-      mode: gw.mode,
-      model: gw.model,
-      temperature: gw.temperature,
-      top_p: gw.top_p,
-      input_tokens: gw.input_tokens,
-      output_tokens: gw.output_tokens,
-      char_count: gw.char_count,
-      duration_ms: gw.duration_ms,
-      generated_at: gw.generated_at,
-    };
+    meta.generated_with = generatedWithToYaml(chapter.generated_with);
   }
   return meta;
 }

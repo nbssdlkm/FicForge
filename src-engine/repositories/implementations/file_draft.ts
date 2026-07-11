@@ -11,8 +11,7 @@ import { createDraft } from "../../domain/draft.js";
 // 裸 matter(text) 会把首段正文吞成 frontmatter；用户未编辑直接 confirm 时
 // confirm_chapter 回退 draft.content，截断内容会固化进正式章节。
 import { safeMatter } from "../../domain/frontmatter.js";
-import type { GeneratedWith } from "../../domain/generated_with.js";
-import { createGeneratedWith } from "../../domain/generated_with.js";
+import { generatedWithFromYaml, generatedWithToYaml } from "../../domain/generated_with.js";
 import { draftFilename, parseDraftFilename } from "../../domain/paths.js";
 import type { DraftRepository } from "../interfaces/draft.js";
 import { atomicWrite, joinPath, validateBasePath, validatePathSegment } from "../../utils/file_utils.js";
@@ -58,21 +57,7 @@ export class FileDraftRepository implements DraftRepository {
     const parsed = safeMatter(text, KNOWN_DRAFT_META_KEYS);
     const meta = parsed.data;
 
-    let generated_with: GeneratedWith | null = null;
-    const gwRaw = meta.generated_with as Record<string, unknown> | undefined;
-    if (gwRaw && typeof gwRaw === "object") {
-      generated_with = createGeneratedWith({
-        mode: (gwRaw.mode as string) ?? "",
-        model: (gwRaw.model as string) ?? "",
-        temperature: Number(gwRaw.temperature ?? 0),
-        top_p: Number(gwRaw.top_p ?? 0),
-        input_tokens: Number(gwRaw.input_tokens ?? 0),
-        output_tokens: Number(gwRaw.output_tokens ?? 0),
-        char_count: Number(gwRaw.char_count ?? 0),
-        duration_ms: Number(gwRaw.duration_ms ?? 0),
-        generated_at: (gwRaw.generated_at as string) ?? "",
-      });
-    }
+    const generated_with = generatedWithFromYaml(meta.generated_with);
 
     return createDraft({
       au_id,
@@ -87,18 +72,7 @@ export class FileDraftRepository implements DraftRepository {
     const path = this.draftPath(draft.au_id, draft.chapter_num, draft.variant);
     const meta: Record<string, unknown> = {};
     if (draft.generated_with !== null) {
-      const gw = draft.generated_with;
-      meta.generated_with = {
-        mode: gw.mode,
-        model: gw.model,
-        temperature: gw.temperature,
-        top_p: gw.top_p,
-        input_tokens: gw.input_tokens,
-        output_tokens: gw.output_tokens,
-        char_count: gw.char_count,
-        duration_ms: gw.duration_ms,
-        generated_at: gw.generated_at,
-      };
+      meta.generated_with = generatedWithToYaml(draft.generated_with);
     }
     // 必须以 { content } 对象形式传入（审计 B-1，同 file_chapter 写路径）：
     // matter.stringify 收到字符串时会先把正文按 frontmatter 再解析一遍，

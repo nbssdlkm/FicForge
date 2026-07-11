@@ -29,3 +29,42 @@ export function createGeneratedWith(partial?: Partial<GeneratedWith>): Generated
     ...partial,
   };
 }
+
+/**
+ * GeneratedWith ↔ frontmatter YAML 的单一真相源（盲审 R3 M8）。
+ * 此前 file_draft / file_chapter 各手抄一份读/写映射（共 4 处），新增第 10 个字段
+ * 会在某些副本被静默丢弃（项目自述「新字段沉默丢弃」持久化断链）。收敛到此处后，
+ * 增删字段只改这一处 + interface + createGeneratedWith。
+ */
+
+/** 从 frontmatter 里的 generated_with 原始对象还原（缺失/非对象 → null）。 */
+export function generatedWithFromYaml(raw: unknown): GeneratedWith | null {
+  if (!raw || typeof raw !== "object") return null;
+  const gw = raw as Record<string, unknown>;
+  return createGeneratedWith({
+    mode: (gw.mode as string) ?? "",
+    model: (gw.model as string) ?? "",
+    temperature: Number(gw.temperature ?? 0),
+    top_p: Number(gw.top_p ?? 0),
+    input_tokens: Number(gw.input_tokens ?? 0),
+    output_tokens: Number(gw.output_tokens ?? 0),
+    char_count: Number(gw.char_count ?? 0),
+    duration_ms: Number(gw.duration_ms ?? 0),
+    generated_at: (gw.generated_at as string) ?? "",
+  });
+}
+
+/** 序列化为 frontmatter 里的 generated_with 对象（字段全量、顺序稳定）。 */
+export function generatedWithToYaml(gw: GeneratedWith): Record<string, unknown> {
+  return {
+    mode: gw.mode,
+    model: gw.model,
+    temperature: gw.temperature,
+    top_p: gw.top_p,
+    input_tokens: gw.input_tokens,
+    output_tokens: gw.output_tokens,
+    char_count: gw.char_count,
+    duration_ms: gw.duration_ms,
+    generated_at: gw.generated_at,
+  };
+}
