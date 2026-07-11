@@ -32,7 +32,7 @@
     "@types/js-yaml": "^4.0.9",
     "fake-indexeddb": "^6.2.5",
     "typescript": "~7.0.2",
-    "vitest": "^3.2.7"
+    "vitest": "^4.1.10"
   },
   "peerDependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.0",
