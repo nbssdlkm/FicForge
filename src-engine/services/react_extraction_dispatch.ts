@@ -23,7 +23,8 @@
  * maxIter 未收尾。wrapper 只在 degraded 且空时 fallback 单次调用。
  */
 
-import { createAbortError } from "../utils/abort_error.js";
+import { createAbortError, isAbortError } from "../utils/abort_error.js";
+import { logCatch } from "../logger/index.js";
 import type { LLMProvider, Message, ToolCall, ToolChoice } from "../llm/provider.js";
 import type { Fact, FactFieldConfidence } from "../domain/fact.js";
 import type { Thread } from "../domain/thread.js";
@@ -182,11 +183,15 @@ export async function reactExtractFromChapter(
   // --- 一次性加载 search / thread 数据（spec R5：不在每次 search 打 repo）---
   let allFacts: Fact[] = [];
   let threads: Thread[] = [];
+  // 读失败降级为空集但不静默（盲审 R3 M13）：facts/threads 读不出会让 caused_by /
+  // thread 关联静默失联，用户排障需看到「上下文读取挂了」而非以为「本就没有」。
   if (opts.factRepo && opts.auPath) {
-    try { allFacts = await opts.factRepo.list_all(opts.auPath); } catch { allFacts = []; }
+    try { allFacts = await opts.factRepo.list_all(opts.auPath); }
+    catch (err) { logCatch("react_extraction", "读取既有 facts 失败，按空集继续", err); allFacts = []; }
   }
   if (opts.threadRepo && opts.auPath) {
-    try { threads = await opts.threadRepo.list(opts.auPath); } catch { threads = []; }
+    try { threads = await opts.threadRepo.list(opts.auPath); }
+    catch (err) { logCatch("react_extraction", "读取剧情线失败，按空集继续", err); threads = []; }
   }
   const knownFactIds = new Set(allFacts.map((f) => f.id));
   const knownThreadIds = new Set(threads.map((t) => t.id));
@@ -484,8 +489,12 @@ export async function reactExtractFromChapter(
       if (ev.type === "max_iter_reached") status = "degraded";
       // empty_response_terminal / declared_tools_but_empty_terminal：协议异常，保持 degraded。
     }
-  } catch {
-    // abort / LLM 错误：吞掉，返回已提议的部分结果（status 保持 degraded）。
+  } catch (err) {
+    // abort / LLM 错误：返回已提议的部分结果（status 保持 degraded）。abort 是用户主动
+    // 取消不记；其它错误须落日志（盲审 R3 M13：ReAct 抽取链挂了不能静默黑洞）。
+    if (!isAbortError(err)) {
+      logCatch("react_extraction", "ReAct 抽取 agent loop 出错，返回部分结果并降级", err);
+    }
     status = "degraded";
   }
 

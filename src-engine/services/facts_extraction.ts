@@ -12,6 +12,8 @@ import { normalize_characters } from "./facts_lifecycle.js";
 import type { LLMProvider } from "../llm/provider.js";
 import { TimeKind, SuspenseType } from "../domain/enums.js";
 import type { FactFieldConfidence } from "../domain/fact.js";
+import { logCatch } from "../logger/index.js";
+import { isAbortError } from "../utils/abort_error.js";
 
 // ---------------------------------------------------------------------------
 // 数据结构
@@ -328,8 +330,13 @@ export async function extractFactsFromChapter(
         const fact = rawToExtracted(raw, chapter_num, character_aliases);
         if (fact) allResults.push(fact);
       }
-    } catch {
-      // LLM 调用失败，跳过该 chunk
+    } catch (err) {
+      // LLM 调用失败，跳过该 chunk —— 但不能静默（盲审 R3 M13：与 chapter_summary /
+      // retrospective 的 logCatch 纪律一致，否则用户排障看不到「记忆抽取的 LLM 链挂了」）。
+      // abort 是用户主动取消，不算错误、不刷日志。
+      if (!isAbortError(err)) {
+        logCatch("facts_extraction", `chapter ${chapter_num} chunk 抽取 LLM 调用失败，跳过该 chunk`, err);
+      }
     }
   }
 
@@ -376,7 +383,11 @@ export async function extractFactsBatch(
       signal,
     });
     allRaw = parseLLMOutput(response.content);
-  } catch {
+  } catch (err) {
+    // 批量抽取 LLM 失败：返回空但不静默（盲审 R3 M13）。abort 除外。
+    if (!isAbortError(err)) {
+      logCatch("facts_extraction", "批量事实抽取 LLM 调用失败，返回空", err);
+    }
     return [];
   }
 

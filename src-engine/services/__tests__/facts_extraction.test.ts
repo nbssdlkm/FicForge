@@ -1,9 +1,11 @@
 // Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, afterEach } from "vitest";
 import { parseLLMOutput, extractFactsFromChapter } from "../facts_extraction.js";
 import type { LLMProvider, LLMResponse, LLMChunk, GenerateParams } from "../../llm/provider.js";
+import { initLogger } from "../../logger/index.js";
+import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 
 describe("parseLLMOutput", () => {
   it("parses standard JSON array", () => {
@@ -84,5 +86,46 @@ describe("extractFactsFromChapter", () => {
       1, [], { characters: [] }, null, manyFactsProvider, null,
     );
     expect(results.length).toBeLessThanOrEqual(5);
+  });
+});
+
+describe("extractFactsFromChapter LLM 失败可观测（盲审 R3 M13）", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("LLM 调用失败时经 logCatch 记警（不再静默黑洞），仍返回空", async () => {
+    const logger = initLogger(new MockAdapter(), "data");
+    const warnSpy = vi.spyOn(logger, "warn");
+    const boomProvider: LLMProvider = {
+      async generate(): Promise<LLMResponse> { throw new Error("LLM backend down"); },
+      async *generateStream(): AsyncIterable<LLMChunk> {},
+    };
+
+    const results = await extractFactsFromChapter(
+      "Alice走进房间。", 1, [], { characters: ["Alice"] }, null, boomProvider, null,
+    );
+
+    expect(results).toEqual([]);
+    // 至少一条 facts_extraction 维的告警，携带底层错误信息
+    expect(warnSpy).toHaveBeenCalledWith(
+      "facts_extraction",
+      expect.stringContaining("chunk"),
+      expect.objectContaining({ error: expect.stringContaining("LLM backend down") }),
+    );
+  });
+
+  it("用户中断（AbortError）不记警（abort 是主动取消、非错误）", async () => {
+    const logger = initLogger(new MockAdapter(), "data");
+    const warnSpy = vi.spyOn(logger, "warn");
+    const abortProvider: LLMProvider = {
+      async generate(): Promise<LLMResponse> { throw new DOMException("Aborted", "AbortError"); },
+      async *generateStream(): AsyncIterable<LLMChunk> {},
+    };
+
+    const results = await extractFactsFromChapter(
+      "Alice走进房间。", 1, [], { characters: ["Alice"] }, null, abortProvider, null,
+    );
+
+    expect(results).toEqual([]);
+    expect(warnSpy).not.toHaveBeenCalledWith("facts_extraction", expect.anything(), expect.anything());
   });
 });
