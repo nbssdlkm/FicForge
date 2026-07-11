@@ -87,15 +87,17 @@ describe("WriteTransaction partial commit errors", () => {
 
     expect(error).toBeInstanceOf(PartialCommitError);
     expect((error as PartialCommitError).errorCode).toBe(PARTIAL_COMMIT_CHAPTER_MISSING);
-    expect((error as PartialCommitError).completed).toEqual(["ops", "state"]);
+    expect((error as PartialCommitError).completed).toEqual(["ops"]);
     expect((error as PartialCommitError).failed).toEqual(["chapters"]);
+    expect((error as PartialCommitError).skipped).toEqual(["state"]);
     expect((error as PartialCommitError).message).toContain("chapter content may be missing on disk");
     expect((error as PartialCommitError).message).toContain("rebuildFromOps cannot restore chapter bodies");
 
     const ops = await opsRepo.list_all("au1");
     expect(ops).toHaveLength(1);
     expect(await chapterRepo.exists("au1", 1)).toBe(false);
-    expect((await stateRepo.get("au1")).current_chapter).toBe(2);
+    // 门控语义（盲审 R3 HIGH-1）：chapters 失败 → state 不推进，指针不越过缺失章
+    expect((await stateRepo.get("au1")).current_chapter).toBe(1);
   });
 
   it("reports ops-only partial commits when later projection writes fail", async () => {
@@ -213,6 +215,36 @@ describe("WriteTransaction 写序与 facts/drafts 失败分支（盲审 2026-07-
     // 记账语义：单阶段失败不连坐后续阶段 —— state 已推进
     const st = await stateRepo.get("au1");
     expect(st.current_chapter).toBe(2);
+  });
+
+  it("chapters 写失败：drafts 与 state 被门控跳过，facts 不连坐（盲审 R3 HIGH-1）", async () => {
+    const facts = { append: async () => {}, update: async () => {}, delete_by_ids: async () => {} };
+    let draftDeleteCalls = 0;
+    const drafts = {
+      delete_by_chapter: async () => { draftDeleteCalls += 1; },
+      delete_from_chapter: async () => { draftDeleteCalls += 1; },
+    };
+
+    adapter.blockWrite("au1/chapters/main/ch0001.md");
+
+    const tx = new WriteTransaction();
+    stageAll(tx);
+    let caught: unknown;
+    try {
+      await tx.commit(opsRepo, facts as never, stateRepo, chapterRepo, drafts as never);
+    } catch (e) { caught = e; }
+
+    expect(caught).toBeInstanceOf(PartialCommitError);
+    const err = caught as PartialCommitError;
+    expect(err.errorCode).toBe(PARTIAL_COMMIT_CHAPTER_MISSING);
+    expect(err.failed).toEqual(["chapters"]);
+    expect(err.skipped).toEqual(["drafts", "state"]);
+    // 草稿删除一次都不能执行 —— 章节未确证落盘前草稿是唯一可恢复源
+    expect(draftDeleteCalls).toBe(0);
+    // state 不推进：指针不得越过缺失章
+    expect((await stateRepo.get("au1")).current_chapter).toBe(1);
+    // facts 是 ops-backed 投影，不被 chapters 失败连坐
+    expect(err.completed).toEqual(expect.arrayContaining(["ops", "facts"]));
   });
 
   it("drafts 清理失败：failed 含 drafts，其余阶段照常完成", async () => {

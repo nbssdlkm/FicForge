@@ -14,6 +14,7 @@ import { FileDraftRepository } from "../../repositories/implementations/file_dra
 import { FileStateRepository } from "../../repositories/implementations/file_state.js";
 import { FileOpsRepository } from "../../repositories/implementations/file_ops.js";
 import { FileFactRepository } from "../../repositories/implementations/file_fact.js";
+import { PartialCommitError } from "../write_transaction.js";
 
 describe("undo_latest_chapter", () => {
   let adapter: MockAdapter;
@@ -56,6 +57,61 @@ describe("undo_latest_chapter", () => {
       au_id: "au1", chapter_repo: chapterRepo, draft_repo: draftRepo,
       state_repo: stateRepo, ops_repo: opsRepo, fact_repo: factRepo,
     })).rejects.toThrow(UndoChapterError);
+  });
+
+  it("章删失败时草稿保留、state 不回退、指针与磁盘自洽（盲审 R3 HIGH-1 门控回归）", async () => {
+    class ChapterDeleteFailAdapter extends MockAdapter {
+      fail = false;
+      override async deleteFile(path: string): Promise<void> {
+        if (this.fail && path.includes("chapters/main/ch0001.md")) {
+          throw new Error("Injected chapter delete failure");
+        }
+        await super.deleteFile(path);
+      }
+    }
+    const failAdapter = new ChapterDeleteFailAdapter();
+    const cRepo = new FileChapterRepository(failAdapter);
+    const dRepo = new FileDraftRepository(failAdapter);
+    const sRepo = new FileStateRepository(failAdapter);
+    const oRepo = new FileOpsRepository(failAdapter);
+    const fRepo = new FileFactRepository(failAdapter);
+
+    await sRepo.save(createState({ au_id: "au1", current_chapter: 1 }));
+    await dRepo.save(createDraft({
+      au_id: "au1", chapter_num: 1, variant: "A", content: "Alice站在窗前。",
+    }));
+    await confirm_chapter({
+      au_id: "au1", chapter_num: 1, draft_id: "ch0001_draft_A.md",
+      cast_registry: { characters: ["Alice"] },
+      chapter_repo: cRepo, draft_repo: dRepo, state_repo: sRepo, ops_repo: oRepo,
+    });
+    await add_fact("au1", 1, {
+      content_raw: "r", content_clean: "Alice在窗前", status: "active", type: "plot_event",
+    }, fRepo, oRepo);
+    // 第 2 章的在写草稿 —— undo 会级联清 ≥N 的草稿，用它验证门控保草稿
+    await dRepo.save(createDraft({
+      au_id: "au1", chapter_num: 2, variant: "A", content: "第二章草稿。",
+    }));
+
+    failAdapter.fail = true;
+    const error = await undo_latest_chapter({
+      au_id: "au1", cast_registry: { characters: ["Alice"] },
+      chapter_repo: cRepo, draft_repo: dRepo,
+      state_repo: sRepo, ops_repo: oRepo, fact_repo: fRepo,
+    }).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(PartialCommitError);
+    const pce = error as PartialCommitError;
+    expect(pce.failed).toEqual(["chapters"]);
+    expect(pce.skipped).toEqual(["drafts", "state"]);
+    expect(pce.completed).toEqual(expect.arrayContaining(["ops", "facts"]));
+
+    // 磁盘终态自洽：章还在、指针未回退（undo 对持久 artifacts 视同没发生）、草稿保留
+    expect(await cRepo.exists("au1", 1)).toBe(true);
+    expect((await sRepo.get("au1")).current_chapter).toBe(2);
+    expect(await dRepo.get("au1", 2, "A")).not.toBeNull();
+    // 已知残留（修前即如此，与 ops 一致、重试 undo 可恢复）：facts 已按 ops 记录删除
+    expect(await fRepo.list_all("au1")).toHaveLength(0);
   });
 
   it("normal undo: state rolls back", async () => {

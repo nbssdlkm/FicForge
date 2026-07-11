@@ -140,4 +140,51 @@ describe("confirm_chapter", () => {
     const ops = await opsRepo.list_all("au1");
     expect(ops[0].payload.generated_with.model).toBe("gpt-4o");
   });
+
+  it("章节写失败时草稿存活、state 不推进，磁盘恢复后可原样重试（盲审 R3 HIGH-1 回归）", async () => {
+    class ChapterWriteFailAdapter extends MockAdapter {
+      fail = true;
+      private isBlocked(path: string): boolean {
+        return this.fail && path.includes("chapters/main/ch0001.md");
+      }
+      override async writeFile(path: string, content: string): Promise<void> {
+        if (this.isBlocked(path)) throw new Error("Injected chapter write failure");
+        await super.writeFile(path, content);
+      }
+      // atomicWrite 经 rename 提交正式路径，注入点需同时拦 rename 目标
+      override async rename(oldPath: string, newPath: string): Promise<void> {
+        if (this.isBlocked(newPath)) throw new Error("Injected chapter write failure");
+        await super.rename(oldPath, newPath);
+      }
+    }
+
+    const failAdapter = new ChapterWriteFailAdapter();
+    const cRepo = new FileChapterRepository(failAdapter);
+    const dRepo = new FileDraftRepository(failAdapter);
+    const sRepo = new FileStateRepository(failAdapter);
+    const oRepo = new FileOpsRepository(failAdapter);
+    await sRepo.save(createState({ au_id: "au1", current_chapter: 1 }));
+    await dRepo.save(createDraft({
+      au_id: "au1", chapter_num: 1, variant: "A", content: "草稿是这一章唯一的内容源。",
+    }));
+
+    const params = {
+      au_id: "au1", chapter_num: 1, draft_id: "ch0001_draft_A.md",
+      chapter_repo: cRepo, draft_repo: dRepo, state_repo: sRepo, ops_repo: oRepo,
+    };
+    await expect(confirm_chapter(params)).rejects.toThrow(/partial commit/);
+
+    // 门控语义：章未落盘 → 唯一内容源草稿必须存活、指针不得越过缺失章
+    expect(await dRepo.get("au1", 1, "A")).not.toBeNull();
+    expect((await sRepo.get("au1")).current_chapter).toBe(1);
+    expect(await cRepo.exists("au1", 1)).toBe(false);
+
+    // 磁盘恢复后同参重试即可闭环，无需人工修复
+    failAdapter.fail = false;
+    const result = await confirm_chapter(params);
+    expect(result.chapter_num).toBe(1);
+    expect((await sRepo.get("au1")).current_chapter).toBe(2);
+    expect(await dRepo.get("au1", 1, "A")).toBeNull();
+    expect(await cRepo.exists("au1", 1)).toBe(true);
+  });
 });
