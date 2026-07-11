@@ -63,7 +63,7 @@ export type {
 export type { FandomDisplayInfo, FandomInfo, FandomFileEntry, FandomFilesResponse } from "./fandoms";
 export type { TrashScope } from "./trash";
 export type { GenerateParams } from "./generate";
-export type { SettingsChatMode, SettingsChatMessagePayload, SettingsChatSessionLlm, SettingsChatToolCall, SettingsChatResponse } from "./settingsChat";
+export type { SettingsChatMode, SettingsChatMessagePayload, SettingsChatSessionLlm, SettingsChatToolCall, SettingsChatResponse } from "./settings-chat";
 export type { TrashEntry } from "@ficforge/engine";
 
 // Re-export ApiError for compatibility with components that use it for error handling

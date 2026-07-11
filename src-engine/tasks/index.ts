@@ -12,8 +12,8 @@ export type {
   TaskStatus,
 } from "./types.js";
 
-export { TaskRunner } from "./task-runner.js";
+export { TaskRunner } from "./task_runner.js";
 
 // Task implementations
-export { createFactsExtractionTask } from "./impl/facts-extraction-task.js";
-export type { FactsExtractionParams, FactsExtractionResult } from "./impl/facts-extraction-task.js";
+export { createFactsExtractionTask } from "./impl/facts_extraction_task.js";
+export type { FactsExtractionParams, FactsExtractionResult } from "./impl/facts_extraction_task.js";

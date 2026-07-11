@@ -24,7 +24,7 @@ import type {
   TaskStatus,
   TaskStatusListener,
 } from "./types.js";
-import { TaskStore } from "./task-store.js";
+import { TaskStore } from "./task_store.js";
 import { now_utc } from "../utils/file_utils.js";
 import type { PlatformAdapter } from "../platform/index.js";
 

@@ -8,8 +8,8 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { TaskRunner } from "../task-runner.js";
-import { TaskStore } from "../task-store.js";
+import { TaskRunner } from "../task_runner.js";
+import { TaskStore } from "../task_store.js";
 import type { TaskCheckpoint, TaskContext, TaskDefinition, TaskEvent } from "../types.js";
 
 // ---------------------------------------------------------------------------
