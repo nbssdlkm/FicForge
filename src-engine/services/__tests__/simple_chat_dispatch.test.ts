@@ -11,11 +11,14 @@ import { describe, expect, it } from "vitest";
 import {
   dispatch_simple_chat,
   SIMPLE_MUTATING_TOOLS,
+  toDispatchErrorEvent,
+  translateLoopEvent,
   SIMPLE_TOOL_CHAT_REPLY,
   SIMPLE_TOOL_SHOW_CHAPTER,
   type SimpleChatEvent,
 } from "../simple_chat_dispatch.js";
 import { createProject, createLLMConfig } from "../../domain/project.js";
+import { LLMError } from "../../llm/provider.js";
 import { chapterInflightKey, markChapterInflight, releaseChapterInflight } from "../chapter_inflight.js";
 import { createState } from "../../domain/state.js";
 import { createSettings } from "../../domain/settings.js";
@@ -1267,5 +1270,48 @@ describe("SIMPLE_MUTATING_TOOLS 派生不变量（盲审 2026-07-11 + B1 对抗�
     const { SIMPLE_TOOL_SCHEMAS } = await import("../../domain/simple_tools_zod.js");
     expect(Object.keys(SIMPLE_TOOL_SCHEMAS)).not.toContain("create_core_character_file");
     expect(Object.keys(SIMPLE_TOOL_SCHEMAS)).not.toContain("modify_core_character_file");
+  });
+});
+
+describe("translateLoopEvent — terminal 标志映射（C2 对抗审：控制流命门直测）", () => {
+  it("恰好三类事件 terminal=true（max_iter / empty_response / declared_tools_but_empty），其余全 false", () => {
+    const t = (ev: Parameters<typeof translateLoopEvent>[0]) => translateLoopEvent(ev, "zh");
+    expect(t({ type: "max_iter_reached", data: { iterCount: 4 } } as never).terminal).toBe(true);
+    expect(t({ type: "empty_response_terminal" } as never).terminal).toBe(true);
+    expect(t({ type: "declared_tools_but_empty_terminal" } as never).terminal).toBe(true);
+
+    expect(t({ type: "iter_start", data: { iter: 0 } } as never)).toEqual({ event: null, terminal: false });
+    expect(t({ type: "token", data: "x" } as never).terminal).toBe(false);
+    expect(t({ type: "tool_call", data: { id: "1" } } as never).terminal).toBe(false);
+    expect(t({ type: "tool_result", data: {} } as never).terminal).toBe(false);
+    expect(t({ type: "business", data: { kind: "chat_reply_chunk", data: "hi" } } as never).terminal).toBe(false);
+    expect(t({ type: "business", data: { kind: "done_text", data: {} } } as never).terminal).toBe(false);
+    expect(t({ type: "business", data: { kind: "done_tools", data: {} } } as never).terminal).toBe(false);
+  });
+
+  it("三条 terminal 均产出 error 事件且 partial_draft_label=null", () => {
+    for (const type of ["max_iter_reached", "empty_response_terminal", "declared_tools_but_empty_terminal"]) {
+      const { event } = translateLoopEvent({ type, data: { iterCount: 4 } } as never, "en");
+      expect(event?.type).toBe("error");
+      expect((event as { data: { partial_draft_label: null } }).data.partial_draft_label).toBeNull();
+    }
+  });
+});
+
+describe("toDispatchErrorEvent — 错误翻译（C2 对抗审）", () => {
+  it("LLMError 保留结构化 code/actions + 透传 partial_draft_label", () => {
+    const ev = toDispatchErrorEvent(new LLMError("rate_limited", "请求过于频繁", ["retry"]), "B");
+    expect(ev).toEqual({
+      type: "error",
+      data: { error_code: "rate_limited", message: "请求过于频繁", actions: ["retry"], partial_draft_label: "B" },
+    });
+  });
+
+  it("非 LLMError 归 DISPATCH_FAILURE，label 为 null 时透传 null", () => {
+    const ev = toDispatchErrorEvent(new Error("boom"), null);
+    expect(ev.type).toBe("error");
+    const data = (ev as { data: { error_code: string; partial_draft_label: null } }).data;
+    expect(data.error_code).toBe("DISPATCH_FAILURE");
+    expect(data.partial_draft_label).toBeNull();
   });
 });
