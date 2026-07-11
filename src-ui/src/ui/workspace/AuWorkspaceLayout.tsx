@@ -49,7 +49,10 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const fallbackAuName = auPath.split('/').pop() || t('common.unknownAu');
   const [auName, setAuName] = useState(fallbackAuName);
 
-  const refreshChapters = useCallback(() => {
+  // 命名即约束（C7 硬化）：本函数**仅限写文面板自发变更**（confirm/undo，其内部状态已
+  // 同步不需自通知）。写文之外的任何改章入口（对话接受/导入/标题编辑/未来新入口）必须用
+  // 下方 refreshChaptersExternal —— 否则常驻挂载的 WriterLayout 收不到版本号、显示过期列表。
+  const refreshChaptersWriterSelf = useCallback(() => {
     listChapters(auPath).then(chs => { if (!loadGuard.isKeyStale(auPath)) setChapters(chs); }).catch((err) => logCatch('workspace', 'refreshChapters failed', err));
     setMilestoneRefreshKey(k => k + 1);
   }, [auPath, loadGuard]);
@@ -58,9 +61,9 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   // 写文自己发起的 confirm/undo 仍走裸 refreshChapters（其内部状态已同步，不需自通知）。
   const [externalChaptersVersion, setExternalChaptersVersion] = useState(0);
   const refreshChaptersExternal = useCallback(() => {
-    refreshChapters();
+    refreshChaptersWriterSelf();
     setExternalChaptersVersion((v) => v + 1);
-  }, [refreshChapters]);
+  }, [refreshChaptersWriterSelf]);
   const { shouldShow, dismiss } = useMilestoneGuide();
 
   // Milestone data (loaded once, from existing page data)
@@ -207,7 +210,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
         onNavigate={onNavigate}
         onSelectChapter={setViewingChapter}
         onClearViewChapter={() => setViewingChapter(null)}
-        onChaptersChanged={refreshChapters}
+        onChaptersChanged={refreshChaptersWriterSelf}
         onChaptersChangedExternal={refreshChaptersExternal}
         externalChaptersVersion={externalChaptersVersion}
         milestoneElement={milestoneElement}
@@ -429,7 +432,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
             onNavigate={onNavigate}
             viewChapter={viewingChapter}
             onClearViewChapter={() => setViewingChapter(null)}
-            onChaptersChanged={refreshChapters}
+            onChaptersChanged={refreshChaptersWriterSelf}
             isActiveTab={activeTab === 'writer'}
             externalChaptersVersion={externalChaptersVersion}
           />
