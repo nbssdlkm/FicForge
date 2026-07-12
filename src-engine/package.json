@@ -14,7 +14,11 @@
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format ."
   },
   "dependencies": {
     "gpt-tokenizer": "^3.4.0",
@@ -24,6 +28,7 @@
   },
   "devDependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.0",
+    "@biomejs/biome": "^2.5.3",
     "@capacitor/core": "^8.3.0",
     "@capacitor/filesystem": "^8.1.2",
     "@tauri-apps/api": "^2.10.1",

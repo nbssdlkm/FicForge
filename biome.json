@@ -1,0 +1,65 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.3/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": [
+      "**/*.ts",
+      "**/*.tsx",
+      "!**/node_modules/**",
+      "!**/dist/**",
+      "!**/android/**",
+      "!**/src-tauri/**",
+      "!**/public/**"
+    ]
+  },
+  "assist": { "enabled": false },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "jsxQuoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "arrowParentheses": "always"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noConsole": "error"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "warn",
+        "useHookAtTopLevel": "error"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "**/__tests__/**",
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/livetest/**",
+        "**/src/test/**",
+        "**/vite.config.ts",
+        "**/vitest.config.ts",
+        "**/vitest.live.config.ts"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": { "noExplicitAny": "off", "noConsole": "off" }
+        }
+      }
+    }
+  ]
+}

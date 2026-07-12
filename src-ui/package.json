@@ -13,7 +13,11 @@
     "android:install": "node scripts/android-install.mjs",
     "android:install:fast": "node scripts/android-install.mjs --skip-build",
     "android:install:remote": "node scripts/android-install-remote.mjs",
-    "i18n:check": "tsx scripts/check-i18n-sync.ts"
+    "i18n:check": "tsx scripts/check-i18n-sync.ts",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format ."
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.0",
@@ -37,6 +41,7 @@
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.3",
     "@tailwindcss/postcss": "^4.3.2",
     "@tauri-apps/cli": "^2.10.1",
     "@testing-library/jest-dom": "^6.9.1",
