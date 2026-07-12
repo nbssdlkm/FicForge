@@ -54,3 +54,42 @@ export function validatePathSegment(value: string, name: string): void {
     throw new Error(`Path validation failed: ${name} contains backslash`);
   }
 }
+
+// ---------------------------------------------------------------------------
+// 用户可见文件名段（lore / fandom / AU 目录名）—— 白名单口径
+// R4 架构 HIGH（E3）自 UI api 层下沉：路径安全判据是引擎级契约，不属于 UI。
+// 关键决策：新建路径段收紧到白名单（字母/数字/Unicode 字母/空格/-/_/.），
+// `? # % : * " < > / \` 等保留字符一律替换为 `_`。
+// ---------------------------------------------------------------------------
+
+const SAFE_PATH_SEGMENT_PATTERN = /[^\p{L}\p{N}._ -]+/gu;
+
+/**
+ * 读取已有路径段：只校验合法性、不改写 —— 避免对磁盘已存在的历史文件名（含保留字符）
+ * 做破坏性 sanitize。新建路径段应该用 `sanitizePathSegment` 走白名单清洗。
+ */
+export function validateExistingPathSegment(segment: string): string {
+  if (!segment) throw new Error("Path segment cannot be empty");
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: 有意剥离控制字符——路径安全清洗
+  const validated = segment.replace(/[\x00-\x1f\x7f]/g, "").trim();
+  if (!validated) throw new Error("Invalid path segment");
+  if (/[/\\]/.test(validated)) throw new Error("Invalid path segment");
+  if (validated === "." || validated === "..") throw new Error("Invalid path segment");
+  return validated;
+}
+
+/** 新建路径段白名单清洗（文件系统 / WebDAV 安全）。 */
+export function sanitizePathSegment(segment: string): string {
+  if (!segment) throw new Error("Path segment cannot be empty");
+  const sanitized = segment
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: 有意剥离控制字符——路径安全清洗
+    .replace(/[\x00-\x1f\x7f]/g, "")
+    .replace(SAFE_PATH_SEGMENT_PATTERN, "_")
+    .replace(/\.\.+/g, "_")
+    .replace(/^\.+/, "")
+    .replace(/[. ]+$/g, "")
+    .trim()
+    .replace(/_+/g, "_");
+  if (!sanitized) throw new Error("Invalid path segment");
+  return sanitized;
+}

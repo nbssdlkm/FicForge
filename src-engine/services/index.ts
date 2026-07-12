@@ -259,3 +259,28 @@ export type { PartialCommitErrorCode } from "./write_transaction.js";
 
 // AU Lock（供 UI API 层在直接调用底层 services 时顶层加锁，避免跨服务交叉写）
 export { withAuLock, withProjectFileLock } from "./au_lock.js";
+
+// Lore Service（角色卡/世界观资料 CRUD —— R4 架构 HIGH E3 下沉，UI api 只做薄转发）
+export {
+  deleteLore,
+  importLoreFromFandom,
+  listLoreFiles,
+  readLore,
+  readLoreWithLegacyFallback,
+  saveLore,
+} from "./lore_service.js";
+export type { LoreFileRef, LoreServiceDeps } from "./lore_service.js";
+
+// Fandom Service（Fandom/AU 查询与命令 —— 同上 E3 下沉）
+export {
+  createAu,
+  createFandom,
+  deleteAu,
+  deleteFandom,
+  getFandomDisplayInfo,
+  listAus,
+  listFandomFiles,
+  listFandoms,
+  readFandomFile,
+} from "./fandom_service.js";
+export type { FandomAuInfo, FandomDisplayInfo, FandomServiceDeps } from "./fandom_service.js";

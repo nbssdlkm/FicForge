@@ -9,6 +9,7 @@ import type { Fandom } from "../../domain/fandom.js";
 import { createFandom } from "../../domain/fandom.js";
 import type { FandomRepository } from "../interfaces/fandom.js";
 import { atomicWrite, dumpYaml, joinPath, obj_to_plain, validateBasePath } from "../../utils/file_utils.js";
+import { FANDOM_YAML } from "../../domain/paths.js";
 
 export class FileFandomRepository implements FandomRepository {
   constructor(
@@ -25,7 +26,7 @@ export class FileFandomRepository implements FandomRepository {
   // （2026-07-09 全仓储统一时本仓储漏网，盲审 2026-07-11 规范维补齐）。
   async get(fandom_path: string): Promise<Fandom | null> {
     validateBasePath(fandom_path, "fandom_path");
-    const path = joinPath(fandom_path, "fandom.yaml");
+    const path = joinPath(fandom_path, FANDOM_YAML);
     const exists = await this.adapter.exists(path);
     if (!exists) {
       return null;
@@ -47,7 +48,7 @@ export class FileFandomRepository implements FandomRepository {
 
   async save(fandom_path: string, fandom: Fandom): Promise<void> {
     validateBasePath(fandom_path, "fandom_path");
-    const path = joinPath(fandom_path, "fandom.yaml");
+    const path = joinPath(fandom_path, FANDOM_YAML);
     const raw = obj_to_plain(fandom);
     const content = dumpYaml(raw);
     const dir = path.substring(0, path.lastIndexOf("/"));
@@ -64,7 +65,7 @@ export class FileFandomRepository implements FandomRepository {
     const entries = await this.adapter.listDir(fandomsDir);
     const result: string[] = [];
     for (const name of entries.sort()) {
-      const fandomYaml = joinPath(fandomsDir, name, "fandom.yaml");
+      const fandomYaml = joinPath(fandomsDir, name, FANDOM_YAML);
       if (await this.adapter.exists(fandomYaml)) {
         result.push(name);
       }

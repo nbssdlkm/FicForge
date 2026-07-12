@@ -19,6 +19,8 @@ export const CHAPTERS_MAIN_DIR = "chapters/main";
  */
 export const PROJECT_YAML = "project.yaml";
 export const STATE_YAML = "state.yaml";
+/** Fandom 根配置文件名（同族判据；file_fandom repo 与 fandom_service 共用）。 */
+export const FANDOM_YAML = "fandom.yaml";
 
 function padChapterNum(chapter_num: number): string {
   return String(chapter_num).padStart(4, "0");

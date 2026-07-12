@@ -242,6 +242,22 @@ export {
   extractFactsFromChapter,
   parse_html,
   reactExtractFromChapter,
+  // Lore / Fandom service（E3 下沉；UI api 薄转发）
+  saveLore,
+  readLore,
+  readLoreWithLegacyFallback,
+  deleteLore,
+  listLoreFiles,
+  importLoreFromFandom,
+  listFandoms,
+  getFandomDisplayInfo,
+  createFandom,
+  listAus,
+  createAu,
+  deleteFandom,
+  deleteAu,
+  listFandomFiles,
+  readFandomFile,
 } from "./services/index.js";
 export type {
   AnalysisOptions,
@@ -264,7 +280,15 @@ export type {
   SimpleContextTokenEstimate,
   ThreadStaleness,
   TrashEntry,
+  LoreFileRef,
+  LoreServiceDeps,
+  FandomAuInfo,
+  FandomDisplayInfo,
+  FandomServiceDeps,
 } from "./services/index.js";
+
+// Utils（路径安全 —— E3 下沉的白名单/校验判据，UI 经 engine-lore 薄层 re-export 消费）
+export { sanitizePathSegment, validateExistingPathSegment } from "./utils/paths.js";
 
 // Tasks
 export {

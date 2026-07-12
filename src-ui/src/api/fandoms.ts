@@ -27,11 +27,8 @@ export interface FandomInfo {
   aus: AuInfo[];
 }
 
-export interface FandomDisplayInfo {
-  name: string;
-  dir_name: string;
-  path: string;
-}
+// FandomDisplayInfo 单源在引擎 fandom_service（E3 下沉后 UI 不再自持副本）
+export type { FandomDisplayInfo } from "@ficforge/engine";
 
 export interface FandomFileEntry {
   name: string;
