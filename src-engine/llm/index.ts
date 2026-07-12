@@ -16,10 +16,10 @@ export { OpenAICompatibleProvider } from "./openai_compatible.js";
 
 export type { ResolvedLLMConfig, ResolvedLLMParams } from "./config_resolver.js";
 export {
-  create_provider,
+  createProvider,
   isPlaintextRemoteHttp,
-  resolve_llm_config,
-  resolve_llm_params,
+  resolveLlmConfig,
+  resolveLlmParams,
   warnIfPlaintextRemote,
 } from "./config_resolver.js";
 

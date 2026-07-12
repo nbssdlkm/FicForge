@@ -7,15 +7,15 @@
  */
 
 import {
-  add_fact,
-  edit_fact,
-  update_fact_status,
-  find_archival_candidates,
-  archive_facts,
-  unarchive_fact,
+  addFact as engineAddFact,
+  editFact as engineEditFact,
+  updateFactStatus as engineUpdateFactStatus,
+  findArchivalCandidates as engineFindArchivalCandidates,
+  archiveFacts as engineArchiveFacts,
+  unarchiveFact as engineUnarchiveFact,
   type FactStatus,
-  resolve_llm_config,
-  create_provider,
+  resolveLlmConfig,
+  createProvider,
   withAuLock,
 } from "@ficforge/engine";
 import type { LLMProvider, ResolvedLLMConfig, Project } from "@ficforge/engine";
@@ -37,12 +37,12 @@ export async function resolveFactsProvider(auPath: string): Promise<{
   const e = getEngine();
   const proj = await getProjectOrThrow(auPath);
   const sett = await e.repos.settings.get();
-  const llmConfig = resolve_llm_config(null, proj, sett);
+  const llmConfig = resolveLlmConfig(null, proj, sett);
   // api 和 ollama 都走 OpenAI 兼容协议，均可用。local（本地模型加载）随 sidecar 退役本版本不支持。
   if (llmConfig.mode === "local") {
     throw new Error("Facts 提取暂不支持 local 模式，请切换到 API 或 Ollama");
   }
-  const provider = create_provider(llmConfig);
+  const provider = createProvider(llmConfig);
   const lang = resolveLang(sett);
   const reactEnabled = sett.app?.react_extraction_enabled === true;
   return { provider, llmConfig, proj, lang, reactEnabled };
@@ -50,7 +50,7 @@ export async function resolveFactsProvider(auPath: string): Promise<{
 
 /**
  * 当前 AU 的事实提取是否有可用 LLM 连接。与 resolveFactsProvider 同源
- * （resolve_llm_config 优先级 session>project>default_llm + api_key 回填），
+ * （resolveLlmConfig 优先级 session>project>default_llm + api_key 回填），
  * 供 SimpleChatPanel 对话自动提取 gate 使用——修正「gate 只看全局 default_llm」
  * 与「实际提取用 project 级解析」两处口径漂移导致 AU 独立配 LLM 时自动提取被
  * 静默跳过的问题（审计④）。判据复用 engine-settings.hasUsableConnection（单一真相源）。
@@ -59,7 +59,7 @@ export async function getFactsExtractionReadiness(auPath: string): Promise<{ has
   const e = getEngine();
   const proj = await getProjectOrThrow(auPath);
   const sett = await e.repos.settings.get();
-  const llmConfig = resolve_llm_config(null, proj, sett);
+  const llmConfig = resolveLlmConfig(null, proj, sett);
   return { has_usable_connection: hasUsableConnection(llmConfig) };
 }
 
@@ -82,7 +82,7 @@ export async function addFact(auPath: string, chapterNum: number, factData: Reco
   //（get 永不抛错，无卡/读失败降级 null = 不归一化，不阻塞主流程；下同）。
   const characterAliases = await e.characterAliases.get(auPath);
   return withAuLock(auPath, async () => {
-    const result = await add_fact(auPath, chapterNum, factData, fact, ops, "manual", characterAliases);
+    const result = await engineAddFact(auPath, chapterNum, factData, fact, ops, "manual", characterAliases);
     return { ...result, fact_id: result.id };
   });
 }
@@ -110,7 +110,7 @@ export interface AddFactsBatchResult {
 }
 
 /**
- * 半成功错误：批量落库过程中某条 add_fact 抛错（磁盘/序列化）时抛出，携带此前已成功
+ * 半成功错误：批量落库过程中某条 addFact 抛错（磁盘/序列化）时抛出，携带此前已成功
  * 落盘的输入下标，供调用方登记已存部分、重试只补余下（M25 半成功去重）。
  */
 export class PartialAddFactsError extends Error {
@@ -134,7 +134,7 @@ export class PartialAddFactsError extends Error {
  * （`chapter.exists`），目标章缺失（被并发 undo 删）→ 该章的候选整体跳过、不落孤儿。
  *
  * 顺序处理，返回实际落盘的输入下标（`writtenIndices`）供精确去重。
- * 某条 add_fact 抛错 → 抛 {@link PartialAddFactsError}（携已落盘下标），整批不再续写。
+ * 某条 addFact 抛错 → 抛 {@link PartialAddFactsError}（携已落盘下标），整批不再续写。
  */
 export async function addFactsBatch(auPath: string, facts: BatchFactInput[]): Promise<AddFactsBatchResult> {
   const e = getEngine();
@@ -160,7 +160,7 @@ export async function addFactsBatch(auPath: string, facts: BatchFactInput[]): Pr
         continue;
       }
       try {
-        await add_fact(auPath, f.chapterNum, f.data, fact, ops, "manual", characterAliases);
+        await engineAddFact(auPath, f.chapterNum, f.data, fact, ops, "manual", characterAliases);
         writtenIndices.push(i);
       } catch (err) {
         throw new PartialAddFactsError(writtenIndices, err);
@@ -175,12 +175,12 @@ export async function editFact(auPath: string, factId: string, updatedFields: Re
   const { fact, ops, state } = e.repos;
   // 别名表接通：编辑 characters / known_to / hidden_from 时按角色卡别名归一化
   const characterAliases = await e.characterAliases.get(auPath);
-  return withAuLock(auPath, () => edit_fact(auPath, factId, updatedFields, fact, ops, state, characterAliases));
+  return withAuLock(auPath, () => engineEditFact(auPath, factId, updatedFields, fact, ops, state, characterAliases));
 }
 
 export async function updateFactStatus(auPath: string, factId: string, newStatus: string, chapterNum: number) {
   const { fact, ops, state } = getEngine().repos;
-  return withAuLock(auPath, () => update_fact_status(auPath, factId, newStatus, chapterNum, fact, ops, state));
+  return withAuLock(auPath, () => engineUpdateFactStatus(auPath, factId, newStatus, chapterNum, fact, ops, state));
 }
 
 export async function batchUpdateFactStatus(auPath: string, factIds: string[], newStatus: string) {
@@ -191,7 +191,7 @@ export async function batchUpdateFactStatus(auPath: string, factIds: string[], n
     let failed = 0;
     for (const fid of factIds) {
       try {
-        await update_fact_status(auPath, fid, newStatus, 0, fact, ops, state);
+        await engineUpdateFactStatus(auPath, fid, newStatus, 0, fact, ops, state);
         updated++;
       } catch {
         failed++;
@@ -211,19 +211,19 @@ export async function batchUpdateFactStatus(auPath: string, factIds: string[], n
 export async function findArchivalCandidates(auPath: string) {
   const { fact, state } = getEngine().repos;
   const st = await state.get(auPath);
-  return find_archival_candidates(auPath, st.current_chapter, fact);
+  return engineFindArchivalCandidates(auPath, st.current_chapter, fact);
 }
 
 /** 归档用户在预览里确认勾选的 fact 子集（不重新扫，只动用户看过的那些）。 */
 export async function archiveFacts(auPath: string, factIds: string[]) {
   const { fact, ops } = getEngine().repos;
-  return withAuLock(auPath, () => archive_facts(auPath, factIds, fact, ops));
+  return withAuLock(auPath, () => engineArchiveFacts(auPath, factIds, fact, ops));
 }
 
 /** 取消归档（恢复为热/温，重新进 P3）。 */
 export async function unarchiveFact(auPath: string, factId: string) {
   const { fact, ops } = getEngine().repos;
-  return withAuLock(auPath, () => unarchive_fact(auPath, factId, fact, ops));
+  return withAuLock(auPath, () => engineUnarchiveFact(auPath, factId, fact, ops));
 }
 
 // ---------------------------------------------------------------------------

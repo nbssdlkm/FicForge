@@ -16,7 +16,7 @@ export function getEnumLabel(group: string, value: string | null | undefined, fa
 
 // ---------------------------------------------------------------------------
 // 知情范围 label（M3 批一）—— FactCard / 提取确认卡 / DirtyModal / ThreadDetail 共用的
-// 单一真相源。口径与引擎注入端（build_fact_knowledge_clause）一致：
+// 单一真相源。口径与引擎注入端（buildFactKnowledgeClause）一致：
 // null / 'all' / 空名单无信息量 → 返回 ""（调用方不渲染）。
 // ---------------------------------------------------------------------------
 

@@ -79,7 +79,7 @@ async function readSettings(): Promise<Settings> {
 
 /**
  * 判断一份 LLM 配置是否有可用连接。接受 Settings.default_llm、Project.llm 或
- * resolve_llm_config 的解析结果（ResolvedLLMConfig）—— 字段形状兼容。
+ * resolveLlmConfig 的解析结果（ResolvedLLMConfig）—— 字段形状兼容。
  * 单一真相源：facts 提取 readiness（engine-facts.getFactsExtractionReadiness）复用此谓词，
  * 避免 UI 侧重复实现「可用连接」判据（审计④）。
  */
@@ -560,7 +560,7 @@ export async function testConnection(params: {
       return { success: false, error_code: "connection_failed" };
     }
 
-    // api 模式空 base 与 create_provider 同口径拒绝：空 base 会让 Provider 拼相对 URL，
+    // api 模式空 base 与 createProvider 同口径拒绝：空 base 会让 Provider 拼相对 URL，
     // 在 webview 中可被解析到自身 origin/任意主机（盲审 R3 HIGH-2 防御纵深）。
     if (!params.api_base || !params.api_base.trim()) {
       return { success: false, error_code: "connection_failed" };

@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it } from "vitest";
-import { build_settings_context, call_settings_llm } from "../settings_chat.js";
+import { buildSettingsContext, callSettingsLlm } from "../settings_chat.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 import type { LLMProvider, LLMResponse, LLMChunk, GenerateParams } from "../../llm/provider.js";
 
@@ -11,7 +11,7 @@ describe("build_settings_context", () => {
     const adapter = new MockAdapter();
     adapter.seed("au1/project.yaml", "name: 测试AU\nfandom: TestFandom\n");
 
-    const result = await build_settings_context({
+    const result = await buildSettingsContext({
       mode: "au",
       base_path: "au1",
       messages: [{ role: "user", content: "创建一个角色" }],
@@ -27,7 +27,7 @@ describe("build_settings_context", () => {
   it("Fandom mode assembles system prompt with fandom name", async () => {
     const adapter = new MockAdapter();
 
-    const result = await build_settings_context({
+    const result = await buildSettingsContext({
       mode: "fandom",
       base_path: "fandoms/HP",
       messages: [{ role: "user", content: "添加角色" }],
@@ -45,7 +45,7 @@ describe("build_settings_context", () => {
       content: `msg ${i}`,
     }));
 
-    const result = await build_settings_context({
+    const result = await buildSettingsContext({
       mode: "fandom",
       base_path: "fandoms/HP",
       messages,
@@ -62,7 +62,7 @@ describe("build_settings_context", () => {
     adapter.seed("au1/project.yaml", "name: AU\nfandom: F\n");
     adapter.seed("fandom1/core_characters/Alice.md", "## 核心本质\nAlice的核心人格特质");
 
-    const result = await build_settings_context({
+    const result = await buildSettingsContext({
       mode: "au",
       base_path: "au1",
       fandom_path: "fandom1",
@@ -81,7 +81,7 @@ describe("build_settings_context", () => {
     );
     adapter.seed("au1/characters/Bob.md", "# Bob\n角色设定");
 
-    const result = await build_settings_context({
+    const result = await buildSettingsContext({
       mode: "au",
       base_path: "au1",
       messages: [{ role: "user", content: "test" }],
@@ -94,7 +94,7 @@ describe("build_settings_context", () => {
   });
 });
 
-describe("call_settings_llm", () => {
+describe("callSettingsLlm", () => {
   it("returns content and tool_calls", async () => {
     const mockProvider: LLMProvider = {
       async generate(_params: GenerateParams): Promise<LLMResponse> {
@@ -121,7 +121,7 @@ describe("call_settings_llm", () => {
       { role: "user" as const, content: "创建Alice角色" },
     ];
 
-    const result = await call_settings_llm(messages, "au", mockProvider);
+    const result = await callSettingsLlm(messages, "au", mockProvider);
 
     expect(result.content).toBe("我建议创建角色文件");
     expect(result.tool_calls).toHaveLength(1);
@@ -136,7 +136,7 @@ describe("call_settings_llm", () => {
       async *generateStream(): AsyncIterable<LLMChunk> {},
     };
 
-    const result = await call_settings_llm(
+    const result = await callSettingsLlm(
       [
         { role: "system", content: "sys" },
         { role: "user", content: "hi" },

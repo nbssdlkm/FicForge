@@ -6,19 +6,19 @@
  * 最新章 vs 历史章分流：两者的 state 更新范围完全不同。
  */
 
-import { scan_characters_in_chapter } from "../domain/character_scanner.js";
+import { scanCharactersInChapter } from "../domain/character_scanner.js";
 import { IndexStatus } from "../domain/enums.js";
 import type { FactChange } from "../domain/fact_change.js";
 import { createOpsEntry } from "../domain/ops_entry.js";
-import { extract_last_scene_ending } from "../domain/text_utils.js";
+import { extractLastSceneEnding } from "../domain/text_utils.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
 import { logCatch } from "../logger/index.js";
-import { compute_content_hash, generate_op_id, now_utc } from "../utils/file_utils.js";
+import { computeContentHash, generateOpId, nowUtc } from "../utils/file_utils.js";
 import { withAuLock } from "./au_lock.js";
-import { edit_fact, update_fact_status } from "./facts_lifecycle.js";
+import { editFact, updateFactStatus } from "./facts_lifecycle.js";
 import { WriteTransaction } from "./write_transaction.js";
 
 export class DirtyResolveError extends Error {
@@ -62,10 +62,10 @@ export interface FailedFactChange {
 
 /**
  * Dirty 章节解除入口。持 AU 锁覆盖整个 doResolve —— 内部会调用底层
- * facts_lifecycle.edit_fact / update_fact_status，那两个底层函数不加锁
+ * facts_lifecycle.editFact / updateFactStatus，那两个底层函数不加锁
  * 正是为了避免在这里发生重入死锁。见 services/au_lock.ts。
  */
-export async function resolve_dirty_chapter(params: ResolveDirtyParams): Promise<ResolveDirtyResult> {
+export async function resolveDirtyChapter(params: ResolveDirtyParams): Promise<ResolveDirtyResult> {
   return withAuLock(params.au_id, () => doResolve(params));
 }
 
@@ -108,18 +108,18 @@ async function doResolve(params: ResolveDirtyParams): Promise<ResolveDirtyResult
       character_aliases,
     );
     content = await chapter_repo.get_content_only(au_id, chapter_num);
-    state.last_scene_ending = extract_last_scene_ending(content);
+    state.last_scene_ending = extractLastSceneEnding(content);
   } else {
     content = await chapter_repo.get_content_only(au_id, chapter_num);
   }
 
   // === 步骤 3：重算 content_hash ===
-  const newHash = await compute_content_hash(content);
+  const newHash = await computeContentHash(content);
   const chapter = await chapter_repo.get(au_id, chapter_num);
   if (!chapter) throw new Error(`Chapter not found: ${au_id} ch${chapter_num}`);
   chapter.content_hash = newHash;
   chapter.revision += 1;
-  chapter.confirmed_at = now_utc();
+  chapter.confirmed_at = nowUtc();
 
   // === 步骤 4：更新 state（内存） ===
   const dirtyIdx = state.chapters_dirty.indexOf(chapter_num);
@@ -131,12 +131,12 @@ async function doResolve(params: ResolveDirtyParams): Promise<ResolveDirtyResult
   // 逐条尽力应用并把失败清单随结果带回（见 ResolveDirtyResult.failed_fact_changes）。
   // 旧顺序（fact 先 → chapter/state 后）的问题：fact 各自独立 commit，
   // chapter/state commit 失败时无法回滚已提交的 fact，留下不一致的中间状态。
-  const timestamp = now_utc();
+  const timestamp = nowUtc();
   const tx = new WriteTransaction();
   tx.appendOp(
     au_id,
     createOpsEntry({
-      op_id: generate_op_id(),
+      op_id: generateOpId(),
       op_type: "resolve_dirty_chapter",
       target_id: chapter.chapter_id,
       chapter_num,
@@ -188,9 +188,9 @@ async function applyFactChanges(
 
     try {
       if (change.action === "update" && change.updated_fields) {
-        await edit_fact(au_id, change.fact_id, change.updated_fields, fact_repo, ops_repo, state_repo);
+        await editFact(au_id, change.fact_id, change.updated_fields, fact_repo, ops_repo, state_repo);
       } else if (change.action === "deprecate") {
-        await update_fact_status(au_id, change.fact_id, "deprecated", chapter_num, fact_repo, ops_repo, state_repo);
+        await updateFactStatus(au_id, change.fact_id, "deprecated", chapter_num, fact_repo, ops_repo, state_repo);
       }
     } catch (e) {
       logCatch("dirty_resolve", `apply fact change failed: ${change.action} ${change.fact_id}`, e);
@@ -221,7 +221,7 @@ async function recalcCharactersLatest(
 
   // 扫描第 N 章
   const content = await chapter_repo.get_content_only(au_id, chapter_num);
-  const scanned = scan_characters_in_chapter(content, cast_registry, character_aliases, chapter_num);
+  const scanned = scanCharactersInChapter(content, cast_registry, character_aliases, chapter_num);
 
   // 合并（取 max）
   for (const [name, chNum] of Object.entries(scanned)) {
@@ -283,7 +283,7 @@ async function scanRecentChapters(
 
   const result: Record<string, number> = {};
   for (const ch of targetChapters) {
-    const scanned = scan_characters_in_chapter(ch.content, cast_registry, character_aliases, ch.chapter_num);
+    const scanned = scanCharactersInChapter(ch.content, cast_registry, character_aliases, ch.chapter_num);
     for (const [name, chNum] of Object.entries(scanned)) {
       if (chNum > (result[name] ?? 0)) {
         result[name] = chNum;

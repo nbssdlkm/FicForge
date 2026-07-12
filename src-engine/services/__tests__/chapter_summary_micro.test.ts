@@ -7,23 +7,23 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { generate_micro_summary } from "../chapter_summary.js";
+import { generateMicroSummary } from "../chapter_summary.js";
 
 function fakeProvider(reply: string) {
   return { generate: vi.fn(async () => ({ content: reply })) } as any;
 }
 
-describe("generate_micro_summary", () => {
+describe("generateMicroSummary", () => {
   it("returns trimmed LLM text", async () => {
     const p = fakeProvider("  主角与师父决裂，故事转折。  ");
-    const out = await generate_micro_summary("第七章正文……", 7, p);
+    const out = await generateMicroSummary("第七章正文……", 7, p);
     expect(out).toBe("主角与师父决裂，故事转折。");
     expect(p.generate).toHaveBeenCalledOnce();
   });
 
   it("returns null on empty chapter without calling LLM", async () => {
     const p = fakeProvider("x");
-    expect(await generate_micro_summary("   ", 7, p)).toBeNull();
+    expect(await generateMicroSummary("   ", 7, p)).toBeNull();
     expect(p.generate).not.toHaveBeenCalled();
   });
 
@@ -33,12 +33,12 @@ describe("generate_micro_summary", () => {
         throw new Error("network");
       }),
     } as any;
-    expect(await generate_micro_summary("正文", 7, p)).toBeNull();
+    expect(await generateMicroSummary("正文", 7, p)).toBeNull();
   });
 
   it("interpolates chapter_num and chapter_text into the user message", async () => {
     const p = fakeProvider("ok");
-    await generate_micro_summary("CHAPTER_BODY", 42, p);
+    await generateMicroSummary("CHAPTER_BODY", 42, p);
     const arg = p.generate.mock.calls[0][0];
     const userMsg = arg.messages.find((m: any) => m.role === "user").content;
     expect(userMsg).toContain("42");
@@ -48,12 +48,12 @@ describe("generate_micro_summary", () => {
 
   it("returns null when LLM returns empty string", async () => {
     const p = fakeProvider("   ");
-    expect(await generate_micro_summary("正文", 7, p)).toBeNull();
+    expect(await generateMicroSummary("正文", 7, p)).toBeNull();
   });
 
   it("uses 'en' language prompts when specified", async () => {
     const p = fakeProvider("micro summary text");
-    const out = await generate_micro_summary("chapter body", 3, p, { language: "en" });
+    const out = await generateMicroSummary("chapter body", 3, p, { language: "en" });
     expect(out).toBe("micro summary text");
     const arg = p.generate.mock.calls[0][0];
     const sysMsg = arg.messages.find((m: any) => m.role === "system").content;
@@ -63,7 +63,7 @@ describe("generate_micro_summary", () => {
 
   it("uses lower max_tokens than standard (micro is shorter)", async () => {
     const p = fakeProvider("ok");
-    await generate_micro_summary("text", 1, p);
+    await generateMicroSummary("text", 1, p);
     const arg = p.generate.mock.calls[0][0];
     expect(arg.max_tokens).toBeLessThanOrEqual(200);
   });

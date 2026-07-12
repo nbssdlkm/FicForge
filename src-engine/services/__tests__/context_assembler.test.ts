@@ -3,13 +3,13 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  build_system_prompt,
-  build_instruction,
-  build_facts_layer,
-  build_core_settings_layer,
-  build_fact_enrichment_suffix,
-  build_fact_knowledge_clause,
-  assemble_context,
+  buildSystemPrompt,
+  buildInstruction,
+  buildFactsLayer,
+  buildCoreSettingsLayer,
+  buildFactEnrichmentSuffix,
+  buildFactKnowledgeClause,
+  assembleContext,
 } from "../context_assembler.js";
 import { createProject } from "../../domain/project.js";
 import { createState } from "../../domain/state.js";
@@ -21,13 +21,13 @@ import { FileChapterRepository } from "../../repositories/implementations/file_c
 describe("build_system_prompt", () => {
   it("includes SYSTEM_NOVELIST", () => {
     const project = createProject({ project_id: "p1", au_id: "au1" });
-    const result = build_system_prompt(project, false, "zh");
+    const result = buildSystemPrompt(project, false, "zh");
     expect(result).toContain("你是一位专业的小说作者");
   });
 
   it("includes pinned_context", () => {
     const project = createProject({ project_id: "p1", au_id: "au1", pinned_context: ["永远不要让Alice哭泣"] });
-    const result = build_system_prompt(project, false, "zh");
+    const result = buildSystemPrompt(project, false, "zh");
     expect(result).toContain("永远不要让Alice哭泣");
   });
 
@@ -42,8 +42,8 @@ describe("build_system_prompt", () => {
         custom_instructions: "写得更诗意",
       },
     });
-    const withCustom = build_system_prompt(project, false, "zh");
-    const withoutCustom = build_system_prompt(project, true, "zh");
+    const withCustom = buildSystemPrompt(project, false, "zh");
+    const withoutCustom = buildSystemPrompt(project, true, "zh");
     expect(withCustom).toContain("写得更诗意");
     expect(withoutCustom).not.toContain("写得更诗意");
   });
@@ -59,23 +59,23 @@ describe("build_system_prompt", () => {
         custom_instructions: "",
       },
     });
-    const result = build_system_prompt(project, false, "zh");
+    const result = buildSystemPrompt(project, false, "zh");
     expect(result).toContain("Alice");
     expect(result).toContain("第一人称");
   });
 
   it("chapter_length_max is 1.3x", () => {
     const project = createProject({ project_id: "p1", au_id: "au1", chapter_length: 2000 });
-    const result = build_system_prompt(project, false, "zh");
+    const result = buildSystemPrompt(project, false, "zh");
     expect(result).toContain("2000");
     expect(result).toContain("2600"); // 2000 * 1.3
   });
 });
 
-describe("build_instruction", () => {
+describe("buildInstruction", () => {
   it("includes current chapter", () => {
     const state = createState({ au_id: "au1", current_chapter: 5 });
-    const result = build_instruction(state, "继续写", [], "zh");
+    const result = buildInstruction(state, "继续写", [], "zh");
     expect(result).toContain("第5章");
   });
 
@@ -89,7 +89,7 @@ describe("build_instruction", () => {
         status: FactStatus.UNRESOLVED,
       }),
     ];
-    const result = build_instruction(state, "写", facts, "zh");
+    const result = buildInstruction(state, "写", facts, "zh");
     expect(result).toContain("A and B are getting closer");
     expect(result).toContain("核心推进目标");
   });
@@ -97,14 +97,14 @@ describe("build_instruction", () => {
   it("includes pacing instruction when unresolved facts but no focus", () => {
     const state = createState({ au_id: "au1" });
     const facts = [createFact({ id: "f1", content_raw: "r", content_clean: "c", status: FactStatus.UNRESOLVED })];
-    const result = build_instruction(state, "写", facts, "zh");
+    const result = buildInstruction(state, "写", facts, "zh");
     expect(result).toContain("叙事节奏");
   });
 });
 
-describe("build_facts_layer", () => {
+describe("buildFactsLayer", () => {
   it("returns empty for no eligible facts", () => {
-    const [text, degraded] = build_facts_layer([], [], 1000, null, "zh");
+    const [text, degraded] = buildFactsLayer([], [], 1000, null, "zh");
     expect(text).toBe("");
     expect(degraded).toBe(false);
   });
@@ -120,7 +120,7 @@ describe("build_facts_layer", () => {
         chapter: 2,
       }),
     ];
-    const [text] = build_facts_layer(facts, [], 10000, null, "zh");
+    const [text] = buildFactsLayer(facts, [], 10000, null, "zh");
     expect(text).toContain("[active] active fact");
     expect(text).toContain("[unresolved] unresolved fact");
   });
@@ -136,7 +136,7 @@ describe("build_facts_layer", () => {
         chapter: i,
       }),
     );
-    const [text, degraded] = build_facts_layer(facts, [], 100, null, "zh");
+    const [text, degraded] = buildFactsLayer(facts, [], 100, null, "zh");
     expect(degraded).toBe(true);
     expect(text).toContain("未解决伏笔暂未展示");
   });
@@ -160,16 +160,16 @@ describe("build_facts_layer", () => {
         chapter: 2,
       }),
     ];
-    const [text] = build_facts_layer(facts, [], 10000, null, "zh");
+    const [text] = buildFactsLayer(facts, [], 10000, null, "zh");
     // high weight should appear, and facts sorted by chapter in final output
     expect(text).toContain("high ch2");
   });
 });
 
-describe("build_fact_enrichment_suffix", () => {
+describe("buildFactEnrichmentSuffix", () => {
   it("returns empty string when no _confidence and no enrichment fields", () => {
     const fact = createFact({ id: "f1", content_raw: "r", content_clean: "c" });
-    expect(build_fact_enrichment_suffix(fact)).toBe("");
+    expect(buildFactEnrichmentSuffix(fact)).toBe("");
   });
 
   it("no _confidence but has enrichment fields (manual/import ground truth) → injects (MED-3)", () => {
@@ -180,11 +180,11 @@ describe("build_fact_enrichment_suffix", () => {
       location: "御书房",
       known_to: "reader_only",
     });
-    const suffix = build_fact_enrichment_suffix(fact);
+    const suffix = buildFactEnrichmentSuffix(fact);
     expect(suffix).toContain("location: 御书房");
-    // known_to 自 M3 批一迁出 suffix → 由 build_fact_knowledge_clause 渲染
+    // known_to 自 M3 批一迁出 suffix → 由 buildFactKnowledgeClause 渲染
     expect(suffix).not.toContain("known_to:");
-    expect(build_fact_knowledge_clause(fact, "zh")).toBe("（仅读者知）");
+    expect(buildFactKnowledgeClause(fact, "zh")).toBe("（仅读者知）");
   });
 
   it("空/纯空白字符串富化字段不注入空行（对抗审发现 2）", () => {
@@ -196,7 +196,7 @@ describe("build_fact_enrichment_suffix", () => {
       action_verb: "   ",
       known_to: "", // 空串 / 纯空白
     });
-    const suffix = build_fact_enrichment_suffix(fact);
+    const suffix = buildFactEnrichmentSuffix(fact);
     expect(suffix).toBe(""); // 无 _confidence 也不注入空值行
     expect(suffix).not.toContain("location:");
     expect(suffix).not.toContain("action_verb:");
@@ -211,7 +211,7 @@ describe("build_fact_enrichment_suffix", () => {
       _confidence: { known_to: "high" },
     });
     // Empty array must NOT inject "known_to: " (no information value)
-    const suffix = build_fact_enrichment_suffix(fact);
+    const suffix = buildFactEnrichmentSuffix(fact);
     expect(suffix).not.toContain("known_to:");
   });
 
@@ -223,9 +223,9 @@ describe("build_fact_enrichment_suffix", () => {
       known_to: ["Alice", "Bob"],
       _confidence: { known_to: "high" },
     });
-    expect(build_fact_enrichment_suffix(fact)).toBe("");
-    expect(build_fact_knowledge_clause(fact, "zh")).toBe("（仅Alice、Bob知道）");
-    expect(build_fact_knowledge_clause(fact, "en")).toBe(" [known only to: Alice, Bob]");
+    expect(buildFactEnrichmentSuffix(fact)).toBe("");
+    expect(buildFactKnowledgeClause(fact, "zh")).toBe("（仅Alice、Bob知道）");
+    expect(buildFactKnowledgeClause(fact, "en")).toBe(" [known only to: Alice, Bob]");
   });
 
   it("known_to 'all' → 常态默认无信息量，suffix 与 clause 均不渲染（M3 批一有意变更）", () => {
@@ -236,8 +236,8 @@ describe("build_fact_enrichment_suffix", () => {
       known_to: "all",
       _confidence: { known_to: "high" },
     });
-    expect(build_fact_enrichment_suffix(fact)).toBe("");
-    expect(build_fact_knowledge_clause(fact, "zh")).toBe("");
+    expect(buildFactEnrichmentSuffix(fact)).toBe("");
+    expect(buildFactKnowledgeClause(fact, "zh")).toBe("");
   });
 
   it("does not inject time_kind when it is 'normal'", () => {
@@ -248,7 +248,7 @@ describe("build_fact_enrichment_suffix", () => {
       time_kind: TimeKind.NORMAL,
       _confidence: { time_kind: "high" },
     });
-    const suffix = build_fact_enrichment_suffix(fact);
+    const suffix = buildFactEnrichmentSuffix(fact);
     expect(suffix).not.toContain("time_kind");
   });
 
@@ -260,12 +260,12 @@ describe("build_fact_enrichment_suffix", () => {
       suspense_type: SuspenseType.SECRET,
       _confidence: { suspense_type: "medium" },
     });
-    const suffix = build_fact_enrichment_suffix(fact);
+    const suffix = buildFactEnrichmentSuffix(fact);
     expect(suffix).toContain("suspense_type: secret");
   });
 });
 
-describe("build_fact_knowledge_clause（M3 批一：知情边界标注）", () => {
+describe("buildFactKnowledgeClause（M3 批一：知情边界标注）", () => {
   it('hidden_from 非空 → zh「（瞒着X）」/ en " [hidden from: X]"', () => {
     const fact = createFact({
       id: "f1",
@@ -274,8 +274,8 @@ describe("build_fact_knowledge_clause（M3 批一：知情边界标注）", () =
       hidden_from: ["王爷"],
       _confidence: { hidden_from: "medium" }, // ReAct 合成 medium → 放行
     });
-    expect(build_fact_knowledge_clause(fact, "zh")).toBe("（瞒着王爷）");
-    expect(build_fact_knowledge_clause(fact, "en")).toBe(" [hidden from: 王爷]");
+    expect(buildFactKnowledgeClause(fact, "zh")).toBe("（瞒着王爷）");
+    expect(buildFactKnowledgeClause(fact, "en")).toBe(" [hidden from: 王爷]");
   });
 
   it("known_to 数组 + hidden_from 同时存在 → 两段合并、known_to 在前", () => {
@@ -286,7 +286,7 @@ describe("build_fact_knowledge_clause（M3 批一：知情边界标注）", () =
       known_to: ["王妃", "稳婆"],
       hidden_from: ["王爷"],
     });
-    expect(build_fact_knowledge_clause(fact, "zh")).toBe("（仅王妃、稳婆知道；瞒着王爷）");
+    expect(buildFactKnowledgeClause(fact, "zh")).toBe("（仅王妃、稳婆知道；瞒着王爷）");
   });
 
   it("低置信 hidden_from 不指挥写作（_confidence.hidden_from=low → 不渲染）", () => {
@@ -297,7 +297,7 @@ describe("build_fact_knowledge_clause（M3 批一：知情边界标注）", () =
       hidden_from: ["王爷"],
       _confidence: { hidden_from: "low" },
     });
-    expect(build_fact_knowledge_clause(fact, "zh")).toBe("");
+    expect(buildFactKnowledgeClause(fact, "zh")).toBe("");
   });
 
   it("_confidence 存在但缺 hidden_from 条目 → 抑制（与 suffix 门控同语义）", () => {
@@ -308,7 +308,7 @@ describe("build_fact_knowledge_clause（M3 批一：知情边界标注）", () =
       hidden_from: ["王爷"],
       _confidence: { location: "high" }, // 有对象但无 hidden_from 键
     });
-    expect(build_fact_knowledge_clause(fact, "zh")).toBe("");
+    expect(buildFactKnowledgeClause(fact, "zh")).toBe("");
   });
 
   it("无 _confidence（手动/导入 ground truth）→ 无条件渲染", () => {
@@ -318,22 +318,22 @@ describe("build_fact_knowledge_clause（M3 批一：知情边界标注）", () =
       content_clean: "c",
       hidden_from: ["王爷"],
     });
-    expect(build_fact_knowledge_clause(fact, "zh")).toBe("（瞒着王爷）");
+    expect(buildFactKnowledgeClause(fact, "zh")).toBe("（瞒着王爷）");
   });
 
   it("null / 空数组 / 'all' / 空白元素 → 全部不渲染", () => {
-    expect(build_fact_knowledge_clause(createFact({ id: "f", content_raw: "r", content_clean: "c" }), "zh")).toBe("");
+    expect(buildFactKnowledgeClause(createFact({ id: "f", content_raw: "r", content_clean: "c" }), "zh")).toBe("");
     expect(
-      build_fact_knowledge_clause(
+      buildFactKnowledgeClause(
         createFact({ id: "f", content_raw: "r", content_clean: "c", known_to: [], hidden_from: [] }),
         "zh",
       ),
     ).toBe("");
     expect(
-      build_fact_knowledge_clause(createFact({ id: "f", content_raw: "r", content_clean: "c", known_to: "all" }), "zh"),
+      buildFactKnowledgeClause(createFact({ id: "f", content_raw: "r", content_clean: "c", known_to: "all" }), "zh"),
     ).toBe("");
     expect(
-      build_fact_knowledge_clause(
+      buildFactKnowledgeClause(
         createFact({ id: "f", content_raw: "r", content_clean: "c", hidden_from: ["  "] }),
         "zh",
       ),
@@ -347,11 +347,11 @@ describe("build_fact_knowledge_clause（M3 批一：知情边界标注）", () =
       content_clean: "c",
       known_to: "皇帝" as unknown as "all", // 消毒 helper 上线前的存量磁盘形态
     });
-    expect(build_fact_knowledge_clause(fact, "zh")).toBe("（仅皇帝知道）");
+    expect(buildFactKnowledgeClause(fact, "zh")).toBe("（仅皇帝知道）");
   });
 });
 
-describe("build_facts_layer 知情图例（INFO_ASYMMETRY_RULES 条件注入）", () => {
+describe("buildFactsLayer 知情图例（INFO_ASYMMETRY_RULES 条件注入）", () => {
   it("有知情标注 → 图例出现且紧跟节头（首行）", () => {
     const fact = createFact({
       id: "f1",
@@ -361,7 +361,7 @@ describe("build_facts_layer 知情图例（INFO_ASYMMETRY_RULES 条件注入）"
       chapter: 1,
       hidden_from: ["王爷"],
     });
-    const [text] = build_facts_layer([fact], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([fact], [], 10000, null, "zh");
     const lines = text.split("\n");
     expect(lines[0]).toBe("## 当前剧情状态");
     expect(lines[1]).toContain("知情范围说明");
@@ -377,7 +377,7 @@ describe("build_facts_layer 知情图例（INFO_ASYMMETRY_RULES 条件注入）"
       chapter: 1,
       location: "御书房", // 有 enrichment 但无知情标注
     });
-    const [text] = build_facts_layer([fact], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([fact], [], 10000, null, "zh");
     expect(text).not.toContain("知情范围说明");
   });
 
@@ -390,13 +390,13 @@ describe("build_facts_layer 知情图例（INFO_ASYMMETRY_RULES 条件注入）"
       chapter: 1,
       known_to: "reader_only" as "reader_only",
     });
-    const [text] = build_facts_layer([fact], [], 10000, null, "en");
+    const [text] = buildFactsLayer([fact], [], 10000, null, "en");
     expect(text).toContain("Knowledge-scope note");
     expect(text).toContain(" [reader-only]");
   });
 });
 
-describe("build_instruction 焦点/特别注意行带知情标注（M3 批一 P1 覆盖）", () => {
+describe("buildInstruction 焦点/特别注意行带知情标注（M3 批一 P1 覆盖）", () => {
   it("chapter_focus 事实的推进目标行带 clause", () => {
     const focus = createFact({
       id: "f_focus",
@@ -407,7 +407,7 @@ describe("build_instruction 焦点/特别注意行带知情标注（M3 批一 P1
       hidden_from: ["林晚月"],
     });
     const state = createState({ current_chapter: 3, chapter_focus: ["f_focus"] });
-    const text = build_instruction(state, "继续写", [focus], "zh");
+    const text = buildInstruction(state, "继续写", [focus], "zh");
     expect(text).toContain("- 身世之谜待揭（瞒着林晚月）");
   });
 
@@ -429,12 +429,12 @@ describe("build_instruction 焦点/特别注意行带知情标注（M3 批一 P1
       known_to: "reader_only" as "reader_only",
     });
     const state = createState({ current_chapter: 3, chapter_focus: ["f_focus"] });
-    const text = build_instruction(state, "继续写", [focus, caution], "zh");
+    const text = buildInstruction(state, "继续写", [focus, caution], "zh");
     expect(text).toContain("- 皇帝的暗线（仅读者知）");
   });
 });
 
-describe("build_facts_layer enrichment budget (M8-A MAJOR fix)", () => {
+describe("buildFactsLayer enrichment budget (M8-A MAJOR fix)", () => {
   it("enriched fact that fits budget+suffix is kept", () => {
     // Budget large enough for content + suffix
     const fact = createFact({
@@ -445,7 +445,7 @@ describe("build_facts_layer enrichment budget (M8-A MAJOR fix)", () => {
       known_to: ["Alice"],
       _confidence: { known_to: "high" },
     });
-    const [text] = build_facts_layer([fact], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([fact], [], 10000, null, "zh");
     expect(text).toContain("short fact");
     expect(text).toContain("（仅Alice知道）");
   });
@@ -466,12 +466,12 @@ describe("build_facts_layer enrichment budget (M8-A MAJOR fix)", () => {
       }),
     );
     // Budget = 1 → nothing should fit (content alone already > 1 token)
-    const [_text, degraded] = build_facts_layer(facts, [], 1, null, "zh");
+    const [_text, degraded] = buildFactsLayer(facts, [], 1, null, "zh");
     expect(degraded).toBe(true);
   });
 });
 
-describe("build_core_settings_layer", () => {
+describe("buildCoreSettingsLayer", () => {
   it("injects core_always_include first (guarantee budget)", () => {
     const project = createProject({
       project_id: "p1",
@@ -483,26 +483,26 @@ describe("build_core_settings_layer", () => {
       Alice: "# Alice\nShe is the protagonist.",
       Bob: "# Bob\nHe is a friend.",
     };
-    const [, injected] = build_core_settings_layer(project, charFiles, 50, null, "zh");
+    const [, injected] = buildCoreSettingsLayer(project, charFiles, 50, null, "zh");
     // With only 50 tokens budget but 400 guarantee, Alice should still be injected
     expect(injected).toContain("Alice");
   });
 
   it("returns empty when no files", () => {
     const project = createProject({ project_id: "p1", au_id: "au1" });
-    const [text] = build_core_settings_layer(project, null, 1000, null, "zh");
+    const [text] = buildCoreSettingsLayer(project, null, 1000, null, "zh");
     expect(text).toBe("");
   });
 });
 
-describe("assemble_context", () => {
+describe("assembleContext", () => {
   it("empty AU first chapter", async () => {
     const adapter = new MockAdapter();
     const chapterRepo = new FileChapterRepository(adapter);
     const project = createProject({ project_id: "p1", au_id: "au1" });
     const state = createState({ au_id: "au1", current_chapter: 1 });
 
-    const result = await assemble_context(project, state, "开始写第一章", [], chapterRepo, "au1");
+    const result = await assembleContext(project, state, "开始写第一章", [], chapterRepo, "au1");
 
     expect(result.messages).toHaveLength(2);
     expect(result.messages[0].role).toBe("system");
@@ -531,7 +531,7 @@ describe("assemble_context", () => {
     });
     const state = createState({ au_id: "au1" });
 
-    await expect(assemble_context(project, state, "写", [], chapterRepo, "au1")).rejects.toThrow(
+    await expect(assembleContext(project, state, "写", [], chapterRepo, "au1")).rejects.toThrow(
       "system_prompt_exceeds_budget",
     );
   });
@@ -543,7 +543,7 @@ describe("assemble_context", () => {
     const state = createState({ au_id: "au1", current_chapter: 1 });
     const facts = [createFact({ id: "f1", content_raw: "r", content_clean: "active fact", status: FactStatus.ACTIVE })];
 
-    const result = await assemble_context(project, state, "继续", facts, chapterRepo, "au1");
+    const result = await assembleContext(project, state, "继续", facts, chapterRepo, "au1");
 
     expect(result.budget_report.system_tokens).toBeGreaterThan(0);
     expect(result.budget_report.p1_tokens).toBeGreaterThan(0);
@@ -551,7 +551,7 @@ describe("assemble_context", () => {
   });
 });
 
-describe("build_facts_layer 同章内剧情时间排序（M3 批二）", () => {
+describe("buildFactsLayer 同章内剧情时间排序（M3 批二）", () => {
   it("同章内：闪回（序号小）排在当下（序号大）之前", () => {
     const now = createFact({
       id: "f_now",
@@ -569,7 +569,7 @@ describe("build_facts_layer 同章内剧情时间排序（M3 批二）", () => {
       chapter: 9,
       story_time_order: 1,
     });
-    const [text] = build_facts_layer([now, flashback], [], 10000, null, "zh"); // 插入序：now 在前
+    const [text] = buildFactsLayer([now, flashback], [], 10000, null, "zh"); // 插入序：now 在前
     expect(text.indexOf("父亲当年蒙冤下狱")).toBeLessThan(text.indexOf("沈砚面圣翻案"));
   });
 
@@ -598,7 +598,7 @@ describe("build_facts_layer 同章内剧情时间排序（M3 批二）", () => {
       story_time_order: 1,
       _confidence: { story_time_order: "low" },
     });
-    const [text] = build_facts_layer([noOrder, lowConf, ordered], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([noOrder, lowConf, ordered], [], 10000, null, "zh");
     const idx = (s: string) => text.indexOf(s);
     expect(idx("有序号的事实")).toBeLessThan(idx("无序号的事实"));
     expect(idx("有序号的事实")).toBeLessThan(idx("低置信序号的事实"));
@@ -623,7 +623,7 @@ describe("build_facts_layer 同章内剧情时间排序（M3 批二）", () => {
       chapter: 5,
       story_time_order: 1,
     });
-    const [text] = build_facts_layer([late, early], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([late, early], [], 10000, null, "zh");
     expect(text.indexOf("第二章的事")).toBeLessThan(text.indexOf("第五章的事"));
   });
 
@@ -642,13 +642,13 @@ describe("build_facts_layer 同章内剧情时间排序（M3 批二）", () => {
       status: FactStatus.ACTIVE,
       chapter: 3,
     });
-    const [text] = build_facts_layer([ac, ur], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([ac, ur], [], 10000, null, "zh");
     // unresolvedKept 在 activeKept 前拼接，同章无序号时稳定序保持
     expect(text.indexOf("未决伏笔")).toBeLessThan(text.indexOf("普通事实"));
   });
 });
 
-describe("build_facts_layer 同章排序 — 对抗审 R2 整改", () => {
+describe("buildFactsLayer 同章排序 — 对抗审 R2 整改", () => {
   it("HIGH：NaN/±Infinity 序号折『无序号』，不破坏 comparator 全序（isFinite 门）", () => {
     const nan = createFact({
       id: "f_nan",
@@ -674,7 +674,7 @@ describe("build_facts_layer 同章排序 — 对抗审 R2 整改", () => {
       chapter: 4,
       story_time_order: 2,
     });
-    const [text] = build_facts_layer([nan, inf, ok], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([nan, inf, ok], [], 10000, null, "zh");
     const idx = (s: string) => text.indexOf(s);
     expect(idx("正常序号")).toBeLessThan(idx("NaN序号")); // 有效序号在前
     expect(idx("NaN序号")).toBeLessThan(idx("无穷序号")); // 折无序号后保持插入稳定序
@@ -696,7 +696,7 @@ describe("build_facts_layer 同章排序 — 对抗审 R2 整改", () => {
       chapter: 6,
       story_time_order: 1,
     });
-    const [text] = build_facts_layer([urNoOrder, acOrdered], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([urNoOrder, acOrdered], [], 10000, null, "zh");
     // 有意行为：时间线连贯压过状态分组（预算挑选的 unresolved 优先不受影响，这里只是呈现顺序）
     expect(text.indexOf("有序号普通事实")).toBeLessThan(text.indexOf("无序号未决伏笔"));
   });
@@ -726,7 +726,7 @@ describe("build_facts_layer 同章排序 — 对抗审 R2 整改", () => {
       chapter: 7,
       story_time_order: 1.5,
     });
-    const [text] = build_facts_layer([frac, zero, neg], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([frac, zero, neg], [], 10000, null, "zh");
     const idx = (s: string) => text.indexOf(s);
     expect(idx("序号负一")).toBeLessThan(idx("序号零"));
     expect(idx("序号零")).toBeLessThan(idx("序号一点五"));
@@ -768,7 +768,7 @@ describe("build_facts_layer 同章排序 — 对抗审 R2 整改", () => {
       story_time_order: 1,
       _confidence: { story_time_order: "high" },
     });
-    const [text] = build_facts_layer([a, b, c, first], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([a, b, c, first], [], 10000, null, "zh");
     const idx = (s: string) => text.indexOf(s);
     expect(idx("序一")).toBeLessThan(idx("同序甲")); // medium/high/无置信 全部放行参与
     expect(idx("同序甲")).toBeLessThan(idx("同序乙")); // 等值稳定序

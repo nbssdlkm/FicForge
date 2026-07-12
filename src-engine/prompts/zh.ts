@@ -7,7 +7,7 @@ import type { PromptModule } from "./keys.js";
 
 const zh: PromptModule = {
   // ===========================================================================
-  // context_assembler: build_system_prompt
+  // context_assembler: buildSystemPrompt
   // ===========================================================================
 
   SYSTEM_NOVELIST: "你是一位专业的小说作者。",
@@ -51,7 +51,7 @@ const zh: PromptModule = {
   CUSTOM_INSTRUCTIONS_HEADER: "# 用户自定义文风\n{custom}",
 
   // ===========================================================================
-  // context_assembler: build_instruction
+  // context_assembler: buildInstruction
   // ===========================================================================
 
   CURRENT_STATUS: "## 当前状态\n现在是第{current_ch}章。",
@@ -86,7 +86,7 @@ const zh: PromptModule = {
   CONTINUE_WRITING: "## 请续写\n{user_input}",
 
   // ===========================================================================
-  // context_assembler: build_facts_layer
+  // context_assembler: buildFactsLayer
   // ===========================================================================
 
   SECTION_PLOT_STATE: "## 当前剧情状态",
@@ -100,7 +100,7 @@ const zh: PromptModule = {
   UNRESOLVED_DROPPED_HINT: "（另有 {count} 条未解决伏笔暂未展示，详见事实表）",
 
   // ===========================================================================
-  // context_assembler: build_recent_chapter_layer
+  // context_assembler: buildRecentChapterLayer
   // ===========================================================================
 
   SECTION_LAST_ENDING: "## 上一章结尾\n{content}",
@@ -108,7 +108,7 @@ const zh: PromptModule = {
   SECTION_LAST_ENDING_TRUNCATED: "## 上一章结尾\n（前文略）…{end_text}",
 
   // ===========================================================================
-  // context_assembler: build_core_settings_layer
+  // context_assembler: buildCoreSettingsLayer
   // ===========================================================================
 
   SECTION_CHARACTERS: "## 人物设定",

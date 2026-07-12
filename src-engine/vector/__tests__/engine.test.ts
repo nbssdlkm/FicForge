@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { cosine_similarity, JsonVectorEngine } from "../engine.js";
+import { cosineSimilarity, JsonVectorEngine } from "../engine.js";
 import type { VectorChunk } from "../../repositories/interfaces/vector.js";
 
 // Re-use mock adapter
@@ -61,27 +61,27 @@ class MockAdapter {
   }
 }
 
-describe("cosine_similarity", () => {
+describe("cosineSimilarity", () => {
   it("identical vectors → 1.0", () => {
-    expect(cosine_similarity([1, 0, 0], [1, 0, 0])).toBeCloseTo(1.0);
+    expect(cosineSimilarity([1, 0, 0], [1, 0, 0])).toBeCloseTo(1.0);
   });
 
   it("orthogonal vectors → 0.0", () => {
-    expect(cosine_similarity([1, 0], [0, 1])).toBeCloseTo(0.0);
+    expect(cosineSimilarity([1, 0], [0, 1])).toBeCloseTo(0.0);
   });
 
   it("opposite vectors → -1.0", () => {
-    expect(cosine_similarity([1, 0], [-1, 0])).toBeCloseTo(-1.0);
+    expect(cosineSimilarity([1, 0], [-1, 0])).toBeCloseTo(-1.0);
   });
 
   it("known similarity value", () => {
     // cos([1,2,3], [4,5,6]) = 32 / (sqrt(14) * sqrt(77)) ≈ 0.9746
-    const sim = cosine_similarity([1, 2, 3], [4, 5, 6]);
+    const sim = cosineSimilarity([1, 2, 3], [4, 5, 6]);
     expect(sim).toBeCloseTo(0.9746, 3);
   });
 
   it("zero vector → 0", () => {
-    expect(cosine_similarity([0, 0, 0], [1, 2, 3])).toBe(0);
+    expect(cosineSimilarity([0, 0, 0], [1, 2, 3])).toBe(0);
   });
 });
 

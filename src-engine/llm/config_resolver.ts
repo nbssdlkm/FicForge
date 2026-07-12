@@ -10,7 +10,7 @@ import { createModelParams } from "../domain/settings.js";
 import { warnAlways } from "../logger/index.js";
 
 // ---------------------------------------------------------------------------
-// resolve_llm_config（三层模型配置）
+// resolveLlmConfig（三层模型配置）
 // ---------------------------------------------------------------------------
 
 export interface ResolvedLLMConfig {
@@ -22,7 +22,7 @@ export interface ResolvedLLMConfig {
   ollama_model?: string;
   /**
    * 手动指定的 context window（审计 H4）。undefined = 未手动指定，消费方
-   * （get_context_window）按 model 名走 MODEL_CONTEXT_MAP 推断。
+   * （getContextWindow）按 model 名走 MODEL_CONTEXT_MAP 推断。
    *
    * 与 model **同层同源**：取「胜出的那一层配置」里的 context_window，不跨层混配 ——
    * 否则 A 层的手动窗口会误配到 B 层的模型上（与 api_key 回填的同源原则一致）。
@@ -120,7 +120,7 @@ function sessionMatchesLayer(layer: LLMConfigLike | undefined, sessionModel: str
 
 /**
  * 「同层同源」字段（context_window / chat_path）的统一解析骨架（审计 H4 + NIT 去双拷贝）。
- * 这类字段描述的是「某层配置里那个模型 / 端点」的属性，必须取 resolve_llm_config
+ * 这类字段描述的是「某层配置里那个模型 / 端点」的属性，必须取 resolveLlmConfig
  * 选出的胜出层，跨层混配会把 A 层的值误配到 B 层的模型/端点上。
  *
  * - project / settings 层胜出：直接取该层字段。
@@ -159,7 +159,7 @@ function resolveInheritedLayerField<T>(
  * 解析 LLM 配置（PRD §2.3.1 三层优先级）。
  * 优先级：session_llm > project.llm > settings.default_llm。
  */
-export function resolve_llm_config(
+export function resolveLlmConfig(
   session_llm: Record<string, string> | null,
   project: { llm?: LLMConfigLike },
   settings: { default_llm?: LLMConfigLike },
@@ -267,7 +267,7 @@ function llmObjToDict(llm: Record<string, unknown>): Record<string, string> {
 }
 
 // ---------------------------------------------------------------------------
-// resolve_llm_params（四层参数加载链）
+// resolveLlmParams（四层参数加载链）
 // ---------------------------------------------------------------------------
 
 export interface ResolvedLLMParams {
@@ -275,7 +275,7 @@ export interface ResolvedLLMParams {
   top_p: number;
 }
 
-export function resolve_llm_params(
+export function resolveLlmParams(
   model_name: string,
   session_params: Record<string, number> | null,
   project: { model_params_override?: Record<string, Record<string, unknown>> },
@@ -317,7 +317,7 @@ export function resolve_llm_params(
 }
 
 // ---------------------------------------------------------------------------
-// create_provider（工厂函数）
+// createProvider（工厂函数）
 // ---------------------------------------------------------------------------
 
 /**
@@ -358,7 +358,7 @@ export function isPlaintextRemoteHttp(apiBase: string): boolean {
   }
 }
 
-// 每主机只告警一次（create_provider 每次生成都会被调用，避免刷日志）
+// 每主机只告警一次（createProvider 每次生成都会被调用，避免刷日志）
 const _warnedPlaintextHosts = new Set<string>();
 
 export function warnIfPlaintextRemote(apiBase: string): void {
@@ -374,7 +374,7 @@ export function warnIfPlaintextRemote(apiBase: string): void {
   warnAlways("llm", "api_base 为明文 HTTP 非本机端点，API 密钥将不加密传输（仅建议可信局域网使用）", { host });
 }
 
-export function create_provider(llmConfig: ResolvedLLMConfig): LLMProvider {
+export function createProvider(llmConfig: ResolvedLLMConfig): LLMProvider {
   const mode = llmConfig.mode;
 
   if (mode === "api") {

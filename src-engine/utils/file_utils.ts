@@ -15,12 +15,12 @@ import { warnAlways } from "../logger/index.js";
 export { joinPath, validateBasePath, validatePathSegment } from "./paths.js";
 
 /** 返回当前 UTC 时间的 ISO 8601 字符串。 */
-export function now_utc(): string {
+export function nowUtc(): string {
   return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
 /** 计算正文的 SHA-256 哈希（D-0011）。 */
-export async function compute_content_hash(content: string): Promise<string> {
+export async function computeContentHash(content: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(content);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
@@ -38,14 +38,14 @@ export function dumpYaml(obj: unknown): string {
 }
 
 /** 递归将对象中的 enum 值转为字符串。用于 YAML 序列化前。 */
-export function obj_to_plain(obj: unknown): unknown {
+export function objToPlain(obj: unknown): unknown {
   if (obj === null || obj === undefined) return obj;
   if (typeof obj === "string" || typeof obj === "number" || typeof obj === "boolean") return obj;
-  if (Array.isArray(obj)) return obj.map(obj_to_plain);
+  if (Array.isArray(obj)) return obj.map(objToPlain);
   if (typeof obj === "object") {
     const result: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
-      result[k] = obj_to_plain(v);
+      result[k] = objToPlain(v);
     }
     return result;
   }
@@ -83,7 +83,7 @@ export function withWriteLock<T>(key: string, fn: () => Promise<T>): Promise<T> 
 // JSONL helpers
 // ---------------------------------------------------------------------------
 
-/** 逐行解析 JSONL 文本。read_jsonl 主文件与 .tmp 恢复共用同一解析判据。 */
+/** 逐行解析 JSONL 文本。readJsonl 主文件与 .tmp 恢复共用同一解析判据。 */
 function parseJsonlText<T>(text: string, parse: (d: Record<string, unknown>) => T): [T[], string[]] {
   const items: T[] = [];
   const errors: string[] = [];
@@ -112,7 +112,7 @@ function parseJsonlText<T>(text: string, parse: (d: Record<string, unknown>) => 
  * 重建主文件。健康主文件零额外 I/O；行数不占优的 .tmp（如新版写完 .tmp 尚未
  * rename 就崩溃的「未提交写入」残留）不启用，避免复活未提交内容。
  */
-export async function read_jsonl<T>(
+export async function readJsonl<T>(
   adapter: PlatformAdapter,
   path: string,
   parse: (d: Record<string, unknown>) => T,
@@ -132,7 +132,7 @@ export async function read_jsonl<T>(
   return [items, errors];
 }
 
-/** read_jsonl 的 .tmp 恢复分支。恢复成功返回 [items, errors]，否则 null。 */
+/** readJsonl 的 .tmp 恢复分支。恢复成功返回 [items, errors]，否则 null。 */
 async function tryRecoverFromTmp<T>(
   adapter: PlatformAdapter,
   path: string,
@@ -175,7 +175,7 @@ async function tryRecoverFromTmp<T>(
  * .tmp，交错会让后一个 rename 因 .tmp 已被移走而抛错；用独立前缀（而非裸 path
  * key）避免与调用方已持有的 withWriteLock(path) 重入死锁（withWriteLock 不可重入）。
  * 失败语义：.tmp 写失败或 rename 失败时正式路径不被触碰（旧内容完好），错误原样上抛；
- * .tmp 固定命名是 read_jsonl 遗留恢复逻辑的依赖，不可改随机名。
+ * .tmp 固定命名是 readJsonl 遗留恢复逻辑的依赖，不可改随机名。
  */
 export function atomicWrite(adapter: PlatformAdapter, path: string, content: string): Promise<void> {
   return withWriteLock(`atomicWrite:${path}`, async () => {
@@ -186,7 +186,7 @@ export function atomicWrite(adapter: PlatformAdapter, path: string, content: str
 }
 
 /** 追加一行 JSON 到 JSONL 文件。 */
-export async function append_jsonl(
+export async function appendJsonl(
   adapter: PlatformAdapter,
   path: string,
   data: Record<string, unknown>,
@@ -208,7 +208,7 @@ export async function append_jsonl(
 }
 
 /** 全量重写 JSONL 文件。 */
-export async function rewrite_jsonl(
+export async function rewriteJsonl(
   adapter: PlatformAdapter,
   path: string,
   items: Record<string, unknown>[],
@@ -228,16 +228,16 @@ function randomIdSuffix(): string {
 }
 
 /** 生成全局唯一 Fact ID：f_{unix时间戳}_{4位随机}。 */
-export function generate_fact_id(): string {
+export function generateFactId(): string {
   return `f_${Math.floor(Date.now() / 1000)}_${randomIdSuffix()}`;
 }
 
 /** 生成全局唯一操作 ID：op_{unix时间戳}_{4位随机}。 */
-export function generate_op_id(): string {
+export function generateOpId(): string {
   return `op_${Math.floor(Date.now() / 1000)}_${randomIdSuffix()}`;
 }
 
 /** 生成全局唯一剧情线 ID：t_{unix时间戳}_{4位随机}（M8-B）。 */
-export function generate_thread_id(): string {
+export function generateThreadId(): string {
   return `t_${Math.floor(Date.now() / 1000)}_${randomIdSuffix()}`;
 }

@@ -3,7 +3,7 @@
 
 /**
  * Facts 生命周期管理。参见 PRD §3.6、§6.7、§4.3。
- * 四个 Service 方法：add_fact / edit_fact / update_fact_status / set_chapter_focus。
+ * 四个 Service 方法：addFact / editFact / updateFactStatus / setChapterFocus。
  *
  * ⚠️ 本层不持 AU 锁 —— 是"底层 service"。
  * 原因：dirty_resolve 等已持锁的 orchestrator 会内部调用这些函数，
@@ -21,21 +21,21 @@ import { createOpsEntry } from "../domain/ops_entry.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
-import { generate_fact_id, generate_op_id, now_utc } from "../utils/file_utils.js";
+import { generateFactId, generateOpId, nowUtc } from "../utils/file_utils.js";
 import { WriteTransaction } from "./write_transaction.js";
 import { hasLogger, getLogger } from "../logger/index.js";
 import {
-  normalize_characters,
-  sanitize_known_to,
-  sanitize_hidden_from,
-  sanitize_confidence,
-  reconcile_knowledge,
+  normalizeCharacters,
+  sanitizeKnownTo,
+  sanitizeHiddenFrom,
+  sanitizeConfidence,
+  reconcileKnowledge,
   CONFIDENCE_FIELD_KEYS,
 } from "../domain/fact_sanitize.js";
 
 // 归一化函数已下沉 domain/fact_sanitize（M3 批一：写路径与 ops 回放共用消毒判据）。
 // 这里保留 re-export，既有导入点（facts_extraction 等）零改动。
-export { normalize_characters };
+export { normalizeCharacters };
 
 export class FactsLifecycleError extends Error {
   constructor(message: string) {
@@ -45,7 +45,7 @@ export class FactsLifecycleError extends Error {
 }
 
 // ---------------------------------------------------------------------------
-// M8-A 枚举校验集合（add_fact 路径与 rawToExtracted 对齐）
+// M8-A 枚举校验集合（addFact 路径与 rawToExtracted 对齐）
 // ---------------------------------------------------------------------------
 
 const TIME_KIND_SET = new Set(Object.values(TimeKind) as string[]);
@@ -56,7 +56,7 @@ const SUSPENSE_SET = new Set(Object.values(SuspenseType) as string[]);
 // ---------------------------------------------------------------------------
 
 /** 纯内存操作：从 state 的 focus 列表中移除指定 fact_id。不落盘。 */
-function apply_dangling_focus_cleanup(
+function applyDanglingFocusCleanup(
   state: { chapter_focus: string[]; last_confirmed_chapter_focus: string[] },
   fact_id: string,
 ): { wasInFocus: boolean; changed: boolean } {
@@ -88,7 +88,7 @@ interface ResolvesEffect {
   fact: Fact;
 }
 
-async function collect_resolves_forward(
+async function collectResolvesForward(
   au_id: string,
   resolves_target_id: string,
   chapter_num: number,
@@ -100,11 +100,11 @@ async function collect_resolves_forward(
     target.status = FactStatus.RESOLVED;
     return {
       op: createOpsEntry({
-        op_id: generate_op_id(),
+        op_id: generateOpId(),
         op_type: "update_fact_status",
         target_id: resolves_target_id,
         chapter_num,
-        timestamp: now_utc(),
+        timestamp: nowUtc(),
         payload: {
           old_status: oldStatus,
           new_status: FactStatus.RESOLVED,
@@ -117,7 +117,7 @@ async function collect_resolves_forward(
   return null;
 }
 
-async function collect_resolves_reverse(
+async function collectResolvesReverse(
   au_id: string,
   old_resolves_target_id: string,
   chapter_num: number,
@@ -135,11 +135,11 @@ async function collect_resolves_reverse(
       target.status = FactStatus.UNRESOLVED;
       return {
         op: createOpsEntry({
-          op_id: generate_op_id(),
+          op_id: generateOpId(),
           op_type: "update_fact_status",
           target_id: old_resolves_target_id,
           chapter_num,
-          timestamp: now_utc(),
+          timestamp: nowUtc(),
           payload: {
             old_status: oldStatus,
             new_status: FactStatus.UNRESOLVED,
@@ -157,7 +157,7 @@ async function collect_resolves_reverse(
 // Service 方法
 // ===========================================================================
 
-export async function add_fact(
+export async function addFact(
   au_id: string,
   chapter_num: number,
   fact_data: Record<string, unknown>,
@@ -166,11 +166,11 @@ export async function add_fact(
   source = "manual",
   character_aliases: Record<string, string[]> | null = null,
 ): Promise<Fact> {
-  const ts = now_utc();
+  const ts = nowUtc();
 
   let characters = (fact_data.characters as string[]) ?? [];
   if (character_aliases) {
-    characters = normalize_characters(characters, character_aliases);
+    characters = normalizeCharacters(characters, character_aliases);
   }
 
   // M8-A: time_kind / suspense_type — validate enum, illegal → null (与 rawToExtracted 对齐)
@@ -179,17 +179,17 @@ export async function add_fact(
 
   // M8-A: known_to / hidden_from — 单一真相源消毒（domain/fact_sanitize，M3 批一）。
   // add 语境形状非法（数字/对象等）无旧值可保 → 按 null / [] 落库（与旧行为一致：42 → null）。
-  const knownToRes = sanitize_known_to(fact_data.known_to, character_aliases);
-  const hiddenFromRes = sanitize_hidden_from(fact_data.hidden_from, character_aliases);
+  const knownToRes = sanitizeKnownTo(fact_data.known_to, character_aliases);
+  const hiddenFromRes = sanitizeHiddenFrom(fact_data.hidden_from, character_aliases);
   // 跨字段矛盾在写入口化解（对抗审 MED-3：同名同现两名单 / all+hidden 并存）
-  const { known_to: knownTo, hidden_from: hiddenFrom } = reconcile_knowledge(
+  const { known_to: knownTo, hidden_from: hiddenFrom } = reconcileKnowledge(
     knownToRes.ok ? knownToRes.value : null,
     hiddenFromRes.ok ? hiddenFromRes.value : [],
   );
-  const confidenceRes = sanitize_confidence(fact_data._confidence);
+  const confidenceRes = sanitizeConfidence(fact_data._confidence);
 
   const fact = createFact({
-    id: generate_fact_id(),
+    id: generateFactId(),
     content_raw: (fact_data.content_raw as string) ?? "",
     content_clean: (fact_data.content_clean as string) ?? "",
     characters,
@@ -230,7 +230,7 @@ export async function add_fact(
   tx.appendOp(
     au_id,
     createOpsEntry({
-      op_id: generate_op_id(),
+      op_id: generateOpId(),
       op_type: "add_fact",
       target_id: fact.id,
       chapter_num,
@@ -278,7 +278,7 @@ export async function add_fact(
 
   // resolves 联动：读取 target fact，构造 op + fact 更新，塞进同一个 tx
   if (fact.resolves) {
-    const effect = await collect_resolves_forward(au_id, fact.resolves, chapter_num, fact_repo);
+    const effect = await collectResolvesForward(au_id, fact.resolves, chapter_num, fact_repo);
     if (effect) {
       tx.appendOp(au_id, effect.op);
       tx.updateFact(au_id, effect.fact);
@@ -290,7 +290,7 @@ export async function add_fact(
   return fact;
 }
 
-export async function edit_fact(
+export async function editFact(
   au_id: string,
   fact_id: string,
   updated_fields: Record<string, unknown>,
@@ -309,7 +309,7 @@ export async function edit_fact(
 
   // 别名归一化
   if ("characters" in updated_fields && character_aliases) {
-    updated_fields.characters = normalize_characters(updated_fields.characters as string[], character_aliases);
+    updated_fields.characters = normalizeCharacters(updated_fields.characters as string[], character_aliases);
   }
 
   // 应用字段更新。H-fix：枚举字段必须运行时校验 —— 旧代码 `(v)=>v as FactStatus` 是纯类型 cast，
@@ -335,9 +335,7 @@ export async function edit_fact(
     // 形状非法 → 拒绝 + warn + 保留现值（与枚举校验同语义）。
     if (key === "known_to" || key === "hidden_from") {
       const res =
-        key === "known_to"
-          ? sanitize_known_to(value, character_aliases)
-          : sanitize_hidden_from(value, character_aliases);
+        key === "known_to" ? sanitizeKnownTo(value, character_aliases) : sanitizeHiddenFrom(value, character_aliases);
       if (!res.ok) {
         if (hasLogger()) getLogger().warn("facts", `edit_fact 拒绝非法形状 ${key}`, { fact_id, value: String(value) });
         continue;
@@ -368,7 +366,7 @@ export async function edit_fact(
   // 知情字段被实际编辑时，跨字段矛盾在写侧化解（对抗审 MED-3；未触碰知情字段的编辑
   // 不顺手改动存量数据 —— 化解只在用户动了这两个字段之一时发生）。
   if ("known_to" in applied_fields || "hidden_from" in applied_fields) {
-    const rec = reconcile_knowledge(fact.known_to ?? null, fact.hidden_from ?? []);
+    const rec = reconcileKnowledge(fact.known_to ?? null, fact.hidden_from ?? []);
     if (JSON.stringify(rec.known_to) !== JSON.stringify(fact.known_to ?? null)) {
       fact.known_to = rec.known_to;
       applied_fields.known_to = rec.known_to;
@@ -408,7 +406,7 @@ export async function edit_fact(
   let state: Awaited<ReturnType<StateRepository["get"]>> | null = null;
   if ((newStatus === FactStatus.DEPRECATED || newStatus === FactStatus.RESOLVED) && oldStatus !== newStatus) {
     state = await state_repo.get(au_id);
-    const { changed } = apply_dangling_focus_cleanup(state, fact_id);
+    const { changed } = applyDanglingFocusCleanup(state, fact_id);
     needStateSave = changed;
   }
 
@@ -417,10 +415,10 @@ export async function edit_fact(
   tx.appendOp(
     au_id,
     createOpsEntry({
-      op_id: generate_op_id(),
+      op_id: generateOpId(),
       op_type: "edit_fact",
       target_id: fact_id,
-      timestamp: now_utc(),
+      timestamp: nowUtc(),
       payload: { updated_fields: applied_fields },
     }),
   );
@@ -429,10 +427,10 @@ export async function edit_fact(
     tx.appendOp(
       au_id,
       createOpsEntry({
-        op_id: generate_op_id(),
+        op_id: generateOpId(),
         op_type: "set_chapter_focus",
         target_id: au_id,
-        timestamp: now_utc(),
+        timestamp: nowUtc(),
         payload: { focus: [...state.chapter_focus] },
       }),
     );
@@ -442,14 +440,14 @@ export async function edit_fact(
   const newResolves = fact.resolves;
   if (oldResolves !== newResolves) {
     if (newResolves) {
-      const effect = await collect_resolves_forward(au_id, newResolves, fact.chapter, fact_repo);
+      const effect = await collectResolvesForward(au_id, newResolves, fact.chapter, fact_repo);
       if (effect) {
         tx.appendOp(au_id, effect.op);
         tx.updateFact(au_id, effect.fact);
       }
     }
     if (oldResolves) {
-      const effect = await collect_resolves_reverse(au_id, oldResolves, fact.chapter, fact_repo, fact_id);
+      const effect = await collectResolvesReverse(au_id, oldResolves, fact.chapter, fact_repo, fact_id);
       if (effect) {
         tx.appendOp(au_id, effect.op);
         tx.updateFact(au_id, effect.fact);
@@ -462,7 +460,7 @@ export async function edit_fact(
   return fact;
 }
 
-export async function update_fact_status(
+export async function updateFactStatus(
   au_id: string,
   fact_id: string,
   new_status: string,
@@ -485,7 +483,7 @@ export async function update_fact_status(
   let state: Awaited<ReturnType<StateRepository["get"]>> | null = null;
   if (new_status === "deprecated" || new_status === "resolved") {
     state = await state_repo.get(au_id);
-    const { wasInFocus, changed } = apply_dangling_focus_cleanup(state, fact_id);
+    const { wasInFocus, changed } = applyDanglingFocusCleanup(state, fact_id);
     focusWarning = wasInFocus;
     needStateSave = changed;
   }
@@ -495,11 +493,11 @@ export async function update_fact_status(
   tx.appendOp(
     au_id,
     createOpsEntry({
-      op_id: generate_op_id(),
+      op_id: generateOpId(),
       op_type: "update_fact_status",
       target_id: fact_id,
       chapter_num,
-      timestamp: now_utc(),
+      timestamp: nowUtc(),
       payload: { old_status: oldStatus, new_status },
     }),
   );
@@ -508,10 +506,10 @@ export async function update_fact_status(
     tx.appendOp(
       au_id,
       createOpsEntry({
-        op_id: generate_op_id(),
+        op_id: generateOpId(),
         op_type: "set_chapter_focus",
         target_id: au_id,
-        timestamp: now_utc(),
+        timestamp: nowUtc(),
         payload: { focus: [...state.chapter_focus] },
       }),
     );
@@ -523,7 +521,7 @@ export async function update_fact_status(
   // 仅 deprecate 触发：其它状态（resolved/active）不影响 fact 作为 resolver 的有效性。
   // undo 路径的同款反向级联已由 undo_chapter.ts 的 collectResolvesRollback 覆盖，不在此处理。
   if (fact.status === FactStatus.DEPRECATED && fact.resolves) {
-    const effect = await collect_resolves_reverse(au_id, fact.resolves, chapter_num, fact_repo, fact_id);
+    const effect = await collectResolvesReverse(au_id, fact.resolves, chapter_num, fact_repo, fact_id);
     if (effect) {
       tx.appendOp(au_id, effect.op);
       tx.updateFact(au_id, effect.fact);
@@ -534,7 +532,7 @@ export async function update_fact_status(
   return { fact_id, new_status, focus_warning: focusWarning };
 }
 
-export async function set_chapter_focus(
+export async function setChapterFocus(
   au_id: string,
   focus_ids: string[],
   fact_repo: FactRepository,
@@ -565,11 +563,11 @@ export async function set_chapter_focus(
   tx.appendOp(
     au_id,
     createOpsEntry({
-      op_id: generate_op_id(),
+      op_id: generateOpId(),
       op_type: "set_chapter_focus",
       target_id: au_id,
       chapter_num: state.current_chapter,
-      timestamp: now_utc(),
+      timestamp: nowUtc(),
       payload: { focus: [...focus_ids] },
     }),
   );
@@ -580,7 +578,7 @@ export async function set_chapter_focus(
 }
 
 // ===========================================================================
-// M10-B: 冷热分层 — archive_fact / unarchive_fact / run_archival_sweep
+// M10-B: 冷热分层 — archiveFact / unarchiveFact / runArchivalSweep
 // ===========================================================================
 
 /** 距当前章节 ≥ ARCHIVE_DISTANCE 的 low-weight active/unresolved fact 进入冷区。抽为常量便于调参。 */
@@ -589,9 +587,9 @@ export const ARCHIVE_DISTANCE = 10;
 /**
  * 冷区固化判据（单一真相源）。spec §七.2 / CC 拍板 Q2：
  *   active/unresolved + narrative_weight=low + 距当前章 ≥ threshold + 未归档。
- * find_archival_candidates（预览）与 run_archival_sweep（实归档）共用，避免两处对「冷」漂移。
+ * findArchivalCandidates（预览）与 runArchivalSweep（实归档）共用，避免两处对「冷」漂移。
  */
-export function is_archival_candidate(
+export function isArchivalCandidate(
   fact: Fact,
   current_chapter: number,
   cold_threshold_chapters: number = ARCHIVE_DISTANCE,
@@ -606,37 +604,37 @@ export function is_archival_candidate(
 
 /**
  * 只读：列出满足冷区判据的 fact（不写任何东西）。
- * Q4 用户确认流的预览步——UI 先拿这个给用户看「打算归档哪些」，确认后才调 archive_facts。
+ * Q4 用户确认流的预览步——UI 先拿这个给用户看「打算归档哪些」，确认后才调 archiveFacts。
  */
-export async function find_archival_candidates(
+export async function findArchivalCandidates(
   au_id: string,
   current_chapter: number,
   fact_repo: FactRepository,
   cold_threshold_chapters: number = ARCHIVE_DISTANCE,
 ): Promise<Fact[]> {
   const all = await fact_repo.list_all(au_id);
-  return all.filter((f) => is_archival_candidate(f, current_chapter, cold_threshold_chapters));
+  return all.filter((f) => isArchivalCandidate(f, current_chapter, cold_threshold_chapters));
 }
 
 /**
- * 批量归档「用户确认过的」指定 fact_id。逐条 archive_fact；不存在/已归档幂等跳过。
+ * 批量归档「用户确认过的」指定 fact_id。逐条 archiveFact；不存在/已归档幂等跳过。
  * 调用者须已持 AU 锁。Q4：UI 传进来的是用户在预览里勾选确认的子集，不重新扫（防 TOCTOU 把
  * 预览后新变冷的 fact 也一起归了——只动用户实际看过、确认过的那些）。
  * @returns 实际归档掉的 fact_id 列表
  */
-export async function archive_facts(
+export async function archiveFacts(
   au_id: string,
   fact_ids: string[],
   fact_repo: FactRepository,
   ops_repo: OpsRepository,
 ): Promise<string[]> {
-  // ponytail: 逐条 archive_fact = 每条重写整个 facts.jsonl（O(n²)，与 batchUpdateFactStatus 同款既存特性）。
+  // ponytail: 逐条 archiveFact = 每条重写整个 facts.jsonl（O(n²)，与 batchUpdateFactStatus 同款既存特性）。
   // 单次锁内、正确性无碍；只有「一次性归档上百条冷 fact」才会有秒级卡顿。真撞上再给 repo 加 bulk 写一次过。
   const archived: string[] = [];
   for (const id of fact_ids) {
     const fact = await fact_repo.get(au_id, id);
     if (fact === null || fact.archived === true) continue;
-    await archive_fact(au_id, id, fact_repo, ops_repo);
+    await archiveFact(au_id, id, fact_repo, ops_repo);
     archived.push(id);
   }
   return archived;
@@ -646,7 +644,7 @@ export async function archive_facts(
  * 将指定 fact 标记为 archived（写 ops + 更新 fact）。
  * 调用者必须已持 AU 锁（同 facts_lifecycle 其他函数约定）。
  */
-export async function archive_fact(
+export async function archiveFact(
   au_id: string,
   fact_id: string,
   fact_repo: FactRepository,
@@ -657,7 +655,7 @@ export async function archive_fact(
     throw new FactsLifecycleError(`archive_fact: Fact 不存在: ${fact_id}`);
   }
 
-  const ts = now_utc();
+  const ts = nowUtc();
   fact.archived = true;
   fact.archived_at = ts;
 
@@ -666,7 +664,7 @@ export async function archive_fact(
   tx.appendOp(
     au_id,
     createOpsEntry({
-      op_id: generate_op_id(),
+      op_id: generateOpId(),
       op_type: "archive_fact",
       target_id: fact_id,
       timestamp: ts,
@@ -681,7 +679,7 @@ export async function archive_fact(
  * 解除指定 fact 的归档状态（写 ops + 更新 fact）。
  * 调用者必须已持 AU 锁。
  */
-export async function unarchive_fact(
+export async function unarchiveFact(
   au_id: string,
   fact_id: string,
   fact_repo: FactRepository,
@@ -692,7 +690,7 @@ export async function unarchive_fact(
     throw new FactsLifecycleError(`unarchive_fact: Fact 不存在: ${fact_id}`);
   }
 
-  const ts = now_utc();
+  const ts = nowUtc();
   fact.archived = false;
   fact.archived_at = undefined;
 
@@ -701,7 +699,7 @@ export async function unarchive_fact(
   tx.appendOp(
     au_id,
     createOpsEntry({
-      op_id: generate_op_id(),
+      op_id: generateOpId(),
       op_type: "unarchive_fact",
       target_id: fact_id,
       timestamp: ts,
@@ -731,16 +729,16 @@ export async function unarchive_fact(
  *
  * @returns 被归档的 fact_id 列表
  */
-export async function run_archival_sweep(
+export async function runArchivalSweep(
   au_id: string,
   current_chapter: number,
   fact_repo: FactRepository,
   ops_repo: OpsRepository,
   cold_threshold_chapters: number = ARCHIVE_DISTANCE,
 ): Promise<string[]> {
-  // 判据走 find_archival_candidates、归档走 archive_facts —— 与 Q4 预览/确认流同源，无重复判据。
-  const candidates = await find_archival_candidates(au_id, current_chapter, fact_repo, cold_threshold_chapters);
-  return archive_facts(
+  // 判据走 findArchivalCandidates、归档走 archiveFacts —— 与 Q4 预览/确认流同源，无重复判据。
+  const candidates = await findArchivalCandidates(au_id, current_chapter, fact_repo, cold_threshold_chapters);
+  return archiveFacts(
     au_id,
     candidates.map((f) => f.id),
     fact_repo,

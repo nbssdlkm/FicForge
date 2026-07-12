@@ -19,7 +19,7 @@
  *
  * E4a 文件级拆分：工具判据/参数修复 → simple_chat_tools；只读工具执行 →
  * simple_chat_read_tools；事件类型与翻译 → simple_chat_events。本文件保留前置解析
- * （resolveDispatchSession）、回调工厂（buildAgentLoopConfig）、主编排（dispatch_simple_chat）
+ * （resolveDispatchSession）、回调工厂（buildAgentLoopConfig）、主编排（dispatchSimpleChat）
  * 及其可变共享状态。行为逐字节不变；公共 API 经下方再导出保持不变。
  */
 
@@ -35,20 +35,20 @@ import type { VectorRepository } from "../repositories/interfaces/vector.js";
 import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { LLMProvider, Message, ToolDefinition } from "../llm/provider.js";
 import {
-  create_provider,
-  resolve_llm_config,
-  resolve_llm_params,
+  createProvider,
+  resolveLlmConfig,
+  resolveLlmParams,
   type ResolvedLLMConfig,
   type ResolvedLLMParams,
 } from "../llm/config_resolver.js";
-import { assemble_chat_context } from "./context_assembler.js";
+import { assembleChatContext } from "./context_assembler.js";
 import { withAuLock } from "./au_lock.js";
 import { persistGeneratedDraft } from "./draft_persist.js";
 import { createDraft } from "../domain/draft.js";
 import { nextDraftLabel } from "../domain/paths.js";
 import { joinPath } from "../utils/file_utils.js";
 import { createAbortError, isAbortError } from "../utils/abort_error.js";
-import { get_tools_for_mode } from "../domain/settings_tools.js";
+import { getToolsForMode } from "../domain/settings_tools.js";
 import { SIMPLE_AGENT_MAX_ITER } from "../config/simple_features.js";
 import { extractPartialJsonStringField } from "./tool_stream_buffer.js";
 import { runAgentLoop, type AgentLoopConfig, type AgentLoopEvent } from "./agent_loop.js";
@@ -95,7 +95,7 @@ const SIMPLE_AGENT_NAME = "simple_chat";
 // 两个并发生成（对话×对话、或对话流式中切写文 tab 再点生成的对话×写文跨路径）会各自
 // 读到同一 existingDrafts → 拿到同一 label → 后完成者静默覆盖先完成者的草稿。
 //
-// 互斥表与 generate_chapter 共用 chapter_inflight 单一真相源（对抗审 F1）：独立 Map
+// 互斥表与 generateChapter 共用 chapter_inflight 单一真相源（对抗审 F1）：独立 Map
 // 只能封住自身重入，封不住跨路径并发。key 用 au+chapter（label 竞争只在同章内发生）。
 import {
   chapterInflightKey,
@@ -132,16 +132,16 @@ export interface SimpleChatDispatchParams {
   draft_repo: DraftRepository;
   adapter: PlatformAdapter;
   /**
-   * 记忆栈接线(融合 plan §1.1):分层对话上下文 assemble_chat_context(§1.2 消费)所需。
+   * 记忆栈接线(融合 plan §1.1):分层对话上下文 assembleChatContext(§1.2 消费)所需。
    * 全部可选 —— 缺省视为无记忆/无 RAG,现有 caller / 单测不传不破坏;真实路径由上游
-   * engine-simple-dispatch.ts 注入(与 generate_chapter 同源)。
+   * engine-simple-dispatch.ts 注入(与 generateChapter 同源)。
    */
   facts?: Fact[];
   threads?: Thread[];
   vector_repo?: VectorRepository;
   embedding_provider?: EmbeddingProvider;
   /**
-   * E8：角色别名表（主名 → 别名列表）。透传至 assemble_chat_context → retrieve_rag_for_context，
+   * E8：角色别名表（主名 → 别名列表）。透传至 assembleChatContext → retrieveRagForContext，
    * 对话正文/输入只出现别名时活跃角色过滤集也认主名。可选 + 缺省 null（现有 caller / 单测不传逐字节不变）。
    */
   character_aliases?: Record<string, string[]> | null;
@@ -149,7 +149,7 @@ export interface SimpleChatDispatchParams {
   signal?: AbortSignal;
   /** 测试注入：override LLM provider。 */
   _provider_override?: LLMProvider;
-  /** 测试注入：override tools 列表。默认走 get_tools_for_mode("simple")。 */
+  /** 测试注入：override tools 列表。默认走 getToolsForMode("simple")。 */
   _tools_override?: ToolDefinition[];
   /** 测试注入：override telemetry sink。默认走 createTelemetry() (consoleSink fallback)。 */
   _telemetry_override?: TelemetrySink;
@@ -221,7 +221,7 @@ function emitRepairTelemetry(
 }
 
 /**
- * dispatch 单次流式生成的可变共享状态 —— 原先是 dispatch_simple_chat 上帝函数内散落的
+ * dispatch 单次流式生成的可变共享状态 —— 原先是 dispatchSimpleChat 上帝函数内散落的
  * 6 个闭包变量。为什么要显式成对象（拆分重构 2026-07-11 架构维）：这些变量被多个
  * agent-loop 回调交叉读写（onIterStart 重置 / onTokenChunk 累积 / onToolCallDelta 推进
  * chat_reply 流式游标 / onTextPathTerminal flush buffer + 读 label / onPartialRescue 落盘
@@ -332,10 +332,10 @@ async function resolveDispatchSession(deps: ResolveDispatchDeps): Promise<Dispat
     tools_override,
   } = deps;
 
-  const llmConfig = resolve_llm_config(session_llm, project, settings);
+  const llmConfig = resolveLlmConfig(session_llm, project, settings);
   const modelName = llmConfig.model;
-  const llmParams = resolve_llm_params(modelName, session_params, project, settings);
-  const provider = provider_override ?? create_provider(llmConfig);
+  const llmParams = resolveLlmParams(modelName, session_params, project, settings);
+  const provider = provider_override ?? createProvider(llmConfig);
 
   const [character_files, worldbuilding_files] = await Promise.all([
     loadMdDir(adapter, joinPath(au_id, "characters")),
@@ -345,7 +345,7 @@ async function resolveDispatchSession(deps: ResolveDispatchDeps): Promise<Dispat
   // 分层对话上下文（融合 plan §1.2/§1.3）：记忆栈（facts/剧情线/上一章/RAG/核心设定）进
   // systemContent，最新一轮 user 进 latestUserContent。**组装只在此处发生一次**（runAgentLoop
   // 之前）：systemContent 进 startMessages[0]，循环内不重组、不重算 RAG（否则每轮重检索）。
-  const ctx = await assemble_chat_context({
+  const ctx = await assembleChatContext({
     project,
     state,
     user_input,
@@ -366,7 +366,7 @@ async function resolveDispatchSession(deps: ResolveDispatchDeps): Promise<Dispat
   const systemMessage: Message = { role: "system", content: systemContent };
   const userMessage: Message = { role: "user", content: latestUserContent };
 
-  const tools = tools_override ?? (get_tools_for_mode("simple") as unknown as ToolDefinition[]);
+  const tools = tools_override ?? (getToolsForMode("simple") as unknown as ToolDefinition[]);
 
   const existingDrafts = await draft_repo.list_by_chapter(au_id, chapter_num);
   const label = nextDraftLabel(existingDrafts.map((d) => d.variant));
@@ -583,7 +583,7 @@ function buildAgentLoopConfig(deps: BuildAgentLoopConfigDeps): AgentLoopConfig<S
           });
           // internalHistory 副本按上限截断（B3）：防多轮大章节 fetch 累积撑爆 context。
           // 上面 emit 给 UI 的 tool_result 仍是全文（持久化不丢）。
-          // H4：token 计数配置用实际生效 LLM（count_tokens 现只看 mode，行为等价；保持同源）。
+          // H4：token 计数配置用实际生效 LLM（countTokens 现只看 mode，行为等价；保持同源）。
           iterCtx.internalHistory.push({
             role: "tool",
             tool_call_id: c.id,
@@ -712,7 +712,7 @@ function buildAgentLoopConfig(deps: BuildAgentLoopConfigDeps): AgentLoopConfig<S
 // 主流程 —─ 前置解析 → 构造 state/回调 → for await 循环委托翻译 → 收尾
 // ---------------------------------------------------------------------------
 
-export async function* dispatch_simple_chat(params: SimpleChatDispatchParams): AsyncGenerator<SimpleChatEvent> {
+export async function* dispatchSimpleChat(params: SimpleChatDispatchParams): AsyncGenerator<SimpleChatEvent> {
   const {
     au_id,
     chapter_num,

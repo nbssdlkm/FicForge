@@ -10,11 +10,11 @@ import { createFact } from "../../domain/fact.js";
 import { ON_DISK_DEFAULT_REVISION } from "../../domain/project.js";
 import type { FactRepository } from "../interfaces/fact.js";
 import {
-  append_jsonl,
+  appendJsonl,
   joinPath,
-  now_utc,
-  read_jsonl,
-  rewrite_jsonl,
+  nowUtc,
+  readJsonl,
+  rewriteJsonl,
   validateBasePath,
   withWriteLock,
 } from "../../utils/file_utils.js";
@@ -68,7 +68,7 @@ export function factToDict(fact: Fact): Record<string, unknown> {
 }
 
 function dictToFact(d: Record<string, unknown>): Fact {
-  const now = now_utc();
+  const now = nowUtc();
   return createFact({
     id: d.id as string,
     content_raw: (d.content_raw as string) ?? "",
@@ -128,7 +128,7 @@ export class FileFactRepository implements FactRepository {
 
   private async readAll(au_id: string): Promise<Fact[]> {
     const path = this.factsPath(au_id);
-    const [facts, errors] = await read_jsonl(this.adapter, path, dictToFact);
+    const [facts, errors] = await readJsonl(this.adapter, path, dictToFact);
     if (errors.length > 0) {
       if (hasLogger())
         getLogger().warn("file_fact", "bad lines on read", { path, count: errors.length, first: errors[0] });
@@ -167,13 +167,13 @@ export class FileFactRepository implements FactRepository {
 
   async append(au_id: string, fact: Fact): Promise<void> {
     const path = this.factsPath(au_id);
-    await withWriteLock(path, () => append_jsonl(this.adapter, path, factToDict(fact)));
+    await withWriteLock(path, () => appendJsonl(this.adapter, path, factToDict(fact)));
   }
 
   async update(au_id: string, fact: Fact): Promise<void> {
     const path = this.factsPath(au_id);
     await withWriteLock(path, async () => {
-      const [facts, errors] = await read_jsonl(this.adapter, path, dictToFact);
+      const [facts, errors] = await readJsonl(this.adapter, path, dictToFact);
       if (errors.length > 0) {
         if (hasLogger()) getLogger().warn("file_fact", "bad lines on update", { path, count: errors.length });
       }
@@ -183,9 +183,9 @@ export class FileFactRepository implements FactRepository {
       // 也避免锁获取/写入失败时 caller 对象已被留下未持久化的自增值。
       const current = facts.find((f) => f.id === fact.id);
       fact.revision = (current?.revision ?? fact.revision) + 1;
-      fact.updated_at = now_utc();
+      fact.updated_at = nowUtc();
       const items = facts.map((f) => (f.id === fact.id ? factToDict(fact) : factToDict(f)));
-      await rewrite_jsonl(this.adapter, path, items);
+      await rewriteJsonl(this.adapter, path, items);
     });
   }
 
@@ -193,19 +193,19 @@ export class FileFactRepository implements FactRepository {
     const idsSet = new Set(fact_ids);
     const path = this.factsPath(au_id);
     await withWriteLock(path, async () => {
-      const [facts, errors] = await read_jsonl(this.adapter, path, dictToFact);
+      const [facts, errors] = await readJsonl(this.adapter, path, dictToFact);
       if (errors.length > 0) {
         if (hasLogger()) getLogger().warn("file_fact", "bad lines on delete", { path, count: errors.length });
       }
       const remaining = facts.filter((f) => !idsSet.has(f.id));
-      await rewrite_jsonl(this.adapter, path, remaining.map(factToDict));
+      await rewriteJsonl(this.adapter, path, remaining.map(factToDict));
     });
   }
 
   async replace_all(au_id: string, facts: Fact[]): Promise<void> {
     const path = this.factsPath(au_id);
     await withWriteLock(path, async () => {
-      await rewrite_jsonl(this.adapter, path, facts.map(factToDict));
+      await rewriteJsonl(this.adapter, path, facts.map(factToDict));
     });
   }
 }

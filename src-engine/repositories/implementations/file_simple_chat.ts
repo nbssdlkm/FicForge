@@ -19,8 +19,8 @@ import {
   atomicWrite,
   dumpYaml,
   joinPath,
-  now_utc,
-  obj_to_plain,
+  nowUtc,
+  objToPlain,
   validateBasePath,
   withWriteLock,
 } from "../../utils/file_utils.js";
@@ -88,8 +88,8 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
     return {
       version: typeof obj.version === "number" ? obj.version : SIMPLE_CHAT_VERSION,
       au_path: typeof obj.au_path === "string" ? obj.au_path : au_id,
-      created_at: typeof obj.created_at === "string" ? obj.created_at : now_utc(),
-      updated_at: typeof obj.updated_at === "string" ? obj.updated_at : now_utc(),
+      created_at: typeof obj.created_at === "string" ? obj.created_at : nowUtc(),
+      updated_at: typeof obj.updated_at === "string" ? obj.updated_at : nowUtc(),
       messages,
     };
   }
@@ -98,7 +98,7 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
     const path = this.chatPath(au_id);
     await withWriteLock(path, async () => {
       // 拿现有 created_at（若有），否则用现在
-      let created_at = now_utc();
+      let created_at = nowUtc();
       try {
         const existing = await this.adapter.exists(path);
         if (existing) {
@@ -116,10 +116,10 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
         version: SIMPLE_CHAT_VERSION,
         au_path: au_id,
         created_at,
-        updated_at: now_utc(),
+        updated_at: nowUtc(),
         messages,
       };
-      const content = dumpYaml(obj_to_plain(file));
+      const content = dumpYaml(objToPlain(file));
       const dir = path.substring(0, path.lastIndexOf("/"));
       await this.adapter.mkdir(dir);
       // 对话历史无 ops 背书，截断即永损 —— 原子写（审计 H5）
@@ -141,10 +141,10 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
         version: SIMPLE_CHAT_VERSION,
         au_path: au_id,
         created_at: file.created_at,
-        updated_at: now_utc(),
+        updated_at: nowUtc(),
         messages: nextMessages,
       };
-      const content = dumpYaml(obj_to_plain(out));
+      const content = dumpYaml(objToPlain(out));
       const dir = path.substring(0, path.lastIndexOf("/"));
       await this.adapter.mkdir(dir);
       await atomicWrite(this.adapter, path, content);

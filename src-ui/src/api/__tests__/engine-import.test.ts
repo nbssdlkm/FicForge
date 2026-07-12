@@ -12,7 +12,7 @@
  *   - buildImportPlanFromAnalyses：空分析 → 空计划（计划为空分支）。
  *   - analyze → build → execute 正常闭环：一段正文 → 生成一条章节计划 → 落库一章。
  *
- * 真引擎 + MockAdapter；analyze_file 纯文本路径不打 LLM。
+ * 真引擎 + MockAdapter；analyzeFile 纯文本路径不打 LLM。
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";

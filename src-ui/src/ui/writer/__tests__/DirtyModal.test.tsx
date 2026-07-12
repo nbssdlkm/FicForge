@@ -3,7 +3,7 @@
 
 /**
  * DirtyModal 解除路径的半成功透出（盲审 2026-07-11 + B1 对抗审 LOW）：
- * 引擎 resolve_dirty_chapter 现在逐条尽力应用 fact 变更并把失败清单随结果带回 ——
+ * 引擎 resolveDirtyChapter 现在逐条尽力应用 fact 变更并把失败清单随结果带回 ——
  * UI 必须把「章节已解除但 N 条变更未应用」明示给用户，而不是静默丢或伪装整体失败。
  */
 

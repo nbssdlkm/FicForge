@@ -2,16 +2,16 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 /**
- * Tests for run_retrospective (M10-A).
+ * Tests for runRetrospective (M10-A).
  * TDD: written before implementation.
  */
 
 import { describe, it, expect, vi } from "vitest";
 import {
-  run_retrospective,
-  generate_retrospective,
-  commit_retrospective,
-  should_run_retrospective,
+  runRetrospective,
+  generateRetrospective,
+  commitRetrospective,
+  shouldRunRetrospective,
   RETROSPECTIVE_INTERVAL,
 } from "../retrospective.js";
 import { IndexStatus } from "../../domain/enums.js";
@@ -55,25 +55,25 @@ function fakeEmbeddingProvider() {
   return { embed: vi.fn() } as any;
 }
 
-describe("should_run_retrospective", () => {
+describe("shouldRunRetrospective", () => {
   it("returns true when chapterNum is multiple of interval AND target >= 1", () => {
     // ch=10, interval=5 → target=5 ≥ 1 → true
-    expect(should_run_retrospective(10, 5)).toBe(true);
-    expect(should_run_retrospective(15, 5)).toBe(true);
-    expect(should_run_retrospective(20, 5)).toBe(true);
+    expect(shouldRunRetrospective(10, 5)).toBe(true);
+    expect(shouldRunRetrospective(15, 5)).toBe(true);
+    expect(shouldRunRetrospective(20, 5)).toBe(true);
   });
 
   it("returns false when chapterNum is not a multiple of interval", () => {
-    expect(should_run_retrospective(3, 5)).toBe(false);
-    expect(should_run_retrospective(7, 5)).toBe(false);
-    expect(should_run_retrospective(11, 5)).toBe(false);
+    expect(shouldRunRetrospective(3, 5)).toBe(false);
+    expect(shouldRunRetrospective(7, 5)).toBe(false);
+    expect(shouldRunRetrospective(11, 5)).toBe(false);
   });
 
   it("returns false when targetChapterNum (chapterNum - interval) < 1", () => {
     // ch=5, interval=5 → target=0 → false (N must be ≥ interval+1)
-    expect(should_run_retrospective(5, 5)).toBe(false);
+    expect(shouldRunRetrospective(5, 5)).toBe(false);
     // ch=6 → 6%5 !== 0 → false
-    expect(should_run_retrospective(6, 5)).toBe(false);
+    expect(shouldRunRetrospective(6, 5)).toBe(false);
   });
 
   it("RETROSPECTIVE_INTERVAL constant equals 5", () => {
@@ -81,7 +81,7 @@ describe("should_run_retrospective", () => {
   });
 });
 
-describe("run_retrospective", () => {
+describe("runRetrospective", () => {
   it("skips LLM call when no subsequent micro summaries exist", async () => {
     // chapters 6-10 have no micro
     const summaryRepo = fakeSummaryRepo({
@@ -91,7 +91,7 @@ describe("run_retrospective", () => {
     const llmProvider = fakeProvider("v2 text");
     const ragManager = fakeRagManager();
 
-    await run_retrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11);
+    await runRetrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11);
 
     expect(llmProvider.generate).not.toHaveBeenCalled();
     expect(summaryRepo.promote_to_v2).not.toHaveBeenCalled();
@@ -107,7 +107,7 @@ describe("run_retrospective", () => {
     const llmProvider = fakeProvider("v2 retrospective text");
     const ragManager = fakeRagManager();
 
-    await run_retrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11);
+    await runRetrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11);
 
     expect(llmProvider.generate).toHaveBeenCalledOnce();
     expect(summaryRepo.promote_to_v2).toHaveBeenCalledWith("/au", 5, "v2 retrospective text", expect.any(String));
@@ -123,7 +123,7 @@ describe("run_retrospective", () => {
     const llmProvider = fakeProvider(""); // empty → null
     const ragManager = fakeRagManager();
 
-    await run_retrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11);
+    await runRetrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11);
 
     expect(summaryRepo.promote_to_v2).not.toHaveBeenCalled();
   });
@@ -142,7 +142,7 @@ describe("run_retrospective", () => {
 
     // Should not throw — best-effort
     await expect(
-      run_retrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11),
+      runRetrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11),
     ).resolves.toBeUndefined();
     expect(llmProvider.generate).not.toHaveBeenCalled();
   });
@@ -158,7 +158,7 @@ describe("run_retrospective", () => {
     const llmProvider = fakeProvider("v2 text");
     const ragManager = fakeRagManager();
 
-    await run_retrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11);
+    await runRetrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11);
 
     // Should still generate because at least some micros exist
     expect(llmProvider.generate).toHaveBeenCalledOnce();
@@ -177,7 +177,7 @@ describe("run_retrospective", () => {
     const chapterRepo = fakeChapterRepo("chapter 5 text", "LIVE_CHAPTER_HASH");
     const llmProvider = fakeProvider("v2 text");
 
-    const res = await generate_retrospective("/au", 5, chapterRepo, summaryRepo, llmProvider, 11);
+    const res = await generateRetrospective("/au", 5, chapterRepo, summaryRepo, llmProvider, 11);
 
     expect(res).not.toBeNull();
     expect(res!.contentHash).toBe("LIVE_CHAPTER_HASH");
@@ -198,7 +198,7 @@ describe("run_retrospective", () => {
     const ragManager = fakeRagManager();
 
     // currentChapter = 11 → subsequent range = 6..10
-    await run_retrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11);
+    await runRetrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11);
 
     // summaryRepo.get should have been called for chapters 6..10 (not 11)
     const getCalls = summaryRepo.get.mock.calls.map((c: any[]) => c[1]);
@@ -210,7 +210,7 @@ describe("run_retrospective", () => {
 });
 
 // L17（审计第二轮）：v2 落盘成功但摘要向量覆盖失败 → 置 index_status=STALE，让既有 stale 横幅接管。
-describe("commit_retrospective — L17 向量覆盖失败置 STALE", () => {
+describe("commitRetrospective — L17 向量覆盖失败置 STALE", () => {
   const genResult = { v2Text: "v2 text", contentHash: "h" };
 
   function fakeStateRepo() {
@@ -237,7 +237,7 @@ describe("commit_retrospective — L17 向量覆盖失败置 STALE", () => {
     } as any;
     const { repo, state } = fakeStateRepo();
 
-    await commit_retrospective("/au", 5, genResult, summaryRepo, ragManager, fakeEmbeddingProvider(), repo);
+    await commitRetrospective("/au", 5, genResult, summaryRepo, ragManager, fakeEmbeddingProvider(), repo);
 
     expect(summaryRepo.promote_to_v2).toHaveBeenCalledOnce(); // v2 已落盘
     expect(repo.update).toHaveBeenCalledOnce();
@@ -249,7 +249,7 @@ describe("commit_retrospective — L17 向量覆盖失败置 STALE", () => {
     const ragManager = fakeRagManager();
     const { repo, state } = fakeStateRepo();
 
-    await commit_retrospective("/au", 5, genResult, summaryRepo, ragManager, fakeEmbeddingProvider(), repo);
+    await commitRetrospective("/au", 5, genResult, summaryRepo, ragManager, fakeEmbeddingProvider(), repo);
 
     expect(repo.update).not.toHaveBeenCalled();
     expect(state.index_status).toBe(IndexStatus.READY);
@@ -263,7 +263,7 @@ describe("commit_retrospective — L17 向量覆盖失败置 STALE", () => {
       }),
     } as any;
     await expect(
-      commit_retrospective("/au", 5, genResult, summaryRepo, ragManager, fakeEmbeddingProvider()),
+      commitRetrospective("/au", 5, genResult, summaryRepo, ragManager, fakeEmbeddingProvider()),
     ).resolves.toBeUndefined();
   });
 });

@@ -5,22 +5,22 @@
  * 导入流水线 v2。
  * 支持多文件导入、AI 对话格式解析、冲突处理、设定提取。
  *
- * 新 API：analyze_file → build_import_plan → execute_import
- * 旧 API（向后兼容）：split_into_chapters / import_chapters / parse_html
+ * 新 API：analyzeFile → buildImportPlan → executeImport
+ * 旧 API（向后兼容）：splitIntoChapters / importChapters / parseHtml
  */
 
 import { createChapter } from "../domain/chapter.js";
-import { scan_characters_in_chapter } from "../domain/character_scanner.js";
+import { scanCharactersInChapter } from "../domain/character_scanner.js";
 import { IndexStatus } from "../domain/enums.js";
 import { createOpsEntry } from "../domain/ops_entry.js";
 import { chapterMainPath } from "../domain/paths.js";
 import { createState } from "../domain/state.js";
-import { extract_last_scene_ending } from "../domain/text_utils.js";
+import { extractLastSceneEnding } from "../domain/text_utils.js";
 import type { PlatformAdapter } from "../platform/adapter.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
-import { atomicWrite, compute_content_hash, generate_op_id, now_utc } from "../utils/file_utils.js";
+import { atomicWrite, computeContentHash, generateOpId, nowUtc } from "../utils/file_utils.js";
 import { warnAlways } from "../logger/index.js";
 import { withAuLock } from "./au_lock.js";
 import { PartialCommitError, WriteTransaction } from "./write_transaction.js";
@@ -58,7 +58,7 @@ export type { SplitChapter } from "./chapter_splitter.js";
 // ---------------------------------------------------------------------------
 
 /**
- * analyze_file 进度阶段。
+ * analyzeFile 进度阶段。
  * - "llm-chat-detect": 正要调 LLM 识别对话结构（UI 应显示"AI 正在识别..."）
  * - "llm-chat-failed": LLM 调用出错或 sample 幻觉被 validate 拦截（UI 应 toast "AI 识别失败"）；LLM 合理判断"非对话"不触发此阶段。
  */
@@ -148,14 +148,14 @@ export interface ExecuteImportParams {
 }
 
 // ---------------------------------------------------------------------------
-// New API: analyze_file
+// New API: analyzeFile
 // ---------------------------------------------------------------------------
 
 /**
  * 分析单个文件内容，检测格式（对话 or 纯正文），返回分析结果。
  * text 应为已提取的纯文本（前端负责 docx/html 转换）。
  */
-export async function analyze_file(
+export async function analyzeFile(
   text: string,
   filename: string,
   options: AnalysisOptions = {},
@@ -171,14 +171,14 @@ export async function analyze_file(
       if (isJsonChatExport(data)) {
         const turns = parseChatExport(data);
         const classified = classifyTurns(turns, thresholds);
-        return build_chat_analysis(filename, "json", "JSON", classified, totalChars);
+        return buildChatAnalysis(filename, "json", "JSON", classified, totalChars);
       }
     } catch {
       // JSON 解析失败，尝试 JSONL（每行一个 JSON 对象）
-      const jsonlTurns = try_parse_jsonl(text);
+      const jsonlTurns = tryParseJsonl(text);
       if (jsonlTurns.length > 0) {
         const classified = classifyTurns(jsonlTurns, thresholds);
-        return build_chat_analysis(filename, ext, "JSONL", classified, totalChars);
+        return buildChatAnalysis(filename, ext, "JSONL", classified, totalChars);
       }
     }
   }
@@ -227,7 +227,7 @@ export async function analyze_file(
   if (chatFormat) {
     const turns = splitByRole(text, chatFormat);
     const classified = classifyTurns(turns, thresholds);
-    return build_chat_analysis(filename, ext, chatFormat.name, classified, totalChars);
+    return buildChatAnalysis(filename, ext, chatFormat.name, classified, totalChars);
   }
 
   // 纯正文模式
@@ -252,7 +252,7 @@ export async function analyze_file(
   };
 }
 
-function build_chat_analysis(
+function buildChatAnalysis(
   filename: string,
   ext: string,
   chatFormatName: string,
@@ -282,7 +282,7 @@ function build_chat_analysis(
  * 尝试按 JSONL 格式解析（每行一个 JSON 对象）。
  * 用于 SillyTavern 等导出格式。
  */
-function try_parse_jsonl(text: string): ChatTurn[] {
+function tryParseJsonl(text: string): ChatTurn[] {
   const lines = text.split("\n").filter((l) => l.trim());
   if (lines.length < 2) return [];
 
@@ -312,7 +312,7 @@ function try_parse_jsonl(text: string): ChatTurn[] {
 }
 
 // ---------------------------------------------------------------------------
-// New API: build_import_plan
+// New API: buildImportPlan
 // ---------------------------------------------------------------------------
 
 /**
@@ -320,7 +320,7 @@ function try_parse_jsonl(text: string): ChatTurn[] {
  * 处理多文件章节号接续、"续"合并、设定收集。
  * analyses 中的 ClassifiedTurn 可能已被前端用户修改过 assignedType/assignedChapter。
  */
-export function build_import_plan(analyses: FileAnalysis[], conflictOptions: ImportConflictOptions): ImportPlan {
+export function buildImportPlan(analyses: FileAnalysis[], conflictOptions: ImportConflictOptions): ImportPlan {
   const chapters: ImportChapter[] = [];
   const settings: ImportSetting[] = [];
 
@@ -346,7 +346,7 @@ export function build_import_plan(analyses: FileAnalysis[], conflictOptions: Imp
   for (const analysis of analyses) {
     if (analysis.mode === "chat" && analysis.turns) {
       // 对话模式：从 ClassifiedTurn 中提取
-      const result = extract_from_turns(analysis.turns, analysis.filename, nextChapter, lastChapterIndex, chapters);
+      const result = extractFromTurns(analysis.turns, analysis.filename, nextChapter, lastChapterIndex, chapters);
       settings.push(...result.settings);
       nextChapter = result.nextChapter;
       lastChapterIndex = result.lastChapterIndex;
@@ -368,7 +368,7 @@ export function build_import_plan(analyses: FileAnalysis[], conflictOptions: Imp
   return { chapters, settings, conflictOptions };
 }
 
-function extract_from_turns(
+function extractFromTurns(
   turns: ClassifiedTurn[],
   filename: string,
   startChapter: number,
@@ -428,7 +428,7 @@ function extract_from_turns(
   return { settings, nextChapter, lastChapterIndex };
 }
 
-async function rollback_imported_settings(adapter: PlatformAdapter, writtenPaths: string[]): Promise<void> {
+async function rollbackImportedSettings(adapter: PlatformAdapter, writtenPaths: string[]): Promise<void> {
   for (const path of [...writtenPaths].reverse()) {
     try {
       await adapter.deleteFile(path);
@@ -438,7 +438,7 @@ async function rollback_imported_settings(adapter: PlatformAdapter, writtenPaths
   }
 }
 
-async function write_imported_settings(
+async function writeImportedSettings(
   plan: ImportPlan,
   params: {
     auId: string;
@@ -496,24 +496,24 @@ async function write_imported_settings(
     }
     return { count: plan.settings.length, writtenPaths };
   } catch (error) {
-    await rollback_imported_settings(adapter, writtenPaths);
+    await rollbackImportedSettings(adapter, writtenPaths);
     throw error;
   }
 }
 
 // ---------------------------------------------------------------------------
-// New API: execute_import
+// New API: executeImport
 // ---------------------------------------------------------------------------
 
 /**
  * 执行导入计划。写入章节、设定、ops，更新 state。
  * AU 级锁：整个导入流程期间阻止其它 service 对同一 AU 的并发写入。
  */
-export async function execute_import(plan: ImportPlan, params: ExecuteImportParams): Promise<NewImportResult> {
-  return withAuLock(params.auId, () => do_execute_import(plan, params));
+export async function executeImport(plan: ImportPlan, params: ExecuteImportParams): Promise<NewImportResult> {
+  return withAuLock(params.auId, () => doExecuteImport(plan, params));
 }
 
-async function do_execute_import(plan: ImportPlan, params: ExecuteImportParams): Promise<NewImportResult> {
+async function doExecuteImport(plan: ImportPlan, params: ExecuteImportParams): Promise<NewImportResult> {
   const {
     auId,
     chapterRepo,
@@ -536,14 +536,14 @@ async function do_execute_import(plan: ImportPlan, params: ExecuteImportParams):
   };
   const importedChapterTitles: Record<number, string> = {};
 
-  const timestamp = now_utc();
+  const timestamp = nowUtc();
 
-  // 1. 设定文件先行落盘（write_imported_settings 内部失败会回滚已写部分并抛出）。
+  // 1. 设定文件先行落盘（writeImportedSettings 内部失败会回滚已写部分并抛出）。
   // 必须在移旧章入回收站**之前**：若放在其后，设定写盘失败会把导入中止在
   // 「旧章已进回收站、新章未提交」的中间态，作品章节凭空变少（盲审 2026-07-09 中危）。
   // 先写设定则失败时整个导入原地中止、章节区零触碰。progress 的 chaptersDone
   // 此阶段恒为 0（章节尚未构建），如实反映顺序。
-  const settingsResult = await write_imported_settings(plan, {
+  const settingsResult = await writeImportedSettings(plan, {
     auId,
     adapter,
     locale,
@@ -593,7 +593,7 @@ async function do_execute_import(plan: ImportPlan, params: ExecuteImportParams):
   const tx = new WriteTransaction();
   const allCharactersLastSeen: Record<string, number> = {};
   for (const ch of chaptersToWrite) {
-    const contentHash = await compute_content_hash(ch.content);
+    const contentHash = await computeContentHash(ch.content);
     const chapter = createChapter({
       au_id: auId,
       chapter_num: ch.chapterNum,
@@ -610,7 +610,7 @@ async function do_execute_import(plan: ImportPlan, params: ExecuteImportParams):
     }
 
     // 角色扫描
-    const scanned = scan_characters_in_chapter(ch.content, castRegistry, characterAliases, ch.chapterNum);
+    const scanned = scanCharactersInChapter(ch.content, castRegistry, characterAliases, ch.chapterNum);
     for (const [name, chNum] of Object.entries(scanned)) {
       // Object.hasOwn 而非 `name in obj`：角色名可为 "constructor"/"toString" 等
       // Object.prototype 键，裸 `in` 会命中原型链把它误判为已存在，导致该角色永不入表。
@@ -653,7 +653,7 @@ async function do_execute_import(plan: ImportPlan, params: ExecuteImportParams):
     // 无既有进度 ⇒ 本次导入即是全部进度，总是更新锚点；有既有进度 ⇒ 仅当导入触及/越过现末章
     // （含重导当前末章：maxCh = 指针−1）。
     reachedTail = !existingState || maxChapterNum + 1 >= existingState.current_chapter;
-    tailSceneEnding = reachedTail ? extract_last_scene_ending(maxChapter.content, 50) : "";
+    tailSceneEnding = reachedTail ? extractLastSceneEnding(maxChapter.content, 50) : "";
 
     importState = existingState
       ? {
@@ -689,7 +689,7 @@ async function do_execute_import(plan: ImportPlan, params: ExecuteImportParams):
     tx.appendOp(
       auId,
       createOpsEntry({
-        op_id: generate_op_id(),
+        op_id: generateOpId(),
         op_type: "import_chapters",
         target_id: auId,
         timestamp,
@@ -730,7 +730,7 @@ async function do_execute_import(plan: ImportPlan, params: ExecuteImportParams):
           }
         }
       }
-      await rollback_imported_settings(adapter, writtenSettingsPaths);
+      await rollbackImportedSettings(adapter, writtenSettingsPaths);
       throw commitError;
     }
   }
@@ -746,7 +746,7 @@ async function do_execute_import(plan: ImportPlan, params: ExecuteImportParams):
  * 旧接口：三级切分。内部转调 chapter_splitter。
  * @deprecated 使用 splitChapters() 替代
  */
-export function split_into_chapters(text: string): SplitChapter[] {
+export function splitIntoChapters(text: string): SplitChapter[] {
   if (!text.trim()) return [];
   const standard = trySplitByStandardHeaders(text);
   if (standard) return standard;
@@ -759,7 +759,7 @@ export function split_into_chapters(text: string): SplitChapter[] {
  * 旧接口：获取切分方法名。
  * @deprecated 使用 splitChapters() 的 method 字段替代
  */
-export function get_split_method(text: string): string {
+export function getSplitMethod(text: string): string {
   if (!text.trim()) return "auto_3000";
   if (trySplitByStandardHeaders(text) !== null) return "title";
   if (trySplitByNumericHeaders(text) !== null) return "integer";
@@ -770,7 +770,7 @@ export function get_split_method(text: string): string {
 // HTML 解析器（保留）
 // ---------------------------------------------------------------------------
 
-export function parse_html(raw: string): string {
+export function parseHtml(raw: string): string {
   let text = raw.replace(/<(script|style)[^>]*>.*?<\/\1>/gis, "");
   text = text.replace(/<br\s*\/?>/gi, "\n");
   text = text.replace(/<\/(p|div|h[1-6]|li|tr|blockquote)>/gi, "\n\n");
@@ -811,13 +811,13 @@ export interface ImportChaptersParams {
 
 /**
  * 旧接口：导入章节并初始化 state。
- * @deprecated 使用 execute_import() 替代
+ * @deprecated 使用 executeImport() 替代
  */
-export async function import_chapters(params: ImportChaptersParams): Promise<ImportResult> {
-  return withAuLock(params.au_id, () => do_import_chapters(params));
+export async function importChapters(params: ImportChaptersParams): Promise<ImportResult> {
+  return withAuLock(params.au_id, () => doImportChapters(params));
 }
 
-async function do_import_chapters(params: ImportChaptersParams): Promise<ImportResult> {
+async function doImportChapters(params: ImportChaptersParams): Promise<ImportResult> {
   const {
     au_id,
     chapters,
@@ -829,14 +829,14 @@ async function do_import_chapters(params: ImportChaptersParams): Promise<ImportR
     split_method = "auto_3000",
   } = params;
 
-  const timestamp = now_utc();
+  const timestamp = nowUtc();
   const tx = new WriteTransaction();
 
   // 收集章节 + 角色扫描
   const charactersLastSeen: Record<string, number> = {};
   const chapterTitles: Record<number, string> = {};
   for (const chData of chapters) {
-    const contentHash = await compute_content_hash(chData.content);
+    const contentHash = await computeContentHash(chData.content);
     const chapter = createChapter({
       au_id,
       chapter_num: chData.chapter_num,
@@ -852,9 +852,9 @@ async function do_import_chapters(params: ImportChaptersParams): Promise<ImportR
       chapterTitles[chData.chapter_num] = chData.title.trim();
     }
 
-    const scanned = scan_characters_in_chapter(chData.content, cast_registry, character_aliases, chData.chapter_num);
+    const scanned = scanCharactersInChapter(chData.content, cast_registry, character_aliases, chData.chapter_num);
     for (const [name, chNum] of Object.entries(scanned)) {
-      // 见 do_execute_import 同处注释：`in` 会命中原型链，用 Object.hasOwn 防 proto 键误判。
+      // 见 doExecuteImport 同处注释：`in` 会命中原型链，用 Object.hasOwn 防 proto 键误判。
       if (!Object.hasOwn(charactersLastSeen, name) || chNum > charactersLastSeen[name]) {
         charactersLastSeen[name] = chNum;
       }
@@ -864,7 +864,7 @@ async function do_import_chapters(params: ImportChaptersParams): Promise<ImportR
   // 初始化 state
   const lastChapterNum = chapters.length > 0 ? Math.max(...chapters.map((c) => c.chapter_num)) : 0;
   const lastContent = chapters.length > 0 ? chapters[chapters.length - 1].content : "";
-  const lastSceneEnding = extract_last_scene_ending(lastContent, 50);
+  const lastSceneEnding = extractLastSceneEnding(lastContent, 50);
 
   const state = createState({
     au_id,
@@ -879,7 +879,7 @@ async function do_import_chapters(params: ImportChaptersParams): Promise<ImportR
   tx.appendOp(
     au_id,
     createOpsEntry({
-      op_id: generate_op_id(),
+      op_id: generateOpId(),
       op_type: "import_project",
       target_id: au_id,
       timestamp,

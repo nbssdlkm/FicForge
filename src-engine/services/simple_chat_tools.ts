@@ -15,7 +15,7 @@
  * 由 simple_chat_dispatch 再导出以保持既有路径与 barrel 不变。
  */
 
-import { get_tools_for_mode } from "../domain/settings_tools.js";
+import { getToolsForMode } from "../domain/settings_tools.js";
 import { SIMPLE_TOOL_PATH_FIELDS, SIMPLE_TOOL_SCHEMAS } from "../domain/simple_tools_zod.js";
 import { repairAndValidateToolArgs, type RepairTrace } from "./tool_args_repair.js";
 
@@ -29,13 +29,13 @@ const SIMPLE_READ_ONLY_TOOLS: ReadonlySet<string> = new Set([SIMPLE_TOOL_SHOW_CH
  * 修改类工具集合（agent loop 走 human-in-the-loop：emit ToolCallCard → break → 用户
  * confirm 后另起 dispatch round）。
  *
- * 从「实际下发给 LLM 的工具集」get_tools_for_mode("simple") 派生，不再手工双列
+ * 从「实际下发给 LLM 的工具集」getToolsForMode("simple") 派生，不再手工双列
  * （盲审 2026-07-11 功能维：旧手工列表额外含 create_/modify_core_character_file —— 它们
  * 从不下发给简版 LLM、UI 执行器也无实现，LLM 幻觉调用会渲染成「可确认却执行不了」的
  * 卡片。派生保证：能出确认卡的 ≡ 真正下发且 UI 可执行的修改类工具，两侧永不漂移）。
  */
 export const SIMPLE_MUTATING_TOOLS: ReadonlySet<string> = new Set(
-  (get_tools_for_mode("simple") as { function: { name: string } }[])
+  (getToolsForMode("simple") as { function: { name: string } }[])
     .map((t) => t.function.name)
     .filter((n) => n !== SIMPLE_TOOL_CHAT_REPLY && !SIMPLE_READ_ONLY_TOOLS.has(n)),
 );

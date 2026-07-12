@@ -40,7 +40,7 @@ interface VectorIndex {
 }
 
 /** Cosine similarity。 */
-export function cosine_similarity(a: number[], b: number[]): number {
+export function cosineSimilarity(a: number[], b: number[]): number {
   let dot = 0,
     normA = 0,
     normB = 0;
@@ -138,7 +138,7 @@ export class JsonVectorEngine implements VectorRepository {
     // 计算 cosine similarity 并排序
     const scored = candidates.map((c) => ({
       chunk: c,
-      score: cosine_similarity(query_embedding, c.embedding),
+      score: cosineSimilarity(query_embedding, c.embedding),
     }));
     scored.sort((a, b) => b.score - a.score);
 

@@ -5,7 +5,7 @@ import { describe, expect, it, beforeEach } from "vitest";
 import { FileChapterRepository } from "../implementations/file_chapter.js";
 import { createChapter } from "../../domain/chapter.js";
 import { createGeneratedWith } from "../../domain/generated_with.js";
-import { compute_content_hash } from "../../utils/file_utils.js";
+import { computeContentHash } from "../../utils/file_utils.js";
 import { MockAdapter } from "./mock_adapter.js";
 
 describe("FileChapterRepository", () => {
@@ -221,7 +221,7 @@ describe("FileChapterRepository frontmatter safety (H6)", () => {
       revision: 3,
       confirmed_focus: ["f_1", "f_2"],
       confirmed_at: "2026-07-01T00:00:00Z",
-      content_hash: await compute_content_hash(content),
+      content_hash: await computeContentHash(content),
       provenance: "ai",
       generated_with: createGeneratedWith({
         mode: "continue",

@@ -4,7 +4,7 @@
 /**
  * getFactsExtractionReadiness — 事实提取就位判断（审计④）。
  *
- * 与 resolveFactsProvider 同源（resolve_llm_config 优先级 session>project>default_llm）。
+ * 与 resolveFactsProvider 同源（resolveLlmConfig 优先级 session>project>default_llm）。
  * 关键回归：AU 级独立配 LLM、全局 default_llm 空时，readiness 必须为真——否则对话自动
  * 提取 gate 会误判为不可用而静默跳过（与写文路径不一致）。
  */

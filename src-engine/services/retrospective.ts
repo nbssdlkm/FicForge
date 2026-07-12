@@ -39,13 +39,13 @@ export interface RetrospectiveOptions {
  *     ch=5 → target=0 < 1 → false
  *     ch=7 → 7%5≠0 → false
  */
-export function should_run_retrospective(chapterNum: number, triggerInterval: number): boolean {
+export function shouldRunRetrospective(chapterNum: number, triggerInterval: number): boolean {
   if (chapterNum % triggerInterval !== 0) return false;
   const targetChapterNum = chapterNum - triggerInterval;
   return targetChapterNum >= 1;
 }
 
-/** generate_retrospective 的返回结构（供调用方在锁内写盘） */
+/** generateRetrospective 的返回结构（供调用方在锁内写盘） */
 export interface RetrospectiveGenResult {
   v2Text: string;
   contentHash: string;
@@ -64,7 +64,7 @@ export interface RetrospectiveGenResult {
  *
  * 所有步骤失败均不抛出（由调用方 catch + logCatch 处理）。
  */
-export async function generate_retrospective(
+export async function generateRetrospective(
   auPath: string,
   targetChapterNum: number,
   chapterRepo: ChapterRepository,
@@ -160,7 +160,7 @@ export async function generate_retrospective(
  * 由调用方在 AU 锁内、CAS 校验章节仍存在后调用。
  * 失败不抛出（best-effort）。
  */
-export async function commit_retrospective(
+export async function commitRetrospective(
   auPath: string,
   targetChapterNum: number,
   genResult: RetrospectiveGenResult,
@@ -207,12 +207,12 @@ export async function commit_retrospective(
  * 为目标章节生成「后见之明」standard v2 摘要（单阶段合并版，供测试 / 向后兼容使用）。
  *
  * 步骤 1-5（锁外生成）+ 步骤 6-7（锁内写盘）合并在同一函数内。
- * 生产代码（engine-chapters.ts）应使用 generate_retrospective + commit_retrospective
+ * 生产代码（engine-chapters.ts）应使用 generateRetrospective + commitRetrospective
  * 的双阶段形式，把写盘纳入 withAuLock + CAS，避免与并发 undo 产生孤儿 .summary.jsonl。
  *
  * 所有步骤失败均不抛出（由调用方 catch + logCatch 处理）。
  */
-export async function run_retrospective(
+export async function runRetrospective(
   auPath: string,
   targetChapterNum: number,
   chapterRepo: ChapterRepository,
@@ -223,7 +223,7 @@ export async function run_retrospective(
   currentChapter: number,
   opts?: RetrospectiveOptions,
 ): Promise<void> {
-  const genResult = await generate_retrospective(
+  const genResult = await generateRetrospective(
     auPath,
     targetChapterNum,
     chapterRepo,
@@ -234,5 +234,5 @@ export async function run_retrospective(
   );
   if (!genResult) return;
 
-  await commit_retrospective(auPath, targetChapterNum, genResult, summaryRepo, ragManager, embeddingProvider);
+  await commitRetrospective(auPath, targetChapterNum, genResult, summaryRepo, ragManager, embeddingProvider);
 }

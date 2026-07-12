@@ -59,7 +59,7 @@ async function applyChapterRestoreLifecycle(auPath: string, chapterNum: number):
   }
   // 3) recalcState —— 重算 characters_last_seen / last_scene_ending / dirty·focus 清理，
   //    让 state 派生字段与磁盘章节重新一致（M4 已有服务，内部自带 AU 锁 + ops 审计）。
-  //    注：recalc_state 语义不含 current_chapter（它从不重算写作进度指针），见报告取舍说明。
+  //    注：recalcState 语义不含 current_chapter（它从不重算写作进度指针），见报告取舍说明。
   try {
     await recalcState(auPath);
   } catch (err) {

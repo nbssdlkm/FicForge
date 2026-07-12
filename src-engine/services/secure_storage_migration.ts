@@ -30,7 +30,7 @@ export interface SecureStorageMigrationResult {
  * - 把旧版明文 YAML 中的 secrets 搬进 secure storage；
  * - 回写为占位符，但不改业务元数据（revision / updated_at）。
  */
-export async function migrate_legacy_secure_storage(
+export async function migrateLegacySecureStorage(
   params: SecureStorageMigrationParams,
 ): Promise<SecureStorageMigrationResult> {
   const capabilities = params.adapter.getSecretStorageCapabilities();

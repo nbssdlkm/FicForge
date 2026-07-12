@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { add_fact, edit_fact, update_fact_status, set_chapter_focus, FactsLifecycleError } from "../facts_lifecycle.js";
+import { addFact, editFact, updateFactStatus, setChapterFocus, FactsLifecycleError } from "../facts_lifecycle.js";
 import { FactStatus, TimeKind, SuspenseType } from "../../domain/enums.js";
 import { FileFactRepository } from "../../repositories/implementations/file_fact.js";
 import { FileOpsRepository } from "../../repositories/implementations/file_ops.js";
@@ -22,8 +22,8 @@ describe("Facts Lifecycle", () => {
     stateRepo = new FileStateRepository(adapter);
   });
 
-  it("add_fact appends and returns fact", async () => {
-    const fact = await add_fact(
+  it("addFact appends and returns fact", async () => {
+    const fact = await addFact(
       "au1",
       1,
       {
@@ -50,7 +50,7 @@ describe("Facts Lifecycle", () => {
   });
 
   it("add_fact with alias normalization", async () => {
-    const fact = await add_fact(
+    const fact = await addFact(
       "au1",
       1,
       {
@@ -67,8 +67,8 @@ describe("Facts Lifecycle", () => {
     expect(fact.characters).toEqual(["明华", "Bob"]);
   });
 
-  it("add_fact triggers resolves forward cascade", async () => {
-    const f1 = await add_fact(
+  it("addFact triggers resolves forward cascade", async () => {
+    const f1 = await addFact(
       "au1",
       1,
       {
@@ -80,7 +80,7 @@ describe("Facts Lifecycle", () => {
       opsRepo,
     );
 
-    await add_fact(
+    await addFact(
       "au1",
       2,
       {
@@ -97,8 +97,8 @@ describe("Facts Lifecycle", () => {
     expect(updated!.status).toBe(FactStatus.RESOLVED);
   });
 
-  it("edit_fact removes resolves → reverse cascade", async () => {
-    const f1 = await add_fact(
+  it("editFact removes resolves → reverse cascade", async () => {
+    const f1 = await addFact(
       "au1",
       1,
       {
@@ -110,7 +110,7 @@ describe("Facts Lifecycle", () => {
       opsRepo,
     );
 
-    const f2 = await add_fact(
+    const f2 = await addFact(
       "au1",
       2,
       {
@@ -126,14 +126,14 @@ describe("Facts Lifecycle", () => {
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.RESOLVED);
 
     // Remove resolves
-    await edit_fact("au1", f2.id, { resolves: null }, factRepo, opsRepo, stateRepo);
+    await editFact("au1", f2.id, { resolves: null }, factRepo, opsRepo, stateRepo);
 
     // f1 should revert to UNRESOLVED
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
   });
 
-  it("edit_fact 拒绝非法枚举值（防静默写坏 status 让 fact 从所有筛选视图消失）", async () => {
-    const f = await add_fact(
+  it("editFact 拒绝非法枚举值（防静默写坏 status 让 fact 从所有筛选视图消失）", async () => {
+    const f = await addFact(
       "au1",
       1,
       {
@@ -147,7 +147,7 @@ describe("Facts Lifecycle", () => {
 
     // status:"resloved"（拼错）非法 + content_clean 合法：旧代码 `v as FactStatus` 会把 "resloved"
     // 直接写进 facts.jsonl，fact 从此从 list_by_status / 上下文组装里消失。新代码拒绝非法枚举、保留原值。
-    await edit_fact("au1", f.id, { status: "resloved", content_clean: "改后内容" }, factRepo, opsRepo, stateRepo);
+    await editFact("au1", f.id, { status: "resloved", content_clean: "改后内容" }, factRepo, opsRepo, stateRepo);
 
     const got = await factRepo.get("au1", f.id);
     expect(got!.status).toBe(FactStatus.ACTIVE); // 非法 status 被拒，保留原合法值
@@ -161,8 +161,8 @@ describe("Facts Lifecycle", () => {
     expect(uf.content_clean).toBe("改后内容");
   });
 
-  it("edit_fact keeps RESOLVED if other fact still resolves", async () => {
-    const f1 = await add_fact(
+  it("editFact keeps RESOLVED if other fact still resolves", async () => {
+    const f1 = await addFact(
       "au1",
       1,
       {
@@ -174,7 +174,7 @@ describe("Facts Lifecycle", () => {
       opsRepo,
     );
 
-    const f2 = await add_fact(
+    const f2 = await addFact(
       "au1",
       2,
       {
@@ -186,7 +186,7 @@ describe("Facts Lifecycle", () => {
       opsRepo,
     );
 
-    await add_fact(
+    await addFact(
       "au1",
       3,
       {
@@ -199,20 +199,18 @@ describe("Facts Lifecycle", () => {
     );
 
     // Remove resolves from f2 only
-    await edit_fact("au1", f2.id, { resolves: null }, factRepo, opsRepo, stateRepo);
+    await editFact("au1", f2.id, { resolves: null }, factRepo, opsRepo, stateRepo);
 
     // f1 should stay RESOLVED (f3 still resolves it)
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.RESOLVED);
   });
 
-  it("edit_fact throws on missing fact", async () => {
-    await expect(edit_fact("au1", "nonexistent", {}, factRepo, opsRepo, stateRepo)).rejects.toThrow(
-      FactsLifecycleError,
-    );
+  it("editFact throws on missing fact", async () => {
+    await expect(editFact("au1", "nonexistent", {}, factRepo, opsRepo, stateRepo)).rejects.toThrow(FactsLifecycleError);
   });
 
-  it("update_fact_status changes status and cleans focus", async () => {
-    const f1 = await add_fact(
+  it("updateFactStatus changes status and cleans focus", async () => {
+    const f1 = await addFact(
       "au1",
       1,
       {
@@ -225,10 +223,10 @@ describe("Facts Lifecycle", () => {
     );
 
     // Set as focus
-    await set_chapter_focus("au1", [f1.id], factRepo, opsRepo, stateRepo);
+    await setChapterFocus("au1", [f1.id], factRepo, opsRepo, stateRepo);
 
     // Deprecate
-    const result = await update_fact_status("au1", f1.id, "deprecated", 1, factRepo, opsRepo, stateRepo);
+    const result = await updateFactStatus("au1", f1.id, "deprecated", 1, factRepo, opsRepo, stateRepo);
     expect(result.focus_warning).toBe(true);
 
     // Focus should be empty now
@@ -238,8 +236,8 @@ describe("Facts Lifecycle", () => {
 
   // TD-014: 作废一个 resolver → 若没有别的 fact 仍 resolve 其目标，目标退回 UNRESOLVED。
   // 此前 deprecate 路径漏了反向级联（揭示者作废但伏笔仍挂 RESOLVED → LLM 上下文脱节）。
-  it("update_fact_status deprecate resolver → target reverts to UNRESOLVED (TD-014)", async () => {
-    const f1 = await add_fact(
+  it("updateFactStatus deprecate resolver → target reverts to UNRESOLVED (TD-014)", async () => {
+    const f1 = await addFact(
       "au1",
       1,
       {
@@ -250,7 +248,7 @@ describe("Facts Lifecycle", () => {
       factRepo,
       opsRepo,
     );
-    const f2 = await add_fact(
+    const f2 = await addFact(
       "au1",
       2,
       {
@@ -264,13 +262,13 @@ describe("Facts Lifecycle", () => {
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.RESOLVED);
 
     // 作废揭示者 f2
-    await update_fact_status("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
+    await updateFactStatus("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
 
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
   });
 
-  it("update_fact_status deprecate resolver but another resolver remains → target stays RESOLVED (TD-014)", async () => {
-    const f1 = await add_fact(
+  it("updateFactStatus deprecate resolver but another resolver remains → target stays RESOLVED (TD-014)", async () => {
+    const f1 = await addFact(
       "au1",
       1,
       {
@@ -281,7 +279,7 @@ describe("Facts Lifecycle", () => {
       factRepo,
       opsRepo,
     );
-    const f2 = await add_fact(
+    const f2 = await addFact(
       "au1",
       2,
       {
@@ -292,7 +290,7 @@ describe("Facts Lifecycle", () => {
       factRepo,
       opsRepo,
     );
-    await add_fact(
+    await addFact(
       "au1",
       3,
       {
@@ -305,14 +303,14 @@ describe("Facts Lifecycle", () => {
     );
 
     // 只作废 f2；f3 仍 resolve f1
-    await update_fact_status("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
+    await updateFactStatus("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
 
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.RESOLVED);
   });
 
-  it("update_fact_status deprecate resolver whose target isn't RESOLVED → no-op (TD-014)", async () => {
+  it("updateFactStatus deprecate resolver whose target isn't RESOLVED → no-op (TD-014)", async () => {
     // target 当前不是 RESOLVED（手动维持 unresolved）→ 反向级联应 no-op，不冒出多余 op
-    const f1 = await add_fact(
+    const f1 = await addFact(
       "au1",
       1,
       {
@@ -323,7 +321,7 @@ describe("Facts Lifecycle", () => {
       factRepo,
       opsRepo,
     );
-    const f2 = await add_fact(
+    const f2 = await addFact(
       "au1",
       2,
       {
@@ -335,19 +333,19 @@ describe("Facts Lifecycle", () => {
       opsRepo,
     );
     // 强制 f1 回到 unresolved（模拟 target 不在 RESOLVED 态）
-    await update_fact_status("au1", f1.id, "unresolved", 1, factRepo, opsRepo, stateRepo);
+    await updateFactStatus("au1", f1.id, "unresolved", 1, factRepo, opsRepo, stateRepo);
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
     const opsBefore = (await opsRepo.list_all("au1")).length;
 
-    await update_fact_status("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
+    await updateFactStatus("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
 
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
     // 只多了 f2 自己的 deprecate op，没有反向级联 op
     expect((await opsRepo.list_all("au1")).length).toBe(opsBefore + 1);
   });
 
-  it("update_fact_status re-deprecate is idempotent → target stays UNRESOLVED, no double-revert (TD-014)", async () => {
-    const f1 = await add_fact(
+  it("updateFactStatus re-deprecate is idempotent → target stays UNRESOLVED, no double-revert (TD-014)", async () => {
+    const f1 = await addFact(
       "au1",
       1,
       {
@@ -358,7 +356,7 @@ describe("Facts Lifecycle", () => {
       factRepo,
       opsRepo,
     );
-    const f2 = await add_fact(
+    const f2 = await addFact(
       "au1",
       2,
       {
@@ -370,30 +368,30 @@ describe("Facts Lifecycle", () => {
       opsRepo,
     );
 
-    await update_fact_status("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
+    await updateFactStatus("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
 
-    // 再次作废已作废的 f2 → f1 已是 UNRESOLVED（collect_resolves_reverse 仅当 target RESOLVED 才动）→ 不变
-    await update_fact_status("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
+    // 再次作废已作废的 f2 → f1 已是 UNRESOLVED（collectResolvesReverse 仅当 target RESOLVED 才动）→ 不变
+    await updateFactStatus("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
   });
 
-  it("set_chapter_focus validates max 2", async () => {
-    const f1 = await add_fact(
+  it("setChapterFocus validates max 2", async () => {
+    const f1 = await addFact(
       "au1",
       1,
       { content_raw: "r", content_clean: "c", status: "unresolved" },
       factRepo,
       opsRepo,
     );
-    const f2 = await add_fact(
+    const f2 = await addFact(
       "au1",
       1,
       { content_raw: "r", content_clean: "c", status: "unresolved" },
       factRepo,
       opsRepo,
     );
-    const f3 = await add_fact(
+    const f3 = await addFact(
       "au1",
       1,
       { content_raw: "r", content_clean: "c", status: "unresolved" },
@@ -401,23 +399,23 @@ describe("Facts Lifecycle", () => {
       opsRepo,
     );
 
-    await expect(set_chapter_focus("au1", [f1.id, f2.id, f3.id], factRepo, opsRepo, stateRepo)).rejects.toThrow(
+    await expect(setChapterFocus("au1", [f1.id, f2.id, f3.id], factRepo, opsRepo, stateRepo)).rejects.toThrow(
       "最多 2 个",
     );
   });
 
-  it("set_chapter_focus validates unresolved only", async () => {
-    const f1 = await add_fact("au1", 1, { content_raw: "r", content_clean: "c", status: "active" }, factRepo, opsRepo);
+  it("setChapterFocus validates unresolved only", async () => {
+    const f1 = await addFact("au1", 1, { content_raw: "r", content_clean: "c", status: "active" }, factRepo, opsRepo);
 
-    await expect(set_chapter_focus("au1", [f1.id], factRepo, opsRepo, stateRepo)).rejects.toThrow("只能选 unresolved");
+    await expect(setChapterFocus("au1", [f1.id], factRepo, opsRepo, stateRepo)).rejects.toThrow("只能选 unresolved");
   });
 
   // ----------------------------------------------------------
-  // M8-A BLOCKER: add_fact forwards all M8-A fields to createFact
+  // M8-A BLOCKER: addFact forwards all M8-A fields to createFact
   // ----------------------------------------------------------
 
-  it("add_fact forwards M8-A layer-2 fields to the persisted fact", async () => {
-    const fact = await add_fact(
+  it("addFact forwards M8-A layer-2 fields to the persisted fact", async () => {
+    const fact = await addFact(
       "au1",
       3,
       {
@@ -462,8 +460,8 @@ describe("Facts Lifecycle", () => {
     expect(addOp!.payload.fact.time_kind).toBe(TimeKind.FLASHBACK);
   });
 
-  it("add_fact forwards M8-A layer-3 fields to the persisted fact", async () => {
-    const fact = await add_fact(
+  it("addFact forwards M8-A layer-3 fields to the persisted fact", async () => {
+    const fact = await addFact(
       "au1",
       2,
       {
@@ -489,8 +487,8 @@ describe("Facts Lifecycle", () => {
     expect(stored!.suspense_type).toBe(SuspenseType.SECRET);
   });
 
-  it("add_fact: illegal time_kind falls to null (not stored as garbage)", async () => {
-    const fact = await add_fact(
+  it("addFact: illegal time_kind falls to null (not stored as garbage)", async () => {
+    const fact = await addFact(
       "au1",
       1,
       {
@@ -507,8 +505,8 @@ describe("Facts Lifecycle", () => {
     expect(stored!.time_kind).toBeNull();
   });
 
-  it("add_fact: illegal suspense_type falls to null", async () => {
-    const fact = await add_fact(
+  it("addFact: illegal suspense_type falls to null", async () => {
+    const fact = await addFact(
       "au1",
       1,
       {
@@ -523,8 +521,8 @@ describe("Facts Lifecycle", () => {
     expect(fact.suspense_type).toBeNull();
   });
 
-  it("add_fact: known_to string value 'all' is preserved", async () => {
-    const fact = await add_fact(
+  it("addFact: known_to string value 'all' is preserved", async () => {
+    const fact = await addFact(
       "au1",
       1,
       {
@@ -541,8 +539,8 @@ describe("Facts Lifecycle", () => {
     expect(stored!.known_to).toBe("all");
   });
 
-  it("add_fact: known_to array filters non-strings and normalizes aliases", async () => {
-    const fact = await add_fact(
+  it("addFact: known_to array filters non-strings and normalizes aliases", async () => {
+    const fact = await addFact(
       "au1",
       1,
       {
@@ -563,9 +561,9 @@ describe("Facts Lifecycle", () => {
     expect((fact.known_to as string[]).some((v) => typeof v !== "string")).toBe(false);
   });
 
-  it("add_fact: _confidence is forwarded to the fact", async () => {
+  it("addFact: _confidence is forwarded to the fact", async () => {
     const confidence = { location: "high" as const, time_kind: "medium" as const };
-    const fact = await add_fact(
+    const fact = await addFact(
       "au1",
       1,
       {
@@ -588,7 +586,7 @@ describe("Facts Lifecycle", () => {
 // M3 批一：知情字段消毒（单一真相源）+ 人改升 high + 空编辑早退 + 回放对称
 // ===========================================================================
 
-describe("Facts Lifecycle — M3 批一：edit_fact 知情字段硬化", () => {
+describe("Facts Lifecycle — M3 批一：editFact 知情字段硬化", () => {
   let adapter: MockAdapter;
   let factRepo: FileFactRepository;
   let opsRepo: FileOpsRepository;
@@ -602,7 +600,7 @@ describe("Facts Lifecycle — M3 批一：edit_fact 知情字段硬化", () => {
   });
 
   it("known_to 非法形状（数字）→ 拒绝保留原值；合法数组 → trim/去重/过滤后生效", async () => {
-    const f = await add_fact(
+    const f = await addFact(
       "au1",
       1,
       {
@@ -614,15 +612,15 @@ describe("Facts Lifecycle — M3 批一：edit_fact 知情字段硬化", () => {
       opsRepo,
     );
 
-    await edit_fact("au1", f.id, { known_to: 42 }, factRepo, opsRepo, stateRepo);
+    await editFact("au1", f.id, { known_to: 42 }, factRepo, opsRepo, stateRepo);
     expect((await factRepo.get("au1", f.id))!.known_to).toEqual(["王妃"]); // 垃圾被拒
 
-    await edit_fact("au1", f.id, { known_to: [" 稳婆 ", "", 7, "稳婆"] }, factRepo, opsRepo, stateRepo);
+    await editFact("au1", f.id, { known_to: [" 稳婆 ", "", 7, "稳婆"] }, factRepo, opsRepo, stateRepo);
     expect((await factRepo.get("au1", f.id))!.known_to).toEqual(["稳婆"]); // 消毒后生效
   });
 
   it("known_to 空数组折叠为 null（消除 []/null 双重「无信息」表示）；裸字符串折叠单人名单", async () => {
-    const f = await add_fact(
+    const f = await addFact(
       "au1",
       1,
       {
@@ -634,15 +632,15 @@ describe("Facts Lifecycle — M3 批一：edit_fact 知情字段硬化", () => {
       opsRepo,
     );
 
-    await edit_fact("au1", f.id, { known_to: [] }, factRepo, opsRepo, stateRepo);
+    await editFact("au1", f.id, { known_to: [] }, factRepo, opsRepo, stateRepo);
     expect((await factRepo.get("au1", f.id))!.known_to).toBeNull();
 
-    await edit_fact("au1", f.id, { known_to: "皇帝" }, factRepo, opsRepo, stateRepo);
+    await editFact("au1", f.id, { known_to: "皇帝" }, factRepo, opsRepo, stateRepo);
     expect((await factRepo.get("au1", f.id))!.known_to).toEqual(["皇帝"]);
   });
 
   it("hidden_from 非数组 → 拒绝；数组 → 过滤非字符串 + trim；null → 清空为 []", async () => {
-    const f = await add_fact(
+    const f = await addFact(
       "au1",
       1,
       {
@@ -654,18 +652,18 @@ describe("Facts Lifecycle — M3 批一：edit_fact 知情字段硬化", () => {
       opsRepo,
     );
 
-    await edit_fact("au1", f.id, { hidden_from: "abc" }, factRepo, opsRepo, stateRepo);
+    await editFact("au1", f.id, { hidden_from: "abc" }, factRepo, opsRepo, stateRepo);
     expect((await factRepo.get("au1", f.id))!.hidden_from).toEqual(["王爷"]); // 非数组拒绝
 
-    await edit_fact("au1", f.id, { hidden_from: [1, " 太后 ", ""] }, factRepo, opsRepo, stateRepo);
+    await editFact("au1", f.id, { hidden_from: [1, " 太后 ", ""] }, factRepo, opsRepo, stateRepo);
     expect((await factRepo.get("au1", f.id))!.hidden_from).toEqual(["太后"]);
 
-    await edit_fact("au1", f.id, { hidden_from: null }, factRepo, opsRepo, stateRepo);
+    await editFact("au1", f.id, { hidden_from: null }, factRepo, opsRepo, stateRepo);
     expect((await factRepo.get("au1", f.id))!.hidden_from).toEqual([]);
   });
 
   it("拒绝外部直写 _confidence（引擎自管）；由此产生的空编辑早退：不落 op 不 bump revision", async () => {
-    const f = await add_fact(
+    const f = await addFact(
       "au1",
       1,
       {
@@ -678,7 +676,7 @@ describe("Facts Lifecycle — M3 批一：edit_fact 知情字段硬化", () => {
     const opsBefore = (await opsRepo.list_all("au1")).length;
     const revBefore = (await factRepo.get("au1", f.id))!.revision;
 
-    const returned = await edit_fact("au1", f.id, { _confidence: { location: "high" } }, factRepo, opsRepo, stateRepo);
+    const returned = await editFact("au1", f.id, { _confidence: { location: "high" } }, factRepo, opsRepo, stateRepo);
 
     expect(returned._confidence).toBeUndefined(); // 直写被拒
     expect((await factRepo.get("au1", f.id))!.revision).toBe(revBefore); // revision 不空转
@@ -686,7 +684,7 @@ describe("Facts Lifecycle — M3 批一：edit_fact 知情字段硬化", () => {
   });
 
   it("人改升 high：有 _confidence 的 fact 编辑 known_to/hidden_from → 对应键升 high 并入 op；其余键不动", async () => {
-    const f = await add_fact(
+    const f = await addFact(
       "au1",
       1,
       {
@@ -701,7 +699,7 @@ describe("Facts Lifecycle — M3 批一：edit_fact 知情字段硬化", () => {
       opsRepo,
     );
 
-    await edit_fact("au1", f.id, { known_to: ["甲"], hidden_from: ["乙"] }, factRepo, opsRepo, stateRepo);
+    await editFact("au1", f.id, { known_to: ["甲"], hidden_from: ["乙"] }, factRepo, opsRepo, stateRepo);
 
     const got = (await factRepo.get("au1", f.id))!;
     expect(got.known_to).toEqual(["甲"]);
@@ -715,7 +713,7 @@ describe("Facts Lifecycle — M3 批一：edit_fact 知情字段硬化", () => {
   });
 
   it("无 _confidence 的 fact（手动 ground truth）人改后不凭空造 _confidence", async () => {
-    const f = await add_fact(
+    const f = await addFact(
       "au1",
       1,
       {
@@ -727,12 +725,12 @@ describe("Facts Lifecycle — M3 批一：edit_fact 知情字段硬化", () => {
       opsRepo,
     );
 
-    await edit_fact("au1", f.id, { known_to: ["乙"] }, factRepo, opsRepo, stateRepo);
+    await editFact("au1", f.id, { known_to: ["乙"] }, factRepo, opsRepo, stateRepo);
     expect((await factRepo.get("au1", f.id))!._confidence).toBeUndefined();
   });
 
   it("空编辑早退：全部键被拒时不落 op、不 bump revision、级联不触发", async () => {
-    const f = await add_fact(
+    const f = await addFact(
       "au1",
       1,
       {
@@ -746,17 +744,17 @@ describe("Facts Lifecycle — M3 批一：edit_fact 知情字段硬化", () => {
     const opsBefore = (await opsRepo.list_all("au1")).length;
     const revBefore = (await factRepo.get("au1", f.id))!.revision;
 
-    await edit_fact("au1", f.id, {}, factRepo, opsRepo, stateRepo);
-    await edit_fact("au1", f.id, { status: "resloved", known_to: 42 }, factRepo, opsRepo, stateRepo);
+    await editFact("au1", f.id, {}, factRepo, opsRepo, stateRepo);
+    await editFact("au1", f.id, { status: "resloved", known_to: 42 }, factRepo, opsRepo, stateRepo);
 
     expect((await factRepo.get("au1", f.id))!.revision).toBe(revBefore);
     expect((await opsRepo.list_all("au1")).length).toBe(opsBefore);
   });
 
-  it("edit_fact 别名归一化经消毒器统一生效（known_to/hidden_from/characters 同表）", async () => {
+  it("editFact 别名归一化经消毒器统一生效（known_to/hidden_from/characters 同表）", async () => {
     // 两张名单用不同角色 —— 同名同现的矛盾化解另有专测（对抗审 MED-3），此处纯测归一化
     const aliases = { 明华: ["小明"], 泰王: ["小王"] };
-    const f = await add_fact(
+    const f = await addFact(
       "au1",
       1,
       {
@@ -769,7 +767,7 @@ describe("Facts Lifecycle — M3 批一：edit_fact 知情字段硬化", () => {
       aliases,
     );
 
-    await edit_fact(
+    await editFact(
       "au1",
       f.id,
       { known_to: ["小明"], hidden_from: ["小王", "泰王"] },
@@ -859,7 +857,7 @@ describe("Facts Lifecycle — 对抗审整改（codex R1）", () => {
   });
 
   it("MED-2 同值编辑：原样保存不落 op、不涨 revision、不把 low 误升 high", async () => {
-    const f = await add_fact(
+    const f = await addFact(
       "au1",
       1,
       {
@@ -876,7 +874,7 @@ describe("Facts Lifecycle — 对抗审整改（codex R1）", () => {
     const revBefore = (await factRepo.get("au1", f.id))!.revision;
 
     // UI 非受控表单的典型行为：把全部字段原样发回
-    await edit_fact(
+    await editFact(
       "au1",
       f.id,
       {
@@ -897,7 +895,7 @@ describe("Facts Lifecycle — 对抗审整改（codex R1）", () => {
   });
 
   it("MED-3 矛盾化解（add 入口）：同名同现两名单 → 瞒着方胜；all+hidden → all 退位 null", async () => {
-    const f1 = await add_fact(
+    const f1 = await addFact(
       "au1",
       1,
       {
@@ -912,7 +910,7 @@ describe("Facts Lifecycle — 对抗审整改（codex R1）", () => {
     expect(f1.known_to).toEqual(["王妃"]);
     expect(f1.hidden_from).toEqual(["王爷"]);
 
-    const f2 = await add_fact(
+    const f2 = await addFact(
       "au1",
       1,
       {
@@ -927,7 +925,7 @@ describe("Facts Lifecycle — 对抗审整改（codex R1）", () => {
     expect(f2.known_to).toBeNull();
     expect(f2.hidden_from).toEqual(["王爷"]);
 
-    const f3 = await add_fact(
+    const f3 = await addFact(
       "au1",
       1,
       {
@@ -944,7 +942,7 @@ describe("Facts Lifecycle — 对抗审整改（codex R1）", () => {
   });
 
   it("MED-3 矛盾化解（edit 入口）：把已瞒角色加进知情名单 → 写侧化解并入同条 op；未触碰知情字段的编辑不动存量矛盾", async () => {
-    const f = await add_fact(
+    const f = await addFact(
       "au1",
       1,
       {
@@ -957,7 +955,7 @@ describe("Facts Lifecycle — 对抗审整改（codex R1）", () => {
       opsRepo,
     );
 
-    await edit_fact("au1", f.id, { known_to: ["王妃", "王爷"] }, factRepo, opsRepo, stateRepo);
+    await editFact("au1", f.id, { known_to: ["王妃", "王爷"] }, factRepo, opsRepo, stateRepo);
     const got = (await factRepo.get("au1", f.id))!;
     expect(got.known_to).toEqual(["王妃"]); // 王爷被瞒着 → 从知情名单剔除
     const editOp = (await opsRepo.list_all("au1")).filter((o) => o.op_type === "edit_fact").pop()!;
@@ -965,7 +963,7 @@ describe("Facts Lifecycle — 对抗审整改（codex R1）", () => {
   });
 
   it("LOW-2 保留字 trim：' all ' / ' reader_only ' 不被误当角色名", async () => {
-    const f = await add_fact(
+    const f = await addFact(
       "au1",
       1,
       {
@@ -978,7 +976,7 @@ describe("Facts Lifecycle — 对抗审整改（codex R1）", () => {
     );
     expect(f.known_to).toBe("all");
 
-    await edit_fact("au1", f.id, { known_to: " reader_only " }, factRepo, opsRepo, stateRepo);
+    await editFact("au1", f.id, { known_to: " reader_only " }, factRepo, opsRepo, stateRepo);
     expect((await factRepo.get("au1", f.id))!.known_to).toBe("reader_only");
   });
 

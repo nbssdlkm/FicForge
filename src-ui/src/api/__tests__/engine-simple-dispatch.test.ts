@@ -6,9 +6,9 @@
  *
  * 对话路径必须像写文路径（engine-generate.ts）那样，在调度前经 ragManager.vectorRepoFor(auPath)
  * 加载该 AU 的向量库（TD-017 后 per-AU 引擎），否则冷启动/切 AU 后该 AU 索引尚未 load，
- * assemble_chat_context 的 P4 RAG 层会静默为空——「对话与写文共用同一记忆栈」的承诺在 RAG 这层漏掉。
+ * assembleChatContext 的 P4 RAG 层会静默为空——「对话与写文共用同一记忆栈」的承诺在 RAG 这层漏掉。
  *
- * dispatch_simple_chat 会打真实 LLM，故在此 stub 成不产出事件的空 generator，
+ * dispatchSimpleChat 会打真实 LLM，故在此 stub 成不产出事件的空 generator，
  * 只验证 dispatchSimpleChat 在其之前经 vectorRepoFor 加载了该 AU 的向量库。
  */
 
@@ -23,7 +23,7 @@ vi.mock("@ficforge/engine", async () => {
   async function* noopDispatch(): AsyncGenerator<never> {
     // 空调度：dispatchSimpleChat 的 for-await 立即结束，不触发任何网络请求。
   }
-  return { ...actual, dispatch_simple_chat: noopDispatch };
+  return { ...actual, dispatchSimpleChat: noopDispatch };
 });
 
 import { dispatchSimpleChat } from "../engine-simple-dispatch";

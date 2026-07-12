@@ -8,19 +8,19 @@
  * 使用 WriteTransaction 保证 D-0036 写入顺序：读取+计算 → tx(ops → chapters → facts → drafts → state)。
  */
 
-import { scan_characters_in_chapter } from "../domain/character_scanner.js";
+import { scanCharactersInChapter } from "../domain/character_scanner.js";
 import { FactStatus, IndexStatus } from "../domain/enums.js";
 import { logCatch } from "../logger/index.js";
 import type { OpsEntry } from "../domain/ops_entry.js";
 import { createOpsEntry } from "../domain/ops_entry.js";
 import type { Fact } from "../domain/fact.js";
-import { extract_last_scene_ending } from "../domain/text_utils.js";
+import { extractLastSceneEnding } from "../domain/text_utils.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { DraftRepository } from "../repositories/interfaces/draft.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
-import { generate_op_id, now_utc } from "../utils/file_utils.js";
+import { generateOpId, nowUtc } from "../utils/file_utils.js";
 import { withAuLock } from "./au_lock.js";
 import { WriteTransaction } from "./write_transaction.js";
 
@@ -61,7 +61,7 @@ export interface UndoChapterResult {
  * 这是全代码库最危险的 Service，任何并发插入都会破坏级联一致性。
  * 锁分层策略见 services/au_lock.ts。
  */
-export async function undo_latest_chapter(params: UndoChapterParams): Promise<UndoChapterResult> {
+export async function undoLatestChapter(params: UndoChapterParams): Promise<UndoChapterResult> {
   return withAuLock(params.au_id, () => doUndo(params));
 }
 
@@ -153,11 +153,11 @@ async function doUndo(params: UndoChapterParams): Promise<UndoChapterResult> {
   tx.appendOp(
     au_id,
     createOpsEntry({
-      op_id: generate_op_id(),
+      op_id: generateOpId(),
       op_type: "undo_chapter",
       target_id: chapterId,
       chapter_num: n,
-      timestamp: now_utc(),
+      timestamp: nowUtc(),
       payload: {
         state_snapshot: {
           current_chapter: state.current_chapter,
@@ -228,11 +228,11 @@ async function collectResolvesRollback(
       target.status = FactStatus.UNRESOLVED;
       result.push({
         op: createOpsEntry({
-          op_id: generate_op_id(),
+          op_id: generateOpId(),
           op_type: "update_fact_status",
           target_id: targetId,
           chapter_num: n,
-          timestamp: now_utc(),
+          timestamp: nowUtc(),
           payload: {
             old_status: oldStatus,
             new_status: FactStatus.UNRESOLVED,
@@ -274,7 +274,7 @@ async function collectManualStatusRollback(
   if (statusOps.length === 0) return result;
 
   // 逆序回放：按 lamport_clock 降序（与 ops_projection.deterministicSort 的升序镜像，
-  // timestamp / op_id 作 tiebreaker）。**不能只按 timestamp** —— now_utc() 截到整秒
+  // timestamp / op_id 作 tiebreaker）。**不能只按 timestamp** —— nowUtc() 截到整秒
   // （file_utils.ts），同一秒内对同一 fact 的多次状态变更 timestamp 相同、比较器返回 0、
   // 排序退化为升序（正放），导致只回滚到「最后一次变更的 old_status」而非本章真正的章前态。
   // lamport_clock 在 append 时单调分配，对同秒 op 也严格有序。回放的最早一条 op（携带章前
@@ -303,11 +303,11 @@ async function collectManualStatusRollback(
     fact.status = oldStatus as FactStatus;
     result.push({
       op: createOpsEntry({
-        op_id: generate_op_id(),
+        op_id: generateOpId(),
         op_type: "update_fact_status",
         target_id: op.target_id,
         chapter_num: n,
-        timestamp: now_utc(),
+        timestamp: nowUtc(),
         payload: {
           old_status: currentStatus,
           new_status: oldStatus,
@@ -350,11 +350,11 @@ async function collectChapterFactDeletes(
   for (const factId of factIdsToDelete) {
     deleteOps.push(
       createOpsEntry({
-        op_id: generate_op_id(),
+        op_id: generateOpId(),
         op_type: "delete_fact",
         target_id: factId,
         chapter_num: n,
-        timestamp: now_utc(),
+        timestamp: nowUtc(),
         payload: { reason: "undo_chapter" },
       }),
     );
@@ -385,7 +385,7 @@ async function rollbackLastSceneEnding(
   // 降级：读取 ch{N-1} 末尾
   try {
     const content = await chapter_repo.get_content_only(au_id, n - 1);
-    return extract_last_scene_ending(content);
+    return extractLastSceneEnding(content);
   } catch {
     return "";
   }
@@ -437,7 +437,7 @@ async function rebuildCharactersLastSeen(
   const chapters = await chapter_repo.list_main(au_id);
   const result: Record<string, number> = {};
   for (const ch of chapters) {
-    const scanned = scan_characters_in_chapter(ch.content, cast_registry, character_aliases, ch.chapter_num);
+    const scanned = scanCharactersInChapter(ch.content, cast_registry, character_aliases, ch.chapter_num);
     for (const [name, num] of Object.entries(scanned)) {
       if (num > (result[name] ?? 0)) {
         result[name] = num;

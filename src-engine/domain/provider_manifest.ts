@@ -18,10 +18,10 @@
 
 import {
   MODEL_CONTEXT_MAP,
-  get_context_window,
-  lookup_model_context_window,
-  lookup_model_max_output,
-  normalize_model_id,
+  getContextWindow,
+  lookupModelContextWindow,
+  lookupModelMaxOutput,
+  normalizeModelId,
 } from "./model_context_map.js";
 
 // ---------------------------------------------------------------------------
@@ -44,14 +44,14 @@ export interface LocalizedName {
  * 推荐模型条目。
  *
  * 与「用户自定义模型」同构：UI 阶段用户手填的模型也用这个形状，
- * 故 contextWindow 是必填权威值（喂 compute_input_budget），maxOutputTokens 可选。
+ * 故 contextWindow 是必填权威值（喂 computeInputBudget），maxOutputTokens 可选。
  */
 export interface RecommendedModel {
   /** 模型 id（发给 API 的名字，可能带 org/ 前缀，如 SiliconFlow 的 `deepseek-ai/DeepSeek-V4-Pro`）。 */
   id: string;
   /** UI 展示名（简短，不含 org/ 前缀）。 */
   displayName: string;
-  /** context window（权威值，喂 compute_input_budget）。 */
+  /** context window（权威值，喂 computeInputBudget）。 */
   contextWindow: number;
   /** 单次输出上限（可选；官方未明示时省略，调用方回退 MODEL_MAX_OUTPUT / DEFAULT）。 */
   maxOutputTokens?: number;
@@ -362,11 +362,11 @@ const _RAW_PROVIDERS: readonly RawProviderEntry[] = [
  * maxOutputTokens 查不到则省略（RecommendedModel 该字段可选，调用方自兜）。
  */
 function withModelContext(m: RawRecommendedModel): RecommendedModel {
-  const ctx = lookup_model_context_window(m.id);
+  const ctx = lookupModelContextWindow(m.id);
   if (ctx === null) {
     throw new Error(`MODEL_CONTEXT_MAP 缺少 provider manifest 推荐模型 "${m.id}" 的条目`);
   }
-  const out = lookup_model_max_output(m.id);
+  const out = lookupModelMaxOutput(m.id);
   return { ...m, contextWindow: ctx, ...(out !== null ? { maxOutputTokens: out } : {}) };
 }
 
@@ -419,7 +419,7 @@ export function findRecommendedModel(providerId: string, modelId: string): Recom
  *   1. **manifest 推荐模型的 ctx（权威）** —— 若给了 providerId 且该供应商内精确命中 modelId，
  *      直接返回其 contextWindow（内置权威值，最准）。
  *   2. **MODEL_CONTEXT_MAP fuzzy** —— 按 model id 推断（strip org/ + 小写 + 前缀匹配）。
- *      注意：get_context_window 对未知 id 返回 DEFAULT_CONTEXT_WINDOW（不返回 undefined），
+ *      注意：getContextWindow 对未知 id 返回 DEFAULT_CONTEXT_WINDOW（不返回 undefined），
  *      故本层用「fuzzy 命中的裸名是否真在 MODEL_CONTEXT_MAP 里」判定是否算命中。
  *   3. **undefined** —— 前两层都没有权威数据，交给调用方自己兜 DEFAULT（不在此静默 fallback，
  *      避免把"猜测的 32k"伪装成"权威值"；蓝图 §三.4 明确禁静默 fallback）。
@@ -436,12 +436,12 @@ export function contextWindowForModel(model: string, providerId?: string): numbe
   }
 
   // 第 2 层：MODEL_CONTEXT_MAP fuzzy —— 仅当归一化 id 真的落在表内（exact 或前缀）才算命中，
-  // 否则 get_context_window 会返回 DEFAULT，那属于"没查到"，应交给调用方兜（第 3 层）。
-  // 复用 MODEL_CONTEXT_MAP 的 key 集合做命中判据（单一真相源，不重复实现 fuzzy_lookup）。
-  const normalized = normalize_model_id(model);
+  // 否则 getContextWindow 会返回 DEFAULT，那属于"没查到"，应交给调用方兜（第 3 层）。
+  // 复用 MODEL_CONTEXT_MAP 的 key 集合做命中判据（单一真相源，不重复实现 fuzzyLookup）。
+  const normalized = normalizeModelId(model);
   const hit = Object.keys(MODEL_CONTEXT_MAP).some((key) => normalized === key || normalized.startsWith(key));
   if (hit) {
-    return get_context_window({ llm: { context_window: 0, model } });
+    return getContextWindow({ llm: { context_window: 0, model } });
   }
 
   // 第 3 层：未知，交调用方兜 DEFAULT

@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { confirm_chapter, ConfirmChapterError } from "../confirm_chapter.js";
+import { confirmChapter, ConfirmChapterError } from "../confirm_chapter.js";
 import { createState } from "../../domain/state.js";
 import { createDraft } from "../../domain/draft.js";
 import { createGeneratedWith } from "../../domain/generated_with.js";
@@ -42,7 +42,7 @@ describe("confirm_chapter", () => {
   });
 
   it("5-step confirm: state + ops + chapter correct", async () => {
-    const result = await confirm_chapter({
+    const result = await confirmChapter({
       au_id: "au1",
       chapter_num: 1,
       draft_id: "ch0001_draft_A.md",
@@ -82,7 +82,7 @@ describe("confirm_chapter", () => {
   });
 
   it("current_chapter increments on advancing", async () => {
-    await confirm_chapter({
+    await confirmChapter({
       au_id: "au1",
       chapter_num: 1,
       draft_id: "ch0001_draft_A.md",
@@ -99,7 +99,7 @@ describe("confirm_chapter", () => {
     await draftRepo.save(
       createDraft({ au_id: "au1", chapter_num: 1, variant: "B", content: "constructor 在这一章登场了。" }),
     );
-    await confirm_chapter({
+    await confirmChapter({
       au_id: "au1",
       chapter_num: 1,
       draft_id: "ch0001_draft_B.md",
@@ -116,7 +116,7 @@ describe("confirm_chapter", () => {
   });
 
   it("content_override uses mixed provenance", async () => {
-    await confirm_chapter({
+    await confirmChapter({
       au_id: "au1",
       chapter_num: 1,
       draft_id: "ch0001_draft_A.md",
@@ -133,7 +133,7 @@ describe("confirm_chapter", () => {
 
   it("throws on invalid draft_id", async () => {
     await expect(
-      confirm_chapter({
+      confirmChapter({
         au_id: "au1",
         chapter_num: 1,
         draft_id: "invalid.md",
@@ -147,7 +147,7 @@ describe("confirm_chapter", () => {
 
   it("throws on chapter_num mismatch", async () => {
     await expect(
-      confirm_chapter({
+      confirmChapter({
         au_id: "au1",
         chapter_num: 2,
         draft_id: "ch0001_draft_A.md",
@@ -161,7 +161,7 @@ describe("confirm_chapter", () => {
 
   it("backup on overwrite existing chapter", async () => {
     // First confirm
-    await confirm_chapter({
+    await confirmChapter({
       au_id: "au1",
       chapter_num: 1,
       draft_id: "ch0001_draft_A.md",
@@ -180,7 +180,7 @@ describe("confirm_chapter", () => {
     await stateRepo.save(state);
 
     // Second confirm should backup
-    const result = await confirm_chapter({
+    const result = await confirmChapter({
       au_id: "au1",
       chapter_num: 1,
       draft_id: "ch0001_draft_B.md",
@@ -194,7 +194,7 @@ describe("confirm_chapter", () => {
 
   it("preserves generated_with in ops payload", async () => {
     const gw = createGeneratedWith({ mode: "api", model: "gpt-4o", temperature: 0.8 });
-    await confirm_chapter({
+    await confirmChapter({
       au_id: "au1",
       chapter_num: 1,
       draft_id: "ch0001_draft_A.md",
@@ -250,7 +250,7 @@ describe("confirm_chapter", () => {
       state_repo: sRepo,
       ops_repo: oRepo,
     };
-    await expect(confirm_chapter(params)).rejects.toThrow(/partial commit/);
+    await expect(confirmChapter(params)).rejects.toThrow(/partial commit/);
 
     // 门控语义：章未落盘 → 唯一内容源草稿必须存活、指针不得越过缺失章
     expect(await dRepo.get("au1", 1, "A")).not.toBeNull();
@@ -259,7 +259,7 @@ describe("confirm_chapter", () => {
 
     // 磁盘恢复后同参重试即可闭环，无需人工修复
     failAdapter.fail = false;
-    const result = await confirm_chapter(params);
+    const result = await confirmChapter(params);
     expect(result.chapter_num).toBe(1);
     expect((await sRepo.get("au1")).current_chapter).toBe(2);
     expect(await dRepo.get("au1", 1, "A")).toBeNull();

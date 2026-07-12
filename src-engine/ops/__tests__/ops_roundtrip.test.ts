@@ -13,8 +13,8 @@ import { FileFactRepository } from "../../repositories/implementations/file_fact
 import { FileOpsRepository } from "../../repositories/implementations/file_ops.js";
 import { FileStateRepository } from "../../repositories/implementations/file_state.js";
 import { createState } from "../../domain/state.js";
-import { add_fact, edit_fact, update_fact_status, set_chapter_focus } from "../../services/facts_lifecycle.js";
-import { edit_chapter_content } from "../../services/chapter_edit.js";
+import { addFact, editFact, updateFactStatus, setChapterFocus } from "../../services/facts_lifecycle.js";
+import { editChapterContent } from "../../services/chapter_edit.js";
 import { FileChapterRepository } from "../../repositories/implementations/file_chapter.js";
 import { createChapter } from "../../domain/chapter.js";
 import { rebuildStateFromOps, rebuildFactsFromOps } from "../ops_projection.js";
@@ -37,7 +37,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
   });
 
   it("add_fact → rebuild recovers the fact", async () => {
-    await add_fact(
+    await addFact(
       "au1",
       1,
       {
@@ -64,7 +64,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
   });
 
   it("add_fact → edit_fact → rebuild recovers edited fact", async () => {
-    const fact = await add_fact(
+    const fact = await addFact(
       "au1",
       1,
       {
@@ -77,7 +77,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
       opsRepo,
     );
 
-    await edit_fact(
+    await editFact(
       "au1",
       fact.id,
       {
@@ -98,7 +98,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
   });
 
   it("update_fact_status → rebuild recovers status change", async () => {
-    const fact = await add_fact(
+    const fact = await addFact(
       "au1",
       1,
       {
@@ -111,7 +111,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
       opsRepo,
     );
 
-    await update_fact_status("au1", fact.id, "resolved", 1, factRepo, opsRepo, stateRepo);
+    await updateFactStatus("au1", fact.id, "resolved", 1, factRepo, opsRepo, stateRepo);
 
     const ops = await opsRepo.list_all("au1");
     const rebuilt = rebuildFactsFromOps(ops);
@@ -121,7 +121,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
   });
 
   it("set_chapter_focus → rebuild recovers focus", async () => {
-    const f1 = await add_fact(
+    const f1 = await addFact(
       "au1",
       1,
       {
@@ -134,7 +134,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
       opsRepo,
     );
 
-    await set_chapter_focus("au1", [f1.id], factRepo, opsRepo, stateRepo);
+    await setChapterFocus("au1", [f1.id], factRepo, opsRepo, stateRepo);
 
     const ops = await opsRepo.list_all("au1");
     const rebuiltState = rebuildStateFromOps(ops, "au1");
@@ -143,7 +143,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
     expect(rebuiltState.chapter_focus).toEqual(actualState.chapter_focus);
   });
 
-  it("edit_chapter_content → rebuild recovers dirty list (incremental)", async () => {
+  it("editChapterContent → rebuild recovers dirty list (incremental)", async () => {
     // Seed a chapter
     const ch = createChapter({
       au_id: "au1",
@@ -157,7 +157,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
     });
     await chapterRepo.save(ch);
 
-    await edit_chapter_content("au1", 1, "New content", chapterRepo, stateRepo, opsRepo);
+    await editChapterContent("au1", 1, "New content", chapterRepo, stateRepo, opsRepo);
 
     const ops = await opsRepo.list_all("au1");
     const rebuiltState = rebuildStateFromOps(ops, "au1");
@@ -194,7 +194,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
   });
 
   it("focus cleanup after deprecation is captured in ops", async () => {
-    const f1 = await add_fact(
+    const f1 = await addFact(
       "au1",
       1,
       {
@@ -208,10 +208,10 @@ describe("ops roundtrip: service → ops → rebuild", () => {
     );
 
     // Set focus to f1
-    await set_chapter_focus("au1", [f1.id], factRepo, opsRepo, stateRepo);
+    await setChapterFocus("au1", [f1.id], factRepo, opsRepo, stateRepo);
 
     // Deprecate f1 → should auto-clean focus and emit set_chapter_focus op
-    await update_fact_status("au1", f1.id, "deprecated", 1, factRepo, opsRepo, stateRepo);
+    await updateFactStatus("au1", f1.id, "deprecated", 1, factRepo, opsRepo, stateRepo);
 
     const ops = await opsRepo.list_all("au1");
     const rebuiltState = rebuildStateFromOps(ops, "au1");
@@ -224,7 +224,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
 
   it("add_fact with resolves → rebuild recovers target RESOLVED status", async () => {
     // f1: unresolved foreshadowing
-    const f1 = await add_fact(
+    const f1 = await addFact(
       "au1",
       1,
       {
@@ -238,7 +238,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
     );
 
     // f2: resolves f1 → should cascade f1 to RESOLVED via ops
-    await add_fact(
+    await addFact(
       "au1",
       2,
       {
@@ -262,7 +262,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
   });
 
   it("edit_fact removes resolves → rebuild recovers target UNRESOLVED status", async () => {
-    const f1 = await add_fact(
+    const f1 = await addFact(
       "au1",
       1,
       {
@@ -275,7 +275,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
       opsRepo,
     );
 
-    const f2 = await add_fact(
+    const f2 = await addFact(
       "au1",
       2,
       {
@@ -288,7 +288,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
     );
 
     // Remove resolves → f1 should revert to UNRESOLVED
-    await edit_fact("au1", f2.id, { resolves: null }, factRepo, opsRepo, stateRepo);
+    await editFact("au1", f2.id, { resolves: null }, factRepo, opsRepo, stateRepo);
 
     // Verify local
     expect((await factRepo.get("au1", f1.id))!.status).toBe("unresolved");

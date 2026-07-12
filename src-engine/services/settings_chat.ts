@@ -7,7 +7,7 @@
  * AI 只建议不执行：返回 tool_calls 原样交给前端。
  */
 
-import { get_tools_for_mode } from "../domain/settings_tools.js";
+import { getToolsForMode } from "../domain/settings_tools.js";
 import { getPrompts } from "../prompts/index.js";
 import type { PlatformAdapter } from "../platform/adapter.js";
 import type { LLMProvider, Message, ToolCall } from "../llm/provider.js";
@@ -60,7 +60,7 @@ export interface SettingsChatParams {
   adapter: PlatformAdapter;
 }
 
-export async function build_settings_context(params: SettingsChatParams): Promise<Message[]> {
+export async function buildSettingsContext(params: SettingsChatParams): Promise<Message[]> {
   const { mode, base_path, fandom_path = null, messages, language = "zh", adapter } = params;
   const P = getPrompts(language as "zh" | "en");
 
@@ -112,12 +112,12 @@ export interface SettingsChatResult {
   tool_calls: ToolCall[];
 }
 
-export async function call_settings_llm(
+export async function callSettingsLlm(
   assembled_messages: Message[],
   mode: "au" | "fandom",
   llm_provider: LLMProvider,
 ): Promise<SettingsChatResult> {
-  const tools = get_tools_for_mode(mode);
+  const tools = getToolsForMode(mode);
 
   // 先尝试带 tool calling 请求；若模型/提供商不兼容则降级为纯文本。
   try {

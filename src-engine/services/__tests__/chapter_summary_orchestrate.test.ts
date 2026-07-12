@@ -2,13 +2,13 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, it, expect, vi } from "vitest";
-import { persist_chapter_summary } from "../chapter_summary.js";
+import { persistChapterSummary } from "../chapter_summary.js";
 
 describe("persist_chapter_summary", () => {
   it("indexes (embed) before saving; save carries source_chapter_hash + text", async () => {
     const summaryRepo = { save: vi.fn(async () => {}), get: vi.fn(), remove: vi.fn() } as any;
     const ragManager = { indexChapterSummary: vi.fn(async () => {}) } as any;
-    await persist_chapter_summary({
+    await persistChapterSummary({
       auPath: "/au",
       chapterNum: 7,
       text: "第七章摘要",
@@ -40,7 +40,7 @@ describe("persist_chapter_summary", () => {
     } as any;
     const ragManager = { indexChapterSummary: vi.fn(async () => {}) } as any;
 
-    await persist_chapter_summary({
+    await persistChapterSummary({
       auPath: "/au",
       chapterNum: 3,
       text: "第三章标准摘要",
@@ -65,7 +65,7 @@ describe("persist_chapter_summary", () => {
     } as any;
     const ragManager = { indexChapterSummary: vi.fn(async () => {}) } as any;
 
-    await persist_chapter_summary({
+    await persistChapterSummary({
       auPath: "/au",
       chapterNum: 4,
       text: "重生成的摘要",
@@ -84,7 +84,7 @@ describe("persist_chapter_summary", () => {
     const summaryRepo = { save: vi.fn(async () => {}), get: vi.fn(async () => null), remove: vi.fn() } as any;
     const ragManager = { indexChapterSummary: vi.fn(async () => {}) } as any;
 
-    await persist_chapter_summary({
+    await persistChapterSummary({
       auPath: "/au",
       chapterNum: 5,
       text: "第五章摘要",
@@ -108,7 +108,7 @@ describe("persist_chapter_summary", () => {
       }),
     } as any;
     await expect(
-      persist_chapter_summary({
+      persistChapterSummary({
         auPath: "/au",
         chapterNum: 7,
         text: "POISON",

@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { generate_chapter, is_empty_intent } from "../generation.js";
+import { generateChapter, isEmptyIntent } from "../generation.js";
 import type { GenerationEvent } from "../generation.js";
 import { chapterInflightKey, isChapterInflight } from "../chapter_inflight.js";
 import { createProject, createLLMConfig } from "../../domain/project.js";
@@ -41,7 +41,7 @@ function createMockProvider(tokens: string[] = ["Hello", " world", "!"]): LLMPro
   };
 }
 
-function makeParams(adapter: MockAdapter, overrides: Partial<Parameters<typeof generate_chapter>[0]> = {}) {
+function makeParams(adapter: MockAdapter, overrides: Partial<Parameters<typeof generateChapter>[0]> = {}) {
   return {
     au_id: "au_test",
     chapter_num: 1,
@@ -69,26 +69,26 @@ async function collectEvents(gen: AsyncGenerator<GenerationEvent>): Promise<Gene
   return events;
 }
 
-describe("is_empty_intent", () => {
+describe("isEmptyIntent", () => {
   it("recognizes Chinese empty intents", () => {
-    expect(is_empty_intent("继续")).toBe(true);
-    expect(is_empty_intent("然后呢")).toBe(true);
+    expect(isEmptyIntent("继续")).toBe(true);
+    expect(isEmptyIntent("然后呢")).toBe(true);
   });
 
   it("recognizes English empty intents", () => {
-    expect(is_empty_intent("continue")).toBe(true);
+    expect(isEmptyIntent("continue")).toBe(true);
   });
 
   it("short input as empty", () => {
-    expect(is_empty_intent("写")).toBe(true);
+    expect(isEmptyIntent("写")).toBe(true);
   });
 
   it("substantive input not empty", () => {
-    expect(is_empty_intent("让Alice去找Bob谈谈")).toBe(false);
+    expect(isEmptyIntent("让Alice去找Bob谈谈")).toBe(false);
   });
 });
 
-describe("generate_chapter", () => {
+describe("generateChapter", () => {
   let adapter: MockAdapter;
 
   beforeEach(() => {
@@ -96,7 +96,7 @@ describe("generate_chapter", () => {
   });
 
   it("full flow: context_summary → tokens → done", async () => {
-    const events = await collectEvents(generate_chapter(makeParams(adapter)));
+    const events = await collectEvents(generateChapter(makeParams(adapter)));
 
     const types = events.map((e) => e.type);
     expect(types).toContain("context_summary");
@@ -129,10 +129,10 @@ describe("generate_chapter", () => {
       _provider_override: slowProvider,
     });
 
-    const gen1 = generate_chapter(params);
+    const gen1 = generateChapter(params);
     await gen1.next(); // starts generating
 
-    const events2 = await collectEvents(generate_chapter(params));
+    const events2 = await collectEvents(generateChapter(params));
     expect(events2[0].type).toBe("error");
     expect((events2[0].data as any).error_code).toBe("GENERATION_IN_PROGRESS");
 
@@ -147,7 +147,7 @@ describe("generate_chapter", () => {
       _provider_override: createMockProvider(["draft1"]),
     });
 
-    await collectEvents(generate_chapter(params1));
+    await collectEvents(generateChapter(params1));
 
     const params2 = makeParams(adapter, {
       au_id: "au_label",
@@ -155,7 +155,7 @@ describe("generate_chapter", () => {
       _provider_override: createMockProvider(["draft2"]),
     });
 
-    const events = await collectEvents(generate_chapter(params2));
+    const events = await collectEvents(generateChapter(params2));
     const doneEvent = events.find((e) => e.type === "done")!;
     expect((doneEvent.data as any).draft_label).toBe("B");
   });
@@ -172,7 +172,7 @@ describe("generate_chapter", () => {
     };
 
     const events = await collectEvents(
-      generate_chapter(
+      generateChapter(
         makeParams(adapter, {
           au_id: "au_error",
           _provider_override: errorProvider,
@@ -205,7 +205,7 @@ describe("generate_chapter", () => {
       _provider_override: abortProvider,
     });
 
-    await expect(collectEvents(generate_chapter(params))).rejects.toMatchObject({
+    await expect(collectEvents(generateChapter(params))).rejects.toMatchObject({
       name: "AbortError",
     });
     expect(receivedSignal).toBe(controller.signal);
@@ -229,7 +229,7 @@ describe("generate_chapter", () => {
     const key = chapterInflightKey("au_inflight_err", 1);
 
     const events1 = await collectEvents(
-      generate_chapter(
+      generateChapter(
         makeParams(adapter, {
           au_id: "au_inflight_err",
           _provider_override: errorProvider,
@@ -242,7 +242,7 @@ describe("generate_chapter", () => {
 
     // 端到端复核：同章第二次生成不再返回 GENERATION_IN_PROGRESS
     const events2 = await collectEvents(
-      generate_chapter(
+      generateChapter(
         makeParams(adapter, {
           au_id: "au_inflight_err",
           _provider_override: createMockProvider(["重试", "成功"]),
@@ -269,7 +269,7 @@ describe("generate_chapter", () => {
 
     await expect(
       collectEvents(
-        generate_chapter(
+        generateChapter(
           makeParams(adapter, {
             au_id: "au_inflight_abort",
             signal: controller.signal,
@@ -282,7 +282,7 @@ describe("generate_chapter", () => {
 
     // 中断后重新生成应当放行（若漏 release 会被 409）
     const events = await collectEvents(
-      generate_chapter(
+      generateChapter(
         makeParams(adapter, {
           au_id: "au_inflight_abort",
           _provider_override: createMockProvider(["再来", "一次"]),
@@ -330,7 +330,7 @@ describe("generate_chapter", () => {
     };
 
     const events = await collectEvents(
-      generate_chapter(
+      generateChapter(
         makeParams(adapter, {
           au_id: "au_rag_stale",
           state: createState({

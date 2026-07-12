@@ -4,7 +4,7 @@
 /** Prompt key contract. zh.ts and en.ts must both define every key listed here. */
 
 export const REQUIRED_KEYS = [
-  // === context_assembler: build_system_prompt ===
+  // === context_assembler: buildSystemPrompt ===
   "SYSTEM_NOVELIST",
   "PINNED_CONTEXT_HEADER",
   "CONFLICT_RESOLUTION_RULES",
@@ -16,7 +16,7 @@ export const REQUIRED_KEYS = [
   "GENERIC_RULES", // f-string with {chapter_length}
   "CUSTOM_INSTRUCTIONS_HEADER",
 
-  // === context_assembler: build_instruction ===
+  // === context_assembler: buildInstruction ===
   "CURRENT_STATUS", // f-string with {current_ch}
   "LAST_ENDING_INLINE", // f-string with {last_ending}
   "FOCUS_GOAL_HEADER",
@@ -27,19 +27,19 @@ export const REQUIRED_KEYS = [
   "PACING_INSTRUCTION",
   "CONTINUE_WRITING", // f-string with {user_input}
 
-  // === context_assembler: build_facts_layer ===
+  // === context_assembler: buildFactsLayer ===
   "SECTION_PLOT_STATE",
   "INFO_ASYMMETRY_RULES", // 知情范围图例：仅当本次注入的事实行带知情标注时出现
   "UNRESOLVED_DROPPED_HINT", // f-string with {count}
 
-  // === context_assembler: build_threads_layer (M8-B) ===
+  // === context_assembler: buildThreadsLayer (M8-B) ===
   "SECTION_PLOT_THREADS",
 
-  // === context_assembler: build_recent_chapter_layer ===
+  // === context_assembler: buildRecentChapterLayer ===
   "SECTION_LAST_ENDING", // f-string with {content}
   "SECTION_LAST_ENDING_TRUNCATED", // f-string with {end_text}
 
-  // === context_assembler: build_core_settings_layer ===
+  // === context_assembler: buildCoreSettingsLayer ===
   "SECTION_CHARACTERS",
   "SECTION_WORLDBUILDING",
   "WORD_COUNT_REMINDER",

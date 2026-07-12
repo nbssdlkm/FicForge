@@ -69,7 +69,7 @@ export function extractedEnrichment(c: ExtractedFactCandidate): Record<string, u
   if (c.location != null) out.location = c.location;
   if (c.story_time_tag != null) out.story_time_tag = c.story_time_tag;
   // known_to 用 != null 判据（与 hidden_from 的 length 判据不对称）是有意的：'all'/'reader_only'
-  // 字符串态必须过；[] 空数组过了也无害 —— 引擎 add_fact 的消毒器（domain/fact_sanitize）会把
+  // 字符串态必须过；[] 空数组过了也无害 —— 引擎 addFact 的消毒器（domain/fact_sanitize）会把
   // [] 折叠为 null，落库口径单一，UI 不重复消毒（M3 批一）。
   if (typeof c.story_time_order === "number") out.story_time_order = c.story_time_order;
   if (c.time_kind != null) out.time_kind = c.time_kind;

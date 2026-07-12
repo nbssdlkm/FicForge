@@ -102,7 +102,7 @@ function normalizeForMatch(s: string): string {
 /**
  * H10（审计第二轮）：为 ReAct propose 的 M8-A 富化字段合成 per-field _confidence=medium。
  *
- * 为什么需要：P3 注入门控 build_fact_enrichment_suffix 要求 fact._confidence 存在且对应
+ * 为什么需要：P3 注入门控 buildFactEnrichmentSuffix 要求 fact._confidence 存在且对应
  * 字段 ≥ medium 才注入。单次调用路径的 prompt 要求 LLM 自评 _confidence；而 ReAct 的
  * proposeFactItemSchema 不含 _confidence（zod 剥离未知键）、system prompt 也不要求——
  * 结果 known_to / time_kind / action_verb / location / suspense_type 落库后全部被门控
@@ -119,7 +119,7 @@ function normalizeForMatch(s: string): string {
  *   且不给 facts.jsonl 添冗余空对象）；
  * - caused_by 不在合成范围：其置信度由 grounding 逻辑专管（未 grounded 标 low；grounded
  *   不标——门控把 caused_by 列为低价值不注入，合成 medium 只会误导 UI 高亮）；
- * - hidden_from 自 M3 批一起被 build_fact_knowledge_clause 门控消费（当年「一并合成保持
+ * - hidden_from 自 M3 批一起被 buildFactKnowledgeClause 门控消费（当年「一并合成保持
  *   不变量」的预留正好接上——存量 ReAct 数据的 hidden_from 因此立即生效）；story_time_tag /
  *   story_time_order 门控仍不读，但继续合成，保持「字段出现即有置信度」的不变量。
  */
@@ -363,7 +363,7 @@ export async function reactExtractFromChapter(
           }
         }
         // H10：出现的富化字段合成 _confidence=medium（不覆盖上面 grounding 标的 caused_by=low），
-        // 否则 P3 注入门控 build_fact_enrichment_suffix 会把 ReAct 提取的富化字段全部静默丢弃。
+        // 否则 P3 注入门控 buildFactEnrichmentSuffix 会把 ReAct 提取的富化字段全部静默丢弃。
         synthesizeEnrichmentConfidence(fact);
         proposedFacts.push(fact);
         grounded.push(isGrounded);

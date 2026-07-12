@@ -12,7 +12,7 @@
  * 如果两个 service 并发写同一 AU：
  *   - ops.jsonl 追加可能交错 → lamport 乱序 → 同步合并失败
  *   - state.yaml 被后者覆盖 → 前者的 chapters_dirty / characters_last_seen 丢失
- *   - confirm_chapter 刚写完 chapter 文件，undo_latest_chapter 同时读就读到半成品
+ *   - confirmChapter 刚写完 chapter 文件，undoLatestChapter 同时读就读到半成品
  * 所以：对同一 au_id 的所有写操作必须串行。
  *
  * ============================================================================
@@ -24,8 +24,8 @@
  *
  * 1) 引擎内部的 orchestrator service（自带事务 + 级联逻辑）
  *    在其对外入口函数的第一行包 withAuLock：
- *      - confirm_chapter / undo_latest_chapter / resolve_dirty_chapter
- *      - execute_import / import_chapters
+ *      - confirmChapter / undoLatestChapter / resolveDirtyChapter
+ *      - executeImport / importChapters
  *    它们内部调用 facts_lifecycle / chapter_edit 等底层函数时，底层不应再加锁。
  *
  * 2) 长流程中的"写段"（不能全程持锁）
@@ -34,18 +34,18 @@
  *
  * 3) UI API 层直接调用底层 service 的路径
  *    engine-facts.ts / engine-state.ts / engine-chapters.ts 里直接调用
- *    add_fact / edit_fact / update_fact_status / set_chapter_focus /
- *    edit_chapter_content 等底层函数的地方，必须顶层包 withAuLock。
+ *    addFact / editFact / updateFactStatus / setChapterFocus /
+ *    editChapterContent 等底层函数的地方，必须顶层包 withAuLock。
  *    批量操作（例：batchUpdateFactStatus）整个循环包在一次锁内，避免中途释放
  *    被其它操作插入。
  *
  * ============================================================================
  * 为什么底层函数不加锁
  * ============================================================================
- * facts_lifecycle 的 edit_fact / update_fact_status 会被 dirty_resolve 的
+ * facts_lifecycle 的 editFact / updateFactStatus 会被 dirty_resolve 的
  * applyFactChanges 调用。dirty_resolve 入口已经持有 AU 锁，如果底层也加同一把锁，
- * Promise queue 的后来者（dirty_resolve 里调的 edit_fact）会等前面（dirty_resolve
- * 自己）完成 —— 而 dirty_resolve 又在等 edit_fact 完成 —— 死锁。
+ * Promise queue 的后来者（dirty_resolve 里调的 editFact）会等前面（dirty_resolve
+ * 自己）完成 —— 而 dirty_resolve 又在等 editFact 完成 —— 死锁。
  *
  * chapter_edit 同理。
  *

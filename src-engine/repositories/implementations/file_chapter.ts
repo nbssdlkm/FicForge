@@ -15,7 +15,7 @@ import { generatedWithFromYaml, generatedWithToYaml } from "../../domain/generat
 import { ON_DISK_DEFAULT_REVISION } from "../../domain/project.js";
 import { chapterFilename, parseChapterFilename } from "../../domain/paths.js";
 import type { ChapterRepository } from "../interfaces/chapter.js";
-import { atomicWrite, compute_content_hash, joinPath, now_utc, validateBasePath } from "../../utils/file_utils.js";
+import { atomicWrite, computeContentHash, joinPath, nowUtc, validateBasePath } from "../../utils/file_utils.js";
 import { warnAlways } from "../../logger/index.js";
 
 export class FileChapterRepository implements ChapterRepository {
@@ -68,11 +68,11 @@ export class FileChapterRepository implements ChapterRepository {
     }
 
     if (!meta.confirmed_at) {
-      meta.confirmed_at = now_utc();
+      meta.confirmed_at = nowUtc();
     }
 
     if (!meta.content_hash) {
-      meta.content_hash = await compute_content_hash(content);
+      meta.content_hash = await computeContentHash(content);
     }
 
     if (!meta.provenance) {
@@ -99,7 +99,7 @@ export class FileChapterRepository implements ChapterRepository {
     // fire-and-forget —— 不阻塞文件写入。所有调用方在调 save() 之前已算过 hash，
     // 这里只是防御性校验，不应成为热路径的瓶颈。
     if (chapter.content_hash) {
-      compute_content_hash(chapter.content)
+      computeContentHash(chapter.content)
         .then((actual) => {
           if (actual !== chapter.content_hash) {
             warnAlways("file_chapter", "content_hash mismatch on save", {

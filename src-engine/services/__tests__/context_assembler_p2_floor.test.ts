@@ -7,14 +7,14 @@
 // 允许裁剪到真正塞得进预算；充足预算下逐字节不变（golden 由独立 golden 测试守）。
 
 import { beforeAll, describe, expect, it } from "vitest";
-import { build_recent_chapter_layer } from "../context_assembler.js";
-import { count_tokens, ensure_tokenizer } from "../../tokenizer/index.js";
+import { buildRecentChapterLayer } from "../context_assembler.js";
+import { countTokens, ensureTokenizer } from "../../tokenizer/index.js";
 import { createState } from "../../domain/state.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 import { FileChapterRepository } from "../../repositories/implementations/file_chapter.js";
 
-// 与实现同源计数（context_assembler._count 内部就是 count_tokens）。
-const _count = (text: string, llm: unknown) => count_tokens(text, llm as { mode?: string } | undefined);
+// 与实现同源计数（context_assembler._count 内部就是 countTokens）。
+const _count = (text: string, llm: unknown) => countTokens(text, llm as { mode?: string } | undefined);
 
 async function seedPrevChapter(content: string) {
   const adapter = new MockAdapter();
@@ -25,10 +25,10 @@ async function seedPrevChapter(content: string) {
   return { adapter, repo, state };
 }
 
-describe("build_recent_chapter_layer — L7 P2 floor 不突破层预算", () => {
+describe("buildRecentChapterLayer — L7 P2 floor 不突破层预算", () => {
   const llm = { model: "" };
   beforeAll(async () => {
-    await ensure_tokenizer();
+    await ensureTokenizer();
   });
 
   it("500 字对应 token 超 budget 时，输出被裁到 <= budget（下限退让到 0）", async () => {
@@ -37,7 +37,7 @@ describe("build_recent_chapter_layer — L7 P2 floor 不突破层预算", () => 
     const { repo, state } = await seedPrevChapter(content);
     const budget = 100;
 
-    const out = await build_recent_chapter_layer(state, repo, "au1", budget, llm, "zh");
+    const out = await buildRecentChapterLayer(state, repo, "au1", budget, llm, "zh");
 
     // 关键断言：整层输出 token 不超 budget（旧代码因 500 字硬下限会超）。
     expect(out).not.toBe("");
@@ -48,7 +48,7 @@ describe("build_recent_chapter_layer — L7 P2 floor 不突破层预算", () => 
     const content = "短短一段结尾。";
     const { repo, state } = await seedPrevChapter(content);
     // budget 远大于内容 → 早返回全文
-    const out = await build_recent_chapter_layer(state, repo, "au1", 10_000, llm, "zh");
+    const out = await buildRecentChapterLayer(state, repo, "au1", 10_000, llm, "zh");
     expect(out).toContain(content);
   });
 
@@ -60,7 +60,7 @@ describe("build_recent_chapter_layer — L7 P2 floor 不突破层预算", () => 
     const floorTokens = _count(floorText, llm).count;
     const budget = floorTokens + 5; // 刚好容得下 500 字下限、容不下全文
 
-    const out = await build_recent_chapter_layer(state, repo, "au1", budget, llm, "zh");
+    const out = await buildRecentChapterLayer(state, repo, "au1", budget, llm, "zh");
     // 输出应至少覆盖到 500 字下限的量级（floor 未被误降到 0）。
     expect(out.length).toBeGreaterThanOrEqual(400);
   });

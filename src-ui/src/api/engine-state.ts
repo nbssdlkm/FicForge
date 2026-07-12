@@ -6,12 +6,12 @@
  */
 
 import {
-  set_chapter_focus,
-  recalc_state,
+  setChapterFocus as engineSetChapterFocus,
+  recalcState as engineRecalcState,
   IndexStatus,
   createOpsEntry,
-  generate_op_id,
-  now_utc,
+  generateOpId,
+  nowUtc,
   WriteTransaction,
   RemoteEmbeddingProvider,
   warnIfPlaintextRemote,
@@ -62,7 +62,7 @@ export async function getState(auPath: string) {
 
 export async function setChapterFocus(auPath: string, focusIds: string[]) {
   const { fact, ops, state } = getEngine().repos;
-  return withAuLock(auPath, () => set_chapter_focus(auPath, focusIds, fact, ops, state));
+  return withAuLock(auPath, () => engineSetChapterFocus(auPath, focusIds, fact, ops, state));
 }
 
 export async function rebuildIndex(auPath: string) {
@@ -106,16 +106,16 @@ export async function recalcState(auPath: string) {
   return withAuLock(auPath, async () => {
     // 别名表供表与 confirm/undo 同姿势（E8）：重算的全量重扫不得比增量记录别名盲
     const aliases = await e.characterAliases.get(auPath);
-    const result = await recalc_state(auPath, state, chapter, project, fact, aliases);
+    const result = await engineRecalcState(auPath, state, chapter, project, fact, aliases);
     // WriteTransaction 保证 D-0036 写入顺序：ops → state
     const tx = new WriteTransaction();
     tx.appendOp(
       auPath,
       createOpsEntry({
-        op_id: generate_op_id(),
+        op_id: generateOpId(),
         op_type: "recalc_global_state",
         target_id: auPath,
-        timestamp: now_utc(),
+        timestamp: nowUtc(),
         payload: {
           characters_last_seen: { ...result.state.characters_last_seen },
           last_scene_ending: result.state.last_scene_ending,

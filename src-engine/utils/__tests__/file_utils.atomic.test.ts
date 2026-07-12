@@ -45,7 +45,7 @@ describe("atomicWrite 契约", () => {
     await a.writeFile(PATH, "旧内容");
     await expect(atomicWrite(a, PATH, "新内容")).rejects.toThrow("rename EACCES");
     expect(a.raw(PATH)).toBe("旧内容");
-    // .tmp 残留（新内容）——read_jsonl 的遗留恢复逻辑正是以此为食
+    // .tmp 残留（新内容）——readJsonl 的遗留恢复逻辑正是以此为食
     expect(a.raw(`${PATH}.tmp`)).toBe("新内容");
   });
 

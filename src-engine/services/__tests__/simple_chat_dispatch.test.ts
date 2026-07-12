@@ -2,14 +2,14 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 /**
- * dispatch_simple_chat 测试 — 验证流式 + tools 分流。
+ * dispatchSimpleChat 测试 — 验证流式 + tools 分流。
  * Mock LLM provider 给两种 finish_reason，确认事件序列正确。
  */
 
 import { describe, expect, it } from "vitest";
 
 import {
-  dispatch_simple_chat,
+  dispatchSimpleChat,
   SIMPLE_MUTATING_TOOLS,
   toDispatchErrorEvent,
   translateLoopEvent,
@@ -71,7 +71,7 @@ async function collect(gen: AsyncGenerator<SimpleChatEvent>): Promise<SimpleChat
   return events;
 }
 
-describe("dispatch_simple_chat", () => {
+describe("dispatchSimpleChat", () => {
   it("text 路径：finish='stop' → token chunks + done_text + draft 落盘", async () => {
     const adapter = new MockAdapter();
     const provider = makeStreamProvider([
@@ -80,7 +80,7 @@ describe("dispatch_simple_chat", () => {
       { delta: "!", is_final: true, input_tokens: null, output_tokens: 3, finish_reason: "stop" },
     ]);
 
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "写第一章")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "写第一章")));
 
     const tokenEvents = events.filter((e) => e.type === "token");
     expect(tokenEvents.map((e) => e.data)).toEqual(["Hello", " world", "!"]);
@@ -139,7 +139,7 @@ describe("dispatch_simple_chat", () => {
       { delta: "", is_final: true, input_tokens: null, output_tokens: 12, finish_reason: "tool_calls" },
     ]);
 
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "嘿")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "嘿")));
 
     expect(events.find((e) => e.type === "done_text")).toBeUndefined();
     const doneTools = events.find((e) => e.type === "done_tools");
@@ -194,7 +194,7 @@ describe("dispatch_simple_chat", () => {
       { delta: "", is_final: true, input_tokens: null, output_tokens: 0, finish_reason: "tool_calls" },
     ]);
 
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "看第 1 章 + 闲聊")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "看第 1 章 + 闲聊")));
     const doneTools = events.find((e) => e.type === "done_tools");
     expect(doneTools).toBeDefined();
     if (doneTools && doneTools.type === "done_tools") {
@@ -214,7 +214,7 @@ describe("dispatch_simple_chat", () => {
         throw new Error("upstream broke");
       },
     };
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "写")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "写")));
     const err = events.find((e) => e.type === "error");
     expect(err).toBeDefined();
     if (err && err.type === "error") {
@@ -249,7 +249,7 @@ describe("dispatch_simple_chat", () => {
       },
       { delta: "", is_final: true, input_tokens: null, output_tokens: 0, finish_reason: "tool_calls" },
     ]);
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "嘿")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "嘿")));
     const doneTools = events.find((e) => e.type === "done_tools");
     expect(doneTools).toBeDefined();
     if (doneTools && doneTools.type === "done_tools") {
@@ -277,7 +277,7 @@ describe("dispatch_simple_chat", () => {
       },
     };
 
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "写第一章 主角进酒馆")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "写第一章 主角进酒馆")));
 
     // partial_draft_label 必须在 error event 里非 null
     const err = events.find((e) => e.type === "error");
@@ -311,7 +311,7 @@ describe("dispatch_simple_chat", () => {
       },
       { delta: "", is_final: true, input_tokens: null, output_tokens: 1, finish_reason: "stop" },
     ]);
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "x")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "x")));
 
     // 双路径都触发
     const doneText = events.find((e) => e.type === "done_text");
@@ -346,7 +346,7 @@ describe("dispatch_simple_chat", () => {
       { delta: "", is_final: false, input_tokens: 50, output_tokens: null, finish_reason: null },
       { delta: "", is_final: true, input_tokens: null, output_tokens: 0, finish_reason: "tool_calls" },
     ]);
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "x")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "x")));
 
     expect(events.find((e) => e.type === "done_text")).toBeUndefined();
     expect(events.find((e) => e.type === "done_tools")).toBeUndefined();
@@ -368,7 +368,7 @@ describe("dispatch_simple_chat", () => {
     const provider = makeStreamProvider([
       { delta: "", is_final: true, input_tokens: 100, output_tokens: 0, finish_reason: "stop" },
     ]);
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "x")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "x")));
 
     expect(events.find((e) => e.type === "done_text")).toBeUndefined();
     expect(events.find((e) => e.type === "done_tools")).toBeUndefined();
@@ -389,7 +389,7 @@ describe("dispatch_simple_chat", () => {
     const provider = makeStreamProvider([
       { delta: "", is_final: true, input_tokens: null, output_tokens: null, finish_reason: null },
     ]);
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "x")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "x")));
 
     const err = events.find((e) => e.type === "error");
     expect(err).toBeDefined();
@@ -468,7 +468,7 @@ describe("dispatch_simple_chat", () => {
       ],
     ]);
 
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "看第 1 章")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "看第 1 章")));
 
     // 期望：iter 0 emit tool_call(show_chapter) + tool_result + iter 1 chat_reply 流式
     // (Option A 真机选用)：chat_reply 路径不 emit tool_call event 而 emit chat_reply_chunk 增量
@@ -553,7 +553,7 @@ describe("dispatch_simple_chat", () => {
       ],
     ]);
 
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "建 Alice 设定")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "建 Alice 设定")));
 
     // tool_result 应 emit FILE_NOT_FOUND
     const trEvents = events.filter((e) => e.type === "tool_result");
@@ -610,7 +610,7 @@ describe("dispatch_simple_chat", () => {
     }
     const provider = makeMultiIterProvider(iterChunks);
 
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "看每一章")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "看每一章")));
 
     // 5 个 iter 都 emit show_chapter tool_call + tool_result
     const tcEvents = events.filter((e) => e.type === "tool_call");
@@ -679,7 +679,7 @@ describe("dispatch_simple_chat", () => {
       ],
     ]);
 
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "建 Bob")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "建 Bob")));
 
     // iter 0 应 emit tool_result 让 UI 看到 LLM 出错重试（不 emit ToolCallCard，避免污染对话流）
     // tool_call 只 emit 1 次（iter 1 的 valid args 那次）
@@ -764,7 +764,7 @@ describe("dispatch_simple_chat", () => {
       ],
     ]);
 
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "看第 1 章 + Alice")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "看第 1 章 + Alice")));
 
     // iter 0: 2 tool_call (read-only) + 2 tool_result + iter 1: chat_reply 流式（不 emit
     // tool_call，emit chat_reply_chunk）+ done_tools。Option A 真机选用。
@@ -842,7 +842,7 @@ describe("dispatch_simple_chat", () => {
       ],
     ]);
 
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "看第 99 章")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "看第 99 章")));
 
     const tr = events.find((e) => e.type === "tool_result");
     expect(tr).toBeDefined();
@@ -903,7 +903,7 @@ describe("dispatch_simple_chat", () => {
       ],
     ]);
 
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "Alice + Bob")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "Alice + Bob")));
 
     const trEvents = events.filter((e) => e.type === "tool_result");
     expect(trEvents).toHaveLength(2);
@@ -1007,7 +1007,7 @@ describe("dispatch_simple_chat", () => {
       },
     };
 
-    await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "看第 1 章")));
+    await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "看第 1 章")));
 
     // iter 1 的 messages 数组中应该包含 iter 0 累积的 reasoning_content
     expect(receivedMessages.length).toBeGreaterThanOrEqual(2);
@@ -1074,7 +1074,7 @@ describe("dispatch_simple_chat", () => {
       },
     };
 
-    await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "看第 1 章")));
+    await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "看第 1 章")));
 
     const iter1Messages = receivedMessages[1];
     const assistantWithToolCalls = iter1Messages.find((m) => m.role === "assistant" && m.tool_calls);
@@ -1111,7 +1111,7 @@ describe("dispatch_simple_chat", () => {
       ],
     ]);
 
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "Alice 发色改银色")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "Alice 发色改银色")));
 
     expect(events.filter((e) => e.type === "tool_call")).toHaveLength(1);
     expect(events.filter((e) => e.type === "tool_result")).toHaveLength(0); // 单轮直 break，不注 result
@@ -1147,7 +1147,7 @@ describe("dispatch_simple_chat", () => {
     const emitted: TelemetryEvent[] = [];
     const mockSink: TelemetrySink = { emit: (e) => emitted.push(e) };
     const events = await collect(
-      dispatch_simple_chat({
+      dispatchSimpleChat({
         ...makeBaseParams(adapter, provider, "看第二章"),
         _telemetry_override: mockSink,
       }),
@@ -1171,7 +1171,7 @@ describe("dispatch_simple_chat", () => {
   });
 
   // ===========================================================================
-  // 对话式 × 记忆栈融合 P1.3 — dispatch 改接 assemble_chat_context
+  // 对话式 × 记忆栈融合 P1.3 — dispatch 改接 assembleChatContext
   // ===========================================================================
 
   /** 多 iter mock：每轮按 callIndex 取 chunks，并捕获每轮 generateStream 收到的 messages。
@@ -1193,7 +1193,7 @@ describe("dispatch_simple_chat", () => {
     return { provider, calls };
   }
 
-  it("分层上下文：facts / 剧情线 进 system message（走 assemble_chat_context，非全塞）", async () => {
+  it("分层上下文：facts / 剧情线 进 system message（走 assembleChatContext，非全塞）", async () => {
     const adapter = new MockAdapter();
     const { provider, calls } = makeCapturingProvider([
       [{ delta: "好的", is_final: true, input_tokens: 10, output_tokens: 2, finish_reason: "stop" }],
@@ -1201,7 +1201,7 @@ describe("dispatch_simple_chat", () => {
 
     const base = makeBaseParams(adapter, provider, "写第一章 主角登场");
     await collect(
-      dispatch_simple_chat({
+      dispatchSimpleChat({
         ...base,
         facts: [
           createFact({
@@ -1272,7 +1272,7 @@ describe("dispatch_simple_chat", () => {
       ],
     ]);
 
-    // 注入 vector_repo + 计数 embedding：assemble_chat_context 每跑一次 → retrieve_rag_for_context
+    // 注入 vector_repo + 计数 embedding：assembleChatContext 每跑一次 → retrieveRagForContext
     // → embed([query]) 一次。所以 embed 调用次数 === 组装次数。这是"组装只一次、循环内不重算 RAG"
     // 的**载荷断言** —— 仅靠 system message byte-identity 抓不住（systemMessage 是同一对象引用，
     // 即便组装搬进循环、确定性重算出逐字节相同内容，引用比较仍 true，是伪命题）。
@@ -1304,7 +1304,7 @@ describe("dispatch_simple_chat", () => {
 
     const base = makeBaseParams(adapter, provider, "看第 1 章");
     await collect(
-      dispatch_simple_chat({
+      dispatchSimpleChat({
         ...base,
         facts: [
           createFact({ id: "f1", content_raw: "x", content_clean: "世界设定：剑与魔法", status: FactStatus.ACTIVE }),
@@ -1372,7 +1372,7 @@ describe("dispatch_simple_chat", () => {
       ],
     ]);
 
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "看第 1 章")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "看第 1 章")));
 
     // 第二轮 internalHistory 里的 tool 消息内容被截断（远短于原文）
     const iter1ToolMsg = calls[1].find((m) => m.role === "tool");
@@ -1434,7 +1434,7 @@ describe("dispatch_simple_chat", () => {
       ],
     ]);
 
-    const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, provider, "帮我写完整本书")));
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "帮我写完整本书")));
 
     // 未知工具不该被 emit 成 tool_call（否则 UI 弹出无法执行的待确认卡片）。
     const emittedToolNames = events
@@ -1481,13 +1481,13 @@ describe("dispatch_simple_chat", () => {
     ]);
 
     // 启动第一个 dispatch 并推进到第一个 token（占用并发锁），但不排空。
-    const firstGen = dispatch_simple_chat(makeBaseParams(adapter, slowProvider, "写第一章"));
+    const firstGen = dispatchSimpleChat(makeBaseParams(adapter, slowProvider, "写第一章"));
     const firstEvents: SimpleChatEvent[] = [];
     const firstToken = await firstGen.next();
     if (!firstToken.done) firstEvents.push(firstToken.value);
 
     // 第一个仍在飞时，第二个同 (au, chapter) dispatch 应立即 409。
-    const secondEvents = await collect(dispatch_simple_chat(makeBaseParams(adapter, fastProvider, "写第一章")));
+    const secondEvents = await collect(dispatchSimpleChat(makeBaseParams(adapter, fastProvider, "写第一章")));
     const secondErr = secondEvents.find((e): e is Extract<SimpleChatEvent, { type: "error" }> => e.type === "error");
     expect(secondErr).toBeDefined();
     expect(secondErr!.data.error_code).toBe("DISPATCH_IN_PROGRESS");
@@ -1500,12 +1500,12 @@ describe("dispatch_simple_chat", () => {
     expect(firstEvents.some((e) => e.type === "done_text")).toBe(true);
 
     // 锁已释放：第一个跑完后再起一个同章 dispatch 应能正常进入（不再 409）。
-    const thirdEvents = await collect(dispatch_simple_chat(makeBaseParams(adapter, fastProvider, "写第一章")));
+    const thirdEvents = await collect(dispatchSimpleChat(makeBaseParams(adapter, fastProvider, "写第一章")));
     expect(thirdEvents.some((e) => e.type === "error" && e.data.error_code === "DISPATCH_IN_PROGRESS")).toBe(false);
   });
 
   // ---------------------------------------------------------------------------
-  // F1：写文 generate_chapter 与对话 dispatch 共用 chapter_inflight 互斥表 ——
+  // F1：写文 generateChapter 与对话 dispatch 共用 chapter_inflight 互斥表 ——
   // 跨路径并发（对话流式中切写文 tab 点生成，反之亦然）同样被 409 拦下。
   // 回退旧码（两张独立 Map）此测试必挂：dispatch 看不到 generate 侧的占用。
   // ---------------------------------------------------------------------------
@@ -1515,11 +1515,11 @@ describe("dispatch_simple_chat", () => {
       { delta: "text", is_final: true, input_tokens: 5, output_tokens: 1, finish_reason: "stop" },
     ]);
 
-    // 模拟写文 generate_chapter 在飞：以 "generate" 身份占用同 (au, chapter) key。
+    // 模拟写文 generateChapter 在飞：以 "generate" 身份占用同 (au, chapter) key。
     const key = chapterInflightKey("au_test", 1);
     markChapterInflight(key, "generate");
     try {
-      const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, fastProvider, "写第一章")));
+      const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, fastProvider, "写第一章")));
       const err = events.find((e): e is Extract<SimpleChatEvent, { type: "error" }> => e.type === "error");
       expect(err).toBeDefined();
       expect(err!.data.error_code).toBe("DISPATCH_IN_PROGRESS");
@@ -1529,7 +1529,7 @@ describe("dispatch_simple_chat", () => {
     }
 
     // 释放后同章 dispatch 恢复可用。
-    const after = await collect(dispatch_simple_chat(makeBaseParams(adapter, fastProvider, "写第一章")));
+    const after = await collect(dispatchSimpleChat(makeBaseParams(adapter, fastProvider, "写第一章")));
     expect(after.some((e) => e.type === "error" && e.data.error_code === "DISPATCH_IN_PROGRESS")).toBe(false);
   });
 });

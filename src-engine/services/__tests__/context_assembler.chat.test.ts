@@ -2,10 +2,10 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 /**
- * 对话式 × 记忆栈融合 P1.2：assemble_chat_context — 分层对话上下文。
+ * 对话式 × 记忆栈融合 P1.2：assembleChatContext — 分层对话上下文。
  *
  * 与 assemble_context_simple（全塞）的区别：
- *  - 复用 P0-P5 builder（facts / threads / 上一章 / 核心设定）+ retrieve_rag_for_context，
+ *  - 复用 P0-P5 builder（facts / threads / 上一章 / 核心设定）+ retrieveRagForContext，
  *    按 D-0039 预算切分，而不是无脑全塞。
  *  - 产物切成 { systemContent, latestUserContent, budget_report }：记忆进 system，
  *    最新轮 user 进 latestUserContent（dispatch 把 history 夹在中间）。
@@ -15,9 +15,9 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  assemble_chat_context,
-  build_system_prompt_simple,
-  compute_input_budget,
+  assembleChatContext,
+  buildSystemPromptSimple,
+  computeInputBudget,
   CHAT_HISTORY_RESERVE_RATIO,
   CHAT_HISTORY_RESERVE_CEIL,
 } from "../context_assembler.js";
@@ -27,7 +27,7 @@ import { createChapter } from "../../domain/chapter.js";
 import { createFact } from "../../domain/fact.js";
 import { createThread } from "../../domain/thread.js";
 import { FactStatus, NarrativeWeight, LLMMode } from "../../domain/enums.js";
-import { count_tokens, ensure_tokenizer } from "../../tokenizer/index.js";
+import { countTokens, ensureTokenizer } from "../../tokenizer/index.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 import { FileChapterRepository } from "../../repositories/implementations/file_chapter.js";
 import type {
@@ -112,7 +112,7 @@ function baseProject(overrides: Record<string, unknown> = {}) {
   });
 }
 
-describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
+describe("assembleChatContext (对话式 × 记忆栈融合 P1.2)", () => {
   it("注入：facts / 剧情线 / 上一章 / 核心设定 进 systemContent；latestUserContent 含 status + user_input", async () => {
     const adapter = new MockAdapter();
     const chapterRepo = new FileChapterRepository(adapter);
@@ -139,7 +139,7 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
     ];
     const threads = [createThread({ id: "t1", title: "复仇线", state: "Alice 正在追查仇人" })];
 
-    const result = await assemble_chat_context({
+    const result = await assembleChatContext({
       project,
       state,
       user_input: "让 Alice 先发制人",
@@ -162,7 +162,7 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
     expect(systemContent).toContain("### Alice");
     expect(systemContent).toContain("背负血仇");
     // 对话人设（SIMPLE_CHAT persona）在 systemContent 开头 + 与记忆层之间有 "---" 分隔（契约固定）
-    expect(systemContent.startsWith(build_system_prompt_simple(project, "zh"))).toBe(true);
+    expect(systemContent.startsWith(buildSystemPromptSimple(project, "zh"))).toBe(true);
     expect(systemContent).toContain("\n\n---\n\n");
 
     // 最新轮 user 进 latestUserContent，不含记忆
@@ -178,7 +178,7 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
     const project = baseProject();
     const state = createState({ au_id: "au_chat", current_chapter: 1 });
 
-    const result = await assemble_chat_context({
+    const result = await assembleChatContext({
       project,
       state,
       user_input: "开始第一章",
@@ -214,7 +214,7 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
       chapters: [{ content: "RAG 召回片段：密林深处有古老祭坛。", chapter_num: 2, score: 0.9, metadata: {} }],
     });
 
-    const result = await assemble_chat_context({
+    const result = await assembleChatContext({
       project,
       state,
       user_input: "Alice 继续深入",
@@ -249,7 +249,7 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
     // embedding 调用（避免按键级开销）的真正保证，仅断言 p4_tokens===0 抓不住。
     const emb = countingEmbedding();
 
-    const result = await assemble_chat_context({
+    const result = await assembleChatContext({
       project,
       state,
       user_input: "继续",
@@ -270,7 +270,7 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
     const project = baseProject();
     const state = createState({ au_id: "au_chat", current_chapter: 1 });
 
-    const result = await assemble_chat_context({
+    const result = await assembleChatContext({
       project,
       state,
       user_input: "你好",
@@ -280,7 +280,7 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
       language: "zh",
     });
 
-    expect(result.systemContent).toBe(build_system_prompt_simple(project, "zh"));
+    expect(result.systemContent).toBe(buildSystemPromptSimple(project, "zh"));
     expect(result.latestUserContent).toContain("你好");
     expect(result.budget_report.p2_tokens).toBe(0);
     expect(result.budget_report.p3_tokens).toBe(0);
@@ -299,7 +299,7 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
     });
     const state = createState({ au_id: "au_chat", current_chapter: 1 });
 
-    const result = await assemble_chat_context({
+    const result = await assembleChatContext({
       project,
       state,
       user_input: "写一段惊心动魄的开场",
@@ -323,7 +323,7 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
   });
 
   it("历史预留：记忆层选择预算被压在 memBudget=budget−reserve 内（抓 reserve 回归）", async () => {
-    await ensure_tokenizer();
+    await ensureTokenizer();
     const adapter = new MockAdapter();
     const chapterRepo = new FileChapterRepository(adapter);
     // ctx 收窄到 12000 让"记忆远超 memBudget"可判定（默认 32k 下小 fixture 塞得下不降级）。
@@ -336,13 +336,13 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
     const state = createState({ au_id: "au_chat", current_chapter: 1 });
 
     // 200 条**内容完全一致**的 fact（无 _confidence → 无富化后缀）：每条选择期 token 数恒定、
-    // 可在测试侧精确复算 build_facts_layer 的贪心选择量，从而对 selection budget 做精确断言。
+    // 可在测试侧精确复算 buildFactsLayer 的贪心选择量，从而对 selection budget 做精确断言。
     const factContent = "内容".repeat(20);
     const facts = Array.from({ length: 200 }, (_, i) =>
       createFact({ id: `f${i}`, content_raw: "x", content_clean: factContent, status: FactStatus.UNRESOLVED }),
     );
 
-    const result = await assemble_chat_context({
+    const result = await assembleChatContext({
       project,
       state,
       user_input: "继续",
@@ -357,16 +357,16 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
     expect(br.unresolved_soft_degraded).toBe(true);
 
     // 复算 budget / reserve / memBudget（用 export 的单一真相源公式 + 常量，不手抄）。
-    const budget = Math.max(0, compute_input_budget(br.context_window, br.system_tokens, br.max_output_tokens));
+    const budget = Math.max(0, computeInputBudget(br.context_window, br.system_tokens, br.max_output_tokens));
     const reserve = Math.min(Math.trunc(budget * CHAT_HISTORY_RESERVE_RATIO), CHAT_HISTORY_RESERVE_CEIL);
     const memBudget = budget - reserve;
     expect(reserve).toBeGreaterThan(0); // fixture 前提：reserve 确实非零
 
-    // build_facts_layer 的 selection budget = memBudget − latestUser(p1) − core_guarantee；
+    // buildFactsLayer 的 selection budget = memBudget − latestUser(p1) − core_guarantee；
     // 它按 content+后缀 token 贪心保留 fact（后缀此处为空），保证"已保留 fact 的 content token 总和"
     // ≤ selection budget。p3_tokens 是**渲染后**计数（含 "- [unresolved] " 前缀/表头/丢弃提示），
     // 会超 selection budget，故必须用 content token 复算、不能直接用 p3_tokens。
-    const perFactContent = count_tokens(factContent, project.llm).count;
+    const perFactContent = countTokens(factContent, project.llm).count;
     const selectionBudget = memBudget - br.p1_tokens - coreGuarantee;
     const keptContentTokens = result.context_summary.facts_injected * perFactContent;
 
@@ -386,7 +386,7 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
     const state = createState({ au_id: "au_chat", current_chapter: 2 });
     await seedChapter(chapterRepo, "au_chat", 1, "Once upon a time.");
 
-    const result = await assemble_chat_context({
+    const result = await assembleChatContext({
       project,
       state,
       user_input: "Write the next scene.",

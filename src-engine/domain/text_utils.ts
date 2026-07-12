@@ -7,7 +7,7 @@
  * 从纯正文末尾提取约 max_chars 个字，按句子边界截断。
  * 用于 state.yaml.last_scene_ending 更新（PRD §4.3）。
  */
-export function extract_last_scene_ending(content: string, max_chars = 50): string {
+export function extractLastSceneEnding(content: string, max_chars = 50): string {
   const text = content.trimEnd();
   if (!text) {
     return "";

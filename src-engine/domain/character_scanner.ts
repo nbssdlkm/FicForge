@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 
-/** 章节角色扫描。参见 PRD §2.6.5 scan_characters_in_chapter。 */
+/** 章节角色扫描。参见 PRD §2.6.5 scanCharactersInChapter。 */
 
 /**
  * 扫描章节正文中出场的角色。
@@ -10,7 +10,7 @@
  *   ① cast_registry.characters 角色名
  *   ② 各角色 aliases 别名
  */
-export function scan_characters_in_chapter(
+export function scanCharactersInChapter(
   chapter_text: string,
   cast_registry: { characters?: string[] },
   character_aliases: Record<string, string[]> | null = null,

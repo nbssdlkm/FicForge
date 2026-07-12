@@ -11,8 +11,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { assemble_context, assemble_chat_context } from "../context_assembler.js";
-import { estimate_simple_context_tokens } from "../estimate_simple_tokens.js";
+import { assembleContext, assembleChatContext } from "../context_assembler.js";
+import { estimateSimpleContextTokens } from "../estimate_simple_tokens.js";
 import { createProject, createLLMConfig } from "../../domain/project.js";
 import { createSettings } from "../../domain/settings.js";
 import { createState } from "../../domain/state.js";
@@ -26,13 +26,13 @@ function bareProject(auId: string) {
   return createProject({ project_id: "p", au_id: auId, llm: createLLMConfig() });
 }
 
-describe("assemble_context — effective_llm（审计 H4）", () => {
+describe("assembleContext — effective_llm（审计 H4）", () => {
   it("project.llm 空 + effective 视图 131072：窗口/预算按实际生效模型计算", async () => {
     const adapter = new MockAdapter();
     const repo = new FileChapterRepository(adapter);
     const state = createState({ au_id: "au_h4a", current_chapter: 1 });
 
-    const withEffective = await assemble_context(
+    const withEffective = await assembleContext(
       bareProject("au_h4a"),
       state,
       "继续写",
@@ -46,7 +46,7 @@ describe("assemble_context — effective_llm（审计 H4）", () => {
       [],
       EFFECTIVE_128K,
     );
-    const withoutEffective = await assemble_context(
+    const withoutEffective = await assembleContext(
       bareProject("au_h4a"),
       state,
       "继续写",
@@ -75,7 +75,7 @@ describe("assemble_context — effective_llm（审计 H4）", () => {
     });
     const state = createState({ au_id: "au_h4b", current_chapter: 1 });
 
-    const viaEffective = await assemble_context(
+    const viaEffective = await assembleContext(
       project,
       state,
       "继续写",
@@ -89,7 +89,7 @@ describe("assemble_context — effective_llm（审计 H4）", () => {
       [],
       { mode: "api", model: "m-proj", context_window: 64_000 },
     );
-    const legacy = await assemble_context(project, state, "继续写", [], repo, "au_h4b", null, null, null, "zh", []);
+    const legacy = await assembleContext(project, state, "继续写", [], repo, "au_h4b", null, null, null, "zh", []);
 
     expect(viaEffective.budget_report.context_window).toBe(legacy.budget_report.context_window);
     expect(viaEffective.max_tokens).toBe(legacy.max_tokens);
@@ -98,13 +98,13 @@ describe("assemble_context — effective_llm（审计 H4）", () => {
   });
 });
 
-describe("assemble_chat_context — effective_llm（审计 H4）", () => {
+describe("assembleChatContext — effective_llm（审计 H4）", () => {
   it("对话路径同样按 effective 视图计算窗口", async () => {
     const adapter = new MockAdapter();
     const repo = new FileChapterRepository(adapter);
     const state = createState({ au_id: "au_h4c", current_chapter: 1 });
 
-    const withEffective = await assemble_chat_context({
+    const withEffective = await assembleChatContext({
       project: bareProject("au_h4c"),
       state,
       user_input: "写下一章",
@@ -115,7 +115,7 @@ describe("assemble_chat_context — effective_llm（审计 H4）", () => {
       language: "zh",
       effective_llm: EFFECTIVE_128K,
     });
-    const withoutEffective = await assemble_chat_context({
+    const withoutEffective = await assembleChatContext({
       project: bareProject("au_h4c"),
       state,
       user_input: "写下一章",
@@ -131,7 +131,7 @@ describe("assemble_chat_context — effective_llm（审计 H4）", () => {
   });
 });
 
-describe("estimate_simple_context_tokens — 与真实组装同源（审计 H4）", () => {
+describe("estimateSimpleContextTokens — 与真实组装同源（审计 H4）", () => {
   it("settings.default_llm 手动窗口进 badge（主流配置修复的直接体现）", async () => {
     const adapter = new MockAdapter();
     const repo = new FileChapterRepository(adapter);
@@ -140,7 +140,7 @@ describe("estimate_simple_context_tokens — 与真实组装同源（审计 H4�
       default_llm: createLLMConfig({ mode: "api", model: "m-set", context_window: 131_072 }),
     });
 
-    const withSettings = await estimate_simple_context_tokens({
+    const withSettings = await estimateSimpleContextTokens({
       au_id: "au_h4d",
       project: bareProject("au_h4d"),
       state,
@@ -149,7 +149,7 @@ describe("estimate_simple_context_tokens — 与真实组装同源（审计 H4�
       language: "zh",
       settings,
     });
-    const withoutSettings = await estimate_simple_context_tokens({
+    const withoutSettings = await estimateSimpleContextTokens({
       au_id: "au_h4d",
       project: bareProject("au_h4d"),
       state,
@@ -170,7 +170,7 @@ describe("estimate_simple_context_tokens — 与真实组装同源（审计 H4�
       default_llm: createLLMConfig({ mode: "api", model: "m-set", context_window: 131_072 }),
     });
 
-    const r = await estimate_simple_context_tokens({
+    const r = await estimateSimpleContextTokens({
       au_id: "au_h4e",
       project: bareProject("au_h4e"),
       state,

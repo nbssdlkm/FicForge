@@ -23,7 +23,7 @@
 import * as yaml from "js-yaml";
 import type { PlatformAdapter } from "../platform/adapter.js";
 import { IndexStatus } from "../domain/enums.js";
-import { joinPath, now_utc } from "../utils/file_utils.js";
+import { joinPath, nowUtc } from "../utils/file_utils.js";
 import { PROJECT_YAML, STATE_YAML } from "../domain/paths.js";
 import { warnAlways } from "../logger/index.js";
 import { SECURE_PLACEHOLDER } from "../repositories/implementations/secure_fields.js";
@@ -117,7 +117,7 @@ export async function collectAuBundle(
   return {
     manifest: {
       bundle_version: AU_BUNDLE_VERSION,
-      exported_at: now_utc(),
+      exported_at: nowUtc(),
       au_name: opts.au_name ?? "",
       fandom: opts.fandom ?? "",
       chapter_count: chapterCount,

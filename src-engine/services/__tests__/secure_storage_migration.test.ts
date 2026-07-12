@@ -8,7 +8,7 @@ import { FileFandomRepository } from "../../repositories/implementations/file_fa
 import { FileProjectRepository } from "../../repositories/implementations/file_project.js";
 import { FileSettingsRepository } from "../../repositories/implementations/file_settings.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
-import { migrate_legacy_secure_storage } from "../secure_storage_migration.js";
+import { migrateLegacySecureStorage } from "../secure_storage_migration.js";
 
 class MockEncryptedAdapter extends MockAdapter {
   override getSecretStorageCapabilities() {
@@ -20,7 +20,7 @@ class MockEncryptedAdapter extends MockAdapter {
   }
 }
 
-describe("migrate_legacy_secure_storage", () => {
+describe("migrateLegacySecureStorage", () => {
   it("migrates legacy plaintext settings/project YAML without bumping business metadata", async () => {
     const adapter = new MockEncryptedAdapter();
     const dataDir = "";
@@ -67,7 +67,7 @@ describe("migrate_legacy_secure_storage", () => {
       }),
     );
 
-    const result = await migrate_legacy_secure_storage({
+    const result = await migrateLegacySecureStorage({
       adapter,
       dataDir,
       fandomRepo,
@@ -99,7 +99,7 @@ describe("migrate_legacy_secure_storage", () => {
 
   it("skips migration when the adapter still lacks encrypted-at-rest storage", async () => {
     const adapter = new MockAdapter();
-    const result = await migrate_legacy_secure_storage({
+    const result = await migrateLegacySecureStorage({
       adapter,
       dataDir: "",
       fandomRepo: new FileFandomRepository(adapter, ""),

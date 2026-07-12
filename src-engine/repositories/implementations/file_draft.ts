@@ -9,7 +9,7 @@ import type { Draft } from "../../domain/draft.js";
 import { createDraft } from "../../domain/draft.js";
 // 草稿解析必须走 safeMatter（审计 B-1，H6 同族）：AI 常以 `---` 场景分割线开草稿，
 // 裸 matter(text) 会把首段正文吞成 frontmatter；用户未编辑直接 confirm 时
-// confirm_chapter 回退 draft.content，截断内容会固化进正式章节。
+// confirmChapter 回退 draft.content，截断内容会固化进正式章节。
 import { safeMatter } from "../../domain/frontmatter.js";
 import { generatedWithFromYaml, generatedWithToYaml } from "../../domain/generated_with.js";
 import { draftFilename, parseDraftFilename } from "../../domain/paths.js";

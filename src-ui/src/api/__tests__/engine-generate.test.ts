@@ -5,12 +5,12 @@
  * generateChapter（engine-generate.ts）编排层判别性测试 —— 错误分支优先。
  *
  * 覆盖两条本 API 层特有的分支（非引擎内部逻辑）：
- *   1. local 模式提前拦截 → yield UNSUPPORTED_MODE 且**不触达**引擎 generate_chapter
+ *   1. local 模式提前拦截 → yield UNSUPPORTED_MODE 且**不触达**引擎 generateChapter
  *      （UI capabilities 已不渲染 local，此拦截是防手改 YAML 的最后防线）。
  *   2. thread 读失败降级 → threads=[] 继续生成（best-effort）+ logCatch 记日志（非静默吞错）。
  *
- * 引擎 generate_chapter 会打真实 LLM，故经 vi.mock 注入一个捕获入参的空 generator；
- * resolve_llm_config / logCatch 保留 actual（logCatch 单独换成捕获实现以断言非静默）。
+ * 引擎 generateChapter 会打真实 LLM，故经 vi.mock 注入一个捕获入参的空 generator；
+ * resolveLlmConfig / logCatch 保留 actual（logCatch 单独换成捕获实现以断言非静默）。
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,7 +19,7 @@ import { MockAdapter } from "../../../../src-engine/repositories/__tests__/mock_
 import { createAu, createFandom } from "../engine-fandoms";
 import { getEngine, initEngine } from "../engine-instance";
 
-// 注入 mock 观测：generate_chapter 收到的 threads、调用次数、logCatch 记录。
+// 注入 mock 观测：generateChapter 收到的 threads、调用次数、logCatch 记录。
 const captured = vi.hoisted(() => ({
   threads: undefined as unknown,
   generateCalls: 0,
@@ -36,7 +36,7 @@ vi.mock("@ficforge/engine", async () => {
   }
   return {
     ...actual,
-    generate_chapter: mockGenerateChapter,
+    generateChapter: mockGenerateChapter,
     // 换成捕获实现（非 vi.fn，restoreAllMocks 无碍）以断言降级非静默。
     logCatch: (tag: string, msg: string) => {
       captured.logCatchCalls.push({ tag, msg });
@@ -70,7 +70,7 @@ beforeEach(async () => {
 });
 
 describe("generateChapter — 编排层错误分支", () => {
-  it("local 模式 → 只 yield UNSUPPORTED_MODE，且不进入引擎 generate_chapter", async () => {
+  it("local 模式 → 只 yield UNSUPPORTED_MODE，且不进入引擎 generateChapter", async () => {
     // project.llm 配 local + model（让 project 层被 resolve 选中，而非回退全局 settings 层）。
     const proj = await getEngine().repos.project.get(auPath);
     proj.llm.mode = LLMMode.LOCAL;

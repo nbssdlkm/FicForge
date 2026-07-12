@@ -2,12 +2,12 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 /**
- * TDD tests for archive_fact / unarchive_fact (BLOCKER B1 + Phase B).
+ * TDD tests for archiveFact / unarchiveFact (BLOCKER B1 + Phase B).
  * Run these first so they fail, then implement.
  */
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { add_fact, archive_fact, unarchive_fact } from "../facts_lifecycle.js";
+import { addFact, archiveFact, unarchiveFact } from "../facts_lifecycle.js";
 import { FileFactRepository } from "../../repositories/implementations/file_fact.js";
 import { FileOpsRepository } from "../../repositories/implementations/file_ops.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
@@ -23,8 +23,8 @@ describe("archive_fact / unarchive_fact", () => {
     opsRepo = new FileOpsRepository(adapter);
   });
 
-  it("archive_fact sets archived=true and archived_at", async () => {
-    const fact = await add_fact(
+  it("archiveFact sets archived=true and archived_at", async () => {
+    const fact = await addFact(
       "au1",
       1,
       {
@@ -35,7 +35,7 @@ describe("archive_fact / unarchive_fact", () => {
       opsRepo,
     );
 
-    await archive_fact("au1", fact.id, factRepo, opsRepo);
+    await archiveFact("au1", fact.id, factRepo, opsRepo);
 
     const updated = await factRepo.get("au1", fact.id);
     expect(updated).not.toBeNull();
@@ -44,8 +44,8 @@ describe("archive_fact / unarchive_fact", () => {
     expect(updated!.archived_at!.length).toBeGreaterThan(0);
   });
 
-  it("archive_fact writes archive_fact op", async () => {
-    const fact = await add_fact(
+  it("archiveFact writes archive_fact op", async () => {
+    const fact = await addFact(
       "au1",
       1,
       {
@@ -56,7 +56,7 @@ describe("archive_fact / unarchive_fact", () => {
       opsRepo,
     );
 
-    await archive_fact("au1", fact.id, factRepo, opsRepo);
+    await archiveFact("au1", fact.id, factRepo, opsRepo);
 
     const ops = await opsRepo.list_all("au1");
     const archiveOp = ops.find((o) => o.op_type === "archive_fact");
@@ -64,8 +64,8 @@ describe("archive_fact / unarchive_fact", () => {
     expect(archiveOp!.target_id).toBe(fact.id);
   });
 
-  it("unarchive_fact sets archived=false and clears archived_at", async () => {
-    const fact = await add_fact(
+  it("unarchiveFact sets archived=false and clears archived_at", async () => {
+    const fact = await addFact(
       "au1",
       1,
       {
@@ -76,8 +76,8 @@ describe("archive_fact / unarchive_fact", () => {
       opsRepo,
     );
 
-    await archive_fact("au1", fact.id, factRepo, opsRepo);
-    await unarchive_fact("au1", fact.id, factRepo, opsRepo);
+    await archiveFact("au1", fact.id, factRepo, opsRepo);
+    await unarchiveFact("au1", fact.id, factRepo, opsRepo);
 
     const updated = await factRepo.get("au1", fact.id);
     expect(updated).not.toBeNull();
@@ -86,8 +86,8 @@ describe("archive_fact / unarchive_fact", () => {
     expect(updated!.archived_at == null).toBe(true);
   });
 
-  it("unarchive_fact writes unarchive_fact op", async () => {
-    const fact = await add_fact(
+  it("unarchiveFact writes unarchive_fact op", async () => {
+    const fact = await addFact(
       "au1",
       1,
       {
@@ -98,8 +98,8 @@ describe("archive_fact / unarchive_fact", () => {
       opsRepo,
     );
 
-    await archive_fact("au1", fact.id, factRepo, opsRepo);
-    await unarchive_fact("au1", fact.id, factRepo, opsRepo);
+    await archiveFact("au1", fact.id, factRepo, opsRepo);
+    await unarchiveFact("au1", fact.id, factRepo, opsRepo);
 
     const ops = await opsRepo.list_all("au1");
     const unarchiveOp = ops.find((o) => o.op_type === "unarchive_fact");
@@ -107,16 +107,16 @@ describe("archive_fact / unarchive_fact", () => {
     expect(unarchiveOp!.target_id).toBe(fact.id);
   });
 
-  it("archive_fact throws if fact not found", async () => {
-    await expect(archive_fact("au1", "nonexistent", factRepo, opsRepo)).rejects.toThrow();
+  it("archiveFact throws if fact not found", async () => {
+    await expect(archiveFact("au1", "nonexistent", factRepo, opsRepo)).rejects.toThrow();
   });
 
-  it("unarchive_fact throws if fact not found", async () => {
-    await expect(unarchive_fact("au1", "nonexistent", factRepo, opsRepo)).rejects.toThrow();
+  it("unarchiveFact throws if fact not found", async () => {
+    await expect(unarchiveFact("au1", "nonexistent", factRepo, opsRepo)).rejects.toThrow();
   });
 
   it("createFact defaults archived to false", async () => {
-    const fact = await add_fact(
+    const fact = await addFact(
       "au1",
       1,
       {

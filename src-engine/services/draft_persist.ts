@@ -10,7 +10,7 @@
 import { createDraft, type Draft } from "../domain/draft.js";
 import { createGeneratedWith, type GeneratedWith } from "../domain/generated_with.js";
 import type { DraftRepository } from "../repositories/interfaces/draft.js";
-import { now_utc } from "../utils/file_utils.js";
+import { nowUtc } from "../utils/file_utils.js";
 import { withAuLock } from "./au_lock.js";
 
 export interface PersistGeneratedDraftParams {
@@ -40,7 +40,7 @@ export async function persistGeneratedDraft(
     output_tokens: p.output_tokens,
     char_count: p.content.length,
     duration_ms: p.duration_ms,
-    generated_at: now_utc(),
+    generated_at: nowUtc(),
   });
   const draft = createDraft({
     au_id: p.au_id,

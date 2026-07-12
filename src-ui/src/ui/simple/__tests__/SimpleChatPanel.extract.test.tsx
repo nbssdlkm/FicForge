@@ -273,7 +273,7 @@ describe("SimpleChatPanel P2.3 — 接受草稿接通 M9 提取", () => {
     const user = userEvent.setup();
     // 旧口径只看全局 default_llm.has_usable_connection=false → 会误判为不可提取而静默跳过。
     mockSettingsSummary({ reactEnabled: true, usable: false });
-    // 新口径：引擎按 resolve_llm_config(project 优先) 解析后 readiness=true（AU 级独立配了 LLM）。
+    // 新口径：引擎按 resolveLlmConfig(project 优先) 解析后 readiness=true（AU 级独立配了 LLM）。
     mocked.getFactsExtractionReadiness.mockResolvedValue({ has_usable_connection: true });
 
     await sendAndAcceptDraft(user);

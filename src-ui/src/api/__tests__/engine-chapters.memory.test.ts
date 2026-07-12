@@ -9,7 +9,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as engineModule from "@ficforge/engine";
-import { createDraft, createChapterSummary, now_utc } from "@ficforge/engine";
+import { createDraft, createChapterSummary, nowUtc } from "@ficforge/engine";
 import { MockAdapter } from "../../../../src-engine/repositories/__tests__/mock_adapter.js";
 import { confirmChapter, scanChapterMemory, backfillChapterMemory } from "../engine-chapters";
 import { addFact } from "../engine-facts";
@@ -79,7 +79,7 @@ describe("scanChapterMemory", () => {
       auPath,
       2,
       createChapterSummary({
-        standard: { version: 1, text: "第二章摘要", generated_at: now_utc(), source_chapter_hash: "h" },
+        standard: { version: 1, text: "第二章摘要", generated_at: nowUtc(), source_chapter_hash: "h" },
       }),
     );
 
@@ -111,7 +111,7 @@ describe("backfillChapterMemory", () => {
     // 避开真实 embedding / LLM
     vi.spyOn(getEngine().ragManager, "indexChapter").mockResolvedValue(undefined);
     vi.spyOn(getEngine().ragManager, "indexChapterSummary").mockResolvedValue(undefined);
-    vi.spyOn(engineModule, "generate_standard_summary").mockImplementation(
+    vi.spyOn(engineModule, "generateStandardSummary").mockImplementation(
       async (_text: string, num: number) => `摘要-${num}`,
     );
     vi.spyOn(engineModule, "extractFactsFromChapter").mockImplementation((async (_content: string, num: number) => [

@@ -4,7 +4,7 @@
 /**
  * 剧情线「当前进展」(Thread.state) 维护（最后一公里 B2）。
  *
- * 背景：Thread.state 每次续写都注入 prompt（build_threads_layer），但引擎里**没有任何自动
+ * 背景：Thread.state 每次续写都注入 prompt（buildThreadsLayer），但引擎里**没有任何自动
  * 写 state 的路径**——只有 UI 手动编辑能改。M9 只往 fact 上挂 thread_ids、从不碰 thread.state。
  * 于是用户写着写着，那句「当前进展」就旧了，旧话一直污染每次 prompt。
  *

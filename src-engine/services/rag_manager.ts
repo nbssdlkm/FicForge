@@ -20,7 +20,7 @@ import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { ChapterSummaryRepository } from "../repositories/interfaces/chapter_summary.js";
 import type { JsonVectorEngine } from "../vector/engine.js";
 import type { VectorRepository } from "../repositories/interfaces/vector.js";
-import { split_chapter_into_chunks, type CastRegistryLike } from "../vector/chunker.js";
+import { splitChapterIntoChunks, type CastRegistryLike } from "../vector/chunker.js";
 import { logCatch, warnAlways } from "../logger/index.js";
 import { createAbortError } from "../utils/abort_error.js";
 
@@ -436,7 +436,7 @@ export class RagManager {
     castRegistry?: CastRegistryLike | null,
     signal?: AbortSignal,
   ): Promise<Parameters<JsonVectorEngine["index_chunks"]>[0]> {
-    const chunks = split_chapter_into_chunks(content, chapterNum, 500, 1, castRegistry);
+    const chunks = splitChapterIntoChunks(content, chapterNum, 500, 1, castRegistry);
     const texts = chunks.map((c) => c.content);
     const embeddings = chunks.length > 0 ? await embeddingProvider.embed(texts, { signal }) : [];
 

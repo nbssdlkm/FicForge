@@ -94,7 +94,7 @@ export { getPrompts } from "./prompts/index.js";
 export type { PromptKey, PromptModule } from "./prompts/index.js";
 
 // Tokenizer
-export { clear_tokenizer_cache, count_tokens, ensure_tokenizer } from "./tokenizer/index.js";
+export { clearTokenizerCache, countTokens, ensureTokenizer } from "./tokenizer/index.js";
 export type { TokenCount } from "./tokenizer/index.js";
 
 // Platform
@@ -139,15 +139,15 @@ export {
   FileSimpleChatRepository,
   FileStateRepository,
   FileThreadRepository,
-  compute_content_hash,
-  generate_fact_id,
-  generate_op_id,
-  generate_thread_id,
-  now_utc,
+  computeContentHash,
+  generateFactId,
+  generateOpId,
+  generateThreadId,
+  nowUtc,
 } from "./repositories/implementations/index.js";
 
 // Vector engine
-export { cosine_similarity, JsonVectorEngine, split_chapter_into_chunks } from "./vector/index.js";
+export { cosineSimilarity, JsonVectorEngine, splitChapterIntoChunks } from "./vector/index.js";
 export type { ChunkData } from "./vector/index.js";
 
 // LLM
@@ -168,7 +168,7 @@ export type {
   ToolDefinition,
 } from "./llm/index.js";
 export {
-  create_provider,
+  createProvider,
   isPlaintextRemoteHttp,
   warnIfPlaintextRemote,
   getEmbeddingModeAvailability,
@@ -177,8 +177,8 @@ export {
   LLMError,
   OpenAICompatibleProvider,
   RemoteEmbeddingProvider,
-  resolve_llm_config,
-  resolve_llm_params,
+  resolveLlmConfig,
+  resolveLlmParams,
 } from "./llm/index.js";
 
 // Services
@@ -194,53 +194,53 @@ export {
   SIMPLE_TOOL_SHOW_SETTING,
   TrashService,
   WriteTransaction,
-  add_fact,
-  archive_facts,
-  backfill_chapter_memory,
-  build_settings_context,
-  call_settings_llm,
+  addFact,
+  archiveFacts,
+  backfillChapterMemory,
+  buildSettingsContext,
+  callSettingsLlm,
   chapterInflightKey,
   chatToOpenAIMessages,
   classifyTurns,
   collectAuBundle,
-  commit_retrospective,
+  commitRetrospective,
   computeThreadStaleness,
-  confirm_chapter,
-  dispatch_simple_chat,
-  edit_chapter_content,
-  edit_fact,
-  estimate_simple_context_tokens,
-  export_chapters,
-  find_archival_candidates,
-  find_chapters_missing_summary,
+  confirmChapter,
+  dispatchSimpleChat,
+  editChapterContent,
+  editFact,
+  estimateSimpleContextTokens,
+  exportChapters,
+  findArchivalCandidates,
+  findChaptersMissingSummary,
   generateChapterTitle,
-  generate_chapter,
-  generate_micro_summary,
-  generate_retrospective,
-  generate_standard_summary,
+  generateChapter,
+  generateMicroSummary,
+  generateRetrospective,
+  generateStandardSummary,
   importAuBundle,
   isChapterInflight,
   markChapterInflight,
-  migrate_legacy_secure_storage,
-  persist_chapter_summary,
-  recalc_state,
+  migrateLegacySecureStorage,
+  persistChapterSummary,
+  recalcState,
   regenerateThreadState,
   releaseChapterInflight,
-  resolve_dirty_chapter,
-  set_chapter_focus,
-  should_run_retrospective,
+  resolveDirtyChapter,
+  setChapterFocus,
+  shouldRunRetrospective,
   threadMemberFacts,
-  unarchive_fact,
-  undo_latest_chapter,
-  update_fact_status,
+  unarchiveFact,
+  undoLatestChapter,
+  updateFactStatus,
   validateBundle,
   withAuLock,
   withProjectFileLock,
-  analyze_file,
-  build_import_plan,
-  execute_import,
+  analyzeFile,
+  buildImportPlan,
+  executeImport,
   extractFactsFromChapter,
-  parse_html,
+  parseHtml,
   reactExtractFromChapter,
   // Lore / Fandom service（E3 下沉；UI api 薄转发）
   saveLore,

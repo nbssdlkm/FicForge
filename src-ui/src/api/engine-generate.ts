@@ -6,8 +6,8 @@
  */
 
 import {
-  generate_chapter as engineGenerateChapter,
-  resolve_llm_config,
+  generateChapter as engineGenerateChapter,
+  resolveLlmConfig,
   logCatch,
   type GenerationEvent,
 } from "@ficforge/engine";
@@ -46,9 +46,9 @@ export async function* generateChapter(
 
   // 验证 LLM 模式。api 和 ollama 走 OpenAI 兼容协议，正常放行。
   // local（内置模型加载）随 Python sidecar 退役（D-0040/M7）本版本不支持 —— 在
-  // create_provider 里抛错之前提前拦截，给前端友好的 error_code（UI 层 capabilities.ts
+  // createProvider 里抛错之前提前拦截，给前端友好的 error_code（UI 层 capabilities.ts
   // 已不渲染该选项，此处作为防手改 YAML 的最后防线）。
-  const llmConfig = resolve_llm_config(params.session_llm ?? null, proj, sett);
+  const llmConfig = resolveLlmConfig(params.session_llm ?? null, proj, sett);
   if (llmConfig.mode === "local") {
     yield {
       event: "error",
@@ -65,7 +65,7 @@ export async function* generateChapter(
   // TD-017：vectorRepoFor 返回该 AU 独立引擎（per-AU 隔离）；索引损坏/未建时返回空库（搜索得 0
   // 结果而非抛错），等价旧 e.vectorEngine 空态回退。
   const vectorRepo = await e.ragManager.vectorRepoFor(params.au_path);
-  // E8：别名表供 RAG 活跃角色过滤（build_active_chars）—— 正文/输入只出现别名时主名也进 char_filter，
+  // E8：别名表供 RAG 活跃角色过滤（buildActiveChars）—— 正文/输入只出现别名时主名也进 char_filter，
   // 与提取/扫描侧共用同一张表。get 异步且永不抛错（无角色卡 → null，char_filter 逐字节回退现状）。
   const characterAliases = await e.characterAliases.get(params.au_path);
 

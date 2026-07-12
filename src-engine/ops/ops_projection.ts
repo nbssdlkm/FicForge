@@ -18,7 +18,7 @@ import { ON_DISK_DEFAULT_REVISION } from "../domain/project.js";
 import type { State } from "../domain/state.js";
 import type { Fact } from "../domain/fact.js";
 import { createFact } from "../domain/fact.js";
-import { sanitize_known_to, sanitize_hidden_from, sanitize_confidence } from "../domain/fact_sanitize.js";
+import { sanitizeKnownTo, sanitizeHiddenFrom, sanitizeConfidence } from "../domain/fact_sanitize.js";
 import {
   FACT_SOURCE_VALUES,
   FACT_STATUS_VALUES,
@@ -143,7 +143,7 @@ function applyOpToState(state: State, op: OpsEntry): void {
 
     case "import_chapters": {
       const maxCh = op.payload.last_chapter_num as number | undefined;
-      // L24：与 execute_import 同口径——last_scene_ending（续写衔接锚点）只在本次导入触及现末章
+      // L24：与 executeImport 同口径——last_scene_ending（续写衔接锚点）只在本次导入触及现末章
       // 及之后（maxCh + 1 >= current_chapter；current_chapter 是「下一章指针」，现末章 = 指针−1，
       // 重导当前末章也必须刷新锚点，F-2）时才更新；低章号补导不动它。
       // 先用更新前的 current_chapter 判定，再推进指针。
@@ -328,7 +328,7 @@ export function rebuildFactsFromOps(ops: OpsEntry[]): Fact[] {
             "archived",
             "archived_at",
           ]);
-          // 枚举字段防御性校验（与 edit_fact 写路径对称）：非法枚举不 replay，防旧 ops /
+          // 枚举字段防御性校验（与 editFact 写路径对称）：非法枚举不 replay，防旧 ops /
           // 手改 ops.jsonl 引入的垃圾把 fact 从筛选视图里抹掉。
           const EDIT_ENUM: Record<string, readonly string[]> = {
             status: FACT_STATUS_VALUES,
@@ -346,10 +346,10 @@ export function rebuildFactsFromOps(ops: OpsEntry[]): Fact[] {
             if (key === "known_to" || key === "hidden_from" || key === "_confidence") {
               const res =
                 key === "known_to"
-                  ? sanitize_known_to(value)
+                  ? sanitizeKnownTo(value)
                   : key === "hidden_from"
-                    ? sanitize_hidden_from(value)
-                    : sanitize_confidence(value);
+                    ? sanitizeHiddenFrom(value)
+                    : sanitizeConfidence(value);
               if (!res.ok) {
                 if (hasLogger())
                   getLogger().warn("ops_merge", `edit_fact 跳过非法形状 ${key}`, {

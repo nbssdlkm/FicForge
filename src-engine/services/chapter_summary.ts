@@ -12,7 +12,7 @@ import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { ChapterSummaryRepository } from "../repositories/interfaces/chapter_summary.js";
 import type { RagManager } from "./rag_manager.js";
 import { createChapterSummary } from "../domain/chapter_summary.js";
-import { now_utc } from "../utils/file_utils.js";
+import { nowUtc } from "../utils/file_utils.js";
 import { logCatch } from "../logger/index.js";
 
 export interface GenerateSummaryOptions {
@@ -20,7 +20,7 @@ export interface GenerateSummaryOptions {
   signal?: AbortSignal;
 }
 
-export async function generate_micro_summary(
+export async function generateMicroSummary(
   chapter_text: string,
   chapterNum: number,
   llm_provider: LLMProvider,
@@ -58,7 +58,7 @@ export async function generate_micro_summary(
   }
 }
 
-export async function generate_standard_summary(
+export async function generateStandardSummary(
   chapter_text: string,
   chapterNum: number,
   llm_provider: LLMProvider,
@@ -116,7 +116,7 @@ export interface PersistSummaryDeps {
  * - 不在此 try/catch、不加锁：生成在锁外（慢 LLM），调用方负责把本函数 + 章节存在性
  *   CAS 一起放进 withAuLock，避免并发 undo/edit 后把过期摘要写回（codex 对抗审 race）。
  */
-export async function persist_chapter_summary(deps: PersistSummaryDeps): Promise<void> {
+export async function persistChapterSummary(deps: PersistSummaryDeps): Promise<void> {
   await deps.ragManager.indexChapterSummary(
     deps.auPath,
     deps.chapterNum,
@@ -131,13 +131,13 @@ export async function persist_chapter_summary(deps: PersistSummaryDeps): Promise
   const existing = (await deps.summaryRepo.get(deps.auPath, deps.chapterNum)) ?? createChapterSummary({});
   const summary = {
     ...existing,
-    standard: { version: 1, text: deps.text, generated_at: now_utc(), source_chapter_hash: deps.contentHash },
+    standard: { version: 1, text: deps.text, generated_at: nowUtc(), source_chapter_hash: deps.contentHash },
   };
   await deps.summaryRepo.save(deps.auPath, deps.chapterNum, summary);
 }
 
 // ---- 批量补摘要（backfill）：给「配 embedding 之前确认、永久没摘要」的旧章补 standard 摘要。----
-// 复用 confirm 同款原语（generate_standard_summary + persist_chapter_summary）。
+// 复用 confirm 同款原语（generateStandardSummary + persistChapterSummary）。
 // 只补 standard（RAG 实际消费的那档）；micro 由 retrospective 消费（每 N 章注入后续 micro
 // 作「后见之明」重写 standard v2），confirm 顺带生成，backfill 不为它多调一次 LLM。
 
@@ -145,7 +145,7 @@ export async function persist_chapter_summary(deps: PersistSummaryDeps): Promise
  * 找出「缺 standard 摘要」的章节号。
  * 单一真相源：count 预览（给用户看数量）与 backfill 实跑共用此判据，避免两处对「缺摘要」定义漂移。
  */
-export async function find_chapters_missing_summary(
+export async function findChaptersMissingSummary(
   auPath: string,
   chapterNums: number[],
   summaryRepo: ChapterSummaryRepository,
@@ -159,5 +159,5 @@ export async function find_chapters_missing_summary(
 }
 
 // 注：原 backfill_chapter_summaries（批量补 standard 摘要）已退役 —— 被「补全旧章记忆」
-// 统一 pass（services/backfill_memory.ts）取代，摘要是其子集。find_chapters_missing_summary
+// 统一 pass（services/backfill_memory.ts）取代，摘要是其子集。findChaptersMissingSummary
 // 作为「缺摘要」的单一真相源判据保留，供 scanChapterMemory / backfillChapterMemory 复用。

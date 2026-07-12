@@ -87,7 +87,7 @@ describe("FileDraftRepository", () => {
  * frontmatter 解析安全性判别性测试（审计 B-1，H6 同族）。
  *
  * 危害链：AI 以 `---` 场景分割线开头出稿 → 旧写路径 matter.stringify(string, meta)
- * 把正文再解析一遍吞掉/搅碎首段 → 用户未编辑直接 confirm 时 confirm_chapter 回退
+ * 把正文再解析一遍吞掉/搅碎首段 → 用户未编辑直接 confirm 时 confirmChapter 回退
  * draft.content → 截断内容固化进正式章节。
  * 回退到裸 matter(text) / matter.stringify(string, meta) 的旧实现必挂。
  */

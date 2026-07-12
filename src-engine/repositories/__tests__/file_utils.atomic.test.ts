@@ -9,12 +9,12 @@
  *   对正式路径的 writeFile 注入「写一半崩溃」，旧码会留下截断的正式文件；
  *   新码对正式路径只走 rename，不会触发注入点。
  * - 「rename 前崩溃」时新码保证正式文件保持旧内容完整（写入等于没发生）。
- * - read_jsonl 的 .tmp 恢复只在「主文件缺失/有坏行 + .tmp 严格更多合法行」启用。
+ * - readJsonl 的 .tmp 恢复只在「主文件缺失/有坏行 + .tmp 严格更多合法行」启用。
  */
 
 import { describe, expect, it, vi } from "vitest";
 import { MockAdapter } from "./mock_adapter.js";
-import { atomicWrite, read_jsonl } from "../../utils/file_utils.js";
+import { atomicWrite, readJsonl } from "../../utils/file_utils.js";
 
 /** 对**正式路径**（非 .tmp）的 writeFile 模拟「写一半掉电」：落半截内容后抛错。 */
 class TruncatingCrashAdapter extends MockAdapter {
@@ -77,7 +77,7 @@ describe("atomicWrite（write-tmp-then-rename）", () => {
   });
 });
 
-describe("read_jsonl 遗留 .tmp 恢复（迁移期兜底）", () => {
+describe("readJsonl 遗留 .tmp 恢复（迁移期兜底）", () => {
   it("主文件尾部截断 + .tmp 更完整：console.warn + 用 .tmp 重建主文件并返回完整内容", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
@@ -87,7 +87,7 @@ describe("read_jsonl 遗留 .tmp 恢复（迁移期兜底）", () => {
       adapter.seed("au/facts.jsonl", '{"id":1}\n{"id":2}\n{"id":3');
       adapter.seed("au/facts.jsonl.tmp", fullText);
 
-      const [items, errors] = await read_jsonl(adapter, "au/facts.jsonl", parseId);
+      const [items, errors] = await readJsonl(adapter, "au/facts.jsonl", parseId);
 
       expect(items).toEqual([1, 2, 3]);
       expect(errors).toEqual([]);
@@ -103,7 +103,7 @@ describe("read_jsonl 遗留 .tmp 恢复（迁移期兜底）", () => {
     const adapter = new MockAdapter();
     adapter.seed("au/threads.jsonl.tmp", '{"id":7}\n{"id":8}\n');
 
-    const [items] = await read_jsonl(adapter, "au/threads.jsonl", parseId);
+    const [items] = await readJsonl(adapter, "au/threads.jsonl", parseId);
 
     expect(items).toEqual([7, 8]);
     expect(adapter.raw("au/threads.jsonl")).toBe('{"id":7}\n{"id":8}\n');
@@ -115,7 +115,7 @@ describe("read_jsonl 遗留 .tmp 恢复（迁移期兜底）", () => {
     adapter.seed("au/facts.jsonl", '{"id":1}\n{"id":2}\n{"id":3');
     adapter.seed("au/facts.jsonl.tmp", '{"id":1}\n{"id":2}\n');
 
-    const [items, errors] = await read_jsonl(adapter, "au/facts.jsonl", parseId);
+    const [items, errors] = await readJsonl(adapter, "au/facts.jsonl", parseId);
 
     expect(items).toEqual([1, 2]);
     expect(errors).toHaveLength(1);
@@ -130,7 +130,7 @@ describe("read_jsonl 遗留 .tmp 恢复（迁移期兜底）", () => {
     adapter.seed("au/facts.jsonl", mainText);
     adapter.seed("au/facts.jsonl.tmp", '{"id":1}\n{"id":2}\n{"id":3}\n');
 
-    const [items, errors] = await read_jsonl(adapter, "au/facts.jsonl", parseId);
+    const [items, errors] = await readJsonl(adapter, "au/facts.jsonl", parseId);
 
     expect(items).toEqual([1, 2]);
     expect(errors).toEqual([]);
@@ -139,7 +139,7 @@ describe("read_jsonl 遗留 .tmp 恢复（迁移期兜底）", () => {
 
   it("主文件与 .tmp 都缺失：维持原语义返回空", async () => {
     const adapter = new MockAdapter();
-    const [items, errors] = await read_jsonl(adapter, "au/none.jsonl", parseId);
+    const [items, errors] = await readJsonl(adapter, "au/none.jsonl", parseId);
     expect(items).toEqual([]);
     expect(errors).toEqual([]);
   });

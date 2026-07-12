@@ -3,8 +3,8 @@
 
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { TrashService, RESTORE_CONFLICT_MARKER, HALF_RESTORED_MARKER } from "../trash_service.js";
-import { recalc_state } from "../recalc_state.js";
-import { confirm_chapter } from "../confirm_chapter.js";
+import { recalcState } from "../recalc_state.js";
+import { confirmChapter } from "../confirm_chapter.js";
 import { createState } from "../../domain/state.js";
 import { createDraft } from "../../domain/draft.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
@@ -626,7 +626,7 @@ describe("TrashService", () => {
 // Recalc State
 // ===========================================================================
 
-describe("recalc_state", () => {
+describe("recalcState", () => {
   let adapter: MockAdapter;
 
   beforeEach(() => {
@@ -660,7 +660,7 @@ describe("recalc_state", () => {
       const state = await stateRepo.get("au1");
       state.current_chapter = i;
       await stateRepo.save(state);
-      await confirm_chapter({
+      await confirmChapter({
         au_id: "au1",
         chapter_num: i,
         draft_id: `ch${String(i).padStart(4, "0")}_draft_A.md`,
@@ -680,7 +680,7 @@ describe("recalc_state", () => {
     await stateRepo.save(state);
 
     // Recalc（不内部 save，调用方负责 save）
-    const result = await recalc_state("au1", stateRepo, chapterRepo, projectRepo);
+    const result = await recalcState("au1", stateRepo, chapterRepo, projectRepo);
 
     expect(result.chapters_scanned).toBe(2);
     expect(result.characters_last_seen.Alice).toBe(2);
@@ -702,7 +702,7 @@ describe("recalc_state", () => {
 
     // No chapters exist, but we need project.yaml for projectRepo
     // projectRepo.get will throw, which is caught internally
-    const result = await recalc_state("au1", stateRepo, chapterRepo, projectRepo);
+    const result = await recalcState("au1", stateRepo, chapterRepo, projectRepo);
 
     expect(result.chapters_scanned).toBe(0);
     expect(result.characters_last_seen).toEqual({});

@@ -2,9 +2,9 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 /**
- * FicForge Lite — estimate_simple_context_tokens
+ * FicForge Lite — estimateSimpleContextTokens
  *
- * 给对话顶栏 token badge 提供轻量入口：内部完整跑一次 assemble_chat_context（分层），
+ * 给对话顶栏 token badge 提供轻量入口：内部完整跑一次 assembleChatContext（分层），
  * user_input 用空串占位，返回 budget_report 的 token 计数 + context_window。
  * 防抖在调用方（UI hook）做。
  *
@@ -21,9 +21,9 @@ import type { Thread } from "../domain/thread.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { PlatformAdapter } from "../platform/adapter.js";
 import type { Message } from "../llm/provider.js";
-import { resolve_llm_config } from "../llm/config_resolver.js";
-import { assemble_chat_context } from "./context_assembler.js";
-import { count_tokens, ensure_tokenizer } from "../tokenizer/index.js";
+import { resolveLlmConfig } from "../llm/config_resolver.js";
+import { assembleChatContext } from "./context_assembler.js";
+import { countTokens, ensureTokenizer } from "../tokenizer/index.js";
 import { joinPath } from "../utils/file_utils.js";
 
 async function loadMdDir(adapter: PlatformAdapter, dirPath: string): Promise<Record<string, string>> {
@@ -88,7 +88,7 @@ export interface EstimateSimpleContextParams {
   /** 活跃剧情线（M8-B）；省略 ⇒ badge 不计剧情线。 */
   threads?: Thread[];
   /**
-   * H4：全局 settings。传入时经 resolve_llm_config(session_llm, project, settings)
+   * H4：全局 settings。传入时经 resolveLlmConfig(session_llm, project, settings)
    * 得到实际生效 LLM 视图喂 assembler —— badge 的窗口/预算与真实组装同源（badge 是
    * 「全塞」历史哲学下唯一的超窗预警防线，双链漂移 = 预警失真）。省略回退 project.llm（旧行为）。
    */
@@ -97,7 +97,7 @@ export interface EstimateSimpleContextParams {
   session_llm?: Record<string, string> | null;
 }
 
-export async function estimate_simple_context_tokens(
+export async function estimateSimpleContextTokens(
   params: EstimateSimpleContextParams,
 ): Promise<SimpleContextTokenEstimate> {
   const {
@@ -116,14 +116,14 @@ export async function estimate_simple_context_tokens(
 
   // H4：与 dispatch 同一条解析链（session > project > settings.default_llm），
   // badge 的窗口/输出上限/预算跟真实请求走同一个模型。
-  const effectiveLlm = settings ? resolve_llm_config(session_llm, project, settings) : null;
+  const effectiveLlm = settings ? resolveLlmConfig(session_llm, project, settings) : null;
 
   const [characterFiles, worldbuildingFiles] = await Promise.all([
     loadMdDir(adapter, joinPath(au_id, "characters")),
     loadMdDir(adapter, joinPath(au_id, "worldbuilding")),
   ]);
 
-  const result = await assemble_chat_context({
+  const result = await assembleChatContext({
     project,
     state,
     user_input: "",
@@ -139,21 +139,21 @@ export async function estimate_simple_context_tokens(
   });
 
   // 复用 assembler 的内部 tokenizer 一致性 — 不重新挑实现，避免双源漂移。
-  // 直接用 count_tokens 跟 budget_report.system_tokens / p1_tokens 同源。
+  // 直接用 countTokens 跟 budget_report.system_tokens / p1_tokens 同源。
   let historyTokens = 0;
   if (history.length > 0) {
-    await ensure_tokenizer(); // assembler 已 ensure 过，这里 idempotent
+    await ensureTokenizer(); // assembler 已 ensure 过，这里 idempotent
     const llmForCount = effectiveLlm ?? project.llm;
     for (const msg of history) {
       // OpenAI 格式：每条 message 实际 token = content + tool_calls args + 固定 framing。
-      // H4：编码选择与 assembler 同源（count_tokens 现只看 mode，行为等价）。
-      historyTokens += count_tokens(msg.content ?? "", llmForCount).count;
+      // H4：编码选择与 assembler 同源（countTokens 现只看 mode，行为等价）。
+      historyTokens += countTokens(msg.content ?? "", llmForCount).count;
       // L8：assistant 携 tool_calls 时，args JSON 也随请求发送、真实占 token，旧代码漏计
       // 导致带工具调用的多轮对话被系统性低估。逐 call 计其 arguments（+函数名少量）。
       if (msg.tool_calls && msg.tool_calls.length > 0) {
         for (const call of msg.tool_calls) {
-          historyTokens += count_tokens(call.function?.arguments ?? "", llmForCount).count;
-          historyTokens += count_tokens(call.function?.name ?? "", llmForCount).count;
+          historyTokens += countTokens(call.function?.arguments ?? "", llmForCount).count;
+          historyTokens += countTokens(call.function?.name ?? "", llmForCount).count;
         }
       }
       // L8：每条 message 的固定 framing 开销（role/分隔符），单处常量避免漂移。

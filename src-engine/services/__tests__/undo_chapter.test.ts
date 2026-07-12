@@ -2,9 +2,9 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { undo_latest_chapter, UndoChapterError } from "../undo_chapter.js";
-import { confirm_chapter } from "../confirm_chapter.js";
-import { add_fact } from "../facts_lifecycle.js";
+import { undoLatestChapter, UndoChapterError } from "../undo_chapter.js";
+import { confirmChapter } from "../confirm_chapter.js";
+import { addFact } from "../facts_lifecycle.js";
 import { FactStatus } from "../../domain/enums.js";
 import { createDraft } from "../../domain/draft.js";
 import { createState } from "../../domain/state.js";
@@ -34,7 +34,7 @@ describe("undo_latest_chapter", () => {
   });
 
   // Helper: confirm a chapter with known content
-  async function confirmChapter(chapterNum: number, content: string, cast?: { characters?: string[] }) {
+  async function confirmN(chapterNum: number, content: string, cast?: { characters?: string[] }) {
     const state = await stateRepo.get("au1");
     state.current_chapter = chapterNum;
     await stateRepo.save(state);
@@ -48,7 +48,7 @@ describe("undo_latest_chapter", () => {
       }),
     );
 
-    await confirm_chapter({
+    await confirmChapter({
       au_id: "au1",
       chapter_num: chapterNum,
       draft_id: `ch${String(chapterNum).padStart(4, "0")}_draft_A.md`,
@@ -63,7 +63,7 @@ describe("undo_latest_chapter", () => {
   it("throws when no chapters to undo", async () => {
     await stateRepo.save(createState({ au_id: "au1", current_chapter: 1 }));
     await expect(
-      undo_latest_chapter({
+      undoLatestChapter({
         au_id: "au1",
         chapter_repo: chapterRepo,
         draft_repo: draftRepo,
@@ -100,7 +100,7 @@ describe("undo_latest_chapter", () => {
         content: "Alice站在窗前。",
       }),
     );
-    await confirm_chapter({
+    await confirmChapter({
       au_id: "au1",
       chapter_num: 1,
       draft_id: "ch0001_draft_A.md",
@@ -110,7 +110,7 @@ describe("undo_latest_chapter", () => {
       state_repo: sRepo,
       ops_repo: oRepo,
     });
-    await add_fact(
+    await addFact(
       "au1",
       1,
       {
@@ -133,7 +133,7 @@ describe("undo_latest_chapter", () => {
     );
 
     failAdapter.fail = true;
-    const error = await undo_latest_chapter({
+    const error = await undoLatestChapter({
       au_id: "au1",
       cast_registry: { characters: ["Alice"] },
       chapter_repo: cRepo,
@@ -159,12 +159,12 @@ describe("undo_latest_chapter", () => {
 
   it("normal undo: state rolls back", async () => {
     await stateRepo.save(createState({ au_id: "au1" }));
-    await confirmChapter(1, "Alice站在窗前。Bob走了进来。");
+    await confirmN(1, "Alice站在窗前。Bob走了进来。");
 
     let state = await stateRepo.get("au1");
     expect(state.current_chapter).toBe(2);
 
-    const result = await undo_latest_chapter({
+    const result = await undoLatestChapter({
       au_id: "au1",
       cast_registry: { characters: ["Alice", "Bob"] },
       chapter_repo: chapterRepo,
@@ -192,10 +192,10 @@ describe("undo_latest_chapter", () => {
 
   it("undo deletes facts created during that chapter", async () => {
     await stateRepo.save(createState({ au_id: "au1" }));
-    await confirmChapter(1, "Alice走了。");
+    await confirmN(1, "Alice走了。");
 
     // Add facts for chapter 1 (via ops)
-    await add_fact(
+    await addFact(
       "au1",
       1,
       {
@@ -211,7 +211,7 @@ describe("undo_latest_chapter", () => {
     let facts = await factRepo.list_all("au1");
     expect(facts).toHaveLength(1);
 
-    await undo_latest_chapter({
+    await undoLatestChapter({
       au_id: "au1",
       chapter_repo: chapterRepo,
       draft_repo: draftRepo,
@@ -228,7 +228,7 @@ describe("undo_latest_chapter", () => {
     await stateRepo.save(createState({ au_id: "au1" }));
 
     // Pre-existing unresolved fact
-    const f1 = await add_fact(
+    const f1 = await addFact(
       "au1",
       0,
       {
@@ -241,10 +241,10 @@ describe("undo_latest_chapter", () => {
       opsRepo,
     );
 
-    await confirmChapter(1, "Alice found the answer.");
+    await confirmN(1, "Alice found the answer.");
 
     // Add resolving fact for chapter 1
-    await add_fact(
+    await addFact(
       "au1",
       1,
       {
@@ -260,7 +260,7 @@ describe("undo_latest_chapter", () => {
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.RESOLVED);
 
     // Undo
-    await undo_latest_chapter({
+    await undoLatestChapter({
       au_id: "au1",
       chapter_repo: chapterRepo,
       draft_repo: draftRepo,
@@ -277,7 +277,7 @@ describe("undo_latest_chapter", () => {
   // 该章被 undo 时 collectManualStatusRollback 回放，把目标恢复回 RESOLVED（揭示者也回来）。
   it("undo of a chapter that deprecated a resolver restores the target to RESOLVED (TD-014)", async () => {
     await stateRepo.save(createState({ au_id: "au1" }));
-    const f1 = await add_fact(
+    const f1 = await addFact(
       "au1",
       0,
       {
@@ -290,8 +290,8 @@ describe("undo_latest_chapter", () => {
       opsRepo,
     );
 
-    await confirmChapter(1, "Alice found the answer.");
-    const f2 = await add_fact(
+    await confirmN(1, "Alice found the answer.");
+    const f2 = await addFact(
       "au1",
       1,
       {
@@ -305,13 +305,13 @@ describe("undo_latest_chapter", () => {
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.RESOLVED);
 
     // 在 ch2 里作废揭示者 f2 → TD-014 反向级联把 f1 退回 UNRESOLVED
-    await confirmChapter(2, "Bob doubts the answer.");
-    const { update_fact_status } = await import("../facts_lifecycle.js");
-    await update_fact_status("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
+    await confirmN(2, "Bob doubts the answer.");
+    const { updateFactStatus } = await import("../facts_lifecycle.js");
+    await updateFactStatus("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
 
     // undo ch2 → 回放 deprecate + 反向 op（都标 chapter_num=2）→ f1 回到 RESOLVED
-    await undo_latest_chapter({
+    await undoLatestChapter({
       au_id: "au1",
       chapter_repo: chapterRepo,
       draft_repo: draftRepo,
@@ -324,14 +324,14 @@ describe("undo_latest_chapter", () => {
 
   it("undo after two chapters: two undos work correctly", async () => {
     await stateRepo.save(createState({ au_id: "au1" }));
-    await confirmChapter(1, "第一章内容。Alice出场。");
-    await confirmChapter(2, "第二章内容。Bob出场。");
+    await confirmN(1, "第一章内容。Alice出场。");
+    await confirmN(2, "第二章内容。Bob出场。");
 
     let state = await stateRepo.get("au1");
     expect(state.current_chapter).toBe(3);
 
     // Undo chapter 2
-    await undo_latest_chapter({
+    await undoLatestChapter({
       au_id: "au1",
       cast_registry: { characters: ["Alice", "Bob"] },
       chapter_repo: chapterRepo,
@@ -346,7 +346,7 @@ describe("undo_latest_chapter", () => {
     expect(await chapterRepo.exists("au1", 2)).toBe(false);
 
     // Undo chapter 1
-    await undo_latest_chapter({
+    await undoLatestChapter({
       au_id: "au1",
       cast_registry: { characters: ["Alice", "Bob"] },
       chapter_repo: chapterRepo,
@@ -362,7 +362,7 @@ describe("undo_latest_chapter", () => {
 
   it("undo cleans chapters_dirty and chapter_titles", async () => {
     await stateRepo.save(createState({ au_id: "au1" }));
-    await confirmChapter(1, "内容。");
+    await confirmN(1, "内容。");
 
     // Manually add dirty and title
     const state = await stateRepo.get("au1");
@@ -370,7 +370,7 @@ describe("undo_latest_chapter", () => {
     state.chapter_titles = { 1: "测试标题" };
     await stateRepo.save(state);
 
-    await undo_latest_chapter({
+    await undoLatestChapter({
       au_id: "au1",
       chapter_repo: chapterRepo,
       draft_repo: draftRepo,
@@ -386,14 +386,14 @@ describe("undo_latest_chapter", () => {
 
   it("last_scene_ending rolls back from ops snapshot", async () => {
     await stateRepo.save(createState({ au_id: "au1" }));
-    await confirmChapter(1, "第一章结尾句子。");
-    await confirmChapter(2, "第二章结尾句子。");
+    await confirmN(1, "第一章结尾句子。");
+    await confirmN(2, "第二章结尾句子。");
 
     // After ch2, last_scene_ending is from ch2
     let state = await stateRepo.get("au1");
     expect(state.last_scene_ending).toContain("第二章");
 
-    await undo_latest_chapter({
+    await undoLatestChapter({
       au_id: "au1",
       chapter_repo: chapterRepo,
       draft_repo: draftRepo,

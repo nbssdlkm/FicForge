@@ -17,7 +17,7 @@
  * 对 LLM 无意义。thinking placeholder 也是 system kind 自然被跳。
  *
  * 当前 user_input 不应通过此 helper 转换 —— 它由 dispatch.user_input 参数单独
- * 传，engine 端 assemble_chat_context 自己拼。caller 调用前应过滤掉刚 append
+ * 传，engine 端 assembleChatContext 自己拼。caller 调用前应过滤掉刚 append
  * 的当前 user message。
  */
 

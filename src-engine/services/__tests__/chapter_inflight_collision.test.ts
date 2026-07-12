@@ -16,8 +16,8 @@ import {
   markChapterInflight,
   releaseChapterInflight,
 } from "../chapter_inflight.js";
-import { generate_chapter, type GenerateChapterParams } from "../generation.js";
-import { dispatch_simple_chat } from "../simple_chat_dispatch.js";
+import { generateChapter, type GenerateChapterParams } from "../generation.js";
+import { dispatchSimpleChat } from "../simple_chat_dispatch.js";
 import { createProject, createSettings, createState } from "../../domain/index.js";
 
 const AU = "fandoms/F/aus/A";
@@ -46,10 +46,10 @@ afterEach(() => {
 });
 
 describe("chapter_inflight 跨路径互斥", () => {
-  it("对话路径在飞时，写文 generate_chapter 同章被 409 拒绝（不进生成流程）", async () => {
+  it("对话路径在飞时，写文 generateChapter 同章被 409 拒绝（不进生成流程）", async () => {
     markChapterInflight(KEY, "dispatch");
 
-    const gen = generate_chapter(minimalParams());
+    const gen = generateChapter(minimalParams());
     const first = await gen.next();
 
     expect(first.done).toBe(false);
@@ -61,10 +61,10 @@ describe("chapter_inflight 跨路径互斥", () => {
     expect(isChapterInflight(KEY)).toBe(true);
   });
 
-  it("写文路径在飞时，对话 dispatch_simple_chat 同章被 409 拒绝", async () => {
+  it("写文路径在飞时，对话 dispatchSimpleChat 同章被 409 拒绝", async () => {
     markChapterInflight(KEY, "generate");
 
-    const gen = dispatch_simple_chat(minimalParams() as never);
+    const gen = dispatchSimpleChat(minimalParams() as never);
     const first = await gen.next();
 
     expect(first.done).toBe(false);

@@ -6,10 +6,10 @@
  */
 
 import {
-  build_settings_context,
-  call_settings_llm,
-  resolve_llm_config,
-  create_provider,
+  buildSettingsContext,
+  callSettingsLlm,
+  resolveLlmConfig,
+  createProvider,
   type Message,
 } from "@ficforge/engine";
 import { ApiError, getFriendlyErrorMessage } from "./client";
@@ -27,7 +27,7 @@ export async function sendSettingsChat(params: {
   const sett = await e.repos.settings.get();
 
   const lang = resolveLang(sett);
-  const assembled = await build_settings_context({
+  const assembled = await buildSettingsContext({
     mode: params.mode as "au" | "fandom",
     base_path: params.base_path,
     fandom_path: params.fandom_path,
@@ -36,7 +36,7 @@ export async function sendSettingsChat(params: {
     language: lang,
   });
 
-  const llmConfig = resolve_llm_config(params.session_llm as Record<string, string> | null, {}, sett);
+  const llmConfig = resolveLlmConfig(params.session_llm as Record<string, string> | null, {}, sett);
 
   if (llmConfig.mode === "api") {
     if (!llmConfig.api_key?.trim()) {
@@ -55,8 +55,8 @@ export async function sendSettingsChat(params: {
     throw new Error("设定模式对话暂不支持 local 模式，请切换到 API 或 Ollama。");
   }
 
-  const provider = create_provider(llmConfig);
-  const result = await call_settings_llm(assembled, params.mode as "au" | "fandom", provider);
+  const provider = createProvider(llmConfig);
+  const result = await callSettingsLlm(assembled, params.mode as "au" | "fandom", provider);
 
   return {
     content: result.content,

@@ -9,7 +9,12 @@
  * 路由到对应的 message kind 渲染。
  */
 
-import { dispatch_simple_chat, resolve_llm_config, type Message, type SimpleChatEvent } from "@ficforge/engine";
+import {
+  dispatchSimpleChat as engineDispatchSimpleChat,
+  resolveLlmConfig,
+  type Message,
+  type SimpleChatEvent,
+} from "@ficforge/engine";
 import { getEngine, getProjectOrThrow } from "./engine-instance";
 import { resolveLang } from "./resolve-lang";
 import { createEmbeddingProvider } from "./engine-state";
@@ -44,7 +49,7 @@ export async function* dispatchSimpleChat(
   const sett = await e.repos.settings.get();
 
   // local 模式拦截（同 generateChapter 防手改 YAML）
-  const llmConfig = resolve_llm_config(params.session_llm ?? null, proj, sett);
+  const llmConfig = resolveLlmConfig(params.session_llm ?? null, proj, sett);
   if (llmConfig.mode === "local") {
     yield {
       type: "error",
@@ -60,8 +65,8 @@ export async function* dispatchSimpleChat(
 
   const lang = resolveLang(sett);
 
-  // 记忆栈注入(融合 plan §1.1,与 generate_chapter 同源):facts / threads / 向量 / embedding,
-  // 供 assemble_chat_context(§1.2)分层组装。threads 取失败不致命,回退空。
+  // 记忆栈注入(融合 plan §1.1,与 generateChapter 同源):facts / threads / 向量 / embedding,
+  // 供 assembleChatContext(§1.2)分层组装。threads 取失败不致命,回退空。
   const allFacts = await e.repos.fact.list_all(params.au_path);
   const threads = await e.repos.thread.list(params.au_path).catch(() => []);
 
@@ -73,7 +78,7 @@ export async function* dispatchSimpleChat(
   // char_filter。get 异步且永不抛错（无角色卡 → null，char_filter 逐字节回退现状）。
   const characterAliases = await e.characterAliases.get(params.au_path);
 
-  for await (const ev of dispatch_simple_chat({
+  for await (const ev of engineDispatchSimpleChat({
     au_id: params.au_path,
     chapter_num: params.chapter_num,
     user_input: params.user_input,

@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CONTEXT_WINDOW, lookup_model_context_window, lookup_model_max_output } from "../model_context_map.js";
+import { DEFAULT_CONTEXT_WINDOW, lookupModelContextWindow, lookupModelMaxOutput } from "../model_context_map.js";
 import { contextWindowForModel, findRecommendedModel, getProvider, listProviders } from "../provider_manifest.js";
 
 describe("provider_manifest — 完整性", () => {
@@ -152,8 +152,8 @@ describe("provider_manifest — ctx/out 单一真相源派生（盲审 2026-07-1
   it("每个推荐模型的 ctx 均派生自 MODEL_CONTEXT_MAP（非 DEFAULT 兜底伪装）", () => {
     for (const provider of listProviders()) {
       for (const m of provider.recommendedModels) {
-        expect(lookup_model_context_window(m.id), `${provider.id}/${m.id} 缺 MODEL_CONTEXT_MAP 条目`).not.toBeNull();
-        expect(m.contextWindow).toBe(lookup_model_context_window(m.id));
+        expect(lookupModelContextWindow(m.id), `${provider.id}/${m.id} 缺 MODEL_CONTEXT_MAP 条目`).not.toBeNull();
+        expect(m.contextWindow).toBe(lookupModelContextWindow(m.id));
         expect(m.contextWindow).toBeGreaterThan(0);
       }
     }
@@ -162,8 +162,8 @@ describe("provider_manifest — ctx/out 单一真相源派生（盲审 2026-07-1
   it("chat 模型的 maxOutputTokens 与 MODEL_MAX_OUTPUT 同源", () => {
     for (const provider of listProviders()) {
       for (const m of provider.recommendedModels.filter((x) => x.type === "chat")) {
-        expect(lookup_model_max_output(m.id), `${provider.id}/${m.id} 缺 MODEL_MAX_OUTPUT 条目`).not.toBeNull();
-        expect(m.maxOutputTokens).toBe(lookup_model_max_output(m.id));
+        expect(lookupModelMaxOutput(m.id), `${provider.id}/${m.id} 缺 MODEL_MAX_OUTPUT 条目`).not.toBeNull();
+        expect(m.maxOutputTokens).toBe(lookupModelMaxOutput(m.id));
       }
     }
   });

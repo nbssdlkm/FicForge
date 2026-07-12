@@ -7,17 +7,17 @@
  */
 
 import { createChapter } from "../domain/chapter.js";
-import { scan_characters_in_chapter } from "../domain/character_scanner.js";
+import { scanCharactersInChapter } from "../domain/character_scanner.js";
 import { IndexStatus } from "../domain/enums.js";
 import type { GeneratedWith } from "../domain/generated_with.js";
 import { createOpsEntry } from "../domain/ops_entry.js";
 import { parseDraftFilename } from "../domain/paths.js";
-import { extract_last_scene_ending } from "../domain/text_utils.js";
+import { extractLastSceneEnding } from "../domain/text_utils.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { DraftRepository } from "../repositories/interfaces/draft.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
-import { compute_content_hash, generate_op_id, now_utc } from "../utils/file_utils.js";
+import { computeContentHash, generateOpId, nowUtc } from "../utils/file_utils.js";
 import { withAuLock } from "./au_lock.js";
 import { WriteTransaction } from "./write_transaction.js";
 
@@ -63,7 +63,7 @@ export interface ConfirmChapterResult {
  * 确认章节入口。持 AU 锁覆盖整个 doConfirm —— 包含读 draft / 写 chapter /
  * 写 ops / 更新 state 的完整事务。锁分层策略见 services/au_lock.ts。
  */
-export async function confirm_chapter(params: ConfirmChapterParams): Promise<ConfirmChapterResult> {
+export async function confirmChapter(params: ConfirmChapterParams): Promise<ConfirmChapterResult> {
   return withAuLock(params.au_id, () => doConfirm(params));
 }
 
@@ -120,8 +120,8 @@ async function doConfirm(params: ConfirmChapterParams): Promise<ConfirmChapterRe
   }
 
   // === 步骤 2：构建章节对象 ===
-  const contentHash = await compute_content_hash(draftContent);
-  const timestamp = now_utc();
+  const contentHash = await computeContentHash(draftContent);
+  const timestamp = nowUtc();
   const chapterId = oldChapterId || crypto.randomUUID();
   const revision = oldRevision ? oldRevision + 1 : 1;
 
@@ -150,13 +150,13 @@ async function doConfirm(params: ConfirmChapterParams): Promise<ConfirmChapterRe
   }
 
   if (isAdvancing) {
-    state.last_scene_ending = extract_last_scene_ending(draftContent);
+    state.last_scene_ending = extractLastSceneEnding(draftContent);
   }
 
   state.last_confirmed_chapter_focus = confirmedFocus;
 
   // characters_last_seen 合并更新
-  const scanned = scan_characters_in_chapter(
+  const scanned = scanCharactersInChapter(
     draftContent,
     cast_registry ?? { characters: [] },
     character_aliases,
@@ -192,7 +192,7 @@ async function doConfirm(params: ConfirmChapterParams): Promise<ConfirmChapterRe
   tx.appendOp(
     au_id,
     createOpsEntry({
-      op_id: generate_op_id(),
+      op_id: generateOpId(),
       op_type: "confirm_chapter",
       target_id: chapterId,
       chapter_num,

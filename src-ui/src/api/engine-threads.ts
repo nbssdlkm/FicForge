@@ -12,8 +12,8 @@
 import {
   ThreadStatus,
   createThread,
-  generate_thread_id,
-  now_utc,
+  generateThreadId,
+  nowUtc,
   computeThreadStaleness,
   threadMemberFacts,
   regenerateThreadState as regenerateThreadStateEngine,
@@ -30,9 +30,9 @@ export async function addThread(
   auPath: string,
   data: { title: string; description?: string; state?: string; status?: ThreadStatus },
 ): Promise<Thread> {
-  const ts = now_utc();
+  const ts = nowUtc();
   const thread = createThread({
-    id: generate_thread_id(),
+    id: generateThreadId(),
     title: data.title,
     description: data.description ?? "",
     state: data.state ?? "",
@@ -75,7 +75,7 @@ export async function regenerateThreadState(auPath: string, threadId: string): P
   const { provider, lang } = await resolveFactsProvider(auPath);
   const state = await regenerateThreadStateEngine(thread, members, provider, { language: lang as "zh" | "en" });
   if (state == null) return null;
-  await e.repos.thread.update(auPath, { ...thread, state, updated_at: now_utc() });
+  await e.repos.thread.update(auPath, { ...thread, state, updated_at: nowUtc() });
   return state;
 }
 
@@ -110,7 +110,7 @@ export async function removeThread(auPath: string, id: string): Promise<void> {
 // 以下操作都先从仓库读 fresh fact 再算 patch（不信 UI 传入的旧 thread_ids/thread_roles），
 // 否则 editFact 整字段覆写会丢更新（workflow 审 MAJOR：lost-update）。残留窄窗：fresh 读与
 // editFact 自身 withAuLock 非同一把锁，但 ThreadDetail 用 busyRef 同步串行同一 fact 操作 +
-// 单用户低频，实际不触发。彻底原子需给 edit_fact 加 in-lock transform 回调（记 TD 后续硬化）。
+// 单用户低频，实际不触发。彻底原子需给 editFact 加 in-lock transform 回调（记 TD 后续硬化）。
 
 /** 把一条 Fact 挂到某剧情线（成员关系 = fact.thread_ids）。已挂则 no-op。 */
 export async function addFactToThread(auPath: string, factId: string, threadId: string): Promise<void> {

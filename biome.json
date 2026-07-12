@@ -34,7 +34,18 @@
         "useHookAtTopLevel": "error"
       },
       "style": {
-        "noNonNullAssertion": "off"
+        "noNonNullAssertion": "off",
+        "useNamingConvention": {
+          "level": "error",
+          "options": {
+            "strictCase": false,
+            "requireAscii": false,
+            "conventions": [
+              { "selector": { "kind": "function" }, "match": "_{0,2}(.+)", "formats": ["camelCase", "PascalCase"] },
+              { "match": ".*" }
+            ]
+          }
+        }
       },
       "a11y": {
         "noLabelWithoutControl": "warn",

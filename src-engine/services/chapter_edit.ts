@@ -18,7 +18,7 @@ import { createOpsEntry } from "../domain/ops_entry.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
-import { compute_content_hash, generate_op_id, now_utc } from "../utils/file_utils.js";
+import { computeContentHash, generateOpId, nowUtc } from "../utils/file_utils.js";
 import { WriteTransaction } from "./write_transaction.js";
 
 export interface EditChapterContentResult {
@@ -38,7 +38,7 @@ export interface EditChapterContentResult {
  * 4. 在 state 中标记 index_status 为 STALE
  * 5. 写入 mark_chapters_dirty op 到 ops.jsonl
  */
-export async function edit_chapter_content(
+export async function editChapterContent(
   au_id: string,
   chapter_num: number,
   new_content: string,
@@ -50,7 +50,7 @@ export async function edit_chapter_content(
   const ch = await chapter_repo.get(au_id, chapter_num);
   if (!ch) throw new Error(`Chapter not found: ${au_id} ch${chapter_num}`);
   ch.content = new_content;
-  ch.content_hash = await compute_content_hash(new_content);
+  ch.content_hash = await computeContentHash(new_content);
   ch.provenance = "mixed";
   ch.revision += 1;
 
@@ -66,10 +66,10 @@ export async function edit_chapter_content(
   tx.appendOp(
     au_id,
     createOpsEntry({
-      op_id: generate_op_id(),
+      op_id: generateOpId(),
       op_type: "mark_chapters_dirty",
       target_id: au_id,
-      timestamp: now_utc(),
+      timestamp: nowUtc(),
       payload: { added_dirty: [chapter_num] },
     }),
   );

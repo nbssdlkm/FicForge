@@ -6,14 +6,14 @@
  * 用户确认章节后，可选让 AI 从新章节中提取事实条目。
  */
 
-import { count_tokens, ensure_tokenizer } from "../tokenizer/index.js";
+import { countTokens, ensureTokenizer } from "../tokenizer/index.js";
 import { getPrompts } from "../prompts/index.js";
 import {
-  normalize_characters,
-  sanitize_known_to,
-  sanitize_hidden_from,
-  sanitize_confidence,
-  reconcile_knowledge,
+  normalizeCharacters,
+  sanitizeKnownTo,
+  sanitizeHiddenFrom,
+  sanitizeConfidence,
+  reconcileKnowledge,
 } from "../domain/fact_sanitize.js";
 import type { LLMProvider } from "../llm/provider.js";
 import { FactType, NarrativeWeight, SuspenseType, TimeKind } from "../domain/enums.js";
@@ -47,7 +47,7 @@ export interface ExtractedFact {
   hidden_from?: string[];
   suspense_type?: string | null; // 同 time_kind
   // M9 新增：自动挂线（ReAct propose_thread_assignment 产出；单次调用路径恒空）。
-  // 落库链已通（add_fact 读 thread_ids → ops 快照 → dictToFact 还原），UI 端
+  // 落库链已通（addFact 读 thread_ids → ops 快照 → dictToFact 还原），UI 端
   // ExtractedFactCandidate.thread_ids + extractedEnrichment 已就位转发。
   thread_ids?: string[];
   _confidence?: FactFieldConfidence;
@@ -186,7 +186,7 @@ export function parseLLMOutput(text: string): Record<string, unknown>[] {
 // ---------------------------------------------------------------------------
 
 function splitTextForExtraction(text: string, max_tokens: number, llm_config: unknown): string[] {
-  const tc = count_tokens(text, llm_config as { mode?: string });
+  const tc = countTokens(text, llm_config as { mode?: string });
   if (tc.count <= max_tokens) return [text];
 
   const paragraphs = text.split("\n");
@@ -223,7 +223,7 @@ export function rawToExtracted(
 
   let characters = (raw.characters as string[]) ?? [];
   if (Array.isArray(characters)) {
-    characters = normalize_characters(characters, character_aliases);
+    characters = normalizeCharacters(characters, character_aliases);
   }
 
   // M8-A 新字段
@@ -232,14 +232,14 @@ export function rawToExtracted(
 
   // known_to / hidden_from / _confidence：单一真相源消毒（domain/fact_sanitize，M3 批一）。
   // LLM 垃圾形状（数字/对象等）→ null / [] / undefined，逐字段容错不退整条。
-  const knownToRes = sanitize_known_to(raw.known_to, character_aliases);
-  const hiddenFromRes = sanitize_hidden_from(raw.hidden_from, character_aliases);
+  const knownToRes = sanitizeKnownTo(raw.known_to, character_aliases);
+  const hiddenFromRes = sanitizeHiddenFrom(raw.hidden_from, character_aliases);
   // 跨字段矛盾在提取入口即化解（对抗审 MED-3：LLM 可能同名同标两边）
-  const knowledge = reconcile_knowledge(
+  const knowledge = reconcileKnowledge(
     knownToRes.ok ? knownToRes.value : null,
     hiddenFromRes.ok ? hiddenFromRes.value : [],
   );
-  const confidenceRes = sanitize_confidence(raw._confidence);
+  const confidenceRes = sanitizeConfidence(raw._confidence);
 
   return {
     content_raw: (raw.content_raw as string) ?? contentClean,
@@ -292,7 +292,7 @@ export async function extractFactsFromChapter(
   const language = opts?.language ?? "zh";
   const signal = opts?.signal;
 
-  await ensure_tokenizer();
+  await ensureTokenizer();
   const P = getPrompts(language as "zh" | "en");
 
   if (!chapter_text.trim()) return [];

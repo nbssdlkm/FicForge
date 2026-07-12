@@ -9,9 +9,9 @@
  */
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { undo_latest_chapter } from "../undo_chapter.js";
-import { confirm_chapter } from "../confirm_chapter.js";
-import { add_fact, update_fact_status, archive_fact } from "../facts_lifecycle.js";
+import { undoLatestChapter } from "../undo_chapter.js";
+import { confirmChapter } from "../confirm_chapter.js";
+import { addFact, updateFactStatus, archiveFact } from "../facts_lifecycle.js";
 import { FactStatus, NarrativeWeight } from "../../domain/enums.js";
 import { createDraft } from "../../domain/draft.js";
 import { createState } from "../../domain/state.js";
@@ -42,7 +42,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     factRepo = new FileFactRepository(adapter);
   });
 
-  async function confirmChapter(num: number, content: string) {
+  async function confirmN(num: number, content: string) {
     const state = await stateRepo.get("au1");
     state.current_chapter = num;
     await stateRepo.save(state);
@@ -56,7 +56,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
       }),
     );
 
-    await confirm_chapter({
+    await confirmChapter({
       au_id: "au1",
       chapter_num: num,
       draft_id: `ch${String(num).padStart(4, "0")}_draft_A.md`,
@@ -69,7 +69,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
   }
 
   async function doUndo() {
-    return undo_latest_chapter({
+    return undoLatestChapter({
       au_id: "au1",
       cast_registry: cast,
       chapter_repo: chapterRepo,
@@ -128,8 +128,8 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
 
   it("confirm 2 chapters → undo last → repo state matches ops rebuild", async () => {
     await stateRepo.save(createState({ au_id: "au1" }));
-    await confirmChapter(1, "Alice站在窗前。Bob走了进来。Charlie在远处观望。");
-    await confirmChapter(2, "Bob转身离开了。Alice叹了口气。");
+    await confirmN(1, "Alice站在窗前。Bob走了进来。Charlie在远处观望。");
+    await confirmN(2, "Bob转身离开了。Alice叹了口气。");
 
     await doUndo();
 
@@ -142,10 +142,10 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
 
   it("confirm + add facts → undo → facts match ops rebuild", async () => {
     await stateRepo.save(createState({ au_id: "au1" }));
-    await confirmChapter(1, "Alice走在路上。");
+    await confirmN(1, "Alice走在路上。");
 
     // Add facts for chapter 1
-    await add_fact(
+    await addFact(
       "au1",
       1,
       {
@@ -157,7 +157,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
       factRepo,
       opsRepo,
     );
-    await add_fact(
+    await addFact(
       "au1",
       1,
       {
@@ -186,7 +186,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     await stateRepo.save(createState({ au_id: "au1" }));
 
     // Pre-existing unresolved fact (chapter 0 = pre-story)
-    const foreshadow = await add_fact(
+    const foreshadow = await addFact(
       "au1",
       0,
       {
@@ -199,10 +199,10 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
       opsRepo,
     );
 
-    await confirmChapter(1, "Alice发现了答案。");
+    await confirmN(1, "Alice发现了答案。");
 
     // Resolve the foreshadowing
-    await add_fact(
+    await addFact(
       "au1",
       1,
       {
@@ -232,12 +232,12 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
 
   it("3 confirms → 2 undos → state matches rebuild at each step", async () => {
     await stateRepo.save(createState({ au_id: "au1" }));
-    await confirmChapter(1, "Alice出场了。Bob也来了。");
-    await confirmChapter(2, "Charlie加入。Alice微笑。");
-    await confirmChapter(3, "最终章。Bob告别了。");
+    await confirmN(1, "Alice出场了。Bob也来了。");
+    await confirmN(2, "Charlie加入。Alice微笑。");
+    await confirmN(3, "最终章。Bob告别了。");
 
     // Add facts across chapters
-    await add_fact(
+    await addFact(
       "au1",
       1,
       {
@@ -249,7 +249,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
       factRepo,
       opsRepo,
     );
-    await add_fact(
+    await addFact(
       "au1",
       2,
       {
@@ -261,7 +261,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
       factRepo,
       opsRepo,
     );
-    await add_fact(
+    await addFact(
       "au1",
       3,
       {
@@ -305,8 +305,8 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
 
   it("degraded: undo without prior confirm snapshot → falls back to chapter scan", async () => {
     await stateRepo.save(createState({ au_id: "au1" }));
-    await confirmChapter(1, "Alice在花园中散步。Bob隐藏在树后。");
-    await confirmChapter(2, "Charlie从远处赶来。Alice招了招手。");
+    await confirmN(1, "Alice在花园中散步。Bob隐藏在树后。");
+    await confirmN(2, "Charlie从远处赶来。Alice招了招手。");
 
     // Corrupt the confirm ops: remove the snapshot fields
     const ops = await opsRepo.list_all("au1");
@@ -359,7 +359,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
         content: "小张走在路上。小李跟在后面。",
       }),
     );
-    await confirm_chapter({
+    await confirmChapter({
       au_id: "au1",
       chapter_num: 1,
       draft_id: "ch0001_draft_A.md",
@@ -380,7 +380,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
         content: "阿三回头看了看。",
       }),
     );
-    await confirm_chapter({
+    await confirmChapter({
       au_id: "au1",
       chapter_num: 2,
       draft_id: "ch0002_draft_A.md",
@@ -393,7 +393,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     });
 
     // Undo chapter 2 with alias support
-    await undo_latest_chapter({
+    await undoLatestChapter({
       au_id: "au1",
       cast_registry: castWithAliases,
       character_aliases: aliases,
@@ -408,7 +408,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     expect(state.current_chapter).toBe(2);
 
     // Characters should use canonical names from ch1 snapshot
-    // The snapshot stores whatever confirm_chapter computed
+    // The snapshot stores whatever confirmChapter computed
     // After undo ch2, we should have ch1's snapshot values
     const chars = state.characters_last_seen;
     // At minimum, the canonical names from ch1 should be present
@@ -421,8 +421,8 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
 
   it("snapshot with non-numeric characters_last_seen → degrades to full scan", async () => {
     await stateRepo.save(createState({ au_id: "au1" }));
-    await confirmChapter(1, "Alice和Bob在一起。");
-    await confirmChapter(2, "Charlie出现了。");
+    await confirmN(1, "Alice和Bob在一起。");
+    await confirmN(2, "Charlie出现了。");
 
     // Corrupt the ch1 confirm op snapshot with non-numeric values
     const ops = await opsRepo.list_all("au1");
@@ -449,7 +449,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     await stateRepo.save(createState({ au_id: "au1" }));
 
     // Pre-existing active fact
-    const f1 = await add_fact(
+    const f1 = await addFact(
       "au1",
       0,
       {
@@ -462,10 +462,10 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
       opsRepo,
     );
 
-    await confirmChapter(1, "内容。");
+    await confirmN(1, "内容。");
 
     // During chapter 1, manually deprecate f1
-    await update_fact_status("au1", f1.id, "deprecated", 1, factRepo, opsRepo, stateRepo);
+    await updateFactStatus("au1", f1.id, "deprecated", 1, factRepo, opsRepo, stateRepo);
 
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.DEPRECATED);
 
@@ -499,7 +499,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     await stateRepo.save(createState({ au_id: "au1" }));
 
     // Pre-chapter fact starts UNRESOLVED.
-    const f1 = await add_fact(
+    const f1 = await addFact(
       "au1",
       0,
       {
@@ -512,13 +512,13 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
       opsRepo,
     );
 
-    await confirmChapter(1, "内容。");
+    await confirmN(1, "内容。");
 
     // During chapter 1, change f1 TWICE: unresolved → resolved → deprecated.
-    // now_utc() truncates to whole seconds, so these two ops typically share an
+    // nowUtc() truncates to whole seconds, so these two ops typically share an
     // identical timestamp; only lamport_clock distinguishes their order.
-    await update_fact_status("au1", f1.id, "resolved", 1, factRepo, opsRepo, stateRepo);
-    await update_fact_status("au1", f1.id, "deprecated", 1, factRepo, opsRepo, stateRepo);
+    await updateFactStatus("au1", f1.id, "resolved", 1, factRepo, opsRepo, stateRepo);
+    await updateFactStatus("au1", f1.id, "deprecated", 1, factRepo, opsRepo, stateRepo);
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.DEPRECATED);
 
     await doUndo();
@@ -537,7 +537,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
 
   it("double-undo (confirm→undo→reconfirm→undo) does NOT re-reverse the prior rollback op (isUndoGeneratedStatusOp is load-bearing)", async () => {
     await stateRepo.save(createState({ au_id: "au1" }));
-    const f1 = await add_fact(
+    const f1 = await addFact(
       "au1",
       0,
       {
@@ -550,14 +550,14 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
       opsRepo,
     );
 
-    await confirmChapter(1, "内容。");
-    await update_fact_status("au1", f1.id, "deprecated", 1, factRepo, opsRepo, stateRepo);
+    await confirmN(1, "内容。");
+    await updateFactStatus("au1", f1.id, "deprecated", 1, factRepo, opsRepo, stateRepo);
     await doUndo();
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.ACTIVE);
 
     // 重新确认 ch1 再 undo —— 上一次 undo 落的 undo_manual_rollback op（chapter_num 1）必须被
     // isUndoGeneratedStatusOp 排除，不能在二次 undo 里被当成「本章手动变更」再反向一次。
-    await confirmChapter(1, "内容2。");
+    await confirmN(1, "内容2。");
     await doUndo();
 
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.ACTIVE);
@@ -586,10 +586,10 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
 
   it("archived fact created in chapter → undo deletes it from repo", async () => {
     await stateRepo.save(createState({ au_id: "au1" }));
-    await confirmChapter(1, "Alice走了。");
+    await confirmN(1, "Alice走了。");
 
-    // Add a low-weight fact for chapter 1, then archive it (simulating run_archival_sweep)
-    const f1 = await add_fact(
+    // Add a low-weight fact for chapter 1, then archive it (simulating runArchivalSweep)
+    const f1 = await addFact(
       "au1",
       1,
       {
@@ -602,7 +602,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
       factRepo,
       opsRepo,
     );
-    await archive_fact("au1", f1.id, factRepo, opsRepo);
+    await archiveFact("au1", f1.id, factRepo, opsRepo);
 
     let facts = await factRepo.list_all("au1");
     expect(facts).toHaveLength(1);
@@ -622,7 +622,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     await stateRepo.save(createState({ au_id: "au1" }));
 
     // Add a pre-existing fact from chapter 0, then archive it
-    const f0 = await add_fact(
+    const f0 = await addFact(
       "au1",
       0,
       {
@@ -635,9 +635,9 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
       factRepo,
       opsRepo,
     );
-    await archive_fact("au1", f0.id, factRepo, opsRepo);
+    await archiveFact("au1", f0.id, factRepo, opsRepo);
 
-    await confirmChapter(1, "第一章。");
+    await confirmN(1, "第一章。");
 
     // Undo chapter 1 should NOT delete f0 (it came from chapter 0, not chapter 1)
     await doUndo();

@@ -13,7 +13,7 @@ import { EmotionStyle, LLMMode, Perspective } from "./enums.js";
  */
 export const ON_DISK_DEFAULT_REVISION = 1;
 
-/** RAG 时间衰减系数默认值（真相源：createProject 缺省与 retrieve_rag 参数默认共用）。 */
+/** RAG 时间衰减系数默认值（真相源：createProject 缺省与 retrieveRag 参数默认共用）。 */
 export const DEFAULT_RAG_DECAY_COEFFICIENT = 0.05;
 
 export interface LLMConfig {

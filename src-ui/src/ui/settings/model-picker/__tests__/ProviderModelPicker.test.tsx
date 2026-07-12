@@ -165,7 +165,7 @@ describe("ProviderModelPicker", () => {
     fireEvent.click(resetBtn);
     expect(onContextWindowChange).toHaveBeenLastCalledWith("1000000"); // 还原官方值
 
-    // 数据链末端：覆盖值 → buildGlobalSettingsSaveInput → default_llm.context_window（生成端 get_context_window 优先认它）
+    // 数据链末端：覆盖值 → buildGlobalSettingsSaveInput → default_llm.context_window（生成端 getContextWindow 优先认它）
     const form = createDefaultGlobalSettingsFormState();
     form.contextWindow = "200000";
     expect(buildGlobalSettingsSaveInput(form).default_llm.context_window).toBe(200000);

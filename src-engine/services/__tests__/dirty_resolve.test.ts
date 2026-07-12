@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { resolve_dirty_chapter, DirtyResolveError } from "../dirty_resolve.js";
+import { resolveDirtyChapter, DirtyResolveError } from "../dirty_resolve.js";
 import { createState } from "../../domain/state.js";
 import { createChapter } from "../../domain/chapter.js";
 import { createFact } from "../../domain/fact.js";
@@ -50,7 +50,7 @@ describe("resolve_dirty_chapter", () => {
     await seedChapter("au1", 2, "content");
 
     await expect(
-      resolve_dirty_chapter({
+      resolveDirtyChapter({
         au_id: "au1",
         chapter_num: 2,
         confirmed_fact_changes: [],
@@ -66,7 +66,7 @@ describe("resolve_dirty_chapter", () => {
     await seedState({ chapters_dirty: [2] });
 
     await expect(
-      resolve_dirty_chapter({
+      resolveDirtyChapter({
         au_id: "au1",
         chapter_num: 2,
         confirmed_fact_changes: [],
@@ -84,7 +84,7 @@ describe("resolve_dirty_chapter", () => {
     await seedState({ current_chapter: 5, chapters_dirty: [4] });
     await seedChapter("au1", 4, "Alice entered the room.\n\nShe saw Bob standing by the window.");
 
-    const result = await resolve_dirty_chapter({
+    const result = await resolveDirtyChapter({
       au_id: "au1",
       chapter_num: 4,
       confirmed_fact_changes: [],
@@ -118,7 +118,7 @@ describe("resolve_dirty_chapter", () => {
     });
     await seedChapter("au1", 3, "Historical chapter content.");
 
-    const result = await resolve_dirty_chapter({
+    const result = await resolveDirtyChapter({
       au_id: "au1",
       chapter_num: 3,
       confirmed_fact_changes: [],
@@ -156,7 +156,7 @@ describe("resolve_dirty_chapter", () => {
 
     const changes = [createFactChange({ fact_id: "fact_001", action: "deprecate" })];
 
-    await resolve_dirty_chapter({
+    await resolveDirtyChapter({
       au_id: "au1",
       chapter_num: 2,
       confirmed_fact_changes: changes,
@@ -181,12 +181,12 @@ describe("resolve_dirty_chapter", () => {
     await seedState({ current_chapter: 3, chapters_dirty: [2] });
     await seedChapter("au1", 2, "Chapter two content.");
 
-    // Use invalid fact_id — edit_fact will throw "Fact 不存在"
+    // Use invalid fact_id — editFact will throw "Fact 不存在"
     const changes = [
       createFactChange({ fact_id: "nonexistent", action: "update", updated_fields: { status: "deprecated" } }),
     ];
 
-    const result = await resolve_dirty_chapter({
+    const result = await resolveDirtyChapter({
       au_id: "au1",
       chapter_num: 2,
       confirmed_fact_changes: changes,
@@ -229,7 +229,7 @@ describe("resolve_dirty_chapter", () => {
       createFactChange({ fact_id: "fact_ok1", action: "deprecate" }),
     ];
 
-    const result = await resolve_dirty_chapter({
+    const result = await resolveDirtyChapter({
       au_id: "au1",
       chapter_num: 2,
       confirmed_fact_changes: changes,
@@ -251,7 +251,7 @@ describe("resolve_dirty_chapter", () => {
     await seedState({ current_chapter: 4, chapters_dirty: [3] });
     await seedChapter("au1", 3, "Chapter three content.");
 
-    await resolve_dirty_chapter({
+    await resolveDirtyChapter({
       au_id: "au1",
       chapter_num: 3,
       confirmed_fact_changes: [],
@@ -274,7 +274,7 @@ describe("resolve_dirty_chapter", () => {
     await seedState({ current_chapter: 3, chapters_dirty: [2, 5, 7] });
     await seedChapter("au1", 5, "Chapter five content.");
 
-    await resolve_dirty_chapter({
+    await resolveDirtyChapter({
       au_id: "au1",
       chapter_num: 5,
       confirmed_fact_changes: [],

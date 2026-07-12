@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { assemble_context } from "../context_assembler.js";
+import { assembleContext } from "../context_assembler.js";
 import { createProject, createLLMConfig, createWritingStyle, createCastRegistry } from "../../domain/project.js";
 import { createState } from "../../domain/state.js";
 import { createFact } from "../../domain/fact.js";
@@ -69,7 +69,7 @@ describe("Context Assembler — semantic golden tests", () => {
       last_scene_ending: "他们走了。",
     });
 
-    const result = await assemble_context(
+    const result = await assembleContext(
       project,
       state,
       "继续写",
@@ -154,7 +154,7 @@ describe("Context Assembler — semantic golden tests", () => {
 
     const bigRag = "### RAG\n" + "这是RAG检索的大段文本。".repeat(50);
 
-    const result = await assemble_context(project, state, "写", facts, chapterRepo, "tight1", bigRag);
+    const result = await assembleContext(project, state, "写", facts, chapterRepo, "tight1", bigRag);
 
     // RAG should be dropped entirely
     expect(result.budget_report.p4_tokens).toBe(0);
@@ -194,7 +194,7 @@ describe("Context Assembler — semantic golden tests", () => {
     });
     const state = createState({ au_id: "soft1", current_chapter: 1 });
 
-    const result = await assemble_context(project, state, "开始写", facts, chapterRepo, "soft1");
+    const result = await assembleContext(project, state, "开始写", facts, chapterRepo, "soft1");
 
     // Should have soft degradation
     expect(result.budget_report.unresolved_soft_degraded).toBe(true);
@@ -232,7 +232,7 @@ describe("Context Assembler — semantic golden tests", () => {
     });
     const state = createState({ au_id: "guarantee1", current_chapter: 1 });
 
-    const result = await assemble_context(project, state, "写", facts, chapterRepo, "guarantee1", null, {
+    const result = await assembleContext(project, state, "写", facts, chapterRepo, "guarantee1", null, {
       主角: "# 主角\n核心角色设定",
       配角A: "# 配角A\n设定",
       配角B: "# 配角B\n设定",
@@ -256,7 +256,7 @@ describe("Context Assembler — semantic golden tests", () => {
     });
     const state = createState({ au_id: "empty1", current_chapter: 1 });
 
-    const result = await assemble_context(project, state, "开始写第一章", [], chapterRepo, "empty1");
+    const result = await assembleContext(project, state, "开始写第一章", [], chapterRepo, "empty1");
 
     expect(result.budget_report.p2_tokens).toBe(0);
     expect(result.budget_report.p3_tokens).toBe(0);
@@ -307,7 +307,7 @@ describe("Context Assembler — semantic golden tests", () => {
       chapter_focus: ["focus1"],
     });
 
-    const result = await assemble_context(project, state, "继续写", [focusFact, regularFact], chapterRepo, "focus1");
+    const result = await assembleContext(project, state, "继续写", [focusFact, regularFact], chapterRepo, "focus1");
 
     const content = result.messages[1].content;
 
@@ -349,7 +349,7 @@ describe("Context Assembler — semantic golden tests", () => {
     });
     const state = createState({ au_id: "trim1", current_chapter: 1 });
 
-    const result = await assemble_context(project, state, "写", [], chapterRepo, "trim1");
+    const result = await assembleContext(project, state, "写", [], chapterRepo, "trim1");
 
     // Should not throw despite huge custom_instructions
     // System tokens should be smaller than if custom were included
@@ -412,7 +412,7 @@ describe("Context Assembler — semantic golden tests", () => {
     });
     const state = createState({ au_id: "sort1", current_chapter: 6 });
 
-    const result = await assemble_context(project, state, "写", facts, chapterRepo, "sort1");
+    const result = await assembleContext(project, state, "写", facts, chapterRepo, "sort1");
 
     // All 4 facts should be injected (budget is generous)
     expect(result.context_summary.facts_injected).toBe(4);

@@ -13,7 +13,7 @@
 import { describe, it, expect } from "vitest";
 
 import { reactExtractFromChapter } from "../services/react_extraction_dispatch.js";
-import { add_fact } from "../services/facts_lifecycle.js";
+import { addFact } from "../services/facts_lifecycle.js";
 import { createFact } from "../domain/fact.js";
 import { createThread } from "../domain/thread.js";
 import { ThreadStatus } from "../domain/enums.js";
@@ -114,12 +114,12 @@ describe("M9 ReAct 提取真 LLM 探针", () => {
     }
 
     // ===== 模拟 UI「接受候选」→ M8-B 反向视图，验完整数据链（无浏览器，用真实引擎函数）=====
-    // 这是 UI 确认提取时实际走的引擎路径：add_fact（候选含 caused_by/thread_ids）。
+    // 这是 UI 确认提取时实际走的引擎路径：addFact（候选含 caused_by/thread_ids）。
     const extractedWithThread = res.facts.filter((f) => (f.thread_ids ?? []).includes("t_vindicate"));
     const extractedWithCause = res.facts.filter((f) => (f.caused_by ?? []).length > 0);
 
     for (const f of res.facts) {
-      await add_fact(
+      await addFact(
         "au",
         5,
         {
@@ -156,8 +156,8 @@ describe("M9 ReAct 提取真 LLM 探针", () => {
       console.log(`  · ${f.content_clean}  (caused_by=${JSON.stringify(f.caused_by ?? [])})`);
     });
 
-    // 数据链闭环：提取产出的 thread_ids/caused_by，经 add_fact 落库后，反向视图查询能查到。
-    // 用 >= 而非 === 防 add_fact 内部去重/归一带来的微小偏差，但核心：提取挂了线的都进得了反向视图。
+    // 数据链闭环：提取产出的 thread_ids/caused_by，经 addFact 落库后，反向视图查询能查到。
+    // 用 >= 而非 === 防 addFact 内部去重/归一带来的微小偏差，但核心：提取挂了线的都进得了反向视图。
     expect(threadMembership.length).toBeGreaterThanOrEqual(extractedWithThread.length);
     expect(landedWithCause.length).toBeGreaterThanOrEqual(extractedWithCause.length);
     if (extractedWithThread.length > 0) expect(threadMembership.length).toBeGreaterThan(0);

@@ -123,9 +123,9 @@ export {
   DEFAULT_MAX_OUTPUT,
   MODEL_CONTEXT_MAP,
   MODEL_MAX_OUTPUT,
-  get_context_window,
-  get_model_max_output,
-  normalize_model_id,
+  getContextWindow,
+  getModelMaxOutput,
+  normalizeModelId,
 } from "./model_context_map.js";
 
 // Provider manifest（供应商主导模型选择器 · 单一真相源）
@@ -162,7 +162,7 @@ export {
 // Settings tools
 export {
   CHARACTER_IMPORTANCE_VALUES,
-  get_tools_for_mode,
+  getToolsForMode,
   isSettingsMutatingToolName,
   isSimpleMutatingToolName,
   SETTINGS_MUTATING_TOOL_NAMES,
@@ -171,5 +171,5 @@ export {
 export type { SettingsMutatingToolName, SimpleMutatingToolName } from "./settings_tools.js";
 
 // Utility functions
-export { scan_characters_in_chapter } from "./character_scanner.js";
-export { extract_last_scene_ending } from "./text_utils.js";
+export { scanCharactersInChapter } from "./character_scanner.js";
+export { extractLastSceneEnding } from "./text_utils.js";

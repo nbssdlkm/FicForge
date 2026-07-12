@@ -323,7 +323,7 @@ const _SIMPLE_REPLY_TOOL: Record<string, unknown> = {
 // 公共接口
 // ===========================================================================
 
-export function get_tools_for_mode(mode: string): Record<string, unknown>[] {
+export function getToolsForMode(mode: string): Record<string, unknown>[] {
   if (mode === "au") {
     return [..._AU_TOOLS];
   } else if (mode === "fandom") {
@@ -366,7 +366,7 @@ export function isSettingsMutatingToolName(name: string): name is SettingsMutati
   return (SETTINGS_MUTATING_TOOL_NAMES as readonly string[]).includes(name);
 }
 
-/** 简版对话可执行的修改类工具（= get_tools_for_mode("simple") 的修改类子集）。 */
+/** 简版对话可执行的修改类工具（= getToolsForMode("simple") 的修改类子集）。 */
 export const SIMPLE_MUTATING_TOOL_NAMES = [
   "create_character_file",
   "modify_character_file",

@@ -5,7 +5,7 @@ import { describe, expect, it, beforeEach } from "vitest";
 import { FileFactRepository, factToDict } from "../implementations/file_fact.js";
 import { FactStatus, FactType, TimeKind, SuspenseType } from "../../domain/enums.js";
 import { createFact } from "../../domain/fact.js";
-import { generate_fact_id } from "../../utils/file_utils.js";
+import { generateFactId } from "../../utils/file_utils.js";
 import { MockAdapter } from "./mock_adapter.js";
 
 describe("FileFactRepository", () => {
@@ -24,7 +24,7 @@ describe("FileFactRepository", () => {
 
   it("append and list round-trip", async () => {
     const fact = createFact({
-      id: generate_fact_id(),
+      id: generateFactId(),
       content_raw: "第1章中 Alice 遇到 Bob",
       content_clean: "Alice 遇到了 Bob",
       characters: ["Alice", "Bob"],

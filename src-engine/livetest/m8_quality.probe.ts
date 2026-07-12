@@ -15,9 +15,9 @@ import { describe, it, expect } from "vitest";
 
 import { RemoteEmbeddingProvider } from "../llm/embedding_provider.js";
 import { makeDeepseekProbeProvider, siliconflowKey } from "./_deepseek.js";
-import { generate_standard_summary, generate_micro_summary } from "../services/chapter_summary.js";
+import { generateStandardSummary, generateMicroSummary } from "../services/chapter_summary.js";
 import { extractFactsFromChapter } from "../services/facts_extraction.js";
-import { run_retrospective } from "../services/retrospective.js";
+import { runRetrospective } from "../services/retrospective.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { ChapterSummaryRepository } from "../repositories/interfaces/chapter_summary.js";
 import type { RagManager } from "../services/rag_manager.js";
@@ -106,8 +106,8 @@ describe("M8 real-LLM quality probe", () => {
   it("M8-C standard + micro summaries (情感保真)", async () => {
     for (const num of [1, 2, 3, 4, 5]) {
       const text = CHAPTERS[num];
-      const standard = await generate_standard_summary(text, num, llm, { language: "zh" });
-      const micro = await generate_micro_summary(text, num, llm, { language: "zh" });
+      const standard = await generateStandardSummary(text, num, llm, { language: "zh" });
+      const micro = await generateMicroSummary(text, num, llm, { language: "zh" });
       line(`第 ${num} 章 摘要`);
       console.log(`[standard ${standard?.length ?? 0}字]\n${standard}`);
       console.log(`\n[micro ${micro?.length ?? 0}字]\n${micro}`);
@@ -160,9 +160,8 @@ describe("M8 real-LLM quality probe", () => {
     if (!store.get(1)?.standard) {
       // 独立兜底：单跑本测试时补生成
       for (const num of [1, 2, 3, 4]) {
-        const standard =
-          num === 1 ? await generate_standard_summary(CHAPTERS[num], num, llm, { language: "zh" }) : null;
-        const micro = await generate_micro_summary(CHAPTERS[num], num, llm, { language: "zh" });
+        const standard = num === 1 ? await generateStandardSummary(CHAPTERS[num], num, llm, { language: "zh" }) : null;
+        const micro = await generateMicroSummary(CHAPTERS[num], num, llm, { language: "zh" });
         store.set(num, {
           standard: standard ? { text: standard, source_chapter_hash: `hash-ch${num}` } : store.get(num)?.standard,
           micro: micro ? { text: micro } : undefined,
@@ -170,7 +169,7 @@ describe("M8 real-LLM quality probe", () => {
       }
     }
 
-    // generate_retrospective 步骤1 用 chapterRepo.get()（拿 content + content_hash 供 CAS），
+    // generateRetrospective 步骤1 用 chapterRepo.get()（拿 content + content_hash 供 CAS），
     // 不是 get_content_only —— stub 必须实现 get，否则 undefined 调用即抛 → 回望静默返回 null。
     const chapterRepo = {
       get: async (_au: string, n: number) => ({ content: CHAPTERS[n], content_hash: `hash-ch${n}` }),
@@ -194,7 +193,7 @@ describe("M8 real-LLM quality probe", () => {
     console.log("\n后续 micro（喂给回望的后见之明）:");
     for (const n of [2, 3, 4]) console.log(`  第${n}章: ${store.get(n)?.micro?.text}`);
 
-    await run_retrospective("test-au", 1, chapterRepo, summaryRepo, ragManager, embed, llm, /*currentChapter*/ 5, {
+    await runRetrospective("test-au", 1, chapterRepo, summaryRepo, ragManager, embed, llm, /*currentChapter*/ 5, {
       language: "zh",
     });
 

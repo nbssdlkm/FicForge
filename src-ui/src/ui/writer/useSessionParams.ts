@@ -153,7 +153,7 @@ export function useSessionParams(
     // model 发会话层的 sessionModel：默认由上方 useEffect 镜像配置层模型（等价），
     // 用户在会话下拉临时改过时就是会话模型 —— 与 resolveSessionLayer 的「会话临时」badge 同口径。
     // （F-1 修复：旧实现发 getConfiguredLlmModel(source) 优先，会话选择永远不生效。）
-    // 注意：不发送 api_key —— 后端 resolve_llm_config 会从磁盘读取真实 key。
+    // 注意：不发送 api_key —— 后端 resolveLlmConfig 会从磁盘读取真实 key。
     return {
       mode: source?.mode || "api",
       model: sessionModel,

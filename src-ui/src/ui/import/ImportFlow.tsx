@@ -361,8 +361,8 @@ async function readFileAsText(file: File): Promise<string> {
 
   if (ext === "html" || ext === "htm") {
     const rawText = await file.text();
-    const { parse_html } = await import("@ficforge/engine");
-    return parse_html(rawText);
+    const { parseHtml } = await import("@ficforge/engine");
+    return parseHtml(rawText);
   }
 
   return file.text();

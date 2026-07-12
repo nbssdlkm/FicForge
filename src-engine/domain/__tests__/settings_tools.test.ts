@@ -2,11 +2,11 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it } from "vitest";
-import { SETTINGS_MUTATING_TOOL_NAMES, SIMPLE_MUTATING_TOOL_NAMES, get_tools_for_mode } from "../settings_tools.js";
+import { SETTINGS_MUTATING_TOOL_NAMES, SIMPLE_MUTATING_TOOL_NAMES, getToolsForMode } from "../settings_tools.js";
 
 describe("settings_tools", () => {
   it("AU mode returns 9 tools", () => {
-    const tools = get_tools_for_mode("au");
+    const tools = getToolsForMode("au");
     expect(tools).toHaveLength(9);
     const names = tools.map((t) => (t.function as { name: string }).name);
     expect(names).toContain("create_character_file");
@@ -15,25 +15,25 @@ describe("settings_tools", () => {
   });
 
   it("Fandom mode returns 4 tools", () => {
-    const tools = get_tools_for_mode("fandom");
+    const tools = getToolsForMode("fandom");
     expect(tools).toHaveLength(4);
     const names = tools.map((t) => (t.function as { name: string }).name);
     expect(names).toContain("create_core_character_file");
   });
 
   it("unknown mode throws", () => {
-    expect(() => get_tools_for_mode("invalid")).toThrow("不支持的设定模式");
+    expect(() => getToolsForMode("invalid")).toThrow("不支持的设定模式");
   });
 
   it("returns copies, not references", () => {
-    const a = get_tools_for_mode("au");
-    const b = get_tools_for_mode("au");
+    const a = getToolsForMode("au");
+    const b = getToolsForMode("au");
     expect(a).not.toBe(b);
   });
 });
 
 describe("工具名契约单一真相源（盲审 2026-07-11）", () => {
-  const defNames = (mode: string) => get_tools_for_mode(mode).map((tool) => (tool.function as { name: string }).name);
+  const defNames = (mode: string) => getToolsForMode(mode).map((tool) => (tool.function as { name: string }).name);
 
   it("SETTINGS_MUTATING_TOOL_NAMES ≡ au+fandom 工具定义的修改类全集（去重）", () => {
     const fromDefs = new Set([...defNames("au"), ...defNames("fandom")]);

@@ -29,7 +29,7 @@ import {
 } from "../../domain/settings.js";
 import { scriptSlotOf } from "../../fonts/stacks.js";
 import type { SettingsRepository } from "../interfaces/settings.js";
-import { atomicWrite, dumpYaml, joinPath, now_utc, obj_to_plain } from "../../utils/file_utils.js";
+import { atomicWrite, dumpYaml, joinPath, nowUtc, objToPlain } from "../../utils/file_utils.js";
 import {
   extractSecureFields,
   hasLegacyPlaintextSecureFields,
@@ -106,7 +106,7 @@ export class FileSettingsRepository implements SettingsRepository {
   async get(): Promise<Settings> {
     const exists = await this.adapter.exists(this.path);
     if (!exists) {
-      const settings = createSettings({ updated_at: now_utc() });
+      const settings = createSettings({ updated_at: nowUtc() });
       await this.save(settings);
       return settings;
     }
@@ -114,7 +114,7 @@ export class FileSettingsRepository implements SettingsRepository {
     const text = await this.adapter.readFile(this.path);
     const raw = yaml.load(text) as Record<string, unknown> | null;
     if (!raw || typeof raw !== "object") {
-      return createSettings({ updated_at: now_utc() });
+      return createSettings({ updated_at: nowUtc() });
     }
 
     const settings = dictToSettings(raw);
@@ -128,13 +128,13 @@ export class FileSettingsRepository implements SettingsRepository {
 
   async save(settings: Settings): Promise<void> {
     const copy = structuredClone(settings);
-    copy.updated_at = now_utc();
+    copy.updated_at = nowUtc();
 
     // 把敏感字段抽到 secure storage，YAML 文本里只剩占位符（含自定义供应商 api_key）
     await extractSecureFields(copy, allSecureSpecs(copy), this.adapter);
 
     const stripped = { ...copy } as unknown as Record<string, unknown>;
-    const raw = obj_to_plain(stripped);
+    const raw = objToPlain(stripped);
     const content = dumpYaml(raw);
     // settings.yaml 无 ops 背书，截断即全局配置丢失 —— 原子写（审计 H5）
     await atomicWrite(this.adapter, this.path, content);
@@ -162,7 +162,7 @@ export class FileSettingsRepository implements SettingsRepository {
     await restoreSecureFields(settings, allSecureSpecs(settings), this.adapter);
     const sanitized = structuredClone(settings);
     await extractSecureFields(sanitized, allSecureSpecs(sanitized), this.adapter);
-    const content = dumpYaml(obj_to_plain(sanitized));
+    const content = dumpYaml(objToPlain(sanitized));
     await atomicWrite(this.adapter, this.path, content);
     return true;
   }

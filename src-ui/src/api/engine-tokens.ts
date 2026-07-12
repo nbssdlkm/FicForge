@@ -3,11 +3,15 @@
 
 /**
  * Engine Tokens — 对话顶栏 token 计数 API。
- * 内部跑一次 assemble_chat_context（分层，user_input 占空字符串），返回轻量 budget_report 子集。
+ * 内部跑一次 assembleChatContext（分层，user_input 占空字符串），返回轻量 budget_report 子集。
  * 注入 facts/threads（badge 如实计入记忆栈）；RAG 由 estimate 有意跳过（避免 embedding 调用）。
  */
 
-import { estimate_simple_context_tokens, type SimpleContextTokenEstimate, type Message } from "@ficforge/engine";
+import {
+  estimateSimpleContextTokens as engineEstimateSimpleContextTokens,
+  type SimpleContextTokenEstimate,
+  type Message,
+} from "@ficforge/engine";
 import { getEngine, getProjectOrThrow } from "./engine-instance";
 import { resolveLang } from "./resolve-lang";
 
@@ -29,7 +33,7 @@ export async function estimateSimpleContextTokens(
   ]);
   const threads = await e.repos.thread.list(auPath).catch(() => []);
   const language = resolveLang(settings);
-  return await estimate_simple_context_tokens({
+  return await engineEstimateSimpleContextTokens({
     au_id: auPath,
     project,
     state,
@@ -40,7 +44,7 @@ export async function estimateSimpleContextTokens(
     facts,
     threads,
     // H4：settings + 会话覆盖一并传入 —— badge 的窗口/预算与 dispatch 的
-    // resolve_llm_config 三层解析同源，不再只看 project.llm。
+    // resolveLlmConfig 三层解析同源，不再只看 project.llm。
     settings,
     session_llm: sessionLlm ?? null,
   });

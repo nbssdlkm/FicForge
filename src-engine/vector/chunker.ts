@@ -15,7 +15,7 @@
 
 import { KNOWN_CHAPTER_META_KEYS } from "../domain/chapter.js";
 import { safeMatter } from "../domain/frontmatter.js";
-import { scan_characters_in_chapter } from "../domain/character_scanner.js";
+import { scanCharactersInChapter } from "../domain/character_scanner.js";
 
 /** 切块结果。 */
 export interface ChunkData {
@@ -38,7 +38,7 @@ const SENTENCE_END = /[。！？…\n]/g;
 /**
  * 将章节文本切块（PRD §5.2）。
  */
-export function split_chapter_into_chunks(
+export function splitChapterIntoChunks(
   text: string,
   chapter_num: number,
   max_size = 500,
@@ -84,7 +84,7 @@ export function split_chapter_into_chunks(
   return chunksText.map((content, i) => {
     let characters: string[] = [];
     if (cast_registry?.characters?.length) {
-      const scanned = scan_characters_in_chapter(content, cast_registry, null, chapter_num);
+      const scanned = scanCharactersInChapter(content, cast_registry, null, chapter_num);
       characters = Object.keys(scanned);
     }
     return {

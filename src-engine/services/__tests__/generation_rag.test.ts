@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { generate_chapter } from "../generation.js";
+import { generateChapter } from "../generation.js";
 import type { GenerationEvent } from "../generation.js";
 import { createProject, createLLMConfig } from "../../domain/project.js";
 import { createState } from "../../domain/state.js";
@@ -69,7 +69,7 @@ function makeEmbeddingProvider(): EmbeddingProvider {
   };
 }
 
-function makeParams(adapter: MockAdapter, overrides: Partial<Parameters<typeof generate_chapter>[0]> = {}) {
+function makeParams(adapter: MockAdapter, overrides: Partial<Parameters<typeof generateChapter>[0]> = {}) {
   return {
     au_id: "au_test",
     chapter_num: 1,
@@ -97,10 +97,10 @@ async function collectEvents(gen: AsyncGenerator<GenerationEvent>): Promise<Gene
   return events;
 }
 
-// 融合(plan §1.0):generate_chapter 不再按 writing_mode gate RAG —— 删了 disableRAG,
+// 融合(plan §1.0):generateChapter 不再按 writing_mode gate RAG —— 删了 disableRAG,
 // 写文路径 RAG 恒开。原「writing_mode='simple' 跳过 RAG」用例已随全塞退役删除;保留下方
-// full 路径用例,作为 RAG 编排抽到 retrieve_rag_for_context 后的端到端回归守护。
-describe("generate_chapter — RAG 检索(写文路径恒开)", () => {
+// full 路径用例,作为 RAG 编排抽到 retrieveRagForContext 后的端到端回归守护。
+describe("generateChapter — RAG 检索(写文路径恒开)", () => {
   let adapter: MockAdapter;
 
   beforeEach(() => {
@@ -121,7 +121,7 @@ describe("generate_chapter — RAG 检索(写文路径恒开)", () => {
     });
 
     const events = await collectEvents(
-      generate_chapter(
+      generateChapter(
         makeParams(adapter, {
           au_id: "au_full_rag",
           // 融合后无写作模式：RAG 恒开，与任何模式无关（disableRAG gate 已删）。
@@ -153,7 +153,7 @@ describe("generate_chapter — RAG 检索(写文路径恒开)", () => {
     ]);
 
     const events = await collectEvents(
-      generate_chapter(
+      generateChapter(
         makeParams(adapter, {
           au_id: "au_external_rag",
           settings: createSettings({ app: createAppConfig() }),
@@ -166,9 +166,9 @@ describe("generate_chapter — RAG 检索(写文路径恒开)", () => {
       ),
     );
 
-    // caller gate `rag_text === null`:外部已传 rag_text → 内部 retrieve_rag_for_context 不触发。
+    // caller gate `rag_text === null`:外部已传 rag_text → 内部 retrieveRagForContext 不触发。
     expect(searchSpy).not.toHaveBeenCalled();
-    // 且外部 rag_text 确实被转发进 assemble_context(P4 按行计数 → context_summary 非零),
+    // 且外部 rag_text 确实被转发进 assembleContext(P4 按行计数 → context_summary 非零),
     // 锁住「gate 跳过内部检索」的同时「外部 rag_text 不被静默丢弃」。
     const ctx = events.find((e) => e.type === "context_summary");
     expect((ctx!.data as { rag_chunks_retrieved: number }).rag_chunks_retrieved).toBeGreaterThan(0);

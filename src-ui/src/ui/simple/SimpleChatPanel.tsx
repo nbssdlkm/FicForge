@@ -5,7 +5,7 @@
  * FicForge Lite — SimpleChatPanel（粮坊·简对话面板）
  *
  * 简版默认 AU 视图，承担：
- * - 用户对话 → 单次 LLM streaming + tools 调度（dispatch_simple_chat）
+ * - 用户对话 → 单次 LLM streaming + tools 调度（dispatchSimpleChat）
  * - 写章节路径：流式输出到 WritingDraftCard，用户接受后 confirmChapter
  * - 查看路径：show_chapter / show_setting tool 自动转成 ChapterPreviewCard /
  *   SettingPreviewCard inline 折叠展示

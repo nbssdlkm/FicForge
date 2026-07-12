@@ -6,9 +6,9 @@
  * 手动触发全量重建 characters_last_seen / last_scene_ending / last_confirmed_chapter_focus。
  */
 
-import { scan_characters_in_chapter } from "../domain/character_scanner.js";
+import { scanCharactersInChapter } from "../domain/character_scanner.js";
 import { createState } from "../domain/state.js";
-import { extract_last_scene_ending } from "../domain/text_utils.js";
+import { extractLastSceneEnding } from "../domain/text_utils.js";
 import { logCatch } from "../logger/index.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
@@ -26,7 +26,7 @@ export interface RecalcResult {
   state: Awaited<ReturnType<StateRepository["get"]>>;
 }
 
-export async function recalc_state(
+export async function recalcState(
   au_id: string,
   state_repo: StateRepository,
   chapter_repo: ChapterRepository,
@@ -89,7 +89,7 @@ export async function recalc_state(
     if (!ch.content) continue;
     chaptersScanned++;
 
-    const scanned = scan_characters_in_chapter(ch.content, castRegistry, character_aliases, ch.chapter_num);
+    const scanned = scanCharactersInChapter(ch.content, castRegistry, character_aliases, ch.chapter_num);
     for (const [charName, chNum] of Object.entries(scanned)) {
       if (chNum > (newCharactersLastSeen[charName] ?? 0)) {
         newCharactersLastSeen[charName] = chNum;
@@ -99,7 +99,7 @@ export async function recalc_state(
 
   // 最后一章的信息
   const lastChapter = sortedChapters[sortedChapters.length - 1];
-  const newLastSceneEnding = lastChapter.content ? extract_last_scene_ending(lastChapter.content) : "";
+  const newLastSceneEnding = lastChapter.content ? extractLastSceneEnding(lastChapter.content) : "";
   const newLastConfirmedFocus = [...(lastChapter.confirmed_focus ?? [])];
 
   // 清理 chapters_dirty

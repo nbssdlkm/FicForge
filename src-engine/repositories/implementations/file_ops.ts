@@ -8,11 +8,11 @@ import type { OpsEntry } from "../../domain/ops_entry.js";
 import { createOpsEntry } from "../../domain/ops_entry.js";
 import type { OpsRepository } from "../interfaces/ops.js";
 import {
-  append_jsonl,
+  appendJsonl,
   atomicWrite,
   joinPath,
-  read_jsonl,
-  rewrite_jsonl,
+  readJsonl,
+  rewriteJsonl,
   validateBasePath,
   withWriteLock,
 } from "../../utils/file_utils.js";
@@ -123,12 +123,12 @@ export class FileOpsRepository implements OpsRepository {
         // 写锁内分配 clock：先从持久化存储+当前 AU ops 恢复最高值，
         // 再分配并持久化，避免进程重启后 clock 归零导致冲突。
         await loadLamportClock(this.adapter);
-        const [entries] = await read_jsonl(this.adapter, path, dictToEntry);
+        const [entries] = await readJsonl(this.adapter, path, dictToEntry);
         initLamportClockFromOps(entries);
         entry.lamport_clock = getNextLamportClock();
         await saveLamportClock(this.adapter);
       }
-      await append_jsonl(this.adapter, path, entryToDict(entry));
+      await appendJsonl(this.adapter, path, entryToDict(entry));
     });
   }
 
@@ -136,7 +136,7 @@ export class FileOpsRepository implements OpsRepository {
     const path = this.opsPath(au_id);
     const exists = await this.adapter.exists(path);
     if (!exists) return [];
-    const [entries, errors] = await read_jsonl(this.adapter, path, dictToEntry);
+    const [entries, errors] = await readJsonl(this.adapter, path, dictToEntry);
     if (errors.length > 0) {
       if (hasLogger())
         getLogger().warn("file_ops", "bad lines on read", { path, count: errors.length, first: errors[0] });
@@ -188,7 +188,7 @@ export class FileOpsRepository implements OpsRepository {
       // 写入前保留坏行到 .bad sidecar，防止永久丢失
       await preserveBadLines(this.adapter, path, dictToEntry);
       const items = ops.map(entryToDict);
-      await rewrite_jsonl(this.adapter, path, items);
+      await rewriteJsonl(this.adapter, path, items);
     });
   }
 }

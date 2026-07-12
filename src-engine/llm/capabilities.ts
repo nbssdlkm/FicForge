@@ -11,20 +11,20 @@
  *   - GlobalSettingsModal.tsx
  *   - AuSettingsLayout.tsx
  *   - MobileOnboarding.tsx
- * 而引擎的 create_provider 真正支持哪些模式，又是另一份真相。
+ * 而引擎的 createProvider 真正支持哪些模式，又是另一份真相。
  * 结果：UI 允许用户选中 local，但生成时引擎拒绝 → "配置页可选、实际使用报错"。
  *
  * 本模块用**一份静态数据**回答两个问题：
  *   1) 某个模式在某个平台上能不能用？
  *   2) 如果不能用，为什么？（敬请期待 / 本平台不支持）
  *
- * UI 消费这份数据渲染 <option>；引擎的 create_provider 独立校验运行时（防手改 YAML）。
+ * UI 消费这份数据渲染 <option>；引擎的 createProvider 独立校验运行时（防手改 YAML）。
  *
  * ============================================================================
  * 扩展新模式的方法
  * ============================================================================
  * 例：将来想支持 Anthropic 原生 Messages API（非 OpenAI 兼容），步骤：
- *   1) create_provider 新增分支
+ *   1) createProvider 新增分支
  *   2) GENERATION_MATRIX 加一行，指定各平台的 available
  *   3) UI 会自动渲染新选项（不需要改任何 UI 组件）
  */

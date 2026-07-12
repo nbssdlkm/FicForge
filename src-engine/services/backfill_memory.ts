@@ -66,7 +66,7 @@ export interface BackfillMemoryResult {
  * 之后、回调抛错时：中断则「干净停止」（当前章未落盘，不计 failed / 不标 STALE，下次 backfill
  * 再补），已补全部保留。慢回调因取消抛 AbortError 或提前返回空，两种情形都按中断处理、不误记 failed。
  */
-export async function backfill_chapter_memory(deps: BackfillMemoryDeps): Promise<BackfillMemoryResult> {
+export async function backfillChapterMemory(deps: BackfillMemoryDeps): Promise<BackfillMemoryResult> {
   const total = deps.targets.length;
   let summariesGenerated = 0;
   let factsChapters = 0;

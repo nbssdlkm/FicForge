@@ -16,7 +16,7 @@ import type {
   AnalysisStage,
 } from "@ficforge/engine";
 
-import { resolve_llm_config, create_provider } from "@ficforge/engine";
+import { resolveLlmConfig, createProvider } from "@ficforge/engine";
 
 import { getEngine } from "./engine-instance";
 
@@ -38,7 +38,7 @@ export async function isAiAssistAvailable(): Promise<{ available: boolean; reaso
   try {
     const { settings } = getEngine().repos;
     const sett = await settings.get();
-    const llmConfig = resolve_llm_config(null, {}, sett as unknown as Record<string, unknown>);
+    const llmConfig = resolveLlmConfig(null, {}, sett as unknown as Record<string, unknown>);
     if (llmConfig.mode === "ollama") return { available: true };
     if (llmConfig.mode === "api") {
       return llmConfig.api_key ? { available: true } : { available: false, reason: "no_api_key" };
@@ -63,11 +63,11 @@ export async function analyzeImportFile(
     try {
       const { settings } = getEngine().repos;
       const sett = await settings.get();
-      const llmConfig = resolve_llm_config(null, {}, sett as unknown as Record<string, unknown>);
+      const llmConfig = resolveLlmConfig(null, {}, sett as unknown as Record<string, unknown>);
       // api 和 ollama 都支持 AI 辅助导入；local 未实现时静默禁用即可
       const canAssist = llmConfig.mode === "ollama" || (llmConfig.mode === "api" && !!llmConfig.api_key);
       if (canAssist) {
-        options = { ...options, llmProvider: create_provider(llmConfig) };
+        options = { ...options, llmProvider: createProvider(llmConfig) };
       }
       // canAssist=false 时不设 llmProvider；下游 splitChapters 检查 llmProvider 为 undefined 会自动跳过 AI
     } catch {
@@ -75,8 +75,8 @@ export async function analyzeImportFile(
       options = { ...options, useAiAssist: false };
     }
   }
-  const { analyze_file } = await import("@ficforge/engine");
-  return analyze_file(text, filename, options);
+  const { analyzeFile } = await import("@ficforge/engine");
+  return analyzeFile(text, filename, options);
 }
 
 /**
@@ -86,8 +86,8 @@ export async function buildImportPlanFromAnalyses(
   analyses: FileAnalysis[],
   conflictOptions: ImportConflictOptions,
 ): Promise<ImportPlan> {
-  const { build_import_plan } = await import("@ficforge/engine");
-  return build_import_plan(analyses, conflictOptions);
+  const { buildImportPlan } = await import("@ficforge/engine");
+  return buildImportPlan(analyses, conflictOptions);
 }
 
 /**
@@ -99,9 +99,9 @@ export async function executeImportPlan(
   onProgress?: (progress: ImportProgress) => void,
   locale?: "zh" | "en",
 ): Promise<NewImportResult> {
-  const { execute_import } = await import("@ficforge/engine");
+  const { executeImport } = await import("@ficforge/engine");
   const { adapter, repos, trash } = getEngine();
-  return execute_import(plan, {
+  return executeImport(plan, {
     auId: auPath,
     chapterRepo: repos.chapter,
     stateRepo: repos.state,
@@ -123,4 +123,4 @@ export async function getExistingChapterNums(auPath: string): Promise<number[]> 
 }
 
 // 旧版导入入口 uploadImportFile / confirmImport 已删除（2026-07-09 盲审孤儿管线清理）：
-// 全仓零调用点、未挂 barrel；现行导入走 analyze_file → build_import_plan → execute_import。
+// 全仓零调用点、未挂 barrel；现行导入走 analyzeFile → buildImportPlan → executeImport。

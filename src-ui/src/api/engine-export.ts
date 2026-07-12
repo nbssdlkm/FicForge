@@ -9,7 +9,7 @@ import {
   AU_BUNDLE_VERSION,
   AU_BUNDLE_EXCLUDED_DIRS,
   collectAuBundle,
-  export_chapters as engineExportChapters,
+  exportChapters as engineExportChapters,
   importAuBundle,
   parseChapterMainPath,
   validateBundle,

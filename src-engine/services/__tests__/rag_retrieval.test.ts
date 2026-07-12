@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it, vi } from "vitest";
-import { build_rag_query, build_active_chars, retrieve_rag, retrieve_rag_for_context } from "../rag_retrieval.js";
+import { buildRagQuery, buildActiveChars, retrieveRag, retrieveRagForContext } from "../rag_retrieval.js";
 import type {
   VectorRepository,
   SearchOptions,
@@ -41,22 +41,22 @@ function createMockVectorRepo(chunks: Record<string, SearchResult[]>): VectorRep
   };
 }
 
-describe("build_rag_query", () => {
+describe("buildRagQuery", () => {
   it("concatenates focus + ending + input", () => {
-    const q = build_rag_query(["focus1", "focus2"], "上章结尾", "用户输入");
+    const q = buildRagQuery(["focus1", "focus2"], "上章结尾", "用户输入");
     expect(q).toContain("focus1");
     expect(q).toContain("上章结尾");
     expect(q).toContain("用户输入");
   });
 
   it("handles empty parts", () => {
-    expect(build_rag_query([], "", "")).toBe("");
+    expect(buildRagQuery([], "", "")).toBe("");
   });
 });
 
-describe("build_active_chars", () => {
+describe("buildActiveChars", () => {
   it("includes recent chapter characters", () => {
-    const result = build_active_chars({ current_chapter: 5, characters_last_seen: { Alice: 4, Bob: 1 } }, "", {}, [], {
+    const result = buildActiveChars({ current_chapter: 5, characters_last_seen: { Alice: 4, Bob: 1 } }, "", {}, [], {
       characters: [],
     });
     expect(result).toContain("Alice");
@@ -64,25 +64,25 @@ describe("build_active_chars", () => {
   });
 
   it("includes characters from user_input", () => {
-    const result = build_active_chars({ current_chapter: 1 }, "让Alice去", {}, [], { characters: ["Alice", "Bob"] });
+    const result = buildActiveChars({ current_chapter: 1 }, "让Alice去", {}, [], { characters: ["Alice", "Bob"] });
     expect(result).toContain("Alice");
     expect(result).not.toContain("Bob");
   });
 
   it("falls back to core_always_include", () => {
-    const result = build_active_chars({ current_chapter: 1 }, "", { core_always_include: ["Main"] }, [], {
+    const result = buildActiveChars({ current_chapter: 1 }, "", { core_always_include: ["Main"] }, [], {
       characters: [],
     });
     expect(result).toEqual(["Main"]);
   });
 
   it("returns null when all empty", () => {
-    const result = build_active_chars({ current_chapter: 1 }, "", {}, [], { characters: [] });
+    const result = buildActiveChars({ current_chapter: 1 }, "", {}, [], { characters: [] });
     expect(result).toBeNull();
   });
 
   it("审计⑥：已归档 fact 在 chapter_focus 里也不把其角色加入 RAG char_filter", () => {
-    const result = build_active_chars(
+    const result = buildActiveChars(
       { current_chapter: 1, chapter_focus: ["fc", "fw"] },
       "",
       {},
@@ -97,7 +97,7 @@ describe("build_active_chars", () => {
   });
 
   it("E8：输入只出现别名「小昭」→ 别名表把主名「林昭」带进活跃角色过滤集", () => {
-    const withTable = build_active_chars(
+    const withTable = buildActiveChars(
       { current_chapter: 1 },
       "小昭独自走进房间",
       {},
@@ -113,13 +113,13 @@ describe("build_active_chars", () => {
   });
 
   it("E8 对照：不传别名表（null）→ 只出现别名时主名不进过滤集（与接通前逐字节一致）", () => {
-    const noTable = build_active_chars({ current_chapter: 1 }, "小昭独自走进房间", {}, [], { characters: ["林昭"] });
+    const noTable = buildActiveChars({ current_chapter: 1 }, "小昭独自走进房间", {}, [], { characters: ["林昭"] });
     // 「林昭」未在输入中字面出现、无别名归一化，且无最近出场/焦点/核心角色 → 整体降级 null（全局检索）
     expect(noTable).toBeNull();
   });
 });
 
-describe("retrieve_rag", () => {
+describe("retrieveRag", () => {
   it("retrieves from multiple collections", async () => {
     const repo = createMockVectorRepo({
       characters: [{ content: "char info", chapter_num: 0, score: 0.9, metadata: {} }],
@@ -127,7 +127,7 @@ describe("retrieve_rag", () => {
       chapters: [{ content: "chapter text", chapter_num: 3, score: 0.7, metadata: {} }],
     });
 
-    const [text, tokens] = await retrieve_rag(repo, mockEmbedding, "au1", "query", 10000, null, null);
+    const [text, tokens] = await retrieveRag(repo, mockEmbedding, "au1", "query", 10000, null, null);
 
     expect(text).toContain("char info");
     expect(text).toContain("world info");
@@ -145,7 +145,7 @@ describe("retrieve_rag", () => {
       ],
     });
 
-    const [text] = await retrieve_rag(
+    const [text] = await retrieveRag(
       repo,
       mockEmbedding,
       "au1",
@@ -168,7 +168,7 @@ describe("retrieve_rag", () => {
       chapters: [],
     });
 
-    const [text] = await retrieve_rag(repo, mockEmbedding, "au1", "query", 10000, null, null);
+    const [text] = await retrieveRag(repo, mockEmbedding, "au1", "query", 10000, null, null);
 
     // "duplicate" should only appear once
     const matches = text.match(/duplicate/g) ?? [];
@@ -177,14 +177,14 @@ describe("retrieve_rag", () => {
 
   it("returns empty for empty query", async () => {
     const repo = createMockVectorRepo({});
-    const [text, tokens] = await retrieve_rag(repo, mockEmbedding, "au1", "", 10000, null, null);
+    const [text, tokens] = await retrieveRag(repo, mockEmbedding, "au1", "", 10000, null, null);
     expect(text).toBe("");
     expect(tokens).toBe(0);
   });
 
   it("empty index returns empty", async () => {
     const repo = createMockVectorRepo({ characters: [], worldbuilding: [], chapters: [] });
-    const [text] = await retrieve_rag(repo, mockEmbedding, "au1", "query", 10000, null, null);
+    const [text] = await retrieveRag(repo, mockEmbedding, "au1", "query", 10000, null, null);
     expect(text).toBe("");
   });
 
@@ -195,7 +195,7 @@ describe("retrieve_rag", () => {
       chapters: [{ content: "chapter text", chapter_num: 3, score: 0.7, metadata: {} }],
     });
 
-    const [, , chunks] = await retrieve_rag(repo, mockEmbedding, "au1", "query", 10000, null, null);
+    const [, , chunks] = await retrieveRag(repo, mockEmbedding, "au1", "query", 10000, null, null);
 
     expect(chunks).toHaveLength(2);
     const charChunk = chunks.find((c) => c.content === "char info");
@@ -215,7 +215,7 @@ describe("retrieve_rag", () => {
     }));
     const repo = createMockVectorRepo({ characters: [], worldbuilding: [], chapters });
 
-    const [, , chunks] = await retrieve_rag(repo, mockEmbedding, "au1", "query", 100000, null, null);
+    const [, , chunks] = await retrieveRag(repo, mockEmbedding, "au1", "query", 100000, null, null);
 
     const chapterChunks = chunks.filter((c) => c._collection === "chapters");
     expect(chapterChunks.length).toBe(8);
@@ -223,12 +223,12 @@ describe("retrieve_rag", () => {
 
   it("returns [] chunks for empty query", async () => {
     const repo = createMockVectorRepo({});
-    const [, , chunks] = await retrieve_rag(repo, mockEmbedding, "au1", "", 10000, null, null);
+    const [, , chunks] = await retrieveRag(repo, mockEmbedding, "au1", "", 10000, null, null);
     expect(chunks).toEqual([]);
   });
 });
 
-describe("retrieve_rag_for_context (融合:RAG 编排单一真相源)", () => {
+describe("retrieveRagForContext (融合:RAG 编排单一真相源)", () => {
   const baseArgs = {
     project: { llm: { context_window: 128000 }, rag_decay_coefficient: 0.05 },
     state: { current_chapter: 2, last_scene_ending: "" },
@@ -241,7 +241,7 @@ describe("retrieve_rag_for_context (融合:RAG 编排单一真相源)", () => {
     const repo = createMockVectorRepo({
       chapters: [{ content: "前情提要", chapter_num: 1, score: 0.9, metadata: {} }],
     });
-    const res = await retrieve_rag_for_context({
+    const res = await retrieveRagForContext({
       ...baseArgs,
       user_input: "继续写",
       facts: [{ id: "f1", status: "active", content_clean: "林夏发现了真相", characters: [] }],
@@ -264,7 +264,7 @@ describe("retrieve_rag_for_context (融合:RAG 编排单一真相源)", () => {
         return IndexStatus.READY;
       },
     };
-    const res = await retrieve_rag_for_context({
+    const res = await retrieveRagForContext({
       ...baseArgs,
       user_input: "",
       facts: [],
@@ -292,7 +292,7 @@ describe("retrieve_rag_for_context (融合:RAG 编排单一真相源)", () => {
     };
     const repo = createMockVectorRepo({ chapters: [] });
 
-    await retrieve_rag_for_context({
+    await retrieveRagForContext({
       ...baseArgs,
       user_input: "继续写",
       facts: [
@@ -307,9 +307,9 @@ describe("retrieve_rag_for_context (融合:RAG 编排单一真相源)", () => {
     expect(capturedQuery).not.toContain("冷线索不该进query");
   });
 
-  it("embed 抛错 → 静默回退 null + []（真正命中 retrieve_rag_for_context 的 catch）", async () => {
-    // 注:让 embed 抛错而非 search —— retrieve_rag 内部对 search 有 try/catch 会吞掉。
-    // embed / ensure_tokenizer 等 retrieve_rag 内未被内部 try 包住的 await 抛错,才会冒泡到本函数 catch。
+  it("embed 抛错 → 静默回退 null + []（真正命中 retrieveRagForContext 的 catch）", async () => {
+    // 注:让 embed 抛错而非 search —— retrieveRag 内部对 search 有 try/catch 会吞掉。
+    // embed / ensureTokenizer 等 retrieveRag 内未被内部 try 包住的 await 抛错,才会冒泡到本函数 catch。
     const throwingEmbedding: EmbeddingProvider = {
       async embed(): Promise<number[][]> {
         throw new Error("embedding service down");
@@ -324,7 +324,7 @@ describe("retrieve_rag_for_context (融合:RAG 编排单一真相源)", () => {
     const repo = createMockVectorRepo({
       chapters: [{ content: "不该到达", chapter_num: 1, score: 0.9, metadata: {} }],
     });
-    const res = await retrieve_rag_for_context({
+    const res = await retrieveRagForContext({
       ...baseArgs,
       user_input: "继续",
       facts: [{ id: "f1", status: "active", content_clean: "关键线索", characters: [] }],
@@ -335,13 +335,13 @@ describe("retrieve_rag_for_context (融合:RAG 编排单一真相源)", () => {
     expect(res.chunks).toEqual([]);
   });
 
-  // E8：别名表透传链 —— retrieve_rag_for_context → build_active_chars → retrieve_rag → search 的 char_filter。
+  // E8：别名表透传链 —— retrieveRagForContext → buildActiveChars → retrieveRag → search 的 char_filter。
   // 捕获传给 vector_repo.search 的 char_filter 证明主名进过滤集（可过滤 collection），并给 null 对照。
   function makeFilterCapturingRepo(seen: (string[] | null)[]): VectorRepository {
     return {
       async search(_au_id: string, _embedding: number[], options: SearchOptions): Promise<SearchResult[]> {
         seen.push(options.char_filter ?? null);
-        // 返回 2 条：避开 search_collection 「<2 条 + 有 char_filter → null 全局回退」的二次查询干扰断言
+        // 返回 2 条：避开 searchCollection 「<2 条 + 有 char_filter → null 全局回退」的二次查询干扰断言
         return [
           { content: "c1", chapter_num: 3, score: 0.9, metadata: {} },
           { content: "c2", chapter_num: 2, score: 0.8, metadata: {} },
@@ -359,7 +359,7 @@ describe("retrieve_rag_for_context (融合:RAG 编排单一真相源)", () => {
 
   it("E8：传别名表 → 正文只含别名「小昭」时 char_filter 认主名「林昭」（可过滤 collection）", async () => {
     const seen: (string[] | null)[] = [];
-    await retrieve_rag_for_context({
+    await retrieveRagForContext({
       ...baseArgs,
       project: { ...baseArgs.project, cast_registry: { characters: ["林昭"] } },
       user_input: "小昭出现了",
@@ -374,7 +374,7 @@ describe("retrieve_rag_for_context (融合:RAG 编排单一真相源)", () => {
 
   it("E8 对照：不传别名表 → char_filter 不含主名（只出现别名时活跃集为空，逐字节回退现状）", async () => {
     const seen: (string[] | null)[] = [];
-    await retrieve_rag_for_context({
+    await retrieveRagForContext({
       ...baseArgs,
       project: { ...baseArgs.project, cast_registry: { characters: ["林昭"] } },
       user_input: "小昭出现了",

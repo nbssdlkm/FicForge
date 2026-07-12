@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { edit_chapter_content } from "../chapter_edit.js";
+import { editChapterContent } from "../chapter_edit.js";
 import { createState } from "../../domain/state.js";
 import { createChapter } from "../../domain/chapter.js";
 import { IndexStatus } from "../../domain/enums.js";
@@ -41,7 +41,7 @@ describe("edit_chapter_content", () => {
   });
 
   it("updates content, hash, provenance, and revision", async () => {
-    const result = await edit_chapter_content("au1", 1, "Updated content.", chapterRepo, stateRepo, opsRepo);
+    const result = await editChapterContent("au1", 1, "Updated content.", chapterRepo, stateRepo, opsRepo);
 
     expect(result.chapter_num).toBe(1);
     expect(result.provenance).toBe("mixed");
@@ -56,7 +56,7 @@ describe("edit_chapter_content", () => {
   });
 
   it("writes mark_chapters_dirty op to ops.jsonl", async () => {
-    await edit_chapter_content("au1", 1, "New content.", chapterRepo, stateRepo, opsRepo);
+    await editChapterContent("au1", 1, "New content.", chapterRepo, stateRepo, opsRepo);
 
     const ops = await opsRepo.list_all("au1");
     expect(ops.length).toBeGreaterThanOrEqual(1);
@@ -66,7 +66,7 @@ describe("edit_chapter_content", () => {
   });
 
   it("adds chapter_num to chapters_dirty in state", async () => {
-    await edit_chapter_content("au1", 1, "New content.", chapterRepo, stateRepo, opsRepo);
+    await editChapterContent("au1", 1, "New content.", chapterRepo, stateRepo, opsRepo);
 
     const st = await stateRepo.get("au1");
     expect(st.chapters_dirty).toContain(1);
@@ -78,7 +78,7 @@ describe("edit_chapter_content", () => {
     st.chapters_dirty.push(1);
     await stateRepo.save(st);
 
-    await edit_chapter_content("au1", 1, "New content.", chapterRepo, stateRepo, opsRepo);
+    await editChapterContent("au1", 1, "New content.", chapterRepo, stateRepo, opsRepo);
 
     const st2 = await stateRepo.get("au1");
     const count = st2.chapters_dirty.filter((n) => n === 1).length;
@@ -90,17 +90,17 @@ describe("edit_chapter_content", () => {
     const stBefore = await stateRepo.get("au1");
     expect(stBefore.index_status).toBe(IndexStatus.READY);
 
-    await edit_chapter_content("au1", 1, "New content.", chapterRepo, stateRepo, opsRepo);
+    await editChapterContent("au1", 1, "New content.", chapterRepo, stateRepo, opsRepo);
 
     const st = await stateRepo.get("au1");
     expect(st.index_status).toBe(IndexStatus.STALE);
   });
 
   it("increments revision on successive edits", async () => {
-    const r1 = await edit_chapter_content("au1", 1, "Edit 1.", chapterRepo, stateRepo, opsRepo);
+    const r1 = await editChapterContent("au1", 1, "Edit 1.", chapterRepo, stateRepo, opsRepo);
     expect(r1.revision).toBe(2);
 
-    const r2 = await edit_chapter_content("au1", 1, "Edit 2.", chapterRepo, stateRepo, opsRepo);
+    const r2 = await editChapterContent("au1", 1, "Edit 2.", chapterRepo, stateRepo, opsRepo);
     expect(r2.revision).toBe(3);
   });
 });

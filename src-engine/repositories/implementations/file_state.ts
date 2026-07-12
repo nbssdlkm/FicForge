@@ -15,8 +15,8 @@ import {
   atomicWrite,
   dumpYaml,
   joinPath,
-  now_utc,
-  obj_to_plain,
+  nowUtc,
+  objToPlain,
   validateBasePath,
   withWriteLock,
 } from "../../utils/file_utils.js";
@@ -48,9 +48,9 @@ export class FileStateRepository implements StateRepository {
   async save(state: State): Promise<void> {
     const path = this.statePath(state.au_id);
     await withWriteLock(path, async () => {
-      state.updated_at = now_utc();
+      state.updated_at = nowUtc();
       state.revision += 1;
-      const raw = obj_to_plain(state);
+      const raw = objToPlain(state);
       const content = dumpYaml(raw);
       const dir = path.substring(0, path.lastIndexOf("/"));
       await this.adapter.mkdir(dir);
@@ -64,9 +64,9 @@ export class FileStateRepository implements StateRepository {
     return withWriteLock(path, async () => {
       const state = await this.get(au_id);
       mutator(state);
-      state.updated_at = now_utc();
+      state.updated_at = nowUtc();
       state.revision += 1;
-      const raw = obj_to_plain(state);
+      const raw = objToPlain(state);
       const content = dumpYaml(raw);
       const dir = path.substring(0, path.lastIndexOf("/"));
       await this.adapter.mkdir(dir);

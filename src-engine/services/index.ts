@@ -5,18 +5,18 @@
 
 // Facts Lifecycle
 export {
-  add_fact,
-  archive_fact,
-  archive_facts,
+  addFact,
+  archiveFact,
+  archiveFacts,
   ARCHIVE_DISTANCE,
-  edit_fact,
+  editFact,
   FactsLifecycleError,
-  find_archival_candidates,
-  is_archival_candidate,
-  run_archival_sweep,
-  set_chapter_focus,
-  unarchive_fact,
-  update_fact_status,
+  findArchivalCandidates,
+  isArchivalCandidate,
+  runArchivalSweep,
+  setChapterFocus,
+  unarchiveFact,
+  updateFactStatus,
 } from "./facts_lifecycle.js";
 
 // Facts Extraction
@@ -41,24 +41,24 @@ export type {
   AssembleChatContextParams,
 } from "./context_assembler.js";
 export {
-  assemble_context,
-  assemble_chat_context,
-  build_core_settings_layer,
-  build_facts_layer,
-  build_instruction,
-  build_recent_chapter_layer,
-  build_system_prompt,
+  assembleContext,
+  assembleChatContext,
+  buildCoreSettingsLayer,
+  buildFactsLayer,
+  buildInstruction,
+  buildRecentChapterLayer,
+  buildSystemPrompt,
 } from "./context_assembler.js";
 
 // FicForge Lite simple_assembler 的轻量 token 估算入口（C5 顶栏 badge）
 export type { SimpleContextTokenEstimate, EstimateSimpleContextParams } from "./estimate_simple_tokens.js";
-export { estimate_simple_context_tokens } from "./estimate_simple_tokens.js";
+export { estimateSimpleContextTokens } from "./estimate_simple_tokens.js";
 
 // FicForge Lite simple_chat dispatch — 单次 LLM streaming + tools 同时支持
 // 写章节 / show_chapter / show_setting / modify_*_file 等
 export type { SimpleChatEvent, SimpleChatDispatchParams } from "./simple_chat_dispatch.js";
 export {
-  dispatch_simple_chat,
+  dispatchSimpleChat,
   SIMPLE_TOOL_SHOW_CHAPTER,
   SIMPLE_TOOL_SHOW_SETTING,
 } from "./simple_chat_dispatch.js";
@@ -69,10 +69,10 @@ export { chatToOpenAIMessages } from "./chat_to_llm.js";
 
 // RAG Retrieval
 export {
-  build_active_chars,
-  build_rag_query,
-  retrieve_rag,
-  retrieve_rag_for_context,
+  buildActiveChars,
+  buildRagQuery,
+  retrieveRag,
+  retrieveRagForContext,
 } from "./rag_retrieval.js";
 export type { RetrieveRagForContextArgs } from "./rag_retrieval.js";
 
@@ -83,7 +83,7 @@ export type {
   GenerationErrorData,
   GenerationEvent,
 } from "./generation.js";
-export { generate_chapter, is_empty_intent } from "./generation.js";
+export { generateChapter, isEmptyIntent } from "./generation.js";
 
 // Chapter Inflight — 同 (au, chapter) 的「草稿生成在飞」互斥表（写文/对话共享单一真相源）。
 // 导出给 UI 编排层：confirm 等「会改写目标章」的入口在动手前查表拒绝（R1-3），
@@ -97,19 +97,19 @@ export {
 
 // Confirm Chapter
 export type { ConfirmChapterParams, ConfirmChapterResult } from "./confirm_chapter.js";
-export { confirm_chapter, ConfirmChapterError } from "./confirm_chapter.js";
+export { confirmChapter, ConfirmChapterError } from "./confirm_chapter.js";
 
 // Undo Chapter
 export type { UndoChapterParams, UndoChapterResult } from "./undo_chapter.js";
-export { undo_latest_chapter, UndoChapterError } from "./undo_chapter.js";
+export { undoLatestChapter, UndoChapterError } from "./undo_chapter.js";
 
 // Dirty Resolve
 export type { ResolveDirtyParams, ResolveDirtyResult } from "./dirty_resolve.js";
-export { resolve_dirty_chapter, DirtyResolveError } from "./dirty_resolve.js";
+export { resolveDirtyChapter, DirtyResolveError } from "./dirty_resolve.js";
 
 // Import Pipeline (backward-compatible)
 export type { ImportChaptersParams, ImportResult, SplitChapter } from "./import_pipeline.js";
-export { get_split_method, import_chapters, parse_html, split_into_chapters } from "./import_pipeline.js";
+export { getSplitMethod, importChapters, parseHtml, splitIntoChapters } from "./import_pipeline.js";
 
 // Import Pipeline v2 (new API)
 export type {
@@ -124,7 +124,7 @@ export type {
   ImportSetting,
   NewImportResult,
 } from "./import_pipeline.js";
-export { analyze_file, build_import_plan, execute_import } from "./import_pipeline.js";
+export { analyzeFile, buildImportPlan, executeImport } from "./import_pipeline.js";
 
 // Chat Parser
 export type {
@@ -156,7 +156,7 @@ export {
 
 // Export Service
 export type { ExportParams } from "./export_service.js";
-export { export_chapters } from "./export_service.js";
+export { exportChapters } from "./export_service.js";
 
 // 全量 AU 备份导出/导入（TD-015）
 export type {
@@ -177,7 +177,7 @@ export {
 
 // Settings Chat
 export type { SettingsChatParams, SettingsChatResult } from "./settings_chat.js";
-export { build_settings_context, call_settings_llm } from "./settings_chat.js";
+export { buildSettingsContext, callSettingsLlm } from "./settings_chat.js";
 
 // Trash Service
 export type { TrashEntry, RestoreConflictPolicy } from "./trash_service.js";
@@ -189,10 +189,10 @@ export type {
   PersistSummaryDeps,
 } from "./chapter_summary.js";
 export {
-  generate_micro_summary,
-  generate_standard_summary,
-  persist_chapter_summary,
-  find_chapters_missing_summary,
+  generateMicroSummary,
+  generateStandardSummary,
+  persistChapterSummary,
+  findChaptersMissingSummary,
 } from "./chapter_summary.js";
 
 // 补全旧章记忆（plan 3.1）—— 逐章统一 pass（摘要 + 笔记 + 向量）
@@ -201,15 +201,15 @@ export type {
   BackfillMemoryDeps,
   BackfillMemoryResult,
 } from "./backfill_memory.js";
-export { backfill_chapter_memory } from "./backfill_memory.js";
+export { backfillChapterMemory } from "./backfill_memory.js";
 
 // Retrospective Rewrite (M10-A)
 export type { RetrospectiveOptions, RetrospectiveGenResult } from "./retrospective.js";
 export {
-  run_retrospective,
-  generate_retrospective,
-  commit_retrospective,
-  should_run_retrospective,
+  runRetrospective,
+  generateRetrospective,
+  commitRetrospective,
+  shouldRunRetrospective,
   RETROSPECTIVE_INTERVAL,
 } from "./retrospective.js";
 
@@ -226,11 +226,11 @@ export type {
   SecureStorageMigrationParams,
   SecureStorageMigrationResult,
 } from "./secure_storage_migration.js";
-export { migrate_legacy_secure_storage } from "./secure_storage_migration.js";
+export { migrateLegacySecureStorage } from "./secure_storage_migration.js";
 
 // Recalc State
 export type { RecalcResult } from "./recalc_state.js";
-export { recalc_state } from "./recalc_state.js";
+export { recalcState } from "./recalc_state.js";
 
 // Title Generator
 export { generateChapterTitle } from "./title_generator.js";
@@ -246,7 +246,7 @@ export type { CharacterCardInput } from "./character_alias_table.js";
 
 // Chapter Edit
 export type { EditChapterContentResult } from "./chapter_edit.js";
-export { edit_chapter_content } from "./chapter_edit.js";
+export { editChapterContent } from "./chapter_edit.js";
 
 // Write Transaction
 export {

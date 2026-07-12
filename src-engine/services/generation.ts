@@ -26,7 +26,7 @@ import type { LLMProvider } from "../llm/provider.js";
 import { LLMError } from "../llm/provider.js";
 import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { ResolvedLLMConfig, ResolvedLLMParams } from "../llm/config_resolver.js";
-import { create_provider, resolve_llm_config, resolve_llm_params } from "../llm/config_resolver.js";
+import { createProvider, resolveLlmConfig, resolveLlmParams } from "../llm/config_resolver.js";
 import { isAbortError } from "../utils/abort_error.js";
 import {
   chapterInflightKey,
@@ -34,9 +34,9 @@ import {
   markChapterInflight,
   releaseChapterInflight,
 } from "./chapter_inflight.js";
-import { assemble_context } from "./context_assembler.js";
+import { assembleContext } from "./context_assembler.js";
 import type { ChunkWithCollection } from "./rag_retrieval.js";
-import { retrieve_rag_for_context, to_rag_chunk_detail } from "./rag_retrieval.js";
+import { retrieveRagForContext, toRagChunkDetail } from "./rag_retrieval.js";
 import { joinPath } from "../utils/file_utils.js";
 import { withAuLock } from "./au_lock.js";
 import { persistGeneratedDraft } from "./draft_persist.js";
@@ -80,7 +80,7 @@ function genKey(au_id: string, chapter_num: number): string {
 
 const EMPTY_PATTERNS = new Set(["继续", "然后呢", "然后", "接着写", "接着", "continue", "go on", ""]);
 
-export function is_empty_intent(user_input: string): boolean {
+export function isEmptyIntent(user_input: string): boolean {
   const stripped = user_input.trim().toLowerCase();
   return EMPTY_PATTERNS.has(stripped) || stripped.length < 3;
 }
@@ -137,17 +137,17 @@ export interface GenerateChapterParams {
   /** 预计算的 RAG 文本，传入则跳过内部 RAG。 */
   rag_text?: string | null;
   /**
-   * E8：角色别名表（主名 → 别名列表）。透传给 retrieve_rag_for_context → build_active_chars，
+   * E8：角色别名表（主名 → 别名列表）。透传给 retrieveRagForContext → buildActiveChars，
    * 正文/输入只出现别名时活跃角色过滤集也认主名。可选 + 缺省 null（无角色卡 / 旧调用方逐字节不变）。
    */
   character_aliases?: Record<string, string[]> | null;
   language?: string;
   signal?: AbortSignal;
-  /** 测试用：注入 mock provider，跳过 create_provider。 */
+  /** 测试用：注入 mock provider，跳过 createProvider。 */
   _provider_override?: LLMProvider;
 }
 
-export async function* generate_chapter(params: GenerateChapterParams): AsyncGenerator<GenerationEvent> {
+export async function* generateChapter(params: GenerateChapterParams): AsyncGenerator<GenerationEvent> {
   const {
     au_id,
     chapter_num,
@@ -191,10 +191,10 @@ export async function* generate_chapter(params: GenerateChapterParams): AsyncGen
 
   try {
     // === 步骤 1：解析配置和参数 ===
-    const llmConfig: ResolvedLLMConfig = resolve_llm_config(session_llm, project, settings);
+    const llmConfig: ResolvedLLMConfig = resolveLlmConfig(session_llm, project, settings);
     const modelName = llmConfig.model;
-    const llmParams: ResolvedLLMParams = resolve_llm_params(modelName, session_params, project, settings);
-    const provider: LLMProvider = params._provider_override ?? create_provider(llmConfig);
+    const llmParams: ResolvedLLMParams = resolveLlmParams(modelName, session_params, project, settings);
+    const provider: LLMProvider = params._provider_override ?? createProvider(llmConfig);
 
     // === 步骤 1.5：加载角色与世界观设定文件（P5 核心设定用）===
     if (character_files === null && adapter) {
@@ -205,12 +205,12 @@ export async function* generate_chapter(params: GenerateChapterParams): AsyncGen
     }
 
     // === 步骤 1.8：RAG 检索（STALE 时也尝试召回，并在 summary 标记索引可能过期）===
-    // RAG 编排已抽到 rag_retrieval.ts:retrieve_rag_for_context（单一真相源,对话路径共用,融合 plan §1.0）。
+    // RAG 编排已抽到 rag_retrieval.ts:retrieveRagForContext（单一真相源,对话路径共用,融合 plan §1.0）。
     // 融合后无简版,写文生成期 RAG 恒开:原 disableRAG gate 已删（full 模式本就 disableRAG=false,逐字节不变）。
     const indexReady = state.index_status === IndexStatus.READY;
     let ragChunksDetail: ChunkWithCollection[] = [];
     if (rag_text === null && vector_repo && embedding_provider) {
-      const rag = await retrieve_rag_for_context({
+      const rag = await retrieveRagForContext({
         project,
         state,
         user_input,
@@ -230,9 +230,9 @@ export async function* generate_chapter(params: GenerateChapterParams): AsyncGen
     }
 
     // === 步骤 2：组装上下文 ===
-    // H4：把 resolve_llm_config 的结果传给 assembler —— 窗口/输出上限按实际生效模型
+    // H4：把 resolveLlmConfig 的结果传给 assembler —— 窗口/输出上限按实际生效模型
     // （可能来自 settings.default_llm / session 覆盖）计算，不再只看 project.llm。
-    const ctx = await assemble_context(
+    const ctx = await assembleContext(
       project,
       state,
       user_input,
@@ -248,9 +248,9 @@ export async function* generate_chapter(params: GenerateChapterParams): AsyncGen
     );
     const { messages, max_tokens, budget_report, context_summary } = ctx;
 
-    // 把结构化 RAG 片段挂到 summary（assemble_context 只看纯文本，这里外挂 detail）
+    // 把结构化 RAG 片段挂到 summary（assembleContext 只看纯文本，这里外挂 detail）
     context_summary.rag_chunks = ragChunksDetail
-      .map(to_rag_chunk_detail)
+      .map(toRagChunkDetail)
       .filter((d): d is NonNullable<typeof d> => d !== null);
     // 用 chunks 数覆盖原按行统计，保证 UI 数字与展示条数一致。
     // 仅在走了内部 RAG（即拿到结构化 chunks）时覆盖；外部传入 rag_text 场景保留 context_assembler 按行算的值。

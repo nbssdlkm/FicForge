@@ -25,7 +25,7 @@ import type {
   TaskStatusListener,
 } from "./types.js";
 import { TaskStore } from "./task_store.js";
-import { now_utc } from "../utils/file_utils.js";
+import { nowUtc } from "../utils/file_utils.js";
 import type { PlatformAdapter } from "../platform/index.js";
 
 // ---------------------------------------------------------------------------
@@ -84,7 +84,7 @@ export class TaskRunner {
       status: "pending",
       progress: { current: 0, total: 0 },
       params: definition.params,
-      createdAt: now_utc(),
+      createdAt: nowUtc(),
     };
 
     const entry: InternalTask = {
@@ -108,7 +108,7 @@ export class TaskRunner {
       status: "pending",
       progress: { ...checkpoint.progress },
       params: checkpoint.params,
-      createdAt: now_utc(),
+      createdAt: nowUtc(),
     };
 
     const entry: InternalTask = {
@@ -294,7 +294,7 @@ export class TaskRunner {
       params: task.definition.params,
       progress: { ...task.handle.progress },
       data: data ?? task.pendingCheckpointData,
-      updatedAt: now_utc(),
+      updatedAt: nowUtc(),
     };
   }
 

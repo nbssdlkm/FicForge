@@ -5,7 +5,7 @@
  * M8-A Fact Enrichment — TDD tests (T4, T5, T6, T7, T8 partial).
  * T4: rawToExtracted enum validation
  * T5: extractFactsFromChapter with new fields
- * T6: build_facts_layer enrichment injection (build_fact_enrichment_suffix)
+ * T6: buildFactsLayer enrichment injection (buildFactEnrichmentSuffix)
  * T7: FACTS_ENRICH_SYSTEM_PROMPT in prompt keys
  * T8: round-trip via ops (hop 3+4+5)
  *
@@ -15,7 +15,7 @@
 import { describe, expect, it } from "vitest";
 import { rawToExtracted } from "../facts_extraction.js";
 import { extractFactsFromChapter } from "../facts_extraction.js";
-import { build_facts_layer, build_fact_enrichment_suffix } from "../context_assembler.js";
+import { buildFactsLayer, buildFactEnrichmentSuffix } from "../context_assembler.js";
 import { createFact } from "../../domain/fact.js";
 import { FactStatus } from "../../domain/enums.js";
 import { getPrompts, REQUIRED_KEYS } from "../../prompts/index.js";
@@ -294,10 +294,10 @@ describe("T5: extractFactsFromChapter — M8-A new fields", () => {
 });
 
 // ===========================================================================
-// T6: build_facts_layer enrichment injection
+// T6: buildFactsLayer enrichment injection
 // ===========================================================================
 
-describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
+describe("T6: buildFactsLayer — M8-A enrichment suffix injection", () => {
   it("known_to 'reader_only' with high confidence → 知情条款注入 + 图例出现（M3 批一改人话渲染）", () => {
     const fact = createFact({
       id: "f1",
@@ -308,7 +308,7 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
       known_to: "reader_only" as "reader_only",
       _confidence: { known_to: "high" },
     });
-    const [text] = build_facts_layer([fact], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([fact], [], 10000, null, "zh");
     expect(text).toContain("（仅读者知）");
     expect(text).not.toContain("known_to:"); // 旧原始键值对形态退役
     expect(text).toContain("知情范围说明"); // 图例仅在有标注时出现
@@ -330,7 +330,7 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
       chapter: 3,
       caused_by: ["f_cause"],
     });
-    const [text] = build_facts_layer([cause, effect], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([cause, effect], [], 10000, null, "zh");
     // 旧代码明确不注入 caused_by；新代码解析 fact_id → 起因短句
     expect(text).toContain("起因：沈砚发现父亲笔迹残页");
   });
@@ -344,7 +344,7 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
       chapter: 2,
       caused_by: ["f_nonexistent"],
     });
-    const [text] = build_facts_layer([f], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([f], [], 10000, null, "zh");
     expect(text).not.toContain("起因");
     expect(text).not.toContain("f_nonexistent");
   });
@@ -359,7 +359,7 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
       known_to: "all" as "all",
       _confidence: { known_to: "low" },
     });
-    const [text] = build_facts_layer([fact], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([fact], [], 10000, null, "zh");
     // known_to: all is default, low confidence → not injected
     expect(text).not.toContain("known_to:");
   });
@@ -376,7 +376,7 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
       action_verb: "决裂",
       // 无 _confidence = 非 ReAct 低置信猜测 = 源头确定 → 应注入（旧码在此静默丢弃）
     });
-    const [text] = build_facts_layer([fact], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([fact], [], 10000, null, "zh");
     expect(text).toContain("（仅读者知）");
     expect(text).toContain("time_kind: flashback");
     expect(text).toContain("action_verb: 决裂");
@@ -392,7 +392,7 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
       time_kind: "flashback" as any,
       _confidence: { time_kind: "medium" },
     });
-    const [text] = build_facts_layer([fact], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([fact], [], 10000, null, "zh");
     expect(text).toContain("time_kind: flashback");
   });
 
@@ -406,7 +406,7 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
       time_kind: "normal" as any,
       _confidence: { time_kind: "high" },
     });
-    const [text] = build_facts_layer([fact], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([fact], [], 10000, null, "zh");
     expect(text).not.toContain("time_kind:");
   });
 
@@ -420,7 +420,7 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
       action_verb: "决裂",
       _confidence: { action_verb: "high" },
     });
-    const [text] = build_facts_layer([fact], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([fact], [], 10000, null, "zh");
     expect(text).toContain("action_verb: 决裂");
   });
 
@@ -434,7 +434,7 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
       location: "御书房",
       _confidence: { location: "medium" },
     });
-    const [text] = build_facts_layer([fact], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([fact], [], 10000, null, "zh");
     expect(text).toContain("location: 御书房");
   });
 
@@ -448,12 +448,12 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
       suspense_type: "foreshadow" as any,
       _confidence: { suspense_type: "medium" },
     });
-    const [text] = build_facts_layer([fact], [], 10000, null, "zh");
+    const [text] = buildFactsLayer([fact], [], 10000, null, "zh");
     expect(text).toContain("suspense_type: foreshadow");
   });
 });
 
-describe("T6: build_fact_enrichment_suffix — pure function (M8-A)", () => {
+describe("T6: buildFactEnrichmentSuffix — pure function (M8-A)", () => {
   it("no _confidence（手动/导入）→ present 富化字段无条件注入（MED-3）", () => {
     const fact = createFact({
       id: "f1",
@@ -462,7 +462,7 @@ describe("T6: build_fact_enrichment_suffix — pure function (M8-A)", () => {
       known_to: "reader_only" as "reader_only",
       time_kind: "flashback" as any,
     });
-    const suffix = build_fact_enrichment_suffix(fact);
+    const suffix = buildFactEnrichmentSuffix(fact);
     expect(suffix).toContain("time_kind: flashback");
     // known_to 自 M3 批一迁出 suffix，由 knowledge clause 渲染
     expect(suffix).not.toContain("known_to:");
@@ -470,7 +470,7 @@ describe("T6: build_fact_enrichment_suffix — pure function (M8-A)", () => {
 
   it("no _confidence 且无富化字段 → 仍返回空（无字段可注入）", () => {
     const fact = createFact({ id: "f1", content_raw: "r", content_clean: "c" });
-    expect(build_fact_enrichment_suffix(fact)).toBe("");
+    expect(buildFactEnrichmentSuffix(fact)).toBe("");
   });
 
   it("returns parenthesized suffix with high-confidence fields", () => {
@@ -482,7 +482,7 @@ describe("T6: build_fact_enrichment_suffix — pure function (M8-A)", () => {
       action_verb: "决裂",
       _confidence: { time_kind: "medium", action_verb: "high" },
     });
-    const suffix = build_fact_enrichment_suffix(fact);
+    const suffix = buildFactEnrichmentSuffix(fact);
     expect(suffix).toContain("time_kind: flashback");
     expect(suffix).toContain("action_verb: 决裂");
     // Should be parenthesized
@@ -499,7 +499,7 @@ describe("T6: build_fact_enrichment_suffix — pure function (M8-A)", () => {
       location: "某地",
       _confidence: { action_verb: "high", location: "low" },
     });
-    const suffix = build_fact_enrichment_suffix(fact);
+    const suffix = buildFactEnrichmentSuffix(fact);
     expect(suffix).toContain("action_verb: 决裂");
     expect(suffix).not.toContain("location:");
   });
@@ -513,7 +513,7 @@ describe("T6: build_fact_enrichment_suffix — pure function (M8-A)", () => {
       location: "御书房", // location 在 _confidence 里无条目
       _confidence: { action_verb: "high" },
     });
-    const suffix = build_fact_enrichment_suffix(fact);
+    const suffix = buildFactEnrichmentSuffix(fact);
     expect(suffix).toContain("action_verb: 决裂");
     expect(suffix).not.toContain("location:"); // c 存在 → 缺条目按未确信处理，抑制
   });
@@ -526,7 +526,7 @@ describe("T6: build_fact_enrichment_suffix — pure function (M8-A)", () => {
       time_kind: "normal" as any,
       _confidence: { time_kind: "high" },
     });
-    const suffix = build_fact_enrichment_suffix(fact);
+    const suffix = buildFactEnrichmentSuffix(fact);
     expect(suffix).not.toContain("time_kind:");
   });
 });

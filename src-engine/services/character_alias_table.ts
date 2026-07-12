@@ -4,7 +4,7 @@
 /**
  * 角色别名归一化表：`{auPath}/characters/*.md` frontmatter → `Record<主名, 别名[]>`。
  *
- * 背景：normalize_characters / sanitize_known_to / buildCharacterInfoBlock 的
+ * 背景：normalizeCharacters / sanitizeKnownTo / buildCharacterInfoBlock 的
  * character_aliases 参数全链就绪，但此前全产品没有任何调用方构建过非 null 的表
  * （M3 批一查实）——用户在角色卡上填的别名从未生效。本模块是该表的**唯一构建通道**，
  * 消费端（engine-facts 的提取/编辑/落库、facts_extraction_task）经

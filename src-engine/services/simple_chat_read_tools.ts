@@ -14,7 +14,7 @@
 
 import type { PlatformAdapter } from "../platform/adapter.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
-import { count_tokens } from "../tokenizer/index.js";
+import { countTokens } from "../tokenizer/index.js";
 import { joinPath } from "../utils/file_utils.js";
 import { SIMPLE_TOOL_SHOW_CHAPTER, SIMPLE_TOOL_SHOW_SETTING } from "./simple_chat_tools.js";
 
@@ -24,7 +24,7 @@ import { SIMPLE_TOOL_SHOW_CHAPTER, SIMPLE_TOOL_SHOW_SETTING } from "./simple_cha
  *
  * 为什么要截断：agent loop 多轮里，LLM 可能连续 show 多个大章节，每个结果都 append 进
  * internalHistory 喂下一轮 —— 不设上限会让 internalHistory 单调增长撑爆 context（组装期
- * assemble_chat_context 的 chatHistoryReserve 只为"对话历史"留余量，管不到循环内 fetch）。
+ * assembleChatContext 的 chatHistoryReserve 只为"对话历史"留余量，管不到循环内 fetch）。
  *
  * 截断只作用于 LLM 可见的 internalHistory 副本；emit 给 UI 的 tool_result 仍是全文（持久化
  * 不丢）。正常章节（1500-3000 字 ≈ 2-4k tokens）原样通过；仅病态超长文件被截断，保留头部 +
@@ -35,7 +35,7 @@ import { SIMPLE_TOOL_SHOW_CHAPTER, SIMPLE_TOOL_SHOW_SETTING } from "./simple_cha
 const MAX_READ_FETCH_TOKENS = 6000;
 
 export function truncateReadResultForHistory(content: string, llm_config: unknown, language: "zh" | "en"): string {
-  const tk = (s: string) => count_tokens(s, llm_config as { mode?: string }).count;
+  const tk = (s: string) => countTokens(s, llm_config as { mode?: string }).count;
   const total = tk(content);
   if (total <= MAX_READ_FETCH_TOKENS) return content;
   // 按 token/char 比例首切（留 10% 余量让首切大概率落在预算内），再线性微调（保留头部）。

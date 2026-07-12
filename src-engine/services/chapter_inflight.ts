@@ -4,7 +4,7 @@
 /**
  * 同 (au, chapter) 的「章节草稿生成在飞」互斥表 —— 单一真相源。
  *
- * 为什么必须共享一张表（对抗审 F1）：写文 generate_chapter 与对话 dispatch_simple_chat
+ * 为什么必须共享一张表（对抗审 F1）：写文 generateChapter 与对话 dispatchSimpleChat
  * 共用同一 AU 的草稿标签空间，且融合后双 tab 恒并列、双方常驻挂载（生成流跨 tab 存活）。
  * 两条路径都在 loop 前一次性 nextDraftLabel（读当时的 existingDrafts）——各自维护独立
  * Map 只能封住自身重入，封不住「对话流式中切写文 tab 再点生成」这类跨路径并发：

@@ -9,11 +9,11 @@ import type { Thread } from "../../domain/thread.js";
 import { createThread } from "../../domain/thread.js";
 import type { ThreadRepository } from "../interfaces/thread.js";
 import {
-  append_jsonl,
+  appendJsonl,
   joinPath,
-  now_utc,
-  read_jsonl,
-  rewrite_jsonl,
+  nowUtc,
+  readJsonl,
+  rewriteJsonl,
   validateBasePath,
   withWriteLock,
 } from "../../utils/file_utils.js";
@@ -36,7 +36,7 @@ export function threadToDict(t: Thread): Record<string, unknown> {
 }
 
 function dictToThread(d: Record<string, unknown>): Thread {
-  const now = now_utc();
+  const now = nowUtc();
   const rawStatus = d.status as string;
   // 枚举校验：非法值兜底 active（align M8-A dictToFact 的 time_kind/suspense_type 校验模式）
   const status = (THREAD_STATUS_VALUES as readonly string[]).includes(rawStatus)
@@ -60,14 +60,14 @@ function dictToThread(d: Record<string, unknown>): Thread {
 export class FileThreadRepository implements ThreadRepository {
   constructor(private adapter: PlatformAdapter) {}
 
-  private threadsPath(auPath: string): string {
-    validateBasePath(auPath, "auPath");
-    return joinPath(auPath, "threads.jsonl");
+  private threadsPath(au_id: string): string {
+    validateBasePath(au_id, "au_id");
+    return joinPath(au_id, "threads.jsonl");
   }
 
-  private async readAll(auPath: string): Promise<Thread[]> {
-    const path = this.threadsPath(auPath);
-    const [threads, errors] = await read_jsonl(this.adapter, path, dictToThread);
+  private async readAll(au_id: string): Promise<Thread[]> {
+    const path = this.threadsPath(au_id);
+    const [threads, errors] = await readJsonl(this.adapter, path, dictToThread);
     if (errors.length > 0) {
       if (hasLogger())
         getLogger().warn("file_thread", "bad lines on read", { path, count: errors.length, first: errors[0] });
@@ -75,43 +75,43 @@ export class FileThreadRepository implements ThreadRepository {
     return threads;
   }
 
-  async list(auPath: string): Promise<Thread[]> {
-    return this.readAll(auPath);
+  async list(au_id: string): Promise<Thread[]> {
+    return this.readAll(au_id);
   }
 
-  async get(auPath: string, id: string): Promise<Thread | null> {
-    const threads = await this.readAll(auPath);
+  async get(au_id: string, id: string): Promise<Thread | null> {
+    const threads = await this.readAll(au_id);
     return threads.find((t) => t.id === id) ?? null;
   }
 
-  async add(auPath: string, thread: Thread): Promise<void> {
-    const path = this.threadsPath(auPath);
-    await withWriteLock(path, () => append_jsonl(this.adapter, path, threadToDict(thread)));
+  async add(au_id: string, thread: Thread): Promise<void> {
+    const path = this.threadsPath(au_id);
+    await withWriteLock(path, () => appendJsonl(this.adapter, path, threadToDict(thread)));
   }
 
-  async update(auPath: string, thread: Thread): Promise<void> {
-    thread.updated_at = now_utc();
-    const path = this.threadsPath(auPath);
+  async update(au_id: string, thread: Thread): Promise<void> {
+    thread.updated_at = nowUtc();
+    const path = this.threadsPath(au_id);
     await withWriteLock(path, async () => {
-      const [threads, errors] = await read_jsonl(this.adapter, path, dictToThread);
+      const [threads, errors] = await readJsonl(this.adapter, path, dictToThread);
       if (errors.length > 0) {
         if (hasLogger()) getLogger().warn("file_thread", "bad lines on update", { path, count: errors.length });
       }
       // 不存在则保持原样（不新增）；存在则整条替换
       const items = threads.map((t) => (t.id === thread.id ? threadToDict(thread) : threadToDict(t)));
-      await rewrite_jsonl(this.adapter, path, items);
+      await rewriteJsonl(this.adapter, path, items);
     });
   }
 
-  async remove(auPath: string, id: string): Promise<void> {
-    const path = this.threadsPath(auPath);
+  async remove(au_id: string, id: string): Promise<void> {
+    const path = this.threadsPath(au_id);
     await withWriteLock(path, async () => {
-      const [threads, errors] = await read_jsonl(this.adapter, path, dictToThread);
+      const [threads, errors] = await readJsonl(this.adapter, path, dictToThread);
       if (errors.length > 0) {
         if (hasLogger()) getLogger().warn("file_thread", "bad lines on remove", { path, count: errors.length });
       }
       const remaining = threads.filter((t) => t.id !== id);
-      await rewrite_jsonl(this.adapter, path, remaining.map(threadToDict));
+      await rewriteJsonl(this.adapter, path, remaining.map(threadToDict));
     });
   }
 }

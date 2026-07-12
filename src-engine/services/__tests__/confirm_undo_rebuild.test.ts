@@ -12,9 +12,9 @@
  */
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { confirm_chapter } from "../confirm_chapter.js";
-import { undo_latest_chapter } from "../undo_chapter.js";
-import { add_fact, edit_fact, update_fact_status, set_chapter_focus } from "../facts_lifecycle.js";
+import { confirmChapter } from "../confirm_chapter.js";
+import { undoLatestChapter } from "../undo_chapter.js";
+import { addFact, editFact, updateFactStatus, setChapterFocus } from "../facts_lifecycle.js";
 import { FactStatus } from "../../domain/enums.js";
 import { createDraft } from "../../domain/draft.js";
 import { createState } from "../../domain/state.js";
@@ -59,7 +59,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
       }),
     );
 
-    return confirm_chapter({
+    return confirmChapter({
       au_id: "au1",
       chapter_num: num,
       draft_id: `ch${String(num).padStart(4, "0")}_draft_A.md`,
@@ -72,7 +72,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
   }
 
   async function undoCh() {
-    return undo_latest_chapter({
+    return undoLatestChapter({
       au_id: "au1",
       cast_registry: cast,
       chapter_repo: chapterRepo,
@@ -130,7 +130,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     await confirmCh(3, "Bob拿出了一封信。Charlie接了过去。");
 
     // Step 2: Add facts across chapters
-    await add_fact(
+    await addFact(
       "au1",
       1,
       {
@@ -143,7 +143,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
       opsRepo,
     );
 
-    await add_fact(
+    await addFact(
       "au1",
       2,
       {
@@ -156,7 +156,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
       opsRepo,
     );
 
-    const f3 = await add_fact(
+    const f3 = await addFact(
       "au1",
       3,
       {
@@ -203,7 +203,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     expect(repoState.current_chapter).toBe(4);
 
     // Add new fact for re-confirmed chapter 3
-    await add_fact(
+    await addFact(
       "au1",
       3,
       {
@@ -232,7 +232,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     // Chapter 1: introduce foreshadowing
     await confirmCh(1, "一个神秘的包裹出现了。Alice感到不安。");
 
-    const foreshadow = await add_fact(
+    const foreshadow = await addFact(
       "au1",
       1,
       {
@@ -248,7 +248,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     // Chapter 2: resolve the foreshadowing
     await confirmCh(2, "包裹是Bob寄来的。真相大白。");
 
-    const resolution = await add_fact(
+    const resolution = await addFact(
       "au1",
       2,
       {
@@ -290,7 +290,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     await stateRepo.save(createState({ au_id: "au1" }));
 
     // Add a foreshadowing fact
-    const f1 = await add_fact(
+    const f1 = await addFact(
       "au1",
       0,
       {
@@ -304,7 +304,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     );
 
     // Set focus
-    await set_chapter_focus("au1", [f1.id], factRepo, opsRepo, stateRepo);
+    await setChapterFocus("au1", [f1.id], factRepo, opsRepo, stateRepo);
 
     let repoState = await stateRepo.get("au1");
     expect(repoState.chapter_focus).toEqual([f1.id]);
@@ -341,7 +341,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     await stateRepo.save(createState({ au_id: "au1" }));
 
     // Pre-existing fact
-    const f1 = await add_fact(
+    const f1 = await addFact(
       "au1",
       0,
       {
@@ -357,7 +357,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     await confirmCh(1, "故事开始了。Alice站了起来。");
 
     // During chapter 1, manually deprecate f1
-    await update_fact_status("au1", f1.id, "deprecated", 1, factRepo, opsRepo, stateRepo);
+    await updateFactStatus("au1", f1.id, "deprecated", 1, factRepo, opsRepo, stateRepo);
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.DEPRECATED);
 
     // Verify rebuild matches BEFORE undo
@@ -389,7 +389,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     await stateRepo.save(createState({ au_id: "au1" }));
 
     // Pre-existing fact from chapter 0
-    const f1 = await add_fact(
+    const f1 = await addFact(
       "au1",
       0,
       {
@@ -405,7 +405,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     await confirmCh(1, "Alice思考着。");
 
     // Edit the fact (not chapter-scoped, so it survives undo)
-    await edit_fact(
+    await editFact(
       "au1",
       f1.id,
       {
@@ -475,7 +475,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     await stateRepo.save(createState({ au_id: "au1" }));
 
     await confirmCh(1, "Alice出门了。");
-    const f1a = await add_fact(
+    const f1a = await addFact(
       "au1",
       1,
       {
@@ -487,7 +487,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
       factRepo,
       opsRepo,
     );
-    await add_fact(
+    await addFact(
       "au1",
       1,
       {
@@ -501,7 +501,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     );
 
     await confirmCh(2, "Bob打电话。");
-    const f2a = await add_fact(
+    const f2a = await addFact(
       "au1",
       2,
       {
@@ -515,7 +515,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     );
 
     await confirmCh(3, "Charlie来了。");
-    const f3a = await add_fact(
+    const f3a = await addFact(
       "au1",
       3,
       {

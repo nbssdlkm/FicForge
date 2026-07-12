@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it } from "vitest";
-import { estimate_simple_context_tokens } from "../estimate_simple_tokens.js";
+import { estimateSimpleContextTokens } from "../estimate_simple_tokens.js";
 import { createProject } from "../../domain/project.js";
 import { createState } from "../../domain/state.js";
 import { createChapter } from "../../domain/chapter.js";
@@ -25,14 +25,14 @@ async function seedChapter(repo: FileChapterRepository, au: string, n: number, c
   );
 }
 
-describe("estimate_simple_context_tokens", () => {
+describe("estimateSimpleContextTokens", () => {
   it("空 AU 返回小但非零的 tokens（system prompt）", async () => {
     const adapter = new MockAdapter();
     const chapterRepo = new FileChapterRepository(adapter);
     const project = createProject({ project_id: "p", au_id: "au_e" });
     const state = createState({ au_id: "au_e", current_chapter: 1 });
 
-    const r = await estimate_simple_context_tokens({
+    const r = await estimateSimpleContextTokens({
       au_id: "au_e",
       project,
       state,
@@ -57,7 +57,7 @@ describe("estimate_simple_context_tokens", () => {
     await adapter.mkdir("au_b/characters");
     await adapter.writeFile("au_b/characters/Alice.md", "# Alice\n红发剑客。".repeat(20));
 
-    const empty = await estimate_simple_context_tokens({
+    const empty = await estimateSimpleContextTokens({
       au_id: "au_b",
       project,
       state: createState({ au_id: "au_b" }),
@@ -65,7 +65,7 @@ describe("estimate_simple_context_tokens", () => {
       adapter: new MockAdapter(),
       language: "zh",
     });
-    const populated = await estimate_simple_context_tokens({
+    const populated = await estimateSimpleContextTokens({
       au_id: "au_b",
       project,
       state,
@@ -99,7 +99,7 @@ describe("estimate_simple_context_tokens", () => {
     await seedChapter(chapterRepo, "au_w", 1, "x".repeat(2000));
     await seedChapter(chapterRepo, "au_w", 2, "y".repeat(2000));
 
-    const r = await estimate_simple_context_tokens({
+    const r = await estimateSimpleContextTokens({
       au_id: "au_w",
       project,
       state,
@@ -117,7 +117,7 @@ describe("estimate_simple_context_tokens", () => {
     const project = createProject({ project_id: "p", au_id: "au_h" });
     const state = createState({ au_id: "au_h", current_chapter: 1 });
 
-    const r1 = await estimate_simple_context_tokens({
+    const r1 = await estimateSimpleContextTokens({
       au_id: "au_h",
       project,
       state,
@@ -125,7 +125,7 @@ describe("estimate_simple_context_tokens", () => {
       adapter,
       language: "zh",
     });
-    const r2 = await estimate_simple_context_tokens({
+    const r2 = await estimateSimpleContextTokens({
       au_id: "au_h",
       project,
       state,
@@ -144,7 +144,7 @@ describe("estimate_simple_context_tokens", () => {
     const project = createProject({ project_id: "p", au_id: "au_h2" });
     const state = createState({ au_id: "au_h2", current_chapter: 1 });
 
-    const empty = await estimate_simple_context_tokens({
+    const empty = await estimateSimpleContextTokens({
       au_id: "au_h2",
       project,
       state,
@@ -152,7 +152,7 @@ describe("estimate_simple_context_tokens", () => {
       adapter,
       language: "zh",
     });
-    const populated = await estimate_simple_context_tokens({
+    const populated = await estimateSimpleContextTokens({
       au_id: "au_h2",
       project,
       state,
@@ -179,8 +179,8 @@ describe("estimate_simple_context_tokens", () => {
 
     const baseArgs = { au_id: "au_tc", project, state, chapter_repo: chapterRepo, adapter, language: "zh" as const };
 
-    // content 空、只带一个 tool_call —— 旧码 count_tokens("") = 0，只有 framing。
-    const withToolCall = await estimate_simple_context_tokens({
+    // content 空、只带一个 tool_call —— 旧码 countTokens("") = 0，只有 framing。
+    const withToolCall = await estimateSimpleContextTokens({
       ...baseArgs,
       history: [
         {
@@ -202,7 +202,7 @@ describe("estimate_simple_context_tokens", () => {
       ],
     });
     // 同样一条 content 空的 assistant，但无 tool_calls —— 只贡献 framing。
-    const withoutToolCall = await estimate_simple_context_tokens({
+    const withoutToolCall = await estimateSimpleContextTokens({
       ...baseArgs,
       history: [{ role: "assistant", content: "" }],
     });
@@ -218,8 +218,8 @@ describe("estimate_simple_context_tokens", () => {
     const state = createState({ au_id: "au_fr", current_chapter: 1 });
     const baseArgs = { au_id: "au_fr", project, state, chapter_repo: chapterRepo, adapter, language: "zh" as const };
 
-    const zeroMsg = await estimate_simple_context_tokens({ ...baseArgs, history: [] });
-    const fourEmptyMsgs = await estimate_simple_context_tokens({
+    const zeroMsg = await estimateSimpleContextTokens({ ...baseArgs, history: [] });
+    const fourEmptyMsgs = await estimateSimpleContextTokens({
       ...baseArgs,
       history: [
         { role: "user", content: "" },

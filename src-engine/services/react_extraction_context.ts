@@ -2,8 +2,8 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 /**
- * M9 ReAct 提取上下文组装。不复用对话/写文的上下文组装器（assemble_chat_context /
- * assemble_context，那是续写/对话用，语义不符）。
+ * M9 ReAct 提取上下文组装。不复用对话/写文的上下文组装器（assembleChatContext /
+ * assembleContext，那是续写/对话用，语义不符）。
  *
  * 与单次调用提取（facts_extraction.buildUserMessage）的差异：
  *  - 「怎么输出」从 user 命令移到 system prompt（ReAct 走工具调用，不是 JSON 文本）；

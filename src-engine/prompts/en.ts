@@ -7,7 +7,7 @@ import type { PromptModule } from "./keys.js";
 
 const en: PromptModule = {
   // ===========================================================================
-  // context_assembler: build_system_prompt
+  // context_assembler: buildSystemPrompt
   // ===========================================================================
 
   SYSTEM_NOVELIST: "You are a professional fiction writer.",
@@ -57,7 +57,7 @@ const en: PromptModule = {
   CUSTOM_INSTRUCTIONS_HEADER: "# Custom Style Instructions\n{custom}",
 
   // ===========================================================================
-  // context_assembler: build_instruction
+  // context_assembler: buildInstruction
   // ===========================================================================
 
   CURRENT_STATUS: "## Current Status\nThis is Chapter {current_ch}.",
@@ -96,7 +96,7 @@ const en: PromptModule = {
   CONTINUE_WRITING: "## Please Continue Writing\n{user_input}",
 
   // ===========================================================================
-  // context_assembler: build_facts_layer
+  // context_assembler: buildFactsLayer
   // ===========================================================================
 
   SECTION_PLOT_STATE: "## Current Plot State",
@@ -111,7 +111,7 @@ const en: PromptModule = {
   UNRESOLVED_DROPPED_HINT: "({count} additional unresolved thread(s) not shown — see fact sheet)",
 
   // ===========================================================================
-  // context_assembler: build_recent_chapter_layer
+  // context_assembler: buildRecentChapterLayer
   // ===========================================================================
 
   SECTION_LAST_ENDING: "## Previous Chapter Ending\n{content}",
@@ -119,7 +119,7 @@ const en: PromptModule = {
   SECTION_LAST_ENDING_TRUNCATED: "## Previous Chapter Ending\n(earlier text omitted)…{end_text}",
 
   // ===========================================================================
-  // context_assembler: build_core_settings_layer
+  // context_assembler: buildCoreSettingsLayer
   // ===========================================================================
 
   SECTION_CHARACTERS: "## Character Profiles",

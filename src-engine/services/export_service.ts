@@ -16,7 +16,7 @@ export interface ExportParams {
   chapter_titles?: Record<number, string>;
 }
 
-export async function export_chapters(params: ExportParams): Promise<string> {
+export async function exportChapters(params: ExportParams): Promise<string> {
   const {
     au_id,
     chapter_repo,

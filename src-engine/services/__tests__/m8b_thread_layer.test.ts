@@ -3,17 +3,17 @@
 
 /**
  * M8-B Thread 层 — TDD tests.
- *  - build_threads_layer 纯函数（格式/排序/active-only/预算截断/空）
- *  - assemble_context 门控（空线逐字节回退；有线注入位置 + thread_tokens）
- *  - fact.thread_ids/thread_roles 全 6-hop 序列化（含 add_fact/edit_fact 服务级 + batch + jsonl）
+ *  - buildThreadsLayer 纯函数（格式/排序/active-only/预算截断/空）
+ *  - assembleContext 门控（空线逐字节回退；有线注入位置 + thread_tokens）
+ *  - fact.thread_ids/thread_roles 全 6-hop 序列化（含 addFact/editFact 服务级 + batch + jsonl）
  *
- * 关键：服务级 add_fact 测试（非手搓 op）才能抓 hop「createFact 转发 + 快照 + factFromPayload」
+ * 关键：服务级 addFact 测试（非手搓 op）才能抓 hop「createFact 转发 + 快照 + factFromPayload」
  * 整条链——M8-A 的测试手搓了 op payload，所以反而抓不到自己的 hop5 BLOCKER。
  */
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { assemble_context, build_threads_layer } from "../context_assembler.js";
-import { add_fact, edit_fact } from "../facts_lifecycle.js";
+import { assembleContext, buildThreadsLayer } from "../context_assembler.js";
+import { addFact, editFact } from "../facts_lifecycle.js";
 import { rebuildFactsFromOps } from "../../ops/ops_projection.js";
 import { createOpsEntry } from "../../domain/ops_entry.js";
 import { createThread } from "../../domain/thread.js";
@@ -38,20 +38,20 @@ const T = (over: Partial<ReturnType<typeof createThread>> = {}) =>
   });
 
 // ===========================================================================
-// build_threads_layer
+// buildThreadsLayer
 // ===========================================================================
 
-describe("build_threads_layer (M8-B)", () => {
+describe("buildThreadsLayer (M8-B)", () => {
   it("active threads → titled lines with state", () => {
-    const text = build_threads_layer([T()], 10000, null, "zh");
+    const text = buildThreadsLayer([T()], 10000, null, "zh");
     expect(text).toContain("当前剧情线");
     expect(text).toContain("【为父翻案】准备面圣");
   });
 
   it("empty / non-active only → ''", () => {
-    expect(build_threads_layer([], 10000, null, "zh")).toBe("");
+    expect(buildThreadsLayer([], 10000, null, "zh")).toBe("");
     expect(
-      build_threads_layer(
+      buildThreadsLayer(
         [T({ status: ThreadStatus.RESOLVED }), T({ id: "t2", status: ThreadStatus.DORMANT })],
         10000,
         null,
@@ -61,7 +61,7 @@ describe("build_threads_layer (M8-B)", () => {
   });
 
   it("only active threads are injected (resolved/dormant excluded)", () => {
-    const text = build_threads_layer(
+    const text = buildThreadsLayer(
       [
         T({ id: "a", title: "活跃线", status: ThreadStatus.ACTIVE }),
         T({ id: "b", title: "已收束线", status: ThreadStatus.RESOLVED }),
@@ -75,7 +75,7 @@ describe("build_threads_layer (M8-B)", () => {
   });
 
   it("sorts by updated_at desc (most recently advanced first)", () => {
-    const text = build_threads_layer(
+    const text = buildThreadsLayer(
       [
         T({ id: "old", title: "旧线", updated_at: "2026-01-01T00:00:00Z" }),
         T({ id: "new", title: "新线", updated_at: "2026-06-01T00:00:00Z" }),
@@ -88,10 +88,10 @@ describe("build_threads_layer (M8-B)", () => {
   });
 
   it("falls back to description when state empty; bare title when both empty", () => {
-    expect(build_threads_layer([T({ state: "", description: "某描述" })], 10000, null, "zh")).toContain(
+    expect(buildThreadsLayer([T({ state: "", description: "某描述" })], 10000, null, "zh")).toContain(
       "【为父翻案】某描述",
     );
-    expect(build_threads_layer([T({ state: "", description: "" })], 10000, null, "zh")).toContain("【为父翻案】");
+    expect(buildThreadsLayer([T({ state: "", description: "" })], 10000, null, "zh")).toContain("【为父翻案】");
   });
 
   it("budget truncation drops tail threads", () => {
@@ -103,17 +103,17 @@ describe("build_threads_layer (M8-B)", () => {
         updated_at: `2026-06-${String(i + 1).padStart(2, "0")}T00:00:00Z`,
       }),
     );
-    const tight = build_threads_layer(many, 30, null, "zh");
-    const all = build_threads_layer(many, 100000, null, "zh");
+    const tight = buildThreadsLayer(many, 30, null, "zh");
+    const all = buildThreadsLayer(many, 100000, null, "zh");
     expect(tight.split("\n").length).toBeLessThan(all.split("\n").length);
   });
 });
 
 // ===========================================================================
-// assemble_context 门控
+// assembleContext 门控
 // ===========================================================================
 
-describe("assemble_context thread injection (M8-B)", () => {
+describe("assembleContext thread injection (M8-B)", () => {
   let adapter: MockAdapter;
   let chapterRepo: FileChapterRepository;
   const project = () =>
@@ -131,8 +131,8 @@ describe("assemble_context thread injection (M8-B)", () => {
   });
 
   it("threads=[] (explicit) → byte-identical to omitted threads + thread_tokens 0", async () => {
-    const omitted = await assemble_context(project(), state(), "写", [], chapterRepo, "au");
-    const empty = await assemble_context(project(), state(), "写", [], chapterRepo, "au", null, null, null, "zh", []);
+    const omitted = await assembleContext(project(), state(), "写", [], chapterRepo, "au");
+    const empty = await assembleContext(project(), state(), "写", [], chapterRepo, "au", null, null, null, "zh", []);
     expect(empty.messages[1].content).toBe(omitted.messages[1].content);
     expect(empty.budget_report.thread_tokens).toBe(0);
     // 全 P 层预算逐字节不变（防未来 thread 收集步错用 used 快照偷走 P2/P4/P5 预算）
@@ -143,7 +143,7 @@ describe("assemble_context thread injection (M8-B)", () => {
   });
 
   it("active threads → injected into user message + thread_tokens > 0", async () => {
-    const r = await assemble_context(project(), state(), "写", [], chapterRepo, "au", null, null, null, "zh", [T()]);
+    const r = await assembleContext(project(), state(), "写", [], chapterRepo, "au", null, null, null, "zh", [T()]);
     expect(r.messages[1].content).toContain("为父翻案");
     expect(r.messages[1].content).toContain("准备面圣");
     expect(r.budget_report.thread_tokens).toBeGreaterThan(0);
@@ -153,7 +153,7 @@ describe("assemble_context thread injection (M8-B)", () => {
     const facts = [
       createFact({ id: "f1", content_raw: "r", content_clean: "某条事实内容", status: FactStatus.ACTIVE, chapter: 1 }),
     ];
-    const r = await assemble_context(project(), state(), "写", facts, chapterRepo, "au", null, null, null, "zh", [T()]);
+    const r = await assembleContext(project(), state(), "写", facts, chapterRepo, "au", null, null, null, "zh", [T()]);
     const msg = r.messages[1].content;
     // reversed 注入顺序 P5→P4→P2→thread→P3→P1：剧情线在事实表之前
     expect(msg.indexOf("为父翻案")).toBeLessThan(msg.indexOf("某条事实内容"));
@@ -191,9 +191,9 @@ describe("M8-B fact.thread_ids serialization across all hops", () => {
     expect(got.thread_roles).toEqual({ t1: "turning_point" });
   });
 
-  it("hop3+5 (SERVICE add_fact → ops rebuild): the M8-A-class chain", async () => {
-    // 服务级 add_fact（非手搓 op）——这才会跑 createFact 转发 + 快照 + factFromPayload 整条链
-    const created = await add_fact(
+  it("hop3+5 (SERVICE addFact → ops rebuild): the M8-A-class chain", async () => {
+    // 服务级 addFact（非手搓 op）——这才会跑 createFact 转发 + 快照 + factFromPayload 整条链
+    const created = await addFact(
       "au",
       1,
       {
@@ -219,10 +219,10 @@ describe("M8-B fact.thread_ids serialization across all hops", () => {
     expect(rebuilt[0].thread_roles).toEqual({ t_revenge: "trigger" });
   });
 
-  it("hop4 (SERVICE edit_fact = setFactThreads → ops rebuild): EDITABLE_FIELDS", async () => {
-    const created = await add_fact("au", 1, { content_raw: "r", content_clean: "c" }, factRepo, opsRepo);
-    // setFactThreads 等价：edit_fact 改 thread_ids
-    await edit_fact("au", created.id, { thread_ids: ["t9"] }, factRepo, opsRepo, stateRepo);
+  it("hop4 (SERVICE editFact = setFactThreads → ops rebuild): EDITABLE_FIELDS", async () => {
+    const created = await addFact("au", 1, { content_raw: "r", content_clean: "c" }, factRepo, opsRepo);
+    // setFactThreads 等价：editFact 改 thread_ids
+    await editFact("au", created.id, { thread_ids: ["t9"] }, factRepo, opsRepo, stateRepo);
 
     // live 应用
     const live = await factRepo.get("au", created.id);

@@ -8,7 +8,7 @@ import type { PlatformAdapter } from "../../platform/adapter.js";
 import type { Fandom } from "../../domain/fandom.js";
 import { createFandom } from "../../domain/fandom.js";
 import type { FandomRepository } from "../interfaces/fandom.js";
-import { atomicWrite, dumpYaml, joinPath, obj_to_plain, validateBasePath } from "../../utils/file_utils.js";
+import { atomicWrite, dumpYaml, joinPath, objToPlain, validateBasePath } from "../../utils/file_utils.js";
 import { FANDOM_YAML } from "../../domain/paths.js";
 
 export class FileFandomRepository implements FandomRepository {
@@ -49,7 +49,7 @@ export class FileFandomRepository implements FandomRepository {
   async save(fandom_path: string, fandom: Fandom): Promise<void> {
     validateBasePath(fandom_path, "fandom_path");
     const path = joinPath(fandom_path, FANDOM_YAML);
-    const raw = obj_to_plain(fandom);
+    const raw = objToPlain(fandom);
     const content = dumpYaml(raw);
     const dir = path.substring(0, path.lastIndexOf("/"));
     await this.adapter.mkdir(dir);

@@ -17,7 +17,7 @@ import {
 } from "../../domain/project.js";
 import type { ProjectRepository } from "../interfaces/project.js";
 import { PROJECT_YAML } from "../../domain/paths.js";
-import { atomicWrite, dumpYaml, joinPath, now_utc, obj_to_plain, validateBasePath } from "../../utils/file_utils.js";
+import { atomicWrite, dumpYaml, joinPath, nowUtc, objToPlain, validateBasePath } from "../../utils/file_utils.js";
 import {
   extractSecureFields,
   hasLegacyPlaintextSecureFields,
@@ -97,12 +97,12 @@ export class FileProjectRepository implements ProjectRepository {
     validateBasePath(project.au_id, "au_id");
     const path = joinPath(project.au_id, PROJECT_YAML);
     const copy = structuredClone(project);
-    copy.updated_at = now_utc();
+    copy.updated_at = nowUtc();
     copy.revision += 1;
     // 把 AU 级 api_key 抽到 secure storage —— 写入 project.yaml 的只是占位符，
     // 防止项目工作目录备份 / 同步 / 导出时凭据扩散（审计 P1）
     await extractSecureFields(copy, projectSecureSpecs(copy.au_id), this.adapter);
-    const raw = obj_to_plain(copy);
+    const raw = objToPlain(copy);
     const content = dumpYaml(raw);
     const dir = path.substring(0, path.lastIndexOf("/"));
     await this.adapter.mkdir(dir);
@@ -165,7 +165,7 @@ export class FileProjectRepository implements ProjectRepository {
     await restoreSecureFields(project, specs, this.adapter);
     const sanitized = structuredClone(project);
     await extractSecureFields(sanitized, specs, this.adapter);
-    const content = dumpYaml(obj_to_plain(sanitized));
+    const content = dumpYaml(objToPlain(sanitized));
     await atomicWrite(this.adapter, path, content);
     return true;
   }

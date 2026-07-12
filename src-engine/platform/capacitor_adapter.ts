@@ -93,7 +93,7 @@ export class CapacitorAdapter implements PlatformAdapter {
     // 接口契约要求「目标存在则覆盖」，但 Capacitor 原生实现（iOS NSFileManager
     // moveItem / Android File.renameTo 的部分路径）在目标已存在时会抛错而不是覆盖。
     // 先删目标再 rename 保证契约一致。代价：删除与 rename 之间崩溃会留下
-    // 「正式文件缺失 + .tmp 完整」——JSONL 由 read_jsonl 的 .tmp 恢复兜底，
+    // 「正式文件缺失 + .tmp 完整」——JSONL 由 readJsonl 的 .tmp 恢复兜底，
     // 其余文件此窗口极窄且内容仍完整可手工恢复，严格优于旧版「截断正式文件」。
     try {
       await Filesystem.stat({ path: this.normPath(newPath), directory: Directory.Data });
