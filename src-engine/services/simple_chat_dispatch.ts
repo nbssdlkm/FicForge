@@ -140,6 +140,11 @@ export interface SimpleChatDispatchParams {
   threads?: Thread[];
   vector_repo?: VectorRepository;
   embedding_provider?: EmbeddingProvider;
+  /**
+   * E8：角色别名表（主名 → 别名列表）。透传至 assemble_chat_context → retrieve_rag_for_context，
+   * 对话正文/输入只出现别名时活跃角色过滤集也认主名。可选 + 缺省 null（现有 caller / 单测不传逐字节不变）。
+   */
+  character_aliases?: Record<string, string[]> | null;
   language?: "zh" | "en";
   signal?: AbortSignal;
   /** 测试注入：override LLM provider。 */
@@ -288,6 +293,7 @@ interface ResolveDispatchDeps {
   threads: Thread[];
   vector_repo?: VectorRepository;
   embedding_provider?: EmbeddingProvider;
+  character_aliases?: Record<string, string[]> | null;
   chapter_repo: ChapterRepository;
   draft_repo: DraftRepository;
   adapter: PlatformAdapter;
@@ -317,6 +323,7 @@ async function resolveDispatchSession(deps: ResolveDispatchDeps): Promise<Dispat
     threads,
     vector_repo,
     embedding_provider,
+    character_aliases,
     chapter_repo,
     draft_repo,
     adapter,
@@ -353,6 +360,7 @@ async function resolveDispatchSession(deps: ResolveDispatchDeps): Promise<Dispat
     language,
     // H4：窗口/输出上限按实际生效模型（resolve 三层结果）算，不再只看 project.llm。
     effective_llm: llmConfig,
+    character_aliases, // E8：对话正文只出现别名时活跃角色过滤集也认主名
   });
   const { systemContent, latestUserContent, max_tokens } = ctx;
   const systemMessage: Message = { role: "system", content: systemContent };
@@ -719,6 +727,7 @@ export async function* dispatch_simple_chat(params: SimpleChatDispatchParams): A
     threads = [],
     vector_repo,
     embedding_provider,
+    character_aliases = null,
     chapter_repo,
     draft_repo,
     adapter,
@@ -770,6 +779,7 @@ export async function* dispatch_simple_chat(params: SimpleChatDispatchParams): A
       threads,
       vector_repo,
       embedding_provider,
+      character_aliases,
       chapter_repo,
       draft_repo,
       adapter,

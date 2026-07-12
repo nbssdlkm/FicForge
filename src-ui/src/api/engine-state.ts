@@ -101,9 +101,12 @@ export async function rebuildIndex(auPath: string) {
 }
 
 export async function recalcState(auPath: string) {
-  const { state, chapter, project, fact, ops } = getEngine().repos;
+  const e = getEngine();
+  const { state, chapter, project, fact, ops } = e.repos;
   return withAuLock(auPath, async () => {
-    const result = await recalc_state(auPath, state, chapter, project, fact);
+    // 别名表供表与 confirm/undo 同姿势（E8）：重算的全量重扫不得比增量记录别名盲
+    const aliases = await e.characterAliases.get(auPath);
+    const result = await recalc_state(auPath, state, chapter, project, fact, aliases);
     // WriteTransaction 保证 D-0036 写入顺序：ops → state
     const tx = new WriteTransaction();
     tx.appendOp(

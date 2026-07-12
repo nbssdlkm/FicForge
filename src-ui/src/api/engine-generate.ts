@@ -65,6 +65,9 @@ export async function* generateChapter(
   // TD-017：vectorRepoFor 返回该 AU 独立引擎（per-AU 隔离）；索引损坏/未建时返回空库（搜索得 0
   // 结果而非抛错），等价旧 e.vectorEngine 空态回退。
   const vectorRepo = await e.ragManager.vectorRepoFor(params.au_path);
+  // E8：别名表供 RAG 活跃角色过滤（build_active_chars）—— 正文/输入只出现别名时主名也进 char_filter，
+  // 与提取/扫描侧共用同一张表。get 异步且永不抛错（无角色卡 → null，char_filter 逐字节回退现状）。
+  const characterAliases = await e.characterAliases.get(params.au_path);
 
   for await (const event of engineGenerateChapter({
     au_id: params.au_path,
@@ -82,6 +85,7 @@ export async function* generateChapter(
     adapter: e.adapter,
     vector_repo: vectorRepo,
     embedding_provider: createEmbeddingProvider(sett, proj),
+    character_aliases: characterAliases,
     signal: options?.signal,
   })) {
     // Yield parsed objects (matching old sseStream format)

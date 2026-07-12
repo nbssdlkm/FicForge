@@ -1107,6 +1107,12 @@ export interface AssembleChatContextParams {
    * 旧调用方 / 测试不传时行为逐字节不变（理由见 EffectiveLLM 文档注释）。
    */
   effective_llm?: EffectiveLLM | null;
+  /**
+   * E8：角色别名表（主名 → 别名列表）。透传给 retrieve_rag_for_context → build_active_chars，
+   * 对话正文/输入只出现别名时活跃角色过滤集也认主名（与写文路径同一张表同一语义）。
+   * 可选 + 缺省 null：无角色卡 / estimate token 路径不传时 char_filter 行为逐字节不变。
+   */
+  character_aliases?: Record<string, string[]> | null;
 }
 
 /**
@@ -1144,6 +1150,7 @@ export async function assemble_chat_context(params: AssembleChatContextParams): 
     embedding_provider,
     language = "zh",
     effective_llm = null,
+    character_aliases = null,
   } = params;
   let { rag_text = null } = params;
 
@@ -1208,6 +1215,7 @@ export async function assemble_chat_context(params: AssembleChatContextParams): 
       llm_config: llm,
       language,
       effective_llm, // H4：ragBudget（≈ctx/4）随实际生效模型的窗口走
+      character_aliases, // E8：对话正文只出现别名时活跃角色过滤集也认主名
     });
     rag_text = rag.ragText;
   }

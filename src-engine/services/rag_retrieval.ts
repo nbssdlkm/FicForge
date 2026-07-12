@@ -388,6 +388,12 @@ export interface RetrieveRagForContextArgs {
    * 行为不变（向后兼容硬约束）。
    */
   effective_llm?: { model?: string; context_window?: number } | null;
+  /**
+   * E8：角色别名表（主名 → 别名列表）。透传给 build_active_chars —— 正文/用户输入只出现别名
+   * 时也能把主名带进活跃角色过滤集，与提取/扫描侧同一张表同一归一化语义。可选 + 缺省 null：
+   * 旧调用方 / 无角色卡的 AU 不传时，char_filter 行为与接通前逐字节一致（向后兼容硬约束）。
+   */
+  character_aliases?: Record<string, string[]> | null;
 }
 
 export async function retrieve_rag_for_context(
@@ -404,10 +410,12 @@ export async function retrieve_rag_for_context(
     llm_config,
     language = "zh",
     effective_llm = null,
+    character_aliases = null,
   } = args;
   try {
     const castReg = project.cast_registry ?? { characters: [] };
-    const activeChars = build_active_chars(state, user_input, project, facts, castReg);
+    // E8：别名表透传 build_active_chars —— 正文只出现别名时主名也进 char_filter（缺省 null = 现状）。
+    const activeChars = build_active_chars(state, user_input, project, facts, castReg, character_aliases);
     // 审计⑥：已归档冷 fact 的 content_clean 不进 RAG 检索 query，避免把召回拉向本应冷藏的旧线
     // （与 build_facts_layer / FOCUS_GOAL 同用 isColdFact 单一真相源）。
     const focusTexts = facts

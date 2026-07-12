@@ -87,6 +87,9 @@ export async function confirmChapter(
   const e = getEngine();
   const { chapter, draft, state, ops, settings } = e.repos;
   const proj = await getProjectOrThrow(auPath);
+  // E8：别名表供 scan_characters_in_chapter 归一化 —— 正文只出现别名时 characters_last_seen 记主名，
+  // 与提取/RAG 侧共用同一张表。get 异步且永不抛错（无角色卡 → null，扫描逐字节回退现状）。
+  const characterAliases = await e.characterAliases.get(auPath);
   // M1a：记录 confirm 前的 index_status。engineConfirmChapter 内部会悲观置 STALE，
   // 增量索引成功后是否升回 READY 取决于 confirm 之前索引是否本就完整（见下方注释）。
   let preConfirmIndexStatus: IndexStatus | null = null;
@@ -101,6 +104,7 @@ export async function confirmChapter(
     draft_id: draftId,
     generated_with: generatedWith as GeneratedWith | undefined,
     cast_registry: proj.cast_registry,
+    character_aliases: characterAliases,
     content_override: content,
     chapter_repo: chapter,
     draft_repo: draft,
@@ -292,6 +296,9 @@ export async function undoChapter(auPath: string) {
   const e = getEngine();
   const { chapter, draft, state, ops, fact, chapterSummary } = e.repos;
   const proj = await getProjectOrThrow(auPath);
+  // E8：别名表供 undo 的 characters_last_seen 回滚 —— 快照缺失走全量重扫时（rebuildCharactersLastSeen）
+  // 别名归一化记主名，与 confirm 侧同源。get 永不抛错（无角色卡 → null，重扫逐字节回退现状）。
+  const characterAliases = await e.characterAliases.get(auPath);
   // H9a：记录 undo 前的 index_status。undo 服务内部会悲观置 STALE（10 步级联，golden 逻辑不动）；
   // 向量删除不需要 embedding，删除成功后索引即与剩余章节一致，可恢复原状态。
   let preUndoIndexStatus: IndexStatus | null = null;
@@ -303,6 +310,7 @@ export async function undoChapter(auPath: string) {
   const result = await undo_latest_chapter({
     au_id: auPath,
     cast_registry: proj.cast_registry,
+    character_aliases: characterAliases,
     chapter_repo: chapter,
     draft_repo: draft,
     state_repo: state,
@@ -359,13 +367,18 @@ export async function updateChapterTitle(auPath: string, chapterNum: number, tit
 }
 
 export async function resolveDirtyChapter(auPath: string, chapterNum: number, confirmedFactChanges: FactChange[] = []) {
-  const { chapter, state, ops, fact } = getEngine().repos;
+  const e = getEngine();
+  const { chapter, state, ops, fact } = e.repos;
   const proj = await getProjectOrThrow(auPath);
+  // E8：脏章重解析同样重扫正文更新 characters_last_seen（resolve_dirty_chapter 内部走
+  // scan_characters_in_chapter）—— 别名归一化记主名，与 confirm/undo 同源一致。get 永不抛错。
+  const characterAliases = await e.characterAliases.get(auPath);
   return await resolve_dirty_chapter({
     au_id: auPath,
     chapter_num: chapterNum,
     confirmed_fact_changes: confirmedFactChanges,
     cast_registry: proj.cast_registry,
+    character_aliases: characterAliases,
     chapter_repo: chapter,
     state_repo: state,
     ops_repo: ops,

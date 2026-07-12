@@ -69,6 +69,9 @@ export async function* dispatchSimpleChat(
   // TD-017：vectorRepoFor 返回该 AU 独立引擎；缺此步时对话的 P4 RAG 层会静默返回空，
   // 「对话与写文共用同一记忆栈」的承诺在 RAG 这层会漏。索引未建 → 返回空库、不阻断对话。
   const vectorRepo = await e.ragManager.vectorRepoFor(params.au_path);
+  // E8：别名表供 RAG 活跃角色过滤（与 engine-generate.ts 对称）—— 对话正文/输入只出现别名时主名也进
+  // char_filter。get 异步且永不抛错（无角色卡 → null，char_filter 逐字节回退现状）。
+  const characterAliases = await e.characterAliases.get(params.au_path);
 
   for await (const ev of dispatch_simple_chat({
     au_id: params.au_path,
@@ -84,6 +87,7 @@ export async function* dispatchSimpleChat(
     threads,
     vector_repo: vectorRepo,
     embedding_provider: createEmbeddingProvider(sett, proj),
+    character_aliases: characterAliases,
     chapter_repo: e.repos.chapter,
     draft_repo: e.repos.draft,
     adapter: e.adapter,

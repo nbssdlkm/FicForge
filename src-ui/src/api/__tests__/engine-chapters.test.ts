@@ -544,3 +544,42 @@ describe("engine-chapters 回顾 Phase2 CAS 比对 content_hash（审计⑤）",
     expect(commitSpy).toHaveBeenCalledOnce();
   });
 });
+
+describe("engine-chapters confirmChapter 别名归一化 characters_last_seen（E8）", () => {
+  let auPath: string;
+
+  beforeEach(async () => {
+    vi.restoreAllMocks();
+    initEngine(new MockAdapter(), "/data");
+    const fandom = await createFandom("Naruto");
+    const au = await createAu(fandom.name, "Canon", fandom.path);
+    auPath = au.path;
+    // 正文只出现别名「小昭」，主名「林昭」一次未字面出现 —— embedding/LLM 均未配 → 只跑核心 scan+state。
+    await getEngine().repos.draft.save(
+      createDraft({ au_id: auPath, chapter_num: 1, variant: "A", content: "小昭独自走进了房间。\n\n她合上了门。" }),
+    );
+  });
+
+  it("正文只含别名「小昭」（表：林昭→[小昭]）→ confirm 后 characters_last_seen 记主名「林昭」", async () => {
+    vi.spyOn(getEngine().characterAliases, "get").mockResolvedValue({ 林昭: ["小昭"] });
+
+    await confirmChapter(auPath, 1, "ch0001_draft_A.md");
+
+    const st = await getEngine().repos.state.get(auPath);
+    // 记主名，章号=1；别名本身不入表
+    expect(st.characters_last_seen).toHaveProperty("林昭");
+    expect(st.characters_last_seen["林昭"]).toBe(1);
+    expect(Object.hasOwn(st.characters_last_seen, "小昭")).toBe(false);
+  });
+
+  it("null 表（无角色卡）对照：正文含别名但不归一化，主名与别名都不入表（逐字节回退接通前）", async () => {
+    vi.spyOn(getEngine().characterAliases, "get").mockResolvedValue(null);
+
+    await confirmChapter(auPath, 1, "ch0001_draft_A.md");
+
+    const st = await getEngine().repos.state.get(auPath);
+    // 空 registry + null 表 → scan 无命中 → characters_last_seen 里既无主名也无别名
+    expect(Object.hasOwn(st.characters_last_seen, "林昭")).toBe(false);
+    expect(Object.hasOwn(st.characters_last_seen, "小昭")).toBe(false);
+  });
+});

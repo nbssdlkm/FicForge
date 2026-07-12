@@ -136,6 +136,11 @@ export interface GenerateChapterParams {
   embedding_provider?: EmbeddingProvider;
   /** 预计算的 RAG 文本，传入则跳过内部 RAG。 */
   rag_text?: string | null;
+  /**
+   * E8：角色别名表（主名 → 别名列表）。透传给 retrieve_rag_for_context → build_active_chars，
+   * 正文/输入只出现别名时活跃角色过滤集也认主名。可选 + 缺省 null（无角色卡 / 旧调用方逐字节不变）。
+   */
+  character_aliases?: Record<string, string[]> | null;
   language?: string;
   signal?: AbortSignal;
   /** 测试用：注入 mock provider，跳过 create_provider。 */
@@ -158,6 +163,7 @@ export async function* generate_chapter(params: GenerateChapterParams): AsyncGen
     adapter,
     vector_repo,
     embedding_provider,
+    character_aliases = null,
     language = "zh",
   } = params;
   let { character_files = null, worldbuilding_files = null, rag_text = null } = params;
@@ -215,6 +221,7 @@ export async function* generate_chapter(params: GenerateChapterParams): AsyncGen
         llm_config: llmConfig,
         language,
         effective_llm: llmConfig, // H4：ragBudget 按实际生效模型的窗口算
+        character_aliases, // E8：正文只出现别名时活跃角色过滤集也认主名
       });
       if (rag.ragText) {
         rag_text = rag.ragText;

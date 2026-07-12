@@ -95,6 +95,28 @@ describe("build_active_chars", () => {
     expect(result).toContain("热角色");
     expect(result).not.toContain("冷角色");
   });
+
+  it("E8：输入只出现别名「小昭」→ 别名表把主名「林昭」带进活跃角色过滤集", () => {
+    const withTable = build_active_chars(
+      { current_chapter: 1 },
+      "小昭独自走进房间",
+      {},
+      [],
+      { characters: ["林昭"] },
+      {
+        林昭: ["小昭"],
+      },
+    );
+    expect(withTable).toContain("林昭");
+    // 记的是主名，不是别名
+    expect(withTable).not.toContain("小昭");
+  });
+
+  it("E8 对照：不传别名表（null）→ 只出现别名时主名不进过滤集（与接通前逐字节一致）", () => {
+    const noTable = build_active_chars({ current_chapter: 1 }, "小昭独自走进房间", {}, [], { characters: ["林昭"] });
+    // 「林昭」未在输入中字面出现、无别名归一化，且无最近出场/焦点/核心角色 → 整体降级 null（全局检索）
+    expect(noTable).toBeNull();
+  });
 });
 
 describe("retrieve_rag", () => {
@@ -311,5 +333,56 @@ describe("retrieve_rag_for_context (融合:RAG 编排单一真相源)", () => {
     });
     expect(res.ragText).toBeNull();
     expect(res.chunks).toEqual([]);
+  });
+
+  // E8：别名表透传链 —— retrieve_rag_for_context → build_active_chars → retrieve_rag → search 的 char_filter。
+  // 捕获传给 vector_repo.search 的 char_filter 证明主名进过滤集（可过滤 collection），并给 null 对照。
+  function makeFilterCapturingRepo(seen: (string[] | null)[]): VectorRepository {
+    return {
+      async search(_au_id: string, _embedding: number[], options: SearchOptions): Promise<SearchResult[]> {
+        seen.push(options.char_filter ?? null);
+        // 返回 2 条：避开 search_collection 「<2 条 + 有 char_filter → null 全局回退」的二次查询干扰断言
+        return [
+          { content: "c1", chapter_num: 3, score: 0.9, metadata: {} },
+          { content: "c2", chapter_num: 2, score: 0.8, metadata: {} },
+        ].slice(0, options.top_k);
+      },
+      async index_chunks(_c: VectorChunk[]) {},
+      async delete_by_chapter() {},
+      async delete_by_source() {},
+      async rebuild_index() {},
+      async get_index_status() {
+        return IndexStatus.READY;
+      },
+    };
+  }
+
+  it("E8：传别名表 → 正文只含别名「小昭」时 char_filter 认主名「林昭」（可过滤 collection）", async () => {
+    const seen: (string[] | null)[] = [];
+    await retrieve_rag_for_context({
+      ...baseArgs,
+      project: { ...baseArgs.project, cast_registry: { characters: ["林昭"] } },
+      user_input: "小昭出现了",
+      facts: [],
+      vector_repo: makeFilterCapturingRepo(seen),
+      embedding_provider: mockEmbedding,
+      character_aliases: { 林昭: ["小昭"] },
+    });
+    // characters / worldbuilding / chapters 三个可过滤 collection 至少一处 char_filter 含主名 林昭
+    expect(seen.some((f) => f?.includes("林昭"))).toBe(true);
+  });
+
+  it("E8 对照：不传别名表 → char_filter 不含主名（只出现别名时活跃集为空，逐字节回退现状）", async () => {
+    const seen: (string[] | null)[] = [];
+    await retrieve_rag_for_context({
+      ...baseArgs,
+      project: { ...baseArgs.project, cast_registry: { characters: ["林昭"] } },
+      user_input: "小昭出现了",
+      facts: [],
+      vector_repo: makeFilterCapturingRepo(seen),
+      embedding_provider: mockEmbedding,
+    });
+    // 无别名归一化 → activeChars 全局 null → 所有 collection 的 char_filter 均为 null
+    expect(seen.every((f) => f === null || !f.includes("林昭"))).toBe(true);
   });
 });

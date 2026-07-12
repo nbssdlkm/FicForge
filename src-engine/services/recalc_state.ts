@@ -32,6 +32,9 @@ export async function recalc_state(
   chapter_repo: ChapterRepository,
   project_repo: ProjectRepository,
   fact_repo?: FactRepository | null,
+  // 别名归一化表（E8）：全量重扫必须与 confirm/undo 同表，否则「重算状态」会把
+  // confirm 已按主名记录的 characters_last_seen 冲回别名盲状态（真回归）。null = 无表回退现状。
+  character_aliases: Record<string, string[]> | null = null,
 ): Promise<RecalcResult> {
   // 读取 state
   let state: Awaited<ReturnType<StateRepository["get"]>>;
@@ -86,7 +89,7 @@ export async function recalc_state(
     if (!ch.content) continue;
     chaptersScanned++;
 
-    const scanned = scan_characters_in_chapter(ch.content, castRegistry, null, ch.chapter_num);
+    const scanned = scan_characters_in_chapter(ch.content, castRegistry, character_aliases, ch.chapter_num);
     for (const [charName, chNum] of Object.entries(scanned)) {
       if (chNum > (newCharactersLastSeen[charName] ?? 0)) {
         newCharactersLastSeen[charName] = chNum;
