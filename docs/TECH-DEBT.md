@@ -459,3 +459,48 @@ Codex Phase 7 audit 报告说 facts lifecycle "完全实现"——它看到 `col
 2. **load 世代号 CAS**：`load()` 时自增 generation，`index_chunks` / `persist` 前校验 generation 未变，变了则重新 `ensureLoaded` 后重试（或丢弃本次并上报）。改动小但每个索引路径都要补校验点，漏一处就回到原状（与 `indexChapterSummary` 现有的「补一次 re-ensureLoaded」同属打补丁思路）。
 
 **测试建议：** 判别性并发测试 —— AU1 `indexChapter` 的 embed 挂起期间并发 `ensureLoaded(AU2)`，断言 AU1 的 `.vectors/index.json` 不含 AU2 chunk（回退单例共享即挂）。
+
+---
+
+## TD-018: vite 8 / @vitejs/plugin-react 6 大版本升级（有意延期）
+
+**状态:** ⏳ 未排期（E7 2026-07-12 裁决延期）
+**优先级:** 低（devDependencies，构建工具链，无安全面——esbuild 漏洞已在 7.x 线内修复）
+**涉及文件:** `src-ui/package.json`
+
+E 批出「干净分发版本」前夕不动打包器：大版本升级含 breaking（插件 API/构建产物），
+回归成本（PWA/Tauri/Capacitor 三壳构建全验）远超收益。择期独立批次升级 + 三壳构建回归。
+
+## TD-019: UI a11y 债（129 处 warn 白名单挂账）
+
+**状态:** ⏳ 未排期（E1 2026-07-12 记账）
+**优先级:** 低-中（真实用户产品应还，但非功能缺陷）
+**涉及文件:** biome.json（8 条 a11y 规则降 warn 白名单）+ 全 UI 组件
+
+E1 落地 Biome 时 a11y 规则组报 129 错（noLabelWithoutControl 78 / useButtonType 25 /
+useKeyWithClickEvents 20 等），属审计范围外新标准，降 warn 挂账防失守。独立批次还：
+先机械件（useButtonType 加 type 属性），再逐组件件（label 关联/键盘可达）。
+
+## TD-020: 别名归一化的索引侧与导入侧缺口（E8 评估后另卡）
+
+**状态:** ⏳ 未排期（E8 2026-07-12 评估记账）
+**优先级:** 低-中（常见情形已被查询侧接通覆盖）
+**涉及文件:** `src-engine/vector/chunker.ts`、`src-engine/services/rag_manager.ts`、`src-ui/src/api/engine-import.ts`
+
+E8 已接通查询侧（rag build_active_chars）与扫描侧（confirm/undo/dirty/recalc 五点供表）。
+剩两个缺口：①chunk 的 characters metadata 建于别名盲扫描——**通篇只用别名**的 chunk
+metadata 为空，char_filter 命中不了（部分被 <2 条全局回退兜住）；改造需把表串入
+chunker→indexChapter 全链 **并重建存量向量库**（贵，故另卡）。②import_pipeline 参数位
+已铺但未供表：导入时目标 AU 角色卡可能随同一 bundle 尚未落地，供表时机有序性需单独设计。
+
+## TD-021: 工具参数 schema 双声明 + frontmatter 写侧双序列化（E2/E5 收敛后残余面）
+
+**状态:** ⏳ 未排期（低息）
+**优先级:** 低
+**涉及文件:** `src-engine/domain/settings_tools.ts` vs `simple_tools_zod.ts`；`src-ui/.../frontmatter-utils.ts`（块式）vs `lore-utils.setAliasesInContent`（流式）
+
+E2 已把 importance 枚举等**值**单源化，但 create_character_file 的必填/可选**字段清单**
+仍在 JSON Schema 与 Zod 各声明一遍（真派生 = zod v4 z.toJSONSchema，但 schema 文本
+直接进 LLM prompt，改动有生成行为面，需金标捕获后做）。frontmatter 写侧同理：读侧已
+全委托引擎，写侧仍两份手写序列化（技法已对齐 JSON.stringify 引号），统一到真 YAML
+序列化待独立小批。

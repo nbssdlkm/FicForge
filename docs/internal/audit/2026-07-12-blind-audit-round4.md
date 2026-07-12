@@ -283,3 +283,99 @@
 - 本报告与发现均由 9 个并行盲审员（opus）产出；主审仅做 HIGH 实证核验（3/3 坐实）、异常裁定（盲区泄漏嫌疑排除 ×1、审员间矛盾裁定 ×1）、去重复核（0 合并、3 同根注）、打分与盲对照，未增删实质发现。打分封板前主审未读任何历史报告。
 - 测试基线（审前）：引擎 1467 passed +3 skipped、UI 585 passed、双 tsc 0 错、i18n 1284 键对称。
 - 发现只报不修，等用户拍板。
+
+---
+---
+
+# E 批修复战役（第四轮发现 → 全量治本，2026-07-12，16 commit 未 push）
+
+用户拍板「能修的都修、往治本做、出干净版本可构建分发」→ loop 修-审-修循环跑完
+E1-E10。每批：修复 → 双 tsc + 全测试绿 → 对抗审（opus 全批 + chi codex 于
+E2/E3/E4/E5 加一路聚焦审）→ 整改 → commit。审出即改的整改累计 ~20 条
+（含 codex E2 HIGH 引号键分歧、opus E5 MED \$-替换注入实证、E4 用户点名的
+visibility 深审 2 MED 等）。
+
+## 批次与 commit
+
+| 批 | commit | 内容 | 对抗审 |
+|----|--------|------|--------|
+| 审计 | b2de3d3 | R4 报告 + PROGRESS 对账 | — |
+| E1 | f037ef8 / 02af1d9 / bf4c7f0 / 4d1dea8 | Biome 2.5.3 工具链（机制枪①）+ 451 文件格式化（blame-ignore）+ 违例清零 + tsconfig ES2022 | opus safe-with-nits（1 LOW 采纳） |
+| E2 | e6369ff | 单源化 18 项（重复 7M+3L + 架构 M3/M4 + revision 勘误） | opus safe-with-nits + codex needs-fix→HIGH 采纳（safeMatter 单源判定门） |
+| E3 | 753b0d2 | lore/fandom 下沉引擎（机制枪②，架构 HIGH）——UI 585 测试零改动=行为锁 | opus 16 函数逐字节等价核证 + codex 两轮交叉 |
+| E4 | 96bab93 | dispatch 拆分 / FactsLayout 下沉 / 双执行器合流（抓获真漂移 bug）/ setX 动词化 / visibility 收编（用户点名深审） | opus safe-with-nits（D+ 六点全过，2 MED 采纳）+ codex MED 有条件过（全采纳） |
+| E5 | d308268 | 长尾 15 项 + 别名 YAML 序列化根治（含 \$ 注入连带修复） | opus PASS（2 MED 采纳）+ codex snapshot 聚焦（不变量成文采纳） |
+| E6 | b1463fe | 测试批 UI +40（api 直测/mock 工厂/空转断言/memo/hooks） | 主审抽查（真引擎路径，无测-mock 反模式） |
+| E7 | e50fc1d | 依赖清理 + 漏洞归零 + lockfile 官方源重生成（R3-M12 销账） | 主审复核（npmmirror 0/0、audit 0/0、生产构建过） |
+| E8 | 19de6ef | rag/scan 别名接通（五点供表 + recalc 回归风险修复） | 主审复核 + 判别测试 null 对照组 |
+| E9 | 7a729ca | 110 函数 snake→camel（153 文件）+ 命名围栏 + R3-M10 | 主审靶向复核（op_type 数据串与 HEAD 逐串比对一致） |
+
+## 终验（E10）
+
+双 tsc 0 / 引擎 **1506 passed + 3 skipped**（较战前基线 +39）/ UI **635**（+50）/
+双包 lint 0 error（围栏常驻：函数命名 + noExplicitAny + noConsole + hooks 规则）/
+双包 npm audit 0 / i18n 1287 键对称 / vite 生产构建成功（PWA sw 产出）/
+preview 冒烟（图书馆 → AU 工作区双 tab → 剧情笔记 → 设定页）全程 console 零错误。
+
+## 48 条发现逐条对账
+
+**正确性（4L）**：L1 atomicWrite 绕过→E5 修复；L2 snapshot 时序→E5 修复（重排 +
+at-least-once 不变量 + 双向窗口测试）；L3 Object.prototype 键→E5 修复（Object.hasOwn
+×3 + 判别测试）；L4 rag 别名→E8 接通（查询侧 + 扫描侧五点；索引侧另卡 TD-020）。
+
+**安全（1M+2L）**：M1 CSP http: 通配→E5 收窄 localhost + 告警/注释随翻案收尾；
+L1 web 明文回退→E5 补 CustomProviderModal 告警缺口；L2 style-src unsafe-inline→
+**裁决保留**（framer-motion/React inline style 依赖，script-src 已锁）。
+
+**功能（1M+3L）**：M1 硬编码中文→E5 全 t() 化（3 新键 en/zh + createButton 复用）；
+L1 DOCX 死桩→E5 删除；L2 local 死分支→E5 删除（含死 setter）；L3 coming_soon→
+**裁决保留**（扩展点，JSDoc 注明）。
+
+**测试（1M+4L）**：M1 api 层零直测→E6 +20 判别测试；L1 mock 工厂漂移→E6 收编
+23 文件；L2 toBeTruthy 空转→E6 95 处换实质断言；L3 memo 假测试→E6 渲染计数法；
+L4 hooks 无测试→E6 +15（含 30 分钟外的两项也补了）。
+
+**架构（1H+4M+2L）**：H1 lore/fandom UI 直连→E3 下沉引擎（两 service + 路径安全
+回归 + 失效收口引擎内化）；M2 dispatch 1091 行→E4a 拆 4 文件（823+3）；M3
+project.yaml 字面量→E2 常量化 13 处（+FANDOM_YAML 同族）；M4 frontmatter 裸正则→
+E2 引擎 splitFrontmatterRaw（safeMatter 单源判定）三处委托；M5 document 直依赖→
+E4b visibility 收编 PlatformAdapter（fonts/registry **裁决保留**：浏览器实现层本体）；
+L1 FactsLayout 896 行→E4b 拆 6 文件 + 5 回归测试；L2 setX 入参→E4b 动词化 5 个。
+
+**重复（7M+3L）**：M1 dictToLLMConfig→E2 单源；M2 双执行器→E4b 合流（翻案，
+抓获简版漏 sanitize 真漂移）；M3 工具契约三处→E2 枚举单源（字段清单双声明残余
+记 TD-021）；M4 narrative_weight/fact-type→E2 枚举成员化 8 处；M5 模型参数默认→
+E2 createModelParams 单源 + isFinite 门；M6 DraftGeneratedWith→E2 类型别名化；
+M7 dictToProject→E2 条件展开 + revision **勘误**（有意读写约定，ON_DISK_DEFAULT_REVISION
+常量五映射器统一）；L1 rag 衰减→E2 decayAndSortByRecency；L2 resolveLang→E2 单源
+严格化；L3 frontmatter 双正则→E2 同 M4 收敛。
+
+**规范（2H+1M+4L）**：H1 无 lint 工具链→E1 Biome 落地 + 四类围栏常驻；H2
+snake/camel→E9 110 函数全量收敛 + useNamingConvention 围栏；M1 引号分裂→E1
+格式化归一（双引号）；L1 组件定义风格→**裁决保留**（Biome 无此规则，纯观感）；
+L2 裸 catch{}→E5 注释补齐；L3 any 逃逸→E1 清零 + noExplicitAny 围栏；L4 fandoms
+单复数→E2 rename 统一。
+
+**依赖（5L）**：L1 esbuild→E7 audit fix 归零（三轮挂账闭环）；L2 @types/js-yaml→
+E7 移除；L3 plugin 零 import→E7 npm 侧移除（Rust 侧归构建机卡）；L4 vite major→
+**裁决延期**（TD-018，分发前夕不动打包器）；L5 minor/patch→E7 拉齐。
+
+**日志（3L）**：L1 warnUi 未脱敏→E5 对齐 logCatch 口径；L2 .catch(()=>null)→E5
+swallowToNull 18 处（失败开始留痕）；L3 minLevel→E5 环境分级。
+
+**合计：修复/接通 42 条，裁决保留 5 条（style-src / coming_soon / fonts document /
+组件风格 / vite 延期——理由全部在案），部分修复 + 另卡 1 条（rag 别名索引侧）。**
+超出 48 条的顺手治本：R3-M10（auPath 参数）、R3-M12（lockfile 镜像）、别名 YAML
+序列化已知卡、E1 审出的 chip 撞 key、opus 实证的 \$-替换注入、E8 审出的 recalc
+别名回归风险、initEngine 订阅泄漏——共 7 项。
+
+## 教训与机制沉淀
+
+1. **给 codex 喂 diff 必带 untracked 文件**（E3 首轮误判 HIGH 阻断即因 git diff
+   不含新文件；补料后两轮交叉闭环）。
+2. **仓库根裸 npx biome 是假 shim**（静默 exit 0）——lint 验证一律逐包 `npm run lint`
+   或显式 binary 路径（INTEGRATION_CHECKLIST 应记）。
+3. 双份维护的「理论漂移风险」会变现：双执行器合流当场抓获简版漏 sanitize；
+   revision「漂移」反向勘误证明**收敛前必须考证语义**，不是无脑统一。
+4. 围栏 > 人肉：四类 Biome 围栏（命名/any/console/hooks）+ 判别测试，把 R2 起
+   三轮应验的「修一批长一批」闸死在提交时。
