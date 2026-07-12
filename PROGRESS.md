@@ -38,11 +38,11 @@
 ## 待办
 
 ### 需要人工（真机/异机，代码无法覆盖）
-- [ ] **D 批修复战役 push**（9 commit `5240bb5`→`f7ec38c`，本地 main，origin 未 push，等人工确认）
+- [ ] **push 总账（2026-07-12 核对）**：本地 main 领先 origin **30 个 commit**（origin/main 停在 `3c968cf` 2026-07-10 设计文档）——含第二轮盲审报告、B 批 ×8、C 批 ×7、第三轮盲审、D 批 ×9、M3 三批 ×3 及审计文档；全部各自过对抗审，等人工发话一次性 push
 - [x] **M3 产品拍板**（2026-07-11 已拍板并开工）：三字段建功能，分三批。方向修正：hidden_from 不是 POV 门控，是**角色知情边界**（与人称无关）——批一 = 知情标注注入（行尾人话标注 + 条件图例 + 提示式不硬藏）+ 人工可见可改（确认弹窗/卡片只读 chips + 编辑弹窗四态编辑 + 人改升 high 必生效）+ edit_fact 消毒硬化；批二 = story_time_order 同章内呈现排序；批三 = story_time_tag 卡片小标签。spec：`docs/superpowers/specs/2026-07-11-m3-fact-consumption-handoff.md` + 本会话四路实施前调查。**三批全部交付（见当前状态前两条）；剩余=别名表接通（独立会话进行中）**
 - [ ] **M12 环境侧**：构建机上用官方 registry 重生成双包 lockfile（现混用 registry.npmmirror.com，破坏海外/CI 可复现安装）
-- [ ] **盲审修复批 push**（已分 5 commit 提交并合本地 main `647e67c`，origin 未 push，等人工确认）
-- [ ] **长期债③测试批合入**（分支 `claude/zen-ramanujan-3e370b` 1 commit：10 测试文件 + PROGRESS，已过对抗审 + 变异验证，等人工说「合并」）
+- [x] ~~盲审修复批 push~~（2026-07-12 核对：`647e67c` 已在 origin/main，此条早已完成）
+- [x] ~~长期债③测试批合入~~（2026-07-12 核对：分支已删、测试已在 main——引擎/UI 现行总数即含它们）
 - [ ] Tauri 壳收权冒烟（盲审修复引入）：CSP 开启后桌面端全流程 + 导出到任意路径（依赖 v2 对话框自动入 scope）；构建机上顺手移除 tauri-plugin-http 的 Rust 注册 + npm 依赖（前端零调用）
 - [ ] 真机日常写作流验证：改配置立即生效、切 tab 生成存活、PWA 更新横幅、iOS 刘海 safe-area、离线冷启动、低端机流式帧率
 - [ ] 真 key 端到端**实跑** LLM 旅程剩项：backfill 实跑（本机浏览器够不到硅基流动 embedding，走代理才通）+ 自定义 chatPath 网关 + 纯 UI 点击层
