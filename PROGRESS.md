@@ -5,6 +5,8 @@
 
 ## 当前状态（2026-07-09/11）
 
+**2026-07-11 M3 批一：知情边界消费端落地（1 commit 未 push，等确认；批二时间线排序/批三时间标签待做）**：方向经用户纠偏——hidden_from 不是 POV 门控而是**角色知情边界**（与人称无关）。①注入端：known_to 迁出 enrichment suffix、与新增的 hidden_from 一起由 `build_fact_knowledge_clause` 人话渲染（「仅X知道/仅读者知/瞒着X」，all/null/[] 不渲染，置信度门控与 suffix 共用）；INFO_ASYMMETRY_RULES 图例仅当有标注行时注入（无标注 AU 逐字节不变，golden 安全绳 + 变异验证×3 击杀）；P1 焦点/特别注意行同步带标注；写文/对话经 run_memory_layer_cascade 单源同吃。②人工可见可改：FactAnnotationChips 单源组件进 FactCard/ExtractReviewModal（一处覆盖写文/对话/笔记页三条确认路径）/DirtyModal 自画卡；编辑器新增知情四态+双名单（ChipListInput 从 AuLore 别名胶囊抽 shared 共用，state 住 useFactEditor、防串条+fact 级竞态门）；人改字段引擎自动升 confidence=high（「人改必然注入」的技术落点）。③治本：`domain/fact_sanitize.ts` 单源消毒（known_to/hidden_from/_confidence + reconcile_knowledge 矛盾化解「瞒着方胜」）接入 add/rawToExtracted/edit_fact/ops 回放四处；edit_fact 拒外部直写 _confidence + 同值编辑跳过 + 空编辑早退（根治 revision 空转）；删死影子 FactInfo、ThreadDetail「仅读者知」收敛 enums.known_to 单源。**双路对抗审**：opus=safe-with-nits 零高中危（4 LOW 裁决：P1 无图例边缘=接受、legacy 归一化 op=良性、注释措辞=不改、别名归一化=已立独立任务卡）；chi 远程 codex（gpt-5.6-sol）=needs-fix 1H+3M+2L——HIGH（add 快照回放消毒）**有据驳回**（factFromPayload 与 dictToFack 逐字对齐、更激进消毒反破 rebuild==disk 平价，已加平价锁定测试）、3 MED+2 LOW 全部采纳整改（同值编辑落 op/误升 high、known_to∩hidden_from 矛盾无校验、保存竞态串条、some 空名单模式不同步、保留字 trim）。终验：引擎 1403→**1432**、UI 561→**573** 全绿、双 tsc 0、i18n 1273→**1284** 对称、preview 桌面+移动实机全旅程（含矛盾化解回落）零 console 报错。待办：批二 story_time_order 同章内呈现排序、批三 story_time_tag 卡片标签、别名表接通（任务卡已挂）。
+
 **2026-07-11 D 批修复战役（第三轮发现治本，9 commit 未 push，等确认）**：用户拍板「继续修+审阅循环」→ 对第三轮 2 HIGH + 13 M 全量评估，**能治本的治本、判断/产品/环境类以裁决收尾**。**已治本 9 项**（7 commit）：D1 `5240bb5` confirm 丢章根治（chapters 失败门控 drafts/state）/ D2 `dc736d5` 恶意 bundle 泄漏全局 key 根治（同源门 + api 空 base 报错 + chat_path 宿主注入拦截 + bundle 消毒改解析式 + 文件名归一化）/ D3 `7dd8a92` cast_registry 双写竞态（共享 project.yaml 文件叶锁，避锁序反转死锁）+ 覆盖导入回滚缺章 / D4 `d7905ba` 路径穿越守卫 + inflight 释放测试 / D5 `51c6995` 事实提取静默吞错补 logCatch / D6 `4d68a86` GeneratedWith↔YAML + toCanonicalCreateKey 单源化 / D7 `f7ec38c` 记忆层预算级联单源化（P0 高风险，byte-identical 对抗审）。每批过 opus 独立对抗审（累计 6 路 + 采纳整改约 9 条）。终验：引擎 1361→1403、UI 558→561、双 tsc 0、i18n 1273 对称、工作区干净。**5 M + 24 L 以裁决收尾**（有意不修、理由在案，详见审计文件「D 批」段）：M3 写而不读字段=**待用户拍板**（建 POV/时间线功能 vs 删规划脚手架，决策五段在审计文件末尾）；M6 双工具执行器=既有「平行不合并」裁决；M10 file_thread/summary 的 auPath=C6 第二层记账（长期债①）；M11 simple_chat camelCase=破坏持久化的深度改名（长期债①）；M12 lockfile 镜像 registry=环境产物构建机侧做。报告全录：`docs/internal/audit/2026-07-11-blind-audit-round2.md`「D 批修复战役」段。
 
 
@@ -35,7 +37,7 @@
 
 ### 需要人工（真机/异机，代码无法覆盖）
 - [ ] **D 批修复战役 push**（9 commit `5240bb5`→`f7ec38c`，本地 main，origin 未 push，等人工确认）
-- [ ] **M3 产品拍板**：写而不读字段（hidden_from / story_time_order / story_time_tag）—— 建 POV 门控 + 时间线排序功能 vs 停止提取删规划脚手架（决策五段见审计文件末尾）
+- [x] **M3 产品拍板**（2026-07-11 已拍板并开工）：三字段建功能，分三批。方向修正：hidden_from 不是 POV 门控，是**角色知情边界**（与人称无关）——批一 = 知情标注注入（行尾人话标注 + 条件图例 + 提示式不硬藏）+ 人工可见可改（确认弹窗/卡片只读 chips + 编辑弹窗四态编辑 + 人改升 high 必生效）+ edit_fact 消毒硬化；批二 = story_time_order 同章内呈现排序；批三 = story_time_tag 卡片小标签。spec：`docs/superpowers/specs/2026-07-11-m3-fact-consumption-handoff.md` + 本会话四路实施前调查。**批一已交（见当前状态首条），批二/批三待做**
 - [ ] **M12 环境侧**：构建机上用官方 registry 重生成双包 lockfile（现混用 registry.npmmirror.com，破坏海外/CI 可复现安装）
 - [ ] **盲审修复批 push**（已分 5 commit 提交并合本地 main `647e67c`，origin 未 push，等人工确认）
 - [ ] **长期债③测试批合入**（分支 `claude/zen-ramanujan-3e370b` 1 commit：10 测试文件 + PROGRESS，已过对抗审 + 变异验证，等人工说「合并」）

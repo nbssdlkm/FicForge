@@ -17,7 +17,6 @@
 import { FactSource, FactStatus, FactType, NarrativeWeight, TimeKind, SuspenseType } from "../domain/enums.js";
 import type { Fact } from "../domain/fact.js";
 import { createFact } from "../domain/fact.js";
-import type { FactFieldConfidence } from "../domain/fact.js";
 import { createOpsEntry } from "../domain/ops_entry.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
@@ -25,6 +24,18 @@ import type { StateRepository } from "../repositories/interfaces/state.js";
 import { generate_fact_id, generate_op_id, now_utc } from "../utils/file_utils.js";
 import { WriteTransaction } from "./write_transaction.js";
 import { hasLogger, getLogger } from "../logger/index.js";
+import {
+  normalize_characters,
+  sanitize_known_to,
+  sanitize_hidden_from,
+  sanitize_confidence,
+  reconcile_knowledge,
+  CONFIDENCE_FIELD_KEYS,
+} from "../domain/fact_sanitize.js";
+
+// 归一化函数已下沉 domain/fact_sanitize（M3 批一：写路径与 ops 回放共用消毒判据）。
+// 这里保留 re-export，既有导入点（facts_extraction 等）零改动。
+export { normalize_characters };
 
 export class FactsLifecycleError extends Error {
   constructor(message: string) {
@@ -39,42 +50,6 @@ export class FactsLifecycleError extends Error {
 
 const TIME_KIND_SET   = new Set(Object.values(TimeKind)    as string[]);
 const SUSPENSE_SET    = new Set(Object.values(SuspenseType) as string[]);
-
-// ---------------------------------------------------------------------------
-// 别名归一化（大小写不敏感。LLM 输出和手动编辑都可能大小写不一致。）
-// ---------------------------------------------------------------------------
-
-/**
- * 将角色名按别名表归一化为正式名。大小写不敏感。
- * 同时被 facts_lifecycle（手动编辑路径）和 facts_extraction（LLM 提取路径）使用。
- */
-export function normalize_characters(
-  characters: string[],
-  character_aliases: Record<string, string[]> | null,
-): string[] {
-  if (!character_aliases || Object.keys(character_aliases).length === 0) {
-    return characters;
-  }
-
-  const aliasMap = new Map<string, string>();
-  for (const [mainName, aliases] of Object.entries(character_aliases)) {
-    aliasMap.set(mainName.toLowerCase(), mainName);
-    for (const alias of aliases) {
-      aliasMap.set(alias.toLowerCase(), mainName);
-    }
-  }
-
-  const result: string[] = [];
-  const seen = new Set<string>();
-  for (const name of characters) {
-    const main = aliasMap.get(name.toLowerCase()) ?? name;
-    if (!seen.has(main)) {
-      result.push(main);
-      seen.add(main);
-    }
-  }
-  return result;
-}
 
 // ---------------------------------------------------------------------------
 // 悬空 ID 级联清理
@@ -204,15 +179,16 @@ export async function add_fact(
   const rawTimeKind    = fact_data.time_kind    as string | undefined;
   const rawSuspense    = fact_data.suspense_type as string | undefined;
 
-  // M8-A: known_to — 数组分支先 filter 非字符串元素，再归一化角色名（与 rawToExtracted 对齐）
-  let knownTo: "all" | "reader_only" | string[] | null = null;
-  const rawKnownTo = fact_data.known_to;
-  if (typeof rawKnownTo === "string") {
-    knownTo = rawKnownTo as "all" | "reader_only";
-  } else if (Array.isArray(rawKnownTo)) {
-    const filtered = (rawKnownTo as unknown[]).filter((x) => typeof x === "string") as string[];
-    knownTo = character_aliases ? normalize_characters(filtered, character_aliases) : filtered;
-  }
+  // M8-A: known_to / hidden_from — 单一真相源消毒（domain/fact_sanitize，M3 批一）。
+  // add 语境形状非法（数字/对象等）无旧值可保 → 按 null / [] 落库（与旧行为一致：42 → null）。
+  const knownToRes = sanitize_known_to(fact_data.known_to, character_aliases);
+  const hiddenFromRes = sanitize_hidden_from(fact_data.hidden_from, character_aliases);
+  // 跨字段矛盾在写入口化解（对抗审 MED-3：同名同现两名单 / all+hidden 并存）
+  const { known_to: knownTo, hidden_from: hiddenFrom } = reconcile_knowledge(
+    knownToRes.ok ? knownToRes.value : null,
+    hiddenFromRes.ok ? hiddenFromRes.value : [],
+  );
+  const confidenceRes = sanitize_confidence(fact_data._confidence);
 
   const fact = createFact({
     id: generate_fact_id(),
@@ -239,17 +215,15 @@ export async function add_fact(
     caused_by:         Array.isArray(fact_data.caused_by) ? (fact_data.caused_by as string[]) : [],
     // Layer 3 (M8-A)
     known_to:          knownTo,
-    hidden_from:       Array.isArray(fact_data.hidden_from) ? (fact_data.hidden_from as string[]) : [],
+    hidden_from:       hiddenFrom,
     suspense_type:     (rawSuspense && SUSPENSE_SET.has(rawSuspense)) ? rawSuspense as SuspenseType : null,
     // Thread 关联（M8-B）—— 必须从 fact_data 转发进 fact，否则下面的快照 / 持久化拿不到（M8-A 教训）
     thread_ids:        Array.isArray(fact_data.thread_ids) ? (fact_data.thread_ids as string[]) : [],
     thread_roles:      (typeof fact_data.thread_roles === "object" && fact_data.thread_roles !== null)
                          ? (fact_data.thread_roles as Record<string, string>)
                          : undefined,
-    // _confidence
-    _confidence:       (typeof fact_data._confidence === "object" && fact_data._confidence !== null)
-                         ? (fact_data._confidence as FactFieldConfidence)
-                         : undefined,
+    // _confidence（形状消毒：仅保留已知键 + 合法档位；非法形状 → undefined，M3 批一）
+    _confidence:       confidenceRes.ok ? confidenceRes.value : undefined,
   });
 
   // WriteTransaction 保证 D-0036 写入顺序：ops → facts
@@ -352,13 +326,80 @@ export async function edit_fact(
   const applied_fields: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(updated_fields)) {
     if (!(key in fact)) continue;
+    // M3 批一：_confidence 为引擎自管字段（人改富化字段时由下方统一升 high）——不接受外部
+    // 直写，防调用方手拼判据形成第二真相源，也防无形状校验的垃圾落盘（第三路调查 1a）。
+    if (key === "_confidence") {
+      if (hasLogger()) getLogger().warn("facts", "edit_fact 拒绝外部直写 _confidence（引擎自管）", { fact_id });
+      continue;
+    }
+    // M3 批一：知情边界字段走单一真相源消毒（与 ops 回放对称，见 domain/fact_sanitize）。
+    // 形状非法 → 拒绝 + warn + 保留现值（与枚举校验同语义）。
+    if (key === "known_to" || key === "hidden_from") {
+      const res = key === "known_to"
+        ? sanitize_known_to(value, character_aliases)
+        : sanitize_hidden_from(value, character_aliases);
+      if (!res.ok) {
+        if (hasLogger()) getLogger().warn("facts", `edit_fact 拒绝非法形状 ${key}`, { fact_id, value: String(value) });
+        continue;
+      }
+      // 同值编辑不算变更（对抗审 MED-2）：否则「原样保存」也会落 op、涨 revision，
+      // 还会把未经人工纠正的 LLM 低置信标注误升 high。
+      if (JSON.stringify(res.value) === JSON.stringify((fact as unknown as Record<string, unknown>)[key])) {
+        continue;
+      }
+      (fact as unknown as Record<string, unknown>)[key] = res.value;
+      applied_fields[key] = res.value;
+      continue;
+    }
     const enumSet = enumValueSets[key];
     if (enumSet && !(typeof value === "string" && enumSet.has(value))) {
       if (hasLogger()) getLogger().warn("facts", `edit_fact 拒绝非法枚举 ${key}`, { fact_id, value: String(value) });
       continue; // 保留现值，不落库垃圾
     }
+    // 同值编辑跳过（对抗审 MED-2）：UI 的非受控表单每次保存都会带上全部字段，
+    // 结构化等值的不再进 applied —— 配合下方空 applied 早退，根治 revision 空转。
+    if (JSON.stringify(value) === JSON.stringify((fact as unknown as Record<string, unknown>)[key])) {
+      continue;
+    }
     (fact as unknown as Record<string, unknown>)[key] = value;
     applied_fields[key] = value;
+  }
+
+  // 知情字段被实际编辑时，跨字段矛盾在写侧化解（对抗审 MED-3；未触碰知情字段的编辑
+  // 不顺手改动存量数据 —— 化解只在用户动了这两个字段之一时发生）。
+  if ("known_to" in applied_fields || "hidden_from" in applied_fields) {
+    const rec = reconcile_knowledge(fact.known_to ?? null, fact.hidden_from ?? []);
+    if (JSON.stringify(rec.known_to) !== JSON.stringify(fact.known_to ?? null)) {
+      fact.known_to = rec.known_to;
+      applied_fields.known_to = rec.known_to;
+    }
+    if (JSON.stringify(rec.hidden_from) !== JSON.stringify(fact.hidden_from ?? [])) {
+      fact.hidden_from = rec.hidden_from;
+      applied_fields.hidden_from = rec.hidden_from;
+    }
+  }
+
+  // 空编辑早退（第三路调查发现④）：全部键被拒/无有效变更时不落 op、不 bump revision——
+  // 否则无脏检查的保存会造成 revision 空转 + 空审计记录。此时 status/resolves 均未动，
+  // 下方级联分支本就不会触发，返回现有 fact 安全。
+  if (Object.keys(applied_fields).length === 0) {
+    return fact;
+  }
+
+  // 人改必然注入（第三路调查发现②）：人工编辑过的富化字段 per-field 置信度升 high。
+  // 仅在 fact 已有 _confidence（ReAct/LLM 产物）时需要——无 _confidence 本就无门控必注入，
+  // 不凭空造对象（与 react_extraction_dispatch H10 约定一致）。删键/删对象方案均不可行：
+  // 删单键仍走「_confidence 存在但缺条目 → 抑制」路径；删整对象会放行其它字段的 low 置信猜测。
+  if (fact._confidence) {
+    let upgraded = false;
+    for (const key of CONFIDENCE_FIELD_KEYS) {
+      if (key in applied_fields) {
+        fact._confidence[key] = "high";
+        upgraded = true;
+      }
+    }
+    // _confidence 变更并入同一条 edit_fact op：ops 回放（白名单含 _confidence）与磁盘天然一致
+    if (upgraded) applied_fields._confidence = { ...fact._confidence };
   }
 
   // 悬空 ID 级联清理（内存操作，不落盘）

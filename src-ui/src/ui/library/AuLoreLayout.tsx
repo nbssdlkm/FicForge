@@ -5,6 +5,7 @@
 import { useMemo } from 'react';
 import { Spinner } from "../shared/Spinner";
 import { Button } from '../shared/Button';
+import { ChipListInput } from '../shared/ChipListInput';
 import { Input, Textarea } from '../shared/Input';
 import { EmptyState } from '../shared/EmptyState';
 import { TrashPanel } from '../shared/TrashPanel';
@@ -132,37 +133,18 @@ export const AuLoreLayout = ({ auPath, onChaptersChanged }: {
       <label className="text-sm font-bold text-text/90">{t('navigation.auLore')}</label>
 
       {selectedCategory === 'characters' && (
-        <div className="flex min-h-[44px] flex-wrap items-center gap-1.5 rounded-lg border border-black/10 bg-surface/30 px-3 py-2 dark:border-white/10 md:min-h-[36px]">
-          <span className="mr-1 text-xs font-sans text-text/50 md:text-xs">{t('auLore.aliasesLabel')}</span>
-          {aliases.map((alias, i) => (
-            <span key={i} className="inline-flex min-h-[44px] items-center gap-1 rounded-xl bg-accent/10 px-3 py-1 text-sm font-sans text-accent md:min-h-0 md:rounded-md md:px-2 md:py-0.5 md:text-xs">
-              {alias}
-              <button
-                type="button"
-                className="-mr-2 inline-flex h-11 w-11 items-center justify-center rounded-full text-accent/60 transition-colors hover:text-error md:-mr-1 md:h-5 md:w-5"
-                onClick={() => editor.removeAliasAt(i)}
-              >
-                ×
-              </button>
-            </span>
-          ))}
-          <input
-            className="min-w-[80px] flex-1 bg-transparent text-xs font-sans outline-hidden placeholder:text-text/30"
-            placeholder={t('auLore.aliasPlaceholder')}
-            value={newAlias}
-            onChange={e => editor.setNewAlias(e.target.value)}
-            onKeyDown={e => {
-              if ((e.key === 'Enter' || e.key === ',') && newAlias.trim()) {
-                e.preventDefault();
-                editor.commitNewAlias();
-              }
-              if (e.key === 'Backspace' && !newAlias && aliases.length > 0) {
-                editor.popLastAlias();
-              }
-            }}
-            disabled={isReadingFile}
-          />
-        </div>
+        /* M3 批一：别名胶囊抽取为 shared/ChipListInput（行为逐像素不变），fact 编辑器两处名单共用同一组件 */
+        <ChipListInput
+          label={t('auLore.aliasesLabel')}
+          values={aliases}
+          inputValue={newAlias}
+          onInputChange={editor.setNewAlias}
+          onCommit={editor.commitNewAlias}
+          onRemoveAt={editor.removeAliasAt}
+          onPopLast={editor.popLastAlias}
+          placeholder={t('auLore.aliasPlaceholder')}
+          disabled={isReadingFile}
+        />
       )}
 
       {previewMode ? (

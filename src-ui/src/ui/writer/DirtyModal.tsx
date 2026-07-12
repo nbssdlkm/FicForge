@@ -12,6 +12,7 @@ import { resolveDirtyChapter } from '../../api/engine-client';
 import { listFacts, extractFacts, addFact, buildFactDataFromCandidate, type FactInfo, type ExtractedFactCandidate } from '../../api/engine-client';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
+import { FactAnnotationChips } from '../facts/FactAnnotationChips';
 import { useFeedback } from '../../hooks/useFeedback';
 import { catchAndLog } from '../../utils/ui-logger';
 
@@ -232,6 +233,10 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
                       {c.characters && c.characters.length > 0 && (
                         <p className="text-xs text-text/50 mt-1">{c.characters.join(', ')}</p>
                       )}
+                      {/* M3 批一：脏章候选卡为自画 JSX，知情标注单独接入（与 ExtractReviewModal 同源组件） */}
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        <FactAnnotationChips fact={c} />
+                      </div>
                     </div>
                   </label>
                 ))}

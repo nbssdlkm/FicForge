@@ -14,7 +14,7 @@ import { createBudgetReport } from "../domain/budget_report.js";
 import type { ContextSummary } from "../domain/context_summary.js";
 import { createContextSummary } from "../domain/context_summary.js";
 import { EmotionStyle, FactStatus, NarrativeWeight, Perspective, ThreadStatus } from "../domain/enums.js";
-import type { Fact, ConfidenceLevel } from "../domain/fact.js";
+import type { Fact, ConfidenceLevel, FactFieldConfidence } from "../domain/fact.js";
 import { isColdFact } from "../domain/fact.js";
 import type { Thread } from "../domain/thread.js";
 import { get_context_window, get_model_max_output } from "../domain/model_context_map.js";
@@ -177,8 +177,10 @@ export function build_instruction(
     : [];
 
   if (focusFacts.length > 0) {
-    // 推进目标块
-    const focusLines = focusFacts.map((f) => `- ${f.content_clean}`).join("\n");
+    // 推进目标块（知情标注同步带上——否则本章最核心的事实反而缺知情边界，M3 批一）
+    const focusLines = focusFacts
+      .map((f) => `- ${f.content_clean}${build_fact_knowledge_clause(f, language)}`)
+      .join("\n");
     parts.push(P.FOCUS_GOAL_HEADER);
     parts.push(P.FOCUS_GOAL_DEFINITION.replace("{focus_lines}", focusLines));
 
@@ -193,7 +195,7 @@ export function build_instruction(
     if (nonFocusUnresolved.length > 0) {
       const cautionLines = nonFocusUnresolved
         .slice(0, 2)
-        .map((f) => `- ${f.content_clean}`)
+        .map((f) => `- ${f.content_clean}${build_fact_knowledge_clause(f, language)}`)
         .join("\n");
       parts.push(P.ATTENTION_HEADER);
       parts.push(P.ATTENTION_BODY.replace("{caution_lines}", cautionLines));
@@ -221,6 +223,18 @@ export function build_instruction(
 // build_fact_enrichment_suffix（M8-A P3 注入辅助，纯函数）
 // ===========================================================================
 
+// 门控与空值判据 —— enrichment suffix 与 knowledge clause 共用同一份（单一真相源）。
+// 语义：无 _confidence（手动/导入 ground truth）→ 无条件注入；有 _confidence（ReAct/LLM 自评）→ ≥ medium 才注入。
+const ENRICH_INJECT_LEVELS: ReadonlySet<ConfidenceLevel> = new Set(["high", "medium"]);
+function enrich_inject(c: FactFieldConfidence | undefined, level: ConfidenceLevel | undefined): boolean {
+  return !c || ENRICH_INJECT_LEVELS.has(level!);
+}
+// 空/纯空白字符串不注入（避免渲染 "location: " 空行）——手动录入留空、或 LLM 吐 "" 时都挡掉
+// （对抗审发现 2：MED-3 放开无 _confidence 路径后，空串字段会渲染无信息量空行）。
+function has_text(s: string | null | undefined): boolean {
+  return typeof s === "string" && s.trim() !== "";
+}
+
 /**
  * 根据 _confidence 构建 fact 行的括号内补充字符串。
  *
@@ -230,32 +244,20 @@ export function build_instruction(
  *   - **无 _confidence**（手动录入 / 导入的 ground truth：源头即确定，非 LLM 猜测）：present 即注入。
  *     否则用户/导入设定的 location/known_to 被置信度门控静默丢弃、永远进不了 P3（第三轮审计 MED）。
  *     注：ReAct 若某 fact 富化字段全空则保持 _confidence=undefined，此时也无字段可注入，语义仍一致。
- *   - 高价值：known_to（非 null）、time_kind（非 normal）、action_verb
+ *   - 高价值：time_kind（非 normal）、action_verb
  *   - 中价值：location、suspense_type
- *   - 低价值（不注入）：story_time_tag、story_time_order、hidden_from
- * 注：caused_by（跨章因果）不走本函数——它需解析 fact_id → 起因短句，在 build_facts_layer 里用
+ *   - 低价值（不注入）：story_time_tag、story_time_order
+ * 注①：known_to / hidden_from（知情边界，M3 批一）不走本函数——它们改由
+ * build_fact_knowledge_clause 以人话渲染（「仅X知道」「瞒着X」），配 INFO_ASYMMETRY_RULES 图例。
+ * 注②：caused_by（跨章因果）也不走本函数——它需解析 fact_id → 起因短句，在 build_facts_layer 里用
  * factById 渲染（见那里的 causedByClause / lineBody，B1 最后一公里）。
  */
 export function build_fact_enrichment_suffix(fact: Fact): string {
   const c = fact._confidence;
-  const INJECT_LEVELS = new Set<ConfidenceLevel>(["high", "medium"]);
-  // 无 _confidence（手动/导入）→ 无条件注入；有 _confidence（ReAct）→ 按 high/medium gate。
-  const inject = (level: ConfidenceLevel | undefined): boolean => !c || INJECT_LEVELS.has(level!);
-  // 空/纯空白字符串不注入（避免渲染 "location: " 空行）——手动录入留空、或 LLM 吐 "" 时都挡掉
-  // （对抗审发现 2：MED-3 放开无 _confidence 路径后，空串字段会渲染无信息量空行）。
-  const hasText = (s: string | null | undefined): boolean => typeof s === "string" && s.trim() !== "";
+  const inject = (level: ConfidenceLevel | undefined): boolean => enrich_inject(c, level);
+  const hasText = has_text;
 
   const parts: string[] = [];
-
-  // known_to（高价值）：[] 空数组 / 空串不注入（无信息量）
-  if (fact.known_to != null && inject(c?.known_to)) {
-    const isNonEmptyArray = Array.isArray(fact.known_to) && fact.known_to.length > 0;
-    const isNonEmptyString = hasText(fact.known_to as string);
-    if (isNonEmptyString || isNonEmptyArray) {
-      const v = Array.isArray(fact.known_to) ? fact.known_to.join(", ") : fact.known_to;
-      parts.push(`known_to: ${v}`);
-    }
-  }
 
   // time_kind（高价值；normal 无信息量，跳过）
   if (
@@ -283,6 +285,55 @@ export function build_fact_enrichment_suffix(fact: Fact): string {
 
   if (parts.length === 0) return "";
   return ` (${parts.join("; ")})`;
+}
+
+// ===========================================================================
+// build_fact_knowledge_clause（M3 批一：知情边界标注，纯函数）
+// ===========================================================================
+
+/**
+ * 把 fact 的知情边界（known_to / hidden_from）渲染成人话行尾标注：
+ *   zh：`（仅王妃、稳婆知道；瞒着王爷）` / `（仅读者知）`
+ *   en：` [known only to: A, B; hidden from: C]` / ` [reader-only]`
+ *
+ * 语义约定（与 UI chips 同口径）：
+ * - known_to = "all" / null / [] 无信息量，不渲染（"all" 是常态默认，渲染只添噪声）；
+ * - known_to 为历史脏数据裸字符串（非 all/reader_only）时按单人名单渲染——消毒 helper 上线前的
+ *   存量磁盘数据仍可能有该形态，渲染端兜住而不是丢信息；
+ * - hidden_from 非空数组才渲染；
+ * - 置信度门控与 enrichment suffix 共用 enrich_inject（低置信 LLM 猜测不指挥写作）。
+ *
+ * 消费点：build_facts_layer 的 lineBody（P3 全量事实）+ build_instruction 的 focus/attention 行
+ * （P1 本章推进目标——不带则恰好本章最核心的事实没有知情标注）。图例 INFO_ASYMMETRY_RULES
+ * 仅在 P3 实际出现本标注时注入，判定以本函数产出为准（单一真相源，勿在别处重算字段条件）。
+ */
+export function build_fact_knowledge_clause(fact: Fact, language = "zh"): string {
+  const c = fact._confidence;
+  const en = language === "en";
+  const parts: string[] = [];
+
+  if (fact.known_to != null && fact.known_to !== "all" && enrich_inject(c, c?.known_to)) {
+    if (fact.known_to === "reader_only") {
+      parts.push(en ? "reader-only" : "仅读者知");
+    } else if (Array.isArray(fact.known_to)) {
+      const names = fact.known_to.filter((n) => has_text(n));
+      if (names.length > 0) {
+        parts.push(en ? `known only to: ${names.join(", ")}` : `仅${names.join("、")}知道`);
+      }
+    } else if (has_text(fact.known_to)) {
+      parts.push(en ? `known only to: ${fact.known_to}` : `仅${fact.known_to}知道`);
+    }
+  }
+
+  if (Array.isArray(fact.hidden_from) && enrich_inject(c, c?.hidden_from)) {
+    const names = fact.hidden_from.filter((n) => has_text(n));
+    if (names.length > 0) {
+      parts.push(en ? `hidden from: ${names.join(", ")}` : `瞒着${names.join("、")}`);
+    }
+  }
+
+  if (parts.length === 0) return "";
+  return en ? ` [${parts.join("; ")}]` : `（${parts.join("；")}）`;
 }
 
 // ===========================================================================
@@ -324,7 +375,8 @@ export function build_facts_layer(
     if (refs.length === 0) return "";
     return language === "en" ? ` [caused by: ${refs.join("; ")}]` : `（起因：${refs.join("；")}）`;
   };
-  const lineBody = (f: Fact): string => f.content_clean + build_fact_enrichment_suffix(f) + causedByClause(f);
+  const lineBody = (f: Fact): string =>
+    f.content_clean + build_fact_enrichment_suffix(f) + build_fact_knowledge_clause(f, language) + causedByClause(f);
 
   const unresolved = eligible.filter((f) => f.status === FactStatus.UNRESOLVED);
   const active = eligible.filter((f) => f.status === FactStatus.ACTIVE);
@@ -384,6 +436,15 @@ export function build_facts_layer(
   allKept.sort((a, b) => a.chapter - b.chapter);
 
   const lines = allKept.map((f) => `- [${f.status}] ${lineBody(f)}`);
+
+  // 知情范围图例（M3 批一）：仅当本次实际注入的行带知情标注时才出现——无标注 AU 逐字节不变
+  // （golden 回归安全绳）。判定直接以 clause 渲染产出为准（单一真相源），不在此重算字段条件。
+  // 与 SECTION 头/UNRESOLVED_DROPPED_HINT 同模式：不计入 P3 内部预算，级联层对 p3Text 整体
+  // 二次计数兜底（run_memory_layer_cascade）。
+  if (allKept.some((f) => build_fact_knowledge_clause(f, language) !== "")) {
+    const P = getPrompts(language as "zh" | "en");
+    lines.unshift(P.INFO_ASYMMETRY_RULES);
+  }
 
   if (unresolvedDropped > 0) {
     const P = getPrompts(language as "zh" | "en");

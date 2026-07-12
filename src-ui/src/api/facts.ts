@@ -4,18 +4,10 @@
 
 /** Facts API */
 
-export interface FactInfo {
-  id: string;
-  content_raw: string;
-  content_clean: string;
-  characters: string[];
-  status: string;
-  type: string;
-  narrative_weight: string;
-  chapter: number;
-  timeline: string;
-  archived?: boolean;   // M10-B 冷热分层：true=已固化（不进生成 P3），UI 标「冷存」+ 可恢复
-}
+// 注：本文件不定义 FactInfo。UI 用的 FactInfo 真相源 = engine-client.ts 的
+// `export type { Fact as FactInfo } from "@ficforge/engine"`（引擎完整 Fact，含全部富化字段）。
+// 此处曾有一个 10 字段的窄版影子 interface（无人 import 的死类型），因其长得极像"该扩展的地方"
+// 而屡次误导实施者，M3 批一删除（实施前调查·第一路发现附录①）。
 
 export interface ExtractedFactCandidate {
   content_raw: string;
@@ -74,6 +66,9 @@ export function extractedEnrichment(c: ExtractedFactCandidate): Record<string, u
   const out: Record<string, unknown> = {};
   if (c.location != null) out.location = c.location;
   if (c.story_time_tag != null) out.story_time_tag = c.story_time_tag;
+  // known_to 用 != null 判据（与 hidden_from 的 length 判据不对称）是有意的：'all'/'reader_only'
+  // 字符串态必须过；[] 空数组过了也无害 —— 引擎 add_fact 的消毒器（domain/fact_sanitize）会把
+  // [] 折叠为 null，落库口径单一，UI 不重复消毒（M3 批一）。
   if (typeof c.story_time_order === 'number') out.story_time_order = c.story_time_order;
   if (c.time_kind != null) out.time_kind = c.time_kind;
   if (c.action_verb != null) out.action_verb = c.action_verb;

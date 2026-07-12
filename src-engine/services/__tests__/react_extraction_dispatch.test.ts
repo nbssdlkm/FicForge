@@ -18,7 +18,7 @@ import {
   REACT_TOOL_FINALIZE,
 } from "../react_extraction_tools.js";
 import { createFact, type Fact, type FactFieldConfidence } from "../../domain/fact.js";
-import { build_fact_enrichment_suffix } from "../context_assembler.js";
+import { build_fact_enrichment_suffix, build_fact_knowledge_clause } from "../context_assembler.js";
 import { createThread } from "../../domain/thread.js";
 import { ThreadStatus } from "../../domain/enums.js";
 import { FileFactRepository } from "../../repositories/implementations/file_fact.js";
@@ -398,8 +398,9 @@ describe("reactExtractFromChapter — H10 富化字段置信度合成（回归�
     const suffix = build_fact_enrichment_suffix(res.facts[0] as unknown as Fact);
     expect(suffix).not.toBe("");
     expect(suffix).toContain("location: 藏书阁");
-    expect(suffix).toContain("known_to: 林晚月");
     expect(suffix).toContain("time_kind: flashback");
+    // known_to 自 M3 批一由 knowledge clause 渲染：ReAct 合成 medium → 门控放行
+    expect(build_fact_knowledge_clause(res.facts[0] as unknown as Fact, "zh")).toBe("（仅林晚月知道）");
   });
 
   it("已有 _confidence.caused_by=low（未 grounded 因果）不被合成覆盖（merge 不 replace）", async () => {
@@ -472,11 +473,14 @@ describe("reactExtractFromChapter — H10 富化字段置信度合成（回归�
     expect(suffix).toContain("location: 城郊");
     expect(suffix).toContain("action_verb: 结盟");
     expect(suffix).toContain("suspense_type: secret");
-    expect(suffix).toContain("known_to: reader_only");
+    // known_to 自 M3 批一由 knowledge clause 渲染（同门控）
+    const clause = build_fact_knowledge_clause(persisted, "zh");
+    expect(clause).toBe("（仅读者知）");
 
     // ops 快照 rebuild → 门控同样放行（_confidence 走 ops payload 存活）
     const rebuilt = rebuildFactsFromOps(await opsRepo.list_all("au_e2e"));
     expect(build_fact_enrichment_suffix(rebuilt[0])).toBe(suffix);
+    expect(build_fact_knowledge_clause(rebuilt[0], "zh")).toBe(clause);
   });
 });
 

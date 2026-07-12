@@ -29,6 +29,7 @@ export const REQUIRED_KEYS = [
 
   // === context_assembler: build_facts_layer ===
   "SECTION_PLOT_STATE",
+  "INFO_ASYMMETRY_RULES",           // 知情范围图例：仅当本次注入的事实行带知情标注时出现
   "UNRESOLVED_DROPPED_HINT",        // f-string with {count}
 
   // === context_assembler: build_threads_layer (M8-B) ===

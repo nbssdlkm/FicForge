@@ -312,7 +312,7 @@ describe("T5: extractFactsFromChapter — M8-A new fields", () => {
 // ===========================================================================
 
 describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
-  it("known_to 'reader_only' with high confidence → injected in output", () => {
+  it("known_to 'reader_only' with high confidence → 知情条款注入 + 图例出现（M3 批一改人话渲染）", () => {
     const fact = createFact({
       id: "f1", content_raw: "r", content_clean: "皇帝暗中赐毒",
       status: FactStatus.ACTIVE, chapter: 1,
@@ -320,7 +320,9 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
       _confidence: { known_to: "high" },
     });
     const [text] = build_facts_layer([fact], [], 10000, null, "zh");
-    expect(text).toContain("known_to: reader_only");
+    expect(text).toContain("（仅读者知）");
+    expect(text).not.toContain("known_to:");          // 旧原始键值对形态退役
+    expect(text).toContain("知情范围说明");            // 图例仅在有标注时出现
   });
 
   it("B1: caused_by 渲染为「起因：<被引用事实内容>」（跨章因果进 prompt）", () => {
@@ -369,7 +371,7 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
       // 无 _confidence = 非 ReAct 低置信猜测 = 源头确定 → 应注入（旧码在此静默丢弃）
     });
     const [text] = build_facts_layer([fact], [], 10000, null, "zh");
-    expect(text).toContain("known_to: reader_only");
+    expect(text).toContain("（仅读者知）");
     expect(text).toContain("time_kind: flashback");
     expect(text).toContain("action_verb: 决裂");
   });
@@ -438,8 +440,9 @@ describe("T6: build_fact_enrichment_suffix — pure function (M8-A)", () => {
       time_kind: "flashback" as any,
     });
     const suffix = build_fact_enrichment_suffix(fact);
-    expect(suffix).toContain("known_to: reader_only");
     expect(suffix).toContain("time_kind: flashback");
+    // known_to 自 M3 批一迁出 suffix，由 knowledge clause 渲染
+    expect(suffix).not.toContain("known_to:");
   });
 
   it("no _confidence 且无富化字段 → 仍返回空（无字段可注入）", () => {
@@ -450,13 +453,11 @@ describe("T6: build_fact_enrichment_suffix — pure function (M8-A)", () => {
   it("returns parenthesized suffix with high-confidence fields", () => {
     const fact = createFact({
       id: "f1", content_raw: "r", content_clean: "c",
-      known_to: "reader_only" as "reader_only",
       time_kind: "flashback" as any,
       action_verb: "决裂",
-      _confidence: { known_to: "high", time_kind: "medium", action_verb: "high" },
+      _confidence: { time_kind: "medium", action_verb: "high" },
     });
     const suffix = build_fact_enrichment_suffix(fact);
-    expect(suffix).toContain("known_to: reader_only");
     expect(suffix).toContain("time_kind: flashback");
     expect(suffix).toContain("action_verb: 决裂");
     // Should be parenthesized
@@ -467,24 +468,24 @@ describe("T6: build_fact_enrichment_suffix — pure function (M8-A)", () => {
   it("low confidence fields are NOT included in suffix", () => {
     const fact = createFact({
       id: "f1", content_raw: "r", content_clean: "c",
-      known_to: "reader_only" as "reader_only",
+      action_verb: "决裂",
       location: "某地",
-      _confidence: { known_to: "high", location: "low" },
+      _confidence: { action_verb: "high", location: "low" },
     });
     const suffix = build_fact_enrichment_suffix(fact);
-    expect(suffix).toContain("known_to: reader_only");
+    expect(suffix).toContain("action_verb: 决裂");
     expect(suffix).not.toContain("location:");
   });
 
   it("_confidence 存在但某字段无条目 → 该字段抑制（ReAct 行为不变，MED-3 只放开无 _confidence 的手动路径）", () => {
     const fact = createFact({
       id: "f1", content_raw: "r", content_clean: "c",
-      known_to: "reader_only" as "reader_only",
+      action_verb: "决裂",
       location: "御书房", // location 在 _confidence 里无条目
-      _confidence: { known_to: "high" },
+      _confidence: { action_verb: "high" },
     });
     const suffix = build_fact_enrichment_suffix(fact);
-    expect(suffix).toContain("known_to: reader_only");
+    expect(suffix).toContain("action_verb: 决裂");
     expect(suffix).not.toContain("location:"); // c 存在 → 缺条目按未确信处理，抑制
   });
 
@@ -508,8 +509,8 @@ describe("T7: FACTS_ENRICH_SYSTEM_PROMPT prompt key (M8-A)", () => {
     expect(REQUIRED_KEYS).toContain("FACTS_ENRICH_SYSTEM_PROMPT");
   });
 
-  it("total key count is 69 (M8-A +1 + M10-A +4 + M8-B +1 + B2 +2)", () => {
-    expect(REQUIRED_KEYS.length).toBe(69);
+  it("total key count is 70 (M8-A +1 + M10-A +4 + M8-B +1 + B2 +2 + M3批一 +1)", () => {
+    expect(REQUIRED_KEYS.length).toBe(70);
   });
 
   it("zh module has FACTS_ENRICH_SYSTEM_PROMPT and it is non-empty", () => {
@@ -650,5 +651,41 @@ describe("T8: ops round-trip with new enrichment fields (M8-A)", () => {
     expect(f.location).toBe("御花园");
     expect(f.known_to).toBe("reader_only");
     expect(f.action_verb).toBe("密谈");
+  });
+});
+
+// ===========================================================================
+// M3 批一：rawToExtracted 走单一真相源消毒后的增量口径
+// ===========================================================================
+
+describe("T4+: rawToExtracted — M3 批一消毒口径", () => {
+  it("known_to 裸字符串（非 all/reader_only）→ 折叠为单人名单（旧行为：原样字符串）", () => {
+    const result = rawToExtracted(
+      { content_clean: "test content here", known_to: "皇帝" },
+      1, null,
+    );
+    expect(result!.known_to).toEqual(["皇帝"]);
+  });
+
+  it("hidden_from 数组过滤非字符串元素 + trim（旧行为：裸 cast 数字也落盘）", () => {
+    const result = rawToExtracted(
+      { content_clean: "test content here", hidden_from: [1, " 王爷 ", ""] },
+      1, null,
+    );
+    expect(result!.hidden_from).toEqual(["王爷"]);
+  });
+
+  it("_confidence 非法档位/未知键被过滤，仅存合法条目；全非法 → undefined", () => {
+    const r1 = rawToExtracted(
+      { content_clean: "test content here", _confidence: { location: "banana", known_to: "low", bogus: "high" } },
+      1, null,
+    );
+    expect(r1!._confidence).toEqual({ known_to: "low" });
+
+    const r2 = rawToExtracted(
+      { content_clean: "test content here", _confidence: { location: "banana" } },
+      1, null,
+    );
+    expect(r2!._confidence).toBeUndefined();
   });
 });

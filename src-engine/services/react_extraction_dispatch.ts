@@ -115,8 +115,9 @@ function normalizeForMatch(s: string): string {
  *   且不给 facts.jsonl 添冗余空对象）；
  * - caused_by 不在合成范围：其置信度由 grounding 逻辑专管（未 grounded 标 low；grounded
  *   不标——门控把 caused_by 列为低价值不注入，合成 medium 只会误导 UI 高亮）；
- * - hidden_from / story_time_tag / story_time_order 门控目前不读，但一并合成，保持
- *   「字段出现即有置信度」的不变量，未来门控扩展时不再漏。
+ * - hidden_from 自 M3 批一起被 build_fact_knowledge_clause 门控消费（当年「一并合成保持
+ *   不变量」的预留正好接上——存量 ReAct 数据的 hidden_from 因此立即生效）；story_time_tag /
+ *   story_time_order 门控仍不读，但继续合成，保持「字段出现即有置信度」的不变量。
  */
 /** 字符串字段「实际出现」= 非空白文本。`""`/纯空格若拿到 medium，门控对
  * location/action_verb 无非空检查，会把 `location: `（空值）注进 prompt（对抗审 C-1）。 */

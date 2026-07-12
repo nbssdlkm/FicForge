@@ -63,3 +63,17 @@ describe("ExtractReviewModal — M9 归类标签 (PD-5)", () => {
     expect(screen.queryByText("归入剧情线 ×2")).toBeNull();
   });
 });
+
+describe("ExtractReviewModal — M3 批一：知情标注入库前可见", () => {
+  it("候选带 known_to/hidden_from → 确认卡上显示知情章", () => {
+    renderModal(baseCandidate({ known_to: "reader_only", hidden_from: ["林晚月"] }));
+    expect(screen.getByText("仅读者知")).toBeTruthy();
+    expect(screen.getByText("瞒着林晚月")).toBeTruthy();
+  });
+
+  it("known_to=all / 无标注 → 不出知情章（避免每张卡长一排无信息徽章）", () => {
+    renderModal(baseCandidate({ known_to: "all" }));
+    expect(screen.queryByText("都知道")).toBeNull();
+    expect(screen.queryByText(/仅.*知道/)).toBeNull();
+  });
+});

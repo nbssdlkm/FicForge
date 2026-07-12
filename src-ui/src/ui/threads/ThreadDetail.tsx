@@ -128,7 +128,8 @@ export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged 
   const nodeTags = (f: FactInfo): string[] => {
     const tags: string[] = [];
     if (f.time_kind && f.time_kind !== 'normal') tags.push(getEnumLabel('time_kind', f.time_kind, f.time_kind));
-    if (f.known_to === 'reader_only') tags.push(t('threads.detail.tag.readerOnly'));
+    // M3 批一：文案收敛到 enums.known_to 单一真相源（原页面私有 key threads.detail.tag.readerOnly 已删）
+    if (f.known_to === 'reader_only') tags.push(getEnumLabel('known_to', 'reader_only', 'reader-only'));
     if (f.suspense_type) tags.push(getEnumLabel('suspense_type', f.suspense_type, f.suspense_type));
     return tags;
   };

@@ -11,6 +11,7 @@ import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { EmptyState } from '../shared/EmptyState';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
+import { FactAnnotationChips } from '../facts/FactAnnotationChips';
 import type { ExtractedFactCandidate } from '../../api/engine-client';
 
 // --- Finalize Confirm Modal ---
@@ -226,6 +227,8 @@ export const ExtractReviewModal = ({
                       {causedByCount > 0 && (
                         <Tag tone="success">{t('facts.extractCausedByTag')}{causedByCount > 1 ? ` ×${causedByCount}` : ''}</Tag>
                       )}
+                      {/* M3 批一：知情标注入库前可见（AI 标了「谁知道/谁不知道」就摆在确认卡上） */}
+                      <FactAnnotationChips fact={candidate} />
                       <span className="text-xs text-text/50">{t('facts.extractSourceChapter', { chapter: candidate.chapter })}</span>
                     </div>
                     <p className="text-sm text-text/90">{candidate.content_clean}</p>

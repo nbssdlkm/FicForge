@@ -8,7 +8,13 @@
 
 import { count_tokens, ensure_tokenizer } from "../tokenizer/index.js";
 import { getPrompts } from "../prompts/index.js";
-import { normalize_characters } from "./facts_lifecycle.js";
+import {
+  normalize_characters,
+  sanitize_known_to,
+  sanitize_hidden_from,
+  sanitize_confidence,
+  reconcile_knowledge,
+} from "../domain/fact_sanitize.js";
 import type { LLMProvider } from "../llm/provider.js";
 import { TimeKind, SuspenseType } from "../domain/enums.js";
 import type { FactFieldConfidence } from "../domain/fact.js";
@@ -229,17 +235,16 @@ export function rawToExtracted(
   const timeKindRaw   = raw.time_kind    as string | undefined;
   const suspenseRaw   = raw.suspense_type as string | undefined;
 
-  // known_to: string | string[] | null（数组分支先 filter 元素类型）
-  let knownTo: "all" | "reader_only" | string[] | null = null;
-  const rawKnownTo = raw.known_to;
-  if (typeof rawKnownTo === "string") {
-    knownTo = rawKnownTo as "all" | "reader_only";
-  } else if (Array.isArray(rawKnownTo)) {
-    // filter 非字符串元素（防 LLM 输出 [1, 2, "Alice"]）
-    const filtered = (rawKnownTo as unknown[]).filter((x) => typeof x === "string") as string[];
-    // normalize_characters 归一化
-    knownTo = normalize_characters(filtered, character_aliases);
-  }
+  // known_to / hidden_from / _confidence：单一真相源消毒（domain/fact_sanitize，M3 批一）。
+  // LLM 垃圾形状（数字/对象等）→ null / [] / undefined，逐字段容错不退整条。
+  const knownToRes = sanitize_known_to(raw.known_to, character_aliases);
+  const hiddenFromRes = sanitize_hidden_from(raw.hidden_from, character_aliases);
+  // 跨字段矛盾在提取入口即化解（对抗审 MED-3：LLM 可能同名同标两边）
+  const knowledge = reconcile_knowledge(
+    knownToRes.ok ? knownToRes.value : null,
+    hiddenFromRes.ok ? hiddenFromRes.value : [],
+  );
+  const confidenceRes = sanitize_confidence(raw._confidence);
 
   return {
     content_raw: (raw.content_raw as string) ?? contentClean,
@@ -258,12 +263,10 @@ export function rawToExtracted(
     time_kind:         (timeKindRaw && TIME_KIND_SET.has(timeKindRaw)) ? timeKindRaw : null,
     action_verb:       (raw.action_verb     as string  | undefined) ?? null,
     caused_by:         Array.isArray(raw.caused_by) ? (raw.caused_by as string[]) : [],
-    known_to:          knownTo,
-    hidden_from:       Array.isArray(raw.hidden_from) ? (raw.hidden_from as string[]) : [],
+    known_to:          knowledge.known_to,
+    hidden_from:       knowledge.hidden_from,
     suspense_type:     (suspenseRaw && SUSPENSE_SET.has(suspenseRaw)) ? suspenseRaw : null,
-    _confidence:       (typeof raw._confidence === "object" && raw._confidence !== null)
-                         ? (raw._confidence as FactFieldConfidence)
-                         : undefined,
+    _confidence:       confidenceRes.ok ? confidenceRes.value : undefined,
   };
 }
 

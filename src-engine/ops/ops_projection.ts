@@ -17,6 +17,7 @@ import { createState } from "../domain/state.js";
 import type { State } from "../domain/state.js";
 import type { Fact } from "../domain/fact.js";
 import { createFact } from "../domain/fact.js";
+import { sanitize_known_to, sanitize_hidden_from, sanitize_confidence } from "../domain/fact_sanitize.js";
 import {
   FACT_SOURCE_VALUES, FACT_STATUS_VALUES, FACT_TYPE_VALUES, NARRATIVE_WEIGHT_VALUES,
   TIME_KIND_VALUES, SUSPENSE_TYPE_VALUES,
@@ -313,6 +314,21 @@ export function rebuildFactsFromOps(ops: OpsEntry[]): Fact[] {
           const changes = (op.payload.updated_fields ?? op.payload.changes ?? {}) as Record<string, unknown>;
           for (const [key, value] of Object.entries(changes)) {
             if (!EDITABLE_FIELDS.has(key)) continue;
+            // M3 批一：known_to/hidden_from/_confidence 形状消毒与写路径共用单一真相源
+            // （domain/fact_sanitize）——写侧校验上线前的历史垃圾 op 回放时同样挡掉，
+            // 保住「重建结果 == 磁盘状态」的对称契约。回放不做别名归一化（写侧已做，
+            // op 里存的即归一化后的值；回放语境也拿不到 project 配置）。
+            if (key === "known_to" || key === "hidden_from" || key === "_confidence") {
+              const res = key === "known_to" ? sanitize_known_to(value)
+                : key === "hidden_from" ? sanitize_hidden_from(value)
+                : sanitize_confidence(value);
+              if (!res.ok) {
+                if (hasLogger()) getLogger().warn("ops_merge", `edit_fact 跳过非法形状 ${key}`, { id: op.target_id, value: String(value) });
+                continue;
+              }
+              (existing as unknown as Record<string, unknown>)[key] = res.value;
+              continue;
+            }
             const validVals = EDIT_ENUM[key];
             if (validVals && !(typeof value === "string" && (validVals as readonly string[]).includes(value))) {
               if (hasLogger()) getLogger().warn("ops_merge", `edit_fact 跳过非法枚举 ${key}`, { id: op.target_id, value: String(value) });

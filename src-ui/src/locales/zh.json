@@ -634,6 +634,18 @@
   "facts": {
     "title": "剧情笔记",
     "subtitle": "事实卡片、状态和批量处理。",
+    "knowledge": {
+      "knownToSome": "仅{{names}}知道",
+      "hiddenFrom": "瞒着{{names}}",
+      "chipHint": "知情范围标注：续写时 AI 会让不知情的角色守住认知盲区",
+      "knownToLabel": "谁知道这件事",
+      "knownToUnset": "未标注",
+      "knownToSomeOption": "仅部分角色知道",
+      "knownToHint": "标注后，AI 写不知情的角色时会避免其说破或据此行动。",
+      "hiddenFromLabel": "瞒着谁",
+      "hiddenFromHint": "明确不知情的角色名单。",
+      "namesPlaceholder": "输入角色名，回车添加"
+    },
     "createButton": "记一笔",
     "allTab": "全部",
     "editing": "正在编辑",
@@ -932,6 +944,10 @@
       "secret": "秘密",
       "misunderstanding": "误解",
       "setup": "铺设"
+    },
+    "known_to": {
+      "all": "都知道",
+      "reader_only": "仅读者知"
     }
   },
   "contextMenu": {
@@ -1559,9 +1575,6 @@
       "pickerTitle": "挂节点：选剧情笔记",
       "pickerSearch": "搜索剧情笔记或角色…",
       "pickerEmpty": "没有可挂的剧情笔记（都已在本线，或还没有笔记）",
-      "tag": {
-        "readerOnly": "仅读者知"
-      },
       "refreshState": "刷新进展",
       "refreshing": "刷新中…",
       "stateStale": "有 {{count}} 条新进展，「当前进展」可能已过时"

@@ -6,6 +6,7 @@ import { Tag } from '../shared/Tag';
 import { Card } from '../shared/Card';
 import { useTranslation } from '../../i18n/useAppTranslation';
 import { getEnumLabel } from '../../i18n/labels';
+import { FactAnnotationChips } from './FactAnnotationChips';
 
 export const FactCard = ({ fact }: { fact: any }) => {
   const { t } = useTranslation();
@@ -17,6 +18,7 @@ export const FactCard = ({ fact }: { fact: any }) => {
         <div className="flex gap-2 items-center">
           <Tag tone={fact.status}>{getEnumLabel('fact_status', fact.status, fact.status)}</Tag>
           {fact.archived && <Tag tone="default" title={t('facts.archivedHint')}>{t('facts.archivedBadge')}</Tag>}
+          <FactAnnotationChips fact={fact} />
           <span className="text-xs font-mono text-text/50">#{fact.chapter}</span>
         </div>
         <span

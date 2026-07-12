@@ -634,6 +634,18 @@
   "facts": {
     "title": "Plot Points",
     "subtitle": "Fact cards, status tracking, and batch operations.",
+    "knowledge": {
+      "knownToSome": "known to {{names}}",
+      "hiddenFrom": "hidden from {{names}}",
+      "chipHint": "Knowledge scope: the AI keeps uninformed characters within their blind spots",
+      "knownToLabel": "Who knows this",
+      "knownToUnset": "Not set",
+      "knownToSomeOption": "Only some characters",
+      "knownToHint": "Once set, the AI keeps uninformed characters from revealing or acting on it.",
+      "hiddenFromLabel": "Hidden from",
+      "hiddenFromHint": "Characters explicitly kept in the dark.",
+      "namesPlaceholder": "Type a name, press Enter"
+    },
     "createButton": "Add Point",
     "allTab": "All",
     "editing": "Editing",
@@ -932,6 +944,10 @@
       "secret": "Secret",
       "misunderstanding": "Misunderstanding",
       "setup": "Setup"
+    },
+    "known_to": {
+      "all": "everyone knows",
+      "reader_only": "reader-only"
     }
   },
   "contextMenu": {
@@ -1559,9 +1575,6 @@
       "pickerTitle": "Add node: pick a plot point",
       "pickerSearch": "Search plot points or characters…",
       "pickerEmpty": "No plot points available (all already on this thread, or none yet)",
-      "tag": {
-        "readerOnly": "reader-only"
-      },
       "refreshState": "Refresh progress",
       "refreshing": "Refreshing…",
       "stateStale": "{{count}} new since last update — progress may be stale"

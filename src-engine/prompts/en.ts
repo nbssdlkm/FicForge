@@ -102,6 +102,11 @@ const en: PromptModule = {
   SECTION_PLOT_STATE: "## Current Plot State",
   SECTION_PLOT_THREADS: "## Active Plot Threads (keep these long arcs coherent; do not forget them or resolve them twice)",
 
+  INFO_ASYMMETRY_RULES:
+    "(Knowledge-scope note: facts below may carry annotations like [known only to: X], [reader-only], or [hidden from: X], marking information asymmetry.\n" +
+    "Characters who do not know a fact must never mention, hint at, or act on it — their words and actions must respect their blind spots; use the asymmetry for narrative tension.\n" +
+    "[reader-only] means no character knows it; never let any character reveal it unless the plot has them learn it or the instruction explicitly calls for the reveal.)",
+
   UNRESOLVED_DROPPED_HINT: "({count} additional unresolved thread(s) not shown — see fact sheet)",
 
   // ===========================================================================

@@ -8,6 +8,7 @@ import {
   build_facts_layer,
   build_core_settings_layer,
   build_fact_enrichment_suffix,
+  build_fact_knowledge_clause,
   assemble_context,
 } from "../context_assembler.js";
 import { createProject } from "../../domain/project.js";
@@ -142,7 +143,9 @@ describe("build_fact_enrichment_suffix", () => {
     });
     const suffix = build_fact_enrichment_suffix(fact);
     expect(suffix).toContain("location: 御书房");
-    expect(suffix).toContain("known_to: reader_only");
+    // known_to 自 M3 批一迁出 suffix → 由 build_fact_knowledge_clause 渲染
+    expect(suffix).not.toContain("known_to:");
+    expect(build_fact_knowledge_clause(fact, "zh")).toBe("（仅读者知）");
   });
 
   it("空/纯空白字符串富化字段不注入空行（对抗审发现 2）", () => {
@@ -167,24 +170,25 @@ describe("build_fact_enrichment_suffix", () => {
     expect(suffix).not.toContain("known_to:");
   });
 
-  it("injects known_to when it is a non-empty array", () => {
+  it("known_to 数组 → 迁出 suffix，clause 渲染「仅A、B知道」（M3 批一）", () => {
     const fact = createFact({
       id: "f1", content_raw: "r", content_clean: "c",
       known_to: ["Alice", "Bob"],
       _confidence: { known_to: "high" },
     });
-    const suffix = build_fact_enrichment_suffix(fact);
-    expect(suffix).toContain("known_to: Alice, Bob");
+    expect(build_fact_enrichment_suffix(fact)).toBe("");
+    expect(build_fact_knowledge_clause(fact, "zh")).toBe("（仅Alice、Bob知道）");
+    expect(build_fact_knowledge_clause(fact, "en")).toBe(" [known only to: Alice, Bob]");
   });
 
-  it("injects known_to when it is a string value 'all'", () => {
+  it("known_to 'all' → 常态默认无信息量，suffix 与 clause 均不渲染（M3 批一有意变更）", () => {
     const fact = createFact({
       id: "f1", content_raw: "r", content_clean: "c",
       known_to: "all",
       _confidence: { known_to: "high" },
     });
-    const suffix = build_fact_enrichment_suffix(fact);
-    expect(suffix).toContain("known_to: all");
+    expect(build_fact_enrichment_suffix(fact)).toBe("");
+    expect(build_fact_knowledge_clause(fact, "zh")).toBe("");
   });
 
   it("does not inject time_kind when it is 'normal'", () => {
@@ -208,6 +212,132 @@ describe("build_fact_enrichment_suffix", () => {
   });
 });
 
+describe("build_fact_knowledge_clause（M3 批一：知情边界标注）", () => {
+  it("hidden_from 非空 → zh「（瞒着X）」/ en \" [hidden from: X]\"", () => {
+    const fact = createFact({
+      id: "f1", content_raw: "r", content_clean: "c",
+      hidden_from: ["王爷"],
+      _confidence: { hidden_from: "medium" },   // ReAct 合成 medium → 放行
+    });
+    expect(build_fact_knowledge_clause(fact, "zh")).toBe("（瞒着王爷）");
+    expect(build_fact_knowledge_clause(fact, "en")).toBe(" [hidden from: 王爷]");
+  });
+
+  it("known_to 数组 + hidden_from 同时存在 → 两段合并、known_to 在前", () => {
+    const fact = createFact({
+      id: "f1", content_raw: "r", content_clean: "c",
+      known_to: ["王妃", "稳婆"], hidden_from: ["王爷"],
+    });
+    expect(build_fact_knowledge_clause(fact, "zh")).toBe("（仅王妃、稳婆知道；瞒着王爷）");
+  });
+
+  it("低置信 hidden_from 不指挥写作（_confidence.hidden_from=low → 不渲染）", () => {
+    const fact = createFact({
+      id: "f1", content_raw: "r", content_clean: "c",
+      hidden_from: ["王爷"],
+      _confidence: { hidden_from: "low" },
+    });
+    expect(build_fact_knowledge_clause(fact, "zh")).toBe("");
+  });
+
+  it("_confidence 存在但缺 hidden_from 条目 → 抑制（与 suffix 门控同语义）", () => {
+    const fact = createFact({
+      id: "f1", content_raw: "r", content_clean: "c",
+      hidden_from: ["王爷"],
+      _confidence: { location: "high" },   // 有对象但无 hidden_from 键
+    });
+    expect(build_fact_knowledge_clause(fact, "zh")).toBe("");
+  });
+
+  it("无 _confidence（手动/导入 ground truth）→ 无条件渲染", () => {
+    const fact = createFact({
+      id: "f1", content_raw: "r", content_clean: "c",
+      hidden_from: ["王爷"],
+    });
+    expect(build_fact_knowledge_clause(fact, "zh")).toBe("（瞒着王爷）");
+  });
+
+  it("null / 空数组 / 'all' / 空白元素 → 全部不渲染", () => {
+    expect(build_fact_knowledge_clause(createFact({ id: "f", content_raw: "r", content_clean: "c" }), "zh")).toBe("");
+    expect(build_fact_knowledge_clause(createFact({ id: "f", content_raw: "r", content_clean: "c", known_to: [], hidden_from: [] }), "zh")).toBe("");
+    expect(build_fact_knowledge_clause(createFact({ id: "f", content_raw: "r", content_clean: "c", known_to: "all" }), "zh")).toBe("");
+    expect(build_fact_knowledge_clause(createFact({ id: "f", content_raw: "r", content_clean: "c", hidden_from: ["  "] }), "zh")).toBe("");
+  });
+
+  it("历史脏数据：known_to 裸字符串（非 all/reader_only）按单人名单渲染，不丢信息", () => {
+    const fact = createFact({
+      id: "f1", content_raw: "r", content_clean: "c",
+      known_to: "皇帝" as unknown as "all",   // 消毒 helper 上线前的存量磁盘形态
+    });
+    expect(build_fact_knowledge_clause(fact, "zh")).toBe("（仅皇帝知道）");
+  });
+});
+
+describe("build_facts_layer 知情图例（INFO_ASYMMETRY_RULES 条件注入）", () => {
+  it("有知情标注 → 图例出现且紧跟节头（首行）", () => {
+    const fact = createFact({
+      id: "f1", content_raw: "r", content_clean: "王妃有孕的真相",
+      status: FactStatus.ACTIVE, chapter: 1,
+      hidden_from: ["王爷"],
+    });
+    const [text] = build_facts_layer([fact], [], 10000, null, "zh");
+    const lines = text.split("\n");
+    expect(lines[0]).toBe("## 当前剧情状态");
+    expect(lines[1]).toContain("知情范围说明");
+    expect(text).toContain("（瞒着王爷）");
+  });
+
+  it("无知情标注 → 图例绝不出现（无标注 AU 逐字节不变的回归安全绳）", () => {
+    const fact = createFact({
+      id: "f1", content_raw: "r", content_clean: "普通事件",
+      status: FactStatus.ACTIVE, chapter: 1,
+      location: "御书房",   // 有 enrichment 但无知情标注
+    });
+    const [text] = build_facts_layer([fact], [], 10000, null, "zh");
+    expect(text).not.toContain("知情范围说明");
+  });
+
+  it("en 图例走英文模板", () => {
+    const fact = createFact({
+      id: "f1", content_raw: "r", content_clean: "the secret pregnancy",
+      status: FactStatus.ACTIVE, chapter: 1,
+      known_to: "reader_only" as "reader_only",
+    });
+    const [text] = build_facts_layer([fact], [], 10000, null, "en");
+    expect(text).toContain("Knowledge-scope note");
+    expect(text).toContain(" [reader-only]");
+  });
+});
+
+describe("build_instruction 焦点/特别注意行带知情标注（M3 批一 P1 覆盖）", () => {
+  it("chapter_focus 事实的推进目标行带 clause", () => {
+    const focus = createFact({
+      id: "f_focus", content_raw: "r", content_clean: "身世之谜待揭",
+      status: FactStatus.UNRESOLVED, chapter: 2,
+      hidden_from: ["林晚月"],
+    });
+    const state = createState({ current_chapter: 3, chapter_focus: ["f_focus"] });
+    const text = build_instruction(state, "继续写", [focus], "zh");
+    expect(text).toContain("- 身世之谜待揭（瞒着林晚月）");
+  });
+
+  it("非焦点高权重 unresolved 的特别注意行带 clause", () => {
+    const focus = createFact({
+      id: "f_focus", content_raw: "r", content_clean: "普通推进目标",
+      status: FactStatus.UNRESOLVED, chapter: 2,
+    });
+    const caution = createFact({
+      id: "f_caution", content_raw: "r", content_clean: "皇帝的暗线",
+      status: FactStatus.UNRESOLVED, chapter: 1,
+      narrative_weight: NarrativeWeight.HIGH,
+      known_to: "reader_only" as "reader_only",
+    });
+    const state = createState({ current_chapter: 3, chapter_focus: ["f_focus"] });
+    const text = build_instruction(state, "继续写", [focus, caution], "zh");
+    expect(text).toContain("- 皇帝的暗线（仅读者知）");
+  });
+});
+
 describe("build_facts_layer enrichment budget (M8-A MAJOR fix)", () => {
   it("enriched fact that fits budget+suffix is kept", () => {
     // Budget large enough for content + suffix
@@ -219,7 +349,7 @@ describe("build_facts_layer enrichment budget (M8-A MAJOR fix)", () => {
     });
     const [text] = build_facts_layer([fact], [], 10000, null, "zh");
     expect(text).toContain("short fact");
-    expect(text).toContain("known_to: Alice");
+    expect(text).toContain("（仅Alice知道）");
   });
 
   it("enriched fact that overflows tight budget is excluded (suffix counted in budget)", () => {
