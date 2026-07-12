@@ -14,7 +14,7 @@ import { Modal } from "../shared/Modal";
 import { EmptyState } from "../shared/EmptyState";
 import { Search, Filter, Check, Sparkles, BookOpenText, X } from "lucide-react";
 import { ProgressBar } from "../shared/ProgressBar";
-import { listFacts, updateFactStatus, unarchiveFact, FactStatus, type FactInfo } from "../../api/engine-client";
+import { listFacts, updateFactStatus, unarchiveFact, type FactStatus, type FactInfo } from "../../api/engine-client";
 import { getState, type StateInfo } from "../../api/engine-client";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { getEnumLabel } from "../../i18n/labels";

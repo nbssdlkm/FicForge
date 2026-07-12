@@ -68,6 +68,7 @@ export function useAuLoreEditor(
   }, [auPath]);
 
   /** 打开文件并读取正文；characters 分类同步解析别名。分类跟随点击的列表项。 */
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 有意省依赖——hook 规则 4 ref-shim/边沿触发语义（见邻近注释）
   const openFile = useCallback(
     async (name: string, category: LoreCategory) => {
       const token = readGuard.start();
@@ -97,7 +98,6 @@ export function useAuLoreEditor(
         }
       }
       // readGuard 为稳定引用，读文件只应随 auPath 变化重建
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
     [auPath],
   );
@@ -113,6 +113,7 @@ export function useAuLoreEditor(
 
   // 全量列表刷新后（导入成功 reload）：选中文件仍在且无未保存编辑 → 重读正文；
   // 有未保存编辑 → 保留内存内容不重读（用户编辑优先于磁盘回显）；已消失 → 关闭
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 有意省依赖——hook 规则 4 ref-shim/边沿触发语义（见邻近注释）
   useEffect(() => {
     if (loadKey === 0 || !selectedFile) return;
     const list = selectedCategory === "worldbuilding" ? listsRef.current.worldbuildingFiles : listsRef.current.files;
@@ -124,7 +125,6 @@ export function useAuLoreEditor(
       closeFile();
     }
     // 只应由 loadKey 驱动；selectedFile/selectedCategory/脏判据 取触发时刻的值
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadKey]);
 
   /** 切分类 tab / 定位新建目标分类（仅切分类，不动已打开的文件——沿用旧行为）。 */

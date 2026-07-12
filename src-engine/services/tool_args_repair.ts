@@ -201,7 +201,7 @@ function stripDegenerateMdLink(s: string): string {
     if (t === u) return t;
     const uStripped = u.replace(/^(https?:\/\/|file:\/\/|\.\/|\/)/, "");
     if (t === uStripped) return t;
-    const uBasename = uStripped.split(/[\/\\]/).pop() ?? uStripped;
+    const uBasename = uStripped.split(/[/\\]/).pop() ?? uStripped;
     if (t === uBasename) return t;
     return full;
   });

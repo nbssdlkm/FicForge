@@ -9,8 +9,8 @@ import { Modal } from "../shared/Modal";
 import { ImportFlow } from "../import/ImportFlow";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useTranslation } from "../../i18n/useAppTranslation";
-import { type FandomInfo } from "../../api/engine-client";
-import { type ImportSelectedFandom } from "./useLibraryImportFlow";
+import type { FandomInfo } from "../../api/engine-client";
+import type { ImportSelectedFandom } from "./useLibraryImportFlow";
 
 type LibraryImportPanelProps = {
   dataDir: string;

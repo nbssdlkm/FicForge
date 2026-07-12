@@ -72,6 +72,7 @@ export interface TelemetrySink {
 export const consoleSink: TelemetrySink = {
   emit(event) {
     const { kind, ...rest } = event;
+    // biome-ignore lint/suspicious/noConsole: console sink 的本职就是打 console（测试/开发用，生产走 loggerSink）
     console.info(`[telemetry] ${kind}`, rest);
   },
 };
@@ -106,6 +107,7 @@ export const loggerSink: TelemetrySink = {
       }
       return;
     }
+    // biome-ignore lint/suspicious/noConsole: sanctioned 降级出口——logger 未就绪时保诊断不丢
     console.info(`[telemetry] ${kind}`, rest);
   },
 };

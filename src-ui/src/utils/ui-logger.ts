@@ -19,10 +19,10 @@ export function warnUi(tag: string, message: string, error?: unknown): void {
     logCatch(tag, message, error);
     return;
   }
-  /* eslint-disable no-console */
+  // biome-ignore lint/suspicious/noConsole: sanctioned 降级出口——logger 未就绪时保诊断不丢（E5 将补 redact 对齐引擎口径）
   if (error !== undefined) console.warn(`[${tag}] ${message}`, error);
+  // biome-ignore lint/suspicious/noConsole: 同上
   else console.warn(`[${tag}] ${message}`);
-  /* eslint-enable no-console */
 }
 
 /**

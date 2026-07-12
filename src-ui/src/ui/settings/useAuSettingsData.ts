@@ -32,6 +32,7 @@ export function useAuSettingsData(auPath: string) {
   const [loading, setLoading] = useState(true);
   const [loadKey, setLoadKey] = useState(0);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 有意省依赖——hook 规则 4 ref-shim/边沿触发语义（见邻近注释）
   useEffect(() => {
     if (!auPath) return;
     setLoading(true);
@@ -67,7 +68,6 @@ export function useAuSettingsData(auPath: string) {
         }
       });
     // guard/showError/t 均为稳定引用，加载只应随 auPath 重跑
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auPath]);
 
   /**

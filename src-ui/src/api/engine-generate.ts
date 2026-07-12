@@ -5,7 +5,12 @@
  * Engine Generate — generateChapter (async generator).
  */
 
-import { generate_chapter as engineGenerateChapter, resolve_llm_config, logCatch } from "@ficforge/engine";
+import {
+  generate_chapter as engineGenerateChapter,
+  resolve_llm_config,
+  logCatch,
+  type GenerationEvent,
+} from "@ficforge/engine";
 import { getEngine, getProjectOrThrow } from "./engine-instance";
 import { createEmbeddingProvider } from "./engine-state";
 
@@ -19,7 +24,15 @@ export async function* generateChapter(
     session_params?: Record<string, number> | null;
   },
   options?: { signal?: AbortSignal },
-): AsyncGenerator<{ event: string; data: any }> {
+): AsyncGenerator<
+  | { event: "token"; data: { text: string } }
+  | { event: "context_summary"; data: Extract<GenerationEvent, { type: "context_summary" }>["data"] }
+  | { event: "done"; data: Extract<GenerationEvent, { type: "done" }>["data"] }
+  | {
+      event: "error";
+      data: { error_code: string; message: string; actions: string[]; partial_draft_label?: string | null };
+    }
+> {
   const e = getEngine();
   const proj = await getProjectOrThrow(params.au_path);
   const st = await e.repos.state.get(params.au_path);

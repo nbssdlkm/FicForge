@@ -65,10 +65,15 @@ export function parseAliasesFromContent(content: string): string[] {
   // Parse aliases: [a, b, c] or aliases:\n- a\n- b
   const inlineMatch = fm.match(/aliases:\s*\[([^\]]*)\]/);
   if (inlineMatch) {
-    return inlineMatch[1]
-      .split(",")
-      .map((s) => s.trim().replace(/^["']|["']$/g, ""))
-      .filter(Boolean);
+    // 去重：编辑路径（commitNewAlias）拒重复，加载侧对齐（chip key={value} 防撞）
+    return [
+      ...new Set(
+        inlineMatch[1]
+          .split(",")
+          .map((s) => s.trim().replace(/^["']|["']$/g, ""))
+          .filter(Boolean),
+      ),
+    ];
   }
   const lines = fm.split("\n");
   const idx = lines.findIndex((l) => l.startsWith("aliases:"));
@@ -79,7 +84,7 @@ export function parseAliasesFromContent(content: string): string[] {
     if (m) result.push(m[1].trim().replace(/^["']|["']$/g, ""));
     else break;
   }
-  return result;
+  return [...new Set(result)];
 }
 
 export function setAliasesInContent(content: string, aliases: string[]): string {

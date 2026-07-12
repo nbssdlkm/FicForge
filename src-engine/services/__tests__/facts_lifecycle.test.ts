@@ -3,7 +3,7 @@
 
 import { describe, expect, it, beforeEach } from "vitest";
 import { add_fact, edit_fact, update_fact_status, set_chapter_focus, FactsLifecycleError } from "../facts_lifecycle.js";
-import { FactStatus, TimeKind, SuspenseType, NarrativeWeight } from "../../domain/enums.js";
+import { FactStatus, TimeKind, SuspenseType } from "../../domain/enums.js";
 import { FileFactRepository } from "../../repositories/implementations/file_fact.js";
 import { FileOpsRepository } from "../../repositories/implementations/file_ops.js";
 import { FileStateRepository } from "../../repositories/implementations/file_state.js";
@@ -80,7 +80,7 @@ describe("Facts Lifecycle", () => {
       opsRepo,
     );
 
-    const f2 = await add_fact(
+    await add_fact(
       "au1",
       2,
       {
@@ -186,7 +186,7 @@ describe("Facts Lifecycle", () => {
       opsRepo,
     );
 
-    const f3 = await add_fact(
+    await add_fact(
       "au1",
       3,
       {

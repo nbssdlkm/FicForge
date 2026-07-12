@@ -548,6 +548,7 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
     setMessages((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 有意省依赖——hook 规则 4 ref-shim/边沿触发语义（见邻近注释）
   const clearMessages = useCallback(() => {
     setMessages([]);
   }, []);
@@ -580,7 +581,6 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
     }),
     // Only state values as deps — all callbacks are useCallback-stabilized and never
     // change identity. Listing them would be false-positive cargo cult.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [messages, isLoaded, loadError],
   );
 }

@@ -87,14 +87,14 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
             file.filename.toLowerCase().includes(normalizedSearch),
         )
       : list;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 有意省依赖——hook 规则 4 ref-shim/边沿触发语义（见邻近注释）
   const filteredCharacterFiles = useMemo(
     () => filterBySearch(files.characterFiles),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [files.characterFiles, normalizedSearch],
   );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 有意省依赖——hook 规则 4 ref-shim/边沿触发语义（见邻近注释）
   const filteredWorldbuildingFiles = useMemo(
     () => filterBySearch(files.worldbuildingFiles),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [files.worldbuildingFiles, normalizedSearch],
   );
 

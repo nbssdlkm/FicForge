@@ -127,12 +127,12 @@ export function ProviderModelPicker({
   // 权威模型：仅当 ctx 表单为空（未选/初次进无保存值）时自动带出官方值。
   // 不再强制覆盖非空表单值 —— 允许 per-model 覆盖上下文窗口（get_context_window 会优先认保存的
   // context_window，故覆盖真生效）；用户显式改小/改大的值得以保留，官方值仅作默认与「恢复默认」目标。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 有意省依赖——hook 规则 4 ref-shim/边沿触发语义（见邻近注释）
   useEffect(() => {
     if (kind !== "chat" || !onContextWindowChange) return;
     if (ctxInfo.source === "authoritative" && ctxInfo.value !== undefined && (contextWindow ?? "").trim() === "") {
       onContextWindowChange(String(ctxInfo.value));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctxInfo.source, ctxInfo.value, contextWindow, kind]);
 
   const applyCatalogUpdate = (updater: (prev: ModelCatalog) => ModelCatalog) => {

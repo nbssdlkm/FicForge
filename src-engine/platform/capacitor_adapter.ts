@@ -36,7 +36,7 @@ function secureDebugEnabled(): boolean {
 
 function secureDebugLog(message: string): void {
   if (!secureDebugEnabled()) return;
-  // eslint-disable-next-line no-console
+  // biome-ignore lint/suspicious/noConsole: 默认关闭的真机排障通道（__FICFORGE_SECURE_DEBUG__ gate）
   console.info(message);
 }
 

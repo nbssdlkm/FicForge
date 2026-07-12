@@ -23,6 +23,7 @@ export function useKV(key: string, defaultValue: string): [string, (v: string) =
   // 本地是否已发生 set（针对当前 key）。异步初始加载 resolve 时据此判断是否让位给用户写入。
   const localSetRef = useRef(false);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 有意省依赖——hook 规则 4 ref-shim/边沿触发语义（见邻近注释）
   useEffect(() => {
     // key 变更：重置为默认值并重新加载新 key（清掉上一个 key 的残留 + 允许新 key 的初始加载覆盖）。
     setValue(defaultValue);
@@ -45,7 +46,6 @@ export function useKV(key: string, defaultValue: string): [string, (v: string) =
     };
     // defaultValue 有意不入依赖：调用方常传字面量，每次渲染新引用会触发无谓重载/重置。
     // key 才是加载键；defaultValue 仅作首屏兜底，变更极罕见。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
   const set = useCallback(

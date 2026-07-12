@@ -327,15 +327,15 @@ function extractJsonResult(raw: string): Partial<LlmChatDetectResult> | null {
  * 两个 sample 相同/为空时返回 null（LLM 出错兜底）。
  */
 export function buildChatFormatFromSamples(userSample: string, assistantSample: string): ChatFormatPattern | null {
-  const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const uTrim = userSample.trim();
   const aTrim = assistantSample.trim();
   if (!uTrim || !aTrim || uTrim === aTrim) return null;
 
   return {
     name: "LLM Detected",
-    userPattern: new RegExp(`^${escape(uTrim)}\\s*`, "im"),
-    assistantPattern: new RegExp(`^${escape(aTrim)}\\s*`, "im"),
+    userPattern: new RegExp(`^${escapeRegex(uTrim)}\\s*`, "im"),
+    assistantPattern: new RegExp(`^${escapeRegex(aTrim)}\\s*`, "im"),
   };
 }
 
@@ -354,8 +354,7 @@ export function splitByRole(content: string, format: ChatFormatPattern): ChatTur
 
   // 找到所有标记的位置
   const markers: { index: number; matchLength: number; role: "user" | "assistant" }[] = [];
-  let match: RegExpExecArray | null;
-  while ((match = combinedRe.exec(content)) !== null) {
+  for (const match of content.matchAll(combinedRe)) {
     // 判断是 user 还是 assistant
     const userTest = new RegExp(format.userPattern.source, "im");
     const role: "user" | "assistant" = userTest.test(match[0]) ? "user" : "assistant";

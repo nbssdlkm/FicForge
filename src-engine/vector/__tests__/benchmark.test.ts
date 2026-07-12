@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it } from "vitest";
-import { cosine_similarity, JsonVectorEngine } from "../engine.js";
+import { JsonVectorEngine } from "../engine.js";
 import type { VectorChunk } from "../../repositories/interfaces/vector.js";
 
 /** 生成随机 embedding 向量。 */

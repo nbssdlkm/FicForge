@@ -25,11 +25,11 @@ export function platformWarn(tag: string, msg: string, ctx?: Record<string, unkn
     getLogger().warn(tag, msg, ctx);
     return;
   }
-  /* eslint-disable no-console */
   // console 降级同样过脱敏（B2 对抗审）—— 与 warnAlways 同口径
+  // biome-ignore lint/suspicious/noConsole: sanctioned 降级出口——logger 未就绪时保诊断不丢
   if (ctx) console.warn(`[${tag}] ${msg}`, redactCtx(ctx));
+  // biome-ignore lint/suspicious/noConsole: 同上
   else console.warn(`[${tag}] ${msg}`);
-  /* eslint-enable no-console */
 }
 
 // ---------------------------------------------------------------------------

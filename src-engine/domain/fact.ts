@@ -3,7 +3,7 @@
 
 /** 事实领域对象。参见 PRD §3.6 facts.jsonl 字段定义。 */
 
-import { FactSource, FactStatus, FactType, NarrativeWeight, TimeKind, SuspenseType } from "./enums.js";
+import { FactSource, FactStatus, FactType, NarrativeWeight, type TimeKind, type SuspenseType } from "./enums.js";
 
 export interface Fact {
   id: string; // 格式: f_{时间戳}_{4位随机}

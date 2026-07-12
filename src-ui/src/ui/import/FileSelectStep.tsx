@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 
-import { useState, useRef, DragEvent } from "react";
+import { useState, useRef, type DragEvent } from "react";
 import { Button } from "../shared/Button";
 import { Upload, FileText, X, ChevronUp, ChevronDown } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";

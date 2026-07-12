@@ -172,7 +172,7 @@ export async function* runAgentLoop<E>(
       // 部分模型（deepseek-reasoner 等）拒绝非 auto 的 tool_choice，抛 forced_tool_choice_unsupported。
       // 此时同轮改 auto 重试 + sticky —— 补上 openai_compatible.ts 注释里承诺却从没写的消费者（审计 HIGH）。
       // 该错误在首包前抛出（0 chunk yield），故重试不会重复 yield token/tool-delta。
-      streamRetry: while (true) {
+      while (true) {
         toolBuffers.clear();
         fullText = "";
         reasoningContent = "";
@@ -227,7 +227,7 @@ export async function* runAgentLoop<E>(
             if (chunk.input_tokens !== null) inputTokens = chunk.input_tokens;
             if (chunk.output_tokens !== null) outputTokens = chunk.output_tokens;
           }
-          break streamRetry; // 流正常完成
+          break; // 流正常完成
         } catch (e) {
           if (
             e instanceof LLMError &&
@@ -238,7 +238,7 @@ export async function* runAgentLoop<E>(
           ) {
             forcedChoiceDisabled = true;
             config.telemetry?.emit({ kind: "forced_tool_choice_fallback", agentName: config.agentName, model: "" });
-            continue streamRetry; // 同轮改 auto 重试
+            continue; // 同轮改 auto 重试
           }
           throw e;
         }

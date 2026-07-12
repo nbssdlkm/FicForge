@@ -72,13 +72,13 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
     }
   };
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 有意省依赖——hook 规则 4 ref-shim/边沿触发语义（见邻近注释）
   useEffect(() => {
     setThreads([]);
     setFacts([]);
     setEditing(null);
     setSelectedThreadId(null);
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auPath]);
 
   // 每条线挂了多少 Fact（成员关系真相源 = fact.thread_ids）。
@@ -90,7 +90,10 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
 
   const grouped = useMemo(() => {
     const g: Record<string, Thread[]> = {};
-    for (const th of threads) (g[th.status] ??= []).push(th);
+    for (const th of threads) {
+      g[th.status] ??= [];
+      g[th.status].push(th);
+    }
     for (const k of Object.keys(g)) {
       g[k].sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""));
     }

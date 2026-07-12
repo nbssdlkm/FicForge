@@ -130,7 +130,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     await confirmCh(3, "Bob拿出了一封信。Charlie接了过去。");
 
     // Step 2: Add facts across chapters
-    const f1 = await add_fact(
+    await add_fact(
       "au1",
       1,
       {
@@ -143,7 +143,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
       opsRepo,
     );
 
-    const f2 = await add_fact(
+    await add_fact(
       "au1",
       2,
       {
@@ -203,7 +203,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     expect(repoState.current_chapter).toBe(4);
 
     // Add new fact for re-confirmed chapter 3
-    const f3b = await add_fact(
+    await add_fact(
       "au1",
       3,
       {
@@ -487,7 +487,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
       factRepo,
       opsRepo,
     );
-    const f1b = await add_fact(
+    await add_fact(
       "au1",
       1,
       {

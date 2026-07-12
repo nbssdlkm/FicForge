@@ -16,7 +16,8 @@ export type KnownToMode = "unset" | "all" | "reader_only" | "some";
 function deriveKnownToState(knownTo: FactInfo["known_to"] | string): { mode: KnownToMode; names: string[] } {
   if (knownTo === "all") return { mode: "all", names: [] };
   if (knownTo === "reader_only") return { mode: "reader_only", names: [] };
-  if (Array.isArray(knownTo) && knownTo.length > 0) return { mode: "some", names: knownTo };
+  // 去重：add 路径（commitName）拒重复、引擎 fact_sanitize 写侧去重，加载侧对齐（存量脏数据兜底 + key={value} 防撞）
+  if (Array.isArray(knownTo) && knownTo.length > 0) return { mode: "some", names: [...new Set(knownTo)] };
   if (typeof knownTo === "string" && knownTo.trim() !== "") return { mode: "some", names: [knownTo.trim()] };
   return { mode: "unset", names: [] };
 }
@@ -106,7 +107,7 @@ export function useFactEditor(auPath: string, currentChapter: number, onSaved: (
     setSavingFact(true);
     setSaveSuccess(false);
     try {
-      const updatedFields: Record<string, any> = {};
+      const updatedFields: Record<string, unknown> = {};
       if (editContentCleanRef.current) updatedFields.content_clean = editContentCleanRef.current.value;
       if (editContentRawRef.current) updatedFields.content_raw = editContentRawRef.current.value;
       if (editCharactersRef.current) {
@@ -193,7 +194,7 @@ export function useFactEditor(auPath: string, currentChapter: number, onSaved: (
     setKnownToMode(kt.mode);
     setKnownToNames(kt.names);
     setKnownToDraft("");
-    setHiddenFromNames(Array.isArray(fact.hidden_from) ? fact.hidden_from : []);
+    setHiddenFromNames(Array.isArray(fact.hidden_from) ? [...new Set(fact.hidden_from)] : []);
     setHiddenFromDraft("");
   };
 

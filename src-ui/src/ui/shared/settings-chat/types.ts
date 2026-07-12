@@ -70,11 +70,7 @@ export function coerceStringArray(value: unknown): string[] {
 export function normalizeMarkdownFilename(value: string): string {
   const trimmed = value.trim().replace(/\.md$/i, "");
   // 防止路径穿越
-  const safe = trimmed
-    .replace(/[\/\\]/g, "")
-    .replace(/\.\./g, "")
-    .replace(/^\.+/, "")
-    .trim();
+  const safe = trimmed.replace(/[/\\]/g, "").replace(/\.\./g, "").replace(/^\.+/, "").trim();
   return `${safe || "untitled"}.md`;
 }
 
@@ -239,26 +235,23 @@ export function getToolValidationError(
       return t("settingsMode.validation.factIdRequired");
     }
     const hasAnyField =
-      Object.prototype.hasOwnProperty.call(args, "content_raw") ||
-      Object.prototype.hasOwnProperty.call(args, "content_clean") ||
-      Object.prototype.hasOwnProperty.call(args, "characters") ||
-      Object.prototype.hasOwnProperty.call(args, "fact_type") ||
-      Object.prototype.hasOwnProperty.call(args, "type") ||
-      Object.prototype.hasOwnProperty.call(args, "narrative_weight") ||
-      Object.prototype.hasOwnProperty.call(args, "status");
+      Object.hasOwn(args, "content_raw") ||
+      Object.hasOwn(args, "content_clean") ||
+      Object.hasOwn(args, "characters") ||
+      Object.hasOwn(args, "fact_type") ||
+      Object.hasOwn(args, "type") ||
+      Object.hasOwn(args, "narrative_weight") ||
+      Object.hasOwn(args, "status");
     if (!hasAnyField) {
       return t("settingsMode.validation.factChangesRequired");
     }
-    if (
-      (Object.prototype.hasOwnProperty.call(args, "fact_type") || Object.prototype.hasOwnProperty.call(args, "type")) &&
-      !factType
-    ) {
+    if ((Object.hasOwn(args, "fact_type") || Object.hasOwn(args, "type")) && !factType) {
       return t("settingsMode.validation.factTypeRequired");
     }
-    if (Object.prototype.hasOwnProperty.call(args, "status") && !factStatus) {
+    if (Object.hasOwn(args, "status") && !factStatus) {
       return t("settingsMode.validation.factStatusRequired");
     }
-    if (Object.prototype.hasOwnProperty.call(args, "narrative_weight") && !narrativeWeight) {
+    if (Object.hasOwn(args, "narrative_weight") && !narrativeWeight) {
       return t("settingsMode.validation.narrativeWeightRequired");
     }
     if (factType && !FACT_TYPE_OPTIONS.includes(factType as (typeof FACT_TYPE_OPTIONS)[number])) {

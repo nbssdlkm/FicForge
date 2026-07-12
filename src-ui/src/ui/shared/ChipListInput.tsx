@@ -48,7 +48,7 @@ export function ChipListInput({
       <span className="mr-1 text-xs font-sans text-text/50 md:text-xs">{label}</span>
       {values.map((value, i) => (
         <span
-          key={i}
+          key={value}
           className="inline-flex min-h-[44px] items-center gap-1 rounded-xl bg-accent/10 px-3 py-1 text-sm font-sans text-accent md:min-h-0 md:rounded-md md:px-2 md:py-0.5 md:text-xs"
         >
           {value}

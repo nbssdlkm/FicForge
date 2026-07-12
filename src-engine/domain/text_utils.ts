@@ -23,8 +23,7 @@ export function extract_last_scene_ending(content: string, max_chars = 50): stri
   // 找所有句子结束标点（中文 + 英文）
   const sentenceEnd = /[。！？….!?\n]/g;
   const matches: RegExpExecArray[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = sentenceEnd.exec(tail)) !== null) {
+  for (const m of tail.matchAll(sentenceEnd)) {
     matches.push(m);
   }
 

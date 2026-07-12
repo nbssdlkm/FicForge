@@ -152,7 +152,7 @@ describe("run_archival_sweep", () => {
   });
 
   it("does not re-archive already archived fact", async () => {
-    const fact = await add_fact(
+    await add_fact(
       "au1",
       1,
       {

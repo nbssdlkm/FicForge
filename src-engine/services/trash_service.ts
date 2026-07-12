@@ -507,9 +507,7 @@ export class TrashService {
       if (!stripped) continue;
       try {
         entries.push(JSON.parse(stripped) as TrashEntry);
-      } catch {
-        continue;
-      }
+      } catch {}
     }
     return entries;
   }

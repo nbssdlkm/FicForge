@@ -127,6 +127,7 @@ export const DirtyModal = ({
       const confirmedChanges = oldFacts.map((f) => ({
         fact_id: f.id,
         action: decisions[f.id] || "keep",
+        updated_fields: null,
       }));
       const resolveResult = await resolveDirtyChapter(auPath, chapterNum, confirmedChanges);
 
@@ -261,6 +262,7 @@ export const DirtyModal = ({
               <div className="space-y-2">
                 {candidates.map((c, idx) => (
                   <label
+                    // biome-ignore lint/suspicious/noArrayIndexKey: 候选快照、选择态按 index 存 Set（selectedCandidates）、不重排、无稳定 id
                     key={idx}
                     className={`flex items-start gap-3 border rounded-lg p-3 cursor-pointer transition-colors ${selectedCandidates.has(idx) ? "border-accent/40 bg-accent/5" : "border-black/10 dark:border-white/10 bg-surface/30"}`}
                   >

@@ -8,14 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 import { get_tools_for_mode } from "../settings_tools.js";
-import {
-  FactType,
-  FACT_TYPE_VALUES,
-  FactStatus,
-  FACT_STATUS_VALUES,
-  NarrativeWeight,
-  NARRATIVE_WEIGHT_VALUES,
-} from "../enums.js";
+import { FACT_TYPE_VALUES, FACT_STATUS_VALUES, NARRATIVE_WEIGHT_VALUES } from "../enums.js";
 
 function getToolSchema(mode: string, toolName: string) {
   const tools = get_tools_for_mode(mode);

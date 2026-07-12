@@ -15,7 +15,7 @@
  */
 
 import { FONT_MANIFEST, getFontById } from "./manifest.js";
-import { FontDownloader, type ProgressCallback } from "./downloader.js";
+import type { FontDownloader, ProgressCallback } from "./downloader.js";
 import type { FontRegistry } from "./registry.js";
 import type { FontStorage } from "./storage.js";
 import { warnAlways } from "../logger/index.js";

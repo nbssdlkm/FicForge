@@ -122,9 +122,7 @@ export class FileProjectRepository implements ProjectRepository {
         const project = await this.get(auPath);
         // 无 project.yaml 的目录（非 AU / 半删除残留）→ 跳过
         if (project) result.push(project);
-      } catch {
-        continue;
-      }
+      } catch {}
     }
     return result;
   }

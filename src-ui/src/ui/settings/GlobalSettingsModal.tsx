@@ -10,7 +10,7 @@ import { ConfirmDialog } from "../shared/ConfirmDialog";
 import { Input } from "../shared/Input";
 import { HelpCircle, CheckCircle2, XCircle } from "lucide-react";
 import { ProviderModelPicker } from "./model-picker/ProviderModelPicker";
-import { LLMMode, getDataDir } from "../../api/engine-client";
+import { type LLMMode, getDataDir } from "../../api/engine-client";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { useFeedback } from "../../hooks/useFeedback";
 import { DebugLogsSection } from "./DebugLogsSection";
@@ -64,10 +64,10 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onCl
       error instanceof Error ? error.message || t("error_messages.unknown") : t("error_messages.unknown"),
   });
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 有意省依赖——hook 规则 4 ref-shim/边沿触发语义（见邻近注释）
   useEffect(() => {
     llmConnection.reset();
     // 连接测试结果随相关字段变化失效；isOpen 兜住「字段恰好没变」的开/关边沿
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isOpen,
     form.mode,

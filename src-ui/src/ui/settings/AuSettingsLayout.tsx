@@ -357,7 +357,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                 <p className="text-sm text-text/50">{t("settings.emptyCoreIncludes")}</p>
               ) : (
                 form.coreIncludes.map((file, idx) => (
-                  <Tag key={idx} tone="success" className="px-3 py-1.5 text-sm gap-2">
+                  <Tag key={file} tone="success" className="px-3 py-1.5 text-sm gap-2">
                     <span>{file}</span>
                     <button
                       className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:text-success/50 md:h-auto md:w-auto"

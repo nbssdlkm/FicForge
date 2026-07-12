@@ -13,7 +13,6 @@ import { FileDraftRepository } from "../../repositories/implementations/file_dra
 import { FileStateRepository } from "../../repositories/implementations/file_state.js";
 import { FileOpsRepository } from "../../repositories/implementations/file_ops.js";
 import { FileProjectRepository } from "../../repositories/implementations/file_project.js";
-import { FileFactRepository } from "../../repositories/implementations/file_fact.js";
 
 /**
  * 可注入故障的 adapter：在指定路径的 writeFile / deleteFile 上抛错，

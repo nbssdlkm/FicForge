@@ -367,15 +367,14 @@ export async function executeSettingsTool(
     const weight = coerceString(args.narrative_weight);
     const status = coerceString(args.status);
 
-    if (Object.prototype.hasOwnProperty.call(args, "content_raw")) updatedFields.content_raw = contentRaw;
-    if (Object.prototype.hasOwnProperty.call(args, "content_clean")) updatedFields.content_clean = contentClean;
-    if (Object.prototype.hasOwnProperty.call(args, "characters")) updatedFields.characters = characters;
-    if (Object.prototype.hasOwnProperty.call(args, "fact_type") || Object.prototype.hasOwnProperty.call(args, "type")) {
+    if (Object.hasOwn(args, "content_raw")) updatedFields.content_raw = contentRaw;
+    if (Object.hasOwn(args, "content_clean")) updatedFields.content_clean = contentClean;
+    if (Object.hasOwn(args, "characters")) updatedFields.characters = characters;
+    if (Object.hasOwn(args, "fact_type") || Object.hasOwn(args, "type")) {
       if (type) updatedFields.type = type;
     }
-    if (Object.prototype.hasOwnProperty.call(args, "narrative_weight") && weight)
-      updatedFields.narrative_weight = weight;
-    if (Object.prototype.hasOwnProperty.call(args, "status") && status) updatedFields.status = status;
+    if (Object.hasOwn(args, "narrative_weight") && weight) updatedFields.narrative_weight = weight;
+    if (Object.hasOwn(args, "status") && status) updatedFields.status = status;
 
     await editFact(basePath, factId, updatedFields);
     return {

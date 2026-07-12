@@ -152,9 +152,9 @@ describe("M9 ReAct 提取真 LLM 探针", () => {
     const landedWithCause = allFacts.filter((f) => (f.caused_by ?? []).some((c) => validFactIds.has(c)));
 
     console.log(`\n[M8-B 反向视图] 「${SEEDED_THREAD.title}」现挂 ${threadMembership.length} 条 Fact 节点：`);
-    threadMembership.forEach((f) =>
-      console.log(`  · ${f.content_clean}  (caused_by=${JSON.stringify(f.caused_by ?? [])})`),
-    );
+    threadMembership.forEach((f) => {
+      console.log(`  · ${f.content_clean}  (caused_by=${JSON.stringify(f.caused_by ?? [])})`);
+    });
 
     // 数据链闭环：提取产出的 thread_ids/caused_by，经 add_fact 落库后，反向视图查询能查到。
     // 用 >= 而非 === 防 add_fact 内部去重/归一带来的微小偏差，但核心：提取挂了线的都进得了反向视图。

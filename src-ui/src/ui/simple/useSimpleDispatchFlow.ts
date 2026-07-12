@@ -76,6 +76,7 @@ export function useSimpleDispatchFlow({
   //  2. tone="info" system message → 删除（旧版 thinking placeholder 持久化的产物，
   //     现已改用 transient thinkingActive useState 不再 persist）
   // 仅在 isLoaded 切 true 那一刻跑（auPath 切换会先切 false 再切 true，自然触发新一轮）。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 仅 isLoaded 切 true 时跑一次
   useEffect(() => {
     if (!chat.isLoaded) return;
     for (const m of chat.messages) {
@@ -85,7 +86,6 @@ export function useSimpleDispatchFlow({
         chat.removeMessage(m.id);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅 isLoaded 切 true 时跑一次
   }, [chat.isLoaded]);
 
   // ===========================================================================

@@ -90,7 +90,7 @@ describe("Context Assembler — semantic golden tests", () => {
     const p2Idx = content.indexOf("## 上一章结尾");
     const p3Idx = content.indexOf("## 当前剧情状态");
     // P1 contains "## 当前状态" (from CURRENT_STATUS prompt)
-    const p1Idx = content.indexOf("## 当前状态");
+    const _p1Idx = content.indexOf("## 当前状态");
 
     // P5 (characters + worldbuilding) should come first
     expect(p5CharIdx).toBeGreaterThanOrEqual(0);

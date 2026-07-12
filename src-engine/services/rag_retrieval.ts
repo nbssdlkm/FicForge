@@ -312,7 +312,8 @@ function format_rag_chunks(chunks: ChunkWithCollection[], language = "zh"): stri
   const P = getPrompts(language as "zh" | "en");
   const groups: Record<string, string[]> = {};
   for (const c of chunks) {
-    (groups[c._collection] ??= []).push(c.content);
+    groups[c._collection] ??= [];
+    groups[c._collection].push(c.content);
   }
 
   const labelMap: Record<string, string> = {

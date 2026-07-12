@@ -402,7 +402,8 @@ describe("OpenAICompatibleProvider.generate non-streaming success", () => {
     });
 
     // NULL 和 lone surrogate 被移除，合法字符保留
-    const userMsg = (capturedBody?.messages as Array<{ content: string }>)[0];
+    if (capturedBody === null) throw new Error("请求体未捕获");
+    const userMsg = (capturedBody.messages as Array<{ content: string }>)[0];
     expect(userMsg.content).not.toContain(" ");
     expect(userMsg.content).not.toContain("\uD800");
     expect(userMsg.content).toContain("hello");

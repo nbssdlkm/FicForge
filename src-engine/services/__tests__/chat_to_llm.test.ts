@@ -379,7 +379,9 @@ describe("chatToOpenAIMessages", () => {
     ]);
 
     expect(out).toHaveLength(3);
-    out.forEach((m) => expect(m.role).toBe("assistant"));
+    out.forEach((m) => {
+      expect(m.role).toBe("assistant");
+    });
     expect(out[0].content).toContain("[tool: modify_character_file]");
     expect(out[0].content).toContain("Alice.md");
     expect(out[0].content).toContain("[已执行]");

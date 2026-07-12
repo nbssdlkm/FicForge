@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 import { createFactsExtractionTask, type FactsExtractionParams } from "../impl/facts_extraction_task.js";
-import { createFact, type Fact } from "../../domain/fact.js";
+import { type Fact } from "../../domain/fact.js";
 import { createThread } from "../../domain/thread.js";
 import { ThreadStatus } from "../../domain/enums.js";
 import type { TaskContext, TaskEvent } from "../types.js";

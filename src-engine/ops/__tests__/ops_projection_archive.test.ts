@@ -8,8 +8,6 @@
 import { describe, expect, it } from "vitest";
 import { rebuildFactsFromOps, sortAndDedupeOps } from "../ops_projection.js";
 import type { OpsEntry } from "../../domain/ops_entry.js";
-import { createFact } from "../../domain/fact.js";
-import { FactStatus } from "../../domain/enums.js";
 
 function makeOp(overrides: Partial<OpsEntry>): OpsEntry {
   return {

@@ -37,6 +37,7 @@ import {
   WriteTransaction,
   withAuLock,
   type GeneratedWith,
+  type FactChange,
 } from "@ficforge/engine";
 import { ApiError, getFriendlyErrorMessage } from "./client";
 import { getEngine, getProjectOrThrow } from "./engine-instance";
@@ -254,7 +255,7 @@ export async function confirmChapter(
         // Phase 2（锁内）：CAS 校验章节还在，再写 v2 + 更新向量索引
         if (genResult) {
           await withAuLock(auPath, async () => {
-            let targetCh;
+            let targetCh: Awaited<ReturnType<typeof chapter.get>>;
             try {
               targetCh = await chapter.get(auPath, targetChapterNum);
             } catch {
@@ -356,7 +357,7 @@ export async function updateChapterTitle(auPath: string, chapterNum: number, tit
   });
 }
 
-export async function resolveDirtyChapter(auPath: string, chapterNum: number, confirmedFactChanges: any[] = []) {
+export async function resolveDirtyChapter(auPath: string, chapterNum: number, confirmedFactChanges: FactChange[] = []) {
   const { chapter, state, ops, fact } = getEngine().repos;
   const proj = await getProjectOrThrow(auPath);
   return await resolve_dirty_chapter({

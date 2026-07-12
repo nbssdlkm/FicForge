@@ -59,6 +59,7 @@ export function AuSettingsPinnedSection({
           />
         ) : (
           pinnedContext.map((pc, idx) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: 可编辑自由文本规则、无稳定 id；用 content 做 key 会在输入时重挂 Textarea 丢焦点
             <div key={idx} className="flex items-start gap-3 rounded-lg border border-error/20 bg-error/5 p-4">
               <span className="font-mono text-error/50 font-bold mt-1 text-sm">{idx + 1}.</span>
               <Textarea

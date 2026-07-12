@@ -122,6 +122,7 @@ export function DebugLogsSection() {
             ) : (
               filtered.map((entry, i) => (
                 <div
+                  // biome-ignore lint/suspicious/noArrayIndexKey: 追加型日志行、不重排不编辑、无稳定 id（纯位置列表）
                   key={i}
                   className={`${LEVEL_COLORS[entry.lvl] ?? "text-text/70"} border-b border-black/5 py-0.5 dark:border-white/5`}
                 >

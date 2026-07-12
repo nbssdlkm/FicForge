@@ -59,7 +59,7 @@ function waitWithAbort(ms: number, signal?: AbortSignal): Promise<void> {
 function sanitizeForJson(s: string): string {
   // 仅移除 lone surrogates（不成对的）和 NULL (U+0000)。
   // 合法的 surrogate pair（如 emoji 😊 = \uD83D\uDE0A）不动。
-  // eslint-disable-next-line no-control-regex
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: 有意匹配 NULL——清洗目标就是控制字符本身
   return s.replace(/\u0000|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "");
 }
 
@@ -83,6 +83,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
     // scheme://）—— 主校验在 config_resolver.toChatPath，此处兜住直接 new Provider 的路径。
     // 先剥离控制字符（\n\r\t 等）：webview 会在解析 URL 前吃掉它们，`/\n/host` 剥离后
     // 变协议相对 `//host` —— 若不先清除会绕过下面的 startsWith("//") 判据。
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: 有意剥离控制字符——安全判据前置清洗（盲审 R3 HIGH-2）
     const trimmed = chatPath?.replace(/[\u0000-\u001f\u007f]/g, "").trim();
     const safe = trimmed && !trimmed.startsWith("//") && !trimmed.includes("\\") && !trimmed.includes("://");
     this.chatPath = safe ? (trimmed.startsWith("/") ? trimmed : `/${trimmed}`) : "/chat/completions";
@@ -465,7 +466,6 @@ export class OpenAICompatibleProvider implements LLMProvider {
       } catch (e) {
         if (externalSignal?.aborted) throw new LLMError("cancelled", "请求已取消", []);
         if (e instanceof LLMError) throw e;
-        continue;
       } finally {
         detachAbort();
       }

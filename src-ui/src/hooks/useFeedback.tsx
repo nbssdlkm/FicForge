@@ -102,7 +102,9 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     );
 
     return () => {
-      timers.forEach((timer) => window.clearTimeout(timer));
+      timers.forEach((timer) => {
+        window.clearTimeout(timer);
+      });
     };
   }, [removeToast, toasts]);
 

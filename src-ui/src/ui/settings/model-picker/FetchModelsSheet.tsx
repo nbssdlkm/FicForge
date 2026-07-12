@@ -87,6 +87,7 @@ export function FetchModelsSheet({
       });
   }, [apiBase, apiKey, describeFetchError, guard]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 有意省依赖——hook 规则 4 ref-shim/边沿触发语义（见邻近注释）
   useEffect(() => {
     if (!isOpen) return;
     setSearch("");
@@ -94,7 +95,6 @@ export function FetchModelsSheet({
     setSelected(new Set(existingEntries.map((m) => m.id)));
     runFetch();
     // existingEntries 是打开瞬间的快照语义，刻意不进依赖（打开期间父层不变）
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   const existingById = useMemo(() => new Map(existingEntries.map((m) => [m.id, m])), [existingEntries]);
@@ -136,8 +136,14 @@ export function FetchModelsSheet({
   const toggleAllVisible = () => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (allVisibleSelected) visibleIds.forEach((id) => next.delete(id));
-      else visibleIds.forEach((id) => next.add(id));
+      if (allVisibleSelected)
+        visibleIds.forEach((id) => {
+          next.delete(id);
+        });
+      else
+        visibleIds.forEach((id) => {
+          next.add(id);
+        });
       return next;
     });
   };

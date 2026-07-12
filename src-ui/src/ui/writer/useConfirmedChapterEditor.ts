@@ -55,7 +55,7 @@ export function useConfirmedChapterEditor({
 
     let cancelled = false;
     getChapterContent(auPath, viewChapter)
-      .then((result: any) => {
+      .then((result: string | { content?: string }) => {
         if (cancelled) return;
         const text = typeof result === "string" ? result : result?.content || "";
         setViewingHistoryContent(text);

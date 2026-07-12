@@ -2,13 +2,23 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { Tag } from "../shared/Tag";
+import { Tag, type TagTone } from "../shared/Tag";
 import { Card } from "../shared/Card";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { getEnumLabel } from "../../i18n/labels";
-import { FactAnnotationChips } from "./FactAnnotationChips";
+import { FactAnnotationChips, type FactAnnotationSource } from "./FactAnnotationChips";
 
-export const FactCard = ({ fact }: { fact: any }) => {
+// FactCard 只读取这些字段（调用方 FactsLayout 传 `{...Fact, weight, chapter}`，测试传等价最小对象）。
+type FactCardFact = FactAnnotationSource & {
+  weight: string;
+  status: string;
+  chapter: number;
+  content_clean: string;
+  characters: string[];
+  archived?: boolean | null;
+};
+
+export const FactCard = ({ fact }: { fact: FactCardFact }) => {
   const { t } = useTranslation();
   const weightLabel = getEnumLabel("narrative_weight", fact.weight, fact.weight);
 
@@ -18,7 +28,7 @@ export const FactCard = ({ fact }: { fact: any }) => {
     >
       <div className="flex justify-between items-start mb-2">
         <div className="flex gap-2 items-center">
-          <Tag tone={fact.status}>{getEnumLabel("fact_status", fact.status, fact.status)}</Tag>
+          <Tag tone={fact.status as TagTone}>{getEnumLabel("fact_status", fact.status, fact.status)}</Tag>
           {fact.archived && (
             <Tag tone="default" title={t("facts.archivedHint")}>
               {t("facts.archivedBadge")}

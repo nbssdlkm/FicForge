@@ -6,13 +6,12 @@
  * Mock LLMProvider + Mock callbacks，覆盖 8 个关键路径。
  */
 
-import { describe, expect, it, vi } from "vitest";
-import { z } from "zod";
+import { describe, expect, it } from "vitest";
 import type { LLMProvider, LLMChunk, ToolCallChunkDelta, Message } from "../../llm/provider.js";
 import { LLMError } from "../../llm/provider.js";
 import type { TelemetryEvent } from "../agent_telemetry.js";
 import type { ToolBuffer } from "../tool_stream_buffer.js";
-import { runAgentLoop, type AgentLoopEvent, type AgentLoopConfig, type IterContext } from "../agent_loop.js";
+import { runAgentLoop, type AgentLoopEvent, type AgentLoopConfig } from "../agent_loop.js";
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -505,7 +504,7 @@ describe("runAgentLoop", () => {
       onTextPathTerminal: async () => [],
     });
 
-    const { events, error } = await collectOrError(
+    const { error } = await collectOrError(
       runAgentLoop(config, provider, [], { max_tokens: 100, temperature: 0, top_p: 1 }),
     );
 

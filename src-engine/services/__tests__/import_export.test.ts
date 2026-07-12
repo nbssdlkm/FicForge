@@ -12,7 +12,6 @@ import {
   analyze_file,
   build_import_plan,
   execute_import,
-  type ImportConflictOptions,
 } from "../import_pipeline.js";
 import type { LLMProvider } from "../../llm/provider.js";
 import { TrashService } from "../trash_service.js";
@@ -22,7 +21,6 @@ import { FileChapterRepository } from "../../repositories/implementations/file_c
 import { FileStateRepository } from "../../repositories/implementations/file_state.js";
 import { FileOpsRepository } from "../../repositories/implementations/file_ops.js";
 import { createState } from "../../domain/state.js";
-import { rebuildStateFromOps } from "../../ops/ops_projection.js";
 
 class FailingWriteAdapter extends MockAdapter {
   constructor(private readonly shouldFailWrite: (path: string) => boolean) {

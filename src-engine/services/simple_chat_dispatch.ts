@@ -122,7 +122,7 @@ function isKnownTool(name: string): boolean {
     isReadOnlyTool(name) ||
     isMutatingTool(name) ||
     name === SIMPLE_TOOL_CHAT_REPLY ||
-    Object.prototype.hasOwnProperty.call(SIMPLE_TOOL_SCHEMAS, name)
+    Object.hasOwn(SIMPLE_TOOL_SCHEMAS, name)
   );
 }
 
@@ -421,9 +421,7 @@ async function loadMdDir(adapter: PlatformAdapter, dirPath: string): Promise<Rec
     try {
       const content = await adapter.readFile(joinPath(dirPath, f));
       result[f.replace(/\.md$/, "")] = content;
-    } catch {
-      continue;
-    }
+    } catch {}
   }
   return result;
 }

@@ -641,7 +641,7 @@ async function do_execute_import(plan: ImportPlan, params: ExecuteImportParams):
     // 结尾取「最大章号」那一章的正文（chaptersToWrite 顺序不保证有序，不能取数组末位）。
     const maxChapter = chaptersToWrite.reduce((a, b) => (b.chapterNum > a.chapterNum ? b : a));
 
-    let existingState;
+    let existingState: Awaited<ReturnType<typeof stateRepo.get>> | null;
     try {
       existingState = await stateRepo.get(auId);
     } catch {

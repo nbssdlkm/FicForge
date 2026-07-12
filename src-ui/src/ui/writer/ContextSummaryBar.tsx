@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "../shared/Button";
 import { Tag } from "../shared/Tag";
-import { type ContextSummary, type RagChunkDetail } from "../../api/engine-client";
+import type { ContextSummary, RagChunkDetail } from "../../api/engine-client";
 import { useTranslation } from "../../i18n/useAppTranslation";
 
 type ContextSummaryBarProps = {
@@ -265,6 +265,7 @@ export function ContextSummaryBar({ summary, onAdjustCoreIncludes }: ContextSumm
             {summary.facts_as_focus.length > 0 || factsRestCount > 0 ? (
               <div className="space-y-1 pl-3">
                 {summary.facts_as_focus.map((content, index) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: 纯展示摘要、不重排不编辑；facts_as_focus 为截断串可能重复，保留 index 消歧
                   <p key={`${content}-${index}`} className={itemClass}>
                     {t("contextSummary.detailFactsFocus", { content })}
                   </p>
@@ -289,9 +290,9 @@ export function ContextSummaryBar({ summary, onAdjustCoreIncludes }: ContextSumm
               </p>
               {summary.rag_chunks && summary.rag_chunks.length > 0 ? (
                 <div className="space-y-3 pl-3">
-                  {summary.rag_chunks.map((chunk, index) => (
+                  {summary.rag_chunks.map((chunk) => (
                     <RagChunkItem
-                      key={`${index}-${chunk.collection}-${chunk.content.slice(0, 32)}`}
+                      key={`${chunk.collection}-${chunk.content}`}
                       chunk={chunk}
                       t={t}
                       hasWarning={hasWarning}

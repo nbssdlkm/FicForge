@@ -27,6 +27,7 @@ export function useGlobalSettingsData(isOpen: boolean) {
   const [loading, setLoading] = useState(false);
   const [loadKey, setLoadKey] = useState(0);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 有意省依赖——hook 规则 4 ref-shim/边沿触发语义（见邻近注释）
   useEffect(() => {
     if (!isOpen) {
       setSettings(null);
@@ -59,7 +60,6 @@ export function useGlobalSettingsData(isOpen: boolean) {
         }
       });
     // guard/showError/t 均为稳定引用，加载只应随开关重跑
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   return { settings, displayDataDir, loading, loadKey };

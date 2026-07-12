@@ -37,6 +37,7 @@ export function useMobileOnboardingSettingsForm() {
       error instanceof Error ? error.message || t("error_messages.unknown") : t("error_messages.unknown"),
   });
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 有意省依赖——hook 规则 4 ref-shim/边沿触发语义（见邻近注释）
   useEffect(() => {
     const token = loadGuard.start();
     setLoading(true);
@@ -54,14 +55,13 @@ export function useMobileOnboardingSettingsForm() {
         }
       });
     // loadGuard 引用稳定，挂载时一次性加载
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // LLM 字段一动，上一次连接测试结果即失效（回 idle）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 有意省依赖——hook 规则 4 ref-shim/边沿触发语义（见邻近注释）
   useEffect(() => {
     llmConnection.reset();
     // reset 引用稳定，只应随字段变化触发
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.apiBase, form.apiKey, form.model, form.chatPath]);
 
   // 受控绑定 setter（hook 规则 5 例外①：input / picker 双向绑定）

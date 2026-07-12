@@ -12,7 +12,7 @@
  * - downloadable + error：显示错误信息 + 「重试」按钮
  */
 
-import React from "react";
+import type React from "react";
 import type { FontEntry } from "@ficforge/engine";
 import { Button } from "../shared/Button";
 import { useTranslation } from "../../i18n/useAppTranslation";

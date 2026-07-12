@@ -193,7 +193,6 @@ describe("TaskRunner", () => {
       simpleTask("boom", async function* (ctx) {
         await ctx.saveCheckpoint({ upTo: 0 });
         throw new Error("disk on fire");
-        // eslint-disable-next-line no-unreachable
         yield { type: "progress", current: 0, total: 0 };
       }),
     );

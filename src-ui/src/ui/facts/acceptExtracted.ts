@@ -39,11 +39,15 @@ export async function saveAcceptedCandidates(params: {
 
   try {
     const r = await addFactsBatch(params.auPath, inputs);
-    r.writtenIndices.forEach((i) => params.registerSaved(params.pending[i]));
+    r.writtenIndices.forEach((i) => {
+      params.registerSaved(params.pending[i]);
+    });
     return { added: r.added, skipped: r.skipped };
   } catch (err) {
     if (err instanceof PartialAddFactsError) {
-      err.writtenIndices.forEach((i) => params.registerSaved(params.pending[i]));
+      err.writtenIndices.forEach((i) => {
+        params.registerSaved(params.pending[i]);
+      });
     }
     throw err;
   }

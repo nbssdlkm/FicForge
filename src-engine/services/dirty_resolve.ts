@@ -83,7 +83,7 @@ async function doResolve(params: ResolveDirtyParams): Promise<ResolveDirtyResult
   } = params;
 
   // === 步骤 1：前置校验 ===
-  let state = await state_repo.get(au_id);
+  const state = await state_repo.get(au_id);
 
   if (!state.chapters_dirty.includes(chapter_num)) {
     throw new DirtyResolveError(`章节 ${chapter_num} 不在 chapters_dirty 列表中`);

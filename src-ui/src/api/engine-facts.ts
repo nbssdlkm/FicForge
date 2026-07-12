@@ -13,7 +13,7 @@ import {
   find_archival_candidates,
   archive_facts,
   unarchive_fact,
-  FactStatus,
+  type FactStatus,
   resolve_llm_config,
   create_provider,
   withAuLock,

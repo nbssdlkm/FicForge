@@ -18,9 +18,10 @@ const SAFE_PATH_SEGMENT_PATTERN = /[^\p{L}\p{N}._ -]+/gu;
  */
 export function validateExistingPathSegment(segment: string): string {
   if (!segment) throw new Error("Path segment cannot be empty");
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: 有意剥离控制字符——路径安全清洗
   const validated = segment.replace(/[\x00-\x1f\x7f]/g, "").trim();
   if (!validated) throw new Error("Invalid path segment");
-  if (/[\/\\]/.test(validated)) throw new Error("Invalid path segment");
+  if (/[/\\]/.test(validated)) throw new Error("Invalid path segment");
   if (validated === "." || validated === "..") throw new Error("Invalid path segment");
   return validated;
 }
@@ -29,6 +30,7 @@ export function validateExistingPathSegment(segment: string): string {
 export function sanitizePathSegment(segment: string): string {
   if (!segment) throw new Error("Path segment cannot be empty");
   const sanitized = segment
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: 有意剥离控制字符——路径安全清洗
     .replace(/[\x00-\x1f\x7f]/g, "")
     .replace(SAFE_PATH_SEGMENT_PATTERN, "_")
     .replace(/\.\.+/g, "_")

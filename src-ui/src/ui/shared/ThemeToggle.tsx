@@ -2,7 +2,8 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import React, { useEffect, useState } from "react";
+import type React from "react";
+import { useEffect, useState } from "react";
 import { Sun, Moon } from "lucide-react";
 import { Button } from "./Button";
 import { useTranslation } from "../../i18n/useAppTranslation";
@@ -37,7 +38,9 @@ export const ThemeToggle: React.FC = () => {
   useEffect(() => {
     // Remove every possible theme class (including legacy 'theme-mint')
     // before applying the active one, so stale classes can't linger.
-    ALL_THEME_CLASSES.forEach((cls) => document.documentElement.classList.remove(cls));
+    ALL_THEME_CLASSES.forEach((cls) => {
+      document.documentElement.classList.remove(cls);
+    });
     document.documentElement.classList.add(`theme-${theme}`);
     try {
       localStorage.setItem(THEME_KEY, theme);

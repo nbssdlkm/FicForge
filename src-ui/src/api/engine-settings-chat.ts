@@ -5,7 +5,13 @@
  * Engine Settings Chat - sendSettingsChat.
  */
 
-import { build_settings_context, call_settings_llm, resolve_llm_config, create_provider } from "@ficforge/engine";
+import {
+  build_settings_context,
+  call_settings_llm,
+  resolve_llm_config,
+  create_provider,
+  type Message,
+} from "@ficforge/engine";
 import { ApiError, getFriendlyErrorMessage } from "./client";
 import { getEngine } from "./engine-instance";
 
@@ -13,7 +19,7 @@ export async function sendSettingsChat(params: {
   mode: string;
   base_path: string;
   fandom_path?: string;
-  messages: any[];
+  messages: Message[];
   session_llm?: { api_base?: string; api_key?: string; model?: string };
 }) {
   const e = getEngine();

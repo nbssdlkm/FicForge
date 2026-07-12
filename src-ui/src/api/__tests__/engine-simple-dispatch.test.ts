@@ -32,7 +32,6 @@ let adapter: MockAdapter;
 let auPath: string;
 
 async function drain(gen: AsyncGenerator<unknown>): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   for await (const _ev of gen) {
     /* no-op */
   }

@@ -34,7 +34,7 @@ export async function recalc_state(
   fact_repo?: FactRepository | null,
 ): Promise<RecalcResult> {
   // 读取 state
-  let state;
+  let state: Awaited<ReturnType<StateRepository["get"]>>;
   try {
     state = await state_repo.get(au_id);
   } catch {

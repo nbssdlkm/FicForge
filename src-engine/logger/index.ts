@@ -51,9 +51,9 @@ export function warnAlways(tag: string, msg: string, ctx?: Record<string, unknow
     _logger.warn(tag, msg, ctx);
     return;
   }
-  /* eslint-disable no-console */
   // console 降级同样过脱敏（B2 对抗审）：logger 就绪前传入敏感 ctx 的未来调用方不该明文入 console
+  // biome-ignore lint/suspicious/noConsole: sanctioned 降级出口——logger 未就绪时保诊断不丢
   if (ctx) console.warn(`[${tag}] ${msg}`, redactCtx(ctx));
+  // biome-ignore lint/suspicious/noConsole: 同上
   else console.warn(`[${tag}] ${msg}`);
-  /* eslint-enable no-console */
 }

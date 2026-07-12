@@ -202,7 +202,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     await confirmChapter(1, "Alice发现了答案。");
 
     // Resolve the foreshadowing
-    const resolution = await add_fact(
+    await add_fact(
       "au1",
       1,
       {

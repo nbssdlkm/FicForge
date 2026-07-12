@@ -5,7 +5,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Plus, FileText, Trash2, ArchiveRestore } from "lucide-react";
 import { Button } from "../shared/Button";
-import { type FandomInfo } from "../../api/engine-client";
+import type { FandomInfo } from "../../api/engine-client";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { goldLine } from "../shared/tokens";
 

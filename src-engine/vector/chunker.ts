@@ -138,8 +138,7 @@ function splitSentences(text: string): string[] {
   const parts: string[] = [];
   let last = 0;
   const re = new RegExp(SENTENCE_END.source, "g");
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
+  for (const m of text.matchAll(re)) {
     parts.push(text.slice(last, m.index + m[0].length));
     last = m.index + m[0].length;
   }

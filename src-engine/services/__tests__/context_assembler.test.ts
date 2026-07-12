@@ -483,7 +483,7 @@ describe("build_core_settings_layer", () => {
       Alice: "# Alice\nShe is the protagonist.",
       Bob: "# Bob\nHe is a friend.",
     };
-    const [text, injected, truncated] = build_core_settings_layer(project, charFiles, 50, null, "zh");
+    const [, injected] = build_core_settings_layer(project, charFiles, 50, null, "zh");
     // With only 50 tokens budget but 400 guarantee, Alice should still be injected
     expect(injected).toContain("Alice");
   });

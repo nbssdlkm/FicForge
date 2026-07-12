@@ -107,8 +107,7 @@ export function trySplitByStandardHeaders(text: string): SplitChapter[] | null {
     const tierMatches: [number, string][] = [];
     for (const pat of tier) {
       const re = new RegExp(pat.source, pat.flags.includes("g") ? pat.flags : pat.flags + "g");
-      let m: RegExpExecArray | null;
-      while ((m = re.exec(text)) !== null) {
+      for (const m of text.matchAll(re)) {
         tierMatches.push([m.index, m[0]]);
       }
     }
@@ -158,8 +157,7 @@ export function trySplitByStandardHeaders(text: string): SplitChapter[] | null {
 export function trySplitByNumericHeaders(text: string): SplitChapter[] | null {
   const re = new RegExp(INTEGER_PATTERN.source, "gm");
   const matches: [number, string][] = [];
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
+  for (const m of text.matchAll(re)) {
     matches.push([m.index, m[0].trim()]);
   }
 
@@ -339,8 +337,10 @@ function splitByCustomRegex(text: string, regex: RegExp): SplitChapter[] | null 
   // Reset regex state
   const re = new RegExp(regex.source, regex.flags);
   const matches: [number, string][] = [];
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
+  // regex.flags 由调用方决定，可能不含 /g（非 global 时 matchAll 会抛错）——用 exec 循环保持原行为。
+  for (;;) {
+    const m = re.exec(text);
+    if (m === null) break;
     matches.push([m.index, m[0]]);
   }
 

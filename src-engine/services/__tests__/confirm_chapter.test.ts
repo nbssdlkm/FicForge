@@ -96,7 +96,7 @@ describe("confirm_chapter", () => {
   });
 
   it("content_override uses mixed provenance", async () => {
-    const result = await confirm_chapter({
+    await confirm_chapter({
       au_id: "au1",
       chapter_num: 1,
       draft_id: "ch0001_draft_A.md",

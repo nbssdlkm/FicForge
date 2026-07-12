@@ -47,9 +47,7 @@ async function loadMdDir(adapter: PlatformAdapter, dirPath: string): Promise<Rec
     try {
       const content = await adapter.readFile(joinPath(dirPath, f));
       result[f.replace(/\.md$/, "")] = content;
-    } catch {
-      continue;
-    }
+    } catch {}
   }
   return result;
 }

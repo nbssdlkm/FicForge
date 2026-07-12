@@ -192,6 +192,7 @@ export function useFontSelection(): FontSelectionState {
   // 启动时从 engine settings 同步（跨设备恢复）。失败静默，localStorage 兜底。
   // dictToFontsConfig 保证 settings.app.fonts 的 4 字段都是非空 string，
   // 这里直接按差异 diff 即可 —— 每 role 至多一次 setProperty。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 有意省依赖——hook 规则 4 ref-shim/边沿触发语义（见邻近注释）
   useEffect(() => {
     getFontPreferences()
       .then((fonts) => {
@@ -226,7 +227,6 @@ export function useFontSelection(): FontSelectionState {
       .catch(() => {
         /* engine 未 ready 或读取失败，localStorage 已兜底 */
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**

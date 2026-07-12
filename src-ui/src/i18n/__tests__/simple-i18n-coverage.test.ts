@@ -20,8 +20,13 @@ function collectSimpleKeys(): string[] {
   const re = /\bt\(\s*['"](simple\.[A-Za-z0-9_.]+)['"]/g;
   for (const [path, content] of Object.entries(sources)) {
     if (path.includes("__tests__")) continue;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(content)) !== null) keys.add(m[1]);
+    // re 在外层循环里跨多个 content 复用（每轮扫完 exec 返回 null 会把 lastIndex 归零）——
+    // 用 exec 循环保持这一状态语义，不改成 matchAll。
+    for (;;) {
+      const m = re.exec(content);
+      if (m === null) break;
+      keys.add(m[1]);
+    }
   }
   return [...keys].sort();
 }

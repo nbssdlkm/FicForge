@@ -105,9 +105,7 @@ async function loadMdFiles(adapter: PlatformAdapter, dirPath: string): Promise<R
       const content = await adapter.readFile(joinPath(dirPath, f));
       const stem = f.replace(/\.md$/, "");
       result[stem] = content;
-    } catch {
-      continue;
-    }
+    } catch {}
   }
   return result;
 }

@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { beforeEach, describe, expect, it } from "vitest";
-import { ApiError } from "../client";
+import type { ApiError } from "../client";
 import { initEngine } from "../engine-instance";
 import { createAu, createFandom } from "../engine-fandom";
 import { saveGlobalSettingsForEditing } from "../engine-settings";

@@ -33,6 +33,7 @@ export function useAuLoreData(auPath: string) {
   const [loadKey, setLoadKey] = useState(0);
   const [trashRefreshToken, setTrashRefreshToken] = useState(0);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 有意省依赖——hook 规则 4 ref-shim/边沿触发语义（见邻近注释）
   const reload = useCallback(async () => {
     const token = guard.start();
     setLoading(true);
@@ -59,7 +60,6 @@ export function useAuLoreData(auPath: string) {
       }
     }
     // guard/showError/t 均为稳定引用，重拉只应随 auPath 变化
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auPath]);
 
   // 切 AU：清掉上一篇的数据再重拉（loading 期间全屏 spinner 遮挡，不闪旧列表）

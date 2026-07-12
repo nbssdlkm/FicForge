@@ -197,9 +197,7 @@ async function loadSettingsFiles(
         const content = await adapter.readFile(joinPath(dirPath, f));
         entries.push([label, f, content]);
         totalChars += content.length;
-      } catch {
-        continue;
-      }
+      } catch {}
     }
   }
 
@@ -282,9 +280,7 @@ async function loadFandomDnaSummaries(fandomPath: string, adapter: PlatformAdapt
         const stem = f.replace(/\.md$/, "");
         parts.push(`### ${stem}\n${summary}`);
       }
-    } catch {
-      continue;
-    }
+    } catch {}
   }
   return parts.join("\n\n");
 }

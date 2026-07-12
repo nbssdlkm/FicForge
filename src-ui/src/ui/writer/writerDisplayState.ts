@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import type { BudgetReport } from "@ficforge/engine";
-import { type ContextSummary, type DraftGeneratedWith, type StateInfo } from "../../api/engine-client";
+import type { ContextSummary, DraftGeneratedWith, StateInfo } from "../../api/engine-client";
 import type { DraftItem } from "./useWriterDraftController";
 
 export type ContextLayer = {
