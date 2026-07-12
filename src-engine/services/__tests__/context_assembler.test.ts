@@ -449,3 +449,148 @@ describe("assemble_context", () => {
     expect(result.budget_report.max_output_tokens).toBeGreaterThan(0);
   });
 });
+
+describe("build_facts_layer 同章内剧情时间排序（M3 批二）", () => {
+  it("同章内：闪回（序号小）排在当下（序号大）之前", () => {
+    const now = createFact({
+      id: "f_now", content_raw: "r", content_clean: "沈砚面圣翻案",
+      status: FactStatus.ACTIVE, chapter: 9, story_time_order: 3,
+    });
+    const flashback = createFact({
+      id: "f_fb", content_raw: "r", content_clean: "父亲当年蒙冤下狱",
+      status: FactStatus.ACTIVE, chapter: 9, story_time_order: 1,
+    });
+    const [text] = build_facts_layer([now, flashback], [], 10000, null, "zh");   // 插入序：now 在前
+    expect(text.indexOf("父亲当年蒙冤下狱")).toBeLessThan(text.indexOf("沈砚面圣翻案"));
+  });
+
+  it("无序号的排同章有序号之后；低置信序号视同无序号", () => {
+    const ordered = createFact({
+      id: "f_o", content_raw: "r", content_clean: "有序号的事实",
+      status: FactStatus.ACTIVE, chapter: 5, story_time_order: 2,
+    });
+    const noOrder = createFact({
+      id: "f_n", content_raw: "r", content_clean: "无序号的事实",
+      status: FactStatus.ACTIVE, chapter: 5,
+    });
+    const lowConf = createFact({
+      id: "f_l", content_raw: "r", content_clean: "低置信序号的事实",
+      status: FactStatus.ACTIVE, chapter: 5, story_time_order: 1,
+      _confidence: { story_time_order: "low" },
+    });
+    const [text] = build_facts_layer([noOrder, lowConf, ordered], [], 10000, null, "zh");
+    const idx = (s: string) => text.indexOf(s);
+    expect(idx("有序号的事实")).toBeLessThan(idx("无序号的事实"));
+    expect(idx("有序号的事实")).toBeLessThan(idx("低置信序号的事实"));
+    // 无序号与低置信之间保持插入稳定序
+    expect(idx("无序号的事实")).toBeLessThan(idx("低置信序号的事实"));
+  });
+
+  it("跨章主序不被序号打破：ch2(序号99) 仍在 ch5(序号1) 之前", () => {
+    const early = createFact({
+      id: "f_e", content_raw: "r", content_clean: "第二章的事",
+      status: FactStatus.ACTIVE, chapter: 2, story_time_order: 99,
+    });
+    const late = createFact({
+      id: "f_t", content_raw: "r", content_clean: "第五章的事",
+      status: FactStatus.ACTIVE, chapter: 5, story_time_order: 1,
+    });
+    const [text] = build_facts_layer([late, early], [], 10000, null, "zh");
+    expect(text.indexOf("第二章的事")).toBeLessThan(text.indexOf("第五章的事"));
+  });
+
+  it("全部无序号 → 与旧行为逐字节一致（同章 unresolved 先于 active 的插入稳定序）", () => {
+    const ur = createFact({
+      id: "f_ur", content_raw: "r", content_clean: "未决伏笔",
+      status: FactStatus.UNRESOLVED, chapter: 3,
+    });
+    const ac = createFact({
+      id: "f_ac", content_raw: "r", content_clean: "普通事实",
+      status: FactStatus.ACTIVE, chapter: 3,
+    });
+    const [text] = build_facts_layer([ac, ur], [], 10000, null, "zh");
+    // unresolvedKept 在 activeKept 前拼接，同章无序号时稳定序保持
+    expect(text.indexOf("未决伏笔")).toBeLessThan(text.indexOf("普通事实"));
+  });
+});
+
+describe("build_facts_layer 同章排序 — 对抗审 R2 整改", () => {
+  it("HIGH：NaN/±Infinity 序号折『无序号』，不破坏 comparator 全序（isFinite 门）", () => {
+    const nan = createFact({
+      id: "f_nan", content_raw: "r", content_clean: "NaN序号",
+      status: FactStatus.ACTIVE, chapter: 4, story_time_order: Number.NaN,
+    });
+    const inf = createFact({
+      id: "f_inf", content_raw: "r", content_clean: "无穷序号",
+      status: FactStatus.ACTIVE, chapter: 4, story_time_order: Number.POSITIVE_INFINITY,
+    });
+    const ok = createFact({
+      id: "f_ok", content_raw: "r", content_clean: "正常序号",
+      status: FactStatus.ACTIVE, chapter: 4, story_time_order: 2,
+    });
+    const [text] = build_facts_layer([nan, inf, ok], [], 10000, null, "zh");
+    const idx = (s: string) => text.indexOf(s);
+    expect(idx("正常序号")).toBeLessThan(idx("NaN序号"));       // 有效序号在前
+    expect(idx("NaN序号")).toBeLessThan(idx("无穷序号"));       // 折无序号后保持插入稳定序
+  });
+
+  it("MED-1 语义锁定：同章内剧情时间互排跨越状态分组（active 序号小可排到 unresolved 无序号之前）", () => {
+    const urNoOrder = createFact({
+      id: "f_ur", content_raw: "r", content_clean: "无序号未决伏笔",
+      status: FactStatus.UNRESOLVED, chapter: 6,
+    });
+    const acOrdered = createFact({
+      id: "f_ac", content_raw: "r", content_clean: "有序号普通事实",
+      status: FactStatus.ACTIVE, chapter: 6, story_time_order: 1,
+    });
+    const [text] = build_facts_layer([urNoOrder, acOrdered], [], 10000, null, "zh");
+    // 有意行为：时间线连贯压过状态分组（预算挑选的 unresolved 优先不受影响，这里只是呈现顺序）
+    expect(text.indexOf("有序号普通事实")).toBeLessThan(text.indexOf("无序号未决伏笔"));
+  });
+
+  it("MED-4 边界容忍锁定：0 / 负数 / 小数按相对序参与（确定且无害），不被丢弃", () => {
+    const zero = createFact({
+      id: "f_0", content_raw: "r", content_clean: "序号零",
+      status: FactStatus.ACTIVE, chapter: 7, story_time_order: 0,
+    });
+    const neg = createFact({
+      id: "f_neg", content_raw: "r", content_clean: "序号负一",
+      status: FactStatus.ACTIVE, chapter: 7, story_time_order: -1,
+    });
+    const frac = createFact({
+      id: "f_frac", content_raw: "r", content_clean: "序号一点五",
+      status: FactStatus.ACTIVE, chapter: 7, story_time_order: 1.5,
+    });
+    const [text] = build_facts_layer([frac, zero, neg], [], 10000, null, "zh");
+    const idx = (s: string) => text.indexOf(s);
+    expect(idx("序号负一")).toBeLessThan(idx("序号零"));
+    expect(idx("序号零")).toBeLessThan(idx("序号一点五"));
+  });
+
+  it("LOW-1 相同有效序号保持插入稳定序；LOW-2 门控同源（无 _confidence / medium / high 均放行）", () => {
+    const a = createFact({
+      id: "f_a", content_raw: "r", content_clean: "同序甲",
+      status: FactStatus.ACTIVE, chapter: 8, story_time_order: 2,
+      _confidence: { story_time_order: "medium" },
+    });
+    const b = createFact({
+      id: "f_b", content_raw: "r", content_clean: "同序乙",
+      status: FactStatus.ACTIVE, chapter: 8, story_time_order: 2,
+      _confidence: { story_time_order: "high" },
+    });
+    const c = createFact({
+      id: "f_c", content_raw: "r", content_clean: "同序丙无置信",
+      status: FactStatus.ACTIVE, chapter: 8, story_time_order: 2,
+    });
+    const first = createFact({
+      id: "f_1st", content_raw: "r", content_clean: "序一",
+      status: FactStatus.ACTIVE, chapter: 8, story_time_order: 1,
+      _confidence: { story_time_order: "high" },
+    });
+    const [text] = build_facts_layer([a, b, c, first], [], 10000, null, "zh");
+    const idx = (s: string) => text.indexOf(s);
+    expect(idx("序一")).toBeLessThan(idx("同序甲"));            // medium/high/无置信 全部放行参与
+    expect(idx("同序甲")).toBeLessThan(idx("同序乙"));          // 等值稳定序
+    expect(idx("同序乙")).toBeLessThan(idx("同序丙无置信"));
+  });
+});

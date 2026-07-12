@@ -431,9 +431,37 @@ export function build_facts_layer(
     }
   }
 
-  // --- 合并并按 chapter 正序 ---
+  // --- 合并并按 chapter 正序；同章内再按剧情内时间序号（M3 批二）---
+  // story_time_order 是提取时以「本章」为基准打的相对整数，同章内可靠、跨章不可比 ——
+  // 主序恒为章节号，序号只做同章 tiebreak（闪回/插叙事实在本章块内提前，AI 读到的时间线是顺的），
+  // **禁止**据此做全局排序（数据只有这个精度）。低置信序号不参与（与富化注入同一门控）；
+  // 无序号/被门控的排同章有序号之后，等值保持稳定序 —— 全部无序号时排序键恒等，
+  // 与旧「仅按 chapter」逐字节一致（golden 回归安全绳）。
+  // isFinite 门（对抗审 R2 HIGH）：NaN 会让三态比较对任何值都返回 0，破坏 comparator 全序契约；
+  // ±Infinity 输入同折「无序号」。有限数不做正整数强校验——提取契约是「从 1 起的正整数」，但
+  // LLM 垃圾给出 0/-1/1.5 时按相对序参与排序是无害且确定的，比丢弃信号更稳。
+  const story_order_of = (f: Fact): number => {
+    const v = f.story_time_order;
+    if (
+      typeof v !== "number" ||
+      !Number.isFinite(v) ||
+      !enrich_inject(f._confidence, f._confidence?.story_time_order)
+    ) {
+      return Number.POSITIVE_INFINITY;
+    }
+    return v;
+  };
   const allKept = [...unresolvedKept, ...activeKept];
-  allKept.sort((a, b) => a.chapter - b.chapter);
+  allKept.sort((a, b) => {
+    if (a.chapter !== b.chapter) return a.chapter - b.chapter;
+    const oa = story_order_of(a);
+    const ob = story_order_of(b);
+    // 显式三态比较：oa/ob 可为 Infinity，Infinity-Infinity=NaN 会破坏 comparator 契约。
+    // 有意语义（对抗审 R2 MED-1 锁定）：同章内按剧情时间互排**跨越 unresolved/active 状态分组**
+    // ——时间线连贯压过状态分组（状态在行首 [status] 可见；预算挑选的 unresolved 优先不受影响，
+    // 此处只是呈现顺序）。等值走稳定序（项目底线 Safari 16.4+/Chrome 111+，ES2019 稳定排序保证）。
+    return oa < ob ? -1 : oa > ob ? 1 : 0;
+  });
 
   const lines = allKept.map((f) => `- [${f.status}] ${lineBody(f)}`);
 
