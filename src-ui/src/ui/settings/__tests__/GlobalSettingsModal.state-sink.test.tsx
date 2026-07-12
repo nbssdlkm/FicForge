@@ -125,7 +125,7 @@ describe("GlobalSettingsModal — 状态下沉回归", () => {
     fireEvent.change(select, { target: { value: "on" } });
 
     await waitFor(() => expect(saveAppPreferences).toHaveBeenCalledWith({ react_extraction_enabled: true }));
-    expect(screen.getByDisplayValue("开启（推荐）")).toBeTruthy();
+    expect(screen.getByDisplayValue("开启（推荐）")).toBeInTheDocument();
   });
 
   it("提取开关落库失败：乐观值回滚", async () => {

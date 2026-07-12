@@ -101,10 +101,10 @@ describe("SettingsChatPanel — 状态下沉回归", () => {
     renderPanel();
     await sendUserMessage("帮我加一条写作底线");
 
-    expect(screen.getByText("帮我加一条写作底线")).toBeTruthy();
+    expect(screen.getByText("帮我加一条写作底线")).toBeInTheDocument();
     await screen.findByText("好的，帮你加一条写作底线。");
-    expect(screen.getByRole("button", { name: "确认" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "跳过" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "确认" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "跳过" })).toBeInTheDocument();
 
     const [request] = (sendSettingsChat as Mock).mock.calls[0];
     expect(request.base_path).toBe(AU_PATH);

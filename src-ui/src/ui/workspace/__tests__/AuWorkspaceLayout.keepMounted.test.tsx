@@ -17,12 +17,9 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../../i18n/useAppTranslation", () => ({
-  useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) => (params ? `${key}:${JSON.stringify(params)}` : key),
-    i18n: { resolvedLanguage: "zh" },
-  }),
-}));
+vi.mock("../../../i18n/useAppTranslation", async () =>
+  (await import("../../../test/mocks/i18n")).mockUseAppTranslation(),
+);
 
 vi.mock("../../../hooks/useMediaQuery", () => ({
   useMediaQuery: () => false, // 桌面分支

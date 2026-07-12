@@ -23,9 +23,7 @@ vi.mock("../../api/engine-client", () => ({
   testEmbeddingConnection: vi.fn(),
 }));
 
-vi.mock("../../i18n/useAppTranslation", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+vi.mock("../../i18n/useAppTranslation", async () => (await import("../../test/mocks/i18n")).mockUseAppTranslation());
 
 function makeFields(overrides: Partial<LlmConfigFields> = {}): LlmConfigFields {
   return {

@@ -48,22 +48,24 @@ describe("BackfillMemoryModal", () => {
 
     expect(await screen.findByText("缺摘要：2 章（将自动补齐）。")).toBeTruthy();
     // 三章都列出
-    expect(screen.getByText("第 1 章")).toBeTruthy();
-    expect(screen.getByText("第 3 章")).toBeTruthy();
+    expect(screen.getByText("第 1 章")).toBeInTheDocument();
+    expect(screen.getByText("第 3 章")).toBeInTheDocument();
     // 默认勾选 = 零笔记章 [2,3]；ch1(有笔记)不勾
     const boxes = screen.getAllByRole("checkbox") as HTMLInputElement[];
     expect(boxes).toHaveLength(3);
     expect(boxes[0].checked).toBe(false); // ch1
     expect(boxes[1].checked).toBe(true); // ch2
     expect(boxes[2].checked).toBe(true); // ch3
-    expect(screen.getByText("开始补全")).toBeTruthy();
+    expect(screen.getByText("开始补全")).toBeInTheDocument();
   });
 
   it("未配 embedding/LLM → needConfig,不让开始", async () => {
     (scanChapterMemory as Mock).mockResolvedValue({ ...baseScan, embeddingConfigured: false });
     renderModal();
     await waitFor(() =>
-      expect(screen.getByText("需要先在上面配置好写作模型和 embedding（向量检索），才能补全记忆。")).toBeTruthy(),
+      expect(
+        screen.getByText("需要先在上面配置好写作模型和 embedding（向量检索），才能补全记忆。"),
+      ).toBeInTheDocument(),
     );
     expect(screen.queryByText("开始补全")).toBeNull();
   });
@@ -85,7 +87,7 @@ describe("BackfillMemoryModal", () => {
 
     fireEvent.click(await screen.findByText("开始补全"));
 
-    await waitFor(() => expect(screen.getByText("补全完成：生成 2 章摘要，提取 5 条笔记。")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("补全完成：生成 2 章摘要，提取 5 条笔记。")).toBeInTheDocument());
     // overCap=0 → 不显示上限说明行
     expect(screen.queryByText(/因单章数量上限被略过/)).toBeNull();
     // 默认勾选 [2,3] 作为 factsChapters 传入
@@ -113,9 +115,9 @@ describe("BackfillMemoryModal", () => {
     });
     renderModal();
     fireEvent.click(await screen.findByText("开始补全"));
-    await waitFor(() => expect(screen.getByText("补全完成：生成 2 章摘要，提取 5 条笔记。")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("补全完成：生成 2 章摘要，提取 5 条笔记。")).toBeInTheDocument());
     // 4 条被上限略过 → 显示说明行
-    expect(screen.getByText(/有 4 条提取到的笔记因单章数量上限被略过/)).toBeTruthy();
+    expect(screen.getByText(/有 4 条提取到的笔记因单章数量上限被略过/)).toBeInTheDocument();
   });
 
   it("勾选已有笔记的章 → 显示重复警告(透明,不阻止)", async () => {
@@ -124,7 +126,7 @@ describe("BackfillMemoryModal", () => {
     await screen.findByText("第 1 章");
     const boxes = screen.getAllByRole("checkbox") as HTMLInputElement[];
     fireEvent.click(boxes[0]); // 选 ch1(有 2 条笔记)
-    await waitFor(() => expect(screen.getByText(/已经有笔记了/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/已经有笔记了/)).toBeInTheDocument());
   });
 
   it("无缺摘要且全部有笔记 → nothingToDo + 开始按钮禁用", async () => {
@@ -137,7 +139,7 @@ describe("BackfillMemoryModal", () => {
       llmConfigured: true,
     });
     renderModal();
-    await waitFor(() => expect(screen.getByText("没有需要补全的内容。")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("没有需要补全的内容。")).toBeInTheDocument());
     const start = screen.getByText("开始补全").closest("button") as HTMLButtonElement;
     expect(start.disabled).toBe(true);
   });

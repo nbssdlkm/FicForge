@@ -21,13 +21,7 @@ beforeAll(() => {
   }
 });
 
-vi.mock("../../../hooks/useFeedback", () => ({
-  useFeedback: () => ({
-    showError: vi.fn(),
-    showSuccess: vi.fn(),
-    showToast: vi.fn(),
-  }),
-}));
+vi.mock("../../../hooks/useFeedback", async () => (await import("../../../test/mocks/feedback")).mockUseFeedback());
 
 vi.mock("../../../api/engine-client", async () => {
   const actual = await vi.importActual<typeof import("../../../api/engine-client")>("../../../api/engine-client");

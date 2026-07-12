@@ -13,13 +13,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../../hooks/useFeedback", () => ({
-  useFeedback: () => ({
-    showError: vi.fn(),
-    showSuccess: vi.fn(),
-    showToast: vi.fn(),
-  }),
-}));
+vi.mock("../../../hooks/useFeedback", async () => (await import("../../../test/mocks/feedback")).mockUseFeedback());
 
 // project section 会挂 AuSettingsLayout（打引擎 API），本测试只关心 TrashPanel 接线 → 桩掉重子组件
 vi.mock("../../settings/AuSettingsLayout", () => ({ AuSettingsLayout: () => <div data-testid="au-settings-stub" /> }));

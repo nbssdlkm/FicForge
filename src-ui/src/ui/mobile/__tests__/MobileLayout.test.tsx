@@ -16,12 +16,9 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../../i18n/useAppTranslation", () => ({
-  useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) => (params ? `${key}:${JSON.stringify(params)}` : key),
-    i18n: { resolvedLanguage: "zh" },
-  }),
-}));
+vi.mock("../../../i18n/useAppTranslation", async () =>
+  (await import("../../../test/mocks/i18n")).mockUseAppTranslation(),
+);
 
 interface StubWriterProps {
   isActiveTab?: boolean;

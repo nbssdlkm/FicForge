@@ -83,8 +83,8 @@ describe("FandomLoreLayout — 状态下沉回归", () => {
     renderLayout();
 
     await screen.findByText("康纳");
-    expect(screen.getByText("仿生人条例")).toBeTruthy();
-    expect(screen.getByText("Fandom：底特律：变人")).toBeTruthy();
+    expect(screen.getByText("仿生人条例")).toBeInTheDocument();
+    expect(screen.getByText("Fandom：底特律：变人")).toBeInTheDocument();
     expect(listFandomFiles).toHaveBeenCalledWith("底特律");
   });
 
@@ -132,7 +132,7 @@ describe("FandomLoreLayout — 状态下沉回归", () => {
     fireEvent.click(screen.getByRole("button", { name: "取消" }));
 
     await waitFor(() => expect(screen.queryByText("放弃未保存的修改？")).toBeNull());
-    expect(screen.getByDisplayValue("改过但未保存")).toBeTruthy();
+    expect(screen.getByDisplayValue("改过但未保存")).toBeInTheDocument();
     expect(readFandomFile).toHaveBeenCalledTimes(1); // 未触发目标文件读取
   });
 
@@ -171,7 +171,7 @@ describe("FandomLoreLayout — 状态下沉回归", () => {
       expect(boxes.some((el) => el.value === "# 盖文\n\n[]")).toBe(true);
     });
     // 侧栏乐观追加
-    expect(screen.getByText("盖文")).toBeTruthy();
+    expect(screen.getByText("盖文")).toBeInTheDocument();
   });
 
   it("新建重名：按新建前重拉的最新列表拦截，不落库且弹窗保持打开", async () => {
@@ -187,7 +187,7 @@ describe("FandomLoreLayout — 状态下沉回归", () => {
 
     await screen.findByText("「康纳.md」已经存在，先换个名字再创建。");
     expect(saveLore).not.toHaveBeenCalled();
-    expect(screen.getByPlaceholderText("角色名（如：康纳）")).toBeTruthy(); // 弹窗未关
+    expect(screen.getByPlaceholderText("角色名（如：康纳）")).toBeInTheDocument(); // 弹窗未关
   });
 
   it("删除：确认后落库、侧栏移除、编辑区回到未选中态", async () => {
@@ -206,8 +206,8 @@ describe("FandomLoreLayout — 状态下沉回归", () => {
       filename: "康纳.md",
     });
     await waitFor(() => expect(screen.queryByText("康纳")).toBeNull());
-    expect(screen.getByText("还没有角色设定")).toBeTruthy();
-    expect(screen.getByText("从左边选一份资料开始编辑。")).toBeTruthy();
+    expect(screen.getByText("还没有角色设定")).toBeInTheDocument();
+    expect(screen.getByText("从左边选一份资料开始编辑。")).toBeInTheDocument();
   });
 
   it("切 fandom：重新拉取、清空选中与编辑内容", async () => {
@@ -223,7 +223,7 @@ describe("FandomLoreLayout — 状态下沉回归", () => {
 
     await screen.findByText("Fandom：星际牛仔");
     expect(listFandomFiles).toHaveBeenLastCalledWith("星际");
-    expect(screen.getByText("从左边选一份资料开始编辑。")).toBeTruthy();
+    expect(screen.getByText("从左边选一份资料开始编辑。")).toBeInTheDocument();
     expect(screen.queryByTestId("lore-preview")).toBeNull();
   });
 });

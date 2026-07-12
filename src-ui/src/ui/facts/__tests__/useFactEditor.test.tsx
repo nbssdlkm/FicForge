@@ -10,20 +10,19 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useFactEditor } from "../useFactEditor";
 import { addFact, editFact, type FactInfo } from "../../../api/engine-client";
+import { feedbackMock } from "../../../test/mocks/feedback";
 
 vi.mock("../../../api/engine-client", () => ({
   addFact: vi.fn(),
   editFact: vi.fn(),
 }));
 
-const showError = vi.fn();
-vi.mock("../../../hooks/useFeedback", () => ({
-  useFeedback: () => ({ showError, showSuccess: vi.fn(), showToast: vi.fn() }),
-}));
+vi.mock("../../../hooks/useFeedback", async () => (await import("../../../test/mocks/feedback")).mockUseFeedback());
+const { showError } = feedbackMock;
 
-vi.mock("../../../i18n/useAppTranslation", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+vi.mock("../../../i18n/useAppTranslation", async () =>
+  (await import("../../../test/mocks/i18n")).mockUseAppTranslation(),
+);
 
 const AU = "/data/fandoms/F/aus/A1";
 

@@ -18,6 +18,7 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { feedbackMock } from "../../../test/mocks/feedback";
 
 beforeAll(() => {
   if (!Element.prototype.scrollTo) {
@@ -25,15 +26,8 @@ beforeAll(() => {
   }
 });
 
-const showErrorSpy = vi.fn();
-const showToastSpy = vi.fn();
-vi.mock("../../../hooks/useFeedback", () => ({
-  useFeedback: () => ({
-    showError: showErrorSpy,
-    showSuccess: vi.fn(),
-    showToast: showToastSpy,
-  }),
-}));
+vi.mock("../../../hooks/useFeedback", async () => (await import("../../../test/mocks/feedback")).mockUseFeedback());
+const { showError: showErrorSpy, showToast: showToastSpy } = feedbackMock;
 
 vi.mock("../../../api/engine-client", async () => {
   const actual = await vi.importActual<typeof import("../../../api/engine-client")>("../../../api/engine-client");

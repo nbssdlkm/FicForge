@@ -43,11 +43,11 @@ describe("FetchModelsSheet", () => {
     expect(await screen.findByText("deepseek-v4-flash")).toBeTruthy();
     expect(fetchProviderModels).toHaveBeenCalledWith({ api_base: "https://api.deepseek.com", api_key: "sk-test" });
     // 分组头
-    expect(screen.getByText("DeepSeek")).toBeTruthy();
-    expect(screen.getByText("Embedding 向量")).toBeTruthy();
-    expect(screen.getByText("其他")).toBeTruthy();
+    expect(screen.getByText("DeepSeek")).toBeInTheDocument();
+    expect(screen.getByText("Embedding 向量")).toBeInTheDocument();
+    expect(screen.getByText("其他")).toBeInTheDocument();
     // embedding 胶囊
-    expect(screen.getByText("向量")).toBeTruthy();
+    expect(screen.getByText("向量")).toBeInTheDocument();
   });
 
   it("搜索过滤 + 过滤内全选 → 确认写入勾选（embedding 类型自动预标）", async () => {
@@ -87,7 +87,7 @@ describe("FetchModelsSheet", () => {
 
     // 旧条目单列「已启用但本次未返回」分组
     expect(await screen.findByText("已启用但本次未返回")).toBeTruthy();
-    expect(screen.getByText("legacy-model")).toBeTruthy();
+    expect(screen.getByText("legacy-model")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "保存勾选" }));
     const models = onConfirm.mock.calls[0][0] as { id: string; contextWindow?: number }[];

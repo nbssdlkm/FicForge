@@ -21,9 +21,7 @@ vi.mock("../../api/engine-client", () => ({
   logCatch: () => {},
 }));
 
-vi.mock("../../hooks/useFeedback", () => ({
-  useFeedback: () => ({ showToast: vi.fn(), showError: vi.fn(), showSuccess: vi.fn() }),
-}));
+vi.mock("../../hooks/useFeedback", async () => (await import("../../test/mocks/feedback")).mockUseFeedback());
 
 vi.mock("../../utils/platform", () => ({
   isCapacitor: () => false, // 桌面：渲染「选文件夹」入口
@@ -106,8 +104,8 @@ describe("RestoreBundleModal raw-folder import (review fix #7)", () => {
     fireEvent.click(screen.getByText("恢复"));
 
     // 完成态：出现补全记忆引导，且不再有「恢复」提交按钮（未自动关）
-    await waitFor(() => expect(screen.getByText(/一键补全记忆/)).toBeTruthy());
-    expect(screen.getByText(/补全旧章记忆/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/一键补全记忆/)).toBeInTheDocument());
+    expect(screen.getByText(/补全旧章记忆/)).toBeInTheDocument();
     expect(screen.queryByText("恢复")).toBeNull();
   });
 
@@ -126,8 +124,8 @@ describe("RestoreBundleModal raw-folder import (review fix #7)", () => {
     fireEvent.click(screen.getByText("恢复"));
 
     // 完成态同时含跳过告警（2 个）+ 补记忆引导
-    await waitFor(() => expect(screen.getByText(/2 个文件被跳过/)).toBeTruthy());
-    expect(screen.getByText(/一键补全记忆/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/2 个文件被跳过/)).toBeInTheDocument());
+    expect(screen.getByText(/一键补全记忆/)).toBeInTheDocument();
   });
 
   it("rejects a non-AU-root selection (no project.yaml/state.yaml, 0 chapters) with a clear error", async () => {
@@ -149,7 +147,7 @@ describe("RestoreBundleModal raw-folder import (review fix #7)", () => {
     fireEvent.change(rawInput, { target: { files: [rawFile("random.txt", "wrongdir/au1/random.txt")] } });
 
     // 显示「这不是文的根目录」提示，且没有进入恢复
-    await waitFor(() => expect(screen.getByText(/project\.yaml/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/project\.yaml/)).toBeInTheDocument());
     expect(restoreAuBundle).not.toHaveBeenCalled();
   });
 });

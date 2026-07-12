@@ -105,18 +105,18 @@ describe("FactsLayout — 拆分回归", () => {
     ]);
     renderLayout();
     expect(await screen.findByText("主角与反派初次交锋")).toBeTruthy();
-    expect(screen.getByText("支线角色登场")).toBeTruthy();
+    expect(screen.getByText("支线角色登场")).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText("搜索剧情笔记或关联角色…"), { target: { value: "支线" } });
 
     expect(screen.queryByText("主角与反派初次交锋")).toBeNull();
-    expect(screen.getByText("支线角色登场")).toBeTruthy();
+    expect(screen.getByText("支线角色登场")).toBeInTheDocument();
   });
 
   it("切 AU 复位：关闭上一篇打开的编辑器并重拉新 AU", async () => {
     const { rerender } = renderLayout(AU_PATH);
     await screen.findByText("主角与反派初次交锋");
-    expect(screen.getByText("还没有选中剧情笔记")).toBeTruthy();
+    expect(screen.getByText("还没有选中剧情笔记")).toBeInTheDocument();
 
     // 点卡片进入编辑态 → 右栏不再显示「还没有选中」
     fireEvent.click(screen.getByText("主角与反派初次交锋"));
@@ -130,7 +130,7 @@ describe("FactsLayout — 拆分回归", () => {
 
     await waitFor(() => expect(listFacts).toHaveBeenCalledWith("fandoms/f/aus/b", undefined));
     // 复位：编辑器关闭，右栏回到「还没有选中」
-    await waitFor(() => expect(screen.getByText("还没有选中剧情笔记")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("还没有选中剧情笔记")).toBeInTheDocument());
   });
 
   it("新建入口：点「记一笔」打开新建弹窗（含提交按钮）", async () => {

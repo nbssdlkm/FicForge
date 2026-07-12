@@ -15,22 +15,14 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { act } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { feedbackMock } from "../../../test/mocks/feedback";
 
-vi.mock("../../../i18n/useAppTranslation", () => ({
-  useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) => (params ? `${key}:${JSON.stringify(params)}` : key),
-    i18n: { resolvedLanguage: "zh" },
-  }),
-}));
+vi.mock("../../../i18n/useAppTranslation", async () =>
+  (await import("../../../test/mocks/i18n")).mockUseAppTranslation(),
+);
 
-const showToast = vi.fn();
-vi.mock("../../../hooks/useFeedback", () => ({
-  useFeedback: () => ({
-    showError: vi.fn(),
-    showSuccess: vi.fn(),
-    showToast,
-  }),
-}));
+vi.mock("../../../hooks/useFeedback", async () => (await import("../../../test/mocks/feedback")).mockUseFeedback());
+const { showToast } = feedbackMock;
 
 vi.mock("../../library/AuLoreLayout", () => ({ AuLoreLayout: () => <div /> }));
 

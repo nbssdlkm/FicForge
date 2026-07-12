@@ -26,25 +26,11 @@ import { render, screen, waitFor } from "@testing-library/react";
 
 // ----- Module-boundary mocks (must precede WriterLayout import) -----
 
-vi.mock("../../../i18n/useAppTranslation", () => ({
-  useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) => {
-      if (params) {
-        return `${key}:${JSON.stringify(params)}`;
-      }
-      return key;
-    },
-    i18n: { resolvedLanguage: "zh" },
-  }),
-}));
+vi.mock("../../../i18n/useAppTranslation", async () =>
+  (await import("../../../test/mocks/i18n")).mockUseAppTranslation(),
+);
 
-vi.mock("../../../hooks/useFeedback", () => ({
-  useFeedback: () => ({
-    showToast: vi.fn(),
-    showSuccess: vi.fn(),
-    showError: vi.fn(),
-  }),
-}));
+vi.mock("../../../hooks/useFeedback", async () => (await import("../../../test/mocks/feedback")).mockUseFeedback());
 
 vi.mock("../../../hooks/useKV", () => ({
   useKV: (_key: string, defaultValue: string) => [defaultValue, vi.fn()],

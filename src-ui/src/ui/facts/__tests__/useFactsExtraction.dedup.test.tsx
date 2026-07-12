@@ -13,9 +13,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TaskEvent } from "@ficforge/engine";
 
-vi.mock("../../../hooks/useFeedback", () => ({
-  useFeedback: () => ({ showError: vi.fn(), showSuccess: vi.fn(), showToast: vi.fn() }),
-}));
+vi.mock("../../../hooks/useFeedback", async () => (await import("../../../test/mocks/feedback")).mockUseFeedback());
 
 // 捕获 subscribeToTask 注册的事件回调，供测试手动派发 completed 事件。
 let eventCb: ((id: string, event: TaskEvent) => void) | null = null;

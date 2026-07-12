@@ -9,12 +9,12 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { feedbackMock } from "../../../test/mocks/feedback";
 
 const resolveDirtyChapter = vi.fn();
 const listFacts = vi.fn();
 const extractFacts = vi.fn();
 const addFact = vi.fn();
-const showError = vi.fn();
 
 vi.mock("../../../api/engine-client", () => ({
   resolveDirtyChapter: (...a: unknown[]) => resolveDirtyChapter(...a),
@@ -25,9 +25,8 @@ vi.mock("../../../api/engine-client", () => ({
   logCatch: () => {},
 }));
 
-vi.mock("../../../hooks/useFeedback", () => ({
-  useFeedback: () => ({ showToast: vi.fn(), showError: (...a: unknown[]) => showError(...a), showSuccess: vi.fn() }),
-}));
+vi.mock("../../../hooks/useFeedback", async () => (await import("../../../test/mocks/feedback")).mockUseFeedback());
+const { showError } = feedbackMock;
 
 import { DirtyModal } from "../DirtyModal";
 

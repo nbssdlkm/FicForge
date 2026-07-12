@@ -105,8 +105,8 @@ describe("MobileOnboarding — 状态下沉回归", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /下一步/ }));
     await screen.findByText("连接AI写作模型");
-    expect(screen.getByDisplayValue("https://gw.example.com/v1")).toBeTruthy();
-    expect(screen.getByDisplayValue("sk-test")).toBeTruthy();
+    expect(screen.getByDisplayValue("https://gw.example.com/v1")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("sk-test")).toBeInTheDocument();
   });
 
   it("六步走完提交：payload 来自表单，建圈建 AU 后 onComplete 带 openAuPath", async () => {

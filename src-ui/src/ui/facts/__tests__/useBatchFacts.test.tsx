@@ -10,20 +10,18 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useBatchFacts } from "../useBatchFacts";
 import { batchUpdateFactStatus, type FactInfo } from "../../../api/engine-client";
+import { feedbackMock } from "../../../test/mocks/feedback";
 
 vi.mock("../../../api/engine-client", () => ({
   batchUpdateFactStatus: vi.fn(),
 }));
 
-const showError = vi.fn();
-const showSuccess = vi.fn();
-vi.mock("../../../hooks/useFeedback", () => ({
-  useFeedback: () => ({ showError, showSuccess, showToast: vi.fn() }),
-}));
+vi.mock("../../../hooks/useFeedback", async () => (await import("../../../test/mocks/feedback")).mockUseFeedback());
+const { showError, showSuccess } = feedbackMock;
 
-vi.mock("../../../i18n/useAppTranslation", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
+vi.mock("../../../i18n/useAppTranslation", async () =>
+  (await import("../../../test/mocks/i18n")).mockUseAppTranslation(),
+);
 
 vi.mock("../../../i18n/labels", () => ({
   getEnumLabel: (_domain: string, value: string) => value,

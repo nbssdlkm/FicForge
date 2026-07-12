@@ -61,7 +61,8 @@ export function useWriterBootstrap({ auPath, loadGuard, refreshGuard, showError,
         try {
           const content = await getChapterContent(auPath, latestNum);
           if (loadGuard.isStale(token)) return;
-          setCurrentContent(typeof content === "string" ? content : "");
+          // getChapterContent 恒返 string（get_content_only: Promise<string>，缺失即抛，不返 null）
+          setCurrentContent(content);
         } catch {
           if (loadGuard.isStale(token)) return;
           setCurrentContent(t("writer.contentLoadFailed"));

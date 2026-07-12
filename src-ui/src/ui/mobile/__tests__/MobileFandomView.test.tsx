@@ -73,12 +73,12 @@ describe("MobileFandomView — 状态下沉回归", () => {
   it("加载后列出角色文件、显示圈子名，切世界观 tab 换列表", async () => {
     await renderView();
 
-    expect(screen.getByText("Fandom：底特律")).toBeTruthy();
+    expect(screen.getByText("Fandom：底特律")).toBeInTheDocument();
     expect(listFandomFiles).toHaveBeenCalledWith("圈子目录");
     expect(screen.queryByText("设定集")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /世界观/ }));
-    expect(screen.getByText("设定集")).toBeTruthy();
+    expect(screen.getByText("设定集")).toBeInTheDocument();
     expect(screen.queryByText("康纳")).toBeNull();
   });
 
@@ -167,7 +167,7 @@ describe("MobileFandomView — 状态下沉回归", () => {
     const { rerender } = render(<MobileFandomView fandomPath={FANDOM_PATH} onNavigate={onNavigate} />);
     await screen.findByText("康纳");
     await openConnorFile();
-    expect(screen.getByRole("button", { name: "返回" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "返回" })).toBeInTheDocument();
 
     (getFandomDisplayInfo as Mock).mockResolvedValue({ name: "另一圈" });
     rerender(<MobileFandomView fandomPath="fandoms/另一圈目录" onNavigate={onNavigate} />);

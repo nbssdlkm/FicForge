@@ -92,7 +92,7 @@ describe("GlobalSettingsModal — 脏检查（R2-5）", () => {
 
     // 关窗前弹确认（ctx 覆盖也是用户改动，不该无声丢弃）；未确认前不关闭。
     fireEvent.click(screen.getByRole("button", { name: "取消" }));
-    expect(screen.getByText("放弃未保存的修改？")).toBeTruthy();
+    expect(screen.getByText("放弃未保存的修改？")).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
 

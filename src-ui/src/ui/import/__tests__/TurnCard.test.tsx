@@ -28,8 +28,8 @@ function makeTurn(over: Partial<ClassifiedTurn> = {}): ClassifiedTurn {
 describe("TurnCard pill selector (TD-013)", () => {
   it("renders all four type pills (setting + skip discoverable, not hidden in a dropdown)", () => {
     render(<TurnCard turn={makeTurn()} currentChapterNum={1} hasPreviousChapter onChangeType={() => {}} />);
-    expect(screen.getByText("设定")).toBeTruthy();
-    expect(screen.getByText("跳过")).toBeTruthy();
+    expect(screen.getByText("设定")).toBeInTheDocument();
+    expect(screen.getByText("跳过")).toBeInTheDocument();
   });
 
   it("disables (not hides) chapter_continue when there is no previous chapter", () => {
@@ -65,6 +65,6 @@ describe("TurnCard pill selector (TD-013)", () => {
         onChangeType={() => {}}
       />,
     );
-    expect(screen.getByText("待定")).toBeTruthy();
+    expect(screen.getByText("待定")).toBeInTheDocument();
   });
 });

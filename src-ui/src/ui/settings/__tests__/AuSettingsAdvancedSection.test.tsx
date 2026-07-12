@@ -25,20 +25,20 @@ function renderSection(archiveCandidateCount: number | null | undefined) {
 describe("AuSettingsAdvancedSection 归档候选徽标", () => {
   it("有候选（>0）→ 显示数字徽标 + 计数提示文案", () => {
     renderSection(5);
-    expect(screen.getByText("5")).toBeTruthy(); // 徽标数字
-    expect(screen.getByText(/有 5 条旧笔记可以整理归档/)).toBeTruthy();
+    expect(screen.getByText("5")).toBeInTheDocument(); // 徽标数字
+    expect(screen.getByText(/有 5 条旧笔记可以整理归档/)).toBeInTheDocument();
   });
 
   it("零候选 → 无徽标，显示默认说明", () => {
     renderSection(0);
     // 默认说明在场，计数提示不在
-    expect(screen.getByText(/把很久以前、标为次要的旧笔记收起/)).toBeTruthy();
+    expect(screen.getByText(/把很久以前、标为次要的旧笔记收起/)).toBeInTheDocument();
     expect(screen.queryByText(/条旧笔记可以整理归档/)).toBeNull();
   });
 
   it("未扫/扫失败（null）→ 无徽标，默认说明", () => {
     renderSection(null);
-    expect(screen.getByText(/把很久以前、标为次要的旧笔记收起/)).toBeTruthy();
+    expect(screen.getByText(/把很久以前、标为次要的旧笔记收起/)).toBeInTheDocument();
     expect(screen.queryByText(/条旧笔记可以整理归档/)).toBeNull();
   });
 });

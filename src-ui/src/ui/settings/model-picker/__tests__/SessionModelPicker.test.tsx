@@ -60,7 +60,7 @@ describe("SessionModelPicker", () => {
 
     // options 空（生效配置非 api 模式 / base 未匹配）→ 无下拉，直接手填
     rerender(<SessionModelPicker model="x" onModelChange={onModelChange} layer="global" options={[]} />);
-    expect(screen.getByPlaceholderText(/输入模型 id/)).toBeTruthy();
+    expect(screen.getByPlaceholderText(/输入模型 id/)).toBeInTheDocument();
     expect(screen.queryByLabelText("模型")).toBeNull();
   });
 });

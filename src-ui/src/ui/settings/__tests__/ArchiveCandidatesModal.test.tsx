@@ -43,15 +43,15 @@ describe("ArchiveCandidatesModal", () => {
     (findArchivalCandidates as Mock).mockResolvedValue([candidate("f1", 1), candidate("f2", 2)]);
     renderModal();
     expect(await screen.findByText("旧笔记 f1")).toBeTruthy();
-    expect(screen.getByText("旧笔记 f2")).toBeTruthy();
+    expect(screen.getByText("旧笔记 f2")).toBeInTheDocument();
     // 默认全选 → 按钮显示「收起选中（2）」
-    expect(screen.getByText("收起选中（2）")).toBeTruthy();
+    expect(screen.getByText("收起选中（2）")).toBeInTheDocument();
   });
 
   it("shows an empty state when nothing qualifies", async () => {
     (findArchivalCandidates as Mock).mockResolvedValue([]);
     renderModal();
-    await waitFor(() => expect(screen.getByText("没有可整理的旧笔记")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("没有可整理的旧笔记")).toBeInTheDocument());
     expect(screen.queryByText(/收起选中/)).toBeNull();
   });
 
@@ -60,7 +60,7 @@ describe("ArchiveCandidatesModal", () => {
     (archiveFacts as Mock).mockResolvedValue(["f1", "f2"]);
     renderModal();
     fireEvent.click(await screen.findByText("收起选中（2）"));
-    await waitFor(() => expect(screen.getByText("已收起 2 条旧笔记。")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("已收起 2 条旧笔记。")).toBeInTheDocument());
     expect(archiveFacts as Mock).toHaveBeenCalledWith("/au", ["f1", "f2"]);
   });
 
@@ -70,7 +70,7 @@ describe("ArchiveCandidatesModal", () => {
     renderModal();
     await screen.findByText("旧笔记 f1");
     fireEvent.click(screen.getAllByRole("checkbox")[1]); // 取消勾选 f2
-    expect(screen.getByText("收起选中（1）")).toBeTruthy();
+    expect(screen.getByText("收起选中（1）")).toBeInTheDocument();
     fireEvent.click(screen.getByText("收起选中（1）"));
     await waitFor(() => expect(archiveFacts as Mock).toHaveBeenCalledWith("/au", ["f1"]));
   });

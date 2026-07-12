@@ -9,9 +9,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
-vi.mock("../../../hooks/useFeedback", () => ({
-  useFeedback: () => ({ showToast: vi.fn(), showError: vi.fn(), showSuccess: vi.fn() }),
-}));
+vi.mock("../../../hooks/useFeedback", async () => (await import("../../../test/mocks/feedback")).mockUseFeedback());
 
 import { ChapterArrangeStep } from "../ChapterArrangeStep";
 import type { FileAnalysis, ClassifiedTurn } from "../../../api/engine-client";

@@ -85,10 +85,10 @@ describe("AuSettingsLayout — 状态下沉回归", () => {
   it("加载后表单回显 project 值", async () => {
     await renderLayout();
 
-    expect(screen.getByDisplayValue("3000")).toBeTruthy(); // 每章目标字数
-    expect(screen.getByDisplayValue("禁止OOC")).toBeTruthy(); // 铁律
+    expect(screen.getByDisplayValue("3000")).toBeInTheDocument(); // 每章目标字数
+    expect(screen.getByDisplayValue("禁止OOC")).toBeInTheDocument(); // 铁律
     expect(screen.getAllByText("主角甲")).toHaveLength(2); // 必带角色 tag + cast 列表
-    expect(screen.getByDisplayValue("bge-m3")).toBeTruthy(); // 全局 embedding 回显（非覆盖态）
+    expect(screen.getByDisplayValue("bge-m3")).toBeInTheDocument(); // 全局 embedding 回显（非覆盖态）
   });
 
   it("编辑后保存 → payload 来自最新表单", async () => {
@@ -123,10 +123,10 @@ describe("AuSettingsLayout — 状态下沉回归", () => {
 
     // cast 列表与必带角色区已同步
     await waitFor(() => expect(screen.queryByText("主角甲")).toBeNull());
-    expect(screen.getByText("还没有设置必带角色。")).toBeTruthy();
+    expect(screen.getByText("还没有设置必带角色。")).toBeInTheDocument();
 
     // 关键：project 局部更新不得触发表单重灌
-    expect(screen.getByDisplayValue("未保存的编辑")).toBeTruthy();
+    expect(screen.getByDisplayValue("未保存的编辑")).toBeInTheDocument();
   });
 
   it("切 AU：重新拉取并重灌表单", async () => {
@@ -146,7 +146,7 @@ describe("AuSettingsLayout — 状态下沉回归", () => {
     );
 
     await screen.findByDisplayValue("另一篇的指令");
-    expect(screen.getByDisplayValue("1500")).toBeTruthy();
+    expect(screen.getByDisplayValue("1500")).toBeInTheDocument();
     expect(getProjectForEditing).toHaveBeenLastCalledWith("fandoms/f/aus/b");
   });
 });

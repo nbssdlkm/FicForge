@@ -24,9 +24,7 @@ vi.mock("../../../utils/platform", () => ({
   isCapacitor: () => false, // 浏览器下载分支
 }));
 
-vi.mock("../../../hooks/useFeedback", () => ({
-  useFeedback: () => ({ showToast: vi.fn(), showError: vi.fn(), showSuccess: vi.fn() }),
-}));
+vi.mock("../../../hooks/useFeedback", async () => (await import("../../../test/mocks/feedback")).mockUseFeedback());
 
 import { ExportModal } from "../ExportModal";
 

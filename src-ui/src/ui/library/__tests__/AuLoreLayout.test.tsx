@@ -148,14 +148,14 @@ describe("AuLoreLayout — 状态下沉回归", () => {
   it("加载后渲染角色/世界观双列表；files 固定按 characters 分类拉取", async () => {
     await renderLayout();
 
-    expect(screen.getByText("配角乙.md")).toBeTruthy();
+    expect(screen.getByText("配角乙.md")).toBeInTheDocument();
     expect(listLoreFiles).toHaveBeenCalledWith({ au_path: AU_PATH, category: "characters" });
     expect(listLoreFiles).toHaveBeenCalledWith({ au_path: AU_PATH, category: "worldbuilding" });
 
     // 世界观夹默认折叠，点开后可见
     expect(screen.queryByText("魔法体系.md")).toBeNull();
     fireEvent.click(screen.getByText("世界观"));
-    expect(screen.getByText("魔法体系.md")).toBeTruthy();
+    expect(screen.getByText("魔法体系.md")).toBeInTheDocument();
   });
 
   it("打开角色文件：正文回显 + frontmatter 别名解析为 chips", async () => {
@@ -163,8 +163,8 @@ describe("AuLoreLayout — 状态下沉回归", () => {
     await openCharacterFile();
 
     expect(screen.getByTestId("settings-md").textContent).toContain("正文一段");
-    expect(screen.getByText("小甲")).toBeTruthy();
-    expect(screen.getByText("甲哥")).toBeTruthy();
+    expect(screen.getByText("小甲")).toBeInTheDocument();
+    expect(screen.getByText("甲哥")).toBeInTheDocument();
   });
 
   it("编辑 + 新增别名后保存：别名写回 frontmatter，payload 来自最新正文", async () => {
@@ -183,7 +183,7 @@ describe("AuLoreLayout — 状态下沉回归", () => {
     const aliasInput = screen.getByPlaceholderText("输入别名，回车添加");
     fireEvent.change(aliasInput, { target: { value: "阿甲" } });
     fireEvent.keyDown(aliasInput, { key: "Enter" });
-    expect(screen.getByText("阿甲")).toBeTruthy();
+    expect(screen.getByText("阿甲")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "保存设定" }));
     await waitFor(() => expect(saveLore).toHaveBeenCalledTimes(1));
@@ -233,7 +233,7 @@ describe("AuLoreLayout — 状态下沉回归", () => {
     await waitFor(() => expect(saveProjectCoreIncludes).toHaveBeenCalledWith(AU_PATH, []));
 
     await waitFor(() => expect(screen.queryByText("主角甲.md")).toBeNull());
-    expect(screen.getByText("从左边选一个角色开始编辑。")).toBeTruthy();
+    expect(screen.getByText("从左边选一个角色开始编辑。")).toBeInTheDocument();
   });
 
   it("导入：候选排除本 AU 已有角色，导入后同步 registry 并全量 reload", async () => {
@@ -243,7 +243,7 @@ describe("AuLoreLayout — 状态下沉回归", () => {
     fireEvent.click(screen.getAllByTitle("从Fandom导入")[0]);
     // 主角甲已存在 → 只剩新角色丙可选
     const checkbox = await screen.findByRole("checkbox");
-    expect(screen.getByText("新角色丙")).toBeTruthy();
+    expect(screen.getByText("新角色丙")).toBeInTheDocument();
     expect(screen.queryByText("主角甲")).toBeNull();
 
     fireEvent.click(checkbox);
@@ -307,6 +307,6 @@ describe("AuLoreLayout — 状态下沉回归", () => {
     await screen.findByText("AU：另一篇");
     expect(getProjectForEditing).toHaveBeenLastCalledWith("fandoms/f/aus/b");
     expect(listLoreFiles).toHaveBeenCalledWith({ au_path: "fandoms/f/aus/b", category: "characters" });
-    expect(screen.getByText("从左边选一个角色开始编辑。")).toBeTruthy();
+    expect(screen.getByText("从左边选一个角色开始编辑。")).toBeInTheDocument();
   });
 });

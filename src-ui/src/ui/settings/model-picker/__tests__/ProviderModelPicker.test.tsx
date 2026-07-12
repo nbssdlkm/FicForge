@@ -142,10 +142,10 @@ describe("ProviderModelPicker", () => {
     // per-model 覆盖：权威模型的 ctx 现在也可编辑（不再只读），默认带出官方值
     expect(ctxInput.readOnly).toBe(false);
     expect(ctxInput.value).toBe("1000000");
-    expect(screen.getByText(/官方标定/)).toBeTruthy();
+    expect(screen.getByText(/官方标定/)).toBeInTheDocument();
     // 推荐模型标签胶囊
-    expect(screen.getByText("便宜")).toBeTruthy();
-    expect(screen.getByText("长上下文")).toBeTruthy();
+    expect(screen.getByText("便宜")).toBeInTheDocument();
+    expect(screen.getByText("长上下文")).toBeInTheDocument();
   });
 
   it("覆盖权威模型 ctx → 显示「已覆盖官方默认」+「恢复默认」还原（per-model 编辑，数据链末端进 context_window）", async () => {
@@ -160,7 +160,7 @@ describe("ProviderModelPicker", () => {
     fireEvent.change(ctxInput, { target: { value: "200000" } });
     expect(onContextWindowChange).toHaveBeenLastCalledWith("200000");
     // 覆盖提示 + 恢复默认按钮
-    expect(screen.getByText(/已覆盖官方默认/)).toBeTruthy();
+    expect(screen.getByText(/已覆盖官方默认/)).toBeInTheDocument();
     const resetBtn = screen.getByRole("button", { name: "恢复官方默认" });
     fireEvent.click(resetBtn);
     expect(onContextWindowChange).toHaveBeenLastCalledWith("1000000"); // 还原官方值
@@ -181,7 +181,7 @@ describe("ProviderModelPicker", () => {
     const modelInput = screen.getByPlaceholderText(/输入模型 id/);
     fireEvent.change(modelInput, { target: { value: "made-up-model-9000" } });
 
-    expect(screen.getByText(/查不到这个模型/)).toBeTruthy();
+    expect(screen.getByText(/查不到这个模型/)).toBeInTheDocument();
     const ctxInput = screen.getByLabelText("一次能读多少字 (context window)") as HTMLInputElement;
     expect(ctxInput.readOnly).toBe(false);
     fireEvent.change(ctxInput, { target: { value: "256000" } });
@@ -200,7 +200,7 @@ describe("ProviderModelPicker", () => {
     fireEvent.click(screen.getByRole("button", { name: "手填" }));
     fireEvent.change(screen.getByPlaceholderText(/输入模型 id/), { target: { value: "kimi-k2.6" } });
 
-    expect(screen.getByText(/估算/)).toBeTruthy();
+    expect(screen.getByText(/估算/)).toBeInTheDocument();
   });
 
   it("kind=embedding：模型下拉只出现 embedding 类型（无 ctx 行）", async () => {
@@ -280,7 +280,7 @@ describe("ProviderModelPicker", () => {
     fireEvent.click(screen.getByRole("button", { name: "从 API 获取列表" }));
     // fresh enabled 的 A/B 出现在「未返回」分组并默认保持勾选
     expect(await screen.findByText("deepseek-ai/DeepSeek-V4")).toBeTruthy();
-    expect(screen.getByText("Qwen/Qwen3-Max")).toBeTruthy();
+    expect(screen.getByText("Qwen/Qwen3-Max")).toBeInTheDocument();
     // 新拉到的 C 勾上
     fireEvent.click(await screen.findByRole("checkbox", { name: /bge-large-zh/ }));
 
@@ -316,7 +316,7 @@ describe("ProviderModelPicker", () => {
     expect(onContextWindowChange).toHaveBeenLastCalledWith("");
     const ctxInput = screen.getByLabelText("一次能读多少字 (context window)") as HTMLInputElement;
     expect(ctxInput.value).toBe("");
-    expect(screen.getByText(/查不到这个模型/)).toBeTruthy();
+    expect(screen.getByText(/查不到这个模型/)).toBeInTheDocument();
   });
 
   it("R2-4：开拉取 sheet 前的目录新读失败 → 阻断打开 + 报错（不再拿 stale 快照照常开门）", async () => {

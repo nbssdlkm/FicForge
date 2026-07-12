@@ -42,7 +42,7 @@ describe("ApiConfigStep — ProviderModelPicker 接线（R2-7）", () => {
   it("引导步渲染选择器：服务商/模型下拉存在，无旧「模型名手填」输入", async () => {
     renderStep(vi.fn());
     expect(await screen.findByLabelText("服务商")).toBeTruthy();
-    expect(screen.getByLabelText("模型")).toBeTruthy();
+    expect(screen.getByLabelText("模型")).toBeInTheDocument();
     // 旧的自由文本模型输入（modelPlaceholder「按官网文档填写」）已被选择器取代
     expect(screen.queryByPlaceholderText("按官网文档填写")).toBeNull();
   });
