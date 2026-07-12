@@ -64,7 +64,10 @@ export function buildCharacterInfoBlock(
 ): string {
   const P = getPrompts(language as "zh" | "en");
   const charNames = cast_registry.characters ?? [];
-  if (charNames.length === 0 && !character_aliases) return "";
+  // 名单以 cast_registry 为准（用户可在 AU 设置里剔除角色）：registry 为空时即使有
+  // 别名表也返回空串——否则渲出「只有表头和指令、零角色名」的残段（别名表接通前
+  // 表恒为 null，此边角从未触发过）。
+  if (charNames.length === 0) return "";
 
   const lines: string[] = [P.FACTS_KNOWN_CHARS_HEADER];
   for (const name of charNames) {

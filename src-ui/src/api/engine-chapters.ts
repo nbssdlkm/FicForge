@@ -453,6 +453,9 @@ export async function backfillChapterMemory(
   }
   const llmProvider = create_provider(llmCfg);
   const language = sett.app?.language || "zh";
+  // 别名表快照（整个 backfill 共用）：提取端（extractFacts 内部）已归一化，落库端再挂一道
+  // 是与 addFactsBatch 同款的纵深防御——覆盖「提取后、落库前别名表被改」的窗口。
+  const characterAliases = await e.characterAliases.get(auPath);
 
   const chapters = await chapter.list_main(auPath);
   const byNum = new Map(chapters.map((c) => [c.chapter_num, c]));
@@ -520,6 +523,8 @@ export async function backfillChapterMemory(
 
               fact,
               ops,
+              "manual",
+              characterAliases,
             );
             factsAdded += 1;
           }

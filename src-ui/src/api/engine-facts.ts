@@ -77,9 +77,13 @@ export async function listFacts(auPath: string, status?: string) {
 }
 
 export async function addFact(auPath: string, chapterNum: number, factData: Record<string, unknown>) {
-  const { fact, ops } = getEngine().repos;
+  const e = getEngine();
+  const { fact, ops } = e.repos;
+  // 别名表接通：落库前 characters / known_to / hidden_from 按角色卡别名归一化
+  //（get 永不抛错，无卡/读失败降级 null = 不归一化，不阻塞主流程；下同）。
+  const characterAliases = await e.characterAliases.get(auPath);
   return withAuLock(auPath, async () => {
-    const result = await add_fact(auPath, chapterNum, factData, fact, ops);
+    const result = await add_fact(auPath, chapterNum, factData, fact, ops, "manual", characterAliases);
     return { ...result, fact_id: result.id };
   });
 }
@@ -134,7 +138,10 @@ export async function addFactsBatch(
   auPath: string,
   facts: BatchFactInput[],
 ): Promise<AddFactsBatchResult> {
-  const { fact, ops, chapter } = getEngine().repos;
+  const e = getEngine();
+  const { fact, ops, chapter } = e.repos;
+  // 整批共用一份别名表快照（提取端已归一化过，此处是纵深防御 + 覆盖「提取后又改了别名」的窗口）
+  const characterAliases = await e.characterAliases.get(auPath);
   return withAuLock(auPath, async () => {
     const existsCache = new Map<number, boolean>();
     const chapterExists = async (n: number): Promise<boolean> => {
@@ -154,7 +161,7 @@ export async function addFactsBatch(
         continue;
       }
       try {
-        await add_fact(auPath, f.chapterNum, f.data, fact, ops);
+        await add_fact(auPath, f.chapterNum, f.data, fact, ops, "manual", characterAliases);
         writtenIndices.push(i);
       } catch (err) {
         throw new PartialAddFactsError(writtenIndices, err);
@@ -165,9 +172,12 @@ export async function addFactsBatch(
 }
 
 export async function editFact(auPath: string, factId: string, updatedFields: Record<string, unknown>) {
-  const { fact, ops, state } = getEngine().repos;
+  const e = getEngine();
+  const { fact, ops, state } = e.repos;
+  // 别名表接通：编辑 characters / known_to / hidden_from 时按角色卡别名归一化
+  const characterAliases = await e.characterAliases.get(auPath);
   return withAuLock(auPath, () =>
-    edit_fact(auPath, factId, updatedFields, fact, ops, state),
+    edit_fact(auPath, factId, updatedFields, fact, ops, state, characterAliases),
   );
 }
 
@@ -231,6 +241,9 @@ export async function extractFacts(auPath: string, chapterNum: number, opts?: { 
   const { provider, llmConfig, proj, lang, reactEnabled } = await resolveFactsProvider(auPath);
   const chapterContent = await e.repos.chapter.get_content_only(auPath, chapterNum);
   const existingFacts = await e.repos.fact.list_all(auPath);
+  // 别名表接通：提取 prompt 渲染【已知角色名和别名】段 + rawToExtracted 归一化。
+  // backfill（补全旧章记忆）逐章走本函数，自动同享。
+  const characterAliases = await e.characterAliases.get(auPath);
 
   // M9：ReAct 增强提取（opt-in）。跑通则用其结果（含跨章 caused_by + 自动 thread_ids）。
   // 仅当 status=degraded（abort/错误/maxIter 未收尾）且空时回退单次调用——status=ok 的空
@@ -239,7 +252,7 @@ export async function extractFacts(auPath: string, chapterNum: number, opts?: { 
   if (reactEnabled) {
     const { facts: reactFacts, status, cappedCount } = await reactExtractFromChapter(
       chapterContent, chapterNum, existingFacts,
-      proj.cast_registry, null, provider,
+      proj.cast_registry, characterAliases, provider,
       { language: lang as "zh" | "en", factRepo: e.repos.fact, threadRepo: e.repos.thread, auPath, signal: opts?.signal },
     );
     if (!(status === "degraded" && reactFacts.length === 0)) {
@@ -252,7 +265,7 @@ export async function extractFacts(auPath: string, chapterNum: number, opts?: { 
   // 单次调用路径无软上限概念（不截断），cappedCount=0。
   const facts = await extractFactsFromChapter(
     chapterContent, chapterNum, existingFacts,
-    proj.cast_registry, null, provider, llmConfig,
+    proj.cast_registry, characterAliases, provider, llmConfig,
     { language: lang, signal: opts?.signal },
   );
   return { facts, cappedCount: 0 };
@@ -270,6 +283,8 @@ export async function submitFactsExtraction(
   const { createFactsExtractionTask } = await import("@ficforge/engine");
   const e = getEngine();
   const { provider, lang, reactEnabled } = await resolveFactsProvider(auPath);
+  // 别名表快照：整个批量任务共用（长任务中途改别名不追新，与提交时语义一致）
+  const characterAliases = await e.characterAliases.get(auPath);
 
   // 移动端用较小 batch size 减少内存压力和发热
   const platform = e.adapter.getPlatform();
@@ -283,6 +298,7 @@ export async function submitFactsExtraction(
       projectRepo: e.repos.project,
       llmProvider: provider,
       threadRepo: e.repos.thread,
+      characterAliases,
     },
   );
 
