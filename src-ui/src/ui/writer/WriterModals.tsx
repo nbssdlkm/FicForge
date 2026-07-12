@@ -13,6 +13,7 @@ import { useTranslation } from "../../i18n/useAppTranslation";
 import { getEnumLabel } from "../../i18n/labels";
 import { FactAnnotationChips } from "../facts/FactAnnotationChips";
 import type { ExtractedFactCandidate } from "../../api/engine-client";
+import { FactType } from "@ficforge/engine";
 
 // --- Finalize Confirm Modal ---
 
@@ -202,7 +203,7 @@ export const ExtractReviewModal = ({
             />
           ) : (
             extractedCandidates.map((candidate, index) => {
-              const candidateType = candidate.fact_type || candidate.type || "plot_event";
+              const candidateType = candidate.fact_type || candidate.type || FactType.PLOT_EVENT;
               const key = getCandidateKey(candidate, index);
               const checked = selectedExtractedKeys.includes(key);
               // M9 自动归类标签：让用户接受前看到 AI 把这条挂进了哪种关系（剧情线 / 跨章因果）。

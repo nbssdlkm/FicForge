@@ -11,6 +11,7 @@
 
 import { dispatch_simple_chat, resolve_llm_config, type Message, type SimpleChatEvent } from "@ficforge/engine";
 import { getEngine, getProjectOrThrow } from "./engine-instance";
+import { resolveLang } from "./resolve-lang";
 import { createEmbeddingProvider } from "./engine-state";
 
 export type { SimpleChatEvent };
@@ -57,7 +58,7 @@ export async function* dispatchSimpleChat(
     return;
   }
 
-  const lang = (sett.app?.language === "en" ? "en" : "zh") as "zh" | "en";
+  const lang = resolveLang(sett);
 
   // 记忆栈注入(融合 plan §1.1,与 generate_chapter 同源):facts / threads / 向量 / embedding,
   // 供 assemble_chat_context(§1.2)分层组装。threads 取失败不致命,回退空。

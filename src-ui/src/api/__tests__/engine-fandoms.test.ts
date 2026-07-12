@@ -3,7 +3,7 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { getEngine, initEngine } from "../engine-instance";
-import { createAu, createFandom, deleteAu, deleteFandom, getFandomDisplayInfo, listFandoms } from "../engine-fandom";
+import { createAu, createFandom, deleteAu, deleteFandom, getFandomDisplayInfo, listFandoms } from "../engine-fandoms";
 import { listTrash, restoreTrash } from "../engine-trash";
 import { MockAdapter } from "../../../../src-engine/repositories/__tests__/mock_adapter.js";
 

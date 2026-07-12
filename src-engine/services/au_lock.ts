@@ -73,6 +73,7 @@
  */
 
 import { joinPath, withWriteLock } from "../utils/file_utils.js";
+import { PROJECT_YAML } from "../domain/paths.js";
 
 export function withAuLock<T>(au_id: string, fn: () => Promise<T>): Promise<T> {
   return withWriteLock(`au:${au_id}`, fn);
@@ -98,5 +99,5 @@ export function withAuLock<T>(au_id: string, fn: () => Promise<T>): Promise<T> {
  * 相对-绝对 变体的同一 AU 路径，会静默拿到不同锁 —— 传参前须确保是同一份规范路径。
  */
 export function withProjectFileLock<T>(au_path: string, fn: () => Promise<T>): Promise<T> {
-  return withWriteLock(`projfile:${joinPath(au_path, "project.yaml")}`, fn);
+  return withWriteLock(`projfile:${joinPath(au_path, PROJECT_YAML)}`, fn);
 }

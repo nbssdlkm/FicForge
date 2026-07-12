@@ -498,6 +498,9 @@ export class WebAdapter implements PlatformAdapter {
     this._kvFallback.delete(storageKey);
     try {
       localStorage.removeItem(storageKey);
-    } catch {}
+    } catch {
+      // 有意静默：best-effort 清理旧存储；隐私模式下 localStorage 每次调用都抛，
+      // 读路径同样降级（读不到=无旧数据），告警只会刷屏无诊断价值
+    }
   }
 }

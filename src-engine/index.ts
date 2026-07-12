@@ -9,17 +9,22 @@
 // 因 barrel 顺手导出而意外成为对外契约。引擎内部代码一律走相对路径/子 barrel，不受影响。
 export {
   AU_CHARACTERS_DIR,
+  CHARACTER_IMPORTANCE_VALUES,
   EmotionStyle,
   FACT_STATUS_VALUES,
   FACT_TYPE_VALUES,
   FactStatus,
+  FactType,
   IndexStatus,
   LLMMode,
   NARRATIVE_WEIGHT_VALUES,
+  NarrativeWeight,
   OLLAMA_DEFAULT_BASE_URL,
   Perspective,
+  PROJECT_YAML,
   Provenance,
   RAG_COLLECTIONS,
+  STATE_YAML,
   ThreadStatus,
   asSimpleChatMessages,
   contextWindowForModel,
@@ -37,6 +42,8 @@ export {
   isSimpleMutatingToolName,
   listProviders,
   parseChapterMainPath,
+  parseCharacterCard,
+  splitFrontmatterRaw,
 } from "./domain/index.js";
 export type {
   BudgetReport,

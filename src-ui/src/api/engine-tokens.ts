@@ -9,6 +9,7 @@
 
 import { estimate_simple_context_tokens, type SimpleContextTokenEstimate, type Message } from "@ficforge/engine";
 import { getEngine, getProjectOrThrow } from "./engine-instance";
+import { resolveLang } from "./resolve-lang";
 
 export type { SimpleContextTokenEstimate };
 
@@ -27,7 +28,7 @@ export async function estimateSimpleContextTokens(
     e.repos.fact.list_all(auPath).catch(() => []),
   ]);
   const threads = await e.repos.thread.list(auPath).catch(() => []);
-  const language = (settings.app?.language === "en" ? "en" : "zh") as "zh" | "en";
+  const language = resolveLang(settings);
   return await estimate_simple_context_tokens({
     au_id: auPath,
     project,

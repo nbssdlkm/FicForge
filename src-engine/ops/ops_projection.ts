@@ -14,6 +14,7 @@
 
 import type { OpsEntry } from "../domain/ops_entry.js";
 import { createState } from "../domain/state.js";
+import { ON_DISK_DEFAULT_REVISION } from "../domain/project.js";
 import type { State } from "../domain/state.js";
 import type { Fact } from "../domain/fact.js";
 import { createFact } from "../domain/fact.js";
@@ -27,7 +28,8 @@ import {
   SUSPENSE_TYPE_VALUES,
 } from "../domain/enums.js";
 import { hasLogger, getLogger } from "../logger/index.js";
-import type { FactSource, FactStatus, FactType, NarrativeWeight, TimeKind, SuspenseType } from "../domain/enums.js";
+import { FactType, NarrativeWeight } from "../domain/enums.js";
+import type { FactSource, FactStatus, TimeKind, SuspenseType } from "../domain/enums.js";
 import type { FactFieldConfidence } from "../domain/fact.js";
 import type { PlatformAdapter } from "../platform/adapter.js";
 
@@ -230,8 +232,8 @@ function validateEnum<T extends string>(value: string, valid: readonly T[], fall
 /** 从 ops payload 安全构建 Fact（运行时校验枚举字段）。 */
 function factFromPayload(id: string, d: Record<string, unknown>): Fact {
   const rawStatus = (d.status as string) ?? "active";
-  const rawType = (d.type as string) ?? "plot_event";
-  const rawWeight = (d.narrative_weight as string) ?? "medium";
+  const rawType = (d.type as string) ?? FactType.PLOT_EVENT;
+  const rawWeight = (d.narrative_weight as string) ?? NarrativeWeight.MEDIUM;
   const rawSource = (d.source as string) ?? "extract_auto";
 
   return createFact({
@@ -241,19 +243,13 @@ function factFromPayload(id: string, d: Record<string, unknown>): Fact {
     characters: (d.characters as string[]) ?? [],
     chapter: (d.chapter as number) ?? 0,
     status: validateEnum(rawStatus, FACT_STATUS_VALUES, "active" as FactStatus, "status", id),
-    type: validateEnum(rawType, FACT_TYPE_VALUES, "plot_event" as FactType, "type", id),
-    narrative_weight: validateEnum(
-      rawWeight,
-      NARRATIVE_WEIGHT_VALUES,
-      "medium" as NarrativeWeight,
-      "narrative_weight",
-      id,
-    ),
+    type: validateEnum(rawType, FACT_TYPE_VALUES, FactType.PLOT_EVENT, "type", id),
+    narrative_weight: validateEnum(rawWeight, NARRATIVE_WEIGHT_VALUES, NarrativeWeight.MEDIUM, "narrative_weight", id),
     source: validateEnum(rawSource, FACT_SOURCE_VALUES, "extract_auto" as FactSource, "source", id),
     timeline: (d.timeline as string) ?? "",
     story_time: (d.story_time as string) ?? "",
     resolves: (d.resolves as string) ?? null,
-    revision: (d.revision as number) ?? 1,
+    revision: (d.revision as number) ?? ON_DISK_DEFAULT_REVISION,
     created_at: (d.created_at as string) ?? "",
     updated_at: (d.updated_at as string) ?? "",
     // Layer 2 (M8-A)

@@ -20,6 +20,7 @@ import {
 } from "@ficforge/engine";
 import type { LLMProvider, ResolvedLLMConfig, Project } from "@ficforge/engine";
 import { getEngine, getProjectOrThrow } from "./engine-instance";
+import { resolveLang } from "./resolve-lang";
 import { hasUsableConnection } from "./engine-settings";
 
 // ---------------------------------------------------------------------------
@@ -42,7 +43,7 @@ export async function resolveFactsProvider(auPath: string): Promise<{
     throw new Error("Facts 提取暂不支持 local 模式，请切换到 API 或 Ollama");
   }
   const provider = create_provider(llmConfig);
-  const lang = sett.app?.language || "zh";
+  const lang = resolveLang(sett);
   const reactEnabled = sett.app?.react_extraction_enabled === true;
   return { provider, llmConfig, proj, lang, reactEnabled };
 }

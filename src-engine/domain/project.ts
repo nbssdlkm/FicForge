@@ -5,6 +5,17 @@
 
 import { EmotionStyle, LLMMode, Perspective } from "./enums.js";
 
+/**
+ * 盘上缺省 revision 约定（读侧真相源）：YAML 无 revision 字段（引擎早期版本产物）
+ * 一律认作「已持久化的首版」= 1。与 createProject 的 revision: 0（未持久化的新建，
+ * 首次 save += 1 后变 1）是同一约定的读写两面——不是漂移，别把两侧"统一"掉（R4 重复维 M7 勘误）。
+ * project/state/chapter/fact/ops 投影五处 dict-to-domain 映射器共用本常量。
+ */
+export const ON_DISK_DEFAULT_REVISION = 1;
+
+/** RAG 时间衰减系数默认值（真相源：createProject 缺省与 retrieve_rag 参数默认共用）。 */
+export const DEFAULT_RAG_DECAY_COEFFICIENT = 0.05;
+
 export interface LLMConfig {
   mode: LLMMode;
   model: string;
@@ -34,6 +45,26 @@ export function createLLMConfig(partial?: Partial<LLMConfig>): LLMConfig {
     // 缺省交给消费方回退 /chat/completions（禁静默把默认写进持久化层）。
     ...partial,
   };
+}
+
+/**
+ * YAML dict → LLMConfig（持久化读映射）。file_settings 与 file_project 共用——
+ * 此前两文件各持一份字节级相同的拷贝，LLMConfig 增删字段须两处同改（R4 重复维 M1），收敛于此。
+ */
+export function dictToLLMConfig(d: Record<string, unknown> | null): LLMConfig {
+  if (!d) return createLLMConfig();
+  return createLLMConfig({
+    mode: LLMMode[(d.mode as string)?.toUpperCase() as keyof typeof LLMMode] ?? LLMMode.API,
+    model: (d.model as string) ?? "",
+    api_base: (d.api_base as string) ?? "",
+    api_key: (d.api_key as string) ?? "",
+    local_model_path: (d.local_model_path as string) ?? "",
+    ollama_model: (d.ollama_model as string) ?? "",
+    context_window: (d.context_window as number) ?? 0,
+    // chat_path：optional，只在 YAML 真有非空值时映射（缺省 = 未设置，走默认路径）。
+    // 与 custom_providers.chatPath 的「未知≠默认」映射口径一致。
+    ...(typeof d.chat_path === "string" && d.chat_path ? { chat_path: d.chat_path } : {}),
+  });
 }
 
 export interface WritingStyle {
@@ -118,7 +149,7 @@ export function createProject(partial: Pick<Project, "project_id" | "au_id"> & P
     name: "",
     fandom: "",
     schema_version: "1.0.0",
-    revision: 0,
+    revision: 0, // 未持久化的新建；首次 save += 1。盘上缺省的读侧约定见 ON_DISK_DEFAULT_REVISION
     created_at: "",
     updated_at: "",
     llm: createLLMConfig(),
@@ -130,7 +161,7 @@ export function createProject(partial: Pick<Project, "project_id" | "au_id"> & P
     cast_registry: createCastRegistry(),
     core_always_include: [],
     pinned_context: [],
-    rag_decay_coefficient: 0.05,
+    rag_decay_coefficient: DEFAULT_RAG_DECAY_COEFFICIENT,
     embedding_lock: createEmbeddingLock(),
     core_guarantee_budget: 400,
     current_branch: "main",

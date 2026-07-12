@@ -14,6 +14,7 @@ import {
 } from "@ficforge/engine";
 import { ApiError, getFriendlyErrorMessage } from "./client";
 import { getEngine } from "./engine-instance";
+import { resolveLang } from "./resolve-lang";
 
 export async function sendSettingsChat(params: {
   mode: string;
@@ -25,7 +26,7 @@ export async function sendSettingsChat(params: {
   const e = getEngine();
   const sett = await e.repos.settings.get();
 
-  const lang = sett.app?.language || "zh";
+  const lang = resolveLang(sett);
   const assembled = await build_settings_context({
     mode: params.mode as "au" | "fandom",
     base_path: params.base_path,

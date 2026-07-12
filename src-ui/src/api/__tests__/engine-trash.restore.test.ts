@@ -16,7 +16,7 @@ import { createDraft, IndexStatus, createChapterSummary } from "@ficforge/engine
 import { MockAdapter } from "../../../../src-engine/repositories/__tests__/mock_adapter.js";
 import { confirmChapter } from "../engine-chapters";
 import { chapterNumFromTrashEntry, restoreTrash } from "../engine-trash";
-import { createAu, createFandom } from "../engine-fandom";
+import { createAu, createFandom } from "../engine-fandoms";
 import { getEngine, initEngine } from "../engine-instance";
 import { deleteLore, saveLore } from "../engine-lore";
 

@@ -14,6 +14,7 @@ import type { LLMProvider, Message, ToolCall } from "../llm/provider.js";
 import { LLMError } from "../llm/provider.js";
 import { hasLogger, getLogger } from "../logger/index.js";
 import { joinPath } from "../utils/file_utils.js";
+import { PROJECT_YAML } from "../domain/paths.js";
 import * as yaml from "js-yaml";
 
 // ---------------------------------------------------------------------------
@@ -160,7 +161,7 @@ export async function call_settings_llm(
 // ---------------------------------------------------------------------------
 
 async function loadAuMeta(auPath: string, adapter: PlatformAdapter): Promise<[string, string]> {
-  const projectPath = joinPath(auPath, "project.yaml");
+  const projectPath = joinPath(auPath, PROJECT_YAML);
   const exists = await adapter.exists(projectPath);
   if (!exists) {
     return [auPath.split("/").pop() ?? auPath, "Unknown"];
@@ -303,7 +304,7 @@ async function loadAuContext(auPath: string, language: string, adapter: Platform
   }
 
   // pinned_context + writing_style 从 project.yaml 读取
-  const projectPath = joinPath(auPath, "project.yaml");
+  const projectPath = joinPath(auPath, PROJECT_YAML);
   const exists = await adapter.exists(projectPath);
   if (exists) {
     try {

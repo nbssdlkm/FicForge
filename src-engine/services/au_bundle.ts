@@ -24,6 +24,7 @@ import * as yaml from "js-yaml";
 import type { PlatformAdapter } from "../platform/adapter.js";
 import { IndexStatus } from "../domain/enums.js";
 import { joinPath, now_utc } from "../utils/file_utils.js";
+import { PROJECT_YAML, STATE_YAML } from "../domain/paths.js";
 import { warnAlways } from "../logger/index.js";
 import { SECURE_PLACEHOLDER } from "../repositories/implementations/secure_fields.js";
 
@@ -108,7 +109,7 @@ export async function collectAuBundle(
   for (const { rel, content } of entries) {
     // project.yaml 直接走原始字节读取（没过 repository.save 的 extractSecureFields），
     // 遗留版本可能含明文 api_key —— 导出前强制脱敏，避免密钥随 bundle 外泄。
-    files[rel] = rel === "project.yaml" ? redactSecrets(content) : content;
+    files[rel] = rel === PROJECT_YAML ? redactSecrets(content) : content;
   }
 
   const chapterCount = Object.keys(files).filter((p) => CHAPTER_FILE_RE.test(p)).length;
@@ -159,9 +160,9 @@ export async function importAuBundle(
       // isSafeRelPath 已拒绝 `.`/尾空格/尾点段作第一道，这里的 canon 判据是第二道。
       const canonBase = canonicalizedBasename(rel);
       let toWrite = content;
-      if (canonBase === "project.yaml") {
+      if (canonBase === PROJECT_YAML) {
         toWrite = sanitizeImportedProjectYaml(content);
-      } else if (opts.staleIndexStatus && canonBase === "state.yaml") {
+      } else if (opts.staleIndexStatus && canonBase === STATE_YAML) {
         toWrite = forceStaleIndexStatus(content);
       }
       const dest = joinPath(targetAuPath, rel);

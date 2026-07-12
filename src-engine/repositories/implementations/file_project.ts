@@ -5,16 +5,18 @@
 
 import * as yaml from "js-yaml";
 import type { PlatformAdapter } from "../../platform/adapter.js";
-import { EmotionStyle, LLMMode, Perspective } from "../../domain/enums.js";
-import type { CastRegistry, EmbeddingLock, LLMConfig, Project, WritingStyle } from "../../domain/project.js";
+import { EmotionStyle, Perspective } from "../../domain/enums.js";
+import type { CastRegistry, EmbeddingLock, Project, WritingStyle } from "../../domain/project.js";
 import {
   createCastRegistry,
   createEmbeddingLock,
-  createLLMConfig,
   createProject,
   createWritingStyle,
+  dictToLLMConfig,
+  ON_DISK_DEFAULT_REVISION,
 } from "../../domain/project.js";
 import type { ProjectRepository } from "../interfaces/project.js";
+import { PROJECT_YAML } from "../../domain/paths.js";
 import { atomicWrite, dumpYaml, joinPath, now_utc, obj_to_plain, validateBasePath } from "../../utils/file_utils.js";
 import {
   extractSecureFields,
@@ -62,7 +64,7 @@ export class FileProjectRepository implements ProjectRepository {
 
   async get(au_id: string): Promise<Project | null> {
     validateBasePath(au_id, "au_id");
-    const path = joinPath(au_id, "project.yaml");
+    const path = joinPath(au_id, PROJECT_YAML);
     const exists = await this.adapter.exists(path);
     // 缺失返回 null、fs 错误照抛（get 契约，盲审 2026-07-09 全仓储统一）
     if (!exists) return null;
@@ -93,7 +95,7 @@ export class FileProjectRepository implements ProjectRepository {
    */
   async save(project: Project): Promise<void> {
     validateBasePath(project.au_id, "au_id");
-    const path = joinPath(project.au_id, "project.yaml");
+    const path = joinPath(project.au_id, PROJECT_YAML);
     const copy = structuredClone(project);
     copy.updated_at = now_utc();
     copy.revision += 1;
@@ -141,7 +143,7 @@ export class FileProjectRepository implements ProjectRepository {
    */
   async migrateLegacySecureStorage(au_id: string): Promise<boolean> {
     validateBasePath(au_id, "au_id");
-    const path = joinPath(au_id, "project.yaml");
+    const path = joinPath(au_id, PROJECT_YAML);
     const exists = await this.adapter.exists(path);
     if (!exists) return false;
 
@@ -172,22 +174,6 @@ export class FileProjectRepository implements ProjectRepository {
 // ---------------------------------------------------------------------------
 // YAML dict → Project 映射
 // ---------------------------------------------------------------------------
-
-function dictToLLMConfig(d: Record<string, unknown> | null): LLMConfig {
-  if (!d) return createLLMConfig();
-  return createLLMConfig({
-    mode: LLMMode[(d.mode as string)?.toUpperCase() as keyof typeof LLMMode] ?? LLMMode.API,
-    model: (d.model as string) ?? "",
-    api_base: (d.api_base as string) ?? "",
-    api_key: (d.api_key as string) ?? "",
-    local_model_path: (d.local_model_path as string) ?? "",
-    ollama_model: (d.ollama_model as string) ?? "",
-    context_window: (d.context_window as number) ?? 0,
-    // chat_path：optional，只在 YAML 真有非空值时映射（缺省 = 未设置，走默认路径）。
-    // 与同文件 chatPath / contextWindow 的「未知≠默认」映射口径一致。
-    ...(typeof d.chat_path === "string" && d.chat_path ? { chat_path: d.chat_path } : {}),
-  });
-}
 
 function dictToWritingStyle(d: Record<string, unknown> | null): WritingStyle {
   if (!d) return createWritingStyle();
@@ -235,27 +221,37 @@ function dictToEmbeddingLock(d: Record<string, unknown> | null): EmbeddingLock {
 function dictToProject(d: Record<string, unknown>, au_id: string): Project {
   const projectId = (d.project_id as string) || crypto.randomUUID();
 
+  // 可调默认值单源（R4 重复维 M7）：1500/400/0.05/"1.0.0"/"main" 只在 createProject 声明一份，
+  // 本映射器对这些字段只透传「YAML 真有的合法值」（条件展开省略缺省键，避免 undefined 覆盖默认）；
+  // 类型不合法的值同样交还默认——此前 `(d.x as number) ?? 1500` 会把字符串脏值原样放行。
+  // revision 的 `?? 1` 是有意的读侧约定（非漂移），见 ON_DISK_DEFAULT_REVISION 文档。
   return createProject({
     project_id: projectId,
     au_id,
     name: (d.name as string) ?? "",
     fandom: (d.fandom as string) ?? "",
-    schema_version: (d.schema_version as string) ?? "1.0.0",
-    revision: (d.revision as number) ?? 1,
+    ...(typeof d.schema_version === "string" && d.schema_version ? { schema_version: d.schema_version } : {}),
+    revision: (d.revision as number) ?? ON_DISK_DEFAULT_REVISION,
     created_at: (d.created_at as string) ?? "",
     updated_at: (d.updated_at as string) ?? "",
     llm: dictToLLMConfig(d.llm as Record<string, unknown> | null),
     model_params_override: (d.model_params_override as Record<string, Record<string, unknown>>) ?? {},
-    chapter_length: (d.chapter_length as number) ?? 1500,
+    ...(typeof d.chapter_length === "number" && Number.isFinite(d.chapter_length)
+      ? { chapter_length: d.chapter_length }
+      : {}),
     writing_style: dictToWritingStyle(d.writing_style as Record<string, unknown> | null),
     ignore_core_worldbuilding: (d.ignore_core_worldbuilding as boolean) ?? false,
     agent_pipeline_enabled: (d.agent_pipeline_enabled as boolean) ?? false,
     cast_registry: dictToCastRegistry(d.cast_registry as Record<string, unknown> | null),
     core_always_include: (d.core_always_include as string[]) ?? [],
     pinned_context: (d.pinned_context as string[]) ?? [],
-    rag_decay_coefficient: (d.rag_decay_coefficient as number) ?? 0.05,
+    ...(typeof d.rag_decay_coefficient === "number" && Number.isFinite(d.rag_decay_coefficient)
+      ? { rag_decay_coefficient: d.rag_decay_coefficient }
+      : {}),
     embedding_lock: dictToEmbeddingLock(d.embedding_lock as Record<string, unknown> | null),
-    core_guarantee_budget: (d.core_guarantee_budget as number) ?? 400,
-    current_branch: (d.current_branch as string) ?? "main",
+    ...(typeof d.core_guarantee_budget === "number" && Number.isFinite(d.core_guarantee_budget)
+      ? { core_guarantee_budget: d.core_guarantee_budget }
+      : {}),
+    ...(typeof d.current_branch === "string" && d.current_branch ? { current_branch: d.current_branch } : {}),
   });
 }

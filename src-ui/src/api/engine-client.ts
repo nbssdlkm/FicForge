@@ -208,7 +208,7 @@ export {
   deleteAu,
   listFandomFiles,
   readFandomFile,
-} from "./engine-fandom";
+} from "./engine-fandoms";
 export { exportChapters } from "./engine-export";
 export {
   exportAuBundle,

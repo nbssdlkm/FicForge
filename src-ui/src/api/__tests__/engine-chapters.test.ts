@@ -14,7 +14,7 @@ import {
 import { ApiError } from "../client";
 import { MockAdapter } from "../../../../src-engine/repositories/__tests__/mock_adapter.js";
 import { confirmChapter, undoChapter, updateChapterContent } from "../engine-chapters";
-import { createAu, createFandom } from "../engine-fandom";
+import { createAu, createFandom } from "../engine-fandoms";
 import { getEngine, initEngine } from "../engine-instance";
 
 /** 测试用确定性 embedding provider（供直接调 ragManager 种向量，不走网络）。 */

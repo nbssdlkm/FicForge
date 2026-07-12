@@ -50,6 +50,7 @@ import {
 // （useAuLoreActions / useFandomLoreEditor / 移动端）共用同一函数，避免两处漂移后
 // 「是否已存在」结论不一、静默覆盖用户文件。
 import { toCanonicalCreateKey } from "../../library/lore-utils";
+import { CHARACTER_IMPORTANCE_VALUES } from "@ficforge/engine";
 
 export const FACT_TYPE_OPTIONS = FACT_TYPE_VALUES;
 export const FACT_STATUS_OPTIONS = FACT_STATUS_VALUES;
@@ -185,7 +186,11 @@ export function getToolValidationError(
     if (!coerceString(args.content).trim()) {
       return t("settingsMode.validation.contentRequired");
     }
-    if (toolName === "create_character_file" && importance && !["main", "supporting", "minor"].includes(importance)) {
+    if (
+      toolName === "create_character_file" &&
+      importance &&
+      !(CHARACTER_IMPORTANCE_VALUES as readonly string[]).includes(importance)
+    ) {
       return t("settingsMode.validation.importanceInvalid");
     }
     return null;

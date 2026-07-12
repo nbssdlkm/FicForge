@@ -118,7 +118,7 @@ export class CharacterAliasManager {
 
   /**
    * 角色卡变更收口处调用：engine-lore 的 saveLore / deleteLore / importFromFandom、
-   * engine-trash 恢复角色卡、engine-fandom 删 AU/fandom（防同名重建继承陈旧表）。
+   * engine-trash 恢复角色卡、engine-fandoms 删 AU/fandom（防同名重建继承陈旧表）。
    */
   invalidate(auPath: string): void {
     this.epochs.set(auPath, this.epochOf(auPath) + 1);

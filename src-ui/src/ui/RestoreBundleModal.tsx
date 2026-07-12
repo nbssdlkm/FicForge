@@ -18,10 +18,11 @@ import { useFeedback } from "../hooks/useFeedback";
 import { bundleFromRawFiles, logCatch, parseAuBundle, restoreAuBundle } from "../api/engine-client";
 import { isCapacitor } from "../utils/platform";
 import type { AuBundle } from "@ficforge/engine";
+import { PROJECT_YAML, STATE_YAML } from "@ficforge/engine";
 
 /** 一个 bundle 是否长得像 AU 根（有 project.yaml/state.yaml 或至少一章），用于挡住「选错上层文件夹」。 */
 function looksLikeAuRoot(bundle: AuBundle): boolean {
-  return Boolean(bundle.files["project.yaml"] || bundle.files["state.yaml"]) || bundle.manifest.chapter_count > 0;
+  return Boolean(bundle.files[PROJECT_YAML] || bundle.files[STATE_YAML]) || bundle.manifest.chapter_count > 0;
 }
 
 interface FandomLite {

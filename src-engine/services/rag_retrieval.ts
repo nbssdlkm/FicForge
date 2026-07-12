@@ -15,6 +15,7 @@ import { RAG_COLLECTIONS } from "../domain/context_summary.js";
 import { FactStatus } from "../domain/enums.js";
 import { isColdFact } from "../domain/fact.js";
 import { get_context_window } from "../domain/model_context_map.js";
+import { DEFAULT_RAG_DECAY_COEFFICIENT } from "../domain/project.js";
 
 // RAG 召回数量配置
 // 注：characters / worldbuilding collections 当前不被 indexer 写入（lore 走 P5 直读），
@@ -143,6 +144,29 @@ export function to_rag_chunk_detail(c: ChunkWithCollection): RagChunkDetail | nu
   return detail;
 }
 
+/**
+ * 时间衰减 + 衰减后降序（chapters/summaries 共用；衰减公式单点维护——R4 重复维 L1）。
+ * 衰减后必须重排序：否则保持 cosine 序，预算裁剪 reduce_top_k 可能留旧弃新（codex 对抗审）。
+ * skip 谓词由调用方给（summaries 排除 current-1，理由见调用点注释）。
+ */
+function decayAndSortByRecency(
+  chunks: Omit<ChunkWithCollection, "_collection">[],
+  collection: "chapters" | "summaries",
+  current_chapter: number,
+  coefficient: number,
+  skip?: (chapterNum: number) => boolean,
+): ChunkWithCollection[] {
+  const decayed: ChunkWithCollection[] = [];
+  for (const c of chunks) {
+    const chNum = c.chapter_num ?? 0;
+    if (skip?.(chNum)) continue;
+    const decay = Math.exp(-coefficient * Math.max(0, current_chapter - chNum));
+    decayed.push({ ...c, score: c.score * decay, _collection: collection });
+  }
+  decayed.sort((a, b) => b.score - a.score);
+  return decayed;
+}
+
 export async function retrieve_rag(
   vector_repo: VectorRepository,
   embedding_provider: EmbeddingProvider,
@@ -151,7 +175,7 @@ export async function retrieve_rag(
   budget_remaining: number,
   char_filter: string[] | null,
   llm_config: unknown,
-  rag_decay_coefficient = 0.05,
+  rag_decay_coefficient = DEFAULT_RAG_DECAY_COEFFICIENT,
   current_chapter = 1,
   language = "zh",
 ): Promise<[string, number, ChunkWithCollection[]]> {
@@ -175,15 +199,7 @@ export async function retrieve_rag(
 
   // chapters collection（带时间衰减）
   const chChunks = await search_collection(vector_repo, au_id, queryEmbedding, "chapters", CHAPTERS_TOP_K, char_filter);
-  const decayedChChunks: ChunkWithCollection[] = [];
-  for (const c of chChunks) {
-    const chNum = c.chapter_num ?? 0;
-    const decay = Math.exp(-rag_decay_coefficient * Math.max(0, current_chapter - chNum));
-    decayedChChunks.push({ ...c, score: c.score * decay, _collection: "chapters" });
-  }
-  // 按衰减后 score 降序排列
-  decayedChChunks.sort((a, b) => b.score - a.score);
-  allChunks.push(...decayedChChunks);
+  allChunks.push(...decayAndSortByRecency(chChunks, "chapters", current_chapter, rag_decay_coefficient));
 
   // summaries collection（M8-C，带时间衰减）。
   // 决策③ + codex MAJOR4：排除"最近已确认章 current-1"（其全文已在 P2，避免同章既全文又摘要）。
@@ -191,16 +207,16 @@ export async function retrieve_rag(
   // 摘要是整章级、非角色作用域，且其 chunk 无 characters metadata：若传 char_filter，
   // 主查询必返 0 再触发兜底全局查询 = 每次双查（codex workflow 审）。直接传 null 走单查询。
   const sumChunks = await search_collection(vector_repo, au_id, queryEmbedding, "summaries", SUMMARIES_TOP_K, null);
-  const decayedSumChunks: ChunkWithCollection[] = [];
-  for (const c of sumChunks) {
-    const chNum = c.chapter_num ?? 0;
-    if (chNum >= current_chapter - 1) continue;
-    const decay = Math.exp(-rag_decay_coefficient * Math.max(0, current_chapter - chNum));
-    decayedSumChunks.push({ ...c, score: c.score * decay, _collection: "summaries" });
-  }
-  // 衰减后重排序（与 chapters 一致）。否则保持 cosine 序，预算裁剪 reduce_top_k 可能留旧弃新（codex 对抗审）。
-  decayedSumChunks.sort((a, b) => b.score - a.score);
-  allChunks.push(...decayedSumChunks);
+  allChunks.push(
+    ...decayAndSortByRecency(
+      sumChunks,
+      "summaries",
+      current_chapter,
+      rag_decay_coefficient,
+      // 排除"最近已确认章 current-1"（全文已在 P2，避免同章既全文又摘要）——见上方决策注释
+      (chNum) => chNum >= current_chapter - 1,
+    ),
+  );
 
   // --- 去重 ---
   const seenContent = new Set<string>();
@@ -413,7 +429,7 @@ export async function retrieve_rag_for_context(
       ragBudget,
       activeChars,
       llm_config,
-      project.rag_decay_coefficient ?? 0.05,
+      project.rag_decay_coefficient ?? DEFAULT_RAG_DECAY_COEFFICIENT,
       state.current_chapter ?? 1,
       language,
     );

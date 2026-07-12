@@ -12,6 +12,7 @@
 
 import Markdown from "react-markdown";
 import type { Components } from "react-markdown";
+import { splitYamlFrontmatter } from "./settings-chat/frontmatter-utils";
 
 const components: Components = {
   h1: ({ children }) => <h1 className="text-xl font-bold mt-6 mb-3 text-text">{children}</h1>,
@@ -40,10 +41,13 @@ const components: Components = {
   },
 };
 
-/** Strip YAML frontmatter (---\n...\n---) from content before rendering */
+/**
+ * 渲染前剥离 YAML frontmatter。委托 splitYamlFrontmatter（引擎 splitFrontmatterRaw + 受管键门）——
+ * R4 重复维 L3：此前与 frontmatter-utils 各写一份判据不一致的正则；且旧正则会把
+ * 「正文以 --- 分割线开头」的开篇内容整段吞掉，带键门后正文分割线不再被误剥。
+ */
 function stripFrontmatter(text: string): string {
-  const match = text.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/);
-  return match ? text.slice(match[0].length) : text;
+  return splitYamlFrontmatter(text).body;
 }
 
 export function SettingsMarkdown({ content }: { content: string }) {

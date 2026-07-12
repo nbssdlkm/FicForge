@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { AU_BUNDLE_VERSION, type AuBundle } from "@ficforge/engine";
 import { bundleFromRawFiles, parseAuBundle, restoreAuBundle } from "../engine-export";
 import { initEngine } from "../engine-instance";
-import { createFandom } from "../engine-fandom";
+import { createFandom } from "../engine-fandoms";
 import { MockAdapter } from "../../../../src-engine/repositories/__tests__/mock_adapter.js";
 
 describe("bundleFromRawFiles (TD-015 raw-folder import)", () => {

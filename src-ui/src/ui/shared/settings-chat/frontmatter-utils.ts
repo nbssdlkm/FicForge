@@ -6,6 +6,7 @@
  * 从 SettingsChatPanel.tsx 提取，纯函数，零状态依赖。
  */
 
+import { splitFrontmatterRaw } from "@ficforge/engine";
 import { coerceString, coerceStringArray } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -14,6 +15,9 @@ import { coerceString, coerceStringArray } from "./types";
 
 export const CHARACTER_FRONTMATTER_KEYS = ["name", "aliases", "importance", "origin_ref"] as const;
 export const CORE_CHARACTER_FRONTMATTER_KEYS = ["name"] as const;
+
+/** 分割门已知键 = UI 受管键全集（⊇ 引擎 KNOWN_CHARACTER_META_KEYS）；候选块须含其一才算 frontmatter。 */
+const FRONTMATTER_GATE_KEYS: ReadonlySet<string> = new Set(CHARACTER_FRONTMATTER_KEYS);
 
 export type ManagedFrontmatterKey = (typeof CHARACTER_FRONTMATTER_KEYS)[number];
 
@@ -33,16 +37,12 @@ export function normalizeDisplayName(value: unknown): string {
 // Frontmatter 解析 & 操作
 // ---------------------------------------------------------------------------
 
+/**
+ * 委托引擎 splitFrontmatterRaw（R4 架构维 M4：此前此处裸正则自切，缺「正文以 ---
+ * 分割线开头被吞」的 H6 防线；引擎侧带已知键门，且与 safeMatter 读路径判据同源）。
+ */
 export function splitYamlFrontmatter(content: string): { frontmatter: string | null; body: string } {
-  const normalized = content.replace(/\r\n/g, "\n").trimStart();
-  const match = normalized.match(/^---\n([\s\S]*?)\n---\n?/);
-  if (!match) {
-    return { frontmatter: null, body: normalized };
-  }
-  return {
-    frontmatter: match[1],
-    body: normalized.slice(match[0].length),
-  };
+  return splitFrontmatterRaw(content, FRONTMATTER_GATE_KEYS);
 }
 
 export function pruneManagedFrontmatter(frontmatter: string, managedKeys: Set<ManagedFrontmatterKey>): string[] {

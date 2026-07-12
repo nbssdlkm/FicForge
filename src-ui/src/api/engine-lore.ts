@@ -14,7 +14,7 @@ const SAFE_PATH_SEGMENT_PATTERN = /[^\p{L}\p{N}._ -]+/gu;
 /**
  * 读取已有路径段：只校验合法性、不改写 —— 避免对磁盘已存在的历史文件名（含保留字符）做破坏性 sanitize。
  * 新建路径段应该用 `sanitizePathSegment` 走白名单清洗。
- * 导出给 engine-fandom.ts 等模块复用（单一真相源）。
+ * 导出给 engine-fandoms.ts 等模块复用（单一真相源）。
  */
 export function validateExistingPathSegment(segment: string): string {
   if (!segment) throw new Error("Path segment cannot be empty");

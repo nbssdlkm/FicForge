@@ -34,6 +34,7 @@ export { createChapter } from "./chapter.js";
 
 export type { ParsedCharacterCard } from "./character_card.js";
 export { AU_CHARACTERS_DIR, KNOWN_CHARACTER_META_KEYS, parseCharacterCard } from "./character_card.js";
+export { splitFrontmatterRaw } from "./frontmatter.js";
 
 export type { ChapterSummary, SummaryTier } from "./chapter_summary.js";
 export { createChapterSummary } from "./chapter_summary.js";
@@ -154,10 +155,13 @@ export {
   parseChapterFilename,
   parseChapterMainPath,
   parseDraftFilename,
+  PROJECT_YAML,
+  STATE_YAML,
 } from "./paths.js";
 
 // Settings tools
 export {
+  CHARACTER_IMPORTANCE_VALUES,
   get_tools_for_mode,
   isSettingsMutatingToolName,
   isSimpleMutatingToolName,

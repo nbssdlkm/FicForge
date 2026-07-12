@@ -15,6 +15,7 @@
  */
 
 import { assertNever, isSettingsMutatingToolName, type SettingsMutatingToolName } from "@ficforge/engine";
+import { FactType, NarrativeWeight } from "@ficforge/engine";
 import {
   addFact,
   addPinned,
@@ -338,8 +339,8 @@ export async function executeSettingsTool(
       content_raw: coerceString(args.content_raw) || coerceString(args.content_clean),
       content_clean: coerceString(args.content_clean),
       characters: coerceStringArray(args.characters),
-      type: coerceString(args.fact_type) || coerceString(args.type) || "plot_event",
-      narrative_weight: coerceString(args.narrative_weight) || "medium",
+      type: coerceString(args.fact_type) || coerceString(args.type) || FactType.PLOT_EVENT,
+      narrative_weight: coerceString(args.narrative_weight) || NarrativeWeight.MEDIUM,
       status: coerceString(args.status) || "active",
     });
     return {

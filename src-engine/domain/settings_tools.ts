@@ -5,6 +5,9 @@
 
 import { FACT_TYPE_VALUES, NARRATIVE_WEIGHT_VALUES } from "./enums.js";
 
+/** 角色重要度合法值 —— JSON Schema / Zod / UI 校验三处共用的单一真相源（R4 重复维 M3）。 */
+export const CHARACTER_IMPORTANCE_VALUES = ["main", "supporting", "minor"] as const;
+
 // ===========================================================================
 // AU 设定模式 — 9 个 tool
 // ===========================================================================
@@ -22,7 +25,7 @@ const _AU_TOOLS: readonly Record<string, unknown>[] = [
           aliases: { type: "array", items: { type: "string" }, description: "别名列表" },
           importance: {
             type: "string",
-            enum: ["main", "supporting", "minor"],
+            enum: [...CHARACTER_IMPORTANCE_VALUES],
             description: "main=主角, supporting=配角, minor=龙套",
           },
           origin_ref: { type: "string", description: "fandom/角色名（来自Fandom）或 original（原创）" },

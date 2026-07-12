@@ -6,8 +6,7 @@
 import * as yaml from "js-yaml";
 import type { PlatformAdapter } from "../../platform/adapter.js";
 import { APIMode, LicenseTier, LLMMode } from "../../domain/enums.js";
-import type { LLMConfig } from "../../domain/project.js";
-import { createLLMConfig } from "../../domain/project.js";
+import { dictToLLMConfig } from "../../domain/project.js";
 import type {
   AppConfig,
   CustomModelEntry,
@@ -173,31 +172,16 @@ export class FileSettingsRepository implements SettingsRepository {
 // YAML dict → domain object 映射
 // ---------------------------------------------------------------------------
 
-function dictToLLMConfig(d: Record<string, unknown> | null): LLMConfig {
-  if (!d) return createLLMConfig();
-  return createLLMConfig({
-    mode: LLMMode[(d.mode as string)?.toUpperCase() as keyof typeof LLMMode] ?? LLMMode.API,
-    model: (d.model as string) ?? "",
-    api_base: (d.api_base as string) ?? "",
-    api_key: (d.api_key as string) ?? "",
-    local_model_path: (d.local_model_path as string) ?? "",
-    ollama_model: (d.ollama_model as string) ?? "",
-    context_window: (d.context_window as number) ?? 0,
-    // chat_path：optional，只在 YAML 真有非空值时映射（缺省 = 未设置，走默认路径）。
-    // 与同文件 custom_providers.chatPath 的「未知≠默认」映射口径一致。
-    ...(typeof d.chat_path === "string" && d.chat_path ? { chat_path: d.chat_path } : {}),
-  });
-}
-
 function dictToModelParams(d: Record<string, unknown> | null): Record<string, ModelParams> {
   if (!d) return {};
   const result: Record<string, ModelParams> = {};
   for (const [name, params] of Object.entries(d)) {
     if (params && typeof params === "object") {
       const p = params as Record<string, unknown>;
+      // 默认值单源（R4 重复维 M5）：1.0/0.95 只在 createModelParams 声明，此处只透传真有的合法值
       result[name] = createModelParams({
-        temperature: (p.temperature as number) ?? 1.0,
-        top_p: (p.top_p as number) ?? 0.95,
+        ...(typeof p.temperature === "number" && Number.isFinite(p.temperature) ? { temperature: p.temperature } : {}),
+        ...(typeof p.top_p === "number" && Number.isFinite(p.top_p) ? { top_p: p.top_p } : {}),
       });
     }
   }

@@ -64,3 +64,29 @@ export function safeMatter(
   }
   return { data: { ...parsed.data }, content: parsed.content };
 }
+
+/**
+ * 保留行序的 frontmatter **原文**分割（R4 架构维 M4：UI 此前用裸正则自切，缺 H6 防线）。
+ *
+ * 与 safeMatter 的分工：safeMatter 是解析向（返回 data 对象，不保原文行序/注释），
+ * 本函数是写路径 line-surgery 向（返回 frontmatter 原文块，供「保留用户未管字段」类改写）。
+ * 共享同一 H6 判据思想：切出的候选块必须含至少一个已知键（行级 `key:` 判据），
+ * 否则整文当正文 —— 防「正文以 --- 场景分割线开头」被吞成 frontmatter。
+ *
+ * 行为口径（与 UI 既有 splitYamlFrontmatter 对齐，便于零回归替换）：
+ * CRLF 归一为 LF；输入 trimStart 后再匹配；无 frontmatter 时 body = 归一化后的全文。
+ */
+export function splitFrontmatterRaw(
+  raw: string,
+  knownKeys: ReadonlySet<string>,
+): { frontmatter: string | null; body: string } {
+  const normalized = raw.replace(/\r\n/g, "\n").trimStart();
+  const match = normalized.match(/^---\n([\s\S]*?)\n---\n?/);
+  if (!match) return { frontmatter: null, body: normalized };
+  // 「是不是 frontmatter」的裁决直接复用 safeMatter（真 YAML 解析 + 已知键门 + 全部
+  // H6/B-3 回退）：safeMatter 只在接受块时返回非空 data。行级正则自扫会与 YAML 语义
+  // 分叉（如引号键 `"name":` 合法但正则不认 —— E2 对抗审 codex HIGH 采纳），判据必须单源。
+  const verdict = safeMatter(normalized, knownKeys);
+  if (Object.keys(verdict.data).length === 0) return { frontmatter: null, body: normalized };
+  return { frontmatter: match[1], body: normalized.slice(match[0].length) };
+}

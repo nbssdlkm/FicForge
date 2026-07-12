@@ -11,6 +11,15 @@
 
 export const CHAPTERS_MAIN_DIR = "chapters/main";
 
+/**
+ * AU 根配置 / 状态文件名 —— 判据级单源（R4 架构维 M3）。
+ * 消费方：repo 路径拼接（file_project/file_state）、回收站清理（trash_service）、
+ * 设定对话（settings_chat）、bundle 消毒与「是否 AU 根」判据（au_bundle、UI RestoreBundleModal）、
+ * project 文件叶锁 key（au_lock）。改名 = 存量数据迁移，只允许改本文件并配迁移方案。
+ */
+export const PROJECT_YAML = "project.yaml";
+export const STATE_YAML = "state.yaml";
+
 function padChapterNum(chapter_num: number): string {
   return String(chapter_num).padStart(4, "0");
 }

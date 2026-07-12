@@ -16,7 +16,7 @@ import {
   type AuBundle,
 } from "@ficforge/engine";
 import { getEngine, getProjectOrThrow } from "./engine-instance";
-import { createAu } from "./engine-fandom";
+import { createAu } from "./engine-fandoms";
 
 /** 正文章节判据（不含 .summary.jsonl）：引擎 domain/paths.parseChapterMainPath 单一真相源。 */
 const isChapterFile = (p: string): boolean => parseChapterMainPath(p) !== null;

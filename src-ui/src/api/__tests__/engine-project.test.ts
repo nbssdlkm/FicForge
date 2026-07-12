@@ -3,7 +3,7 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { initEngine } from "../engine-instance";
-import { createAu, createFandom } from "../engine-fandom";
+import { createAu, createFandom } from "../engine-fandoms";
 import {
   getProjectForEditing,
   getWorkspaceSnapshot,

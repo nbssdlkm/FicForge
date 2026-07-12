@@ -13,7 +13,7 @@ import { createDraft, createChapterSummary, now_utc } from "@ficforge/engine";
 import { MockAdapter } from "../../../../src-engine/repositories/__tests__/mock_adapter.js";
 import { confirmChapter, scanChapterMemory, backfillChapterMemory } from "../engine-chapters";
 import { addFact } from "../engine-facts";
-import { createAu, createFandom } from "../engine-fandom";
+import { createAu, createFandom } from "../engine-fandoms";
 import { getEngine, initEngine } from "../engine-instance";
 
 let adapter: MockAdapter;

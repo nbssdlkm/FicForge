@@ -25,6 +25,7 @@ import { useBatchFacts } from "./useBatchFacts";
 import { useFactEditor } from "./useFactEditor";
 import { useFactsExtraction } from "./useFactsExtraction";
 import { ExtractReviewModal } from "../writer/WriterModals";
+import { NARRATIVE_WEIGHT_VALUES } from "@ficforge/engine";
 
 export const FactsLayout = ({ auPath }: { auPath: string }) => {
   const { t } = useTranslation();
@@ -193,9 +194,11 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
               defaultValue={editor.editingFact.narrative_weight || "medium"}
               className="h-11 rounded-md border border-black/20 bg-surface px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
             >
-              <option value="low">{getEnumLabel("narrative_weight", "low", "low")}</option>
-              <option value="medium">{getEnumLabel("narrative_weight", "medium", "medium")}</option>
-              <option value="high">{getEnumLabel("narrative_weight", "high", "high")}</option>
+              {NARRATIVE_WEIGHT_VALUES.map((w) => (
+                <option key={w} value={w}>
+                  {getEnumLabel("narrative_weight", w, w)}
+                </option>
+              ))}
             </select>
             <p className="text-xs text-text/50">{t("facts.weightHint")}</p>
           </div>
@@ -375,9 +378,11 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
                 onChange={(e) => editor.setNewWeight(e.target.value)}
                 className="h-11 w-full rounded-md border border-black/10 bg-surface px-2 text-base dark:border-white/10 md:h-9 md:text-sm"
               >
-                <option value="low">{getEnumLabel("narrative_weight", "low", "low")}</option>
-                <option value="medium">{getEnumLabel("narrative_weight", "medium", "medium")}</option>
-                <option value="high">{getEnumLabel("narrative_weight", "high", "high")}</option>
+                {NARRATIVE_WEIGHT_VALUES.map((w) => (
+                  <option key={w} value={w}>
+                    {getEnumLabel("narrative_weight", w, w)}
+                  </option>
+                ))}
               </select>
             </div>
             <div>

@@ -15,7 +15,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockAdapter } from "../../../../src-engine/repositories/__tests__/mock_adapter.js";
 import { getEngine, initEngine } from "../engine-instance";
-import { createAu, createFandom } from "../engine-fandom";
+import { createAu, createFandom } from "../engine-fandoms";
 
 vi.mock("@ficforge/engine", async () => {
   const actual = await vi.importActual<typeof import("@ficforge/engine")>("@ficforge/engine");

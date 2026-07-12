@@ -4,7 +4,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { ApiError } from "../client";
 import { initEngine } from "../engine-instance";
-import { createAu, createFandom } from "../engine-fandom";
+import { createAu, createFandom } from "../engine-fandoms";
 import { saveGlobalSettingsForEditing } from "../engine-settings";
 import { sendSettingsChat } from "../engine-settings-chat";
 import { MockAdapter } from "../../../../src-engine/repositories/__tests__/mock_adapter.js";

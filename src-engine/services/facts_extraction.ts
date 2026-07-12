@@ -16,7 +16,7 @@ import {
   reconcile_knowledge,
 } from "../domain/fact_sanitize.js";
 import type { LLMProvider } from "../llm/provider.js";
-import { TimeKind, SuspenseType } from "../domain/enums.js";
+import { FactType, NarrativeWeight, SuspenseType, TimeKind } from "../domain/enums.js";
 import type { FactFieldConfidence } from "../domain/fact.js";
 import { logCatch } from "../logger/index.js";
 import { isAbortError } from "../utils/abort_error.js";
@@ -245,8 +245,8 @@ export function rawToExtracted(
     content_raw: (raw.content_raw as string) ?? contentClean,
     content_clean: contentClean,
     characters,
-    fact_type: (raw.type as string) ?? (raw.fact_type as string) ?? "plot_event",
-    narrative_weight: (raw.narrative_weight as string) ?? "medium",
+    fact_type: (raw.type as string) ?? (raw.fact_type as string) ?? FactType.PLOT_EVENT,
+    narrative_weight: (raw.narrative_weight as string) ?? NarrativeWeight.MEDIUM,
     status: (raw.status as string) ?? "active",
     chapter: (raw.chapter as number) ?? chapter_num,
     timeline: (raw.timeline as string) ?? "现在线",

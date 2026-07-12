@@ -11,6 +11,7 @@
  * V2 暴露的 regression）。 */
 
 import { z } from "zod";
+import { CHARACTER_IMPORTANCE_VALUES } from "./settings_tools.js";
 
 /** 通用 helper: required string 必须非空（trim 后 length > 0）。 */
 const requiredString = () =>
@@ -24,7 +25,7 @@ export const SIMPLE_TOOL_SCHEMAS: Record<string, z.ZodType> = {
   create_character_file: z.object({
     name: requiredString(),
     aliases: z.array(z.string()).optional(),
-    importance: z.enum(["main", "supporting", "minor"]).optional(),
+    importance: z.enum(CHARACTER_IMPORTANCE_VALUES).optional(),
     origin_ref: z.string().optional(),
     content: requiredString(),
   }),

@@ -7,6 +7,7 @@ import type { PlatformAdapter } from "../../platform/adapter.js";
 import { FactSource, FactStatus, FactType, NarrativeWeight, TimeKind, SuspenseType } from "../../domain/enums.js";
 import type { Fact, FactFieldConfidence } from "../../domain/fact.js";
 import { createFact } from "../../domain/fact.js";
+import { ON_DISK_DEFAULT_REVISION } from "../../domain/project.js";
 import type { FactRepository } from "../interfaces/fact.js";
 import {
   append_jsonl,
@@ -81,7 +82,7 @@ function dictToFact(d: Record<string, unknown>): Fact {
     resolves: (d.resolves as string) ?? null,
     narrative_weight: (d.narrative_weight as NarrativeWeight) ?? NarrativeWeight.MEDIUM,
     source: (d.source as FactSource) ?? FactSource.EXTRACT_AUTO,
-    revision: (d.revision as number) ?? 1,
+    revision: (d.revision as number) ?? ON_DISK_DEFAULT_REVISION,
     created_at: (d.created_at as string) || now,
     updated_at: (d.updated_at as string) || now,
     // Layer 2 (M8-A)

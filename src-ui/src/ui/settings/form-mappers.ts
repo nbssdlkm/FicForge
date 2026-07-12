@@ -231,7 +231,7 @@ export function buildAuSettingsSaveInput(form: AuSettingsFormState): AuSettingsS
  *
  * 触发条件：覆盖被识别为开启（`isLlmOverride`）+ API 模式 + key 留空。常见成因是
  * AU 被删除后从回收站恢复 —— 删除时会**立即清除**密钥（缩小凭据泄漏窗口，见
- * engine-fandom `deleteAu`/`removeSecureStorage`），project.yaml 里只剩 `<secure>`
+ * engine-fandoms `deleteAu`/`removeSecureStorage`），project.yaml 里只剩 `<secure>`
  * 占位符，恢复后读出来是空字符串，用户会困惑「之前填过怎么没了」。也覆盖「开了覆盖
  * 但一直没填 key」的情形。措辞只陈述「为空 + 恢复会清除」这一事实、不断言成因，故无误报。
  *

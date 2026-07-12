@@ -12,6 +12,7 @@ import { KNOWN_CHAPTER_META_KEYS, createChapter } from "../../domain/chapter.js"
 // list_main 整 AU 崩、get_content_only 静默丢正文。
 import { safeMatter } from "../../domain/frontmatter.js";
 import { generatedWithFromYaml, generatedWithToYaml } from "../../domain/generated_with.js";
+import { ON_DISK_DEFAULT_REVISION } from "../../domain/project.js";
 import { chapterFilename, parseChapterFilename } from "../../domain/paths.js";
 import type { ChapterRepository } from "../interfaces/chapter.js";
 import { atomicWrite, compute_content_hash, joinPath, now_utc, validateBasePath } from "../../utils/file_utils.js";
@@ -79,7 +80,7 @@ export class FileChapterRepository implements ChapterRepository {
     }
 
     if (!("revision" in meta)) {
-      meta.revision = 1;
+      meta.revision = ON_DISK_DEFAULT_REVISION;
     }
 
     if (!("confirmed_focus" in meta)) {
@@ -218,7 +219,7 @@ function metaToChapter(au_id: string, chapter_num: number, meta: Record<string, 
     chapter_num,
     content,
     chapter_id: (meta.chapter_id as string) ?? "",
-    revision: (meta.revision as number) ?? 1,
+    revision: (meta.revision as number) ?? ON_DISK_DEFAULT_REVISION,
     confirmed_focus: (meta.confirmed_focus as string[]) ?? [],
     confirmed_at: (meta.confirmed_at as string) ?? "",
     content_hash: (meta.content_hash as string) ?? "",

@@ -6,6 +6,8 @@
  * 从 AuLoreLayout.tsx / FandomLoreLayout.tsx 提取，纯函数。
  */
 
+import { parseCharacterCard } from "@ficforge/engine";
+
 // ---------------------------------------------------------------------------
 // 共享类型（AuLore / FandomLore 各 hook / 组件的单一定义点）
 // ---------------------------------------------------------------------------
@@ -58,33 +60,14 @@ export function isLoreEditorDirty(selectedFile: string | null, editorContent: st
 // Alias 操作
 // ---------------------------------------------------------------------------
 
+/**
+ * 读取角色卡别名 —— 委托引擎 parseCharacterCard（真 YAML 解析 + safeMatter H6 防线）。
+ * 此前此处手写正则扫 frontmatter（第三份 frontmatter 判据，R4 架构维 M4 同族）：引号/转义/
+ * 内联数组处理与引擎不一致，编辑器看到的别名可能与归一化实际生效的不一样。现在编辑器
+ * 显示的就是引擎的有效视图（trim/大小写去重/剔除与主名相同项 —— 与别名表构建同判据）。
+ */
 export function parseAliasesFromContent(content: string): string[] {
-  const match = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!match) return [];
-  const fm = match[1];
-  // Parse aliases: [a, b, c] or aliases:\n- a\n- b
-  const inlineMatch = fm.match(/aliases:\s*\[([^\]]*)\]/);
-  if (inlineMatch) {
-    // 去重：编辑路径（commitNewAlias）拒重复，加载侧对齐（chip key={value} 防撞）
-    return [
-      ...new Set(
-        inlineMatch[1]
-          .split(",")
-          .map((s) => s.trim().replace(/^["']|["']$/g, ""))
-          .filter(Boolean),
-      ),
-    ];
-  }
-  const lines = fm.split("\n");
-  const idx = lines.findIndex((l) => l.startsWith("aliases:"));
-  if (idx < 0) return [];
-  const result: string[] = [];
-  for (let i = idx + 1; i < lines.length; i++) {
-    const m = lines[i].match(/^\s*-\s*(.+)/);
-    if (m) result.push(m[1].trim().replace(/^["']|["']$/g, ""));
-    else break;
-  }
-  return [...new Set(result)];
+  return parseCharacterCard(content).aliases;
 }
 
 export function setAliasesInContent(content: string, aliases: string[]): string {

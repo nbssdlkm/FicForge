@@ -8,6 +8,8 @@ import type { PlatformAdapter } from "../../platform/adapter.js";
 import { IndexStatus } from "../../domain/enums.js";
 import type { EmbeddingFingerprint, State } from "../../domain/state.js";
 import { createEmbeddingFingerprint, createState } from "../../domain/state.js";
+import { STATE_YAML } from "../../domain/paths.js";
+import { ON_DISK_DEFAULT_REVISION } from "../../domain/project.js";
 import type { StateRepository } from "../interfaces/state.js";
 import {
   atomicWrite,
@@ -24,7 +26,7 @@ export class FileStateRepository implements StateRepository {
 
   private statePath(au_id: string): string {
     validateBasePath(au_id, "au_id");
-    return joinPath(au_id, "state.yaml");
+    return joinPath(au_id, STATE_YAML);
   }
 
   async get(au_id: string): Promise<State> {
@@ -92,7 +94,7 @@ function dictToState(d: Record<string, unknown>, au_id: string): State {
 
   return createState({
     au_id,
-    revision: (d.revision as number) ?? 1,
+    revision: (d.revision as number) ?? ON_DISK_DEFAULT_REVISION,
     updated_at: (d.updated_at as string) ?? "",
     current_chapter: (d.current_chapter as number) ?? 1,
     last_scene_ending: (d.last_scene_ending as string) ?? "",

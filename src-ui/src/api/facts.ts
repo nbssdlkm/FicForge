@@ -4,6 +4,8 @@
 
 /** Facts API */
 
+import { FactType, NarrativeWeight } from "@ficforge/engine";
+
 // 注：本文件不定义 FactInfo。UI 用的 FactInfo 真相源 = engine-client.ts 的
 // `export type { Fact as FactInfo } from "@ficforge/engine"`（引擎完整 Fact，含全部富化字段）。
 // 此处曾有一个 10 字段的窄版影子 interface（无人 import 的死类型），因其长得极像"该扩展的地方"
@@ -48,8 +50,8 @@ export function buildFactDataFromCandidate(c: ExtractedFactCandidate): Record<st
   return {
     content_raw: c.content_raw || c.content_clean,
     content_clean: c.content_clean,
-    type: c.fact_type || c.type || "plot_event",
-    narrative_weight: c.narrative_weight || "medium",
+    type: c.fact_type || c.type || FactType.PLOT_EVENT,
+    narrative_weight: c.narrative_weight || NarrativeWeight.MEDIUM,
     status: c.status || "active",
     characters: c.characters || [],
     ...(c.timeline ? { timeline: c.timeline } : {}),

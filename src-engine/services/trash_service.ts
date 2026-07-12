@@ -10,6 +10,7 @@ import * as yaml from "js-yaml";
 import { AU_CHARACTERS_DIR, parseCharacterCard } from "../domain/character_card.js";
 import type { PlatformAdapter } from "../platform/adapter.js";
 import { atomicWrite, dumpYaml, joinPath } from "../utils/file_utils.js";
+import { PROJECT_YAML } from "../domain/paths.js";
 import { warnAlways } from "../logger/index.js";
 import { withProjectFileLock } from "./au_lock.js";
 
@@ -372,7 +373,7 @@ export class TrashService {
 
   /** project.yaml 的 cast_registry.characters 是否含指定名（删除时预判是否需在恢复时补回，对称性 LOW）。 */
   private async castRegistryContains(scopeRoot: string, name: string): Promise<boolean> {
-    const projectPath = joinPath(scopeRoot, "project.yaml");
+    const projectPath = joinPath(scopeRoot, PROJECT_YAML);
     if (!(await this.adapter.exists(projectPath))) return false;
     try {
       const text = await this.adapter.readFile(projectPath);
@@ -815,7 +816,7 @@ export class TrashService {
   }
 
   private async updateCastRegistry(scopeRoot: string, characterName: string, action: "add" | "remove"): Promise<void> {
-    const projectPath = joinPath(scopeRoot, "project.yaml");
+    const projectPath = joinPath(scopeRoot, PROJECT_YAML);
     if (!(await this.adapter.exists(projectPath))) return;
 
     // 读改写整段包进 project.yaml 文件锁：与设置保存链（withProjectWrite / deletePinned）

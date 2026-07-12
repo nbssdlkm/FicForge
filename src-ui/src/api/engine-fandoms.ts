@@ -34,7 +34,7 @@ export async function listFandoms() {
     const fandomPath = `${dataDir}/fandoms/${dirName}`;
     const fandomInfo = await fandom.get(fandomPath).catch((e) => {
       // get 契约：缺失=null（走 ?? 兜底显示 dirName），真 fs 错误落日志不再静默吞
-      warnUi("engine-fandom", `read fandom.yaml failed: ${fandomPath}`, e);
+      warnUi("engine-fandoms", `read fandom.yaml failed: ${fandomPath}`, e);
       return null;
     });
     const aus = await listAus(dirName);
@@ -75,7 +75,7 @@ export async function getFandomDisplayInfo(fandomPath: string): Promise<FandomDi
   const { fandom } = getEngine().repos;
   const dirName = fandomPath.split("/").pop() || "";
   const fandomInfo = await fandom.get(fandomPath).catch((e) => {
-    warnUi("engine-fandom", `read fandom.yaml failed: ${fandomPath}`, e);
+    warnUi("engine-fandoms", `read fandom.yaml failed: ${fandomPath}`, e);
     return null;
   });
   return {
@@ -121,7 +121,7 @@ export async function listAus(fandomDirName: string): Promise<AuInfo[]> {
     }
 
     const projectInfo = await project.get(auPath).catch((e) => {
-      warnUi("engine-fandom", `read project.yaml failed: ${auPath}`, e);
+      warnUi("engine-fandoms", `read project.yaml failed: ${auPath}`, e);
       return null;
     });
     validAus.push({
@@ -164,7 +164,7 @@ export async function deleteFandom(fandomDirName: string) {
   const fandomsRoot = `${dataDir}/fandoms`;
   const fandomRoot = `${dataDir}/fandoms/${safeFandomDir}`;
   const fandomInfo = await engine.repos.fandom.get(fandomRoot).catch((e) => {
-    warnUi("engine-fandom", `read fandom.yaml failed: ${fandomRoot}`, e);
+    warnUi("engine-fandoms", `read fandom.yaml failed: ${fandomRoot}`, e);
     return null;
   });
   const displayName = fandomInfo?.name?.trim() || safeFandomDir;
@@ -203,7 +203,7 @@ export async function deleteAu(fandomDirName: string, auName: string) {
     const projectInfo = await getEngine()
       .repos.project.get(auPath)
       .catch((e) => {
-        warnUi("engine-fandom", `read project.yaml failed: ${auPath}`, e);
+        warnUi("engine-fandoms", `read project.yaml failed: ${auPath}`, e);
         return null;
       });
     const displayName = projectInfo?.name?.trim() || safeAuName;

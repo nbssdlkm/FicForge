@@ -6,6 +6,7 @@
 import type { LLMProvider } from "./provider.js";
 import { OpenAICompatibleProvider } from "./openai_compatible.js";
 import { OLLAMA_DEFAULT_BASE_URL } from "../domain/provider_manifest.js";
+import { createModelParams } from "../domain/settings.js";
 import { warnAlways } from "../logger/index.js";
 
 // ---------------------------------------------------------------------------
@@ -280,7 +281,8 @@ export function resolve_llm_params(
   project: { model_params_override?: Record<string, Record<string, unknown>> },
   settings: { model_params?: Record<string, { temperature?: number; top_p?: number }> },
 ): ResolvedLLMParams {
-  const defaults = { temperature: 1.0, top_p: 0.95 };
+  // 默认值单源（R4 重复维 M5）：1.0/0.95 的真相源在 createModelParams
+  const defaults = createModelParams();
 
   // 第 1 层：session_params
   if (session_params) {

@@ -15,6 +15,7 @@ import {
   getToolCallName,
 } from "./types";
 import type { ToolCallCardState } from "./types";
+import { FactType, NarrativeWeight } from "@ficforge/engine";
 
 interface ToolCallEditorProps {
   card: ToolCallCardState;
@@ -230,7 +231,7 @@ export function ToolCallEditor({ card, value, onChange, availableCharacterNames,
   }
 
   if (toolName === "add_fact" || toolName === "modify_fact") {
-    const typeValue = coerceString((value.fact_type ?? value.type) as string) || "plot_event";
+    const typeValue = coerceString((value.fact_type ?? value.type) as string) || FactType.PLOT_EVENT;
     return (
       <div className="space-y-3">
         {toolName === "modify_fact" && (
@@ -287,7 +288,7 @@ export function ToolCallEditor({ card, value, onChange, availableCharacterNames,
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-text/70">{t("common.labels.narrativeWeight")}</label>
             <select
-              value={coerceString(value.narrative_weight) || "medium"}
+              value={coerceString(value.narrative_weight) || NarrativeWeight.MEDIUM}
               onChange={(event) => onChange(setField(value, "narrative_weight", event.target.value))}
               className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
             >

@@ -41,6 +41,7 @@ import {
 } from "@ficforge/engine";
 import { ApiError, getFriendlyErrorMessage } from "./client";
 import { getEngine, getProjectOrThrow } from "./engine-instance";
+import { resolveLang } from "./resolve-lang";
 import { createEmbeddingProvider } from "./engine-state";
 import { extractFacts } from "./engine-facts";
 import { buildFactDataFromCandidate, type ExtractedFactCandidate } from "./facts";
@@ -120,7 +121,7 @@ export async function confirmChapter(
       if (canGenerate) {
         const provider = create_provider(llmConfig);
         const chContent = await chapter.get_content_only(auPath, chapterNum);
-        const lang = sett.app?.language || "zh";
+        const lang = resolveLang(sett);
         finalTitle = await generateChapterTitle(chContent, lang, provider);
       }
     } catch {
@@ -185,7 +186,7 @@ export async function confirmChapter(
     const canGen = llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key);
     if (embProvider && canGen) {
       const chContent = await chapter.get_content_only(auPath, chapterNum);
-      const lang = sett.app?.language || "zh";
+      const lang = resolveLang(sett);
       const llmProvider = create_provider(llmCfg);
 
       // Standard 摘要：生成（慢 LLM）在锁外，落盘+索引在锁内 + CAS 校验（M8-C）
@@ -249,7 +250,7 @@ export async function confirmChapter(
           e.repos.chapterSummary,
           create_provider(llmCfg),
           chapterNum,
-          { language: sett.app?.language || "zh" },
+          { language: resolveLang(sett) },
         );
 
         // Phase 2（锁内）：CAS 校验章节还在，再写 v2 + 更新向量索引
@@ -482,7 +483,7 @@ export async function backfillChapterMemory(
     throw new Error("embedding and LLM must be configured to backfill chapter memory");
   }
   const llmProvider = create_provider(llmCfg);
-  const language = sett.app?.language || "zh";
+  const language = resolveLang(sett);
   // 别名表快照（整个 backfill 共用）：提取端（extractFacts 内部）已归一化，落库端再挂一道
   // 是与 addFactsBatch 同款的纵深防御——覆盖「提取后、落库前别名表被改」的窗口。
   const characterAliases = await e.characterAliases.get(auPath);
