@@ -157,7 +157,7 @@ export function useSimpleDraftActions({
           void factsExtraction.handleOpenExtractReview(target.chapterNum);
         }
       } catch (err) {
-        chat.setDraftStatus(messageId, "error", {
+        chat.markDraftStatus(messageId, "error", {
           errorMessage: err instanceof Error ? err.message : String(err),
         });
         showError(err, t("error_messages.unknown"));
@@ -194,7 +194,7 @@ export function useSimpleDraftActions({
       if (target.status === "streaming") {
         cancelDispatch();
       }
-      chat.setDraftStatus(draftId, "discarded");
+      chat.markDraftStatus(draftId, "discarded");
     },
     [chat, cancelDispatch],
   );

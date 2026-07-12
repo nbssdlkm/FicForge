@@ -18,7 +18,6 @@ import { assertNever, isSettingsMutatingToolName, type SettingsMutatingToolName 
 import { FactType, NarrativeWeight } from "@ficforge/engine";
 import {
   addFact,
-  addPinned,
   deleteLore,
   deletePinned,
   editFact,
@@ -27,9 +26,7 @@ import {
   readLoreWithLegacyFallback,
   saveLore,
   sanitizePathSegment,
-  saveProjectCastRegistryCharacters,
   saveProjectCoreIncludes,
-  saveProjectWritingStyle,
   updateFactStatus,
   type ProjectInfo,
 } from "../../../api/engine-client";
@@ -48,13 +45,20 @@ import {
   type ToolUndoMeta,
 } from "./types";
 import {
-  CHARACTER_FRONTMATTER_KEYS,
   CORE_CHARACTER_FRONTMATTER_KEYS,
-  coerceTrimmedString,
   normalizeDisplayName,
   applyManagedFrontmatter,
   preserveManagedFrontmatter,
 } from "./frontmatter-utils";
+import {
+  runAddPinnedContext,
+  runCreateCharacterFile,
+  runCreateWorldbuildingFile,
+  runModifyCharacterFile,
+  runModifyWorldbuildingFile,
+  runUpdateWritingStyle,
+  type ToolRunnerContext,
+} from "./tool-runners";
 
 /** 执行中途发现面板已切上下文时抛出的哨兵（caller 静默中止，不弹错误）。 */
 export const STALE_CONTEXT_ERROR = "STALE_CONTEXT";
@@ -194,63 +198,17 @@ export async function executeSettingsTool(
     return ensuredProject;
   };
 
+  // 6 个 au/fandom 共有工具的执行体走共享 tool-runners（单一真相源，与 useSimpleToolExecutor 合流）。
+  // create_character_file / update_writing_style 需非空 project——runner 内 requireProject 兜底
+  // （ensuredProject 仅 au 模式非空，等价于旧 requireAuProject）。
+  const runnerCtx: ToolRunnerContext = { basePath, mode, project: ensuredProject, t };
+
   if (toolName === "create_character_file") {
-    const currentProject = requireAuProject();
-    const name = normalizeDisplayName(args.name) || t("common.unknownAu");
-    const filename = normalizeMarkdownFilename(name);
-    const content = applyManagedFrontmatter(coerceString(args.content), { ...args, name }, CHARACTER_FRONTMATTER_KEYS);
-    // M28/F2：saveLore 会对 filename 做白名单清洗（全角标点 → _），磁盘名可能 ≠ 传入名。
-    // 回滚 / undoMeta / 展示一律用返回的实际落盘名，否则 undo 报「源不存在」、回滚失败留孤儿。
-    const saved = await saveLore({ au_path: basePath, category: "characters", filename, content });
-
-    try {
-      const nextCharacters = Array.from(new Set([...(currentProject.cast_registry.characters || []), name]));
-      await saveProjectCastRegistryCharacters(basePath, nextCharacters);
-    } catch (error) {
-      try {
-        await deleteLore({ au_path: basePath, category: "characters", filename: saved.filename });
-      } catch {
-        throw new Error(t("settingsMode.error.createCharacterRollbackFailed", { name: saved.filename }));
-      }
-      throw error;
-    }
-
-    return {
-      resultNote: t("settingsMode.executedWithTarget", { target: saved.filename }),
-      undoMeta: { kind: "lore", category: "characters", filename: saved.filename },
-      warningMessage: null,
-    };
+    return runCreateCharacterFile(runnerCtx, args);
   }
 
   if (toolName === "modify_character_file") {
-    // M28/F2：先按写路径同款白名单清洗再读 —— LLM 给的名字含全角标点时磁盘名是清洗后的，
-    // 用原名读必 miss → frontmatter 守护静默失效（与 useSimpleToolExecutor 同口径）。
-    const requestedFilename = normalizeMarkdownFilename(coerceString(args.filename));
-    const filename = sanitizePathSegment(requestedFilename);
-    // 读旧文件，保留受管 frontmatter（name, aliases, importance, origin_ref）。
-    // F9：sanitize 名 read miss 时回退用原名（legacy 磁盘名）再读，早期未清洗即落盘的
-    // 含全角标点文件才不丢守护；写仍统一落 sanitize 名（迁移语义）。
-    let finalContent = coerceString(args.new_content);
-    const oldContent = await readLoreWithLegacyFallback({
-      au_path: basePath,
-      category: "characters",
-      diskFilename: filename,
-      legacyFilename: requestedFilename,
-    });
-    if (oldContent !== null) {
-      finalContent = preserveManagedFrontmatter(oldContent, finalContent, CHARACTER_FRONTMATTER_KEYS);
-    }
-    const saved = await saveLore({
-      au_path: basePath,
-      category: "characters",
-      filename,
-      content: finalContent,
-    });
-    return {
-      resultNote: t("settingsMode.executedWithTarget", { target: saved.filename }),
-      undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
-      warningMessage: null,
-    };
+    return runModifyCharacterFile(runnerCtx, args);
   }
 
   if (toolName === "create_core_character_file") {
@@ -300,38 +258,11 @@ export async function executeSettingsTool(
   }
 
   if (toolName === "create_worldbuilding_file") {
-    const name = coerceTrimmedString(args.name) || t("common.none");
-    const filename = normalizeMarkdownFilename(name);
-    const request =
-      mode === "au"
-        ? { au_path: basePath, category: "worldbuilding", filename, content: coerceString(args.content) }
-        : { fandom_path: basePath, category: "core_worldbuilding", filename, content: coerceString(args.content) };
-    // M28/F2：undoMeta 用实际落盘名
-    const saved = await saveLore(request);
-    return {
-      resultNote: t("settingsMode.executedWithTarget", { target: saved.filename }),
-      undoMeta: {
-        kind: "lore",
-        category: mode === "au" ? "worldbuilding" : "core_worldbuilding",
-        filename: saved.filename,
-      },
-      warningMessage: null,
-    };
+    return runCreateWorldbuildingFile(runnerCtx, args);
   }
 
   if (toolName === "modify_worldbuilding_file") {
-    // M28/F2：写路径同款清洗（worldbuilding 无 frontmatter 守护，但磁盘名对齐避免重名分裂）
-    const filename = sanitizePathSegment(normalizeMarkdownFilename(coerceString(args.filename)));
-    const request =
-      mode === "au"
-        ? { au_path: basePath, category: "worldbuilding", filename, content: coerceString(args.new_content) }
-        : { fandom_path: basePath, category: "core_worldbuilding", filename, content: coerceString(args.new_content) };
-    const saved = await saveLore(request);
-    return {
-      resultNote: t("settingsMode.executedWithTarget", { target: saved.filename }),
-      undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
-      warningMessage: null,
-    };
+    return runModifyWorldbuildingFile(runnerCtx, args);
   }
 
   if (toolName === "add_fact") {
@@ -386,34 +317,11 @@ export async function executeSettingsTool(
   }
 
   if (toolName === "add_pinned_context") {
-    const content = coerceString(args.content).trim();
-    const index = ensuredProject?.pinned_context.length || 0;
-    await addPinned(basePath, content);
-    return {
-      resultNote: t("settingsMode.executedWithTarget", { target: t("common.labels.pinnedContext") }),
-      undoMeta: {
-        kind: "pinned",
-        pinnedIndex: index,
-        pinnedContent: content,
-      },
-      warningMessage: null,
-    };
+    return runAddPinnedContext(runnerCtx, args);
   }
 
   if (toolName === "update_writing_style") {
-    const currentProject = requireAuProject();
-    const field = coerceString(args.field);
-    const value = coerceString(args.value);
-    const writingStyle = {
-      ...(currentProject.writing_style || {}),
-      [field]: value,
-    };
-    await saveProjectWritingStyle(basePath, writingStyle);
-    return {
-      resultNote: t("settingsMode.executedWithTarget", { target: t("common.labels.writingStyle") }),
-      undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
-      warningMessage: null,
-    };
+    return runUpdateWritingStyle(runnerCtx, args);
   }
 
   if (toolName === "update_core_includes") {

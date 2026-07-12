@@ -348,7 +348,7 @@ describe("chatToOpenAIMessages", () => {
 
   it("tool-call kind（legacy modify_*/create_* 路径）→ role:assistant + status marker（v4-pro C2 review P2-3）", () => {
     // 旧版 modify chain 路径：dispatch emit tool_call → SimpleChatPanel append tool-call kind →
-    // 用户 confirm/skip/error → setToolCallStatus 改 status；下一轮发送时 chat-to-llm 把这条
+    // 用户 confirm/skip/error → markToolCallStatus 改 status；下一轮发送时 chat-to-llm 把这条
     // 消息转成 role:"assistant" + 内容标 [tool: X] + status marker，让 LLM 看到上下文。
     const out = chatToOpenAIMessages([
       {

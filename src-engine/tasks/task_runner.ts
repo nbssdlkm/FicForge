@@ -59,10 +59,12 @@ export class TaskRunner {
   private eventListeners = new Set<TaskEventListener>();
   private statusListeners = new Set<TaskStatusListener>();
 
-  private visibilityHandler: (() => void) | null = null;
+  private adapter: PlatformAdapter;
+  private unsubscribeVisibility: (() => void) | null = null;
 
   constructor(adapter: PlatformAdapter, dataDir: string, options?: TaskRunnerOptions) {
     this.concurrency = 1;
+    this.adapter = adapter;
     this.store = new TaskStore(adapter, dataDir);
     this.options = options ?? {};
     this.setupVisibilityListener();
@@ -338,10 +340,11 @@ export class TaskRunner {
   // -----------------------------------------------------------------------
 
   private setupVisibilityListener(): void {
-    if (typeof document === "undefined") return;
-
-    this.visibilityHandler = () => {
-      const hidden = document.hidden;
+    // 页面可见性收编到 adapter（R4 架构 M5）：核心引擎不再直连 document。
+    // 无 DOM 环境（Node 单测）adapter 返回 no-op 取消订阅、订阅永不触发，
+    // 与旧 `typeof document === "undefined"` 提前返回同语义。
+    this.unsubscribeVisibility = this.adapter.onVisibilityChange((state) => {
+      const hidden = state === "hidden";
       const activeCount = this.running.size;
 
       if (hidden && activeCount > 0) {
@@ -353,15 +356,13 @@ export class TaskRunner {
       }
 
       this.options.onVisibilityChange?.(hidden, activeCount);
-    };
-
-    document.addEventListener("visibilitychange", this.visibilityHandler);
+    });
   }
 
   private removeVisibilityListener(): void {
-    if (this.visibilityHandler && typeof document !== "undefined") {
-      document.removeEventListener("visibilitychange", this.visibilityHandler);
-      this.visibilityHandler = null;
+    if (this.unsubscribeVisibility) {
+      this.unsubscribeVisibility();
+      this.unsubscribeVisibility = null;
     }
   }
 }

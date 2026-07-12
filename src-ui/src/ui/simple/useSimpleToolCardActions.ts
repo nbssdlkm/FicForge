@@ -9,7 +9,7 @@
  * rollback 等）。验证 / 防覆盖 / 防重复全在 executor 里，error 已 i18n 化直接展示。
  *
  * 自身只持有 executingToolId（工具执行重入闸：全局一次只执行一个）；卡片状态经
- * chat 的语义化 method（setToolCallStatus）写入。
+ * chat 的语义化 method（markToolCallStatus）写入。
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -45,7 +45,7 @@ export function useSimpleToolCardActions({ auPath, chat }: UseSimpleToolCardActi
       setExecutingToolId(messageId);
       try {
         const result = await toolExecutor.execute(target.toolName, target.toolArgs);
-        chat.setToolCallStatus(messageId, "confirmed", {
+        chat.markToolCallStatus(messageId, "confirmed", {
           resultNote: result.resultNote,
           undoMeta: result.undoMeta,
           errorMessage: undefined,
@@ -55,7 +55,7 @@ export function useSimpleToolCardActions({ auPath, chat }: UseSimpleToolCardActi
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        chat.setToolCallStatus(messageId, "error", { errorMessage: message });
+        chat.markToolCallStatus(messageId, "error", { errorMessage: message });
         showError(err, t("error_messages.unknown"));
       } finally {
         setExecutingToolId(null);
@@ -64,7 +64,7 @@ export function useSimpleToolCardActions({ auPath, chat }: UseSimpleToolCardActi
     [chat, executingToolId, showError, showToast, t, toolExecutor],
   );
 
-  const handleSkipTool = useCallback((messageId: string) => chat.setToolCallStatus(messageId, "skipped"), [chat]);
+  const handleSkipTool = useCallback((messageId: string) => chat.markToolCallStatus(messageId, "skipped"), [chat]);
 
   const handleUndoTool = useCallback(
     async (messageId: string) => {
@@ -86,14 +86,14 @@ export function useSimpleToolCardActions({ auPath, chat }: UseSimpleToolCardActi
       setExecutingToolId(messageId);
       try {
         const result = await toolExecutor.undo(target.undoMeta);
-        chat.setToolCallStatus(messageId, "undone", {
+        chat.markToolCallStatus(messageId, "undone", {
           resultNote: result.resultNote,
           undoMeta: null,
           errorMessage: undefined,
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        chat.setToolCallStatus(messageId, "error", { errorMessage: message });
+        chat.markToolCallStatus(messageId, "error", { errorMessage: message });
         showError(err, t("error_messages.unknown"));
       } finally {
         setExecutingToolId(null);

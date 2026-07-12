@@ -74,7 +74,7 @@ export class FileLogger implements Logger {
   private buffer: string[] = [];
   private flushTimer: ReturnType<typeof setInterval> | null = null;
   private flushing = false;
-  private visibilityHandler: (() => void) | null = null;
+  private unsubscribeVisibility: (() => void) | null = null;
   private destroyed = false;
   /** 最近一次 flush 的 Promise，destroy() 用来链式等待。 */
   private _lastFlush: Promise<void> = Promise.resolve();
@@ -92,13 +92,11 @@ export class FileLogger implements Logger {
     const interval = options?.flushIntervalMs ?? 5000;
     this.flushTimer = setInterval(() => void this.flush(), interval);
 
-    // visibilitychange flush（移动端后台时保存）
-    if (typeof document !== "undefined") {
-      this.visibilityHandler = () => {
-        if (document.visibilityState === "hidden") void this.flush();
-      };
-      document.addEventListener("visibilitychange", this.visibilityHandler);
-    }
+    // visibilitychange flush（移动端后台时保存）—— 收编到 adapter（R4 架构 M5）：
+    // 核心引擎不再直连 document。无 DOM 环境（Node 单测）adapter 返回 no-op、订阅永不触发。
+    this.unsubscribeVisibility = adapter.onVisibilityChange((visState) => {
+      if (visState === "hidden") void this.flush();
+    });
 
     // 启动清理旧日志（fire-and-forget）
     void this.cleanOldLogs();
@@ -188,9 +186,9 @@ export class FileLogger implements Logger {
       clearInterval(this.flushTimer);
       this.flushTimer = null;
     }
-    if (this.visibilityHandler && typeof document !== "undefined") {
-      document.removeEventListener("visibilitychange", this.visibilityHandler);
-      this.visibilityHandler = null;
+    if (this.unsubscribeVisibility) {
+      this.unsubscribeVisibility();
+      this.unsubscribeVisibility = null;
     }
     // 等当前 flush（如果有）完成，再 flush 剩余 buffer。
     // 如果不等待直接调 flush()，正在进行的 flush 持有 this.flushing=true

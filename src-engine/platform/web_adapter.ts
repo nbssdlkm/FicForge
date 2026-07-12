@@ -19,6 +19,7 @@ import {
   legacySecureStorageKey,
   platformWarn,
   redactSecureKey,
+  sharedOnVisibilityChange,
   uint8ToBase64,
 } from "./shared.js";
 
@@ -447,6 +448,10 @@ export class WebAdapter implements PlatformAdapter {
       encrypted_at_rest: encrypted,
       persistence: "session_only",
     };
+  }
+
+  onVisibilityChange(cb: (state: "visible" | "hidden") => void): () => void {
+    return sharedOnVisibilityChange(cb);
   }
 
   private getSecureStorageKey(key: string): string {

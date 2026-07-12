@@ -10,7 +10,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { TaskRunner } from "../task_runner.js";
 import { TaskStore } from "../task_store.js";
-import type { TaskCheckpoint, TaskContext, TaskDefinition, TaskEvent } from "../types.js";
+import type { TaskCheckpoint, TaskContext, TaskDefinition, TaskEvent, TaskRunnerOptions } from "../types.js";
 
 // ---------------------------------------------------------------------------
 // 内存 adapter（与 PlatformAdapter 文件子集契约一致）
@@ -18,8 +18,15 @@ import type { TaskCheckpoint, TaskContext, TaskDefinition, TaskEvent } from "../
 
 function memAdapter() {
   const fs = new Map<string, string>();
+  // 捕获 TaskRunner 构造期订阅的可见性回调，供测试驱动「切后台」；
+  // 记录退订次数以断言 destroy() 时退订生效。
+  const vis: {
+    cb: ((state: "visible" | "hidden") => void) | null;
+    unsubscribed: number;
+  } = { cb: null, unsubscribed: 0 };
   return {
     fs,
+    vis,
     async exists(p: string) {
       return fs.has(p);
     },
@@ -49,6 +56,15 @@ function memAdapter() {
       if (v === undefined) throw new Error(`rename: source not found: ${o}`);
       fs.set(n, v);
       fs.delete(o);
+    },
+    // 页面可见性收编到 adapter 后（R4 架构 M5），TaskRunner 构造期改调 adapter.onVisibilityChange
+    // 订阅。捕获 cb 让测试能驱动「切后台」，返回的退订钩子清空 cb 并计数（断言退订生效）。
+    onVisibilityChange(cb: (state: "visible" | "hidden") => void) {
+      vis.cb = cb;
+      return () => {
+        vis.cb = null;
+        vis.unsubscribed++;
+      };
     },
   } as any;
 }
@@ -129,9 +145,9 @@ describe("TaskStore", () => {
 // ---------------------------------------------------------------------------
 
 describe("TaskRunner", () => {
-  function makeRunner() {
+  function makeRunner(options?: TaskRunnerOptions) {
     const adapter = memAdapter();
-    const runner = new TaskRunner(adapter, "/data");
+    const runner = new TaskRunner(adapter, "/data", options);
     return { adapter, runner };
   }
 
@@ -342,5 +358,120 @@ describe("TaskRunner", () => {
     gate.open(); // 收尾，避免悬挂任务泄漏到其它用例
     runner.destroy();
     runner2.destroy();
+  });
+
+  // -------------------------------------------------------------------------
+  // visibilitychange 切后台落盘（正向路径判别 —— 此前只测「订阅被建立」，未测触发效果）
+  // -------------------------------------------------------------------------
+  describe("visibilitychange 切后台落盘", () => {
+    const cpFilesOf = (adapter: { fs: Map<string, string> }) =>
+      [...adapter.fs.keys()].filter((k) => k.includes("/tasks/") && k.endsWith(".json"));
+
+    it("running 任务有 pending 断点 + 切后台(hidden) → 断点改写为 interrupted", async () => {
+      const { adapter, runner } = makeRunner();
+      const gate = makeGate();
+
+      runner.submit(
+        simpleTask(
+          "bg",
+          async function* (ctx) {
+            yield { type: "progress", current: 1, total: 3 };
+            await ctx.saveCheckpoint({ upTo: 1 }); // pendingCheckpointData 就位 + 落 running 断点
+            await gate.wait(); // 挂在运行态，模拟切后台瞬间任务仍 running
+            return null;
+          },
+          { scope: "auX" },
+        ),
+      );
+
+      // 等 saveCheckpoint 落盘（此刻断点 status=running）
+      await vi.waitFor(() => {
+        expect(cpFilesOf(adapter)).toHaveLength(1);
+        expect(JSON.parse(adapter.fs.get(cpFilesOf(adapter)[0])!).status).toBe("running");
+      });
+
+      // 切后台：hidden + activeCount>0 + pendingCheckpointData!==undefined → 改写 interrupted 断点
+      adapter.vis.cb?.("hidden");
+
+      await vi.waitFor(() => {
+        const cp = JSON.parse(adapter.fs.get(cpFilesOf(adapter)[0])!);
+        expect(cp.status).toBe("interrupted");
+        expect(cp.data).toEqual({ upTo: 1 }); // 沿用 pendingCheckpointData（buildCheckpoint 不传 data）
+      });
+
+      gate.open();
+      runner.destroy();
+    });
+
+    it("切前台(visible) 不触发断点改写（running 断点逐字节不变）", async () => {
+      const { adapter, runner } = makeRunner();
+      const gate = makeGate();
+
+      runner.submit(
+        simpleTask("bg", async function* (ctx) {
+          await ctx.saveCheckpoint({ upTo: 1 });
+          await gate.wait();
+          return null;
+        }),
+      );
+
+      await vi.waitFor(() => expect(cpFilesOf(adapter)).toHaveLength(1));
+      const key = cpFilesOf(adapter)[0];
+      const before = adapter.fs.get(key);
+      expect(JSON.parse(before!).status).toBe("running");
+
+      adapter.vis.cb?.("visible");
+      await tick();
+      await tick();
+
+      // visible 分支不写盘：断点内容逐字节不变，仍为 running
+      expect(adapter.fs.get(key)).toBe(before);
+
+      gate.open();
+      runner.destroy();
+    });
+
+    it("无 running 任务时切后台(hidden) 不写任何断点", async () => {
+      const { adapter, runner } = makeRunner();
+      // 未提交任何任务：running.size === 0 → hidden 分支不进循环
+      adapter.vis.cb?.("hidden");
+      await tick();
+      await tick();
+      expect(cpFilesOf(adapter)).toEqual([]);
+      runner.destroy();
+    });
+
+    it("options.onVisibilityChange 回调收到 (hidden, activeCount)", async () => {
+      const seen: Array<[boolean, number]> = [];
+      const { adapter, runner } = makeRunner({
+        onVisibilityChange: (hidden, count) => seen.push([hidden, count]),
+      });
+      const gate = makeGate();
+
+      runner.submit(
+        simpleTask("bg", async function* () {
+          await gate.wait();
+          return null;
+        }),
+      );
+      await tick(); // 任务进入 running，running.size === 1
+
+      adapter.vis.cb?.("hidden");
+      adapter.vis.cb?.("visible");
+
+      expect(seen).toContainEqual([true, 1]); // 切后台：hidden=true，1 个活跃任务
+      expect(seen).toContainEqual([false, 1]); // 切前台：hidden=false，仍报活跃数
+
+      gate.open();
+      runner.destroy();
+    });
+
+    it("destroy() 退订可见性订阅（cb 清空 + 退订计数 +1，之后切后台无消费者）", () => {
+      const { adapter, runner } = makeRunner();
+      expect(adapter.vis.cb).toBeTypeOf("function"); // 构造期已订阅
+      runner.destroy();
+      expect(adapter.vis.unsubscribed).toBe(1);
+      expect(adapter.vis.cb).toBeNull(); // 退订后 cb 清空 → 再切后台不会落盘
+    });
   });
 });

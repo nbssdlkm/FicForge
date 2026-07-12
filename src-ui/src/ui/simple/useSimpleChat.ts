@@ -65,17 +65,17 @@ export interface UseSimpleChatResult {
   appendDraftChunk: (id: string, chunk: string) => void;
   /** 强制立即 flush 所有 pending streaming chunks 到 messages。
    * 必须在终态 callback (onDoneText / onDoneTools / onError / onCancelled) 前
-   * 调用一次，确保 setDraftContent / setDraftStatus 等覆盖性写入前 buffer 已落地，
+   * 调用一次，确保 replaceDraftContent / markDraftStatus 等覆盖性写入前 buffer 已落地，
    * 否则 rAF 还没跑就被新 setState 覆盖 → 末尾几个 chunks 丢失。 */
   flushStreamingChunks: () => void;
   /** 用 finalText 替换 streaming 内容（用于 done 事件）。 */
-  setDraftContent: (id: string, finalText: string) => void;
+  replaceDraftContent: (id: string, finalText: string) => void;
   /** 用引擎返回的真实 draft label 替换流式期占位的 "?"。 */
-  setDraftLabel: (id: string, label: string) => void;
+  assignDraftLabel: (id: string, label: string) => void;
   /** 保存引擎返回的 generated_with 元数据，confirm 时回传引擎做 ops 审计。 */
-  setDraftGeneratedWith: (id: string, generatedWith: Record<string, unknown>) => void;
+  recordDraftGeneratedWith: (id: string, generatedWith: Record<string, unknown>) => void;
   /** 修改草稿状态（streaming → pending → accepted/rejected/discarded/error）。 */
-  setDraftStatus: (id: string, status: DraftStatus, opts?: { errorMessage?: string; revision?: number }) => void;
+  markDraftStatus: (id: string, status: DraftStatus, opts?: { errorMessage?: string; revision?: number }) => void;
   /** 接受草稿后回填元数据（acceptedAt + revision），同时把 status 设为 'accepted'。
    * revision 传 null 表示未知（标记恢复场景），不写 acceptedRevision。 */
   markDraftAccepted: (id: string, revision: number | null) => void;
@@ -83,7 +83,7 @@ export interface UseSimpleChatResult {
   appendToolCallMessage: (init: { toolName: string; toolArgs: Record<string, unknown> }) => string;
   /** 修改 tool call 状态；可一并写入 resultNote / errorMessage / undoMeta。
    * undoMeta=null 等同 unset；undoMeta=undefined 表示不变（向后兼容）。 */
-  setToolCallStatus: (
+  markToolCallStatus: (
     id: string,
     status: ToolCallStatus,
     opts?: {
@@ -386,7 +386,7 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
     [scheduleFlush, flushChunks],
   );
 
-  const setDraftContent = useCallback(
+  const replaceDraftContent = useCallback(
     (id: string, finalText: string) => {
       updateMessage(id, (prev) => {
         if (prev.kind !== "writing-draft") return prev;
@@ -396,7 +396,7 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
     [updateMessage],
   );
 
-  const setDraftLabel = useCallback(
+  const assignDraftLabel = useCallback(
     (id: string, label: string) => {
       updateMessage(id, (prev) => {
         if (prev.kind !== "writing-draft") return prev;
@@ -406,7 +406,7 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
     [updateMessage],
   );
 
-  const setDraftGeneratedWith = useCallback(
+  const recordDraftGeneratedWith = useCallback(
     (id: string, generatedWith: Record<string, unknown>) => {
       updateMessage(id, (prev) => {
         if (prev.kind !== "writing-draft") return prev;
@@ -416,7 +416,7 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
     [updateMessage],
   );
 
-  const setDraftStatus = useCallback(
+  const markDraftStatus = useCallback(
     (id: string, status: DraftStatus, opts?: { errorMessage?: string; revision?: number }) => {
       updateMessage(id, (prev) => {
         if (prev.kind !== "writing-draft") return prev;
@@ -463,7 +463,7 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
     [appendMessage],
   );
 
-  const setToolCallStatus = useCallback(
+  const markToolCallStatus = useCallback(
     (
       id: string,
       status: ToolCallStatus,
@@ -565,13 +565,13 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
       appendDraftMessage,
       appendDraftChunk,
       flushStreamingChunks,
-      setDraftContent,
-      setDraftLabel,
-      setDraftGeneratedWith,
-      setDraftStatus,
+      replaceDraftContent,
+      assignDraftLabel,
+      recordDraftGeneratedWith,
+      markDraftStatus,
       markDraftAccepted,
       appendToolCallMessage,
-      setToolCallStatus,
+      markToolCallStatus,
       appendChapterPreviewMessage,
       appendSettingPreviewMessage,
       togglePreviewExpanded,

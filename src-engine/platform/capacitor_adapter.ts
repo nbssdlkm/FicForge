@@ -18,6 +18,7 @@ import {
   platformWarn,
   redactSecureKey,
   scrubKeyFromError,
+  sharedOnVisibilityChange,
   uint8ToBase64,
 } from "./shared.js";
 
@@ -287,6 +288,10 @@ export class CapacitorAdapter implements PlatformAdapter {
 
   getSecretStorageCapabilities(): SecretStorageCapabilities {
     return OS_KEYRING_CAPABILITIES;
+  }
+
+  onVisibilityChange(cb: (state: "visible" | "hidden") => void): () => void {
+    return sharedOnVisibilityChange(cb);
   }
 
   private getLegacySecureStorageKey(key: string): string {

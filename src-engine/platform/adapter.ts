@@ -159,4 +159,17 @@ export interface PlatformAdapter {
   secureSet(key: string, value: string): Promise<void>;
   secureRemove(key: string): Promise<void>;
   getSecretStorageCapabilities(): SecretStorageCapabilities;
+
+  /**
+   * 页面可见性（visibilitychange）—— 核心层切后台落盘触发点的平台收口（R4 架构 M5）。
+   *
+   * task_runner（写任务断点）与 logger（flush 日志缓冲）原先各自 `typeof document` 守卫
+   * 直连 DOM；核心引擎不该直接依赖浏览器全局，故收编到平台层。三端共用 shared.ts 的
+   * sharedOnVisibilityChange 实现。消费方只做订阅式监听（切后台落盘），不需要快照式读
+   * 当前可见性 —— 故接口只暴露订阅一个方法。
+   *
+   * - onVisibilityChange：订阅变化，返回取消订阅函数；无 DOM 环境（Node 单测 / SSR）返回
+   *   no-op（订阅永不触发），与旧 `typeof document === "undefined"` 提前返回同语义。
+   */
+  onVisibilityChange(cb: (state: "visible" | "hidden") => void): () => void;
 }

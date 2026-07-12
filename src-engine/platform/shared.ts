@@ -148,3 +148,28 @@ export const OS_KEYRING_CAPABILITIES: SecretStorageCapabilities = Object.freeze(
   encrypted_at_rest: true,
   persistence: "persistent",
 });
+
+// ---------------------------------------------------------------------------
+// 页面可见性（visibilitychange）—— 三端适配器共用
+// ---------------------------------------------------------------------------
+
+/**
+ * 页面可见性订阅：三端 adapter（Tauri / Capacitor / Web）共用同一 DOM 实现。
+ *
+ * 背景（R4 架构 M5）：核心层的 task_runner（切后台写断点）与 logger（切后台 flush）
+ * 原先各自 `typeof document` 守卫直连 DOM —— 核心引擎不该直接依赖浏览器全局。收编到
+ * 平台层后，两处改走 adapter.onVisibilityChange 订阅监听，DOM 访问只此一处。消费方只需
+ * 订阅式监听（切后台落盘），不需要快照式读当前可见性，故不再提供 getState 变体。
+ *
+ * 无 DOM 环境（Node 单测 / SSR）：返回 no-op 取消订阅（订阅永不触发），与旧
+ * `typeof document === "undefined"` 提前返回同语义。
+ *
+ * Page Visibility L1 的 "prerender" 归 "visible" 为有意收敛（支持矩阵 L2-only）：
+ * 只区分 hidden / 非 hidden，prerender / 未来态一律当 "visible" 处理。
+ */
+export function sharedOnVisibilityChange(cb: (state: "visible" | "hidden") => void): () => void {
+  if (typeof document === "undefined") return () => {};
+  const handler = () => cb(document.visibilityState === "hidden" ? "hidden" : "visible");
+  document.addEventListener("visibilitychange", handler);
+  return () => document.removeEventListener("visibilitychange", handler);
+}

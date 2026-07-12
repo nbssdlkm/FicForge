@@ -60,6 +60,10 @@ export interface EngineInstance {
 let _engine: EngineInstance | null = null;
 
 export function initEngine(adapter: PlatformAdapter, dataDir: string): void {
+  // 防重复 initEngine 泄漏 visibility 订阅（E4 审）：TaskRunner 构造期订阅 adapter.onVisibilityChange，
+  // 重复 init 会累积订阅且旧 runner 的在途任务不被中止。销毁上一实例的 taskRunner（abort + 退订）后再重建。
+  _engine?.taskRunner.destroy();
+
   if (hasLogger()) getLogger().info("engine", "initEngine", { platform: adapter.getPlatform(), dataDir });
 
   _engine = {

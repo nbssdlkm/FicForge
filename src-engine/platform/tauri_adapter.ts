@@ -17,6 +17,7 @@ import {
   platformWarn,
   redactSecureKey,
   scrubKeyFromError,
+  sharedOnVisibilityChange,
 } from "./shared.js";
 
 export class TauriAdapter implements PlatformAdapter {
@@ -194,6 +195,10 @@ export class TauriAdapter implements PlatformAdapter {
 
   getSecretStorageCapabilities(): SecretStorageCapabilities {
     return OS_KEYRING_CAPABILITIES;
+  }
+
+  onVisibilityChange(cb: (state: "visible" | "hidden") => void): () => void {
+    return sharedOnVisibilityChange(cb);
   }
 
   private getLegacySecureStorageKey(key: string): string {

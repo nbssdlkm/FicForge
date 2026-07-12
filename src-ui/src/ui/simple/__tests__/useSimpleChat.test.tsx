@@ -36,7 +36,7 @@ describe("useSimpleChat", () => {
     });
   });
 
-  it("appendDraftChunk concatenates content; setDraftStatus + markDraftAccepted finalize", () => {
+  it("appendDraftChunk concatenates content; markDraftStatus + markDraftAccepted finalize", () => {
     const { result } = renderHook(() => useSimpleChat("au_a"));
     let id = "";
     act(() => {
@@ -48,7 +48,7 @@ describe("useSimpleChat", () => {
       // chunks 走 rAF buffer 不立即落地；终态前必须 flush（caller 在 onDoneText
       // 等终态 callback 调）。jsdom 不自动 fire rAF，必须显式 flush。
       result.current.flushStreamingChunks();
-      result.current.setDraftStatus(id, "pending");
+      result.current.markDraftStatus(id, "pending");
     });
     let draft = result.current.messages.find((m) => m.id === id);
     expect(draft?.kind === "writing-draft" && draft.content).toBe("Hello world");
@@ -63,14 +63,14 @@ describe("useSimpleChat", () => {
     expect(draft?.kind === "writing-draft" && draft.acceptedAt).toBeTruthy();
   });
 
-  it("setDraftLabel updates only writing-draft messages", () => {
+  it("assignDraftLabel updates only writing-draft messages", () => {
     const { result } = renderHook(() => useSimpleChat("au_a"));
     let id = "";
     act(() => {
       id = result.current.appendDraftMessage({ chapterNum: 1 });
     });
     act(() => {
-      result.current.setDraftLabel(id, "B");
+      result.current.assignDraftLabel(id, "B");
     });
     const draft = result.current.messages.find((m) => m.id === id);
     expect(draft?.kind === "writing-draft" && draft.draftLabel).toBe("B");
@@ -160,7 +160,7 @@ describe("useSimpleChat", () => {
     expect(msg?.kind === "tool-result" && msg.errorMessage).toBe("characters/Alice.md 不存在");
   });
 
-  it("appendToolCallMessage + setToolCallStatus 状态迁移", () => {
+  it("appendToolCallMessage + markToolCallStatus 状态迁移", () => {
     const { result } = renderHook(() => useSimpleChat("au_a"));
     let id = "";
     act(() => {
@@ -175,7 +175,7 @@ describe("useSimpleChat", () => {
     });
 
     act(() => {
-      result.current.setToolCallStatus(id, "confirmed", { resultNote: "wrote 300 chars" });
+      result.current.markToolCallStatus(id, "confirmed", { resultNote: "wrote 300 chars" });
     });
     const card = result.current.messages.find((m) => m.id === id);
     expect(card?.kind === "tool-call" && card.status).toBe("confirmed");

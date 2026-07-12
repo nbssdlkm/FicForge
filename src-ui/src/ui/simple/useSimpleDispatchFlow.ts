@@ -81,7 +81,7 @@ export function useSimpleDispatchFlow({
     if (!chat.isLoaded) return;
     for (const m of chat.messages) {
       if (m.kind === "writing-draft" && m.status === "streaming") {
-        chat.setDraftStatus(m.id, "discarded");
+        chat.markDraftStatus(m.id, "discarded");
       } else if (m.kind === "system" && m.tone === "info") {
         chat.removeMessage(m.id);
       }
@@ -219,19 +219,19 @@ export function useSimpleDispatchFlow({
           },
           onDoneText: (data) => {
             // 终态前必须 flush rAF buffer，否则缓冲未刷的 chunks 会在
-            // setDraftContent(full_text) 之后 append → final content = full_text + 残余 chunks。
+            // replaceDraftContent(full_text) 之后 append → final content = full_text + 残余 chunks。
             chat.flushStreamingChunks();
             doneTextReceived = true;
             const id = ensureDraft();
-            chat.setDraftContent(id, data.full_text);
-            if (data.draft_label) chat.setDraftLabel(id, data.draft_label);
+            chat.replaceDraftContent(id, data.full_text);
+            if (data.draft_label) chat.assignDraftLabel(id, data.draft_label);
             if (data.generated_with && typeof data.generated_with === "object") {
-              chat.setDraftGeneratedWith(id, data.generated_with as Record<string, unknown>);
+              chat.recordDraftGeneratedWith(id, data.generated_with as Record<string, unknown>);
             }
-            chat.setDraftStatus(id, "pending");
+            chat.markDraftStatus(id, "pending");
           },
           onDoneTools: () => {
-            // chat_reply 流式期累积的 chunks 在 buffer 里，setDraftStatus(discarded)
+            // chat_reply 流式期累积的 chunks 在 buffer 里，markDraftStatus(discarded)
             // 前必须 flush，否则 chat_reply 末尾几个字符丢失。
             chat.flushStreamingChunks();
             clearThinking();
@@ -240,7 +240,7 @@ export function useSimpleDispatchFlow({
             // - forceToolOnly 但中途已 stream 了 token：done_text 不发，draft 卡 streaming
             //   要 discard 避免污染对话流（v4 盲审 P0-1）
             if (draftId && !doneTextReceived) {
-              chat.setDraftStatus(draftId, "discarded");
+              chat.markDraftStatus(draftId, "discarded");
             }
           },
           onError: (data) => {
@@ -263,7 +263,7 @@ export function useSimpleDispatchFlow({
               : "";
             const message = `${friendly}${partialSuffix}`;
             if (draftId) {
-              chat.setDraftStatus(draftId, "error", { errorMessage: message });
+              chat.markDraftStatus(draftId, "error", { errorMessage: message });
             } else {
               chat.appendSystemMessage("error", message);
             }
@@ -271,7 +271,7 @@ export function useSimpleDispatchFlow({
           onCancelled: () => {
             chat.flushStreamingChunks();
             clearThinking();
-            if (draftId) chat.setDraftStatus(draftId, "discarded");
+            if (draftId) chat.markDraftStatus(draftId, "discarded");
           },
         },
       );
@@ -343,9 +343,9 @@ export function useSimpleDispatchFlow({
       if (dispatch.isStreaming) {
         dispatch.cancelDispatch();
       }
-      chat.setDraftStatus(draftId, "discarded");
+      chat.markDraftStatus(draftId, "discarded");
       // 再生成：用整段历史（含刚被丢弃的 draft，会被 chatToOpenAIMessages 标 [已丢弃]
-      // 让 LLM 知道用户要重写）。setDraftStatus 是 setState 异步，这里读到的还是旧
+      // 让 LLM 知道用户要重写）。markDraftStatus 是 setState 异步，这里读到的还是旧
       // 数组（含 status="streaming" 或 "pending" 的 draft），但 chat-to-llm 把
       // streaming 跳过、其他状态加 marker，行为可接受。
       const history = chatToOpenAIMessages(chat.messages);

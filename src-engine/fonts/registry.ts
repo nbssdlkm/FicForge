@@ -38,6 +38,11 @@ export interface FontRegistry {
  * 通过 `new FontFace()` + `document.fonts.add()` 注册，支持从 ArrayBuffer
  * 或 URL 加载。已注册字体通过内部 Map 记录 id → FontFace 映射，便于
  * 后续卸载。
+ *
+ * DOM 直依赖裁决（R4 架构 M5）：本类对 `document.fonts` 的访问**保留、不收编到
+ * PlatformAdapter**。fonts 属平台实现层而非核心层 —— BrowserFontRegistry 本就是
+ * 浏览器特定实现（有 NoopFontRegistry 对偶供 Node 单测 / SSR 注入），FontFaceSet
+ * 访问是其职责本体，不同于 task_runner / logger 那种核心层顺带碰 document 的越界。
  */
 export class BrowserFontRegistry implements FontRegistry {
   private registered = new Map<string, FontFace>();

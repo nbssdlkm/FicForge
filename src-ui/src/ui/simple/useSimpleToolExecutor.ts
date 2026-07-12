@@ -26,35 +26,29 @@ import { assertNever, isSimpleMutatingToolName, type SimpleMutatingToolName } fr
 import { useCallback } from "react";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import {
-  addPinned,
   deletePinned,
   deleteLore,
   getProjectForEditing,
   listLoreFiles,
-  readLoreWithLegacyFallback,
-  saveLore,
-  sanitizePathSegment,
-  saveProjectCastRegistryCharacters,
-  saveProjectWritingStyle,
   type ProjectInfo,
 } from "../../api/engine-client";
 import {
-  coerceString,
   getToolDuplicateWarning,
   getToolMissingTargetError,
   getToolOverwriteWarning,
   getToolValidationError,
-  normalizeMarkdownFilename,
   type LoreFileOption,
   type ToolUndoMeta,
 } from "../shared/settings-chat/types";
 import {
-  CHARACTER_FRONTMATTER_KEYS,
-  applyManagedFrontmatter,
-  coerceTrimmedString,
-  normalizeDisplayName,
-  preserveManagedFrontmatter,
-} from "../shared/settings-chat/frontmatter-utils";
+  runAddPinnedContext,
+  runCreateCharacterFile,
+  runCreateWorldbuildingFile,
+  runModifyCharacterFile,
+  runModifyWorldbuildingFile,
+  runUpdateWritingStyle,
+  type ToolRunnerContext,
+} from "../shared/settings-chat/tool-runners";
 
 export interface SimpleToolExecutorOptions {
   /** AU 路径；简版 mode 永远是 "au"，basePath 即 auPath。空字符串视为未就绪。 */
@@ -133,136 +127,15 @@ export function useSimpleToolExecutor(options: SimpleToolExecutorOptions): UseSi
       const duplicateWarning = getToolDuplicateWarning(toolName, args, project.pinned_context ?? [], t);
       if (duplicateWarning) throw new Error(duplicateWarning);
 
-      // === 4. dispatch 6 个支持的 tool ===
-      if (toolName === "create_character_file") {
-        const name = normalizeDisplayName(args.name) || t("common.unknownAu");
-        const filename = normalizeMarkdownFilename(name);
-        const content = applyManagedFrontmatter(
-          coerceString(args.content),
-          { ...args, name },
-          CHARACTER_FRONTMATTER_KEYS,
-        );
-        // M28：以 saveLore 实际落盘的 filename 为准 —— saveLore 内部 sanitizePathSegment
-        // 会把全角标点等非白名单字符换成 _，磁盘名可能 ≠ 传入 filename。undo/rollback
-        // 必须用磁盘真名，否则 deleteLore 找不到文件。
-        const saved = await saveLore({ au_path: auPath, category: "characters", filename, content });
-        const savedFilename = saved.filename;
-
-        // cast_registry 同步失败要 rollback lore（沿用主仓库 D-0029 防原子性破坏）
-        try {
-          const nextCharacters = Array.from(new Set([...(project.cast_registry.characters || []), name]));
-          await saveProjectCastRegistryCharacters(auPath, nextCharacters);
-        } catch (error) {
-          try {
-            await deleteLore({ au_path: auPath, category: "characters", filename: savedFilename });
-          } catch {
-            throw new Error(t("settingsMode.error.createCharacterRollbackFailed", { name: savedFilename }));
-          }
-          throw error;
-        }
-
-        return {
-          resultNote: t("settingsMode.executedWithTarget", { target: savedFilename }),
-          undoMeta: { kind: "lore", category: "characters", filename: savedFilename },
-          warningMessage: null,
-        };
-      }
-
-      if (toolName === "modify_character_file") {
-        // M28：先按磁盘白名单口径归一 filename（sanitizePathSegment），再读旧内容 ——
-        // 否则 LLM 给的含全角标点的 filename 与磁盘真名不符，preserveManagedFrontmatter
-        // 读不到旧文件、受管 frontmatter 白守护失效。
-        const requestedFilename = normalizeMarkdownFilename(coerceString(args.filename));
-        const diskFilename = sanitizePathSegment(requestedFilename);
-        let finalContent = coerceString(args.new_content);
-        // 守护 frontmatter 受管字段（name / aliases / importance / origin_ref）防 LLM 误覆盖。
-        // F9：sanitize 名 read miss 时回退用原名（validateExistingPathSegment 允许的 legacy
-        // 磁盘名）再读一次 —— 早期未清洗即落盘的含全角标点文件，磁盘真名 ≠ sanitize 名，
-        // 若只按 sanitize 名读会 miss → 静默丢失受管字段守护。迁移语义：旧名内容保留守护、
-        // 新写统一落 sanitize 名（下方 saveLore 仍用 diskFilename）。
-        const oldContent = await readLoreWithLegacyFallback({
-          au_path: auPath,
-          category: "characters",
-          diskFilename,
-          legacyFilename: requestedFilename,
-        });
-        if (oldContent !== null) {
-          finalContent = preserveManagedFrontmatter(oldContent, finalContent, CHARACTER_FRONTMATTER_KEYS);
-        }
-        const saved = await saveLore({
-          au_path: auPath,
-          category: "characters",
-          filename: diskFilename,
-          content: finalContent,
-        });
-        return {
-          resultNote: t("settingsMode.executedWithTarget", { target: saved.filename }),
-          undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
-          warningMessage: null,
-        };
-      }
-
-      if (toolName === "create_worldbuilding_file") {
-        const name = coerceTrimmedString(args.name) || t("common.none");
-        const filename = normalizeMarkdownFilename(name);
-        // M28：undoMeta 用 saveLore 回传的磁盘真名（sanitize 后），保证 undo 能删到文件。
-        const saved = await saveLore({
-          au_path: auPath,
-          category: "worldbuilding",
-          filename,
-          content: coerceString(args.content),
-        });
-        return {
-          resultNote: t("settingsMode.executedWithTarget", { target: saved.filename }),
-          undoMeta: { kind: "lore", category: "worldbuilding", filename: saved.filename },
-          warningMessage: null,
-        };
-      }
-
-      if (toolName === "modify_worldbuilding_file") {
-        const filename = normalizeMarkdownFilename(coerceString(args.filename));
-        const saved = await saveLore({
-          au_path: auPath,
-          category: "worldbuilding",
-          filename,
-          content: coerceString(args.new_content),
-        });
-        return {
-          resultNote: t("settingsMode.executedWithTarget", { target: saved.filename }),
-          undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
-          warningMessage: null,
-        };
-      }
-
-      if (toolName === "add_pinned_context") {
-        const content = coerceString(args.content).trim();
-        const index = project.pinned_context?.length ?? 0;
-        await addPinned(auPath, content);
-        return {
-          resultNote: t("settingsMode.executedWithTarget", {
-            target: t("common.labels.pinnedContext"),
-          }),
-          undoMeta: { kind: "pinned", pinnedIndex: index, pinnedContent: content },
-          warningMessage: null,
-        };
-      }
-
-      if (toolName === "update_writing_style") {
-        const field = coerceString(args.field);
-        const value = coerceString(args.value);
-        const writingStyle = {
-          ...(project.writing_style || {}),
-          [field]: value,
-        };
-        await saveProjectWritingStyle(auPath, writingStyle);
-        return {
-          resultNote: t("settingsMode.executedWithTarget", {
-            target: t("common.labels.writingStyle"),
-          }),
-          undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
-          warningMessage: null,
-        };
-      }
+      // === 4. dispatch 6 个支持的 tool（执行体走共享 tool-runners，单一真相源）===
+      // 简版恒 au 模式；project 上方已保证非空（getProjectForEditing 失败会提前 throw）。
+      const runnerCtx: ToolRunnerContext = { basePath: auPath, mode: "au", project, t };
+      if (toolName === "create_character_file") return runCreateCharacterFile(runnerCtx, args);
+      if (toolName === "modify_character_file") return runModifyCharacterFile(runnerCtx, args);
+      if (toolName === "create_worldbuilding_file") return runCreateWorldbuildingFile(runnerCtx, args);
+      if (toolName === "modify_worldbuilding_file") return runModifyWorldbuildingFile(runnerCtx, args);
+      if (toolName === "add_pinned_context") return runAddPinnedContext(runnerCtx, args);
+      if (toolName === "update_writing_style") return runUpdateWritingStyle(runnerCtx, args);
 
       // 全部联合成员均已在上方分支 return —— toolName 在此收窄为 never（引擎新增
       // 简版工具而这里没接分支时，这行就是编译错误落点）。

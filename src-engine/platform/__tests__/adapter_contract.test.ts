@@ -129,5 +129,18 @@ for (const c of cases) {
       await expect(a.getFileSize("d/size.md")).resolves.toBe(3);
       await expect(a.getFileSize("d/absent.md")).resolves.toBe(-1);
     });
+
+    // onVisibilityChange 契约（E4 审）：订阅返回退订函数、订阅不抛、重复退订幂等。
+    // 无 DOM 的 Node 测试环境走 sharedOnVisibilityChange 的 `typeof document === "undefined"`
+    // 分支（返回 no-op），故此处不驱动 cb，只钉订阅/退订的接口契约。
+    it("onVisibilityChange：返回退订函数、订阅不抛、重复退订幂等", () => {
+      let unsub: (() => void) | undefined;
+      expect(() => {
+        unsub = a.onVisibilityChange(() => {});
+      }).not.toThrow();
+      expect(typeof unsub).toBe("function");
+      expect(() => unsub!()).not.toThrow();
+      expect(() => unsub!()).not.toThrow(); // 重复退订幂等，不抛
+    });
   });
 }

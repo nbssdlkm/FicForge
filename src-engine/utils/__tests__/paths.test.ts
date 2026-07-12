@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { joinPath, validateBasePath, validatePathSegment } from "../paths.js";
+import { joinPath, sanitizePathSegment, validateBasePath, validatePathSegment } from "../paths.js";
 
 describe("validateBasePath（系统级路径：允许绝对 + 反斜杠，拒空/空字节/..）", () => {
   it("拒绝空路径", () => {
@@ -81,5 +81,41 @@ describe("joinPath（去重分隔符 + 过滤空段）", () => {
 
   it("首段保留前导斜杠（绝对路径根不被吞）", () => {
     expect(joinPath("/root", "sub")).toBe("/root/sub");
+  });
+});
+
+describe("sanitizePathSegment 幂等性质（E4 审：tool-runners 双清洗落盘一致性依据）", () => {
+  // 代表性输入：全角标点 / 空格点尾缀 / 下划线连串 / normalizeMarkdownFilename 典型输出
+  //（.md 结尾、无前导点、无斜杠）。这些是 tool-runners.runModifyWorldbuildingFile 双清洗
+  //（本处显式 sanitize + saveLore 内部 sanitize）落盘名等价的前提 —— sanitize 对它们幂等，
+  // 双清洗结果 === 单清洗结果。
+  const idempotentInputs = [
+    "全角标点：（你好）？！.md", // 全角标点 → _
+    "name   with   spaces .md", // 内部多空格保留
+    "trailing dots... .md", // 空格 + 点尾缀
+    "a__b___c.md", // 下划线连串 → 单下划线
+    "张三？：李四.md", // normalizeMarkdownFilename 典型输出（保留全角标点）
+    "worldbuilding: the realm.md", // 半角冒号 → _
+    "Foo Bar Baz.md", // 纯 ASCII + 空格
+    "重名_分裂_test.md", // 已清洗形态自洽
+  ];
+
+  for (const input of idempotentInputs) {
+    it(`幂等：sanitize(sanitize(x)) === sanitize(x) —— ${JSON.stringify(input)}`, () => {
+      const once = sanitizePathSegment(input);
+      expect(sanitizePathSegment(once)).toBe(once);
+    });
+  }
+
+  it("控制符+空白+点前缀是唯一非幂等边界（行为锁定：已知非幂等）", () => {
+    // "\x01 .foo"：首遍剥控制符 \x01 → " .foo"，前导空白让 ^\.+ 匹配不到点前缀；.trim() 之后才
+    // 暴露出 ".foo"。第二遍 ^\.+ 才把点前缀剥掉 → "foo"。故单遍 ≠ 双遍——这是 tool-runners 注释
+    // 所述「向设定侧双清洗行为收敛」的唯一边界。这里锁定实际行为，任何改动导致漂移都会被捕获。
+    const boundary = "\x01 .foo";
+    const once = sanitizePathSegment(boundary);
+    const twice = sanitizePathSegment(once);
+    expect(once).toBe(".foo"); // 单遍：点前缀残留
+    expect(twice).toBe("foo"); // 双遍：点前缀被剥
+    expect(once).not.toBe(twice); // 非幂等确证
   });
 });

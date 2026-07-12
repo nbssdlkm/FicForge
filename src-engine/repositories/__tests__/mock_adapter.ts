@@ -133,6 +133,11 @@ export class MockAdapter implements PlatformAdapter {
     this._deviceId = deviceId;
   }
 
+  // 无 DOM 的内存后端：no-op 取消订阅、订阅永不触发（与 shared.ts 无 document 分支同语义）。
+  onVisibilityChange(_cb: (state: "visible" | "hidden") => void): () => void {
+    return () => {};
+  }
+
   /** Helper: seed a file for testing. */
   seed(path: string, content: string): void {
     this.files.set(this.norm(path), content);
