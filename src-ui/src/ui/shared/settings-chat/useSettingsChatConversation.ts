@@ -25,32 +25,19 @@ function createMessageId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function buildOutboundUserMessage(
-  rawInput: string,
-  intent: LargeTextIntent,
-  t: TranslateFn
-): string {
+function buildOutboundUserMessage(rawInput: string, intent: LargeTextIntent, t: TranslateFn): string {
   if (intent === "character") {
-    return [
-      t("settingsMode.prompt.largeTextCharacter"),
-      rawInput,
-    ].join("\n\n");
+    return [t("settingsMode.prompt.largeTextCharacter"), rawInput].join("\n\n");
   }
 
   if (intent === "worldbuilding") {
-    return [
-      t("settingsMode.prompt.largeTextWorldbuilding"),
-      rawInput,
-    ].join("\n\n");
+    return [t("settingsMode.prompt.largeTextWorldbuilding"), rawInput].join("\n\n");
   }
 
   return rawInput;
 }
 
-function serializeAssistantMessage(
-  message: SettingsChatMessage,
-  t: TranslateFn
-): string {
+function serializeAssistantMessage(message: SettingsChatMessage, t: TranslateFn): string {
   const toolSummaries = (message.toolCalls || []).map((card) => {
     const args = Object.entries(card.parsedArgs)
       .slice(0, 4)
@@ -74,13 +61,14 @@ function serializeAssistantMessage(
 
 function toApiMessages(
   messages: SettingsChatMessage[],
-  t: TranslateFn
+  t: TranslateFn,
 ): { role: "user" | "assistant"; content: string }[] {
   return messages.map((message) => ({
     role: message.role,
-    content: message.role === "assistant"
-      ? serializeAssistantMessage(message, t)
-      : (message.requestContent ?? message.content),
+    content:
+      message.role === "assistant"
+        ? serializeAssistantMessage(message, t)
+        : (message.requestContent ?? message.content),
   }));
 }
 
@@ -132,35 +120,30 @@ export function useSettingsChatConversation({
     setInputText("");
   }, [basePath, mode]);
 
-  const hasLoadingCards = messages.some((message) =>
-    (message.toolCalls || []).some((card) => card.isLoading)
-  );
+  const hasLoadingCards = messages.some((message) => (message.toolCalls || []).some((card) => card.isLoading));
   const mutationBusy = sending || hasLoadingCards || isPostMutationBusy;
 
-  const updateMessageCards = useCallback((
-    messageId: string,
-    updater: (cards: ToolCallCardState[]) => ToolCallCardState[]
-  ) => {
-    setMessages((current) =>
-      current.map((message) => {
-        if (message.id !== messageId || !message.toolCalls) return message;
-        return {
-          ...message,
-          toolCalls: updater(message.toolCalls),
-        };
-      })
-    );
-  }, []);
+  const updateMessageCards = useCallback(
+    (messageId: string, updater: (cards: ToolCallCardState[]) => ToolCallCardState[]) => {
+      setMessages((current) =>
+        current.map((message) => {
+          if (message.id !== messageId || !message.toolCalls) return message;
+          return {
+            ...message,
+            toolCalls: updater(message.toolCalls),
+          };
+        }),
+      );
+    },
+    [],
+  );
 
-  const updateSingleCard = useCallback((
-    messageId: string,
-    cardId: string,
-    updater: (card: ToolCallCardState) => ToolCallCardState
-  ) => {
-    updateMessageCards(messageId, (cards) =>
-      cards.map((card) => (card.id === cardId ? updater(card) : card))
-    );
-  }, [updateMessageCards]);
+  const updateSingleCard = useCallback(
+    (messageId: string, cardId: string, updater: (card: ToolCallCardState) => ToolCallCardState) => {
+      updateMessageCards(messageId, (cards) => cards.map((card) => (card.id === cardId ? updater(card) : card)));
+    },
+    [updateMessageCards],
+  );
 
   // async 闭包的同步读口（不暴露 messagesRef）
   const getToolCards = useCallback((messageId: string): ToolCallCardState[] => {
@@ -171,67 +154,67 @@ export function useSettingsChatConversation({
   const findToolCard = useCallback(
     (messageId: string, cardId: string): ToolCallCardState | undefined =>
       getToolCards(messageId).find((item) => item.id === cardId),
-    [getToolCards]
+    [getToolCards],
   );
 
   // postMutationBusy 的语义化开合（hook 规则 3；供 toolActions 用）
   const beginPostMutationRefresh = useCallback(() => setPostMutationBusy(true), []);
   const endPostMutationRefresh = useCallback(() => setPostMutationBusy(false), []);
 
-  const sendMessage = useCallback(async (intent: LargeTextIntent) => {
-    const trimmed = inputText.trim();
-    if (!trimmed || !basePath || mutationBusy || disabled) return;
+  const sendMessage = useCallback(
+    async (intent: LargeTextIntent) => {
+      const trimmed = inputText.trim();
+      if (!trimmed || !basePath || mutationBusy || disabled) return;
 
-    const token = chatGuard.start();
-    const outgoing = buildOutboundUserMessage(trimmed, intent, t);
-    const userMessageId = createMessageId(MESSAGE_STORAGE_PREFIX);
-    const nextMessages = [
-      ...messagesRef.current,
-      {
-        id: userMessageId,
-        role: "user" as const,
-        content: trimmed,
-        requestContent: outgoing,
-      },
-    ];
+      const token = chatGuard.start();
+      const outgoing = buildOutboundUserMessage(trimmed, intent, t);
+      const userMessageId = createMessageId(MESSAGE_STORAGE_PREFIX);
+      const nextMessages = [
+        ...messagesRef.current,
+        {
+          id: userMessageId,
+          role: "user" as const,
+          content: trimmed,
+          requestContent: outgoing,
+        },
+      ];
 
-    setMessages(nextMessages);
-    setSending(true);
+      setMessages(nextMessages);
+      setSending(true);
 
-    try {
-      const response = await sendSettingsChat({
-        base_path: basePath,
-        mode,
-        // 对话历史全量发送，由后端 settings_chat 负责截断（保留最近 5 轮）。
-        messages: [
-          ...toApiMessages(messagesRef.current, t),
-          { role: "user", content: outgoing },
-        ],
-        ...(fandomPath ? { fandom_path: fandomPath } : {}),
-        ...(sessionLlm ? { session_llm: sessionLlm } : {}),
-      });
-      if (chatGuard.isStale(token)) return;
-      const toolCalls = Array.isArray(response.tool_calls) ? response.tool_calls : [];
+      try {
+        const response = await sendSettingsChat({
+          base_path: basePath,
+          mode,
+          // 对话历史全量发送，由后端 settings_chat 负责截断（保留最近 5 轮）。
+          messages: [...toApiMessages(messagesRef.current, t), { role: "user", content: outgoing }],
+          ...(fandomPath ? { fandom_path: fandomPath } : {}),
+          ...(sessionLlm ? { session_llm: sessionLlm } : {}),
+        });
+        if (chatGuard.isStale(token)) return;
+        const toolCalls = Array.isArray(response.tool_calls) ? response.tool_calls : [];
 
-      const assistantMessage: SettingsChatMessage = {
-        id: createMessageId(MESSAGE_STORAGE_PREFIX),
-        role: "assistant",
-        content: response.content || t("settingsMode.emptyAssistant"),
-        toolCalls: toolCalls.map((toolCall) => createToolCallCardState(toolCall)),
-      };
+        const assistantMessage: SettingsChatMessage = {
+          id: createMessageId(MESSAGE_STORAGE_PREFIX),
+          role: "assistant",
+          content: response.content || t("settingsMode.emptyAssistant"),
+          toolCalls: toolCalls.map((toolCall) => createToolCallCardState(toolCall)),
+        };
 
-      setMessages((current) => [...current, assistantMessage]);
-      setInputText("");
-    } catch (error) {
-      if (chatGuard.isStale(token)) return;
-      setMessages((current) => current.filter((message) => message.id !== userMessageId));
-      showError(error, t("error_messages.unknown"));
-    } finally {
-      if (!chatGuard.isStale(token)) {
-        setSending(false);
+        setMessages((current) => [...current, assistantMessage]);
+        setInputText("");
+      } catch (error) {
+        if (chatGuard.isStale(token)) return;
+        setMessages((current) => current.filter((message) => message.id !== userMessageId));
+        showError(error, t("error_messages.unknown"));
+      } finally {
+        if (!chatGuard.isStale(token)) {
+          setSending(false);
+        }
       }
-    }
-  }, [basePath, chatGuard, disabled, fandomPath, inputText, mode, mutationBusy, sessionLlm, showError, t]);
+    },
+    [basePath, chatGuard, disabled, fandomPath, inputText, mode, mutationBusy, sessionLlm, showError, t],
+  );
 
   return {
     messages,

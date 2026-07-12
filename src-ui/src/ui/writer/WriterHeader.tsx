@@ -2,13 +2,13 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { AlertCircle, FileUp } from 'lucide-react';
-import { Button } from '../shared/Button';
-import { Tag } from '../shared/Tag';
-import { ThemeToggle } from '../shared/ThemeToggle';
-import { useTranslation } from '../../i18n/useAppTranslation';
+import { AlertCircle, FileUp } from "lucide-react";
+import { Button } from "../shared/Button";
+import { Tag } from "../shared/Tag";
+import { ThemeToggle } from "../shared/ThemeToggle";
+import { useTranslation } from "../../i18n/useAppTranslation";
 
-export type WriterMode = 'write' | 'settings';
+export type WriterMode = "write" | "settings";
 
 export interface WriterHeaderProps {
   mode: WriterMode;
@@ -51,60 +51,74 @@ export function WriterHeader({
       <div className="flex items-center gap-4">
         <div className="hidden rounded-sm border border-rule bg-surface/60 p-1 md:inline-flex">
           <Button
-            tone={mode === 'write' ? 'accent' : 'neutral'}
-            fill={mode === 'write' ? 'solid' : 'plain'}
+            tone={mode === "write" ? "accent" : "neutral"}
+            fill={mode === "write" ? "solid" : "plain"}
             size="sm"
             className="h-8"
-            onClick={() => onModeChange('write')}
+            onClick={() => onModeChange("write")}
             disabled={isSettingsModeBusy}
           >
-            {t('settingsMode.tabWrite')}
+            {t("settingsMode.tabWrite")}
           </Button>
           <Button
-            tone={mode === 'settings' ? 'accent' : 'neutral'}
-            fill={mode === 'settings' ? 'solid' : 'plain'}
+            tone={mode === "settings" ? "accent" : "neutral"}
+            fill={mode === "settings" ? "solid" : "plain"}
             size="sm"
             className="h-8"
-            onClick={() => onModeChange('settings')}
+            onClick={() => onModeChange("settings")}
           >
-            {t('settingsMode.tabSettings')}
+            {t("settingsMode.tabSettings")}
           </Button>
         </div>
         <div className="md:hidden">
           <p className="text-sm font-medium text-text/70">
             {isViewingHistory
-              ? t('workspace.chapterItem', { num: viewingHistoryNum })
-              : t('workspace.chapterItem', { num: currentChapter })}
+              ? t("workspace.chapterItem", { num: viewingHistoryNum })
+              : t("workspace.chapterItem", { num: currentChapter })}
           </p>
           <p className="mt-0.5 text-xs text-text/30">
-            {metaModel} · {t('writer.metaWords', { count: metaChars })} · {metaDuration}
+            {metaModel} · {t("writer.metaWords", { count: metaChars })} · {metaDuration}
           </p>
         </div>
         <div className="hidden items-center gap-4 md:flex">
-          <span>{metaModel} · T{sessionTemp}</span>
-          <span>{t('writer.metaWords', { count: metaChars })}</span>
+          <span>
+            {metaModel} · T{sessionTemp}
+          </span>
+          <span>{t("writer.metaWords", { count: metaChars })}</span>
           <span>{metaDuration}</span>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        {mode === 'write' && isGenerating && (
-          <Tag tone="warning" className="mr-2">{t('common.status.generating')}</Tag>
+        {mode === "write" && isGenerating && (
+          <Tag tone="warning" className="mr-2">
+            {t("common.status.generating")}
+          </Tag>
         )}
         {hasDirty && (
           <Button
-            tone="neutral" fill="plain"
+            tone="neutral"
+            fill="plain"
             size="sm"
             className="h-11 text-warning md:h-8"
             onClick={onOpenDirty}
-            title={t('writer.dirtyButtonTitle')}
+            title={t("writer.dirtyButtonTitle")}
           >
             <AlertCircle size={16} />
           </Button>
         )}
-        <Button tone="neutral" fill="plain" size="sm" className="h-11 md:h-8" onClick={onOpenExport} title={t('writer.exportButtonTitle')}>
+        <Button
+          tone="neutral"
+          fill="plain"
+          size="sm"
+          className="h-11 md:h-8"
+          onClick={onOpenExport}
+          title={t("writer.exportButtonTitle")}
+        >
           <FileUp size={16} />
         </Button>
-        <span className="hidden md:inline-flex"><ThemeToggle /></span>
+        <span className="hidden md:inline-flex">
+          <ThemeToggle />
+        </span>
       </div>
     </header>
   );

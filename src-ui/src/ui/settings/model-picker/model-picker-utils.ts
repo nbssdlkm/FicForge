@@ -126,18 +126,17 @@ function userEntryToOption(entry: CustomModelEntry, origin: "enabled" | "custom"
     id: entry.id,
     displayName: entry.displayName || entry.id,
     type: entry.type,
-    ctx: typeof entry.contextWindow === "number"
-      ? { source: "manual", value: entry.contextWindow }
-      : estimateCtx(entry.id),
+    ctx:
+      typeof entry.contextWindow === "number"
+        ? { source: "manual", value: entry.contextWindow }
+        : estimateCtx(entry.id),
     origin,
   };
 }
 
 function estimateCtx(modelId: string): CtxInfo {
   const estimated = contextWindowForModel(modelId);
-  return estimated !== undefined
-    ? { source: "estimated", value: estimated }
-    : { source: "unknown" };
+  return estimated !== undefined ? { source: "estimated", value: estimated } : { source: "unknown" };
 }
 
 /**
@@ -205,7 +204,8 @@ export function formatCtx(tokens: number): string {
 // 拉取清单：embedding 启发式 + 系列分组（Kelivo 蓝图 §一 模型管理②）
 // ---------------------------------------------------------------------------
 
-const EMBEDDING_ID_RE = /(embed|embedding|(^|[-_/])bge([-_/]|$)|bge-|text-embedding|(^|[-_/])gte[-_]|m3e|(^|[-_/])e5[-_]|voyage|jina)/i;
+const EMBEDDING_ID_RE =
+  /(embed|embedding|(^|[-_/])bge([-_/]|$)|bge-|text-embedding|(^|[-_/])gte[-_]|m3e|(^|[-_/])e5[-_]|voyage|jina)/i;
 
 /** 模型 id 是否像 embedding 模型（拉取清单自动预标 type，用户可改）。 */
 export function isLikelyEmbeddingId(id: string): boolean {
@@ -236,11 +236,7 @@ export function modelGroupKey(id: string): string {
 }
 
 /** 分组顺序 = MODEL_SERIES 顺序 + embedding + other（拉取 sheet 展示序）。 */
-export const MODEL_GROUP_ORDER: readonly string[] = [
-  ...MODEL_SERIES.map((s) => s.key),
-  "embedding",
-  "other",
-];
+export const MODEL_GROUP_ORDER: readonly string[] = [...MODEL_SERIES.map((s) => s.key), "embedding", "other"];
 
 // ---------------------------------------------------------------------------
 // 会话级生效层级（实施项 6 badge 判据 —— 读 useSessionParams 现有解析结果）

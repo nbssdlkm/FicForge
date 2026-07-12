@@ -45,7 +45,7 @@ export function SettingsChatInput({
     <div className="safe-area-bottom flex flex-col border-t border-black/10 bg-surface/45 dark:border-white/10">
       <button
         className="mx-auto flex min-h-[44px] items-center gap-1 px-4 py-1 text-xs text-text/50 transition-colors hover:text-text/70"
-        onClick={() => setCollapsed(prev => !prev)}
+        onClick={() => setCollapsed((prev) => !prev)}
       >
         {collapsed ? <ChevronsUp size={12} /> : <ChevronsDown size={12} />}
         {collapsed ? t("writer.expandToolbar") : t("writer.collapseToolbar")}
@@ -63,13 +63,31 @@ export function SettingsChatInput({
             <div className="rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
               <p className="mb-3 font-medium">{t("settingsMode.largeTextDetected")}</p>
               <div className="flex flex-wrap gap-2">
-                <Button tone="neutral" fill="outline" size="sm" onClick={() => onLargeTextAction("character")} disabled={sending || disableSend}>
+                <Button
+                  tone="neutral"
+                  fill="outline"
+                  size="sm"
+                  onClick={() => onLargeTextAction("character")}
+                  disabled={sending || disableSend}
+                >
                   {t("settingsMode.importAsCharacter")}
                 </Button>
-                <Button tone="neutral" fill="outline" size="sm" onClick={() => onLargeTextAction("worldbuilding")} disabled={sending || disableSend}>
+                <Button
+                  tone="neutral"
+                  fill="outline"
+                  size="sm"
+                  onClick={() => onLargeTextAction("worldbuilding")}
+                  disabled={sending || disableSend}
+                >
                   {t("settingsMode.importAsWorldbuilding")}
                 </Button>
-                <Button tone="neutral" fill="plain" size="sm" onClick={() => onLargeTextAction("instruction")} disabled={sending || disableSend}>
+                <Button
+                  tone="neutral"
+                  fill="plain"
+                  size="sm"
+                  onClick={() => onLargeTextAction("instruction")}
+                  disabled={sending || disableSend}
+                >
                   {t("settingsMode.sendAsInstruction")}
                 </Button>
               </div>
@@ -85,13 +103,17 @@ export function SettingsChatInput({
               className={`resize-none ${compact ? "min-h-[110px]" : "min-h-[128px]"} bg-background/80`}
             />
             <div className="flex items-center justify-end">
-              <Button tone="accent" fill="solid" onClick={onSend} disabled={!canSendNormally} className={compact ? "w-full" : "min-w-[112px] w-full sm:w-auto"}>
+              <Button
+                tone="accent"
+                fill="solid"
+                onClick={onSend}
+                disabled={!canSendNormally}
+                className={compact ? "w-full" : "min-w-[112px] w-full sm:w-auto"}
+              >
                 {sending ? <Spinner size="md" /> : t("settingsMode.send")}
               </Button>
             </div>
-            {busyHint ? (
-              <p className="text-xs text-text/50">{busyHint}</p>
-            ) : null}
+            {busyHint ? <p className="text-xs text-text/50">{busyHint}</p> : null}
           </div>
         </div>
       )}

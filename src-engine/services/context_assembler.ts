@@ -104,11 +104,7 @@ function custom_instructions_block(P: PromptModule, ws: WritingStyle | undefined
 // build_system_prompt（P0 + 规则）
 // ===========================================================================
 
-export function build_system_prompt(
-  project: Project,
-  trim_custom = false,
-  language = "zh",
-): string {
+export function build_system_prompt(project: Project, trim_custom = false, language = "zh"): string {
   const P = getPrompts(language as "zh" | "en");
   const parts: string[] = [P.SYSTEM_NOVELIST];
 
@@ -133,9 +129,10 @@ export function build_system_prompt(
   const chapterLength = project.chapter_length ?? 1500;
   const chapterLengthMax = Math.trunc(chapterLength * 1.3);
   parts.push(
-    P.GENERIC_RULES
-      .replace("{chapter_length}", String(chapterLength))
-      .replace("{chapter_length_max}", String(chapterLengthMax)),
+    P.GENERIC_RULES.replace("{chapter_length}", String(chapterLength)).replace(
+      "{chapter_length_max}",
+      String(chapterLengthMax),
+    ),
   );
 
   // --- custom_instructions ---
@@ -172,9 +169,7 @@ export function build_instruction(
   // chapter_focus 分支。审计⑥：已归档（冷）fact 即便还挂在 chapter_focus 里，也不再作为
   // 「本章推进目标」注入 prompt —— 与 build_facts_layer / RAG query 同用 isColdFact 单一真相源。
   const focusIds = state.chapter_focus ?? [];
-  const focusFacts = focusIds.length > 0
-    ? facts.filter((f) => focusIds.includes(f.id) && !isColdFact(f))
-    : [];
+  const focusFacts = focusIds.length > 0 ? facts.filter((f) => focusIds.includes(f.id) && !isColdFact(f)) : [];
 
   if (focusFacts.length > 0) {
     // 推进目标块（知情标注同步带上——否则本章最核心的事实反而缺知情边界，M3 批一）
@@ -260,11 +255,7 @@ export function build_fact_enrichment_suffix(fact: Fact): string {
   const parts: string[] = [];
 
   // time_kind（高价值；normal 无信息量，跳过）
-  if (
-    fact.time_kind != null &&
-    fact.time_kind !== "normal" &&
-    inject(c?.time_kind)
-  ) {
+  if (fact.time_kind != null && fact.time_kind !== "normal" && inject(c?.time_kind)) {
     parts.push(`time_kind: ${fact.time_kind}`);
   }
 
@@ -390,10 +381,7 @@ export function build_facts_layer(
 
   if (sortedUnresolved.length > 0) {
     // Budget includes both content_clean and the enrichment suffix that will be appended.
-    const totalUrTokens = sortedUnresolved.reduce(
-      (sum, f) => sum + _count(lineBody(f), llm_config).count,
-      0,
-    );
+    const totalUrTokens = sortedUnresolved.reduce((sum, f) => sum + _count(lineBody(f), llm_config).count, 0);
 
     if (totalUrTokens <= budget_tokens) {
       unresolvedKept = sortedUnresolved;
@@ -413,10 +401,7 @@ export function build_facts_layer(
   }
 
   const remainingBudget =
-    budget_tokens - unresolvedKept.reduce(
-      (sum, f) => sum + _count(lineBody(f), llm_config).count,
-      0,
-    );
+    budget_tokens - unresolvedKept.reduce((sum, f) => sum + _count(lineBody(f), llm_config).count, 0);
 
   // --- active 截断 ---
   const activeKept: Fact[] = [];
@@ -525,10 +510,10 @@ export function build_threads_layer(
   const lines: string[] = [];
   let used = 0;
   for (const t of active) {
-    const stateText = (t.state?.trim() || t.description?.trim() || "");
+    const stateText = t.state?.trim() || t.description?.trim() || "";
     const line = stateText ? `- 【${t.title}】${stateText}` : `- 【${t.title}】`;
     const tk = _count(line, llm_config).count;
-    if (used + tk > budget_tokens) break;   // 预算截断，丢尾部
+    if (used + tk > budget_tokens) break; // 预算截断，丢尾部
     lines.push(line);
     used += tk;
   }
@@ -728,8 +713,21 @@ interface MemoryCascadeResult {
 
 async function run_memory_layer_cascade(p: MemoryCascadeParams): Promise<MemoryCascadeResult> {
   const {
-    base_budget, guarantee, focus_ids, facts, threads, state, chapter_repo, au_id,
-    project, character_files, worldbuilding_files, llm, language, report, truncated_layers,
+    base_budget,
+    guarantee,
+    focus_ids,
+    facts,
+    threads,
+    state,
+    chapter_repo,
+    au_id,
+    project,
+    character_files,
+    worldbuilding_files,
+    llm,
+    language,
+    report,
+    truncated_layers,
   } = p;
   let used = p.used;
   const rag_text = p.rag_text;
@@ -776,7 +774,12 @@ async function run_memory_layer_cascade(p: MemoryCascadeParams): Promise<MemoryC
   // === P5 核心设定（最低优先级，但有 core_guarantee 低保）===
   const p5Budget = Math.max(guarantee, base_budget - used);
   const [p5Text, p5Injected, p5Truncated, p5WbInjected] = build_core_settings_layer(
-    project, character_files, p5Budget, llm, language, worldbuilding_files,
+    project,
+    character_files,
+    p5Budget,
+    llm,
+    language,
+    worldbuilding_files,
   );
   const p5Tokens = _count(p5Text, llm).count;
   used += p5Tokens;
@@ -817,13 +820,16 @@ function compute_max_output_tokens(
   const chapterTokenCap = chapterLength ? chapterLength * 2 : Infinity;
   const maxTokens = Math.min(
     get_model_max_output(modelName),
-    Math.trunc(contextWindow * 0.40),
+    Math.trunc(contextWindow * 0.4),
     chapterTokenCap,
     OUTPUT_RESERVE_CEIL,
   );
   // 警告：超长章节被 CEIL 截断时打 warn，让用户感知
   if (chapterTokenCap !== Infinity && chapterTokenCap > OUTPUT_RESERVE_CEIL) {
-    warnAlways(logTag, `chapter_length=${chapterLength} 对应 ${chapterTokenCap} tokens 超过 OUTPUT_RESERVE_CEIL=${OUTPUT_RESERVE_CEIL}，maxTokens 被夹至 ${maxTokens}，章节可能被 LLM 截断`);
+    warnAlways(
+      logTag,
+      `chapter_length=${chapterLength} 对应 ${chapterTokenCap} tokens 超过 OUTPUT_RESERVE_CEIL=${OUTPUT_RESERVE_CEIL}，maxTokens 被夹至 ${maxTokens}，章节可能被 LLM 截断`,
+    );
   }
   return maxTokens;
 }
@@ -841,15 +847,11 @@ const SAFETY_BUFFER = 500;
  * 不在此钳零：写文路径靠返回值 ≤0 触发裁剪 custom_instructions 的 fail-safe 再重算；对话路径在
  * 外层自己套 Math.max(0, …)。把公式抽到这一处后，retune 只改这里，杜绝两 assembler 手抄漂移。
  */
-export function compute_input_budget(
-  contextWindow: number,
-  systemTokens: number,
-  maxOutputTokens: number,
-): number {
+export function compute_input_budget(contextWindow: number, systemTokens: number, maxOutputTokens: number): number {
   const reservedForOutput = Math.max(maxOutputTokens, OUTPUT_RESERVE_FLOOR);
   return Math.max(
     contextWindow - reservedForOutput - systemTokens - SAFETY_BUFFER,
-    Math.trunc(contextWindow * 0.60) - systemTokens,
+    Math.trunc(contextWindow * 0.6) - systemTokens,
   );
 }
 
@@ -924,10 +926,23 @@ export async function assemble_context(
   // === P3→thread→P2→P4→P5：记忆层级联（与 assemble_chat_context 共用单一真相源）===
   // 写文路径 base = budget（无 chatHistoryReserve），P3 focus = chapter_focus。
   const cascade = await run_memory_layer_cascade({
-    base_budget: budget, guarantee, used, focus_ids: focusIds,
-    facts, threads, state, chapter_repo, au_id, rag_text: rag_results,
-    project, character_files, worldbuilding_files, llm, language,
-    report, truncated_layers: truncatedLayers,
+    base_budget: budget,
+    guarantee,
+    used,
+    focus_ids: focusIds,
+    facts,
+    threads,
+    state,
+    chapter_repo,
+    au_id,
+    rag_text: rag_results,
+    project,
+    character_files,
+    worldbuilding_files,
+    llm,
+    language,
+    report,
+    truncated_layers: truncatedLayers,
   });
   const { p3Text, threadText, p2Text, p4Text, p5Text, p5Injected, p5Truncated, p5WbInjected } = cascade;
   used = cascade.used;
@@ -951,15 +966,11 @@ export async function assemble_context(
     summary.facts_injected = p3Text.split("\n").filter((line) => line.startsWith("- [")).length;
     // M10-B: 统计被冷区过滤的 fact 数（旧 fact 无 archived 字段时 undefined !== true → 不计入）
     summary.facts_archived_count = facts.filter(
-      (f) =>
-        (f.status === FactStatus.ACTIVE || f.status === FactStatus.UNRESOLVED) &&
-        isColdFact(f),
+      (f) => (f.status === FactStatus.ACTIVE || f.status === FactStatus.UNRESOLVED) && isColdFact(f),
     ).length;
 
     if (p4Text) {
-      const ragContentLines = p4Text
-        .split("\n")
-        .filter((line) => line.trim() && !line.startsWith("### "));
+      const ragContentLines = p4Text.split("\n").filter((line) => line.trim() && !line.startsWith("### "));
       summary.rag_chunks_retrieved = ragContentLines.length;
     }
 
@@ -1009,9 +1020,10 @@ export function build_system_prompt_simple(project: Project, language = "zh"): s
   const chapterLengthMax = Math.trunc(chapterLength * 1.3);
 
   const parts: string[] = [
-    P.SIMPLE_CHAT_SYSTEM
-      .replace("{chapter_length}", String(chapterLength))
-      .replace("{chapter_length_max}", String(chapterLengthMax)),
+    P.SIMPLE_CHAT_SYSTEM.replace("{chapter_length}", String(chapterLength)).replace(
+      "{chapter_length_max}",
+      String(chapterLengthMax),
+    ),
   ];
 
   // P0 铁律（add_pinned_context 在对话版仍有效）
@@ -1050,7 +1062,7 @@ export function build_system_prompt_simple(project: Project, language = "zh"): s
  * export 供 context_assembler.chat.test.ts 复算 memBudget 断言记忆层确实被压在 budget−reserve
  * 内（而非仅靠 core_guarantee 兜出 budget_remaining>0 —— 那是伪命题，抓不住 reserve 回归）。
  */
-export const CHAT_HISTORY_RESERVE_RATIO = 0.30;
+export const CHAT_HISTORY_RESERVE_RATIO = 0.3;
 export const CHAT_HISTORY_RESERVE_CEIL = 12_000;
 
 /** 对话路径分层组装产物契约。budget_report 必须保留（token badge 经 estimate 读它）。 */
@@ -1117,14 +1129,19 @@ export interface AssembleChatContextParams {
  * **组装时机契约**：本函数在 runAgentLoop 之前调用一次，systemContent 进 startMessages[0]，
  * 循环内不重组（否则每轮重算 RAG）。详见 simple_chat_dispatch.ts。
  */
-export async function assemble_chat_context(
-  params: AssembleChatContextParams,
-): Promise<AssembleChatContextResult> {
+export async function assemble_chat_context(params: AssembleChatContextParams): Promise<AssembleChatContextResult> {
   const {
-    project, state, user_input, facts,
-    threads = [], chapter_repo, au_id,
-    character_files = null, worldbuilding_files = null,
-    vector_repo, embedding_provider,
+    project,
+    state,
+    user_input,
+    facts,
+    threads = [],
+    chapter_repo,
+    au_id,
+    character_files = null,
+    worldbuilding_files = null,
+    vector_repo,
+    embedding_provider,
     language = "zh",
     effective_llm = null,
   } = params;
@@ -1148,7 +1165,12 @@ export async function assemble_chat_context(
   report.system_tokens = systemTokens;
 
   // --- max_tokens（D-0039 单一真相源）---
-  const maxTokens = compute_max_output_tokens(project, contextWindow, "assemble_chat_context", effective_llm ?? undefined);
+  const maxTokens = compute_max_output_tokens(
+    project,
+    contextWindow,
+    "assemble_chat_context",
+    effective_llm ?? undefined,
+  );
   report.max_output_tokens = maxTokens;
 
   // --- input budget（公式单一真相源见 compute_input_budget，与 assemble_context 同源）---
@@ -1159,10 +1181,7 @@ export async function assemble_chat_context(
   const guarantee = project.core_guarantee_budget ?? 400;
 
   // --- chatHistoryReserve：给过去多轮历史留余量（上限封顶）---
-  const chatHistoryReserve = Math.min(
-    Math.trunc(budget * CHAT_HISTORY_RESERVE_RATIO),
-    CHAT_HISTORY_RESERVE_CEIL,
-  );
+  const chatHistoryReserve = Math.min(Math.trunc(budget * CHAT_HISTORY_RESERVE_RATIO), CHAT_HISTORY_RESERVE_CEIL);
   // 记忆层只在 memBudget 内竞争；最新轮 user 不受 reserve 压缩（先计入 used 硬保）。
   const memBudget = Math.max(0, budget - chatHistoryReserve);
 
@@ -1179,10 +1198,16 @@ export async function assemble_chat_context(
   // gate 与 generate_chapter 一致：rag_text 已给则跳过；否则两 repo 都在才检索。
   if (rag_text === null && vector_repo && embedding_provider) {
     const rag = await retrieve_rag_for_context({
-      project, state, user_input, facts,
-      vector_repo, embedding_provider, au_id,
-      llm_config: llm, language,
-      effective_llm,   // H4：ragBudget（≈ctx/4）随实际生效模型的窗口走
+      project,
+      state,
+      user_input,
+      facts,
+      vector_repo,
+      embedding_provider,
+      au_id,
+      llm_config: llm,
+      language,
+      effective_llm, // H4：ragBudget（≈ctx/4）随实际生效模型的窗口走
     });
     rag_text = rag.ragText;
   }
@@ -1192,10 +1217,23 @@ export async function assemble_chat_context(
   // 概念（那是续写体 P1 build_instruction 的机制），故 focus_ids 传空数组 —— 所有
   // active/unresolved fact 都进 P3，不会被 focus 排除后凭空丢失。
   const cascade = await run_memory_layer_cascade({
-    base_budget: memBudget, guarantee, used, focus_ids: [],
-    facts, threads, state, chapter_repo, au_id, rag_text,
-    project, character_files, worldbuilding_files, llm, language,
-    report, truncated_layers: truncatedLayers,
+    base_budget: memBudget,
+    guarantee,
+    used,
+    focus_ids: [],
+    facts,
+    threads,
+    state,
+    chapter_repo,
+    au_id,
+    rag_text,
+    project,
+    character_files,
+    worldbuilding_files,
+    llm,
+    language,
+    report,
+    truncated_layers: truncatedLayers,
   });
   const { p3Text, threadText, p2Text, p4Text, p5Text, p5Injected, p5Truncated, p5WbInjected } = cascade;
   used = cascade.used;
@@ -1214,9 +1252,7 @@ export async function assemble_chat_context(
     summary.pinned_count = (project.pinned_context ?? []).length;
     summary.facts_injected = p3Text.split("\n").filter((line) => line.startsWith("- [")).length;
     summary.facts_archived_count = facts.filter(
-      (f) =>
-        (f.status === FactStatus.ACTIVE || f.status === FactStatus.UNRESOLVED) &&
-        isColdFact(f),
+      (f) => (f.status === FactStatus.ACTIVE || f.status === FactStatus.UNRESOLVED) && isColdFact(f),
     ).length;
     if (p4Text) {
       summary.rag_chunks_retrieved = p4Text
@@ -1236,9 +1272,8 @@ export async function assemble_chat_context(
   // 记忆层顺序对齐 assemble_context 反转后布局（去掉 P1）：P5→P4→P2→thread→P3。
   // facts(P3) 紧贴 latestUser 之前 = 最高显著性；空层 filter(Boolean) 滤掉。
   const memoryLayers = [p5Text, p4Text, p2Text, threadText, p3Text].filter(Boolean);
-  const systemContent = memoryLayers.length > 0
-    ? `${personaPrompt}\n\n---\n\n${memoryLayers.join("\n\n")}`
-    : personaPrompt;
+  const systemContent =
+    memoryLayers.length > 0 ? `${personaPrompt}\n\n---\n\n${memoryLayers.join("\n\n")}` : personaPrompt;
 
   return {
     systemContent,

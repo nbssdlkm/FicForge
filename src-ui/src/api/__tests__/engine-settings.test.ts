@@ -42,10 +42,7 @@ describe("engine-settings write queue", () => {
       reading_cjk_font_id: "reading-cjk-test",
     };
 
-    await Promise.all([
-      saveAppPreferences({ language: "en" }),
-      saveFontPreferences(fonts),
-    ]);
+    await Promise.all([saveAppPreferences({ language: "en" }), saveFontPreferences(fonts)]);
 
     const settings = await getSettingsForEditing();
     expect(settings.app.language).toBe("en");

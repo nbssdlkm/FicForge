@@ -47,12 +47,16 @@ const specs: SecureFieldSpec<TestObj>[] = [
   {
     secureKey: "test.api_key",
     get: (o) => o.api_key,
-    set: (o, v) => { o.api_key = v; },
+    set: (o, v) => {
+      o.api_key = v;
+    },
   },
   {
     secureKey: "test.password",
     get: (o) => o.password,
-    set: (o, v) => { o.password = v; },
+    set: (o, v) => {
+      o.password = v;
+    },
   },
 ];
 
@@ -118,7 +122,7 @@ describe("restoreSecureFields", () => {
     await restoreSecureFields(obj, specs, adapter);
 
     expect(obj.api_key).toBe("sk-real");
-    expect(obj.password).toBe("");  // 读不到 → 置空
+    expect(obj.password).toBe(""); // 读不到 → 置空
   });
 
   it("旧版本明文自动迁移到 secure storage（实现无感升级）", async () => {
@@ -208,7 +212,7 @@ describe("restoreSecureFields", () => {
       await restoreSecureFields(obj, specs, adapter);
 
       expect(obj.api_key).toBe(SECURE_PLACEHOLDER); // 故障字段保持已存储语义
-      expect(obj.password).toBe("pw-ok");           // 健康字段正常还原
+      expect(obj.password).toBe("pw-ok"); // 健康字段正常还原
     } finally {
       warnSpy.mockRestore();
     }
@@ -250,9 +254,7 @@ describe("removeSecureFields", () => {
     const adapter = new MockAdapter();
     await adapter.secureSet("test.exists", "v");
 
-    await expect(
-      removeSecureFields(["test.exists", "test.does.not.exist"], adapter),
-    ).resolves.not.toThrow();
+    await expect(removeSecureFields(["test.exists", "test.does.not.exist"], adapter)).resolves.not.toThrow();
 
     expect(await adapter.secureGet("test.exists")).toBe(null);
   });

@@ -2,12 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, it, expect, vi } from "vitest";
-import {
-  consoleSink,
-  createTelemetry,
-  type TelemetrySink,
-  type TelemetryEvent,
-} from "../agent_telemetry.js";
+import { consoleSink, createTelemetry, type TelemetrySink, type TelemetryEvent } from "../agent_telemetry.js";
 
 describe("agent_telemetry", () => {
   describe("consoleSink", () => {

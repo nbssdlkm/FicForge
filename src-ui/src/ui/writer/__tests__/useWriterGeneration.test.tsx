@@ -5,9 +5,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../api/engine-client", async () => {
-  const actual = await vi.importActual<typeof import("../../../api/engine-client")>(
-    "../../../api/engine-client",
-  );
+  const actual = await vi.importActual<typeof import("../../../api/engine-client")>("../../../api/engine-client");
   return {
     ...actual,
     generateChapter: vi.fn(),
@@ -25,27 +23,29 @@ type StreamCall = {
 const mockedGenerateChapter = vi.mocked(engineClient.generateChapter);
 
 function createPendingGenerateMock(calls: StreamCall[]) {
-  return vi.fn((_params: unknown, options?: { signal?: AbortSignal }) => (async function* () {
-    calls.push({ signal: options?.signal });
+  return vi.fn((_params: unknown, options?: { signal?: AbortSignal }) =>
+    (async function* () {
+      calls.push({ signal: options?.signal });
 
-    await new Promise<never>((_resolve, reject) => {
-      if (!options?.signal) {
-        return;
-      }
+      await new Promise<never>((_resolve, reject) => {
+        if (!options?.signal) {
+          return;
+        }
 
-      const onAbort = () => {
-        options.signal?.removeEventListener("abort", onAbort);
-        reject(new DOMException("Aborted", "AbortError"));
-      };
+        const onAbort = () => {
+          options.signal?.removeEventListener("abort", onAbort);
+          reject(new DOMException("Aborted", "AbortError"));
+        };
 
-      if (options.signal.aborted) {
-        onAbort();
-        return;
-      }
+        if (options.signal.aborted) {
+          onAbort();
+          return;
+        }
 
-      options.signal.addEventListener("abort", onAbort, { once: true });
-    });
-  })());
+        options.signal.addEventListener("abort", onAbort, { once: true });
+      });
+    })(),
+  );
 }
 
 function renderGenerationHook(initialAuPath = "/data/fandoms/F/aus/A1") {
@@ -74,16 +74,19 @@ function renderGenerationHook(initialAuPath = "/data/fandoms/F/aus/A1") {
     t: (key: string) => key,
   };
 
-  const hook = renderHook(({ auPath }) => {
-    const generateGuard = useActiveRequestGuard(auPath);
-    return useWriterGeneration({
-      ...options,
-      auPath,
-      generateGuard,
-    });
-  }, {
-    initialProps: { auPath: initialAuPath },
-  });
+  const hook = renderHook(
+    ({ auPath }) => {
+      const generateGuard = useActiveRequestGuard(auPath);
+      return useWriterGeneration({
+        ...options,
+        auPath,
+        generateGuard,
+      });
+    },
+    {
+      initialProps: { auPath: initialAuPath },
+    },
+  );
 
   return {
     ...hook,

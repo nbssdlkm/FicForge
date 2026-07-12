@@ -12,11 +12,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import {
-  getGenerationModeAvailability,
-  getEmbeddingModeAvailability,
-  listGenerationModes,
-} from "../capabilities.js";
+import { getGenerationModeAvailability, getEmbeddingModeAvailability, listGenerationModes } from "../capabilities.js";
 
 describe("getGenerationModeAvailability", () => {
   it("Tauri 桌面：api/ollama 可用，local platform_unsupported（sidecar 退役）", () => {

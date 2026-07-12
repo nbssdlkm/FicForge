@@ -88,29 +88,29 @@ export enum Provenance {
 
 /** 叙事时间种类（M8-A）。 */
 export enum TimeKind {
-  NORMAL    = "normal",     // 正常叙事时序
-  FLASHBACK = "flashback",  // 闪回
-  INSERT    = "insert",     // 插叙（非闪回的非线性片段）
-  DREAM     = "dream",      // 梦境/幻觉
-  PARALLEL  = "parallel",   // 平行时间线
-  IMAGINED  = "imagined",   // 想象/假设
+  NORMAL = "normal", // 正常叙事时序
+  FLASHBACK = "flashback", // 闪回
+  INSERT = "insert", // 插叙（非闪回的非线性片段）
+  DREAM = "dream", // 梦境/幻觉
+  PARALLEL = "parallel", // 平行时间线
+  IMAGINED = "imagined", // 想象/假设
 }
 export const TIME_KIND_VALUES = Object.values(TimeKind) as [TimeKind, ...TimeKind[]];
 
 /** 悬念类型（M8-A）。 */
 export enum SuspenseType {
-  FORESHADOW       = "foreshadow",       // 铺垫/预示
-  SECRET           = "secret",           // 秘密（读者已知角色不知）
+  FORESHADOW = "foreshadow", // 铺垫/预示
+  SECRET = "secret", // 秘密（读者已知角色不知）
   MISUNDERSTANDING = "misunderstanding", // 误解
-  SETUP            = "setup",            // 铺设（待 payoff 的前置条件）
+  SETUP = "setup", // 铺设（待 payoff 的前置条件）
 }
 export const SUSPENSE_TYPE_VALUES = Object.values(SuspenseType) as [SuspenseType, ...SuspenseType[]];
 
 /** 剧情线状态（M8-B）。 */
 export enum ThreadStatus {
-  ACTIVE   = "active",    // 进行中的剧情线（注入续写上下文）
-  RESOLVED = "resolved",  // 已收束
-  DORMANT  = "dormant",   // 暂时搁置
+  ACTIVE = "active", // 进行中的剧情线（注入续写上下文）
+  RESOLVED = "resolved", // 已收束
+  DORMANT = "dormant", // 暂时搁置
 }
 export const THREAD_STATUS_VALUES = Object.values(ThreadStatus) as [ThreadStatus, ...ThreadStatus[]];
 
@@ -127,6 +127,6 @@ export enum OpType {
   REBUILD_INDEX = "rebuild_index",
   RECALC_GLOBAL_STATE = "recalc_global_state",
   UPDATE_PINNED = "update_pinned",
-  ARCHIVE_FACT = "archive_fact",       // M10-B: 冷 fact 固化
-  UNARCHIVE_FACT = "unarchive_fact",   // M10-B: 冷 fact 解除固化
+  ARCHIVE_FACT = "archive_fact", // M10-B: 冷 fact 固化
+  UNARCHIVE_FACT = "unarchive_fact", // M10-B: 冷 fact 解除固化
 }

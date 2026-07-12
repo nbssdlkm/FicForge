@@ -75,25 +75,17 @@ export interface UseSimpleToolExecutorResult {
    * 执行 tool。throws Error on validation fail / IO error / unsupported tool。
    * Error message 已 i18n 化，调用方直接展示给用户。
    */
-  execute: (
-    toolName: string,
-    args: Record<string, unknown>,
-  ) => Promise<SimpleToolExecutionResult>;
+  execute: (toolName: string, args: Record<string, unknown>) => Promise<SimpleToolExecutionResult>;
   /** 基于 undoMeta 撤销之前 execute 的副作用。throws on IO error。 */
   undo: (undoMeta: ToolUndoMeta) => Promise<{ resultNote: string }>;
 }
 
-export function useSimpleToolExecutor(
-  options: SimpleToolExecutorOptions,
-): UseSimpleToolExecutorResult {
+export function useSimpleToolExecutor(options: SimpleToolExecutorOptions): UseSimpleToolExecutorResult {
   const { auPath } = options;
   const { t } = useTranslation();
 
   const execute = useCallback(
-    async (
-      rawToolName: string,
-      args: Record<string, unknown>,
-    ): Promise<SimpleToolExecutionResult> => {
+    async (rawToolName: string, args: Record<string, unknown>): Promise<SimpleToolExecutionResult> => {
       if (!auPath) {
         throw new Error(t("error_messages.unknown"));
       }
@@ -116,41 +108,18 @@ export function useSimpleToolExecutor(
         throw new Error(t("settingsMode.error.supportDataUnavailable"));
       }
 
-      const characterFileNames = new Set(
-        latestCharacterFiles.files.map((f) => f.filename),
-      );
-      const worldbuildingFileNames = new Set(
-        latestWorldbuildingFiles.files.map((f) => f.filename),
-      );
-      const availableCharacterNames = new Set(
-        latestCharacterFiles.files.map((f) => f.name),
-      );
+      const characterFileNames = new Set(latestCharacterFiles.files.map((f) => f.filename));
+      const worldbuildingFileNames = new Set(latestWorldbuildingFiles.files.map((f) => f.filename));
+      const availableCharacterNames = new Set(latestCharacterFiles.files.map((f) => f.name));
 
       // === 2. 校验三连（schema / target 存在 / 防覆盖）===
-      const validationError = getToolValidationError(
-        toolName,
-        args,
-        t,
-        availableCharacterNames,
-      );
+      const validationError = getToolValidationError(toolName, args, t, availableCharacterNames);
       if (validationError) throw new Error(validationError);
 
-      const missingError = getToolMissingTargetError(
-        toolName,
-        args,
-        characterFileNames,
-        worldbuildingFileNames,
-        t,
-      );
+      const missingError = getToolMissingTargetError(toolName, args, characterFileNames, worldbuildingFileNames, t);
       if (missingError) throw new Error(missingError);
 
-      const overwriteWarning = getToolOverwriteWarning(
-        toolName,
-        args,
-        characterFileNames,
-        worldbuildingFileNames,
-        t,
-      );
+      const overwriteWarning = getToolOverwriteWarning(toolName, args, characterFileNames, worldbuildingFileNames, t);
       if (overwriteWarning) throw new Error(overwriteWarning);
 
       // === 3. 拉 project（pinned 防重 + create_character_file rollback 用）===
@@ -161,12 +130,7 @@ export function useSimpleToolExecutor(
         throw new Error(t("settingsMode.error.projectUnavailable"));
       }
 
-      const duplicateWarning = getToolDuplicateWarning(
-        toolName,
-        args,
-        project.pinned_context ?? [],
-        t,
-      );
+      const duplicateWarning = getToolDuplicateWarning(toolName, args, project.pinned_context ?? [], t);
       if (duplicateWarning) throw new Error(duplicateWarning);
 
       // === 4. dispatch 6 个支持的 tool ===
@@ -186,17 +150,13 @@ export function useSimpleToolExecutor(
 
         // cast_registry 同步失败要 rollback lore（沿用主仓库 D-0029 防原子性破坏）
         try {
-          const nextCharacters = Array.from(
-            new Set([...(project.cast_registry.characters || []), name]),
-          );
+          const nextCharacters = Array.from(new Set([...(project.cast_registry.characters || []), name]));
           await saveProjectCastRegistryCharacters(auPath, nextCharacters);
         } catch (error) {
           try {
             await deleteLore({ au_path: auPath, category: "characters", filename: savedFilename });
           } catch {
-            throw new Error(
-              t("settingsMode.error.createCharacterRollbackFailed", { name: savedFilename }),
-            );
+            throw new Error(t("settingsMode.error.createCharacterRollbackFailed", { name: savedFilename }));
           }
           throw error;
         }
@@ -227,11 +187,7 @@ export function useSimpleToolExecutor(
           legacyFilename: requestedFilename,
         });
         if (oldContent !== null) {
-          finalContent = preserveManagedFrontmatter(
-            oldContent,
-            finalContent,
-            CHARACTER_FRONTMATTER_KEYS,
-          );
+          finalContent = preserveManagedFrontmatter(oldContent, finalContent, CHARACTER_FRONTMATTER_KEYS);
         }
         const saved = await saveLore({
           au_path: auPath,
@@ -337,15 +293,12 @@ export function useSimpleToolExecutor(
         const pinnedContext = project.pinned_context || [];
         const pinnedContent = (undoMeta.pinnedContent || "").trim();
         let pinnedIndex =
-          typeof undoMeta.pinnedIndex === "number"
-            && pinnedContext[undoMeta.pinnedIndex]?.trim() === pinnedContent
+          typeof undoMeta.pinnedIndex === "number" && pinnedContext[undoMeta.pinnedIndex]?.trim() === pinnedContent
             ? undoMeta.pinnedIndex
             : -1;
 
         if (pinnedIndex < 0 && pinnedContent) {
-          pinnedIndex = pinnedContext
-            .map((item) => item.trim())
-            .lastIndexOf(pinnedContent);
+          pinnedIndex = pinnedContext.map((item) => item.trim()).lastIndexOf(pinnedContent);
         }
 
         if (pinnedIndex < 0) {

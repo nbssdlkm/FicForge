@@ -61,29 +61,34 @@ describe("WriteTransaction partial commit errors", () => {
 
   it("reports chapter-missing partial commits when ops succeed but chapter write fails", async () => {
     const tx = new WriteTransaction();
-    tx.appendOp("au1", createOpsEntry({
-      op_id: "op_1",
-      op_type: "confirm_chapter",
-      target_id: "chapter-1",
-      chapter_num: 1,
-      timestamp: "2026-04-20T00:00:00Z",
-      payload: { title: "Chapter 1" },
-    }));
-    tx.saveChapter("au1", createChapter({
-      au_id: "au1",
-      chapter_num: 1,
-      content: "confirmed chapter body",
-      chapter_id: "chapter-1",
-      confirmed_at: "2026-04-20T00:00:00Z",
-      content_hash: "hash-1",
-      provenance: "ai",
-    }));
+    tx.appendOp(
+      "au1",
+      createOpsEntry({
+        op_id: "op_1",
+        op_type: "confirm_chapter",
+        target_id: "chapter-1",
+        chapter_num: 1,
+        timestamp: "2026-04-20T00:00:00Z",
+        payload: { title: "Chapter 1" },
+      }),
+    );
+    tx.saveChapter(
+      "au1",
+      createChapter({
+        au_id: "au1",
+        chapter_num: 1,
+        content: "confirmed chapter body",
+        chapter_id: "chapter-1",
+        confirmed_at: "2026-04-20T00:00:00Z",
+        content_hash: "hash-1",
+        provenance: "ai",
+      }),
+    );
     tx.setState(createState({ au_id: "au1", current_chapter: 2 }));
 
     adapter.blockWrite("au1/chapters/main/ch0001.md");
 
-    const error = await tx.commit(opsRepo, null, stateRepo, chapterRepo, null)
-      .catch((err: unknown) => err);
+    const error = await tx.commit(opsRepo, null, stateRepo, chapterRepo, null).catch((err: unknown) => err);
 
     expect(error).toBeInstanceOf(PartialCommitError);
     expect((error as PartialCommitError).errorCode).toBe(PARTIAL_COMMIT_CHAPTER_MISSING);
@@ -102,35 +107,42 @@ describe("WriteTransaction partial commit errors", () => {
 
   it("reports ops-only partial commits when later projection writes fail", async () => {
     const tx = new WriteTransaction();
-    tx.appendOp("au1", createOpsEntry({
-      op_id: "op_2",
-      op_type: "confirm_chapter",
-      target_id: "chapter-2",
-      chapter_num: 2,
-      timestamp: "2026-04-20T00:00:01Z",
-      payload: { title: "Chapter 2" },
-    }));
-    tx.saveChapter("au1", createChapter({
-      au_id: "au1",
-      chapter_num: 2,
-      content: "second confirmed chapter body",
-      chapter_id: "chapter-2",
-      confirmed_at: "2026-04-20T00:00:01Z",
-      content_hash: "hash-2",
-      provenance: "ai",
-    }));
+    tx.appendOp(
+      "au1",
+      createOpsEntry({
+        op_id: "op_2",
+        op_type: "confirm_chapter",
+        target_id: "chapter-2",
+        chapter_num: 2,
+        timestamp: "2026-04-20T00:00:01Z",
+        payload: { title: "Chapter 2" },
+      }),
+    );
+    tx.saveChapter(
+      "au1",
+      createChapter({
+        au_id: "au1",
+        chapter_num: 2,
+        content: "second confirmed chapter body",
+        chapter_id: "chapter-2",
+        confirmed_at: "2026-04-20T00:00:01Z",
+        content_hash: "hash-2",
+        provenance: "ai",
+      }),
+    );
     tx.setState(createState({ au_id: "au1", current_chapter: 3 }));
 
     adapter.blockWrite("au1/state.yaml");
 
-    const error = await tx.commit(opsRepo, null, stateRepo, chapterRepo, null)
-      .catch((err: unknown) => err);
+    const error = await tx.commit(opsRepo, null, stateRepo, chapterRepo, null).catch((err: unknown) => err);
 
     expect(error).toBeInstanceOf(PartialCommitError);
     expect((error as PartialCommitError).errorCode).toBe(PARTIAL_COMMIT_OPS_ONLY);
     expect((error as PartialCommitError).completed).toEqual(["ops", "chapters"]);
     expect((error as PartialCommitError).failed).toEqual(["state"]);
-    expect((error as PartialCommitError).message).toContain("Ops were committed and still describe the canonical state/facts projection");
+    expect((error as PartialCommitError).message).toContain(
+      "Ops were committed and still describe the canonical state/facts projection",
+    );
 
     const ops = await opsRepo.list_all("au1");
     expect(ops).toHaveLength(1);
@@ -160,8 +172,22 @@ describe("WriteTransaction 写序与 facts/drafts 失败分支（盲审 2026-07-
     tx.appendOp("au1", createOpsEntry({ op_id: "op2", op_type: "confirm_chapter", chapter_num: 2, timestamp: "t2" }));
     tx.saveChapter("au1", createChapter({ au_id: "au1", chapter_num: 1, content: "正文" }));
     tx.saveChapter("au1", createChapter({ au_id: "au1", chapter_num: 2, content: "正文二" }));
-    tx.appendFact("au1", { fact_id: "f1", au_id: "au1", chapter: 1, content_clean: "线索", status: "active", revision: 0 } as never);
-    tx.appendFact("au1", { fact_id: "f2", au_id: "au1", chapter: 2, content_clean: "线索二", status: "active", revision: 0 } as never);
+    tx.appendFact("au1", {
+      fact_id: "f1",
+      au_id: "au1",
+      chapter: 1,
+      content_clean: "线索",
+      status: "active",
+      revision: 0,
+    } as never);
+    tx.appendFact("au1", {
+      fact_id: "f2",
+      au_id: "au1",
+      chapter: 2,
+      content_clean: "线索二",
+      status: "active",
+      revision: 0,
+    } as never);
     tx.deleteDraftByChapter("au1", 1);
     tx.deleteDraftByChapter("au1", 2);
     tx.setState(createState({ au_id: "au1", current_chapter: 2 }));
@@ -181,8 +207,15 @@ describe("WriteTransaction 写序与 facts/drafts 失败分支（盲审 2026-07-
     };
     const ops = rec("ops", opsRepo as never, ["append"]);
     const chapters = rec("chapters", chapterRepo as never, ["save", "delete"]);
-    const facts = rec("facts", { append: async () => {}, update: async () => {}, delete_by_ids: async () => {} }, ["append", "update", "delete_by_ids"]);
-    const drafts = rec("drafts", { delete_by_chapter: async () => {}, delete_from_chapter: async () => {} }, ["delete_by_chapter", "delete_from_chapter"]);
+    const facts = rec("facts", { append: async () => {}, update: async () => {}, delete_by_ids: async () => {} }, [
+      "append",
+      "update",
+      "delete_by_ids",
+    ]);
+    const drafts = rec("drafts", { delete_by_chapter: async () => {}, delete_from_chapter: async () => {} }, [
+      "delete_by_chapter",
+      "delete_from_chapter",
+    ]);
     const state = rec("state", stateRepo as never, ["save"]);
 
     const tx = new WriteTransaction();
@@ -195,7 +228,9 @@ describe("WriteTransaction 写序与 facts/drafts 失败分支（盲审 2026-07-
 
   it("facts 写失败：ops/chapters 已落，state 仍尝试写入，抛 PartialCommitError 且 failed 含 facts", async () => {
     const failingFacts = {
-      append: async () => { throw new Error("facts io down"); },
+      append: async () => {
+        throw new Error("facts io down");
+      },
       update: async () => {},
       delete_by_ids: async () => {},
     };
@@ -206,7 +241,9 @@ describe("WriteTransaction 写序与 facts/drafts 失败分支（盲审 2026-07-
     let caught: unknown;
     try {
       await tx.commit(opsRepo, failingFacts as never, stateRepo, chapterRepo, drafts as never);
-    } catch (e) { caught = e; }
+    } catch (e) {
+      caught = e;
+    }
 
     expect(caught).toBeInstanceOf(PartialCommitError);
     const err = caught as PartialCommitError;
@@ -221,8 +258,12 @@ describe("WriteTransaction 写序与 facts/drafts 失败分支（盲审 2026-07-
     const facts = { append: async () => {}, update: async () => {}, delete_by_ids: async () => {} };
     let draftDeleteCalls = 0;
     const drafts = {
-      delete_by_chapter: async () => { draftDeleteCalls += 1; },
-      delete_from_chapter: async () => { draftDeleteCalls += 1; },
+      delete_by_chapter: async () => {
+        draftDeleteCalls += 1;
+      },
+      delete_from_chapter: async () => {
+        draftDeleteCalls += 1;
+      },
     };
 
     adapter.blockWrite("au1/chapters/main/ch0001.md");
@@ -232,7 +273,9 @@ describe("WriteTransaction 写序与 facts/drafts 失败分支（盲审 2026-07-
     let caught: unknown;
     try {
       await tx.commit(opsRepo, facts as never, stateRepo, chapterRepo, drafts as never);
-    } catch (e) { caught = e; }
+    } catch (e) {
+      caught = e;
+    }
 
     expect(caught).toBeInstanceOf(PartialCommitError);
     const err = caught as PartialCommitError;
@@ -250,7 +293,9 @@ describe("WriteTransaction 写序与 facts/drafts 失败分支（盲审 2026-07-
   it("drafts 清理失败：failed 含 drafts，其余阶段照常完成", async () => {
     const facts = { append: async () => {}, update: async () => {}, delete_by_ids: async () => {} };
     const failingDrafts = {
-      delete_by_chapter: async () => { throw new Error("drafts io down"); },
+      delete_by_chapter: async () => {
+        throw new Error("drafts io down");
+      },
       delete_from_chapter: async () => {},
     };
 
@@ -259,7 +304,9 @@ describe("WriteTransaction 写序与 facts/drafts 失败分支（盲审 2026-07-
     let caught: unknown;
     try {
       await tx.commit(opsRepo, facts as never, stateRepo, chapterRepo, failingDrafts as never);
-    } catch (e) { caught = e; }
+    } catch (e) {
+      caught = e;
+    }
 
     expect(caught).toBeInstanceOf(PartialCommitError);
     const err = caught as PartialCommitError;

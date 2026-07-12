@@ -18,8 +18,13 @@ import type { FileAnalysis, ClassifiedTurn } from "../../../api/engine-client";
 
 function turn(over: Partial<ClassifiedTurn>): ClassifiedTurn {
   return {
-    index: 0, role: "assistant", content: "内容", charCount: 100,
-    assignedType: "skip", assignedChapter: null, classification: "uncertain",
+    index: 0,
+    role: "assistant",
+    content: "内容",
+    charCount: 100,
+    assignedType: "skip",
+    assignedChapter: null,
+    classification: "uncertain",
     reason: { type: "uncertain", charCount: 100 },
     ...over,
   } as ClassifiedTurn;
@@ -61,7 +66,7 @@ describe("ChapterArrangeStep uncertain-batch (TD-013 full review HIGH)", () => {
     expect(onUpdate).toHaveBeenCalled();
     const updated = onUpdate.mock.calls[onUpdate.mock.calls.length - 1][0] as FileAnalysis[];
     const turns = updated[0].turns!;
-    expect(turns[0].assignedType).toBe("chapter");   // 用户保留的章没被抹掉
-    expect(turns[1].assignedType).toBe("skip");       // 仍待定的被批量跳过
+    expect(turns[0].assignedType).toBe("chapter"); // 用户保留的章没被抹掉
+    expect(turns[1].assignedType).toBe("skip"); // 仍待定的被批量跳过
   });
 });

@@ -10,9 +10,7 @@ import { renderHook, act } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../api/engine-client", async () => {
-  const actual = await vi.importActual<typeof import("../../../api/engine-client")>(
-    "../../../api/engine-client",
-  );
+  const actual = await vi.importActual<typeof import("../../../api/engine-client")>("../../../api/engine-client");
   return {
     ...actual,
     listLoreFiles: vi.fn(),
@@ -54,12 +52,15 @@ function setupBaseMocks(opts?: {
   } as unknown as Awaited<ReturnType<typeof engineClient.getProjectForEditing>>);
   // saveLore 回传实际落盘 filename/category（M28）。ASCII 文件名 sanitize 后不变，
   // 直接 echo 传入值即可覆盖 executor 从返回值回填 undoMeta 的新路径。
-  mocked.saveLore.mockImplementation(async (req) => ({
-    status: "ok",
-    path: `${req.au_path ?? req.fandom_path ?? ""}/${req.category}/${req.filename}`,
-    filename: req.filename,
-    category: req.category,
-  }) as never);
+  mocked.saveLore.mockImplementation(
+    async (req) =>
+      ({
+        status: "ok",
+        path: `${req.au_path ?? req.fandom_path ?? ""}/${req.category}/${req.filename}`,
+        filename: req.filename,
+        category: req.category,
+      }) as never,
+  );
   mocked.deleteLore.mockResolvedValue(undefined as never);
   mocked.addPinned.mockResolvedValue(undefined as never);
   mocked.deletePinned.mockResolvedValue(undefined as never);
@@ -94,10 +95,7 @@ describe("useSimpleToolExecutor — execute", () => {
         filename: "Alice.md",
       }),
     );
-    expect(mocked.saveProjectCastRegistryCharacters).toHaveBeenCalledWith(
-      AU,
-      expect.arrayContaining(["Bob", "Alice"]),
-    );
+    expect(mocked.saveProjectCastRegistryCharacters).toHaveBeenCalledWith(AU, expect.arrayContaining(["Bob", "Alice"]));
     expect(res.undoMeta).toEqual({ kind: "lore", category: "characters", filename: "Alice.md" });
   });
 
@@ -105,12 +103,15 @@ describe("useSimpleToolExecutor — execute", () => {
     // 模拟 saveLore 把全角标点 sanitize 掉，返回与传入 filename 不同的磁盘真名。
     // executor 必须以返回值（磁盘真名）回填 undoMeta，否则 undo 的 deleteLore 找不到文件。
     setupBaseMocks();
-    mocked.saveLore.mockImplementationOnce(async (req) => ({
-      status: "ok",
-      path: `${req.au_path}/${req.category}/林黛玉_初见_.md`,
-      filename: "林黛玉_初见_.md", // sanitize 后与传入 "林黛玉：初见？.md" 不同
-      category: req.category,
-    }) as never);
+    mocked.saveLore.mockImplementationOnce(
+      async (req) =>
+        ({
+          status: "ok",
+          path: `${req.au_path}/${req.category}/林黛玉_初见_.md`,
+          filename: "林黛玉_初见_.md", // sanitize 后与传入 "林黛玉：初见？.md" 不同
+          category: req.category,
+        }) as never,
+    );
     const { result } = renderHook(() => useSimpleToolExecutor({ auPath: AU }));
 
     let res!: Awaited<ReturnType<typeof result.current.execute>>;
@@ -185,9 +186,7 @@ describe("useSimpleToolExecutor — execute", () => {
       });
     });
 
-    expect(mocked.saveLore).toHaveBeenCalledWith(
-      expect.objectContaining({ content: "新内容" }),
-    );
+    expect(mocked.saveLore).toHaveBeenCalledWith(expect.objectContaining({ content: "新内容" }));
   });
 
   it("F9: modify_character_file legacy 全角标点名 → sanitize 名 read miss 时回退原名读到、frontmatter 受管字段保留、写落 sanitize 名", async () => {
@@ -197,16 +196,17 @@ describe("useSimpleToolExecutor — execute", () => {
     // 这里直接断言 hook 把两个名都透传给 fallback helper，且读到的 frontmatter 被 preserve、
     // saveLore 落 sanitize 名。回退旧码（用原名 read 无 fallback）时 helper 参数形状会变、断言挂。
     setupBaseMocks({ characters: [{ name: "苏黛", filename: "苏：黛.md" }] });
-    mocked.readLoreWithLegacyFallback.mockResolvedValueOnce(
-      "---\nname: 苏黛\nimportance: main\n---\n# 旧正文",
-    );
+    mocked.readLoreWithLegacyFallback.mockResolvedValueOnce("---\nname: 苏黛\nimportance: main\n---\n# 旧正文");
     // saveLore echo，验证写路径落 sanitize 名。
-    mocked.saveLore.mockImplementationOnce(async (req) => ({
-      status: "ok",
-      path: `${req.au_path}/${req.category}/${req.filename}`,
-      filename: req.filename,
-      category: req.category,
-    }) as never);
+    mocked.saveLore.mockImplementationOnce(
+      async (req) =>
+        ({
+          status: "ok",
+          path: `${req.au_path}/${req.category}/${req.filename}`,
+          filename: req.filename,
+          category: req.category,
+        }) as never,
+    );
     const { result } = renderHook(() => useSimpleToolExecutor({ auPath: AU }));
 
     await act(async () => {
@@ -270,9 +270,7 @@ describe("useSimpleToolExecutor — execute", () => {
     });
 
     expect(mocked.readLoreWithLegacyFallback).not.toHaveBeenCalled(); // 世界观不守护 frontmatter
-    expect(mocked.saveLore).toHaveBeenCalledWith(
-      expect.objectContaining({ content: "新魔法" }),
-    );
+    expect(mocked.saveLore).toHaveBeenCalledWith(expect.objectContaining({ content: "新魔法" }));
   });
 
   it("add_pinned_context: addPinned 调用 + pinned undoMeta 含 index/content", async () => {
@@ -330,9 +328,7 @@ describe("useSimpleToolExecutor — execute", () => {
     const { result } = renderHook(() => useSimpleToolExecutor({ auPath: AU }));
 
     await act(async () => {
-      await expect(
-        result.current.execute("nonexistent_tool", {}),
-      ).rejects.toThrow();
+      await expect(result.current.execute("nonexistent_tool", {})).rejects.toThrow();
     });
   });
 
@@ -426,9 +422,7 @@ describe("useSimpleToolExecutor — undo", () => {
     const { result } = renderHook(() => useSimpleToolExecutor({ auPath: AU }));
 
     await act(async () => {
-      await expect(
-        result.current.undo({ kind: "unsupported", note: "x" }),
-      ).rejects.toThrow();
+      await expect(result.current.undo({ kind: "unsupported", note: "x" })).rejects.toThrow();
     });
   });
 });

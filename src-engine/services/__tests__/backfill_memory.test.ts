@@ -2,15 +2,9 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, it, expect, vi } from "vitest";
-import {
-  backfill_chapter_memory,
-  type BackfillMemoryTarget,
-} from "../backfill_memory.js";
+import { backfill_chapter_memory, type BackfillMemoryTarget } from "../backfill_memory.js";
 
-function target(
-  n: number,
-  opts: { needSummary?: boolean; extractFacts?: boolean } = {},
-): BackfillMemoryTarget {
+function target(n: number, opts: { needSummary?: boolean; extractFacts?: boolean } = {}): BackfillMemoryTarget {
   return {
     chapterNum: n,
     content: `第 ${n} 章正文`,
@@ -43,8 +37,15 @@ describe("backfill_chapter_memory", () => {
     // persist 拿到 summaryText 非空、facts 空
     expect(d.persistChapter.mock.calls[0][1]).toEqual({ summaryText: "摘要-1", facts: [] });
     expect(res).toEqual({
-      total: 1, summariesGenerated: 1, factsChapters: 0, factsAdded: 0,
-      indexed: 1, skipped: 0, failed: 0, aborted: false, factsOverCapCount: 0,
+      total: 1,
+      summariesGenerated: 1,
+      factsChapters: 0,
+      factsAdded: 0,
+      indexed: 1,
+      skipped: 0,
+      failed: 0,
+      aborted: false,
+      factsOverCapCount: 0,
     });
   });
 
@@ -84,7 +85,10 @@ describe("backfill_chapter_memory", () => {
   // L16（审计第二轮）:extractFacts 的 cappedCount 透传到结果 factsOverCapCount(仅落盘章累计)。
   it("L16:落盘章的软上限丢弃数累计进 factsOverCapCount", async () => {
     const d = deps([target(1, { extractFacts: true }), target(2, { extractFacts: true })], {
-      extractFacts: vi.fn(async (t: BackfillMemoryTarget) => ({ facts: [{ chapter: t.chapterNum }], cappedCount: t.chapterNum === 1 ? 3 : 0 })),
+      extractFacts: vi.fn(async (t: BackfillMemoryTarget) => ({
+        facts: [{ chapter: t.chapterNum }],
+        cappedCount: t.chapterNum === 1 ? 3 : 0,
+      })),
     });
     const res = await backfill_chapter_memory(d);
     // ch1 丢弃 3 条、ch2 丢弃 0 → 累计 3
@@ -122,19 +126,27 @@ describe("backfill_chapter_memory", () => {
 
   it("逐章进度上报,顺序正确", async () => {
     const progress: number[] = [];
-    const d = deps([target(1, { needSummary: true }), target(2, { needSummary: true }), target(3, { needSummary: true })], {
-      onProgress: (info: { done: number }) => progress.push(info.done),
-    });
+    const d = deps(
+      [target(1, { needSummary: true }), target(2, { needSummary: true }), target(3, { needSummary: true })],
+      {
+        onProgress: (info: { done: number }) => progress.push(info.done),
+      },
+    );
     await backfill_chapter_memory(d);
     expect(progress).toEqual([1, 2, 3]);
   });
 
   it("章边界中断:已补保留,后续章不起", async () => {
     const controller = new AbortController();
-    const d = deps([target(1, { needSummary: true }), target(2, { needSummary: true }), target(3, { needSummary: true })], {
-      signal: controller.signal,
-      onProgress: (info: { done: number }) => { if (info.done === 2) controller.abort(); },
-    });
+    const d = deps(
+      [target(1, { needSummary: true }), target(2, { needSummary: true }), target(3, { needSummary: true })],
+      {
+        signal: controller.signal,
+        onProgress: (info: { done: number }) => {
+          if (info.done === 2) controller.abort();
+        },
+      },
+    );
     const res = await backfill_chapter_memory(d);
     expect(res.aborted).toBe(true);
     expect(res.summariesGenerated).toBe(2);
@@ -161,8 +173,8 @@ describe("backfill_chapter_memory", () => {
     });
     const res = await backfill_chapter_memory(d);
     expect(res.aborted).toBe(true);
-    expect(res.failed).toBe(0);   // 不误记 failed
-    expect(res.indexed).toBe(0);  // 第 1 章未落盘（中断）
+    expect(res.failed).toBe(0); // 不误记 failed
+    expect(res.indexed).toBe(0); // 第 1 章未落盘（中断）
     expect(d.persistChapter).not.toHaveBeenCalled(); // 慢回调后 signal 检查拦下，不落陈旧/半成品
   });
 
@@ -187,7 +199,7 @@ describe("backfill_chapter_memory", () => {
       signal: controller.signal,
       generateSummary: vi.fn(async () => "摘要-1"), // 慢回调成功（此刻未 abort）
       persistChapter: vi.fn(async () => {
-        controller.abort();                             // persist 期间用户点停
+        controller.abort(); // persist 期间用户点停
         throw new Error("indexChapter embedding 拒绝"); // 且 persist 因真错误抛出（非 AbortError）
       }),
     });

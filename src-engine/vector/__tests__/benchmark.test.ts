@@ -28,17 +28,33 @@ function makeChunk(i: number, dim: number): VectorChunk {
 
 // Minimal mock adapter (engine only needs it for persist/load, not for search)
 const noopAdapter = {
-  async readFile() { return ""; },
+  async readFile() {
+    return "";
+  },
   async writeFile() {},
   async deleteFile() {},
-  async listDir() { return []; },
-  async exists() { return false; },
+  async listDir() {
+    return [];
+  },
+  async exists() {
+    return false;
+  },
   async mkdir() {},
-  async showSaveDialog() { return null; },
-  async showOpenDialog() { return null; },
-  getPlatform() { return "web" as const; },
-  async getDataDir() { return "/mock"; },
-  getDeviceId() { return "mock"; },
+  async showSaveDialog() {
+    return null;
+  },
+  async showOpenDialog() {
+    return null;
+  },
+  getPlatform() {
+    return "web" as const;
+  },
+  async getDataDir() {
+    return "/mock";
+  },
+  getDeviceId() {
+    return "mock";
+  },
 };
 
 // 性能基准非正确性断言（盲审 2026-07-11 测试维：墙钟阈值在慢/负载 runner 上

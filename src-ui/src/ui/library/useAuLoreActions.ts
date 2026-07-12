@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 import {
   deleteLore as deleteLoreApi,
   getLoreContent,
@@ -12,10 +12,10 @@ import {
   saveLore as saveLoreApi,
   saveProjectCoreIncludes,
   type ProjectInfo,
-} from '../../api/engine-client';
-import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
-import { useFeedback } from '../../hooks/useFeedback';
-import { useTranslation } from '../../i18n/useAppTranslation';
+} from "../../api/engine-client";
+import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
+import { useFeedback } from "../../hooks/useFeedback";
+import { useTranslation } from "../../i18n/useAppTranslation";
 import {
   buildDefaultCharacterContent,
   buildDefaultWorldbuildingContent,
@@ -24,7 +24,7 @@ import {
   toCanonicalCreateKey,
   type LoreCategory,
   type LoreFileEntry,
-} from './lore-utils';
+} from "./lore-utils";
 
 /**
  * useAuLoreActions 的跨 hook 依赖：值 + 语义化方法（hook 规则 1/3：不收裸 setter，
@@ -101,21 +101,23 @@ export function useAuLoreActions(auPath: string, deps: AuLoreActionDeps) {
         next = [...current, name];
         // 检测核心限制段落
         try {
-          const result = await getLoreContent({ au_path: auPath, category: 'characters', filename: `${name}.md` });
+          const result = await getLoreContent({ au_path: auPath, category: "characters", filename: `${name}.md` });
           if (guard.isKeyStale(requestAuPath)) return;
-          if (!result.content.includes('## 核心限制') && !result.content.includes('## Core Constraints')) {
+          if (!result.content.includes("## 核心限制") && !result.content.includes("## Core Constraints")) {
             depsRef.current.promptCoreLimit(name);
           }
-        } catch { /* 读取失败不阻塞 */ }
+        } catch {
+          /* 读取失败不阻塞 */
+        }
       }
 
       await saveProjectCoreIncludes(auPath, next);
       if (guard.isKeyStale(requestAuPath)) return;
       depsRef.current.applyCoreIncludes(next);
-      showSuccess(isPinned ? t('coreIncludes.unpinnedToast') : t('coreIncludes.pinnedToast'));
+      showSuccess(isPinned ? t("coreIncludes.unpinnedToast") : t("coreIncludes.pinnedToast"));
     } catch (error) {
       if (guard.isKeyStale(requestAuPath)) return;
-      showError(error, t('error_messages.unknown'));
+      showError(error, t("error_messages.unknown"));
     } finally {
       if (!guard.isKeyStale(requestAuPath)) {
         setIsSaving(false);
@@ -130,9 +132,8 @@ export function useAuLoreActions(auPath: string, deps: AuLoreActionDeps) {
     const requestAuPath = auPath;
     setIsSaving(true);
     try {
-      const contentToSave = selectedCategory === 'characters'
-        ? setAliasesInContent(editorContent, aliases)
-        : editorContent;
+      const contentToSave =
+        selectedCategory === "characters" ? setAliasesInContent(editorContent, aliases) : editorContent;
       await saveLoreApi({
         au_path: auPath,
         category: selectedCategory,
@@ -142,10 +143,10 @@ export function useAuLoreActions(auPath: string, deps: AuLoreActionDeps) {
       if (guard.isKeyStale(requestAuPath)) return;
       // 落盘成功 → 刷新编辑器脏判据基线（reconcile 据此决定能否安全重读）
       depsRef.current.markContentSaved();
-      showSuccess(t('common.actions.save'));
+      showSuccess(t("common.actions.save"));
     } catch (error) {
       if (guard.isKeyStale(requestAuPath)) return;
-      showError(error, t('error_messages.unknown'));
+      showError(error, t("error_messages.unknown"));
     } finally {
       if (!guard.isKeyStale(requestAuPath)) {
         setIsSaving(false);
@@ -182,7 +183,7 @@ export function useAuLoreActions(auPath: string, deps: AuLoreActionDeps) {
       depsRef.current.bumpTrashRefresh();
     } catch (error) {
       if (guard.isKeyStale(requestAuPath)) return;
-      showError(error, t('error_messages.unknown'));
+      showError(error, t("error_messages.unknown"));
     } finally {
       if (!guard.isKeyStale(requestAuPath)) {
         setIsSaving(false);
@@ -196,16 +197,17 @@ export function useAuLoreActions(auPath: string, deps: AuLoreActionDeps) {
     if (!rawName) return;
     const requestAuPath = auPath;
     const category = depsRef.current.selectedCategory;
-    const displayName = rawName.replace(/\.md$/i, '').trim();
+    const displayName = rawName.replace(/\.md$/i, "").trim();
     if (!displayName) {
-      showToast(t('settingsMode.validation.nameRequired'), 'warning');
+      showToast(t("settingsMode.validation.nameRequired"), "warning");
       return;
     }
 
     const filename = `${displayName}.md`;
-    const defaultContent = category === 'worldbuilding'
-      ? buildDefaultWorldbuildingContent(displayName)
-      : buildDefaultCharacterContent(displayName);
+    const defaultContent =
+      category === "worldbuilding"
+        ? buildDefaultWorldbuildingContent(displayName)
+        : buildDefaultCharacterContent(displayName);
     depsRef.current.closeCreate();
     setIsSaving(true);
 
@@ -219,19 +221,19 @@ export function useAuLoreActions(auPath: string, deps: AuLoreActionDeps) {
         ]);
       } catch (error) {
         if (guard.isKeyStale(requestAuPath)) return;
-        showError(error, t('error_messages.unknown'));
+        showError(error, t("error_messages.unknown"));
         return;
       }
       if (guard.isKeyStale(requestAuPath)) return;
 
       if (latestFiles.files.some((file) => toCanonicalCreateKey(file.filename) === toCanonicalCreateKey(filename))) {
-        showToast(t('auLore.createDuplicate', { name: filename }), 'warning');
+        showToast(t("auLore.createDuplicate", { name: filename }), "warning");
         return;
       }
 
       await saveLoreApi({ au_path: auPath, category, filename, content: defaultContent });
       try {
-        if (category === 'characters') {
+        if (category === "characters") {
           await depsRef.current.syncRegistry(
             [...(latestProject.cast_registry.characters || []), displayName],
             requestAuPath,
@@ -252,7 +254,7 @@ export function useAuLoreActions(auPath: string, deps: AuLoreActionDeps) {
       depsRef.current.clearSearch();
     } catch (error) {
       if (guard.isKeyStale(requestAuPath)) return;
-      showError(error, t('error_messages.unknown'));
+      showError(error, t("error_messages.unknown"));
     } finally {
       if (!guard.isKeyStale(requestAuPath)) {
         setIsSaving(false);
@@ -266,13 +268,13 @@ export function useAuLoreActions(auPath: string, deps: AuLoreActionDeps) {
     setImportLoading(true);
     setSelectedImports([]);
     try {
-      const fandomFiles = await listLoreFiles({ fandom_path: deriveFandomPath(auPath), category: 'core_characters' });
+      const fandomFiles = await listLoreFiles({ fandom_path: deriveFandomPath(auPath), category: "core_characters" });
       if (guard.isKeyStale(requestAuPath)) return;
       const existing = new Set(depsRef.current.files.map((file) => file.name));
       setImportCandidates(fandomFiles.files.filter((file) => !existing.has(file.name)));
     } catch (error) {
       if (guard.isKeyStale(requestAuPath)) return;
-      showError(error, t('error_messages.unknown'));
+      showError(error, t("error_messages.unknown"));
       setImportCandidates([]);
     } finally {
       if (!guard.isKeyStale(requestAuPath)) {
@@ -297,18 +299,18 @@ export function useAuLoreActions(auPath: string, deps: AuLoreActionDeps) {
         fandom_path: deriveFandomPath(auPath),
         au_path: auPath,
         filenames: selectedImports.map((name) => `${name}.md`),
-        source_category: 'core_characters',
+        source_category: "core_characters",
       });
       if (guard.isKeyStale(requestAuPath)) return;
       await d.syncRegistry([...(d.project.cast_registry.characters || []), ...selectedImports], requestAuPath);
       if (guard.isKeyStale(requestAuPath)) return;
       depsRef.current.closeImport();
       setSelectedImports([]);
-      showSuccess(t('auLore.importSuccess', { count: selectedImports.length }));
+      showSuccess(t("auLore.importSuccess", { count: selectedImports.length }));
       await depsRef.current.reload();
     } catch (error) {
       if (guard.isKeyStale(requestAuPath)) return;
-      showError(error, t('error_messages.unknown'));
+      showError(error, t("error_messages.unknown"));
     } finally {
       if (!guard.isKeyStale(requestAuPath)) {
         setIsSaving(false);

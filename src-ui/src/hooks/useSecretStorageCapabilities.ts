@@ -10,15 +10,11 @@ import {
 } from "../api/engine-client";
 import { useActiveRequestGuard } from "./useActiveRequestGuard";
 
-export function useSecretStorageCapabilities({
-  enabled = true,
-  auPath,
-}: {
-  enabled?: boolean;
-  auPath?: string;
-} = {}) {
+export function useSecretStorageCapabilities({ enabled = true, auPath }: { enabled?: boolean; auPath?: string } = {}) {
   const scopeKey = auPath ? `project:${auPath}` : "settings";
-  const requestGuard = useActiveRequestGuard(enabled ? `secret-storage-capabilities:${scopeKey}` : "secret-storage-capabilities-disabled");
+  const requestGuard = useActiveRequestGuard(
+    enabled ? `secret-storage-capabilities:${scopeKey}` : "secret-storage-capabilities-disabled",
+  );
   const [capabilities, setCapabilities] = useState<SecretStorageCapabilities | null>(null);
 
   useEffect(() => {

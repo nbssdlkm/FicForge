@@ -5,9 +5,9 @@
 
 export interface Fandom {
   name: string;
-  created_at: string;                        // ISO 8601
+  created_at: string; // ISO 8601
   core_characters: string[];
-  wiki_source: string;                       // 可选
+  wiki_source: string; // 可选
 }
 
 export function createFandom(partial?: Partial<Fandom>): Fandom {

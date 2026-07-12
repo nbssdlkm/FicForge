@@ -65,8 +65,12 @@ export async function getChapterContent(auPath: string, chapterNum: number) {
 }
 
 export async function confirmChapter(
-  auPath: string, chapterNum: number, draftId: string,
-  generatedWith?: object, content?: string | null, title?: string | null,
+  auPath: string,
+  chapterNum: number,
+  draftId: string,
+  generatedWith?: object,
+  content?: string | null,
+  title?: string | null,
 ) {
   // R1-3（对抗审 2-A）：confirm 动手前查「生成在飞」互斥表。该章正被写文/对话任一路径
   // 流式生成时，接受/定稿会与在飞流竞写同一章 —— 拒绝并让 UI 提示「先停止或等它完成」。
@@ -90,11 +94,16 @@ export async function confirmChapter(
     // state 读取失败 → 视为未知，保守不升 READY（首章除外）
   }
   const result = await engineConfirmChapter({
-    au_id: auPath, chapter_num: chapterNum, draft_id: draftId,
+    au_id: auPath,
+    chapter_num: chapterNum,
+    draft_id: draftId,
     generated_with: generatedWith as GeneratedWith | undefined,
     cast_registry: proj.cast_registry,
     content_override: content,
-    chapter_repo: chapter, draft_repo: draft, state_repo: state, ops_repo: ops,
+    chapter_repo: chapter,
+    draft_repo: draft,
+    state_repo: state,
+    ops_repo: ops,
   });
 
   const sett = await settings.get();
@@ -106,9 +115,7 @@ export async function confirmChapter(
       const llmConfig = resolve_llm_config(null, proj, sett);
       // 标题生成是纯 chat 调用，api 和 ollama 都能跑；local 暂未实现。
       // api 模式必须有 api_key，ollama 模式 key 可为空（引擎会填 dummy）。
-      const canGenerate =
-        llmConfig.mode === "ollama" ||
-        (llmConfig.mode === "api" && !!llmConfig.api_key);
+      const canGenerate = llmConfig.mode === "ollama" || (llmConfig.mode === "api" && !!llmConfig.api_key);
       if (canGenerate) {
         const provider = create_provider(llmConfig);
         const chContent = await chapter.get_content_only(auPath, chapterNum);
@@ -127,14 +134,17 @@ export async function confirmChapter(
       const st = await state.get(auPath);
       st.chapter_titles[chapterNum] = finalTitle;
       const tx = new WriteTransaction();
-      tx.appendOp(auPath, createOpsEntry({
-        op_id: generate_op_id(),
-        op_type: "set_chapter_title",
-        target_id: auPath,
-        chapter_num: chapterNum,
-        timestamp: now_utc(),
-        payload: { title: finalTitle },
-      }));
+      tx.appendOp(
+        auPath,
+        createOpsEntry({
+          op_id: generate_op_id(),
+          op_type: "set_chapter_title",
+          target_id: auPath,
+          chapter_num: chapterNum,
+          timestamp: now_utc(),
+          payload: { title: finalTitle },
+        }),
+      );
       tx.setState(st);
       await tx.commit(ops, null, state);
     });
@@ -256,8 +266,12 @@ export async function confirmChapter(
             if (!targetCh || targetCh.content_hash !== genResult.contentHash) return;
 
             await commit_retrospective(
-              auPath, targetChapterNum, genResult,
-              e.repos.chapterSummary, e.ragManager, embProvider,
+              auPath,
+              targetChapterNum,
+              genResult,
+              e.repos.chapterSummary,
+              e.ragManager,
+              embProvider,
               // L17：向量覆盖失败时置 index_status=STALE（既在 withAuLock 内，state 写锁安全）。
               e.repos.state,
             );
@@ -285,8 +299,13 @@ export async function undoChapter(auPath: string) {
     // 读不到就不恢复，保持 undo 服务置下的 STALE
   }
   const result = await undo_latest_chapter({
-    au_id: auPath, cast_registry: proj.cast_registry,
-    chapter_repo: chapter, draft_repo: draft, state_repo: state, ops_repo: ops, fact_repo: fact,
+    au_id: auPath,
+    cast_registry: proj.cast_registry,
+    chapter_repo: chapter,
+    draft_repo: draft,
+    state_repo: state,
+    ops_repo: ops,
+    fact_repo: fact,
   });
   // M8-C（codex 实现审 #3）：撤销删了章节，连带删其摘要文件，避免孤儿 .summary.jsonl。best-effort。
   try {
@@ -301,7 +320,9 @@ export async function undoChapter(auPath: string) {
     await e.ragManager.removeChapter(auPath, result.chapter_num);
     if (preUndoIndexStatus === IndexStatus.READY) {
       await withAuLock(auPath, async () => {
-        await state.update(auPath, (st) => { st.index_status = IndexStatus.READY; });
+        await state.update(auPath, (st) => {
+          st.index_status = IndexStatus.READY;
+        });
       });
     }
   } catch (err) {
@@ -318,14 +339,17 @@ export async function updateChapterTitle(auPath: string, chapterNum: number, tit
     const st = await state.get(auPath);
     st.chapter_titles[chapterNum] = title;
     const tx = new WriteTransaction();
-    tx.appendOp(auPath, createOpsEntry({
-      op_id: generate_op_id(),
-      op_type: "set_chapter_title",
-      target_id: auPath,
-      chapter_num: chapterNum,
-      timestamp: now_utc(),
-      payload: { title },
-    }));
+    tx.appendOp(
+      auPath,
+      createOpsEntry({
+        op_id: generate_op_id(),
+        op_type: "set_chapter_title",
+        target_id: auPath,
+        chapter_num: chapterNum,
+        timestamp: now_utc(),
+        payload: { title },
+      }),
+    );
     tx.setState(st);
     await tx.commit(ops, null, state);
     return { chapter_num: chapterNum, title };
@@ -336,9 +360,14 @@ export async function resolveDirtyChapter(auPath: string, chapterNum: number, co
   const { chapter, state, ops, fact } = getEngine().repos;
   const proj = await getProjectOrThrow(auPath);
   return await resolve_dirty_chapter({
-    au_id: auPath, chapter_num: chapterNum, confirmed_fact_changes: confirmedFactChanges,
+    au_id: auPath,
+    chapter_num: chapterNum,
+    confirmed_fact_changes: confirmedFactChanges,
     cast_registry: proj.cast_registry,
-    chapter_repo: chapter, state_repo: state, ops_repo: ops, fact_repo: fact,
+    chapter_repo: chapter,
+    state_repo: state,
+    ops_repo: ops,
+    fact_repo: fact,
   });
 }
 
@@ -355,9 +384,7 @@ export async function updateChapterContent(auPath: string, chapterNum: number, c
   }
   // edit_chapter_content 属于"底层 service"，本身不加锁（避免被 dirty_resolve
   // 等已持锁的 orchestrator 调用时死锁）。UI 直接调用路径必须在此顶层加锁。
-  const result = await withAuLock(auPath, () =>
-    edit_chapter_content(auPath, chapterNum, content, chapter, state, ops),
-  );
+  const result = await withAuLock(auPath, () => edit_chapter_content(auPath, chapterNum, content, chapter, state, ops));
   // M8-C（codex 实现审 #1/#2）：编辑使该章摘要陈旧。删摘要文件，避免后续 rebuild 把陈旧摘要
   // 重新提升进 READY 索引（rebuild 不重生成摘要）。编辑后该章退化为 chunk-only RAG，真正重生成留 M10。best-effort。
   try {
@@ -380,7 +407,9 @@ export async function updateChapterContent(auPath: string, chapterNum: number, c
       await e.ragManager.indexChapter(auPath, chapterNum, chContent, embProvider, proj.cast_registry);
       if (preEditIndexStatus === IndexStatus.READY) {
         await withAuLock(auPath, async () => {
-          await state.update(auPath, (st) => { st.index_status = IndexStatus.READY; });
+          await state.update(auPath, (st) => {
+            st.index_status = IndexStatus.READY;
+          });
         });
       }
     }
@@ -397,9 +426,9 @@ export async function updateChapterContent(auPath: string, chapterNum: number, c
 
 export interface ChapterMemoryScan {
   totalConfirmed: number;
-  chaptersMissingSummary: number[];            // 缺 standard 摘要的章
-  chaptersZeroFacts: number[];                 // 一条笔记都没有的章（默认勾选提取）
-  factCountByChapter: Record<number, number>;  // 每章现有笔记数（给选择器显示）
+  chaptersMissingSummary: number[]; // 缺 standard 摘要的章
+  chaptersZeroFacts: number[]; // 一条笔记都没有的章（默认勾选提取）
+  factCountByChapter: Record<number, number>; // 每章现有笔记数（给选择器显示）
   embeddingConfigured: boolean;
   llmConfigured: boolean;
 }
@@ -484,8 +513,7 @@ export async function backfillChapterMemory(
     targets,
     signal,
     // 慢 LLM，锁外。signal 透传 → 用户点停时在飞的摘要/提取请求被立刻取消（审计⑨）。
-    generateSummary: (t) =>
-      generate_standard_summary(t.content, t.chapterNum, llmProvider, { language, signal }),
+    generateSummary: (t) => generate_standard_summary(t.content, t.chapterNum, llmProvider, { language, signal }),
     extractFacts: async (t) => {
       const r = await extractFacts(auPath, t.chapterNum, { signal });
       return { facts: r.facts, cappedCount: r.cappedCount ?? 0 };
@@ -536,9 +564,15 @@ export async function backfillChapterMemory(
           // 半成功（如摘要/部分笔记已落但正文未索引）→ 标 index_status=STALE，让「重建索引」或重跑修复
           // （= confirm 索引失败同款降级，对抗审 MEDIUM）。已在 AU 锁内，直接 state.update。
           try {
-            await e.repos.state.update(auPath, (st) => { st.index_status = IndexStatus.STALE; });
+            await e.repos.state.update(auPath, (st) => {
+              st.index_status = IndexStatus.STALE;
+            });
           } catch (stErr) {
-            logCatch("backfill_memory", `Failed to mark index STALE after persist error (chapter ${t.chapterNum})`, stErr);
+            logCatch(
+              "backfill_memory",
+              `Failed to mark index STALE after persist error (chapter ${t.chapterNum})`,
+              stErr,
+            );
           }
           throw err; // 让引擎服务计 failed（半成功隔离）
         }
@@ -553,7 +587,9 @@ export async function backfillChapterMemory(
   if (targets.length > 0 && result.failed === 0 && !result.aborted) {
     try {
       await withAuLock(auPath, async () => {
-        await e.repos.state.update(auPath, (st) => { st.index_status = IndexStatus.READY; });
+        await e.repos.state.update(auPath, (st) => {
+          st.index_status = IndexStatus.READY;
+        });
       });
     } catch (err) {
       logCatch("backfill_memory", "Failed to mark index READY after fully successful backfill", err);

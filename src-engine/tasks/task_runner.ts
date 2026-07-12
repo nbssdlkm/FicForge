@@ -181,12 +181,16 @@ export class TaskRunner {
 
   onEvent(listener: TaskEventListener): () => void {
     this.eventListeners.add(listener);
-    return () => { this.eventListeners.delete(listener); };
+    return () => {
+      this.eventListeners.delete(listener);
+    };
   }
 
   onStatusChange(listener: TaskStatusListener): () => void {
     this.statusListeners.add(listener);
-    return () => { this.statusListeners.delete(listener); };
+    return () => {
+      this.statusListeners.delete(listener);
+    };
   }
 
   // -----------------------------------------------------------------------
@@ -228,9 +232,8 @@ export class TaskRunner {
     };
 
     try {
-      const generator = task.checkpoint && definition.resume
-        ? definition.resume(ctx, task.checkpoint)
-        : definition.execute(ctx);
+      const generator =
+        task.checkpoint && definition.resume ? definition.resume(ctx, task.checkpoint) : definition.execute(ctx);
 
       let iterResult = await generator.next();
       while (!iterResult.done) {
@@ -252,7 +255,6 @@ export class TaskRunner {
         this.notifyStatus(handle.id, "completed", handle);
       }
       await this.store.remove(handle.id);
-
     } catch (err) {
       if (abortController.signal.aborted) {
         handle.status = "cancelled";
@@ -282,11 +284,7 @@ export class TaskRunner {
   // Internal: checkpoint helper
   // -----------------------------------------------------------------------
 
-  private buildCheckpoint(
-    task: InternalTask,
-    status: TaskCheckpoint["status"],
-    data?: unknown,
-  ): TaskCheckpoint {
+  private buildCheckpoint(task: InternalTask, status: TaskCheckpoint["status"], data?: unknown): TaskCheckpoint {
     return {
       taskId: task.handle.id,
       taskType: task.definition.type,
@@ -317,13 +315,21 @@ export class TaskRunner {
 
   private notifyEvent(taskId: string, event: TaskEvent): void {
     for (const listener of this.eventListeners) {
-      try { listener(taskId, event); } catch { /* listener error */ }
+      try {
+        listener(taskId, event);
+      } catch {
+        /* listener error */
+      }
     }
   }
 
   private notifyStatus(taskId: string, status: TaskStatus, handle: TaskHandle): void {
     for (const listener of this.statusListeners) {
-      try { listener(taskId, status, handle); } catch { /* listener error */ }
+      try {
+        listener(taskId, status, handle);
+      } catch {
+        /* listener error */
+      }
     }
   }
 

@@ -20,7 +20,10 @@ vi.mock("../../../hooks/useFeedback", () => ({
 // 捕获 subscribeToTask 注册的事件回调，供测试手动派发 completed 事件。
 let eventCb: ((id: string, event: TaskEvent) => void) | null = null;
 const taskRunnerStub = {
-  onEvent: vi.fn((cb: (id: string, event: TaskEvent) => void) => { eventCb = cb; return () => {}; }),
+  onEvent: vi.fn((cb: (id: string, event: TaskEvent) => void) => {
+    eventCb = cb;
+    return () => {};
+  }),
   getActiveTasks: vi.fn(() => []),
   getCompletedTasks: vi.fn(() => []),
   removeCompleted: vi.fn(),
@@ -28,9 +31,7 @@ const taskRunnerStub = {
 };
 
 vi.mock("../../../api/engine-client", async () => {
-  const actual = await vi.importActual<typeof import("../../../api/engine-client")>(
-    "../../../api/engine-client",
-  );
+  const actual = await vi.importActual<typeof import("../../../api/engine-client")>("../../../api/engine-client");
   return {
     ...actual,
     getEngine: vi.fn(() => ({ taskRunner: taskRunnerStub })),
@@ -49,8 +50,13 @@ const AU = "/data/fandoms/F/aus/A1";
 
 function candidate(chapter: number, content: string) {
   return {
-    content_raw: content, content_clean: content, characters: [],
-    fact_type: "plot_event", narrative_weight: "medium", status: "active", chapter,
+    content_raw: content,
+    content_clean: content,
+    characters: [],
+    fact_type: "plot_event",
+    narrative_weight: "medium",
+    status: "active",
+    chapter,
   } as unknown as import("../../../api/engine-client").ExtractedFactCandidate;
 }
 
@@ -70,8 +76,12 @@ describe("useFactsExtraction 半成功去重（发现 1）", () => {
     const { result } = renderHook(() => useFactsExtraction(AU, { current_chapter: 4 } as never, onSaved));
 
     // 触发一轮范围提取并让其「完成」，派发 3 个跨章候选（自动全选）。
-    act(() => { result.current.setExtractRange([1, 3]); });
-    await act(async () => { await result.current.handleExtractConfirm(); });
+    act(() => {
+      result.current.setExtractRange([1, 3]);
+    });
+    await act(async () => {
+      await result.current.handleExtractConfirm();
+    });
     act(() => {
       eventCb?.("task-1", {
         type: "completed",
@@ -82,14 +92,18 @@ describe("useFactsExtraction 半成功去重（发现 1）", () => {
 
     // 首轮：批量写入下标 0（甲）后抛错 → PartialAddFactsError(writtenIndices=[0])。
     mocked.addFactsBatch.mockRejectedValueOnce(new PartialAddFactsError([0], new Error("disk full")));
-    await act(async () => { await result.current.handleSaveExtracted(); });
+    await act(async () => {
+      await result.current.handleSaveExtracted();
+    });
     expect(mocked.addFactsBatch).toHaveBeenCalledTimes(1);
     expect(batchInputsOfCall(0)).toHaveLength(3); // 首轮传全部 3 条
     expect(result.current.extractModalOpen).toBe(true); // 半成功 → modal 不关
 
     // 重试：甲已登记 → pending 只剩乙、丙 → 批量只传 2 条。
     mocked.addFactsBatch.mockResolvedValueOnce({ added: 2, skipped: 0, writtenIndices: [0, 1] });
-    await act(async () => { await result.current.handleSaveExtracted(); });
+    await act(async () => {
+      await result.current.handleSaveExtracted();
+    });
     expect(mocked.addFactsBatch).toHaveBeenCalledTimes(2);
     const retried = batchInputsOfCall(1).map((i) => (i.data as { content_clean: string }).content_clean);
     // 关键判别：重试不含甲（否则重复落库）

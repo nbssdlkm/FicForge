@@ -2,9 +2,9 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from '../shared/Button';
-import { useTranslation } from '../../i18n/useAppTranslation';
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "../shared/Button";
+import { useTranslation } from "../../i18n/useAppTranslation";
 
 export interface DraftNavigatorProps {
   drafts: Array<{ label: string; draftId: string }>;
@@ -14,13 +14,7 @@ export interface DraftNavigatorProps {
   modified?: boolean;
 }
 
-export const DraftNavigator = ({
-  drafts,
-  activeDraftIndex,
-  onSelect,
-  disabled,
-  modified,
-}: DraftNavigatorProps) => {
+export const DraftNavigator = ({ drafts, activeDraftIndex, onSelect, disabled, modified }: DraftNavigatorProps) => {
   const { t } = useTranslation();
 
   const isFirstDraft = activeDraftIndex === 0;
@@ -31,26 +25,28 @@ export const DraftNavigator = ({
       {/* Desktop: prev/next buttons */}
       <div className="hidden items-center gap-2 text-sm font-sans text-text/70 md:flex">
         <Button
-          tone="neutral" fill="plain"
+          tone="neutral"
+          fill="plain"
           size="sm"
           className="h-8 w-8 p-0"
           onClick={() => onSelect(Math.max(0, activeDraftIndex - 1))}
           disabled={isFirstDraft || disabled}
-          aria-label={t('drafts.previous')}
+          aria-label={t("drafts.previous")}
         >
           <ChevronLeft size={16} />
         </Button>
         <span className="min-w-[140px] text-center font-medium">
-          {t('drafts.count', { current: activeDraftIndex + 1, total: drafts.length })}
-          {modified ? <span className="ml-1 text-text/50">{t('drafts.modified')}</span> : null}
+          {t("drafts.count", { current: activeDraftIndex + 1, total: drafts.length })}
+          {modified ? <span className="ml-1 text-text/50">{t("drafts.modified")}</span> : null}
         </span>
         <Button
-          tone="neutral" fill="plain"
+          tone="neutral"
+          fill="plain"
           size="sm"
           className="h-8 w-8 p-0"
           onClick={() => onSelect(Math.min(drafts.length - 1, activeDraftIndex + 1))}
           disabled={isLastDraft || disabled}
-          aria-label={t('drafts.next')}
+          aria-label={t("drafts.next")}
         >
           <ChevronRight size={16} />
         </Button>
@@ -63,9 +59,9 @@ export const DraftNavigator = ({
             key={draft.draftId}
             type="button"
             onClick={() => onSelect(index)}
-            className={`min-h-[44px] rounded-full px-3 text-sm whitespace-nowrap transition-colors ${index === activeDraftIndex ? 'bg-accent text-inv-text' : 'bg-black/5 text-text/70 dark:bg-white/10'}`}
+            className={`min-h-[44px] rounded-full px-3 text-sm whitespace-nowrap transition-colors ${index === activeDraftIndex ? "bg-accent text-inv-text" : "bg-black/5 text-text/70 dark:bg-white/10"}`}
           >
-            {t('drafts.count', { current: index + 1, total: drafts.length })}
+            {t("drafts.count", { current: index + 1, total: drafts.length })}
           </button>
         ))}
       </div>

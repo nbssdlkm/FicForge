@@ -7,9 +7,9 @@ import type { GeneratedWith } from "./generated_with.js";
 
 export interface Draft {
   au_id: string;
-  chapter_num: number;           // 整型，D-0014
-  variant: string;               // 草稿变体标识，如 "A", "B", "C"
-  content: string;               // 正文
+  chapter_num: number; // 整型，D-0014
+  variant: string; // 草稿变体标识，如 "A", "B", "C"
+  content: string; // 正文
   generated_with: GeneratedWith | null;
 }
 

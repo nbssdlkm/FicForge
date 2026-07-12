@@ -26,11 +26,7 @@ describe("withAuLock", () => {
     await Promise.all([task("A", 30), task("B", 10), task("C", 5)]);
 
     // 同一 AU 串行 → 必须是成对的 enter/exit（不交错）
-    expect(timeline).toEqual([
-      "A:enter", "A:exit",
-      "B:enter", "B:exit",
-      "C:enter", "C:exit",
-    ]);
+    expect(timeline).toEqual(["A:enter", "A:exit", "B:enter", "B:exit", "C:enter", "C:exit"]);
   });
 
   it("不同 au_id 可以并行执行（不互相阻塞）", async () => {

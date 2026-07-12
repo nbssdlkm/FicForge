@@ -34,9 +34,14 @@ describe("OpenAICompatibleProvider.generateStream tool_call streaming (FicForge 
     const chunks = [];
     for await (const c of provider.generateStream({
       messages: [{ role: "user", content: "看第 3 章" }],
-      max_tokens: 100, temperature: 1, top_p: 1,
+      max_tokens: 100,
+      temperature: 1,
+      top_p: 1,
       tools: [
-        { type: "function", function: { name: "show_chapter", description: "x", parameters: { type: "object", properties: {} } } },
+        {
+          type: "function",
+          function: { name: "show_chapter", description: "x", parameters: { type: "object", properties: {} } },
+        },
       ],
     })) {
       chunks.push(c);
@@ -76,8 +81,11 @@ describe("OpenAICompatibleProvider.generateStream tool_call streaming (FicForge 
     const chunks = [];
     for await (const c of provider.generateStream({
       messages: [{ role: "user", content: "x" }],
-      max_tokens: 100, temperature: 1, top_p: 1,
-    })) chunks.push(c);
+      max_tokens: 100,
+      temperature: 1,
+      top_p: 1,
+    }))
+      chunks.push(c);
 
     expect(chunks).toHaveLength(3);
     for (const c of chunks) expect(c.tool_call_deltas).toBeUndefined();
@@ -116,13 +124,15 @@ describe("OpenAICompatibleProvider.generateStream", () => {
 
     const provider = new OpenAICompatibleProvider("https://example.com", "key", "model");
     const controller = new AbortController();
-    const iterator = provider.generateStream({
-      messages: [{ role: "user", content: "hello" }],
-      max_tokens: 32,
-      temperature: 1,
-      top_p: 1,
-      signal: controller.signal,
-    })[Symbol.asyncIterator]();
+    const iterator = provider
+      .generateStream({
+        messages: [{ role: "user", content: "hello" }],
+        max_tokens: 32,
+        temperature: 1,
+        top_p: 1,
+        signal: controller.signal,
+      })
+      [Symbol.asyncIterator]();
 
     const nextChunk = iterator.next();
     controller.abort();
@@ -153,7 +163,9 @@ describe("OpenAICompatibleProvider.generateStream", () => {
     try {
       for await (const c of provider.generateStream({
         messages: [{ role: "user", content: "hello" }],
-        max_tokens: 32, temperature: 1, top_p: 1,
+        max_tokens: 32,
+        temperature: 1,
+        top_p: 1,
       })) {
         received.push(c.delta);
       }
@@ -179,7 +191,8 @@ describe("OpenAICompatibleProvider.generateStream", () => {
         controller.close();
       },
     });
-    const fetchImpl = vi.fn()
+    const fetchImpl = vi
+      .fn()
       .mockResolvedValueOnce(new Response("rate limited", { status: 429 }))
       .mockResolvedValueOnce(new Response(okStream, { status: 200, headers: { "Content-Type": "text/event-stream" } }));
     vi.stubGlobal("fetch", fetchImpl);
@@ -188,7 +201,9 @@ describe("OpenAICompatibleProvider.generateStream", () => {
     const received: string[] = [];
     for await (const c of provider.generateStream({
       messages: [{ role: "user", content: "hi" }],
-      max_tokens: 32, temperature: 1, top_p: 1,
+      max_tokens: 32,
+      temperature: 1,
+      top_p: 1,
     })) {
       if (c.delta) received.push(c.delta);
     }
@@ -288,11 +303,7 @@ describe("OpenAICompatibleProvider 错误处理 (BUG 3.1 错误码拆分)", () =
       ),
     );
 
-    const provider = new OpenAICompatibleProvider(
-      "https://example.com",
-      "key",
-      "deepseek-reasoner",
-    );
+    const provider = new OpenAICompatibleProvider("https://example.com", "key", "deepseek-reasoner");
     await expect(
       provider.generate({
         messages: [{ role: "user", content: "hello" }],
@@ -317,11 +328,7 @@ describe("OpenAICompatibleProvider 错误处理 (BUG 3.1 错误码拆分)", () =
       ),
     );
 
-    const provider = new OpenAICompatibleProvider(
-      "https://example.com",
-      "key",
-      "model",
-    );
+    const provider = new OpenAICompatibleProvider("https://example.com", "key", "model");
     await expect(
       provider.generate({
         messages: [{ role: "user", content: "hello" }],
@@ -356,7 +363,9 @@ describe("OpenAICompatibleProvider.generate non-streaming success", () => {
     const provider = new OpenAICompatibleProvider("https://example.com", "key", "model");
     const result = await provider.generate({
       messages: [{ role: "user", content: "hello" }],
-      max_tokens: 32, temperature: 1, top_p: 1,
+      max_tokens: 32,
+      temperature: 1,
+      top_p: 1,
     });
 
     expect(result.content).toBe("hello world");
@@ -387,7 +396,9 @@ describe("OpenAICompatibleProvider.generate non-streaming success", () => {
     // 包含 NULL 和 lone high surrogate（不成对）
     await provider.generate({
       messages: [{ role: "user", content: "hello world\uD800bad" }],
-      max_tokens: 32, temperature: 1, top_p: 1,
+      max_tokens: 32,
+      temperature: 1,
+      top_p: 1,
     });
 
     // NULL 和 lone surrogate 被移除，合法字符保留
@@ -428,7 +439,9 @@ describe("OpenAICompatibleProvider chat_path URL 构造（自定义网关路径�
     const provider = new OpenAICompatibleProvider("https://relay.example.com/v1/", "key", "model");
     await provider.generate({
       messages: [{ role: "user", content: "hi" }],
-      max_tokens: 1, temperature: 1, top_p: 1,
+      max_tokens: 1,
+      temperature: 1,
+      top_p: 1,
     });
     expect(cap.getUrl()).toBe("https://relay.example.com/v1/chat/completions");
   });
@@ -438,7 +451,9 @@ describe("OpenAICompatibleProvider chat_path URL 构造（自定义网关路径�
     const provider = new OpenAICompatibleProvider("https://gateway.example.com", "key", "model", "/openai/v1/chat");
     await provider.generate({
       messages: [{ role: "user", content: "hi" }],
-      max_tokens: 1, temperature: 1, top_p: 1,
+      max_tokens: 1,
+      temperature: 1,
+      top_p: 1,
     });
     expect(cap.getUrl()).toBe("https://gateway.example.com/openai/v1/chat");
   });
@@ -448,7 +463,9 @@ describe("OpenAICompatibleProvider chat_path URL 构造（自定义网关路径�
     const provider = new OpenAICompatibleProvider("https://gateway.example.com", "key", "model", "relay/completions");
     await provider.generate({
       messages: [{ role: "user", content: "hi" }],
-      max_tokens: 1, temperature: 1, top_p: 1,
+      max_tokens: 1,
+      temperature: 1,
+      top_p: 1,
     });
     expect(cap.getUrl()).toBe("https://gateway.example.com/relay/completions");
   });
@@ -462,31 +479,29 @@ describe("OpenAICompatibleProvider requestWithRetry error translation", () => {
   it("translates AbortError without external signal to LLMError with network_error (timeout path)", async () => {
     // 模拟内部 AbortController 触发（timeout）导致 fetch 抛 AbortError。
     // 无 externalSignal 时，retry 一次后返回 network_error。
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new DOMException("The operation was aborted", "AbortError")),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("The operation was aborted", "AbortError")));
 
     const provider = new OpenAICompatibleProvider("https://example.com", "key", "model");
     await expect(
       provider.generate({
         messages: [{ role: "user", content: "hello" }],
-        max_tokens: 32, temperature: 1, top_p: 1,
+        max_tokens: 32,
+        temperature: 1,
+        top_p: 1,
       }),
     ).rejects.toMatchObject({ error_code: "network_error" });
   });
 
   it("translates TypeError (network down) to LLMError with network code", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
 
     const provider = new OpenAICompatibleProvider("https://example.com", "key", "model");
     await expect(
       provider.generate({
         messages: [{ role: "user", content: "hello" }],
-        max_tokens: 32, temperature: 1, top_p: 1,
+        max_tokens: 32,
+        temperature: 1,
+        top_p: 1,
       }),
     ).rejects.toMatchObject({ error_code: "network_error" });
   });

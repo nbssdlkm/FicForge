@@ -13,18 +13,30 @@ function mockLLM(content: string): LLMProvider {
     async generate() {
       return { content, model: "m", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
     },
-    async *generateStream() { /* unused */ },
+    async *generateStream() {
+      /* unused */
+    },
   };
 }
 function throwingLLM(): LLMProvider {
   return {
-    async generate() { throw new Error("boom"); },
-    async *generateStream() { /* unused */ },
+    async generate() {
+      throw new Error("boom");
+    },
+    async *generateStream() {
+      /* unused */
+    },
   };
 }
 
 const T = (over: Partial<ReturnType<typeof createThread>> = {}) =>
-  createThread({ id: "t1", title: "沈砚为父翻案", status: ThreadStatus.ACTIVE, updated_at: "2026-01-10T00:00:00Z", ...over });
+  createThread({
+    id: "t1",
+    title: "沈砚为父翻案",
+    status: ThreadStatus.ACTIVE,
+    updated_at: "2026-01-10T00:00:00Z",
+    ...over,
+  });
 const F = (over: Partial<ReturnType<typeof createFact>> = {}) =>
   createFact({ id: "f", content_raw: "r", content_clean: "c", status: FactStatus.ACTIVE, chapter: 1, ...over });
 

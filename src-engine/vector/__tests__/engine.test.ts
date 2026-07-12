@@ -8,9 +8,17 @@ import type { VectorChunk } from "../../repositories/interfaces/vector.js";
 // Re-use mock adapter
 class MockAdapter {
   private files = new Map<string, string>();
-  async readFile(path: string) { const c = this.files.get(path); if (!c) throw new Error("Not found"); return c; }
-  async writeFile(path: string, content: string) { this.files.set(path, content); }
-  async deleteFile(path: string) { this.files.delete(path); }
+  async readFile(path: string) {
+    const c = this.files.get(path);
+    if (!c) throw new Error("Not found");
+    return c;
+  }
+  async writeFile(path: string, content: string) {
+    this.files.set(path, content);
+  }
+  async deleteFile(path: string) {
+    this.files.delete(path);
+  }
   // atomicWrite 依赖（写 .tmp → rename 原子替换），与真实三端 adapter 契约一致
   async rename(oldPath: string, newPath: string) {
     const c = this.files.get(oldPath);
@@ -22,21 +30,35 @@ class MockAdapter {
     const prefix = path + "/";
     const names = new Set<string>();
     for (const key of this.files.keys()) {
-      if (key.startsWith(prefix)) { names.add(key.slice(prefix.length).split("/")[0]); }
+      if (key.startsWith(prefix)) {
+        names.add(key.slice(prefix.length).split("/")[0]);
+      }
     }
     return [...names];
   }
   async exists(path: string) {
     if (this.files.has(path)) return true;
-    for (const key of this.files.keys()) { if (key.startsWith(path + "/")) return true; }
+    for (const key of this.files.keys()) {
+      if (key.startsWith(path + "/")) return true;
+    }
     return false;
   }
   async mkdir() {}
-  async showSaveDialog() { return null; }
-  async showOpenDialog() { return null; }
-  getPlatform() { return "web" as const; }
-  async getDataDir() { return "/mock"; }
-  getDeviceId() { return "mock"; }
+  async showSaveDialog() {
+    return null;
+  }
+  async showOpenDialog() {
+    return null;
+  }
+  getPlatform() {
+    return "web" as const;
+  }
+  async getDataDir() {
+    return "/mock";
+  }
+  getDeviceId() {
+    return "mock";
+  }
 }
 
 describe("cosine_similarity", () => {
@@ -67,7 +89,12 @@ describe("JsonVectorEngine", () => {
   let adapter: MockAdapter;
   let engine: JsonVectorEngine;
 
-  function makeChunk(id: string, collection: "chapters" | "characters" | "worldbuilding" | "summaries", embedding: number[], meta: Record<string, unknown> = {}): VectorChunk {
+  function makeChunk(
+    id: string,
+    collection: "chapters" | "characters" | "worldbuilding" | "summaries",
+    embedding: number[],
+    meta: Record<string, unknown> = {},
+  ): VectorChunk {
     return {
       id,
       collection,
@@ -111,7 +138,9 @@ describe("JsonVectorEngine", () => {
     ]);
 
     const results = await engine.search("au1", [1, 0], {
-      collection: "chapters", top_k: 10, char_filter: ["Alice"],
+      collection: "chapters",
+      top_k: 10,
+      char_filter: ["Alice"],
     });
     expect(results).toHaveLength(1);
     expect(results[0].content).toBe("Content of c1");
@@ -140,10 +169,12 @@ describe("JsonVectorEngine", () => {
     await engine.delete_by_chapter("au1", 1);
 
     expect(engine.chunkCount).toBe(2);
-    expect((await engine.search("au1", [1, 0], { collection: "chapters", top_k: 10 }))
-      .map((r) => r.chapter_num)).toEqual([2]);
-    expect((await engine.search("au1", [1, 0], { collection: "summaries", top_k: 10 }))
-      .map((r) => r.chapter_num)).toEqual([2]);
+    expect(
+      (await engine.search("au1", [1, 0], { collection: "chapters", top_k: 10 })).map((r) => r.chapter_num),
+    ).toEqual([2]);
+    expect(
+      (await engine.search("au1", [1, 0], { collection: "summaries", top_k: 10 })).map((r) => r.chapter_num),
+    ).toEqual([2]);
   });
 
   it("delete_by_chapter with collection only removes that collection (keeps valid summary vector)", async () => {

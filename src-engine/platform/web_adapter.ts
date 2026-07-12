@@ -106,9 +106,7 @@ const AES_KEY_ID = "secure_aes_gcm_256_v1";
 const CIPHER_PREFIX = "encv1:";
 
 function webCryptoAvailable(): boolean {
-  return typeof indexedDB !== "undefined"
-    && typeof crypto !== "undefined"
-    && !!crypto.subtle;
+  return typeof indexedDB !== "undefined" && typeof crypto !== "undefined" && !!crypto.subtle;
 }
 
 function openKeyDB(): Promise<IDBDatabase> {
@@ -182,11 +180,7 @@ async function encryptSecret(plaintext: string): Promise<string> {
   const key = await getSecureAesKey();
   if (!key) return plaintext; // no crypto → store plaintext; capability reports honestly
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    key,
-    new TextEncoder().encode(plaintext),
-  );
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(plaintext));
   return `${CIPHER_PREFIX}${uint8ToBase64(iv)}.${uint8ToBase64(new Uint8Array(ct))}`;
 }
 
@@ -196,11 +190,7 @@ async function decryptSecret(stored: string): Promise<string | null> {
   if (!key) return null; // ciphertext but no key → unrecoverable → treat as missing
   try {
     const [ivB64, ctB64] = stored.slice(CIPHER_PREFIX.length).split(".");
-    const pt = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: base64ToUint8(ivB64) },
-      key,
-      base64ToUint8(ctB64),
-    );
+    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: base64ToUint8(ivB64) }, key, base64ToUint8(ctB64));
     return new TextDecoder().decode(pt);
   } catch {
     return null;
@@ -477,7 +467,10 @@ export class WebAdapter implements PlatformAdapter {
     try {
       sessionStorage.setItem(storageKey, value);
     } catch {
-      platformWarn("WebAdapter", "secureSet: sessionStorage unavailable, using in-memory fallback (not persisted beyond this session)");
+      platformWarn(
+        "WebAdapter",
+        "secureSet: sessionStorage unavailable, using in-memory fallback (not persisted beyond this session)",
+      );
       this._secureFallback.set(storageKey, value);
     }
   }

@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from "react";
 
 export function useWriterChromeState(auPath: string) {
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
@@ -11,7 +11,7 @@ export function useWriterChromeState(auPath: string) {
   const [isDirtyOpen, setDirtyOpen] = useState(false);
   const [dirtyTargetChapter, setDirtyTargetChapter] = useState<number>(0);
   const [isFinalizeConfirmOpen, setFinalizeConfirmOpen] = useState(false);
-  const [chapterTitle, setChapterTitle] = useState('');
+  const [chapterTitle, setChapterTitle] = useState("");
   const [isDiscardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const [isUndoConfirmOpen, setUndoConfirmOpen] = useState(false);
   const [dirtyBannerDismissed, setDirtyBannerDismissed] = useState(false);
@@ -49,7 +49,7 @@ export function useWriterChromeState(auPath: string) {
   }, []);
 
   const openFinalizeConfirm = useCallback(() => {
-    setChapterTitle('');
+    setChapterTitle("");
     setFinalizeConfirmOpen(true);
   }, []);
 
@@ -104,8 +104,8 @@ export function useWriterChromeState(auPath: string) {
     footerCollapsed,
 
     // 用户事件 setter（受控组件/外部手动覆盖用，保留）：
-    setChapterTitle,              // <input> 受控绑定
-    setDirtyBannerDismissed,      // 外部一处调用（banner dismiss）
+    setChapterTitle, // <input> 受控绑定
+    setDirtyBannerDismissed, // 外部一处调用（banner dismiss）
 
     // 语义化 method（推荐用法；原 raw setX 在 Phase 6.3 移除）
     toggleRightCollapsed,

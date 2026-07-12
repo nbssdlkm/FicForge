@@ -11,11 +11,21 @@ function memAdapter() {
   const fs = new Map<string, string>();
   return {
     files: fs,
-    async exists(p: string) { return fs.has(p); },
-    async readFile(p: string) { const v = fs.get(p); if (v === undefined) throw new Error("ENOENT"); return v; },
-    async writeFile(p: string, c: string) { fs.set(p, c); },
+    async exists(p: string) {
+      return fs.has(p);
+    },
+    async readFile(p: string) {
+      const v = fs.get(p);
+      if (v === undefined) throw new Error("ENOENT");
+      return v;
+    },
+    async writeFile(p: string, c: string) {
+      fs.set(p, c);
+    },
     async mkdir(_p: string) {},
-    async deleteFile(p: string) { fs.delete(p); },
+    async deleteFile(p: string) {
+      fs.delete(p);
+    },
     async rename(from: string, to: string) {
       const v = fs.get(from);
       if (v === undefined) throw new Error("ENOENT");
@@ -29,8 +39,13 @@ describe("FileThreadRepository (M8-B)", () => {
   it("add + list + get round-trip", async () => {
     const repo = new FileThreadRepository(memAdapter());
     const t = createThread({
-      id: "t1", title: "为父翻案", description: "主线", state: "确认名录被篡改",
-      status: ThreadStatus.ACTIVE, created_at: "t", updated_at: "t",
+      id: "t1",
+      title: "为父翻案",
+      description: "主线",
+      state: "确认名录被篡改",
+      status: ThreadStatus.ACTIVE,
+      created_at: "t",
+      updated_at: "t",
     });
     await repo.add("/au", t);
     const all = await repo.list("/au");

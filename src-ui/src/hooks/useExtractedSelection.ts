@@ -1,8 +1,8 @@
 // Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 
-import { useState, useCallback } from 'react';
-import type { ExtractedFactCandidate } from '../api/engine-client';
+import { useState, useCallback } from "react";
+import type { ExtractedFactCandidate } from "../api/engine-client";
 
 export function getCandidateKey(candidate: ExtractedFactCandidate, index: number): string {
   return `${candidate.content_clean}-${candidate.chapter}-${index}`;
@@ -25,17 +25,16 @@ export function useExtractedSelection() {
 
   const toggleExtractedCandidate = useCallback((key: string) => {
     setSelectedExtractedKeys((current) =>
-      current.includes(key)
-        ? current.filter((item) => item !== key)
-        : [...current, key]
+      current.includes(key) ? current.filter((item) => item !== key) : [...current, key],
     );
   }, []);
 
-  const filterSelected = useCallback((candidates: ExtractedFactCandidate[]) => {
-    return candidates.filter((candidate, index) =>
-      selectedExtractedKeys.includes(getCandidateKey(candidate, index))
-    );
-  }, [selectedExtractedKeys]);
+  const filterSelected = useCallback(
+    (candidates: ExtractedFactCandidate[]) => {
+      return candidates.filter((candidate, index) => selectedExtractedKeys.includes(getCandidateKey(candidate, index)));
+    },
+    [selectedExtractedKeys],
+  );
 
   return {
     selectedExtractedKeys,

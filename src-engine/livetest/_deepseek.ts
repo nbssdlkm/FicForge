@@ -47,10 +47,11 @@ export function loadDeepseekProbeConfig(): DeepseekProbeConfig {
  * 优先级：显式 modelOverride > 环境变量 DEEPSEEK_PROBE_MODEL/legacyEnvVar > config.flash_model。
  * base_url 优先级：环境变量 DEEPSEEK_PROBE_BASE_URL > config.base_url。
  */
-export function makeDeepseekProbeProvider(opts?: {
-  modelOverride?: string;
-  legacyEnvVar?: string;
-}): { provider: OpenAICompatibleProvider; model: string; baseUrl: string } {
+export function makeDeepseekProbeProvider(opts?: { modelOverride?: string; legacyEnvVar?: string }): {
+  provider: OpenAICompatibleProvider;
+  model: string;
+  baseUrl: string;
+} {
   const cfg = loadDeepseekProbeConfig();
   const baseUrl = process.env.DEEPSEEK_PROBE_BASE_URL || cfg.baseUrl;
   const model =

@@ -26,7 +26,7 @@ vi.mock("../../hooks/useFeedback", () => ({
 }));
 
 vi.mock("../../utils/platform", () => ({
-  isCapacitor: () => false,   // 桌面：渲染「选文件夹」入口
+  isCapacitor: () => false, // 桌面：渲染「选文件夹」入口
   isTauri: () => false,
 }));
 
@@ -34,7 +34,16 @@ import { RestoreBundleModal } from "../RestoreBundleModal";
 
 function auRootBundle(over: Partial<AuBundle["manifest"]> = {}): AuBundle {
   return {
-    manifest: { bundle_version: "1.0.0", exported_at: "t", au_name: "", fandom: "", chapter_count: 2, file_count: 3, excluded_dirs: [], ...over },
+    manifest: {
+      bundle_version: "1.0.0",
+      exported_at: "t",
+      au_name: "",
+      fandom: "",
+      chapter_count: 2,
+      file_count: 3,
+      excluded_dirs: [],
+      ...over,
+    },
     files: { "project.yaml": "name: x", "chapters/main/ch0001.md": "a", "chapters/main/ch0002.md": "b" },
   };
 }
@@ -71,18 +80,13 @@ describe("RestoreBundleModal raw-folder import (review fix #7)", () => {
 
     fireEvent.change(rawInput, {
       target: {
-        files: [
-          rawFile("ch0001.md", "myAU/chapters/main/ch0001.md"),
-          rawFile("project.yaml", "myAU/project.yaml"),
-        ],
+        files: [rawFile("ch0001.md", "myAU/chapters/main/ch0001.md"), rawFile("project.yaml", "myAU/project.yaml")],
       },
     });
 
     await waitFor(() => expect(bundleFromRawFiles).toHaveBeenCalled());
     const collected = bundleFromRawFiles.mock.calls[0][0] as Array<{ relpath: string }>;
-    expect(collected.map((c) => c.relpath).sort()).toEqual(
-      ["chapters/main/ch0001.md", "project.yaml"],
-    );
+    expect(collected.map((c) => c.relpath).sort()).toEqual(["chapters/main/ch0001.md", "project.yaml"]);
   });
 
   it("恢复成功后进入完成态，展示「补全记忆」引导、不立即关闭（最后一公里）", async () => {
@@ -116,7 +120,9 @@ describe("RestoreBundleModal raw-folder import (review fix #7)", () => {
     fireEvent.change(rawInput, { target: { files: [rawFile("project.yaml", "myAU/project.yaml")] } });
     await waitFor(() => expect(bundleFromRawFiles).toHaveBeenCalled());
     fireEvent.change(container.querySelector("select")!, { target: { value: "yuanchuang" } });
-    fireEvent.change(container.querySelector('input[type="text"], input:not([type])') as HTMLInputElement, { target: { value: "半迁回" } });
+    fireEvent.change(container.querySelector('input[type="text"], input:not([type])') as HTMLInputElement, {
+      target: { value: "半迁回" },
+    });
     fireEvent.click(screen.getByText("恢复"));
 
     // 完成态同时含跳过告警（2 个）+ 补记忆引导
@@ -126,8 +132,16 @@ describe("RestoreBundleModal raw-folder import (review fix #7)", () => {
 
   it("rejects a non-AU-root selection (no project.yaml/state.yaml, 0 chapters) with a clear error", async () => {
     bundleFromRawFiles.mockReturnValue({
-      manifest: { bundle_version: "1.0.0", exported_at: "t", au_name: "", fandom: "", chapter_count: 0, file_count: 1, excluded_dirs: [] },
-      files: { "au1/random.txt": "x" },     // 用户选了上一层，结构都歪在 au1/ 下
+      manifest: {
+        bundle_version: "1.0.0",
+        exported_at: "t",
+        au_name: "",
+        fandom: "",
+        chapter_count: 0,
+        file_count: 1,
+        excluded_dirs: [],
+      },
+      files: { "au1/random.txt": "x" }, // 用户选了上一层，结构都歪在 au1/ 下
     });
     const { container } = renderModal();
     const rawInput = container.querySelectorAll('input[type="file"]')[1] as HTMLInputElement;

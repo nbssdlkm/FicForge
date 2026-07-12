@@ -9,18 +9,11 @@
  * 路由到对应的 message kind 渲染。
  */
 
-import {
-  dispatch_simple_chat,
-  resolve_llm_config,
-  type Message,
-  type SimpleChatEvent,
-} from "@ficforge/engine";
+import { dispatch_simple_chat, resolve_llm_config, type Message, type SimpleChatEvent } from "@ficforge/engine";
 import { getEngine, getProjectOrThrow } from "./engine-instance";
 import { createEmbeddingProvider } from "./engine-state";
 
-export type {
-  SimpleChatEvent,
-};
+export type { SimpleChatEvent };
 
 export interface DispatchSimpleChatParams {
   au_path: string;

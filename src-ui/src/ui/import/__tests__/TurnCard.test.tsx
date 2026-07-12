@@ -53,7 +53,18 @@ describe("TurnCard pill selector (TD-013)", () => {
   });
 
   it("shows the uncertain badge when the turn is classified uncertain", () => {
-    render(<TurnCard turn={makeTurn({ classification: "uncertain", assignedType: "skip", reason: { type: "uncertain", charCount: 90 } })} currentChapterNum={1} hasPreviousChapter onChangeType={() => {}} />);
+    render(
+      <TurnCard
+        turn={makeTurn({
+          classification: "uncertain",
+          assignedType: "skip",
+          reason: { type: "uncertain", charCount: 90 },
+        })}
+        currentChapterNum={1}
+        hasPreviousChapter
+        onChangeType={() => {}}
+      />,
+    );
     expect(screen.getByText("待定")).toBeTruthy();
   });
 });

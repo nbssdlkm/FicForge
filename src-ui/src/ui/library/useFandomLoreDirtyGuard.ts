@@ -2,15 +2,15 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { FandomLoreCategory } from './lore-utils';
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { FandomLoreCategory } from "./lore-utils";
 
 /** 弃改确认后要继续执行的动作（原实现的 4 个互斥 pending ref 收敛为单个判别联合） */
 export type PendingLoreAction =
-  | { type: 'select'; filename: string; category: FandomLoreCategory }
-  | { type: 'create'; category: FandomLoreCategory }
-  | { type: 'delete' }
-  | { type: 'navigate'; page: string };
+  | { type: "select"; filename: string; category: FandomLoreCategory }
+  | { type: "create"; category: FandomLoreCategory }
+  | { type: "delete" }
+  | { type: "navigate"; page: string };
 
 /**
  * useFandomLoreDirtyGuard — 「放弃未保存修改」确认流。

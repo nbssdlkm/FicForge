@@ -3,12 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONTEXT_WINDOW, lookup_model_context_window, lookup_model_max_output } from "../model_context_map.js";
-import {
-  contextWindowForModel,
-  findRecommendedModel,
-  getProvider,
-  listProviders,
-} from "../provider_manifest.js";
+import { contextWindowForModel, findRecommendedModel, getProvider, listProviders } from "../provider_manifest.js";
 
 describe("provider_manifest — 完整性", () => {
   const providers = listProviders();

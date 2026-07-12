@@ -14,8 +14,8 @@
  * 不渲染标题、代码块、列表等。
  */
 
-import Markdown from 'react-markdown';
-import type { Components } from 'react-markdown';
+import Markdown from "react-markdown";
+import type { Components } from "react-markdown";
 
 const components: Components = {
   // 段落保持小说排版风格
@@ -37,9 +37,5 @@ const components: Components = {
 };
 
 export function ChapterMarkdown({ content }: { content: string }) {
-  return (
-    <Markdown components={components}>
-      {content}
-    </Markdown>
-  );
+  return <Markdown components={components}>{content}</Markdown>;
 }

@@ -100,7 +100,8 @@ const en: PromptModule = {
   // ===========================================================================
 
   SECTION_PLOT_STATE: "## Current Plot State",
-  SECTION_PLOT_THREADS: "## Active Plot Threads (keep these long arcs coherent; do not forget them or resolve them twice)",
+  SECTION_PLOT_THREADS:
+    "## Active Plot Threads (keep these long arcs coherent; do not forget them or resolve them twice)",
 
   INFO_ASYMMETRY_RULES:
     "(Knowledge-scope note: facts below may carry annotations like [known only to: X], [reader-only], or [hidden from: X], marking information asymmetry.\n" +
@@ -125,7 +126,8 @@ const en: PromptModule = {
 
   SECTION_WORLDBUILDING: "## Worldbuilding",
 
-  WORD_COUNT_REMINDER: "[IMPORTANT] This chapter MUST stay under {chapter_length} words. Wrap up the scene immediately when approaching this limit. Better to write less than exceed.",
+  WORD_COUNT_REMINDER:
+    "[IMPORTANT] This chapter MUST stay under {chapter_length} words. Wrap up the scene immediately when approaching this limit. Better to write less than exceed.",
 
   // ===========================================================================
   // rag_retrieval
@@ -146,8 +148,7 @@ const en: PromptModule = {
     "summary to a bare fact skeleton); but do NOT invent plot, scenes, or dialogue that did not occur in the source, " +
     "and do not add interpretations unsupported by the source; " +
     "(6) target 180-250 words, and never exceed 250 words.",
-  SUMMARY_STANDARD_USER:
-    "Write a 180-250 word narrative summary of chapter {chapter_num}:\n\n{chapter_text}",
+  SUMMARY_STANDARD_USER: "Write a 180-250 word narrative summary of chapter {chapter_num}:\n\n{chapter_text}",
 
   // ===========================================================================
   // chapter_summary micro (M10-A)
@@ -159,8 +160,7 @@ const en: PromptModule = {
     "past tense, one or two sentences; (3) no bullet points, no title, no preamble; " +
     "(4) do not fabricate anything not in the source; " +
     "(5) target 30-50 words, never exceed 50 words, output only the card prose.",
-  SUMMARY_MICRO_USER:
-    "Write a 30-50 word chapter card for chapter {chapter_num}:\n\n{chapter_text}",
+  SUMMARY_MICRO_USER: "Write a 30-50 word chapter card for chapter {chapter_num}:\n\n{chapter_text}",
 
   THREAD_STATE_SYSTEM:
     "You maintain the 'current progress' of a storyline. Given a storyline's name, description, and the " +
@@ -208,12 +208,12 @@ const en: PromptModule = {
     "   - Key actions and decisions\n" +
     "   - Newly introduced characters or factions\n" +
     "   Ignore:\n" +
-    "   - Pure emotional descriptions (\"he felt uneasy\")\n" +
+    '   - Pure emotional descriptions ("he felt uneasy")\n' +
     "   - Environmental/atmospheric descriptions\n" +
     "   - Temporary states that complete within the chapter with no lasting impact\n\n" +
     "3. Only extract facts that still hold true at chapter end.\n\n" +
     "4. Character inner thoughts: Only extract when they materially affect future plot " +
-    "(e.g. \"suspects X is the mastermind\"). Pure emotional feelings should not be extracted.\n\n" +
+    '(e.g. "suspects X is the mastermind"). Pure emotional feelings should not be extracted.\n\n' +
     "5. Classify fact types (fact_type):\n" +
     "   - character_detail: traits, habits, appearance\n" +
     "   - relationship: changes in character relationships\n" +
@@ -242,15 +242,15 @@ const en: PromptModule = {
     "5. characters use main names.\n\n" +
     "[M8-A New Fields (best-effort; use null when uncertain)]\n\n" +
     "- location: scene location (string or null)\n" +
-    "- story_time_tag: in-story time label (e.g. \"Y1 late winter\", string or null)\n" +
+    '- story_time_tag: in-story time label (e.g. "Y1 late winter", string or null)\n' +
     "- story_time_order: narrative sequence integer (start from 1 for this chapter; earlier = smaller positive int; null if unknown)\n" +
     "- time_kind: narrative type, enum: normal / flashback / insert / dream / parallel / imagined, null if unknown\n" +
-    "- action_verb: core action in one or two words (e.g. \"betray\" \"poison\", null if hard to summarize)\n" +
+    '- action_verb: core action in one or two words (e.g. "betray" "poison", null if hard to summarize)\n' +
     "- caused_by: list of direct causal facts from THIS output only (use content_clean abbreviation or leave as [])\n" +
-    "- known_to: who knows this fact. \"all\" (everyone knows) / \"reader_only\" (only reader knows) / array of character names who know (e.g. [\"Emperor\", \"Chancellor\"])\n" +
+    '- known_to: who knows this fact. "all" (everyone knows) / "reader_only" (only reader knows) / array of character names who know (e.g. ["Emperor", "Chancellor"])\n' +
     "- hidden_from: character names who explicitly do NOT know (use [] for normal narration)\n" +
     "- suspense_type: null / foreshadow / secret / misunderstanding / setup\n" +
-    "- _confidence: confidence per new field, format { \"location\": \"high\", \"known_to\": \"low\", ... }, values: high / medium / low\n\n" +
+    '- _confidence: confidence per new field, format { "location": "high", "known_to": "low", ... }, values: high / medium / low\n\n' +
     "[Important Constraint]\n" +
     "caused_by only references other facts in THIS JSON output — never guess cross-chapter IDs.\n\n" +
     "Output format: JSON array with all fields above (new fields may be null / []). Output ONLY JSON, nothing else.",
@@ -285,7 +285,8 @@ const en: PromptModule = {
   FACTS_USER_BATCH_INTRO: "Below are consecutive chapters:\n",
   FACTS_USER_BATCH_CHAPTER: "\n=== Chapter {chapter_num} ===\n{content}\n",
   FACTS_USER_BATCH_EXISTING_HINT: "\n\nExisting fact entries (avoid duplicate extraction):\n{existing_summary}",
-  FACTS_USER_BATCH_COMMAND: "\n\nPlease extract facts for each chapter separately, marking the chapter field in each entry.",
+  FACTS_USER_BATCH_COMMAND:
+    "\n\nPlease extract facts for each chapter separately, marking the chapter field in each entry.",
 
   // ===========================================================================
   // settings_chat
@@ -357,7 +358,8 @@ const en: PromptModule = {
   SETTINGS_LABEL_CORE_WORLDBUILDING: "Worldbuilding",
 
   // === AI chapter title generation ===
-  CHAPTER_TITLE_PROMPT: "Give a short title (no more than 6 words) for the following fiction chapter. Return only the title text, no explanation or punctuation:\n\n{content}",
+  CHAPTER_TITLE_PROMPT:
+    "Give a short title (no more than 6 words) for the following fiction chapter. Return only the title text, no explanation or punctuation:\n\n{content}",
 
   // === FicForge Lite: simple_assembler ===
   SIMPLE_SECTION_CONFIRMED_CHAPTERS: "## Confirmed Chapters",
@@ -367,30 +369,30 @@ const en: PromptModule = {
     "You are FicForge Lite's writing assistant, helping the user continue chapters and view / modify settings in their fanfiction project.\n" +
     "This is a **conversational** interface — most user messages are **NOT** continue-writing instructions. **Default assumption is chitchat or meta question** unless the message **explicitly** asks to write a chapter.\n\n" +
     "## Hard rules (do not violate)\n\n" +
-    "**Plain text output (markdown without any tool call) is allowed in EXACTLY ONE scenario**: the user message **explicitly** contains continue-writing keywords (\"write\", \"continue\", \"chapter\", \"scene\", \"the part where\", \"opening\", \"ending\") or gives a specific scene directive.\n\n" +
-    "**ALL other cases — including short replies, polite acknowledgements, chitchat, greetings, ambiguous intent — MUST go through the chat_reply tool**. Never emit plain text for chitchat; never produce a few short lines as a \"friendly response\". Short replies belong inside chat_reply's content field.\n\n" +
+    '**Plain text output (markdown without any tool call) is allowed in EXACTLY ONE scenario**: the user message **explicitly** contains continue-writing keywords ("write", "continue", "chapter", "scene", "the part where", "opening", "ending") or gives a specific scene directive.\n\n' +
+    '**ALL other cases — including short replies, polite acknowledgements, chitchat, greetings, ambiguous intent — MUST go through the chat_reply tool**. Never emit plain text for chitchat; never produce a few short lines as a "friendly response". Short replies belong inside chat_reply\'s content field.\n\n' +
     "## Step 1: Identify user intent\n\n" +
-    "1. **Continue writing** — User **explicitly** asks to write a chapter (\"write chapter N\", \"continue\", \"write the scene where X enters the tavern\", or gives a specific scene directive) → **output the chapter body as raw markdown** (no tool call).\n" +
-    "2. **View chapter / setting** — User asks \"show me chapter N\" / \"display character X\" / \"let me see worldbuilding Y\" → call show_chapter / show_setting tool. show_* tools **execute automatically** and the result is fed back to you; **on the next turn** use chat_reply to answer the user.\n" +
+    '1. **Continue writing** — User **explicitly** asks to write a chapter ("write chapter N", "continue", "write the scene where X enters the tavern", or gives a specific scene directive) → **output the chapter body as raw markdown** (no tool call).\n' +
+    '2. **View chapter / setting** — User asks "show me chapter N" / "display character X" / "let me see worldbuilding Y" → call show_chapter / show_setting tool. show_* tools **execute automatically** and the result is fed back to you; **on the next turn** use chat_reply to answer the user.\n' +
     "3. **Modify / create settings** — User wants to change or **create new** character / worldbuilding / writing style / pinned rule → directly call the corresponding tool (create/modify_character_file, create/modify_worldbuilding_file, add_pinned_context, update_writing_style) with **all required args filled**. These tools surface a confirmation card; you do NOT see the result before user confirmation.\n" +
     "4. **Meta question / chitchat / greeting / short message / clarification / DEFAULT** — **MUST call chat_reply tool** with content field.\n\n" +
     "### When chat_reply is mandatory (recognize and use chat_reply)\n\n" +
-    "- Short messages / single words / greetings: \"hi\" / \"hello\" / \"hey\" / \"yo\" / \"are you there\"\n" +
-    "- Meta questions: \"what can you do\" / \"how to use\" / \"what do you see\" / \"what did I send before\" / \"last message\"\n" +
-    "- Progress queries: \"which chapter are we on\" / \"how many tokens left\"\n" +
-    "- Clarification needed: \"which thread to continue\" / \"what scene exactly\"\n" +
+    '- Short messages / single words / greetings: "hi" / "hello" / "hey" / "yo" / "are you there"\n' +
+    '- Meta questions: "what can you do" / "how to use" / "what do you see" / "what did I send before" / "last message"\n' +
+    '- Progress queries: "which chapter are we on" / "how many tokens left"\n' +
+    '- Clarification needed: "which thread to continue" / "what scene exactly"\n' +
     "- After you just called show_chapter / show_setting and now need to answer the user or continue the discussion\n" +
-    "- User message has **no explicit writing instruction** (no \"write\", \"continue\", no scene description)\n\n" +
+    '- User message has **no explicit writing instruction** (no "write", "continue", no scene description)\n\n' +
     "**Counter-examples (do NOT emit plain text in these cases)**:\n" +
-    "- User says \"hey\"/\"hi\" → **WRONG**: emit plain text \"hello, want me to write?\". **RIGHT**: chat_reply content=\"Hi — where shall we pick up?\"\n" +
-    "- User asks \"what can you help with\" → **WRONG**: list capabilities as plain text. **RIGHT**: chat_reply listing capabilities\n" +
-    "- User asks \"what settings do I have now\" → **WRONG**: emit list as plain text. **RIGHT**: show_setting first / or chat_reply\n" +
-    "- User asks \"why\" / \"how come\" → **WRONG**: explain in plain text. **RIGHT**: chat_reply with the explanation\n\n" +
+    '- User says "hey"/"hi" → **WRONG**: emit plain text "hello, want me to write?". **RIGHT**: chat_reply content="Hi — where shall we pick up?"\n' +
+    '- User asks "what can you help with" → **WRONG**: list capabilities as plain text. **RIGHT**: chat_reply listing capabilities\n' +
+    '- User asks "what settings do I have now" → **WRONG**: emit list as plain text. **RIGHT**: show_setting first / or chat_reply\n' +
+    '- User asks "why" / "how come" → **WRONG**: explain in plain text. **RIGHT**: chat_reply with the explanation\n\n' +
     "## Key principles\n\n" +
     "- When uncertain, use chat_reply to ask clarification, do NOT default to writing.\n" +
     "- **show_chapter / show_setting tool results ARE fed back to you**: feel free to call them; on the next turn you'll see the result and decide next step (continue exploring / chat_reply summary).\n" +
     "- create/modify mutating tools DO NOT return results before user confirmation: include all required args in one call, do NOT pre-verify with show_*.\n" +
-    "- When writing, **output only the body** — no \"## Chapter N\" heading (system adds it), no meta commentary / summary / explanation, **do NOT** mix chat_reply with chapter body.\n" +
+    '- When writing, **output only the body** — no "## Chapter N" heading (system adds it), no meta commentary / summary / explanation, **do NOT** mix chat_reply with chapter body.\n' +
     "- chat_reply content stays under 200 words, plain natural tone, **never** put chapter body inside it.\n\n" +
     "## Writing rules (only when intent IS to continue writing)\n\n" +
     "- Target chapter length: ~{chapter_length} words, max {chapter_length_max}.\n" +
@@ -401,23 +403,23 @@ const en: PromptModule = {
     "## Example dialogues (follow strictly)\n\n" +
     "**Example 1 — Greeting**:\n" +
     "User: hey\n" +
-    "Correct: call chat_reply, content=\"Hi! Want to continue or tweak settings?\"\n" +
-    "Wrong: emit plain text \"Hello, want me to write?\" / emit chapter markdown\n\n" +
+    'Correct: call chat_reply, content="Hi! Want to continue or tweak settings?"\n' +
+    'Wrong: emit plain text "Hello, want me to write?" / emit chapter markdown\n\n' +
     "**Example 2 — Meta question**:\n" +
     "User: what can you do\n" +
-    "Correct: call chat_reply, content=\"I can continue chapters, view/modify characters and worldbuilding.\"\n" +
+    'Correct: call chat_reply, content="I can continue chapters, view/modify characters and worldbuilding."\n' +
     "Wrong: emit plain text listing capabilities\n\n" +
     "**Example 3 — View request**:\n" +
     "User: show me chapter 3\n" +
     "Correct: call show_chapter, chapter_num=3 (the result is fed back automatically; next turn use chat_reply to summarize)\n" +
-    "Wrong: emit plain text \"Chapter 3 is about...\"\n\n" +
+    'Wrong: emit plain text "Chapter 3 is about..."\n\n' +
     "**Example 4 — Continue writing**:\n" +
     "User: write chapter 4, the protagonist enters a tavern\n" +
     "Correct: emit markdown chapter body directly, no tool call\n" +
     "Wrong: call chat_reply asking for scene details\n\n" +
     "**Example 5 — Modify setting**:\n" +
     "User: change Alice's hair to silver\n" +
-    "Correct: directly call modify_character_file with filename=\"Alice.md\", new_content=full updated content, change_summary=\"hair to silver\"\n" +
+    'Correct: directly call modify_character_file with filename="Alice.md", new_content=full updated content, change_summary="hair to silver"\n' +
     "Wrong: show_setting first / chat_reply asking / plain text\n\n" +
     "**Hard rule reminder**: except for clear writing (Example 4) or modifying (Example 5) instructions, **all other user messages MUST call chat_reply tool**. This is the top-level hard constraint.",
 };

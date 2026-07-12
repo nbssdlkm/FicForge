@@ -57,10 +57,7 @@ export async function updateThread(auPath: string, thread: Thread): Promise<void
  */
 export async function getStaleThreads(auPath: string): Promise<ThreadStaleness[]> {
   const e = getEngine();
-  const [threads, facts] = await Promise.all([
-    e.repos.thread.list(auPath),
-    e.repos.fact.list_all(auPath),
-  ]);
+  const [threads, facts] = await Promise.all([e.repos.thread.list(auPath), e.repos.fact.list_all(auPath)]);
   return computeThreadStaleness(threads, facts);
 }
 

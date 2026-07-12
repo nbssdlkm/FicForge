@@ -52,7 +52,8 @@ function makeBaseParams(adapter: MockAdapter, providerOverride: LLMProvider, use
     session_llm: null,
     session_params: null,
     project: createProject({
-      project_id: "p", au_id: "au_test",
+      project_id: "p",
+      au_id: "au_test",
       llm: createLLMConfig({ mode: LLMMode.API, model: "test", api_base: "x", api_key: "k" }),
     }),
     state: createState({ au_id: "au_test", current_chapter: 1 }),
@@ -106,21 +107,34 @@ describe("dispatch_simple_chat", () => {
     const provider = makeStreamProvider([
       {
         delta: "",
-        tool_call_deltas: [{
-          index: 0, id: "call_1", type: "function",
-          function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: "" },
-        }],
-        is_final: false, input_tokens: 50, output_tokens: null, finish_reason: null,
+        tool_call_deltas: [
+          {
+            index: 0,
+            id: "call_1",
+            type: "function",
+            function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: "" },
+          },
+        ],
+        is_final: false,
+        input_tokens: 50,
+        output_tokens: null,
+        finish_reason: null,
       },
       {
         delta: "",
         tool_call_deltas: [{ index: 0, function: { arguments: '{"content":"hi ' } }],
-        is_final: false, input_tokens: null, output_tokens: null, finish_reason: null,
+        is_final: false,
+        input_tokens: null,
+        output_tokens: null,
+        finish_reason: null,
       },
       {
         delta: "",
         tool_call_deltas: [{ index: 0, function: { arguments: 'there"}' } }],
-        is_final: false, input_tokens: null, output_tokens: null, finish_reason: null,
+        is_final: false,
+        input_tokens: null,
+        output_tokens: null,
+        finish_reason: null,
       },
       { delta: "", is_final: true, input_tokens: null, output_tokens: 12, finish_reason: "tool_calls" },
     ]);
@@ -142,9 +156,7 @@ describe("dispatch_simple_chat", () => {
 
     const chunkEvents = events.filter((e) => e.type === "chat_reply_chunk");
     expect(chunkEvents.length).toBeGreaterThan(0);
-    const fullStreamed = chunkEvents
-      .map((e) => (e.type === "chat_reply_chunk" ? e.data : ""))
-      .join("");
+    const fullStreamed = chunkEvents.map((e) => (e.type === "chat_reply_chunk" ? e.data : "")).join("");
     expect(fullStreamed).toBe("hi there");
 
     const drafts = await new FileDraftRepository(adapter).list_by_chapter("au_test", 1);
@@ -161,10 +173,23 @@ describe("dispatch_simple_chat", () => {
       {
         delta: "",
         tool_call_deltas: [
-          { index: 0, id: "c0", type: "function", function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' } },
-          { index: 1, id: "c1", type: "function", function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"看完了第一章"}' } },
+          {
+            index: 0,
+            id: "c0",
+            type: "function",
+            function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' },
+          },
+          {
+            index: 1,
+            id: "c1",
+            type: "function",
+            function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"看完了第一章"}' },
+          },
         ],
-        is_final: false, input_tokens: 0, output_tokens: null, finish_reason: null,
+        is_final: false,
+        input_tokens: 0,
+        output_tokens: null,
+        finish_reason: null,
       },
       { delta: "", is_final: true, input_tokens: null, output_tokens: 0, finish_reason: "tool_calls" },
     ]);
@@ -182,7 +207,9 @@ describe("dispatch_simple_chat", () => {
   it("provider 抛非 abort 错误 → DISPATCH_FAILURE", async () => {
     const adapter = new MockAdapter();
     const provider: LLMProvider = {
-      async generate(): Promise<LLMResponse> { throw new Error("net"); },
+      async generate(): Promise<LLMResponse> {
+        throw new Error("net");
+      },
       async *generateStream(): AsyncIterable<LLMChunk> {
         throw new Error("upstream broke");
       },
@@ -203,14 +230,22 @@ describe("dispatch_simple_chat", () => {
     const provider = makeStreamProvider([
       {
         delta: "",
-        tool_call_deltas: [{ index: 0, id: "x", type: "function", function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: "" } }],
-        is_final: false, input_tokens: 0, output_tokens: null, finish_reason: null,
+        tool_call_deltas: [
+          { index: 0, id: "x", type: "function", function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: "" } },
+        ],
+        is_final: false,
+        input_tokens: 0,
+        output_tokens: null,
+        finish_reason: null,
       },
       // 非标实现把 name 在第二片再发一次（不应该拼成 "chat_replychat_reply"）
       {
         delta: "",
         tool_call_deltas: [{ index: 0, function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"hi"}' } }],
-        is_final: false, input_tokens: null, output_tokens: null, finish_reason: null,
+        is_final: false,
+        input_tokens: null,
+        output_tokens: null,
+        finish_reason: null,
       },
       { delta: "", is_final: true, input_tokens: null, output_tokens: 0, finish_reason: "tool_calls" },
     ]);
@@ -231,7 +266,13 @@ describe("dispatch_simple_chat", () => {
       },
       async *generateStream(): AsyncIterable<LLMChunk> {
         yield { delta: "夜色低垂，", is_final: false, input_tokens: 100, output_tokens: null, finish_reason: null };
-        yield { delta: "酒馆里灯火通明", is_final: false, input_tokens: null, output_tokens: null, finish_reason: null };
+        yield {
+          delta: "酒馆里灯火通明",
+          is_final: false,
+          input_tokens: null,
+          output_tokens: null,
+          finish_reason: null,
+        };
         throw new Error("upstream connection closed");
       },
     };
@@ -260,8 +301,13 @@ describe("dispatch_simple_chat", () => {
       { delta: "Hello", is_final: false, input_tokens: 0, output_tokens: null, finish_reason: null },
       {
         delta: "",
-        tool_call_deltas: [{ index: 0, id: "x", type: "function", function: { name: "show_chapter", arguments: '{"chapter_num":1}' } }],
-        is_final: false, input_tokens: null, output_tokens: null, finish_reason: null,
+        tool_call_deltas: [
+          { index: 0, id: "x", type: "function", function: { name: "show_chapter", arguments: '{"chapter_num":1}' } },
+        ],
+        is_final: false,
+        input_tokens: null,
+        output_tokens: null,
+        finish_reason: null,
       },
       { delta: "", is_final: true, input_tokens: null, output_tokens: 1, finish_reason: "stop" },
     ]);
@@ -386,11 +432,18 @@ describe("dispatch_simple_chat", () => {
       [
         {
           delta: "",
-          tool_call_deltas: [{
-            index: 0, id: "tc_show", type: "function",
-            function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' },
-          }],
-          is_final: false, input_tokens: 50, output_tokens: null, finish_reason: null,
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_show",
+              type: "function",
+              function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: 50,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" },
       ],
@@ -398,11 +451,18 @@ describe("dispatch_simple_chat", () => {
       [
         {
           delta: "",
-          tool_call_deltas: [{
-            index: 0, id: "tc_reply", type: "function",
-            function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"我看到第 1 章了，要我接着写吗？"}' },
-          }],
-          is_final: false, input_tokens: 200, output_tokens: null, finish_reason: null,
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_reply",
+              type: "function",
+              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"我看到第 1 章了，要我接着写吗？"}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: 200,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 20, finish_reason: "tool_calls" },
       ],
@@ -414,13 +474,13 @@ describe("dispatch_simple_chat", () => {
     // (Option A 真机选用)：chat_reply 路径不 emit tool_call event 而 emit chat_reply_chunk 增量
     const toolCallEvents = events.filter((e) => e.type === "tool_call");
     expect(toolCallEvents).toHaveLength(1);
-    expect(toolCallEvents[0].type === "tool_call" && toolCallEvents[0].data.function.name).toBe(SIMPLE_TOOL_SHOW_CHAPTER);
+    expect(toolCallEvents[0].type === "tool_call" && toolCallEvents[0].data.function.name).toBe(
+      SIMPLE_TOOL_SHOW_CHAPTER,
+    );
 
     const chunkEvents = events.filter((e) => e.type === "chat_reply_chunk");
     expect(chunkEvents.length).toBeGreaterThan(0);
-    const fullStreamed = chunkEvents
-      .map((e) => (e.type === "chat_reply_chunk" ? e.data : ""))
-      .join("");
+    const fullStreamed = chunkEvents.map((e) => (e.type === "chat_reply_chunk" ? e.data : "")).join("");
     expect(fullStreamed).toBe("我看到第 1 章了，要我接着写吗？");
 
     const toolResultEvents = events.filter((e) => e.type === "tool_result");
@@ -454,11 +514,18 @@ describe("dispatch_simple_chat", () => {
       [
         {
           delta: "",
-          tool_call_deltas: [{
-            index: 0, id: "tc_show", type: "function",
-            function: { name: "show_setting", arguments: '{"file_path":"characters/Alice.md"}' },
-          }],
-          is_final: false, input_tokens: 50, output_tokens: null, finish_reason: null,
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_show",
+              type: "function",
+              function: { name: "show_setting", arguments: '{"file_path":"characters/Alice.md"}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: 50,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" },
       ],
@@ -466,14 +533,21 @@ describe("dispatch_simple_chat", () => {
       [
         {
           delta: "",
-          tool_call_deltas: [{
-            index: 0, id: "tc_create", type: "function",
-            function: {
-              name: "create_character_file",
-              arguments: '{"name":"Alice","content":"# Alice\\n银发女剑客"}',
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_create",
+              type: "function",
+              function: {
+                name: "create_character_file",
+                arguments: '{"name":"Alice","content":"# Alice\\n银发女剑客"}',
+              },
             },
-          }],
-          is_final: false, input_tokens: 200, output_tokens: null, finish_reason: null,
+          ],
+          is_final: false,
+          input_tokens: 200,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 30, finish_reason: "tool_calls" },
       ],
@@ -518,11 +592,18 @@ describe("dispatch_simple_chat", () => {
       iterChunks.push([
         {
           delta: "",
-          tool_call_deltas: [{
-            index: 0, id: `tc_show_${i}`, type: "function",
-            function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: `{"chapter_num":${i + 1}}` },
-          }],
-          is_final: false, input_tokens: 50 + i * 10, output_tokens: null, finish_reason: null,
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: `tc_show_${i}`,
+              type: "function",
+              function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: `{"chapter_num":${i + 1}}` },
+            },
+          ],
+          is_final: false,
+          input_tokens: 50 + i * 10,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" },
       ]);
@@ -559,11 +640,18 @@ describe("dispatch_simple_chat", () => {
       [
         {
           delta: "",
-          tool_call_deltas: [{
-            index: 0, id: "tc_bad", type: "function",
-            function: { name: "create_character_file", arguments: "{}" },
-          }],
-          is_final: false, input_tokens: 50, output_tokens: null, finish_reason: null,
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_bad",
+              type: "function",
+              function: { name: "create_character_file", arguments: "{}" },
+            },
+          ],
+          is_final: false,
+          input_tokens: 50,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 3, finish_reason: "tool_calls" },
       ],
@@ -571,14 +659,21 @@ describe("dispatch_simple_chat", () => {
       [
         {
           delta: "",
-          tool_call_deltas: [{
-            index: 0, id: "tc_good", type: "function",
-            function: {
-              name: "create_character_file",
-              arguments: '{"name":"Bob","content":"# Bob"}',
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_good",
+              type: "function",
+              function: {
+                name: "create_character_file",
+                arguments: '{"name":"Bob","content":"# Bob"}',
+              },
             },
-          }],
-          is_final: false, input_tokens: 200, output_tokens: null, finish_reason: null,
+          ],
+          is_final: false,
+          input_tokens: 200,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 15, finish_reason: "tool_calls" },
       ],
@@ -629,21 +724,41 @@ describe("dispatch_simple_chat", () => {
         {
           delta: "",
           tool_call_deltas: [
-            { index: 0, id: "tc_chap", type: "function", function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' } },
-            { index: 1, id: "tc_setting", type: "function", function: { name: "show_setting", arguments: '{"file_path":"characters/Alice.md"}' } },
+            {
+              index: 0,
+              id: "tc_chap",
+              type: "function",
+              function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' },
+            },
+            {
+              index: 1,
+              id: "tc_setting",
+              type: "function",
+              function: { name: "show_setting", arguments: '{"file_path":"characters/Alice.md"}' },
+            },
           ],
-          is_final: false, input_tokens: 50, output_tokens: null, finish_reason: null,
+          is_final: false,
+          input_tokens: 50,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" },
       ],
       [
         {
           delta: "",
-          tool_call_deltas: [{
-            index: 0, id: "tc_reply", type: "function",
-            function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"看完了"}' },
-          }],
-          is_final: false, input_tokens: 200, output_tokens: null, finish_reason: null,
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_reply",
+              type: "function",
+              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"看完了"}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: 200,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 10, finish_reason: "tool_calls" },
       ],
@@ -660,9 +775,7 @@ describe("dispatch_simple_chat", () => {
 
     const chunkEvents = events.filter((e) => e.type === "chat_reply_chunk");
     expect(chunkEvents.length).toBeGreaterThan(0);
-    const fullStreamed = chunkEvents
-      .map((e) => (e.type === "chat_reply_chunk" ? e.data : ""))
-      .join("");
+    const fullStreamed = chunkEvents.map((e) => (e.type === "chat_reply_chunk" ? e.data : "")).join("");
     expect(fullStreamed).toBe("看完了");
 
     const trEvents = events.filter((e) => e.type === "tool_result");
@@ -679,8 +792,8 @@ describe("dispatch_simple_chat", () => {
 
     // 顺序：tool_call(chap) → tool_result(chap) → tool_call(setting) → tool_result(setting) → tool_call(reply) → done_tools
     const eventTypes = events.map((e) => e.type);
-    const tcIndices = eventTypes.flatMap((t, i) => t === "tool_call" ? [i] : []);
-    const trIndices = eventTypes.flatMap((t, i) => t === "tool_result" ? [i] : []);
+    const tcIndices = eventTypes.flatMap((t, i) => (t === "tool_call" ? [i] : []));
+    const trIndices = eventTypes.flatMap((t, i) => (t === "tool_result" ? [i] : []));
     expect(tcIndices[0]).toBeLessThan(trIndices[0]);
     expect(trIndices[0]).toBeLessThan(tcIndices[1]);
     expect(tcIndices[1]).toBeLessThan(trIndices[1]);
@@ -693,11 +806,18 @@ describe("dispatch_simple_chat", () => {
       [
         {
           delta: "",
-          tool_call_deltas: [{
-            index: 0, id: "tc", type: "function",
-            function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":99}' },
-          }],
-          is_final: false, input_tokens: 0, output_tokens: null, finish_reason: null,
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc",
+              type: "function",
+              function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":99}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: 0,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 0, finish_reason: "tool_calls" },
       ],
@@ -705,11 +825,18 @@ describe("dispatch_simple_chat", () => {
       [
         {
           delta: "",
-          tool_call_deltas: [{
-            index: 0, id: "tc_reply", type: "function",
-            function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"那一章还没写"}' },
-          }],
-          is_final: false, input_tokens: 100, output_tokens: null, finish_reason: null,
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_reply",
+              type: "function",
+              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"那一章还没写"}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: 100,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" },
       ],
@@ -736,15 +863,22 @@ describe("dispatch_simple_chat", () => {
           delta: "",
           tool_call_deltas: [
             {
-              index: 0, id: "tc_valid", type: "function",
+              index: 0,
+              id: "tc_valid",
+              type: "function",
               function: { name: "create_character_file", arguments: '{"name":"Alice","content":"# Alice"}' },
             },
             {
-              index: 1, id: "tc_invalid", type: "function",
+              index: 1,
+              id: "tc_invalid",
+              type: "function",
               function: { name: "modify_character_file", arguments: "{}" },
             },
           ],
-          is_final: false, input_tokens: 100, output_tokens: null, finish_reason: null,
+          is_final: false,
+          input_tokens: 100,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 10, finish_reason: "tool_calls" },
       ],
@@ -752,11 +886,18 @@ describe("dispatch_simple_chat", () => {
       [
         {
           delta: "",
-          tool_call_deltas: [{
-            index: 0, id: "tc_r", type: "function",
-            function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"嗯"}' },
-          }],
-          is_final: false, input_tokens: 200, output_tokens: null, finish_reason: null,
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_r",
+              type: "function",
+              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"嗯"}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: 200,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 3, finish_reason: "tool_calls" },
       ],
@@ -812,26 +953,54 @@ describe("dispatch_simple_chat", () => {
         const idx = callIndex++;
         if (idx === 0) {
           // iter 0: thinking 模型先发 reasoning_delta（多 chunks），再 tool_call
-          yield { delta: "", reasoning_delta: "用户想看第一章，", is_final: false, input_tokens: 50, output_tokens: null, finish_reason: null };
-          yield { delta: "", reasoning_delta: "我应该调用 show_chapter(1)。", is_final: false, input_tokens: null, output_tokens: null, finish_reason: null };
           yield {
             delta: "",
-            tool_call_deltas: [{
-              index: 0, id: "tc_show", type: "function",
-              function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' },
-            }],
-            is_final: false, input_tokens: null, output_tokens: null, finish_reason: null,
+            reasoning_delta: "用户想看第一章，",
+            is_final: false,
+            input_tokens: 50,
+            output_tokens: null,
+            finish_reason: null,
+          };
+          yield {
+            delta: "",
+            reasoning_delta: "我应该调用 show_chapter(1)。",
+            is_final: false,
+            input_tokens: null,
+            output_tokens: null,
+            finish_reason: null,
+          };
+          yield {
+            delta: "",
+            tool_call_deltas: [
+              {
+                index: 0,
+                id: "tc_show",
+                type: "function",
+                function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' },
+              },
+            ],
+            is_final: false,
+            input_tokens: null,
+            output_tokens: null,
+            finish_reason: null,
           };
           yield { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" };
         } else {
           // iter 1: chat_reply 终结
           yield {
             delta: "",
-            tool_call_deltas: [{
-              index: 0, id: "tc_reply", type: "function",
-              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"看完了"}' },
-            }],
-            is_final: false, input_tokens: 200, output_tokens: null, finish_reason: null,
+            tool_call_deltas: [
+              {
+                index: 0,
+                id: "tc_reply",
+                type: "function",
+                function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"看完了"}' },
+              },
+            ],
+            is_final: false,
+            input_tokens: 200,
+            output_tokens: null,
+            finish_reason: null,
           };
           yield { delta: "", is_final: true, input_tokens: null, output_tokens: 10, finish_reason: "tool_calls" };
         }
@@ -870,21 +1039,35 @@ describe("dispatch_simple_chat", () => {
         if (idx === 0) {
           yield {
             delta: "",
-            tool_call_deltas: [{
-              index: 0, id: "tc_show", type: "function",
-              function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' },
-            }],
-            is_final: false, input_tokens: 50, output_tokens: null, finish_reason: null,
+            tool_call_deltas: [
+              {
+                index: 0,
+                id: "tc_show",
+                type: "function",
+                function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' },
+              },
+            ],
+            is_final: false,
+            input_tokens: 50,
+            output_tokens: null,
+            finish_reason: null,
           };
           yield { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" };
         } else {
           yield {
             delta: "",
-            tool_call_deltas: [{
-              index: 0, id: "tc_reply", type: "function",
-              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"ok"}' },
-            }],
-            is_final: false, input_tokens: 200, output_tokens: null, finish_reason: null,
+            tool_call_deltas: [
+              {
+                index: 0,
+                id: "tc_reply",
+                type: "function",
+                function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"ok"}' },
+              },
+            ],
+            is_final: false,
+            input_tokens: 200,
+            output_tokens: null,
+            finish_reason: null,
           };
           yield { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" };
         }
@@ -908,14 +1091,21 @@ describe("dispatch_simple_chat", () => {
       [
         {
           delta: "",
-          tool_call_deltas: [{
-            index: 0, id: "tc_modify", type: "function",
-            function: {
-              name: "modify_character_file",
-              arguments: '{"filename":"Alice.md","new_content":"# Alice\\n银发","change_summary":"改发色"}',
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_modify",
+              type: "function",
+              function: {
+                name: "modify_character_file",
+                arguments: '{"filename":"Alice.md","new_content":"# Alice\\n银发","change_summary":"改发色"}',
+              },
             },
-          }],
-          is_final: false, input_tokens: 100, output_tokens: null, finish_reason: null,
+          ],
+          is_final: false,
+          input_tokens: 100,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 20, finish_reason: "tool_calls" },
       ],
@@ -938,8 +1128,18 @@ describe("dispatch_simple_chat", () => {
       { delta: "我先想想", is_final: false, input_tokens: 0, output_tokens: null, finish_reason: null },
       {
         delta: "",
-        tool_call_deltas: [{ index: 0, id: "y", type: "function", function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"hi"}' } }],
-        is_final: false, input_tokens: null, output_tokens: null, finish_reason: null,
+        tool_call_deltas: [
+          {
+            index: 0,
+            id: "y",
+            type: "function",
+            function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"hi"}' },
+          },
+        ],
+        is_final: false,
+        input_tokens: null,
+        output_tokens: null,
+        finish_reason: null,
       },
       { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" },
     ]);
@@ -1000,11 +1200,21 @@ describe("dispatch_simple_chat", () => {
     ]);
 
     const base = makeBaseParams(adapter, provider, "写第一章 主角登场");
-    await collect(dispatch_simple_chat({
-      ...base,
-      facts: [createFact({ id: "f1", content_raw: "x", content_clean: "主角名叫林夜，是隐世剑客", status: FactStatus.ACTIVE, chapter: 1 })],
-      threads: [createThread({ id: "t1", title: "复仇主线", state: "林夜在追查灭门凶手" })],
-    }));
+    await collect(
+      dispatch_simple_chat({
+        ...base,
+        facts: [
+          createFact({
+            id: "f1",
+            content_raw: "x",
+            content_clean: "主角名叫林夜，是隐世剑客",
+            status: FactStatus.ACTIVE,
+            chapter: 1,
+          }),
+        ],
+        threads: [createThread({ id: "t1", title: "复仇主线", state: "林夜在追查灭门凶手" })],
+      }),
+    );
 
     expect(calls.length).toBeGreaterThanOrEqual(1);
     const systemContent = calls[0][0].content ?? "";
@@ -1026,8 +1236,18 @@ describe("dispatch_simple_chat", () => {
       [
         {
           delta: "",
-          tool_call_deltas: [{ index: 0, id: "tc_show", type: "function", function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' } }],
-          is_final: false, input_tokens: 50, output_tokens: null, finish_reason: null,
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_show",
+              type: "function",
+              function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: 50,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" },
       ],
@@ -1035,8 +1255,18 @@ describe("dispatch_simple_chat", () => {
       [
         {
           delta: "",
-          tool_call_deltas: [{ index: 0, id: "tc_reply", type: "function", function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"读完了"}' } }],
-          is_final: false, input_tokens: 200, output_tokens: null, finish_reason: null,
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_reply",
+              type: "function",
+              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"读完了"}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: 200,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 10, finish_reason: "tool_calls" },
       ],
@@ -1048,23 +1278,41 @@ describe("dispatch_simple_chat", () => {
     // 即便组装搬进循环、确定性重算出逐字节相同内容，引用比较仍 true，是伪命题）。
     let embedCount = 0;
     const embedding_provider: EmbeddingProvider = {
-      async embed(texts: string[]): Promise<number[][]> { embedCount++; return texts.map(() => [1, 0, 0]); },
-      get_dimension() { return 3; },
-      get_model_name() { return "mock"; },
+      async embed(texts: string[]): Promise<number[][]> {
+        embedCount++;
+        return texts.map(() => [1, 0, 0]);
+      },
+      get_dimension() {
+        return 3;
+      },
+      get_model_name() {
+        return "mock";
+      },
     };
     const vector_repo: VectorRepository = {
-      async search() { return []; }, // 返空：RAG 无结果，但 embed 仍被调用一次/组装
-      async index_chunks() {}, async delete_by_chapter() {}, async delete_by_source() {},
-      async rebuild_index() {}, async get_index_status() { return IndexStatus.READY; },
+      async search() {
+        return [];
+      }, // 返空：RAG 无结果，但 embed 仍被调用一次/组装
+      async index_chunks() {},
+      async delete_by_chapter() {},
+      async delete_by_source() {},
+      async rebuild_index() {},
+      async get_index_status() {
+        return IndexStatus.READY;
+      },
     };
 
     const base = makeBaseParams(adapter, provider, "看第 1 章");
-    await collect(dispatch_simple_chat({
-      ...base,
-      facts: [createFact({ id: "f1", content_raw: "x", content_clean: "世界设定：剑与魔法", status: FactStatus.ACTIVE })],
-      vector_repo,
-      embedding_provider,
-    }));
+    await collect(
+      dispatch_simple_chat({
+        ...base,
+        facts: [
+          createFact({ id: "f1", content_raw: "x", content_clean: "世界设定：剑与魔法", status: FactStatus.ACTIVE }),
+        ],
+        vector_repo,
+        embedding_provider,
+      }),
+    );
 
     // 两轮 LLM call，但 RAG 只检索一次 ⇒ 组装只发生在循环外一次（循环内若重组会 embed 两次）。
     expect(calls.length).toBe(2);
@@ -1089,16 +1337,36 @@ describe("dispatch_simple_chat", () => {
       [
         {
           delta: "",
-          tool_call_deltas: [{ index: 0, id: "tc_show", type: "function", function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' } }],
-          is_final: false, input_tokens: 50, output_tokens: null, finish_reason: null,
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_show",
+              type: "function",
+              function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: 50,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" },
       ],
       [
         {
           delta: "",
-          tool_call_deltas: [{ index: 0, id: "tc_reply", type: "function", function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"ok"}' } }],
-          is_final: false, input_tokens: 200, output_tokens: null, finish_reason: null,
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_reply",
+              type: "function",
+              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"ok"}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: 200,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 10, finish_reason: "tool_calls" },
       ],
@@ -1131,22 +1399,36 @@ describe("dispatch_simple_chat", () => {
       [
         {
           delta: "",
-          tool_call_deltas: [{
-            index: 0, id: "tc_hallucinated", type: "function",
-            function: { name: "write_the_whole_book", arguments: '{"foo":"bar"}' },
-          }],
-          is_final: false, input_tokens: 40, output_tokens: null, finish_reason: null,
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_hallucinated",
+              type: "function",
+              function: { name: "write_the_whole_book", arguments: '{"foo":"bar"}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: 40,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 3, finish_reason: "tool_calls" },
       ],
       [
         {
           delta: "",
-          tool_call_deltas: [{
-            index: 0, id: "tc_reply", type: "function",
-            function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"抱歉，我改用对话回复。"}' },
-          }],
-          is_final: false, input_tokens: 60, output_tokens: null, finish_reason: null,
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_reply",
+              type: "function",
+              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"抱歉，我改用对话回复。"}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: 60,
+          output_tokens: null,
+          finish_reason: null,
         },
         { delta: "", is_final: true, input_tokens: null, output_tokens: 10, finish_reason: "tool_calls" },
       ],
@@ -1181,7 +1463,9 @@ describe("dispatch_simple_chat", () => {
 
     // 慢 provider：第一个 dispatch 卡在流式中途，制造"在飞"窗口。
     let releaseFirst!: () => void;
-    const firstGate = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
     const slowProvider: LLMProvider = {
       async generate(): Promise<LLMResponse> {
         return { content: "", model: "mock", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
@@ -1204,9 +1488,7 @@ describe("dispatch_simple_chat", () => {
 
     // 第一个仍在飞时，第二个同 (au, chapter) dispatch 应立即 409。
     const secondEvents = await collect(dispatch_simple_chat(makeBaseParams(adapter, fastProvider, "写第一章")));
-    const secondErr = secondEvents.find(
-      (e): e is Extract<SimpleChatEvent, { type: "error" }> => e.type === "error",
-    );
+    const secondErr = secondEvents.find((e): e is Extract<SimpleChatEvent, { type: "error" }> => e.type === "error");
     expect(secondErr).toBeDefined();
     expect(secondErr!.data.error_code).toBe("DISPATCH_IN_PROGRESS");
     // 第二个不该产出任何 done_text（不覆盖第一个的草稿）。
@@ -1238,9 +1520,7 @@ describe("dispatch_simple_chat", () => {
     markChapterInflight(key, "generate");
     try {
       const events = await collect(dispatch_simple_chat(makeBaseParams(adapter, fastProvider, "写第一章")));
-      const err = events.find(
-        (e): e is Extract<SimpleChatEvent, { type: "error" }> => e.type === "error",
-      );
+      const err = events.find((e): e is Extract<SimpleChatEvent, { type: "error" }> => e.type === "error");
       expect(err).toBeDefined();
       expect(err!.data.error_code).toBe("DISPATCH_IN_PROGRESS");
       expect(events.some((e) => e.type === "done_text")).toBe(false);

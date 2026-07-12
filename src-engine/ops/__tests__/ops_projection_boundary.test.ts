@@ -15,8 +15,10 @@ import { createOpsEntry } from "../../domain/ops_entry.js";
 
 function op(overrides: Partial<ReturnType<typeof createOpsEntry>> & { op_id: string; op_type: string }) {
   return createOpsEntry({
-    target_id: "t", timestamp: "2026-01-01T00:00:00Z",
-    device_id: "d1", lamport_clock: 0,
+    target_id: "t",
+    timestamp: "2026-01-01T00:00:00Z",
+    device_id: "d1",
+    lamport_clock: 0,
     ...overrides,
   });
 }
@@ -29,7 +31,9 @@ describe("rebuildStateFromOps — import_chapters", () => {
   it("import_chapters sets current_chapter to max(existing, last_chapter_num + 1)", () => {
     const ops = [
       op({
-        op_id: "imp1", op_type: "import_chapters", lamport_clock: 1,
+        op_id: "imp1",
+        op_type: "import_chapters",
+        lamport_clock: 1,
         payload: {
           last_chapter_num: 10,
           last_scene_ending: "导入的结尾",
@@ -46,15 +50,23 @@ describe("rebuildStateFromOps — import_chapters", () => {
   it("import_chapters after existing confirms → takes max chapter", () => {
     const ops = [
       op({
-        op_id: "c1", op_type: "confirm_chapter", chapter_num: 1, lamport_clock: 1,
+        op_id: "c1",
+        op_type: "confirm_chapter",
+        chapter_num: 1,
+        lamport_clock: 1,
         payload: { focus: [] },
       }),
       op({
-        op_id: "c2", op_type: "confirm_chapter", chapter_num: 2, lamport_clock: 2,
+        op_id: "c2",
+        op_type: "confirm_chapter",
+        chapter_num: 2,
+        lamport_clock: 2,
         payload: { focus: [] },
       }),
       op({
-        op_id: "imp1", op_type: "import_chapters", lamport_clock: 3,
+        op_id: "imp1",
+        op_type: "import_chapters",
+        lamport_clock: 3,
         payload: {
           last_chapter_num: 5,
           last_scene_ending: "imported",
@@ -72,14 +84,19 @@ describe("rebuildStateFromOps — import_chapters", () => {
   it("import_chapters merges characters_last_seen with existing", () => {
     const ops = [
       op({
-        op_id: "c1", op_type: "confirm_chapter", chapter_num: 1, lamport_clock: 1,
+        op_id: "c1",
+        op_type: "confirm_chapter",
+        chapter_num: 1,
+        lamport_clock: 1,
         payload: {
           focus: [],
           characters_last_seen_snapshot: { Alice: 1, Bob: 1 },
         },
       }),
       op({
-        op_id: "imp1", op_type: "import_chapters", lamport_clock: 2,
+        op_id: "imp1",
+        op_type: "import_chapters",
+        lamport_clock: 2,
         payload: {
           last_chapter_num: 3,
           characters_last_seen: { Bob: 3, Charlie: 2 },
@@ -97,11 +114,16 @@ describe("rebuildStateFromOps — import_chapters", () => {
   it("import_chapters with no last_scene_ending → state unchanged", () => {
     const ops = [
       op({
-        op_id: "c1", op_type: "confirm_chapter", chapter_num: 1, lamport_clock: 1,
+        op_id: "c1",
+        op_type: "confirm_chapter",
+        chapter_num: 1,
+        lamport_clock: 1,
         payload: { focus: [], last_scene_ending_snapshot: "原始结尾" },
       }),
       op({
-        op_id: "imp1", op_type: "import_chapters", lamport_clock: 2,
+        op_id: "imp1",
+        op_type: "import_chapters",
+        lamport_clock: 2,
         payload: { last_chapter_num: 3 },
       }),
     ];
@@ -119,10 +141,15 @@ describe("rebuildFactsFromOps — invalid enum fallback", () => {
   it("unknown fact status falls back to 'active'", () => {
     const ops = [
       op({
-        op_id: "a1", op_type: "add_fact", target_id: "f1", lamport_clock: 1,
+        op_id: "a1",
+        op_type: "add_fact",
+        target_id: "f1",
+        lamport_clock: 1,
         payload: {
           fact: {
-            id: "f1", content_raw: "r", content_clean: "c",
+            id: "f1",
+            content_raw: "r",
+            content_clean: "c",
             status: "bogus_status",
           },
         },
@@ -136,10 +163,15 @@ describe("rebuildFactsFromOps — invalid enum fallback", () => {
   it("unknown fact type falls back to 'plot_event'", () => {
     const ops = [
       op({
-        op_id: "a1", op_type: "add_fact", target_id: "f1", lamport_clock: 1,
+        op_id: "a1",
+        op_type: "add_fact",
+        target_id: "f1",
+        lamport_clock: 1,
         payload: {
           fact: {
-            id: "f1", content_raw: "r", content_clean: "c",
+            id: "f1",
+            content_raw: "r",
+            content_clean: "c",
             type: "nonexistent_type",
           },
         },
@@ -152,10 +184,15 @@ describe("rebuildFactsFromOps — invalid enum fallback", () => {
   it("unknown narrative_weight falls back to 'medium'", () => {
     const ops = [
       op({
-        op_id: "a1", op_type: "add_fact", target_id: "f1", lamport_clock: 1,
+        op_id: "a1",
+        op_type: "add_fact",
+        target_id: "f1",
+        lamport_clock: 1,
         payload: {
           fact: {
-            id: "f1", content_raw: "r", content_clean: "c",
+            id: "f1",
+            content_raw: "r",
+            content_clean: "c",
             narrative_weight: "super_high",
           },
         },
@@ -168,10 +205,15 @@ describe("rebuildFactsFromOps — invalid enum fallback", () => {
   it("unknown fact source falls back to 'extract_auto'", () => {
     const ops = [
       op({
-        op_id: "a1", op_type: "add_fact", target_id: "f1", lamport_clock: 1,
+        op_id: "a1",
+        op_type: "add_fact",
+        target_id: "f1",
+        lamport_clock: 1,
         payload: {
           fact: {
-            id: "f1", content_raw: "r", content_clean: "c",
+            id: "f1",
+            content_raw: "r",
+            content_clean: "c",
             source: "magic_source",
           },
         },
@@ -184,11 +226,19 @@ describe("rebuildFactsFromOps — invalid enum fallback", () => {
   it("all enum fields invalid → all fall back to defaults", () => {
     const ops = [
       op({
-        op_id: "a1", op_type: "add_fact", target_id: "f1", lamport_clock: 1,
+        op_id: "a1",
+        op_type: "add_fact",
+        target_id: "f1",
+        lamport_clock: 1,
         payload: {
           fact: {
-            id: "f1", content_raw: "r", content_clean: "c",
-            status: "xxx", type: "yyy", narrative_weight: "zzz", source: "www",
+            id: "f1",
+            content_raw: "r",
+            content_clean: "c",
+            status: "xxx",
+            type: "yyy",
+            narrative_weight: "zzz",
+            source: "www",
           },
         },
       }),
@@ -203,12 +253,19 @@ describe("rebuildFactsFromOps — invalid enum fallback", () => {
   it("valid enum values pass through unchanged", () => {
     const ops = [
       op({
-        op_id: "a1", op_type: "add_fact", target_id: "f1", lamport_clock: 1,
+        op_id: "a1",
+        op_type: "add_fact",
+        target_id: "f1",
+        lamport_clock: 1,
         payload: {
           fact: {
-            id: "f1", content_raw: "r", content_clean: "c",
-            status: "unresolved", type: "foreshadowing",
-            narrative_weight: "high", source: "manual",
+            id: "f1",
+            content_raw: "r",
+            content_clean: "c",
+            status: "unresolved",
+            type: "foreshadowing",
+            narrative_weight: "high",
+            source: "manual",
           },
         },
       }),
@@ -227,16 +284,26 @@ describe("rebuildFactsFromOps — invalid enum fallback", () => {
 
 describe("rebuild — edge cases", () => {
   it("200 ops sort + dedupe correctly and maintain deterministic order", () => {
-    const setA = Array.from({ length: 100 }, (_, i) => op({
-      op_id: `L${i}`, op_type: "add_fact", target_id: `fL${i}`,
-      device_id: "devL", lamport_clock: i * 2,
-      payload: { fact: { id: `fL${i}`, content_raw: "r", content_clean: `local${i}` } },
-    }));
-    const setB = Array.from({ length: 100 }, (_, i) => op({
-      op_id: `R${i}`, op_type: "add_fact", target_id: `fR${i}`,
-      device_id: "devR", lamport_clock: i * 2 + 1,
-      payload: { fact: { id: `fR${i}`, content_raw: "r", content_clean: `remote${i}` } },
-    }));
+    const setA = Array.from({ length: 100 }, (_, i) =>
+      op({
+        op_id: `L${i}`,
+        op_type: "add_fact",
+        target_id: `fL${i}`,
+        device_id: "devL",
+        lamport_clock: i * 2,
+        payload: { fact: { id: `fL${i}`, content_raw: "r", content_clean: `local${i}` } },
+      }),
+    );
+    const setB = Array.from({ length: 100 }, (_, i) =>
+      op({
+        op_id: `R${i}`,
+        op_type: "add_fact",
+        target_id: `fR${i}`,
+        device_id: "devR",
+        lamport_clock: i * 2 + 1,
+        payload: { fact: { id: `fR${i}`, content_raw: "r", content_clean: `remote${i}` } },
+      }),
+    );
 
     const ops = sortAndDedupeOps([...setA, ...setB]);
     expect(ops).toHaveLength(200);
@@ -250,7 +317,10 @@ describe("rebuild — edge cases", () => {
   it("empty payload in add_fact → fact has defaults", () => {
     const ops = [
       op({
-        op_id: "a1", op_type: "add_fact", target_id: "f1", lamport_clock: 1,
+        op_id: "a1",
+        op_type: "add_fact",
+        target_id: "f1",
+        lamport_clock: 1,
         payload: { fact: { id: "f1" } },
       }),
     ];
@@ -264,7 +334,10 @@ describe("rebuild — edge cases", () => {
   it("add_fact with no fact payload → skipped gracefully", () => {
     const ops = [
       op({
-        op_id: "a1", op_type: "add_fact", target_id: "f1", lamport_clock: 1,
+        op_id: "a1",
+        op_type: "add_fact",
+        target_id: "f1",
+        lamport_clock: 1,
         payload: {},
       }),
     ];
@@ -275,7 +348,10 @@ describe("rebuild — edge cases", () => {
   it("edit_fact on non-existent fact → no crash", () => {
     const ops = [
       op({
-        op_id: "e1", op_type: "edit_fact", target_id: "ghost", lamport_clock: 1,
+        op_id: "e1",
+        op_type: "edit_fact",
+        target_id: "ghost",
+        lamport_clock: 1,
         payload: { updated_fields: { content_clean: "updated" } },
       }),
     ];
@@ -286,7 +362,10 @@ describe("rebuild — edge cases", () => {
   it("delete_fact on non-existent fact → no crash", () => {
     const ops = [
       op({
-        op_id: "d1", op_type: "delete_fact", target_id: "ghost", lamport_clock: 1,
+        op_id: "d1",
+        op_type: "delete_fact",
+        target_id: "ghost",
+        lamport_clock: 1,
         payload: { fact_id: "ghost" },
       }),
     ];
@@ -297,7 +376,10 @@ describe("rebuild — edge cases", () => {
   it("update_fact_status on non-existent fact → no crash", () => {
     const ops = [
       op({
-        op_id: "s1", op_type: "update_fact_status", target_id: "ghost", lamport_clock: 1,
+        op_id: "s1",
+        op_type: "update_fact_status",
+        target_id: "ghost",
+        lamport_clock: 1,
         payload: { new_status: "deprecated" },
       }),
     ];
@@ -308,7 +390,9 @@ describe("rebuild — edge cases", () => {
   it("unknown op_type → ignored by both rebuild functions", () => {
     const ops = [
       op({
-        op_id: "x1", op_type: "future_op_type", lamport_clock: 1,
+        op_id: "x1",
+        op_type: "future_op_type",
+        lamport_clock: 1,
         payload: { data: "something" },
       }),
     ];
@@ -327,7 +411,10 @@ describe("rebuildStateFromOps — recalc_global_state", () => {
   it("recalc overrides all state fields it provides", () => {
     const ops = [
       op({
-        op_id: "c1", op_type: "confirm_chapter", chapter_num: 1, lamport_clock: 1,
+        op_id: "c1",
+        op_type: "confirm_chapter",
+        chapter_num: 1,
+        lamport_clock: 1,
         payload: {
           focus: ["old_focus"],
           characters_last_seen_snapshot: { Alice: 1 },
@@ -335,7 +422,9 @@ describe("rebuildStateFromOps — recalc_global_state", () => {
         },
       }),
       op({
-        op_id: "r1", op_type: "recalc_global_state", lamport_clock: 2,
+        op_id: "r1",
+        op_type: "recalc_global_state",
+        lamport_clock: 2,
         payload: {
           characters_last_seen: { Alice: 5, Bob: 3 },
           last_scene_ending: "recalculated ending",
@@ -362,11 +451,15 @@ describe("rebuildStateFromOps — mark_chapters_dirty formats", () => {
   it("added_dirty (incremental) performs union merge", () => {
     const ops = [
       op({
-        op_id: "m1", op_type: "mark_chapters_dirty", lamport_clock: 1,
+        op_id: "m1",
+        op_type: "mark_chapters_dirty",
+        lamport_clock: 1,
         payload: { added_dirty: [1, 3] },
       }),
       op({
-        op_id: "m2", op_type: "mark_chapters_dirty", lamport_clock: 2,
+        op_id: "m2",
+        op_type: "mark_chapters_dirty",
+        lamport_clock: 2,
         payload: { added_dirty: [3, 5] },
       }),
     ];
@@ -377,11 +470,15 @@ describe("rebuildStateFromOps — mark_chapters_dirty formats", () => {
   it("legacy chapters_dirty (snapshot) replaces previous dirty list", () => {
     const ops = [
       op({
-        op_id: "m1", op_type: "mark_chapters_dirty", lamport_clock: 1,
+        op_id: "m1",
+        op_type: "mark_chapters_dirty",
+        lamport_clock: 1,
         payload: { chapters_dirty: [1, 2, 3] },
       }),
       op({
-        op_id: "m2", op_type: "mark_chapters_dirty", lamport_clock: 2,
+        op_id: "m2",
+        op_type: "mark_chapters_dirty",
+        lamport_clock: 2,
         payload: { chapters_dirty: [5, 7] },
       }),
     ];
@@ -392,11 +489,15 @@ describe("rebuildStateFromOps — mark_chapters_dirty formats", () => {
   it("mixed: incremental after legacy → union on top of snapshot", () => {
     const ops = [
       op({
-        op_id: "m1", op_type: "mark_chapters_dirty", lamport_clock: 1,
+        op_id: "m1",
+        op_type: "mark_chapters_dirty",
+        lamport_clock: 1,
         payload: { chapters_dirty: [1, 2] },
       }),
       op({
-        op_id: "m2", op_type: "mark_chapters_dirty", lamport_clock: 2,
+        op_id: "m2",
+        op_type: "mark_chapters_dirty",
+        lamport_clock: 2,
         payload: { added_dirty: [3] },
       }),
     ];

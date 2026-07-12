@@ -33,8 +33,7 @@ describe("settings_tools", () => {
 });
 
 describe("工具名契约单一真相源（盲审 2026-07-11）", () => {
-  const defNames = (mode: string) =>
-    get_tools_for_mode(mode).map((tool) => (tool.function as { name: string }).name);
+  const defNames = (mode: string) => get_tools_for_mode(mode).map((tool) => (tool.function as { name: string }).name);
 
   it("SETTINGS_MUTATING_TOOL_NAMES ≡ au+fandom 工具定义的修改类全集（去重）", () => {
     const fromDefs = new Set([...defNames("au"), ...defNames("fandom")]);
@@ -52,9 +51,7 @@ describe("工具名契约单一真相源（盲审 2026-07-11）", () => {
   });
 
   it("SIMPLE_MUTATING_TOOL_NAMES ≡ simple 下发工具集的修改类子集（去掉 view/chat_reply）", () => {
-    const simple = defNames("simple").filter(
-      (name) => !["show_chapter", "show_setting", "chat_reply"].includes(name),
-    );
+    const simple = defNames("simple").filter((name) => !["show_chapter", "show_setting", "chat_reply"].includes(name));
     expect(simple.sort()).toEqual([...SIMPLE_MUTATING_TOOL_NAMES].sort());
   });
 });

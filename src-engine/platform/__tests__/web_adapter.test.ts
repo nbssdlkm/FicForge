@@ -170,7 +170,11 @@ describe("WebAdapter secret storage (keystore IndexedDB open fails)", () => {
     vi.stubGlobal("sessionStorage", createStorageMock());
     vi.stubGlobal("indexedDB", {
       open: () => {
-        const req: { onsuccess: (() => void) | null; onerror: (() => void) | null; onupgradeneeded: (() => void) | null } = {
+        const req: {
+          onsuccess: (() => void) | null;
+          onerror: (() => void) | null;
+          onupgradeneeded: (() => void) | null;
+        } = {
           onsuccess: null,
           onerror: null,
           onupgradeneeded: null,

@@ -15,7 +15,7 @@ import { coerceString, coerceStringArray } from "./types";
 export const CHARACTER_FRONTMATTER_KEYS = ["name", "aliases", "importance", "origin_ref"] as const;
 export const CORE_CHARACTER_FRONTMATTER_KEYS = ["name"] as const;
 
-export type ManagedFrontmatterKey = typeof CHARACTER_FRONTMATTER_KEYS[number];
+export type ManagedFrontmatterKey = (typeof CHARACTER_FRONTMATTER_KEYS)[number];
 
 // ---------------------------------------------------------------------------
 // 辅助函数
@@ -152,7 +152,12 @@ export function preserveManagedFrontmatter(
       const aliases: string[] = [];
       i++;
       while (i < lines.length && lines[i].match(/^\s+-\s/)) {
-        aliases.push(lines[i].replace(/^\s+-\s+/, "").replace(/^["']|["']$/g, "").trim());
+        aliases.push(
+          lines[i]
+            .replace(/^\s+-\s+/, "")
+            .replace(/^["']|["']$/g, "")
+            .trim(),
+        );
         i++;
       }
       if (aliases.length > 0) fields.aliases = aliases;

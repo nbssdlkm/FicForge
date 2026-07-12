@@ -169,7 +169,16 @@ describe("buildRegexFromPattern", () => {
   });
 
   it("returns null for found=false", () => {
-    expect(buildRegexFromPattern({ found: false, prefix: "", number_style: "arabic", separator: "", suffix: "", examples: [] })).toBeNull();
+    expect(
+      buildRegexFromPattern({
+        found: false,
+        prefix: "",
+        number_style: "arabic",
+        separator: "",
+        suffix: "",
+        examples: [],
+      }),
+    ).toBeNull();
   });
 });
 
@@ -334,8 +343,16 @@ describe("llmDetectChapterPattern", () => {
 describe("章/节混排降级（盲审 2026-07-11：pattern 逐级独占，不合并匹配集）", () => {
   it("「第X章」作章、「第X节」作章内小节的文档只按章切分", async () => {
     const text = [
-      "第一章 开端", "正文A", "第一节 相遇", "正文B", "第二节 冲突", "正文C",
-      "第二章 转折", "正文D", "第一节 重逢", "正文E",
+      "第一章 开端",
+      "正文A",
+      "第一节 相遇",
+      "正文B",
+      "第二节 冲突",
+      "正文C",
+      "第二章 转折",
+      "正文D",
+      "第一节 重逢",
+      "正文E",
     ].join("\n");
     const result = await splitChapters(text);
     expect(result.method).toBe("standard_headers");

@@ -13,9 +13,7 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../api/engine-client", async () => {
-  const actual = await vi.importActual<typeof import("../../../api/engine-client")>(
-    "../../../api/engine-client",
-  );
+  const actual = await vi.importActual<typeof import("../../../api/engine-client")>("../../../api/engine-client");
   return { ...actual, undoChapter: vi.fn(), confirmChapter: vi.fn(), deleteDrafts: vi.fn() };
 });
 
@@ -62,8 +60,12 @@ describe("useWriterChapterActions undo 防重入（M24）", () => {
   it("undo 在飞时第二次调用被早退拦下 → undoChapter 只调一次", async () => {
     // undoChapter 挂起直到手动放行，制造"在飞"窗口。
     let release!: () => void;
-    const gate = new Promise<void>((resolve) => { release = resolve; });
-    mocked.undoChapter.mockImplementation(async () => { await gate; });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    mocked.undoChapter.mockImplementation(async () => {
+      await gate;
+    });
 
     const onCloseUndoConfirm = vi.fn();
     const { result } = renderHook(() => {

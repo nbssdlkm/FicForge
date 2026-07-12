@@ -29,19 +29,27 @@ describe("engine-trash 章节恢复生命周期（R1-5）", () => {
     const fandom = await createFandom("Naruto");
     const au = await createAu(fandom.name, "Canon", fandom.path);
     auPath = au.path;
-    await getEngine().repos.draft.save(createDraft({
-      au_id: auPath, chapter_num: 1, variant: "A",
-      content: "Alice走进了房间。\n\n她看到了Bob。\n\n夜色渐深。",
-    }));
+    await getEngine().repos.draft.save(
+      createDraft({
+        au_id: auPath,
+        chapter_num: 1,
+        variant: "A",
+        content: "Alice走进了房间。\n\n她看到了Bob。\n\n夜色渐深。",
+      }),
+    );
     await confirmChapter(auPath, 1, "ch0001_draft_A.md");
   });
 
   it("恢复章文件 → index_status=STALE + 摘要删除 + recalcState 重算派生字段", async () => {
     const e = getEngine();
     // 预置：摘要文件在、索引 READY、派生字段被人为弄脏（证明 recalc 真跑了）
-    await e.repos.chapterSummary.save(auPath, 1, createChapterSummary({
-      standard: { version: 1, text: "旧摘要", generated_at: "t", source_chapter_hash: "h" },
-    }));
+    await e.repos.chapterSummary.save(
+      auPath,
+      1,
+      createChapterSummary({
+        standard: { version: 1, text: "旧摘要", generated_at: "t", source_chapter_hash: "h" },
+      }),
+    );
     await e.repos.state.update(auPath, (st) => {
       st.index_status = IndexStatus.READY;
       st.last_scene_ending = "__STALE_SENTINEL__";
@@ -67,10 +75,16 @@ describe("engine-trash 章节恢复生命周期（R1-5）", () => {
   it("恢复非章文件（lore）→ 不动 index_status，不删摘要", async () => {
     const e = getEngine();
     await e.adapter.writeFile(`${auPath}/characters/Alice.md`, "# Alice\n设定内容");
-    await e.repos.chapterSummary.save(auPath, 1, createChapterSummary({
-      standard: { version: 1, text: "摘要", generated_at: "t", source_chapter_hash: "h" },
-    }));
-    await e.repos.state.update(auPath, (st) => { st.index_status = IndexStatus.READY; });
+    await e.repos.chapterSummary.save(
+      auPath,
+      1,
+      createChapterSummary({
+        standard: { version: 1, text: "摘要", generated_at: "t", source_chapter_hash: "h" },
+      }),
+    );
+    await e.repos.state.update(auPath, (st) => {
+      st.index_status = IndexStatus.READY;
+    });
 
     const entry = await e.trash.move_to_trash(auPath, "characters/Alice.md", "lore_file", "Alice");
     await restoreTrash("au", auPath, entry.trash_id);
@@ -93,12 +107,16 @@ describe("engine-trash 章节恢复生命周期（R1-5）", () => {
     const e = getEngine();
     // v1 入库 → 删除进回收站 → 同名重建 v2 → 缓存热（新称）
     await saveLore({
-      au_path: auPath, category: "characters", filename: "沈砚.md",
+      au_path: auPath,
+      category: "characters",
+      filename: "沈砚.md",
       content: "---\nname: 沈砚\naliases: [旧称]\n---\n",
     });
     const del = await deleteLore({ au_path: auPath, category: "characters", filename: "沈砚.md" });
     await saveLore({
-      au_path: auPath, category: "characters", filename: "沈砚.md",
+      au_path: auPath,
+      category: "characters",
+      filename: "沈砚.md",
       content: "---\nname: 沈砚\naliases: [新称]\n---\n",
     });
     await expect(e.characterAliases.get(auPath)).resolves.toEqual({ 沈砚: ["新称"] });

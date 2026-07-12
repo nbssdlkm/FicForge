@@ -51,7 +51,13 @@ describe("testConnection — chat_path 同 URL（R2-2）", () => {
   });
 
   it("空串 chat_path 归一为缺省（与保存路径 normalizeChatPath 同口径）", async () => {
-    await testConnection({ mode: "api", model: "m", api_base: "https://api.example/v1", api_key: "sk-x", chat_path: "  " });
+    await testConnection({
+      mode: "api",
+      model: "m",
+      api_base: "https://api.example/v1",
+      api_key: "sk-x",
+      chat_path: "  ",
+    });
     expect(fetchMock.mock.calls[0][0]).toBe("https://api.example/v1/chat/completions");
   });
 

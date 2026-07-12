@@ -3,8 +3,8 @@
 // See LICENSE file in the project root for full license text.
 
 import { Spinner } from "../shared/Spinner";
-import { Button } from '../shared/Button';
-import { useTranslation } from '../../i18n/useAppTranslation';
+import { Button } from "../shared/Button";
+import { useTranslation } from "../../i18n/useAppTranslation";
 
 export type AuSettingsAdvancedSectionProps = {
   recalcing: boolean;
@@ -25,40 +25,47 @@ export function AuSettingsAdvancedSection({
   archiveCandidateCount,
 }: AuSettingsAdvancedSectionProps) {
   const { t } = useTranslation();
-  const hasArchiveCandidates = typeof archiveCandidateCount === 'number' && archiveCandidateCount > 0;
+  const hasArchiveCandidates = typeof archiveCandidateCount === "number" && archiveCandidateCount > 0;
 
   return (
     <section className="space-y-4 border-t border-black/10 pt-6 dark:border-white/10">
-      <h2 className="text-lg font-sans font-bold text-text/50 border-l-4 border-text/20 pl-3">{t('advanced.title')}</h2>
+      <h2 className="text-lg font-sans font-bold text-text/50 border-l-4 border-text/20 pl-3">{t("advanced.title")}</h2>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Button tone="neutral" fill="outline" size="sm" className="w-full mb-2" onClick={handleRecalc} disabled={recalcing}>
+          <Button
+            tone="neutral"
+            fill="outline"
+            size="sm"
+            className="w-full mb-2"
+            onClick={handleRecalc}
+            disabled={recalcing}
+          >
             {recalcing ? <Spinner size="sm" className="mr-2" /> : null}
-            {t('advanced.recalc')}
+            {t("advanced.recalc")}
           </Button>
-          <p className="text-xs text-text/50">{t('advanced.recalcDesc')}</p>
+          <p className="text-xs text-text/50">{t("advanced.recalcDesc")}</p>
         </div>
         <div className="space-y-2">
           <Button tone="neutral" fill="outline" size="sm" className="w-full mb-2" onClick={handleRebuildIndex}>
-            {t('advanced.rebuildIndex')}
+            {t("advanced.rebuildIndex")}
           </Button>
-          <p className="text-xs text-text/50">{t('advanced.rebuildIndexDesc')}</p>
+          <p className="text-xs text-text/50">{t("advanced.rebuildIndexDesc")}</p>
         </div>
         <div className="space-y-2">
           <Button tone="neutral" fill="outline" size="sm" className="w-full mb-2" onClick={handleBackfillMemory}>
-            {t('advanced.backfillMemory')}
+            {t("advanced.backfillMemory")}
           </Button>
-          <p className="text-xs text-text/50">{t('advanced.backfillMemoryDesc')}</p>
+          <p className="text-xs text-text/50">{t("advanced.backfillMemoryDesc")}</p>
         </div>
         <div className="space-y-2">
           <Button
-            tone={hasArchiveCandidates ? 'accent' : 'neutral'}
+            tone={hasArchiveCandidates ? "accent" : "neutral"}
             fill="outline"
             size="sm"
             className="w-full mb-2 flex items-center justify-center gap-2"
             onClick={handleArchiveFacts}
           >
-            {t('advanced.archiveFacts')}
+            {t("advanced.archiveFacts")}
             {hasArchiveCandidates && (
               <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-accent px-1.5 text-xs font-bold text-white">
                 {archiveCandidateCount}
@@ -67,12 +74,12 @@ export function AuSettingsAdvancedSection({
           </Button>
           <p className="text-xs text-text/50">
             {hasArchiveCandidates
-              ? t('advanced.archiveFactsCount', { count: archiveCandidateCount })
-              : t('advanced.archiveFactsDesc')}
+              ? t("advanced.archiveFactsCount", { count: archiveCandidateCount })
+              : t("advanced.archiveFactsDesc")}
           </p>
         </div>
       </div>
-      <p className="text-xs text-text/30">{t('advanced.advancedHint')}</p>
+      <p className="text-xs text-text/30">{t("advanced.advancedHint")}</p>
     </section>
   );
 }

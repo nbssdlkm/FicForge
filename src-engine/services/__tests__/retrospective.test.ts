@@ -7,14 +7,29 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { run_retrospective, generate_retrospective, commit_retrospective, should_run_retrospective, RETROSPECTIVE_INTERVAL } from "../retrospective.js";
+import {
+  run_retrospective,
+  generate_retrospective,
+  commit_retrospective,
+  should_run_retrospective,
+  RETROSPECTIVE_INTERVAL,
+} from "../retrospective.js";
 import { IndexStatus } from "../../domain/enums.js";
 
 function fakeProvider(reply: string) {
   return { generate: vi.fn(async () => ({ content: reply })) } as any;
 }
 
-function fakeSummaryRepo(perChapter: Record<number, { standard?: { text: string; version: number; source_chapter_hash: string; generated_at: string } | null; micro?: { text: string; version: number; source_chapter_hash: string; generated_at: string } | null; standard_v1?: any }>) {
+function fakeSummaryRepo(
+  perChapter: Record<
+    number,
+    {
+      standard?: { text: string; version: number; source_chapter_hash: string; generated_at: string } | null;
+      micro?: { text: string; version: number; source_chapter_hash: string; generated_at: string } | null;
+      standard_v1?: any;
+    }
+  >,
+) {
   return {
     get: vi.fn(async (_auPath: string, chapterNum: number) => {
       const entry = perChapter[chapterNum];
@@ -105,7 +120,7 @@ describe("run_retrospective", () => {
       6: { micro: { version: 1, text: "ch6 micro", source_chapter_hash: "h6", generated_at: "t" } },
     });
     const chapterRepo = fakeChapterRepo("text");
-    const llmProvider = fakeProvider("");  // empty → null
+    const llmProvider = fakeProvider(""); // empty → null
     const ragManager = fakeRagManager();
 
     await run_retrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11);
@@ -118,14 +133,16 @@ describe("run_retrospective", () => {
       6: { micro: { version: 1, text: "ch6 micro", source_chapter_hash: "h6", generated_at: "t" } },
     });
     const chapterRepo = {
-      get: vi.fn(async () => { throw new Error("chapter not found"); }),
+      get: vi.fn(async () => {
+        throw new Error("chapter not found");
+      }),
     } as any;
     const llmProvider = fakeProvider("v2");
     const ragManager = fakeRagManager();
 
     // Should not throw — best-effort
     await expect(
-      run_retrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11)
+      run_retrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11),
     ).resolves.toBeUndefined();
     expect(llmProvider.generate).not.toHaveBeenCalled();
   });
@@ -152,7 +169,9 @@ describe("run_retrospective", () => {
     // 摘要里记的 source_chapter_hash 陈旧/不同 —— 修复前 contentHash 取的是这个（错），
     // 修复后取章节 get() 的 live content_hash，Phase2 才能检出「Phase1 后章节被编辑」。
     const summaryRepo = fakeSummaryRepo({
-      5: { standard: { version: 1, text: "ch5 standard", source_chapter_hash: "STALE_SUMMARY_HASH", generated_at: "t" } },
+      5: {
+        standard: { version: 1, text: "ch5 standard", source_chapter_hash: "STALE_SUMMARY_HASH", generated_at: "t" },
+      },
       6: { micro: { version: 1, text: "ch6 micro", source_chapter_hash: "h6", generated_at: "t" } },
     });
     const chapterRepo = fakeChapterRepo("chapter 5 text", "LIVE_CHAPTER_HASH");
@@ -200,7 +219,10 @@ describe("commit_retrospective — L17 向量覆盖失败置 STALE", () => {
       repo: {
         get: vi.fn(async () => state),
         save: vi.fn(async () => {}),
-        update: vi.fn(async (_au: string, mut: (s: any) => void) => { mut(state); return state; }),
+        update: vi.fn(async (_au: string, mut: (s: any) => void) => {
+          mut(state);
+          return state;
+        }),
       } as any,
       state,
     };
@@ -208,7 +230,11 @@ describe("commit_retrospective — L17 向量覆盖失败置 STALE", () => {
 
   it("indexChapterSummary 抛错 → state.update 置 STALE", async () => {
     const summaryRepo = fakeSummaryRepo({});
-    const ragManager = { indexChapterSummary: vi.fn(async () => { throw new Error("embed fail"); }) } as any;
+    const ragManager = {
+      indexChapterSummary: vi.fn(async () => {
+        throw new Error("embed fail");
+      }),
+    } as any;
     const { repo, state } = fakeStateRepo();
 
     await commit_retrospective("/au", 5, genResult, summaryRepo, ragManager, fakeEmbeddingProvider(), repo);
@@ -231,7 +257,11 @@ describe("commit_retrospective — L17 向量覆盖失败置 STALE", () => {
 
   it("未传 stateRepo → 向量失败时不抛（向后兼容 best-effort）", async () => {
     const summaryRepo = fakeSummaryRepo({});
-    const ragManager = { indexChapterSummary: vi.fn(async () => { throw new Error("embed fail"); }) } as any;
+    const ragManager = {
+      indexChapterSummary: vi.fn(async () => {
+        throw new Error("embed fail");
+      }),
+    } as any;
     await expect(
       commit_retrospective("/au", 5, genResult, summaryRepo, ragManager, fakeEmbeddingProvider()),
     ).resolves.toBeUndefined();

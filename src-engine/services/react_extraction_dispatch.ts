@@ -34,7 +34,11 @@ import { runAgentLoop, type AgentLoopConfig, type IterContext } from "./agent_lo
 import { repairAndValidateToolArgs, salvageMalformedJson } from "./tool_args_repair.js";
 import { createTelemetry, type TelemetrySink } from "./agent_telemetry.js";
 import { rawToExtracted, type ExtractedFact } from "./facts_extraction.js";
-import { buildExtractionMessages, REACT_MAX_FACTS_PER_CHAPTER, type ExistingFactForContext } from "./react_extraction_context.js";
+import {
+  buildExtractionMessages,
+  REACT_MAX_FACTS_PER_CHAPTER,
+  type ExistingFactForContext,
+} from "./react_extraction_context.js";
 import {
   EXTRACTION_TOOLS,
   EXTRACTION_TOOL_SCHEMAS,
@@ -142,7 +146,10 @@ function synthesizeEnrichmentConfidence(fact: ExtractedFact): void {
   fact._confidence = { ...synth, ...(fact._confidence ?? {}) };
 }
 
-function repairExtractionArgs(toolName: string, rawArgs: string): {
+function repairExtractionArgs(
+  toolName: string,
+  rawArgs: string,
+): {
   args: Record<string, unknown>;
   success: boolean;
   retryHint?: string;
@@ -187,12 +194,20 @@ export async function reactExtractFromChapter(
   // 读失败降级为空集但不静默（盲审 R3 M13）：facts/threads 读不出会让 caused_by /
   // thread 关联静默失联，用户排障需看到「上下文读取挂了」而非以为「本就没有」。
   if (opts.factRepo && opts.auPath) {
-    try { allFacts = await opts.factRepo.list_all(opts.auPath); }
-    catch (err) { logCatch("react_extraction", "读取既有 facts 失败，按空集继续", err); allFacts = []; }
+    try {
+      allFacts = await opts.factRepo.list_all(opts.auPath);
+    } catch (err) {
+      logCatch("react_extraction", "读取既有 facts 失败，按空集继续", err);
+      allFacts = [];
+    }
   }
   if (opts.threadRepo && opts.auPath) {
-    try { threads = await opts.threadRepo.list(opts.auPath); }
-    catch (err) { logCatch("react_extraction", "读取剧情线失败，按空集继续", err); threads = []; }
+    try {
+      threads = await opts.threadRepo.list(opts.auPath);
+    } catch (err) {
+      logCatch("react_extraction", "读取剧情线失败，按空集继续", err);
+      threads = [];
+    }
   }
   const knownFactIds = new Set(allFacts.map((f) => f.id));
   const knownThreadIds = new Set(threads.map((t) => t.id));
@@ -200,22 +215,23 @@ export async function reactExtractFromChapter(
 
   // 上下文展示的已有事实：有 repo 时用更早章节的近 20 条（带 fact_id，供 propose 内联 caused_by）；
   // 无 repo 时退回调用方传的 content_clean 摘要（无 id）。
-  const existingForContext: ExistingFactForContext[] = allFacts.length > 0
-    ? [...allFacts]
-        .filter((f) => typeof f.chapter !== "number" || f.chapter < chapter_num)
-        .sort((a, b) => (b.chapter ?? 0) - (a.chapter ?? 0))
-        .slice(0, 20)
-        .map((f) => ({ fact_id: f.id, content_clean: f.content_clean, chapter: f.chapter }))
-    : existing_facts.map((f) => ({ content_clean: f.content_clean ?? "" }));
+  const existingForContext: ExistingFactForContext[] =
+    allFacts.length > 0
+      ? [...allFacts]
+          .filter((f) => typeof f.chapter !== "number" || f.chapter < chapter_num)
+          .sort((a, b) => (b.chapter ?? 0) - (a.chapter ?? 0))
+          .slice(0, 20)
+          .map((f) => ({ fact_id: f.id, content_clean: f.content_clean, chapter: f.chapter }))
+      : existing_facts.map((f) => ({ content_clean: f.content_clean ?? "" }));
 
   // --- 暂存：proposedFacts 是闭包累加器；fact_index 即此数组下标。grounded 平行记录
   //     每条是否通过 evidence 子串校验（决定能否挂 caused_by/thread_ids）---
   const proposedFacts: ExtractedFact[] = [];
   const grounded: boolean[] = [];
   const seenContent = new Set<string>(); // dedupe：normalized content_clean，防真 LLM 反复 re-propose 同一事实
-  let proposeCallCount = 0;              // 真 LLM 实测会反复 propose 不前进；据此 steer 向 search/finalize
+  let proposeCallCount = 0; // 真 LLM 实测会反复 propose 不前进；据此 steer 向 search/finalize
   let status: ReactExtractStatus = "degraded"; // 悲观默认；干净收尾才升 ok
-  let totalCappedCount = 0;              // L16：跨所有 propose 调用累计的软上限丢弃条数（透传给 backfill）
+  let totalCappedCount = 0; // L16：跨所有 propose 调用累计的软上限丢弃条数（透传给 backfill）
 
   const emitRepairs = (toolName: string, repaired: ReturnType<typeof repairExtractionArgs>) => {
     for (const r of repaired.repairs) {
@@ -246,14 +262,19 @@ export async function reactExtractFromChapter(
     if (name === REACT_TOOL_SEARCH) {
       const hits = executeSearchExistingFacts(
         allFacts,
-        { query: String(args.query ?? ""), characters: args.characters as string[] | undefined, limit: args.limit as number | undefined },
+        {
+          query: String(args.query ?? ""),
+          characters: args.characters as string[] | undefined,
+          limit: args.limit as number | undefined,
+        },
         chapter_num,
       );
       return JSON.stringify({
         results: hits,
-        next_step: language === "en"
-          ? "If a result is the cause of a proposed fact, call annotate_fact with that fact_id in caused_by_fact_ids. When all causality/storylines are set, call finalize_extraction."
-          : "若某条结果是某提议事实的成因，调用 annotate_fact 把它的 fact_id 填进 caused_by_fact_ids。因果/剧情线都标完后调用 finalize_extraction 结束。",
+        next_step:
+          language === "en"
+            ? "If a result is the cause of a proposed fact, call annotate_fact with that fact_id in caused_by_fact_ids. When all causality/storylines are set, call finalize_extraction."
+            : "若某条结果是某提议事实的成因，调用 annotate_fact 把它的 fact_id 填进 caused_by_fact_ids。因果/剧情线都标完后调用 finalize_extraction 结束。",
       });
     }
 
@@ -277,8 +298,16 @@ export async function reactExtractFromChapter(
             try {
               parsed = JSON.parse(salvaged) as { facts?: unknown };
               // 准则 5：修复全程 trace。此路径绕过 repairAndValidateToolArgs 的 trace，补发 telemetry。
-              telemetry.emit({ kind: "tool_input_repaired", agentName: REACT_AGENT_NAME, toolName: name, repairKind: "salvage_malformed_json", field: [] });
-            } catch { parsed = null; }
+              telemetry.emit({
+                kind: "tool_input_repaired",
+                agentName: REACT_AGENT_NAME,
+                toolName: name,
+                repairKind: "salvage_malformed_json",
+                field: [],
+              });
+            } catch {
+              parsed = null;
+            }
           }
         }
         if (parsed && typeof parsed === "object" && Array.isArray(parsed.facts)) {
@@ -299,24 +328,35 @@ export async function reactExtractFromChapter(
           fact.caused_by = fact.caused_by.filter((id) => knownFactIds.has(id));
         }
         // 软上限兜底：一章最多 REACT_MAX_FACTS_PER_CHAPTER 条（prompt 已引导少而精，cap 防失控）。
-        if (proposedFacts.length >= REACT_MAX_FACTS_PER_CHAPTER) { cappedCount++; totalCappedCount++; continue; }
+        if (proposedFacts.length >= REACT_MAX_FACTS_PER_CHAPTER) {
+          cappedCount++;
+          totalCappedCount++;
+          continue;
+        }
         // dedupe：同一 normalized content_clean 只收一次（真 LLM 会跨轮 re-propose）。
         const key = normalizeForMatch(fact.content_clean);
-        if (seenContent.has(key)) { dupCount++; continue; }
+        if (seenContent.has(key)) {
+          dupCount++;
+          continue;
+        }
         seenContent.add(key);
         // grounding：evidence 标准化后须 >=4 字符且在本章原文出现（防单字/标点绕过——codex 二审 MAJOR）。
         const evNorm = typeof raw.evidence === "string" ? normalizeForMatch(raw.evidence) : "";
         const isGrounded = evNorm.length >= 4 && normChapter.includes(evNorm);
         // 内联 thread_ids（归属/分类，不需 grounding——真 LLM 不肯走单独 annotate 步，故在 propose 收）。
         if (Array.isArray(raw.thread_ids)) {
-          const kept = (raw.thread_ids as unknown[]).filter((t): t is string => typeof t === "string" && knownThreadIds.has(t));
+          const kept = (raw.thread_ids as unknown[]).filter(
+            (t): t is string => typeof t === "string" && knownThreadIds.has(t),
+          );
           if (kept.length) fact.thread_ids = kept;
         }
         // 内联 caused_by（因果断言）：target fact_id 必须真实存在（knownFactIds 过滤防编造）。
         // grounding 不再「门控丢弃」（实测真 LLM 不肯写 evidence，会把功能压没）——改「flag」：
         // 未 grounded 的因果边仍挂上，但标 _confidence.caused_by=low 供人工确认时重点核（PD-5 人审兜底）。
         if (Array.isArray(raw.caused_by_fact_ids)) {
-          const kept = (raw.caused_by_fact_ids as unknown[]).filter((id): id is string => typeof id === "string" && knownFactIds.has(id));
+          const kept = (raw.caused_by_fact_ids as unknown[]).filter(
+            (id): id is string => typeof id === "string" && knownFactIds.has(id),
+          );
           if (kept.length) {
             fact.caused_by = kept;
             if (!isGrounded) fact._confidence = { ...(fact._confidence ?? {}), caused_by: "low" };
@@ -331,12 +371,17 @@ export async function reactExtractFromChapter(
       }
       // steer：真 LLM 实测会反复 propose 不前进。propose 后强引导去 search/annotate/finalize；
       // 重复 propose（proposeCallCount≥2）措辞更硬。
-      const firm = proposeCallCount >= 2
-        ? (language === "en" ? "STOP proposing — you have already proposed facts. " : "停止 propose——你已经提议过事实了。")
-        : "";
-      const nextStep = firm + (language === "en"
-        ? "DO NOT call propose_facts again. If you already filled caused_by_fact_ids / thread_ids inline, just call finalize_extraction. Only if a fact's cause was NOT in the existing-facts list, use search_existing_facts then annotate_fact, then finalize_extraction."
-        : "不要再调用 propose_facts。若 caused_by_fact_ids / thread_ids 已在 propose 里填好，直接调用 finalize_extraction。只有某条事实的成因不在上方已有事实列表时，才用 search_existing_facts 再 annotate_fact，然后 finalize_extraction。");
+      const firm =
+        proposeCallCount >= 2
+          ? language === "en"
+            ? "STOP proposing — you have already proposed facts. "
+            : "停止 propose——你已经提议过事实了。"
+          : "";
+      const nextStep =
+        firm +
+        (language === "en"
+          ? "DO NOT call propose_facts again. If you already filled caused_by_fact_ids / thread_ids inline, just call finalize_extraction. Only if a fact's cause was NOT in the existing-facts list, use search_existing_facts then annotate_fact, then finalize_extraction."
+          : "不要再调用 propose_facts。若 caused_by_fact_ids / thread_ids 已在 propose 里填好，直接调用 finalize_extraction。只有某条事实的成因不在上方已有事实列表时，才用 search_existing_facts 再 annotate_fact，然后 finalize_extraction。");
       return JSON.stringify({
         accepted_indices: acceptedIndices,
         count: acceptedIndices.length,
@@ -352,7 +397,12 @@ export async function reactExtractFromChapter(
         return JSON.stringify({ error: "fact_index out of range", valid_range: `0..${proposedFacts.length - 1}` });
       }
       const target = proposedFacts[idx];
-      const applied: { caused_by?: string[]; thread_ids?: string[]; dropped_caused_by?: string[]; dropped_thread_ids?: string[] } = {};
+      const applied: {
+        caused_by?: string[];
+        thread_ids?: string[];
+        dropped_caused_by?: string[];
+        dropped_thread_ids?: string[];
+      } = {};
 
       if (Array.isArray(args.caused_by_fact_ids)) {
         const requested = (args.caused_by_fact_ids as unknown[]).filter((x): x is string => typeof x === "string");
@@ -429,7 +479,11 @@ export async function reactExtractFromChapter(
       // search/annotate/finalize —— 真 LLM（v4-flash）常这样空转到 maxIter(8) 才停，每轮 8k token
       // 白烧。已有事实即算干净收尾（status=ok），不再干等 finalize。search 路径不触发本条（它意在
       // annotate 跨章因，需后续轮次），故不误伤跨章因果补全。
-      if (proposedFacts.length > 0 && proposeCallCount >= 2 && calls.some((c) => c.function.name === REACT_TOOL_PROPOSE)) {
+      if (
+        proposedFacts.length > 0 &&
+        proposeCallCount >= 2 &&
+        calls.some((c) => c.function.name === REACT_TOOL_PROPOSE)
+      ) {
         status = "ok";
         return { mode: "terminal", events: [] };
       }
@@ -457,16 +511,18 @@ export async function reactExtractFromChapter(
       if (proposedFacts.length === 0) {
         return {
           role: "user",
-          content: language === "en"
-            ? "[system note] You haven't proposed any facts yet. Call the propose_facts tool with the facts you found, not plain text."
-            : "[系统提示] 你还没有提议任何事实。请调用 propose_facts 工具提交你发现的事实，而不是用纯文本回复。",
+          content:
+            language === "en"
+              ? "[system note] You haven't proposed any facts yet. Call the propose_facts tool with the facts you found, not plain text."
+              : "[系统提示] 你还没有提议任何事实。请调用 propose_facts 工具提交你发现的事实，而不是用纯文本回复。",
         };
       }
       return {
         role: "user",
-        content: language === "en"
-          ? "[system note] Before finishing: if any fact is caused by an earlier chapter, use search_existing_facts then annotate_fact; if any fact belongs to a listed storyline, set its thread_ids via annotate_fact. When truly done, call finalize_extraction (do not finish with plain text)."
-          : "[系统提示] 结束前确认：若有事实承接前文，先 search_existing_facts 再 annotate_fact 补 caused_by；若有事实属于上方剧情线，用 annotate_fact 填 thread_ids。都补完后调用 finalize_extraction 结束（不要用纯文本结束）。",
+        content:
+          language === "en"
+            ? "[system note] Before finishing: if any fact is caused by an earlier chapter, use search_existing_facts then annotate_fact; if any fact belongs to a listed storyline, set its thread_ids via annotate_fact. When truly done, call finalize_extraction (do not finish with plain text)."
+            : "[系统提示] 结束前确认：若有事实承接前文，先 search_existing_facts 再 annotate_fact 补 caused_by；若有事实属于上方剧情线，用 annotate_fact 填 thread_ids。都补完后调用 finalize_extraction 结束（不要用纯文本结束）。",
       };
     },
 

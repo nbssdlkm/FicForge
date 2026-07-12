@@ -2,15 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Modal } from "../ui/shared/Modal";
 import { Toast } from "../ui/shared/Toast";
 import { Button } from "../ui/shared/Button";
@@ -76,21 +68,27 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     setToasts((current) => [...current, { id, message, variant, deadline: Date.now() + TOAST_TTL_MS }]);
   }, []);
 
-  const showSuccess = useCallback((message: string) => {
-    showToast(message, "success");
-  }, [showToast]);
+  const showSuccess = useCallback(
+    (message: string) => {
+      showToast(message, "success");
+    },
+    [showToast],
+  );
 
-  const showError = useCallback((error: unknown, fallbackMessage?: string) => {
-    const fallback = fallbackMessage || t("error_messages.unknown");
-    const { message, actions } = getMessage(error, fallback);
-    // 日志记录完整错误信息，便于调试
-    logUiError("feedback", `showError: ${message}`, error);
-    if (actions.length > 1) {
-      setDialog({ message, actions });
-      return;
-    }
-    showToast(message, "error");
-  }, [showToast, t]);
+  const showError = useCallback(
+    (error: unknown, fallbackMessage?: string) => {
+      const fallback = fallbackMessage || t("error_messages.unknown");
+      const { message, actions } = getMessage(error, fallback);
+      // 日志记录完整错误信息，便于调试
+      logUiError("feedback", `showError: ${message}`, error);
+      if (actions.length > 1) {
+        setDialog({ message, actions });
+        return;
+      }
+      showToast(message, "error");
+    },
+    [showToast, t],
+  );
 
   useEffect(() => {
     if (toasts.length === 0) return undefined;
@@ -100,7 +98,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     // 的 toast 被反复续命、滞留远超 TTL。deadline 已过的立即移除（钳到 0）。
     const now = Date.now();
     const timers = toasts.map((toast) =>
-      window.setTimeout(() => removeToast(toast.id), Math.max(0, toast.deadline - now))
+      window.setTimeout(() => removeToast(toast.id), Math.max(0, toast.deadline - now)),
     );
 
     return () => {
@@ -114,7 +112,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
       showSuccess,
       showError,
     }),
-    [showError, showSuccess, showToast]
+    [showError, showSuccess, showToast],
   );
 
   return (
@@ -131,11 +129,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
           />
         ))}
       </div>
-      <Modal
-        isOpen={dialog !== null}
-        onClose={() => setDialog(null)}
-        title={t("shared.feedback.errorTitle")}
-      >
+      <Modal isOpen={dialog !== null} onClose={() => setDialog(null)} title={t("shared.feedback.errorTitle")}>
         <div className="space-y-4">
           <p className="text-sm text-text/90">{dialog?.message}</p>
           {dialog && dialog.actions.length > 0 && (

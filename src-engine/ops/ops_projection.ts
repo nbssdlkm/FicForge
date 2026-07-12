@@ -19,8 +19,12 @@ import type { Fact } from "../domain/fact.js";
 import { createFact } from "../domain/fact.js";
 import { sanitize_known_to, sanitize_hidden_from, sanitize_confidence } from "../domain/fact_sanitize.js";
 import {
-  FACT_SOURCE_VALUES, FACT_STATUS_VALUES, FACT_TYPE_VALUES, NARRATIVE_WEIGHT_VALUES,
-  TIME_KIND_VALUES, SUSPENSE_TYPE_VALUES,
+  FACT_SOURCE_VALUES,
+  FACT_STATUS_VALUES,
+  FACT_TYPE_VALUES,
+  NARRATIVE_WEIGHT_VALUES,
+  TIME_KIND_VALUES,
+  SUSPENSE_TYPE_VALUES,
 } from "../domain/enums.js";
 import { hasLogger, getLogger } from "../logger/index.js";
 import type { FactSource, FactStatus, FactType, NarrativeWeight, TimeKind, SuspenseType } from "../domain/enums.js";
@@ -217,9 +221,7 @@ function applyOpToState(state: State, op: OpsEntry): void {
 // ---------------------------------------------------------------------------
 
 /** 运行时校验枚举值，非法值回退默认并打 warn。 */
-function validateEnum<T extends string>(
-  value: string, valid: readonly T[], fallback: T, field: string, id: string,
-): T {
+function validateEnum<T extends string>(value: string, valid: readonly T[], fallback: T, field: string, id: string): T {
   if ((valid as readonly string[]).includes(value)) return value as T;
   if (hasLogger()) getLogger().warn("ops_merge", `unknown ${field}`, { id, value, fallback });
   return fallback;
@@ -240,7 +242,13 @@ function factFromPayload(id: string, d: Record<string, unknown>): Fact {
     chapter: (d.chapter as number) ?? 0,
     status: validateEnum(rawStatus, FACT_STATUS_VALUES, "active" as FactStatus, "status", id),
     type: validateEnum(rawType, FACT_TYPE_VALUES, "plot_event" as FactType, "type", id),
-    narrative_weight: validateEnum(rawWeight, NARRATIVE_WEIGHT_VALUES, "medium" as NarrativeWeight, "narrative_weight", id),
+    narrative_weight: validateEnum(
+      rawWeight,
+      NARRATIVE_WEIGHT_VALUES,
+      "medium" as NarrativeWeight,
+      "narrative_weight",
+      id,
+    ),
     source: validateEnum(rawSource, FACT_SOURCE_VALUES, "extract_auto" as FactSource, "source", id),
     timeline: (d.timeline as string) ?? "",
     story_time: (d.story_time as string) ?? "",
@@ -249,32 +257,32 @@ function factFromPayload(id: string, d: Record<string, unknown>): Fact {
     created_at: (d.created_at as string) ?? "",
     updated_at: (d.updated_at as string) ?? "",
     // Layer 2 (M8-A)
-    location:          (d.location       as string  | undefined) ?? null,
-    story_time_tag:    (d.story_time_tag as string  | undefined) ?? null,
-    story_time_order:  (d.story_time_order as number | undefined) ?? null,
-    time_kind:         (TIME_KIND_VALUES as readonly string[]).includes(d.time_kind as string)
-                         ? (d.time_kind as TimeKind)
-                         : null,
-    action_verb:       (d.action_verb    as string  | undefined) ?? null,
-    caused_by:         Array.isArray(d.caused_by)   ? (d.caused_by  as string[]) : [],
+    location: (d.location as string | undefined) ?? null,
+    story_time_tag: (d.story_time_tag as string | undefined) ?? null,
+    story_time_order: (d.story_time_order as number | undefined) ?? null,
+    time_kind: (TIME_KIND_VALUES as readonly string[]).includes(d.time_kind as string)
+      ? (d.time_kind as TimeKind)
+      : null,
+    action_verb: (d.action_verb as string | undefined) ?? null,
+    caused_by: Array.isArray(d.caused_by) ? (d.caused_by as string[]) : [],
     // Layer 3 (M8-A)
-    known_to:          (d.known_to as ("all" | "reader_only" | string[]) | undefined) ?? null,
-    hidden_from:       Array.isArray(d.hidden_from) ? (d.hidden_from as string[]) : [],
-    suspense_type:     (SUSPENSE_TYPE_VALUES as readonly string[]).includes(d.suspense_type as string)
-                         ? (d.suspense_type as SuspenseType)
-                         : null,
+    known_to: (d.known_to as ("all" | "reader_only" | string[]) | undefined) ?? null,
+    hidden_from: Array.isArray(d.hidden_from) ? (d.hidden_from as string[]) : [],
+    suspense_type: (SUSPENSE_TYPE_VALUES as readonly string[]).includes(d.suspense_type as string)
+      ? (d.suspense_type as SuspenseType)
+      : null,
     // _confidence
-    _confidence:       (typeof d._confidence === "object" && d._confidence !== null)
-                         ? (d._confidence as FactFieldConfidence)
-                         : undefined,
+    _confidence:
+      typeof d._confidence === "object" && d._confidence !== null ? (d._confidence as FactFieldConfidence) : undefined,
     // Thread 关联（M8-B）：default [] / undefined，mirror caused_by / _confidence
-    thread_ids:        Array.isArray(d.thread_ids) ? (d.thread_ids as string[]) : [],
-    thread_roles:      (typeof d.thread_roles === "object" && d.thread_roles !== null)
-                         ? (d.thread_roles as Record<string, string>)
-                         : undefined,
+    thread_ids: Array.isArray(d.thread_ids) ? (d.thread_ids as string[]) : [],
+    thread_roles:
+      typeof d.thread_roles === "object" && d.thread_roles !== null
+        ? (d.thread_roles as Record<string, string>)
+        : undefined,
     // M10-B: cold-tier archival (default false; undefined on old facts treated as false)
-    archived:          typeof d.archived === "boolean" ? d.archived : false,
-    archived_at:       typeof d.archived_at === "string" ? d.archived_at : undefined,
+    archived: typeof d.archived === "boolean" ? d.archived : false,
+    archived_at: typeof d.archived_at === "string" ? d.archived_at : undefined,
   });
 }
 
@@ -295,21 +303,42 @@ export function rebuildFactsFromOps(ops: OpsEntry[]): Fact[] {
         const existing = facts.get(op.target_id);
         if (existing) {
           const EDITABLE_FIELDS = new Set([
-            "content_raw", "content_clean", "characters", "status", "type",
-            "narrative_weight", "source", "timeline", "story_time", "resolves", "chapter",
+            "content_raw",
+            "content_clean",
+            "characters",
+            "status",
+            "type",
+            "narrative_weight",
+            "source",
+            "timeline",
+            "story_time",
+            "resolves",
+            "chapter",
             // M8-A Layer 2 + Layer 3 enrichment fields
-            "location", "story_time_tag", "story_time_order", "time_kind", "action_verb",
-            "caused_by", "known_to", "hidden_from", "suspense_type", "_confidence",
+            "location",
+            "story_time_tag",
+            "story_time_order",
+            "time_kind",
+            "action_verb",
+            "caused_by",
+            "known_to",
+            "hidden_from",
+            "suspense_type",
+            "_confidence",
             // M8-B: thread 关联（setFactThreads 走 edit_fact op → 这两个键必须在白名单内才能 replay）
-            "thread_ids", "thread_roles",
+            "thread_ids",
+            "thread_roles",
             // M10-B: cold-tier archival fields
-            "archived", "archived_at",
+            "archived",
+            "archived_at",
           ]);
           // 枚举字段防御性校验（与 edit_fact 写路径对称）：非法枚举不 replay，防旧 ops /
           // 手改 ops.jsonl 引入的垃圾把 fact 从筛选视图里抹掉。
           const EDIT_ENUM: Record<string, readonly string[]> = {
-            status: FACT_STATUS_VALUES, type: FACT_TYPE_VALUES,
-            narrative_weight: NARRATIVE_WEIGHT_VALUES, source: FACT_SOURCE_VALUES,
+            status: FACT_STATUS_VALUES,
+            type: FACT_TYPE_VALUES,
+            narrative_weight: NARRATIVE_WEIGHT_VALUES,
+            source: FACT_SOURCE_VALUES,
           };
           const changes = (op.payload.updated_fields ?? op.payload.changes ?? {}) as Record<string, unknown>;
           for (const [key, value] of Object.entries(changes)) {
@@ -319,11 +348,18 @@ export function rebuildFactsFromOps(ops: OpsEntry[]): Fact[] {
             // 保住「重建结果 == 磁盘状态」的对称契约。回放不做别名归一化（写侧已做，
             // op 里存的即归一化后的值；回放语境也拿不到 project 配置）。
             if (key === "known_to" || key === "hidden_from" || key === "_confidence") {
-              const res = key === "known_to" ? sanitize_known_to(value)
-                : key === "hidden_from" ? sanitize_hidden_from(value)
-                : sanitize_confidence(value);
+              const res =
+                key === "known_to"
+                  ? sanitize_known_to(value)
+                  : key === "hidden_from"
+                    ? sanitize_hidden_from(value)
+                    : sanitize_confidence(value);
               if (!res.ok) {
-                if (hasLogger()) getLogger().warn("ops_merge", `edit_fact 跳过非法形状 ${key}`, { id: op.target_id, value: String(value) });
+                if (hasLogger())
+                  getLogger().warn("ops_merge", `edit_fact 跳过非法形状 ${key}`, {
+                    id: op.target_id,
+                    value: String(value),
+                  });
                 continue;
               }
               (existing as unknown as Record<string, unknown>)[key] = res.value;
@@ -331,7 +367,11 @@ export function rebuildFactsFromOps(ops: OpsEntry[]): Fact[] {
             }
             const validVals = EDIT_ENUM[key];
             if (validVals && !(typeof value === "string" && (validVals as readonly string[]).includes(value))) {
-              if (hasLogger()) getLogger().warn("ops_merge", `edit_fact 跳过非法枚举 ${key}`, { id: op.target_id, value: String(value) });
+              if (hasLogger())
+                getLogger().warn("ops_merge", `edit_fact 跳过非法枚举 ${key}`, {
+                  id: op.target_id,
+                  value: String(value),
+                });
               continue;
             }
             (existing as unknown as Record<string, unknown>)[key] = value;

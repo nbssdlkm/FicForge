@@ -18,7 +18,8 @@ export interface ExportParams {
 
 export async function export_chapters(params: ExportParams): Promise<string> {
   const {
-    au_id, chapter_repo,
+    au_id,
+    chapter_repo,
     start_chapter = 1,
     end_chapter = null,
     format = "txt",
@@ -46,7 +47,10 @@ export async function export_chapters(params: ExportParams): Promise<string> {
 
     if (include_title || include_chapter_num) {
       const titleLine = buildTitleLine(
-        ch.chapter_num, format, include_title, include_chapter_num,
+        ch.chapter_num,
+        format,
+        include_title,
+        include_chapter_num,
         chapter_titles[ch.chapter_num] ?? "",
       );
       if (titleLine) sectionParts.push(titleLine);

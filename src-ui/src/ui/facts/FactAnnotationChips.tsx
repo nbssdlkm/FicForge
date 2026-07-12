@@ -2,13 +2,13 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { Tag } from '../shared/Tag';
-import { getKnownToLabel, getHiddenFromLabel } from '../../i18n/labels';
-import { useTranslation } from '../../i18n/useAppTranslation';
+import { Tag } from "../shared/Tag";
+import { getKnownToLabel, getHiddenFromLabel } from "../../i18n/labels";
+import { useTranslation } from "../../i18n/useAppTranslation";
 
 /** Fact 与 ExtractedFactCandidate 都天然满足的最小结构（结构化 props，两种输入通吃）。 */
 export type FactAnnotationSource = {
-  known_to?: 'all' | 'reader_only' | string[] | null;
+  known_to?: "all" | "reader_only" | string[] | null;
   hidden_from?: string[] | null;
   story_time_tag?: string | null;
 };
@@ -29,14 +29,22 @@ export function FactAnnotationChips({
   const knownTo = getKnownToLabel(fact.known_to);
   const hiddenFrom = getHiddenFromLabel(fact.hidden_from);
   const storyTimeTag =
-    showStoryTimeTag && typeof fact.story_time_tag === 'string' && fact.story_time_tag.trim() !== ''
+    showStoryTimeTag && typeof fact.story_time_tag === "string" && fact.story_time_tag.trim() !== ""
       ? fact.story_time_tag.trim()
-      : '';
+      : "";
   if (!knownTo && !hiddenFrom && !storyTimeTag) return null;
   return (
     <>
-      {knownTo && <Tag tone="info" title={t('facts.knowledge.chipHint')}>{knownTo}</Tag>}
-      {hiddenFrom && <Tag tone="warning" title={t('facts.knowledge.chipHint')}>{hiddenFrom}</Tag>}
+      {knownTo && (
+        <Tag tone="info" title={t("facts.knowledge.chipHint")}>
+          {knownTo}
+        </Tag>
+      )}
+      {hiddenFrom && (
+        <Tag tone="warning" title={t("facts.knowledge.chipHint")}>
+          {hiddenFrom}
+        </Tag>
+      )}
       {storyTimeTag && <Tag tone="default">{storyTimeTag}</Tag>}
     </>
   );

@@ -167,16 +167,16 @@ describe("TrashService", () => {
     //  B：刚删（保留期内）→ 应留
     //  C：deleted_at 也损坏 → 无法推断，视为过期应清（不永久占盘）
     const mkEntry = (id: string, deletedMs: number | null) => ({
-      trash_id: id, original_path: `${id}.md`, trash_path: `${id}_x.md`,
-      entity_type: "file", entity_name: id,
+      trash_id: id,
+      original_path: `${id}.md`,
+      trash_path: `${id}_x.md`,
+      entity_type: "file",
+      entity_name: id,
       deleted_at: deletedMs === null ? "garbage-date" : iso(deletedMs),
-      expires_at: "not-a-date", metadata: {},
+      expires_at: "not-a-date",
+      metadata: {},
     });
-    const entries = [
-      mkEntry("A", nowMs - 40 * day),
-      mkEntry("B", nowMs),
-      mkEntry("C", null),
-    ];
+    const entries = [mkEntry("A", nowMs - 40 * day), mkEntry("B", nowMs), mkEntry("C", null)];
     adapter.seed("au1/.trash/manifest.jsonl", entries.map((e) => JSON.stringify(e)).join("\n") + "\n");
     adapter.seed("au1/.trash/A_x.md", "a");
     adapter.seed("au1/.trash/B_x.md", "b");
@@ -194,9 +194,7 @@ describe("TrashService", () => {
   });
 
   it("path traversal blocked", async () => {
-    await expect(
-      trash.move_to_trash("au1", "../etc/passwd", "file", "bad"),
-    ).rejects.toThrow("非法路径");
+    await expect(trash.move_to_trash("au1", "../etc/passwd", "file", "bad")).rejects.toThrow("非法路径");
   });
 
   // --- 半成功回滚（审计①②）---
@@ -208,9 +206,7 @@ describe("TrashService", () => {
     faulty.seed("au1/project.yaml", "cast_registry:\n  characters:\n    - Zoe\n    - Max\n");
     const t = new TrashService(faulty, 30);
 
-    await expect(
-      t.move_to_trash("au1", "characters/Zoe.md", "character_file", "Zoe"),
-    ).rejects.toThrow("移动文件失败");
+    await expect(t.move_to_trash("au1", "characters/Zoe.md", "character_file", "Zoe")).rejects.toThrow("移动文件失败");
 
     // ① 源文件仍在（未丢失）——旧代码此时源已被删、manifest 无记录 = 孤儿
     expect(faulty.raw("au1/characters/Zoe.md")).toBe("---\nname: Zoe\n---\n# Zoe");
@@ -227,9 +223,7 @@ describe("TrashService", () => {
     faulty.seed("au1/notes/n.md", "content");
     const t = new TrashService(faulty, 30);
 
-    await expect(
-      t.move_to_trash("au1", "notes/n.md", "file", "n"),
-    ).rejects.toThrow("移动文件失败");
+    await expect(t.move_to_trash("au1", "notes/n.md", "file", "n")).rejects.toThrow("移动文件失败");
 
     // 源仍在
     expect(faulty.raw("au1/notes/n.md")).toBe("content");
@@ -325,9 +319,7 @@ describe("TrashService", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     try {
-      await expect(
-        t.move_tree_to_trash("fandom1", "aus/AU1", "au", "AU1"),
-      ).rejects.toThrow("simulated delete failure");
+      await expect(t.move_tree_to_trash("fandom1", "aus/AU1", "au", "AU1")).rejects.toThrow("simulated delete failure");
 
       // a.md：源已删、copy-back 失败 → .trash 副本是唯一幸存数据，必须保留。
       // 旧代码在 restoreCopiedTree 吞错后无条件 deleteCopiedTree = 源、副本双灭（永久丢失）。
@@ -359,9 +351,7 @@ describe("TrashService", () => {
     faulty.failWrite = (p) => p.includes("manifest.jsonl");
     const t = new TrashService(faulty, 30);
 
-    await expect(
-      t.move_tree_to_trash("fandom1", "aus/AU1", "au", "AU1"),
-    ).rejects.toThrow("simulated write failure");
+    await expect(t.move_tree_to_trash("fandom1", "aus/AU1", "au", "AU1")).rejects.toThrow("simulated write failure");
 
     // 顺序判别：manifest 未落库前，任何源文件都不应被尝试删除
     // （旧顺序「copy→删源→append」在此场景已把源全删，只能靠 copy-back 救回）
@@ -480,12 +470,10 @@ describe("TrashService", () => {
     faulty.seed("fandom1/aus/AU1/a.md", "A-content-EDITED-by-user");
 
     // (1) abort 恢复：撞 a 的真冲突 → 抛带 RESTORE_CONFLICT_MARKER 的错误（供 API 映射 friendly）。
-    await expect(t.restore("fandom1", entry.trash_id, "abort"))
-      .rejects.toThrow(new RegExp(RESTORE_CONFLICT_MARKER));
+    await expect(t.restore("fandom1", entry.trash_id, "abort")).rejects.toThrow(new RegExp(RESTORE_CONFLICT_MARKER));
 
     // (2) permanent_delete 仍拒（半恢复保护未被 F5 削弱）：带 HALF_RESTORED_MARKER。
-    await expect(t.permanent_delete("fandom1", entry.trash_id))
-      .rejects.toThrow(new RegExp(HALF_RESTORED_MARKER));
+    await expect(t.permanent_delete("fandom1", entry.trash_id)).rejects.toThrow(new RegExp(HALF_RESTORED_MARKER));
     // b.md 的 trash 副本仍在（唯一版本未丢）。
     expect(faulty.allFiles().filter((f) => f.includes("/.trash/") && f.endsWith("/b.md"))).toHaveLength(1);
 
@@ -506,9 +494,9 @@ describe("TrashService", () => {
     expect(list).toHaveLength(1);
     expect(list[0].entity_type).toBe("overwrite_backup");
     expect(list[0].original_path).toBe("aus/AU1/a.md");
-    const leftoverTreeCopies = faulty.allFiles().filter(
-      (f) => f.includes("/.trash/aus/") && f.endsWith(".md") && !f.includes(".overwrite-backup"),
-    );
+    const leftoverTreeCopies = faulty
+      .allFiles()
+      .filter((f) => f.includes("/.trash/aus/") && f.endsWith(".md") && !f.includes(".overwrite-backup"));
     expect(leftoverTreeCopies).toHaveLength(0);
   });
 
@@ -521,8 +509,7 @@ describe("TrashService", () => {
     adapter2.seed("au1/notes/n.md", "someone else's edit");
 
     // abort：抛带 marker 的冲突（旧「原路径已存在」文案升级为 marker 前缀）。
-    await expect(t.restore("au1", entry.trash_id, "abort"))
-      .rejects.toThrow(new RegExp(RESTORE_CONFLICT_MARKER));
+    await expect(t.restore("au1", entry.trash_id, "abort")).rejects.toThrow(new RegExp(RESTORE_CONFLICT_MARKER));
 
     // overwrite：备份当前 + 覆盖成回收站版本。
     await t.restore("au1", entry.trash_id, "overwrite");
@@ -655,23 +642,34 @@ describe("recalc_state", () => {
     const projectRepo = new FileProjectRepository(adapter);
 
     // Seed project.yaml so recalc can read cast_registry
-    adapter.seed("au1/project.yaml", "project_id: p1\nau_id: au1\ncast_registry:\n  characters:\n    - Alice\n    - Bob\n");
+    adapter.seed(
+      "au1/project.yaml",
+      "project_id: p1\nau_id: au1\ncast_registry:\n  characters:\n    - Alice\n    - Bob\n",
+    );
 
     // Initialize and confirm 2 chapters
     await stateRepo.save(createState({ au_id: "au1" }));
     for (let i = 1; i <= 2; i++) {
-      await draftRepo.save(createDraft({
-        au_id: "au1", chapter_num: i, variant: "A",
-        content: `Alice在第${i}章出场。Bob也在。`,
-      }));
+      await draftRepo.save(
+        createDraft({
+          au_id: "au1",
+          chapter_num: i,
+          variant: "A",
+          content: `Alice在第${i}章出场。Bob也在。`,
+        }),
+      );
       const state = await stateRepo.get("au1");
       state.current_chapter = i;
       await stateRepo.save(state);
       await confirm_chapter({
-        au_id: "au1", chapter_num: i,
+        au_id: "au1",
+        chapter_num: i,
         draft_id: `ch${String(i).padStart(4, "0")}_draft_A.md`,
         cast_registry: { characters: ["Alice", "Bob"] },
-        chapter_repo: chapterRepo, draft_repo: draftRepo, state_repo: stateRepo, ops_repo: opsRepo,
+        chapter_repo: chapterRepo,
+        draft_repo: draftRepo,
+        state_repo: stateRepo,
+        ops_repo: opsRepo,
       });
     }
 

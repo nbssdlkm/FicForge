@@ -15,18 +15,16 @@
 import { ThreadStatus } from "./enums.js";
 
 export interface Thread {
-  id: string;            // t_{时间戳}_{4位随机}
-  title: string;         // 剧情线名（"沈砚为父翻案"）
-  description: string;   // 这条线是什么（可空）
-  state: string;         // 当前进展一句话（注入用；"已确认名录被篡改，准备面圣"）
-  status: ThreadStatus;  // active / resolved / dormant
-  created_at: string;    // ISO 8601
-  updated_at: string;    // ISO 8601
+  id: string; // t_{时间戳}_{4位随机}
+  title: string; // 剧情线名（"沈砚为父翻案"）
+  description: string; // 这条线是什么（可空）
+  state: string; // 当前进展一句话（注入用；"已确认名录被篡改，准备面圣"）
+  status: ThreadStatus; // active / resolved / dormant
+  created_at: string; // ISO 8601
+  updated_at: string; // ISO 8601
 }
 
-export function createThread(
-  partial: Pick<Thread, "id" | "title"> & Partial<Thread>,
-): Thread {
+export function createThread(partial: Pick<Thread, "id" | "title"> & Partial<Thread>): Thread {
   return {
     description: "",
     state: "",

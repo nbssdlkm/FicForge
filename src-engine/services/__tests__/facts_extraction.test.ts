@@ -38,8 +38,22 @@ describe("extractFactsFromChapter", () => {
     async generate(params: GenerateParams): Promise<LLMResponse> {
       return {
         content: JSON.stringify([
-          { content_raw: "第1章 Alice遇到Bob", content_clean: "Alice遇到Bob", characters: ["Alice"], type: "plot_event", status: "active", narrative_weight: "high" },
-          { content_raw: "第1章 线索", content_clean: "神秘线索出现", characters: [], type: "foreshadowing", status: "unresolved", narrative_weight: "medium" },
+          {
+            content_raw: "第1章 Alice遇到Bob",
+            content_clean: "Alice遇到Bob",
+            characters: ["Alice"],
+            type: "plot_event",
+            status: "active",
+            narrative_weight: "high",
+          },
+          {
+            content_raw: "第1章 线索",
+            content_clean: "神秘线索出现",
+            characters: [],
+            type: "foreshadowing",
+            status: "unresolved",
+            narrative_weight: "medium",
+          },
         ]),
         model: "test",
         input_tokens: 100,
@@ -47,14 +61,20 @@ describe("extractFactsFromChapter", () => {
         finish_reason: "stop",
       };
     },
-    async *generateStream(): AsyncIterable<LLMChunk> { /* not used */ },
+    async *generateStream(): AsyncIterable<LLMChunk> {
+      /* not used */
+    },
   };
 
   it("extracts facts from chapter", async () => {
     const results = await extractFactsFromChapter(
       "Alice走进房间，看到了Bob。他们发现了一条线索。",
-      1, [], { characters: ["Alice", "Bob"] }, null,
-      mockProvider, null,
+      1,
+      [],
+      { characters: ["Alice", "Bob"] },
+      null,
+      mockProvider,
+      null,
     );
 
     expect(results).toHaveLength(2);
@@ -63,9 +83,7 @@ describe("extractFactsFromChapter", () => {
   });
 
   it("returns empty for empty chapter", async () => {
-    const results = await extractFactsFromChapter(
-      "", 1, [], { characters: [] }, null, mockProvider, null,
-    );
+    const results = await extractFactsFromChapter("", 1, [], { characters: [] }, null, mockProvider, null);
     expect(results).toEqual([]);
   });
 
@@ -73,17 +91,30 @@ describe("extractFactsFromChapter", () => {
     const manyFactsProvider: LLMProvider = {
       async generate(): Promise<LLMResponse> {
         const facts = Array.from({ length: 10 }, (_, i) => ({
-          content_raw: `fact ${i}`, content_clean: `fact content ${i}`,
-          type: "plot_event", status: "active",
+          content_raw: `fact ${i}`,
+          content_clean: `fact content ${i}`,
+          type: "plot_event",
+          status: "active",
         }));
-        return { content: JSON.stringify(facts), model: "test", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
+        return {
+          content: JSON.stringify(facts),
+          model: "test",
+          input_tokens: 0,
+          output_tokens: 0,
+          finish_reason: "stop",
+        };
       },
       async *generateStream(): AsyncIterable<LLMChunk> {},
     };
 
     const results = await extractFactsFromChapter(
       "Long chapter text here. " + "Content. ".repeat(100),
-      1, [], { characters: [] }, null, manyFactsProvider, null,
+      1,
+      [],
+      { characters: [] },
+      null,
+      manyFactsProvider,
+      null,
     );
     expect(results.length).toBeLessThanOrEqual(5);
   });
@@ -96,12 +127,20 @@ describe("extractFactsFromChapter LLM 失败可观测（盲审 R3 M13）", () =>
     const logger = initLogger(new MockAdapter(), "data");
     const warnSpy = vi.spyOn(logger, "warn");
     const boomProvider: LLMProvider = {
-      async generate(): Promise<LLMResponse> { throw new Error("LLM backend down"); },
+      async generate(): Promise<LLMResponse> {
+        throw new Error("LLM backend down");
+      },
       async *generateStream(): AsyncIterable<LLMChunk> {},
     };
 
     const results = await extractFactsFromChapter(
-      "Alice走进房间。", 1, [], { characters: ["Alice"] }, null, boomProvider, null,
+      "Alice走进房间。",
+      1,
+      [],
+      { characters: ["Alice"] },
+      null,
+      boomProvider,
+      null,
     );
 
     expect(results).toEqual([]);
@@ -117,12 +156,20 @@ describe("extractFactsFromChapter LLM 失败可观测（盲审 R3 M13）", () =>
     const logger = initLogger(new MockAdapter(), "data");
     const warnSpy = vi.spyOn(logger, "warn");
     const abortProvider: LLMProvider = {
-      async generate(): Promise<LLMResponse> { throw new DOMException("Aborted", "AbortError"); },
+      async generate(): Promise<LLMResponse> {
+        throw new DOMException("Aborted", "AbortError");
+      },
       async *generateStream(): AsyncIterable<LLMChunk> {},
     };
 
     const results = await extractFactsFromChapter(
-      "Alice走进房间。", 1, [], { characters: ["Alice"] }, null, abortProvider, null,
+      "Alice走进房间。",
+      1,
+      [],
+      { characters: ["Alice"] },
+      null,
+      abortProvider,
+      null,
     );
 
     expect(results).toEqual([]);
@@ -132,10 +179,7 @@ describe("extractFactsFromChapter LLM 失败可观测（盲审 R3 M13）", () =>
 
 describe("角色别名表接通（M3 别名表批）", () => {
   it("buildCharacterInfoBlock：有别名渲别名行，无别名角色照常列出", () => {
-    const block = buildCharacterInfoBlock(
-      { characters: ["林晚月", "阿福"] },
-      { 林晚月: ["月月", "晚晚"] },
-    );
+    const block = buildCharacterInfoBlock({ characters: ["林晚月", "阿福"] }, { 林晚月: ["月月", "晚晚"] });
     expect(block).toContain("林晚月");
     expect(block).toContain("月月");
     expect(block).toContain("晚晚");
@@ -153,24 +197,38 @@ describe("角色别名表接通（M3 别名表批）", () => {
       async generate(params: GenerateParams): Promise<LLMResponse> {
         prompt = params.messages.map((m) => m.content).join("\n");
         return {
-          content: JSON.stringify([{
-            content_raw: "月月走进了房间", content_clean: "月月走进了房间",
-            characters: ["月月"], known_to: ["月月"],
-            type: "plot_event", status: "active", narrative_weight: "medium",
-          }]),
-          model: "t", input_tokens: 0, output_tokens: 0, finish_reason: "stop",
+          content: JSON.stringify([
+            {
+              content_raw: "月月走进了房间",
+              content_clean: "月月走进了房间",
+              characters: ["月月"],
+              known_to: ["月月"],
+              type: "plot_event",
+              status: "active",
+              narrative_weight: "medium",
+            },
+          ]),
+          model: "t",
+          input_tokens: 0,
+          output_tokens: 0,
+          finish_reason: "stop",
         };
       },
       async *generateStream(): AsyncIterable<LLMChunk> {},
     };
 
     const results = await extractFactsFromChapter(
-      "月月走进房间。", 1, [], { characters: ["林晚月"] }, { 林晚月: ["月月"] },
-      provider, null,
+      "月月走进房间。",
+      1,
+      [],
+      { characters: ["林晚月"] },
+      { 林晚月: ["月月"] },
+      provider,
+      null,
     );
 
     expect(prompt).toContain("月月"); // 【已知角色名和别名】段真的渲进了 user message
     expect(results[0].characters).toEqual(["林晚月"]); // rawToExtracted 归一化
-    expect(results[0].known_to).toEqual(["林晚月"]);   // 知情名单同表归一化
+    expect(results[0].known_to).toEqual(["林晚月"]); // 知情名单同表归一化
   });
 });

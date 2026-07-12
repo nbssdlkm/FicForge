@@ -27,11 +27,11 @@ export interface ExtractedFactCandidate {
   time_kind?: string | null;
   action_verb?: string | null;
   caused_by?: string[];
-  known_to?: 'all' | 'reader_only' | string[] | null;
+  known_to?: "all" | "reader_only" | string[] | null;
   hidden_from?: string[];
   suspense_type?: string | null;
-  _confidence?: unknown;  // 引擎侧 FactFieldConfidence；UI 不解释、只透传给 addFact，故用 unknown
-  thread_ids?: string[];  // M8-B/M9：提取暂不产出，M9 自动挂线后经此转发（present 才带）
+  _confidence?: unknown; // 引擎侧 FactFieldConfidence；UI 不解释、只透传给 addFact，故用 unknown
+  thread_ids?: string[]; // M8-B/M9：提取暂不产出，M9 自动挂线后经此转发（present 才带）
 }
 
 export interface ExtractFactsResponse {
@@ -48,12 +48,12 @@ export function buildFactDataFromCandidate(c: ExtractedFactCandidate): Record<st
   return {
     content_raw: c.content_raw || c.content_clean,
     content_clean: c.content_clean,
-    type: c.fact_type || c.type || 'plot_event',
-    narrative_weight: c.narrative_weight || 'medium',
-    status: c.status || 'active',
+    type: c.fact_type || c.type || "plot_event",
+    narrative_weight: c.narrative_weight || "medium",
+    status: c.status || "active",
     characters: c.characters || [],
     ...(c.timeline ? { timeline: c.timeline } : {}),
-    ...extractedEnrichment(c),  // caused_by + M8-A 富化
+    ...extractedEnrichment(c), // caused_by + M8-A 富化
   };
 }
 
@@ -69,7 +69,7 @@ export function extractedEnrichment(c: ExtractedFactCandidate): Record<string, u
   // known_to 用 != null 判据（与 hidden_from 的 length 判据不对称）是有意的：'all'/'reader_only'
   // 字符串态必须过；[] 空数组过了也无害 —— 引擎 add_fact 的消毒器（domain/fact_sanitize）会把
   // [] 折叠为 null，落库口径单一，UI 不重复消毒（M3 批一）。
-  if (typeof c.story_time_order === 'number') out.story_time_order = c.story_time_order;
+  if (typeof c.story_time_order === "number") out.story_time_order = c.story_time_order;
   if (c.time_kind != null) out.time_kind = c.time_kind;
   if (c.action_verb != null) out.action_verb = c.action_verb;
   if (c.caused_by?.length) out.caused_by = c.caused_by;

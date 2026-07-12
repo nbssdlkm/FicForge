@@ -28,7 +28,11 @@ describe("generate_micro_summary", () => {
   });
 
   it("returns null when LLM throws (degrade, no throw)", async () => {
-    const p = { generate: vi.fn(async () => { throw new Error("network"); }) } as any;
+    const p = {
+      generate: vi.fn(async () => {
+        throw new Error("network");
+      }),
+    } as any;
     expect(await generate_micro_summary("正文", 7, p)).toBeNull();
   });
 

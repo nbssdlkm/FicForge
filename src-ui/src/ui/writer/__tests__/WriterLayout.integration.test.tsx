@@ -55,9 +55,7 @@ vi.mock("../../../hooks/useMediaQuery", () => ({
 }));
 
 vi.mock("../../../api/engine-client", async () => {
-  const actual = await vi.importActual<typeof import("../../../api/engine-client")>(
-    "../../../api/engine-client",
-  );
+  const actual = await vi.importActual<typeof import("../../../api/engine-client")>("../../../api/engine-client");
   return {
     ...actual,
     getState: vi.fn(),
@@ -96,7 +94,7 @@ const baseState = {
   chapter_focus: [],
   chapters_dirty: [],
   last_confirmed_chapter_focus: [],
-  au_id: "/fandoms/F/aus/A1",   // 匹配 defaultProps.auPath 的尾部
+  au_id: "/fandoms/F/aus/A1", // 匹配 defaultProps.auPath 的尾部
 };
 
 const baseProject = {
@@ -112,7 +110,7 @@ const baseSettings = {
 // 动态 mock：getState 返回的 au_id 永远匹配传入的 auPath（去掉 /data 前缀），
 // 这样 draftCtrl 的 au_id 守卫能正确通过，测试能覆盖完整加载流程。
 function auIdForPath(auPath: string): string {
-  return auPath.replace(/^\/data/, '');
+  return auPath.replace(/^\/data/, "");
 }
 
 beforeEach(() => {
@@ -188,9 +186,7 @@ describe("WriterLayout integration sentinels", () => {
     //
     // Setup: AU A has 1 draft → recovery banner appears. Then switch to AU B with
     // no drafts → recovery banner must disappear (= drafts state cleared).
-    mocked.listDrafts.mockResolvedValueOnce([
-      { draft_label: "a", chapter_num: 3, draft_id: "ch0003_draft_a.md" },
-    ]);
+    mocked.listDrafts.mockResolvedValueOnce([{ draft_label: "a", chapter_num: 3, draft_id: "ch0003_draft_a.md" }]);
     mocked.getDraft.mockResolvedValue({
       variant: "a",
       content: "A draft",
@@ -219,9 +215,7 @@ describe("WriterLayout integration sentinels", () => {
   });
 
   it("loads drafts for the current chapter on mount", async () => {
-    mocked.listDrafts.mockResolvedValue([
-      { draft_label: "a", chapter_num: 3, draft_id: "ch0003_draft_a.md" },
-    ]);
+    mocked.listDrafts.mockResolvedValue([{ draft_label: "a", chapter_num: 3, draft_id: "ch0003_draft_a.md" }]);
     mocked.getDraft.mockResolvedValue({
       variant: "a",
       content: "draft body",
@@ -237,9 +231,7 @@ describe("WriterLayout integration sentinels", () => {
   });
 
   it("shows the recovery notice banner when drafts exist on load", async () => {
-    mocked.listDrafts.mockResolvedValue([
-      { draft_label: "a", chapter_num: 3, draft_id: "ch0003_draft_a.md" },
-    ]);
+    mocked.listDrafts.mockResolvedValue([{ draft_label: "a", chapter_num: 3, draft_id: "ch0003_draft_a.md" }]);
     mocked.getDraft.mockResolvedValue({
       variant: "a",
       content: "draft body",
@@ -288,41 +280,31 @@ describe("WriterLayout integration sentinels", () => {
 
 describe("WriterLayout keep-mounted 外部章节变更接线（审计 M9）", () => {
   it("可见时 externalChaptersVersion 变化 → 立即重载 bootstrap", async () => {
-    const { rerender } = render(
-      <WriterLayout {...defaultProps} isActiveTab={true} externalChaptersVersion={0} />,
-    );
+    const { rerender } = render(<WriterLayout {...defaultProps} isActiveTab={true} externalChaptersVersion={0} />);
     await waitFor(() => {
       expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(1);
     });
 
-    rerender(
-      <WriterLayout {...defaultProps} isActiveTab={true} externalChaptersVersion={1} />,
-    );
+    rerender(<WriterLayout {...defaultProps} isActiveTab={true} externalChaptersVersion={1} />);
     await waitFor(() => {
       expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(2);
     });
   });
 
   it("隐藏时 version 变化只挂起，切回可见才重载（不重载则读到过期章号）", async () => {
-    const { rerender } = render(
-      <WriterLayout {...defaultProps} isActiveTab={false} externalChaptersVersion={0} />,
-    );
+    const { rerender } = render(<WriterLayout {...defaultProps} isActiveTab={false} externalChaptersVersion={0} />);
     await waitFor(() => {
       expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(1);
     });
 
     // 隐藏期间外部变更（对话 tab 接受章节）：不应立即打 API
-    rerender(
-      <WriterLayout {...defaultProps} isActiveTab={false} externalChaptersVersion={1} />,
-    );
+    rerender(<WriterLayout {...defaultProps} isActiveTab={false} externalChaptersVersion={1} />);
     // flush 微任务队列，确认没有偷跑的 loadData
     await Promise.resolve();
     expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(1);
 
     // 切回可见：挂起的刷新执行
-    rerender(
-      <WriterLayout {...defaultProps} isActiveTab={true} externalChaptersVersion={1} />,
-    );
+    rerender(<WriterLayout {...defaultProps} isActiveTab={true} externalChaptersVersion={1} />);
     await waitFor(() => {
       expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(2);
     });
@@ -333,18 +315,14 @@ describe("WriterLayout keep-mounted 外部章节变更接线（审计 M9）", ()
     // 配置不 bump externalChaptersVersion，不边沿刷新的话生成 payload 永久 stale。
     // 新契约：false→true 边沿走 refreshSettingsModeData（state/facts/project/settings），
     // 但不是 loadData 全量重载（getChapterContent 不重拉、不闪 loading）。
-    const { rerender } = render(
-      <WriterLayout {...defaultProps} isActiveTab={true} externalChaptersVersion={0} />,
-    );
+    const { rerender } = render(<WriterLayout {...defaultProps} isActiveTab={true} externalChaptersVersion={0} />);
     await waitFor(() => {
       expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(1);
       expect(mocked.getWriterSessionConfig).toHaveBeenCalledTimes(1);
       expect(mocked.getChapterContent).toHaveBeenCalledTimes(1);
     });
 
-    rerender(
-      <WriterLayout {...defaultProps} isActiveTab={false} externalChaptersVersion={0} />,
-    );
+    rerender(<WriterLayout {...defaultProps} isActiveTab={false} externalChaptersVersion={0} />);
     // 隐藏边沿不刷
     await Promise.resolve();
     expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(1);
@@ -354,9 +332,7 @@ describe("WriterLayout keep-mounted 外部章节变更接线（审计 M9）", ()
       default_llm: { mode: "api", model: "new-model", has_api_key: true },
       model_params: {},
     });
-    rerender(
-      <WriterLayout {...defaultProps} isActiveTab={true} externalChaptersVersion={0} />,
-    );
+    rerender(<WriterLayout {...defaultProps} isActiveTab={true} externalChaptersVersion={0} />);
     await waitFor(() => {
       // 回退旧码（无边沿刷新）此处必挂：两个 mock 停在 1 次调用
       expect(mocked.getWriterProjectContext).toHaveBeenCalledTimes(2);

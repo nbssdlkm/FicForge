@@ -30,20 +30,9 @@ export type SimpleMessageKind =
   | "setting-preview"
   | "system";
 
-export type SimpleDraftStatus =
-  | "streaming"
-  | "pending"
-  | "accepted"
-  | "rejected"
-  | "discarded"
-  | "error";
+export type SimpleDraftStatus = "streaming" | "pending" | "accepted" | "rejected" | "discarded" | "error";
 
-export type SimpleToolCallStatus =
-  | "pending"
-  | "confirmed"
-  | "skipped"
-  | "undone"
-  | "error";
+export type SimpleToolCallStatus = "pending" | "confirmed" | "skipped" | "undone" | "error";
 
 export type SimpleSystemTone = "info" | "warning" | "error";
 

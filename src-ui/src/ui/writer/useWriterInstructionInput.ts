@@ -2,19 +2,16 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { readSavedInstructionText, saveInstructionText } from '../../utils/writerStorage';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { readSavedInstructionText, saveInstructionText } from "../../utils/writerStorage";
 
 type UseWriterInstructionInputOptions = {
   auPath: string;
   currentChapterNum: number;
 };
 
-export function useWriterInstructionInput({
-  auPath,
-  currentChapterNum,
-}: UseWriterInstructionInputOptions) {
-  const [instructionText, setInstructionText] = useState('');
+export function useWriterInstructionInput({ auPath, currentChapterNum }: UseWriterInstructionInputOptions) {
+  const [instructionText, setInstructionText] = useState("");
   const instructionInputRef = useRef<HTMLInputElement | null>(null);
   const instructionSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -23,7 +20,7 @@ export function useWriterInstructionInput({
   // 现改为 hook 自己响应，消除 instructionInputBridgeRef。
   useEffect(() => {
     if (!currentChapterNum) {
-      setInstructionText('');
+      setInstructionText("");
       return;
     }
     setInstructionText(readSavedInstructionText(auPath, currentChapterNum));

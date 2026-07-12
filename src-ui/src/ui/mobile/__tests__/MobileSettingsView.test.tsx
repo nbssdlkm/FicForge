@@ -18,8 +18,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../i18n/useAppTranslation", () => ({
   useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) =>
-      params ? `${key}:${JSON.stringify(params)}` : key,
+    t: (key: string, params?: Record<string, unknown>) => (params ? `${key}:${JSON.stringify(params)}` : key),
     i18n: { resolvedLanguage: "zh" },
   }),
 }));
@@ -51,9 +50,7 @@ vi.mock("../../shared/settings-chat/SettingsChatPanel", () => ({
 }));
 
 vi.mock("../../../api/engine-client", async () => {
-  const actual = await vi.importActual<typeof import("../../../api/engine-client")>(
-    "../../../api/engine-client",
-  );
+  const actual = await vi.importActual<typeof import("../../../api/engine-client")>("../../../api/engine-client");
   return {
     ...actual,
     getState: vi.fn(),

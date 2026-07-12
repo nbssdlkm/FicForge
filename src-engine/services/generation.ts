@@ -28,7 +28,12 @@ import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { ResolvedLLMConfig, ResolvedLLMParams } from "../llm/config_resolver.js";
 import { create_provider, resolve_llm_config, resolve_llm_params } from "../llm/config_resolver.js";
 import { isAbortError } from "../utils/abort_error.js";
-import { chapterInflightKey, isChapterInflight, markChapterInflight, releaseChapterInflight } from "./chapter_inflight.js";
+import {
+  chapterInflightKey,
+  isChapterInflight,
+  markChapterInflight,
+  releaseChapterInflight,
+} from "./chapter_inflight.js";
 import { assemble_context } from "./context_assembler.js";
 import type { ChunkWithCollection } from "./rag_retrieval.js";
 import { retrieve_rag_for_context, to_rag_chunk_detail } from "./rag_retrieval.js";
@@ -73,9 +78,7 @@ function genKey(au_id: string, chapter_num: number): string {
 // 空意图识别
 // ---------------------------------------------------------------------------
 
-const EMPTY_PATTERNS = new Set([
-  "继续", "然后呢", "然后", "接着写", "接着", "continue", "go on", "",
-]);
+const EMPTY_PATTERNS = new Set(["继续", "然后呢", "然后", "接着写", "接着", "continue", "go on", ""]);
 
 export function is_empty_intent(user_input: string): boolean {
   const stripped = user_input.trim().toLowerCase();
@@ -90,10 +93,7 @@ export function is_empty_intent(user_input: string): boolean {
 // 设定文件加载（对应 Python _load_md_files）
 // ---------------------------------------------------------------------------
 
-async function loadMdFiles(
-  adapter: PlatformAdapter,
-  dirPath: string,
-): Promise<Record<string, string>> {
+async function loadMdFiles(adapter: PlatformAdapter, dirPath: string): Promise<Record<string, string>> {
   const result: Record<string, string> = {};
   const exists = await adapter.exists(dirPath);
   if (!exists) return result;
@@ -144,14 +144,19 @@ export interface GenerateChapterParams {
   _provider_override?: LLMProvider;
 }
 
-export async function* generate_chapter(
-  params: GenerateChapterParams,
-): AsyncGenerator<GenerationEvent> {
+export async function* generate_chapter(params: GenerateChapterParams): AsyncGenerator<GenerationEvent> {
   const {
-    au_id, chapter_num, user_input,
-    session_llm, session_params,
-    project, state, settings,
-    facts, chapter_repo, draft_repo,
+    au_id,
+    chapter_num,
+    user_input,
+    session_llm,
+    session_params,
+    project,
+    state,
+    settings,
+    facts,
+    chapter_repo,
+    draft_repo,
     adapter,
     vector_repo,
     embedding_provider,
@@ -202,10 +207,16 @@ export async function* generate_chapter(
     let ragChunksDetail: ChunkWithCollection[] = [];
     if (rag_text === null && vector_repo && embedding_provider) {
       const rag = await retrieve_rag_for_context({
-        project, state, user_input, facts,
-        vector_repo, embedding_provider, au_id,
-        llm_config: llmConfig, language,
-        effective_llm: llmConfig,   // H4：ragBudget 按实际生效模型的窗口算
+        project,
+        state,
+        user_input,
+        facts,
+        vector_repo,
+        embedding_provider,
+        au_id,
+        llm_config: llmConfig,
+        language,
+        effective_llm: llmConfig, // H4：ragBudget 按实际生效模型的窗口算
       });
       if (rag.ragText) {
         rag_text = rag.ragText;
@@ -217,8 +228,12 @@ export async function* generate_chapter(
     // H4：把 resolve_llm_config 的结果传给 assembler —— 窗口/输出上限按实际生效模型
     // （可能来自 settings.default_llm / session 覆盖）计算，不再只看 project.llm。
     const ctx = await assemble_context(
-      project, state, user_input, facts,
-      chapter_repo, au_id,
+      project,
+      state,
+      user_input,
+      facts,
+      chapter_repo,
+      au_id,
       rag_text,
       character_files,
       worldbuilding_files,

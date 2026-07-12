@@ -37,12 +37,16 @@ function projectSecureSpecs(au_id: string): SecureFieldSpec<Project>[] {
     {
       secureKey: `project.${au_id}.llm.api_key`,
       get: (p) => p.llm.api_key,
-      set: (p, v) => { p.llm.api_key = v; },
+      set: (p, v) => {
+        p.llm.api_key = v;
+      },
     },
     {
       secureKey: `project.${au_id}.embedding_lock.api_key`,
       get: (p) => p.embedding_lock.api_key,
-      set: (p, v) => { p.embedding_lock.api_key = v; },
+      set: (p, v) => {
+        p.embedding_lock.api_key = v;
+      },
     },
   ];
 }
@@ -190,9 +194,11 @@ function dictToLLMConfig(d: Record<string, unknown> | null): LLMConfig {
 function dictToWritingStyle(d: Record<string, unknown> | null): WritingStyle {
   if (!d) return createWritingStyle();
   return createWritingStyle({
-    perspective: Perspective[(d.perspective as string)?.toUpperCase() as keyof typeof Perspective] ?? Perspective.THIRD_PERSON,
+    perspective:
+      Perspective[(d.perspective as string)?.toUpperCase() as keyof typeof Perspective] ?? Perspective.THIRD_PERSON,
     pov_character: (d.pov_character as string) ?? "",
-    emotion_style: EmotionStyle[(d.emotion_style as string)?.toUpperCase() as keyof typeof EmotionStyle] ?? EmotionStyle.IMPLICIT,
+    emotion_style:
+      EmotionStyle[(d.emotion_style as string)?.toUpperCase() as keyof typeof EmotionStyle] ?? EmotionStyle.IMPLICIT,
     custom_instructions: (d.custom_instructions as string) ?? "",
   });
 }

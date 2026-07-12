@@ -26,7 +26,11 @@ import type { RagManager } from "../services/rag_manager.js";
 // Keys / providers（网关 + 模型走 config.toml 单一真相源，见 _deepseek.ts）
 // ---------------------------------------------------------------------------
 
-const { provider: llm, model: PROBE_MODEL, baseUrl: PROBE_BASE } = makeDeepseekProbeProvider({
+const {
+  provider: llm,
+  model: PROBE_MODEL,
+  baseUrl: PROBE_BASE,
+} = makeDeepseekProbeProvider({
   legacyEnvVar: "M8_PROBE_MODEL",
 });
 const embed = new RemoteEmbeddingProvider("https://api.siliconflow.cn/v1", siliconflowKey(), "BAAI/bge-m3");
@@ -81,14 +85,23 @@ function line(label: string): void {
 }
 
 function cosine(a: number[], b: number[]): number {
-  let dot = 0, na = 0, nb = 0;
-  for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+  let dot = 0,
+    na = 0,
+    nb = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
   return dot / (Math.sqrt(na) * Math.sqrt(nb));
 }
 
 describe("M8 real-LLM quality probe", () => {
   // 存每章生成的 standard/micro，供 retrospective 复用
-  const store = new Map<number, { standard?: { text: string; source_chapter_hash: string }; micro?: { text: string } }>();
+  const store = new Map<
+    number,
+    { standard?: { text: string; source_chapter_hash: string }; micro?: { text: string } }
+  >();
 
   it("M8-C standard + micro summaries (情感保真)", async () => {
     for (const num of [1, 2, 3, 4, 5]) {
@@ -109,28 +122,34 @@ describe("M8 real-LLM quality probe", () => {
 
   it("M8-A fact enrichment (富化字段合理性)", async () => {
     for (const num of [1, 3, 4]) {
-      const facts = await extractFactsFromChapter(
-        CHAPTERS[num], num, [], CAST, null, llm, llmConfig, { language: "zh" },
-      );
+      const facts = await extractFactsFromChapter(CHAPTERS[num], num, [], CAST, null, llm, llmConfig, {
+        language: "zh",
+      });
       line(`第 ${num} 章 提取事实（${facts.length} 条）`);
       for (const f of facts) {
-        console.log(JSON.stringify({
-          content_clean: f.content_clean,
-          characters: f.characters,
-          fact_type: f.fact_type,
-          narrative_weight: f.narrative_weight,
-          status: f.status,
-          location: f.location,
-          story_time_tag: f.story_time_tag,
-          story_time_order: f.story_time_order,
-          time_kind: f.time_kind,
-          action_verb: f.action_verb,
-          caused_by: f.caused_by,
-          known_to: f.known_to,
-          hidden_from: f.hidden_from,
-          suspense_type: f.suspense_type,
-          _confidence: f._confidence,
-        }, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              content_clean: f.content_clean,
+              characters: f.characters,
+              fact_type: f.fact_type,
+              narrative_weight: f.narrative_weight,
+              status: f.status,
+              location: f.location,
+              story_time_tag: f.story_time_tag,
+              story_time_order: f.story_time_order,
+              time_kind: f.time_kind,
+              action_verb: f.action_verb,
+              caused_by: f.caused_by,
+              known_to: f.known_to,
+              hidden_from: f.hidden_from,
+              suspense_type: f.suspense_type,
+              _confidence: f._confidence,
+            },
+            null,
+            2,
+          ),
+        );
       }
       expect(facts.length).toBeGreaterThan(0);
     }
@@ -141,7 +160,8 @@ describe("M8 real-LLM quality probe", () => {
     if (!store.get(1)?.standard) {
       // 独立兜底：单跑本测试时补生成
       for (const num of [1, 2, 3, 4]) {
-        const standard = num === 1 ? await generate_standard_summary(CHAPTERS[num], num, llm, { language: "zh" }) : null;
+        const standard =
+          num === 1 ? await generate_standard_summary(CHAPTERS[num], num, llm, { language: "zh" }) : null;
         const micro = await generate_micro_summary(CHAPTERS[num], num, llm, { language: "zh" });
         store.set(num, {
           standard: standard ? { text: standard, source_chapter_hash: `hash-ch${num}` } : store.get(num)?.standard,
@@ -174,9 +194,9 @@ describe("M8 real-LLM quality probe", () => {
     console.log("\n后续 micro（喂给回望的后见之明）:");
     for (const n of [2, 3, 4]) console.log(`  第${n}章: ${store.get(n)?.micro?.text}`);
 
-    await run_retrospective(
-      "test-au", 1, chapterRepo, summaryRepo, ragManager, embed, llm, /*currentChapter*/ 5, { language: "zh" },
-    );
+    await run_retrospective("test-au", 1, chapterRepo, summaryRepo, ragManager, embed, llm, /*currentChapter*/ 5, {
+      language: "zh",
+    });
 
     line("第 1 章 回望后 standard v2（后见之明修订版）");
     console.log((captured as { text: string; hash: string } | null)?.text ?? "(null — 回望未产出)");

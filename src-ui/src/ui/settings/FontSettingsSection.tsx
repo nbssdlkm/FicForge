@@ -152,9 +152,13 @@ export const FontSettingsSection = () => {
               progress={progresses[entry.id]}
               error={errors[entry.id]}
               isZh={isZh}
-              onDownload={() => { void download(entry.id); }}
+              onDownload={() => {
+                void download(entry.id);
+              }}
               onCancel={() => cancel(entry.id)}
-              onUninstall={() => { void uninstall(entry.id); }}
+              onUninstall={() => {
+                void uninstall(entry.id);
+              }}
             />
           ))}
         </div>
@@ -167,7 +171,9 @@ export const FontSettingsSection = () => {
           tone="neutral"
           fill="plain"
           size="sm"
-          onClick={() => { void handleClean(); }}
+          onClick={() => {
+            void handleClean();
+          }}
           disabled={totalSize === 0}
         >
           {t("settings.fonts.cleanUnused")}

@@ -2,17 +2,17 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, useState } from 'react';
-import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
+import { useCallback, useEffect, useState } from "react";
+import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
 import {
   getProjectForEditing,
   listLoreFiles,
   saveProjectCastRegistryCharacters,
   type ProjectInfo,
-} from '../../api/engine-client';
-import { useFeedback } from '../../hooks/useFeedback';
-import { useTranslation } from '../../i18n/useAppTranslation';
-import type { LoreCategory, LoreFileEntry } from './lore-utils';
+} from "../../api/engine-client";
+import { useFeedback } from "../../hooks/useFeedback";
+import { useTranslation } from "../../i18n/useAppTranslation";
+import type { LoreCategory, LoreFileEntry } from "./lore-utils";
 
 /**
  * useAuLoreData — AU 设定集页的数据层（project / 角色文件列表 / 世界观文件列表）。
@@ -41,8 +41,8 @@ export function useAuLoreData(auPath: string) {
       // 用户停在世界观分类时切 AU / 导入会把世界观列表灌进角色区
       const [proj, characterFiles, wbFiles] = await Promise.all([
         getProjectForEditing(auPath),
-        listLoreFiles({ au_path: auPath, category: 'characters' }),
-        listLoreFiles({ au_path: auPath, category: 'worldbuilding' }),
+        listLoreFiles({ au_path: auPath, category: "characters" }),
+        listLoreFiles({ au_path: auPath, category: "worldbuilding" }),
       ]);
       if (guard.isStale(token)) return;
       setProject(proj);
@@ -52,7 +52,7 @@ export function useAuLoreData(auPath: string) {
       setLoadKey((k) => k + 1);
     } catch (error) {
       if (guard.isStale(token)) return;
-      showError(error, t('error_messages.unknown'));
+      showError(error, t("error_messages.unknown"));
     } finally {
       if (!guard.isStale(token)) {
         setLoading(false);
@@ -75,14 +75,15 @@ export function useAuLoreData(auPath: string) {
    * 持久化 cast registry 并同步本地 project 快照（语义化注入，hook 规则 3 的 bridge 例外）。
    * requestAuPath 是调用方发起操作时的快照，中途切 AU 则丢弃本地更新。
    */
-  const syncRegistry = useCallback(async (names: string[], requestAuPath: string) => {
-    const deduped = Array.from(new Set(names));
-    await saveProjectCastRegistryCharacters(requestAuPath, deduped);
-    if (guard.isKeyStale(requestAuPath)) return;
-    setProject((prev) => prev
-      ? { ...prev, cast_registry: { ...prev.cast_registry, characters: deduped } }
-      : prev);
-  }, [guard]);
+  const syncRegistry = useCallback(
+    async (names: string[], requestAuPath: string) => {
+      const deduped = Array.from(new Set(names));
+      await saveProjectCastRegistryCharacters(requestAuPath, deduped);
+      if (guard.isKeyStale(requestAuPath)) return;
+      setProject((prev) => (prev ? { ...prev, cast_registry: { ...prev.cast_registry, characters: deduped } } : prev));
+    },
+    [guard],
+  );
 
   /** pin 持久化成功后局部同步 core_always_include（不重灌列表）。 */
   const applyCoreIncludes = useCallback((next: string[]) => {
@@ -91,13 +92,13 @@ export function useAuLoreData(auPath: string) {
 
   /** 新建成功后把文件插入对应列表（保持字典序）。 */
   const addFileEntry = useCallback((category: LoreCategory, entry: LoreFileEntry) => {
-    const setTarget = category === 'worldbuilding' ? setWorldbuildingFiles : setFiles;
+    const setTarget = category === "worldbuilding" ? setWorldbuildingFiles : setFiles;
     setTarget((prev) => [...prev, entry].sort((a, b) => a.name.localeCompare(b.name)));
   }, []);
 
   /** 删除成功后把文件从对应列表移除。 */
   const removeFileEntry = useCallback((category: LoreCategory, name: string) => {
-    const setTarget = category === 'worldbuilding' ? setWorldbuildingFiles : setFiles;
+    const setTarget = category === "worldbuilding" ? setWorldbuildingFiles : setFiles;
     setTarget((prev) => prev.filter((file) => file.name !== name));
   }, []);
 

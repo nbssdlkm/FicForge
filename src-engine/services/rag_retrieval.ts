@@ -28,11 +28,7 @@ const SUMMARIES_TOP_K = 4;
 // build_rag_query
 // ---------------------------------------------------------------------------
 
-export function build_rag_query(
-  focus_texts: string[],
-  last_scene_ending: string,
-  user_input: string,
-): string {
+export function build_rag_query(focus_texts: string[], last_scene_ending: string, user_input: string): string {
   const parts: string[] = [];
 
   for (const ft of focus_texts) {
@@ -171,18 +167,14 @@ export async function retrieve_rag(
 
   for (const collName of collections) {
     const topK = collName === "characters" ? CHARACTERS_TOP_K : WORLDBUILDING_TOP_K;
-    const chunks = await search_collection(
-      vector_repo, au_id, queryEmbedding, collName, topK, char_filter,
-    );
+    const chunks = await search_collection(vector_repo, au_id, queryEmbedding, collName, topK, char_filter);
     for (const c of chunks) {
       allChunks.push({ ...c, _collection: collName });
     }
   }
 
   // chapters collection（带时间衰减）
-  const chChunks = await search_collection(
-    vector_repo, au_id, queryEmbedding, "chapters", CHAPTERS_TOP_K, char_filter,
-  );
+  const chChunks = await search_collection(vector_repo, au_id, queryEmbedding, "chapters", CHAPTERS_TOP_K, char_filter);
   const decayedChChunks: ChunkWithCollection[] = [];
   for (const c of chChunks) {
     const chNum = c.chapter_num ?? 0;
@@ -198,9 +190,7 @@ export async function retrieve_rag(
   // retrieve_rag 收到的 current_chapter 是"待写章"，P2 注入的是 current-1，故排除 chNum >= current-1。
   // 摘要是整章级、非角色作用域，且其 chunk 无 characters metadata：若传 char_filter，
   // 主查询必返 0 再触发兜底全局查询 = 每次双查（codex workflow 审）。直接传 null 走单查询。
-  const sumChunks = await search_collection(
-    vector_repo, au_id, queryEmbedding, "summaries", SUMMARIES_TOP_K, null,
-  );
+  const sumChunks = await search_collection(vector_repo, au_id, queryEmbedding, "summaries", SUMMARIES_TOP_K, null);
   const decayedSumChunks: ChunkWithCollection[] = [];
   for (const c of sumChunks) {
     const chNum = c.chapter_num ?? 0;
@@ -304,10 +294,7 @@ async function search_collection(
   return results.slice(0, top_k);
 }
 
-function reduce_top_k(
-  chunks: ChunkWithCollection[],
-  maxPerCollection: number,
-): ChunkWithCollection[] {
+function reduce_top_k(chunks: ChunkWithCollection[], maxPerCollection: number): ChunkWithCollection[] {
   const counts: Record<string, number> = {};
   const result: ChunkWithCollection[] = [];
   for (const c of chunks) {
@@ -390,8 +377,15 @@ export async function retrieve_rag_for_context(
   args: RetrieveRagForContextArgs,
 ): Promise<{ ragText: string | null; chunks: ChunkWithCollection[] }> {
   const {
-    project, state, user_input, facts,
-    vector_repo, embedding_provider, au_id, llm_config, language = "zh",
+    project,
+    state,
+    user_input,
+    facts,
+    vector_repo,
+    embedding_provider,
+    au_id,
+    llm_config,
+    language = "zh",
     effective_llm = null,
   } = args;
   try {
@@ -411,10 +405,16 @@ export async function retrieve_rag_for_context(
     // H4：给了 effective 视图则按实际生效模型算窗口（缺省回退 project.llm，向后兼容）。
     const ragBudget = Math.max(0, Math.trunc(get_context_window(effective_llm ? { llm: effective_llm } : project) / 4));
     const [ragResult, , chunks] = await retrieve_rag(
-      vector_repo, embedding_provider, au_id, query,
-      ragBudget, activeChars, llm_config,
+      vector_repo,
+      embedding_provider,
+      au_id,
+      query,
+      ragBudget,
+      activeChars,
+      llm_config,
       project.rag_decay_coefficient ?? 0.05,
-      state.current_chapter ?? 1, language,
+      state.current_chapter ?? 1,
+      language,
     );
     if (ragResult) return { ragText: ragResult, chunks };
     return { ragText: null, chunks: [] };

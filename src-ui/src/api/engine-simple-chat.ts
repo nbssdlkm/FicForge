@@ -22,10 +22,7 @@ export async function getSimpleChat(auPath: string): Promise<SimpleChatFile> {
 }
 
 /** 全量替换写入 chat 历史。 */
-export async function saveSimpleChat(
-  auPath: string,
-  messages: SimpleChatMessageEnvelope[],
-): Promise<void> {
+export async function saveSimpleChat(auPath: string, messages: SimpleChatMessageEnvelope[]): Promise<void> {
   const { simpleChat } = getEngine().repos;
   await simpleChat.save(auPath, messages);
 }

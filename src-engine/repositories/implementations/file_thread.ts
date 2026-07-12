@@ -8,7 +8,15 @@ import { ThreadStatus, THREAD_STATUS_VALUES } from "../../domain/enums.js";
 import type { Thread } from "../../domain/thread.js";
 import { createThread } from "../../domain/thread.js";
 import type { ThreadRepository } from "../interfaces/thread.js";
-import { append_jsonl, joinPath, now_utc, read_jsonl, rewrite_jsonl, validateBasePath, withWriteLock } from "../../utils/file_utils.js";
+import {
+  append_jsonl,
+  joinPath,
+  now_utc,
+  read_jsonl,
+  rewrite_jsonl,
+  validateBasePath,
+  withWriteLock,
+} from "../../utils/file_utils.js";
 import { hasLogger, getLogger } from "../../logger/index.js";
 
 // ---------------------------------------------------------------------------
@@ -61,7 +69,8 @@ export class FileThreadRepository implements ThreadRepository {
     const path = this.threadsPath(auPath);
     const [threads, errors] = await read_jsonl(this.adapter, path, dictToThread);
     if (errors.length > 0) {
-      if (hasLogger()) getLogger().warn("file_thread", "bad lines on read", { path, count: errors.length, first: errors[0] });
+      if (hasLogger())
+        getLogger().warn("file_thread", "bad lines on read", { path, count: errors.length, first: errors[0] });
     }
     return threads;
   }

@@ -45,9 +45,7 @@ export function draftFilename(chapter_num: number, variant: string): string {
 }
 
 /** 从草稿文件名解析章号与变体；不匹配返回 null。 */
-export function parseDraftFilename(
-  filename: string,
-): { chapter_num: number; variant: string } | null {
+export function parseDraftFilename(filename: string): { chapter_num: number; variant: string } | null {
   const m = filename.match(/^ch(\d{4,})_draft_(\w+)\.md$/);
   return m ? { chapter_num: Number(m[1]), variant: m[2] } : null;
 }

@@ -2,16 +2,16 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   confirmChapter,
   deleteDrafts,
   undoChapter,
   type ContextSummary,
   type StateInfo,
-} from '../../api/engine-client';
-import type { ActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
-import type { DraftItem } from './useWriterDraftController';
+} from "../../api/engine-client";
+import type { ActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
+import type { DraftItem } from "./useWriterDraftController";
 
 type UseWriterChapterActionsOptions = {
   auPath: string;
@@ -32,7 +32,7 @@ type UseWriterChapterActionsOptions = {
   onCloseUndoConfirm: () => void;
   onOpenFactsPrompt: () => void;
   showSuccess: (message: string) => void;
-  showToast: (message: string, tone?: 'info' | 'success' | 'warning' | 'error') => void;
+  showToast: (message: string, tone?: "info" | "success" | "warning" | "error") => void;
   showError: (error: unknown, fallback: string) => void;
   t: (key: string, params?: Record<string, unknown>) => string;
 };
@@ -104,9 +104,9 @@ export function useWriterChapterActions({
       onChaptersChanged?.();
 
       if (skipFactsPrompt) {
-        showSuccess(t('drafts.finalizeSuccess', { chapter: confirmedChapter }));
+        showSuccess(t("drafts.finalizeSuccess", { chapter: confirmedChapter }));
         if (confirmedFocus.length > 0) {
-          showToast(t('focus.resolvePrompt'), 'info');
+          showToast(t("focus.resolvePrompt"), "info");
         }
         focusInstructionInput();
         return;
@@ -115,7 +115,7 @@ export function useWriterChapterActions({
       onOpenFactsPrompt();
     } catch (error) {
       if (loadGuard.isKeyStale(requestAuPath)) return;
-      showError(error, t('error_messages.unknown'));
+      showError(error, t("error_messages.unknown"));
     } finally {
       if (!loadGuard.isKeyStale(requestAuPath)) {
         setIsFinalizing(false);
@@ -158,12 +158,12 @@ export function useWriterChapterActions({
       if (loadGuard.isKeyStale(requestAuPath)) return;
       onCloseUndoConfirm();
       clearDraftState(true);
-      showSuccess(t('writer.undoSuccess'));
+      showSuccess(t("writer.undoSuccess"));
       await loadData();
       onChaptersChanged?.();
     } catch (error) {
       if (loadGuard.isKeyStale(requestAuPath)) return;
-      showError(error, t('error_messages.unknown'));
+      showError(error, t("error_messages.unknown"));
     } finally {
       // ref 无条件释放（即便 key 已 stale，也不能永久锁死本 hook 实例）；
       // isUndoing state 仅在 key 未变时复位（stale 时组件即将随 AU 切换重置）。
@@ -172,17 +172,7 @@ export function useWriterChapterActions({
         setIsUndoing(false);
       }
     }
-  }, [
-    auPath,
-    clearDraftState,
-    loadData,
-    loadGuard,
-    onChaptersChanged,
-    onCloseUndoConfirm,
-    showError,
-    showSuccess,
-    t,
-  ]);
+  }, [auPath, clearDraftState, loadData, loadGuard, onChaptersChanged, onCloseUndoConfirm, showError, showSuccess, t]);
 
   const handleDiscardDrafts = useCallback(async () => {
     if (!state || drafts.length === 0) return;
@@ -192,25 +182,21 @@ export function useWriterChapterActions({
 
     setIsDiscarding(true);
     try {
-      await deleteDrafts(
-        auPath,
-        state.current_chapter,
-        isSingleDraft ? currentDraft?.label : undefined,
-      );
+      await deleteDrafts(auPath, state.current_chapter, isSingleDraft ? currentDraft?.label : undefined);
       if (loadGuard.isKeyStale(requestAuPath)) return;
 
       clearDraftState(true);
       replaceDraftSummaries(state.current_chapter, {});
       onCloseDiscardConfirm();
       if (isSingleDraft) {
-        showToast(t('drafts.discardSuccess'), 'info');
+        showToast(t("drafts.discardSuccess"), "info");
       } else {
-        showToast(t('drafts.discardAllSuccess'), 'info');
+        showToast(t("drafts.discardAllSuccess"), "info");
       }
       focusInstructionInput();
     } catch (error) {
       if (loadGuard.isKeyStale(requestAuPath)) return;
-      showError(error, t('error_messages.unknown'));
+      showError(error, t("error_messages.unknown"));
     } finally {
       if (!loadGuard.isKeyStale(requestAuPath)) {
         setIsDiscarding(false);

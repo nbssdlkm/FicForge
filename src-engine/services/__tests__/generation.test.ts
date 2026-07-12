@@ -19,7 +19,13 @@ import type { VectorRepository } from "../../repositories/interfaces/vector.js";
 function createMockProvider(tokens: string[] = ["Hello", " world", "!"]): LLMProvider {
   return {
     async generate(): Promise<LLMResponse> {
-      return { content: tokens.join(""), model: "mock", input_tokens: 10, output_tokens: tokens.length, finish_reason: "stop" };
+      return {
+        content: tokens.join(""),
+        model: "mock",
+        input_tokens: 10,
+        output_tokens: tokens.length,
+        finish_reason: "stop",
+      };
     },
     async *generateStream(): AsyncIterable<LLMChunk> {
       for (let i = 0; i < tokens.length; i++) {
@@ -43,7 +49,8 @@ function makeParams(adapter: MockAdapter, overrides: Partial<Parameters<typeof g
     session_llm: null,
     session_params: null,
     project: createProject({
-      project_id: "p1", au_id: "au_test",
+      project_id: "p1",
+      au_id: "au_test",
       llm: createLLMConfig({ mode: LLMMode.API, model: "test-model", api_base: "http://localhost", api_key: "key" }),
     }),
     state: createState({ au_id: "au_test" }),
@@ -129,7 +136,9 @@ describe("generate_chapter", () => {
     expect(events2[0].type).toBe("error");
     expect((events2[0].data as any).error_code).toBe("GENERATION_IN_PROGRESS");
 
-    for await (const _ of gen1) { /* drain */ }
+    for await (const _ of gen1) {
+      /* drain */
+    }
   });
 
   it("draft label increments A→B", async () => {
@@ -162,10 +171,14 @@ describe("generate_chapter", () => {
       },
     };
 
-    const events = await collectEvents(generate_chapter(makeParams(adapter, {
-      au_id: "au_error",
-      _provider_override: errorProvider,
-    })));
+    const events = await collectEvents(
+      generate_chapter(
+        makeParams(adapter, {
+          au_id: "au_error",
+          _provider_override: errorProvider,
+        }),
+      ),
+    );
 
     const errorEvent = events.find((e) => e.type === "error")!;
     expect((errorEvent.data as any).error_code).toBe("rate_limited");
@@ -205,7 +218,9 @@ describe("generate_chapter", () => {
 
   it("LLM 错误路径结束后释放 inflight，同章可再次生成（不被 409 卡死）", async () => {
     const errorProvider: LLMProvider = {
-      async generate(): Promise<LLMResponse> { throw new Error("boom"); },
+      async generate(): Promise<LLMResponse> {
+        throw new Error("boom");
+      },
       async *generateStream(): AsyncIterable<LLMChunk> {
         yield { delta: "partial", is_final: false, input_tokens: null, output_tokens: null, finish_reason: null };
         throw new (await import("../../llm/provider.js")).LLMError("rate_limited", "Too many requests", ["retry"]);
@@ -213,18 +228,30 @@ describe("generate_chapter", () => {
     };
     const key = chapterInflightKey("au_inflight_err", 1);
 
-    const events1 = await collectEvents(generate_chapter(makeParams(adapter, {
-      au_id: "au_inflight_err", _provider_override: errorProvider,
-    })));
+    const events1 = await collectEvents(
+      generate_chapter(
+        makeParams(adapter, {
+          au_id: "au_inflight_err",
+          _provider_override: errorProvider,
+        }),
+      ),
+    );
     expect((events1.find((e) => e.type === "error")!.data as any).error_code).toBe("rate_limited");
     // 释放判据：错误路径退出后 inflight 表不残留该 key
     expect(isChapterInflight(key)).toBe(false);
 
     // 端到端复核：同章第二次生成不再返回 GENERATION_IN_PROGRESS
-    const events2 = await collectEvents(generate_chapter(makeParams(adapter, {
-      au_id: "au_inflight_err", _provider_override: createMockProvider(["重试", "成功"]),
-    })));
-    expect(events2.find((e) => e.type === "error" && (e.data as any).error_code === "GENERATION_IN_PROGRESS")).toBeUndefined();
+    const events2 = await collectEvents(
+      generate_chapter(
+        makeParams(adapter, {
+          au_id: "au_inflight_err",
+          _provider_override: createMockProvider(["重试", "成功"]),
+        }),
+      ),
+    );
+    expect(
+      events2.find((e) => e.type === "error" && (e.data as any).error_code === "GENERATION_IN_PROGRESS"),
+    ).toBeUndefined();
     expect(events2.find((e) => e.type === "done")).toBeTruthy();
   });
 
@@ -240,28 +267,45 @@ describe("generate_chapter", () => {
     };
     const key = chapterInflightKey("au_inflight_abort", 1);
 
-    await expect(collectEvents(generate_chapter(makeParams(adapter, {
-      au_id: "au_inflight_abort", signal: controller.signal, _provider_override: abortProvider,
-    })))).rejects.toMatchObject({ name: "AbortError" });
+    await expect(
+      collectEvents(
+        generate_chapter(
+          makeParams(adapter, {
+            au_id: "au_inflight_abort",
+            signal: controller.signal,
+            _provider_override: abortProvider,
+          }),
+        ),
+      ),
+    ).rejects.toMatchObject({ name: "AbortError" });
     expect(isChapterInflight(key)).toBe(false);
 
     // 中断后重新生成应当放行（若漏 release 会被 409）
-    const events = await collectEvents(generate_chapter(makeParams(adapter, {
-      au_id: "au_inflight_abort", _provider_override: createMockProvider(["再来", "一次"]),
-    })));
-    expect(events.find((e) => e.type === "error" && (e.data as any).error_code === "GENERATION_IN_PROGRESS")).toBeUndefined();
+    const events = await collectEvents(
+      generate_chapter(
+        makeParams(adapter, {
+          au_id: "au_inflight_abort",
+          _provider_override: createMockProvider(["再来", "一次"]),
+        }),
+      ),
+    );
+    expect(
+      events.find((e) => e.type === "error" && (e.data as any).error_code === "GENERATION_IN_PROGRESS"),
+    ).toBeUndefined();
     expect(events.find((e) => e.type === "done")).toBeTruthy();
   });
 
   it("runs RAG when index_status is STALE and marks stale_index", async () => {
     const searchSpy = vi.fn(async (_auId: string, _queryEmbedding: number[], options: { collection: string }) => {
       if (options.collection !== "chapters") return [];
-      return [{
-        content: "上一章里 Alice 看见了燃烧的钟楼。",
-        chapter_num: 1,
-        score: 0.98,
-        metadata: {},
-      }];
+      return [
+        {
+          content: "上一章里 Alice 看见了燃烧的钟楼。",
+          chapter_num: 1,
+          score: 0.98,
+          metadata: {},
+        },
+      ];
     });
     const vectorRepo: VectorRepository = {
       async index_chunks() {},
@@ -269,7 +313,9 @@ describe("generate_chapter", () => {
       async delete_by_chapter() {},
       async delete_by_source() {},
       async rebuild_index() {},
-      async get_index_status() { return IndexStatus.READY; },
+      async get_index_status() {
+        return IndexStatus.READY;
+      },
     };
     const embeddingProvider: EmbeddingProvider = {
       async embed(texts: string[]) {
@@ -283,25 +329,27 @@ describe("generate_chapter", () => {
       },
     };
 
-    const events = await collectEvents(generate_chapter(makeParams(adapter, {
-      au_id: "au_rag_stale",
-      state: createState({
-        au_id: "au_rag_stale",
-        current_chapter: 2,
-        index_status: IndexStatus.STALE,
-      }),
-      vector_repo: vectorRepo,
-      embedding_provider: embeddingProvider,
-      _provider_override: createMockProvider(["继续", "写"]),
-    })));
+    const events = await collectEvents(
+      generate_chapter(
+        makeParams(adapter, {
+          au_id: "au_rag_stale",
+          state: createState({
+            au_id: "au_rag_stale",
+            current_chapter: 2,
+            index_status: IndexStatus.STALE,
+          }),
+          vector_repo: vectorRepo,
+          embedding_provider: embeddingProvider,
+          _provider_override: createMockProvider(["继续", "写"]),
+        }),
+      ),
+    );
 
     const contextEvent = events.find((e) => e.type === "context_summary")!;
     const summary = contextEvent.data as any;
     expect(searchSpy).toHaveBeenCalled();
     expect(summary.stale_index).toBe(true);
     expect(summary.rag_chunks_retrieved).toBe(1);
-    expect(summary.rag_chunks).toMatchObject([
-      { collection: "chapters", chapter_num: 1 },
-    ]);
+    expect(summary.rag_chunks).toMatchObject([{ collection: "chapters", chapter_num: 1 }]);
   });
 });

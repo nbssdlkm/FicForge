@@ -72,11 +72,7 @@ describe("repairAndValidateToolArgs", () => {
 
     it("#1 必填字段传 null → 不修，给 hint（避免 silent corruption）", () => {
       const schema = z.object({ name: z.string() });
-      const result = repairAndValidateToolArgs(
-        "create_character_file",
-        JSON.stringify({ name: null }),
-        schema,
-      );
+      const result = repairAndValidateToolArgs("create_character_file", JSON.stringify({ name: null }), schema);
       expect(result.success).toBe(false);
       expect(result.retryHint).toContain("name");
     });
@@ -95,11 +91,7 @@ describe("repairAndValidateToolArgs", () => {
 
     it("#3 schema 要数组它包了 {} → 替换空数组", () => {
       const schema = z.object({ aliases: z.array(z.string()) });
-      const result = repairAndValidateToolArgs(
-        "create_character_file",
-        JSON.stringify({ aliases: {} }),
-        schema,
-      );
+      const result = repairAndValidateToolArgs("create_character_file", JSON.stringify({ aliases: {} }), schema);
       expect(result.success).toBe(true);
       expect(result.data).toEqual({ aliases: [] });
       expect(result.repairs[0].kind).toBe("unwrap_array_placeholder");
@@ -107,11 +99,7 @@ describe("repairAndValidateToolArgs", () => {
 
     it("#4 应传数组传裸字符串 → 包成单元素数组", () => {
       const schema = z.object({ aliases: z.array(z.string()) });
-      const result = repairAndValidateToolArgs(
-        "create_character_file",
-        JSON.stringify({ aliases: "Liddell" }),
-        schema,
-      );
+      const result = repairAndValidateToolArgs("create_character_file", JSON.stringify({ aliases: "Liddell" }), schema);
       expect(result.success).toBe(true);
       expect(result.data).toEqual({ aliases: ["Liddell"] });
       expect(result.repairs[0].kind).toBe("wrap_bare_to_array");
@@ -122,7 +110,7 @@ describe("repairAndValidateToolArgs", () => {
   // 修复顺序：parse_json_string 必须先于 wrap_bare
   // -------------------------------------------------------------------------
   describe("修复顺序约束", () => {
-    it("'[\"a\",\"b\"]' 应被 parse 成 [\"a\",\"b\"]，不应被错包成 [['[\"a\",\"b\"]']]", () => {
+    it('\'["a","b"]\' 应被 parse 成 ["a","b"]，不应被错包成 [[\'["a","b"]\']]', () => {
       const schema = z.object({ aliases: z.array(z.string()) });
       const result = repairAndValidateToolArgs(
         "create_character_file",
@@ -137,11 +125,7 @@ describe("repairAndValidateToolArgs", () => {
 
     it("'foo' 不是合法 JSON 数组 → 走 wrap_bare 兜底", () => {
       const schema = z.object({ aliases: z.array(z.string()) });
-      const result = repairAndValidateToolArgs(
-        "create_character_file",
-        JSON.stringify({ aliases: "foo" }),
-        schema,
-      );
+      const result = repairAndValidateToolArgs("create_character_file", JSON.stringify({ aliases: "foo" }), schema);
       expect(result.success).toBe(true);
       expect(result.data).toEqual({ aliases: ["foo"] });
       expect(result.repairs[0].kind).toBe("wrap_bare_to_array");
@@ -224,11 +208,7 @@ describe("repairAndValidateToolArgs", () => {
 
     it("修不了的字段（类型完全错） → 给模型可读重试 hint", () => {
       const schema = z.object({ count: z.number() });
-      const result = repairAndValidateToolArgs(
-        "test",
-        JSON.stringify({ count: "not a number" }),
-        schema,
-      );
+      const result = repairAndValidateToolArgs("test", JSON.stringify({ count: "not a number" }), schema);
       expect(result.success).toBe(false);
       expect(result.retryHint).toContain("count");
       expect(result.retryHint).toContain("注意：");
@@ -237,11 +217,7 @@ describe("repairAndValidateToolArgs", () => {
 
     it("required 字段缺失 → 不修，给 hint", () => {
       const schema = z.object({ name: z.string(), content: z.string() });
-      const result = repairAndValidateToolArgs(
-        "create_character_file",
-        JSON.stringify({ name: "Alice" }),
-        schema,
-      );
+      const result = repairAndValidateToolArgs("create_character_file", JSON.stringify({ name: "Alice" }), schema);
       expect(result.success).toBe(false);
       expect(result.retryHint).toContain("content");
     });
@@ -270,11 +246,7 @@ describe("repairAndValidateToolArgs", () => {
         f: z.string(),
         g: z.string(),
       });
-      const result = repairAndValidateToolArgs(
-        "test",
-        JSON.stringify({}),
-        schema,
-      );
+      const result = repairAndValidateToolArgs("test", JSON.stringify({}), schema);
       expect(result.success).toBe(false);
       expect(result.retryHint).toContain("另有 2 条");
     });
@@ -331,11 +303,7 @@ describe("repairAndValidateToolArgs", () => {
   describe("Trace 完整性", () => {
     it("每条 trace 含 field / kind / before / after", () => {
       const schema = z.object({ aliases: z.array(z.string()) });
-      const result = repairAndValidateToolArgs(
-        "test",
-        JSON.stringify({ aliases: "foo" }),
-        schema,
-      );
+      const result = repairAndValidateToolArgs("test", JSON.stringify({ aliases: "foo" }), schema);
       expect(result.repairs[0]).toMatchObject({
         field: ["aliases"],
         kind: "wrap_bare_to_array",
@@ -354,11 +322,7 @@ describe("repairAndValidateToolArgs", () => {
       const schema = z.object({
         meta: z.object({ aliases: z.array(z.string()) }),
       });
-      const result = repairAndValidateToolArgs(
-        "test",
-        JSON.stringify({ meta: { aliases: "Liddell" } }),
-        schema,
-      );
+      const result = repairAndValidateToolArgs("test", JSON.stringify({ meta: { aliases: "Liddell" } }), schema);
       expect(result.success).toBe(true);
       expect(result.data).toEqual({ meta: { aliases: ["Liddell"] } });
       expect(result.repairs[0].field).toEqual(["meta", "aliases"]);
@@ -368,11 +332,7 @@ describe("repairAndValidateToolArgs", () => {
       const schema = z.object({
         meta: z.object({ origin_ref: z.string().optional() }),
       });
-      const result = repairAndValidateToolArgs(
-        "test",
-        JSON.stringify({ meta: { origin_ref: null } }),
-        schema,
-      );
+      const result = repairAndValidateToolArgs("test", JSON.stringify({ meta: { origin_ref: null } }), schema);
       // 保守：不修，给 hint。这是有意的安全侧失败。
       expect(result.success).toBe(false);
       expect(result.retryHint).toContain("origin_ref");
@@ -386,11 +346,15 @@ describe("repairAndValidateToolArgs", () => {
   // -------------------------------------------------------------------------
   describe("malformed JSON 抢救", () => {
     const factsSchema = z.object({
-      facts: z.array(z.object({
-        content_clean: z.string(),
-        characters: z.array(z.string()),
-        evidence: z.string().optional(),
-      })).min(1),
+      facts: z
+        .array(
+          z.object({
+            content_clean: z.string(),
+            characters: z.array(z.string()),
+            evidence: z.string().optional(),
+          }),
+        )
+        .min(1),
     });
 
     it("字符串值里字面换行（逐字抄多行原文）→ 补转义抢救成功（旧代码此处丢空）", () => {
@@ -422,14 +386,17 @@ describe("repairAndValidateToolArgs", () => {
     });
 
     it("引号 + 换行同时坏：残余引号仍让 parse 失败 → 安全回退（不静默改数据）", () => {
-      const broken = '{"facts":[{"content_clean":"面圣","characters":["沈砚"],"evidence":"太傅出列："陛下\n私藏宫档""}]}';
+      const broken =
+        '{"facts":[{"content_clean":"面圣","characters":["沈砚"],"evidence":"太傅出列："陛下\n私藏宫档""}]}';
       expect(() => JSON.parse(broken)).toThrow();
       const r = repairAndValidateToolArgs("propose_facts", broken, factsSchema);
       expect(r.success).toBe(false);
     });
 
     it("合法 JSON（含已正确转义的引号 + 换行）→ 抢救不触发，逐字节不动（零回归）", () => {
-      const valid = JSON.stringify({ facts: [{ content_clean: '他说"好"', characters: ["A"], evidence: "line1\nline2" }] });
+      const valid = JSON.stringify({
+        facts: [{ content_clean: '他说"好"', characters: ["A"], evidence: "line1\nline2" }],
+      });
       const r = repairAndValidateToolArgs("propose_facts", valid, factsSchema);
       expect(r.success).toBe(true);
       expect(r.repairs).toEqual([]); // 没跑抢救
@@ -452,10 +419,10 @@ describe("repairAndValidateToolArgs", () => {
     });
 
     it("salvageMalformedJson 单元：合法 / 纯引号问题 → null（只碰控制字符，不猜引号）", () => {
-      expect(salvageMalformedJson('{"a":"b"}')).toBeNull();                 // 合法
-      expect(salvageMalformedJson('{"a":"he said \\"hi\\""}')).toBeNull();  // 已转义引号不动
-      expect(salvageMalformedJson('{"x":"a"b"}')).toBeNull();               // 未转义引号：不猜、不动
-      expect(salvageMalformedJson('{"e":"note "x", "y":"z"}')).toBeNull();  // 对抗审 HIGH 形态：不动
+      expect(salvageMalformedJson('{"a":"b"}')).toBeNull(); // 合法
+      expect(salvageMalformedJson('{"a":"he said \\"hi\\""}')).toBeNull(); // 已转义引号不动
+      expect(salvageMalformedJson('{"x":"a"b"}')).toBeNull(); // 未转义引号：不猜、不动
+      expect(salvageMalformedJson('{"e":"note "x", "y":"z"}')).toBeNull(); // 对抗审 HIGH 形态：不动
     });
 
     it("salvageMalformedJson 单元：只把串内字面控制字符补成转义", () => {

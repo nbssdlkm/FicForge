@@ -39,11 +39,7 @@ interface ToolCallCardProps {
   onUndo: (cardId: string) => Promise<void>;
 }
 
-function getCardTitle(
-  card: ToolCallCardState,
-  mode: SettingsMode,
-  t: ToolCallCardProps["t"]
-): string {
+function getCardTitle(card: ToolCallCardState, mode: SettingsMode, t: ToolCallCardProps["t"]): string {
   const args = card.parsedArgs;
   const name = coerceString(args.name);
   const filename = coerceString(args.filename);
@@ -85,15 +81,19 @@ function getLorePreview(card: ToolCallCardState): { preview: string; full: strin
   const args = card.parsedArgs;
   const toolName = getToolCallName(card);
 
-  if (toolName === "create_character_file" || toolName === "create_worldbuilding_file" || toolName === "create_core_character_file") {
+  if (
+    toolName === "create_character_file" ||
+    toolName === "create_worldbuilding_file" ||
+    toolName === "create_core_character_file"
+  ) {
     const content = coerceString(args.content);
     return content ? { preview: toPreviewText(content), full: content } : null;
   }
 
   if (
-    toolName === "modify_character_file"
-    || toolName === "modify_worldbuilding_file"
-    || toolName === "modify_core_character_file"
+    toolName === "modify_character_file" ||
+    toolName === "modify_worldbuilding_file" ||
+    toolName === "modify_core_character_file"
   ) {
     const content = coerceString(args.new_content);
     return content ? { preview: toPreviewText(content), full: content } : null;
@@ -128,7 +128,9 @@ function renderFactSummary(card: ToolCallCardState, t: ToolCallCardProps["t"]) {
       </div>
       {characters.length > 0 ? (
         <p className="text-xs text-text/50">
-          {t("common.labels.characters")}{t("common.labelColon")}{characters.join(t("common.listSeparator"))}
+          {t("common.labels.characters")}
+          {t("common.labelColon")}
+          {characters.join(t("common.listSeparator"))}
         </p>
       ) : null}
     </div>
@@ -154,13 +156,8 @@ export function ToolCallCard({
   const [draftArgs, setDraftArgs] = useState<Record<string, unknown>>(card.parsedArgs);
   const preview = useMemo(() => getLorePreview(card), [card]);
   const validationError = useMemo(
-    () => getToolValidationError(
-      card,
-      isEditing ? draftArgs : card.parsedArgs,
-      t,
-      new Set(availableCharacterNames)
-    ),
-    [availableCharacterNames, card, draftArgs, isEditing, t]
+    () => getToolValidationError(card, isEditing ? draftArgs : card.parsedArgs, t, new Set(availableCharacterNames)),
+    [availableCharacterNames, card, draftArgs, isEditing, t],
   );
   const overwriteWarning = useMemo(
     () =>
@@ -169,9 +166,9 @@ export function ToolCallCard({
         isEditing ? draftArgs : card.parsedArgs,
         existingCharacterFileNames,
         existingWorldbuildingFileNames,
-        t
+        t,
       ),
-    [card, draftArgs, existingCharacterFileNames, existingWorldbuildingFileNames, isEditing, t]
+    [card, draftArgs, existingCharacterFileNames, existingWorldbuildingFileNames, isEditing, t],
   );
   const missingTargetError = useMemo(
     () =>
@@ -180,19 +177,13 @@ export function ToolCallCard({
         isEditing ? draftArgs : card.parsedArgs,
         existingCharacterFileNames,
         existingWorldbuildingFileNames,
-        t
+        t,
       ),
-    [card, draftArgs, existingCharacterFileNames, existingWorldbuildingFileNames, isEditing, t]
+    [card, draftArgs, existingCharacterFileNames, existingWorldbuildingFileNames, isEditing, t],
   );
   const warning = useMemo(
-    () =>
-      getToolDuplicateWarning(
-        card,
-        isEditing ? draftArgs : card.parsedArgs,
-        existingPinnedTexts,
-        t
-      ),
-    [card, draftArgs, existingPinnedTexts, isEditing, t]
+    () => getToolDuplicateWarning(card, isEditing ? draftArgs : card.parsedArgs, existingPinnedTexts, t),
+    [card, draftArgs, existingPinnedTexts, isEditing, t],
   );
 
   useEffect(() => {
@@ -208,13 +199,13 @@ export function ToolCallCard({
   }, [card.status, isMobile]);
 
   const canConfirm = !(
-    card.parseError !== null
-    || card.isLoading
-    || (globalBusy && !card.isLoading)
-    || validationError !== null
-    || warning !== null
-    || overwriteWarning !== null
-    || missingTargetError !== null
+    card.parseError !== null ||
+    card.isLoading ||
+    (globalBusy && !card.isLoading) ||
+    validationError !== null ||
+    warning !== null ||
+    overwriteWarning !== null ||
+    missingTargetError !== null
   );
 
   const handleCancelEdit = () => {
@@ -222,9 +213,8 @@ export function ToolCallCard({
     setEditing(false);
   };
 
-  const statusTag = card.status === "pending"
-    ? null
-    : (
+  const statusTag =
+    card.status === "pending" ? null : (
       <Tag tone={getStatusVariant(card)}>
         {card.status === "executed"
           ? t("settingsMode.executed")
@@ -239,7 +229,9 @@ export function ToolCallCard({
     );
 
   return (
-    <Card className={`space-y-4 ${card.status === "pending" ? "bg-surface/70" : "bg-black/[0.02] dark:bg-white/[0.03]"}`}>
+    <Card
+      className={`space-y-4 ${card.status === "pending" ? "bg-surface/70" : "bg-black/[0.02] dark:bg-white/[0.03]"}`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
           <h4 className="text-sm font-semibold text-text">{getCardTitle(card, mode, t)}</h4>
@@ -264,9 +256,7 @@ export function ToolCallCard({
       ) : null}
 
       {warning ? (
-        <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
-          {warning}
-        </div>
+        <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning">{warning}</div>
       ) : null}
 
       {overwriteWarning ? (
@@ -288,9 +278,7 @@ export function ToolCallCard({
       ) : null}
 
       {card.errorMessage ? (
-        <div className="rounded-lg border border-error/30 bg-error/10 p-3 text-sm text-error">
-          {card.errorMessage}
-        </div>
+        <div className="rounded-lg border border-error/30 bg-error/10 p-3 text-sm text-error">{card.errorMessage}</div>
       ) : null}
 
       {!isEditing || isMobile ? (
@@ -302,25 +290,59 @@ export function ToolCallCard({
             if (toolName === "create_character_file") {
               return (
                 <div className="grid gap-2 md:grid-cols-2">
-                  <p>{t("common.labels.displayName")}{t("common.labelColon")}{coerceString(args.name) || t("common.none")}</p>
-                  <p>{t("common.labels.aliases")}{t("common.labelColon")}{coerceStringArray(args.aliases).join(t("common.listSeparator")) || t("common.none")}</p>
-                  <p>{t("common.labels.importance")}{t("common.labelColon")}{getEnumLabel("importance", coerceString(args.importance), t("common.none"))}</p>
-                  <p>{t("settingsMode.field.origin")}{t("common.labelColon")}{getOriginRefLabel(coerceString(args.origin_ref)) || t("common.none")}</p>
+                  <p>
+                    {t("common.labels.displayName")}
+                    {t("common.labelColon")}
+                    {coerceString(args.name) || t("common.none")}
+                  </p>
+                  <p>
+                    {t("common.labels.aliases")}
+                    {t("common.labelColon")}
+                    {coerceStringArray(args.aliases).join(t("common.listSeparator")) || t("common.none")}
+                  </p>
+                  <p>
+                    {t("common.labels.importance")}
+                    {t("common.labelColon")}
+                    {getEnumLabel("importance", coerceString(args.importance), t("common.none"))}
+                  </p>
+                  <p>
+                    {t("settingsMode.field.origin")}
+                    {t("common.labelColon")}
+                    {getOriginRefLabel(coerceString(args.origin_ref)) || t("common.none")}
+                  </p>
                 </div>
               );
             }
 
-            if (toolName === "modify_character_file" || toolName === "modify_core_character_file" || toolName === "modify_worldbuilding_file") {
+            if (
+              toolName === "modify_character_file" ||
+              toolName === "modify_core_character_file" ||
+              toolName === "modify_worldbuilding_file"
+            ) {
               return (
                 <div className="space-y-2">
-                  <p>{t("settingsMode.editor.filename")}{t("common.labelColon")}{coerceString(args.filename) || t("common.none")}</p>
-                  <p>{t("settingsMode.editor.changeSummary")}{t("common.labelColon")}{coerceString(args.change_summary) || t("common.none")}</p>
+                  <p>
+                    {t("settingsMode.editor.filename")}
+                    {t("common.labelColon")}
+                    {coerceString(args.filename) || t("common.none")}
+                  </p>
+                  <p>
+                    {t("settingsMode.editor.changeSummary")}
+                    {t("common.labelColon")}
+                    {coerceString(args.change_summary) || t("common.none")}
+                  </p>
                 </div>
               );
             }
 
             if (toolName === "create_worldbuilding_file" || toolName === "create_core_character_file") {
-              return <p>{t("common.labels.displayName")}{t("common.labelColon")}{coerceString(args.name) || t("common.none")}</p>;
+              return (
+                <p>
+                  {t("common.labels.displayName")}
+                  {t("common.labelColon")}
+                  {coerceString(args.name) || t("common.none")}
+                </p>
+              );
             }
 
             if (toolName === "add_fact" || toolName === "modify_fact") {
@@ -328,26 +350,38 @@ export function ToolCallCard({
             }
 
             if (toolName === "add_pinned_context") {
-              return <p className="text-sm leading-relaxed text-text/90">{coerceString(args.content) || t("common.none")}</p>;
+              return (
+                <p className="text-sm leading-relaxed text-text/90">{coerceString(args.content) || t("common.none")}</p>
+              );
             }
 
             if (toolName === "update_writing_style") {
               const field = coerceString(args.field);
-              const fieldLabel = field === "perspective"
-                ? t("common.labels.perspective")
-                : field === "emotion_style"
-                  ? t("common.labels.emotionStyle")
-                  : t("common.labels.customInstructions");
+              const fieldLabel =
+                field === "perspective"
+                  ? t("common.labels.perspective")
+                  : field === "emotion_style"
+                    ? t("common.labels.emotionStyle")
+                    : t("common.labels.customInstructions");
               const rawValue = coerceString(args.value);
-              const displayValue = field === "perspective"
-                ? getEnumLabel("perspective", rawValue, rawValue)
-                : field === "emotion_style"
-                  ? getEnumLabel("emotion_style", rawValue, rawValue)
-                  : rawValue;
+              const displayValue =
+                field === "perspective"
+                  ? getEnumLabel("perspective", rawValue, rawValue)
+                  : field === "emotion_style"
+                    ? getEnumLabel("emotion_style", rawValue, rawValue)
+                    : rawValue;
               return (
                 <div className="space-y-2">
-                  <p>{t("settingsMode.editor.styleField")}{t("common.labelColon")}{fieldLabel}</p>
-                  <p>{t("settingsMode.editor.styleValue")}{t("common.labelColon")}{displayValue || t("common.none")}</p>
+                  <p>
+                    {t("settingsMode.editor.styleField")}
+                    {t("common.labelColon")}
+                    {fieldLabel}
+                  </p>
+                  <p>
+                    {t("settingsMode.editor.styleValue")}
+                    {t("common.labelColon")}
+                    {displayValue || t("common.none")}
+                  </p>
                 </div>
               );
             }
@@ -356,7 +390,9 @@ export function ToolCallCard({
               const filenames = coerceStringArray(args.filenames);
               return (
                 <p>
-                  {t("common.labels.coreAlwaysInclude")}{t("common.labelColon")}{filenames.length > 0 ? filenames.join(t("common.listSeparator")) : t("common.none")}
+                  {t("common.labels.coreAlwaysInclude")}
+                  {t("common.labelColon")}
+                  {filenames.length > 0 ? filenames.join(t("common.listSeparator")) : t("common.none")}
                 </p>
               );
             }
@@ -374,7 +410,8 @@ export function ToolCallCard({
                 {isExpanded ? preview.full : preview.preview}
               </p>
               <Button
-                tone="neutral" fill="plain"
+                tone="neutral"
+                fill="plain"
                 size="sm"
                 className="mt-2 h-11 px-3 text-sm sm:h-7 sm:px-2 sm:text-xs"
                 onClick={() => setExpanded((current) => !current)}
@@ -409,7 +446,8 @@ export function ToolCallCard({
           </div>
           {card.undoMeta && card.undoMeta.kind !== "unsupported" ? (
             <Button
-              tone="neutral" fill="plain"
+              tone="neutral"
+              fill="plain"
               size="sm"
               className="h-11 w-full gap-1 text-text/70 sm:h-8 sm:w-auto"
               onClick={() => void onUndo(card.id)}
@@ -424,7 +462,8 @@ export function ToolCallCard({
           {isEditing && !isMobile ? (
             <>
               <Button
-                tone="neutral" fill="plain"
+                tone="neutral"
+                fill="plain"
                 size="sm"
                 className="w-full sm:w-auto"
                 onClick={handleCancelEdit}
@@ -433,7 +472,8 @@ export function ToolCallCard({
                 {t("common.actions.cancel")}
               </Button>
               <Button
-                tone="accent" fill="solid"
+                tone="accent"
+                fill="solid"
                 size="sm"
                 className="w-full sm:w-auto"
                 onClick={() => void onConfirm(card.id, draftArgs)}
@@ -445,7 +485,8 @@ export function ToolCallCard({
           ) : (
             <>
               <Button
-                tone="accent" fill="solid"
+                tone="accent"
+                fill="solid"
                 size="sm"
                 className="w-full sm:w-auto"
                 onClick={() => void onConfirm(card.id)}
@@ -454,7 +495,8 @@ export function ToolCallCard({
                 {card.isLoading ? <Spinner size="sm" /> : t("settingsMode.confirm")}
               </Button>
               <Button
-                tone="neutral" fill="outline"
+                tone="neutral"
+                fill="outline"
                 size="sm"
                 className="w-full sm:w-auto"
                 onClick={() => setEditing(true)}
@@ -463,7 +505,8 @@ export function ToolCallCard({
                 {t("settingsMode.editAndConfirm")}
               </Button>
               <Button
-                tone="neutral" fill="plain"
+                tone="neutral"
+                fill="plain"
                 size="sm"
                 className="w-full sm:w-auto"
                 onClick={() => onSkip(card.id)}
@@ -476,11 +519,7 @@ export function ToolCallCard({
         </div>
       )}
 
-      <Modal
-        isOpen={isEditing && isMobile}
-        onClose={handleCancelEdit}
-        title={getCardTitle(card, mode, t)}
-      >
+      <Modal isOpen={isEditing && isMobile} onClose={handleCancelEdit} title={getCardTitle(card, mode, t)}>
         <div className="space-y-4">
           <ToolCallEditor
             card={card}
@@ -494,7 +533,12 @@ export function ToolCallCard({
             <Button tone="neutral" fill="plain" onClick={handleCancelEdit} disabled={globalBusy && !card.isLoading}>
               {t("common.actions.cancel")}
             </Button>
-            <Button tone="accent" fill="solid" onClick={() => void onConfirm(card.id, draftArgs)} disabled={!canConfirm}>
+            <Button
+              tone="accent"
+              fill="solid"
+              onClick={() => void onConfirm(card.id, draftArgs)}
+              disabled={!canConfirm}
+            >
               {card.isLoading ? <Spinner size="sm" /> : t("settingsMode.confirm")}
             </Button>
           </div>

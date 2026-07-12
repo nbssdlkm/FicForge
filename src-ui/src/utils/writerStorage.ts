@@ -67,15 +67,15 @@ export function normalizeContextSummary(value: unknown): ContextSummary | null {
 
   const candidate = value as Partial<ContextSummary>;
   if (
-    !isStringArray(candidate.characters_used)
-    || !isStringArray(candidate.worldbuilding_used)
-    || !isStringArray(candidate.facts_as_focus)
-    || !isStringArray(candidate.truncated_layers)
-    || !isStringArray(candidate.truncated_characters)
-    || typeof candidate.facts_injected !== "number"
-    || typeof candidate.pinned_count !== "number"
-    || typeof candidate.rag_chunks_retrieved !== "number"
-    || typeof candidate.total_input_tokens !== "number"
+    !isStringArray(candidate.characters_used) ||
+    !isStringArray(candidate.worldbuilding_used) ||
+    !isStringArray(candidate.facts_as_focus) ||
+    !isStringArray(candidate.truncated_layers) ||
+    !isStringArray(candidate.truncated_characters) ||
+    typeof candidate.facts_injected !== "number" ||
+    typeof candidate.pinned_count !== "number" ||
+    typeof candidate.rag_chunks_retrieved !== "number" ||
+    typeof candidate.total_input_tokens !== "number"
   ) {
     return null;
   }
@@ -88,17 +88,13 @@ export function normalizeContextSummary(value: unknown): ContextSummary | null {
     pinned_count: candidate.pinned_count,
     rag_chunks_retrieved: candidate.rag_chunks_retrieved,
     rag_chunks: Array.isArray(candidate.rag_chunks)
-      ? candidate.rag_chunks
-          .map(normalizeRagChunk)
-          .filter((c): c is RagChunkDetail => c !== null)
+      ? candidate.rag_chunks.map(normalizeRagChunk).filter((c): c is RagChunkDetail => c !== null)
       : [],
     total_input_tokens: candidate.total_input_tokens,
     truncated_layers: candidate.truncated_layers,
     truncated_characters: candidate.truncated_characters,
     // M10-B: backward-compat; old saved summaries won't have this field
-    facts_archived_count: typeof candidate.facts_archived_count === "number"
-      ? candidate.facts_archived_count
-      : 0,
+    facts_archived_count: typeof candidate.facts_archived_count === "number" ? candidate.facts_archived_count : 0,
   };
 }
 
@@ -139,10 +135,7 @@ export function saveContextSummaries(
       return;
     }
 
-    window.localStorage.setItem(
-      getContextSummaryStorageKey(auPath, chapterNum),
-      JSON.stringify(summaries),
-    );
+    window.localStorage.setItem(getContextSummaryStorageKey(auPath, chapterNum), JSON.stringify(summaries));
   } catch {
     // localStorage 可能在 iOS 隐私模式或容量满时抛异常，不阻断主流程
   }
@@ -184,8 +177,8 @@ export function readSavedGenerateRequest(auPath: string, chapterNum: number): Ge
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<GenerateRequestState>;
     if (
-      (parsed.inputType === "continue" || parsed.inputType === "instruction")
-      && typeof parsed.userInput === "string"
+      (parsed.inputType === "continue" || parsed.inputType === "instruction") &&
+      typeof parsed.userInput === "string"
     ) {
       return {
         inputType: parsed.inputType,
@@ -203,10 +196,7 @@ export function saveGenerateRequest(auPath: string, chapterNum: number, request:
   if (typeof window === "undefined") return;
 
   try {
-    window.localStorage.setItem(
-      getGenerateRequestStorageKey(auPath, chapterNum),
-      JSON.stringify(request),
-    );
+    window.localStorage.setItem(getGenerateRequestStorageKey(auPath, chapterNum), JSON.stringify(request));
   } catch {
     // localStorage 可能在 iOS 隐私模式或容量满时抛异常，不阻断主流程
   }

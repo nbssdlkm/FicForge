@@ -38,17 +38,32 @@ describe("FileOpsRepository", () => {
   });
 
   it("list_by_chapter filters correctly", async () => {
-    await repo.append("au1", createOpsEntry({ op_id: "op1", op_type: "confirm_chapter", target_id: "t", timestamp: "t", chapter_num: 1 }));
-    await repo.append("au1", createOpsEntry({ op_id: "op2", op_type: "add_fact", target_id: "t", timestamp: "t", chapter_num: 2 }));
-    await repo.append("au1", createOpsEntry({ op_id: "op3", op_type: "add_fact", target_id: "t", timestamp: "t", chapter_num: 1 }));
+    await repo.append(
+      "au1",
+      createOpsEntry({ op_id: "op1", op_type: "confirm_chapter", target_id: "t", timestamp: "t", chapter_num: 1 }),
+    );
+    await repo.append(
+      "au1",
+      createOpsEntry({ op_id: "op2", op_type: "add_fact", target_id: "t", timestamp: "t", chapter_num: 2 }),
+    );
+    await repo.append(
+      "au1",
+      createOpsEntry({ op_id: "op3", op_type: "add_fact", target_id: "t", timestamp: "t", chapter_num: 1 }),
+    );
 
     const ch1 = await repo.list_by_chapter("au1", 1);
     expect(ch1).toHaveLength(2);
   });
 
   it("get_confirm_for_chapter returns latest", async () => {
-    await repo.append("au1", createOpsEntry({ op_id: "op1", op_type: "confirm_chapter", target_id: "t", timestamp: "t1", chapter_num: 1 }));
-    await repo.append("au1", createOpsEntry({ op_id: "op2", op_type: "confirm_chapter", target_id: "t", timestamp: "t2", chapter_num: 1 }));
+    await repo.append(
+      "au1",
+      createOpsEntry({ op_id: "op1", op_type: "confirm_chapter", target_id: "t", timestamp: "t1", chapter_num: 1 }),
+    );
+    await repo.append(
+      "au1",
+      createOpsEntry({ op_id: "op2", op_type: "confirm_chapter", target_id: "t", timestamp: "t2", chapter_num: 1 }),
+    );
 
     const latest = await repo.get_confirm_for_chapter("au1", 1);
     expect(latest).not.toBeNull();
@@ -61,16 +76,28 @@ describe("FileOpsRepository", () => {
   });
 
   it("get_add_facts_for_chapter", async () => {
-    await repo.append("au1", createOpsEntry({ op_id: "op1", op_type: "add_fact", target_id: "t", timestamp: "t", chapter_num: 1 }));
-    await repo.append("au1", createOpsEntry({ op_id: "op2", op_type: "add_fact", target_id: "t", timestamp: "t", chapter_num: 2 }));
+    await repo.append(
+      "au1",
+      createOpsEntry({ op_id: "op1", op_type: "add_fact", target_id: "t", timestamp: "t", chapter_num: 1 }),
+    );
+    await repo.append(
+      "au1",
+      createOpsEntry({ op_id: "op2", op_type: "add_fact", target_id: "t", timestamp: "t", chapter_num: 2 }),
+    );
 
     const facts = await repo.get_add_facts_for_chapter("au1", 1);
     expect(facts).toHaveLength(1);
   });
 
   it("get_latest_by_type returns last entry", async () => {
-    await repo.append("au1", createOpsEntry({ op_id: "op1", op_type: "rebuild_index", target_id: "t", timestamp: "t1" }));
-    await repo.append("au1", createOpsEntry({ op_id: "op2", op_type: "rebuild_index", target_id: "t", timestamp: "t2" }));
+    await repo.append(
+      "au1",
+      createOpsEntry({ op_id: "op1", op_type: "rebuild_index", target_id: "t", timestamp: "t1" }),
+    );
+    await repo.append(
+      "au1",
+      createOpsEntry({ op_id: "op2", op_type: "rebuild_index", target_id: "t", timestamp: "t2" }),
+    );
 
     const latest = await repo.get_latest_by_type("au1", "rebuild_index");
     expect(latest!.op_id).toBe("op2");

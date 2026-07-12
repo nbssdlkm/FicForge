@@ -41,33 +41,41 @@ class CountingAdapter extends MockAdapter {
 
 describe("buildAliasTable 冲突规则", () => {
   it("基本构建：每张卡都进表，无别名卡挂空数组", () => {
-    expect(buildAliasTable([
-      { name: "沈砚", aliases: ["砚哥", "沈大人"] },
-      { name: "阿福", aliases: [] },
-    ])).toEqual({ 沈砚: ["砚哥", "沈大人"], 阿福: [] });
+    expect(
+      buildAliasTable([
+        { name: "沈砚", aliases: ["砚哥", "沈大人"] },
+        { name: "阿福", aliases: [] },
+      ]),
+    ).toEqual({ 沈砚: ["砚哥", "沈大人"], 阿福: [] });
   });
 
   it("同主名多卡（大小写不敏感）→ 别名合并，主名保首见写法", () => {
-    expect(buildAliasTable([
-      { name: "Harry", aliases: ["救世主"] },
-      { name: "harry", aliases: ["疤头", "救世主"] },
-    ])).toEqual({ Harry: ["救世主", "疤头"] });
+    expect(
+      buildAliasTable([
+        { name: "Harry", aliases: ["救世主"] },
+        { name: "harry", aliases: ["疤头", "救世主"] },
+      ]),
+    ).toEqual({ Harry: ["救世主", "疤头"] });
   });
 
   it("别名与任一主名相撞（大小写不敏感）→ 剔除该别名（主名优先，防吞并角色）", () => {
-    expect(buildAliasTable([
-      { name: "沈砚", aliases: ["阿福", "砚哥"] },
-      { name: "阿福", aliases: ["shen yan"] },
-      { name: "Shen Yan", aliases: [] },
-    ])).toEqual({ 沈砚: ["砚哥"], 阿福: [], "Shen Yan": [] });
+    expect(
+      buildAliasTable([
+        { name: "沈砚", aliases: ["阿福", "砚哥"] },
+        { name: "阿福", aliases: ["shen yan"] },
+        { name: "Shen Yan", aliases: [] },
+      ]),
+    ).toEqual({ 沈砚: ["砚哥"], 阿福: [], "Shen Yan": [] });
   });
 
   it("同一别名被 ≥2 个主名认领 → 双方都剔除（歧义不归一）", () => {
-    expect(buildAliasTable([
-      { name: "沈砚", aliases: ["大人", "砚哥"] },
-      { name: "王爷", aliases: ["大人"] },
-      { name: "阿福", aliases: ["福伯"] },
-    ])).toEqual({ 沈砚: ["砚哥"], 王爷: [], 阿福: ["福伯"] });
+    expect(
+      buildAliasTable([
+        { name: "沈砚", aliases: ["大人", "砚哥"] },
+        { name: "王爷", aliases: ["大人"] },
+        { name: "阿福", aliases: ["福伯"] },
+      ]),
+    ).toEqual({ 沈砚: ["砚哥"], 王爷: [], 阿福: ["福伯"] });
   });
 
   it("空输入 / 全空白主名 → null（与无表同表示）", () => {
@@ -76,8 +84,7 @@ describe("buildAliasTable 冲突规则", () => {
   });
 
   it("别名 trim + 空白别名剔除", () => {
-    expect(buildAliasTable([{ name: "沈砚", aliases: [" 砚哥 ", "  "] }]))
-      .toEqual({ 沈砚: ["砚哥"] });
+    expect(buildAliasTable([{ name: "沈砚", aliases: [" 砚哥 ", "  "] }])).toEqual({ 沈砚: ["砚哥"] });
   });
 });
 
@@ -138,7 +145,9 @@ describe("CharacterAliasManager 缓存生命周期", () => {
   it("epoch 守卫：构建在飞期间被 invalidate → 旧结果不落缓存", async () => {
     adapter.seed(`${AU}/characters/a.md`, card("沈砚", ["旧称"]));
     let release!: () => void;
-    adapter.gate = new Promise<void>((r) => { release = r; });
+    adapter.gate = new Promise<void>((r) => {
+      release = r;
+    });
 
     const inflight = mgr.get(AU); // 已读到旧内容，挂在门上
     // 等构建真正走到 readFile（exists → listDir → readFile 各有一轮微任务）

@@ -27,7 +27,9 @@ async function seedPrevChapter(content: string) {
 
 describe("build_recent_chapter_layer — L7 P2 floor 不突破层预算", () => {
   const llm = { model: "" };
-  beforeAll(async () => { await ensure_tokenizer(); });
+  beforeAll(async () => {
+    await ensure_tokenizer();
+  });
 
   it("500 字对应 token 超 budget 时，输出被裁到 <= budget（下限退让到 0）", async () => {
     // 800 字正文（> 500 下限），budget 只给 100 token —— 500 字（中文 ~ >= 500 token）远超之。

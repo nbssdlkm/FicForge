@@ -16,7 +16,6 @@ export interface EmbeddingProvider {
   get_model_name(): string;
 }
 
-
 /**
  * 远程 Embedding Provider（调用 OpenAI 兼容 /embeddings 端点；apiBase 需包含 /v1）。
  */

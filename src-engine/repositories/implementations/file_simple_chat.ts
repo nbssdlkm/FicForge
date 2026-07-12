@@ -15,7 +15,15 @@ import type { PlatformAdapter } from "../../platform/adapter.js";
 import type { SimpleChatFile, SimpleChatMessageEnvelope } from "../../domain/simple_chat.js";
 import { createSimpleChatFile, SIMPLE_CHAT_VERSION } from "../../domain/simple_chat.js";
 import type { SimpleChatRepository } from "../interfaces/simple_chat.js";
-import { atomicWrite, dumpYaml, joinPath, now_utc, obj_to_plain, validateBasePath, withWriteLock } from "../../utils/file_utils.js";
+import {
+  atomicWrite,
+  dumpYaml,
+  joinPath,
+  now_utc,
+  obj_to_plain,
+  validateBasePath,
+  withWriteLock,
+} from "../../utils/file_utils.js";
 import { warnAlways } from "../../logger/index.js";
 
 const CHAT_FILE_NAME = "simple-chat.yaml";

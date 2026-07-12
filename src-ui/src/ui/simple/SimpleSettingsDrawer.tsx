@@ -81,11 +81,15 @@ export function SimpleSettingsDrawer({
           </div>
           <div className="flex justify-between mb-1">
             <span className="text-sm text-text/70">{t("settingsPanel.temperature")}</span>
-            <span className="font-display text-[12px] font-semibold not-italic text-accent">{temperature.toFixed(1)}</span>
+            <span className="font-display text-[12px] font-semibold not-italic text-accent">
+              {temperature.toFixed(1)}
+            </span>
           </div>
           <input
             type="range"
-            min="0" max="2" step="0.1"
+            min="0"
+            max="2"
+            step="0.1"
             value={temperature}
             onChange={(e) => onTemperatureChange(parseFloat(e.target.value))}
             className="w-full accent-accent h-1.5"
@@ -102,7 +106,9 @@ export function SimpleSettingsDrawer({
           </div>
           <input
             type="range"
-            min="0" max="1" step="0.05"
+            min="0"
+            max="1"
+            step="0.05"
             value={topP}
             onChange={(e) => onTopPChange(parseFloat(e.target.value))}
             className="w-full accent-accent h-1.5"
@@ -119,7 +125,9 @@ export function SimpleSettingsDrawer({
           </div>
           <input
             type="range"
-            min="14" max="28" step="1"
+            min="14"
+            max="28"
+            step="1"
             value={fontSize}
             onChange={(e) => onFontSizeChange(parseInt(e.target.value))}
             className="w-full accent-accent h-1.5"
@@ -132,11 +140,15 @@ export function SimpleSettingsDrawer({
           </div>
           <div className="flex justify-between mb-1">
             <span className="text-sm text-text/70">{t("writer.lineHeight", { defaultValue: "Line Height" })}</span>
-            <span className="font-display text-[12px] font-semibold not-italic text-accent">{lineHeight.toFixed(1)}</span>
+            <span className="font-display text-[12px] font-semibold not-italic text-accent">
+              {lineHeight.toFixed(1)}
+            </span>
           </div>
           <input
             type="range"
-            min="1.4" max="2.4" step="0.1"
+            min="1.4"
+            max="2.4"
+            step="0.1"
             value={lineHeight}
             onChange={(e) => onLineHeightChange(parseFloat(e.target.value))}
             className="w-full accent-accent h-1.5"
@@ -145,10 +157,21 @@ export function SimpleSettingsDrawer({
       </div>
 
       <div className="border-t border-rule pt-4 mt-6 flex gap-2">
-        <Button tone="neutral" fill="outline" size="sm" className="flex-1 font-sans text-[11px] uppercase tracking-[0.08em]" onClick={() => void onSaveGlobal()}>
+        <Button
+          tone="neutral"
+          fill="outline"
+          size="sm"
+          className="flex-1 font-sans text-[11px] uppercase tracking-[0.08em]"
+          onClick={() => void onSaveGlobal()}
+        >
           {t("common.actions.saveToGlobal")}
         </Button>
-        <Button tone="accent" size="sm" className="flex-1 font-sans text-[11px] uppercase tracking-[0.08em]" onClick={() => void onSaveAu()}>
+        <Button
+          tone="accent"
+          size="sm"
+          className="flex-1 font-sans text-[11px] uppercase tracking-[0.08em]"
+          onClick={() => void onSaveAu()}
+        >
           {t("common.actions.saveToStory")}
         </Button>
       </div>
@@ -156,7 +179,12 @@ export function SimpleSettingsDrawer({
   );
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={t("simple.settings.title", { defaultValue: "续写设置" })} className="max-w-md">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t("simple.settings.title", { defaultValue: "续写设置" })}
+      className="max-w-md"
+    >
       {body}
     </Modal>
   );

@@ -78,10 +78,14 @@ export function SessionModelPicker({ model, onModelChange, layer, options, disab
             className="h-11 min-w-0 flex-1 rounded-md border border-black/20 bg-background px-3 text-base text-text outline-hidden focus:ring-1 focus:ring-accent dark:border-white/20 md:h-8 md:px-2 md:text-xs"
           >
             {!modelInOptions && (
-              <option value="" disabled>{model || t("modelPicker.selectModelHint")}</option>
+              <option value="" disabled>
+                {model || t("modelPicker.selectModelHint")}
+              </option>
             )}
             {options.map((o) => (
-              <option key={o.id} value={o.id}>{optionLabel(o)}</option>
+              <option key={o.id} value={o.id}>
+                {optionLabel(o)}
+              </option>
             ))}
           </select>
           <button

@@ -2,10 +2,10 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect, useState } from 'react';
-import { getSettingsSummary, type SettingsSummary } from '../../api/engine-client';
-import { catchAndLog } from '../../utils/ui-logger';
-import { isOnboardingCompleted, isOnboardingDismissedForSession } from '../onboarding/OnboardingFlow';
+import { useEffect, useState } from "react";
+import { getSettingsSummary, type SettingsSummary } from "../../api/engine-client";
+import { catchAndLog } from "../../utils/ui-logger";
+import { isOnboardingCompleted, isOnboardingDismissedForSession } from "../onboarding/OnboardingFlow";
 
 function hasUsableConnectionConfig(settings: SettingsSummary | null | undefined) {
   return Boolean(settings?.default_llm.has_usable_connection);
@@ -19,19 +19,23 @@ export function useLibraryOnboardingGate() {
     let cancelled = false;
 
     if (isOnboardingCompleted() || isOnboardingDismissedForSession()) {
-      getSettingsSummary().then((settings) => {
-        if (!cancelled && !hasUsableConnectionConfig(settings)) {
-          setShowApiWarning(true);
-        }
-      }).catch(catchAndLog('onboardingGate', 'getSettingsSummary failed'));
+      getSettingsSummary()
+        .then((settings) => {
+          if (!cancelled && !hasUsableConnectionConfig(settings)) {
+            setShowApiWarning(true);
+          }
+        })
+        .catch(catchAndLog("onboardingGate", "getSettingsSummary failed"));
     } else {
-      getSettingsSummary().then((settings) => {
-        if (!cancelled && !hasUsableConnectionConfig(settings)) {
-          setShowOnboarding(true);
-        }
-      }).catch(() => {
-        if (!cancelled) setShowOnboarding(true);
-      });
+      getSettingsSummary()
+        .then((settings) => {
+          if (!cancelled && !hasUsableConnectionConfig(settings)) {
+            setShowOnboarding(true);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setShowOnboarding(true);
+        });
     }
 
     return () => {

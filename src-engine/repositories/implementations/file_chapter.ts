@@ -98,16 +98,20 @@ export class FileChapterRepository implements ChapterRepository {
     // fire-and-forget —— 不阻塞文件写入。所有调用方在调 save() 之前已算过 hash，
     // 这里只是防御性校验，不应成为热路径的瓶颈。
     if (chapter.content_hash) {
-      compute_content_hash(chapter.content).then((actual) => {
-        if (actual !== chapter.content_hash) {
-          warnAlways("file_chapter", "content_hash mismatch on save", {
-            au_id: chapter.au_id,
-            chapter_num: chapter.chapter_num,
-            stored_prefix: chapter.content_hash.slice(0, 8),
-            actual_prefix: actual.slice(0, 8),
-          });
-        }
-      }).catch(() => { /* hash 校验失败不阻断 */ });
+      compute_content_hash(chapter.content)
+        .then((actual) => {
+          if (actual !== chapter.content_hash) {
+            warnAlways("file_chapter", "content_hash mismatch on save", {
+              au_id: chapter.au_id,
+              chapter_num: chapter.chapter_num,
+              stored_prefix: chapter.content_hash.slice(0, 8),
+              actual_prefix: actual.slice(0, 8),
+            });
+          }
+        })
+        .catch(() => {
+          /* hash 校验失败不阻断 */
+        });
     }
     const path = this.chapterPath(chapter.au_id, chapter.chapter_num);
     const meta = chapterToMeta(chapter);
@@ -206,12 +210,7 @@ export class FileChapterRepository implements ChapterRepository {
 // 内部映射
 // ------------------------------------------------------------------
 
-function metaToChapter(
-  au_id: string,
-  chapter_num: number,
-  meta: Record<string, unknown>,
-  content: string,
-): Chapter {
+function metaToChapter(au_id: string, chapter_num: number, meta: Record<string, unknown>, content: string): Chapter {
   const generated_with = generatedWithFromYaml(meta.generated_with);
 
   return createChapter({

@@ -2,13 +2,13 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import type { RefObject } from 'react';
-import { BookOpen, Check, ChevronsDown, ChevronsUp, RefreshCw, Trash2, Undo2 } from 'lucide-react';
+import type { RefObject } from "react";
+import { BookOpen, Check, ChevronsDown, ChevronsUp, RefreshCw, Trash2, Undo2 } from "lucide-react";
 import { Spinner } from "../shared/Spinner";
-import { Button } from '../shared/Button';
-import { Textarea } from '../shared/Input';
-import { DraftNavigator } from './DraftNavigator';
-import { useTranslation } from '../../i18n/useAppTranslation';
+import { Button } from "../shared/Button";
+import { Textarea } from "../shared/Input";
+import { DraftNavigator } from "./DraftNavigator";
+import { useTranslation } from "../../i18n/useAppTranslation";
 
 const MAX_RECOMMENDED_DRAFTS = 5;
 
@@ -31,7 +31,7 @@ export interface WriterFooterProps {
   instructionText: string;
   onInstructionTextChange: (v: string) => void;
   instructionInputRef: RefObject<HTMLInputElement | null>;
-  onGenerate: (type: 'instruction' | 'continue') => void;
+  onGenerate: (type: "instruction" | "continue") => void;
 
   drafts: FooterDraft[];
   activeDraftIndex: number;
@@ -80,7 +80,7 @@ export function WriterFooter(props: WriterFooterProps) {
   } = props;
   const { t } = useTranslation();
 
-  const triggerGenerate = () => onGenerate(instructionText.trim() ? 'instruction' : 'continue');
+  const triggerGenerate = () => onGenerate(instructionText.trim() ? "instruction" : "continue");
 
   return (
     <footer className="safe-area-bottom w-full shrink-0 border-t border-black/10 dark:border-white/10 bg-surface/80 backdrop-blur-md flex flex-col">
@@ -89,18 +89,22 @@ export function WriterFooter(props: WriterFooterProps) {
         onClick={onToggleCollapsed}
       >
         {footerCollapsed ? <ChevronsUp size={12} /> : <ChevronsDown size={12} />}
-        {footerCollapsed ? t('writer.expandToolbar') : t('writer.collapseToolbar')}
+        {footerCollapsed ? t("writer.expandToolbar") : t("writer.collapseToolbar")}
       </button>
 
       {footerCollapsed ? (
         <div className="flex items-center justify-center gap-3 pb-2">
           <Button
-            tone="accent" fill="solid"
+            tone="accent"
+            fill="solid"
             size="sm"
-            onClick={() => { onToggleCollapsed(); triggerGenerate(); }}
+            onClick={() => {
+              onToggleCollapsed();
+              triggerGenerate();
+            }}
             disabled={writeActionsDisabled || hasPendingDrafts}
           >
-            {isGenerating ? <Spinner size="md" /> : t('common.actions.continue')}
+            {isGenerating ? <Spinner size="md" /> : t("common.actions.continue")}
           </Button>
         </div>
       ) : (
@@ -118,20 +122,21 @@ export function WriterFooter(props: WriterFooterProps) {
               </div>
 
               <div className="flex items-center justify-between gap-3 text-xs text-text/50">
-                <span className="min-w-0 flex-1 truncate">{currentDraftMeta || t('writer.metaDurationUnknown')}</span>
+                <span className="min-w-0 flex-1 truncate">{currentDraftMeta || t("writer.metaDurationUnknown")}</span>
                 <div className="flex shrink-0 items-center gap-3">
                   {drafts.length > MAX_RECOMMENDED_DRAFTS && (
-                    <span className="hidden md:inline">{t('drafts.tooMany', { count: drafts.length })}</span>
+                    <span className="hidden md:inline">{t("drafts.tooMany", { count: drafts.length })}</span>
                   )}
                   <Button
-                    tone="neutral" fill="plain"
+                    tone="neutral"
+                    fill="plain"
                     size="sm"
                     className="h-9 gap-1 px-2 text-error/80 hover:bg-error/10 hover:text-error md:h-8"
                     onClick={onOpenDiscard}
                     disabled={isGenerating || isDiscarding || isSettingsModeBusy}
                   >
                     <Trash2 size={15} />
-                    {drafts.length > 1 ? t('drafts.discardAll') : t('drafts.discard')}
+                    {drafts.length > 1 ? t("drafts.discardAll") : t("drafts.discard")}
                   </Button>
                 </div>
               </div>
@@ -142,12 +147,15 @@ export function WriterFooter(props: WriterFooterProps) {
             <input
               ref={instructionInputRef}
               type="text"
-              placeholder={t('writer.inputPlaceholder')}
+              placeholder={t("writer.inputPlaceholder")}
               value={instructionText}
               onChange={(event) => onInstructionTextChange(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key !== 'Enter' || writeActionsDisabled) return;
-                if (hasPendingDrafts) { onBlockedToast(); return; }
+                if (event.key !== "Enter" || writeActionsDisabled) return;
+                if (hasPendingDrafts) {
+                  onBlockedToast();
+                  return;
+                }
                 triggerGenerate();
               }}
               disabled={writeActionsDisabled}
@@ -159,7 +167,7 @@ export function WriterFooter(props: WriterFooterProps) {
             <Textarea
               value={instructionText}
               onChange={(event) => onInstructionTextChange(event.target.value)}
-              placeholder={t('writer.inputPlaceholder')}
+              placeholder={t("writer.inputPlaceholder")}
               disabled={writeActionsDisabled}
               className="min-h-[80px] resize-none bg-background/90 text-text"
             />
@@ -167,59 +175,122 @@ export function WriterFooter(props: WriterFooterProps) {
 
           <div className="mx-auto mt-2 hidden w-full max-w-[720px] items-center justify-between border-t border-black/5 pt-2 dark:border-white/5 md:flex">
             <div className="flex items-center gap-2">
-              <Button tone="neutral" fill="plain" size="sm" className="text-text/70 hover:text-text" onClick={onOpenUndo} disabled={currentChapter <= 1 || writeActionsDisabled}>
-                <Undo2 size={16} className="mr-2" /> {t('common.actions.undoPreviousChapter')}
+              <Button
+                tone="neutral"
+                fill="plain"
+                size="sm"
+                className="text-text/70 hover:text-text"
+                onClick={onOpenUndo}
+                disabled={currentChapter <= 1 || writeActionsDisabled}
+              >
+                <Undo2 size={16} className="mr-2" /> {t("common.actions.undoPreviousChapter")}
               </Button>
-              <Button tone="neutral" fill="plain" size="sm" className="text-text/70 hover:text-text" onClick={onNavigateFacts}>
-                <BookOpen size={16} className="mr-1" /> {t('writer.factsShortcut')}
+              <Button
+                tone="neutral"
+                fill="plain"
+                size="sm"
+                className="text-text/70 hover:text-text"
+                onClick={onNavigateFacts}
+              >
+                <BookOpen size={16} className="mr-1" /> {t("writer.factsShortcut")}
               </Button>
             </div>
             <div className="flex items-center gap-2">
               {hasPendingDrafts && (
                 <>
-                  <Button tone="accent" fill="solid" size="sm" className="h-10 gap-1" onClick={onOpenFinalize} disabled={writeActionsDisabled}>
-                    <Check size={15} /> {t('drafts.finalize')}
+                  <Button
+                    tone="accent"
+                    fill="solid"
+                    size="sm"
+                    className="h-10 gap-1"
+                    onClick={onOpenFinalize}
+                    disabled={writeActionsDisabled}
+                  >
+                    <Check size={15} /> {t("drafts.finalize")}
                   </Button>
-                  <Button tone="accent" fill="outline" size="sm" className="h-10 gap-1" onClick={onRegenerate} disabled={writeActionsDisabled}>
+                  <Button
+                    tone="accent"
+                    fill="outline"
+                    size="sm"
+                    className="h-10 gap-1"
+                    onClick={onRegenerate}
+                    disabled={writeActionsDisabled}
+                  >
                     {isGenerating ? <Spinner size="sm" /> : <RefreshCw size={15} />}
-                    {t('drafts.regenerate')}
+                    {t("drafts.regenerate")}
                   </Button>
                 </>
               )}
               <Button
-                tone="accent" fill="solid"
+                tone="accent"
+                fill="solid"
                 className="w-32"
                 onClick={triggerGenerate}
                 disabled={writeActionsDisabled || hasPendingDrafts}
               >
-                {isGenerating ? <Spinner size="md" /> : (instructionText.trim() ? t('common.actions.instruction') : t('common.actions.continue'))}
+                {isGenerating ? (
+                  <Spinner size="md" />
+                ) : instructionText.trim() ? (
+                  t("common.actions.instruction")
+                ) : (
+                  t("common.actions.continue")
+                )}
               </Button>
             </div>
           </div>
 
           <div className="mx-auto mt-2 flex w-full max-w-[720px] items-center justify-between gap-2 border-t border-black/5 pt-4 dark:border-white/5 md:hidden">
-            <Button tone="neutral" fill="plain" size="sm" className="shrink-0 px-3 text-text/70" onClick={onOpenMobileTools}>
-              {t('common.actions.more')}
+            <Button
+              tone="neutral"
+              fill="plain"
+              size="sm"
+              className="shrink-0 px-3 text-text/70"
+              onClick={onOpenMobileTools}
+            >
+              {t("common.actions.more")}
             </Button>
             <div className="flex items-center gap-2">
               {hasPendingDrafts && (
                 <>
-                  <Button tone="accent" fill="solid" size="sm" className="h-11 gap-1 px-4" onClick={onOpenFinalize} disabled={writeActionsDisabled}>
-                    <Check size={15} /> {t('drafts.finalize')}
+                  <Button
+                    tone="accent"
+                    fill="solid"
+                    size="sm"
+                    className="h-11 gap-1 px-4"
+                    onClick={onOpenFinalize}
+                    disabled={writeActionsDisabled}
+                  >
+                    <Check size={15} /> {t("drafts.finalize")}
                   </Button>
-                  <Button tone="accent" fill="outline" size="sm" className="h-11 w-11 shrink-0 p-0" onClick={onRegenerate} disabled={writeActionsDisabled} title={t('drafts.regenerate')} aria-label={t('drafts.regenerate')}>
+                  <Button
+                    tone="accent"
+                    fill="outline"
+                    size="sm"
+                    className="h-11 w-11 shrink-0 p-0"
+                    onClick={onRegenerate}
+                    disabled={writeActionsDisabled}
+                    title={t("drafts.regenerate")}
+                    aria-label={t("drafts.regenerate")}
+                  >
                     {isGenerating ? <Spinner size="sm" /> : <RefreshCw size={15} />}
                   </Button>
                 </>
               )}
               <Button
-                tone="accent" fill="solid"
+                tone="accent"
+                fill="solid"
                 size="sm"
                 className="h-11 min-w-[96px] px-4"
                 onClick={triggerGenerate}
                 disabled={writeActionsDisabled || hasPendingDrafts}
               >
-                {isGenerating ? <Spinner size="md" /> : (instructionText.trim() ? t('common.actions.instruction') : t('common.actions.continue'))}
+                {isGenerating ? (
+                  <Spinner size="md" />
+                ) : instructionText.trim() ? (
+                  t("common.actions.instruction")
+                ) : (
+                  t("common.actions.continue")
+                )}
               </Button>
             </div>
           </div>

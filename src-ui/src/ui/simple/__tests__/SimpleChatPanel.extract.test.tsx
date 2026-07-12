@@ -33,9 +33,7 @@ vi.mock("../../../hooks/useFeedback", () => ({
 }));
 
 vi.mock("../../../api/engine-client", async () => {
-  const actual = await vi.importActual<typeof import("../../../api/engine-client")>(
-    "../../../api/engine-client",
-  );
+  const actual = await vi.importActual<typeof import("../../../api/engine-client")>("../../../api/engine-client");
   return {
     ...actual,
     dispatchSimpleChat: vi.fn(),
@@ -109,9 +107,7 @@ function mockSettingsSummary(opts: { reactEnabled?: boolean; usable: boolean }) 
     app: {
       language: "zh",
       fonts: {},
-      ...(opts.reactEnabled === undefined
-        ? {}
-        : { react_extraction_enabled: opts.reactEnabled }),
+      ...(opts.reactEnabled === undefined ? {} : { react_extraction_enabled: opts.reactEnabled }),
     },
   } as unknown as Awaited<ReturnType<typeof engineClient.getSettingsSummary>>);
   mocked.getFactsExtractionReadiness.mockResolvedValue({ has_usable_connection: opts.usable });
@@ -229,7 +225,11 @@ describe("SimpleChatPanel P2.3 — 接受草稿接通 M9 提取", () => {
     });
     // extractFacts 以刚确认的章号被调用（带取消 signal，审计 H2）
     await waitFor(() => {
-      expect(mocked.extractFacts).toHaveBeenCalledWith(AU, 2, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+      expect(mocked.extractFacts).toHaveBeenCalledWith(
+        AU,
+        2,
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
     });
     // 提取结果预览 modal 出现 + 候选内容可见
     expect(await screen.findByText("提取结果预览")).toBeInTheDocument();
@@ -243,7 +243,11 @@ describe("SimpleChatPanel P2.3 — 接受草稿接通 M9 提取", () => {
     await sendAndAcceptDraft(user);
 
     await waitFor(() => {
-      expect(mocked.extractFacts).toHaveBeenCalledWith(AU, 2, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+      expect(mocked.extractFacts).toHaveBeenCalledWith(
+        AU,
+        2,
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
     });
     expect(await screen.findByText("提取结果预览")).toBeInTheDocument();
   });
@@ -282,7 +286,11 @@ describe("SimpleChatPanel P2.3 — 接受草稿接通 M9 提取", () => {
 
     // 修复后：与写文路径一致，能自动触发提取
     await waitFor(() => {
-      expect(mocked.extractFacts).toHaveBeenCalledWith(AU, 2, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+      expect(mocked.extractFacts).toHaveBeenCalledWith(
+        AU,
+        2,
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
     });
     expect(await screen.findByText("提取结果预览")).toBeInTheDocument();
   });
@@ -438,11 +446,11 @@ describe("SimpleChatPanel P2.3 — 接受草稿接通 M9 提取", () => {
 
     // 永不 resolve 的提取，捕获 signal 供断言
     let capturedSignal: AbortSignal | undefined;
-    mocked.extractFacts.mockImplementation(((
-      _au: string, _num: number, opts?: { signal?: AbortSignal },
-    ) => {
+    mocked.extractFacts.mockImplementation(((_au: string, _num: number, opts?: { signal?: AbortSignal }) => {
       capturedSignal = opts?.signal;
-      return new Promise(() => { /* 永不 resolve，模拟多秒 LLM 调用 */ });
+      return new Promise(() => {
+        /* 永不 resolve，模拟多秒 LLM 调用 */
+      });
     }) as unknown as typeof engineClient.extractFacts);
 
     await sendAndAcceptDraft(user);

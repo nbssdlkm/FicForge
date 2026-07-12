@@ -2,8 +2,8 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, useState } from 'react';
-import type { FandomLoreCategory } from './lore-utils';
+import { useCallback, useEffect, useState } from "react";
+import type { FandomLoreCategory } from "./lore-utils";
 
 /**
  * useFandomLoreChrome — Fandom 资料页界面镶边（对齐 useWriterChromeState 形态）：
@@ -16,17 +16,17 @@ export function useFandomLoreChrome(fandomPath: string | undefined) {
     core_worldbuilding: true,
   });
   const [aiPanelOpen, setAiPanelOpen] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [createModalCategory, setCreateModalCategory] = useState<FandomLoreCategory>('core_characters');
-  const [createName, setCreateName] = useState('');
+  const [createModalCategory, setCreateModalCategory] = useState<FandomLoreCategory>("core_characters");
+  const [createName, setCreateName] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   // 切 fandom 复位（hook 规则 2：state 与 reset 同文件）
   useEffect(() => {
-    setSearchTerm('');
+    setSearchTerm("");
     setCreateModalOpen(false);
-    setCreateName('');
+    setCreateName("");
     setDeleteConfirmOpen(false);
   }, [fandomPath]);
 
@@ -37,7 +37,7 @@ export function useFandomLoreChrome(fandomPath: string | undefined) {
   const closeAiPanel = useCallback(() => setAiPanelOpen(false), []);
   const openCreateModal = useCallback((category: FandomLoreCategory) => {
     setCreateModalCategory(category);
-    setCreateName('');
+    setCreateName("");
     setCreateModalOpen(true);
   }, []);
   const closeCreateModal = useCallback(() => setCreateModalOpen(false), []);

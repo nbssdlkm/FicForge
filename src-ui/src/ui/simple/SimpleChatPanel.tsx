@@ -123,22 +123,23 @@ export function SimpleChatPanel({
   // C5: token 估算。chapterCount 变化（接受后）触发重算。面板常驻挂载后隐藏期
   // 暂停 30s 兜底轮询（对抗审 A-4）。sessionLlmPayload 让 badge 与 dispatch 同走
   // 三层解析（H4）——会话切模型时窗口/预警即时跟随。
-  const tokenCount = useContextTokenCount(auPath, chapterContext.chapterCount, chat.messages, isActiveTab !== false, sessionParams.sessionLlmPayload);
+  const tokenCount = useContextTokenCount(
+    auPath,
+    chapterContext.chapterCount,
+    chat.messages,
+    isActiveTab !== false,
+    sessionParams.sessionLlmPayload,
+  );
 
   const tokenBadge = useMemo(() => {
     const est = tokenCount.estimate;
     if (!est) return null;
-    const formatThousand = (n: number) =>
-      n >= 1000 ? `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k` : String(n);
+    const formatThousand = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k` : String(n));
     const valueText = formatThousand(est.inputTokens);
     return (
-      <span
-        className="inline-flex items-baseline gap-1 rounded-full border border-rule bg-surface px-[7px] py-[3px] font-mono text-[9px] uppercase tracking-[0.08em] text-ink-muted"
-      >
+      <span className="inline-flex items-baseline gap-1 rounded-full border border-rule bg-surface px-[7px] py-[3px] font-mono text-[9px] uppercase tracking-[0.08em] text-ink-muted">
         <BarChart3 size={10} className="self-center" />
-        <strong className="font-display text-[11px] font-semibold not-italic tracking-normal">
-          {valueText}
-        </strong>
+        <strong className="font-display text-[11px] font-semibold not-italic tracking-normal">{valueText}</strong>
         <span>{t("simple.header.tokensUnit", { defaultValue: "tokens" })}</span>
       </span>
     );
@@ -147,12 +148,14 @@ export function SimpleChatPanel({
   return (
     <div
       className={`flex h-full min-h-0 flex-col bg-background ${className}`}
-      style={{
-        // 注入 drawer 字号 / 行距 → 子组件正文 div 用 var(--ff-body-fs) /
-        // var(--ff-body-lh) 引用（问题 #3a：drawer 调字号同步对话界面正文）
-        "--ff-body-fs": `${chrome.fontSize}px`,
-        "--ff-body-lh": String(chrome.lineHeight),
-      } as React.CSSProperties}
+      style={
+        {
+          // 注入 drawer 字号 / 行距 → 子组件正文 div 用 var(--ff-body-fs) /
+          // var(--ff-body-lh) 引用（问题 #3a：drawer 调字号同步对话界面正文）
+          "--ff-body-fs": `${chrome.fontSize}px`,
+          "--ff-body-lh": String(chrome.lineHeight),
+        } as React.CSSProperties
+      }
     >
       <header className="flex items-center gap-x-3 gap-y-2 flex-wrap border-b border-rule bg-surface px-4 py-3">
         <span className="inline-flex items-baseline gap-1 font-mono text-[9px] uppercase tracking-[0.08em] text-ink-muted">

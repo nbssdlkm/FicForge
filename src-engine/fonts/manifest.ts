@@ -74,7 +74,11 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     sha256: "fbf671a4bfa6421896d160f86b8a795d4221f7d5efca2aa2894ce25512ab952f",
     sources: [
       { url: "https://nbssdlkm.cn/fonts/noto-serif-sc/v1/NotoSerifSC-Regular.subset.woff2", priority: 1 },
-      { url: "https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-sc@latest/files/noto-serif-sc-chinese-simplified-400-normal.woff2", priority: 2, sha256: "" },
+      {
+        url: "https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-sc@latest/files/noto-serif-sc-chinese-simplified-400-normal.woff2",
+        priority: 2,
+        sha256: "",
+      },
     ],
   },
   {
@@ -93,7 +97,11 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     sources: [
       { url: "https://nbssdlkm.cn/fonts/lxgw-wenkai-gb/v1/LXGWWenKaiGB-Regular.subset.woff2", priority: 1 },
       // fontsource 未收录 LXGW WenKai GB；回退到上游 GitHub release 的完整 TTF（~26MB）。
-      { url: "https://github.com/lxgw/LxgwWenkaiGB/releases/download/v1.522/LXGWWenKaiGB-Regular.ttf", priority: 2, sha256: "" },
+      {
+        url: "https://github.com/lxgw/LxgwWenkaiGB/releases/download/v1.522/LXGWWenKaiGB-Regular.ttf",
+        priority: 2,
+        sha256: "",
+      },
     ],
   },
   {
@@ -108,7 +116,11 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     sha256: "f094ea643fe850b8b293679ebf54b0583f5abf078cf09fa5110c21daca73d99d",
     sources: [
       { url: "https://nbssdlkm.cn/fonts/noto-sans-sc/v1/NotoSansSC-Regular.subset.woff2", priority: 1 },
-      { url: "https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-sc@latest/files/noto-sans-sc-chinese-simplified-400-normal.woff2", priority: 2, sha256: "" },
+      {
+        url: "https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-sc@latest/files/noto-sans-sc-chinese-simplified-400-normal.woff2",
+        priority: 2,
+        sha256: "",
+      },
     ],
   },
   {
@@ -123,7 +135,11 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     sha256: "22c7c596eb5d7f78976b3d2023489741c213b7c7563c991f69371c02705a39d4",
     sources: [
       { url: "https://nbssdlkm.cn/fonts/ma-shan-zheng/v1/MaShanZheng-Regular.subset.woff2", priority: 1 },
-      { url: "https://cdn.jsdelivr.net/npm/@fontsource/ma-shan-zheng@latest/files/ma-shan-zheng-chinese-simplified-400-normal.woff2", priority: 2, sha256: "" },
+      {
+        url: "https://cdn.jsdelivr.net/npm/@fontsource/ma-shan-zheng@latest/files/ma-shan-zheng-chinese-simplified-400-normal.woff2",
+        priority: 2,
+        sha256: "",
+      },
     ],
   },
   {
@@ -138,7 +154,11 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     sha256: "72852b7738c2828fad984c8963f3d2d12824f97a779bd04bee74cc24ea28b71f",
     sources: [
       { url: "https://nbssdlkm.cn/fonts/long-cang/v1/LongCang-Regular.subset.woff2", priority: 1 },
-      { url: "https://cdn.jsdelivr.net/npm/@fontsource/long-cang@latest/files/long-cang-chinese-simplified-400-normal.woff2", priority: 2, sha256: "" },
+      {
+        url: "https://cdn.jsdelivr.net/npm/@fontsource/long-cang@latest/files/long-cang-chinese-simplified-400-normal.woff2",
+        priority: 2,
+        sha256: "",
+      },
     ],
   },
   // ── 英文 ──
@@ -154,7 +174,11 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     sha256: "63ac1c036bd07d9bd6b4505f893b204f56e3cab570dc26c9225a2d395aaca73b",
     sources: [
       { url: "https://nbssdlkm.cn/fonts/literata/v1/Literata-Regular.subset.woff2", priority: 1 },
-      { url: "https://cdn.jsdelivr.net/npm/@fontsource/literata@latest/files/literata-latin-400-normal.woff2", priority: 2, sha256: "" },
+      {
+        url: "https://cdn.jsdelivr.net/npm/@fontsource/literata@latest/files/literata-latin-400-normal.woff2",
+        priority: 2,
+        sha256: "",
+      },
     ],
   },
   {
@@ -169,7 +193,11 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     sha256: "6381586b4e69f7a6bf8751469f7f068349d23f9a54534536f07b0426c0f4a5ab",
     sources: [
       { url: "https://nbssdlkm.cn/fonts/lora/v1/Lora-Regular.subset.woff2", priority: 1 },
-      { url: "https://cdn.jsdelivr.net/npm/@fontsource/lora@latest/files/lora-latin-400-normal.woff2", priority: 2, sha256: "" },
+      {
+        url: "https://cdn.jsdelivr.net/npm/@fontsource/lora@latest/files/lora-latin-400-normal.woff2",
+        priority: 2,
+        sha256: "",
+      },
     ],
   },
   {
@@ -184,7 +212,11 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     sha256: "fb6f860ca8802d43207dc04662fbb64e47be722ff80184905220c25b2d422db1",
     sources: [
       { url: "https://nbssdlkm.cn/fonts/merriweather/v1/Merriweather-Regular.subset.woff2", priority: 1 },
-      { url: "https://cdn.jsdelivr.net/npm/@fontsource/merriweather@latest/files/merriweather-latin-400-normal.woff2", priority: 2, sha256: "" },
+      {
+        url: "https://cdn.jsdelivr.net/npm/@fontsource/merriweather@latest/files/merriweather-latin-400-normal.woff2",
+        priority: 2,
+        sha256: "",
+      },
     ],
   },
   {
@@ -199,7 +231,11 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     sha256: "5a680ff2060cc83ebff22de948c9e402964937ec9cc2eb66909cf3d81270eac9",
     sources: [
       { url: "https://nbssdlkm.cn/fonts/eb-garamond/v1/EBGaramond-Regular.subset.woff2", priority: 1 },
-      { url: "https://cdn.jsdelivr.net/npm/@fontsource/eb-garamond@latest/files/eb-garamond-latin-400-normal.woff2", priority: 2, sha256: "" },
+      {
+        url: "https://cdn.jsdelivr.net/npm/@fontsource/eb-garamond@latest/files/eb-garamond-latin-400-normal.woff2",
+        priority: 2,
+        sha256: "",
+      },
     ],
   },
   {
@@ -214,7 +250,11 @@ export const FONT_MANIFEST: readonly FontEntry[] = [
     sha256: "28e28bcaf8bffbefd7081282b68bb1309bc43a038a0675bcf0b9ec02c4415f77",
     sources: [
       { url: "https://nbssdlkm.cn/fonts/crimson-pro/v1/CrimsonPro-Regular.subset.woff2", priority: 1 },
-      { url: "https://cdn.jsdelivr.net/npm/@fontsource/crimson-pro@latest/files/crimson-pro-latin-400-normal.woff2", priority: 2, sha256: "" },
+      {
+        url: "https://cdn.jsdelivr.net/npm/@fontsource/crimson-pro@latest/files/crimson-pro-latin-400-normal.woff2",
+        priority: 2,
+        sha256: "",
+      },
     ],
   },
 ];

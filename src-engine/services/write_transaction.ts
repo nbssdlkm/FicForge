@@ -59,14 +59,10 @@ interface PendingDraftDelete {
 export const PARTIAL_COMMIT_CHAPTER_MISSING = "PARTIAL_COMMIT_CHAPTER_MISSING" as const;
 export const PARTIAL_COMMIT_OPS_ONLY = "PARTIAL_COMMIT_OPS_ONLY" as const;
 
-export type PartialCommitErrorCode =
-  | typeof PARTIAL_COMMIT_CHAPTER_MISSING
-  | typeof PARTIAL_COMMIT_OPS_ONLY;
+export type PartialCommitErrorCode = typeof PARTIAL_COMMIT_CHAPTER_MISSING | typeof PARTIAL_COMMIT_OPS_ONLY;
 
 function detectPartialCommitErrorCode(failed: readonly string[]): PartialCommitErrorCode {
-  return failed.includes("chapters")
-    ? PARTIAL_COMMIT_CHAPTER_MISSING
-    : PARTIAL_COMMIT_OPS_ONLY;
+  return failed.includes("chapters") ? PARTIAL_COMMIT_CHAPTER_MISSING : PARTIAL_COMMIT_OPS_ONLY;
 }
 
 function buildPartialCommitMessage(
@@ -75,18 +71,16 @@ function buildPartialCommitMessage(
   failed: readonly string[],
   skipped: readonly string[],
 ): string {
-  const prefix =
-    `WriteTransaction partial commit: completed=[${completed.join(",")}] failed=[${failed.join(",")}] skipped=[${skipped.join(",")}]. `;
+  const prefix = `WriteTransaction partial commit: completed=[${completed.join(",")}] failed=[${failed.join(",")}] skipped=[${skipped.join(",")}]. `;
 
   if (errorCode === PARTIAL_COMMIT_CHAPTER_MISSING) {
     // 只描述本次事务实际跳过的块 —— 多数调用方不带 draft_repo，无条件提
     // drafts 会误导排障（对抗审 LOW）。
-    const skippedClause = skipped.length > 0
-      ? `Blocks [${skipped.join(",")}] were skipped and still hold the pre-transaction snapshot. `
-      : "";
-    const retryHint = skipped.includes("drafts")
-      ? " (re-confirm from the surviving draft)."
-      : ".";
+    const skippedClause =
+      skipped.length > 0
+        ? `Blocks [${skipped.join(",")}] were skipped and still hold the pre-transaction snapshot. `
+        : "";
+    const retryHint = skipped.includes("drafts") ? " (re-confirm from the surviving draft)." : ".";
     return (
       prefix +
       "Ops were committed, but chapter content may be missing on disk. " +
@@ -103,10 +97,7 @@ function buildPartialCommitMessage(
   );
 }
 
-function buildPartialCommitActions(
-  errorCode: PartialCommitErrorCode,
-  skipped: readonly string[],
-): string[] {
+function buildPartialCommitActions(errorCode: PartialCommitErrorCode, skipped: readonly string[]): string[] {
   if (errorCode === PARTIAL_COMMIT_CHAPTER_MISSING) {
     const actions: string[] = [];
     if (skipped.length > 0) {

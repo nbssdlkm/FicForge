@@ -27,111 +27,75 @@ import type { LLMProvider, LLMResponse, LLMChunk, GenerateParams } from "../../l
 
 describe("T4: rawToExtracted — M8-A field validation", () => {
   it("valid time_kind 'flashback' → preserved", () => {
-    const result = rawToExtracted(
-      { content_clean: "Alice flashedback", time_kind: "flashback" },
-      1, null,
-    );
+    const result = rawToExtracted({ content_clean: "Alice flashedback", time_kind: "flashback" }, 1, null);
     expect(result).not.toBeNull();
     expect(result!.time_kind).toBe("flashback");
   });
 
   it("time_kind 'FLASHBACK' (wrong case) → null", () => {
-    const result = rawToExtracted(
-      { content_clean: "test content here", time_kind: "FLASHBACK" },
-      1, null,
-    );
+    const result = rawToExtracted({ content_clean: "test content here", time_kind: "FLASHBACK" }, 1, null);
     expect(result).not.toBeNull();
     expect(result!.time_kind).toBeNull();
   });
 
   it("time_kind 'fantasy' (invalid value) → null", () => {
-    const result = rawToExtracted(
-      { content_clean: "test content here", time_kind: "fantasy" },
-      1, null,
-    );
+    const result = rawToExtracted({ content_clean: "test content here", time_kind: "fantasy" }, 1, null);
     expect(result).not.toBeNull();
     expect(result!.time_kind).toBeNull();
   });
 
   it("all 6 valid time_kind values are accepted", () => {
     for (const v of ["normal", "flashback", "insert", "dream", "parallel", "imagined"]) {
-      const result = rawToExtracted(
-        { content_clean: "test content here", time_kind: v },
-        1, null,
-      );
+      const result = rawToExtracted({ content_clean: "test content here", time_kind: v }, 1, null);
       expect(result).not.toBeNull();
       expect(result!.time_kind).toBe(v);
     }
   });
 
   it("suspense_type 'secret' → preserved", () => {
-    const result = rawToExtracted(
-      { content_clean: "test content here", suspense_type: "secret" },
-      1, null,
-    );
+    const result = rawToExtracted({ content_clean: "test content here", suspense_type: "secret" }, 1, null);
     expect(result).not.toBeNull();
     expect(result!.suspense_type).toBe("secret");
   });
 
   it("suspense_type 'bomb' (invalid) → null", () => {
-    const result = rawToExtracted(
-      { content_clean: "test content here", suspense_type: "bomb" },
-      1, null,
-    );
+    const result = rawToExtracted({ content_clean: "test content here", suspense_type: "bomb" }, 1, null);
     expect(result).not.toBeNull();
     expect(result!.suspense_type).toBeNull();
   });
 
   it("story_time_order as string → null (type guard)", () => {
-    const result = rawToExtracted(
-      { content_clean: "test content here", story_time_order: "1" },
-      1, null,
-    );
+    const result = rawToExtracted({ content_clean: "test content here", story_time_order: "1" }, 1, null);
     expect(result).not.toBeNull();
     expect(result!.story_time_order).toBeNull();
   });
 
   it("story_time_order as number → preserved", () => {
-    const result = rawToExtracted(
-      { content_clean: "test content here", story_time_order: 3 },
-      1, null,
-    );
+    const result = rawToExtracted({ content_clean: "test content here", story_time_order: 3 }, 1, null);
     expect(result).not.toBeNull();
     expect(result!.story_time_order).toBe(3);
   });
 
   it("known_to as number (42) → null", () => {
-    const result = rawToExtracted(
-      { content_clean: "test content here", known_to: 42 },
-      1, null,
-    );
+    const result = rawToExtracted({ content_clean: "test content here", known_to: 42 }, 1, null);
     expect(result).not.toBeNull();
     expect(result!.known_to).toBeNull();
   });
 
   it("known_to 'reader_only' → preserved", () => {
-    const result = rawToExtracted(
-      { content_clean: "test content here", known_to: "reader_only" },
-      1, null,
-    );
+    const result = rawToExtracted({ content_clean: "test content here", known_to: "reader_only" }, 1, null);
     expect(result).not.toBeNull();
     expect(result!.known_to).toBe("reader_only");
   });
 
   it("known_to 'all' → preserved", () => {
-    const result = rawToExtracted(
-      { content_clean: "test content here", known_to: "all" },
-      1, null,
-    );
+    const result = rawToExtracted({ content_clean: "test content here", known_to: "all" }, 1, null);
     expect(result).not.toBeNull();
     expect(result!.known_to).toBe("all");
   });
 
   it("known_to as string array → preserved (with type filter)", () => {
-    const result = rawToExtracted(
-      { content_clean: "test content here", known_to: ["Alice", "Bob"] },
-      1, null,
-    );
+    const result = rawToExtracted({ content_clean: "test content here", known_to: ["Alice", "Bob"] }, 1, null);
     expect(result).not.toBeNull();
     expect(result!.known_to).toEqual(["Alice", "Bob"]);
   });
@@ -139,7 +103,8 @@ describe("T4: rawToExtracted — M8-A field validation", () => {
   it("known_to array with number elements → filters them out", () => {
     const result = rawToExtracted(
       { content_clean: "test content here", known_to: [1, 2, "Alice"] as unknown[] },
-      1, null,
+      1,
+      null,
     );
     expect(result).not.toBeNull();
     // Numbers should be filtered, only "Alice" remains
@@ -147,20 +112,14 @@ describe("T4: rawToExtracted — M8-A field validation", () => {
   });
 
   it("caused_by as string (not array) → []", () => {
-    const result = rawToExtracted(
-      { content_clean: "test content here", caused_by: "f_123" },
-      1, null,
-    );
+    const result = rawToExtracted({ content_clean: "test content here", caused_by: "f_123" }, 1, null);
     expect(result).not.toBeNull();
     expect(result!.caused_by).toEqual([]);
   });
 
   it("_confidence is passed through when valid", () => {
     const confidence = { location: "high" as const, known_to: "low" as const };
-    const result = rawToExtracted(
-      { content_clean: "test content here", _confidence: confidence },
-      1, null,
-    );
+    const result = rawToExtracted({ content_clean: "test content here", _confidence: confidence }, 1, null);
     expect(result).not.toBeNull();
     expect(result!._confidence).toEqual(confidence);
   });
@@ -173,7 +132,8 @@ describe("T4: rawToExtracted — M8-A field validation", () => {
         location: "御书房",
         action_verb: "决裂",
       },
-      1, null,
+      1,
+      null,
     );
     expect(result).not.toBeNull();
     expect(result!.time_kind).toBeNull();
@@ -228,8 +188,12 @@ describe("T5: extractFactsFromChapter — M8-A new fields", () => {
   it("new fields are correctly parsed from LLM response", async () => {
     const results = await extractFactsFromChapter(
       "皇帝在御书房暗中密谋，赐毒于使者。",
-      1, [], { characters: ["皇帝", "皇后"] }, null,
-      enrichedProvider, null,
+      1,
+      [],
+      { characters: ["皇帝", "皇后"] },
+      null,
+      enrichedProvider,
+      null,
     );
     expect(results).toHaveLength(1);
     const f = results[0];
@@ -255,22 +219,33 @@ describe("T5: extractFactsFromChapter — M8-A new fields", () => {
     const badProvider: LLMProvider = {
       async generate(): Promise<LLMResponse> {
         return {
-          content: JSON.stringify([{
-            content_raw: "第1章 test",
-            content_clean: "test event here",
-            type: "plot_event",
-            status: "active",
-            time_kind: "fantasy",  // invalid
-            location: "somewhere",
-          }]),
-          model: "test", input_tokens: 0, output_tokens: 0, finish_reason: "stop",
+          content: JSON.stringify([
+            {
+              content_raw: "第1章 test",
+              content_clean: "test event here",
+              type: "plot_event",
+              status: "active",
+              time_kind: "fantasy", // invalid
+              location: "somewhere",
+            },
+          ]),
+          model: "test",
+          input_tokens: 0,
+          output_tokens: 0,
+          finish_reason: "stop",
         };
       },
       async *generateStream(): AsyncIterable<LLMChunk> {},
     };
 
     const results = await extractFactsFromChapter(
-      "Chapter content here.", 1, [], { characters: [] }, null, badProvider, null,
+      "Chapter content here.",
+      1,
+      [],
+      { characters: [] },
+      null,
+      badProvider,
+      null,
     );
     expect(results).toHaveLength(1);
     expect(results[0].time_kind).toBeNull();
@@ -281,22 +256,33 @@ describe("T5: extractFactsFromChapter — M8-A new fields", () => {
     const plainProvider: LLMProvider = {
       async generate(): Promise<LLMResponse> {
         return {
-          content: JSON.stringify([{
-            content_raw: "第1章 Alice遇到Bob",
-            content_clean: "Alice遇到Bob",
-            characters: ["Alice"],
-            type: "plot_event",
-            status: "active",
-            narrative_weight: "medium",
-          }]),
-          model: "test", input_tokens: 0, output_tokens: 0, finish_reason: "stop",
+          content: JSON.stringify([
+            {
+              content_raw: "第1章 Alice遇到Bob",
+              content_clean: "Alice遇到Bob",
+              characters: ["Alice"],
+              type: "plot_event",
+              status: "active",
+              narrative_weight: "medium",
+            },
+          ]),
+          model: "test",
+          input_tokens: 0,
+          output_tokens: 0,
+          finish_reason: "stop",
         };
       },
       async *generateStream(): AsyncIterable<LLMChunk> {},
     };
 
     const results = await extractFactsFromChapter(
-      "Alice遇到了Bob。", 1, [], { characters: ["Alice", "Bob"] }, null, plainProvider, null,
+      "Alice遇到了Bob。",
+      1,
+      [],
+      { characters: ["Alice", "Bob"] },
+      null,
+      plainProvider,
+      null,
     );
     expect(results).toHaveLength(1);
     expect(results[0].content_clean).toBe("Alice遇到Bob");
@@ -314,25 +300,35 @@ describe("T5: extractFactsFromChapter — M8-A new fields", () => {
 describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
   it("known_to 'reader_only' with high confidence → 知情条款注入 + 图例出现（M3 批一改人话渲染）", () => {
     const fact = createFact({
-      id: "f1", content_raw: "r", content_clean: "皇帝暗中赐毒",
-      status: FactStatus.ACTIVE, chapter: 1,
+      id: "f1",
+      content_raw: "r",
+      content_clean: "皇帝暗中赐毒",
+      status: FactStatus.ACTIVE,
+      chapter: 1,
       known_to: "reader_only" as "reader_only",
       _confidence: { known_to: "high" },
     });
     const [text] = build_facts_layer([fact], [], 10000, null, "zh");
     expect(text).toContain("（仅读者知）");
-    expect(text).not.toContain("known_to:");          // 旧原始键值对形态退役
-    expect(text).toContain("知情范围说明");            // 图例仅在有标注时出现
+    expect(text).not.toContain("known_to:"); // 旧原始键值对形态退役
+    expect(text).toContain("知情范围说明"); // 图例仅在有标注时出现
   });
 
   it("B1: caused_by 渲染为「起因：<被引用事实内容>」（跨章因果进 prompt）", () => {
     const cause = createFact({
-      id: "f_cause", content_raw: "r", content_clean: "沈砚发现父亲笔迹残页",
-      status: FactStatus.ACTIVE, chapter: 1,
+      id: "f_cause",
+      content_raw: "r",
+      content_clean: "沈砚发现父亲笔迹残页",
+      status: FactStatus.ACTIVE,
+      chapter: 1,
     });
     const effect = createFact({
-      id: "f_effect", content_raw: "r", content_clean: "沈砚决意面圣翻案",
-      status: FactStatus.ACTIVE, chapter: 3, caused_by: ["f_cause"],
+      id: "f_effect",
+      content_raw: "r",
+      content_clean: "沈砚决意面圣翻案",
+      status: FactStatus.ACTIVE,
+      chapter: 3,
+      caused_by: ["f_cause"],
     });
     const [text] = build_facts_layer([cause, effect], [], 10000, null, "zh");
     // 旧代码明确不注入 caused_by；新代码解析 fact_id → 起因短句
@@ -341,8 +337,12 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
 
   it("B1: caused_by 指向不存在的 id → 跳过，绝不渲染裸 id", () => {
     const f = createFact({
-      id: "f1", content_raw: "r", content_clean: "某个事件",
-      status: FactStatus.ACTIVE, chapter: 2, caused_by: ["f_nonexistent"],
+      id: "f1",
+      content_raw: "r",
+      content_clean: "某个事件",
+      status: FactStatus.ACTIVE,
+      chapter: 2,
+      caused_by: ["f_nonexistent"],
     });
     const [text] = build_facts_layer([f], [], 10000, null, "zh");
     expect(text).not.toContain("起因");
@@ -351,8 +351,11 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
 
   it("known_to 'all' with low confidence → NOT injected", () => {
     const fact = createFact({
-      id: "f1", content_raw: "r", content_clean: "普通事件",
-      status: FactStatus.ACTIVE, chapter: 1,
+      id: "f1",
+      content_raw: "r",
+      content_clean: "普通事件",
+      status: FactStatus.ACTIVE,
+      chapter: 1,
       known_to: "all" as "all",
       _confidence: { known_to: "low" },
     });
@@ -363,8 +366,11 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
 
   it("no _confidence（手动/导入的 ground truth）→ 富化字段注入（MED-3）", () => {
     const fact = createFact({
-      id: "f1", content_raw: "r", content_clean: "普通事件",
-      status: FactStatus.ACTIVE, chapter: 1,
+      id: "f1",
+      content_raw: "r",
+      content_clean: "普通事件",
+      status: FactStatus.ACTIVE,
+      chapter: 1,
       known_to: "reader_only" as "reader_only",
       time_kind: "flashback" as any,
       action_verb: "决裂",
@@ -378,8 +384,11 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
 
   it("time_kind 'flashback' with medium confidence → injected", () => {
     const fact = createFact({
-      id: "f1", content_raw: "r", content_clean: "闪回内容",
-      status: FactStatus.ACTIVE, chapter: 1,
+      id: "f1",
+      content_raw: "r",
+      content_clean: "闪回内容",
+      status: FactStatus.ACTIVE,
+      chapter: 1,
       time_kind: "flashback" as any,
       _confidence: { time_kind: "medium" },
     });
@@ -389,8 +398,11 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
 
   it("time_kind 'normal' → NOT injected (no information value)", () => {
     const fact = createFact({
-      id: "f1", content_raw: "r", content_clean: "普通叙事",
-      status: FactStatus.ACTIVE, chapter: 1,
+      id: "f1",
+      content_raw: "r",
+      content_clean: "普通叙事",
+      status: FactStatus.ACTIVE,
+      chapter: 1,
       time_kind: "normal" as any,
       _confidence: { time_kind: "high" },
     });
@@ -400,8 +412,11 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
 
   it("action_verb with high confidence → injected", () => {
     const fact = createFact({
-      id: "f1", content_raw: "r", content_clean: "皇帝决裂",
-      status: FactStatus.ACTIVE, chapter: 1,
+      id: "f1",
+      content_raw: "r",
+      content_clean: "皇帝决裂",
+      status: FactStatus.ACTIVE,
+      chapter: 1,
       action_verb: "决裂",
       _confidence: { action_verb: "high" },
     });
@@ -411,8 +426,11 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
 
   it("location with medium confidence → injected", () => {
     const fact = createFact({
-      id: "f1", content_raw: "r", content_clean: "在御书房密谋",
-      status: FactStatus.ACTIVE, chapter: 1,
+      id: "f1",
+      content_raw: "r",
+      content_clean: "在御书房密谋",
+      status: FactStatus.ACTIVE,
+      chapter: 1,
       location: "御书房",
       _confidence: { location: "medium" },
     });
@@ -422,8 +440,11 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
 
   it("suspense_type with medium confidence → injected", () => {
     const fact = createFact({
-      id: "f1", content_raw: "r", content_clean: "预示结局",
-      status: FactStatus.ACTIVE, chapter: 1,
+      id: "f1",
+      content_raw: "r",
+      content_clean: "预示结局",
+      status: FactStatus.ACTIVE,
+      chapter: 1,
       suspense_type: "foreshadow" as any,
       _confidence: { suspense_type: "medium" },
     });
@@ -435,7 +456,9 @@ describe("T6: build_facts_layer — M8-A enrichment suffix injection", () => {
 describe("T6: build_fact_enrichment_suffix — pure function (M8-A)", () => {
   it("no _confidence（手动/导入）→ present 富化字段无条件注入（MED-3）", () => {
     const fact = createFact({
-      id: "f1", content_raw: "r", content_clean: "c",
+      id: "f1",
+      content_raw: "r",
+      content_clean: "c",
       known_to: "reader_only" as "reader_only",
       time_kind: "flashback" as any,
     });
@@ -452,7 +475,9 @@ describe("T6: build_fact_enrichment_suffix — pure function (M8-A)", () => {
 
   it("returns parenthesized suffix with high-confidence fields", () => {
     const fact = createFact({
-      id: "f1", content_raw: "r", content_clean: "c",
+      id: "f1",
+      content_raw: "r",
+      content_clean: "c",
       time_kind: "flashback" as any,
       action_verb: "决裂",
       _confidence: { time_kind: "medium", action_verb: "high" },
@@ -467,7 +492,9 @@ describe("T6: build_fact_enrichment_suffix — pure function (M8-A)", () => {
 
   it("low confidence fields are NOT included in suffix", () => {
     const fact = createFact({
-      id: "f1", content_raw: "r", content_clean: "c",
+      id: "f1",
+      content_raw: "r",
+      content_clean: "c",
       action_verb: "决裂",
       location: "某地",
       _confidence: { action_verb: "high", location: "low" },
@@ -479,7 +506,9 @@ describe("T6: build_fact_enrichment_suffix — pure function (M8-A)", () => {
 
   it("_confidence 存在但某字段无条目 → 该字段抑制（ReAct 行为不变，MED-3 只放开无 _confidence 的手动路径）", () => {
     const fact = createFact({
-      id: "f1", content_raw: "r", content_clean: "c",
+      id: "f1",
+      content_raw: "r",
+      content_clean: "c",
       action_verb: "决裂",
       location: "御书房", // location 在 _confidence 里无条目
       _confidence: { action_verb: "high" },
@@ -491,7 +520,9 @@ describe("T6: build_fact_enrichment_suffix — pure function (M8-A)", () => {
 
   it("time_kind 'normal' is NOT included even if high confidence", () => {
     const fact = createFact({
-      id: "f1", content_raw: "r", content_clean: "c",
+      id: "f1",
+      content_raw: "r",
+      content_clean: "c",
       time_kind: "normal" as any,
       _confidence: { time_kind: "high" },
     });
@@ -660,32 +691,24 @@ describe("T8: ops round-trip with new enrichment fields (M8-A)", () => {
 
 describe("T4+: rawToExtracted — M3 批一消毒口径", () => {
   it("known_to 裸字符串（非 all/reader_only）→ 折叠为单人名单（旧行为：原样字符串）", () => {
-    const result = rawToExtracted(
-      { content_clean: "test content here", known_to: "皇帝" },
-      1, null,
-    );
+    const result = rawToExtracted({ content_clean: "test content here", known_to: "皇帝" }, 1, null);
     expect(result!.known_to).toEqual(["皇帝"]);
   });
 
   it("hidden_from 数组过滤非字符串元素 + trim（旧行为：裸 cast 数字也落盘）", () => {
-    const result = rawToExtracted(
-      { content_clean: "test content here", hidden_from: [1, " 王爷 ", ""] },
-      1, null,
-    );
+    const result = rawToExtracted({ content_clean: "test content here", hidden_from: [1, " 王爷 ", ""] }, 1, null);
     expect(result!.hidden_from).toEqual(["王爷"]);
   });
 
   it("_confidence 非法档位/未知键被过滤，仅存合法条目；全非法 → undefined", () => {
     const r1 = rawToExtracted(
       { content_clean: "test content here", _confidence: { location: "banana", known_to: "low", bogus: "high" } },
-      1, null,
+      1,
+      null,
     );
     expect(r1!._confidence).toEqual({ known_to: "low" });
 
-    const r2 = rawToExtracted(
-      { content_clean: "test content here", _confidence: { location: "banana" } },
-      1, null,
-    );
+    const r2 = rawToExtracted({ content_clean: "test content here", _confidence: { location: "banana" } }, 1, null);
     expect(r2!._confidence).toBeUndefined();
   });
 });

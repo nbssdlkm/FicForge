@@ -33,9 +33,15 @@ describe("checkAndSnapshot — watermark 增量归档", () => {
   async function seed(currentChapter: number, opsCount: number) {
     await stateRepo.save(createState({ au_id: AU, current_chapter: currentChapter }));
     for (let i = 0; i < opsCount; i++) {
-      await opsRepo.append(AU, createOpsEntry({
-        op_id: `op${i}`, op_type: "confirm_chapter", chapter_num: i + 1, timestamp: `t${i}`,
-      }));
+      await opsRepo.append(
+        AU,
+        createOpsEntry({
+          op_id: `op${i}`,
+          op_type: "confirm_chapter",
+          chapter_num: i + 1,
+          timestamp: `t${i}`,
+        }),
+      );
     }
   }
 
@@ -74,9 +80,15 @@ describe("checkAndSnapshot — watermark 增量归档", () => {
 
     // 50→100 章间又追加 5 条 ops
     for (let i = 7; i < 12; i++) {
-      await opsRepo.append(AU, createOpsEntry({
-        op_id: `op${i}`, op_type: "confirm_chapter", chapter_num: i + 1, timestamp: `t${i}`,
-      }));
+      await opsRepo.append(
+        AU,
+        createOpsEntry({
+          op_id: `op${i}`,
+          op_type: "confirm_chapter",
+          chapter_num: i + 1,
+          timestamp: `t${i}`,
+        }),
+      );
     }
     await stateRepo.save(createState({ au_id: AU, current_chapter: 100 }));
     expect(await checkAndSnapshot(AU, adapter, opsRepo, stateRepo, factRepo)).toBe(true);

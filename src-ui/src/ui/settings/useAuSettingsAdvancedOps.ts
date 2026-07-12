@@ -2,15 +2,11 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect, useState } from 'react';
-import {
-  findArchivalCandidates,
-  recalcState,
-  rebuildIndex as rebuildIndexApi,
-} from '../../api/engine-client';
-import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
-import { useFeedback } from '../../hooks/useFeedback';
-import { useTranslation } from '../../i18n/useAppTranslation';
+import { useEffect, useState } from "react";
+import { findArchivalCandidates, recalcState, rebuildIndex as rebuildIndexApi } from "../../api/engine-client";
+import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
+import { useFeedback } from "../../hooks/useFeedback";
+import { useTranslation } from "../../i18n/useAppTranslation";
 
 /**
  * useAuSettingsAdvancedOps — AU 设置页「高级操作」区：recalc / 重建索引 / 归档候选数徽标。
@@ -43,8 +39,12 @@ export function useAuSettingsAdvancedOps(auPath: string, isArchiveOpen: boolean)
       .then((list) => {
         if (!cancelled && !guard.isKeyStale(requestAuPath)) setArchiveCandidateCount(list.length);
       })
-      .catch(() => { if (!cancelled) setArchiveCandidateCount(null); }); // 扫失败静默（不干扰设置页）
-    return () => { cancelled = true; };
+      .catch(() => {
+        if (!cancelled) setArchiveCandidateCount(null);
+      }); // 扫失败静默（不干扰设置页）
+    return () => {
+      cancelled = true;
+    };
   }, [auPath, isArchiveOpen, guard]);
 
   const recalc = async () => {
@@ -53,10 +53,10 @@ export function useAuSettingsAdvancedOps(auPath: string, isArchiveOpen: boolean)
     try {
       const result = await recalcState(auPath);
       if (guard.isKeyStale(requestAuPath)) return;
-      showSuccess(t('advanced.recalcSuccess', { scanned: result.chapters_scanned, dirty: result.cleaned_dirty_count }));
+      showSuccess(t("advanced.recalcSuccess", { scanned: result.chapters_scanned, dirty: result.cleaned_dirty_count }));
     } catch (error) {
       if (guard.isKeyStale(requestAuPath)) return;
-      showError(error, t('error_messages.unknown'));
+      showError(error, t("error_messages.unknown"));
     } finally {
       if (!guard.isKeyStale(requestAuPath)) {
         setRecalcing(false);
@@ -67,9 +67,9 @@ export function useAuSettingsAdvancedOps(auPath: string, isArchiveOpen: boolean)
   const rebuildIndex = async () => {
     try {
       await rebuildIndexApi(auPath);
-      showSuccess(t('advanced.rebuildIndexSuccess'));
+      showSuccess(t("advanced.rebuildIndexSuccess"));
     } catch (e) {
-      showError(e, t('advanced.rebuildIndexFail'));
+      showError(e, t("advanced.rebuildIndexFail"));
     }
   };
 

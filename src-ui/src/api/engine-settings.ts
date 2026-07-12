@@ -83,13 +83,18 @@ async function readSettings(): Promise<Settings> {
  * 单一真相源：facts 提取 readiness（engine-facts.getFactsExtractionReadiness）复用此谓词，
  * 避免 UI 侧重复实现「可用连接」判据（审计④）。
  */
-export function hasUsableConnection(llm: {
-  mode?: string;
-  api_key?: string;
-  local_model_path?: string;
-  ollama_model?: string;
-  model?: string;
-} | null | undefined): boolean {
+export function hasUsableConnection(
+  llm:
+    | {
+        mode?: string;
+        api_key?: string;
+        local_model_path?: string;
+        ollama_model?: string;
+        model?: string;
+      }
+    | null
+    | undefined,
+): boolean {
   if (!llm) return false;
   if (llm.mode === "local") {
     return Boolean(llm.local_model_path?.trim());
@@ -115,9 +120,7 @@ function toLlmQueryInfo(llm: Settings["default_llm"] | null | undefined): LlmQue
 
 function toEmbeddingQueryInfo(embedding: Settings["embedding"] | null | undefined): EmbeddingQueryInfo {
   const hasApiKey = Boolean(embedding?.api_key?.trim());
-  const hasCustomConfig = Boolean(
-    embedding?.model?.trim() || embedding?.api_base?.trim() || hasApiKey,
-  );
+  const hasCustomConfig = Boolean(embedding?.model?.trim() || embedding?.api_base?.trim() || hasApiKey);
 
   return {
     mode: embedding?.mode || "api",
@@ -214,9 +217,7 @@ function generateCustomProviderId(): string {
 export async function saveCustomProvider(input: CustomProviderSaveInput): Promise<CustomProviderInfo> {
   return withSettingsWrite((current) => {
     current.custom_providers = current.custom_providers ?? [];
-    const existing = input.id
-      ? current.custom_providers.find((p) => p.id === input.id)
-      : undefined;
+    const existing = input.id ? current.custom_providers.find((p) => p.id === input.id) : undefined;
 
     const entry: CustomProviderEntry = {
       id: existing?.id ?? input.id ?? generateCustomProviderId(),
@@ -423,9 +424,10 @@ export async function saveGlobalSettingsForEditing(payload: GlobalSettingsSaveIn
       ...current.default_llm,
       mode: payload.default_llm.mode as Settings["default_llm"]["mode"],
       model: payload.default_llm.mode === "api" ? payload.default_llm.model : "",
-      api_base: payload.default_llm.mode === "ollama"
-        ? (payload.default_llm.api_base || DEFAULT_OLLAMA_BASE_URL)
-        : payload.default_llm.api_base,
+      api_base:
+        payload.default_llm.mode === "ollama"
+          ? payload.default_llm.api_base || DEFAULT_OLLAMA_BASE_URL
+          : payload.default_llm.api_base,
       // 非 API 模式置空 = 删除 secure storage 密钥（TD-016 修复后行为）；切回 API 需重填。详见
       // engine-project.ts 同款注释。有意如此：磁盘配置即唯一真相源。
       api_key: payload.default_llm.mode === "api" ? payload.default_llm.api_key : "",

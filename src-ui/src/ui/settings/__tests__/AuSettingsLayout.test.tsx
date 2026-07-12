@@ -85,10 +85,10 @@ describe("AuSettingsLayout — 状态下沉回归", () => {
   it("加载后表单回显 project 值", async () => {
     await renderLayout();
 
-    expect(screen.getByDisplayValue("3000")).toBeTruthy();   // 每章目标字数
+    expect(screen.getByDisplayValue("3000")).toBeTruthy(); // 每章目标字数
     expect(screen.getByDisplayValue("禁止OOC")).toBeTruthy(); // 铁律
-    expect(screen.getAllByText("主角甲")).toHaveLength(2);    // 必带角色 tag + cast 列表
-    expect(screen.getByDisplayValue("bge-m3")).toBeTruthy();  // 全局 embedding 回显（非覆盖态）
+    expect(screen.getAllByText("主角甲")).toHaveLength(2); // 必带角色 tag + cast 列表
+    expect(screen.getByDisplayValue("bge-m3")).toBeTruthy(); // 全局 embedding 回显（非覆盖态）
   });
 
   it("编辑后保存 → payload 来自最新表单", async () => {

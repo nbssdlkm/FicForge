@@ -7,16 +7,12 @@ import type { SimpleChatMessage } from "../../domain/simple_chat.js";
 
 describe("chatToOpenAIMessages", () => {
   it("user message → role:user content", () => {
-    const out = chatToOpenAIMessages([
-      { id: "1", kind: "user", timestamp: "t", content: "hi" },
-    ]);
+    const out = chatToOpenAIMessages([{ id: "1", kind: "user", timestamp: "t", content: "hi" }]);
     expect(out).toEqual([{ role: "user", content: "hi" }]);
   });
 
   it("assistant 闲聊（无 toolCalls）→ role:assistant content（向后兼容）", () => {
-    const out = chatToOpenAIMessages([
-      { id: "1", kind: "assistant", timestamp: "t", content: "你好" },
-    ]);
+    const out = chatToOpenAIMessages([{ id: "1", kind: "assistant", timestamp: "t", content: "你好" }]);
     expect(out).toEqual([{ role: "assistant", content: "你好" }]);
     // 关键：不输出 tool_calls 字段（保持闲聊消息形状跟 commit 6c7b3e2 之前一致）
     expect(out[0]).not.toHaveProperty("tool_calls");
@@ -87,9 +83,7 @@ describe("chatToOpenAIMessages", () => {
           kind: "assistant",
           timestamp: "t",
           content: "",
-          toolCalls: [
-            { id: "call_show", name: "show_chapter", args: '{"chapter_num":5}' },
-          ],
+          toolCalls: [{ id: "call_show", name: "show_chapter", args: '{"chapter_num":5}' }],
         },
         // 没 tool-result for call_show（orphan）
         { id: "a2", kind: "assistant", timestamp: "t", content: "看完了" },
@@ -174,9 +168,7 @@ describe("chatToOpenAIMessages", () => {
           kind: "assistant",
           timestamp: "t",
           content: "让我查一下",
-          toolCalls: [
-            { id: "call_x", name: "show_chapter", args: '{"chapter_num":5}' },
-          ],
+          toolCalls: [{ id: "call_x", name: "show_chapter", args: '{"chapter_num":5}' }],
         },
         // 插入一条别的 assistant 文本，把 call_x 的 tool-result 从其父消息隔开。
         { id: "a_mid", kind: "assistant", timestamp: "t", content: "顺便说一句" },
@@ -216,9 +208,7 @@ describe("chatToOpenAIMessages", () => {
           kind: "assistant",
           timestamp: "t",
           content: "我考虑一下",
-          toolCalls: [
-            { id: "orphan_id", name: "show_chapter", args: '{"chapter_num":1}' },
-          ],
+          toolCalls: [{ id: "orphan_id", name: "show_chapter", args: '{"chapter_num":1}' }],
         },
       ]);
       // tool_calls drop 但 content 保留
@@ -230,9 +220,7 @@ describe("chatToOpenAIMessages", () => {
   });
 
   it("assistant.toolCalls 为空数组时不输出 tool_calls 字段（防空数组污染 history）", () => {
-    const out = chatToOpenAIMessages([
-      { id: "1", kind: "assistant", timestamp: "t", content: "hi", toolCalls: [] },
-    ]);
+    const out = chatToOpenAIMessages([{ id: "1", kind: "assistant", timestamp: "t", content: "hi", toolCalls: [] }]);
     expect(out[0]).not.toHaveProperty("tool_calls");
   });
 

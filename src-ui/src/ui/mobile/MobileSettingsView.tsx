@@ -58,27 +58,28 @@ export function MobileSettingsView({ auPath, currentChapter }: MobileSettingsVie
     setContextReady(false);
     setAssistantBusy(false);
     const token = contextGuard.start();
-    Promise.all([
-      getWriterProjectContext(auPath).catch(() => null),
-      getWriterSessionConfig().catch(() => null),
-    ]).then(([proj, settings]) => {
-      if (contextGuard.isStale(token)) return;
-      setProjectInfo(proj);
-      setSettingsInfo(settings);
-      // 加载失败也置 ready（null 时 useSessionParams 用默认值），不永久锁死面板
-      setContextReady(true);
-    });
+    Promise.all([getWriterProjectContext(auPath).catch(() => null), getWriterSessionConfig().catch(() => null)]).then(
+      ([proj, settings]) => {
+        if (contextGuard.isStale(token)) return;
+        setProjectInfo(proj);
+        setSettingsInfo(settings);
+        // 加载失败也置 ready（null 时 useSessionParams 用默认值），不永久锁死面板
+        setContextReady(true);
+      },
+    );
   }, [auPath, contextGuard]);
 
   useEffect(() => {
     const token = loadGuard.start();
-    getState(auPath).then((state) => {
-      if (loadGuard.isStale(token)) return;
-      setResolvedCurrentChapter(state?.current_chapter || 1);
-    }).catch(() => {
-      if (loadGuard.isStale(token)) return;
-      setResolvedCurrentChapter(currentChapter || 1);
-    });
+    getState(auPath)
+      .then((state) => {
+        if (loadGuard.isStale(token)) return;
+        setResolvedCurrentChapter(state?.current_chapter || 1);
+      })
+      .catch(() => {
+        if (loadGuard.isStale(token)) return;
+        setResolvedCurrentChapter(currentChapter || 1);
+      });
   }, [auPath, currentChapter, overlayOpen]);
 
   const handleCloseOverlay = () => {
@@ -100,7 +101,8 @@ export function MobileSettingsView({ auPath, currentChapter }: MobileSettingsVie
           FAB 会被 nav 盖住一截。改为 nav 实高 + 12px 间距的 calc 精确锚定。 */}
       <div className="pointer-events-none fixed inset-x-0 bottom-[calc(5.3125rem+var(--safe-area-bottom))] z-30 flex justify-end px-4 md:hidden">
         <Button
-          tone="accent" fill="solid"
+          tone="accent"
+          fill="solid"
           className="pointer-events-auto h-12 rounded-full px-5 shadow-strong"
           onClick={() => setOverlayOpen(true)}
         >
@@ -112,12 +114,7 @@ export function MobileSettingsView({ auPath, currentChapter }: MobileSettingsVie
       {overlayOpen ? (
         <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
           <header className="safe-area-top flex items-center justify-between border-b border-rule bg-surface/95 px-4 py-3 backdrop-blur-sm">
-            <Button
-              tone="neutral" fill="plain"
-              size="sm"
-              className="h-11 px-3"
-              onClick={handleCloseOverlay}
-            >
+            <Button tone="neutral" fill="plain" size="sm" className="h-11 px-3" onClick={handleCloseOverlay}>
               <ArrowLeft size={16} className="mr-2" />
               {t("common.actions.back")}
             </Button>

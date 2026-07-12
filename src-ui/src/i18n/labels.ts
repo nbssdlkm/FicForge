@@ -9,11 +9,7 @@ function translateWithFallback(key: string, fallback: string): string {
   return value === key ? fallback : value;
 }
 
-export function getEnumLabel(
-  group: string,
-  value: string | null | undefined,
-  fallback = ""
-): string {
+export function getEnumLabel(group: string, value: string | null | undefined, fallback = ""): string {
   if (!value) return fallback;
   return translateWithFallback(`enums.${group}.${value}`, fallback || value);
 }
@@ -30,9 +26,7 @@ function nameJoiner(): string {
 
 // 参数类型放宽为 string（而非 "all"|"reader_only" 字面量）：兼容引擎消毒上线前
 // 落盘的裸角色名等历史形态，运行时逐分支判别。
-export function getKnownToLabel(
-  knownTo: string | string[] | null | undefined,
-): string {
+export function getKnownToLabel(knownTo: string | string[] | null | undefined): string {
   if (!knownTo || knownTo === "all") return "";
   if (knownTo === "reader_only") return i18n.t("enums.known_to.reader_only");
   if (Array.isArray(knownTo)) {

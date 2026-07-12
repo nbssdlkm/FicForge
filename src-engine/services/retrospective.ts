@@ -39,10 +39,7 @@ export interface RetrospectiveOptions {
  *     ch=5 → target=0 < 1 → false
  *     ch=7 → 7%5≠0 → false
  */
-export function should_run_retrospective(
-  chapterNum: number,
-  triggerInterval: number,
-): boolean {
+export function should_run_retrospective(chapterNum: number, triggerInterval: number): boolean {
   if (chapterNum % triggerInterval !== 0) return false;
   const targetChapterNum = chapterNum - triggerInterval;
   return targetChapterNum >= 1;
@@ -132,8 +129,7 @@ export async function generate_retrospective(
     { role: "system" as const, content: P.SUMMARY_RETROSPECTIVE_SYSTEM },
     {
       role: "user" as const,
-      content: P.SUMMARY_RETROSPECTIVE_USER
-        .replace("{chapter_num}", String(targetChapterNum))
+      content: P.SUMMARY_RETROSPECTIVE_USER.replace("{chapter_num}", String(targetChapterNum))
         .replace("{chapter_text}", chapterText)
         .replace("{prior_summary}", priorSummary || "（无原摘要）")
         .replace("{micro_summaries}", microSummaries),
@@ -193,9 +189,15 @@ export async function commit_retrospective(
     logCatch("retrospective", `indexChapterSummary failed for chapter ${targetChapterNum} v2`, err);
     if (stateRepo) {
       try {
-        await stateRepo.update(auPath, (st) => { st.index_status = IndexStatus.STALE; });
+        await stateRepo.update(auPath, (st) => {
+          st.index_status = IndexStatus.STALE;
+        });
       } catch (stErr) {
-        logCatch("retrospective", `Failed to mark index STALE after summary vector overwrite failed (chapter ${targetChapterNum})`, stErr);
+        logCatch(
+          "retrospective",
+          `Failed to mark index STALE after summary vector overwrite failed (chapter ${targetChapterNum})`,
+          stErr,
+        );
       }
     }
   }
@@ -222,11 +224,15 @@ export async function run_retrospective(
   opts?: RetrospectiveOptions,
 ): Promise<void> {
   const genResult = await generate_retrospective(
-    auPath, targetChapterNum, chapterRepo, summaryRepo, llmProvider, currentChapter, opts,
+    auPath,
+    targetChapterNum,
+    chapterRepo,
+    summaryRepo,
+    llmProvider,
+    currentChapter,
+    opts,
   );
   if (!genResult) return;
 
-  await commit_retrospective(
-    auPath, targetChapterNum, genResult, summaryRepo, ragManager, embeddingProvider,
-  );
+  await commit_retrospective(auPath, targetChapterNum, genResult, summaryRepo, ragManager, embeddingProvider);
 }

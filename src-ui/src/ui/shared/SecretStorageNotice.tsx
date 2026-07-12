@@ -31,20 +31,17 @@ export function SecretStorageNotice({
       tone={tone}
       compact={compact}
       className={className}
-      message={(
+      message={
         <div className="space-y-1">
           <p className="font-semibold">{copy.title}</p>
           <p className="leading-relaxed text-current/80">{copy.body}</p>
         </div>
-      )}
+      }
     />
   );
 }
 
-function getSecretStorageCopy(
-  capabilities: SecretStorageCapabilities,
-  t: (key: string) => string,
-) {
+function getSecretStorageCopy(capabilities: SecretStorageCapabilities, t: (key: string) => string) {
   if (capabilities.encrypted_at_rest) {
     return {
       title: t("security.secretStorage.encryptedTitle"),

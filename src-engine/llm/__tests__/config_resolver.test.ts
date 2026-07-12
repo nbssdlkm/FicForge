@@ -90,7 +90,14 @@ describe("resolve_llm_config", () => {
     const result = resolve_llm_config(
       null,
       { llm: { mode: "api", model: "deepseek-chat", api_base: "https://attacker.example/v1", api_key: "<secure>" } },
-      { default_llm: { mode: "api", model: "deepseek-chat", api_base: "https://api.deepseek.com", api_key: "sk-GLOBAL" } },
+      {
+        default_llm: {
+          mode: "api",
+          model: "deepseek-chat",
+          api_base: "https://api.deepseek.com",
+          api_key: "sk-GLOBAL",
+        },
+      },
     );
     expect(result.api_base).toBe("https://attacker.example/v1");
     expect(result.api_key).toBe("");
@@ -100,7 +107,14 @@ describe("resolve_llm_config", () => {
     const result = resolve_llm_config(
       null,
       { llm: { mode: "api", model: "deepseek-reasoner", api_base: "HTTPS://API.deepseek.com/", api_key: "" } },
-      { default_llm: { mode: "api", model: "deepseek-chat", api_base: "https://api.deepseek.com", api_key: "sk-GLOBAL" } },
+      {
+        default_llm: {
+          mode: "api",
+          model: "deepseek-chat",
+          api_base: "https://api.deepseek.com",
+          api_key: "sk-GLOBAL",
+        },
+      },
     );
     expect(result.api_key).toBe("sk-GLOBAL");
   });
@@ -119,14 +133,28 @@ describe("resolve_llm_config", () => {
   it("宿主注入 chat_path（协议相对 //host）被拒，不带出 resolve 结果", () => {
     const result = resolve_llm_config(
       null,
-      { llm: { mode: "api", model: "m", api_base: "https://api.deepseek.com", api_key: "sk-x", chat_path: "//attacker.example/v1/chat/completions" } },
+      {
+        llm: {
+          mode: "api",
+          model: "m",
+          api_base: "https://api.deepseek.com",
+          api_key: "sk-x",
+          chat_path: "//attacker.example/v1/chat/completions",
+        },
+      },
       { default_llm: {} },
     );
     expect(result.chat_path).toBeUndefined();
   });
 
   it("绝对 URL / 反斜杠形态的 chat_path 一律被拒", () => {
-    for (const bad of ["https://attacker/v1/chat", "http://x/y", "\\\\attacker\\path", "path\\with\\backslash", "x://y"]) {
+    for (const bad of [
+      "https://attacker/v1/chat",
+      "http://x/y",
+      "\\\\attacker\\path",
+      "path\\with\\backslash",
+      "x://y",
+    ]) {
       const r = resolve_llm_config(
         null,
         { llm: { mode: "api", model: "m", api_base: "https://ok.example", api_key: "k", chat_path: bad } },
@@ -148,12 +176,7 @@ describe("resolve_llm_config", () => {
 
 describe("resolve_llm_params", () => {
   it("session_params takes priority", () => {
-    const result = resolve_llm_params(
-      "gpt-4o",
-      { temperature: 0.5, top_p: 0.8 },
-      {},
-      {},
-    );
+    const result = resolve_llm_params("gpt-4o", { temperature: 0.5, top_p: 0.8 }, {}, {});
     expect(result.temperature).toBe(0.5);
     expect(result.top_p).toBe(0.8);
   });
@@ -192,15 +215,16 @@ describe("resolve_llm_params", () => {
 describe("create_provider", () => {
   it("mode=api 返回 OpenAICompatibleProvider", () => {
     const p = create_provider({
-      mode: "api", model: "gpt-4o", api_base: "https://api.openai.com/v1", api_key: "sk-x",
+      mode: "api",
+      model: "gpt-4o",
+      api_base: "https://api.openai.com/v1",
+      api_key: "sk-x",
     });
     expect(p).toBeInstanceOf(OpenAICompatibleProvider);
   });
 
   it("mode=api 空 api_base 抛错（堵死相对 URL / 协议相对 chat_path 外泄链——盲审 R3 HIGH-2）", () => {
-    expect(() =>
-      create_provider({ mode: "api", model: "m", api_base: "", api_key: "sk-x" }),
-    ).toThrow(/api_base/);
+    expect(() => create_provider({ mode: "api", model: "m", api_base: "", api_key: "sk-x" })).toThrow(/api_base/);
     expect(() =>
       create_provider({ mode: "api", model: "m", api_base: "   ", api_key: "sk-x", chat_path: "//attacker/v1" }),
     ).toThrow(/api_base/);
@@ -208,28 +232,27 @@ describe("create_provider", () => {
 
   it("mode=ollama 走 OpenAI 兼容协议（默认 base = localhost:11434/v1）", () => {
     const p = create_provider({
-      mode: "ollama", model: "", api_base: "", api_key: "",
+      mode: "ollama",
+      model: "",
+      api_base: "",
+      api_key: "",
       ollama_model: "llama3",
     });
     expect(p).toBeInstanceOf(OpenAICompatibleProvider);
   });
 
   it("mode=ollama 缺 ollama_model 抛错（引擎级护栏）", () => {
-    expect(() =>
-      create_provider({ mode: "ollama", model: "", api_base: "", api_key: "" }),
-    ).toThrow(/ollama_model/i);
+    expect(() => create_provider({ mode: "ollama", model: "", api_base: "", api_key: "" })).toThrow(/ollama_model/i);
   });
 
   it("mode=local 抛错（sidecar 退役后本版本不支持）", () => {
-    expect(() =>
-      create_provider({ mode: "local", model: "", api_base: "", api_key: "" }),
-    ).toThrow(/不支持.*local|local.*不支持|本地模型|not.*implemented/i);
+    expect(() => create_provider({ mode: "local", model: "", api_base: "", api_key: "" })).toThrow(
+      /不支持.*local|local.*不支持|本地模型|not.*implemented/i,
+    );
   });
 
   it("未知 mode 抛错", () => {
-    expect(() =>
-      create_provider({ mode: "anthropic-native", model: "m", api_base: "", api_key: "" }),
-    ).toThrow(/mode/i);
+    expect(() => create_provider({ mode: "anthropic-native", model: "m", api_base: "", api_key: "" })).toThrow(/mode/i);
   });
 });
 
@@ -276,7 +299,14 @@ describe("resolve_llm_config — context_window 同层同源（审计 H4）", ()
     const r = resolve_llm_config(
       { mode: "api", model: "m-set", api_base: "https://API.Gateway.example/v1/" },
       { llm: { mode: "api", model: "" } },
-      { default_llm: { mode: "api", model: "m-set", api_base: "https://api.gateway.example/v1", context_window: 131_072 } },
+      {
+        default_llm: {
+          mode: "api",
+          model: "m-set",
+          api_base: "https://api.gateway.example/v1",
+          context_window: 131_072,
+        },
+      },
     );
     expect(r.context_window).toBe(131_072);
   });

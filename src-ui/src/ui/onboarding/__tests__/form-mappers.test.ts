@@ -39,7 +39,7 @@ describe("buildOnboardingSettingsSaveInput — embedding mode (TD-006)", () => {
 });
 
 describe("onboarding form-mappers — ctx / chat_path 链（R2-3 / R2-7）", () => {
-  it("build：ctx \"\"（窗口未知）→ 省略 context_window；chatPath 空 → 省略 chat_path", () => {
+  it('build：ctx ""（窗口未知）→ 省略 context_window；chatPath 空 → 省略 chat_path', () => {
     const state = createDefaultMobileOnboardingSettings();
     const out = buildOnboardingSettingsSaveInput(state);
     expect("context_window" in out.default_llm).toBe(false);
@@ -57,7 +57,7 @@ describe("onboarding form-mappers — ctx / chat_path 链（R2-3 / R2-7）", () 
     expect(out.default_llm.chat_path).toBe("/relay/chat");
   });
 
-  it("hydrate：持久层 0 哨兵 → \"\"；显式 ctx / chat_path 原样回填", () => {
+  it('hydrate：持久层 0 哨兵 → ""；显式 ctx / chat_path 原样回填', () => {
     const zero = hydrateMobileOnboardingSettings({
       default_llm: { mode: "api", model: "m", api_base: "https://a/v1", api_key: "k", context_window: 0 },
       embedding: {},
@@ -65,7 +65,14 @@ describe("onboarding form-mappers — ctx / chat_path 链（R2-3 / R2-7）", () 
     expect(zero.contextWindow).toBe("");
 
     const explicit = hydrateMobileOnboardingSettings({
-      default_llm: { mode: "api", model: "m", api_base: "https://a/v1", api_key: "k", context_window: 131072, chat_path: "/gw/chat" },
+      default_llm: {
+        mode: "api",
+        model: "m",
+        api_base: "https://a/v1",
+        api_key: "k",
+        context_window: 131072,
+        chat_path: "/gw/chat",
+      },
       embedding: {},
     } as unknown as OnboardingDefaults);
     expect(explicit.contextWindow).toBe("131072");

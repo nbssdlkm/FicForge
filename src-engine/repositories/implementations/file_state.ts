@@ -9,7 +9,15 @@ import { IndexStatus } from "../../domain/enums.js";
 import type { EmbeddingFingerprint, State } from "../../domain/state.js";
 import { createEmbeddingFingerprint, createState } from "../../domain/state.js";
 import type { StateRepository } from "../interfaces/state.js";
-import { atomicWrite, dumpYaml, joinPath, now_utc, obj_to_plain, validateBasePath, withWriteLock } from "../../utils/file_utils.js";
+import {
+  atomicWrite,
+  dumpYaml,
+  joinPath,
+  now_utc,
+  obj_to_plain,
+  validateBasePath,
+  withWriteLock,
+} from "../../utils/file_utils.js";
 
 export class FileStateRepository implements StateRepository {
   constructor(private adapter: PlatformAdapter) {}
@@ -93,7 +101,8 @@ function dictToState(d: Record<string, unknown>, au_id: string): State {
     chapter_focus: (d.chapter_focus as string[]) ?? [],
     chapter_titles: chapterTitles,
     chapters_dirty: (d.chapters_dirty as number[]) ?? [],
-    index_status: IndexStatus[(d.index_status as string)?.toUpperCase() as keyof typeof IndexStatus] ?? IndexStatus.STALE,
+    index_status:
+      IndexStatus[(d.index_status as string)?.toUpperCase() as keyof typeof IndexStatus] ?? IndexStatus.STALE,
     index_built_with: dictToEmbeddingFingerprint(d.index_built_with as Record<string, unknown> | null),
     sync_unsafe: (d.sync_unsafe as boolean) ?? false,
   });

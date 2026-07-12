@@ -16,11 +16,7 @@ interface ChapterPreviewCardProps {
   onToggleExpanded: (messageId: string) => void;
 }
 
-function ChapterPreviewCardImpl({
-  message,
-  auPath,
-  onToggleExpanded,
-}: ChapterPreviewCardProps) {
+function ChapterPreviewCardImpl({ message, auPath, onToggleExpanded }: ChapterPreviewCardProps) {
   const { t } = useTranslation();
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -56,9 +52,7 @@ function ChapterPreviewCardImpl({
 
   const Header = (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-      <CardEyebrow icon={BookOpen}>
-        {t("simple.previewCard.chapterEyebrow", { defaultValue: "Chapter" })}
-      </CardEyebrow>
+      <CardEyebrow icon={BookOpen}>{t("simple.previewCard.chapterEyebrow", { defaultValue: "Chapter" })}</CardEyebrow>
       <span className="font-display text-[14px] font-semibold not-italic tracking-normal text-text">
         {t("simple.previewCard.chapterNum", { defaultValue: "第 {{num}} 章", num: message.chapterNum })}
       </span>

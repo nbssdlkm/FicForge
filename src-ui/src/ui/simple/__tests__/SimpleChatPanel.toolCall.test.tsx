@@ -29,9 +29,7 @@ vi.mock("../../../hooks/useFeedback", () => ({
 }));
 
 vi.mock("../../../api/engine-client", async () => {
-  const actual = await vi.importActual<typeof import("../../../api/engine-client")>(
-    "../../../api/engine-client",
-  );
+  const actual = await vi.importActual<typeof import("../../../api/engine-client")>("../../../api/engine-client");
   return {
     ...actual,
     dispatchSimpleChat: vi.fn(),
@@ -100,12 +98,15 @@ function setupBaseMocks() {
     writing_style: {},
   } as unknown as Awaited<ReturnType<typeof engineClient.getProjectForEditing>>);
   // saveLore 回传实际落盘 filename/category（M28）：executor 从返回值回填 undoMeta。
-  mocked.saveLore.mockImplementation(async (req) => ({
-    status: "ok",
-    path: `${req.au_path ?? req.fandom_path ?? ""}/${req.category}/${req.filename}`,
-    filename: req.filename,
-    category: req.category,
-  }) as never);
+  mocked.saveLore.mockImplementation(
+    async (req) =>
+      ({
+        status: "ok",
+        path: `${req.au_path ?? req.fandom_path ?? ""}/${req.category}/${req.filename}`,
+        filename: req.filename,
+        category: req.category,
+      }) as never,
+  );
   mocked.deleteLore.mockResolvedValue(undefined as never);
   mocked.readLoreWithLegacyFallback.mockResolvedValue(null);
   mocked.addPinned.mockResolvedValue(undefined as never);
@@ -320,10 +321,7 @@ describe("SimpleChatPanel tool call 全链路", () => {
     });
 
     mocked.dispatchSimpleChat.mockImplementation(
-      vi.fn(async function* (
-        _params: unknown,
-        _options?: { signal?: AbortSignal },
-      ): AsyncGenerator<SimpleChatEvent> {
+      vi.fn(async function* (_params: unknown, _options?: { signal?: AbortSignal }): AsyncGenerator<SimpleChatEvent> {
         await tokenGate;
         yield {
           type: "token",

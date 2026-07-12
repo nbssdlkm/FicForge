@@ -37,20 +37,20 @@ export interface ExtractedFact {
   source: string;
 
   // M8-A 新增（全部可选；LLM 可不填）
-  location?:          string | null;
-  story_time_tag?:    string | null;
-  story_time_order?:  number | null;
-  time_kind?:         string | null;    // LLM 输出字符串，rawToExtracted 时校验枚举
-  action_verb?:       string | null;
-  caused_by?:         string[];         // fact_id 引用；本轮只存，不校验引用有效性
-  known_to?:          "all" | "reader_only" | string[] | null;
-  hidden_from?:       string[];
-  suspense_type?:     string | null;    // 同 time_kind
+  location?: string | null;
+  story_time_tag?: string | null;
+  story_time_order?: number | null;
+  time_kind?: string | null; // LLM 输出字符串，rawToExtracted 时校验枚举
+  action_verb?: string | null;
+  caused_by?: string[]; // fact_id 引用；本轮只存，不校验引用有效性
+  known_to?: "all" | "reader_only" | string[] | null;
+  hidden_from?: string[];
+  suspense_type?: string | null; // 同 time_kind
   // M9 新增：自动挂线（ReAct propose_thread_assignment 产出；单次调用路径恒空）。
   // 落库链已通（add_fact 读 thread_ids → ops 快照 → dictToFact 还原），UI 端
   // ExtractedFactCandidate.thread_ids + extractedEnrichment 已就位转发。
-  thread_ids?:        string[];
-  _confidence?:       FactFieldConfidence;
+  thread_ids?: string[];
+  _confidence?: FactFieldConfidence;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,9 +103,7 @@ function buildUserMessage(
   }
 
   const parts = [
-    P.FACTS_USER_CHAPTER_INTRO
-      .replace("{chapter_num}", String(chapter_num))
-      .replace("{chapter_text}", chapter_text),
+    P.FACTS_USER_CHAPTER_INTRO.replace("{chapter_num}", String(chapter_num)).replace("{chapter_text}", chapter_text),
   ];
 
   if (existingSummary) {
@@ -136,9 +134,7 @@ function buildBatchUserMessage(
   const parts = [P.FACTS_USER_BATCH_INTRO];
   for (const ch of chapters) {
     parts.push(
-      P.FACTS_USER_BATCH_CHAPTER
-        .replace("{chapter_num}", String(ch.chapter_num))
-        .replace("{content}", ch.content),
+      P.FACTS_USER_BATCH_CHAPTER.replace("{chapter_num}", String(ch.chapter_num)).replace("{content}", ch.content),
     );
   }
 
@@ -189,11 +185,7 @@ export function parseLLMOutput(text: string): Record<string, unknown>[] {
 // 分块
 // ---------------------------------------------------------------------------
 
-function splitTextForExtraction(
-  text: string,
-  max_tokens: number,
-  llm_config: unknown,
-): string[] {
+function splitTextForExtraction(text: string, max_tokens: number, llm_config: unknown): string[] {
   const tc = count_tokens(text, llm_config as { mode?: string });
   if (tc.count <= max_tokens) return [text];
 
@@ -210,8 +202,8 @@ function splitTextForExtraction(
 // 枚举集合（rawToExtracted 用于校验 LLM 输出）
 // ---------------------------------------------------------------------------
 
-const TIME_KIND_SET   = new Set(Object.values(TimeKind)    as string[]);
-const SUSPENSE_SET    = new Set(Object.values(SuspenseType) as string[]);
+const TIME_KIND_SET = new Set(Object.values(TimeKind) as string[]);
+const SUSPENSE_SET = new Set(Object.values(SuspenseType) as string[]);
 
 // ---------------------------------------------------------------------------
 // raw → ExtractedFact
@@ -235,8 +227,8 @@ export function rawToExtracted(
   }
 
   // M8-A 新字段
-  const timeKindRaw   = raw.time_kind    as string | undefined;
-  const suspenseRaw   = raw.suspense_type as string | undefined;
+  const timeKindRaw = raw.time_kind as string | undefined;
+  const suspenseRaw = raw.suspense_type as string | undefined;
 
   // known_to / hidden_from / _confidence：单一真相源消毒（domain/fact_sanitize，M3 批一）。
   // LLM 垃圾形状（数字/对象等）→ null / [] / undefined，逐字段容错不退整条。
@@ -260,16 +252,16 @@ export function rawToExtracted(
     timeline: (raw.timeline as string) ?? "现在线",
     source: "extract_auto",
     // M8-A 新字段
-    location:          (raw.location        as string  | undefined) ?? null,
-    story_time_tag:    (raw.story_time_tag  as string  | undefined) ?? null,
-    story_time_order:  typeof raw.story_time_order === "number" ? raw.story_time_order : null,
-    time_kind:         (timeKindRaw && TIME_KIND_SET.has(timeKindRaw)) ? timeKindRaw : null,
-    action_verb:       (raw.action_verb     as string  | undefined) ?? null,
-    caused_by:         Array.isArray(raw.caused_by) ? (raw.caused_by as string[]) : [],
-    known_to:          knowledge.known_to,
-    hidden_from:       knowledge.hidden_from,
-    suspense_type:     (suspenseRaw && SUSPENSE_SET.has(suspenseRaw)) ? suspenseRaw : null,
-    _confidence:       confidenceRes.ok ? confidenceRes.value : undefined,
+    location: (raw.location as string | undefined) ?? null,
+    story_time_tag: (raw.story_time_tag as string | undefined) ?? null,
+    story_time_order: typeof raw.story_time_order === "number" ? raw.story_time_order : null,
+    time_kind: timeKindRaw && TIME_KIND_SET.has(timeKindRaw) ? timeKindRaw : null,
+    action_verb: (raw.action_verb as string | undefined) ?? null,
+    caused_by: Array.isArray(raw.caused_by) ? (raw.caused_by as string[]) : [],
+    known_to: knowledge.known_to,
+    hidden_from: knowledge.hidden_from,
+    suspense_type: suspenseRaw && SUSPENSE_SET.has(suspenseRaw) ? suspenseRaw : null,
+    _confidence: confidenceRes.ok ? confidenceRes.value : undefined,
   };
 }
 
@@ -315,10 +307,7 @@ export async function extractFactsFromChapter(
       { role: "system" as const, content: P.FACTS_ENRICH_SYSTEM_PROMPT },
       {
         role: "user" as const,
-        content: buildUserMessage(
-          chunkText, chapter_num, existing_facts,
-          cast_registry, character_aliases, language,
-        ),
+        content: buildUserMessage(chunkText, chapter_num, existing_facts, cast_registry, character_aliases, language),
       },
     ];
 
@@ -373,9 +362,7 @@ export async function extractFactsBatch(
     { role: "system" as const, content: P.FACTS_BATCH_SYSTEM_PROMPT },
     {
       role: "user" as const,
-      content: buildBatchUserMessage(
-        chapters, existing_facts, cast_registry, character_aliases, language,
-      ),
+      content: buildBatchUserMessage(chapters, existing_facts, cast_registry, character_aliases, language),
     },
   ];
 

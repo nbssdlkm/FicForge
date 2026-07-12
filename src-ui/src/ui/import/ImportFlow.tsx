@@ -44,7 +44,9 @@ export function ImportFlow({
   const [step, setStep] = useState(0);
   const [files, setFiles] = useState<File[]>([]);
   const [analyses, setAnalyses] = useState<FileAnalysis[]>([]);
-  const [analysisStatus, setAnalysisStatus] = useState<Map<string, "waiting" | "analyzing" | "llm-detecting-chat" | "done" | "error">>(new Map());
+  const [analysisStatus, setAnalysisStatus] = useState<
+    Map<string, "waiting" | "analyzing" | "llm-detecting-chat" | "done" | "error">
+  >(new Map());
   const [analyzing, setAnalyzing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
@@ -99,7 +101,9 @@ export function ImportFlow({
       try {
         const existing = await getExistingChapterNums(auPath);
         setExistingChapterNums(existing);
-      } catch { /* empty AU */ }
+      } catch {
+        /* empty AU */
+      }
       setStep(2);
       return;
     }
@@ -187,7 +191,9 @@ export function ImportFlow({
     try {
       const existing = await getExistingChapterNums(auPath);
       setExistingChapterNums(existing);
-    } catch { /* empty AU */ }
+    } catch {
+      /* empty AU */
+    }
 
     setStep(2);
   }, [analyses.length, auPath, chapterThreshold, files, requestGuard, showError, skipThreshold, t, useAiAssist]);
@@ -196,30 +202,38 @@ export function ImportFlow({
 
   // ── Step 4: Conflict resolution → Execute ──
 
-  const handleExecuteImport = useCallback(async (conflictOptions: ImportConflictOptions) => {
-    const token = requestGuard.start();
-    setStep(4);
-    setImporting(true);
-    setImportProgress(null);
+  const handleExecuteImport = useCallback(
+    async (conflictOptions: ImportConflictOptions) => {
+      const token = requestGuard.start();
+      setStep(4);
+      setImporting(true);
+      setImportProgress(null);
 
-    try {
-      const plan = await buildImportPlanFromAnalyses(analyses, conflictOptions);
-      const locale = (i18n.resolvedLanguage === "en" ? "en" : "zh") as "zh" | "en";
-      const result = await executeImportPlan(plan, auPath, (progress) => {
+      try {
+        const plan = await buildImportPlanFromAnalyses(analyses, conflictOptions);
+        const locale = (i18n.resolvedLanguage === "en" ? "en" : "zh") as "zh" | "en";
+        const result = await executeImportPlan(
+          plan,
+          auPath,
+          (progress) => {
+            if (requestGuard.isStale(token)) return;
+            setImportProgress(progress);
+          },
+          locale,
+        );
         if (requestGuard.isStale(token)) return;
-        setImportProgress(progress);
-      }, locale);
-      if (requestGuard.isStale(token)) return;
-      setImportResult(result);
-      setImporting(false);
-    } catch (error) {
-      if (requestGuard.isStale(token)) return;
-      setImporting(false);
-      showError(error, t("error_messages.unknown"));
-      // 导入失败，回退到章节编排步骤
-      setStep(2);
-    }
-  }, [analyses, auPath, i18n, requestGuard, showError, t]);
+        setImportResult(result);
+        setImporting(false);
+      } catch (error) {
+        if (requestGuard.isStale(token)) return;
+        setImporting(false);
+        showError(error, t("error_messages.unknown"));
+        // 导入失败，回退到章节编排步骤
+        setStep(2);
+      }
+    },
+    [analyses, auPath, i18n, requestGuard, showError, t],
+  );
 
   // ── Step 3: Chapter arrangement ──
 
@@ -267,7 +281,7 @@ export function ImportFlow({
   const hasConflict = existingChapterNums.length > 0;
   const displayTotal = hasConflict ? TOTAL_STEPS : TOTAL_STEPS - 1;
   // 空 AU 时 step 3（冲突）被跳过，step 4（执行）应显示为第 4 步
-  const displayStep = (!hasConflict && step === 4) ? 4 : step + 1;
+  const displayStep = !hasConflict && step === 4 ? 4 : step + 1;
 
   return (
     <Modal
@@ -275,12 +289,7 @@ export function ImportFlow({
       onClose={handleClose}
       title={`${stepTitles[step] ?? t("import.title")}  ${displayStep}/${displayTotal}`}
     >
-      {step === 0 && (
-        <FileSelectStep
-          onNext={handleFilesSelected}
-          disabled={analyzing}
-        />
-      )}
+      {step === 0 && <FileSelectStep onNext={handleFilesSelected} disabled={analyzing} />}
 
       {step === 1 && (
         <AnalysisStep
@@ -290,9 +299,18 @@ export function ImportFlow({
           useAiAssist={useAiAssist}
           chapterThreshold={chapterThreshold}
           skipThreshold={skipThreshold}
-          onChangeAiAssist={(v) => { setUseAiAssist(v); setAnalyses([]); }}
-          onChangeChapterThreshold={(v) => { setChapterThreshold(v); setAnalyses([]); }}
-          onChangeSkipThreshold={(v) => { setSkipThreshold(v); setAnalyses([]); }}
+          onChangeAiAssist={(v) => {
+            setUseAiAssist(v);
+            setAnalyses([]);
+          }}
+          onChangeChapterThreshold={(v) => {
+            setChapterThreshold(v);
+            setAnalyses([]);
+          }}
+          onChangeSkipThreshold={(v) => {
+            setSkipThreshold(v);
+            setAnalyses([]);
+          }}
           onStartAnalysis={handleStartAnalysis}
           onBack={() => setStep(0)}
           analyzing={analyzing}

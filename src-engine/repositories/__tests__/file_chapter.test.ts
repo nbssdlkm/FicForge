@@ -117,12 +117,14 @@ describe("FileChapterRepository", () => {
       input_tokens: 5000,
       output_tokens: 1500,
     });
-    await repo.save(createChapter({
-      au_id: "au1",
-      chapter_num: 1,
-      content: "test",
-      generated_with: gw,
-    }));
+    await repo.save(
+      createChapter({
+        au_id: "au1",
+        chapter_num: 1,
+        content: "test",
+        generated_with: gw,
+      }),
+    );
 
     const loaded = await repo.get("au1", 1);
     expect(loaded.generated_with).not.toBeNull();
@@ -222,9 +224,15 @@ describe("FileChapterRepository frontmatter safety (H6)", () => {
       content_hash: await compute_content_hash(content),
       provenance: "ai",
       generated_with: createGeneratedWith({
-        mode: "continue", model: "m", temperature: 0.7, top_p: 0.9,
-        input_tokens: 10, output_tokens: 20, char_count: 30,
-        duration_ms: 40, generated_at: "2026-07-01T00:00:00Z",
+        mode: "continue",
+        model: "m",
+        temperature: 0.7,
+        top_p: 0.9,
+        input_tokens: 10,
+        output_tokens: 20,
+        char_count: 30,
+        duration_ms: 40,
+        generated_at: "2026-07-01T00:00:00Z",
       }),
     });
     await repo.save(ch);

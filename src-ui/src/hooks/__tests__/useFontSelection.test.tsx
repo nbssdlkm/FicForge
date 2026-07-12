@@ -61,8 +61,9 @@ describe("useFontSelection · 初始态与 engine 同步", () => {
 
     await waitFor(() => expect(result.current.readingLatinFontId).toBe("literata"));
     expect(localStorage.getItem("ficforge_font_reading_latin")).toBe("literata");
-    expect(document.documentElement.style.getPropertyValue("--font-reading"))
-      .toBe(resolveFontStack("literata", DEFAULTS.reading_cjk_font_id, "reading"));
+    expect(document.documentElement.style.getPropertyValue("--font-reading")).toBe(
+      resolveFontStack("literata", DEFAULTS.reading_cjk_font_id, "reading"),
+    );
   });
 
   it("engine settings 读取失败：静默保留 localStorage 值（不炸不弹错）", async () => {
@@ -84,14 +85,17 @@ describe("useFontSelection · 选择与持久化", () => {
 
     expect(result.current.readingLatinFontId).toBe("merriweather");
     expect(localStorage.getItem("ficforge_font_reading_latin")).toBe("merriweather");
-    expect(document.documentElement.style.getPropertyValue("--font-reading"))
-      .toBe(resolveFontStack("merriweather", DEFAULTS.reading_cjk_font_id, "reading"));
-    await waitFor(() => expect(saveFontPreferences).toHaveBeenCalledWith({
-      ui_latin_font_id: DEFAULTS.ui_latin_font_id,
-      ui_cjk_font_id: DEFAULTS.ui_cjk_font_id,
-      reading_latin_font_id: "merriweather",
-      reading_cjk_font_id: DEFAULTS.reading_cjk_font_id,
-    }));
+    expect(document.documentElement.style.getPropertyValue("--font-reading")).toBe(
+      resolveFontStack("merriweather", DEFAULTS.reading_cjk_font_id, "reading"),
+    );
+    await waitFor(() =>
+      expect(saveFontPreferences).toHaveBeenCalledWith({
+        ui_latin_font_id: DEFAULTS.ui_latin_font_id,
+        ui_cjk_font_id: DEFAULTS.ui_cjk_font_id,
+        reading_latin_font_id: "merriweather",
+        reading_cjk_font_id: DEFAULTS.reading_cjk_font_id,
+      }),
+    );
   });
 
   it("同一事件链连调两个 setter：第二次 persist 快照必须带上第一次改动（stale closure 防护）", async () => {
@@ -117,11 +121,13 @@ describe("useFontSelection · 选择与持久化", () => {
 
     expect(result.current.uiCjkFontId).toBe("ma-shan-zheng");
     expect(localStorage.getItem("ficforge_font_ui_cjk")).toBe("ma-shan-zheng");
-    await waitFor(() => expect(warnUi).toHaveBeenCalledWith(
-      "useFontSelection",
-      "engine settings persist failed",
-      expect.objectContaining({ message: "EPERM" }),
-    ));
+    await waitFor(() =>
+      expect(warnUi).toHaveBeenCalledWith(
+        "useFontSelection",
+        "engine settings persist failed",
+        expect.objectContaining({ message: "EPERM" }),
+      ),
+    );
   });
 });
 

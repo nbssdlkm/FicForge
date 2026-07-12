@@ -2,17 +2,17 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, useState } from 'react';
-import { setChapterFocus, type FactInfo, type StateInfo } from '../../api/engine-client';
-import type { ActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
+import { useCallback, useEffect, useState } from "react";
+import { setChapterFocus, type FactInfo, type StateInfo } from "../../api/engine-client";
+import type { ActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
 
 type UseWriterFocusControllerOptions = {
   auPath: string;
-  state: StateInfo | null;   // 取代原来的 setFocusFromState bridge 注入
+  state: StateInfo | null; // 取代原来的 setFocusFromState bridge 注入
   unresolvedFacts: FactInfo[];
   lastConfirmedFocus: string[];
   loadGuard: ActiveRequestGuard<string>;
-  showToast: (message: string, tone?: 'info' | 'success' | 'warning' | 'error') => void;
+  showToast: (message: string, tone?: "info" | "success" | "warning" | "error") => void;
   showError: (error: unknown, fallback: string) => void;
   t: (key: string, params?: Record<string, unknown>) => string;
 };
@@ -38,29 +38,32 @@ export function useWriterFocusController({
     setFocusSelection(state?.chapter_focus ? [...state.chapter_focus] : []);
   }, [auPath, state?.current_chapter]);
 
-  const handleFocusToggle = useCallback(async (factId: string) => {
-    const requestAuPath = auPath;
-    let next: string[];
-    if (focusSelection.includes(factId)) {
-      next = focusSelection.filter((id) => id !== factId);
-    } else {
-      if (focusSelection.length >= 2) {
-        showToast(t('focus.maxTwo'), 'warning');
-        return;
+  const handleFocusToggle = useCallback(
+    async (factId: string) => {
+      const requestAuPath = auPath;
+      let next: string[];
+      if (focusSelection.includes(factId)) {
+        next = focusSelection.filter((id) => id !== factId);
+      } else {
+        if (focusSelection.length >= 2) {
+          showToast(t("focus.maxTwo"), "warning");
+          return;
+        }
+        next = [...focusSelection, factId];
       }
-      next = [...focusSelection, factId];
-    }
 
-    try {
-      await setChapterFocus(auPath, next);
-      if (loadGuard.isKeyStale(requestAuPath)) return;
-      setFocusSelection(next);
-      showToast(t('writer.focusSaved'), 'success');
-    } catch (error) {
-      if (loadGuard.isKeyStale(requestAuPath)) return;
-      showError(error, t('error_messages.unknown'));
-    }
-  }, [auPath, focusSelection, loadGuard, setFocusSelection, showError, showToast, t]);
+      try {
+        await setChapterFocus(auPath, next);
+        if (loadGuard.isKeyStale(requestAuPath)) return;
+        setFocusSelection(next);
+        showToast(t("writer.focusSaved"), "success");
+      } catch (error) {
+        if (loadGuard.isKeyStale(requestAuPath)) return;
+        showError(error, t("error_messages.unknown"));
+      }
+    },
+    [auPath, focusSelection, loadGuard, setFocusSelection, showError, showToast, t],
+  );
 
   const handleClearFocus = useCallback(async () => {
     const requestAuPath = auPath;
@@ -68,20 +71,18 @@ export function useWriterFocusController({
       await setChapterFocus(auPath, []);
       if (loadGuard.isKeyStale(requestAuPath)) return;
       setFocusSelection([]);
-      showToast(t('writer.focusSaved'), 'success');
+      showToast(t("writer.focusSaved"), "success");
     } catch (error) {
       if (loadGuard.isKeyStale(requestAuPath)) return;
-      showError(error, t('error_messages.unknown'));
+      showError(error, t("error_messages.unknown"));
     }
   }, [auPath, loadGuard, setFocusSelection, showError, showToast, t]);
 
   const handleContinueLastFocus = useCallback(async () => {
     const requestAuPath = auPath;
-    const validIds = lastConfirmedFocus.filter((id) =>
-      unresolvedFacts.some((fact) => String(fact.id) === id),
-    );
+    const validIds = lastConfirmedFocus.filter((id) => unresolvedFacts.some((fact) => String(fact.id) === id));
     if (validIds.length === 0) {
-      showToast(t('focus.lastFocusExpired'), 'warning');
+      showToast(t("focus.lastFocusExpired"), "warning");
       return;
     }
 
@@ -89,10 +90,10 @@ export function useWriterFocusController({
       await setChapterFocus(auPath, validIds);
       if (loadGuard.isKeyStale(requestAuPath)) return;
       setFocusSelection(validIds);
-      showToast(t('writer.focusSaved'), 'success');
+      showToast(t("writer.focusSaved"), "success");
     } catch (error) {
       if (loadGuard.isKeyStale(requestAuPath)) return;
-      showError(error, t('error_messages.unknown'));
+      showError(error, t("error_messages.unknown"));
     }
   }, [auPath, lastConfirmedFocus, loadGuard, setFocusSelection, showError, showToast, t, unresolvedFacts]);
 

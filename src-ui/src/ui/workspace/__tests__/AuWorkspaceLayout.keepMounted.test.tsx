@@ -20,8 +20,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../i18n/useAppTranslation", () => ({
   useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) =>
-      params ? `${key}:${JSON.stringify(params)}` : key,
+    t: (key: string, params?: Record<string, unknown>) => (params ? `${key}:${JSON.stringify(params)}` : key),
     i18n: { resolvedLanguage: "zh" },
   }),
 }));
@@ -49,9 +48,7 @@ vi.mock("../../library/AuLoreLayout", () => ({ AuLoreLayout: () => <div /> }));
 vi.mock("../../settings/AuSettingsLayout", () => ({ AuSettingsLayout: () => <div /> }));
 
 vi.mock("../../../api/engine-client", async () => {
-  const actual = await vi.importActual<typeof import("../../../api/engine-client")>(
-    "../../../api/engine-client",
-  );
+  const actual = await vi.importActual<typeof import("../../../api/engine-client")>("../../../api/engine-client");
   return {
     ...actual,
     // workspace 层
@@ -108,9 +105,7 @@ beforeEach(() => {
 
 function renderWorkspace(activeTab: string) {
   const onNavigate = vi.fn();
-  const utils = render(
-    <AuWorkspaceLayout activeTab={activeTab} auPath={AU} onNavigate={onNavigate} />,
-  );
+  const utils = render(<AuWorkspaceLayout activeTab={activeTab} auPath={AU} onNavigate={onNavigate} />);
   return { ...utils, onNavigate };
 }
 

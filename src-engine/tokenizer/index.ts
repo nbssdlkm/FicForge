@@ -32,8 +32,12 @@ export async function ensure_tokenizer(): Promise<void> {
   if (_encodeFn) return;
   if (!_loadPromise) {
     _loadPromise = import("gpt-tokenizer/encoding/cl100k_base")
-      .then((m) => { _encodeFn = m.encode; })
-      .catch(() => { /* 降级为估算 */ });
+      .then((m) => {
+        _encodeFn = m.encode;
+      })
+      .catch(() => {
+        /* 降级为估算 */
+      });
   }
   await _loadPromise;
 }
@@ -56,10 +60,7 @@ export interface TokenCount {
  * 分词器路由（PRD §2.4）。同步调用。
  * 如果 ensure_tokenizer() 已完成，使用精确分词；否则 fallback 为 char_mul1.5。
  */
-export function count_tokens(
-  text: string,
-  _llm_config?: { mode?: string; local_model_path?: string },
-): TokenCount {
+export function count_tokens(text: string, _llm_config?: { mode?: string; local_model_path?: string }): TokenCount {
   if (!text) {
     return { count: 0, is_estimate: false };
   }

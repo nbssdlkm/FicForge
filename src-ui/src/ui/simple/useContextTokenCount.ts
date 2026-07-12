@@ -14,10 +14,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  estimateSimpleContextTokens,
-  type SimpleContextTokenEstimate,
-} from "../../api/engine-client";
+import { estimateSimpleContextTokens, type SimpleContextTokenEstimate } from "../../api/engine-client";
 import { chatToOpenAIMessages } from "./chat-to-llm";
 import type { SimpleChatMessage } from "./types";
 
@@ -50,17 +47,16 @@ export function useContextTokenCount(
 
   // messages 用 useMemo + chatToOpenAIMessages 转换，避免每次 render 重新算 token API；
   // 仅当 messages 引用变化时触发重算（caller 用 chat.messages 已有稳定引用）。
-  const historyForLLM = useMemo(
-    () => (messages ? chatToOpenAIMessages(messages) : undefined),
-    [messages],
-  );
+  const historyForLLM = useMemo(() => (messages ? chatToOpenAIMessages(messages) : undefined), [messages]);
 
   useEffect(() => {
     // strict-mode 下 mount → unmount → remount 序列：
     // 第一次 cleanup 把 mountedRef 设 false，第二次 mount 必须显式重置 true，
     // 否则后续 setState 全被 mountedRef.current=false 早返回掉，UI 永远不更新。
     mountedRef.current = true;
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   // 30s autoTick：兜底覆盖 refreshKey 漏掉的 state 变化（外部 tab 改设定 / undo 等）。

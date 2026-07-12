@@ -14,8 +14,15 @@ vi.mock("../../../api/engine-client", async (importActual) => {
 import { findArchivalCandidates, archiveFacts } from "../../../api/engine-client";
 
 const candidate = (id: string, chapter: number) => ({
-  id, content_raw: id, content_clean: `旧笔记 ${id}`, characters: [],
-  status: "active", type: "plot_event", narrative_weight: "low", chapter, timeline: "",
+  id,
+  content_raw: id,
+  content_clean: `旧笔记 ${id}`,
+  characters: [],
+  status: "active",
+  type: "plot_event",
+  narrative_weight: "low",
+  chapter,
+  timeline: "",
 });
 
 function renderModal() {

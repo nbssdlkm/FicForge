@@ -11,12 +11,7 @@
  * settings + localStorage 双写，不依赖 FontsService。
  */
 
-import {
-  BrowserFontRegistry,
-  FontDownloader,
-  FontStorage,
-  FontsService,
-} from "@ficforge/engine";
+import { BrowserFontRegistry, FontDownloader, FontStorage, FontsService } from "@ficforge/engine";
 import { warnUi } from "../utils/ui-logger";
 import { getEngine } from "./engine-instance";
 

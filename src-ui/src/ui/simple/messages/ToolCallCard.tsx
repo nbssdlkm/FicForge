@@ -38,13 +38,7 @@ function statusVisual(status: SimpleToolCallMessage["status"]): StatusVisual {
   }
 }
 
-function ToolCallCardImpl({
-  message,
-  globalBusy,
-  onConfirm,
-  onSkip,
-  onUndo,
-}: ToolCallCardProps) {
+function ToolCallCardImpl({ message, globalBusy, onConfirm, onSkip, onUndo }: ToolCallCardProps) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
@@ -68,9 +62,7 @@ function ToolCallCardImpl({
     <Card className="space-y-3 px-4 py-3">
       {/* Eyebrow row: TOOL CALL · toolName · status badge */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <CardEyebrow icon={Wrench}>
-          {t("simple.toolCard.eyebrow", { defaultValue: "Tool Call" })}
-        </CardEyebrow>
+        <CardEyebrow icon={Wrench}>{t("simple.toolCard.eyebrow", { defaultValue: "Tool Call" })}</CardEyebrow>
         <span className="font-display text-[13px] font-semibold not-italic tracking-normal text-text">
           {message.toolName}
         </span>

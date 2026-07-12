@@ -30,7 +30,13 @@ import type { VectorRepository } from "../repositories/interfaces/vector.js";
 import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { LLMProvider, Message, ToolCall, ToolDefinition } from "../llm/provider.js";
 import { LLMError } from "../llm/provider.js";
-import { create_provider, resolve_llm_config, resolve_llm_params, type ResolvedLLMConfig, type ResolvedLLMParams } from "../llm/config_resolver.js";
+import {
+  create_provider,
+  resolve_llm_config,
+  resolve_llm_params,
+  type ResolvedLLMConfig,
+  type ResolvedLLMParams,
+} from "../llm/config_resolver.js";
 import { assemble_chat_context } from "./context_assembler.js";
 import { count_tokens } from "../tokenizer/index.js";
 import { withAuLock } from "./au_lock.js";
@@ -61,7 +67,12 @@ const SIMPLE_AGENT_NAME = "simple_chat";
 //
 // 互斥表与 generate_chapter 共用 chapter_inflight 单一真相源（对抗审 F1）：独立 Map
 // 只能封住自身重入，封不住跨路径并发。key 用 au+chapter（label 竞争只在同章内发生）。
-import { chapterInflightKey, isChapterInflight, markChapterInflight, releaseChapterInflight } from "./chapter_inflight.js";
+import {
+  chapterInflightKey,
+  isChapterInflight,
+  markChapterInflight,
+  releaseChapterInflight,
+} from "./chapter_inflight.js";
 
 function dispatchKey(au_id: string, chapter_num: number): string {
   return chapterInflightKey(au_id, chapter_num);
@@ -75,10 +86,7 @@ export const SIMPLE_TOOL_SHOW_CHAPTER = "show_chapter";
 export const SIMPLE_TOOL_SHOW_SETTING = "show_setting";
 export const SIMPLE_TOOL_CHAT_REPLY = "chat_reply";
 
-const SIMPLE_READ_ONLY_TOOLS: ReadonlySet<string> = new Set([
-  SIMPLE_TOOL_SHOW_CHAPTER,
-  SIMPLE_TOOL_SHOW_SETTING,
-]);
+const SIMPLE_READ_ONLY_TOOLS: ReadonlySet<string> = new Set([SIMPLE_TOOL_SHOW_CHAPTER, SIMPLE_TOOL_SHOW_SETTING]);
 
 /**
  * 修改类工具集合（agent loop 走 human-in-the-loop：emit ToolCallCard → break → 用户
@@ -111,10 +119,10 @@ function isReadOnlyTool(name: string): boolean {
  */
 function isKnownTool(name: string): boolean {
   return (
-    isReadOnlyTool(name)
-    || isMutatingTool(name)
-    || name === SIMPLE_TOOL_CHAT_REPLY
-    || Object.prototype.hasOwnProperty.call(SIMPLE_TOOL_SCHEMAS, name)
+    isReadOnlyTool(name) ||
+    isMutatingTool(name) ||
+    name === SIMPLE_TOOL_CHAT_REPLY ||
+    Object.prototype.hasOwnProperty.call(SIMPLE_TOOL_SCHEMAS, name)
   );
 }
 
@@ -134,22 +142,19 @@ function isKnownTool(name: string): boolean {
  */
 const MAX_READ_FETCH_TOKENS = 6000;
 
-function truncateReadResultForHistory(
-  content: string,
-  llm_config: unknown,
-  language: "zh" | "en",
-): string {
+function truncateReadResultForHistory(content: string, llm_config: unknown, language: "zh" | "en"): string {
   const tk = (s: string) => count_tokens(s, llm_config as { mode?: string }).count;
   const total = tk(content);
   if (total <= MAX_READ_FETCH_TOKENS) return content;
   // 按 token/char 比例首切（留 10% 余量让首切大概率落在预算内），再线性微调（保留头部）。
-  let head = content.slice(0, Math.max(1, Math.trunc(content.length * MAX_READ_FETCH_TOKENS * 0.9 / total)));
+  let head = content.slice(0, Math.max(1, Math.trunc((content.length * MAX_READ_FETCH_TOKENS * 0.9) / total)));
   while (tk(head) > MAX_READ_FETCH_TOKENS && head.length > 1) {
     head = head.slice(0, Math.trunc(head.length * 0.9));
   }
-  const marker = language === "en"
-    ? "\n\n[... fetched content truncated to fit context; ask to show a specific section if needed ...]"
-    : "\n\n[……读取内容过长，已截断以适配上下文；如需具体段落请指明……]";
+  const marker =
+    language === "en"
+      ? "\n\n[... fetched content truncated to fit context; ask to show a specific section if needed ...]"
+      : "\n\n[……读取内容过长，已截断以适配上下文；如需具体段落请指明……]";
   return head + marker;
 }
 
@@ -159,7 +164,7 @@ function truncateReadResultForHistory(
 
 export type SimpleChatEvent =
   | { type: "token"; data: string }
-  | { type: "tool_call"; data: ToolCall }                         // 累积完成的单个 tool call
+  | { type: "tool_call"; data: ToolCall } // 累积完成的单个 tool call
   /**
    * chat_reply tool args.content 字段流式增量。dispatch 边累积 tool_call_deltas 边
    * partial-parse content 字段，每次新内容 emit 给 UI 实时渲染对话气泡。流式期间
@@ -174,9 +179,15 @@ export type SimpleChatEvent =
    * tool_call_id 必须跟同 iter 的 tool_call 事件 data.id 对得上（OpenAI 协议要求）。
    */
   | { type: "tool_result"; data: { tool_call_id: string; tool_name: string; content: string; error_message?: string } }
-  | { type: "done_text"; data: { full_text: string; draft_label: string; chapter_num: number; generated_with: GeneratedWith } }
+  | {
+      type: "done_text";
+      data: { full_text: string; draft_label: string; chapter_num: number; generated_with: GeneratedWith };
+    }
   | { type: "done_tools"; data: { tool_calls: ToolCall[] } }
-  | { type: "error"; data: { error_code: string; message: string; actions: string[]; partial_draft_label: string | null } };
+  | {
+      type: "error";
+      data: { error_code: string; message: string; actions: string[]; partial_draft_label: string | null };
+    };
 
 export interface SimpleChatDispatchParams {
   au_id: string;
@@ -215,7 +226,6 @@ export interface SimpleChatDispatchParams {
   /** 测试注入：override telemetry sink。默认走 createTelemetry() (consoleSink fallback)。 */
   _telemetry_override?: TelemetrySink;
 }
-
 
 /**
  * 续写意图判据：用户消息含明确续写动词 / 长场景描述 → 续写。
@@ -260,7 +270,10 @@ function looksLikeWritingIntent(userInput: string): boolean {
  * 未知 tool name（理论上 LLM 不调无声明的 tool）→ 退化到 JSON.parse 兜底 + 通用
  * retry hint，让 LLM 改选其它 tool。
  */
-function repairToolArgs(toolName: string, rawArgs: string): {
+function repairToolArgs(
+  toolName: string,
+  rawArgs: string,
+): {
   args: Record<string, unknown>;
   retryHint?: string;
   success: boolean;
@@ -421,7 +434,10 @@ async function loadMdDir(adapter: PlatformAdapter, dirPath: string): Promise<Rec
 
 type SimpleBusinessEvent =
   | { kind: "chat_reply_chunk"; data: string }
-  | { kind: "done_text"; data: { full_text: string; draft_label: string; chapter_num: number; generated_with: GeneratedWith } }
+  | {
+      kind: "done_text";
+      data: { full_text: string; draft_label: string; chapter_num: number; generated_with: GeneratedWith };
+    }
   | { kind: "done_tools"; data: { tool_calls: ToolCall[] } };
 
 // ---------------------------------------------------------------------------
@@ -550,11 +566,25 @@ interface ResolveDispatchDeps {
  */
 async function resolveDispatchSession(deps: ResolveDispatchDeps): Promise<DispatchSession> {
   const {
-    au_id, chapter_num, user_input, history,
-    session_llm, session_params, project, state, settings,
-    facts, threads, vector_repo, embedding_provider,
-    chapter_repo, draft_repo, adapter, language,
-    provider_override, tools_override,
+    au_id,
+    chapter_num,
+    user_input,
+    history,
+    session_llm,
+    session_params,
+    project,
+    state,
+    settings,
+    facts,
+    threads,
+    vector_repo,
+    embedding_provider,
+    chapter_repo,
+    draft_repo,
+    adapter,
+    language,
+    provider_override,
+    tools_override,
   } = deps;
 
   const llmConfig = resolve_llm_config(session_llm, project, settings);
@@ -571,11 +601,17 @@ async function resolveDispatchSession(deps: ResolveDispatchDeps): Promise<Dispat
   // systemContent，最新一轮 user 进 latestUserContent。**组装只在此处发生一次**（runAgentLoop
   // 之前）：systemContent 进 startMessages[0]，循环内不重组、不重算 RAG（否则每轮重检索）。
   const ctx = await assemble_chat_context({
-    project, state, user_input,
-    facts, threads,
-    chapter_repo, au_id,
-    character_files, worldbuilding_files,
-    vector_repo, embedding_provider,
+    project,
+    state,
+    user_input,
+    facts,
+    threads,
+    chapter_repo,
+    au_id,
+    character_files,
+    worldbuilding_files,
+    vector_repo,
+    embedding_provider,
     language,
     // H4：窗口/输出上限按实际生效模型（resolve 三层结果）算，不再只看 project.llm。
     effective_llm: llmConfig,
@@ -592,7 +628,14 @@ async function resolveDispatchSession(deps: ResolveDispatchDeps): Promise<Dispat
   const suppressTokens = !looksLikeWritingIntent(user_input);
 
   return {
-    provider, llmConfig, modelName, llmParams, tools, label, suppressTokens, max_tokens,
+    provider,
+    llmConfig,
+    modelName,
+    llmParams,
+    tools,
+    label,
+    suppressTokens,
+    max_tokens,
     startMessages: [systemMessage, ...history, userMessage],
   };
 }
@@ -622,9 +665,17 @@ interface BuildAgentLoopConfigDeps {
  */
 function buildAgentLoopConfig(deps: BuildAgentLoopConfigDeps): AgentLoopConfig<SimpleBusinessEvent> {
   const {
-    session, streamState: st, startTime,
-    au_id, chapter_num, chapter_repo, draft_repo, adapter,
-    language, telemetry, signal,
+    session,
+    streamState: st,
+    startTime,
+    au_id,
+    chapter_num,
+    chapter_repo,
+    draft_repo,
+    adapter,
+    language,
+    telemetry,
+    signal,
   } = deps;
   const { llmConfig, modelName, llmParams, tools, suppressTokens } = session;
 
@@ -697,7 +748,10 @@ function buildAgentLoopConfig(deps: BuildAgentLoopConfigDeps): AgentLoopConfig<S
         });
         events.push({
           type: "business",
-          data: { kind: "done_text", data: { full_text: iterCtx.fullText, draft_label: st.label, chapter_num, generated_with: gw } },
+          data: {
+            kind: "done_text",
+            data: { full_text: iterCtx.fullText, draft_label: st.label, chapter_num, generated_with: gw },
+          },
         });
       }
 
@@ -724,7 +778,12 @@ function buildAgentLoopConfig(deps: BuildAgentLoopConfigDeps): AgentLoopConfig<S
           if (signal?.aborted) throw createAbortError();
           events.push({
             type: "tool_result",
-            data: { tool_call_id: c.id, tool_name: c.function.name, content: result.content, ...(result.errorMessage !== undefined ? { error_message: result.errorMessage } : {}) },
+            data: {
+              tool_call_id: c.id,
+              tool_name: c.function.name,
+              content: result.content,
+              ...(result.errorMessage !== undefined ? { error_message: result.errorMessage } : {}),
+            },
           });
         }
         const restCalls = calls.filter((c) => !isReadOnlyTool(c.function.name));
@@ -769,7 +828,12 @@ function buildAgentLoopConfig(deps: BuildAgentLoopConfigDeps): AgentLoopConfig<S
           if (signal?.aborted) throw createAbortError();
           events.push({
             type: "tool_result",
-            data: { tool_call_id: c.id, tool_name: c.function.name, content: result.content, ...(result.errorMessage !== undefined ? { error_message: result.errorMessage } : {}) },
+            data: {
+              tool_call_id: c.id,
+              tool_name: c.function.name,
+              content: result.content,
+              ...(result.errorMessage !== undefined ? { error_message: result.errorMessage } : {}),
+            },
           });
           // internalHistory 副本按上限截断（B3）：防多轮大章节 fetch 累积撑爆 context。
           // 上面 emit 给 UI 的 tool_result 仍是全文（持久化不丢）。
@@ -855,9 +919,10 @@ function buildAgentLoopConfig(deps: BuildAgentLoopConfigDeps): AgentLoopConfig<S
         });
         return {
           role: "user",
-          content: language === "en"
-            ? "[system note] You replied with plain text but the user message was not a writing instruction. Please use the chat_reply tool to respond (put your reply in the content field)."
-            : "[系统提示] 你刚才用纯文本回复了，但用户消息不是续写指令。请改用 chat_reply tool 重新回复（把要说的话填在 content 字段）。",
+          content:
+            language === "en"
+              ? "[system note] You replied with plain text but the user message was not a writing instruction. Please use the chat_reply tool to respond (put your reply in the content field)."
+              : "[系统提示] 你刚才用纯文本回复了，但用户消息不是续写指令。请改用 chat_reply tool 重新回复（把要说的话填在 content 字段）。",
         };
       }
       telemetry.emit({
@@ -868,16 +933,19 @@ function buildAgentLoopConfig(deps: BuildAgentLoopConfigDeps): AgentLoopConfig<S
       });
       return {
         role: "user",
-        content: language === "en"
-          ? "[system note] Your previous response was empty. Please respond with chat_reply tool (concise content) or write the chapter body if applicable."
-          : "[系统提示] 你刚才返回空响应。请用 chat_reply tool 简洁回复，或者如果是续写则直接输出章节正文。",
+        content:
+          language === "en"
+            ? "[system note] Your previous response was empty. Please respond with chat_reply tool (concise content) or write the chapter body if applicable."
+            : "[系统提示] 你刚才返回空响应。请用 chat_reply tool 简洁回复，或者如果是续写则直接输出章节正文。",
       };
     },
     onPartialRescue: async (text) => {
       if (!text || !st.label) return { rescued: false };
       const partial = createDraft({ au_id, chapter_num, variant: st.label, content: text });
       try {
-        await withAuLock(au_id, async () => { await draft_repo.save(partial); });
+        await withAuLock(au_id, async () => {
+          await draft_repo.save(partial);
+        });
         st.rescueSucceeded = true;
         telemetry.emit({
           kind: "partial_draft_rescued",
@@ -918,9 +986,10 @@ export function translateLoopEvent(
           type: "error",
           data: {
             error_code: "AGENT_MAX_ITERATIONS",
-            message: language === "en"
-              ? `Agent loop exceeded ${SIMPLE_AGENT_MAX_ITER} iterations without reaching a terminal action. Please simplify the request or split into multiple steps.`
-              : `Agent 超 ${SIMPLE_AGENT_MAX_ITER} 轮未到终态，请简化请求或拆分多步。`,
+            message:
+              language === "en"
+                ? `Agent loop exceeded ${SIMPLE_AGENT_MAX_ITER} iterations without reaching a terminal action. Please simplify the request or split into multiple steps.`
+                : `Agent 超 ${SIMPLE_AGENT_MAX_ITER} 轮未到终态，请简化请求或拆分多步。`,
             actions: [],
             partial_draft_label: null,
           },
@@ -946,9 +1015,10 @@ export function translateLoopEvent(
           type: "error",
           data: {
             error_code: "DECLARED_TOOLS_BUT_EMPTY",
-            message: language === "en"
-              ? "Model declared tool_calls but produced no tool call. Please retry."
-              : "模型声明要调用工具但没产出有效 tool call，请重试。",
+            message:
+              language === "en"
+                ? "Model declared tool_calls but produced no tool call. Please retry."
+                : "模型声明要调用工具但没产出有效 tool call，请重试。",
             actions: [],
             partial_draft_label: null,
           },
@@ -963,7 +1033,8 @@ export function translateLoopEvent(
       return { event: { type: "tool_result", data: ev.data }, terminal: false };
     case "business": {
       const data = ev.data;
-      if (data.kind === "chat_reply_chunk") return { event: { type: "chat_reply_chunk", data: data.data }, terminal: false };
+      if (data.kind === "chat_reply_chunk")
+        return { event: { type: "chat_reply_chunk", data: data.data }, terminal: false };
       if (data.kind === "done_text") return { event: { type: "done_text", data: data.data }, terminal: false };
       if (data.kind === "done_tools") return { event: { type: "done_tools", data: data.data }, terminal: false };
       return { event: null, terminal: false };
@@ -1004,19 +1075,29 @@ export function toDispatchErrorEvent(e: unknown, partial_draft_label: string | n
 // 主流程 —─ 前置解析 → 构造 state/回调 → for await 循环委托翻译 → 收尾
 // ---------------------------------------------------------------------------
 
-export async function* dispatch_simple_chat(
-  params: SimpleChatDispatchParams,
-): AsyncGenerator<SimpleChatEvent> {
+export async function* dispatch_simple_chat(params: SimpleChatDispatchParams): AsyncGenerator<SimpleChatEvent> {
   const {
-    au_id, chapter_num, user_input,
+    au_id,
+    chapter_num,
+    user_input,
     history = [],
-    session_llm, session_params,
-    project, state, settings,
-    facts = [], threads = [],
-    vector_repo, embedding_provider,
-    chapter_repo, draft_repo, adapter,
-    language = "zh", signal,
-    _provider_override, _tools_override, _telemetry_override,
+    session_llm,
+    session_params,
+    project,
+    state,
+    settings,
+    facts = [],
+    threads = [],
+    vector_repo,
+    embedding_provider,
+    chapter_repo,
+    draft_repo,
+    adapter,
+    language = "zh",
+    signal,
+    _provider_override,
+    _tools_override,
+    _telemetry_override,
   } = params;
 
   // M17+F1：同 (au, chapter) 已有在飞生成（对话或写文任一路径）→ 直接 409 拒绝，
@@ -1027,9 +1108,10 @@ export async function* dispatch_simple_chat(
       type: "error",
       data: {
         error_code: "DISPATCH_IN_PROGRESS",
-        message: language === "en"
-          ? "This chapter is already being generated. Please wait for it to finish."
-          : "该章节正在生成中，请等待完成",
+        message:
+          language === "en"
+            ? "This chapter is already being generated. Please wait for it to finish."
+            : "该章节正在生成中，请等待完成",
         actions: [],
         partial_draft_label: null,
       },
@@ -1046,10 +1128,23 @@ export async function* dispatch_simple_chat(
   try {
     // 前置解析段：一次性算好 provider / 上下文 / label / 意图判据。
     const session = await resolveDispatchSession({
-      au_id, chapter_num, user_input, history,
-      session_llm, session_params, project, state, settings,
-      facts, threads, vector_repo, embedding_provider,
-      chapter_repo, draft_repo, adapter, language,
+      au_id,
+      chapter_num,
+      user_input,
+      history,
+      session_llm,
+      session_params,
+      project,
+      state,
+      settings,
+      facts,
+      threads,
+      vector_repo,
+      embedding_provider,
+      chapter_repo,
+      draft_repo,
+      adapter,
+      language,
       provider_override: _provider_override,
       tools_override: _tools_override,
     });
@@ -1058,9 +1153,17 @@ export async function* dispatch_simple_chat(
 
     // agent loop 回调组：共享闭包已显式化为 streamState，回调工厂只依赖 (session + state + dep)。
     const config = buildAgentLoopConfig({
-      session, streamState, startTime,
-      au_id, chapter_num, chapter_repo, draft_repo, adapter,
-      language, telemetry, signal,
+      session,
+      streamState,
+      startTime,
+      au_id,
+      chapter_num,
+      chapter_repo,
+      draft_repo,
+      adapter,
+      language,
+      telemetry,
+      signal,
     });
 
     // 跑 runAgentLoop + 事件翻译委托：event 有则 yield，terminal 则终止。

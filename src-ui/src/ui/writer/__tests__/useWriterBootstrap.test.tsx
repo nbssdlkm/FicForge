@@ -41,7 +41,10 @@ function makeState(overrides: Partial<StateInfo> = {}): StateInfo {
 function deferred<T>() {
   let resolve!: (v: T) => void;
   let reject!: (e: unknown) => void;
-  const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
   return { promise, resolve, reject };
 }
 
@@ -194,7 +197,9 @@ describe("useWriterBootstrap · refreshSettingsModeData", () => {
     });
 
     expect(hook.result.current.data.state?.current_chapter).toBe(7);
-    expect((hook.result.current.data.settingsInfo as { default_llm: { mode: string } }).default_llm.mode).toBe("ollama");
+    expect((hook.result.current.data.settingsInfo as { default_llm: { mode: string } }).default_llm.mode).toBe(
+      "ollama",
+    );
   });
 
   it("applyStateSnapshot：外部动作（confirm/undo）回写 state 快照", async () => {

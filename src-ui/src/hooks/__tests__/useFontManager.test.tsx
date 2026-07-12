@@ -76,9 +76,7 @@ describe("useFontManager — progress persistence (TD-011)", () => {
     const { result } = renderHook(() => useFontManager());
 
     // mount 即从 service 播种，无需等任何事件。
-    await waitFor(() =>
-      expect(result.current.progresses[DOWNLOADABLE_ID]).toEqual({ loaded: 5, total: 10 }),
-    );
+    await waitFor(() => expect(result.current.progresses[DOWNLOADABLE_ID]).toEqual({ loaded: 5, total: 10 }));
   });
 
   it("updates progress live from subscription events", async () => {
@@ -99,9 +97,7 @@ describe("useFontManager — progress persistence (TD-011)", () => {
   it("clears progress and re-derives status when a background download settles", async () => {
     h.state.progresses[DOWNLOADABLE_ID] = { loaded: 6, total: 6 };
     const { result } = renderHook(() => useFontManager());
-    await waitFor(() =>
-      expect(result.current.progresses[DOWNLOADABLE_ID]).toBeDefined(),
-    );
+    await waitFor(() => expect(result.current.progresses[DOWNLOADABLE_ID]).toBeDefined());
 
     // 后台下载完成 → service 状态翻转。
     h.state.statuses[DOWNLOADABLE_ID] = "installed";

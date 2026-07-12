@@ -11,11 +11,7 @@ import { Spinner } from "../../shared/Spinner";
 import { useTranslation } from "../../../i18n/useAppTranslation";
 import { useActiveRequestGuard } from "../../../hooks/useActiveRequestGuard";
 import { fetchProviderModels, FetchModelsError, type CustomModelEntry } from "../../../api/engine-client";
-import {
-  MODEL_GROUP_ORDER,
-  isLikelyEmbeddingId,
-  modelGroupKey,
-} from "./model-picker-utils";
+import { MODEL_GROUP_ORDER, isLikelyEmbeddingId, modelGroupKey } from "./model-picker-utils";
 
 export interface FetchModelsSheetProps {
   isOpen: boolean;
@@ -60,14 +56,17 @@ export function FetchModelsSheet({
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   /** 错误分类 → 用户可懂文案（R2-4）：401/403 指向密钥；超时/网络复用 connection_failed 口径；其余带状态码简述。 */
-  const describeFetchError = useCallback((error: unknown): string => {
-    if (error instanceof FetchModelsError) {
-      if (error.code === "auth") return t("modelPicker.fetchSheet.errorAuth");
-      if (error.code === "network") return t("error_messages.connection_failed");
-      return t("modelPicker.fetchSheet.errorHttp", { status: error.status ?? "?" });
-    }
-    return t("modelPicker.fetchSheet.error", { message: error instanceof Error ? error.message : String(error) });
-  }, [t]);
+  const describeFetchError = useCallback(
+    (error: unknown): string => {
+      if (error instanceof FetchModelsError) {
+        if (error.code === "auth") return t("modelPicker.fetchSheet.errorAuth");
+        if (error.code === "network") return t("error_messages.connection_failed");
+        return t("modelPicker.fetchSheet.errorHttp", { status: error.status ?? "?" });
+      }
+      return t("modelPicker.fetchSheet.error", { message: error instanceof Error ? error.message : String(error) });
+    },
+    [t],
+  );
 
   /** 拉取（打开时自动跑一次；error 态「重试」按钮复用）。 */
   const runFetch = useCallback(() => {
@@ -98,10 +97,7 @@ export function FetchModelsSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const existingById = useMemo(
-    () => new Map(existingEntries.map((m) => [m.id, m])),
-    [existingEntries],
-  );
+  const existingById = useMemo(() => new Map(existingEntries.map((m) => [m.id, m])), [existingEntries]);
 
   /** 已启用但本次未返回的旧模型（单列分组，显式管理）。 */
   const missingIds = useMemo(() => {
@@ -121,9 +117,7 @@ export function FetchModelsSheet({
     for (const id of missingIds) push("missing", id);
     for (const id of fetchedIds) push(modelGroupKey(id), id);
     const order = ["missing", ...MODEL_GROUP_ORDER];
-    return order
-      .filter((key) => byGroup.has(key))
-      .map((key) => ({ key, ids: byGroup.get(key)! }));
+    return order.filter((key) => byGroup.has(key)).map((key) => ({ key, ids: byGroup.get(key)! }));
   }, [fetchedIds, missingIds, search]);
 
   const visibleIds = useMemo(() => groups.flatMap((g) => g.ids), [groups]);
@@ -159,19 +153,17 @@ export function FetchModelsSheet({
 
   const handleConfirm = () => {
     // 勾选 id → 条目：已有条目原样保留（手填 ctx / type 修订不丢），新 id 按启发式预标 type
-    const models: CustomModelEntry[] = [...selected].map((id) => (
-      existingById.get(id) ?? {
-        id,
-        displayName: id,
-        type: isLikelyEmbeddingId(id) ? "embedding" : "chat",
-      }
-    ));
+    const models: CustomModelEntry[] = [...selected].map(
+      (id) =>
+        existingById.get(id) ?? {
+          id,
+          displayName: id,
+          type: isLikelyEmbeddingId(id) ? "embedding" : "chat",
+        },
+    );
     // F-4：可见宇宙 = 拉取返回 ∪ 打开时已启用（含「未返回」分组）—— 注意不是搜索过滤后的
     // visibleIds；不在宇宙里的条目本 sheet 从未展示，去留交由调用方保留合并。
-    const sheetUniverseIds = new Set<string>([
-      ...fetchedIds,
-      ...existingEntries.map((m) => m.id),
-    ]);
+    const sheetUniverseIds = new Set<string>([...fetchedIds, ...existingEntries.map((m) => m.id)]);
     void onConfirm(models, sheetUniverseIds);
   };
 
@@ -238,7 +230,10 @@ export function FetchModelsSheet({
                     {!collapsed.has(group.key) && (
                       <div className="divide-y divide-rule">
                         {group.ids.map((id) => (
-                          <label key={id} className="flex min-h-[38px] cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-rule-soft">
+                          <label
+                            key={id}
+                            className="flex min-h-[38px] cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-rule-soft"
+                          >
                             <input
                               type="checkbox"
                               className="accent-accent"

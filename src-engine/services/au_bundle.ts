@@ -47,7 +47,7 @@ export const AU_BUNDLE_EXCLUDED_DIRS = [".vectors", ".drafts", ".trash"];
 
 export interface AuBundleManifest {
   bundle_version: string;
-  exported_at: string;        // ISO 8601
+  exported_at: string; // ISO 8601
   au_name: string;
   fandom: string;
   chapter_count: number;
@@ -101,9 +101,7 @@ export async function collectAuBundle(
   if (unreadable.length > 0) {
     // 备份绝不能静默丢文件：宁可整体中止，也不产出「看着完整、实则缺章」的包。
     // 区分了「真机空目录（跳过）」与「存在但读不出的文件（致命）」，故这里只剩真问题。
-    throw new AuBundleError(
-      `以下文件无法读取，已中止备份以防数据丢失：${unreadable.join("、")}`,
-    );
+    throw new AuBundleError(`以下文件无法读取，已中止备份以防数据丢失：${unreadable.join("、")}`);
   }
 
   const files: Record<string, string> = {};
@@ -213,9 +211,7 @@ export function validateBundle(bundle: unknown): asserts bundle is AuBundle {
   const major = ver.split(".")[0];
   const expectedMajor = AU_BUNDLE_VERSION.split(".")[0];
   if (major !== expectedMajor) {
-    throw new AuBundleError(
-      `bundle 版本不兼容: ${ver}（当前支持 ${expectedMajor}.x）`,
-    );
+    throw new AuBundleError(`bundle 版本不兼容: ${ver}（当前支持 ${expectedMajor}.x）`);
   }
 }
 
@@ -245,7 +241,7 @@ async function collectFiles(root: string, adapter: PlatformAdapter, prefix: stri
 
   const result: CollectResult = { entries: [], unreadable: [] };
   for (const entry of listed) {
-    if (AU_BUNDLE_EXCLUDED_DIRS.includes(entry)) continue;       // 任意层级排除
+    if (AU_BUNDLE_EXCLUDED_DIRS.includes(entry)) continue; // 任意层级排除
     const rel = prefix ? `${prefix}/${entry}` : entry;
     const candidate = joinPath(root, rel);
 
@@ -253,7 +249,7 @@ async function collectFiles(root: string, adapter: PlatformAdapter, prefix: stri
     try {
       child = await adapter.listDir(candidate);
     } catch {
-      child = null;                                              // 真机：对文件 listDir 抛错
+      child = null; // 真机：对文件 listDir 抛错
     }
 
     if (child && child.length > 0) {
@@ -357,14 +353,14 @@ function forceStaleIndexStatus(stateYaml: string): string {
  */
 function isSafeRelPath(rel: string): boolean {
   if (!rel || rel.startsWith("/") || rel.startsWith("\\")) return false;
-  if (/^[a-zA-Z]:/.test(rel)) return false;                       // Windows 盘符
+  if (/^[a-zA-Z]:/.test(rel)) return false; // Windows 盘符
   return !rel.split(/[\\/]/).some(
     (seg) =>
-      seg === ".."
-      || seg === "."
-      || seg === ""
-      || seg !== seg.trim()                                       // 前后空白（Windows 会剥离）
-      || /\.$/.test(seg),                                         // 尾点（Windows 会剥离）
+      seg === ".." ||
+      seg === "." ||
+      seg === "" ||
+      seg !== seg.trim() || // 前后空白（Windows 会剥离）
+      /\.$/.test(seg), // 尾点（Windows 会剥离）
   );
 }
 
@@ -375,7 +371,10 @@ function isSafeRelPath(rel: string): boolean {
  */
 function canonicalizedBasename(rel: string): string {
   const base = rel.split(/[\\/]/).pop() ?? "";
-  return base.trim().replace(/[.\s]+$/, "").toLowerCase();
+  return base
+    .trim()
+    .replace(/[.\s]+$/, "")
+    .toLowerCase();
 }
 
 /** 任意层级落在排除目录下 → 跳过（防原始文件夹导入夹带 .vectors）。 */

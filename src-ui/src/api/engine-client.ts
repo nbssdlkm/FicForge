@@ -17,7 +17,14 @@ export type { Fact as FactInfo } from "@ficforge/engine";
 export type { Draft as DraftDetail } from "@ficforge/engine";
 export type { Project as ProjectInfo } from "@ficforge/engine";
 export type { Settings as SettingsInfo } from "@ficforge/engine";
-export type { WritingStyle, CastRegistry, EmbeddingLock, ContextSummary, RagChunkDetail, RagCollection } from "@ficforge/engine";
+export type {
+  WritingStyle,
+  CastRegistry,
+  EmbeddingLock,
+  ContextSummary,
+  RagChunkDetail,
+  RagCollection,
+} from "@ficforge/engine";
 export { RAG_COLLECTIONS } from "@ficforge/engine";
 export { EmotionStyle, FactStatus, IndexStatus, LLMMode, Perspective, Provenance } from "@ficforge/engine";
 // 章节/草稿文件命名判据（引擎 domain/paths 单一真相源）
@@ -63,14 +70,27 @@ export type {
 export type { FandomDisplayInfo, FandomInfo, FandomFileEntry, FandomFilesResponse } from "./fandoms";
 export type { TrashScope } from "./trash";
 export type { GenerateParams } from "./generate";
-export type { SettingsChatMode, SettingsChatMessagePayload, SettingsChatSessionLlm, SettingsChatToolCall, SettingsChatResponse } from "./settings-chat";
+export type {
+  SettingsChatMode,
+  SettingsChatMessagePayload,
+  SettingsChatSessionLlm,
+  SettingsChatToolCall,
+  SettingsChatResponse,
+} from "./settings-chat";
 export type { TrashEntry } from "@ficforge/engine";
 
 // Re-export ApiError for compatibility with components that use it for error handling
 export { ApiError, getFriendlyErrorMessage } from "./client";
 
 // Import v2 types + classification
-export type { FileAnalysis, ImportPlan, ImportConflictOptions, NewImportResult, ImportProgress, AnalysisOptions } from "@ficforge/engine";
+export type {
+  FileAnalysis,
+  ImportPlan,
+  ImportConflictOptions,
+  NewImportResult,
+  ImportProgress,
+  AnalysisOptions,
+} from "@ficforge/engine";
 export type { ClassifiedTurn, ClassificationReason, ClassificationThresholds } from "@ficforge/engine";
 export { classifyTurns } from "@ficforge/engine";
 
@@ -111,9 +131,33 @@ export {
   testEmbeddingConnection,
 } from "./engine-settings";
 export { getState, setChapterFocus, rebuildIndex, recalcState } from "./engine-state";
-export { listFacts, addFact, addFactsBatch, PartialAddFactsError, editFact, updateFactStatus, batchUpdateFactStatus, extractFacts, submitFactsExtraction, findArchivalCandidates, archiveFacts, unarchiveFact, getFactsExtractionReadiness } from "./engine-facts";
+export {
+  listFacts,
+  addFact,
+  addFactsBatch,
+  PartialAddFactsError,
+  editFact,
+  updateFactStatus,
+  batchUpdateFactStatus,
+  extractFacts,
+  submitFactsExtraction,
+  findArchivalCandidates,
+  archiveFacts,
+  unarchiveFact,
+  getFactsExtractionReadiness,
+} from "./engine-facts";
 export type { BatchFactInput, AddFactsBatchResult } from "./engine-facts";
-export { listThreads, addThread, updateThread, removeThread, addFactToThread, removeFactFromThread, setFactThreadRole, getStaleThreads, regenerateThreadState } from "./engine-threads";
+export {
+  listThreads,
+  addThread,
+  updateThread,
+  removeThread,
+  addFactToThread,
+  removeFactFromThread,
+  setFactThreadRole,
+  getStaleThreads,
+  regenerateThreadState,
+} from "./engine-threads";
 export {
   getProjectCapabilities,
   getProjectForEditing,
@@ -128,14 +172,43 @@ export {
   addPinned,
   deletePinned,
 } from "./engine-project";
-export { listChapters, getChapterContent, confirmChapter, undoChapter, updateChapterTitle, resolveDirtyChapter, updateChapterContent, scanChapterMemory, backfillChapterMemory } from "./engine-chapters";
+export {
+  listChapters,
+  getChapterContent,
+  confirmChapter,
+  undoChapter,
+  updateChapterTitle,
+  resolveDirtyChapter,
+  updateChapterContent,
+  scanChapterMemory,
+  backfillChapterMemory,
+} from "./engine-chapters";
 export type { ChapterMemoryScan } from "./engine-chapters";
 export { listDrafts, getDraft, saveDraft, deleteDrafts } from "./engine-drafts";
 export { generateChapter } from "./engine-generate";
 export { listTrash, restoreTrash, permanentDeleteTrash, purgeTrash, chapterNumFromTrashEntry } from "./engine-trash";
-export { saveLore, readLore, readLoreWithLegacyFallback, deleteLore, listLoreFiles, importFromFandom, getLoreContent, sanitizePathSegment } from "./engine-lore";
+export {
+  saveLore,
+  readLore,
+  readLoreWithLegacyFallback,
+  deleteLore,
+  listLoreFiles,
+  importFromFandom,
+  getLoreContent,
+  sanitizePathSegment,
+} from "./engine-lore";
 export { sendSettingsChat } from "./engine-settings-chat";
-export { listFandoms, getFandomDisplayInfo, createFandom, listAus, createAu, deleteFandom, deleteAu, listFandomFiles, readFandomFile } from "./engine-fandom";
+export {
+  listFandoms,
+  getFandomDisplayInfo,
+  createFandom,
+  listAus,
+  createAu,
+  deleteFandom,
+  deleteAu,
+  listFandomFiles,
+  readFandomFile,
+} from "./engine-fandom";
 export { exportChapters } from "./engine-export";
 export {
   exportAuBundle,

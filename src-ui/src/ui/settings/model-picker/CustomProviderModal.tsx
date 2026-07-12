@@ -11,11 +11,7 @@ import { Spinner } from "../../shared/Spinner";
 import { ConfirmDialog } from "../../shared/ConfirmDialog";
 import { useTranslation } from "../../../i18n/useAppTranslation";
 import { useFeedback } from "../../../hooks/useFeedback";
-import {
-  deleteCustomProvider,
-  saveCustomProvider,
-  type CustomProviderInfo,
-} from "../../../api/engine-client";
+import { deleteCustomProvider, saveCustomProvider, type CustomProviderInfo } from "../../../api/engine-client";
 
 export interface CustomProviderModalProps {
   isOpen: boolean;
@@ -140,7 +136,9 @@ export function CustomProviderModal({
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder={isEdit && provider?.has_api_key ? t("modelPicker.customProvider.apiKeyKeepPlaceholder") : "sk-..."}
+              placeholder={
+                isEdit && provider?.has_api_key ? t("modelPicker.customProvider.apiKeyKeepPlaceholder") : "sk-..."
+              }
               disabled={busy}
             />
             {isEdit && provider?.has_api_key && (
@@ -183,7 +181,9 @@ export function CustomProviderModal({
               >
                 <Trash2 size={14} className="mr-1" /> {t("modelPicker.customProvider.delete")}
               </Button>
-            ) : <span />}
+            ) : (
+              <span />
+            )}
             <div className="flex gap-2">
               <Button tone="neutral" fill="plain" onClick={onClose} disabled={busy}>
                 {t("common.actions.cancel")}

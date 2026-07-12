@@ -5,9 +5,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../api/engine-client", async () => {
-  const actual = await vi.importActual<typeof import("../../../api/engine-client")>(
-    "../../../api/engine-client",
-  );
+  const actual = await vi.importActual<typeof import("../../../api/engine-client")>("../../../api/engine-client");
   return {
     ...actual,
     estimateSimpleContextTokens: vi.fn(),
@@ -47,19 +45,26 @@ describe("useContextTokenCount", () => {
 
   it("refreshKey 变化触发重算", async () => {
     mocked.mockResolvedValue({
-      inputTokens: 100, contextWindow: 1000, maxOutput: 100, ratio: 0.1, level: "normal",
+      inputTokens: 100,
+      contextWindow: 1000,
+      maxOutput: 100,
+      ratio: 0.1,
+      level: "normal",
     });
 
-    const { result, rerender } = renderHook(
-      ({ key }) => useContextTokenCount("au_r", key),
-      { initialProps: { key: 0 } },
-    );
+    const { result, rerender } = renderHook(({ key }) => useContextTokenCount("au_r", key), {
+      initialProps: { key: 0 },
+    });
 
     await waitFor(() => expect(mocked).toHaveBeenCalledTimes(1), { timeout: 1500 });
     expect(result.current.estimate?.inputTokens).toBe(100);
 
     mocked.mockResolvedValue({
-      inputTokens: 200, contextWindow: 1000, maxOutput: 100, ratio: 0.2, level: "normal",
+      inputTokens: 200,
+      contextWindow: 1000,
+      maxOutput: 100,
+      ratio: 0.2,
+      level: "normal",
     });
     rerender({ key: 1 });
     await waitFor(() => expect(mocked).toHaveBeenCalledTimes(2), { timeout: 1500 });
@@ -78,13 +83,16 @@ describe("useContextTokenCount", () => {
 
   it("messages 变化触发重算（含 history）", async () => {
     mocked.mockResolvedValue({
-      inputTokens: 100, contextWindow: 1000, maxOutput: 100, ratio: 0.1, level: "normal",
+      inputTokens: 100,
+      contextWindow: 1000,
+      maxOutput: 100,
+      ratio: 0.1,
+      level: "normal",
     });
 
-    const { rerender } = renderHook(
-      ({ msgs }) => useContextTokenCount("au_h", 0, msgs),
-      { initialProps: { msgs: [] as SimpleChatMessage[] } },
-    );
+    const { rerender } = renderHook(({ msgs }) => useContextTokenCount("au_h", 0, msgs), {
+      initialProps: { msgs: [] as SimpleChatMessage[] },
+    });
 
     await waitFor(() => expect(mocked).toHaveBeenCalledTimes(1), { timeout: 1500 });
 
@@ -97,7 +105,7 @@ describe("useContextTokenCount", () => {
 
     // 验证 mocked 第二次被传了 history
     const lastCallArgs = mocked.mock.calls[mocked.mock.calls.length - 1];
-    expect(lastCallArgs[1]).toBeDefined();  // history 参数
+    expect(lastCallArgs[1]).toBeDefined(); // history 参数
     expect(Array.isArray(lastCallArgs[1])).toBe(true);
   });
 });

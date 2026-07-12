@@ -66,12 +66,14 @@ describe("collectAuBundle (TD-015 export)", () => {
 
   it("builds a correct manifest", async () => {
     const bundle = await collectAuBundle(AU, adapter, {
-      au_name: "我的故事", fandom: "原创", source_platform: "capacitor",
+      au_name: "我的故事",
+      fandom: "原创",
+      source_platform: "capacitor",
     });
     expect(bundle.manifest.bundle_version).toBe(AU_BUNDLE_VERSION);
     expect(bundle.manifest.au_name).toBe("我的故事");
     expect(bundle.manifest.fandom).toBe("原创");
-    expect(bundle.manifest.chapter_count).toBe(2);              // ch0001 + ch0002, 不含 .summary
+    expect(bundle.manifest.chapter_count).toBe(2); // ch0001 + ch0002, 不含 .summary
     expect(bundle.manifest.file_count).toBe(Object.keys(bundle.files).length);
     expect(bundle.manifest.source_platform).toBe("capacitor");
     expect(bundle.manifest.exported_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
@@ -106,15 +108,22 @@ describe("importAuBundle (TD-015 import)", () => {
 
     // 内容真的写到目标路径下了
     expect(await adapter.readFile(`${TARGET}/chapters/main/ch0001.md`)).toBe(bundleA.files["chapters/main/ch0001.md"]);
-    expect(await adapter.readFile(`${TARGET}/.well-known/simple-chat.yaml`)).toBe(bundleA.files[".well-known/simple-chat.yaml"]);
+    expect(await adapter.readFile(`${TARGET}/.well-known/simple-chat.yaml`)).toBe(
+      bundleA.files[".well-known/simple-chat.yaml"],
+    );
   });
 
   it("skips unsafe and excluded relative paths instead of writing them", async () => {
     const adapter = new MockAdapter();
     const bundle: AuBundle = {
       manifest: {
-        bundle_version: AU_BUNDLE_VERSION, exported_at: "2026-06-23T00:00:00Z",
-        au_name: "x", fandom: "y", chapter_count: 1, file_count: 4, excluded_dirs: [],
+        bundle_version: AU_BUNDLE_VERSION,
+        exported_at: "2026-06-23T00:00:00Z",
+        au_name: "x",
+        fandom: "y",
+        chapter_count: 1,
+        file_count: 4,
+        excluded_dirs: [],
       },
       files: {
         "chapters/main/ch0001.md": "ok",
@@ -138,8 +147,13 @@ describe("importAuBundle (TD-015 import)", () => {
     const adapter = new MockAdapter();
     const bundle: AuBundle = {
       manifest: {
-        bundle_version: AU_BUNDLE_VERSION, exported_at: "2026-07-11T00:00:00Z",
-        au_name: "恶意AU", fandom: "y", chapter_count: 0, file_count: 1, excluded_dirs: [],
+        bundle_version: AU_BUNDLE_VERSION,
+        exported_at: "2026-07-11T00:00:00Z",
+        au_name: "恶意AU",
+        fandom: "y",
+        chapter_count: 0,
+        file_count: 1,
+        excluded_dirs: [],
       },
       files: { "project.yaml": projectYaml },
     };
@@ -154,20 +168,22 @@ describe("importAuBundle (TD-015 import)", () => {
   }
 
   it("导入消毒（块式）：api_key 重脱敏 + api_base/chat_path 剥离，含 embedding_lock（盲审 R3 HIGH-2）", async () => {
-    const doc = await importAndParseProject([
-      "name: 恶意AU",
-      "llm:",
-      "  mode: api",
-      "  model: deepseek-chat",
-      "  api_base: https://attacker.example/v1",
-      "  api_key: sk-leaked-plaintext",
-      "  chat_path: /steal/v1/chat",
-      "embedding_lock:",
-      "  api_base: https://attacker.example/v1",
-      "  api_key: emb-leaked-plaintext",
-      "",
-    ].join("\n"));
-    expect(doc.name).toBe("恶意AU");           // 无关键完好
+    const doc = await importAndParseProject(
+      [
+        "name: 恶意AU",
+        "llm:",
+        "  mode: api",
+        "  model: deepseek-chat",
+        "  api_base: https://attacker.example/v1",
+        "  api_key: sk-leaked-plaintext",
+        "  chat_path: /steal/v1/chat",
+        "embedding_lock:",
+        "  api_base: https://attacker.example/v1",
+        "  api_key: emb-leaked-plaintext",
+        "",
+      ].join("\n"),
+    );
+    expect(doc.name).toBe("恶意AU"); // 无关键完好
     expect(doc.llm.model).toBe("deepseek-chat"); // 非端点键完好
     expect(doc.llm.api_key).toBe("<secure>");
     expect(doc.llm.api_base).toBe("");
@@ -196,8 +212,13 @@ describe("importAuBundle (TD-015 import)", () => {
   it("导入消毒：文件名归一化绕过（./project.yaml / 尾空格）被拒写，不落未消毒内容（HIGH-2 二次对抗审）", async () => {
     const mkBundle = (name: string): AuBundle => ({
       manifest: {
-        bundle_version: AU_BUNDLE_VERSION, exported_at: "t", au_name: "x", fandom: "y",
-        chapter_count: 0, file_count: 1, excluded_dirs: [],
+        bundle_version: AU_BUNDLE_VERSION,
+        exported_at: "t",
+        au_name: "x",
+        fandom: "y",
+        chapter_count: 0,
+        file_count: 1,
+        excluded_dirs: [],
       },
       files: { [name]: "llm:\n  api_base: https://attacker.example/v1\n  api_key: sk-leaked-plaintext\n" },
     });
@@ -216,11 +237,17 @@ describe("importAuBundle (TD-015 import)", () => {
     const adapter = new MockAdapter();
     const bundle: AuBundle = {
       manifest: {
-        bundle_version: AU_BUNDLE_VERSION, exported_at: "t", au_name: "x", fandom: "y",
-        chapter_count: 0, file_count: 1, excluded_dirs: [],
+        bundle_version: AU_BUNDLE_VERSION,
+        exported_at: "t",
+        au_name: "x",
+        fandom: "y",
+        chapter_count: 0,
+        file_count: 1,
+        excluded_dirs: [],
       },
       files: {
-        "Project.yaml": "name: x\nllm:\n  model: deepseek-chat\n  api_base: https://attacker.example/v1\n  api_key: sk-leaked-plaintext\n",
+        "Project.yaml":
+          "name: x\nllm:\n  model: deepseek-chat\n  api_base: https://attacker.example/v1\n  api_key: sk-leaked-plaintext\n",
       },
     };
     await importAuBundle("data/aus/case", bundle, adapter);
@@ -237,7 +264,10 @@ describe("collectAuBundle secret redaction (review fix)", () => {
   it("redacts a legacy plaintext api_key in project.yaml to the <secure> placeholder", async () => {
     const adapter = new MockAdapter();
     const root = "data/aus/legacy";
-    await adapter.writeFile(`${root}/project.yaml`, "name: x\nllm:\n  api_key: sk-PLAINTEXT-SECRET-123\nembedding_lock:\n  api_key: emb-SECRET-456\n");
+    await adapter.writeFile(
+      `${root}/project.yaml`,
+      "name: x\nllm:\n  api_key: sk-PLAINTEXT-SECRET-123\nembedding_lock:\n  api_key: emb-SECRET-456\n",
+    );
     await adapter.writeFile(`${root}/chapters/main/ch0001.md`, "正文");
 
     const bundle = await collectAuBundle(root, adapter);
@@ -252,7 +282,9 @@ describe("collectAuBundle aborts on unreadable files (review fix — no silent d
   // 模拟真机：对一个存在的文件 listDir 抛错（确定是文件）且 readFile 也抛错（不可读）。
   const strip = (p: string) => p.replace(/\/+$/, "");
   class PoisonAdapter extends MockAdapter {
-    constructor(private readonly poison: string) { super(); }
+    constructor(private readonly poison: string) {
+      super();
+    }
     async listDir(path: string): Promise<string[]> {
       if (strip(path) === strip(this.poison)) throw new Error("not a directory");
       return super.listDir(path);
@@ -277,7 +309,9 @@ describe("collectAuBundle aborts on unreadable files (review fix — no silent d
   // 模拟 WEB 平台（简版 fork 实际导出环境）：对文件 listDir **不抛错、返回 []**，只 readFile 抛错。
   // getPlatform() === "web"（MockAdapter 默认），不能靠 listDir 抛错来识别文件。
   class WebReadFailAdapter extends MockAdapter {
-    constructor(private readonly poison: string) { super(); }
+    constructor(private readonly poison: string) {
+      super();
+    }
     async readFile(path: string): Promise<string> {
       if (strip(path) === strip(this.poison)) throw new Error("EIO");
       return super.readFile(path);
@@ -303,8 +337,13 @@ describe("importAuBundle staleIndexStatus (review fix — lossless flip)", () =>
     const adapter = new MockAdapter();
     const bundle: AuBundle = {
       manifest: {
-        bundle_version: AU_BUNDLE_VERSION, exported_at: "t", au_name: "x", fandom: "y",
-        chapter_count: 0, file_count: 1, excluded_dirs: [],
+        bundle_version: AU_BUNDLE_VERSION,
+        exported_at: "t",
+        au_name: "x",
+        fandom: "y",
+        chapter_count: 0,
+        file_count: 1,
+        excluded_dirs: [],
       },
       files: {
         "state.yaml": "current_chapter: 5\nindex_status: ready\nfuture_field_from_simple_fork: 42\n",
@@ -317,13 +356,21 @@ describe("importAuBundle staleIndexStatus (review fix — lossless flip)", () =>
     expect(written).toContain("index_status: stale");
     expect(written).not.toContain("index_status: ready");
     expect(written).toContain("current_chapter: 5");
-    expect(written).toContain("future_field_from_simple_fork: 42");   // 未知字段无损保留
+    expect(written).toContain("future_field_from_simple_fork: 42"); // 未知字段无损保留
   });
 
   it("does not touch state.yaml when staleIndexStatus is off", async () => {
     const adapter = new MockAdapter();
     const bundle: AuBundle = {
-      manifest: { bundle_version: AU_BUNDLE_VERSION, exported_at: "t", au_name: "", fandom: "", chapter_count: 0, file_count: 1, excluded_dirs: [] },
+      manifest: {
+        bundle_version: AU_BUNDLE_VERSION,
+        exported_at: "t",
+        au_name: "",
+        fandom: "",
+        chapter_count: 0,
+        file_count: 1,
+        excluded_dirs: [],
+      },
       files: { "state.yaml": "index_status: ready\n" },
     };
     await importAuBundle("data/aus/r2", bundle, adapter);
@@ -334,8 +381,13 @@ describe("importAuBundle staleIndexStatus (review fix — lossless flip)", () =>
 describe("validateBundle (TD-015 version guard)", () => {
   const ok: AuBundle = {
     manifest: {
-      bundle_version: AU_BUNDLE_VERSION, exported_at: "t", au_name: "", fandom: "",
-      chapter_count: 0, file_count: 0, excluded_dirs: [],
+      bundle_version: AU_BUNDLE_VERSION,
+      exported_at: "t",
+      au_name: "",
+      fandom: "",
+      chapter_count: 0,
+      file_count: 0,
+      excluded_dirs: [],
     },
     files: {},
   };
@@ -346,8 +398,9 @@ describe("validateBundle (TD-015 version guard)", () => {
   });
 
   it("rejects an incompatible major version", () => {
-    expect(() => validateBundle({ ...ok, manifest: { ...ok.manifest, bundle_version: "2.0.0" } }))
-      .toThrow(AuBundleError);
+    expect(() => validateBundle({ ...ok, manifest: { ...ok.manifest, bundle_version: "2.0.0" } })).toThrow(
+      AuBundleError,
+    );
   });
 
   it("rejects structurally invalid bundles", () => {

@@ -46,7 +46,7 @@ export function MobileSheet({
       <div
         className={cn(
           "absolute inset-x-0 bottom-0 flex max-h-[calc(var(--app-height)-1rem)] min-h-[70vh] flex-col overflow-hidden rounded-t-sm border border-rule bg-surface shadow-strong animate-slide-up",
-          className
+          className,
         )}
         {...props}
       >
@@ -55,11 +55,7 @@ export function MobileSheet({
           style={sheetHeaderGoldLines}
         >
           <div className="min-w-0 flex-1">
-            {title ? (
-              <h2 className="truncate font-display text-lg font-semibold text-inv-text">
-                {title}
-              </h2>
-            ) : null}
+            {title ? <h2 className="truncate font-display text-lg font-semibold text-inv-text">{title}</h2> : null}
           </div>
           <button
             type="button"
@@ -70,9 +66,7 @@ export function MobileSheet({
             <X size={18} />
           </button>
         </div>
-        <div className={cn("flex-1 overflow-y-auto px-4 py-4 safe-area-bottom", contentClassName)}>
-          {children}
-        </div>
+        <div className={cn("flex-1 overflow-y-auto px-4 py-4 safe-area-bottom", contentClassName)}>{children}</div>
       </div>
     </div>
   );

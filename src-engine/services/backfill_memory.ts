@@ -15,12 +15,11 @@
 import { logCatch } from "../logger/index.js";
 import { isAbortError } from "../utils/abort_error.js";
 
-
 export interface BackfillMemoryTarget {
   chapterNum: number;
-  content: string;       // 章节正文（去 frontmatter，= confirm 喂 LLM 同款）
-  contentHash: string;   // 章节 content_hash，供 CAS 校验「跑的过程中章节没被改」
-  needSummary: boolean;  // 该章缺 standard 摘要
+  content: string; // 章节正文（去 frontmatter，= confirm 喂 LLM 同款）
+  contentHash: string; // 章节 content_hash，供 CAS 校验「跑的过程中章节没被改」
+  needSummary: boolean; // 该章缺 standard 摘要
   extractFacts: boolean; // 该章在用户勾选的提取集
 }
 
@@ -48,15 +47,15 @@ export interface BackfillMemoryDeps {
 }
 
 export interface BackfillMemoryResult {
-  total: number;              // 待处理章数
+  total: number; // 待处理章数
   summariesGenerated: number; // 成功生成且落盘的摘要数
-  factsChapters: number;      // 成功落盘 ≥1 条新笔记的章数
-  factsAdded: number;         // 落库的笔记总条数
-  indexed: number;            // 成功落盘（正文进索引）的章数 = persisted 数
-  skipped: number;            // CAS 拒绝（章节中途被改/删）
-  failed: number;             // 生成 / 提取 / 落盘抛错（已记录，不中断整批）
-  aborted: boolean;           // 用户中途停止（已补的保留）
-  factsOverCapCount: number;  // L16：react 提取因 8 条软上限被丢弃的笔记总数（跨已落盘的章累计）
+  factsChapters: number; // 成功落盘 ≥1 条新笔记的章数
+  factsAdded: number; // 落库的笔记总条数
+  indexed: number; // 成功落盘（正文进索引）的章数 = persisted 数
+  skipped: number; // CAS 拒绝（章节中途被改/删）
+  failed: number; // 生成 / 提取 / 落盘抛错（已记录，不中断整批）
+  aborted: boolean; // 用户中途停止（已补的保留）
+  factsOverCapCount: number; // L16：react 提取因 8 条软上限被丢弃的笔记总数（跨已落盘的章累计）
 }
 
 /**
@@ -77,8 +76,17 @@ export async function backfill_chapter_memory(deps: BackfillMemoryDeps): Promise
   let failed = 0;
   let factsOverCapCount = 0;
 
-  const result = (aborted: boolean): BackfillMemoryResult =>
-    ({ total, summariesGenerated, factsChapters, factsAdded, indexed, skipped, failed, aborted, factsOverCapCount });
+  const result = (aborted: boolean): BackfillMemoryResult => ({
+    total,
+    summariesGenerated,
+    factsChapters,
+    factsAdded,
+    indexed,
+    skipped,
+    failed,
+    aborted,
+    factsOverCapCount,
+  });
 
   for (let i = 0; i < total; i++) {
     if (deps.signal?.aborted) return result(true);

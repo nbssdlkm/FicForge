@@ -53,7 +53,9 @@ export function AnalysisStep({
               <div className="flex items-center gap-2">
                 {status === "done" && <CheckCircle2 size={16} className="text-success" />}
                 {status === "error" && <XCircle size={16} className="text-error" />}
-                {(status === "analyzing" || status === "llm-detecting-chat") && <Spinner size="md" className="text-accent" />}
+                {(status === "analyzing" || status === "llm-detecting-chat") && (
+                  <Spinner size="md" className="text-accent" />
+                )}
                 {status === "waiting" && <Clock size={16} className="text-text/30" />}
                 <span className="text-sm font-medium text-text">{file.name}</span>
               </div>
@@ -74,12 +76,8 @@ export function AnalysisStep({
                 </div>
               )}
 
-              {status === "waiting" && (
-                <p className="mt-1 pl-6 text-xs text-text/30">{t("import.waiting")}</p>
-              )}
-              {status === "analyzing" && (
-                <p className="mt-1 pl-6 text-xs text-accent">{t("import.analyzing")}</p>
-              )}
+              {status === "waiting" && <p className="mt-1 pl-6 text-xs text-text/30">{t("import.waiting")}</p>}
+              {status === "analyzing" && <p className="mt-1 pl-6 text-xs text-accent">{t("import.analyzing")}</p>}
               {status === "llm-detecting-chat" && (
                 <p className="mt-1 pl-6 text-xs text-accent">{t("import.llmDetectingChat")}</p>
               )}
@@ -111,7 +109,9 @@ export function AnalysisStep({
             <p className="text-xs font-medium text-text/70">{t("import.step2Thresholds")}</p>
             <div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
               <div className="flex-1">
-                <label className="text-xs text-text/50">{t("import.step2ChapterThreshold", { n: chapterThreshold })}</label>
+                <label className="text-xs text-text/50">
+                  {t("import.step2ChapterThreshold", { n: chapterThreshold })}
+                </label>
                 <Input
                   type="number"
                   value={chapterThreshold}
@@ -139,7 +139,14 @@ export function AnalysisStep({
         </Button>
         {!allDone ? (
           <Button tone="accent" fill="solid" onClick={onStartAnalysis} disabled={analyzing}>
-            {analyzing ? <><Spinner size="sm" className="mr-2" />{t("import.analyzing")}</> : t("onboarding.common.next")}
+            {analyzing ? (
+              <>
+                <Spinner size="sm" className="mr-2" />
+                {t("import.analyzing")}
+              </>
+            ) : (
+              t("onboarding.common.next")
+            )}
           </Button>
         ) : (
           <Button tone="accent" fill="solid" onClick={onStartAnalysis}>

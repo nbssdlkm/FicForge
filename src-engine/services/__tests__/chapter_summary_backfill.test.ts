@@ -13,9 +13,9 @@ describe("find_chapters_missing_summary", () => {
     const summaryRepo = {
       get: vi.fn(async (_au: string, n: number) => {
         if (n === 2) return { standard: { text: "已有摘要" } };
-        if (n === 4) return { standard: { text: "   " } };   // 空白 = 视为缺
-        if (n === 5) return { micro: "只有micro" };           // 无 standard = 缺
-        return null;                                          // 1, 3 无文件
+        if (n === 4) return { standard: { text: "   " } }; // 空白 = 视为缺
+        if (n === 5) return { micro: "只有micro" }; // 无 standard = 缺
+        return null; // 1, 3 无文件
       }),
     } as any;
     const missing = await find_chapters_missing_summary("/au", [1, 2, 3, 4, 5], summaryRepo);

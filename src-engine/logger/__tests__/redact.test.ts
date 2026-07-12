@@ -13,7 +13,13 @@ import { redactCtx } from "../logger.js";
 describe("redactCtx — 字段名匹配（既有行为回归锚）", () => {
   it("api_key / token / authorization / *_key 字段整体掩码", () => {
     const out = redactCtx({ api_key: "sk-abc", token: "t", authorization: "Bearer x", my_key: "n", safe: 1 });
-    expect(out).toEqual({ api_key: "[REDACTED]", token: "[REDACTED]", authorization: "[REDACTED]", my_key: "[REDACTED]", safe: 1 });
+    expect(out).toEqual({
+      api_key: "[REDACTED]",
+      token: "[REDACTED]",
+      authorization: "[REDACTED]",
+      my_key: "[REDACTED]",
+      safe: 1,
+    });
   });
 });
 
@@ -54,7 +60,9 @@ describe("redactCtx — 字符串值级擦洗（error 字段直通面根治）",
   });
 
   it("secure key 名内嵌的作品标题被擦掉（keyring 错误串形态）", () => {
-    const out = redactCtx({ error: "failed to read secure store entry for project.我的秘密同人文.llm.api_key: locked" });
+    const out = redactCtx({
+      error: "failed to read secure store entry for project.我的秘密同人文.llm.api_key: locked",
+    });
     expect(out.error).not.toContain("我的秘密同人文");
     expect(out.error).toContain("project.[REDACTED].llm.api_key");
   });

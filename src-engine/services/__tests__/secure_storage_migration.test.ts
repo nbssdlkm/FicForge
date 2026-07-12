@@ -28,13 +28,16 @@ describe("migrate_legacy_secure_storage", () => {
     const fandomRepo = new FileFandomRepository(adapter, dataDir);
     const projectRepo = new FileProjectRepository(adapter);
 
-    await adapter.writeFile("settings.yaml", yaml.dump({
-      updated_at: "2026-04-01T00:00:00Z",
-      default_llm: { mode: "api", model: "gpt-4o", api_base: "", api_key: "legacy-settings-key" },
-      embedding: { mode: "api", model: "", api_base: "", api_key: "" },
-      sync: {},
-      app: { language: "zh" },
-    }));
+    await adapter.writeFile(
+      "settings.yaml",
+      yaml.dump({
+        updated_at: "2026-04-01T00:00:00Z",
+        default_llm: { mode: "api", model: "gpt-4o", api_base: "", api_key: "legacy-settings-key" },
+        embedding: { mode: "api", model: "", api_base: "", api_key: "" },
+        sync: {},
+        app: { language: "zh" },
+      }),
+    );
 
     const fandomPath = "fandoms/demo";
     await fandomRepo.save(fandomPath, {
@@ -53,13 +56,16 @@ describe("migrate_legacy_secure_storage", () => {
       updated_at: "2026-04-02T00:00:00Z",
     });
     project.llm.api_key = "legacy-project-key";
-    await adapter.writeFile(`${project.au_id}/project.yaml`, yaml.dump({
-      ...project,
-      llm: {
-        ...project.llm,
-        api_key: "legacy-project-key",
-      },
-    }));
+    await adapter.writeFile(
+      `${project.au_id}/project.yaml`,
+      yaml.dump({
+        ...project,
+        llm: {
+          ...project.llm,
+          api_key: "legacy-project-key",
+        },
+      }),
+    );
 
     const result = await migrate_legacy_secure_storage({
       adapter,

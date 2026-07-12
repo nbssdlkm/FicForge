@@ -104,14 +104,20 @@ describe("RagManager", () => {
   describe("rebuildForAu", () => {
     it("rebuilds index from all chapters", async () => {
       // Seed two chapters
-      await chapterRepo.save(createChapter({
-        au_id: "au1", chapter_num: 1,
-        content: "第一章的内容。Alice在这里。足够长的文本以生成chunk数据。",
-      }));
-      await chapterRepo.save(createChapter({
-        au_id: "au1", chapter_num: 2,
-        content: "第二章的内容。Bob在这里。同样足够长的文本以生成chunk数据。",
-      }));
+      await chapterRepo.save(
+        createChapter({
+          au_id: "au1",
+          chapter_num: 1,
+          content: "第一章的内容。Alice在这里。足够长的文本以生成chunk数据。",
+        }),
+      );
+      await chapterRepo.save(
+        createChapter({
+          au_id: "au1",
+          chapter_num: 2,
+          content: "第二章的内容。Bob在这里。同样足够长的文本以生成chunk数据。",
+        }),
+      );
 
       await ragManager.rebuildForAu("au1", chapterRepo, embProvider);
 
@@ -134,12 +140,16 @@ describe("RagManager", () => {
 
     it("T7-8: unloads AU when embedding fails mid-rebuild, so next ensureLoaded recovers from disk", async () => {
       // 1. 先索引一章到磁盘（模拟用户"重建索引"之前的 happy state）
-      await chapterRepo.save(createChapter({
-        au_id: "au1", chapter_num: 1,
-        content: "第一章内容。Alice 出场。足够长的文本以生成 chunk 数据用于测试。",
-      }));
+      await chapterRepo.save(
+        createChapter({
+          au_id: "au1",
+          chapter_num: 1,
+          content: "第一章内容。Alice 出场。足够长的文本以生成 chunk 数据用于测试。",
+        }),
+      );
       await ragManager.indexChapter(
-        "au1", 1,
+        "au1",
+        1,
         "第一章内容。Alice 出场。足够长的文本以生成 chunk 数据用于测试。",
         embProvider,
       );
@@ -157,9 +167,7 @@ describe("RagManager", () => {
       };
 
       // 3. rebuildForAu 必须抛错
-      await expect(
-        ragManager.rebuildForAu("au1", chapterRepo, failingEmb),
-      ).rejects.toThrow("network_error");
+      await expect(ragManager.rebuildForAu("au1", chapterRepo, failingEmb)).rejects.toThrow("network_error");
 
       // 4. 关键断言（T7-8 真不变量：失败的 rebuild 不得造成 0 召回）。
       //    缓冲式重建（盲审 2026-07-11 B3）后 embed 失败发生在触碰引擎之前 ——
@@ -182,10 +190,13 @@ describe("RagManager", () => {
       expect(oldCount).toBeGreaterThan(0);
 
       // Seed only chapter 2 (chapter 1 no longer in repo)
-      await chapterRepo.save(createChapter({
-        au_id: "au1", chapter_num: 2,
-        content: "新的第二章。足够长的文本以生成chunk数据用于测试。",
-      }));
+      await chapterRepo.save(
+        createChapter({
+          au_id: "au1",
+          chapter_num: 2,
+          content: "新的第二章。足够长的文本以生成chunk数据用于测试。",
+        }),
+      );
 
       await ragManager.rebuildForAu("au1", chapterRepo, embProvider);
 
@@ -202,8 +213,7 @@ describe("RagManager", () => {
       // 两段各 400 字 → 2 个 chunk（ch1_0 / ch1_1）
       const longContent = `${"甲".repeat(400)}\n\n${"乙".repeat(400)}`;
       await ragManager.indexChapter("au1", 1, longContent, embProvider);
-      const idsBefore = JSON.parse(adapter.raw("au1/.vectors/index.json")!)
-        .chunks.map((c: { id: string }) => c.id);
+      const idsBefore = JSON.parse(adapter.raw("au1/.vectors/index.json")!).chunks.map((c: { id: string }) => c.id);
       expect(idsBefore).toContain("ch1_1");
 
       // 重索引成 1 个 chunk 的短内容 → 旧尾部 ch1_1 必须消失（内存 + 落盘）
@@ -211,8 +221,7 @@ describe("RagManager", () => {
       await ragManager.indexChapter("au1", 1, shortContent, embProvider);
 
       expect(ragManager.chunkCountFor("au1")).toBe(1);
-      const idsAfter = JSON.parse(adapter.raw("au1/.vectors/index.json")!)
-        .chunks.map((c: { id: string }) => c.id);
+      const idsAfter = JSON.parse(adapter.raw("au1/.vectors/index.json")!).chunks.map((c: { id: string }) => c.id);
       expect(idsAfter).toEqual(["ch1_0"]);
 
       // 冷启动重载后同样不复活
@@ -226,8 +235,7 @@ describe("RagManager", () => {
       await ragManager.indexChapterSummary("au1", 1, "第一章的摘要文本。", embProvider);
       await ragManager.indexChapter("au1", 1, "第一章正文。足够长的文本以生成chunk数据用于测试。", embProvider);
 
-      const ids = JSON.parse(adapter.raw("au1/.vectors/index.json")!)
-        .chunks.map((c: { id: string }) => c.id);
+      const ids = JSON.parse(adapter.raw("au1/.vectors/index.json")!).chunks.map((c: { id: string }) => c.id);
       expect(ids).toContain("sum1");
       expect(ids).toContain("ch1_0");
     });
@@ -266,8 +274,7 @@ describe("RagManager", () => {
       await ragManager.removeChapter("au1", 1);
 
       // 内存：ch1_* 与 sum1 消失，第 2 章完好
-      const idsInMemory = JSON.parse(adapter.raw("au1/.vectors/index.json")!)
-        .chunks.map((c: { id: string }) => c.id);
+      const idsInMemory = JSON.parse(adapter.raw("au1/.vectors/index.json")!).chunks.map((c: { id: string }) => c.id);
       expect(idsInMemory.some((id: string) => id.startsWith("ch1_"))).toBe(false);
       expect(idsInMemory).not.toContain("sum1");
       expect(idsInMemory).toContain("ch2_0");
@@ -276,8 +283,7 @@ describe("RagManager", () => {
       // 冷启动重载（rebuild-from-disk）：被删向量不复活
       ragManager.unload();
       await ragManager.ensureLoaded("au1");
-      const survivors = JSON.parse(adapter.raw("au1/.vectors/index.json")!)
-        .chunks.map((c: { id: string }) => c.id);
+      const survivors = JSON.parse(adapter.raw("au1/.vectors/index.json")!).chunks.map((c: { id: string }) => c.id);
       expect(survivors.some((id: string) => id.startsWith("ch1_") || id === "sum1")).toBe(false);
       expect(ragManager.chunkCountFor("au1")).toBe(2); // ch2_0 + sum2
     });
@@ -347,7 +353,9 @@ describe("RagManager", () => {
     it("AU1 的 embed 挂起期间并发索引 AU2 → 两 AU 的 .vectors 各自纯净、无交叉污染", async () => {
       // 可控 embedding：au1 的 embed 挂起直到手动释放；au2 立即返回。
       let releaseAu1: () => void = () => {};
-      const au1Gate = new Promise<void>((r) => { releaseAu1 = r; });
+      const au1Gate = new Promise<void>((r) => {
+        releaseAu1 = r;
+      });
       const controllableEmb: EmbeddingProvider = {
         async embed(texts: string[]): Promise<number[][]> {
           if (texts.some((t) => t.includes("AU1内容"))) await au1Gate; // au1 卡在 embed
@@ -360,9 +368,9 @@ describe("RagManager", () => {
       // 并发：au1 索引（embed 挂起）与 au2 索引（立即完成 + persist）。
       const au1P = ragManager.indexChapter("au1", 1, "AU1内容。".repeat(80), controllableEmb);
       const au2P = ragManager.indexChapter("au2", 1, "AU2内容。".repeat(80), controllableEmb);
-      await au2P;        // au2 在 au1 仍卡 embed 期间完成并落盘（正是竞态窗口）
+      await au2P; // au2 在 au1 仍卡 embed 期间完成并落盘（正是竞态窗口）
       releaseAu1();
-      await au1P;        // 释放后 au1 完成并落盘
+      await au1P; // 释放后 au1 完成并落盘
 
       // 断言：每个 AU 的落盘索引分片只含**自身** au_id / 内容。
       // 回退到单例共享引擎：au1 的 post-embed index/persist 会把 au2 的 chunk 一并写进 au1/index.json
@@ -384,16 +392,21 @@ describe("RagManager", () => {
 
       // 可控 load 的工厂：load 挂起直到释放
       let releaseLoad: () => void = () => {};
-      const gate = new Promise<void>((r) => { releaseLoad = r; });
+      const gate = new Promise<void>((r) => {
+        releaseLoad = r;
+      });
       const gatedMgr = new RagManager(() => {
         const eng = new JsonVectorEngine(adapter);
         const origLoad = eng.load.bind(eng);
-        eng.load = async (dir: string) => { await gate; return origLoad(dir); };
+        eng.load = async (dir: string) => {
+          await gate;
+          return origLoad(dir);
+        };
         return eng;
       });
 
       const loadP = gatedMgr.ensureLoaded("au1"); // load 在飞
-      gatedMgr.unloadIfCurrent("au1");            // 删除该 AU（evict：从 loading 移除本 promise）
+      gatedMgr.unloadIfCurrent("au1"); // 删除该 AU（evict：从 loading 移除本 promise）
       releaseLoad();
       await loadP;
 
@@ -406,7 +419,9 @@ describe("RagManager", () => {
     it("发现2: 在用引擎被 pin，同 AU 并发操作复用之，更新不因 LRU 驱逐丢失", async () => {
       const mgr = new RagManager(() => new JsonVectorEngine(adapter), 1); // maxEngines=1 激进驱逐
       let release: () => void = () => {};
-      const gate = new Promise<void>((r) => { release = r; });
+      const gate = new Promise<void>((r) => {
+        release = r;
+      });
       const gatedEmb: EmbeddingProvider = {
         async embed(texts: string[]): Promise<number[][]> {
           if (texts.some((t) => t.includes("GATE"))) await gate;
@@ -447,8 +462,12 @@ describe("同 AU 并发写串行化（盲审 2026-07-11：persist 孤儿分片 G
       await new Promise<void>((resolve) => this.gates.push(resolve));
       return texts.map((_, i) => [1, 0, 0, (this.calls * 10 + i) / 100]);
     }
-    get_dimension(): number { return 4; }
-    get_model_name(): string { return "gated-embed"; }
+    get_dimension(): number {
+      return 4;
+    }
+    get_model_name(): string {
+      return "gated-embed";
+    }
     /** 放行下一个在等待的 embed。 */
     release(): void {
       const g = this.gates.shift();
@@ -531,7 +550,9 @@ describe("同 AU 并发写串行化（盲审 2026-07-11：persist 孤儿分片 G
     const adapter = new MockAdapter();
     const ragManager = new RagManager(() => new JsonVectorEngine(adapter));
     const failing: EmbeddingProvider = {
-      embed: async () => { throw new Error("embed down"); },
+      embed: async () => {
+        throw new Error("embed down");
+      },
       get_dimension: () => 4,
       get_model_name: () => "failing",
     };

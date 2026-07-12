@@ -47,15 +47,21 @@ const cases: AdapterCase[] = [
       await a.init();
       return a;
     },
-    teardown: () => { delete (globalThis as unknown as { indexedDB?: unknown }).indexedDB; },
+    teardown: () => {
+      delete (globalThis as unknown as { indexedDB?: unknown }).indexedDB;
+    },
   },
 ];
 
 for (const c of cases) {
   describe(`PlatformAdapter 契约 — ${c.name}`, () => {
     let a: PlatformAdapter;
-    beforeEach(async () => { a = await c.make(); });
-    afterEach(() => { c.teardown?.(); });
+    beforeEach(async () => {
+      a = await c.make();
+    });
+    afterEach(() => {
+      c.teardown?.();
+    });
 
     it("writeFile/readFile round-trip（中文）", async () => {
       await a.writeFile("d/sub/file.md", "第一章：夜色如墨。");

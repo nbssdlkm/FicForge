@@ -5,7 +5,7 @@
 
 /** RAG 支持的 collection 类型。新增时只需更新此列表，类型与 UI 白名单自动对齐。 */
 export const RAG_COLLECTIONS = ["chapters", "characters", "worldbuilding", "summaries"] as const;
-export type RagCollection = typeof RAG_COLLECTIONS[number];
+export type RagCollection = (typeof RAG_COLLECTIONS)[number];
 
 export interface RagChunkDetail {
   /** 片段原文。 */
@@ -61,7 +61,7 @@ export function createContextSummary(partial?: Partial<ContextSummary>): Context
     total_input_tokens: 0,
     truncated_layers: [],
     truncated_characters: [],
-    facts_archived_count: 0,  // M10-B
+    facts_archived_count: 0, // M10-B
     ...partial,
   };
 }

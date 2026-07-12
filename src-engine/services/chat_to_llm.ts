@@ -44,24 +44,33 @@ function statusMarker(
   errorMessage: string | undefined,
 ): string {
   switch (status) {
-    case "confirmed": return "[已执行]";
-    case "skipped": return "[已跳过]";
-    case "undone": return "[已撤销]";
-    case "error": return `[失败：${errorMessage ?? "unknown"}]`;
-    case "pending": return "[待用户确认]";
+    case "confirmed":
+      return "[已执行]";
+    case "skipped":
+      return "[已跳过]";
+    case "undone":
+      return "[已撤销]";
+    case "error":
+      return `[失败：${errorMessage ?? "unknown"}]`;
+    case "pending":
+      return "[待用户确认]";
   }
 }
 
-function draftStatusMarker(
-  status: "streaming" | "pending" | "accepted" | "rejected" | "discarded" | "error",
-): string {
+function draftStatusMarker(status: "streaming" | "pending" | "accepted" | "rejected" | "discarded" | "error"): string {
   switch (status) {
-    case "accepted": return "\n\n[此草稿已被用户接受为正式章节]";
-    case "discarded": return "\n\n[此草稿已被用户丢弃]";
-    case "rejected": return "\n\n[此草稿已被用户拒绝]";
-    case "error": return "\n\n[此草稿生成出错]";
-    case "pending": return "\n\n[此草稿等待用户确认]";
-    case "streaming": return ""; // streaming 中的不应进 history（caller 应过滤）
+    case "accepted":
+      return "\n\n[此草稿已被用户接受为正式章节]";
+    case "discarded":
+      return "\n\n[此草稿已被用户丢弃]";
+    case "rejected":
+      return "\n\n[此草稿已被用户拒绝]";
+    case "error":
+      return "\n\n[此草稿生成出错]";
+    case "pending":
+      return "\n\n[此草稿等待用户确认]";
+    case "streaming":
+      return ""; // streaming 中的不应进 history（caller 应过滤）
   }
 }
 
@@ -142,7 +151,7 @@ export function chatToOpenAIMessages(messages: SimpleChatMessage[]): OpenAIChatM
           warnAlways(
             "chat-to-llm",
             `orphan tool-result skipped: tool_call_id=${msg.toolCallId} tool=${msg.toolName}; ` +
-            `no preceding assistant.toolCalls match. Likely legacy chat.yaml prior to 2026-05-04 fix.`,
+              `no preceding assistant.toolCalls match. Likely legacy chat.yaml prior to 2026-05-04 fix.`,
           );
         }
         break;
@@ -194,8 +203,8 @@ export function chatToOpenAIMessages(messages: SimpleChatMessage[]): OpenAIChatM
       warnAlways(
         "chat-to-llm",
         `orphan assistant.tool_calls dropped: missing tool messages for ids [${missing.join(", ")}]; ` +
-        `downgrading to plain assistant content and dropping ${followingToolIndexes.length} paired tool message(s). ` +
-        `This is likely a chat.yaml inconsistency from a previous failed dispatch.`,
+          `downgrading to plain assistant content and dropping ${followingToolIndexes.length} paired tool message(s). ` +
+          `This is likely a chat.yaml inconsistency from a previous failed dispatch.`,
       );
       // 丢 tool_calls 后，它已配对的那几条 tool 消息就没有父消息了 → 标记跳过。
       for (const idx of followingToolIndexes) orphanedToolIndexes.add(idx);
@@ -249,7 +258,7 @@ export function chatToOpenAIMessages(messages: SimpleChatMessage[]): OpenAIChatM
         warnAlways(
           "chat-to-llm",
           `non-adjacent orphan tool message dropped: tool_call_id=${m.tool_call_id ?? "<none>"}; ` +
-          `not owned by the immediately-preceding assistant.tool_calls. Likely reordered/edited chat.yaml.`,
+            `not owned by the immediately-preceding assistant.tool_calls. Likely reordered/edited chat.yaml.`,
         );
       }
       // role:"tool" 不改变「上一条 assistant 的 tool_calls 上下文」——OpenAI 允许一条

@@ -34,16 +34,17 @@ export async function generate_micro_summary(
     { role: "system" as const, content: P.SUMMARY_MICRO_SYSTEM },
     {
       role: "user" as const,
-      content: P.SUMMARY_MICRO_USER
-        .replace("{chapter_num}", String(chapterNum))
-        .replace("{chapter_text}", chapter_text),
+      content: P.SUMMARY_MICRO_USER.replace("{chapter_num}", String(chapterNum)).replace(
+        "{chapter_text}",
+        chapter_text,
+      ),
     },
   ];
 
   try {
     const response = await llm_provider.generate({
       messages,
-      max_tokens: 150,   // micro 短文本，150 token 上限足够 50 字
+      max_tokens: 150, // micro 短文本，150 token 上限足够 50 字
       temperature: 0.4,
       top_p: 0.95,
       signal: opts?.signal,
@@ -71,9 +72,10 @@ export async function generate_standard_summary(
     { role: "system" as const, content: P.SUMMARY_STANDARD_SYSTEM },
     {
       role: "user" as const,
-      content: P.SUMMARY_STANDARD_USER
-        .replace("{chapter_num}", String(chapterNum))
-        .replace("{chapter_text}", chapter_text),
+      content: P.SUMMARY_STANDARD_USER.replace("{chapter_num}", String(chapterNum)).replace(
+        "{chapter_text}",
+        chapter_text,
+      ),
     },
   ];
 
@@ -115,7 +117,13 @@ export interface PersistSummaryDeps {
  *   CAS 一起放进 withAuLock，避免并发 undo/edit 后把过期摘要写回（codex 对抗审 race）。
  */
 export async function persist_chapter_summary(deps: PersistSummaryDeps): Promise<void> {
-  await deps.ragManager.indexChapterSummary(deps.auPath, deps.chapterNum, deps.text, deps.embeddingProvider, deps.signal);
+  await deps.ragManager.indexChapterSummary(
+    deps.auPath,
+    deps.chapterNum,
+    deps.text,
+    deps.embeddingProvider,
+    deps.signal,
+  );
   // 合并写而非整档重写（审计 M2）：confirm 时 standard 失败/micro 成功会留下 micro-only 文件，
   // backfill 判「缺摘要」后走到这里 —— 整档 createChapterSummary({standard}) 会把 micro 抹掉，
   // 而 micro 没有补生成路径 → retrospective 输入永久缺章。对齐 update_micro / promote_to_v2

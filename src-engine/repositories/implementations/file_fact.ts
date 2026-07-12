@@ -8,7 +8,15 @@ import { FactSource, FactStatus, FactType, NarrativeWeight, TimeKind, SuspenseTy
 import type { Fact, FactFieldConfidence } from "../../domain/fact.js";
 import { createFact } from "../../domain/fact.js";
 import type { FactRepository } from "../interfaces/fact.js";
-import { append_jsonl, joinPath, now_utc, read_jsonl, rewrite_jsonl, validateBasePath, withWriteLock } from "../../utils/file_utils.js";
+import {
+  append_jsonl,
+  joinPath,
+  now_utc,
+  read_jsonl,
+  rewrite_jsonl,
+  validateBasePath,
+  withWriteLock,
+} from "../../utils/file_utils.js";
 import { hasLogger, getLogger } from "../../logger/index.js";
 
 // ---------------------------------------------------------------------------
@@ -35,24 +43,24 @@ export function factToDict(fact: Fact): Record<string, unknown> {
   if (fact.story_time) d.story_time = fact.story_time;
   if (fact.resolves !== null) d.resolves = fact.resolves;
   // Layer 2 (M8-A)
-  if (fact.location       != null) d.location        = fact.location;
-  if (fact.story_time_tag != null) d.story_time_tag  = fact.story_time_tag;
+  if (fact.location != null) d.location = fact.location;
+  if (fact.story_time_tag != null) d.story_time_tag = fact.story_time_tag;
   if (fact.story_time_order != null) d.story_time_order = fact.story_time_order;
-  if (fact.time_kind      != null) d.time_kind       = fact.time_kind;
-  if (fact.action_verb    != null) d.action_verb     = fact.action_verb;
-  if (fact.caused_by?.length)      d.caused_by       = fact.caused_by;
+  if (fact.time_kind != null) d.time_kind = fact.time_kind;
+  if (fact.action_verb != null) d.action_verb = fact.action_verb;
+  if (fact.caused_by?.length) d.caused_by = fact.caused_by;
   // Layer 3 (M8-A)
-  if (fact.known_to       != null) d.known_to        = fact.known_to;
-  if (fact.hidden_from?.length)    d.hidden_from     = fact.hidden_from;
-  if (fact.suspense_type  != null) d.suspense_type   = fact.suspense_type;
+  if (fact.known_to != null) d.known_to = fact.known_to;
+  if (fact.hidden_from?.length) d.hidden_from = fact.hidden_from;
+  if (fact.suspense_type != null) d.suspense_type = fact.suspense_type;
   // Thread 关联（M8-B）：成员关系单一真相源，仅非空时写入
-  if (fact.thread_ids?.length)     d.thread_ids      = fact.thread_ids;
+  if (fact.thread_ids?.length) d.thread_ids = fact.thread_ids;
   if (fact.thread_roles && Object.keys(fact.thread_roles).length) d.thread_roles = fact.thread_roles;
   // _confidence (旁路，持久化供 UI 高亮用)
-  if (fact._confidence)            d._confidence     = fact._confidence;
+  if (fact._confidence) d._confidence = fact._confidence;
   // M10-B: 冷热分层 — archived 字段仅 true 时写入（节约存储，false 为默认）
   if (fact.archived === true) {
-    d.archived    = true;
+    d.archived = true;
     if (fact.archived_at) d.archived_at = fact.archived_at;
   }
   return d;
@@ -77,33 +85,31 @@ function dictToFact(d: Record<string, unknown>): Fact {
     created_at: (d.created_at as string) || now,
     updated_at: (d.updated_at as string) || now,
     // Layer 2 (M8-A)
-    location:          (d.location       as string  | undefined) ?? null,
-    story_time_tag:    (d.story_time_tag as string  | undefined) ?? null,
-    story_time_order:  (d.story_time_order as number | undefined) ?? null,
+    location: (d.location as string | undefined) ?? null,
+    story_time_tag: (d.story_time_tag as string | undefined) ?? null,
+    story_time_order: (d.story_time_order as number | undefined) ?? null,
     // time_kind / suspense_type: validate enum on read, non-legal → null (align with ops_projection)
-    time_kind:         (Object.values(TimeKind) as string[]).includes(d.time_kind as string)
-                         ? (d.time_kind as TimeKind)
-                         : null,
-    action_verb:       (d.action_verb    as string  | undefined) ?? null,
-    caused_by:         Array.isArray(d.caused_by)   ? (d.caused_by  as string[]) : [],
+    time_kind: (Object.values(TimeKind) as string[]).includes(d.time_kind as string) ? (d.time_kind as TimeKind) : null,
+    action_verb: (d.action_verb as string | undefined) ?? null,
+    caused_by: Array.isArray(d.caused_by) ? (d.caused_by as string[]) : [],
     // Layer 3 (M8-A)
-    known_to:          (d.known_to as ("all" | "reader_only" | string[]) | undefined) ?? null,
-    hidden_from:       Array.isArray(d.hidden_from) ? (d.hidden_from as string[]) : [],
-    suspense_type:     (Object.values(SuspenseType) as string[]).includes(d.suspense_type as string)
-                         ? (d.suspense_type as SuspenseType)
-                         : null,
+    known_to: (d.known_to as ("all" | "reader_only" | string[]) | undefined) ?? null,
+    hidden_from: Array.isArray(d.hidden_from) ? (d.hidden_from as string[]) : [],
+    suspense_type: (Object.values(SuspenseType) as string[]).includes(d.suspense_type as string)
+      ? (d.suspense_type as SuspenseType)
+      : null,
     // Thread 关联（M8-B）：thread_ids 默认 []（mirror caused_by）、thread_roles 默认 undefined（mirror _confidence）
-    thread_ids:        Array.isArray(d.thread_ids) ? (d.thread_ids as string[]) : [],
-    thread_roles:      (typeof d.thread_roles === "object" && d.thread_roles !== null)
-                         ? (d.thread_roles as Record<string, string>)
-                         : undefined,
+    thread_ids: Array.isArray(d.thread_ids) ? (d.thread_ids as string[]) : [],
+    thread_roles:
+      typeof d.thread_roles === "object" && d.thread_roles !== null
+        ? (d.thread_roles as Record<string, string>)
+        : undefined,
     // _confidence
-    _confidence:       (typeof d._confidence === "object" && d._confidence !== null)
-                         ? (d._confidence as FactFieldConfidence)
-                         : undefined,
+    _confidence:
+      typeof d._confidence === "object" && d._confidence !== null ? (d._confidence as FactFieldConfidence) : undefined,
     // M10-B: 冷热分层 — 旧 fact 无此字段时 undefined !== true → 兜底为 false
-    archived:          d.archived === true ? true : false,
-    archived_at:       typeof d.archived_at === "string" ? d.archived_at : undefined,
+    archived: d.archived === true ? true : false,
+    archived_at: typeof d.archived_at === "string" ? d.archived_at : undefined,
   });
 }
 
@@ -123,7 +129,8 @@ export class FileFactRepository implements FactRepository {
     const path = this.factsPath(au_id);
     const [facts, errors] = await read_jsonl(this.adapter, path, dictToFact);
     if (errors.length > 0) {
-      if (hasLogger()) getLogger().warn("file_fact", "bad lines on read", { path, count: errors.length, first: errors[0] });
+      if (hasLogger())
+        getLogger().warn("file_fact", "bad lines on read", { path, count: errors.length, first: errors[0] });
     }
     return facts;
   }

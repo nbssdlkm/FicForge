@@ -36,9 +36,7 @@ vi.mock("../../../hooks/useFeedback", () => ({
 }));
 
 vi.mock("../../../api/engine-client", async () => {
-  const actual = await vi.importActual<typeof import("../../../api/engine-client")>(
-    "../../../api/engine-client",
-  );
+  const actual = await vi.importActual<typeof import("../../../api/engine-client")>("../../../api/engine-client");
   return {
     ...actual,
     dispatchSimpleChat: vi.fn(),
@@ -120,7 +118,9 @@ function setupBaseMocks(opts: { usableKey?: boolean } = {}) {
 async function typeAndSend(user: ReturnType<typeof userEvent.setup>) {
   const input = await screen.findByPlaceholderText(/.*/);
   // 先排干配置加载的 microtask 链，保证 handleSend 的 gate 读到已落地的 settingsInfo
-  await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 0));
+  });
   await act(async () => {
     await user.type(input, "写第二章");
     await user.keyboard("{Enter}");
@@ -145,7 +145,9 @@ describe("SimpleChatPanel R1-1 — 常驻面板配置边沿刷新", () => {
 
     // 用户去 settings tab（面板隐藏但常驻挂载）
     rerender(<SimpleChatPanel auPath={AU} isActiveTab={false} />);
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
     // 隐藏期不刷（挂载时那次之外没有新调用）
     expect(mocked.getWriterSessionConfig).toHaveBeenCalledTimes(1);
 
@@ -177,10 +179,16 @@ describe("SimpleChatPanel R1-1 — 常驻面板配置边沿刷新", () => {
     // 回退旧码（无边沿刷新）此处必挂：extractionReady 停在 false，extractFacts 不会被调。
     await typeAndSend(user);
     const acceptBtn = await screen.findByRole("button", { name: /接受为第/ });
-    await act(async () => { await user.click(acceptBtn); });
+    await act(async () => {
+      await user.click(acceptBtn);
+    });
 
     await waitFor(() => {
-      expect(mocked.extractFacts).toHaveBeenCalledWith(AU, 2, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+      expect(mocked.extractFacts).toHaveBeenCalledWith(
+        AU,
+        2,
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
     });
   });
 });

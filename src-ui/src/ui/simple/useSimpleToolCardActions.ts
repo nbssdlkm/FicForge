@@ -64,10 +64,7 @@ export function useSimpleToolCardActions({ auPath, chat }: UseSimpleToolCardActi
     [chat, executingToolId, showError, showToast, t, toolExecutor],
   );
 
-  const handleSkipTool = useCallback(
-    (messageId: string) => chat.setToolCallStatus(messageId, "skipped"),
-    [chat],
-  );
+  const handleSkipTool = useCallback((messageId: string) => chat.setToolCallStatus(messageId, "skipped"), [chat]);
 
   const handleUndoTool = useCallback(
     async (messageId: string) => {

@@ -70,7 +70,11 @@ async function doUndo(params: UndoChapterParams): Promise<UndoChapterResult> {
     au_id,
     cast_registry = { characters: [] },
     character_aliases = null,
-    chapter_repo, draft_repo, state_repo, ops_repo, fact_repo,
+    chapter_repo,
+    draft_repo,
+    state_repo,
+    ops_repo,
+    fact_repo,
   } = params;
 
   // =================================================================
@@ -128,7 +132,12 @@ async function doUndo(params: UndoChapterParams): Promise<UndoChapterResult> {
   state.index_status = IndexStatus.STALE;
   state.last_scene_ending = await rollbackLastSceneEnding(au_id, n, ops_repo, chapter_repo);
   state.characters_last_seen = await rollbackCharactersLastSeen(
-    au_id, n, ops_repo, chapter_repo, cast_registry, character_aliases,
+    au_id,
+    n,
+    ops_repo,
+    chapter_repo,
+    cast_registry,
+    character_aliases,
   );
   state.chapter_focus = [];
   state.last_confirmed_chapter_focus = await rollbackConfirmedFocus(au_id, n, chapter_repo);
@@ -141,23 +150,26 @@ async function doUndo(params: UndoChapterParams): Promise<UndoChapterResult> {
   state.current_chapter = n;
 
   // undo_chapter op（主 op，包含 state snapshot 供跨设备重建）
-  tx.appendOp(au_id, createOpsEntry({
-    op_id: generate_op_id(),
-    op_type: "undo_chapter",
-    target_id: chapterId,
-    chapter_num: n,
-    timestamp: now_utc(),
-    payload: {
-      state_snapshot: {
-        current_chapter: state.current_chapter,
-        last_scene_ending: state.last_scene_ending,
-        characters_last_seen: { ...state.characters_last_seen },
-        last_confirmed_chapter_focus: [...state.last_confirmed_chapter_focus],
-        chapter_titles: { ...state.chapter_titles },
-        chapters_dirty: [...state.chapters_dirty],
+  tx.appendOp(
+    au_id,
+    createOpsEntry({
+      op_id: generate_op_id(),
+      op_type: "undo_chapter",
+      target_id: chapterId,
+      chapter_num: n,
+      timestamp: now_utc(),
+      payload: {
+        state_snapshot: {
+          current_chapter: state.current_chapter,
+          last_scene_ending: state.last_scene_ending,
+          characters_last_seen: { ...state.characters_last_seen },
+          last_confirmed_chapter_focus: [...state.last_confirmed_chapter_focus],
+          chapter_titles: { ...state.chapter_titles },
+          chapters_dirty: [...state.chapters_dirty],
+        },
       },
-    },
-  }));
+    }),
+  );
   tx.setState(state);
 
   // =================================================================
@@ -210,9 +222,7 @@ async function collectResolvesRollback(
     if (target === null || target.status !== FactStatus.RESOLVED) continue;
 
     // 检查是否有其他 fact（排除即将删除的）仍然 resolves 该目标
-    const stillResolved = allFacts.some(
-      (f) => f.resolves === targetId && !idsToDelete.has(f.id) && f.id !== targetId,
-    );
+    const stillResolved = allFacts.some((f) => f.resolves === targetId && !idsToDelete.has(f.id) && f.id !== targetId);
     if (!stillResolved) {
       const oldStatus = target.status;
       target.status = FactStatus.UNRESOLVED;
@@ -275,7 +285,7 @@ async function collectManualStatusRollback(
   statusOps.sort((a, b) => {
     const clockA = a.lamport_clock ?? 0;
     const clockB = b.lamport_clock ?? 0;
-    if (clockA !== clockB) return clockB - clockA;                       // lamport 降序
+    if (clockA !== clockB) return clockB - clockA; // lamport 降序
     if (a.timestamp !== b.timestamp) return a.timestamp < b.timestamp ? 1 : -1;
     return a.op_id < b.op_id ? 1 : a.op_id > b.op_id ? -1 : 0;
   });
@@ -338,14 +348,16 @@ async function collectChapterFactDeletes(
   const deleteOps: OpsEntry[] = [];
 
   for (const factId of factIdsToDelete) {
-    deleteOps.push(createOpsEntry({
-      op_id: generate_op_id(),
-      op_type: "delete_fact",
-      target_id: factId,
-      chapter_num: n,
-      timestamp: now_utc(),
-      payload: { reason: "undo_chapter" },
-    }));
+    deleteOps.push(
+      createOpsEntry({
+        op_id: generate_op_id(),
+        op_type: "delete_fact",
+        target_id: factId,
+        chapter_num: n,
+        timestamp: now_utc(),
+        payload: { reason: "undo_chapter" },
+      }),
+    );
   }
 
   return { deleteOps, factIdsToDelete };
@@ -439,11 +451,7 @@ async function rebuildCharactersLastSeen(
 // 步骤 9：last_confirmed_chapter_focus 回退
 // -----------------------------------------------------------------
 
-async function rollbackConfirmedFocus(
-  au_id: string,
-  n: number,
-  chapter_repo: ChapterRepository,
-): Promise<string[]> {
+async function rollbackConfirmedFocus(au_id: string, n: number, chapter_repo: ChapterRepository): Promise<string[]> {
   if (n <= 1) return [];
   try {
     const prevCh = await chapter_repo.get(au_id, n - 1);

@@ -43,9 +43,9 @@ export interface ModeAvailability {
   available: boolean;
   /** 不可用原因的机器可读 key。UI 据此显示合适的本地化提示。 */
   reason?:
-    | "coming_soon"          // 未来版本计划支持 → UI 可渲染但禁用
+    | "coming_soon" // 未来版本计划支持 → UI 可渲染但禁用
     | "platform_unsupported" // 本平台永远不会支持 → UI 不渲染
-    | "desktop_only";        // 仅桌面端支持 → UI 在非桌面端不渲染
+    | "desktop_only"; // 仅桌面端支持 → UI 在非桌面端不渲染
   /** 给用户看的 i18n hint key（由 UI 层翻译）。可选。 */
   hintKey?: string;
 }
@@ -81,9 +81,7 @@ const GENERATION_MATRIX: Record<Platform, Record<LLMModeKey, ModeAvailability>> 
   },
 };
 
-export function getGenerationModeAvailability(
-  platform: Platform,
-): Record<LLMModeKey, ModeAvailability> {
+export function getGenerationModeAvailability(platform: Platform): Record<LLMModeKey, ModeAvailability> {
   return GENERATION_MATRIX[platform];
 }
 
@@ -94,13 +92,15 @@ export function listGenerationModes(platform: Platform): {
 }[] {
   const matrix = GENERATION_MATRIX[platform];
   const order: LLMModeKey[] = ["api", "ollama", "local"];
-  return order
-    .map((mode) => ({ mode, availability: matrix[mode] }))
-    // 剔除 platform_unsupported / desktop_only（UI 不应渲染）
-    .filter(({ availability }) => {
-      if (availability.available) return true;
-      return availability.reason === "coming_soon";
-    });
+  return (
+    order
+      .map((mode) => ({ mode, availability: matrix[mode] }))
+      // 剔除 platform_unsupported / desktop_only（UI 不应渲染）
+      .filter(({ availability }) => {
+        if (availability.available) return true;
+        return availability.reason === "coming_soon";
+      })
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -130,8 +130,6 @@ const EMBEDDING_MATRIX: Record<Platform, Record<EmbeddingModeKey, ModeAvailabili
   },
 };
 
-export function getEmbeddingModeAvailability(
-  platform: Platform,
-): Record<EmbeddingModeKey, ModeAvailability> {
+export function getEmbeddingModeAvailability(platform: Platform): Record<EmbeddingModeKey, ModeAvailability> {
   return EMBEDDING_MATRIX[platform];
 }

@@ -47,7 +47,10 @@ export function ChipListInput({
     <div className="flex min-h-[44px] flex-wrap items-center gap-1.5 rounded-lg border border-black/10 bg-surface/30 px-3 py-2 dark:border-white/10 md:min-h-[36px]">
       <span className="mr-1 text-xs font-sans text-text/50 md:text-xs">{label}</span>
       {values.map((value, i) => (
-        <span key={i} className="inline-flex min-h-[44px] items-center gap-1 rounded-xl bg-accent/10 px-3 py-1 text-sm font-sans text-accent md:min-h-0 md:rounded-md md:px-2 md:py-0.5 md:text-xs">
+        <span
+          key={i}
+          className="inline-flex min-h-[44px] items-center gap-1 rounded-xl bg-accent/10 px-3 py-1 text-sm font-sans text-accent md:min-h-0 md:rounded-md md:px-2 md:py-0.5 md:text-xs"
+        >
           {value}
           <button
             type="button"
@@ -65,11 +68,11 @@ export function ChipListInput({
         list={listId}
         onChange={(e) => onInputChange(e.target.value)}
         onKeyDown={(e) => {
-          if ((e.key === 'Enter' || e.key === ',') && inputValue.trim()) {
+          if ((e.key === "Enter" || e.key === ",") && inputValue.trim()) {
             e.preventDefault();
             onCommit();
           }
-          if (e.key === 'Backspace' && !inputValue && values.length > 0) {
+          if (e.key === "Backspace" && !inputValue && values.length > 0) {
             onPopLast();
           }
         }}

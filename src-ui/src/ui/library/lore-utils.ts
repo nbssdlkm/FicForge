@@ -11,10 +11,10 @@
 // ---------------------------------------------------------------------------
 
 /** AU 资料的两个分类目录 */
-export type LoreCategory = 'characters' | 'worldbuilding';
+export type LoreCategory = "characters" | "worldbuilding";
 
 /** Fandom 资料的两个分类目录 */
-export type FandomLoreCategory = 'core_characters' | 'core_worldbuilding';
+export type FandomLoreCategory = "core_characters" | "core_worldbuilding";
 
 export type LoreFileEntry = {
   name: string;
@@ -50,11 +50,7 @@ export function buildDefaultFandomLoreContent(displayName: string): string {
  * 编辑器脏判据（弃改确认 / 保存禁用 / reconcile 重读的门槛）——
  * 桌面 FandomLore 与移动端共用同一判据，禁两处各写（会随时间漂移）。
  */
-export function isLoreEditorDirty(
-  selectedFile: string | null,
-  editorContent: string,
-  savedContent: string,
-): boolean {
+export function isLoreEditorDirty(selectedFile: string | null, editorContent: string, savedContent: string): boolean {
   return selectedFile !== null && editorContent !== savedContent;
 }
 
@@ -69,36 +65,39 @@ export function parseAliasesFromContent(content: string): string[] {
   // Parse aliases: [a, b, c] or aliases:\n- a\n- b
   const inlineMatch = fm.match(/aliases:\s*\[([^\]]*)\]/);
   if (inlineMatch) {
-    return inlineMatch[1].split(',').map(s => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+    return inlineMatch[1]
+      .split(",")
+      .map((s) => s.trim().replace(/^["']|["']$/g, ""))
+      .filter(Boolean);
   }
-  const lines = fm.split('\n');
-  const idx = lines.findIndex(l => l.startsWith('aliases:'));
+  const lines = fm.split("\n");
+  const idx = lines.findIndex((l) => l.startsWith("aliases:"));
   if (idx < 0) return [];
   const result: string[] = [];
   for (let i = idx + 1; i < lines.length; i++) {
     const m = lines[i].match(/^\s*-\s*(.+)/);
-    if (m) result.push(m[1].trim().replace(/^["']|["']$/g, ''));
+    if (m) result.push(m[1].trim().replace(/^["']|["']$/g, ""));
     else break;
   }
   return result;
 }
 
 export function setAliasesInContent(content: string, aliases: string[]): string {
-  const aliasYaml = aliases.length > 0 ? `aliases: [${aliases.join(', ')}]` : 'aliases: []';
+  const aliasYaml = aliases.length > 0 ? `aliases: [${aliases.join(", ")}]` : "aliases: []";
   const match = content.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return content;
   const fm = match[1];
-  const lines = fm.split('\n');
-  const idx = lines.findIndex(l => l.startsWith('aliases:'));
+  const lines = fm.split("\n");
+  const idx = lines.findIndex((l) => l.startsWith("aliases:"));
   if (idx >= 0) {
     let endIdx = idx + 1;
     while (endIdx < lines.length && lines[endIdx].match(/^\s*-\s/)) endIdx++;
     lines.splice(idx, endIdx - idx, aliasYaml);
   } else {
-    const nameIdx = lines.findIndex(l => l.startsWith('name:'));
+    const nameIdx = lines.findIndex((l) => l.startsWith("name:"));
     lines.splice(nameIdx >= 0 ? nameIdx + 1 : lines.length, 0, aliasYaml);
   }
-  return content.replace(/^---\n[\s\S]*?\n---/, `---\n${lines.join('\n')}\n---`);
+  return content.replace(/^---\n[\s\S]*?\n---/, `---\n${lines.join("\n")}\n---`);
 }
 
 // ---------------------------------------------------------------------------
@@ -108,16 +107,16 @@ export function setAliasesInContent(content: string, aliases: string[]): string 
 export function toCanonicalCreateKey(value: string): string {
   return value
     .trim()
-    .replace(/\.md$/i, '')
+    .replace(/\.md$/i, "")
     .toLowerCase()
-    .replace(/[\s_]+/g, '_');
+    .replace(/[\s_]+/g, "_");
 }
 
 export function deriveFandomPath(auPath: string): string {
-  return auPath.replace(/\/aus\/[^/]+$/, '');
+  return auPath.replace(/\/aus\/[^/]+$/, "");
 }
 
 /** fandom 路径 → 目录名（listFandomFiles 等 API 以目录名寻址） */
 export function fandomDirNameOf(fandomPath: string | undefined): string {
-  return fandomPath?.split('/').pop() || '';
+  return fandomPath?.split("/").pop() || "";
 }

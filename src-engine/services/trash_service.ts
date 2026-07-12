@@ -74,7 +74,13 @@ export class TrashService {
     const prev = this.opChain.get(scopeRoot) ?? Promise.resolve();
     // 前一个成功/失败都接着跑，避免一次失败卡死整条链；结果/错误照常返回给各自调用方。
     const next = prev.then(fn, fn);
-    this.opChain.set(scopeRoot, next.then(() => undefined, () => undefined));
+    this.opChain.set(
+      scopeRoot,
+      next.then(
+        () => undefined,
+        () => undefined,
+      ),
+    );
     return next;
   }
 
@@ -84,9 +90,7 @@ export class TrashService {
     entityType: string,
     entityName: string,
   ): Promise<TrashEntry> {
-    return this.runExclusive(scopeRoot, () =>
-      this._moveTreeToTrash(scopeRoot, relativePath, entityType, entityName),
-    );
+    return this.runExclusive(scopeRoot, () => this._moveTreeToTrash(scopeRoot, relativePath, entityType, entityName));
   }
 
   private async _moveTreeToTrash(
@@ -164,9 +168,13 @@ export class TrashService {
       const restoreFailures = await this.restoreCopiedTree(copiedFiles);
       await this.deleteCopiesWithVerifiedSource(copiedFiles);
       if (restoreFailures.length > 0) {
-        warnAlways("trash", `目录删除回滚不完整：${restoreFailures.length} 个文件未能恢复到原位，其 .trash 副本已保留，可手工找回`, {
-          failures: restoreFailures.map((f) => `${f.source} ← ${f.trash} (${f.message})`),
-        });
+        warnAlways(
+          "trash",
+          `目录删除回滚不完整：${restoreFailures.length} 个文件未能恢复到原位，其 .trash 副本已保留，可手工找回`,
+          {
+            failures: restoreFailures.map((f) => `${f.source} ← ${f.trash} (${f.message})`),
+          },
+        );
       }
       throw error;
     }
@@ -178,9 +186,7 @@ export class TrashService {
     entityType: string,
     entityName: string,
   ): Promise<TrashEntry> {
-    return this.runExclusive(scopeRoot, () =>
-      this._moveToTrash(scopeRoot, relativePath, entityType, entityName),
-    );
+    return this.runExclusive(scopeRoot, () => this._moveToTrash(scopeRoot, relativePath, entityType, entityName));
   }
 
   private async _moveToTrash(
@@ -234,9 +240,7 @@ export class TrashService {
       // （flag=true）才补回，避免「用户已把角色移出名册但留了文件 / 改了 frontmatter 名」时，
       // 删→恢复把一个本不在册的名字静默注入（remove 有条件、add 无条件的不对称）。
       // 预判在 runExclusive(scopeRoot) 串行段内，与稍后的实际 remove 之间名册不会变，故准确。
-      meta.cast_registry_removed = characterName
-        ? await this.castRegistryContains(scopeRoot, characterName)
-        : false;
+      meta.cast_registry_removed = characterName ? await this.castRegistryContains(scopeRoot, characterName) : false;
     }
 
     const now = new Date();
@@ -310,19 +314,11 @@ export class TrashService {
     return this.readManifest(scopeRoot);
   }
 
-  async restore(
-    scopeRoot: string,
-    trashId: string,
-    onConflict: RestoreConflictPolicy = "abort",
-  ): Promise<TrashEntry> {
+  async restore(scopeRoot: string, trashId: string, onConflict: RestoreConflictPolicy = "abort"): Promise<TrashEntry> {
     return this.runExclusive(scopeRoot, () => this._restore(scopeRoot, trashId, onConflict));
   }
 
-  private async _restore(
-    scopeRoot: string,
-    trashId: string,
-    onConflict: RestoreConflictPolicy,
-  ): Promise<TrashEntry> {
+  private async _restore(scopeRoot: string, trashId: string, onConflict: RestoreConflictPolicy): Promise<TrashEntry> {
     const entries = await this.readManifest(scopeRoot);
     const targetEntry = entries.find((e) => e.trash_id === trashId);
     if (!targetEntry) throw new Error(`垃圾箱项不存在: ${trashId}`);
@@ -427,7 +423,7 @@ export class TrashService {
         //（restore 支持续传；原位被编辑过的冲突文件可用「以回收站版本覆盖」出路）。
         throw new Error(
           `${HALF_RESTORED_MARKER}: 无法永久删除：该目录处于半恢复状态，部分文件尚未恢复到原位，` +
-          `直接删除会丢失这些文件。请先点击"恢复"完成续传后再删除。`,
+            `直接删除会丢失这些文件。请先点击"恢复"完成续传后再删除。`,
         );
       }
 
@@ -466,8 +462,7 @@ export class TrashService {
           // 永不被常规清理、永久占盘（LOW）。回退用 deleted_at + retentionDays 判定；deleted_at
           // 也损坏则视为已过期清理（无法推断保留期的垃圾条目不该永久滞留）。
           const deleted = new Date(entry.deleted_at).getTime();
-          shouldPurge =
-            Number.isNaN(deleted) || now >= deleted + this.retentionDays * 86400000;
+          shouldPurge = Number.isNaN(deleted) || now >= deleted + this.retentionDays * 86400000;
         }
       }
 
@@ -523,9 +518,7 @@ export class TrashService {
     const mp = this.manifestPath(scopeRoot);
     const dir = mp.substring(0, mp.lastIndexOf("/"));
     await this.adapter.mkdir(dir);
-    const content = entries.length > 0
-      ? entries.map((e) => JSON.stringify(e)).join("\n") + "\n"
-      : "";
+    const content = entries.length > 0 ? entries.map((e) => JSON.stringify(e)).join("\n") + "\n" : "";
     // 原子写（F5）：manifest 是回收站的唯一真相源，截断即孤儿；rename 提交保完整。
     await atomicWrite(this.adapter, mp, content);
   }
@@ -647,7 +640,7 @@ export class TrashService {
       }
 
       if (childEntries && childEntries.length > 0) {
-        files.push(...await this.collectTreeFiles(rootPath, relativePath));
+        files.push(...(await this.collectTreeFiles(rootPath, relativePath)));
         continue;
       }
 
@@ -776,9 +769,7 @@ export class TrashService {
    * 回滚清理：只删「对应源文件已验证存在」的 .trash 副本（审计 H7）。
    * 源不存在（删源成功但 copy-back 失败）时该副本是唯一幸存数据，必须保留。
    */
-  private async deleteCopiesWithVerifiedSource(
-    copiedFiles: Array<{ source: string; trash: string }>,
-  ): Promise<void> {
+  private async deleteCopiesWithVerifiedSource(copiedFiles: Array<{ source: string; trash: string }>): Promise<void> {
     for (const item of [...copiedFiles].reverse()) {
       let sourceExists = false;
       try {

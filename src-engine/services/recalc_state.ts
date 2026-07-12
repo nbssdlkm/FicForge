@@ -96,9 +96,7 @@ export async function recalc_state(
 
   // 最后一章的信息
   const lastChapter = sortedChapters[sortedChapters.length - 1];
-  const newLastSceneEnding = lastChapter.content
-    ? extract_last_scene_ending(lastChapter.content)
-    : "";
+  const newLastSceneEnding = lastChapter.content ? extract_last_scene_ending(lastChapter.content) : "";
   const newLastConfirmedFocus = [...(lastChapter.confirmed_focus ?? [])];
 
   // 清理 chapters_dirty

@@ -26,7 +26,11 @@ import { makeDeepseekProbeProvider } from "./_deepseek.js";
 
 // 现行 deepseek 主流模型（2026-07）：v4-flash（快，loop 用）/ v4-pro（强）。
 // 默认用 flash 跑探针（贴近真实用户出章场景）；改 DEEPSEEK_PROBE_MODEL / M9_PROBE_MODEL 可切 v4-pro。
-const { provider: llm, model: PROBE_MODEL, baseUrl: PROBE_BASE } = makeDeepseekProbeProvider({
+const {
+  provider: llm,
+  model: PROBE_MODEL,
+  baseUrl: PROBE_BASE,
+} = makeDeepseekProbeProvider({
   legacyEnvVar: "M9_PROBE_MODEL",
 });
 console.log(`[M9 probe] LLM = ${PROBE_MODEL} @ ${PROBE_BASE}`);
@@ -115,19 +119,31 @@ describe("M9 ReAct 提取真 LLM 探针", () => {
     const extractedWithCause = res.facts.filter((f) => (f.caused_by ?? []).length > 0);
 
     for (const f of res.facts) {
-      await add_fact("au", 5, {
-        content_raw: f.content_raw,
-        content_clean: f.content_clean,
-        characters: f.characters,
-        type: f.fact_type,
-        narrative_weight: f.narrative_weight,
-        caused_by: f.caused_by,
-        thread_ids: f.thread_ids,
-        // M8-A 富化（与 UI extractedEnrichment 转发一致，验整批不丢字段）
-        location: f.location, story_time_tag: f.story_time_tag, story_time_order: f.story_time_order,
-        time_kind: f.time_kind, action_verb: f.action_verb, known_to: f.known_to,
-        hidden_from: f.hidden_from, suspense_type: f.suspense_type, _confidence: f._confidence,
-      }, factRepo, opsRepo);
+      await add_fact(
+        "au",
+        5,
+        {
+          content_raw: f.content_raw,
+          content_clean: f.content_clean,
+          characters: f.characters,
+          type: f.fact_type,
+          narrative_weight: f.narrative_weight,
+          caused_by: f.caused_by,
+          thread_ids: f.thread_ids,
+          // M8-A 富化（与 UI extractedEnrichment 转发一致，验整批不丢字段）
+          location: f.location,
+          story_time_tag: f.story_time_tag,
+          story_time_order: f.story_time_order,
+          time_kind: f.time_kind,
+          action_verb: f.action_verb,
+          known_to: f.known_to,
+          hidden_from: f.hidden_from,
+          suspense_type: f.suspense_type,
+          _confidence: f._confidence,
+        },
+        factRepo,
+        opsRepo,
+      );
     }
 
     // M8-B 反向视图 / ThreadDetail 的真实查询：facts.filter(thread_ids 含本线 id)
@@ -136,7 +152,9 @@ describe("M9 ReAct 提取真 LLM 探针", () => {
     const landedWithCause = allFacts.filter((f) => (f.caused_by ?? []).some((c) => validFactIds.has(c)));
 
     console.log(`\n[M8-B 反向视图] 「${SEEDED_THREAD.title}」现挂 ${threadMembership.length} 条 Fact 节点：`);
-    threadMembership.forEach((f) => console.log(`  · ${f.content_clean}  (caused_by=${JSON.stringify(f.caused_by ?? [])})`));
+    threadMembership.forEach((f) =>
+      console.log(`  · ${f.content_clean}  (caused_by=${JSON.stringify(f.caused_by ?? [])})`),
+    );
 
     // 数据链闭环：提取产出的 thread_ids/caused_by，经 add_fact 落库后，反向视图查询能查到。
     // 用 >= 而非 === 防 add_fact 内部去重/归一带来的微小偏差，但核心：提取挂了线的都进得了反向视图。

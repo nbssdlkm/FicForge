@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from "react";
 
 /**
  * useAuLoreModals — 设定集页四个弹窗的开关 + 新建名输入 + pin 里程碑横幅。
@@ -10,7 +10,7 @@ import { useCallback, useEffect, useState } from 'react';
  */
 export function useAuLoreModals(auPath: string) {
   const [isCreateOpen, setCreateOpen] = useState(false);
-  const [createName, setCreateName] = useState('');
+  const [createName, setCreateName] = useState("");
   const [isDeleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isImportOpen, setImportOpen] = useState(false);
   const [isCoreLimitOpen, setCoreLimitOpen] = useState(false);
@@ -19,7 +19,7 @@ export function useAuLoreModals(auPath: string) {
 
   useEffect(() => {
     setCreateOpen(false);
-    setCreateName('');
+    setCreateName("");
     setDeleteConfirmOpen(false);
     setImportOpen(false);
     setCoreLimitOpen(false);
@@ -28,7 +28,7 @@ export function useAuLoreModals(auPath: string) {
 
   // 打开时统一清空输入（旧实现各入口清空不一致，个别 EmptyState 入口会残留上次输入）
   const openCreate = useCallback(() => {
-    setCreateName('');
+    setCreateName("");
     setCreateOpen(true);
   }, []);
   const closeCreate = useCallback(() => setCreateOpen(false), []);

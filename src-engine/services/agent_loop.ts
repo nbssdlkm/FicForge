@@ -85,10 +85,7 @@ export interface AgentLoopConfig<E> {
    */
   onTokenChunk?: (delta: string, ctx: { iter: number }) => boolean | void;
 
-  onToolCallDelta?: (
-    buffer: ToolBuffer,
-    ctx: { iter: number },
-  ) => AgentLoopEvent<E>[] | undefined;
+  onToolCallDelta?: (buffer: ToolBuffer, ctx: { iter: number }) => AgentLoopEvent<E>[] | undefined;
 
   onTextPathTerminal: (ctx: IterContext) => Promise<AgentLoopEvent<E>[]>;
 
@@ -100,10 +97,7 @@ export interface AgentLoopConfig<E> {
   onForceToolPath: (
     calls: ToolCall[],
     ctx: IterContext,
-  ) => Promise<
-    | { mode: "terminal"; events: AgentLoopEvent<E>[] }
-    | { mode: "continue"; events?: AgentLoopEvent<E>[] }
-  >;
+  ) => Promise<{ mode: "terminal"; events: AgentLoopEvent<E>[] } | { mode: "continue"; events?: AgentLoopEvent<E>[] }>;
 
   /**
    * guard retry 回调。kind=deviation 用于 hasFullText && !hasTools（chat_reply 偏离

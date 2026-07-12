@@ -37,13 +37,19 @@ describe("ops roundtrip: service → ops → rebuild", () => {
   });
 
   it("add_fact → rebuild recovers the fact", async () => {
-    await add_fact("au1", 1, {
-      content_raw: "Alice met Bob",
-      content_clean: "Alice met Bob",
-      characters: ["Alice", "Bob"],
-      status: "active",
-      type: "plot_event",
-    }, factRepo, opsRepo);
+    await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "Alice met Bob",
+        content_clean: "Alice met Bob",
+        characters: ["Alice", "Bob"],
+        status: "active",
+        type: "plot_event",
+      },
+      factRepo,
+      opsRepo,
+    );
 
     const ops = await opsRepo.list_all("au1");
     const rebuilt = rebuildFactsFromOps(ops);
@@ -58,17 +64,30 @@ describe("ops roundtrip: service → ops → rebuild", () => {
   });
 
   it("add_fact → edit_fact → rebuild recovers edited fact", async () => {
-    const fact = await add_fact("au1", 1, {
-      content_raw: "r",
-      content_clean: "original",
-      status: "active",
-      type: "plot_event",
-    }, factRepo, opsRepo);
+    const fact = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "original",
+        status: "active",
+        type: "plot_event",
+      },
+      factRepo,
+      opsRepo,
+    );
 
-    await edit_fact("au1", fact.id, {
-      content_clean: "updated",
-      status: "unresolved",
-    }, factRepo, opsRepo, stateRepo);
+    await edit_fact(
+      "au1",
+      fact.id,
+      {
+        content_clean: "updated",
+        status: "unresolved",
+      },
+      factRepo,
+      opsRepo,
+      stateRepo,
+    );
 
     const ops = await opsRepo.list_all("au1");
     const rebuilt = rebuildFactsFromOps(ops);
@@ -79,12 +98,18 @@ describe("ops roundtrip: service → ops → rebuild", () => {
   });
 
   it("update_fact_status → rebuild recovers status change", async () => {
-    const fact = await add_fact("au1", 1, {
-      content_raw: "r",
-      content_clean: "c",
-      status: "unresolved",
-      type: "foreshadowing",
-    }, factRepo, opsRepo);
+    const fact = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "c",
+        status: "unresolved",
+        type: "foreshadowing",
+      },
+      factRepo,
+      opsRepo,
+    );
 
     await update_fact_status("au1", fact.id, "resolved", 1, factRepo, opsRepo, stateRepo);
 
@@ -96,10 +121,18 @@ describe("ops roundtrip: service → ops → rebuild", () => {
   });
 
   it("set_chapter_focus → rebuild recovers focus", async () => {
-    const f1 = await add_fact("au1", 1, {
-      content_raw: "r", content_clean: "c",
-      status: "unresolved", type: "foreshadowing",
-    }, factRepo, opsRepo);
+    const f1 = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "c",
+        status: "unresolved",
+        type: "foreshadowing",
+      },
+      factRepo,
+      opsRepo,
+    );
 
     await set_chapter_focus("au1", [f1.id], factRepo, opsRepo, stateRepo);
 
@@ -135,15 +168,23 @@ describe("ops roundtrip: service → ops → rebuild", () => {
   it("concurrent dirty edits from two devices merge correctly", () => {
     // Simulate: device A marks ch2 dirty, device B marks ch3 dirty
     const opA = {
-      op_id: "opA", op_type: "mark_chapters_dirty", target_id: "au1",
-      chapter_num: null, timestamp: "2026-01-01T00:00:01Z",
-      lamport_clock: 1, device_id: "devA",
+      op_id: "opA",
+      op_type: "mark_chapters_dirty",
+      target_id: "au1",
+      chapter_num: null,
+      timestamp: "2026-01-01T00:00:01Z",
+      lamport_clock: 1,
+      device_id: "devA",
       payload: { added_dirty: [2] },
     };
     const opB = {
-      op_id: "opB", op_type: "mark_chapters_dirty", target_id: "au1",
-      chapter_num: null, timestamp: "2026-01-01T00:00:02Z",
-      lamport_clock: 1, device_id: "devB",
+      op_id: "opB",
+      op_type: "mark_chapters_dirty",
+      target_id: "au1",
+      chapter_num: null,
+      timestamp: "2026-01-01T00:00:02Z",
+      lamport_clock: 1,
+      device_id: "devB",
       payload: { added_dirty: [3] },
     };
 
@@ -153,10 +194,18 @@ describe("ops roundtrip: service → ops → rebuild", () => {
   });
 
   it("focus cleanup after deprecation is captured in ops", async () => {
-    const f1 = await add_fact("au1", 1, {
-      content_raw: "r", content_clean: "c",
-      status: "unresolved", type: "foreshadowing",
-    }, factRepo, opsRepo);
+    const f1 = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "c",
+        status: "unresolved",
+        type: "foreshadowing",
+      },
+      factRepo,
+      opsRepo,
+    );
 
     // Set focus to f1
     await set_chapter_focus("au1", [f1.id], factRepo, opsRepo, stateRepo);
@@ -175,16 +224,31 @@ describe("ops roundtrip: service → ops → rebuild", () => {
 
   it("add_fact with resolves → rebuild recovers target RESOLVED status", async () => {
     // f1: unresolved foreshadowing
-    const f1 = await add_fact("au1", 1, {
-      content_raw: "r", content_clean: "mystery",
-      status: "unresolved", type: "foreshadowing",
-    }, factRepo, opsRepo);
+    const f1 = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "mystery",
+        status: "unresolved",
+        type: "foreshadowing",
+      },
+      factRepo,
+      opsRepo,
+    );
 
     // f2: resolves f1 → should cascade f1 to RESOLVED via ops
-    await add_fact("au1", 2, {
-      content_raw: "r", content_clean: "answer",
-      resolves: f1.id,
-    }, factRepo, opsRepo);
+    await add_fact(
+      "au1",
+      2,
+      {
+        content_raw: "r",
+        content_clean: "answer",
+        resolves: f1.id,
+      },
+      factRepo,
+      opsRepo,
+    );
 
     // Verify local state
     expect((await factRepo.get("au1", f1.id))!.status).toBe("resolved");
@@ -198,15 +262,30 @@ describe("ops roundtrip: service → ops → rebuild", () => {
   });
 
   it("edit_fact removes resolves → rebuild recovers target UNRESOLVED status", async () => {
-    const f1 = await add_fact("au1", 1, {
-      content_raw: "r", content_clean: "mystery",
-      status: "unresolved", type: "foreshadowing",
-    }, factRepo, opsRepo);
+    const f1 = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "mystery",
+        status: "unresolved",
+        type: "foreshadowing",
+      },
+      factRepo,
+      opsRepo,
+    );
 
-    const f2 = await add_fact("au1", 2, {
-      content_raw: "r", content_clean: "answer",
-      resolves: f1.id,
-    }, factRepo, opsRepo);
+    const f2 = await add_fact(
+      "au1",
+      2,
+      {
+        content_raw: "r",
+        content_clean: "answer",
+        resolves: f1.id,
+      },
+      factRepo,
+      opsRepo,
+    );
 
     // Remove resolves → f1 should revert to UNRESOLVED
     await edit_fact("au1", f2.id, { resolves: null }, factRepo, opsRepo, stateRepo);
@@ -224,9 +303,13 @@ describe("ops roundtrip: service → ops → rebuild", () => {
 
   it("recalc_global_state op restores all fields", () => {
     const op = {
-      op_id: "recalc1", op_type: "recalc_global_state", target_id: "au1",
-      chapter_num: null, timestamp: "2026-01-01T00:00:00Z",
-      lamport_clock: 1, device_id: "dev1",
+      op_id: "recalc1",
+      op_type: "recalc_global_state",
+      target_id: "au1",
+      chapter_num: null,
+      timestamp: "2026-01-01T00:00:00Z",
+      lamport_clock: 1,
+      device_id: "dev1",
       payload: {
         characters_last_seen: { Alice: 3, Bob: 2 },
         last_scene_ending: "And then the sun set.",

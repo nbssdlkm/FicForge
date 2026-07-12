@@ -60,40 +60,40 @@
 export const color = {
   surface: {
     /** Page / app root background */
-    base: 'var(--color-bg)',
+    base: "var(--color-bg)",
     /** Raised surfaces: cards, sidebars, inline banner backgrounds */
-    raised: 'var(--color-surface)',
+    raised: "var(--color-surface)",
     /** Drawer / modal header bg (sage in light, dark sage in night) — Ex Libris signature surface */
-    drawer: 'var(--color-drawer)',
+    drawer: "var(--color-drawer)",
   },
   text: {
     /** Default body text */
-    default: 'var(--color-text)',
+    default: "var(--color-text)",
     /** "Inverse" text — used on dark surfaces (drawer / accent button bg) */
-    inv: 'var(--color-inv-text)',
+    inv: "var(--color-inv-text)",
   },
   /** Brand primary — action / 选中态 (olive in Ex Libris) */
-  accent: 'var(--color-accent)',
+  accent: "var(--color-accent)",
   /** Gold (Ex Libris signature) */
   gold: {
     /** Antique gold — text / 描边 on parchment surfaces */
-    antique: 'var(--color-gold)',
+    antique: "var(--color-gold)",
     /** Polished brass — gold lines on drawer/dark surfaces */
-    bright: 'var(--color-gold-bright)',
+    bright: "var(--color-gold-bright)",
   },
   /** Semantic status colors, tuned for light + dark visibility */
   status: {
-    success: 'var(--color-success)',
-    warning: 'var(--color-warning)',
-    error: 'var(--color-error)',
-    info: 'var(--color-info)',
+    success: "var(--color-success)",
+    warning: "var(--color-warning)",
+    error: "var(--color-error)",
+    info: "var(--color-info)",
   },
   /** Hairline / divider tints (green-tinted on parchment, cream-tinted on charcoal). */
   rule: {
     /** 1px hairlines — card borders, dividers, input underlines */
-    default: 'var(--color-rule)',
+    default: "var(--color-rule)",
     /** Subtle fills — hover bg, dashed dividers, soft chips */
-    soft: 'var(--color-rule-soft)',
+    soft: "var(--color-rule-soft)",
   },
 } as const;
 
@@ -102,33 +102,33 @@ export const color = {
  * Used in box-shadow as: `inset 0 var(--gold-top-thick) 0 var(--color-gold-bright)` etc.
  */
 export const goldLine = {
-  topThick: 'var(--gold-top-thick)',
-  bottomThick: 'var(--gold-bottom-thick)',
+  topThick: "var(--gold-top-thick)",
+  bottomThick: "var(--gold-bottom-thick)",
 } as const;
 
 /** Spacing scale — matches Tailwind's default 4px grid where possible. */
 export const spacing = {
-  xs: '4px',
-  sm: '8px',
-  md: '12px',
-  lg: '16px',
-  xl: '24px',
-  '2xl': '32px',
+  xs: "4px",
+  sm: "8px",
+  md: "12px",
+  lg: "16px",
+  xl: "24px",
+  "2xl": "32px",
 } as const;
 
 /** Border radius scale — mirrors the `--radius-*` overrides in `App.css` `@theme inline`. */
 export const radius = {
-  sm: '4px',
-  md: '8px',
-  lg: '12px',
-  xl: '16px',
-  full: '9999px',
+  sm: "4px",
+  md: "8px",
+  lg: "12px",
+  xl: "16px",
+  full: "9999px",
 } as const;
 
 /** Layout constants that drive feel-of-reading decisions. */
 export const layout = {
   /** Writer / reading column cap. Keeps CJK line length in the 60-75 char comfort zone. */
-  readingMaxWidth: '720px',
+  readingMaxWidth: "720px",
 } as const;
 
 export type Spacing = keyof typeof spacing;

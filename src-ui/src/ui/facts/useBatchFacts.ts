@@ -2,11 +2,11 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState } from 'react';
-import { batchUpdateFactStatus, type FactInfo } from '../../api/engine-client';
-import { useTranslation } from '../../i18n/useAppTranslation';
-import { getEnumLabel } from '../../i18n/labels';
-import { useFeedback } from '../../hooks/useFeedback';
+import { useState } from "react";
+import { batchUpdateFactStatus, type FactInfo } from "../../api/engine-client";
+import { useTranslation } from "../../i18n/useAppTranslation";
+import { getEnumLabel } from "../../i18n/labels";
+import { useFeedback } from "../../hooks/useFeedback";
 
 export function useBatchFacts(auPath: string, facts: FactInfo[], onUpdated: () => void) {
   const { t } = useTranslation();
@@ -19,9 +19,10 @@ export function useBatchFacts(auPath: string, facts: FactInfo[], onUpdated: () =
   const [batchProcessing, setBatchProcessing] = useState(false);
 
   const toggleSelect = (id: string) => {
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -30,7 +31,7 @@ export function useBatchFacts(auPath: string, facts: FactInfo[], onUpdated: () =
     if (selectedIds.size === facts.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(facts.map(f => f.id)));
+      setSelectedIds(new Set(facts.map((f) => f.id)));
     }
   };
 
@@ -40,12 +41,14 @@ export function useBatchFacts(auPath: string, facts: FactInfo[], onUpdated: () =
     try {
       const ids = Array.from(selectedIds);
       const result = await batchUpdateFactStatus(auPath, ids, newStatus);
-      showSuccess(t('facts.batchSuccess', { count: result.updated, status: getEnumLabel('fact_status', newStatus, newStatus) }));
+      showSuccess(
+        t("facts.batchSuccess", { count: result.updated, status: getEnumLabel("fact_status", newStatus, newStatus) }),
+      );
       setSelectedIds(new Set());
       setBatchMenuOpen(false);
       await onUpdated();
     } catch (error) {
-      showError(error, t('error_messages.unknown'));
+      showError(error, t("error_messages.unknown"));
     } finally {
       setBatchProcessing(false);
     }

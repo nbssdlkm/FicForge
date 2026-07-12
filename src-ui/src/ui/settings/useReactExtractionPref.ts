@@ -2,10 +2,10 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { saveAppPreferences, type SettingsInfo } from '../../api/engine-client';
-import { useFeedback } from '../../hooks/useFeedback';
-import { useTranslation } from '../../i18n/useAppTranslation';
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { saveAppPreferences, type SettingsInfo } from "../../api/engine-client";
+import { useFeedback } from "../../hooks/useFeedback";
+import { useTranslation } from "../../i18n/useAppTranslation";
 
 /**
  * useReactExtractionPref — 增强事实提取开关（M9，默认开 PD-4）。
@@ -37,7 +37,7 @@ export function useReactExtractionPref(isOpen: boolean, settings: SettingsInfo |
       await saveAppPreferences({ react_extraction_enabled: next });
     } catch (err) {
       setEnabled(!next);
-      showError(err, t('error_messages.unknown'));
+      showError(err, t("error_messages.unknown"));
     }
   };
 

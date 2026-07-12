@@ -18,9 +18,7 @@ import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 import { FileChapterRepository } from "../../repositories/implementations/file_chapter.js";
 import { compute_content_hash } from "../../utils/file_utils.js";
 
-const golden = JSON.parse(
-  readFileSync(new URL("./fixtures/context_golden.json", import.meta.url), "utf-8"),
-);
+const golden = JSON.parse(readFileSync(new URL("./fixtures/context_golden.json", import.meta.url), "utf-8"));
 
 // Allow ±2 token variance (gpt-tokenizer vs tiktoken)
 function assertTokensClose(actual: number, expected: number, label: string) {
@@ -39,7 +37,8 @@ describe("Context Assembler Golden Tests", () => {
   it("Scene 3: Empty AU — first chapter, no history, no facts", async () => {
     const g = golden.scene3;
     const project = createProject({
-      project_id: "p3", au_id: "scene3",
+      project_id: "p3",
+      au_id: "scene3",
       llm: createLLMConfig({ mode: "api" as any, model: "gpt-4o", context_window: 32000 }),
       chapter_length: 1500,
     });
@@ -64,35 +63,57 @@ describe("Context Assembler Golden Tests", () => {
     // Save 3 chapters
     for (let i = 1; i <= 3; i++) {
       const c = ("第" + i + "章内容。").repeat(50);
-      await chapterRepo.save(createChapter({
-        au_id: "scene1", chapter_num: i, content: c,
-        chapter_id: `id${i}`, provenance: "ai",
-      }));
+      await chapterRepo.save(
+        createChapter({
+          au_id: "scene1",
+          chapter_num: i,
+          content: c,
+          chapter_id: `id${i}`,
+          provenance: "ai",
+        }),
+      );
     }
 
-    const facts = Array.from({ length: 10 }, (_, i) => createFact({
-      id: `f${i + 1}`, content_raw: "r", content_clean: `事实${i + 1}内容描述`,
-      characters: ["Alice"], chapter: (i % 3) + 1,
-      status: i > 7 ? FactStatus.UNRESOLVED : FactStatus.ACTIVE,
-      type: FactType.PLOT_EVENT,
-      narrative_weight: i < 3 ? NarrativeWeight.HIGH : NarrativeWeight.MEDIUM,
-    }));
+    const facts = Array.from({ length: 10 }, (_, i) =>
+      createFact({
+        id: `f${i + 1}`,
+        content_raw: "r",
+        content_clean: `事实${i + 1}内容描述`,
+        characters: ["Alice"],
+        chapter: (i % 3) + 1,
+        status: i > 7 ? FactStatus.UNRESOLVED : FactStatus.ACTIVE,
+        type: FactType.PLOT_EVENT,
+        narrative_weight: i < 3 ? NarrativeWeight.HIGH : NarrativeWeight.MEDIUM,
+      }),
+    );
 
     const project = createProject({
-      project_id: "p1", au_id: "scene1",
+      project_id: "p1",
+      au_id: "scene1",
       llm: createLLMConfig({ mode: "api" as any, model: "gpt-4o", context_window: 32000 }),
-      chapter_length: 1500, pinned_context: ["铁律一"],
-      core_always_include: ["Alice"], core_guarantee_budget: 400,
+      chapter_length: 1500,
+      pinned_context: ["铁律一"],
+      core_always_include: ["Alice"],
+      core_guarantee_budget: 400,
       cast_registry: createCastRegistry({ characters: ["Alice", "Bob"] }),
     });
     const state = createState({
-      au_id: "scene1", current_chapter: 4, last_scene_ending: "他走了。",
-      chapter_focus: ["f9"], characters_last_seen: { Alice: 3, Bob: 2 },
+      au_id: "scene1",
+      current_chapter: 4,
+      last_scene_ending: "他走了。",
+      chapter_focus: ["f9"],
+      characters_last_seen: { Alice: 3, Bob: 2 },
     });
 
     const result = await assemble_context(
-      project, state, "继续写下一章", facts, chapterRepo, "scene1",
-      null, { Alice: "# Alice\n角色设定内容", Bob: "# Bob\n配角设定" },
+      project,
+      state,
+      "继续写下一章",
+      facts,
+      chapterRepo,
+      "scene1",
+      null,
+      { Alice: "# Alice\n角色设定内容", Bob: "# Bob\n配角设定" },
       { 世界观: "# 世界观\n设定内容" },
     );
 
@@ -113,17 +134,25 @@ describe("Context Assembler Golden Tests", () => {
   it("Scene 2: Tight budget — 4096 context window, long pinned, soft degradation possible", async () => {
     const g = golden.scene2;
     const project = createProject({
-      project_id: "p2", au_id: "scene2",
+      project_id: "p2",
+      au_id: "scene2",
       llm: createLLMConfig({ mode: "api" as any, model: "gpt-4o", context_window: 4096 }),
       writing_style: createWritingStyle({ custom_instructions: "非常非常长的自定义指令".repeat(20) }),
-      chapter_length: 800, pinned_context: ["长铁律".repeat(10)],
+      chapter_length: 800,
+      pinned_context: ["长铁律".repeat(10)],
     });
     const state = createState({ au_id: "scene2", current_chapter: 1 });
-    const facts = Array.from({ length: 5 }, (_, i) => createFact({
-      id: `tf${i + 1}`, content_raw: "r", content_clean: `紧张预算事实${i + 1}`.repeat(5),
-      chapter: 1, status: FactStatus.UNRESOLVED, type: FactType.FORESHADOWING,
-      narrative_weight: NarrativeWeight.MEDIUM,
-    }));
+    const facts = Array.from({ length: 5 }, (_, i) =>
+      createFact({
+        id: `tf${i + 1}`,
+        content_raw: "r",
+        content_clean: `紧张预算事实${i + 1}`.repeat(5),
+        chapter: 1,
+        status: FactStatus.UNRESOLVED,
+        type: FactType.FORESHADOWING,
+        narrative_weight: NarrativeWeight.MEDIUM,
+      }),
+    );
 
     const result = await assemble_context(project, state, "写", facts, chapterRepo, "scene2");
 
@@ -138,18 +167,23 @@ describe("Context Assembler Golden Tests", () => {
   it("Scene 4: Many facts — 50 facts, sorting and truncation", async () => {
     const g = golden.scene4;
     const project = createProject({
-      project_id: "p4", au_id: "scene4",
+      project_id: "p4",
+      au_id: "scene4",
       llm: createLLMConfig({ mode: "api" as any, model: "gpt-4o", context_window: 32000 }),
       chapter_length: 1500,
     });
     const state = createState({ au_id: "scene4", current_chapter: 1 });
-    const facts = Array.from({ length: 50 }, (_, i) => createFact({
-      id: `mf${i}`, content_raw: "r", content_clean: `大量事实第${i}条描述内容`,
-      chapter: (i % 10) + 1,
-      status: i % 3 === 0 ? FactStatus.UNRESOLVED : FactStatus.ACTIVE,
-      type: FactType.PLOT_EVENT,
-      narrative_weight: [NarrativeWeight.HIGH, NarrativeWeight.MEDIUM, NarrativeWeight.LOW][i % 3],
-    }));
+    const facts = Array.from({ length: 50 }, (_, i) =>
+      createFact({
+        id: `mf${i}`,
+        content_raw: "r",
+        content_clean: `大量事实第${i}条描述内容`,
+        chapter: (i % 10) + 1,
+        status: i % 3 === 0 ? FactStatus.UNRESOLVED : FactStatus.ACTIVE,
+        type: FactType.PLOT_EVENT,
+        narrative_weight: [NarrativeWeight.HIGH, NarrativeWeight.MEDIUM, NarrativeWeight.LOW][i % 3],
+      }),
+    );
 
     const result = await assemble_context(project, state, "继续", facts, chapterRepo, "scene4");
 
@@ -162,19 +196,21 @@ describe("Context Assembler Golden Tests", () => {
   it("Scene 5: core_guarantee_budget — long character file triggers guarantee", async () => {
     const g = golden.scene5;
     const project = createProject({
-      project_id: "p5", au_id: "scene5",
+      project_id: "p5",
+      au_id: "scene5",
       llm: createLLMConfig({ mode: "api" as any, model: "gpt-4o", context_window: 8000 }),
       chapter_length: 1000,
       cast_registry: createCastRegistry({ characters: ["主角", "配角"] }),
-      core_always_include: ["主角"], core_guarantee_budget: 400,
+      core_always_include: ["主角"],
+      core_guarantee_budget: 400,
     });
     const state = createState({ au_id: "scene5", current_chapter: 1 });
     const longChar = "# 主角\n" + "这是一段很长的角色设定。".repeat(100);
 
-    const result = await assemble_context(
-      project, state, "写", [], chapterRepo, "scene5",
-      null, { 主角: longChar, 配角: "# 配角\n短设定" },
-    );
+    const result = await assemble_context(project, state, "写", [], chapterRepo, "scene5", null, {
+      主角: longChar,
+      配角: "# 配角\n短设定",
+    });
 
     expect(result.budget_report.context_window).toBe(g.budget.context_window);
     assertTokensClose(result.budget_report.p5_tokens, g.budget.p5_tokens, "p5_tokens");

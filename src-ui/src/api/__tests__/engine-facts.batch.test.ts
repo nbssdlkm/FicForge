@@ -22,10 +22,14 @@ let auPath: string;
 
 async function confirmChapters(n: number) {
   for (let i = 1; i <= n; i++) {
-    await getEngine().repos.draft.save(createDraft({
-      au_id: auPath, chapter_num: i, variant: "A",
-      content: `第 ${i} 章正文。Alice 做了某事。`,
-    }));
+    await getEngine().repos.draft.save(
+      createDraft({
+        au_id: auPath,
+        chapter_num: i,
+        variant: "A",
+        content: `第 ${i} 章正文。Alice 做了某事。`,
+      }),
+    );
     await confirmChapter(auPath, i, `ch${String(i).padStart(4, "0")}_draft_A.md`);
   }
 }
@@ -34,8 +38,12 @@ function factInput(chapterNum: number, content: string): BatchFactInput {
   return {
     chapterNum,
     data: {
-      content_clean: content, content_raw: content, type: "plot_event",
-      narrative_weight: "medium", status: "active", characters: ["Alice"],
+      content_clean: content,
+      content_raw: content,
+      type: "plot_event",
+      narrative_weight: "medium",
+      status: "active",
+      characters: ["Alice"],
     },
   };
 }
@@ -82,7 +90,11 @@ describe("addFactsBatch", () => {
   it("并发 undo 无法插进批次：终态无孤儿（单锁原子性）", async () => {
     await confirmChapters(2); // current_chapter=3，最后确认章=2
     const targets: BatchFactInput[] = [
-      factInput(2, "f1"), factInput(2, "f2"), factInput(2, "f3"), factInput(2, "f4"), factInput(2, "f5"),
+      factInput(2, "f1"),
+      factInput(2, "f2"),
+      factInput(2, "f3"),
+      factInput(2, "f4"),
+      factInput(2, "f5"),
     ];
     // 在每条 fact 落盘之间注入 await 让步——若批次不是单锁，undo 就能在让步点插入。
     const realAppend = getEngine().repos.fact.append.bind(getEngine().repos.fact);
@@ -93,7 +105,9 @@ describe("addFactsBatch", () => {
 
     // 并发发起批量落库与撤销最后一章。两者都排队在同一 AU 锁上，必然串行。
     await Promise.all([
-      addFactsBatch(auPath, targets).catch(() => { /* 撤销先行时批次整体 skip，不抛 */ }),
+      addFactsBatch(auPath, targets).catch(() => {
+        /* 撤销先行时批次整体 skip，不抛 */
+      }),
       undoChapter(auPath),
     ]);
 
@@ -130,7 +144,9 @@ describe("落库/编辑按角色卡别名表归一化（M3 别名表接通）", 
   beforeEach(async () => {
     await confirmChapters(1);
     await saveLore({
-      au_path: auPath, category: "characters", filename: "Alice.md",
+      au_path: auPath,
+      category: "characters",
+      filename: "Alice.md",
       content: "---\nname: Alice\naliases: [小爱]\n---\n\n# Alice\n",
     });
   });
@@ -138,12 +154,15 @@ describe("落库/编辑按角色卡别名表归一化（M3 别名表接通）", 
   it("addFact / addFactsBatch：characters 与 known_to 落库前归一化", async () => {
     await addFact(auPath, 1, {
       ...factInput(1, "小爱做了某事").data,
-      characters: ["小爱"], known_to: ["小爱"],
+      characters: ["小爱"],
+      known_to: ["小爱"],
     });
-    const r = await addFactsBatch(auPath, [{
-      chapterNum: 1,
-      data: { ...factInput(1, "小爱又做了某事").data, characters: ["小爱", "Alice"] },
-    }]);
+    const r = await addFactsBatch(auPath, [
+      {
+        chapterNum: 1,
+        data: { ...factInput(1, "小爱又做了某事").data, characters: ["小爱", "Alice"] },
+      },
+    ]);
     expect(r.added).toBe(1);
 
     const all = await getEngine().repos.fact.list_all(auPath);
@@ -158,7 +177,8 @@ describe("落库/编辑按角色卡别名表归一化（M3 别名表接通）", 
     const [fact] = await getEngine().repos.fact.list_all(auPath);
 
     const updated = await editFact(auPath, fact.id, {
-      characters: ["小爱"], hidden_from: ["小爱"],
+      characters: ["小爱"],
+      hidden_from: ["小爱"],
     });
     expect(updated.characters).toEqual(["Alice"]);
     expect(updated.hidden_from).toEqual(["Alice"]);

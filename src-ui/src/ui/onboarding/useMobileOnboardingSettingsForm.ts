@@ -2,17 +2,17 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect, useMemo, useState } from 'react';
-import { getOnboardingDefaults } from '../../api/engine-client';
-import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
-import { useLlmConnectionTest } from '../../hooks/useConnectionTest';
-import { useTranslation } from '../../i18n/useAppTranslation';
-import { canTestLlmConnection, type LlmConfigFields } from '../shared/llm-config';
+import { useEffect, useMemo, useState } from "react";
+import { getOnboardingDefaults } from "../../api/engine-client";
+import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
+import { useLlmConnectionTest } from "../../hooks/useConnectionTest";
+import { useTranslation } from "../../i18n/useAppTranslation";
+import { canTestLlmConnection, type LlmConfigFields } from "../shared/llm-config";
 import {
   createDefaultMobileOnboardingSettings,
   hydrateMobileOnboardingSettings,
   type MobileOnboardingSettingsState,
-} from './form-mappers';
+} from "./form-mappers";
 
 /**
  * useMobileOnboardingSettingsForm — 引导页设置表单（LLM + embedding 单一对象）
@@ -23,31 +23,36 @@ import {
  */
 export function useMobileOnboardingSettingsForm() {
   const { t } = useTranslation();
-  const loadGuard = useActiveRequestGuard('mobile-onboarding-defaults');
+  const loadGuard = useActiveRequestGuard("mobile-onboarding-defaults");
 
   const [form, setForm] = useState<MobileOnboardingSettingsState>(createDefaultMobileOnboardingSettings);
   const [loading, setLoading] = useState(true);
   const [helpOpen, setHelpOpen] = useState(false);
 
   const llmConnection = useLlmConnectionTest({
-    getSuccessMessage: (result, fields) => t('onboarding.apiConfig.testSuccess', { model: result.model || fields.model }),
-    getFailureMessage: (result) => result.message || t('error_messages.unknown'),
-    getExceptionMessage: (error) => error instanceof Error ? error.message || t('error_messages.unknown') : t('error_messages.unknown'),
+    getSuccessMessage: (result, fields) =>
+      t("onboarding.apiConfig.testSuccess", { model: result.model || fields.model }),
+    getFailureMessage: (result) => result.message || t("error_messages.unknown"),
+    getExceptionMessage: (error) =>
+      error instanceof Error ? error.message || t("error_messages.unknown") : t("error_messages.unknown"),
   });
 
   useEffect(() => {
     const token = loadGuard.start();
     setLoading(true);
-    getOnboardingDefaults().then(settings => {
-      if (loadGuard.isStale(token)) return;
-      setForm(hydrateMobileOnboardingSettings(settings));
-    }).catch(() => {
-      // 引导页默认配置足够继续
-    }).finally(() => {
-      if (!loadGuard.isStale(token)) {
-        setLoading(false);
-      }
-    });
+    getOnboardingDefaults()
+      .then((settings) => {
+        if (loadGuard.isStale(token)) return;
+        setForm(hydrateMobileOnboardingSettings(settings));
+      })
+      .catch(() => {
+        // 引导页默认配置足够继续
+      })
+      .finally(() => {
+        if (!loadGuard.isStale(token)) {
+          setLoading(false);
+        }
+      });
     // loadGuard 引用稳定，挂载时一次性加载
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -61,30 +66,32 @@ export function useMobileOnboardingSettingsForm() {
 
   // 受控绑定 setter（hook 规则 5 例外①：input / picker 双向绑定）
   const fieldSetters = useMemo(() => {
-    const set = <K extends keyof MobileOnboardingSettingsState>(key: K) =>
-      (value: MobileOnboardingSettingsState[K]) => setForm((prev) => ({ ...prev, [key]: value }));
+    const set =
+      <K extends keyof MobileOnboardingSettingsState>(key: K) =>
+      (value: MobileOnboardingSettingsState[K]) =>
+        setForm((prev) => ({ ...prev, [key]: value }));
     return {
-      setApiBase: set('apiBase'),
-      setApiKey: set('apiKey'),
-      setModel: set('model'),
-      setContextWindow: set('contextWindow'),
-      setChatPath: set('chatPath'),
+      setApiBase: set("apiBase"),
+      setApiKey: set("apiKey"),
+      setModel: set("model"),
+      setContextWindow: set("contextWindow"),
+      setChatPath: set("chatPath"),
       // StepCard onClick 单选是用户事件而非双向绑定 → 动词命名（hook 规则 1/5，合并审阅）
-      chooseCustomEmbedding: set('useCustomEmbedding'),
-      setEmbeddingModel: set('embeddingModel'),
-      setEmbeddingApiBase: set('embeddingApiBase'),
-      setEmbeddingApiKey: set('embeddingApiKey'),
+      chooseCustomEmbedding: set("useCustomEmbedding"),
+      setEmbeddingModel: set("embeddingModel"),
+      setEmbeddingApiBase: set("embeddingApiBase"),
+      setEmbeddingApiKey: set("embeddingApiKey"),
     };
   }, []);
 
   // 连接测试与真实生成同字段口径（含 chatPath，审计 5b）
   const llmFields: LlmConfigFields = {
-    mode: 'api',
+    mode: "api",
     model: form.model,
     apiBase: form.apiBase,
     apiKey: form.apiKey,
-    localModelPath: '',
-    ollamaModel: '',
+    localModelPath: "",
+    ollamaModel: "",
     chatPath: form.chatPath,
   };
 

@@ -10,9 +10,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../api/engine-client", async () => {
-  const actual = await vi.importActual<typeof import("../../../api/engine-client")>(
-    "../../../api/engine-client",
-  );
+  const actual = await vi.importActual<typeof import("../../../api/engine-client")>("../../../api/engine-client");
   return {
     ...actual,
     dispatchSimpleChat: vi.fn(),
@@ -57,34 +55,36 @@ describe("useSimpleDispatch", () => {
   });
 
   it("agent loop tool_result event → onToolResult callback 调用，errorMessage 透传（agent MVP T5）", async () => {
-    mocked.mockImplementation(makeStream([
-      {
-        type: "tool_call",
-        data: {
-          id: "tc_show",
-          type: "function",
-          function: { name: "show_chapter", arguments: '{"chapter_num":1}' },
+    mocked.mockImplementation(
+      makeStream([
+        {
+          type: "tool_call",
+          data: {
+            id: "tc_show",
+            type: "function",
+            function: { name: "show_chapter", arguments: '{"chapter_num":1}' },
+          },
         },
-      },
-      {
-        type: "tool_result",
-        data: {
-          tool_call_id: "tc_show",
-          tool_name: "show_chapter",
-          content: "第一章正文...",
+        {
+          type: "tool_result",
+          data: {
+            tool_call_id: "tc_show",
+            tool_name: "show_chapter",
+            content: "第一章正文...",
+          },
         },
-      },
-      {
-        type: "tool_result",
-        data: {
-          tool_call_id: "tc_setting",
-          tool_name: "show_setting",
-          content: "FILE_NOT_FOUND",
-          error_message: "characters/Alice.md 不存在",
+        {
+          type: "tool_result",
+          data: {
+            tool_call_id: "tc_setting",
+            tool_name: "show_setting",
+            content: "FILE_NOT_FOUND",
+            error_message: "characters/Alice.md 不存在",
+          },
         },
-      },
-      { type: "done_tools", data: { tool_calls: [] } },
-    ]) as unknown as typeof engineClient.dispatchSimpleChat);
+        { type: "done_tools", data: { tool_calls: [] } },
+      ]) as unknown as typeof engineClient.dispatchSimpleChat,
+    );
 
     const { result } = renderHook(() => useSimpleDispatch("au_t"));
     const toolResults: Array<{ toolCallId: string; toolName: string; content: string; errorMessage?: string }> = [];
@@ -120,17 +120,19 @@ describe("useSimpleDispatch", () => {
   });
 
   it("旧 caller 不传 onToolResult 时遇 tool_result event 不崩（向后兼容）", async () => {
-    mocked.mockImplementation(makeStream([
-      {
-        type: "tool_result",
-        data: {
-          tool_call_id: "tc_x",
-          tool_name: "show_chapter",
-          content: "...",
+    mocked.mockImplementation(
+      makeStream([
+        {
+          type: "tool_result",
+          data: {
+            tool_call_id: "tc_x",
+            tool_name: "show_chapter",
+            content: "...",
+          },
         },
-      },
-      { type: "done_tools", data: { tool_calls: [] } },
-    ]) as unknown as typeof engineClient.dispatchSimpleChat);
+        { type: "done_tools", data: { tool_calls: [] } },
+      ]) as unknown as typeof engineClient.dispatchSimpleChat,
+    );
 
     const { result } = renderHook(() => useSimpleDispatch("au_t"));
     let errored = false;
@@ -144,7 +146,9 @@ describe("useSimpleDispatch", () => {
           // 不传 onToolResult
           onDoneText: () => {},
           onDoneTools: () => {},
-          onError: () => { errored = true; },
+          onError: () => {
+            errored = true;
+          },
         },
       );
     });
@@ -153,19 +157,21 @@ describe("useSimpleDispatch", () => {
   });
 
   it("text 路径：onToken 多次 + onDoneText 一次", async () => {
-    mocked.mockImplementation(makeStream([
-      { type: "token", data: "Hello" },
-      { type: "token", data: " world" },
-      {
-        type: "done_text",
-        data: {
-          full_text: "Hello world",
-          draft_label: "A",
-          chapter_num: 1,
-          generated_with: { model: "x" },
+    mocked.mockImplementation(
+      makeStream([
+        { type: "token", data: "Hello" },
+        { type: "token", data: " world" },
+        {
+          type: "done_text",
+          data: {
+            full_text: "Hello world",
+            draft_label: "A",
+            chapter_num: 1,
+            generated_with: { model: "x" },
+          },
         },
-      },
-    ]) as unknown as typeof engineClient.dispatchSimpleChat);
+      ]) as unknown as typeof engineClient.dispatchSimpleChat,
+    );
 
     const { result } = renderHook(() => useSimpleDispatch("au_t"));
     const tokens: string[] = [];
@@ -178,9 +184,15 @@ describe("useSimpleDispatch", () => {
         { au_path: "au_t", chapter_num: 1, user_input: "写" },
         {
           onToken: (c) => tokens.push(c),
-          onToolCall: () => { toolCalls++; },
-          onDoneText: (d) => { doneText = d; },
-          onDoneTools: () => { doneTools++; },
+          onToolCall: () => {
+            toolCalls++;
+          },
+          onDoneText: (d) => {
+            doneText = d;
+          },
+          onDoneTools: () => {
+            doneTools++;
+          },
           onError: () => {},
         },
       );
@@ -194,33 +206,39 @@ describe("useSimpleDispatch", () => {
   });
 
   it("tool 路径：onToolCall 按顺序 + onDoneTools 一次", async () => {
-    mocked.mockImplementation(makeStream([
-      {
-        type: "tool_call",
-        data: {
-          id: "call_1",
-          type: "function",
-          function: { name: "show_chapter", arguments: '{"chapter_num":3}' },
+    mocked.mockImplementation(
+      makeStream([
+        {
+          type: "tool_call",
+          data: {
+            id: "call_1",
+            type: "function",
+            function: { name: "show_chapter", arguments: '{"chapter_num":3}' },
+          },
         },
-      },
-      {
-        type: "tool_call",
-        data: {
-          id: "call_2",
-          type: "function",
-          function: { name: "show_setting", arguments: '{"file_path":"characters/Alice.md"}' },
+        {
+          type: "tool_call",
+          data: {
+            id: "call_2",
+            type: "function",
+            function: { name: "show_setting", arguments: '{"file_path":"characters/Alice.md"}' },
+          },
         },
-      },
-      {
-        type: "done_tools",
-        data: {
-          tool_calls: [
-            { id: "call_1", type: "function", function: { name: "show_chapter", arguments: '{"chapter_num":3}' } },
-            { id: "call_2", type: "function", function: { name: "show_setting", arguments: '{"file_path":"characters/Alice.md"}' } },
-          ],
+        {
+          type: "done_tools",
+          data: {
+            tool_calls: [
+              { id: "call_1", type: "function", function: { name: "show_chapter", arguments: '{"chapter_num":3}' } },
+              {
+                id: "call_2",
+                type: "function",
+                function: { name: "show_setting", arguments: '{"file_path":"characters/Alice.md"}' },
+              },
+            ],
+          },
         },
-      },
-    ]) as unknown as typeof engineClient.dispatchSimpleChat);
+      ]) as unknown as typeof engineClient.dispatchSimpleChat,
+    );
 
     const { result } = renderHook(() => useSimpleDispatch("au_t"));
     const calls: { name: string; args: Record<string, unknown> }[] = [];
@@ -233,8 +251,12 @@ describe("useSimpleDispatch", () => {
         {
           onToken: () => {},
           onToolCall: (name, args) => calls.push({ name, args }),
-          onDoneText: () => { doneText = true; },
-          onDoneTools: () => { doneTools++; },
+          onDoneText: () => {
+            doneText = true;
+          },
+          onDoneTools: () => {
+            doneTools++;
+          },
           onError: () => {},
         },
       );
@@ -249,16 +271,19 @@ describe("useSimpleDispatch", () => {
   });
 
   it("非法 args JSON 走 safeParseArgs 兜底为 {}，不抛", async () => {
-    mocked.mockImplementation(makeStream([
-      {
-        type: "tool_call",
-        data: {
-          id: "x", type: "function",
-          function: { name: "show_chapter", arguments: "this is not json" },
+    mocked.mockImplementation(
+      makeStream([
+        {
+          type: "tool_call",
+          data: {
+            id: "x",
+            type: "function",
+            function: { name: "show_chapter", arguments: "this is not json" },
+          },
         },
-      },
-      { type: "done_tools", data: { tool_calls: [] } },
-    ]) as unknown as typeof engineClient.dispatchSimpleChat);
+        { type: "done_tools", data: { tool_calls: [] } },
+      ]) as unknown as typeof engineClient.dispatchSimpleChat,
+    );
 
     const { result } = renderHook(() => useSimpleDispatch("au_t"));
     let receivedArgs: Record<string, unknown> | null = null;
@@ -267,7 +292,9 @@ describe("useSimpleDispatch", () => {
         { au_path: "au_t", chapter_num: 1, user_input: "x" },
         {
           onToken: () => {},
-          onToolCall: (_n, a) => { receivedArgs = a; },
+          onToolCall: (_n, a) => {
+            receivedArgs = a;
+          },
           onDoneText: () => {},
           onDoneTools: () => {},
           onError: () => {},
@@ -278,12 +305,14 @@ describe("useSimpleDispatch", () => {
   });
 
   it("error event 走 onError", async () => {
-    mocked.mockImplementation(makeStream([
-      {
-        type: "error",
-        data: { error_code: "UNSUPPORTED_MODE", message: "local 未实现", actions: [], partial_draft_label: null },
-      },
-    ]) as unknown as typeof engineClient.dispatchSimpleChat);
+    mocked.mockImplementation(
+      makeStream([
+        {
+          type: "error",
+          data: { error_code: "UNSUPPORTED_MODE", message: "local 未实现", actions: [], partial_draft_label: null },
+        },
+      ]) as unknown as typeof engineClient.dispatchSimpleChat,
+    );
 
     const { result } = renderHook(() => useSimpleDispatch("au_t"));
     let err: { error_code?: string; message?: string } | null = null;
@@ -291,8 +320,13 @@ describe("useSimpleDispatch", () => {
       await result.current.startDispatch(
         { au_path: "au_t", chapter_num: 1, user_input: "x" },
         {
-          onToken: () => {}, onToolCall: () => {}, onDoneText: () => {}, onDoneTools: () => {},
-          onError: (d) => { err = d; },
+          onToken: () => {},
+          onToolCall: () => {},
+          onDoneText: () => {},
+          onDoneTools: () => {},
+          onError: (d) => {
+            err = d;
+          },
         },
       );
     });
@@ -311,15 +345,24 @@ describe("useSimpleDispatch", () => {
       void result.current.startDispatch(
         { au_path: "au_t", chapter_num: 1, user_input: "x" },
         {
-          onToken: () => {}, onToolCall: () => {}, onDoneText: () => {}, onDoneTools: () => {},
-          onError: () => { errored = true; },
-          onCancelled: () => { cancelled = true; },
+          onToken: () => {},
+          onToolCall: () => {},
+          onDoneText: () => {},
+          onDoneTools: () => {},
+          onError: () => {
+            errored = true;
+          },
+          onCancelled: () => {
+            cancelled = true;
+          },
         },
       );
     });
 
     await waitFor(() => expect(calls.length).toBe(1));
-    act(() => { result.current.cancelDispatch(); });
+    act(() => {
+      result.current.cancelDispatch();
+    });
     await waitFor(() => expect(cancelled).toBe(true));
     expect(errored).toBe(false);
     expect(result.current.isStreaming).toBe(false);

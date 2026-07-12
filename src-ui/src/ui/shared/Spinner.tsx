@@ -7,27 +7,27 @@
  * `<Spinner size="sm" />` usages into two consistent shapes.
  */
 
-import { Loader2 } from 'lucide-react';
-import { cn } from './utils';
+import { Loader2 } from "lucide-react";
+import { cn } from "./utils";
 
-export type SpinnerSize = 'sm' | 'md' | 'lg';
+export type SpinnerSize = "sm" | "md" | "lg";
 
 const sizePx: Record<SpinnerSize, number> = { sm: 14, md: 18, lg: 24 };
 
 export interface SpinnerProps {
   size?: SpinnerSize;
   className?: string;
-  'aria-label'?: string;
+  "aria-label"?: string;
 }
 
 /** Inline spinner icon. Pair with text via flex/gap. */
-export function Spinner({ size = 'md', className, 'aria-label': ariaLabel }: SpinnerProps) {
+export function Spinner({ size = "md", className, "aria-label": ariaLabel }: SpinnerProps) {
   return (
     <Loader2
       size={sizePx[size]}
-      className={cn('animate-spin', className)}
+      className={cn("animate-spin", className)}
       aria-label={ariaLabel}
-      role={ariaLabel ? 'status' : undefined}
+      role={ariaLabel ? "status" : undefined}
     />
   );
 }
@@ -44,15 +44,11 @@ export interface LoadingStateProps {
 export function LoadingState({ message, compact = false, className }: LoadingStateProps) {
   return (
     <div
-      className={cn(
-        'flex items-center justify-center gap-3 text-text/50',
-        compact ? 'py-4' : 'py-16',
-        className,
-      )}
+      className={cn("flex items-center justify-center gap-3 text-text/50", compact ? "py-4" : "py-16", className)}
       role="status"
       aria-live="polite"
     >
-      <Spinner size={compact ? 'sm' : 'md'} />
+      <Spinner size={compact ? "sm" : "md"} />
       {message ? <span className="text-sm">{message}</span> : null}
     </div>
   );

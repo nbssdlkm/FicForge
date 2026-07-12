@@ -10,8 +10,8 @@
  * 用于 Fandom/AU 设定文件预览和 Facts 内容展示。
  */
 
-import Markdown from 'react-markdown';
-import type { Components } from 'react-markdown';
+import Markdown from "react-markdown";
+import type { Components } from "react-markdown";
 
 const components: Components = {
   h1: ({ children }) => <h1 className="text-xl font-bold mt-6 mb-3 text-text">{children}</h1>,
@@ -49,9 +49,7 @@ function stripFrontmatter(text: string): string {
 export function SettingsMarkdown({ content }: { content: string }) {
   return (
     <div className="text-sm text-text/90 max-w-prose">
-      <Markdown components={components}>
-        {stripFrontmatter(content)}
-      </Markdown>
+      <Markdown components={components}>{stripFrontmatter(content)}</Markdown>
     </div>
   );
 }

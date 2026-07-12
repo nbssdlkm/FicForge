@@ -49,12 +49,18 @@ function readLocal(key: string, fallback: string): string {
   try {
     const v = localStorage.getItem(key);
     if (v) return v;
-  } catch { /* localStorage 不可用 */ }
+  } catch {
+    /* localStorage 不可用 */
+  }
   return fallback;
 }
 
 function writeLocal(key: string, value: string): void {
-  try { localStorage.setItem(key, value); } catch { /* best effort */ }
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* best effort */
+  }
 }
 
 function applyCSS(role: FontRole, latinId: string, cjkId: string): void {
@@ -88,7 +94,9 @@ function migrateLegacyLocalStorage(): void {
       if (!localStorage.getItem(targetKey)) localStorage.setItem(targetKey, legacyReading);
       localStorage.removeItem(LEGACY.reading);
     }
-  } catch { /* localStorage 不可用时静默 */ }
+  } catch {
+    /* localStorage 不可用时静默 */
+  }
 }
 migrateLegacyLocalStorage();
 
@@ -124,12 +132,9 @@ export function listFontOptions(
   installedDownloadableIds: readonly string[] = [],
   alwaysIncludeIds: readonly string[] = [],
 ): FontOption[] {
-  const matchesScript = (entry: FontEntry): boolean =>
-    entry.script === script || entry.script === "both";
+  const matchesScript = (entry: FontEntry): boolean => entry.script === script || entry.script === "both";
 
-  const options: FontOption[] = [
-    { id: SYSTEM_FONT_ID, label: { zh: "跟随系统", en: "Follow system" } },
-  ];
+  const options: FontOption[] = [{ id: SYSTEM_FONT_ID, label: { zh: "跟随系统", en: "Follow system" } }];
   const addedIds = new Set<string>([SYSTEM_FONT_ID]);
 
   for (const entry of FONT_MANIFEST) {
@@ -173,17 +178,15 @@ export interface FontSelectionState {
 }
 
 export function useFontSelection(): FontSelectionState {
-  const [uiLatinFontId, setUiLatinFontIdState] = useState(
-    () => readLocal(LS_KEYS.ui_latin, ENGINE_DEFAULTS.ui_latin_font_id),
+  const [uiLatinFontId, setUiLatinFontIdState] = useState(() =>
+    readLocal(LS_KEYS.ui_latin, ENGINE_DEFAULTS.ui_latin_font_id),
   );
-  const [uiCjkFontId, setUiCjkFontIdState] = useState(
-    () => readLocal(LS_KEYS.ui_cjk, ENGINE_DEFAULTS.ui_cjk_font_id),
+  const [uiCjkFontId, setUiCjkFontIdState] = useState(() => readLocal(LS_KEYS.ui_cjk, ENGINE_DEFAULTS.ui_cjk_font_id));
+  const [readingLatinFontId, setReadingLatinFontIdState] = useState(() =>
+    readLocal(LS_KEYS.reading_latin, ENGINE_DEFAULTS.reading_latin_font_id),
   );
-  const [readingLatinFontId, setReadingLatinFontIdState] = useState(
-    () => readLocal(LS_KEYS.reading_latin, ENGINE_DEFAULTS.reading_latin_font_id),
-  );
-  const [readingCjkFontId, setReadingCjkFontIdState] = useState(
-    () => readLocal(LS_KEYS.reading_cjk, ENGINE_DEFAULTS.reading_cjk_font_id),
+  const [readingCjkFontId, setReadingCjkFontIdState] = useState(() =>
+    readLocal(LS_KEYS.reading_cjk, ENGINE_DEFAULTS.reading_cjk_font_id),
   );
 
   // 启动时从 engine settings 同步（跨设备恢复）。失败静默，localStorage 兜底。
@@ -220,7 +223,9 @@ export function useFontSelection(): FontSelectionState {
           applyCSS("reading", fonts.reading_latin_font_id, fonts.reading_cjk_font_id);
         }
       })
-      .catch(() => { /* engine 未 ready 或读取失败，localStorage 已兜底 */ });
+      .catch(() => {
+        /* engine 未 ready 或读取失败，localStorage 已兜底 */
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -265,41 +270,53 @@ export function useFontSelection(): FontSelectionState {
     [],
   );
 
-  const selectUiLatinFont = useCallback((id: string) => {
-    setUiLatinFontIdState(id);
-    writeLocal(LS_KEYS.ui_latin, id);
-    const next = { ...latestFontsRef.current, ui_latin: id };
-    latestFontsRef.current = next;
-    applyCSS("ui", next.ui_latin, next.ui_cjk);
-    persist(next);
-  }, [persist]);
+  const selectUiLatinFont = useCallback(
+    (id: string) => {
+      setUiLatinFontIdState(id);
+      writeLocal(LS_KEYS.ui_latin, id);
+      const next = { ...latestFontsRef.current, ui_latin: id };
+      latestFontsRef.current = next;
+      applyCSS("ui", next.ui_latin, next.ui_cjk);
+      persist(next);
+    },
+    [persist],
+  );
 
-  const selectUiCjkFont = useCallback((id: string) => {
-    setUiCjkFontIdState(id);
-    writeLocal(LS_KEYS.ui_cjk, id);
-    const next = { ...latestFontsRef.current, ui_cjk: id };
-    latestFontsRef.current = next;
-    applyCSS("ui", next.ui_latin, next.ui_cjk);
-    persist(next);
-  }, [persist]);
+  const selectUiCjkFont = useCallback(
+    (id: string) => {
+      setUiCjkFontIdState(id);
+      writeLocal(LS_KEYS.ui_cjk, id);
+      const next = { ...latestFontsRef.current, ui_cjk: id };
+      latestFontsRef.current = next;
+      applyCSS("ui", next.ui_latin, next.ui_cjk);
+      persist(next);
+    },
+    [persist],
+  );
 
-  const selectReadingLatinFont = useCallback((id: string) => {
-    setReadingLatinFontIdState(id);
-    writeLocal(LS_KEYS.reading_latin, id);
-    const next = { ...latestFontsRef.current, reading_latin: id };
-    latestFontsRef.current = next;
-    applyCSS("reading", next.reading_latin, next.reading_cjk);
-    persist(next);
-  }, [persist]);
+  const selectReadingLatinFont = useCallback(
+    (id: string) => {
+      setReadingLatinFontIdState(id);
+      writeLocal(LS_KEYS.reading_latin, id);
+      const next = { ...latestFontsRef.current, reading_latin: id };
+      latestFontsRef.current = next;
+      applyCSS("reading", next.reading_latin, next.reading_cjk);
+      persist(next);
+    },
+    [persist],
+  );
 
-  const selectReadingCjkFont = useCallback((id: string) => {
-    setReadingCjkFontIdState(id);
-    writeLocal(LS_KEYS.reading_cjk, id);
-    const next = { ...latestFontsRef.current, reading_cjk: id };
-    latestFontsRef.current = next;
-    applyCSS("reading", next.reading_latin, next.reading_cjk);
-    persist(next);
-  }, [persist]);
+  const selectReadingCjkFont = useCallback(
+    (id: string) => {
+      setReadingCjkFontIdState(id);
+      writeLocal(LS_KEYS.reading_cjk, id);
+      const next = { ...latestFontsRef.current, reading_cjk: id };
+      latestFontsRef.current = next;
+      applyCSS("reading", next.reading_latin, next.reading_cjk);
+      persist(next);
+    },
+    [persist],
+  );
 
   return {
     uiLatinFontId,

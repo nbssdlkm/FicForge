@@ -92,17 +92,18 @@ const KNOWN_CHAT_FORMATS: ChatFormatPattern[] = [
   {
     name: "Markdown Bold",
     userPattern: /^\*\*\s*(?:User|Human|You|用户|我|人类|问|对方)\s*[:：]?\s*\*\*\s*[:：]?\s*/im,
-    assistantPattern: /^\*\*\s*(?:Assistant|AI|ChatGPT|DeepSeek|Claude|GPT|助手|机器人|答)\s*[:：]?\s*\*\*\s*[:：]?\s*/im,
+    assistantPattern:
+      /^\*\*\s*(?:Assistant|AI|ChatGPT|DeepSeek|Claude|GPT|助手|机器人|答)\s*[:：]?\s*\*\*\s*[:：]?\s*/im,
     example: { user: "**Human:**", assistant: "**Assistant:**" },
   },
 ];
 
 /** 导出已知格式名列表（供 LLM prompt 构造枚举选项）。 */
-export const KNOWN_CHAT_FORMAT_NAMES: readonly string[] = KNOWN_CHAT_FORMATS.map(f => f.name);
+export const KNOWN_CHAT_FORMAT_NAMES: readonly string[] = KNOWN_CHAT_FORMATS.map((f) => f.name);
 
 /** 按 name 查找已知格式；未找到返回 null。供 LLM 返回 matchKnownFormat 后查表用。 */
 export function findKnownChatFormat(name: string): ChatFormatPattern | null {
-  return KNOWN_CHAT_FORMATS.find(f => f.name === name) ?? null;
+  return KNOWN_CHAT_FORMATS.find((f) => f.name === name) ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -178,17 +179,14 @@ const LLM_CHAT_DETECT_SAMPLE_CHARS = 40000;
  * - LLM 合理判断非对话（或 isChat=true 但格式字段全缺失）：isChat=false + error 空（静默纯正文）
  * - 识别成功：isChat=true，matchKnownFormat 非空 **xor** customUserSample/customAssistantSample 都非空
  */
-export async function llmDetectChatStructure(
-  content: string,
-  llmProvider: LLMProvider,
-): Promise<LlmChatDetectResult> {
+export async function llmDetectChatStructure(content: string, llmProvider: LLMProvider): Promise<LlmChatDetectResult> {
   const sample = content.slice(0, LLM_CHAT_DETECT_SAMPLE_CHARS);
 
   // 从 KNOWN_CHAT_FORMATS 动态生成已知格式枚举，避免 prompt 与代码漂移
-  const knownList = KNOWN_CHAT_FORMATS
-    .map(f => `- "${f.name}": 如 "${f.example?.user}" / "${f.example?.assistant}"`)
-    .join("\n");
-  const knownNameEnum = KNOWN_CHAT_FORMAT_NAMES.map(n => `"${n}"`).join(" | ");
+  const knownList = KNOWN_CHAT_FORMATS.map(
+    (f) => `- "${f.name}": 如 "${f.example?.user}" / "${f.example?.assistant}"`,
+  ).join("\n");
+  const knownNameEnum = KNOWN_CHAT_FORMAT_NAMES.map((n) => `"${n}"`).join(" | ");
 
   // 设计原则：让 LLM 尽量做"填空 / 选择"而非"自由生成"。
   // 先尝试匹配下方枚举中的已知格式名（零幻觉路径）；都不匹配才退化到自由字面量 sample。
@@ -278,11 +276,15 @@ ${sample}`;
     // 归类为 llm_error：LLM 调用链虽 OK 但未能产出可用结果，UX 上和"真错"一样需要 toast，
     // 且 LLM 对 prompt 规则的把握不足大概率也会影响 chapter detect，retry guard 一并关闭下游合理
     // 脱敏：result 可能含 customUserSample / customAssistantSample（用户正文片段），只打结构信号
-    warnAlways("import", "llmDetectChatStructure: isChat=true but neither matchKnownFormat nor customSamples provided", {
-      matchKnownFormat: result.matchKnownFormat,
-      hasCustomUserSample: !!result.customUserSample,
-      hasCustomAssistantSample: !!result.customAssistantSample,
-    });
+    warnAlways(
+      "import",
+      "llmDetectChatStructure: isChat=true but neither matchKnownFormat nor customSamples provided",
+      {
+        matchKnownFormat: result.matchKnownFormat,
+        hasCustomUserSample: !!result.customUserSample,
+        hasCustomAssistantSample: !!result.customAssistantSample,
+      },
+    );
     return emptyResult({ error: "llm_error" });
   } catch (err) {
     // LLM 调用抛错（网络、timeout、key 无效等）→ LLM 层问题；warn 保留线索便于排查
@@ -324,10 +326,7 @@ function extractJsonResult(raw: string): Partial<LlmChatDetectResult> | null {
  * 用 LLM 返回的字面量样本构造 ChatFormatPattern。
  * 两个 sample 相同/为空时返回 null（LLM 出错兜底）。
  */
-export function buildChatFormatFromSamples(
-  userSample: string,
-  assistantSample: string,
-): ChatFormatPattern | null {
+export function buildChatFormatFromSamples(userSample: string, assistantSample: string): ChatFormatPattern | null {
   const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const uTrim = userSample.trim();
   const aTrim = assistantSample.trim();
@@ -476,12 +475,7 @@ export function isJsonChatExport(data: unknown): boolean {
   // 简单数组格式：[{role, content}, ...]
   if (Array.isArray(data) && data.length > 0) {
     const first = data[0];
-    return (
-      typeof first === "object" &&
-      first !== null &&
-      "role" in first &&
-      "content" in first
-    );
+    return typeof first === "object" && first !== null && "role" in first && "content" in first;
   }
 
   return false;
@@ -552,7 +546,7 @@ function parseChatGptMapping(data: Record<string, unknown>): ChatTurn[] {
     const message = nodeRaw.message as Record<string, unknown> | undefined;
     if (message) {
       const author = message.author as Record<string, unknown> | undefined;
-      const role = author?.role as string ?? (message.role as string ?? "");
+      const role = (author?.role as string) ?? (message.role as string) ?? "";
       const normalized = normalizeRole(role);
 
       if (normalized) {
@@ -586,7 +580,9 @@ function parseChatGptMapping(data: Record<string, unknown>): ChatTurn[] {
 
   // 检查是否有 children 链接——如果没有（简化的 mapping），退化为全量遍历
   const hasChildrenLinks = Object.values(mapping).some(
-    (n) => Array.isArray((n as Record<string, unknown>)?.children) && ((n as Record<string, unknown>).children as string[]).length > 0,
+    (n) =>
+      Array.isArray((n as Record<string, unknown>)?.children) &&
+      ((n as Record<string, unknown>).children as string[]).length > 0,
   );
 
   if (hasChildrenLinks && rootId) {
@@ -609,7 +605,7 @@ function parseSimpleArray(data: unknown[]): ChatTurn[] {
     if (typeof item !== "object" || item === null) continue;
     const obj = item as Record<string, unknown>;
     const role = obj.role as string;
-    const content = (obj.content as string ?? "").trim();
+    const content = ((obj.content as string) ?? "").trim();
     if (!role || !content) continue;
 
     const normalizedRole = normalizeRole(role);

@@ -3,11 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  getProjectForEditing,
-  listLoreFiles,
-  type ProjectInfo,
-} from "../../../api/engine-client";
+import { getProjectForEditing, listLoreFiles, type ProjectInfo } from "../../../api/engine-client";
 import { useActiveRequestGuard } from "../../../hooks/useActiveRequestGuard";
 import { useFeedback } from "../../../hooks/useFeedback";
 import { useTranslation } from "../../../i18n/useAppTranslation";
@@ -98,30 +94,21 @@ export function useSettingsChatSupportData(mode: SettingsMode, basePath?: string
   // 渲染用派生集合（工具卡预警判据）
   const existingCharacterFileNames = useMemo(
     () => new Set(characterFiles.map((file) => file.filename)),
-    [characterFiles]
+    [characterFiles],
   );
   const existingWorldbuildingFileNames = useMemo(
     () => new Set(worldbuildingFiles.map((file) => file.filename)),
-    [worldbuildingFiles]
+    [worldbuildingFiles],
   );
   const existingPinnedTexts = projectInfo?.pinned_context || [];
-  const availableCharacterNames = useMemo(
-    () => characterFiles.map((file) => file.name),
-    [characterFiles]
-  );
-  const availableCharacterNameSet = useMemo(
-    () => new Set(availableCharacterNames),
-    [availableCharacterNames]
-  );
+  const availableCharacterNames = useMemo(() => characterFiles.map((file) => file.name), [characterFiles]);
+  const availableCharacterNameSet = useMemo(() => new Set(availableCharacterNames), [availableCharacterNames]);
 
   // 语义化注入（hook 规则 3 的 bridge 例外）：见文件头 freshness 缓存说明
-  const cacheLatestLoreFiles = useCallback(
-    (characters: LoreFileOption[], worldbuilding: LoreFileOption[]) => {
-      characterFilesRef.current = characters;
-      worldbuildingFilesRef.current = worldbuilding;
-    },
-    []
-  );
+  const cacheLatestLoreFiles = useCallback((characters: LoreFileOption[], worldbuilding: LoreFileOption[]) => {
+    characterFilesRef.current = characters;
+    worldbuildingFilesRef.current = worldbuilding;
+  }, []);
   const cacheLatestProject = useCallback((project: ProjectInfo) => {
     projectInfoRef.current = project;
   }, []);
@@ -133,7 +120,7 @@ export function useSettingsChatSupportData(mode: SettingsMode, basePath?: string
       characters: characterFilesRef.current,
       worldbuilding: worldbuildingFilesRef.current,
     }),
-    []
+    [],
   );
 
   return {

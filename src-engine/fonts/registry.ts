@@ -44,10 +44,7 @@ export class BrowserFontRegistry implements FontRegistry {
 
   private ensureBrowser(): void {
     if (typeof document === "undefined" || !document.fonts) {
-      throw new FontError(
-        "registry",
-        "BrowserFontRegistry requires document.fonts (browser environment)",
-      );
+      throw new FontError("registry", "BrowserFontRegistry requires document.fonts (browser environment)");
     }
   }
 

@@ -18,9 +18,7 @@ const SAFE_PATH_SEGMENT_PATTERN = /[^\p{L}\p{N}._ -]+/gu;
  */
 export function validateExistingPathSegment(segment: string): string {
   if (!segment) throw new Error("Path segment cannot be empty");
-  const validated = segment
-    .replace(/[\x00-\x1f\x7f]/g, "")
-    .trim();
+  const validated = segment.replace(/[\x00-\x1f\x7f]/g, "").trim();
   if (!validated) throw new Error("Invalid path segment");
   if (/[\/\\]/.test(validated)) throw new Error("Invalid path segment");
   if (validated === "." || validated === "..") throw new Error("Invalid path segment");
@@ -42,7 +40,13 @@ export function sanitizePathSegment(segment: string): string {
   return sanitized;
 }
 
-export async function saveLore(req: { au_path?: string; fandom_path?: string; category: string; filename: string; content: string }) {
+export async function saveLore(req: {
+  au_path?: string;
+  fandom_path?: string;
+  category: string;
+  filename: string;
+  content: string;
+}) {
   const { adapter } = getEngine();
   const basePath = req.au_path ?? req.fandom_path ?? "";
   const safeCategory = sanitizePathSegment(req.category);
@@ -130,10 +134,13 @@ export async function listLoreFiles(params: { category: string; au_path?: string
   if (!exists) return { files: [] };
   const files = await adapter.listDir(dirPath);
   return {
-    files: files.filter((f) => f.endsWith(".md")).sort().map((f) => ({
-      name: f.replace(/\.md$/, ""),
-      filename: f,
-    })),
+    files: files
+      .filter((f) => f.endsWith(".md"))
+      .sort()
+      .map((f) => ({
+        name: f.replace(/\.md$/, ""),
+        filename: f,
+      })),
   };
 }
 
@@ -177,6 +184,11 @@ export async function importFromFandom(req: {
   return { status: "ok", imported: imported.map(({ from }) => from), skipped };
 }
 
-export async function getLoreContent(params: { category: string; filename: string; au_path?: string; fandom_path?: string }) {
+export async function getLoreContent(params: {
+  category: string;
+  filename: string;
+  au_path?: string;
+  fandom_path?: string;
+}) {
   return readLore(params);
 }

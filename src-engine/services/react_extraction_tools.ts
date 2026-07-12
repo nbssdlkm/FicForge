@@ -21,12 +21,7 @@
 
 import { z } from "zod";
 import type { ToolDefinition } from "../llm/provider.js";
-import {
-  FACT_TYPE_VALUES,
-  NARRATIVE_WEIGHT_VALUES,
-  TIME_KIND_VALUES,
-  SUSPENSE_TYPE_VALUES,
-} from "../domain/enums.js";
+import { FACT_TYPE_VALUES, NARRATIVE_WEIGHT_VALUES, TIME_KIND_VALUES, SUSPENSE_TYPE_VALUES } from "../domain/enums.js";
 
 // ---------------------------------------------------------------------------
 // 工具名常量 —— dispatch switch / 测试引用，避免字符串散落
@@ -65,7 +60,10 @@ const proposeFactItemSchema = z.object({
   // 只要一小段可定位的短语（不是整段）：短 + 单行 + 无引号，能大幅降低 tool-call JSON 被
   // 未转义引号 / 字面换行写坏的概率（部分模型逐字抄含引号原文时不转义 → JSON.parse 失败 →
   // 整批提取丢空）。grounding 只做子串匹配，一句短语足够定位。
-  evidence: z.string().optional().describe("本章原文里一句可定位的短语（8-20字即可，单行、不要包含任何引号），用来把这条事实锚回原文"),
+  evidence: z
+    .string()
+    .optional()
+    .describe("本章原文里一句可定位的短语（8-20字即可，单行、不要包含任何引号），用来把这条事实锚回原文"),
   characters: z.array(z.string()).describe("涉及角色名（可空数组）"),
   fact_type: z.enum(FACT_TYPE_VALUES).optional().describe("事实类型"),
   narrative_weight: z.enum(NARRATIVE_WEIGHT_VALUES).optional().describe("叙事权重"),
@@ -84,7 +82,10 @@ const proposeFactItemSchema = z.object({
   // 因果 / 剧情线（M9 核心）—— 实测真 LLM 不肯走单独的 annotate 步，故支持在 propose 时
   // 内联填：caused_by_fact_ids 用上方「已有事实」列表里的 [fact_id]（需配 evidence 才生效），
   // thread_ids 用「可用剧情线」里的 id。成因不在上方列表时，才另用 search_existing_facts。
-  caused_by_fact_ids: z.array(z.string()).optional().describe("此事实的直接成因 fact_id（来自上方已有事实列表的 [id]）"),
+  caused_by_fact_ids: z
+    .array(z.string())
+    .optional()
+    .describe("此事实的直接成因 fact_id（来自上方已有事实列表的 [id]）"),
   thread_ids: z.array(z.string()).optional().describe("此事实归属的剧情线 id（来自下方可用剧情线列表）"),
 });
 
@@ -98,10 +99,7 @@ const annotateFactSchema = z.object({
     .array(z.string())
     .optional()
     .describe("此事实的直接成因 fact_id 列表（来自 search_existing_facts 的结果）"),
-  thread_ids: z
-    .array(z.string())
-    .optional()
-    .describe("此事实归属的剧情线 id 列表（来自系统提示给出的可用剧情线）"),
+  thread_ids: z.array(z.string()).optional().describe("此事实归属的剧情线 id 列表（来自系统提示给出的可用剧情线）"),
 });
 
 /** 显式终止工具（codex 二审 BLOCKER-1）：把「提取完成」做成明确信号，不靠纯文本兜底。 */

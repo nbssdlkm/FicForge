@@ -122,9 +122,7 @@ export class CapacitorAdapter implements PlatformAdapter {
       const buf = await data.arrayBuffer();
       return new Uint8Array(buf);
     }
-    throw new Error(
-      `CapacitorAdapter.readBinary: unexpected data type ${Object.prototype.toString.call(data)}`,
-    );
+    throw new Error(`CapacitorAdapter.readBinary: unexpected data type ${Object.prototype.toString.call(data)}`);
   }
 
   async writeBinary(path: string, data: Uint8Array): Promise<void> {
@@ -248,7 +246,9 @@ export class CapacitorAdapter implements PlatformAdapter {
       throw err;
     }
     if (stored !== null) {
-      secureDebugLog(`[CapacitorAdapter.secure] get hit (plugin), key=${redactSecureKey(key)}, empty=${stored.length === 0}`);
+      secureDebugLog(
+        `[CapacitorAdapter.secure] get hit (plugin), key=${redactSecureKey(key)}, empty=${stored.length === 0}`,
+      );
       this.removeLegacySecureValue(key);
       return stored;
     }
@@ -259,7 +259,9 @@ export class CapacitorAdapter implements PlatformAdapter {
       return null;
     }
 
-    secureDebugLog(`[CapacitorAdapter.secure] get hit (legacy), migrating, key=${redactSecureKey(key)}, empty=${legacyValue.length === 0}`);
+    secureDebugLog(
+      `[CapacitorAdapter.secure] get hit (legacy), migrating, key=${redactSecureKey(key)}, empty=${legacyValue.length === 0}`,
+    );
     await this.invokeSecureStoreSet(key, legacyValue);
     this.removeLegacySecureValue(key);
     return legacyValue;

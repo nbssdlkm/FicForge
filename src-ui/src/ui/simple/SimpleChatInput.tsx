@@ -47,7 +47,8 @@ export function SimpleChatInput({
 
   const sendDisabled = !value.trim() || busy;
   const inputPlaceholder =
-    placeholder ?? t("simple.input.placeholder", { defaultValue: "写续集 / 改设定 / 看历史章节…按 Enter 发送，Shift+Enter 换行" });
+    placeholder ??
+    t("simple.input.placeholder", { defaultValue: "写续集 / 改设定 / 看历史章节…按 Enter 发送，Shift+Enter 换行" });
 
   return (
     <div className="border-t border-rule bg-surface/50 px-4 py-3 backdrop-blur-sm">

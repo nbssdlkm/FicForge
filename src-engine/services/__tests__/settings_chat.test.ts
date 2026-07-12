@@ -75,7 +75,10 @@ describe("build_settings_context", () => {
 
   it("includes AU files context", async () => {
     const adapter = new MockAdapter();
-    adapter.seed("au1/project.yaml", "name: AU\nfandom: F\npinned_context:\n  - 铁律一\nwriting_style:\n  perspective: first_person\n");
+    adapter.seed(
+      "au1/project.yaml",
+      "name: AU\nfandom: F\npinned_context:\n  - 铁律一\nwriting_style:\n  perspective: first_person\n",
+    );
     adapter.seed("au1/characters/Bob.md", "# Bob\n角色设定");
 
     const result = await build_settings_context({
@@ -101,11 +104,13 @@ describe("call_settings_llm", () => {
           input_tokens: 100,
           output_tokens: 50,
           finish_reason: "stop",
-          tool_calls: [{
-            id: "tc1",
-            type: "function",
-            function: { name: "create_character_file", arguments: '{"name":"Alice","content":"# Alice"}' },
-          }],
+          tool_calls: [
+            {
+              id: "tc1",
+              type: "function",
+              function: { name: "create_character_file", arguments: '{"name":"Alice","content":"# Alice"}' },
+            },
+          ],
         };
       },
       async *generateStream(): AsyncIterable<LLMChunk> {},
@@ -132,8 +137,12 @@ describe("call_settings_llm", () => {
     };
 
     const result = await call_settings_llm(
-      [{ role: "system", content: "sys" }, { role: "user", content: "hi" }],
-      "au", mockProvider,
+      [
+        { role: "system", content: "sys" },
+        { role: "user", content: "hi" },
+      ],
+      "au",
+      mockProvider,
     );
 
     expect(result.tool_calls).toEqual([]);

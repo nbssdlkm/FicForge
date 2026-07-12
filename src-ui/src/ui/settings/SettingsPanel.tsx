@@ -2,12 +2,12 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect, useState } from 'react';
-import { Button } from '../shared/Button';
-import { SessionModelPicker } from './model-picker/SessionModelPicker';
-import type { PickerModelOption, SessionLayer } from './model-picker/model-picker-utils';
-import { useTranslation } from '../../i18n/useAppTranslation';
-import { DEFAULT_DEEPSEEK_MODEL } from '../../config/defaults';
+import { useEffect, useState } from "react";
+import { Button } from "../shared/Button";
+import { SessionModelPicker } from "./model-picker/SessionModelPicker";
+import type { PickerModelOption, SessionLayer } from "./model-picker/model-picker-utils";
+import { useTranslation } from "../../i18n/useAppTranslation";
+import { DEFAULT_DEEPSEEK_MODEL } from "../../config/defaults";
 
 interface SettingsPanelProps {
   model?: string;
@@ -33,7 +33,7 @@ export const SettingsPanel = ({
   onTopPChange,
   onSaveGlobal,
   onSaveAu,
-  sessionLayer = 'global',
+  sessionLayer = "global",
   sessionModelOptions = [],
 }: SettingsPanelProps = {}) => {
   const { t } = useTranslation();
@@ -85,9 +85,15 @@ export const SettingsPanel = ({
           <label>{t("settingsPanel.temperature")}</label>
           <span className="font-mono">{temp.toFixed(1)}</span>
         </div>
-        <input type="range" min="0" max="2" step="0.1" value={temp}
-          onChange={e => handleTempChange(parseFloat(e.target.value))}
-          className="w-full accent-accent h-2 md:h-1" />
+        <input
+          type="range"
+          min="0"
+          max="2"
+          step="0.1"
+          value={temp}
+          onChange={(e) => handleTempChange(parseFloat(e.target.value))}
+          className="w-full accent-accent h-2 md:h-1"
+        />
       </div>
 
       <div className="flex flex-col gap-2 md:gap-1.5">
@@ -95,14 +101,30 @@ export const SettingsPanel = ({
           <label>{t("settingsPanel.topP")}</label>
           <span className="font-mono">{topP.toFixed(2)}</span>
         </div>
-        <input type="range" min="0" max="1" step="0.05" value={topP}
-          onChange={e => handleTopPChange(parseFloat(e.target.value))}
-          className="w-full accent-accent h-2 md:h-1" />
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          value={topP}
+          onChange={(e) => handleTopPChange(parseFloat(e.target.value))}
+          className="w-full accent-accent h-2 md:h-1"
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-2 mt-1">
-        <Button tone="neutral" fill="outline" size="sm" className="h-11 text-sm md:h-8 md:text-xs" onClick={onSaveGlobal}>{t("common.actions.saveToGlobal")}</Button>
-        <Button tone="neutral" fill="outline" size="sm" className="h-11 text-sm md:h-8 md:text-xs" onClick={onSaveAu}>{t("common.actions.saveToStory")}</Button>
+        <Button
+          tone="neutral"
+          fill="outline"
+          size="sm"
+          className="h-11 text-sm md:h-8 md:text-xs"
+          onClick={onSaveGlobal}
+        >
+          {t("common.actions.saveToGlobal")}
+        </Button>
+        <Button tone="neutral" fill="outline" size="sm" className="h-11 text-sm md:h-8 md:text-xs" onClick={onSaveAu}>
+          {t("common.actions.saveToStory")}
+        </Button>
       </div>
     </div>
   );

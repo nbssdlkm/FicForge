@@ -2,8 +2,8 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect, useState } from 'react';
-import { getChapterContent, getState, updateChapterContent, type StateInfo } from '../../api/engine-client';
+import { useEffect, useState } from "react";
+import { getChapterContent, getState, updateChapterContent, type StateInfo } from "../../api/engine-client";
 
 type UseConfirmedChapterEditorOptions = {
   auPath: string;
@@ -33,14 +33,14 @@ export function useConfirmedChapterEditor({
   const [viewingHistoryContent, setViewingHistoryContent] = useState<string | null>(null);
   const [viewingHistoryNum, setViewingHistoryNum] = useState<number | null>(null);
   const [editingConfirmed, setEditingConfirmed] = useState(false);
-  const [editingContent, setEditingContent] = useState('');
-  const [editingOriginalContent, setEditingOriginalContent] = useState('');
+  const [editingContent, setEditingContent] = useState("");
+  const [editingOriginalContent, setEditingOriginalContent] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     setEditingConfirmed(false);
-    setEditingContent('');
-    setEditingOriginalContent('');
+    setEditingContent("");
+    setEditingOriginalContent("");
 
     if (!viewChapter || !state) {
       setViewingHistoryContent(null);
@@ -54,16 +54,18 @@ export function useConfirmedChapterEditor({
     }
 
     let cancelled = false;
-    getChapterContent(auPath, viewChapter).then((result: any) => {
-      if (cancelled) return;
-      const text = typeof result === 'string' ? result : result?.content || '';
-      setViewingHistoryContent(text);
-      setViewingHistoryNum(viewChapter);
-    }).catch(() => {
-      if (cancelled) return;
-      setViewingHistoryContent(null);
-      setViewingHistoryNum(null);
-    });
+    getChapterContent(auPath, viewChapter)
+      .then((result: any) => {
+        if (cancelled) return;
+        const text = typeof result === "string" ? result : result?.content || "";
+        setViewingHistoryContent(text);
+        setViewingHistoryNum(viewChapter);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setViewingHistoryContent(null);
+        setViewingHistoryNum(null);
+      });
 
     return () => {
       cancelled = true;
@@ -86,8 +88,8 @@ export function useConfirmedChapterEditor({
 
   const cancelEditingConfirmed = () => {
     setEditingConfirmed(false);
-    setEditingContent('');
-    setEditingOriginalContent('');
+    setEditingContent("");
+    setEditingOriginalContent("");
   };
 
   const saveEditingConfirmed = async () => {
@@ -99,12 +101,12 @@ export function useConfirmedChapterEditor({
       onStateChange(newState);
       setViewingHistoryContent(editingContent);
       setEditingConfirmed(false);
-      setEditingContent('');
-      setEditingOriginalContent('');
+      setEditingContent("");
+      setEditingOriginalContent("");
       onDirtyBannerReset();
-      onShowSuccess(t('writer.editSaveSuccess'));
+      onShowSuccess(t("writer.editSaveSuccess"));
     } catch (error) {
-      onShowError(error, t('error_messages.unknown'));
+      onShowError(error, t("error_messages.unknown"));
     } finally {
       setSavingEdit(false);
     }

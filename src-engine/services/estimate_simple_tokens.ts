@@ -26,10 +26,7 @@ import { assemble_chat_context } from "./context_assembler.js";
 import { count_tokens, ensure_tokenizer } from "../tokenizer/index.js";
 import { joinPath } from "../utils/file_utils.js";
 
-async function loadMdDir(
-  adapter: PlatformAdapter,
-  dirPath: string,
-): Promise<Record<string, string>> {
+async function loadMdDir(adapter: PlatformAdapter, dirPath: string): Promise<Record<string, string>> {
   const result: Record<string, string> = {};
   let exists = false;
   try {
@@ -105,7 +102,19 @@ export interface EstimateSimpleContextParams {
 export async function estimate_simple_context_tokens(
   params: EstimateSimpleContextParams,
 ): Promise<SimpleContextTokenEstimate> {
-  const { au_id, project, state, chapter_repo, adapter, language = "zh", history = [], facts = [], threads = [], settings, session_llm = null } = params;
+  const {
+    au_id,
+    project,
+    state,
+    chapter_repo,
+    adapter,
+    language = "zh",
+    history = [],
+    facts = [],
+    threads = [],
+    settings,
+    session_llm = null,
+  } = params;
 
   // H4：与 dispatch 同一条解析链（session > project > settings.default_llm），
   // badge 的窗口/输出上限/预算跟真实请求走同一个模型。
@@ -117,10 +126,15 @@ export async function estimate_simple_context_tokens(
   ]);
 
   const result = await assemble_chat_context({
-    project, state, user_input: "",
-    facts, threads,
-    chapter_repo, au_id,
-    character_files: characterFiles, worldbuilding_files: worldbuildingFiles,
+    project,
+    state,
+    user_input: "",
+    facts,
+    threads,
+    chapter_repo,
+    au_id,
+    character_files: characterFiles,
+    worldbuilding_files: worldbuildingFiles,
     language,
     effective_llm: effectiveLlm,
     // 有意不传 vector_repo/embedding_provider：badge 路径跳过 RAG（见文件头注释）。

@@ -90,16 +90,25 @@ describe("context_assembler archival filter", () => {
     // 2 archived + 1 active => only 1 appears in P3
     const facts = [
       createFact({
-        id: "f1", content_raw: "r", content_clean: "archived1",
-        status: FactStatus.ACTIVE, archived: true,
+        id: "f1",
+        content_raw: "r",
+        content_clean: "archived1",
+        status: FactStatus.ACTIVE,
+        archived: true,
       }),
       createFact({
-        id: "f2", content_raw: "r", content_clean: "archived2",
-        status: FactStatus.ACTIVE, archived: true,
+        id: "f2",
+        content_raw: "r",
+        content_clean: "archived2",
+        status: FactStatus.ACTIVE,
+        archived: true,
       }),
       createFact({
-        id: "f3", content_raw: "r", content_clean: "active1",
-        status: FactStatus.ACTIVE, archived: false,
+        id: "f3",
+        content_raw: "r",
+        content_clean: "active1",
+        status: FactStatus.ACTIVE,
+        archived: false,
       }),
     ];
 
@@ -114,12 +123,20 @@ describe("context_assembler archival filter", () => {
 describe("build_instruction archival filter（审计⑥：冷 fact 不进 FOCUS_GOAL / 本章特别注意）", () => {
   it("已归档 fact 即便仍挂在 chapter_focus 里，也不作为 FOCUS_GOAL 注入", () => {
     const cold = createFact({
-      id: "fc", content_raw: "r", content_clean: "冷藏的伏笔线",
-      status: FactStatus.UNRESOLVED, narrative_weight: NarrativeWeight.LOW, archived: true,
+      id: "fc",
+      content_raw: "r",
+      content_clean: "冷藏的伏笔线",
+      status: FactStatus.UNRESOLVED,
+      narrative_weight: NarrativeWeight.LOW,
+      archived: true,
     });
     const warm = createFact({
-      id: "fw", content_raw: "r", content_clean: "热的推进目标",
-      status: FactStatus.UNRESOLVED, narrative_weight: NarrativeWeight.HIGH, archived: false,
+      id: "fw",
+      content_raw: "r",
+      content_clean: "热的推进目标",
+      status: FactStatus.UNRESOLVED,
+      narrative_weight: NarrativeWeight.HIGH,
+      archived: false,
     });
     const state = createState({ au_id: "au1" });
     state.current_chapter = 5;
@@ -133,12 +150,20 @@ describe("build_instruction archival filter（审计⑥：冷 fact 不进 FOCUS_
 
   it("已归档的高权重 unresolved fact 不进「本章特别注意」", () => {
     const focusFact = createFact({
-      id: "ff", content_raw: "r", content_clean: "焦点目标",
-      status: FactStatus.UNRESOLVED, narrative_weight: NarrativeWeight.HIGH, archived: false,
+      id: "ff",
+      content_raw: "r",
+      content_clean: "焦点目标",
+      status: FactStatus.UNRESOLVED,
+      narrative_weight: NarrativeWeight.HIGH,
+      archived: false,
     });
     const coldHigh = createFact({
-      id: "fc", content_raw: "r", content_clean: "冷藏高权重悬念",
-      status: FactStatus.UNRESOLVED, narrative_weight: NarrativeWeight.HIGH, archived: true,
+      id: "fc",
+      content_raw: "r",
+      content_clean: "冷藏高权重悬念",
+      status: FactStatus.UNRESOLVED,
+      narrative_weight: NarrativeWeight.HIGH,
+      archived: true,
     });
     const state = createState({ au_id: "au1" });
     state.current_chapter = 5;

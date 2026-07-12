@@ -13,14 +13,7 @@
 // 任务状态
 // ---------------------------------------------------------------------------
 
-export type TaskStatus =
-  | "pending"
-  | "running"
-  | "paused"
-  | "interrupted"
-  | "completed"
-  | "failed"
-  | "cancelled";
+export type TaskStatus = "pending" | "running" | "paused" | "interrupted" | "completed" | "failed" | "cancelled";
 
 // ---------------------------------------------------------------------------
 // 任务事件（UI 订阅用）

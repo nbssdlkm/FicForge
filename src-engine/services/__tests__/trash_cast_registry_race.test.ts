@@ -28,7 +28,10 @@ describe("cast_registry 双写路径并发（盲审 R3 M1）", () => {
 
     // 种子：名册 [A, B] + 角色文件 A（供 trash 读取角色名做 cast 联动）
     const proj = (await import("../../domain/project.js")).createProject({
-      project_id: "p1", au_id: AU, name: "作品", fandom: "f1",
+      project_id: "p1",
+      au_id: AU,
+      name: "作品",
+      fandom: "f1",
     });
     proj.cast_registry.characters = ["A", "B"];
     await projectRepo.save(proj);
@@ -41,7 +44,7 @@ describe("cast_registry 双写路径并发（盲审 R3 M1）", () => {
     // 必须被阻塞到本临界区结束 —— 期间名册仍应含 A。
     await withProjectFileLock(AU, async () => {
       trashRemove = trash.move_to_trash(AU, "characters/A.md", "lore_file", "A.md");
-      for (let i = 0; i < 40; i++) await Promise.resolve();     // 给 trash 充分推进的窗口
+      for (let i = 0; i < 40; i++) await Promise.resolve(); // 给 trash 充分推进的窗口
       castSeenWhileLockHeld = await readCast(adapter);
     });
     await trashRemove;
@@ -59,7 +62,10 @@ describe("cast_registry 双写路径并发（盲审 R3 M1）", () => {
     const trash = new TrashService(adapter);
 
     const proj = (await import("../../domain/project.js")).createProject({
-      project_id: "p1", au_id: AU, name: "作品", fandom: "f1",
+      project_id: "p1",
+      au_id: AU,
+      name: "作品",
+      fandom: "f1",
     });
     proj.cast_registry.characters = ["A", "B", "C"];
     await projectRepo.save(proj);

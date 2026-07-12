@@ -14,15 +14,21 @@ function memAdapter() {
   const fs = new Map<string, string>();
   return {
     files: fs,
-    async exists(p: string) { return fs.has(p); },
+    async exists(p: string) {
+      return fs.has(p);
+    },
     async readFile(p: string) {
       const v = fs.get(p);
       if (v === undefined) throw new Error("ENOENT");
       return v;
     },
-    async writeFile(p: string, c: string) { fs.set(p, c); },
+    async writeFile(p: string, c: string) {
+      fs.set(p, c);
+    },
     async mkdir(_p: string) {},
-    async deleteFile(p: string) { fs.delete(p); },
+    async deleteFile(p: string) {
+      fs.delete(p);
+    },
     async rename(from: string, to: string) {
       const v = fs.get(from);
       if (v === undefined) throw new Error("ENOENT");

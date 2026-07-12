@@ -50,9 +50,7 @@ describe("FileSettingsRepository secure fields (P0-3)", () => {
     settings.embedding.api_key = "emb-secret";
     await repo.save(settings);
 
-    const yamlText = adapter.allFiles().includes("settings.yaml")
-      ? await adapter.readFile("settings.yaml")
-      : "";
+    const yamlText = adapter.allFiles().includes("settings.yaml") ? await adapter.readFile("settings.yaml") : "";
     expect(yamlText).not.toContain("sk-super-secret");
     expect(yamlText).not.toContain("emb-secret");
     // 占位符应该出现
@@ -110,7 +108,7 @@ describe("FileSettingsRepository embedding fallback removed (P1-4)", () => {
 
     const s = await repo.get();
     s.default_llm.api_key = "llm-key-only";
-    s.embedding.api_key = "";  // 用户没配 embedding
+    s.embedding.api_key = ""; // 用户没配 embedding
     await repo.save(s);
 
     const reloaded = await repo.get();
@@ -216,7 +214,7 @@ describe("FileSettingsRepository fonts — dictToFontsConfig + 迁移", () => {
       embedding: { mode: "api", model: "", api_base: "", api_key: "" },
       app: {
         fonts: {
-          ui_font_id: "source-serif-4",         // latin 字体 → 迁到 ui_latin 槽
+          ui_font_id: "source-serif-4", // latin 字体 → 迁到 ui_latin 槽
           reading_font_id: "lxgw-wenkai-screen", // cjk 字体 → 迁到 reading_cjk 槽
         },
       },
@@ -312,9 +310,7 @@ describe("FileSettingsRepository custom_providers / enabled_models（选择器�
     const s1 = await repo.get();
     s1.custom_providers = [structuredClone(fullProvider)];
     s1.enabled_models = {
-      deepseek: [
-        { id: "deepseek-v4-flash", displayName: "deepseek-v4-flash", type: "chat" },
-      ],
+      deepseek: [{ id: "deepseek-v4-flash", displayName: "deepseek-v4-flash", type: "chat" }],
       "custom-abc123": [
         { id: "org/pulled-model", displayName: "org/pulled-model", contextWindow: 131_072, type: "chat" },
       ],
@@ -324,9 +320,7 @@ describe("FileSettingsRepository custom_providers / enabled_models（选择器�
     const s2 = await repo.get();
     expect(s2.custom_providers).toEqual([fullProvider]);
     expect(s2.enabled_models).toEqual({
-      deepseek: [
-        { id: "deepseek-v4-flash", displayName: "deepseek-v4-flash", type: "chat" },
-      ],
+      deepseek: [{ id: "deepseek-v4-flash", displayName: "deepseek-v4-flash", type: "chat" }],
       "custom-abc123": [
         { id: "org/pulled-model", displayName: "org/pulled-model", contextWindow: 131_072, type: "chat" },
       ],

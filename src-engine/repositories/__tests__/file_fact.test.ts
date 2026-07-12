@@ -55,7 +55,10 @@ describe("FileFactRepository", () => {
 
   it("list_by_status filters correctly", async () => {
     await repo.append("au1", createFact({ id: "f1", content_raw: "r", content_clean: "c", status: FactStatus.ACTIVE }));
-    await repo.append("au1", createFact({ id: "f2", content_raw: "r", content_clean: "c", status: FactStatus.UNRESOLVED }));
+    await repo.append(
+      "au1",
+      createFact({ id: "f2", content_raw: "r", content_clean: "c", status: FactStatus.UNRESOLVED }),
+    );
     await repo.append("au1", createFact({ id: "f3", content_raw: "r", content_clean: "c", status: FactStatus.ACTIVE }));
 
     const active = await repo.list_by_status("au1", FactStatus.ACTIVE);
@@ -65,7 +68,10 @@ describe("FileFactRepository", () => {
   });
 
   it("list_by_characters filters by intersection", async () => {
-    await repo.append("au1", createFact({ id: "f1", content_raw: "r", content_clean: "c", characters: ["Alice", "Bob"] }));
+    await repo.append(
+      "au1",
+      createFact({ id: "f1", content_raw: "r", content_clean: "c", characters: ["Alice", "Bob"] }),
+    );
     await repo.append("au1", createFact({ id: "f2", content_raw: "r", content_clean: "c", characters: ["Charlie"] }));
 
     const result = await repo.list_by_characters("au1", ["Bob"]);
@@ -134,7 +140,8 @@ describe("FileFactRepository", () => {
   it("dictToFact: valid time_kind round-trips correctly", async () => {
     const fact = createFact({
       id: "f_tk",
-      content_raw: "r", content_clean: "c",
+      content_raw: "r",
+      content_clean: "c",
       time_kind: TimeKind.FLASHBACK,
     });
     await repo.append("au1", fact);
@@ -160,7 +167,8 @@ describe("FileFactRepository", () => {
   it("dictToFact: valid suspense_type round-trips correctly", async () => {
     const fact = createFact({
       id: "f_st",
-      content_raw: "r", content_clean: "c",
+      content_raw: "r",
+      content_clean: "c",
       suspense_type: SuspenseType.SECRET,
     });
     await repo.append("au1", fact);
@@ -183,7 +191,8 @@ describe("FileFactRepository", () => {
   it("M8-A fields round-trip correctly through append/list", async () => {
     const fact = createFact({
       id: "f_m8a",
-      content_raw: "r", content_clean: "c",
+      content_raw: "r",
+      content_clean: "c",
       location: "御书房",
       story_time_tag: "Y1 冬末",
       story_time_order: 10,

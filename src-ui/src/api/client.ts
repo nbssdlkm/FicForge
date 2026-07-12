@@ -14,7 +14,7 @@ export class ApiError extends Error {
     public userMessage: string,
     public actions: string[],
     public rawMessage?: string,
-    public retryAfter?: number
+    public retryAfter?: number,
   ) {
     super(userMessage);
     this.name = "ApiError";
@@ -42,10 +42,7 @@ function getRetryAfter(payload: ErrorPayload, retryAfterHeader?: string | null):
   return undefined;
 }
 
-export function getFriendlyErrorMessage(
-  payload: ErrorPayload,
-  retryAfterHeader?: string | null
-): string {
+export function getFriendlyErrorMessage(payload: ErrorPayload, retryAfterHeader?: string | null): string {
   const normalized = normalizeErrorCode(payload.error_code);
   const retryAfter = getRetryAfter(payload, retryAfterHeader);
 
@@ -74,4 +71,3 @@ export function getFriendlyErrorMessage(
   if (payload.message) return payload.message;
   return i18n.t("error_messages.unknown");
 }
-

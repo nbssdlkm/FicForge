@@ -16,4 +16,10 @@ export { FileStateRepository } from "./file_state.js";
 export { FileThreadRepository, threadToDict } from "./file_thread.js";
 
 // Utilities
-export { compute_content_hash, generate_fact_id, generate_op_id, generate_thread_id, now_utc } from "../../utils/file_utils.js";
+export {
+  compute_content_hash,
+  generate_fact_id,
+  generate_op_id,
+  generate_thread_id,
+  now_utc,
+} from "../../utils/file_utils.js";

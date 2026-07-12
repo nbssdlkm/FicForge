@@ -111,11 +111,7 @@ export class LLMError extends Error {
  * 或显式指定函数 `{type:"function", function:{name:"X"}}`。
  * 简版 agent loop 用后者强制 chat_reply 路径短消息硬路由（2026-05-04 真机偏离修复）。
  */
-export type ToolChoice =
-  | "auto"
-  | "none"
-  | "required"
-  | { type: "function"; function: { name: string } };
+export type ToolChoice = "auto" | "none" | "required" | { type: "function"; function: { name: string } };
 
 export interface GenerateParams {
   messages: Message[];

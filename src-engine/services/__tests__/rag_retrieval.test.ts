@@ -3,7 +3,12 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { build_rag_query, build_active_chars, retrieve_rag, retrieve_rag_for_context } from "../rag_retrieval.js";
-import type { VectorRepository, SearchOptions, SearchResult, VectorChunk } from "../../repositories/interfaces/vector.js";
+import type {
+  VectorRepository,
+  SearchOptions,
+  SearchResult,
+  VectorChunk,
+} from "../../repositories/interfaces/vector.js";
 import type { EmbeddingProvider } from "../../llm/embedding_provider.js";
 import { IndexStatus } from "../../domain/enums.js";
 
@@ -12,8 +17,12 @@ const mockEmbedding: EmbeddingProvider = {
   async embed(texts: string[]): Promise<number[][]> {
     return texts.map(() => [1, 0, 0]);
   },
-  get_dimension() { return 3; },
-  get_model_name() { return "mock"; },
+  get_dimension() {
+    return 3;
+  },
+  get_model_name() {
+    return "mock";
+  },
 };
 
 // Mock vector repo
@@ -26,7 +35,9 @@ function createMockVectorRepo(chunks: Record<string, SearchResult[]>): VectorRep
     async delete_by_chapter() {},
     async delete_by_source() {},
     async rebuild_index() {},
-    async get_index_status() { return IndexStatus.READY; },
+    async get_index_status() {
+      return IndexStatus.READY;
+    },
   };
 }
 
@@ -45,43 +56,36 @@ describe("build_rag_query", () => {
 
 describe("build_active_chars", () => {
   it("includes recent chapter characters", () => {
-    const result = build_active_chars(
-      { current_chapter: 5, characters_last_seen: { Alice: 4, Bob: 1 } },
-      "", {}, [], { characters: [] },
-    );
+    const result = build_active_chars({ current_chapter: 5, characters_last_seen: { Alice: 4, Bob: 1 } }, "", {}, [], {
+      characters: [],
+    });
     expect(result).toContain("Alice");
     expect(result).not.toContain("Bob"); // too old (5-1=4 > 3)
   });
 
   it("includes characters from user_input", () => {
-    const result = build_active_chars(
-      { current_chapter: 1 }, "让Alice去", {},
-      [], { characters: ["Alice", "Bob"] },
-    );
+    const result = build_active_chars({ current_chapter: 1 }, "让Alice去", {}, [], { characters: ["Alice", "Bob"] });
     expect(result).toContain("Alice");
     expect(result).not.toContain("Bob");
   });
 
   it("falls back to core_always_include", () => {
-    const result = build_active_chars(
-      { current_chapter: 1 }, "", { core_always_include: ["Main"] },
-      [], { characters: [] },
-    );
+    const result = build_active_chars({ current_chapter: 1 }, "", { core_always_include: ["Main"] }, [], {
+      characters: [],
+    });
     expect(result).toEqual(["Main"]);
   });
 
   it("returns null when all empty", () => {
-    const result = build_active_chars(
-      { current_chapter: 1 }, "", {},
-      [], { characters: [] },
-    );
+    const result = build_active_chars({ current_chapter: 1 }, "", {}, [], { characters: [] });
     expect(result).toBeNull();
   });
 
   it("审计⑥：已归档 fact 在 chapter_focus 里也不把其角色加入 RAG char_filter", () => {
     const result = build_active_chars(
       { current_chapter: 1, chapter_focus: ["fc", "fw"] },
-      "", {},
+      "",
+      {},
       [
         { id: "fw", characters: ["热角色"], archived: false },
         { id: "fc", characters: ["冷角色"], archived: true },
@@ -101,9 +105,7 @@ describe("retrieve_rag", () => {
       chapters: [{ content: "chapter text", chapter_num: 3, score: 0.7, metadata: {} }],
     });
 
-    const [text, tokens] = await retrieve_rag(
-      repo, mockEmbedding, "au1", "query", 10000, null, null,
-    );
+    const [text, tokens] = await retrieve_rag(repo, mockEmbedding, "au1", "query", 10000, null, null);
 
     expect(text).toContain("char info");
     expect(text).toContain("world info");
@@ -122,8 +124,15 @@ describe("retrieve_rag", () => {
     });
 
     const [text] = await retrieve_rag(
-      repo, mockEmbedding, "au1", "query", 10000, null, null,
-      0.05, 10, // current_chapter=10
+      repo,
+      mockEmbedding,
+      "au1",
+      "query",
+      10000,
+      null,
+      null,
+      0.05,
+      10, // current_chapter=10
     );
 
     // Both should appear but recent chapter has higher effective score
@@ -137,9 +146,7 @@ describe("retrieve_rag", () => {
       chapters: [],
     });
 
-    const [text] = await retrieve_rag(
-      repo, mockEmbedding, "au1", "query", 10000, null, null,
-    );
+    const [text] = await retrieve_rag(repo, mockEmbedding, "au1", "query", 10000, null, null);
 
     // "duplicate" should only appear once
     const matches = text.match(/duplicate/g) ?? [];
@@ -148,18 +155,14 @@ describe("retrieve_rag", () => {
 
   it("returns empty for empty query", async () => {
     const repo = createMockVectorRepo({});
-    const [text, tokens] = await retrieve_rag(
-      repo, mockEmbedding, "au1", "", 10000, null, null,
-    );
+    const [text, tokens] = await retrieve_rag(repo, mockEmbedding, "au1", "", 10000, null, null);
     expect(text).toBe("");
     expect(tokens).toBe(0);
   });
 
   it("empty index returns empty", async () => {
     const repo = createMockVectorRepo({ characters: [], worldbuilding: [], chapters: [] });
-    const [text] = await retrieve_rag(
-      repo, mockEmbedding, "au1", "query", 10000, null, null,
-    );
+    const [text] = await retrieve_rag(repo, mockEmbedding, "au1", "query", 10000, null, null);
     expect(text).toBe("");
   });
 
@@ -170,9 +173,7 @@ describe("retrieve_rag", () => {
       chapters: [{ content: "chapter text", chapter_num: 3, score: 0.7, metadata: {} }],
     });
 
-    const [, , chunks] = await retrieve_rag(
-      repo, mockEmbedding, "au1", "query", 10000, null, null,
-    );
+    const [, , chunks] = await retrieve_rag(repo, mockEmbedding, "au1", "query", 10000, null, null);
 
     expect(chunks).toHaveLength(2);
     const charChunk = chunks.find((c) => c.content === "char info");
@@ -192,9 +193,7 @@ describe("retrieve_rag", () => {
     }));
     const repo = createMockVectorRepo({ characters: [], worldbuilding: [], chapters });
 
-    const [, , chunks] = await retrieve_rag(
-      repo, mockEmbedding, "au1", "query", 100000, null, null,
-    );
+    const [, , chunks] = await retrieve_rag(repo, mockEmbedding, "au1", "query", 100000, null, null);
 
     const chapterChunks = chunks.filter((c) => c._collection === "chapters");
     expect(chapterChunks.length).toBe(8);
@@ -202,9 +201,7 @@ describe("retrieve_rag", () => {
 
   it("returns [] chunks for empty query", async () => {
     const repo = createMockVectorRepo({});
-    const [, , chunks] = await retrieve_rag(
-      repo, mockEmbedding, "au1", "", 10000, null, null,
-    );
+    const [, , chunks] = await retrieve_rag(repo, mockEmbedding, "au1", "", 10000, null, null);
     expect(chunks).toEqual([]);
   });
 });
@@ -241,7 +238,9 @@ describe("retrieve_rag_for_context (融合:RAG 编排单一真相源)", () => {
       async delete_by_chapter() {},
       async delete_by_source() {},
       async rebuild_index() {},
-      async get_index_status() { return IndexStatus.READY; },
+      async get_index_status() {
+        return IndexStatus.READY;
+      },
     };
     const res = await retrieve_rag_for_context({
       ...baseArgs,
@@ -262,8 +261,12 @@ describe("retrieve_rag_for_context (融合:RAG 编排单一真相源)", () => {
         capturedQuery = texts[0] ?? "";
         return texts.map(() => [1, 0, 0]);
       },
-      get_dimension() { return 3; },
-      get_model_name() { return "cap"; },
+      get_dimension() {
+        return 3;
+      },
+      get_model_name() {
+        return "cap";
+      },
     };
     const repo = createMockVectorRepo({ chapters: [] });
 
@@ -286,9 +289,15 @@ describe("retrieve_rag_for_context (融合:RAG 编排单一真相源)", () => {
     // 注:让 embed 抛错而非 search —— retrieve_rag 内部对 search 有 try/catch 会吞掉。
     // embed / ensure_tokenizer 等 retrieve_rag 内未被内部 try 包住的 await 抛错,才会冒泡到本函数 catch。
     const throwingEmbedding: EmbeddingProvider = {
-      async embed(): Promise<number[][]> { throw new Error("embedding service down"); },
-      get_dimension() { return 3; },
-      get_model_name() { return "throwing"; },
+      async embed(): Promise<number[][]> {
+        throw new Error("embedding service down");
+      },
+      get_dimension() {
+        return 3;
+      },
+      get_model_name() {
+        return "throwing";
+      },
     };
     const repo = createMockVectorRepo({
       chapters: [{ content: "不该到达", chapter_num: 1, score: 0.9, metadata: {} }],

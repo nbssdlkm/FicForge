@@ -3,7 +3,12 @@
 
 /** In-memory PlatformAdapter mock for testing. */
 
-import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStorageCapabilities } from "../../platform/adapter.js";
+import type {
+  OpenDialogOptions,
+  PlatformAdapter,
+  SaveDialogOptions,
+  SecretStorageCapabilities,
+} from "../../platform/adapter.js";
 
 export class MockAdapter implements PlatformAdapter {
   private files = new Map<string, string>();

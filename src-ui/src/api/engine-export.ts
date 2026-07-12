@@ -29,10 +29,7 @@ export async function exportChapters(params: {
   include_title?: boolean;
 }) {
   const { chapter, state } = getEngine().repos;
-  const [st, proj] = await Promise.all([
-    state.get(params.au_path),
-    getProjectOrThrow(params.au_path),
-  ]);
+  const [st, proj] = await Promise.all([state.get(params.au_path), getProjectOrThrow(params.au_path)]);
   const text = await engineExportChapters({
     au_id: params.au_path,
     chapter_repo: chapter,
@@ -47,7 +44,6 @@ export async function exportChapters(params: {
   const filename = `${safeName}.${ext}`;
   return { blob, filename };
 }
-
 
 // ============================================================
 // TD-015：全量 AU 备份导出 / 导入（简版 fork ↔ 主 app 数据迁移）
@@ -97,7 +93,11 @@ export function bundleFromRawFiles(
     // 归一化：反斜杠→正斜杠，丢掉空段与 "." 段（如 "./"），但**保留**带点目录名
     // （.vectors / .well-known）—— 不能用 /^[./]+/ 那种贪婪剥前缀，否则会把
     // ".well-known/simple-chat.yaml" 误剥成 "well-known/..."，把聊天记录搬丢。
-    const rel = f.relpath.replace(/\\/g, "/").split("/").filter((seg) => seg !== "" && seg !== ".").join("/");
+    const rel = f.relpath
+      .replace(/\\/g, "/")
+      .split("/")
+      .filter((seg) => seg !== "" && seg !== ".")
+      .join("/");
     if (!rel) continue;
     // 原始文件夹常夹带 .vectors/.drafts —— 在这里就剔除，让 manifest 计数与实际写入一致（不虚高）。
     if (rel.split("/").some((seg) => AU_BUNDLE_EXCLUDED_DIRS.includes(seg))) continue;
@@ -153,7 +153,7 @@ export async function restoreAuBundle(
   } catch (err) {
     // 回滚：createAu 已落 project.yaml，半张 AU 会在 Library 里像正常文却缺数据。
     try {
-      await getEngine().trash.move_tree_to_trash(fandomPath, `aus/${created.dir_name}`, 'au', newAuName);
+      await getEngine().trash.move_tree_to_trash(fandomPath, `aus/${created.dir_name}`, "au", newAuName);
     } catch {
       // 回滚 best-effort；原始导入错误更重要，继续抛出。
     }

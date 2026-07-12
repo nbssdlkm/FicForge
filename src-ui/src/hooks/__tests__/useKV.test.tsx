@@ -22,10 +22,19 @@ const h = vi.hoisted(() => {
       const r = pendingResolvers.shift();
       if (r) r(value);
     },
-    resetPending() { pendingResolvers = []; },
+    resetPending() {
+      pendingResolvers = [];
+    },
     adapter: {
-      kvGet: vi.fn((_key: string) => new Promise<string | null>((res) => { pendingResolvers.push(res); })),
-      kvSet: vi.fn(async (key: string, v: string) => { store[key] = v; }),
+      kvGet: vi.fn(
+        (_key: string) =>
+          new Promise<string | null>((res) => {
+            pendingResolvers.push(res);
+          }),
+      ),
+      kvSet: vi.fn(async (key: string, v: string) => {
+        store[key] = v;
+      }),
     },
   };
 });
@@ -50,17 +59,23 @@ describe("useKV — L21", () => {
     expect(result.current[0]).toBe("default");
 
     // 用户抢先写入
-    act(() => { result.current[1]("user-typed"); });
+    act(() => {
+      result.current[1]("user-typed");
+    });
     expect(result.current[0]).toBe("user-typed");
 
     // 此刻初始 kvGet 才 resolve 出磁盘旧值 —— 不该覆盖用户刚写的
-    await act(async () => { h.resolveNext("disk-old-value"); });
+    await act(async () => {
+      h.resolveNext("disk-old-value");
+    });
     expect(result.current[0]).toBe("user-typed");
   });
 
   it("初始加载 resolve 早于用户操作 → 采用磁盘值（正常路径不被破坏）", async () => {
     const { result } = renderHook(() => useKV("k2", "default"));
-    await act(async () => { h.resolveNext("disk-value"); });
+    await act(async () => {
+      h.resolveNext("disk-value");
+    });
     await waitFor(() => expect(result.current[0]).toBe("disk-value"));
   });
 
@@ -68,7 +83,9 @@ describe("useKV — L21", () => {
     const { result, rerender } = renderHook(({ k }) => useKV(k, "default"), {
       initialProps: { k: "kA" },
     });
-    await act(async () => { h.resolveNext("valueA"); });
+    await act(async () => {
+      h.resolveNext("valueA");
+    });
     await waitFor(() => expect(result.current[0]).toBe("valueA"));
 
     // 切 key → 立即重置为 default（不残留 kA 的值），并对 kB 发起加载
@@ -77,7 +94,9 @@ describe("useKV — L21", () => {
     // kvGet 对 kB 再次被调用
     expect(h.adapter.kvGet).toHaveBeenLastCalledWith("kB");
 
-    await act(async () => { h.resolveNext("valueB"); });
+    await act(async () => {
+      h.resolveNext("valueB");
+    });
     await waitFor(() => expect(result.current[0]).toBe("valueB"));
   });
 });

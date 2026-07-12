@@ -27,7 +27,7 @@ export interface MockLLMProvider extends LLMProvider {
 export function createMockLLMProvider(options: MockLLMProviderOptions = {}): MockLLMProvider {
   const calls: GenerateParams[] = [];
   const resolveContent = (params: GenerateParams): string =>
-    typeof options.content === "function" ? options.content(params) : options.content ?? "";
+    typeof options.content === "function" ? options.content(params) : (options.content ?? "");
 
   return {
     calls,

@@ -91,7 +91,7 @@ describe("read_jsonl 遗留 .tmp 恢复（迁移期兜底）", () => {
 
       expect(items).toEqual([1, 2, 3]);
       expect(errors).toEqual([]);
-      expect(adapter.raw("au/facts.jsonl")).toBe(fullText);      // 主文件已修复
+      expect(adapter.raw("au/facts.jsonl")).toBe(fullText); // 主文件已修复
       expect(adapter.raw("au/facts.jsonl.tmp")).toBeUndefined(); // .tmp 被消费
       expect(warnSpy).toHaveBeenCalled();
     } finally {

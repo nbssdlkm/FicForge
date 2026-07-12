@@ -54,9 +54,7 @@ export async function resolveFactsProvider(auPath: string): Promise<{
  * 与「实际提取用 project 级解析」两处口径漂移导致 AU 独立配 LLM 时自动提取被
  * 静默跳过的问题（审计④）。判据复用 engine-settings.hasUsableConnection（单一真相源）。
  */
-export async function getFactsExtractionReadiness(
-  auPath: string,
-): Promise<{ has_usable_connection: boolean }> {
+export async function getFactsExtractionReadiness(auPath: string): Promise<{ has_usable_connection: boolean }> {
   const e = getEngine();
   const proj = await getProjectOrThrow(auPath);
   const sett = await e.repos.settings.get();
@@ -115,7 +113,10 @@ export interface AddFactsBatchResult {
  * 落盘的输入下标，供调用方登记已存部分、重试只补余下（M25 半成功去重）。
  */
 export class PartialAddFactsError extends Error {
-  constructor(public readonly writtenIndices: number[], public readonly cause: unknown) {
+  constructor(
+    public readonly writtenIndices: number[],
+    public readonly cause: unknown,
+  ) {
     super(cause instanceof Error ? cause.message : String(cause));
     this.name = "PartialAddFactsError";
   }
@@ -134,10 +135,7 @@ export class PartialAddFactsError extends Error {
  * 顺序处理，返回实际落盘的输入下标（`writtenIndices`）供精确去重。
  * 某条 add_fact 抛错 → 抛 {@link PartialAddFactsError}（携已落盘下标），整批不再续写。
  */
-export async function addFactsBatch(
-  auPath: string,
-  facts: BatchFactInput[],
-): Promise<AddFactsBatchResult> {
+export async function addFactsBatch(auPath: string, facts: BatchFactInput[]): Promise<AddFactsBatchResult> {
   const e = getEngine();
   const { fact, ops, chapter } = e.repos;
   // 整批共用一份别名表快照（提取端已归一化过，此处是纵深防御 + 覆盖「提取后又改了别名」的窗口）
@@ -176,16 +174,12 @@ export async function editFact(auPath: string, factId: string, updatedFields: Re
   const { fact, ops, state } = e.repos;
   // 别名表接通：编辑 characters / known_to / hidden_from 时按角色卡别名归一化
   const characterAliases = await e.characterAliases.get(auPath);
-  return withAuLock(auPath, () =>
-    edit_fact(auPath, factId, updatedFields, fact, ops, state, characterAliases),
-  );
+  return withAuLock(auPath, () => edit_fact(auPath, factId, updatedFields, fact, ops, state, characterAliases));
 }
 
 export async function updateFactStatus(auPath: string, factId: string, newStatus: string, chapterNum: number) {
   const { fact, ops, state } = getEngine().repos;
-  return withAuLock(auPath, () =>
-    update_fact_status(auPath, factId, newStatus, chapterNum, fact, ops, state),
-  );
+  return withAuLock(auPath, () => update_fact_status(auPath, factId, newStatus, chapterNum, fact, ops, state));
 }
 
 export async function batchUpdateFactStatus(auPath: string, factIds: string[], newStatus: string) {
@@ -250,10 +244,24 @@ export async function extractFacts(auPath: string, chapterNum: number, opts?: { 
   // 结果是合法的「本章无事实」，不该再跑一次单次调用（codex 二审 MAJOR-3）。
   // signal 透传给慢 LLM（审计⑨：backfill 点停时立刻取消在飞的提取请求，不空跑到完成）。
   if (reactEnabled) {
-    const { facts: reactFacts, status, cappedCount } = await reactExtractFromChapter(
-      chapterContent, chapterNum, existingFacts,
-      proj.cast_registry, characterAliases, provider,
-      { language: lang as "zh" | "en", factRepo: e.repos.fact, threadRepo: e.repos.thread, auPath, signal: opts?.signal },
+    const {
+      facts: reactFacts,
+      status,
+      cappedCount,
+    } = await reactExtractFromChapter(
+      chapterContent,
+      chapterNum,
+      existingFacts,
+      proj.cast_registry,
+      characterAliases,
+      provider,
+      {
+        language: lang as "zh" | "en",
+        factRepo: e.repos.fact,
+        threadRepo: e.repos.thread,
+        auPath,
+        signal: opts?.signal,
+      },
     );
     if (!(status === "degraded" && reactFacts.length === 0)) {
       // L16：透传软上限丢弃数（backfill 据此提示用户某章命中上限、部分笔记未收）。
@@ -264,8 +272,13 @@ export async function extractFacts(auPath: string, chapterNum: number, opts?: { 
 
   // 单次调用路径无软上限概念（不截断），cappedCount=0。
   const facts = await extractFactsFromChapter(
-    chapterContent, chapterNum, existingFacts,
-    proj.cast_registry, characterAliases, provider, llmConfig,
+    chapterContent,
+    chapterNum,
+    existingFacts,
+    proj.cast_registry,
+    characterAliases,
+    provider,
+    llmConfig,
     { language: lang, signal: opts?.signal },
   );
   return { facts, cappedCount: 0 };
@@ -275,11 +288,7 @@ export async function extractFacts(auPath: string, chapterNum: number, opts?: { 
  * 通过 TaskRunner 提交后台批量笔记提取任务。
  * 返回 taskId，UI 通过 onEvent 订阅进度。
  */
-export async function submitFactsExtraction(
-  auPath: string,
-  fromChapter: number,
-  toChapter: number,
-): Promise<string> {
+export async function submitFactsExtraction(auPath: string, fromChapter: number, toChapter: number): Promise<string> {
   const { createFactsExtractionTask } = await import("@ficforge/engine");
   const e = getEngine();
   const { provider, lang, reactEnabled } = await resolveFactsProvider(auPath);

@@ -261,9 +261,7 @@ function build_chat_analysis(
 ): FileAnalysis {
   const chapters = classified.filter((t) => t.classification === "chapter").length;
   const settings = classified.filter((t) => t.assignedType === "setting").length;
-  const skipped = classified.filter(
-    (t) => t.classification === "skip" || t.classification === "uncertain",
-  ).length;
+  const skipped = classified.filter((t) => t.classification === "skip" || t.classification === "uncertain").length;
 
   return {
     filename,
@@ -295,14 +293,13 @@ function try_parse_jsonl(text: string): ChatTurn[] {
       const obj = JSON.parse(line);
       if (typeof obj !== "object" || obj === null) continue;
       const role = obj.role as string;
-      const content = (obj.content as string ?? "").trim();
+      const content = ((obj.content as string) ?? "").trim();
       if (!role || !content) continue;
 
       const lower = role.toLowerCase();
       const skipRoles = ["system", "tool", "function"];
       if (skipRoles.includes(lower)) continue;
-      const normalizedRole: "user" | "assistant" =
-        lower === "user" || lower === "human" ? "user" : "assistant";
+      const normalizedRole: "user" | "assistant" = lower === "user" || lower === "human" ? "user" : "assistant";
       turns.push({ index: index++, role: normalizedRole, content, charCount: content.length });
     } catch {
       // 某行解析失败 → 整个文件不是 JSONL
@@ -323,10 +320,7 @@ function try_parse_jsonl(text: string): ChatTurn[] {
  * 处理多文件章节号接续、"续"合并、设定收集。
  * analyses 中的 ClassifiedTurn 可能已被前端用户修改过 assignedType/assignedChapter。
  */
-export function build_import_plan(
-  analyses: FileAnalysis[],
-  conflictOptions: ImportConflictOptions,
-): ImportPlan {
+export function build_import_plan(analyses: FileAnalysis[], conflictOptions: ImportConflictOptions): ImportPlan {
   const chapters: ImportChapter[] = [];
   const settings: ImportSetting[] = [];
 
@@ -434,10 +428,7 @@ function extract_from_turns(
   return { settings, nextChapter, lastChapterIndex };
 }
 
-async function rollback_imported_settings(
-  adapter: PlatformAdapter,
-  writtenPaths: string[],
-): Promise<void> {
+async function rollback_imported_settings(adapter: PlatformAdapter, writtenPaths: string[]): Promise<void> {
   for (const path of [...writtenPaths].reverse()) {
     try {
       await adapter.deleteFile(path);
@@ -493,10 +484,7 @@ async function write_imported_settings(
         const ts = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         filePath = `${dir}/${settingsName}_${i + 1}_${ts}.md`;
       }
-      await adapter.writeFile(
-        filePath,
-        `---\ntitle: ${settingsName} ${i + 1}\n---\n\n${plan.settings[i].content}`,
-      );
+      await adapter.writeFile(filePath, `---\ntitle: ${settingsName} ${i + 1}\n---\n\n${plan.settings[i].content}`);
       writtenPaths.push(filePath);
       onProgress?.({
         currentFile: plan.settings[i].sourceFile,
@@ -521,21 +509,22 @@ async function write_imported_settings(
  * 执行导入计划。写入章节、设定、ops，更新 state。
  * AU 级锁：整个导入流程期间阻止其它 service 对同一 AU 的并发写入。
  */
-export async function execute_import(
-  plan: ImportPlan,
-  params: ExecuteImportParams,
-): Promise<NewImportResult> {
+export async function execute_import(plan: ImportPlan, params: ExecuteImportParams): Promise<NewImportResult> {
   return withAuLock(params.auId, () => do_execute_import(plan, params));
 }
 
-async function do_execute_import(
-  plan: ImportPlan,
-  params: ExecuteImportParams,
-): Promise<NewImportResult> {
+async function do_execute_import(plan: ImportPlan, params: ExecuteImportParams): Promise<NewImportResult> {
   const {
-    auId, chapterRepo, stateRepo, opsRepo, adapter,
-    trashService, castRegistry = { characters: [] },
-    characterAliases = null, onProgress, locale = "zh",
+    auId,
+    chapterRepo,
+    stateRepo,
+    opsRepo,
+    adapter,
+    trashService,
+    castRegistry = { characters: [] },
+    characterAliases = null,
+    onProgress,
+    locale = "zh",
   } = params;
 
   const result: NewImportResult = {
@@ -621,9 +610,7 @@ async function do_execute_import(
     }
 
     // 角色扫描
-    const scanned = scan_characters_in_chapter(
-      ch.content, castRegistry, characterAliases, ch.chapterNum,
-    );
+    const scanned = scan_characters_in_chapter(ch.content, castRegistry, characterAliases, ch.chapterNum);
     for (const [name, chNum] of Object.entries(scanned)) {
       if (!(name in allCharactersLastSeen) || chNum > allCharactersLastSeen[name]) {
         allCharactersLastSeen[name] = chNum;
@@ -697,25 +684,28 @@ async function do_execute_import(
   // 5. 事务提交 — 只要有章节或设定就写 ops（D-0036：ops 是 sync truth）
   // payload 一律取 chaptersToWrite：ops 审计与重建投影只应反映真正落盘的章（审计 M29）
   if (chaptersToWrite.length > 0 || plan.settings.length > 0) {
-    tx.appendOp(auId, createOpsEntry({
-      op_id: generate_op_id(),
-      op_type: "import_chapters",
-      target_id: auId,
-      timestamp,
-      payload: {
-        total_chapters: result.chaptersImported,
-        total_settings: result.settingsImported,
-        trashed_chapters: result.trashedChapters,
-        source_files: [...new Set(chaptersToWrite.map((c) => c.sourceFile))],
-        characters_found: Object.keys(allCharactersLastSeen),
-        // 供 rebuildStateFromOps 使用（跨设备同步时重建 state）
-        last_chapter_num: chaptersToWrite.length > 0 ? Math.max(...chaptersToWrite.map((c) => c.chapterNum)) : 0,
-        // L24：仅在导入触及进度末尾时带 last_scene_ending（否则空串，projection 端不覆盖旧锚点）。
-        last_scene_ending: tailSceneEnding,
-        characters_last_seen: allCharactersLastSeen,
-        chapter_titles: importedChapterTitles,
-      },
-    }));
+    tx.appendOp(
+      auId,
+      createOpsEntry({
+        op_id: generate_op_id(),
+        op_type: "import_chapters",
+        target_id: auId,
+        timestamp,
+        payload: {
+          total_chapters: result.chaptersImported,
+          total_settings: result.settingsImported,
+          trashed_chapters: result.trashedChapters,
+          source_files: [...new Set(chaptersToWrite.map((c) => c.sourceFile))],
+          characters_found: Object.keys(allCharactersLastSeen),
+          // 供 rebuildStateFromOps 使用（跨设备同步时重建 state）
+          last_chapter_num: chaptersToWrite.length > 0 ? Math.max(...chaptersToWrite.map((c) => c.chapterNum)) : 0,
+          // L24：仅在导入触及进度末尾时带 last_scene_ending（否则空串，projection 端不覆盖旧锚点）。
+          last_scene_ending: tailSceneEnding,
+          characters_last_seen: allCharactersLastSeen,
+          chapter_titles: importedChapterTitles,
+        },
+      }),
+    );
     if (importState) tx.setState(importState);
 
     try {
@@ -725,8 +715,7 @@ async function do_execute_import(
       // 其它情形（ops 先行失败 / chapters 块失败）新章都没写成 → 必须把旧章从回收站还原，
       // 否则覆盖导入把旧章移进回收站后就永久缺章（盲审 R3 M2）。chapters 已落盘时不还原，
       // 否则旧章会与新章重复。
-      const chaptersLanded =
-        commitError instanceof PartialCommitError && !commitError.failed.includes("chapters");
+      const chaptersLanded = commitError instanceof PartialCommitError && !commitError.failed.includes("chapters");
       if (!chaptersLanded && trashService) {
         for (const { num, trashId } of trashedEntries) {
           try {
@@ -785,8 +774,13 @@ export function parse_html(raw: string): string {
   text = text.replace(/<\/(p|div|h[1-6]|li|tr|blockquote)>/gi, "\n\n");
   text = text.replace(/<(p|div|h[1-6]|li|tr|blockquote)[^>]*>/gi, "");
   text = text.replace(/<[^>]+>/g, "");
-  text = text.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ");
+  text = text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ");
   text = text.replace(/\n{3,}/g, "\n\n");
   return text.trim();
 }
@@ -823,8 +817,11 @@ export async function import_chapters(params: ImportChaptersParams): Promise<Imp
 
 async function do_import_chapters(params: ImportChaptersParams): Promise<ImportResult> {
   const {
-    au_id, chapters,
-    chapter_repo, state_repo, ops_repo,
+    au_id,
+    chapters,
+    chapter_repo,
+    state_repo,
+    ops_repo,
     cast_registry = { characters: [] },
     character_aliases = null,
     split_method = "auto_3000",
@@ -876,25 +873,26 @@ async function do_import_chapters(params: ImportChaptersParams): Promise<ImportR
   });
 
   // 事务提交（D-0036：ops → chapters → state）
-  tx.appendOp(au_id, createOpsEntry({
-    op_id: generate_op_id(),
-    op_type: "import_project",
-    target_id: au_id,
-    timestamp,
-    payload: {
-      chapter_range: chapters.length > 0
-        ? [Math.min(...chapters.map((c) => c.chapter_num)), lastChapterNum]
-        : [0, 0],
-      total_chapters: chapters.length,
-      characters_found: Object.keys(charactersLastSeen),
-      state_snapshot: {
-        current_chapter: state.current_chapter,
-        last_scene_ending: state.last_scene_ending,
-        characters_last_seen: state.characters_last_seen,
-        chapter_titles: state.chapter_titles,
+  tx.appendOp(
+    au_id,
+    createOpsEntry({
+      op_id: generate_op_id(),
+      op_type: "import_project",
+      target_id: au_id,
+      timestamp,
+      payload: {
+        chapter_range: chapters.length > 0 ? [Math.min(...chapters.map((c) => c.chapter_num)), lastChapterNum] : [0, 0],
+        total_chapters: chapters.length,
+        characters_found: Object.keys(charactersLastSeen),
+        state_snapshot: {
+          current_chapter: state.current_chapter,
+          last_scene_ending: state.last_scene_ending,
+          characters_last_seen: state.characters_last_seen,
+          chapter_titles: state.chapter_titles,
+        },
       },
-    },
-  }));
+    }),
+  );
   tx.setState(state);
   await tx.commit(ops_repo, null, state_repo, chapter_repo, null);
 

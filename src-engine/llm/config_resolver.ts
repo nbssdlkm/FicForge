@@ -54,11 +54,11 @@ function toManualContextWindow(v: unknown): number | undefined {
 function chatPathChangesHost(path: string): boolean {
   const p = path.trim();
   return (
-    p.startsWith("//")            // 协议相对：webview 解析为 //host
-    || p.startsWith("\\")         // 反斜杠变体
-    || p.includes("\\")
-    || /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(p)  // scheme://host 绝对 URL
-    || p.includes("://")
+    p.startsWith("//") || // 协议相对：webview 解析为 //host
+    p.startsWith("\\") || // 反斜杠变体
+    p.includes("\\") ||
+    /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(p) || // scheme://host 绝对 URL
+    p.includes("://")
   );
 }
 
@@ -108,16 +108,12 @@ function normalizeBaseUrl(url: string): string {
  * 会把网关的窗口/路径误配到官方端点上。session payload 恒带 api_base
  * （useSessionParams 发 mode/model/api_base），据此加同源判据。
  */
-function sessionMatchesLayer(
-  layer: LLMConfigLike | undefined,
-  sessionModel: string,
-  sessionApiBase: string,
-): boolean {
+function sessionMatchesLayer(layer: LLMConfigLike | undefined, sessionModel: string, sessionApiBase: string): boolean {
   return Boolean(
-    layer
-    && sessionModel
-    && (layer.model === sessionModel || layer.ollama_model === sessionModel)
-    && normalizeBaseUrl(layer.api_base ?? "") === normalizeBaseUrl(sessionApiBase),
+    layer &&
+      sessionModel &&
+      (layer.model === sessionModel || layer.ollama_model === sessionModel) &&
+      normalizeBaseUrl(layer.api_base ?? "") === normalizeBaseUrl(sessionApiBase),
   );
 }
 
@@ -229,14 +225,30 @@ export function resolve_llm_config(
     }
   }
 
-  const chatPath = resolveInheritedLayerField("chat_path", toChatPath, layer, cfg.model, session_llm, project, settings);
+  const chatPath = resolveInheritedLayerField(
+    "chat_path",
+    toChatPath,
+    layer,
+    cfg.model,
+    session_llm,
+    project,
+    settings,
+  );
   return {
     mode: cfg.mode,
     model: cfg.model,
     api_base: cfg.api_base,
     api_key: cfg.api_key,
     ollama_model: cfg.ollama_model,
-    context_window: resolveInheritedLayerField("context_window", toManualContextWindow, layer, cfg.model, session_llm, project, settings),
+    context_window: resolveInheritedLayerField(
+      "context_window",
+      toManualContextWindow,
+      layer,
+      cfg.model,
+      session_llm,
+      project,
+      settings,
+    ),
     ...(chatPath !== undefined ? { chat_path: chatPath } : {}),
   };
 }
@@ -332,11 +344,11 @@ export function isPlaintextRemoteHttp(apiBase: string): boolean {
   try {
     const host = new URL(base).hostname.toLowerCase();
     return !(
-      host === "localhost"
-      || host === "127.0.0.1"
-      || host === "::1"
-      || host === "[::1]"
-      || host.endsWith(".localhost")
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "::1" ||
+      host === "[::1]" ||
+      host.endsWith(".localhost")
     );
   } catch {
     return true; // 以 http:// 开头但解析失败 → 按远端保守告警
@@ -349,7 +361,11 @@ const _warnedPlaintextHosts = new Set<string>();
 export function warnIfPlaintextRemote(apiBase: string): void {
   if (!isPlaintextRemoteHttp(apiBase)) return;
   let host = apiBase;
-  try { host = new URL(apiBase.trim()).host; } catch { /* 保留原串 */ }
+  try {
+    host = new URL(apiBase.trim()).host;
+  } catch {
+    /* 保留原串 */
+  }
   if (_warnedPlaintextHosts.has(host)) return;
   _warnedPlaintextHosts.add(host);
   warnAlways("llm", "api_base 为明文 HTTP 非本机端点，API 密钥将不加密传输（仅建议可信局域网使用）", { host });
@@ -374,7 +390,7 @@ export function create_provider(llmConfig: ResolvedLLMConfig): LLMProvider {
   if (mode === "ollama") {
     const base = (llmConfig.api_base || OLLAMA_DEFAULT_BASE_URL).replace(/\/+$/, "");
     warnIfPlaintextRemote(base);
-    const key = llmConfig.api_key || "ollama";  // dummy —— Ollama 不校验
+    const key = llmConfig.api_key || "ollama"; // dummy —— Ollama 不校验
     const model = llmConfig.ollama_model || llmConfig.model;
     if (!model) {
       throw new Error("Ollama 模式需要指定模型名（ollama_model）");

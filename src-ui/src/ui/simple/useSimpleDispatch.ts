@@ -12,10 +12,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  dispatchSimpleChat,
-  type DispatchSimpleChatParams,
-} from "../../api/engine-client";
+import { dispatchSimpleChat, type DispatchSimpleChatParams } from "../../api/engine-client";
 
 export interface SimpleDispatchCallbacks {
   /** 流式 text chunk（write 路径）。 */
@@ -36,12 +33,7 @@ export interface SimpleDispatchCallbacks {
    * 还原完整 reasoning 链路。dispatch 已注入 internalHistory 喂下一轮 LLM，UI 不
    * 需要做任何回灌，仅作持久化用途。
    */
-  onToolResult?: (data: {
-    toolCallId: string;
-    toolName: string;
-    content: string;
-    errorMessage?: string;
-  }) => void;
+  onToolResult?: (data: { toolCallId: string; toolName: string; content: string; errorMessage?: string }) => void;
   /** write 路径完成：full_text + draft_label + generated_with 已写到 draft 文件。 */
   onDoneText: (data: {
     full_text: string;
@@ -119,77 +111,67 @@ export function useSimpleDispatch(auPath: string): UseSimpleDispatchResult {
     setIsStreaming(false);
   }, []);
 
-  const startDispatch = useCallback(
-    async (
-      params: DispatchSimpleChatParams,
-      callbacks: SimpleDispatchCallbacks,
-    ) => {
-      if (abortRef.current) {
-        abortRef.current.abort();
+  const startDispatch = useCallback(async (params: DispatchSimpleChatParams, callbacks: SimpleDispatchCallbacks) => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+      cancelCallbackRef.current?.();
+      cancelCallbackRef.current = null;
+    }
+
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    cancelCallbackRef.current = callbacks.onCancelled ?? null;
+    setIsStreaming(true);
+
+    try {
+      for await (const ev of dispatchSimpleChat(params, { signal: ctrl.signal })) {
+        if (ctrl.signal.aborted) break;
+        switch (ev.type) {
+          case "token":
+            callbacks.onToken(ev.data);
+            break;
+          case "tool_call":
+            callbacks.onToolCall(ev.data.function.name, safeParseArgs(ev.data.function.arguments), ev.data.id);
+            break;
+          case "chat_reply_chunk":
+            callbacks.onChatReplyChunk?.(ev.data);
+            break;
+          case "tool_result":
+            callbacks.onToolResult?.({
+              toolCallId: ev.data.tool_call_id,
+              toolName: ev.data.tool_name,
+              content: ev.data.content,
+              ...(ev.data.error_message !== undefined ? { errorMessage: ev.data.error_message } : {}),
+            });
+            break;
+          case "done_text":
+            callbacks.onDoneText(ev.data);
+            break;
+          case "done_tools":
+            callbacks.onDoneTools();
+            break;
+          case "error":
+            callbacks.onError(ev.data);
+            break;
+        }
+      }
+    } catch (err) {
+      if (ctrl.signal.aborted) return;
+      callbacks.onError({
+        error_code: "DISPATCH_FAILURE",
+        message: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      if (abortRef.current === ctrl) {
         abortRef.current = null;
-        cancelCallbackRef.current?.();
         cancelCallbackRef.current = null;
       }
-
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
-      cancelCallbackRef.current = callbacks.onCancelled ?? null;
-      setIsStreaming(true);
-
-      try {
-        for await (const ev of dispatchSimpleChat(params, { signal: ctrl.signal })) {
-          if (ctrl.signal.aborted) break;
-          switch (ev.type) {
-            case "token":
-              callbacks.onToken(ev.data);
-              break;
-            case "tool_call":
-              callbacks.onToolCall(
-                ev.data.function.name,
-                safeParseArgs(ev.data.function.arguments),
-                ev.data.id,
-              );
-              break;
-            case "chat_reply_chunk":
-              callbacks.onChatReplyChunk?.(ev.data);
-              break;
-            case "tool_result":
-              callbacks.onToolResult?.({
-                toolCallId: ev.data.tool_call_id,
-                toolName: ev.data.tool_name,
-                content: ev.data.content,
-                ...(ev.data.error_message !== undefined ? { errorMessage: ev.data.error_message } : {}),
-              });
-              break;
-            case "done_text":
-              callbacks.onDoneText(ev.data);
-              break;
-            case "done_tools":
-              callbacks.onDoneTools();
-              break;
-            case "error":
-              callbacks.onError(ev.data);
-              break;
-          }
-        }
-      } catch (err) {
-        if (ctrl.signal.aborted) return;
-        callbacks.onError({
-          error_code: "DISPATCH_FAILURE",
-          message: err instanceof Error ? err.message : String(err),
-        });
-      } finally {
-        if (abortRef.current === ctrl) {
-          abortRef.current = null;
-          cancelCallbackRef.current = null;
-        }
-        if (!ctrl.signal.aborted) {
-          setIsStreaming(false);
-        }
+      if (!ctrl.signal.aborted) {
+        setIsStreaming(false);
       }
-    },
-    [],
-  );
+    }
+  }, []);
 
   return { isStreaming, startDispatch, cancelDispatch };
 }

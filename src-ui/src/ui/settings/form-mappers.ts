@@ -89,8 +89,8 @@ export function hydrateGlobalSettingsForm(settings: SettingsInfo | null): Global
     form.model = settings.default_llm.model || DEFAULT_DEEPSEEK_MODEL;
     form.localModelPath = settings.default_llm.local_model_path || "";
     form.ollamaModel = settings.default_llm.ollama_model || settings.default_llm.model || "";
-    form.apiBase = settings.default_llm.api_base
-      || (nextMode === "ollama" ? DEFAULT_OLLAMA_BASE_URL : DEFAULT_DEEPSEEK_API_BASE);
+    form.apiBase =
+      settings.default_llm.api_base || (nextMode === "ollama" ? DEFAULT_OLLAMA_BASE_URL : DEFAULT_DEEPSEEK_API_BASE);
     form.apiKey = settings.default_llm.api_key || "";
     // 0/undefined = 「按模型推断」哨兵 → 表单 ""（窗口未知），不吞成 128000（审计鲜眼 R2-3）。
     form.contextWindow = persistedCtxToForm(settings.default_llm.context_window);
@@ -170,16 +170,14 @@ export function hydrateAuSettingsForm(project: ProjectInfo | null): AuSettingsFo
   }
 
   if (
-    project.llm
-    && (
-      project.llm.mode !== "api"
-      || project.llm.model
-      || project.llm.api_base
-      || project.llm.api_key
-      || project.llm.local_model_path
-      || project.llm.ollama_model
-      || project.llm.chat_path
-    )
+    project.llm &&
+    (project.llm.mode !== "api" ||
+      project.llm.model ||
+      project.llm.api_base ||
+      project.llm.api_key ||
+      project.llm.local_model_path ||
+      project.llm.ollama_model ||
+      project.llm.chat_path)
   ) {
     form.isLlmOverride = true;
     form.llmMode = project.llm.mode || "api";
@@ -245,10 +243,6 @@ export function buildAuSettingsSaveInput(form: AuSettingsFormState): AuSettingsS
  * 运行时 has_override 的产品取舍，单列后续任务跟踪。本提示对「整段覆盖（model/api_base
  * 非空）+ key 被清」这一更常见场景工作正常。
  */
-export function shouldWarnEmptyAuApiKey(
-  isLlmOverride: boolean,
-  llmMode: string,
-  auApiKey: string,
-): boolean {
+export function shouldWarnEmptyAuApiKey(isLlmOverride: boolean, llmMode: string, auApiKey: string): boolean {
   return isLlmOverride && llmMode === "api" && auApiKey.trim() === "";
 }

@@ -109,9 +109,7 @@ export function createFactsExtractionTask(
       // 收集这一批的章节内容（并行读取）
       const batchEnd = Math.min(batchStart + batchSize - 1, toChapter);
       const chapterNums = Array.from({ length: batchEnd - batchStart + 1 }, (_, i) => batchStart + i);
-      const contents = await Promise.all(
-        chapterNums.map((ch) => chapterRepo.get_content_only(auPath, ch)),
-      );
+      const contents = await Promise.all(chapterNums.map((ch) => chapterRepo.get_content_only(auPath, ch)));
       const chapters = chapterNums.map((ch, i) => ({ chapter_num: ch, content: contents[i] }));
 
       if (ctx.signal.aborted) break;
@@ -121,13 +119,23 @@ export function createFactsExtractionTask(
         for (const { chapter_num, content } of chapters) {
           if (ctx.signal.aborted) break;
           const r = await reactExtractFromChapter(
-            content, chapter_num, existingFacts, proj.cast_registry, characterAliases, llmProvider,
+            content,
+            chapter_num,
+            existingFacts,
+            proj.cast_registry,
+            characterAliases,
+            llmProvider,
             { language: language as "zh" | "en", factRepo, threadRepo, auPath, signal: ctx.signal },
           ).catch(() => ({ facts: [] as ExtractedFact[], status: "degraded" as const }));
           if (r.status === "degraded" && r.facts.length === 0) {
             const single = await extractFactsBatch(
-              [{ chapter_num, content }], existingFacts, proj.cast_registry, characterAliases,
-              llmProvider, language, ctx.signal,
+              [{ chapter_num, content }],
+              existingFacts,
+              proj.cast_registry,
+              characterAliases,
+              llmProvider,
+              language,
+              ctx.signal,
             ).catch(() => [] as ExtractedFact[]);
             allFacts.push(...single);
           } else {
@@ -137,8 +145,13 @@ export function createFactsExtractionTask(
       } else {
         // 原批量单次调用路径
         const batchFacts = await extractFactsBatch(
-          chapters, existingFacts, proj.cast_registry, characterAliases,
-          llmProvider, language, ctx.signal,
+          chapters,
+          existingFacts,
+          proj.cast_registry,
+          characterAliases,
+          llmProvider,
+          language,
+          ctx.signal,
         ).catch(() => [] as ExtractedFact[]);
         allFacts.push(...batchFacts);
       }

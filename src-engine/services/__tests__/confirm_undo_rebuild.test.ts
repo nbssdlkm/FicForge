@@ -50,24 +50,36 @@ describe("confirm-undo-rebuild closed-loop", () => {
     state.current_chapter = num;
     await stateRepo.save(state);
 
-    await draftRepo.save(createDraft({
-      au_id: "au1", chapter_num: num, variant: "A", content,
-    }));
+    await draftRepo.save(
+      createDraft({
+        au_id: "au1",
+        chapter_num: num,
+        variant: "A",
+        content,
+      }),
+    );
 
     return confirm_chapter({
-      au_id: "au1", chapter_num: num,
+      au_id: "au1",
+      chapter_num: num,
       draft_id: `ch${String(num).padStart(4, "0")}_draft_A.md`,
       cast_registry: cast,
-      chapter_repo: chapterRepo, draft_repo: draftRepo,
-      state_repo: stateRepo, ops_repo: opsRepo,
+      chapter_repo: chapterRepo,
+      draft_repo: draftRepo,
+      state_repo: stateRepo,
+      ops_repo: opsRepo,
     });
   }
 
   async function undoCh() {
     return undo_latest_chapter({
-      au_id: "au1", cast_registry: cast,
-      chapter_repo: chapterRepo, draft_repo: draftRepo,
-      state_repo: stateRepo, ops_repo: opsRepo, fact_repo: factRepo,
+      au_id: "au1",
+      cast_registry: cast,
+      chapter_repo: chapterRepo,
+      draft_repo: draftRepo,
+      state_repo: stateRepo,
+      ops_repo: opsRepo,
+      fact_repo: factRepo,
     });
   }
 
@@ -83,8 +95,10 @@ describe("confirm-undo-rebuild closed-loop", () => {
     return rebuildFactsFromOps(sorted);
   }
 
-  function assertStateCoreMatch(repo: { current_chapter: number; chapter_focus: string[] },
-    rebuilt: { current_chapter: number; chapter_focus: string[] }) {
+  function assertStateCoreMatch(
+    repo: { current_chapter: number; chapter_focus: string[] },
+    rebuilt: { current_chapter: number; chapter_focus: string[] },
+  ) {
     expect(rebuilt.current_chapter).toBe(repo.current_chapter);
     expect(rebuilt.chapter_focus).toEqual(repo.chapter_focus);
   }
@@ -116,20 +130,44 @@ describe("confirm-undo-rebuild closed-loop", () => {
     await confirmCh(3, "Bob拿出了一封信。Charlie接了过去。");
 
     // Step 2: Add facts across chapters
-    const f1 = await add_fact("au1", 1, {
-      content_raw: "r", content_clean: "Alice和Bob在大街相遇",
-      status: "active", type: "plot_event",
-    }, factRepo, opsRepo);
+    const f1 = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "Alice和Bob在大街相遇",
+        status: "active",
+        type: "plot_event",
+      },
+      factRepo,
+      opsRepo,
+    );
 
-    const f2 = await add_fact("au1", 2, {
-      content_raw: "r", content_clean: "Charlie突然出现",
-      status: "unresolved", type: "foreshadowing",
-    }, factRepo, opsRepo);
+    const f2 = await add_fact(
+      "au1",
+      2,
+      {
+        content_raw: "r",
+        content_clean: "Charlie突然出现",
+        status: "unresolved",
+        type: "foreshadowing",
+      },
+      factRepo,
+      opsRepo,
+    );
 
-    const f3 = await add_fact("au1", 3, {
-      content_raw: "r", content_clean: "信的内容不明",
-      status: "active", type: "plot_event",
-    }, factRepo, opsRepo);
+    const f3 = await add_fact(
+      "au1",
+      3,
+      {
+        content_raw: "r",
+        content_clean: "信的内容不明",
+        status: "active",
+        type: "plot_event",
+      },
+      factRepo,
+      opsRepo,
+    );
 
     // Verify: 3 facts exist, state at chapter 4
     let repoState = await stateRepo.get("au1");
@@ -165,10 +203,18 @@ describe("confirm-undo-rebuild closed-loop", () => {
     expect(repoState.current_chapter).toBe(4);
 
     // Add new fact for re-confirmed chapter 3
-    const f3b = await add_fact("au1", 3, {
-      content_raw: "r", content_clean: "信上写着'秘密'",
-      status: "active", type: "plot_event",
-    }, factRepo, opsRepo);
+    const f3b = await add_fact(
+      "au1",
+      3,
+      {
+        content_raw: "r",
+        content_clean: "信上写着'秘密'",
+        status: "active",
+        type: "plot_event",
+      },
+      factRepo,
+      opsRepo,
+    );
 
     repoFacts = await factRepo.list_all("au1");
     rebuiltFacts = await getRebuiltFacts();
@@ -186,18 +232,33 @@ describe("confirm-undo-rebuild closed-loop", () => {
     // Chapter 1: introduce foreshadowing
     await confirmCh(1, "一个神秘的包裹出现了。Alice感到不安。");
 
-    const foreshadow = await add_fact("au1", 1, {
-      content_raw: "r", content_clean: "神秘包裹的来源不明",
-      status: "unresolved", type: "foreshadowing",
-    }, factRepo, opsRepo);
+    const foreshadow = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "神秘包裹的来源不明",
+        status: "unresolved",
+        type: "foreshadowing",
+      },
+      factRepo,
+      opsRepo,
+    );
 
     // Chapter 2: resolve the foreshadowing
     await confirmCh(2, "包裹是Bob寄来的。真相大白。");
 
-    const resolution = await add_fact("au1", 2, {
-      content_raw: "r", content_clean: "包裹是Bob寄的",
-      resolves: foreshadow.id,
-    }, factRepo, opsRepo);
+    const resolution = await add_fact(
+      "au1",
+      2,
+      {
+        content_raw: "r",
+        content_clean: "包裹是Bob寄的",
+        resolves: foreshadow.id,
+      },
+      factRepo,
+      opsRepo,
+    );
 
     // Verify: foreshadow resolved
     expect((await factRepo.get("au1", foreshadow.id))!.status).toBe(FactStatus.RESOLVED);
@@ -229,10 +290,18 @@ describe("confirm-undo-rebuild closed-loop", () => {
     await stateRepo.save(createState({ au_id: "au1" }));
 
     // Add a foreshadowing fact
-    const f1 = await add_fact("au1", 0, {
-      content_raw: "r", content_clean: "待解决的伏笔",
-      status: "unresolved", type: "foreshadowing",
-    }, factRepo, opsRepo);
+    const f1 = await add_fact(
+      "au1",
+      0,
+      {
+        content_raw: "r",
+        content_clean: "待解决的伏笔",
+        status: "unresolved",
+        type: "foreshadowing",
+      },
+      factRepo,
+      opsRepo,
+    );
 
     // Set focus
     await set_chapter_focus("au1", [f1.id], factRepo, opsRepo, stateRepo);
@@ -272,10 +341,18 @@ describe("confirm-undo-rebuild closed-loop", () => {
     await stateRepo.save(createState({ au_id: "au1" }));
 
     // Pre-existing fact
-    const f1 = await add_fact("au1", 0, {
-      content_raw: "r", content_clean: "一个基础设定",
-      status: "active", type: "backstory",
-    }, factRepo, opsRepo);
+    const f1 = await add_fact(
+      "au1",
+      0,
+      {
+        content_raw: "r",
+        content_clean: "一个基础设定",
+        status: "active",
+        type: "backstory",
+      },
+      factRepo,
+      opsRepo,
+    );
 
     await confirmCh(1, "故事开始了。Alice站了起来。");
 
@@ -312,17 +389,32 @@ describe("confirm-undo-rebuild closed-loop", () => {
     await stateRepo.save(createState({ au_id: "au1" }));
 
     // Pre-existing fact from chapter 0
-    const f1 = await add_fact("au1", 0, {
-      content_raw: "r", content_clean: "原始内容",
-      status: "active", type: "character_detail",
-    }, factRepo, opsRepo);
+    const f1 = await add_fact(
+      "au1",
+      0,
+      {
+        content_raw: "r",
+        content_clean: "原始内容",
+        status: "active",
+        type: "character_detail",
+      },
+      factRepo,
+      opsRepo,
+    );
 
     await confirmCh(1, "Alice思考着。");
 
     // Edit the fact (not chapter-scoped, so it survives undo)
-    await edit_fact("au1", f1.id, {
-      content_clean: "修改后的内容",
-    }, factRepo, opsRepo, stateRepo);
+    await edit_fact(
+      "au1",
+      f1.id,
+      {
+        content_clean: "修改后的内容",
+      },
+      factRepo,
+      opsRepo,
+      stateRepo,
+    );
 
     expect((await factRepo.get("au1", f1.id))!.content_clean).toBe("修改后的内容");
 
@@ -383,26 +475,58 @@ describe("confirm-undo-rebuild closed-loop", () => {
     await stateRepo.save(createState({ au_id: "au1" }));
 
     await confirmCh(1, "Alice出门了。");
-    const f1a = await add_fact("au1", 1, {
-      content_raw: "r", content_clean: "Alice出门",
-      status: "active", type: "plot_event",
-    }, factRepo, opsRepo);
-    const f1b = await add_fact("au1", 1, {
-      content_raw: "r", content_clean: "天气晴朗",
-      status: "active", type: "world_rule",
-    }, factRepo, opsRepo);
+    const f1a = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "Alice出门",
+        status: "active",
+        type: "plot_event",
+      },
+      factRepo,
+      opsRepo,
+    );
+    const f1b = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "天气晴朗",
+        status: "active",
+        type: "world_rule",
+      },
+      factRepo,
+      opsRepo,
+    );
 
     await confirmCh(2, "Bob打电话。");
-    const f2a = await add_fact("au1", 2, {
-      content_raw: "r", content_clean: "Bob打了电话",
-      status: "active", type: "plot_event",
-    }, factRepo, opsRepo);
+    const f2a = await add_fact(
+      "au1",
+      2,
+      {
+        content_raw: "r",
+        content_clean: "Bob打了电话",
+        status: "active",
+        type: "plot_event",
+      },
+      factRepo,
+      opsRepo,
+    );
 
     await confirmCh(3, "Charlie来了。");
-    const f3a = await add_fact("au1", 3, {
-      content_raw: "r", content_clean: "Charlie到场",
-      status: "active", type: "plot_event",
-    }, factRepo, opsRepo);
+    const f3a = await add_fact(
+      "au1",
+      3,
+      {
+        content_raw: "r",
+        content_clean: "Charlie到场",
+        status: "active",
+        type: "plot_event",
+      },
+      factRepo,
+      opsRepo,
+    );
 
     expect(await factRepo.list_all("au1")).toHaveLength(4);
 

@@ -30,11 +30,7 @@ export function HelpTooltip({ text, className }: HelpTooltipProps) {
       {open && (
         <div className="absolute left-0 top-full z-[200] mt-1 w-64 rounded-xl border border-black/10 bg-surface p-3 text-xs leading-relaxed text-text/70 shadow-lg dark:border-white/10">
           <p className="whitespace-pre-line">{text}</p>
-          <button
-            type="button"
-            className="mt-2 text-xs text-accent"
-            onClick={() => setOpen(false)}
-          >
+          <button type="button" className="mt-2 text-xs text-accent" onClick={() => setOpen(false)}>
             ✕
           </button>
         </div>

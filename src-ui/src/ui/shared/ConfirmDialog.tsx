@@ -8,11 +8,11 @@
  * keep using raw <Modal>.
  */
 
-import type { ReactNode } from 'react';
-import { Modal } from './Modal';
-import { Button } from './Button';
-import { Spinner } from './Spinner';
-import { useTranslation } from '../../i18n/useAppTranslation';
+import type { ReactNode } from "react";
+import { Modal } from "./Modal";
+import { Button } from "./Button";
+import { Spinner } from "./Spinner";
+import { useTranslation } from "../../i18n/useAppTranslation";
 
 export interface ConfirmDialogProps {
   isOpen: boolean;
@@ -42,21 +42,21 @@ export function ConfirmDialog({
   const { t } = useTranslation();
   return (
     <Modal isOpen={isOpen} onClose={loading ? () => {} : onClose} title={title}>
-      {message ? (
-        <div className="mt-2 text-sm leading-relaxed text-text/70">{message}</div>
-      ) : null}
+      {message ? <div className="mt-2 text-sm leading-relaxed text-text/70">{message}</div> : null}
       <div className="mt-4 flex justify-end gap-2">
         <Button tone="neutral" fill="plain" onClick={onClose} disabled={loading}>
-          {cancelLabel ?? t('common.actions.cancel')}
+          {cancelLabel ?? t("common.actions.cancel")}
         </Button>
         <Button
-          tone={destructive ? 'destructive' : 'accent'}
+          tone={destructive ? "destructive" : "accent"}
           fill="solid"
-          onClick={() => { void onConfirm(); }}
+          onClick={() => {
+            void onConfirm();
+          }}
           disabled={loading}
         >
           {loading ? <Spinner size="sm" className="mr-2" /> : null}
-          {confirmLabel ?? t('common.actions.confirm')}
+          {confirmLabel ?? t("common.actions.confirm")}
         </Button>
       </div>
     </Modal>

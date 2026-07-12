@@ -33,9 +33,15 @@ describe("FileDraftRepository", () => {
     // 末尾带 \n：gray-matter stringify 对无尾换行的内容会补一个 \n（既有行为），
     // 用带尾换行的内容做逐字节断言
     const content = "第一段草稿。\n\n第二段草稿。\n";
-    await repo.save(createDraft({
-      au_id: "au1", chapter_num: 1, variant: "a", content, generated_with: gw(),
-    }));
+    await repo.save(
+      createDraft({
+        au_id: "au1",
+        chapter_num: 1,
+        variant: "a",
+        content,
+        generated_with: gw(),
+      }),
+    );
 
     const loaded = await repo.get("au1", 1, "a");
     expect(loaded.content).toBe(content);
@@ -47,9 +53,15 @@ describe("FileDraftRepository", () => {
 
   it("generated_with 为 null 时文件是纯正文（无 frontmatter 块）", async () => {
     const content = "无元数据的草稿。\n";
-    await repo.save(createDraft({
-      au_id: "au1", chapter_num: 2, variant: "a", content, generated_with: null,
-    }));
+    await repo.save(
+      createDraft({
+        au_id: "au1",
+        chapter_num: 2,
+        variant: "a",
+        content,
+        generated_with: null,
+      }),
+    );
 
     expect(adapter.raw("au1/chapters/.drafts/ch0002_draft_a.md")).toBe(content);
     const loaded = await repo.get("au1", 2, "a");
@@ -90,9 +102,15 @@ describe("FileDraftRepository frontmatter safety (B-1)", () => {
 
   it("`---` 开头草稿（带 generated_with）save→get 无损", async () => {
     const content = "---\n\n夜色如墨，山径无人。\n\n---\n\n第二场，晨光初现。\n";
-    await repo.save(createDraft({
-      au_id: "au1", chapter_num: 1, variant: "a", content, generated_with: gw(),
-    }));
+    await repo.save(
+      createDraft({
+        au_id: "au1",
+        chapter_num: 1,
+        variant: "a",
+        content,
+        generated_with: gw(),
+      }),
+    );
 
     // 旧写路径：stringify(string, meta) 把 `---` 块解析成字符串标量后按字符
     // 摊平进 frontmatter（'0': 夜 ...），正文被搅碎
@@ -111,9 +129,15 @@ describe("FileDraftRepository frontmatter safety (B-1)", () => {
 
   it("`---` 开头草稿（无 generated_with）save→get 无损", async () => {
     const content = "---\n\n夜色如墨。\n\n---\n\n第二场。\n";
-    await repo.save(createDraft({
-      au_id: "au1", chapter_num: 2, variant: "a", content, generated_with: null,
-    }));
+    await repo.save(
+      createDraft({
+        au_id: "au1",
+        chapter_num: 2,
+        variant: "a",
+        content,
+        generated_with: null,
+      }),
+    );
 
     // 无 meta → 文件即纯正文；读路径不得把正文首段误当 frontmatter 吞掉
     expect(adapter.raw("au1/chapters/.drafts/ch0002_draft_a.md")).toBe(content);
@@ -126,15 +150,27 @@ describe("FileDraftRepository frontmatter safety (B-1)", () => {
     const content = "---\n\n---\n\n正文从分割线后开始。\n";
 
     // 带 generated_with：文件有真 frontmatter，正文里的空块原样保留
-    await repo.save(createDraft({
-      au_id: "au1", chapter_num: 3, variant: "a", content, generated_with: gw(),
-    }));
+    await repo.save(
+      createDraft({
+        au_id: "au1",
+        chapter_num: 3,
+        variant: "a",
+        content,
+        generated_with: gw(),
+      }),
+    );
     expect((await repo.get("au1", 3, "a")).content).toBe(content);
 
     // 无 generated_with：文件即纯正文，读路径零键回退整文
-    await repo.save(createDraft({
-      au_id: "au1", chapter_num: 3, variant: "b", content, generated_with: null,
-    }));
+    await repo.save(
+      createDraft({
+        au_id: "au1",
+        chapter_num: 3,
+        variant: "b",
+        content,
+        generated_with: null,
+      }),
+    );
     expect((await repo.get("au1", 3, "b")).content).toBe(content);
   });
 

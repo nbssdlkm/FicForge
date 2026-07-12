@@ -49,7 +49,8 @@ export async function generateChapterTitle(
       top_p: 1,
     });
 
-    const title = resp.content?.trim()
+    const title = resp.content
+      ?.trim()
       .replace(/^["'"「『]/, "")
       .replace(/["'"」』]$/, "")
       .trim();

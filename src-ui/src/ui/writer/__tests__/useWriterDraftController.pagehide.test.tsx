@@ -14,9 +14,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../api/engine-client", async () => {
-  const actual = await vi.importActual<typeof import("../../../api/engine-client")>(
-    "../../../api/engine-client",
-  );
+  const actual = await vi.importActual<typeof import("../../../api/engine-client")>("../../../api/engine-client");
   return {
     ...actual,
     listDrafts: vi.fn(),
@@ -71,7 +69,9 @@ describe("useWriterDraftController pagehide flush（R1-6）", () => {
     expect(mocked.saveDraft).not.toHaveBeenCalled();
 
     // 关标签页 / 进后台：cleanup 不保证执行，pagehide 兜底
-    act(() => { window.dispatchEvent(new Event("pagehide")); });
+    act(() => {
+      window.dispatchEvent(new Event("pagehide"));
+    });
 
     await waitFor(() => expect(mocked.saveDraft).toHaveBeenCalledTimes(1));
     expect(mocked.saveDraft).toHaveBeenCalledWith(AU, 1, "a", "用户手改后的内容");
@@ -81,8 +81,12 @@ describe("useWriterDraftController pagehide flush（R1-6）", () => {
     const { result } = renderWithOneDraft();
     await waitFor(() => expect(result.current.drafts).toHaveLength(1));
 
-    act(() => { window.dispatchEvent(new Event("pagehide")); });
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    act(() => {
+      window.dispatchEvent(new Event("pagehide"));
+    });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
 
     expect(mocked.saveDraft).not.toHaveBeenCalled();
   });

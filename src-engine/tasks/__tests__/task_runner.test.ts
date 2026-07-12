@@ -20,13 +20,17 @@ function memAdapter() {
   const fs = new Map<string, string>();
   return {
     fs,
-    async exists(p: string) { return fs.has(p); },
+    async exists(p: string) {
+      return fs.has(p);
+    },
     async readFile(p: string) {
       const v = fs.get(p);
       if (v === undefined) throw new Error(`ENOENT: ${p}`);
       return v;
     },
-    async writeFile(p: string, c: string) { fs.set(p, c); },
+    async writeFile(p: string, c: string) {
+      fs.set(p, c);
+    },
     async deleteFile(p: string) {
       if (!fs.has(p)) throw new Error(`ENOENT: ${p}`);
       fs.delete(p);
@@ -43,7 +47,8 @@ function memAdapter() {
     async rename(o: string, n: string) {
       const v = fs.get(o);
       if (v === undefined) throw new Error(`rename: source not found: ${o}`);
-      fs.set(n, v); fs.delete(o);
+      fs.set(n, v);
+      fs.delete(o);
     },
   } as any;
 }
@@ -51,7 +56,9 @@ function memAdapter() {
 /** 手动推进的门闩：任务在 gate 上等待，测试端 open() 放行。 */
 function makeGate() {
   let openFn!: () => void;
-  const opened = new Promise<void>((resolve) => { openFn = resolve; });
+  const opened = new Promise<void>((resolve) => {
+    openFn = resolve;
+  });
   return { wait: () => opened, open: () => openFn() };
 }
 
@@ -133,12 +140,14 @@ describe("TaskRunner", () => {
     const events: TaskEvent[] = [];
     runner.onEvent((_id, ev) => events.push(ev));
 
-    const id = runner.submit(simpleTask("demo", async function* (ctx) {
-      yield { type: "progress", current: 1, total: 2 };
-      await ctx.saveCheckpoint({ upTo: 1 });
-      yield { type: "progress", current: 2, total: 2 };
-      return { ok: true };
-    }));
+    const id = runner.submit(
+      simpleTask("demo", async function* (ctx) {
+        yield { type: "progress", current: 1, total: 2 };
+        await ctx.saveCheckpoint({ upTo: 1 });
+        yield { type: "progress", current: 2, total: 2 };
+        return { ok: true };
+      }),
+    );
 
     await vi.waitFor(() => expect(runner.getTask(id)?.status).toBe("completed"));
     expect(runner.getTask(id)?.result).toEqual({ ok: true });
@@ -153,16 +162,20 @@ describe("TaskRunner", () => {
     const gate = makeGate();
     const order: string[] = [];
 
-    runner.submit(simpleTask("first", async function* () {
-      order.push("first:start");
-      await gate.wait();
-      order.push("first:end");
-      return null;
-    }));
-    const id2 = runner.submit(simpleTask("second", async function* () {
-      order.push("second:start");
-      return null;
-    }));
+    runner.submit(
+      simpleTask("first", async function* () {
+        order.push("first:start");
+        await gate.wait();
+        order.push("first:end");
+        return null;
+      }),
+    );
+    const id2 = runner.submit(
+      simpleTask("second", async function* () {
+        order.push("second:start");
+        return null;
+      }),
+    );
 
     await tick();
     // 第一个挂在 gate 上，第二个必须还在排队
@@ -176,12 +189,14 @@ describe("TaskRunner", () => {
 
   it("execute 抛错 → failed + error 信息，断点清理", async () => {
     const { adapter, runner } = makeRunner();
-    const id = runner.submit(simpleTask("boom", async function* (ctx) {
-      await ctx.saveCheckpoint({ upTo: 0 });
-      throw new Error("disk on fire");
-      // eslint-disable-next-line no-unreachable
-      yield { type: "progress", current: 0, total: 0 };
-    }));
+    const id = runner.submit(
+      simpleTask("boom", async function* (ctx) {
+        await ctx.saveCheckpoint({ upTo: 0 });
+        throw new Error("disk on fire");
+        // eslint-disable-next-line no-unreachable
+        yield { type: "progress", current: 0, total: 0 };
+      }),
+    );
 
     await vi.waitFor(() => expect(runner.getTask(id)?.status).toBe("failed"));
     expect(runner.getTask(id)?.error).toContain("disk on fire");
@@ -193,14 +208,18 @@ describe("TaskRunner", () => {
     const gate = makeGate();
     const ran: string[] = [];
 
-    runner.submit(simpleTask("blocker", async function* () {
-      await gate.wait();
-      return null;
-    }));
-    const id2 = runner.submit(simpleTask("victim", async function* () {
-      ran.push("victim");
-      return null;
-    }));
+    runner.submit(
+      simpleTask("blocker", async function* () {
+        await gate.wait();
+        return null;
+      }),
+    );
+    const id2 = runner.submit(
+      simpleTask("victim", async function* () {
+        ran.push("victim");
+        return null;
+      }),
+    );
 
     await tick();
     runner.cancel(id2);
@@ -216,13 +235,15 @@ describe("TaskRunner", () => {
     const { runner } = makeRunner();
     const gate = makeGate();
 
-    const id = runner.submit(simpleTask("long", async function* (ctx) {
-      yield { type: "progress", current: 1, total: 10 };
-      await gate.wait();
-      if (ctx.signal.aborted) return null; // 协作式取消：观察 signal 提前返回
-      yield { type: "progress", current: 10, total: 10 };
-      return { finished: true };
-    }));
+    const id = runner.submit(
+      simpleTask("long", async function* (ctx) {
+        yield { type: "progress", current: 1, total: 10 };
+        await gate.wait();
+        if (ctx.signal.aborted) return null; // 协作式取消：观察 signal 提前返回
+        yield { type: "progress", current: 10, total: 10 };
+        return { finished: true };
+      }),
+    );
 
     await tick();
     runner.cancel(id); // running 分支：触发 abort
@@ -250,8 +271,14 @@ describe("TaskRunner", () => {
     const def: TaskDefinition = {
       type: "demo",
       params: { from: 3 },
-      execute: async function* () { executeSpy(); return null; },
-      resume: async function* (_ctx, cp) { resumeSpy(cp.data); return null; },
+      execute: async function* () {
+        executeSpy();
+        return null;
+      },
+      resume: async function* (_ctx, cp) {
+        resumeSpy(cp.data);
+        return null;
+      },
     };
 
     const id = runner.resume(checkpoint, def);
@@ -265,7 +292,13 @@ describe("TaskRunner", () => {
     const { runner } = makeRunner();
     const ids: string[] = [];
     for (let i = 0; i < 52; i++) {
-      ids.push(runner.submit(simpleTask(`t${i}`, async function* () { return i; })));
+      ids.push(
+        runner.submit(
+          simpleTask(`t${i}`, async function* () {
+            return i;
+          }),
+        ),
+      );
     }
     await vi.waitFor(() => {
       expect(runner.getActiveTasks()).toHaveLength(0);
@@ -281,12 +314,18 @@ describe("TaskRunner", () => {
     const { adapter, runner } = makeRunner();
     const gate = makeGate();
 
-    runner.submit(simpleTask("crashy", async function* (ctx) {
-      yield { type: "progress", current: 1, total: 3 };
-      await ctx.saveCheckpoint({ upTo: 1 });
-      await gate.wait(); // 模拟"进程死在这"——不放行，断点应已在盘上
-      return null;
-    }, { scope: "au1" }));
+    runner.submit(
+      simpleTask(
+        "crashy",
+        async function* (ctx) {
+          yield { type: "progress", current: 1, total: 3 };
+          await ctx.saveCheckpoint({ upTo: 1 });
+          await gate.wait(); // 模拟"进程死在这"——不放行，断点应已在盘上
+          return null;
+        },
+        { scope: "au1" },
+      ),
+    );
 
     await vi.waitFor(async () => {
       const files = [...adapter.fs.keys()].filter((k) => k.includes("/tasks/") && k.endsWith(".json"));

@@ -24,10 +24,16 @@ describe("archive_fact / unarchive_fact", () => {
   });
 
   it("archive_fact sets archived=true and archived_at", async () => {
-    const fact = await add_fact("au1", 1, {
-      content_raw: "r",
-      content_clean: "c",
-    }, factRepo, opsRepo);
+    const fact = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "c",
+      },
+      factRepo,
+      opsRepo,
+    );
 
     await archive_fact("au1", fact.id, factRepo, opsRepo);
 
@@ -39,10 +45,16 @@ describe("archive_fact / unarchive_fact", () => {
   });
 
   it("archive_fact writes archive_fact op", async () => {
-    const fact = await add_fact("au1", 1, {
-      content_raw: "r",
-      content_clean: "c",
-    }, factRepo, opsRepo);
+    const fact = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "c",
+      },
+      factRepo,
+      opsRepo,
+    );
 
     await archive_fact("au1", fact.id, factRepo, opsRepo);
 
@@ -53,10 +65,16 @@ describe("archive_fact / unarchive_fact", () => {
   });
 
   it("unarchive_fact sets archived=false and clears archived_at", async () => {
-    const fact = await add_fact("au1", 1, {
-      content_raw: "r",
-      content_clean: "c",
-    }, factRepo, opsRepo);
+    const fact = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "c",
+      },
+      factRepo,
+      opsRepo,
+    );
 
     await archive_fact("au1", fact.id, factRepo, opsRepo);
     await unarchive_fact("au1", fact.id, factRepo, opsRepo);
@@ -69,10 +87,16 @@ describe("archive_fact / unarchive_fact", () => {
   });
 
   it("unarchive_fact writes unarchive_fact op", async () => {
-    const fact = await add_fact("au1", 1, {
-      content_raw: "r",
-      content_clean: "c",
-    }, factRepo, opsRepo);
+    const fact = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "c",
+      },
+      factRepo,
+      opsRepo,
+    );
 
     await archive_fact("au1", fact.id, factRepo, opsRepo);
     await unarchive_fact("au1", fact.id, factRepo, opsRepo);
@@ -84,20 +108,24 @@ describe("archive_fact / unarchive_fact", () => {
   });
 
   it("archive_fact throws if fact not found", async () => {
-    await expect(archive_fact("au1", "nonexistent", factRepo, opsRepo))
-      .rejects.toThrow();
+    await expect(archive_fact("au1", "nonexistent", factRepo, opsRepo)).rejects.toThrow();
   });
 
   it("unarchive_fact throws if fact not found", async () => {
-    await expect(unarchive_fact("au1", "nonexistent", factRepo, opsRepo))
-      .rejects.toThrow();
+    await expect(unarchive_fact("au1", "nonexistent", factRepo, opsRepo)).rejects.toThrow();
   });
 
   it("createFact defaults archived to false", async () => {
-    const fact = await add_fact("au1", 1, {
-      content_raw: "r",
-      content_clean: "c",
-    }, factRepo, opsRepo);
+    const fact = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "c",
+      },
+      factRepo,
+      opsRepo,
+    );
 
     expect(fact.archived).toBe(false);
   });

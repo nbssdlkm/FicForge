@@ -78,9 +78,7 @@ describe("engine-settings model catalog commands", () => {
   });
 
   it("saveEnabledModels 按供应商覆写；getWriterSessionConfig 附带 catalog（会话下拉数据链）", async () => {
-    await saveEnabledModels("deepseek", [
-      { id: "deepseek-pulled", displayName: "deepseek-pulled", type: "chat" },
-    ]);
+    await saveEnabledModels("deepseek", [{ id: "deepseek-pulled", displayName: "deepseek-pulled", type: "chat" }]);
     await saveEnabledModels("deepseek", [
       { id: "deepseek-v4-flash", displayName: "deepseek-v4-flash", contextWindow: 1_000_000, type: "chat" },
     ]);

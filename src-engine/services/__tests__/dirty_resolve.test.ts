@@ -49,23 +49,33 @@ describe("resolve_dirty_chapter", () => {
     await seedState({ chapters_dirty: [3] });
     await seedChapter("au1", 2, "content");
 
-    await expect(resolve_dirty_chapter({
-      au_id: "au1", chapter_num: 2,
-      confirmed_fact_changes: [],
-      chapter_repo: chapterRepo, state_repo: stateRepo,
-      ops_repo: opsRepo, fact_repo: factRepo,
-    })).rejects.toThrow(DirtyResolveError);
+    await expect(
+      resolve_dirty_chapter({
+        au_id: "au1",
+        chapter_num: 2,
+        confirmed_fact_changes: [],
+        chapter_repo: chapterRepo,
+        state_repo: stateRepo,
+        ops_repo: opsRepo,
+        fact_repo: factRepo,
+      }),
+    ).rejects.toThrow(DirtyResolveError);
   });
 
   it("throws if chapter file does not exist", async () => {
     await seedState({ chapters_dirty: [2] });
 
-    await expect(resolve_dirty_chapter({
-      au_id: "au1", chapter_num: 2,
-      confirmed_fact_changes: [],
-      chapter_repo: chapterRepo, state_repo: stateRepo,
-      ops_repo: opsRepo, fact_repo: factRepo,
-    })).rejects.toThrow(DirtyResolveError);
+    await expect(
+      resolve_dirty_chapter({
+        au_id: "au1",
+        chapter_num: 2,
+        confirmed_fact_changes: [],
+        chapter_repo: chapterRepo,
+        state_repo: stateRepo,
+        ops_repo: opsRepo,
+        fact_repo: factRepo,
+      }),
+    ).rejects.toThrow(DirtyResolveError);
   });
 
   // ── latest-chapter path ───────────────────────────────────────────
@@ -75,11 +85,14 @@ describe("resolve_dirty_chapter", () => {
     await seedChapter("au1", 4, "Alice entered the room.\n\nShe saw Bob standing by the window.");
 
     const result = await resolve_dirty_chapter({
-      au_id: "au1", chapter_num: 4,
+      au_id: "au1",
+      chapter_num: 4,
       confirmed_fact_changes: [],
       cast_registry: { characters: ["Alice", "Bob"] },
-      chapter_repo: chapterRepo, state_repo: stateRepo,
-      ops_repo: opsRepo, fact_repo: factRepo,
+      chapter_repo: chapterRepo,
+      state_repo: stateRepo,
+      ops_repo: opsRepo,
+      fact_repo: factRepo,
     });
 
     expect(result.is_latest).toBe(true);
@@ -106,11 +119,14 @@ describe("resolve_dirty_chapter", () => {
     await seedChapter("au1", 3, "Historical chapter content.");
 
     const result = await resolve_dirty_chapter({
-      au_id: "au1", chapter_num: 3,
+      au_id: "au1",
+      chapter_num: 3,
       confirmed_fact_changes: [],
       cast_registry: { characters: ["Alice"] },
-      chapter_repo: chapterRepo, state_repo: stateRepo,
-      ops_repo: opsRepo, fact_repo: factRepo,
+      chapter_repo: chapterRepo,
+      state_repo: stateRepo,
+      ops_repo: opsRepo,
+      fact_repo: factRepo,
     });
 
     expect(result.is_latest).toBe(false);
@@ -130,21 +146,24 @@ describe("resolve_dirty_chapter", () => {
 
     // Seed a fact to edit
     const fact = createFact({
-      id: "fact_001", au_id: "au1", chapter: 2,
+      id: "fact_001",
+      au_id: "au1",
+      chapter: 2,
       content_clean: "Bob has a secret.",
       status: FactStatus.ACTIVE,
     });
     await factRepo.append("au1", fact);
 
-    const changes = [
-      createFactChange({ fact_id: "fact_001", action: "deprecate" }),
-    ];
+    const changes = [createFactChange({ fact_id: "fact_001", action: "deprecate" })];
 
     await resolve_dirty_chapter({
-      au_id: "au1", chapter_num: 2,
+      au_id: "au1",
+      chapter_num: 2,
       confirmed_fact_changes: changes,
-      chapter_repo: chapterRepo, state_repo: stateRepo,
-      ops_repo: opsRepo, fact_repo: factRepo,
+      chapter_repo: chapterRepo,
+      state_repo: stateRepo,
+      ops_repo: opsRepo,
+      fact_repo: factRepo,
     });
 
     // Fact should be deprecated
@@ -153,7 +172,7 @@ describe("resolve_dirty_chapter", () => {
 
     // Ops should include both resolve_dirty_chapter and the deprecate op
     const ops = await opsRepo.list_all("au1");
-    const resolveOp = ops.find(o => o.op_type === "resolve_dirty_chapter");
+    const resolveOp = ops.find((o) => o.op_type === "resolve_dirty_chapter");
     expect(resolveOp).toBeTruthy();
     expect(resolveOp?.chapter_num).toBe(2);
   });
@@ -168,10 +187,13 @@ describe("resolve_dirty_chapter", () => {
     ];
 
     const result = await resolve_dirty_chapter({
-      au_id: "au1", chapter_num: 2,
+      au_id: "au1",
+      chapter_num: 2,
       confirmed_fact_changes: changes,
-      chapter_repo: chapterRepo, state_repo: stateRepo,
-      ops_repo: opsRepo, fact_repo: factRepo,
+      chapter_repo: chapterRepo,
+      state_repo: stateRepo,
+      ops_repo: opsRepo,
+      fact_repo: factRepo,
     });
 
     // 旧行为整体 rejects —— 但此时章节已 clean、重试必被「不在 dirty 列表」拒绝，
@@ -187,14 +209,16 @@ describe("resolve_dirty_chapter", () => {
 
     // Ops should still have the resolve_dirty_chapter op
     const ops = await opsRepo.list_all("au1");
-    expect(ops.some(o => o.op_type === "resolve_dirty_chapter")).toBe(true);
+    expect(ops.some((o) => o.op_type === "resolve_dirty_chapter")).toBe(true);
   });
 
   it("fact op 单条失败不连坐：其余变更照常应用", async () => {
     await seedState({ current_chapter: 3, chapters_dirty: [2] });
     await seedChapter("au1", 2, "Chapter two content.");
     const fact = createFact({
-      id: "fact_ok1", au_id: "au1", chapter: 2,
+      id: "fact_ok1",
+      au_id: "au1",
+      chapter: 2,
       content_clean: "hero met villain",
       status: FactStatus.ACTIVE,
     });
@@ -206,10 +230,13 @@ describe("resolve_dirty_chapter", () => {
     ];
 
     const result = await resolve_dirty_chapter({
-      au_id: "au1", chapter_num: 2,
+      au_id: "au1",
+      chapter_num: 2,
       confirmed_fact_changes: changes,
-      chapter_repo: chapterRepo, state_repo: stateRepo,
-      ops_repo: opsRepo, fact_repo: factRepo,
+      chapter_repo: chapterRepo,
+      state_repo: stateRepo,
+      ops_repo: opsRepo,
+      fact_repo: factRepo,
     });
 
     expect(result.failed_fact_changes).toHaveLength(1);
@@ -225,10 +252,13 @@ describe("resolve_dirty_chapter", () => {
     await seedChapter("au1", 3, "Chapter three content.");
 
     await resolve_dirty_chapter({
-      au_id: "au1", chapter_num: 3,
+      au_id: "au1",
+      chapter_num: 3,
       confirmed_fact_changes: [],
-      chapter_repo: chapterRepo, state_repo: stateRepo,
-      ops_repo: opsRepo, fact_repo: factRepo,
+      chapter_repo: chapterRepo,
+      state_repo: stateRepo,
+      ops_repo: opsRepo,
+      fact_repo: factRepo,
     });
 
     const ops = await opsRepo.list_all("au1");
@@ -245,10 +275,13 @@ describe("resolve_dirty_chapter", () => {
     await seedChapter("au1", 5, "Chapter five content.");
 
     await resolve_dirty_chapter({
-      au_id: "au1", chapter_num: 5,
+      au_id: "au1",
+      chapter_num: 5,
       confirmed_fact_changes: [],
-      chapter_repo: chapterRepo, state_repo: stateRepo,
-      ops_repo: opsRepo, fact_repo: factRepo,
+      chapter_repo: chapterRepo,
+      state_repo: stateRepo,
+      ops_repo: opsRepo,
+      fact_repo: factRepo,
     });
 
     const state = await stateRepo.get("au1");

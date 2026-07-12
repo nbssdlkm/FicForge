@@ -10,11 +10,21 @@ function memAdapter() {
   const fs = new Map<string, string>();
   return {
     files: fs,
-    async exists(p: string) { return fs.has(p); },
-    async readFile(p: string) { const v = fs.get(p); if (v === undefined) throw new Error("ENOENT"); return v; },
-    async writeFile(p: string, c: string) { fs.set(p, c); },
+    async exists(p: string) {
+      return fs.has(p);
+    },
+    async readFile(p: string) {
+      const v = fs.get(p);
+      if (v === undefined) throw new Error("ENOENT");
+      return v;
+    },
+    async writeFile(p: string, c: string) {
+      fs.set(p, c);
+    },
     async mkdir(_p: string) {},
-    async deleteFile(p: string) { fs.delete(p); },
+    async deleteFile(p: string) {
+      fs.delete(p);
+    },
     async rename(from: string, to: string) {
       const v = fs.get(from);
       if (v === undefined) throw new Error("ENOENT");
@@ -43,9 +53,13 @@ describe("FileChapterSummaryRepository", () => {
 
   it("removes a summary file", async () => {
     const repo = new FileChapterSummaryRepository(memAdapter());
-    await repo.save("/au", 3, createChapterSummary({
-      standard: { version: 1, text: "x", generated_at: "t", source_chapter_hash: "h" },
-    }));
+    await repo.save(
+      "/au",
+      3,
+      createChapterSummary({
+        standard: { version: 1, text: "x", generated_at: "t", source_chapter_hash: "h" },
+      }),
+    );
     await repo.remove("/au", 3);
     expect(await repo.get("/au", 3)).toBeNull();
   });

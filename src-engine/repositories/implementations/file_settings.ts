@@ -47,12 +47,16 @@ const SETTINGS_SECURE_SPECS: SecureFieldSpec<Settings>[] = [
   {
     secureKey: "settings.default_llm.api_key",
     get: (s) => s.default_llm.api_key,
-    set: (s, v) => { s.default_llm.api_key = v; },
+    set: (s, v) => {
+      s.default_llm.api_key = v;
+    },
   },
   {
     secureKey: "settings.embedding.api_key",
     get: (s) => s.embedding.api_key,
-    set: (s, v) => { s.embedding.api_key = v; },
+    set: (s, v) => {
+      s.embedding.api_key = v;
+    },
   },
   // settings.sync.webdav.password spec 已随 SyncConfig 清退（D-0040 落实，2026-07-09）。
 ];
@@ -90,7 +94,10 @@ function allSecureSpecs(settings: Settings): SecureFieldSpec<Settings>[] {
 export class FileSettingsRepository implements SettingsRepository {
   private path: string;
 
-  constructor(private adapter: PlatformAdapter, dataDir: string) {
+  constructor(
+    private adapter: PlatformAdapter,
+    dataDir: string,
+  ) {
     // dataDir 是数据根目录（可空，Capacitor/Web 约定 "" = 平台 Data 目录）。
     // 不调用 validateBasePath —— 它专用于用户控制的路径段（au_id、fandom_path 等），
     // 对根目录会误拒 ""。joinPath 自动过滤空段，天然兼容所有平台。
@@ -305,14 +312,16 @@ function dictToCustomProviders(arr: unknown): CustomProviderEntry[] {
           .filter((m): m is Record<string, unknown> => Boolean(m) && typeof m === "object")
           .map(dictToCustomModelEntry)
       : [];
-    result.push(createCustomProviderEntry({
-      id,
-      displayName: (d.displayName as string) || id,
-      baseUrl: (d.baseUrl as string) ?? "",
-      api_key: (d.api_key as string) ?? "",
-      models,
-      ...(typeof d.chatPath === "string" && d.chatPath ? { chatPath: d.chatPath } : {}),
-    }));
+    result.push(
+      createCustomProviderEntry({
+        id,
+        displayName: (d.displayName as string) || id,
+        baseUrl: (d.baseUrl as string) ?? "",
+        api_key: (d.api_key as string) ?? "",
+        models,
+        ...(typeof d.chatPath === "string" && d.chatPath ? { chatPath: d.chatPath } : {}),
+      }),
+    );
   }
   return result;
 }

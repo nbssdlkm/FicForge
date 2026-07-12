@@ -2,8 +2,8 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { X, Lightbulb } from 'lucide-react';
-import { Button } from './Button';
+import { X, Lightbulb } from "lucide-react";
+import { Button } from "./Button";
 
 interface MilestoneGuideProps {
   title: string;
@@ -13,13 +13,7 @@ interface MilestoneGuideProps {
   onDismiss: () => void;
 }
 
-export function MilestoneGuide({
-  title,
-  description,
-  primaryAction,
-  secondaryAction,
-  onDismiss,
-}: MilestoneGuideProps) {
+export function MilestoneGuide({ title, description, primaryAction, secondaryAction, onDismiss }: MilestoneGuideProps) {
   return (
     <div className="bg-accent/5 border border-accent/20 rounded-lg px-4 py-3 mx-4 mt-2 mb-1">
       <div className="flex items-start justify-between gap-3">
@@ -31,12 +25,24 @@ export function MilestoneGuide({
             {(primaryAction || secondaryAction) && (
               <div className="flex items-center gap-2 pt-1">
                 {primaryAction && (
-                  <Button tone="accent" fill="solid" size="sm" className="text-xs h-7 px-3" onClick={primaryAction.onClick}>
+                  <Button
+                    tone="accent"
+                    fill="solid"
+                    size="sm"
+                    className="text-xs h-7 px-3"
+                    onClick={primaryAction.onClick}
+                  >
                     {primaryAction.label}
                   </Button>
                 )}
                 {secondaryAction && (
-                  <Button tone="neutral" fill="plain" size="sm" className="text-xs h-7 px-3" onClick={secondaryAction.onClick}>
+                  <Button
+                    tone="neutral"
+                    fill="plain"
+                    size="sm"
+                    className="text-xs h-7 px-3"
+                    onClick={secondaryAction.onClick}
+                  >
                     {secondaryAction.label}
                   </Button>
                 )}

@@ -90,10 +90,7 @@ describe("useBatchFacts · handleBatchStatus", () => {
 
     await act(() => hook.result.current.handleBatchStatus("archived"));
 
-    expect(showError).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "disk full" }),
-      "error_messages.unknown",
-    );
+    expect(showError).toHaveBeenCalledWith(expect.objectContaining({ message: "disk full" }), "error_messages.unknown");
     expect(hook.result.current.selectedIds.has("f2")).toBe(true);
     expect(onUpdated).not.toHaveBeenCalled();
     expect(hook.result.current.batchProcessing).toBe(false);

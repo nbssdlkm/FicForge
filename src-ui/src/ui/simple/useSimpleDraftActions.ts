@@ -165,11 +165,25 @@ export function useSimpleDraftActions({
         setAcceptingDraftId(null);
       }
     },
-    [acceptingDraftId, auPath, canAutoExtract, chat, factsExtraction.handleOpenExtractReview, onChaptersChanged, refreshChapterContext, showError, showSuccess, showToast, t],
+    [
+      acceptingDraftId,
+      auPath,
+      canAutoExtract,
+      chat,
+      factsExtraction.handleOpenExtractReview,
+      onChaptersChanged,
+      refreshChapterContext,
+      showError,
+      showSuccess,
+      showToast,
+      t,
+    ],
   );
 
   const handleAcceptDraftSync = useCallback(
-    (messageId: string) => { void handleAcceptDraft(messageId); },
+    (messageId: string) => {
+      void handleAcceptDraft(messageId);
+    },
     [handleAcceptDraft],
   );
 

@@ -70,9 +70,11 @@ describe("FandomLoreLayout — 状态下沉回归", () => {
   beforeEach(() => {
     (getFandomDisplayInfo as Mock).mockReset().mockResolvedValue({ name: "底特律：变人" });
     (listFandomFiles as Mock).mockReset().mockResolvedValue(fileListsFixture());
-    (readFandomFile as Mock).mockReset().mockImplementation(
-      (_dir: string, _category: string, filename: string) => Promise.resolve({ content: `${filename}的内容` }),
-    );
+    (readFandomFile as Mock)
+      .mockReset()
+      .mockImplementation((_dir: string, _category: string, filename: string) =>
+        Promise.resolve({ content: `${filename}的内容` }),
+      );
     (saveLore as Mock).mockReset().mockResolvedValue(undefined);
     (deleteLore as Mock).mockReset().mockResolvedValue(undefined);
   });

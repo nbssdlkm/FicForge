@@ -24,7 +24,11 @@ import { FileThreadRepository } from "../repositories/implementations/file_threa
 import { MockAdapter } from "../repositories/__tests__/mock_adapter.js";
 import { makeDeepseekProbeProvider } from "./_deepseek.js";
 
-const { provider: llm, model: PROBE_MODEL, baseUrl: PROBE_BASE } = makeDeepseekProbeProvider({
+const {
+  provider: llm,
+  model: PROBE_MODEL,
+  baseUrl: PROBE_BASE,
+} = makeDeepseekProbeProvider({
   legacyEnvVar: "M9_PROBE_MODEL",
 });
 console.log(`[M9 breadth probe] LLM = ${PROBE_MODEL} @ ${PROBE_BASE}`);
@@ -38,10 +42,10 @@ interface Scenario {
   characters: string[];
   chapterText: string;
   // ground truth
-  expectedCauses: string[];   // 至少有一条 fact 的 caused_by 应该命中这些（埋好的跨章因）
+  expectedCauses: string[]; // 至少有一条 fact 的 caused_by 应该命中这些（埋好的跨章因）
   expectedThreadId: string;
-  reasonableMax: number;      // 这一章合理的事实条数上限（超了=过度提取信号）
-  watch?: string;             // 这个题材重点观察什么（给读者）
+  reasonableMax: number; // 这一章合理的事实条数上限（超了=过度提取信号）
+  watch?: string; // 这个题材重点观察什么（给读者）
 }
 
 // ⚠️ 以下 SCENARIOS 全是【合成测试固件】——角色名/情节/剧情线均为本探针编造，非任何真实 AU 内容，
@@ -49,7 +53,9 @@ interface Scenario {
 // 不进 CI（需本地 deepseek key、打真实网络）。
 const SCENARIOS: Scenario[] = [
   {
-    id: "office", genre: "现代职场·数据造假悬疑", chapterNum: 3,
+    id: "office",
+    genre: "现代职场·数据造假悬疑",
+    chapterNum: 3,
     characters: ["林夏", "周明"],
     seededFacts: [
       { id: "f_office_logs", chapter: 1, content_clean: "林夏在测试服务器日志里发现留存数据被一段脚本批量改写过" },
@@ -67,7 +73,9 @@ const SCENARIOS: Scenario[] = [
     watch: "因果该挂到「发现日志被改」「周明掩盖」，别把整段对话拆成一堆碎事实",
   },
   {
-    id: "scifi", genre: "科幻·首次接触（设定密集）", chapterNum: 3,
+    id: "scifi",
+    genre: "科幻·首次接触（设定密集）",
+    chapterNum: 3,
     characters: ["陈舸", "司令"],
     seededFacts: [
       { id: "f_scifi_signal", chapter: 1, content_clean: "深空观测站接收到来自半人马座方向的规律性脉冲信号" },
@@ -85,7 +93,9 @@ const SCENARIOS: Scenario[] = [
     watch: "过度提取高危：别把「备用天线」「环形屏」「茶杯」这种设定/道具当独立事实抽出来",
   },
   {
-    id: "wuxia", genre: "武侠·江湖复仇", chapterNum: 3,
+    id: "wuxia",
+    genre: "武侠·江湖复仇",
+    chapterNum: 3,
     characters: ["顾昀", "卫长老"],
     seededFacts: [
       { id: "f_wuxia_massacre", chapter: 1, content_clean: "十年前飞鸿镖局满门被灭，唯独少年顾昀从柴房逃生" },
@@ -103,7 +113,9 @@ const SCENARIOS: Scenario[] = [
     watch: "夜探该挂「腰牌线索」，认出刀客该挂「灭门」；两条跨章因都要在",
   },
   {
-    id: "mystery", genre: "本格推理·密室（含红鲱鱼）", chapterNum: 4,
+    id: "mystery",
+    genre: "本格推理·密室（含红鲱鱼）",
+    chapterNum: 4,
     characters: ["池砚", "管家", "女佣"],
     seededFacts: [
       { id: "f_myst_body", chapter: 1, content_clean: "别墅书房发现庄主尸体，门窗从内反锁，呈密室状态" },
@@ -119,16 +131,23 @@ const SCENARIOS: Scenario[] = [
     expectedCauses: ["f_myst_key", "f_myst_alibi"],
     expectedThreadId: "t_myst_case",
     reasonableMax: 5,
-    watch: "精度/红鲱鱼：密室伪造结论该挂「暗格钥匙」(f_myst_key)，别错挂到假的不在场证明 f_myst_alibi 上；管家嫌疑该挂女佣翻供",
+    watch:
+      "精度/红鲱鱼：密室伪造结论该挂「暗格钥匙」(f_myst_key)，别错挂到假的不在场证明 f_myst_alibi 上；管家嫌疑该挂女佣翻供",
   },
 ];
 
 interface Metrics {
-  id: string; genre: string; model: string;
-  factCount: number; reasonableMax: number; overExtraction: boolean;
-  causesExpected: number; causesFound: number;     // 召回
-  threadFacts: number;                              // 挂到目标线的事实数
-  hallucinatedCauses: number; hallucinatedThreads: number;
+  id: string;
+  genre: string;
+  model: string;
+  factCount: number;
+  reasonableMax: number;
+  overExtraction: boolean;
+  causesExpected: number;
+  causesFound: number; // 召回
+  threadFacts: number; // 挂到目标线的事实数
+  hallucinatedCauses: number;
+  hallucinatedThreads: number;
 }
 const collected: Metrics[] = [];
 
@@ -137,21 +156,37 @@ describe(`M9 质量广度测 (model=${PROBE_MODEL})`, () => {
     const adapter = new MockAdapter();
     const factRepo = new FileFactRepository(adapter);
     for (const f of sc.seededFacts) {
-      await factRepo.append("au", createFact({
-        id: f.id, content_raw: f.content_clean, content_clean: f.content_clean,
-        characters: sc.characters, chapter: f.chapter,
-      }));
+      await factRepo.append(
+        "au",
+        createFact({
+          id: f.id,
+          content_raw: f.content_clean,
+          content_clean: f.content_clean,
+          characters: sc.characters,
+          chapter: f.chapter,
+        }),
+      );
     }
     const threadRepo = new FileThreadRepository(adapter);
-    await threadRepo.add("au", createThread({
-      id: sc.thread.id, title: sc.thread.title, description: sc.thread.title,
-      state: sc.thread.state, status: ThreadStatus.ACTIVE,
-    }));
+    await threadRepo.add(
+      "au",
+      createThread({
+        id: sc.thread.id,
+        title: sc.thread.title,
+        description: sc.thread.title,
+        state: sc.thread.state,
+        status: ThreadStatus.ACTIVE,
+      }),
+    );
 
     const existingSummary = sc.seededFacts.map((f) => ({ content_clean: f.content_clean }));
     const res = await reactExtractFromChapter(
-      sc.chapterText, sc.chapterNum, existingSummary,
-      { characters: sc.characters }, null, llm,
+      sc.chapterText,
+      sc.chapterNum,
+      existingSummary,
+      { characters: sc.characters },
+      null,
+      llm,
       { language: "zh", factRepo, threadRepo, auPath: "au" },
     );
 
@@ -168,25 +203,41 @@ describe(`M9 质量广度测 (model=${PROBE_MODEL})`, () => {
     console.log(`观察点：${sc.watch}`);
     res.facts.forEach((f, i) => {
       console.log(`  [${i}] ${f.content_clean}`);
-      const cb = f.caused_by ?? [], tid = f.thread_ids ?? [];
-      if (cb.length || tid.length) console.log(`        caused_by=${JSON.stringify(cb)} thread_ids=${JSON.stringify(tid)}`);
+      const cb = f.caused_by ?? [],
+        tid = f.thread_ids ?? [];
+      if (cb.length || tid.length)
+        console.log(`        caused_by=${JSON.stringify(cb)} thread_ids=${JSON.stringify(tid)}`);
     });
-    console.log(`  → 跨章因召回 ${causesFound.length}/${sc.expectedCauses.length} (${JSON.stringify(causesFound)})  挂线事实 ${threadFacts}  过度提取=${res.facts.length > sc.reasonableMax}`);
+    console.log(
+      `  → 跨章因召回 ${causesFound.length}/${sc.expectedCauses.length} (${JSON.stringify(causesFound)})  挂线事实 ${threadFacts}  过度提取=${res.facts.length > sc.reasonableMax}`,
+    );
     if (hallucinatedCauses.length) console.log(`  ⚠ 幻觉 caused_by: ${JSON.stringify(hallucinatedCauses)}`);
     if (hallucinatedThreads.length) console.log(`  ⚠ 幻觉 thread_ids: ${JSON.stringify(hallucinatedThreads)}`);
 
     collected.push({
-      id: sc.id, genre: sc.genre, model: PROBE_MODEL,
-      factCount: res.facts.length, reasonableMax: sc.reasonableMax, overExtraction: res.facts.length > sc.reasonableMax,
-      causesExpected: sc.expectedCauses.length, causesFound: causesFound.length,
-      threadFacts, hallucinatedCauses: hallucinatedCauses.length, hallucinatedThreads: hallucinatedThreads.length,
+      id: sc.id,
+      genre: sc.genre,
+      model: PROBE_MODEL,
+      factCount: res.facts.length,
+      reasonableMax: sc.reasonableMax,
+      overExtraction: res.facts.length > sc.reasonableMax,
+      causesExpected: sc.expectedCauses.length,
+      causesFound: causesFound.length,
+      threadFacts,
+      hallucinatedCauses: hallucinatedCauses.length,
+      hallucinatedThreads: hallucinatedThreads.length,
     });
 
     // ---- 硬断言：只卡「循环坏 / 幻觉」，质量留给人读 ----
     expect(res.status).toBe("ok");
     expect(res.facts.length).toBeGreaterThan(0);
-    expect(hallucinatedCauses, `幻觉 caused_by（防幻觉过滤漏了）: ${JSON.stringify(hallucinatedCauses)}`).toHaveLength(0);
-    expect(hallucinatedThreads, `幻觉 thread_ids（防幻觉过滤漏了）: ${JSON.stringify(hallucinatedThreads)}`).toHaveLength(0);
+    expect(hallucinatedCauses, `幻觉 caused_by（防幻觉过滤漏了）: ${JSON.stringify(hallucinatedCauses)}`).toHaveLength(
+      0,
+    );
+    expect(
+      hallucinatedThreads,
+      `幻觉 thread_ids（防幻觉过滤漏了）: ${JSON.stringify(hallucinatedThreads)}`,
+    ).toHaveLength(0);
   }, 180_000);
 
   afterAll(() => {
@@ -196,17 +247,19 @@ describe(`M9 质量广度测 (model=${PROBE_MODEL})`, () => {
     for (const m of collected) {
       console.log(
         m.genre.padEnd(20) +
-        `  ${m.factCount}/${m.reasonableMax}`.padEnd(9) +
-        `  ${m.overExtraction ? "是" : "否"}`.padEnd(6) +
-        `  ${m.causesFound}/${m.causesExpected}`.padEnd(10) +
-        `  ${m.threadFacts}`.padEnd(5) +
-        `  ${m.hallucinatedCauses + m.hallucinatedThreads}`,
+          `  ${m.factCount}/${m.reasonableMax}`.padEnd(9) +
+          `  ${m.overExtraction ? "是" : "否"}`.padEnd(6) +
+          `  ${m.causesFound}/${m.causesExpected}`.padEnd(10) +
+          `  ${m.threadFacts}`.padEnd(5) +
+          `  ${m.hallucinatedCauses + m.hallucinatedThreads}`,
       );
     }
     const over = collected.filter((m) => m.overExtraction).length;
     const fullRecall = collected.filter((m) => m.causesFound === m.causesExpected).length;
     const threadHit = collected.filter((m) => m.threadFacts > 0).length;
-    console.log(`\n过度提取 ${over}/${collected.length} 题材 · 跨章因全召回 ${fullRecall}/${collected.length} · 挂到目标线 ${threadHit}/${collected.length} · 幻觉合计 ${collected.reduce((s, m) => s + m.hallucinatedCauses + m.hallucinatedThreads, 0)}`);
+    console.log(
+      `\n过度提取 ${over}/${collected.length} 题材 · 跨章因全召回 ${fullRecall}/${collected.length} · 挂到目标线 ${threadHit}/${collected.length} · 幻觉合计 ${collected.reduce((s, m) => s + m.hallucinatedCauses + m.hallucinatedThreads, 0)}`,
+    );
     console.log("##################################################\n");
   });
 });

@@ -73,7 +73,9 @@ describe("form-mappers chat_path — AU 覆盖（au override）", () => {
 
   it("hydrate：只设了 chat_path（其余沿用全局）也算覆盖开启", () => {
     // model / api_base 都空，仅 chat_path 非空 —— 覆盖检测须把 chat_path 计入真值。
-    const form = hydrateAuSettingsForm(projectWithLlm({ mode: "api", model: "", api_base: "", chat_path: "/only/path" }));
+    const form = hydrateAuSettingsForm(
+      projectWithLlm({ mode: "api", model: "", api_base: "", chat_path: "/only/path" }),
+    );
     expect(form.isLlmOverride).toBe(true);
     expect(form.chatPath).toBe("/only/path");
   });

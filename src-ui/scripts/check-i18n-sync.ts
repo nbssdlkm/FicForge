@@ -43,9 +43,7 @@ function main() {
   const locales: Record<string, Set<string>> = {};
   for (const file of files) {
     const lang = file.replace(".json", "");
-    const content = JSON.parse(
-      fs.readFileSync(path.join(LOCALES_DIR, file), "utf-8")
-    );
+    const content = JSON.parse(fs.readFileSync(path.join(LOCALES_DIR, file), "utf-8"));
     locales[lang] = new Set(collectKeys(content));
   }
 

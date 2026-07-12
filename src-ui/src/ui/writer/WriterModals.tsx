@@ -2,17 +2,17 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { Sparkles } from 'lucide-react';
+import { Sparkles } from "lucide-react";
 import { Spinner } from "../shared/Spinner";
-import { Button } from '../shared/Button';
-import { Tag } from '../shared/Tag';
-import { Modal } from '../shared/Modal';
-import { ConfirmDialog } from '../shared/ConfirmDialog';
-import { EmptyState } from '../shared/EmptyState';
-import { useTranslation } from '../../i18n/useAppTranslation';
-import { getEnumLabel } from '../../i18n/labels';
-import { FactAnnotationChips } from '../facts/FactAnnotationChips';
-import type { ExtractedFactCandidate } from '../../api/engine-client';
+import { Button } from "../shared/Button";
+import { Tag } from "../shared/Tag";
+import { Modal } from "../shared/Modal";
+import { ConfirmDialog } from "../shared/ConfirmDialog";
+import { EmptyState } from "../shared/EmptyState";
+import { useTranslation } from "../../i18n/useAppTranslation";
+import { getEnumLabel } from "../../i18n/labels";
+import { FactAnnotationChips } from "../facts/FactAnnotationChips";
+import type { ExtractedFactCandidate } from "../../api/engine-client";
 
 // --- Finalize Confirm Modal ---
 
@@ -40,32 +40,28 @@ export const FinalizeConfirmModal = ({
   const { t } = useTranslation();
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={t('drafts.confirmFinalize', { chapter: currentChapter })}
-    >
+    <Modal isOpen={isOpen} onClose={onClose} title={t("drafts.confirmFinalize", { chapter: currentChapter })}>
       <div className="space-y-4">
         <div>
-          <label className="block text-xs font-bold text-text/70 mb-1.5">{t('writer.chapterTitleLabel')}</label>
+          <label className="block text-xs font-bold text-text/70 mb-1.5">{t("writer.chapterTitleLabel")}</label>
           <input
             type="text"
             value={chapterTitle}
             onChange={(e) => onChapterTitleChange(e.target.value)}
-            placeholder={t('writer.chapterTitlePlaceholder')}
+            placeholder={t("writer.chapterTitlePlaceholder")}
             className="w-full rounded-lg border border-black/10 bg-surface/40 px-3 py-2 text-base text-text focus:border-accent focus:outline-hidden focus:ring-1 focus:ring-accent dark:border-white/10 md:text-sm"
           />
-          <p className="text-xs text-text/50 mt-1">{t('writer.chapterTitleAutoHint')}</p>
+          <p className="text-xs text-text/50 mt-1">{t("writer.chapterTitleAutoHint")}</p>
         </div>
         <div className="rounded-lg border border-black/10 bg-surface/40 p-4 text-sm leading-relaxed text-text/90 dark:border-white/10 max-h-48 overflow-y-auto">
-          {previewText || t('writer.emptyContent')}
+          {previewText || t("writer.emptyContent")}
         </div>
         <div className="flex justify-end gap-2">
           <Button tone="neutral" fill="plain" onClick={onClose}>
-            {t('common.actions.cancel')}
+            {t("common.actions.cancel")}
           </Button>
           <Button tone="accent" fill="solid" onClick={onConfirm} disabled={isFinalizing}>
-            {isFinalizing ? <Spinner size="md" /> : t('drafts.finalize')}
+            {isFinalizing ? <Spinner size="md" /> : t("drafts.finalize")}
           </Button>
         </div>
       </div>
@@ -96,10 +92,8 @@ export const DiscardConfirmModal = ({
       isOpen={isOpen}
       onClose={onClose}
       onConfirm={onDiscard}
-      title={draftsCount > 1 ? t('drafts.discardAll') : t('drafts.discard')}
-      message={draftsCount > 1
-        ? t('drafts.confirmDiscardAll', { count: draftsCount })
-        : t('drafts.confirmDiscard')}
+      title={draftsCount > 1 ? t("drafts.discardAll") : t("drafts.discard")}
+      message={draftsCount > 1 ? t("drafts.confirmDiscardAll", { count: draftsCount }) : t("drafts.confirmDiscard")}
       destructive
       loading={isDiscarding}
     />
@@ -136,17 +130,23 @@ export const FactsPromptModal = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
       <div className="space-y-5">
-        <p className="text-sm text-text/90">{t('drafts.factsPrompt')}</p>
+        <p className="text-sm text-text/90">{t("drafts.factsPrompt")}</p>
         <div className="space-y-2">
-          <Button tone="accent" fill="solid" className="w-full gap-2" onClick={onOpenExtractReview} disabled={extractingFacts}>
+          <Button
+            tone="accent"
+            fill="solid"
+            className="w-full gap-2"
+            onClick={onOpenExtractReview}
+            disabled={extractingFacts}
+          >
             {extractingFacts ? <Spinner size="md" /> : <Sparkles size={16} />}
-            {t('drafts.factsExtract')}
+            {t("drafts.factsExtract")}
           </Button>
           <Button tone="neutral" fill="outline" className="w-full" onClick={onManualNavigate}>
-            {t('drafts.factsManual')}
+            {t("drafts.factsManual")}
           </Button>
           <Button tone="neutral" fill="plain" className="w-full" onClick={onSkip}>
-            {t('drafts.factsSkip')}
+            {t("drafts.factsSkip")}
           </Button>
         </div>
         <label className="flex min-h-[44px] items-center gap-2 text-sm text-text/70">
@@ -156,7 +156,7 @@ export const FactsPromptModal = ({
             checked={skipFactsPrompt}
             onChange={(event) => onToggle(event.target.checked)}
           />
-          <span>{t('drafts.factsNeverAsk')}</span>
+          <span>{t("drafts.factsNeverAsk")}</span>
         </label>
       </div>
     </Modal>
@@ -189,15 +189,20 @@ export const ExtractReviewModal = ({
   const { t } = useTranslation();
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={t('facts.extractReviewTitle')}>
+    <Modal isOpen={isOpen} onClose={onClose} title={t("facts.extractReviewTitle")}>
       <div className="space-y-4">
-        <p className="text-sm text-text/70">{t('facts.extractReviewDescription')}</p>
+        <p className="text-sm text-text/70">{t("facts.extractReviewDescription")}</p>
         <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1">
           {extractedCandidates.length === 0 ? (
-            <EmptyState compact icon={<Sparkles size={28} />} title={t('facts.extractReviewEmpty')} description={t('facts.extractNoResult')} />
+            <EmptyState
+              compact
+              icon={<Sparkles size={28} />}
+              title={t("facts.extractReviewEmpty")}
+              description={t("facts.extractNoResult")}
+            />
           ) : (
             extractedCandidates.map((candidate, index) => {
-              const candidateType = candidate.fact_type || candidate.type || 'plot_event';
+              const candidateType = candidate.fact_type || candidate.type || "plot_event";
               const key = getCandidateKey(candidate, index);
               const checked = selectedExtractedKeys.includes(key);
               // M9 自动归类标签：让用户接受前看到 AI 把这条挂进了哪种关系（剧情线 / 跨章因果）。
@@ -209,7 +214,10 @@ export const ExtractReviewModal = ({
               const causedByCount = new Set(candidate.caused_by ?? []).size;
 
               return (
-                <label key={key} className={`flex cursor-pointer gap-3 rounded-lg border p-4 dark:border-white/10 ${checked ? 'border-accent/40 bg-accent/5' : 'border-black/10 bg-surface/40'}`}>
+                <label
+                  key={key}
+                  className={`flex cursor-pointer gap-3 rounded-lg border p-4 dark:border-white/10 ${checked ? "border-accent/40 bg-accent/5" : "border-black/10 bg-surface/40"}`}
+                >
                   <input
                     type="checkbox"
                     className="mt-1 accent-accent"
@@ -218,24 +226,36 @@ export const ExtractReviewModal = ({
                   />
                   <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Tag tone="info">{getEnumLabel('fact_type', candidateType, candidateType)}</Tag>
-                      <Tag tone="warning">{getEnumLabel('narrative_weight', candidate.narrative_weight, candidate.narrative_weight)}</Tag>
-                      <Tag tone="default">{getEnumLabel('fact_status', candidate.status, candidate.status)}</Tag>
+                      <Tag tone="info">{getEnumLabel("fact_type", candidateType, candidateType)}</Tag>
+                      <Tag tone="warning">
+                        {getEnumLabel("narrative_weight", candidate.narrative_weight, candidate.narrative_weight)}
+                      </Tag>
+                      <Tag tone="default">{getEnumLabel("fact_status", candidate.status, candidate.status)}</Tag>
                       {threadCount > 0 && (
-                        <Tag tone="gold">{t('facts.extractThreadTag')}{threadCount > 1 ? ` ×${threadCount}` : ''}</Tag>
+                        <Tag tone="gold">
+                          {t("facts.extractThreadTag")}
+                          {threadCount > 1 ? ` ×${threadCount}` : ""}
+                        </Tag>
                       )}
                       {causedByCount > 0 && (
-                        <Tag tone="success">{t('facts.extractCausedByTag')}{causedByCount > 1 ? ` ×${causedByCount}` : ''}</Tag>
+                        <Tag tone="success">
+                          {t("facts.extractCausedByTag")}
+                          {causedByCount > 1 ? ` ×${causedByCount}` : ""}
+                        </Tag>
                       )}
                       {/* M3 批一：知情标注入库前可见（AI 标了「谁知道/谁不知道」就摆在确认卡上） */}
                       <FactAnnotationChips fact={candidate} />
-                      <span className="text-xs text-text/50">{t('facts.extractSourceChapter', { chapter: candidate.chapter })}</span>
+                      <span className="text-xs text-text/50">
+                        {t("facts.extractSourceChapter", { chapter: candidate.chapter })}
+                      </span>
                     </div>
                     <p className="text-sm text-text/90">{candidate.content_clean}</p>
                     {candidate.characters.length > 0 && (
                       <div className="flex flex-wrap gap-2">
                         {candidate.characters.map((character) => (
-                          <span key={character} className="text-xs font-medium text-accent/80">@{character}</span>
+                          <span key={character} className="text-xs font-medium text-accent/80">
+                            @{character}
+                          </span>
                         ))}
                       </div>
                     )}
@@ -247,10 +267,15 @@ export const ExtractReviewModal = ({
         </div>
         <div className="flex justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
           <Button tone="neutral" fill="plain" onClick={onClose}>
-            {t('common.actions.cancel')}
+            {t("common.actions.cancel")}
           </Button>
-          <Button tone="accent" fill="solid" onClick={onSave} disabled={savingExtracted || selectedExtractedKeys.length === 0}>
-            {savingExtracted ? <Spinner size="md" /> : t('drafts.extractSaveSelected')}
+          <Button
+            tone="accent"
+            fill="solid"
+            onClick={onSave}
+            disabled={savingExtracted || selectedExtractedKeys.length === 0}
+          >
+            {savingExtracted ? <Spinner size="md" /> : t("drafts.extractSaveSelected")}
           </Button>
         </div>
       </div>
@@ -268,13 +293,7 @@ export interface UndoConfirmModalProps {
   isUndoing: boolean;
 }
 
-export const UndoConfirmModal = ({
-  isOpen,
-  onClose,
-  chapterNum,
-  onConfirm,
-  isUndoing,
-}: UndoConfirmModalProps) => {
+export const UndoConfirmModal = ({ isOpen, onClose, chapterNum, onConfirm, isUndoing }: UndoConfirmModalProps) => {
   const { t } = useTranslation();
 
   return (
@@ -282,16 +301,16 @@ export const UndoConfirmModal = ({
       isOpen={isOpen}
       onClose={onClose}
       onConfirm={onConfirm}
-      title={t('undo.confirmTitle', { chapter: chapterNum })}
+      title={t("undo.confirmTitle", { chapter: chapterNum })}
       message={
         <>
-          <span className="block whitespace-pre-line">{t('undo.confirmDesc')}</span>
-          <span className="mt-2 block font-medium text-error">{t('undo.irreversible')}</span>
+          <span className="block whitespace-pre-line">{t("undo.confirmDesc")}</span>
+          <span className="mt-2 block font-medium text-error">{t("undo.irreversible")}</span>
         </>
       }
       destructive
-      confirmLabel={t('undo.confirmAction')}
-      cancelLabel={t('undo.cancel')}
+      confirmLabel={t("undo.confirmAction")}
+      cancelLabel={t("undo.cancel")}
       loading={isUndoing}
     />
   );

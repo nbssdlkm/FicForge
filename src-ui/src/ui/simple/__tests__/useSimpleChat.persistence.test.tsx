@@ -10,9 +10,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../api/engine-client", async () => {
-  const actual = await vi.importActual<typeof import("../../../api/engine-client")>(
-    "../../../api/engine-client",
-  );
+  const actual = await vi.importActual<typeof import("../../../api/engine-client")>("../../../api/engine-client");
   return {
     ...actual,
     getSimpleChat: vi.fn(),
@@ -83,7 +81,9 @@ describe("useSimpleChat persistence (C2)", () => {
     const { result } = renderHook(() => useSimpleChat("au_s"));
     await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
-    act(() => { result.current.appendUserMessage("first"); });
+    act(() => {
+      result.current.appendUserMessage("first");
+    });
     expect(mockedSave).not.toHaveBeenCalled();
 
     await waitFor(() => expect(mockedSave).toHaveBeenCalledTimes(1), { timeout: 1000 });
@@ -100,11 +100,17 @@ describe("useSimpleChat persistence (C2)", () => {
     const { result } = renderHook(() => useSimpleChat("au_d"));
     await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
-    act(() => { result.current.appendUserMessage("a"); });
+    act(() => {
+      result.current.appendUserMessage("a");
+    });
     await sleep(50);
-    act(() => { result.current.appendUserMessage("b"); });
+    act(() => {
+      result.current.appendUserMessage("b");
+    });
     await sleep(50);
-    act(() => { result.current.appendUserMessage("c"); });
+    act(() => {
+      result.current.appendUserMessage("c");
+    });
     await waitFor(() => expect(mockedSave).toHaveBeenCalledTimes(1), { timeout: 1000 });
 
     const lastCall = mockedSave.mock.calls[0];
@@ -119,7 +125,9 @@ describe("useSimpleChat persistence (C2)", () => {
     await waitFor(() => expect(result.current.isLoaded).toBe(true));
     expect(result.current.loadError).toBe("disk full");
 
-    act(() => { result.current.appendUserMessage("memory-only after load fail"); });
+    act(() => {
+      result.current.appendUserMessage("memory-only after load fail");
+    });
     // 等过 debounce 200ms 看是否 fire
     await sleep(400);
     expect(mockedSave).not.toHaveBeenCalled();
@@ -134,7 +142,9 @@ describe("useSimpleChat persistence (C2)", () => {
     const { result } = renderHook(() => useSimpleChat("au_savefail"));
     await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
-    act(() => { result.current.appendUserMessage("x"); });
+    act(() => {
+      result.current.appendUserMessage("x");
+    });
     await waitFor(() => expect(mockedSave).toHaveBeenCalled(), { timeout: 1000 });
     // hook state 没破坏
     expect(result.current.messages).toHaveLength(1);
@@ -147,7 +157,9 @@ describe("useSimpleChat persistence (C2)", () => {
     const { result, unmount } = renderHook(() => useSimpleChat("au_flush"));
     await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
-    act(() => { result.current.appendUserMessage("last-words"); });
+    act(() => {
+      result.current.appendUserMessage("last-words");
+    });
     // 还在 200ms 防抖窗口内，正常路径尚未 save
     expect(mockedSave).not.toHaveBeenCalled();
 
@@ -169,7 +181,9 @@ describe("useSimpleChat persistence (C2)", () => {
     });
     await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
-    act(() => { result.current.appendUserMessage("for-au-1"); });
+    act(() => {
+      result.current.appendUserMessage("for-au-1");
+    });
     rerender({ au: "au_2" });
 
     expect(mockedSave).toHaveBeenCalledWith(
@@ -190,12 +204,16 @@ describe("useSimpleChat persistence (C2)", () => {
     const { result } = renderHook(() => useSimpleChat("au_pagehide"));
     await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
-    act(() => { result.current.appendUserMessage("closing-tab"); });
+    act(() => {
+      result.current.appendUserMessage("closing-tab");
+    });
     // 还在 200ms 防抖窗口内
     expect(mockedSave).not.toHaveBeenCalled();
 
     // 关标签页 / PWA 进后台：组件 cleanup 不保证执行，pagehide 必须兜底
-    act(() => { window.dispatchEvent(new Event("pagehide")); });
+    act(() => {
+      window.dispatchEvent(new Event("pagehide"));
+    });
 
     expect(mockedSave).toHaveBeenCalledTimes(1);
     expect(mockedSave).toHaveBeenCalledWith(
@@ -206,7 +224,10 @@ describe("useSimpleChat persistence (C2)", () => {
 
   it("pagehide flush：无未落盘变更时不写（有未落盘才写）", async () => {
     mockedGet.mockResolvedValue({
-      version: 1, au_path: "au_ph_clean", created_at: "t", updated_at: "t",
+      version: 1,
+      au_path: "au_ph_clean",
+      created_at: "t",
+      updated_at: "t",
       messages: [{ id: "m1", timestamp: "t", kind: "user", content: "existing" }],
     });
     mockedSave.mockResolvedValue();
@@ -215,14 +236,19 @@ describe("useSimpleChat persistence (C2)", () => {
     await waitFor(() => expect(result.current.isLoaded).toBe(true));
     await sleep(300); // 静置过防抖窗口，load 内容无变更
 
-    act(() => { window.dispatchEvent(new Event("pagehide")); });
+    act(() => {
+      window.dispatchEvent(new Event("pagehide"));
+    });
 
     expect(mockedSave).not.toHaveBeenCalled();
   });
 
   it("无未落盘变更时卸载不触发写入（load 内容不被原样重写）", async () => {
     mockedGet.mockResolvedValue({
-      version: 1, au_path: "au_clean", created_at: "t", updated_at: "t",
+      version: 1,
+      au_path: "au_clean",
+      created_at: "t",
+      updated_at: "t",
       messages: [{ id: "m1", timestamp: "t", kind: "user", content: "existing" }],
     });
     mockedSave.mockResolvedValue();
@@ -243,7 +269,9 @@ describe("useSimpleChat persistence (C2)", () => {
     const { result, unmount } = renderHook(() => useSimpleChat("au_errflush"));
     await waitFor(() => expect(result.current.isLoaded).toBe(true));
 
-    act(() => { result.current.appendUserMessage("memory-only"); });
+    act(() => {
+      result.current.appendUserMessage("memory-only");
+    });
     unmount();
 
     expect(mockedSave).not.toHaveBeenCalled();
@@ -251,9 +279,17 @@ describe("useSimpleChat persistence (C2)", () => {
 
   it("AU 快速切换：旧 load resolve 不会污染新 AU 的 state", async () => {
     let resolveOld: (file: ReturnType<typeof emptyChatFile>) => void = () => {};
-    mockedGet.mockImplementationOnce(() => new Promise((r) => { resolveOld = r; }));
+    mockedGet.mockImplementationOnce(
+      () =>
+        new Promise((r) => {
+          resolveOld = r;
+        }),
+    );
     mockedGet.mockResolvedValueOnce({
-      version: 1, au_path: "au_new", created_at: "t", updated_at: "t",
+      version: 1,
+      au_path: "au_new",
+      created_at: "t",
+      updated_at: "t",
       messages: [{ id: "newmsg", timestamp: "t", kind: "user", content: "fresh" }],
     });
     mockedSave.mockResolvedValue();
@@ -265,14 +301,15 @@ describe("useSimpleChat persistence (C2)", () => {
 
     rerender({ au: "au_new" });
     await waitFor(() => expect(result.current.isLoaded).toBe(true));
-    expect(result.current.messages).toEqual([
-      expect.objectContaining({ id: "newmsg" }),
-    ]);
+    expect(result.current.messages).toEqual([expect.objectContaining({ id: "newmsg" })]);
 
     // 旧 load 现在 resolve，不应覆盖新 AU
     await act(async () => {
       resolveOld({
-        version: 1, au_path: "au_old", created_at: "t", updated_at: "t",
+        version: 1,
+        au_path: "au_old",
+        created_at: "t",
+        updated_at: "t",
         messages: [{ id: "stale", timestamp: "t", kind: "user", content: "stale" }],
       });
       await sleep(20);

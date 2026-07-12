@@ -20,7 +20,11 @@ const _AU_TOOLS: readonly Record<string, unknown>[] = [
         properties: {
           name: { type: "string", description: "角色名（如 Connor Ellis）" },
           aliases: { type: "array", items: { type: "string" }, description: "别名列表" },
-          importance: { type: "string", enum: ["main", "supporting", "minor"], description: "main=主角, supporting=配角, minor=龙套" },
+          importance: {
+            type: "string",
+            enum: ["main", "supporting", "minor"],
+            description: "main=主角, supporting=配角, minor=龙套",
+          },
           origin_ref: { type: "string", description: "fandom/角色名（来自Fandom）或 original（原创）" },
           content: { type: "string", description: "完整 Markdown 设定内容（含核心人格、核心限制等段落）" },
         },
@@ -163,19 +167,13 @@ const _AU_TOOLS: readonly Record<string, unknown>[] = [
 // 手编工具（add_fact / modify_fact / update_core_includes）。从对话 tool list 物理移除
 // （schema 层），LLM 看不到就不会调。单一真相源：黑名单一处定义，对话任何路径都从这里 import。
 
-const SIMPLE_DISABLED_TOOLS: ReadonlySet<string> = new Set([
-  "add_fact",
-  "modify_fact",
-  "update_core_includes",
-]);
+const SIMPLE_DISABLED_TOOLS: ReadonlySet<string> = new Set(["add_fact", "modify_fact", "update_core_includes"]);
 
-const _SIMPLE_AU_MODIFY_TOOLS: readonly Record<string, unknown>[] = _AU_TOOLS.filter(
-  (tool) => {
-    const fn = (tool as { function?: { name?: string } }).function;
-    const name = fn?.name ?? "";
-    return !SIMPLE_DISABLED_TOOLS.has(name);
-  },
-);
+const _SIMPLE_AU_MODIFY_TOOLS: readonly Record<string, unknown>[] = _AU_TOOLS.filter((tool) => {
+  const fn = (tool as { function?: { name?: string } }).function;
+  const name = fn?.name ?? "";
+  return !SIMPLE_DISABLED_TOOLS.has(name);
+});
 
 // ===========================================================================
 // Fandom 设定模式 — 4 个 tool
@@ -255,7 +253,8 @@ const _SIMPLE_VIEW_TOOLS: readonly Record<string, unknown>[] = [
     type: "function",
     function: {
       name: "show_chapter",
-      description: "在对话流中折叠展示一个已确认章节的正文（用户可点击展开）。当用户问'看一下第 N 章' / '展示第 N 章' / '让我看看第 N 章'等查看类需求时调用，不改任何文件。",
+      description:
+        "在对话流中折叠展示一个已确认章节的正文（用户可点击展开）。当用户问'看一下第 N 章' / '展示第 N 章' / '让我看看第 N 章'等查看类需求时调用，不改任何文件。",
       parameters: {
         type: "object",
         properties: {
@@ -273,13 +272,15 @@ const _SIMPLE_VIEW_TOOLS: readonly Record<string, unknown>[] = [
     type: "function",
     function: {
       name: "show_setting",
-      description: "在对话流中折叠展示一个设定文件的正文（用户可点击展开）。当用户问'看一下角色 Alice' / '展示设定 X' / '让我看看世界观'等查看类需求时调用，不改任何文件。",
+      description:
+        "在对话流中折叠展示一个设定文件的正文（用户可点击展开）。当用户问'看一下角色 Alice' / '展示设定 X' / '让我看看世界观'等查看类需求时调用，不改任何文件。",
       parameters: {
         type: "object",
         properties: {
           file_path: {
             type: "string",
-            description: "设定文件的相对路径，格式为 '{category}/{filename}.md'。category 取值：'characters' / 'worldbuilding'（AU 层）或 'core_characters' / 'core_worldbuilding'（Fandom 层）。例：'characters/Alice.md' / 'worldbuilding/Magic.md'",
+            description:
+              "设定文件的相对路径，格式为 '{category}/{filename}.md'。category 取值：'characters' / 'worldbuilding'（AU 层）或 'core_characters' / 'core_worldbuilding'（Fandom 层）。例：'characters/Alice.md' / 'worldbuilding/Magic.md'",
           },
         },
         required: ["file_path"],
@@ -300,7 +301,8 @@ const _SIMPLE_REPLY_TOOL: Record<string, unknown> = {
   type: "function",
   function: {
     name: "chat_reply",
-    description: "向用户输出对话式回答（闲聊 / 元问题 / 澄清反问 / 进度查询等）。当用户的消息不是续写章节、查看 / 修改设定的请求时调用此工具。content 字段填写你要对用户说的话（按用户语言）。不要用此工具输出章节正文 —— 章节正文应直接输出 markdown 文本不调任何工具。",
+    description:
+      "向用户输出对话式回答（闲聊 / 元问题 / 澄清反问 / 进度查询等）。当用户的消息不是续写章节、查看 / 修改设定的请求时调用此工具。content 字段填写你要对用户说的话（按用户语言）。不要用此工具输出章节正文 —— 章节正文应直接输出 markdown 文本不调任何工具。",
     parameters: {
       type: "object",
       properties: {

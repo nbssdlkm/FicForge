@@ -45,7 +45,11 @@ if (!isTauri() && !isCapacitor() && "serviceWorker" in navigator) {
     onNeedRefresh() {
       window.dispatchEvent(
         new CustomEvent<SwUpdateReadyDetail>(SW_UPDATE_READY_EVENT, {
-          detail: { update: () => { void updateSW(true); } },
+          detail: {
+            update: () => {
+              void updateSW(true);
+            },
+          },
         }),
       );
     },

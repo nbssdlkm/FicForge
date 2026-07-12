@@ -2,11 +2,11 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState } from 'react';
-import { createFandom, createAu, deleteFandom, deleteAu } from '../../api/engine-client';
+import { useState } from "react";
+import { createFandom, createAu, deleteFandom, deleteAu } from "../../api/engine-client";
 
 export type LibraryDeleteTarget = {
-  type: 'fandom' | 'au';
+  type: "fandom" | "au";
   fandomDir: string;
   fandomName: string;
   auDir?: string;
@@ -35,10 +35,10 @@ export function useLibraryMutations({
   const [creatingFandom, setCreatingFandom] = useState(false);
   const [creatingAu, setCreatingAu] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [newFandomName, setNewFandomName] = useState('');
-  const [newAuName, setNewAuName] = useState('');
-  const [selectedFandom, setSelectedFandom] = useState('');
-  const [selectedFandomDir, setSelectedFandomDir] = useState('');
+  const [newFandomName, setNewFandomName] = useState("");
+  const [newAuName, setNewAuName] = useState("");
+  const [selectedFandom, setSelectedFandom] = useState("");
+  const [selectedFandomDir, setSelectedFandomDir] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<LibraryDeleteTarget>(null);
 
   const openFandomModal = () => {
@@ -57,11 +57,11 @@ export function useLibraryMutations({
   };
 
   const openDeleteFandom = (fandomDir: string, fandomName: string) => {
-    setDeleteTarget({ type: 'fandom', fandomDir, fandomName });
+    setDeleteTarget({ type: "fandom", fandomDir, fandomName });
   };
 
   const openDeleteAu = (fandomDir: string, fandomName: string, auDir: string, auName: string) => {
-    setDeleteTarget({ type: 'au', fandomDir, fandomName, auDir, auName });
+    setDeleteTarget({ type: "au", fandomDir, fandomName, auDir, auName });
   };
 
   const handleCreateFandom = async () => {
@@ -70,7 +70,7 @@ export function useLibraryMutations({
     try {
       const createdFandom = await createFandom(newFandomName.trim());
       setFandomModalOpen(false);
-      setNewFandomName('');
+      setNewFandomName("");
       await loadFandoms();
       onCreatedFandom?.(createdFandom);
     } catch (error) {
@@ -88,9 +88,9 @@ export function useLibraryMutations({
       const auName = newAuName.trim();
       const createdAu = await createAu(selectedFandom, auName, fandomPath);
       setAuModalOpen(false);
-      setNewAuName('');
+      setNewAuName("");
       // 融合后单一主力版:新建作品恒落地「对话」tab(共用记忆栈,对话为主力入口)。
-      onNavigate('chat', createdAu.path);
+      onNavigate("chat", createdAu.path);
     } catch (error) {
       onError(error);
     } finally {
@@ -102,7 +102,7 @@ export function useLibraryMutations({
     if (!deleteTarget || deleting) return;
     setDeleting(true);
     try {
-      if (deleteTarget.type === 'fandom') {
+      if (deleteTarget.type === "fandom") {
         await deleteFandom(deleteTarget.fandomDir);
       } else {
         await deleteAu(deleteTarget.fandomDir, deleteTarget.auDir || deleteTarget.auName!);

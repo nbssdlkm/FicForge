@@ -2,10 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import {
-  LLMMode,
-  type OnboardingDefaults,
-} from "../../api/engine-client";
+import { LLMMode, type OnboardingDefaults } from "../../api/engine-client";
 import {
   DEFAULT_DEEPSEEK_API_BASE,
   DEFAULT_DEEPSEEK_MODEL,

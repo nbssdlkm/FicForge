@@ -22,9 +22,15 @@ function getOrCreateDeviceId(): string {
   try {
     const stored = localStorage.getItem(key);
     if (stored) return stored;
-  } catch { /* localStorage 不可用 */ }
+  } catch {
+    /* localStorage 不可用 */
+  }
   const id = crypto.randomUUID();
-  try { localStorage.setItem(key, id); } catch { /* noop */ }
+  try {
+    localStorage.setItem(key, id);
+  } catch {
+    /* noop */
+  }
   // 注：受限环境下每次生成新 ID，在 initEngine 后会通过 adapter.kvSet 补写持久化
   return id;
 }
@@ -98,7 +104,11 @@ function App() {
             currentStep = "initializing engine";
             initEngine(adapter, "");
             // 请求持久化存储，防止浏览器自动回收 IndexedDB 数据
-            try { await navigator.storage?.persist?.(); } catch { /* best effort */ }
+            try {
+              await navigator.storage?.persist?.();
+            } catch {
+              /* best effort */
+            }
           }
         }
 
@@ -114,7 +124,9 @@ function App() {
             // 里已有旧 ID。采用已存值，让 ops device_id 归属稳定，不再每次重开漂移。
             eng.adapter.setDeviceId(kvStored);
           }
-        } catch { /* best effort */ }
+        } catch {
+          /* best effort */
+        }
 
         // 检查是否有上次中断的后台任务（仅 log，后续可接恢复 UI）
         try {
@@ -123,12 +135,17 @@ function App() {
           if (interrupted.length > 0) {
             getLogger().info("task_runner", `${interrupted.length} interrupted task(s) from previous session`);
           }
-        } catch { /* best effort */ }
+        } catch {
+          /* best effort */
+        }
 
         try {
           currentStep = "migrating secure storage";
           const migration = await migrateLegacySecureStorage();
-          if (migration.attempted && (migration.settingsMigrated || migration.migratedProjects > 0 || migration.failedProjects.length > 0)) {
+          if (
+            migration.attempted &&
+            (migration.settingsMigrated || migration.migratedProjects > 0 || migration.failedProjects.length > 0)
+          ) {
             getLogger().info("security", "migrated legacy secure storage", {
               attempted: migration.attempted,
               settingsMigrated: migration.settingsMigrated,
@@ -161,7 +178,7 @@ function App() {
     const updateViewportHeight = () => {
       document.documentElement.style.setProperty(
         "--app-height",
-        `${window.visualViewport?.height ?? window.innerHeight}px`
+        `${window.visualViewport?.height ?? window.innerHeight}px`,
       );
     };
 
@@ -210,9 +227,9 @@ function App() {
     return (
       <div className="min-h-screen bg-background text-text flex items-center justify-center">
         <div className="text-center max-w-md">
-          <p className="text-error text-lg mb-2">{t('app.initError.title')}</p>
+          <p className="text-error text-lg mb-2">{t("app.initError.title")}</p>
           <p className="text-text/70 text-sm">{initError}</p>
-          <p className="text-text/50 text-xs mt-4">{t('app.initError.restartHint')}</p>
+          <p className="text-text/50 text-xs mt-4">{t("app.initError.restartHint")}</p>
         </div>
       </div>
     );
@@ -228,11 +245,13 @@ function App() {
     <>
       <SplashScreen visible={splashVisible} />
       {!isAuSpace && currentPage === "library" && <Library onNavigate={handleNavigate} />}
-      {!isAuSpace && currentPage === "fandom_lore" && (
-        isMobile
-          ? <MobileFandomView fandomPath={currentAuPath} onNavigate={handleNavigate} />
-          : <FandomLoreLayout fandomPath={currentAuPath} onNavigate={handleNavigate} />
-      )}
+      {!isAuSpace &&
+        currentPage === "fandom_lore" &&
+        (isMobile ? (
+          <MobileFandomView fandomPath={currentAuPath} onNavigate={handleNavigate} />
+        ) : (
+          <FandomLoreLayout fandomPath={currentAuPath} onNavigate={handleNavigate} />
+        ))}
 
       {isAuSpace && (
         <AuWorkspaceLayout

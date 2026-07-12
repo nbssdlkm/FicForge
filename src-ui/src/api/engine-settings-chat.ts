@@ -5,12 +5,7 @@
  * Engine Settings Chat - sendSettingsChat.
  */
 
-import {
-  build_settings_context,
-  call_settings_llm,
-  resolve_llm_config,
-  create_provider,
-} from "@ficforge/engine";
+import { build_settings_context, call_settings_llm, resolve_llm_config, create_provider } from "@ficforge/engine";
 import { ApiError, getFriendlyErrorMessage } from "./client";
 import { getEngine } from "./engine-instance";
 
@@ -34,26 +29,14 @@ export async function sendSettingsChat(params: {
     language: lang,
   });
 
-  const llmConfig = resolve_llm_config(
-    params.session_llm as Record<string, string> | null,
-    {},
-    sett,
-  );
+  const llmConfig = resolve_llm_config(params.session_llm as Record<string, string> | null, {}, sett);
 
   if (llmConfig.mode === "api") {
     if (!llmConfig.api_key?.trim()) {
-      throw new ApiError(
-        "no_api_key",
-        getFriendlyErrorMessage({ error_code: "no_api_key" }),
-        [],
-      );
+      throw new ApiError("no_api_key", getFriendlyErrorMessage({ error_code: "no_api_key" }), []);
     }
     if (!llmConfig.api_base?.trim()) {
-      throw new ApiError(
-        "api_base_missing",
-        getFriendlyErrorMessage({ error_code: "api_base_missing" }),
-        [],
-      );
+      throw new ApiError("api_base_missing", getFriendlyErrorMessage({ error_code: "api_base_missing" }), []);
     }
   }
 

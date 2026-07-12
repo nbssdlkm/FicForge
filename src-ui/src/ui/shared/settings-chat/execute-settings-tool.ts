@@ -86,8 +86,8 @@ function normalizeCoreIncludes(value: unknown): string[] {
     new Set(
       coerceStringArray(value)
         .map((item) => item.trim().replace(/\.md$/i, ""))
-        .filter(Boolean)
-    )
+        .filter(Boolean),
+    ),
   );
 }
 
@@ -99,7 +99,7 @@ export async function executeSettingsTool(
   ctx: SettingsToolExecutionContext,
   card: ToolCallCardState,
   nextArgs: Record<string, unknown> | undefined,
-  executionContextKey: string
+  executionContextKey: string,
 ): Promise<SettingsToolExecutionResult> {
   const { basePath, mode, currentChapter, t } = ctx;
   if (!basePath) {
@@ -127,7 +127,7 @@ export async function executeSettingsTool(
         : [
             listLoreFiles({ fandom_path: basePath, category: "core_characters" }),
             listLoreFiles({ fandom_path: basePath, category: "core_worldbuilding" }),
-          ]
+          ],
     );
   } catch {
     throw new Error(t("settingsMode.error.supportDataUnavailable"));
@@ -148,7 +148,7 @@ export async function executeSettingsTool(
     args,
     latestCharacterFileNames,
     latestWorldbuildingFileNames,
-    t
+    t,
   );
   if (missingTargetError) {
     throw new Error(missingTargetError);
@@ -158,7 +158,7 @@ export async function executeSettingsTool(
     args,
     latestCharacterFileNames,
     latestWorldbuildingFileNames,
-    t
+    t,
   );
   if (overwriteWarning) {
     throw new Error(overwriteWarning);
@@ -181,7 +181,7 @@ export async function executeSettingsTool(
     card,
     args,
     ensuredProject?.pinned_context || ctx.getLatestProject()?.pinned_context || [],
-    t
+    t,
   );
   if (duplicateWarning) {
     throw new Error(duplicateWarning);
@@ -197,27 +197,19 @@ export async function executeSettingsTool(
     const currentProject = requireAuProject();
     const name = normalizeDisplayName(args.name) || t("common.unknownAu");
     const filename = normalizeMarkdownFilename(name);
-    const content = applyManagedFrontmatter(
-      coerceString(args.content),
-      { ...args, name },
-      CHARACTER_FRONTMATTER_KEYS
-    );
+    const content = applyManagedFrontmatter(coerceString(args.content), { ...args, name }, CHARACTER_FRONTMATTER_KEYS);
     // M28/F2：saveLore 会对 filename 做白名单清洗（全角标点 → _），磁盘名可能 ≠ 传入名。
     // 回滚 / undoMeta / 展示一律用返回的实际落盘名，否则 undo 报「源不存在」、回滚失败留孤儿。
     const saved = await saveLore({ au_path: basePath, category: "characters", filename, content });
 
     try {
-      const nextCharacters = Array.from(
-        new Set([...(currentProject.cast_registry.characters || []), name])
-      );
+      const nextCharacters = Array.from(new Set([...(currentProject.cast_registry.characters || []), name]));
       await saveProjectCastRegistryCharacters(basePath, nextCharacters);
     } catch (error) {
       try {
         await deleteLore({ au_path: basePath, category: "characters", filename: saved.filename });
       } catch {
-        throw new Error(
-          t("settingsMode.error.createCharacterRollbackFailed", { name: saved.filename })
-        );
+        throw new Error(t("settingsMode.error.createCharacterRollbackFailed", { name: saved.filename }));
       }
       throw error;
     }
@@ -268,11 +260,7 @@ export async function executeSettingsTool(
       fandom_path: basePath,
       category: "core_characters",
       filename,
-      content: applyManagedFrontmatter(
-        coerceString(args.content),
-        { ...args, name },
-        CORE_CHARACTER_FRONTMATTER_KEYS
-      ),
+      content: applyManagedFrontmatter(coerceString(args.content), { ...args, name }, CORE_CHARACTER_FRONTMATTER_KEYS),
     });
     return {
       resultNote: t("settingsMode.executedWithTarget", { target: saved.filename }),
@@ -313,9 +301,10 @@ export async function executeSettingsTool(
   if (toolName === "create_worldbuilding_file") {
     const name = coerceTrimmedString(args.name) || t("common.none");
     const filename = normalizeMarkdownFilename(name);
-    const request = mode === "au"
-      ? { au_path: basePath, category: "worldbuilding", filename, content: coerceString(args.content) }
-      : { fandom_path: basePath, category: "core_worldbuilding", filename, content: coerceString(args.content) };
+    const request =
+      mode === "au"
+        ? { au_path: basePath, category: "worldbuilding", filename, content: coerceString(args.content) }
+        : { fandom_path: basePath, category: "core_worldbuilding", filename, content: coerceString(args.content) };
     // M28/F2：undoMeta 用实际落盘名
     const saved = await saveLore(request);
     return {
@@ -332,9 +321,10 @@ export async function executeSettingsTool(
   if (toolName === "modify_worldbuilding_file") {
     // M28/F2：写路径同款清洗（worldbuilding 无 frontmatter 守护，但磁盘名对齐避免重名分裂）
     const filename = sanitizePathSegment(normalizeMarkdownFilename(coerceString(args.filename)));
-    const request = mode === "au"
-      ? { au_path: basePath, category: "worldbuilding", filename, content: coerceString(args.new_content) }
-      : { fandom_path: basePath, category: "core_worldbuilding", filename, content: coerceString(args.new_content) };
+    const request =
+      mode === "au"
+        ? { au_path: basePath, category: "worldbuilding", filename, content: coerceString(args.new_content) }
+        : { fandom_path: basePath, category: "core_worldbuilding", filename, content: coerceString(args.new_content) };
     const saved = await saveLore(request);
     return {
       resultNote: t("settingsMode.executedWithTarget", { target: saved.filename }),
@@ -380,13 +370,11 @@ export async function executeSettingsTool(
     if (Object.prototype.hasOwnProperty.call(args, "content_raw")) updatedFields.content_raw = contentRaw;
     if (Object.prototype.hasOwnProperty.call(args, "content_clean")) updatedFields.content_clean = contentClean;
     if (Object.prototype.hasOwnProperty.call(args, "characters")) updatedFields.characters = characters;
-    if (
-      Object.prototype.hasOwnProperty.call(args, "fact_type")
-      || Object.prototype.hasOwnProperty.call(args, "type")
-    ) {
+    if (Object.prototype.hasOwnProperty.call(args, "fact_type") || Object.prototype.hasOwnProperty.call(args, "type")) {
       if (type) updatedFields.type = type;
     }
-    if (Object.prototype.hasOwnProperty.call(args, "narrative_weight") && weight) updatedFields.narrative_weight = weight;
+    if (Object.prototype.hasOwnProperty.call(args, "narrative_weight") && weight)
+      updatedFields.narrative_weight = weight;
     if (Object.prototype.hasOwnProperty.call(args, "status") && status) updatedFields.status = status;
 
     await editFact(basePath, factId, updatedFields);
@@ -446,9 +434,12 @@ export async function executeSettingsTool(
     return {
       resultNote: t("settingsMode.executedWithTarget", { target: t("common.labels.coreAlwaysInclude") }),
       undoMeta: { kind: "unsupported", note: t("settingsMode.undoNotSupported") },
-      warningMessage: missingNames.length > 0
-        ? t("settingsMode.warning.coreIncludesPartialMissing", { names: missingNames.join(t("common.listSeparator")) })
-        : null,
+      warningMessage:
+        missingNames.length > 0
+          ? t("settingsMode.warning.coreIncludesPartialMissing", {
+              names: missingNames.join(t("common.listSeparator")),
+            })
+          : null,
     };
   }
 
@@ -458,10 +449,7 @@ export async function executeSettingsTool(
 }
 
 /** 按 undoMeta 撤销一次已执行的工具；不支持 / 找不到目标时 throw。 */
-export async function undoSettingsTool(
-  ctx: SettingsToolExecutionContext,
-  undoMeta: ToolUndoMeta
-): Promise<void> {
+export async function undoSettingsTool(ctx: SettingsToolExecutionContext, undoMeta: ToolUndoMeta): Promise<void> {
   const { basePath, mode, currentChapter, t } = ctx;
   if (!basePath) {
     throw new Error(t("error_messages.unknown"));
@@ -494,8 +482,7 @@ export async function undoSettingsTool(
     const pinnedContext = latestProject.pinned_context || [];
     const pinnedContent = (undoMeta.pinnedContent || "").trim();
     let pinnedIndex =
-      typeof undoMeta.pinnedIndex === "number"
-      && pinnedContext[undoMeta.pinnedIndex]?.trim() === pinnedContent
+      typeof undoMeta.pinnedIndex === "number" && pinnedContext[undoMeta.pinnedIndex]?.trim() === pinnedContent
         ? undoMeta.pinnedIndex
         : -1;
 

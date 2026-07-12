@@ -32,9 +32,7 @@ vi.mock("../../../hooks/useFeedback", () => ({
 import { DirtyModal } from "../DirtyModal";
 
 function renderModal(onResolved = vi.fn(), onClose = vi.fn()) {
-  render(
-    <DirtyModal isOpen onClose={onClose} auPath="fandoms/F/aus/A" chapterNum={3} onResolved={onResolved} />,
-  );
+  render(<DirtyModal isOpen onClose={onClose} auPath="fandoms/F/aus/A" chapterNum={3} onResolved={onResolved} />);
   return { onResolved, onClose };
 }
 
@@ -49,7 +47,10 @@ describe("DirtyModal — failed_fact_changes 透出", () => {
 
   it("全部变更应用成功：不弹告警，正常 onClose + onResolved", async () => {
     resolveDirtyChapter.mockResolvedValue({
-      chapter_num: 3, is_latest: true, content_hash: "h", failed_fact_changes: [],
+      chapter_num: 3,
+      is_latest: true,
+      content_hash: "h",
+      failed_fact_changes: [],
     });
     const { onResolved, onClose } = renderModal();
 
@@ -62,7 +63,9 @@ describe("DirtyModal — failed_fact_changes 透出", () => {
 
   it("部分 fact 变更失败：仍关窗刷新，但明示「N 条变更未应用」", async () => {
     resolveDirtyChapter.mockResolvedValue({
-      chapter_num: 3, is_latest: true, content_hash: "h",
+      chapter_num: 3,
+      is_latest: true,
+      content_hash: "h",
       failed_fact_changes: [
         { fact_id: "f1", action: "update", error: "io" },
         { fact_id: "f2", action: "deprecate", error: "io" },

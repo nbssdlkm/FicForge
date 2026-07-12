@@ -2,29 +2,29 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect, useMemo, useState } from 'react';
-import { Settings, BookOpen, Trash2, Plus, Import, Archive } from 'lucide-react';
+import { useEffect, useMemo, useState } from "react";
+import { Settings, BookOpen, Trash2, Plus, Import, Archive } from "lucide-react";
 import { Spinner } from "./shared/Spinner";
-import { Button } from './shared/Button';
-import { InlineBanner } from './shared/InlineBanner';
-import { ThemeToggle } from './shared/ThemeToggle';
-import { Modal } from './shared/Modal';
-import { GlobalSettingsModal } from './settings/GlobalSettingsModal';
-import { EmptyState } from './shared/EmptyState';
-import { getDataDir } from '../api/engine-client';
-import { useLibraryData } from '../hooks/useLibraryData';
-import { TrashPanel } from './shared/TrashPanel';
-import { useTranslation } from '../i18n/useAppTranslation';
-import { FeedbackProvider, useFeedback } from '../hooks/useFeedback';
-import { OnboardingFlow } from './onboarding/OnboardingFlow';
-import type { OnboardingCompletion } from './onboarding/MobileOnboarding';
-import { LibraryModals } from './LibraryModals';
-import { RestoreBundleModal } from './RestoreBundleModal';
-import { LibraryFandomSections } from './library/LibraryFandomSections';
-import { LibraryImportPanel } from './library/LibraryImportPanel';
-import { useLibraryImportFlow } from './library/useLibraryImportFlow';
-import { useLibraryMutations } from './library/useLibraryMutations';
-import { useLibraryOnboardingGate } from './library/useLibraryOnboardingGate';
+import { Button } from "./shared/Button";
+import { InlineBanner } from "./shared/InlineBanner";
+import { ThemeToggle } from "./shared/ThemeToggle";
+import { Modal } from "./shared/Modal";
+import { GlobalSettingsModal } from "./settings/GlobalSettingsModal";
+import { EmptyState } from "./shared/EmptyState";
+import { getDataDir } from "../api/engine-client";
+import { useLibraryData } from "../hooks/useLibraryData";
+import { TrashPanel } from "./shared/TrashPanel";
+import { useTranslation } from "../i18n/useAppTranslation";
+import { FeedbackProvider, useFeedback } from "../hooks/useFeedback";
+import { OnboardingFlow } from "./onboarding/OnboardingFlow";
+import type { OnboardingCompletion } from "./onboarding/MobileOnboarding";
+import { LibraryModals } from "./LibraryModals";
+import { RestoreBundleModal } from "./RestoreBundleModal";
+import { LibraryFandomSections } from "./library/LibraryFandomSections";
+import { LibraryImportPanel } from "./library/LibraryImportPanel";
+import { useLibraryImportFlow } from "./library/useLibraryImportFlow";
+import { useLibraryMutations } from "./library/useLibraryMutations";
+import { useLibraryOnboardingGate } from "./library/useLibraryOnboardingGate";
 
 type Props = {
   onNavigate: (page: string, auPath?: string) => void;
@@ -40,12 +40,7 @@ function LibraryInner({ onNavigate }: Props) {
   const [isRestoreOpen, setRestoreOpen] = useState(false);
   const [trashTarget, setTrashTarget] = useState<{ fandomDir: string; fandomName: string } | null>(null);
   const [trashRefreshToken, setTrashRefreshToken] = useState(0);
-  const {
-    showOnboarding,
-    setShowOnboarding,
-    showApiWarning,
-    dismissApiWarning,
-  } = useLibraryOnboardingGate();
+  const { showOnboarding, setShowOnboarding, showApiWarning, dismissApiWarning } = useLibraryOnboardingGate();
   const importFlow = useLibraryImportFlow({
     dataDir,
     loadFandoms,
@@ -70,10 +65,10 @@ function LibraryInner({ onNavigate }: Props) {
     setShowOnboarding(false);
     void loadFandoms().finally(() => {
       if (result?.openAuPath) {
-        onNavigate('chat', result.openAuPath);
-      } else if (result?.nextAction === 'open-import') {
+        onNavigate("chat", result.openAuPath);
+      } else if (result?.nextAction === "open-import") {
         importFlow.openImportPicker();
-      } else if (result?.nextAction === 'open-settings') {
+      } else if (result?.nextAction === "open-settings") {
         setGlobalSettingsOpen(true);
       }
     });
@@ -83,14 +78,11 @@ function LibraryInner({ onNavigate }: Props) {
   // chapter_count is enriched by listFandoms via state.yaml, falls back to 0.
   const stats = useMemo(() => {
     const totalAus = fandoms.reduce((sum, f) => sum + f.aus.length, 0);
-    const totalChapters = fandoms.reduce(
-      (sum, f) => sum + f.aus.reduce((s, au) => s + (au.chapter_count ?? 0), 0),
-      0,
-    );
+    const totalChapters = fandoms.reduce((sum, f) => sum + f.aus.reduce((s, au) => s + (au.chapter_count ?? 0), 0), 0);
     return [
-      { value: fandoms.length, label: 'FANDOM' },
-      { value: totalAus, label: t('library.cardType') },
-      { value: totalChapters, label: '章' },
+      { value: fandoms.length, label: "FANDOM" },
+      { value: totalAus, label: t("library.cardType") },
+      { value: totalChapters, label: "章" },
     ];
   }, [fandoms, t]);
   const mutating = mutations.creatingFandom || mutations.creatingAu || mutations.deleting;
@@ -113,9 +105,7 @@ function LibraryInner({ onNavigate }: Props) {
               aria-hidden="true"
               className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[3px] border-[1.5px] border-accent"
             >
-              <span className="font-display italic text-[18px] font-semibold leading-none text-accent">
-                F
-              </span>
+              <span className="font-display italic text-[18px] font-semibold leading-none text-accent">F</span>
               <span className="pointer-events-none absolute inset-[3px] rounded-[1.5px] border-[0.5px] border-accent opacity-50" />
             </div>
             {/* v13 .app-top .name: EB Garamond 17px font-weight 600 (NOT italic)
@@ -124,9 +114,7 @@ function LibraryInner({ onNavigate }: Props) {
               <div className="font-display text-[17px] font-semibold tracking-[0.02em] text-text">
                 {t("common.appName")}
               </div>
-              <div className="mt-[1px] font-serif text-[11px] font-normal tracking-[0.04em] text-ink-muted">
-                粮坊
-              </div>
+              <div className="mt-[1px] font-serif text-[11px] font-normal tracking-[0.04em] text-ink-muted">粮坊</div>
             </div>
           </div>
           {/* All toolbar buttons sized to v13's 36×36. Secondary actions
@@ -200,7 +188,7 @@ function LibraryInner({ onNavigate }: Props) {
               {/* v13 .app-hero h1 .cn: LXGW 13px weight 400 ink-muted
                   letter-spacing 0.06em, mt 4px (not 8). */}
               <p className="mt-1 font-serif text-[13px] font-normal tracking-[0.06em] text-ink-muted">
-                {t('library.title')}
+                {t("library.title")}
               </p>
             </div>
 
@@ -213,7 +201,7 @@ function LibraryInner({ onNavigate }: Props) {
               className="mt-1 shrink-0 h-9 rounded-[2px] px-3.5 font-sans text-[11px] font-medium uppercase tracking-[0.08em]"
             >
               <Plus size={13} className="mr-1" />
-              {t('library.fandomButton')}
+              {t("library.fandomButton")}
             </Button>
           </div>
 
@@ -226,9 +214,7 @@ function LibraryInner({ onNavigate }: Props) {
                 key={label}
                 className="inline-flex items-baseline gap-1 rounded-full border border-rule bg-surface px-[7px] py-[3px]"
               >
-                <strong className="font-display text-[11px] font-semibold not-italic text-accent">
-                  {value}
-                </strong>
+                <strong className="font-display text-[11px] font-semibold not-italic text-accent">{value}</strong>
                 {label}
               </span>
             ))}
@@ -241,10 +227,18 @@ function LibraryInner({ onNavigate }: Props) {
           <InlineBanner
             className="mb-6"
             tone="warning"
-            message={t('library.apiWarning')}
+            message={t("library.apiWarning")}
             actions={
-              <Button tone="neutral" fill="outline" size="sm" onClick={() => { dismissApiWarning(); setGlobalSettingsOpen(true); }}>
-                {t('library.apiWarningAction')}
+              <Button
+                tone="neutral"
+                fill="outline"
+                size="sm"
+                onClick={() => {
+                  dismissApiWarning();
+                  setGlobalSettingsOpen(true);
+                }}
+              >
+                {t("library.apiWarningAction")}
               </Button>
             }
           />
@@ -263,11 +257,7 @@ function LibraryInner({ onNavigate }: Props) {
             actions={[
               {
                 key: "create-fandom",
-                element: (
-                  <Button onClick={mutations.openFandomModal}>
-                    {t("common.actions.createFandom")}
-                  </Button>
-                ),
+                element: <Button onClick={mutations.openFandomModal}>{t("common.actions.createFandom")}</Button>,
               },
               {
                 key: "import-old-work",
@@ -325,11 +315,14 @@ function LibraryInner({ onNavigate }: Props) {
         onComplete={loadFandoms}
       />
 
-      <Modal isOpen={isGlobalTrashOpen} onClose={() => setGlobalTrashOpen(false)} title={t('trash.title')}>
+      <Modal isOpen={isGlobalTrashOpen} onClose={() => setGlobalTrashOpen(false)} title={t("trash.title")}>
         <TrashPanel
           scope="fandom"
           path={`${dataDir}/fandoms`}
-          onRestore={() => { setTrashRefreshToken(v => v + 1); void loadFandoms(); }}
+          onRestore={() => {
+            setTrashRefreshToken((v) => v + 1);
+            void loadFandoms();
+          }}
           refreshToken={trashRefreshToken}
         />
       </Modal>
@@ -351,12 +344,19 @@ function LibraryInner({ onNavigate }: Props) {
         onComplete={importFlow.handleImportComplete}
       />
 
-      <Modal isOpen={!!trashTarget} onClose={() => setTrashTarget(null)} title={`${t('trash.title')} - ${trashTarget?.fandomName || ''}`}>
+      <Modal
+        isOpen={!!trashTarget}
+        onClose={() => setTrashTarget(null)}
+        title={`${t("trash.title")} - ${trashTarget?.fandomName || ""}`}
+      >
         {trashTarget && (
           <TrashPanel
             scope="fandom"
             path={`${dataDir}/fandoms/${trashTarget.fandomDir}`}
-            onRestore={() => { setTrashRefreshToken(v => v + 1); void loadFandoms(); }}
+            onRestore={() => {
+              setTrashRefreshToken((v) => v + 1);
+              void loadFandoms();
+            }}
             refreshToken={trashRefreshToken}
           />
         )}

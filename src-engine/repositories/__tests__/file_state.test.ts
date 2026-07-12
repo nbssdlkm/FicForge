@@ -47,15 +47,10 @@ describe("FileStateRepository", () => {
   });
 
   it("reads existing YAML correctly", async () => {
-    adapter.seed("au1/state.yaml", [
-      "au_id: au1",
-      "current_chapter: 10",
-      "index_status: ready",
-      "chapters_dirty:",
-      "  - 3",
-      "  - 5",
-      "",
-    ].join("\n"));
+    adapter.seed(
+      "au1/state.yaml",
+      ["au_id: au1", "current_chapter: 10", "index_status: ready", "chapters_dirty:", "  - 3", "  - 5", ""].join("\n"),
+    );
 
     const state = await repo.get("au1");
     expect(state.current_chapter).toBe(10);

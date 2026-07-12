@@ -5,22 +5,21 @@
  * Engine Generate — generateChapter (async generator).
  */
 
-import {
-  generate_chapter as engineGenerateChapter,
-  resolve_llm_config,
-  logCatch,
-} from "@ficforge/engine";
+import { generate_chapter as engineGenerateChapter, resolve_llm_config, logCatch } from "@ficforge/engine";
 import { getEngine, getProjectOrThrow } from "./engine-instance";
 import { createEmbeddingProvider } from "./engine-state";
 
-export async function* generateChapter(params: {
-  au_path: string;
-  chapter_num: number;
-  user_input: string;
-  input_type?: string;
-  session_llm?: Record<string, string> | null;
-  session_params?: Record<string, number> | null;
-}, options?: { signal?: AbortSignal }): AsyncGenerator<{ event: string; data: any }> {
+export async function* generateChapter(
+  params: {
+    au_path: string;
+    chapter_num: number;
+    user_input: string;
+    input_type?: string;
+    session_llm?: Record<string, string> | null;
+    session_params?: Record<string, number> | null;
+  },
+  options?: { signal?: AbortSignal },
+): AsyncGenerator<{ event: string; data: any }> {
   const e = getEngine();
   const proj = await getProjectOrThrow(params.au_path);
   const st = await e.repos.state.get(params.au_path);
@@ -36,11 +35,7 @@ export async function* generateChapter(params: {
   // local（内置模型加载）随 Python sidecar 退役（D-0040/M7）本版本不支持 —— 在
   // create_provider 里抛错之前提前拦截，给前端友好的 error_code（UI 层 capabilities.ts
   // 已不渲染该选项，此处作为防手改 YAML 的最后防线）。
-  const llmConfig = resolve_llm_config(
-    params.session_llm ?? null,
-    proj,
-    sett,
-  );
+  const llmConfig = resolve_llm_config(params.session_llm ?? null, proj, sett);
   if (llmConfig.mode === "local") {
     yield {
       event: "error",

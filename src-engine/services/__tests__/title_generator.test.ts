@@ -36,13 +36,11 @@ describe("generateChapterTitle", () => {
 
   it("LLM 返回空串 / 超过 30 字：拒绝为 null（不落垃圾标题）", async () => {
     expect(await generateChapterTitle("内容", "zh", createMockLLMProvider({ content: "  " }))).toBeNull();
-    expect(
-      await generateChapterTitle("内容", "zh", createMockLLMProvider({ content: "字".repeat(31) })),
-    ).toBeNull();
+    expect(await generateChapterTitle("内容", "zh", createMockLLMProvider({ content: "字".repeat(31) }))).toBeNull();
     // 恰好 30 字在界内
-    expect(
-      await generateChapterTitle("内容", "zh", createMockLLMProvider({ content: "字".repeat(30) })),
-    ).toBe("字".repeat(30));
+    expect(await generateChapterTitle("内容", "zh", createMockLLMProvider({ content: "字".repeat(30) }))).toBe(
+      "字".repeat(30),
+    );
   });
 
   it("LLM 抛错（网络/超时/key 无效）：兜底 null 不冒泡", async () => {

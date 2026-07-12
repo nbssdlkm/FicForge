@@ -7,7 +7,12 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { useFeedback } from "../../hooks/useFeedback";
 import { TurnCard } from "./TurnCard";
-import { classifyTurns, type FileAnalysis, type ClassifiedTurn, type ClassificationThresholds } from "../../api/engine-client";
+import {
+  classifyTurns,
+  type FileAnalysis,
+  type ClassifiedTurn,
+  type ClassificationThresholds,
+} from "../../api/engine-client";
 
 interface ChapterArrangeStepProps {
   analyses: FileAnalysis[];
@@ -17,7 +22,13 @@ interface ChapterArrangeStepProps {
   onBack: () => void;
 }
 
-export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onNext, onBack }: ChapterArrangeStepProps) {
+export function ChapterArrangeStep({
+  analyses,
+  thresholds,
+  onUpdateAnalyses,
+  onNext,
+  onBack,
+}: ChapterArrangeStepProps) {
   const { t } = useTranslation();
   const { showToast } = useFeedback();
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
@@ -33,10 +44,17 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
       if (a.mode === "chat" && a.turns) {
         for (const turn of a.turns) {
           switch (turn.assignedType) {
-            case "chapter": chapters++; break;
-            case "chapter_continue": break; // 合并到前一章，不单独计数
-            case "setting": settings++; break;
-            case "skip": skipped++; break;
+            case "chapter":
+              chapters++;
+              break;
+            case "chapter_continue":
+              break; // 合并到前一章，不单独计数
+            case "setting":
+              settings++;
+              break;
+            case "skip":
+              skipped++;
+              break;
           }
         }
       } else if (a.mode === "text" && a.chapters) {
@@ -55,66 +73,68 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
     });
   };
 
-  const handleReapplyThresholds = useCallback((fileIndex: number) => {
-    const updated = [...analyses];
-    const analysis = { ...updated[fileIndex] };
-    if (!analysis.turns) return;
+  const handleReapplyThresholds = useCallback(
+    (fileIndex: number) => {
+      const updated = [...analyses];
+      const analysis = { ...updated[fileIndex] };
+      if (!analysis.turns) return;
 
-    // Extract original ChatTurn data from classified turns, then re-classify
-    const reclassified = classifyTurns(
-      analysis.turns.map(t => ({ index: t.index, role: t.role, content: t.content, charCount: t.charCount })),
-      thresholds,
-    );
+      // Extract original ChatTurn data from classified turns, then re-classify
+      const reclassified = classifyTurns(
+        analysis.turns.map((t) => ({ index: t.index, role: t.role, content: t.content, charCount: t.charCount })),
+        thresholds,
+      );
 
-    // 计算前面文件的最后章节号，作为全局起始章节号
-    let startChapter = 1;
-    for (let fi = 0; fi < fileIndex; fi++) {
-      const prevTurns = updated[fi].turns;
-      if (!prevTurns) continue;
-      for (const t of prevTurns) {
-        if (t.assignedType === "chapter" && t.assignedChapter !== null) {
-          startChapter = t.assignedChapter + 1;
+      // 计算前面文件的最后章节号，作为全局起始章节号
+      let startChapter = 1;
+      for (let fi = 0; fi < fileIndex; fi++) {
+        const prevTurns = updated[fi].turns;
+        if (!prevTurns) continue;
+        for (const t of prevTurns) {
+          if (t.assignedType === "chapter" && t.assignedChapter !== null) {
+            startChapter = t.assignedChapter + 1;
+          }
         }
       }
-    }
-    reassignChapterNumbersFrom(reclassified, startChapter);
+      reassignChapterNumbersFrom(reclassified, startChapter);
 
-    analysis.turns = reclassified;
-    analysis.stats = computeStats(reclassified);
-    updated[fileIndex] = analysis;
-    onUpdateAnalyses(updated);
-  }, [analyses, thresholds, onUpdateAnalyses]);
+      analysis.turns = reclassified;
+      analysis.stats = computeStats(reclassified);
+      updated[fileIndex] = analysis;
+      onUpdateAnalyses(updated);
+    },
+    [analyses, thresholds, onUpdateAnalyses],
+  );
 
-  const handleChangeTurnType = useCallback((
-    fileIndex: number,
-    turnIndex: number,
-    newType: ClassifiedTurn["assignedType"],
-  ) => {
-    const updated = [...analyses];
-    const analysis = { ...updated[fileIndex] };
-    if (!analysis.turns) return;
+  const handleChangeTurnType = useCallback(
+    (fileIndex: number, turnIndex: number, newType: ClassifiedTurn["assignedType"]) => {
+      const updated = [...analyses];
+      const analysis = { ...updated[fileIndex] };
+      if (!analysis.turns) return;
 
-    const turns = analysis.turns.map((t) => ({ ...t }));
-    turns[turnIndex].assignedType = newType;
+      const turns = analysis.turns.map((t) => ({ ...t }));
+      turns[turnIndex].assignedType = newType;
 
-    // 计算前面文件的最后章节号，作为全局起始章节号
-    let startChapter = 1;
-    for (let fi = 0; fi < fileIndex; fi++) {
-      const prevTurns = updated[fi].turns;
-      if (!prevTurns) continue;
-      for (const t of prevTurns) {
-        if (t.assignedType === "chapter" && t.assignedChapter !== null) {
-          startChapter = t.assignedChapter + 1;
+      // 计算前面文件的最后章节号，作为全局起始章节号
+      let startChapter = 1;
+      for (let fi = 0; fi < fileIndex; fi++) {
+        const prevTurns = updated[fi].turns;
+        if (!prevTurns) continue;
+        for (const t of prevTurns) {
+          if (t.assignedType === "chapter" && t.assignedChapter !== null) {
+            startChapter = t.assignedChapter + 1;
+          }
         }
       }
-    }
-    reassignChapterNumbersFrom(turns, startChapter);
+      reassignChapterNumbersFrom(turns, startChapter);
 
-    analysis.turns = turns;
-    analysis.stats = computeStats(turns);
-    updated[fileIndex] = analysis;
-    onUpdateAnalyses(updated);
-  }, [analyses, onUpdateAnalyses]);
+      analysis.turns = turns;
+      analysis.stats = computeStats(turns);
+      updated[fileIndex] = analysis;
+      onUpdateAnalyses(updated);
+    },
+    [analyses, onUpdateAnalyses],
+  );
 
   // 计算每个文件的统计
   const fileSummary = (analysis: FileAnalysis) => {
@@ -139,9 +159,7 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
         <p className="text-sm font-medium text-text">
           {t("import.step3Summary", { chapters: globalStats.chapters, settings: globalStats.settings })}
         </p>
-        <p className="text-xs text-text/50 mt-1">
-          {t("import.step3Skipped", { count: globalStats.skipped })}
-        </p>
+        <p className="text-xs text-text/50 mt-1">{t("import.step3Skipped", { count: globalStats.skipped })}</p>
       </div>
 
       {/* Per-file sections */}
@@ -160,9 +178,11 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
                 <p className="text-sm font-medium text-text truncate">{analysis.filename}</p>
                 <p className="text-xs text-text/50 mt-0.5">
                   {analysis.mode === "chat"
-                    ? `${analysis.chatFormat === "LLM Detected"
-                        ? t("import.llmDetectedFriendly")
-                        : t("import.chatDetected", { format: analysis.chatFormat ?? "" })} — `
+                    ? `${
+                        analysis.chatFormat === "LLM Detected"
+                          ? t("import.llmDetectedFriendly")
+                          : t("import.chatDetected", { format: analysis.chatFormat ?? "" })
+                      } — `
                     : `${t("import.textDetected")} — `}
                   {fileSummary(analysis)}
                 </p>
@@ -186,36 +206,66 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
                 {/* Batch actions (TD-013: outline 提权重 + toast 反馈) */}
                 <div className="mb-3 flex flex-wrap gap-2">
                   <Button
-                    tone="neutral" fill="outline" size="sm" className="text-xs"
-                    onClick={() => { batchAction(analyses, fileIndex, "skipAllUser", onUpdateAnalyses); showToast(t("import.batchApplied"), "success"); }}
+                    tone="neutral"
+                    fill="outline"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => {
+                      batchAction(analyses, fileIndex, "skipAllUser", onUpdateAnalyses);
+                      showToast(t("import.batchApplied"), "success");
+                    }}
                   >
                     {t("import.step3BatchSkipUser")}
                   </Button>
                   <Button
-                    tone="neutral" fill="outline" size="sm" className="text-xs"
-                    onClick={() => { batchAction(analyses, fileIndex, "allAiChapter", onUpdateAnalyses); showToast(t("import.batchApplied"), "success"); }}
+                    tone="neutral"
+                    fill="outline"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => {
+                      batchAction(analyses, fileIndex, "allAiChapter", onUpdateAnalyses);
+                      showToast(t("import.batchApplied"), "success");
+                    }}
                   >
                     {t("import.step3BatchAllChapter")}
                   </Button>
                   {analysis.turns.some(isUncertainPending) && (
                     <>
                       <Button
-                        tone="neutral" fill="outline" size="sm" className="text-xs"
-                        onClick={() => { batchAction(analyses, fileIndex, "uncertainSetting", onUpdateAnalyses); showToast(t("import.batchApplied"), "success"); }}
+                        tone="neutral"
+                        fill="outline"
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => {
+                          batchAction(analyses, fileIndex, "uncertainSetting", onUpdateAnalyses);
+                          showToast(t("import.batchApplied"), "success");
+                        }}
                       >
                         {t("import.batchUncertainSetting")}
                       </Button>
                       <Button
-                        tone="neutral" fill="outline" size="sm" className="text-xs"
-                        onClick={() => { batchAction(analyses, fileIndex, "uncertainSkip", onUpdateAnalyses); showToast(t("import.batchApplied"), "success"); }}
+                        tone="neutral"
+                        fill="outline"
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => {
+                          batchAction(analyses, fileIndex, "uncertainSkip", onUpdateAnalyses);
+                          showToast(t("import.batchApplied"), "success");
+                        }}
                       >
                         {t("import.batchUncertainSkip")}
                       </Button>
                     </>
                   )}
                   <Button
-                    tone="neutral" fill="outline" size="sm" className="text-xs"
-                    onClick={() => { handleReapplyThresholds(fileIndex); showToast(t("import.batchApplied"), "success"); }}
+                    tone="neutral"
+                    fill="outline"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => {
+                      handleReapplyThresholds(fileIndex);
+                      showToast(t("import.batchApplied"), "success");
+                    }}
                   >
                     {t("import.step3BatchReapply")}
                   </Button>
@@ -242,14 +292,17 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
                       })}
                       {hasMore && (
                         <Button
-                          tone="neutral" fill="plain"
+                          tone="neutral"
+                          fill="plain"
                           size="sm"
                           className="w-full text-xs text-accent"
-                          onClick={() => setVisibleCounts((prev) => {
-                            const next = new Map(prev);
-                            next.set(analysis.filename, visibleCount + PAGE_SIZE);
-                            return next;
-                          })}
+                          onClick={() =>
+                            setVisibleCounts((prev) => {
+                              const next = new Map(prev);
+                              next.set(analysis.filename, visibleCount + PAGE_SIZE);
+                              return next;
+                            })
+                          }
                         >
                           {t("import.loadMore", { count: analysis.turns.length - visibleCount })}
                         </Button>
@@ -264,7 +317,10 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
             {isExpanded && analysis.mode === "text" && analysis.chapters && (
               <div className="border-t border-black/5 px-4 pb-4 pt-3 dark:border-white/5 space-y-2 max-h-[50vh] overflow-y-auto">
                 {analysis.chapters.map((ch) => (
-                  <div key={ch.chapter_num} className="rounded-lg border border-black/10 bg-background/50 p-3 dark:border-white/10">
+                  <div
+                    key={ch.chapter_num}
+                    className="rounded-lg border border-black/10 bg-background/50 p-3 dark:border-white/10"
+                  >
                     <p className="text-sm font-medium text-text">{ch.title}</p>
                     <p className="mt-1 text-xs text-text/50 line-clamp-2">{ch.content.slice(0, 100)}...</p>
                   </div>
@@ -277,7 +333,9 @@ export function ChapterArrangeStep({ analyses, thresholds, onUpdateAnalyses, onN
 
       {/* Navigation */}
       <div className="flex justify-between pt-2">
-        <Button tone="neutral" fill="plain" onClick={onBack}>{t("onboarding.common.prev")}</Button>
+        <Button tone="neutral" fill="plain" onClick={onBack}>
+          {t("onboarding.common.prev")}
+        </Button>
         <Button tone="accent" fill="solid" onClick={onNext} disabled={globalStats.chapters === 0}>
           {t("onboarding.common.next")}
         </Button>
@@ -310,9 +368,9 @@ function reassignChapterNumbersFrom(turns: ClassifiedTurn[], startChapter: numbe
  * 计数 / 按钮可见性 / 批量动作三处共用此判据，保证「看到的数字」=「按钮会动的范围」。
  */
 function isUncertainPending(turn: ClassifiedTurn): boolean {
-  return turn.classification === "uncertain"
-    && turn.assignedType !== "chapter"
-    && turn.assignedType !== "chapter_continue";
+  return (
+    turn.classification === "uncertain" && turn.assignedType !== "chapter" && turn.assignedType !== "chapter_continue"
+  );
 }
 
 function computeStats(turns: ClassifiedTurn[]): FileAnalysis["stats"] {

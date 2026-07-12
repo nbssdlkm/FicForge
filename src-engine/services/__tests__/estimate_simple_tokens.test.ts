@@ -10,12 +10,19 @@ import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 import { FileChapterRepository } from "../../repositories/implementations/file_chapter.js";
 
 async function seedChapter(repo: FileChapterRepository, au: string, n: number, content: string) {
-  await repo.save(createChapter({
-    au_id: au, chapter_num: n, content,
-    chapter_id: `ch-${n}`, revision: 1,
-    confirmed_at: "2026-05-03T00:00:00Z",
-    content_hash: "x", provenance: "ai", generated_with: null,
-  }));
+  await repo.save(
+    createChapter({
+      au_id: au,
+      chapter_num: n,
+      content,
+      chapter_id: `ch-${n}`,
+      revision: 1,
+      confirmed_at: "2026-05-03T00:00:00Z",
+      content_hash: "x",
+      provenance: "ai",
+      generated_with: null,
+    }),
+  );
 }
 
 describe("estimate_simple_context_tokens", () => {
@@ -26,7 +33,12 @@ describe("estimate_simple_context_tokens", () => {
     const state = createState({ au_id: "au_e", current_chapter: 1 });
 
     const r = await estimate_simple_context_tokens({
-      au_id: "au_e", project, state, chapter_repo: chapterRepo, adapter, language: "zh",
+      au_id: "au_e",
+      project,
+      state,
+      chapter_repo: chapterRepo,
+      adapter,
+      language: "zh",
     });
     expect(r.inputTokens).toBeGreaterThan(0);
     expect(r.contextWindow).toBeGreaterThan(0);
@@ -46,11 +58,20 @@ describe("estimate_simple_context_tokens", () => {
     await adapter.writeFile("au_b/characters/Alice.md", "# Alice\n红发剑客。".repeat(20));
 
     const empty = await estimate_simple_context_tokens({
-      au_id: "au_b", project, state: createState({ au_id: "au_b" }),
-      chapter_repo: new FileChapterRepository(new MockAdapter()), adapter: new MockAdapter(), language: "zh",
+      au_id: "au_b",
+      project,
+      state: createState({ au_id: "au_b" }),
+      chapter_repo: new FileChapterRepository(new MockAdapter()),
+      adapter: new MockAdapter(),
+      language: "zh",
     });
     const populated = await estimate_simple_context_tokens({
-      au_id: "au_b", project, state, chapter_repo: chapterRepo, adapter, language: "zh",
+      au_id: "au_b",
+      project,
+      state,
+      chapter_repo: chapterRepo,
+      adapter,
+      language: "zh",
     });
 
     expect(populated.inputTokens).toBeGreaterThan(empty.inputTokens);
@@ -62,15 +83,29 @@ describe("estimate_simple_context_tokens", () => {
     const chapterRepo = new FileChapterRepository(adapter);
     // 强制小 contextWindow + 大量章节，让 ratio 超 80%
     const project = createProject({
-      project_id: "p", au_id: "au_w",
-      llm: { mode: "api" as never, model: "", api_base: "", api_key: "", local_model_path: "", ollama_model: "", context_window: 200 },
+      project_id: "p",
+      au_id: "au_w",
+      llm: {
+        mode: "api" as never,
+        model: "",
+        api_base: "",
+        api_key: "",
+        local_model_path: "",
+        ollama_model: "",
+        context_window: 200,
+      },
     });
     const state = createState({ au_id: "au_w", current_chapter: 3 });
     await seedChapter(chapterRepo, "au_w", 1, "x".repeat(2000));
     await seedChapter(chapterRepo, "au_w", 2, "y".repeat(2000));
 
     const r = await estimate_simple_context_tokens({
-      au_id: "au_w", project, state, chapter_repo: chapterRepo, adapter, language: "zh",
+      au_id: "au_w",
+      project,
+      state,
+      chapter_repo: chapterRepo,
+      adapter,
+      language: "zh",
     });
     expect(["warn", "over"]).toContain(r.level);
     expect(r.ratio).toBeGreaterThanOrEqual(0.8);
@@ -83,10 +118,20 @@ describe("estimate_simple_context_tokens", () => {
     const state = createState({ au_id: "au_h", current_chapter: 1 });
 
     const r1 = await estimate_simple_context_tokens({
-      au_id: "au_h", project, state, chapter_repo: chapterRepo, adapter, language: "zh",
+      au_id: "au_h",
+      project,
+      state,
+      chapter_repo: chapterRepo,
+      adapter,
+      language: "zh",
     });
     const r2 = await estimate_simple_context_tokens({
-      au_id: "au_h", project, state, chapter_repo: chapterRepo, adapter, language: "zh",
+      au_id: "au_h",
+      project,
+      state,
+      chapter_repo: chapterRepo,
+      adapter,
+      language: "zh",
       history: [],
     });
 
@@ -100,10 +145,20 @@ describe("estimate_simple_context_tokens", () => {
     const state = createState({ au_id: "au_h2", current_chapter: 1 });
 
     const empty = await estimate_simple_context_tokens({
-      au_id: "au_h2", project, state, chapter_repo: chapterRepo, adapter, language: "zh",
+      au_id: "au_h2",
+      project,
+      state,
+      chapter_repo: chapterRepo,
+      adapter,
+      language: "zh",
     });
     const populated = await estimate_simple_context_tokens({
-      au_id: "au_h2", project, state, chapter_repo: chapterRepo, adapter, language: "zh",
+      au_id: "au_h2",
+      project,
+      state,
+      chapter_repo: chapterRepo,
+      adapter,
+      language: "zh",
       history: [
         { role: "user", content: "前一轮用户问题".repeat(20) },
         { role: "assistant", content: "前一轮 AI 回答正文".repeat(50) },
@@ -128,9 +183,22 @@ describe("estimate_simple_context_tokens", () => {
     const withToolCall = await estimate_simple_context_tokens({
       ...baseArgs,
       history: [
-        { role: "assistant", content: "", tool_calls: [
-          { id: "c1", type: "function", function: { name: "write_chapter", arguments: JSON.stringify({ instruction: "继续写下一章，推进主线剧情，注意人物弧光的连续性。".repeat(10) }) } },
-        ] },
+        {
+          role: "assistant",
+          content: "",
+          tool_calls: [
+            {
+              id: "c1",
+              type: "function",
+              function: {
+                name: "write_chapter",
+                arguments: JSON.stringify({
+                  instruction: "继续写下一章，推进主线剧情，注意人物弧光的连续性。".repeat(10),
+                }),
+              },
+            },
+          ],
+        },
       ],
     });
     // 同样一条 content 空的 assistant，但无 tool_calls —— 只贡献 framing。

@@ -41,7 +41,9 @@ interface VectorIndex {
 
 /** Cosine similarity。 */
 export function cosine_similarity(a: number[], b: number[]): number {
-  let dot = 0, normA = 0, normB = 0;
+  let dot = 0,
+    normA = 0,
+    normB = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i];
     normA += a[i] * a[i];
@@ -120,15 +122,9 @@ export class JsonVectorEngine implements VectorRepository {
     }
   }
 
-  async search(
-    au_id: string,
-    query_embedding: number[],
-    options: SearchOptions,
-  ): Promise<SearchResult[]> {
+  async search(au_id: string, query_embedding: number[], options: SearchOptions): Promise<SearchResult[]> {
     // 过滤 AU + collection
-    let candidates = this.chunks.filter(
-      (c) => c.collection === options.collection && c.metadata.au_id === au_id,
-    );
+    let candidates = this.chunks.filter((c) => c.collection === options.collection && c.metadata.au_id === au_id);
 
     // 角色过滤
     if (options.char_filter && options.char_filter.length > 0) {
@@ -158,18 +154,17 @@ export class JsonVectorEngine implements VectorRepository {
     // collection 省略 = 删该章全部向量（正文 chunks + sum{N} 摘要向量，undo 场景）；
     // 指定 collection = 只删该 collection（重索引正文前清旧 chunks，不能误伤仍有效的摘要向量）。
     this.chunks = this.chunks.filter(
-      (c) => !(
-        c.metadata.au_id === au_id &&
-        c.metadata.chapter === chapter_num &&
-        (collection === undefined || c.collection === collection)
-      ),
+      (c) =>
+        !(
+          c.metadata.au_id === au_id &&
+          c.metadata.chapter === chapter_num &&
+          (collection === undefined || c.collection === collection)
+        ),
     );
   }
 
   async delete_by_source(au_id: string, source_file: string): Promise<void> {
-    this.chunks = this.chunks.filter(
-      (c) => !(c.metadata.au_id === au_id && c.metadata.source_file === source_file),
-    );
+    this.chunks = this.chunks.filter((c) => !(c.metadata.au_id === au_id && c.metadata.source_file === source_file));
   }
 
   async rebuild_index(au_id: string): Promise<void> {

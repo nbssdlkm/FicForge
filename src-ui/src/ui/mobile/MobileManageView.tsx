@@ -52,7 +52,7 @@ export function MobileManageView({
               onClick={() => setSection(id as ManageSection)}
               className={cn(
                 "flex min-h-[44px] flex-1 items-center justify-center rounded-[3px] text-sm font-medium transition-colors",
-                section === id ? "bg-accent text-inv-text" : "text-text/55 hover:bg-rule-soft"
+                section === id ? "bg-accent text-inv-text" : "text-text/55 hover:bg-rule-soft",
               )}
             >
               <Icon size={15} className="mr-2" />
@@ -87,7 +87,6 @@ export function MobileManageView({
           </div>
         )}
       </div>
-
     </section>
   );
 }

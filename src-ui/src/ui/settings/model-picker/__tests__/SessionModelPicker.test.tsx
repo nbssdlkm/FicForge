@@ -39,7 +39,9 @@ describe("SessionModelPicker", () => {
 
   it("下拉选项 = 生效供应商模型（带 ctx 缩写），选择触发 onModelChange", () => {
     const onModelChange = vi.fn();
-    render(<SessionModelPicker model="deepseek-v4-flash" onModelChange={onModelChange} layer="global" options={options} />);
+    render(
+      <SessionModelPicker model="deepseek-v4-flash" onModelChange={onModelChange} layer="global" options={options} />,
+    );
 
     const select = screen.getByLabelText("模型") as HTMLSelectElement;
     expect([...select.querySelectorAll("option")].map((o) => o.textContent)).toContain("DeepSeek V4 Flash · 1M");

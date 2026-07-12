@@ -277,7 +277,8 @@ export function buildRegexFromPattern(pattern: ChapterPatternResult): RegExp | n
   // 防护：number_style = "none" 时 prefix 和 suffix 不能同时为空（否则生成 ^.+$）
   if (pattern.number_style === "none" && !pattern.prefix.trim() && !pattern.suffix.trim()) return null;
   // 防护：即使有编号，也需要至少有 prefix 或 suffix 或 separator 来锚定
-  if (!pattern.prefix.trim() && !pattern.suffix.trim() && !pattern.separator.trim() && pattern.number_style === "none") return null;
+  if (!pattern.prefix.trim() && !pattern.suffix.trim() && !pattern.separator.trim() && pattern.number_style === "none")
+    return null;
 
   try {
     const prefix = escapeRegex(pattern.prefix);
@@ -286,11 +287,20 @@ export function buildRegexFromPattern(pattern: ChapterPatternResult): RegExp | n
 
     let numberPart: string;
     switch (pattern.number_style) {
-      case "arabic": numberPart = "\\d+"; break;
-      case "chinese": numberPart = "[一二三四五六七八九十百千万零]+"; break;
-      case "roman": numberPart = "[IVXLCDMivxlcdm]+"; break;
-      case "none": numberPart = ""; break;
-      default: return null;
+      case "arabic":
+        numberPart = "\\d+";
+        break;
+      case "chinese":
+        numberPart = "[一二三四五六七八九十百千万零]+";
+        break;
+      case "roman":
+        numberPart = "[IVXLCDMivxlcdm]+";
+        break;
+      case "none":
+        numberPart = "";
+        break;
+      default:
+        return null;
     }
 
     // prefix + number + separator + 标题文字（可选） + suffix

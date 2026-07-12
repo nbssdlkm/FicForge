@@ -28,9 +28,7 @@ export type {
   InstallOptions,
 } from "./service.js";
 
-export {
-  FontError,
-} from "./types.js";
+export { FontError } from "./types.js";
 export type {
   BuiltinFont,
   DownloadProgress,

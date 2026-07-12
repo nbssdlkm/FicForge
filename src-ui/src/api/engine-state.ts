@@ -42,10 +42,7 @@ function isUsableEmbeddingKey(k: string | undefined): k is string {
   return typeof k === "string" && k !== "" && !k.startsWith("****") && k !== "<secure>";
 }
 
-export function createEmbeddingProvider(
-  sett: Settings,
-  project?: Project,
-): RemoteEmbeddingProvider | undefined {
+export function createEmbeddingProvider(sett: Settings, project?: Project): RemoteEmbeddingProvider | undefined {
   const lock = project?.embedding_lock;
   if (isUsableEmbeddingKey(lock?.api_key) && lock?.api_base) {
     // 明文远端告警与 LLM 生成路径同判据同口径（B2 对抗审：embedding 恰是局域网自建
@@ -55,11 +52,7 @@ export function createEmbeddingProvider(
   }
   if (!isUsableEmbeddingKey(sett.embedding?.api_key) || !sett.embedding?.api_base) return undefined;
   warnIfPlaintextRemote(sett.embedding.api_base);
-  return new RemoteEmbeddingProvider(
-    sett.embedding.api_base,
-    sett.embedding.api_key,
-    sett.embedding.model || "",
-  );
+  return new RemoteEmbeddingProvider(sett.embedding.api_base, sett.embedding.api_key, sett.embedding.model || "");
 }
 
 export async function getState(auPath: string) {
@@ -80,17 +73,29 @@ export async function rebuildIndex(auPath: string) {
 
   if (embProvider) {
     // rebuild 可能耗时数十秒，不持 AU 锁（不写 ops/chapter/facts，只写 vector 索引）
-    await e.ragManager.rebuildForAu(auPath, e.repos.chapter, embProvider, proj.cast_registry, undefined, undefined, e.repos.chapterSummary);
+    await e.ragManager.rebuildForAu(
+      auPath,
+      e.repos.chapter,
+      embProvider,
+      proj.cast_registry,
+      undefined,
+      undefined,
+      e.repos.chapterSummary,
+    );
     // 只对"更新 index_status"这一小段持锁，避免和其它 state 写入交叉
     await withAuLock(auPath, async () => {
-      await e.repos.state.update(auPath, (st) => { st.index_status = IndexStatus.READY; });
+      await e.repos.state.update(auPath, (st) => {
+        st.index_status = IndexStatus.READY;
+      });
     });
     return { task_id: "rebuild_" + Date.now(), message: "index rebuilt successfully" };
   }
 
   // No embedding configured — mark stale
   await withAuLock(auPath, async () => {
-    await e.repos.state.update(auPath, (st) => { st.index_status = IndexStatus.STALE; });
+    await e.repos.state.update(auPath, (st) => {
+      st.index_status = IndexStatus.STALE;
+    });
   });
   return { task_id: "rebuild_" + Date.now(), message: "index marked stale (no embedding configured)" };
 }
@@ -101,19 +106,22 @@ export async function recalcState(auPath: string) {
     const result = await recalc_state(auPath, state, chapter, project, fact);
     // WriteTransaction 保证 D-0036 写入顺序：ops → state
     const tx = new WriteTransaction();
-    tx.appendOp(auPath, createOpsEntry({
-      op_id: generate_op_id(),
-      op_type: "recalc_global_state",
-      target_id: auPath,
-      timestamp: now_utc(),
-      payload: {
-        characters_last_seen: { ...result.state.characters_last_seen },
-        last_scene_ending: result.state.last_scene_ending,
-        last_confirmed_chapter_focus: [...result.state.last_confirmed_chapter_focus],
-        chapters_dirty: [...result.state.chapters_dirty],
-        chapter_focus: [...result.state.chapter_focus],
-      },
-    }));
+    tx.appendOp(
+      auPath,
+      createOpsEntry({
+        op_id: generate_op_id(),
+        op_type: "recalc_global_state",
+        target_id: auPath,
+        timestamp: now_utc(),
+        payload: {
+          characters_last_seen: { ...result.state.characters_last_seen },
+          last_scene_ending: result.state.last_scene_ending,
+          last_confirmed_chapter_focus: [...result.state.last_confirmed_chapter_focus],
+          chapters_dirty: [...result.state.chapters_dirty],
+          chapter_focus: [...result.state.chapter_focus],
+        },
+      }),
+    );
     tx.setState(result.state);
     await tx.commit(ops, null, state);
     // 不泄露内部 state 对象到前端

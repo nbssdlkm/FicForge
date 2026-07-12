@@ -14,20 +14,12 @@
  * 并发策略：同一字体不允许并发下载。重复调用 install 会抛 FontError("network", ...)。
  */
 
-import {
-  FONT_MANIFEST,
-  getFontById,
-} from "./manifest.js";
+import { FONT_MANIFEST, getFontById } from "./manifest.js";
 import { FontDownloader, type ProgressCallback } from "./downloader.js";
 import type { FontRegistry } from "./registry.js";
 import type { FontStorage } from "./storage.js";
 import { warnAlways } from "../logger/index.js";
-import {
-  FontError,
-  type DownloadProgress,
-  type FontEntry,
-  type FontStatus,
-} from "./types.js";
+import { FontError, type DownloadProgress, type FontEntry, type FontStatus } from "./types.js";
 
 export interface InstallOptions {
   onProgress?: ProgressCallback;
@@ -135,8 +127,11 @@ export class FontsService {
         // registry 注册失败（字体字节损坏 / FontFace.load 抛错）时回滚 storage，
         // 避免"disk 有文件但 registry 未注册"的半状态——这种状态下 statusOf
         // 会误报 "installed" 却 CSS 用不到字体，下次 hydrate 再失败形成循环。
-        try { await this.storage.remove(id); }
-        catch { /* 清理失败就忽略，不覆盖原始错误 */ }
+        try {
+          await this.storage.remove(id);
+        } catch {
+          /* 清理失败就忽略，不覆盖原始错误 */
+        }
         throw registerErr;
       }
     } finally {
@@ -240,10 +235,7 @@ export class FontsService {
     const entry = getFontById(id);
     if (!entry) throw new FontError("not-found", `Font not found in manifest: ${id}`);
     if (entry.type === "builtin") {
-      throw new FontError(
-        "unsupported",
-        `Cannot uninstall builtin font: ${id} (bundled with the application)`,
-      );
+      throw new FontError("unsupported", `Cannot uninstall builtin font: ${id} (bundled with the application)`);
     }
     this.registry.unregister(id);
     await this.storage.remove(id);

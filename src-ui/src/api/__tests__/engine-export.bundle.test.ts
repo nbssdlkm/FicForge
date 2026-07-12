@@ -19,16 +19,19 @@ describe("bundleFromRawFiles (TD-015 raw-folder import)", () => {
     const bundle = bundleFromRawFiles(
       [
         { relpath: "./chapters/main/ch0001.md", content: "a" },
-        { relpath: "chapters\\main\\ch0002.md", content: "b" },     // windows 分隔符
+        { relpath: "chapters\\main\\ch0002.md", content: "b" }, // windows 分隔符
         { relpath: "state.yaml", content: "current_chapter: 2" },
         { relpath: "chapters/main/ch0001.summary.jsonl", content: "{}" }, // 不算章节
       ],
       { au_name: "我的故事", fandom: "原创" },
     );
 
-    expect(Object.keys(bundle.files).sort()).toEqual(
-      ["chapters/main/ch0001.md", "chapters/main/ch0001.summary.jsonl", "chapters/main/ch0002.md", "state.yaml"],
-    );
+    expect(Object.keys(bundle.files).sort()).toEqual([
+      "chapters/main/ch0001.md",
+      "chapters/main/ch0001.summary.jsonl",
+      "chapters/main/ch0002.md",
+      "state.yaml",
+    ]);
     expect(bundle.manifest.chapter_count).toBe(2);
     expect(bundle.manifest.file_count).toBe(4);
     expect(bundle.manifest.au_name).toBe("我的故事");
@@ -36,7 +39,10 @@ describe("bundleFromRawFiles (TD-015 raw-folder import)", () => {
   });
 
   it("drops empty/garbage relpaths", () => {
-    const bundle = bundleFromRawFiles([{ relpath: "./", content: "x" }, { relpath: "facts.jsonl", content: "{}" }]);
+    const bundle = bundleFromRawFiles([
+      { relpath: "./", content: "x" },
+      { relpath: "facts.jsonl", content: "{}" },
+    ]);
     expect(Object.keys(bundle.files)).toEqual(["facts.jsonl"]);
   });
 
@@ -47,13 +53,21 @@ describe("bundleFromRawFiles (TD-015 raw-folder import)", () => {
       { relpath: "chapters/.drafts/ch0002_draft_A.md", content: "draft" },
     ]);
     expect(Object.keys(bundle.files)).toEqual(["chapters/main/ch0001.md"]);
-    expect(bundle.manifest.file_count).toBe(1);   // 不把将被跳过的 .vectors/.drafts 算进去
+    expect(bundle.manifest.file_count).toBe(1); // 不把将被跳过的 .vectors/.drafts 算进去
   });
 });
 
 describe("parseAuBundle (TD-015)", () => {
   const valid = JSON.stringify({
-    manifest: { bundle_version: AU_BUNDLE_VERSION, exported_at: "t", au_name: "x", fandom: "y", chapter_count: 0, file_count: 0, excluded_dirs: [] },
+    manifest: {
+      bundle_version: AU_BUNDLE_VERSION,
+      exported_at: "t",
+      au_name: "x",
+      fandom: "y",
+      chapter_count: 0,
+      file_count: 0,
+      excluded_dirs: [],
+    },
     files: {},
   });
 
@@ -66,7 +80,18 @@ describe("parseAuBundle (TD-015)", () => {
   });
 
   it("throws on an incompatible major version", () => {
-    const bad = JSON.stringify({ manifest: { bundle_version: "9.0.0", exported_at: "t", au_name: "", fandom: "", chapter_count: 0, file_count: 0, excluded_dirs: [] }, files: {} });
+    const bad = JSON.stringify({
+      manifest: {
+        bundle_version: "9.0.0",
+        exported_at: "t",
+        au_name: "",
+        fandom: "",
+        chapter_count: 0,
+        file_count: 0,
+        excluded_dirs: [],
+      },
+      files: {},
+    });
     expect(() => parseAuBundle(bad)).toThrow();
   });
 });
@@ -81,8 +106,13 @@ describe("restoreAuBundle integration (review fix #6 — the load-bearing migrat
   function realisticBundle(): AuBundle {
     return {
       manifest: {
-        bundle_version: AU_BUNDLE_VERSION, exported_at: "2026-06-23T00:00:00Z",
-        au_name: "迁回的文", fandom: "原创", chapter_count: 1, file_count: 4, excluded_dirs: [],
+        bundle_version: AU_BUNDLE_VERSION,
+        exported_at: "2026-06-23T00:00:00Z",
+        au_name: "迁回的文",
+        fandom: "原创",
+        chapter_count: 1,
+        file_count: 4,
+        excluded_dirs: [],
       },
       files: {
         "project.yaml": "name: 迁回的文\nfandom: 原创\nllm:\n  api_key: <secure>\n",

@@ -162,42 +162,55 @@ export function useSimpleDispatchFlow({
               if (content) {
                 chat.appendAssistantMessage(content);
               } else {
-                chat.appendSystemMessage("warning", t("simple.tool.invalidChatReplyArg", {
-                  defaultValue: "chat_reply 收到空 content",
-                }));
+                chat.appendSystemMessage(
+                  "warning",
+                  t("simple.tool.invalidChatReplyArg", {
+                    defaultValue: "chat_reply 收到空 content",
+                  }),
+                );
               }
             } else if (toolName === SIMPLE_TOOL_SHOW_CHAPTER) {
               // agent loop read-only：先持久化 assistant.toolCalls 让 chat-to-llm 能
               // 产 role:"assistant" tool_calls=[...] 配对紧随的 SimpleToolResultMessage
               // (role:"tool" tool_call_id) → OpenAI 协议要求 tool 消息前必须有匹配 assistant
               // tool_calls (真机 2026-05-04 P0 修复)。Preview card 仍另外 append 用于 UI 渲染。
-              chat.appendAssistantMessage("", [{
-                id: toolCallId,
-                name: toolName,
-                args: JSON.stringify(toolArgs),
-              }]);
+              chat.appendAssistantMessage("", [
+                {
+                  id: toolCallId,
+                  name: toolName,
+                  args: JSON.stringify(toolArgs),
+                },
+              ]);
               const num = Number(toolArgs.chapter_num);
               if (Number.isFinite(num) && num > 0) {
                 chat.appendChapterPreviewMessage(num);
               } else {
-                chat.appendSystemMessage("warning", t("simple.tool.invalidChapterArg", {
-                  defaultValue: "show_chapter 收到非法 chapter_num：{{val}}",
-                  val: String(toolArgs.chapter_num),
-                }));
+                chat.appendSystemMessage(
+                  "warning",
+                  t("simple.tool.invalidChapterArg", {
+                    defaultValue: "show_chapter 收到非法 chapter_num：{{val}}",
+                    val: String(toolArgs.chapter_num),
+                  }),
+                );
               }
             } else if (toolName === SIMPLE_TOOL_SHOW_SETTING) {
-              chat.appendAssistantMessage("", [{
-                id: toolCallId,
-                name: toolName,
-                args: JSON.stringify(toolArgs),
-              }]);
+              chat.appendAssistantMessage("", [
+                {
+                  id: toolCallId,
+                  name: toolName,
+                  args: JSON.stringify(toolArgs),
+                },
+              ]);
               const path = String(toolArgs.file_path ?? "");
               if (path) {
                 chat.appendSettingPreviewMessage(path);
               } else {
-                chat.appendSystemMessage("warning", t("simple.tool.invalidSettingArg", {
-                  defaultValue: "show_setting 收到空 file_path",
-                }));
+                chat.appendSystemMessage(
+                  "warning",
+                  t("simple.tool.invalidSettingArg", {
+                    defaultValue: "show_setting 收到空 file_path",
+                  }),
+                );
               }
             } else {
               // modify_*_file / add_pinned_context / etc → 走 ToolCallCard
@@ -289,7 +302,17 @@ export function useSimpleDispatchFlow({
     chat.appendUserMessage(text);
     setInputText("");
     startDispatchForUserInput(text, history);
-  }, [acceptingDraftId, chat, dispatch.isStreaming, inputText, projectInfo, settingsInfo, showError, startDispatchForUserInput, t]);
+  }, [
+    acceptingDraftId,
+    chat,
+    dispatch.isStreaming,
+    inputText,
+    projectInfo,
+    settingsInfo,
+    showError,
+    startDispatchForUserInput,
+    t,
+  ]);
 
   const handleCancel = useCallback(() => {
     dispatch.cancelDispatch();

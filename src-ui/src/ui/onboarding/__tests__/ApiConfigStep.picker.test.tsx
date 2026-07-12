@@ -75,13 +75,15 @@ describe("ApiConfigStep — ProviderModelPicker 接线（R2-7）", () => {
     fireEvent.click(next);
 
     // onNext 的 config 即 OnboardingFlow 保存 payload 的来源（buildDefaultLlmSettingsInput）
-    expect(onNext).toHaveBeenCalledWith(expect.objectContaining({
-      mode: "api",
-      model: "deepseek-v4-flash",
-      api_base: "https://api.deepseek.com",
-      api_key: "sk-test",
-      context_window: "1000000",
-      chat_path: "",
-    }));
+    expect(onNext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "api",
+        model: "deepseek-v4-flash",
+        api_base: "https://api.deepseek.com",
+        api_key: "sk-test",
+        context_window: "1000000",
+        chat_path: "",
+      }),
+    );
   });
 });

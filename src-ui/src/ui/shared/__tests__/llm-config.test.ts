@@ -63,7 +63,7 @@ describe("formCtxToSaveInput / persistedCtxToForm — 对称闭环", () => {
     }
   });
 
-  it("持久层 → 表单：正数字符串化、0/undefined → \"\"", () => {
+  it('持久层 → 表单：正数字符串化、0/undefined → ""', () => {
     expect(persistedCtxToForm(131072)).toBe("131072");
     expect(persistedCtxToForm(0)).toBe("");
     expect(persistedCtxToForm(undefined)).toBe("");

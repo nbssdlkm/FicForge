@@ -3,11 +3,11 @@
 // See LICENSE file in the project root for full license text.
 
 import { Spinner } from "./shared/Spinner";
-import { Button } from './shared/Button';
-import { Input } from './shared/Input';
-import { Modal } from './shared/Modal';
-import { ConfirmDialog } from './shared/ConfirmDialog';
-import { useTranslation } from '../i18n/useAppTranslation';
+import { Button } from "./shared/Button";
+import { Input } from "./shared/Input";
+import { Modal } from "./shared/Modal";
+import { ConfirmDialog } from "./shared/ConfirmDialog";
+import { useTranslation } from "../i18n/useAppTranslation";
 
 export type LibraryModalsProps = {
   // Create fandom modal
@@ -28,8 +28,16 @@ export type LibraryModalsProps = {
   creatingAu: boolean;
 
   // Delete confirmation modal
-  deleteTarget: { type: 'fandom' | 'au'; fandomDir: string; fandomName: string; auDir?: string; auName?: string } | null;
-  setDeleteTarget: (target: { type: 'fandom' | 'au'; fandomDir: string; fandomName: string; auDir?: string; auName?: string } | null) => void;
+  deleteTarget: {
+    type: "fandom" | "au";
+    fandomDir: string;
+    fandomName: string;
+    auDir?: string;
+    auName?: string;
+  } | null;
+  setDeleteTarget: (
+    target: { type: "fandom" | "au"; fandomDir: string; fandomName: string; auDir?: string; auName?: string } | null,
+  ) => void;
   handleDelete: () => void;
   deleting: boolean;
 };
@@ -57,33 +65,65 @@ export function LibraryModals({
 
   return (
     <>
-      <Modal isOpen={isFandomModalOpen} onClose={creatingFandom ? () => {} : handleCloseFandomModal} title={t("library.createFandomModal.title")}>
+      <Modal
+        isOpen={isFandomModalOpen}
+        onClose={creatingFandom ? () => {} : handleCloseFandomModal}
+        title={t("library.createFandomModal.title")}
+      >
         <p className="text-sm text-text/70 mb-5">{t("library.createFandomModal.description")}</p>
         <div className="flex flex-col gap-4">
-          <Input placeholder={t("library.createFandomModal.namePlaceholder")} value={newFandomName} onChange={(e) => setNewFandomName(e.target.value)} className="w-full bg-surface/50 text-base" disabled={creatingFandom} />
-          <Button tone="accent" fill="solid" className="mt-2 h-11 w-full font-medium tracking-wide" onClick={handleCreateFandom} disabled={creatingFandom || !newFandomName.trim()}>
+          <Input
+            placeholder={t("library.createFandomModal.namePlaceholder")}
+            value={newFandomName}
+            onChange={(e) => setNewFandomName(e.target.value)}
+            className="w-full bg-surface/50 text-base"
+            disabled={creatingFandom}
+          />
+          <Button
+            tone="accent"
+            fill="solid"
+            className="mt-2 h-11 w-full font-medium tracking-wide"
+            onClick={handleCreateFandom}
+            disabled={creatingFandom || !newFandomName.trim()}
+          >
             {creatingFandom ? <Spinner size="md" /> : t("library.createFandomModal.submit")}
           </Button>
         </div>
       </Modal>
 
-      <Modal isOpen={isAuModalOpen} onClose={creatingAu ? () => {} : () => setAuModalOpen(false)} title={t("library.createAuModal.title")}>
+      <Modal
+        isOpen={isAuModalOpen}
+        onClose={creatingAu ? () => {} : () => setAuModalOpen(false)}
+        title={t("library.createAuModal.title")}
+      >
         <p className="text-sm text-text/70 mb-5 leading-relaxed">{t("library.createAuModal.description")}</p>
         <div className="flex flex-col gap-5">
-          <Input placeholder={t("library.createAuModal.namePlaceholder")} value={newAuName} onChange={(e) => setNewAuName(e.target.value)} className="w-full bg-surface/50 text-base" disabled={creatingAu} />
+          <Input
+            placeholder={t("library.createAuModal.namePlaceholder")}
+            value={newAuName}
+            onChange={(e) => setNewAuName(e.target.value)}
+            className="w-full bg-surface/50 text-base"
+            disabled={creatingAu}
+          />
           <div className="flex flex-col gap-2">
-             <label className="text-sm font-bold text-text/90">{t("library.createAuModal.inheritLabel")}</label>
-             <div className="flex min-h-[44px] items-center rounded-md border border-black/20 bg-surface/60 px-3 text-base text-text/70 dark:border-white/20 md:text-sm">
-                {selectedFandom}
-             </div>
+            <label className="text-sm font-bold text-text/90">{t("library.createAuModal.inheritLabel")}</label>
+            <div className="flex min-h-[44px] items-center rounded-md border border-black/20 bg-surface/60 px-3 text-base text-text/70 dark:border-white/20 md:text-sm">
+              {selectedFandom}
+            </div>
           </div>
           <div className="flex flex-col gap-2">
-             <label className="text-sm font-bold text-text/90">{t("library.createAuModal.initLabel")}</label>
-             <div className="rounded-md border border-black/20 bg-surface/60 px-3 py-3 text-base text-text/70 dark:border-white/20 md:text-sm">
-                {t("library.createAuModal.initGlobal")}
-             </div>
+            <label className="text-sm font-bold text-text/90">{t("library.createAuModal.initLabel")}</label>
+            <div className="rounded-md border border-black/20 bg-surface/60 px-3 py-3 text-base text-text/70 dark:border-white/20 md:text-sm">
+              {t("library.createAuModal.initGlobal")}
+            </div>
           </div>
-          <Button tone="accent" fill="solid" className="mt-2 h-11 w-full font-medium tracking-wide" onClick={handleCreateAu} disabled={creatingAu || !newAuName.trim()}>
+          <Button
+            tone="accent"
+            fill="solid"
+            className="mt-2 h-11 w-full font-medium tracking-wide"
+            onClick={handleCreateAu}
+            disabled={creatingAu || !newAuName.trim()}
+          >
             {creatingAu ? <Spinner size="md" /> : t("library.createAuModal.submit")}
           </Button>
         </div>
@@ -93,12 +133,14 @@ export function LibraryModals({
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title={deleteTarget?.type === 'fandom' ? t('library.deleteFandomTitle') : t('library.deleteAuTitle')}
-        message={deleteTarget?.type === 'fandom'
-          ? t('library.deleteFandomMessage', { name: deleteTarget.fandomName })
-          : t('library.deleteAuMessage', { name: deleteTarget?.auName || '' })}
+        title={deleteTarget?.type === "fandom" ? t("library.deleteFandomTitle") : t("library.deleteAuTitle")}
+        message={
+          deleteTarget?.type === "fandom"
+            ? t("library.deleteFandomMessage", { name: deleteTarget.fandomName })
+            : t("library.deleteAuMessage", { name: deleteTarget?.auName || "" })
+        }
         destructive
-        confirmLabel={t('common.actions.confirmDelete')}
+        confirmLabel={t("common.actions.confirmDelete")}
         loading={deleting}
       />
     </>

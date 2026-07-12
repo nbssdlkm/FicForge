@@ -187,9 +187,7 @@ describe("FileSimpleChatRepository", () => {
   });
 
   it("save 多次只保留最后一次（全量替换语义）", async () => {
-    await repo.save("au2", [
-      { id: "a", timestamp: "t1", kind: "user", content: "first" },
-    ]);
+    await repo.save("au2", [{ id: "a", timestamp: "t1", kind: "user", content: "first" }]);
     await repo.save("au2", [
       { id: "b", timestamp: "t2", kind: "user", content: "second" },
       { id: "c", timestamp: "t3", kind: "user", content: "third" },
@@ -222,23 +220,26 @@ describe("FileSimpleChatRepository", () => {
     // 直接构造一个有问题的 yaml
     const path = "au5/.well-known/simple-chat.yaml";
     await adapter.mkdir("au5/.well-known");
-    await adapter.writeFile(path, [
-      "version: 1",
-      "au_path: au5",
-      "created_at: 2026-05-03T10:00:00Z",
-      "updated_at: 2026-05-03T10:00:00Z",
-      "messages:",
-      "  - id: ok-1",
-      "    timestamp: t1",
-      "    kind: user",
-      "    content: alpha",
-      "  - id: missing-kind",
-      "    timestamp: t2",
-      "    content: beta",  // 缺 kind
-      "  - timestamp: t3",
-      "    kind: user",
-      "    content: gamma",  // 缺 id
-    ].join("\n"));
+    await adapter.writeFile(
+      path,
+      [
+        "version: 1",
+        "au_path: au5",
+        "created_at: 2026-05-03T10:00:00Z",
+        "updated_at: 2026-05-03T10:00:00Z",
+        "messages:",
+        "  - id: ok-1",
+        "    timestamp: t1",
+        "    kind: user",
+        "    content: alpha",
+        "  - id: missing-kind",
+        "    timestamp: t2",
+        "    content: beta", // 缺 kind
+        "  - timestamp: t3",
+        "    kind: user",
+        "    content: gamma", // 缺 id
+      ].join("\n"),
+    );
 
     const loaded = await repo.get("au5");
     expect(loaded.messages.map((m) => m.id)).toEqual(["ok-1"]);
@@ -288,7 +289,15 @@ describe("FileSimpleChatRepository.update（锁内 read-modify-write，审计 H3
   it("以磁盘现状为基底应用 updater：钉 accepted 标记不丢其他消息", async () => {
     await repo.save("au_u1", [
       { id: "m1", timestamp: "t1", kind: "user", content: "写第一章" },
-      { id: "d1", timestamp: "t2", kind: "writing-draft", chapterNum: 1, content: "正文", status: "pending", errorMessage: "旧错误" },
+      {
+        id: "d1",
+        timestamp: "t2",
+        kind: "writing-draft",
+        chapterNum: 1,
+        content: "正文",
+        status: "pending",
+        errorMessage: "旧错误",
+      },
     ]);
 
     await repo.update("au_u1", (messages) =>
@@ -322,9 +331,7 @@ describe("FileSimpleChatRepository.update（锁内 read-modify-write，审计 H3
         { id: "d1", timestamp: "t", kind: "writing-draft", chapterNum: 1, content: "正文", status: "pending" },
         { id: "m2", timestamp: "t2", kind: "user", content: "后续消息" },
       ]),
-      repo.update("au_u3", (messages) =>
-        messages.map((m) => (m.id === "d1" ? { ...m, status: "accepted" } : m)),
-      ),
+      repo.update("au_u3", (messages) => messages.map((m) => (m.id === "d1" ? { ...m, status: "accepted" } : m))),
     ]);
     const loaded = await repo.get("au_u3");
     const draft = loaded.messages.find((m) => m.id === "d1");

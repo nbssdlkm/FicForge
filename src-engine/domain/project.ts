@@ -12,7 +12,7 @@ export interface LLMConfig {
   api_key: string;
   local_model_path: string;
   ollama_model: string;
-  context_window: number;    // 0 = 自动推断
+  context_window: number; // 0 = 自动推断
   /**
    * 非标聊天补全路径（默认 /chat/completions）。特殊网关（自定义供应商 chatPath）用。
    * 与 api_base 同源随层持久化：缺省 = 未设置（消费方回退默认路径），不写默认值 ——
@@ -38,7 +38,7 @@ export function createLLMConfig(partial?: Partial<LLMConfig>): LLMConfig {
 
 export interface WritingStyle {
   perspective: Perspective;
-  pov_character: string;        // first_person 时必填
+  pov_character: string; // first_person 时必填
   emotion_style: EmotionStyle;
   custom_instructions: string;
 }
@@ -91,8 +91,8 @@ export interface Project {
   fandom: string;
   schema_version: string;
   revision: number;
-  created_at: string;                           // ISO 8601
-  updated_at: string;                           // ISO 8601
+  created_at: string; // ISO 8601
+  updated_at: string; // ISO 8601
 
   llm: LLMConfig;
   model_params_override: Record<string, Record<string, unknown>>;
@@ -108,7 +108,7 @@ export interface Project {
 
   rag_decay_coefficient: number;
   embedding_lock: EmbeddingLock;
-  core_guarantee_budget: number;               // D-0015
+  core_guarantee_budget: number; // D-0015
 
   current_branch: string;
 }

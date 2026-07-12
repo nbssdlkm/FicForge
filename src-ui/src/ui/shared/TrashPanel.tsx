@@ -30,10 +30,7 @@ type TrashPanelProps = {
 };
 
 function sortEntries(entries: TrashEntry[]): TrashEntry[] {
-  return [...entries].sort(
-    (left, right) =>
-      new Date(right.deleted_at).getTime() - new Date(left.deleted_at).getTime()
-  );
+  return [...entries].sort((left, right) => new Date(right.deleted_at).getTime() - new Date(left.deleted_at).getTime());
 }
 
 function formatRelativeTime(value: string, locale: string): string {
@@ -73,10 +70,12 @@ function getDaysUntilExpiry(value: string): number | null {
 }
 
 function isDirectoryEntry(entry: TrashEntry): boolean {
-  return Boolean(entry.metadata?.is_directory)
-    || entry.entity_type === "fandom"
-    || entry.entity_type === "au"
-    || entry.entity_type.endsWith("_dir");
+  return (
+    Boolean(entry.metadata?.is_directory) ||
+    entry.entity_type === "fandom" ||
+    entry.entity_type === "au" ||
+    entry.entity_type.endsWith("_dir")
+  );
 }
 
 function getEntryLabel(entry: TrashEntry): string {
@@ -103,9 +102,9 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
     setLoading(false);
     setPendingId(null);
     setIsClearingAll(false);
-      setDeleteTarget(null);
-      setClearAllOpen(false);
-      setRestoreConflictEntry(null);
+    setDeleteTarget(null);
+    setClearAllOpen(false);
+    setRestoreConflictEntry(null);
   }, [path, scope]);
 
   const loadEntries = async () => {
@@ -161,11 +160,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
     } catch (error) {
       if (requestGuard.isKeyStale(contextKey)) return;
       // F5：仅 abort 路径撞冲突时弹「以回收站版本覆盖」出路；overwrite 已备份仍失败则照常报错。
-      if (
-        onConflict === "abort"
-        && error instanceof ApiError
-        && error.errorCode.toLowerCase() === "restore_conflict"
-      ) {
+      if (onConflict === "abort" && error instanceof ApiError && error.errorCode.toLowerCase() === "restore_conflict") {
         setRestoreConflictEntry(entry);
         return;
       }
@@ -273,9 +268,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
                           {isDirectoryEntry(entry) ? <FolderOpen size={16} /> : <FileText size={16} />}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-medium text-text">
-                            {getEntryLabel(entry)}
-                          </div>
+                          <div className="truncate text-sm font-medium text-text">{getEntryLabel(entry)}</div>
                           <div
                             className="mt-1 text-xs text-text/50"
                             title={formatAbsoluteTime(entry.deleted_at, timeLocale)}
@@ -296,15 +289,19 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
                       </div>
                       <div className="mt-3 flex justify-end gap-2">
                         <Button
-                          tone="neutral" fill="outline"
+                          tone="neutral"
+                          fill="outline"
                           size="sm"
-                          onClick={() => { void handleRestore(entry); }}
+                          onClick={() => {
+                            void handleRestore(entry);
+                          }}
                           disabled={isBusy || disabled}
                         >
                           {pendingId === entry.trash_id ? <Spinner size="sm" /> : t("trash.restore")}
                         </Button>
                         <Button
-                          tone="destructive" fill="plain"
+                          tone="destructive"
+                          fill="plain"
                           size="sm"
                           onClick={() => setDeleteTarget(entry)}
                           disabled={isBusy || disabled}
@@ -317,7 +314,8 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
                 })}
                 <div className="flex justify-end pt-1">
                   <Button
-                    tone="destructive" fill="plain"
+                    tone="destructive"
+                    fill="plain"
                     size="sm"
                     onClick={() => setClearAllOpen(true)}
                     disabled={isClearingAll || disabled}
@@ -331,11 +329,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
         )}
       </div>
 
-      <Modal
-        isOpen={deleteTarget !== null}
-        onClose={() => setDeleteTarget(null)}
-        title={t("trash.permanentDelete")}
-      >
+      <Modal isOpen={deleteTarget !== null} onClose={() => setDeleteTarget(null)} title={t("trash.permanentDelete")}>
         <div className="space-y-4">
           <p className="text-sm text-text/90">
             {t("trash.confirmDelete", { name: deleteTarget ? getEntryLabel(deleteTarget) : "" })}
@@ -345,8 +339,11 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
               {t("common.actions.cancel")}
             </Button>
             <Button
-              tone="destructive" fill="solid"
-              onClick={() => { void handlePermanentDelete(); }}
+              tone="destructive"
+              fill="solid"
+              onClick={() => {
+                void handlePermanentDelete();
+              }}
               disabled={pendingId !== null || disabled}
             >
               {pendingId && deleteTarget ? <Spinner size="sm" /> : t("common.actions.confirmDelete")}
@@ -355,22 +352,19 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
         </div>
       </Modal>
 
-      <Modal
-        isOpen={clearAllOpen}
-        onClose={() => setClearAllOpen(false)}
-        title={t("trash.clearAll")}
-      >
+      <Modal isOpen={clearAllOpen} onClose={() => setClearAllOpen(false)} title={t("trash.clearAll")}>
         <div className="space-y-4">
-          <p className="text-sm text-text/90">
-            {t("trash.confirmClearAll", { count: entries.length })}
-          </p>
+          <p className="text-sm text-text/90">{t("trash.confirmClearAll", { count: entries.length })}</p>
           <div className="flex justify-end gap-2">
             <Button tone="neutral" fill="plain" onClick={() => setClearAllOpen(false)}>
               {t("common.actions.cancel")}
             </Button>
             <Button
-              tone="destructive" fill="solid"
-              onClick={() => { void handleClearAll(); }}
+              tone="destructive"
+              fill="solid"
+              onClick={() => {
+                void handleClearAll();
+              }}
               disabled={isClearingAll || disabled}
             >
               {isClearingAll ? <Spinner size="sm" /> : t("trash.clearAll")}

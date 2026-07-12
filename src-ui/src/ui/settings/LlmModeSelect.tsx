@@ -14,11 +14,11 @@
  *     本组件和两个消费方 (GlobalSettingsModal / AuSettingsLayout) 零修改。
  */
 
-import { useMemo } from 'react';
-import { listGenerationModes, type LLMModeKey, type Platform } from '@ficforge/engine';
-import { useTranslation } from '../../i18n/useAppTranslation';
-import { getEnumLabel } from '../../i18n/labels';
-import { getEngine } from '../../api/engine-client';
+import { useMemo } from "react";
+import { listGenerationModes, type LLMModeKey, type Platform } from "@ficforge/engine";
+import { useTranslation } from "../../i18n/useAppTranslation";
+import { getEnumLabel } from "../../i18n/labels";
+import { getEngine } from "../../api/engine-client";
 
 interface LlmModeSelectProps {
   value: string;
@@ -29,13 +29,7 @@ interface LlmModeSelectProps {
   platform?: Platform;
 }
 
-export function LlmModeSelect({
-  value,
-  onChange,
-  disabled,
-  className,
-  platform,
-}: LlmModeSelectProps) {
+export function LlmModeSelect({ value, onChange, disabled, className, platform }: LlmModeSelectProps) {
   const { t } = useTranslation();
 
   const resolvedPlatform: Platform = useMemo(() => {
@@ -44,14 +38,11 @@ export function LlmModeSelect({
       return getEngine().adapter.getPlatform();
     } catch {
       // engine 未初始化时（罕见）默认 web
-      return 'web';
+      return "web";
     }
   }, [platform]);
 
-  const options = useMemo(
-    () => listGenerationModes(resolvedPlatform),
-    [resolvedPlatform],
-  );
+  const options = useMemo(() => listGenerationModes(resolvedPlatform), [resolvedPlatform]);
 
   // 当前选中模式的 hint key（如果有）
   const currentHint = options.find((o) => o.mode === value)?.availability.hintKey;
@@ -64,32 +55,20 @@ export function LlmModeSelect({
         disabled={disabled}
         className={
           className ??
-          'h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent disabled:opacity-60 dark:border-white/20 md:h-10 md:text-sm'
+          "h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent disabled:opacity-60 dark:border-white/20 md:h-10 md:text-sm"
         }
       >
         {options.map(({ mode, availability }) => (
-          <option
-            key={mode}
-            value={mode}
-            disabled={!availability.available}
-          >
-            {getEnumLabel('llm_mode', mode, mode)}
-            {!availability.available
-              ? ` (${t('common.status.comingSoon')})`
-              : ''}
+          <option key={mode} value={mode} disabled={!availability.available}>
+            {getEnumLabel("llm_mode", mode, mode)}
+            {!availability.available ? ` (${t("common.status.comingSoon")})` : ""}
           </option>
         ))}
       </select>
       {/* 平台相关的提示（如 ollama 在移动端需要填局域网 IP） */}
-      {currentHint && (
-        <p className="text-xs leading-relaxed text-warning">{t(currentHint)}</p>
-      )}
+      {currentHint && <p className="text-xs leading-relaxed text-warning">{t(currentHint)}</p>}
       {/* 模式本身的常规说明（沿用原有 i18n key） */}
-      {!currentHint && (
-        <p className="text-xs text-text/50">
-          {t(`common.help.llmMode.${value}`)}
-        </p>
-      )}
+      {!currentHint && <p className="text-xs text-text/50">{t(`common.help.llmMode.${value}`)}</p>}
     </div>
   );
 }

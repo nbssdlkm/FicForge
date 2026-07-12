@@ -63,7 +63,7 @@ export const MODEL_CONTEXT_MAP: Record<string, number> = {
   // --- OpenAI ---
   // gpt-5.5 / 5.4：1M ctx / 128K out；5.4-mini 400K。来源：OpenAI developers docs（官方）
   "gpt-5.5": 1_000_000,
-  "gpt-5.4-mini": 400_000,  // 更长前缀须排在 gpt-5.4 之前的逻辑由 fuzzy_lookup 最长前缀保证
+  "gpt-5.4-mini": 400_000, // 更长前缀须排在 gpt-5.4 之前的逻辑由 fuzzy_lookup 最长前缀保证
   "gpt-5.4": 1_000_000,
   // 旧条目：保留兜底。来源：OpenAI（官方，遗留）
   "gpt-4o": 128_000,
@@ -83,7 +83,7 @@ export const MODEL_CONTEXT_MAP: Record<string, number> = {
   // opus-4-8 / sonnet-5 / sonnet-4-6：1M ctx / 128K out。来源：Anthropic platform docs（官方）
   "claude-opus-4-8": 1_000_000,
   "claude-sonnet-5": 1_000_000,
-  "claude-sonnet-4-6": 1_000_000,  // ⚠️ 修订：旧值 200000 系过时，实为 1M（调研诊断）
+  "claude-sonnet-4-6": 1_000_000, // ⚠️ 修订：旧值 200000 系过时，实为 1M（调研诊断）
   // haiku-4-5：200K ctx / 64K out。来源：Anthropic platform docs（官方）
   "claude-haiku-4-5": 200_000,
   // 旧条目：保留兜底。来源：Anthropic（官方，遗留）
@@ -96,7 +96,7 @@ export const MODEL_CONTEXT_MAP: Record<string, number> = {
 
   // --- 本地 / Ollama 常见基座（保留旧条目）---
   // 来源：Meta（官方，遗留）
-  "llama3": 131_072,
+  llama3: 131_072,
   "llama3.1": 131_072,
 };
 
@@ -111,51 +111,51 @@ export const DEFAULT_CONTEXT_WINDOW = 32_000;
 
 export const MODEL_MAX_OUTPUT: Record<string, number> = {
   // --- DeepSeek ---
-  "deepseek-chat": 8_192,        // 旧条目保留。来源：DeepSeek（官方，遗留）
-  "deepseek-reasoner": 8_192,    // 旧条目保留。来源：DeepSeek（官方，遗留）
-  "deepseek-v4-flash": 384_000,  // 来源：DeepSeek api-docs（官方）
-  "deepseek-v4-pro": 384_000,    // 来源：DeepSeek api-docs（官方）
+  "deepseek-chat": 8_192, // 旧条目保留。来源：DeepSeek（官方，遗留）
+  "deepseek-reasoner": 8_192, // 旧条目保留。来源：DeepSeek（官方，遗留）
+  "deepseek-v4-flash": 384_000, // 来源：DeepSeek api-docs（官方）
+  "deepseek-v4-pro": 384_000, // 来源：DeepSeek api-docs（官方）
 
   // --- 智谱 GLM（官方确证 128K）---
-  "glm-5.2": 128_000,  // 来源：docs.bigmodel.cn（官方）
-  "glm-4.7": 128_000,  // 来源：docs.bigmodel.cn（官方）
+  "glm-5.2": 128_000, // 来源：docs.bigmodel.cn（官方）
+  "glm-4.7": 128_000, // 来源：docs.bigmodel.cn（官方）
 
   // --- OpenAI（官方 128K；mini 保守同旗舰）---
-  "gpt-5.5": 128_000,       // 来源：OpenAI developers docs（官方）
-  "gpt-5.4-mini": 128_000,  // 来源：OpenAI developers docs（官方）
-  "gpt-5.4": 128_000,       // 来源：OpenAI developers docs（官方）
-  "gpt-4o": 4_096,          // 旧条目保留。来源：OpenAI（官方，遗留）
-  "gpt-4-turbo": 4_096,     // 旧条目保留。来源：OpenAI（官方，遗留）
+  "gpt-5.5": 128_000, // 来源：OpenAI developers docs（官方）
+  "gpt-5.4-mini": 128_000, // 来源：OpenAI developers docs（官方）
+  "gpt-5.4": 128_000, // 来源：OpenAI developers docs（官方）
+  "gpt-4o": 4_096, // 旧条目保留。来源：OpenAI（官方，遗留）
+  "gpt-4-turbo": 4_096, // 旧条目保留。来源：OpenAI（官方，遗留）
 
   // --- Google Gemini（官方 64K）---
-  "gemini-3.1-pro-preview": 64_000,  // 来源：ai.google.dev（官方）
-  "gemini-3.5-flash": 64_000,        // 来源：ai.google.dev（官方）
-  "gemini-3": 64_000,                // 前缀兜底。来源：ai.google.dev（官方）
+  "gemini-3.1-pro-preview": 64_000, // 来源：ai.google.dev（官方）
+  "gemini-3.5-flash": 64_000, // 来源：ai.google.dev（官方）
+  "gemini-3": 64_000, // 前缀兜底。来源：ai.google.dev（官方）
 
   // --- Anthropic Claude（官方 128K / haiku 64K）---
-  "claude-opus-4-8": 128_000,   // 来源：Anthropic platform docs（官方）
-  "claude-sonnet-5": 128_000,   // 来源：Anthropic platform docs（官方）
+  "claude-opus-4-8": 128_000, // 来源：Anthropic platform docs（官方）
+  "claude-sonnet-5": 128_000, // 来源：Anthropic platform docs（官方）
   "claude-sonnet-4-6": 128_000, // 来源：Anthropic platform docs（官方；旧值 8192 严重偏低）
-  "claude-haiku-4-5": 64_000,   // 来源：Anthropic platform docs（官方）
-  "claude-3-5-sonnet": 8_192,   // 旧条目保留。来源：Anthropic（官方，遗留）
-  "claude-3-7-sonnet": 8_192,   // 旧条目保留。来源：Anthropic（官方，遗留）
+  "claude-haiku-4-5": 64_000, // 来源：Anthropic platform docs（官方）
+  "claude-3-5-sonnet": 8_192, // 旧条目保留。来源：Anthropic（官方，遗留）
+  "claude-3-7-sonnet": 8_192, // 旧条目保留。来源：Anthropic（官方，遗留）
 
   // --- Moonshot Kimi（max out 官方未明示，保守取 16K）---
-  "kimi-k2.7-code": 16_384,  // ⚠️ 未确证，保守值。来源：调研表 ⚠️
-  "kimi-k2.6": 16_384,       // ⚠️ 未确证，保守值。来源：调研表 ⚠️
+  "kimi-k2.7-code": 16_384, // ⚠️ 未确证，保守值。来源：调研表 ⚠️
+  "kimi-k2.6": 16_384, // ⚠️ 未确证，保守值。来源：调研表 ⚠️
 
   // --- 阿里 Qwen（max out 官方未明示，保守取 8K）---
-  "qwen3.7-max": 8_192,   // ⚠️ 未确证，保守值。来源：调研表 ⚠️
-  "qwen3.7-plus": 8_192,  // ⚠️ 未确证，保守值。来源：调研表 ⚠️
-  "qwen-long": 8_192,     // ⚠️ 未确证，保守值。来源：调研表 ⚠️
-  "qwen-max": 8_192,      // 旧条目保留。来源：阿里（官方，遗留）
+  "qwen3.7-max": 8_192, // ⚠️ 未确证，保守值。来源：调研表 ⚠️
+  "qwen3.7-plus": 8_192, // ⚠️ 未确证，保守值。来源：调研表 ⚠️
+  "qwen-long": 8_192, // ⚠️ 未确证，保守值。来源：调研表 ⚠️
+  "qwen-max": 8_192, // 旧条目保留。来源：阿里（官方，遗留）
 
   // --- 字节豆包 / MiniMax（max out 二手，保守值）---
-  "doubao-seed-2-0-pro-260215": 128_000,  // ⚠️ 未确证 128K⚠️。来源：调研表 ⚠️
-  "doubao-seed-2-0-lite-260215": 16_384,  // ⚠️ 未确证，保守值。来源：调研表 ⚠️
-  "doubao-seed-2": 16_384,                // 前缀兜底，保守值。来源：调研表 ⚠️
-  "minimax-m3": 16_384,                   // ⚠️ 未确证，保守值。来源：调研表 ⚠️
-  "minimax-m2.7": 196_000,                // ⚠️ ~196K⚠️（调研标注）。来源：调研表 ⚠️
+  "doubao-seed-2-0-pro-260215": 128_000, // ⚠️ 未确证 128K⚠️。来源：调研表 ⚠️
+  "doubao-seed-2-0-lite-260215": 16_384, // ⚠️ 未确证，保守值。来源：调研表 ⚠️
+  "doubao-seed-2": 16_384, // 前缀兜底，保守值。来源：调研表 ⚠️
+  "minimax-m3": 16_384, // ⚠️ 未确证，保守值。来源：调研表 ⚠️
+  "minimax-m2.7": 196_000, // ⚠️ ~196K⚠️（调研标注）。来源：调研表 ⚠️
 };
 
 export const DEFAULT_MAX_OUTPUT = 4_096;

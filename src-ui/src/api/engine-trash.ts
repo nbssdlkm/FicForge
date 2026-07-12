@@ -50,7 +50,9 @@ async function applyChapterRestoreLifecycle(auPath: string, chapterNum: number):
   // 2) index_status=STALE —— 恢复正文未入向量索引，交给「重建索引」/ backfill 修复。
   try {
     await withAuLock(auPath, async () => {
-      await e.repos.state.update(auPath, (st) => { st.index_status = IndexStatus.STALE; });
+      await e.repos.state.update(auPath, (st) => {
+        st.index_status = IndexStatus.STALE;
+      });
     });
   } catch (err) {
     logCatch("trash", `Failed to mark index STALE after restore ch${chapterNum}`, err);
@@ -92,13 +94,11 @@ export async function restoreTrash(
     }
   } catch (error) {
     if (
-      error instanceof Error
-      && (
-        error.message.includes(RESTORE_CONFLICT_MARKER)
+      error instanceof Error &&
+      (error.message.includes(RESTORE_CONFLICT_MARKER) ||
         // 旧文案兜底（无 marker 的历史 message）：单文件「无法恢复」/ 目录「restore conflict」。
-        || error.message.includes("无法恢复")
-        || error.message.toLowerCase().includes("restore conflict")
-      )
+        error.message.includes("无法恢复") ||
+        error.message.toLowerCase().includes("restore conflict"))
     ) {
       throw new ApiError("restore_conflict", error.message, [], error.message);
     }

@@ -26,13 +26,15 @@ async function withProjectWrite<T>(auPath: string, mutate: (current: Project) =>
   const { project } = getEngine().repos;
   // get→改→save 整段包在 project.yaml 文件锁内（读也在锁内），与 TrashService 的
   // cast_registry 读改写共享同一把锁，消除并发丢更新（盲审 R3 M1）。外层 au_lock 保留。
-  return withAuLock(auPath, () => withProjectFileLock(auPath, async () => {
-    const current = await project.get(auPath);
-    if (!current) throw new Error(`project.yaml not found: ${auPath}/project.yaml`);
-    const result = await mutate(current);
-    await project.save(current);
-    return result;
-  }));
+  return withAuLock(auPath, () =>
+    withProjectFileLock(auPath, async () => {
+      const current = await project.get(auPath);
+      if (!current) throw new Error(`project.yaml not found: ${auPath}/project.yaml`);
+      const result = await mutate(current);
+      await project.save(current);
+      return result;
+    }),
+  );
 }
 
 async function readProject(auPath: string): Promise<Project> {
@@ -41,15 +43,14 @@ async function readProject(auPath: string): Promise<Project> {
 
 function hasProjectLlmOverride(llm: Project["llm"] | null | undefined): boolean {
   return Boolean(
-    llm && (
-      llm.mode !== "api"
-      || llm.model
-      || llm.api_base
-      || llm.api_key
-      || llm.local_model_path
-      || llm.ollama_model
-      || llm.chat_path
-    )
+    llm &&
+      (llm.mode !== "api" ||
+        llm.model ||
+        llm.api_base ||
+        llm.api_key ||
+        llm.local_model_path ||
+        llm.ollama_model ||
+        llm.chat_path),
   );
 }
 
@@ -66,7 +67,9 @@ function toProjectLlmQueryInfo(llm: Project["llm"] | null | undefined): ProjectL
   };
 }
 
-function toModelParamInfoMap(source: Record<string, Record<string, unknown>> | undefined): Record<string, ModelParamInfo> {
+function toModelParamInfoMap(
+  source: Record<string, Record<string, unknown>> | undefined,
+): Record<string, ModelParamInfo> {
   if (!source) return {};
   const result: Record<string, ModelParamInfo> = {};
   for (const [model, value] of Object.entries(source)) {
@@ -152,26 +155,27 @@ export async function saveAuSettingsForEditing(auPath: string, payload: AuSettin
     current.core_always_include = [...payload.core_always_include];
 
     current.embedding_lock = payload.embedding_override.enabled
-      ? {
+      ? ({
           mode: payload.embedding_override.model ? "api" : "",
           model: payload.embedding_override.model,
           api_base: payload.embedding_override.api_base,
           api_key: payload.embedding_override.api_key,
-        } as Project["embedding_lock"]
-      : {
+        } as Project["embedding_lock"])
+      : ({
           mode: "",
           model: "",
           api_base: "",
           api_key: "",
-        } as Project["embedding_lock"];
+        } as Project["embedding_lock"]);
 
     current.llm = payload.llm_override.enabled
-      ? {
+      ? ({
           mode: payload.llm_override.mode as Project["llm"]["mode"],
           model: payload.llm_override.mode === "api" ? payload.llm_override.model : "",
-          api_base: payload.llm_override.mode === "ollama"
-            ? (payload.llm_override.api_base || DEFAULT_OLLAMA_BASE_URL)
-            : payload.llm_override.api_base,
+          api_base:
+            payload.llm_override.mode === "ollama"
+              ? payload.llm_override.api_base || DEFAULT_OLLAMA_BASE_URL
+              : payload.llm_override.api_base,
           // 非 API 模式置空 api_key —— TD-016 修复后这会**真的删掉** secure storage 里的密钥
           // （extractSecureFields 对空值改为 remove），故切到 ollama/local 再切回 API 需重填 key。
           // 有意如此：让磁盘配置成为「有无密钥」唯一真相源，不留陈旧密钥被水合的隐患。
@@ -182,9 +186,11 @@ export async function saveAuSettingsForEditing(auPath: string, payload: AuSettin
           context_window: payload.llm_override.context_window ?? 0,
           // chat_path：只在 API 模式非空时落库（optional）；空/非 API → undefined（dump 省略，
           // 不残留旧路径）。归一化复用 engine-settings.normalizeChatPath（单一规则源）。
-          chat_path: normalizeChatPath(payload.llm_override.mode === "api" ? payload.llm_override.chat_path : undefined),
-        } as Project["llm"]
-      : {
+          chat_path: normalizeChatPath(
+            payload.llm_override.mode === "api" ? payload.llm_override.chat_path : undefined,
+          ),
+        } as Project["llm"])
+      : ({
           // 关闭覆盖：整段回落，chat_path 一并清空（缺省即不写）。
           mode: "api",
           model: "",
@@ -193,7 +199,7 @@ export async function saveAuSettingsForEditing(auPath: string, payload: AuSettin
           local_model_path: "",
           ollama_model: "",
           context_window: 0,
-        } as Project["llm"];
+        } as Project["llm"]);
 
     return current;
   });
@@ -220,14 +226,16 @@ export async function addPinned(auPath: string, text: string) {
 export async function deletePinned(auPath: string, index: number) {
   const { project } = getEngine().repos;
   // 同 withProjectWrite：get→改→save 包进 project.yaml 文件锁（盲审 R3 M1）。
-  return withAuLock(auPath, () => withProjectFileLock(auPath, async () => {
-    const proj = await project.get(auPath);
-    if (!proj) throw new Error(`project.yaml not found: ${auPath}/project.yaml`);
-    // index 无效时不 save（save 会 bump revision，无效请求不该产生写入）
-    if (index >= 0 && index < proj.pinned_context.length) {
-      proj.pinned_context.splice(index, 1);
-      await project.save(proj);
-    }
-    return { status: "ok", revision: proj.revision };
-  }));
+  return withAuLock(auPath, () =>
+    withProjectFileLock(auPath, async () => {
+      const proj = await project.get(auPath);
+      if (!proj) throw new Error(`project.yaml not found: ${auPath}/project.yaml`);
+      // index 无效时不 save（save 会 bump revision，无效请求不该产生写入）
+      if (index >= 0 && index < proj.pinned_context.length) {
+        proj.pinned_context.splice(index, 1);
+        await project.save(proj);
+      }
+      return { status: "ok", revision: proj.revision };
+    }),
+  );
 }

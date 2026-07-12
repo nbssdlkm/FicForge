@@ -2,15 +2,15 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { submitFactsExtraction, type StateInfo, type ExtractedFactCandidate } from '../../api/engine-client';
-import { saveAcceptedCandidates } from './acceptExtracted';
-import { getEngine } from '../../api/engine-client';
-import { useTranslation } from '../../i18n/useAppTranslation';
-import { useFeedback } from '../../hooks/useFeedback';
-import { useExtractedSelection, getCandidateKey } from '../../hooks/useExtractedSelection';
-import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
-import type { TaskEvent } from '@ficforge/engine';
+import { useState, useRef, useEffect, useCallback } from "react";
+import { submitFactsExtraction, type StateInfo, type ExtractedFactCandidate } from "../../api/engine-client";
+import { saveAcceptedCandidates } from "./acceptExtracted";
+import { getEngine } from "../../api/engine-client";
+import { useTranslation } from "../../i18n/useAppTranslation";
+import { useFeedback } from "../../hooks/useFeedback";
+import { useExtractedSelection, getCandidateKey } from "../../hooks/useExtractedSelection";
+import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
+import type { TaskEvent } from "@ficforge/engine";
 
 export function useFactsExtraction(auPath: string, state: StateInfo | null, onSaved: () => void) {
   const { t } = useTranslation();
@@ -21,7 +21,8 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
   const [extracting, setExtracting] = useState(false);
   const [extractModalOpen, setExtractModalOpen] = useState(false);
   const [extractedCandidates, setExtractedCandidates] = useState<ExtractedFactCandidate[]>([]);
-  const { selectedExtractedKeys, selectAll, clearSelection, toggleExtractedCandidate, filterSelected } = useExtractedSelection();
+  const { selectedExtractedKeys, selectAll, clearSelection, toggleExtractedCandidate, filterSelected } =
+    useExtractedSelection();
   const [extractRangeOpen, setExtractRangeOpen] = useState(false);
   const [extractRange, setExtractRange] = useState<[number, number]>([1, 1]);
   const [extractProgress, setExtractProgress] = useState(0);
@@ -38,41 +39,44 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
 
   // 订阅事件的复用逻辑（submit 和 reconnect 共用）
   // 用 ref 持有，避免 identity 变化触发 reconnect effect 重跑
-  const subscribeToTask = useCallback((taskId: string, requestAuPath: string) => {
-    unsubRef.current?.();
-    const unsub = getEngine().taskRunner.onEvent((id: string, event: TaskEvent) => {
-      if (id !== taskId) return;
-      if (guard.isKeyStale(requestAuPath)) return;
+  const subscribeToTask = useCallback(
+    (taskId: string, requestAuPath: string) => {
+      unsubRef.current?.();
+      const unsub = getEngine().taskRunner.onEvent((id: string, event: TaskEvent) => {
+        if (id !== taskId) return;
+        if (guard.isKeyStale(requestAuPath)) return;
 
-      if (event.type === 'progress') {
-        const pct = event.total > 0 ? Math.round((event.current / event.total) * 100) : 0;
-        setExtractProgress(pct);
-      } else if (event.type === 'completed') {
-        const result = event.result as { facts: ExtractedFactCandidate[] } | undefined;
-        const facts = result?.facts ?? [];
-        savedCandidatesRef.current = new Set(); // 新一轮候选 → 清空上轮「已保存」登记
-        setExtractedCandidates(facts);
-        selectAll(facts);
-        setExtractModalOpen(true);
-        setExtracting(false);
-        if (facts.length === 0) {
-          showToast(t('facts.extractNoResult'), 'info');
+        if (event.type === "progress") {
+          const pct = event.total > 0 ? Math.round((event.current / event.total) * 100) : 0;
+          setExtractProgress(pct);
+        } else if (event.type === "completed") {
+          const result = event.result as { facts: ExtractedFactCandidate[] } | undefined;
+          const facts = result?.facts ?? [];
+          savedCandidatesRef.current = new Set(); // 新一轮候选 → 清空上轮「已保存」登记
+          setExtractedCandidates(facts);
+          selectAll(facts);
+          setExtractModalOpen(true);
+          setExtracting(false);
+          if (facts.length === 0) {
+            showToast(t("facts.extractNoResult"), "info");
+          }
+          taskIdRef.current = null;
+          unsubRef.current?.();
+        } else if (event.type === "failed") {
+          showError(new Error(event.error), t("error_messages.unknown"));
+          setExtracting(false);
+          taskIdRef.current = null;
+          unsubRef.current?.();
+        } else if (event.type === "cancelled") {
+          setExtracting(false);
+          taskIdRef.current = null;
+          unsubRef.current?.();
         }
-        taskIdRef.current = null;
-        unsubRef.current?.();
-      } else if (event.type === 'failed') {
-        showError(new Error(event.error), t('error_messages.unknown'));
-        setExtracting(false);
-        taskIdRef.current = null;
-        unsubRef.current?.();
-      } else if (event.type === 'cancelled') {
-        setExtracting(false);
-        taskIdRef.current = null;
-        unsubRef.current?.();
-      }
-    });
-    unsubRef.current = unsub;
-  }, [guard, showError, showToast, t, selectAll]);
+      });
+      unsubRef.current = unsub;
+    },
+    [guard, showError, showToast, t, selectAll],
+  );
   const subscribeRef = useRef(subscribeToTask);
   subscribeRef.current = subscribeToTask;
 
@@ -82,18 +86,18 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
     taskIdRef.current = null;
 
     // 1. 查找 active（pending/running）的 facts_extraction 任务
-    const active = runner.getActiveTasks().find(
-      (h) => h.type === 'facts_extraction' && (h.params as { auPath?: string })?.auPath === auPath
-    );
+    const active = runner
+      .getActiveTasks()
+      .find((h) => h.type === "facts_extraction" && (h.params as { auPath?: string })?.auPath === auPath);
     if (active) {
       taskIdRef.current = active.id;
       setExtracting(true);
-      const pct = active.progress.total > 0
-        ? Math.round((active.progress.current / active.progress.total) * 100)
-        : 0;
+      const pct = active.progress.total > 0 ? Math.round((active.progress.current / active.progress.total) * 100) : 0;
       setExtractProgress(pct);
       subscribeRef.current(active.id, auPath);
-      return () => { unsubRef.current?.(); };
+      return () => {
+        unsubRef.current?.();
+      };
     }
 
     // 当前 auPath 无活跃任务 → 不在提取中
@@ -101,11 +105,14 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
     setExtractProgress(0);
 
     // 2. 查找刚完成的（用户切走期间完成了）
-    const completed = runner.getCompletedTasks().find(
-      (h) => h.type === 'facts_extraction'
-        && h.status === 'completed'
-        && (h.params as { auPath?: string })?.auPath === auPath
-    );
+    const completed = runner
+      .getCompletedTasks()
+      .find(
+        (h) =>
+          h.type === "facts_extraction" &&
+          h.status === "completed" &&
+          (h.params as { auPath?: string })?.auPath === auPath,
+      );
     if (completed?.result) {
       const result = completed.result as { facts: ExtractedFactCandidate[] } | undefined;
       const facts = result?.facts ?? [];
@@ -124,13 +131,15 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
       setExtractedCandidates([]);
     }
 
-    return () => { unsubRef.current?.(); };
+    return () => {
+      unsubRef.current?.();
+    };
   }, [auPath]); // 仅 auPath 变化触发，subscribeToTask 通过 ref 引用
 
   const handleExtractClick = () => {
     const totalConfirmed = (state?.current_chapter || 1) - 1;
     if (totalConfirmed <= 0) {
-      showToast(t('facts.extractNoChapter'), 'info');
+      showToast(t("facts.extractNoChapter"), "info");
       return;
     }
     setExtractRange([1, totalConfirmed]);
@@ -151,7 +160,7 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
       subscribeToTask(taskId, requestAuPath);
     } catch (error) {
       if (guard.isKeyStale(requestAuPath)) return;
-      showError(error, t('error_messages.unknown'));
+      showError(error, t("error_messages.unknown"));
       setExtracting(false);
     }
   }, [auPath, guard, extractRange, showError, t, subscribeToTask]);
@@ -187,9 +196,9 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
       if (guard.isKeyStale(requestAuPath)) return;
 
       if (added === 0 && skipped > 0) {
-        showToast(t('facts.extractChapterUndone'), 'info');
+        showToast(t("facts.extractChapterUndone"), "info");
       } else {
-        showSuccess(t('facts.extractSaved', { count: added }));
+        showSuccess(t("facts.extractSaved", { count: added }));
       }
       setExtractModalOpen(false);
       setExtractedCandidates([]);
@@ -199,7 +208,7 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
     } catch (error) {
       if (guard.isKeyStale(requestAuPath)) return;
       // 半成功（PartialAddFactsError）：已入库的已登记，modal 保持打开，用户点重试只补未存的。
-      showError(error, t('error_messages.unknown'));
+      showError(error, t("error_messages.unknown"));
     } finally {
       if (!guard.isKeyStale(requestAuPath)) {
         setSavingExtraction(false);

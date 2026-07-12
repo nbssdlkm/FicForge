@@ -42,7 +42,7 @@ describe("writerStorage", () => {
 
   it("saveContextSummaries + readSavedContextSummaries roundtrip", () => {
     const summaries = {
-      "draft_a": {
+      draft_a: {
         characters_used: ["Alice"],
         worldbuilding_used: ["magic"],
         facts_injected: 3,
@@ -53,7 +53,7 @@ describe("writerStorage", () => {
         total_input_tokens: 1000,
         truncated_layers: [],
         truncated_characters: [],
-        facts_archived_count: 0,  // M10-B
+        facts_archived_count: 0, // M10-B
       },
     };
     saveContextSummaries("au1", 1, summaries);
@@ -63,7 +63,7 @@ describe("writerStorage", () => {
 
   it("roundtrip preserves valid rag_chunks", () => {
     const summaries = {
-      "draft_a": {
+      draft_a: {
         characters_used: [],
         worldbuilding_used: [],
         facts_injected: 0,
@@ -77,7 +77,7 @@ describe("writerStorage", () => {
         total_input_tokens: 100,
         truncated_layers: [],
         truncated_characters: [],
-        facts_archived_count: 0,  // M10-B
+        facts_archived_count: 0, // M10-B
       },
     };
     saveContextSummaries("au1", 1, summaries);
@@ -86,7 +86,7 @@ describe("writerStorage", () => {
 
   it("normalize drops invalid rag_chunks elements (unknown collection / NaN / missing content)", () => {
     const stored = {
-      "draft_a": {
+      draft_a: {
         characters_used: [],
         worldbuilding_used: [],
         facts_injected: 0,
@@ -106,14 +106,12 @@ describe("writerStorage", () => {
     };
     store.set("ficforge.writer.contextSummary:au1:1", JSON.stringify(stored));
     const result = readSavedContextSummaries("au1", 1);
-    expect(result.draft_a.rag_chunks).toEqual([
-      { content: "ok", collection: "chapters", score: 0.5, chapter_num: 1 },
-    ]);
+    expect(result.draft_a.rag_chunks).toEqual([{ content: "ok", collection: "chapters", score: 0.5, chapter_num: 1 }]);
   });
 
   it("normalize backfills missing rag_chunks as []", () => {
     const legacy = {
-      "draft_a": {
+      draft_a: {
         characters_used: [],
         worldbuilding_used: [],
         facts_injected: 0,
@@ -132,7 +130,20 @@ describe("writerStorage", () => {
   });
 
   it("saveContextSummaries with empty object removes key", () => {
-    saveContextSummaries("au1", 1, { "x": { characters_used: [], worldbuilding_used: [], facts_injected: 0, facts_as_focus: [], pinned_count: 0, rag_chunks_retrieved: 0, rag_chunks: [], total_input_tokens: 0, truncated_layers: [], truncated_characters: [] } });
+    saveContextSummaries("au1", 1, {
+      x: {
+        characters_used: [],
+        worldbuilding_used: [],
+        facts_injected: 0,
+        facts_as_focus: [],
+        pinned_count: 0,
+        rag_chunks_retrieved: 0,
+        rag_chunks: [],
+        total_input_tokens: 0,
+        truncated_layers: [],
+        truncated_characters: [],
+      },
+    });
     saveContextSummaries("au1", 1, {});
     expect(mockLocalStorage.removeItem).toHaveBeenCalled();
   });
@@ -143,8 +154,25 @@ describe("writerStorage", () => {
   });
 
   it("saveContextSummaries swallows localStorage error", () => {
-    mockLocalStorage.setItem.mockImplementationOnce(() => { throw new Error("QuotaExceeded"); });
-    expect(() => saveContextSummaries("au1", 1, { "x": { characters_used: [], worldbuilding_used: [], facts_injected: 0, facts_as_focus: [], pinned_count: 0, rag_chunks_retrieved: 0, rag_chunks: [], total_input_tokens: 0, truncated_layers: [], truncated_characters: [] } })).not.toThrow();
+    mockLocalStorage.setItem.mockImplementationOnce(() => {
+      throw new Error("QuotaExceeded");
+    });
+    expect(() =>
+      saveContextSummaries("au1", 1, {
+        x: {
+          characters_used: [],
+          worldbuilding_used: [],
+          facts_injected: 0,
+          facts_as_focus: [],
+          pinned_count: 0,
+          rag_chunks_retrieved: 0,
+          rag_chunks: [],
+          total_input_tokens: 0,
+          truncated_layers: [],
+          truncated_characters: [],
+        },
+      }),
+    ).not.toThrow();
   });
 
   // ---------------------------------------------------------------------------
@@ -163,7 +191,9 @@ describe("writerStorage", () => {
   });
 
   it("saveGenerateRequest swallows localStorage error", () => {
-    mockLocalStorage.setItem.mockImplementationOnce(() => { throw new Error("QuotaExceeded"); });
+    mockLocalStorage.setItem.mockImplementationOnce(() => {
+      throw new Error("QuotaExceeded");
+    });
     expect(() => saveGenerateRequest("au1", 1, { inputType: "continue", userInput: "" })).not.toThrow();
   });
 
@@ -187,12 +217,16 @@ describe("writerStorage", () => {
   });
 
   it("getSkipFactsPromptDefault swallows localStorage error", () => {
-    mockLocalStorage.getItem.mockImplementationOnce(() => { throw new Error("SecurityError"); });
+    mockLocalStorage.getItem.mockImplementationOnce(() => {
+      throw new Error("SecurityError");
+    });
     expect(getSkipFactsPromptDefault()).toBe(false);
   });
 
   it("setSkipFactsPromptPersisted swallows localStorage error", () => {
-    mockLocalStorage.setItem.mockImplementationOnce(() => { throw new Error("QuotaExceeded"); });
+    mockLocalStorage.setItem.mockImplementationOnce(() => {
+      throw new Error("QuotaExceeded");
+    });
     expect(() => setSkipFactsPromptPersisted(true)).not.toThrow();
   });
 
@@ -210,12 +244,16 @@ describe("writerStorage", () => {
   });
 
   it("hasSeenSettingsModeTooltip swallows localStorage error → returns true", () => {
-    mockLocalStorage.getItem.mockImplementationOnce(() => { throw new Error("SecurityError"); });
+    mockLocalStorage.getItem.mockImplementationOnce(() => {
+      throw new Error("SecurityError");
+    });
     expect(hasSeenSettingsModeTooltip()).toBe(true);
   });
 
   it("markSettingsModeTooltipSeen swallows localStorage error", () => {
-    mockLocalStorage.setItem.mockImplementationOnce(() => { throw new Error("QuotaExceeded"); });
+    mockLocalStorage.setItem.mockImplementationOnce(() => {
+      throw new Error("QuotaExceeded");
+    });
     expect(() => markSettingsModeTooltipSeen()).not.toThrow();
   });
 });

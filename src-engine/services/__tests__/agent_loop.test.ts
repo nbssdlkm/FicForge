@@ -12,12 +12,7 @@ import type { LLMProvider, LLMChunk, ToolCallChunkDelta, Message } from "../../l
 import { LLMError } from "../../llm/provider.js";
 import type { TelemetryEvent } from "../agent_telemetry.js";
 import type { ToolBuffer } from "../tool_stream_buffer.js";
-import {
-  runAgentLoop,
-  type AgentLoopEvent,
-  type AgentLoopConfig,
-  type IterContext,
-} from "../agent_loop.js";
+import { runAgentLoop, type AgentLoopEvent, type AgentLoopConfig, type IterContext } from "../agent_loop.js";
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -48,12 +43,7 @@ function makeProvider(iterChunks: LLMChunk[][]): LLMProvider {
   };
 }
 
-function td(
-  index: number,
-  id: string,
-  name: string,
-  args: string,
-): ToolCallChunkDelta {
+function td(index: number, id: string, name: string, args: string): ToolCallChunkDelta {
   return { index, id, type: "function", function: { name, arguments: args } };
 }
 
@@ -91,9 +81,7 @@ async function collectOrError<E>(
 // Config builder
 // ---------------------------------------------------------------------------
 
-function buildConfig(
-  overrides: Partial<AgentLoopConfig<TestBusinessEvent>> = {},
-): AgentLoopConfig<TestBusinessEvent> {
+function buildConfig(overrides: Partial<AgentLoopConfig<TestBusinessEvent>> = {}): AgentLoopConfig<TestBusinessEvent> {
   return {
     agentName: "test_agent",
     maxIter: 5,
@@ -153,14 +141,16 @@ describe("runAgentLoop", () => {
       onToolCallDelta: (buf: ToolBuffer) => {
         if (emittedIndices.has(buf.index)) return undefined;
         emittedIndices.add(buf.index);
-        return [{
-          type: "tool_call" as const,
-          data: {
-            id: buf.id || `tc-${buf.index}`,
-            type: "function" as const,
-            function: { name: buf.name, arguments: buf.args },
+        return [
+          {
+            type: "tool_call" as const,
+            data: {
+              id: buf.id || `tc-${buf.index}`,
+              type: "function" as const,
+              function: { name: buf.name, arguments: buf.args },
+            },
           },
-        }];
+        ];
       },
       onForceToolPath: async (_calls, _ctx) => {
         iterCount++;
@@ -267,14 +257,16 @@ describe("runAgentLoop", () => {
       onToolCallDelta: (buf: ToolBuffer) => {
         if (emittedIndices.has(buf.index)) return undefined;
         emittedIndices.add(buf.index);
-        return [{
-          type: "tool_call" as const,
-          data: {
-            id: buf.id || `tc-${buf.index}`,
-            type: "function" as const,
-            function: { name: buf.name, arguments: buf.args },
+        return [
+          {
+            type: "tool_call" as const,
+            data: {
+              id: buf.id || `tc-${buf.index}`,
+              type: "function" as const,
+              function: { name: buf.name, arguments: buf.args },
+            },
           },
-        }];
+        ];
       },
       onForceToolPath: async (_calls, ctx) => {
         iterCount++;
@@ -348,13 +340,9 @@ describe("runAgentLoop", () => {
   it("case 5: EMPTY_RESPONSE guard retry → iter 1 normal", async () => {
     const provider = makeProvider([
       // iter 0: empty (no tokens, no tools)
-      [
-        chunk({ delta: "", is_final: true, finish_reason: "stop" }),
-      ],
+      [chunk({ delta: "", is_final: true, finish_reason: "stop" })],
       // iter 1: has token → text path
-      [
-        chunk({ delta: "Hello", is_final: true, finish_reason: "stop" }),
-      ],
+      [chunk({ delta: "Hello", is_final: true, finish_reason: "stop" })],
     ]);
 
     let guardCalls = 0;
@@ -406,7 +394,8 @@ describe("runAgentLoop", () => {
 
     // 足够的 read-only chunks 填满所有 iter
     const provider = makeProvider([
-      chunks, chunks, // maxIter=2 需要 2 组
+      chunks,
+      chunks, // maxIter=2 需要 2 组
     ]);
 
     const config = buildConfig({
@@ -475,13 +464,17 @@ describe("runAgentLoop", () => {
 
     // business passthrough: STREAM_CHUNK 事件被 harness 透传
     const bizEvents = events.filter(
-      (e) => e.type === "business" && (e as Extract<AgentLoopEvent<TestBusinessEvent>, { type: "business" }>).data === "STREAM_CHUNK",
+      (e) =>
+        e.type === "business" &&
+        (e as Extract<AgentLoopEvent<TestBusinessEvent>, { type: "business" }>).data === "STREAM_CHUNK",
     );
     expect(bizEvents.length).toBeGreaterThanOrEqual(1);
 
     // terminal business "DONE" 也在
     const doneBiz = events.find(
-      (e) => e.type === "business" && (e as Extract<AgentLoopEvent<TestBusinessEvent>, { type: "business" }>).data === "DONE",
+      (e) =>
+        e.type === "business" &&
+        (e as Extract<AgentLoopEvent<TestBusinessEvent>, { type: "business" }>).data === "DONE",
     );
     expect(doneBiz).toBeDefined();
   });
@@ -564,7 +557,13 @@ describe("runAgentLoop", () => {
       onTextPathTerminal: async () => [{ type: "business", data: "TEXT_DONE" }],
     });
 
-    await collect(runAgentLoop(config, provider, [{ role: "user", content: "开始" }], { max_tokens: 100, temperature: 0, top_p: 1 }));
+    await collect(
+      runAgentLoop(config, provider, [{ role: "user", content: "开始" }], {
+        max_tokens: 100,
+        temperature: 0,
+        top_p: 1,
+      }),
+    );
 
     // 两次 LLM 调用（iter0 偏离 + iter1 重试收尾）
     expect(capturedMessages).toHaveLength(2);
@@ -575,7 +574,9 @@ describe("runAgentLoop", () => {
     );
     expect(deviationAssistant).toBeDefined();
     // ……且紧随其后是 hint（顺序：assistant 偏离 → user hint）
-    const idxAssistant = retryMessages.findIndex((m) => m.role === "assistant" && m.content === "我先聊两句而不是续写。");
+    const idxAssistant = retryMessages.findIndex(
+      (m) => m.role === "assistant" && m.content === "我先聊两句而不是续写。",
+    );
     const idxHint = retryMessages.findIndex((m) => m.role === "user" && m.content === HINT);
     expect(idxHint).toBe(idxAssistant + 1);
   });
@@ -587,15 +588,21 @@ describe("runAgentLoop", () => {
 
 describe("runAgentLoop — forced tool_choice", () => {
   const FORCED = { type: "function" as const, function: { name: "x" } };
-  const readChunk = [chunk({ tool_call_deltas: [td(0, "r", FAKE_READ_TOOL, "{}")], finish_reason: "tool_calls", is_final: true })];
-  const termChunk = [chunk({ tool_call_deltas: [td(0, "t", FAKE_TERMINAL_TOOL, "{}")], finish_reason: "tool_calls", is_final: true })];
+  const readChunk = [
+    chunk({ tool_call_deltas: [td(0, "r", FAKE_READ_TOOL, "{}")], finish_reason: "tool_calls", is_final: true }),
+  ];
+  const termChunk = [
+    chunk({ tool_call_deltas: [td(0, "t", FAKE_TERMINAL_TOOL, "{}")], finish_reason: "tool_calls", is_final: true }),
+  ];
 
   // 记录每次 generateStream 收到的 tool_choice（forced 归一成 "forced"）；rejectForced 时对 forced 抛 unsupported。
   function choiceProbeProvider(opts: { rejectForced?: boolean; yields: LLMChunk[][] }) {
     const seen: unknown[] = [];
     let call = 0;
     const provider: LLMProvider = {
-      async generate() { return { content: "", model: "m", input_tokens: 0, output_tokens: 0, finish_reason: "stop" }; },
+      async generate() {
+        return { content: "", model: "m", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
+      },
       async *generateStream(params) {
         const tc = params.tool_choice;
         const forced = typeof tc === "object" && tc !== null && (tc as { type?: string }).type === "function";
@@ -628,7 +635,10 @@ describe("runAgentLoop — forced tool_choice", () => {
     const config = buildConfig({
       toolChoice: () => FORCED,
       telemetry: { emit: (e) => emitted.push(e) },
-      onForceToolPath: async () => ({ mode: "terminal" as const, events: [{ type: "business", data: "TOOL_TERMINAL" }] }),
+      onForceToolPath: async () => ({
+        mode: "terminal" as const,
+        events: [{ type: "business", data: "TOOL_TERMINAL" }],
+      }),
     });
     const events = await collect(runAgentLoop(config, provider, [], { max_tokens: 10, temperature: 0, top_p: 1 }));
     expect(seen).toEqual(["forced", "auto"]); // 首次 forced 被拒 → 同轮改 auto 重发

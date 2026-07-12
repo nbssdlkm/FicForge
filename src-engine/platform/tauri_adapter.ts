@@ -11,7 +11,13 @@
 
 import type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStorageCapabilities } from "./adapter.js";
 import { SecretStoreReadError } from "./adapter.js";
-import { legacySecureStorageKey, OS_KEYRING_CAPABILITIES, platformWarn, redactSecureKey, scrubKeyFromError } from "./shared.js";
+import {
+  legacySecureStorageKey,
+  OS_KEYRING_CAPABILITIES,
+  platformWarn,
+  redactSecureKey,
+  scrubKeyFromError,
+} from "./shared.js";
 
 export class TauriAdapter implements PlatformAdapter {
   private _deviceId: string;
@@ -106,7 +112,7 @@ export class TauriAdapter implements PlatformAdapter {
     });
     if (result === null) return null;
     // open() returns string | string[] depending on multiple flag
-    return Array.isArray(result) ? result[0] ?? null : result;
+    return Array.isArray(result) ? (result[0] ?? null) : result;
   }
 
   getPlatform(): "tauri" {
@@ -202,7 +208,10 @@ export class TauriAdapter implements PlatformAdapter {
     localStorage.removeItem(this.getLegacySecureStorageKey(key));
   }
 
-  private async invokeSecureStore<T>(command: "secure_store_get" | "secure_store_set" | "secure_store_remove", payload: Record<string, unknown>): Promise<T> {
+  private async invokeSecureStore<T>(
+    command: "secure_store_get" | "secure_store_set" | "secure_store_remove",
+    payload: Record<string, unknown>,
+  ): Promise<T> {
     const { invoke } = await import("@tauri-apps/api/core");
     return invoke<T>(command, payload);
   }

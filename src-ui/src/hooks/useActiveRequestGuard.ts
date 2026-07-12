@@ -31,7 +31,7 @@
  *   };
  */
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from "react";
 
 export interface GuardToken<K> {
   readonly id: number;
@@ -56,9 +56,12 @@ export function useActiveRequestGuard<K>(key: K): ActiveRequestGuard<K> {
   const keyRef = useRef<K>(key);
   keyRef.current = key;
 
-  useEffect(() => () => {
-    idRef.current += 1;
-  }, []);
+  useEffect(
+    () => () => {
+      idRef.current += 1;
+    },
+    [],
+  );
 
   return useMemo<ActiveRequestGuard<K>>(
     () => ({

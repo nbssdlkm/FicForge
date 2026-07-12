@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import type { BudgetReport } from "@ficforge/engine";
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   draftFilename,
   getDraft,
@@ -13,8 +13,8 @@ import {
   type DraftDetail,
   type DraftGeneratedWith,
   type StateInfo,
-} from '../../api/engine-client';
-import { readSavedContextSummaries, saveContextSummaries } from '../../utils/writerStorage';
+} from "../../api/engine-client";
+import { readSavedContextSummaries, saveContextSummaries } from "../../utils/writerStorage";
 
 export type DraftItem = {
   label: string;
@@ -32,7 +32,7 @@ export function createDraftItem(
   chapterNum: number,
   label: string,
   content: string,
-  generatedWith?: DraftGeneratedWith | null
+  generatedWith?: DraftGeneratedWith | null,
 ): DraftItem {
   return {
     label,
@@ -44,12 +44,7 @@ export function createDraftItem(
 }
 
 function createDraftItemFromDetail(chapterNum: number, detail: DraftDetail): DraftItem {
-  return createDraftItem(
-    chapterNum,
-    detail.variant,
-    detail.content,
-    detail.generated_with || null
-  );
+  return createDraftItem(chapterNum, detail.variant, detail.content, detail.generated_with || null);
 }
 
 function sortDrafts(drafts: DraftItem[]): DraftItem[] {
@@ -65,7 +60,7 @@ type PendingDraftSave = {
 
 type UseWriterDraftControllerOptions = {
   auPath: string;
-  state: StateInfo | null;   // Phase 5c: 接管 draft 加载，自主 watch state.current_chapter
+  state: StateInfo | null; // Phase 5c: 接管 draft 加载，自主 watch state.current_chapter
   onDraftSaveError?: (error: unknown) => void;
 };
 
@@ -74,15 +69,11 @@ type UseWriterDraftControllerOptions = {
  * 1fps），buffer 无限增长会积压整章内存。 */
 const STREAM_FLUSH_THRESHOLD = 50_000;
 
-export function useWriterDraftController({
-  auPath,
-  state,
-  onDraftSaveError,
-}: UseWriterDraftControllerOptions) {
+export function useWriterDraftController({ auPath, state, onDraftSaveError }: UseWriterDraftControllerOptions) {
   const currentChapterNum = state?.current_chapter ?? 0;
   const [drafts, setDrafts] = useState<DraftItem[]>([]);
   const [activeDraftIndex, setActiveDraftIndex] = useState(0);
-  const [streamText, setStreamText] = useState('');
+  const [streamText, setStreamText] = useState("");
   const [generatedWith, setGeneratedWith] = useState<DraftGeneratedWith | null>(null);
   const [budgetReport, setBudgetReport] = useState<BudgetReport | null>(null);
   const [recoveryNotice, setRecoveryNotice] = useState(false);
@@ -106,48 +97,54 @@ export function useWriterDraftController({
     }
   }, []);
 
-  const flushPendingDraftSave = useCallback((discard = false) => {
-    if (draftSaveTimerRef.current) {
-      clearTimeout(draftSaveTimerRef.current);
-      draftSaveTimerRef.current = null;
-    }
+  const flushPendingDraftSave = useCallback(
+    (discard = false) => {
+      if (draftSaveTimerRef.current) {
+        clearTimeout(draftSaveTimerRef.current);
+        draftSaveTimerRef.current = null;
+      }
 
-    const pending = pendingDraftSaveRef.current;
-    if (pending && !discard) {
-      void persistDraft(pending);
-    }
+      const pending = pendingDraftSaveRef.current;
+      if (pending && !discard) {
+        void persistDraft(pending);
+      }
 
-    pendingDraftSaveRef.current = null;
-  }, [persistDraft]);
+      pendingDraftSaveRef.current = null;
+    },
+    [persistDraft],
+  );
 
   // 流式渲染 rAF 缓冲（审计 M11）：原版每 chunk 一次 setStreamText → ChapterContentArea
   // 每 token 全量重渲染累积全文，低端 Android 真机流式 3000 字肉眼卡顿——与简版
   // useSimpleChat 已修掉的模式同源。chunks 先积到 ref buffer，rAF 回调时一次
   // setState 批量应用；终态前调 flushStream 保证 buffer 落地。
-  const pendingStreamRef = useRef('');
+  const pendingStreamRef = useRef("");
   const streamRafRef = useRef<number | null>(null);
 
   const flushStreamBuffer = useCallback(() => {
     streamRafRef.current = null;
     const pending = pendingStreamRef.current;
     if (!pending) return;
-    pendingStreamRef.current = '';
+    pendingStreamRef.current = "";
     setStreamText((current) => current + pending);
   }, []);
 
-  const appendStream = useCallback((text: string) => {
-    pendingStreamRef.current += text;
-    if (pendingStreamRef.current.length > STREAM_FLUSH_THRESHOLD) {
-      if (streamRafRef.current !== null) {
-        cancelAnimationFrame(streamRafRef.current);
+  const appendStream = useCallback(
+    (text: string) => {
+      pendingStreamRef.current += text;
+      if (pendingStreamRef.current.length > STREAM_FLUSH_THRESHOLD) {
+        if (streamRafRef.current !== null) {
+          cancelAnimationFrame(streamRafRef.current);
+        }
+        flushStreamBuffer();
+        return;
       }
-      flushStreamBuffer();
-      return;
-    }
-    if (streamRafRef.current === null) {
-      streamRafRef.current = requestAnimationFrame(flushStreamBuffer);
-    }
-  }, [flushStreamBuffer]);
+      if (streamRafRef.current === null) {
+        streamRafRef.current = requestAnimationFrame(flushStreamBuffer);
+      }
+    },
+    [flushStreamBuffer],
+  );
 
   /** 强制立即把缓冲 chunks 应用到 streamText。生成终态（done / error-partial）前
    * 必须调用一次，否则 rAF 未跑的尾部 chunks 会在流式视图上短暂缺失。 */
@@ -161,18 +158,18 @@ export function useWriterDraftController({
 
   const resetStream = useCallback(() => {
     // 丢弃未 flush 的缓冲：reset 语义是「这轮流式显示作废」，缓冲残余不该泄漏到下一轮
-    pendingStreamRef.current = '';
+    pendingStreamRef.current = "";
     if (streamRafRef.current !== null) {
       cancelAnimationFrame(streamRafRef.current);
       streamRafRef.current = null;
     }
-    setStreamText('');
+    setStreamText("");
   }, []);
 
   // AU 切换 / unmount：取消挂着的 rAF 并清空缓冲，防旧 AU 的 chunks 错位灌进新 AU
   useEffect(() => {
     return () => {
-      pendingStreamRef.current = '';
+      pendingStreamRef.current = "";
       if (streamRafRef.current !== null) {
         cancelAnimationFrame(streamRafRef.current);
         streamRafRef.current = null;
@@ -198,106 +195,118 @@ export function useWriterDraftController({
 
   const getPendingContextSummary = useCallback(() => pendingContextSummaryRef.current, []);
 
-  const selectDraft = useCallback((index: number) => {
-    if (drafts.length === 0) {
+  const selectDraft = useCallback(
+    (index: number) => {
+      if (drafts.length === 0) {
+        setActiveDraftIndex(0);
+        return;
+      }
+      setActiveDraftIndex(Math.max(0, Math.min(drafts.length - 1, index)));
+    },
+    [drafts.length],
+  );
+
+  const clearDraftState = useCallback(
+    (discard = false) => {
+      setDrafts([]);
       setActiveDraftIndex(0);
-      return;
-    }
-    setActiveDraftIndex(Math.max(0, Math.min(drafts.length - 1, index)));
-  }, [drafts.length]);
+      resetStream();
+      markGeneratedWith(null);
+      markBudgetReport(null);
+      markRecoveryNotice(false);
+      setDraftSummaries({});
+      pendingContextSummaryRef.current = null;
+      flushPendingDraftSave(discard);
+    },
+    [flushPendingDraftSave, markBudgetReport, markGeneratedWith, markRecoveryNotice, resetStream],
+  );
 
-  const clearDraftState = useCallback((discard = false) => {
-    setDrafts([]);
-    setActiveDraftIndex(0);
-    resetStream();
-    markGeneratedWith(null);
-    markBudgetReport(null);
-    markRecoveryNotice(false);
-    setDraftSummaries({});
-    pendingContextSummaryRef.current = null;
-    flushPendingDraftSave(discard);
-  }, [
-    flushPendingDraftSave,
-    markBudgetReport,
-    markGeneratedWith,
-    markRecoveryNotice,
-    resetStream,
-  ]);
+  const replaceDraftSummaries = useCallback(
+    (chapterNum: number, summaries: Record<string, ContextSummary>) => {
+      setDraftSummaries(summaries);
+      saveContextSummaries(auPath, chapterNum, summaries);
+    },
+    [auPath, setDraftSummaries],
+  );
 
-  const replaceDraftSummaries = useCallback((chapterNum: number, summaries: Record<string, ContextSummary>) => {
-    setDraftSummaries(summaries);
-    saveContextSummaries(auPath, chapterNum, summaries);
-  }, [auPath, setDraftSummaries]);
+  const attachDraftSummary = useCallback(
+    (chapterNum: number, label: string, summary: ContextSummary) => {
+      setDraftSummaries((current) => {
+        const next = {
+          ...current,
+          [label]: summary,
+        };
+        saveContextSummaries(auPath, chapterNum, next);
+        return next;
+      });
+    },
+    [auPath, setDraftSummaries],
+  );
 
-  const attachDraftSummary = useCallback((chapterNum: number, label: string, summary: ContextSummary) => {
-    setDraftSummaries((current) => {
-      const next = {
-        ...current,
-        [label]: summary,
-      };
-      saveContextSummaries(auPath, chapterNum, next);
-      return next;
-    });
-  }, [auPath, setDraftSummaries]);
+  const mergeDraftIntoState = useCallback(
+    (draft: DraftItem) => {
+      setDrafts((current) => {
+        const merged = sortDrafts([...current.filter((item) => item.label !== draft.label), draft]);
+        const nextIndex = merged.findIndex((item) => item.label === draft.label);
+        setActiveDraftIndex(nextIndex >= 0 ? nextIndex : Math.max(merged.length - 1, 0));
+        return merged;
+      });
+    },
+    [setActiveDraftIndex, setDrafts],
+  );
 
-  const mergeDraftIntoState = useCallback((draft: DraftItem) => {
-    setDrafts((current) => {
-      const merged = sortDrafts([
-        ...current.filter((item) => item.label !== draft.label),
-        draft,
-      ]);
-      const nextIndex = merged.findIndex((item) => item.label === draft.label);
-      setActiveDraftIndex(nextIndex >= 0 ? nextIndex : Math.max(merged.length - 1, 0));
-      return merged;
-    });
-  }, [setActiveDraftIndex, setDrafts]);
-
-  const loadDraftByLabel = useCallback(async (
-    chapterNum: number,
-    label: string,
-    fallbackContent = '',
-    fallbackGeneratedWith?: DraftGeneratedWith | null
-  ): Promise<DraftItem> => {
-    try {
-      const detail = await getDraft(auPath, chapterNum, label);
-      // 草稿缺失（get 契约返回 null）与读取失败同走 fallback（占位草稿）
-      if (detail) return createDraftItemFromDetail(chapterNum, detail);
-    } catch {
-      // 读取失败 → fallback
-    }
-    return createDraftItem(chapterNum, label, fallbackContent, fallbackGeneratedWith || null);
-  }, [auPath]);
+  const loadDraftByLabel = useCallback(
+    async (
+      chapterNum: number,
+      label: string,
+      fallbackContent = "",
+      fallbackGeneratedWith?: DraftGeneratedWith | null,
+    ): Promise<DraftItem> => {
+      try {
+        const detail = await getDraft(auPath, chapterNum, label);
+        // 草稿缺失（get 契约返回 null）与读取失败同走 fallback（占位草稿）
+        if (detail) return createDraftItemFromDetail(chapterNum, detail);
+      } catch {
+        // 读取失败 → fallback
+      }
+      return createDraftItem(chapterNum, label, fallbackContent, fallbackGeneratedWith || null);
+    },
+    [auPath],
+  );
 
   // Phase 6.3: 删掉 loadDraftsForChapter 对外导出。Phase 5c 后所有 draft 加载
   // 由内部 state-watch useEffect 驱动，该方法无外部消费者。
 
-  const handleCurrentDraftChange = useCallback((content: string) => {
-    setDrafts((current) =>
-      current.map((draft, index) =>
-        index === activeDraftIndex
-          ? {
-              ...draft,
-              content,
-              modified: true,
-            }
-          : draft
-      )
-    );
+  const handleCurrentDraftChange = useCallback(
+    (content: string) => {
+      setDrafts((current) =>
+        current.map((draft, index) =>
+          index === activeDraftIndex
+            ? {
+                ...draft,
+                content,
+                modified: true,
+              }
+            : draft,
+        ),
+      );
 
-    const label = drafts[activeDraftIndex]?.label;
-    if (!label) return;
+      const label = drafts[activeDraftIndex]?.label;
+      if (!label) return;
 
-    const chapterNum = currentChapterNum || 1;
-    pendingDraftSaveRef.current = { auPath, chapterNum, label, content };
-    if (draftSaveTimerRef.current) {
-      clearTimeout(draftSaveTimerRef.current);
-    }
-    draftSaveTimerRef.current = setTimeout(() => {
-      void persistDraft({ auPath, chapterNum, label, content });
-      pendingDraftSaveRef.current = null;
-      draftSaveTimerRef.current = null;
-    }, 1500);
-  }, [activeDraftIndex, auPath, currentChapterNum, drafts, persistDraft, setDrafts]);
+      const chapterNum = currentChapterNum || 1;
+      pendingDraftSaveRef.current = { auPath, chapterNum, label, content };
+      if (draftSaveTimerRef.current) {
+        clearTimeout(draftSaveTimerRef.current);
+      }
+      draftSaveTimerRef.current = setTimeout(() => {
+        void persistDraft({ auPath, chapterNum, label, content });
+        pendingDraftSaveRef.current = null;
+        draftSaveTimerRef.current = null;
+      }, 1500);
+    },
+    [activeDraftIndex, auPath, currentChapterNum, drafts, persistDraft, setDrafts],
+  );
 
   // Phase 5c: 消除 draftControllerBridgeRef。draftCtrl 自主 watch state，
   // 当 state 为 null（切 AU 或重置）→ 清空；当 state.current_chapter 变化 → 加载该章节 drafts + summaries。
@@ -332,9 +341,7 @@ export function useWriterDraftController({
       try {
         const list = await listDrafts(auPath, chapterNum);
         if (cancelled) return;
-        const details = await Promise.all(
-          list.map((draft) => getDraft(auPath, chapterNum, draft.draft_label)),
-        );
+        const details = await Promise.all(list.map((draft) => getDraft(auPath, chapterNum, draft.draft_label)));
         if (cancelled) return;
 
         const loadedDrafts = sortDrafts(

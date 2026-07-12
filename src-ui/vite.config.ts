@@ -61,7 +61,15 @@ export default defineConfig(async () => ({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes("react-markdown") || id.includes("remark") || id.includes("rehype") || id.includes("mdast") || id.includes("hast") || id.includes("unified") || id.includes("micromark")) {
+          if (
+            id.includes("react-markdown") ||
+            id.includes("remark") ||
+            id.includes("rehype") ||
+            id.includes("mdast") ||
+            id.includes("hast") ||
+            id.includes("unified") ||
+            id.includes("micromark")
+          ) {
             return "vendor-markdown";
           }
           if (id.includes("js-yaml") || id.includes("gray-matter")) {

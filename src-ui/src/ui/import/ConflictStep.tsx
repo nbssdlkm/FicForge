@@ -48,7 +48,13 @@ export function ConflictStep({
         <p className="text-sm font-medium text-text/90">{t("import.step4ChapterMode")}</p>
 
         <label className="flex items-start gap-3 rounded-xl border border-black/10 bg-surface/30 p-4 cursor-pointer dark:border-white/10">
-          <input type="radio" name="mode" checked={mode === "append"} onChange={() => setMode("append")} className="mt-1 accent-accent" />
+          <input
+            type="radio"
+            name="mode"
+            checked={mode === "append"}
+            onChange={() => setMode("append")}
+            className="mt-1 accent-accent"
+          />
           <div>
             <p className="text-sm font-medium text-text">{t("import.step4Append")}</p>
             <p className="text-xs text-text/50 mt-0.5">{t("import.step4AppendHint", { n: appendStart })}</p>
@@ -56,7 +62,13 @@ export function ConflictStep({
         </label>
 
         <label className="flex items-start gap-3 rounded-xl border border-black/10 bg-surface/30 p-4 cursor-pointer dark:border-white/10">
-          <input type="radio" name="mode" checked={mode === "overwrite"} onChange={() => setMode("overwrite")} className="mt-1 accent-accent" />
+          <input
+            type="radio"
+            name="mode"
+            checked={mode === "overwrite"}
+            onChange={() => setMode("overwrite")}
+            className="mt-1 accent-accent"
+          />
           <div>
             <p className="text-sm font-medium text-text">{t("import.step4Overwrite", { n: 1 })}</p>
             <p className="text-xs text-text/50 mt-0.5">{t("import.step4OverwriteHint")}</p>
@@ -64,7 +76,13 @@ export function ConflictStep({
         </label>
 
         <label className="flex items-start gap-3 rounded-xl border border-black/10 bg-surface/30 p-4 cursor-pointer dark:border-white/10">
-          <input type="radio" name="mode" checked={mode === "custom"} onChange={() => setMode("custom")} className="mt-1 accent-accent" />
+          <input
+            type="radio"
+            name="mode"
+            checked={mode === "custom"}
+            onChange={() => setMode("custom")}
+            className="mt-1 accent-accent"
+          />
           <div className="flex-1">
             <p className="text-sm font-medium text-text">{t("import.step4Custom")}</p>
             {mode === "custom" && (
@@ -86,7 +104,13 @@ export function ConflictStep({
           <p className="text-sm font-medium text-text/90">{t("import.step4SettingsMode")}</p>
 
           <label className="flex items-start gap-3 rounded-xl border border-black/10 bg-surface/30 p-4 cursor-pointer dark:border-white/10">
-            <input type="radio" name="settingsMode" checked={settingsMode === "merge"} onChange={() => setSettingsMode("merge")} className="mt-1 accent-accent" />
+            <input
+              type="radio"
+              name="settingsMode"
+              checked={settingsMode === "merge"}
+              onChange={() => setSettingsMode("merge")}
+              className="mt-1 accent-accent"
+            />
             <div>
               <p className="text-sm font-medium text-text">{t("import.step4SettingsMerge")}</p>
               <p className="text-xs text-text/50 mt-0.5">{t("import.step4SettingsMergeHint")}</p>
@@ -94,7 +118,13 @@ export function ConflictStep({
           </label>
 
           <label className="flex items-start gap-3 rounded-xl border border-black/10 bg-surface/30 p-4 cursor-pointer dark:border-white/10">
-            <input type="radio" name="settingsMode" checked={settingsMode === "separate"} onChange={() => setSettingsMode("separate")} className="mt-1 accent-accent" />
+            <input
+              type="radio"
+              name="settingsMode"
+              checked={settingsMode === "separate"}
+              onChange={() => setSettingsMode("separate")}
+              className="mt-1 accent-accent"
+            />
             <div>
               <p className="text-sm font-medium text-text">{t("import.step4SettingsSeparate")}</p>
             </div>
@@ -104,8 +134,12 @@ export function ConflictStep({
 
       {/* Navigation */}
       <div className="flex justify-between pt-2">
-        <Button tone="neutral" fill="plain" onClick={onBack}>{t("onboarding.common.prev")}</Button>
-        <Button tone="accent" fill="solid" onClick={handleNext}>{t("onboarding.common.next")}</Button>
+        <Button tone="neutral" fill="plain" onClick={onBack}>
+          {t("onboarding.common.prev")}
+        </Button>
+        <Button tone="accent" fill="solid" onClick={handleNext}>
+          {t("onboarding.common.next")}
+        </Button>
       </div>
     </div>
   );

@@ -37,9 +37,7 @@ describe("FontsService", () => {
     storage = new FontStorage(adapter);
     registry = new NoopFontRegistry();
     downloader = new FontDownloader({
-      fetchImpl: vi.fn().mockImplementation(async () =>
-        makeResponse(MOCK_FONT_BYTES),
-      ),
+      fetchImpl: vi.fn().mockImplementation(async () => makeResponse(MOCK_FONT_BYTES)),
     });
     // Spy download() 返回 mock 字节，跳过内部 sha256 校验（checksum 逻辑已有专门的 downloader 单测覆盖）。
     vi.spyOn(downloader, "download").mockResolvedValue(MOCK_FONT_BYTES);
@@ -108,9 +106,7 @@ describe("FontsService", () => {
     it("skips builtin fonts (HTML static load)", async () => {
       // 内置字体不经过 Service.hydrate，不进 registry。
       await service.hydrateAll();
-      const builtinIds = FONT_MANIFEST
-        .filter((f) => f.type === "builtin")
-        .map((f) => f.id);
+      const builtinIds = FONT_MANIFEST.filter((f) => f.type === "builtin").map((f) => f.id);
       for (const id of builtinIds) {
         expect(registry.isRegistered(id)).toBe(false);
       }
@@ -164,11 +160,7 @@ describe("FontsService", () => {
             });
           }),
       );
-      const slowService = new FontsService(
-        storage,
-        new FontDownloader({ fetchImpl: slowFetch }),
-        registry,
-      );
+      const slowService = new FontsService(storage, new FontDownloader({ fetchImpl: slowFetch }), registry);
 
       const controller = new AbortController();
       const first = slowService.install(DOWNLOADABLE_ID, { signal: controller.signal });
@@ -198,11 +190,7 @@ describe("FontsService", () => {
             });
           }),
       );
-      const svc = new FontsService(
-        storage,
-        new FontDownloader({ fetchImpl: cancelFetch }),
-        registry,
-      );
+      const svc = new FontsService(storage, new FontDownloader({ fetchImpl: cancelFetch }), registry);
       const controller = new AbortController();
       const promise = svc.install(DOWNLOADABLE_ID, { signal: controller.signal });
       await new Promise((r) => setTimeout(r, 0));
@@ -243,9 +231,7 @@ describe("FontsService", () => {
       // 真 bug 的回归测试：以前 register 失败后文件仍落盘，statusOf 误报
       // "installed" 但 CSS 用不到。现在必须回滚存储。
       const failingRegistry: FontRegistry = {
-        registerFromData: vi.fn().mockRejectedValue(
-          new FontError("registry", "simulated FontFace.load failure"),
-        ),
+        registerFromData: vi.fn().mockRejectedValue(new FontError("registry", "simulated FontFace.load failure")),
         registerFromUrl: vi.fn().mockResolvedValue(undefined),
         unregister: vi.fn(),
         isRegistered: () => false,
@@ -280,14 +266,12 @@ describe("FontsService", () => {
   describe("download progress tracking + subscription (TD-011)", () => {
     it("tracks in-flight progress via currentProgresses and clears on completion", async () => {
       let resolveDownload!: (bytes: Uint8Array) => void;
-      vi.spyOn(downloader, "download").mockImplementation(
-        async (_entry, onProgress) => {
-          onProgress?.({ loaded: 4, total: 10 });
-          return new Promise<Uint8Array>((resolve) => {
-            resolveDownload = resolve;
-          });
-        },
-      );
+      vi.spyOn(downloader, "download").mockImplementation(async (_entry, onProgress) => {
+        onProgress?.({ loaded: 4, total: 10 });
+        return new Promise<Uint8Array>((resolve) => {
+          resolveDownload = resolve;
+        });
+      });
 
       const installed = service.install(DOWNLOADABLE_ID);
       // 让同步触发的 onProgress 落进 progresses
@@ -303,12 +287,10 @@ describe("FontsService", () => {
     });
 
     it("notifies subscribers of progress then settled, and stops after unsubscribe", async () => {
-      vi.spyOn(downloader, "download").mockImplementation(
-        async (_entry, onProgress) => {
-          onProgress?.({ loaded: 7, total: 7 });
-          return MOCK_FONT_BYTES;
-        },
-      );
+      vi.spyOn(downloader, "download").mockImplementation(async (_entry, onProgress) => {
+        onProgress?.({ loaded: 7, total: 7 });
+        return MOCK_FONT_BYTES;
+      });
 
       const events: FontDownloadEvent[] = [];
       const unsubscribe = service.subscribeDownloads((e) => events.push(e));
@@ -327,12 +309,10 @@ describe("FontsService", () => {
     });
 
     it("emits settled and clears progress even when the download fails", async () => {
-      vi.spyOn(downloader, "download").mockImplementation(
-        async (_entry, onProgress) => {
-          onProgress?.({ loaded: 2, total: 10 });
-          throw new FontError("network", "boom");
-        },
-      );
+      vi.spyOn(downloader, "download").mockImplementation(async (_entry, onProgress) => {
+        onProgress?.({ loaded: 2, total: 10 });
+        throw new FontError("network", "boom");
+      });
 
       const events: FontDownloadEvent[] = [];
       service.subscribeDownloads((e) => events.push(e));
@@ -348,12 +328,10 @@ describe("FontsService", () => {
     });
 
     it("isolates a throwing listener from the download and other listeners", async () => {
-      vi.spyOn(downloader, "download").mockImplementation(
-        async (_entry, onProgress) => {
-          onProgress?.({ loaded: 1, total: 1 });
-          return MOCK_FONT_BYTES;
-        },
-      );
+      vi.spyOn(downloader, "download").mockImplementation(async (_entry, onProgress) => {
+        onProgress?.({ loaded: 1, total: 1 });
+        return MOCK_FONT_BYTES;
+      });
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
       service.subscribeDownloads(() => {
@@ -370,12 +348,10 @@ describe("FontsService", () => {
     });
 
     it("still forwards progress to a caller-provided onProgress", async () => {
-      vi.spyOn(downloader, "download").mockImplementation(
-        async (_entry, onProgress) => {
-          onProgress?.({ loaded: 3, total: 9 });
-          return MOCK_FONT_BYTES;
-        },
-      );
+      vi.spyOn(downloader, "download").mockImplementation(async (_entry, onProgress) => {
+        onProgress?.({ loaded: 3, total: 9 });
+        return MOCK_FONT_BYTES;
+      });
 
       const seen: DownloadProgress[] = [];
       await service.install(DOWNLOADABLE_ID, { onProgress: (p) => seen.push(p) });

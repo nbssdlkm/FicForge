@@ -9,8 +9,13 @@ describe("persist_chapter_summary", () => {
     const summaryRepo = { save: vi.fn(async () => {}), get: vi.fn(), remove: vi.fn() } as any;
     const ragManager = { indexChapterSummary: vi.fn(async () => {}) } as any;
     await persist_chapter_summary({
-      auPath: "/au", chapterNum: 7, text: "第七章摘要", contentHash: "h7",
-      embeddingProvider: { embed: vi.fn() } as any, summaryRepo, ragManager,
+      auPath: "/au",
+      chapterNum: 7,
+      text: "第七章摘要",
+      contentHash: "h7",
+      embeddingProvider: { embed: vi.fn() } as any,
+      summaryRepo,
+      ragManager,
     });
     // MED-2：新增第 5 参 signal 透传（本用例未传 → undefined）
     expect(ragManager.indexChapterSummary).toHaveBeenCalledWith("/au", 7, "第七章摘要", expect.anything(), undefined);
@@ -21,7 +26,12 @@ describe("persist_chapter_summary", () => {
   });
 
   it("merges with existing file: micro-only 摘要补 standard 后 micro 仍在（审计 M2）", async () => {
-    const micro = { version: 1, text: "微摘要节点", generated_at: "2026-01-01T00:00:00Z", source_chapter_hash: "h-old" };
+    const micro = {
+      version: 1,
+      text: "微摘要节点",
+      generated_at: "2026-01-01T00:00:00Z",
+      source_chapter_hash: "h-old",
+    };
     const summaryRepo = {
       save: vi.fn(async () => {}),
       // confirm 时 standard 失败/micro 成功留下的 micro-only 文件
@@ -31,8 +41,13 @@ describe("persist_chapter_summary", () => {
     const ragManager = { indexChapterSummary: vi.fn(async () => {}) } as any;
 
     await persist_chapter_summary({
-      auPath: "/au", chapterNum: 3, text: "第三章标准摘要", contentHash: "h3",
-      embeddingProvider: { embed: vi.fn() } as any, summaryRepo, ragManager,
+      auPath: "/au",
+      chapterNum: 3,
+      text: "第三章标准摘要",
+      contentHash: "h3",
+      embeddingProvider: { embed: vi.fn() } as any,
+      summaryRepo,
+      ragManager,
     });
 
     const saved = summaryRepo.save.mock.calls[0][2];
@@ -51,8 +66,13 @@ describe("persist_chapter_summary", () => {
     const ragManager = { indexChapterSummary: vi.fn(async () => {}) } as any;
 
     await persist_chapter_summary({
-      auPath: "/au", chapterNum: 4, text: "重生成的摘要", contentHash: "h4",
-      embeddingProvider: { embed: vi.fn() } as any, summaryRepo, ragManager,
+      auPath: "/au",
+      chapterNum: 4,
+      text: "重生成的摘要",
+      contentHash: "h4",
+      embeddingProvider: { embed: vi.fn() } as any,
+      summaryRepo,
+      ragManager,
     });
 
     const saved = summaryRepo.save.mock.calls[0][2];
@@ -65,8 +85,13 @@ describe("persist_chapter_summary", () => {
     const ragManager = { indexChapterSummary: vi.fn(async () => {}) } as any;
 
     await persist_chapter_summary({
-      auPath: "/au", chapterNum: 5, text: "第五章摘要", contentHash: "h5",
-      embeddingProvider: { embed: vi.fn() } as any, summaryRepo, ragManager,
+      auPath: "/au",
+      chapterNum: 5,
+      text: "第五章摘要",
+      contentHash: "h5",
+      embeddingProvider: { embed: vi.fn() } as any,
+      summaryRepo,
+      ragManager,
     });
 
     const saved = summaryRepo.save.mock.calls[0][2];
@@ -77,11 +102,22 @@ describe("persist_chapter_summary", () => {
 
   it("does NOT save when indexing fails — 超长 poison 摘要不落脏文件（codex 对抗审 BLOCKER）", async () => {
     const summaryRepo = { save: vi.fn(async () => {}), get: vi.fn(), remove: vi.fn() } as any;
-    const ragManager = { indexChapterSummary: vi.fn(async () => { throw new Error("embed rejected"); }) } as any;
-    await expect(persist_chapter_summary({
-      auPath: "/au", chapterNum: 7, text: "POISON", contentHash: "h7",
-      embeddingProvider: { embed: vi.fn() } as any, summaryRepo, ragManager,
-    })).rejects.toThrow();
+    const ragManager = {
+      indexChapterSummary: vi.fn(async () => {
+        throw new Error("embed rejected");
+      }),
+    } as any;
+    await expect(
+      persist_chapter_summary({
+        auPath: "/au",
+        chapterNum: 7,
+        text: "POISON",
+        contentHash: "h7",
+        embeddingProvider: { embed: vi.fn() } as any,
+        summaryRepo,
+        ragManager,
+      }),
+    ).rejects.toThrow();
     expect(summaryRepo.save).not.toHaveBeenCalled(); // index 先于 save → 失败时不落盘
   });
 });

@@ -21,8 +21,7 @@ interface CapacitorWindow {
 
 /** Returns true when running inside a Tauri desktop shell. */
 export function isTauri(): boolean {
-  return typeof window !== "undefined"
-    && !!(window as unknown as TauriWindow).__TAURI_INTERNALS__;
+  return typeof window !== "undefined" && !!(window as unknown as TauriWindow).__TAURI_INTERNALS__;
 }
 
 /** Returns true when running inside a Capacitor native shell (Android/iOS). */

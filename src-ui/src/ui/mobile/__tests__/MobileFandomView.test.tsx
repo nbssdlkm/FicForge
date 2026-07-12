@@ -63,7 +63,9 @@ describe("MobileFandomView — 状态下沉回归", () => {
   beforeEach(() => {
     (getFandomDisplayInfo as Mock).mockReset().mockResolvedValue({ name: "底特律" });
     (listFandomFiles as Mock).mockReset().mockResolvedValue(filesFixture());
-    (readFandomFile as Mock).mockReset().mockResolvedValue({ filename: "康纳.md", category: "core_characters", content: "# 康纳\n\n原型机" });
+    (readFandomFile as Mock)
+      .mockReset()
+      .mockResolvedValue({ filename: "康纳.md", category: "core_characters", content: "# 康纳\n\n原型机" });
     (saveLore as Mock).mockReset().mockResolvedValue(undefined);
     (deleteLore as Mock).mockReset().mockResolvedValue(undefined);
   });
@@ -102,7 +104,11 @@ describe("MobileFandomView — 状态下沉回归", () => {
 
   it("新建：重名校验 → 落统一模板文件 → 刷新列表 → 自动打开新文件", async () => {
     await renderView();
-    (readFandomFile as Mock).mockResolvedValue({ filename: "汉克.md", category: "core_characters", content: "# 汉克\n\n[]" });
+    (readFandomFile as Mock).mockResolvedValue({
+      filename: "汉克.md",
+      category: "core_characters",
+      content: "# 汉克\n\n[]",
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "添加角色" }));
     fireEvent.change(screen.getByPlaceholderText(/角色名/), { target: { value: "汉克" } });

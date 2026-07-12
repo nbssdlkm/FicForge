@@ -210,8 +210,11 @@ describe("useSimpleChat", () => {
       result.current.appendSystemMessage("warning", "Watch");
       result.current.appendSystemMessage("error", "Bad");
     });
-    expect(result.current.messages.map((m) => (m.kind === "system" ? m.tone : null)))
-      .toEqual(["info", "warning", "error"]);
+    expect(result.current.messages.map((m) => (m.kind === "system" ? m.tone : null))).toEqual([
+      "info",
+      "warning",
+      "error",
+    ]);
   });
 
   it("clearMessages 清空", () => {

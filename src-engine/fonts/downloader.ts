@@ -15,12 +15,7 @@
  */
 
 import { isAbortError } from "../utils/abort_error.js";
-import {
-  FontError,
-  type DownloadableFont,
-  type DownloadProgress,
-  type FontSource,
-} from "./types.js";
+import { FontError, type DownloadableFont, type DownloadProgress, type FontSource } from "./types.js";
 import { warnAlways } from "../logger/index.js";
 
 export type FetchLike = typeof fetch;
@@ -59,8 +54,9 @@ export class FontDownloader {
     // 抛 network error，既浪费带宽又掩盖真正的错误原因。
     const safeProgress: ProgressCallback | undefined = onProgress
       ? (progress) => {
-          try { onProgress(progress); }
-          catch (e) {
+          try {
+            onProgress(progress);
+          } catch (e) {
             warnAlways("FontDownloader", `${entry.id} onProgress callback threw`, {
               error: e instanceof Error ? e.message : String(e),
             });
@@ -78,8 +74,7 @@ export class FontDownloader {
         // - undefined：继承 entry.sha256（同一文件的多个镜像场景）
         // - 非空字符串：本源专属哈希（镜像字节与主源不同但稳定）
         // - ""：明确跳过（备源是 CDN 且上游可能漂移，如 fontsource @latest）
-        const expectedSha256 =
-          source.sha256 !== undefined ? source.sha256 : entry.sha256;
+        const expectedSha256 = source.sha256 !== undefined ? source.sha256 : entry.sha256;
         if (expectedSha256) {
           const actual = await sha256Hex(data);
           if (actual !== expectedSha256.toLowerCase()) {
@@ -102,13 +97,9 @@ export class FontDownloader {
       }
     }
 
-    const summary = errors
-      .map((e) => `${e.source.url}: ${formatCause(e.error)}`)
-      .join("; ");
+    const summary = errors.map((e) => `${e.source.url}: ${formatCause(e.error)}`).join("; ");
     // 若所有源都是 checksum 失败，抛出更精确的 checksum 错误（manifest 校验和或所有源均坏）。
-    const allChecksum = errors.every(
-      (e) => e.error instanceof FontError && e.error.code === "checksum",
-    );
+    const allChecksum = errors.every((e) => e.error instanceof FontError && e.error.code === "checksum");
     throw new FontError(
       allChecksum ? "checksum" : "network",
       `All ${sorted.length} sources failed for ${entry.id}. ${summary}`,
@@ -125,7 +116,11 @@ export class FontDownloader {
     const response = await this.fetchImpl(source.url, { signal });
     if (!response.ok) {
       // 非 2xx 时主动释放 body 流，避免 ReadableStream 资源泄漏。
-      try { await response.body?.cancel(); } catch { /* ignore */ }
+      try {
+        await response.body?.cancel();
+      } catch {
+        /* ignore */
+      }
       throw new Error(`HTTP ${response.status} ${response.statusText}`);
     }
 
@@ -149,7 +144,11 @@ export class FontDownloader {
     const releaseReader = async (): Promise<void> => {
       if (released) return;
       released = true;
-      try { await reader.cancel(); } catch { /* ignore */ }
+      try {
+        await reader.cancel();
+      } catch {
+        /* ignore */
+      }
     };
 
     onProgress?.({ loaded: 0, total });

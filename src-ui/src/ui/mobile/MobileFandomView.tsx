@@ -42,7 +42,10 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
   const chrome = useMobileFandomViewChrome(fandomPath);
 
   const currentFiles = chrome.category === "core_characters" ? files.characterFiles : files.worldbuildingFiles;
-  const categoryLabel = chrome.category === "core_characters" ? t("fandomLore.category.characters") : t("fandomLore.category.worldbuilding");
+  const categoryLabel =
+    chrome.category === "core_characters"
+      ? t("fandomLore.category.characters")
+      : t("fandomLore.category.worldbuilding");
 
   // 新建 → 关弹窗 → 刷列表 + 打开新文件（跨 hook 编排只在组件层，hook 间不互持状态；
   // 刷列表与读新文件互不依赖，可并行省一个 round-trip）
@@ -80,7 +83,14 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
             <Button tone="neutral" fill="plain" size="sm" className="h-11 w-11 p-0" onClick={chrome.openDelete}>
               <Trash2 size={16} className="text-error" />
             </Button>
-            <Button tone="accent" fill="solid" size="sm" className="h-11 px-4" onClick={editor.save} disabled={editor.saving || !editor.isDirty}>
+            <Button
+              tone="accent"
+              fill="solid"
+              size="sm"
+              className="h-11 px-4"
+              onClick={editor.save}
+              disabled={editor.saving || !editor.isDirty}
+            >
               {editor.saving ? <Spinner size="sm" /> : t("common.actions.save")}
             </Button>
           </div>
@@ -90,14 +100,20 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
         <div className="flex gap-2 border-b border-black/5 px-4 py-2 dark:border-white/5">
           <button
             type="button"
-            className={cn("flex items-center gap-1 rounded-lg px-3 py-2 text-sm", !editor.previewMode ? "bg-accent text-inv-text" : "text-text/50")}
+            className={cn(
+              "flex items-center gap-1 rounded-lg px-3 py-2 text-sm",
+              !editor.previewMode ? "bg-accent text-inv-text" : "text-text/50",
+            )}
             onClick={editor.showEditor}
           >
             <Pencil size={14} /> {t("common.actions.edit")}
           </button>
           <button
             type="button"
-            className={cn("flex items-center gap-1 rounded-lg px-3 py-2 text-sm", editor.previewMode ? "bg-accent text-inv-text" : "text-text/50")}
+            className={cn(
+              "flex items-center gap-1 rounded-lg px-3 py-2 text-sm",
+              editor.previewMode ? "bg-accent text-inv-text" : "text-text/50",
+            )}
             onClick={editor.showPreview}
           >
             <Eye size={14} /> {t("common.actions.preview")}
@@ -126,7 +142,9 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
           <div className="space-y-4">
             <p className="text-sm text-text/90">{t("fandomLore.deleteMessage", { name: editor.selectedFile })}</p>
             <div className="flex justify-end gap-2">
-              <Button tone="neutral" fill="plain" onClick={chrome.closeDelete}>{t("common.actions.cancel")}</Button>
+              <Button tone="neutral" fill="plain" onClick={chrome.closeDelete}>
+                {t("common.actions.cancel")}
+              </Button>
               <Button tone="destructive" fill="solid" onClick={handleDelete}>
                 {t("common.actions.confirmDelete")}
               </Button>
@@ -164,7 +182,8 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
         <div className="inline-flex w-full rounded-sm border border-rule bg-background/60 p-1">
           {(["core_characters", "core_worldbuilding"] as const).map((cat) => {
             const Icon = cat === "core_characters" ? Users : Globe2;
-            const label = cat === "core_characters" ? t("fandomLore.category.characters") : t("fandomLore.category.worldbuilding");
+            const label =
+              cat === "core_characters" ? t("fandomLore.category.characters") : t("fandomLore.category.worldbuilding");
             const count = cat === "core_characters" ? files.characterFiles.length : files.worldbuildingFiles.length;
             return (
               <button
@@ -193,16 +212,28 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
         ) : currentFiles.length === 0 ? (
           <EmptyState
             icon={<FileText size={32} />}
-            title={chrome.category === "core_characters" ? t("fandomLore.emptyCharacters.title") : t("fandomLore.emptyWorldbuilding.title")}
-            description={chrome.category === "core_characters" ? t("fandomLore.emptyCharacters.description") : t("fandomLore.emptyWorldbuilding.description")}
-            actions={[{
-              key: "create",
-              element: (
-                <Button tone="accent" fill="solid" size="sm" onClick={chrome.openCreate}>
-                  {chrome.category === "core_characters" ? t("common.actions.addCharacter") : t("common.actions.addWorldbuilding")}
-                </Button>
-              ),
-            }]}
+            title={
+              chrome.category === "core_characters"
+                ? t("fandomLore.emptyCharacters.title")
+                : t("fandomLore.emptyWorldbuilding.title")
+            }
+            description={
+              chrome.category === "core_characters"
+                ? t("fandomLore.emptyCharacters.description")
+                : t("fandomLore.emptyWorldbuilding.description")
+            }
+            actions={[
+              {
+                key: "create",
+                element: (
+                  <Button tone="accent" fill="solid" size="sm" onClick={chrome.openCreate}>
+                    {chrome.category === "core_characters"
+                      ? t("common.actions.addCharacter")
+                      : t("common.actions.addWorldbuilding")}
+                  </Button>
+                ),
+              },
+            ]}
           />
         ) : (
           currentFiles.map((file) => (
@@ -214,7 +245,9 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
             >
               <div className="min-w-0">
                 <p className="truncate font-display text-base font-medium text-text">{file.name}</p>
-                <p className="mt-1 font-sans text-[10px] font-medium uppercase tracking-[0.12em] text-gold">{categoryLabel}</p>
+                <p className="mt-1 font-sans text-[10px] font-medium uppercase tracking-[0.12em] text-gold">
+                  {categoryLabel}
+                </p>
               </div>
               <FileText size={16} className="ml-3 shrink-0 text-text/30" />
             </button>
@@ -225,7 +258,9 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
         {!files.loading && currentFiles.length > 0 && (
           <div className="pt-2">
             <Button tone="neutral" fill="outline" size="sm" className="w-full" onClick={chrome.openCreate}>
-              {chrome.category === "core_characters" ? t("common.actions.addCharacter") : t("common.actions.addWorldbuilding")}
+              {chrome.category === "core_characters"
+                ? t("common.actions.addCharacter")
+                : t("common.actions.addWorldbuilding")}
             </Button>
           </div>
         )}
@@ -234,17 +269,36 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
       </div>
 
       {/* Create modal */}
-      <Modal isOpen={chrome.createOpen} onClose={chrome.closeCreate} title={chrome.category === "core_characters" ? t("fandomLore.createCharacterTitle") : t("fandomLore.createWorldbuildingTitle")}>
+      <Modal
+        isOpen={chrome.createOpen}
+        onClose={chrome.closeCreate}
+        title={
+          chrome.category === "core_characters"
+            ? t("fandomLore.createCharacterTitle")
+            : t("fandomLore.createWorldbuildingTitle")
+        }
+      >
         <div className="space-y-4">
           <Input
             value={chrome.createName}
             onChange={(e) => chrome.setCreateName(e.target.value)}
-            placeholder={chrome.category === "core_characters" ? t("fandomLore.characterPlaceholder") : t("fandomLore.worldbuildingPlaceholder")}
+            placeholder={
+              chrome.category === "core_characters"
+                ? t("fandomLore.characterPlaceholder")
+                : t("fandomLore.worldbuildingPlaceholder")
+            }
             autoFocus
           />
           <div className="flex justify-end gap-2">
-            <Button tone="neutral" fill="plain" onClick={chrome.closeCreate}>{t("common.actions.cancel")}</Button>
-            <Button tone="accent" fill="solid" onClick={handleCreate} disabled={!chrome.createName.trim() || editor.saving}>
+            <Button tone="neutral" fill="plain" onClick={chrome.closeCreate}>
+              {t("common.actions.cancel")}
+            </Button>
+            <Button
+              tone="accent"
+              fill="solid"
+              onClick={handleCreate}
+              disabled={!chrome.createName.trim() || editor.saving}
+            >
               {editor.saving ? <Spinner size="sm" /> : t("common.actions.create")}
             </Button>
           </div>
@@ -254,7 +308,8 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
       {/* AI assistant floating button */}
       <div className="pointer-events-none fixed inset-x-0 bottom-6 z-30 flex justify-end px-4 md:hidden">
         <Button
-          tone="accent" fill="solid"
+          tone="accent"
+          fill="solid"
           className="pointer-events-auto h-12 rounded-full px-5 shadow-strong"
           onClick={chrome.openAiOverlay}
         >
@@ -281,7 +336,9 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
               fandomPath={fandomPath}
               placeholder={t("settingsMode.fandomPlaceholder")}
               className="h-full"
-              onAfterMutation={async () => { await files.reload(); }}
+              onAfterMutation={async () => {
+                await files.reload();
+              }}
             />
           </div>
         </div>

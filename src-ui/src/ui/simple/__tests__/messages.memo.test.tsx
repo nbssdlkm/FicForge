@@ -143,9 +143,7 @@ describe("WritingDraftCard memo", () => {
       <WritingDraftCard message={baseMessage} isStreaming={false} onAccept={cb} onRegenerate={cb} onDiscard={cb} />,
     );
     const m2 = { ...baseMessage, content: "updated draft" };
-    rerender(
-      <WritingDraftCard message={m2} isStreaming={false} onAccept={cb} onRegenerate={cb} onDiscard={cb} />,
-    );
+    rerender(<WritingDraftCard message={m2} isStreaming={false} onAccept={cb} onRegenerate={cb} onDiscard={cb} />);
     expect(container.textContent).toContain("updated draft");
   });
 
@@ -154,10 +152,22 @@ describe("WritingDraftCard memo", () => {
     const cb2 = vi.fn();
     const cbShared = vi.fn();
     const { rerender } = render(
-      <WritingDraftCard message={baseMessage} isStreaming={false} onAccept={cb1} onRegenerate={cbShared} onDiscard={cbShared} />,
+      <WritingDraftCard
+        message={baseMessage}
+        isStreaming={false}
+        onAccept={cb1}
+        onRegenerate={cbShared}
+        onDiscard={cbShared}
+      />,
     );
     rerender(
-      <WritingDraftCard message={baseMessage} isStreaming={false} onAccept={cb2} onRegenerate={cbShared} onDiscard={cbShared} />,
+      <WritingDraftCard
+        message={baseMessage}
+        isStreaming={false}
+        onAccept={cb2}
+        onRegenerate={cbShared}
+        onDiscard={cbShared}
+      />,
     );
     // mock t 不插值，defaultValue 原样返回 "接受为第 {{num}} 章"
     fireEvent.click(screen.getByRole("button", { name: "接受为第 {{num}} 章" }));
@@ -199,9 +209,7 @@ describe("ToolCallCard memo", () => {
       <ToolCallCard message={baseMessage} globalBusy={false} onConfirm={cb} onSkip={cb} onUndo={cb} />,
     );
     const m2 = { ...baseMessage, toolArgs: { chapterNum: 2, extra: true } };
-    rerender(
-      <ToolCallCard message={m2} globalBusy={false} onConfirm={cb} onSkip={cb} onUndo={cb} />,
-    );
+    rerender(<ToolCallCard message={m2} globalBusy={false} onConfirm={cb} onSkip={cb} onUndo={cb} />);
     expect(container.textContent).toContain('"chapterNum": 2');
   });
 
@@ -239,9 +247,7 @@ describe("ChapterPreviewCard memo", () => {
       <ChapterPreviewCard message={baseMessage} auPath="/au/test" onToggleExpanded={cb} />,
     );
     const html1 = container.innerHTML;
-    rerender(
-      <ChapterPreviewCard message={baseMessage} auPath="/au/test" onToggleExpanded={cb} />,
-    );
+    rerender(<ChapterPreviewCard message={baseMessage} auPath="/au/test" onToggleExpanded={cb} />);
     expect(container.innerHTML).toBe(html1);
   });
 
@@ -268,9 +274,7 @@ describe("SettingPreviewCard memo", () => {
       <SettingPreviewCard message={baseMessage} auPath="/au/test" onToggleExpanded={cb} />,
     );
     const html1 = container.innerHTML;
-    rerender(
-      <SettingPreviewCard message={baseMessage} auPath="/au/test" onToggleExpanded={cb} />,
-    );
+    rerender(<SettingPreviewCard message={baseMessage} auPath="/au/test" onToggleExpanded={cb} />);
     expect(container.innerHTML).toBe(html1);
   });
 
@@ -280,9 +284,7 @@ describe("SettingPreviewCard memo", () => {
       <SettingPreviewCard message={baseMessage} auPath="/au/test" onToggleExpanded={cb} />,
     );
     const m2 = { ...baseMessage, filePath: "worldbuilding/Magic.md" };
-    rerender(
-      <SettingPreviewCard message={m2} auPath="/au/test" onToggleExpanded={cb} />,
-    );
+    rerender(<SettingPreviewCard message={m2} auPath="/au/test" onToggleExpanded={cb} />);
     expect(container.textContent).toContain("worldbuilding/Magic.md");
   });
 });

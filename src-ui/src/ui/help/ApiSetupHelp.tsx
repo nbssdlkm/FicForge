@@ -28,15 +28,29 @@ export function ApiSetupHelp({ isOpen, onClose }: ApiSetupHelpProps) {
           <p className="leading-relaxed">{t("help.apiSetup.modelDesc")}</p>
           <div className="mt-2 overflow-x-auto rounded-lg border border-black/10 dark:border-white/10">
             <table className="w-full text-xs">
-              <thead><tr className="border-b border-black/10 bg-surface/50 dark:border-white/10">
-                <th className="px-3 py-2 text-left">{t("help.apiSetup.provider")}</th>
-                <th className="px-3 py-2 text-left">{t("help.apiSetup.writingModel")}</th>
-                <th className="px-3 py-2 text-left">Embedding</th>
-              </tr></thead>
+              <thead>
+                <tr className="border-b border-black/10 bg-surface/50 dark:border-white/10">
+                  <th className="px-3 py-2 text-left">{t("help.apiSetup.provider")}</th>
+                  <th className="px-3 py-2 text-left">{t("help.apiSetup.writingModel")}</th>
+                  <th className="px-3 py-2 text-left">Embedding</th>
+                </tr>
+              </thead>
               <tbody className="divide-y divide-black/5 dark:divide-white/5">
-                <tr><td className="px-3 py-2">DeepSeek</td><td className="px-3 py-2 font-mono">deepseek-v4-flash</td><td className="px-3 py-2">—</td></tr>
-                <tr><td className="px-3 py-2">OpenAI</td><td className="px-3 py-2">—</td><td className="px-3 py-2 font-mono">text-embedding-3-small</td></tr>
-                <tr><td className="px-3 py-2">{t("help.apiSetup.siliconflow")}</td><td className="px-3 py-2 font-mono">deepseek-ai/DeepSeek-V4-Pro</td><td className="px-3 py-2 font-mono">BAAI/bge-m3</td></tr>
+                <tr>
+                  <td className="px-3 py-2">DeepSeek</td>
+                  <td className="px-3 py-2 font-mono">deepseek-v4-flash</td>
+                  <td className="px-3 py-2">—</td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2">OpenAI</td>
+                  <td className="px-3 py-2">—</td>
+                  <td className="px-3 py-2 font-mono">text-embedding-3-small</td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2">{t("help.apiSetup.siliconflow")}</td>
+                  <td className="px-3 py-2 font-mono">deepseek-ai/DeepSeek-V4-Pro</td>
+                  <td className="px-3 py-2 font-mono">BAAI/bge-m3</td>
+                </tr>
               </tbody>
             </table>
           </div>

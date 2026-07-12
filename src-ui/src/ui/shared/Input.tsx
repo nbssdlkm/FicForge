@@ -2,17 +2,17 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import React, { InputHTMLAttributes, TextareaHTMLAttributes } from 'react';
-import { cn } from './utils';
+import React, { InputHTMLAttributes, TextareaHTMLAttributes } from "react";
+import { cn } from "./utils";
 
-export type InputTone = 'neutral' | 'error';
+export type InputTone = "neutral" | "error";
 
 const baseFieldStyles =
-  'w-full font-sans rounded-md border bg-background px-3 py-2 text-base md:text-sm placeholder:text-text/50 focus:outline-hidden focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors';
+  "w-full font-sans rounded-md border bg-background px-3 py-2 text-base md:text-sm placeholder:text-text/50 focus:outline-hidden focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors";
 
 const toneStyles: Record<InputTone, string> = {
-  neutral: 'border-black/20 dark:border-white/20 focus:ring-accent',
-  error: 'border-error focus:ring-error',
+  neutral: "border-black/20 dark:border-white/20 focus:ring-accent",
+  error: "border-error focus:ring-error",
 };
 
 interface FieldShellProps {
@@ -43,30 +43,28 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     // Android WebView 的 type="password" 禁止粘贴。
     // 改用 type="text" + CSS -webkit-text-security 遮蔽，保留粘贴能力。
     // Firefox 不支持 -webkit-text-security，回退为原生 type="password"。
-    const isPassword = type === 'password';
-    const isFirefox = typeof navigator !== 'undefined' && /firefox/i.test(navigator.userAgent);
+    const isPassword = type === "password";
+    const isFirefox = typeof navigator !== "undefined" && /firefox/i.test(navigator.userAgent);
     const useTextSecurity = isPassword && !isFirefox;
-    const resolvedType = useTextSecurity ? 'text' : type;
-    const resolvedStyle = useTextSecurity
-      ? { ...style, WebkitTextSecurity: 'disc' as const }
-      : style;
-    const effectiveTone: InputTone = tone ?? (error ? 'error' : 'neutral');
+    const resolvedType = useTextSecurity ? "text" : type;
+    const resolvedStyle = useTextSecurity ? { ...style, WebkitTextSecurity: "disc" as const } : style;
+    const effectiveTone: InputTone = tone ?? (error ? "error" : "neutral");
 
     return (
       <FieldShell label={label} errorText={error}>
         <input
-          className={cn('flex h-11 md:h-10', baseFieldStyles, toneStyles[effectiveTone], className)}
+          className={cn("flex h-11 md:h-10", baseFieldStyles, toneStyles[effectiveTone], className)}
           ref={ref}
           type={resolvedType}
           style={resolvedStyle}
-          autoComplete={isPassword ? 'off' : undefined}
+          autoComplete={isPassword ? "off" : undefined}
           {...props}
         />
       </FieldShell>
     );
-  }
+  },
 );
-Input.displayName = 'Input';
+Input.displayName = "Input";
 
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
@@ -76,16 +74,16 @@ export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
 
 export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, label, error, tone, ...props }, ref) => {
-    const effectiveTone: InputTone = tone ?? (error ? 'error' : 'neutral');
+    const effectiveTone: InputTone = tone ?? (error ? "error" : "neutral");
     return (
       <FieldShell label={label} errorText={error}>
         <textarea
-          className={cn('flex min-h-[96px]', baseFieldStyles, toneStyles[effectiveTone], className)}
+          className={cn("flex min-h-[96px]", baseFieldStyles, toneStyles[effectiveTone], className)}
           ref={ref}
           {...props}
         />
       </FieldShell>
     );
-  }
+  },
 );
-Textarea.displayName = 'Textarea';
+Textarea.displayName = "Textarea";

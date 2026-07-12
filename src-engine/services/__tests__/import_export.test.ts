@@ -4,9 +4,14 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import {
   // Backward-compatible exports
-  split_into_chapters, get_split_method, parse_html, import_chapters,
+  split_into_chapters,
+  get_split_method,
+  parse_html,
+  import_chapters,
   // New API
-  analyze_file, build_import_plan, execute_import,
+  analyze_file,
+  build_import_plan,
+  execute_import,
   type ImportConflictOptions,
 } from "../import_pipeline.js";
 import type { LLMProvider } from "../../llm/provider.js";
@@ -122,7 +127,7 @@ describe("parse_html", () => {
 
   it("decodes HTML entities", () => {
     const result = parse_html("&amp; &lt; &gt; &quot;");
-    expect(result).toContain("& < > \"");
+    expect(result).toContain('& < > "');
   });
 });
 
@@ -148,7 +153,9 @@ describe("import_chapters (backward compat)", () => {
         { chapter_num: 1, title: "第一章", content: "Alice走进房间。" },
         { chapter_num: 2, title: "第二章", content: "Bob离开了。" },
       ],
-      chapter_repo: chapterRepo, state_repo: stateRepo, ops_repo: opsRepo,
+      chapter_repo: chapterRepo,
+      state_repo: stateRepo,
+      ops_repo: opsRepo,
       cast_registry: { characters: ["Alice", "Bob"] },
     });
 
@@ -174,7 +181,8 @@ describe("import_chapters (backward compat)", () => {
 
   it("empty chapters list", async () => {
     const result = await import_chapters({
-      au_id: "au1", chapters: [],
+      au_id: "au1",
+      chapters: [],
       chapter_repo: new FileChapterRepository(adapter),
       state_repo: new FileStateRepository(adapter),
       ops_repo: new FileOpsRepository(adapter),
@@ -204,13 +212,17 @@ describe("export_chapters", () => {
         { chapter_num: 2, title: "第二章", content: "第二章内容" },
         { chapter_num: 3, title: "第三章", content: "第三章内容" },
       ],
-      chapter_repo: chapterRepo, state_repo: stateRepo, ops_repo: opsRepo,
+      chapter_repo: chapterRepo,
+      state_repo: stateRepo,
+      ops_repo: opsRepo,
     });
   });
 
   it("exports all chapters as txt", async () => {
     const text = await export_chapters({
-      au_id: "au1", chapter_repo: chapterRepo, format: "txt",
+      au_id: "au1",
+      chapter_repo: chapterRepo,
+      format: "txt",
     });
     expect(text).toContain("第一章内容");
     expect(text).toContain("第二章内容");
@@ -219,8 +231,10 @@ describe("export_chapters", () => {
 
   it("exports range", async () => {
     const text = await export_chapters({
-      au_id: "au1", chapter_repo: chapterRepo,
-      start_chapter: 2, end_chapter: 2,
+      au_id: "au1",
+      chapter_repo: chapterRepo,
+      start_chapter: 2,
+      end_chapter: 2,
     });
     expect(text).toContain("第二章内容");
     expect(text).not.toContain("第一章内容");
@@ -229,7 +243,9 @@ describe("export_chapters", () => {
 
   it("md format includes markdown headers", async () => {
     const text = await export_chapters({
-      au_id: "au1", chapter_repo: chapterRepo, format: "md",
+      au_id: "au1",
+      chapter_repo: chapterRepo,
+      format: "md",
       chapter_titles: { 1: "黄昏", 2: "黎明" },
     });
     expect(text).toContain("## 第1章 黄昏");
@@ -238,7 +254,8 @@ describe("export_chapters", () => {
 
   it("returns empty for non-existent range", async () => {
     const text = await export_chapters({
-      au_id: "au1", chapter_repo: chapterRepo,
+      au_id: "au1",
+      chapter_repo: chapterRepo,
       start_chapter: 100,
     });
     expect(text).toBe("");
@@ -251,9 +268,9 @@ describe("export_chapters", () => {
 
 describe("analyze_file", () => {
   it("detects AI chat format", async () => {
-    const text = Array.from({ length: 5 }, (_, i) =>
-      `User: 写第${i + 1}章\nAssistant: ${"正文内容".repeat(500)}`,
-    ).join("\n\n");
+    const text = Array.from({ length: 5 }, (_, i) => `User: 写第${i + 1}章\nAssistant: ${"正文内容".repeat(500)}`).join(
+      "\n\n",
+    );
     const result = await analyze_file(text, "对话.txt");
     expect(result.mode).toBe("chat");
     expect(result.chatFormat).toBe("User/Assistant");
@@ -302,9 +319,9 @@ describe("analyze_file", () => {
   });
 
   it("applies custom thresholds", async () => {
-    const text = Array.from({ length: 3 }, (_, i) =>
-      `User: 写第${i + 1}章\nAssistant: ${"内容".repeat(300)}`,
-    ).join("\n\n");
+    const text = Array.from({ length: 3 }, (_, i) => `User: 写第${i + 1}章\nAssistant: ${"内容".repeat(300)}`).join(
+      "\n\n",
+    );
     // With default threshold (1500), 600-char replies would be uncertain
     const defaultResult = await analyze_file(text, "test.txt");
     expect(defaultResult.stats.estimatedChapters).toBe(0); // all uncertain/skip
@@ -332,17 +349,20 @@ describe("analyze_file", () => {
   }
 
   // 使用非标准标记 [U] / [B]：确保规则 detectChatFormat 命中不了，必须走 LLM 兜底
-  const nonStandardChat = Array.from({ length: 4 }, (_, i) =>
-    `[U] 请写第${i + 1}章\n[B] ${"正文片段".repeat(500)}`,
+  const nonStandardChat = Array.from(
+    { length: 4 },
+    (_, i) => `[U] 请写第${i + 1}章\n[B] ${"正文片段".repeat(500)}`,
   ).join("\n\n");
 
   it("falls back to LLM with custom samples when rules fail (non-standard format path)", async () => {
-    const llm = makeLlm(JSON.stringify({
-      isChat: true,
-      matchKnownFormat: null,
-      customUserSample: "[U]",
-      customAssistantSample: "[B]",
-    }));
+    const llm = makeLlm(
+      JSON.stringify({
+        isChat: true,
+        matchKnownFormat: null,
+        customUserSample: "[U]",
+        customAssistantSample: "[B]",
+      }),
+    );
     const result = await analyze_file(nonStandardChat, "chat.md", {
       useAiAssist: true,
       llmProvider: llm,
@@ -358,7 +378,9 @@ describe("analyze_file", () => {
   // 拦截）。所以集成层只测 custom 路径 + matchKnownFormat 被 validate 拦截的幻觉守卫；单元层（chat_parser.test.ts）覆盖 matchKnownFormat 解析。
 
   it("skips LLM when useAiAssist is off (falls back to pure text)", async () => {
-    const llm = makeLlm(JSON.stringify({ isChat: true, matchKnownFormat: null, customUserSample: "[U]", customAssistantSample: "[B]" }));
+    const llm = makeLlm(
+      JSON.stringify({ isChat: true, matchKnownFormat: null, customUserSample: "[U]", customAssistantSample: "[B]" }),
+    );
     const result = await analyze_file(nonStandardChat, "chat.md", {
       useAiAssist: false,
       llmProvider: llm,
@@ -368,7 +390,9 @@ describe("analyze_file", () => {
   });
 
   it("falls through to text mode when LLM says not a chat", async () => {
-    const llm = makeLlm(JSON.stringify({ isChat: false, matchKnownFormat: null, customUserSample: null, customAssistantSample: null }));
+    const llm = makeLlm(
+      JSON.stringify({ isChat: false, matchKnownFormat: null, customUserSample: null, customAssistantSample: null }),
+    );
     const result = await analyze_file(nonStandardChat, "chat.md", {
       useAiAssist: true,
       llmProvider: llm,
@@ -381,12 +405,14 @@ describe("analyze_file", () => {
   });
 
   it("rejects custom samples when pattern fails ≥2 times in text (hallucination guard)", async () => {
-    const llm = makeLlm(JSON.stringify({
-      isChat: true,
-      matchKnownFormat: null,
-      customUserSample: "NEVER_APPEARS_IN_TEXT",
-      customAssistantSample: "ALSO_MISSING",
-    }));
+    const llm = makeLlm(
+      JSON.stringify({
+        isChat: true,
+        matchKnownFormat: null,
+        customUserSample: "NEVER_APPEARS_IN_TEXT",
+        customAssistantSample: "ALSO_MISSING",
+      }),
+    );
     const result = await analyze_file(nonStandardChat, "chat.md", {
       useAiAssist: true,
       llmProvider: llm,
@@ -396,12 +422,14 @@ describe("analyze_file", () => {
 
   it("rejects matchKnownFormat when its pattern doesn't validate ≥2 in text (LLM chose wrong format)", async () => {
     // 文件格式其实是 [U]/[B]，但 LLM 错选 "Markdown Bold"
-    const llm = makeLlm(JSON.stringify({
-      isChat: true,
-      matchKnownFormat: "Markdown Bold",
-      customUserSample: null,
-      customAssistantSample: null,
-    }));
+    const llm = makeLlm(
+      JSON.stringify({
+        isChat: true,
+        matchKnownFormat: "Markdown Bold",
+        customUserSample: null,
+        customAssistantSample: null,
+      }),
+    );
     const result = await analyze_file(nonStandardChat, "chat.md", {
       useAiAssist: true,
       llmProvider: llm,
@@ -410,13 +438,15 @@ describe("analyze_file", () => {
     expect(result.mode).toBe("text");
   });
 
-  it("fires onStage(\"llm-chat-detect\") before calling LLM", async () => {
-    const llm = makeLlm(JSON.stringify({
-      isChat: true,
-      matchKnownFormat: null,
-      customUserSample: "[U]",
-      customAssistantSample: "[B]",
-    }));
+  it('fires onStage("llm-chat-detect") before calling LLM', async () => {
+    const llm = makeLlm(
+      JSON.stringify({
+        isChat: true,
+        matchKnownFormat: null,
+        customUserSample: "[U]",
+        customAssistantSample: "[B]",
+      }),
+    );
     const onStage = vi.fn();
     await analyze_file(nonStandardChat, "chat.md", {
       useAiAssist: true,
@@ -426,7 +456,7 @@ describe("analyze_file", () => {
     expect(onStage).toHaveBeenCalledWith("llm-chat-detect");
   });
 
-  it("fires onStage(\"llm-chat-failed\") when LLM throws", async () => {
+  it('fires onStage("llm-chat-failed") when LLM throws', async () => {
     const llm: LLMProvider = {
       generate: vi.fn().mockRejectedValue(new Error("network")),
       generateStream: vi.fn(),
@@ -452,13 +482,15 @@ describe("analyze_file", () => {
     expect(llm.generate).toHaveBeenCalledTimes(1);
   });
 
-  it("treats \"isChat=true without format info\" as llm_error: fires failed + retry-guards downstream", async () => {
-    const llm = makeLlm(JSON.stringify({
-      isChat: true,
-      matchKnownFormat: null,
-      customUserSample: null,
-      customAssistantSample: null,
-    }));
+  it('treats "isChat=true without format info" as llm_error: fires failed + retry-guards downstream', async () => {
+    const llm = makeLlm(
+      JSON.stringify({
+        isChat: true,
+        matchKnownFormat: null,
+        customUserSample: null,
+        customAssistantSample: null,
+      }),
+    );
     const onStage = vi.fn();
     await analyze_file(nonStandardChat, "chat.md", {
       useAiAssist: true,
@@ -471,12 +503,14 @@ describe("analyze_file", () => {
   });
 
   it("still retries LLM in splitChapters when chat detect returned hallucinated samples (LLM itself works)", async () => {
-    const llm = makeLlm(JSON.stringify({
-      isChat: true,
-      matchKnownFormat: null,
-      customUserSample: "NEVER_IN_TEXT",
-      customAssistantSample: "ALSO_MISSING",
-    }));
+    const llm = makeLlm(
+      JSON.stringify({
+        isChat: true,
+        matchKnownFormat: null,
+        customUserSample: "NEVER_IN_TEXT",
+        customAssistantSample: "ALSO_MISSING",
+      }),
+    );
     await analyze_file(nonStandardChat, "chat.md", {
       useAiAssist: true,
       llmProvider: llm,
@@ -484,13 +518,15 @@ describe("analyze_file", () => {
     expect((llm.generate as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("fires onStage(\"llm-chat-failed\") when LLM hallucinates samples", async () => {
-    const llm = makeLlm(JSON.stringify({
-      isChat: true,
-      matchKnownFormat: null,
-      customUserSample: "NEVER_IN_TEXT",
-      customAssistantSample: "ALSO_MISSING",
-    }));
+  it('fires onStage("llm-chat-failed") when LLM hallucinates samples', async () => {
+    const llm = makeLlm(
+      JSON.stringify({
+        isChat: true,
+        matchKnownFormat: null,
+        customUserSample: "NEVER_IN_TEXT",
+        customAssistantSample: "ALSO_MISSING",
+      }),
+    );
     const onStage = vi.fn();
     await analyze_file(nonStandardChat, "chat.md", {
       useAiAssist: true,
@@ -501,7 +537,9 @@ describe("analyze_file", () => {
   });
 
   it("does NOT fire llm-chat-failed when LLM legitimately says not a chat", async () => {
-    const llm = makeLlm(JSON.stringify({ isChat: false, matchKnownFormat: null, customUserSample: null, customAssistantSample: null }));
+    const llm = makeLlm(
+      JSON.stringify({ isChat: false, matchKnownFormat: null, customUserSample: null, customAssistantSample: null }),
+    );
     const onStage = vi.fn();
     await analyze_file(nonStandardChat, "chat.md", {
       useAiAssist: true,
@@ -513,10 +551,17 @@ describe("analyze_file", () => {
   });
 
   it("skips LLM chat detection when rules already matched", async () => {
-    const text = Array.from({ length: 4 }, (_, i) =>
-      `User: 写第${i + 1}章\nAssistant: ${"内容".repeat(500)}`,
-    ).join("\n\n");
-    const llm = makeLlm(JSON.stringify({ isChat: true, matchKnownFormat: "User/Assistant", customUserSample: null, customAssistantSample: null }));
+    const text = Array.from({ length: 4 }, (_, i) => `User: 写第${i + 1}章\nAssistant: ${"内容".repeat(500)}`).join(
+      "\n\n",
+    );
+    const llm = makeLlm(
+      JSON.stringify({
+        isChat: true,
+        matchKnownFormat: "User/Assistant",
+        customUserSample: null,
+        customAssistantSample: null,
+      }),
+    );
     const onStage = vi.fn();
     const result = await analyze_file(text, "chat.txt", {
       useAiAssist: true,
@@ -540,7 +585,9 @@ describe("build_import_plan", () => {
     const analysis2 = makeTextAnalysis("file2.txt", 30);
 
     const plan = build_import_plan([analysis1, analysis2], {
-      mode: "append", startChapter: 1, settingsMode: "merge",
+      mode: "append",
+      startChapter: 1,
+      settingsMode: "merge",
     });
 
     expect(plan.chapters).toHaveLength(89);
@@ -558,7 +605,9 @@ describe("build_import_plan", () => {
     ]);
 
     const plan = build_import_plan([analysis], {
-      mode: "append", startChapter: 1, settingsMode: "merge",
+      mode: "append",
+      startChapter: 1,
+      settingsMode: "merge",
     });
 
     expect(plan.chapters).toHaveLength(2);
@@ -577,7 +626,9 @@ describe("build_import_plan", () => {
     ]);
 
     const plan = build_import_plan([analysis], {
-      mode: "append", startChapter: 1, settingsMode: "merge",
+      mode: "append",
+      startChapter: 1,
+      settingsMode: "merge",
     });
 
     expect(plan.chapters).toHaveLength(2);
@@ -587,7 +638,9 @@ describe("build_import_plan", () => {
   it("#18: append mode with startChapter", () => {
     const analysis = makeTextAnalysis("file.txt", 10);
     const plan = build_import_plan([analysis], {
-      mode: "append", startChapter: 51, settingsMode: "merge",
+      mode: "append",
+      startChapter: 51,
+      settingsMode: "merge",
     });
 
     expect(plan.chapters[0].chapterNum).toBe(51);
@@ -612,17 +665,18 @@ describe("execute_import", () => {
     const opsRepo = new FileOpsRepository(adapter);
 
     // Simulate 3 files producing chapters
-    const plan = build_import_plan(
-      [
-        makeTextAnalysis("file1.txt", 3),
-        makeTextAnalysis("file2.txt", 2),
-      ],
-      { mode: "append", startChapter: 1, settingsMode: "merge" },
-    );
+    const plan = build_import_plan([makeTextAnalysis("file1.txt", 3), makeTextAnalysis("file2.txt", 2)], {
+      mode: "append",
+      startChapter: 1,
+      settingsMode: "merge",
+    });
 
     const result = await execute_import(plan, {
       auId: "au1",
-      chapterRepo, stateRepo, opsRepo, adapter,
+      chapterRepo,
+      stateRepo,
+      opsRepo,
+      adapter,
     });
 
     expect(result.chaptersImported).toBe(5);
@@ -651,14 +705,18 @@ describe("execute_import", () => {
       { type: "setting", chars: 800 },
     ]);
 
-    const plan = build_import_plan(
-      [textAnalysis, chatAnalysis],
-      { mode: "append", startChapter: 1, settingsMode: "merge" },
-    );
+    const plan = build_import_plan([textAnalysis, chatAnalysis], {
+      mode: "append",
+      startChapter: 1,
+      settingsMode: "merge",
+    });
 
     const result = await execute_import(plan, {
       auId: "au1",
-      chapterRepo, stateRepo, opsRepo, adapter,
+      chapterRepo,
+      stateRepo,
+      opsRepo,
+      adapter,
     });
 
     expect(result.chaptersImported).toBe(3); // 2 from text + 1 from chat
@@ -677,11 +735,17 @@ describe("execute_import", () => {
     ]);
 
     const plan = build_import_plan([analysis], {
-      mode: "append", startChapter: 1, settingsMode: "merge",
+      mode: "append",
+      startChapter: 1,
+      settingsMode: "merge",
     });
 
     await execute_import(plan, {
-      auId: "au1", chapterRepo, stateRepo, opsRepo, adapter,
+      auId: "au1",
+      chapterRepo,
+      stateRepo,
+      opsRepo,
+      adapter,
     });
 
     const settingsContent = await adapter.readFile("au1/worldbuilding/导入设定.md");
@@ -701,11 +765,17 @@ describe("execute_import", () => {
     ]);
 
     const plan = build_import_plan([analysis], {
-      mode: "append", startChapter: 1, settingsMode: "separate",
+      mode: "append",
+      startChapter: 1,
+      settingsMode: "separate",
     });
 
     await execute_import(plan, {
-      auId: "au1", chapterRepo, stateRepo, opsRepo, adapter,
+      auId: "au1",
+      chapterRepo,
+      stateRepo,
+      opsRepo,
+      adapter,
     });
 
     const file1 = await adapter.readFile("au1/worldbuilding/导入设定_1.md");
@@ -715,7 +785,9 @@ describe("execute_import", () => {
   });
 
   it("rolls back settings files before commit when settings write fails", async () => {
-    const failingAdapter = new FailingWriteAdapter((path) => path.includes("/worldbuilding/") && path.endsWith("_2.md"));
+    const failingAdapter = new FailingWriteAdapter(
+      (path) => path.includes("/worldbuilding/") && path.endsWith("_2.md"),
+    );
     const chapterRepo = new FileChapterRepository(failingAdapter);
     const stateRepo = new FileStateRepository(failingAdapter);
     const opsRepo = new FileOpsRepository(failingAdapter);
@@ -727,12 +799,20 @@ describe("execute_import", () => {
     ]);
 
     const plan = build_import_plan([analysis], {
-      mode: "append", startChapter: 1, settingsMode: "separate",
+      mode: "append",
+      startChapter: 1,
+      settingsMode: "separate",
     });
 
-    await expect(execute_import(plan, {
-      auId: "au1", chapterRepo, stateRepo, opsRepo, adapter: failingAdapter,
-    })).rejects.toThrow("write failed");
+    await expect(
+      execute_import(plan, {
+        auId: "au1",
+        chapterRepo,
+        stateRepo,
+        opsRepo,
+        adapter: failingAdapter,
+      }),
+    ).rejects.toThrow("write failed");
 
     expect(failingAdapter.allFiles().filter((path) => path.includes("/worldbuilding/"))).toEqual([]);
     expect(await chapterRepo.exists("au1", 1)).toBe(false);
@@ -740,8 +820,7 @@ describe("execute_import", () => {
   });
 
   it("rolls back settings files when tx.commit() fails after settings succeed", async () => {
-    const failingAdapter = new FailingWriteAdapter((path) =>
-      path.includes("/chapters/main/") && path.endsWith(".md"));
+    const failingAdapter = new FailingWriteAdapter((path) => path.includes("/chapters/main/") && path.endsWith(".md"));
     const chapterRepo = new FileChapterRepository(failingAdapter);
     const stateRepo = new FileStateRepository(failingAdapter);
     const opsRepo = new FileOpsRepository(failingAdapter);
@@ -752,39 +831,50 @@ describe("execute_import", () => {
     ]);
 
     const plan = build_import_plan([analysis], {
-      mode: "append", startChapter: 1, settingsMode: "separate",
+      mode: "append",
+      startChapter: 1,
+      settingsMode: "separate",
     });
 
-    await expect(execute_import(plan, {
-      auId: "au1", chapterRepo, stateRepo, opsRepo, adapter: failingAdapter,
-    })).rejects.toThrow();
+    await expect(
+      execute_import(plan, {
+        auId: "au1",
+        chapterRepo,
+        stateRepo,
+        opsRepo,
+        adapter: failingAdapter,
+      }),
+    ).rejects.toThrow();
 
-    const remainingSettings = failingAdapter.allFiles().filter((path) =>
-      path.includes("/worldbuilding/"));
+    const remainingSettings = failingAdapter.allFiles().filter((path) => path.includes("/worldbuilding/"));
     expect(remainingSettings).toEqual([]);
   });
 
   it("rolls back settings files when tx.commit() ops write fails after settings succeed", async () => {
-    const failingAdapter = new FailingWriteAdapter((path) =>
-      path.endsWith("/ops.jsonl"));
+    const failingAdapter = new FailingWriteAdapter((path) => path.endsWith("/ops.jsonl"));
     const chapterRepo = new FileChapterRepository(failingAdapter);
     const stateRepo = new FileStateRepository(failingAdapter);
     const opsRepo = new FileOpsRepository(failingAdapter);
 
-    const analysis = makeChatAnalysis("chat.txt", [
-      { type: "setting", chars: 600 },
-    ]);
+    const analysis = makeChatAnalysis("chat.txt", [{ type: "setting", chars: 600 }]);
 
     const plan = build_import_plan([analysis], {
-      mode: "append", startChapter: 1, settingsMode: "separate",
+      mode: "append",
+      startChapter: 1,
+      settingsMode: "separate",
     });
 
-    await expect(execute_import(plan, {
-      auId: "au1", chapterRepo, stateRepo, opsRepo, adapter: failingAdapter,
-    })).rejects.toThrow();
+    await expect(
+      execute_import(plan, {
+        auId: "au1",
+        chapterRepo,
+        stateRepo,
+        opsRepo,
+        adapter: failingAdapter,
+      }),
+    ).rejects.toThrow();
 
-    const remainingSettings = failingAdapter.allFiles().filter((path) =>
-      path.includes("/worldbuilding/"));
+    const remainingSettings = failingAdapter.allFiles().filter((path) => path.includes("/worldbuilding/"));
     expect(remainingSettings).toEqual([]);
   });
 
@@ -793,14 +883,19 @@ describe("execute_import", () => {
     const stateRepo = new FileStateRepository(adapter);
     const opsRepo = new FileOpsRepository(adapter);
 
-    const plan = build_import_plan(
-      [makeTextAnalysis("file.txt", 3)],
-      { mode: "append", startChapter: 1, settingsMode: "merge" },
-    );
+    const plan = build_import_plan([makeTextAnalysis("file.txt", 3)], {
+      mode: "append",
+      startChapter: 1,
+      settingsMode: "merge",
+    });
 
     const progressCalls: number[] = [];
     await execute_import(plan, {
-      auId: "au1", chapterRepo, stateRepo, opsRepo, adapter,
+      auId: "au1",
+      chapterRepo,
+      stateRepo,
+      opsRepo,
+      adapter,
       onProgress: (p) => progressCalls.push(p.chaptersDone),
     });
 
@@ -812,13 +907,18 @@ describe("execute_import", () => {
     const stateRepo = new FileStateRepository(adapter);
     const opsRepo = new FileOpsRepository(adapter);
 
-    const plan = build_import_plan(
-      [makeTextAnalysis("file.txt", 5)],
-      { mode: "append", startChapter: 1, settingsMode: "merge" },
-    );
+    const plan = build_import_plan([makeTextAnalysis("file.txt", 5)], {
+      mode: "append",
+      startChapter: 1,
+      settingsMode: "merge",
+    });
 
     const result = await execute_import(plan, {
-      auId: "au1", chapterRepo, stateRepo, opsRepo, adapter,
+      auId: "au1",
+      chapterRepo,
+      stateRepo,
+      opsRepo,
+      adapter,
     });
 
     expect(result.chaptersImported).toBe(5);
@@ -831,24 +931,34 @@ describe("execute_import", () => {
     const opsRepo = new FileOpsRepository(adapter);
 
     // First import: 3 chapters
-    const plan1 = build_import_plan(
-      [makeTextAnalysis("file1.txt", 3)],
-      { mode: "append", startChapter: 1, settingsMode: "merge" },
-    );
+    const plan1 = build_import_plan([makeTextAnalysis("file1.txt", 3)], {
+      mode: "append",
+      startChapter: 1,
+      settingsMode: "merge",
+    });
     await execute_import(plan1, {
-      auId: "au1", chapterRepo, stateRepo, opsRepo, adapter,
+      auId: "au1",
+      chapterRepo,
+      stateRepo,
+      opsRepo,
+      adapter,
     });
 
     const stateAfterFirst = await stateRepo.get("au1");
     expect(stateAfterFirst.current_chapter).toBe(4);
 
     // Second import: 2 more chapters appended
-    const plan2 = build_import_plan(
-      [makeTextAnalysis("file2.txt", 2)],
-      { mode: "append", startChapter: 4, settingsMode: "merge" },
-    );
+    const plan2 = build_import_plan([makeTextAnalysis("file2.txt", 2)], {
+      mode: "append",
+      startChapter: 4,
+      settingsMode: "merge",
+    });
     const result2 = await execute_import(plan2, {
-      auId: "au1", chapterRepo, stateRepo, opsRepo, adapter,
+      auId: "au1",
+      chapterRepo,
+      stateRepo,
+      opsRepo,
+      adapter,
     });
 
     expect(result2.chaptersImported).toBe(2);
@@ -876,15 +986,23 @@ describe("execute_import", () => {
       "---\nchapter_id: ch_old00001\nrevision: 1\n---\n\n旧章正文，覆盖前必须有副本。",
     );
     const failingTrash = {
-      move_to_trash: vi.fn(async () => { throw new Error("trash backend down"); }),
+      move_to_trash: vi.fn(async () => {
+        throw new Error("trash backend down");
+      }),
     } as unknown as TrashService;
 
-    const plan = build_import_plan(
-      [makeTextAnalysis("file.txt", 1)],
-      { mode: "overwrite", startChapter: 1, settingsMode: "merge" },
-    );
+    const plan = build_import_plan([makeTextAnalysis("file.txt", 1)], {
+      mode: "overwrite",
+      startChapter: 1,
+      settingsMode: "merge",
+    });
     const result = await execute_import(plan, {
-      auId: "au1", chapterRepo, stateRepo, opsRepo, adapter, trashService: failingTrash,
+      auId: "au1",
+      chapterRepo,
+      stateRepo,
+      opsRepo,
+      adapter,
+      trashService: failingTrash,
     });
 
     expect(result.chaptersImported).toBe(1);
@@ -900,24 +1018,29 @@ describe("execute_import", () => {
     const chapterRepo = new FileChapterRepository(adapter);
     const stateRepo = new FileStateRepository(adapter);
     const opsRepo = new FileOpsRepository(adapter);
-    adapter.seed(
-      "au1/chapters/main/ch0001.md",
-      "---\nchapter_id: ch_old00001\nrevision: 1\n---\n\n旧章正文，不能丢。",
-    );
+    adapter.seed("au1/chapters/main/ch0001.md", "---\nchapter_id: ch_old00001\nrevision: 1\n---\n\n旧章正文，不能丢。");
     const failingTrash = {
-      move_to_trash: vi.fn(async () => { throw new Error("trash backend down"); }),
+      move_to_trash: vi.fn(async () => {
+        throw new Error("trash backend down");
+      }),
     } as unknown as TrashService;
     vi.spyOn(chapterRepo, "backup_chapter").mockRejectedValue(new Error("backup disk full"));
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     try {
       // ch1 与旧章冲突（双失败 → 跳过），ch2 为新章（正常导入）
-      const plan = build_import_plan(
-        [makeTextAnalysis("file.txt", 2)],
-        { mode: "overwrite", startChapter: 1, settingsMode: "merge" },
-      );
+      const plan = build_import_plan([makeTextAnalysis("file.txt", 2)], {
+        mode: "overwrite",
+        startChapter: 1,
+        settingsMode: "merge",
+      });
       const result = await execute_import(plan, {
-        auId: "au1", chapterRepo, stateRepo, opsRepo, adapter, trashService: failingTrash,
+        auId: "au1",
+        chapterRepo,
+        stateRepo,
+        opsRepo,
+        adapter,
+        trashService: failingTrash,
       });
 
       // 警告清单带出被跳过的章；导入本身不中断
@@ -955,13 +1078,21 @@ describe("execute_import", () => {
     vi.spyOn(chapterRepo, "save").mockRejectedValue(new Error("disk full on new chapter"));
 
     try {
-      const plan = build_import_plan(
-        [makeTextAnalysis("file.txt", 1)],
-        { mode: "overwrite", startChapter: 1, settingsMode: "merge" },
-      );
-      await expect(execute_import(plan, {
-        auId: "au1", chapterRepo, stateRepo, opsRepo, adapter, trashService: trash,
-      })).rejects.toThrow();
+      const plan = build_import_plan([makeTextAnalysis("file.txt", 1)], {
+        mode: "overwrite",
+        startChapter: 1,
+        settingsMode: "merge",
+      });
+      await expect(
+        execute_import(plan, {
+          auId: "au1",
+          chapterRepo,
+          stateRepo,
+          opsRepo,
+          adapter,
+          trashService: trash,
+        }),
+      ).rejects.toThrow();
 
       // 判别点：旧章从回收站被还原回原位（修前只回滚设定 → 旧章永留回收站、原位缺章）。
       // 用 adapter 直读绕过被 mock 的 chapterRepo.save（restore 走 adapter 原始 I/O）。
@@ -982,23 +1113,28 @@ describe("execute_import", () => {
     const stateRepo = new FileStateRepository(adapter);
     const opsRepo = new FileOpsRepository(adapter);
     const trash = new TrashService(adapter);
-    adapter.seed(
-      "au1/chapters/main/ch0001.md",
-      "---\nchapter_id: ch_old00001\nrevision: 1\n---\n\n旧章正文。",
-    );
+    adapter.seed("au1/chapters/main/ch0001.md", "---\nchapter_id: ch_old00001\nrevision: 1\n---\n\n旧章正文。");
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     // chapters 块成功（新章落盘），仅 state 写失败 → PartialCommitError(failed=[state])
     vi.spyOn(stateRepo, "save").mockRejectedValue(new Error("state.yaml write failed"));
 
     try {
-      const plan = build_import_plan(
-        [makeTextAnalysis("file.txt", 1)],
-        { mode: "overwrite", startChapter: 1, settingsMode: "merge" },
-      );
-      await expect(execute_import(plan, {
-        auId: "au1", chapterRepo, stateRepo, opsRepo, adapter, trashService: trash,
-      })).rejects.toThrow();
+      const plan = build_import_plan([makeTextAnalysis("file.txt", 1)], {
+        mode: "overwrite",
+        startChapter: 1,
+        settingsMode: "merge",
+      });
+      await expect(
+        execute_import(plan, {
+          auId: "au1",
+          chapterRepo,
+          stateRepo,
+          opsRepo,
+          adapter,
+          trashService: trash,
+        }),
+      ).rejects.toThrow();
 
       // 新章内容仍在原位（未被旧章还原覆盖）
       const now = await adapter.readFile("au1/chapters/main/ch0001.md");
@@ -1049,7 +1185,11 @@ function makeChatAnalysis(
     role: "assistant" as const,
     content: "X".repeat(spec.chars),
     charCount: spec.chars,
-    classification: (spec.type === "chapter" || spec.type === "chapter_continue" ? "chapter" : spec.type === "setting" ? "uncertain" : "skip") as "chapter" | "setting" | "skip" | "uncertain",
+    classification: (spec.type === "chapter" || spec.type === "chapter_continue"
+      ? "chapter"
+      : spec.type === "setting"
+        ? "uncertain"
+        : "skip") as "chapter" | "setting" | "skip" | "uncertain",
     reason: "test",
     assignedChapter: spec.type === "chapter" ? chapterNum++ : null,
     assignedType: spec.type,
@@ -1082,9 +1222,13 @@ describe("execute_import — L24 last_scene_ending 锚点", () => {
     const opsRepo = new FileOpsRepository(adapter);
 
     // 现有进度：已写到第 20 章，锚点=旧结尾
-    await stateRepo.save(createState({
-      au_id: "au1", current_chapter: 21, last_scene_ending: "第二十章的旧结尾",
-    }));
+    await stateRepo.save(
+      createState({
+        au_id: "au1",
+        current_chapter: 21,
+        last_scene_ending: "第二十章的旧结尾",
+      }),
+    );
 
     // 补导第 3~5 章（低章号，maxCh=5 < 21）
     const plan = {
@@ -1111,9 +1255,13 @@ describe("execute_import — L24 last_scene_ending 锚点", () => {
     const stateRepo = new FileStateRepository(adapter);
     const opsRepo = new FileOpsRepository(adapter);
 
-    await stateRepo.save(createState({
-      au_id: "au1", current_chapter: 6, last_scene_ending: "第五章旧结尾",
-    }));
+    await stateRepo.save(
+      createState({
+        au_id: "au1",
+        current_chapter: 6,
+        last_scene_ending: "第五章旧结尾",
+      }),
+    );
 
     // 续导第 6~8 章（maxCh=8 >= 6），结尾取「最大章号」那章正文——即便数组顺序打乱。
     const plan = {
@@ -1143,15 +1291,17 @@ describe("execute_import — L24 last_scene_ending 锚点", () => {
     const opsRepo = new FileOpsRepository(adapter);
 
     // 现有进度：已写到第 20 章（指针=21），锚点=旧结尾
-    await stateRepo.save(createState({
-      au_id: "au1", current_chapter: 21, last_scene_ending: "第二十章的旧结尾",
-    }));
+    await stateRepo.save(
+      createState({
+        au_id: "au1",
+        current_chapter: 21,
+        last_scene_ending: "第二十章的旧结尾",
+      }),
+    );
 
     // 重导第 20 章（maxCh=20 = 21−1，触及现末章）
     const plan = {
-      chapters: [
-        { chapterNum: 20, content: "重导后的第二十章新结尾句。", sourceFile: "re.txt", sourceTurns: [] },
-      ],
+      chapters: [{ chapterNum: 20, content: "重导后的第二十章新结尾句。", sourceFile: "re.txt", sourceTurns: [] }],
       settings: [],
       conflictOptions: { mode: "custom" as const, settingsMode: "merge" as const },
     };

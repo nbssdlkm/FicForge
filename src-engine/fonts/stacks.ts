@@ -45,8 +45,7 @@ const UI_FALLBACK = SYSTEM_FONT_STACK;
  * 阅读/编辑角色的 fallback：传统 serif 链 + 系统 CJK serif。
  * 用户选中的具体字体放在 stack 最前，这里的 fallback 作为最后兜底。
  */
-const READING_FALLBACK =
-  'Charter, Georgia, "Noto Serif CJK SC", "PingFang SC", SimSun, serif';
+const READING_FALLBACK = 'Charter, Georgia, "Noto Serif CJK SC", "PingFang SC", SimSun, serif';
 
 /**
  * 把 Latin + CJK 两个 font id 合成 CSS font-family 值（可写入 `--font-*` CSS 变量）。
@@ -58,11 +57,7 @@ const READING_FALLBACK =
  * - 未知 id 视作 system（防御，避免写入非法值）
  * - 去重：两个 id 指向同一字体时只在 stack 出现一次
  */
-export function resolveFontStack(
-  latinId: string,
-  cjkId: string,
-  role: FontRole,
-): string {
+export function resolveFontStack(latinId: string, cjkId: string, role: FontRole): string {
   const fallback = role === "reading" ? READING_FALLBACK : UI_FALLBACK;
 
   if (latinId === SYSTEM_FONT_ID && cjkId === SYSTEM_FONT_ID) {

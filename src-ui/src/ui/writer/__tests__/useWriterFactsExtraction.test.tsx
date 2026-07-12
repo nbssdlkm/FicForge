@@ -17,9 +17,7 @@ vi.mock("../../../hooks/useFeedback", () => ({
 }));
 
 vi.mock("../../../api/engine-client", async () => {
-  const actual = await vi.importActual<typeof import("../../../api/engine-client")>(
-    "../../../api/engine-client",
-  );
+  const actual = await vi.importActual<typeof import("../../../api/engine-client")>("../../../api/engine-client");
   return {
     ...actual,
     extractFacts: vi.fn(),
@@ -52,9 +50,13 @@ describe("useWriterFactsExtraction 笔记归属（审计⑧）", () => {
     mocked.extractFacts.mockResolvedValue({
       facts: [
         {
-          content_raw: "r", content_clean: "主角觉醒",
-          characters: [], fact_type: "plot_event",
-          narrative_weight: "high", status: "active", chapter: 3,
+          content_raw: "r",
+          content_clean: "主角觉醒",
+          characters: [],
+          fact_type: "plot_event",
+          narrative_weight: "high",
+          status: "active",
+          chapter: 3,
         },
       ],
     } as unknown as Awaited<ReturnType<typeof engineClient.extractFacts>>);
@@ -83,9 +85,33 @@ describe("useWriterFactsExtraction 笔记归属（审计⑧）", () => {
   it("M25: 半成功重试不重复落库 —— 首轮批量写到第 2 条抛错，重试只补剩余，不重存前面已存的", async () => {
     mocked.extractFacts.mockResolvedValue({
       facts: [
-        { content_raw: "r1", content_clean: "候选甲", characters: [], fact_type: "plot_event", narrative_weight: "high", status: "active", chapter: 5 },
-        { content_raw: "r2", content_clean: "候选乙", characters: [], fact_type: "plot_event", narrative_weight: "high", status: "active", chapter: 5 },
-        { content_raw: "r3", content_clean: "候选丙", characters: [], fact_type: "plot_event", narrative_weight: "high", status: "active", chapter: 5 },
+        {
+          content_raw: "r1",
+          content_clean: "候选甲",
+          characters: [],
+          fact_type: "plot_event",
+          narrative_weight: "high",
+          status: "active",
+          chapter: 5,
+        },
+        {
+          content_raw: "r2",
+          content_clean: "候选乙",
+          characters: [],
+          fact_type: "plot_event",
+          narrative_weight: "high",
+          status: "active",
+          chapter: 5,
+        },
+        {
+          content_raw: "r3",
+          content_clean: "候选丙",
+          characters: [],
+          fact_type: "plot_event",
+          narrative_weight: "high",
+          status: "active",
+          chapter: 5,
+        },
       ],
     } as unknown as Awaited<ReturnType<typeof engineClient.extractFacts>>);
 
@@ -122,7 +148,15 @@ describe("useWriterFactsExtraction 笔记归属（审计⑧）", () => {
   it("目标章被并发 undo 撤销（batch skipped）→ 不假报成功、清理并关闭", async () => {
     mocked.extractFacts.mockResolvedValue({
       facts: [
-        { content_raw: "r", content_clean: "会被撤销的笔记", characters: [], fact_type: "plot_event", narrative_weight: "high", status: "active", chapter: 7 },
+        {
+          content_raw: "r",
+          content_clean: "会被撤销的笔记",
+          characters: [],
+          fact_type: "plot_event",
+          narrative_weight: "high",
+          status: "active",
+          chapter: 7,
+        },
       ],
     } as unknown as Awaited<ReturnType<typeof engineClient.extractFacts>>);
 

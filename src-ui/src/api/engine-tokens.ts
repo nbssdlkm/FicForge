@@ -7,11 +7,7 @@
  * 注入 facts/threads（badge 如实计入记忆栈）；RAG 由 estimate 有意跳过（避免 embedding 调用）。
  */
 
-import {
-  estimate_simple_context_tokens,
-  type SimpleContextTokenEstimate,
-  type Message,
-} from "@ficforge/engine";
+import { estimate_simple_context_tokens, type SimpleContextTokenEstimate, type Message } from "@ficforge/engine";
 import { getEngine, getProjectOrThrow } from "./engine-instance";
 
 export type { SimpleContextTokenEstimate };

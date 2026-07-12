@@ -43,10 +43,14 @@ async function setReactExtraction(enabled: boolean) {
 /** 定稿 N 章（embedding 未配 → 无自动摘要/RAG，留给 backfill 补）。 */
 async function confirmChapters(n: number) {
   for (let i = 1; i <= n; i++) {
-    await getEngine().repos.draft.save(createDraft({
-      au_id: auPath, chapter_num: i, variant: "A",
-      content: `第 ${i} 章正文。Alice 做了某事。`,
-    }));
+    await getEngine().repos.draft.save(
+      createDraft({
+        au_id: auPath,
+        chapter_num: i,
+        variant: "A",
+        content: `第 ${i} 章正文。Alice 做了某事。`,
+      }),
+    );
     await confirmChapter(auPath, i, `ch${String(i).padStart(4, "0")}_draft_A.md`);
   }
 }
@@ -65,19 +69,26 @@ describe("scanChapterMemory", () => {
     await confirmChapters(2);
     // ch1 加一条笔记；ch2 加一条摘要
     await addFact(auPath, 1, {
-      content_clean: "Alice 拿到了钥匙", type: "plot_event",
-      narrative_weight: "medium", status: "active", characters: ["Alice"],
+      content_clean: "Alice 拿到了钥匙",
+      type: "plot_event",
+      narrative_weight: "medium",
+      status: "active",
+      characters: ["Alice"],
     });
-    await getEngine().repos.chapterSummary.save(auPath, 2, createChapterSummary({
-      standard: { version: 1, text: "第二章摘要", generated_at: now_utc(), source_chapter_hash: "h" },
-    }));
+    await getEngine().repos.chapterSummary.save(
+      auPath,
+      2,
+      createChapterSummary({
+        standard: { version: 1, text: "第二章摘要", generated_at: now_utc(), source_chapter_hash: "h" },
+      }),
+    );
 
     const scan = await scanChapterMemory(auPath);
     expect(scan.totalConfirmed).toBe(2);
     expect(scan.chaptersMissingSummary).toEqual([1]); // ch2 有摘要
-    expect(scan.chaptersZeroFacts).toEqual([2]);       // ch1 有笔记
+    expect(scan.chaptersZeroFacts).toEqual([2]); // ch1 有笔记
     expect(scan.factCountByChapter).toEqual({ 1: 1, 2: 0 });
-    expect(scan.embeddingConfigured).toBe(false);      // 尚未配
+    expect(scan.embeddingConfigured).toBe(false); // 尚未配
     expect(scan.llmConfigured).toBe(false);
   });
 
@@ -103,20 +114,26 @@ describe("backfillChapterMemory", () => {
     vi.spyOn(engineModule, "generate_standard_summary").mockImplementation(
       async (_text: string, num: number) => `摘要-${num}`,
     );
-    vi.spyOn(engineModule, "extractFactsFromChapter").mockImplementation(
-      (async (_content: string, num: number) => [{
-        content_raw: "", content_clean: `第${num}章事实`, characters: [],
-        narrative_weight: "medium", status: "active", fact_type: "plot_event", chapter: num,
-      }]) as unknown as typeof engineModule.extractFactsFromChapter,
-    );
+    vi.spyOn(engineModule, "extractFactsFromChapter").mockImplementation((async (_content: string, num: number) => [
+      {
+        content_raw: "",
+        content_clean: `第${num}章事实`,
+        characters: [],
+        narrative_weight: "medium",
+        status: "active",
+        fact_type: "plot_event",
+        chapter: num,
+      },
+    ]) as unknown as typeof engineModule.extractFactsFromChapter);
   });
 
   it("未配 embedding/LLM → 抛前置错误", async () => {
     // 用一篇全新未配置的 AU
     const fandom = await createFandom("Other");
     const au = await createAu(fandom.name, "AU2", fandom.path);
-    await expect(backfillChapterMemory(au.path, { factsChapters: [] }))
-      .rejects.toThrow(/embedding and LLM must be configured/);
+    await expect(backfillChapterMemory(au.path, { factsChapters: [] })).rejects.toThrow(
+      /embedding and LLM must be configured/,
+    );
   });
 
   it("摘要补所有缺章;笔记只对勾选章;落盘 + 计数正确", async () => {
@@ -134,8 +151,14 @@ describe("backfillChapterMemory", () => {
     expect(getEngine().ragManager.indexChapter).toHaveBeenCalledTimes(2);
 
     expect(res).toMatchObject({
-      total: 2, summariesGenerated: 2, factsChapters: 2, factsAdded: 2,
-      indexed: 2, skipped: 0, failed: 0, aborted: false,
+      total: 2,
+      summariesGenerated: 2,
+      factsChapters: 2,
+      factsAdded: 2,
+      indexed: 2,
+      skipped: 0,
+      failed: 0,
+      aborted: false,
     });
   });
 
@@ -164,12 +187,12 @@ describe("backfillChapterMemory", () => {
 
   it("落盘中途抛错(indexChapter 失败) → 标 index_status=STALE 且计 failed", async () => {
     // ch1 的正文索引失败 → 半成功(摘要/笔记可能已落)→ 标 STALE 让用户重建/重跑修复。
-    vi.spyOn(getEngine().ragManager, "indexChapter").mockImplementation(
-      async (_au: string, num: number) => { if (num === 1) throw new Error("embed offline"); },
-    );
+    vi.spyOn(getEngine().ragManager, "indexChapter").mockImplementation(async (_au: string, num: number) => {
+      if (num === 1) throw new Error("embed offline");
+    });
     const res = await backfillChapterMemory(auPath, { factsChapters: [1, 2] });
-    expect(res.failed).toBe(1);          // ch1 计 failed
-    expect(res.indexed).toBe(1);         // ch2 正常
+    expect(res.failed).toBe(1); // ch1 计 failed
+    expect(res.indexed).toBe(1); // ch2 正常
     // M1b:含 failed → 不升 READY,半成功标 STALE 的既有逻辑保持
     const st = await getEngine().repos.state.get(auPath);
     expect(st.index_status).toBe(engineModule.IndexStatus.STALE);

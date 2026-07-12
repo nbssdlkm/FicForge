@@ -17,7 +17,7 @@ interface TurnCardProps {
   onChangeType: (index: number, newType: AssignedType) => void;
 }
 
-const PREVIEW_LEN = 140;   // TD-013：从 60 扩到 ~140，让用户不展开也能判断该轮内容
+const PREVIEW_LEN = 140; // TD-013：从 60 扩到 ~140，让用户不展开也能判断该轮内容
 
 export function TurnCard({ turn, currentChapterNum, hasPreviousChapter, onChangeType }: TurnCardProps) {
   const { t } = useTranslation();
@@ -33,16 +33,23 @@ export function TurnCard({ turn, currentChapterNum, hasPreviousChapter, onChange
   // 保持 UI 稳定（不会因为切换导致按钮数量跳动）。
   const pills: { value: AssignedType; label: string; Icon: LucideIcon; tone: PillTone; disabled?: boolean }[] = [
     { value: "chapter", label: t("import.assignChapter", { n: chNum }), Icon: BookOpen, tone: "accent" },
-    { value: "chapter_continue", label: t("import.assignContinue", { n: currentChapterNum ?? chNum }), Icon: CornerDownRight, tone: "accent", disabled: !hasPreviousChapter },
+    {
+      value: "chapter_continue",
+      label: t("import.assignContinue", { n: currentChapterNum ?? chNum }),
+      Icon: CornerDownRight,
+      tone: "accent",
+      disabled: !hasPreviousChapter,
+    },
     { value: "setting", label: t("import.assignSetting"), Icon: Globe, tone: "info" },
     { value: "skip", label: t("import.assignSkip"), Icon: Ban, tone: "muted" },
   ];
 
-  const cardBg = isUncertain && turn.assignedType !== "chapter" && turn.assignedType !== "chapter_continue"
-    ? "border-warning/40 bg-warning/5"
-    : turn.assignedType === "skip"
-      ? "border-text/10 bg-surface/30 opacity-70"
-      : "border-black/10 bg-surface/50 dark:border-white/10";
+  const cardBg =
+    isUncertain && turn.assignedType !== "chapter" && turn.assignedType !== "chapter_continue"
+      ? "border-warning/40 bg-warning/5"
+      : turn.assignedType === "skip"
+        ? "border-text/10 bg-surface/30 opacity-70"
+        : "border-black/10 bg-surface/50 dark:border-white/10";
 
   return (
     <div className={`rounded-xl border p-3 transition-colors ${cardBg}`}>
@@ -51,7 +58,9 @@ export function TurnCard({ turn, currentChapterNum, hasPreviousChapter, onChange
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="font-mono text-[11px] text-text/40">#{turn.index + 1}</span>
-            <span className={`rounded px-1.5 py-0.5 text-xs font-semibold ${turn.role === "user" ? "bg-black/5 text-text/70 dark:bg-white/5" : "bg-accent/10 text-accent"}`}>
+            <span
+              className={`rounded px-1.5 py-0.5 text-xs font-semibold ${turn.role === "user" ? "bg-black/5 text-text/70 dark:bg-white/5" : "bg-accent/10 text-accent"}`}
+            >
               {roleLabel}
             </span>
             <span className="text-xs text-text/45">{t("import.charCount", { count: turn.charCount })}</span>
@@ -74,9 +83,7 @@ export function TurnCard({ turn, currentChapterNum, hasPreviousChapter, onChange
       </div>
 
       {/* 预览（次淡，~140 字） */}
-      {!expanded && preview && (
-        <p className="mt-1.5 text-xs leading-relaxed text-text/55 line-clamp-2">{preview}</p>
-      )}
+      {!expanded && preview && <p className="mt-1.5 text-xs leading-relaxed text-text/55 line-clamp-2">{preview}</p>}
       {expanded && (
         <div className="mt-2 max-h-[300px] overflow-y-auto whitespace-pre-wrap rounded-lg bg-background/80 p-3 text-xs leading-relaxed text-text/70">
           {turn.content}
@@ -107,9 +114,11 @@ export function TurnCard({ turn, currentChapterNum, hasPreviousChapter, onChange
 type PillTone = "accent" | "info" | "muted";
 
 function pillClass(active: boolean, tone: PillTone, disabled: boolean): string {
-  const base = "inline-flex min-h-[36px] items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors md:min-h-0";
+  const base =
+    "inline-flex min-h-[36px] items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors md:min-h-0";
   if (disabled) return `${base} cursor-not-allowed border-transparent text-text/25`;
-  if (!active) return `${base} border-black/10 bg-transparent text-text/55 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5`;
+  if (!active)
+    return `${base} border-black/10 bg-transparent text-text/55 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5`;
   const activeByTone: Record<PillTone, string> = {
     accent: "border-accent bg-accent/15 text-accent",
     info: "border-info bg-info/15 text-info",
@@ -118,7 +127,10 @@ function pillClass(active: boolean, tone: PillTone, disabled: boolean): string {
   return `${base} ${activeByTone[tone]}`;
 }
 
-function formatReason(reason: ClassificationReason, t: (key: string, opts?: Record<string, unknown>) => string): string | null {
+function formatReason(
+  reason: ClassificationReason,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): string | null {
   switch (reason.type) {
     case "user_message":
       return t("import.reasonUserMessage");

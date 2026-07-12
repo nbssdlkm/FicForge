@@ -13,7 +13,6 @@ import { hasLogger, getLogger } from "../logger/index.js";
 
 const READ_TIMEOUT = 120_000;
 
-
 /**
  * 把外部 signal 桥接到内部 controller，返回清理函数。
  * 调用方必须在 fetch 结束后（无论成功失败）调用清理函数，否则 listener 会泄漏。
@@ -85,10 +84,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
     // 先剥离控制字符（\n\r\t 等）：webview 会在解析 URL 前吃掉它们，`/\n/host` 剥离后
     // 变协议相对 `//host` —— 若不先清除会绕过下面的 startsWith("//") 判据。
     const trimmed = chatPath?.replace(/[\u0000-\u001f\u007f]/g, "").trim();
-    const safe = trimmed
-      && !trimmed.startsWith("//")
-      && !trimmed.includes("\\")
-      && !trimmed.includes("://");
+    const safe = trimmed && !trimmed.startsWith("//") && !trimmed.includes("\\") && !trimmed.includes("://");
     this.chatPath = safe ? (trimmed.startsWith("/") ? trimmed : `/${trimmed}`) : "/chat/completions";
   }
 
@@ -108,7 +104,12 @@ export class OpenAICompatibleProvider implements LLMProvider {
     try {
       data = await this.requestWithRetry(body, params.signal);
     } catch (err) {
-      if (hasLogger()) getLogger().error("llm", "generate failed", { model: this.model, duration_ms: Date.now() - t0, error: err instanceof Error ? err.message : String(err) });
+      if (hasLogger())
+        getLogger().error("llm", "generate failed", {
+          model: this.model,
+          duration_ms: Date.now() - t0,
+          error: err instanceof Error ? err.message : String(err),
+        });
       throw err;
     }
 
@@ -128,7 +129,14 @@ export class OpenAICompatibleProvider implements LLMProvider {
     const usage = (data.usage ?? {}) as Record<string, number>;
     const inputTokens = usage.prompt_tokens ?? null;
     const outputTokens = usage.completion_tokens ?? null;
-    if (hasLogger()) getLogger().info("llm", "generate ok", { model: this.model, input_tokens: inputTokens, output_tokens: outputTokens, duration_ms: Date.now() - t0, tools: params.tools?.length ?? 0 });
+    if (hasLogger())
+      getLogger().info("llm", "generate ok", {
+        model: this.model,
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        duration_ms: Date.now() - t0,
+        tools: params.tools?.length ?? 0,
+      });
 
     return {
       content,
@@ -156,7 +164,10 @@ export class OpenAICompatibleProvider implements LLMProvider {
       timeoutId = setTimeout(() => controller.abort(), READ_TIMEOUT);
     };
     const clearTimeoutIfSet = () => {
-      if (timeoutId !== null) { clearTimeout(timeoutId); timeoutId = null; }
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
     };
 
     // 外部 signal 触发时同步 abort 内部 controller。
@@ -166,8 +177,12 @@ export class OpenAICompatibleProvider implements LLMProvider {
     const onExternalAbort = () => controller.abort();
     let listenerAttached = false;
     if (params.signal) {
-      if (params.signal.aborted) { controller.abort(); }
-      else { params.signal.addEventListener("abort", onExternalAbort, { once: true }); listenerAttached = true; }
+      if (params.signal.aborted) {
+        controller.abort();
+      } else {
+        params.signal.addEventListener("abort", onExternalAbort, { once: true });
+        listenerAttached = true;
+      }
     }
 
     try {
@@ -205,13 +220,20 @@ export class OpenAICompatibleProvider implements LLMProvider {
           throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"]);
         }
 
-        if (candidate.ok) { resp = candidate; break; }
+        if (candidate.ok) {
+          resp = candidate;
+          break;
+        }
 
         // 429 / 5xx：首包前的安全窗口，退避后重试；末次仍失败则走标准错误分类。
         const retryable = candidate.status === 429 || candidate.status >= 500;
         if (retryable && attempt < STREAM_OPEN_DELAYS.length - 1) {
           // drain body 避免连接泄漏（best-effort）
-          try { await candidate.text(); } catch { /* ignore */ }
+          try {
+            await candidate.text();
+          } catch {
+            /* ignore */
+          }
           continue;
         }
         const text = await candidate.text();
@@ -338,9 +360,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
         ...m,
         content: typeof m.content === "string" ? sanitizeForJson(m.content) : m.content,
         // reasoning_content 跟 content 同样可能含 lone surrogates，需 sanitize 后再发回
-        ...(typeof m.reasoning_content === "string"
-          ? { reasoning_content: sanitizeForJson(m.reasoning_content) }
-          : {}),
+        ...(typeof m.reasoning_content === "string" ? { reasoning_content: sanitizeForJson(m.reasoning_content) } : {}),
       })),
       max_tokens: params.max_tokens,
       temperature: params.temperature,
@@ -357,7 +377,10 @@ export class OpenAICompatibleProvider implements LLMProvider {
     return body;
   }
 
-  private async requestWithRetry(body: Record<string, unknown>, externalSignal?: AbortSignal): Promise<Record<string, unknown>> {
+  private async requestWithRetry(
+    body: Record<string, unknown>,
+    externalSignal?: AbortSignal,
+  ): Promise<Record<string, unknown>> {
     const url = this.chatUrl();
 
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -407,7 +430,11 @@ export class OpenAICompatibleProvider implements LLMProvider {
     throw new LLMError("network_error", "网络异常，请检查连接后重试", ["retry"]);
   }
 
-  private async retry429(url: string, body: Record<string, unknown>, externalSignal?: AbortSignal): Promise<Record<string, unknown>> {
+  private async retry429(
+    url: string,
+    body: Record<string, unknown>,
+    externalSignal?: AbortSignal,
+  ): Promise<Record<string, unknown>> {
     const delays = [1000, 2000, 4000];
     for (const delay of delays) {
       if (externalSignal?.aborted) {
@@ -476,7 +503,12 @@ function handleError(statusCode: number, bodyText: string): never {
 
   if (statusCode === 402 || statusCode === 403) {
     if (["billing", "quota", "insufficient", "balance"].some((k) => lower.includes(k))) {
-      throw new LLMError("insufficient_balance", "API 余额不足", ["recharge", "switch_model", "change_key"], statusCode);
+      throw new LLMError(
+        "insufficient_balance",
+        "API 余额不足",
+        ["recharge", "switch_model", "change_key"],
+        statusCode,
+      );
     }
     if (["safety", "flagged", "content_filter", "moderation"].some((k) => lower.includes(k))) {
       throw new LLMError("content_filtered", "生成被模型安全策略拦截", ["modify_input", "switch_model"], statusCode);
@@ -502,11 +534,7 @@ function handleError(statusCode: number, bodyText: string): never {
     // forced_tool_choice_unsupported 自动降级到 "auto"，不让用户看到错误。
     // 决策依据：D-0046 "拆分让 dispatch 能 catch forced_tool_choice_unsupported
     // 自动降级到 'auto'"。
-    const forcedToolChoicePhrases = [
-      "tool choice",
-      "tool_choice",
-      "this tool_choice",
-    ];
+    const forcedToolChoicePhrases = ["tool choice", "tool_choice", "this tool_choice"];
     const toolUnsupportedPhrases = [
       "tool calling",
       "tool_calling",
@@ -530,7 +558,12 @@ function handleError(statusCode: number, bodyText: string): never {
       throw new LLMError("tools_unsupported", "当前模型不支持 tool calling", ["retry"], 400);
     }
     if (forcedToolChoicePhrases.some((p) => lower.includes(p))) {
-      throw new LLMError("forced_tool_choice_unsupported", "当前模型不支持指定 tool_choice，请用 auto 模式", ["retry"], 400);
+      throw new LLMError(
+        "forced_tool_choice_unsupported",
+        "当前模型不支持指定 tool_choice，请用 auto 模式",
+        ["retry"],
+        400,
+      );
     }
   }
 
@@ -540,5 +573,10 @@ function handleError(statusCode: number, bodyText: string): never {
 
   // 附带提供商原始错误以便调试
   const detail = extractErrorDetail(bodyText);
-  throw new LLMError("network_error", `LLM 调用失败 (HTTP ${statusCode})${detail ? `: ${detail}` : ""}`, ["retry"], statusCode);
+  throw new LLMError(
+    "network_error",
+    `LLM 调用失败 (HTTP ${statusCode})${detail ? `: ${detail}` : ""}`,
+    ["retry"],
+    statusCode,
+  );
 }

@@ -71,8 +71,16 @@ function renderPicker(ui: React.ReactElement) {
 }
 
 /** 受控 harness：模拟 GlobalSettingsModal 的表单态接线。 */
-function ControlledPicker({ spies }: {
-  spies: { onModelChange?: Mock; onApiBaseAutoFill?: Mock; onContextWindowChange?: Mock; onApiKeyAutoFill?: Mock; onChatPathAutoFill?: Mock };
+function ControlledPicker({
+  spies,
+}: {
+  spies: {
+    onModelChange?: Mock;
+    onApiBaseAutoFill?: Mock;
+    onContextWindowChange?: Mock;
+    onApiKeyAutoFill?: Mock;
+    onChatPathAutoFill?: Mock;
+  };
 }) {
   const [model, setModel] = useState("");
   const [apiBase, setApiBase] = useState("");
@@ -81,14 +89,23 @@ function ControlledPicker({ spies }: {
     <ProviderModelPicker
       kind="chat"
       model={model}
-      onModelChange={(m) => { spies.onModelChange?.(m); setModel(m); }}
+      onModelChange={(m) => {
+        spies.onModelChange?.(m);
+        setModel(m);
+      }}
       apiBase={apiBase}
-      onApiBaseAutoFill={(b) => { spies.onApiBaseAutoFill?.(b); setApiBase(b); }}
+      onApiBaseAutoFill={(b) => {
+        spies.onApiBaseAutoFill?.(b);
+        setApiBase(b);
+      }}
       onChatPathAutoFill={spies.onChatPathAutoFill}
       apiKey=""
       onApiKeyAutoFill={spies.onApiKeyAutoFill}
       contextWindow={ctx}
-      onContextWindowChange={(v) => { spies.onContextWindowChange?.(v); setCtx(v); }}
+      onContextWindowChange={(v) => {
+        spies.onContextWindowChange?.(v);
+        setCtx(v);
+      }}
     />
   );
 }
@@ -187,9 +204,7 @@ describe("ProviderModelPicker", () => {
   });
 
   it("kind=embedding：模型下拉只出现 embedding 类型（无 ctx 行）", async () => {
-    renderPicker(
-      <FetchlessEmbeddingHarness />,
-    );
+    renderPicker(<FetchlessEmbeddingHarness />);
     fireEvent.change(await screen.findByLabelText("服务商"), { target: { value: "siliconflow" } });
 
     const modelSelect = screen.getByLabelText("模型") as HTMLSelectElement;
@@ -273,11 +288,7 @@ describe("ProviderModelPicker", () => {
     await waitFor(() => expect(saveEnabledModels).toHaveBeenCalled());
     const [providerId, saved] = (saveEnabledModels as Mock).mock.calls[0] as [string, { id: string }[]];
     expect(providerId).toBe("siliconflow");
-    expect(saved.map((m) => m.id).sort()).toEqual([
-      "BAAI/bge-large-zh",
-      "Qwen/Qwen3-Max",
-      "deepseek-ai/DeepSeek-V4",
-    ]);
+    expect(saved.map((m) => m.id).sort()).toEqual(["BAAI/bge-large-zh", "Qwen/Qwen3-Max", "deepseek-ai/DeepSeek-V4"]);
   });
 
   it("F-5: 下拉选中窗口未知模型 → 清空 ctx 表单值（不沿用上一模型 stale 大数）+ 未知警示照旧", async () => {
@@ -310,9 +321,7 @@ describe("ProviderModelPicker", () => {
 
   it("R2-4：开拉取 sheet 前的目录新读失败 → 阻断打开 + 报错（不再拿 stale 快照照常开门）", async () => {
     // 挂载读成功，开门前的 fresh 读失败
-    (getModelCatalog as Mock)
-      .mockResolvedValueOnce(emptyCatalog)
-      .mockRejectedValueOnce(new Error("disk gone"));
+    (getModelCatalog as Mock).mockResolvedValueOnce(emptyCatalog).mockRejectedValueOnce(new Error("disk gone"));
     renderPicker(<ControlledPicker spies={{}} />);
 
     fireEvent.change(await screen.findByLabelText("服务商"), { target: { value: "deepseek" } });

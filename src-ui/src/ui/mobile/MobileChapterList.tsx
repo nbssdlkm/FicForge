@@ -69,7 +69,10 @@ export function MobileChapterList({
     setEditingNum(null);
   };
 
-  const cancelEdit = () => { committingRef.current = true; setEditingNum(null); };
+  const cancelEdit = () => {
+    committingRef.current = true;
+    setEditingNum(null);
+  };
 
   return (
     <section className="flex h-full flex-col bg-background md:hidden">
@@ -110,15 +113,17 @@ export function MobileChapterList({
                   "flex w-full items-center justify-between rounded-r-sm border border-rule border-l-2 px-4 py-3.5 text-left transition-colors",
                   isActive
                     ? "border-l-gold-bright bg-accent/10 text-accent"
-                    : "border-l-gold bg-surface text-text hover:bg-rule-soft"
+                    : "border-l-gold bg-surface text-text hover:bg-rule-soft",
                 )}
                 aria-current={isActive ? "page" : undefined}
               >
                 <div className="min-w-0 flex-1">
-                  <p className={cn(
-                    "font-mono text-[9px] uppercase tracking-[0.1em]",
-                    isActive ? "text-gold-bright" : "text-gold"
-                  )}>
+                  <p
+                    className={cn(
+                      "font-mono text-[9px] uppercase tracking-[0.1em]",
+                      isActive ? "text-gold-bright" : "text-gold",
+                    )}
+                  >
                     № {callNo(chapter.chapter_num)}
                   </p>
                   {editingNum === chapter.chapter_num ? (
@@ -127,8 +132,10 @@ export function MobileChapterList({
                       value={editingValue}
                       onChange={(e) => setEditingValue(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") { e.preventDefault(); void commitEdit(); }
-                        else if (e.key === "Escape") cancelEdit();
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void commitEdit();
+                        } else if (e.key === "Escape") cancelEdit();
                       }}
                       onBlur={() => void commitEdit()}
                       onClick={(e) => e.stopPropagation()}

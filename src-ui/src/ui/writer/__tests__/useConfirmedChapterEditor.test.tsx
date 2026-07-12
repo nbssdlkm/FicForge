@@ -12,12 +12,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useConfirmedChapterEditor } from "../useConfirmedChapterEditor";
-import {
-  getChapterContent,
-  getState,
-  updateChapterContent,
-  type StateInfo,
-} from "../../../api/engine-client";
+import { getChapterContent, getState, updateChapterContent, type StateInfo } from "../../../api/engine-client";
 
 vi.mock("../../../api/engine-client", () => ({
   getChapterContent: vi.fn(),
@@ -31,7 +26,10 @@ const STATE = { au_id: "a1", current_chapter: 5 } as unknown as StateInfo;
 function deferred<T>() {
   let resolve!: (v: T) => void;
   let reject!: (e: unknown) => void;
-  const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
   return { promise, resolve, reject };
 }
 

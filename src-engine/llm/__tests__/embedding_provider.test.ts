@@ -13,10 +13,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { RemoteEmbeddingProvider } from "../embedding_provider.js";
 
 function okEmbedResponse(dim = 3): Response {
-  return new Response(
-    JSON.stringify({ data: [{ index: 0, embedding: Array(dim).fill(0.1) }] }),
-    { status: 200, headers: { "Content-Type": "application/json" } },
-  );
+  return new Response(JSON.stringify({ data: [{ index: 0, embedding: Array(dim).fill(0.1) }] }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 describe("RemoteEmbeddingProvider.embed 外部取消", () => {

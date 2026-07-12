@@ -16,7 +16,14 @@ export interface OpenDialogOptions {
 }
 
 export interface SecretStorageCapabilities {
-  backend: "local_storage" | "local_storage_with_memory_fallback" | "session_storage_with_memory_fallback" | "session_storage_plaintext_fallback" | "web_crypto_aes_gcm" | "memory" | "os_keyring";
+  backend:
+    | "local_storage"
+    | "local_storage_with_memory_fallback"
+    | "session_storage_with_memory_fallback"
+    | "session_storage_plaintext_fallback"
+    | "web_crypto_aes_gcm"
+    | "memory"
+    | "os_keyring";
   encrypted_at_rest: boolean;
   persistence: "persistent" | "best_effort" | "session_only" | "memory_only";
 }
@@ -37,9 +44,11 @@ export class SecretStoreReadError extends Error {
     // message 在构造期即脱敏（B2 对抗审）：key 名内嵌作品/AU 标题，而本错误的 message
     // 会被各层 catch 原样送进日志/console —— 源头不放明文，下游想漏都漏不了。
     // 内层 cause.message（keyring/插件错误串）同样可能拼着原始 key，一并擦。
-    super(`secure storage read failed for key "${redactSecureKey(key)}"${
-      cause instanceof Error ? `: ${scrubKeyFromError(cause, key)}` : ""
-    }`);
+    super(
+      `secure storage read failed for key "${redactSecureKey(key)}"${
+        cause instanceof Error ? `: ${scrubKeyFromError(cause, key)}` : ""
+      }`,
+    );
     this.name = "SecretStoreReadError";
     this.key = key;
     if (cause !== undefined) {

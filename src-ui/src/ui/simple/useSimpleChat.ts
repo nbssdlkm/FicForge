@@ -290,14 +290,9 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
     };
   }, [auPath]);
 
-  const updateMessage = useCallback(
-    (id: string, updater: (prev: SimpleChatMessage) => SimpleChatMessage) => {
-      setMessages((prev) =>
-        prev.map((m) => (m.id === id ? updater(m) : m)),
-      );
-    },
-    [],
-  );
+  const updateMessage = useCallback((id: string, updater: (prev: SimpleChatMessage) => SimpleChatMessage) => {
+    setMessages((prev) => prev.map((m) => (m.id === id ? updater(m) : m)));
+  }, []);
 
   const appendUserMessage = useCallback(
     (content: string): string => {
@@ -344,12 +339,7 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
   );
 
   const appendToolResultMessage = useCallback(
-    (init: {
-      toolCallId: string;
-      toolName: string;
-      content: string;
-      errorMessage?: string;
-    }): string => {
+    (init: { toolCallId: string; toolName: string; content: string; errorMessage?: string }): string => {
       const message: SimpleToolResultMessage = {
         id: makeMessageId(),
         kind: "tool-result",

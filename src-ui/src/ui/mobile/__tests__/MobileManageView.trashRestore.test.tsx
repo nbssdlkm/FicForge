@@ -27,9 +27,7 @@ vi.mock("../../facts/FactsLayout", () => ({ FactsLayout: () => <div /> }));
 vi.mock("../../threads/ThreadsLayout", () => ({ ThreadsLayout: () => <div /> }));
 
 vi.mock("../../../api/engine-client", async () => {
-  const actual = await vi.importActual<typeof import("../../../api/engine-client")>(
-    "../../../api/engine-client",
-  );
+  const actual = await vi.importActual<typeof import("../../../api/engine-client")>("../../../api/engine-client");
   return {
     ...actual,
     listTrash: vi.fn(),
@@ -65,9 +63,7 @@ async function renderAndRestore(entry: TrashEntry, onChaptersChanged: () => void
   mocked.restoreTrash.mockResolvedValue(undefined as never);
   const user = userEvent.setup();
 
-  render(
-    <MobileManageView auPath={AU} defaultSection="project" onChaptersChanged={onChaptersChanged} />,
-  );
+  render(<MobileManageView auPath={AU} defaultSection="project" onChaptersChanged={onChaptersChanged} />);
   await waitFor(() => expect(mocked.listTrash).toHaveBeenCalled());
 
   // 展开回收站面板 → 点「恢复」

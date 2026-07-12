@@ -16,14 +16,19 @@ import type {
   AnalysisStage,
 } from "@ficforge/engine";
 
-import {
-  resolve_llm_config,
-  create_provider,
-} from "@ficforge/engine";
+import { resolve_llm_config, create_provider } from "@ficforge/engine";
 
 import { getEngine } from "./engine-instance";
 
-export type { FileAnalysis, ImportPlan, ImportConflictOptions, NewImportResult, ImportProgress, AnalysisOptions, AnalysisStage };
+export type {
+  FileAnalysis,
+  ImportPlan,
+  ImportConflictOptions,
+  NewImportResult,
+  ImportProgress,
+  AnalysisOptions,
+  AnalysisStage,
+};
 
 /**
  * 检测 AI 辅助当前是否可用。
@@ -36,9 +41,7 @@ export async function isAiAssistAvailable(): Promise<{ available: boolean; reaso
     const llmConfig = resolve_llm_config(null, {}, sett as unknown as Record<string, unknown>);
     if (llmConfig.mode === "ollama") return { available: true };
     if (llmConfig.mode === "api") {
-      return llmConfig.api_key
-        ? { available: true }
-        : { available: false, reason: "no_api_key" };
+      return llmConfig.api_key ? { available: true } : { available: false, reason: "no_api_key" };
     }
     return { available: false, reason: "unsupported_mode" };
   } catch {
@@ -62,9 +65,7 @@ export async function analyzeImportFile(
       const sett = await settings.get();
       const llmConfig = resolve_llm_config(null, {}, sett as unknown as Record<string, unknown>);
       // api 和 ollama 都支持 AI 辅助导入；local 未实现时静默禁用即可
-      const canAssist =
-        llmConfig.mode === "ollama" ||
-        (llmConfig.mode === "api" && !!llmConfig.api_key);
+      const canAssist = llmConfig.mode === "ollama" || (llmConfig.mode === "api" && !!llmConfig.api_key);
       if (canAssist) {
         options = { ...options, llmProvider: create_provider(llmConfig) };
       }
@@ -118,7 +119,7 @@ export async function executeImportPlan(
 export async function getExistingChapterNums(auPath: string): Promise<number[]> {
   const { chapter } = getEngine().repos;
   const chapters = await chapter.list_main(auPath);
-  return chapters.map(c => c.chapter_num).sort((a, b) => a - b);
+  return chapters.map((c) => c.chapter_num).sort((a, b) => a - b);
 }
 
 // 旧版导入入口 uploadImportFile / confirmImport 已删除（2026-07-09 盲审孤儿管线清理）：

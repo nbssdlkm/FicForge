@@ -30,7 +30,12 @@ import { FactStatus, NarrativeWeight, LLMMode } from "../../domain/enums.js";
 import { count_tokens, ensure_tokenizer } from "../../tokenizer/index.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 import { FileChapterRepository } from "../../repositories/implementations/file_chapter.js";
-import type { VectorRepository, SearchOptions, SearchResult, VectorChunk } from "../../repositories/interfaces/vector.js";
+import type {
+  VectorRepository,
+  SearchOptions,
+  SearchResult,
+  VectorChunk,
+} from "../../repositories/interfaces/vector.js";
 import type { EmbeddingProvider } from "../../llm/embedding_provider.js";
 import { IndexStatus } from "../../domain/enums.js";
 
@@ -39,8 +44,12 @@ const mockEmbedding: EmbeddingProvider = {
   async embed(texts: string[]): Promise<number[][]> {
     return texts.map(() => [1, 0, 0]);
   },
-  get_dimension() { return 3; },
-  get_model_name() { return "mock"; },
+  get_dimension() {
+    return 3;
+  },
+  get_model_name() {
+    return "mock";
+  },
 };
 
 function createMockVectorRepo(chunks: Record<string, SearchResult[]>): VectorRepository {
@@ -52,7 +61,9 @@ function createMockVectorRepo(chunks: Record<string, SearchResult[]>): VectorRep
     async delete_by_chapter() {},
     async delete_by_source() {},
     async rebuild_index() {},
-    async get_index_status() { return IndexStatus.READY; },
+    async get_index_status() {
+      return IndexStatus.READY;
+    },
   };
 }
 
@@ -61,28 +72,41 @@ function countingEmbedding(): { provider: EmbeddingProvider; count: () => number
   let n = 0;
   return {
     provider: {
-      async embed(texts: string[]): Promise<number[][]> { n++; return texts.map(() => [1, 0, 0]); },
-      get_dimension() { return 3; },
-      get_model_name() { return "mock"; },
+      async embed(texts: string[]): Promise<number[][]> {
+        n++;
+        return texts.map(() => [1, 0, 0]);
+      },
+      get_dimension() {
+        return 3;
+      },
+      get_model_name() {
+        return "mock";
+      },
     },
     count: () => n,
   };
 }
 
-async function seedChapter(
-  repo: FileChapterRepository, au_id: string, num: number, content: string,
-) {
-  await repo.save(createChapter({
-    au_id, chapter_num: num, content,
-    chapter_id: `ch-${num}`, revision: 1,
-    confirmed_at: "2026-06-28T00:00:00Z",
-    content_hash: "x", provenance: "ai", generated_with: null,
-  }));
+async function seedChapter(repo: FileChapterRepository, au_id: string, num: number, content: string) {
+  await repo.save(
+    createChapter({
+      au_id,
+      chapter_num: num,
+      content,
+      chapter_id: `ch-${num}`,
+      revision: 1,
+      confirmed_at: "2026-06-28T00:00:00Z",
+      content_hash: "x",
+      provenance: "ai",
+      generated_with: null,
+    }),
+  );
 }
 
 function baseProject(overrides: Record<string, unknown> = {}) {
   return createProject({
-    project_id: "p1", au_id: "au_chat",
+    project_id: "p1",
+    au_id: "au_chat",
     llm: createLLMConfig({ mode: LLMMode.API, model: "test", api_base: "x", api_key: "k" }),
     ...overrides,
   });
@@ -97,17 +121,32 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
     await seedChapter(chapterRepo, "au_chat", 2, "第二章结尾：Alice 拔剑指向 Bob。");
 
     const facts = [
-      createFact({ id: "f1", content_raw: "x", content_clean: "Alice 是红发剑客", status: FactStatus.ACTIVE, chapter: 1 }),
-      createFact({ id: "f2", content_raw: "y", content_clean: "Bob 隐藏了身世", status: FactStatus.UNRESOLVED, chapter: 2, narrative_weight: NarrativeWeight.HIGH }),
+      createFact({
+        id: "f1",
+        content_raw: "x",
+        content_clean: "Alice 是红发剑客",
+        status: FactStatus.ACTIVE,
+        chapter: 1,
+      }),
+      createFact({
+        id: "f2",
+        content_raw: "y",
+        content_clean: "Bob 隐藏了身世",
+        status: FactStatus.UNRESOLVED,
+        chapter: 2,
+        narrative_weight: NarrativeWeight.HIGH,
+      }),
     ];
-    const threads = [
-      createThread({ id: "t1", title: "复仇线", state: "Alice 正在追查仇人" }),
-    ];
+    const threads = [createThread({ id: "t1", title: "复仇线", state: "Alice 正在追查仇人" })];
 
     const result = await assemble_chat_context({
-      project, state, user_input: "让 Alice 先发制人",
-      facts, threads,
-      chapter_repo: chapterRepo, au_id: "au_chat",
+      project,
+      state,
+      user_input: "让 Alice 先发制人",
+      facts,
+      threads,
+      chapter_repo: chapterRepo,
+      au_id: "au_chat",
       character_files: { Alice: "# Alice\n红发剑客，背负血仇。" },
       language: "zh",
     });
@@ -140,9 +179,12 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
     const state = createState({ au_id: "au_chat", current_chapter: 1 });
 
     const result = await assemble_chat_context({
-      project, state, user_input: "开始第一章",
+      project,
+      state,
+      user_input: "开始第一章",
       facts: [],
-      chapter_repo: chapterRepo, au_id: "au_chat",
+      chapter_repo: chapterRepo,
+      au_id: "au_chat",
       language: "zh",
     });
 
@@ -152,13 +194,13 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
     expect(result.budget_report.total_input_tokens).toBeGreaterThan(0);
     // total_input_tokens = persona + 各记忆层 + latest user（账面口径，对齐 full assembler）
     expect(result.budget_report.total_input_tokens).toBe(
-      result.budget_report.system_tokens
-      + result.budget_report.p1_tokens
-      + result.budget_report.p2_tokens
-      + result.budget_report.p3_tokens
-      + result.budget_report.thread_tokens
-      + result.budget_report.p4_tokens
-      + result.budget_report.p5_tokens,
+      result.budget_report.system_tokens +
+        result.budget_report.p1_tokens +
+        result.budget_report.p2_tokens +
+        result.budget_report.p3_tokens +
+        result.budget_report.thread_tokens +
+        result.budget_report.p4_tokens +
+        result.budget_report.p5_tokens,
     );
     expect(result.max_tokens).toBe(result.budget_report.max_output_tokens);
   });
@@ -173,10 +215,22 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
     });
 
     const result = await assemble_chat_context({
-      project, state, user_input: "Alice 继续深入",
-      facts: [createFact({ id: "f1", content_raw: "x", content_clean: "Alice 在寻找祭坛", status: FactStatus.ACTIVE, chapter: 1 })],
-      chapter_repo: chapterRepo, au_id: "au_chat",
-      vector_repo: vectorRepo, embedding_provider: mockEmbedding,
+      project,
+      state,
+      user_input: "Alice 继续深入",
+      facts: [
+        createFact({
+          id: "f1",
+          content_raw: "x",
+          content_clean: "Alice 在寻找祭坛",
+          status: FactStatus.ACTIVE,
+          chapter: 1,
+        }),
+      ],
+      chapter_repo: chapterRepo,
+      au_id: "au_chat",
+      vector_repo: vectorRepo,
+      embedding_provider: mockEmbedding,
       language: "zh",
     });
 
@@ -196,9 +250,12 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
     const emb = countingEmbedding();
 
     const result = await assemble_chat_context({
-      project, state, user_input: "继续",
+      project,
+      state,
+      user_input: "继续",
       facts: [createFact({ id: "f1", content_raw: "x", content_clean: "事实A", status: FactStatus.ACTIVE })],
-      chapter_repo: chapterRepo, au_id: "au_chat",
+      chapter_repo: chapterRepo,
+      au_id: "au_chat",
       embedding_provider: emb.provider, // 无 vector_repo
       language: "zh",
     });
@@ -214,9 +271,12 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
     const state = createState({ au_id: "au_chat", current_chapter: 1 });
 
     const result = await assemble_chat_context({
-      project, state, user_input: "你好",
+      project,
+      state,
+      user_input: "你好",
       facts: [],
-      chapter_repo: chapterRepo, au_id: "au_chat",
+      chapter_repo: chapterRepo,
+      au_id: "au_chat",
       language: "zh",
     });
 
@@ -240,9 +300,14 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
     const state = createState({ au_id: "au_chat", current_chapter: 1 });
 
     const result = await assemble_chat_context({
-      project, state, user_input: "写一段惊心动魄的开场",
-      facts: [createFact({ id: "f1", content_raw: "x", content_clean: "x".repeat(500), status: FactStatus.UNRESOLVED })],
-      chapter_repo: chapterRepo, au_id: "au_chat",
+      project,
+      state,
+      user_input: "写一段惊心动魄的开场",
+      facts: [
+        createFact({ id: "f1", content_raw: "x", content_clean: "x".repeat(500), status: FactStatus.UNRESOLVED }),
+      ],
+      chapter_repo: chapterRepo,
+      au_id: "au_chat",
       character_files: { Hero: "# Hero\n勇者。" },
       language: "zh",
     });
@@ -278,9 +343,12 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
     );
 
     const result = await assemble_chat_context({
-      project, state, user_input: "继续",
+      project,
+      state,
+      user_input: "继续",
       facts,
-      chapter_repo: chapterRepo, au_id: "au_chat",
+      chapter_repo: chapterRepo,
+      au_id: "au_chat",
       language: "zh",
     });
 
@@ -319,9 +387,12 @@ describe("assemble_chat_context (对话式 × 记忆栈融合 P1.2)", () => {
     await seedChapter(chapterRepo, "au_chat", 1, "Once upon a time.");
 
     const result = await assemble_chat_context({
-      project, state, user_input: "Write the next scene.",
+      project,
+      state,
+      user_input: "Write the next scene.",
       facts: [],
-      chapter_repo: chapterRepo, au_id: "au_chat",
+      chapter_repo: chapterRepo,
+      au_id: "au_chat",
       language: "en",
     });
 

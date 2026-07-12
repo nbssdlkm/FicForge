@@ -35,7 +35,11 @@ export type { FactSearchHit } from "./react_extraction_search.js";
 export { executeSearchExistingFacts } from "./react_extraction_search.js";
 
 // Context Assembler
-export type { AssembleContextResult, AssembleChatContextResult, AssembleChatContextParams } from "./context_assembler.js";
+export type {
+  AssembleContextResult,
+  AssembleChatContextResult,
+  AssembleChatContextParams,
+} from "./context_assembler.js";
 export {
   assemble_context,
   assemble_chat_context,

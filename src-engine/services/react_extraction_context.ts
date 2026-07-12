@@ -109,9 +109,7 @@ export function buildExtractionMessages(params: BuildExtractionMessagesParams): 
 
   // user message：chapter intro + existing facts 摘要 + 角色块（复用 facts_extraction 逻辑）
   const parts: string[] = [
-    P.FACTS_USER_CHAPTER_INTRO
-      .replace("{chapter_num}", String(chapter_num))
-      .replace("{chapter_text}", chapter_text),
+    P.FACTS_USER_CHAPTER_INTRO.replace("{chapter_num}", String(chapter_num)).replace("{chapter_text}", chapter_text),
   ];
 
   if (existing_facts.length > 0) {

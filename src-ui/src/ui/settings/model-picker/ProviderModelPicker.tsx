@@ -93,9 +93,13 @@ export function ProviderModelPicker({
   useEffect(() => {
     let stale = false;
     getModelCatalog()
-      .then((res) => { if (!stale) setCatalog(res); })
+      .then((res) => {
+        if (!stale) setCatalog(res);
+      })
       .catch(catchAndLog("modelPicker", "getModelCatalog failed"));
-    return () => { stale = true; };
+    return () => {
+      stale = true;
+    };
   }, []);
 
   const providers = useMemo(() => buildPickerProviders(catalog, lang), [catalog, lang]);
@@ -257,7 +261,8 @@ export function ProviderModelPicker({
     ctxInfo.value !== undefined &&
     (contextWindow ?? "").trim() !== "" &&
     contextWindow !== String(ctxInfo.value);
-  const selectClass = "h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base text-text outline-hidden focus:ring-1 focus:ring-accent dark:border-white/20 md:h-9 md:text-sm";
+  const selectClass =
+    "h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base text-text outline-hidden focus:ring-1 focus:ring-accent dark:border-white/20 md:h-9 md:text-sm";
 
   const optionLabel = (o: PickerModelOption) =>
     o.ctx.value !== undefined ? `${o.displayName} · ${formatCtx(o.ctx.value)}` : o.displayName;
@@ -283,7 +288,9 @@ export function ProviderModelPicker({
               <option value={UNMATCHED_VALUE}>{t("modelPicker.providerUnmatched")}</option>
             )}
             {providers.map((p) => (
-              <option key={p.id} value={p.id}>{p.label}</option>
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
             ))}
             <option value={ADD_CUSTOM_VALUE}>{t("modelPicker.addCustomProvider")}</option>
           </select>
@@ -344,7 +351,9 @@ export function ProviderModelPicker({
               {groupedOptions.map((group) => (
                 <optgroup key={group.origin} label={t(`modelPicker.originGroup.${group.origin}`)}>
                   {group.items.map((o) => (
-                    <option key={o.id} value={o.id}>{optionLabel(o)}</option>
+                    <option key={o.id} value={o.id}>
+                      {optionLabel(o)}
+                    </option>
                   ))}
                 </optgroup>
               ))}
@@ -399,8 +408,8 @@ export function ProviderModelPicker({
             aria-label={t("common.labels.contextWindow")}
             className="h-11 text-base md:h-9 md:text-sm"
           />
-          {ctxInfo.source === "authoritative" && (
-            ctxOverridesAuthoritative ? (
+          {ctxInfo.source === "authoritative" &&
+            (ctxOverridesAuthoritative ? (
               // 已覆盖官方默认 → 提示 + 一键恢复官方值
               <p className="flex flex-wrap items-center gap-x-2 text-xs text-warning">
                 {t("modelPicker.ctxOverride", { ctx: formatCtx(ctxInfo.value ?? 0) })}
@@ -414,9 +423,10 @@ export function ProviderModelPicker({
                 </button>
               </p>
             ) : (
-              <p className="text-xs text-text/50">{t("modelPicker.ctxAuthoritativeEditable", { ctx: formatCtx(ctxInfo.value ?? 0) })}</p>
-            )
-          )}
+              <p className="text-xs text-text/50">
+                {t("modelPicker.ctxAuthoritativeEditable", { ctx: formatCtx(ctxInfo.value ?? 0) })}
+              </p>
+            ))}
           {ctxInfo.source === "estimated" && (
             <p className="text-xs text-warning">
               {t("modelPicker.ctxEstimated", { ctx: formatCtx(ctxInfo.value ?? 0) })}

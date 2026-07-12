@@ -2,8 +2,8 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState } from 'react';
-import { createAu } from '../../api/engine-client';
+import { useState } from "react";
+import { createAu } from "../../api/engine-client";
 
 export type ImportSelectedFandom = { name: string; dir: string } | null;
 
@@ -24,15 +24,15 @@ export function useLibraryImportFlow({
 }: UseLibraryImportFlowOptions) {
   const [isImportModalOpen, setImportModalOpen] = useState(false);
   const [resumeImportAfterFandomCreate, setResumeImportAfterFandomCreate] = useState(false);
-  const [importAuPath, setImportAuPath] = useState('');
-  const [importNewAuName, setImportNewAuName] = useState('');
+  const [importAuPath, setImportAuPath] = useState("");
+  const [importNewAuName, setImportNewAuName] = useState("");
   const [importSelectedFandom, setImportSelectedFandom] = useState<ImportSelectedFandom>(null);
   const [importCreatingAu, setImportCreatingAu] = useState(false);
 
   const resetImportSelection = () => {
-    setImportAuPath('');
+    setImportAuPath("");
     setImportSelectedFandom(null);
-    setImportNewAuName('');
+    setImportNewAuName("");
   };
 
   const openImportPicker = () => {
@@ -57,16 +57,16 @@ export function useLibraryImportFlow({
 
   const handleCreatedFandom = (createdFandom: { name: string; dir_name: string }) => {
     if (!resumeImportAfterFandomCreate) return;
-    setImportAuPath('');
+    setImportAuPath("");
     setImportSelectedFandom({ name: createdFandom.name, dir: createdFandom.dir_name });
-    setImportNewAuName('');
+    setImportNewAuName("");
     setImportModalOpen(true);
     setResumeImportAfterFandomCreate(false);
   };
 
   const selectImportFandom = (fandom: { name: string; dir: string }) => {
     setImportSelectedFandom(fandom);
-    setImportNewAuName('');
+    setImportNewAuName("");
   };
 
   const handleCreateImportAu = async (fandomDir: string) => {
@@ -79,7 +79,7 @@ export function useLibraryImportFlow({
       await loadFandoms();
       setImportAuPath(createdAu.path);
       setImportSelectedFandom(null);
-      setImportNewAuName('');
+      setImportNewAuName("");
     } catch (error) {
       onError(error);
     } finally {
@@ -90,7 +90,7 @@ export function useLibraryImportFlow({
   const handleImportComplete = (target?: string) => {
     const nextAuPath = importAuPath;
     closeImportFlow();
-    onNavigate(target || 'writer', nextAuPath);
+    onNavigate(target || "writer", nextAuPath);
   };
 
   return {

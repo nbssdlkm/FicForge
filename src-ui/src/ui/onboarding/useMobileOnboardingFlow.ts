@@ -2,17 +2,17 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { createAu, createFandom, saveOnboardingSettings } from '../../api/engine-client';
-import { useTranslation } from '../../i18n/useAppTranslation';
-import { buildOnboardingSettingsSaveInput, type MobileOnboardingSettingsState } from './form-mappers';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createAu, createFandom, saveOnboardingSettings } from "../../api/engine-client";
+import { useTranslation } from "../../i18n/useAppTranslation";
+import { buildOnboardingSettingsSaveInput, type MobileOnboardingSettingsState } from "./form-mappers";
 
 export type OnboardingCompletion = {
-  nextAction?: 'open-import' | 'open-settings';
+  nextAction?: "open-import" | "open-settings";
   openAuPath?: string;
 };
 
-export type SetupAction = 'create' | 'import-local' | 'later';
+export type SetupAction = "create" | "import-local" | "later";
 
 export const TOTAL_STEPS = 6;
 
@@ -27,12 +27,12 @@ export function useMobileOnboardingFlow(onComplete: (result?: OnboardingCompleti
   const isMountedRef = useRef(true);
 
   const [step, setStep] = useState(0);
-  const [setupAction, setSetupAction] = useState<SetupAction>('create');
-  const [fandomName, setFandomName] = useState('');
-  const [auName, setAuName] = useState('');
+  const [setupAction, setSetupAction] = useState<SetupAction>("create");
+  const [fandomName, setFandomName] = useState("");
+  const [auName, setAuName] = useState("");
   const [ethicsAccepted, setEthicsAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
+  const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -43,11 +43,11 @@ export function useMobileOnboardingFlow(onComplete: (result?: OnboardingCompleti
 
   // 步进时清掉上一次提交失败的残留提示
   const goPrev = useCallback(() => {
-    setSubmitError('');
+    setSubmitError("");
     setStep((prev) => Math.max(0, prev - 1));
   }, []);
   const goNext = useCallback(() => {
-    setSubmitError('');
+    setSubmitError("");
     setStep((prev) => Math.min(TOTAL_STEPS - 1, prev + 1));
   }, []);
 
@@ -56,12 +56,12 @@ export function useMobileOnboardingFlow(onComplete: (result?: OnboardingCompleti
   const finish = async (settings: MobileOnboardingSettingsState) => {
     if (submitting) return;
     setSubmitting(true);
-    setSubmitError('');
+    setSubmitError("");
     try {
       await saveOnboardingSettings(buildOnboardingSettingsSaveInput(settings));
 
       let openAuPath: string | undefined;
-      if (setupAction === 'create' && fandomName.trim() && auName.trim()) {
+      if (setupAction === "create" && fandomName.trim() && auName.trim()) {
         const fandom = await createFandom(fandomName.trim());
         const au = await createAu(fandom.name, auName.trim(), fandom.path);
         openAuPath = au.path;
@@ -71,14 +71,11 @@ export function useMobileOnboardingFlow(onComplete: (result?: OnboardingCompleti
 
       onComplete({
         openAuPath,
-        nextAction:
-          setupAction === 'import-local'
-            ? 'open-import'
-            : undefined,
+        nextAction: setupAction === "import-local" ? "open-import" : undefined,
       });
     } catch (error) {
       if (!isMountedRef.current) return;
-      setSubmitError((error as { message?: string } | null)?.message || t('error_messages.unknown'));
+      setSubmitError((error as { message?: string } | null)?.message || t("error_messages.unknown"));
     } finally {
       if (isMountedRef.current) {
         setSubmitting(false);

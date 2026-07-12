@@ -59,9 +59,7 @@ describe("FontDownloader.download — single source", () => {
   });
 
   it("rejects with network error on HTTP 404", async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(
-      new Response("not found", { status: 404, statusText: "Not Found" }),
-    );
+    const fetchImpl = vi.fn().mockResolvedValue(new Response("not found", { status: 404, statusText: "Not Found" }));
     const downloader = new FontDownloader({ fetchImpl });
 
     await expect(downloader.download(makeEntry())).rejects.toMatchObject({
@@ -74,17 +72,20 @@ describe("FontDownloader.download — single source", () => {
 describe("FontDownloader.download — multi-source failover", () => {
   it("falls back to secondary source when primary fails", async () => {
     const data = new Uint8Array([10, 20, 30]);
-    const fetchImpl = vi.fn()
+    const fetchImpl = vi
+      .fn()
       .mockRejectedValueOnce(new Error("ECONNREFUSED primary"))
       .mockResolvedValueOnce(mockResponse(data));
     const downloader = new FontDownloader({ fetchImpl });
 
-    const result = await downloader.download(makeEntry({
-      sources: [
-        { url: "https://primary.example.com/font.woff2", priority: 1 },
-        { url: "https://backup.example.com/font.woff2", priority: 2 },
-      ],
-    }));
+    const result = await downloader.download(
+      makeEntry({
+        sources: [
+          { url: "https://primary.example.com/font.woff2", priority: 1 },
+          { url: "https://backup.example.com/font.woff2", priority: 2 },
+        ],
+      }),
+    );
 
     expect(result).toEqual(data);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
@@ -95,13 +96,15 @@ describe("FontDownloader.download — multi-source failover", () => {
     const fetchImpl = vi.fn().mockResolvedValue(mockResponse(data));
     const downloader = new FontDownloader({ fetchImpl });
 
-    await downloader.download(makeEntry({
-      sources: [
-        { url: "https://low.example.com/font.woff2", priority: 3 },
-        { url: "https://high.example.com/font.woff2", priority: 1 },
-        { url: "https://mid.example.com/font.woff2", priority: 2 },
-      ],
-    }));
+    await downloader.download(
+      makeEntry({
+        sources: [
+          { url: "https://low.example.com/font.woff2", priority: 3 },
+          { url: "https://high.example.com/font.woff2", priority: 1 },
+          { url: "https://mid.example.com/font.woff2", priority: 2 },
+        ],
+      }),
+    );
 
     // priority=1 应首先被尝试
     expect(fetchImpl.mock.calls[0][0]).toBe("https://high.example.com/font.woff2");
@@ -111,12 +114,16 @@ describe("FontDownloader.download — multi-source failover", () => {
     const fetchImpl = vi.fn().mockRejectedValue(new Error("network down"));
     const downloader = new FontDownloader({ fetchImpl });
 
-    await expect(downloader.download(makeEntry({
-      sources: [
-        { url: "https://a.example.com/font.woff2", priority: 1 },
-        { url: "https://b.example.com/font.woff2", priority: 2 },
-      ],
-    }))).rejects.toMatchObject({
+    await expect(
+      downloader.download(
+        makeEntry({
+          sources: [
+            { url: "https://a.example.com/font.woff2", priority: 1 },
+            { url: "https://b.example.com/font.woff2", priority: 2 },
+          ],
+        }),
+      ),
+    ).rejects.toMatchObject({
       name: "FontError",
       code: "network",
     });
@@ -142,13 +149,17 @@ describe("FontDownloader.download — SHA-256 verification", () => {
     const fetchImpl = vi.fn().mockImplementation(async () => mockResponse(data));
     const downloader = new FontDownloader({ fetchImpl });
 
-    await expect(downloader.download(makeEntry({
-      sha256: "0000000000000000000000000000000000000000000000000000000000000000",
-      sources: [
-        { url: "https://a.example.com/font.woff2", priority: 1 },
-        { url: "https://b.example.com/font.woff2", priority: 2 },
-      ],
-    }))).rejects.toMatchObject({
+    await expect(
+      downloader.download(
+        makeEntry({
+          sha256: "0000000000000000000000000000000000000000000000000000000000000000",
+          sources: [
+            { url: "https://a.example.com/font.woff2", priority: 1 },
+            { url: "https://b.example.com/font.woff2", priority: 2 },
+          ],
+        }),
+      ),
+    ).rejects.toMatchObject({
       name: "FontError",
       code: "checksum",
     });
@@ -159,18 +170,18 @@ describe("FontDownloader.download — SHA-256 verification", () => {
     const poisoned = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
     const clean = new Uint8Array([1, 2, 3, 4]);
     const cleanHash = await sha256Hex(clean);
-    const fetchImpl = vi.fn()
-      .mockResolvedValueOnce(mockResponse(poisoned))
-      .mockResolvedValueOnce(mockResponse(clean));
+    const fetchImpl = vi.fn().mockResolvedValueOnce(mockResponse(poisoned)).mockResolvedValueOnce(mockResponse(clean));
     const downloader = new FontDownloader({ fetchImpl });
 
-    const result = await downloader.download(makeEntry({
-      sha256: cleanHash,
-      sources: [
-        { url: "https://poisoned.example.com/font.woff2", priority: 1 },
-        { url: "https://clean.example.com/font.woff2", priority: 2 },
-      ],
-    }));
+    const result = await downloader.download(
+      makeEntry({
+        sha256: cleanHash,
+        sources: [
+          { url: "https://poisoned.example.com/font.woff2", priority: 1 },
+          { url: "https://clean.example.com/font.woff2", priority: 2 },
+        ],
+      }),
+    );
 
     expect(result).toEqual(clean);
   });
@@ -196,12 +207,12 @@ describe("FontDownloader.download — SHA-256 verification", () => {
     const fetchImpl = vi.fn().mockResolvedValue(mockResponse(data));
     const downloader = new FontDownloader({ fetchImpl });
 
-    const result = await downloader.download(makeEntry({
-      sha256: "00".repeat(32), // entry-level 哈希故意写错
-      sources: [
-        { url: "https://mirror.example.com/font.woff2", priority: 1, sha256: sourceHash },
-      ],
-    }));
+    const result = await downloader.download(
+      makeEntry({
+        sha256: "00".repeat(32), // entry-level 哈希故意写错
+        sources: [{ url: "https://mirror.example.com/font.woff2", priority: 1, sha256: sourceHash }],
+      }),
+    );
 
     expect(result).toEqual(data);
   });
@@ -212,20 +223,23 @@ describe("FontDownloader.download — SHA-256 verification", () => {
     const primaryBytes = new Uint8Array([1, 2, 3]);
     const primaryHash = await sha256Hex(primaryBytes);
     const fallbackBytes = new Uint8Array([9, 8, 7, 6, 5]); // 完全不同的字节
-    const fetchImpl = vi.fn()
+    const fetchImpl = vi
+      .fn()
       .mockRejectedValueOnce(new Error("ECONNREFUSED primary"))
       .mockResolvedValueOnce(mockResponse(fallbackBytes));
     const downloader = new FontDownloader({ fetchImpl });
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     try {
-      const result = await downloader.download(makeEntry({
-        sha256: primaryHash,
-        sources: [
-          { url: "https://primary.example.com/font.woff2", priority: 1 },
-          { url: "https://fallback.example.com/font.woff2", priority: 2, sha256: "" },
-        ],
-      }));
+      const result = await downloader.download(
+        makeEntry({
+          sha256: primaryHash,
+          sources: [
+            { url: "https://primary.example.com/font.woff2", priority: 1 },
+            { url: "https://fallback.example.com/font.woff2", priority: 2, sha256: "" },
+          ],
+        }),
+      );
       expect(result).toEqual(fallbackBytes);
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("跳过 sha256 校验"));
     } finally {
@@ -241,9 +255,10 @@ describe("FontDownloader.download — abort", () => {
     const controller = new AbortController();
     controller.abort();
 
-    await expect(
-      downloader.download(makeEntry(), undefined, controller.signal),
-    ).rejects.toMatchObject({ name: "FontError", code: "aborted" });
+    await expect(downloader.download(makeEntry(), undefined, controller.signal)).rejects.toMatchObject({
+      name: "FontError",
+      code: "aborted",
+    });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
@@ -263,12 +278,16 @@ describe("FontDownloader.download — abort", () => {
     const fetchImpl = vi.fn().mockRejectedValue(abortErr);
     const downloader = new FontDownloader({ fetchImpl });
 
-    await expect(downloader.download(makeEntry({
-      sources: [
-        { url: "https://a.example.com/font.woff2", priority: 1 },
-        { url: "https://b.example.com/font.woff2", priority: 2 },
-      ],
-    }))).rejects.toMatchObject({ code: "aborted" });
+    await expect(
+      downloader.download(
+        makeEntry({
+          sources: [
+            { url: "https://a.example.com/font.woff2", priority: 1 },
+            { url: "https://b.example.com/font.woff2", priority: 2 },
+          ],
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "aborted" });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });
@@ -278,9 +297,10 @@ describe("FontDownloader.download — invalid manifest", () => {
     const fetchImpl = vi.fn();
     const downloader = new FontDownloader({ fetchImpl });
 
-    await expect(
-      downloader.download(makeEntry({ sources: [] })),
-    ).rejects.toMatchObject({ name: "FontError", code: "invalid-manifest" });
+    await expect(downloader.download(makeEntry({ sources: [] }))).rejects.toMatchObject({
+      name: "FontError",
+      code: "invalid-manifest",
+    });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

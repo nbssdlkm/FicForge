@@ -63,13 +63,8 @@ export function useSettingsChatToolActions({
     beginPostMutationRefresh,
     endPostMutationRefresh,
   } = conversation;
-  const {
-    loadSupportData,
-    cacheLatestLoreFiles,
-    cacheLatestProject,
-    getLatestProject,
-    getLatestLoreFiles,
-  } = supportData;
+  const { loadSupportData, cacheLatestLoreFiles, cacheLatestProject, getLatestProject, getLatestLoreFiles } =
+    supportData;
 
   const panelContextKey = `${mode}:${basePath ?? ""}`;
   const panelContextGuard = useActiveRequestGuard(panelContextKey);
@@ -85,154 +80,81 @@ export function useSettingsChatToolActions({
     loadingCardIdsRef.current.clear();
   }, [basePath, mode]);
 
-  const buildExecutionContext = useCallback((): SettingsToolExecutionContext => ({
-    basePath,
-    mode,
-    currentChapter,
-    t,
-    isContextStale: (contextKey) => panelContextGuard.isKeyStale(contextKey),
-    cacheLatestLoreFiles,
-    cacheLatestProject,
-    getLatestProject,
-  }), [basePath, cacheLatestLoreFiles, cacheLatestProject, currentChapter, getLatestProject, mode, panelContextGuard, t]);
+  const buildExecutionContext = useCallback(
+    (): SettingsToolExecutionContext => ({
+      basePath,
+      mode,
+      currentChapter,
+      t,
+      isContextStale: (contextKey) => panelContextGuard.isKeyStale(contextKey),
+      cacheLatestLoreFiles,
+      cacheLatestProject,
+      getLatestProject,
+    }),
+    [basePath, cacheLatestLoreFiles, cacheLatestProject, currentChapter, getLatestProject, mode, panelContextGuard, t],
+  );
 
-  const runAfterMutation = useCallback(async (expectedContextKey: string) => {
-    await loadSupportData();
-    if (panelContextGuard.isKeyStale(expectedContextKey)) {
-      return;
-    }
-    if (onAfterMutationRef.current) {
-      await onAfterMutationRef.current();
-    }
-  }, [loadSupportData, panelContextGuard]);
-
-  const confirmTool = useCallback(async (
-    messageId: string,
-    cardId: string,
-    nextArgs?: Record<string, unknown>
-  ) => {
-    const contextSnapshot = panelContextKey;
-    const card = findToolCard(messageId, cardId);
-    if (
-      disabled
-      || sending
-      || isPostMutationBusy
-      || !card
-      || card.isLoading
-      || card.parseError
-      || loadingCardIdsRef.current.has(cardId)
-      || loadingCardIdsRef.current.size > 0
-    ) {
-      return;
-    }
-
-    loadingCardIdsRef.current.add(cardId);
-
-    updateSingleCard(messageId, cardId, (current) => ({
-      ...current,
-      isLoading: true,
-      errorMessage: null,
-    }));
-
-    let result: SettingsToolExecutionResult;
-
-    try {
-      result = await executeSettingsTool(buildExecutionContext(), card, nextArgs, contextSnapshot);
-    } catch (error) {
-      if (error instanceof Error && error.message === STALE_CONTEXT_ERROR) {
-        loadingCardIdsRef.current.delete(cardId);
+  const runAfterMutation = useCallback(
+    async (expectedContextKey: string) => {
+      await loadSupportData();
+      if (panelContextGuard.isKeyStale(expectedContextKey)) {
         return;
       }
-      if (panelContextGuard.isKeyStale(contextSnapshot)) {
-        loadingCardIdsRef.current.delete(cardId);
+      if (onAfterMutationRef.current) {
+        await onAfterMutationRef.current();
+      }
+    },
+    [loadSupportData, panelContextGuard],
+  );
+
+  const confirmTool = useCallback(
+    async (messageId: string, cardId: string, nextArgs?: Record<string, unknown>) => {
+      const contextSnapshot = panelContextKey;
+      const card = findToolCard(messageId, cardId);
+      if (
+        disabled ||
+        sending ||
+        isPostMutationBusy ||
+        !card ||
+        card.isLoading ||
+        card.parseError ||
+        loadingCardIdsRef.current.has(cardId) ||
+        loadingCardIdsRef.current.size > 0
+      ) {
         return;
       }
+
+      loadingCardIdsRef.current.add(cardId);
+
       updateSingleCard(messageId, cardId, (current) => ({
         ...current,
-        isLoading: false,
-        status: "error",
-        errorMessage: error instanceof Error ? error.message : t("error_messages.unknown"),
+        isLoading: true,
+        errorMessage: null,
       }));
-      showError(error, t("error_messages.unknown"));
-      loadingCardIdsRef.current.delete(cardId);
-      return;
-    }
 
-    if (panelContextGuard.isKeyStale(contextSnapshot)) {
-      loadingCardIdsRef.current.delete(cardId);
-      return;
-    }
+      let result: SettingsToolExecutionResult;
 
-    updateSingleCard(messageId, cardId, (current) => ({
-      ...current,
-      parsedArgs: nextArgs || current.parsedArgs,
-      status: "executed",
-      isLoading: false,
-      resultNote: result.resultNote,
-      undoMeta: result.undoMeta,
-      errorMessage: null,
-    }));
-
-    if (result.warningMessage) {
-      showToast(result.warningMessage, "warning");
-    }
-
-    beginPostMutationRefresh();
-    try {
-      await runAfterMutation(contextSnapshot);
-    } catch (error) {
-      if (panelContextGuard.isKeyStale(contextSnapshot)) {
+      try {
+        result = await executeSettingsTool(buildExecutionContext(), card, nextArgs, contextSnapshot);
+      } catch (error) {
+        if (error instanceof Error && error.message === STALE_CONTEXT_ERROR) {
+          loadingCardIdsRef.current.delete(cardId);
+          return;
+        }
+        if (panelContextGuard.isKeyStale(contextSnapshot)) {
+          loadingCardIdsRef.current.delete(cardId);
+          return;
+        }
+        updateSingleCard(messageId, cardId, (current) => ({
+          ...current,
+          isLoading: false,
+          status: "error",
+          errorMessage: error instanceof Error ? error.message : t("error_messages.unknown"),
+        }));
+        showError(error, t("error_messages.unknown"));
         loadingCardIdsRef.current.delete(cardId);
         return;
       }
-      showError(error, t("error_messages.unknown"));
-    } finally {
-      if (!panelContextGuard.isKeyStale(contextSnapshot)) {
-        endPostMutationRefresh();
-      }
-      loadingCardIdsRef.current.delete(cardId);
-    }
-  }, [beginPostMutationRefresh, buildExecutionContext, disabled, endPostMutationRefresh, findToolCard, isPostMutationBusy, panelContextGuard, panelContextKey, runAfterMutation, sending, showError, showToast, t, updateSingleCard]);
-
-  const skipTool = useCallback((messageId: string, cardId: string) => {
-    if (disabled || sending || isPostMutationBusy) {
-      return;
-    }
-    updateSingleCard(messageId, cardId, (current) => ({
-      ...current,
-      status: "skipped",
-      resultNote: t("settingsMode.skipped"),
-      errorMessage: null,
-    }));
-  }, [disabled, isPostMutationBusy, sending, t, updateSingleCard]);
-
-  const undoTool = useCallback(async (messageId: string, cardId: string) => {
-    const contextSnapshot = panelContextKey;
-    const card = findToolCard(messageId, cardId);
-    if (
-      disabled
-      || sending
-      || isPostMutationBusy
-      || !card
-      || !card.undoMeta
-      || !basePath
-      || card.isLoading
-      || loadingCardIdsRef.current.has(cardId)
-      || loadingCardIdsRef.current.size > 0
-    ) {
-      return;
-    }
-
-    loadingCardIdsRef.current.add(cardId);
-
-    updateSingleCard(messageId, cardId, (current) => ({
-      ...current,
-      isLoading: true,
-      errorMessage: null,
-    }));
-
-    try {
-      await undoSettingsTool(buildExecutionContext(), card.undoMeta);
 
       if (panelContextGuard.isKeyStale(contextSnapshot)) {
         loadingCardIdsRef.current.delete(cardId);
@@ -241,81 +163,200 @@ export function useSettingsChatToolActions({
 
       updateSingleCard(messageId, cardId, (current) => ({
         ...current,
+        parsedArgs: nextArgs || current.parsedArgs,
+        status: "executed",
         isLoading: false,
-        status: "undone",
-        resultNote: t("settingsMode.undone"),
-        undoMeta: null,
+        resultNote: result.resultNote,
+        undoMeta: result.undoMeta,
+        errorMessage: null,
       }));
+
+      if (result.warningMessage) {
+        showToast(result.warningMessage, "warning");
+      }
+
       beginPostMutationRefresh();
-      await runAfterMutation(contextSnapshot);
-      loadingCardIdsRef.current.delete(cardId);
-    } catch (error) {
-      if (panelContextGuard.isKeyStale(contextSnapshot)) {
+      try {
+        await runAfterMutation(contextSnapshot);
+      } catch (error) {
+        if (panelContextGuard.isKeyStale(contextSnapshot)) {
+          loadingCardIdsRef.current.delete(cardId);
+          return;
+        }
+        showError(error, t("error_messages.unknown"));
+      } finally {
+        if (!panelContextGuard.isKeyStale(contextSnapshot)) {
+          endPostMutationRefresh();
+        }
         loadingCardIdsRef.current.delete(cardId);
+      }
+    },
+    [
+      beginPostMutationRefresh,
+      buildExecutionContext,
+      disabled,
+      endPostMutationRefresh,
+      findToolCard,
+      isPostMutationBusy,
+      panelContextGuard,
+      panelContextKey,
+      runAfterMutation,
+      sending,
+      showError,
+      showToast,
+      t,
+      updateSingleCard,
+    ],
+  );
+
+  const skipTool = useCallback(
+    (messageId: string, cardId: string) => {
+      if (disabled || sending || isPostMutationBusy) {
         return;
       }
       updateSingleCard(messageId, cardId, (current) => ({
         ...current,
-        isLoading: false,
-        errorMessage: error instanceof Error ? error.message : t("error_messages.unknown"),
+        status: "skipped",
+        resultNote: t("settingsMode.skipped"),
+        errorMessage: null,
       }));
-      showError(error, t("error_messages.unknown"));
-      loadingCardIdsRef.current.delete(cardId);
-    } finally {
-      if (!panelContextGuard.isKeyStale(contextSnapshot)) {
-        endPostMutationRefresh();
+    },
+    [disabled, isPostMutationBusy, sending, t, updateSingleCard],
+  );
+
+  const undoTool = useCallback(
+    async (messageId: string, cardId: string) => {
+      const contextSnapshot = panelContextKey;
+      const card = findToolCard(messageId, cardId);
+      if (
+        disabled ||
+        sending ||
+        isPostMutationBusy ||
+        !card ||
+        !card.undoMeta ||
+        !basePath ||
+        card.isLoading ||
+        loadingCardIdsRef.current.has(cardId) ||
+        loadingCardIdsRef.current.size > 0
+      ) {
+        return;
       }
-    }
-  }, [basePath, beginPostMutationRefresh, buildExecutionContext, disabled, endPostMutationRefresh, findToolCard, isPostMutationBusy, panelContextGuard, panelContextKey, runAfterMutation, sending, showError, t, updateSingleCard]);
 
-  const confirmAllTools = useCallback(async (messageId: string) => {
-    if (disabled || sending || isPostMutationBusy) {
-      return;
-    }
-    // 预检用 freshness 缓存（可能比 state 新一拍：executeSettingsTool 执行前重拉会回写）
-    const { characters, worldbuilding } = getLatestLoreFiles();
-    const availableCharacterNames = new Set(
-      characters.map((file) => file.name.trim()).filter(Boolean)
-    );
-    const characterFileNames = new Set(characters.map((file) => file.filename));
-    const worldbuildingFileNames = new Set(worldbuilding.map((file) => file.filename));
-    const pinnedTexts = getLatestProject()?.pinned_context || [];
+      loadingCardIdsRef.current.add(cardId);
 
-    const pendingIds = getToolCards(messageId)
-      .filter((card) =>
-        !isToolCallResolved(card.status)
-        && !card.isLoading
-        && !loadingCardIdsRef.current.has(card.id)
-        && !card.parseError
-        && !getToolValidationError(card, card.parsedArgs, t, availableCharacterNames)
-        && !getToolMissingTargetError(card, card.parsedArgs, characterFileNames, worldbuildingFileNames, t)
-        && !getToolOverwriteWarning(card, card.parsedArgs, characterFileNames, worldbuildingFileNames, t)
-        && !getToolDuplicateWarning(card, card.parsedArgs, pinnedTexts, t)
-      )
-      .map((card) => card.id);
+      updateSingleCard(messageId, cardId, (current) => ({
+        ...current,
+        isLoading: true,
+        errorMessage: null,
+      }));
 
-    for (const cardId of pendingIds) {
-      await confirmTool(messageId, cardId);
-    }
-  }, [confirmTool, disabled, getLatestLoreFiles, getLatestProject, getToolCards, isPostMutationBusy, sending, t]);
+      try {
+        await undoSettingsTool(buildExecutionContext(), card.undoMeta);
 
-  const skipAllTools = useCallback((messageId: string) => {
-    if (disabled || sending || isPostMutationBusy) {
-      return;
-    }
-    updateMessageCards(messageId, (cards) =>
-      cards.map((card) =>
-        isToolCallResolved(card.status) || card.isLoading || loadingCardIdsRef.current.has(card.id)
-          ? card
-          : {
-              ...card,
-              status: "skipped",
-              resultNote: t("settingsMode.skipped"),
-              errorMessage: null,
-            }
-      )
-    );
-  }, [disabled, isPostMutationBusy, sending, t, updateMessageCards]);
+        if (panelContextGuard.isKeyStale(contextSnapshot)) {
+          loadingCardIdsRef.current.delete(cardId);
+          return;
+        }
+
+        updateSingleCard(messageId, cardId, (current) => ({
+          ...current,
+          isLoading: false,
+          status: "undone",
+          resultNote: t("settingsMode.undone"),
+          undoMeta: null,
+        }));
+        beginPostMutationRefresh();
+        await runAfterMutation(contextSnapshot);
+        loadingCardIdsRef.current.delete(cardId);
+      } catch (error) {
+        if (panelContextGuard.isKeyStale(contextSnapshot)) {
+          loadingCardIdsRef.current.delete(cardId);
+          return;
+        }
+        updateSingleCard(messageId, cardId, (current) => ({
+          ...current,
+          isLoading: false,
+          errorMessage: error instanceof Error ? error.message : t("error_messages.unknown"),
+        }));
+        showError(error, t("error_messages.unknown"));
+        loadingCardIdsRef.current.delete(cardId);
+      } finally {
+        if (!panelContextGuard.isKeyStale(contextSnapshot)) {
+          endPostMutationRefresh();
+        }
+      }
+    },
+    [
+      basePath,
+      beginPostMutationRefresh,
+      buildExecutionContext,
+      disabled,
+      endPostMutationRefresh,
+      findToolCard,
+      isPostMutationBusy,
+      panelContextGuard,
+      panelContextKey,
+      runAfterMutation,
+      sending,
+      showError,
+      t,
+      updateSingleCard,
+    ],
+  );
+
+  const confirmAllTools = useCallback(
+    async (messageId: string) => {
+      if (disabled || sending || isPostMutationBusy) {
+        return;
+      }
+      // 预检用 freshness 缓存（可能比 state 新一拍：executeSettingsTool 执行前重拉会回写）
+      const { characters, worldbuilding } = getLatestLoreFiles();
+      const availableCharacterNames = new Set(characters.map((file) => file.name.trim()).filter(Boolean));
+      const characterFileNames = new Set(characters.map((file) => file.filename));
+      const worldbuildingFileNames = new Set(worldbuilding.map((file) => file.filename));
+      const pinnedTexts = getLatestProject()?.pinned_context || [];
+
+      const pendingIds = getToolCards(messageId)
+        .filter(
+          (card) =>
+            !isToolCallResolved(card.status) &&
+            !card.isLoading &&
+            !loadingCardIdsRef.current.has(card.id) &&
+            !card.parseError &&
+            !getToolValidationError(card, card.parsedArgs, t, availableCharacterNames) &&
+            !getToolMissingTargetError(card, card.parsedArgs, characterFileNames, worldbuildingFileNames, t) &&
+            !getToolOverwriteWarning(card, card.parsedArgs, characterFileNames, worldbuildingFileNames, t) &&
+            !getToolDuplicateWarning(card, card.parsedArgs, pinnedTexts, t),
+        )
+        .map((card) => card.id);
+
+      for (const cardId of pendingIds) {
+        await confirmTool(messageId, cardId);
+      }
+    },
+    [confirmTool, disabled, getLatestLoreFiles, getLatestProject, getToolCards, isPostMutationBusy, sending, t],
+  );
+
+  const skipAllTools = useCallback(
+    (messageId: string) => {
+      if (disabled || sending || isPostMutationBusy) {
+        return;
+      }
+      updateMessageCards(messageId, (cards) =>
+        cards.map((card) =>
+          isToolCallResolved(card.status) || card.isLoading || loadingCardIdsRef.current.has(card.id)
+            ? card
+            : {
+                ...card,
+                status: "skipped",
+                resultNote: t("settingsMode.skipped"),
+                errorMessage: null,
+              },
+        ),
+      );
+    },
+    [disabled, isPostMutationBusy, sending, t, updateMessageCards],
+  );
 
   return {
     confirmTool,

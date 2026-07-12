@@ -53,9 +53,7 @@ export function BottomNavBar({ activeTab, onTabChange }: BottomNavBarProps) {
               onClick={() => onTabChange(id)}
               className={cn(
                 "relative flex min-h-[56px] flex-col items-center justify-center rounded-sm px-2 py-2 font-sans text-[11px] font-medium tracking-[0.04em] transition-colors",
-                active
-                  ? "text-accent"
-                  : "text-ink-faint hover:bg-rule-soft hover:text-text/70"
+                active ? "text-accent" : "text-ink-faint hover:bg-rule-soft hover:text-text/70",
               )}
               aria-current={active ? "page" : undefined}
             >

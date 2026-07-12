@@ -2,11 +2,11 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import React, { HTMLAttributes } from 'react';
-import { cn } from './utils';
-import { CheckCircle, AlertCircle, Info, AlertTriangle, X } from 'lucide-react';
+import React, { HTMLAttributes } from "react";
+import { cn } from "./utils";
+import { CheckCircle, AlertCircle, Info, AlertTriangle, X } from "lucide-react";
 
-export type ToastTone = 'success' | 'error' | 'info' | 'warning';
+export type ToastTone = "success" | "error" | "info" | "warning";
 
 export interface ToastProps extends HTMLAttributes<HTMLDivElement> {
   tone?: ToastTone;
@@ -24,21 +24,21 @@ const iconMap: Record<ToastTone, React.ReactNode> = {
 };
 
 const borderLeftMap: Record<ToastTone, string> = {
-  success: 'border-l-success',
-  error: 'border-l-error',
-  info: 'border-l-info',
-  warning: 'border-l-warning',
+  success: "border-l-success",
+  error: "border-l-error",
+  info: "border-l-info",
+  warning: "border-l-warning",
 };
 
 export const Toast = React.forwardRef<HTMLDivElement, ToastProps>(
-  ({ className, tone = 'info', message, onClose, ...props }, ref) => {
+  ({ className, tone = "info", message, onClose, ...props }, ref) => {
     return (
       <div
         ref={ref}
         className={cn(
-          'flex items-center gap-3 w-full max-w-md rounded-sm border border-rule border-l-[3px] bg-surface px-3.5 py-3 shadow-medium pointer-events-auto font-serif text-sm text-text',
+          "flex items-center gap-3 w-full max-w-md rounded-sm border border-rule border-l-[3px] bg-surface px-3.5 py-3 shadow-medium pointer-events-auto font-serif text-sm text-text",
           borderLeftMap[tone],
-          className
+          className,
         )}
         {...props}
       >
@@ -56,6 +56,6 @@ export const Toast = React.forwardRef<HTMLDivElement, ToastProps>(
         )}
       </div>
     );
-  }
+  },
 );
-Toast.displayName = 'Toast';
+Toast.displayName = "Toast";

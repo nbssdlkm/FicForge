@@ -77,8 +77,12 @@ describe("split_chapter_into_chunks", () => {
   });
 
   it("handles paragraph boundaries (empty lines)", () => {
-    const text = "第一段内容比较长，足够保留不被合并掉的那种长度。" + "A".repeat(100) + "\n\n" +
-                 "第二段内容也比较长，足够保留不被合并掉的那种长度。" + "B".repeat(100);
+    const text =
+      "第一段内容比较长，足够保留不被合并掉的那种长度。" +
+      "A".repeat(100) +
+      "\n\n" +
+      "第二段内容也比较长，足够保留不被合并掉的那种长度。" +
+      "B".repeat(100);
     const chunks = split_chapter_into_chunks(text, 1, 500, 0);
     expect(chunks.length).toBeGreaterThanOrEqual(1);
   });
@@ -107,13 +111,17 @@ describe("split_chapter_into_chunks frontmatter safety (B-2)", () => {
   it("非法 YAML 形态正文不抛错、全文进分块", () => {
     const text = "---\nfoo: [unclosed\n---\n正文内容在此，一句完整的话。";
     expect(() => split_chapter_into_chunks(text, 1, 500, 0)).not.toThrow();
-    const all = split_chapter_into_chunks(text, 1, 500, 0).map((c) => c.content).join("\n");
+    const all = split_chapter_into_chunks(text, 1, 500, 0)
+      .map((c) => c.content)
+      .join("\n");
     expect(all).toContain("正文内容在此");
   });
 
   it("真章节 frontmatter（含未知键混合）仍被剥离", () => {
     const text = "---\nchapter_id: abc\nrevision: 2\n---\n正文内容，不含元数据。";
-    const all = split_chapter_into_chunks(text, 1, 500, 0).map((c) => c.content).join("\n");
+    const all = split_chapter_into_chunks(text, 1, 500, 0)
+      .map((c) => c.content)
+      .join("\n");
     expect(all).not.toContain("chapter_id");
     expect(all).toContain("正文内容");
   });

@@ -2,17 +2,17 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { saveGlobalSettingsForEditing, type SettingsInfo } from '../../api/engine-client';
-import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
-import { useFeedback } from '../../hooks/useFeedback';
-import { useTranslation } from '../../i18n/useAppTranslation';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { saveGlobalSettingsForEditing, type SettingsInfo } from "../../api/engine-client";
+import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
+import { useFeedback } from "../../hooks/useFeedback";
+import { useTranslation } from "../../i18n/useAppTranslation";
 import {
   buildGlobalSettingsSaveInput,
   createDefaultGlobalSettingsFormState,
   hydrateGlobalSettingsForm,
   type GlobalSettingsFormState,
-} from './form-mappers';
+} from "./form-mappers";
 
 /**
  * 脏检查快照（R2-5）：只含「保存」按钮管辖的连接与模型选择字段。
@@ -25,10 +25,20 @@ import {
  * 会被静默丢失）。仅遗留「权威模型 + 空 ctx 的迁移旧配置」打开时 seed 一次 → 罕见的一次性误报，
  * 首次保存后自愈。
  */
-const formSnapshot = (f: GlobalSettingsFormState): string => JSON.stringify([
-  f.mode, f.model, f.localModelPath, f.ollamaModel, f.apiBase, f.apiKey,
-  f.contextWindow, f.chatPath, f.embeddingModel, f.embeddingApiBase, f.embeddingApiKey,
-]);
+const formSnapshot = (f: GlobalSettingsFormState): string =>
+  JSON.stringify([
+    f.mode,
+    f.model,
+    f.localModelPath,
+    f.ollamaModel,
+    f.apiBase,
+    f.apiKey,
+    f.contextWindow,
+    f.chatPath,
+    f.embeddingModel,
+    f.embeddingApiBase,
+    f.embeddingApiKey,
+  ]);
 
 /**
  * useGlobalSettingsForm — 全局设置表单（GlobalSettingsFormState 单一对象）
@@ -41,7 +51,7 @@ const formSnapshot = (f: GlobalSettingsFormState): string => JSON.stringify([
 export function useGlobalSettingsForm(isOpen: boolean, settings: SettingsInfo | null, loadKey: number) {
   const { t } = useTranslation();
   const { showError, showSuccess } = useFeedback();
-  const guard = useActiveRequestGuard(isOpen ? 'global-settings-open' : 'global-settings-closed');
+  const guard = useActiveRequestGuard(isOpen ? "global-settings-open" : "global-settings-closed");
 
   const [form, setForm] = useState<GlobalSettingsFormState>(createDefaultGlobalSettingsFormState);
   const [saving, setSaving] = useState(false);
@@ -73,20 +83,22 @@ export function useGlobalSettingsForm(isOpen: boolean, settings: SettingsInfo | 
 
   // 受控绑定 setter（hook 规则 5 例外①：input / select / picker 双向绑定）
   const fieldSetters = useMemo(() => {
-    const set = <K extends keyof GlobalSettingsFormState>(key: K) =>
-      (value: GlobalSettingsFormState[K]) => setForm((prev) => ({ ...prev, [key]: value }));
+    const set =
+      <K extends keyof GlobalSettingsFormState>(key: K) =>
+      (value: GlobalSettingsFormState[K]) =>
+        setForm((prev) => ({ ...prev, [key]: value }));
     return {
-      setMode: set('mode'),
-      setModel: set('model'),
-      setLocalModelPath: set('localModelPath'),
-      setOllamaModel: set('ollamaModel'),
-      setApiBase: set('apiBase'),
-      setApiKey: set('apiKey'),
-      setContextWindow: set('contextWindow'),
-      setChatPath: set('chatPath'),
-      setEmbeddingModel: set('embeddingModel'),
-      setEmbeddingApiBase: set('embeddingApiBase'),
-      setEmbeddingApiKey: set('embeddingApiKey'),
+      setMode: set("mode"),
+      setModel: set("model"),
+      setLocalModelPath: set("localModelPath"),
+      setOllamaModel: set("ollamaModel"),
+      setApiBase: set("apiBase"),
+      setApiKey: set("apiKey"),
+      setContextWindow: set("contextWindow"),
+      setChatPath: set("chatPath"),
+      setEmbeddingModel: set("embeddingModel"),
+      setEmbeddingApiBase: set("embeddingApiBase"),
+      setEmbeddingApiKey: set("embeddingApiKey"),
     };
   }, []);
 
@@ -102,10 +114,10 @@ export function useGlobalSettingsForm(isOpen: boolean, settings: SettingsInfo | 
       // save so they can continue tweaking other sections without reopening.
       // A toast confirms the save landed.
       setSavedSnapshot(formSnapshot(snapshot));
-      showSuccess(t('settings.global.savedToast'));
+      showSuccess(t("settings.global.savedToast"));
     } catch (error) {
       if (guard.isStale(token)) return;
-      showError(error, t('error_messages.unknown'));
+      showError(error, t("error_messages.unknown"));
     } finally {
       if (!guard.isStale(token)) {
         setSaving(false);

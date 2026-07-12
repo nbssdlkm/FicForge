@@ -25,10 +25,7 @@ export interface SimpleChatRepository {
    * UI 侧防抖 save 走内存快照，组件卸载后快照即失效；这里保证关键终态仍能落盘，
    * 且不会覆盖 updater 之外的并发变更（读写同锁）。
    */
-  update(
-    au_id: string,
-    updater: (messages: SimpleChatMessageEnvelope[]) => SimpleChatMessageEnvelope[],
-  ): Promise<void>;
+  update(au_id: string, updater: (messages: SimpleChatMessageEnvelope[]) => SimpleChatMessageEnvelope[]): Promise<void>;
 
   /** 清空对话历史（删除文件 / 写空 messages）。 */
   clear(au_id: string): Promise<void>;

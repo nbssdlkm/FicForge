@@ -31,17 +31,26 @@ describe("confirm_chapter", () => {
     await stateRepo.save(state);
 
     // Seed a draft
-    await draftRepo.save(createDraft({
-      au_id: "au1", chapter_num: 1, variant: "A",
-      content: "Alice走进了房间。\n\n她看到了Bob。\n\n一切开始改变。",
-    }));
+    await draftRepo.save(
+      createDraft({
+        au_id: "au1",
+        chapter_num: 1,
+        variant: "A",
+        content: "Alice走进了房间。\n\n她看到了Bob。\n\n一切开始改变。",
+      }),
+    );
   });
 
   it("5-step confirm: state + ops + chapter correct", async () => {
     const result = await confirm_chapter({
-      au_id: "au1", chapter_num: 1, draft_id: "ch0001_draft_A.md",
+      au_id: "au1",
+      chapter_num: 1,
+      draft_id: "ch0001_draft_A.md",
       cast_registry: { characters: ["Alice", "Bob"] },
-      chapter_repo: chapterRepo, draft_repo: draftRepo, state_repo: stateRepo, ops_repo: opsRepo,
+      chapter_repo: chapterRepo,
+      draft_repo: draftRepo,
+      state_repo: stateRepo,
+      ops_repo: opsRepo,
     });
 
     expect(result.chapter_num).toBe(1);
@@ -74,8 +83,13 @@ describe("confirm_chapter", () => {
 
   it("current_chapter increments on advancing", async () => {
     await confirm_chapter({
-      au_id: "au1", chapter_num: 1, draft_id: "ch0001_draft_A.md",
-      chapter_repo: chapterRepo, draft_repo: draftRepo, state_repo: stateRepo, ops_repo: opsRepo,
+      au_id: "au1",
+      chapter_num: 1,
+      draft_id: "ch0001_draft_A.md",
+      chapter_repo: chapterRepo,
+      draft_repo: draftRepo,
+      state_repo: stateRepo,
+      ops_repo: opsRepo,
     });
     const state = await stateRepo.get("au1");
     expect(state.current_chapter).toBe(2);
@@ -83,9 +97,14 @@ describe("confirm_chapter", () => {
 
   it("content_override uses mixed provenance", async () => {
     const result = await confirm_chapter({
-      au_id: "au1", chapter_num: 1, draft_id: "ch0001_draft_A.md",
+      au_id: "au1",
+      chapter_num: 1,
+      draft_id: "ch0001_draft_A.md",
       content_override: "用户编辑后的内容",
-      chapter_repo: chapterRepo, draft_repo: draftRepo, state_repo: stateRepo, ops_repo: opsRepo,
+      chapter_repo: chapterRepo,
+      draft_repo: draftRepo,
+      state_repo: stateRepo,
+      ops_repo: opsRepo,
     });
     const chapter = await chapterRepo.get("au1", 1);
     expect(chapter.provenance).toBe("mixed");
@@ -93,24 +112,43 @@ describe("confirm_chapter", () => {
   });
 
   it("throws on invalid draft_id", async () => {
-    await expect(confirm_chapter({
-      au_id: "au1", chapter_num: 1, draft_id: "invalid.md",
-      chapter_repo: chapterRepo, draft_repo: draftRepo, state_repo: stateRepo, ops_repo: opsRepo,
-    })).rejects.toThrow(ConfirmChapterError);
+    await expect(
+      confirm_chapter({
+        au_id: "au1",
+        chapter_num: 1,
+        draft_id: "invalid.md",
+        chapter_repo: chapterRepo,
+        draft_repo: draftRepo,
+        state_repo: stateRepo,
+        ops_repo: opsRepo,
+      }),
+    ).rejects.toThrow(ConfirmChapterError);
   });
 
   it("throws on chapter_num mismatch", async () => {
-    await expect(confirm_chapter({
-      au_id: "au1", chapter_num: 2, draft_id: "ch0001_draft_A.md",
-      chapter_repo: chapterRepo, draft_repo: draftRepo, state_repo: stateRepo, ops_repo: opsRepo,
-    })).rejects.toThrow("不匹配");
+    await expect(
+      confirm_chapter({
+        au_id: "au1",
+        chapter_num: 2,
+        draft_id: "ch0001_draft_A.md",
+        chapter_repo: chapterRepo,
+        draft_repo: draftRepo,
+        state_repo: stateRepo,
+        ops_repo: opsRepo,
+      }),
+    ).rejects.toThrow("不匹配");
   });
 
   it("backup on overwrite existing chapter", async () => {
     // First confirm
     await confirm_chapter({
-      au_id: "au1", chapter_num: 1, draft_id: "ch0001_draft_A.md",
-      chapter_repo: chapterRepo, draft_repo: draftRepo, state_repo: stateRepo, ops_repo: opsRepo,
+      au_id: "au1",
+      chapter_num: 1,
+      draft_id: "ch0001_draft_A.md",
+      chapter_repo: chapterRepo,
+      draft_repo: draftRepo,
+      state_repo: stateRepo,
+      ops_repo: opsRepo,
     });
 
     // Save another draft for same chapter
@@ -123,8 +161,13 @@ describe("confirm_chapter", () => {
 
     // Second confirm should backup
     const result = await confirm_chapter({
-      au_id: "au1", chapter_num: 1, draft_id: "ch0001_draft_B.md",
-      chapter_repo: chapterRepo, draft_repo: draftRepo, state_repo: stateRepo, ops_repo: opsRepo,
+      au_id: "au1",
+      chapter_num: 1,
+      draft_id: "ch0001_draft_B.md",
+      chapter_repo: chapterRepo,
+      draft_repo: draftRepo,
+      state_repo: stateRepo,
+      ops_repo: opsRepo,
     });
     expect(result.revision).toBe(2);
   });
@@ -132,9 +175,14 @@ describe("confirm_chapter", () => {
   it("preserves generated_with in ops payload", async () => {
     const gw = createGeneratedWith({ mode: "api", model: "gpt-4o", temperature: 0.8 });
     await confirm_chapter({
-      au_id: "au1", chapter_num: 1, draft_id: "ch0001_draft_A.md",
+      au_id: "au1",
+      chapter_num: 1,
+      draft_id: "ch0001_draft_A.md",
       generated_with: gw,
-      chapter_repo: chapterRepo, draft_repo: draftRepo, state_repo: stateRepo, ops_repo: opsRepo,
+      chapter_repo: chapterRepo,
+      draft_repo: draftRepo,
+      state_repo: stateRepo,
+      ops_repo: opsRepo,
     });
 
     const ops = await opsRepo.list_all("au1");
@@ -164,13 +212,23 @@ describe("confirm_chapter", () => {
     const sRepo = new FileStateRepository(failAdapter);
     const oRepo = new FileOpsRepository(failAdapter);
     await sRepo.save(createState({ au_id: "au1", current_chapter: 1 }));
-    await dRepo.save(createDraft({
-      au_id: "au1", chapter_num: 1, variant: "A", content: "草稿是这一章唯一的内容源。",
-    }));
+    await dRepo.save(
+      createDraft({
+        au_id: "au1",
+        chapter_num: 1,
+        variant: "A",
+        content: "草稿是这一章唯一的内容源。",
+      }),
+    );
 
     const params = {
-      au_id: "au1", chapter_num: 1, draft_id: "ch0001_draft_A.md",
-      chapter_repo: cRepo, draft_repo: dRepo, state_repo: sRepo, ops_repo: oRepo,
+      au_id: "au1",
+      chapter_num: 1,
+      draft_id: "ch0001_draft_A.md",
+      chapter_repo: cRepo,
+      draft_repo: dRepo,
+      state_repo: sRepo,
+      ops_repo: oRepo,
     };
     await expect(confirm_chapter(params)).rejects.toThrow(/partial commit/);
 

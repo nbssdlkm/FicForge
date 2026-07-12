@@ -89,7 +89,15 @@ describe("GlobalSettingsModal — 状态下沉回归", () => {
     );
 
     (getSettingsForEditing as Mock).mockResolvedValue(
-      settingsFixture({ default_llm: { mode: "api", model: "my-model", api_base: "https://api.deepseek.com", api_key: "sk-second", context_window: 131072 } }),
+      settingsFixture({
+        default_llm: {
+          mode: "api",
+          model: "my-model",
+          api_base: "https://api.deepseek.com",
+          api_key: "sk-second",
+          context_window: 131072,
+        },
+      }),
     );
     rerender(
       <FeedbackProvider>
@@ -108,9 +116,7 @@ describe("GlobalSettingsModal — 状态下沉回归", () => {
   });
 
   it("提取开关：从 settings hydrate（关闭态回显），切换即时落库", async () => {
-    (getSettingsForEditing as Mock).mockResolvedValue(
-      settingsFixture({ app: { react_extraction_enabled: false } }),
-    );
+    (getSettingsForEditing as Mock).mockResolvedValue(settingsFixture({ app: { react_extraction_enabled: false } }));
     const onClose = vi.fn();
     renderModal(onClose);
     await screen.findByDisplayValue("sk-old");

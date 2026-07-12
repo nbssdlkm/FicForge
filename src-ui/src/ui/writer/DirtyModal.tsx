@@ -3,25 +3,44 @@
 // See LICENSE file in the project root for full license text.
 
 import { Spinner } from "../shared/Spinner";
-import { Modal } from '../shared/Modal';
-import { Button } from '../shared/Button';
-import { AlertCircle, Check } from 'lucide-react';
-import { Tag } from '../shared/Tag';
-import { useState, useEffect } from 'react';
-import { resolveDirtyChapter } from '../../api/engine-client';
-import { listFacts, extractFacts, addFact, buildFactDataFromCandidate, type FactInfo, type ExtractedFactCandidate } from '../../api/engine-client';
-import { useTranslation } from '../../i18n/useAppTranslation';
-import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
-import { FactAnnotationChips } from '../facts/FactAnnotationChips';
-import { useFeedback } from '../../hooks/useFeedback';
-import { catchAndLog } from '../../utils/ui-logger';
+import { Modal } from "../shared/Modal";
+import { Button } from "../shared/Button";
+import { AlertCircle, Check } from "lucide-react";
+import { Tag } from "../shared/Tag";
+import { useState, useEffect } from "react";
+import { resolveDirtyChapter } from "../../api/engine-client";
+import {
+  listFacts,
+  extractFacts,
+  addFact,
+  buildFactDataFromCandidate,
+  type FactInfo,
+  type ExtractedFactCandidate,
+} from "../../api/engine-client";
+import { useTranslation } from "../../i18n/useAppTranslation";
+import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
+import { FactAnnotationChips } from "../facts/FactAnnotationChips";
+import { useFeedback } from "../../hooks/useFeedback";
+import { catchAndLog } from "../../utils/ui-logger";
 
-type FactDecision = 'keep' | 'deprecate';
+type FactDecision = "keep" | "deprecate";
 
-export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: { isOpen: boolean, onClose: () => void, auPath: string, chapterNum: number, onResolved?: () => void }) => {
+export const DirtyModal = ({
+  isOpen,
+  onClose,
+  auPath,
+  chapterNum,
+  onResolved,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  auPath: string;
+  chapterNum: number;
+  onResolved?: () => void;
+}) => {
   const { t } = useTranslation();
   const { showError } = useFeedback();
-  const contextKey = `${isOpen ? 'open' : 'closed'}:${auPath}:${chapterNum}`;
+  const contextKey = `${isOpen ? "open" : "closed"}:${auPath}:${chapterNum}`;
   const contextGuard = useActiveRequestGuard(contextKey);
 
   // Old facts
@@ -57,15 +76,17 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
     // Load old facts
     setLoadingOld(true);
     listFacts(auPath, undefined)
-      .then(all => {
+      .then((all) => {
         if (contextGuard.isStale(token)) return;
-        const chapterFacts = all.filter(f => f.chapter === chapterNum);
+        const chapterFacts = all.filter((f) => f.chapter === chapterNum);
         setOldFacts(chapterFacts);
         const initial: Record<string, FactDecision> = {};
-        chapterFacts.forEach(f => { initial[f.id] = 'keep'; });
+        chapterFacts.forEach((f) => {
+          initial[f.id] = "keep";
+        });
         setDecisions(initial);
       })
-      .catch(catchAndLog('dirtyModal', 'listFacts for old facts failed'))
+      .catch(catchAndLog("dirtyModal", "listFacts for old facts failed"))
       .finally(() => {
         if (!contextGuard.isStale(token)) setLoadingOld(false);
       });
@@ -74,13 +95,13 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
     setExtracting(true);
     setExtractError(null);
     extractFacts(auPath, chapterNum)
-      .then(res => {
+      .then((res) => {
         if (contextGuard.isStale(token)) return;
         setCandidates(res.facts || []);
         // Default: select all
         setSelectedCandidates(new Set((res.facts || []).map((_, i) => i)));
       })
-      .catch(e => {
+      .catch((e) => {
         if (contextGuard.isStale(token)) return;
         setExtractError(e instanceof Error ? e.message : String(e));
       })
@@ -90,9 +111,10 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
   }, [isOpen, auPath, chapterNum]);
 
   const toggleCandidate = (idx: number) => {
-    setSelectedCandidates(prev => {
+    setSelectedCandidates((prev) => {
       const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
       return next;
     });
   };
@@ -102,9 +124,9 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
     setResolving(true);
     try {
       // 1. Resolve dirty: process old facts decisions + clear dirty flag
-      const confirmedChanges = oldFacts.map(f => ({
+      const confirmedChanges = oldFacts.map((f) => ({
         fact_id: f.id,
-        action: decisions[f.id] || 'keep',
+        action: decisions[f.id] || "keep",
       }));
       const resolveResult = await resolveDirtyChapter(auPath, chapterNum, confirmedChanges);
 
@@ -126,17 +148,17 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
       onClose();
       if (onResolved) onResolved();
       if (failCount > 0) {
-        showError(new Error(t('dirty.saveFailed', { count: failCount })), t('error_messages.unknown'));
+        showError(new Error(t("dirty.saveFailed", { count: failCount })), t("error_messages.unknown"));
       }
       // 解除本身成功但个别 fact 变更失败（引擎逐条尽力应用后如实带回）——
       // 明示用户去记忆面板手工处理，而不是伪装成整体失败（盲审 2026-07-11）
       const failedChanges = resolveResult?.failed_fact_changes?.length ?? 0;
       if (failedChanges > 0) {
-        showError(new Error(t('dirty.factChangesFailed', { count: failedChanges })), t('error_messages.unknown'));
+        showError(new Error(t("dirty.factChangesFailed", { count: failedChanges })), t("error_messages.unknown"));
       }
     } catch (e) {
       if (contextGuard.isKeyStale(snapshotKey)) return;
-      showError(e, t('error_messages.unknown'));
+      showError(e, t("error_messages.unknown"));
     } finally {
       if (!contextGuard.isKeyStale(snapshotKey)) {
         setResolving(false);
@@ -152,49 +174,67 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
     <Modal
       isOpen={isOpen}
       onClose={resolving ? () => {} : onClose}
-      title={`${t('dirty.title')} — ${t('workspace.chapterItem', { num: chapterNum })}`}
+      title={`${t("dirty.title")} — ${t("workspace.chapterItem", { num: chapterNum })}`}
     >
       <div className="space-y-5 mt-2">
         {/* Warning banner */}
         <div className="p-3 bg-warning/10 text-warning text-sm rounded-lg border border-warning/20 leading-relaxed font-sans">
-          <strong>{t('dirty.warningTitle')}{t('common.labelColon')}</strong> {t('dirty.warningDescription')}
+          <strong>
+            {t("dirty.warningTitle")}
+            {t("common.labelColon")}
+          </strong>{" "}
+          {t("dirty.warningDescription")}
         </div>
 
         <div className="max-h-[55vh] overflow-y-auto space-y-5 pr-1">
           {/* Section 1: Old facts */}
           <div>
-            <h3 className="text-xs font-medium text-text/70 mb-2">{t('dirty.oldFactsSection')}</h3>
+            <h3 className="text-xs font-medium text-text/70 mb-2">{t("dirty.oldFactsSection")}</h3>
             {loadingOld ? (
               <div className="flex items-center gap-2 py-4 justify-center text-text/50 text-sm">
                 <Spinner size="md" />
               </div>
             ) : !hasOldFacts ? (
-              <p className="text-sm text-text/50 py-2">{t('dirty.noOldFacts')}</p>
+              <p className="text-sm text-text/50 py-2">{t("dirty.noOldFacts")}</p>
             ) : (
               <div className="space-y-2">
-                {oldFacts.map(f => (
-                  <div key={f.id} className="border border-black/10 dark:border-white/10 rounded-lg p-3 bg-surface/50 space-y-2">
+                {oldFacts.map((f) => (
+                  <div
+                    key={f.id}
+                    className="border border-black/10 dark:border-white/10 rounded-lg p-3 bg-surface/50 space-y-2"
+                  >
                     <div className="flex justify-between items-start gap-2">
-                      <p className="text-sm font-serif leading-relaxed text-text flex-1">{f.content_clean || f.content_raw}</p>
-                      <Tag tone={decisions[f.id] === 'deprecate' ? 'error' : 'warning'} className="px-2 shrink-0 text-xs">
-                        {decisions[f.id] === 'deprecate' ? t('dirty.deprecateTag') : t('dirty.dirtyTag')}
+                      <p className="text-sm font-serif leading-relaxed text-text flex-1">
+                        {f.content_clean || f.content_raw}
+                      </p>
+                      <Tag
+                        tone={decisions[f.id] === "deprecate" ? "error" : "warning"}
+                        className="px-2 shrink-0 text-xs"
+                      >
+                        {decisions[f.id] === "deprecate" ? t("dirty.deprecateTag") : t("dirty.dirtyTag")}
                       </Tag>
                     </div>
                     <div className="flex gap-2">
                       <Button
-                        tone={decisions[f.id] === 'keep' ? 'accent' : 'neutral'}
-                        fill={decisions[f.id] === 'keep' ? 'solid' : 'plain'}
-                        size="sm" className="flex-1 h-11 text-sm md:h-7 md:text-xs"
-                        onClick={() => setDecisions(prev => ({ ...prev, [f.id]: 'keep' }))}
+                        tone={decisions[f.id] === "keep" ? "accent" : "neutral"}
+                        fill={decisions[f.id] === "keep" ? "solid" : "plain"}
+                        size="sm"
+                        className="flex-1 h-11 text-sm md:h-7 md:text-xs"
+                        onClick={() => setDecisions((prev) => ({ ...prev, [f.id]: "keep" }))}
                         disabled={resolving}
-                      >{t('dirty.keep')}</Button>
+                      >
+                        {t("dirty.keep")}
+                      </Button>
                       <Button
-                        tone={decisions[f.id] === 'deprecate' ? 'accent' : 'neutral'}
-                        fill={decisions[f.id] === 'deprecate' ? 'solid' : 'plain'}
-                        size="sm" className="flex-1 h-11 text-sm md:h-7 md:text-xs"
-                        onClick={() => setDecisions(prev => ({ ...prev, [f.id]: 'deprecate' }))}
+                        tone={decisions[f.id] === "deprecate" ? "accent" : "neutral"}
+                        fill={decisions[f.id] === "deprecate" ? "solid" : "plain"}
+                        size="sm"
+                        className="flex-1 h-11 text-sm md:h-7 md:text-xs"
+                        onClick={() => setDecisions((prev) => ({ ...prev, [f.id]: "deprecate" }))}
                         disabled={resolving}
-                      >{t('dirty.deprecate')}</Button>
+                      >
+                        {t("dirty.deprecate")}
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -204,23 +244,26 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
 
           {/* Section 2: AI re-extracted candidates */}
           <div>
-            <h3 className="text-xs font-medium text-text/70 mb-2">{t('dirty.newFactsSection')}</h3>
+            <h3 className="text-xs font-medium text-text/70 mb-2">{t("dirty.newFactsSection")}</h3>
             {extracting ? (
               <div className="flex items-center gap-2 py-4 justify-center text-accent text-sm">
                 <Spinner size="md" />
-                <span>{t('dirty.extracting')}</span>
+                <span>{t("dirty.extracting")}</span>
               </div>
             ) : extractError ? (
               <div className="flex items-center gap-2 p-3 bg-error/10 text-error rounded-lg text-sm">
                 <AlertCircle size={14} className="shrink-0" />
-                <span>{t('dirty.extractFailed')}</span>
+                <span>{t("dirty.extractFailed")}</span>
               </div>
             ) : !hasCandidates ? (
-              <p className="text-sm text-text/50 py-2">{t('dirty.noCandidates')}</p>
+              <p className="text-sm text-text/50 py-2">{t("dirty.noCandidates")}</p>
             ) : (
               <div className="space-y-2">
                 {candidates.map((c, idx) => (
-                  <label key={idx} className={`flex items-start gap-3 border rounded-lg p-3 cursor-pointer transition-colors ${selectedCandidates.has(idx) ? 'border-accent/40 bg-accent/5' : 'border-black/10 dark:border-white/10 bg-surface/30'}`}>
+                  <label
+                    key={idx}
+                    className={`flex items-start gap-3 border rounded-lg p-3 cursor-pointer transition-colors ${selectedCandidates.has(idx) ? "border-accent/40 bg-accent/5" : "border-black/10 dark:border-white/10 bg-surface/30"}`}
+                  >
                     <input
                       type="checkbox"
                       checked={selectedCandidates.has(idx)}
@@ -231,7 +274,7 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-serif leading-relaxed text-text">{c.content_clean || c.content_raw}</p>
                       {c.characters && c.characters.length > 0 && (
-                        <p className="text-xs text-text/50 mt-1">{c.characters.join(', ')}</p>
+                        <p className="text-xs text-text/50 mt-1">{c.characters.join(", ")}</p>
                       )}
                       {/* M3 批一：脏章候选卡为自画 JSX，知情标注单独接入（与 ExtractReviewModal 同源组件） */}
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -248,7 +291,8 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
         {/* Confirm button */}
         <div className="border-t border-black/10 dark:border-white/10 pt-4">
           <Button
-            tone="accent" fill="solid"
+            tone="accent"
+            fill="solid"
             className="w-full h-11 text-sm shadow-xs"
             onClick={handleResolve}
             disabled={resolving || isLoading}
@@ -257,8 +301,10 @@ export const DirtyModal = ({ isOpen, onClose, auPath, chapterNum, onResolved }: 
               <Spinner size="md" />
             ) : (
               <span className="flex flex-col items-center leading-tight">
-                <span className="flex items-center gap-1.5"><Check size={15} /> {t('dirty.confirmResolve')}</span>
-                <span className="text-xs opacity-80">{t('dirty.confirmResolveSubtitle')}</span>
+                <span className="flex items-center gap-1.5">
+                  <Check size={15} /> {t("dirty.confirmResolve")}
+                </span>
+                <span className="text-xs opacity-80">{t("dirty.confirmResolveSubtitle")}</span>
               </span>
             )}
           </Button>

@@ -24,32 +24,37 @@ import { MockAdapter } from "../../../../../src-engine/repositories/__tests__/mo
 
 function settingsWithCtx(context_window: number | undefined): SettingsInfo {
   return {
-    default_llm: { mode: "api", model: "m", api_base: "https://api/v1", ...(context_window !== undefined ? { context_window } : {}) },
+    default_llm: {
+      mode: "api",
+      model: "m",
+      api_base: "https://api/v1",
+      ...(context_window !== undefined ? { context_window } : {}),
+    },
     model_params: {},
   } as unknown as SettingsInfo;
 }
 
 describe("form-mappers ctx — hydrate（持久层 → 表单）", () => {
-  it("0 哨兵 → \"\"（窗口未知，不补 128000）", () => {
+  it('0 哨兵 → ""（窗口未知，不补 128000）', () => {
     expect(hydrateGlobalSettingsForm(settingsWithCtx(0)).contextWindow).toBe("");
   });
 
-  it("undefined → \"\"", () => {
+  it('undefined → ""', () => {
     expect(hydrateGlobalSettingsForm(settingsWithCtx(undefined)).contextWindow).toBe("");
   });
 
-  it("显式 128000（存量用户）→ \"128000\" 原样回显", () => {
+  it('显式 128000（存量用户）→ "128000" 原样回显', () => {
     expect(hydrateGlobalSettingsForm(settingsWithCtx(128000)).contextWindow).toBe("128000");
   });
 });
 
 describe("form-mappers ctx — build（表单 → 保存入参）", () => {
-  it("\"\" → 省略 context_window（引擎按模型推断）", () => {
+  it('"" → 省略 context_window（引擎按模型推断）', () => {
     const form = hydrateGlobalSettingsForm(settingsWithCtx(0));
     expect("context_window" in buildGlobalSettingsSaveInput(form).default_llm).toBe(false);
   });
 
-  it("\"128000\" → 128000（显式值不动）", () => {
+  it('"128000" → 128000（显式值不动）', () => {
     const form = hydrateGlobalSettingsForm(settingsWithCtx(128000));
     expect(buildGlobalSettingsSaveInput(form).default_llm.context_window).toBe(128000);
   });
@@ -66,7 +71,12 @@ describe("form-mappers ctx — build（表单 → 保存入参）", () => {
 describe("form-mappers ctx — AU 覆盖同链", () => {
   function projectWithCtx(context_window: number | undefined): ProjectInfo {
     return {
-      llm: { mode: "api", model: "m", api_base: "https://au/v1", ...(context_window !== undefined ? { context_window } : {}) },
+      llm: {
+        mode: "api",
+        model: "m",
+        api_base: "https://au/v1",
+        ...(context_window !== undefined ? { context_window } : {}),
+      },
       writing_style: {},
       chapter_length: 2000,
       pinned_context: [],
@@ -75,12 +85,12 @@ describe("form-mappers ctx — AU 覆盖同链", () => {
     } as unknown as ProjectInfo;
   }
 
-  it("hydrate：0 哨兵 → \"\"；显式值原样", () => {
+  it('hydrate：0 哨兵 → ""；显式值原样', () => {
     expect(hydrateAuSettingsForm(projectWithCtx(0)).contextWindow).toBe("");
     expect(hydrateAuSettingsForm(projectWithCtx(64000)).contextWindow).toBe("64000");
   });
 
-  it("build：\"\" → 省略；显式值写回", () => {
+  it('build："" → 省略；显式值写回', () => {
     const empty = createDefaultAuSettingsFormState();
     empty.isLlmOverride = true;
     expect("context_window" in buildAuSettingsSaveInput(empty).llm_override).toBe(false);

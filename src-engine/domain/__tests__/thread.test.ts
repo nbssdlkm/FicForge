@@ -19,10 +19,13 @@ describe("createThread (M8-B)", () => {
 
   it("partial overrides defaults", () => {
     const t = createThread({
-      id: "t2", title: "太傅的图谋",
-      description: "暗线", state: "在追查名录",
+      id: "t2",
+      title: "太傅的图谋",
+      description: "暗线",
+      state: "在追查名录",
       status: ThreadStatus.DORMANT,
-      created_at: "2026-06-20T00:00:00Z", updated_at: "2026-06-20T00:00:00Z",
+      created_at: "2026-06-20T00:00:00Z",
+      updated_at: "2026-06-20T00:00:00Z",
     });
     expect(t.description).toBe("暗线");
     expect(t.state).toBe("在追查名录");

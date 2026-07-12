@@ -3,11 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useCallback, useState } from "react";
-import {
-  testConnection,
-  testEmbeddingConnection,
-  type TestConnectionResponse,
-} from "../api/engine-client";
+import { testConnection, testEmbeddingConnection, type TestConnectionResponse } from "../api/engine-client";
 import { useActiveRequestGuard } from "./useActiveRequestGuard";
 import { useTranslation } from "../i18n/useAppTranslation";
 import { buildLlmConnectionTestRequest, type LlmConfigFields } from "../ui/shared/llm-config";
@@ -58,26 +54,29 @@ function useConnectionTestState<TParams, TResult extends { success: boolean }>(
     setMessage("");
   }, [requestGuard]);
 
-  const run = useCallback(async (params: TParams) => {
-    const token = requestGuard.start();
-    setStatus("testing");
-    setMessage("");
-    try {
-      const result = await options.runTest(params);
-      if (requestGuard.isStale(token)) return;
-      if (result.success) {
-        setStatus("success");
-        setMessage(options.getSuccessMessage(result, params));
-      } else {
+  const run = useCallback(
+    async (params: TParams) => {
+      const token = requestGuard.start();
+      setStatus("testing");
+      setMessage("");
+      try {
+        const result = await options.runTest(params);
+        if (requestGuard.isStale(token)) return;
+        if (result.success) {
+          setStatus("success");
+          setMessage(options.getSuccessMessage(result, params));
+        } else {
+          setStatus("error");
+          setMessage(options.getFailureMessage(result, params));
+        }
+      } catch (error) {
+        if (requestGuard.isStale(token)) return;
         setStatus("error");
-        setMessage(options.getFailureMessage(result, params));
+        setMessage(options.getExceptionMessage(error, params));
       }
-    } catch (error) {
-      if (requestGuard.isStale(token)) return;
-      setStatus("error");
-      setMessage(options.getExceptionMessage(error, params));
-    }
-  }, [options, requestGuard]);
+    },
+    [options, requestGuard],
+  );
 
   return { status, message, reset, run };
 }
@@ -113,11 +112,12 @@ export function useEmbeddingConnectionTest(
   const { t } = useTranslation();
   return useConnectionTestState<EmbeddingConnectionFields, EmbeddingConnectionResponse>({
     ...options,
-    runTest: (params) => testEmbeddingConnection({
-      api_base: params.apiBase,
-      api_key: params.apiKey,
-      model: params.model,
-    }),
+    runTest: (params) =>
+      testEmbeddingConnection({
+        api_base: params.apiBase,
+        api_key: params.apiKey,
+        model: params.model,
+      }),
     // 与 LLM 侧同口径：明文 HTTP 远端 → 成功文案追加告警（B2 对抗审：embedding 通路补齐）
     getSuccessMessage: (result, params) => {
       const base = options.getSuccessMessage(result, params);

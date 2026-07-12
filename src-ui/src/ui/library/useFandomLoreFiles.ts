@@ -2,17 +2,12 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, useState } from 'react';
-import {
-  getFandomDisplayInfo,
-  listFandomFiles,
-  type FandomFileEntry,
-  type TrashEntry,
-} from '../../api/engine-client';
-import { useActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
-import { useFeedback } from '../../hooks/useFeedback';
-import { useTranslation } from '../../i18n/useAppTranslation';
-import { fandomDirNameOf, type FandomLoreCategory } from './lore-utils';
+import { useCallback, useEffect, useState } from "react";
+import { getFandomDisplayInfo, listFandomFiles, type FandomFileEntry, type TrashEntry } from "../../api/engine-client";
+import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
+import { useFeedback } from "../../hooks/useFeedback";
+import { useTranslation } from "../../i18n/useAppTranslation";
+import { fandomDirNameOf, type FandomLoreCategory } from "./lore-utils";
 
 export type FandomFileLists = {
   characters: FandomFileEntry[];
@@ -20,13 +15,13 @@ export type FandomFileLists = {
 };
 
 function getRestoredFandomFile(entry: TrashEntry): { category: FandomLoreCategory; file: FandomFileEntry } | null {
-  const [category, filename] = entry.original_path.split('/', 2);
+  const [category, filename] = entry.original_path.split("/", 2);
   if (!filename) return null;
-  if (category !== 'core_characters' && category !== 'core_worldbuilding') return null;
+  if (category !== "core_characters" && category !== "core_worldbuilding") return null;
   return {
     category,
     file: {
-      name: entry.entity_name || filename.replace(/\.md$/, ''),
+      name: entry.entity_name || filename.replace(/\.md$/, ""),
       filename,
     },
   };
@@ -41,10 +36,10 @@ function getRestoredFandomFile(entry: TrashEntry): { category: FandomLoreCategor
 export function useFandomLoreFiles(fandomPath: string | undefined) {
   const { t } = useTranslation();
   const { showError } = useFeedback();
-  const contextKey = fandomPath ?? '';
+  const contextKey = fandomPath ?? "";
   const guard = useActiveRequestGuard(contextKey);
   const fandomDirName = fandomDirNameOf(fandomPath);
-  const fallbackFandomName = fandomDirName || t('common.unknownFandom');
+  const fallbackFandomName = fandomDirName || t("common.unknownFandom");
 
   const [characterFiles, setCharacterFiles] = useState<FandomFileEntry[]>([]);
   const [worldbuildingFiles, setWorldbuildingFiles] = useState<FandomFileEntry[]>([]);
@@ -77,7 +72,7 @@ export function useFandomLoreFiles(fandomPath: string | undefined) {
       return data;
     } catch (e) {
       if (guard.isStale(token)) return null;
-      showError(e, t('error_messages.unknown'));
+      showError(e, t("error_messages.unknown"));
       return null;
     } finally {
       if (!guard.isStale(token)) {
@@ -95,18 +90,24 @@ export function useFandomLoreFiles(fandomPath: string | undefined) {
    * 内部先作废在途 loadFiles —— 否则旧全量响应回来会整表覆盖、抹掉本次乐观追加
    * （2026-07-10 合并审阅：原来靠调用方「记得先 invalidate」的口头不变量，已内聚）。
    */
-  const appendFile = useCallback((category: FandomLoreCategory, file: FandomFileEntry) => {
-    guard.start();
-    if (category === 'core_characters') setCharacterFiles((prev) => [...prev, file]);
-    else setWorldbuildingFiles((prev) => [...prev, file]);
-  }, [guard]);
+  const appendFile = useCallback(
+    (category: FandomLoreCategory, file: FandomFileEntry) => {
+      guard.start();
+      if (category === "core_characters") setCharacterFiles((prev) => [...prev, file]);
+      else setWorldbuildingFiles((prev) => [...prev, file]);
+    },
+    [guard],
+  );
 
   /** 删除成功后从对应分类移除（同 appendFile：内部先作废在途 loadFiles）。 */
-  const removeFile = useCallback((category: FandomLoreCategory, filename: string) => {
-    guard.start();
-    if (category === 'core_characters') setCharacterFiles((prev) => prev.filter((f) => f.filename !== filename));
-    else setWorldbuildingFiles((prev) => prev.filter((f) => f.filename !== filename));
-  }, [guard]);
+  const removeFile = useCallback(
+    (category: FandomLoreCategory, filename: string) => {
+      guard.start();
+      if (category === "core_characters") setCharacterFiles((prev) => prev.filter((f) => f.filename !== filename));
+      else setWorldbuildingFiles((prev) => prev.filter((f) => f.filename !== filename));
+    },
+    [guard],
+  );
 
   /** 新建前重名校验拉到的最新列表整体回填 */
   const applyFileLists = useCallback((data: FandomFileLists) => {
@@ -120,20 +121,23 @@ export function useFandomLoreFiles(fandomPath: string | undefined) {
   }, []);
 
   /** 垃圾箱恢复回调：恢复的文件插回列表并排序。闭包 contextKey 防切 fandom 后旧回调误写 */
-  const applyTrashRestore = useCallback((entry: TrashEntry) => {
-    if (guard.isKeyStale(contextKey)) return;
+  const applyTrashRestore = useCallback(
+    (entry: TrashEntry) => {
+      if (guard.isKeyStale(contextKey)) return;
 
-    const restored = getRestoredFandomFile(entry);
-    if (!restored) return;
+      const restored = getRestoredFandomFile(entry);
+      if (!restored) return;
 
-    const applyRestore = (prev: FandomFileEntry[]) => {
-      if (prev.some((file) => file.filename === restored.file.filename)) return prev;
-      return [...prev, restored.file].sort((left, right) => left.name.localeCompare(right.name));
-    };
+      const applyRestore = (prev: FandomFileEntry[]) => {
+        if (prev.some((file) => file.filename === restored.file.filename)) return prev;
+        return [...prev, restored.file].sort((left, right) => left.name.localeCompare(right.name));
+      };
 
-    if (restored.category === 'core_characters') setCharacterFiles(applyRestore);
-    else setWorldbuildingFiles(applyRestore);
-  }, [contextKey, guard]);
+      if (restored.category === "core_characters") setCharacterFiles(applyRestore);
+      else setWorldbuildingFiles(applyRestore);
+    },
+    [contextKey, guard],
+  );
 
   return {
     fandomName,

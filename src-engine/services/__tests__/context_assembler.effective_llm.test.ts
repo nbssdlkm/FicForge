@@ -33,12 +33,31 @@ describe("assemble_context — effective_llm（审计 H4）", () => {
     const state = createState({ au_id: "au_h4a", current_chapter: 1 });
 
     const withEffective = await assemble_context(
-      bareProject("au_h4a"), state, "继续写", [], repo, "au_h4a",
-      null, null, null, "zh", [], EFFECTIVE_128K,
+      bareProject("au_h4a"),
+      state,
+      "继续写",
+      [],
+      repo,
+      "au_h4a",
+      null,
+      null,
+      null,
+      "zh",
+      [],
+      EFFECTIVE_128K,
     );
     const withoutEffective = await assemble_context(
-      bareProject("au_h4a"), state, "继续写", [], repo, "au_h4a",
-      null, null, null, "zh", [],
+      bareProject("au_h4a"),
+      state,
+      "继续写",
+      [],
+      repo,
+      "au_h4a",
+      null,
+      null,
+      null,
+      "zh",
+      [],
     );
 
     expect(withEffective.budget_report.context_window).toBe(131_072);
@@ -50,20 +69,27 @@ describe("assemble_context — effective_llm（审计 H4）", () => {
     const adapter = new MockAdapter();
     const repo = new FileChapterRepository(adapter);
     const project = createProject({
-      project_id: "p", au_id: "au_h4b",
+      project_id: "p",
+      au_id: "au_h4b",
       llm: createLLMConfig({ mode: "api", model: "m-proj", context_window: 64_000 }),
     });
     const state = createState({ au_id: "au_h4b", current_chapter: 1 });
 
     const viaEffective = await assemble_context(
-      project, state, "继续写", [], repo, "au_h4b",
-      null, null, null, "zh", [],
+      project,
+      state,
+      "继续写",
+      [],
+      repo,
+      "au_h4b",
+      null,
+      null,
+      null,
+      "zh",
+      [],
       { mode: "api", model: "m-proj", context_window: 64_000 },
     );
-    const legacy = await assemble_context(
-      project, state, "继续写", [], repo, "au_h4b",
-      null, null, null, "zh", [],
-    );
+    const legacy = await assemble_context(project, state, "继续写", [], repo, "au_h4b", null, null, null, "zh", []);
 
     expect(viaEffective.budget_report.context_window).toBe(legacy.budget_report.context_window);
     expect(viaEffective.max_tokens).toBe(legacy.max_tokens);
@@ -79,13 +105,24 @@ describe("assemble_chat_context — effective_llm（审计 H4）", () => {
     const state = createState({ au_id: "au_h4c", current_chapter: 1 });
 
     const withEffective = await assemble_chat_context({
-      project: bareProject("au_h4c"), state, user_input: "写下一章",
-      facts: [], threads: [], chapter_repo: repo, au_id: "au_h4c",
-      language: "zh", effective_llm: EFFECTIVE_128K,
+      project: bareProject("au_h4c"),
+      state,
+      user_input: "写下一章",
+      facts: [],
+      threads: [],
+      chapter_repo: repo,
+      au_id: "au_h4c",
+      language: "zh",
+      effective_llm: EFFECTIVE_128K,
     });
     const withoutEffective = await assemble_chat_context({
-      project: bareProject("au_h4c"), state, user_input: "写下一章",
-      facts: [], threads: [], chapter_repo: repo, au_id: "au_h4c",
+      project: bareProject("au_h4c"),
+      state,
+      user_input: "写下一章",
+      facts: [],
+      threads: [],
+      chapter_repo: repo,
+      au_id: "au_h4c",
       language: "zh",
     });
 
@@ -104,12 +141,21 @@ describe("estimate_simple_context_tokens — 与真实组装同源（审计 H4�
     });
 
     const withSettings = await estimate_simple_context_tokens({
-      au_id: "au_h4d", project: bareProject("au_h4d"), state,
-      chapter_repo: repo, adapter, language: "zh", settings,
+      au_id: "au_h4d",
+      project: bareProject("au_h4d"),
+      state,
+      chapter_repo: repo,
+      adapter,
+      language: "zh",
+      settings,
     });
     const withoutSettings = await estimate_simple_context_tokens({
-      au_id: "au_h4d", project: bareProject("au_h4d"), state,
-      chapter_repo: repo, adapter, language: "zh",
+      au_id: "au_h4d",
+      project: bareProject("au_h4d"),
+      state,
+      chapter_repo: repo,
+      adapter,
+      language: "zh",
     });
 
     expect(withSettings.contextWindow).toBe(131_072);
@@ -125,8 +171,13 @@ describe("estimate_simple_context_tokens — 与真实组装同源（审计 H4�
     });
 
     const r = await estimate_simple_context_tokens({
-      au_id: "au_h4e", project: bareProject("au_h4e"), state,
-      chapter_repo: repo, adapter, language: "zh", settings,
+      au_id: "au_h4e",
+      project: bareProject("au_h4e"),
+      state,
+      chapter_repo: repo,
+      adapter,
+      language: "zh",
+      settings,
       session_llm: { mode: "api", model: "m-sess", context_window: "200000" },
     });
 

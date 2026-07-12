@@ -2,12 +2,12 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { Button } from '../shared/Button';
-import { Input } from '../shared/Input';
-import { Modal } from '../shared/Modal';
-import { ConfirmDialog } from '../shared/ConfirmDialog';
-import { useTranslation } from '../../i18n/useAppTranslation';
-import type { FandomLoreCategory } from './lore-utils';
+import { Button } from "../shared/Button";
+import { Input } from "../shared/Input";
+import { Modal } from "../shared/Modal";
+import { ConfirmDialog } from "../shared/ConfirmDialog";
+import { useTranslation } from "../../i18n/useAppTranslation";
+import type { FandomLoreCategory } from "./lore-utils";
 
 export type FandomLoreModalsProps = {
   // Create modal
@@ -53,18 +53,34 @@ export function FandomLoreModals({
 
   return (
     <>
-      <Modal isOpen={createModalOpen} onClose={closeCreateModal} title={createModalCategory === 'core_characters' ? t('fandomLore.createCharacterTitle') : t('fandomLore.createWorldbuildingTitle')}>
+      <Modal
+        isOpen={createModalOpen}
+        onClose={closeCreateModal}
+        title={
+          createModalCategory === "core_characters"
+            ? t("fandomLore.createCharacterTitle")
+            : t("fandomLore.createWorldbuildingTitle")
+        }
+      >
         <div className="flex flex-col gap-4">
           <Input
-            placeholder={createModalCategory === 'core_characters' ? t('fandomLore.characterPlaceholder') : t('fandomLore.worldbuildingPlaceholder')}
+            placeholder={
+              createModalCategory === "core_characters"
+                ? t("fandomLore.characterPlaceholder")
+                : t("fandomLore.worldbuildingPlaceholder")
+            }
             value={createName}
-            onChange={e => setCreateName(e.target.value)}
+            onChange={(e) => setCreateName(e.target.value)}
             className="h-10"
             autoFocus
           />
           <div className="flex justify-end gap-2">
-            <Button tone="neutral" fill="plain" onClick={closeCreateModal}>{t("common.actions.cancel")}</Button>
-            <Button tone="accent" fill="solid" onClick={handleCreateLore} disabled={!createName.trim() || editorBusy}>{t("common.actions.create")}</Button>
+            <Button tone="neutral" fill="plain" onClick={closeCreateModal}>
+              {t("common.actions.cancel")}
+            </Button>
+            <Button tone="accent" fill="solid" onClick={handleCreateLore} disabled={!createName.trim() || editorBusy}>
+              {t("common.actions.create")}
+            </Button>
           </div>
         </div>
       </Modal>
@@ -74,9 +90,9 @@ export function FandomLoreModals({
         onClose={closeDeleteConfirm}
         onConfirm={handleDeleteLore}
         title={t("fandomLore.deleteTitle")}
-        message={t("fandomLore.deleteMessage", { name: selectedEntry?.filename || selectedFile || '' })}
+        message={t("fandomLore.deleteMessage", { name: selectedEntry?.filename || selectedFile || "" })}
         destructive
-        confirmLabel={t('common.actions.confirmDelete')}
+        confirmLabel={t("common.actions.confirmDelete")}
         loading={editorBusy}
       />
 
@@ -84,9 +100,9 @@ export function FandomLoreModals({
         isOpen={discardChangesOpen}
         onClose={handleCancelDiscardChanges}
         onConfirm={handleConfirmDiscardChanges}
-        title={t('fandomLore.discardChangesTitle')}
-        message={t('fandomLore.discardChangesMessage')}
-        confirmLabel={t('fandomLore.discardChangesConfirm')}
+        title={t("fandomLore.discardChangesTitle")}
+        message={t("fandomLore.discardChangesMessage")}
+        confirmLabel={t("fandomLore.discardChangesConfirm")}
       />
     </>
   );

@@ -5,13 +5,13 @@
 
 export interface BudgetReport {
   context_window: number;
-  system_tokens: number;       // P0 + 规则
-  p1_tokens: number;           // 当前指令
-  p2_tokens: number;           // 最近章节
-  p3_tokens: number;           // 事实表
-  thread_tokens: number;       // 剧情线摘要（M8-B；空线时恒 0）
-  p4_tokens: number;           // RAG
-  p5_tokens: number;           // 核心设定
+  system_tokens: number; // P0 + 规则
+  p1_tokens: number; // 当前指令
+  p2_tokens: number; // 最近章节
+  p3_tokens: number; // 事实表
+  thread_tokens: number; // 剧情线摘要（M8-B；空线时恒 0）
+  p4_tokens: number; // RAG
+  p5_tokens: number; // 核心设定
   total_input_tokens: number;
   max_output_tokens: number;
   budget_remaining: number;

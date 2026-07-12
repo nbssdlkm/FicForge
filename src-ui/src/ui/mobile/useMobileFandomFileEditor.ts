@@ -80,7 +80,12 @@ export function useMobileFandomFileEditor(fandomPath: string, fandomDirName: str
     const token = writeGuard.start();
     setSaving(true);
     try {
-      await saveLore({ fandom_path: fandomPath, category: selectedCategory, filename: selectedFile, content: editorContent });
+      await saveLore({
+        fandom_path: fandomPath,
+        category: selectedCategory,
+        filename: selectedFile,
+        content: editorContent,
+      });
       if (writeGuard.isStale(token)) return; // 已切圈：写盘目标（旧圈）正确，但不许污染新圈状态
       setSavedContent(editorContent);
     } catch (error) {
@@ -110,7 +115,12 @@ export function useMobileFandomFileEditor(fandomPath: string, fandomDirName: str
         return null;
       }
       // 模板与桌面同源（原先移动端硬编码且给 worldbuilding 塞多余 name frontmatter）
-      await saveLore({ fandom_path: fandomPath, category: cat, filename, content: buildDefaultFandomLoreContent(displayName) });
+      await saveLore({
+        fandom_path: fandomPath,
+        category: cat,
+        filename,
+        content: buildDefaultFandomLoreContent(displayName),
+      });
       if (writeGuard.isStale(token)) return null;
       return filename;
     } catch (error) {

@@ -34,6 +34,9 @@ describe("style conventions", () => {
         }
       });
     }
-    expect(offenders, `发现 rule/N 修饰符（v4 下会二次叠加透明度，请改用裸 rule / rule-soft）:\n${offenders.join("\n")}`).toEqual([]);
+    expect(
+      offenders,
+      `发现 rule/N 修饰符（v4 下会二次叠加透明度，请改用裸 rule / rule-soft）:\n${offenders.join("\n")}`,
+    ).toEqual([]);
   });
 });

@@ -35,9 +35,7 @@ vi.mock("../../../hooks/useFeedback", () => ({
 }));
 
 vi.mock("../../../api/engine-client", async () => {
-  const actual = await vi.importActual<typeof import("../../../api/engine-client")>(
-    "../../../api/engine-client",
-  );
+  const actual = await vi.importActual<typeof import("../../../api/engine-client")>("../../../api/engine-client");
   return {
     ...actual,
     dispatchSimpleChat: vi.fn(),
@@ -62,11 +60,14 @@ const AU_B = "/fandoms/test/aus/au_b";
 function setupBaseMocks() {
   // 章节进度按 AU 区分：A 在第 5 章（已确认 4 章）、B 在第 2 章（已确认 1 章），
   // 让「切 AU 后 header 重拉」有判别性数字可断言。
-  mocked.getState.mockImplementation(async (auPath: string) => ({
-    au_id: auPath,
-    current_chapter: auPath === AU_A ? 5 : 2,
-    chapter_titles: {},
-  }) as unknown as Awaited<ReturnType<typeof engineClient.getState>>);
+  mocked.getState.mockImplementation(
+    async (auPath: string) =>
+      ({
+        au_id: auPath,
+        current_chapter: auPath === AU_A ? 5 : 2,
+        chapter_titles: {},
+      }) as unknown as Awaited<ReturnType<typeof engineClient.getState>>,
+  );
   mocked.getWriterProjectContext.mockResolvedValue({
     llm: { mode: "", model: "", has_api_key: false },
   } as unknown as Awaited<ReturnType<typeof engineClient.getWriterProjectContext>>);
@@ -89,9 +90,7 @@ function setupBaseMocks() {
 /** 预置一条历史消息（清空按钮在空对话时 disabled，chrome 用例需要它可点）。 */
 function mockChatWithOneMessage() {
   mocked.getSimpleChat.mockResolvedValue({
-    messages: [
-      { id: "m1", kind: "user", timestamp: "2026-01-01T00:00:00Z", content: "历史消息" },
-    ],
+    messages: [{ id: "m1", kind: "user", timestamp: "2026-01-01T00:00:00Z", content: "历史消息" }],
   } as unknown as Awaited<ReturnType<typeof engineClient.getSimpleChat>>);
 }
 
@@ -134,14 +133,18 @@ describe("SimpleChatPanel — AU 切换各 hook 状态清空", () => {
     // 永不产出事件的流，thinking 占位保持挂起
     mocked.dispatchSimpleChat.mockImplementation(
       vi.fn(async function* (): AsyncGenerator<SimpleChatEvent> {
-        await new Promise(() => { /* 永不 resolve */ });
+        await new Promise(() => {
+          /* 永不 resolve */
+        });
       }) as unknown as typeof engineClient.dispatchSimpleChat,
     );
 
     const { rerender } = renderPanel(AU_A);
     const input = await screen.findByPlaceholderText(/.*/);
     // 排干配置加载 microtask，让 handleSend 的就绪 gate 读到已落地的 settingsInfo
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
     await act(async () => {
       await user.type(input, "写下一章");
       await user.keyboard("{Enter}");
@@ -180,15 +183,11 @@ describe("SimpleChatPanel — AU 切换各 hook 状态清空", () => {
     await act(async () => {
       await user.click(screen.getByLabelText("清空对话"));
     });
-    expect(
-      await screen.findByText("清空当前 AU 的所有对话历史？此操作不可撤销。"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("清空当前 AU 的所有对话历史？此操作不可撤销。")).toBeInTheDocument();
 
     switchAu(rerender, AU_B);
     await waitFor(() => {
-      expect(
-        screen.queryByText("清空当前 AU 的所有对话历史？此操作不可撤销。"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText("清空当前 AU 的所有对话历史？此操作不可撤销。")).not.toBeInTheDocument();
     });
   });
 

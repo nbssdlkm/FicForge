@@ -16,8 +16,7 @@ import {
 } from "../react_extraction_tools.js";
 import { repairAndValidateToolArgs } from "../tool_args_repair.js";
 
-const validate = (tool: string, raw: string) =>
-  repairAndValidateToolArgs(tool, raw, EXTRACTION_TOOL_SCHEMAS[tool], {});
+const validate = (tool: string, raw: string) => repairAndValidateToolArgs(tool, raw, EXTRACTION_TOOL_SCHEMAS[tool], {});
 
 describe("EXTRACTION_TOOLS 派生（z.toJSONSchema 单一真相源）", () => {
   it("四个工具都有 ToolDefinition，名字对得上 schema 表", () => {
@@ -70,13 +69,28 @@ describe("propose_facts schema", () => {
     expect(r.success).toBe(true);
   });
   it("接受带 evidence + 富化字段的完整事实", () => {
-    const r = validate(REACT_TOOL_PROPOSE, JSON.stringify({
-      facts: [{ content_clean: "林晚月灵力枯竭", characters: ["林晚月"], evidence: "她灵力枯竭", time_kind: "flashback", known_to: "reader_only", fact_type: "plot_event" }],
-    }));
+    const r = validate(
+      REACT_TOOL_PROPOSE,
+      JSON.stringify({
+        facts: [
+          {
+            content_clean: "林晚月灵力枯竭",
+            characters: ["林晚月"],
+            evidence: "她灵力枯竭",
+            time_kind: "flashback",
+            known_to: "reader_only",
+            fact_type: "plot_event",
+          },
+        ],
+      }),
+    );
     expect(r.success).toBe(true);
   });
   it("repair: characters 传成 JSON 字符串数组也能修复", () => {
-    const r = validate(REACT_TOOL_PROPOSE, JSON.stringify({ facts: [{ content_clean: "事件", characters: '["a","b"]' }] }));
+    const r = validate(
+      REACT_TOOL_PROPOSE,
+      JSON.stringify({ facts: [{ content_clean: "事件", characters: '["a","b"]' }] }),
+    );
     expect(r.success).toBe(true);
   });
 });
@@ -86,7 +100,12 @@ describe("annotate_fact schema", () => {
     expect(validate(REACT_TOOL_ANNOTATE, JSON.stringify({ caused_by_fact_ids: ["f_1_aaaa"] })).success).toBe(false);
   });
   it("接受 fact_index + 可选 caused_by/thread_ids", () => {
-    expect(validate(REACT_TOOL_ANNOTATE, JSON.stringify({ fact_index: 0, caused_by_fact_ids: ["f_1_aaaa"], thread_ids: ["t1"] })).success).toBe(true);
+    expect(
+      validate(
+        REACT_TOOL_ANNOTATE,
+        JSON.stringify({ fact_index: 0, caused_by_fact_ids: ["f_1_aaaa"], thread_ids: ["t1"] }),
+      ).success,
+    ).toBe(true);
     expect(validate(REACT_TOOL_ANNOTATE, JSON.stringify({ fact_index: 2 })).success).toBe(true);
   });
 });

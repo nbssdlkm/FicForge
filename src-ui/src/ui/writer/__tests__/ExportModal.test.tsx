@@ -21,7 +21,7 @@ vi.mock("../../../api/engine-client", () => ({
 
 vi.mock("../../../utils/platform", () => ({
   isTauri: () => false,
-  isCapacitor: () => false,    // 浏览器下载分支
+  isCapacitor: () => false, // 浏览器下载分支
 }));
 
 vi.mock("../../../hooks/useFeedback", () => ({
@@ -40,7 +40,10 @@ describe("ExportModal dispatchSave parity (review fix #12)", () => {
   });
 
   it("full-backup button calls exportAuBundle and closes via the shared save path", async () => {
-    exportAuBundle.mockResolvedValue({ blob: new Blob(["{}"], { type: "application/json" }), filename: "x.ffbundle.json" });
+    exportAuBundle.mockResolvedValue({
+      blob: new Blob(["{}"], { type: "application/json" }),
+      filename: "x.ffbundle.json",
+    });
     const onClose = vi.fn();
     render(<ExportModal isOpen onClose={onClose} auPath="/data/aus/a" />);
 

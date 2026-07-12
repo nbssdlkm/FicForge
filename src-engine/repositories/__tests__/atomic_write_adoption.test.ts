@@ -59,7 +59,9 @@ describe("原子写收编 round-trip（每类核心数据文件）", () => {
     const adapter = new MockAdapter();
     const repo = new FileStateRepository(adapter);
     await repo.save(createState({ au_id: "au1", current_chapter: 3 }));
-    await repo.update("au1", (s) => { s.current_chapter = 4; });
+    await repo.update("au1", (s) => {
+      s.current_chapter = 4;
+    });
 
     const loaded = await repo.get("au1");
     expect(loaded.current_chapter).toBe(4);

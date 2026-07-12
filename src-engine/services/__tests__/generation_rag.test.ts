@@ -19,7 +19,13 @@ import type { VectorRepository } from "../../repositories/interfaces/vector.js";
 function createMockProvider(tokens: string[] = ["你好", "世界"]): LLMProvider {
   return {
     async generate(): Promise<LLMResponse> {
-      return { content: tokens.join(""), model: "mock", input_tokens: 10, output_tokens: tokens.length, finish_reason: "stop" };
+      return {
+        content: tokens.join(""),
+        model: "mock",
+        input_tokens: 10,
+        output_tokens: tokens.length,
+        finish_reason: "stop",
+      };
     },
     async *generateStream(): AsyncIterable<LLMChunk> {
       for (let i = 0; i < tokens.length; i++) {
@@ -43,7 +49,9 @@ function makeVectorRepo(searchSpy: VectorRepository["search"]): VectorRepository
     async delete_by_chapter() {},
     async delete_by_source() {},
     async rebuild_index() {},
-    async get_index_status() { return IndexStatus.READY; },
+    async get_index_status() {
+      return IndexStatus.READY;
+    },
   };
 }
 
@@ -61,10 +69,7 @@ function makeEmbeddingProvider(): EmbeddingProvider {
   };
 }
 
-function makeParams(
-  adapter: MockAdapter,
-  overrides: Partial<Parameters<typeof generate_chapter>[0]> = {},
-) {
+function makeParams(adapter: MockAdapter, overrides: Partial<Parameters<typeof generate_chapter>[0]> = {}) {
   return {
     au_id: "au_test",
     chapter_num: 1,
@@ -72,7 +77,8 @@ function makeParams(
     session_llm: null,
     session_params: null,
     project: createProject({
-      project_id: "p1", au_id: "au_test",
+      project_id: "p1",
+      au_id: "au_test",
       llm: createLLMConfig({ mode: LLMMode.API, model: "test-model", api_base: "http://localhost", api_key: "key" }),
     }),
     state: createState({ au_id: "au_test" }),
@@ -104,27 +110,33 @@ describe("generate_chapter — RAG 检索(写文路径恒开)", () => {
   it("repo+embedding 就位 + index READY 时执行 RAG（vector_repo.search 被调用,rag_chunks_retrieved=1）", async () => {
     const searchSpy = vi.fn<VectorRepository["search"]>(async (_auId, _queryEmbedding, options) => {
       if (options.collection !== "chapters") return [];
-      return [{
-        content: "上一章里 Alice 看见了燃烧的钟楼。",
-        chapter_num: 1,
-        score: 0.98,
-        metadata: {},
-      }];
+      return [
+        {
+          content: "上一章里 Alice 看见了燃烧的钟楼。",
+          chapter_num: 1,
+          score: 0.98,
+          metadata: {},
+        },
+      ];
     });
 
-    const events = await collectEvents(generate_chapter(makeParams(adapter, {
-      au_id: "au_full_rag",
-      // 融合后无写作模式：RAG 恒开，与任何模式无关（disableRAG gate 已删）。
-      settings: createSettings({ app: createAppConfig() }),
-      state: createState({
-        au_id: "au_full_rag",
-        current_chapter: 2,
-        index_status: IndexStatus.READY,
-      }),
-      vector_repo: makeVectorRepo(searchSpy),
-      embedding_provider: makeEmbeddingProvider(),
-      _provider_override: createMockProvider(["继续", "写"]),
-    })));
+    const events = await collectEvents(
+      generate_chapter(
+        makeParams(adapter, {
+          au_id: "au_full_rag",
+          // 融合后无写作模式：RAG 恒开，与任何模式无关（disableRAG gate 已删）。
+          settings: createSettings({ app: createAppConfig() }),
+          state: createState({
+            au_id: "au_full_rag",
+            current_chapter: 2,
+            index_status: IndexStatus.READY,
+          }),
+          vector_repo: makeVectorRepo(searchSpy),
+          embedding_provider: makeEmbeddingProvider(),
+          _provider_override: createMockProvider(["继续", "写"]),
+        }),
+      ),
+    );
 
     // 核心断言：rag_text===null + repo/embedding 就位 → 内部检索触发,vector_repo.search 被调用
     //（disableRAG gate 已删,触发条件与 writing_mode 无关）。
@@ -140,15 +152,19 @@ describe("generate_chapter — RAG 检索(写文路径恒开)", () => {
       { content: "不该被检索到的内部 chunk", chapter_num: 1, score: 0.9, metadata: {} },
     ]);
 
-    const events = await collectEvents(generate_chapter(makeParams(adapter, {
-      au_id: "au_external_rag",
-      settings: createSettings({ app: createAppConfig() }),
-      state: createState({ au_id: "au_external_rag", current_chapter: 2, index_status: IndexStatus.READY }),
-      vector_repo: makeVectorRepo(searchSpy),
-      embedding_provider: makeEmbeddingProvider(),
-      rag_text: "外部已检索并注入的上下文",
-      _provider_override: createMockProvider(["继续", "写"]),
-    })));
+    const events = await collectEvents(
+      generate_chapter(
+        makeParams(adapter, {
+          au_id: "au_external_rag",
+          settings: createSettings({ app: createAppConfig() }),
+          state: createState({ au_id: "au_external_rag", current_chapter: 2, index_status: IndexStatus.READY }),
+          vector_repo: makeVectorRepo(searchSpy),
+          embedding_provider: makeEmbeddingProvider(),
+          rag_text: "外部已检索并注入的上下文",
+          _provider_override: createMockProvider(["继续", "写"]),
+        }),
+      ),
+    );
 
     // caller gate `rag_text === null`:外部已传 rag_text → 内部 retrieve_rag_for_context 不触发。
     expect(searchSpy).not.toHaveBeenCalled();

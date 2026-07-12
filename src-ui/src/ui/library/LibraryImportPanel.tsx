@@ -3,14 +3,14 @@
 // See LICENSE file in the project root for full license text.
 
 import { Spinner } from "../shared/Spinner";
-import { Button } from '../shared/Button';
-import { Input } from '../shared/Input';
-import { Modal } from '../shared/Modal';
-import { ImportFlow } from '../import/ImportFlow';
-import { useMediaQuery } from '../../hooks/useMediaQuery';
-import { useTranslation } from '../../i18n/useAppTranslation';
-import { type FandomInfo } from '../../api/engine-client';
-import { type ImportSelectedFandom } from './useLibraryImportFlow';
+import { Button } from "../shared/Button";
+import { Input } from "../shared/Input";
+import { Modal } from "../shared/Modal";
+import { ImportFlow } from "../import/ImportFlow";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { useTranslation } from "../../i18n/useAppTranslation";
+import { type FandomInfo } from "../../api/engine-client";
+import { type ImportSelectedFandom } from "./useLibraryImportFlow";
 
 type LibraryImportPanelProps = {
   dataDir: string;
@@ -46,23 +46,23 @@ export function LibraryImportPanel({
   onComplete,
 }: LibraryImportPanelProps) {
   const { t } = useTranslation();
-  const isMobile = useMediaQuery('(max-width: 768px)');
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   return (
     <>
       <Modal
         isOpen={isOpen && !importAuPath}
         onClose={importCreatingAu ? () => {} : onClose}
-        title={t('import.selectAu')}
+        title={t("import.selectAu")}
       >
         <div className="space-y-4">
-          <p className="text-sm text-text/70">{t('import.selectAuDesc')}</p>
+          <p className="text-sm text-text/70">{t("import.selectAuDesc")}</p>
           <div className="max-h-[50vh] overflow-y-auto space-y-4">
             {fandoms.length === 0 ? (
               <div className="text-center py-6 space-y-3">
-                <p className="text-sm text-text/50">{t('import.noFandom')}</p>
+                <p className="text-sm text-text/50">{t("import.noFandom")}</p>
                 <Button tone="accent" fill="solid" size="sm" onClick={onRequestCreateFandom}>
-                  {t('import.createFandomFirst')}
+                  {t("import.createFandomFirst")}
                 </Button>
               </div>
             ) : (
@@ -85,7 +85,7 @@ export function LibraryImportPanel({
                     <div className="flex gap-2 px-1">
                       <Input
                         className="flex-1 h-11 text-base md:h-8 md:text-sm"
-                        placeholder={t('library.createAuModal.namePlaceholder')}
+                        placeholder={t("library.createAuModal.namePlaceholder")}
                         value={importNewAuName}
                         onChange={(event) => onImportNewAuNameChange(event.target.value)}
                         disabled={importCreatingAu}
@@ -98,7 +98,7 @@ export function LibraryImportPanel({
                         disabled={!importNewAuName.trim() || importCreatingAu}
                         onClick={() => onCreateImportAu(fandom.dir_name)}
                       >
-                        {importCreatingAu ? <Spinner size="md" /> : t('common.actions.create')}
+                        {importCreatingAu ? <Spinner size="md" /> : t("common.actions.create")}
                       </Button>
                     </div>
                   ) : (
@@ -106,27 +106,22 @@ export function LibraryImportPanel({
                       className="min-h-[44px] w-full rounded-lg px-4 py-2 text-left text-sm text-accent transition-colors hover:bg-accent/5"
                       onClick={() => onSelectFandom({ name: fandom.name, dir: fandom.dir_name })}
                     >
-                      + {t('import.newAuInFandom')}
+                      + {t("import.newAuInFandom")}
                     </button>
                   )}
                 </div>
               ))
             )}
           </div>
-          <div className={`flex ${isMobile ? 'justify-stretch' : 'justify-end'}`}>
+          <div className={`flex ${isMobile ? "justify-stretch" : "justify-end"}`}>
             <Button tone="neutral" fill="plain" onClick={onClose} disabled={importCreatingAu}>
-              {t('common.actions.cancel')}
+              {t("common.actions.cancel")}
             </Button>
           </div>
         </div>
       </Modal>
 
-      <ImportFlow
-        isOpen={isOpen && !!importAuPath}
-        onClose={onClose}
-        auPath={importAuPath}
-        onComplete={onComplete}
-      />
+      <ImportFlow isOpen={isOpen && !!importAuPath} onClose={onClose} auPath={importAuPath} onComplete={onComplete} />
     </>
   );
 }

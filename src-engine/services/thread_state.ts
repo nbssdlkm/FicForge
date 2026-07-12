@@ -56,7 +56,7 @@ export function computeThreadStaleness(threads: Thread[], facts: Fact[]): Thread
 export function threadMemberFacts(thread: Thread, facts: Fact[]): Fact[] {
   return facts
     .filter((f) => (f.thread_ids ?? []).includes(thread.id) && !isColdFact(f))
-    .sort((a, b) => (a.chapter - b.chapter) || (a.created_at || "").localeCompare(b.created_at || ""));
+    .sort((a, b) => a.chapter - b.chapter || (a.created_at || "").localeCompare(b.created_at || ""));
 }
 
 /** regenerateThreadState 单章最多喂给 LLM 的成员事实数（控 token；取最近的）。 */
@@ -83,8 +83,7 @@ export async function regenerateThreadState(
     { role: "system" as const, content: P.THREAD_STATE_SYSTEM },
     {
       role: "user" as const,
-      content: P.THREAD_STATE_USER
-        .replace("{title}", thread.title)
+      content: P.THREAD_STATE_USER.replace("{title}", thread.title)
         .replace("{description}", thread.description || (language === "en" ? "(none)" : "（无）"))
         .replace("{facts}", factLines),
     },

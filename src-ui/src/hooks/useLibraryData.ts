@@ -2,16 +2,16 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState, useCallback } from 'react';
-import { listFandoms, type FandomInfo } from '../api/engine-client';
-import { useActiveRequestGuard } from './useActiveRequestGuard';
-import { useTranslation } from '../i18n/useAppTranslation';
-import { useFeedback } from './useFeedback';
+import { useState, useCallback } from "react";
+import { listFandoms, type FandomInfo } from "../api/engine-client";
+import { useActiveRequestGuard } from "./useActiveRequestGuard";
+import { useTranslation } from "../i18n/useAppTranslation";
+import { useFeedback } from "./useFeedback";
 
 export function useLibraryData() {
   const { t } = useTranslation();
   const { showError } = useFeedback();
-  const loadGuard = useActiveRequestGuard('library-fandoms');
+  const loadGuard = useActiveRequestGuard("library-fandoms");
 
   const [fandoms, setFandoms] = useState<FandomInfo[]>([]);
   const [loading, setLoading] = useState(true);

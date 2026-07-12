@@ -90,7 +90,12 @@ export { clear_tokenizer_cache, count_tokens, ensure_tokenizer } from "./tokeniz
 export type { TokenCount } from "./tokenizer/index.js";
 
 // Platform
-export type { OpenDialogOptions, PlatformAdapter, SaveDialogOptions, SecretStorageCapabilities } from "./platform/index.js";
+export type {
+  OpenDialogOptions,
+  PlatformAdapter,
+  SaveDialogOptions,
+  SecretStorageCapabilities,
+} from "./platform/index.js";
 export { CapacitorAdapter, SecretStoreReadError, TauriAdapter, WebAdapter } from "./platform/index.js";
 
 // Repository interfaces
@@ -257,9 +262,7 @@ export {
   TaskRunner,
   createFactsExtractionTask,
 } from "./tasks/index.js";
-export type {
-  TaskEvent,
-} from "./tasks/index.js";
+export type { TaskEvent } from "./tasks/index.js";
 
 // Ops projection (ops.jsonl audit-log projection: sort / rebuild / lamport clock)
 // ops 层零对外消费（D-0040 后仅审计日志投影，引擎内部使用）—— 不再进入公共 API。

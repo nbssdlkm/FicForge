@@ -61,10 +61,10 @@ describe("useFactsFilter · 筛选", () => {
 
   it("stale 伪筛选：只留超过 30 章未动的 active/unresolved", () => {
     const facts = [
-      makeFact("old-active", 5),                                  // 40-5=35 > 30 → 命中
-      makeFact("old-unresolved", 3, { status: "unresolved" }),    // 命中
-      makeFact("old-resolved", 2, { status: "resolved" }),        // 状态不符 → 排除
-      makeFact("recent-active", 15),                              // 40-15=25 ≤ 30 → 排除
+      makeFact("old-active", 5), // 40-5=35 > 30 → 命中
+      makeFact("old-unresolved", 3, { status: "unresolved" }), // 命中
+      makeFact("old-resolved", 2, { status: "resolved" }), // 状态不符 → 排除
+      makeFact("recent-active", 15), // 40-15=25 ≤ 30 → 排除
     ];
     const { result } = renderHook(() => useFactsFilter(facts, STATE_CH40));
 

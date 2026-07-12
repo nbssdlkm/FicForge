@@ -71,20 +71,34 @@ describe("FactCard 集成知情标注", () => {
 describe("FactCard 时间标签（M3 批三）", () => {
   it("卡片上有值才显示故事内时间小标签", () => {
     render(
-      <FactCard fact={{
-        id: "f_t", content_clean: "沈砚结盟", status: "active", weight: "medium",
-        chapter: 2, characters: [], story_time_tag: "Y1 冬末",
-      }} />,
+      <FactCard
+        fact={{
+          id: "f_t",
+          content_clean: "沈砚结盟",
+          status: "active",
+          weight: "medium",
+          chapter: 2,
+          characters: [],
+          story_time_tag: "Y1 冬末",
+        }}
+      />,
     );
     expect(screen.getByText("Y1 冬末")).toBeTruthy();
   });
 
   it("无值不占位", () => {
     render(
-      <FactCard fact={{
-        id: "f_e", content_clean: "无标签事实", status: "active", weight: "medium",
-        chapter: 2, characters: [], story_time_tag: "  ",
-      }} />,
+      <FactCard
+        fact={{
+          id: "f_e",
+          content_clean: "无标签事实",
+          status: "active",
+          weight: "medium",
+          chapter: 2,
+          characters: [],
+          story_time_tag: "  ",
+        }}
+      />,
     );
     expect(screen.queryByText(/Y1/)).toBeNull();
   });
@@ -99,7 +113,7 @@ describe("FactAnnotationChips 时间标签空白防御（对抗审 R2 LOW-3）",
       </>,
     );
     expect(container.textContent).toBe("");
-    expect(container.querySelector("span")).toBeNull();   // 连空 Tag 元素都不渲染
+    expect(container.querySelector("span")).toBeNull(); // 连空 Tag 元素都不渲染
   });
 
   it("前后空白的有值标签渲染 trim 后文本", () => {

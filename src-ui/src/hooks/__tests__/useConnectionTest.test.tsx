@@ -42,7 +42,10 @@ function makeFields(overrides: Partial<LlmConfigFields> = {}): LlmConfigFields {
 function deferred<T>() {
   let resolve!: (v: T) => void;
   let reject!: (e: unknown) => void;
-  const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
   return { promise, resolve, reject };
 }
 
@@ -68,12 +71,14 @@ describe("useLlmConnectionTest · 基本状态机", () => {
 
     await act(() => hook.result.current.run(makeFields({ chatPath: "/v1/gateway" })));
 
-    expect(testConnection).toHaveBeenCalledWith(expect.objectContaining({
-      mode: "api",
-      model: "deepseek-v4-flash",
-      api_key: "sk-test",
-      chat_path: "/v1/gateway",
-    }));
+    expect(testConnection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "api",
+        model: "deepseek-v4-flash",
+        api_key: "sk-test",
+        chat_path: "/v1/gateway",
+      }),
+    );
     expect(hook.result.current.status).toBe("success");
     expect(hook.result.current.message).toBe("成功文案");
     expect(options.getSuccessMessage).toHaveBeenCalled();
@@ -132,7 +137,9 @@ describe("useLlmConnectionTest · 中断与竞态", () => {
     const { hook } = setupLlm();
 
     let runPromise!: Promise<void>;
-    act(() => { runPromise = hook.result.current.run(makeFields()); });
+    act(() => {
+      runPromise = hook.result.current.run(makeFields());
+    });
     expect(hook.result.current.status).toBe("testing");
 
     act(() => hook.result.current.reset());
@@ -155,7 +162,9 @@ describe("useLlmConnectionTest · 中断与竞态", () => {
     const { hook } = setupLlm();
 
     let firstRun!: Promise<void>;
-    act(() => { firstRun = hook.result.current.run(makeFields()); });
+    act(() => {
+      firstRun = hook.result.current.run(makeFields());
+    });
     await act(() => hook.result.current.run(makeFields()));
     expect(hook.result.current.status).toBe("success");
 
@@ -173,7 +182,9 @@ describe("useLlmConnectionTest · 中断与竞态", () => {
     const { hook, options } = setupLlm();
 
     let runPromise!: Promise<void>;
-    act(() => { runPromise = hook.result.current.run(makeFields()); });
+    act(() => {
+      runPromise = hook.result.current.run(makeFields());
+    });
     act(() => hook.result.current.reset());
 
     await act(async () => {
@@ -225,7 +236,9 @@ describe("useEmbeddingConnectionTest", () => {
 describe("useLlmConnectionTest — 明文 HTTP 告警透出（盲审 2026-07-11 安全维）", () => {
   it("success + warning_code=plaintext_http：状态仍 success，文案追加告警句", async () => {
     vi.mocked(testConnection).mockResolvedValue({
-      success: true, model: "m", warning_code: "plaintext_http",
+      success: true,
+      model: "m",
+      warning_code: "plaintext_http",
     } as never);
     const { hook, options } = setupLlm();
     await act(() => hook.result.current.run(makeFields({ apiBase: "http://relay.example.com/v1" })));
@@ -248,7 +261,9 @@ describe("useLlmConnectionTest — 明文 HTTP 告警透出（盲审 2026-07-11 
 describe("useEmbeddingConnectionTest — 明文 HTTP 告警透出（与 LLM 侧同口径）", () => {
   it("success + warning_code：成功文案追加告警句", async () => {
     vi.mocked(testEmbeddingConnection).mockResolvedValue({
-      success: true, dimension: 1024, warning_code: "plaintext_http",
+      success: true,
+      dimension: 1024,
+      warning_code: "plaintext_http",
     } as never);
     const options = {
       getSuccessMessage: vi.fn(() => "embedding ok"),

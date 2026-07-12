@@ -16,16 +16,18 @@ describe("getToolOverwriteWarning 同名判据（复用 lore-utils canonical key
   it("大小写 / 空格→下划线 / .md 变体都判为已存在（规范化命中）", () => {
     const existingChars = new Set(["alice_smith.md"]);
     for (const variant of ["Alice Smith", "ALICE_SMITH", "alice smith.md", "  Alice_Smith  "]) {
-      const warning = getToolOverwriteWarning(
-        "create_character_file", { name: variant }, existingChars, new Set(), t,
-      );
+      const warning = getToolOverwriteWarning("create_character_file", { name: variant }, existingChars, new Set(), t);
       expect(warning, `变体 "${variant}" 应判为已存在`).not.toBeNull();
     }
   });
 
   it("不同名不误报", () => {
     const warning = getToolOverwriteWarning(
-      "create_character_file", { name: "Bob" }, new Set(["alice_smith.md"]), new Set(), t,
+      "create_character_file",
+      { name: "Bob" },
+      new Set(["alice_smith.md"]),
+      new Set(),
+      t,
     );
     expect(warning).toBeNull();
   });
@@ -34,12 +36,10 @@ describe("getToolOverwriteWarning 同名判据（复用 lore-utils canonical key
     const chars = new Set(["alice.md"]);
     const world = new Set(["magic_system.md"]);
     // 角色名撞世界观集合不应报（分类隔离）
-    expect(getToolOverwriteWarning(
-      "create_character_file", { name: "magic system" }, chars, world, t,
-    )).toBeNull();
+    expect(getToolOverwriteWarning("create_character_file", { name: "magic system" }, chars, world, t)).toBeNull();
     // 世界观名撞世界观集合应报
-    expect(getToolOverwriteWarning(
-      "create_worldbuilding_file", { name: "Magic System" }, chars, world, t,
-    )).not.toBeNull();
+    expect(
+      getToolOverwriteWarning("create_worldbuilding_file", { name: "Magic System" }, chars, world, t),
+    ).not.toBeNull();
   });
 });

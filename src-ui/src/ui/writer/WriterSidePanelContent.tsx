@@ -3,14 +3,14 @@
 // See LICENSE file in the project root for full license text.
 
 import type { BudgetReport } from "@ficforge/engine";
-import { Button } from '../shared/Button';
-import { Tag } from '../shared/Tag';
-import { SettingsPanel } from '../settings/SettingsPanel';
-import type { PickerModelOption, SessionLayer } from '../settings/model-picker/model-picker-utils';
-import { Undo2, BookOpen, FileUp } from 'lucide-react';
-import { useTranslation } from '../../i18n/useAppTranslation';
-import { getEnumLabel } from '../../i18n/labels';
-import type { FactInfo } from '../../api/engine-client';
+import { Button } from "../shared/Button";
+import { Tag } from "../shared/Tag";
+import { SettingsPanel } from "../settings/SettingsPanel";
+import type { PickerModelOption, SessionLayer } from "../settings/model-picker/model-picker-utils";
+import { Undo2, BookOpen, FileUp } from "lucide-react";
+import { useTranslation } from "../../i18n/useAppTranslation";
+import { getEnumLabel } from "../../i18n/labels";
+import type { FactInfo } from "../../api/engine-client";
 
 type ContextLayer = {
   key: string;
@@ -96,106 +96,153 @@ export const WriterSidePanelContent = ({
   const { t } = useTranslation();
 
   return (
-    <div className={isMobile ? 'space-y-6' : 'flex-1 overflow-y-auto p-5 space-y-8'}>
-      {mode === 'write' ? (
+    <div className={isMobile ? "space-y-6" : "flex-1 overflow-y-auto p-5 space-y-8"}>
+      {mode === "write" ? (
         <>
           <section>
             {isMobile ? (
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-xs font-medium text-text/70">{t('writer.focusTitle')}</h3>
+                <h3 className="text-xs font-medium text-text/70">{t("writer.focusTitle")}</h3>
                 <div className="flex items-center gap-2">
-                  <Button tone="neutral" fill="plain" size="sm" className="text-xs" onClick={onClearFocus} disabled={focusSelection.length === 0}>
-                    {t('writer.freeWrite')}
+                  <Button
+                    tone="neutral"
+                    fill="plain"
+                    size="sm"
+                    className="text-xs"
+                    onClick={onClearFocus}
+                    disabled={focusSelection.length === 0}
+                  >
+                    {t("writer.freeWrite")}
                   </Button>
                   {lastConfirmedFocus.length > 0 ? (
                     <Button tone="neutral" fill="plain" size="sm" className="text-xs" onClick={onContinueLastFocus}>
-                      {t('focus.continueLastChapter')}
+                      {t("focus.continueLastChapter")}
                     </Button>
                   ) : null}
                 </div>
               </div>
             ) : (
               <>
-                <h3 className="text-xs font-sans font-medium mb-1 text-text/70">{t('writer.focusTitle')}</h3>
-                <p className="text-xs text-text/30 mb-3">{t('writer.focusHint')}</p>
+                <h3 className="text-xs font-sans font-medium mb-1 text-text/70">{t("writer.focusTitle")}</h3>
+                <p className="text-xs text-text/30 mb-3">{t("writer.focusHint")}</p>
               </>
             )}
 
             {isMobile ? (
               <div className="space-y-2">
                 {unresolvedFacts.length === 0 ? (
-                  <p className="text-sm text-text/50">{t('facts.noSearchResultDescription')}</p>
-                ) : unresolvedFacts.map((fact) => {
-                  const isHigh = fact.narrative_weight === 'high';
-                  return (
-                    <label key={fact.id} className={`flex items-start gap-3 rounded-xl border p-3 ${focusSelection.includes(String(fact.id)) ? 'border-accent/30 bg-accent/5' : 'border-black/10 bg-surface/35 dark:border-white/10'}`}>
-                      <input type="checkbox" className="mt-1 accent-accent" checked={focusSelection.includes(String(fact.id))} onChange={() => onFocusToggle(String(fact.id))} />
-                      <div className="space-y-2">
-                        <p className="text-sm text-text/90">{fact.content_clean}</p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Tag tone="warning">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</Tag>
-                          {isHigh ? <Tag tone="info">{t('focus.recommended')}</Tag> : null}
+                  <p className="text-sm text-text/50">{t("facts.noSearchResultDescription")}</p>
+                ) : (
+                  unresolvedFacts.map((fact) => {
+                    const isHigh = fact.narrative_weight === "high";
+                    return (
+                      <label
+                        key={fact.id}
+                        className={`flex items-start gap-3 rounded-xl border p-3 ${focusSelection.includes(String(fact.id)) ? "border-accent/30 bg-accent/5" : "border-black/10 bg-surface/35 dark:border-white/10"}`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-1 accent-accent"
+                          checked={focusSelection.includes(String(fact.id))}
+                          onChange={() => onFocusToggle(String(fact.id))}
+                        />
+                        <div className="space-y-2">
+                          <p className="text-sm text-text/90">{fact.content_clean}</p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Tag tone="warning">{getEnumLabel("fact_status", "unresolved", "unresolved")}</Tag>
+                            {isHigh ? <Tag tone="info">{t("focus.recommended")}</Tag> : null}
+                          </div>
                         </div>
-                      </div>
-                    </label>
-                  );
-                })}
+                      </label>
+                    );
+                  })
+                )}
               </div>
             ) : (
               <div className="space-y-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <Button tone="neutral" fill="plain" size="sm" className="text-xs" onClick={onClearFocus} disabled={focusSelection.length === 0}>
-                    {t('writer.freeWrite')}
+                  <Button
+                    tone="neutral"
+                    fill="plain"
+                    size="sm"
+                    className="text-xs"
+                    onClick={onClearFocus}
+                    disabled={focusSelection.length === 0}
+                  >
+                    {t("writer.freeWrite")}
                   </Button>
                   {lastConfirmedFocus.length > 0 && (
                     <Button tone="neutral" fill="plain" size="sm" className="text-xs" onClick={onContinueLastFocus}>
-                      {t('focus.continueLastChapter')}
+                      {t("focus.continueLastChapter")}
                     </Button>
                   )}
                 </div>
                 {unresolvedFacts.map((fact) => {
-                  const isHigh = fact.narrative_weight === 'high';
+                  const isHigh = fact.narrative_weight === "high";
                   return (
-                    <label key={fact.id} className={`flex items-start gap-2 p-2 rounded-md hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer border transition-colors ${focusSelection.includes(String(fact.id)) ? 'border-accent/30 bg-accent/5' : 'border-transparent hover:border-black/5 dark:hover:border-white/5'}`}>
-                      <input type="checkbox" className="mt-1 accent-accent" checked={focusSelection.includes(String(fact.id))} onChange={() => onFocusToggle(String(fact.id))} />
+                    <label
+                      key={fact.id}
+                      className={`flex items-start gap-2 p-2 rounded-md hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer border transition-colors ${focusSelection.includes(String(fact.id)) ? "border-accent/30 bg-accent/5" : "border-transparent hover:border-black/5 dark:hover:border-white/5"}`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-1 accent-accent"
+                        checked={focusSelection.includes(String(fact.id))}
+                        onChange={() => onFocusToggle(String(fact.id))}
+                      />
                       <div className="flex flex-col">
                         <span className="text-sm">{fact.content_clean}</span>
                         <div className="flex items-center gap-1.5 mt-1.5">
-                          <Tag tone="warning" className="w-fit">{getEnumLabel('fact_status', 'unresolved', 'unresolved')}</Tag>
-                          {isHigh && <Tag tone="info" className="w-fit text-xs">{t('focus.recommended')}</Tag>}
+                          <Tag tone="warning" className="w-fit">
+                            {getEnumLabel("fact_status", "unresolved", "unresolved")}
+                          </Tag>
+                          {isHigh && (
+                            <Tag tone="info" className="w-fit text-xs">
+                              {t("focus.recommended")}
+                            </Tag>
+                          )}
                         </div>
                       </div>
                     </label>
                   );
                 })}
-                {focusSelection.length >= 2 && (
-                  <p className="text-xs text-text/50 px-2">{t('focus.maxTwo')}</p>
-                )}
+                {focusSelection.length >= 2 && <p className="text-xs text-text/50 px-2">{t("focus.maxTwo")}</p>}
               </div>
             )}
           </section>
 
           <section>
-            <h3 className={isMobile ? 'mb-3 text-xs font-medium text-text/70' : 'text-xs font-sans font-medium mb-1 text-text/70'}>{t('writer.memoryPanel')}</h3>
+            <h3
+              className={
+                isMobile ? "mb-3 text-xs font-medium text-text/70" : "text-xs font-sans font-medium mb-1 text-text/70"
+              }
+            >
+              {t("writer.memoryPanel")}
+            </h3>
             {!budgetReport ? (
-              <p className={isMobile ? 'text-sm text-text/50' : 'text-xs text-text/30'}>{t('writer.memoryPanelHint')}</p>
+              <p className={isMobile ? "text-sm text-text/50" : "text-xs text-text/30"}>
+                {t("writer.memoryPanelHint")}
+              </p>
             ) : (
               <div className="space-y-3">
                 {contextLayers.map((item) => (
                   <div key={item.key} className="space-y-1">
-                    <div className={`flex items-center justify-between ${isMobile ? 'text-sm' : 'text-xs'}`}>
+                    <div className={`flex items-center justify-between ${isMobile ? "text-sm" : "text-xs"}`}>
                       <span className="text-text/70">{item.label}</span>
                       <span className={`font-mono text-text/50`}>{item.tokens} tok</span>
                     </div>
-                    <div className={`${isMobile ? 'h-2' : 'h-1.5'} overflow-hidden rounded-full bg-black/10 dark:bg-white/10 flex`}>
-                      <div className={`${item.color} h-full rounded-full`} style={{ width: `${Math.min(item.percent, 100)}%` }} />
+                    <div
+                      className={`${isMobile ? "h-2" : "h-1.5"} overflow-hidden rounded-full bg-black/10 dark:bg-white/10 flex`}
+                    >
+                      <div
+                        className={`${item.color} h-full rounded-full`}
+                        style={{ width: `${Math.min(item.percent, 100)}%` }}
+                      />
                     </div>
                   </div>
                 ))}
                 {!isMobile && (
-                  <div className="text-xs text-text/30 mt-1">
-                    {t('writer.memoryTotal', { tokens: layerSum })}
-                  </div>
+                  <div className="text-xs text-text/30 mt-1">{t("writer.memoryTotal", { tokens: layerSum })}</div>
                 )}
               </div>
             )}
@@ -203,12 +250,18 @@ export const WriterSidePanelContent = ({
         </>
       ) : !isMobile ? (
         <section className="rounded-xl border border-black/10 bg-background/50 p-4 dark:border-white/10">
-          <h3 className="mb-2 text-xs font-sans font-medium text-text/70">{t('settingsMode.sideTitle')}</h3>
-          <p className="text-sm leading-relaxed text-text/70">{t('settingsMode.sideDescription')}</p>
+          <h3 className="mb-2 text-xs font-sans font-medium text-text/70">{t("settingsMode.sideTitle")}</h3>
+          <p className="text-sm leading-relaxed text-text/70">{t("settingsMode.sideDescription")}</p>
         </section>
       ) : null}
 
-      <section className={isMobile ? 'border-t border-black/10 pt-5 dark:border-white/10' : 'pt-4 border-t border-black/10 dark:border-white/10'}>
+      <section
+        className={
+          isMobile
+            ? "border-t border-black/10 pt-5 dark:border-white/10"
+            : "pt-4 border-t border-black/10 dark:border-white/10"
+        }
+      >
         <SettingsPanel
           model={sessionModel}
           onModelChange={onModelChange}
@@ -224,35 +277,71 @@ export const WriterSidePanelContent = ({
       </section>
 
       <section>
-        <h3 className={isMobile ? 'mb-3 text-xs font-medium text-text/70' : 'text-xs font-sans font-medium mb-3 text-text/70'}>{t('writer.readingPrefs')}</h3>
+        <h3
+          className={
+            isMobile ? "mb-3 text-xs font-medium text-text/70" : "text-xs font-sans font-medium mb-3 text-text/70"
+          }
+        >
+          {t("writer.readingPrefs")}
+        </h3>
         <div className="space-y-3">
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-text/70">{t('writer.fontSize')}</span>
+              <span className="text-text/70">{t("writer.fontSize")}</span>
               <span className="font-mono text-text/50">{fontSize}px</span>
             </div>
-            <input type="range" min="14" max="24" step="1" value={fontSize} onChange={e => onFontSizeChange(parseInt(e.target.value))} className={`w-full accent-accent ${isMobile ? 'h-2' : 'h-1.5'}`} />
+            <input
+              type="range"
+              min="14"
+              max="24"
+              step="1"
+              value={fontSize}
+              onChange={(e) => onFontSizeChange(parseInt(e.target.value))}
+              className={`w-full accent-accent ${isMobile ? "h-2" : "h-1.5"}`}
+            />
           </div>
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-text/70">{t('writer.lineHeight')}</span>
+              <span className="text-text/70">{t("writer.lineHeight")}</span>
               <span className="font-mono text-text/50">{lineHeight.toFixed(1)}</span>
             </div>
-            <input type="range" min="1.4" max="3.0" step="0.1" value={lineHeight} onChange={e => onLineHeightChange(parseFloat(e.target.value))} className={`w-full accent-accent ${isMobile ? 'h-2' : 'h-1.5'}`} />
+            <input
+              type="range"
+              min="1.4"
+              max="3.0"
+              step="0.1"
+              value={lineHeight}
+              onChange={(e) => onLineHeightChange(parseFloat(e.target.value))}
+              className={`w-full accent-accent ${isMobile ? "h-2" : "h-1.5"}`}
+            />
           </div>
         </div>
       </section>
 
       {isMobile && (
         <section className="flex flex-wrap gap-2 border-t border-black/10 pt-5 dark:border-white/10">
-          <Button tone="neutral" fill="outline" size="sm" onClick={onUndoClick} disabled={(currentChapter || 1) <= 1 || writeActionsDisabled}>
-            <Undo2 size={16} className="mr-2" /> {t('common.actions.undoPreviousChapter')}
+          <Button
+            tone="neutral"
+            fill="outline"
+            size="sm"
+            onClick={onUndoClick}
+            disabled={(currentChapter || 1) <= 1 || writeActionsDisabled}
+          >
+            <Undo2 size={16} className="mr-2" /> {t("common.actions.undoPreviousChapter")}
           </Button>
-          <Button tone="neutral" fill="outline" size="sm" onClick={() => { onClose?.(); onNavigate('facts'); }}>
-            <BookOpen size={16} className="mr-2" /> {t('writer.factsShortcut')}
+          <Button
+            tone="neutral"
+            fill="outline"
+            size="sm"
+            onClick={() => {
+              onClose?.();
+              onNavigate("facts");
+            }}
+          >
+            <BookOpen size={16} className="mr-2" /> {t("writer.factsShortcut")}
           </Button>
           <Button tone="neutral" fill="outline" size="sm" onClick={onExportClick}>
-            <FileUp size={16} className="mr-2" /> {t('writer.exportButtonTitle')}
+            <FileUp size={16} className="mr-2" /> {t("writer.exportButtonTitle")}
           </Button>
         </section>
       )}

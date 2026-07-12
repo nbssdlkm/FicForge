@@ -47,9 +47,7 @@ afterEach(() => {
 function renderController() {
   // state=null：draft 加载 effect 走清空分支，不触发任何引擎调用，
   // 流式缓冲与 draft 加载互相独立。
-  return renderHook(() =>
-    useWriterDraftController({ auPath: "/fandoms/F/aus/A", state: null }),
-  );
+  return renderHook(() => useWriterDraftController({ auPath: "/fandoms/F/aus/A", state: null }));
 }
 
 describe("useWriterDraftController 流式 rAF 缓冲（审计 M11）", () => {

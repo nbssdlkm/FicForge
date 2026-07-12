@@ -148,7 +148,11 @@ export function SimpleChatHistory({
 
   if (messages.length === 0) {
     return (
-      <div ref={scrollRef} onScroll={handleScroll} className="flex h-full items-center justify-center overflow-y-auto px-4 py-12">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex h-full items-center justify-center overflow-y-auto px-4 py-12"
+      >
         <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-8 text-center">
           <div className="flex flex-col items-center gap-3">
             <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-gold-bright">

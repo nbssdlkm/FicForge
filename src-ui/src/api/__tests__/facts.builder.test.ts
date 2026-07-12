@@ -33,10 +33,14 @@ describe("buildFactDataFromCandidate", () => {
   });
 
   it("type/weight/status 兜底链与富化字段透传", () => {
-    const data = buildFactDataFromCandidate(candidate({
-      narrative_weight: undefined, status: undefined,
-      caused_by: ["f_ch3"], thread_ids: ["t1"],
-    } as Partial<ExtractedFactCandidate>));
+    const data = buildFactDataFromCandidate(
+      candidate({
+        narrative_weight: undefined,
+        status: undefined,
+        caused_by: ["f_ch3"],
+        thread_ids: ["t1"],
+      } as Partial<ExtractedFactCandidate>),
+    );
     expect(data.type).toBe("plot_event");
     expect(data.narrative_weight).toBe("medium");
     expect(data.status).toBe("active");

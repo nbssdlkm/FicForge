@@ -69,12 +69,17 @@ export async function confirm_chapter(params: ConfirmChapterParams): Promise<Con
 
 async function doConfirm(params: ConfirmChapterParams): Promise<ConfirmChapterResult> {
   const {
-    au_id, chapter_num, draft_id,
+    au_id,
+    chapter_num,
+    draft_id,
     generated_with = null,
     cast_registry = { characters: [] },
     character_aliases = null,
     content_override = null,
-    chapter_repo, draft_repo, state_repo, ops_repo,
+    chapter_repo,
+    draft_repo,
+    state_repo,
+    ops_repo,
   } = params;
 
   // === 步骤 0：前置校验 ===
@@ -152,7 +157,10 @@ async function doConfirm(params: ConfirmChapterParams): Promise<ConfirmChapterRe
 
   // characters_last_seen 合并更新
   const scanned = scan_characters_in_chapter(
-    draftContent, cast_registry ?? { characters: [] }, character_aliases, chapter_num,
+    draftContent,
+    cast_registry ?? { characters: [] },
+    character_aliases,
+    chapter_num,
   );
   for (const [charName, chNum] of Object.entries(scanned)) {
     const existing = state.characters_last_seen[charName] ?? 0;
@@ -178,19 +186,22 @@ async function doConfirm(params: ConfirmChapterParams): Promise<ConfirmChapterRe
   }
 
   const tx = new WriteTransaction();
-  tx.appendOp(au_id, createOpsEntry({
-    op_id: generate_op_id(),
-    op_type: "confirm_chapter",
-    target_id: chapterId,
-    chapter_num,
-    timestamp,
-    payload: {
-      focus: confirmedFocus,
-      characters_last_seen_snapshot: { ...state.characters_last_seen },
-      last_scene_ending_snapshot: state.last_scene_ending,
-      generated_with: gwPayload,
-    },
-  }));
+  tx.appendOp(
+    au_id,
+    createOpsEntry({
+      op_id: generate_op_id(),
+      op_type: "confirm_chapter",
+      target_id: chapterId,
+      chapter_num,
+      timestamp,
+      payload: {
+        focus: confirmedFocus,
+        characters_last_seen_snapshot: { ...state.characters_last_seen },
+        last_scene_ending_snapshot: state.last_scene_ending,
+        generated_with: gwPayload,
+      },
+    }),
+  );
   tx.saveChapter(au_id, chapter);
   tx.deleteDraftByChapter(au_id, chapter_num);
   tx.setState(state);

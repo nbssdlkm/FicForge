@@ -6,7 +6,7 @@
 import { IndexStatus } from "./enums.js";
 
 export interface EmbeddingFingerprint {
-  mode: string;       // api / local / ollama
+  mode: string; // api / local / ollama
   model: string;
   api_base: string;
 }
@@ -24,13 +24,13 @@ export function createEmbeddingFingerprint(partial?: Partial<EmbeddingFingerprin
 export interface State {
   au_id: string;
   revision: number;
-  updated_at: string;                           // ISO 8601
-  current_chapter: number;                       // 当前待写章节号（D-0001）
+  updated_at: string; // ISO 8601
+  current_chapter: number; // 当前待写章节号（D-0001）
   last_scene_ending: string;
   last_confirmed_chapter_focus: string[];
   characters_last_seen: Record<string, number>;
-  chapter_focus: string[];                       // fact id 数组，最多 2 个
-  chapter_titles: Record<number, string>;        // {1: "黄昏的告别", 2: "..."}
+  chapter_focus: string[]; // fact id 数组，最多 2 个
+  chapter_titles: Record<number, string>; // {1: "黄昏的告别", 2: "..."}
   chapters_dirty: number[];
   index_status: IndexStatus;
   index_built_with: EmbeddingFingerprint | null;

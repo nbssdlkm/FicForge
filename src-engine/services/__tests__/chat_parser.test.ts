@@ -34,9 +34,11 @@ function makeChat(pairs: [string, string][], userLabel = "User", aiLabel = "Assi
 
 describe("detectChatFormat", () => {
   it("#1: detects User/Assistant format (English)", () => {
-    const text = makeChat(
-      [["hello", "hi there"], ["continue", "sure thing"], ["more", "here you go"]],
-    );
+    const text = makeChat([
+      ["hello", "hi there"],
+      ["continue", "sure thing"],
+      ["more", "here you go"],
+    ]);
     const fmt = detectChatFormat(text);
     expect(fmt).not.toBeNull();
     expect(fmt!.name).toBe("User/Assistant");
@@ -144,8 +146,8 @@ describe("splitByRole", () => {
     const fmt = detectChatFormat(text + "\n\nUser: a\nAssistant: b")!;
     const turns = splitByRole(text + "\n\nUser: a\nAssistant: b", fmt);
     expect(turns.length).toBeGreaterThanOrEqual(4);
-    expect(turns.filter(t => t.role === "user").length).toBeGreaterThanOrEqual(2);
-    expect(turns.filter(t => t.role === "assistant").length).toBeGreaterThanOrEqual(2);
+    expect(turns.filter((t) => t.role === "user").length).toBeGreaterThanOrEqual(2);
+    expect(turns.filter((t) => t.role === "assistant").length).toBeGreaterThanOrEqual(2);
   });
 
   it("preserves preamble as assistant turn", () => {
@@ -166,7 +168,7 @@ describe("splitByRole", () => {
     const text = "User: 短消息\nAssistant: " + "A".repeat(1000) + "\n\nUser: 继续\nAssistant: ok";
     const fmt = detectChatFormat(text)!;
     const turns = splitByRole(text, fmt);
-    const longTurn = turns.find(t => t.charCount >= 1000);
+    const longTurn = turns.find((t) => t.charCount >= 1000);
     expect(longTurn).toBeDefined();
     expect(longTurn!.role).toBe("assistant");
   });
@@ -233,7 +235,7 @@ describe("classifyTurns", () => {
       { role: "assistant", chars: 1800 },
     ]);
     const classified = classifyTurns(turns);
-    const chapters = classified.filter(t => t.classification === "chapter");
+    const chapters = classified.filter((t) => t.classification === "chapter");
     expect(chapters).toHaveLength(3);
     expect(chapters[0].assignedChapter).toBe(1);
     expect(chapters[1].assignedChapter).toBe(2);
@@ -248,19 +250,19 @@ describe("classifyTurns", () => {
 
   it("mixed conversation produces correct stats", () => {
     const turns = makeTurns([
-      { role: "user", chars: 50 },      // skip (user)
+      { role: "user", chars: 50 }, // skip (user)
       { role: "assistant", chars: 2500 }, // chapter 1
-      { role: "user", chars: 5 },        // skip (user)
-      { role: "assistant", chars: 100 },  // skip (short)
-      { role: "user", chars: 30 },       // skip (user)
-      { role: "assistant", chars: 700 },  // uncertain
-      { role: "user", chars: 10 },       // skip (user)
+      { role: "user", chars: 5 }, // skip (user)
+      { role: "assistant", chars: 100 }, // skip (short)
+      { role: "user", chars: 30 }, // skip (user)
+      { role: "assistant", chars: 700 }, // uncertain
+      { role: "user", chars: 10 }, // skip (user)
       { role: "assistant", chars: 2000 }, // chapter 2
     ]);
     const classified = classifyTurns(turns);
-    expect(classified.filter(t => t.classification === "chapter")).toHaveLength(2);
-    expect(classified.filter(t => t.classification === "skip")).toHaveLength(5);
-    expect(classified.filter(t => t.classification === "uncertain")).toHaveLength(1);
+    expect(classified.filter((t) => t.classification === "chapter")).toHaveLength(2);
+    expect(classified.filter((t) => t.classification === "skip")).toHaveLength(5);
+    expect(classified.filter((t) => t.classification === "uncertain")).toHaveLength(1);
   });
 });
 
@@ -335,8 +337,8 @@ describe("parseChatExport", () => {
   it("skips empty content entries", () => {
     const data = [
       { role: "user", content: "hello" },
-      { role: "assistant", content: "" },      // should be skipped
-      { role: "assistant", content: "   " },   // should be skipped (whitespace only)
+      { role: "assistant", content: "" }, // should be skipped
+      { role: "assistant", content: "   " }, // should be skipped (whitespace only)
       { role: "assistant", content: "valid" },
     ];
     const turns = parseChatExport(data);
@@ -412,12 +414,14 @@ describe("validateChatFormat", () => {
 
 describe("llmDetectChatStructure", () => {
   it("parses valid LLM response with matchKnownFormat (preferred path)", async () => {
-    const llm = makeMockLlm(JSON.stringify({
-      isChat: true,
-      matchKnownFormat: "Markdown Bold",
-      customUserSample: null,
-      customAssistantSample: null,
-    }));
+    const llm = makeMockLlm(
+      JSON.stringify({
+        isChat: true,
+        matchKnownFormat: "Markdown Bold",
+        customUserSample: null,
+        customAssistantSample: null,
+      }),
+    );
     const result = await llmDetectChatStructure("**Human:** hi\n**Assistant:** hello", llm);
     expect(result.isChat).toBe(true);
     expect(result.matchKnownFormat).toBe("Markdown Bold");
@@ -425,12 +429,14 @@ describe("llmDetectChatStructure", () => {
   });
 
   it("parses valid LLM response with customSample (fallback path)", async () => {
-    const llm = makeMockLlm(JSON.stringify({
-      isChat: true,
-      matchKnownFormat: null,
-      customUserSample: "[U]",
-      customAssistantSample: "[B]",
-    }));
+    const llm = makeMockLlm(
+      JSON.stringify({
+        isChat: true,
+        matchKnownFormat: null,
+        customUserSample: "[U]",
+        customAssistantSample: "[B]",
+      }),
+    );
     const result = await llmDetectChatStructure("[U] hi\n[B] hello", llm);
     expect(result.isChat).toBe(true);
     expect(result.matchKnownFormat).toBeNull();
@@ -439,61 +445,73 @@ describe("llmDetectChatStructure", () => {
   });
 
   it("rejects matchKnownFormat not in KNOWN_CHAT_FORMAT_NAMES (LLM invented a name)", async () => {
-    const llm = makeMockLlm(JSON.stringify({
-      isChat: true,
-      matchKnownFormat: "Fake Format Name",
-      customUserSample: null,
-      customAssistantSample: null,
-    }));
+    const llm = makeMockLlm(
+      JSON.stringify({
+        isChat: true,
+        matchKnownFormat: "Fake Format Name",
+        customUserSample: null,
+        customAssistantSample: null,
+      }),
+    );
     const result = await llmDetectChatStructure("text", llm);
     // 既没有合法 matchKnownFormat 也没 custom sample → 降为非对话
     expect(result.isChat).toBe(false);
   });
 
   it("strips markdown code fence from LLM response", async () => {
-    const llm = makeMockLlm("```json\n" + JSON.stringify({
-      isChat: true,
-      matchKnownFormat: "User/Assistant",
-      customUserSample: null,
-      customAssistantSample: null,
-    }) + "\n```");
+    const llm = makeMockLlm(
+      "```json\n" +
+        JSON.stringify({
+          isChat: true,
+          matchKnownFormat: "User/Assistant",
+          customUserSample: null,
+          customAssistantSample: null,
+        }) +
+        "\n```",
+    );
     const result = await llmDetectChatStructure("text", llm);
     expect(result.isChat).toBe(true);
     expect(result.matchKnownFormat).toBe("User/Assistant");
   });
 
   it("returns isChat=false when LLM says not a chat", async () => {
-    const llm = makeMockLlm(JSON.stringify({
-      isChat: false,
-      matchKnownFormat: null,
-      customUserSample: null,
-      customAssistantSample: null,
-    }));
+    const llm = makeMockLlm(
+      JSON.stringify({
+        isChat: false,
+        matchKnownFormat: null,
+        customUserSample: null,
+        customAssistantSample: null,
+      }),
+    );
     const result = await llmDetectChatStructure("plain novel text", llm);
     expect(result.isChat).toBe(false);
     expect(result.matchKnownFormat).toBeNull();
     expect(result.customUserSample).toBeNull();
   });
 
-  it("sets error=\"llm_error\" when LLM says isChat=true but provides no format info (violates prompt rules)", async () => {
-    const llm = makeMockLlm(JSON.stringify({
-      isChat: true,
-      matchKnownFormat: null,
-      customUserSample: null,
-      customAssistantSample: null,
-    }));
+  it('sets error="llm_error" when LLM says isChat=true but provides no format info (violates prompt rules)', async () => {
+    const llm = makeMockLlm(
+      JSON.stringify({
+        isChat: true,
+        matchKnownFormat: null,
+        customUserSample: null,
+        customAssistantSample: null,
+      }),
+    );
     const result = await llmDetectChatStructure("text", llm);
     expect(result.isChat).toBe(false);
     expect(result.error).toBe("llm_error");
   });
 
-  it("sets error=\"llm_error\" when customUserSample present but customAssistantSample missing", async () => {
-    const llm = makeMockLlm(JSON.stringify({
-      isChat: true,
-      matchKnownFormat: null,
-      customUserSample: "Human:",
-      customAssistantSample: null,
-    }));
+  it('sets error="llm_error" when customUserSample present but customAssistantSample missing', async () => {
+    const llm = makeMockLlm(
+      JSON.stringify({
+        isChat: true,
+        matchKnownFormat: null,
+        customUserSample: "Human:",
+        customAssistantSample: null,
+      }),
+    );
     const result = await llmDetectChatStructure("text", llm);
     expect(result.isChat).toBe(false);
     expect(result.error).toBe("llm_error");
@@ -506,7 +524,9 @@ describe("llmDetectChatStructure", () => {
   });
 
   it("tolerates LLM adding prose around JSON (common with weaker models)", async () => {
-    const llm = makeMockLlm('好的，根据分析：\n{"isChat": true, "matchKnownFormat": null, "customUserSample": "Q:", "customAssistantSample": "A:"}\n希望有帮助！');
+    const llm = makeMockLlm(
+      '好的，根据分析：\n{"isChat": true, "matchKnownFormat": null, "customUserSample": "Q:", "customAssistantSample": "A:"}\n希望有帮助！',
+    );
     const result = await llmDetectChatStructure("text", llm);
     expect(result.isChat).toBe(true);
     expect(result.customUserSample).toBe("Q:");
@@ -514,7 +534,9 @@ describe("llmDetectChatStructure", () => {
   });
 
   it("tolerates LLM wrapping JSON with prose and indentation", async () => {
-    const llm = makeMockLlm('Here is the result:\n\n    {"isChat": false, "matchKnownFormat": null, "customUserSample": null, "customAssistantSample": null}\n\nDone.');
+    const llm = makeMockLlm(
+      'Here is the result:\n\n    {"isChat": false, "matchKnownFormat": null, "customUserSample": null, "customAssistantSample": null}\n\nDone.',
+    );
     const result = await llmDetectChatStructure("text", llm);
     expect(result.isChat).toBe(false);
   });
@@ -534,7 +556,7 @@ describe("llmDetectChatStructure", () => {
     expect(result.isChat).toBe(false);
   });
 
-  it("sets error=\"llm_error\" when provider throws", async () => {
+  it('sets error="llm_error" when provider throws', async () => {
     const llm: LLMProvider = {
       generate: vi.fn().mockRejectedValue(new Error("network")),
       generateStream: vi.fn(),
@@ -543,21 +565,25 @@ describe("llmDetectChatStructure", () => {
     expect(result.error).toBe("llm_error");
   });
 
-  it("sets error=\"llm_error\" when response has no JSON", async () => {
+  it('sets error="llm_error" when response has no JSON', async () => {
     const llm = makeMockLlm("I analyzed the text and I think it is a chat.");
     const result = await llmDetectChatStructure("text", llm);
     expect(result.error).toBe("llm_error");
   });
 
   it("does NOT set error when LLM legitimately says not a chat", async () => {
-    const llm = makeMockLlm(JSON.stringify({ isChat: false, matchKnownFormat: null, customUserSample: null, customAssistantSample: null }));
+    const llm = makeMockLlm(
+      JSON.stringify({ isChat: false, matchKnownFormat: null, customUserSample: null, customAssistantSample: null }),
+    );
     const result = await llmDetectChatStructure("plain text", llm);
     expect(result.isChat).toBe(false);
     expect(result.error).toBeFalsy();
   });
 
   it("truncates input to 40000 chars when calling LLM", async () => {
-    const llm = makeMockLlm(JSON.stringify({ isChat: false, matchKnownFormat: null, customUserSample: null, customAssistantSample: null }));
+    const llm = makeMockLlm(
+      JSON.stringify({ isChat: false, matchKnownFormat: null, customUserSample: null, customAssistantSample: null }),
+    );
     const longText = "a".repeat(60000);
     await llmDetectChatStructure(longText, llm);
     const call = (llm.generate as ReturnType<typeof vi.fn>).mock.calls[0][0];

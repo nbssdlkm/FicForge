@@ -6,7 +6,13 @@
  */
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { add_fact, run_archival_sweep, find_archival_candidates, archive_facts, is_archival_candidate } from "../facts_lifecycle.js";
+import {
+  add_fact,
+  run_archival_sweep,
+  find_archival_candidates,
+  archive_facts,
+  is_archival_candidate,
+} from "../facts_lifecycle.js";
 import { createFact } from "../../domain/fact.js";
 import type { Fact } from "../../domain/fact.js";
 import { NarrativeWeight, FactStatus } from "../../domain/enums.js";
@@ -27,12 +33,18 @@ describe("run_archival_sweep", () => {
 
   it("archives fact that satisfies distance + low weight + active status", async () => {
     // chapter=1, current=11 => distance=10, satisfies >= ARCHIVE_DISTANCE=10
-    const fact = await add_fact("au1", 1, {
-      content_raw: "r",
-      content_clean: "old low fact",
-      narrative_weight: NarrativeWeight.LOW,
-      status: FactStatus.ACTIVE,
-    }, factRepo, opsRepo);
+    const fact = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "old low fact",
+        narrative_weight: NarrativeWeight.LOW,
+        status: FactStatus.ACTIVE,
+      },
+      factRepo,
+      opsRepo,
+    );
 
     const archived = await run_archival_sweep("au1", 11, factRepo, opsRepo);
 
@@ -42,12 +54,18 @@ describe("run_archival_sweep", () => {
   });
 
   it("does not archive high-weight fact even if old enough", async () => {
-    const fact = await add_fact("au1", 1, {
-      content_raw: "r",
-      content_clean: "important old fact",
-      narrative_weight: NarrativeWeight.HIGH,
-      status: FactStatus.ACTIVE,
-    }, factRepo, opsRepo);
+    const fact = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "important old fact",
+        narrative_weight: NarrativeWeight.HIGH,
+        status: FactStatus.ACTIVE,
+      },
+      factRepo,
+      opsRepo,
+    );
 
     const archived = await run_archival_sweep("au1", 11, factRepo, opsRepo);
 
@@ -57,12 +75,18 @@ describe("run_archival_sweep", () => {
   });
 
   it("does not archive medium-weight fact", async () => {
-    const fact = await add_fact("au1", 1, {
-      content_raw: "r",
-      content_clean: "medium old fact",
-      narrative_weight: NarrativeWeight.MEDIUM,
-      status: FactStatus.ACTIVE,
-    }, factRepo, opsRepo);
+    const fact = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "medium old fact",
+        narrative_weight: NarrativeWeight.MEDIUM,
+        status: FactStatus.ACTIVE,
+      },
+      factRepo,
+      opsRepo,
+    );
 
     const archived = await run_archival_sweep("au1", 11, factRepo, opsRepo);
 
@@ -71,12 +95,18 @@ describe("run_archival_sweep", () => {
 
   it("does not archive fact that is too recent (distance < threshold)", async () => {
     // chapter=5, current=11 => distance=6, below ARCHIVE_DISTANCE=10
-    const fact = await add_fact("au1", 5, {
-      content_raw: "r",
-      content_clean: "recent low fact",
-      narrative_weight: NarrativeWeight.LOW,
-      status: FactStatus.ACTIVE,
-    }, factRepo, opsRepo);
+    const fact = await add_fact(
+      "au1",
+      5,
+      {
+        content_raw: "r",
+        content_clean: "recent low fact",
+        narrative_weight: NarrativeWeight.LOW,
+        status: FactStatus.ACTIVE,
+      },
+      factRepo,
+      opsRepo,
+    );
 
     const archived = await run_archival_sweep("au1", 11, factRepo, opsRepo);
 
@@ -84,12 +114,18 @@ describe("run_archival_sweep", () => {
   });
 
   it("does not archive deprecated facts", async () => {
-    const fact = await add_fact("au1", 1, {
-      content_raw: "r",
-      content_clean: "deprecated low fact",
-      narrative_weight: NarrativeWeight.LOW,
-      status: FactStatus.DEPRECATED,
-    }, factRepo, opsRepo);
+    const fact = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "deprecated low fact",
+        narrative_weight: NarrativeWeight.LOW,
+        status: FactStatus.DEPRECATED,
+      },
+      factRepo,
+      opsRepo,
+    );
 
     const archived = await run_archival_sweep("au1", 11, factRepo, opsRepo);
 
@@ -97,12 +133,18 @@ describe("run_archival_sweep", () => {
   });
 
   it("does not archive resolved facts", async () => {
-    const fact = await add_fact("au1", 1, {
-      content_raw: "r",
-      content_clean: "resolved low fact",
-      narrative_weight: NarrativeWeight.LOW,
-      status: FactStatus.RESOLVED,
-    }, factRepo, opsRepo);
+    const fact = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "resolved low fact",
+        narrative_weight: NarrativeWeight.LOW,
+        status: FactStatus.RESOLVED,
+      },
+      factRepo,
+      opsRepo,
+    );
 
     const archived = await run_archival_sweep("au1", 11, factRepo, opsRepo);
 
@@ -110,12 +152,18 @@ describe("run_archival_sweep", () => {
   });
 
   it("does not re-archive already archived fact", async () => {
-    const fact = await add_fact("au1", 1, {
-      content_raw: "r",
-      content_clean: "already archived",
-      narrative_weight: NarrativeWeight.LOW,
-      status: FactStatus.ACTIVE,
-    }, factRepo, opsRepo);
+    const fact = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "already archived",
+        narrative_weight: NarrativeWeight.LOW,
+        status: FactStatus.ACTIVE,
+      },
+      factRepo,
+      opsRepo,
+    );
 
     // First sweep archives it
     await run_archival_sweep("au1", 11, factRepo, opsRepo);
@@ -131,12 +179,18 @@ describe("run_archival_sweep", () => {
   });
 
   it("returns empty array when no facts qualify", async () => {
-    await add_fact("au1", 8, {
-      content_raw: "r",
-      content_clean: "recent fact",
-      narrative_weight: NarrativeWeight.LOW,
-      status: FactStatus.ACTIVE,
-    }, factRepo, opsRepo);
+    await add_fact(
+      "au1",
+      8,
+      {
+        content_raw: "r",
+        content_clean: "recent fact",
+        narrative_weight: NarrativeWeight.LOW,
+        status: FactStatus.ACTIVE,
+      },
+      factRepo,
+      opsRepo,
+    );
 
     const archived = await run_archival_sweep("au1", 11, factRepo, opsRepo);
 
@@ -149,12 +203,18 @@ describe("run_archival_sweep", () => {
   });
 
   it("archives unresolved low-weight old fact", async () => {
-    const fact = await add_fact("au1", 1, {
-      content_raw: "r",
-      content_clean: "old unresolved low",
-      narrative_weight: NarrativeWeight.LOW,
-      status: FactStatus.UNRESOLVED,
-    }, factRepo, opsRepo);
+    const fact = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "old unresolved low",
+        narrative_weight: NarrativeWeight.LOW,
+        status: FactStatus.UNRESOLVED,
+      },
+      factRepo,
+      opsRepo,
+    );
 
     const archived = await run_archival_sweep("au1", 11, factRepo, opsRepo);
 
@@ -163,12 +223,18 @@ describe("run_archival_sweep", () => {
 
   it("accepts custom threshold", async () => {
     // With threshold=5, chapter=1, current=7 => distance=6 >= 5 => archive
-    const fact = await add_fact("au1", 1, {
-      content_raw: "r",
-      content_clean: "custom threshold test",
-      narrative_weight: NarrativeWeight.LOW,
-      status: FactStatus.ACTIVE,
-    }, factRepo, opsRepo);
+    const fact = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "custom threshold test",
+        narrative_weight: NarrativeWeight.LOW,
+        status: FactStatus.ACTIVE,
+      },
+      factRepo,
+      opsRepo,
+    );
 
     const archived = await run_archival_sweep("au1", 7, factRepo, opsRepo, 5);
 
@@ -178,10 +244,16 @@ describe("run_archival_sweep", () => {
 
 // 判据单一真相源的直接边界测试（codex 审 P2：之前只经 sweep 间接验）。
 describe("is_archival_candidate (predicate boundaries)", () => {
-  const base = (over: Partial<Fact> = {}): Fact => createFact({
-    id: "f", content_raw: "r", content_clean: "c", chapter: 1,
-    narrative_weight: NarrativeWeight.LOW, status: FactStatus.ACTIVE, ...over,
-  });
+  const base = (over: Partial<Fact> = {}): Fact =>
+    createFact({
+      id: "f",
+      content_raw: "r",
+      content_clean: "c",
+      chapter: 1,
+      narrative_weight: NarrativeWeight.LOW,
+      status: FactStatus.ACTIVE,
+      ...over,
+    });
 
   it("distance == threshold exactly → candidate (chapter 1, current 11, thr 10)", () => {
     expect(is_archival_candidate(base({ chapter: 1 }), 11, 10)).toBe(true);
@@ -190,7 +262,9 @@ describe("is_archival_candidate (predicate boundaries)", () => {
     expect(is_archival_candidate(base({ chapter: 2 }), 11, 10)).toBe(false);
   });
   it("archived === undefined (legacy fact) → treated as not-archived → candidate", () => {
-    expect(is_archival_candidate({ ...base({ chapter: 1 }), archived: undefined as unknown as boolean }, 11, 10)).toBe(true);
+    expect(is_archival_candidate({ ...base({ chapter: 1 }), archived: undefined as unknown as boolean }, 11, 10)).toBe(
+      true,
+    );
   });
   it("archived === true → excluded", () => {
     expect(is_archival_candidate(base({ chapter: 1, archived: true }), 11, 10)).toBe(false);
@@ -220,12 +294,30 @@ describe("find_archival_candidates (read-only preview)", () => {
   });
 
   it("returns cold candidates WITHOUT mutating them (no archive op written)", async () => {
-    const cold = await add_fact("au1", 1, {
-      content_raw: "r", content_clean: "old low", narrative_weight: NarrativeWeight.LOW, status: FactStatus.ACTIVE,
-    }, factRepo, opsRepo);
-    await add_fact("au1", 1, {
-      content_raw: "r", content_clean: "old high", narrative_weight: NarrativeWeight.HIGH, status: FactStatus.ACTIVE,
-    }, factRepo, opsRepo);
+    const cold = await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "old low",
+        narrative_weight: NarrativeWeight.LOW,
+        status: FactStatus.ACTIVE,
+      },
+      factRepo,
+      opsRepo,
+    );
+    await add_fact(
+      "au1",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "old high",
+        narrative_weight: NarrativeWeight.HIGH,
+        status: FactStatus.ACTIVE,
+      },
+      factRepo,
+      opsRepo,
+    );
 
     const candidates = await find_archival_candidates("au1", 11, factRepo);
     expect(candidates.map((f) => f.id)).toEqual([cold.id]);
@@ -246,8 +338,20 @@ describe("archive_facts (archive confirmed subset)", () => {
   });
 
   it("archives only the given ids (user's confirmed subset), leaves the rest untouched", async () => {
-    const a = await add_fact("au1", 1, { content_raw: "r", content_clean: "a", narrative_weight: NarrativeWeight.LOW, status: FactStatus.ACTIVE }, factRepo, opsRepo);
-    const b = await add_fact("au1", 1, { content_raw: "r", content_clean: "b", narrative_weight: NarrativeWeight.LOW, status: FactStatus.ACTIVE }, factRepo, opsRepo);
+    const a = await add_fact(
+      "au1",
+      1,
+      { content_raw: "r", content_clean: "a", narrative_weight: NarrativeWeight.LOW, status: FactStatus.ACTIVE },
+      factRepo,
+      opsRepo,
+    );
+    const b = await add_fact(
+      "au1",
+      1,
+      { content_raw: "r", content_clean: "b", narrative_weight: NarrativeWeight.LOW, status: FactStatus.ACTIVE },
+      factRepo,
+      opsRepo,
+    );
 
     const archived = await archive_facts("au1", [a.id], factRepo, opsRepo);
 
@@ -257,7 +361,13 @@ describe("archive_facts (archive confirmed subset)", () => {
   });
 
   it("is idempotent: skips already-archived and missing ids", async () => {
-    const a = await add_fact("au1", 1, { content_raw: "r", content_clean: "a", narrative_weight: NarrativeWeight.LOW, status: FactStatus.ACTIVE }, factRepo, opsRepo);
+    const a = await add_fact(
+      "au1",
+      1,
+      { content_raw: "r", content_clean: "a", narrative_weight: NarrativeWeight.LOW, status: FactStatus.ACTIVE },
+      factRepo,
+      opsRepo,
+    );
     await archive_facts("au1", [a.id], factRepo, opsRepo);
     const archived = await archive_facts("au1", [a.id, "f_missing"], factRepo, opsRepo);
     expect(archived).toEqual([]); // 已归档 + 不存在都跳过

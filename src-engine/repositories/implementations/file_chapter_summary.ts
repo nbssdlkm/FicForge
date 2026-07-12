@@ -76,7 +76,7 @@ export class FileChapterSummaryRepository implements ChapterSummaryRepository {
       source_chapter_hash: hash,
     };
     // Backup v1: preserve existing standard as standard_v1 only if no backup yet
-    const newStandardV1 = existing.standard_v1 ?? (existing.standard ?? undefined);
+    const newStandardV1 = existing.standard_v1 ?? existing.standard ?? undefined;
     const updated: ChapterSummary = {
       ...existing,
       standard: newStandard,

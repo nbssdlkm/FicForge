@@ -67,11 +67,7 @@ export async function build_settings_context(params: SettingsChatParams): Promis
 
   if (mode === "au") {
     const [auName, fandomName] = await loadAuMeta(base_path, adapter);
-    systemParts.push(
-      P.SETTINGS_AU_SYSTEM_PROMPT
-        .replace("{au_name}", auName)
-        .replace("{fandom_name}", fandomName),
-    );
+    systemParts.push(P.SETTINGS_AU_SYSTEM_PROMPT.replace("{au_name}", auName).replace("{fandom_name}", fandomName));
 
     if (fandom_path) {
       const dnaSummary = await loadFandomDnaSummaries(fandom_path, adapter);
@@ -84,14 +80,17 @@ export async function build_settings_context(params: SettingsChatParams): Promis
     if (auContext) systemParts.push(auContext);
   } else {
     const fandomName = base_path.split("/").pop() ?? base_path;
-    systemParts.push(
-      P.SETTINGS_FANDOM_SYSTEM_PROMPT.replace("{fandom_name}", fandomName),
-    );
+    systemParts.push(P.SETTINGS_FANDOM_SYSTEM_PROMPT.replace("{fandom_name}", fandomName));
 
-    const fandomFiles = await loadSettingsFiles(base_path, [
-      ["core_characters", P.SETTINGS_LABEL_CORE_CHARACTERS],
-      ["core_worldbuilding", P.SETTINGS_LABEL_CORE_WORLDBUILDING],
-    ], language, adapter);
+    const fandomFiles = await loadSettingsFiles(
+      base_path,
+      [
+        ["core_characters", P.SETTINGS_LABEL_CORE_CHARACTERS],
+        ["core_worldbuilding", P.SETTINGS_LABEL_CORE_WORLDBUILDING],
+      ],
+      language,
+      adapter,
+    );
     if (fandomFiles) {
       systemParts.push(`${P.SETTINGS_CURRENT_FANDOM_FILES_HEADER}\n${fandomFiles}`);
     }
@@ -100,10 +99,7 @@ export async function build_settings_context(params: SettingsChatParams): Promis
   const systemContent = systemParts.join("\n\n");
   const truncated = truncateHistory(messages);
 
-  return [
-    { role: "system", content: systemContent },
-    ...truncated,
-  ];
+  return [{ role: "system", content: systemContent }, ...truncated];
 }
 
 // ---------------------------------------------------------------------------
@@ -143,7 +139,8 @@ export async function call_settings_llm(
     if (err.error_code === "context_length_exceeded" || err.error_code === "content_filtered") throw err;
 
     // 400 且无明确分类 → 大概率是 tool calling 格式/数量不兼容，去掉 tools 重试
-    if (hasLogger()) getLogger().warn("settings_chat", "tool calling 400, retrying without tools", { mode, error: err.message });
+    if (hasLogger())
+      getLogger().warn("settings_chat", "tool calling 400, retrying without tools", { mode, error: err.message });
     const response = await llm_provider.generate({
       messages: assembled_messages,
       max_tokens: 4096,
@@ -171,10 +168,7 @@ async function loadAuMeta(auPath: string, adapter: PlatformAdapter): Promise<[st
   try {
     const text = await adapter.readFile(projectPath);
     const raw = (yaml.load(text) ?? {}) as Record<string, unknown>;
-    return [
-      (raw.name as string) ?? auPath.split("/").pop() ?? auPath,
-      (raw.fandom as string) ?? "Unknown",
-    ];
+    return [(raw.name as string) ?? auPath.split("/").pop() ?? auPath, (raw.fandom as string) ?? "Unknown"];
   } catch {
     return [auPath.split("/").pop() ?? auPath, "Unknown"];
   }
@@ -220,10 +214,7 @@ async function loadSettingsFiles(
   return finalEntries.map(([label, filename, content]) => `[${label}] ${filename}:\n${content}`).join("\n\n");
 }
 
-function truncateLowImportance(
-  entries: [string, string, string][],
-  language: string,
-): [string, string, string][] {
+function truncateLowImportance(entries: [string, string, string][], language: string): [string, string, string][] {
   return entries.map(([label, filename, content]) => {
     if (hasLowImportance(content)) {
       return [label, filename, extractFrontmatterAndCore(content, language)];
@@ -304,8 +295,12 @@ async function loadAuContext(auPath: string, language: string, adapter: Platform
 
   const filesText = await loadSettingsFiles(
     auPath,
-    [["characters", P.SETTINGS_LABEL_CHARACTERS], ["worldbuilding", P.SETTINGS_LABEL_WORLDBUILDING]],
-    language, adapter,
+    [
+      ["characters", P.SETTINGS_LABEL_CHARACTERS],
+      ["worldbuilding", P.SETTINGS_LABEL_WORLDBUILDING],
+    ],
+    language,
+    adapter,
   );
   if (filesText) {
     parts.push(`${P.SETTINGS_CURRENT_AU_FILES_HEADER}\n${filesText}`);

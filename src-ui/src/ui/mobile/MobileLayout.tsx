@@ -212,9 +212,7 @@ export function MobileLayout({
           />
         </div>
 
-        {activeTab === "settings" ? (
-          <MobileSettingsView auPath={auPath} currentChapter={currentChapter} />
-        ) : null}
+        {activeTab === "settings" ? <MobileSettingsView auPath={auPath} currentChapter={currentChapter} /> : null}
 
         {activeTab === "manage" ? (
           <MobileManageView

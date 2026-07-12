@@ -4,15 +4,15 @@
 /** 生成来源与统计快照。参见 PRD §2.6.4 / §3.4 frontmatter。 */
 
 export interface GeneratedWith {
-  mode: string;           // api / local / ollama
+  mode: string; // api / local / ollama
   model: string;
   temperature: number;
   top_p: number;
-  input_tokens: number;   // 本次组装的输入 token 数
-  output_tokens: number;  // 模型实际输出 token 数
-  char_count: number;     // 正文字数（不含 frontmatter）
-  duration_ms: number;    // 生成耗时（毫秒）
-  generated_at: string;   // ISO 8601
+  input_tokens: number; // 本次组装的输入 token 数
+  output_tokens: number; // 模型实际输出 token 数
+  char_count: number; // 正文字数（不含 frontmatter）
+  duration_ms: number; // 生成耗时（毫秒）
+  generated_at: string; // ISO 8601
 }
 
 export function createGeneratedWith(partial?: Partial<GeneratedWith>): GeneratedWith {

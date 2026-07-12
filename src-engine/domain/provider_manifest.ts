@@ -16,7 +16,13 @@
  *       manifest 推荐模型的 ctx（权威） > MODEL_CONTEXT_MAP fuzzy（按 id 推断） > undefined（调用方兜 DEFAULT）。
  */
 
-import { MODEL_CONTEXT_MAP, get_context_window, lookup_model_context_window, lookup_model_max_output, normalize_model_id } from "./model_context_map.js";
+import {
+  MODEL_CONTEXT_MAP,
+  get_context_window,
+  lookup_model_context_window,
+  lookup_model_max_output,
+  normalize_model_id,
+} from "./model_context_map.js";
 
 // ---------------------------------------------------------------------------
 // 类型（参照 Kelivo ProviderConfig + Cherry ModelInfo，蓝图 §三.3-4）
@@ -369,7 +375,6 @@ const _PROVIDERS: readonly ProviderEntry[] = _RAW_PROVIDERS.map((p) => ({
   recommendedModels: p.recommendedModels.map(withModelContext),
 }));
 
-
 // ---------------------------------------------------------------------------
 // 查询函数（纯函数）
 // ---------------------------------------------------------------------------
@@ -401,10 +406,7 @@ export const OLLAMA_DEFAULT_BASE_URL = mustProvider("ollama").baseUrl;
  * 在指定供应商内查推荐模型（精确 id 匹配）。
  * providerId 未命中 → undefined；modelId 未命中 → undefined。
  */
-export function findRecommendedModel(
-  providerId: string,
-  modelId: string,
-): RecommendedModel | undefined {
+export function findRecommendedModel(providerId: string, modelId: string): RecommendedModel | undefined {
   const provider = getProvider(providerId);
   if (!provider) return undefined;
   return provider.recommendedModels.find((m) => m.id === modelId);
@@ -437,9 +439,7 @@ export function contextWindowForModel(model: string, providerId?: string): numbe
   // 否则 get_context_window 会返回 DEFAULT，那属于"没查到"，应交给调用方兜（第 3 层）。
   // 复用 MODEL_CONTEXT_MAP 的 key 集合做命中判据（单一真相源，不重复实现 fuzzy_lookup）。
   const normalized = normalize_model_id(model);
-  const hit = Object.keys(MODEL_CONTEXT_MAP).some(
-    (key) => normalized === key || normalized.startsWith(key),
-  );
+  const hit = Object.keys(MODEL_CONTEXT_MAP).some((key) => normalized === key || normalized.startsWith(key));
   if (hit) {
     return get_context_window({ llm: { context_window: 0, model } });
   }

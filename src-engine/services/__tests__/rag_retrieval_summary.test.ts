@@ -24,8 +24,16 @@ describe("retrieve_rag summaries", () => {
   it("retrieves summaries, excludes current-1 (already in P2), labels them", async () => {
     // current_chapter=6 → P2 注入 ch5 全文 → 排除 ch5 摘要；ch4 保留。
     const [text] = await retrieve_rag(
-      fakeVectorRepo(), emb, "/au", "query", 5000, null, { mode: "api" },
-      0.05, 6, "zh",
+      fakeVectorRepo(),
+      emb,
+      "/au",
+      "query",
+      5000,
+      null,
+      { mode: "api" },
+      0.05,
+      6,
+      "zh",
     );
     expect(text).toContain("往期章节摘要");
     expect(text).toContain("第四章摘要");
@@ -39,7 +47,7 @@ describe("retrieve_rag summaries", () => {
         if (opts.collection === "summaries") {
           return [
             { content: "ch2sum", chapter_num: 2, score: 0.95, metadata: { chapter: 2 } },
-            { content: "ch48sum", chapter_num: 48, score: 0.90, metadata: { chapter: 48 } },
+            { content: "ch48sum", chapter_num: 48, score: 0.9, metadata: { chapter: 48 } },
           ];
         }
         return [];

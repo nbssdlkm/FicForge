@@ -18,8 +18,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../i18n/useAppTranslation", () => ({
   useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) =>
-      params ? `${key}:${JSON.stringify(params)}` : key,
+    t: (key: string, params?: Record<string, unknown>) => (params ? `${key}:${JSON.stringify(params)}` : key),
     i18n: { resolvedLanguage: "zh" },
   }),
 }));
@@ -36,7 +35,12 @@ vi.mock("../../writer/WriterLayout", () => ({
     writerProps.externalChaptersVersion = props.externalChaptersVersion;
     // 用副作用探针记录卸载：keep-mounted 契约 = 切 tab 不得触发 unmount。
     // 组件体在 render 时求值，闭包引用顶层 useEffect import 不受 vi.mock 提升影响。
-    useEffect(() => () => { writerUnmountCount += 1; }, []);
+    useEffect(
+      () => () => {
+        writerUnmountCount += 1;
+      },
+      [],
+    );
     return <div data-testid="stub-writer" />;
   },
 }));
@@ -85,7 +89,7 @@ describe("MobileLayout 写文 keep-mounted（审计 M9）", () => {
     expect(writerProps.isActiveTab).toBe(true);
 
     // 底栏切到对话 tab
-    await user.click(screen.getByText("simple.tabs.chat:{\"defaultValue\":\"对话\"}"));
+    await user.click(screen.getByText('simple.tabs.chat:{"defaultValue":"对话"}'));
 
     // 旧实现（条件渲染）此处 writer 已卸载 → unmount 探针 +1、查询失败
     expect(writerUnmountCount).toBe(0);
@@ -122,12 +126,7 @@ describe("MobileLayout embedding stale banner（审计 M10）", () => {
     const onRebuild = vi.fn();
     const onDismiss = vi.fn();
     render(
-      <MobileLayout
-        {...baseProps}
-        embeddingStale
-        onEmbeddingRebuild={onRebuild}
-        onEmbeddingDismiss={onDismiss}
-      />,
+      <MobileLayout {...baseProps} embeddingStale onEmbeddingRebuild={onRebuild} onEmbeddingDismiss={onDismiss} />,
     );
 
     expect(screen.getByText(/embedding\.staleTitle/)).toBeInTheDocument();

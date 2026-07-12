@@ -8,8 +8,8 @@
  * 使用 Clipboard API + Selection API（不依赖已废弃的 execCommand）。
  */
 
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { useTranslation } from '../../i18n/useAppTranslation';
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useTranslation } from "../../i18n/useAppTranslation";
 
 interface MenuState {
   x: number;
@@ -24,7 +24,7 @@ export function ContextMenuProvider({ children }: { children: React.ReactNode })
 
   const handleContextMenu = useCallback((e: MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
       e.preventDefault();
       setMenu({ x: e.clientX, y: e.clientY, target: target as HTMLInputElement | HTMLTextAreaElement });
     }
@@ -33,11 +33,11 @@ export function ContextMenuProvider({ children }: { children: React.ReactNode })
   const close = useCallback(() => setMenu(null), []);
 
   useEffect(() => {
-    document.addEventListener('contextmenu', handleContextMenu);
-    document.addEventListener('click', close);
+    document.addEventListener("contextmenu", handleContextMenu);
+    document.addEventListener("click", close);
     return () => {
-      document.removeEventListener('contextmenu', handleContextMenu);
-      document.removeEventListener('click', close);
+      document.removeEventListener("contextmenu", handleContextMenu);
+      document.removeEventListener("click", close);
     };
   }, [handleContextMenu, close]);
 
@@ -55,11 +55,11 @@ export function ContextMenuProvider({ children }: { children: React.ReactNode })
 
     // 触发 React onChange
     const nativeSetter = Object.getOwnPropertyDescriptor(
-      el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype,
-      'value'
+      el.tagName === "TEXTAREA" ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype,
+      "value",
     )?.set;
     nativeSetter?.call(el, before + text + after);
-    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event("input", { bubbles: true }));
 
     // 恢复光标位置
     const newPos = start + text.length;
@@ -79,7 +79,7 @@ export function ContextMenuProvider({ children }: { children: React.ReactNode })
     const { text } = getSelection(menu.target);
     if (text) {
       navigator.clipboard.writeText(text);
-      replaceSelection(menu.target, '');
+      replaceSelection(menu.target, "");
     }
     close();
   };
@@ -110,13 +110,21 @@ export function ContextMenuProvider({ children }: { children: React.ReactNode })
           ref={menuRef}
           className="fixed z-[100] bg-surface border border-black/10 dark:border-white/15 rounded-lg shadow-lg py-1 min-w-[120px] text-sm font-sans"
           style={{ left: menu.x, top: menu.y }}
-          onMouseDown={e => e.preventDefault()}
+          onMouseDown={(e) => e.preventDefault()}
         >
-          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90" onClick={handleCut}>{t('contextMenu.cut')}</button>
-          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90" onClick={handleCopy}>{t('contextMenu.copy')}</button>
-          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90" onClick={handlePaste}>{t('contextMenu.paste')}</button>
+          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90" onClick={handleCut}>
+            {t("contextMenu.cut")}
+          </button>
+          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90" onClick={handleCopy}>
+            {t("contextMenu.copy")}
+          </button>
+          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90" onClick={handlePaste}>
+            {t("contextMenu.paste")}
+          </button>
           <div className="h-px bg-black/10 dark:bg-white/10 my-1" />
-          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90" onClick={handleSelectAll}>{t('contextMenu.selectAll')}</button>
+          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90" onClick={handleSelectAll}>
+            {t("contextMenu.selectAll")}
+          </button>
         </div>
       )}
     </>

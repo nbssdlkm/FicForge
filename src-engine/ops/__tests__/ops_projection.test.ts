@@ -6,7 +6,13 @@ import { sortAndDedupeOps, rebuildStateFromOps, rebuildFactsFromOps } from "../o
 import { createOpsEntry } from "../../domain/ops_entry.js";
 
 function op(overrides: Partial<ReturnType<typeof createOpsEntry>> & { op_id: string; op_type: string }) {
-  return createOpsEntry({ target_id: "t", timestamp: "2026-01-01T00:00:00Z", device_id: "d1", lamport_clock: 0, ...overrides });
+  return createOpsEntry({
+    target_id: "t",
+    timestamp: "2026-01-01T00:00:00Z",
+    device_id: "d1",
+    lamport_clock: 0,
+    ...overrides,
+  });
 }
 
 // ===========================================================================
@@ -134,7 +140,10 @@ describe("rebuildFactsFromOps", () => {
   it("add_fact creates fact", () => {
     const ops = [
       op({
-        op_id: "a1", op_type: "add_fact", target_id: "f1", lamport_clock: 1,
+        op_id: "a1",
+        op_type: "add_fact",
+        target_id: "f1",
+        lamport_clock: 1,
         payload: { fact: { id: "f1", content_raw: "r", content_clean: "c", status: "active" } },
       }),
     ];
@@ -145,10 +154,20 @@ describe("rebuildFactsFromOps", () => {
 
   it("add + edit modifies fact", () => {
     const ops = [
-      op({ op_id: "a1", op_type: "add_fact", target_id: "f1", lamport_clock: 1,
-        payload: { fact: { id: "f1", content_raw: "r", content_clean: "old" } } }),
-      op({ op_id: "e1", op_type: "edit_fact", target_id: "f1", lamport_clock: 2,
-        payload: { updated_fields: { content_clean: "new" } } }),
+      op({
+        op_id: "a1",
+        op_type: "add_fact",
+        target_id: "f1",
+        lamport_clock: 1,
+        payload: { fact: { id: "f1", content_raw: "r", content_clean: "old" } },
+      }),
+      op({
+        op_id: "e1",
+        op_type: "edit_fact",
+        target_id: "f1",
+        lamport_clock: 2,
+        payload: { updated_fields: { content_clean: "new" } },
+      }),
     ];
     const facts = rebuildFactsFromOps(ops);
     expect(facts[0].content_clean).toBe("new");
@@ -156,8 +175,13 @@ describe("rebuildFactsFromOps", () => {
 
   it("add + delete removes fact", () => {
     const ops = [
-      op({ op_id: "a1", op_type: "add_fact", target_id: "f1", lamport_clock: 1,
-        payload: { fact: { id: "f1", content_raw: "r", content_clean: "c" } } }),
+      op({
+        op_id: "a1",
+        op_type: "add_fact",
+        target_id: "f1",
+        lamport_clock: 1,
+        payload: { fact: { id: "f1", content_raw: "r", content_clean: "c" } },
+      }),
       op({ op_id: "d1", op_type: "delete_fact", target_id: "f1", lamport_clock: 2, payload: { fact_id: "f1" } }),
     ];
     expect(rebuildFactsFromOps(ops)).toHaveLength(0);
@@ -165,10 +189,20 @@ describe("rebuildFactsFromOps", () => {
 
   it("update_fact_status changes status", () => {
     const ops = [
-      op({ op_id: "a1", op_type: "add_fact", target_id: "f1", lamport_clock: 1,
-        payload: { fact: { id: "f1", content_raw: "r", content_clean: "c", status: "active" } } }),
-      op({ op_id: "s1", op_type: "update_fact_status", target_id: "f1", lamport_clock: 2,
-        payload: { new_status: "deprecated" } }),
+      op({
+        op_id: "a1",
+        op_type: "add_fact",
+        target_id: "f1",
+        lamport_clock: 1,
+        payload: { fact: { id: "f1", content_raw: "r", content_clean: "c", status: "active" } },
+      }),
+      op({
+        op_id: "s1",
+        op_type: "update_fact_status",
+        target_id: "f1",
+        lamport_clock: 2,
+        payload: { new_status: "deprecated" },
+      }),
     ];
     const facts = rebuildFactsFromOps(ops);
     expect(facts[0].status).toBe("deprecated");
@@ -176,12 +210,27 @@ describe("rebuildFactsFromOps", () => {
 
   it("determinism: same ops shuffled → same facts", () => {
     const ops = [
-      op({ op_id: "a1", op_type: "add_fact", target_id: "f1", lamport_clock: 1,
-        payload: { fact: { id: "f1", content_raw: "r", content_clean: "c1" } } }),
-      op({ op_id: "a2", op_type: "add_fact", target_id: "f2", lamport_clock: 2,
-        payload: { fact: { id: "f2", content_raw: "r", content_clean: "c2" } } }),
-      op({ op_id: "e1", op_type: "edit_fact", target_id: "f1", lamport_clock: 3,
-        payload: { updated_fields: { content_clean: "c1-edited" } } }),
+      op({
+        op_id: "a1",
+        op_type: "add_fact",
+        target_id: "f1",
+        lamport_clock: 1,
+        payload: { fact: { id: "f1", content_raw: "r", content_clean: "c1" } },
+      }),
+      op({
+        op_id: "a2",
+        op_type: "add_fact",
+        target_id: "f2",
+        lamport_clock: 2,
+        payload: { fact: { id: "f2", content_raw: "r", content_clean: "c2" } },
+      }),
+      op({
+        op_id: "e1",
+        op_type: "edit_fact",
+        target_id: "f1",
+        lamport_clock: 3,
+        payload: { updated_fields: { content_clean: "c1-edited" } },
+      }),
     ];
     const shuffled = [ops[2], ops[0], ops[1]];
     const r1 = rebuildFactsFromOps(sortAndDedupeOps(ops));
@@ -193,10 +242,20 @@ describe("rebuildFactsFromOps", () => {
 
   it("edit_fact ignores id field injection", () => {
     const ops = [
-      op({ op_id: "a1", op_type: "add_fact", target_id: "f1", lamport_clock: 1,
-        payload: { fact: { id: "f1", content_raw: "r", content_clean: "c" } } }),
-      op({ op_id: "e1", op_type: "edit_fact", target_id: "f1", lamport_clock: 2,
-        payload: { updated_fields: { id: "CORRUPTED", content_clean: "new" } } }),
+      op({
+        op_id: "a1",
+        op_type: "add_fact",
+        target_id: "f1",
+        lamport_clock: 1,
+        payload: { fact: { id: "f1", content_raw: "r", content_clean: "c" } },
+      }),
+      op({
+        op_id: "e1",
+        op_type: "edit_fact",
+        target_id: "f1",
+        lamport_clock: 2,
+        payload: { updated_fields: { id: "CORRUPTED", content_clean: "new" } },
+      }),
     ];
     const facts = rebuildFactsFromOps(ops);
     expect(facts[0].id).toBe("f1"); // id must NOT be overwritten
@@ -205,11 +264,18 @@ describe("rebuildFactsFromOps", () => {
 
   it("batch_extract_facts creates multiple facts", () => {
     const ops = [
-      op({ op_id: "b1", op_type: "batch_extract_facts", target_id: "batch1", lamport_clock: 1,
-        payload: { facts: [
-          { id: "bf1", content_raw: "r1", content_clean: "c1" },
-          { id: "bf2", content_raw: "r2", content_clean: "c2" },
-        ] } }),
+      op({
+        op_id: "b1",
+        op_type: "batch_extract_facts",
+        target_id: "batch1",
+        lamport_clock: 1,
+        payload: {
+          facts: [
+            { id: "bf1", content_raw: "r1", content_clean: "c1" },
+            { id: "bf2", content_raw: "r2", content_clean: "c2" },
+          ],
+        },
+      }),
     ];
     const facts = rebuildFactsFromOps(ops);
     expect(facts).toHaveLength(2);
@@ -220,8 +286,14 @@ describe("rebuildFactsFromOps", () => {
 describe("rebuildStateFromOps — additional cases", () => {
   it("import_project sets state from snapshot", () => {
     const ops = [
-      op({ op_id: "i1", op_type: "import_project", lamport_clock: 1,
-        payload: { state_snapshot: { current_chapter: 5, last_scene_ending: "结尾", characters_last_seen: { Alice: 4 } } } }),
+      op({
+        op_id: "i1",
+        op_type: "import_project",
+        lamport_clock: 1,
+        payload: {
+          state_snapshot: { current_chapter: 5, last_scene_ending: "结尾", characters_last_seen: { Alice: 4 } },
+        },
+      }),
     ];
     const state = rebuildStateFromOps(ops, "au1");
     expect(state.current_chapter).toBe(5);
@@ -233,24 +305,40 @@ describe("rebuildStateFromOps — additional cases", () => {
   it("L24: 低章号补导（maxCh < 现进度）不覆盖 last_scene_ending", () => {
     const ops = [
       // 先导入到第 20 章，锚点=「第20章结尾」→ current_chapter=21
-      op({ op_id: "imp1", op_type: "import_chapters", lamport_clock: 1,
-        payload: { last_chapter_num: 20, last_scene_ending: "第20章结尾", chapter_titles: {} } }),
+      op({
+        op_id: "imp1",
+        op_type: "import_chapters",
+        lamport_clock: 1,
+        payload: { last_chapter_num: 20, last_scene_ending: "第20章结尾", chapter_titles: {} },
+      }),
       // 再补导第 3~5 章（低章号）→ maxCh=5 < 现 current_chapter=21 → 不动锚点
-      op({ op_id: "imp2", op_type: "import_chapters", lamport_clock: 2,
-        payload: { last_chapter_num: 5, last_scene_ending: "第5章结尾（不该覆盖）", chapter_titles: {} } }),
+      op({
+        op_id: "imp2",
+        op_type: "import_chapters",
+        lamport_clock: 2,
+        payload: { last_chapter_num: 5, last_scene_ending: "第5章结尾（不该覆盖）", chapter_titles: {} },
+      }),
     ];
     const state = rebuildStateFromOps(ops, "au1");
-    expect(state.current_chapter).toBe(21);           // 进度指针不被低章号回退
+    expect(state.current_chapter).toBe(21); // 进度指针不被低章号回退
     expect(state.last_scene_ending).toBe("第20章结尾"); // 锚点保持进度末尾
   });
 
   it("L24: 触及/越过进度末尾的导入更新 last_scene_ending", () => {
     const ops = [
-      op({ op_id: "imp1", op_type: "import_chapters", lamport_clock: 1,
-        payload: { last_chapter_num: 5, last_scene_ending: "第5章结尾", chapter_titles: {} } }),
+      op({
+        op_id: "imp1",
+        op_type: "import_chapters",
+        lamport_clock: 1,
+        payload: { last_chapter_num: 5, last_scene_ending: "第5章结尾", chapter_titles: {} },
+      }),
       // 续导第 6~10 章 → maxCh=10 >= 现 current_chapter=6 → 更新锚点
-      op({ op_id: "imp2", op_type: "import_chapters", lamport_clock: 2,
-        payload: { last_chapter_num: 10, last_scene_ending: "第10章结尾", chapter_titles: {} } }),
+      op({
+        op_id: "imp2",
+        op_type: "import_chapters",
+        lamport_clock: 2,
+        payload: { last_chapter_num: 10, last_scene_ending: "第10章结尾", chapter_titles: {} },
+      }),
     ];
     const state = rebuildStateFromOps(ops, "au1");
     expect(state.current_chapter).toBe(11);
@@ -262,11 +350,19 @@ describe("rebuildStateFromOps — additional cases", () => {
   it("F-2: 重导当前末章（maxCh = 指针−1）→ 锚点更新、指针不回退", () => {
     const ops = [
       // 先导入到第 20 章 → current_chapter=21，锚点=旧结尾
-      op({ op_id: "imp1", op_type: "import_chapters", lamport_clock: 1,
-        payload: { last_chapter_num: 20, last_scene_ending: "第20章旧结尾", chapter_titles: {} } }),
+      op({
+        op_id: "imp1",
+        op_type: "import_chapters",
+        lamport_clock: 1,
+        payload: { last_chapter_num: 20, last_scene_ending: "第20章旧结尾", chapter_titles: {} },
+      }),
       // 重导第 20 章（maxCh=20 = 21−1，触及现末章）→ 锚点应换成重导后的新结尾
-      op({ op_id: "imp2", op_type: "import_chapters", lamport_clock: 2,
-        payload: { last_chapter_num: 20, last_scene_ending: "第20章重导新结尾", chapter_titles: {} } }),
+      op({
+        op_id: "imp2",
+        op_type: "import_chapters",
+        lamport_clock: 2,
+        payload: { last_chapter_num: 20, last_scene_ending: "第20章重导新结尾", chapter_titles: {} },
+      }),
     ];
     const state = rebuildStateFromOps(ops, "au1");
     expect(state.current_chapter).toBe(21);
@@ -278,9 +374,7 @@ describe("rebuildStateFromOps — additional cases", () => {
     state.chapters_dirty = [3, 5, 7];
     // Manually simulate: the rebuild starts from scratch so dirty comes from ops
     // Since no op adds to dirty, this tests the remove path
-    const ops = [
-      op({ op_id: "r1", op_type: "resolve_dirty_chapter", chapter_num: 5, lamport_clock: 1 }),
-    ];
+    const ops = [op({ op_id: "r1", op_type: "resolve_dirty_chapter", chapter_num: 5, lamport_clock: 1 })];
     // rebuildStateFromOps starts with clean state, so chapters_dirty is []
     const rebuilt = rebuildStateFromOps(ops, "au1");
     expect(rebuilt.chapters_dirty).not.toContain(5);
@@ -289,17 +383,29 @@ describe("rebuildStateFromOps — additional cases", () => {
   // F1: undo_chapter with state_snapshot restores all fields
   it("undo_chapter with state_snapshot restores full state", () => {
     const ops = [
-      op({ op_id: "c1", op_type: "confirm_chapter", chapter_num: 1, lamport_clock: 1,
-        payload: { focus: ["f1"], last_scene_ending_snapshot: "日落", characters_last_seen_snapshot: { Alice: 1 } } }),
-      op({ op_id: "u1", op_type: "undo_chapter", chapter_num: 1, lamport_clock: 2,
-        payload: { state_snapshot: {
-          current_chapter: 1,
-          last_scene_ending: "",
-          characters_last_seen: {},
-          last_confirmed_chapter_focus: [],
-          chapter_titles: {},
-          chapters_dirty: [],
-        } } }),
+      op({
+        op_id: "c1",
+        op_type: "confirm_chapter",
+        chapter_num: 1,
+        lamport_clock: 1,
+        payload: { focus: ["f1"], last_scene_ending_snapshot: "日落", characters_last_seen_snapshot: { Alice: 1 } },
+      }),
+      op({
+        op_id: "u1",
+        op_type: "undo_chapter",
+        chapter_num: 1,
+        lamport_clock: 2,
+        payload: {
+          state_snapshot: {
+            current_chapter: 1,
+            last_scene_ending: "",
+            characters_last_seen: {},
+            last_confirmed_chapter_focus: [],
+            chapter_titles: {},
+            chapters_dirty: [],
+          },
+        },
+      }),
     ];
     const state = rebuildStateFromOps(ops, "au1");
     expect(state.current_chapter).toBe(1);
@@ -313,8 +419,13 @@ describe("rebuildStateFromOps — additional cases", () => {
   // F1: legacy undo_chapter without snapshot falls back to chapter_num
   it("undo_chapter without snapshot uses chapter_num fallback", () => {
     const ops = [
-      op({ op_id: "c1", op_type: "confirm_chapter", chapter_num: 1, lamport_clock: 1,
-        payload: { focus: [], last_scene_ending_snapshot: "s", characters_last_seen_snapshot: { A: 1 } } }),
+      op({
+        op_id: "c1",
+        op_type: "confirm_chapter",
+        chapter_num: 1,
+        lamport_clock: 1,
+        payload: { focus: [], last_scene_ending_snapshot: "s", characters_last_seen_snapshot: { A: 1 } },
+      }),
       op({ op_id: "u1", op_type: "undo_chapter", chapter_num: 1, lamport_clock: 2, payload: {} }),
     ];
     const state = rebuildStateFromOps(ops, "au1");
@@ -325,10 +436,20 @@ describe("rebuildStateFromOps — additional cases", () => {
   // F4: set_chapter_title sets title in rebuilt state
   it("set_chapter_title projects into chapter_titles", () => {
     const ops = [
-      op({ op_id: "t1", op_type: "set_chapter_title", chapter_num: 1, lamport_clock: 1,
-        payload: { title: "黄昏的告别" } }),
-      op({ op_id: "t2", op_type: "set_chapter_title", chapter_num: 2, lamport_clock: 2,
-        payload: { title: "新的开始" } }),
+      op({
+        op_id: "t1",
+        op_type: "set_chapter_title",
+        chapter_num: 1,
+        lamport_clock: 1,
+        payload: { title: "黄昏的告别" },
+      }),
+      op({
+        op_id: "t2",
+        op_type: "set_chapter_title",
+        chapter_num: 2,
+        lamport_clock: 2,
+        payload: { title: "新的开始" },
+      }),
     ];
     const state = rebuildStateFromOps(ops, "au1");
     expect(state.chapter_titles[1]).toBe("黄昏的告别");
@@ -338,8 +459,7 @@ describe("rebuildStateFromOps — additional cases", () => {
   // F4: mark_chapters_dirty projects into chapters_dirty
   it("mark_chapters_dirty + resolve_dirty_chapter sequence", () => {
     const ops = [
-      op({ op_id: "m1", op_type: "mark_chapters_dirty", lamport_clock: 1,
-        payload: { chapters_dirty: [3, 5] } }),
+      op({ op_id: "m1", op_type: "mark_chapters_dirty", lamport_clock: 1, payload: { chapters_dirty: [3, 5] } }),
       op({ op_id: "r1", op_type: "resolve_dirty_chapter", chapter_num: 3, lamport_clock: 2 }),
     ];
     const state = rebuildStateFromOps(ops, "au1");
@@ -351,15 +471,32 @@ describe("rebuildStateFromOps — additional cases", () => {
 describe("rebuildFactsFromOps — full fact fields (F5)", () => {
   it("add_fact preserves story_time, resolves, revision, timestamps", () => {
     const ops = [
-      op({ op_id: "a1", op_type: "add_fact", target_id: "f1", chapter_num: 1, lamport_clock: 1,
-        payload: { fact: {
-          id: "f1", content_raw: "raw", content_clean: "clean",
-          characters: ["Alice"], chapter: 1, status: "active",
-          type: "plot_event", narrative_weight: "high", source: "manual",
-          timeline: "main", story_time: "第三天黄昏",
-          resolves: "f0", revision: 2,
-          created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-02T00:00:00Z",
-        } } }),
+      op({
+        op_id: "a1",
+        op_type: "add_fact",
+        target_id: "f1",
+        chapter_num: 1,
+        lamport_clock: 1,
+        payload: {
+          fact: {
+            id: "f1",
+            content_raw: "raw",
+            content_clean: "clean",
+            characters: ["Alice"],
+            chapter: 1,
+            status: "active",
+            type: "plot_event",
+            narrative_weight: "high",
+            source: "manual",
+            timeline: "main",
+            story_time: "第三天黄昏",
+            resolves: "f0",
+            revision: 2,
+            created_at: "2026-01-01T00:00:00Z",
+            updated_at: "2026-01-02T00:00:00Z",
+          },
+        },
+      }),
     ];
     const facts = rebuildFactsFromOps(ops);
     expect(facts).toHaveLength(1);
@@ -374,8 +511,13 @@ describe("rebuildFactsFromOps — full fact fields (F5)", () => {
 
   it("add_fact with missing optional fields uses defaults", () => {
     const ops = [
-      op({ op_id: "a2", op_type: "add_fact", target_id: "f2", lamport_clock: 1,
-        payload: { fact: { id: "f2", content_raw: "r", content_clean: "c" } } }),
+      op({
+        op_id: "a2",
+        op_type: "add_fact",
+        target_id: "f2",
+        lamport_clock: 1,
+        payload: { fact: { id: "f2", content_raw: "r", content_clean: "c" } },
+      }),
     ];
     const facts = rebuildFactsFromOps(ops);
     expect(facts[0].story_time).toBe("");

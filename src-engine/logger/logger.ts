@@ -173,7 +173,10 @@ export class FileLogger implements Logger {
   async listLogFiles(): Promise<string[]> {
     try {
       const files = await this.adapter.listDir(this.logsDir);
-      return files.filter((f) => f.endsWith(".jsonl")).sort().reverse();
+      return files
+        .filter((f) => f.endsWith(".jsonl"))
+        .sort()
+        .reverse();
     } catch {
       return [];
     }
@@ -228,7 +231,9 @@ export class FileLogger implements Logger {
       if (!exists) {
         try {
           await this.adapter.writeFile(rotated, content);
-        } catch { /* best effort */ }
+        } catch {
+          /* best effort */
+        }
         return;
       }
     }
@@ -273,7 +278,10 @@ const STRING_REDACT_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
   // URL query 里的 key/token 参数值
   [/([?&](?:api[_-]?key|apikey|key|token|access[_-]?token|secret)=)[^&\s"']+/gi, "$1[REDACTED]"],
   // JSON / kv 形态 "api_key":"xxx"、token=xxx（B2 对抗审：token 并入 —— 网关 4xx 回显常用）
-  [/(\b(?:api[_-]?key|apikey|access[_-]?token|token|secret|password|authorization)["']?\s*[:=]\s*["']?)[^\s"',;{}]{4,}/gi, "$1[REDACTED]"],
+  [
+    /(\b(?:api[_-]?key|apikey|access[_-]?token|token|secret|password|authorization)["']?\s*[:=]\s*["']?)[^\s"',;{}]{4,}/gi,
+    "$1[REDACTED]",
+  ],
   // secure key 名内嵌的作品/AU 标题（Rust/adapter 错误串会拼原始 key 名）。
   // `.+?` 而非 `\S+?`：au_id 路径段白名单允许空格（"Harry Potter" 极常见），\S 遇空格即断导致
   // 整段标题直通（B2 对抗审 MEDIUM，测试曾用无空格标题给了假信心）；后缀锚定保证不跨行贪吃。

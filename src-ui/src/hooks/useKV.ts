@@ -29,24 +29,38 @@ export function useKV(key: string, defaultValue: string): [string, (v: string) =
     localSetRef.current = false;
     if (!isEngineReady()) return;
     let cancelled = false;
-    getEngine().adapter.kvGet(key).then((stored) => {
-      // 用户已在加载完成前写过值 → 不用磁盘旧值覆盖用户刚写的（stale 异步回滚）。
-      if (!cancelled && !localSetRef.current && stored !== null) {
-        setValue(stored);
-      }
-    }).catch(() => { /* ignore read failures */ });
-    return () => { cancelled = true; };
+    getEngine()
+      .adapter.kvGet(key)
+      .then((stored) => {
+        // 用户已在加载完成前写过值 → 不用磁盘旧值覆盖用户刚写的（stale 异步回滚）。
+        if (!cancelled && !localSetRef.current && stored !== null) {
+          setValue(stored);
+        }
+      })
+      .catch(() => {
+        /* ignore read failures */
+      });
+    return () => {
+      cancelled = true;
+    };
     // defaultValue 有意不入依赖：调用方常传字面量，每次渲染新引用会触发无谓重载/重置。
     // key 才是加载键；defaultValue 仅作首屏兜底，变更极罕见。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
-  const set = useCallback((v: string) => {
-    localSetRef.current = true;
-    setValue(v);
-    if (!isEngineReady()) return;
-    getEngine().adapter.kvSet(key, v).catch(() => { /* ignore write failures */ });
-  }, [key]);
+  const set = useCallback(
+    (v: string) => {
+      localSetRef.current = true;
+      setValue(v);
+      if (!isEngineReady()) return;
+      getEngine()
+        .adapter.kvSet(key, v)
+        .catch(() => {
+          /* ignore write failures */
+        });
+    },
+    [key],
+  );
 
   return [value, set];
 }

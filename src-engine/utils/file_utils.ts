@@ -66,7 +66,10 @@ const _writeLocks = new Map<string, Promise<void>>();
 export function withWriteLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const prev = _writeLocks.get(key) ?? Promise.resolve();
   const next = prev.then(fn, fn); // always chain, even on error
-  const voidNext = next.then(() => {}, () => {});
+  const voidNext = next.then(
+    () => {},
+    () => {},
+  );
   _writeLocks.set(key, voidNext);
   voidNext.then(() => {
     if (_writeLocks.get(key) === voidNext) {
@@ -81,10 +84,7 @@ export function withWriteLock<T>(key: string, fn: () => Promise<T>): Promise<T> 
 // ---------------------------------------------------------------------------
 
 /** 逐行解析 JSONL 文本。read_jsonl 主文件与 .tmp 恢复共用同一解析判据。 */
-function parseJsonlText<T>(
-  text: string,
-  parse: (d: Record<string, unknown>) => T,
-): [T[], string[]] {
+function parseJsonlText<T>(text: string, parse: (d: Record<string, unknown>) => T): [T[], string[]] {
   const items: T[] = [];
   const errors: string[] = [];
   const lines = text.split("\n");
@@ -175,11 +175,7 @@ async function tryRecoverFromTmp<T>(
  * .tmp，交错会让后一个 rename 因 .tmp 已被移走而抛错；用独立前缀（而非裸 path
  * key）避免与调用方已持有的 withWriteLock(path) 重入死锁（withWriteLock 不可重入）。
  */
-export function atomicWrite(
-  adapter: PlatformAdapter,
-  path: string,
-  content: string,
-): Promise<void> {
+export function atomicWrite(adapter: PlatformAdapter, path: string, content: string): Promise<void> {
   return withWriteLock(`atomicWrite:${path}`, async () => {
     const tmpPath = path + ".tmp";
     await adapter.writeFile(tmpPath, content);
@@ -215,9 +211,7 @@ export async function rewrite_jsonl(
   path: string,
   items: Record<string, unknown>[],
 ): Promise<void> {
-  const content = items.length > 0
-    ? items.map((item) => JSON.stringify(item)).join("\n") + "\n"
-    : "";
+  const content = items.length > 0 ? items.map((item) => JSON.stringify(item)).join("\n") + "\n" : "";
   await atomicWrite(adapter, path, content);
 }
 
@@ -228,9 +222,7 @@ export async function rewrite_jsonl(
 const ID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
 
 function randomIdSuffix(): string {
-  return Array.from({ length: 4 }, () =>
-    ID_ALPHABET[Math.floor(Math.random() * ID_ALPHABET.length)],
-  ).join("");
+  return Array.from({ length: 4 }, () => ID_ALPHABET[Math.floor(Math.random() * ID_ALPHABET.length)]).join("");
 }
 
 /** 生成全局唯一 Fact ID：f_{unix时间戳}_{4位随机}。 */

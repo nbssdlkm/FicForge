@@ -9,7 +9,8 @@ function setup(contextWindow: number, chapterLength: number) {
   const adapter = new MockAdapter();
   const chapterRepo = new FileChapterRepository(adapter);
   const project = createProject({
-    project_id: "p", au_id: "a",
+    project_id: "p",
+    au_id: "a",
     llm: createLLMConfig({ mode: "api" as any, model: "gpt-4o", context_window: contextWindow }),
     chapter_length: chapterLength,
   });
@@ -21,28 +22,36 @@ describe("context_assembler budget rebalance", () => {
   it("128k model gains massive input budget (was ~77k, now >100k)", async () => {
     const { project, state, chapterRepo } = setup(128_000, 1500);
     const r = await assemble_context(project, state, "写", [], chapterRepo, "a");
-    expect(r.max_tokens).toBe(3000);  // chapter × 2 still binding
+    expect(r.max_tokens).toBe(3000); // chapter × 2 still binding
     expect(r.budget_report.max_output_tokens).toBe(3000);
     // input budget = 128000 - max(3000, 10000) - sys - 500 ≈ 117k
-    const inputAvailable = r.budget_report.context_window - r.budget_report.max_output_tokens - r.budget_report.system_tokens;
+    const inputAvailable =
+      r.budget_report.context_window - r.budget_report.max_output_tokens - r.budget_report.system_tokens;
     expect(inputAvailable).toBeGreaterThan(100_000);
   });
 
   it("8k tiny model does NOT regress (uses old 60% formula)", async () => {
     const { project, state, chapterRepo } = setup(8_000, 800);
     const r = await assemble_context(project, state, "写", [], chapterRepo, "a");
-    expect(r.max_tokens).toBe(1600);  // 800 × 2
+    expect(r.max_tokens).toBe(1600); // 800 × 2
     // budget = max(new, old). new = 8000-10000-sys-500 < 0; old = 4800-sys ≈ 4360
     // 验证：input budget 应该至少是旧公式水平
     const oldBudget = Math.trunc(8000 * 0.6) - r.budget_report.system_tokens;
-    const totalUsed = r.budget_report.p1_tokens + r.budget_report.p2_tokens + r.budget_report.p3_tokens + r.budget_report.p4_tokens + r.budget_report.p5_tokens;
+    const totalUsed =
+      r.budget_report.p1_tokens +
+      r.budget_report.p2_tokens +
+      r.budget_report.p3_tokens +
+      r.budget_report.p4_tokens +
+      r.budget_report.p5_tokens;
     expect(totalUsed + r.budget_report.budget_remaining).toBeGreaterThanOrEqual(oldBudget - 5);
   });
 
   it("OUTPUT_RESERVE_CEIL=15000 caps maxTokens for very long chapters", async () => {
     vi.resetModules();
     vi.doMock("../../domain/model_context_map.js", async () => {
-      const actual = await vi.importActual<typeof import("../../domain/model_context_map.js")>("../../domain/model_context_map.js");
+      const actual = await vi.importActual<typeof import("../../domain/model_context_map.js")>(
+        "../../domain/model_context_map.js",
+      );
       return {
         ...actual,
         get_model_max_output: () => 20_000,
@@ -50,7 +59,7 @@ describe("context_assembler budget rebalance", () => {
     });
 
     const { assemble_context: assembleContext } = await import("../context_assembler.js");
-    const { project, state, chapterRepo } = setup(128_000, 10_000);  // 想写 1 万字章节
+    const { project, state, chapterRepo } = setup(128_000, 10_000); // 想写 1 万字章节
     const r = await assembleContext(project, state, "写", [], chapterRepo, "a");
     try {
       // chapter × 2 = 20000 > CEIL 15000 → 夹到 15000

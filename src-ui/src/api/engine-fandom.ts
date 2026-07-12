@@ -170,17 +170,10 @@ export async function deleteFandom(fandomDirName: string) {
   const displayName = fandomInfo?.name?.trim() || safeFandomDir;
 
   const ausDir = `${fandomRoot}/aus`;
-  const auPaths = (await adapter.exists(ausDir))
-    ? (await adapter.listDir(ausDir)).map((au) => `${ausDir}/${au}`)
-    : [];
+  const auPaths = (await adapter.exists(ausDir)) ? (await adapter.listDir(ausDir)).map((au) => `${ausDir}/${au}`) : [];
 
   return withOrderedAuLocks(auPaths, async () => {
-    const entry = await getEngine().trash.move_tree_to_trash(
-      fandomsRoot,
-      safeFandomDir,
-      "fandom",
-      displayName,
-    );
+    const entry = await getEngine().trash.move_tree_to_trash(fandomsRoot, safeFandomDir, "fandom", displayName);
 
     for (const auPath of auPaths) {
       // H9c：树已移入 trash，卸载其中任何仍驻留内存的 AU 向量索引 ——
@@ -207,17 +200,14 @@ export async function deleteAu(fandomDirName: string, auName: string) {
   const auPath = `${fandomRoot}/aus/${safeAuName}`;
 
   return withAuLock(auPath, async () => {
-    const projectInfo = await getEngine().repos.project.get(auPath).catch((e) => {
-    warnUi("engine-fandom", `read project.yaml failed: ${auPath}`, e);
-    return null;
-  });
+    const projectInfo = await getEngine()
+      .repos.project.get(auPath)
+      .catch((e) => {
+        warnUi("engine-fandom", `read project.yaml failed: ${auPath}`, e);
+        return null;
+      });
     const displayName = projectInfo?.name?.trim() || safeAuName;
-    const entry = await getEngine().trash.move_tree_to_trash(
-      fandomRoot,
-      `aus/${safeAuName}`,
-      "au",
-      displayName,
-    );
+    const entry = await getEngine().trash.move_tree_to_trash(fandomRoot, `aus/${safeAuName}`, "au", displayName);
     // H9c：AU 已移入 trash，卸载其内存向量索引（不 persist —— 数据已移走）。
     // 否则同名重建的 AU 会经 ensureLoaded 跳过 load、直接继承已删作品的内存向量，
     // 且首次 indexChapter 的 persist 会把它落盘固化进新 AU。trash 恢复路径天然对称：

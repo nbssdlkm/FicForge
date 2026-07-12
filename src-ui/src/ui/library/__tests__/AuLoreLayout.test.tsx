@@ -24,10 +24,16 @@ vi.mock("../../shared/TrashPanel", () => ({
   TrashPanel: ({ onRestore }: { onRestore?: (entry: unknown) => void }) => (
     <div>
       {/* entity_name 按 deleteLore 的真实落库形态带 .md，锁住恢复时的去后缀处理 */}
-      <button onClick={() => onRestore?.({ trash_id: "t1", original_path: "characters/恢复角色.md", entity_name: "恢复角色.md" })}>
+      <button
+        onClick={() =>
+          onRestore?.({ trash_id: "t1", original_path: "characters/恢复角色.md", entity_name: "恢复角色.md" })
+        }
+      >
         restore-character
       </button>
-      <button onClick={() => onRestore?.({ trash_id: "t2", original_path: "chapters/main/ch0003.md", entity_name: "第三章" })}>
+      <button
+        onClick={() => onRestore?.({ trash_id: "t2", original_path: "chapters/main/ch0003.md", entity_name: "第三章" })}
+      >
         restore-chapter
       </button>
     </div>
@@ -91,9 +97,11 @@ async function renderLayout(auPath = AU_PATH, onChaptersChanged?: () => void) {
 
 async function openCharacterFile(name = "主角甲") {
   fireEvent.click(screen.getByText(`${name}.md`));
-  await waitFor(() => expect(readLore).toHaveBeenCalledWith(
-    expect.objectContaining({ au_path: AU_PATH, category: "characters", filename: `${name}.md` }),
-  ));
+  await waitFor(() =>
+    expect(readLore).toHaveBeenCalledWith(
+      expect.objectContaining({ au_path: AU_PATH, category: "characters", filename: `${name}.md` }),
+    ),
+  );
   // 读取完成（预览区回显正文）
   await waitFor(() => expect(screen.getByTestId("settings-md").textContent).toContain(`# ${name}`));
 }
@@ -101,20 +109,34 @@ async function openCharacterFile(name = "主角甲") {
 describe("AuLoreLayout — 状态下沉回归", () => {
   beforeEach(() => {
     (getProjectForEditing as Mock).mockReset().mockResolvedValue(projectFixture());
-    (listLoreFiles as Mock).mockReset().mockImplementation(async (params: { category: string; fandom_path?: string }) => {
-      if (params.fandom_path) {
-        return { files: [{ name: "主角甲", filename: "主角甲.md" }, { name: "新角色丙", filename: "新角色丙.md" }] };
-      }
-      if (params.category === "worldbuilding") {
-        return { files: [{ name: "魔法体系", filename: "魔法体系.md" }] };
-      }
-      return { files: [{ name: "主角甲", filename: "主角甲.md" }, { name: "配角乙", filename: "配角乙.md" }] };
-    });
-    (readLore as Mock).mockReset().mockImplementation(async (params: { filename: string }) => (
-      params.filename === "主角甲.md"
-        ? { content: CHARACTER_CONTENT }
-        : { content: `# ${params.filename.replace(/\.md$/, "")}\n\n设定内容` }
-    ));
+    (listLoreFiles as Mock)
+      .mockReset()
+      .mockImplementation(async (params: { category: string; fandom_path?: string }) => {
+        if (params.fandom_path) {
+          return {
+            files: [
+              { name: "主角甲", filename: "主角甲.md" },
+              { name: "新角色丙", filename: "新角色丙.md" },
+            ],
+          };
+        }
+        if (params.category === "worldbuilding") {
+          return { files: [{ name: "魔法体系", filename: "魔法体系.md" }] };
+        }
+        return {
+          files: [
+            { name: "主角甲", filename: "主角甲.md" },
+            { name: "配角乙", filename: "配角乙.md" },
+          ],
+        };
+      });
+    (readLore as Mock)
+      .mockReset()
+      .mockImplementation(async (params: { filename: string }) =>
+        params.filename === "主角甲.md"
+          ? { content: CHARACTER_CONTENT }
+          : { content: `# ${params.filename.replace(/\.md$/, "")}\n\n设定内容` },
+      );
     (saveLore as Mock).mockReset().mockResolvedValue(undefined);
     (deleteLore as Mock).mockReset().mockResolvedValue(undefined);
     (importFromFandom as Mock).mockReset().mockResolvedValue(undefined);
@@ -183,7 +205,9 @@ describe("AuLoreLayout — 状态下沉回归", () => {
     const [payload] = (saveLore as Mock).mock.calls[0];
     expect(payload.filename).toBe("新角色.md");
     expect(payload.category).toBe("characters");
-    await waitFor(() => expect(saveProjectCastRegistryCharacters).toHaveBeenCalledWith(AU_PATH, ["主角甲", "配角乙", "新角色"]));
+    await waitFor(() =>
+      expect(saveProjectCastRegistryCharacters).toHaveBeenCalledWith(AU_PATH, ["主角甲", "配角乙", "新角色"]),
+    );
 
     // 新文件同时出现在列表与编辑器头部，编辑器带默认内容进入编辑态（textarea 可见）
     expect(await screen.findAllByText("新角色.md")).toHaveLength(2);
@@ -198,9 +222,11 @@ describe("AuLoreLayout — 状态下沉回归", () => {
     clickIconButton("lucide-trash");
     fireEvent.click(screen.getByRole("button", { name: "确认删除" }));
 
-    await waitFor(() => expect(deleteLore).toHaveBeenCalledWith(
-      expect.objectContaining({ category: "characters", filename: "主角甲.md" }),
-    ));
+    await waitFor(() =>
+      expect(deleteLore).toHaveBeenCalledWith(
+        expect.objectContaining({ category: "characters", filename: "主角甲.md" }),
+      ),
+    );
     await waitFor(() => expect(saveProjectCastRegistryCharacters).toHaveBeenCalledWith(AU_PATH, ["配角乙"]));
     // 主角甲在必带角色里 → 一并清理
     await waitFor(() => expect(saveProjectCoreIncludes).toHaveBeenCalledWith(AU_PATH, []));
@@ -222,12 +248,18 @@ describe("AuLoreLayout — 状态下沉回归", () => {
     fireEvent.click(checkbox);
     fireEvent.click(screen.getByRole("button", { name: "导入选中的角色" }));
 
-    await waitFor(() => expect(importFromFandom).toHaveBeenCalledWith(expect.objectContaining({
-      au_path: AU_PATH,
-      filenames: ["新角色丙.md"],
-      source_category: "core_characters",
-    })));
-    await waitFor(() => expect(saveProjectCastRegistryCharacters).toHaveBeenCalledWith(AU_PATH, ["主角甲", "配角乙", "新角色丙"]));
+    await waitFor(() =>
+      expect(importFromFandom).toHaveBeenCalledWith(
+        expect.objectContaining({
+          au_path: AU_PATH,
+          filenames: ["新角色丙.md"],
+          source_category: "core_characters",
+        }),
+      ),
+    );
+    await waitFor(() =>
+      expect(saveProjectCastRegistryCharacters).toHaveBeenCalledWith(AU_PATH, ["主角甲", "配角乙", "新角色丙"]),
+    );
     // 导入成功后全量 reload（重拉 project + 双列表）
     await waitFor(() => expect(getProjectForEditing).toHaveBeenCalledWith(AU_PATH));
   });
@@ -242,9 +274,9 @@ describe("AuLoreLayout — 状态下沉回归", () => {
     // 引导弹窗 → 去编辑 → 按 characters 分类打开该角色
     expect(await screen.findByText("建议添加「核心限制」段落")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "去编辑" }));
-    await waitFor(() => expect(readLore).toHaveBeenCalledWith(
-      expect.objectContaining({ category: "characters", filename: "配角乙.md" }),
-    ));
+    await waitFor(() =>
+      expect(readLore).toHaveBeenCalledWith(expect.objectContaining({ category: "characters", filename: "配角乙.md" })),
+    );
   });
 
   it("回收站恢复：角色文件插回列表，章节文件走 onChaptersChanged 通道", async () => {

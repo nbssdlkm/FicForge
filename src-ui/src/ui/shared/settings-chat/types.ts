@@ -39,7 +39,13 @@ export interface LoreFileOption {
   filename: string;
 }
 
-import { EmotionStyle, FACT_TYPE_VALUES, FACT_STATUS_VALUES, NARRATIVE_WEIGHT_VALUES, Perspective } from "../../../api/engine-client";
+import {
+  EmotionStyle,
+  FACT_TYPE_VALUES,
+  FACT_STATUS_VALUES,
+  NARRATIVE_WEIGHT_VALUES,
+  Perspective,
+} from "../../../api/engine-client";
 // 单一真相源（盲审 R3 M9）：同名文件「是否已存在」的规范化判据 —— 与 lore 新建路径
 // （useAuLoreActions / useFandomLoreEditor / 移动端）共用同一函数，避免两处漂移后
 // 「是否已存在」结论不一、静默覆盖用户文件。
@@ -64,7 +70,11 @@ export function coerceStringArray(value: unknown): string[] {
 export function normalizeMarkdownFilename(value: string): string {
   const trimmed = value.trim().replace(/\.md$/i, "");
   // 防止路径穿越
-  const safe = trimmed.replace(/[\/\\]/g, "").replace(/\.\./g, "").replace(/^\.+/, "").trim();
+  const safe = trimmed
+    .replace(/[\/\\]/g, "")
+    .replace(/\.\./g, "")
+    .replace(/^\.+/, "")
+    .trim();
   return `${safe || "untitled"}.md`;
 }
 
@@ -77,14 +87,12 @@ export function getToolOverwriteWarning(
   args: Record<string, unknown>,
   existingCharacterFileNames: Set<string>,
   existingWorldbuildingFileNames: Set<string>,
-  t: (key: string, options?: Record<string, unknown>) => string
+  t: (key: string, options?: Record<string, unknown>) => string,
 ): string | null {
   const toolName = typeof source === "string" ? source : getToolCallName(source);
-  const existingCharacterKeys = new Set(
-    Array.from(existingCharacterFileNames, (name) => toCanonicalCreateKey(name))
-  );
+  const existingCharacterKeys = new Set(Array.from(existingCharacterFileNames, (name) => toCanonicalCreateKey(name)));
   const existingWorldbuildingKeys = new Set(
-    Array.from(existingWorldbuildingFileNames, (name) => toCanonicalCreateKey(name))
+    Array.from(existingWorldbuildingFileNames, (name) => toCanonicalCreateKey(name)),
   );
 
   if (toolName === "create_character_file" || toolName === "create_core_character_file") {
@@ -109,7 +117,7 @@ export function getToolMissingTargetError(
   args: Record<string, unknown>,
   existingCharacterFileNames: Set<string>,
   existingWorldbuildingFileNames: Set<string>,
-  t: (key: string, options?: Record<string, unknown>) => string
+  t: (key: string, options?: Record<string, unknown>) => string,
 ): string | null {
   const toolName = typeof source === "string" ? source : getToolCallName(source);
 
@@ -134,7 +142,7 @@ export function getToolDuplicateWarning(
   source: SettingsChatToolCall | ToolCallCardState | string,
   args: Record<string, unknown>,
   existingPinnedTexts: string[],
-  t: (key: string, options?: Record<string, unknown>) => string
+  t: (key: string, options?: Record<string, unknown>) => string,
 ): string | null {
   const toolName = typeof source === "string" ? source : getToolCallName(source);
 
@@ -162,7 +170,7 @@ export function getToolValidationError(
   source: SettingsChatToolCall | ToolCallCardState | string,
   args: Record<string, unknown>,
   t: (key: string, options?: Record<string, unknown>) => string,
-  availableCharacterNames?: Set<string>
+  availableCharacterNames?: Set<string>,
 ): string | null {
   const toolName = typeof source === "string" ? source : getToolCallName(source);
   const importance = coerceString(args.importance);
@@ -171,9 +179,9 @@ export function getToolValidationError(
   const narrativeWeight = coerceString(args.narrative_weight);
 
   if (
-    toolName === "create_character_file"
-    || toolName === "create_core_character_file"
-    || toolName === "create_worldbuilding_file"
+    toolName === "create_character_file" ||
+    toolName === "create_core_character_file" ||
+    toolName === "create_worldbuilding_file"
   ) {
     if (!hasUsableMarkdownStem(args.name)) {
       return t("settingsMode.validation.nameRequired");
@@ -188,9 +196,9 @@ export function getToolValidationError(
   }
 
   if (
-    toolName === "modify_character_file"
-    || toolName === "modify_core_character_file"
-    || toolName === "modify_worldbuilding_file"
+    toolName === "modify_character_file" ||
+    toolName === "modify_core_character_file" ||
+    toolName === "modify_worldbuilding_file"
   ) {
     if (!hasUsableMarkdownStem(args.filename)) {
       return t("settingsMode.validation.filenameRequired");
@@ -217,7 +225,10 @@ export function getToolValidationError(
     if (!FACT_CREATE_STATUS_OPTIONS.includes(factStatus as (typeof FACT_CREATE_STATUS_OPTIONS)[number])) {
       return t("settingsMode.validation.factStatusInvalid");
     }
-    if (narrativeWeight && !NARRATIVE_WEIGHT_OPTIONS.includes(narrativeWeight as (typeof NARRATIVE_WEIGHT_OPTIONS)[number])) {
+    if (
+      narrativeWeight &&
+      !NARRATIVE_WEIGHT_OPTIONS.includes(narrativeWeight as (typeof NARRATIVE_WEIGHT_OPTIONS)[number])
+    ) {
       return t("settingsMode.validation.narrativeWeightInvalid");
     }
     return null;
@@ -228,20 +239,19 @@ export function getToolValidationError(
       return t("settingsMode.validation.factIdRequired");
     }
     const hasAnyField =
-      Object.prototype.hasOwnProperty.call(args, "content_raw")
-      || Object.prototype.hasOwnProperty.call(args, "content_clean")
-      || Object.prototype.hasOwnProperty.call(args, "characters")
-      || Object.prototype.hasOwnProperty.call(args, "fact_type")
-      || Object.prototype.hasOwnProperty.call(args, "type")
-      || Object.prototype.hasOwnProperty.call(args, "narrative_weight")
-      || Object.prototype.hasOwnProperty.call(args, "status");
+      Object.prototype.hasOwnProperty.call(args, "content_raw") ||
+      Object.prototype.hasOwnProperty.call(args, "content_clean") ||
+      Object.prototype.hasOwnProperty.call(args, "characters") ||
+      Object.prototype.hasOwnProperty.call(args, "fact_type") ||
+      Object.prototype.hasOwnProperty.call(args, "type") ||
+      Object.prototype.hasOwnProperty.call(args, "narrative_weight") ||
+      Object.prototype.hasOwnProperty.call(args, "status");
     if (!hasAnyField) {
       return t("settingsMode.validation.factChangesRequired");
     }
     if (
-      (Object.prototype.hasOwnProperty.call(args, "fact_type")
-        || Object.prototype.hasOwnProperty.call(args, "type"))
-      && !factType
+      (Object.prototype.hasOwnProperty.call(args, "fact_type") || Object.prototype.hasOwnProperty.call(args, "type")) &&
+      !factType
     ) {
       return t("settingsMode.validation.factTypeRequired");
     }
@@ -257,7 +267,10 @@ export function getToolValidationError(
     if (factStatus && !FACT_STATUS_OPTIONS.includes(factStatus as (typeof FACT_STATUS_OPTIONS)[number])) {
       return t("settingsMode.validation.factStatusInvalid");
     }
-    if (narrativeWeight && !NARRATIVE_WEIGHT_OPTIONS.includes(narrativeWeight as (typeof NARRATIVE_WEIGHT_OPTIONS)[number])) {
+    if (
+      narrativeWeight &&
+      !NARRATIVE_WEIGHT_OPTIONS.includes(narrativeWeight as (typeof NARRATIVE_WEIGHT_OPTIONS)[number])
+    ) {
       return t("settingsMode.validation.narrativeWeightInvalid");
     }
     return null;
@@ -356,7 +369,7 @@ export function isToolCallResolved(status: ToolCallStatus): boolean {
 
 export function getToolStatusSummary(
   card: ToolCallCardState,
-  t: (key: string, options?: Record<string, unknown>) => string
+  t: (key: string, options?: Record<string, unknown>) => string,
 ): string | null {
   const name = getToolCallName(card);
   if (card.status === "executed") return t("settingsMode.statusSummary.executed", { name });

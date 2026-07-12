@@ -20,12 +20,16 @@ import {
 function getToolSchema(mode: string, toolName: string) {
   const tools = get_tools_for_mode(mode);
   const tool = tools.find(
-    (t) => (t as Record<string, unknown>).type === "function"
-      && ((t as Record<string, Record<string, unknown>>).function.name === toolName),
+    (t) =>
+      (t as Record<string, unknown>).type === "function" &&
+      (t as Record<string, Record<string, unknown>>).function.name === toolName,
   );
   if (!tool) throw new Error(`Tool ${toolName} not found in mode ${mode}`);
   const fn = (tool as Record<string, Record<string, unknown>>).function;
-  return (fn.parameters as Record<string, Record<string, unknown>>).properties as Record<string, Record<string, unknown>>;
+  return (fn.parameters as Record<string, Record<string, unknown>>).properties as Record<
+    string,
+    Record<string, unknown>
+  >;
 }
 
 describe("tool schema ↔ domain enum 契约", () => {

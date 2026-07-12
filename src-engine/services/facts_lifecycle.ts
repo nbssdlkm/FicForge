@@ -48,8 +48,8 @@ export class FactsLifecycleError extends Error {
 // M8-A 枚举校验集合（add_fact 路径与 rawToExtracted 对齐）
 // ---------------------------------------------------------------------------
 
-const TIME_KIND_SET   = new Set(Object.values(TimeKind)    as string[]);
-const SUSPENSE_SET    = new Set(Object.values(SuspenseType) as string[]);
+const TIME_KIND_SET = new Set(Object.values(TimeKind) as string[]);
+const SUSPENSE_SET = new Set(Object.values(SuspenseType) as string[]);
 
 // ---------------------------------------------------------------------------
 // 悬空 ID 级联清理
@@ -127,9 +127,7 @@ async function collect_resolves_reverse(
   const allFacts = await fact_repo.list_all(au_id);
   // exclude_fact_id: 正在编辑的 fact，其 resolves 字段即将被移除，
   // 但磁盘上尚未更新，需要从 "仍然 resolves" 检查中排除
-  const stillResolved = allFacts.some(
-    (f) => f.resolves === old_resolves_target_id && f.id !== exclude_fact_id,
-  );
+  const stillResolved = allFacts.some((f) => f.resolves === old_resolves_target_id && f.id !== exclude_fact_id);
   if (!stillResolved) {
     const target = await fact_repo.get(au_id, old_resolves_target_id);
     if (target !== null && target.status === FactStatus.RESOLVED) {
@@ -176,8 +174,8 @@ export async function add_fact(
   }
 
   // M8-A: time_kind / suspense_type — validate enum, illegal → null (与 rawToExtracted 对齐)
-  const rawTimeKind    = fact_data.time_kind    as string | undefined;
-  const rawSuspense    = fact_data.suspense_type as string | undefined;
+  const rawTimeKind = fact_data.time_kind as string | undefined;
+  const rawSuspense = fact_data.suspense_type as string | undefined;
 
   // M8-A: known_to / hidden_from — 单一真相源消毒（domain/fact_sanitize，M3 批一）。
   // add 语境形状非法（数字/对象等）无旧值可保 → 按 null / [] 落库（与旧行为一致：42 → null）。
@@ -207,71 +205,75 @@ export async function add_fact(
     created_at: ts,
     updated_at: ts,
     // Layer 2 (M8-A) — forwarded from fact_data, not silently dropped
-    location:          (fact_data.location       as string  | undefined) ?? null,
-    story_time_tag:    (fact_data.story_time_tag as string  | undefined) ?? null,
-    story_time_order:  typeof fact_data.story_time_order === "number" ? fact_data.story_time_order : null,
-    time_kind:         (rawTimeKind && TIME_KIND_SET.has(rawTimeKind)) ? rawTimeKind as TimeKind : null,
-    action_verb:       (fact_data.action_verb    as string  | undefined) ?? null,
-    caused_by:         Array.isArray(fact_data.caused_by) ? (fact_data.caused_by as string[]) : [],
+    location: (fact_data.location as string | undefined) ?? null,
+    story_time_tag: (fact_data.story_time_tag as string | undefined) ?? null,
+    story_time_order: typeof fact_data.story_time_order === "number" ? fact_data.story_time_order : null,
+    time_kind: rawTimeKind && TIME_KIND_SET.has(rawTimeKind) ? (rawTimeKind as TimeKind) : null,
+    action_verb: (fact_data.action_verb as string | undefined) ?? null,
+    caused_by: Array.isArray(fact_data.caused_by) ? (fact_data.caused_by as string[]) : [],
     // Layer 3 (M8-A)
-    known_to:          knownTo,
-    hidden_from:       hiddenFrom,
-    suspense_type:     (rawSuspense && SUSPENSE_SET.has(rawSuspense)) ? rawSuspense as SuspenseType : null,
+    known_to: knownTo,
+    hidden_from: hiddenFrom,
+    suspense_type: rawSuspense && SUSPENSE_SET.has(rawSuspense) ? (rawSuspense as SuspenseType) : null,
     // Thread 关联（M8-B）—— 必须从 fact_data 转发进 fact，否则下面的快照 / 持久化拿不到（M8-A 教训）
-    thread_ids:        Array.isArray(fact_data.thread_ids) ? (fact_data.thread_ids as string[]) : [],
-    thread_roles:      (typeof fact_data.thread_roles === "object" && fact_data.thread_roles !== null)
-                         ? (fact_data.thread_roles as Record<string, string>)
-                         : undefined,
+    thread_ids: Array.isArray(fact_data.thread_ids) ? (fact_data.thread_ids as string[]) : [],
+    thread_roles:
+      typeof fact_data.thread_roles === "object" && fact_data.thread_roles !== null
+        ? (fact_data.thread_roles as Record<string, string>)
+        : undefined,
     // _confidence（形状消毒：仅保留已知键 + 合法档位；非法形状 → undefined，M3 批一）
-    _confidence:       confidenceRes.ok ? confidenceRes.value : undefined,
+    _confidence: confidenceRes.ok ? confidenceRes.value : undefined,
   });
 
   // WriteTransaction 保证 D-0036 写入顺序：ops → facts
   const tx = new WriteTransaction();
-  tx.appendOp(au_id, createOpsEntry({
-    op_id: generate_op_id(),
-    op_type: "add_fact",
-    target_id: fact.id,
-    chapter_num,
-    timestamp: ts,
-    payload: {
-      content_clean: fact.content_clean,
-      status: fact.status,
-      fact: {
-        id: fact.id,
-        content_raw: fact.content_raw,
+  tx.appendOp(
+    au_id,
+    createOpsEntry({
+      op_id: generate_op_id(),
+      op_type: "add_fact",
+      target_id: fact.id,
+      chapter_num,
+      timestamp: ts,
+      payload: {
         content_clean: fact.content_clean,
-        characters: fact.characters,
-        chapter: fact.chapter,
         status: fact.status,
-        type: fact.type,
-        narrative_weight: fact.narrative_weight,
-        source: fact.source,
-        timeline: fact.timeline,
-        story_time: fact.story_time,
-        resolves: fact.resolves,
-        revision: fact.revision,
-        created_at: fact.created_at,
-        updated_at: fact.updated_at,
-        // Layer 2 (M8-A) — only include if present, keeps op payload lean
-        ...(fact.location        != null ? { location:         fact.location }        : {}),
-        ...(fact.story_time_tag  != null ? { story_time_tag:   fact.story_time_tag }  : {}),
-        ...(fact.story_time_order != null ? { story_time_order: fact.story_time_order } : {}),
-        ...(fact.time_kind       != null ? { time_kind:        fact.time_kind }        : {}),
-        ...(fact.action_verb     != null ? { action_verb:      fact.action_verb }      : {}),
-        ...(fact.caused_by?.length       ? { caused_by:        fact.caused_by }        : {}),
-        // Layer 3 (M8-A)
-        ...(fact.known_to        != null ? { known_to:         fact.known_to }         : {}),
-        ...(fact.hidden_from?.length     ? { hidden_from:      fact.hidden_from }      : {}),
-        ...(fact.suspense_type   != null ? { suspense_type:    fact.suspense_type }    : {}),
-        // Thread 关联（M8-B）—— 不进快照则 hop 3 无从恢复（M8-A 同款 BLOCKER 教训）
-        ...(fact.thread_ids?.length      ? { thread_ids:       fact.thread_ids }       : {}),
-        ...(fact.thread_roles && Object.keys(fact.thread_roles).length ? { thread_roles: fact.thread_roles } : {}),
-        // _confidence
-        ...(fact._confidence             ? { _confidence:      fact._confidence }      : {}),
+        fact: {
+          id: fact.id,
+          content_raw: fact.content_raw,
+          content_clean: fact.content_clean,
+          characters: fact.characters,
+          chapter: fact.chapter,
+          status: fact.status,
+          type: fact.type,
+          narrative_weight: fact.narrative_weight,
+          source: fact.source,
+          timeline: fact.timeline,
+          story_time: fact.story_time,
+          resolves: fact.resolves,
+          revision: fact.revision,
+          created_at: fact.created_at,
+          updated_at: fact.updated_at,
+          // Layer 2 (M8-A) — only include if present, keeps op payload lean
+          ...(fact.location != null ? { location: fact.location } : {}),
+          ...(fact.story_time_tag != null ? { story_time_tag: fact.story_time_tag } : {}),
+          ...(fact.story_time_order != null ? { story_time_order: fact.story_time_order } : {}),
+          ...(fact.time_kind != null ? { time_kind: fact.time_kind } : {}),
+          ...(fact.action_verb != null ? { action_verb: fact.action_verb } : {}),
+          ...(fact.caused_by?.length ? { caused_by: fact.caused_by } : {}),
+          // Layer 3 (M8-A)
+          ...(fact.known_to != null ? { known_to: fact.known_to } : {}),
+          ...(fact.hidden_from?.length ? { hidden_from: fact.hidden_from } : {}),
+          ...(fact.suspense_type != null ? { suspense_type: fact.suspense_type } : {}),
+          // Thread 关联（M8-B）—— 不进快照则 hop 3 无从恢复（M8-A 同款 BLOCKER 教训）
+          ...(fact.thread_ids?.length ? { thread_ids: fact.thread_ids } : {}),
+          ...(fact.thread_roles && Object.keys(fact.thread_roles).length ? { thread_roles: fact.thread_roles } : {}),
+          // _confidence
+          ...(fact._confidence ? { _confidence: fact._confidence } : {}),
+        },
       },
-    },
-  }));
+    }),
+  );
   tx.appendFact(au_id, fact);
 
   // resolves 联动：读取 target fact，构造 op + fact 更新，塞进同一个 tx
@@ -307,10 +309,7 @@ export async function edit_fact(
 
   // 别名归一化
   if ("characters" in updated_fields && character_aliases) {
-    updated_fields.characters = normalize_characters(
-      updated_fields.characters as string[],
-      character_aliases,
-    );
+    updated_fields.characters = normalize_characters(updated_fields.characters as string[], character_aliases);
   }
 
   // 应用字段更新。H-fix：枚举字段必须运行时校验 —— 旧代码 `(v)=>v as FactStatus` 是纯类型 cast，
@@ -335,9 +334,10 @@ export async function edit_fact(
     // M3 批一：知情边界字段走单一真相源消毒（与 ops 回放对称，见 domain/fact_sanitize）。
     // 形状非法 → 拒绝 + warn + 保留现值（与枚举校验同语义）。
     if (key === "known_to" || key === "hidden_from") {
-      const res = key === "known_to"
-        ? sanitize_known_to(value, character_aliases)
-        : sanitize_hidden_from(value, character_aliases);
+      const res =
+        key === "known_to"
+          ? sanitize_known_to(value, character_aliases)
+          : sanitize_hidden_from(value, character_aliases);
       if (!res.ok) {
         if (hasLogger()) getLogger().warn("facts", `edit_fact 拒绝非法形状 ${key}`, { fact_id, value: String(value) });
         continue;
@@ -406,10 +406,7 @@ export async function edit_fact(
   const newStatus = fact.status;
   let needStateSave = false;
   let state: Awaited<ReturnType<StateRepository["get"]>> | null = null;
-  if (
-    (newStatus === FactStatus.DEPRECATED || newStatus === FactStatus.RESOLVED) &&
-    oldStatus !== newStatus
-  ) {
+  if ((newStatus === FactStatus.DEPRECATED || newStatus === FactStatus.RESOLVED) && oldStatus !== newStatus) {
     state = await state_repo.get(au_id);
     const { changed } = apply_dangling_focus_cleanup(state, fact_id);
     needStateSave = changed;
@@ -417,22 +414,28 @@ export async function edit_fact(
 
   // WriteTransaction 保证 D-0036 写入顺序：ops → facts → state
   const tx = new WriteTransaction();
-  tx.appendOp(au_id, createOpsEntry({
-    op_id: generate_op_id(),
-    op_type: "edit_fact",
-    target_id: fact_id,
-    timestamp: now_utc(),
-    payload: { updated_fields: applied_fields },
-  }));
+  tx.appendOp(
+    au_id,
+    createOpsEntry({
+      op_id: generate_op_id(),
+      op_type: "edit_fact",
+      target_id: fact_id,
+      timestamp: now_utc(),
+      payload: { updated_fields: applied_fields },
+    }),
+  );
   tx.updateFact(au_id, fact);
   if (needStateSave && state) {
-    tx.appendOp(au_id, createOpsEntry({
-      op_id: generate_op_id(),
-      op_type: "set_chapter_focus",
-      target_id: au_id,
-      timestamp: now_utc(),
-      payload: { focus: [...state.chapter_focus] },
-    }));
+    tx.appendOp(
+      au_id,
+      createOpsEntry({
+        op_id: generate_op_id(),
+        op_type: "set_chapter_focus",
+        target_id: au_id,
+        timestamp: now_utc(),
+        payload: { focus: [...state.chapter_focus] },
+      }),
+    );
     tx.setState(state);
   }
   // resolves 联动：读取 target fact(s)，构造 op + fact 更新，塞进同一个 tx
@@ -489,23 +492,29 @@ export async function update_fact_status(
 
   // WriteTransaction 保证 D-0036 写入顺序：ops → facts → state
   const tx = new WriteTransaction();
-  tx.appendOp(au_id, createOpsEntry({
-    op_id: generate_op_id(),
-    op_type: "update_fact_status",
-    target_id: fact_id,
-    chapter_num,
-    timestamp: now_utc(),
-    payload: { old_status: oldStatus, new_status },
-  }));
+  tx.appendOp(
+    au_id,
+    createOpsEntry({
+      op_id: generate_op_id(),
+      op_type: "update_fact_status",
+      target_id: fact_id,
+      chapter_num,
+      timestamp: now_utc(),
+      payload: { old_status: oldStatus, new_status },
+    }),
+  );
   tx.updateFact(au_id, fact);
   if (needStateSave && state) {
-    tx.appendOp(au_id, createOpsEntry({
-      op_id: generate_op_id(),
-      op_type: "set_chapter_focus",
-      target_id: au_id,
-      timestamp: now_utc(),
-      payload: { focus: [...state.chapter_focus] },
-    }));
+    tx.appendOp(
+      au_id,
+      createOpsEntry({
+        op_id: generate_op_id(),
+        op_type: "set_chapter_focus",
+        target_id: au_id,
+        timestamp: now_utc(),
+        payload: { focus: [...state.chapter_focus] },
+      }),
+    );
     tx.setState(state);
   }
   // TD-014: 作废一个 resolver → 反向级联。若没有别的 fact 仍 resolve 其目标，把目标退回 UNRESOLVED
@@ -553,14 +562,17 @@ export async function set_chapter_focus(
   state.chapter_focus = [...focus_ids];
 
   const tx = new WriteTransaction();
-  tx.appendOp(au_id, createOpsEntry({
-    op_id: generate_op_id(),
-    op_type: "set_chapter_focus",
-    target_id: au_id,
-    chapter_num: state.current_chapter,
-    timestamp: now_utc(),
-    payload: { focus: [...focus_ids] },
-  }));
+  tx.appendOp(
+    au_id,
+    createOpsEntry({
+      op_id: generate_op_id(),
+      op_type: "set_chapter_focus",
+      target_id: au_id,
+      chapter_num: state.current_chapter,
+      timestamp: now_utc(),
+      payload: { focus: [...focus_ids] },
+    }),
+  );
   tx.setState(state);
   await tx.commit(ops_repo, null, state_repo);
 
@@ -651,13 +663,16 @@ export async function archive_fact(
 
   // WriteTransaction 保证顺序：ops → fact
   const tx = new WriteTransaction();
-  tx.appendOp(au_id, createOpsEntry({
-    op_id: generate_op_id(),
-    op_type: "archive_fact",
-    target_id: fact_id,
-    timestamp: ts,
-    payload: { archived_at: ts },
-  }));
+  tx.appendOp(
+    au_id,
+    createOpsEntry({
+      op_id: generate_op_id(),
+      op_type: "archive_fact",
+      target_id: fact_id,
+      timestamp: ts,
+      payload: { archived_at: ts },
+    }),
+  );
   tx.updateFact(au_id, fact);
   await tx.commit(ops_repo, fact_repo, null);
 }
@@ -683,13 +698,16 @@ export async function unarchive_fact(
 
   // WriteTransaction 保证顺序：ops → fact
   const tx = new WriteTransaction();
-  tx.appendOp(au_id, createOpsEntry({
-    op_id: generate_op_id(),
-    op_type: "unarchive_fact",
-    target_id: fact_id,
-    timestamp: ts,
-    payload: {},
-  }));
+  tx.appendOp(
+    au_id,
+    createOpsEntry({
+      op_id: generate_op_id(),
+      op_type: "unarchive_fact",
+      target_id: fact_id,
+      timestamp: ts,
+      payload: {},
+    }),
+  );
   tx.updateFact(au_id, fact);
   await tx.commit(ops_repo, fact_repo, null);
 }
@@ -722,5 +740,10 @@ export async function run_archival_sweep(
 ): Promise<string[]> {
   // 判据走 find_archival_candidates、归档走 archive_facts —— 与 Q4 预览/确认流同源，无重复判据。
   const candidates = await find_archival_candidates(au_id, current_chapter, fact_repo, cold_threshold_chapters);
-  return archive_facts(au_id, candidates.map((f) => f.id), fact_repo, ops_repo);
+  return archive_facts(
+    au_id,
+    candidates.map((f) => f.id),
+    fact_repo,
+    ops_repo,
+  );
 }

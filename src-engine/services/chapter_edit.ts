@@ -63,13 +63,16 @@ export async function edit_chapter_content(
 
   // 3. 事务提交（D-0036：ops → chapter → state）
   const tx = new WriteTransaction();
-  tx.appendOp(au_id, createOpsEntry({
-    op_id: generate_op_id(),
-    op_type: "mark_chapters_dirty",
-    target_id: au_id,
-    timestamp: now_utc(),
-    payload: { added_dirty: [chapter_num] },
-  }));
+  tx.appendOp(
+    au_id,
+    createOpsEntry({
+      op_id: generate_op_id(),
+      op_type: "mark_chapters_dirty",
+      target_id: au_id,
+      timestamp: now_utc(),
+      payload: { added_dirty: [chapter_num] },
+    }),
+  );
   tx.saveChapter(au_id, ch);
   tx.setState(st);
   await tx.commit(ops_repo, null, state_repo, chapter_repo, null);

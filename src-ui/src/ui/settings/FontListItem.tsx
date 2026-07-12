@@ -37,8 +37,14 @@ interface Props {
 }
 
 export const FontListItem: React.FC<Props> = ({
-  entry, status, progress, error, isZh,
-  onDownload, onCancel, onUninstall,
+  entry,
+  status,
+  progress,
+  error,
+  isZh,
+  onDownload,
+  onCancel,
+  onUninstall,
 }) => {
   const { t } = useTranslation();
   const label = isZh ? entry.displayName.zh : entry.displayName.en;
@@ -86,9 +92,7 @@ export const FontListItem: React.FC<Props> = ({
       </div>
 
       <div className="shrink-0">
-        {entry.type === "builtin" && (
-          <span className="text-xs text-success">{t("settings.fonts.installedTag")}</span>
-        )}
+        {entry.type === "builtin" && <span className="text-xs text-success">{t("settings.fonts.installedTag")}</span>}
         {entry.type === "downloadable" && status === "not-installed" && (
           <Button tone="accent" fill="outline" size="sm" onClick={onDownload}>
             {t("settings.fonts.downloadButton")}

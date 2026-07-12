@@ -87,9 +87,7 @@ export async function checkAndSnapshot(
       const newOps = ops.slice(previouslyArchived);
       if (newOps.length > 0) {
         const archivePath = joinPath(auPath, "ops_archive.jsonl");
-        const existingArchive = await adapter.exists(archivePath)
-          ? await adapter.readFile(archivePath)
-          : "";
+        const existingArchive = (await adapter.exists(archivePath)) ? await adapter.readFile(archivePath) : "";
         const newLines = newOps.map((op) => JSON.stringify(op)).join("\n") + "\n";
         await adapter.writeFile(archivePath, existingArchive + newLines);
       }

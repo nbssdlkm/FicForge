@@ -14,11 +14,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  FONT_MANIFEST,
-  FontError,
-  getFontById,
-} from "@ficforge/engine";
+import { FONT_MANIFEST, FontError, getFontById } from "@ficforge/engine";
 import { getFontsService } from "../api/engine-fonts";
 import { warnUi } from "../utils/ui-logger";
 
@@ -130,57 +126,63 @@ export function useFontManager(): FontManagerState {
     return unsubscribe;
   }, [refresh]);
 
-  const download = useCallback(async (id: string) => {
-    // 防抖：如果 service 侧已有该字体的 pending 下载（用户快速连点、或多组件同时触发），
-    // 直接返回，不再触发第二次 install（会被并发锁抛 "network: Already downloading"，
-    // 让 UI 状态短暂错跳为 "error"）。
-    if (getFontsService().isDownloading(id)) return;
-    setStatuses((prev) => ({ ...prev, [id]: "downloading" }));
-    setErrors((prev) => {
-      if (!(id in prev)) return prev;
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
-    try {
-      // 进度与进度清理由 service 订阅驱动（见上方 effect），不在此处接 onProgress —
-      // 这样即便下载中途关闭 Modal，重开后仍能续上同一进度。TD-011。
-      await getFontsService().install(id);
-      setStatuses((prev) => ({ ...prev, [id]: "installed" }));
-      // 触发 totalSize 刷新（复用 refresh 的求和逻辑）
-      await refresh();
-    } catch (err) {
-      // 用户主动取消（cancel → abort）不是错误：停回 not-installed，不显示红色错误行
-      // 和「重试」按钮（那会让人误以为下载失败）。进度条已由订阅的 'settled' 事件清掉。
-      if (err instanceof FontError && err.code === "aborted") {
-        setStatuses((prev) => ({ ...prev, [id]: "not-installed" }));
-        return;
-      }
-      setStatuses((prev) => ({ ...prev, [id]: "error" }));
-      setErrors((prev) => ({ ...prev, [id]: formatError(err) }));
-    }
-  }, [refresh]);
-
-  const cancel = useCallback((id: string) => {
-    getFontsService().abort(id);
-    // abort 后 install 会抛 aborted 走 catch，状态由 download 自己收敛。
-  }, []);
-
-  const uninstall = useCallback(async (id: string) => {
-    try {
-      await getFontsService().uninstall(id);
-      setStatuses((prev) => ({ ...prev, [id]: "not-installed" }));
+  const download = useCallback(
+    async (id: string) => {
+      // 防抖：如果 service 侧已有该字体的 pending 下载（用户快速连点、或多组件同时触发），
+      // 直接返回，不再触发第二次 install（会被并发锁抛 "network: Already downloading"，
+      // 让 UI 状态短暂错跳为 "error"）。
+      if (getFontsService().isDownloading(id)) return;
+      setStatuses((prev) => ({ ...prev, [id]: "downloading" }));
       setErrors((prev) => {
         if (!(id in prev)) return prev;
         const next = { ...prev };
         delete next[id];
         return next;
       });
-      await refresh();
-    } catch (err) {
-      setErrors((prev) => ({ ...prev, [id]: formatError(err) }));
-    }
-  }, [refresh]);
+      try {
+        // 进度与进度清理由 service 订阅驱动（见上方 effect），不在此处接 onProgress —
+        // 这样即便下载中途关闭 Modal，重开后仍能续上同一进度。TD-011。
+        await getFontsService().install(id);
+        setStatuses((prev) => ({ ...prev, [id]: "installed" }));
+        // 触发 totalSize 刷新（复用 refresh 的求和逻辑）
+        await refresh();
+      } catch (err) {
+        // 用户主动取消（cancel → abort）不是错误：停回 not-installed，不显示红色错误行
+        // 和「重试」按钮（那会让人误以为下载失败）。进度条已由订阅的 'settled' 事件清掉。
+        if (err instanceof FontError && err.code === "aborted") {
+          setStatuses((prev) => ({ ...prev, [id]: "not-installed" }));
+          return;
+        }
+        setStatuses((prev) => ({ ...prev, [id]: "error" }));
+        setErrors((prev) => ({ ...prev, [id]: formatError(err) }));
+      }
+    },
+    [refresh],
+  );
+
+  const cancel = useCallback((id: string) => {
+    getFontsService().abort(id);
+    // abort 后 install 会抛 aborted 走 catch，状态由 download 自己收敛。
+  }, []);
+
+  const uninstall = useCallback(
+    async (id: string) => {
+      try {
+        await getFontsService().uninstall(id);
+        setStatuses((prev) => ({ ...prev, [id]: "not-installed" }));
+        setErrors((prev) => {
+          if (!(id in prev)) return prev;
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+        await refresh();
+      } catch (err) {
+        setErrors((prev) => ({ ...prev, [id]: formatError(err) }));
+      }
+    },
+    [refresh],
+  );
 
   const cleanUnused = useCallback(
     async (keepIds: ReadonlySet<string>): Promise<number> => {

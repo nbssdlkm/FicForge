@@ -25,11 +25,7 @@ interface ToolCallEditorProps {
   t: (key: string, options?: Record<string, unknown>) => string;
 }
 
-function setField(
-  value: Record<string, unknown>,
-  key: string,
-  nextValue: unknown
-): Record<string, unknown> {
+function setField(value: Record<string, unknown>, key: string, nextValue: unknown): Record<string, unknown> {
   return {
     ...value,
     [key]: nextValue,
@@ -40,7 +36,7 @@ function renderCharactersPicker(
   value: Record<string, unknown>,
   onChange: (next: Record<string, unknown>) => void,
   availableCharacterNames: string[],
-  t: ToolCallEditorProps["t"]
+  t: ToolCallEditorProps["t"],
 ) {
   const selected = new Set(coerceStringArray(value.characters));
   return (
@@ -82,8 +78,8 @@ function renderCharactersPicker(
                 event.target.value
                   .split(",")
                   .map((item) => item.trim())
-                  .filter(Boolean)
-              )
+                  .filter(Boolean),
+              ),
             )
           }
           placeholder={t("settingsMode.editor.charactersPlaceholder")}
@@ -93,14 +89,7 @@ function renderCharactersPicker(
   );
 }
 
-export function ToolCallEditor({
-  card,
-  value,
-  onChange,
-  availableCharacterNames,
-  mode,
-  t,
-}: ToolCallEditorProps) {
+export function ToolCallEditor({ card, value, onChange, availableCharacterNames, mode, t }: ToolCallEditorProps) {
   const toolName = getToolCallName(card);
 
   if (toolName === "create_character_file") {
@@ -122,8 +111,8 @@ export function ToolCallEditor({
                 event.target.value
                   .split(",")
                   .map((item) => item.trim())
-                  .filter(Boolean)
-              )
+                  .filter(Boolean),
+              ),
             )
           }
         />
@@ -385,9 +374,7 @@ export function ToolCallEditor({
   }
 
   if (toolName === "update_core_includes") {
-    const selected = new Set(
-      coerceStringArray(value.filenames).map((item) => item.replace(/\.md$/i, ""))
-    );
+    const selected = new Set(coerceStringArray(value.filenames).map((item) => item.replace(/\.md$/i, "")));
     return (
       <div className="space-y-2">
         <label className="text-xs font-medium text-text/70">{t("common.labels.coreAlwaysInclude")}</label>

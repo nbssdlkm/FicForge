@@ -30,9 +30,8 @@ export function ImportProgressStep({
   const { t } = useTranslation();
 
   if (importing) {
-    const pct = progress && progress.chaptersTotal > 0
-      ? Math.round((progress.chaptersDone / progress.chaptersTotal) * 100)
-      : 0;
+    const pct =
+      progress && progress.chaptersTotal > 0 ? Math.round((progress.chaptersDone / progress.chaptersTotal) * 100) : 0;
 
     return (
       <div className="space-y-6">
@@ -49,11 +48,11 @@ export function ImportProgressStep({
             <>
               <p>{t("import.step5Progress", { done: progress.chaptersDone, total: progress.chaptersTotal })}</p>
               {progress.settingsTotal > 0 && (
-                <p>{t("import.step5SettingsProgress", { done: progress.settingsDone, total: progress.settingsTotal })}</p>
+                <p>
+                  {t("import.step5SettingsProgress", { done: progress.settingsDone, total: progress.settingsTotal })}
+                </p>
               )}
-              {progress.currentFile && (
-                <p className="text-xs text-text/50">{progress.currentFile}</p>
-              )}
+              {progress.currentFile && <p className="text-xs text-text/50">{progress.currentFile}</p>}
             </>
           ) : (
             <p className="text-text/50">{t("import.importing")}</p>
@@ -75,9 +74,7 @@ export function ImportProgressStep({
 
         <div className="rounded-xl border border-black/5 bg-surface/50 p-5 space-y-2 text-sm dark:border-white/5">
           <p>{t("import.step5ChaptersImported", { n: result.chaptersImported })}</p>
-          {result.settingsImported > 0 && (
-            <p>{t("import.step5SettingsImported", { n: result.settingsImported })}</p>
-          )}
+          {result.settingsImported > 0 && <p>{t("import.step5SettingsImported", { n: result.settingsImported })}</p>}
           {result.trashedChapters.length > 0 && (
             <p className="text-text/50">{t("import.step5TrashedChapters", { n: result.trashedChapters.length })}</p>
           )}

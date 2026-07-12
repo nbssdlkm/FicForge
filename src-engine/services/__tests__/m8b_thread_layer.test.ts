@@ -28,7 +28,14 @@ import { FileChapterRepository } from "../../repositories/implementations/file_c
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 
 const T = (over: Partial<ReturnType<typeof createThread>> = {}) =>
-  createThread({ id: "t1", title: "为父翻案", state: "准备面圣", status: ThreadStatus.ACTIVE, updated_at: "2026-06-20T00:00:00Z", ...over });
+  createThread({
+    id: "t1",
+    title: "为父翻案",
+    state: "准备面圣",
+    status: ThreadStatus.ACTIVE,
+    updated_at: "2026-06-20T00:00:00Z",
+    ...over,
+  });
 
 // ===========================================================================
 // build_threads_layer
@@ -43,34 +50,59 @@ describe("build_threads_layer (M8-B)", () => {
 
   it("empty / non-active only → ''", () => {
     expect(build_threads_layer([], 10000, null, "zh")).toBe("");
-    expect(build_threads_layer([T({ status: ThreadStatus.RESOLVED }), T({ id: "t2", status: ThreadStatus.DORMANT })], 10000, null, "zh")).toBe("");
+    expect(
+      build_threads_layer(
+        [T({ status: ThreadStatus.RESOLVED }), T({ id: "t2", status: ThreadStatus.DORMANT })],
+        10000,
+        null,
+        "zh",
+      ),
+    ).toBe("");
   });
 
   it("only active threads are injected (resolved/dormant excluded)", () => {
-    const text = build_threads_layer([
-      T({ id: "a", title: "活跃线", status: ThreadStatus.ACTIVE }),
-      T({ id: "b", title: "已收束线", status: ThreadStatus.RESOLVED }),
-    ], 10000, null, "zh");
+    const text = build_threads_layer(
+      [
+        T({ id: "a", title: "活跃线", status: ThreadStatus.ACTIVE }),
+        T({ id: "b", title: "已收束线", status: ThreadStatus.RESOLVED }),
+      ],
+      10000,
+      null,
+      "zh",
+    );
     expect(text).toContain("活跃线");
     expect(text).not.toContain("已收束线");
   });
 
   it("sorts by updated_at desc (most recently advanced first)", () => {
-    const text = build_threads_layer([
-      T({ id: "old", title: "旧线", updated_at: "2026-01-01T00:00:00Z" }),
-      T({ id: "new", title: "新线", updated_at: "2026-06-01T00:00:00Z" }),
-    ], 10000, null, "zh");
+    const text = build_threads_layer(
+      [
+        T({ id: "old", title: "旧线", updated_at: "2026-01-01T00:00:00Z" }),
+        T({ id: "new", title: "新线", updated_at: "2026-06-01T00:00:00Z" }),
+      ],
+      10000,
+      null,
+      "zh",
+    );
     expect(text.indexOf("新线")).toBeLessThan(text.indexOf("旧线"));
   });
 
   it("falls back to description when state empty; bare title when both empty", () => {
-    expect(build_threads_layer([T({ state: "", description: "某描述" })], 10000, null, "zh")).toContain("【为父翻案】某描述");
+    expect(build_threads_layer([T({ state: "", description: "某描述" })], 10000, null, "zh")).toContain(
+      "【为父翻案】某描述",
+    );
     expect(build_threads_layer([T({ state: "", description: "" })], 10000, null, "zh")).toContain("【为父翻案】");
   });
 
   it("budget truncation drops tail threads", () => {
     const many = Array.from({ length: 20 }, (_, i) =>
-      T({ id: `t${i}`, title: `剧情线${i}`, state: "一段比较长的进展描述用于占用预算".repeat(2), updated_at: `2026-06-${String(i + 1).padStart(2, "0")}T00:00:00Z` }));
+      T({
+        id: `t${i}`,
+        title: `剧情线${i}`,
+        state: "一段比较长的进展描述用于占用预算".repeat(2),
+        updated_at: `2026-06-${String(i + 1).padStart(2, "0")}T00:00:00Z`,
+      }),
+    );
     const tight = build_threads_layer(many, 30, null, "zh");
     const all = build_threads_layer(many, 100000, null, "zh");
     expect(tight.split("\n").length).toBeLessThan(all.split("\n").length);
@@ -84,11 +116,13 @@ describe("build_threads_layer (M8-B)", () => {
 describe("assemble_context thread injection (M8-B)", () => {
   let adapter: MockAdapter;
   let chapterRepo: FileChapterRepository;
-  const project = () => createProject({
-    project_id: "p", au_id: "au",
-    llm: createLLMConfig({ mode: "api" as never, model: "gpt-4o", context_window: 32000 }),
-    chapter_length: 1500,
-  });
+  const project = () =>
+    createProject({
+      project_id: "p",
+      au_id: "au",
+      llm: createLLMConfig({ mode: "api" as never, model: "gpt-4o", context_window: 32000 }),
+      chapter_length: 1500,
+    });
   const state = () => createState({ au_id: "au", current_chapter: 1 });
 
   beforeEach(() => {
@@ -109,21 +143,17 @@ describe("assemble_context thread injection (M8-B)", () => {
   });
 
   it("active threads → injected into user message + thread_tokens > 0", async () => {
-    const r = await assemble_context(
-      project(), state(), "写", [], chapterRepo, "au",
-      null, null, null, "zh", [T()],
-    );
+    const r = await assemble_context(project(), state(), "写", [], chapterRepo, "au", null, null, null, "zh", [T()]);
     expect(r.messages[1].content).toContain("为父翻案");
     expect(r.messages[1].content).toContain("准备面圣");
     expect(r.budget_report.thread_tokens).toBeGreaterThan(0);
   });
 
   it("thread digest precedes the facts (P3) section in the assembled message", async () => {
-    const facts = [createFact({ id: "f1", content_raw: "r", content_clean: "某条事实内容", status: FactStatus.ACTIVE, chapter: 1 })];
-    const r = await assemble_context(
-      project(), state(), "写", facts, chapterRepo, "au",
-      null, null, null, "zh", [T()],
-    );
+    const facts = [
+      createFact({ id: "f1", content_raw: "r", content_clean: "某条事实内容", status: FactStatus.ACTIVE, chapter: 1 }),
+    ];
+    const r = await assemble_context(project(), state(), "写", facts, chapterRepo, "au", null, null, null, "zh", [T()]);
     const msg = r.messages[1].content;
     // reversed 注入顺序 P5→P4→P2→thread→P3→P1：剧情线在事实表之前
     expect(msg.indexOf("为父翻案")).toBeLessThan(msg.indexOf("某条事实内容"));
@@ -149,8 +179,11 @@ describe("M8-B fact.thread_ids serialization across all hops", () => {
 
   it("hop2 (jsonl): factRepo.append → list_all preserves thread_ids/thread_roles", async () => {
     const fact = createFact({
-      id: "f1", content_raw: "r", content_clean: "c",
-      thread_ids: ["t1", "t2"], thread_roles: { t1: "turning_point" },
+      id: "f1",
+      content_raw: "r",
+      content_clean: "c",
+      thread_ids: ["t1", "t2"],
+      thread_roles: { t1: "turning_point" },
     });
     await factRepo.append("au", fact);
     const got = (await factRepo.list_all("au"))[0];
@@ -160,10 +193,18 @@ describe("M8-B fact.thread_ids serialization across all hops", () => {
 
   it("hop3+5 (SERVICE add_fact → ops rebuild): the M8-A-class chain", async () => {
     // 服务级 add_fact（非手搓 op）——这才会跑 createFact 转发 + 快照 + factFromPayload 整条链
-    const created = await add_fact("au", 1, {
-      content_raw: "r", content_clean: "皇帝赐毒",
-      thread_ids: ["t_revenge", "t_plot"], thread_roles: { t_revenge: "trigger" },
-    }, factRepo, opsRepo);
+    const created = await add_fact(
+      "au",
+      1,
+      {
+        content_raw: "r",
+        content_clean: "皇帝赐毒",
+        thread_ids: ["t_revenge", "t_plot"],
+        thread_roles: { t_revenge: "trigger" },
+      },
+      factRepo,
+      opsRepo,
+    );
     expect(created.thread_ids).toEqual(["t_revenge", "t_plot"]);
 
     // 持久化（factToDict/dictToFact）
@@ -196,11 +237,25 @@ describe("M8-B fact.thread_ids serialization across all hops", () => {
   it("hop3 (batch_extract_facts shares factFromPayload): thread_ids preserved on rebuild", () => {
     const ops = [
       createOpsEntry({
-        op_id: "b1", op_type: "batch_extract_facts", target_id: "batch",
-        chapter_num: 1, timestamp: "2026-06-20T00:00:00Z",
-        payload: { facts: [
-          { id: "fb1", content_clean: "批量事实", content_raw: "r", chapter: 1, status: "active", type: "plot_event", thread_ids: ["tb"], thread_roles: { tb: "side" } },
-        ] },
+        op_id: "b1",
+        op_type: "batch_extract_facts",
+        target_id: "batch",
+        chapter_num: 1,
+        timestamp: "2026-06-20T00:00:00Z",
+        payload: {
+          facts: [
+            {
+              id: "fb1",
+              content_clean: "批量事实",
+              content_raw: "r",
+              chapter: 1,
+              status: "active",
+              type: "plot_event",
+              thread_ids: ["tb"],
+              thread_roles: { tb: "side" },
+            },
+          ],
+        },
       }),
     ];
     const rebuilt = rebuildFactsFromOps(ops);

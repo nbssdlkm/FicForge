@@ -13,10 +13,7 @@ export function ProgressBar({ percent, className }: ProgressBarProps) {
   const clamped = Math.max(0, Math.min(100, percent));
   return (
     <div className={`h-3 w-full overflow-hidden rounded-full bg-black/10 dark:bg-white/10 ${className ?? ""}`}>
-      <div
-        className="h-full rounded-full bg-accent transition-all duration-300"
-        style={{ width: `${clamped}%` }}
-      />
+      <div className="h-full rounded-full bg-accent transition-all duration-300" style={{ width: `${clamped}%` }} />
     </div>
   );
 }

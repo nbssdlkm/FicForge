@@ -181,7 +181,7 @@ export function createLicenseConfig(partial?: Partial<LicenseConfig>): LicenseCo
 
 /** 全局配置。字段名与 PRD §3.3 settings.yaml 一致。 */
 export interface Settings {
-  updated_at: string;                           // ISO 8601
+  updated_at: string; // ISO 8601
   default_llm: LLMConfig;
   model_params: Record<string, ModelParams>;
   embedding: EmbeddingConfig;

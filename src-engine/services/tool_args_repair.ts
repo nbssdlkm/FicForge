@@ -150,7 +150,10 @@ export function salvageMalformedJson(raw: string): string | null {
     if (ch === "\\") {
       // 合法转义序列：原样带走 `\` 和其后一个字符
       out += ch;
-      if (i + 1 < raw.length) { out += raw[i + 1]; i++; }
+      if (i + 1 < raw.length) {
+        out += raw[i + 1];
+        i++;
+      }
       continue;
     }
     if (ch === '"') {
@@ -360,11 +363,7 @@ function buildRetryHint(toolName: string, issues: ZodIssue[]): string {
     return `  - 字段 \`${fieldStr}\`: ${iss.message}`;
   });
   const more = issues.length > 5 ? `  ...另有 ${issues.length - 5} 条问题` : "";
-  return [
-    `注意：工具 ${toolName} 的参数有以下问题，请下一轮调用时修正：`,
-    ...lines,
-    more,
-  ].filter(Boolean).join("\n");
+  return [`注意：工具 ${toolName} 的参数有以下问题，请下一轮调用时修正：`, ...lines, more].filter(Boolean).join("\n");
 }
 
 // ---------------------------------------------------------------------------

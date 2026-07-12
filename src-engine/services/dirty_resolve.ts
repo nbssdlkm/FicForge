@@ -71,10 +71,15 @@ export async function resolve_dirty_chapter(params: ResolveDirtyParams): Promise
 
 async function doResolve(params: ResolveDirtyParams): Promise<ResolveDirtyResult> {
   const {
-    au_id, chapter_num, confirmed_fact_changes,
+    au_id,
+    chapter_num,
+    confirmed_fact_changes,
     cast_registry = { characters: [] },
     character_aliases = null,
-    chapter_repo, state_repo, ops_repo, fact_repo,
+    chapter_repo,
+    state_repo,
+    ops_repo,
+    fact_repo,
   } = params;
 
   // === 步骤 1：前置校验 ===
@@ -95,7 +100,12 @@ async function doResolve(params: ResolveDirtyParams): Promise<ResolveDirtyResult
 
   if (isLatest) {
     state.characters_last_seen = await recalcCharactersLatest(
-      au_id, chapter_num, chapter_repo, ops_repo, cast_registry, character_aliases,
+      au_id,
+      chapter_num,
+      chapter_repo,
+      ops_repo,
+      cast_registry,
+      character_aliases,
     );
     content = await chapter_repo.get_content_only(au_id, chapter_num);
     state.last_scene_ending = extract_last_scene_ending(content);
@@ -123,20 +133,30 @@ async function doResolve(params: ResolveDirtyParams): Promise<ResolveDirtyResult
   // chapter/state commit 失败时无法回滚已提交的 fact，留下不一致的中间状态。
   const timestamp = now_utc();
   const tx = new WriteTransaction();
-  tx.appendOp(au_id, createOpsEntry({
-    op_id: generate_op_id(),
-    op_type: "resolve_dirty_chapter",
-    target_id: chapter.chapter_id,
-    chapter_num,
-    timestamp,
-    payload: {},
-  }));
+  tx.appendOp(
+    au_id,
+    createOpsEntry({
+      op_id: generate_op_id(),
+      op_type: "resolve_dirty_chapter",
+      target_id: chapter.chapter_id,
+      chapter_num,
+      timestamp,
+      payload: {},
+    }),
+  );
   tx.saveChapter(au_id, chapter);
   tx.setState(state);
   await tx.commit(ops_repo, null, state_repo, chapter_repo, null);
 
   // === 步骤 6：执行 facts 变更（在 chapter/state 成功提交之后） ===
-  const failedFactChanges = await applyFactChanges(au_id, chapter_num, confirmed_fact_changes, fact_repo, ops_repo, state_repo);
+  const failedFactChanges = await applyFactChanges(
+    au_id,
+    chapter_num,
+    confirmed_fact_changes,
+    fact_repo,
+    ops_repo,
+    state_repo,
+  );
 
   return {
     chapter_num,

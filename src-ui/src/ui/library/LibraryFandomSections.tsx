@@ -2,12 +2,12 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useMemo, useState } from 'react';
-import { Plus, FileText, Trash2, ArchiveRestore } from 'lucide-react';
-import { Button } from '../shared/Button';
-import { type FandomInfo } from '../../api/engine-client';
-import { useTranslation } from '../../i18n/useAppTranslation';
-import { goldLine } from '../shared/tokens';
+import { useCallback, useMemo, useState } from "react";
+import { Plus, FileText, Trash2, ArchiveRestore } from "lucide-react";
+import { Button } from "../shared/Button";
+import { type FandomInfo } from "../../api/engine-client";
+import { useTranslation } from "../../i18n/useAppTranslation";
+import { goldLine } from "../shared/tokens";
 
 type LibraryFandomSectionsProps = {
   dataDir: string;
@@ -34,18 +34,21 @@ const drawerGoldLines = {
 // first 2 letters + the fandom's 0-based index. It's purely a typographic
 // flourish to make the drawer banner read like an actual card-catalog entry.
 function fandomCallNo(dirName: string, index: number): string {
-  const letters = dirName.replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase();
-  const prefix = letters.length === 2 ? letters : (letters + 'X').padEnd(2, 'X');
-  return `${prefix}.${String(index + 1).padStart(2, '0')}`;
+  const letters = dirName
+    .replace(/[^a-zA-Z]/g, "")
+    .slice(0, 2)
+    .toUpperCase();
+  const prefix = letters.length === 2 ? letters : (letters + "X").padEnd(2, "X");
+  return `${prefix}.${String(index + 1).padStart(2, "0")}`;
 }
 
 // AU call number = parent fandom call no + AU's 1-based index (zero-padded).
 function auCallNo(parentCallNo: string, auIndex: number): string {
-  return `${parentCallNo}.${String(auIndex + 1).padStart(2, '0')}`;
+  return `${parentCallNo}.${String(auIndex + 1).padStart(2, "0")}`;
 }
 
 // localStorage key for collapsed-fandom state. Keyed by dir_name.
-const COLLAPSED_KEY = 'ficforge.library.collapsedFandoms';
+const COLLAPSED_KEY = "ficforge.library.collapsedFandoms";
 
 function readCollapsed(): Set<string> {
   try {
@@ -59,7 +62,11 @@ function readCollapsed(): Set<string> {
 }
 
 function writeCollapsed(set: Set<string>) {
-  try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...set])); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...set]));
+  } catch {
+    /* ignore */
+  }
 }
 
 export function LibraryFandomSections({
@@ -81,7 +88,8 @@ export function LibraryFandomSections({
   const toggleCollapse = useCallback((dirName: string) => {
     setCollapsed((prev) => {
       const next = new Set(prev);
-      if (next.has(dirName)) next.delete(dirName); else next.add(dirName);
+      if (next.has(dirName)) next.delete(dirName);
+      else next.add(dirName);
       writeCollapsed(next);
       return next;
     });
@@ -114,7 +122,7 @@ export function LibraryFandomSections({
               tabIndex={0}
               onClick={() => toggleCollapse(fandom.dir_name)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
+                if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   toggleCollapse(fandom.dir_name);
                 }
@@ -153,18 +161,15 @@ export function LibraryFandomSections({
                     A 1px cream-tint divider separates them so the
                     destructive delete button doesn't sit shoulder-to-
                     shoulder with the primary "+ AU" CTA. */}
-                <div
-                  className="flex flex-wrap items-center gap-1"
-                  onClick={(e) => e.stopPropagation()}
-                >
+                <div className="flex flex-wrap items-center gap-1" onClick={(e) => e.stopPropagation()}>
                   <Button
                     tone="neutral"
                     fill="plain"
                     size="sm"
-                    onClick={() => onNavigate('fandom_lore', `${dataDir}/fandoms/${fandom.dir_name}`)}
+                    onClick={() => onNavigate("fandom_lore", `${dataDir}/fandoms/${fandom.dir_name}`)}
                     className="text-inv-text/85 hover:bg-gold-bright/10 hover:text-inv-text"
                   >
-                    <FileText size={14} className="mr-1.5" /> {t('library.fandomSectionButton')}
+                    <FileText size={14} className="mr-1.5" /> {t("library.fandomSectionButton")}
                   </Button>
                   <Button
                     tone="neutral"
@@ -174,7 +179,7 @@ export function LibraryFandomSections({
                     disabled={mutating}
                     className="text-inv-text/85 hover:bg-gold-bright/10 hover:text-inv-text"
                   >
-                    <Plus size={14} className="mr-1" /> {t('library.createAuButton')}
+                    <Plus size={14} className="mr-1" /> {t("library.createAuButton")}
                   </Button>
                   <span
                     aria-hidden="true"
@@ -185,7 +190,7 @@ export function LibraryFandomSections({
                     fill="plain"
                     size="sm"
                     onClick={() => onOpenTrash(fandom.dir_name, fandom.name)}
-                    title={t('trash.tooltip')}
+                    title={t("trash.tooltip")}
                     className="h-8 w-8 p-0 text-inv-text/55 hover:bg-gold-bright/10 hover:text-gold-bright"
                   >
                     <ArchiveRestore size={14} />
@@ -227,10 +232,10 @@ export function LibraryFandomSections({
                 drawer-cards on mobile have a 1px frame, but on a wider
                 column-grid that frame reads as visual noise; the gold spine
                 on each card is enough container affordance). */}
-            {!isCollapsed && (
-              fandom.aus.length === 0 ? (
+            {!isCollapsed &&
+              (fandom.aus.length === 0 ? (
                 <p className="mt-3 px-4 py-6 text-center font-serif text-sm text-ink-faint">
-                  {t('library.emptyAuList')}
+                  {t("library.emptyAuList")}
                 </p>
               ) : (
                 <ol className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
@@ -241,12 +246,7 @@ export function LibraryFandomSections({
                     return (
                       <li key={`${fandom.dir_name}/${au.dir_name}`}>
                         <article
-                          onClick={() =>
-                            onNavigate(
-                              'chat',
-                              `${dataDir}/fandoms/${fandom.dir_name}/aus/${au.dir_name}`,
-                            )
-                          }
+                          onClick={() => onNavigate("chat", `${dataDir}/fandoms/${fandom.dir_name}/aus/${au.dir_name}`)}
                           // v13 .au-card padding 12px 14px 12px 16px — left
                           // padding bigger to make room for the gold spine.
                           // border-bottom: 1px rule-soft on mobile/sm gives
@@ -283,9 +283,9 @@ export function LibraryFandomSections({
                                 e.stopPropagation();
                                 onDeleteAu(fandom.dir_name, fandom.name, au.dir_name, au.name);
                               }}
-                              title={t('common.actions.delete')}
+                              title={t("common.actions.delete")}
                               disabled={mutating}
-                              aria-label={t('common.actions.delete')}
+                              aria-label={t("common.actions.delete")}
                             >
                               <Trash2 size={11} />
                             </button>
@@ -329,15 +329,16 @@ export function LibraryFandomSections({
                                 <span className="text-ink-faint">未开始</span>
                               )}
                             </span>
-                            <span aria-hidden="true" className="text-base leading-none text-ink-faint">›</span>
+                            <span aria-hidden="true" className="text-base leading-none text-ink-faint">
+                              ›
+                            </span>
                           </div>
                         </article>
                       </li>
                     );
                   })}
                 </ol>
-              )
-            )}
+              ))}
           </section>
         );
       })}

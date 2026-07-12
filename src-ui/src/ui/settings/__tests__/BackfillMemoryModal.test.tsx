@@ -54,8 +54,8 @@ describe("BackfillMemoryModal", () => {
     const boxes = screen.getAllByRole("checkbox") as HTMLInputElement[];
     expect(boxes).toHaveLength(3);
     expect(boxes[0].checked).toBe(false); // ch1
-    expect(boxes[1].checked).toBe(true);  // ch2
-    expect(boxes[2].checked).toBe(true);  // ch3
+    expect(boxes[1].checked).toBe(true); // ch2
+    expect(boxes[2].checked).toBe(true); // ch3
     expect(screen.getByText("开始补全")).toBeTruthy();
   });
 
@@ -71,8 +71,15 @@ describe("BackfillMemoryModal", () => {
   it("勾选章传给 backfillChapterMemory;done 报告摘要 + 笔记数", async () => {
     (scanChapterMemory as Mock).mockResolvedValue(baseScan);
     (backfillChapterMemory as Mock).mockResolvedValue({
-      total: 3, summariesGenerated: 2, factsChapters: 2, factsAdded: 5,
-      indexed: 3, skipped: 0, failed: 0, aborted: false, factsOverCapCount: 0,
+      total: 3,
+      summariesGenerated: 2,
+      factsChapters: 2,
+      factsAdded: 5,
+      indexed: 3,
+      skipped: 0,
+      failed: 0,
+      aborted: false,
+      factsOverCapCount: 0,
     });
     renderModal();
 
@@ -94,8 +101,15 @@ describe("BackfillMemoryModal", () => {
   it("L16:提取命中软上限时显示 overCapNote 行", async () => {
     (scanChapterMemory as Mock).mockResolvedValue(baseScan);
     (backfillChapterMemory as Mock).mockResolvedValue({
-      total: 3, summariesGenerated: 2, factsChapters: 2, factsAdded: 5,
-      indexed: 3, skipped: 0, failed: 0, aborted: false, factsOverCapCount: 4,
+      total: 3,
+      summariesGenerated: 2,
+      factsChapters: 2,
+      factsAdded: 5,
+      indexed: 3,
+      skipped: 0,
+      failed: 0,
+      aborted: false,
+      factsOverCapCount: 4,
     });
     renderModal();
     fireEvent.click(await screen.findByText("开始补全"));
@@ -131,8 +145,14 @@ describe("BackfillMemoryModal", () => {
   it("全不选笔记后,factsChapters 为空(只补摘要+向量)", async () => {
     (scanChapterMemory as Mock).mockResolvedValue(baseScan);
     (backfillChapterMemory as Mock).mockResolvedValue({
-      total: 2, summariesGenerated: 2, factsChapters: 0, factsAdded: 0,
-      indexed: 2, skipped: 0, failed: 0, aborted: false,
+      total: 2,
+      summariesGenerated: 2,
+      factsChapters: 0,
+      factsAdded: 0,
+      indexed: 2,
+      skipped: 0,
+      failed: 0,
+      aborted: false,
     });
     renderModal();
 
@@ -141,7 +161,10 @@ describe("BackfillMemoryModal", () => {
 
     await waitFor(() =>
       expect(backfillChapterMemory as Mock).toHaveBeenCalledWith(
-        "/au", { factsChapters: [] }, expect.any(Function), expect.any(Object),
+        "/au",
+        { factsChapters: [] },
+        expect.any(Function),
+        expect.any(Object),
       ),
     );
   });

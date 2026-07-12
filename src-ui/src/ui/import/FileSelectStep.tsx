@@ -17,13 +17,7 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
-export function FileSelectStep({
-  onNext,
-  disabled,
-}: {
-  onNext: (files: File[]) => void;
-  disabled?: boolean;
-}) {
+export function FileSelectStep({ onNext, disabled }: { onNext: (files: File[]) => void; disabled?: boolean }) {
   const { t } = useTranslation();
   const { showError } = useFeedback();
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -82,7 +76,10 @@ export function FileSelectStep({
       <div
         className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${dragOver ? "border-accent bg-accent/5" : "border-black/10 dark:border-white/15 hover:border-accent/50"}`}
         onClick={() => inputRef.current?.click()}
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
       >
@@ -95,16 +92,17 @@ export function FileSelectStep({
           multiple
           accept={ACCEPTED_EXTENSIONS.join(",")}
           className="hidden"
-          onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }}
+          onChange={(e) => {
+            if (e.target.files) addFiles(e.target.files);
+            e.target.value = "";
+          }}
         />
       </div>
 
       {/* File list */}
       {files.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs text-text/50">
-            {isMobile ? t("import.step1HintMobile") : t("import.step1Hint")}
-          </p>
+          <p className="text-xs text-text/50">{isMobile ? t("import.step1HintMobile") : t("import.step1Hint")}</p>
           <div className="space-y-1.5">
             {files.map((file, index) => (
               <div
@@ -153,11 +151,7 @@ export function FileSelectStep({
       )}
 
       <div className="flex justify-end">
-        <Button
-          tone="accent" fill="solid"
-          onClick={() => onNext(files)}
-          disabled={files.length === 0 || disabled}
-        >
+        <Button tone="accent" fill="solid" onClick={() => onNext(files)} disabled={files.length === 0 || disabled}>
           {t("onboarding.common.next")}
         </Button>
       </div>

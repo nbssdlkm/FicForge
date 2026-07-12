@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getChapterContent,
   getState,
@@ -13,8 +13,8 @@ import {
   type StateInfo,
   type WriterProjectContext,
   type WriterSessionConfig,
-} from '../../api/engine-client';
-import type { ActiveRequestGuard } from '../../hooks/useActiveRequestGuard';
+} from "../../api/engine-client";
+import type { ActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
 
 type UseWriterBootstrapOptions = {
   auPath: string;
@@ -24,17 +24,11 @@ type UseWriterBootstrapOptions = {
   t: (key: string, params?: Record<string, unknown>) => string;
 };
 
-export function useWriterBootstrap({
-  auPath,
-  loadGuard,
-  refreshGuard,
-  showError,
-  t,
-}: UseWriterBootstrapOptions) {
+export function useWriterBootstrap({ auPath, loadGuard, refreshGuard, showError, t }: UseWriterBootstrapOptions) {
   const [state, setState] = useState<StateInfo | null>(null);
   const [projectInfo, setProjectInfo] = useState<WriterProjectContext | null>(null);
   const [settingsInfo, setSettingsInfo] = useState<WriterSessionConfig | null>(null);
-  const [currentContent, setCurrentContent] = useState('');
+  const [currentContent, setCurrentContent] = useState("");
   const [unresolvedFacts, setUnresolvedFacts] = useState<FactInfo[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -44,7 +38,7 @@ export function useWriterBootstrap({
     try {
       const [stateData, factsData, proj, settings] = await Promise.all([
         getState(auPath).catch(() => null),
-        listFacts(auPath, 'unresolved').catch(() => []),
+        listFacts(auPath, "unresolved").catch(() => []),
         getWriterProjectContext(auPath).catch(() => null),
         getWriterSessionConfig().catch(() => null),
       ]);
@@ -66,13 +60,13 @@ export function useWriterBootstrap({
         try {
           const content = await getChapterContent(auPath, latestNum);
           if (loadGuard.isStale(token)) return;
-          setCurrentContent(typeof content === 'string' ? content : '');
+          setCurrentContent(typeof content === "string" ? content : "");
         } catch {
           if (loadGuard.isStale(token)) return;
-          setCurrentContent(t('writer.contentLoadFailed'));
+          setCurrentContent(t("writer.contentLoadFailed"));
         }
       } else {
-        setCurrentContent('');
+        setCurrentContent("");
       }
 
       // 注：draft 加载、instruction storage 加载、focus 同步、session params 派生
@@ -82,25 +76,20 @@ export function useWriterBootstrap({
       }
     } catch (error) {
       if (loadGuard.isStale(token)) return;
-      showError(error, t('error_messages.unknown'));
+      showError(error, t("error_messages.unknown"));
     } finally {
       if (!loadGuard.isStale(token)) {
         setLoading(false);
       }
     }
-  }, [
-    auPath,
-    loadGuard,
-    showError,
-    t,
-  ]);
+  }, [auPath, loadGuard, showError, t]);
 
   const refreshSettingsModeData = useCallback(async () => {
     const token = refreshGuard.start();
     try {
       const [stateData, factsData, proj, settings] = await Promise.all([
         getState(auPath).catch(() => null),
-        listFacts(auPath, 'unresolved').catch(() => []),
+        listFacts(auPath, "unresolved").catch(() => []),
         getWriterProjectContext(auPath).catch(() => null),
         getWriterSessionConfig().catch(() => null),
       ]);
@@ -120,20 +109,15 @@ export function useWriterBootstrap({
       setUnresolvedFacts(factsData);
     } catch (error) {
       if (refreshGuard.isStale(token)) return;
-      showError(error, t('error_messages.unknown'));
+      showError(error, t("error_messages.unknown"));
     }
-  }, [
-    auPath,
-    refreshGuard,
-    showError,
-    t,
-  ]);
+  }, [auPath, refreshGuard, showError, t]);
 
   useEffect(() => {
     setState(null);
     setProjectInfo(null);
     setSettingsInfo(null);
-    setCurrentContent('');
+    setCurrentContent("");
     setUnresolvedFacts([]);
     setLoading(true);
   }, [auPath]);

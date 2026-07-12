@@ -52,7 +52,7 @@ export function finalizeToolCalls(buffers: Map<number, ToolBuffer>): ToolCall[] 
  * 已 parse 的部分（下一次 args 增长后再补全）。返回 null 表示目标字段还没出现。
  */
 export function extractPartialJsonStringField(args: string, fieldName: string): string | null {
-  const keyMatch = new RegExp('"' + fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '"\\s*:\\s*"').exec(args);
+  const keyMatch = new RegExp('"' + fieldName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + '"\\s*:\\s*"').exec(args);
   if (!keyMatch) return null;
   let i = keyMatch.index + keyMatch[0].length;
   let result = "";
@@ -62,14 +62,30 @@ export function extractPartialJsonStringField(args: string, fieldName: string): 
       if (i + 1 >= args.length) return result; // 不完整 escape，等下一次
       const next = args[i + 1];
       switch (next) {
-        case "n": result += "\n"; break;
-        case "t": result += "\t"; break;
-        case "r": result += "\r"; break;
-        case '"': result += '"'; break;
-        case "\\": result += "\\"; break;
-        case "/": result += "/"; break;
-        case "b": result += "\b"; break;
-        case "f": result += "\f"; break;
+        case "n":
+          result += "\n";
+          break;
+        case "t":
+          result += "\t";
+          break;
+        case "r":
+          result += "\r";
+          break;
+        case '"':
+          result += '"';
+          break;
+        case "\\":
+          result += "\\";
+          break;
+        case "/":
+          result += "/";
+          break;
+        case "b":
+          result += "\b";
+          break;
+        case "f":
+          result += "\f";
+          break;
         case "u": {
           if (i + 5 >= args.length) return result;
           const hex = args.slice(i + 2, i + 6);
@@ -78,7 +94,9 @@ export function extractPartialJsonStringField(args: string, fieldName: string): 
           i += 6;
           continue;
         }
-        default: result += next; break;
+        default:
+          result += next;
+          break;
       }
       i += 2;
     } else if (ch === '"') {

@@ -33,34 +33,49 @@ describe("Context Assembler — semantic golden tests", () => {
 
   it("messages[1].content follows reversed section order: P5 → P4 → P2 → P3 → P1", async () => {
     // Set up chapter 1 so P2 (recent chapter) has content
-    await chapterRepo.save(createChapter({
-      au_id: "order1", chapter_num: 1,
-      content: "这是第一章的内容。Alice和Bob相遇了。",
-      chapter_id: "ch1-id", provenance: "ai",
-    }));
+    await chapterRepo.save(
+      createChapter({
+        au_id: "order1",
+        chapter_num: 1,
+        content: "这是第一章的内容。Alice和Bob相遇了。",
+        chapter_id: "ch1-id",
+        provenance: "ai",
+      }),
+    );
 
     const facts = [
       createFact({
-        id: "f1", content_raw: "r", content_clean: "Alice是一个勇敢的人",
-        chapter: 1, status: FactStatus.ACTIVE, type: FactType.CHARACTER_DETAIL,
+        id: "f1",
+        content_raw: "r",
+        content_clean: "Alice是一个勇敢的人",
+        chapter: 1,
+        status: FactStatus.ACTIVE,
+        type: FactType.CHARACTER_DETAIL,
         narrative_weight: NarrativeWeight.HIGH,
       }),
     ];
 
     const project = createProject({
-      project_id: "pOrder", au_id: "order1",
+      project_id: "pOrder",
+      au_id: "order1",
       llm: createLLMConfig({ mode: "api" as any, model: "gpt-4o", context_window: 32000 }),
       chapter_length: 1500,
       cast_registry: createCastRegistry({ characters: ["Alice", "Bob"] }),
       core_always_include: ["Alice"],
     });
     const state = createState({
-      au_id: "order1", current_chapter: 2,
+      au_id: "order1",
+      current_chapter: 2,
       last_scene_ending: "他们走了。",
     });
 
     const result = await assemble_context(
-      project, state, "继续写", facts, chapterRepo, "order1",
+      project,
+      state,
+      "继续写",
+      facts,
+      chapterRepo,
+      "order1",
       "### RAG结果\n这是一段检索到的内容。",
       { Alice: "# Alice\n勇敢", Bob: "# Bob\n聪明" },
       { 世界观: "# 世界观\n设定内容" },
@@ -103,35 +118,43 @@ describe("Context Assembler — semantic golden tests", () => {
   // -----------------------------------------------------------
 
   it("tight budget: RAG (P4) dropped when budget exhausted by P1+P3+P2", async () => {
-    await chapterRepo.save(createChapter({
-      au_id: "tight1", chapter_num: 1,
-      content: "短章节内容。",
-      chapter_id: "ch1-tight", provenance: "ai",
-    }));
+    await chapterRepo.save(
+      createChapter({
+        au_id: "tight1",
+        chapter_num: 1,
+        content: "短章节内容。",
+        chapter_id: "ch1-tight",
+        provenance: "ai",
+      }),
+    );
 
-    const facts = Array.from({ length: 20 }, (_, i) => createFact({
-      id: `tf${i}`, content_raw: "r",
-      content_clean: `这是一条很长的事实内容用来占预算第${i}条`.repeat(3),
-      chapter: 1, status: FactStatus.ACTIVE, type: FactType.PLOT_EVENT,
-      narrative_weight: NarrativeWeight.HIGH,
-    }));
+    const facts = Array.from({ length: 20 }, (_, i) =>
+      createFact({
+        id: `tf${i}`,
+        content_raw: "r",
+        content_clean: `这是一条很长的事实内容用来占预算第${i}条`.repeat(3),
+        chapter: 1,
+        status: FactStatus.ACTIVE,
+        type: FactType.PLOT_EVENT,
+        narrative_weight: NarrativeWeight.HIGH,
+      }),
+    );
 
     const project = createProject({
-      project_id: "pTight", au_id: "tight1",
+      project_id: "pTight",
+      au_id: "tight1",
       llm: createLLMConfig({ mode: "api" as any, model: "gpt-4o", context_window: 4096 }),
       chapter_length: 800,
     });
     const state = createState({
-      au_id: "tight1", current_chapter: 2,
+      au_id: "tight1",
+      current_chapter: 2,
       last_scene_ending: "结尾。",
     });
 
     const bigRag = "### RAG\n" + "这是RAG检索的大段文本。".repeat(50);
 
-    const result = await assemble_context(
-      project, state, "写", facts, chapterRepo, "tight1",
-      bigRag,
-    );
+    const result = await assemble_context(project, state, "写", facts, chapterRepo, "tight1", bigRag);
 
     // RAG should be dropped entirely
     expect(result.budget_report.p4_tokens).toBe(0);
@@ -149,25 +172,29 @@ describe("Context Assembler — semantic golden tests", () => {
     // each = ~3000 tokens total. With a 4096 window, system prompt eats ~800 tokens,
     // 60% budget = ~2458 minus system = ~1658, minus P1 = ~1400 for P3.
     // This should force soft degradation.
-    const facts = Array.from({ length: 50 }, (_, i) => createFact({
-      id: `uf${i}`, content_raw: "r",
-      content_clean: `未解决的伏笔第${i}条，这段文字比较长来测试截断行为，需要更多文字来���据更多的token空间`.repeat(3),
-      chapter: (i % 5) + 1,
-      status: FactStatus.UNRESOLVED,
-      type: FactType.FORESHADOWING,
-      narrative_weight: [NarrativeWeight.HIGH, NarrativeWeight.MEDIUM, NarrativeWeight.LOW][i % 3],
-    }));
+    const facts = Array.from({ length: 50 }, (_, i) =>
+      createFact({
+        id: `uf${i}`,
+        content_raw: "r",
+        content_clean: `未解决的伏笔第${i}条，这段文字比较长来测试截断行为，需要更多文字来���据更多的token空间`.repeat(
+          3,
+        ),
+        chapter: (i % 5) + 1,
+        status: FactStatus.UNRESOLVED,
+        type: FactType.FORESHADOWING,
+        narrative_weight: [NarrativeWeight.HIGH, NarrativeWeight.MEDIUM, NarrativeWeight.LOW][i % 3],
+      }),
+    );
 
     const project = createProject({
-      project_id: "pSoft", au_id: "soft1",
+      project_id: "pSoft",
+      au_id: "soft1",
       llm: createLLMConfig({ mode: "api" as any, model: "gpt-4o", context_window: 4096 }),
       chapter_length: 800,
     });
     const state = createState({ au_id: "soft1", current_chapter: 1 });
 
-    const result = await assemble_context(
-      project, state, "开始写", facts, chapterRepo, "soft1",
-    );
+    const result = await assemble_context(project, state, "开始写", facts, chapterRepo, "soft1");
 
     // Should have soft degradation
     expect(result.budget_report.unresolved_soft_degraded).toBe(true);
@@ -182,15 +209,21 @@ describe("Context Assembler — semantic golden tests", () => {
 
   it("core_guarantee_budget: core characters injected even when main budget is zero", async () => {
     // Many facts eat up the budget, but core character should still be injected
-    const facts = Array.from({ length: 15 }, (_, i) => createFact({
-      id: `gf${i}`, content_raw: "r",
-      content_clean: `事实${i}`.repeat(10),
-      chapter: 1, status: FactStatus.ACTIVE, type: FactType.PLOT_EVENT,
-      narrative_weight: NarrativeWeight.HIGH,
-    }));
+    const facts = Array.from({ length: 15 }, (_, i) =>
+      createFact({
+        id: `gf${i}`,
+        content_raw: "r",
+        content_clean: `事实${i}`.repeat(10),
+        chapter: 1,
+        status: FactStatus.ACTIVE,
+        type: FactType.PLOT_EVENT,
+        narrative_weight: NarrativeWeight.HIGH,
+      }),
+    );
 
     const project = createProject({
-      project_id: "pGuarantee", au_id: "guarantee1",
+      project_id: "pGuarantee",
+      au_id: "guarantee1",
       llm: createLLMConfig({ mode: "api" as any, model: "gpt-4o", context_window: 8000 }),
       chapter_length: 1000,
       cast_registry: createCastRegistry({ characters: ["主角", "配角A", "配角B"] }),
@@ -199,11 +232,11 @@ describe("Context Assembler — semantic golden tests", () => {
     });
     const state = createState({ au_id: "guarantee1", current_chapter: 1 });
 
-    const result = await assemble_context(
-      project, state, "写", facts, chapterRepo, "guarantee1",
-      null,
-      { 主角: "# 主角\n核心角色设定", 配角A: "# 配角A\n设定", 配角B: "# 配角B\n设定" },
-    );
+    const result = await assemble_context(project, state, "写", facts, chapterRepo, "guarantee1", null, {
+      主角: "# 主角\n核心角色设定",
+      配角A: "# 配角A\n设定",
+      配角B: "# 配角B\n设定",
+    });
 
     // Core character (主角) must be included
     expect(result.context_summary.characters_used).toContain("主角");
@@ -216,15 +249,14 @@ describe("Context Assembler — semantic golden tests", () => {
 
   it("first chapter on empty AU: no P2, no P3, no P4", async () => {
     const project = createProject({
-      project_id: "pEmpty", au_id: "empty1",
+      project_id: "pEmpty",
+      au_id: "empty1",
       llm: createLLMConfig({ mode: "api" as any, model: "gpt-4o", context_window: 32000 }),
       chapter_length: 1500,
     });
     const state = createState({ au_id: "empty1", current_chapter: 1 });
 
-    const result = await assemble_context(
-      project, state, "开始写第一章", [], chapterRepo, "empty1",
-    );
+    const result = await assemble_context(project, state, "开始写第一章", [], chapterRepo, "empty1");
 
     expect(result.budget_report.p2_tokens).toBe(0);
     expect(result.budget_report.p3_tokens).toBe(0);
@@ -245,29 +277,37 @@ describe("Context Assembler — semantic golden tests", () => {
 
   it("chapter_focus facts appear in P1 instruction, excluded from P3 facts layer", async () => {
     const focusFact = createFact({
-      id: "focus1", content_raw: "r", content_clean: "Alice要揭开真相",
-      chapter: 1, status: FactStatus.UNRESOLVED, type: FactType.FORESHADOWING,
+      id: "focus1",
+      content_raw: "r",
+      content_clean: "Alice要揭开真相",
+      chapter: 1,
+      status: FactStatus.UNRESOLVED,
+      type: FactType.FORESHADOWING,
       narrative_weight: NarrativeWeight.HIGH,
     });
     const regularFact = createFact({
-      id: "regular1", content_raw: "r", content_clean: "Bob在旁边等待",
-      chapter: 1, status: FactStatus.ACTIVE, type: FactType.PLOT_EVENT,
+      id: "regular1",
+      content_raw: "r",
+      content_clean: "Bob在旁边等待",
+      chapter: 1,
+      status: FactStatus.ACTIVE,
+      type: FactType.PLOT_EVENT,
       narrative_weight: NarrativeWeight.MEDIUM,
     });
 
     const project = createProject({
-      project_id: "pFocus", au_id: "focus1",
+      project_id: "pFocus",
+      au_id: "focus1",
       llm: createLLMConfig({ mode: "api" as any, model: "gpt-4o", context_window: 32000 }),
       chapter_length: 1500,
     });
     const state = createState({
-      au_id: "focus1", current_chapter: 2,
+      au_id: "focus1",
+      current_chapter: 2,
       chapter_focus: ["focus1"],
     });
 
-    const result = await assemble_context(
-      project, state, "继续写", [focusFact, regularFact], chapterRepo, "focus1",
-    );
+    const result = await assemble_context(project, state, "继续写", [focusFact, regularFact], chapterRepo, "focus1");
 
     const content = result.messages[1].content;
 
@@ -283,9 +323,7 @@ describe("Context Assembler — semantic golden tests", () => {
     expect(p3Start).toBeGreaterThanOrEqual(0);
     // P1 starts with "## 当前状态" which appears after P3
     const p1Start = content.indexOf("## 当前状态", p3Start + 1);
-    const p3Content = p1Start >= 0
-      ? content.slice(p3Start, p1Start)
-      : content.slice(p3Start);
+    const p3Content = p1Start >= 0 ? content.slice(p3Start, p1Start) : content.slice(p3Start);
 
     expect(p3Content).toContain("Bob在旁边等待");
     // Focus fact should NOT be in the P3 section (it's excluded from facts layer)
@@ -303,16 +341,15 @@ describe("Context Assembler — semantic golden tests", () => {
   it("extreme custom_instructions: trimmed when system prompt exceeds 60% budget", async () => {
     const hugeCustom = "极长自定义写作指令".repeat(500);
     const project = createProject({
-      project_id: "pTrim", au_id: "trim1",
+      project_id: "pTrim",
+      au_id: "trim1",
       llm: createLLMConfig({ mode: "api" as any, model: "gpt-4o", context_window: 4096 }),
       writing_style: createWritingStyle({ custom_instructions: hugeCustom }),
       chapter_length: 800,
     });
     const state = createState({ au_id: "trim1", current_chapter: 1 });
 
-    const result = await assemble_context(
-      project, state, "写", [], chapterRepo, "trim1",
-    );
+    const result = await assemble_context(project, state, "写", [], chapterRepo, "trim1");
 
     // Should not throw despite huge custom_instructions
     // System tokens should be smaller than if custom were included
@@ -330,37 +367,52 @@ describe("Context Assembler — semantic golden tests", () => {
   it("facts sorted by weight (high first) then recency (recent chapter first)", async () => {
     const facts = [
       createFact({
-        id: "fLowOld", content_raw: "r", content_clean: "低权重旧事实",
-        chapter: 1, status: FactStatus.ACTIVE, type: FactType.PLOT_EVENT,
+        id: "fLowOld",
+        content_raw: "r",
+        content_clean: "低权重旧事实",
+        chapter: 1,
+        status: FactStatus.ACTIVE,
+        type: FactType.PLOT_EVENT,
         narrative_weight: NarrativeWeight.LOW,
       }),
       createFact({
-        id: "fHighNew", content_raw: "r", content_clean: "高权重新事实",
-        chapter: 5, status: FactStatus.ACTIVE, type: FactType.PLOT_EVENT,
+        id: "fHighNew",
+        content_raw: "r",
+        content_clean: "高权重新事实",
+        chapter: 5,
+        status: FactStatus.ACTIVE,
+        type: FactType.PLOT_EVENT,
         narrative_weight: NarrativeWeight.HIGH,
       }),
       createFact({
-        id: "fMedMid", content_raw: "r", content_clean: "中权重中间事实",
-        chapter: 3, status: FactStatus.ACTIVE, type: FactType.PLOT_EVENT,
+        id: "fMedMid",
+        content_raw: "r",
+        content_clean: "中权重中间事实",
+        chapter: 3,
+        status: FactStatus.ACTIVE,
+        type: FactType.PLOT_EVENT,
         narrative_weight: NarrativeWeight.MEDIUM,
       }),
       createFact({
-        id: "fHighOld", content_raw: "r", content_clean: "高权重旧事实",
-        chapter: 1, status: FactStatus.ACTIVE, type: FactType.PLOT_EVENT,
+        id: "fHighOld",
+        content_raw: "r",
+        content_clean: "高权重旧事实",
+        chapter: 1,
+        status: FactStatus.ACTIVE,
+        type: FactType.PLOT_EVENT,
         narrative_weight: NarrativeWeight.HIGH,
       }),
     ];
 
     const project = createProject({
-      project_id: "pSort", au_id: "sort1",
+      project_id: "pSort",
+      au_id: "sort1",
       llm: createLLMConfig({ mode: "api" as any, model: "gpt-4o", context_window: 32000 }),
       chapter_length: 1500,
     });
     const state = createState({ au_id: "sort1", current_chapter: 6 });
 
-    const result = await assemble_context(
-      project, state, "写", facts, chapterRepo, "sort1",
-    );
+    const result = await assemble_context(project, state, "写", facts, chapterRepo, "sort1");
 
     // All 4 facts should be injected (budget is generous)
     expect(result.context_summary.facts_injected).toBe(4);

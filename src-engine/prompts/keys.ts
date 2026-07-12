@@ -8,36 +8,36 @@ export const REQUIRED_KEYS = [
   "SYSTEM_NOVELIST",
   "PINNED_CONTEXT_HEADER",
   "CONFLICT_RESOLUTION_RULES",
-  "PERSPECTIVE_FIRST_PERSON",       // f-string with {pov}
+  "PERSPECTIVE_FIRST_PERSON", // f-string with {pov}
   "PERSPECTIVE_THIRD_PERSON",
   "EMOTION_EXPLICIT",
   "EMOTION_IMPLICIT",
   "FORESHADOWING_RULES",
-  "GENERIC_RULES",                  // f-string with {chapter_length}
+  "GENERIC_RULES", // f-string with {chapter_length}
   "CUSTOM_INSTRUCTIONS_HEADER",
 
   // === context_assembler: build_instruction ===
-  "CURRENT_STATUS",                 // f-string with {current_ch}
-  "LAST_ENDING_INLINE",             // f-string with {last_ending}
+  "CURRENT_STATUS", // f-string with {current_ch}
+  "LAST_ENDING_INLINE", // f-string with {last_ending}
   "FOCUS_GOAL_HEADER",
   "FOCUS_GOAL_DEFINITION",
   "ATTENTION_HEADER",
   "ATTENTION_BODY",
   "BG_RULES",
   "PACING_INSTRUCTION",
-  "CONTINUE_WRITING",               // f-string with {user_input}
+  "CONTINUE_WRITING", // f-string with {user_input}
 
   // === context_assembler: build_facts_layer ===
   "SECTION_PLOT_STATE",
-  "INFO_ASYMMETRY_RULES",           // 知情范围图例：仅当本次注入的事实行带知情标注时出现
-  "UNRESOLVED_DROPPED_HINT",        // f-string with {count}
+  "INFO_ASYMMETRY_RULES", // 知情范围图例：仅当本次注入的事实行带知情标注时出现
+  "UNRESOLVED_DROPPED_HINT", // f-string with {count}
 
   // === context_assembler: build_threads_layer (M8-B) ===
   "SECTION_PLOT_THREADS",
 
   // === context_assembler: build_recent_chapter_layer ===
-  "SECTION_LAST_ENDING",            // f-string with {content}
-  "SECTION_LAST_ENDING_TRUNCATED",  // f-string with {end_text}
+  "SECTION_LAST_ENDING", // f-string with {content}
+  "SECTION_LAST_ENDING_TRUNCATED", // f-string with {end_text}
 
   // === context_assembler: build_core_settings_layer ===
   "SECTION_CHARACTERS",
@@ -52,38 +52,38 @@ export const REQUIRED_KEYS = [
 
   // === chapter_summary (M8-C) ===
   "SUMMARY_STANDARD_SYSTEM",
-  "SUMMARY_STANDARD_USER",           // f-string with {chapter_num}, {chapter_text}
+  "SUMMARY_STANDARD_USER", // f-string with {chapter_num}, {chapter_text}
 
   // === chapter_summary micro (M10-A) ===
   "SUMMARY_MICRO_SYSTEM",
-  "SUMMARY_MICRO_USER",              // f-string with {chapter_num}, {chapter_text}
+  "SUMMARY_MICRO_USER", // f-string with {chapter_num}, {chapter_text}
 
   // === retrospective rewrite (M10-A) ===
   "SUMMARY_RETROSPECTIVE_SYSTEM",
-  "SUMMARY_RETROSPECTIVE_USER",      // f-string with {chapter_num}, {chapter_text}, {prior_summary}, {micro_summaries}
+  "SUMMARY_RETROSPECTIVE_USER", // f-string with {chapter_num}, {chapter_text}, {prior_summary}, {micro_summaries}
 
   // === thread state regeneration (最后一公里 B2) ===
   "THREAD_STATE_SYSTEM",
-  "THREAD_STATE_USER",               // f-string with {title}, {description}, {facts}
+  "THREAD_STATE_USER", // f-string with {title}, {description}, {facts}
 
   // === facts_extraction ===
   "FACTS_SYSTEM_PROMPT",
-  "FACTS_ENRICH_SYSTEM_PROMPT",  // M8-A: 单章提取（含新字段）
+  "FACTS_ENRICH_SYSTEM_PROMPT", // M8-A: 单章提取（含新字段）
   "FACTS_BATCH_SYSTEM_PROMPT",
   "FACTS_KNOWN_CHARS_HEADER",
-  "FACTS_ALIAS_FORMAT",             // f-string with {name}, {aliases}
+  "FACTS_ALIAS_FORMAT", // f-string with {name}, {aliases}
   "FACTS_USE_MAIN_NAME",
-  "FACTS_USER_CHAPTER_INTRO",       // f-string with {chapter_num}, {chapter_text}
-  "FACTS_USER_EXISTING_HINT",       // f-string with {existing_summary}
+  "FACTS_USER_CHAPTER_INTRO", // f-string with {chapter_num}, {chapter_text}
+  "FACTS_USER_EXISTING_HINT", // f-string with {existing_summary}
   "FACTS_USER_EXTRACT_COMMAND",
   "FACTS_USER_BATCH_INTRO",
-  "FACTS_USER_BATCH_CHAPTER",       // f-string with {chapter_num}, {content}
+  "FACTS_USER_BATCH_CHAPTER", // f-string with {chapter_num}, {content}
   "FACTS_USER_BATCH_EXISTING_HINT", // f-string with {existing_summary}
   "FACTS_USER_BATCH_COMMAND",
 
   // === settings_chat ===
-  "SETTINGS_AU_SYSTEM_PROMPT",      // f-string with {au_name}, {fandom_name}
-  "SETTINGS_FANDOM_SYSTEM_PROMPT",  // f-string with {fandom_name}
+  "SETTINGS_AU_SYSTEM_PROMPT", // f-string with {au_name}, {fandom_name}
+  "SETTINGS_FANDOM_SYSTEM_PROMPT", // f-string with {fandom_name}
   "SETTINGS_FANDOM_DNA_HEADER",
   "SETTINGS_CURRENT_FANDOM_FILES_HEADER",
   "SETTINGS_CURRENT_AU_FILES_HEADER",
@@ -99,12 +99,12 @@ export const REQUIRED_KEYS = [
   "SETTINGS_LABEL_CORE_WORLDBUILDING",
 
   // === AI chapter title generation ===
-  "CHAPTER_TITLE_PROMPT",             // f-string with {content}
+  "CHAPTER_TITLE_PROMPT", // f-string with {content}
 
   // === FicForge Lite: simple_assembler ===
   "SIMPLE_SECTION_CONFIRMED_CHAPTERS",
-  "SIMPLE_CHAPTER_HEADER",            // f-string with {num}, {title_suffix}
-  "SIMPLE_CHAT_SYSTEM",               // f-string with {chapter_length}, {chapter_length_max} — 简版对话式人设 + 意图分类 + 续写细则
+  "SIMPLE_CHAPTER_HEADER", // f-string with {num}, {title_suffix}
+  "SIMPLE_CHAT_SYSTEM", // f-string with {chapter_length}, {chapter_length_max} — 简版对话式人设 + 意图分类 + 续写细则
 ] as const;
 
 export type PromptKey = (typeof REQUIRED_KEYS)[number];
