@@ -19,8 +19,11 @@ export function warnUi(tag: string, message: string, error?: unknown): void {
     logCatch(tag, message, error);
     return;
   }
-  // biome-ignore lint/suspicious/noConsole: sanctioned 降级出口——logger 未就绪时保诊断不丢（E5 将补 redact 对齐引擎口径）
-  if (error !== undefined) console.warn(`[${tag}] ${message}`, error);
+  // 脱敏口径与引擎 logCatch 对齐（logger/index.ts）：只取 Error.message，不把整个 error 对象丢进
+  // console——它可能带堆栈 / 请求体 / 密钥。不引引擎 redactCtx（跨层 import），此档提取够用。
+  const redacted = error instanceof Error ? error.message : error != null ? String(error) : undefined;
+  // biome-ignore lint/suspicious/noConsole: sanctioned 降级出口——logger 未就绪时保诊断不丢
+  if (redacted !== undefined) console.warn(`[${tag}] ${message}`, redacted);
   // biome-ignore lint/suspicious/noConsole: 同上
   else console.warn(`[${tag}] ${message}`);
 }
@@ -34,4 +37,17 @@ export function warnUi(tag: string, message: string, error?: unknown): void {
  */
 export function catchAndLog(tag: string, message: string): (err: unknown) => void {
   return (err) => logUiError(tag, message, err);
+}
+
+/**
+ * 工厂函数：给「失败则兜底返回 null」的后台加载路径用的 catch handler——
+ * 先 logUiError 留痕（等级同 logCatch），再返回 null 兜底。
+ * 取代散落的 `.catch(() => null)`：兜底值（null）不变，但失败开始留痕（可随「导出日志」带走）。
+ * 用法：`getX(...).catch(swallowToNull('Component', 'load X failed'))`
+ */
+export function swallowToNull(tag: string, message: string): (err: unknown) => null {
+  return (err) => {
+    logUiError(tag, message, err);
+    return null;
+  };
 }

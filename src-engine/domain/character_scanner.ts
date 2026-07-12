@@ -51,7 +51,10 @@ export function scan_characters_in_chapter(
   const result: Record<string, number> = {};
   for (const name of sortedNames) {
     const mainName = searchMap.get(name)!;
-    if (mainName in result) {
+    // Object.hasOwn 而非 `mainName in result`：主名可为 "constructor"/"toString" 等
+    // Object.prototype 键，裸 `in` 会命中原型链把首次出现误判为「已匹配过」而 continue 跳过，
+    // 该角色永不入表。用 own-property 判定后，名为 constructor 的角色也能正常记录。
+    if (Object.hasOwn(result, mainName)) {
       continue; // 已通过更优先的名字匹配过
     }
     if (chapter_text.includes(name)) {

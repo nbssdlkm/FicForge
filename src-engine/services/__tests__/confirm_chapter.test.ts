@@ -95,6 +95,26 @@ describe("confirm_chapter", () => {
     expect(state.current_chapter).toBe(2);
   });
 
+  it("角色名 constructor（Object.prototype 键）能进 characters_last_seen（E5 正确性 L3 端到端）", async () => {
+    await draftRepo.save(
+      createDraft({ au_id: "au1", chapter_num: 1, variant: "B", content: "constructor 在这一章登场了。" }),
+    );
+    await confirm_chapter({
+      au_id: "au1",
+      chapter_num: 1,
+      draft_id: "ch0001_draft_B.md",
+      cast_registry: { characters: ["constructor"] },
+      chapter_repo: chapterRepo,
+      draft_repo: draftRepo,
+      state_repo: stateRepo,
+      ops_repo: opsRepo,
+    });
+    // 落盘 → 读回（YAML round-trip）后仍是 own 属性 = 该章号，证明 scan/merge 不被原型链吞掉。
+    const state = await stateRepo.get("au1");
+    expect(Object.hasOwn(state.characters_last_seen, "constructor")).toBe(true);
+    expect(state.characters_last_seen.constructor).toBe(1);
+  });
+
   it("content_override uses mixed provenance", async () => {
     await confirm_chapter({
       au_id: "au1",

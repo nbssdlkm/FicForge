@@ -8,8 +8,8 @@ import { useTranslation } from "../../i18n/useAppTranslation";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useFeedback } from "../../hooks/useFeedback";
 
-// .docx 需要 mammoth.js 依赖，安装后取消注释
-const ACCEPTED_EXTENSIONS = [".txt", ".md", ".html", ".htm", /* ".docx", */ ".json", ".jsonl"];
+// DOCX 导入未接线（入口早已不可达，E5 清死分支）；将来要做另起独立卡（mammoth.js + 解析）。
+const ACCEPTED_EXTENSIONS = [".txt", ".md", ".html", ".htm", ".json", ".jsonl"];
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`;

@@ -159,6 +159,9 @@
     "deleteAuMessage": "确定要删除AU「{{name}}」及其全部章节和设定吗？将移入垃圾箱，30天内可恢复。",
     "emptyAuList": "这个Fandom下还没有AU。",
     "cardType": "AU",
+    "chapterUnit": "章",
+    "recent": "最近",
+    "notStarted": "未开始",
     "createFandomModal": {
       "title": "新建Fandom",
       "description": "输入Fandom名称，先把这篇同人的Fandom资料建起来。",
@@ -972,7 +975,7 @@
     "unsupported_mode": "此设备不支持本地模型，请在设置中改用在线 API 或 Ollama",
     "fandom_already_exists": "同名Fandom已存在，请换个名字",
     "au_already_exists": "同名AU已存在，请换个名字",
-    "plaintext_http_warning": "注意：该地址为明文 HTTP（非本机），API 密钥将不加密传输，仅建议在可信局域网使用。"
+    "plaintext_http_warning": "注意：该地址为明文 HTTP（非本机），API 密钥将不加密传输。桌面端该地址会被安全策略拦截，请改用 https 或本机代理；网页/移动端仅建议在可信局域网使用。"
   },
   "trash": {
     "title": "垃圾箱",

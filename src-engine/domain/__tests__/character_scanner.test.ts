@@ -49,4 +49,15 @@ describe("scan_characters_in_chapter", () => {
     const result = scan_characters_in_chapter("小明和华仔都来了。", { characters: [] }, { 明华: ["小明", "华仔"] }, 2);
     expect(result).toEqual({ 明华: 2 });
   });
+
+  it("角色名为 Object.prototype 键（constructor / toString）也能记录，不被原型链误判去重（E5 正确性 L3）", () => {
+    const result = scan_characters_in_chapter("constructor 与 toString 都出场了。", {
+      characters: ["constructor", "toString"],
+    });
+    // 裸 `mainName in result` 会因原型链把首次出现误判为已匹配而 continue 跳过 → 永不入表。
+    expect(Object.hasOwn(result, "constructor")).toBe(true);
+    expect(Object.hasOwn(result, "toString")).toBe(true);
+    expect(result.constructor).toBe(0);
+    expect(result.toString).toBe(0);
+  });
 });

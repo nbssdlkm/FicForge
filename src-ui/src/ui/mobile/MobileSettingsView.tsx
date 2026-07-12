@@ -18,6 +18,7 @@ import { AuLoreLayout } from "../library/AuLoreLayout";
 import { Button } from "../shared/Button";
 import { SettingsChatPanel } from "../shared/settings-chat/SettingsChatPanel";
 import { useSessionParams } from "../writer/useSessionParams";
+import { swallowToNull } from "../../utils/ui-logger";
 
 function deriveFandomPath(auPath: string): string {
   return auPath.replace(/\/aus\/[^/]+$/, "");
@@ -58,15 +59,16 @@ export function MobileSettingsView({ auPath, currentChapter }: MobileSettingsVie
     setContextReady(false);
     setAssistantBusy(false);
     const token = contextGuard.start();
-    Promise.all([getWriterProjectContext(auPath).catch(() => null), getWriterSessionConfig().catch(() => null)]).then(
-      ([proj, settings]) => {
-        if (contextGuard.isStale(token)) return;
-        setProjectInfo(proj);
-        setSettingsInfo(settings);
-        // 加载失败也置 ready（null 时 useSessionParams 用默认值），不永久锁死面板
-        setContextReady(true);
-      },
-    );
+    Promise.all([
+      getWriterProjectContext(auPath).catch(swallowToNull("MobileSettingsView", "load project context failed")),
+      getWriterSessionConfig().catch(swallowToNull("MobileSettingsView", "load session config failed")),
+    ]).then(([proj, settings]) => {
+      if (contextGuard.isStale(token)) return;
+      setProjectInfo(proj);
+      setSettingsInfo(settings);
+      // 加载失败也置 ready（null 时 useSessionParams 用默认值），不永久锁死面板
+      setContextReady(true);
+    });
   }, [auPath, contextGuard]);
 
   useEffect(() => {

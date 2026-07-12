@@ -16,6 +16,10 @@ import { isTauri as detectTauri, isCapacitor as detectCapacitor } from "./utils/
 import { SW_UPDATE_READY_EVENT, type SwUpdateReadyDetail } from "./utils/swUpdate";
 import { logUiError } from "./utils/ui-logger";
 
+// 日志分级（E5 日志 L3）：dev 构建留 debug（诊断细节全收），生产只从 info 起（噪音降级）。
+// 单一真相源——三处 initLogger（Tauri / Capacitor / Web）共用，避免判据散落。
+const LOGGER_OPTIONS = { minLevel: import.meta.env.DEV ? "debug" : "info" } as const;
+
 /** 获取或创建持久化设备 ID（同步，用于 adapter 构造前）。 */
 function getOrCreateDeviceId(): string {
   const key = "ficforge_device_id";
@@ -76,7 +80,7 @@ function App() {
           const dataDir = await appDataDir();
 
           currentStep = "initializing logger";
-          initLogger(adapter, dataDir);
+          initLogger(adapter, dataDir, LOGGER_OPTIONS);
           currentStep = "initializing engine";
           initEngine(adapter, dataDir);
         } else {
@@ -90,7 +94,7 @@ function App() {
             const { CapacitorAdapter } = await import("@ficforge/engine");
             const adapter = new CapacitorAdapter(deviceId);
             currentStep = "initializing logger";
-            initLogger(adapter, "");
+            initLogger(adapter, "", LOGGER_OPTIONS);
             currentStep = "initializing engine";
             initEngine(adapter, "");
           } else {
@@ -100,7 +104,7 @@ function App() {
             const adapter = new WebAdapter(deviceId);
             await adapter.init();
             currentStep = "initializing logger";
-            initLogger(adapter, "");
+            initLogger(adapter, "", LOGGER_OPTIONS);
             currentStep = "initializing engine";
             initEngine(adapter, "");
             // 请求持久化存储，防止浏览器自动回收 IndexedDB 数据

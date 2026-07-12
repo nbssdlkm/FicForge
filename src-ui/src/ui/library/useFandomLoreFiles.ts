@@ -8,6 +8,7 @@ import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
 import { useFeedback } from "../../hooks/useFeedback";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { fandomDirNameOf, type FandomLoreCategory } from "./lore-utils";
+import { swallowToNull } from "../../utils/ui-logger";
 
 export type FandomFileLists = {
   characters: FandomFileEntry[];
@@ -62,7 +63,7 @@ export function useFandomLoreFiles(fandomPath: string | undefined) {
     setFilesLoading(true);
     try {
       const [displayInfo, data] = await Promise.all([
-        getFandomDisplayInfo(fandomPath).catch(() => null),
+        getFandomDisplayInfo(fandomPath).catch(swallowToNull("useFandomLoreFiles", "load fandom display info failed")),
         listFandomFiles(fandomDirName),
       ]);
       if (guard.isStale(token)) return null;

@@ -54,11 +54,11 @@ export function useConfirmedChapterEditor({
     }
 
     let cancelled = false;
+    // getChapterContent → get_content_only 恒返 string，无需再兼容 { content } 形态（E5 清死分支）。
     getChapterContent(auPath, viewChapter)
-      .then((result: string | { content?: string }) => {
+      .then((content) => {
         if (cancelled) return;
-        const text = typeof result === "string" ? result : result?.content || "";
-        setViewingHistoryContent(text);
+        setViewingHistoryContent(content);
         setViewingHistoryNum(viewChapter);
       })
       .catch(() => {

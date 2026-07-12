@@ -20,7 +20,7 @@ import type { PlatformAdapter } from "../platform/adapter.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
-import { compute_content_hash, generate_op_id, now_utc } from "../utils/file_utils.js";
+import { atomicWrite, compute_content_hash, generate_op_id, now_utc } from "../utils/file_utils.js";
 import { warnAlways } from "../logger/index.js";
 import { withAuLock } from "./au_lock.js";
 import { PartialCommitError, WriteTransaction } from "./write_transaction.js";
@@ -464,7 +464,7 @@ async function write_imported_settings(
       }
       const dir = settingsPath.substring(0, settingsPath.lastIndexOf("/"));
       await adapter.mkdir(dir);
-      await adapter.writeFile(settingsPath, `---\ntitle: ${settingsName}\n---\n\n${merged}`);
+      await atomicWrite(adapter, settingsPath, `---\ntitle: ${settingsName}\n---\n\n${merged}`);
       writtenPaths.push(settingsPath);
       onProgress?.({
         currentFile: plan.settings[plan.settings.length - 1]?.sourceFile ?? "",
@@ -484,7 +484,7 @@ async function write_imported_settings(
         const ts = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         filePath = `${dir}/${settingsName}_${i + 1}_${ts}.md`;
       }
-      await adapter.writeFile(filePath, `---\ntitle: ${settingsName} ${i + 1}\n---\n\n${plan.settings[i].content}`);
+      await atomicWrite(adapter, filePath, `---\ntitle: ${settingsName} ${i + 1}\n---\n\n${plan.settings[i].content}`);
       writtenPaths.push(filePath);
       onProgress?.({
         currentFile: plan.settings[i].sourceFile,
@@ -612,7 +612,9 @@ async function do_execute_import(plan: ImportPlan, params: ExecuteImportParams):
     // 角色扫描
     const scanned = scan_characters_in_chapter(ch.content, castRegistry, characterAliases, ch.chapterNum);
     for (const [name, chNum] of Object.entries(scanned)) {
-      if (!(name in allCharactersLastSeen) || chNum > allCharactersLastSeen[name]) {
+      // Object.hasOwn 而非 `name in obj`：角色名可为 "constructor"/"toString" 等
+      // Object.prototype 键，裸 `in` 会命中原型链把它误判为已存在，导致该角色永不入表。
+      if (!Object.hasOwn(allCharactersLastSeen, name) || chNum > allCharactersLastSeen[name]) {
         allCharactersLastSeen[name] = chNum;
       }
     }
@@ -852,7 +854,8 @@ async function do_import_chapters(params: ImportChaptersParams): Promise<ImportR
 
     const scanned = scan_characters_in_chapter(chData.content, cast_registry, character_aliases, chData.chapter_num);
     for (const [name, chNum] of Object.entries(scanned)) {
-      if (!(name in charactersLastSeen) || chNum > charactersLastSeen[name]) {
+      // 见 do_execute_import 同处注释：`in` 会命中原型链，用 Object.hasOwn 防 proto 键误判。
+      if (!Object.hasOwn(charactersLastSeen, name) || chNum > charactersLastSeen[name]) {
         charactersLastSeen[name] = chNum;
       }
     }

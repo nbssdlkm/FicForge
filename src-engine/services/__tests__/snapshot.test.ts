@@ -111,4 +111,72 @@ describe("checkAndSnapshot — watermark 增量归档", () => {
     // 3（首轮）+ 3（回退全量重归档）：宁可重复不可丢失
     expect(archiveLines()).toHaveLength(6);
   });
+
+  it("归档写入失败 → 快照不落盘、watermark 不推进（E5 时序重排：archive 成功后才回写快照）", async () => {
+    // 让归档写入抛错（atomicWrite 先写 ops_archive.jsonl.tmp）。旧序会先写含 watermark 的快照
+    // 再归档 → 归档失败也推进了 watermark；新序归档在前，失败则快照整个不落盘。
+    class FailingArchiveAdapter extends MockAdapter {
+      override async writeFile(path: string, content: string): Promise<void> {
+        if (path.includes("ops_archive.jsonl")) throw new Error("disk full");
+        return super.writeFile(path, content);
+      }
+    }
+    const failAdapter = new FailingArchiveAdapter();
+    const failOps = new FileOpsRepository(failAdapter);
+    const failState = new FileStateRepository(failAdapter);
+    const failFact = new FileFactRepository(failAdapter);
+    await failState.save(createState({ au_id: AU, current_chapter: 50 }));
+    for (let i = 0; i < 7; i++) {
+      await failOps.append(
+        AU,
+        createOpsEntry({ op_id: `op${i}`, op_type: "confirm_chapter", chapter_num: i + 1, timestamp: `t${i}` }),
+      );
+    }
+
+    await expect(checkAndSnapshot(AU, failAdapter, failOps, failState, failFact)).rejects.toThrow();
+    // 快照未写入（watermark 未推进）；归档 tmp 未 rename、正式文件也不存在。
+    expect(failAdapter.raw(`${AU}/snapshots/snapshot_50.json`)).toBeUndefined();
+    expect(failAdapter.raw(`${AU}/ops_archive.jsonl`)).toBeUndefined();
+  });
+
+  it("归档成功但快照写失败 → 重试重复归档（at-least-once 不变量：宁重复不丢，消费方按 op_id 去重）", async () => {
+    // 新时序的另一面窗口（E5 对抗审 codex 指认）：归档已追加、快照写抛错 → watermark 未推进，
+    // 重试按旧 watermark 重新归档同段 ops → 归档出现重复条目。锁定该语义为有意的 at-least-once
+    //（op_id 全局唯一，未来消费者按 op_id 去重；当前 ops_archive 零消费者、模块未接线 M6）。
+    class FailingSnapshotAdapter extends MockAdapter {
+      failSnapshot = true;
+      override async writeFile(path: string, content: string): Promise<void> {
+        if (this.failSnapshot && path.includes("/snapshots/")) throw new Error("disk full");
+        return super.writeFile(path, content);
+      }
+    }
+    const fa = new FailingSnapshotAdapter();
+    const fOps = new FileOpsRepository(fa);
+    const fState = new FileStateRepository(fa);
+    const fFact = new FileFactRepository(fa);
+    await fState.save(createState({ au_id: AU, current_chapter: 50 }));
+    for (let i = 0; i < 3; i++) {
+      await fOps.append(
+        AU,
+        createOpsEntry({ op_id: `op${i}`, op_type: "confirm_chapter", chapter_num: i + 1, timestamp: `t${i}` }),
+      );
+    }
+
+    // 首轮：归档成功、快照失败 → 整体抛错，watermark 不存在
+    await expect(checkAndSnapshot(AU, fa, fOps, fState, fFact)).rejects.toThrow();
+    expect(fa.raw(`${AU}/snapshots/snapshot_50.json`)).toBeUndefined();
+    const firstArchive = fa.raw(`${AU}/ops_archive.jsonl`)!.trim().split("\n");
+    expect(firstArchive).toHaveLength(3);
+
+    // 故障解除重试：按旧 watermark（无快照 = 0）重新归档 → 重复条目（3+3），快照落盘、watermark 推进
+    fa.failSnapshot = false;
+    await checkAndSnapshot(AU, fa, fOps, fState, fFact);
+    const retryArchive = fa.raw(`${AU}/ops_archive.jsonl`)!.trim().split("\n");
+    expect(retryArchive).toHaveLength(6);
+    const snap = JSON.parse(fa.raw(`${AU}/snapshots/snapshot_50.json`)!) as Snapshot;
+    expect(snap.archivedOpsCount).toBe(3);
+    // 重复条目可按 op_id 去重恢复出精确集合（不变量的消费侧证明）
+    const uniqueIds = new Set(retryArchive.map((l) => (JSON.parse(l) as { op_id: string }).op_id));
+    expect([...uniqueIds].sort()).toEqual(["op0", "op1", "op2"]);
+  });
 });

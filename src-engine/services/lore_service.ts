@@ -9,12 +9,13 @@
  * lore 没有。下沉后 UI api 只做薄转发；存储布局与安全判据回归引擎，三端一致性由
  * 引擎契约保证，别名缓存失效在引擎内收口（未来任何新消费者不可能忘记失效）。
  *
- * 行为口径：与原 UI 实现逐字节等价迁移（E3 纪律 = 纯搬家）；写路径仍为 adapter.writeFile
- * 直写，收编 atomicWrite 与 import_pipeline 一起在 E5 做（单独批次单独审）。
+ * 行为口径：与原 UI 实现逐字节等价迁移（E3 纪律 = 纯搬家）。写路径于 E5 收编 atomicWrite
+ * （write .tmp → rename 原子提交），与 import_pipeline 同批：半截写不再污染角色卡/世界观文件。
  */
 
 import type { PlatformAdapter } from "../platform/adapter.js";
 import { AU_CHARACTERS_DIR } from "../domain/character_card.js";
+import { atomicWrite } from "../utils/file_utils.js";
 import { sanitizePathSegment, validateExistingPathSegment } from "../utils/paths.js";
 
 /** 依赖注入面（结构兼容 UI EngineInstance 的子集；测试可用最小 mock 满足）。 */
@@ -49,7 +50,7 @@ export async function saveLore(
   const filePath = `${basePath}/${safeCategory}/${safeFilename}`;
   const dir = filePath.substring(0, filePath.lastIndexOf("/"));
   await adapter.mkdir(dir);
-  await adapter.writeFile(filePath, req.content);
+  await atomicWrite(adapter, filePath, req.content);
   // 角色卡内容变更（含别名编辑）→ 失效该 AU 的别名归一化表缓存（内容改动不改文件名，
   // 签名兜底兜不住，必须在此写入收口显式失效）。
   if (req.au_path && safeCategory === AU_CHARACTERS_DIR) {
@@ -178,7 +179,7 @@ export async function importLoreFromFandom(
       const content = await adapter.readFile(srcPath);
       const dir = destPath.substring(0, destPath.lastIndexOf("/"));
       await adapter.mkdir(dir);
-      await adapter.writeFile(destPath, content);
+      await atomicWrite(adapter, destPath, content);
       imported.push({ from: sourceFilename, to: destFilename });
     } catch {
       skipped.push(filename);

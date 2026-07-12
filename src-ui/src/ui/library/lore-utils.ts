@@ -71,7 +71,11 @@ export function parseAliasesFromContent(content: string): string[] {
 }
 
 export function setAliasesInContent(content: string, aliases: string[]): string {
-  const aliasYaml = aliases.length > 0 ? `aliases: [${aliases.join(", ")}]` : "aliases: []";
+  // 别名统一 JSON.stringify 加引号（对齐同仓 settings-chat/frontmatter-utils 的 buildManagedFrontmatterLines 技法；注意那边是块式、这里是流式，仍属两份手写序列化——写侧统一到真 YAML 序列化留待后续卡）：
+  // 含 :/#/引号/逗号 等 YAML 危险字符的别名若裸写进 flow 数组会写坏 frontmatter（读侧 safeMatter
+  // 安全降级、别名静默丢失）。JSON 双引号串是合法的 YAML flow 标量，转义齐全，读回一致。
+  const aliasYaml =
+    aliases.length > 0 ? `aliases: [${aliases.map((a) => JSON.stringify(a)).join(", ")}]` : "aliases: []";
   const match = content.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return content;
   const fm = match[1];
@@ -85,7 +89,9 @@ export function setAliasesInContent(content: string, aliases: string[]): string 
     const nameIdx = lines.findIndex((l) => l.startsWith("name:"));
     lines.splice(nameIdx >= 0 ? nameIdx + 1 : lines.length, 0, aliasYaml);
   }
-  return content.replace(/^---\n[\s\S]*?\n---/, `---\n${lines.join("\n")}\n---`);
+  // 替换值用函数返回（E5 对抗审 MED 实证）：字符串形式的第二参会解释 $& / $' / $` / $$，
+  // 别名含这些序列时会把匹配段/正文展开进 frontmatter，双双损坏——函数返回值不做 $ 解释。
+  return content.replace(/^---\n[\s\S]*?\n---/, () => `---\n${lines.join("\n")}\n---`);
 }
 
 // ---------------------------------------------------------------------------

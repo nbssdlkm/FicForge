@@ -159,6 +159,9 @@
     "deleteAuMessage": "Delete AU \"{{name}}\" and all its chapters and lore? It will be moved to trash and can be recovered within 30 days.",
     "emptyAuList": "No AUs under this fandom yet.",
     "cardType": "AU",
+    "chapterUnit": "ch",
+    "recent": "Recent",
+    "notStarted": "Not started",
     "createFandomModal": {
       "title": "New Fandom",
       "description": "Enter the fandom name to set up canon reference material for your fics.",
@@ -972,7 +975,7 @@
     "unsupported_mode": "Local models are not supported on this device. Switch to an online API or Ollama in settings.",
     "fandom_already_exists": "A fandom with this name already exists",
     "au_already_exists": "An AU with this name already exists",
-    "plaintext_http_warning": "Warning: this endpoint uses plain HTTP (non-local). Your API key is sent unencrypted; use only on a trusted network."
+    "plaintext_http_warning": "Warning: this endpoint uses plain HTTP (non-local). Your API key would be sent unencrypted. On desktop this address is blocked by the security policy — use https or a localhost proxy; on web/mobile use only on a trusted network."
   },
   "trash": {
     "title": "Trash",

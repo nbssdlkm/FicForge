@@ -38,7 +38,6 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onCl
     save,
     setMode,
     setModel,
-    setLocalModelPath,
     setOllamaModel,
     setApiBase,
     setApiKey,
@@ -192,18 +191,9 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onCl
               </>
             )}
 
-            {form.mode === "local" && (
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-bold text-text/90">{t("common.labels.localModelPath")}</label>
-                <Input
-                  value={form.localModelPath}
-                  onChange={(e) => setLocalModelPath(e.target.value)}
-                  placeholder="/path/to/model"
-                  disabled={saving}
-                />
-                <p className="text-xs text-text/50">{t("common.help.localModelPath")}</p>
-              </div>
-            )}
+            {/* local 模式渲染分支已删（E5 功能 L2）：capabilities.ts 把 local 标 platform_unsupported /
+                desktop_only，listGenerationModes 一律不渲染该选项 → 此分支恒不可达。domain 的
+                local_model_path 字段保留（旧配置读回不丢），仅退掉 UI 表单。 */}
 
             {form.mode === "ollama" && (
               <>

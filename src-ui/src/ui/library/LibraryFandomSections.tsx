@@ -141,7 +141,7 @@ export function LibraryFandomSections({
               <div className="mb-1 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-gold-bright">
                 <span>{callno} · INDEX</span>
                 <span>
-                  {auCount} AU <span className="opacity-60">·</span> {chapterTotal} 章
+                  {auCount} AU <span className="opacity-60">·</span> {chapterTotal} {t("library.chapterUnit")}
                 </span>
               </div>
 
@@ -220,7 +220,7 @@ export function LibraryFandomSections({
                 // have data for). Recent name stays roman.
                 <div className="mt-2.5 flex items-center gap-2 border-t border-[color:var(--color-drawer-edge)] pt-2 font-serif text-xs text-inv-text/70">
                   <span className="font-sans font-medium uppercase tracking-[0.14em] text-gold-bright text-[9px]">
-                    最近
+                    {t("library.recent")}
                   </span>
                   <span className="truncate text-inv-text">{mostRecent.name}</span>
                 </div>
@@ -323,10 +323,10 @@ export function LibraryFandomSections({
                                   <strong className="mr-1 font-display text-sm font-semibold not-italic text-accent">
                                     {chapters}
                                   </strong>
-                                  章
+                                  {t("library.chapterUnit")}
                                 </>
                               ) : (
-                                <span className="text-ink-faint">未开始</span>
+                                <span className="text-ink-faint">{t("library.notStarted")}</span>
                               )}
                             </span>
                             <span aria-hidden="true" className="text-base leading-none text-ink-faint">

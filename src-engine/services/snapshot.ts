@@ -10,7 +10,7 @@ import type { PlatformAdapter } from "../platform/adapter.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
 import type { StateRepository } from "../repositories/interfaces/state.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
-import { joinPath } from "../utils/file_utils.js";
+import { atomicWrite, joinPath } from "../utils/file_utils.js";
 import { withAuLock } from "./au_lock.js";
 
 export interface Snapshot {
@@ -51,24 +51,18 @@ export async function checkAndSnapshot(
     const snapshotPath = joinPath(auPath, `snapshots/snapshot_${currentChapter}.json`);
     if (await adapter.exists(snapshotPath)) return false;
 
-    // 创建快照
+    // 快照素材
     const facts = await factRepo.list_all(auPath);
     const ops = await opsRepo.list_all(auPath);
 
-    // 2.1: Watermark — record total ops count at snapshot time
-    const snapshot: Snapshot = {
-      chapter: currentChapter,
-      timestamp: new Date().toISOString(),
-      state,
-      facts,
-      archivedOpsCount: ops.length,
-    };
-
-    const dir = joinPath(auPath, "snapshots");
-    await adapter.mkdir(dir);
-    await adapter.writeFile(snapshotPath, JSON.stringify(snapshot, null, 2));
-
-    // 归档增量 ops（跳过上一快照已归档的部分）
+    // 时序重排（E5 正确性 L2）：先归档增量 ops，**归档成功后**再回写含新 watermark 的快照。
+    // 旧序是「先写含 archivedOpsCount=ops.length 的快照 → 再追加归档」，归档若抛错则 watermark
+    // 已被推进 → 下一快照据错误 watermark 跳过这批未落盘的 ops，永久漏归档（不可恢复）。
+    // 新序把该窗口换成可恢复的另一面：归档成功但快照写失败时，重试按旧 watermark 重新归档，
+    // 归档文件会出现重复条目。归档语义不变量 = **at-least-once**（宁可重复不可丢失；
+    // op_id 全局唯一，未来消费者按 op_id 去重——当前 ops_archive 零消费者、模块未接线（M6）。
+    // 两文件均原子写；「新快照+旧归档」的危险组合被本序消除（快照恒在归档之后落盘）。
+    // 两处均改原子写（write .tmp → rename），避免半截文件。
     if (ops.length > 0) {
       let previouslyArchived = 0;
       const prevChapter = currentChapter - 50;
@@ -89,12 +83,23 @@ export async function checkAndSnapshot(
         const archivePath = joinPath(auPath, "ops_archive.jsonl");
         const existingArchive = (await adapter.exists(archivePath)) ? await adapter.readFile(archivePath) : "";
         const newLines = newOps.map((op) => JSON.stringify(op)).join("\n") + "\n";
-        await adapter.writeFile(archivePath, existingArchive + newLines);
+        // 原子写：失败在此抛出，下方快照不落盘 → watermark 不推进。
+        await atomicWrite(adapter, archivePath, existingArchive + newLines);
       }
     }
 
-    // ops.jsonl 不清空——watermark 记录了已归档位置，
-    // 消除了原 "先归档再清空" 两步操作的崩溃数据丢失风险。
+    // 2.1: Watermark — 归档已成功，回写含 archivedOpsCount 的快照（原子写）。
+    // ops.jsonl 不清空——watermark 记录了已归档位置，崩溃不丢数据。
+    const snapshot: Snapshot = {
+      chapter: currentChapter,
+      timestamp: new Date().toISOString(),
+      state,
+      facts,
+      archivedOpsCount: ops.length,
+    };
+    const dir = joinPath(auPath, "snapshots");
+    await adapter.mkdir(dir);
+    await atomicWrite(adapter, snapshotPath, JSON.stringify(snapshot, null, 2));
 
     return true;
   });

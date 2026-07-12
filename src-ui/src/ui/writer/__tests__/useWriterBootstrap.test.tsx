@@ -30,6 +30,9 @@ vi.mock("../../../api/engine-client", () => ({
   getWriterProjectContext: vi.fn(),
   getWriterSessionConfig: vi.fn(),
   getChapterContent: vi.fn(),
+  // swallowToNull（ui-logger）在加载失败路径会调 logCatch 留痕；mock 需提供，否则
+  // catch handler 调 undefined 抛错、把兜底 null 变成再次 reject（E5 日志 L2 接线后）。
+  logCatch: vi.fn(),
 }));
 
 const t = (key: string) => key;

@@ -7,6 +7,7 @@ import {
   trySplitByStandardHeaders,
   trySplitByNumericHeaders,
   splitByCharCount,
+  splitByCustomRegex,
   buildRegexFromPattern,
   llmDetectChapterPattern,
   type ChapterPatternResult,
@@ -179,6 +180,32 @@ describe("buildRegexFromPattern", () => {
         examples: [],
       }),
     ).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// splitByCustomRegex — 非全局正则死循环 guard（E1/E5 追加）
+// ---------------------------------------------------------------------------
+
+describe("splitByCustomRegex — 非全局正则不死循环", () => {
+  // 每章多给几行，绕过「匹配数 > 总行数 20%」的密度检查（否则会 return null）。
+  const body = "正文一\n正文二\n正文三\n正文四\n正文五";
+
+  it("非全局正则也能扫出全文所有标题（自动补 g，不 exec 死循环）", () => {
+    const text = `@1 起\n${body}\n@2 承\n${body}\n@3 转\n${body}`;
+    // 故意传入不带 /g 的正则：旧实现会 exec 死循环（lastIndex 恒 0）。
+    const nonGlobal = /^@\d+.*$/m;
+    const result = splitByCustomRegex(text, nonGlobal);
+    expect(result).not.toBeNull();
+    expect(result).toHaveLength(3);
+    expect(result![0].title).toContain("@1");
+  });
+
+  it("全局正则行为不变（回归）", () => {
+    const text = `@1 起\n${body}\n@2 承\n${body}`;
+    const result = splitByCustomRegex(text, /^@\d+.*$/gm);
+    expect(result).not.toBeNull();
+    expect(result).toHaveLength(2);
   });
 });
 

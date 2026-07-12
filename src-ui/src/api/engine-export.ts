@@ -17,6 +17,7 @@ import {
 } from "@ficforge/engine";
 import { getEngine, getProjectOrThrow } from "./engine-instance";
 import { createAu } from "./engine-fandoms";
+import { swallowToNull } from "../utils/ui-logger";
 
 /** 正文章节判据（不含 .summary.jsonl）：引擎 domain/paths.parseChapterMainPath 单一真相源。 */
 const isChapterFile = (p: string): boolean => parseChapterMainPath(p) !== null;
@@ -54,7 +55,9 @@ const BUNDLE_EXT = ".ffbundle.json";
 /** 导出整个 AU 为可移植备份文件（含进度/事实/线索/聊天/章节，RAG 除外，导入侧重建）。 */
 export async function exportAuBundle(auPath: string): Promise<{ blob: Blob; filename: string }> {
   const { adapter, repos } = getEngine();
-  const proj = await repos.project.get(auPath).catch(() => null);
+  const proj = await repos.project
+    .get(auPath)
+    .catch(swallowToNull("engine-export", "load project for bundle export failed"));
   const auName = proj?.name?.trim() || auPath.split("/").pop() || "au";
   const bundle = await collectAuBundle(auPath, adapter, {
     au_name: auName,

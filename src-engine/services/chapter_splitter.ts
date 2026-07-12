@@ -333,11 +333,19 @@ function escapeRegex(str: string): string {
 // Split by custom regex (used after LLM detection)
 // ---------------------------------------------------------------------------
 
-function splitByCustomRegex(text: string, regex: RegExp): SplitChapter[] | null {
-  // Reset regex state
-  const re = new RegExp(regex.source, regex.flags);
+/**
+ * 用给定正则把正文切成章（LLM 检测出的自定义标题格式走这条）。exported 供单测直接验证 guard。
+ *
+ * E5 死循环 guard：本函数用 `re.exec(text)` 循环扫全文所有匹配，**必须**是 global 正则——
+ * 非 global 时 exec 每次都从头匹配、lastIndex 恒为 0 → 无限循环（原注释「保持原行为」是误判，
+ * 非 global 根本跑不完）。唯一调用方 buildRegexFromPattern 恒产出 /gm，这里对任意入参兜底补 g：
+ * 语义就是「扫全文所有标题」，补 g 不改变全局正则的现有行为，只消除误传非 global 的死循环风险
+ * （与 trySplitByStandardHeaders 的 flags 兜底同款）。
+ */
+export function splitByCustomRegex(text: string, regex: RegExp): SplitChapter[] | null {
+  const flags = regex.flags.includes("g") ? regex.flags : regex.flags + "g";
+  const re = new RegExp(regex.source, flags);
   const matches: [number, string][] = [];
-  // regex.flags 由调用方决定，可能不含 /g（非 global 时 matchAll 会抛错）——用 exec 循环保持原行为。
   for (;;) {
     const m = re.exec(text);
     if (m === null) break;

@@ -72,7 +72,7 @@ export function FactsFilterBar({ variant, factsFilter, extraction, editor, count
               className="px-3 shadow-md"
               onClick={() => editor.openAddModal()}
             >
-              新建
+              {t("facts.createButton")}
             </Button>
           </div>
         </div>

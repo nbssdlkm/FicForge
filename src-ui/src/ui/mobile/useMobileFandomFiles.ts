@@ -8,6 +8,7 @@ import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
 import { useFeedback } from "../../hooks/useFeedback";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import type { FandomLoreCategory } from "../library/lore-utils";
+import { swallowToNull } from "../../utils/ui-logger";
 
 /**
  * 圈子 lore 分类：真相源在 library/lore-utils.FandomLoreCategory（合并审阅：
@@ -37,7 +38,9 @@ export function useMobileFandomFiles(fandomPath: string, fandomDirName: string) 
     setLoading(true);
     try {
       const [displayInfo, data] = await Promise.all([
-        getFandomDisplayInfo(fandomPath).catch(() => null),
+        getFandomDisplayInfo(fandomPath).catch(
+          swallowToNull("useMobileFandomFiles", "load fandom display info failed"),
+        ),
         listFandomFiles(fandomDirName),
       ]);
       if (loadGuard.isStale(token)) return;

@@ -9,6 +9,7 @@ import { Button } from "../../shared/Button";
 import { Input } from "../../shared/Input";
 import { Spinner } from "../../shared/Spinner";
 import { ConfirmDialog } from "../../shared/ConfirmDialog";
+import { SecretStorageNotice } from "../../shared/SecretStorageNotice";
 import { useTranslation } from "../../../i18n/useAppTranslation";
 import { useFeedback } from "../../../hooks/useFeedback";
 import { deleteCustomProvider, saveCustomProvider, type CustomProviderInfo } from "../../../api/engine-client";
@@ -145,6 +146,11 @@ export function CustomProviderModal({
               <p className="text-xs text-text/50">{t("modelPicker.customProvider.apiKeyKeepHint")}</p>
             )}
           </div>
+
+          {/* 密钥输入面缺口补齐（E5 安全 L1）：本 modal 全屏覆盖父设置页，父页的
+              SecretStorageNotice 被盖住 → 用户在此填 key 时看不到明文存储警示，此处补一条
+              （加密环境显 info，不加密显 warning，文案与全局同一套 i18n 键）。 */}
+          <SecretStorageNotice compact />
 
           <div>
             <button

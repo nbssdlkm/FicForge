@@ -44,7 +44,6 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
     setIsLlmOverride,
     setLlmMode,
     setAuModel,
-    setAuLocalModelPath,
     setAuOllamaModel,
     setAuApiBase,
     setAuApiKey,
@@ -195,18 +194,9 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                       </div>
                     </>
                   )}
-                  {form.llmMode === "local" && (
-                    <div className="flex flex-col gap-1.5 md:col-span-2">
-                      <label className="text-xs font-bold text-text/90">{t("common.labels.localModelPath")}</label>
-                      <Input
-                        value={form.auLocalModelPath}
-                        onChange={(e) => setAuLocalModelPath(e.target.value)}
-                        placeholder="/path/to/model"
-                        className="h-11 text-base md:h-9 md:text-sm"
-                      />
-                      <p className="text-xs text-text/50">{t("common.help.localModelPath")}</p>
-                    </div>
-                  )}
+                  {/* local 模式渲染分支已删（E5 功能 L2，与 GlobalSettingsModal 同步）：
+                      capabilities.ts 标 local 为不可用，选项恒不渲染 → 分支不可达。
+                      domain 的 auLocalModelPath 字段保留（旧覆盖配置读回不丢）。 */}
                   {form.llmMode === "ollama" && (
                     <>
                       <div className="flex flex-col gap-1.5">

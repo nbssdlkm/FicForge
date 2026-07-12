@@ -41,7 +41,13 @@ export type Platform = "tauri" | "capacitor" | "web";
 
 export interface ModeAvailability {
   available: boolean;
-  /** 不可用原因的机器可读 key。UI 据此显示合适的本地化提示。 */
+  /**
+   * 不可用原因的机器可读 key。UI 据此显示合适的本地化提示。
+   *
+   * coming_soon 扩展点保留（R4 功能 L3 裁决）：当前 GENERATION/EMBEDDING 矩阵无任何条目用它，
+   * 无现役消费者；留给"已实现待放量"的未来模式（UI 渲染但 disabled），与 platform_unsupported /
+   * desktop_only（直接不渲染）语义区分。删了将来加新模式得重造这一档。
+   */
   reason?:
     | "coming_soon" // 未来版本计划支持 → UI 可渲染但禁用
     | "platform_unsupported" // 本平台永远不会支持 → UI 不渲染

@@ -7,6 +7,7 @@ import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
 import { getState, listFacts, type FactInfo, type StateInfo } from "../../api/engine-client";
 import { useFeedback } from "../../hooks/useFeedback";
 import { useTranslation } from "../../i18n/useAppTranslation";
+import { swallowToNull } from "../../utils/ui-logger";
 
 /**
  * useFactsData — 事实笔记页的只读数据拉取（server 侧按状态筛选的显示集 / 全量计数 / index 状态）。
@@ -42,7 +43,7 @@ export function useFactsData(auPath: string) {
         const [factsData, allFactsData, stateData] = await Promise.all([
           listFacts(auPath, statusFilter && statusFilter !== "stale" ? statusFilter : undefined),
           listFacts(auPath),
-          getState(auPath).catch(() => null),
+          getState(auPath).catch(swallowToNull("useFactsData", "load state failed")),
         ]);
         if (loadGuard.isStale(token)) return;
         setFacts(factsData);

@@ -15,6 +15,7 @@ import {
   type WriterSessionConfig,
 } from "../../api/engine-client";
 import type { ActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
+import { swallowToNull } from "../../utils/ui-logger";
 
 type UseWriterBootstrapOptions = {
   auPath: string;
@@ -37,10 +38,10 @@ export function useWriterBootstrap({ auPath, loadGuard, refreshGuard, showError,
     setLoading(true);
     try {
       const [stateData, factsData, proj, settings] = await Promise.all([
-        getState(auPath).catch(() => null),
+        getState(auPath).catch(swallowToNull("useWriterBootstrap", "load state failed")),
         listFacts(auPath, "unresolved").catch(() => []),
-        getWriterProjectContext(auPath).catch(() => null),
-        getWriterSessionConfig().catch(() => null),
+        getWriterProjectContext(auPath).catch(swallowToNull("useWriterBootstrap", "load project context failed")),
+        getWriterSessionConfig().catch(swallowToNull("useWriterBootstrap", "load session config failed")),
       ]);
       if (loadGuard.isStale(token)) return;
 
@@ -88,10 +89,10 @@ export function useWriterBootstrap({ auPath, loadGuard, refreshGuard, showError,
     const token = refreshGuard.start();
     try {
       const [stateData, factsData, proj, settings] = await Promise.all([
-        getState(auPath).catch(() => null),
+        getState(auPath).catch(swallowToNull("useWriterBootstrap", "load state failed")),
         listFacts(auPath, "unresolved").catch(() => []),
-        getWriterProjectContext(auPath).catch(() => null),
-        getWriterSessionConfig().catch(() => null),
+        getWriterProjectContext(auPath).catch(swallowToNull("useWriterBootstrap", "load project context failed")),
+        getWriterSessionConfig().catch(swallowToNull("useWriterBootstrap", "load session config failed")),
       ]);
       if (refreshGuard.isStale(token)) return;
 

@@ -58,7 +58,6 @@ export function useAuSettingsForm(auPath: string, project: ProjectInfo | null, l
       setIsLlmOverride: set("isLlmOverride"),
       setLlmMode: set("llmMode"),
       setAuModel: set("auModel"),
-      setAuLocalModelPath: set("auLocalModelPath"),
       setAuOllamaModel: set("auOllamaModel"),
       setAuApiBase: set("auApiBase"),
       setAuApiKey: set("auApiKey"),

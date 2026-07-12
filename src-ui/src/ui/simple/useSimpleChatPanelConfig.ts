@@ -23,6 +23,7 @@ import {
   type WriterProjectContext,
   type WriterSessionConfig,
 } from "../../api/engine-client";
+import { swallowToNull } from "../../utils/ui-logger";
 
 export function useSimpleChatPanelConfig(auPath: string, isActiveTab?: boolean) {
   const [projectInfo, setProjectInfo] = useState<WriterProjectContext | null>(null);
@@ -45,10 +46,12 @@ export function useSimpleChatPanelConfig(auPath: string, isActiveTab?: boolean) 
   const refreshPanelConfig = useCallback(async () => {
     const token = ++configLoadTokenRef.current;
     const [proj, settings, summary, readiness] = await Promise.all([
-      getWriterProjectContext(auPath).catch(() => null),
-      getWriterSessionConfig().catch(() => null),
-      getSettingsSummary().catch(() => null),
-      getFactsExtractionReadiness(auPath).catch(() => null),
+      getWriterProjectContext(auPath).catch(swallowToNull("useSimpleChatPanelConfig", "load project context failed")),
+      getWriterSessionConfig().catch(swallowToNull("useSimpleChatPanelConfig", "load session config failed")),
+      getSettingsSummary().catch(swallowToNull("useSimpleChatPanelConfig", "load settings summary failed")),
+      getFactsExtractionReadiness(auPath).catch(
+        swallowToNull("useSimpleChatPanelConfig", "load extraction readiness failed"),
+      ),
     ]);
     if (configLoadTokenRef.current !== token) return;
     setProjectInfo(proj);

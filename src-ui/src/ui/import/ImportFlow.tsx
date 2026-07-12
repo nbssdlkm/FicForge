@@ -365,10 +365,5 @@ async function readFileAsText(file: File): Promise<string> {
     return parse_html(rawText);
   }
 
-  if (ext === "docx") {
-    // mammoth.js 未安装，DOCX 暂不支持
-    throw new Error("DOCX import requires mammoth.js (not yet installed)");
-  }
-
   return file.text();
 }

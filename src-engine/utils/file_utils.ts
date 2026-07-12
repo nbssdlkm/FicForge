@@ -174,6 +174,8 @@ async function tryRecoverFromTmp<T>(
  * 崩溃时的半截文件。写入经 `atomicWrite:` 前缀锁串行化：并发写同一路径共用同一
  * .tmp，交错会让后一个 rename 因 .tmp 已被移走而抛错；用独立前缀（而非裸 path
  * key）避免与调用方已持有的 withWriteLock(path) 重入死锁（withWriteLock 不可重入）。
+ * 失败语义：.tmp 写失败或 rename 失败时正式路径不被触碰（旧内容完好），错误原样上抛；
+ * .tmp 固定命名是 read_jsonl 遗留恢复逻辑的依赖，不可改随机名。
  */
 export function atomicWrite(adapter: PlatformAdapter, path: string, content: string): Promise<void> {
   return withWriteLock(`atomicWrite:${path}`, async () => {

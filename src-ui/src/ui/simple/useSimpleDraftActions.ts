@@ -23,6 +23,7 @@ import { useFeedback } from "../../hooks/useFeedback";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import type { useSimpleChat } from "./useSimpleChat";
 import type { useWriterFactsExtraction } from "../writer/useWriterFactsExtraction";
+import { swallowToNull } from "../../utils/ui-logger";
 
 interface UseSimpleDraftActionsParams {
   auPath: string;
@@ -76,7 +77,9 @@ export function useSimpleDraftActions({
         const st = await getState(auPath);
         const expectedChapter = st.current_chapter ?? 1;
         if (target.chapterNum !== expectedChapter) {
-          const existing = await getChapterContent(auPath, target.chapterNum).catch(() => null);
+          const existing = await getChapterContent(auPath, target.chapterNum).catch(
+            swallowToNull("useSimpleDraftActions", "load existing chapter content failed"),
+          );
           if (existing !== null && existing.trim() === target.content.trim()) {
             // 章节内容与草稿逐字一致 → 此前已接受过、只是标记没落盘（切 tab 竞态遗留），
             // 补回标记而不是再确认一次。
@@ -113,7 +116,9 @@ export function useSimpleDraftActions({
         //（下一章应为第 3 章）」的自相矛盾句 —— 拆专用 key，指路写文页处理。
         // 内容逐字一致（同章重接、confirm 半成功后重试）→ 放行 confirm：引擎带备份覆盖 +
         // 推进 state，正是修复半成功所需。
-        const existingCurrent = await getChapterContent(auPath, target.chapterNum).catch(() => null);
+        const existingCurrent = await getChapterContent(auPath, target.chapterNum).catch(
+          swallowToNull("useSimpleDraftActions", "load existing chapter content failed"),
+        );
         if (existingCurrent !== null && existingCurrent.trim() !== target.content.trim()) {
           showToast(
             t("simple.draftCard.chapterTakenSameNum", {

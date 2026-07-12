@@ -90,7 +90,6 @@ export function useGlobalSettingsForm(isOpen: boolean, settings: SettingsInfo | 
     return {
       setMode: set("mode"),
       setModel: set("model"),
-      setLocalModelPath: set("localModelPath"),
       setOllamaModel: set("ollamaModel"),
       setApiBase: set("apiBase"),
       setApiKey: set("apiKey"),

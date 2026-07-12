@@ -337,8 +337,9 @@ export function resolve_llm_params(
 /**
  * api_base 是否为「明文 HTTP 且非本机回环」—— 密钥将不加密传输的判据（单一真相源：
  * 生成路径的 warnAlways 与 UI「测试连接」的告警透出共用；盲审 2026-07-11 安全维）。
- * 桌面 CSP 保留 http: 通配是为支持局域网自建端点（如局域网 Ollama）这一真实场景，
- * 拦截层因此不能一刀切 —— 改为让用户知情：明文远端 → 告警不阻断。
+ * 口径更新（E5 授权翻案收尾）：桌面 CSP 已收窄为仅放行 localhost/127.0.0.1 明文
+ * （tauri.conf.json connect-src），命中本判据的地址在**桌面端会被 CSP 直接拦截**——
+ * 告警文案已同步「桌面端将无法连接」；Web/移动端无此 CSP，仍是知情告警不阻断。
  */
 export function isPlaintextRemoteHttp(apiBase: string): boolean {
   const base = (apiBase ?? "").trim();

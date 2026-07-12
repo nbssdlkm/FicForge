@@ -190,7 +190,8 @@ describe("AuLoreLayout — 状态下沉回归", () => {
     const [payload] = (saveLore as Mock).mock.calls[0];
     expect(payload.au_path).toBe(AU_PATH);
     expect(payload.filename).toBe("主角甲.md");
-    expect(payload.content).toContain("aliases: [小甲, 甲哥, 阿甲]");
+    // E5 已知卡：别名统一 JSON.stringify 加引号（YAML 危险字符根治），序列化形态随之变引号。
+    expect(payload.content).toContain('aliases: ["小甲", "甲哥", "阿甲"]');
     expect(payload.content).toContain("改过的正文");
   });
 

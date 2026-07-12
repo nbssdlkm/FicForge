@@ -7,6 +7,7 @@ import { getProjectForEditing, listLoreFiles, type ProjectInfo } from "../../../
 import { useActiveRequestGuard } from "../../../hooks/useActiveRequestGuard";
 import { useFeedback } from "../../../hooks/useFeedback";
 import { useTranslation } from "../../../i18n/useAppTranslation";
+import { swallowToNull } from "../../../utils/ui-logger";
 import type { LoreFileOption, SettingsMode } from "./types";
 
 /**
@@ -58,7 +59,9 @@ export function useSettingsChatSupportData(mode: SettingsMode, basePath?: string
     try {
       if (mode === "au") {
         const [project, characters, worldbuilding] = await Promise.all([
-          getProjectForEditing(basePath).catch(() => null),
+          getProjectForEditing(basePath).catch(
+            swallowToNull("useSettingsChatSupportData", "load project for editing failed"),
+          ),
           listLoreFiles({ au_path: basePath, category: "characters" }).catch(() => ({ files: [] })),
           listLoreFiles({ au_path: basePath, category: "worldbuilding" }).catch(() => ({ files: [] })),
         ]);

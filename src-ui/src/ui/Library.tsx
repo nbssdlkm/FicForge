@@ -82,7 +82,7 @@ function LibraryInner({ onNavigate }: Props) {
     return [
       { value: fandoms.length, label: "FANDOM" },
       { value: totalAus, label: t("library.cardType") },
-      { value: totalChapters, label: "章" },
+      { value: totalChapters, label: t("library.chapterUnit") },
     ];
   }, [fandoms, t]);
   const mutating = mutations.creatingFandom || mutations.creatingAu || mutations.deleting;
