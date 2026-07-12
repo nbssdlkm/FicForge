@@ -6,6 +6,7 @@
  *   importFromFandom, getLoreContent, sanitizePathSegment.
  */
 
+import { AU_CHARACTERS_DIR } from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
 
 const SAFE_PATH_SEGMENT_PATTERN = /[^\p{L}\p{N}._ -]+/gu;
@@ -50,6 +51,11 @@ export async function saveLore(req: { au_path?: string; fandom_path?: string; ca
   const dir = filePath.substring(0, filePath.lastIndexOf("/"));
   await adapter.mkdir(dir);
   await adapter.writeFile(filePath, req.content);
+  // 角色卡内容变更（含别名编辑）→ 失效该 AU 的别名归一化表缓存（内容改动不改文件名，
+  // 签名兜底兜不住，必须在此写入收口显式失效）。
+  if (req.au_path && safeCategory === AU_CHARACTERS_DIR) {
+    getEngine().characterAliases.invalidate(req.au_path);
+  }
   // M28：回传实际落盘的 filename / category（已过 sanitizePathSegment 白名单清洗）。
   // 调用方传进来的 filename 若含被清洗字符（如全角标点），磁盘名 ≠ 传入名 —— 后续
   // undo/modify/read 用传入名找不到文件。用返回值回填 undoMeta 才能闭环。
@@ -109,6 +115,9 @@ export async function deleteLore(req: { au_path?: string; fandom_path?: string; 
   const filename = validateExistingPathSegment(req.filename);
   const relativePath = `${category}/${filename}`;
   const entry = await getEngine().trash.move_to_trash(basePath, relativePath, "lore_file", req.filename);
+  if (req.au_path && category === AU_CHARACTERS_DIR) {
+    getEngine().characterAliases.invalidate(req.au_path);
+  }
   return { status: "ok", trash_id: entry.trash_id, deleted: relativePath };
 }
 
@@ -138,12 +147,12 @@ export async function importFromFandom(req: {
   const imported: Array<{ from: string; to: string }> = [];
   const skipped: string[] = [];
   const srcCat = validateExistingPathSegment(req.source_category ?? "core_characters");
+  const destCat = srcCat === "core_characters" ? AU_CHARACTERS_DIR : "worldbuilding";
 
   for (const filename of req.filenames) {
     const sourceFilename = validateExistingPathSegment(filename);
     const destFilename = sanitizePathSegment(filename);
     const srcPath = `${req.fandom_path}/${srcCat}/${sourceFilename}`;
-    const destCat = srcCat === "core_characters" ? "characters" : "worldbuilding";
     const destPath = `${req.au_path}/${destCat}/${destFilename}`;
 
     if (await adapter.exists(destPath)) {
@@ -162,6 +171,9 @@ export async function importFromFandom(req: {
     }
   }
 
+  if (imported.length > 0 && destCat === AU_CHARACTERS_DIR) {
+    getEngine().characterAliases.invalidate(req.au_path);
+  }
   return { status: "ok", imported: imported.map(({ from }) => from), skipped };
 }
 

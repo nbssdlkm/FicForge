@@ -57,9 +57,11 @@ export function createFactsExtractionTask(
     llmProvider: LLMProvider;
     /** M9：reactExtractionEnabled 时用于自动挂剧情线（不传则 thread_ids 为空）。 */
     threadRepo?: ThreadRepository;
+    /** 角色别名归一化表（提交时快照）：进提取 prompt +归一化提取结果；不传 = 不归一化。 */
+    characterAliases?: Record<string, string[]> | null;
   },
 ): TaskDefinition<FactsExtractionParams, FactsExtractionResult> {
-  const { chapterRepo, factRepo, projectRepo, llmProvider, threadRepo } = deps;
+  const { chapterRepo, factRepo, projectRepo, llmProvider, threadRepo, characterAliases = null } = deps;
 
   return {
     type: "facts_extraction",
@@ -119,12 +121,12 @@ export function createFactsExtractionTask(
         for (const { chapter_num, content } of chapters) {
           if (ctx.signal.aborted) break;
           const r = await reactExtractFromChapter(
-            content, chapter_num, existingFacts, proj.cast_registry, null, llmProvider,
+            content, chapter_num, existingFacts, proj.cast_registry, characterAliases, llmProvider,
             { language: language as "zh" | "en", factRepo, threadRepo, auPath, signal: ctx.signal },
           ).catch(() => ({ facts: [] as ExtractedFact[], status: "degraded" as const }));
           if (r.status === "degraded" && r.facts.length === 0) {
             const single = await extractFactsBatch(
-              [{ chapter_num, content }], existingFacts, proj.cast_registry, null,
+              [{ chapter_num, content }], existingFacts, proj.cast_registry, characterAliases,
               llmProvider, language, ctx.signal,
             ).catch(() => [] as ExtractedFact[]);
             allFacts.push(...single);
@@ -135,7 +137,7 @@ export function createFactsExtractionTask(
       } else {
         // 原批量单次调用路径
         const batchFacts = await extractFactsBatch(
-          chapters, existingFacts, proj.cast_registry, null,
+          chapters, existingFacts, proj.cast_registry, characterAliases,
           llmProvider, language, ctx.signal,
         ).catch(() => [] as ExtractedFact[]);
         allFacts.push(...batchFacts);

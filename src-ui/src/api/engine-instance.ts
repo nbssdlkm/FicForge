@@ -24,6 +24,7 @@ import {
   FileThreadRepository,
   TrashService,
   RagManager,
+  CharacterAliasManager,
   JsonVectorEngine,
   TaskRunner,
   getLogger,
@@ -52,6 +53,7 @@ export interface EngineInstance {
   };
   trash: TrashService;
   ragManager: RagManager;
+  characterAliases: CharacterAliasManager;
   taskRunner: TaskRunner;
 }
 
@@ -79,6 +81,8 @@ export function initEngine(adapter: PlatformAdapter, dataDir: string): void {
     trash: new TrashService(adapter),
     // TD-017：per-AU 引擎工厂 —— 每 AU 独立 JsonVectorEngine 实例，消除跨 AU 共享内存竞态。
     ragManager: new RagManager(() => new JsonVectorEngine(adapter)),
+    // 角色别名归一化表（per-AU 缓存）：engine-facts 提取/编辑/落库消费，engine-lore 等写入口失效。
+    characterAliases: new CharacterAliasManager(adapter),
     taskRunner: new TaskRunner(adapter, dataDir),
   };
 }

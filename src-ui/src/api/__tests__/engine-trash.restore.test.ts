@@ -18,6 +18,7 @@ import { confirmChapter } from "../engine-chapters";
 import { chapterNumFromTrashEntry, restoreTrash } from "../engine-trash";
 import { createAu, createFandom } from "../engine-fandom";
 import { getEngine, initEngine } from "../engine-instance";
+import { deleteLore, saveLore } from "../engine-lore";
 
 describe("engine-trash 章节恢复生命周期（R1-5）", () => {
   let auPath: string;
@@ -86,5 +87,25 @@ describe("engine-trash 章节恢复生命周期（R1-5）", () => {
     expect(chapterNumFromTrashEntry({ original_path: "chapters/main/ch3.md" })).toBeNull();
     expect(chapterNumFromTrashEntry({ original_path: "chapters/backups/ch0003_v1.md" })).toBeNull();
     expect(chapterNumFromTrashEntry({ original_path: "chapters/main/ch0000.md" })).toBeNull();
+  });
+
+  it("overwrite 恢复角色卡（同名同签名）→ 别名表缓存失效，不吃陈旧表", async () => {
+    const e = getEngine();
+    // v1 入库 → 删除进回收站 → 同名重建 v2 → 缓存热（新称）
+    await saveLore({
+      au_path: auPath, category: "characters", filename: "沈砚.md",
+      content: "---\nname: 沈砚\naliases: [旧称]\n---\n",
+    });
+    const del = await deleteLore({ au_path: auPath, category: "characters", filename: "沈砚.md" });
+    await saveLore({
+      au_path: auPath, category: "characters", filename: "沈砚.md",
+      content: "---\nname: 沈砚\naliases: [新称]\n---\n",
+    });
+    await expect(e.characterAliases.get(auPath)).resolves.toEqual({ 沈砚: ["新称"] });
+
+    // overwrite 恢复：磁盘回到 v1，但文件名集合（签名）不变 —— 只有 restore 后置
+    // 失效 hook 能让表跟上（否则命中陈旧缓存拿到「新称」）
+    await restoreTrash("au", auPath, del.trash_id, "overwrite");
+    await expect(e.characterAliases.get(auPath)).resolves.toEqual({ 沈砚: ["旧称"] });
   });
 });

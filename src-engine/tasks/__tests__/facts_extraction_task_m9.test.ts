@@ -85,4 +85,21 @@ describe("批量提取任务 — M9 接线", () => {
     expect(res.facts.length).toBeGreaterThan(0);
     expect(res.facts.every((f) => (f.thread_ids ?? []).length === 0)).toBe(true);
   });
+
+  it("characterAliases 透传：进提取 prompt 已知角色段 + 提取结果按表归一化", async () => {
+    let prompt = "";
+    const provider: LLMProvider = {
+      async generate(p): Promise<LLMResponse> {
+        prompt = p.messages.map((m) => m.content).join("\n");
+        return { content: JSON.stringify([{ content_clean: "月月做了某事", characters: ["月月"], chapter: 1 }]), model: "m", input_tokens: 1, output_tokens: 1, finish_reason: "stop" };
+      },
+      async *generateStream(): AsyncIterable<LLMChunk> { yield { delta: "", is_final: true, input_tokens: 1, output_tokens: 1, finish_reason: "stop" }; },
+    };
+    const res = await runTask(
+      params({ reactExtractionEnabled: false, toChapter: 1 }),
+      { ...mockDeps(provider), characterAliases: { 林晚月: ["月月"] } },
+    );
+    expect(prompt).toContain("月月");
+    expect(res.facts[0].characters).toEqual(["林晚月"]);
+  });
 });

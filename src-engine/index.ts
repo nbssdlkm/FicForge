@@ -8,6 +8,7 @@
 // 显式清单。新增对外符号必须手动加进来（UI 侧 tsc 会红给你看），内部 helper 不再
 // 因 barrel 顺手导出而意外成为对外契约。引擎内部代码一律走相对路径/子 barrel，不受影响。
 export {
+  AU_CHARACTERS_DIR,
   EmotionStyle,
   FACT_STATUS_VALUES,
   FACT_TYPE_VALUES,
@@ -174,6 +175,7 @@ export {
   HALF_RESTORED_MARKER,
   RESTORE_CONFLICT_MARKER,
   RETROSPECTIVE_INTERVAL,
+  CharacterAliasManager,
   RagManager,
   SIMPLE_TOOL_SHOW_CHAPTER,
   SIMPLE_TOOL_SHOW_SETTING,

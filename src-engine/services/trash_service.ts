@@ -7,20 +7,11 @@
  */
 
 import * as yaml from "js-yaml";
-import { safeMatter } from "../domain/frontmatter.js";
+import { AU_CHARACTERS_DIR, parseCharacterCard } from "../domain/character_card.js";
 import type { PlatformAdapter } from "../platform/adapter.js";
 import { atomicWrite, dumpYaml, joinPath } from "../utils/file_utils.js";
 import { warnAlways } from "../logger/index.js";
 import { withProjectFileLock } from "./au_lock.js";
-
-/**
- * 角色设定文件 frontmatter 的合法键集合（settings-chat 提示词约定的 schema：
- * name / aliases / importance，见 prompts/zh.ts「提取 frontmatter 元数据」段）。
- * readCharacterName 用它区分真 frontmatter 与「正文以 `---` 分割线开头」——
- * 裸 matter() 在后者会吞正文/对非法 YAML 抛错（审计 H6 同族），safeMatter
- * 只认含已知键的真 frontmatter。schema 增删键时此集合必须同步。
- */
-const KNOWN_CHARACTER_META_KEYS: ReadonlySet<string> = new Set(["name", "aliases", "importance"]);
 
 // ---------------------------------------------------------------------------
 // 数据模型
@@ -821,17 +812,14 @@ export class TrashService {
   // ----- cast_registry 联动 -----
 
   private shouldSyncCastRegistry(relativePath: string, _scopeRoot: string): boolean {
-    return relativePath.startsWith("characters/");
+    return relativePath.startsWith(`${AU_CHARACTERS_DIR}/`);
   }
 
   private async readCharacterName(path: string): Promise<string | null> {
     try {
       const content = await this.adapter.readFile(path);
-      // safeMatter 不抛错；try/catch 只兜 readFile 失败
-      const parsed = safeMatter(content, KNOWN_CHARACTER_META_KEYS);
-      const name = parsed.data.name;
-      if (typeof name === "string" && name.trim()) return name.trim();
-      return null;
+      // parseCharacterCard（domain/character_card 单一真相源）不抛错；try/catch 只兜 readFile 失败
+      return parseCharacterCard(content).name;
     } catch {
       return null;
     }

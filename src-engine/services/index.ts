@@ -236,6 +236,10 @@ export { generateChapterTitle } from "./title_generator.js";
 // RAG Manager
 export { RagManager } from "./rag_manager.js";
 
+// Character Alias Table（角色卡 frontmatter → 别名归一化表）
+export { CharacterAliasManager, buildAliasTable } from "./character_alias_table.js";
+export type { CharacterCardInput } from "./character_alias_table.js";
+
 // Chapter Edit
 export type { EditChapterContentResult } from "./chapter_edit.js";
 export { edit_chapter_content } from "./chapter_edit.js";

@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { parseLLMOutput, extractFactsFromChapter } from "../facts_extraction.js";
+import { parseLLMOutput, extractFactsFromChapter, buildCharacterInfoBlock } from "../facts_extraction.js";
 import type { LLMProvider, LLMResponse, LLMChunk, GenerateParams } from "../../llm/provider.js";
 import { initLogger } from "../../logger/index.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
@@ -127,5 +127,50 @@ describe("extractFactsFromChapter LLM 失败可观测（盲审 R3 M13）", () =>
 
     expect(results).toEqual([]);
     expect(warnSpy).not.toHaveBeenCalledWith("facts_extraction", expect.anything(), expect.anything());
+  });
+});
+
+describe("角色别名表接通（M3 别名表批）", () => {
+  it("buildCharacterInfoBlock：有别名渲别名行，无别名角色照常列出", () => {
+    const block = buildCharacterInfoBlock(
+      { characters: ["林晚月", "阿福"] },
+      { 林晚月: ["月月", "晚晚"] },
+    );
+    expect(block).toContain("林晚月");
+    expect(block).toContain("月月");
+    expect(block).toContain("晚晚");
+    expect(block).toContain("- 阿福");
+  });
+
+  it("buildCharacterInfoBlock：cast_registry 为空时即使供了别名表也返回空串（不渲残段）", () => {
+    expect(buildCharacterInfoBlock({ characters: [] }, { 林晚月: ["月月"] })).toBe("");
+    expect(buildCharacterInfoBlock({}, { 林晚月: ["月月"] })).toBe("");
+  });
+
+  it("extractFactsFromChapter：别名进提取 prompt，提取结果按表归一化", async () => {
+    let prompt = "";
+    const provider: LLMProvider = {
+      async generate(params: GenerateParams): Promise<LLMResponse> {
+        prompt = params.messages.map((m) => m.content).join("\n");
+        return {
+          content: JSON.stringify([{
+            content_raw: "月月走进了房间", content_clean: "月月走进了房间",
+            characters: ["月月"], known_to: ["月月"],
+            type: "plot_event", status: "active", narrative_weight: "medium",
+          }]),
+          model: "t", input_tokens: 0, output_tokens: 0, finish_reason: "stop",
+        };
+      },
+      async *generateStream(): AsyncIterable<LLMChunk> {},
+    };
+
+    const results = await extractFactsFromChapter(
+      "月月走进房间。", 1, [], { characters: ["林晚月"] }, { 林晚月: ["月月"] },
+      provider, null,
+    );
+
+    expect(prompt).toContain("月月"); // 【已知角色名和别名】段真的渲进了 user message
+    expect(results[0].characters).toEqual(["林晚月"]); // rawToExtracted 归一化
+    expect(results[0].known_to).toEqual(["林晚月"]);   // 知情名单同表归一化
   });
 });

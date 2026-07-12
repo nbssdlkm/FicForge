@@ -4,8 +4,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { MockAdapter } from "../../../../src-engine/repositories/__tests__/mock_adapter.js";
 import { createAu, createFandom } from "../engine-fandom";
-import { initEngine } from "../engine-instance";
-import { importFromFandom, readLore, readLoreWithLegacyFallback, sanitizePathSegment, saveLore } from "../engine-lore";
+import { getEngine, initEngine } from "../engine-instance";
+import { deleteLore, importFromFandom, readLore, readLoreWithLegacyFallback, sanitizePathSegment, saveLore } from "../engine-lore";
 
 describe("engine-lore path sanitization", () => {
   const dataDir = "/data";
@@ -154,5 +154,63 @@ describe("engine-lore path sanitization", () => {
       legacyFilename: "全新.md",
     });
     expect(content).toBeNull();
+  });
+});
+
+describe("角色卡写入口 → 别名归一化表缓存失效（M3 别名表接通）", () => {
+  const dataDir = "/data";
+  let adapter: MockAdapter;
+  let auPath: string;
+  let fandomPath: string;
+
+  beforeEach(async () => {
+    adapter = new MockAdapter();
+    initEngine(adapter, dataDir);
+    const fandom = await createFandom("Naruto");
+    const au = await createAu(fandom.name, "Canon", fandom.path);
+    auPath = au.path;
+    fandomPath = fandom.path;
+  });
+
+  const aliases = () => getEngine().characterAliases.get(auPath);
+
+  it("saveLore 建卡/改卡（文件名不变）→ 表实时更新；deleteLore → 移除", async () => {
+    await saveLore({
+      au_path: auPath, category: "characters", filename: "沈砚.md",
+      content: "---\nname: 沈砚\naliases: [砚哥]\n---\n\n# 沈砚\n",
+    });
+    await expect(aliases()).resolves.toEqual({ 沈砚: ["砚哥"] });
+
+    // 内容修改不改文件名 → 目录签名不变，必须靠 saveLore 的显式失效才能看到新表
+    await saveLore({
+      au_path: auPath, category: "characters", filename: "沈砚.md",
+      content: "---\nname: 沈砚\naliases: [砚哥, 沈大人]\n---\n\n# 沈砚\n",
+    });
+    await expect(aliases()).resolves.toEqual({ 沈砚: ["砚哥", "沈大人"] });
+
+    await deleteLore({ au_path: auPath, category: "characters", filename: "沈砚.md" });
+    await expect(aliases()).resolves.toBeNull();
+  });
+
+  it("worldbuilding 写入不惊动别名表缓存（非角色卡不失效）", async () => {
+    await saveLore({
+      au_path: auPath, category: "characters", filename: "沈砚.md",
+      content: "---\nname: 沈砚\naliases: [砚哥]\n---\n",
+    });
+    const t1 = await aliases();
+    await saveLore({ au_path: auPath, category: "worldbuilding", filename: "地图.md", content: "# 地图" });
+    const t2 = await aliases();
+    expect(t2).toBe(t1); // 同一份缓存对象 = 没被无谓失效重建
+  });
+
+  it("importFromFandom 导入角色卡 → 表可见导入的角色", async () => {
+    adapter.seed(`${fandomPath}/core_characters/卡卡西.md`, "---\nname: 卡卡西\naliases: [旗木老师]\n---\n");
+    // 先建一次缓存（空表），再导入，验证导入路径的失效生效
+    await expect(aliases()).resolves.toBeNull();
+    await importFromFandom({
+      fandom_path: fandomPath, au_path: auPath,
+      filenames: ["卡卡西.md"], source_category: "core_characters",
+    });
+    await expect(aliases()).resolves.toEqual({ 卡卡西: ["旗木老师"] });
   });
 });

@@ -10,6 +10,7 @@ import { getEngine } from "./engine-instance";
 import { recalcState } from "./engine-state";
 import type { RestoreConflictPolicy, TrashEntry } from "@ficforge/engine";
 import {
+  AU_CHARACTERS_DIR,
   RESTORE_CONFLICT_MARKER,
   HALF_RESTORED_MARKER,
   IndexStatus,
@@ -79,6 +80,11 @@ export async function restoreTrash(
   try {
     const entry = await getEngine().trash.restore(path, trashId, onConflict);
     if (scope === "au") {
+      // 恢复的是角色卡（original_path 相对 scopeRoot，characters/ 前缀即角色卡，
+      // 含 overwrite-backup 版本）→ 失效别名归一化表缓存，与 saveLore 写入口对称。
+      if (entry.original_path.startsWith(`${AU_CHARACTERS_DIR}/`)) {
+        getEngine().characterAliases.invalidate(path);
+      }
       const chapterNum = chapterNumFromTrashEntry(entry);
       if (chapterNum !== null) {
         await applyChapterRestoreLifecycle(path, chapterNum);

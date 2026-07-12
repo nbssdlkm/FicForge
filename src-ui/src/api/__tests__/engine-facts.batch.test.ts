@@ -12,9 +12,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createDraft } from "@ficforge/engine";
 import { MockAdapter } from "../../../../src-engine/repositories/__tests__/mock_adapter.js";
 import { confirmChapter, undoChapter } from "../engine-chapters";
-import { addFactsBatch, PartialAddFactsError, type BatchFactInput } from "../engine-facts";
+import { addFact, addFactsBatch, editFact, PartialAddFactsError, type BatchFactInput } from "../engine-facts";
 import { createAu, createFandom } from "../engine-fandom";
 import { getEngine, initEngine } from "../engine-instance";
+import { saveLore } from "../engine-lore";
 
 let adapter: MockAdapter;
 let auPath: string;
@@ -122,5 +123,44 @@ describe("addFactsBatch", () => {
     // 落盘的确实只有前两条（第 3 条抛错、第 4 条未尝试）
     const all = await getEngine().repos.fact.list_all(auPath);
     expect(all.length).toBe(2);
+  });
+});
+
+describe("落库/编辑按角色卡别名表归一化（M3 别名表接通）", () => {
+  beforeEach(async () => {
+    await confirmChapters(1);
+    await saveLore({
+      au_path: auPath, category: "characters", filename: "Alice.md",
+      content: "---\nname: Alice\naliases: [小爱]\n---\n\n# Alice\n",
+    });
+  });
+
+  it("addFact / addFactsBatch：characters 与 known_to 落库前归一化", async () => {
+    await addFact(auPath, 1, {
+      ...factInput(1, "小爱做了某事").data,
+      characters: ["小爱"], known_to: ["小爱"],
+    });
+    const r = await addFactsBatch(auPath, [{
+      chapterNum: 1,
+      data: { ...factInput(1, "小爱又做了某事").data, characters: ["小爱", "Alice"] },
+    }]);
+    expect(r.added).toBe(1);
+
+    const all = await getEngine().repos.fact.list_all(auPath);
+    expect(all).toHaveLength(2);
+    expect(all[0].characters).toEqual(["Alice"]);
+    expect(all[0].known_to).toEqual(["Alice"]);
+    expect(all[1].characters).toEqual(["Alice"]); // 别名+主名混写 → 归一化后去重
+  });
+
+  it("editFact：编辑 characters / hidden_from 按表归一化", async () => {
+    await addFact(auPath, 1, factInput(1, "Alice 的一条事实").data);
+    const [fact] = await getEngine().repos.fact.list_all(auPath);
+
+    const updated = await editFact(auPath, fact.id, {
+      characters: ["小爱"], hidden_from: ["小爱"],
+    });
+    expect(updated.characters).toEqual(["Alice"]);
+    expect(updated.hidden_from).toEqual(["Alice"]);
   });
 });

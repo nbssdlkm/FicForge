@@ -3,7 +3,9 @@
 > 人读的前瞻进度文件（AI 地图见 CLAUDE.md，历史细节见 git log 与 `docs/internal/audit/`）。
 > 约定：每个工作会话收尾时更新「当前状态」与「待办」；完成的待办移入「里程碑」一行带走。
 
-## 当前状态（2026-07-09/11）
+## 当前状态（2026-07-09/12）
+
+**2026-07-12 别名表接通（已验收合入 main；合并后全量复验通过）**：M3 批一挂的独立任务卡落地——引擎别名归一化管线（`normalize_characters` / `sanitize_known_to` / `buildCharacterInfoBlock` 的 `character_aliases` 参数）全链就绪但全产品从未有调用方供过非 null 表（extractFacts / editFact / addFact / 批量提取任务恒传 null），用户在角色卡上填的别名从未生效。①schema 单源下沉：新增 `domain/character_card.ts`（`KNOWN_CHARACTER_META_KEYS` + `AU_CHARACTERS_DIR` + `parseCharacterCard`，从 trash_service 抽出共享，trash 行为不变）。②构建通道：新增 `services/character_alias_table.ts`——`buildAliasTable` 冲突规则（同主名多卡合并 / 别名撞任一主名剔除 / 歧义别名被多主名认领双弃 + warn，宁可不归一、不可归错）+ `CharacterAliasManager` per-AU 缓存（仿 RagManager：characters/ 目录文件名集合签名兜「增/删/改名/导入/恢复」、写入口显式 invalidate 兜「内容修改」、in-flight 单飞 + epoch 守卫构建中被失效不落脏缓存、get 永不抛错降级 null 不阻塞主流程），挂 EngineInstance。③失效收口全覆盖：engine-lore `saveLore`/`deleteLore`/`importFromFandom`（AuLore 编辑器、对话工具、设置聊天全经此落盘）+ engine-trash 恢复角色卡（含 overwrite 同名同签名场景，有判别测试）+ engine-fandom 删 AU/fandom（防同名重建吃陈旧表）。④消费接线：`extractFacts`（ReAct + 单次回退两路，提取 prompt【已知角色名和别名】段首次真渲染 + `rawToExtracted` 归一化；backfill 补全旧章记忆走同函数自动覆盖）、`editFact` / `addFact` / `addFactsBatch` / backfill 落库（characters/known_to/hidden_from 全归一化）、`submitFactsExtraction` 批量任务 deps 提交时快照。⑤顺手修 `buildCharacterInfoBlock` 边角：registry 空 + 表非空会渲出零角色名残段（供表前恒 null 从未触发，无回归面）。测试 +33（引擎 +27：character_card 解析 9 / 表构建与缓存生命周期 14 / 提取 prompt 渲染+归一化 3 / m9 任务透传 1；UI +6：写入口失效链 3 / trash overwrite 恢复判别 1 / 落库+编辑归一化 2）。终验：引擎 1432→**1459**、UI →**581** 全绿，双 tsc 0。后续族（confirm/undo 的 `scan_characters_in_chapter` characters_last_seen、`rag_retrieval` 检索别名扩展——参数同样就绪）同表另卡。
 
 **2026-07-11 M3 批二+批三：时间线排序 + 时间标签（2 commit 未 push；M3 三批全部交付）**：批二 = build_facts_layer 呈现排序改「章节号主序 + 同章内 story_time_order 次序」——挑选逻辑（权重+新近+预算）零改动，只动呈现；序号是每章相对基准跨章不可比，禁全局排序；低置信序号不参与（enrich_inject 同源门控）；`Number.isFinite` 门防 NaN 破坏 comparator 全序（chi codex R2 HIGH 采纳）；**有意语义**：同章内时间互排跨越 unresolved/active 状态分组（时间线连贯压过状态分组，状态行首可见、预算优先级不受影响，测试锁定）；0/-1/1.5 等边界按相对序容忍参与（锁定）。批三 = FactCard 开 FactAnnotationChips 的 showStoryTimeTag（组件口+DTO 链批一已备，确认弹窗/DirtyModal 不开——opus 核实无越界）。双路对抗审：opus **safe-with-nits 零高中危**（独立复做 NaN 变异验证、核实预算零回归/标签无泄漏）；chi codex R2 needs-fix→1 HIGH（NaN 穿门）采纳修复、MED-1 按有意语义锁定、MED-2（逐字节证明）金标即全量比对有据驳回、MED-4 边界容忍锁定、3 LOW 全补测。终验：引擎 **1440** / UI **579** 全绿、金标零回归、双 tsc 0。M3 剩余：别名表接通（用户已在独立会话开工任务卡）。
 
@@ -43,6 +45,7 @@
 - [ ] **M12 环境侧**：构建机上用官方 registry 重生成双包 lockfile（现混用 registry.npmmirror.com，破坏海外/CI 可复现安装）
 - [x] ~~盲审修复批 push~~（2026-07-12 核对：`647e67c` 已在 origin/main，此条早已完成）
 - [x] ~~长期债③测试批合入~~（2026-07-12 核对：分支已删、测试已在 main——引擎/UI 现行总数即含它们）
+- [x] ~~别名表接通合入~~（2026-07-12 用户验收后合入 main，见当前状态首条）
 - [ ] Tauri 壳收权冒烟（盲审修复引入）：CSP 开启后桌面端全流程 + 导出到任意路径（依赖 v2 对话框自动入 scope）；构建机上顺手移除 tauri-plugin-http 的 Rust 注册 + npm 依赖（前端零调用）
 - [ ] 真机日常写作流验证：改配置立即生效、切 tab 生成存活、PWA 更新横幅、iOS 刘海 safe-area、离线冷启动、低端机流式帧率
 - [ ] 真 key 端到端**实跑** LLM 旅程剩项：backfill 实跑（本机浏览器够不到硅基流动 embedding，走代理才通）+ 自定义 chatPath 网关 + 纯 UI 点击层
