@@ -64,7 +64,7 @@ describe("FontDownloader.download — single source", () => {
 
     await expect(downloader.download(makeEntry())).rejects.toMatchObject({
       name: "FontError",
-      code: "network",
+      error_code: "network",
     });
   });
 });
@@ -125,7 +125,7 @@ describe("FontDownloader.download — multi-source failover", () => {
       ),
     ).rejects.toMatchObject({
       name: "FontError",
-      code: "network",
+      error_code: "network",
     });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
@@ -161,7 +161,7 @@ describe("FontDownloader.download — SHA-256 verification", () => {
       ),
     ).rejects.toMatchObject({
       name: "FontError",
-      code: "checksum",
+      error_code: "checksum",
     });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
@@ -257,7 +257,7 @@ describe("FontDownloader.download — abort", () => {
 
     await expect(downloader.download(makeEntry(), undefined, controller.signal)).rejects.toMatchObject({
       name: "FontError",
-      code: "aborted",
+      error_code: "aborted",
     });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
@@ -269,7 +269,7 @@ describe("FontDownloader.download — abort", () => {
 
     await expect(downloader.download(makeEntry())).rejects.toMatchObject({
       name: "FontError",
-      code: "aborted",
+      error_code: "aborted",
     });
   });
 
@@ -287,7 +287,7 @@ describe("FontDownloader.download — abort", () => {
           ],
         }),
       ),
-    ).rejects.toMatchObject({ code: "aborted" });
+    ).rejects.toMatchObject({ error_code: "aborted" });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });
@@ -299,7 +299,7 @@ describe("FontDownloader.download — invalid manifest", () => {
 
     await expect(downloader.download(makeEntry({ sources: [] }))).rejects.toMatchObject({
       name: "FontError",
-      code: "invalid-manifest",
+      error_code: "invalid-manifest",
     });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
@@ -353,7 +353,7 @@ describe("FontError", () => {
   it("preserves code and cause", () => {
     const cause = new Error("original");
     const err = new FontError("network", "failed", cause);
-    expect(err.code).toBe("network");
+    expect(err.error_code).toBe("network");
     expect(err.message).toBe("failed");
     expect(err.cause).toBe(cause);
     expect(err.name).toBe("FontError");

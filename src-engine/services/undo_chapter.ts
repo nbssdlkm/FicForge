@@ -414,6 +414,8 @@ async function rollbackCharactersLastSeen(
         const result: Record<string, number> = {};
         for (const [k, v] of Object.entries(snapshot as Record<string, unknown>)) {
           const num = Number(v);
+          // 裸 Error 有意：「快照损坏→降级扫描」的局部控制流信号，下方 catch 立即接住，
+          // 从不逃逸 doUndo，故不用 UndoChapterError（逃逸域错误才用自定义类）。
           if (Number.isNaN(num)) throw new Error("invalid snapshot value");
           result[String(k)] = num;
         }

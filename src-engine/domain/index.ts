@@ -71,6 +71,7 @@ export {
   createProject,
   createWritingStyle,
   DEFAULT_CHAPTER_LENGTH,
+  isLlmOverride,
 } from "./project.js";
 
 export type {

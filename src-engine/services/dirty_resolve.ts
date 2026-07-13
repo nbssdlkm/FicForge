@@ -116,7 +116,8 @@ async function doResolve(params: ResolveDirtyParams): Promise<ResolveDirtyResult
   // === 步骤 3：重算 content_hash ===
   const newHash = await computeContentHash(content);
   const chapter = await chapter_repo.get(au_id, chapter_num);
-  if (!chapter) throw new Error(`Chapter not found: ${au_id} ch${chapter_num}`);
+  // 逃逸域错误统一走 DirtyResolveError（与 :89/:94 同拼；exists 已过但 get 为 null=竞态/仓储不一致）。
+  if (!chapter) throw new DirtyResolveError(`Chapter not found: ${au_id} ch${chapter_num}`);
   chapter.content_hash = newHash;
   chapter.revision += 1;
   chapter.confirmed_at = nowUtc();
@@ -248,6 +249,8 @@ async function getBaseline(
         const result: Record<string, number> = {};
         for (const [k, v] of Object.entries(snapshot as Record<string, unknown>)) {
           const num = Number(v);
+          // 裸 Error 有意：这是「快照损坏→降级扫描」的局部控制流信号，下方 catch 立即接住，
+          // 从不逃逸 doResolve，故不用 DirtyResolveError（逃逸域错误才用自定义类）。
           if (Number.isNaN(num)) throw new Error("invalid snapshot value");
           result[String(k)] = num;
         }

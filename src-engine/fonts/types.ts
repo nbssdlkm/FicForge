@@ -98,7 +98,8 @@ export type FontStatus = "not-installed" | "downloading" | "installed" | "error"
 /** 字体系统错误的结构化表示。 */
 export class FontError extends Error {
   constructor(
-    public readonly code:
+    // 与 LLMError.error_code 同拼法（引擎错误类统一 snake_case 错误码，盲审 R5 规范 L1）。
+    public readonly error_code:
       | "network"
       | "checksum"
       | "aborted"

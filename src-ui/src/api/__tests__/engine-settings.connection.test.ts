@@ -96,7 +96,7 @@ describe("fetchProviderModels — 错误分类（R2-4）", () => {
       fetchMock.mockResolvedValueOnce({ ok: false, status });
       const err = await call().catch((e: unknown) => e);
       expect(err).toBeInstanceOf(FetchModelsError);
-      expect((err as FetchModelsError).code).toBe("auth");
+      expect((err as FetchModelsError).errorCode).toBe("auth");
       expect((err as FetchModelsError).status).toBe(status);
     }
   });
@@ -105,7 +105,7 @@ describe("fetchProviderModels — 错误分类（R2-4）", () => {
     fetchMock.mockResolvedValueOnce({ ok: false, status: 500 });
     const err = await call().catch((e: unknown) => e);
     expect(err).toBeInstanceOf(FetchModelsError);
-    expect((err as FetchModelsError).code).toBe("http");
+    expect((err as FetchModelsError).errorCode).toBe("http");
     expect((err as FetchModelsError).status).toBe(500);
   });
 
@@ -113,14 +113,14 @@ describe("fetchProviderModels — 错误分类（R2-4）", () => {
     fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     const err = await call().catch((e: unknown) => e);
     expect(err).toBeInstanceOf(FetchModelsError);
-    expect((err as FetchModelsError).code).toBe("network");
+    expect((err as FetchModelsError).errorCode).toBe("network");
   });
 
   it("超时中止 → code=network（与网络失败同口径）", async () => {
     fetchMock.mockRejectedValueOnce(new DOMException("aborted", "AbortError"));
     const err = await call().catch((e: unknown) => e);
     expect(err).toBeInstanceOf(FetchModelsError);
-    expect((err as FetchModelsError).code).toBe("network");
+    expect((err as FetchModelsError).errorCode).toBe("network");
   });
 
   it("成功路径不受分类改造影响", async () => {

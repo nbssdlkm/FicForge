@@ -44,7 +44,7 @@ export interface FontManagerState {
 }
 
 function formatError(err: unknown): string {
-  if (err instanceof FontError) return `${err.code}: ${err.message}`;
+  if (err instanceof FontError) return `${err.error_code}: ${err.message}`;
   if (err instanceof Error) return err.message;
   return String(err);
 }
@@ -149,7 +149,7 @@ export function useFontManager(): FontManagerState {
       } catch (err) {
         // 用户主动取消（cancel → abort）不是错误：停回 not-installed，不显示红色错误行
         // 和「重试」按钮（那会让人误以为下载失败）。进度条已由订阅的 'settled' 事件清掉。
-        if (err instanceof FontError && err.code === "aborted") {
+        if (err instanceof FontError && err.error_code === "aborted") {
           setStatuses((prev) => ({ ...prev, [id]: "not-installed" }));
           return;
         }

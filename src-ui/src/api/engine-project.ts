@@ -9,9 +9,9 @@
  */
 
 import type { Project } from "@ficforge/engine";
-import { withAuLock, withProjectFileLock } from "@ficforge/engine";
+import { isLlmOverride, withAuLock, withProjectFileLock } from "@ficforge/engine";
 import { getEngine, getProjectOrThrow } from "./engine-instance";
-import { normalizeChatPath } from "./engine-settings";
+import { normalizeChatPath, toLlmQueryInfoBase } from "./engine-settings";
 import { DEFAULT_OLLAMA_BASE_URL } from "../config/defaults";
 import type { ModelParamInfo } from "./settings";
 import type {
@@ -41,30 +41,8 @@ async function readProject(auPath: string): Promise<Project> {
   return getProjectOrThrow(auPath);
 }
 
-function hasProjectLlmOverride(llm: Project["llm"] | null | undefined): boolean {
-  return Boolean(
-    llm &&
-      (llm.mode !== "api" ||
-        llm.model ||
-        llm.api_base ||
-        llm.api_key ||
-        llm.local_model_path ||
-        llm.ollama_model ||
-        llm.chat_path),
-  );
-}
-
 function toProjectLlmQueryInfo(llm: Project["llm"] | null | undefined): ProjectLlmQueryInfo {
-  return {
-    mode: llm?.mode || "api",
-    model: llm?.model || "",
-    api_base: llm?.api_base || "",
-    has_api_key: Boolean(llm?.api_key?.trim()),
-    local_model_path: llm?.local_model_path || "",
-    ollama_model: llm?.ollama_model || "",
-    context_window: llm?.context_window || 0,
-    has_override: hasProjectLlmOverride(llm),
-  };
+  return { ...toLlmQueryInfoBase(llm), has_override: isLlmOverride(llm) };
 }
 
 function toModelParamInfoMap(

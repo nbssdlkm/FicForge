@@ -3,7 +3,7 @@
 
 import { memo } from "react";
 import type { SimpleSystemMessage } from "../types";
-import { CardStatusBanner } from "./cardChrome";
+import { CardStatusBanner } from "./CardChrome";
 
 interface SystemMessageProps {
   message: SimpleSystemMessage;

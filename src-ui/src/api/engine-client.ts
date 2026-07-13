@@ -26,7 +26,15 @@ export type {
   RagCollection,
 } from "@ficforge/engine";
 export { RAG_COLLECTIONS } from "@ficforge/engine";
-export { EmotionStyle, FactStatus, IndexStatus, LLMMode, Perspective, Provenance } from "@ficforge/engine";
+export {
+  EmotionStyle,
+  FactStatus,
+  IndexStatus,
+  isLlmOverride,
+  LLMMode,
+  Perspective,
+  Provenance,
+} from "@ficforge/engine";
 // 章节/草稿文件命名判据（引擎 domain/paths 单一真相源）
 export { draftFilename, parseChapterMainPath } from "@ficforge/engine";
 

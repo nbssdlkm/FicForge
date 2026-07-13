@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { deriveWriterDisplayState } from "../writerDisplayState";
+import { deriveWriterDisplayState } from "../writer-display-state";
 import type { StateInfo } from "../../../api/engine-client";
 import type { DraftItem } from "../useWriterDraftController";
 

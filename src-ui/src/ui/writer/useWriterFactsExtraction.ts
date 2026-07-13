@@ -4,7 +4,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { extractFacts, type ExtractedFactCandidate } from "../../api/engine-client";
-import { saveAcceptedCandidates } from "../facts/acceptExtracted";
+import { saveAcceptedCandidates } from "../facts/accept-extracted";
 import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
 import { getSkipFactsPromptDefault, setSkipFactsPromptPersisted } from "../../utils/writer-storage";
 import { useTranslation } from "../../i18n/useAppTranslation";
@@ -128,7 +128,7 @@ export function useWriterFactsExtraction(auPath: string, options?: { focusInstru
         // 归属用「本次提取所处理的确定章号」targetChapter，而非 LLM 候选里可能幻觉的
         // candidate.chapter —— 对齐 backfill persistChapter「不信任 LLM chapter 字段」的口径（审计⑧）。
         // 提取是对单章跑的，所有候选都归该章；仅在极端缺失时才回退。
-        // 共享落库流程（映射/半成功登记/单锁 CAS 单源，见 facts/acceptExtracted.ts）
+        // 共享落库流程（映射/半成功登记/单锁 CAS 单源，见 facts/accept-extracted.ts）
         const { added, skipped } = await saveAcceptedCandidates({
           auPath,
           pending,

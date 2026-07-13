@@ -89,7 +89,7 @@ export class FontDownloader {
         return data;
       } catch (err) {
         // AbortError 立即向上抛，不再尝试其他源。
-        if (err instanceof FontError && err.code === "aborted") throw err;
+        if (err instanceof FontError && err.error_code === "aborted") throw err;
         if (isAbortError(err)) {
           throw new FontError("aborted", `Download aborted: ${entry.id}`, err);
         }
@@ -99,7 +99,7 @@ export class FontDownloader {
 
     const summary = errors.map((e) => `${e.source.url}: ${formatCause(e.error)}`).join("; ");
     // 若所有源都是 checksum 失败，抛出更精确的 checksum 错误（manifest 校验和或所有源均坏）。
-    const allChecksum = errors.every((e) => e.error instanceof FontError && e.error.code === "checksum");
+    const allChecksum = errors.every((e) => e.error instanceof FontError && e.error.error_code === "checksum");
     throw new FontError(
       allChecksum ? "checksum" : "network",
       `All ${sorted.length} sources failed for ${entry.id}. ${summary}`,

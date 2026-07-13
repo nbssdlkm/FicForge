@@ -74,14 +74,14 @@ describe("FontsService", () => {
     it("throws not-found on unknown id", async () => {
       await expect(service.uninstall("no-such-font")).rejects.toMatchObject({
         name: "FontError",
-        code: "not-found",
+        error_code: "not-found",
       });
     });
 
     it("throws unsupported on builtin font", async () => {
       await expect(service.uninstall(BUILTIN_ID)).rejects.toMatchObject({
         name: "FontError",
-        code: "unsupported",
+        error_code: "unsupported",
       });
     });
 
@@ -133,7 +133,7 @@ describe("FontsService", () => {
   describe("install", () => {
     it("throws not-found for unknown id", async () => {
       await expect(service.install("no-such-font")).rejects.toMatchObject({
-        code: "not-found",
+        error_code: "not-found",
       });
     });
 
@@ -171,7 +171,7 @@ describe("FontsService", () => {
 
       // 并发 install 同一字体应立即拒绝
       await expect(slowService.install(DOWNLOADABLE_ID)).rejects.toMatchObject({
-        code: "network",
+        error_code: "network",
       });
 
       // 清理第一次下载
@@ -195,7 +195,7 @@ describe("FontsService", () => {
       const promise = svc.install(DOWNLOADABLE_ID, { signal: controller.signal });
       await new Promise((r) => setTimeout(r, 0));
       controller.abort();
-      await expect(promise).rejects.toMatchObject({ code: "aborted" });
+      await expect(promise).rejects.toMatchObject({ error_code: "aborted" });
       expect(svc.isDownloading(DOWNLOADABLE_ID)).toBe(false);
     });
   });
@@ -240,7 +240,7 @@ describe("FontsService", () => {
       const svc = new FontsService(storage, downloader, failingRegistry);
 
       await expect(svc.install(DOWNLOADABLE_ID)).rejects.toMatchObject({
-        code: "registry",
+        error_code: "registry",
       });
 
       // 关键断言：storage 被回滚，不留半状态。
@@ -318,7 +318,7 @@ describe("FontsService", () => {
       service.subscribeDownloads((e) => events.push(e));
 
       await expect(service.install(DOWNLOADABLE_ID)).rejects.toMatchObject({
-        code: "network",
+        error_code: "network",
       });
       expect(events).toEqual([
         { type: "progress", id: DOWNLOADABLE_ID, progress: { loaded: 2, total: 10 } },

@@ -10,7 +10,7 @@ import { Modal } from "../shared/Modal";
 import { ExtractReviewModal } from "../writer/WriterModals";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { getEnumLabel } from "../../i18n/labels";
-import { NARRATIVE_WEIGHT_VALUES } from "@ficforge/engine";
+import { FACT_TYPE_VALUES, NARRATIVE_WEIGHT_VALUES } from "@ficforge/engine";
 import { FactEditorForm } from "./FactEditorForm";
 import type { useFactEditor } from "./useFactEditor";
 import type { useBatchFacts } from "./useBatchFacts";
@@ -109,14 +109,11 @@ export function FactsModals({
                 onChange={(e) => editor.setNewType(e.target.value)}
                 className="h-11 w-full rounded-md border border-black/10 bg-surface px-2 text-base dark:border-white/10 md:h-9 md:text-sm"
               >
-                <option value="plot_event">{getEnumLabel("fact_type", "plot_event", "plot_event")}</option>
-                <option value="character_detail">
-                  {getEnumLabel("fact_type", "character_detail", "character_detail")}
-                </option>
-                <option value="relationship">{getEnumLabel("fact_type", "relationship", "relationship")}</option>
-                <option value="backstory">{getEnumLabel("fact_type", "backstory", "backstory")}</option>
-                <option value="foreshadowing">{getEnumLabel("fact_type", "foreshadowing", "foreshadowing")}</option>
-                <option value="world_rule">{getEnumLabel("fact_type", "world_rule", "world_rule")}</option>
+                {FACT_TYPE_VALUES.map((ft) => (
+                  <option key={ft} value={ft}>
+                    {getEnumLabel("fact_type", ft, ft)}
+                  </option>
+                ))}
               </select>
             </div>
             <div>

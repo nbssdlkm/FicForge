@@ -3,6 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import {
+  isLlmOverride,
   LLMMode,
   type AuSettingsSaveInput,
   type GlobalSettingsSaveInput,
@@ -170,16 +171,7 @@ export function hydrateAuSettingsForm(project: ProjectInfo | null): AuSettingsFo
     form.embApiKey = project.embedding_lock.api_key || "";
   }
 
-  if (
-    project.llm &&
-    (project.llm.mode !== "api" ||
-      project.llm.model ||
-      project.llm.api_base ||
-      project.llm.api_key ||
-      project.llm.local_model_path ||
-      project.llm.ollama_model ||
-      project.llm.chat_path)
-  ) {
+  if (isLlmOverride(project.llm)) {
     form.isLlmOverride = true;
     form.llmMode = project.llm.mode || "api";
     form.auModel = project.llm.model || "";

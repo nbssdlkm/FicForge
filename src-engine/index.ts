@@ -40,6 +40,7 @@ export {
   dumpFrontmatterKey,
   findRecommendedModel,
   getProvider,
+  isLlmOverride,
   isReactExtractionEnabled,
   isSettingsMutatingToolName,
   isSimpleMutatingToolName,

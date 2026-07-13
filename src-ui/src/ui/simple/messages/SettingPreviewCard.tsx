@@ -8,7 +8,7 @@ import { Card } from "../../shared/Card";
 import { Spinner } from "../../shared/Spinner";
 import { useTranslation } from "../../../i18n/useAppTranslation";
 import { readLore } from "../../../api/engine-client";
-import { ActionFooter, CardEyebrow, CardStatusBanner, ExpandToggle } from "./cardChrome";
+import { ActionFooter, CardEyebrow, CardStatusBanner, ExpandToggle } from "./CardChrome";
 
 interface SettingPreviewCardProps {
   message: SimpleSettingPreviewMessage;

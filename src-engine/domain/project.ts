@@ -55,6 +55,23 @@ export function createLLMConfig(partial?: Partial<LLMConfig>): LLMConfig {
 }
 
 /**
+ * 该 LLM 配置是否构成「AU 覆盖全局」的有效覆盖 —— 即与 createLLMConfig 默认（api 模式 + 全字段空）
+ * 存在任何差异。UI 的 query-info 与设置表单水合两处曾各手写同一 7 子句析取式（盲审 R5 重复 M2），此为单源。
+ */
+export function isLlmOverride(llm: LLMConfig | null | undefined): boolean {
+  return Boolean(
+    llm &&
+      (llm.mode !== LLMMode.API ||
+        llm.model ||
+        llm.api_base ||
+        llm.api_key ||
+        llm.local_model_path ||
+        llm.ollama_model ||
+        llm.chat_path),
+  );
+}
+
+/**
  * YAML dict → LLMConfig（持久化读映射）。file_settings 与 file_project 共用——
  * 此前两文件各持一份字节级相同的拷贝，LLMConfig 增删字段须两处同改（R4 重复维 M1），收敛于此。
  */

@@ -8,7 +8,7 @@ import { Card } from "../../shared/Card";
 import { Spinner } from "../../shared/Spinner";
 import { useTranslation } from "../../../i18n/useAppTranslation";
 import { getChapterContent } from "../../../api/engine-client";
-import { ActionFooter, CardEyebrow, CardStatusBanner, ExpandToggle } from "./cardChrome";
+import { ActionFooter, CardEyebrow, CardStatusBanner, ExpandToggle } from "./CardChrome";
 
 interface ChapterPreviewCardProps {
   message: SimpleChapterPreviewMessage;

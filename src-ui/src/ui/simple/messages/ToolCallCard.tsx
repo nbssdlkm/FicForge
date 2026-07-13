@@ -8,7 +8,7 @@ import type { SimpleToolCallMessage } from "../types";
 import { Card } from "../../shared/Card";
 import { Button } from "../../shared/Button";
 import { useTranslation } from "../../../i18n/useAppTranslation";
-import { ActionFooter, CardEyebrow, ExpandToggle } from "./cardChrome";
+import { ActionFooter, CardEyebrow, ExpandToggle } from "./CardChrome";
 
 interface ToolCallCardProps {
   message: SimpleToolCallMessage;

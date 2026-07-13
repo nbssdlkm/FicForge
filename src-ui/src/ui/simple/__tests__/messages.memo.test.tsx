@@ -35,10 +35,10 @@ vi.mock("../../../i18n/useAppTranslation", () => ({
   useTranslation: () => ({ t }),
 }));
 
-// 部分 mock cardChrome：只把 CardStatusBanner 包一层渲染 spy（其余 chrome 保留 actual，
+// 部分 mock CardChrome：只把 CardStatusBanner 包一层渲染 spy（其余 chrome 保留 actual，
 // WritingDraftCard / ChapterPreviewCard 用的 CardEyebrow/ExpandToggle/ActionFooter 不受影响）。
-vi.mock("../messages/cardChrome", async () => {
-  const actual = await vi.importActual<typeof import("../messages/cardChrome")>("../messages/cardChrome");
+vi.mock("../messages/CardChrome", async () => {
+  const actual = await vi.importActual<typeof import("../messages/CardChrome")>("../messages/CardChrome");
   const Real = actual.CardStatusBanner;
   return {
     ...actual,

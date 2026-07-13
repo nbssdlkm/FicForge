@@ -60,8 +60,8 @@ export function FetchModelsSheet({
   const describeFetchError = useCallback(
     (error: unknown): string => {
       if (error instanceof FetchModelsError) {
-        if (error.code === "auth") return t("modelPicker.fetchSheet.errorAuth");
-        if (error.code === "network") return t("error_messages.connection_failed");
+        if (error.errorCode === "auth") return t("modelPicker.fetchSheet.errorAuth");
+        if (error.errorCode === "network") return t("error_messages.connection_failed");
         return t("modelPicker.fetchSheet.errorHttp", { status: error.status ?? "?" });
       }
       return t("modelPicker.fetchSheet.error", { message: error instanceof Error ? error.message : String(error) });

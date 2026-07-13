@@ -22,15 +22,12 @@ import {
   saveGenerateRequest,
   type GenerateRequestState,
 } from "../../utils/writer-storage";
+import type { SessionLlmConnFields } from "../../api/settings-chat";
 import { createDraftItem, type DraftItem } from "./useWriterDraftController";
 
-type SessionLlmPayload = {
-  mode: string;
-  model: string;
-  api_base: string;
-  local_model_path: string;
-  ollama_model: string;
-} | null;
+// 写文会话覆盖 payload：与设置聊天共享 SessionLlmConnFields 单源（盲审 R5 重复 L3）。
+// Required 恢复「builder 恒提供全部 5 字段」的原契约；有意不含 api_key（后端从磁盘读真实 key）。
+type SessionLlmPayload = Required<SessionLlmConnFields> | null;
 
 type UseWriterGenerationOptions = {
   auPath: string;

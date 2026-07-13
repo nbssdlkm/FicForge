@@ -30,7 +30,7 @@ import { useWriterFocusController } from "./useWriterFocusController";
 import { useWriterGeneration } from "./useWriterGeneration";
 import { useWriterInstructionInput } from "./useWriterInstructionInput";
 import { useWriterModeController } from "./useWriterModeController";
-import { deriveWriterDisplayState } from "./writerDisplayState";
+import { deriveWriterDisplayState } from "./writer-display-state";
 
 type WriterLayoutProps = {
   auPath: string;

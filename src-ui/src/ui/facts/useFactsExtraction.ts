@@ -4,7 +4,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { submitFactsExtraction, type StateInfo, type ExtractedFactCandidate } from "../../api/engine-client";
-import { saveAcceptedCandidates } from "./acceptExtracted";
+import { saveAcceptedCandidates } from "./accept-extracted";
 import { getEngine } from "../../api/engine-client";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { useFeedback } from "../../hooks/useFeedback";
@@ -185,7 +185,7 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
       const pending = selectedCandidates.filter((c) => !savedCandidatesRef.current.has(c));
       // 整批单锁落库（MED-1）：范围提取的候选跨多章，逐条各自加锁的间隙可被并发 undo 插入，
       // 撤销某章后仍写向该章 = 孤儿事实。批量 API 单锁 + 逐章存在性 CAS，被撤销的章整体跳过。
-      // 共享落库流程（映射/半成功登记/单锁 CAS 单源，见 ./acceptExtracted.ts）。
+      // 共享落库流程（映射/半成功登记/单锁 CAS 单源，见 ./accept-extracted.ts）。
       // 范围提取的候选跨多章：章号归属用候选自带 chapter（与 writer 的钉章判据不同，经 chapterOf 注入）。
       const { added, skipped } = await saveAcceptedCandidates({
         auPath: requestAuPath,

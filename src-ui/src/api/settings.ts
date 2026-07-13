@@ -21,7 +21,11 @@ export interface ModelParamInfo {
 /** engine EmbeddingConfig 的 API 查询/编辑视图（同 LlmSettingsInfo 的派生策略）。 */
 export type EmbeddingSettingsInfo = Partial<Omit<EmbeddingConfig, "mode">> & { mode?: string };
 
-export interface LlmQueryInfo {
+/**
+ * LLM query-info 的 7 个公共字段。LlmQueryInfo（默认 LLM，带 has_usable_connection）与
+ * ProjectLlmQueryInfo（AU 覆盖，带 has_override）各自扩展第 8 字段，避免两处平行手写（盲审 R5 重复 L2）。
+ */
+export interface LlmQueryInfoBase {
   mode: string;
   model: string;
   api_base: string;
@@ -29,6 +33,9 @@ export interface LlmQueryInfo {
   local_model_path: string;
   ollama_model: string;
   context_window: number;
+}
+
+export interface LlmQueryInfo extends LlmQueryInfoBase {
   has_usable_connection: boolean;
 }
 

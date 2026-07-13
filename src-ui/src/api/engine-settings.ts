@@ -24,12 +24,14 @@ import type {
   FontPreferences,
   GlobalSettingsSaveInput,
   LlmQueryInfo,
+  LlmQueryInfoBase,
   ModelCatalog,
   ModelParamInfo,
   OnboardingDefaults,
   RemoteModelListing,
   SecretStorageCapabilities,
   SettingsSummary,
+  TestConnectionRequest,
   WriterSessionConfig,
 } from "./settings";
 import { DEFAULT_OLLAMA_BASE_URL } from "../config/defaults";
@@ -105,7 +107,8 @@ export function hasUsableConnection(
   return Boolean(llm.api_key?.trim());
 }
 
-function toLlmQueryInfo(llm: Settings["default_llm"] | null | undefined): LlmQueryInfo {
+/** LlmQueryInfo/ProjectLlmQueryInfo 的 7 公共字段映射（两个 query-info mapper 共用单源，盲审 R5 重复 L2）。 */
+export function toLlmQueryInfoBase(llm: Settings["default_llm"] | null | undefined): LlmQueryInfoBase {
   return {
     mode: llm?.mode || "api",
     model: llm?.model || "",
@@ -114,8 +117,11 @@ function toLlmQueryInfo(llm: Settings["default_llm"] | null | undefined): LlmQue
     local_model_path: llm?.local_model_path || "",
     ollama_model: llm?.ollama_model || "",
     context_window: llm?.context_window || 0,
-    has_usable_connection: hasUsableConnection(llm),
   };
+}
+
+function toLlmQueryInfo(llm: Settings["default_llm"] | null | undefined): LlmQueryInfo {
+  return { ...toLlmQueryInfoBase(llm), has_usable_connection: hasUsableConnection(llm) };
 }
 
 function toEmbeddingQueryInfo(embedding: Settings["embedding"] | null | undefined): EmbeddingQueryInfo {
@@ -289,12 +295,13 @@ const FETCH_MODELS_TIMEOUT_MS = 15_000;
 export type FetchModelsErrorCode = "auth" | "network" | "http";
 
 export class FetchModelsError extends Error {
-  code: FetchModelsErrorCode;
+  // 与 ApiError.errorCode 同拼法（UI 客户端错误类统一 camelCase 错误码，盲审 R5 规范 L1）。
+  errorCode: FetchModelsErrorCode;
   status?: number;
-  constructor(message: string, code: FetchModelsErrorCode, status?: number) {
+  constructor(message: string, errorCode: FetchModelsErrorCode, status?: number) {
     super(message);
     this.name = "FetchModelsError";
-    this.code = code;
+    this.errorCode = errorCode;
     if (status !== undefined) this.status = status;
   }
 }
@@ -472,18 +479,8 @@ export async function saveGlobalModelParams(model: string, params: ModelParamInf
 }
 
 export async function saveOnboardingSettings(payload: {
-  default_llm: {
-    mode: string;
-    model: string;
-    api_base: string;
-    api_key: string;
-    local_model_path: string;
-    ollama_model: string;
-    /** 选择器带出的 ctx；缺省 = 未知 → 0 哨兵（引擎按模型推断）。 */
-    context_window?: number;
-    /** 选择器带出的非标聊天路径；缺省/空 = 默认 /chat/completions。 */
-    chat_path?: string;
-  };
+  // 与全局设置保存同型，复用 DefaultLlmSettingsInput 单源（曾内联逐字段重声明，盲审 R5 重复 M1）。
+  default_llm: DefaultLlmSettingsInput;
   embedding: {
     mode: string;
     model: string;
@@ -534,16 +531,7 @@ export async function testEmbeddingConnection(params: { api_base: string; api_ke
   }
 }
 
-export async function testConnection(params: {
-  mode: string;
-  model?: string;
-  api_base?: string;
-  api_key?: string;
-  local_model_path?: string;
-  ollama_model?: string;
-  /** 非标聊天补全路径 —— 测试连接必须与真实生成同 URL（缺省 /chat/completions）。 */
-  chat_path?: string;
-}) {
+export async function testConnection(params: TestConnectionRequest) {
   try {
     if (params.mode === "local") {
       // 不在 API 层硬编码中文文案：只回 error_code，i18n 映射在 UI 层
