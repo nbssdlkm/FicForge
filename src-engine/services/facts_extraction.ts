@@ -278,16 +278,28 @@ export interface ExtractFactsOptions {
   signal?: AbortSignal;
 }
 
-export async function extractFactsFromChapter(
-  chapter_text: string,
-  chapter_num: number,
-  existing_facts: { content_clean?: string }[],
-  cast_registry: { characters?: string[] },
-  character_aliases: Record<string, string[]> | null,
-  llm_provider: LLMProvider,
-  llm_config: unknown,
-  opts?: ExtractFactsOptions,
-): Promise<ExtractedFact[]> {
+export interface ExtractFactsFromChapterParams {
+  chapter_text: string;
+  chapter_num: number;
+  existing_facts: { content_clean?: string }[];
+  cast_registry: { characters?: string[] };
+  character_aliases: Record<string, string[]> | null;
+  llm_provider: LLMProvider;
+  llm_config: unknown;
+  opts?: ExtractFactsOptions;
+}
+
+export async function extractFactsFromChapter(params: ExtractFactsFromChapterParams): Promise<ExtractedFact[]> {
+  const {
+    chapter_text,
+    chapter_num,
+    existing_facts,
+    cast_registry,
+    character_aliases,
+    llm_provider,
+    llm_config,
+    opts,
+  } = params;
   const maxChunkTokens = opts?.max_chunk_tokens ?? 4000;
   const language = opts?.language ?? "zh";
   const signal = opts?.signal;

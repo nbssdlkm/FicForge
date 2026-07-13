@@ -122,8 +122,15 @@ describe("M8 real-LLM quality probe", () => {
 
   it("M8-A fact enrichment (富化字段合理性)", async () => {
     for (const num of [1, 3, 4]) {
-      const facts = await extractFactsFromChapter(CHAPTERS[num], num, [], CAST, null, llm, llmConfig, {
-        language: "zh",
+      const facts = await extractFactsFromChapter({
+        chapter_text: CHAPTERS[num],
+        chapter_num: num,
+        existing_facts: [],
+        cast_registry: CAST,
+        character_aliases: null,
+        llm_provider: llm,
+        llm_config: llmConfig,
+        opts: { language: "zh" },
       });
       line(`第 ${num} 章 提取事实（${facts.length} 条）`);
       for (const f of facts) {
@@ -193,8 +200,16 @@ describe("M8 real-LLM quality probe", () => {
     console.log("\n后续 micro（喂给回望的后见之明）:");
     for (const n of [2, 3, 4]) console.log(`  第${n}章: ${store.get(n)?.micro?.text}`);
 
-    await runRetrospective("test-au", 1, chapterRepo, summaryRepo, ragManager, embed, llm, /*currentChapter*/ 5, {
-      language: "zh",
+    await runRetrospective({
+      auPath: "test-au",
+      targetChapterNum: 1,
+      chapterRepo,
+      summaryRepo,
+      ragManager,
+      embeddingProvider: embed,
+      llmProvider: llm,
+      currentChapter: 5,
+      opts: { language: "zh" },
     });
 
     line("第 1 章 回望后 standard v2（后见之明修订版）");

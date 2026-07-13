@@ -85,7 +85,14 @@ describe("RagManager.indexChapterSummary", () => {
       },
     } as any;
 
-    await mgr.rebuildForAu("/au", chapterRepo, emb, null, null, undefined, undefined, summaryRepo);
+    await mgr.rebuildForAu({
+      auPath: "/au",
+      chapterRepo,
+      embeddingProvider: emb,
+      castRegistry: null,
+      characterAliases: null,
+      summaryRepo,
+    });
 
     const results = await engine.search("/au", [0.1, 0.2, 0.3], {
       collection: "summaries",
@@ -120,7 +127,14 @@ describe("RagManager.indexChapterSummary", () => {
         return { standard: { version: 1, text: "第三章摘要", generated_at: "t", source_chapter_hash: "h" } };
       },
     } as any;
-    await mgr.rebuildForAu("/au", chapterRepo, pickyEmb, null, null, undefined, undefined, summaryRepo); // 不应抛
+    await mgr.rebuildForAu({
+      auPath: "/au",
+      chapterRepo,
+      embeddingProvider: pickyEmb,
+      castRegistry: null,
+      characterAliases: null,
+      summaryRepo,
+    }); // 不应抛
     const results = await engine.search("/au", [0.1, 0.2, 0.3], {
       collection: "summaries",
       top_k: 5,

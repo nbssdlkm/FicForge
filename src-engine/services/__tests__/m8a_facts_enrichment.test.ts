@@ -186,15 +186,15 @@ describe("T5: extractFactsFromChapter — M8-A new fields", () => {
   };
 
   it("new fields are correctly parsed from LLM response", async () => {
-    const results = await extractFactsFromChapter(
-      "皇帝在御书房暗中密谋，赐毒于使者。",
-      1,
-      [],
-      { characters: ["皇帝", "皇后"] },
-      null,
-      enrichedProvider,
-      null,
-    );
+    const results = await extractFactsFromChapter({
+      chapter_text: "皇帝在御书房暗中密谋，赐毒于使者。",
+      chapter_num: 1,
+      existing_facts: [],
+      cast_registry: { characters: ["皇帝", "皇后"] },
+      character_aliases: null,
+      llm_provider: enrichedProvider,
+      llm_config: null,
+    });
     expect(results).toHaveLength(1);
     const f = results[0];
     expect(f.location).toBe("御书房");
@@ -238,15 +238,15 @@ describe("T5: extractFactsFromChapter — M8-A new fields", () => {
       async *generateStream(): AsyncIterable<LLMChunk> {},
     };
 
-    const results = await extractFactsFromChapter(
-      "Chapter content here.",
-      1,
-      [],
-      { characters: [] },
-      null,
-      badProvider,
-      null,
-    );
+    const results = await extractFactsFromChapter({
+      chapter_text: "Chapter content here.",
+      chapter_num: 1,
+      existing_facts: [],
+      cast_registry: { characters: [] },
+      character_aliases: null,
+      llm_provider: badProvider,
+      llm_config: null,
+    });
     expect(results).toHaveLength(1);
     expect(results[0].time_kind).toBeNull();
     expect(results[0].location).toBe("somewhere");
@@ -275,15 +275,15 @@ describe("T5: extractFactsFromChapter — M8-A new fields", () => {
       async *generateStream(): AsyncIterable<LLMChunk> {},
     };
 
-    const results = await extractFactsFromChapter(
-      "Alice遇到了Bob。",
-      1,
-      [],
-      { characters: ["Alice", "Bob"] },
-      null,
-      plainProvider,
-      null,
-    );
+    const results = await extractFactsFromChapter({
+      chapter_text: "Alice遇到了Bob。",
+      chapter_num: 1,
+      existing_facts: [],
+      cast_registry: { characters: ["Alice", "Bob"] },
+      character_aliases: null,
+      llm_provider: plainProvider,
+      llm_config: null,
+    });
     expect(results).toHaveLength(1);
     expect(results[0].content_clean).toBe("Alice遇到Bob");
     // New fields should be null/empty, not throw

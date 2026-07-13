@@ -20,7 +20,7 @@ export {
 } from "./facts_lifecycle.js";
 
 // Facts Extraction
-export type { ExtractedFact, ExtractFactsOptions } from "./facts_extraction.js";
+export type { ExtractedFact, ExtractFactsOptions, ExtractFactsFromChapterParams } from "./facts_extraction.js";
 export {
   extractFactsBatch,
   extractFactsFromChapter,
@@ -211,7 +211,7 @@ export type {
 export { backfillChapterMemory } from "./backfill_memory.js";
 
 // Retrospective Rewrite (M10-A)
-export type { RetrospectiveOptions, RetrospectiveGenResult } from "./retrospective.js";
+export type { RetrospectiveOptions, RetrospectiveGenResult, RunRetrospectiveParams } from "./retrospective.js";
 export {
   runRetrospective,
   generateRetrospective,

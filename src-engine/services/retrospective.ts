@@ -212,17 +212,30 @@ export async function commitRetrospective(
  *
  * 所有步骤失败均不抛出（由调用方 catch + logCatch 处理）。
  */
-export async function runRetrospective(
-  auPath: string,
-  targetChapterNum: number,
-  chapterRepo: ChapterRepository,
-  summaryRepo: ChapterSummaryRepository,
-  ragManager: RagManager,
-  embeddingProvider: EmbeddingProvider,
-  llmProvider: LLMProvider,
-  currentChapter: number,
-  opts?: RetrospectiveOptions,
-): Promise<void> {
+export interface RunRetrospectiveParams {
+  auPath: string;
+  targetChapterNum: number;
+  chapterRepo: ChapterRepository;
+  summaryRepo: ChapterSummaryRepository;
+  ragManager: RagManager;
+  embeddingProvider: EmbeddingProvider;
+  llmProvider: LLMProvider;
+  currentChapter: number;
+  opts?: RetrospectiveOptions;
+}
+
+export async function runRetrospective(params: RunRetrospectiveParams): Promise<void> {
+  const {
+    auPath,
+    targetChapterNum,
+    chapterRepo,
+    summaryRepo,
+    ragManager,
+    embeddingProvider,
+    llmProvider,
+    currentChapter,
+    opts,
+  } = params;
   const genResult = await generateRetrospective(
     auPath,
     targetChapterNum,

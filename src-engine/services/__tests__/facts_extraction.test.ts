@@ -67,15 +67,15 @@ describe("extractFactsFromChapter", () => {
   };
 
   it("extracts facts from chapter", async () => {
-    const results = await extractFactsFromChapter(
-      "Alice走进房间，看到了Bob。他们发现了一条线索。",
-      1,
-      [],
-      { characters: ["Alice", "Bob"] },
-      null,
-      mockProvider,
-      null,
-    );
+    const results = await extractFactsFromChapter({
+      chapter_text: "Alice走进房间，看到了Bob。他们发现了一条线索。",
+      chapter_num: 1,
+      existing_facts: [],
+      cast_registry: { characters: ["Alice", "Bob"] },
+      character_aliases: null,
+      llm_provider: mockProvider,
+      llm_config: null,
+    });
 
     expect(results).toHaveLength(2);
     expect(results[0].content_clean).toBe("Alice遇到Bob");
@@ -83,7 +83,15 @@ describe("extractFactsFromChapter", () => {
   });
 
   it("returns empty for empty chapter", async () => {
-    const results = await extractFactsFromChapter("", 1, [], { characters: [] }, null, mockProvider, null);
+    const results = await extractFactsFromChapter({
+      chapter_text: "",
+      chapter_num: 1,
+      existing_facts: [],
+      cast_registry: { characters: [] },
+      character_aliases: null,
+      llm_provider: mockProvider,
+      llm_config: null,
+    });
     expect(results).toEqual([]);
   });
 
@@ -107,15 +115,15 @@ describe("extractFactsFromChapter", () => {
       async *generateStream(): AsyncIterable<LLMChunk> {},
     };
 
-    const results = await extractFactsFromChapter(
-      "Long chapter text here. " + "Content. ".repeat(100),
-      1,
-      [],
-      { characters: [] },
-      null,
-      manyFactsProvider,
-      null,
-    );
+    const results = await extractFactsFromChapter({
+      chapter_text: "Long chapter text here. " + "Content. ".repeat(100),
+      chapter_num: 1,
+      existing_facts: [],
+      cast_registry: { characters: [] },
+      character_aliases: null,
+      llm_provider: manyFactsProvider,
+      llm_config: null,
+    });
     expect(results.length).toBeLessThanOrEqual(5);
   });
 });
@@ -133,15 +141,15 @@ describe("extractFactsFromChapter LLM 失败可观测（盲审 R3 M13）", () =>
       async *generateStream(): AsyncIterable<LLMChunk> {},
     };
 
-    const results = await extractFactsFromChapter(
-      "Alice走进房间。",
-      1,
-      [],
-      { characters: ["Alice"] },
-      null,
-      boomProvider,
-      null,
-    );
+    const results = await extractFactsFromChapter({
+      chapter_text: "Alice走进房间。",
+      chapter_num: 1,
+      existing_facts: [],
+      cast_registry: { characters: ["Alice"] },
+      character_aliases: null,
+      llm_provider: boomProvider,
+      llm_config: null,
+    });
 
     expect(results).toEqual([]);
     // 至少一条 facts_extraction 维的告警，携带底层错误信息
@@ -162,15 +170,15 @@ describe("extractFactsFromChapter LLM 失败可观测（盲审 R3 M13）", () =>
       async *generateStream(): AsyncIterable<LLMChunk> {},
     };
 
-    const results = await extractFactsFromChapter(
-      "Alice走进房间。",
-      1,
-      [],
-      { characters: ["Alice"] },
-      null,
-      abortProvider,
-      null,
-    );
+    const results = await extractFactsFromChapter({
+      chapter_text: "Alice走进房间。",
+      chapter_num: 1,
+      existing_facts: [],
+      cast_registry: { characters: ["Alice"] },
+      character_aliases: null,
+      llm_provider: abortProvider,
+      llm_config: null,
+    });
 
     expect(results).toEqual([]);
     expect(warnSpy).not.toHaveBeenCalledWith("facts_extraction", expect.anything(), expect.anything());
@@ -217,15 +225,15 @@ describe("角色别名表接通（M3 别名表批）", () => {
       async *generateStream(): AsyncIterable<LLMChunk> {},
     };
 
-    const results = await extractFactsFromChapter(
-      "月月走进房间。",
-      1,
-      [],
-      { characters: ["林晚月"] },
-      { 林晚月: ["月月"] },
-      provider,
-      null,
-    );
+    const results = await extractFactsFromChapter({
+      chapter_text: "月月走进房间。",
+      chapter_num: 1,
+      existing_facts: [],
+      cast_registry: { characters: ["林晚月"] },
+      character_aliases: { 林晚月: ["月月"] },
+      llm_provider: provider,
+      llm_config: null,
+    });
 
     expect(prompt).toContain("月月"); // 【已知角色名和别名】段真的渲进了 user message
     expect(results[0].characters).toEqual(["林晚月"]); // rawToExtracted 归一化

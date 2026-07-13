@@ -274,16 +274,16 @@ export async function extractFacts(auPath: string, chapterNum: number, opts?: { 
   }
 
   // 单次调用路径无软上限概念（不截断），cappedCount=0。
-  const facts = await extractFactsFromChapter(
-    chapterContent,
-    chapterNum,
-    existingFacts,
-    proj.cast_registry,
-    characterAliases,
-    provider,
-    llmConfig,
-    { language: lang, signal: opts?.signal },
-  );
+  const facts = await extractFactsFromChapter({
+    chapter_text: chapterContent,
+    chapter_num: chapterNum,
+    existing_facts: existingFacts,
+    cast_registry: proj.cast_registry,
+    character_aliases: characterAliases,
+    llm_provider: provider,
+    llm_config: llmConfig,
+    opts: { language: lang, signal: opts?.signal },
+  });
   return { facts, cappedCount: 0 };
 }
 

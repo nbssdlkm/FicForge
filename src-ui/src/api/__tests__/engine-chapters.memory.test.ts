@@ -114,7 +114,11 @@ describe("backfillChapterMemory", () => {
     vi.spyOn(engineModule, "generateStandardSummary").mockImplementation(
       async (_text: string, num: number) => `摘要-${num}`,
     );
-    vi.spyOn(engineModule, "extractFactsFromChapter").mockImplementation((async (_content: string, num: number) => [
+    vi.spyOn(engineModule, "extractFactsFromChapter").mockImplementation((async ({
+      chapter_num: num,
+    }: {
+      chapter_num: number;
+    }) => [
       {
         content_raw: "",
         content_clean: `第${num}章事实`,

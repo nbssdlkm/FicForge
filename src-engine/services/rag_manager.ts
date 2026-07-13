@@ -28,6 +28,17 @@ function vectorsDir(auPath: string): string {
   return `${auPath}/.vectors`;
 }
 
+export interface RebuildForAuParams {
+  auPath: string;
+  chapterRepo: ChapterRepository;
+  embeddingProvider: EmbeddingProvider;
+  castRegistry?: CastRegistryLike | null;
+  characterAliases?: Record<string, string[]> | null;
+  signal?: AbortSignal;
+  onProgress?: (current: number, total: number) => void;
+  summaryRepo?: ChapterSummaryRepository;
+}
+
 export class RagManager {
   /** 已加载的 per-AU 引擎（内存 chunks 仅含各自 AU）。 */
   private engines = new Map<string, JsonVectorEngine>();
@@ -376,16 +387,9 @@ export class RagManager {
   /**
    * 全量重建：删除旧索引 → 遍历所有章节 → 逐章索引。
    */
-  async rebuildForAu(
-    auPath: string,
-    chapterRepo: ChapterRepository,
-    embeddingProvider: EmbeddingProvider,
-    castRegistry?: CastRegistryLike | null,
-    characterAliases?: Record<string, string[]> | null,
-    signal?: AbortSignal,
-    onProgress?: (current: number, total: number) => void,
-    summaryRepo?: ChapterSummaryRepository,
-  ): Promise<void> {
+  async rebuildForAu(params: RebuildForAuParams): Promise<void> {
+    const { auPath, chapterRepo, embeddingProvider, castRegistry, characterAliases, signal, onProgress, summaryRepo } =
+      params;
     // 缓冲式重建（B3 对抗审 MEDIUM 整改）：慢段（逐章 embed，秒~分钟级）**不占写队列、
     // 不碰引擎**，把 chunks 攒进局部缓冲；只有毫秒级快段（清扫 + 注入 + persist）进队列。
     // 旧实现全程占队会让持 au_lock 的 confirm/backfill 写在队列里等整个 rebuild —— au_lock

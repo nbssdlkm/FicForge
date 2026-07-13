@@ -91,7 +91,16 @@ describe("runRetrospective", () => {
     const llmProvider = fakeProvider("v2 text");
     const ragManager = fakeRagManager();
 
-    await runRetrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11);
+    await runRetrospective({
+      auPath: "/au",
+      targetChapterNum: 5,
+      chapterRepo,
+      summaryRepo,
+      ragManager,
+      embeddingProvider: fakeEmbeddingProvider(),
+      llmProvider,
+      currentChapter: 11,
+    });
 
     expect(llmProvider.generate).not.toHaveBeenCalled();
     expect(summaryRepo.promote_to_v2).not.toHaveBeenCalled();
@@ -107,7 +116,16 @@ describe("runRetrospective", () => {
     const llmProvider = fakeProvider("v2 retrospective text");
     const ragManager = fakeRagManager();
 
-    await runRetrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11);
+    await runRetrospective({
+      auPath: "/au",
+      targetChapterNum: 5,
+      chapterRepo,
+      summaryRepo,
+      ragManager,
+      embeddingProvider: fakeEmbeddingProvider(),
+      llmProvider,
+      currentChapter: 11,
+    });
 
     expect(llmProvider.generate).toHaveBeenCalledOnce();
     expect(summaryRepo.promote_to_v2).toHaveBeenCalledWith("/au", 5, "v2 retrospective text", expect.any(String));
@@ -123,7 +141,16 @@ describe("runRetrospective", () => {
     const llmProvider = fakeProvider(""); // empty → null
     const ragManager = fakeRagManager();
 
-    await runRetrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11);
+    await runRetrospective({
+      auPath: "/au",
+      targetChapterNum: 5,
+      chapterRepo,
+      summaryRepo,
+      ragManager,
+      embeddingProvider: fakeEmbeddingProvider(),
+      llmProvider,
+      currentChapter: 11,
+    });
 
     expect(summaryRepo.promote_to_v2).not.toHaveBeenCalled();
   });
@@ -142,7 +169,16 @@ describe("runRetrospective", () => {
 
     // Should not throw — best-effort
     await expect(
-      runRetrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11),
+      runRetrospective({
+        auPath: "/au",
+        targetChapterNum: 5,
+        chapterRepo,
+        summaryRepo,
+        ragManager,
+        embeddingProvider: fakeEmbeddingProvider(),
+        llmProvider,
+        currentChapter: 11,
+      }),
     ).resolves.toBeUndefined();
     expect(llmProvider.generate).not.toHaveBeenCalled();
   });
@@ -158,7 +194,16 @@ describe("runRetrospective", () => {
     const llmProvider = fakeProvider("v2 text");
     const ragManager = fakeRagManager();
 
-    await runRetrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11);
+    await runRetrospective({
+      auPath: "/au",
+      targetChapterNum: 5,
+      chapterRepo,
+      summaryRepo,
+      ragManager,
+      embeddingProvider: fakeEmbeddingProvider(),
+      llmProvider,
+      currentChapter: 11,
+    });
 
     // Should still generate because at least some micros exist
     expect(llmProvider.generate).toHaveBeenCalledOnce();
@@ -198,7 +243,16 @@ describe("runRetrospective", () => {
     const ragManager = fakeRagManager();
 
     // currentChapter = 11 → subsequent range = 6..10
-    await runRetrospective("/au", 5, chapterRepo, summaryRepo, ragManager, fakeEmbeddingProvider(), llmProvider, 11);
+    await runRetrospective({
+      auPath: "/au",
+      targetChapterNum: 5,
+      chapterRepo,
+      summaryRepo,
+      ragManager,
+      embeddingProvider: fakeEmbeddingProvider(),
+      llmProvider,
+      currentChapter: 11,
+    });
 
     // summaryRepo.get should have been called for chapters 6..10 (not 11)
     const getCalls = summaryRepo.get.mock.calls.map((c: any[]) => c[1]);

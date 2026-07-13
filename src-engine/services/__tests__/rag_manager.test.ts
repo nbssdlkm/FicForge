@@ -124,7 +124,7 @@ describe("RagManager", () => {
         }),
       );
 
-      await ragManager.rebuildForAu("au1", chapterRepo, embProvider);
+      await ragManager.rebuildForAu({ auPath: "au1", chapterRepo, embeddingProvider: embProvider });
 
       expect(ragManager.chunkCountFor("au1")).toBeGreaterThan(0);
       expect(adapter.raw("au1/.vectors/index.json")).toBeTruthy();
@@ -136,7 +136,7 @@ describe("RagManager", () => {
       expect(ragManager.chunkCountFor("au1")).toBeGreaterThan(0);
 
       // Rebuild with empty repo → should produce empty index
-      await ragManager.rebuildForAu("au1", chapterRepo, embProvider);
+      await ragManager.rebuildForAu({ auPath: "au1", chapterRepo, embeddingProvider: embProvider });
 
       expect(ragManager.chunkCountFor("au1")).toBe(0);
       const indexJson = JSON.parse(adapter.raw("au1/.vectors/index.json")!);
@@ -172,7 +172,9 @@ describe("RagManager", () => {
       };
 
       // 3. rebuildForAu 必须抛错
-      await expect(ragManager.rebuildForAu("au1", chapterRepo, failingEmb)).rejects.toThrow("network_error");
+      await expect(
+        ragManager.rebuildForAu({ auPath: "au1", chapterRepo, embeddingProvider: failingEmb }),
+      ).rejects.toThrow("network_error");
 
       // 4. 关键断言（T7-8 真不变量：失败的 rebuild 不得造成 0 召回）。
       //    缓冲式重建（盲审 2026-07-11 B3）后 embed 失败发生在触碰引擎之前 ——
@@ -203,7 +205,7 @@ describe("RagManager", () => {
         }),
       );
 
-      await ragManager.rebuildForAu("au1", chapterRepo, embProvider);
+      await ragManager.rebuildForAu({ auPath: "au1", chapterRepo, embeddingProvider: embProvider });
 
       // Should only have chapter 2's chunks, not chapter 1's
       const indexJson = JSON.parse(adapter.raw("au1/.vectors/index.json")!);
@@ -505,7 +507,7 @@ describe("同 AU 并发写串行化（盲审 2026-07-11：persist 孤儿分片 G
     await chapterRepo.save(createChapter({ au_id: "auC", chapter_num: 2, content: "第二章正文内容。" }));
 
     // rebuild 慢段阻塞在 ch1 embed（快慢分离：此期间不占写队列）
-    const rebuild = ragManager.rebuildForAu("auC", chapterRepo, gated);
+    const rebuild = ragManager.rebuildForAu({ auPath: "auC", chapterRepo, embeddingProvider: gated });
     await gated.waitForPending(1);
 
     // 并发 indexChapter(ch3)：其 embed 与 rebuild 的 embed 并发挂起（B3 整改后的预期行为）。
