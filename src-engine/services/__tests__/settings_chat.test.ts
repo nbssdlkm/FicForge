@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { buildSettingsContext, callSettingsLlm } from "../settings_chat.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 import type { LLMProvider, LLMResponse, LLMChunk, GenerateParams } from "../../llm/provider.js";
+import { LLMError } from "../../llm/provider.js";
 
 describe("build_settings_context", () => {
   it("AU mode assembles system prompt with AU name and fandom", async () => {
@@ -146,5 +147,63 @@ describe("callSettingsLlm", () => {
     );
 
     expect(result.tool_calls).toEqual([]);
+  });
+
+  const msgs = [
+    { role: "system" as const, content: "s" },
+    { role: "user" as const, content: "u" },
+  ];
+
+  it("400 无明确分类 → 去 tools 重试、返回纯文本 + 空 tool_calls（盲审 R5 测试 M2）", async () => {
+    let calls = 0;
+    const toolsPresent: boolean[] = [];
+    const mockProvider: LLMProvider = {
+      async generate(params: GenerateParams): Promise<LLMResponse> {
+        calls++;
+        toolsPresent.push(params.tools !== undefined);
+        if (calls === 1) throw new LLMError("network_error", "tool schema not accepted", ["retry"], 400);
+        return {
+          content: "去 tools 后的纯文本",
+          model: "test",
+          input_tokens: 0,
+          output_tokens: 0,
+          finish_reason: "stop",
+        };
+      },
+      async *generateStream(): AsyncIterable<LLMChunk> {},
+    };
+    const result = await callSettingsLlm(msgs, "au", mockProvider);
+    expect(calls).toBe(2);
+    expect(toolsPresent).toEqual([true, false]); // 首次带 tools，重试不带
+    expect(result.content).toBe("去 tools 后的纯文本");
+    expect(result.tool_calls).toEqual([]);
+  });
+
+  it("400 context_length_exceeded → 原样抛出、不去 tools 重试（盲审 R5 测试 M2）", async () => {
+    let calls = 0;
+    const mockProvider: LLMProvider = {
+      async generate(): Promise<LLMResponse> {
+        calls++;
+        throw new LLMError("context_length_exceeded", "too long", ["retry"], 400);
+      },
+      async *generateStream(): AsyncIterable<LLMChunk> {},
+    };
+    await expect(callSettingsLlm(msgs, "au", mockProvider)).rejects.toMatchObject({
+      error_code: "context_length_exceeded",
+    });
+    expect(calls).toBe(1); // 未去 tools 重试
+  });
+
+  it("非 400 错误 → 原样抛出、不去 tools 重试（盲审 R5 测试 M2）", async () => {
+    let calls = 0;
+    const mockProvider: LLMProvider = {
+      async generate(): Promise<LLMResponse> {
+        calls++;
+        throw new LLMError("invalid_api_key", "bad key", ["check_settings"], 401);
+      },
+      async *generateStream(): AsyncIterable<LLMChunk> {},
+    };
+    await expect(callSettingsLlm(msgs, "au", mockProvider)).rejects.toMatchObject({ status_code: 401 });
+    expect(calls).toBe(1);
   });
 });

@@ -323,9 +323,11 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     const state = await stateRepo.get("au1");
     expect(state.current_chapter).toBe(2);
 
-    // last_scene_ending should be derived from ch1 content
-    // (degraded path reads chapter file directly)
-    expect(state.last_scene_ending).toBeTruthy();
+    // last_scene_ending 应源自 ch1（降级路径直读章节文件）：判别性断言——含 ch1 独有的
+    // 「Bob隐藏在树后」、绝不含 ch2 的 Charlie，证明降级读对了章（盲审 R5 测试 L1，与下方
+    // characters_last_seen 口径对齐；旧 toBeTruthy 读了 ch2 也照样通过，非判别）。
+    expect(state.last_scene_ending).toContain("Bob隐藏在树后");
+    expect(state.last_scene_ending).not.toContain("Charlie");
 
     // 降级重建只扫 < n（=ch2 正在被撤销）的章，即只扫 ch1（盲审 R5 正确性 M1）。
     // 修复前：扫描含尚未删除的 ch2 → Alice/Charlie 被持久记为「最后见于已删除的 ch2」；

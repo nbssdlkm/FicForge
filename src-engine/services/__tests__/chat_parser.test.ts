@@ -334,6 +334,44 @@ describe("parseChatExport", () => {
     expect(parseChatExport([])).toEqual([]);
   });
 
+  it("防环：ChatGPT mapping children 成环不栈溢出，每节点只计一次（盲审 R5 正确性 L2）", () => {
+    const data = {
+      mapping: {
+        a: { message: { author: { role: "user" }, content: { parts: ["hi"] } }, children: ["b"] },
+        b: { message: { author: { role: "assistant" }, content: { parts: ["yo"] } }, children: ["a"] }, // 环回 a
+      },
+    };
+    // 无 visited 会无限递归栈溢出；有 visited 则终止且 a/b 各计一次。
+    const turns = parseChatExport(data);
+    expect(turns.map((t) => t.content)).toEqual(["hi", "yo"]);
+  });
+
+  it("防重：DAG（多父指同子）节点只计一次（盲审 R5 正确性 L2）", () => {
+    const data = {
+      mapping: {
+        root: { message: null, children: ["b", "c"] },
+        b: { message: { author: { role: "user" }, content: { parts: ["B"] } }, children: ["d"] },
+        c: { message: { author: { role: "assistant" }, content: { parts: ["C"] } }, children: ["d"] },
+        d: { message: { author: { role: "user" }, content: { parts: ["D"] } } },
+      },
+    };
+    const turns = parseChatExport(data);
+    // d 被 b、c 两父指向 → 无 visited 会计两次；应只计一次。
+    expect(turns.filter((t) => t.content === "D")).toHaveLength(1);
+  });
+
+  it("单条数字 role 不拖垮整份解析：跳过坏行、其余正常（盲审 R5 正确性 L3）", () => {
+    const data = [
+      { role: "user", content: "问题" },
+      { role: 42, content: "数字 role 的坏行" }, // 此前 normalizeRole(.toLowerCase()) 抛错 → 整份降级
+      { role: "assistant", content: "回答" },
+    ];
+    const turns = parseChatExport(data);
+    expect(turns).toHaveLength(2);
+    expect(turns[0].content).toBe("问题");
+    expect(turns[1].content).toBe("回答");
+  });
+
   it("skips empty content entries", () => {
     const data = [
       { role: "user", content: "hello" },

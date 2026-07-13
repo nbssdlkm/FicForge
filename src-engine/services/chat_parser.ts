@@ -505,7 +505,10 @@ const USER_ROLES = new Set(["user", "human"]);
 const ASSISTANT_ROLES = new Set(["assistant", "ai", "chatgpt", "deepseek"]);
 const SKIP_ROLES = new Set(["system", "tool", "function"]);
 
-function normalizeRole(role: string): "user" | "assistant" | null {
+function normalizeRole(role: unknown): "user" | "assistant" | null {
+  // 非字符串 role（导入文件里的数字/对象等）视作未知角色跳过——此前裸 `as string` 后
+  // `.toLowerCase()` 会抛 TypeError，被上层 catch 后令整份聊天静默降级纯文本（盲审 R5 正确性 L3）。
+  if (typeof role !== "string") return null;
   const lower = role.toLowerCase();
   if (USER_ROLES.has(lower)) return "user";
   if (ASSISTANT_ROLES.has(lower)) return "assistant";
@@ -537,15 +540,20 @@ function parseChatGptMapping(data: Record<string, unknown>): ChatTurn[] {
 
   const turns: ChatTurn[] = [];
   let index = 0;
+  // 导入的 conversations.json 不可信：parent/children 链若成环会栈溢出、若是 DAG（多父指同子）
+  // 会把同一节点重复计入。visited 去重双防（盲审 R5 正确性 L2）。
+  const visited = new Set<string>();
 
   function dfs(nodeId: string) {
+    if (visited.has(nodeId)) return;
+    visited.add(nodeId);
     const nodeRaw = mapping[nodeId] as Record<string, unknown> | undefined;
     if (!nodeRaw) return;
 
     const message = nodeRaw.message as Record<string, unknown> | undefined;
     if (message) {
       const author = message.author as Record<string, unknown> | undefined;
-      const role = (author?.role as string) ?? (message.role as string) ?? "";
+      const role: unknown = author?.role ?? message.role;
       const normalized = normalizeRole(role);
 
       if (normalized) {
@@ -603,7 +611,7 @@ function parseSimpleArray(data: unknown[]): ChatTurn[] {
   for (const item of data) {
     if (typeof item !== "object" || item === null) continue;
     const obj = item as Record<string, unknown>;
-    const role = obj.role as string;
+    const role: unknown = obj.role;
     const content = ((obj.content as string) ?? "").trim();
     if (!role || !content) continue;
 
