@@ -6,7 +6,7 @@
  * 从 AuLoreLayout.tsx / FandomLoreLayout.tsx 提取，纯函数。
  */
 
-import { parseCharacterCard } from "@ficforge/engine";
+import { dumpFrontmatterKey, parseCharacterCard } from "@ficforge/engine";
 
 // ---------------------------------------------------------------------------
 // 共享类型（AuLore / FandomLore 各 hook / 组件的单一定义点）
@@ -71,11 +71,11 @@ export function parseAliasesFromContent(content: string): string[] {
 }
 
 export function setAliasesInContent(content: string, aliases: string[]): string {
-  // 别名统一 JSON.stringify 加引号（对齐同仓 settings-chat/frontmatter-utils 的 buildManagedFrontmatterLines 技法；注意那边是块式、这里是流式，仍属两份手写序列化——写侧统一到真 YAML 序列化留待后续卡）：
-  // 含 :/#/引号/逗号 等 YAML 危险字符的别名若裸写进 flow 数组会写坏 frontmatter（读侧 safeMatter
-  // 安全降级、别名静默丢失）。JSON 双引号串是合法的 YAML flow 标量，转义齐全，读回一致。
-  const aliasYaml =
-    aliases.length > 0 ? `aliases: [${aliases.map((a) => JSON.stringify(a)).join(", ")}]` : "aliases: []";
+  // 序列化交引擎 dumpFrontmatterKey 真 YAML 单源（TD-021 写侧统一：此前这里手写
+  // JSON.stringify 流式数组、settings-chat 侧另有一份块式手法，两份随时间漂移）。
+  // 危险字符（:/#/引号/逗号/$&）的转义全由 js-yaml 承担，读侧 safeMatter 同库往返。
+  // 空列表仍落 `aliases: []`（保留键，语义=显式无别名），非空为块列表多行。
+  const aliasLines = dumpFrontmatterKey("aliases", aliases);
   const match = content.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return content;
   const fm = match[1];
@@ -84,10 +84,10 @@ export function setAliasesInContent(content: string, aliases: string[]): string 
   if (idx >= 0) {
     let endIdx = idx + 1;
     while (endIdx < lines.length && lines[endIdx].match(/^\s*-\s/)) endIdx++;
-    lines.splice(idx, endIdx - idx, aliasYaml);
+    lines.splice(idx, endIdx - idx, ...aliasLines);
   } else {
     const nameIdx = lines.findIndex((l) => l.startsWith("name:"));
-    lines.splice(nameIdx >= 0 ? nameIdx + 1 : lines.length, 0, aliasYaml);
+    lines.splice(nameIdx >= 0 ? nameIdx + 1 : lines.length, 0, ...aliasLines);
   }
   // 替换值用函数返回（E5 对抗审 MED 实证）：字符串形式的第二参会解释 $& / $' / $` / $$，
   // 别名含这些序列时会把匹配段/正文展开进 frontmatter，双双损坏——函数返回值不做 $ 解释。

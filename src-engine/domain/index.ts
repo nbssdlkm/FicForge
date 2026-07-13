@@ -34,7 +34,7 @@ export { createChapter } from "./chapter.js";
 
 export type { ParsedCharacterCard } from "./character_card.js";
 export { AU_CHARACTERS_DIR, KNOWN_CHARACTER_META_KEYS, parseCharacterCard } from "./character_card.js";
-export { splitFrontmatterRaw } from "./frontmatter.js";
+export { dumpFrontmatterKey, safeMatter, splitFrontmatterRaw } from "./frontmatter.js";
 
 export type { ChapterSummary, SummaryTier } from "./chapter_summary.js";
 export { createChapterSummary } from "./chapter_summary.js";

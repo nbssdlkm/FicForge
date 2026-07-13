@@ -35,4 +35,17 @@ describe("lore-utils setAliasesInContent — 别名 YAML 序列化 round-trip（
     expect(written.match(/正文段。/g)?.length).toBe(1);
     expect(parseAliasesFromContent(written)).toEqual(["技能$&效果", "a$'b"]);
   });
+
+  it("块式覆写块式（TD-021 真 YAML 块列表后的行手术）：二次写入整块替换，不残留旧项", () => {
+    const base = buildDefaultCharacterContent("沈砚");
+    const first = setAliasesInContent(base, ["旧一", "旧二", "旧三"]);
+    const second = setAliasesInContent(first, ["新一"]);
+    expect(parseAliasesFromContent(second)).toEqual(["新一"]);
+    expect(second).not.toContain("旧一");
+    expect(second).not.toContain("旧三");
+    // 缩到空列表也干净回落单行
+    const third = setAliasesInContent(second, []);
+    expect(parseAliasesFromContent(third)).toEqual([]);
+    expect(third).not.toContain("新一");
+  });
 });

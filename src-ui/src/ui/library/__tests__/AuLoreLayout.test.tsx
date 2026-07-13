@@ -13,6 +13,7 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { AuLoreLayout } from "../AuLoreLayout";
+import { parseAliasesFromContent } from "../lore-utils";
 import { FeedbackProvider } from "../../../hooks/useFeedback";
 
 // 重型子组件与本测试无关，剪掉其 API 面；TrashPanel 换成可触发 onRestore 的桩
@@ -190,8 +191,9 @@ describe("AuLoreLayout — 状态下沉回归", () => {
     const [payload] = (saveLore as Mock).mock.calls[0];
     expect(payload.au_path).toBe(AU_PATH);
     expect(payload.filename).toBe("主角甲.md");
-    // E5 已知卡：别名统一 JSON.stringify 加引号（YAML 危险字符根治），序列化形态随之变引号。
-    expect(payload.content).toContain('aliases: ["小甲", "甲哥", "阿甲"]');
+    // TD-021 写侧统一真 YAML（dumpFrontmatterKey 块式）后不锁字节形态——断言判据改为
+    // 读侧解析读回（写读闭环才是本测试要锁的行为，序列化风格由引擎单源决定）。
+    expect(parseAliasesFromContent(payload.content)).toEqual(["小甲", "甲哥", "阿甲"]);
     expect(payload.content).toContain("改过的正文");
   });
 

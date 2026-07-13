@@ -18,6 +18,7 @@
  */
 
 import matter from "gray-matter";
+import * as yaml from "js-yaml";
 
 /** 排除 Date / 数组 / null 等 YAML 标量能解析出的非字典形态。 */
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -76,6 +77,26 @@ export function safeMatter(
  * 行为口径（与 UI 既有 splitYamlFrontmatter 对齐，便于零回归替换）：
  * CRLF 归一为 LF；输入 trimStart 后再匹配；无 frontmatter 时 body = 归一化后的全文。
  */
+/**
+ * 受管 frontmatter 键的**真 YAML 序列化**（TD-021 写侧统一）：转义/引号/特殊字符
+ * 全交 js-yaml，与读侧 safeMatter（gray-matter → js-yaml）同库往返，杜绝手写
+ * 引号技法（JSON.stringify 块式/流式两份）随时间漂移。
+ *
+ * 返回「行数组」而非整块字符串：两个写侧（settings-chat 受管重建 / lore 别名
+ * line-surgery）都以行为单位拼装 frontmatter，标量单行、数组为块列表多行、
+ * 空数组为 `key: []` 单行。lineWidth: -1 禁折行（长别名/长名折行会破坏行手术）。
+ *
+ * 上游约束（F2 对抗审）：值**不得含裸换行**——含 \n 的标量会 dump 成块标量 |- 多行，
+ * 续行不匹配行手术的 `- ` 判据。现有调用链（name/aliases/importance/origin_ref）
+ * 全经 trim/枚举约束天然满足；新增调用方引入多行值前先改行手术判据。
+ */
+export function dumpFrontmatterKey(key: string, value: unknown): string[] {
+  return yaml
+    .dump({ [key]: value }, { lineWidth: -1 })
+    .replace(/\n$/, "")
+    .split("\n");
+}
+
 export function splitFrontmatterRaw(
   raw: string,
   knownKeys: ReadonlySet<string>,

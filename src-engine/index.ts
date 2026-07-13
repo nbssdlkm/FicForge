@@ -36,6 +36,7 @@ export {
   createSettings,
   createThread,
   draftFilename,
+  dumpFrontmatterKey,
   findRecommendedModel,
   getProvider,
   isReactExtractionEnabled,
@@ -44,6 +45,7 @@ export {
   listProviders,
   parseChapterMainPath,
   parseCharacterCard,
+  safeMatter,
   splitFrontmatterRaw,
 } from "./domain/index.js";
 export type {

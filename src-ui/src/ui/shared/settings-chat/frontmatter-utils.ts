@@ -6,7 +6,7 @@
  * 从 SettingsChatPanel.tsx 提取，纯函数，零状态依赖。
  */
 
-import { splitFrontmatterRaw } from "@ficforge/engine";
+import { dumpFrontmatterKey, safeMatter, splitFrontmatterRaw } from "@ficforge/engine";
 import { coerceString, coerceStringArray } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -89,15 +89,12 @@ export function buildManagedFrontmatterLines(
   const importance = coerceString(fields.importance);
   const originRef = coerceTrimmedString(fields.origin_ref);
 
-  if (managedKeys.includes("name") && name) lines.push(`name: ${JSON.stringify(name)}`);
-  if (managedKeys.includes("aliases") && aliases.length > 0) {
-    lines.push("aliases:");
-    aliases.forEach((alias) => {
-      lines.push(`  - ${JSON.stringify(alias)}`);
-    });
-  }
-  if (managedKeys.includes("importance") && importance) lines.push(`importance: ${importance}`);
-  if (managedKeys.includes("origin_ref") && originRef) lines.push(`origin_ref: ${JSON.stringify(originRef)}`);
+  // 序列化交引擎 dumpFrontmatterKey 真 YAML 单源（TD-021：此前此处 JSON.stringify
+  // 手写引号、importance 甚至裸写，与 lore-utils 流式写法构成两份手写序列化）。
+  if (managedKeys.includes("name") && name) lines.push(...dumpFrontmatterKey("name", name));
+  if (managedKeys.includes("aliases") && aliases.length > 0) lines.push(...dumpFrontmatterKey("aliases", aliases));
+  if (managedKeys.includes("importance") && importance) lines.push(...dumpFrontmatterKey("importance", importance));
+  if (managedKeys.includes("origin_ref") && originRef) lines.push(...dumpFrontmatterKey("origin_ref", originRef));
 
   return lines;
 }
@@ -130,49 +127,23 @@ export function applyManagedFrontmatter(
 /**
  * 从现有文件内容中提取受管 frontmatter 字段，
  * 然后将它们注入到新内容中。用于 modify 路径保留 name/aliases 等元数据。
+ *
+ * 提取走引擎 safeMatter 真 YAML 解析（TD-021：此前手写行级正则只认块式列表，
+ * 流式 `aliases: [a, b]`（别名编辑器旧写法）会被静默丢弃——写读两侧手法漂移的实锤；
+ * 真 YAML 解析对块式/流式/引号/转义一视同仁）。
  */
 export function preserveManagedFrontmatter(
   oldContent: string,
   newContent: string,
   managedKeys: readonly ManagedFrontmatterKey[],
 ): string {
-  const { frontmatter: oldFm } = splitYamlFrontmatter(oldContent);
-  if (!oldFm) return newContent;
-
-  const keySet = new Set<string>(managedKeys);
+  const { data } = safeMatter(oldContent, FRONTMATTER_GATE_KEYS);
   const fields: Record<string, unknown> = {};
-  const lines = oldFm.split("\n");
-
-  let i = 0;
-  while (i < lines.length) {
-    const line = lines[i];
-
-    // aliases 是列表，特殊处理
-    if (line.startsWith("aliases:") && keySet.has("aliases")) {
-      const aliases: string[] = [];
-      i++;
-      while (i < lines.length && lines[i].match(/^\s+-\s/)) {
-        aliases.push(
-          lines[i]
-            .replace(/^\s+-\s+/, "")
-            .replace(/^["']|["']$/g, "")
-            .trim(),
-        );
-        i++;
-      }
-      if (aliases.length > 0) fields.aliases = aliases;
-      continue;
-    }
-
-    // 标量字段：key: value（仅匹配受管 key）
-    const m = line.match(/^(\w+):\s*(.+)$/);
-    if (m && keySet.has(m[1])) {
-      fields[m[1]] = m[2].replace(/^["']|["']$/g, "").trim();
-    }
-
-    i++;
+  for (const key of managedKeys) {
+    if (data[key] !== undefined) fields[key] = data[key];
   }
-
   if (Object.keys(fields).length === 0) return newContent;
+  // 空值语义与旧行为一致：buildManagedFrontmatterLines 只写非空值（aliases 空数组、
+  // 空串标量都不落行），无需在此预过滤。
   return applyManagedFrontmatter(newContent, fields, managedKeys);
 }
