@@ -66,18 +66,6 @@ export enum EmotionStyle {
   EXPLICIT = "explicit",
 }
 
-/** 许可证等级。参见 PRD §3.3。 */
-export enum LicenseTier {
-  FREE = "free",
-  PRO = "pro",
-}
-
-/** API 模式。参见 PRD §3.3。 */
-export enum APIMode {
-  SELF_HOSTED = "self_hosted",
-  MANAGED = "managed",
-}
-
 /** 章节来源标记。 */
 export enum Provenance {
   AI = "ai",

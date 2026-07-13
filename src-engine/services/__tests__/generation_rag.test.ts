@@ -48,7 +48,6 @@ function makeVectorRepo(searchSpy: VectorRepository["search"]): VectorRepository
     search: searchSpy,
     async delete_by_chapter() {},
     async delete_by_source() {},
-    async rebuild_index() {},
     async get_index_status() {
       return IndexStatus.READY;
     },

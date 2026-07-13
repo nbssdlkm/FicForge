@@ -167,12 +167,6 @@ export class JsonVectorEngine implements VectorRepository {
     this.chunks = this.chunks.filter((c) => !(c.metadata.au_id === au_id && c.metadata.source_file === source_file));
   }
 
-  async rebuild_index(au_id: string): Promise<void> {
-    // 删除该 AU 的所有 chunks
-    this.chunks = this.chunks.filter((c) => c.metadata.au_id !== au_id);
-    this.indexStatus = IndexStatus.STALE;
-  }
-
   /**
    * 重算正文 chunks 的「出场角色」metadata（TD-020 存量迁移：早年建库时别名盲扫，
    * 通篇只用别名的块标签为空 → char_filter 永远命不中）。**只动 metadata、不碰

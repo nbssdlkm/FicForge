@@ -35,16 +35,12 @@ export interface ContextSummary {
   rag_chunks_retrieved: number;
   /** P4 RAG 召回的片段详情。 */
   rag_chunks: RagChunkDetail[];
-  /** 当前使用的索引可能未包含最新章节。 */
-  stale_index?: boolean;
   /** 组装完成后的总输入 token 数。 */
   total_input_tokens: number;
   /** 被截断的层标识列表。 */
   truncated_layers: string[];
   /** 因 P5 预算不足而未注入的角色名列表。 */
   truncated_characters: string[];
-  /** 被注入的已确认章节数（FicForge Lite simple_assembler 全塞，完整模式只注入最近一章）。 */
-  chapters_injected?: number;
   /** M10-B: 本次组装中被冷区过滤（archived=true）、未进 P3 的 fact 数量。 */
   facts_archived_count: number;
 }

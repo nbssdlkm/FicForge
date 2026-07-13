@@ -3,7 +3,7 @@
 
 /** 全局配置领域对象。参见 PRD §3.3 settings.yaml。 */
 
-import { APIMode, LicenseTier, LLMMode } from "./enums.js";
+import { LLMMode } from "./enums.js";
 import { type LLMConfig, createLLMConfig } from "./project.js";
 import type { ModelKind } from "./provider_manifest.js";
 
@@ -168,21 +168,10 @@ export function isReactExtractionEnabled(app: { react_extraction_enabled?: boole
   return app?.react_extraction_enabled !== false;
 }
 
-export interface LicenseConfig {
-  tier: LicenseTier;
-  feature_flags: string[];
-  api_mode: APIMode;
-}
-
-export function createLicenseConfig(partial?: Partial<LicenseConfig>): LicenseConfig {
-  return {
-    tier: LicenseTier.FREE,
-    feature_flags: [],
-    api_mode: APIMode.SELF_HOSTED,
-    ...partial,
-  };
-}
-
+// LicenseConfig（tier/feature_flags/api_mode）已物理清退（盲审 R5 功能 L2）：round-trip 完整但
+// 全仓零门控消费者（付费分层脚手架未落地）。旧 settings.yaml 里的 `license:` 键读取时容忍忽略；
+// 待真正做分层时按当时设计重建，不留断线死配置。同下方 SyncConfig 退役同款口径。
+//
 // SyncConfig/WebDAV 序列化链已物理清退（2026-07-09 盲审 + D-0040 同步退役落实）：
 // 多设备同步引擎 M7 已删除，此前仅剩「序列化 + secure-key spec」死管线。旧 settings.yaml
 // 里的 `sync:` 键读取时容忍忽略；keyring 中遗留的 settings.sync.webdav.password 条目
@@ -195,7 +184,6 @@ export interface Settings {
   model_params: Record<string, ModelParams>;
   embedding: EmbeddingConfig;
   app: AppConfig;
-  license: LicenseConfig;
   /** 用户自定义供应商清单（选择器方案 B 硬性要求）。 */
   custom_providers: CustomProviderEntry[];
   /** 每供应商「已启用模型」（拉取清单勾选写入）。key = providerId（内置或自定义）。 */
@@ -209,7 +197,6 @@ export function createSettings(partial?: Partial<Settings>): Settings {
     model_params: {},
     embedding: createEmbeddingConfig(),
     app: createAppConfig(),
-    license: createLicenseConfig(),
     custom_providers: [],
     enabled_models: {},
     ...partial,

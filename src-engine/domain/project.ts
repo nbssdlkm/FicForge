@@ -154,8 +154,6 @@ export interface Project {
 
   chapter_length: number;
   writing_style: WritingStyle;
-  ignore_core_worldbuilding: boolean;
-  agent_pipeline_enabled: boolean;
 
   cast_registry: CastRegistry;
   core_always_include: string[];
@@ -164,8 +162,9 @@ export interface Project {
   rag_decay_coefficient: number;
   embedding_lock: EmbeddingLock;
   core_guarantee_budget: number; // D-0015
-
-  current_branch: string;
+  // 已清退死字段（盲审 R5 功能 L1，全仓零消费者）：ignore_core_worldbuilding /
+  // agent_pipeline_enabled（M6 未排期脚手架，D-0043）/ current_branch（分支同步已退役，D-0040）。
+  // 存量 project.yaml 若仍含这些键：dictToProject 不再读取（静默忽略），下次 save 自然不再写出。
 }
 
 export function createProject(partial: Pick<Project, "project_id" | "au_id"> & Partial<Project>): Project {
@@ -180,15 +179,12 @@ export function createProject(partial: Pick<Project, "project_id" | "au_id"> & P
     model_params_override: {},
     chapter_length: DEFAULT_CHAPTER_LENGTH,
     writing_style: createWritingStyle(),
-    ignore_core_worldbuilding: false,
-    agent_pipeline_enabled: false,
     cast_registry: createCastRegistry(),
     core_always_include: [],
     pinned_context: [],
     rag_decay_coefficient: DEFAULT_RAG_DECAY_COEFFICIENT,
     embedding_lock: createEmbeddingLock(),
     core_guarantee_budget: 400,
-    current_branch: "main",
     ...partial,
   };
 }

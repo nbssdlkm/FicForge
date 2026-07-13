@@ -5,7 +5,7 @@
 
 import * as yaml from "js-yaml";
 import type { PlatformAdapter } from "../../platform/adapter.js";
-import { APIMode, LicenseTier, LLMMode } from "../../domain/enums.js";
+import { LLMMode } from "../../domain/enums.js";
 import { dictToLLMConfig } from "../../domain/project.js";
 import type {
   AppConfig,
@@ -13,7 +13,6 @@ import type {
   CustomProviderEntry,
   EmbeddingConfig,
   FontsConfig,
-  LicenseConfig,
   ModelParams,
   Settings,
 } from "../../domain/settings.js";
@@ -23,7 +22,6 @@ import {
   createCustomProviderEntry,
   createEmbeddingConfig,
   createFontsConfig,
-  createLicenseConfig,
   createModelParams,
   createSettings,
 } from "../../domain/settings.js";
@@ -257,15 +255,6 @@ function dictToAppConfig(d: Record<string, unknown> | null): AppConfig {
   });
 }
 
-function dictToLicenseConfig(d: Record<string, unknown> | null): LicenseConfig {
-  if (!d) return createLicenseConfig();
-  return createLicenseConfig({
-    tier: LicenseTier[(d.tier as string)?.toUpperCase() as keyof typeof LicenseTier] ?? LicenseTier.FREE,
-    feature_flags: (d.feature_flags as string[]) ?? [],
-    api_mode: APIMode[(d.api_mode as string)?.toUpperCase() as keyof typeof APIMode] ?? APIMode.SELF_HOSTED,
-  });
-}
-
 /**
  * 用户模型条目映射。
  * 注意：contextWindow / maxOutputTokens **只在 YAML 里真有数值时才设置** ——
@@ -329,7 +318,7 @@ function dictToSettings(d: Record<string, unknown>): Settings {
     model_params: dictToModelParams(d.model_params as Record<string, unknown> | null),
     embedding: dictToEmbeddingConfig(d.embedding as Record<string, unknown> | null),
     app: dictToAppConfig(d.app as Record<string, unknown> | null),
-    license: dictToLicenseConfig(d.license as Record<string, unknown> | null),
+    // 旧 settings.yaml 的 `license:` 键不再映射（付费分层脚手架清退，盲审 R5 功能 L2）→ 读取时容忍忽略
     // 旧 settings.yaml 的 `sync:` 键不再映射（D-0040 同步退役落实）→ 读取时容忍忽略
     // 旧 settings.yaml 无以下两字段 → 各自回退空集合（向后兼容，读入不炸）
     custom_providers: dictToCustomProviders(d.custom_providers),

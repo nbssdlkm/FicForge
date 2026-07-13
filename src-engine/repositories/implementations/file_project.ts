@@ -240,8 +240,7 @@ function dictToProject(d: Record<string, unknown>, au_id: string): Project {
       ? { chapter_length: d.chapter_length }
       : {}),
     writing_style: dictToWritingStyle(d.writing_style as Record<string, unknown> | null),
-    ignore_core_worldbuilding: (d.ignore_core_worldbuilding as boolean) ?? false,
-    agent_pipeline_enabled: (d.agent_pipeline_enabled as boolean) ?? false,
+    // ignore_core_worldbuilding / agent_pipeline_enabled 已清退（盲审 R5 功能 L1）——旧 YAML 若含则静默忽略。
     cast_registry: dictToCastRegistry(d.cast_registry as Record<string, unknown> | null),
     core_always_include: (d.core_always_include as string[]) ?? [],
     pinned_context: (d.pinned_context as string[]) ?? [],
@@ -252,6 +251,6 @@ function dictToProject(d: Record<string, unknown>, au_id: string): Project {
     ...(typeof d.core_guarantee_budget === "number" && Number.isFinite(d.core_guarantee_budget)
       ? { core_guarantee_budget: d.core_guarantee_budget }
       : {}),
-    ...(typeof d.current_branch === "string" && d.current_branch ? { current_branch: d.current_branch } : {}),
+    // current_branch 已清退（分支同步退役 D-0040，盲审 R5 功能 L1）——旧 YAML 若含则静默忽略。
   });
 }

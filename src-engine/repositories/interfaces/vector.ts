@@ -54,9 +54,6 @@ export interface VectorRepository {
   /** 删除指定来源文件的向量索引。 */
   delete_by_source(au_id: string, source_file: string): Promise<void>;
 
-  /** 重建 AU 的全部向量索引。 */
-  rebuild_index(au_id: string): Promise<void>;
-
   /** 获取索引状态。 */
   get_index_status(au_id: string): Promise<IndexStatus>;
 }

@@ -108,9 +108,6 @@ describe("generateChapter", () => {
     expect(data.draft_label).toBe("A");
     expect(data.full_text).toBe("你好世界");
     expect(data.generated_with.model).toBe("test-model");
-
-    const contextEvent = events.find((e) => e.type === "context_summary")!;
-    expect((contextEvent.data as any).stale_index).toBe(true);
   });
 
   it("idempotent control rejects concurrent generation", async () => {
@@ -295,7 +292,7 @@ describe("generateChapter", () => {
     expect(events.find((e) => e.type === "done")).toBeTruthy();
   });
 
-  it("runs RAG when index_status is STALE and marks stale_index", async () => {
+  it("runs RAG when index_status is STALE", async () => {
     const searchSpy = vi.fn(async (_auId: string, _queryEmbedding: number[], options: { collection: string }) => {
       if (options.collection !== "chapters") return [];
       return [
@@ -312,7 +309,6 @@ describe("generateChapter", () => {
       search: searchSpy,
       async delete_by_chapter() {},
       async delete_by_source() {},
-      async rebuild_index() {},
       async get_index_status() {
         return IndexStatus.READY;
       },
@@ -348,7 +344,6 @@ describe("generateChapter", () => {
     const contextEvent = events.find((e) => e.type === "context_summary")!;
     const summary = contextEvent.data as any;
     expect(searchSpy).toHaveBeenCalled();
-    expect(summary.stale_index).toBe(true);
     expect(summary.rag_chunks_retrieved).toBe(1);
     expect(summary.rag_chunks).toMatchObject([{ collection: "chapters", chapter_num: 1 }]);
   });

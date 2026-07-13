@@ -68,7 +68,6 @@ describe("Domain object factories — field names and defaults match Python", ()
     expect(p.cast_registry.characters).toEqual([]);
     expect(p.core_guarantee_budget).toBe(400);
     expect(p.rag_decay_coefficient).toBe(0.05);
-    expect(p.current_branch).toBe("main");
   });
 
   it("createSettings defaults", () => {

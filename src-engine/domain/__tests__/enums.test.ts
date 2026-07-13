@@ -3,13 +3,11 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  APIMode,
   EmotionStyle,
   FactSource,
   FactStatus,
   FactType,
   IndexStatus,
-  LicenseTier,
   LLMMode,
   NarrativeWeight,
   OpType,
@@ -68,16 +66,6 @@ describe("Enums match Python values", () => {
   it("EmotionStyle values", () => {
     expect(EmotionStyle.IMPLICIT).toBe("implicit");
     expect(EmotionStyle.EXPLICIT).toBe("explicit");
-  });
-
-  it("LicenseTier values", () => {
-    expect(LicenseTier.FREE).toBe("free");
-    expect(LicenseTier.PRO).toBe("pro");
-  });
-
-  it("APIMode values", () => {
-    expect(APIMode.SELF_HOSTED).toBe("self_hosted");
-    expect(APIMode.MANAGED).toBe("managed");
   });
 
   it("Provenance values", () => {

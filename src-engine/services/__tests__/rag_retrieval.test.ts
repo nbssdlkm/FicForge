@@ -34,7 +34,6 @@ function createMockVectorRepo(chunks: Record<string, SearchResult[]>): VectorRep
     async index_chunks(_c: VectorChunk[]) {},
     async delete_by_chapter() {},
     async delete_by_source() {},
-    async rebuild_index() {},
     async get_index_status() {
       return IndexStatus.READY;
     },
@@ -259,7 +258,6 @@ describe("retrieveRagForContext (融合:RAG 编排单一真相源)", () => {
       async index_chunks(_c: VectorChunk[]) {},
       async delete_by_chapter() {},
       async delete_by_source() {},
-      async rebuild_index() {},
       async get_index_status() {
         return IndexStatus.READY;
       },
@@ -350,7 +348,6 @@ describe("retrieveRagForContext (融合:RAG 编排单一真相源)", () => {
       async index_chunks(_c: VectorChunk[]) {},
       async delete_by_chapter() {},
       async delete_by_source() {},
-      async rebuild_index() {},
       async get_index_status() {
         return IndexStatus.READY;
       },

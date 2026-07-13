@@ -5,7 +5,6 @@
 
 // Enums
 export {
-  APIMode,
   EmotionStyle,
   FactSource,
   FACT_SOURCE_VALUES,
@@ -14,7 +13,6 @@ export {
   FactType,
   FACT_TYPE_VALUES,
   IndexStatus,
-  LicenseTier,
   LLMMode,
   NarrativeWeight,
   NARRATIVE_WEIGHT_VALUES,
@@ -80,7 +78,6 @@ export type {
   CustomProviderEntry,
   EmbeddingConfig,
   FontsConfig,
-  LicenseConfig,
   ModelParams,
   Settings,
 } from "./settings.js";
@@ -90,7 +87,6 @@ export {
   createCustomProviderEntry,
   createEmbeddingConfig,
   createFontsConfig,
-  createLicenseConfig,
   createModelParams,
   createSettings,
   isReactExtractionEnabled,

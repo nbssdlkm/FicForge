@@ -9,7 +9,6 @@
 
 import type { BudgetReport } from "../domain/budget_report.js";
 import type { ContextSummary } from "../domain/context_summary.js";
-import { IndexStatus } from "../domain/enums.js";
 import type { Fact } from "../domain/fact.js";
 import type { Thread } from "../domain/thread.js";
 import type { GeneratedWith } from "../domain/generated_with.js";
@@ -209,10 +208,9 @@ export async function* generateChapter(params: GenerateChapterParams): AsyncGene
       worldbuilding_files = await loadMdFiles(adapter, joinPath(au_id, "worldbuilding"));
     }
 
-    // === 步骤 1.8：RAG 检索（STALE 时也尝试召回，并在 summary 标记索引可能过期）===
+    // === 步骤 1.8：RAG 检索（STALE 时也尝试召回）===
     // RAG 编排已抽到 rag_retrieval.ts:retrieveRagForContext（单一真相源,对话路径共用,融合 plan §1.0）。
     // 融合后无简版,写文生成期 RAG 恒开:原 disableRAG gate 已删（full 模式本就 disableRAG=false,逐字节不变）。
-    const indexReady = state.index_status === IndexStatus.READY;
     let ragChunksDetail: ChunkWithCollection[] = [];
     if (rag_text === null && vector_repo && embedding_provider) {
       const rag = await retrieveRagForContext({
@@ -262,7 +260,6 @@ export async function* generateChapter(params: GenerateChapterParams): AsyncGene
     if (ragChunksDetail.length > 0) {
       context_summary.rag_chunks_retrieved = context_summary.rag_chunks.length;
     }
-    context_summary.stale_index = !indexReady;
 
     // === 步骤 2.5：yield context_summary ===
     yield { type: "context_summary", data: context_summary };

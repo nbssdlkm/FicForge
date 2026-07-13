@@ -101,6 +101,35 @@ describe("FileSettingsRepository secure fields (P0-3)", () => {
   });
 });
 
+describe("FileSettingsRepository tolerant read of retired keys", () => {
+  it("旧 settings.yaml 含已清退的 license 块：读取容忍忽略、不炸、其余字段正常（盲审 R5 功能 L2）", async () => {
+    const adapter = new MockAdapter();
+    adapter.seed(
+      "settings.yaml",
+      [
+        "updated_at: '2026-01-01T00:00:00Z'",
+        "default_llm:",
+        "  mode: api",
+        "  model: gpt-4o",
+        "license:",
+        "  tier: pro",
+        "  feature_flags: [beta]",
+        "  api_mode: managed",
+        "app:",
+        "  language: en",
+      ].join("\n"),
+    );
+    const repo = new FileSettingsRepository(adapter, "");
+
+    // 不抛错，且 license 块被静默忽略（清退后无该属性）。
+    const s = await repo.get();
+    expect((s as unknown as { license?: unknown }).license).toBeUndefined();
+    // 其余字段照常读入。
+    expect(s.default_llm.model).toBe("gpt-4o");
+    expect(s.app.language).toBe("en");
+  });
+});
+
 describe("FileSettingsRepository embedding fallback removed (P1-4)", () => {
   it("embedding.api_key 为空时不再自动复用 default_llm.api_key", async () => {
     const adapter = new MockAdapter();
