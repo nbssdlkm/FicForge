@@ -32,6 +32,8 @@
 ## D. 测试与验证
 
 - [ ] 引擎 + UI 测试全绿；双包 tsc 0 错
+- [ ] 双包 lint 0 error（**必须逐包跑** `cd src-engine|src-ui && npm run lint`——仓库根裸 `npx biome` 是假 shim 会静默通过，2026-07-12 E 批实证）；动过的文件已 format
+- [ ] 若动了依赖：双包 `npm audit` 无新增漏洞；lockfile 无镜像源混入（grep npmmirror = 0）
 - [ ] i18n key 对称检查通过
 - [ ] 新增 / 修改行为有判别性测试（round-trip 闭环、失败路径优先于快乐路径）
 - [ ] 非平凡改动已过独立对抗审；可在浏览器观察的 UI 改动已 preview 眼验

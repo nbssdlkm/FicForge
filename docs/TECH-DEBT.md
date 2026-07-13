@@ -481,6 +481,10 @@ E1 落地 Biome 时 a11y 规则组报 129 错（noLabelWithoutControl 78 / useBu
 useKeyWithClickEvents 20 等），属审计范围外新标准，降 warn 挂账防失守。独立批次还：
 先机械件（useButtonType 加 type 属性），再逐组件件（label 关联/键盘可达）。
 
+**同池挂账**：useExhaustiveDependencies 约 117 条 warn（Biome 该规则比 eslint 版激进，
+与本仓 ref-shim 约定天然冲突；17 处有意省依赖已转 biome-ignore 带理由，其余为低优先
+噪声——逐处判定「真缺依赖 bug vs 有意省」后加注或修，可与 a11y 批同池渐进还）。
+
 ## TD-020: 别名归一化的索引侧与导入侧缺口（E8 评估后另卡）
 
 **状态:** ⏳ 未排期（E8 2026-07-12 评估记账）
