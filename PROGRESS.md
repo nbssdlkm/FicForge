@@ -5,6 +5,8 @@
 
 ## 当前状态（2026-07-09/12）
 
+**2026-07-12 收尾账会话（F 批四连 + R5 盲审 87.2/B——五轮首次零 HIGH；5 commit 本地 main 未 push，等发话）**：①E 批 15 commit 已 push（`8371b2a..264d27e`，fetch 核无分叉）。②F1 `3c79d16` R3 低危残余 16 条逐条核实（13 修 / 2 已消解 / 1 裁决成文 ApiError 判据入 JSDoc）：assembleContext 参数对象化、正则转义单源、logCatch console 降级、RestoreBundleModal 补「去补全记忆」直达按钮、AuWorkspaceLayout 里程碑子域下沉 useWorkspaceMilestones、react_extraction_enabled 判据单源等。③F2 `1b1ba53` TD-021 收尾：frontmatter 写侧统一真 YAML（引擎 dumpFrontmatterKey 单源，**顺手修实锤漂移 bug——流式别名在 modify 路径被静默丢弃**）+ 工具 schema 金标逐字节锁定 + zod 派生评估=漂移不强推（有意裁决）。④F3 `86df201` TD-019 债清偿：a11y 147 处三路并行修复 + exhaustive-deps 112 处逐处判定（真 bug 0）+ **九条围栏升 error 上闸**；对抗审双路整改 9 处（codex 抓获真 HIGH：章节行键盘处理吞改名输入框空格——target 守卫根治并扩面 4 处；MobileChapterList 重构消非法嵌套）；preview 全流程冒烟零 console 错误，顺手抓共享 Button 缺默认 type 的围栏盲区。⑤F4 `9b8005e` TD-020 收尾（**记账前提被推翻**：分片全存 content，metadata 重扫零 embedding 花费；用户裁定上线前直接做）：别名表穿线 chunker 全链 + 四点供表 + 免嵌重扫挂 recalc/角色卡增删改/恢复（latest-only 队列 + persist 失败驱逐自愈）+ 文本导入供表（顺手修「连 registry 都没供」的存量缺陷）。⑥R5 盲审 `docs/internal/audit/2026-07-12-blind-audit-round5.md`：**87.2/B 五轮最高**（R1 55 → R2 84.1 → R3 83.2 → R4 81.5 → R5 87.2），41 条（**0 高**/12 中/29 低），R4 三 HIGH 与 E 批 42 修复零复现，F1-F4 零复现，四审员盲态正面背书；12 M 全部主审实证坐实，**只报未修等拍板（是否开 G 批）**。终验：引擎 **1529+3** / UI **645** / 双 tsc 0 / 双包 lint 0 error（九围栏 error 常驻）/ i18n **1289** 对称。每批 opus 对抗审，F3/F4 另加 chi codex 路（均 needs-fix→采纳整改）。
+
 **2026-07-12 E 批修复战役（R4 48 条全量治本，15 commit 本地 main 未 push——含收口对账 commit，数字以 `git log origin/main..HEAD` 为准）**：用户拍板「能修的都修、往治本做、出干净版本」→ loop 修-审-修循环跑完 E1-E10 全部批次，每批 opus 对抗审（E2/E3/E4/E5 另加 chi codex 路，审出即整改）。**机制两枪**：E1 Biome 2.5.3 工具链落地（TS7 与 typescript-eslint peer 冲突故选型 Biome；451 文件一次性格式化入 blame-ignore、lint 违例清零、tsconfig ES2022、命名/any/console 围栏常驻——规范维「修一批长一批」的闸门）+ E3 lore/fandom 持久化下沉引擎（新 lore_service/fandom_service，路径安全白名单回归引擎，UI 薄转发，UI 585 测试零改动全绿=行为锁；架构 HIGH 闭环）。E2 单源化 18 项（dictToLLMConfig/模型参数默认/PROJECT_YAML/衰减公式/importance 枚举/GeneratedWith/resolveLang/frontmatter 判据 safeMatter 单源化；revision「漂移」勘误为有意读写约定）。E4 架构拆分（dispatch 1193→823+3 职责文件、FactsLayout 1209→260+6 文件、双执行器合流翻案**抓获真漂移 bug**、setX 动词化、visibility 收编 PlatformAdapter——用户点名深审件，opus D+ 六点全过）。E5 长尾 15 项（atomicWrite 收编、snapshot at-least-once 不变量、Object.hasOwn、CSP connect-src 收窄 localhost+告警收尾、i18n 硬编码文案、DOCX/local 死桩清理、swallowToNull 18 处、别名 YAML 序列化加引号根治+replace \$ 注入连带修复）。E6 测试批（UI +40：api 层直测 20/mock 工厂 23 文件收编/95 空转断言换实质/memo 改渲染计数/hooks 补测）。E7 依赖（死依赖清理、esbuild 漏洞归零、**lockfile 官方源重生成——R3-M12 销账**、双包 audit 0）。E8 别名扩展接通（rag 查询侧+confirm/undo/dirty/recalc 五点供表，判别测试带 null 对照；chunker 索引侧与 import 供表时机另卡 TD-020）。E9 命名收敛（**110 个 snake 函数 AST 级改名 153 文件**，op_type 数据串零触碰实证，useNamingConvention 围栏上线，长期债①四轮点名闭环+R3-M10 顺手）。E10 终验：双 tsc 0 / 引擎 **1506+3** / UI **635** / 双包 lint 0 error / 双包 audit 0 / i18n **1287** 对称 / vite 生产构建成功 / **preview 冒烟全程 console 零错误**（图书馆→工作区双 tab→剧情笔记→设定页）。裁决保留 5 项在案（style-src inline=framer-motion 依赖、coming_soon 扩展点、fonts document=浏览器实现层本体、组件定义风格=无工具支持纯观感、vite 8 大版本=分发前夕不动打包器 TD-018）。48 条逐条对账表见审计报告「E 批」段。
 
 **2026-07-12 第四轮九维盲审（同口径，防锚定：打分封板后才开盲对照；只报未修，等拍板）**：**81.5/B**（R1 55/F → R2 84.1 → R3 83.2 → R4 81.5），48 发现（3 高 / 15 中 / 30 低）。产品风险四维全部历史最佳位（正确性 **92**——四轮首次零中高危、安全 91、功能 89、测试 87）：**D 批 + M3 三批 + 别名表 17 commit 被独立复测证实零回归**（R3 两条 HIGH 双双消失且安全审员主动确认防御纵深，10/10 治本项复现率 0）。下探全来自家务债三维（架构 61 / 重复 59 / 规范 57），其中约半为严重度口径方差（敏感性：规范 2H 按前三轮 M 口径计则总分 83.1 ≈ 持平 R3）。3 条 HIGH 均为老存量非回归：①全仓无 lint/format 工具链（四轮 27 个盲审员共同盲区，正是重复/规范维「修一批长一批」的机制根因）；②lore/fandom 持久化住在 UI api 层直连 adapter（引擎旁路 16 处 raw I/O + 路径安全白名单定义在 UI）；③引擎 snake/camel 双命名体系（长期债①第四次点名、本轮升格）。重复维 7M 含 dictToProject revision 默认已实际漂移（0 vs 1）实锤。采样方差两面实证：R3-M12 镜像 registry 仍在但本轮漏报（主审复核 engine 24/UI 140 处 npmmirror）；rag 检索别名缺口被独立命中（=别名表验收时已挂的后续卡）。报告全录 + E 批拍板五段：`docs/internal/audit/2026-07-12-blind-audit-round4.md`。
@@ -46,9 +48,11 @@
 ### 需要人工（真机/异机，代码无法覆盖）
 - [x] ~~push 总账~~（**2026-07-12 已全部 push**，origin/main=`2354df1`：第二轮盲审、B 批 ×8、C 批 ×7、第三轮盲审、D 批 ×9、M3 三批 ×3、别名表接通及全部文档；推前把远端他处先行的 DESIGN-SYSTEM v2 `3c968cf` 干净合入。上面各条目里的「未 push 等确认」措辞均已过时，以此条为准）
 - [x] **M3 产品拍板**（2026-07-11 已拍板并开工）：三字段建功能，分三批。方向修正：hidden_from 不是 POV 门控，是**角色知情边界**（与人称无关）——批一 = 知情标注注入（行尾人话标注 + 条件图例 + 提示式不硬藏）+ 人工可见可改（确认弹窗/卡片只读 chips + 编辑弹窗四态编辑 + 人改升 high 必生效）+ edit_fact 消毒硬化；批二 = story_time_order 同章内呈现排序；批三 = story_time_tag 卡片小标签。spec：`docs/superpowers/specs/2026-07-11-m3-fact-consumption-handoff.md` + 本会话四路实施前调查。**三批全部交付（见当前状态前两条）；剩余=别名表接通（独立会话进行中）**
-- [ ] **push E 批总账**（15 commit：`b2de3d3`…收口 commit，全部本地 main）——等用户发话；推前必 fetch 核分叉（他机可能先推）
-- [ ] **R3 低危残余专项清扫**（约 17 条：R3 报告 24 条低危中未被 R4 重新点名的部分，如 RestoreBundleModal 补记忆引导无按钮、assemble 12 位置参数、正则转义三处等——R4 对账范围是自己的 48 条，这批推定仍在；半天量级，清单见 `docs/internal/audit/2026-07-11-blind-audit-round2.md` 第三轮「低危（24 条，摘要）」段）
-- [ ] **R5 复测盲审**（可选）：同口径第五轮，验证 E 批成效分数（预期上探：3 高危清零 + 双机制围栏在岗）
+- [x] ~~push E 批总账~~（**2026-07-12 已 push**，`8371b2a..264d27e`，fetch 核无分叉）
+- [ ] **push F 批总账**（5 commit 本地 main：F1 `3c79d16` / F2 `1b1ba53` / F3 `86df201` / F4 `9b8005e` / R5 报告收口 commit）——等用户发话；推前必 fetch 核分叉
+- [x] ~~R3 低危残余专项清扫~~（**2026-07-12 F1 已销账**：16 条逐条核实，13 修 / 2 已消解 / 1 裁决成文，见当前状态首条）
+- [x] ~~R5 复测盲审~~（**2026-07-12 已跑**：87.2/B 五轮最高、零 HIGH；报告 `docs/internal/audit/2026-07-12-blind-audit-round5.md`）
+- [ ] **G 批拍板**：R5 的 12 条 MEDIUM 是否开修复批、修多深（主审排序建议在报告「收官待决」节；首推正确性 M1 undo 边界 + 重复 M3 chapter_length 1500/2000 实值漂移）
 - [x] ~~M12 环境侧~~（**2026-07-12 E7 已销账**：本机官方 registry 重生成双包 lockfile，npmmirror 残留 0/0，双包 audit 0）
 - [x] ~~盲审修复批 push~~（2026-07-12 核对：`647e67c` 已在 origin/main，此条早已完成）
 - [x] ~~长期债③测试批合入~~（2026-07-12 核对：分支已删、测试已在 main——引擎/UI 现行总数即含它们）
@@ -67,7 +71,7 @@
 - [x] **两剩项治本**（用户追问「怎么还有剩项」→ 做完）`a8160d6`：①per-model 上下文窗口**可覆盖**——工作流 trace 证实生成端 `get_context_window` 优先认保存的 `context_window`（覆盖真生效非假功能），解锁权威模型 ctx 编辑 + 恢复默认 + 自动校正放宽为「仅空值 seed」②覆盖备份**进回收站列表**——`backupBeforeOverwrite` 写完 sidecar 后 append 单文件 TrashEntry（`overwrite_backup` 类型、`cast_registry_removed:false` 复用 LOW-3 门），restore/list/purge/permanent_delete 单文件分支原生正确、零改动。对抗审采纳 3 发现（backup id 4→8 位防碰撞、trashSource 检查前移、ctx 纳入脏快照）。
 
 ### 技术债
-- ✅ **全部闭环**：TD-001…TD-017 全部已修复 / 已消解（2026-07-09 TD-017 收官）。
+- ✅ **全部闭环**：TD-001…TD-021 全部已修复 / 已消解 / 已裁决（2026-07-12 F 批收官：TD-019 a11y+deps 债清偿、TD-020 别名索引侧接通、TD-021 写侧统一+金标；TD-018 vite 8 为**有意延期裁决**——分发前夕不动打包器，非 open 债）。
 
 ### 长期债（盲审 2026-07-09 判定为低息，渐进还）
 - [ ] snake/camel 命名同文件混用（迁移遗产，5 文件 + React 组件声明风格）。**盲审 R3 新增两个具体实例**：M10 file_thread/chapter_summary 实现层用 auPath（C6 第一层明确记账的「第二层」，纯参数名）；M11 domain/simple_chat.ts camelCase 持久化键（改键破坏存量 simple-chat.yaml 读取，需 tolerant-read 迁移层）。随命名统一批次推进。
