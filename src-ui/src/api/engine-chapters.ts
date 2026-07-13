@@ -8,8 +8,8 @@
  */
 
 import {
-  confirmChapter as engineConfirmChapter,
-  undoLatestChapter,
+  confirmChapterWithMemory,
+  undoChapterWithMemory,
   resolveDirtyChapter as engineResolveDirtyChapter,
   editChapterContent,
   chapterInflightKey,
@@ -18,25 +18,21 @@ import {
   resolveLlmConfig,
   createProvider,
   generateStandardSummary,
-  generateMicroSummary,
   persistChapterSummary,
   findChaptersMissingSummary,
   addFact,
   backfillChapterMemory as engineBackfillChapterMemory,
   type BackfillMemoryTarget,
   type BackfillMemoryResult,
-  generateRetrospective,
-  commitRetrospective,
-  shouldRunRetrospective,
-  RETROSPECTIVE_INTERVAL,
-  generateChapterTitle,
   createOpsEntry,
   generateOpId,
   logCatch,
   nowUtc,
   WriteTransaction,
   withAuLock,
+  type EmbeddingProvider,
   type GeneratedWith,
+  type LLMProvider,
   type FactChange,
 } from "@ficforge/engine";
 import { logUiError } from "../utils/ui-logger";
@@ -86,20 +82,30 @@ export async function confirmChapter(
     );
   }
   const e = getEngine();
-  const { chapter, draft, state, ops, settings } = e.repos;
+  const { chapter, draft, state, ops, chapterSummary, settings } = e.repos;
   const proj = await getProjectOrThrow(auPath);
+  const sett = await settings.get();
   // E8：别名表供 scanCharactersInChapter 归一化 —— 正文只出现别名时 characters_last_seen 记主名，
   // 与提取/RAG 侧共用同一张表。get 异步且永不抛错（无角色卡 → null，扫描逐字节回退现状）。
   const characterAliases = await e.characterAliases.get(auPath);
-  // M1a：记录 confirm 前的 index_status。engineConfirmChapter 内部会悲观置 STALE，
-  // 增量索引成功后是否升回 READY 取决于 confirm 之前索引是否本就完整（见下方注释）。
-  let preConfirmIndexStatus: IndexStatus | null = null;
+  // 记忆层 provider 由 UI 从 settings/project 构建后注入引擎编排服务（M1 下沉）。构建失败
+  // 降级为 null —— 引擎服务对应分支整段跳过（等价原实现里标题/索引/摘要/回望各自 try 吞错后
+  // 跳过生成），绝不阻断确认本身。核心 confirm 的前置读取（project/settings/别名）失败仍在
+  // 调服务前抛出，与既有行为一致（getProjectOrThrow 本就前置）。
+  const language = resolveLang(sett);
+  let embProvider: EmbeddingProvider | null = null;
+  let llmProvider: LLMProvider | null = null;
   try {
-    preConfirmIndexStatus = (await state.get(auPath)).index_status;
-  } catch {
-    // state 读取失败 → 视为未知，保守不升 READY（首章除外）
+    embProvider = createEmbeddingProvider(sett, proj) ?? null;
+    const llmCfg = resolveLlmConfig(null, proj, sett);
+    // llm_provider 非 null ⇔ 原 canGen：api 有 key / ollama（key 可空，引擎填 dummy）。
+    const canGen = llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key);
+    llmProvider = canGen ? createProvider(llmCfg) : null;
+  } catch (err) {
+    logUiError("engine-chapters", "构建记忆层 provider 失败，记忆栈跳过", err);
   }
-  const result = await engineConfirmChapter({
+
+  return confirmChapterWithMemory({
     au_id: auPath,
     chapter_num: chapterNum,
     draft_id: draftId,
@@ -111,189 +117,13 @@ export async function confirmChapter(
     draft_repo: draft,
     state_repo: state,
     ops_repo: ops,
+    chapter_summary_repo: chapterSummary,
+    rag_manager: e.ragManager,
+    embedding_provider: embProvider,
+    llm_provider: llmProvider,
+    language,
+    title,
   });
-
-  const sett = await settings.get();
-
-  // Update title: use provided title, or auto-generate via LLM
-  let finalTitle = title;
-  if (!finalTitle) {
-    try {
-      const llmConfig = resolveLlmConfig(null, proj, sett);
-      // 标题生成是纯 chat 调用，api 和 ollama 都能跑；local 暂未实现。
-      // api 模式必须有 api_key，ollama 模式 key 可为空（引擎会填 dummy）。
-      const canGenerate = llmConfig.mode === "ollama" || (llmConfig.mode === "api" && !!llmConfig.api_key);
-      if (canGenerate) {
-        const provider = createProvider(llmConfig);
-        const chContent = await chapter.get_content_only(auPath, chapterNum);
-        const lang = resolveLang(sett);
-        finalTitle = await generateChapterTitle(chContent, lang, provider);
-      }
-    } catch (err) {
-      // AI 标题生成失败 → 回退为无自动标题（非致命）。但要留痕：引擎侧 F1 已补痕，
-      // 此 UI 包装层此前整段静默是同族残边（盲审 R5 日志 L2）。
-      logUiError("engine-chapters", "AI 章节标题生成失败，跳过自动标题", err);
-    }
-  }
-  if (finalTitle) {
-    // 原子更新：读取最新 state → 修改 title → WriteTransaction 保证 D-0036 顺序。
-    // AU 锁保证：engineConfirmChapter 释放锁后到这里写 title 前（LLM 生成 title 可能耗时），
-    // 如果用户发起 undo / edit 等操作，它们会和本段串行，不会覆盖中间状态。
-    await withAuLock(auPath, async () => {
-      const st = await state.get(auPath);
-      st.chapter_titles[chapterNum] = finalTitle;
-      const tx = new WriteTransaction();
-      tx.appendOp(
-        auPath,
-        createOpsEntry({
-          op_id: generateOpId(),
-          op_type: "set_chapter_title",
-          target_id: auPath,
-          chapter_num: chapterNum,
-          timestamp: nowUtc(),
-          payload: { title: finalTitle },
-        }),
-      );
-      tx.setState(st);
-      await tx.commit(ops, null, state);
-    });
-  }
-
-  // Index the confirmed chapter for RAG (F7) — delegated to RagManager
-  try {
-    const embProvider = createEmbeddingProvider(sett, proj);
-    if (embProvider) {
-      const chContent = await chapter.get_content_only(auPath, chapterNum);
-      // TD-020：别名表串入 chunker——通篇只用别名的块，characters 标签也记主名（char_filter 可命中）
-      await e.ragManager.indexChapter(auPath, chapterNum, chContent, embProvider, proj.cast_registry, characterAliases);
-      // confirmChapter 里先悲观标记 STALE；增量索引成功后仅在两种情形升回 READY（M1a）：
-      //  - confirm 前就是 READY —— 本次增量索引把索引重新补齐到完整；
-      //  - 首章 confirm（chapterNum === 1，此前零章）—— 索引天然完整，否则新 AU 永远卡 STALE。
-      // confirm 前已是 STALE / INTERRUPTED → 保持不动：index_status 是单 bit，无法区分 stale
-      // 成因（编辑未重索引 / backfill 半成功 / undo 清理失败 / 旧章从未索引…），而增量索引
-      // 只覆盖本章 —— 无条件升 READY 会掩盖既有降级提示。存量 STALE 由「重建索引」或
-      // backfill 全量成功（M1b）解除。
-      if (preConfirmIndexStatus === IndexStatus.READY || chapterNum === 1) {
-        await withAuLock(auPath, async () => {
-          await e.repos.state.update(auPath, (st) => {
-            st.index_status = IndexStatus.READY;
-          });
-        });
-      }
-    }
-  } catch (err) {
-    // RAG indexing failure doesn't block confirm；保留 STALE 作为真实状态。
-    logCatch("rag", `Failed to index chapter ${chapterNum} after confirm`, err);
-  }
-
-  // M8-C：章节摘要生成。独立 best-effort 边界，放在 RAG 索引 / READY 升级之后/之外
-  // —— 摘要失败绝不影响 index_status 或章节确认（决策② / codex MAJOR5）。
-  try {
-    const embProvider = createEmbeddingProvider(sett, proj);
-    const llmCfg = resolveLlmConfig(null, proj, sett);
-    const canGen = llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key);
-    if (embProvider && canGen) {
-      const chContent = await chapter.get_content_only(auPath, chapterNum);
-      const lang = resolveLang(sett);
-      const llmProvider = createProvider(llmCfg);
-
-      // Standard 摘要：生成（慢 LLM）在锁外，落盘+索引在锁内 + CAS 校验（M8-C）
-      const summaryText = await generateStandardSummary(chContent, chapterNum, llmProvider, { language: lang });
-
-      // Micro 摘要：同样在锁外生成（M10-A）
-      const microText = await generateMicroSummary(chContent, chapterNum, llmProvider, { language: lang });
-
-      if (summaryText || microText) {
-        // 落盘在锁内，CAS 校验章节内容未被并发 undo/edit 改动
-        await withAuLock(auPath, async () => {
-          // CAS：章节被并发 undo 删除（get 返回 null）或内容已变 → 摘要作废不落盘
-          const ch = await chapter.get(auPath, chapterNum);
-          const stillCurrent = ch !== null && ch.content_hash === result.content_hash;
-          if (!stillCurrent) return;
-
-          // Standard 落盘 + 索引（M8-C）
-          if (summaryText) {
-            await persistChapterSummary({
-              auPath,
-              chapterNum,
-              text: summaryText,
-              contentHash: result.content_hash,
-              embeddingProvider: embProvider,
-              summaryRepo: e.repos.chapterSummary,
-              ragManager: e.ragManager,
-            });
-          }
-
-          // Micro 落盘（M10-A）：update_micro 合并写入，不进向量库
-          if (microText) {
-            try {
-              await e.repos.chapterSummary.update_micro(auPath, chapterNum, microText, result.content_hash);
-            } catch (microErr) {
-              logCatch("summary", `Failed to save micro summary for chapter ${chapterNum}`, microErr);
-            }
-          }
-        });
-      }
-    }
-  } catch (err) {
-    logCatch("summary", `Failed to generate chapter summary after confirm ${chapterNum}`, err);
-  }
-
-  // M10-A：Retrospective Rewrite。独立 best-effort 边界，在摘要生成之后运行。
-  // 触发条件：每 RETROSPECTIVE_INTERVAL 章，对 N-interval 章执行后见之明重写。
-  // 双阶段：锁外生成（慢 LLM）+ 锁内 CAS 写盘，防止并发 undo 产生孤儿 .summary.jsonl。
-  try {
-    if (shouldRunRetrospective(chapterNum, RETROSPECTIVE_INTERVAL)) {
-      const embProvider = createEmbeddingProvider(sett, proj);
-      const llmCfg = resolveLlmConfig(null, proj, sett);
-      const canGen = llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key);
-      if (embProvider && canGen) {
-        const targetChapterNum = chapterNum - RETROSPECTIVE_INTERVAL;
-
-        // Phase 1（锁外）：LLM 生成 v2 文本
-        const genResult = await generateRetrospective(
-          auPath,
-          targetChapterNum,
-          chapter,
-          e.repos.chapterSummary,
-          createProvider(llmCfg),
-          chapterNum,
-          { language: resolveLang(sett) },
-        );
-
-        // Phase 2（锁内）：CAS 校验章节还在，再写 v2 + 更新向量索引
-        if (genResult) {
-          await withAuLock(auPath, async () => {
-            let targetCh: Awaited<ReturnType<typeof chapter.get>>;
-            try {
-              targetCh = await chapter.get(auPath, targetChapterNum);
-            } catch {
-              return; // 章节已被 undo 删除 → 跳过
-            }
-            // CAS：章节仍在 **且内容未变**（content_hash 与 Phase1 读取时一致）才提交。
-            // 审计⑤：Phase1 慢 LLM 期间用户若编辑该历史章（编辑=作废旧摘要），content_hash 变化
-            // → 跳过提交，避免用「编辑前的旧正文」重建摘要 + 覆盖向量。与当前章摘要 / backfill 的 CAS 同口径。
-            if (!targetCh || targetCh.content_hash !== genResult.contentHash) return;
-
-            await commitRetrospective(
-              auPath,
-              targetChapterNum,
-              genResult,
-              e.repos.chapterSummary,
-              e.ragManager,
-              embProvider,
-              // L17：向量覆盖失败时置 index_status=STALE（既在 withAuLock 内，state 写锁安全）。
-              e.repos.state,
-            );
-          });
-        }
-      }
-    }
-  } catch (err) {
-    logCatch("retrospective", `Retrospective failed after ch${chapterNum}`, err);
-  }
-
-  return result;
 }
 
 export async function undoChapter(auPath: string) {
@@ -303,15 +133,7 @@ export async function undoChapter(auPath: string) {
   // E8：别名表供 undo 的 characters_last_seen 回滚 —— 快照缺失走全量重扫时（rebuildCharactersLastSeen）
   // 别名归一化记主名，与 confirm 侧同源。get 永不抛错（无角色卡 → null，重扫逐字节回退现状）。
   const characterAliases = await e.characterAliases.get(auPath);
-  // H9a：记录 undo 前的 index_status。undo 服务内部会悲观置 STALE（10 步级联，golden 逻辑不动）；
-  // 向量删除不需要 embedding，删除成功后索引即与剩余章节一致，可恢复原状态。
-  let preUndoIndexStatus: IndexStatus | null = null;
-  try {
-    preUndoIndexStatus = (await state.get(auPath)).index_status;
-  } catch {
-    // 读不到就不恢复，保持 undo 服务置下的 STALE
-  }
-  const result = await undoLatestChapter({
+  return undoChapterWithMemory({
     au_id: auPath,
     cast_registry: proj.cast_registry,
     character_aliases: characterAliases,
@@ -320,29 +142,9 @@ export async function undoChapter(auPath: string) {
     state_repo: state,
     ops_repo: ops,
     fact_repo: fact,
+    chapter_summary_repo: chapterSummary,
+    rag_manager: e.ragManager,
   });
-  // M8-C（codex 实现审 #3）：撤销删了章节，连带删其摘要文件，避免孤儿 .summary.jsonl。best-effort。
-  try {
-    await chapterSummary.remove(auPath, result.chapter_num);
-  } catch (err) {
-    logCatch("summary", `Failed to remove summary after undo ${result.chapter_num}`, err);
-  }
-  // H9a：undo = 用户明确拒绝该章 —— 删其正文 chunks + sum{N} 摘要向量（内存 + 落盘），
-  // 否则被拒正文以 decay=1 最高时间权重残留召回、污染重写。删除成功且 undo 前是 READY
-  // → 恢复 READY（索引仍完整）；删除失败 → 保持 undo 置下的 STALE，等「重建索引」修复。
-  try {
-    await e.ragManager.removeChapter(auPath, result.chapter_num);
-    if (preUndoIndexStatus === IndexStatus.READY) {
-      await withAuLock(auPath, async () => {
-        await state.update(auPath, (st) => {
-          st.index_status = IndexStatus.READY;
-        });
-      });
-    }
-  } catch (err) {
-    logCatch("rag", `Failed to remove vectors after undo ${result.chapter_num}`, err);
-  }
-  return result;
 }
 
 export async function updateChapterTitle(auPath: string, chapterNum: number, title: string) {

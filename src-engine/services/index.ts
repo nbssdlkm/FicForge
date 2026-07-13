@@ -103,6 +103,13 @@ export { confirmChapter, ConfirmChapterError } from "./confirm_chapter.js";
 export type { UndoChapterParams, UndoChapterResult } from "./undo_chapter.js";
 export { undoLatestChapter, UndoChapterError } from "./undo_chapter.js";
 
+// Chapter Memory Orchestration（M1：confirm/undo 记忆编排下沉引擎）
+export type {
+  ConfirmChapterWithMemoryParams,
+  UndoChapterWithMemoryParams,
+} from "./chapter_memory_orchestration.js";
+export { confirmChapterWithMemory, undoChapterWithMemory } from "./chapter_memory_orchestration.js";
+
 // Dirty Resolve
 export type { ResolveDirtyParams, ResolveDirtyResult } from "./dirty_resolve.js";
 export { resolveDirtyChapter, DirtyResolveError } from "./dirty_resolve.js";
