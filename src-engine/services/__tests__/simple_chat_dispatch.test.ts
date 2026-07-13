@@ -1277,7 +1277,7 @@ describe("dispatchSimpleChat", () => {
     // 的**载荷断言** —— 仅靠 system message byte-identity 抓不住（systemMessage 是同一对象引用，
     // 即便组装搬进循环、确定性重算出逐字节相同内容，引用比较仍 true，是伪命题）。
     let embedCount = 0;
-    const embedding_provider: EmbeddingProvider = {
+    const embeddingProvider: EmbeddingProvider = {
       async embed(texts: string[]): Promise<number[][]> {
         embedCount++;
         return texts.map(() => [1, 0, 0]);
@@ -1289,7 +1289,7 @@ describe("dispatchSimpleChat", () => {
         return "mock";
       },
     };
-    const vector_repo: VectorRepository = {
+    const vectorRepo: VectorRepository = {
       async search() {
         return [];
       }, // 返空：RAG 无结果，但 embed 仍被调用一次/组装
@@ -1309,8 +1309,8 @@ describe("dispatchSimpleChat", () => {
         facts: [
           createFact({ id: "f1", content_raw: "x", content_clean: "世界设定：剑与魔法", status: FactStatus.ACTIVE }),
         ],
-        vector_repo,
-        embedding_provider,
+        vector_repo: vectorRepo,
+        embedding_provider: embeddingProvider,
       }),
     );
 

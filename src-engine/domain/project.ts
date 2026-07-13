@@ -16,6 +16,13 @@ export const ON_DISK_DEFAULT_REVISION = 1;
 /** RAG 时间衰减系数默认值（真相源：createProject 缺省与 retrieveRag 参数默认共用）。 */
 export const DEFAULT_RAG_DECAY_COEFFICIENT = 0.05;
 
+/**
+ * 章节目标字数默认值（真相源）。createProject 缺省、context_assembler 预算兜底、
+ * UI 设置表单初值/回显兜底四方共用此常量 —— 曾各写字面量（引擎 1500 / UI 2000）导致
+ * 「未持久化时引擎按 1500 算预算、表单回显 2000」的用户可感知漂移（盲审 R5 重复维 M3）。
+ */
+export const DEFAULT_CHAPTER_LENGTH = 1500;
+
 export interface LLMConfig {
   mode: LLMMode;
   model: string;
@@ -154,7 +161,7 @@ export function createProject(partial: Pick<Project, "project_id" | "au_id"> & P
     updated_at: "",
     llm: createLLMConfig(),
     model_params_override: {},
-    chapter_length: 1500,
+    chapter_length: DEFAULT_CHAPTER_LENGTH,
     writing_style: createWritingStyle(),
     ignore_core_worldbuilding: false,
     agent_pipeline_enabled: false,

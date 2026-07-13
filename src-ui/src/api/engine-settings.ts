@@ -341,7 +341,12 @@ export async function fetchProviderModels(params: { api_base: string; api_key: s
     const ids = list
       .map((item) => (item && typeof item === "object" ? (item as { id?: unknown }).id : undefined))
       .filter((id): id is string => typeof id === "string" && id.length > 0);
-    return { ids: [...new Set(ids)] };
+    // 发 key 走明文 HTTP 远端时追加告警，与 testConnection/生成链同口径（盲审 R5 安全 L1：
+    // 此前唯独「获取模型列表」这条发 key 的路径不告警）。
+    return {
+      ids: [...new Set(ids)],
+      ...(isPlaintextRemoteHttp(base) ? { warning_code: "plaintext_http" as const } : {}),
+    };
   } finally {
     clearTimeout(timer);
   }

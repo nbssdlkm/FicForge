@@ -9,7 +9,7 @@
 import { createAbortError, isAbortError } from "../utils/abort_error.js";
 import type { GenerateParams, LLMChunk, LLMProvider, LLMResponse, ToolCall } from "./provider.js";
 import { LLMError } from "./provider.js";
-import { hasLogger, getLogger } from "../logger/index.js";
+import { hasLogger, getLogger, redactString } from "../logger/index.js";
 
 const READ_TIMEOUT = 120_000;
 
@@ -478,15 +478,19 @@ export class OpenAICompatibleProvider implements LLMProvider {
 // 错误分类（PRD §4.2 错误表）
 // ---------------------------------------------------------------------------
 
-/** 从 LLM 提供商返回的 JSON 错误体中提取可读消息。 */
+/**
+ * 从 LLM 提供商返回的 JSON 错误体中提取可读消息。
+ * 输出会被拼进 LLMError.message —— 该消息同时流向 UI toast 与可导出日志，故在此对
+ * 提取结果做一次密钥擦洗（Bearer/sk-/key= 明文），两个消费面共用同一脱敏根（盲审 R5 安全 L2 / 日志 L3）。
+ */
 function extractErrorDetail(bodyText: string): string {
   try {
     const parsed = JSON.parse(bodyText) as Record<string, unknown>;
     const err = (parsed.error ?? parsed) as Record<string, unknown>;
     const msg = (err.message ?? err.msg ?? err.detail ?? "") as string;
-    return typeof msg === "string" ? msg.slice(0, 200) : "";
+    return typeof msg === "string" ? redactString(msg.slice(0, 200)) : "";
   } catch {
-    return bodyText.slice(0, 200);
+    return redactString(bodyText.slice(0, 200));
   }
 }
 

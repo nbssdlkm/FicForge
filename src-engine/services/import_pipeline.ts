@@ -10,7 +10,7 @@
  */
 
 import { createChapter } from "../domain/chapter.js";
-import { scanCharactersInChapter } from "../domain/character_scanner.js";
+import { mergeCharactersLastSeen, scanCharactersInChapter } from "../domain/character_scanner.js";
 import { IndexStatus } from "../domain/enums.js";
 import { createOpsEntry } from "../domain/ops_entry.js";
 import { chapterMainPath } from "../domain/paths.js";
@@ -432,8 +432,13 @@ async function rollbackImportedSettings(adapter: PlatformAdapter, writtenPaths: 
   for (const path of [...writtenPaths].reverse()) {
     try {
       await adapter.deleteFile(path);
-    } catch {
-      // best effort rollback
+    } catch (err) {
+      // best-effort rollback：单个删除失败不中断其余回滚，但要留痕——否则导入失败后
+      // 残留的半成品设定文件会无声堆在 AU 里、零诊断（盲审 R5 日志 L4）。
+      warnAlways("import", "导入回滚：删除已写入的设定文件失败，可能残留半成品", {
+        path,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 }
@@ -609,15 +614,9 @@ async function doExecuteImport(plan: ImportPlan, params: ExecuteImportParams): P
       importedChapterTitles[ch.chapterNum] = ch.title.trim();
     }
 
-    // 角色扫描
+    // 角色扫描（proto 安全 max-merge 单源，见 mergeCharactersLastSeen）
     const scanned = scanCharactersInChapter(ch.content, castRegistry, characterAliases, ch.chapterNum);
-    for (const [name, chNum] of Object.entries(scanned)) {
-      // Object.hasOwn 而非 `name in obj`：角色名可为 "constructor"/"toString" 等
-      // Object.prototype 键，裸 `in` 会命中原型链把它误判为已存在，导致该角色永不入表。
-      if (!Object.hasOwn(allCharactersLastSeen, name) || chNum > allCharactersLastSeen[name]) {
-        allCharactersLastSeen[name] = chNum;
-      }
-    }
+    mergeCharactersLastSeen(allCharactersLastSeen, scanned);
 
     result.chaptersImported++;
     onProgress?.({
@@ -853,12 +852,7 @@ async function doImportChapters(params: ImportChaptersParams): Promise<ImportRes
     }
 
     const scanned = scanCharactersInChapter(chData.content, cast_registry, character_aliases, chData.chapter_num);
-    for (const [name, chNum] of Object.entries(scanned)) {
-      // 见 doExecuteImport 同处注释：`in` 会命中原型链，用 Object.hasOwn 防 proto 键误判。
-      if (!Object.hasOwn(charactersLastSeen, name) || chNum > charactersLastSeen[name]) {
-        charactersLastSeen[name] = chNum;
-      }
-    }
+    mergeCharactersLastSeen(charactersLastSeen, scanned);
   }
 
   // 初始化 state

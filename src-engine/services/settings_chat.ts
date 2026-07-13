@@ -12,7 +12,7 @@ import { getPrompts } from "../prompts/index.js";
 import type { PlatformAdapter } from "../platform/adapter.js";
 import type { LLMProvider, Message, ToolCall } from "../llm/provider.js";
 import { LLMError } from "../llm/provider.js";
-import { hasLogger, getLogger } from "../logger/index.js";
+import { hasLogger, getLogger, logCatch } from "../logger/index.js";
 import { joinPath } from "../utils/file_utils.js";
 import { PROJECT_YAML } from "../domain/paths.js";
 import * as yaml from "js-yaml";
@@ -198,7 +198,10 @@ async function loadSettingsFiles(
         const content = await adapter.readFile(joinPath(dirPath, f));
         entries.push([label, f, content]);
         totalChars += content.length;
-      } catch {}
+      } catch (err) {
+        // 文件存在但读失败：静默丢弃会让该设定文件无声缺席「改设定」上下文（盲审 R5 日志 M1）。
+        logCatch("settings_chat", `设定文件读取失败，已从上下文剔除: ${f}`, err);
+      }
     }
   }
 
@@ -281,7 +284,10 @@ async function loadFandomDnaSummaries(fandomPath: string, adapter: PlatformAdapt
         const stem = f.replace(/\.md$/, "");
         parts.push(`### ${stem}\n${summary}`);
       }
-    } catch {}
+    } catch (err) {
+      // 角色 DNA 摘要读失败静默丢弃 → 该角色无声缺席上下文（盲审 R5 日志 M1）。
+      logCatch("settings_chat", `角色设定读取失败，已从上下文剔除: ${f}`, err);
+    }
   }
   return parts.join("\n\n");
 }

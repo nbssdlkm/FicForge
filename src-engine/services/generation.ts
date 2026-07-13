@@ -28,6 +28,7 @@ import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { ResolvedLLMConfig, ResolvedLLMParams } from "../llm/config_resolver.js";
 import { createProvider, resolveLlmConfig, resolveLlmParams } from "../llm/config_resolver.js";
 import { isAbortError } from "../utils/abort_error.js";
+import { logCatch } from "../logger/index.js";
 import {
   chapterInflightKey,
   isChapterInflight,
@@ -105,7 +106,11 @@ async function loadMdFiles(adapter: PlatformAdapter, dirPath: string): Promise<R
       const content = await adapter.readFile(joinPath(dirPath, f));
       const stem = f.replace(/\.md$/, "");
       result[stem] = content;
-    } catch {}
+    } catch (err) {
+      // 文件存在但读失败：不能静默剔除——角色/世界观卡被无声移出 LLM 上下文会让生成
+      // 缺章却零诊断（盲审 R5 日志 M1）。只留文件名，不落内容（脱敏由 logCatch 保证）。
+      logCatch("generation", `设定文件读取失败，已从生成上下文剔除: ${f}`, err);
+    }
   }
   return result;
 }

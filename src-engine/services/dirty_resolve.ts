@@ -6,7 +6,7 @@
  * 最新章 vs 历史章分流：两者的 state 更新范围完全不同。
  */
 
-import { scanCharactersInChapter } from "../domain/character_scanner.js";
+import { mergeCharactersLastSeen, scanCharactersInChapter } from "../domain/character_scanner.js";
 import { IndexStatus } from "../domain/enums.js";
 import type { FactChange } from "../domain/fact_change.js";
 import { createOpsEntry } from "../domain/ops_entry.js";
@@ -223,12 +223,8 @@ async function recalcCharactersLatest(
   const content = await chapter_repo.get_content_only(au_id, chapter_num);
   const scanned = scanCharactersInChapter(content, cast_registry, character_aliases, chapter_num);
 
-  // 合并（取 max）
-  for (const [name, chNum] of Object.entries(scanned)) {
-    if (chNum > (baseline[name] ?? 0)) {
-      baseline[name] = chNum;
-    }
-  }
+  // 合并（取 max，proto 安全见 mergeCharactersLastSeen）
+  mergeCharactersLastSeen(baseline, scanned);
 
   return baseline;
 }
@@ -284,11 +280,7 @@ async function scanRecentChapters(
   const result: Record<string, number> = {};
   for (const ch of targetChapters) {
     const scanned = scanCharactersInChapter(ch.content, cast_registry, character_aliases, ch.chapter_num);
-    for (const [name, chNum] of Object.entries(scanned)) {
-      if (chNum > (result[name] ?? 0)) {
-        result[name] = chNum;
-      }
-    }
+    mergeCharactersLastSeen(result, scanned);
   }
   return result;
 }

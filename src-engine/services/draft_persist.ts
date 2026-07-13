@@ -31,7 +31,7 @@ export interface PersistGeneratedDraftParams {
 export async function persistGeneratedDraft(
   p: PersistGeneratedDraftParams,
 ): Promise<{ draft: Draft; generated_with: GeneratedWith }> {
-  const generated_with = createGeneratedWith({
+  const generatedWith = createGeneratedWith({
     mode: p.mode,
     model: p.model,
     temperature: p.temperature,
@@ -47,12 +47,12 @@ export async function persistGeneratedDraft(
     chapter_num: p.chapter_num,
     variant: p.variant,
     content: p.content,
-    generated_with,
+    generated_with: generatedWith,
   });
   // 只对「写 draft」这一小段持 AU 锁，不锁整个生成流程 —— 否则 30 秒的流式生成
   // 会阻塞 UI 对同 AU 的所有其它写操作（confirm / undo / editFact 等）。
   await withAuLock(p.au_id, async () => {
     await p.draft_repo.save(draft);
   });
-  return { draft, generated_with };
+  return { draft, generated_with: generatedWith };
 }

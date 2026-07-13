@@ -58,9 +58,38 @@ export function scanCharactersInChapter(
       continue; // 已通过更优先的名字匹配过
     }
     if (chapter_text.includes(name)) {
-      result[mainName] = chapter_num;
+      setLastSeen(result, mainName, chapter_num);
     }
   }
 
   return result;
+}
+
+/**
+ * 安全写入「角色名 → 章号」映射（扫描与合并两处写点共用，杜绝防护漂移）。
+ *
+ * 用 defineProperty 而非裸 `map[name] =`：名为 "__proto__" 的键裸赋值会命中 Object.prototype 的
+ * 原型 setter 被静默丢弃（该角色永不入表、下轮重试仍丢），defineProperty 强制建自有数据属性、
+ * JSON/YAML 往返正确。其余原型键（constructor/toString）裸写本就建自有属性，此处一并收口
+ * （盲审 R5 codex：合并写侧的 __proto__ 缺口）。读侧的原型键防护见各调用点的 Object.hasOwn。
+ */
+function setLastSeen(map: Record<string, number>, name: string, chapterNum: number): void {
+  Object.defineProperty(map, name, { value: chapterNum, writable: true, enumerable: true, configurable: true });
+}
+
+/**
+ * 把一次 scanCharactersInChapter 的结果合并进 characters_last_seen 累加器，逐名取较大章号。
+ *
+ * 全代码库「合并 characters_last_seen」的唯一入口 —— confirm / undo / dirty / recalc / import
+ * 五条路径共用此函数，杜绝逐点手写 max-merge 时的防护漂移（盲审 R5 正确性 L1）。
+ * 用 Object.hasOwn 判存在而非裸读 `target[name] ?? 0`：角色名可为 "constructor"/"toString" 等
+ * Object.prototype 继承键，裸读会拿到原型上的函数、`?? 0` 兜不住（函数非 null/undefined），
+ * 令 `chapterNum > 函数`（NaN 比较）恒 false → 该角色永不入表。写侧 __proto__ 防护见 setLastSeen。
+ */
+export function mergeCharactersLastSeen(target: Record<string, number>, scanned: Record<string, number>): void {
+  for (const [name, chapterNum] of Object.entries(scanned)) {
+    if (!Object.hasOwn(target, name) || chapterNum > target[name]) {
+      setLastSeen(target, name, chapterNum);
+    }
+  }
 }

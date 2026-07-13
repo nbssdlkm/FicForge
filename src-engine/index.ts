@@ -35,6 +35,7 @@ export {
   createProject,
   createSettings,
   createThread,
+  DEFAULT_CHAPTER_LENGTH,
   draftFilename,
   dumpFrontmatterKey,
   findRecommendedModel,

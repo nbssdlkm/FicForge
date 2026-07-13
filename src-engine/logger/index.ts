@@ -8,7 +8,7 @@ import { FileLogger, redactCtx } from "./logger.js";
 import type { Logger, LoggerOptions } from "./logger.js";
 
 export type { Logger, LogEntry, LogLevel, LoggerOptions } from "./logger.js";
-export { FileLogger, redactCtx } from "./logger.js";
+export { FileLogger, redactCtx, redactString } from "./logger.js";
 
 // ---------------------------------------------------------------------------
 // Singleton

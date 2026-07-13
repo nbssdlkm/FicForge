@@ -98,14 +98,14 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
     const path = this.chatPath(au_id);
     await withWriteLock(path, async () => {
       // 拿现有 created_at（若有），否则用现在
-      let created_at = nowUtc();
+      let createdAt = nowUtc();
       try {
         const existing = await this.adapter.exists(path);
         if (existing) {
           const text = await this.adapter.readFile(path);
           const raw = yaml.load(text) as Record<string, unknown> | null;
           if (raw && typeof raw === "object" && typeof raw.created_at === "string") {
-            created_at = raw.created_at;
+            createdAt = raw.created_at;
           }
         }
       } catch {
@@ -115,7 +115,7 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
       const file: SimpleChatFile = {
         version: SIMPLE_CHAT_VERSION,
         au_path: au_id,
-        created_at,
+        created_at: createdAt,
         updated_at: nowUtc(),
         messages,
       };

@@ -57,14 +57,14 @@ export class FileDraftRepository implements DraftRepository {
     const parsed = safeMatter(text, KNOWN_DRAFT_META_KEYS);
     const meta = parsed.data;
 
-    const generated_with = generatedWithFromYaml(meta.generated_with);
+    const generatedWith = generatedWithFromYaml(meta.generated_with);
 
     return createDraft({
       au_id,
       chapter_num,
       variant,
       content: parsed.content,
-      generated_with,
+      generated_with: generatedWith,
     });
   }
 

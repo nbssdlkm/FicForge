@@ -288,7 +288,7 @@ export async function extractFactsFromChapter(
   llm_config: unknown,
   opts?: ExtractFactsOptions,
 ): Promise<ExtractedFact[]> {
-  const max_chunk_tokens = opts?.max_chunk_tokens ?? 4000;
+  const maxChunkTokens = opts?.max_chunk_tokens ?? 4000;
   const language = opts?.language ?? "zh";
   const signal = opts?.signal;
 
@@ -297,7 +297,7 @@ export async function extractFactsFromChapter(
 
   if (!chapter_text.trim()) return [];
 
-  const chunks = splitTextForExtraction(chapter_text, max_chunk_tokens, llm_config);
+  const chunks = splitTextForExtraction(chapter_text, maxChunkTokens, llm_config);
   const allResults: ExtractedFact[] = [];
 
   for (const chunkText of chunks) {

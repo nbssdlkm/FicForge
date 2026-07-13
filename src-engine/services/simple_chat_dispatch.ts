@@ -337,7 +337,7 @@ async function resolveDispatchSession(deps: ResolveDispatchDeps): Promise<Dispat
   const llmParams = resolveLlmParams(modelName, session_params, project, settings);
   const provider = provider_override ?? createProvider(llmConfig);
 
-  const [character_files, worldbuilding_files] = await Promise.all([
+  const [characterFiles, worldbuildingFiles] = await Promise.all([
     loadMdDir(adapter, joinPath(au_id, "characters")),
     loadMdDir(adapter, joinPath(au_id, "worldbuilding")),
   ]);
@@ -353,8 +353,8 @@ async function resolveDispatchSession(deps: ResolveDispatchDeps): Promise<Dispat
     threads,
     chapter_repo,
     au_id,
-    character_files,
-    worldbuilding_files,
+    character_files: characterFiles,
+    worldbuilding_files: worldbuildingFiles,
     vector_repo,
     embedding_provider,
     language,

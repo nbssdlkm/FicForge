@@ -327,13 +327,13 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     // (degraded path reads chapter file directly)
     expect(state.last_scene_ending).toBeTruthy();
 
-    // NOTE: degraded scan runs BEFORE chapter deletion, so it scans
-    // all existing chapters including ch2 (not yet deleted at scan time).
-    // Alice appears in ch2, so characters_last_seen["Alice"] == 2.
-    expect(state.characters_last_seen["Alice"]).toBe(2);
+    // 降级重建只扫 < n（=ch2 正在被撤销）的章，即只扫 ch1（盲审 R5 正确性 M1）。
+    // 修复前：扫描含尚未删除的 ch2 → Alice/Charlie 被持久记为「最后见于已删除的 ch2」；
+    // 修复后：Alice 回到 ch1（=1），Bob 仍 ch1（=1），只在 ch2 出场的 Charlie 彻底移出（撤销后本就不该在场）。
+    // 该断言判别性覆盖 M1：若边界回退（重新计入 ch2），Alice 会变 2、Charlie 会复现为 2。
+    expect(state.characters_last_seen["Alice"]).toBe(1);
     expect(state.characters_last_seen["Bob"]).toBe(1);
-    // Charlie also appears in ch2
-    expect(state.characters_last_seen["Charlie"]).toBe(2);
+    expect(Object.hasOwn(state.characters_last_seen, "Charlie")).toBe(false);
   });
 
   // ---------------------------------------------------------

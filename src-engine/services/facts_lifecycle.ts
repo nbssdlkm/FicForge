@@ -322,7 +322,7 @@ export async function editFact(
     narrative_weight: new Set<string>(Object.values(NarrativeWeight)),
     source: new Set<string>(Object.values(FactSource)),
   };
-  const applied_fields: Record<string, unknown> = {};
+  const appliedFields: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(updated_fields)) {
     if (!(key in fact)) continue;
     // M3 批一：_confidence 为引擎自管字段（人改富化字段时由下方统一升 high）——不接受外部
@@ -346,7 +346,7 @@ export async function editFact(
         continue;
       }
       (fact as unknown as Record<string, unknown>)[key] = res.value;
-      applied_fields[key] = res.value;
+      appliedFields[key] = res.value;
       continue;
     }
     const enumSet = enumValueSets[key];
@@ -360,27 +360,27 @@ export async function editFact(
       continue;
     }
     (fact as unknown as Record<string, unknown>)[key] = value;
-    applied_fields[key] = value;
+    appliedFields[key] = value;
   }
 
   // 知情字段被实际编辑时，跨字段矛盾在写侧化解（对抗审 MED-3；未触碰知情字段的编辑
   // 不顺手改动存量数据 —— 化解只在用户动了这两个字段之一时发生）。
-  if ("known_to" in applied_fields || "hidden_from" in applied_fields) {
+  if ("known_to" in appliedFields || "hidden_from" in appliedFields) {
     const rec = reconcileKnowledge(fact.known_to ?? null, fact.hidden_from ?? []);
     if (JSON.stringify(rec.known_to) !== JSON.stringify(fact.known_to ?? null)) {
       fact.known_to = rec.known_to;
-      applied_fields.known_to = rec.known_to;
+      appliedFields.known_to = rec.known_to;
     }
     if (JSON.stringify(rec.hidden_from) !== JSON.stringify(fact.hidden_from ?? [])) {
       fact.hidden_from = rec.hidden_from;
-      applied_fields.hidden_from = rec.hidden_from;
+      appliedFields.hidden_from = rec.hidden_from;
     }
   }
 
   // 空编辑早退（第三路调查发现④）：全部键被拒/无有效变更时不落 op、不 bump revision——
   // 否则无脏检查的保存会造成 revision 空转 + 空审计记录。此时 status/resolves 均未动，
   // 下方级联分支本就不会触发，返回现有 fact 安全。
-  if (Object.keys(applied_fields).length === 0) {
+  if (Object.keys(appliedFields).length === 0) {
     return fact;
   }
 
@@ -391,13 +391,13 @@ export async function editFact(
   if (fact._confidence) {
     let upgraded = false;
     for (const key of CONFIDENCE_FIELD_KEYS) {
-      if (key in applied_fields) {
+      if (key in appliedFields) {
         fact._confidence[key] = "high";
         upgraded = true;
       }
     }
     // _confidence 变更并入同一条 edit_fact op：ops 回放（白名单含 _confidence）与磁盘天然一致
-    if (upgraded) applied_fields._confidence = { ...fact._confidence };
+    if (upgraded) appliedFields._confidence = { ...fact._confidence };
   }
 
   // 悬空 ID 级联清理（内存操作，不落盘）
@@ -419,7 +419,7 @@ export async function editFact(
       op_type: "edit_fact",
       target_id: fact_id,
       timestamp: nowUtc(),
-      payload: { updated_fields: applied_fields },
+      payload: { updated_fields: appliedFields },
     }),
   );
   tx.updateFact(au_id, fact);

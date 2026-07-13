@@ -42,6 +42,11 @@
             "requireAscii": false,
             "conventions": [
               { "selector": { "kind": "function" }, "match": "_{0,2}(.+)", "formats": ["camelCase", "PascalCase"] },
+              {
+                "selector": { "kind": "variable" },
+                "match": "_{0,2}(.+)",
+                "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
+              },
               { "match": ".*" }
             ]
           }

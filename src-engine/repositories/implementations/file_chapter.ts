@@ -212,7 +212,7 @@ export class FileChapterRepository implements ChapterRepository {
 // ------------------------------------------------------------------
 
 function metaToChapter(au_id: string, chapter_num: number, meta: Record<string, unknown>, content: string): Chapter {
-  const generated_with = generatedWithFromYaml(meta.generated_with);
+  const generatedWith = generatedWithFromYaml(meta.generated_with);
 
   return createChapter({
     au_id,
@@ -224,7 +224,7 @@ function metaToChapter(au_id: string, chapter_num: number, meta: Record<string, 
     confirmed_at: (meta.confirmed_at as string) ?? "",
     content_hash: (meta.content_hash as string) ?? "",
     provenance: (meta.provenance as string) ?? "",
-    generated_with,
+    generated_with: generatedWith,
   });
 }
 

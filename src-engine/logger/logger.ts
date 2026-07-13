@@ -287,7 +287,12 @@ const STRING_REDACT_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
   [/\bproject\.(?!#[0-9a-f]{8}\.)[^\n]+?\.(llm\.api_key|embedding_lock\.api_key)/g, "project.[REDACTED].$1"],
 ];
 
-function redactString(v: string): string {
+/**
+ * 已知敏感形态的字符串值擦洗（单一真相源）。日志值层与「提供商错误体透 UI toast」
+ * 共用同一套 STRING_REDACT_PATTERNS —— 错误体在 extractErrorDetail 处即经此擦洗，
+ * 令同一份 detail 无论进日志还是进 toast 都不携带 Bearer/sk-/key= 明文（盲审 R5 安全 L2 / 日志 L3 同根）。
+ */
+export function redactString(v: string): string {
   let out = v;
   for (const [re, sub] of STRING_REDACT_PATTERNS) out = out.replace(re, sub);
   return out;

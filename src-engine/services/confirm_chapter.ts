@@ -7,7 +7,7 @@
  */
 
 import { createChapter } from "../domain/chapter.js";
-import { scanCharactersInChapter } from "../domain/character_scanner.js";
+import { mergeCharactersLastSeen, scanCharactersInChapter } from "../domain/character_scanner.js";
 import { IndexStatus } from "../domain/enums.js";
 import type { GeneratedWith } from "../domain/generated_with.js";
 import { createOpsEntry } from "../domain/ops_entry.js";
@@ -162,15 +162,8 @@ async function doConfirm(params: ConfirmChapterParams): Promise<ConfirmChapterRe
     character_aliases,
     chapter_num,
   );
-  for (const [charName, chNum] of Object.entries(scanned)) {
-    // Object.hasOwn 守护：角色名可为 "constructor"/"toString" 等 Object.prototype 键，
-    // 裸 `state.characters_last_seen[charName]` 会读到继承的原型值（函数），`?? 0` 兜不住
-    // （函数非 null），后续 `chNum > 函数` = NaN 恒 false → 该角色永不入表。
-    const existing = Object.hasOwn(state.characters_last_seen, charName) ? state.characters_last_seen[charName] : 0;
-    if (chNum > existing) {
-      state.characters_last_seen[charName] = chNum;
-    }
-  }
+  // proto 安全的 max-merge 单源，见 mergeCharactersLastSeen。
+  mergeCharactersLastSeen(state.characters_last_seen, scanned);
 
   state.chapter_focus = [];
   state.index_status = IndexStatus.STALE;

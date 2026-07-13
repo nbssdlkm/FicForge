@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, XCircle } from "lucide-react";
+import { ChevronDown, ChevronRight, TriangleAlert, XCircle } from "lucide-react";
 import { Modal } from "../../shared/Modal";
 import { Button } from "../../shared/Button";
 import { Input } from "../../shared/Input";
@@ -50,6 +50,7 @@ export function FetchModelsSheet({
 
   const [status, setStatus] = useState<"loading" | "error" | "ready">("loading");
   const [errorMessage, setErrorMessage] = useState("");
+  const [warning, setWarning] = useState("");
   const [fetchedIds, setFetchedIds] = useState<string[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
@@ -73,11 +74,14 @@ export function FetchModelsSheet({
     const token = guard.start();
     setStatus("loading");
     setErrorMessage("");
+    setWarning("");
     setFetchedIds([]);
     fetchProviderModels({ api_base: apiBase, api_key: apiKey })
       .then((res) => {
         if (guard.isStale(token)) return;
         setFetchedIds(res.ids);
+        // 明文 HTTP 远端发 key 告警，与 testConnection 同口径（盲审 R5 安全 L1）。
+        setWarning(res.warning_code === "plaintext_http" ? t("error_messages.plaintext_http_warning") : "");
         setStatus("ready");
       })
       .catch((error: unknown) => {
@@ -85,7 +89,7 @@ export function FetchModelsSheet({
         setErrorMessage(describeFetchError(error));
         setStatus("error");
       });
-  }, [apiBase, apiKey, describeFetchError, guard]);
+  }, [apiBase, apiKey, describeFetchError, guard, t]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: 有意省依赖——hook 规则 4 ref-shim/边沿触发语义（见邻近注释）
   useEffect(() => {
@@ -198,6 +202,12 @@ export function FetchModelsSheet({
 
         {status === "ready" && (
           <>
+            {warning && (
+              <div className="flex items-start gap-2 rounded-sm border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
+                <TriangleAlert size={16} className="mt-0.5 shrink-0" />
+                <span>{warning}</span>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <Input
                 value={search}

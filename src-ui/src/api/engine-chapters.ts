@@ -39,6 +39,7 @@ import {
   type GeneratedWith,
   type FactChange,
 } from "@ficforge/engine";
+import { logUiError } from "../utils/ui-logger";
 import { ApiError, getFriendlyErrorMessage } from "./client";
 import { getEngine, getProjectOrThrow } from "./engine-instance";
 import { resolveLang } from "./resolve-lang";
@@ -128,8 +129,10 @@ export async function confirmChapter(
         const lang = resolveLang(sett);
         finalTitle = await generateChapterTitle(chContent, lang, provider);
       }
-    } catch {
-      // AI title generation failed — silent fallback
+    } catch (err) {
+      // AI 标题生成失败 → 回退为无自动标题（非致命）。但要留痕：引擎侧 F1 已补痕，
+      // 此 UI 包装层此前整段静默是同族残边（盲审 R5 日志 L2）。
+      logUiError("engine-chapters", "AI 章节标题生成失败，跳过自动标题", err);
     }
   }
   if (finalTitle) {

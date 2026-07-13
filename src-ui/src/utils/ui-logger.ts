@@ -40,14 +40,23 @@ export function catchAndLog(tag: string, message: string): (err: unknown) => voi
 }
 
 /**
- * 工厂函数：给「失败则兜底返回 null」的后台加载路径用的 catch handler——
- * 先 logUiError 留痕（等级同 logCatch），再返回 null 兜底。
- * 取代散落的 `.catch(() => null)`：兜底值（null）不变，但失败开始留痕（可随「导出日志」带走）。
+ * 工厂函数：给「失败则兜底返回定值」的后台加载路径用的 catch handler——
+ * 先 logUiError 留痕（等级同 logCatch），再返回 fallback。
+ * 取代散落的 `.catch(() => 兜底)`：兜底值不变，但失败开始留痕（可随「导出日志」带走）。
+ * null 场景用下方 swallowToNull 特化；数组/其它定值兜底用本函数（盲审 R5 日志 L1：
+ * listFacts 曾用裸 `.catch(() => [])` 与三兄弟 swallowToNull 不一致，静默无痕）。
+ */
+export function swallowTo<T>(fallback: T, tag: string, message: string): (err: unknown) => T {
+  return (err) => {
+    logUiError(tag, message, err);
+    return fallback;
+  };
+}
+
+/**
+ * swallowTo 的 null 特化（最常见形态）。
  * 用法：`getX(...).catch(swallowToNull('Component', 'load X failed'))`
  */
 export function swallowToNull(tag: string, message: string): (err: unknown) => null {
-  return (err) => {
-    logUiError(tag, message, err);
-    return null;
-  };
+  return swallowTo(null, tag, message);
 }

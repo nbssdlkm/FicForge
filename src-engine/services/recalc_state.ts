@@ -6,7 +6,7 @@
  * 手动触发全量重建 characters_last_seen / last_scene_ending / last_confirmed_chapter_focus。
  */
 
-import { scanCharactersInChapter } from "../domain/character_scanner.js";
+import { mergeCharactersLastSeen, scanCharactersInChapter } from "../domain/character_scanner.js";
 import { createState } from "../domain/state.js";
 import { extractLastSceneEnding } from "../domain/text_utils.js";
 import { logCatch } from "../logger/index.js";
@@ -90,11 +90,7 @@ export async function recalcState(
     chaptersScanned++;
 
     const scanned = scanCharactersInChapter(ch.content, castRegistry, character_aliases, ch.chapter_num);
-    for (const [charName, chNum] of Object.entries(scanned)) {
-      if (chNum > (newCharactersLastSeen[charName] ?? 0)) {
-        newCharactersLastSeen[charName] = chNum;
-      }
-    }
+    mergeCharactersLastSeen(newCharactersLastSeen, scanned);
   }
 
   // 最后一章的信息

@@ -18,6 +18,7 @@ import type { Fact, ConfidenceLevel, FactFieldConfidence } from "../domain/fact.
 import { isColdFact } from "../domain/fact.js";
 import type { Thread } from "../domain/thread.js";
 import { getContextWindow, getModelMaxOutput } from "../domain/model_context_map.js";
+import { DEFAULT_CHAPTER_LENGTH } from "../domain/project.js";
 import type { Project, WritingStyle } from "../domain/project.js";
 import type { State } from "../domain/state.js";
 import { countTokens, ensureTokenizer } from "../tokenizer/index.js";
@@ -126,7 +127,7 @@ export function buildSystemPrompt(project: Project, trim_custom = false, languag
   parts.push(P.FORESHADOWING_RULES);
 
   // --- 通用规则 ---
-  const chapterLength = project.chapter_length ?? 1500;
+  const chapterLength = project.chapter_length ?? DEFAULT_CHAPTER_LENGTH;
   const chapterLengthMax = Math.trunc(chapterLength * 1.3);
   parts.push(
     P.GENERIC_RULES.replace("{chapter_length}", String(chapterLength)).replace(
@@ -422,7 +423,7 @@ export function buildFactsLayer(
   // isFinite 门（对抗审 R2 HIGH）：NaN 会让三态比较对任何值都返回 0，破坏 comparator 全序契约；
   // ±Infinity 输入同折「无序号」。有限数不做正整数强校验——提取契约是「从 1 起的正整数」，但
   // LLM 垃圾给出 0/-1/1.5 时按相对序参与排序是无害且确定的，比丢弃信号更稳。
-  const story_order_of = (f: Fact): number => {
+  const storyOrderOf = (f: Fact): number => {
     const v = f.story_time_order;
     if (typeof v !== "number" || !Number.isFinite(v) || !enrichInject(f._confidence, f._confidence?.story_time_order)) {
       return Number.POSITIVE_INFINITY;
@@ -432,8 +433,8 @@ export function buildFactsLayer(
   const allKept = [...unresolvedKept, ...activeKept];
   allKept.sort((a, b) => {
     if (a.chapter !== b.chapter) return a.chapter - b.chapter;
-    const oa = story_order_of(a);
-    const ob = story_order_of(b);
+    const oa = storyOrderOf(a);
+    const ob = storyOrderOf(b);
     // 显式三态比较：oa/ob 可为 Infinity，Infinity-Infinity=NaN 会破坏 comparator 契约。
     // 有意语义（对抗审 R2 MED-1 锁定）：同章内按剧情时间互排**跨越 unresolved/active 状态分组**
     // ——时间线连贯压过状态分组（状态在行首 [status] 可见；预算挑选的 unresolved 优先不受影响，
@@ -723,7 +724,7 @@ async function runMemoryLayerCascade(p: MemoryCascadeParams): Promise<MemoryCasc
     truncated_layers,
   } = p;
   let used = p.used;
-  const rag_text = p.rag_text;
+  const ragText = p.rag_text;
 
   // === P3 事实表（记忆最高优先级）===
   const p3Budget = Math.max(0, base_budget - used - guarantee);
@@ -750,7 +751,7 @@ async function runMemoryLayerCascade(p: MemoryCascadeParams): Promise<MemoryCasc
   report.p2_tokens = p2Tokens;
 
   // === P4 RAG ===
-  let p4Text = rag_text ?? "";
+  let p4Text = ragText ?? "";
   let p4Tokens = 0;
   if (p4Text) {
     p4Tokens = _count(p4Text, llm).count;
@@ -809,7 +810,7 @@ function computeMaxOutputTokens(
 ): number {
   const OUTPUT_RESERVE_CEIL = 15_000;
   const modelName = (effective_llm ? effective_llm.model : project.llm?.model) ?? "";
-  const chapterLength = project.chapter_length ?? 1500;
+  const chapterLength = project.chapter_length ?? DEFAULT_CHAPTER_LENGTH;
   const chapterTokenCap = chapterLength ? chapterLength * 2 : Infinity;
   const maxTokens = Math.min(
     getModelMaxOutput(modelName),
@@ -905,7 +906,7 @@ export async function assembleContext(params: AssembleContextParams): Promise<As
   report.is_fallback_estimate = sysTc.is_estimate;
 
   // --- max_tokens（D-0039；公式单一真相源见 computeMaxOutputTokens）---
-  const chapterLength = project.chapter_length ?? 1500;
+  const chapterLength = project.chapter_length ?? DEFAULT_CHAPTER_LENGTH;
   const maxTokens = computeMaxOutputTokens(project, contextWindow, "context_assembler", effective_llm ?? undefined);
   report.max_output_tokens = maxTokens;
 
@@ -1032,7 +1033,7 @@ export async function assembleContext(params: AssembleContextParams): Promise<As
 export function buildSystemPromptSimple(project: Project, language = "zh"): string {
   const P = getPrompts(language as "zh" | "en");
   const ws = project.writing_style;
-  const chapterLength = project.chapter_length ?? 1500;
+  const chapterLength = project.chapter_length ?? DEFAULT_CHAPTER_LENGTH;
   const chapterLengthMax = Math.trunc(chapterLength * 1.3);
 
   const parts: string[] = [

@@ -86,6 +86,8 @@ export interface CustomProviderSaveInput {
 /** 「从 API 获取列表」返回：/models 端点的模型 id 清单。 */
 export interface RemoteModelListing {
   ids: string[];
+  /** 列表可拉取但发 key 走了明文 HTTP 远端 —— UI 在结果上追加告警（与 testConnection 同口径）。 */
+  warning_code?: "plaintext_http";
 }
 
 export interface DefaultLlmSettingsInput {

@@ -10,6 +10,7 @@ import {
   type SettingsInfo,
 } from "../../api/engine-client";
 import {
+  DEFAULT_CHAPTER_LENGTH,
   DEFAULT_OLLAMA_BASE_URL,
   DEFAULT_DEEPSEEK_MODEL,
   DEFAULT_DEEPSEEK_API_BASE,
@@ -131,7 +132,7 @@ export function createDefaultAuSettingsFormState(): AuSettingsFormState {
   return {
     perspective: DEFAULT_PERSPECTIVE,
     emotionStyle: DEFAULT_EMOTION_STYLE,
-    chapterLength: 2000,
+    chapterLength: DEFAULT_CHAPTER_LENGTH,
     customInstructions: "",
     pinnedContext: [],
     coreIncludes: [],
@@ -157,7 +158,7 @@ export function hydrateAuSettingsForm(project: ProjectInfo | null): AuSettingsFo
 
   form.perspective = project.writing_style?.perspective || DEFAULT_PERSPECTIVE;
   form.emotionStyle = project.writing_style?.emotion_style || DEFAULT_EMOTION_STYLE;
-  form.chapterLength = project.chapter_length || 2000;
+  form.chapterLength = project.chapter_length || DEFAULT_CHAPTER_LENGTH;
   form.customInstructions = project.writing_style?.custom_instructions || "";
   form.pinnedContext = project.pinned_context || [];
   form.coreIncludes = project.core_always_include || [];

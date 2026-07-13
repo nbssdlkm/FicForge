@@ -8,7 +8,7 @@
  * 使用 WriteTransaction 保证 D-0036 写入顺序：读取+计算 → tx(ops → chapters → facts → drafts → state)。
  */
 
-import { scanCharactersInChapter } from "../domain/character_scanner.js";
+import { mergeCharactersLastSeen, scanCharactersInChapter } from "../domain/character_scanner.js";
 import { FactStatus, IndexStatus } from "../domain/enums.js";
 import { logCatch } from "../logger/index.js";
 import type { OpsEntry } from "../domain/ops_entry.js";
@@ -425,24 +425,25 @@ async function rollbackCharactersLastSeen(
   }
 
   // 降级：全量扫描重建
-  return rebuildCharactersLastSeen(au_id, chapter_repo, cast_registry, character_aliases);
+  return rebuildCharactersLastSeen(au_id, n, chapter_repo, cast_registry, character_aliases);
 }
 
 async function rebuildCharactersLastSeen(
   au_id: string,
+  n: number,
   chapter_repo: ChapterRepository,
   cast_registry: { characters?: string[] },
   character_aliases: Record<string, string[]> | null,
 ): Promise<Record<string, number>> {
+  // 只扫 < n 的章：第 n 章正在被撤销、此刻仍在盘上（tx 尚未 commit），若计入会把角色
+  // 持久记为「最后见于已被删除的第 n 章」。姊妹路径 dirty_resolve.scanRecentChapters 同样
+  // 限定 <= n-1，此处对齐（盲审 R5 正确性 M1；触发面=前一章无 confirm 快照的导入作品）。
   const chapters = await chapter_repo.list_main(au_id);
   const result: Record<string, number> = {};
   for (const ch of chapters) {
+    if (ch.chapter_num >= n) continue;
     const scanned = scanCharactersInChapter(ch.content, cast_registry, character_aliases, ch.chapter_num);
-    for (const [name, num] of Object.entries(scanned)) {
-      if (num > (result[name] ?? 0)) {
-        result[name] = num;
-      }
-    }
+    mergeCharactersLastSeen(result, scanned);
   }
   return result;
 }

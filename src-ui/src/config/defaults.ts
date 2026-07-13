@@ -18,6 +18,7 @@
  */
 
 import {
+  DEFAULT_CHAPTER_LENGTH as ENGINE_DEFAULT_CHAPTER_LENGTH,
   EmotionStyle,
   findRecommendedModel,
   getProvider,
@@ -64,6 +65,10 @@ if (!findRecommendedModel("siliconflow", DEFAULT_EMBEDDING_MODEL)) {
   throw new Error(`provider manifest 的 siliconflow 推荐列表缺少默认 embedding 模型 ${DEFAULT_EMBEDDING_MODEL}`);
 }
 export const DEFAULT_EMBEDDING_API_BASE = mustProvider("siliconflow").baseUrl;
+
+/** AU 续写默认章节目标字数（真相源 = 引擎 DEFAULT_CHAPTER_LENGTH；表单初值/回显兜底共用，
+ *  与引擎 createProject 缺省 + assembler 预算兜底对齐，杜绝 1500/2000 漂移） */
+export const DEFAULT_CHAPTER_LENGTH = ENGINE_DEFAULT_CHAPTER_LENGTH;
 
 /** AU 续写默认视角（真相源 = 引擎 Perspective 枚举） */
 export const DEFAULT_PERSPECTIVE: string = Perspective.THIRD_PERSON;

@@ -70,6 +70,7 @@ export {
   createLLMConfig,
   createProject,
   createWritingStyle,
+  DEFAULT_CHAPTER_LENGTH,
 } from "./project.js";
 
 export type {
