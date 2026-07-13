@@ -9,7 +9,7 @@ import { Input } from "../shared/Input";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { LLMMode } from "../../api/engine-client";
-import { getEngine } from "../../api/engine-instance";
+import { getCurrentPlatform } from "../../api/engine-instance";
 import { listGenerationModes, type Platform } from "@ficforge/engine";
 import { StepIndicator } from "./StepIndicator";
 import { ApiSetupHelp } from "../help/ApiSetupHelp";
@@ -75,7 +75,7 @@ export function ApiConfigStep({
   const modeOptions = useMemo(() => {
     let platform: Platform = "web";
     try {
-      platform = getEngine().adapter.getPlatform();
+      platform = getCurrentPlatform();
     } catch {
       /* engine not ready, fall back to web */
     }

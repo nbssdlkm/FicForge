@@ -99,6 +99,14 @@ export interface PlatformAdapter {
   /** 列出直接子项名。**目录不存在时**：Web/内存返回 `[]`；Tauri/Capacitor 抛错（见顶部漂移说明）。 */
   listDir(path: string): Promise<string[]>;
   exists(path: string): Promise<boolean>;
+  /**
+   * 判定路径是文件 / 目录 / 不存在。跨端统一「一个读不出的条目到底是文件还是空目录」的判定，
+   * 取代调用方按 `getPlatform()==="web"` 的平台特判（盲审 R5 架构 M3）。
+   * 语义：file=存在且是文件；directory=存在且是目录（含「有子文件的前缀路径」——目录存在性
+   * 与 exists 同口径）；missing=不存在。探测用途，与 exists 同款：正常不存在返 missing 而非抛，
+   * 但底层瞬时错误（如 IndexedDB tx 失败）可能上抛——与 exists 一致，调用方按需 try/catch。
+   */
+  statEntry(path: string): Promise<"file" | "directory" | "missing">;
   mkdir(path: string): Promise<void>;
 
   /**

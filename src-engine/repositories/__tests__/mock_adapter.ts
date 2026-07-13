@@ -98,6 +98,16 @@ export class MockAdapter implements PlatformAdapter {
     return false;
   }
 
+  async statEntry(path: string): Promise<"file" | "directory" | "missing"> {
+    const normed = this.norm(path);
+    if (this.files.has(normed) || this.binaryFiles.has(normed)) return "file";
+    const prefix = normed + "/";
+    for (const key of this.allKeys()) {
+      if (key.startsWith(prefix)) return "directory";
+    }
+    return "missing";
+  }
+
   private *allKeys(): IterableIterator<string> {
     for (const k of this.files.keys()) yield k;
     for (const k of this.binaryFiles.keys()) yield k;

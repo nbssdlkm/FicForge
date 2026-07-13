@@ -165,6 +165,16 @@ export class CapacitorAdapter implements PlatformAdapter {
     }
   }
 
+  async statEntry(path: string): Promise<"file" | "directory" | "missing"> {
+    const { Filesystem, Directory } = await import("@capacitor/filesystem");
+    try {
+      const info = await Filesystem.stat({ path: this.normPath(path), directory: Directory.Data });
+      return info.type === "directory" ? "directory" : "file";
+    } catch {
+      return "missing";
+    }
+  }
+
   async mkdir(path: string): Promise<void> {
     const { Filesystem, Directory } = await import("@capacitor/filesystem");
     try {

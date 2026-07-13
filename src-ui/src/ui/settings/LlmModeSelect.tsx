@@ -18,7 +18,7 @@ import { useMemo } from "react";
 import { listGenerationModes, type LLMModeKey, type Platform } from "@ficforge/engine";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { getEnumLabel } from "../../i18n/labels";
-import { getEngine } from "../../api/engine-client";
+import { getCurrentPlatform } from "../../api/engine-client";
 
 interface LlmModeSelectProps {
   value: string;
@@ -35,7 +35,7 @@ export function LlmModeSelect({ value, onChange, disabled, className, platform }
   const resolvedPlatform: Platform = useMemo(() => {
     if (platform) return platform;
     try {
-      return getEngine().adapter.getPlatform();
+      return getCurrentPlatform();
     } catch {
       // engine 未初始化时（罕见）默认 web
       return "web";

@@ -109,7 +109,8 @@ vi.mock("@tauri-apps/plugin-fs", () => {
     },
     stat: async (p: string) => {
       if (!io.existsP(s, p)) throw new Error("ENOENT");
-      return { size: s.get(p)?.length ?? 0 };
+      const isFile = s.has(p);
+      return { size: s.get(p)?.length ?? 0, isFile, isDirectory: !isFile };
     },
     readDir: async (p: string) => {
       if (!io.existsP(s, p)) throw new Error("ENOENT");
@@ -156,7 +157,7 @@ vi.mock("@capacitor/filesystem", () => {
       stat: async ({ path }: { path: string }) => {
         const k = norm(path);
         if (!io.existsP(s, k)) throw new Error("ENOENT");
-        return { size: s.get(k)?.length ?? 0 };
+        return { size: s.get(k)?.length ?? 0, type: s.has(k) ? "file" : "directory" };
       },
       readdir: async ({ path }: { path: string }) => {
         const k = norm(path);
@@ -274,6 +275,14 @@ for (const c of cases) {
       await expect(a.exists("d/dir/absent.md")).resolves.toBe(false);
       // 目录存在性：有子文件即视为存在
       await expect(a.exists("d/dir")).resolves.toBe(true);
+    });
+
+    it("statEntry：文件→file、目录（有子文件）→directory、不存在→missing（盲审 R5 架构 M3）", async () => {
+      await a.mkdir("d/dir");
+      await a.writeFile("d/dir/f.md", "x");
+      await expect(a.statEntry("d/dir/f.md")).resolves.toBe("file");
+      await expect(a.statEntry("d/dir")).resolves.toBe("directory");
+      await expect(a.statEntry("d/none")).resolves.toBe("missing");
     });
 
     // 注：listDir(不存在目录) 同样漂移——Web/内存返回 []；Tauri/Capacitor 抛错（见 adapter.ts）。

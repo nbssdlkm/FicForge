@@ -268,13 +268,12 @@ async function collectFiles(root: string, adapter: PlatformAdapter, prefix: stri
     }
     if (content !== null) {
       result.entries.push({ rel, content });
-    } else if (child === null || adapter.getPlatform() === "web") {
+    } else if ((await adapter.statEntry(candidate)) === "file") {
       // 读不出且确定是文件 → 报告为不可读（不能静默丢，否则备份缺章还报成功）。
-      // 判「确定是文件」分两种平台语义：
-      //   · 真机(tauri/capacitor)：对文件 listDir 抛错 → child===null。空目录则 child===[]，静默跳过。
-      //   · web/IndexedDB(含 MockAdapter)：目录是 key 前缀派生的，**空目录不存在**于列表里，
-      //     所以一个出现在父级 listDir 里、自身 listDir 又返回 [] 的条目必是文件 —— 读不出即不可读。
-      // 简版 fork 正是从 web 平台导出，这条分支堵的就是「web 上静默丢文件」（全量审阅 HIGH）。
+      // 「是不是文件」交给 adapter.statEntry 跨端统一判定，取代此前 `child===null || getPlatform()==="web"`
+      // 的平台特判（盲审 R5 架构 M3）：真机对文件 stat 返 file、空目录返 directory；web/IndexedDB
+      // 空目录不存在故读不出的条目必是文件（statEntry 亦返 file）。简版 fork 从 web 导出，这条堵
+      // 「web 上静默丢文件」（全量审阅 HIGH）。
       result.unreadable.push(rel);
     }
   }

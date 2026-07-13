@@ -109,7 +109,14 @@ export { FACT_TYPE_VALUES, FACT_STATUS_VALUES, NARRATIVE_WEIGHT_VALUES } from "@
 // Engine 实例管理（从 engine-instance.ts re-export）
 // ---------------------------------------------------------------------------
 export type { EngineInstance } from "./engine-instance";
-export { initEngine, getEngine, isEngineReady, getDataDir, getDisplayDataDir } from "./engine-instance";
+export {
+  initEngine,
+  getEngine,
+  getCurrentPlatform,
+  isEngineReady,
+  getDataDir,
+  getDisplayDataDir,
+} from "./engine-instance";
 
 // ---------------------------------------------------------------------------
 // Domain module re-exports

@@ -111,6 +111,14 @@ export async function getDisplayDataDir(): Promise<string> {
 }
 
 /**
+ * 当前运行平台（tauri / capacitor / web）。UI 组件经此单点取，不直接 reach getEngine().adapter
+ * ——组件不该穿透 api 层摸引擎内部（盲审 R5 架构 L2）。
+ */
+export function getCurrentPlatform(): ReturnType<EngineInstance["adapter"]["getPlatform"]> {
+  return getEngine().adapter.getPlatform();
+}
+
+/**
  * 读取 AU 项目配置，缺失即抛（get 契约 2026-07-09：repo.get 缺失返回 null）。
  * API 层大多数路径要求 project.yaml 必须存在（合法 AU 的结构前提），
  * 统一经此 helper 取，避免各处手写 null 检查。错误文案与旧 repo 抛错一致。

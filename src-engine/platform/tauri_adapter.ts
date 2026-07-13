@@ -91,6 +91,16 @@ export class TauriAdapter implements PlatformAdapter {
     return exists(path);
   }
 
+  async statEntry(path: string): Promise<"file" | "directory" | "missing"> {
+    try {
+      const { stat } = await import("@tauri-apps/plugin-fs");
+      const info = await stat(path);
+      return info.isDirectory ? "directory" : "file";
+    } catch {
+      return "missing";
+    }
+  }
+
   async mkdir(path: string): Promise<void> {
     const { mkdir } = await import("@tauri-apps/plugin-fs");
     await mkdir(path, { recursive: true });

@@ -349,6 +349,16 @@ export class WebAdapter implements PlatformAdapter {
     return allKeys.some((k) => k.startsWith(prefix));
   }
 
+  async statEntry(path: string): Promise<"file" | "directory" | "missing"> {
+    const normed = this.norm(path);
+    // 精确 key 存在 = 文件；否则有子文件前缀 = 目录（IndexedDB 空目录不存在，与 exists 同口径）。
+    const content = await this.withDb((db) => txGet(db, normed));
+    if (content !== undefined) return "file";
+    const prefix = normed + "/";
+    const allKeys = await this.withDb((db) => txGetAllKeys(db));
+    return allKeys.some((k) => k.startsWith(prefix)) ? "directory" : "missing";
+  }
+
   async mkdir(_path: string): Promise<void> {
     // IndexedDB 不需要显式创建目录
   }
