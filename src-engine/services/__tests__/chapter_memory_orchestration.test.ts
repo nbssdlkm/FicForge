@@ -28,6 +28,7 @@ import { FileFactRepository } from "../../repositories/implementations/file_fact
 import { FileOpsRepository } from "../../repositories/implementations/file_ops.js";
 import { FileStateRepository } from "../../repositories/implementations/file_state.js";
 import { createMockLLMProvider } from "./mock_llm_provider.js";
+import * as loggerModule from "../../logger/index.js";
 
 const AU = "au1";
 
@@ -288,5 +289,85 @@ describe("chapter_memory_orchestration", () => {
     });
     expect(result.chapter_num).toBe(1); // undo 成功
     expect((await stateRepo.get(AU)).index_status).toBe(IndexStatus.STALE);
+  });
+
+  // ===== 审阅整改（ultracode R2/R3/R4）：补编排分支覆盖 =====
+
+  // R2：摘要 CAS-reject 分支此前只有 retrospective 侧被测，standard/micro 侧缺对称覆盖。
+  it("摘要 CAS：standard 生成期间章节被并发编辑（hash 变）→ 摘要不落盘不索引", async () => {
+    await seedDraft(1);
+    const rag = makeRag();
+    // fake provider 在 standard 摘要生成的那次 generate 里改 ch1 → 锁内 CAS 读到的 content_hash
+    // ≠ confirm 时的 result.content_hash → stillCurrent=false → 摘要作废不落盘（防止用编辑后
+    // 内容算出的摘要污染 RAG）。
+    let edited = false;
+    const llm = {
+      calls: [] as unknown[],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      generate: async () => {
+        if (!edited) {
+          edited = true;
+          await editChapterContent(AU, 1, "第1章被并发编辑的全新内容", chapterRepo, stateRepo, opsRepo);
+        }
+        return { content: "章节摘要文本", input_tokens: 0, output_tokens: 0 };
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, require-yield
+      generateStream: async function* (): AsyncIterable<any> {
+        return;
+      },
+    };
+    await confirmChapterWithMemory(
+      baseParams({ rag_manager: rag, embedding_provider: fakeEmb, llm_provider: llm, title: "固定标题" }),
+    );
+    expect(edited).toBe(true); // 编辑确实在摘要生成期间发生（否则测试无意义）
+    // CAS 拦截：摘要不向量化、不落盘
+    expect(rag.indexChapterSummary).not.toHaveBeenCalled();
+    expect((await summaryRepo.get(AU, 1))?.standard).toBeFalsy();
+  });
+
+  // R3：标题自动生成 + 写盘编排此前无集成覆盖（chapter_titles + set_chapter_title op）。
+  it("标题自动生成：无 title + llm 可用 → 生成标题写入 chapter_titles + 落 set_chapter_title op", async () => {
+    await seedDraft(1);
+    const rag = makeRag();
+    const llm = createMockLLMProvider({ content: "初入江湖" }); // ≤30 字符 → 作标题
+    // 不配 embedding → 跳过 RAG/摘要，隔离标题路径
+    await confirmChapterWithMemory(baseParams({ rag_manager: rag, embedding_provider: null, llm_provider: llm }));
+    const st = await stateRepo.get(AU);
+    expect(st.chapter_titles[1]).toBe("初入江湖");
+    const ops = await opsRepo.list_all(AU);
+    const titleOp = ops.find((o) => o.op_type === "set_chapter_title" && o.chapter_num === 1);
+    expect(titleOp).toBeTruthy();
+    expect(titleOp?.payload.title).toBe("初入江湖");
+  });
+
+  // R4：迁移时删了两处 logCatch 断言（barrel spy 失效），在引擎侧补回可观测性覆盖。
+  it("reindex 失败落 logCatch（可观测性）", async () => {
+    await seedDraft(1);
+    const rag = makeRag();
+    rag.indexChapter.mockRejectedValue(new Error("embedding offline"));
+    const logSpy = vi.spyOn(loggerModule, "logCatch");
+    await confirmChapterWithMemory(baseParams({ rag_manager: rag, embedding_provider: fakeEmb }));
+    expect(logSpy).toHaveBeenCalledWith("rag", "Failed to index chapter 1 after confirm", expect.any(Error));
+  });
+
+  it("undo removeChapter 失败落 logCatch（可观测性）", async () => {
+    await seedDraft(1);
+    await coreConfirm(1);
+    const rag = makeRag();
+    rag.removeChapter.mockRejectedValue(new Error("disk error"));
+    const logSpy = vi.spyOn(loggerModule, "logCatch");
+    await undoChapterWithMemory({
+      au_id: AU,
+      cast_registry: { characters: [] },
+      chapter_repo: chapterRepo,
+      draft_repo: draftRepo,
+      state_repo: stateRepo,
+      ops_repo: opsRepo,
+      fact_repo: factRepo,
+      chapter_summary_repo: summaryRepo,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      rag_manager: rag as any,
+    });
+    expect(logSpy).toHaveBeenCalledWith("rag", "Failed to remove vectors after undo 1", expect.any(Error));
   });
 });

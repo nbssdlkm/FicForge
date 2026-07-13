@@ -84,25 +84,28 @@ export async function confirmChapter(
   const e = getEngine();
   const { chapter, draft, state, ops, chapterSummary, settings } = e.repos;
   const proj = await getProjectOrThrow(auPath);
-  const sett = await settings.get();
   // E8：别名表供 scanCharactersInChapter 归一化 —— 正文只出现别名时 characters_last_seen 记主名，
   // 与提取/RAG 侧共用同一张表。get 异步且永不抛错（无角色卡 → null，扫描逐字节回退现状）。
   const characterAliases = await e.characterAliases.get(auPath);
-  // 记忆层 provider 由 UI 从 settings/project 构建后注入引擎编排服务（M1 下沉）。构建失败
-  // 降级为 null —— 引擎服务对应分支整段跳过（等价原实现里标题/索引/摘要/回望各自 try 吞错后
-  // 跳过生成），绝不阻断确认本身。核心 confirm 的前置读取（project/settings/别名）失败仍在
-  // 调服务前抛出，与既有行为一致（getProjectOrThrow 本就前置）。
-  const language = resolveLang(sett);
+  // 记忆层 provider 由 UI 从 settings/project 构建后注入引擎编排服务（M1 下沉）。settings 读取
+  // 与 provider 构建整段纳入 best-effort 降级：任一失败 → language/providers 落安全默认，引擎
+  // 服务对应分支整段跳过（等价原实现里标题/索引/摘要/回望各自 try 吞错后跳过生成），核心 confirm
+  // 仍先行、绝不阻断确认本身。**审阅整改（ultracode R1）**：settings.get 原在核心 confirm 之后
+  // （坏了章节已存但报错）；把它收进 try 降级 —— 损坏的全局 settings.yaml 不再阻断用户写作保存，
+  // 恢复「settings 坏也不挡写作」的 best-effort（正常路径 language/providers 逐字节不变）。
+  let language = "zh";
   let embProvider: EmbeddingProvider | null = null;
   let llmProvider: LLMProvider | null = null;
   try {
+    const sett = await settings.get();
+    language = resolveLang(sett);
     embProvider = createEmbeddingProvider(sett, proj) ?? null;
     const llmCfg = resolveLlmConfig(null, proj, sett);
     // llm_provider 非 null ⇔ 原 canGen：api 有 key / ollama（key 可空，引擎填 dummy）。
     const canGen = llmCfg.mode === "ollama" || (llmCfg.mode === "api" && !!llmCfg.api_key);
     llmProvider = canGen ? createProvider(llmCfg) : null;
   } catch (err) {
-    logUiError("engine-chapters", "构建记忆层 provider 失败，记忆栈跳过", err);
+    logUiError("engine-chapters", "读取设置或构建记忆层 provider 失败，记忆栈降级跳过", err);
   }
 
   return confirmChapterWithMemory({

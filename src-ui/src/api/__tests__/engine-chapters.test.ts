@@ -86,6 +86,16 @@ describe("engine-chapters confirmChapter RAG orchestration", () => {
     expect(result.chapter_num).toBe(1);
     expect(state.index_status).toBe(IndexStatus.STALE);
   });
+
+  it("settings.get() 失败（settings.yaml 损坏）→ 核心 confirm 仍保存章节，记忆层降级跳过（审阅整改 R1）", async () => {
+    vi.spyOn(getEngine().repos.settings, "get").mockRejectedValue(new Error("corrupt settings.yaml"));
+
+    const result = await confirmChapter(auPath, 1, "ch0001_draft_A.md");
+
+    // 核心 confirm 仍成功：章节持久化、草稿消费——损坏的全局设置不阻断用户写作保存
+    expect(result.chapter_num).toBe(1);
+    await expect(getEngine().repos.chapter.exists(auPath, 1)).resolves.toBe(true);
+  });
 });
 
 describe("engine-chapters confirmChapter 在飞互斥（R1-3）", () => {
