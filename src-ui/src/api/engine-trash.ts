@@ -7,7 +7,7 @@
 
 import { ApiError } from "./client";
 import { getEngine } from "./engine-instance";
-import { recalcState } from "./engine-state";
+import { recalcState, rescanChunkCharacterTags } from "./engine-state";
 import type { RestoreConflictPolicy, TrashEntry } from "@ficforge/engine";
 import {
   AU_CHARACTERS_DIR,
@@ -83,9 +83,11 @@ export async function restoreTrash(
     const entry = await getEngine().trash.restore(path, trashId, onConflict);
     if (scope === "au") {
       // 恢复的是角色卡（original_path 相对 scopeRoot，characters/ 前缀即角色卡，
-      // 含 overwrite-backup 版本）→ 失效别名归一化表缓存，与 saveLore 写入口对称。
+      // 含 overwrite-backup 版本）→ 失效别名归一化表缓存，与 saveLore 写入口对称；
+      // TD-020：并 fire-and-forget 重扫 chunk 角色标签（新表推进向量 metadata，免嵌）。
       if (entry.original_path.startsWith(`${AU_CHARACTERS_DIR}/`)) {
         getEngine().characterAliases.invalidate(path);
+        void rescanChunkCharacterTags(path);
       }
       const chapterNum = chapterNumFromTrashEntry(entry);
       if (chapterNum !== null) {

@@ -19,7 +19,48 @@ import {
   type Settings,
   type Project,
 } from "@ficforge/engine";
+import { logCatch } from "@ficforge/engine";
 import { getEngine, getProjectOrThrow } from "./engine-instance";
+
+/**
+ * TD-020：重算全部正文 chunk 的「出场角色」标签（免嵌迁移——块原文就在本地分片里，
+ * 带上别名表重扫 metadata，零 embedding 调用）。供三类触发点复用：
+ * recalcState / 角色卡增删改与恢复（别名表失效点）/ 导入完成——全部 fire-and-forget。
+ * 失败只留痕不冒泡——标签重扫是增益项，不许拖垮主流程。
+ *
+ * per-AU latest-only 队列（codex F4 对抗审 MED）：读表在锁外，连续增删改时旧快照
+ * 可能后入锁反把新标签盖回旧值。同 AU 在飞时只标脏不并发；在飞轮收尾后发现脏位，
+ * **重新读最新表**再跑一轮——最终落盘的必然是最后一次变更的表。
+ */
+const rescanQueue = new Map<string, { running: boolean; dirty: boolean }>();
+
+export async function rescanChunkCharacterTags(auPath: string): Promise<void> {
+  let st = rescanQueue.get(auPath);
+  if (!st) {
+    st = { running: false, dirty: false };
+    rescanQueue.set(auPath, st);
+  }
+  if (st.running) {
+    st.dirty = true;
+    return;
+  }
+  st.running = true;
+  try {
+    do {
+      st.dirty = false;
+      try {
+        const e = getEngine();
+        const proj = await getProjectOrThrow(auPath);
+        const aliases = await e.characterAliases.get(auPath);
+        await e.ragManager.rescanChunkCharacters(auPath, proj.cast_registry, aliases);
+      } catch (err) {
+        logCatch("rag-rescan", `chunk characters rescan failed (${auPath})`, err);
+      }
+    } while (st.dirty);
+  } finally {
+    st.running = false;
+  }
+}
 
 /**
  * 从 settings（+ 可选 project）创建 RemoteEmbeddingProvider。
@@ -72,12 +113,15 @@ export async function rebuildIndex(auPath: string) {
   const embProvider = createEmbeddingProvider(sett, proj);
 
   if (embProvider) {
+    // TD-020：重建走别名表——通篇只用别名的块 characters 标签记主名
+    const aliases = await e.characterAliases.get(auPath);
     // rebuild 可能耗时数十秒，不持 AU 锁（不写 ops/chapter/facts，只写 vector 索引）
     await e.ragManager.rebuildForAu(
       auPath,
       e.repos.chapter,
       embProvider,
       proj.cast_registry,
+      aliases,
       undefined,
       undefined,
       e.repos.chapterSummary,
@@ -129,6 +173,12 @@ export async function recalcState(auPath: string) {
     await tx.commit(ops, null, state);
     // 不泄露内部 state 对象到前端
     const { state: _s, ...publicResult } = result;
+    return publicResult;
+  }).then((publicResult) => {
+    // TD-020：重算语义顺带重扫 chunk 角色标签。fire-and-forget（latest-only 队列内
+    // 自串行）——不扩大 recalcState 的完成边界（codex F4 对抗审 LOW：向量目录 I/O
+    // 卡顿不该拖住重算的返回）。
+    void rescanChunkCharacterTags(auPath);
     return publicResult;
   });
 }

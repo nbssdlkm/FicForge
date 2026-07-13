@@ -161,7 +161,8 @@ export async function confirmChapter(
     const embProvider = createEmbeddingProvider(sett, proj);
     if (embProvider) {
       const chContent = await chapter.get_content_only(auPath, chapterNum);
-      await e.ragManager.indexChapter(auPath, chapterNum, chContent, embProvider, proj.cast_registry);
+      // TD-020：别名表串入 chunker——通篇只用别名的块，characters 标签也记主名（char_filter 可命中）
+      await e.ragManager.indexChapter(auPath, chapterNum, chContent, embProvider, proj.cast_registry, characterAliases);
       // confirmChapter 里先悲观标记 STALE；增量索引成功后仅在两种情形升回 READY（M1a）：
       //  - confirm 前就是 READY —— 本次增量索引把索引重新补齐到完整；
       //  - 首章 confirm（chapterNum === 1，此前零章）—— 索引天然完整，否则新 AU 永远卡 STALE。
@@ -419,7 +420,9 @@ export async function updateChapterContent(auPath: string, chapterNum: number, c
     if (embProvider) {
       // 用落盘后的正文重索引（与 confirm 同源），不直接用入参，防 save 路径归一化产生偏差。
       const chContent = await chapter.get_content_only(auPath, chapterNum);
-      await e.ragManager.indexChapter(auPath, chapterNum, chContent, embProvider, proj.cast_registry);
+      // TD-020：别名表串入 chunker（与 confirm 侧同源；get 永不抛错，无卡 → null 回退现状）
+      const characterAliases = await e.characterAliases.get(auPath);
+      await e.ragManager.indexChapter(auPath, chapterNum, chContent, embProvider, proj.cast_registry, characterAliases);
       if (preEditIndexStatus === IndexStatus.READY) {
         await withAuLock(auPath, async () => {
           await state.update(auPath, (st) => {
@@ -573,7 +576,16 @@ export async function backfillChapterMemory(
           }
 
           // 章正文进向量索引（idempotent overwrite）；signal 透传 → 点停时中止在飞 embed（MED-2）
-          await e.ragManager.indexChapter(auPath, t.chapterNum, t.content, embProvider, proj.cast_registry, signal);
+          // TD-020：backfill 的别名快照同供 chunker（与提取/落库侧同一张表）
+          await e.ragManager.indexChapter(
+            auPath,
+            t.chapterNum,
+            t.content,
+            embProvider,
+            proj.cast_registry,
+            characterAliases,
+            signal,
+          );
           return { persisted: true, factsAdded };
         } catch (err) {
           // 半成功（如摘要/部分笔记已落但正文未索引）→ 标 index_status=STALE，让「重建索引」或重跑修复

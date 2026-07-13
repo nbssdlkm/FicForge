@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 import { describe, expect, it } from "vitest";
-import { splitChapterIntoChunks } from "../chunker.js";
+import { scanChunkCharacters, splitChapterIntoChunks } from "../chunker.js";
 
 describe("split_chapter_into_chunks", () => {
   it("empty text returns no chunks", () => {
@@ -124,5 +124,32 @@ describe("splitChapterIntoChunks frontmatter safety (B-2)", () => {
       .join("\n");
     expect(all).not.toContain("chapter_id");
     expect(all).toContain("正文内容");
+  });
+});
+
+describe("TD-020 别名供表（chunk characters 标签）", () => {
+  const cast = { characters: ["张三", "李四"] };
+  const aliases = { 张三: ["小张", "阿三"], 李四: ["小李"] };
+
+  it("通篇只用别名的正文：供表后标签记主名（char_filter 可命中的前提）", () => {
+    const text = "小张走在路上，神色凝重。小李跟在后面，欲言又止。两人一路无话。";
+    const chunks = splitChapterIntoChunks(text, 3, 500, 0, cast, aliases);
+    expect(chunks.length).toBeGreaterThan(0);
+    expect(chunks[0].characters).toEqual(expect.arrayContaining(["张三", "李四"]));
+    // 别名本身不入标签（归一化到主名）
+    expect(chunks[0].characters).not.toContain("小张");
+    expect(chunks[0].characters).not.toContain("小李");
+  });
+
+  it("null 表回退现状：别名盲扫描，只有主名字面量命中（对照组）", () => {
+    const text = "小张走在路上，神色凝重。小李跟在后面，欲言又止。两人一路无话。";
+    const chunks = splitChapterIntoChunks(text, 3, 500, 0, cast, null);
+    expect(chunks[0].characters).toEqual([]);
+  });
+
+  it("scanChunkCharacters 判据单源：与 splitChapterIntoChunks 的标签逐字一致", () => {
+    const text = "阿三回头看了看，没有说话。夜风吹过街角。";
+    const chunks = splitChapterIntoChunks(text, 5, 500, 0, cast, aliases);
+    expect(scanChunkCharacters(chunks[0].content, cast, aliases, 5)).toEqual(chunks[0].characters);
   });
 });

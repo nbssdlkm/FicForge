@@ -36,6 +36,21 @@ export interface CastRegistryLike {
 const SENTENCE_END = /[。！？…\n]/g;
 
 /**
+ * 单块「出场角色」标签判据（TD-020：与状态扫描同源 scanCharactersInChapter，
+ * 供表后通篇只用别名的文字段也能记到主名）。存量库的 metadata 重扫
+ * （RagManager.rescanChunkCharacters）与新建块共用此判据，禁两处各写。
+ */
+export function scanChunkCharacters(
+  content: string,
+  cast_registry: CastRegistryLike | null | undefined,
+  character_aliases: Record<string, string[]> | null | undefined,
+  chapter_num: number,
+): string[] {
+  if (!cast_registry?.characters?.length) return [];
+  return Object.keys(scanCharactersInChapter(content, cast_registry, character_aliases ?? null, chapter_num));
+}
+
+/**
  * 将章节文本切块（PRD §5.2）。
  */
 export function splitChapterIntoChunks(
@@ -44,6 +59,7 @@ export function splitChapterIntoChunks(
   max_size = 500,
   overlap_sentences = 1,
   cast_registry?: CastRegistryLike | null,
+  character_aliases?: Record<string, string[]> | null,
 ): ChunkData[] {
   // 剥离 frontmatter（审计 B-2）：输入通常已是 content-only 正文（rag_manager 传
   // get_content_only 结果），这里的剥离只是对「误传整文件」的防御。裸 matter()
@@ -80,13 +96,9 @@ export function splitChapterIntoChunks(
     chunksText = addOverlap(chunksText, overlap_sentences);
   }
 
-  // 构建 ChunkData（含逐块角色扫描）
+  // 构建 ChunkData（含逐块角色扫描；判据单源 scanChunkCharacters，认别名）
   return chunksText.map((content, i) => {
-    let characters: string[] = [];
-    if (cast_registry?.characters?.length) {
-      const scanned = scanCharactersInChapter(content, cast_registry, null, chapter_num);
-      characters = Object.keys(scanned);
-    }
+    const characters = scanChunkCharacters(content, cast_registry, character_aliases, chapter_num);
     return {
       content,
       chapter_num,

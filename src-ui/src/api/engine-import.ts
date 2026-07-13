@@ -18,7 +18,7 @@ import type {
 
 import { resolveLlmConfig, createProvider } from "@ficforge/engine";
 
-import { getEngine } from "./engine-instance";
+import { getEngine, getProjectOrThrow } from "./engine-instance";
 
 export type {
   FileAnalysis,
@@ -100,7 +100,13 @@ export async function executeImportPlan(
   locale?: "zh" | "en",
 ): Promise<NewImportResult> {
   const { executeImport } = await import("@ficforge/engine");
-  const { adapter, repos, trash } = getEngine();
+  const e = getEngine();
+  const { adapter, repos, trash } = e;
+  // TD-020 缺口②：文本导入供表——此前 castRegistry/characterAliases 恒走默认空表，
+  // 导入章节的 characters_last_seen 恒空（不只别名盲，连主名都不记）。导入目标是已
+  // 存在的 AU、角色卡已在盘上，供表时机天然正确；无 project/无卡回退旧行为（空表扫描）。
+  const proj = await getProjectOrThrow(auPath).catch(() => null);
+  const characterAliases = await e.characterAliases.get(auPath);
   return executeImport(plan, {
     auId: auPath,
     chapterRepo: repos.chapter,
@@ -108,6 +114,8 @@ export async function executeImportPlan(
     opsRepo: repos.ops,
     adapter,
     trashService: trash,
+    castRegistry: proj?.cast_registry,
+    characterAliases,
     onProgress,
     locale,
   });

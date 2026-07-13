@@ -13,6 +13,11 @@ import type { EmbeddingProvider } from "../../llm/embedding_provider.js";
 class FakeEmbeddingProvider implements EmbeddingProvider {
   private callCount = 0;
 
+  /** TD-020 判别用：免嵌重扫断言 embed 调用数不增长。 */
+  get calls(): number {
+    return this.callCount;
+  }
+
   async embed(texts: string[]): Promise<number[][]> {
     this.callCount++;
     return texts.map((_, i) => [1, 0, 0, (this.callCount * 10 + i) / 100]);
@@ -579,5 +584,142 @@ describe("同 AU 并发写串行化（盲审 2026-07-11：persist 孤儿分片 G
 
     gated.release();
     await slow;
+  });
+});
+
+describe("TD-020 rescanChunkCharacters（免嵌 metadata 重扫）", () => {
+  const cast = { characters: ["张三", "李四"] };
+  const aliases = { 张三: ["小张", "阿三"], 李四: ["小李"] };
+  const aliasOnlyText = "小张走在路上，神色凝重。小李跟在后面，欲言又止。两人一路无话，各怀心事。";
+
+  let adapter: MockAdapter;
+  let ragManager: RagManager;
+  let embProvider: FakeEmbeddingProvider;
+
+  beforeEach(() => {
+    adapter = new MockAdapter();
+    ragManager = new RagManager(() => new JsonVectorEngine(adapter));
+    embProvider = new FakeEmbeddingProvider();
+  });
+
+  it("存量别名盲库：重扫后 char_filter 按主名命中，且不重新 embed", async () => {
+    // 1. 模拟存量库：别名盲索引（不供表）——通篇只用别名，标签为空
+    await ragManager.indexChapter("au1", 1, aliasOnlyText, embProvider, cast);
+    const repo = await ragManager.vectorRepoFor("au1");
+    const missBefore = await repo.search("au1", [1, 0, 0, 0.1], {
+      collection: "chapters",
+      top_k: 10,
+      char_filter: ["张三"],
+    });
+    expect(missBefore).toEqual([]);
+
+    // 2. 免嵌重扫：只动 metadata，embed 调用数不得增长
+    const embedCallsBefore = embProvider.calls;
+    const changed = await ragManager.rescanChunkCharacters("au1", cast, aliases);
+    expect(changed).toBeGreaterThan(0);
+    expect(embProvider.calls).toBe(embedCallsBefore);
+
+    // 3. 重扫后 char_filter 命中（内存与磁盘都生效）
+    const hitAfter = await repo.search("au1", [1, 0, 0, 0.1], {
+      collection: "chapters",
+      top_k: 10,
+      char_filter: ["张三"],
+    });
+    expect(hitAfter.length).toBeGreaterThan(0);
+    expect(hitAfter[0].content).toContain("小张");
+
+    // 4. 持久化生效：卸载后从磁盘重载仍命中（round-trip 闭环）
+    ragManager.unload();
+    const repo2 = await ragManager.vectorRepoFor("au1");
+    const hitReloaded = await repo2.search("au1", [1, 0, 0, 0.1], {
+      collection: "chapters",
+      top_k: 10,
+      char_filter: ["张三"],
+    });
+    expect(hitReloaded.length).toBeGreaterThan(0);
+  });
+
+  it("幂等：标签无变化时 changed=0（不放大写入）", async () => {
+    await ragManager.indexChapter("au2", 1, aliasOnlyText, embProvider, cast, aliases);
+    const changed = await ragManager.rescanChunkCharacters("au2", cast, aliases);
+    expect(changed).toBe(0);
+  });
+
+  it("indexChapter 供表后新块标签直接记主名（全链穿线）", async () => {
+    await ragManager.indexChapter("au3", 1, aliasOnlyText, embProvider, cast, aliases);
+    const repo = await ragManager.vectorRepoFor("au3");
+    const hit = await repo.search("au3", [1, 0, 0, 0.1], {
+      collection: "chapters",
+      top_k: 10,
+      char_filter: ["李四"],
+    });
+    expect(hit.length).toBeGreaterThan(0);
+  });
+});
+
+describe("TD-020 rescan 失效面（codex F4 对抗审补测）", () => {
+  const cast = { characters: ["张三", "李四"] };
+  const aliases = { 张三: ["小张", "阿三"], 李四: ["小李"] };
+  const aliasOnlyText = "小张走在路上，神色凝重。小李跟在后面，欲言又止。两人一路无话，各怀心事。";
+
+  let adapter: MockAdapter;
+  let ragManager: RagManager;
+  let embProvider: FakeEmbeddingProvider;
+
+  beforeEach(() => {
+    adapter = new MockAdapter();
+    ragManager = new RagManager(() => new JsonVectorEngine(adapter));
+    embProvider = new FakeEmbeddingProvider();
+  });
+
+  it("persist 失败自愈：首次落盘失败后第二次重扫必须再次 persist（不许 changed=0 永久跳过）", async () => {
+    await ragManager.indexChapter("au1", 1, aliasOnlyText, embProvider, cast);
+
+    // 故障注入：下一次 writeFile 抛错（atomicWrite 的 .tmp 写入即失败）
+    const realWriteFile = adapter.writeFile.bind(adapter);
+    let failOnce = true;
+    adapter.writeFile = async (path: string, content: string) => {
+      if (failOnce) {
+        failOnce = false;
+        throw new Error("disk full (injected)");
+      }
+      return realWriteFile(path, content);
+    };
+    await expect(ragManager.rescanChunkCharacters("au1", cast, aliases)).rejects.toThrow("disk full");
+
+    // 自愈判据：引擎已被驱逐（内存新标签不残留），第二次重扫从磁盘重读旧标签 → changed>0 并成功落盘
+    adapter.writeFile = realWriteFile;
+    const changedSecond = await ragManager.rescanChunkCharacters("au1", cast, aliases);
+    expect(changedSecond).toBeGreaterThan(0);
+
+    // round-trip：重载后 char_filter 命中（磁盘为准）
+    ragManager.unload();
+    const repo = await ragManager.vectorRepoFor("au1");
+    const hit = await repo.search("au1", [1, 0, 0, 0.1], { collection: "chapters", top_k: 10, char_filter: ["张三"] });
+    expect(hit.length).toBeGreaterThan(0);
+  });
+
+  it("隔离：只动目标 AU 的 chapters collection——他 AU 与 summaries 向量零触碰", async () => {
+    await ragManager.indexChapter("au1", 1, aliasOnlyText, embProvider, cast);
+    await ragManager.indexChapterSummary("au1", 1, "本章摘要：两人同行。", embProvider);
+    await ragManager.indexChapter("au2", 1, aliasOnlyText, embProvider, cast);
+
+    const changed = await ragManager.rescanChunkCharacters("au1", cast, aliases);
+    expect(changed).toBeGreaterThan(0);
+
+    // au2 未供表重扫：标签仍是别名盲（char_filter 不命中）
+    const repo2 = await ragManager.vectorRepoFor("au2");
+    const au2Hit = await repo2.search("au2", [1, 0, 0, 0.1], {
+      collection: "chapters",
+      top_k: 10,
+      char_filter: ["张三"],
+    });
+    expect(au2Hit).toEqual([]);
+
+    // au1 summaries 向量原样可检索且未被打上 characters 标签
+    const repo1 = await ragManager.vectorRepoFor("au1");
+    const sums = await repo1.search("au1", [0.1, 0.2, 0.3, 0.4], { collection: "summaries", top_k: 5 });
+    expect(sums.length).toBe(1);
+    expect(sums[0].metadata.characters).toBeUndefined();
   });
 });

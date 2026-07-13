@@ -20,7 +20,7 @@ import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { ChapterSummaryRepository } from "../repositories/interfaces/chapter_summary.js";
 import type { JsonVectorEngine } from "../vector/engine.js";
 import type { VectorRepository } from "../repositories/interfaces/vector.js";
-import { splitChapterIntoChunks, type CastRegistryLike } from "../vector/chunker.js";
+import { scanChunkCharacters, splitChapterIntoChunks, type CastRegistryLike } from "../vector/chunker.js";
 import { logCatch, warnAlways } from "../logger/index.js";
 import { createAbortError } from "../utils/abort_error.js";
 
@@ -239,6 +239,7 @@ export class RagManager {
     content: string,
     embeddingProvider: EmbeddingProvider,
     castRegistry?: CastRegistryLike | null,
+    characterAliases?: Record<string, string[]> | null,
     signal?: AbortSignal,
   ): Promise<void> {
     const epoch = this.epochOf(auPath);
@@ -252,6 +253,7 @@ export class RagManager {
       content,
       embeddingProvider,
       castRegistry,
+      characterAliases,
       signal,
     );
     await this.withAuWriteLock(
@@ -264,6 +266,45 @@ export class RagManager {
         }),
       { signal, epoch },
     );
+  }
+
+  /**
+   * 重算存量正文 chunks 的「出场角色」标签（TD-020 免嵌迁移）：块原文就存在分片里，
+   * 用别名表重扫一遍 metadata 即可——**不调 embedding、不动向量**，纯本地毫秒~秒级。
+   * 判据与新建块同源（scanChunkCharacters）。标签无变化时跳过 persist（幂等零写放大）。
+   * 触发点：recalcState / 角色卡增删改（别名表失效点）/ 导入完成——由 UI api 层编排。
+   * @returns 标签发生变化的 chunk 数。
+   */
+  async rescanChunkCharacters(
+    auPath: string,
+    castRegistry: CastRegistryLike | null | undefined,
+    characterAliases: Record<string, string[]> | null | undefined,
+  ): Promise<number> {
+    const epoch = this.epochOf(auPath);
+    let changed = 0;
+    await this.withAuWriteLock(
+      auPath,
+      () =>
+        this.withEngine(auPath, async (eng) => {
+          changed = eng.update_chapter_characters(auPath, (content, chapterNum) =>
+            scanChunkCharacters(content, castRegistry, characterAliases, chapterNum),
+          );
+          if (changed > 0) {
+            try {
+              await eng.persist(vectorsDir(auPath));
+            } catch (err) {
+              // persist 失败时内存已是新标签、磁盘还是旧标签——留着这台引擎，下次重扫
+              // changed=0 会永久跳过落盘（内存对、重启回退，codex F4 对抗审 MED）。
+              // 驱逐该 AU 引擎：下次加载从磁盘重读，重扫重新得出 changed>0 再试
+              // （与 rebuild 失败自愈同款姿势）。
+              this.evict(auPath);
+              throw err;
+            }
+          }
+        }),
+      { epoch },
+    );
+    return changed;
   }
 
   /**
@@ -340,6 +381,7 @@ export class RagManager {
     chapterRepo: ChapterRepository,
     embeddingProvider: EmbeddingProvider,
     castRegistry?: CastRegistryLike | null,
+    characterAliases?: Record<string, string[]> | null,
     signal?: AbortSignal,
     onProgress?: (current: number, total: number) => void,
     summaryRepo?: ChapterSummaryRepository,
@@ -361,7 +403,15 @@ export class RagManager {
       const ch = chapters[i];
       const content = await chapterRepo.get_content_only(auPath, ch.chapter_num);
       buffered.push(
-        ...(await this.prepareChapterChunks(auPath, ch.chapter_num, content, embeddingProvider, castRegistry, signal)),
+        ...(await this.prepareChapterChunks(
+          auPath,
+          ch.chapter_num,
+          content,
+          embeddingProvider,
+          castRegistry,
+          characterAliases,
+          signal,
+        )),
       );
       // M8-C：若该章有 standard 摘要，一并缓冲进 summaries collection
       if (summaryRepo) {
@@ -434,9 +484,10 @@ export class RagManager {
     content: string,
     embeddingProvider: EmbeddingProvider,
     castRegistry?: CastRegistryLike | null,
+    characterAliases?: Record<string, string[]> | null,
     signal?: AbortSignal,
   ): Promise<Parameters<JsonVectorEngine["index_chunks"]>[0]> {
-    const chunks = splitChapterIntoChunks(content, chapterNum, 500, 1, castRegistry);
+    const chunks = splitChapterIntoChunks(content, chapterNum, 500, 1, castRegistry, characterAliases);
     const texts = chunks.map((c) => c.content);
     const embeddings = chunks.length > 0 ? await embeddingProvider.embed(texts, { signal }) : [];
 

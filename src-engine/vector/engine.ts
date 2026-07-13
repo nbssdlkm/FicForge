@@ -173,6 +173,26 @@ export class JsonVectorEngine implements VectorRepository {
     this.indexStatus = IndexStatus.STALE;
   }
 
+  /**
+   * 重算正文 chunks 的「出场角色」metadata（TD-020 存量迁移：早年建库时别名盲扫，
+   * 通篇只用别名的块标签为空 → char_filter 永远命不中）。**只动 metadata、不碰
+   * embedding 向量与 content**——块原文就存在本地，重扫零 API 花费；persist 时
+   * index.json 的 characters 从 metadata 派生，自动跟新。调用方负责随后 persist。
+   * @returns 标签实际发生变化的 chunk 数（0 = 无需 persist）。
+   */
+  update_chapter_characters(au_id: string, compute: (content: string, chapter_num: number) => string[]): number {
+    let changed = 0;
+    for (const chunk of this.chunks) {
+      if (chunk.collection !== "chapters" || chunk.metadata.au_id !== au_id) continue;
+      const next = compute(chunk.content, (chunk.metadata.chapter as number) ?? 0).join(",");
+      if (((chunk.metadata.characters as string) ?? "") !== next) {
+        chunk.metadata.characters = next;
+        changed++;
+      }
+    }
+    return changed;
+  }
+
   async get_index_status(_au_id: string): Promise<IndexStatus> {
     return this.indexStatus;
   }
