@@ -161,6 +161,7 @@ export {
 // Settings tools
 export {
   CHARACTER_IMPORTANCE_VALUES,
+  WRITING_STYLE_FIELD_VALUES,
   getToolsForMode,
   isSettingsMutatingToolName,
   isSimpleMutatingToolName,

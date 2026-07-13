@@ -7,6 +7,10 @@ import { FACT_TYPE_VALUES, NARRATIVE_WEIGHT_VALUES } from "./enums.js";
 
 /** 角色重要度合法值 —— JSON Schema / Zod / UI 校验三处共用的单一真相源（R4 重复维 M3）。 */
 export const CHARACTER_IMPORTANCE_VALUES = ["main", "supporting", "minor"] as const;
+// update_writing_style 的 field 取值 —— JSON schema enum 与 simple 侧 zod enum 的单一真相源
+// （L3 微收敛：此前两处手抄同一字面量数组；settings_tools_golden 只校验 key/required 集合、
+// 不校验 enum 内容，任一处漂移测试抓不到 → 单源化封死）。对齐 CHARACTER_IMPORTANCE_VALUES 模式。
+export const WRITING_STYLE_FIELD_VALUES = ["perspective", "emotion_style", "custom_instructions"] as const;
 
 // ===========================================================================
 // AU 设定模式 — 9 个 tool
@@ -140,7 +144,7 @@ const _AU_TOOLS: readonly Record<string, unknown>[] = [
       parameters: {
         type: "object",
         properties: {
-          field: { type: "string", enum: ["perspective", "emotion_style", "custom_instructions"] },
+          field: { type: "string", enum: [...WRITING_STYLE_FIELD_VALUES] },
           value: { type: "string" },
         },
         required: ["field", "value"],

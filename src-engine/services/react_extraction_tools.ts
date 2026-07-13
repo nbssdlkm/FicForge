@@ -105,36 +105,62 @@ const annotateFactSchema = z.object({
 /** 显式终止工具（codex 二审 BLOCKER-1）：把「提取完成」做成明确信号，不靠纯文本兜底。 */
 const finalizeExtractionSchema = z.object({});
 
-/** repair/validate 用 schema 表（单一真相源；dispatch repairToolArgs 引用）。 */
-export const EXTRACTION_TOOL_SCHEMAS: Record<string, z.ZodType> = {
-  [REACT_TOOL_SEARCH]: searchExistingFactsSchema,
-  [REACT_TOOL_PROPOSE]: proposeFactsSchema,
-  [REACT_TOOL_ANNOTATE]: annotateFactSchema,
-  [REACT_TOOL_FINALIZE]: finalizeExtractionSchema,
-};
+// ---------------------------------------------------------------------------
+// 工具描述符 —— 单一真相源：每个提取工具在此声明一次（name + schema + LLM 描述），
+// 下方三张消费表（校验 schema 表 / 路径字段表 / LLM-facing ToolDefinition[]）全部从它派生。
+// 加一个工具只改这一个数组（此前 schema 表 / descriptions / ToolDefinition 三处并行手抄，
+// 且 description 内容不被结构测试覆盖，最易静默漂移）。
+// ---------------------------------------------------------------------------
+
+interface ExtractionToolDescriptor {
+  name: string;
+  schema: z.ZodType;
+  /** LLM 看到的工具描述（进 ToolDefinition.function.description）。 */
+  description: string;
+}
+
+const EXTRACTION_TOOL_DESCRIPTORS: ExtractionToolDescriptor[] = [
+  {
+    name: REACT_TOOL_SEARCH,
+    schema: searchExistingFactsSchema,
+    description:
+      "检索本作品已持久化的事实，按关键词/角色过滤，返回 { fact_id, content_clean, characters, chapter } 列表。" +
+      "用它拿到真实 fact_id，再用 annotate_fact 填 caused_by 建立跨章因果。",
+  },
+  {
+    name: REACT_TOOL_PROPOSE,
+    schema: proposeFactsSchema,
+    description: "提议一批从当前章节抽取到的新事实。先调用本工具产出事实，再视需要 search + annotate 补因果/剧情线。",
+  },
+  {
+    name: REACT_TOOL_ANNOTATE,
+    schema: annotateFactSchema,
+    description:
+      "为某条已提议事实（按 fact_index）标注成因 caused_by_fact_ids（需先 search 拿真实 fact_id）" +
+      "与归属剧情线 thread_ids。仅在确有因果/归属时调用。注意：目标事实必须在 propose_facts 时带过" +
+      "能在本章原文匹配上的 evidence，否则会被拒绝。",
+  },
+  {
+    name: REACT_TOOL_FINALIZE,
+    schema: finalizeExtractionSchema,
+    description:
+      "提取全部完成后调用本工具结束（不要用纯文本结束）。调用前请确认该补的 caused_by / thread_ids 都补完了。",
+  },
+];
+
+/** repair/validate 用 schema 表（从 descriptors 派生；dispatch repairToolArgs 引用）。 */
+export const EXTRACTION_TOOL_SCHEMAS: Record<string, z.ZodType> = Object.fromEntries(
+  EXTRACTION_TOOL_DESCRIPTORS.map((d) => [d.name, d.schema]),
+);
 
 /** 提取工具无路径字段（不像 simple 的 file_path 需要 markdown 拆解 pre-pass）。 */
 export const EXTRACTION_TOOL_PATH_FIELDS: Record<string, (string | number)[][]> = {};
 
 // ---------------------------------------------------------------------------
-// LLM-facing ToolDefinition[]（由同一份 zod 派生，单一真相源）
+// LLM-facing ToolDefinition[]（由同一份 descriptors 派生，单一真相源）
 // ---------------------------------------------------------------------------
 
-const TOOL_DESCRIPTIONS: Record<string, string> = {
-  [REACT_TOOL_SEARCH]:
-    "检索本作品已持久化的事实，按关键词/角色过滤，返回 { fact_id, content_clean, characters, chapter } 列表。" +
-    "用它拿到真实 fact_id，再用 annotate_fact 填 caused_by 建立跨章因果。",
-  [REACT_TOOL_PROPOSE]:
-    "提议一批从当前章节抽取到的新事实。先调用本工具产出事实，再视需要 search + annotate 补因果/剧情线。",
-  [REACT_TOOL_ANNOTATE]:
-    "为某条已提议事实（按 fact_index）标注成因 caused_by_fact_ids（需先 search 拿真实 fact_id）" +
-    "与归属剧情线 thread_ids。仅在确有因果/归属时调用。注意：目标事实必须在 propose_facts 时带过" +
-    "能在本章原文匹配上的 evidence，否则会被拒绝。",
-  [REACT_TOOL_FINALIZE]:
-    "提取全部完成后调用本工具结束（不要用纯文本结束）。调用前请确认该补的 caused_by / thread_ids 都补完了。",
-};
-
-function toToolDefinition(name: string, schema: z.ZodType): ToolDefinition {
+function toToolDefinition(name: string, schema: z.ZodType, description: string): ToolDefinition {
   // z.toJSONSchema 产出 draft 2020-12；OpenAI tool parameters 接受标准 JSON Schema 子集。
   // 去掉 $schema 顶层键（OpenAI 不需要，留着无害但更干净）。
   const json = z.toJSONSchema(schema, { target: "draft-2020-12" }) as Record<string, unknown>;
@@ -143,15 +169,12 @@ function toToolDefinition(name: string, schema: z.ZodType): ToolDefinition {
     type: "function",
     function: {
       name,
-      description: TOOL_DESCRIPTIONS[name] ?? "",
+      description,
       parameters: json,
     },
   };
 }
 
-export const EXTRACTION_TOOLS: ToolDefinition[] = [
-  toToolDefinition(REACT_TOOL_SEARCH, searchExistingFactsSchema),
-  toToolDefinition(REACT_TOOL_PROPOSE, proposeFactsSchema),
-  toToolDefinition(REACT_TOOL_ANNOTATE, annotateFactSchema),
-  toToolDefinition(REACT_TOOL_FINALIZE, finalizeExtractionSchema),
-];
+export const EXTRACTION_TOOLS: ToolDefinition[] = EXTRACTION_TOOL_DESCRIPTORS.map((d) =>
+  toToolDefinition(d.name, d.schema, d.description),
+);

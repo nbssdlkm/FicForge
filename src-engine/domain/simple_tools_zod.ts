@@ -11,7 +11,7 @@
  * V2 暴露的 regression）。 */
 
 import { z } from "zod";
-import { CHARACTER_IMPORTANCE_VALUES } from "./settings_tools.js";
+import { CHARACTER_IMPORTANCE_VALUES, WRITING_STYLE_FIELD_VALUES } from "./settings_tools.js";
 
 /** 通用 helper: required string 必须非空（trim 后 length > 0）。 */
 const requiredString = () =>
@@ -54,7 +54,7 @@ export const SIMPLE_TOOL_SCHEMAS: Record<string, z.ZodType> = {
   }),
 
   update_writing_style: z.object({
-    field: z.enum(["perspective", "emotion_style", "custom_instructions"]),
+    field: z.enum(WRITING_STYLE_FIELD_VALUES),
     value: requiredString(),
   }),
 
