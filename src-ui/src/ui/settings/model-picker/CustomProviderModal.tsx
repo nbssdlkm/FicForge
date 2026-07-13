@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import { Modal } from "../../shared/Modal";
 import { Button } from "../../shared/Button";
@@ -36,6 +36,10 @@ export function CustomProviderModal({
 }: CustomProviderModalProps) {
   const { t } = useTranslation();
   const { showError } = useFeedback();
+  const nameId = useId();
+  const baseUrlId = useId();
+  const apiKeyId = useId();
+  const chatPathId = useId();
 
   const [displayName, setDisplayName] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
@@ -111,8 +115,11 @@ export function CustomProviderModal({
       >
         <div className="space-y-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-bold text-text/90">{t("modelPicker.customProvider.name")}</label>
+            <label htmlFor={nameId} className="text-sm font-bold text-text/90">
+              {t("modelPicker.customProvider.name")}
+            </label>
             <Input
+              id={nameId}
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder={t("modelPicker.customProvider.namePlaceholder")}
@@ -121,8 +128,11 @@ export function CustomProviderModal({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-bold text-text/90">{t("common.labels.apiBase")}</label>
+            <label htmlFor={baseUrlId} className="text-sm font-bold text-text/90">
+              {t("common.labels.apiBase")}
+            </label>
             <Input
+              id={baseUrlId}
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
               placeholder="https://api.example.com/v1"
@@ -132,8 +142,11 @@ export function CustomProviderModal({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-bold text-text/90">{t("common.labels.apiKey")}</label>
+            <label htmlFor={apiKeyId} className="text-sm font-bold text-text/90">
+              {t("common.labels.apiKey")}
+            </label>
             <Input
+              id={apiKeyId}
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
@@ -163,8 +176,11 @@ export function CustomProviderModal({
             </button>
             {advancedOpen && (
               <div className="mt-2 flex flex-col gap-1.5 border-l-2 border-rule pl-3">
-                <label className="text-xs font-bold text-text/90">{t("modelPicker.customProvider.chatPath")}</label>
+                <label htmlFor={chatPathId} className="text-xs font-bold text-text/90">
+                  {t("modelPicker.customProvider.chatPath")}
+                </label>
                 <Input
+                  id={chatPathId}
                   value={chatPath}
                   onChange={(e) => setChatPath(e.target.value)}
                   placeholder="/chat/completions"

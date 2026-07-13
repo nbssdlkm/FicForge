@@ -168,6 +168,7 @@ export function useWriterDraftController({ auPath, state, onDraftSaveError }: Us
   }, []);
 
   // AU 切换 / unmount：取消挂着的 rAF 并清空缓冲，防旧 AU 的 chunks 错位灌进新 AU
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——cleanup 仅随 auPath 变化跑（cancel 旧 AU 的流式 rAF）；auPath 只作触发键、体内不读取；删除会使切 AU 不再清流式缓冲
   useEffect(() => {
     return () => {
       pendingStreamRef.current = "";
@@ -227,7 +228,7 @@ export function useWriterDraftController({ auPath, state, onDraftSaveError }: Us
       setDraftSummaries(summaries);
       saveContextSummaries(auPath, chapterNum, summaries);
     },
-    [auPath, setDraftSummaries],
+    [auPath],
   );
 
   const attachDraftSummary = useCallback(
@@ -241,20 +242,17 @@ export function useWriterDraftController({ auPath, state, onDraftSaveError }: Us
         return next;
       });
     },
-    [auPath, setDraftSummaries],
+    [auPath],
   );
 
-  const mergeDraftIntoState = useCallback(
-    (draft: DraftItem) => {
-      setDrafts((current) => {
-        const merged = sortDrafts([...current.filter((item) => item.label !== draft.label), draft]);
-        const nextIndex = merged.findIndex((item) => item.label === draft.label);
-        setActiveDraftIndex(nextIndex >= 0 ? nextIndex : Math.max(merged.length - 1, 0));
-        return merged;
-      });
-    },
-    [setActiveDraftIndex, setDrafts],
-  );
+  const mergeDraftIntoState = useCallback((draft: DraftItem) => {
+    setDrafts((current) => {
+      const merged = sortDrafts([...current.filter((item) => item.label !== draft.label), draft]);
+      const nextIndex = merged.findIndex((item) => item.label === draft.label);
+      setActiveDraftIndex(nextIndex >= 0 ? nextIndex : Math.max(merged.length - 1, 0));
+      return merged;
+    });
+  }, []);
 
   const loadDraftByLabel = useCallback(
     async (
@@ -308,12 +306,13 @@ export function useWriterDraftController({ auPath, state, onDraftSaveError }: Us
         draftSaveTimerRef.current = null;
       }, 1500);
     },
-    [activeDraftIndex, auPath, currentChapterNum, drafts, persistDraft, setDrafts],
+    [activeDraftIndex, auPath, currentChapterNum, drafts, persistDraft],
   );
 
   // Phase 5c: 消除 draftControllerBridgeRef。draftCtrl 自主 watch state，
   // 当 state 为 null（切 AU 或重置）→ 清空；当 state.current_chapter 变化 → 加载该章节 drafts + summaries。
   // 原来这段编排在 bootstrap.loadData 里通过 bridge 反注入 draftCtrl 的 setters。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 窄触发——故意仅按 auPath + state?.current_chapter 触发，而非整个 state 对象；state / state.au_id 作当帧快照读取（null 切换与换章都会连带 current_chapter 变化触发重跑）。依赖整个 state 会在每次无关 state 重载时冗余重拉 drafts（Phase 5c 刻意规避）
   useEffect(() => {
     // 切 AU 或 state 为 null（bootstrap 正在 reset）→ 清空所有 draft 状态
     if (!state) {

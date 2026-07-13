@@ -37,6 +37,7 @@ export function ArchiveCandidatesModal({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [archivedCount, setArchivedCount] = useState(0);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——仅应随 isOpen/auPath 变化重扫一次；onClose/showError/t 只在 catch 用触发时快照，加进依赖会因 t/showError 随语言切换、onClose 随父组件重渲而重扫（清空用户勾选 + 重复拉取）
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;

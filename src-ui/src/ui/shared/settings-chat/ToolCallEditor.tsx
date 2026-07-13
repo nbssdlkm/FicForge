@@ -2,6 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
+import { useId } from "react";
 import { Input, Textarea } from "../Input";
 import { getEnumLabel } from "../../../i18n/labels";
 import type { SettingsMode } from "./types";
@@ -42,7 +43,8 @@ function renderCharactersPicker(
   const selected = new Set(coerceStringArray(value.characters));
   return (
     <div className="space-y-2">
-      <label className="text-xs font-medium text-text/70">{t("common.labels.characters")}</label>
+      {/* 小节标题，非表单 label：下方按分支渲染 checkbox 组或单个 Input，无单一可关联控件（守则 2b）。 */}
+      <span className="text-xs font-medium text-text/70">{t("common.labels.characters")}</span>
       {availableCharacterNames.length > 0 ? (
         <div className="flex flex-wrap gap-2 rounded-lg border border-black/10 bg-background/50 p-3 dark:border-white/10">
           {availableCharacterNames.map((name) => {
@@ -92,6 +94,14 @@ function renderCharactersPicker(
 
 export function ToolCallEditor({ card, value, onChange, availableCharacterNames, mode, t }: ToolCallEditorProps) {
   const toolName = getToolCallName(card);
+  // useId() 必须在下面的分支 return 之前无条件调用；按字段命名，同组件多实例（多张工具卡）互不撞 id。
+  const importanceId = useId();
+  const factTypeId = useId();
+  const factStatusId = useId();
+  const narrativeWeightId = useId();
+  const styleFieldId = useId();
+  const styleValuePerspectiveId = useId();
+  const styleValueEmotionId = useId();
 
   if (toolName === "create_character_file") {
     return (
@@ -119,8 +129,11 @@ export function ToolCallEditor({ card, value, onChange, availableCharacterNames,
         />
         <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-text/70">{t("common.labels.importance")}</label>
+            <label htmlFor={importanceId} className="text-xs font-medium text-text/70">
+              {t("common.labels.importance")}
+            </label>
             <select
+              id={importanceId}
               value={coerceString(value.importance) || "medium"}
               onChange={(event) => onChange(setField(value, "importance", event.target.value))}
               className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
@@ -256,8 +269,11 @@ export function ToolCallEditor({ card, value, onChange, availableCharacterNames,
         {renderCharactersPicker(value, onChange, availableCharacterNames, t)}
         <div className="grid gap-3 md:grid-cols-3">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-text/70">{t("common.labels.factType")}</label>
+            <label htmlFor={factTypeId} className="text-xs font-medium text-text/70">
+              {t("common.labels.factType")}
+            </label>
             <select
+              id={factTypeId}
               value={typeValue}
               onChange={(event) => {
                 onChange(setField(setField(value, "fact_type", event.target.value), "type", event.target.value));
@@ -272,8 +288,11 @@ export function ToolCallEditor({ card, value, onChange, availableCharacterNames,
             </select>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-text/70">{t("common.labels.factStatus")}</label>
+            <label htmlFor={factStatusId} className="text-xs font-medium text-text/70">
+              {t("common.labels.factStatus")}
+            </label>
             <select
+              id={factStatusId}
               value={coerceString(value.status) || "active"}
               onChange={(event) => onChange(setField(value, "status", event.target.value))}
               className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
@@ -286,8 +305,11 @@ export function ToolCallEditor({ card, value, onChange, availableCharacterNames,
             </select>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-text/70">{t("common.labels.narrativeWeight")}</label>
+            <label htmlFor={narrativeWeightId} className="text-xs font-medium text-text/70">
+              {t("common.labels.narrativeWeight")}
+            </label>
             <select
+              id={narrativeWeightId}
               value={coerceString(value.narrative_weight) || NarrativeWeight.MEDIUM}
               onChange={(event) => onChange(setField(value, "narrative_weight", event.target.value))}
               className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
@@ -321,8 +343,11 @@ export function ToolCallEditor({ card, value, onChange, availableCharacterNames,
     return (
       <div className="space-y-3">
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-text/70">{t("settingsMode.editor.styleField")}</label>
+          <label htmlFor={styleFieldId} className="text-xs font-medium text-text/70">
+            {t("settingsMode.editor.styleField")}
+          </label>
           <select
+            id={styleFieldId}
             value={field}
             onChange={(event) => onChange(setField(value, "field", event.target.value))}
             className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
@@ -334,8 +359,11 @@ export function ToolCallEditor({ card, value, onChange, availableCharacterNames,
         </div>
         {field === "perspective" ? (
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-text/70">{t("settingsMode.editor.styleValue")}</label>
+            <label htmlFor={styleValuePerspectiveId} className="text-xs font-medium text-text/70">
+              {t("settingsMode.editor.styleValue")}
+            </label>
             <select
+              id={styleValuePerspectiveId}
               value={fieldValue || "third_person"}
               onChange={(event) => onChange(setField(value, "value", event.target.value))}
               className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
@@ -349,8 +377,11 @@ export function ToolCallEditor({ card, value, onChange, availableCharacterNames,
           </div>
         ) : field === "emotion_style" ? (
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-text/70">{t("settingsMode.editor.styleValue")}</label>
+            <label htmlFor={styleValueEmotionId} className="text-xs font-medium text-text/70">
+              {t("settingsMode.editor.styleValue")}
+            </label>
             <select
+              id={styleValueEmotionId}
               value={fieldValue || "implicit"}
               onChange={(event) => onChange(setField(value, "value", event.target.value))}
               className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
@@ -378,7 +409,8 @@ export function ToolCallEditor({ card, value, onChange, availableCharacterNames,
     const selected = new Set(coerceStringArray(value.filenames).map((item) => item.replace(/\.md$/i, "")));
     return (
       <div className="space-y-2">
-        <label className="text-xs font-medium text-text/70">{t("common.labels.coreAlwaysInclude")}</label>
+        {/* 小节标题，非表单 label：下方是一组 checkbox（或"无角色"提示），无单一可关联控件（守则 2b）。 */}
+        <span className="text-xs font-medium text-text/70">{t("common.labels.coreAlwaysInclude")}</span>
         <div className="rounded-lg border border-black/10 bg-background/50 p-3 dark:border-white/10">
           {availableCharacterNames.length === 0 ? (
             <p className="text-sm text-text/50">{t("settingsMode.editor.noCharacters")}</p>

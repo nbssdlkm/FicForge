@@ -165,6 +165,9 @@ export function useWriterFactsExtraction(auPath: string, options?: { focusInstru
       guard,
       extractedCandidates,
       extractTargetChapter,
+      // selectedExtractedKeys：早退门用 .length；filterSelected 已随其变化重建本回调，
+      // 补列为诚实依赖，零额外重建（两者恒同步变化）
+      selectedExtractedKeys,
       filterSelected,
       focusInstructionInput,
       clearSelection,
@@ -202,12 +205,14 @@ export function useWriterFactsExtraction(auPath: string, options?: { focusInstru
     setExtractReviewOpen(false);
   }, [clearSelection]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——effect 仅随 auPath 变化跑一次全量 reset；auPath 只作触发键、体内不读取。resetExtractionState 是 reset 动作而非触发源：按 biome 改成 [resetExtractionState] 会因其 identity 稳定而变成只挂载跑一次、切 AU 不再 reset（铁律②）
   useEffect(() => {
     resetExtractionState();
   }, [auPath]);
 
   // AU 切换 / 宿主卸载：取消在飞提取。提取结果只有 review modal 一个出口，
   // 宿主没了结果无处可落，继续跑纯属白烧 token（审计 H2）。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——cleanup 仅随 auPath 变化跑（abort 在飞提取）；auPath 只作触发键、体内不读取；删除会使切 AU 不再中断在飞提取
   useEffect(() => {
     return () => {
       extractAbortRef.current?.abort();

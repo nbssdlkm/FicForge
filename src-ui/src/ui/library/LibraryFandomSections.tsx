@@ -117,11 +117,15 @@ export function LibraryFandomSections({
                 collapse target; action row inside stops propagation. v13:
                 <button> wrapping → invalid HTML, so we use div + role=button
                 + onKeyDown. */}
+            {/* biome-ignore lint/a11y/useSemanticElements: 内含真 <Button>（Fandom 资料/新建 AU/回收站/删除），button 不可嵌 button，只能保留 div+role（见上方注释） */}
             <div
               role="button"
               tabIndex={0}
               onClick={() => toggleCollapse(fandom.dir_name)}
               onKeyDown={(e) => {
+                // 只认自身获焦的按键（F3 对抗审）：横幅内嵌真 <Button>（资料/新建 AU/回收站/删除），
+                // 子按钮的 Enter/Space 冒泡上来会一次按键双动作（子动作 + 折叠切换）。
+                if (e.target !== e.currentTarget) return;
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   toggleCollapse(fandom.dir_name);
@@ -161,7 +165,12 @@ export function LibraryFandomSections({
                     A 1px cream-tint divider separates them so the
                     destructive delete button doesn't sit shoulder-to-
                     shoulder with the primary "+ AU" CTA. */}
-                <div className="flex flex-wrap items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                {/* biome-ignore lint/a11y/noStaticElementInteractions: 事件边界层——onClick/onKeyDown 仅 stopPropagation 防触发外层横幅折叠，非交互动作；不标 role="toolbar"（不实现 roving tabindex 的半吊子 ARIA 比无语义更糟，与 ContextMenu 同口径，F3 对抗审 LOW） */}
+                <div
+                  className="flex flex-wrap items-center gap-1"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
                   <Button
                     tone="neutral"
                     fill="plain"
@@ -245,8 +254,20 @@ export function LibraryFandomSections({
                     const hasDirty = au.has_dirty ?? false;
                     return (
                       <li key={`${fandom.dir_name}/${au.dir_name}`}>
-                        <article
+                        {/* biome-ignore lint/a11y/useSemanticElements: 内含真 <button>（删除 AU），button 不可嵌 button，只能保留 div+role；article 是不可交互元素不许配 role="button"（noNoninteractiveElementToInteractiveRole），改用 div，语义同本文件其它可点卡片 */}
+                        <div
+                          role="button"
+                          tabIndex={0}
                           onClick={() => onNavigate("chat", `${dataDir}/fandoms/${fandom.dir_name}/aus/${au.dir_name}`)}
+                          onKeyDown={(e) => {
+                            // 只认自身获焦的按键（F3 对抗审）：卡片内嵌真 <button>（删除 AU），
+                            // 子按钮 Enter/Space 冒泡会「删除确认 + 打开 AU」双动作。
+                            if (e.target !== e.currentTarget) return;
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              onNavigate("chat", `${dataDir}/fandoms/${fandom.dir_name}/aus/${au.dir_name}`);
+                            }
+                          }}
                           // v13 .au-card padding 12px 14px 12px 16px — left
                           // padding bigger to make room for the gold spine.
                           // border-bottom: 1px rule-soft on mobile/sm gives
@@ -333,7 +354,7 @@ export function LibraryFandomSections({
                               ›
                             </span>
                           </div>
-                        </article>
+                        </div>
                       </li>
                     );
                   })}

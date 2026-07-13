@@ -62,6 +62,7 @@ export function useGlobalSettingsForm(isOpen: boolean, settings: SettingsInfo | 
   settingsRef.current = settings;
 
   // 开/关都复位：加载期间与关闭后不残留上次表单，saving / 基线一并归零
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——体内全是 setter（非依赖），仅应随 isOpen 变化复位；biome 判 isOpen 多余，删掉会导致开/关面板不再复位（残留上次表单）
   useEffect(() => {
     setForm(createDefaultGlobalSettingsFormState());
     setSaving(false);
@@ -69,6 +70,7 @@ export function useGlobalSettingsForm(isOpen: boolean, settings: SettingsInfo | 
   }, [isOpen]);
 
   // useLayoutEffect：hydrate 在 paint 前完成，避免 loading 结束帧闪现默认值
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——hydrate 读 settingsRef.current（ref，无需入依赖），仅应随 loadKey（加载完成信号）变化重灌；biome 判 loadKey 多余，删掉会导致加载完成后表单不 hydrate
   useLayoutEffect(() => {
     const current = settingsRef.current;
     const hydrated = hydrateGlobalSettingsForm(current);

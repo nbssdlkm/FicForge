@@ -97,6 +97,7 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
   const requestGuard = useActiveRequestGuard(`${scope}:${path ?? ""}`);
   const timeLocale = i18n.resolvedLanguage === "en" ? "en-US" : "zh-CN";
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——体内全是 setter（非依赖），仅应随 path/scope 变化复位；biome 判 path/scope 多余，删掉会导致切换回收站上下文不再复位（残留上一处的条目）
   useEffect(() => {
     setEntries([]);
     setLoading(false);
@@ -129,10 +130,12 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
     }
   };
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——仅应随 path/refreshToken/scope 变化重拉；loadEntries 每渲染重建（读最新 path/scope 闭包），故意不入依赖，否则每次渲染都重拉；biome 同时误判 path/refreshToken/scope 多余，不可删
   useEffect(() => {
     void loadEntries();
   }, [path, refreshToken, scope]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——仅应随 isExpanded 变化（展开时首拉）；loadEntries 每渲染重建，入依赖会每次渲染重拉
   useEffect(() => {
     if (!isExpanded) return;
     void loadEntries();

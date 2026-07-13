@@ -31,6 +31,8 @@ export function StepIndicator({ current, total }: { current: number; total: numb
   const { t } = useTranslation();
   return (
     <div
+      // role="img"：视觉呈现（§ II · IV）与可读文案不同，等价「文字当图」——role="generic"（无 role 的 div 隐式）不支持 aria-label
+      role="img"
       className="font-mono text-[10px] uppercase tracking-[0.18em] text-gold"
       aria-label={t("onboarding.common.step", { current, total })}
     >

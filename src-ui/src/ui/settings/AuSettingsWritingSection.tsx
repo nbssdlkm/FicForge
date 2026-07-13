@@ -2,6 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
+import { useId } from "react";
 import { Input, Textarea } from "../shared/Input";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { getEnumLabel } from "../../i18n/labels";
@@ -28,6 +29,10 @@ export function AuSettingsWritingSection({
   setCustomInstructions,
 }: AuSettingsWritingSectionProps) {
   const { t } = useTranslation();
+  const perspectiveId = useId();
+  const emotionStyleId = useId();
+  const chapterLengthId = useId();
+  const customInstructionsId = useId();
 
   return (
     <section className="space-y-6">
@@ -38,8 +43,11 @@ export function AuSettingsWritingSection({
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-bold text-text/90">{t("common.labels.perspective")}</label>
+            <label htmlFor={perspectiveId} className="text-sm font-bold text-text/90">
+              {t("common.labels.perspective")}
+            </label>
             <select
+              id={perspectiveId}
               value={perspective}
               onChange={(e) => setPerspective(e.target.value)}
               className="h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
@@ -49,8 +57,11 @@ export function AuSettingsWritingSection({
             </select>
           </div>
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-bold text-text/90">{t("common.labels.emotionStyle")}</label>
+            <label htmlFor={emotionStyleId} className="text-sm font-bold text-text/90">
+              {t("common.labels.emotionStyle")}
+            </label>
             <select
+              id={emotionStyleId}
               value={emotionStyle}
               onChange={(e) => setEmotionStyle(e.target.value)}
               className="h-11 rounded-md border border-black/20 bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
@@ -60,8 +71,11 @@ export function AuSettingsWritingSection({
             </select>
           </div>
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-bold text-text/90">{t("common.labels.chapterLength")}</label>
+            <label htmlFor={chapterLengthId} className="text-sm font-bold text-text/90">
+              {t("common.labels.chapterLength")}
+            </label>
             <Input
+              id={chapterLengthId}
               type="number"
               value={chapterLength}
               onChange={(e) => setChapterLength(parseInt(e.target.value) || 2000)}
@@ -72,8 +86,11 @@ export function AuSettingsWritingSection({
         </div>
 
         <div className="flex flex-col gap-2 flex-1">
-          <label className="text-sm font-bold text-text/90">{t("common.labels.customInstructions")}</label>
+          <label htmlFor={customInstructionsId} className="text-sm font-bold text-text/90">
+            {t("common.labels.customInstructions")}
+          </label>
           <Textarea
+            id={customInstructionsId}
             value={customInstructions}
             onChange={(e) => setCustomInstructions(e.target.value)}
             placeholder={t("settings.story.customInstructionsPlaceholder")}

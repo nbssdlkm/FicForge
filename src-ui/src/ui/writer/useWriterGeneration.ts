@@ -98,6 +98,7 @@ export function useWriterGeneration({
   const [lastGenerateRequest, setLastGenerateRequest] = useState<GenerateRequestState | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——effect 仅随 auPath 变化复位生成态并 abort 在飞请求；auPath 只作触发键、体内不读取；删除会使切 AU 后残留 isGenerating/错误态（铁律②）
   useEffect(() => {
     setIsGenerating(false);
     setGenerationErrorDisplay(null);
@@ -114,6 +115,7 @@ export function useWriterGeneration({
     [],
   );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 窄触发——故意仅按 auPath + state?.current_chapter 触发；state 作当帧快照读取（判空 + current_chapter），其 null↔对象、换章都会连带 current_chapter 变化触发重跑。依赖整个 state 会在每次无关 state 重载时冗余重读已存请求
   useEffect(() => {
     if (!state) {
       setLastGenerateRequest(null);
@@ -311,9 +313,6 @@ export function useWriterGeneration({
       sessionLlmPayload,
       sessionTemp,
       sessionTopP,
-      setGenerationErrorDisplay,
-      setIsGenerating,
-      setLastGenerateRequest,
       settingsInfo,
       showError,
       showToast,

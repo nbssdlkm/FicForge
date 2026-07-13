@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useMemo } from "react";
+import { useMemo, type KeyboardEvent } from "react";
 import { Spinner } from "../shared/Spinner";
 import { Button } from "../shared/Button";
 import { ChipListInput } from "../shared/ChipListInput";
@@ -35,6 +35,17 @@ import { useAuLoreData } from "./useAuLoreData";
 import { useAuLoreEditor } from "./useAuLoreEditor";
 import { useAuLoreModals } from "./useAuLoreModals";
 import { useAuLoreActions } from "./useAuLoreActions";
+
+/** role="button" 的 div 统一走这个处理 Enter/Space 键盘触发（noStaticElementInteractions），避免每处手写。 */
+function activateOnEnterOrSpace(event: KeyboardEvent<HTMLElement>, activate: () => void) {
+  // 只认自身获焦的按键（F3 对抗审）：这些容器内嵌真 <button>/<input>，子元素的
+  // Enter/Space 会冒泡上来——不过滤会一次按键双动作（子按钮 + 父行为）甚至吞输入。
+  if (event.target !== event.currentTarget) return;
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    activate();
+  }
+}
 
 function getRestoredCharacterFile(entry: TrashEntry): LoreFileEntry | null {
   if (!entry.original_path.startsWith("characters/")) return null;
@@ -152,7 +163,8 @@ export const AuLoreLayout = ({
 
   const editorPanel = selectedFile ? (
     <div className="flex flex-1 flex-col gap-2">
-      <label className="text-sm font-bold text-text/90">{t("navigation.auLore")}</label>
+      {/* 小节标题，不关联单一控件（下方视 previewMode/分类切换渲染 Markdown 预览、Textarea 或别名 chips） */}
+      <p className="text-sm font-bold text-text/90">{t("navigation.auLore")}</p>
 
       {selectedCategory === "characters" && (
         /* M3 批一：别名胶囊抽取为 shared/ChipListInput（行为逐像素不变），fact 编辑器两处名单共用同一组件 */
@@ -346,12 +358,14 @@ export const AuLoreLayout = ({
             {selectedFile ? (
               <div className="mt-3 inline-flex rounded-md border border-black/10 bg-surface/60 p-0.5 dark:border-white/10">
                 <button
+                  type="button"
                   className={`flex min-h-[44px] items-center gap-1 rounded px-3 py-2 text-sm ${!previewMode ? "bg-accent text-inv-text" : "text-text/70 hover:text-text"}`}
                   onClick={editor.showEditor}
                 >
                   <Pencil size={12} /> {t("common.actions.edit")}
                 </button>
                 <button
+                  type="button"
                   className={`flex min-h-[44px] items-center gap-1 rounded px-3 py-2 text-sm ${previewMode ? "bg-accent text-inv-text" : "text-text/70 hover:text-text"}`}
                   onClick={editor.showPreview}
                 >
@@ -425,6 +439,7 @@ export const AuLoreLayout = ({
                   currentFiles.map((file) => {
                     const isPinned = coreIncludes.includes(file.name);
                     return (
+                      // biome-ignore lint/a11y/useSemanticElements: 内含真 <button>（置顶切换），button 不可嵌 button，只能保留 div+role
                       <div
                         key={file.name}
                         role="button"
@@ -432,12 +447,11 @@ export const AuLoreLayout = ({
                         onClick={() => {
                           void editor.openFile(file.name, selectedCategory);
                         }}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
+                        onKeyDown={(event) =>
+                          activateOnEnterOrSpace(event, () => {
                             void editor.openFile(file.name, selectedCategory);
-                          }
-                        }}
+                          })
+                        }
                         className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-black/10 bg-surface/35 px-4 py-4 text-left transition-colors dark:border-white/10"
                       >
                         <div className="min-w-0">
@@ -547,9 +561,13 @@ export const AuLoreLayout = ({
                 {t("auLore.charactersLabel")} ({files.length})
               </div>
               <div>
+                {/* biome-ignore lint/a11y/useSemanticElements: 内含真 <button>（新建角色），button 不可嵌 button，只能保留 div+role */}
                 <div
                   className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/90 font-bold font-sans"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => editor.toggleFolder("characters")}
+                  onKeyDown={(event) => activateOnEnterOrSpace(event, () => editor.toggleFolder("characters"))}
                 >
                   <div className="flex items-center gap-2">
                     {expandedFolders.characters ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -609,18 +627,27 @@ export const AuLoreLayout = ({
                       filteredFiles.map((file) => {
                         const isPinned = coreIncludes.includes(file.name);
                         return (
+                          // biome-ignore lint/a11y/useSemanticElements: 内含真 <button>（置顶切换），button 不可嵌 button，只能保留 div+role
                           <div
                             key={file.name}
                             className={`flex items-center justify-between pl-6 pr-2 py-1.5 text-sm cursor-pointer rounded-md ${selectedFile === file.name && selectedCategory === "characters" ? "bg-accent/10 text-accent font-medium" : "text-text/70 hover:bg-black/5 dark:hover:bg-white/5 hover:text-text"}`}
+                            role="button"
+                            tabIndex={0}
                             onClick={() => {
                               void editor.openFile(file.name, "characters");
                             }}
+                            onKeyDown={(event) =>
+                              activateOnEnterOrSpace(event, () => {
+                                void editor.openFile(file.name, "characters");
+                              })
+                            }
                           >
                             <div className="flex items-center gap-2 overflow-hidden">
                               <FileText size={14} className="opacity-50 shrink-0" />
                               <span className="truncate">{file.name}.md</span>
                             </div>
                             <button
+                              type="button"
                               className={`shrink-0 p-1 rounded transition-colors ${isPinned ? "text-accent" : "text-text/30 hover:text-text/50"} ${isSaving ? "opacity-30 cursor-not-allowed" : ""}`}
                               title={isPinned ? t("coreIncludes.pinned") : t("coreIncludes.setPin")}
                               disabled={isSaving}
@@ -646,9 +673,13 @@ export const AuLoreLayout = ({
                 {t("common.labels.worldbuilding")} ({worldbuildingFiles.length})
               </div>
               <div>
+                {/* biome-ignore lint/a11y/useSemanticElements: 内含真 <button>（新建世界观条目），button 不可嵌 button，只能保留 div+role */}
                 <div
                   className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/90 font-bold font-sans"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => editor.toggleFolder("worldbuilding")}
+                  onKeyDown={(event) => activateOnEnterOrSpace(event, () => editor.toggleFolder("worldbuilding"))}
                 >
                   <div className="flex items-center gap-2">
                     {expandedFolders.worldbuilding ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -698,9 +729,10 @@ export const AuLoreLayout = ({
                       />
                     ) : (
                       worldbuildingFiles.map((file) => (
-                        <div
+                        <button
+                          type="button"
                           key={file.name}
-                          className={`flex items-center justify-between pl-6 pr-2 py-1.5 text-sm cursor-pointer rounded-md ${selectedFile === file.name && selectedCategory === "worldbuilding" ? "bg-accent/10 text-accent font-medium" : "text-text/70 hover:bg-black/5 dark:hover:bg-white/5 hover:text-text"}`}
+                          className={`flex w-full items-center justify-between pl-6 pr-2 py-1.5 text-left text-sm cursor-pointer rounded-md ${selectedFile === file.name && selectedCategory === "worldbuilding" ? "bg-accent/10 text-accent font-medium" : "text-text/70 hover:bg-black/5 dark:hover:bg-white/5 hover:text-text"}`}
                           onClick={() => {
                             void editor.openFile(file.name, "worldbuilding");
                           }}
@@ -709,7 +741,7 @@ export const AuLoreLayout = ({
                             <FileText size={14} className="opacity-50 shrink-0" />
                             <span className="truncate">{file.name}.md</span>
                           </div>
-                        </div>
+                        </button>
                       ))
                     )}
                   </div>
@@ -759,12 +791,14 @@ export const AuLoreLayout = ({
                 </Button>
                 <div className="inline-flex rounded-md border border-black/10 dark:border-white/10 bg-surface/60 p-0.5 mr-2">
                   <button
+                    type="button"
                     className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${!previewMode ? "bg-accent text-inv-text" : "text-text/70 hover:text-text"}`}
                     onClick={editor.showEditor}
                   >
                     <Pencil size={12} /> {t("common.actions.edit")}
                   </button>
                   <button
+                    type="button"
                     className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${previewMode ? "bg-accent text-inv-text" : "text-text/70 hover:text-text"}`}
                     onClick={editor.showPreview}
                   >

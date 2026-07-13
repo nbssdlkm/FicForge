@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Button } from "../shared/Button";
 import { SessionModelPicker } from "./model-picker/SessionModelPicker";
 import type { PickerModelOption, SessionLayer } from "./model-picker/model-picker-utils";
@@ -37,6 +37,8 @@ export const SettingsPanel = ({
   sessionModelOptions = [],
 }: SettingsPanelProps = {}) => {
   const { t } = useTranslation();
+  const temperatureId = useId();
+  const topPId = useId();
   const [localModel, setLocalModel] = useState(externalModel || DEFAULT_DEEPSEEK_MODEL);
   const [temp, setTemp] = useState(externalTemp ?? 1.0);
   const [topP, setTopP] = useState(externalTopP ?? 0.95);
@@ -71,7 +73,9 @@ export const SettingsPanel = ({
       <div className="font-sans font-medium mb-1 text-text/90 text-xs">{t("settingsPanel.title")}</div>
 
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-text/70">{t("common.labels.model")}</label>
+        {/* SessionModelPicker 是自画控件组（层级 badge + 手填/select 二态 + 按钮），
+            不接收 id 透传、内部 select 已自带 aria-label，无法 htmlFor 关联 → span（守则 2b） */}
+        <span className="text-xs text-text/70">{t("common.labels.model")}</span>
         <SessionModelPicker
           model={localModel}
           onModelChange={handleModelChange}
@@ -82,10 +86,11 @@ export const SettingsPanel = ({
 
       <div className="flex flex-col gap-2 md:gap-1.5">
         <div className="flex justify-between text-sm md:text-xs text-text/70">
-          <label>{t("settingsPanel.temperature")}</label>
+          <label htmlFor={temperatureId}>{t("settingsPanel.temperature")}</label>
           <span className="font-mono">{temp.toFixed(1)}</span>
         </div>
         <input
+          id={temperatureId}
           type="range"
           min="0"
           max="2"
@@ -98,10 +103,11 @@ export const SettingsPanel = ({
 
       <div className="flex flex-col gap-2 md:gap-1.5">
         <div className="flex justify-between text-sm md:text-xs text-text/70">
-          <label>{t("settingsPanel.topP")}</label>
+          <label htmlFor={topPId}>{t("settingsPanel.topP")}</label>
           <span className="font-mono">{topP.toFixed(2)}</span>
         </div>
         <input
+          id={topPId}
           type="range"
           min="0"
           max="1"

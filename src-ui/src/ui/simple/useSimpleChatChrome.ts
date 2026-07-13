@@ -21,6 +21,7 @@ export function useSimpleChatChrome(auPath: string) {
   const lineHeight = parseFloat(lineHeightStr) || 1.8;
 
   // 切 AU reset（铁律②：state 与 reset 同文件）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——effect 仅随 auPath 变化归位抽屉/确认态；auPath 只作触发键、体内不读取；删除会使切 AU 后 UI 开关不复位
   useEffect(() => {
     setDrawerOpen(false);
     setClearChatConfirmOpen(false);

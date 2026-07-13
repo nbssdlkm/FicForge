@@ -196,7 +196,18 @@ export function ImportFlow({
     }
 
     setStep(2);
-  }, [analyses.length, auPath, chapterThreshold, files, requestGuard, showError, skipThreshold, t, useAiAssist]);
+  }, [
+    analyses.length,
+    auPath,
+    chapterThreshold,
+    files,
+    requestGuard,
+    showError,
+    showToast,
+    skipThreshold,
+    t,
+    useAiAssist,
+  ]);
 
   // ── Step 3: Chapter arrangement ──
 

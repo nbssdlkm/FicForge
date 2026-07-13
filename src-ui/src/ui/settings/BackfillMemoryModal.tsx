@@ -46,6 +46,7 @@ export function BackfillMemoryModal({
   const abortRef = useRef<AbortController | null>(null);
 
   // 打开时扫描缺记忆的章。cancelled 守卫避免关闭/换 AU 后写过期状态。默认勾选零笔记章。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——仅应随 isOpen/auPath 变化重扫一次；onClose/showError/t 只在 catch 用触发时快照，加进依赖会因 t/showError 随语言切换、onClose 随父组件重渲而重扫（清空用户勾选 + 重复拉取）
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;

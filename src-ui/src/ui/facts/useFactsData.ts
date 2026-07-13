@@ -67,6 +67,7 @@ export function useFactsData(auPath: string) {
 
   // 铁律 2：state 与 reset 同文件 —— AU 切换清空本 hook 自持的显示数据。
   // 与旧 FactsLayout 一致：**不清 allFactsCounts**（下次 loadFacts 覆盖），避免切换瞬间 tab 计数闪 0。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——体内全是 setter（非依赖），仅应随 auPath 变化重置显示数据；biome 判 auPath 多余，删掉会导致切 AU 不再复位（残留上一篇 facts/state）
   useEffect(() => {
     setLoading(true);
     setFacts([]);

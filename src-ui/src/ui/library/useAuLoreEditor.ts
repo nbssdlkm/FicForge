@@ -58,6 +58,7 @@ export function useAuLoreEditor(
   editorContentRef.current = editorContent;
 
   // 切 AU：关掉上一篇打开的文件
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——体内全是 setter（非依赖），仅应随 auPath 变化关掉上一篇文件；biome 判 auPath 多余，删掉会导致切 AU 不再复位（残留上一篇打开的文件/正文）
   useEffect(() => {
     setSelectedFile(null);
     setEditorContent("");

@@ -51,6 +51,7 @@ export function MilestoneGuide({ title, description, primaryAction, secondaryAct
           </div>
         </div>
         <button
+          type="button"
           className="shrink-0 p-1 rounded hover:bg-black/5 dark:hover:bg-white/5 text-text/30 hover:text-text/70 transition-colors"
           onClick={onDismiss}
         >

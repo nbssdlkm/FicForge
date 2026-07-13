@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Spinner } from "../shared/Spinner";
 import { Button } from "../shared/Button";
 import { Input } from "../shared/Input";
@@ -55,6 +55,11 @@ export function ApiConfigStep({
   initialConfig?: Partial<ApiConfig>;
 }) {
   const { t } = useTranslation();
+  const apiBaseId = useId();
+  const apiKeyId = useId();
+  const localModelPathId = useId();
+  const ollamaBaseId = useId();
+  const ollamaModelId = useId();
   const [config, setConfig] = useState<ApiConfig>({ ...DEFAULT_CONFIG, ...initialConfig });
   const [helpOpen, setHelpOpen] = useState(false);
   const llmConnection = useLlmConnectionTest({
@@ -156,8 +161,11 @@ export function ApiConfigStep({
             disabled={llmConnection.status === "testing"}
           />
           <div className="space-y-1">
-            <label className="text-sm font-medium text-text/90">{t("onboarding.apiConfig.apiBase")}</label>
+            <label htmlFor={apiBaseId} className="text-sm font-medium text-text/90">
+              {t("onboarding.apiConfig.apiBase")}
+            </label>
             <Input
+              id={apiBaseId}
               value={config.api_base}
               onChange={(e) => update("api_base", e.target.value)}
               placeholder="https://api.deepseek.com"
@@ -166,8 +174,11 @@ export function ApiConfigStep({
             <p className="text-xs text-text/50">{t("onboarding.apiConfig.apiBaseHint")}</p>
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium text-text/90">{t("onboarding.apiConfig.apiKey")}</label>
+            <label htmlFor={apiKeyId} className="text-sm font-medium text-text/90">
+              {t("onboarding.apiConfig.apiKey")}
+            </label>
             <Input
+              id={apiKeyId}
               type="password"
               value={config.api_key}
               onChange={(e) => update("api_key", e.target.value)}
@@ -187,8 +198,11 @@ export function ApiConfigStep({
       {config.mode === "local" && (
         <div className="space-y-4 border-t border-rule pt-4">
           <div className="space-y-1">
-            <label className="text-sm font-medium text-text/90">{t("onboarding.apiConfig.localPath")}</label>
+            <label htmlFor={localModelPathId} className="text-sm font-medium text-text/90">
+              {t("onboarding.apiConfig.localPath")}
+            </label>
             <Input
+              id={localModelPathId}
               value={config.local_model_path}
               onChange={(e) => update("local_model_path", e.target.value)}
               placeholder="/path/to/model"
@@ -202,8 +216,11 @@ export function ApiConfigStep({
       {config.mode === "ollama" && (
         <div className="space-y-4 border-t border-rule pt-4">
           <div className="space-y-1">
-            <label className="text-sm font-medium text-text/90">{t("onboarding.apiConfig.ollamaBase")}</label>
+            <label htmlFor={ollamaBaseId} className="text-sm font-medium text-text/90">
+              {t("onboarding.apiConfig.ollamaBase")}
+            </label>
             <Input
+              id={ollamaBaseId}
               value={config.api_base}
               onChange={(e) => update("api_base", e.target.value)}
               placeholder="http://localhost:11434/v1"
@@ -211,8 +228,11 @@ export function ApiConfigStep({
             />
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium text-text/90">{t("onboarding.apiConfig.ollamaModel")}</label>
+            <label htmlFor={ollamaModelId} className="text-sm font-medium text-text/90">
+              {t("onboarding.apiConfig.ollamaModel")}
+            </label>
             <Input
+              id={ollamaModelId}
               value={config.ollama_model}
               onChange={(e) => update("ollama_model", e.target.value)}
               placeholder="llama3"

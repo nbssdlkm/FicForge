@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BookOpen, ChevronRight, Pencil } from "lucide-react";
 import { Spinner } from "../shared/Spinner";
 import type { ChapterInfo } from "../../api/engine-client";
@@ -45,8 +45,15 @@ export function MobileChapterList({
   const [editingValue, setEditingValue] = useState("");
   const originalRef = useRef("");
   const committingRef = useRef(false); // 防止 Enter+blur 双重提交
+  const editInputRef = useRef<HTMLInputElement>(null);
 
-  const startEditing = (ch: ChapterInfo, e: React.MouseEvent) => {
+  // 非 Modal 内联改名——不用 autoFocus 属性（noAutofocus），改走 ref + effect
+  // 达到点「铅笔」即聚焦同等行为（同一时刻只有一个 chapter 处于编辑态，单 ref 够用）。
+  useEffect(() => {
+    if (editingNum !== null) editInputRef.current?.focus();
+  }, [editingNum]);
+
+  const startEditing = (ch: ChapterInfo, e: React.SyntheticEvent) => {
     e.stopPropagation();
     originalRef.current = ch.title || "";
     setEditingNum(ch.chapter_num);
@@ -101,34 +108,35 @@ export function MobileChapterList({
         ) : (
           chapters.map((chapter) => {
             const isActive = selectedChapter === chapter.chapter_num;
-            return (
-              <button
-                key={chapter.chapter_num}
-                type="button"
-                onClick={() => {
-                  if (editingNum === chapter.chapter_num) return;
-                  onSelectChapter(chapter.chapter_num);
-                }}
+            const numberBadge = (
+              <p
                 className={cn(
-                  "flex w-full items-center justify-between rounded-r-sm border border-rule border-l-2 px-4 py-3.5 text-left transition-colors",
+                  "font-mono text-[9px] uppercase tracking-[0.1em]",
+                  isActive ? "text-gold-bright" : "text-gold",
+                )}
+              >
+                № {callNo(chapter.chapter_num)}
+              </p>
+            );
+            // 行容器是无语义 div，打开/编辑是两个并列真 <button>（F3 对抗审：原先
+            // 外层整行是 button、铅笔是 span role=button 嵌其内——交互控件非法嵌套，
+            // AT 可能压平或漏报其一；编辑态 <input> 也一并移出按钮）。
+            return (
+              <div
+                key={chapter.chapter_num}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-r-sm border border-rule border-l-2 px-4 py-3.5 transition-colors",
                   isActive
                     ? "border-l-gold-bright bg-accent/10 text-accent"
                     : "border-l-gold bg-surface text-text hover:bg-rule-soft",
                 )}
                 aria-current={isActive ? "page" : undefined}
               >
-                <div className="min-w-0 flex-1">
-                  <p
-                    className={cn(
-                      "font-mono text-[9px] uppercase tracking-[0.1em]",
-                      isActive ? "text-gold-bright" : "text-gold",
-                    )}
-                  >
-                    № {callNo(chapter.chapter_num)}
-                  </p>
-                  {editingNum === chapter.chapter_num ? (
+                {editingNum === chapter.chapter_num ? (
+                  <div className="min-w-0 flex-1">
+                    {numberBadge}
                     <input
-                      autoFocus
+                      ref={editInputRef}
                       value={editingValue}
                       onChange={(e) => setEditingValue(e.target.value)}
                       onKeyDown={(e) => {
@@ -141,26 +149,33 @@ export function MobileChapterList({
                       onClick={(e) => e.stopPropagation()}
                       className="mt-1 w-full border-b border-accent/50 bg-transparent font-display text-base font-medium text-text outline-hidden"
                     />
-                  ) : (
-                    <p className="mt-0.5 truncate font-display text-base font-medium text-current">
-                      {chapter.title?.trim() || t("mobile.chapters.untitled")}
-                    </p>
-                  )}
-                </div>
-                {editingNum !== chapter.chapter_num && (
-                  <div className="flex shrink-0 items-center gap-1">
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      onClick={(e) => startEditing(chapter, e)}
-                      className="rounded-full p-1.5 text-text/30 transition-colors active:bg-rule-soft"
-                    >
-                      <Pencil size={14} />
-                    </span>
-                    <ChevronRight size={18} className="text-text/40" />
                   </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => onSelectChapter(chapter.chapter_num)}
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      {numberBadge}
+                      <p className="mt-0.5 truncate font-display text-base font-medium text-current">
+                        {chapter.title?.trim() || t("mobile.chapters.untitled")}
+                      </p>
+                    </button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        aria-label={t("mobile.chapters.editTitle")}
+                        onClick={(e) => startEditing(chapter, e)}
+                        className="rounded-full p-1.5 text-text/30 transition-colors active:bg-rule-soft"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <ChevronRight size={18} className="text-text/40" />
+                    </div>
+                  </>
                 )}
-              </button>
+              </div>
             );
           })
         )}

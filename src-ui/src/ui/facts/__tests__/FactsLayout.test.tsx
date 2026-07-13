@@ -92,7 +92,8 @@ describe("FactsLayout — 拆分回归", () => {
     await screen.findByText("主角与反派初次交锋");
     (listFacts as Mock).mockClear();
 
-    // 桌面状态 tab 是 <span>「待填坑 (0)」；用整段文本正则精确匹配该 span（容器文本以「全部」起头不撞车）。
+    // 桌面状态 tab 是 <button>「待填坑 (0)」（TD-019 a11y 批：span onClick 改 button，见 FactsFilterBar）；
+    // 用整段文本正则精确匹配该按钮（容器文本以「全部」起头不撞车）。
     fireEvent.click(screen.getByText(/^待填坑 \(\d+\)$/));
 
     await waitFor(() => expect(listFacts).toHaveBeenCalledWith(AU_PATH, "unresolved"));

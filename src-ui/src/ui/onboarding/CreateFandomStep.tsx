@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Spinner } from "../shared/Spinner";
 import { Button } from "../shared/Button";
 import { Input } from "../shared/Input";
@@ -21,6 +21,7 @@ export function CreateFandomStep({
 }) {
   const { t } = useTranslation();
   const createGuard = useActiveRequestGuard("create-fandom-step");
+  const nameInputId = useId();
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
@@ -57,10 +58,14 @@ export function CreateFandomStep({
       </div>
 
       <div className="space-y-1.5">
-        <label className="font-sans text-[11px] font-medium uppercase tracking-[0.1em] text-ink-muted">
+        <label
+          htmlFor={nameInputId}
+          className="font-sans text-[11px] font-medium uppercase tracking-[0.1em] text-ink-muted"
+        >
           {t("onboarding.createFandom.nameLabel")}
         </label>
         <Input
+          id={nameInputId}
           value={name}
           onChange={(e) => {
             setName(e.target.value);
@@ -81,6 +86,7 @@ export function CreateFandomStep({
       {/* Collapsible explanation */}
       <div className="rounded-sm border border-rule">
         <button
+          type="button"
           className="flex w-full items-center gap-2 px-4 py-3 font-serif text-sm text-text/70 transition-colors hover:text-text"
           onClick={() => setExpanded(!expanded)}
         >

@@ -40,6 +40,7 @@ export function useFactsFilter(facts: FactInfo[], state: StateInfo | null) {
   );
 
   // Reset pagination when filters change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——体内仅 setter（非依赖），故意随四个 filter 变化重置分页；biome 判它们多余，删掉会导致筛选变化后分页不复位（仍停在上次 visibleCount）
   useEffect(() => {
     setVisibleCount(FACTS_PAGE_SIZE);
   }, [filter, statusFilter, chapterFilter, characterFilter]);

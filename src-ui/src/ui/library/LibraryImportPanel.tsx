@@ -73,6 +73,7 @@ export function LibraryImportPanel({
                     const auPath = `${dataDir}/fandoms/${fandom.dir_name}/aus/${au.dir_name}`;
                     return (
                       <button
+                        type="button"
                         key={auPath}
                         className="min-h-[44px] w-full rounded-lg border border-black/10 px-4 py-2.5 text-left transition-colors hover:border-accent/30 hover:bg-accent/5 dark:border-white/10"
                         onClick={() => onSelectAuPath(auPath)}
@@ -103,6 +104,7 @@ export function LibraryImportPanel({
                     </div>
                   ) : (
                     <button
+                      type="button"
                       className="min-h-[44px] w-full rounded-lg px-4 py-2 text-left text-sm text-accent transition-colors hover:bg-accent/5"
                       onClick={() => onSelectFandom({ name: fandom.name, dir: fandom.dir_name })}
                     >

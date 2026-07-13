@@ -85,6 +85,7 @@ export function WriterFooter(props: WriterFooterProps) {
   return (
     <footer className="safe-area-bottom w-full shrink-0 border-t border-black/10 dark:border-white/10 bg-surface/80 backdrop-blur-md flex flex-col">
       <button
+        type="button"
         className="mx-auto flex min-h-[44px] items-center gap-1 px-4 py-1 text-xs text-text/50 transition-colors hover:text-text/70"
         onClick={onToggleCollapsed}
       >

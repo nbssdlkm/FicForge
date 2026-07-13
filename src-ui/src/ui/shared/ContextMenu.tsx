@@ -106,23 +106,45 @@ export function ContextMenuProvider({ children }: { children: React.ReactNode })
     <>
       {children}
       {menu && (
+        // 自定义右键菜单容器：纯鼠标便捷面（cut/copy/paste/全选的键盘等价物是系统级
+        // Ctrl+X/C/V/A，键盘用户不经此路径）；容器 onMouseDown 只为防止点击时把 focus
+        // 从被编辑的 input/textarea 上抢走（focus 一走选区就塌）。不标 role="menu"——
+        // ARIA menu 是要求 menuitem/方向键/roving tabindex 的复合部件，标了却不实现
+        // 反而误导 AT（F3 对抗审 MED：半吊子 menu 语义比无语义更糟）。
+        // biome-ignore lint/a11y/noStaticElementInteractions: 容器 mousedown 仅 preventDefault 防抢焦，非交互动作；键盘等价物=系统快捷键
         <div
           ref={menuRef}
           className="fixed z-[100] bg-surface border border-black/10 dark:border-white/15 rounded-lg shadow-lg py-1 min-w-[120px] text-sm font-sans"
           style={{ left: menu.x, top: menu.y }}
           onMouseDown={(e) => e.preventDefault()}
         >
-          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90" onClick={handleCut}>
+          <button
+            type="button"
+            className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90"
+            onClick={handleCut}
+          >
             {t("contextMenu.cut")}
           </button>
-          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90" onClick={handleCopy}>
+          <button
+            type="button"
+            className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90"
+            onClick={handleCopy}
+          >
             {t("contextMenu.copy")}
           </button>
-          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90" onClick={handlePaste}>
+          <button
+            type="button"
+            className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90"
+            onClick={handlePaste}
+          >
             {t("contextMenu.paste")}
           </button>
           <div className="h-px bg-black/10 dark:bg-white/10 my-1" />
-          <button className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90" onClick={handleSelectAll}>
+          <button
+            type="button"
+            className="w-full text-left px-4 py-1.5 hover:bg-accent/10 text-text/90"
+            onClick={handleSelectAll}
+          >
             {t("contextMenu.selectAll")}
           </button>
         </div>

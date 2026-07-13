@@ -113,6 +113,7 @@ export function useSettingsChatConversation({
   }, [messages]);
 
   // 切上下文 reset（铁律②：state 与 reset 同文件）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——体内全是 setter（非依赖），仅应随 basePath/mode 变化 reset；biome 判它们多余，删掉会导致切上下文不再复位（残留上一篇消息/输入）
   useEffect(() => {
     setSending(false);
     setPostMutationBusy(false);

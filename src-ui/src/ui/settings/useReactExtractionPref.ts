@@ -24,10 +24,12 @@ export function useReactExtractionPref(isOpen: boolean, settings: SettingsInfo |
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——体内仅 setter（非依赖），仅应随 isOpen 变化重置为默认开；biome 判 isOpen 多余，删掉会导致重开面板不再复位
   useEffect(() => {
     setEnabled(true);
   }, [isOpen]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——读 settingsRef.current（ref，无需入依赖），仅应随 loadKey（加载完成信号）变化重灌开关；biome 判 loadKey 多余，删掉会导致加载完成后不 hydrate 开关
   useLayoutEffect(() => {
     setEnabled(isReactExtractionEnabled(settingsRef.current?.app));
   }, [loadKey]);

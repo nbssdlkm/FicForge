@@ -76,12 +76,19 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const [editingTitleValue, setEditingTitleValue] = useState("");
   const editingRef = useRef<{ num: number; original: string } | null>(null);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editingTitleInputRef = useRef<HTMLInputElement>(null);
   useEffect(
     () => () => {
       if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
     },
     [],
   );
+
+  // 非 Modal 内联改名（双击章节行触发）——不用 autoFocus 属性（noAutofocus），
+  // 改走 ref + effect 达到双击即聚焦同等行为。
+  useEffect(() => {
+    if (editingTitleNum !== null) editingTitleInputRef.current?.focus();
+  }, [editingTitleNum]);
 
   useEffect(() => {
     if (!auPath) return;
@@ -333,6 +340,15 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
             ) : (
               chapters.map((ch) => {
                 const isActive = activeTab === "writer" && viewingChapter === ch.chapter_num;
+                const activateChapterRow = () => {
+                  if (editingTitleNum === ch.chapter_num) return;
+                  // Delay single click to distinguish from double click
+                  if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+                  clickTimerRef.current = setTimeout(() => {
+                    setViewingChapter(ch.chapter_num);
+                    onNavigate("writer", auPath);
+                  }, 250);
+                };
                 return (
                   <div key={ch.chapter_num} className="relative">
                     {isActive && (
@@ -341,15 +357,19 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
                         className="pointer-events-none absolute left-0 top-1.5 bottom-1.5 z-10 w-[2px] rounded-r bg-gold"
                       />
                     )}
+                    {/* biome-ignore lint/a11y/useSemanticElements: 编辑态内含真 <input>（改标题），交互元素不可嵌交互元素，只能保留 div+role */}
                     <div
-                      onClick={() => {
-                        if (editingTitleNum === ch.chapter_num) return;
-                        // Delay single click to distinguish from double click
-                        if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
-                        clickTimerRef.current = setTimeout(() => {
-                          setViewingChapter(ch.chapter_num);
-                          onNavigate("writer", auPath);
-                        }, 250);
+                      role="button"
+                      tabIndex={0}
+                      onClick={activateChapterRow}
+                      onKeyDown={(e) => {
+                        // 只认自身获焦的按键（F3 对抗审 HIGH）：编辑态行内 <input> 的空格会冒泡到这里，
+                        // 无条件 preventDefault 会吞掉标题里的空格输入。
+                        if (e.target !== e.currentTarget) return;
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          activateChapterRow();
+                        }
                       }}
                       onDoubleClick={(e) => {
                         e.stopPropagation();
@@ -373,7 +393,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
                         </span>
                         {editingTitleNum === ch.chapter_num ? (
                           <input
-                            autoFocus
+                            ref={editingTitleInputRef}
                             value={editingTitleValue}
                             onChange={(e) => setEditingTitleValue(e.target.value)}
                             onKeyDown={async (e) => {

@@ -108,7 +108,8 @@ export const DirtyModal = ({
       .finally(() => {
         if (!contextGuard.isStale(token)) setExtracting(false);
       });
-  }, [isOpen, auPath, chapterNum]);
+    // contextGuard 由 useActiveRequestGuard 返回（useMemo []，identity 恒定），列出零行为变化
+  }, [isOpen, auPath, chapterNum, contextGuard]);
 
   const toggleCandidate = (idx: number) => {
     setSelectedCandidates((prev) => {

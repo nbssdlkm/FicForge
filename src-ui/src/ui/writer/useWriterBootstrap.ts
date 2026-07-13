@@ -115,6 +115,7 @@ export function useWriterBootstrap({ auPath, loadGuard, refreshGuard, showError,
     }
   }, [auPath, refreshGuard, showError, t]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——effect 仅随 auPath 变化清空 bootstrap 数据；auPath 只作触发键、体内不读取；删除会使切 AU 后残留上一篇数据（铁律②）
   useEffect(() => {
     setState(null);
     setProjectInfo(null);
@@ -132,6 +133,7 @@ export function useWriterBootstrap({ auPath, loadGuard, refreshGuard, showError,
   const loadDataRef = useRef(loadData);
   loadDataRef.current = loadData;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: ref shim（铁律 4）——loadDataRef 每渲染同步最新 loadData，effect 仅随 auPath 触发；auPath 只作触发键、体内不直接读取；直接依赖 loadData 会因其不稳依赖每秒重触发（上方注释详述）
   useEffect(() => {
     void loadDataRef.current();
   }, [auPath]);

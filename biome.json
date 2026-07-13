@@ -30,7 +30,7 @@
         "noConsole": "error"
       },
       "correctness": {
-        "useExhaustiveDependencies": "warn",
+        "useExhaustiveDependencies": "error",
         "useHookAtTopLevel": "error"
       },
       "style": {
@@ -48,14 +48,14 @@
         }
       },
       "a11y": {
-        "noLabelWithoutControl": "warn",
-        "useKeyWithClickEvents": "warn",
-        "useButtonType": "warn",
-        "useSemanticElements": "warn",
-        "noSvgWithoutTitle": "warn",
-        "noAutofocus": "warn",
-        "noStaticElementInteractions": "warn",
-        "useAriaPropsSupportedByRole": "warn"
+        "noLabelWithoutControl": "error",
+        "useKeyWithClickEvents": "error",
+        "useButtonType": "error",
+        "useSemanticElements": "error",
+        "noSvgWithoutTitle": "error",
+        "noAutofocus": "error",
+        "noStaticElementInteractions": "error",
+        "useAriaPropsSupportedByRole": "error"
       }
     }
   },

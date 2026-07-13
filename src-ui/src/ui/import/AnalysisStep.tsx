@@ -1,6 +1,7 @@
 // Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 
+import { useId } from "react";
 import { Spinner } from "../shared/Spinner";
 import { Button } from "../shared/Button";
 import { Input } from "../shared/Input";
@@ -38,6 +39,8 @@ export function AnalysisStep({
   analyzing,
 }: AnalysisStepProps) {
   const { t } = useTranslation();
+  const chapterThresholdId = useId();
+  const skipThresholdId = useId();
   const allDone = analyses.length === files.length && !analyzing;
 
   return (
@@ -109,18 +112,22 @@ export function AnalysisStep({
             <p className="text-xs font-medium text-text/70">{t("import.step2Thresholds")}</p>
             <div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
               <div className="flex-1">
-                <label className="text-xs text-text/50">
+                <label htmlFor={chapterThresholdId} className="text-xs text-text/50">
                   {t("import.step2ChapterThreshold", { n: chapterThreshold })}
                 </label>
                 <Input
+                  id={chapterThresholdId}
                   type="number"
                   value={chapterThreshold}
                   onChange={(e) => onChangeChapterThreshold(Math.max(100, parseInt(e.target.value, 10) || 1500))}
                 />
               </div>
               <div className="flex-1">
-                <label className="text-xs text-text/50">{t("import.step2SkipThreshold", { n: skipThreshold })}</label>
+                <label htmlFor={skipThresholdId} className="text-xs text-text/50">
+                  {t("import.step2SkipThreshold", { n: skipThreshold })}
+                </label>
                 <Input
+                  id={skipThresholdId}
                   type="number"
                   value={skipThreshold}
                   onChange={(e) => onChangeSkipThreshold(Math.max(10, parseInt(e.target.value, 10) || 300))}

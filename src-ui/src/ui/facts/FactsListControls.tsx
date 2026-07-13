@@ -176,6 +176,7 @@ export function FactsListControls({ variant, extraction, staleCount, factsFilter
       {factsFilter.filteredFacts.length > 0 && (
         <div className="mx-4 mt-2 flex items-center gap-3 text-xs text-text/70">
           <button
+            type="button"
             className={`font-medium ${batch.batchMode ? "text-accent" : "text-text/50 hover:text-text/70"}`}
             onClick={() => {
               batch.setBatchMode(!batch.batchMode);
@@ -219,6 +220,7 @@ export function FactsListControls({ variant, extraction, staleCount, factsFilter
                     {(["deprecated", "resolved", "active", "unresolved"] as const).map((s) => (
                       <button
                         key={s}
+                        type="button"
                         className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent/10 transition-colors"
                         onClick={() => {
                           batch.setBatchMenuOpen(false);

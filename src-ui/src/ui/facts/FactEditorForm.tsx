@@ -2,6 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
+import { useId } from "react";
 import { Search, Check } from "lucide-react";
 import { Spinner } from "../shared/Spinner";
 import { Button } from "../shared/Button";
@@ -42,6 +43,13 @@ export function FactEditorForm({
   onUnarchive,
 }: FactEditorFormProps) {
   const { t } = useTranslation();
+  // useId() 必须无条件调用（早退在下面），字段 id 全走这里防跨实例撞 id。
+  const statusId = useId();
+  const narrativeWeightId = useId();
+  const contentCleanId = useId();
+  const contentRawId = useId();
+  const charactersId = useId();
+  const knownToModeId = useId();
 
   if (!editor.editingFact) {
     return (
@@ -65,8 +73,11 @@ export function FactEditorForm({
       )}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-bold text-text/90">{t("common.labels.factStatus")}</label>
+          <label htmlFor={statusId} className="text-sm font-bold text-text/90">
+            {t("common.labels.factStatus")}
+          </label>
           <select
+            id={statusId}
             className="h-11 rounded-md border border-black/20 bg-surface px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
             value={editor.editingFact.status}
             onChange={(e) => onStatusChange(editor.editingFact!.id, e.target.value)}
@@ -79,8 +90,11 @@ export function FactEditorForm({
           <p className="text-xs text-text/50">{t("facts.statusHintResolved")}</p>
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-bold text-text/90">{t("common.labels.narrativeWeight")}</label>
+          <label htmlFor={narrativeWeightId} className="text-sm font-bold text-text/90">
+            {t("common.labels.narrativeWeight")}
+          </label>
           <select
+            id={narrativeWeightId}
             ref={editor.editWeightRef}
             defaultValue={editor.editingFact.narrative_weight || "medium"}
             className="h-11 rounded-md border border-black/20 bg-surface px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
@@ -96,8 +110,11 @@ export function FactEditorForm({
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-bold text-text/90">{t("common.labels.contentClean")}</label>
+        <label htmlFor={contentCleanId} className="text-sm font-bold text-text/90">
+          {t("common.labels.contentClean")}
+        </label>
         <Textarea
+          id={contentCleanId}
           ref={editor.editContentCleanRef}
           defaultValue={editor.editingFact.content_clean}
           className="font-serif min-h-[160px] text-lg leading-relaxed resize-y"
@@ -106,8 +123,11 @@ export function FactEditorForm({
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-bold text-text/90">{t("common.labels.contentRaw")}</label>
+        <label htmlFor={contentRawId} className="text-sm font-bold text-text/90">
+          {t("common.labels.contentRaw")}
+        </label>
         <Textarea
+          id={contentRawId}
           ref={editor.editContentRawRef}
           defaultValue={editor.editingFact.content_raw}
           className="font-serif opacity-70 min-h-[140px] text-base leading-relaxed bg-surface/50 resize-y"
@@ -116,8 +136,11 @@ export function FactEditorForm({
       </div>
 
       <div className="flex flex-col gap-2 border-t border-black/10 pt-4 dark:border-white/10">
-        <label className="text-sm font-bold text-text/90">{t("common.labels.characters")}</label>
+        <label htmlFor={charactersId} className="text-sm font-bold text-text/90">
+          {t("common.labels.characters")}
+        </label>
         <Input
+          id={charactersId}
           ref={editor.editCharactersRef}
           defaultValue={(editor.editingFact.characters || []).join(", ")}
           className="h-11 text-base md:h-10 md:text-sm"
@@ -129,8 +152,11 @@ export function FactEditorForm({
           联想名单 = 本条涉及角色优先 + 全库出现过的角色名（datalist）。 */}
       <div className="flex flex-col gap-4 border-t border-black/10 pt-4 dark:border-white/10">
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-bold text-text/90">{t("facts.knowledge.knownToLabel")}</label>
+          <label htmlFor={knownToModeId} className="text-sm font-bold text-text/90">
+            {t("facts.knowledge.knownToLabel")}
+          </label>
           <select
+            id={knownToModeId}
             value={editor.knownToMode}
             onChange={(e) => editor.selectKnownToMode(e.target.value as "unset" | "all" | "reader_only" | "some")}
             className="h-11 rounded-md border border-black/20 bg-surface px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
@@ -157,7 +183,8 @@ export function FactEditorForm({
           <p className="text-xs text-text/50">{t("facts.knowledge.knownToHint")}</p>
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-bold text-text/90">{t("facts.knowledge.hiddenFromLabel")}</label>
+          {/* 小节标题，非表单 label：下方是自画 chips 控件（ChipListInput 内部自带 span 标签），无可关联的单一原生控件（守则 2b）。 */}
+          <span className="text-sm font-bold text-text/90">{t("facts.knowledge.hiddenFromLabel")}</span>
           <ChipListInput
             label={t("facts.knowledge.hiddenFromLabel")}
             values={editor.hiddenFromNames}

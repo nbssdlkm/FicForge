@@ -186,6 +186,7 @@ export function ToolCallCard({
     [card, draftArgs, existingPinnedTexts, isEditing, t],
   );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: card.id 是卡片身份触发键——切到不同卡片时强制把草稿重置回该卡 parsedArgs 并退出编辑；biome 判 card.id 多余（因 parsedArgs 通常同变），但保留以确保身份变化必复位（两卡 parsedArgs 引用相等时也复位）
   useEffect(() => {
     setDraftArgs(card.parsedArgs);
     setEditing(false);

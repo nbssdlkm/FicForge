@@ -43,6 +43,7 @@ export function useSettingsChatSupportData(mode: SettingsMode, basePath?: string
   }, [worldbuildingFiles]);
 
   // 切上下文 reset（铁律②：state 与 reset 同文件）；ref 同步清，避免加载间隙读到上一篇
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——体内仅 setter/ref 清理（非依赖），仅应随 basePath/mode 变化 reset；biome 判它们多余，删掉会导致切上下文不再复位（残留上一篇支撑数据）
   useEffect(() => {
     setProjectInfo(null);
     projectInfoRef.current = null;

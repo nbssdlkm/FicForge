@@ -190,6 +190,7 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
   // 关键：loadError 非空时**不 save**——load 失败原因可能是临时（文件锁、权限瞬时拒绝），
   // 磁盘上其实有内容；自动 save 会用空 [] 覆盖造成静默数据丢失（v4 盲审 P0-2）。
   // 用户能看到 loadError 提示，但内存里的新消息不入磁盘，等下次成功 load 后再恢复。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——auPath 只作触发键重新起防抖；体内读的是 auPathRef.current 快照（保证串写到正确 AU）；删除它不影响正确性但故意保留作防御性重跑
   useEffect(() => {
     if (!isLoaded) return;
     if (loadError !== null) return;
@@ -280,6 +281,7 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
   // AU 切换 / unmount cleanup：cancel 挂着的 rAF 并清空 buffer，防止旧 AU 的
   // 缓冲 chunks 在新 AU 错位 append 到 id 不存在的 message（map 会 noop 但 buffer
   // 一直占内存）。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——cleanup 仅随 auPath 变化跑（cancel 旧 AU 的 rAF）；auPath 只作触发键、体内不读取；删除会使切 AU 不再清缓冲
   useEffect(() => {
     return () => {
       pendingChunksRef.current.clear();
@@ -548,7 +550,6 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
     setMessages((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 有意省依赖——hook 规则 4 ref-shim/边沿触发语义（见邻近注释）
   const clearMessages = useCallback(() => {
     setMessages([]);
   }, []);
@@ -579,8 +580,34 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
       removeMessage,
       clearMessages,
     }),
-    // Only state values as deps — all callbacks are useCallback-stabilized and never
-    // change identity. Listing them would be false-positive cargo cult.
-    [messages, isLoaded, loadError],
+    // 全部列出：3 个 state 值 + 20 个 useCallback 稳定回调（均只闭包 appendMessage/
+    // updateMessage/flushChunks 等 []-dep 方法，跨渲染 identity 恒定）。列出稳定回调
+    // 零行为变化——memo identity 仍只随 messages/isLoaded/loadError 改变——但满足
+    // exhaustive-deps 且未来某回调若失稳能被正确捕获（比 ignore 更稳健）。
+    [
+      messages,
+      isLoaded,
+      loadError,
+      appendUserMessage,
+      appendAssistantMessage,
+      appendAssistantChunk,
+      appendToolResultMessage,
+      appendDraftMessage,
+      appendDraftChunk,
+      flushStreamingChunks,
+      replaceDraftContent,
+      assignDraftLabel,
+      recordDraftGeneratedWith,
+      markDraftStatus,
+      markDraftAccepted,
+      appendToolCallMessage,
+      markToolCallStatus,
+      appendChapterPreviewMessage,
+      appendSettingPreviewMessage,
+      togglePreviewExpanded,
+      appendSystemMessage,
+      removeMessage,
+      clearMessages,
+    ],
   );
 }

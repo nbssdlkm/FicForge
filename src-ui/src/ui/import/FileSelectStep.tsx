@@ -73,8 +73,12 @@ export function FileSelectStep({ onNext, disabled }: { onNext: (files: File[]) =
       </div>
 
       {/* Drop zone */}
-      <div
-        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${dragOver ? "border-accent bg-accent/5" : "border-black/10 dark:border-white/15 hover:border-accent/50"}`}
+      {/* 大面积可点区域：改真 <button>（biome useSemanticElements 建议）；隐藏的
+          <input type="file"> 挪成兄弟节点而非子节点——button 不能合法嵌套其他交互元素，
+          ref 触发点击不依赖 DOM 位置，挪出去零行为变化。 */}
+      <button
+        type="button"
+        className={`w-full border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${dragOver ? "border-accent bg-accent/5" : "border-black/10 dark:border-white/15 hover:border-accent/50"}`}
         onClick={() => inputRef.current?.click()}
         onDragOver={(e) => {
           e.preventDefault();
@@ -86,18 +90,18 @@ export function FileSelectStep({ onNext, disabled }: { onNext: (files: File[]) =
         <Upload size={28} className="mx-auto mb-2 text-text/30" />
         <p className="text-sm text-text/50">{t("import.dropzone")}</p>
         <p className="mt-1 text-xs text-text/30">{t("import.dropzoneMulti")}</p>
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          accept={ACCEPTED_EXTENSIONS.join(",")}
-          className="hidden"
-          onChange={(e) => {
-            if (e.target.files) addFiles(e.target.files);
-            e.target.value = "";
-          }}
-        />
-      </div>
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        accept={ACCEPTED_EXTENSIONS.join(",")}
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files) addFiles(e.target.files);
+          e.target.value = "";
+        }}
+      />
 
       {/* File list */}
       {files.length > 0 && (

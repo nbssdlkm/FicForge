@@ -26,6 +26,7 @@ vi.mock("../../shared/TrashPanel", () => ({
     <div>
       {/* entity_name 按 deleteLore 的真实落库形态带 .md，锁住恢复时的去后缀处理 */}
       <button
+        type="button"
         onClick={() =>
           onRestore?.({ trash_id: "t1", original_path: "characters/恢复角色.md", entity_name: "恢复角色.md" })
         }
@@ -33,6 +34,7 @@ vi.mock("../../shared/TrashPanel", () => ({
         restore-character
       </button>
       <button
+        type="button"
         onClick={() => onRestore?.({ trash_id: "t2", original_path: "chapters/main/ch0003.md", entity_name: "第三章" })}
       >
         restore-chapter

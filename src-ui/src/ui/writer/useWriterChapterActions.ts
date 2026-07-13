@@ -69,6 +69,7 @@ export function useWriterChapterActions({
   // 拦不住同步双击。ref 立即生效，作为真正的重入闸门。
   const undoingRef = useRef(false);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——effect 仅随 auPath 变化复位在飞态/重入闸；auPath 只作触发键、体内不读取；删除会使切 AU 后残留 finalizing/undoing 态（铁律②）
   useEffect(() => {
     setIsFinalizing(false);
     setIsDiscarding(false);

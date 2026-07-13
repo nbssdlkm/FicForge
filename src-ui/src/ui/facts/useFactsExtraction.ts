@@ -134,7 +134,7 @@ export function useFactsExtraction(auPath: string, state: StateInfo | null, onSa
     return () => {
       unsubRef.current?.();
     };
-  }, [auPath]); // 仅 auPath 变化触发，subscribeToTask 通过 ref 引用
+  }, [auPath, selectAll]); // 仅 auPath 变化触发（selectAll 为 useCallback([]) 稳定引用，不引发重跑）；subscribeToTask 通过 ref 引用
 
   const handleExtractClick = () => {
     const totalConfirmed = (state?.current_chapter || 1) - 1;

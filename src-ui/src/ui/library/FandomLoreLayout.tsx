@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useMemo } from "react";
+import { useMemo, type KeyboardEvent } from "react";
 
 import { Spinner } from "../shared/Spinner";
 import { Button } from "../shared/Button";
@@ -42,6 +42,17 @@ type Props = {
   fandomPath?: string;
   onNavigate: (page: string) => void;
 };
+
+/** role="button" 的 div 统一走这个处理 Enter/Space 键盘触发（noStaticElementInteractions），避免每处手写。 */
+function activateOnEnterOrSpace(event: KeyboardEvent<HTMLElement>, activate: () => void) {
+  // 只认自身获焦的按键（F3 对抗审）：这些容器内嵌真 <button>，子元素的 Enter/Space
+  // 会冒泡上来——不过滤会一次按键双动作（子按钮 + 父折叠/打开）。
+  if (event.target !== event.currentTarget) return;
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    activate();
+  }
+}
 
 function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
   const { t } = useTranslation();
@@ -221,9 +232,13 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
               </div>
 
               <div>
+                {/* biome-ignore lint/a11y/useSemanticElements: 内含真 <button>（新建角色），button 不可嵌 button，只能保留 div+role */}
                 <div
                   className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/90 font-bold font-sans"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => chrome.toggleFolder("core_characters")}
+                  onKeyDown={(event) => activateOnEnterOrSpace(event, () => chrome.toggleFolder("core_characters"))}
                 >
                   <div className="flex items-center gap-2">
                     {chrome.expandedFolders["core_characters"] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -286,9 +301,10 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                       />
                     ) : (
                       filteredCharacterFiles.map((f) => (
-                        <div
+                        <button
+                          type="button"
                           key={f.filename}
-                          className={`flex items-center gap-2 pl-6 pr-2 py-1.5 text-sm cursor-pointer rounded-md transition-colors ${
+                          className={`flex w-full items-center gap-2 pl-6 pr-2 py-1.5 text-left text-sm cursor-pointer rounded-md transition-colors ${
                             editor.selectedFile === f.filename && editor.selectedCategory === "core_characters"
                               ? "bg-accent/10 text-accent font-semibold"
                               : "hover:bg-black/5 dark:hover:bg-white/5 text-text/70"
@@ -297,7 +313,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                         >
                           <FileText size={13} />
                           <span>{f.name}</span>
-                        </div>
+                        </button>
                       ))
                     )}
                   </div>
@@ -305,9 +321,13 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
               </div>
 
               <div>
+                {/* biome-ignore lint/a11y/useSemanticElements: 内含真 <button>（新建世界观条目），button 不可嵌 button，只能保留 div+role */}
                 <div
                   className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/90 font-bold font-sans"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => chrome.toggleFolder("core_worldbuilding")}
+                  onKeyDown={(event) => activateOnEnterOrSpace(event, () => chrome.toggleFolder("core_worldbuilding"))}
                 >
                   <div className="flex items-center gap-2">
                     {chrome.expandedFolders["core_worldbuilding"] ? (
@@ -374,9 +394,10 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                       />
                     ) : (
                       filteredWorldbuildingFiles.map((f) => (
-                        <div
+                        <button
+                          type="button"
                           key={f.filename}
-                          className={`flex items-center gap-2 pl-6 pr-2 py-1.5 text-sm cursor-pointer rounded-md transition-colors ${
+                          className={`flex w-full items-center gap-2 pl-6 pr-2 py-1.5 text-left text-sm cursor-pointer rounded-md transition-colors ${
                             editor.selectedFile === f.filename && editor.selectedCategory === "core_worldbuilding"
                               ? "bg-accent/10 text-accent font-semibold"
                               : "hover:bg-black/5 dark:hover:bg-white/5 text-text/70"
@@ -385,7 +406,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                         >
                           <FileText size={13} />
                           <span>{f.name}</span>
-                        </div>
+                        </button>
                       ))
                     )}
                   </div>
@@ -434,12 +455,14 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                 </Button>
                 <div className="inline-flex rounded-md border border-black/10 dark:border-white/10 bg-surface/60 p-0.5 mr-2">
                   <button
+                    type="button"
                     className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${!editor.previewMode ? "bg-accent text-inv-text" : "text-text/70 hover:text-text"}`}
                     onClick={editor.showEditMode}
                   >
                     <Pencil size={12} /> {t("common.actions.edit")}
                   </button>
                   <button
+                    type="button"
                     className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${editor.previewMode ? "bg-accent text-inv-text" : "text-text/70 hover:text-text"}`}
                     onClick={editor.showPreviewMode}
                   >
@@ -467,11 +490,12 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
           {editor.selectedFile ? (
             <>
               <div className="flex flex-col gap-2 flex-1">
-                <label className="text-sm font-bold text-text/90">
+                {/* 小节标题，不关联单一控件（下方视 previewMode/加载态渲染 spinner、Markdown 预览或 Textarea） */}
+                <p className="text-sm font-bold text-text/90">
                   {editor.selectedCategory === "core_characters"
                     ? t("fandomLore.category.characters")
                     : t("fandomLore.category.worldbuilding")}
-                </label>
+                </p>
                 {editor.isReadingFile ? (
                   <div className="flex min-h-[300px] flex-1 items-center justify-center">
                     <Spinner size="md" className="text-accent" />

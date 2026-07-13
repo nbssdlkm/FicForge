@@ -17,6 +17,7 @@ export function useAuLoreModals(auPath: string) {
   const [coreLimitTarget, setCoreLimitTarget] = useState<string | null>(null);
   const [pinMilestoneDismissed, setPinMilestoneDismissed] = useState(false);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——体内全是 setter（非依赖），仅应随 auPath 变化关闭所有弹窗；biome 判 auPath 多余，删掉会导致切 AU 不再复位（残留上一篇打开的弹窗）
   useEffect(() => {
     setCreateOpen(false);
     setCreateName("");

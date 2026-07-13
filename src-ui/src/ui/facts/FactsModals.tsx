@@ -2,6 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
+import { useId } from "react";
 import { Spinner } from "../shared/Spinner";
 import { Button } from "../shared/Button";
 import { Input, Textarea } from "../shared/Input";
@@ -43,6 +44,11 @@ export function FactsModals({
   onUnarchive,
 }: FactsModalsProps) {
   const { t } = useTranslation();
+  const newTypeId = useId();
+  const newWeightId = useId();
+  const newStatusId = useId();
+  const extractFromId = useId();
+  const extractToId = useId();
 
   return (
     <>
@@ -94,8 +100,11 @@ export function FactsModals({
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
-              <label className="mb-1 block text-xs font-bold text-text/90">{t("facts.createModal.typeLabel")}</label>
+              <label htmlFor={newTypeId} className="mb-1 block text-xs font-bold text-text/90">
+                {t("facts.createModal.typeLabel")}
+              </label>
               <select
+                id={newTypeId}
                 value={editor.newType}
                 onChange={(e) => editor.setNewType(e.target.value)}
                 className="h-11 w-full rounded-md border border-black/10 bg-surface px-2 text-base dark:border-white/10 md:h-9 md:text-sm"
@@ -111,8 +120,11 @@ export function FactsModals({
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-text/90">{t("facts.createModal.weightLabel")}</label>
+              <label htmlFor={newWeightId} className="mb-1 block text-xs font-bold text-text/90">
+                {t("facts.createModal.weightLabel")}
+              </label>
               <select
+                id={newWeightId}
                 value={editor.newWeight}
                 onChange={(e) => editor.setNewWeight(e.target.value)}
                 className="h-11 w-full rounded-md border border-black/10 bg-surface px-2 text-base dark:border-white/10 md:h-9 md:text-sm"
@@ -125,8 +137,11 @@ export function FactsModals({
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-text/90">{t("facts.createModal.statusLabel")}</label>
+              <label htmlFor={newStatusId} className="mb-1 block text-xs font-bold text-text/90">
+                {t("facts.createModal.statusLabel")}
+              </label>
               <select
+                id={newStatusId}
                 value={editor.newStatus}
                 onChange={(e) => editor.setNewStatus(e.target.value)}
                 className="h-11 w-full rounded-md border border-black/10 bg-surface px-2 text-base dark:border-white/10 md:h-9 md:text-sm"
@@ -160,8 +175,11 @@ export function FactsModals({
         <div className="space-y-4">
           <p className="text-sm text-text/70">{t("facts.extractRangeDesc")}</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[auto,96px,auto,96px,1fr] sm:items-center">
-            <label className="text-sm text-text/70 shrink-0">{t("facts.extractFrom")}</label>
+            <label htmlFor={extractFromId} className="text-sm text-text/70 shrink-0">
+              {t("facts.extractFrom")}
+            </label>
             <Input
+              id={extractFromId}
               type="number"
               className="h-11 text-base md:h-8 md:text-sm"
               min={1}
@@ -171,8 +189,11 @@ export function FactsModals({
                 extraction.setExtractRange([Math.max(1, parseInt(e.target.value) || 1), extraction.extractRange[1]])
               }
             />
-            <label className="text-sm text-text/70 shrink-0">{t("facts.extractTo")}</label>
+            <label htmlFor={extractToId} className="text-sm text-text/70 shrink-0">
+              {t("facts.extractTo")}
+            </label>
             <Input
+              id={extractToId}
               type="number"
               className="h-11 text-base md:h-8 md:text-sm"
               min={extraction.extractRange[0]}

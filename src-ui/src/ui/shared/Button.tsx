@@ -36,13 +36,17 @@ const sizes = {
 };
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, tone = "accent", fill = "solid", size = "md", ...props }, ref) => {
+  ({ className, tone = "accent", fill = "solid", size = "md", type = "button", ...props }, ref) => {
+    // 默认 type="button"（TD-019 preview 冒烟发现的单源漏网面）：HTML 缺省是 submit，
+    // 将来任何人往 <form> 里放 <Button> 都会隐式变提交按钮。全仓现无 <form> 与
+    // type="submit"（grep 实证），此默认零行为变化；真要提交按钮显式传 type 覆盖。
     const baseStyles =
       "inline-flex items-center justify-center gap-1.5 rounded-[3px] font-sans text-base md:text-sm font-medium tracking-[0.02em] transition-all duration-150 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50";
 
     return (
       <button
         ref={ref}
+        type={type}
         className={cn(baseStyles, toneFillStyles[`${tone}-${fill}`], sizes[size], className)}
         {...props}
       />

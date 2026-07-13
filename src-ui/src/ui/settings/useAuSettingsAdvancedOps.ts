@@ -25,6 +25,7 @@ export function useAuSettingsAdvancedOps(auPath: string, isArchiveOpen: boolean)
   const [archiveCandidateCount, setArchiveCandidateCount] = useState<number | null>(null);
 
   // 切 AU：复位进行中标志；候选数先清零，避免揭开高级区时闪现上一篇的候选数（对抗审①）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——体内全是 setter（非依赖），仅应随 auPath 变化复位；biome 判 auPath 多余，删掉会导致切 AU 不再复位（残留上一篇候选数）
   useEffect(() => {
     setRecalcing(false);
     setArchiveCandidateCount(null);

@@ -54,6 +54,7 @@ export function useSimpleDraftActions({
   const [acceptingDraftId, setAcceptingDraftId] = useState<string | null>(null);
 
   // 切 AU reset（铁律②：state 与 reset 同文件）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——effect 仅随 auPath 变化复位接受在途闸；auPath 只作触发键、体内不读取；删除会使切 AU 后残留上一篇的接受态
   useEffect(() => {
     setAcceptingDraftId(null);
   }, [auPath]);

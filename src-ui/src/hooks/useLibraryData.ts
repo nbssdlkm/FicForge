@@ -31,7 +31,7 @@ export function useLibraryData() {
         setLoading(false);
       }
     }
-  }, [showError, t]);
+  }, [loadGuard, showError, t]);
 
   return {
     fandoms,

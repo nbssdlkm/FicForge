@@ -1428,7 +1428,8 @@
       "emptyTitle": "No chapters yet",
       "emptyDesc": "Go to the Write tab to generate your first chapter.",
       "startWriting": "Start Writing",
-      "untitled": "Untitled chapter"
+      "untitled": "Untitled chapter",
+      "editTitle": "Edit chapter title"
     }
   },
   "simple": {

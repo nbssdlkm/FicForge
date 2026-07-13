@@ -76,6 +76,7 @@ export function useSettingsChatToolActions({
   }, [onAfterMutation]);
 
   // 切上下文 reset（铁律②）：重入闸清空，上一篇的执行残留不得挡住新上下文
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——体内仅清 ref（非依赖），仅应随 basePath/mode 变化清空重入闸；biome 判它们多余，删掉会导致切上下文不再清空（残留上一篇执行中卡）
   useEffect(() => {
     loadingCardIdsRef.current.clear();
   }, [basePath, mode]);

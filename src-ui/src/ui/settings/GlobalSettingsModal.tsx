@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import { Spinner } from "../shared/Spinner";
 import { Modal } from "../shared/Modal";
 import { Button } from "../shared/Button";
@@ -29,6 +29,13 @@ import { useReactExtractionPref } from "./useReactExtractionPref";
 export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const { t, i18n } = useTranslation();
   const { showError } = useFeedback();
+  const apiBaseId = useId();
+  const apiKeyId = useId();
+  const ollamaApiBaseId = useId();
+  const ollamaModelId = useId();
+  const contextWindowId = useId();
+  const languageId = useId();
+  const reactExtractionId = useId();
 
   const { settings, displayDataDir, loading, loadKey } = useGlobalSettingsData(isOpen);
   const {
@@ -167,8 +174,11 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onCl
                 />
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-bold text-text/90">{t("common.labels.apiBase")}</label>
+                  <label htmlFor={apiBaseId} className="text-sm font-bold text-text/90">
+                    {t("common.labels.apiBase")}
+                  </label>
                   <Input
+                    id={apiBaseId}
                     value={form.apiBase}
                     onChange={(e) => setApiBase(e.target.value)}
                     placeholder="https://api.deepseek.com"
@@ -178,8 +188,11 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onCl
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-bold text-text/90">{t("common.labels.apiKey")}</label>
+                  <label htmlFor={apiKeyId} className="text-sm font-bold text-text/90">
+                    {t("common.labels.apiKey")}
+                  </label>
                   <Input
+                    id={apiKeyId}
                     type="password"
                     value={form.apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
@@ -198,8 +211,11 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onCl
             {form.mode === "ollama" && (
               <>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-bold text-text/90">{t("common.labels.apiBase")}</label>
+                  <label htmlFor={ollamaApiBaseId} className="text-sm font-bold text-text/90">
+                    {t("common.labels.apiBase")}
+                  </label>
                   <Input
+                    id={ollamaApiBaseId}
                     value={form.apiBase}
                     onChange={(e) => setApiBase(e.target.value)}
                     placeholder="http://localhost:11434/v1"
@@ -209,8 +225,11 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onCl
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-bold text-text/90">{t("common.labels.ollamaModel")}</label>
+                  <label htmlFor={ollamaModelId} className="text-sm font-bold text-text/90">
+                    {t("common.labels.ollamaModel")}
+                  </label>
                   <Input
+                    id={ollamaModelId}
                     value={form.ollamaModel}
                     onChange={(e) => setOllamaModel(e.target.value)}
                     placeholder="llama3"
@@ -224,8 +243,11 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onCl
             {/* api 模式的 ctx 由 ProviderModelPicker 内联管理（权威只读/估算提示）；其余模式保留手填 */}
             {form.mode !== "api" && (
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-bold text-text/90">{t("common.labels.contextWindow")}</label>
+                <label htmlFor={contextWindowId} className="text-sm font-bold text-text/90">
+                  {t("common.labels.contextWindow")}
+                </label>
                 <Input
+                  id={contextWindowId}
                   type="number"
                   value={form.contextWindow}
                   onChange={(e) => setContextWindow(e.target.value)}
@@ -266,7 +288,8 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onCl
 
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-bold text-text/90">{t("common.labels.searchEngineModel")}</label>
+                {/* 统领下方 ProviderModelPicker + apiBase/apiKey 输入 + 测试按钮整块 embedding 配置，非单一控件 → span（守则 2b） */}
+                <span className="text-sm font-bold text-text/90">{t("common.labels.searchEngineModel")}</span>
                 <Button
                   tone="neutral"
                   fill="plain"
@@ -335,8 +358,11 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onCl
 
           <div className="space-y-2 border-t border-rule pt-5">
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-bold text-text/90">{t("settings.global.languageLabel")}</label>
+              <label htmlFor={languageId} className="text-sm font-bold text-text/90">
+                {t("settings.global.languageLabel")}
+              </label>
               <select
+                id={languageId}
                 value={i18n.resolvedLanguage === "en" ? "en" : "zh"}
                 onChange={(e) => {
                   changeLanguage(e.target.value as AppLanguage).catch((err) =>
@@ -357,10 +383,11 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onCl
 
           <div className="space-y-2 border-t border-rule pt-5">
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-bold text-text/90">
+              <label htmlFor={reactExtractionId} className="text-sm font-bold text-text/90">
                 {t("settings.global.reactExtractionLabel", { defaultValue: "增强事实提取" })}
               </label>
               <select
+                id={reactExtractionId}
                 value={reactExtraction.enabled ? "on" : "off"}
                 onChange={(e) => {
                   void reactExtraction.toggle(e.target.value === "on");
@@ -382,7 +409,8 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onCl
           <FontSettingsSection />
 
           <div className="space-y-1 border-t border-rule pt-5">
-            <label className="text-sm font-bold text-text/90">{t("settings.global.dataPathLabel")}</label>
+            {/* 下方是只读路径展示 <p>，不是表单控件，无法关联 → span（守则 2b） */}
+            <span className="text-sm font-bold text-text/90">{t("settings.global.dataPathLabel")}</span>
             <p className="rounded-sm border border-rule bg-rule-soft px-3 py-2 font-mono text-xs text-text/70">
               {displayDataDir || getDataDir() || t("settings.global.dataPathDefault")}
             </p>

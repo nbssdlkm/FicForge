@@ -106,13 +106,15 @@ export function LibraryModals({
             disabled={creatingAu}
           />
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-bold text-text/90">{t("library.createAuModal.inheritLabel")}</label>
+            {/* 小节标题，非表单控件关联的 label——下方是只读展示 div，不是真表单控件 */}
+            <p className="text-sm font-bold text-text/90">{t("library.createAuModal.inheritLabel")}</p>
             <div className="flex min-h-[44px] items-center rounded-md border border-black/20 bg-surface/60 px-3 text-base text-text/70 dark:border-white/20 md:text-sm">
               {selectedFandom}
             </div>
           </div>
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-bold text-text/90">{t("library.createAuModal.initLabel")}</label>
+            {/* 小节标题，非表单控件关联的 label——下方是只读展示 div，不是真表单控件 */}
+            <p className="text-sm font-bold text-text/90">{t("library.createAuModal.initLabel")}</p>
             <div className="rounded-md border border-black/20 bg-surface/60 px-3 py-3 text-base text-text/70 dark:border-white/20 md:text-sm">
               {t("library.createAuModal.initGlobal")}
             </div>

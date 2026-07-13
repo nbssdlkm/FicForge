@@ -2,6 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
+import { useId } from "react";
 import { Spinner } from "../shared/Spinner";
 import { Button } from "../shared/Button";
 import { Input } from "../shared/Input";
@@ -31,6 +32,11 @@ import { useAuSettingsAdvancedOps } from "./useAuSettingsAdvancedOps";
 export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
   const { t } = useTranslation();
   const { showError } = useFeedback();
+  const apiKeyId = useId();
+  const apiBaseId = useId();
+  const ollamaModelId = useId();
+  const ollamaApiBaseId = useId();
+  const contextWindowId = useId();
 
   const { project, globalSettings, indexStatus, loading, loadKey, syncCastRegistry } = useAuSettingsData(auPath);
   const {
@@ -144,7 +150,10 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
               {form.isLlmOverride && (
                 <div className="pt-4 border-t border-black/10 dark:border-white/10 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-text/90">{t("common.labels.searchMode")}</label>
+                    {/* LlmModeSelect 是三方封装组件，不接收/透传 id 给内部 <select>，无法 htmlFor 关联；
+                        包裹进 <label> 会破坏 gap-1.5 视觉间距（label 与 select 变成同一 flex item），
+                        故改 span 承担纯文字小节标题语义（守则 2b） */}
+                    <span className="text-xs font-bold text-text/90">{t("common.labels.searchMode")}</span>
                     <LlmModeSelect value={form.llmMode} onChange={setLlmMode} />
                   </div>
                   {form.llmMode === "api" && (
@@ -166,8 +175,11 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-text/90">{t("common.labels.apiKey")}</label>
+                        <label htmlFor={apiKeyId} className="text-xs font-bold text-text/90">
+                          {t("common.labels.apiKey")}
+                        </label>
                         <Input
+                          id={apiKeyId}
                           type="password"
                           value={form.auApiKey}
                           onChange={(e) => setAuApiKey(e.target.value)}
@@ -183,8 +195,11 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                         )}
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-text/90">{t("common.labels.apiBase")}</label>
+                        <label htmlFor={apiBaseId} className="text-xs font-bold text-text/90">
+                          {t("common.labels.apiBase")}
+                        </label>
                         <Input
+                          id={apiBaseId}
                           value={form.auApiBase}
                           onChange={(e) => setAuApiBase(e.target.value)}
                           placeholder="https://api.deepseek.com"
@@ -200,8 +215,11 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                   {form.llmMode === "ollama" && (
                     <>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-text/90">{t("common.labels.ollamaModel")}</label>
+                        <label htmlFor={ollamaModelId} className="text-xs font-bold text-text/90">
+                          {t("common.labels.ollamaModel")}
+                        </label>
                         <Input
+                          id={ollamaModelId}
                           value={form.auOllamaModel}
                           onChange={(e) => setAuOllamaModel(e.target.value)}
                           placeholder="llama3"
@@ -210,8 +228,11 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                         <p className="text-xs text-text/50">{t("common.help.ollamaModel")}</p>
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-text/90">{t("common.labels.apiBase")}</label>
+                        <label htmlFor={ollamaApiBaseId} className="text-xs font-bold text-text/90">
+                          {t("common.labels.apiBase")}
+                        </label>
                         <Input
+                          id={ollamaApiBaseId}
                           value={form.auApiBase}
                           onChange={(e) => setAuApiBase(e.target.value)}
                           placeholder="http://localhost:11434/v1"
@@ -224,8 +245,11 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                   {/* api 模式的 ctx 由 ProviderModelPicker 内联管理；其余模式保留手填 */}
                   {form.llmMode !== "api" && (
                     <div className="flex flex-col gap-1.5 md:col-span-2">
-                      <label className="text-xs font-bold text-text/90">{t("common.labels.contextWindow")}</label>
+                      <label htmlFor={contextWindowId} className="text-xs font-bold text-text/90">
+                        {t("common.labels.contextWindow")}
+                      </label>
                       <Input
+                        id={contextWindowId}
                         type="number"
                         value={form.contextWindow}
                         onChange={(e) => setContextWindow(e.target.value)}
@@ -250,7 +274,8 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
             </h2>
             <div className="space-y-4">
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-bold text-text/90">{t("common.labels.searchEngineModel")}</label>
+                {/* 这是"检索引擎模型"整块区域（只读展示 / 覆盖勾选 / 自定义三态）的小节标题，不专属某一个控件 → span（守则 2b） */}
+                <span className="text-sm font-bold text-text/90">{t("common.labels.searchEngineModel")}</span>
                 {!form.isEmbeddingOverride && (
                   <Input
                     value={globalSettings?.embedding?.model || t("settings.global.noEmbeddingModel")}
@@ -350,6 +375,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                   <Tag key={file} tone="success" className="px-3 py-1.5 text-sm gap-2">
                     <span>{file}</span>
                     <button
+                      type="button"
                       className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:text-success/50 md:h-auto md:w-auto"
                       onClick={() => removeCoreInclude(idx)}
                     >
@@ -389,6 +415,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                       >
                         {c}
                         <button
+                          type="button"
                           className="text-text/30 hover:text-error transition-colors"
                           title={t("settings.removeCastCharacter")}
                           onClick={() => handleRemoveCastCharacter(c)}
@@ -432,6 +459,7 @@ export const AuSettingsLayout = ({ auPath }: { auPath: string }) => {
                 {available.map((name) => (
                   <button
                     key={name}
+                    type="button"
                     className="min-h-[44px] w-full rounded-lg border border-black/10 px-3 py-2 text-left text-sm transition-colors hover:border-accent/30 hover:bg-accent/10 dark:border-white/10"
                     onClick={() => {
                       addCoreInclude(name);

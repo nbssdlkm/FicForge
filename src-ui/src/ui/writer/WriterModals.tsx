@@ -2,6 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
+import { useId } from "react";
 import { Sparkles } from "lucide-react";
 import { Spinner } from "../shared/Spinner";
 import { Button } from "../shared/Button";
@@ -39,13 +40,17 @@ export const FinalizeConfirmModal = ({
   isFinalizing,
 }: FinalizeConfirmModalProps) => {
   const { t } = useTranslation();
+  const chapterTitleId = useId();
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t("drafts.confirmFinalize", { chapter: currentChapter })}>
       <div className="space-y-4">
         <div>
-          <label className="block text-xs font-bold text-text/70 mb-1.5">{t("writer.chapterTitleLabel")}</label>
+          <label htmlFor={chapterTitleId} className="block text-xs font-bold text-text/70 mb-1.5">
+            {t("writer.chapterTitleLabel")}
+          </label>
           <input
+            id={chapterTitleId}
             type="text"
             value={chapterTitle}
             onChange={(e) => onChapterTitleChange(e.target.value)}

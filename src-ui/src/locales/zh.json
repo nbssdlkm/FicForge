@@ -1428,7 +1428,8 @@
       "emptyTitle": "还没有章节",
       "emptyDesc": "先进入写作页生成第一章。",
       "startWriting": "开始写作",
-      "untitled": "未命名章节"
+      "untitled": "未命名章节",
+      "editTitle": "编辑章节标题"
     }
   },
   "simple": {

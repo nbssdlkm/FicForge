@@ -255,6 +255,7 @@ export function FactsFilterBar({ variant, factsFilter, extraction, editor, count
           </select>
           {(factsFilter.chapterFilter !== null || factsFilter.characterFilter) && (
             <button
+              type="button"
               className="text-xs text-accent hover:underline"
               onClick={() => {
                 factsFilter.setChapterFilter(null);
@@ -269,36 +270,41 @@ export function FactsFilterBar({ variant, factsFilter, extraction, editor, count
 
       <div className="flex flex-col gap-1">
         <div className="flex gap-3 overflow-x-auto pb-1 text-xs font-sans whitespace-nowrap">
-          <span
+          <button
+            type="button"
             className={`cursor-pointer font-medium border-b-2 pb-1 ${!factsFilter.statusFilter ? "font-bold text-accent border-accent" : "text-text/70 hover:text-text border-transparent"}`}
             onClick={() => factsFilter.setStatusFilter("")}
           >
             {t("facts.allTab")} ({totalCount})
-          </span>
-          <span
+          </button>
+          <button
+            type="button"
             className={`cursor-pointer font-medium border-b-2 pb-1 ${factsFilter.statusFilter === "unresolved" ? "font-bold text-accent border-accent" : "text-text/70 hover:text-text border-transparent"}`}
             onClick={() => factsFilter.setStatusFilter("unresolved")}
           >
             {getEnumLabel("fact_status", "unresolved", "unresolved")} ({unresolvedCount})
-          </span>
-          <span
+          </button>
+          <button
+            type="button"
             className={`cursor-pointer font-medium border-b-2 pb-1 ${factsFilter.statusFilter === "active" ? "font-bold text-accent border-accent" : "text-text/70 hover:text-text border-transparent"}`}
             onClick={() => factsFilter.setStatusFilter("active")}
           >
             {getEnumLabel("fact_status", "active", "active")} ({activeCount})
-          </span>
-          <span
+          </button>
+          <button
+            type="button"
             className={`cursor-pointer font-medium border-b-2 pb-1 ${factsFilter.statusFilter === "resolved" ? "font-bold text-accent border-accent" : "text-text/70 hover:text-text border-transparent"}`}
             onClick={() => factsFilter.setStatusFilter("resolved")}
           >
             {getEnumLabel("fact_status", "resolved", "resolved")} ({resolvedCount})
-          </span>
-          <span
+          </button>
+          <button
+            type="button"
             className={`cursor-pointer font-medium border-b-2 pb-1 ${factsFilter.statusFilter === "deprecated" ? "font-bold text-accent border-accent" : "text-text/70 hover:text-text border-transparent"}`}
             onClick={() => factsFilter.setStatusFilter("deprecated")}
           >
             {getEnumLabel("fact_status", "deprecated", "deprecated")} ({deprecatedCount})
-          </span>
+          </button>
         </div>
         {factsFilter.statusFilter && (
           <p className="text-xs text-text/50 font-sans">{t(`facts.statusHint.${factsFilter.statusFilter}`)}</p>

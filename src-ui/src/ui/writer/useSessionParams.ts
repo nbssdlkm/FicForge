@@ -57,6 +57,7 @@ export function useSessionParams(
   const [sessionTopP, setSessionTopP] = useState(0.95);
 
   // AU 切换时 reset 到默认值（bootstrap 随后会通过下方 useEffect 派生正确值）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——effect 仅随 auPath 变化重置会话参数到默认；auPath 只作触发键、体内不读取；删除会使切 AU 后残留上一篇的会话模型/温度
   useEffect(() => {
     setSessionModel(DEFAULT_DEEPSEEK_MODEL);
     setSessionTemp(1.0);

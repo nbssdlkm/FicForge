@@ -72,6 +72,7 @@ export const WriterLayout = ({
   const lineHeight = parseFloat(lineHeightStr) || 1.8;
   const setFontSize = useCallback((value: number) => setFontSizeKV(String(value)), [setFontSizeKV]);
   const setLineHeight = useCallback((value: number) => setLineHeightKV(String(value)), [setLineHeightKV]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——effect 仅随 auPath 变化复位 settings-mode busy；auPath 只作触发键、体内不读取；删除会使切 AU 后残留 busy 态
   useEffect(() => {
     setIsSettingsModeBusy(false);
   }, [auPath]);
@@ -105,6 +106,7 @@ export const WriterLayout = ({
   loadDataRef.current = loadData;
   const seenExternalVersionRef = useRef(externalChaptersVersion);
   const pendingExternalRefreshRef = useRef(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——effect 仅随 auPath 变化清挂起标记；auPath 只作触发键、体内不读取；删除会使切 AU 后残留旧挂起标记
   useEffect(() => {
     // AU 切换：bootstrap 自己会全量重载，挂起的外部刷新标记随之作废
     pendingExternalRefreshRef.current = false;
@@ -216,6 +218,7 @@ export const WriterLayout = ({
   refreshSettingsModeDataRef.current = refreshSettingsModeData;
   const wasActiveTabRef = useRef(isActiveTab !== false);
   const pendingConfigRefreshRef = useRef(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——effect 仅随 auPath 变化清挂起配置刷新标记；auPath 只作触发键、体内不读取；删除会使切 AU 后残留旧挂起标记
   useEffect(() => {
     pendingConfigRefreshRef.current = false;
   }, [auPath]);

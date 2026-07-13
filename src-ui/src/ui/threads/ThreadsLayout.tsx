@@ -13,7 +13,7 @@
  * 标 thread_role）是下一块 ThreadDetail。成员关系单一真相源 = fact.thread_ids。
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useId } from "react";
 import { Spinner } from "../shared/Spinner";
 import { Button } from "../shared/Button";
 import { Input, Textarea } from "../shared/Input";
@@ -54,6 +54,11 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null); // 进 ThreadDetail
+
+  const titleFieldId = useId();
+  const stateFieldId = useId();
+  const descriptionFieldId = useId();
+  const statusFieldId = useId();
 
   const load = async () => {
     if (!auPath) return;
@@ -279,19 +284,24 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
         {editing ? (
           <div className="space-y-4">
             <div className="space-y-1">
-              <label className="block text-sm font-bold text-text/90">{t("threads.field.title")} *</label>
+              <label htmlFor={titleFieldId} className="block text-sm font-bold text-text/90">
+                {t("threads.field.title")} *
+              </label>
               <Input
+                id={titleFieldId}
+                // Modal 打开即聚焦首字段是有意交互（守则 5 白名单场景；组件属性 lint 不可见，此注释即记账）
                 autoFocus
-                aria-label={t("threads.field.title")}
                 value={editing.title}
                 onChange={(e) => setEditing({ ...editing, title: e.target.value })}
                 placeholder={t("threads.field.titlePlaceholder")}
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-sm font-bold text-text/90">{t("threads.field.state")}</label>
+              <label htmlFor={stateFieldId} className="block text-sm font-bold text-text/90">
+                {t("threads.field.state")}
+              </label>
               <Textarea
-                aria-label={t("threads.field.state")}
+                id={stateFieldId}
                 value={editing.state}
                 onChange={(e) => setEditing({ ...editing, state: e.target.value })}
                 placeholder={t("threads.field.statePlaceholder")}
@@ -300,9 +310,11 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
               <p className="text-xs text-text/50">{t("threads.field.stateHint")}</p>
             </div>
             <div className="space-y-1">
-              <label className="block text-sm font-bold text-text/90">{t("threads.field.description")}</label>
+              <label htmlFor={descriptionFieldId} className="block text-sm font-bold text-text/90">
+                {t("threads.field.description")}
+              </label>
               <Textarea
-                aria-label={t("threads.field.description")}
+                id={descriptionFieldId}
                 value={editing.description}
                 onChange={(e) => setEditing({ ...editing, description: e.target.value })}
                 placeholder={t("threads.field.descriptionPlaceholder")}
@@ -310,9 +322,11 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-sm font-bold text-text/90">{t("threads.field.status")}</label>
+              <label htmlFor={statusFieldId} className="block text-sm font-bold text-text/90">
+                {t("threads.field.status")}
+              </label>
               <select
-                aria-label={t("threads.field.status")}
+                id={statusFieldId}
                 value={editing.status}
                 onChange={(e) => setEditing({ ...editing, status: e.target.value as ThreadStatus })}
                 className="h-11 w-full rounded-md border border-black/20 bg-surface px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"

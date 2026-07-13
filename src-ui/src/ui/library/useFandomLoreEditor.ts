@@ -44,6 +44,7 @@ export function useFandomLoreEditor(fandomPath: string | undefined, files: Fando
   const [previewMode, setPreviewMode] = useState(true);
 
   // 切 fandom 复位（hook 规则 2：state 与 reset 同文件）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——体内全是 setter（非依赖），仅应随 fandomPath 变化复位；biome 判 fandomPath 多余，删掉会导致切 fandom 不再复位（残留上一圈打开的文件/正文）
   useEffect(() => {
     setSelectedFile(null);
     setSelectedCategory("core_characters");

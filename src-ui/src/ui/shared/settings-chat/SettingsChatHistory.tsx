@@ -56,6 +56,7 @@ export function SettingsChatHistory({
   const hasAnyLoadingToolCall =
     disabled || messages.some((message) => (message.toolCalls || []).some((card) => card.isLoading));
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——messages 是滚动触发键（新消息时滚到底），体内只读 endRef（ref，非依赖）；biome 判 messages 多余，删掉会导致新消息不再自动滚到底
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages]);

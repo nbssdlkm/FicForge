@@ -7,7 +7,7 @@
  * 打开时重建。主要用于简版 fork → 主 app 的数据迁回。
  */
 
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Archive, Upload } from "lucide-react";
 import { Modal } from "./shared/Modal";
 import { Button } from "./shared/Button";
@@ -48,6 +48,9 @@ export function RestoreBundleModal({
 }) {
   const { t } = useTranslation();
   const { showToast } = useFeedback();
+  const idPrefix = useId();
+  const fandomSelectId = `${idPrefix}-fandom`;
+  const auNameInputId = `${idPrefix}-au-name`;
   const [bundle, setBundle] = useState<AuBundle | null>(null);
   const [auName, setAuName] = useState("");
   const [fandomDir, setFandomDir] = useState("");
@@ -265,8 +268,11 @@ export function RestoreBundleModal({
               </span>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-text/90">{t("restoreBundle.fandomLabel")}</label>
+              <label htmlFor={fandomSelectId} className="text-xs font-bold text-text/90">
+                {t("restoreBundle.fandomLabel")}
+              </label>
               <select
+                id={fandomSelectId}
                 value={fandomDir}
                 onChange={(e) => setFandomDir(e.target.value)}
                 className="h-10 rounded-md border border-black/10 bg-surface/50 px-2 text-sm dark:border-white/10"
@@ -281,8 +287,11 @@ export function RestoreBundleModal({
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-text/90">{t("restoreBundle.nameLabel")}</label>
+              <label htmlFor={auNameInputId} className="text-xs font-bold text-text/90">
+                {t("restoreBundle.nameLabel")}
+              </label>
               <Input
+                id={auNameInputId}
                 value={auName}
                 onChange={(e) => setAuName(e.target.value)}
                 disabled={restoring}

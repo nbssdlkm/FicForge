@@ -31,6 +31,7 @@ export function useSimpleToolCardActions({ auPath, chat }: UseSimpleToolCardActi
   const [executingToolId, setExecutingToolId] = useState<string | null>(null);
 
   // 切 AU reset（铁律②：state 与 reset 同文件）：上一篇的执行残留不得挡住新上下文
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——effect 仅随 auPath 变化复位执行闸；auPath 只作触发键、体内不读取；删除会使切 AU 后残留上一篇的执行态
   useEffect(() => {
     setExecutingToolId(null);
   }, [auPath]);

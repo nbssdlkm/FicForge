@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 // See LICENSE file in the project root for full license text.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { DownloadCloud, PencilLine, Settings2 } from "lucide-react";
 import { Input } from "../../shared/Input";
 import { useTranslation } from "../../../i18n/useAppTranslation";
@@ -81,6 +81,9 @@ export function ProviderModelPicker({
   const { t, i18n } = useTranslation();
   const { showError, showSuccess } = useFeedback();
   const lang: "zh" | "en" = i18n.resolvedLanguage === "en" ? "en" : "zh";
+  const providerSelectId = useId();
+  const modelFieldId = useId();
+  const contextWindowId = useId();
 
   const [catalog, setCatalog] = useState<ModelCatalog | null>(null);
   const [selectedProviderId, setSelectedProviderId] = useState<string>(UNMATCHED_VALUE);
@@ -275,9 +278,12 @@ export function ProviderModelPicker({
     <div className="space-y-3">
       {/* 供应商行 */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-bold text-text/70">{t("modelPicker.providerLabel")}</label>
+        <label htmlFor={providerSelectId} className="text-xs font-bold text-text/70">
+          {t("modelPicker.providerLabel")}
+        </label>
         <div className="flex gap-2">
           <select
+            id={providerSelectId}
             value={selectedProviderId}
             onChange={(e) => void handleProviderSelect(e.target.value)}
             disabled={disabled}
@@ -315,10 +321,13 @@ export function ProviderModelPicker({
 
       {/* 模型行 */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-bold text-text/70">{t("common.labels.model")}</label>
+        <label htmlFor={modelFieldId} className="text-xs font-bold text-text/70">
+          {t("common.labels.model")}
+        </label>
         {manualModel ? (
           <div className="flex gap-2">
             <Input
+              id={modelFieldId}
               value={model}
               onChange={(e) => onModelChange(e.target.value)}
               placeholder={t("modelPicker.manualModelPlaceholder")}
@@ -337,6 +346,7 @@ export function ProviderModelPicker({
         ) : (
           <div className="flex gap-2">
             <select
+              id={modelFieldId}
               value={modelInOptions ? model : ""}
               onChange={(e) => handleModelSelect(e.target.value)}
               disabled={disabled}
@@ -399,8 +409,11 @@ export function ProviderModelPicker({
       {/* ctx 行（仅 chat 槽位） */}
       {kind === "chat" && (
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-bold text-text/70">{t("common.labels.contextWindow")}</label>
+          <label htmlFor={contextWindowId} className="text-xs font-bold text-text/70">
+            {t("common.labels.contextWindow")}
+          </label>
           <Input
+            id={contextWindowId}
             type="number"
             value={contextWindow ?? ""}
             onChange={(e) => onContextWindowChange?.(e.target.value)}

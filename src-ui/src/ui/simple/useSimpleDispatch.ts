@@ -78,6 +78,7 @@ export function useSimpleDispatch(auPath: string): UseSimpleDispatchResult {
   const cancelCallbackRef = useRef<(() => void) | null>(null);
 
   // AU 切换 cleanup（铁律 2：state + reset 同文件）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——cleanup 仅随 auPath 变化跑（abort 在跑请求 + 复位 isStreaming）；auPath 只作触发键、体内不读取；删除会使切 AU 不再中断在飞 dispatch
   useEffect(() => {
     return () => {
       if (abortRef.current) {

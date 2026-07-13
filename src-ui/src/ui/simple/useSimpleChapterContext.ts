@@ -25,6 +25,7 @@ export function useSimpleChapterContext(auPath: string, isActiveTab?: boolean) {
   const loadTokenRef = useRef(0);
 
   // 切 AU reset（铁律②：state 与 reset 同文件）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——effect 仅随 auPath 变化 reset；auPath 只作触发键、体内不读取；删除会使切 AU 后不再清空章节上下文（铁律②）
   useEffect(() => {
     loadTokenRef.current += 1;
     setPendingChapterNum(null);

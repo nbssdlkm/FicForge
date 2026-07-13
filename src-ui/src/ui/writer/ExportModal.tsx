@@ -163,7 +163,8 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean; onCl
     <Modal isOpen={isOpen} onClose={exporting ? () => {} : onClose} title={t("export.title")}>
       <div className="space-y-6">
         <div className="mt-2 flex flex-col gap-3">
-          <label className="text-sm font-bold text-text/90">{t("export.formatLabel")}</label>
+          {/* 统领下方两个单选项的组标题（各单选项自身已用 <label><input/>...</label> 包裹关联），非单一控件 → span（守则 2b） */}
+          <span className="text-sm font-bold text-text/90">{t("export.formatLabel")}</span>
           <div className="flex gap-6">
             <label className="flex min-h-[44px] cursor-pointer items-center gap-2 text-sm hover:opacity-80">
               <input
@@ -221,7 +222,8 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean; onCl
         </Button>
 
         <div className="border-t border-black/10 pt-5 dark:border-white/10">
-          <label className="text-sm font-bold text-text/90">{t("export.bundleLabel")}</label>
+          {/* 下方是说明文字 + 按钮，无表单控件可关联 → span（守则 2b） */}
+          <span className="text-sm font-bold text-text/90">{t("export.bundleLabel")}</span>
           <p className="mt-1 mb-3 text-xs text-text/50">{t("export.bundleDescription")}</p>
           <Button
             tone="neutral"

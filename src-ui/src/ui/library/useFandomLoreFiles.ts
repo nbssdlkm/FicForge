@@ -50,6 +50,7 @@ export function useFandomLoreFiles(fandomPath: string | undefined) {
   const [trashRefreshToken, setTrashRefreshToken] = useState(0);
 
   // 切 fandom 复位（hook 规则 2：state 与 reset 同文件）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——fallbackFandomName 确被读取（须保留），fandomPath 仅作复位触发键；biome 判 fandomPath 多余，删掉会导致切 fandom 不再复位（残留上一圈的文件列表）
   useEffect(() => {
     setCharacterFiles([]);
     setWorldbuildingFiles([]);

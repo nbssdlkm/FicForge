@@ -114,11 +114,15 @@ export function FactsList({
                       onChange={() => batch.toggleSelect(fact.id)}
                     />
                   ) : null}
-                  <div className="flex-1 cursor-pointer" onClick={() => editor.startEditFact(fact)}>
+                  <button
+                    type="button"
+                    className="flex-1 cursor-pointer text-left"
+                    onClick={() => editor.startEditFact(fact)}
+                  >
                     <FactCard
                       fact={{ ...fact, weight: fact.narrative_weight || "medium", chapter: fact.chapter || 1 }}
                     />
-                  </div>
+                  </button>
                 </div>
               ))}
             </div>
@@ -206,11 +210,15 @@ export function FactsList({
                       onChange={() => batch.toggleSelect(fact.id)}
                     />
                   )}
-                  <div className="flex-1 cursor-pointer" onClick={() => editor.startEditFact(fact)}>
+                  <button
+                    type="button"
+                    className="flex-1 cursor-pointer text-left"
+                    onClick={() => editor.startEditFact(fact)}
+                  >
                     <FactCard
                       fact={{ ...fact, weight: fact.narrative_weight || "medium", chapter: fact.chapter || 1 }}
                     />
-                  </div>
+                  </button>
                 </div>
               ))}
             </div>

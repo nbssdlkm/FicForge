@@ -16,6 +16,7 @@ export function useMobileFandomViewChrome(fandomPath: string) {
   const [createName, setCreateName] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——体内全是 setter（非依赖），仅应随 fandomPath 变化复位；biome 判 fandomPath 多余，删掉会导致切圈子不再复位（残留上一圈的分类/弹窗）
   useEffect(() => {
     setCategory("core_characters");
     setAiOverlayOpen(false);

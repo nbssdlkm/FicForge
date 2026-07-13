@@ -97,6 +97,7 @@ export function SimpleChatHistory({
   // AU 切换 reset：滚动状态绑组件实例（refs 跨 AU 不会自动 reset），新 AU 默认
   // 贴底让首次 chat history load 完成自动滚到底（Review V1-A/B 共识 P0-1：
   // AU A 滑到上面后切 AU B，新 AU 加载完不 auto-scroll → broken）。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——effect 仅在 auPath 变化时重置滚动 refs；auPath 只作触发键、体内不读取；若按 biome 删除则只挂载跑一次、切 AU 不再 reset（铁律②）
   useEffect(() => {
     isPinnedRef.current = true;
     lastSignatureRef.current = "";
@@ -106,6 +107,7 @@ export function SimpleChatHistory({
 
   // 读取 scroll 容器的真实行高，用于 isPinned 动态阈值（移动端大字号适配）。
   // parseFloat 对 "normal" / 百分比 / em 等非 px 值返回 NaN → fallback 50。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——effect 仅随 auPath 变化重读行高；auPath 只作触发键、体内不读取；删除会使行高在切 AU 后不再重算（铁律②）
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;

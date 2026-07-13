@@ -33,12 +33,14 @@ export function useAuSettingsForm(auPath: string, project: ProjectInfo | null, l
   projectRef.current = project;
 
   // 切 AU：先回默认值（加载期间不残留上一篇的表单），saving 一并复位
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——体内全是 setter（非依赖），仅应随 auPath 变化回默认值；biome 判 auPath 多余，删掉会导致切 AU 不再复位（残留上一篇表单）
   useEffect(() => {
     setForm(createDefaultAuSettingsFormState());
     setSaving(false);
   }, [auPath]);
 
   // useLayoutEffect：hydrate 在 paint 前完成，避免 loading 结束帧闪现默认值
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——hydrate 读 projectRef.current（ref，无需入依赖），仅应随 loadKey（加载完成信号）变化重灌；biome 判 loadKey 多余，删掉会导致加载完成后表单不 hydrate
   useLayoutEffect(() => {
     setForm(projectRef.current ? hydrateAuSettingsForm(projectRef.current) : createDefaultAuSettingsFormState());
     setSaving(false);

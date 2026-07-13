@@ -11,6 +11,7 @@
  * 3. 存储统计：已用总字节 + 「清理未用」按钮（保留当前 4 个选中字体，删除其他已下载）
  */
 
+import { useId } from "react";
 import { FONT_MANIFEST } from "@ficforge/engine";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { listFontOptions, useFontSelection } from "../../hooks/useFontSelection";
@@ -34,22 +35,28 @@ interface ScriptSelectProps {
   isZh: boolean;
 }
 
-const ScriptSelect = ({ label, value, onChange, options, isZh }: ScriptSelectProps) => (
-  <div className="flex flex-col gap-1">
-    <label className="text-xs text-text/70">{label}</label>
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
-    >
-      {options.map((opt) => (
-        <option key={opt.id} value={opt.id}>
-          {isZh ? opt.label.zh : opt.label.en}
-        </option>
-      ))}
-    </select>
-  </div>
-);
+const ScriptSelect = ({ label, value, onChange, options, isZh }: ScriptSelectProps) => {
+  const selectId = useId();
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={selectId} className="text-xs text-text/70">
+        {label}
+      </label>
+      <select
+        id={selectId}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-11 w-full rounded-md border border-black/20 bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent dark:border-white/20 md:h-10 md:text-sm"
+      >
+        {options.map((opt) => (
+          <option key={opt.id} value={opt.id}>
+            {isZh ? opt.label.zh : opt.label.en}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+};
 
 export const FontSettingsSection = () => {
   const { t, i18n } = useTranslation();
@@ -98,7 +105,8 @@ export const FontSettingsSection = () => {
 
       {/* 界面字体：西文 + 中文 */}
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-bold text-text/90">{t("settings.fonts.uiLabel")}</label>
+        {/* 小节标题，统领下方西文+中文两个 ScriptSelect（各自已有独立 label），非单一控件 → span（守则 2b） */}
+        <span className="text-sm font-bold text-text/90">{t("settings.fonts.uiLabel")}</span>
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
           <ScriptSelect
             label={t("settings.fonts.latinLabel")}
@@ -120,7 +128,8 @@ export const FontSettingsSection = () => {
 
       {/* 阅读字体：西文 + 中文 */}
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-bold text-text/90">{t("settings.fonts.readingLabel")}</label>
+        {/* 小节标题，统领下方西文+中文两个 ScriptSelect（各自已有独立 label），非单一控件 → span（守则 2b） */}
+        <span className="text-sm font-bold text-text/90">{t("settings.fonts.readingLabel")}</span>
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
           <ScriptSelect
             label={t("settings.fonts.latinLabel")}

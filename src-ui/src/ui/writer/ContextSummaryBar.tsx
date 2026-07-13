@@ -139,6 +139,7 @@ export function ContextSummaryBar({ summary, onAdjustCoreIncludes }: ContextSumm
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——effect 仅随 summary 变化折叠详情；summary 只作触发键、体内不读取；删除会使新 summary 到来后详情不自动收起
   useEffect(() => {
     setExpanded(false);
   }, [summary]);

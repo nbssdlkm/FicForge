@@ -35,6 +35,7 @@ export function useSimpleChatPanelConfig(auPath: string, isActiveTab?: boolean) 
   const [extractionReady, setExtractionReady] = useState<{ has_usable_connection: boolean } | null>(null);
 
   // 切 AU reset（铁律②：state 与 reset 同文件）；加载间隙不残留上一篇配置。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——effect 仅随 auPath 变化清空配置四件套；auPath 只作触发键、体内不读取；删除会使切 AU 后残留上一篇配置
   useEffect(() => {
     setProjectInfo(null);
     setSettingsInfo(null);

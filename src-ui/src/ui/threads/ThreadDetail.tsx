@@ -102,6 +102,7 @@ export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged 
   const [refreshingState, setRefreshingState] = useState(false);
 
   // 陈旧数随 thread.id / updated_at 变化重算（刷新成功后 onChanged 会带来新 updated_at → 自动清零）。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: thread.updated_at 是有意的重算触发键——刷新后 onChanged 抬升 updated_at → effect 重跑 → 陈旧数自动清零；体内不直接读它；biome 判其多余，删掉会破坏刷新后重算
   useEffect(() => {
     let alive = true;
     getStaleThreads(auPath)

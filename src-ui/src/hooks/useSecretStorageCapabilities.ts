@@ -39,7 +39,7 @@ export function useSecretStorageCapabilities({ enabled = true, auPath }: { enabl
           setCapabilities(null);
         }
       });
-  }, [enabled, auPath]);
+  }, [enabled, auPath, requestGuard]);
 
   return capabilities;
 }

@@ -34,6 +34,7 @@ export function useWriterFocusController({
   // 现在 hook 自己监听，消除 focusControllerBridgeRef。
   // 用户 toggle focus 时会调 setChapterFocus 同步到 engine，下次 getState 时 state.chapter_focus
   // 已经是用户最新值，此 effect fire 会 setFocusSelection 到同一值 → 幂等。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 窄触发——故意仅按 auPath + state?.current_chapter 粒度重同步焦点（AU/章号导航时才重拉），state.chapter_focus 作当帧快照读取。依赖 chapter_focus 本身会在每次无关 state 重载（新数组引用）时重跑，可能覆盖用户乐观选择；auPath 亦必需（跨 AU 若 current_chapter 恰同则靠它区分）
   useEffect(() => {
     setFocusSelection(state?.chapter_focus ? [...state.chapter_focus] : []);
   }, [auPath, state?.current_chapter]);
@@ -62,7 +63,7 @@ export function useWriterFocusController({
         showError(error, t("error_messages.unknown"));
       }
     },
-    [auPath, focusSelection, loadGuard, setFocusSelection, showError, showToast, t],
+    [auPath, focusSelection, loadGuard, showError, showToast, t],
   );
 
   const handleClearFocus = useCallback(async () => {
@@ -76,7 +77,7 @@ export function useWriterFocusController({
       if (loadGuard.isKeyStale(requestAuPath)) return;
       showError(error, t("error_messages.unknown"));
     }
-  }, [auPath, loadGuard, setFocusSelection, showError, showToast, t]);
+  }, [auPath, loadGuard, showError, showToast, t]);
 
   const handleContinueLastFocus = useCallback(async () => {
     const requestAuPath = auPath;
@@ -95,7 +96,7 @@ export function useWriterFocusController({
       if (loadGuard.isKeyStale(requestAuPath)) return;
       showError(error, t("error_messages.unknown"));
     }
-  }, [auPath, lastConfirmedFocus, loadGuard, setFocusSelection, showError, showToast, t, unresolvedFacts]);
+  }, [auPath, lastConfirmedFocus, loadGuard, showError, showToast, t, unresolvedFacts]);
 
   return {
     focusSelection,

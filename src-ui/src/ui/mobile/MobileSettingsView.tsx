@@ -68,6 +68,7 @@ export function MobileSettingsView({ auPath, currentChapter }: MobileSettingsVie
     });
   }, [auPath, contextGuard]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: overlayOpen 是有意的重取触发键（overlay 打开时重拉当前章号），biome 判其多余不可删；loadGuard 为 useActiveRequestGuard 稳定引用（useMemo([])），省略不影响；auPath/currentChapter 为真实依赖
   useEffect(() => {
     const token = loadGuard.start();
     getState(auPath)

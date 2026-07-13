@@ -37,6 +37,7 @@ export function useMobileFandomFileEditor(fandomPath: string, fandomDirName: str
   const [readingFile, setReadingFile] = useState(false);
 
   // 切圈子：详情态整体复位（不残留上一圈的选中文件）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——体内全是 setter（非依赖），仅应随 fandomPath 变化复位详情态；biome 判 fandomPath 多余，删掉会导致切圈子不再复位（残留上一圈选中文件）
   useEffect(() => {
     setSelectedFile(null);
     setSelectedCategory("core_characters");

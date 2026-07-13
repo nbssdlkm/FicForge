@@ -17,6 +17,7 @@ export function useWriterChromeState(auPath: string) {
   const [dirtyBannerDismissed, setDirtyBannerDismissed] = useState(false);
   const [footerCollapsed, setFooterCollapsed] = useState(false);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——effect 仅随 auPath 变化归位所有弹窗/确认开关；auPath 只作触发键、体内不读取；删除会使切 AU 后残留上一篇的开关态（铁律②）
   useEffect(() => {
     setMobileToolsOpen(false);
     setExportOpen(false);

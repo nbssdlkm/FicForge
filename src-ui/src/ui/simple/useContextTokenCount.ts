@@ -77,6 +77,7 @@ export function useContextTokenCount(
     if (enabled && !was) setAutoTick((n) => n + 1);
   }, [enabled]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——refreshKey/autoTick 只作重算触发键、体内不读取（外部 tab 改设定 / 30s 兜底轮询）；删除它们会让 token 估算漏掉这些外部变化
   useEffect(() => {
     if (!auPath) return;
     setLoading(true);

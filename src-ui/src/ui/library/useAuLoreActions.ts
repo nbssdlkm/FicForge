@@ -78,6 +78,7 @@ export function useAuLoreActions(auPath: string, deps: AuLoreActionDeps) {
   const [selectedImports, setSelectedImports] = useState<string[]>([]);
 
   // 切 AU：复位 in-flight 标志与导入流
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——体内全是 setter（非依赖），仅应随 auPath 变化复位 in-flight/导入流；biome 判 auPath 多余，删掉会导致切 AU 不再复位（残留上一篇 saving/候选）
   useEffect(() => {
     setIsSaving(false);
     setImportLoading(false);
