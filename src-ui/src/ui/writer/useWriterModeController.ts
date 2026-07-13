@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useCallback, useEffect, useState } from "react";
-import { hasSeenSettingsModeTooltip, markSettingsModeTooltipSeen } from "../../utils/writerStorage";
+import { hasSeenSettingsModeTooltip, markSettingsModeTooltipSeen } from "../../utils/writer-storage";
 import type { WriterMode } from "./WriterHeader";
 
 type UseWriterModeControllerOptions = {

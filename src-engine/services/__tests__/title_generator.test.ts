@@ -6,7 +6,7 @@
  * 去引号、超长拒绝、catch→null 兜底、空正文短路均无覆盖）。
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { generateChapterTitle } from "../title_generator.js";
 import { createMockLLMProvider } from "./mock_llm_provider.js";
 
@@ -43,9 +43,16 @@ describe("generateChapterTitle", () => {
     );
   });
 
-  it("LLM 抛错（网络/超时/key 无效）：兜底 null 不冒泡", async () => {
-    const provider = createMockLLMProvider({ error: new Error("ECONNRESET") });
-    await expect(generateChapterTitle("内容", "zh", provider)).resolves.toBeNull();
+  it("LLM 抛错（网络/超时/key 无效）：兜底 null 不冒泡，且失败留痕（logCatch 降级 console）", async () => {
+    // spy 双重目的：断言吞错补痕真的落了警告（R3 低危修复的判别），并抑制测试输出噪音。
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const provider = createMockLLMProvider({ error: new Error("ECONNRESET") });
+      await expect(generateChapterTitle("内容", "zh", provider)).resolves.toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("title_generator"), expect.anything());
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it("正文只取前 500 字进 prompt", async () => {

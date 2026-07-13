@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { readSavedInstructionText, saveInstructionText } from "../../utils/writerStorage";
+import { readSavedInstructionText, saveInstructionText } from "../../utils/writer-storage";
 
 type UseWriterInstructionInputOptions = {
   auPath: string;

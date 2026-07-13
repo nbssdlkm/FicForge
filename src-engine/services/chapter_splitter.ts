@@ -8,6 +8,7 @@
  */
 
 import type { LLMProvider } from "../llm/provider.js";
+import { escapeRegExp } from "../utils/regex.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -279,9 +280,9 @@ export function buildRegexFromPattern(pattern: ChapterPatternResult): RegExp | n
     return null;
 
   try {
-    const prefix = escapeRegex(pattern.prefix);
-    const suffix = escapeRegex(pattern.suffix);
-    const sep = escapeRegex(pattern.separator);
+    const prefix = escapeRegExp(pattern.prefix);
+    const suffix = escapeRegExp(pattern.suffix);
+    const sep = escapeRegExp(pattern.separator);
 
     let numberPart: string;
     switch (pattern.number_style) {
@@ -323,10 +324,6 @@ export function buildRegexFromPattern(pattern: ChapterPatternResult): RegExp | n
   } catch {
     return null;
   }
-}
-
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 // ---------------------------------------------------------------------------

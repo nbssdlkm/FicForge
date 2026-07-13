@@ -232,20 +232,20 @@ export async function* generateChapter(params: GenerateChapterParams): AsyncGene
     // === 步骤 2：组装上下文 ===
     // H4：把 resolveLlmConfig 的结果传给 assembler —— 窗口/输出上限按实际生效模型
     // （可能来自 settings.default_llm / session 覆盖）计算，不再只看 project.llm。
-    const ctx = await assembleContext(
+    const ctx = await assembleContext({
       project,
       state,
       user_input,
       facts,
       chapter_repo,
       au_id,
-      rag_text,
+      rag_results: rag_text,
       character_files,
       worldbuilding_files,
       language,
-      params.threads ?? [],
-      llmConfig,
-    );
+      threads: params.threads ?? [],
+      effective_llm: llmConfig,
+    });
     const { messages, max_tokens, budget_report, context_summary } = ctx;
 
     // 把结构化 RAG 片段挂到 summary（assembleContext 只看纯文本，这里外挂 detail）

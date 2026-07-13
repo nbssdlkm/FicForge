@@ -31,7 +31,7 @@ import "./App.css";
 import { ContextMenuProvider } from "./ui/shared/ContextMenu";
 import { registerSW } from "virtual:pwa-register";
 import { isCapacitor, isTauri } from "./utils/platform";
-import { SW_UPDATE_READY_EVENT, type SwUpdateReadyDetail } from "./utils/swUpdate";
+import { SW_UPDATE_READY_EVENT, type SwUpdateReadyDetail } from "./utils/sw-update";
 
 // PWA service worker 注册（审计 M21）：仅 Web/PWA 场景注册。dist 三端共用，
 // Tauri（tauri:// 本地资源）/ Capacitor（app 内置资源）不需要离线缓存层，

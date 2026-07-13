@@ -33,12 +33,12 @@ export function hasLogger(): boolean {
 
 /**
  * 便捷函数：在 silent catch 块中记录被吞掉的错误。
- * Logger 未初始化时静默降级（不抛异常），保证不影响原有流程。
+ * Logger 就绪时落 WARN；未就绪（引导早期）与 warnAlways 同款 console 降级——
+ * 否则引导期被吞的错误会彻底蒸发，诊断无从谈起（R3 低危：原实现静默 return）。
  */
 export function logCatch(tag: string, msg: string, err?: unknown): void {
-  if (!_logger) return;
   const errMsg = err instanceof Error ? err.message : err != null ? String(err) : undefined;
-  _logger.warn(tag, msg, errMsg ? { error: errMsg } : undefined);
+  warnAlways(tag, msg, errMsg ? { error: errMsg } : undefined);
 }
 
 /**

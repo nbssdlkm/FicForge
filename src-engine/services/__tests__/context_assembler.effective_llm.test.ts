@@ -32,33 +32,33 @@ describe("assembleContext — effective_llm（审计 H4）", () => {
     const repo = new FileChapterRepository(adapter);
     const state = createState({ au_id: "au_h4a", current_chapter: 1 });
 
-    const withEffective = await assembleContext(
-      bareProject("au_h4a"),
+    const withEffective = await assembleContext({
+      project: bareProject("au_h4a"),
       state,
-      "继续写",
-      [],
-      repo,
-      "au_h4a",
-      null,
-      null,
-      null,
-      "zh",
-      [],
-      EFFECTIVE_128K,
-    );
-    const withoutEffective = await assembleContext(
-      bareProject("au_h4a"),
+      user_input: "继续写",
+      facts: [],
+      chapter_repo: repo,
+      au_id: "au_h4a",
+      rag_results: null,
+      character_files: null,
+      worldbuilding_files: null,
+      language: "zh",
+      threads: [],
+      effective_llm: EFFECTIVE_128K,
+    });
+    const withoutEffective = await assembleContext({
+      project: bareProject("au_h4a"),
       state,
-      "继续写",
-      [],
-      repo,
-      "au_h4a",
-      null,
-      null,
-      null,
-      "zh",
-      [],
-    );
+      user_input: "继续写",
+      facts: [],
+      chapter_repo: repo,
+      au_id: "au_h4a",
+      rag_results: null,
+      character_files: null,
+      worldbuilding_files: null,
+      language: "zh",
+      threads: [],
+    });
 
     expect(withEffective.budget_report.context_window).toBe(131_072);
     // 旧码路径（不传视图）保持 32k 兜底 —— 同时证明差异确实来自 effective 参数
@@ -75,21 +75,33 @@ describe("assembleContext — effective_llm（审计 H4）", () => {
     });
     const state = createState({ au_id: "au_h4b", current_chapter: 1 });
 
-    const viaEffective = await assembleContext(
+    const viaEffective = await assembleContext({
       project,
       state,
-      "继续写",
-      [],
-      repo,
-      "au_h4b",
-      null,
-      null,
-      null,
-      "zh",
-      [],
-      { mode: "api", model: "m-proj", context_window: 64_000 },
-    );
-    const legacy = await assembleContext(project, state, "继续写", [], repo, "au_h4b", null, null, null, "zh", []);
+      user_input: "继续写",
+      facts: [],
+      chapter_repo: repo,
+      au_id: "au_h4b",
+      rag_results: null,
+      character_files: null,
+      worldbuilding_files: null,
+      language: "zh",
+      threads: [],
+      effective_llm: { mode: "api", model: "m-proj", context_window: 64_000 },
+    });
+    const legacy = await assembleContext({
+      project,
+      state,
+      user_input: "继续写",
+      facts: [],
+      chapter_repo: repo,
+      au_id: "au_h4b",
+      rag_results: null,
+      character_files: null,
+      worldbuilding_files: null,
+      language: "zh",
+      threads: [],
+    });
 
     expect(viaEffective.budget_report.context_window).toBe(legacy.budget_report.context_window);
     expect(viaEffective.max_tokens).toBe(legacy.max_tokens);

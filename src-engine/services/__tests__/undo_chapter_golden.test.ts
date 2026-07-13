@@ -411,8 +411,10 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     // The snapshot stores whatever confirmChapter computed
     // After undo ch2, we should have ch1's snapshot values
     const chars = state.characters_last_seen;
-    // At minimum, the canonical names from ch1 should be present
-    expect(Object.keys(chars).length).toBeGreaterThan(0);
+    // 判别断言（R3 低危：原「map 非空」断言空转，别名归一化坏掉也照样绿）：
+    // ch1 正文只出现别名（小张/小李）→ 归一化后必须以主名记账、章号为 1，
+    // 且任何别名都不允许以键的身份泄进 characters_last_seen。
+    expect(chars).toEqual({ 张三: 1, 李四: 1 });
   });
 
   // ---------------------------------------------------------

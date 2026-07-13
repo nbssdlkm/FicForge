@@ -3,6 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { isReactExtractionEnabled } from "@ficforge/engine";
 import { saveAppPreferences, type SettingsInfo } from "../../api/engine-client";
 import { useFeedback } from "../../hooks/useFeedback";
 import { useTranslation } from "../../i18n/useAppTranslation";
@@ -28,7 +29,7 @@ export function useReactExtractionPref(isOpen: boolean, settings: SettingsInfo |
   }, [isOpen]);
 
   useLayoutEffect(() => {
-    setEnabled(settingsRef.current?.app?.react_extraction_enabled !== false);
+    setEnabled(isReactExtractionEnabled(settingsRef.current?.app));
   }, [loadKey]);
 
   const toggle = async (next: boolean) => {

@@ -11,7 +11,7 @@ import {
   setSkipFactsPromptPersisted,
   hasSeenSettingsModeTooltip,
   markSettingsModeTooltipSeen,
-} from "../writerStorage";
+} from "../writer-storage";
 
 // Mock localStorage
 const store = new Map<string, string>();
@@ -30,7 +30,7 @@ Object.defineProperty(globalThis, "localStorage", {
   writable: true,
 });
 
-describe("writerStorage", () => {
+describe("writer-storage", () => {
   beforeEach(() => {
     store.clear();
     vi.clearAllMocks();

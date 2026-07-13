@@ -848,22 +848,45 @@ export function computeInputBudget(contextWindow: number, systemTokens: number, 
   );
 }
 
-export async function assembleContext(
-  project: Project,
-  state: State,
-  user_input: string,
-  facts: Fact[],
-  chapter_repo: ChapterRepository,
-  au_id: string,
-  rag_results: string | null = null,
-  character_files: Record<string, string> | null = null,
-  worldbuilding_files: Record<string, string> | null = null,
-  language = "zh",
-  threads: Thread[] = [],
-  // H4：实际生效 LLM 视图（resolveLlmConfig 结果）。可选 + 缺省回退 project.llm，
-  // 保证旧调用方 / golden test 逐字节不变（理由见 EffectiveLLM 文档注释）。
-  effective_llm: EffectiveLLM | null = null,
-): Promise<AssembleContextResult> {
+/** assembleContext 入参（R3 低危清扫：原 12 个位置参数对象化，与 AssembleChatContextParams 同风格）。 */
+export interface AssembleContextParams {
+  project: Project;
+  state: State;
+  user_input: string;
+  facts: Fact[];
+  chapter_repo: ChapterRepository;
+  au_id: string;
+  /** 预计算 RAG 文本；null/省略 ⇒ 无 RAG 层。 */
+  rag_results?: string | null;
+  /** 预加载的角色设定文件（P5 核心设定）。 */
+  character_files?: Record<string, string> | null;
+  /** 预加载的世界观设定文件（P5 核心设定）。 */
+  worldbuilding_files?: Record<string, string> | null;
+  language?: string;
+  /** 活跃剧情线（M8-B）；省略 ⇒ 无剧情线注入。 */
+  threads?: Thread[];
+  /**
+   * H4：实际生效 LLM 视图（resolveLlmConfig 结果）。可选 + 缺省回退 project.llm，
+   * 保证旧调用方 / golden test 逐字节不变（理由见 EffectiveLLM 文档注释）。
+   */
+  effective_llm?: EffectiveLLM | null;
+}
+
+export async function assembleContext(params: AssembleContextParams): Promise<AssembleContextResult> {
+  const {
+    project,
+    state,
+    user_input,
+    facts,
+    chapter_repo,
+    au_id,
+    rag_results = null,
+    character_files = null,
+    worldbuilding_files = null,
+    language = "zh",
+    threads = [],
+    effective_llm = null,
+  } = params;
   // 融合（plan §1.3/§1.5）：原"simple 模式委托 assemble_context_simple"分支已删 —— 对话路径
   // 改走 assembleChatContext（分层），写文路径恒走下面的 P0-P5 预算切分（逐字节不回归）。
   await ensureTokenizer();

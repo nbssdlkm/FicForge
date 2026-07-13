@@ -7,6 +7,7 @@
  */
 
 import type { ToolCall, ToolCallChunkDelta } from "../llm/provider.js";
+import { escapeRegExp } from "../utils/regex.js";
 
 // ---------------------------------------------------------------------------
 // tool_call 累积器
@@ -52,7 +53,7 @@ export function finalizeToolCalls(buffers: Map<number, ToolBuffer>): ToolCall[] 
  * 已 parse 的部分（下一次 args 增长后再补全）。返回 null 表示目标字段还没出现。
  */
 export function extractPartialJsonStringField(args: string, fieldName: string): string | null {
-  const keyMatch = new RegExp('"' + fieldName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + '"\\s*:\\s*"').exec(args);
+  const keyMatch = new RegExp('"' + escapeRegExp(fieldName) + '"\\s*:\\s*"').exec(args);
   if (!keyMatch) return null;
   let i = keyMatch.index + keyMatch[0].length;
   let result = "";

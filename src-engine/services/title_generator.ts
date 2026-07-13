@@ -7,6 +7,7 @@
  */
 
 import type { LLMProvider } from "../llm/provider.js";
+import { logCatch } from "../logger/index.js";
 
 const ZH_PROMPT = `请为下面这段小说章节起一个标题。要求：
 - 中文，最多10个字
@@ -57,7 +58,10 @@ export async function generateChapterTitle(
 
     if (!title || title.length > 30) return null;
     return title;
-  } catch {
+  } catch (err) {
+    // 标题生成是 best-effort（失败回退无标题），但失败本身要留痕——用户困惑
+    // 「为什么没生成标题」时日志里得有答案（R3 低危：原为静默吞错）。
+    logCatch("title_generator", "chapter title generation failed, falling back to untitled", err);
     return null;
   }
 }

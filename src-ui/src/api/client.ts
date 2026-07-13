@@ -8,6 +8,15 @@
 
 import i18n from "../i18n";
 
+/**
+ * api 层错误类型的使用约定（R3 低危「ApiError vs plain Error 混用」裁决成文）：
+ * - **ApiError**：有稳定 `errorCode` 且 UI 侧要据码分支/i18n 映射的**用户可见失败**
+ *   （如 no_api_key / restore_conflict / CHAPTER_GENERATION_IN_FLIGHT）。
+ * - **plain Error**：内部不变量与防御性守卫（engine 未初始化、not-found 早退、
+ *   已被 UI 门控挡在前面的 precondition）——它们要么是程序员错误、要么按设计被
+ *   调用方 catch 静默处理，升格 ApiError 只会凭空造一批无消费者的错误码。
+ * 新增 throw 时按此判据二选一，不再逐处随手抄。
+ */
 export class ApiError extends Error {
   constructor(
     public errorCode: string,

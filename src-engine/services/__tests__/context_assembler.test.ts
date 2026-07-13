@@ -502,7 +502,14 @@ describe("assembleContext", () => {
     const project = createProject({ project_id: "p1", au_id: "au1" });
     const state = createState({ au_id: "au1", current_chapter: 1 });
 
-    const result = await assembleContext(project, state, "开始写第一章", [], chapterRepo, "au1");
+    const result = await assembleContext({
+      project,
+      state,
+      user_input: "开始写第一章",
+      facts: [],
+      chapter_repo: chapterRepo,
+      au_id: "au1",
+    });
 
     expect(result.messages).toHaveLength(2);
     expect(result.messages[0].role).toBe("system");
@@ -531,9 +538,9 @@ describe("assembleContext", () => {
     });
     const state = createState({ au_id: "au1" });
 
-    await expect(assembleContext(project, state, "写", [], chapterRepo, "au1")).rejects.toThrow(
-      "system_prompt_exceeds_budget",
-    );
+    await expect(
+      assembleContext({ project, state, user_input: "写", facts: [], chapter_repo: chapterRepo, au_id: "au1" }),
+    ).rejects.toThrow("system_prompt_exceeds_budget");
   });
 
   it("budget_report tracks all layers", async () => {
@@ -543,7 +550,14 @@ describe("assembleContext", () => {
     const state = createState({ au_id: "au1", current_chapter: 1 });
     const facts = [createFact({ id: "f1", content_raw: "r", content_clean: "active fact", status: FactStatus.ACTIVE })];
 
-    const result = await assembleContext(project, state, "继续", facts, chapterRepo, "au1");
+    const result = await assembleContext({
+      project,
+      state,
+      user_input: "继续",
+      facts,
+      chapter_repo: chapterRepo,
+      au_id: "au1",
+    });
 
     expect(result.budget_report.system_tokens).toBeGreaterThan(0);
     expect(result.budget_report.p1_tokens).toBeGreaterThan(0);

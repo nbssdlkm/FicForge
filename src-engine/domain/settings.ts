@@ -159,6 +159,15 @@ export function createAppConfig(partial?: Partial<AppConfig>): AppConfig {
   };
 }
 
+/**
+ * M9 增强提取开关的单一判据：**缺省视为开**（`!== false`，与 createAppConfig 默认
+ * true / file_settings 读侧归一化同口径）。R3 低危清扫：此前 UI 三处各写判据，
+ * 其中一处 `=== true` 与其余 `!== false` 分叉——app 缺省时前者判关、后者判开。
+ */
+export function isReactExtractionEnabled(app: { react_extraction_enabled?: boolean } | null | undefined): boolean {
+  return app?.react_extraction_enabled !== false;
+}
+
 export interface LicenseConfig {
   tier: LicenseTier;
   feature_flags: string[];

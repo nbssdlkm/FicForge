@@ -6,7 +6,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { extractFacts, type ExtractedFactCandidate } from "../../api/engine-client";
 import { saveAcceptedCandidates } from "../facts/acceptExtracted";
 import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
-import { getSkipFactsPromptDefault, setSkipFactsPromptPersisted } from "../../utils/writerStorage";
+import { getSkipFactsPromptDefault, setSkipFactsPromptPersisted } from "../../utils/writer-storage";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { useFeedback } from "../../hooks/useFeedback";
 import { useExtractedSelection, getCandidateKey } from "../../hooks/useExtractedSelection";

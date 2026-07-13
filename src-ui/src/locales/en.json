@@ -845,7 +845,8 @@
     "doneTitle": "Import complete",
     "doneSummary": "Imported \"{{name}}\" ({{chapters}} chapters).",
     "backfillGuideTitle": "Next: build memory in one tap",
-    "backfillGuideBody": "If you imported a raw folder with only chapter text, the chapter summaries, plot notes, and search index the AI needs haven't been generated yet. Open this story and go to Settings → Advanced → Backfill Chapter Memory to generate them chapter by chapter (chapters that already have memory are skipped)."
+    "backfillGuideBody": "If you imported a raw folder with only chapter text, the chapter summaries, plot notes, and search index the AI needs haven't been generated yet. Open this story and go to Settings → Advanced → Backfill Chapter Memory to generate them chapter by chapter (chapters that already have memory are skipped).",
+    "goBackfill": "Go to backfill"
   },
   "emptyState": {
     "library": {

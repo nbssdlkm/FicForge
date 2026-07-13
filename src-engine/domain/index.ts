@@ -91,6 +91,7 @@ export {
   createLicenseConfig,
   createModelParams,
   createSettings,
+  isReactExtractionEnabled,
 } from "./settings.js";
 
 export type {

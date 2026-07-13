@@ -22,6 +22,13 @@ import { swallowToNull } from "../utils/ui-logger";
 /** 正文章节判据（不含 .summary.jsonl）：引擎 domain/paths.parseChapterMainPath 单一真相源。 */
 const isChapterFile = (p: string): boolean => parseChapterMainPath(p) !== null;
 
+/**
+ * 导出文件名消毒的单一判据（R3 低危清扫：此前正文导出与 bundle 导出各写一份同字面量黑名单）。
+ * 与引擎 sanitizePathSegment（新建路径段白名单）语义不同：这里只针对「下载文件名」，
+ * 剔 OS 保留字符即可，不收紧到白名单——导出名要尽量保留用户的作品名原貌。
+ */
+const sanitizeExportFilename = (name: string): string => name.replace(/[<>:"/\\|?*]/g, "_");
+
 export async function exportChapters(params: {
   au_path: string;
   format?: string;
@@ -41,7 +48,7 @@ export async function exportChapters(params: {
   });
   const blob = new Blob([text], { type: "text/plain" });
   const ext = params.format ?? "txt";
-  const safeName = (proj.name || "export").replace(/[<>:"/\\|?*]/g, "_");
+  const safeName = sanitizeExportFilename(proj.name || "export");
   const filename = `${safeName}.${ext}`;
   return { blob, filename };
 }
@@ -65,7 +72,7 @@ export async function exportAuBundle(auPath: string): Promise<{ blob: Blob; file
     source_platform: adapter.getPlatform(),
   });
   const blob = new Blob([JSON.stringify(bundle)], { type: "application/json" });
-  const safeName = auName.replace(/[<>:"/\\|?*]/g, "_");
+  const safeName = sanitizeExportFilename(auName);
   // 带时间戳，避免在 Capacitor Documents 回退路径上同名覆盖掉上一次备份（备份就是要冗余）。
   const stamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, "").replace("T", "-");
   return { blob, filename: `${safeName}-${stamp}${BUNDLE_EXT}` };

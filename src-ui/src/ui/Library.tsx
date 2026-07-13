@@ -313,6 +313,11 @@ function LibraryInner({ onNavigate }: Props) {
         fandoms={fandoms}
         dataDir={dataDir}
         onComplete={loadFandoms}
+        onGoBackfill={(auPath) => {
+          setRestoreOpen(false);
+          // 直达引导文案指向的落点：AU 设置页（高级操作区就有「补全旧章记忆」按钮）。
+          onNavigate("settings", auPath);
+        }}
       />
 
       <Modal isOpen={isGlobalTrashOpen} onClose={() => setGlobalTrashOpen(false)} title={t("trash.title")}>

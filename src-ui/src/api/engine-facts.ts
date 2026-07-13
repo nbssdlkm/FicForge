@@ -14,6 +14,7 @@ import {
   archiveFacts as engineArchiveFacts,
   unarchiveFact as engineUnarchiveFact,
   type FactStatus,
+  isReactExtractionEnabled,
   resolveLlmConfig,
   createProvider,
   withAuLock,
@@ -44,7 +45,8 @@ export async function resolveFactsProvider(auPath: string): Promise<{
   }
   const provider = createProvider(llmConfig);
   const lang = resolveLang(sett);
-  const reactEnabled = sett.app?.react_extraction_enabled === true;
+  // 判据单源（R3 低危清扫）：此前这里 `=== true` 与其余消费点 `!== false` 分叉。
+  const reactEnabled = isReactExtractionEnabled(sett.app);
   return { provider, llmConfig, proj, lang, reactEnabled };
 }
 

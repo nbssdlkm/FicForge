@@ -21,7 +21,7 @@ import {
   readSavedGenerateRequest,
   saveGenerateRequest,
   type GenerateRequestState,
-} from "../../utils/writerStorage";
+} from "../../utils/writer-storage";
 import { createDraftItem, type DraftItem } from "./useWriterDraftController";
 
 type SessionLlmPayload = {

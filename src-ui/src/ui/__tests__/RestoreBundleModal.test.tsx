@@ -109,6 +109,55 @@ describe("RestoreBundleModal raw-folder import (review fix #7)", () => {
     expect(screen.queryByText("恢复")).toBeNull();
   });
 
+  it("完成态「去补全记忆」按钮：带新建 AU 路径回调 onGoBackfill 并关窗（R3 低危：引导原本无按钮）", async () => {
+    bundleFromRawFiles.mockReturnValue(auRootBundle());
+    restoreAuBundle.mockResolvedValue({ skipped: [], chapterCount: 2, auPath: "/data/fandoms/yuanchuang/aus/qianhui" });
+    const onGoBackfill = vi.fn();
+    const onClose = vi.fn();
+    const { container } = render(
+      <RestoreBundleModal
+        isOpen
+        onClose={onClose}
+        fandoms={[{ name: "原创", dir_name: "yuanchuang" }]}
+        dataDir="/data"
+        onComplete={() => {}}
+        onGoBackfill={onGoBackfill}
+      />,
+    );
+
+    const rawInput = container.querySelectorAll('input[type="file"]')[1] as HTMLInputElement;
+    fireEvent.change(rawInput, { target: { files: [rawFile("project.yaml", "myAU/project.yaml")] } });
+    await waitFor(() => expect(bundleFromRawFiles).toHaveBeenCalled());
+    fireEvent.change(container.querySelector("select")!, { target: { value: "yuanchuang" } });
+    fireEvent.change(container.querySelector('input[type="text"], input:not([type])') as HTMLInputElement, {
+      target: { value: "迁回的文" },
+    });
+    fireEvent.click(screen.getByText("恢复"));
+
+    await waitFor(() => expect(screen.getByText("去补全记忆")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("去补全记忆"));
+    expect(onGoBackfill).toHaveBeenCalledWith("/data/fandoms/yuanchuang/aus/qianhui");
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("不传 onGoBackfill 时完成态只有文字引导，不渲染直达按钮（可选 prop 向后兼容）", async () => {
+    bundleFromRawFiles.mockReturnValue(auRootBundle());
+    restoreAuBundle.mockResolvedValue({ skipped: [], chapterCount: 2, auPath: "/data/fandoms/yuanchuang/aus/x" });
+    const { container } = renderModal();
+
+    const rawInput = container.querySelectorAll('input[type="file"]')[1] as HTMLInputElement;
+    fireEvent.change(rawInput, { target: { files: [rawFile("project.yaml", "myAU/project.yaml")] } });
+    await waitFor(() => expect(bundleFromRawFiles).toHaveBeenCalled());
+    fireEvent.change(container.querySelector("select")!, { target: { value: "yuanchuang" } });
+    fireEvent.change(container.querySelector('input[type="text"], input:not([type])') as HTMLInputElement, {
+      target: { value: "无按钮" },
+    });
+    fireEvent.click(screen.getByText("恢复"));
+
+    await waitFor(() => expect(screen.getByText(/一键补全记忆/)).toBeInTheDocument());
+    expect(screen.queryByText("去补全记忆")).toBeNull();
+  });
+
   it("部分恢复（skipped>0）→ 完成态如实透出跳过告警，不被正向引导盖过（对抗审②）", async () => {
     bundleFromRawFiles.mockReturnValue(auRootBundle());
     restoreAuBundle.mockResolvedValue({ skipped: ["a.md", "b.md"], chapterCount: 2 });

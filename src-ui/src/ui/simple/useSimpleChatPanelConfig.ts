@@ -14,6 +14,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { isReactExtractionEnabled } from "@ficforge/engine";
 import {
   getFactsExtractionReadiness,
   getSettingsSummary,
@@ -78,13 +79,13 @@ export function useSimpleChatPanelConfig(auPath: string, isActiveTab?: boolean) 
   }, [isActiveTab, refreshPanelConfig]);
 
   // 自动提取 gate（审计④）：① settings 已加载且「增强事实提取」未被显式关闭（默认开，
-  //   对齐 `!== false`）；settingsSummary 为 null（加载失败）时 fail-closed，不擅自提取。
+  //   判据单源 isReactExtractionEnabled）；settingsSummary 为 null（加载失败）时 fail-closed，不擅自提取。
   // ② LLM 就位（extractFacts 内部 react/plain 都需 LLM；未配会空跑报错）。任一不满足静默跳过。
   // 注：② 用 extractionReady（引擎按 project+settings 解析，与实际提取的 resolveFactsProvider 同源），
   // 不再用只看全局 default_llm 的 settingsSummary.default_llm——否则 AU 级独立配 LLM 时会误判为不可用（审计④）。
   const canAutoExtract =
     settingsSummary != null &&
-    settingsSummary.app?.react_extraction_enabled !== false &&
+    isReactExtractionEnabled(settingsSummary.app) &&
     Boolean(extractionReady?.has_usable_connection);
 
   // 返回面收窄到实际被读的字段（C1 对抗审）：settingsSummary/extractionReady 只是

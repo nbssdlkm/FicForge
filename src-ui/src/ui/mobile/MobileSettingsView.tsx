@@ -19,10 +19,7 @@ import { Button } from "../shared/Button";
 import { SettingsChatPanel } from "../shared/settings-chat/SettingsChatPanel";
 import { useSessionParams } from "../writer/useSessionParams";
 import { swallowToNull } from "../../utils/ui-logger";
-
-function deriveFandomPath(auPath: string): string {
-  return auPath.replace(/\/aus\/[^/]+$/, "");
-}
+import { deriveFandomPath } from "../library/lore-utils";
 
 interface MobileSettingsViewProps {
   auPath: string;

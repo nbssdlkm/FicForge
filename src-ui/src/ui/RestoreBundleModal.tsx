@@ -36,12 +36,15 @@ export function RestoreBundleModal({
   fandoms,
   dataDir,
   onComplete,
+  onGoBackfill,
 }: {
   isOpen: boolean;
   onClose: () => void;
   fandoms: FandomLite[];
   dataDir: string;
   onComplete: () => void | Promise<void>;
+  /** 完成态「去补全记忆」一键直达（R3 低危：原引导只有文字没有按钮）。省略则只展示文字引导。 */
+  onGoBackfill?: (auPath: string) => void;
 }) {
   const { t } = useTranslation();
   const { showToast } = useFeedback();
@@ -52,7 +55,9 @@ export function RestoreBundleModal({
   const [error, setError] = useState<string | null>(null);
   // 最后一公里：导入完成态。成功后不立即关，展示摘要 + 「补全旧章记忆」引导（杀手场景：
   // 只含正文的原始文件夹导入后，一键生成摘要/剧情笔记/检索索引）。null = 尚未完成。
-  const [doneInfo, setDoneInfo] = useState<{ chapters: number; name: string; skipped: number } | null>(null);
+  const [doneInfo, setDoneInfo] = useState<{ chapters: number; name: string; skipped: number; auPath: string } | null>(
+    null,
+  );
   const fileRef = useRef<HTMLInputElement>(null);
   const rawRef = useRef<HTMLInputElement>(null);
 
@@ -141,7 +146,12 @@ export function RestoreBundleModal({
       // 先落定「恢复成功」的完成态（部分恢复也带 skipped 数进去，完成态里如实透出告警，
       // 不让正向引导盖过跳过警示，对抗审②）；再 best-effort 刷新库——onComplete 失败只记日志，
       // 不掩盖已成功的恢复（对抗审③）。
-      setDoneInfo({ chapters: result.chapterCount, name: auName.trim(), skipped: result.skipped.length });
+      setDoneInfo({
+        chapters: result.chapterCount,
+        name: auName.trim(),
+        skipped: result.skipped.length,
+        auPath: result.auPath,
+      });
       try {
         await onComplete();
       } catch (e) {
@@ -175,10 +185,24 @@ export function RestoreBundleModal({
             <p className="mb-1 font-bold text-text/90">{t("restoreBundle.backfillGuideTitle")}</p>
             <p>{t("restoreBundle.backfillGuideBody")}</p>
           </div>
-          <div className="flex justify-end border-t border-black/10 pt-4 dark:border-white/10">
-            <Button tone="accent" fill="solid" onClick={close}>
+          <div className="flex justify-end gap-2 border-t border-black/10 pt-4 dark:border-white/10">
+            <Button tone="neutral" fill="outline" onClick={close}>
               {t("common.actions.close")}
             </Button>
+            {onGoBackfill && (
+              <Button
+                tone="accent"
+                fill="solid"
+                onClick={() => {
+                  const target = doneInfo.auPath;
+                  reset();
+                  onClose();
+                  onGoBackfill(target);
+                }}
+              >
+                {t("restoreBundle.goBackfill")}
+              </Button>
+            )}
           </div>
         </div>
       </Modal>

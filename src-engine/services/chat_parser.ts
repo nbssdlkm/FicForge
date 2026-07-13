@@ -8,6 +8,7 @@
 
 import type { LLMProvider } from "../llm/provider.js";
 import { warnAlways } from "../logger/index.js";
+import { escapeRegExp } from "../utils/regex.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -327,15 +328,14 @@ function extractJsonResult(raw: string): Partial<LlmChatDetectResult> | null {
  * 两个 sample 相同/为空时返回 null（LLM 出错兜底）。
  */
 export function buildChatFormatFromSamples(userSample: string, assistantSample: string): ChatFormatPattern | null {
-  const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const uTrim = userSample.trim();
   const aTrim = assistantSample.trim();
   if (!uTrim || !aTrim || uTrim === aTrim) return null;
 
   return {
     name: "LLM Detected",
-    userPattern: new RegExp(`^${escapeRegex(uTrim)}\\s*`, "im"),
-    assistantPattern: new RegExp(`^${escapeRegex(aTrim)}\\s*`, "im"),
+    userPattern: new RegExp(`^${escapeRegExp(uTrim)}\\s*`, "im"),
+    assistantPattern: new RegExp(`^${escapeRegExp(aTrim)}\\s*`, "im"),
   };
 }
 

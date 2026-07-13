@@ -14,7 +14,8 @@ import {
   type DraftGeneratedWith,
   type StateInfo,
 } from "../../api/engine-client";
-import { readSavedContextSummaries, saveContextSummaries } from "../../utils/writerStorage";
+import { readSavedContextSummaries, saveContextSummaries } from "../../utils/writer-storage";
+import { warnUi } from "../../utils/ui-logger";
 
 export type DraftItem = {
   label: string;
@@ -266,8 +267,10 @@ export function useWriterDraftController({ auPath, state, onDraftSaveError }: Us
         const detail = await getDraft(auPath, chapterNum, label);
         // 草稿缺失（get 契约返回 null）与读取失败同走 fallback（占位草稿）
         if (detail) return createDraftItemFromDetail(chapterNum, detail);
-      } catch {
-        // 读取失败 → fallback
+      } catch (err) {
+        // 读取失败 → fallback；失败本身留痕（R3 低危：原静默吞错，草稿被占位
+        // 内容顶掉时用户与排障者都无从知道读挂了）。
+        warnUi("useWriterDraftController", `draft load failed, using fallback: ch${chapterNum} ${label}`, err);
       }
       return createDraftItem(chapterNum, label, fallbackContent, fallbackGeneratedWith || null);
     },

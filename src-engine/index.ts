@@ -38,6 +38,7 @@ export {
   draftFilename,
   findRecommendedModel,
   getProvider,
+  isReactExtractionEnabled,
   isSettingsMutatingToolName,
   isSimpleMutatingToolName,
   listProviders,

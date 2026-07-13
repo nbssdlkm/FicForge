@@ -20,15 +20,14 @@ import { SimpleChatPanel } from "../simple/SimpleChatPanel";
 import { AnimatePresence, motion } from "framer-motion";
 import { rebuildIndex } from "../../api/engine-client";
 import { listChapters, updateChapterTitle, type ChapterInfo } from "../../api/engine-client";
-import { getState } from "../../api/engine-client";
-import { listFacts, logCatch, type FactInfo } from "../../api/engine-client";
+import { getState, logCatch } from "../../api/engine-client";
 import { getWorkspaceSnapshot } from "../../api/engine-client";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { FeedbackProvider, useFeedback } from "../../hooks/useFeedback";
-import { useMilestoneGuide } from "../../hooks/useMilestoneGuide";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { MobileLayout } from "../mobile/MobileLayout";
 import { catchAndLog } from "../../utils/ui-logger";
+import { useWorkspaceMilestones } from "./useWorkspaceMilestones";
 
 type Props = {
   activeTab: string;
@@ -45,7 +44,9 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [loadingChapters, setLoadingChapters] = useState(false);
 
-  const [milestoneRefreshKey, setMilestoneRefreshKey] = useState(0);
+  // 里程碑引导子域整体下沉 useWorkspaceMilestones（R3 低危清扫）：状态、数据拉取、
+  // 触发判据都在 hook 内；layout 只负责按 activeMilestone 渲染 JSX 与接线导航动作。
+  const milestones = useWorkspaceMilestones(auPath);
   const fallbackAuName = auPath.split("/").pop() || t("common.unknownAu");
   const [auName, setAuName] = useState(fallbackAuName);
 
@@ -58,8 +59,8 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
         if (!loadGuard.isKeyStale(auPath)) setChapters(chs);
       })
       .catch((err) => logCatch("workspace", "refreshChapters failed", err));
-    setMilestoneRefreshKey((k) => k + 1);
-  }, [auPath, loadGuard]);
+    milestones.refreshMilestones();
+  }, [auPath, loadGuard, milestones.refreshMilestones]);
   // 写文面板常驻挂载（审计 M9）后，WriterLayout 不再靠重挂拿新数据。写文 tab 之外的
   // 章节变更（对话接受 / 标题编辑 / 导入完成）必须走这个带版本号的通道通知它重载；
   // 写文自己发起的 confirm/undo 仍走裸 refreshChapters（其内部状态已同步，不需自通知）。
@@ -68,11 +69,6 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
     refreshChaptersWriterSelf();
     setExternalChaptersVersion((v) => v + 1);
   }, [refreshChaptersWriterSelf]);
-  const { shouldShow, dismiss } = useMilestoneGuide();
-
-  // Milestone data (loaded once, from existing page data)
-  const [currentChapter, setCurrentChapter] = useState(1);
-  const [factsCount, setFactsCount] = useState(0);
   const [embeddingStale, setEmbeddingStale] = useState(false);
   const [embeddingDismissed, setEmbeddingDismissed] = useState(false);
   const [viewingChapter, setViewingChapter] = useState<number | null>(null);
@@ -86,15 +82,6 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
     },
     [],
   );
-  const [pinnedCount, setPinnedCount] = useState(0);
-  const [unresolvedFact, setUnresolvedFact] = useState<string | null>(null);
-  const [chapterFocusEmpty, setChapterFocusEmpty] = useState(true);
-  const [milestoneDismissed, setMilestoneDismissed] = useState<Record<string, boolean>>({});
-
-  const dismissMilestone = (id: string) => {
-    dismiss(id);
-    setMilestoneDismissed((prev) => ({ ...prev, [id]: true }));
-  };
 
   useEffect(() => {
     if (!auPath) return;
@@ -105,13 +92,8 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
     }
     setLoadingChapters(true);
     setChapters([]);
-    setCurrentChapter(1);
-    setFactsCount(0);
     setEmbeddingStale(false);
     setEmbeddingDismissed(false);
-    setPinnedCount(0);
-    setUnresolvedFact(null);
-    setChapterFocusEmpty(true);
     setAuName(fallbackAuName);
     setViewingChapter(null);
     editingRef.current = null;
@@ -147,47 +129,13 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
       .catch(catchAndLog("workspace", "getWorkspaceSnapshot failed"));
   }, [auPath, fallbackAuName, loadGuard]);
 
-  // Milestone data — refreshes when auPath changes OR after mutations (refreshKey)
-  useEffect(() => {
-    if (!auPath) return;
-    const anyMilestoneActive = shouldShow("facts_intro") || shouldShow("pinned_intro") || shouldShow("focus_intro");
-    if (!anyMilestoneActive) return;
-
-    getState(auPath)
-      .then((state) => {
-        if (loadGuard.isKeyStale(auPath)) return;
-        setCurrentChapter(state.current_chapter || 1);
-        setChapterFocusEmpty(!state.chapter_focus || state.chapter_focus.length === 0);
-      })
-      .catch(catchAndLog("workspace", "milestone getState failed"));
-
-    listFacts(auPath)
-      .then((facts) => {
-        if (loadGuard.isKeyStale(auPath)) return;
-        setFactsCount(facts.length);
-        const firstUnresolved = facts.find((f: FactInfo) => f.status === "unresolved");
-        setUnresolvedFact(firstUnresolved ? (firstUnresolved.content_clean || "").slice(0, 20) + "..." : null);
-      })
-      .catch(catchAndLog("workspace", "milestone listFacts failed"));
-
-    getWorkspaceSnapshot(auPath)
-      .then((snapshot) => {
-        if (loadGuard.isKeyStale(auPath)) return;
-        setPinnedCount(snapshot.pinned_count);
-      })
-      .catch(catchAndLog("workspace", "milestone snapshot failed"));
-  }, [auPath, milestoneRefreshKey, shouldShow]);
-
-  // 里程碑 banner 在 mobile early return 之前计算，供 MobileLayout 渲染
+  // 里程碑 banner 在 mobile early return 之前计算，供 MobileLayout 渲染。
+  // 「显示哪个」由 useWorkspaceMilestones 派生；此处只做 JSX + 导航接线。
+  const { activeMilestone, unresolvedFact, dismissMilestone } = milestones;
   const milestoneElement =
     activeTab === "writer"
       ? (() => {
-          if (
-            currentChapter >= 4 &&
-            factsCount < 2 &&
-            shouldShow("facts_intro") &&
-            !milestoneDismissed["facts_intro"]
-          ) {
+          if (activeMilestone === "facts_intro") {
             return (
               <MilestoneGuide
                 title={t("milestones.factsIntro.title")}
@@ -207,12 +155,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
               />
             );
           }
-          if (
-            currentChapter >= 6 &&
-            pinnedCount === 0 &&
-            shouldShow("pinned_intro") &&
-            !milestoneDismissed["pinned_intro"]
-          ) {
+          if (activeMilestone === "pinned_intro") {
             return (
               <MilestoneGuide
                 title={t("milestones.pinnedIntro.title")}
@@ -232,10 +175,10 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
               />
             );
           }
-          if (unresolvedFact && chapterFocusEmpty && shouldShow("focus_intro") && !milestoneDismissed["focus_intro"]) {
+          if (activeMilestone === "focus_intro") {
             return (
               <MilestoneGuide
-                title={t("milestones.focusIntro.title", { content: unresolvedFact })}
+                title={t("milestones.focusIntro.title", { content: unresolvedFact ?? "" })}
                 description={t("milestones.focusIntro.desc")}
                 primaryAction={{
                   label: t("milestones.focusIntro.setFocus"),
@@ -261,7 +204,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
         auName={auName}
         chapters={chapters}
         loadingChapters={loadingChapters}
-        currentChapter={currentChapter}
+        currentChapter={milestones.currentChapter}
         selectedChapter={viewingChapter}
         onNavigate={onNavigate}
         onSelectChapter={setViewingChapter}

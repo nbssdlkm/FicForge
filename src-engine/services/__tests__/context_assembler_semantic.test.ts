@@ -69,17 +69,17 @@ describe("Context Assembler — semantic golden tests", () => {
       last_scene_ending: "他们走了。",
     });
 
-    const result = await assembleContext(
+    const result = await assembleContext({
       project,
       state,
-      "继续写",
+      user_input: "继续写",
       facts,
-      chapterRepo,
-      "order1",
-      "### RAG结果\n这是一段检索到的内容。",
-      { Alice: "# Alice\n勇敢", Bob: "# Bob\n聪明" },
-      { 世界观: "# 世界观\n设定内容" },
-    );
+      chapter_repo: chapterRepo,
+      au_id: "order1",
+      rag_results: "### RAG结果\n这是一段检索到的内容。",
+      character_files: { Alice: "# Alice\n勇敢", Bob: "# Bob\n聪明" },
+      worldbuilding_files: { 世界观: "# 世界观\n设定内容" },
+    });
 
     const content = result.messages[1].content;
 
@@ -154,7 +154,15 @@ describe("Context Assembler — semantic golden tests", () => {
 
     const bigRag = "### RAG\n" + "这是RAG检索的大段文本。".repeat(50);
 
-    const result = await assembleContext(project, state, "写", facts, chapterRepo, "tight1", bigRag);
+    const result = await assembleContext({
+      project,
+      state,
+      user_input: "写",
+      facts,
+      chapter_repo: chapterRepo,
+      au_id: "tight1",
+      rag_results: bigRag,
+    });
 
     // RAG should be dropped entirely
     expect(result.budget_report.p4_tokens).toBe(0);
@@ -194,7 +202,14 @@ describe("Context Assembler — semantic golden tests", () => {
     });
     const state = createState({ au_id: "soft1", current_chapter: 1 });
 
-    const result = await assembleContext(project, state, "开始写", facts, chapterRepo, "soft1");
+    const result = await assembleContext({
+      project,
+      state,
+      user_input: "开始写",
+      facts,
+      chapter_repo: chapterRepo,
+      au_id: "soft1",
+    });
 
     // Should have soft degradation
     expect(result.budget_report.unresolved_soft_degraded).toBe(true);
@@ -232,10 +247,19 @@ describe("Context Assembler — semantic golden tests", () => {
     });
     const state = createState({ au_id: "guarantee1", current_chapter: 1 });
 
-    const result = await assembleContext(project, state, "写", facts, chapterRepo, "guarantee1", null, {
-      主角: "# 主角\n核心角色设定",
-      配角A: "# 配角A\n设定",
-      配角B: "# 配角B\n设定",
+    const result = await assembleContext({
+      project,
+      state,
+      user_input: "写",
+      facts,
+      chapter_repo: chapterRepo,
+      au_id: "guarantee1",
+      rag_results: null,
+      character_files: {
+        主角: "# 主角\n核心角色设定",
+        配角A: "# 配角A\n设定",
+        配角B: "# 配角B\n设定",
+      },
     });
 
     // Core character (主角) must be included
@@ -256,7 +280,14 @@ describe("Context Assembler — semantic golden tests", () => {
     });
     const state = createState({ au_id: "empty1", current_chapter: 1 });
 
-    const result = await assembleContext(project, state, "开始写第一章", [], chapterRepo, "empty1");
+    const result = await assembleContext({
+      project,
+      state,
+      user_input: "开始写第一章",
+      facts: [],
+      chapter_repo: chapterRepo,
+      au_id: "empty1",
+    });
 
     expect(result.budget_report.p2_tokens).toBe(0);
     expect(result.budget_report.p3_tokens).toBe(0);
@@ -307,7 +338,14 @@ describe("Context Assembler — semantic golden tests", () => {
       chapter_focus: ["focus1"],
     });
 
-    const result = await assembleContext(project, state, "继续写", [focusFact, regularFact], chapterRepo, "focus1");
+    const result = await assembleContext({
+      project,
+      state,
+      user_input: "继续写",
+      facts: [focusFact, regularFact],
+      chapter_repo: chapterRepo,
+      au_id: "focus1",
+    });
 
     const content = result.messages[1].content;
 
@@ -349,7 +387,14 @@ describe("Context Assembler — semantic golden tests", () => {
     });
     const state = createState({ au_id: "trim1", current_chapter: 1 });
 
-    const result = await assembleContext(project, state, "写", [], chapterRepo, "trim1");
+    const result = await assembleContext({
+      project,
+      state,
+      user_input: "写",
+      facts: [],
+      chapter_repo: chapterRepo,
+      au_id: "trim1",
+    });
 
     // Should not throw despite huge custom_instructions
     // System tokens should be smaller than if custom were included
@@ -412,7 +457,14 @@ describe("Context Assembler — semantic golden tests", () => {
     });
     const state = createState({ au_id: "sort1", current_chapter: 6 });
 
-    const result = await assembleContext(project, state, "写", facts, chapterRepo, "sort1");
+    const result = await assembleContext({
+      project,
+      state,
+      user_input: "写",
+      facts,
+      chapter_repo: chapterRepo,
+      au_id: "sort1",
+    });
 
     // All 4 facts should be injected (budget is generous)
     expect(result.context_summary.facts_injected).toBe(4);

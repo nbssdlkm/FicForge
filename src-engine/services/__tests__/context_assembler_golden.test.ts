@@ -43,7 +43,14 @@ describe("Context Assembler Golden Tests", () => {
     });
     const state = createState({ au_id: "scene3", current_chapter: 1 });
 
-    const result = await assembleContext(project, state, "开始写第一章", [], chapterRepo, "scene3");
+    const result = await assembleContext({
+      project,
+      state,
+      user_input: "开始写第一章",
+      facts: [],
+      chapter_repo: chapterRepo,
+      au_id: "scene3",
+    });
 
     expect(result.budget_report.context_window).toBe(g.budget.context_window);
     assertTokensClose(result.budget_report.system_tokens, g.budget.system_tokens, "system_tokens");
@@ -104,17 +111,17 @@ describe("Context Assembler Golden Tests", () => {
       characters_last_seen: { Alice: 3, Bob: 2 },
     });
 
-    const result = await assembleContext(
+    const result = await assembleContext({
       project,
       state,
-      "继续写下一章",
+      user_input: "继续写下一章",
       facts,
-      chapterRepo,
-      "scene1",
-      null,
-      { Alice: "# Alice\n角色设定内容", Bob: "# Bob\n配角设定" },
-      { 世界观: "# 世界观\n设定内容" },
-    );
+      chapter_repo: chapterRepo,
+      au_id: "scene1",
+      rag_results: null,
+      character_files: { Alice: "# Alice\n角色设定内容", Bob: "# Bob\n配角设定" },
+      worldbuilding_files: { 世界观: "# 世界观\n设定内容" },
+    });
 
     expect(result.budget_report.context_window).toBe(g.budget.context_window);
     assertTokensClose(result.budget_report.system_tokens, g.budget.system_tokens, "system_tokens");
@@ -153,7 +160,14 @@ describe("Context Assembler Golden Tests", () => {
       }),
     );
 
-    const result = await assembleContext(project, state, "写", facts, chapterRepo, "scene2");
+    const result = await assembleContext({
+      project,
+      state,
+      user_input: "写",
+      facts,
+      chapter_repo: chapterRepo,
+      au_id: "scene2",
+    });
 
     expect(result.budget_report.context_window).toBe(g.budget.context_window);
     assertTokensClose(result.budget_report.system_tokens, g.budget.system_tokens, "system_tokens");
@@ -184,7 +198,14 @@ describe("Context Assembler Golden Tests", () => {
       }),
     );
 
-    const result = await assembleContext(project, state, "继续", facts, chapterRepo, "scene4");
+    const result = await assembleContext({
+      project,
+      state,
+      user_input: "继续",
+      facts,
+      chapter_repo: chapterRepo,
+      au_id: "scene4",
+    });
 
     expect(result.budget_report.context_window).toBe(g.budget.context_window);
     assertTokensClose(result.budget_report.p3_tokens, g.budget.p3_tokens, "p3_tokens");
@@ -206,9 +227,18 @@ describe("Context Assembler Golden Tests", () => {
     const state = createState({ au_id: "scene5", current_chapter: 1 });
     const longChar = "# 主角\n" + "这是一段很长的角色设定。".repeat(100);
 
-    const result = await assembleContext(project, state, "写", [], chapterRepo, "scene5", null, {
-      主角: longChar,
-      配角: "# 配角\n短设定",
+    const result = await assembleContext({
+      project,
+      state,
+      user_input: "写",
+      facts: [],
+      chapter_repo: chapterRepo,
+      au_id: "scene5",
+      rag_results: null,
+      character_files: {
+        主角: longChar,
+        配角: "# 配角\n短设定",
+      },
     });
 
     expect(result.budget_report.context_window).toBe(g.budget.context_window);

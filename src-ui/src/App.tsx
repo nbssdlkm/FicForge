@@ -13,7 +13,7 @@ import { hydrateFontsOnStartup } from "./api/engine-fonts";
 import { useTranslation } from "./i18n/useAppTranslation";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 import { isTauri as detectTauri, isCapacitor as detectCapacitor } from "./utils/platform";
-import { SW_UPDATE_READY_EVENT, type SwUpdateReadyDetail } from "./utils/swUpdate";
+import { SW_UPDATE_READY_EVENT, type SwUpdateReadyDetail } from "./utils/sw-update";
 import { logUiError } from "./utils/ui-logger";
 
 // 日志分级（E5 日志 L3）：dev 构建留 debug（诊断细节全收），生产只从 info 起（噪音降级）。
