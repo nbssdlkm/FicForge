@@ -525,7 +525,7 @@ describe("assembleContext", () => {
     const project = createProject({
       project_id: "p1",
       au_id: "au1",
-      pinned_context: Array.from({ length: 100 }, (_, i) => `铁律${i}：` + "很长的规则描述".repeat(50)),
+      pinned_context: Array.from({ length: 100 }, (_, i) => `铁律${i}：${"很长的规则描述".repeat(50)}`),
       llm: {
         mode: "api" as any,
         model: "",

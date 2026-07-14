@@ -167,7 +167,7 @@ export function resolveLlmConfig(
   let cfg: Record<string, string>;
   let layer: "session" | "project" | "settings" | "none";
 
-  if (session_llm && session_llm.model) {
+  if (session_llm?.model) {
     cfg = { ...session_llm };
     layer = "session";
   } else if (project.llm && (project.llm.model || project.llm.ollama_model)) {
@@ -381,7 +381,7 @@ export function createProvider(llmConfig: ResolvedLLMConfig): LLMProvider {
     // api 模式必须有非空 api_base：空 base 会让 Provider 拼出相对 URL，在 webview 中
     // 被解析到 app 自身 origin 或（配合协议相对 chat_path）任意主机 —— 是全局密钥外泄链
     // 的使能点（盲审 R3 HIGH-2 对抗审）。宁可清晰报错，不静默发往错误端点。
-    if (!llmConfig.api_base || !llmConfig.api_base.trim()) {
+    if (!llmConfig.api_base?.trim()) {
       throw new Error("api 模式需要非空 api_base（请在设置中为该服务商配置端点）");
     }
     warnIfPlaintextRemote(llmConfig.api_base);

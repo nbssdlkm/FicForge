@@ -24,7 +24,7 @@ export function TurnCard({ turn, currentChapterNum, hasPreviousChapter, onChange
   const [expanded, setExpanded] = useState(false);
 
   const roleLabel = turn.role === "user" ? t("import.roleUser") : t("import.roleAssistant");
-  const preview = turn.content.length > PREVIEW_LEN ? turn.content.slice(0, PREVIEW_LEN) + "…" : turn.content;
+  const preview = turn.content.length > PREVIEW_LEN ? `${turn.content.slice(0, PREVIEW_LEN)}…` : turn.content;
   const reasonText = formatReason(turn.reason, t);
   const isUncertain = turn.classification === "uncertain";
 

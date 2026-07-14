@@ -517,7 +517,7 @@ export class TrashService {
     const mp = this.manifestPath(scopeRoot);
     const dir = mp.substring(0, mp.lastIndexOf("/"));
     await this.adapter.mkdir(dir);
-    const content = entries.length > 0 ? entries.map((e) => JSON.stringify(e)).join("\n") + "\n" : "";
+    const content = entries.length > 0 ? `${entries.map((e) => JSON.stringify(e)).join("\n")}\n` : "";
     // 原子写（F5）：manifest 是回收站的唯一真相源，截断即孤儿；rename 提交保完整。
     await atomicWrite(this.adapter, mp, content);
   }
@@ -526,7 +526,7 @@ export class TrashService {
     const mp = this.manifestPath(scopeRoot);
     const dir = mp.substring(0, mp.lastIndexOf("/"));
     await this.adapter.mkdir(dir);
-    const line = JSON.stringify(entry) + "\n";
+    const line = `${JSON.stringify(entry)}\n`;
     const exists = await this.adapter.exists(mp);
     // 原子写（F5）：读改写 manifest 中途崩溃会截断唯一真相源 → 条目丢失 = 副本孤儿。
     if (exists) {

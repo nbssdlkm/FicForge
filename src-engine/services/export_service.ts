@@ -60,7 +60,7 @@ export async function exportChapters(params: ExportParams): Promise<string> {
     parts.push(sectionParts.join("\n"));
   }
 
-  return parts.join("\n\n") + "\n";
+  return `${parts.join("\n\n")}\n`;
 }
 
 function buildTitleLine(

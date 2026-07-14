@@ -176,7 +176,7 @@ describe("TrashService", () => {
       metadata: {},
     });
     const entries = [mkEntry("A", nowMs - 40 * day), mkEntry("B", nowMs), mkEntry("C", null)];
-    adapter.seed("au1/.trash/manifest.jsonl", entries.map((e) => JSON.stringify(e)).join("\n") + "\n");
+    adapter.seed("au1/.trash/manifest.jsonl", `${entries.map((e) => JSON.stringify(e)).join("\n")}\n`);
     adapter.seed("au1/.trash/A_x.md", "a");
     adapter.seed("au1/.trash/B_x.md", "b");
     adapter.seed("au1/.trash/C_x.md", "c");

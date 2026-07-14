@@ -322,7 +322,7 @@ export function useSimpleDispatchFlow({
   const handleRegenerateDraft = useCallback(
     (draftId: string) => {
       const target = chat.messages.find((m) => m.id === draftId);
-      if (!target || target.kind !== "writing-draft") return;
+      if (target?.kind !== "writing-draft") return;
 
       const idx = chat.messages.findIndex((m) => m.id === draftId);
       let lastUserContent = "";

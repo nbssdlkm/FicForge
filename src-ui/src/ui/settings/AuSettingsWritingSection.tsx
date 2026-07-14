@@ -78,7 +78,7 @@ export function AuSettingsWritingSection({
               id={chapterLengthId}
               type="number"
               value={chapterLength}
-              onChange={(e) => setChapterLength(parseInt(e.target.value) || 2000)}
+              onChange={(e) => setChapterLength(parseInt(e.target.value, 10) || 2000)}
               className="h-11 font-mono text-base md:h-10 md:text-sm"
             />
             <p className="text-xs text-text/50">{t("settings.story.chapterLengthDescription")}</p>

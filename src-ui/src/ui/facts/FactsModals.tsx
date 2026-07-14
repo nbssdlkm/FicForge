@@ -183,7 +183,7 @@ export function FactsModals({
               max={extraction.extractRange[1]}
               value={extraction.extractRange[0]}
               onChange={(e) =>
-                extraction.setExtractRange([Math.max(1, parseInt(e.target.value) || 1), extraction.extractRange[1]])
+                extraction.setExtractRange([Math.max(1, parseInt(e.target.value, 10) || 1), extraction.extractRange[1]])
               }
             />
             <label htmlFor={extractToId} className="text-sm text-text/70 shrink-0">
@@ -198,7 +198,7 @@ export function FactsModals({
               onChange={(e) =>
                 extraction.setExtractRange([
                   extraction.extractRange[0],
-                  parseInt(e.target.value) || extraction.extractRange[1],
+                  parseInt(e.target.value, 10) || extraction.extractRange[1],
                 ])
               }
             />

@@ -82,7 +82,7 @@ export async function checkAndSnapshot(
       if (newOps.length > 0) {
         const archivePath = joinPath(auPath, "ops_archive.jsonl");
         const existingArchive = (await adapter.exists(archivePath)) ? await adapter.readFile(archivePath) : "";
-        const newLines = newOps.map((op) => JSON.stringify(op)).join("\n") + "\n";
+        const newLines = `${newOps.map((op) => JSON.stringify(op)).join("\n")}\n`;
         // 原子写：失败在此抛出，下方快照不落盘 → watermark 不推进。
         await atomicWrite(adapter, archivePath, existingArchive + newLines);
       }

@@ -414,7 +414,7 @@ describe("engine-chapters confirmChapter 别名归一化 characters_last_seen（
     const st = await getEngine().repos.state.get(auPath);
     // 记主名，章号=1；别名本身不入表
     expect(st.characters_last_seen).toHaveProperty("林昭");
-    expect(st.characters_last_seen["林昭"]).toBe(1);
+    expect(st.characters_last_seen.林昭).toBe(1);
     expect(Object.hasOwn(st.characters_last_seen, "小昭")).toBe(false);
   });
 

@@ -323,7 +323,7 @@ export function buildFactsLayer(
     for (const id of ids) {
       const ref = factById.get(id);
       if (!ref) continue;
-      refs.push(ref.content_clean.length > 20 ? ref.content_clean.slice(0, 20) + "…" : ref.content_clean);
+      refs.push(ref.content_clean.length > 20 ? `${ref.content_clean.slice(0, 20)}…` : ref.content_clean);
       if (refs.length >= 2) break;
     }
     if (refs.length === 0) return "";
@@ -426,7 +426,7 @@ export function buildFactsLayer(
   if (lines.length === 0) return ["", softDegraded];
 
   const P = getPrompts(language as "zh" | "en");
-  return [P.SECTION_PLOT_STATE + "\n" + lines.join("\n"), softDegraded];
+  return [`${P.SECTION_PLOT_STATE}\n${lines.join("\n")}`, softDegraded];
 }
 
 function sortByWeightAndRecency(facts: Fact[]): Fact[] {
@@ -479,7 +479,7 @@ export function buildThreadsLayer(
   if (lines.length === 0) return "";
 
   const P = getPrompts(language as "zh" | "en");
-  return P.SECTION_PLOT_THREADS + "\n" + lines.join("\n");
+  return `${P.SECTION_PLOT_THREADS}\n${lines.join("\n")}`;
 }
 
 // ===========================================================================
@@ -608,10 +608,10 @@ export function buildCoreSettingsLayer(
   const allParts: string[] = [];
   const P = getPrompts(language as "zh" | "en");
   if (charParts.length > 0) {
-    allParts.push(P.SECTION_CHARACTERS + "\n" + charParts.join("\n\n"));
+    allParts.push(`${P.SECTION_CHARACTERS}\n${charParts.join("\n\n")}`);
   }
   if (wbParts.length > 0) {
-    allParts.push(P.SECTION_WORLDBUILDING + "\n" + wbParts.join("\n\n"));
+    allParts.push(`${P.SECTION_WORLDBUILDING}\n${wbParts.join("\n\n")}`);
   }
 
   if (allParts.length === 0) return ["", injected, truncated, wbInjected];

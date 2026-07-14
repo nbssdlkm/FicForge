@@ -44,7 +44,7 @@ function memAdapter() {
     },
     async mkdir(_p: string) {},
     async listDir(p: string) {
-      const prefix = p.endsWith("/") ? p : p + "/";
+      const prefix = p.endsWith("/") ? p : `${p}/`;
       const names = new Set<string>();
       for (const key of fs.keys()) {
         if (key.startsWith(prefix)) names.add(key.slice(prefix.length).split("/")[0]);

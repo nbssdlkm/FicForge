@@ -130,7 +130,7 @@ export async function rebuildIndex(auPath: string) {
         st.index_status = IndexStatus.READY;
       });
     });
-    return { task_id: "rebuild_" + Date.now(), message: "index rebuilt successfully" };
+    return { task_id: `rebuild_${Date.now()}`, message: "index rebuilt successfully" };
   }
 
   // No embedding configured — mark stale
@@ -139,7 +139,7 @@ export async function rebuildIndex(auPath: string) {
       st.index_status = IndexStatus.STALE;
     });
   });
-  return { task_id: "rebuild_" + Date.now(), message: "index marked stale (no embedding configured)" };
+  return { task_id: `rebuild_${Date.now()}`, message: "index marked stale (no embedding configured)" };
 }
 
 export async function recalcState(auPath: string) {

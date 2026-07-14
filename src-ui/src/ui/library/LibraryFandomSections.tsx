@@ -38,7 +38,7 @@ function fandomCallNo(dirName: string, index: number): string {
     .replace(/[^a-zA-Z]/g, "")
     .slice(0, 2)
     .toUpperCase();
-  const prefix = letters.length === 2 ? letters : (letters + "X").padEnd(2, "X");
+  const prefix = letters.length === 2 ? letters : `${letters}X`.padEnd(2, "X");
   return `${prefix}.${String(index + 1).padStart(2, "0")}`;
 }
 

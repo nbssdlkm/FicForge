@@ -97,7 +97,7 @@ describe("extractFactsFromChapter", () => {
     });
 
     const results = await extractFactsFromChapter({
-      chapter_text: "Long chapter text here. " + "Content. ".repeat(100),
+      chapter_text: `Long chapter text here. ${"Content. ".repeat(100)}`,
       chapter_num: 1,
       existing_facts: [],
       cast_registry: { characters: [] },

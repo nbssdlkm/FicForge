@@ -27,7 +27,7 @@ class MockAdapter {
     this.files.delete(oldPath);
   }
   async listDir(path: string) {
-    const prefix = path + "/";
+    const prefix = `${path}/`;
     const names = new Set<string>();
     for (const key of this.files.keys()) {
       if (key.startsWith(prefix)) {
@@ -39,7 +39,7 @@ class MockAdapter {
   async exists(path: string) {
     if (this.files.has(path)) return true;
     for (const key of this.files.keys()) {
-      if (key.startsWith(path + "/")) return true;
+      if (key.startsWith(`${path}/`)) return true;
     }
     return false;
   }

@@ -83,7 +83,7 @@ describe("FileThreadRepository (M8-B)", () => {
 
   it("invalid status on disk → falls back to active (enum guard)", async () => {
     const adapter = memAdapter();
-    adapter.files.set("/au/threads.jsonl", JSON.stringify({ id: "t1", title: "x", status: "bogus" }) + "\n");
+    adapter.files.set("/au/threads.jsonl", `${JSON.stringify({ id: "t1", title: "x", status: "bogus" })}\n`);
     const repo = new FileThreadRepository(adapter);
     const got = await repo.get("/au", "t1");
     expect(got?.status).toBe(ThreadStatus.ACTIVE);

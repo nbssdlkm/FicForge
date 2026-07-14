@@ -241,7 +241,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                   onKeyDown={(event) => activateOnEnterOrSpace(event, () => chrome.toggleFolder("core_characters"))}
                 >
                   <div className="flex items-center gap-2">
-                    {chrome.expandedFolders["core_characters"] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    {chrome.expandedFolders.core_characters ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     <Folder size={14} className="text-accent" fill="currentColor" fillOpacity={0.2} />
                     <span>{t("fandomLore.category.characters")}</span>
                   </div>
@@ -259,7 +259,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                     <Plus size={12} />
                   </Button>
                 </div>
-                {chrome.expandedFolders["core_characters"] && (
+                {chrome.expandedFolders.core_characters && (
                   <div className="mt-1 space-y-0.5">
                     {files.filesLoading ? (
                       <div className="pl-6 py-2">
@@ -330,11 +330,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                   onKeyDown={(event) => activateOnEnterOrSpace(event, () => chrome.toggleFolder("core_worldbuilding"))}
                 >
                   <div className="flex items-center gap-2">
-                    {chrome.expandedFolders["core_worldbuilding"] ? (
-                      <ChevronDown size={14} />
-                    ) : (
-                      <ChevronRight size={14} />
-                    )}
+                    {chrome.expandedFolders.core_worldbuilding ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     <Folder size={14} className="text-warning" fill="currentColor" fillOpacity={0.2} />
                     <span>{t("fandomLore.category.worldbuilding")}</span>
                   </div>
@@ -352,7 +348,7 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
                     <Plus size={12} />
                   </Button>
                 </div>
-                {chrome.expandedFolders["core_worldbuilding"] && (
+                {chrome.expandedFolders.core_worldbuilding && (
                   <div className="mt-1 space-y-0.5">
                     {files.filesLoading ? (
                       <div className="pl-6 py-2">
@@ -488,32 +484,30 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
 
         <div className="flex-1 overflow-y-auto p-6 w-full flex flex-col gap-6">
           {editor.selectedFile ? (
-            <>
-              <div className="flex flex-col gap-2 flex-1">
-                {/* 小节标题，不关联单一控件（下方视 previewMode/加载态渲染 spinner、Markdown 预览或 Textarea） */}
-                <p className="text-sm font-bold text-text/90">
-                  {editor.selectedCategory === "core_characters"
-                    ? t("fandomLore.category.characters")
-                    : t("fandomLore.category.worldbuilding")}
-                </p>
-                {editor.isReadingFile ? (
-                  <div className="flex min-h-[300px] flex-1 items-center justify-center">
-                    <Spinner size="md" className="text-accent" />
-                  </div>
-                ) : editor.previewMode ? (
-                  <div className="flex-1 min-h-[300px] overflow-y-auto">
-                    <SettingsMarkdown content={editor.editorContent} />
-                  </div>
-                ) : (
-                  <Textarea
-                    value={editor.editorContent}
-                    onChange={(e) => editor.setEditorContent(e.target.value)}
-                    disabled={editor.editorBusy}
-                    className="font-mono flex-1 min-h-[300px] text-sm leading-relaxed resize-y"
-                  />
-                )}
-              </div>
-            </>
+            <div className="flex flex-col gap-2 flex-1">
+              {/* 小节标题，不关联单一控件（下方视 previewMode/加载态渲染 spinner、Markdown 预览或 Textarea） */}
+              <p className="text-sm font-bold text-text/90">
+                {editor.selectedCategory === "core_characters"
+                  ? t("fandomLore.category.characters")
+                  : t("fandomLore.category.worldbuilding")}
+              </p>
+              {editor.isReadingFile ? (
+                <div className="flex min-h-[300px] flex-1 items-center justify-center">
+                  <Spinner size="md" className="text-accent" />
+                </div>
+              ) : editor.previewMode ? (
+                <div className="flex-1 min-h-[300px] overflow-y-auto">
+                  <SettingsMarkdown content={editor.editorContent} />
+                </div>
+              ) : (
+                <Textarea
+                  value={editor.editorContent}
+                  onChange={(e) => editor.setEditorContent(e.target.value)}
+                  disabled={editor.editorBusy}
+                  className="font-mono flex-1 min-h-[300px] text-sm leading-relaxed resize-y"
+                />
+              )}
+            </div>
           ) : (
             <EmptyState
               icon={<FileText size={48} />}

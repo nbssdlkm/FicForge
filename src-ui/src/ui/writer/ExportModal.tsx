@@ -129,7 +129,7 @@ export const ExportModal = ({ isOpen, onClose, auPath }: { isOpen: boolean; onCl
       if (aiDisclosure) {
         const text = await blob.text();
         const disclaimer = t("ethics.exportDisclaimer");
-        blob = new Blob([text + "\n\n---\n\n" + disclaimer + "\n"], { type: blob.type });
+        blob = new Blob([`${text}\n\n---\n\n${disclaimer}\n`], { type: blob.type });
       }
 
       await dispatchSave(blob, filename);

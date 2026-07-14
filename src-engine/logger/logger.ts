@@ -121,7 +121,7 @@ export class FileLogger implements Logger {
     if (this.buffer.length === 0 || this.flushing) return this._lastFlush;
     this.flushing = true;
     const batch = this.buffer.splice(0);
-    const chunk = batch.join("\n") + "\n";
+    const chunk = `${batch.join("\n")}\n`;
     this._lastFlush = (async () => {
       try {
         const path = this.todayPath();

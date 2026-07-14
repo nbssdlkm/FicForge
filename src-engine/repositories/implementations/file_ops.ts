@@ -55,9 +55,9 @@ async function preserveBadLines(
 
   if (badLines.length === 0) return;
 
-  const badPath = path + ".bad";
+  const badPath = `${path}.bad`;
   const header = `# ${new Date().toISOString()} — ${badLines.length} bad line(s) preserved before replace_all\n`;
-  const badContent = header + badLines.join("\n") + "\n";
+  const badContent = `${header + badLines.join("\n")}\n`;
   try {
     const existingBad = (await adapter.exists(badPath)) ? await adapter.readFile(badPath) : "";
     // .bad 是取证 sidecar，追加走读全文重写 —— 原子写防已保留的坏行被截断二次丢失（审计 H5）

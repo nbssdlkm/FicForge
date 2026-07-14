@@ -296,7 +296,7 @@ export const WriterSidePanelContent = ({
               max="24"
               step="1"
               value={fontSize}
-              onChange={(e) => onFontSizeChange(parseInt(e.target.value))}
+              onChange={(e) => onFontSizeChange(parseInt(e.target.value, 10))}
               className={`w-full accent-accent ${isMobile ? "h-2" : "h-1.5"}`}
             />
           </div>

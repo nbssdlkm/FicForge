@@ -243,7 +243,7 @@ describe(`M9 质量广度测 (model=${PROBE_MODEL})`, () => {
   afterAll(() => {
     if (collected.length === 0) return;
     console.log(`\n\n######## M9 广度测汇总 (model=${PROBE_MODEL}) ########`);
-    console.log("题材".padEnd(22) + "条数/上限  过度?  跨章因召回  挂线  幻觉");
+    console.log(`${"题材".padEnd(22)}条数/上限  过度?  跨章因召回  挂线  幻觉`);
     for (const m of collected) {
       console.log(
         m.genre.padEnd(20) +

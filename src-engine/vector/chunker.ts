@@ -115,14 +115,14 @@ function mergeShortParagraphs(paragraphs: string[], minSize: number): string[] {
   const merged = [paragraphs[0]];
   for (let i = 1; i < paragraphs.length; i++) {
     if (merged[merged.length - 1].length < minSize) {
-      merged[merged.length - 1] += "\n" + paragraphs[i];
+      merged[merged.length - 1] += `\n${paragraphs[i]}`;
     } else {
       merged.push(paragraphs[i]);
     }
   }
   // 最后一段也可能太短
   if (merged.length > 1 && merged[merged.length - 1].length < minSize) {
-    merged[merged.length - 2] += "\n" + merged[merged.length - 1];
+    merged[merged.length - 2] += `\n${merged[merged.length - 1]}`;
     merged.pop();
   }
   return merged;
@@ -165,7 +165,7 @@ function combineIntoChunks(paragraphs: string[], maxSize: number): string[] {
   const chunks = [paragraphs[0]];
   for (let i = 1; i < paragraphs.length; i++) {
     if (chunks[chunks.length - 1].length + paragraphs[i].length + 1 <= maxSize) {
-      chunks[chunks.length - 1] += "\n" + paragraphs[i];
+      chunks[chunks.length - 1] += `\n${paragraphs[i]}`;
     } else {
       chunks.push(paragraphs[i]);
     }

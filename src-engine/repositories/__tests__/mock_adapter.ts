@@ -75,7 +75,7 @@ export class MockAdapter implements PlatformAdapter {
   }
 
   async listDir(path: string): Promise<string[]> {
-    const prefix = this.norm(path) + "/";
+    const prefix = `${this.norm(path)}/`;
     const names = new Set<string>();
     for (const key of this.allKeys()) {
       if (key.startsWith(prefix)) {
@@ -91,7 +91,7 @@ export class MockAdapter implements PlatformAdapter {
     const normed = this.norm(path);
     // Check exact file or any file in directory
     if (this.files.has(normed) || this.binaryFiles.has(normed)) return true;
-    const prefix = normed + "/";
+    const prefix = `${normed}/`;
     for (const key of this.allKeys()) {
       if (key.startsWith(prefix)) return true;
     }
@@ -101,7 +101,7 @@ export class MockAdapter implements PlatformAdapter {
   async statEntry(path: string): Promise<"file" | "directory" | "missing"> {
     const normed = this.norm(path);
     if (this.files.has(normed) || this.binaryFiles.has(normed)) return "file";
-    const prefix = normed + "/";
+    const prefix = `${normed}/`;
     for (const key of this.allKeys()) {
       if (key.startsWith(prefix)) return "directory";
     }

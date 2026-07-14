@@ -81,7 +81,7 @@ const CHAPTERS: Record<number, string> = {
 const CAST = { characters: ["沈砚", "裴照", "太傅", "皇帝"] };
 
 function line(label: string): void {
-  console.log("\n" + "=".repeat(78) + "\n" + label + "\n" + "=".repeat(78));
+  console.log(`\n${"=".repeat(78)}\n${label}\n${"=".repeat(78)}`);
 }
 
 function cosine(a: number[], b: number[]): number {

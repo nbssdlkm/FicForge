@@ -29,7 +29,7 @@ export function FileSelectStep({ onNext, disabled }: { onNext: (files: File[]) =
     const arr = Array.from(incoming);
     const valid: File[] = [];
     for (const f of arr) {
-      const ext = "." + (f.name.split(".").pop()?.toLowerCase() ?? "");
+      const ext = `.${f.name.split(".").pop()?.toLowerCase() ?? ""}`;
       if (!ACCEPTED_EXTENSIONS.includes(ext)) {
         showError(t("import.formatError", { ext }));
         continue;

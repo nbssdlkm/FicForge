@@ -83,6 +83,7 @@ export interface AgentLoopConfig<E> {
    * 每个 token delta 回调。返 `false` 时 harness 不 yield 该 token（业务侧自行缓冲
    * 并在合适时机 flush）；返 `true` / `void` / `undefined` 时正常 yield。
    */
+  // biome-ignore lint/suspicious/noConfusingVoidType: void 是刻意的——允许调用方传不显式 return 的副作用型 handler（换成 undefined 会要求显式 return undefined）
   onTokenChunk?: (delta: string, ctx: { iter: number }) => boolean | void;
 
   onToolCallDelta?: (buffer: ToolBuffer, ctx: { iter: number }) => AgentLoopEvent<E>[] | undefined;

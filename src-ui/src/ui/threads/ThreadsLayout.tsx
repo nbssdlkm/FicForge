@@ -108,7 +108,7 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
   const statusLabel = (s: ThreadStatus) => t(`threads.status.${s}`);
 
   const handleSave = async () => {
-    if (!editing || !editing.title.trim()) return;
+    if (!editing?.title.trim()) return;
     const requestAuPath = auPath;
     setSaving(true);
     try {

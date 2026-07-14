@@ -167,7 +167,7 @@ export function salvageMalformedJson(raw: string): string | null {
       if (ch === "\n") out += "\\n";
       else if (ch === "\t") out += "\\t";
       else if (ch === "\r") out += "\\r";
-      else out += "\\u" + code.toString(16).padStart(4, "0");
+      else out += `\\u${code.toString(16).padStart(4, "0")}`;
       changed = true;
       continue;
     }

@@ -129,7 +129,7 @@ export function SimpleSettingsDrawer({
             max="28"
             step="1"
             value={fontSize}
-            onChange={(e) => onFontSizeChange(parseInt(e.target.value))}
+            onChange={(e) => onFontSizeChange(parseInt(e.target.value, 10))}
             className="w-full accent-accent h-1.5"
           />
         </div>

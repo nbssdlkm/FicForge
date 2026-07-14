@@ -78,7 +78,7 @@ describe("trySplitByNumericHeaders", () => {
 
 describe("splitByCharCount", () => {
   it("#15: auto-splits long text without titles", () => {
-    const text = ("这是一段很长的文本。" + "A".repeat(200) + "\n\n").repeat(20);
+    const text = `这是一段很长的文本。${"A".repeat(200)}\n\n`.repeat(20);
     const result = splitByCharCount(text);
     expect(result.length).toBeGreaterThan(1);
     expect(result[0].title).toContain("自动分段");
@@ -229,7 +229,7 @@ describe("splitChapters", () => {
   });
 
   it("falls back to auto_split when no patterns match", async () => {
-    const text = ("无标题文本。" + "A".repeat(200) + "\n\n").repeat(20);
+    const text = `无标题文本。${"A".repeat(200)}\n\n`.repeat(20);
     const result = await splitChapters(text);
     expect(result.method).toBe("auto_split");
     expect(result.chapters.length).toBeGreaterThan(1);

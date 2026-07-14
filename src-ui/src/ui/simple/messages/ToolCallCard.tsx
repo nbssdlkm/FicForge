@@ -44,7 +44,7 @@ function ToolCallCardImpl({ message, globalBusy, onConfirm, onSkip, onUndo }: To
 
   const argsJson = JSON.stringify(message.tool_args, null, 2);
   const isLong = argsJson.length > COLLAPSE_THRESHOLD;
-  const displayArgs = isLong && !expanded ? argsJson.slice(0, COLLAPSE_THRESHOLD) + "..." : argsJson;
+  const displayArgs = isLong && !expanded ? `${argsJson.slice(0, COLLAPSE_THRESHOLD)}...` : argsJson;
 
   const statusLabel: Record<SimpleToolCallMessage["status"], string> = {
     pending: t("simple.toolCard.pending", { defaultValue: "待确认" }),

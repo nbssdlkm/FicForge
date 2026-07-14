@@ -58,6 +58,7 @@ describe("finalizeToolCalls", () => {
     expect(calls[0].function.arguments).toBe("{}");
   });
 
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: 测试名故意以字面文本描述生成的 id 格式，不是漏写反引号
   it("(e) id 缺失 fallback: buf.id 空 → 生成 tc-${Date.now()}-${i} 格式 id", () => {
     const fakeNow = 1700000000000;
     vi.spyOn(Date, "now").mockReturnValue(fakeNow);

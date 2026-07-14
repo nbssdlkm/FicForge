@@ -333,7 +333,6 @@ export function buildImportPlan(analyses: FileAnalysis[], conflictOptions: Impor
     case "custom":
       nextChapter = conflictOptions.startChapter ?? 1;
       break;
-    case "append":
     default:
       // append 模式下 startChapter 由调用方（前端）传入（已有章节 max + 1）
       nextChapter = conflictOptions.startChapter ?? 1;
@@ -396,7 +395,7 @@ function extractFromTurns(
       case "chapter_continue": {
         // 追加到上一个 chapter（支持跨文件续接）
         if (lastChapterIndex >= 0 && lastChapterIndex < globalChapters.length) {
-          globalChapters[lastChapterIndex].content += "\n\n" + turn.content;
+          globalChapters[lastChapterIndex].content += `\n\n${turn.content}`;
           globalChapters[lastChapterIndex].sourceTurns.push(turn.index);
         } else {
           // 没有前一章可追加，升级为独立章节
@@ -418,7 +417,6 @@ function extractFromTurns(
         });
         break;
       }
-      case "skip":
       default:
         // 跳过
         break;

@@ -457,7 +457,7 @@ export async function loadLamportClock(adapter: PlatformAdapter): Promise<void> 
   const stored = await adapter.kvGet(LAMPORT_KV_KEY);
   if (stored !== null) {
     const parsed = parseInt(stored, 10);
-    if (!isNaN(parsed) && parsed > _localClock) {
+    if (!Number.isNaN(parsed) && parsed > _localClock) {
       _localClock = parsed;
     }
   }

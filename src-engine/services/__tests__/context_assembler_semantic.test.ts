@@ -152,7 +152,7 @@ describe("Context Assembler — semantic golden tests", () => {
       last_scene_ending: "结尾。",
     });
 
-    const bigRag = "### RAG\n" + "这是RAG检索的大段文本。".repeat(50);
+    const bigRag = `### RAG\n${"这是RAG检索的大段文本。".repeat(50)}`;
 
     const result = await assembleContext({
       project,

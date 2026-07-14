@@ -559,7 +559,7 @@ export async function testConnection(params: TestConnectionRequest) {
 
     // api 模式空 base 与 createProvider 同口径拒绝：空 base 会让 Provider 拼相对 URL，
     // 在 webview 中可被解析到自身 origin/任意主机（盲审 R3 HIGH-2 防御纵深）。
-    if (!params.api_base || !params.api_base.trim()) {
+    if (!params.api_base?.trim()) {
       return { success: false, error_code: "connection_failed" };
     }
     const provider = new OpenAICompatibleProvider(

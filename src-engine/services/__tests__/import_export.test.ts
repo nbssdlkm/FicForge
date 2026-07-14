@@ -71,7 +71,7 @@ describe("splitIntoChapters (backward compat)", () => {
   });
 
   it("auto-split for long text without titles", () => {
-    const text = ("这是一段很长的文本。" + "A".repeat(200) + "\n\n").repeat(20);
+    const text = `这是一段很长的文本。${"A".repeat(200)}\n\n`.repeat(20);
     const result = splitIntoChapters(text);
     expect(result.length).toBeGreaterThan(1);
     expect(result[0].title).toContain("自动分段");

@@ -333,8 +333,8 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     // 修复前：扫描含尚未删除的 ch2 → Alice/Charlie 被持久记为「最后见于已删除的 ch2」；
     // 修复后：Alice 回到 ch1（=1），Bob 仍 ch1（=1），只在 ch2 出场的 Charlie 彻底移出（撤销后本就不该在场）。
     // 该断言判别性覆盖 M1：若边界回退（重新计入 ch2），Alice 会变 2、Charlie 会复现为 2。
-    expect(state.characters_last_seen["Alice"]).toBe(1);
-    expect(state.characters_last_seen["Bob"]).toBe(1);
+    expect(state.characters_last_seen.Alice).toBe(1);
+    expect(state.characters_last_seen.Bob).toBe(1);
     expect(Object.hasOwn(state.characters_last_seen, "Charlie")).toBe(false);
   });
 

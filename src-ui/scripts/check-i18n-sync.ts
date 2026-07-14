@@ -8,9 +8,9 @@
  * Hook:   Add to package.json scripts → "predev": "npx tsx scripts/check-i18n-sync.ts"
  */
 
-import * as fs from "fs";
-import * as path from "path";
-import { fileURLToPath } from "url";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

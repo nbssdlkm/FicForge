@@ -63,7 +63,7 @@ export function useWorkspaceMilestones(auPath: string) {
         if (loadGuard.isKeyStale(auPath)) return;
         setFactsCount(facts.length);
         const firstUnresolved = facts.find((f: FactInfo) => f.status === "unresolved");
-        setUnresolvedFact(firstUnresolved ? (firstUnresolved.content_clean || "").slice(0, 20) + "..." : null);
+        setUnresolvedFact(firstUnresolved ? `${(firstUnresolved.content_clean || "").slice(0, 20)}...` : null);
       })
       .catch(catchAndLog("workspace", "milestone listFacts failed"));
 

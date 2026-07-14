@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { readFileSync } from "fs";
+import { readFileSync } from "node:fs";
 import { assembleContext } from "../context_assembler.js";
 import { createProject, createLLMConfig, createWritingStyle, createCastRegistry } from "../../domain/project.js";
 import { createState } from "../../domain/state.js";
@@ -68,7 +68,7 @@ describe("Context Assembler Golden Tests", () => {
 
     // Save 3 chapters
     for (let i = 1; i <= 3; i++) {
-      const c = ("第" + i + "章内容。").repeat(50);
+      const c = `第${i}章内容。`.repeat(50);
       await chapterRepo.save(
         createChapter({
           au_id: "scene1",
@@ -225,7 +225,7 @@ describe("Context Assembler Golden Tests", () => {
       core_guarantee_budget: 400,
     });
     const state = createState({ au_id: "scene5", current_chapter: 1 });
-    const longChar = "# 主角\n" + "这是一段很长的角色设定。".repeat(100);
+    const longChar = `# 主角\n${"这是一段很长的角色设定。".repeat(100)}`;
 
     const result = await assembleContext({
       project,

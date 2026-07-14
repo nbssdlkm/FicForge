@@ -14,14 +14,14 @@ describe("extract_last_scene_ending", () => {
   });
 
   it("long text truncates at sentence boundary", () => {
-    const text = "这是一段很长的文本。" + "后面还有更多内容。".repeat(10) + "最后一句话。";
+    const text = `这是一段很长的文本。${"后面还有更多内容。".repeat(10)}最后一句话。`;
     const result = extractLastSceneEnding(text, 50);
     expect(result.length).toBeLessThanOrEqual(50);
     expect(text.endsWith(result)).toBe(true);
   });
 
   it("respects max_chars parameter", () => {
-    const text = "A".repeat(100) + "。" + "B".repeat(30);
+    const text = `${"A".repeat(100)}。${"B".repeat(30)}`;
     const result = extractLastSceneEnding(text, 50);
     expect(result.length).toBeLessThanOrEqual(50);
   });
@@ -37,7 +37,7 @@ describe("extract_last_scene_ending", () => {
   });
 
   it("text ending with punctuation", () => {
-    const text = "前面有很多内容。" + "中间的段落。".repeat(5) + "最后一段话。";
+    const text = `前面有很多内容。${"中间的段落。".repeat(5)}最后一段话。`;
     const result = extractLastSceneEnding(text, 50);
     expect(result.length).toBeLessThanOrEqual(50);
     expect(result.length).toBeGreaterThan(0);

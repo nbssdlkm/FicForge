@@ -109,7 +109,7 @@ function dictToFact(d: Record<string, unknown>): Fact {
     _confidence:
       typeof d._confidence === "object" && d._confidence !== null ? (d._confidence as FactFieldConfidence) : undefined,
     // M10-B: 冷热分层 — 旧 fact 无此字段时 undefined !== true → 兜底为 false
-    archived: d.archived === true ? true : false,
+    archived: d.archived === true,
     archived_at: typeof d.archived_at === "string" ? d.archived_at : undefined,
   });
 }

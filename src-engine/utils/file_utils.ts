@@ -139,7 +139,7 @@ async function tryRecoverFromTmp<T>(
   parse: (d: Record<string, unknown>) => T,
   mainValidCount: number,
 ): Promise<[T[], string[]] | null> {
-  const tmpPath = path + ".tmp";
+  const tmpPath = `${path}.tmp`;
   try {
     if (!(await adapter.exists(tmpPath))) return null;
     const tmpText = await adapter.readFile(tmpPath);
@@ -179,7 +179,7 @@ async function tryRecoverFromTmp<T>(
  */
 export function atomicWrite(adapter: PlatformAdapter, path: string, content: string): Promise<void> {
   return withWriteLock(`atomicWrite:${path}`, async () => {
-    const tmpPath = path + ".tmp";
+    const tmpPath = `${path}.tmp`;
     await adapter.writeFile(tmpPath, content);
     await adapter.rename(tmpPath, path);
   });
@@ -191,7 +191,7 @@ export async function appendJsonl(
   path: string,
   data: Record<string, unknown>,
 ): Promise<void> {
-  const line = JSON.stringify(data) + "\n";
+  const line = `${JSON.stringify(data)}\n`;
 
   const fileExists = await adapter.exists(path);
   if (fileExists) {
@@ -213,7 +213,7 @@ export async function rewriteJsonl(
   path: string,
   items: Record<string, unknown>[],
 ): Promise<void> {
-  const content = items.length > 0 ? items.map((item) => JSON.stringify(item)).join("\n") + "\n" : "";
+  const content = items.length > 0 ? `${items.map((item) => JSON.stringify(item)).join("\n")}\n` : "";
   await atomicWrite(adapter, path, content);
 }
 

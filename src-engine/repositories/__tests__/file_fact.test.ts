@@ -156,7 +156,7 @@ describe("FileFactRepository", () => {
     (d as Record<string, unknown>).time_kind = "teleport"; // illegal value
 
     // Seed the raw JSONL directly into MockAdapter
-    adapter.seed("au1/facts.jsonl", JSON.stringify(d) + "\n");
+    adapter.seed("au1/facts.jsonl", `${JSON.stringify(d)}\n`);
 
     const loaded = await repo.get("au1", "f_bad_tk");
     expect(loaded).not.toBeNull();
@@ -181,7 +181,7 @@ describe("FileFactRepository", () => {
     const d = factToDict(fact);
     (d as Record<string, unknown>).suspense_type = "cliffhanger_typo"; // illegal
 
-    adapter.seed("au1/facts.jsonl", JSON.stringify(d) + "\n");
+    adapter.seed("au1/facts.jsonl", `${JSON.stringify(d)}\n`);
 
     const loaded = await repo.get("au1", "f_bad_st");
     expect(loaded).not.toBeNull();

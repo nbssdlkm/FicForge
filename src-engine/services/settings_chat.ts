@@ -40,10 +40,10 @@ function extractDnaSummary(content: string, maxChars = 1500): string {
     const start = match.index;
     const nextHeading = content.indexOf("\n## ", start + 1);
     let section = nextHeading !== -1 ? content.slice(start, nextHeading) : content.slice(start);
-    if (section.length > maxChars) section = section.slice(0, maxChars) + "…";
+    if (section.length > maxChars) section = `${section.slice(0, maxChars)}…`;
     return section.trim();
   }
-  if (content.length > maxChars) return content.slice(0, maxChars) + "…";
+  if (content.length > maxChars) return `${content.slice(0, maxChars)}…`;
   return content.trim();
 }
 

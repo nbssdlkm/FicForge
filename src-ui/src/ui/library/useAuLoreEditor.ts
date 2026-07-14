@@ -159,7 +159,7 @@ export function useAuLoreEditor(
 
   /** 拖入 .txt/.md 文件，追加到正文末尾。 */
   const appendDroppedText = useCallback((text: string) => {
-    setEditorContent((prev) => prev + "\n\n" + text);
+    setEditorContent((prev) => `${prev}\n\n${text}`);
   }, []);
 
   /** 新建成功：直接打开新文件进入编辑态（内容已知，不再读盘）。 */

@@ -62,7 +62,7 @@ export function useSimpleDraftActions({
   const handleAcceptDraft = useCallback(
     async (messageId: string) => {
       const target = chat.messages.find((m) => m.id === messageId);
-      if (!target || target.kind !== "writing-draft") return;
+      if (target?.kind !== "writing-draft") return;
       if (target.status !== "pending" && target.status !== "error") return;
       // 防重入（对抗审 A-1）：confirm 是数秒~数十秒的多 LLM 串行调用，期间内存状态
       // 未变，双击同一按钮或给同章的另一条 pending 草稿点接受都能二次进入 ——
@@ -196,7 +196,7 @@ export function useSimpleDraftActions({
   const handleDiscardDraft = useCallback(
     (draftId: string) => {
       const target = chat.messages.find((m) => m.id === draftId);
-      if (!target || target.kind !== "writing-draft") return;
+      if (target?.kind !== "writing-draft") return;
       if (target.status === "streaming") {
         cancelDispatch();
       }

@@ -39,7 +39,7 @@ export function useSimpleToolCardActions({ auPath, chat }: UseSimpleToolCardActi
   const handleConfirmTool = useCallback(
     async (messageId: string) => {
       const target = chat.messages.find((m) => m.id === messageId);
-      if (!target || target.kind !== "tool-call") return;
+      if (target?.kind !== "tool-call") return;
       if (target.status !== "pending" && target.status !== "error") return;
       if (executingToolId) return;
 
@@ -70,7 +70,7 @@ export function useSimpleToolCardActions({ auPath, chat }: UseSimpleToolCardActi
   const handleUndoTool = useCallback(
     async (messageId: string) => {
       const target = chat.messages.find((m) => m.id === messageId);
-      if (!target || target.kind !== "tool-call") return;
+      if (target?.kind !== "tool-call") return;
       if (target.status !== "confirmed") return;
       if (!target.undo_meta || target.undo_meta.kind === "unsupported") {
         // modify_* 主仓库也不支持 undo，温和提示

@@ -326,7 +326,7 @@ export class WebAdapter implements PlatformAdapter {
         if (name) names.add(name);
       }
     } else {
-      const prefix = normed + "/";
+      const prefix = `${normed}/`;
       for (const key of allKeys) {
         if (key.startsWith(prefix)) {
           const rest = key.slice(prefix.length);
@@ -344,7 +344,7 @@ export class WebAdapter implements PlatformAdapter {
     const content = await this.withDb((db) => txGet(db, normed));
     if (content !== undefined) return true;
     // 检查是否有子文件（目录存在性）
-    const prefix = normed + "/";
+    const prefix = `${normed}/`;
     const allKeys = await this.withDb((db) => txGetAllKeys(db));
     return allKeys.some((k) => k.startsWith(prefix));
   }
@@ -354,7 +354,7 @@ export class WebAdapter implements PlatformAdapter {
     // 精确 key 存在 = 文件；否则有子文件前缀 = 目录（IndexedDB 空目录不存在，与 exists 同口径）。
     const content = await this.withDb((db) => txGet(db, normed));
     if (content !== undefined) return "file";
-    const prefix = normed + "/";
+    const prefix = `${normed}/`;
     const allKeys = await this.withDb((db) => txGetAllKeys(db));
     return allKeys.some((k) => k.startsWith(prefix)) ? "directory" : "missing";
   }

@@ -107,7 +107,7 @@ export function trySplitByStandardHeaders(text: string): SplitChapter[] | null {
   for (const tier of STANDARD_PATTERN_TIERS) {
     const tierMatches: [number, string][] = [];
     for (const pat of tier) {
-      const re = new RegExp(pat.source, pat.flags.includes("g") ? pat.flags : pat.flags + "g");
+      const re = new RegExp(pat.source, pat.flags.includes("g") ? pat.flags : `${pat.flags}g`);
       for (const m of text.matchAll(re)) {
         tierMatches.push([m.index, m[0]]);
       }
@@ -142,7 +142,7 @@ export function trySplitByStandardHeaders(text: string): SplitChapter[] | null {
 
     let content = text.slice(contentStart, contentEnd).trim();
     if (i === 0 && preContent) {
-      content = content ? preContent + "\n\n" + content : preContent;
+      content = content ? `${preContent}\n\n${content}` : preContent;
     }
 
     chapters.push({ chapter_num: i + 1, title: fullTitle, content });
@@ -179,7 +179,7 @@ export function trySplitByNumericHeaders(text: string): SplitChapter[] | null {
 
     let content = text.slice(contentStart, contentEnd).trim();
     if (i === 0 && preContent) {
-      content = content ? preContent + "\n\n" + content : preContent;
+      content = content ? `${preContent}\n\n${content}` : preContent;
     }
 
     chapters.push({ chapter_num: i + 1, title: titleText, content });
@@ -340,7 +340,7 @@ export function buildRegexFromPattern(pattern: ChapterPatternResult): RegExp | n
  * （与 trySplitByStandardHeaders 的 flags 兜底同款）。
  */
 export function splitByCustomRegex(text: string, regex: RegExp): SplitChapter[] | null {
-  const flags = regex.flags.includes("g") ? regex.flags : regex.flags + "g";
+  const flags = regex.flags.includes("g") ? regex.flags : `${regex.flags}g`;
   const re = new RegExp(regex.source, flags);
   const matches: [number, string][] = [];
   for (;;) {
@@ -367,7 +367,7 @@ export function splitByCustomRegex(text: string, regex: RegExp): SplitChapter[] 
 
     let content = text.slice(contentStart, contentEnd).trim();
     if (i === 0 && preContent) {
-      content = content ? preContent + "\n\n" + content : preContent;
+      content = content ? `${preContent}\n\n${content}` : preContent;
     }
 
     chapters.push({

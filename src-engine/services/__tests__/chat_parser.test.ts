@@ -143,8 +143,8 @@ describe("detectChatFormat", () => {
 describe("splitByRole", () => {
   it("splits User/Assistant conversation into turns", () => {
     const text = "User: 你好\nAssistant: 你好，有什么可以帮你的？\n\nUser: 继续\nAssistant: 好的";
-    const fmt = detectChatFormat(text + "\n\nUser: a\nAssistant: b")!;
-    const turns = splitByRole(text + "\n\nUser: a\nAssistant: b", fmt);
+    const fmt = detectChatFormat(`${text}\n\nUser: a\nAssistant: b`)!;
+    const turns = splitByRole(`${text}\n\nUser: a\nAssistant: b`, fmt);
     expect(turns.length).toBeGreaterThanOrEqual(4);
     expect(turns.filter((t) => t.role === "user").length).toBeGreaterThanOrEqual(2);
     expect(turns.filter((t) => t.role === "assistant").length).toBeGreaterThanOrEqual(2);
@@ -165,7 +165,7 @@ describe("splitByRole", () => {
   });
 
   it("correctly assigns charCount", () => {
-    const text = "User: 短消息\nAssistant: " + "A".repeat(1000) + "\n\nUser: 继续\nAssistant: ok";
+    const text = `User: 短消息\nAssistant: ${"A".repeat(1000)}\n\nUser: 继续\nAssistant: ok`;
     const fmt = detectChatFormat(text)!;
     const turns = splitByRole(text, fmt);
     const longTurn = turns.find((t) => t.charCount >= 1000);
