@@ -55,7 +55,7 @@
 - [x] ~~push 总账~~（**2026-07-12 已全部 push**，origin/main=`2354df1`：第二轮盲审、B 批 ×8、C 批 ×7、第三轮盲审、D 批 ×9、M3 三批 ×3、别名表接通及全部文档；推前把远端他处先行的 DESIGN-SYSTEM v2 `3c968cf` 干净合入。上面各条目里的「未 push 等确认」措辞均已过时，以此条为准）
 - [x] **M3 产品拍板**（2026-07-11 已拍板并开工）：三字段建功能，分三批。方向修正：hidden_from 不是 POV 门控，是**角色知情边界**（与人称无关）——批一 = 知情标注注入（行尾人话标注 + 条件图例 + 提示式不硬藏）+ 人工可见可改（确认弹窗/卡片只读 chips + 编辑弹窗四态编辑 + 人改升 high 必生效）+ edit_fact 消毒硬化；批二 = story_time_order 同章内呈现排序；批三 = story_time_tag 卡片小标签。spec：`docs/superpowers/specs/2026-07-11-m3-fact-consumption-handoff.md` + 本会话四路实施前调查。**三批全部交付（见当前状态前两条）；剩余=别名表接通（独立会话进行中）**
 - [x] ~~push E 批总账~~（**2026-07-12 已 push**，`8371b2a..264d27e`，fetch 核无分叉）
-- [ ] **push F 批 + G 批 + G6 架构批总账（`git rev-list origin/main..HEAD` = 12 commit）**——等用户发话；推前必 fetch 核分叉。构成：F 批 5（F1 `3c79d16` / F2 `1b1ba53` / F3 `86df201` / F4 `9b8005e` / R5 报告）+ G 批 6（G1 `a208d15`…G6 `8450f56`）+ PROGRESS `c360bb2` + **G6 架构批 5（M1 `f896a09` / M2 `a8a83c9` / M1审阅整改 `1a936c5` / L3 `7437209` / L1 `7ca9872`）+ 本条 PROGRESS**。**G5 含 vite 8 大版本升级（Rolldown）+ lockfile 全量重生成，push 前提醒用户 CI/协作者需 npm install**
+- [ ] **push F 批 + G 批 + G6 架构批总账（数以 `git rev-list origin/main..HEAD` 实时为准）**——等用户发话；推前必 fetch 核分叉。构成：F 批 5（F1 `3c79d16` / F2 `1b1ba53` / F3 `86df201` / F4 `9b8005e` / R5 报告）+ G 批 6（G1 `a208d15`…G6 `8450f56`）+ PROGRESS `c360bb2` + **G6 架构批 5（M1 `f896a09` / M2 `a8a83c9` / M1审阅整改 `1a936c5` / L3 `7437209` / L1 `7ca9872`）+ 本条 PROGRESS**。**G5 含 vite 8 大版本升级（Rolldown）+ lockfile 全量重生成，push 前提醒用户 CI/协作者需 npm install**
 - [x] ~~R3 低危残余专项清扫~~（**2026-07-12 F1 已销账**：16 条逐条核实，13 修 / 2 已消解 / 1 裁决成文，见当前状态首条）
 - [x] ~~R5 复测盲审~~（**2026-07-12 已跑**：87.2/B 五轮最高、零 HIGH；报告 `docs/internal/audit/2026-07-12-blind-audit-round5.md`）
 - [~] **G 批修复战役（2026-07-13：36/41 已修 6 commit，见当前状态首条）**——剩下两块：
@@ -86,7 +86,7 @@
 - [ ] 两套 UI 工具执行器（execute-settings-tool / useSimpleToolExecutor，盲审 R3 M6）—— **既有「平行不合并」设计裁决**（同一 helper 栈两种工具面），非待办，记此备忘防重复指认。
 - [x] 巨型组件状态下沉（按 hook 铁律分批）：✅ AuSettingsLayout（2026-07-09，31 useState→0，4 hooks + 4 回归测试）；✅ AuLoreLayout（2026-07-10，25 useState→0，4 hooks + 9 回归测试 + 顺手修 3 存量 bug）；✅ SettingsChatPanel（2026-07-10，1026→115 行，3 hooks + 执行器纯模块 + 4 回归测试）；✅ FandomLoreLayout（2026-07-10，21 useState + 4 ref→0，4 hooks + 9 回归测试）；✅ GlobalSettingsModal（2026-07-10，19 useState→0，4 hooks + 4 回归测试）；✅ MobileOnboarding + MobileFandomView（2026-07-10，19+17 useState→0，5 hooks + 9 回归测试）。**六块全部清完，长期债②收官**
 - [ ] 存量引擎测试的内联 LLM mock 迁移共享 helper（`services/__tests__/mock_llm_provider.ts` 已建；跟随性重构——哪个测试文件被触碰就顺手迁哪个，不做专门迁移趟）。UI hooks 测试补全已于 2026-07-09 首批清偿（见里程碑）。对抗审留的两条可选尾巴：useFactEditor saveSuccess 的 2s timer 无 clearTimeout（卸载后空转，无害泄漏，改需动 impl）；onboarding gate 三条静默负向断言依赖单次微任务冲刷（当前实现下已核实非假绿，impl 加深 await 链时需改 waitFor 正向信号）
-- [ ] @vitejs/plugin-react 6.x（长期债⑤唯一剩项）：6.x 的 peer 依赖是 vite ^8.0.0（现 vite 7.3.6），待将来 vite 大版本升级时顺手带上；已停在 5.2.0（peer 兼容 vite ^4–^8）
+- [x] ~~@vitejs/plugin-react 6.x（长期债⑤唯一剩项）~~（**2026-07-13 G5 已闭环**：随 vite 7→8 Rolldown 升级一并升到 `@vitejs/plugin-react ^6.0.3`；长期债⑤收官）
 - ✅ tailwind 4 浏览器底线：**已拍板（2026-07-10，用户）不考虑旧设备兼容**，按 Safari 16.4+ / Chrome 111+ 底线走；真机验证无需专门留意此项。（背景存档：旧设备上 var 基 /N 底纹会回退 100% 实心、同色对不可读；字面色遮罩不受影响）
 
 ## 里程碑（倒序）
