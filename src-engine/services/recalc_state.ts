@@ -55,9 +55,9 @@ export async function recalcState(
   }
 
   // 获取所有已确认章节
-  let chapters: Awaited<ReturnType<ChapterRepository["list_main"]>>;
+  let chapters: Awaited<ReturnType<ChapterRepository["listMain"]>>;
   try {
-    chapters = await chapter_repo.list_main(au_id);
+    chapters = await chapter_repo.listMain(au_id);
   } catch {
     chapters = [];
   }
@@ -111,7 +111,7 @@ export async function recalcState(
 
   if (oldFocus.length > 0 && fact_repo) {
     try {
-      const facts = await fact_repo.list_all(au_id);
+      const facts = await fact_repo.listAll(au_id);
       const validFocusIds = new Set(facts.filter((f) => f.status === "unresolved").map((f) => f.id));
       newFocus = oldFocus.filter((fid) => validFocusIds.has(fid));
       cleanedFocusCount = oldFocus.length - newFocus.length;

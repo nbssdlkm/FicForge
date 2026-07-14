@@ -76,7 +76,7 @@ describe("useConfirmedChapterEditor · 历史章查看", () => {
   });
 
   // 「对象形返回（{content}）也能取到正文」测试已删（E5 正确性 L1）：getChapterContent →
-  // get_content_only 恒返 string，该对象形分支是不可达死代码，随分支一并退掉。
+  // getContentOnly 恒返 string，该对象形分支是不可达死代码，随分支一并退掉。
 
   it("viewChapter >= current_chapter：不发请求、查看态保持空", async () => {
     const { hook } = setup({ viewChapter: 5 });

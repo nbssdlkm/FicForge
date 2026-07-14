@@ -92,7 +92,7 @@ export async function confirmChapterWithMemory(params: ConfirmChapterWithMemoryP
   if (!finalTitle && llm_provider) {
     try {
       // 标题生成是纯 chat 调用；llm_provider 非 null ⇔ 原 UI 的 canGenerate（api 有 key / ollama）。
-      const chContent = await chapter_repo.get_content_only(au_id, chapter_num);
+      const chContent = await chapter_repo.getContentOnly(au_id, chapter_num);
       finalTitle = await generateChapterTitle(chContent, language, llm_provider);
     } catch (err) {
       // AI 标题生成失败 → 回退为无自动标题（非致命，best-effort）。
@@ -126,7 +126,7 @@ export async function confirmChapterWithMemory(params: ConfirmChapterWithMemoryP
   // === Index the confirmed chapter for RAG (F7) — delegated to RagManager ===
   try {
     if (embedding_provider) {
-      const chContent = await chapter_repo.get_content_only(au_id, chapter_num);
+      const chContent = await chapter_repo.getContentOnly(au_id, chapter_num);
       // TD-020：别名表串入 chunker——通篇只用别名的块，characters 标签也记主名（char_filter 可命中）
       await rag_manager.indexChapter(
         au_id,
@@ -160,7 +160,7 @@ export async function confirmChapterWithMemory(params: ConfirmChapterWithMemoryP
   // —— 摘要失败绝不影响 index_status 或章节确认（决策② / codex MAJOR5）。
   try {
     if (embedding_provider && llm_provider) {
-      const chContent = await chapter_repo.get_content_only(au_id, chapter_num);
+      const chContent = await chapter_repo.getContentOnly(au_id, chapter_num);
 
       // Standard 摘要：生成（慢 LLM）在锁外，落盘+索引在锁内 + CAS 校验（M8-C）
       const summaryText = await generateStandardSummary(chContent, chapter_num, llm_provider, { language });
@@ -189,10 +189,10 @@ export async function confirmChapterWithMemory(params: ConfirmChapterWithMemoryP
             });
           }
 
-          // Micro 落盘（M10-A）：update_micro 合并写入，不进向量库
+          // Micro 落盘（M10-A）：updateMicro 合并写入，不进向量库
           if (microText) {
             try {
-              await chapter_summary_repo.update_micro(au_id, chapter_num, microText, result.content_hash);
+              await chapter_summary_repo.updateMicro(au_id, chapter_num, microText, result.content_hash);
             } catch (microErr) {
               logCatch("summary", `Failed to save micro summary for chapter ${chapter_num}`, microErr);
             }

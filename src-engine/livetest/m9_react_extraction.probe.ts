@@ -147,7 +147,7 @@ describe("M9 ReAct 提取真 LLM 探针", () => {
     }
 
     // M8-B 反向视图 / ThreadDetail 的真实查询：facts.filter(thread_ids 含本线 id)
-    const allFacts = await factRepo.list_all("au");
+    const allFacts = await factRepo.listAll("au");
     const threadMembership = allFacts.filter((f) => (f.thread_ids ?? []).includes("t_vindicate"));
     const landedWithCause = allFacts.filter((f) => (f.caused_by ?? []).some((c) => validFactIds.has(c)));
 

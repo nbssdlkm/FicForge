@@ -67,7 +67,7 @@ export async function* dispatchSimpleChat(
 
   // 记忆栈注入(融合 plan §1.1,与 generateChapter 同源):facts / threads / 向量 / embedding,
   // 供 assembleChatContext(§1.2)分层组装。threads 取失败不致命,回退空。
-  const allFacts = await e.repos.fact.list_all(params.au_path);
+  const allFacts = await e.repos.fact.listAll(params.au_path);
   const threads = await e.repos.thread.list(params.au_path).catch(() => []);
 
   // 加载当前 AU 的向量索引供 RAG 检索（与 generateChapter engine-generate.ts 对称，审计③修复）。

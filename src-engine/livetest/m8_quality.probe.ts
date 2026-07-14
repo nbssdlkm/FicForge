@@ -177,16 +177,16 @@ describe("M8 real-LLM quality probe", () => {
     }
 
     // generateRetrospective 步骤1 用 chapterRepo.get()（拿 content + content_hash 供 CAS），
-    // 不是 get_content_only —— stub 必须实现 get，否则 undefined 调用即抛 → 回望静默返回 null。
+    // 不是 getContentOnly —— stub 必须实现 get，否则 undefined 调用即抛 → 回望静默返回 null。
     const chapterRepo = {
       get: async (_au: string, n: number) => ({ content: CHAPTERS[n], content_hash: `hash-ch${n}` }),
-      get_content_only: async (_au: string, n: number) => CHAPTERS[n],
+      getContentOnly: async (_au: string, n: number) => CHAPTERS[n],
     } as unknown as ChapterRepository;
 
     let captured: { text: string; hash: string } | null = null;
     const summaryRepo = {
       get: async (_au: string, n: number) => store.get(n) ?? null,
-      promote_to_v2: async (_au: string, _n: number, text: string, hash: string) => {
+      promoteToV2: async (_au: string, _n: number, text: string, hash: string) => {
         captured = { text, hash };
       },
     } as unknown as ChapterSummaryRepository;

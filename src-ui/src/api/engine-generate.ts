@@ -36,7 +36,7 @@ export async function* generateChapter(
   const e = getEngine();
   const proj = await getProjectOrThrow(params.au_path);
   const st = await e.repos.state.get(params.au_path);
-  const allFacts = await e.repos.fact.list_all(params.au_path);
+  const allFacts = await e.repos.fact.listAll(params.au_path);
   // M8-B: 活跃剧情线注入。best-effort — 读失败降级 [] 不阻断续写，但记日志（非静默吞错）。
   const threads = await e.repos.thread.list(params.au_path).catch((err) => {
     logCatch("generate", "thread list load failed; degrading to no thread injection", err);

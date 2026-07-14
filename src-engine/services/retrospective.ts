@@ -9,9 +9,9 @@
  *
  * 设计决策（D-0041 §5 + M10-A spec §六）：
  * - 失败一律降级，不影响主写作流程
- * - 生成在 AU 锁外（慢 LLM），promote_to_v2 写入在调用方的锁内（CAS 由调用层保证）
+ * - 生成在 AU 锁外（慢 LLM），promoteToV2 写入在调用方的锁内（CAS 由调用层保证）
  * - 后续 micro 全缺时跳过，不浪费 LLM 调用
- * - promote_to_v2 幂等（standard_v1 已存在时不覆盖）
+ * - promoteToV2 幂等（standard_v1 已存在时不覆盖）
  */
 
 import { getPrompts } from "../prompts/index.js";
@@ -76,7 +76,7 @@ export async function generateRetrospective(
   const language = opts?.language ?? "zh";
   const P = getPrompts(language as "zh" | "en");
 
-  // Step 1: 读取目标章节（正文 + 当前 content_hash）。用 get 而非 get_content_only，
+  // Step 1: 读取目标章节（正文 + 当前 content_hash）。用 get 而非 getContentOnly，
   // 一并拿到 live content_hash：它既是 v2 的 source_chapter_hash（v2 概括的正是这份正文），
   // 也是 Phase2 CAS 的比对基准——审计⑤：Phase1 慢 LLM 期间用户若编辑该历史章，Phase2 靠此
   // hash 检出内容已变则跳过提交，不再用「编辑前的旧正文」重建摘要 + 覆盖向量。
@@ -172,11 +172,11 @@ export async function commitRetrospective(
   // 调用方在 AU 锁内调用本函数，state.update 与其它锁内写盘一致。
   stateRepo?: StateRepository,
 ): Promise<void> {
-  // Step 6: 写 v2（promote_to_v2：备份 v1 + 写 standard v2）
+  // Step 6: 写 v2（promoteToV2：备份 v1 + 写 standard v2）
   try {
-    await summaryRepo.promote_to_v2(auPath, targetChapterNum, genResult.v2Text, genResult.contentHash);
+    await summaryRepo.promoteToV2(auPath, targetChapterNum, genResult.v2Text, genResult.contentHash);
   } catch (err) {
-    logCatch("retrospective", `promote_to_v2 failed for chapter ${targetChapterNum}`, err);
+    logCatch("retrospective", `promoteToV2 failed for chapter ${targetChapterNum}`, err);
     return;
   }
 

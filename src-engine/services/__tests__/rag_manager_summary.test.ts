@@ -70,10 +70,10 @@ describe("RagManager.indexChapterSummary", () => {
     const engine = new JsonVectorEngine(memAdapter());
     const mgr = new RagManager(() => engine);
     const chapterRepo = {
-      async list_main() {
+      async listMain() {
         return [{ chapter_num: 1 }, { chapter_num: 2 }];
       },
-      async get_content_only() {
+      async getContentOnly() {
         return "章节正文内容。";
       },
     } as any;
@@ -113,10 +113,10 @@ describe("RagManager.indexChapterSummary", () => {
       }),
     } as any;
     const chapterRepo = {
-      async list_main() {
+      async listMain() {
         return [{ chapter_num: 1 }, { chapter_num: 2 }, { chapter_num: 3 }];
       },
-      async get_content_only() {
+      async getContentOnly() {
         return "正文";
       },
     } as any;

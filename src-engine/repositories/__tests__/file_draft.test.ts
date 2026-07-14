@@ -69,17 +69,17 @@ describe("FileDraftRepository", () => {
     expect(loaded.generated_with).toBeNull();
   });
 
-  it("list_by_chapter and delete_by_chapter", async () => {
+  it("listByChapter and deleteByChapter", async () => {
     await repo.save(createDraft({ au_id: "au1", chapter_num: 3, variant: "a", content: "甲稿。\n" }));
     await repo.save(createDraft({ au_id: "au1", chapter_num: 3, variant: "b", content: "乙稿。\n" }));
     await repo.save(createDraft({ au_id: "au1", chapter_num: 4, variant: "a", content: "别章。\n" }));
 
-    const drafts = await repo.list_by_chapter("au1", 3);
+    const drafts = await repo.listByChapter("au1", 3);
     expect(drafts.map((d) => d.variant).sort()).toEqual(["a", "b"]);
 
-    await repo.delete_by_chapter("au1", 3);
-    expect(await repo.list_by_chapter("au1", 3)).toEqual([]);
-    expect((await repo.list_by_chapter("au1", 4)).length).toBe(1);
+    await repo.deleteByChapter("au1", 3);
+    expect(await repo.listByChapter("au1", 3)).toEqual([]);
+    expect((await repo.listByChapter("au1", 4)).length).toBe(1);
   });
 });
 

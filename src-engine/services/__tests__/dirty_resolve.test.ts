@@ -171,7 +171,7 @@ describe("resolve_dirty_chapter", () => {
     expect(updated?.status).toBe(FactStatus.DEPRECATED);
 
     // Ops should include both resolve_dirty_chapter and the deprecate op
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const resolveOp = ops.find((o) => o.op_type === "resolve_dirty_chapter");
     expect(resolveOp).toBeTruthy();
     expect(resolveOp?.chapter_num).toBe(2);
@@ -208,7 +208,7 @@ describe("resolve_dirty_chapter", () => {
     expect(state.chapters_dirty).not.toContain(2);
 
     // Ops should still have the resolve_dirty_chapter op
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     expect(ops.some((o) => o.op_type === "resolve_dirty_chapter")).toBe(true);
   });
 
@@ -261,7 +261,7 @@ describe("resolve_dirty_chapter", () => {
       fact_repo: factRepo,
     });
 
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     expect(ops).toHaveLength(1);
     expect(ops[0].op_type).toBe("resolve_dirty_chapter");
     expect(ops[0].chapter_num).toBe(3);

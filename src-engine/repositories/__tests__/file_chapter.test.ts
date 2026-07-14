@@ -61,38 +61,38 @@ describe("FileChapterRepository", () => {
     expect(await repo.exists("au1", 1)).toBe(false);
   });
 
-  it("list_main returns sorted chapters", async () => {
+  it("listMain returns sorted chapters", async () => {
     await repo.save(createChapter({ au_id: "au1", chapter_num: 3, content: "ch3" }));
     await repo.save(createChapter({ au_id: "au1", chapter_num: 1, content: "ch1" }));
     await repo.save(createChapter({ au_id: "au1", chapter_num: 2, content: "ch2" }));
 
-    const chapters = await repo.list_main("au1");
+    const chapters = await repo.listMain("au1");
     expect(chapters.map((c) => c.chapter_num)).toEqual([1, 2, 3]);
   });
 
-  it("get_content_only strips frontmatter", async () => {
+  it("getContentOnly strips frontmatter", async () => {
     await repo.save(createChapter({ au_id: "au1", chapter_num: 1, content: "纯正文内容" }));
-    const content = await repo.get_content_only("au1", 1);
+    const content = await repo.getContentOnly("au1", 1);
     expect(content).toContain("纯正文内容");
     expect(content).not.toContain("chapter_id");
   });
 
-  it("backup_chapter creates versioned backup", async () => {
+  it("backupChapter creates versioned backup", async () => {
     await repo.save(createChapter({ au_id: "au1", chapter_num: 1, content: "original" }));
-    const backupPath = await repo.backup_chapter("au1", 1);
+    const backupPath = await repo.backupChapter("au1", 1);
     expect(backupPath).toContain("ch0001_v1.md");
 
     // Second backup
-    const backupPath2 = await repo.backup_chapter("au1", 1);
+    const backupPath2 = await repo.backupChapter("au1", 1);
     expect(backupPath2).toContain("ch0001_v2.md");
   });
 
   // L23（审计第二轮）：版本号用 max(现存版本号)+1 而非文件数+1。外部清理 v1、只留 v2 后，
   // 新备份必须是 v3（旧码算 length+1 = 2 会覆盖既有 v2）。回退旧码即挂。
-  it("backup_chapter 版本号用 max+1：外部删 v1 留 v2 后新备份是 v3", async () => {
+  it("backupChapter 版本号用 max+1：外部删 v1 留 v2 后新备份是 v3", async () => {
     await repo.save(createChapter({ au_id: "au1", chapter_num: 1, content: "original" }));
-    const v1 = await repo.backup_chapter("au1", 1); // v1
-    const v2 = await repo.backup_chapter("au1", 1); // v2
+    const v1 = await repo.backupChapter("au1", 1); // v1
+    const v2 = await repo.backupChapter("au1", 1); // v2
     expect(v1).toContain("ch0001_v1.md");
     expect(v2).toContain("ch0001_v2.md");
 
@@ -102,7 +102,7 @@ describe("FileChapterRepository", () => {
     expect(await adapter.exists(v2)).toBe(true);
 
     // 现存文件数=1，但现存最大版本号=2 → 新备份必须是 v3，绝不能覆盖 v2
-    const v3 = await repo.backup_chapter("au1", 1);
+    const v3 = await repo.backupChapter("au1", 1);
     expect(v3).toContain("ch0001_v3.md");
     expect(v3).not.toBe(v2);
     // v2 仍在（未被覆盖）
@@ -162,8 +162,8 @@ describe("FileChapterRepository frontmatter safety (H6)", () => {
     // 无 frontmatter 文件必须走「导入」分支
     expect(ch.provenance).toBe("imported");
 
-    // 旧实现：get_content_only 静默返回残缺的后半正文
-    expect(await repo.get_content_only("au1", 1)).toBe(raw);
+    // 旧实现：getContentOnly 静默返回残缺的后半正文
+    expect(await repo.getContentOnly("au1", 1)).toBe(raw);
   });
 
   it("save→get round-trip is lossless for body starting with ---", async () => {
@@ -189,7 +189,7 @@ describe("FileChapterRepository frontmatter safety (H6)", () => {
     const ch = await repo.get("au1", 2);
     expect(ch.content).toBe(raw);
     expect(ch.provenance).toBe("imported");
-    expect(await repo.get_content_only("au1", 2)).toBe(raw);
+    expect(await repo.getContentOnly("au1", 2)).toBe(raw);
   });
 
   it("falls back to raw content on invalid YAML frontmatter instead of throwing", async () => {
@@ -198,15 +198,15 @@ describe("FileChapterRepository frontmatter safety (H6)", () => {
 
     const ch = await repo.get("au1", 3);
     expect(ch.content).toBe(raw);
-    expect(await repo.get_content_only("au1", 3)).toBe(raw);
+    expect(await repo.getContentOnly("au1", 3)).toBe(raw);
   });
 
-  it("list_main survives an AU containing a ----leading chapter", async () => {
+  it("listMain survives an AU containing a ----leading chapter", async () => {
     adapter.seed("au1/chapters/main/ch0001.md", "普通第一章正文。");
     adapter.seed("au1/chapters/main/ch0002.md", "---\n\n场景一。\n\n---\n\n场景二。");
 
     // 旧实现：get(2) 抛 TypeError → 整个 AU 的章节列表崩掉
-    const chapters = await repo.list_main("au1");
+    const chapters = await repo.listMain("au1");
     expect(chapters.map((c) => c.chapter_num)).toEqual([1, 2]);
     expect(chapters[1].content).toBe("---\n\n场景一。\n\n---\n\n场景二。");
   });

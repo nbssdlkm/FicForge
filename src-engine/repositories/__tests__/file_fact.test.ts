@@ -18,7 +18,7 @@ describe("FileFactRepository", () => {
   });
 
   it("returns empty list when file missing", async () => {
-    const facts = await repo.list_all("au1");
+    const facts = await repo.listAll("au1");
     expect(facts).toEqual([]);
   });
 
@@ -34,7 +34,7 @@ describe("FileFactRepository", () => {
     });
     await repo.append("au1", fact);
 
-    const facts = await repo.list_all("au1");
+    const facts = await repo.listAll("au1");
     expect(facts).toHaveLength(1);
     expect(facts[0].content_clean).toBe("Alice 遇到了 Bob");
     expect(facts[0].characters).toEqual(["Alice", "Bob"]);
@@ -53,7 +53,7 @@ describe("FileFactRepository", () => {
     expect(found).toBeNull();
   });
 
-  it("list_by_status filters correctly", async () => {
+  it("listByStatus filters correctly", async () => {
     await repo.append("au1", createFact({ id: "f1", content_raw: "r", content_clean: "c", status: FactStatus.ACTIVE }));
     await repo.append(
       "au1",
@@ -61,20 +61,20 @@ describe("FileFactRepository", () => {
     );
     await repo.append("au1", createFact({ id: "f3", content_raw: "r", content_clean: "c", status: FactStatus.ACTIVE }));
 
-    const active = await repo.list_by_status("au1", FactStatus.ACTIVE);
+    const active = await repo.listByStatus("au1", FactStatus.ACTIVE);
     expect(active).toHaveLength(2);
-    const unresolved = await repo.list_unresolved("au1");
+    const unresolved = await repo.listUnresolved("au1");
     expect(unresolved).toHaveLength(1);
   });
 
-  it("list_by_characters filters by intersection", async () => {
+  it("listByCharacters filters by intersection", async () => {
     await repo.append(
       "au1",
       createFact({ id: "f1", content_raw: "r", content_clean: "c", characters: ["Alice", "Bob"] }),
     );
     await repo.append("au1", createFact({ id: "f2", content_raw: "r", content_clean: "c", characters: ["Charlie"] }));
 
-    const result = await repo.list_by_characters("au1", ["Bob"]);
+    const result = await repo.listByCharacters("au1", ["Bob"]);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("f1");
   });
@@ -108,13 +108,13 @@ describe("FileFactRepository", () => {
     expect(final.revision).toBe(3);
   });
 
-  it("delete_by_ids removes specific facts", async () => {
+  it("deleteByIds removes specific facts", async () => {
     await repo.append("au1", createFact({ id: "f1", content_raw: "r", content_clean: "c" }));
     await repo.append("au1", createFact({ id: "f2", content_raw: "r", content_clean: "c" }));
     await repo.append("au1", createFact({ id: "f3", content_raw: "r", content_clean: "c" }));
 
-    await repo.delete_by_ids("au1", ["f1", "f3"]);
-    const remaining = await repo.list_all("au1");
+    await repo.deleteByIds("au1", ["f1", "f3"]);
+    const remaining = await repo.listAll("au1");
     expect(remaining).toHaveLength(1);
     expect(remaining[0].id).toBe("f2");
   });

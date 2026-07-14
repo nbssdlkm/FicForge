@@ -560,7 +560,7 @@ async function doExecuteImport(plan: ImportPlan, params: ExecuteImportParams): P
 
   // 2. 覆盖/自定义模式：被覆盖的章节移入垃圾桶。
   // trash 失败不能再静默放行覆盖（审计 M29：旧章会被 tx.saveChapter 覆盖 → 永失且不在回收站）：
-  // 降级用 backup_chapter 兜底（chapters/backups/ 目录）；备份也失败则跳过该章覆盖，
+  // 降级用 backupChapter 兜底（chapters/backups/ 目录）；备份也失败则跳过该章覆盖，
   // 旧章原样保留并记入 overwriteSkippedChapters 让 UI 警告。
   const overwriteSkipped = new Set<number>();
   // 记录成功移入回收站的旧章（含 trash_id）：commit 失败且新章未落盘时据此还原，
@@ -578,7 +578,7 @@ async function doExecuteImport(plan: ImportPlan, params: ExecuteImportParams): P
           trashedEntries.push({ num, trashId: trashedEntry.trash_id });
         } catch {
           try {
-            await chapterRepo.backup_chapter(auId, num);
+            await chapterRepo.backupChapter(auId, num);
           } catch (backupErr) {
             overwriteSkipped.add(num);
             warnAlways("import", `ch${num} 旧章无法移入回收站且备份失败，跳过覆盖以保留旧章`, {

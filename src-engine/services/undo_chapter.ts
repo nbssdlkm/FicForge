@@ -200,12 +200,12 @@ async function collectResolvesRollback(
 ): Promise<ResolvesRollbackItem[]> {
   const result: ResolvesRollbackItem[] = [];
 
-  const addFactOps = await ops_repo.get_add_facts_for_chapter(au_id, n);
+  const addFactOps = await ops_repo.getAddFactsForChapter(au_id, n);
   const idsToDelete = new Set(addFactOps.map((op) => op.target_id));
 
   if (idsToDelete.size === 0) return result;
 
-  const allFacts = await fact_repo.list_all(au_id);
+  const allFacts = await fact_repo.listAll(au_id);
 
   // 找有 resolves 关系的即将被删除的 facts
   const targetsToCheck = new Set<string>();
@@ -259,7 +259,7 @@ async function collectManualStatusRollback(
 ): Promise<ResolvesRollbackItem[]> {
   const result: ResolvesRollbackItem[] = [];
 
-  const allOps = await ops_repo.list_all(au_id);
+  const allOps = await ops_repo.listAll(au_id);
   const statusOps = allOps.filter(
     (op) =>
       op.op_type === "update_fact_status" &&
@@ -341,7 +341,7 @@ async function collectChapterFactDeletes(
   n: number,
   ops_repo: OpsRepository,
 ): Promise<ChapterFactDeletes> {
-  const addFactOps = await ops_repo.get_add_facts_for_chapter(au_id, n);
+  const addFactOps = await ops_repo.getAddFactsForChapter(au_id, n);
   if (addFactOps.length === 0) return { deleteOps: [], factIdsToDelete: [] };
 
   const factIdsToDelete = addFactOps.map((op) => op.target_id);
@@ -376,7 +376,7 @@ async function rollbackLastSceneEnding(
   if (n === 1) return "";
 
   // 优先：ops 快照
-  const confirmOp = await ops_repo.get_confirm_for_chapter(au_id, n - 1);
+  const confirmOp = await ops_repo.getConfirmForChapter(au_id, n - 1);
   if (confirmOp) {
     const snapshot = confirmOp.payload.last_scene_ending_snapshot;
     if (typeof snapshot === "string") return snapshot;
@@ -384,7 +384,7 @@ async function rollbackLastSceneEnding(
 
   // 降级：读取 ch{N-1} 末尾
   try {
-    const content = await chapter_repo.get_content_only(au_id, n - 1);
+    const content = await chapter_repo.getContentOnly(au_id, n - 1);
     return extractLastSceneEnding(content);
   } catch {
     return "";
@@ -406,7 +406,7 @@ async function rollbackCharactersLastSeen(
   if (n === 1) return {};
 
   // 优先：ops 快照
-  const confirmOp = await ops_repo.get_confirm_for_chapter(au_id, n - 1);
+  const confirmOp = await ops_repo.getConfirmForChapter(au_id, n - 1);
   if (confirmOp) {
     const snapshot = confirmOp.payload.characters_last_seen_snapshot;
     if (snapshot && typeof snapshot === "object") {
@@ -440,7 +440,7 @@ async function rebuildCharactersLastSeen(
   // 只扫 < n 的章：第 n 章正在被撤销、此刻仍在盘上（tx 尚未 commit），若计入会把角色
   // 持久记为「最后见于已被删除的第 n 章」。姊妹路径 dirty_resolve.scanRecentChapters 同样
   // 限定 <= n-1，此处对齐（盲审 R5 正确性 M1；触发面=前一章无 confirm 快照的导入作品）。
-  const chapters = await chapter_repo.list_main(au_id);
+  const chapters = await chapter_repo.listMain(au_id);
   const result: Record<string, number> = {};
   for (const ch of chapters) {
     if (ch.chapter_num >= n) continue;

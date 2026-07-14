@@ -58,7 +58,7 @@ describe("edit_chapter_content", () => {
   it("writes mark_chapters_dirty op to ops.jsonl", async () => {
     await editChapterContent("au1", 1, "New content.", chapterRepo, stateRepo, opsRepo);
 
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     expect(ops.length).toBeGreaterThanOrEqual(1);
     const dirtyOp = ops.find((o) => o.op_type === "mark_chapters_dirty");
     expect(dirtyOp).toBeTruthy();

@@ -265,7 +265,7 @@ export async function* generateChapter(params: GenerateChapterParams): AsyncGene
     yield { type: "context_summary", data: context_summary };
 
     // === 步骤 3：分配草稿标签 ===
-    const existingDrafts = await draft_repo.list_by_chapter(au_id, chapter_num);
+    const existingDrafts = await draft_repo.listByChapter(au_id, chapter_num);
     const existingLabels = existingDrafts.map((d) => d.variant);
     label = nextDraftLabel(existingLabels);
 

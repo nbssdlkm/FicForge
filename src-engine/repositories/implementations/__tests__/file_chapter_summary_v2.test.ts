@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License v3.0.
 
 /**
- * Tests for FileChapterSummaryRepository update_micro / promote_to_v2 (M10-A).
+ * Tests for FileChapterSummaryRepository updateMicro / promoteToV2 (M10-A).
  * TDD: written before implementation.
  */
 
@@ -45,10 +45,10 @@ const BASE_STANDARD = {
   source_chapter_hash: "h7",
 };
 
-describe("FileChapterSummaryRepository.update_micro", () => {
+describe("FileChapterSummaryRepository.updateMicro", () => {
   it("writes micro when no prior summary exists (creates file from scratch)", async () => {
     const repo = new FileChapterSummaryRepository(memAdapter());
-    await repo.update_micro("/au", 7, "主角决裂，转折。", "h7");
+    await repo.updateMicro("/au", 7, "主角决裂，转折。", "h7");
     const got = await repo.get("/au", 7);
     expect(got?.micro?.text).toBe("主角决裂，转折。");
     expect(got?.micro?.version).toBe(1);
@@ -61,7 +61,7 @@ describe("FileChapterSummaryRepository.update_micro", () => {
     const s = createChapterSummary({ standard: BASE_STANDARD });
     await repo.save("/au", 7, s);
 
-    await repo.update_micro("/au", 7, "micro text", "h7");
+    await repo.updateMicro("/au", 7, "micro text", "h7");
 
     const got = await repo.get("/au", 7);
     expect(got?.standard?.text).toBe("第七章标准摘要");
@@ -70,20 +70,20 @@ describe("FileChapterSummaryRepository.update_micro", () => {
 
   it("is idempotent: overwriting micro with same text is safe", async () => {
     const repo = new FileChapterSummaryRepository(memAdapter());
-    await repo.update_micro("/au", 7, "first micro", "h7");
-    await repo.update_micro("/au", 7, "second micro", "h7");
+    await repo.updateMicro("/au", 7, "first micro", "h7");
+    await repo.updateMicro("/au", 7, "second micro", "h7");
     const got = await repo.get("/au", 7);
     expect(got?.micro?.text).toBe("second micro");
   });
 });
 
-describe("FileChapterSummaryRepository.promote_to_v2", () => {
+describe("FileChapterSummaryRepository.promoteToV2", () => {
   it("backs up standard → standard_v1 and writes new standard version:2", async () => {
     const repo = new FileChapterSummaryRepository(memAdapter());
     const s = createChapterSummary({ standard: BASE_STANDARD });
     await repo.save("/au", 7, s);
 
-    await repo.promote_to_v2("/au", 7, "后见之明v2摘要", "h7");
+    await repo.promoteToV2("/au", 7, "后见之明v2摘要", "h7");
 
     const got = await repo.get("/au", 7);
     // standard is now v2
@@ -99,9 +99,9 @@ describe("FileChapterSummaryRepository.promote_to_v2", () => {
     const s = createChapterSummary({ standard: BASE_STANDARD });
     await repo.save("/au", 7, s);
     // first promote
-    await repo.promote_to_v2("/au", 7, "v2-first", "h7");
+    await repo.promoteToV2("/au", 7, "v2-first", "h7");
     // second promote (v2 → v3 scenario, but v1 must not be overwritten)
-    await repo.promote_to_v2("/au", 7, "v2-second", "h7");
+    await repo.promoteToV2("/au", 7, "v2-second", "h7");
 
     const got = await repo.get("/au", 7);
     // standard_v1 still holds the original (version:1)
@@ -114,9 +114,9 @@ describe("FileChapterSummaryRepository.promote_to_v2", () => {
     const repo = new FileChapterSummaryRepository(memAdapter());
     const s = createChapterSummary({ standard: BASE_STANDARD });
     await repo.save("/au", 7, s);
-    await repo.update_micro("/au", 7, "micro text", "h7");
+    await repo.updateMicro("/au", 7, "micro text", "h7");
 
-    await repo.promote_to_v2("/au", 7, "v2 text", "h7");
+    await repo.promoteToV2("/au", 7, "v2 text", "h7");
 
     const got = await repo.get("/au", 7);
     expect(got?.micro?.text).toBe("micro text");
@@ -124,10 +124,10 @@ describe("FileChapterSummaryRepository.promote_to_v2", () => {
     expect(got?.standard_v1?.text).toBe("第七章标准摘要");
   });
 
-  it("skips promote_to_v2 gracefully if no current standard exists", async () => {
+  it("skips promoteToV2 gracefully if no current standard exists", async () => {
     // If there's no existing standard, v1 backup is null, we just write v2 as standard
     const repo = new FileChapterSummaryRepository(memAdapter());
-    await repo.promote_to_v2("/au", 7, "v2 from empty", "h7");
+    await repo.promoteToV2("/au", 7, "v2 from empty", "h7");
     const got = await repo.get("/au", 7);
     expect(got?.standard?.text).toBe("v2 from empty");
     expect(got?.standard_v1).toBeUndefined();

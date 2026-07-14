@@ -98,7 +98,7 @@ describe("WriteTransaction partial commit errors", () => {
     expect((error as PartialCommitError).message).toContain("chapter content may be missing on disk");
     expect((error as PartialCommitError).message).toContain("rebuildFromOps cannot restore chapter bodies");
 
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     expect(ops).toHaveLength(1);
     expect(await chapterRepo.exists("au1", 1)).toBe(false);
     // 门控语义（盲审 R3 HIGH-1）：chapters 失败 → state 不推进，指针不越过缺失章
@@ -144,7 +144,7 @@ describe("WriteTransaction partial commit errors", () => {
       "Ops were committed and still describe the canonical state/facts projection",
     );
 
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     expect(ops).toHaveLength(1);
     expect(await chapterRepo.exists("au1", 2)).toBe(true);
     expect((await stateRepo.get("au1")).current_chapter).toBe(1);
@@ -207,14 +207,14 @@ describe("WriteTransaction 写序与 facts/drafts 失败分支（盲审 2026-07-
     };
     const ops = rec("ops", opsRepo as never, ["append"]);
     const chapters = rec("chapters", chapterRepo as never, ["save", "delete"]);
-    const facts = rec("facts", { append: async () => {}, update: async () => {}, delete_by_ids: async () => {} }, [
+    const facts = rec("facts", { append: async () => {}, update: async () => {}, deleteByIds: async () => {} }, [
       "append",
       "update",
-      "delete_by_ids",
+      "deleteByIds",
     ]);
-    const drafts = rec("drafts", { delete_by_chapter: async () => {}, delete_from_chapter: async () => {} }, [
-      "delete_by_chapter",
-      "delete_from_chapter",
+    const drafts = rec("drafts", { deleteByChapter: async () => {}, deleteFromChapter: async () => {} }, [
+      "deleteByChapter",
+      "deleteFromChapter",
     ]);
     const state = rec("state", stateRepo as never, ["save"]);
 
@@ -232,9 +232,9 @@ describe("WriteTransaction 写序与 facts/drafts 失败分支（盲审 2026-07-
         throw new Error("facts io down");
       },
       update: async () => {},
-      delete_by_ids: async () => {},
+      deleteByIds: async () => {},
     };
-    const drafts = { delete_by_chapter: async () => {}, delete_from_chapter: async () => {} };
+    const drafts = { deleteByChapter: async () => {}, deleteFromChapter: async () => {} };
 
     const tx = new WriteTransaction();
     stageAll(tx);
@@ -255,13 +255,13 @@ describe("WriteTransaction 写序与 facts/drafts 失败分支（盲审 2026-07-
   });
 
   it("chapters 写失败：drafts 与 state 被门控跳过，facts 不连坐（盲审 R3 HIGH-1）", async () => {
-    const facts = { append: async () => {}, update: async () => {}, delete_by_ids: async () => {} };
+    const facts = { append: async () => {}, update: async () => {}, deleteByIds: async () => {} };
     let draftDeleteCalls = 0;
     const drafts = {
-      delete_by_chapter: async () => {
+      deleteByChapter: async () => {
         draftDeleteCalls += 1;
       },
-      delete_from_chapter: async () => {
+      deleteFromChapter: async () => {
         draftDeleteCalls += 1;
       },
     };
@@ -291,12 +291,12 @@ describe("WriteTransaction 写序与 facts/drafts 失败分支（盲审 2026-07-
   });
 
   it("drafts 清理失败：failed 含 drafts，其余阶段照常完成", async () => {
-    const facts = { append: async () => {}, update: async () => {}, delete_by_ids: async () => {} };
+    const facts = { append: async () => {}, update: async () => {}, deleteByIds: async () => {} };
     const failingDrafts = {
-      delete_by_chapter: async () => {
+      deleteByChapter: async () => {
         throw new Error("drafts io down");
       },
-      delete_from_chapter: async () => {},
+      deleteFromChapter: async () => {},
     };
 
     const tx = new WriteTransaction();

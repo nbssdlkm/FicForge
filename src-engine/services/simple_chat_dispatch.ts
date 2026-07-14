@@ -368,7 +368,7 @@ async function resolveDispatchSession(deps: ResolveDispatchDeps): Promise<Dispat
 
   const tools = tools_override ?? (getToolsForMode("simple") as unknown as ToolDefinition[]);
 
-  const existingDrafts = await draft_repo.list_by_chapter(au_id, chapter_num);
+  const existingDrafts = await draft_repo.listByChapter(au_id, chapter_num);
   const label = nextDraftLabel(existingDrafts.map((d) => d.variant));
 
   const suppressTokens = !looksLikeWritingIntent(user_input);

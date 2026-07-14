@@ -45,14 +45,14 @@ export async function migrateLegacySecureStorage(
   }
 
   const settingsMigrated = await params.settingsRepo.migrateLegacySecureStorage();
-  const fandomNames = await params.fandomRepo.list_fandoms();
+  const fandomNames = await params.fandomRepo.listFandoms();
   const failedProjects: string[] = [];
   let scannedProjects = 0;
   let migratedProjects = 0;
 
   for (const fandomName of fandomNames) {
     const fandomPath = joinPath(params.dataDir, "fandoms", fandomName);
-    const auNames = await params.fandomRepo.list_aus(fandomPath);
+    const auNames = await params.fandomRepo.listAus(fandomPath);
     for (const auName of auNames) {
       const auPath = joinPath(fandomPath, "aus", auName);
       scannedProjects += 1;

@@ -60,8 +60,8 @@ const SEED_THREAD = createThread({ id: "t1", title: "主线", status: ThreadStat
 
 function mockDeps(provider: LLMProvider, facts: Fact[] = [], threads = [SEED_THREAD]) {
   return {
-    chapterRepo: { get_content_only: async (_au: string, n: number) => `第${n}章正文，林晚月现身。` } as never,
-    factRepo: { list_all: async () => facts } as never,
+    chapterRepo: { getContentOnly: async (_au: string, n: number) => `第${n}章正文，林晚月现身。` } as never,
+    factRepo: { listAll: async () => facts } as never,
     projectRepo: { get: async () => ({ cast_registry: { characters: ["林晚月"] } }) } as never,
     threadRepo: { list: async () => threads } as never,
     llmProvider: provider,

@@ -115,7 +115,7 @@ async function doConfirm(params: ConfirmChapterParams): Promise<ConfirmChapterRe
     if (oldChapter) {
       oldChapterId = oldChapter.chapter_id;
       oldRevision = oldChapter.revision;
-      await chapter_repo.backup_chapter(au_id, chapter_num);
+      await chapter_repo.backupChapter(au_id, chapter_num);
     }
   }
 

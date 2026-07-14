@@ -31,10 +31,10 @@ function createMockVectorRepo(chunks: Record<string, SearchResult[]>): VectorRep
     async search(_au_id: string, _embedding: number[], options: SearchOptions): Promise<SearchResult[]> {
       return (chunks[options.collection] ?? []).slice(0, options.top_k);
     },
-    async index_chunks(_c: VectorChunk[]) {},
-    async delete_by_chapter() {},
-    async delete_by_source() {},
-    async get_index_status() {
+    async indexChunks(_c: VectorChunk[]) {},
+    async deleteByChapter() {},
+    async deleteBySource() {},
+    async getIndexStatus() {
       return IndexStatus.READY;
     },
   };
@@ -255,10 +255,10 @@ describe("retrieveRagForContext (融合:RAG 编排单一真相源)", () => {
     const searchSpy = vi.fn(async () => [] as SearchResult[]);
     const repo: VectorRepository = {
       search: searchSpy,
-      async index_chunks(_c: VectorChunk[]) {},
-      async delete_by_chapter() {},
-      async delete_by_source() {},
-      async get_index_status() {
+      async indexChunks(_c: VectorChunk[]) {},
+      async deleteByChapter() {},
+      async deleteBySource() {},
+      async getIndexStatus() {
         return IndexStatus.READY;
       },
     };
@@ -345,10 +345,10 @@ describe("retrieveRagForContext (融合:RAG 编排单一真相源)", () => {
           { content: "c2", chapter_num: 2, score: 0.8, metadata: {} },
         ].slice(0, options.top_k);
       },
-      async index_chunks(_c: VectorChunk[]) {},
-      async delete_by_chapter() {},
-      async delete_by_source() {},
-      async get_index_status() {
+      async indexChunks(_c: VectorChunk[]) {},
+      async deleteByChapter() {},
+      async deleteBySource() {},
+      async getIndexStatus() {
         return IndexStatus.READY;
       },
     };

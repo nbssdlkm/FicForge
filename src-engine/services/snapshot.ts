@@ -52,8 +52,8 @@ export async function checkAndSnapshot(
     if (await adapter.exists(snapshotPath)) return false;
 
     // 快照素材
-    const facts = await factRepo.list_all(auPath);
-    const ops = await opsRepo.list_all(auPath);
+    const facts = await factRepo.listAll(auPath);
+    const ops = await opsRepo.listAll(auPath);
 
     // 时序重排（E5 正确性 L2）：先归档增量 ops，**归档成功后**再回写含新 watermark 的快照。
     // 旧序是「先写含 archivedOpsCount=ops.length 的快照 → 再追加归档」，归档若抛错则 watermark

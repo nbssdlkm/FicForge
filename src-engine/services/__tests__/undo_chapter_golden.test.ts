@@ -83,7 +83,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
   // Helper: compare repo state vs ops-rebuilt state
   async function assertStateMatchesRebuild() {
     const repoState = await stateRepo.get("au1");
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const sorted = sortAndDedupeOps(ops);
     const rebuilt = rebuildStateFromOps(sorted, "au1");
 
@@ -100,8 +100,8 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
   }
 
   async function assertFactsMatchRebuild() {
-    const repoFacts = await factRepo.list_all("au1");
-    const ops = await opsRepo.list_all("au1");
+    const repoFacts = await factRepo.listAll("au1");
+    const ops = await opsRepo.listAll("au1");
     const sorted = sortAndDedupeOps(ops);
     const rebuilt = rebuildFactsFromOps(sorted);
 
@@ -174,7 +174,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
 
     await assertFactsMatchRebuild();
     // Facts from chapter 1 should be deleted
-    const facts = await factRepo.list_all("au1");
+    const facts = await factRepo.listAll("au1");
     expect(facts).toHaveLength(0);
   });
 
@@ -283,7 +283,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     expect(state.current_chapter).toBe(3);
 
     // Chapter 3 fact deleted, 1 & 2 remain
-    let facts = await factRepo.list_all("au1");
+    let facts = await factRepo.listAll("au1");
     expect(facts).toHaveLength(2);
 
     // Undo chapter 2
@@ -294,7 +294,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     state = await stateRepo.get("au1");
     expect(state.current_chapter).toBe(2);
 
-    facts = await factRepo.list_all("au1");
+    facts = await factRepo.listAll("au1");
     expect(facts).toHaveLength(1);
     expect(facts[0].content_clean).toBe("Alice和Bob相遇");
   });
@@ -309,12 +309,12 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     await confirmN(2, "Charlie从远处赶来。Alice招了招手。");
 
     // Corrupt the confirm ops: remove the snapshot fields
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const confirmOp1 = ops.find((o) => o.op_type === "confirm_chapter" && o.chapter_num === 1);
     if (confirmOp1) {
       delete confirmOp1.payload.last_scene_ending_snapshot;
       delete confirmOp1.payload.characters_last_seen_snapshot;
-      await opsRepo.replace_all("au1", ops);
+      await opsRepo.replaceAll("au1", ops);
     }
 
     // Undo ch2 → should use ch1's content (degraded path)
@@ -429,11 +429,11 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     await confirmN(2, "Charlie出现了。");
 
     // Corrupt the ch1 confirm op snapshot with non-numeric values
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const confirmOp1 = ops.find((o) => o.op_type === "confirm_chapter" && o.chapter_num === 1);
     if (confirmOp1) {
       confirmOp1.payload.characters_last_seen_snapshot = { Alice: "not_a_number" };
-      await opsRepo.replace_all("au1", ops);
+      await opsRepo.replaceAll("au1", ops);
     }
 
     // Undo ch2 → should handle corrupt snapshot gracefully
@@ -482,7 +482,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     // TD-003 fix: undo now emits an `update_fact_status` rollback op (reason
     // "undo_manual_rollback"), so rebuildFactsFromOps replicates the revert —
     // rebuilt state matches the repo (active), closing the prior consistency gap.
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const rollbackOp = ops.find(
       (op) =>
         op.op_type === "update_fact_status" && op.target_id === f1.id && op.payload.reason === "undo_manual_rollback",
@@ -533,7 +533,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
 
     // Closed loop holds: repo state ≡ ops rebuild.
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const rebuilt = rebuildFactsFromOps(sortAndDedupeOps(ops));
     const rebuiltF1 = rebuilt.find((f) => f.id === f1.id);
     expect(rebuiltF1!.status).toBe("unresolved");
@@ -565,7 +565,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     await doUndo();
 
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.ACTIVE);
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const rebuilt = rebuildFactsFromOps(sortAndDedupeOps(ops));
     expect(rebuilt.find((f) => f.id === f1.id)!.status).toBe("active");
 
@@ -608,14 +608,14 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     );
     await archiveFact("au1", f1.id, factRepo, opsRepo);
 
-    let facts = await factRepo.list_all("au1");
+    let facts = await factRepo.listAll("au1");
     expect(facts).toHaveLength(1);
     expect(facts[0].archived).toBe(true);
 
     // Undo chapter 1 should delete the archived fact (it was created in ch1)
     await doUndo();
 
-    facts = await factRepo.list_all("au1");
+    facts = await factRepo.listAll("au1");
     expect(facts).toHaveLength(0);
 
     // Ops rebuild should also have 0 facts (add_fact + archive ops from ch1 deleted by undo)
@@ -646,7 +646,7 @@ describe("undo_chapter golden: repo state vs ops rebuild", () => {
     // Undo chapter 1 should NOT delete f0 (it came from chapter 0, not chapter 1)
     await doUndo();
 
-    const facts = await factRepo.list_all("au1");
+    const facts = await factRepo.listAll("au1");
     expect(facts).toHaveLength(1);
     expect(facts[0].id).toBe(f0.id);
     expect(facts[0].archived).toBe(true); // archived state preserved

@@ -126,7 +126,7 @@ export async function executeImportPlan(
  */
 export async function getExistingChapterNums(auPath: string): Promise<number[]> {
   const { chapter } = getEngine().repos;
-  const chapters = await chapter.list_main(auPath);
+  const chapters = await chapter.listMain(auPath);
   return chapters.map((c) => c.chapter_num).sort((a, b) => a - b);
 }
 

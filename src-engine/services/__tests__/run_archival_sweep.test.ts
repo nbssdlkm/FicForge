@@ -167,12 +167,12 @@ describe("run_archival_sweep", () => {
 
     // First sweep archives it
     await runArchivalSweep("au1", 11, factRepo, opsRepo);
-    const opsAfterFirst = await opsRepo.list_all("au1");
+    const opsAfterFirst = await opsRepo.listAll("au1");
     const archiveOpsCount = opsAfterFirst.filter((o) => o.op_type === "archive_fact").length;
 
     // Second sweep should not create another archive op
     await runArchivalSweep("au1", 11, factRepo, opsRepo);
-    const opsAfterSecond = await opsRepo.list_all("au1");
+    const opsAfterSecond = await opsRepo.listAll("au1");
     const archiveOpsCountAfterSecond = opsAfterSecond.filter((o) => o.op_type === "archive_fact").length;
 
     expect(archiveOpsCountAfterSecond).toBe(archiveOpsCount);
@@ -323,7 +323,7 @@ describe("findArchivalCandidates (read-only preview)", () => {
     expect(candidates.map((f) => f.id)).toEqual([cold.id]);
     // 只读：没写 archive op，fact 也没被标 archived
     expect((await factRepo.get("au1", cold.id))!.archived).toBe(false);
-    expect((await opsRepo.list_all("au1")).filter((o) => o.op_type === "archive_fact")).toHaveLength(0);
+    expect((await opsRepo.listAll("au1")).filter((o) => o.op_type === "archive_fact")).toHaveLength(0);
   });
 });
 

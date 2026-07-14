@@ -243,7 +243,7 @@ export class WriteTransaction {
           }
         }
         for (const { au_id, fact_ids } of this.pendingFactDeletes) {
-          await fact_repo.delete_by_ids(au_id, fact_ids);
+          await fact_repo.deleteByIds(au_id, fact_ids);
         }
         completed.push("facts");
       } catch (err) {
@@ -261,9 +261,9 @@ export class WriteTransaction {
         try {
           for (const { au_id, chapter_num, mode } of this.pendingDraftDeletes) {
             if (mode === "by_chapter") {
-              await draft_repo.delete_by_chapter(au_id, chapter_num);
+              await draft_repo.deleteByChapter(au_id, chapter_num);
             } else {
-              await draft_repo.delete_from_chapter(au_id, chapter_num);
+              await draft_repo.deleteFromChapter(au_id, chapter_num);
             }
           }
           completed.push("drafts");

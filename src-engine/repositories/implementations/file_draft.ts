@@ -84,7 +84,7 @@ export class FileDraftRepository implements DraftRepository {
     await atomicWrite(this.adapter, path, text);
   }
 
-  async list_by_chapter(au_id: string, chapter_num: number): Promise<Draft[]> {
+  async listByChapter(au_id: string, chapter_num: number): Promise<Draft[]> {
     const dir = this.draftsDir(au_id);
     const exists = await this.adapter.exists(dir);
     if (!exists) return [];
@@ -102,7 +102,7 @@ export class FileDraftRepository implements DraftRepository {
     return result;
   }
 
-  async delete_by_chapter(au_id: string, chapter_num: number): Promise<void> {
+  async deleteByChapter(au_id: string, chapter_num: number): Promise<void> {
     const dir = this.draftsDir(au_id);
     const exists = await this.adapter.exists(dir);
     if (!exists) return;
@@ -116,7 +116,7 @@ export class FileDraftRepository implements DraftRepository {
     }
   }
 
-  async delete_from_chapter(au_id: string, from_chapter_num: number): Promise<void> {
+  async deleteFromChapter(au_id: string, from_chapter_num: number): Promise<void> {
     const dir = this.draftsDir(au_id);
     const exists = await this.adapter.exists(dir);
     if (!exists) return;

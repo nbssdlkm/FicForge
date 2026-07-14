@@ -110,7 +110,7 @@ describe("JsonVectorEngine", () => {
   });
 
   it("index and search", async () => {
-    await engine.index_chunks([
+    await engine.indexChunks([
       makeChunk("c1", "chapters", [1, 0, 0], { chapter: 1 }),
       makeChunk("c2", "chapters", [0, 1, 0], { chapter: 2 }),
       makeChunk("c3", "chapters", [0.9, 0.1, 0], { chapter: 3 }),
@@ -122,7 +122,7 @@ describe("JsonVectorEngine", () => {
   });
 
   it("search respects AU isolation", async () => {
-    await engine.index_chunks([
+    await engine.indexChunks([
       makeChunk("c1", "chapters", [1, 0], { au_id: "au1", chapter: 1 }),
       makeChunk("c2", "chapters", [1, 0], { au_id: "au2", chapter: 1 }),
     ]);
@@ -132,7 +132,7 @@ describe("JsonVectorEngine", () => {
   });
 
   it("search with character filter", async () => {
-    await engine.index_chunks([
+    await engine.indexChunks([
       makeChunk("c1", "chapters", [1, 0], { chapter: 1, characters: "Alice,Bob" }),
       makeChunk("c2", "chapters", [0.9, 0.1], { chapter: 2, characters: "Charlie" }),
     ]);
@@ -146,27 +146,27 @@ describe("JsonVectorEngine", () => {
     expect(results[0].content).toBe("Content of c1");
   });
 
-  it("delete_by_chapter removes chunks", async () => {
-    await engine.index_chunks([
+  it("deleteByChapter removes chunks", async () => {
+    await engine.indexChunks([
       makeChunk("c1", "chapters", [1, 0], { chapter: 1 }),
       makeChunk("c2", "chapters", [0, 1], { chapter: 2 }),
     ]);
 
-    await engine.delete_by_chapter("au1", 1);
+    await engine.deleteByChapter("au1", 1);
     const results = await engine.search("au1", [1, 0], { collection: "chapters", top_k: 10 });
     expect(results).toHaveLength(1);
     expect(results[0].content).toBe("Content of c2");
   });
 
-  it("delete_by_chapter without collection removes the chapter's vectors across collections (ch chunks + summary)", async () => {
-    await engine.index_chunks([
+  it("deleteByChapter without collection removes the chapter's vectors across collections (ch chunks + summary)", async () => {
+    await engine.indexChunks([
       makeChunk("ch1_0", "chapters", [1, 0], { chapter: 1 }),
       makeChunk("sum1", "summaries", [0, 1], { chapter: 1, kind: "standard" }),
       makeChunk("ch2_0", "chapters", [0, 1], { chapter: 2 }),
       makeChunk("sum2", "summaries", [1, 0], { chapter: 2, kind: "standard" }),
     ]);
 
-    await engine.delete_by_chapter("au1", 1);
+    await engine.deleteByChapter("au1", 1);
 
     expect(engine.chunkCount).toBe(2);
     expect(
@@ -177,14 +177,14 @@ describe("JsonVectorEngine", () => {
     ).toEqual([2]);
   });
 
-  it("delete_by_chapter with collection only removes that collection (keeps valid summary vector)", async () => {
-    await engine.index_chunks([
+  it("deleteByChapter with collection only removes that collection (keeps valid summary vector)", async () => {
+    await engine.indexChunks([
       makeChunk("ch1_0", "chapters", [1, 0], { chapter: 1 }),
       makeChunk("ch1_1", "chapters", [0.5, 0.5], { chapter: 1, chunk_index: 1 }),
       makeChunk("sum1", "summaries", [0, 1], { chapter: 1, kind: "standard" }),
     ]);
 
-    await engine.delete_by_chapter("au1", 1, "chapters");
+    await engine.deleteByChapter("au1", 1, "chapters");
 
     expect(engine.chunkCount).toBe(1);
     expect(await engine.search("au1", [1, 0], { collection: "chapters", top_k: 10 })).toEqual([]);
@@ -193,30 +193,30 @@ describe("JsonVectorEngine", () => {
     expect(summaries[0].chapter_num).toBe(1);
   });
 
-  it("delete_by_chapter respects AU isolation", async () => {
-    await engine.index_chunks([
+  it("deleteByChapter respects AU isolation", async () => {
+    await engine.indexChunks([
       makeChunk("ch1_0", "chapters", [1, 0], { au_id: "au1", chapter: 1 }),
       makeChunk("ch1_0b", "chapters", [1, 0], { au_id: "au2", chapter: 1 }),
     ]);
 
-    await engine.delete_by_chapter("au1", 1);
+    await engine.deleteByChapter("au1", 1);
 
     expect(engine.chunkCount).toBe(1);
     expect(await engine.search("au2", [1, 0], { collection: "chapters", top_k: 10 })).toHaveLength(1);
   });
 
-  it("delete_by_source removes chunks", async () => {
-    await engine.index_chunks([
+  it("deleteBySource removes chunks", async () => {
+    await engine.indexChunks([
       makeChunk("s1", "characters", [1, 0], { source_file: "Connor.md" }),
       makeChunk("s2", "characters", [0, 1], { source_file: "Hank.md" }),
     ]);
 
-    await engine.delete_by_source("au1", "Connor.md");
+    await engine.deleteBySource("au1", "Connor.md");
     expect(engine.chunkCount).toBe(1);
   });
 
   it("persist and reload", async () => {
-    await engine.index_chunks([
+    await engine.indexChunks([
       makeChunk("c1", "chapters", [1, 0, 0], { chapter: 1 }),
       makeChunk("c2", "characters", [0, 1, 0], { source_file: "Connor.md" }),
     ]);
@@ -235,7 +235,7 @@ describe("JsonVectorEngine", () => {
   // L18（审计第二轮）：persist 清理孤儿分片——chunk 数变少后旧 .json 分片不该永久残留。
   it("L18: persist 删除不在本次写入集合中的旧分片文件，load 仍正常", async () => {
     // 第一次：3 章 chunk 落盘
-    await engine.index_chunks([
+    await engine.indexChunks([
       makeChunk("ch1_0", "chapters", [1, 0, 0], { chapter: 1 }),
       makeChunk("ch2_0", "chapters", [0, 1, 0], { chapter: 2 }),
       makeChunk("ch3_0", "chapters", [0, 0, 1], { chapter: 3 }),
@@ -244,7 +244,7 @@ describe("JsonVectorEngine", () => {
     expect(await adapter.exists("/vectors/chapters/ch3_0.json")).toBe(true);
 
     // 模拟 undo 第 3 章：删该章 chunk，再 persist —— 旧 ch3_0.json 应被清理
-    await engine.delete_by_chapter("au1", 3);
+    await engine.deleteByChapter("au1", 3);
     await engine.persist("/vectors");
 
     // 孤儿分片文件消失
@@ -283,14 +283,14 @@ describe("JsonVectorEngine", () => {
     }
     const orderAdapter = new OrderAdapter();
     const eng = new JsonVectorEngine(orderAdapter as any);
-    await eng.index_chunks([
+    await eng.indexChunks([
       makeChunk("ch1_0", "chapters", [1, 0, 0], { chapter: 1 }),
       makeChunk("ch2_0", "chapters", [0, 1, 0], { chapter: 2 }),
     ]);
     await eng.persist("/vectors");
 
     // 删第 2 章后再 persist：ch2_0.json 成孤儿，应在 index.json 写入之后才被 GC。
-    await eng.delete_by_chapter("au1", 2);
+    await eng.deleteByChapter("au1", 2);
     ops.length = 0;
     await eng.persist("/vectors");
 
@@ -309,8 +309,8 @@ describe("JsonVectorEngine", () => {
   });
 
   it("upsert replaces existing chunk", async () => {
-    await engine.index_chunks([makeChunk("c1", "chapters", [1, 0], { chapter: 1 })]);
-    await engine.index_chunks([{ ...makeChunk("c1", "chapters", [0, 1], { chapter: 1 }), content: "Updated" }]);
+    await engine.indexChunks([makeChunk("c1", "chapters", [1, 0], { chapter: 1 })]);
+    await engine.indexChunks([{ ...makeChunk("c1", "chapters", [0, 1], { chapter: 1 }), content: "Updated" }]);
     expect(engine.chunkCount).toBe(1);
 
     const results = await engine.search("au1", [0, 1], { collection: "chapters", top_k: 1 });

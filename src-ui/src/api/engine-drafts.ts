@@ -10,7 +10,7 @@ import { getEngine } from "./engine-instance";
 
 export async function listDrafts(auPath: string, chapterNum: number) {
   const { draft } = getEngine().repos;
-  const drafts = await draft.list_by_chapter(auPath, chapterNum);
+  const drafts = await draft.listByChapter(auPath, chapterNum);
   return drafts.map((d) => ({
     draft_label: d.variant,
     filename: draftFilename(d.chapter_num, d.variant),
@@ -37,7 +37,7 @@ export async function saveDraft(auPath: string, chapterNum: number, label: strin
 export async function deleteDrafts(auPath: string, chapterNum: number, _label?: string) {
   const { draft } = getEngine().repos;
   return withAuLock(auPath, async () => {
-    await draft.delete_by_chapter(auPath, chapterNum);
+    await draft.deleteByChapter(auPath, chapterNum);
     return { deleted_count: 1 };
   });
 }

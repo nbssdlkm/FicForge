@@ -38,8 +38,8 @@ function fakeSummaryRepo(
     }),
     save: vi.fn(async () => {}),
     remove: vi.fn(async () => {}),
-    update_micro: vi.fn(async () => {}),
-    promote_to_v2: vi.fn(async () => {}),
+    updateMicro: vi.fn(async () => {}),
+    promoteToV2: vi.fn(async () => {}),
   } as any;
 }
 
@@ -103,7 +103,7 @@ describe("runRetrospective", () => {
     });
 
     expect(llmProvider.generate).not.toHaveBeenCalled();
-    expect(summaryRepo.promote_to_v2).not.toHaveBeenCalled();
+    expect(summaryRepo.promoteToV2).not.toHaveBeenCalled();
   });
 
   it("generates v2 when subsequent micros are present", async () => {
@@ -128,11 +128,11 @@ describe("runRetrospective", () => {
     });
 
     expect(llmProvider.generate).toHaveBeenCalledOnce();
-    expect(summaryRepo.promote_to_v2).toHaveBeenCalledWith("/au", 5, "v2 retrospective text", expect.any(String));
+    expect(summaryRepo.promoteToV2).toHaveBeenCalledWith("/au", 5, "v2 retrospective text", expect.any(String));
     expect(ragManager.indexChapterSummary).toHaveBeenCalledWith("/au", 5, "v2 retrospective text", expect.anything());
   });
 
-  it("does NOT call promote_to_v2 when LLM returns null/empty", async () => {
+  it("does NOT call promoteToV2 when LLM returns null/empty", async () => {
     const summaryRepo = fakeSummaryRepo({
       5: { standard: { version: 1, text: "ch5", source_chapter_hash: "h5", generated_at: "t" } },
       6: { micro: { version: 1, text: "ch6 micro", source_chapter_hash: "h6", generated_at: "t" } },
@@ -152,7 +152,7 @@ describe("runRetrospective", () => {
       currentChapter: 11,
     });
 
-    expect(summaryRepo.promote_to_v2).not.toHaveBeenCalled();
+    expect(summaryRepo.promoteToV2).not.toHaveBeenCalled();
   });
 
   it("does not throw when targetChapterNum content is missing", async () => {
@@ -207,7 +207,7 @@ describe("runRetrospective", () => {
 
     // Should still generate because at least some micros exist
     expect(llmProvider.generate).toHaveBeenCalledOnce();
-    expect(summaryRepo.promote_to_v2).toHaveBeenCalledOnce();
+    expect(summaryRepo.promoteToV2).toHaveBeenCalledOnce();
   });
 
   it("审计⑤：genResult.contentHash 是章节 live content_hash（非摘要 source_chapter_hash），供 Phase2 CAS 比对", async () => {
@@ -293,7 +293,7 @@ describe("commitRetrospective — L17 向量覆盖失败置 STALE", () => {
 
     await commitRetrospective("/au", 5, genResult, summaryRepo, ragManager, fakeEmbeddingProvider(), repo);
 
-    expect(summaryRepo.promote_to_v2).toHaveBeenCalledOnce(); // v2 已落盘
+    expect(summaryRepo.promoteToV2).toHaveBeenCalledOnce(); // v2 已落盘
     expect(repo.update).toHaveBeenCalledOnce();
     expect(state.index_status).toBe(IndexStatus.STALE);
   });

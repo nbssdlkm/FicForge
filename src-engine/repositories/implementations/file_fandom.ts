@@ -53,11 +53,11 @@ export class FileFandomRepository implements FandomRepository {
     const content = dumpYaml(raw);
     const dir = path.substring(0, path.lastIndexOf("/"));
     await this.adapter.mkdir(dir);
-    // fandom.yaml 是列表发现的判据（list_fandoms 只认它存在），截断即整个 fandom 不可见 —— 原子写（审计 H5）
+    // fandom.yaml 是列表发现的判据（listFandoms 只认它存在），截断即整个 fandom 不可见 —— 原子写（审计 H5）
     await atomicWrite(this.adapter, path, content);
   }
 
-  async list_fandoms(): Promise<string[]> {
+  async listFandoms(): Promise<string[]> {
     const fandomsDir = joinPath(this.dataDir, "fandoms");
     const exists = await this.adapter.exists(fandomsDir);
     if (!exists) return [];
@@ -73,7 +73,7 @@ export class FileFandomRepository implements FandomRepository {
     return result;
   }
 
-  async list_aus(fandom_path: string): Promise<string[]> {
+  async listAus(fandom_path: string): Promise<string[]> {
     validateBasePath(fandom_path, "fandom_path");
     const ausDir = joinPath(fandom_path, "aus");
     const exists = await this.adapter.exists(ausDir);

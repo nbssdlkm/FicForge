@@ -45,7 +45,7 @@ import { buildFactDataFromCandidate, type ExtractedFactCandidate } from "./facts
 
 export async function listChapters(auPath: string) {
   const { chapter, state } = getEngine().repos;
-  const chapters = await chapter.list_main(auPath);
+  const chapters = await chapter.listMain(auPath);
   const st = await state.get(auPath);
   return chapters.map((ch) => ({
     chapter_num: ch.chapter_num,
@@ -60,7 +60,7 @@ export async function listChapters(auPath: string) {
 
 export async function getChapterContent(auPath: string, chapterNum: number) {
   const { chapter } = getEngine().repos;
-  return await chapter.get_content_only(auPath, chapterNum);
+  return await chapter.getContentOnly(auPath, chapterNum);
 }
 
 export async function confirmChapter(
@@ -227,7 +227,7 @@ export async function updateChapterContent(auPath: string, chapterNum: number, c
     const embProvider = createEmbeddingProvider(sett, proj);
     if (embProvider) {
       // 用落盘后的正文重索引（与 confirm 同源），不直接用入参，防 save 路径归一化产生偏差。
-      const chContent = await chapter.get_content_only(auPath, chapterNum);
+      const chContent = await chapter.getContentOnly(auPath, chapterNum);
       // TD-020：别名表串入 chunker（与 confirm 侧同源；get 永不抛错，无卡 → null 回退现状）
       const characterAliases = await e.characterAliases.get(auPath);
       await e.ragManager.indexChapter(auPath, chapterNum, chContent, embProvider, proj.cast_registry, characterAliases);
@@ -265,12 +265,12 @@ export async function scanChapterMemory(auPath: string): Promise<ChapterMemorySc
   const { chapter, settings, chapterSummary, fact } = e.repos;
   const [proj, sett] = await Promise.all([getProjectOrThrow(auPath), settings.get()]);
   const llmCfg = resolveLlmConfig(null, proj, sett);
-  const chapters = await chapter.list_main(auPath);
+  const chapters = await chapter.listMain(auPath);
   const nums = chapters.map((c) => c.chapter_num);
 
   const chaptersMissingSummary = await findChaptersMissingSummary(auPath, nums, chapterSummary);
 
-  const allFacts = await fact.list_all(auPath);
+  const allFacts = await fact.listAll(auPath);
   const factCountByChapter: Record<number, number> = {};
   for (const n of nums) factCountByChapter[n] = 0;
   for (const f of allFacts) {
@@ -312,7 +312,7 @@ export async function backfillChapterMemory(
   // 是与 addFactsBatch 同款的纵深防御——覆盖「提取后、落库前别名表被改」的窗口。
   const characterAliases = await e.characterAliases.get(auPath);
 
-  const chapters = await chapter.list_main(auPath);
+  const chapters = await chapter.listMain(auPath);
   const byNum = new Map(chapters.map((c) => [c.chapter_num, c]));
   const nums = [...byNum.keys()];
   const missingSummary = new Set(await findChaptersMissingSummary(auPath, nums, chapterSummary));
@@ -325,7 +325,7 @@ export async function backfillChapterMemory(
   for (const n of inScope) {
     const ch = byNum.get(n);
     if (!ch) continue;
-    const content = await chapter.get_content_only(auPath, n);
+    const content = await chapter.getContentOnly(auPath, n);
     targets.push({
       chapterNum: n,
       content,

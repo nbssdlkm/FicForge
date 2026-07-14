@@ -142,7 +142,7 @@ describe("Cross-language parity: Python-written files → TS read", () => {
     const adapter = new MockAdapter();
     adapter.seed("test_au/facts.jsonl", FACTS_JSONL);
     const repo = new FileFactRepository(adapter);
-    const facts = await repo.list_all("test_au");
+    const facts = await repo.listAll("test_au");
 
     expect(facts).toHaveLength(1);
     const f = facts[0];

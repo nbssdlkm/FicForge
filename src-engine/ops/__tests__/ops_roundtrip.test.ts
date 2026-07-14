@@ -51,10 +51,10 @@ describe("ops roundtrip: service → ops → rebuild", () => {
       opsRepo,
     );
 
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const rebuilt = rebuildFactsFromOps(ops);
 
-    const actual = await factRepo.list_all("au1");
+    const actual = await factRepo.listAll("au1");
     expect(rebuilt).toHaveLength(actual.length);
     expect(rebuilt[0].id).toBe(actual[0].id);
     expect(rebuilt[0].content_clean).toBe(actual[0].content_clean);
@@ -89,7 +89,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
       stateRepo,
     );
 
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const rebuilt = rebuildFactsFromOps(ops);
 
     expect(rebuilt).toHaveLength(1);
@@ -113,7 +113,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
 
     await updateFactStatus("au1", fact.id, "resolved", 1, factRepo, opsRepo, stateRepo);
 
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const rebuilt = rebuildFactsFromOps(ops);
 
     expect(rebuilt).toHaveLength(1);
@@ -136,7 +136,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
 
     await setChapterFocus("au1", [f1.id], factRepo, opsRepo, stateRepo);
 
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const rebuiltState = rebuildStateFromOps(ops, "au1");
     const actualState = await stateRepo.get("au1");
 
@@ -159,7 +159,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
 
     await editChapterContent("au1", 1, "New content", chapterRepo, stateRepo, opsRepo);
 
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const rebuiltState = rebuildStateFromOps(ops, "au1");
 
     expect(rebuiltState.chapters_dirty).toContain(1);
@@ -213,7 +213,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
     // Deprecate f1 → should auto-clean focus and emit set_chapter_focus op
     await updateFactStatus("au1", f1.id, "deprecated", 1, factRepo, opsRepo, stateRepo);
 
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const rebuiltState = rebuildStateFromOps(ops, "au1");
     const actualState = await stateRepo.get("au1");
 
@@ -254,7 +254,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
     expect((await factRepo.get("au1", f1.id))!.status).toBe("resolved");
 
     // Rebuild from ops only → must also produce f1 as RESOLVED
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const rebuilt = rebuildFactsFromOps(ops);
     const rebuiltF1 = rebuilt.find((f) => f.id === f1.id);
     expect(rebuiltF1).toBeDefined();
@@ -294,7 +294,7 @@ describe("ops roundtrip: service → ops → rebuild", () => {
     expect((await factRepo.get("au1", f1.id))!.status).toBe("unresolved");
 
     // Rebuild from ops only
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const rebuilt = rebuildFactsFromOps(ops);
     const rebuiltF1 = rebuilt.find((f) => f.id === f1.id);
     expect(rebuiltF1).toBeDefined();

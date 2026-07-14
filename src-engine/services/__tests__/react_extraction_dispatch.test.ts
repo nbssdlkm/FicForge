@@ -389,7 +389,7 @@ describe("reactExtractFromChapter — 终止 / 降级语义", () => {
 });
 
 describe("reactExtractFromChapter — round-trip 闭环（最高优先级）", () => {
-  it("提取产出的 caused_by + thread_ids 经 addFact → list_all + ops rebuild 读回一致", async () => {
+  it("提取产出的 caused_by + thread_ids 经 addFact → listAll + ops rebuild 读回一致", async () => {
     const { factRepo, threadRepo } = await seededRepos([SEED_FACT], [SEED_THREAD]);
     const provider = createScriptedStreamProvider([
       toolIter([
@@ -449,12 +449,12 @@ describe("reactExtractFromChapter — round-trip 闭环（最高优先级）", (
     expect(created.thread_ids).toEqual(["t_seed"]);
 
     // hop2: jsonl read-back
-    const persisted = (await factRepo2.list_all("au2"))[0];
+    const persisted = (await factRepo2.listAll("au2"))[0];
     expect(persisted.caused_by).toEqual(["f_seed_3"]);
     expect(persisted.thread_ids).toEqual(["t_seed"]);
 
     // hop5+6: ops 快照 → rebuild 还原
-    const ops = await opsRepo2.list_all("au2");
+    const ops = await opsRepo2.listAll("au2");
     const rebuilt = rebuildFactsFromOps(ops);
     expect(rebuilt[0].caused_by).toEqual(["f_seed_3"]);
     expect(rebuilt[0].thread_ids).toEqual(["t_seed"]);
@@ -678,7 +678,7 @@ describe("reactExtractFromChapter — H10 富化字段置信度合成（回归�
     );
 
     // jsonl 读回 → 门控放行
-    const persisted = (await factRepo.list_all("au_e2e"))[0];
+    const persisted = (await factRepo.listAll("au_e2e"))[0];
     const suffix = buildFactEnrichmentSuffix(persisted);
     expect(suffix).toContain("location: 城郊");
     expect(suffix).toContain("action_verb: 结盟");
@@ -688,7 +688,7 @@ describe("reactExtractFromChapter — H10 富化字段置信度合成（回归�
     expect(clause).toBe("（仅读者知）");
 
     // ops 快照 rebuild → 门控同样放行（_confidence 走 ops payload 存活）
-    const rebuilt = rebuildFactsFromOps(await opsRepo.list_all("au_e2e"));
+    const rebuilt = rebuildFactsFromOps(await opsRepo.listAll("au_e2e"));
     expect(buildFactEnrichmentSuffix(rebuilt[0])).toBe(suffix);
     expect(buildFactKnowledgeClause(rebuilt[0], "zh")).toBe(clause);
   });

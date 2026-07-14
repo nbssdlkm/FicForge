@@ -188,7 +188,7 @@ describe("generateChapter", () => {
       name: "AbortError",
     });
     expect(abortProvider.calls[0]?.signal).toBe(controller.signal);
-    await expect(params.draft_repo.list_by_chapter("au_abort", 1)).resolves.toEqual([]);
+    await expect(params.draft_repo.listByChapter("au_abort", 1)).resolves.toEqual([]);
     // M5：AbortError rethrow 后 finally 必须释放 inflight，否则该章永久锁死返 409
     expect(isChapterInflight(chapterInflightKey("au_abort", 1))).toBe(false);
   });
@@ -280,11 +280,11 @@ describe("generateChapter", () => {
       ];
     });
     const vectorRepo: VectorRepository = {
-      async index_chunks() {},
+      async indexChunks() {},
       search: searchSpy,
-      async delete_by_chapter() {},
-      async delete_by_source() {},
-      async get_index_status() {
+      async deleteByChapter() {},
+      async deleteBySource() {},
+      async getIndexStatus() {
         return IndexStatus.READY;
       },
     };

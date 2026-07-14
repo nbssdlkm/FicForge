@@ -220,7 +220,7 @@ describe("M8-B fact.thread_ids serialization across all hops", () => {
     stateRepo = new FileStateRepository(adapter);
   });
 
-  it("hop2 (jsonl): factRepo.append → list_all preserves thread_ids/thread_roles", async () => {
+  it("hop2 (jsonl): factRepo.append → listAll preserves thread_ids/thread_roles", async () => {
     const fact = createFact({
       id: "f1",
       content_raw: "r",
@@ -229,7 +229,7 @@ describe("M8-B fact.thread_ids serialization across all hops", () => {
       thread_roles: { t1: "turning_point" },
     });
     await factRepo.append("au", fact);
-    const got = (await factRepo.list_all("au"))[0];
+    const got = (await factRepo.listAll("au"))[0];
     expect(got.thread_ids).toEqual(["t1", "t2"]);
     expect(got.thread_roles).toEqual({ t1: "turning_point" });
   });
@@ -251,12 +251,12 @@ describe("M8-B fact.thread_ids serialization across all hops", () => {
     expect(created.thread_ids).toEqual(["t_revenge", "t_plot"]);
 
     // 持久化（factToDict/dictToFact）
-    const persisted = (await factRepo.list_all("au"))[0];
+    const persisted = (await factRepo.listAll("au"))[0];
     expect(persisted.thread_ids).toEqual(["t_revenge", "t_plot"]);
     expect(persisted.thread_roles).toEqual({ t_revenge: "trigger" });
 
     // ops rebuild（add_fact 快照 → factFromPayload）—— M8-A 的 BLOCKER 正在此处
-    const ops = await opsRepo.list_all("au");
+    const ops = await opsRepo.listAll("au");
     const rebuilt = rebuildFactsFromOps(ops);
     expect(rebuilt[0].thread_ids).toEqual(["t_revenge", "t_plot"]);
     expect(rebuilt[0].thread_roles).toEqual({ t_revenge: "trigger" });
@@ -272,7 +272,7 @@ describe("M8-B fact.thread_ids serialization across all hops", () => {
     expect(live?.thread_ids).toEqual(["t9"]);
 
     // ops rebuild 必须经 EDITABLE_FIELDS 还原（否则 undo/rebuild 丢挂线）
-    const ops = await opsRepo.list_all("au");
+    const ops = await opsRepo.listAll("au");
     const rebuilt = rebuildFactsFromOps(ops).find((f) => f.id === created.id);
     expect(rebuilt?.thread_ids).toEqual(["t9"]);
   });

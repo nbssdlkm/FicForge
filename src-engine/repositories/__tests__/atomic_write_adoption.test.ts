@@ -30,7 +30,7 @@ function expectNoTmpResidue(adapter: MockAdapter): void {
 }
 
 describe("原子写收编 round-trip（每类核心数据文件）", () => {
-  it("chapter：save → get 且无 .tmp 残留（含 backup_chapter）", async () => {
+  it("chapter：save → get 且无 .tmp 残留（含 backupChapter）", async () => {
     const adapter = new MockAdapter();
     const repo = new FileChapterRepository(adapter);
     await repo.save(createChapter({ au_id: "au1", chapter_num: 1, content: "第一章正文" }));
@@ -38,7 +38,7 @@ describe("原子写收编 round-trip（每类核心数据文件）", () => {
     const loaded = await repo.get("au1", 1);
     expect(loaded.content).toBe("第一章正文");
 
-    const dest = await repo.backup_chapter("au1", 1);
+    const dest = await repo.backupChapter("au1", 1);
     expect(await adapter.readFile(dest)).toContain("第一章正文");
     expectNoTmpResidue(adapter);
   });

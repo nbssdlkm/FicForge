@@ -63,7 +63,7 @@ describe("addFactsBatch", () => {
     const r = await addFactsBatch(auPath, [factInput(1, "a"), factInput(1, "b"), factInput(2, "c")]);
     expect(r.added).toBe(3);
     expect(r.skipped).toBe(0);
-    const all = await getEngine().repos.fact.list_all(auPath);
+    const all = await getEngine().repos.fact.listAll(auPath);
     expect(all.length).toBe(3);
   });
 
@@ -73,7 +73,7 @@ describe("addFactsBatch", () => {
     const r = await addFactsBatch(auPath, [factInput(5, "orphan-a"), factInput(5, "orphan-b")]);
     expect(r.added).toBe(0);
     expect(r.skipped).toBe(2);
-    const all = await getEngine().repos.fact.list_all(auPath);
+    const all = await getEngine().repos.fact.listAll(auPath);
     expect(all.length).toBe(0); // 零孤儿：删掉存在性校验则会写入 2 条 → 此断言挂
   });
 
@@ -82,7 +82,7 @@ describe("addFactsBatch", () => {
     const r = await addFactsBatch(auPath, [factInput(1, "keep"), factInput(9, "orphan"), factInput(2, "keep2")]);
     expect(r.added).toBe(2);
     expect(r.skipped).toBe(1);
-    const all = await getEngine().repos.fact.list_all(auPath);
+    const all = await getEngine().repos.fact.listAll(auPath);
     expect(all.map((f) => f.chapter).sort()).toEqual([1, 2]);
     expect(all.every((f) => f.chapter !== 9)).toBe(true);
   });
@@ -115,7 +115,7 @@ describe("addFactsBatch", () => {
     //  - 批次先：5 条写入章 2 → undo 删章 2 + 其 add_fact ops 对应的 5 条 → 终态 0
     //  - undo 先：章 2 删除 → 批次 exists(2)=false → 全 skip → 终态 0
     // 逐条加锁的旧写法会在让步点被 undo 插入 → 残留 3 条指向已删章 2 的孤儿 → 此断言挂。
-    const all = await getEngine().repos.fact.list_all(auPath);
+    const all = await getEngine().repos.fact.listAll(auPath);
     const orphans = all.filter((f) => f.chapter === 2);
     expect(orphans.length).toBe(0);
   });
@@ -135,7 +135,7 @@ describe("addFactsBatch", () => {
     expect(err).toBeInstanceOf(PartialAddFactsError);
     expect((err as PartialAddFactsError).added).toBe(2); // 前两条已落盘，供调用方去重
     // 落盘的确实只有前两条（第 3 条抛错、第 4 条未尝试）
-    const all = await getEngine().repos.fact.list_all(auPath);
+    const all = await getEngine().repos.fact.listAll(auPath);
     expect(all.length).toBe(2);
   });
 });
@@ -165,7 +165,7 @@ describe("落库/编辑按角色卡别名表归一化（M3 别名表接通）", 
     ]);
     expect(r.added).toBe(1);
 
-    const all = await getEngine().repos.fact.list_all(auPath);
+    const all = await getEngine().repos.fact.listAll(auPath);
     expect(all).toHaveLength(2);
     expect(all[0].characters).toEqual(["Alice"]);
     expect(all[0].known_to).toEqual(["Alice"]);
@@ -174,7 +174,7 @@ describe("落库/编辑按角色卡别名表归一化（M3 别名表接通）", 
 
   it("editFact：编辑 characters / hidden_from 按表归一化", async () => {
     await addFact(auPath, 1, factInput(1, "Alice 的一条事实").data);
-    const [fact] = await getEngine().repos.fact.list_all(auPath);
+    const [fact] = await getEngine().repos.fact.listAll(auPath);
 
     const updated = await editFact(auPath, fact.id, {
       characters: ["小爱"],

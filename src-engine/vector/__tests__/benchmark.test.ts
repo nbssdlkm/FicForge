@@ -68,7 +68,7 @@ describe.skipIf(!process.env.FICFORGE_BENCH)("Vector engine performance benchmar
 
     // Index all chunks
     const indexStart = performance.now();
-    await engine.index_chunks(chunks);
+    await engine.indexChunks(chunks);
     const indexTime = performance.now() - indexStart;
 
     expect(engine.chunkCount).toBe(5000);
@@ -93,7 +93,7 @@ describe.skipIf(!process.env.FICFORGE_BENCH)("Vector engine performance benchmar
     const dim = 384;
     const chunks = Array.from({ length: 1000 }, (_, i) => makeChunk(i, dim));
 
-    await engine.index_chunks(chunks);
+    await engine.indexChunks(chunks);
 
     const queryVec = randomEmbedding(dim);
     const searchStart = performance.now();
@@ -112,7 +112,7 @@ describe.skipIf(!process.env.FICFORGE_BENCH)("Vector engine performance benchmar
     const engine = new JsonVectorEngine(noopAdapter as any);
     const dim = 384;
     const chunks = Array.from({ length: 5000 }, (_, i) => makeChunk(i, dim));
-    await engine.index_chunks(chunks);
+    await engine.indexChunks(chunks);
 
     const queryVec = randomEmbedding(dim);
     const searchStart = performance.now();

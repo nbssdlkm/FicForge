@@ -172,7 +172,7 @@ describe("importChapters (backward compat)", () => {
     const ch = await chapterRepo.get("au1", 1);
     expect(ch.provenance).toBe("imported");
 
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     expect(ops).toHaveLength(1);
     expect(ops[0].op_type).toBe("import_project");
   });
@@ -682,7 +682,7 @@ describe("executeImport", () => {
     expect(state.chapter_titles[1]).toBe("Chapter 1");
     expect(state.chapter_titles[5]).toBe("Chapter 2");
 
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     expect(ops).toHaveLength(1);
     expect(ops[0].op_type).toBe("import_chapters");
   });
@@ -810,7 +810,7 @@ describe("executeImport", () => {
 
     expect(failingAdapter.allFiles().filter((path) => path.includes("/worldbuilding/"))).toEqual([]);
     expect(await chapterRepo.exists("au1", 1)).toBe(false);
-    expect(await opsRepo.list_all("au1")).toHaveLength(0);
+    expect(await opsRepo.listAll("au1")).toHaveLength(0);
   });
 
   it("rolls back settings files when tx.commit() fails after settings succeed", async () => {
@@ -965,13 +965,13 @@ describe("executeImport", () => {
     expect(await chapterRepo.exists("au1", 1)).toBe(true);
     expect(await chapterRepo.exists("au1", 5)).toBe(true);
     // 2 ops logged (one per import)
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     expect(ops).toHaveLength(2);
   });
 
   // --- overwrite 模式 trash 失败兜底（审计 M29）---
 
-  it("overwrite: trash 失败降级 backup_chapter，备份成功则继续覆盖（审计 M29）", async () => {
+  it("overwrite: trash 失败降级 backupChapter，备份成功则继续覆盖（审计 M29）", async () => {
     const chapterRepo = new FileChapterRepository(adapter);
     const stateRepo = new FileStateRepository(adapter);
     const opsRepo = new FileOpsRepository(adapter);
@@ -1003,7 +1003,7 @@ describe("executeImport", () => {
     expect(result.trashedChapters).toEqual([]);
     expect(result.overwriteSkippedChapters).toEqual([]);
     // 新内容已覆盖
-    expect(await chapterRepo.get_content_only("au1", 1)).toContain("Content of chapter 1");
+    expect(await chapterRepo.getContentOnly("au1", 1)).toContain("Content of chapter 1");
     // 旧章降级进了 backups 目录（旧代码此处静默覆盖 → 旧章永失且不在回收站）
     expect(adapter.raw("au1/chapters/backups/ch0001_v1.md")).toContain("旧章正文");
   });
@@ -1018,7 +1018,7 @@ describe("executeImport", () => {
         throw new Error("trash backend down");
       }),
     } as unknown as TrashService;
-    vi.spyOn(chapterRepo, "backup_chapter").mockRejectedValue(new Error("backup disk full"));
+    vi.spyOn(chapterRepo, "backupChapter").mockRejectedValue(new Error("backup disk full"));
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     try {
@@ -1041,12 +1041,12 @@ describe("executeImport", () => {
       expect(result.overwriteSkippedChapters).toEqual([1]);
       expect(result.chaptersImported).toBe(1); // 仅 ch2
       // 判别断言：旧章内容原样保留（旧代码会被新内容覆盖）
-      expect(await chapterRepo.get_content_only("au1", 1)).toBe("旧章正文，不能丢。");
+      expect(await chapterRepo.getContentOnly("au1", 1)).toBe("旧章正文，不能丢。");
       expect(await chapterRepo.exists("au1", 2)).toBe(true);
       // state / ops 只反映真正落盘的章
       const state = await stateRepo.get("au1");
       expect(state.current_chapter).toBe(3);
-      const ops = await opsRepo.list_all("au1");
+      const ops = await opsRepo.listAll("au1");
       expect(ops).toHaveLength(1);
       expect((ops[0].payload as { total_chapters: number }).total_chapters).toBe(1);
       expect(warnSpy).toHaveBeenCalled();

@@ -85,7 +85,7 @@ describe("dispatchSimpleChat", () => {
       expect(done.data.generated_with.output_tokens).toBe(3);
     }
     // draft 落盘
-    const drafts = await new FileDraftRepository(adapter).list_by_chapter("au_test", 1);
+    const drafts = await new FileDraftRepository(adapter).listByChapter("au_test", 1);
     expect(drafts).toHaveLength(1);
     expect(drafts[0].variant).toBe("A");
     expect(drafts[0].content.trimEnd()).toBe("Hello world!");
@@ -153,7 +153,7 @@ describe("dispatchSimpleChat", () => {
     const fullStreamed = chunkEvents.map((e) => (e.type === "chat_reply_chunk" ? e.data : "")).join("");
     expect(fullStreamed).toBe("hi there");
 
-    const drafts = await new FileDraftRepository(adapter).list_by_chapter("au_test", 1);
+    const drafts = await new FileDraftRepository(adapter).listByChapter("au_test", 1);
     expect(drafts).toHaveLength(0);
   });
 
@@ -279,7 +279,7 @@ describe("dispatchSimpleChat", () => {
     }
 
     // partial draft 必须真落盘（之前 label="" bug 时这条永远 0 个）
-    const drafts = await new FileDraftRepository(adapter).list_by_chapter("au_test", 1);
+    const drafts = await new FileDraftRepository(adapter).listByChapter("au_test", 1);
     expect(drafts).toHaveLength(1);
     expect(drafts[0].variant).toBe("A");
     expect(drafts[0].content).toContain("夜色低垂");
@@ -327,7 +327,7 @@ describe("dispatchSimpleChat", () => {
     expect(idxDoneText).toBeLessThan(idxDoneTools);
 
     // draft 真落盘
-    const drafts = await new FileDraftRepository(adapter).list_by_chapter("au_test", 1);
+    const drafts = await new FileDraftRepository(adapter).listByChapter("au_test", 1);
     expect(drafts).toHaveLength(1);
     expect(drafts[0].content.trimEnd()).toBe("Hello");
   });
@@ -353,7 +353,7 @@ describe("dispatchSimpleChat", () => {
     }
 
     // 不应落 draft（既无 fullText 也无 tool 输出，没东西可救）
-    const drafts = await new FileDraftRepository(adapter).list_by_chapter("au_test", 1);
+    const drafts = await new FileDraftRepository(adapter).listByChapter("au_test", 1);
     expect(drafts).toHaveLength(0);
   });
 
@@ -375,7 +375,7 @@ describe("dispatchSimpleChat", () => {
     }
 
     // 不应落空 draft（旧行为是落空 draft + done_text，新行为 yield error）
-    const drafts = await new FileDraftRepository(adapter).list_by_chapter("au_test", 1);
+    const drafts = await new FileDraftRepository(adapter).listByChapter("au_test", 1);
     expect(drafts).toHaveLength(0);
   });
 
@@ -479,7 +479,7 @@ describe("dispatchSimpleChat", () => {
     }
 
     // 不应落 draft（无 text 路径）
-    const drafts = await new FileDraftRepository(adapter).list_by_chapter("au_test", 1);
+    const drafts = await new FileDraftRepository(adapter).listByChapter("au_test", 1);
     expect(drafts).toHaveLength(0);
   });
 
@@ -1131,7 +1131,7 @@ describe("dispatchSimpleChat", () => {
     }
 
     // draft 不应落盘（forceToolOnly 不写 draft）
-    const drafts = await new FileDraftRepository(adapter).list_by_chapter("au_test", 1);
+    const drafts = await new FileDraftRepository(adapter).listByChapter("au_test", 1);
     expect(drafts).toHaveLength(0);
   });
 
@@ -1239,10 +1239,10 @@ describe("dispatchSimpleChat", () => {
       async search() {
         return [];
       }, // 返空：RAG 无结果，但 embed 仍被调用一次/组装
-      async index_chunks() {},
-      async delete_by_chapter() {},
-      async delete_by_source() {},
-      async get_index_status() {
+      async indexChunks() {},
+      async deleteByChapter() {},
+      async deleteBySource() {},
+      async getIndexStatus() {
         return IndexStatus.READY;
       },
     };

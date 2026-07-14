@@ -64,7 +64,7 @@ describe("checkAndSnapshot — watermark 增量归档", () => {
     expect(snap.archivedOpsCount).toBe(7);
     expect(archiveLines()).toHaveLength(7);
     // ops.jsonl 不清空（watermark 策略：崩溃不丢数据）
-    expect((await opsRepo.list_all(AU)).length).toBe(7);
+    expect((await opsRepo.listAll(AU)).length).toBe(7);
   });
 
   it("同章幂等：已有快照则跳过、归档不重复追加", async () => {

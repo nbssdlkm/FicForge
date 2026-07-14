@@ -9,7 +9,7 @@ import type { Chapter } from "../../domain/chapter.js";
 import { KNOWN_CHAPTER_META_KEYS, createChapter } from "../../domain/chapter.js";
 // 章节解析必须走 safeMatter（审计 H6 + M27 + B-3 全套防御，见 domain/frontmatter.ts）：
 // 裸 matter(raw) 会把 `---` 开头的正文吞成 frontmatter，导致该章不可读、
-// list_main 整 AU 崩、get_content_only 静默丢正文。
+// listMain 整 AU 崩、getContentOnly 静默丢正文。
 import { safeMatter } from "../../domain/frontmatter.js";
 import { generatedWithFromYaml, generatedWithToYaml } from "../../domain/generated_with.js";
 import { ON_DISK_DEFAULT_REVISION } from "../../domain/project.js";
@@ -135,7 +135,7 @@ export class FileChapterRepository implements ChapterRepository {
     }
   }
 
-  async list_main(au_id: string): Promise<Chapter[]> {
+  async listMain(au_id: string): Promise<Chapter[]> {
     validateBasePath(au_id, "au_id");
     const mainDir = joinPath(au_id, "chapters", "main");
     const exists = await this.adapter.exists(mainDir);
@@ -159,7 +159,7 @@ export class FileChapterRepository implements ChapterRepository {
     return this.adapter.exists(this.chapterPath(au_id, chapter_num));
   }
 
-  async get_content_only(au_id: string, chapter_num: number): Promise<string> {
+  async getContentOnly(au_id: string, chapter_num: number): Promise<string> {
     validateBasePath(au_id, "au_id");
     const path = this.chapterPath(au_id, chapter_num);
     const exists = await this.adapter.exists(path);
@@ -172,7 +172,7 @@ export class FileChapterRepository implements ChapterRepository {
     return content.replace(/^\n+/, "").replace(/\n+$/, "");
   }
 
-  async backup_chapter(au_id: string, chapter_num: number): Promise<string> {
+  async backupChapter(au_id: string, chapter_num: number): Promise<string> {
     validateBasePath(au_id, "au_id");
     const src = this.chapterPath(au_id, chapter_num);
     const srcExists = await this.adapter.exists(src);

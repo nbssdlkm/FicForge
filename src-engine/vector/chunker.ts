@@ -62,7 +62,7 @@ export function splitChapterIntoChunks(
   character_aliases?: Record<string, string[]> | null,
 ): ChunkData[] {
   // 剥离 frontmatter（审计 B-2）：输入通常已是 content-only 正文（rag_manager 传
-  // get_content_only 结果），这里的剥离只是对「误传整文件」的防御。裸 matter()
+  // getContentOnly 结果），这里的剥离只是对「误传整文件」的防御。裸 matter()
   // 会把 `---` 开头的首场景吞成 frontmatter（该场景永不进向量索引），非法 YAML
   // 形态则直接抛错（indexChapter 失败）—— safeMatter 只在有真章节 frontmatter
   // 时才剥，其余整文进分块。

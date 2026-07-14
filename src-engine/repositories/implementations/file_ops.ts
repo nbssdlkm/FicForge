@@ -132,7 +132,7 @@ export class FileOpsRepository implements OpsRepository {
     });
   }
 
-  async list_all(au_id: string): Promise<OpsEntry[]> {
+  async listAll(au_id: string): Promise<OpsEntry[]> {
     const path = this.opsPath(au_id);
     const exists = await this.adapter.exists(path);
     if (!exists) return [];
@@ -147,23 +147,23 @@ export class FileOpsRepository implements OpsRepository {
     return entries;
   }
 
-  async list_by_target(au_id: string, target_id: string): Promise<OpsEntry[]> {
-    const entries = await this.list_all(au_id);
+  async listByTarget(au_id: string, target_id: string): Promise<OpsEntry[]> {
+    const entries = await this.listAll(au_id);
     return entries.filter((e) => e.target_id === target_id);
   }
 
-  async list_by_chapter(au_id: string, chapter_num: number): Promise<OpsEntry[]> {
-    const entries = await this.list_all(au_id);
+  async listByChapter(au_id: string, chapter_num: number): Promise<OpsEntry[]> {
+    const entries = await this.listAll(au_id);
     return entries.filter((e) => e.chapter_num === chapter_num);
   }
 
-  async get_by_op_type(au_id: string, op_type: string): Promise<OpsEntry[]> {
-    const entries = await this.list_all(au_id);
+  async getByOpType(au_id: string, op_type: string): Promise<OpsEntry[]> {
+    const entries = await this.listAll(au_id);
     return entries.filter((e) => e.op_type === op_type);
   }
 
-  async get_confirm_for_chapter(au_id: string, chapter_num: number): Promise<OpsEntry | null> {
-    const entries = await this.list_all(au_id);
+  async getConfirmForChapter(au_id: string, chapter_num: number): Promise<OpsEntry | null> {
+    const entries = await this.listAll(au_id);
     for (let i = entries.length - 1; i >= 0; i--) {
       if (entries[i].op_type === "confirm_chapter" && entries[i].chapter_num === chapter_num) {
         return entries[i];
@@ -172,17 +172,17 @@ export class FileOpsRepository implements OpsRepository {
     return null;
   }
 
-  async get_add_facts_for_chapter(au_id: string, chapter_num: number): Promise<OpsEntry[]> {
-    const entries = await this.list_all(au_id);
+  async getAddFactsForChapter(au_id: string, chapter_num: number): Promise<OpsEntry[]> {
+    const entries = await this.listAll(au_id);
     return entries.filter((e) => e.op_type === "add_fact" && e.chapter_num === chapter_num);
   }
 
-  async get_latest_by_type(au_id: string, op_type: string): Promise<OpsEntry | null> {
-    const entries = await this.get_by_op_type(au_id, op_type);
+  async getLatestByType(au_id: string, op_type: string): Promise<OpsEntry | null> {
+    const entries = await this.getByOpType(au_id, op_type);
     return entries.length > 0 ? entries[entries.length - 1] : null;
   }
 
-  async replace_all(au_id: string, ops: OpsEntry[]): Promise<void> {
+  async replaceAll(au_id: string, ops: OpsEntry[]): Promise<void> {
     const path = this.opsPath(au_id);
     await withWriteLock(path, async () => {
       // 写入前保留坏行到 .bad sidecar，防止永久丢失

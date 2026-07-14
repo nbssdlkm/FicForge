@@ -13,11 +13,11 @@ export interface DraftRepository {
   save(draft: Draft): Promise<void>;
 
   /** 列出指定章节的所有草稿变体。 */
-  list_by_chapter(au_id: string, chapter_num: number): Promise<Draft[]>;
+  listByChapter(au_id: string, chapter_num: number): Promise<Draft[]>;
 
   /** 删除指定章节的所有草稿（用于 undo 级联清理）。 */
-  delete_by_chapter(au_id: string, chapter_num: number): Promise<void>;
+  deleteByChapter(au_id: string, chapter_num: number): Promise<void>;
 
   /** 删除章节号 >= from_chapter_num 的所有草稿（D-0016 undo 清理）。 */
-  delete_from_chapter(au_id: string, from_chapter_num: number): Promise<void>;
+  deleteFromChapter(au_id: string, from_chapter_num: number): Promise<void>;
 }

@@ -107,10 +107,10 @@ async function doResolve(params: ResolveDirtyParams): Promise<ResolveDirtyResult
       cast_registry,
       character_aliases,
     );
-    content = await chapter_repo.get_content_only(au_id, chapter_num);
+    content = await chapter_repo.getContentOnly(au_id, chapter_num);
     state.last_scene_ending = extractLastSceneEnding(content);
   } else {
-    content = await chapter_repo.get_content_only(au_id, chapter_num);
+    content = await chapter_repo.getContentOnly(au_id, chapter_num);
   }
 
   // === 步骤 3：重算 content_hash ===
@@ -221,7 +221,7 @@ async function recalcCharactersLatest(
   const baseline = await getBaseline(au_id, chapter_num, chapter_repo, ops_repo, cast_registry, character_aliases);
 
   // 扫描第 N 章
-  const content = await chapter_repo.get_content_only(au_id, chapter_num);
+  const content = await chapter_repo.getContentOnly(au_id, chapter_num);
   const scanned = scanCharactersInChapter(content, cast_registry, character_aliases, chapter_num);
 
   // 合并（取 max，proto 安全见 mergeCharactersLastSeen）
@@ -241,7 +241,7 @@ async function getBaseline(
   if (n <= 1) return {};
 
   // 优先：ops 快照
-  const confirmOp = await ops_repo.get_confirm_for_chapter(au_id, n - 1);
+  const confirmOp = await ops_repo.getConfirmForChapter(au_id, n - 1);
   if (confirmOp) {
     const snapshot = confirmOp.payload.characters_last_seen_snapshot;
     if (snapshot && typeof snapshot === "object") {
@@ -272,7 +272,7 @@ async function scanRecentChapters(
   cast_registry: { characters?: string[] },
   character_aliases: Record<string, string[]> | null,
 ): Promise<Record<string, number>> {
-  const allChapters = await chapter_repo.list_main(au_id);
+  const allChapters = await chapter_repo.listMain(au_id);
   const start = Math.max(1, n - 3);
   let targetChapters = allChapters.filter((ch) => ch.chapter_num >= start && ch.chapter_num <= n - 1);
 

@@ -94,7 +94,7 @@ export function createFactsExtractionTask(
     // 读取项目和已有 facts（project.yaml 缺失 = AU 结构损坏，提取无法继续）
     const proj = await projectRepo.get(auPath);
     if (!proj) throw new Error(`project.yaml not found: ${auPath}`);
-    const existingFacts = await factRepo.list_all(auPath);
+    const existingFacts = await factRepo.listAll(auPath);
 
     // 计算起始点（断点续传时跳过已完成的）
     const startFrom = completedUpTo > 0 ? completedUpTo + 1 : fromChapter;
@@ -109,7 +109,7 @@ export function createFactsExtractionTask(
       // 收集这一批的章节内容（并行读取）
       const batchEnd = Math.min(batchStart + batchSize - 1, toChapter);
       const chapterNums = Array.from({ length: batchEnd - batchStart + 1 }, (_, i) => batchStart + i);
-      const contents = await Promise.all(chapterNums.map((ch) => chapterRepo.get_content_only(auPath, ch)));
+      const contents = await Promise.all(chapterNums.map((ch) => chapterRepo.getContentOnly(auPath, ch)));
       const chapters = chapterNums.map((ch, i) => ({ chapter_num: ch, content: contents[i] }));
 
       if (ctx.signal.aborted) break;

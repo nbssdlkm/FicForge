@@ -58,7 +58,7 @@ describe("archive_fact / unarchive_fact", () => {
 
     await archiveFact("au1", fact.id, factRepo, opsRepo);
 
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const archiveOp = ops.find((o) => o.op_type === "archive_fact");
     expect(archiveOp).toBeDefined();
     expect(archiveOp!.target_id).toBe(fact.id);
@@ -101,7 +101,7 @@ describe("archive_fact / unarchive_fact", () => {
     await archiveFact("au1", fact.id, factRepo, opsRepo);
     await unarchiveFact("au1", fact.id, factRepo, opsRepo);
 
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const unarchiveOp = ops.find((o) => o.op_type === "unarchive_fact");
     expect(unarchiveOp).toBeDefined();
     expect(unarchiveOp!.target_id).toBe(fact.id);

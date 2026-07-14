@@ -124,7 +124,7 @@ async function collectResolvesReverse(
   fact_repo: FactRepository,
   exclude_fact_id?: string,
 ): Promise<ResolvesEffect | null> {
-  const allFacts = await fact_repo.list_all(au_id);
+  const allFacts = await fact_repo.listAll(au_id);
   // exclude_fact_id: 正在编辑的 fact，其 resolves 字段即将被移除，
   // 但磁盘上尚未更新，需要从 "仍然 resolves" 检查中排除
   const stillResolved = allFacts.some((f) => f.resolves === old_resolves_target_id && f.id !== exclude_fact_id);
@@ -612,7 +612,7 @@ export async function findArchivalCandidates(
   fact_repo: FactRepository,
   cold_threshold_chapters: number = ARCHIVE_DISTANCE,
 ): Promise<Fact[]> {
-  const all = await fact_repo.list_all(au_id);
+  const all = await fact_repo.listAll(au_id);
   return all.filter((f) => isArchivalCandidate(f, current_chapter, cold_threshold_chapters));
 }
 

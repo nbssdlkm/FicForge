@@ -41,10 +41,10 @@ describe("Facts Lifecycle", () => {
     expect(fact.content_clean).toBe("Alice met Bob");
     expect(fact.characters).toEqual(["Alice", "Bob"]);
 
-    const all = await factRepo.list_all("au1");
+    const all = await factRepo.listAll("au1");
     expect(all).toHaveLength(1);
 
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     expect(ops).toHaveLength(1);
     expect(ops[0].op_type).toBe("add_fact");
   });
@@ -146,7 +146,7 @@ describe("Facts Lifecycle", () => {
     );
 
     // status:"resloved"（拼错）非法 + content_clean 合法：旧代码 `v as FactStatus` 会把 "resloved"
-    // 直接写进 facts.jsonl，fact 从此从 list_by_status / 上下文组装里消失。新代码拒绝非法枚举、保留原值。
+    // 直接写进 facts.jsonl，fact 从此从 listByStatus / 上下文组装里消失。新代码拒绝非法枚举、保留原值。
     await editFact("au1", f.id, { status: "resloved", content_clean: "改后内容" }, factRepo, opsRepo, stateRepo);
 
     const got = await factRepo.get("au1", f.id);
@@ -154,7 +154,7 @@ describe("Facts Lifecycle", () => {
     expect(got!.content_clean).toBe("改后内容"); // 合法字段照常生效
 
     // op 只记实际生效字段，不把垃圾 status 写进 ops.jsonl（rebuild 时不会重新引入）
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const editOp = ops.find((o) => o.op_type === "edit_fact")!;
     const uf = editOp.payload.updated_fields as Record<string, unknown>;
     expect(uf.status).toBeUndefined();
@@ -335,13 +335,13 @@ describe("Facts Lifecycle", () => {
     // 强制 f1 回到 unresolved（模拟 target 不在 RESOLVED 态）
     await updateFactStatus("au1", f1.id, "unresolved", 1, factRepo, opsRepo, stateRepo);
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
-    const opsBefore = (await opsRepo.list_all("au1")).length;
+    const opsBefore = (await opsRepo.listAll("au1")).length;
 
     await updateFactStatus("au1", f2.id, "deprecated", 2, factRepo, opsRepo, stateRepo);
 
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.UNRESOLVED);
     // 只多了 f2 自己的 deprecate op，没有反向级联 op
-    expect((await opsRepo.list_all("au1")).length).toBe(opsBefore + 1);
+    expect((await opsRepo.listAll("au1")).length).toBe(opsBefore + 1);
   });
 
   it("updateFactStatus re-deprecate is idempotent → target stays UNRESOLVED, no double-revert (TD-014)", async () => {
@@ -453,7 +453,7 @@ describe("Facts Lifecycle", () => {
     expect(stored!.caused_by).toEqual(["f_prev_001"]);
 
     // ops payload must carry the fields too (ops rebuild parity)
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const addOp = ops.find((o) => o.op_type === "add_fact");
     expect(addOp).toBeDefined();
     expect(addOp!.payload.fact.location).toBe("御书房");
@@ -673,14 +673,14 @@ describe("Facts Lifecycle — M3 批一：editFact 知情字段硬化", () => {
       factRepo,
       opsRepo,
     );
-    const opsBefore = (await opsRepo.list_all("au1")).length;
+    const opsBefore = (await opsRepo.listAll("au1")).length;
     const revBefore = (await factRepo.get("au1", f.id))!.revision;
 
     const returned = await editFact("au1", f.id, { _confidence: { location: "high" } }, factRepo, opsRepo, stateRepo);
 
     expect(returned._confidence).toBeUndefined(); // 直写被拒
     expect((await factRepo.get("au1", f.id))!.revision).toBe(revBefore); // revision 不空转
-    expect((await opsRepo.list_all("au1")).length).toBe(opsBefore); // 不落空 op
+    expect((await opsRepo.listAll("au1")).length).toBe(opsBefore); // 不落空 op
   });
 
   it("人改升 high：有 _confidence 的 fact 编辑 known_to/hidden_from → 对应键升 high 并入 op；其余键不动", async () => {
@@ -707,7 +707,7 @@ describe("Facts Lifecycle — M3 批一：editFact 知情字段硬化", () => {
     expect(got._confidence!.hidden_from).toBe("high");
     expect(got._confidence!.location).toBe("low"); // 未编辑字段不动
 
-    const editOp = (await opsRepo.list_all("au1")).find((o) => o.op_type === "edit_fact")!;
+    const editOp = (await opsRepo.listAll("au1")).find((o) => o.op_type === "edit_fact")!;
     const uf = editOp.payload.updated_fields as Record<string, unknown>;
     expect((uf._confidence as Record<string, string>).known_to).toBe("high"); // 升级并入同一条 op
   });
@@ -741,14 +741,14 @@ describe("Facts Lifecycle — M3 批一：editFact 知情字段硬化", () => {
       factRepo,
       opsRepo,
     );
-    const opsBefore = (await opsRepo.list_all("au1")).length;
+    const opsBefore = (await opsRepo.listAll("au1")).length;
     const revBefore = (await factRepo.get("au1", f.id))!.revision;
 
     await editFact("au1", f.id, {}, factRepo, opsRepo, stateRepo);
     await editFact("au1", f.id, { status: "resloved", known_to: 42 }, factRepo, opsRepo, stateRepo);
 
     expect((await factRepo.get("au1", f.id))!.revision).toBe(revBefore);
-    expect((await opsRepo.list_all("au1")).length).toBe(opsBefore);
+    expect((await opsRepo.listAll("au1")).length).toBe(opsBefore);
   });
 
   it("editFact 别名归一化经消毒器统一生效（known_to/hidden_from/characters 同表）", async () => {
@@ -870,7 +870,7 @@ describe("Facts Lifecycle — 对抗审整改（codex R1）", () => {
       factRepo,
       opsRepo,
     );
-    const opsBefore = (await opsRepo.list_all("au1")).length;
+    const opsBefore = (await opsRepo.listAll("au1")).length;
     const revBefore = (await factRepo.get("au1", f.id))!.revision;
 
     // UI 非受控表单的典型行为：把全部字段原样发回
@@ -890,7 +890,7 @@ describe("Facts Lifecycle — 对抗审整改（codex R1）", () => {
 
     const got = (await factRepo.get("au1", f.id))!;
     expect(got.revision).toBe(revBefore);
-    expect((await opsRepo.list_all("au1")).length).toBe(opsBefore);
+    expect((await opsRepo.listAll("au1")).length).toBe(opsBefore);
     expect(got._confidence!.known_to).toBe("low"); // 未经人工实际修改，不得认证为 high
   });
 
@@ -958,7 +958,7 @@ describe("Facts Lifecycle — 对抗审整改（codex R1）", () => {
     await editFact("au1", f.id, { known_to: ["王妃", "王爷"] }, factRepo, opsRepo, stateRepo);
     const got = (await factRepo.get("au1", f.id))!;
     expect(got.known_to).toEqual(["王妃"]); // 王爷被瞒着 → 从知情名单剔除
-    const editOp = (await opsRepo.list_all("au1")).filter((o) => o.op_type === "edit_fact").pop()!;
+    const editOp = (await opsRepo.listAll("au1")).filter((o) => o.op_type === "edit_fact").pop()!;
     expect((editOp.payload.updated_fields as Record<string, unknown>).known_to).toEqual(["王妃"]);
   });
 

@@ -31,8 +31,8 @@ export interface FandomServiceDeps {
     fandom: {
       get(fandom_path: string): Promise<Fandom | null>;
       save(fandom_path: string, fandom: Fandom): Promise<void>;
-      list_fandoms(): Promise<string[]>;
-      list_aus(fandom_path: string): Promise<string[]>;
+      listFandoms(): Promise<string[]>;
+      listAus(fandom_path: string): Promise<string[]>;
     };
     project: {
       get(au_id: string): Promise<Project | null>;
@@ -86,7 +86,7 @@ export async function listFandoms(deps: FandomServiceDeps): Promise<
 > {
   const { fandom, state: stateRepo } = deps.repos;
   const dataDir = deps.dataDir;
-  const dirNames = await fandom.list_fandoms();
+  const dirNames = await fandom.listFandoms();
   const result = [];
 
   for (const dirName of dirNames) {
@@ -172,7 +172,7 @@ export async function listAus(deps: FandomServiceDeps, fandomDirName: string): P
   const dataDir = deps.dataDir;
   const { fandom, project } = deps.repos;
   const { adapter } = deps;
-  const auDirs = await fandom.list_aus(`${dataDir}/fandoms/${safeFandomDir}`);
+  const auDirs = await fandom.listAus(`${dataDir}/fandoms/${safeFandomDir}`);
   const validAus: FandomAuInfo[] = [];
 
   for (const dirName of auDirs) {

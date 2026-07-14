@@ -80,7 +80,7 @@ export async function executeReadTool(
           errorMessage: `第 ${num} 章不存在`,
         };
       }
-      const text = await ctx.chapter_repo.get_content_only(ctx.au_id, num);
+      const text = await ctx.chapter_repo.getContentOnly(ctx.au_id, num);
       return { content: text };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

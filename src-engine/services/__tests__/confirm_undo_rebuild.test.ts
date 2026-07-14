@@ -84,13 +84,13 @@ describe("confirm-undo-rebuild closed-loop", () => {
   }
 
   async function getRebuiltState() {
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const sorted = sortAndDedupeOps(ops);
     return rebuildStateFromOps(sorted, "au1");
   }
 
   async function getRebuiltFacts() {
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const sorted = sortAndDedupeOps(ops);
     return rebuildFactsFromOps(sorted);
   }
@@ -174,7 +174,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     let rebuiltState = await getRebuiltState();
     assertStateCoreMatch(repoState, rebuiltState);
 
-    let repoFacts = await factRepo.list_all("au1");
+    let repoFacts = await factRepo.listAll("au1");
     let rebuiltFacts = await getRebuiltFacts();
     assertFactsMatch(repoFacts, rebuiltFacts);
     expect(repoFacts).toHaveLength(3);
@@ -187,7 +187,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     assertStateCoreMatch(repoState, rebuiltState);
     expect(repoState.current_chapter).toBe(3);
 
-    repoFacts = await factRepo.list_all("au1");
+    repoFacts = await factRepo.listAll("au1");
     rebuiltFacts = await getRebuiltFacts();
     assertFactsMatch(repoFacts, rebuiltFacts);
     // f3 (chapter 3) should be deleted
@@ -216,7 +216,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
       opsRepo,
     );
 
-    repoFacts = await factRepo.list_all("au1");
+    repoFacts = await factRepo.listAll("au1");
     rebuiltFacts = await getRebuiltFacts();
     assertFactsMatch(repoFacts, rebuiltFacts);
     expect(repoFacts).toHaveLength(3); // f1, f2, f3b
@@ -263,7 +263,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     // Verify: foreshadow resolved
     expect((await factRepo.get("au1", foreshadow.id))!.status).toBe(FactStatus.RESOLVED);
 
-    let repoFacts = await factRepo.list_all("au1");
+    let repoFacts = await factRepo.listAll("au1");
     let rebuiltFacts = await getRebuiltFacts();
     assertFactsMatch(repoFacts, rebuiltFacts);
 
@@ -272,7 +272,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
 
     expect((await factRepo.get("au1", foreshadow.id))!.status).toBe(FactStatus.UNRESOLVED);
 
-    repoFacts = await factRepo.list_all("au1");
+    repoFacts = await factRepo.listAll("au1");
     rebuiltFacts = await getRebuiltFacts();
     assertFactsMatch(repoFacts, rebuiltFacts);
 
@@ -361,7 +361,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     expect((await factRepo.get("au1", f1.id))!.status).toBe(FactStatus.DEPRECATED);
 
     // Verify rebuild matches BEFORE undo
-    let repoFacts = await factRepo.list_all("au1");
+    let repoFacts = await factRepo.listAll("au1");
     let rebuiltFacts = await getRebuiltFacts();
     assertFactsMatch(repoFacts, rebuiltFacts);
 
@@ -373,7 +373,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     // TD-003: undo's collectManualStatusRollback now emits an `update_fact_status`
     // rollback op, so rebuildFactsFromOps replicates the revert — the closed loop
     // (repo state ≡ ops rebuild) holds again, just like before the undo.
-    repoFacts = await factRepo.list_all("au1");
+    repoFacts = await factRepo.listAll("au1");
     rebuiltFacts = await getRebuiltFacts();
     expect(repoFacts).toHaveLength(1);
     expect(rebuiltFacts).toHaveLength(1);
@@ -427,7 +427,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     // (undo only deletes facts added during the undone chapter)
     expect(fact!.content_clean).toBe("修改后的内容");
 
-    const repoFacts = await factRepo.list_all("au1");
+    const repoFacts = await factRepo.listAll("au1");
     const rebuiltFacts = await getRebuiltFacts();
     assertFactsMatch(repoFacts, rebuiltFacts);
   });
@@ -460,7 +460,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     expect(finalState.current_chapter).toBe(1);
 
     // Ops should record all 10 operations (5 confirms + 5 undos)
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const confirms = ops.filter((o) => o.op_type === "confirm_chapter");
     const undos = ops.filter((o) => o.op_type === "undo_chapter");
     expect(confirms).toHaveLength(5);
@@ -528,12 +528,12 @@ describe("confirm-undo-rebuild closed-loop", () => {
       opsRepo,
     );
 
-    expect(await factRepo.list_all("au1")).toHaveLength(4);
+    expect(await factRepo.listAll("au1")).toHaveLength(4);
 
     // Undo chapter 3 → only f3a deleted
     await undoCh();
 
-    let repoFacts = await factRepo.list_all("au1");
+    let repoFacts = await factRepo.listAll("au1");
     expect(repoFacts).toHaveLength(3);
     expect(repoFacts.find((f) => f.id === f3a.id)).toBeUndefined();
     expect(repoFacts.find((f) => f.id === f1a.id)).toBeDefined();
@@ -545,7 +545,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     // Undo chapter 2 → f2a deleted
     await undoCh();
 
-    repoFacts = await factRepo.list_all("au1");
+    repoFacts = await factRepo.listAll("au1");
     expect(repoFacts).toHaveLength(2);
     expect(repoFacts.find((f) => f.id === f2a.id)).toBeUndefined();
 
@@ -567,7 +567,7 @@ describe("confirm-undo-rebuild closed-loop", () => {
     await undoCh();
 
     // Find the undo op
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const undoOp = ops.find((o) => o.op_type === "undo_chapter" && o.chapter_num === 2);
     expect(undoOp).toBeDefined();
 

@@ -154,7 +154,7 @@ describe("undo_latest_chapter", () => {
     expect((await sRepo.get("au1")).current_chapter).toBe(2);
     expect(await dRepo.get("au1", 2, "A")).not.toBeNull();
     // 已知残留（修前即如此，与 ops 一致、重试 undo 可恢复）：facts 已按 ops 记录删除
-    expect(await fRepo.list_all("au1")).toHaveLength(0);
+    expect(await fRepo.listAll("au1")).toHaveLength(0);
   });
 
   it("normal undo: state rolls back", async () => {
@@ -185,7 +185,7 @@ describe("undo_latest_chapter", () => {
     expect(await chapterRepo.exists("au1", 1)).toBe(false);
 
     // Ops logged
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     const undoOps = ops.filter((o) => o.op_type === "undo_chapter");
     expect(undoOps).toHaveLength(1);
   });
@@ -208,7 +208,7 @@ describe("undo_latest_chapter", () => {
       opsRepo,
     );
 
-    let facts = await factRepo.list_all("au1");
+    let facts = await factRepo.listAll("au1");
     expect(facts).toHaveLength(1);
 
     await undoLatestChapter({
@@ -220,7 +220,7 @@ describe("undo_latest_chapter", () => {
       fact_repo: factRepo,
     });
 
-    facts = await factRepo.list_all("au1");
+    facts = await factRepo.listAll("au1");
     expect(facts).toHaveLength(0);
   });
 

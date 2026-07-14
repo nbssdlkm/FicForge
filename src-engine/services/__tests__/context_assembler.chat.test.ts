@@ -57,10 +57,10 @@ function createMockVectorRepo(chunks: Record<string, SearchResult[]>): VectorRep
     async search(_au_id: string, _embedding: number[], options: SearchOptions): Promise<SearchResult[]> {
       return (chunks[options.collection] ?? []).slice(0, options.top_k);
     },
-    async index_chunks(_c: VectorChunk[]) {},
-    async delete_by_chapter() {},
-    async delete_by_source() {},
-    async get_index_status() {
+    async indexChunks(_c: VectorChunk[]) {},
+    async deleteByChapter() {},
+    async deleteBySource() {},
+    async getIndexStatus() {
       return IndexStatus.READY;
     },
   };

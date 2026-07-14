@@ -149,7 +149,7 @@ describe("backfillChapterMemory", () => {
     expect(s1?.standard?.text).toBe("摘要-1");
     expect(s2?.standard?.text).toBe("摘要-2");
     // 两章各落一条笔记
-    const facts = await getEngine().repos.fact.list_all(auPath);
+    const facts = await getEngine().repos.fact.listAll(auPath);
     expect(facts.length).toBe(2);
     // 两章正文进索引
     expect(getEngine().ragManager.indexChapter).toHaveBeenCalledTimes(2);
@@ -168,7 +168,7 @@ describe("backfillChapterMemory", () => {
 
   it("factsChapters 只含 ch1 → 仅 ch1 提笔记,ch2 只补摘要", async () => {
     const res = await backfillChapterMemory(auPath, { factsChapters: [1] });
-    const facts = await getEngine().repos.fact.list_all(auPath);
+    const facts = await getEngine().repos.fact.listAll(auPath);
     expect(facts.length).toBe(1);
     expect(facts[0].chapter).toBe(1);
     expect(engineModule.extractFactsFromChapter).toHaveBeenCalledTimes(1);
@@ -203,9 +203,9 @@ describe("backfillChapterMemory", () => {
   });
 
   it("CAS:target 建好后章节内容变了(hash 不符) → 跳过该章不写陈旧数据", async () => {
-    // 模拟「批量跑期间用户 edit/undo 了 ch1」:list_main 建 target 时拿到原 hash,
+    // 模拟「批量跑期间用户 edit/undo 了 ch1」:listMain 建 target 时拿到原 hash,
     // 之后 persist 锁内复查 chapter.get 才返回新 hash → CAS 失败 → 跳过。
-    // 注:list_main 内部也走 chapter.get,故用「第 2 次起的 get(1)」(= CAS 复查)才改 hash。
+    // 注:listMain 内部也走 chapter.get,故用「第 2 次起的 get(1)」(= CAS 复查)才改 hash。
     const realGet = getEngine().repos.chapter.get.bind(getEngine().repos.chapter);
     let ch1Calls = 0;
     vi.spyOn(getEngine().repos.chapter, "get").mockImplementation(async (au: string, num: number) => {
@@ -223,7 +223,7 @@ describe("backfillChapterMemory", () => {
     expect(res.indexed).toBe(1);
     const s1 = await getEngine().repos.chapterSummary.get(auPath, 1);
     expect(s1?.standard?.text).toBeFalsy(); // ch1 未落摘要
-    const facts = await getEngine().repos.fact.list_all(auPath);
+    const facts = await getEngine().repos.fact.listAll(auPath);
     expect(facts.every((f) => f.chapter !== 1)).toBe(true); // ch1 未落笔记
   });
 });

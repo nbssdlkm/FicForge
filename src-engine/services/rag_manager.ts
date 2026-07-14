@@ -271,8 +271,8 @@ export class RagManager {
       auPath,
       () =>
         this.withEngine(auPath, async (eng) => {
-          await eng.delete_by_chapter(auPath, chapterNum, "chapters");
-          if (prepared.length > 0) await eng.index_chunks(prepared);
+          await eng.deleteByChapter(auPath, chapterNum, "chapters");
+          if (prepared.length > 0) await eng.indexChunks(prepared);
           await eng.persist(vectorsDir(auPath));
         }),
       { signal, epoch },
@@ -320,7 +320,7 @@ export class RagManager {
 
   /**
    * 索引单章 standard 摘要为 summaries collection 的 1 个向量（M8-C）。
-   * id `sum{N}`，index_chunks 按 id 去重 → 重新生成自动覆盖。空摘要跳过。
+   * id `sum{N}`，indexChunks 按 id 去重 → 重新生成自动覆盖。空摘要跳过。
    *
    * TD-017 后：引擎是该 AU 独占实例，embed 期间不会被他 AU 换走内存，故不再需要旧的
    * 「embed 后 re-ensureLoaded」补丁（那是共享单例时代的缓解）。
@@ -340,7 +340,7 @@ export class RagManager {
       auPath,
       () =>
         this.withEngine(auPath, async (eng) => {
-          await eng.index_chunks([
+          await eng.indexChunks([
             {
               id: `sum${chapterNum}`,
               collection: "summaries",
@@ -363,7 +363,7 @@ export class RagManager {
     await this.withAuWriteLock(auPath, () =>
       this.withEngine(auPath, async (eng) => {
         const before = eng.chunkCount;
-        await eng.delete_by_chapter(auPath, chapterNum);
+        await eng.deleteByChapter(auPath, chapterNum);
         // 没删掉任何 chunk（该章从未被索引 / AU 根本没有索引）→ 不写盘，
         // 避免给未配 embedding 的 AU 凭空创建 .vectors/ 空索引。
         if (eng.chunkCount === before) return;
@@ -398,14 +398,14 @@ export class RagManager {
     // 附带收益：embed 中途失败/取消时引擎与磁盘均未被改动（旧实现先 rebuild_index 清内存，
     // 取消即 persist 半成品、未处理章的向量丢失）—— 现在直接 return，旧索引原样保留。
     const epoch = this.epochOf(auPath);
-    const chapters = await chapterRepo.list_main(auPath);
+    const chapters = await chapterRepo.listMain(auPath);
     const snapshotNums = new Set(chapters.map((ch) => ch.chapter_num));
-    const buffered: Parameters<JsonVectorEngine["index_chunks"]>[0] = [];
+    const buffered: Parameters<JsonVectorEngine["indexChunks"]>[0] = [];
     onProgress?.(0, chapters.length);
     for (let i = 0; i < chapters.length; i++) {
       if (signal?.aborted) return; // 旧索引未动，安全中止
       const ch = chapters[i];
-      const content = await chapterRepo.get_content_only(auPath, ch.chapter_num);
+      const content = await chapterRepo.getContentOnly(auPath, ch.chapter_num);
       buffered.push(
         ...(await this.prepareChapterChunks(
           auPath,
@@ -454,17 +454,17 @@ export class RagManager {
             // indexChapter 维护，盲清会误删它刚写的向量（旧实现 rebuild_index 全清无此问题，
             // 因为旧实现同时把并发写也锁死了；缓冲式必须选择性清扫）。
             for (const n of snapshotNums) {
-              await eng.delete_by_chapter(auPath, n);
+              await eng.deleteByChapter(auPath, n);
             }
             // 陈旧孤儿清扫：内存里属于「快照外且磁盘上已不存在的章」的向量是漂移垃圾
             // （removeChapter 失败残留等），rebuild 的修复语义要求把它们一并清掉。
             for (const n of eng.listChapterNums()) {
               if (snapshotNums.has(n)) continue;
               if (!(await chapterRepo.exists(auPath, n))) {
-                await eng.delete_by_chapter(auPath, n);
+                await eng.deleteByChapter(auPath, n);
               }
             }
-            await eng.index_chunks(buffered);
+            await eng.indexChunks(buffered);
             // 无论有无章节都 persist（0 章节时需要写入空索引覆盖旧数据）
             await eng.persist(vectorsDir(auPath));
           } catch (err) {
@@ -490,7 +490,7 @@ export class RagManager {
     castRegistry?: CastRegistryLike | null,
     characterAliases?: Record<string, string[]> | null,
     signal?: AbortSignal,
-  ): Promise<Parameters<JsonVectorEngine["index_chunks"]>[0]> {
+  ): Promise<Parameters<JsonVectorEngine["indexChunks"]>[0]> {
     const chunks = splitChapterIntoChunks(content, chapterNum, 500, 1, castRegistry, characterAliases);
     const texts = chunks.map((c) => c.content);
     const embeddings = chunks.length > 0 ? await embeddingProvider.embed(texts, { signal }) : [];

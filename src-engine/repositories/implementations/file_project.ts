@@ -110,7 +110,7 @@ export class FileProjectRepository implements ProjectRepository {
     await atomicWrite(this.adapter, path, content);
   }
 
-  async list_aus(fandom: string): Promise<Project[]> {
+  async listAus(fandom: string): Promise<Project[]> {
     validateBasePath(fandom, "fandom");
     const ausDir = joinPath(fandom, "aus");
     const exists = await this.adapter.exists(ausDir);

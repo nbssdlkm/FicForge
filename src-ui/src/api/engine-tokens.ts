@@ -29,7 +29,7 @@ export async function estimateSimpleContextTokens(
     getProjectOrThrow(auPath),
     e.repos.state.get(auPath),
     e.repos.settings.get(),
-    e.repos.fact.list_all(auPath).catch(() => []),
+    e.repos.fact.listAll(auPath).catch(() => []),
   ]);
   const threads = await e.repos.thread.list(auPath).catch(() => []);
   const language = resolveLang(settings);

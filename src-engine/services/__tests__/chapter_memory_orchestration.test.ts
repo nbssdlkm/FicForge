@@ -171,7 +171,7 @@ describe("chapter_memory_orchestration", () => {
     }
     for (let i = 6; i <= 9; i++) {
       const ch = await chapterRepo.get(AU, i);
-      await summaryRepo.update_micro(AU, i, `第${i}章微摘要`, ch!.content_hash);
+      await summaryRepo.updateMicro(AU, i, `第${i}章微摘要`, ch!.content_hash);
     }
     await seedDraft(10, "第10章正文。");
   }
@@ -334,7 +334,7 @@ describe("chapter_memory_orchestration", () => {
     await confirmChapterWithMemory(baseParams({ rag_manager: rag, embedding_provider: null, llm_provider: llm }));
     const st = await stateRepo.get(AU);
     expect(st.chapter_titles[1]).toBe("初入江湖");
-    const ops = await opsRepo.list_all(AU);
+    const ops = await opsRepo.listAll(AU);
     const titleOp = ops.find((o) => o.op_type === "set_chapter_title" && o.chapter_num === 1);
     expect(titleOp).toBeTruthy();
     expect(titleOp?.payload.title).toBe("初入江湖");

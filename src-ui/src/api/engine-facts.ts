@@ -72,9 +72,9 @@ export async function getFactsExtractionReadiness(auPath: string): Promise<{ has
 export async function listFacts(auPath: string, status?: string) {
   const { fact } = getEngine().repos;
   if (status) {
-    return await fact.list_by_status(auPath, status as FactStatus);
+    return await fact.listByStatus(auPath, status as FactStatus);
   }
-  return await fact.list_all(auPath);
+  return await fact.listAll(auPath);
 }
 
 export async function addFact(auPath: string, chapterNum: number, factData: Record<string, unknown>) {
@@ -236,8 +236,8 @@ export async function extractFacts(auPath: string, chapterNum: number, opts?: { 
   const { extractFactsFromChapter, reactExtractFromChapter } = await import("@ficforge/engine");
   const e = getEngine();
   const { provider, llmConfig, proj, lang, reactEnabled } = await resolveFactsProvider(auPath);
-  const chapterContent = await e.repos.chapter.get_content_only(auPath, chapterNum);
-  const existingFacts = await e.repos.fact.list_all(auPath);
+  const chapterContent = await e.repos.chapter.getContentOnly(auPath, chapterNum);
+  const existingFacts = await e.repos.fact.listAll(auPath);
   // 别名表接通：提取 prompt 渲染【已知角色名和别名】段 + rawToExtracted 归一化。
   // backfill（补全旧章记忆）逐章走本函数，自动同享。
   const characterAliases = await e.characterAliases.get(auPath);

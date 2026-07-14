@@ -5,7 +5,7 @@
  * M9 search_existing_facts 工具执行。纯函数：对「已加载的事实数组」做本地关键词 +
  * 角色过滤，返回精简结果（只带 search 相关字段，不泄露完整 Fact）。
  *
- * dispatch 在 loop 开始时一次性 fact_repo.list_all() 拿全量，之后每次 search 都过这个
+ * dispatch 在 loop 开始时一次性 fact_repo.listAll() 拿全量，之后每次 search 都过这个
  * 数组（避免每次 search 打 repo —— spec R5 性能）。跨章因果只看「更早章节」的事实
  * （chapter < current），同章正在提取的事实还没 fact_id，无从引用。
  */
@@ -33,7 +33,7 @@ function lc(s: string): string {
 }
 
 /**
- * @param allFacts       已加载的全量事实（dispatch 一次性 list_all 得到）
+ * @param allFacts       已加载的全量事实（dispatch 一次性 listAll 得到）
  * @param args           LLM 给的 search 参数
  * @param currentChapter 当前正在提取的章号；只检索 chapter < currentChapter 的事实
  */

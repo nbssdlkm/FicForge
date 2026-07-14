@@ -57,7 +57,7 @@ export async function updateThread(auPath: string, thread: Thread): Promise<void
  */
 export async function getStaleThreads(auPath: string): Promise<ThreadStaleness[]> {
   const e = getEngine();
-  const [threads, facts] = await Promise.all([e.repos.thread.list(auPath), e.repos.fact.list_all(auPath)]);
+  const [threads, facts] = await Promise.all([e.repos.thread.list(auPath), e.repos.fact.listAll(auPath)]);
   return computeThreadStaleness(threads, facts);
 }
 
@@ -70,7 +70,7 @@ export async function regenerateThreadState(auPath: string, threadId: string): P
   const e = getEngine();
   const thread = await e.repos.thread.get(auPath, threadId);
   if (!thread) return null;
-  const facts = await e.repos.fact.list_all(auPath);
+  const facts = await e.repos.fact.listAll(auPath);
   const members = threadMemberFacts(thread, facts);
   const { provider, lang } = await resolveFactsProvider(auPath);
   const state = await regenerateThreadStateEngine(thread, members, provider, { language: lang as "zh" | "en" });
@@ -93,7 +93,7 @@ export async function regenerateThreadState(auPath: string, threadId: string): P
  */
 export async function removeThread(auPath: string, id: string): Promise<void> {
   const e = getEngine();
-  const facts = await e.repos.fact.list_all(auPath);
+  const facts = await e.repos.fact.listAll(auPath);
   for (const f of facts) {
     const ids = f.thread_ids ?? [];
     if (!ids.includes(id)) continue;

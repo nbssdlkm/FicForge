@@ -500,7 +500,7 @@ export async function buildRecentChapterLayer(
 
   let content: string;
   try {
-    content = await chapter_repo.get_content_only(au_id, current - 1);
+    content = await chapter_repo.getContentOnly(au_id, current - 1);
   } catch {
     return "";
   }

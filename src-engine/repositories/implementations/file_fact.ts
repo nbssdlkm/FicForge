@@ -141,28 +141,28 @@ export class FileFactRepository implements FactRepository {
     return facts.find((f) => f.id === fact_id) ?? null;
   }
 
-  async list_all(au_id: string): Promise<Fact[]> {
+  async listAll(au_id: string): Promise<Fact[]> {
     return this.readAll(au_id);
   }
 
-  async list_by_status(au_id: string, status: FactStatus): Promise<Fact[]> {
+  async listByStatus(au_id: string, status: FactStatus): Promise<Fact[]> {
     const facts = await this.readAll(au_id);
     return facts.filter((f) => f.status === status);
   }
 
-  async list_by_chapter(au_id: string, chapter_num: number): Promise<Fact[]> {
+  async listByChapter(au_id: string, chapter_num: number): Promise<Fact[]> {
     const facts = await this.readAll(au_id);
     return facts.filter((f) => f.chapter === chapter_num);
   }
 
-  async list_by_characters(au_id: string, character_names: string[]): Promise<Fact[]> {
+  async listByCharacters(au_id: string, character_names: string[]): Promise<Fact[]> {
     const namesSet = new Set(character_names);
     const facts = await this.readAll(au_id);
     return facts.filter((f) => f.characters.some((c) => namesSet.has(c)));
   }
 
-  async list_unresolved(au_id: string): Promise<Fact[]> {
-    return this.list_by_status(au_id, FactStatus.UNRESOLVED);
+  async listUnresolved(au_id: string): Promise<Fact[]> {
+    return this.listByStatus(au_id, FactStatus.UNRESOLVED);
   }
 
   async append(au_id: string, fact: Fact): Promise<void> {
@@ -189,7 +189,7 @@ export class FileFactRepository implements FactRepository {
     });
   }
 
-  async delete_by_ids(au_id: string, fact_ids: string[]): Promise<void> {
+  async deleteByIds(au_id: string, fact_ids: string[]): Promise<void> {
     const idsSet = new Set(fact_ids);
     const path = this.factsPath(au_id);
     await withWriteLock(path, async () => {
@@ -202,7 +202,7 @@ export class FileFactRepository implements FactRepository {
     });
   }
 
-  async replace_all(au_id: string, facts: Fact[]): Promise<void> {
+  async replaceAll(au_id: string, facts: Fact[]): Promise<void> {
     const path = this.factsPath(au_id);
     await withWriteLock(path, async () => {
       await rewriteJsonl(this.adapter, path, facts.map(factToDict));

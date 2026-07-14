@@ -131,7 +131,7 @@ function setupBaseMocks() {
   // 默认提取就位（gate ② 通过）；各用例可经 mockSettingsSummary 或直接覆盖调整。
   mocked.getFactsExtractionReadiness.mockResolvedValue({ has_usable_connection: true });
   mocked.extractFacts.mockResolvedValue({ facts: [CANDIDATE] });
-  // 对齐真实引擎语义：目标章尚不存在 → get_content_only 抛错（面板 .catch(()=>null)）。
+  // 对齐真实引擎语义：目标章尚不存在 → getContentOnly 抛错（面板 .catch(()=>null)）。
   // R1-8 的 same-num guard 依赖这个区分（null=不存在 → 放行；""=存在空章 → 拦截）。
   mocked.getChapterContent.mockRejectedValue(new Error("Chapter not found"));
   mocked.markSimpleChatDraftAccepted.mockResolvedValue(undefined as never);

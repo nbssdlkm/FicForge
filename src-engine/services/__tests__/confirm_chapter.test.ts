@@ -65,7 +65,7 @@ describe("confirm_chapter", () => {
     expect(state.characters_last_seen.Alice).toBe(1);
 
     // Ops logged
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     expect(ops).toHaveLength(1);
     expect(ops[0].op_type).toBe("confirm_chapter");
     expect(ops[0].payload.characters_last_seen_snapshot).toBeTruthy();
@@ -77,7 +77,7 @@ describe("confirm_chapter", () => {
     expect(chapter.content).toContain("Alice走进了房间");
 
     // Draft deleted
-    const drafts = await draftRepo.list_by_chapter("au1", 1);
+    const drafts = await draftRepo.listByChapter("au1", 1);
     expect(drafts).toHaveLength(0);
   });
 
@@ -205,7 +205,7 @@ describe("confirm_chapter", () => {
       ops_repo: opsRepo,
     });
 
-    const ops = await opsRepo.list_all("au1");
+    const ops = await opsRepo.listAll("au1");
     expect(ops[0].payload.generated_with.model).toBe("gpt-4o");
   });
 

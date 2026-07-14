@@ -39,7 +39,7 @@ export interface SearchResult {
 
 export interface VectorRepository {
   /** 将 chunks 写入向量索引。 */
-  index_chunks(chunks: VectorChunk[]): Promise<void>;
+  indexChunks(chunks: VectorChunk[]): Promise<void>;
 
   /** 向量检索，返回最相关的文本片段。 */
   search(au_id: string, query_embedding: number[], options: SearchOptions): Promise<SearchResult[]>;
@@ -49,11 +49,11 @@ export interface VectorRepository {
    * collection 省略时删该章在所有 collection 的向量（正文 chunks + 摘要向量）；
    * 指定时只删该 collection（如重索引正文前只清 chapters，保留仍有效的 sum{N}）。
    */
-  delete_by_chapter(au_id: string, chapter_num: number, collection?: RagCollection): Promise<void>;
+  deleteByChapter(au_id: string, chapter_num: number, collection?: RagCollection): Promise<void>;
 
   /** 删除指定来源文件的向量索引。 */
-  delete_by_source(au_id: string, source_file: string): Promise<void>;
+  deleteBySource(au_id: string, source_file: string): Promise<void>;
 
   /** 获取索引状态。 */
-  get_index_status(au_id: string): Promise<IndexStatus>;
+  getIndexStatus(au_id: string): Promise<IndexStatus>;
 }

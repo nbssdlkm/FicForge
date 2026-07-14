@@ -35,11 +35,11 @@ function createMockProvider(tokens: string[] = ["你好", "世界"]): LLMProvide
 // 构造一个会被 search spy 记录调用的 VectorRepository（chapters 集合返回 1 条命中）。
 function makeVectorRepo(searchSpy: VectorRepository["search"]): VectorRepository {
   return {
-    async index_chunks() {},
+    async indexChunks() {},
     search: searchSpy,
-    async delete_by_chapter() {},
-    async delete_by_source() {},
-    async get_index_status() {
+    async deleteByChapter() {},
+    async deleteBySource() {},
+    async getIndexStatus() {
       return IndexStatus.READY;
     },
   };

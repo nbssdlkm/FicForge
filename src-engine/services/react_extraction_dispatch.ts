@@ -195,7 +195,7 @@ export async function reactExtractFromChapter(
   // thread 关联静默失联，用户排障需看到「上下文读取挂了」而非以为「本就没有」。
   if (opts.factRepo && opts.auPath) {
     try {
-      allFacts = await opts.factRepo.list_all(opts.auPath);
+      allFacts = await opts.factRepo.listAll(opts.auPath);
     } catch (err) {
       logCatch("react_extraction", "读取既有 facts 失败，按空集继续", err);
       allFacts = [];

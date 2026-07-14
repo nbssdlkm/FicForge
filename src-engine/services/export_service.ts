@@ -28,7 +28,7 @@ export async function exportChapters(params: ExportParams): Promise<string> {
     chapter_titles = {},
   } = params;
 
-  const allChapters = await chapter_repo.list_main(au_id);
+  const allChapters = await chapter_repo.listMain(au_id);
 
   // 过滤范围
   const filtered = allChapters

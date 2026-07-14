@@ -48,7 +48,7 @@ export class FileChapterSummaryRepository implements ChapterSummaryRepository {
   }
 
   /** 读取现有摘要（或空初始），合并写入 micro 键。幂等（后者覆盖）。 */
-  async update_micro(au_id: string, chapter_num: number, text: string, hash: string): Promise<void> {
+  async updateMicro(au_id: string, chapter_num: number, text: string, hash: string): Promise<void> {
     const existing = (await this.get(au_id, chapter_num)) ?? createChapterSummary({});
     const micro: SummaryTier = {
       version: 1,
@@ -67,7 +67,7 @@ export class FileChapterSummaryRepository implements ChapterSummaryRepository {
    * 将 standard 备份为 standard_v1（已有 standard_v1 时不覆盖），写入新 standard（version:2）。
    * 若当前无 standard，仅写入新 standard，不创建 standard_v1。
    */
-  async promote_to_v2(au_id: string, chapter_num: number, v2_text: string, hash: string): Promise<void> {
+  async promoteToV2(au_id: string, chapter_num: number, v2_text: string, hash: string): Promise<void> {
     const existing = (await this.get(au_id, chapter_num)) ?? createChapterSummary({});
     const newStandard: SummaryTier = {
       version: 2,

@@ -13,7 +13,7 @@ export interface ProjectRepository {
   save(project: Project): Promise<void>;
 
   /** 列出 Fandom 下所有 AU 的项目配置。 */
-  list_aus(fandom: string): Promise<Project[]>;
+  listAus(fandom: string): Promise<Project[]>;
 
   /**
    * 显式迁移该 AU project.yaml 中的明文 secret 进 secure storage（回写占位符，
