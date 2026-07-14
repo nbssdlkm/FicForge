@@ -7,11 +7,12 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { LLMProvider, LLMChunk, ToolCallChunkDelta, Message } from "../../llm/provider.js";
+import type { LLMProvider, LLMChunk, ToolCallChunkDelta } from "../../llm/provider.js";
 import { LLMError } from "../../llm/provider.js";
 import type { TelemetryEvent } from "../agent_telemetry.js";
 import type { ToolBuffer } from "../tool_stream_buffer.js";
 import { runAgentLoop, type AgentLoopEvent, type AgentLoopConfig } from "../agent_loop.js";
+import { createScriptedStreamProvider } from "./mock_llm_provider.js";
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -26,21 +27,6 @@ type TestBusinessEvent = string;
 // ---------------------------------------------------------------------------
 // Mock helpers
 // ---------------------------------------------------------------------------
-
-/** 单组 chunks 的简单 provider，每次调 generateStream 返同一组 chunks。 */
-function makeProvider(iterChunks: LLMChunk[][]): LLMProvider {
-  let callIndex = 0;
-  return {
-    async generate() {
-      return { content: "", model: "mock", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
-    },
-    async *generateStream(): AsyncIterable<LLMChunk> {
-      const chunks = iterChunks[callIndex] ?? [];
-      callIndex++;
-      for (const c of chunks) yield c;
-    },
-  };
-}
 
 function td(index: number, id: string, name: string, args: string): ToolCallChunkDelta {
   return { index, id, type: "function", function: { name, arguments: args } };
@@ -109,7 +95,7 @@ describe("runAgentLoop", () => {
   it("case 1: read-only continue → next iter terminal tool", async () => {
     // iter 0: fake_read_tool → onForceToolPath 返 "continue"
     // iter 1: fake_terminal_tool → onForceToolPath 返 business events
-    const provider = makeProvider([
+    const provider = createScriptedStreamProvider([
       // iter 0: read-only
       [
         chunk({
@@ -190,7 +176,7 @@ describe("runAgentLoop", () => {
   // Case 2: mutating valid args → onForceToolPath returns PENDING terminal
   // -------------------------------------------------------------------------
   it("case 2: mutating valid args → onForceToolPath returns PENDING terminal", async () => {
-    const provider = makeProvider([
+    const provider = createScriptedStreamProvider([
       [
         chunk({
           tool_call_deltas: [td(0, "tc_m", FAKE_MUTATING_TOOL, '{"name":"Alice"}')],
@@ -227,7 +213,7 @@ describe("runAgentLoop", () => {
   // Case 3: mutating invalid args → onForceToolPath returns "continue" → iter 1 fix
   // -------------------------------------------------------------------------
   it("case 3: mutating invalid args → onForceToolPath returns 'continue' → iter 1 fix", async () => {
-    const provider = makeProvider([
+    const provider = createScriptedStreamProvider([
       // iter 0: bad args
       [
         chunk({
@@ -302,7 +288,7 @@ describe("runAgentLoop", () => {
   // Case 4: single iter terminal tool
   // -------------------------------------------------------------------------
   it("case 4: single iter terminal tool → terminal events return", async () => {
-    const provider = makeProvider([
+    const provider = createScriptedStreamProvider([
       [
         chunk({
           tool_call_deltas: [td(0, "tc_term", FAKE_TERMINAL_TOOL, "{}")],
@@ -337,7 +323,7 @@ describe("runAgentLoop", () => {
   // Case 5: EMPTY_RESPONSE guard retry → iter 1 normal
   // -------------------------------------------------------------------------
   it("case 5: EMPTY_RESPONSE guard retry → iter 1 normal", async () => {
-    const provider = makeProvider([
+    const provider = createScriptedStreamProvider([
       // iter 0: empty (no tokens, no tools)
       [chunk({ delta: "", is_final: true, finish_reason: "stop" })],
       // iter 1: has token → text path
@@ -392,7 +378,7 @@ describe("runAgentLoop", () => {
     ];
 
     // 足够的 read-only chunks 填满所有 iter
-    const provider = makeProvider([
+    const provider = createScriptedStreamProvider([
       chunks,
       chunks, // maxIter=2 需要 2 组
     ]);
@@ -420,7 +406,7 @@ describe("runAgentLoop", () => {
   // Case 7: streaming token + business chunk passthrough
   // -------------------------------------------------------------------------
   it("case 7: streaming token + business chunk passthrough via onToolCallDelta", async () => {
-    const provider = makeProvider([
+    const provider = createScriptedStreamProvider([
       [
         chunk({ delta: "Hello", is_final: false, finish_reason: null }),
         chunk({
@@ -524,26 +510,14 @@ describe("runAgentLoop", () => {
   // 模型能看到自己上一条说了什么。回退旧码（只 push hint）→ 重试轮 messages 无该 assistant → 挂。
   // -------------------------------------------------------------------------
   it("L10: deviation 重试轮的 messages 含被丢弃的偏离 assistant 文本", async () => {
-    // 每次 generateStream 记录收到的 messages。
-    const capturedMessages: Message[][] = [];
     const iterChunks: LLMChunk[][] = [
       // iter 0: 纯文本偏离（hasFullText && !hasTools）→ 触发 deviation guard
       [chunk({ delta: "我先聊两句而不是续写。", is_final: true, finish_reason: "stop" })],
       // iter 1: 重试后走文本路径收尾
       [chunk({ delta: "好的，这次照做。", is_final: true, finish_reason: "stop" })],
     ];
-    let callIndex = 0;
-    const provider: LLMProvider = {
-      async generate() {
-        return { content: "", model: "mock", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
-      },
-      async *generateStream(params: { messages: Message[] }): AsyncIterable<LLMChunk> {
-        capturedMessages.push(params.messages);
-        const chunks = iterChunks[callIndex] ?? [];
-        callIndex++;
-        for (const c of chunks) yield c;
-      },
-    };
+    // provider.calls[n].messages 替代原 capturedMessages 手工捕获。
+    const provider = createScriptedStreamProvider(iterChunks);
 
     const HINT = "[system] 请改用工具重说，不要用纯文本。";
     let deviationCalls = 0;
@@ -565,8 +539,8 @@ describe("runAgentLoop", () => {
     );
 
     // 两次 LLM 调用（iter0 偏离 + iter1 重试收尾）
-    expect(capturedMessages).toHaveLength(2);
-    const retryMessages = capturedMessages[1];
+    expect(provider.calls).toHaveLength(2);
+    const retryMessages = provider.calls[1].messages;
     // 重试轮的 messages 必须包含 iter0 的偏离文本作为 assistant 消息……
     const deviationAssistant = retryMessages.find(
       (m) => m.role === "assistant" && m.content === "我先聊两句而不是续写。",

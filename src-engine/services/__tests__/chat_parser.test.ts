@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   detectChatFormat,
   splitByRole,
@@ -14,7 +14,7 @@ import {
   DEFAULT_THRESHOLDS,
   type ClassificationThresholds,
 } from "../chat_parser.js";
-import type { LLMProvider } from "../../llm/provider.js";
+import { createMockLLMProvider } from "./mock_llm_provider.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -397,19 +397,6 @@ describe("parseChatExport", () => {
 // LLM-assisted chat detection
 // ---------------------------------------------------------------------------
 
-function makeMockLlm(content: string): LLMProvider {
-  return {
-    generate: vi.fn().mockResolvedValue({
-      content,
-      model: "mock",
-      input_tokens: null,
-      output_tokens: null,
-      finish_reason: "stop",
-    }),
-    generateStream: vi.fn(),
-  };
-}
-
 describe("buildChatFormatFromSamples", () => {
   it("constructs pattern from plain samples", () => {
     const fmt = buildChatFormatFromSamples("User:", "Assistant:");
@@ -452,14 +439,14 @@ describe("validateChatFormat", () => {
 
 describe("llmDetectChatStructure", () => {
   it("parses valid LLM response with matchKnownFormat (preferred path)", async () => {
-    const llm = makeMockLlm(
-      JSON.stringify({
+    const llm = createMockLLMProvider({
+      content: JSON.stringify({
         isChat: true,
         matchKnownFormat: "Markdown Bold",
         customUserSample: null,
         customAssistantSample: null,
       }),
-    );
+    });
     const result = await llmDetectChatStructure("**Human:** hi\n**Assistant:** hello", llm);
     expect(result.isChat).toBe(true);
     expect(result.matchKnownFormat).toBe("Markdown Bold");
@@ -467,14 +454,14 @@ describe("llmDetectChatStructure", () => {
   });
 
   it("parses valid LLM response with customSample (fallback path)", async () => {
-    const llm = makeMockLlm(
-      JSON.stringify({
+    const llm = createMockLLMProvider({
+      content: JSON.stringify({
         isChat: true,
         matchKnownFormat: null,
         customUserSample: "[U]",
         customAssistantSample: "[B]",
       }),
-    );
+    });
     const result = await llmDetectChatStructure("[U] hi\n[B] hello", llm);
     expect(result.isChat).toBe(true);
     expect(result.matchKnownFormat).toBeNull();
@@ -483,22 +470,23 @@ describe("llmDetectChatStructure", () => {
   });
 
   it("rejects matchKnownFormat not in KNOWN_CHAT_FORMAT_NAMES (LLM invented a name)", async () => {
-    const llm = makeMockLlm(
-      JSON.stringify({
+    const llm = createMockLLMProvider({
+      content: JSON.stringify({
         isChat: true,
         matchKnownFormat: "Fake Format Name",
         customUserSample: null,
         customAssistantSample: null,
       }),
-    );
+    });
     const result = await llmDetectChatStructure("text", llm);
     // 既没有合法 matchKnownFormat 也没 custom sample → 降为非对话
     expect(result.isChat).toBe(false);
   });
 
   it("strips markdown code fence from LLM response", async () => {
-    const llm = makeMockLlm(
-      "```json\n" +
+    const llm = createMockLLMProvider({
+      content:
+        "```json\n" +
         JSON.stringify({
           isChat: true,
           matchKnownFormat: "User/Assistant",
@@ -506,21 +494,21 @@ describe("llmDetectChatStructure", () => {
           customAssistantSample: null,
         }) +
         "\n```",
-    );
+    });
     const result = await llmDetectChatStructure("text", llm);
     expect(result.isChat).toBe(true);
     expect(result.matchKnownFormat).toBe("User/Assistant");
   });
 
   it("returns isChat=false when LLM says not a chat", async () => {
-    const llm = makeMockLlm(
-      JSON.stringify({
+    const llm = createMockLLMProvider({
+      content: JSON.stringify({
         isChat: false,
         matchKnownFormat: null,
         customUserSample: null,
         customAssistantSample: null,
       }),
-    );
+    });
     const result = await llmDetectChatStructure("plain novel text", llm);
     expect(result.isChat).toBe(false);
     expect(result.matchKnownFormat).toBeNull();
@@ -528,43 +516,44 @@ describe("llmDetectChatStructure", () => {
   });
 
   it('sets error="llm_error" when LLM says isChat=true but provides no format info (violates prompt rules)', async () => {
-    const llm = makeMockLlm(
-      JSON.stringify({
+    const llm = createMockLLMProvider({
+      content: JSON.stringify({
         isChat: true,
         matchKnownFormat: null,
         customUserSample: null,
         customAssistantSample: null,
       }),
-    );
+    });
     const result = await llmDetectChatStructure("text", llm);
     expect(result.isChat).toBe(false);
     expect(result.error).toBe("llm_error");
   });
 
   it('sets error="llm_error" when customUserSample present but customAssistantSample missing', async () => {
-    const llm = makeMockLlm(
-      JSON.stringify({
+    const llm = createMockLLMProvider({
+      content: JSON.stringify({
         isChat: true,
         matchKnownFormat: null,
         customUserSample: "Human:",
         customAssistantSample: null,
       }),
-    );
+    });
     const result = await llmDetectChatStructure("text", llm);
     expect(result.isChat).toBe(false);
     expect(result.error).toBe("llm_error");
   });
 
   it("returns isChat=false on invalid JSON", async () => {
-    const llm = makeMockLlm("not json");
+    const llm = createMockLLMProvider({ content: "not json" });
     const result = await llmDetectChatStructure("text", llm);
     expect(result.isChat).toBe(false);
   });
 
   it("tolerates LLM adding prose around JSON (common with weaker models)", async () => {
-    const llm = makeMockLlm(
-      '好的，根据分析：\n{"isChat": true, "matchKnownFormat": null, "customUserSample": "Q:", "customAssistantSample": "A:"}\n希望有帮助！',
-    );
+    const llm = createMockLLMProvider({
+      content:
+        '好的，根据分析：\n{"isChat": true, "matchKnownFormat": null, "customUserSample": "Q:", "customAssistantSample": "A:"}\n希望有帮助！',
+    });
     const result = await llmDetectChatStructure("text", llm);
     expect(result.isChat).toBe(true);
     expect(result.customUserSample).toBe("Q:");
@@ -572,59 +561,64 @@ describe("llmDetectChatStructure", () => {
   });
 
   it("tolerates LLM wrapping JSON with prose and indentation", async () => {
-    const llm = makeMockLlm(
-      'Here is the result:\n\n    {"isChat": false, "matchKnownFormat": null, "customUserSample": null, "customAssistantSample": null}\n\nDone.',
-    );
+    const llm = createMockLLMProvider({
+      content:
+        'Here is the result:\n\n    {"isChat": false, "matchKnownFormat": null, "customUserSample": null, "customAssistantSample": null}\n\nDone.',
+    });
     const result = await llmDetectChatStructure("text", llm);
     expect(result.isChat).toBe(false);
   });
 
   it("returns isChat=false when response has no JSON braces at all", async () => {
-    const llm = makeMockLlm("I analyzed the text and I think it is a chat.");
+    const llm = createMockLLMProvider({ content: "I analyzed the text and I think it is a chat." });
     const result = await llmDetectChatStructure("text", llm);
     expect(result.isChat).toBe(false);
   });
 
   it("returns isChat=false when provider throws", async () => {
-    const llm: LLMProvider = {
-      generate: vi.fn().mockRejectedValue(new Error("network")),
-      generateStream: vi.fn(),
-    };
+    const llm = createMockLLMProvider({ error: new Error("network") });
     const result = await llmDetectChatStructure("text", llm);
     expect(result.isChat).toBe(false);
   });
 
   it('sets error="llm_error" when provider throws', async () => {
-    const llm: LLMProvider = {
-      generate: vi.fn().mockRejectedValue(new Error("network")),
-      generateStream: vi.fn(),
-    };
+    const llm = createMockLLMProvider({ error: new Error("network") });
     const result = await llmDetectChatStructure("text", llm);
     expect(result.error).toBe("llm_error");
   });
 
   it('sets error="llm_error" when response has no JSON', async () => {
-    const llm = makeMockLlm("I analyzed the text and I think it is a chat.");
+    const llm = createMockLLMProvider({ content: "I analyzed the text and I think it is a chat." });
     const result = await llmDetectChatStructure("text", llm);
     expect(result.error).toBe("llm_error");
   });
 
   it("does NOT set error when LLM legitimately says not a chat", async () => {
-    const llm = makeMockLlm(
-      JSON.stringify({ isChat: false, matchKnownFormat: null, customUserSample: null, customAssistantSample: null }),
-    );
+    const llm = createMockLLMProvider({
+      content: JSON.stringify({
+        isChat: false,
+        matchKnownFormat: null,
+        customUserSample: null,
+        customAssistantSample: null,
+      }),
+    });
     const result = await llmDetectChatStructure("plain text", llm);
     expect(result.isChat).toBe(false);
     expect(result.error).toBeFalsy();
   });
 
   it("truncates input to 40000 chars when calling LLM", async () => {
-    const llm = makeMockLlm(
-      JSON.stringify({ isChat: false, matchKnownFormat: null, customUserSample: null, customAssistantSample: null }),
-    );
+    const llm = createMockLLMProvider({
+      content: JSON.stringify({
+        isChat: false,
+        matchKnownFormat: null,
+        customUserSample: null,
+        customAssistantSample: null,
+      }),
+    });
     const longText = "a".repeat(60000);
     await llmDetectChatStructure(longText, llm);
-    const call = (llm.generate as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const call = llm.calls[0];
     const userMsg = call.messages[0].content as string;
     expect(userMsg).toContain("a".repeat(40000));
     expect(userMsg).not.toContain("a".repeat(40001));

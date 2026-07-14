@@ -15,30 +15,21 @@ import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 import type { EmbeddingProvider } from "../../llm/embedding_provider.js";
 import type { LLMProvider, LLMResponse, LLMChunk } from "../../llm/provider.js";
 import type { VectorRepository } from "../../repositories/interfaces/vector.js";
+import { createMockLLMProvider } from "./mock_llm_provider.js";
 
 function createMockProvider(tokens: string[] = ["Hello", " world", "!"]): LLMProvider {
-  return {
-    async generate(): Promise<LLMResponse> {
-      return {
-        content: tokens.join(""),
-        model: "mock",
-        input_tokens: 10,
-        output_tokens: tokens.length,
-        finish_reason: "stop",
-      };
-    },
-    async *generateStream(): AsyncIterable<LLMChunk> {
-      for (let i = 0; i < tokens.length; i++) {
-        yield {
-          delta: tokens[i],
-          is_final: i === tokens.length - 1,
-          input_tokens: i === tokens.length - 1 ? 100 : null,
-          output_tokens: i === tokens.length - 1 ? tokens.length : null,
-          finish_reason: i === tokens.length - 1 ? "stop" : null,
-        };
-      }
-    },
-  };
+  const streamChunks: LLMChunk[] = tokens.map((delta, i) => ({
+    delta,
+    is_final: i === tokens.length - 1,
+    input_tokens: i === tokens.length - 1 ? 100 : null,
+    output_tokens: i === tokens.length - 1 ? tokens.length : null,
+    finish_reason: i === tokens.length - 1 ? "stop" : null,
+  }));
+  return createMockLLMProvider({
+    content: tokens.join(""),
+    streamChunks,
+    response: { input_tokens: 10, output_tokens: tokens.length },
+  });
 }
 
 function makeParams(adapter: MockAdapter, overrides: Partial<Parameters<typeof generateChapter>[0]> = {}) {
@@ -184,17 +175,8 @@ describe("generateChapter", () => {
 
   it("passes signal to provider and rethrows AbortError without saving a partial draft", async () => {
     const controller = new AbortController();
-    let receivedSignal: AbortSignal | undefined;
 
-    const abortProvider: LLMProvider = {
-      async generate(): Promise<LLMResponse> {
-        return { content: "", model: "mock", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
-      },
-      async *generateStream(params): AsyncIterable<LLMChunk> {
-        receivedSignal = params.signal;
-        throw new DOMException("Aborted", "AbortError");
-      },
-    };
+    const abortProvider = createMockLLMProvider({ error: new DOMException("Aborted", "AbortError") });
 
     const params = makeParams(adapter, {
       au_id: "au_abort",
@@ -205,7 +187,7 @@ describe("generateChapter", () => {
     await expect(collectEvents(generateChapter(params))).rejects.toMatchObject({
       name: "AbortError",
     });
-    expect(receivedSignal).toBe(controller.signal);
+    expect(abortProvider.calls[0]?.signal).toBe(controller.signal);
     await expect(params.draft_repo.list_by_chapter("au_abort", 1)).resolves.toEqual([]);
     // M5：AbortError rethrow 后 finally 必须释放 inflight，否则该章永久锁死返 409
     expect(isChapterInflight(chapterInflightKey("au_abort", 1))).toBe(false);
@@ -254,14 +236,7 @@ describe("generateChapter", () => {
 
   it("AbortError 中断后 inflight 已释放，同章可重新发起生成", async () => {
     const controller = new AbortController();
-    const abortProvider: LLMProvider = {
-      async generate(): Promise<LLMResponse> {
-        return { content: "", model: "mock", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
-      },
-      async *generateStream(): AsyncIterable<LLMChunk> {
-        throw new DOMException("Aborted", "AbortError");
-      },
-    };
+    const abortProvider = createMockLLMProvider({ error: new DOMException("Aborted", "AbortError") });
     const key = chapterInflightKey("au_inflight_abort", 1);
 
     await expect(

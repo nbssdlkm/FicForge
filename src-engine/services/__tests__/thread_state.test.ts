@@ -6,28 +6,7 @@ import { computeThreadStaleness, threadMemberFacts, regenerateThreadState } from
 import { createThread } from "../../domain/thread.js";
 import { createFact } from "../../domain/fact.js";
 import { ThreadStatus, FactStatus } from "../../domain/enums.js";
-import type { LLMProvider } from "../../llm/provider.js";
-
-function mockLLM(content: string): LLMProvider {
-  return {
-    async generate() {
-      return { content, model: "m", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
-    },
-    async *generateStream() {
-      /* unused */
-    },
-  };
-}
-function throwingLLM(): LLMProvider {
-  return {
-    async generate() {
-      throw new Error("boom");
-    },
-    async *generateStream() {
-      /* unused */
-    },
-  };
-}
+import { createMockLLMProvider } from "./mock_llm_provider.js";
 
 const T = (over: Partial<ReturnType<typeof createThread>> = {}) =>
   createThread({
@@ -88,24 +67,24 @@ describe("regenerateThreadState", () => {
   it("从成员事实生成一句进展", async () => {
     const t = T();
     const facts = [F({ id: "f1", thread_ids: ["t1"], content_clean: "沈砚发现残页" })];
-    const s = await regenerateThreadState(t, facts, mockLLM("已确认名录被篡改，准备面圣"));
+    const s = await regenerateThreadState(t, facts, createMockLLMProvider({ content: "已确认名录被篡改，准备面圣" }));
     expect(s).toBe("已确认名录被篡改，准备面圣");
   });
 
   it("无成员事实 → null（不调 LLM）", async () => {
-    const s = await regenerateThreadState(T(), [], mockLLM("x"));
+    const s = await regenerateThreadState(T(), [], createMockLLMProvider({ content: "x" }));
     expect(s).toBeNull();
   });
 
   it("LLM 失败 → 降级 null，不抛", async () => {
     const facts = [F({ id: "f1", thread_ids: ["t1"] })];
-    const s = await regenerateThreadState(T(), facts, throwingLLM());
+    const s = await regenerateThreadState(T(), facts, createMockLLMProvider({ error: new Error("boom") }));
     expect(s).toBeNull();
   });
 
   it("空白输出 → null", async () => {
     const facts = [F({ id: "f1", thread_ids: ["t1"] })];
-    const s = await regenerateThreadState(T(), facts, mockLLM("   "));
+    const s = await regenerateThreadState(T(), facts, createMockLLMProvider({ content: "   " }));
     expect(s).toBeNull();
   });
 });

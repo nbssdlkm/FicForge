@@ -19,7 +19,7 @@ import { buildFactsLayer, buildFactEnrichmentSuffix } from "../context_assembler
 import { createFact } from "../../domain/fact.js";
 import { FactStatus } from "../../domain/enums.js";
 import { getPrompts, REQUIRED_KEYS } from "../../prompts/index.js";
-import type { LLMProvider, LLMResponse, LLMChunk, GenerateParams } from "../../llm/provider.js";
+import { createMockLLMProvider } from "./mock_llm_provider.js";
 
 // ===========================================================================
 // T4: rawToExtracted enum validation
@@ -147,43 +147,34 @@ describe("T4: rawToExtracted — M8-A field validation", () => {
 // ===========================================================================
 
 describe("T5: extractFactsFromChapter — M8-A new fields", () => {
-  const enrichedProvider: LLMProvider = {
-    async generate(_params: GenerateParams): Promise<LLMResponse> {
-      return {
-        content: JSON.stringify([
-          {
-            content_raw: "第1章 皇帝暗中赐毒",
-            content_clean: "皇帝暗中赐毒",
-            characters: ["皇帝"],
-            type: "plot_event",
-            status: "active",
-            narrative_weight: "high",
-            location: "御书房",
-            story_time_tag: "Y1 冬末",
-            story_time_order: 2,
-            time_kind: "normal",
-            action_verb: "赐毒",
-            caused_by: [],
-            known_to: "reader_only",
-            hidden_from: ["皇后"],
-            suspense_type: "secret",
-            _confidence: {
-              location: "high",
-              known_to: "high",
-              time_kind: "medium",
-              action_verb: "high",
-              suspense_type: "high",
-            },
-          },
-        ]),
-        model: "test",
-        input_tokens: 100,
-        output_tokens: 80,
-        finish_reason: "stop",
-      };
-    },
-    async *generateStream(): AsyncIterable<LLMChunk> {},
-  };
+  const enrichedProvider = createMockLLMProvider({
+    content: JSON.stringify([
+      {
+        content_raw: "第1章 皇帝暗中赐毒",
+        content_clean: "皇帝暗中赐毒",
+        characters: ["皇帝"],
+        type: "plot_event",
+        status: "active",
+        narrative_weight: "high",
+        location: "御书房",
+        story_time_tag: "Y1 冬末",
+        story_time_order: 2,
+        time_kind: "normal",
+        action_verb: "赐毒",
+        caused_by: [],
+        known_to: "reader_only",
+        hidden_from: ["皇后"],
+        suspense_type: "secret",
+        _confidence: {
+          location: "high",
+          known_to: "high",
+          time_kind: "medium",
+          action_verb: "high",
+          suspense_type: "high",
+        },
+      },
+    ]),
+  });
 
   it("new fields are correctly parsed from LLM response", async () => {
     const results = await extractFactsFromChapter({
@@ -216,27 +207,18 @@ describe("T5: extractFactsFromChapter — M8-A new fields", () => {
   });
 
   it("invalid time_kind from LLM → null, other fields unaffected", async () => {
-    const badProvider: LLMProvider = {
-      async generate(): Promise<LLMResponse> {
-        return {
-          content: JSON.stringify([
-            {
-              content_raw: "第1章 test",
-              content_clean: "test event here",
-              type: "plot_event",
-              status: "active",
-              time_kind: "fantasy", // invalid
-              location: "somewhere",
-            },
-          ]),
-          model: "test",
-          input_tokens: 0,
-          output_tokens: 0,
-          finish_reason: "stop",
-        };
-      },
-      async *generateStream(): AsyncIterable<LLMChunk> {},
-    };
+    const badProvider = createMockLLMProvider({
+      content: JSON.stringify([
+        {
+          content_raw: "第1章 test",
+          content_clean: "test event here",
+          type: "plot_event",
+          status: "active",
+          time_kind: "fantasy", // invalid
+          location: "somewhere",
+        },
+      ]),
+    });
 
     const results = await extractFactsFromChapter({
       chapter_text: "Chapter content here.",
@@ -253,27 +235,18 @@ describe("T5: extractFactsFromChapter — M8-A new fields", () => {
   });
 
   it("LLM returns no new fields → existing fields still extracted", async () => {
-    const plainProvider: LLMProvider = {
-      async generate(): Promise<LLMResponse> {
-        return {
-          content: JSON.stringify([
-            {
-              content_raw: "第1章 Alice遇到Bob",
-              content_clean: "Alice遇到Bob",
-              characters: ["Alice"],
-              type: "plot_event",
-              status: "active",
-              narrative_weight: "medium",
-            },
-          ]),
-          model: "test",
-          input_tokens: 0,
-          output_tokens: 0,
-          finish_reason: "stop",
-        };
-      },
-      async *generateStream(): AsyncIterable<LLMChunk> {},
-    };
+    const plainProvider = createMockLLMProvider({
+      content: JSON.stringify([
+        {
+          content_raw: "第1章 Alice遇到Bob",
+          content_clean: "Alice遇到Bob",
+          characters: ["Alice"],
+          type: "plot_event",
+          status: "active",
+          narrative_weight: "medium",
+        },
+      ]),
+    });
 
     const results = await extractFactsFromChapter({
       chapter_text: "Alice遇到了Bob。",

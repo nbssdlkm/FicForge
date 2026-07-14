@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FicForge Contributors
 // Licensed under the GNU Affero General Public License v3.0.
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   splitChapters,
   trySplitByStandardHeaders,
@@ -12,7 +12,7 @@ import {
   llmDetectChapterPattern,
   type ChapterPatternResult,
 } from "../chapter_splitter.js";
-import type { LLMProvider } from "../../llm/provider.js";
+import { createMockLLMProvider } from "./mock_llm_provider.js";
 
 // ---------------------------------------------------------------------------
 // trySplitByStandardHeaders (搬移自原 import_pipeline 测试)
@@ -248,23 +248,16 @@ describe("splitChapters", () => {
 
 describe("llmDetectChapterPattern", () => {
   it("#12/#13: detects pattern from LLM response", async () => {
-    const mockProvider: LLMProvider = {
-      generate: vi.fn().mockResolvedValue({
-        content: JSON.stringify({
-          found: true,
-          prefix: "**",
-          number_style: "arabic",
-          separator: ".",
-          suffix: "**",
-          examples: ["**1.黎明前**", "**2.暗流**", "**3.交锋**"],
-        }),
-        model: "mock",
-        input_tokens: null,
-        output_tokens: null,
-        finish_reason: "stop",
+    const mockProvider = createMockLLMProvider({
+      content: JSON.stringify({
+        found: true,
+        prefix: "**",
+        number_style: "arabic",
+        separator: ".",
+        suffix: "**",
+        examples: ["**1.黎明前**", "**2.暗流**", "**3.交锋**"],
       }),
-      generateStream: vi.fn(),
-    };
+    });
 
     const text = "**1.黎明前**\n正文1\n\n**2.暗流**\n正文2\n\n**3.交锋**\n正文3";
     const result = await llmDetectChapterPattern(text, mockProvider);
@@ -274,88 +267,53 @@ describe("llmDetectChapterPattern", () => {
   });
 
   it("returns null when LLM says found=false", async () => {
-    const mockProvider: LLMProvider = {
-      generate: vi.fn().mockResolvedValue({
-        content: '{"found": false}',
-        model: "mock",
-        input_tokens: null,
-        output_tokens: null,
-        finish_reason: "stop",
-      }),
-      generateStream: vi.fn(),
-    };
+    const mockProvider = createMockLLMProvider({ content: '{"found": false}' });
 
     const result = await llmDetectChapterPattern("some text", mockProvider);
     expect(result).toBeNull();
   });
 
   it("returns null when LLM returns invalid JSON", async () => {
-    const mockProvider: LLMProvider = {
-      generate: vi.fn().mockResolvedValue({
-        content: "I'm not sure what format this is",
-        model: "mock",
-        input_tokens: null,
-        output_tokens: null,
-        finish_reason: "stop",
-      }),
-      generateStream: vi.fn(),
-    };
+    const mockProvider = createMockLLMProvider({ content: "I'm not sure what format this is" });
 
     const result = await llmDetectChapterPattern("some text", mockProvider);
     expect(result).toBeNull();
   });
 
   it("returns null when LLM throws error", async () => {
-    const mockProvider: LLMProvider = {
-      generate: vi.fn().mockRejectedValue(new Error("API error")),
-      generateStream: vi.fn(),
-    };
+    const mockProvider = createMockLLMProvider({ error: new Error("API error") });
 
     const result = await llmDetectChapterPattern("some text", mockProvider);
     expect(result).toBeNull();
   });
 
   it("returns null when examples don't match the regex", async () => {
-    const mockProvider: LLMProvider = {
-      generate: vi.fn().mockResolvedValue({
-        content: JSON.stringify({
-          found: true,
-          prefix: "##",
-          number_style: "arabic",
-          separator: " ",
-          suffix: "",
-          examples: ["Chapter One", "Chapter Two"], // won't match ##\d+
-        }),
-        model: "mock",
-        input_tokens: null,
-        output_tokens: null,
-        finish_reason: "stop",
+    const mockProvider = createMockLLMProvider({
+      content: JSON.stringify({
+        found: true,
+        prefix: "##",
+        number_style: "arabic",
+        separator: " ",
+        suffix: "",
+        examples: ["Chapter One", "Chapter Two"], // won't match ##\d+
       }),
-      generateStream: vi.fn(),
-    };
+    });
 
     const result = await llmDetectChapterPattern("some text", mockProvider);
     expect(result).toBeNull();
   });
 
   it("AI-assisted split integrates with splitChapters", async () => {
-    const mockProvider: LLMProvider = {
-      generate: vi.fn().mockResolvedValue({
-        content: JSON.stringify({
-          found: true,
-          prefix: "**",
-          number_style: "arabic",
-          separator: ".",
-          suffix: "**",
-          examples: ["**1.黎明前**", "**2.暗流**"],
-        }),
-        model: "mock",
-        input_tokens: null,
-        output_tokens: null,
-        finish_reason: "stop",
+    const mockProvider = createMockLLMProvider({
+      content: JSON.stringify({
+        found: true,
+        prefix: "**",
+        number_style: "arabic",
+        separator: ".",
+        suffix: "**",
+        examples: ["**1.黎明前**", "**2.暗流**"],
       }),
-      generateStream: vi.fn(),
-    };
+    });
 
     // 用足够长的文本确保密度检查通过（匹配数 / 总行数 < 20%）
     const chapterContent = "这是正文内容。\n第二行。\n第三行。\n第四行。\n第五行。";

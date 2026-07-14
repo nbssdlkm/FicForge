@@ -12,33 +12,24 @@ import { FileChapterRepository } from "../../repositories/implementations/file_c
 import { FileDraftRepository } from "../../repositories/implementations/file_draft.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 import type { EmbeddingProvider } from "../../llm/embedding_provider.js";
-import type { LLMProvider, LLMResponse, LLMChunk } from "../../llm/provider.js";
+import type { LLMProvider, LLMChunk } from "../../llm/provider.js";
 import type { VectorRepository } from "../../repositories/interfaces/vector.js";
+import { createMockLLMProvider } from "./mock_llm_provider.js";
 
 // 与 generation.test.ts 同款 mock provider：流式吐出固定 token，最后一块带 usage + stop。
 function createMockProvider(tokens: string[] = ["你好", "世界"]): LLMProvider {
-  return {
-    async generate(): Promise<LLMResponse> {
-      return {
-        content: tokens.join(""),
-        model: "mock",
-        input_tokens: 10,
-        output_tokens: tokens.length,
-        finish_reason: "stop",
-      };
-    },
-    async *generateStream(): AsyncIterable<LLMChunk> {
-      for (let i = 0; i < tokens.length; i++) {
-        yield {
-          delta: tokens[i],
-          is_final: i === tokens.length - 1,
-          input_tokens: i === tokens.length - 1 ? 100 : null,
-          output_tokens: i === tokens.length - 1 ? tokens.length : null,
-          finish_reason: i === tokens.length - 1 ? "stop" : null,
-        };
-      }
-    },
-  };
+  const streamChunks: LLMChunk[] = tokens.map((delta, i) => ({
+    delta,
+    is_final: i === tokens.length - 1,
+    input_tokens: i === tokens.length - 1 ? 100 : null,
+    output_tokens: i === tokens.length - 1 ? tokens.length : null,
+    finish_reason: i === tokens.length - 1 ? "stop" : null,
+  }));
+  return createMockLLMProvider({
+    content: tokens.join(""),
+    streamChunks,
+    response: { input_tokens: 10, output_tokens: tokens.length },
+  });
 }
 
 // 构造一个会被 search spy 记录调用的 VectorRepository（chapters 集合返回 1 条命中）。

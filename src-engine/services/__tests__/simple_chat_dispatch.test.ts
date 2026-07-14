@@ -28,21 +28,11 @@ import { LLMMode, FactStatus, IndexStatus } from "../../domain/enums.js";
 import { FileChapterRepository } from "../../repositories/implementations/file_chapter.js";
 import { FileDraftRepository } from "../../repositories/implementations/file_draft.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
-import type { LLMProvider, LLMResponse, LLMChunk, Message } from "../../llm/provider.js";
+import type { LLMProvider, LLMResponse, LLMChunk } from "../../llm/provider.js";
+import { createMockLLMProvider, createScriptedStreamProvider } from "./mock_llm_provider.js";
 import type { VectorRepository } from "../../repositories/interfaces/vector.js";
 import type { EmbeddingProvider } from "../../llm/embedding_provider.js";
 import type { TelemetryEvent, TelemetrySink } from "../agent_telemetry.js";
-
-function makeStreamProvider(chunks: LLMChunk[]): LLMProvider {
-  return {
-    async generate(): Promise<LLMResponse> {
-      return { content: "", model: "mock", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
-    },
-    async *generateStream(): AsyncIterable<LLMChunk> {
-      for (const c of chunks) yield c;
-    },
-  };
-}
 
 function makeBaseParams(adapter: MockAdapter, providerOverride: LLMProvider, userInput: string) {
   return {
@@ -74,11 +64,13 @@ async function collect(gen: AsyncGenerator<SimpleChatEvent>): Promise<SimpleChat
 describe("dispatchSimpleChat", () => {
   it("text 路径：finish='stop' → token chunks + done_text + draft 落盘", async () => {
     const adapter = new MockAdapter();
-    const provider = makeStreamProvider([
-      { delta: "Hello", is_final: false, input_tokens: 10, output_tokens: null, finish_reason: null },
-      { delta: " world", is_final: false, input_tokens: null, output_tokens: null, finish_reason: null },
-      { delta: "!", is_final: true, input_tokens: null, output_tokens: 3, finish_reason: "stop" },
-    ]);
+    const provider = createMockLLMProvider({
+      streamChunks: [
+        { delta: "Hello", is_final: false, input_tokens: 10, output_tokens: null, finish_reason: null },
+        { delta: " world", is_final: false, input_tokens: null, output_tokens: null, finish_reason: null },
+        { delta: "!", is_final: true, input_tokens: null, output_tokens: 3, finish_reason: "stop" },
+      ],
+    });
 
     const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "写第一章")));
 
@@ -104,40 +96,42 @@ describe("dispatchSimpleChat", () => {
     // 为 chat_reply_chunk；tool_call 事件 skip 避免 UI 重复 append（用户实测要求）。
     // done_tools 仍含 chat_reply 在 tool_calls array（持久化 / 协议完整性需要）。
     const adapter = new MockAdapter();
-    const provider = makeStreamProvider([
-      {
-        delta: "",
-        tool_call_deltas: [
-          {
-            index: 0,
-            id: "call_1",
-            type: "function",
-            function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: "" },
-          },
-        ],
-        is_final: false,
-        input_tokens: 50,
-        output_tokens: null,
-        finish_reason: null,
-      },
-      {
-        delta: "",
-        tool_call_deltas: [{ index: 0, function: { arguments: '{"content":"hi ' } }],
-        is_final: false,
-        input_tokens: null,
-        output_tokens: null,
-        finish_reason: null,
-      },
-      {
-        delta: "",
-        tool_call_deltas: [{ index: 0, function: { arguments: 'there"}' } }],
-        is_final: false,
-        input_tokens: null,
-        output_tokens: null,
-        finish_reason: null,
-      },
-      { delta: "", is_final: true, input_tokens: null, output_tokens: 12, finish_reason: "tool_calls" },
-    ]);
+    const provider = createMockLLMProvider({
+      streamChunks: [
+        {
+          delta: "",
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "call_1",
+              type: "function",
+              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: "" },
+            },
+          ],
+          is_final: false,
+          input_tokens: 50,
+          output_tokens: null,
+          finish_reason: null,
+        },
+        {
+          delta: "",
+          tool_call_deltas: [{ index: 0, function: { arguments: '{"content":"hi ' } }],
+          is_final: false,
+          input_tokens: null,
+          output_tokens: null,
+          finish_reason: null,
+        },
+        {
+          delta: "",
+          tool_call_deltas: [{ index: 0, function: { arguments: 'there"}' } }],
+          is_final: false,
+          input_tokens: null,
+          output_tokens: null,
+          finish_reason: null,
+        },
+        { delta: "", is_final: true, input_tokens: null, output_tokens: 12, finish_reason: "tool_calls" },
+      ],
+    });
 
     const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "嘿")));
 
@@ -169,30 +163,32 @@ describe("dispatchSimpleChat", () => {
     // tool_call 都 emit 给 UI（plan §三：chat_reply 路径 emit 全部 tool_call 让 UI
     // 看到完整 LLM 决策，不区分谁是 chat_reply）。
     const adapter = new MockAdapter();
-    const provider = makeStreamProvider([
-      {
-        delta: "",
-        tool_call_deltas: [
-          {
-            index: 0,
-            id: "c0",
-            type: "function",
-            function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' },
-          },
-          {
-            index: 1,
-            id: "c1",
-            type: "function",
-            function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"看完了第一章"}' },
-          },
-        ],
-        is_final: false,
-        input_tokens: 0,
-        output_tokens: null,
-        finish_reason: null,
-      },
-      { delta: "", is_final: true, input_tokens: null, output_tokens: 0, finish_reason: "tool_calls" },
-    ]);
+    const provider = createMockLLMProvider({
+      streamChunks: [
+        {
+          delta: "",
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "c0",
+              type: "function",
+              function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' },
+            },
+            {
+              index: 1,
+              id: "c1",
+              type: "function",
+              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"看完了第一章"}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: 0,
+          output_tokens: null,
+          finish_reason: null,
+        },
+        { delta: "", is_final: true, input_tokens: null, output_tokens: 0, finish_reason: "tool_calls" },
+      ],
+    });
 
     const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "看第 1 章 + 闲聊")));
     const doneTools = events.find((e) => e.type === "done_tools");
@@ -206,14 +202,7 @@ describe("dispatchSimpleChat", () => {
 
   it("provider 抛非 abort 错误 → DISPATCH_FAILURE", async () => {
     const adapter = new MockAdapter();
-    const provider: LLMProvider = {
-      async generate(): Promise<LLMResponse> {
-        throw new Error("net");
-      },
-      async *generateStream(): AsyncIterable<LLMChunk> {
-        throw new Error("upstream broke");
-      },
-    };
+    const provider = createMockLLMProvider({ error: new Error("upstream broke") });
     const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "写")));
     const err = events.find((e) => e.type === "error");
     expect(err).toBeDefined();
@@ -227,28 +216,30 @@ describe("dispatchSimpleChat", () => {
     // 用 chat_reply 触发 terminal 让 done_tools emit；测试焦点是 applyToolDelta 拼接
     // 行为，与具体 tool 名无关。
     const adapter = new MockAdapter();
-    const provider = makeStreamProvider([
-      {
-        delta: "",
-        tool_call_deltas: [
-          { index: 0, id: "x", type: "function", function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: "" } },
-        ],
-        is_final: false,
-        input_tokens: 0,
-        output_tokens: null,
-        finish_reason: null,
-      },
-      // 非标实现把 name 在第二片再发一次（不应该拼成 "chat_replychat_reply"）
-      {
-        delta: "",
-        tool_call_deltas: [{ index: 0, function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"hi"}' } }],
-        is_final: false,
-        input_tokens: null,
-        output_tokens: null,
-        finish_reason: null,
-      },
-      { delta: "", is_final: true, input_tokens: null, output_tokens: 0, finish_reason: "tool_calls" },
-    ]);
+    const provider = createMockLLMProvider({
+      streamChunks: [
+        {
+          delta: "",
+          tool_call_deltas: [
+            { index: 0, id: "x", type: "function", function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: "" } },
+          ],
+          is_final: false,
+          input_tokens: 0,
+          output_tokens: null,
+          finish_reason: null,
+        },
+        // 非标实现把 name 在第二片再发一次（不应该拼成 "chat_replychat_reply"）
+        {
+          delta: "",
+          tool_call_deltas: [{ index: 0, function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"hi"}' } }],
+          is_final: false,
+          input_tokens: null,
+          output_tokens: null,
+          finish_reason: null,
+        },
+        { delta: "", is_final: true, input_tokens: null, output_tokens: 0, finish_reason: "tool_calls" },
+      ],
+    });
     const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "嘿")));
     const doneTools = events.find((e) => e.type === "done_tools");
     expect(doneTools).toBeDefined();
@@ -297,20 +288,22 @@ describe("dispatchSimpleChat", () => {
 
   it("双 emit：finish='stop' + fullText + tools 共存 → done_text 与 done_tools 都 emit（v4 盲审 P0-1）", async () => {
     const adapter = new MockAdapter();
-    const provider = makeStreamProvider([
-      { delta: "Hello", is_final: false, input_tokens: 0, output_tokens: null, finish_reason: null },
-      {
-        delta: "",
-        tool_call_deltas: [
-          { index: 0, id: "x", type: "function", function: { name: "show_chapter", arguments: '{"chapter_num":1}' } },
-        ],
-        is_final: false,
-        input_tokens: null,
-        output_tokens: null,
-        finish_reason: null,
-      },
-      { delta: "", is_final: true, input_tokens: null, output_tokens: 1, finish_reason: "stop" },
-    ]);
+    const provider = createMockLLMProvider({
+      streamChunks: [
+        { delta: "Hello", is_final: false, input_tokens: 0, output_tokens: null, finish_reason: null },
+        {
+          delta: "",
+          tool_call_deltas: [
+            { index: 0, id: "x", type: "function", function: { name: "show_chapter", arguments: '{"chapter_num":1}' } },
+          ],
+          is_final: false,
+          input_tokens: null,
+          output_tokens: null,
+          finish_reason: null,
+        },
+        { delta: "", is_final: true, input_tokens: null, output_tokens: 1, finish_reason: "stop" },
+      ],
+    });
     const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "x")));
 
     // 双路径都触发
@@ -342,10 +335,12 @@ describe("dispatchSimpleChat", () => {
   it("协议异常 DECLARED_TOOLS_BUT_EMPTY：finish='tool_calls' 但 toolBuffers 空 → emit error，不落 draft（v4 二次盲审）", async () => {
     const adapter = new MockAdapter();
     // LLM 声明 tool_calls 但未产出任何 tool call delta（罕见 provider bug）
-    const provider = makeStreamProvider([
-      { delta: "", is_final: false, input_tokens: 50, output_tokens: null, finish_reason: null },
-      { delta: "", is_final: true, input_tokens: null, output_tokens: 0, finish_reason: "tool_calls" },
-    ]);
+    const provider = createMockLLMProvider({
+      streamChunks: [
+        { delta: "", is_final: false, input_tokens: 50, output_tokens: null, finish_reason: null },
+        { delta: "", is_final: true, input_tokens: null, output_tokens: 0, finish_reason: "tool_calls" },
+      ],
+    });
     const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "x")));
 
     expect(events.find((e) => e.type === "done_text")).toBeUndefined();
@@ -365,9 +360,9 @@ describe("dispatchSimpleChat", () => {
   it("协议异常 EMPTY_RESPONSE：chunk 全空（无 text 无 tool）→ emit error，不落空 draft（v4 二次盲审）", async () => {
     const adapter = new MockAdapter();
     // 模型啥都没输出（finish='stop' 但 fullText 和 tool 都空）
-    const provider = makeStreamProvider([
-      { delta: "", is_final: true, input_tokens: 100, output_tokens: 0, finish_reason: "stop" },
-    ]);
+    const provider = createMockLLMProvider({
+      streamChunks: [{ delta: "", is_final: true, input_tokens: 100, output_tokens: 0, finish_reason: "stop" }],
+    });
     const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "x")));
 
     expect(events.find((e) => e.type === "done_text")).toBeUndefined();
@@ -386,9 +381,9 @@ describe("dispatchSimpleChat", () => {
 
   it("协议异常 EMPTY_RESPONSE：finish_reason=null + 全空（provider 没传 finish_reason）→ 仍 emit error", async () => {
     const adapter = new MockAdapter();
-    const provider = makeStreamProvider([
-      { delta: "", is_final: true, input_tokens: null, output_tokens: null, finish_reason: null },
-    ]);
+    const provider = createMockLLMProvider({
+      streamChunks: [{ delta: "", is_final: true, input_tokens: null, output_tokens: null, finish_reason: null }],
+    });
     const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "x")));
 
     const err = events.find((e) => e.type === "error");
@@ -402,22 +397,6 @@ describe("dispatchSimpleChat", () => {
   // agent MVP T4 — multi-iter agent loop
   // ===========================================================================
 
-  /** 多 iter mock provider：每次调 generateStream 按 callIndex 取下一组 chunks。
-   * 用于模拟 agent loop 多轮 LLM call —— 每轮 LLM 看到不同 internalHistory 决定不同输出。 */
-  function makeMultiIterProvider(iterChunks: LLMChunk[][]): LLMProvider {
-    let callIndex = 0;
-    return {
-      async generate(): Promise<LLMResponse> {
-        return { content: "", model: "mock", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
-      },
-      async *generateStream(): AsyncIterable<LLMChunk> {
-        const chunks = iterChunks[callIndex] ?? [];
-        callIndex++;
-        for (const c of chunks) yield c;
-      },
-    };
-  }
-
   it("agent loop case 1: show_chapter 命中 → tool_result emit + 注 history → 下一轮 chat_reply terminal", async () => {
     // 准备：au_test/chapters/main/ 已有第 1 章
     const adapter = new MockAdapter();
@@ -427,7 +406,7 @@ describe("dispatchSimpleChat", () => {
       "---\nau_id: au_test\nchapter_num: 1\nrevision: 1\nfinalized_at: '2026-05-01T10:00:00Z'\nshow_in_text: true\n---\n第一章正文：夜色低垂...",
     );
 
-    const provider = makeMultiIterProvider([
+    const provider = createScriptedStreamProvider([
       // iter 0: LLM 调 show_chapter(1)
       [
         {
@@ -509,7 +488,7 @@ describe("dispatchSimpleChat", () => {
     // 下一轮 LLM 改用 create_character_file 带全 args → emit ToolCallCard + break PENDING
     const adapter = new MockAdapter();
 
-    const provider = makeMultiIterProvider([
+    const provider = createScriptedStreamProvider([
       // iter 0: show_setting Alice
       [
         {
@@ -608,7 +587,7 @@ describe("dispatchSimpleChat", () => {
         { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" },
       ]);
     }
-    const provider = makeMultiIterProvider(iterChunks);
+    const provider = createScriptedStreamProvider(iterChunks);
 
     const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "看每一章")));
 
@@ -635,7 +614,7 @@ describe("dispatchSimpleChat", () => {
     // dispatch validateToolArgs 拦下，注 TOOL_ARGS_INVALID tool_result + 继续 loop。
     // 第二轮 LLM 看到 error 改用正确 args 重调（emit + PENDING terminal）。
     const adapter = new MockAdapter();
-    const provider = makeMultiIterProvider([
+    const provider = createScriptedStreamProvider([
       // iter 0: create_character_file with args={}
       [
         {
@@ -719,7 +698,7 @@ describe("dispatchSimpleChat", () => {
     await adapter.mkdir("au_test/characters");
     await adapter.writeFile("au_test/characters/Alice.md", "# Alice\n剑客");
 
-    const provider = makeMultiIterProvider([
+    const provider = createScriptedStreamProvider([
       [
         {
           delta: "",
@@ -802,7 +781,7 @@ describe("dispatchSimpleChat", () => {
   it("agent loop case 7: show_chapter CHAPTER_NOT_FOUND → tool_result 含错误码，error_message 非空（executeReadTool 错误分支覆盖）", async () => {
     const adapter = new MockAdapter();
     // 不 mkdir chapters；exists 返 false
-    const provider = makeMultiIterProvider([
+    const provider = createScriptedStreamProvider([
       [
         {
           delta: "",
@@ -857,7 +836,7 @@ describe("dispatchSimpleChat", () => {
     // batch [valid create_character + invalid modify_character]：valid 兄弟收 BATCH_RETRY
     // 时 content 必须含原始 args 让 LLM 直接拷贝（不依赖记忆）。
     const adapter = new MockAdapter();
-    const provider = makeMultiIterProvider([
+    const provider = createScriptedStreamProvider([
       [
         {
           delta: "",
@@ -941,77 +920,69 @@ describe("dispatchSimpleChat", () => {
       "---\nau_id: au_test\nchapter_num: 1\nrevision: 1\nfinalized_at: '2026-05-01T10:00:00Z'\nshow_in_text: true\n---\n第一章...",
     );
 
-    // 自定义 provider：记录每次 generateStream 收到的 messages 数组
-    const receivedMessages: import("../../llm/provider.js").Message[][] = [];
-    let callIndex = 0;
-    const provider: LLMProvider = {
-      async generate(): Promise<LLMResponse> {
-        return { content: "", model: "m", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
-      },
-      async *generateStream(params): AsyncIterable<LLMChunk> {
-        receivedMessages.push([...params.messages]);
-        const idx = callIndex++;
-        if (idx === 0) {
-          // iter 0: thinking 模型先发 reasoning_delta（多 chunks），再 tool_call
-          yield {
-            delta: "",
-            reasoning_delta: "用户想看第一章，",
-            is_final: false,
-            input_tokens: 50,
-            output_tokens: null,
-            finish_reason: null,
-          };
-          yield {
-            delta: "",
-            reasoning_delta: "我应该调用 show_chapter(1)。",
-            is_final: false,
-            input_tokens: null,
-            output_tokens: null,
-            finish_reason: null,
-          };
-          yield {
-            delta: "",
-            tool_call_deltas: [
-              {
-                index: 0,
-                id: "tc_show",
-                type: "function",
-                function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' },
-              },
-            ],
-            is_final: false,
-            input_tokens: null,
-            output_tokens: null,
-            finish_reason: null,
-          };
-          yield { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" };
-        } else {
-          // iter 1: chat_reply 终结
-          yield {
-            delta: "",
-            tool_call_deltas: [
-              {
-                index: 0,
-                id: "tc_reply",
-                type: "function",
-                function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"看完了"}' },
-              },
-            ],
-            is_final: false,
-            input_tokens: 200,
-            output_tokens: null,
-            finish_reason: null,
-          };
-          yield { delta: "", is_final: true, input_tokens: null, output_tokens: 10, finish_reason: "tool_calls" };
-        }
-      },
-    };
+    // provider.calls[n].messages 替代原手工 receivedMessages 捕获。
+    const provider = createScriptedStreamProvider([
+      // iter 0: thinking 模型先发 reasoning_delta（多 chunks），再 tool_call
+      [
+        {
+          delta: "",
+          reasoning_delta: "用户想看第一章，",
+          is_final: false,
+          input_tokens: 50,
+          output_tokens: null,
+          finish_reason: null,
+        },
+        {
+          delta: "",
+          reasoning_delta: "我应该调用 show_chapter(1)。",
+          is_final: false,
+          input_tokens: null,
+          output_tokens: null,
+          finish_reason: null,
+        },
+        {
+          delta: "",
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_show",
+              type: "function",
+              function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: null,
+          output_tokens: null,
+          finish_reason: null,
+        },
+        { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" },
+      ],
+      // iter 1: chat_reply 终结
+      [
+        {
+          delta: "",
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_reply",
+              type: "function",
+              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"看完了"}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: 200,
+          output_tokens: null,
+          finish_reason: null,
+        },
+        { delta: "", is_final: true, input_tokens: null, output_tokens: 10, finish_reason: "tool_calls" },
+      ],
+    ]);
 
     await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "看第 1 章")));
 
     // iter 1 的 messages 数组中应该包含 iter 0 累积的 reasoning_content
-    expect(receivedMessages.length).toBeGreaterThanOrEqual(2);
-    const iter1Messages = receivedMessages[1];
+    expect(provider.calls.length).toBeGreaterThanOrEqual(2);
+    const iter1Messages = provider.calls[1].messages;
     const assistantWithReasoning = iter1Messages.find((m) => m.role === "assistant" && m.tool_calls);
     expect(assistantWithReasoning).toBeDefined();
     expect(assistantWithReasoning?.reasoning_content).toBe("用户想看第一章，我应该调用 show_chapter(1)。");
@@ -1027,56 +998,48 @@ describe("dispatchSimpleChat", () => {
       "---\nau_id: au_test\nchapter_num: 1\nrevision: 1\nfinalized_at: '2026-05-01T10:00:00Z'\nshow_in_text: true\n---\n第一章...",
     );
 
-    const receivedMessages: import("../../llm/provider.js").Message[][] = [];
-    let callIndex = 0;
-    const provider: LLMProvider = {
-      async generate(): Promise<LLMResponse> {
-        return { content: "", model: "m", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
-      },
-      async *generateStream(params): AsyncIterable<LLMChunk> {
-        receivedMessages.push([...params.messages]);
-        const idx = callIndex++;
-        if (idx === 0) {
-          yield {
-            delta: "",
-            tool_call_deltas: [
-              {
-                index: 0,
-                id: "tc_show",
-                type: "function",
-                function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' },
-              },
-            ],
-            is_final: false,
-            input_tokens: 50,
-            output_tokens: null,
-            finish_reason: null,
-          };
-          yield { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" };
-        } else {
-          yield {
-            delta: "",
-            tool_call_deltas: [
-              {
-                index: 0,
-                id: "tc_reply",
-                type: "function",
-                function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"ok"}' },
-              },
-            ],
-            is_final: false,
-            input_tokens: 200,
-            output_tokens: null,
-            finish_reason: null,
-          };
-          yield { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" };
-        }
-      },
-    };
+    const provider = createScriptedStreamProvider([
+      [
+        {
+          delta: "",
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_show",
+              type: "function",
+              function: { name: SIMPLE_TOOL_SHOW_CHAPTER, arguments: '{"chapter_num":1}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: 50,
+          output_tokens: null,
+          finish_reason: null,
+        },
+        { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" },
+      ],
+      [
+        {
+          delta: "",
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc_reply",
+              type: "function",
+              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"ok"}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: 200,
+          output_tokens: null,
+          finish_reason: null,
+        },
+        { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" },
+      ],
+    ]);
 
     await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "看第 1 章")));
 
-    const iter1Messages = receivedMessages[1];
+    const iter1Messages = provider.calls[1].messages;
     const assistantWithToolCalls = iter1Messages.find((m) => m.role === "assistant" && m.tool_calls);
     expect(assistantWithToolCalls).toBeDefined();
     // 非 thinking 模型无 reasoning_content 字段（不是空字符串，是字段不存在）
@@ -1087,7 +1050,7 @@ describe("dispatchSimpleChat", () => {
     // 单轮场景：LLM 一次性调 modify_character_file 带全 args，不需要 read-only 探索。
     // dispatch 直接 emit + break，不 fetch、不进下一 iter。
     const adapter = new MockAdapter();
-    const provider = makeMultiIterProvider([
+    const provider = createScriptedStreamProvider([
       [
         {
           delta: "",
@@ -1124,25 +1087,27 @@ describe("dispatchSimpleChat", () => {
     // 丢弃 + telemetry "force_tool_only_with_text" 事件触发，与具体 tool 名无关。
     // commit Layer 5 后：旧 console.warn 改为 telemetry.emit，本 test 用 mock sink 捕获。
     const adapter = new MockAdapter();
-    const provider = makeStreamProvider([
-      { delta: "我先想想", is_final: false, input_tokens: 0, output_tokens: null, finish_reason: null },
-      {
-        delta: "",
-        tool_call_deltas: [
-          {
-            index: 0,
-            id: "y",
-            type: "function",
-            function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"hi"}' },
-          },
-        ],
-        is_final: false,
-        input_tokens: null,
-        output_tokens: null,
-        finish_reason: null,
-      },
-      { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" },
-    ]);
+    const provider = createMockLLMProvider({
+      streamChunks: [
+        { delta: "我先想想", is_final: false, input_tokens: 0, output_tokens: null, finish_reason: null },
+        {
+          delta: "",
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "y",
+              type: "function",
+              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"hi"}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: null,
+          output_tokens: null,
+          finish_reason: null,
+        },
+        { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" },
+      ],
+    });
 
     const emitted: TelemetryEvent[] = [];
     const mockSink: TelemetrySink = { emit: (e) => emitted.push(e) };
@@ -1174,28 +1139,9 @@ describe("dispatchSimpleChat", () => {
   // 对话式 × 记忆栈融合 P1.3 — dispatch 改接 assembleChatContext
   // ===========================================================================
 
-  /** 多 iter mock：每轮按 callIndex 取 chunks，并捕获每轮 generateStream 收到的 messages。
-   *  用于断言「组装只在循环外一次」（system message 跨轮 byte-identical）+ 记忆注入。 */
-  function makeCapturingProvider(iterChunks: LLMChunk[][]): { provider: LLMProvider; calls: Message[][] } {
-    let callIndex = 0;
-    const calls: Message[][] = [];
-    const provider: LLMProvider = {
-      async generate(): Promise<LLMResponse> {
-        return { content: "", model: "mock", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
-      },
-      async *generateStream(req: { messages: Message[] }): AsyncIterable<LLMChunk> {
-        calls.push(req.messages);
-        const chunks = iterChunks[callIndex] ?? [];
-        callIndex++;
-        for (const c of chunks) yield c;
-      },
-    };
-    return { provider, calls };
-  }
-
   it("分层上下文：facts / 剧情线 进 system message（走 assembleChatContext，非全塞）", async () => {
     const adapter = new MockAdapter();
-    const { provider, calls } = makeCapturingProvider([
+    const provider = createScriptedStreamProvider([
       [{ delta: "好的", is_final: true, input_tokens: 10, output_tokens: 2, finish_reason: "stop" }],
     ]);
 
@@ -1216,9 +1162,9 @@ describe("dispatchSimpleChat", () => {
       }),
     );
 
-    expect(calls.length).toBeGreaterThanOrEqual(1);
-    const systemContent = calls[0][0].content ?? "";
-    expect(calls[0][0].role).toBe("system");
+    expect(provider.calls.length).toBeGreaterThanOrEqual(1);
+    const systemContent = provider.calls[0].messages[0].content ?? "";
+    expect(provider.calls[0].messages[0].role).toBe("system");
     expect(systemContent).toContain("主角名叫林夜");
     expect(systemContent).toContain("复仇主线");
     expect(systemContent).toContain("林夜在追查灭门凶手");
@@ -1231,7 +1177,7 @@ describe("dispatchSimpleChat", () => {
       "au_test/chapters/main/ch0001.md",
       "---\nau_id: au_test\nchapter_num: 1\nrevision: 1\nfinalized_at: '2026-05-01T10:00:00Z'\nshow_in_text: true\n---\n第一章正文：风起。",
     );
-    const { provider, calls } = makeCapturingProvider([
+    const provider = createScriptedStreamProvider([
       // iter 0: show_chapter(1) → read-only continue
       [
         {
@@ -1314,13 +1260,13 @@ describe("dispatchSimpleChat", () => {
     );
 
     // 两轮 LLM call，但 RAG 只检索一次 ⇒ 组装只发生在循环外一次（循环内若重组会 embed 两次）。
-    expect(calls.length).toBe(2);
+    expect(provider.calls.length).toBe(2);
     expect(embedCount).toBe(1);
     // 辅证：system message 含记忆层（facts 进 prompt）+ 跨轮一致（同一对象，逐字节自然相同）。
-    expect(calls[0][0].content ?? "").toContain("世界设定：剑与魔法");
-    expect(calls[0][0].content).toBe(calls[1][0].content);
+    expect(provider.calls[0].messages[0].content ?? "").toContain("世界设定：剑与魔法");
+    expect(provider.calls[0].messages[0].content).toBe(provider.calls[1].messages[0].content);
     // 第二轮 internalHistory 增长（多了 assistant + tool 消息）。
-    expect(calls[1].length).toBeGreaterThan(calls[0].length);
+    expect(provider.calls[1].messages.length).toBeGreaterThan(provider.calls[0].messages.length);
   });
 
   it("read-only fetch 结果按上限截断后注入 internalHistory（B3 防多轮爆 context）", async () => {
@@ -1332,7 +1278,7 @@ describe("dispatchSimpleChat", () => {
       "au_test/chapters/main/ch0001.md",
       `---\nau_id: au_test\nchapter_num: 1\nrevision: 1\nfinalized_at: '2026-05-01T10:00:00Z'\nshow_in_text: true\n---\n${huge}`,
     );
-    const { provider, calls } = makeCapturingProvider([
+    const provider = createScriptedStreamProvider([
       [
         {
           delta: "",
@@ -1374,7 +1320,7 @@ describe("dispatchSimpleChat", () => {
     const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "看第 1 章")));
 
     // 第二轮 internalHistory 里的 tool 消息内容被截断（远短于原文）
-    const iter1ToolMsg = calls[1].find((m) => m.role === "tool");
+    const iter1ToolMsg = provider.calls[1].messages.find((m) => m.role === "tool");
     expect(iter1ToolMsg).toBeDefined();
     expect((iter1ToolMsg!.content ?? "").length).toBeLessThan(huge.length);
     expect(iter1ToolMsg!.content ?? "").toContain("截断");
@@ -1394,7 +1340,7 @@ describe("dispatchSimpleChat", () => {
     const adapter = new MockAdapter();
     // iter 0 调一个没声明的工具名（既非 mutating/read-only/chat_reply，也无 schema）。
     // iter 1 兜底 chat_reply，保证 loop 收敛。
-    const provider = makeMultiIterProvider([
+    const provider = createScriptedStreamProvider([
       [
         {
           delta: "",
@@ -1475,9 +1421,9 @@ describe("dispatchSimpleChat", () => {
         yield { delta: "章", is_final: true, input_tokens: null, output_tokens: 2, finish_reason: "stop" };
       },
     };
-    const fastProvider = makeStreamProvider([
-      { delta: "second", is_final: true, input_tokens: 5, output_tokens: 1, finish_reason: "stop" },
-    ]);
+    const fastProvider = createMockLLMProvider({
+      streamChunks: [{ delta: "second", is_final: true, input_tokens: 5, output_tokens: 1, finish_reason: "stop" }],
+    });
 
     // 启动第一个 dispatch 并推进到第一个 token（占用并发锁），但不排空。
     const firstGen = dispatchSimpleChat(makeBaseParams(adapter, slowProvider, "写第一章"));
@@ -1510,9 +1456,9 @@ describe("dispatchSimpleChat", () => {
   // ---------------------------------------------------------------------------
   it("F1: 写文路径占用同章互斥表时，dispatch 被 409 拒绝（跨路径共享）", async () => {
     const adapter = new MockAdapter();
-    const fastProvider = makeStreamProvider([
-      { delta: "text", is_final: true, input_tokens: 5, output_tokens: 1, finish_reason: "stop" },
-    ]);
+    const fastProvider = createMockLLMProvider({
+      streamChunks: [{ delta: "text", is_final: true, input_tokens: 5, output_tokens: 1, finish_reason: "stop" }],
+    });
 
     // 模拟写文 generateChapter 在飞：以 "generate" 身份占用同 (au, chapter) key。
     const key = chapterInflightKey("au_test", 1);

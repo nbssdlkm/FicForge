@@ -6,6 +6,7 @@ import { buildSettingsContext, callSettingsLlm } from "../settings_chat.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 import type { LLMProvider, LLMResponse, LLMChunk, GenerateParams } from "../../llm/provider.js";
 import { LLMError } from "../../llm/provider.js";
+import { createMockLLMProvider } from "./mock_llm_provider.js";
 
 describe("build_settings_context", () => {
   it("AU mode assembles system prompt with AU name and fandom", async () => {
@@ -97,25 +98,16 @@ describe("build_settings_context", () => {
 
 describe("callSettingsLlm", () => {
   it("returns content and tool_calls", async () => {
-    const mockProvider: LLMProvider = {
-      async generate(_params: GenerateParams): Promise<LLMResponse> {
-        return {
-          content: "我建议创建角色文件",
-          model: "test",
-          input_tokens: 100,
-          output_tokens: 50,
-          finish_reason: "stop",
-          tool_calls: [
-            {
-              id: "tc1",
-              type: "function",
-              function: { name: "create_character_file", arguments: '{"name":"Alice","content":"# Alice"}' },
-            },
-          ],
-        };
-      },
-      async *generateStream(): AsyncIterable<LLMChunk> {},
-    };
+    const mockProvider = createMockLLMProvider({
+      content: "我建议创建角色文件",
+      toolCalls: [
+        {
+          id: "tc1",
+          type: "function",
+          function: { name: "create_character_file", arguments: '{"name":"Alice","content":"# Alice"}' },
+        },
+      ],
+    });
 
     const messages = [
       { role: "system" as const, content: "system prompt" },
@@ -130,12 +122,7 @@ describe("callSettingsLlm", () => {
   });
 
   it("returns empty tool_calls when none", async () => {
-    const mockProvider: LLMProvider = {
-      async generate(): Promise<LLMResponse> {
-        return { content: "回复", model: "test", input_tokens: 0, output_tokens: 0, finish_reason: "stop" };
-      },
-      async *generateStream(): AsyncIterable<LLMChunk> {},
-    };
+    const mockProvider = createMockLLMProvider({ content: "回复" });
 
     const result = await callSettingsLlm(
       [
@@ -180,30 +167,20 @@ describe("callSettingsLlm", () => {
   });
 
   it("400 context_length_exceeded → 原样抛出、不去 tools 重试（盲审 R5 测试 M2）", async () => {
-    let calls = 0;
-    const mockProvider: LLMProvider = {
-      async generate(): Promise<LLMResponse> {
-        calls++;
-        throw new LLMError("context_length_exceeded", "too long", ["retry"], 400);
-      },
-      async *generateStream(): AsyncIterable<LLMChunk> {},
-    };
+    const mockProvider = createMockLLMProvider({
+      error: new LLMError("context_length_exceeded", "too long", ["retry"], 400),
+    });
     await expect(callSettingsLlm(msgs, "au", mockProvider)).rejects.toMatchObject({
       error_code: "context_length_exceeded",
     });
-    expect(calls).toBe(1); // 未去 tools 重试
+    expect(mockProvider.calls.length).toBe(1); // 未去 tools 重试
   });
 
   it("非 400 错误 → 原样抛出、不去 tools 重试（盲审 R5 测试 M2）", async () => {
-    let calls = 0;
-    const mockProvider: LLMProvider = {
-      async generate(): Promise<LLMResponse> {
-        calls++;
-        throw new LLMError("invalid_api_key", "bad key", ["check_settings"], 401);
-      },
-      async *generateStream(): AsyncIterable<LLMChunk> {},
-    };
+    const mockProvider = createMockLLMProvider({
+      error: new LLMError("invalid_api_key", "bad key", ["check_settings"], 401),
+    });
     await expect(callSettingsLlm(msgs, "au", mockProvider)).rejects.toMatchObject({ status_code: 401 });
-    expect(calls).toBe(1);
+    expect(mockProvider.calls.length).toBe(1);
   });
 });
