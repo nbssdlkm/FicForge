@@ -79,13 +79,13 @@
 - [x] **两剩项治本**（用户追问「怎么还有剩项」→ 做完）`a8160d6`：①per-model 上下文窗口**可覆盖**——工作流 trace 证实生成端 `get_context_window` 优先认保存的 `context_window`（覆盖真生效非假功能），解锁权威模型 ctx 编辑 + 恢复默认 + 自动校正放宽为「仅空值 seed」②覆盖备份**进回收站列表**——`backupBeforeOverwrite` 写完 sidecar 后 append 单文件 TrashEntry（`overwrite_backup` 类型、`cast_registry_removed:false` 复用 LOW-3 门），restore/list/purge/permanent_delete 单文件分支原生正确、零改动。对抗审采纳 3 发现（backup id 4→8 位防碰撞、trashSource 检查前移、ctx 纳入脏快照）。
 
 ### 技术债
-- **TD-001…TD-021 全部闭环**（2026-07-12 F 批收官：TD-019 a11y+deps、TD-020 别名索引侧、TD-021 写侧统一+金标；TD-018 vite 8 已随 G5 落地）。**2026-07-13 新增两条 open：TD-022（引擎测试 mock 迁 helper，C1 前置已 commit `4eda9d4`）+ TD-023（snake/camel 命名收尾，含持久化键危险类需专注会话）**——原「长期债①②」正式化，有完整可执行方案 + 排期，非模糊挂账，详见 `docs/TECH-DEBT.md`。
+- **TD-001…TD-023 全部闭环**（2026-07-13：TD-022 引擎测试 mock 迁 helper=主体清偿+特殊 inline 有意保留；TD-023 snake/camel 命名收尾=(A) 持久化键 simple_chat+settings tolerant-read+对抗审 SAFE / (B) 接口方法名 89 文件纯 rename）。原「长期债①②」彻底闭环，**当前零 open 技术债**。
 
 ### 长期债（盲审 2026-07-09 判定为低息，渐进还）
-- [ ] **snake/camel 命名收尾 → 正式化 TD-023**（2026-07-13）：函数/变量级已闭环（E9 renamed 110 + G1 biome 围栏）；剩 (A) 持久化键（simple_chat.ts 21 字段 + settings.ts 自定义服务商键，写进用户磁盘 yaml，需 tolerant-read 迁移层）+ (B) repository 接口方法名（纯机械）。M10 auPath 已闭环。危险的 (A) 类排接手**专注会话**（碰用户存量数据不赶工），完整方案见 `docs/TECH-DEBT.md` TD-023。
+- [x] ~~**snake/camel 命名收尾（TD-023）**~~（**2026-07-13 完全闭环**）：(A) 持久化键 simple_chat `c8126f9` + settings `e3f040d`（tolerant-read 迁移层 + round-trip 自愈测试 + opus 对抗审数据安全 SAFE）+ (B) 接口方法名 `a6fb79b`（89 文件纯 rename、零数据风险）。函数/变量级早已闭环（E9+G1）。snake/camel 混用债彻底清完。
 - [ ] 两套 UI 工具执行器（execute-settings-tool / useSimpleToolExecutor，盲审 R3 M6）—— **既有「平行不合并」设计裁决**（同一 helper 栈两种工具面），非待办，记此备忘防重复指认。
 - [x] 巨型组件状态下沉（按 hook 铁律分批）：✅ AuSettingsLayout（2026-07-09，31 useState→0，4 hooks + 4 回归测试）；✅ AuLoreLayout（2026-07-10，25 useState→0，4 hooks + 9 回归测试 + 顺手修 3 存量 bug）；✅ SettingsChatPanel（2026-07-10，1026→115 行，3 hooks + 执行器纯模块 + 4 回归测试）；✅ FandomLoreLayout（2026-07-10，21 useState + 4 ref→0，4 hooks + 9 回归测试）；✅ GlobalSettingsModal（2026-07-10，19 useState→0，4 hooks + 4 回归测试）；✅ MobileOnboarding + MobileFandomView（2026-07-10，19+17 useState→0，5 hooks + 9 回归测试）。**六块全部清完，长期债②收官**
-- [ ] **引擎测试内联 LLM mock 迁共享 helper → 正式化 TD-022**（2026-07-13，不再「跟随性」模糊挂账）：共享 helper 已扩展就绪（C1，commit `4eda9d4`），剩 12 文件 ~47 处批量迁移（纯机械、测试护航、可委托便宜模型），逐批方案见 `docs/TECH-DEBT.md` TD-022。对抗审留的两条 UI 测试可选尾巴（useFactEditor 2s timer 无 clearTimeout / onboarding gate 微任务冲刷）随触碰再清。
+- [x] ~~**引擎测试内联 LLM mock 迁共享 helper（TD-022）**~~（**2026-07-13 主体清偿**）：C1 helper 扩展 `4eda9d4` + 12 文件迁移 `4ae7214`（4 子 agent 并行，净删 ~289 行重复、全套 byte-identical）；少数特殊行为 inline mock 有意保留（helper 无法表达：throw-then-succeed/yield-then-throw/timing/conditional-throw）。对抗审留的两条 UI 测试可选尾巴（useFactEditor 2s timer / onboarding gate 微任务）随触碰再清。
 - [x] ~~@vitejs/plugin-react 6.x（长期债⑤唯一剩项）~~（**2026-07-13 G5 已闭环**：随 vite 7→8 Rolldown 升级一并升到 `@vitejs/plugin-react ^6.0.3`；长期债⑤收官）
 - ✅ tailwind 4 浏览器底线：**已拍板（2026-07-10，用户）不考虑旧设备兼容**，按 Safari 16.4+ / Chrome 111+ 底线走；真机验证无需专门留意此项。（背景存档：旧设备上 var 基 /N 底纹会回退 100% 实心、同色对不可读；字面色遮罩不受影响）
 
