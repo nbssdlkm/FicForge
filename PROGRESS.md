@@ -55,7 +55,7 @@
 - [x] ~~push 总账~~（**2026-07-12 已全部 push**，origin/main=`2354df1`：第二轮盲审、B 批 ×8、C 批 ×7、第三轮盲审、D 批 ×9、M3 三批 ×3、别名表接通及全部文档；推前把远端他处先行的 DESIGN-SYSTEM v2 `3c968cf` 干净合入。上面各条目里的「未 push 等确认」措辞均已过时，以此条为准）
 - [x] **M3 产品拍板**（2026-07-11 已拍板并开工）：三字段建功能，分三批。方向修正：hidden_from 不是 POV 门控，是**角色知情边界**（与人称无关）——批一 = 知情标注注入（行尾人话标注 + 条件图例 + 提示式不硬藏）+ 人工可见可改（确认弹窗/卡片只读 chips + 编辑弹窗四态编辑 + 人改升 high 必生效）+ edit_fact 消毒硬化；批二 = story_time_order 同章内呈现排序；批三 = story_time_tag 卡片小标签。spec：`docs/superpowers/specs/2026-07-11-m3-fact-consumption-handoff.md` + 本会话四路实施前调查。**三批全部交付（见当前状态前两条）；剩余=别名表接通（独立会话进行中）**
 - [x] ~~push E 批总账~~（**2026-07-12 已 push**，`8371b2a..264d27e`，fetch 核无分叉）
-- [ ] **push F 批 + G 批 + G6 架构批总账（数以 `git rev-list origin/main..HEAD` 实时为准）**——等用户发话；推前必 fetch 核分叉。构成：F 批 5（F1 `3c79d16` / F2 `1b1ba53` / F3 `86df201` / F4 `9b8005e` / R5 报告）+ G 批 6（G1 `a208d15`…G6 `8450f56`）+ PROGRESS `c360bb2` + **G6 架构批 5（M1 `f896a09` / M2 `a8a83c9` / M1审阅整改 `1a936c5` / L3 `7437209` / L1 `7ca9872`）+ 本条 PROGRESS**。**G5 含 vite 8 大版本升级（Rolldown）+ lockfile 全量重生成，push 前提醒用户 CI/协作者需 npm install**
+- [x] ~~**push F 批 + G 批 + G6 架构批总账**~~（**2026-07-13 已 push**，`2d33867..a82c7bc`，fetch 核无分叉、fast-forward 15 commit：F 批 5 + G 批 6 + PROGRESS + G6 架构批 5[M1 `f896a09` / M2 `a8a83c9` / M1审阅整改 `1a936c5` / L3 `7437209` / L1 `7ca9872`] + 裁决/文档销账）。**⚠️ G5 含 vite 8（Rolldown）+ lockfile 全量重生成，协作者/CI pull 后需 `npm install`**
 - [x] ~~R3 低危残余专项清扫~~（**2026-07-12 F1 已销账**：16 条逐条核实，13 修 / 2 已消解 / 1 裁决成文，见当前状态首条）
 - [x] ~~R5 复测盲审~~（**2026-07-12 已跑**：87.2/B 五轮最高、零 HIGH；报告 `docs/internal/audit/2026-07-12-blind-audit-round5.md`）
 - [~] **G 批修复战役（2026-07-13：36/41 已修 6 commit，见当前状态首条）**——剩下两块：
