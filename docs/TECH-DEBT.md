@@ -536,3 +536,40 @@ getToolsForMode 三模式的 LLM 可见 schema 文本（fixtures/settings_tools_
 z.toJSONSchema 产物丢全部 description（prompt 承载文本）、多 $schema/
 additionalProperties、min(1) refine 不可表达——按「漂移只留金标」口径维持双声明 +
 双测试防线，此为**有意裁决**非遗留。
+
+---
+
+## TD-022: 引擎测试内联 LLM mock 迁共享 helper（长期债②正式化）
+
+**状态:** Open（前置已就绪，2026-07-13）—— 共享 helper 已扩展到位（C1，commit `4eda9d4`），剩批量迁移排接手会话。
+**优先级:** 低（纯测试重构，零产品风险；测试全绿即护航）
+**涉及文件:** `src-engine/services/__tests__/mock_llm_provider.ts`（helper，已扩展）+ 12 个引擎测试文件（~47 处内联 provider mock）
+
+12 个引擎测试各自内联定义 LLMProvider mock（`generate`/`generateStream` 对象字面量），其中 scriptedProvider 模式在 agent_loop / m9 / simple_chat_dispatch / react_extraction_dispatch 四处 byte-复制。共享 helper（`createMockLLMProvider` + 新增 `createScriptedStreamProvider`）已建。
+
+**已做（C1，commit `4eda9d4`）：** 扩展 `createMockLLMProvider`——`toolCalls` / `response`（覆盖 model/finish_reason/token）/ `streamChunks`（真 LLMChunk shape，替换原 broken 且无人用的 `chunks:string[]`，原 yield 非法 `{type:token,content}`）；补 generate 返回 model/finish_reason；新增 `createScriptedStreamProvider(iters)` 统一四处 byte-复制。现有 2 消费者（title_generator/chapter_memory）零改动全绿。
+
+**剩余（接手会话，architect 逐批方案）：**
+- C2（固定 content mock，~8 文件）：facts_extraction / settings_chat / m8a_facts_enrichment / chat_parser / import_export / chapter_splitter / thread_state / generation_rag（非流式部分）—— 内联 `{ async generate(){return {content}}, async *generateStream(){} }` 换 `createMockLLMProvider({ content })`；error → `{ error }`；tool-call → `{ toolCalls }`；prompt-capture → 读 `provider.calls[0].messages`。
+- C3（流式 + 脚本化，~4 文件）：generation / agent_loop / simple_chat_dispatch / react_extraction_dispatch —— scriptedProvider / makeMultiIter / capture 变体换 `createScriptedStreamProvider`；stream chunks 逐字搬入 iters。
+- 护航：每文件断言逐字不变（content/chunks verbatim 搬），每批跑 `vitest run` 全绿。纯机械，可委托便宜模型（v4-pro via cbc/opencode，须在装有该 CLI 的机器上——本 mac 未装）。
+
+---
+
+## TD-023: snake/camel 命名收尾——持久化键 + repository 接口方法名（长期债①正式化）
+
+**状态:** Open（2026-07-13 调查+方案就绪）—— 函数/变量级已闭环（E9 renamed 110 snake 函数 + G1 biome 围栏，零 snake 导出函数）；剩持久化键 + 接口方法名两类，排接手**专注会话**（含碰用户存量数据的迁移）。
+**优先级:** 中（(A) 类碰持久化数据，需 tolerant-read + round-trip 测试，不宜在上下文已重时赶工——CLAUDE.md「焦点会话勿赶工碰关键代码」点名类）
+**涉及文件:** `src-engine/domain/{simple_chat,settings}.ts` + `repositories/implementations/file_{simple_chat,settings}.ts` + `repositories/interfaces/*.ts` + 消费者
+
+引擎里最后残留的 snake/camel same-file 混用，分两类风险迥异：
+
+**(A) 持久化 camelCase 键（危险，需迁移层）：**
+- `simple_chat.ts` 21 个消息字段（chapterNum/draftLabel/toolArgs/toolCallId/toolName/toolCalls/generatedWith/undoMeta/... + 嵌套 ToolUndoMeta）**逐字写进用户磁盘的 `{au}/.well-known/simple-chat.yaml`**（objToPlain+dumpYaml 不转键）。文件级键（au_path/created_at）已 snake，唯消息键 camel——引擎唯一非 snake 的持久化域类型。
+- `settings.ts` CustomModelEntry/CustomProviderEntry 的 displayName/baseUrl/chatPath/contextWindow/maxOutputTokens **写进 settings.yaml**（与 api_key 同对象混用），三处（custom_providers / .models / enabled_models）共用一个 mapper `dictToCustomModelEntry`。
+- **风险**：盲改键 → 老 yaml 的 camel 键读成 undefined → 用户对话丢章节绑定 / undo 元数据 / 自定义服务商丢 baseUrl。**必须**加 tolerant-read（读 `snake ?? camel`，写只出 snake，一次 save 自愈）+ 老 camel fixture round-trip 测试。开发者真机旅程（2026-06-22）已写过存量文件，非纯理论风险。LLM/ops 边界已安全（chat_to_llm 显式映射 toolCalls→tool_calls、generatedWith 值本就 snake）。字段名与普通局部变量撞名（chapterNum 全仓 350 命中），rename 须限定到 SimpleChatMessage-typed 属性访问，不可 global-sed。
+
+**(B) repository 接口方法名（纯机械，零数据风险）：**
+- 8 个接口的 snake 方法名（list_main / get_content_only / backup_chapter / list_all / update_micro / promote_to_v2 / index_chunks / ...）与 camel 方法（get/save）same-file 混用。方法名从不序列化，改名纯 tsc 驱动 churn（一接口一 commit）。biome 围栏放行（class/interface 方法非 function/variable kind）。verbose 但零风险，可委托。
+
+**执行顺序（architect 方案）：** 先 (A) 由主模型带 tolerant-read + round-trip 测试做（simple_chat → settings，各一 commit，chat-to-llm.golden 逐字节不变作 LLM 行为未改的证明），再 (B) 委托便宜模型逐接口 rename。M10 auPath 已闭环无需做。
