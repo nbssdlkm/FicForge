@@ -32,7 +32,7 @@ export interface ResolvedLLMConfig {
    */
   context_window?: number;
   /**
-   * 非标聊天补全路径（对应 LLMConfig.chat_path / CustomProviderEntry.chatPath）。
+   * 非标聊天补全路径（对应 LLMConfig.chat_path / CustomProviderEntry.chat_path）。
    * undefined = 未设置，Provider 回退 /chat/completions。与 context_window 同法
    * **同层同源**：取胜出层的 chat_path，session 不带时按模型 + api_base 一致继承
    * （见 resolveInheritedLayerField）。

@@ -28,11 +28,13 @@ describe("engine-settings model catalog commands", () => {
   });
 
   it("saveCustomProvider 新建：生成唯一 id、key 进 secure storage、catalog 只暴露 has_api_key", async () => {
+    // 顶层 displayName/baseUrl = CustomProviderSaveInput（UI DTO，camelCase）；
+    // models[] 内的条目 = CustomModelEntry（持久化域，已 snake 化）。
     const saved = await saveCustomProvider({
       displayName: "我的中转站",
       baseUrl: "https://relay.example.com/v1",
       api_key: "sk-relay-secret",
-      models: [{ id: "relay/chat", displayName: "Relay Chat", contextWindow: 200_000, type: "chat" }],
+      models: [{ id: "relay/chat", display_name: "Relay Chat", context_window: 200_000, type: "chat" }],
     });
 
     expect(saved.id).toMatch(/^custom-/);
@@ -51,7 +53,7 @@ describe("engine-settings model catalog commands", () => {
       displayName: "我的中转站",
       has_api_key: true,
     });
-    expect(catalog.custom_providers[0].models[0].contextWindow).toBe(200_000);
+    expect(catalog.custom_providers[0].models[0].context_window).toBe(200_000);
 
     // 真实 key 走专用读取口（选中供应商时自动带出）
     expect(await getCustomProviderApiKey(saved.id)).toBe("sk-relay-secret");
@@ -78,9 +80,9 @@ describe("engine-settings model catalog commands", () => {
   });
 
   it("saveEnabledModels 按供应商覆写；getWriterSessionConfig 附带 catalog（会话下拉数据链）", async () => {
-    await saveEnabledModels("deepseek", [{ id: "deepseek-pulled", displayName: "deepseek-pulled", type: "chat" }]);
+    await saveEnabledModels("deepseek", [{ id: "deepseek-pulled", display_name: "deepseek-pulled", type: "chat" }]);
     await saveEnabledModels("deepseek", [
-      { id: "deepseek-v4-flash", displayName: "deepseek-v4-flash", contextWindow: 1_000_000, type: "chat" },
+      { id: "deepseek-v4-flash", display_name: "deepseek-v4-flash", context_window: 1_000_000, type: "chat" },
     ]);
 
     const catalog = await getModelCatalog();
@@ -88,7 +90,7 @@ describe("engine-settings model catalog commands", () => {
     expect(catalog.enabled_models.deepseek.map((m) => m.id)).toEqual(["deepseek-v4-flash"]);
 
     const sessionConfig = await getWriterSessionConfig();
-    expect(sessionConfig.catalog.enabled_models.deepseek[0].contextWindow).toBe(1_000_000);
+    expect(sessionConfig.catalog.enabled_models.deepseek[0].context_window).toBe(1_000_000);
   });
 
   it("deleteCustomProvider：条目 + 关联 enabled_models + secure 密钥一并清除", async () => {
@@ -98,8 +100,8 @@ describe("engine-settings model catalog commands", () => {
       api_key: "sk-doomed",
       models: [],
     });
-    await saveEnabledModels(saved.id, [{ id: "x", displayName: "x", type: "chat" }]);
-    await saveEnabledModels("deepseek", [{ id: "keep", displayName: "keep", type: "chat" }]);
+    await saveEnabledModels(saved.id, [{ id: "x", display_name: "x", type: "chat" }]);
+    await saveEnabledModels("deepseek", [{ id: "keep", display_name: "keep", type: "chat" }]);
 
     await deleteCustomProvider(saved.id);
 

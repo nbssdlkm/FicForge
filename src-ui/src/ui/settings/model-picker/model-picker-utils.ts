@@ -122,13 +122,14 @@ function normalizeBaseUrl(url: string): string {
 // ---------------------------------------------------------------------------
 
 function userEntryToOption(entry: CustomModelEntry, origin: "enabled" | "custom"): PickerModelOption {
+  // 左侧 = PickerModelOption（UI 选项，camelCase）；右侧 entry = CustomModelEntry（持久化域，已 snake 化）。
   return {
     id: entry.id,
-    displayName: entry.displayName || entry.id,
+    displayName: entry.display_name || entry.id,
     type: entry.type,
     ctx:
-      typeof entry.contextWindow === "number"
-        ? { source: "manual", value: entry.contextWindow }
+      typeof entry.context_window === "number"
+        ? { source: "manual", value: entry.context_window }
         : estimateCtx(entry.id),
     origin,
   };

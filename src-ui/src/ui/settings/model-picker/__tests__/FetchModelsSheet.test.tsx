@@ -69,7 +69,7 @@ describe("FetchModelsSheet", () => {
 
     // F-4：第二参数 = 本次 sheet 可见宇宙（拉取返回 ∪ 打开时已启用），与搜索过滤无关
     expect(onConfirm).toHaveBeenCalledWith(
-      [{ id: "BAAI/bge-m3", displayName: "BAAI/bge-m3", type: "embedding" }],
+      [{ id: "BAAI/bge-m3", display_name: "BAAI/bge-m3", type: "embedding" }],
       new Set(["deepseek-v4-flash", "deepseek-v4-pro", "BAAI/bge-m3"]),
     );
   });
@@ -80,8 +80,8 @@ describe("FetchModelsSheet", () => {
     renderSheet({
       onConfirm,
       existingEntries: [
-        { id: "deepseek-v4-flash", displayName: "deepseek-v4-flash", contextWindow: 131_072, type: "chat" },
-        { id: "legacy-model", displayName: "legacy-model", type: "chat" },
+        { id: "deepseek-v4-flash", display_name: "deepseek-v4-flash", context_window: 131_072, type: "chat" },
+        { id: "legacy-model", display_name: "legacy-model", type: "chat" },
       ],
     });
 
@@ -90,10 +90,10 @@ describe("FetchModelsSheet", () => {
     expect(screen.getByText("legacy-model")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "保存勾选" }));
-    const models = onConfirm.mock.calls[0][0] as { id: string; contextWindow?: number }[];
+    const models = onConfirm.mock.calls[0][0] as { id: string; context_window?: number }[];
     // 两条都默认保持勾选；已有条目的手填 ctx 原样保留
     expect(models.map((m) => m.id).sort()).toEqual(["deepseek-v4-flash", "legacy-model"]);
-    expect(models.find((m) => m.id === "deepseek-v4-flash")!.contextWindow).toBe(131_072);
+    expect(models.find((m) => m.id === "deepseek-v4-flash")!.context_window).toBe(131_072);
     // F-4：可见宇宙含拉取返回 + 未返回的旧启用条目
     expect(onConfirm.mock.calls[0][1]).toEqual(new Set(["deepseek-v4-flash", "legacy-model"]));
   });

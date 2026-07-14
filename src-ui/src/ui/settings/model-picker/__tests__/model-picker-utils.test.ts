@@ -18,26 +18,28 @@ import {
 const catalog: ModelCatalog = {
   custom_providers: [
     {
+      // 顶层 displayName/baseUrl = CustomProviderInfo（UI DTO，camelCase）；
+      // models[] / enabled_models[] 内的条目 = CustomModelEntry（持久化域，已 snake 化）。
       id: "custom-relay-1",
       displayName: "我的中转站",
       baseUrl: "https://relay.example.com/v1",
       has_api_key: true,
       models: [
-        { id: "relay/awesome-chat", displayName: "Awesome Chat", contextWindow: 200_000, type: "chat" },
-        { id: "relay/awesome-embed", displayName: "Awesome Embed", type: "embedding" },
+        { id: "relay/awesome-chat", display_name: "Awesome Chat", context_window: 200_000, type: "chat" },
+        { id: "relay/awesome-embed", display_name: "Awesome Embed", type: "embedding" },
       ],
     },
   ],
   enabled_models: {
     deepseek: [
       // 与推荐重名 → 去重时推荐优先
-      { id: "deepseek-v4-flash", displayName: "重名条目", type: "chat" },
+      { id: "deepseek-v4-flash", display_name: "重名条目", type: "chat" },
       // 手填 ctx → manual
-      { id: "deepseek-pulled", displayName: "deepseek-pulled", contextWindow: 65_536, type: "chat" },
+      { id: "deepseek-pulled", display_name: "deepseek-pulled", context_window: 65_536, type: "chat" },
       // 无 ctx 但 map fuzzy 可推 → estimated
-      { id: "deepseek-chat", displayName: "deepseek-chat", type: "chat" },
+      { id: "deepseek-chat", display_name: "deepseek-chat", type: "chat" },
       // 无 ctx 且 map 推不出 → unknown
-      { id: "totally-unknown-xyz", displayName: "totally-unknown-xyz", type: "chat" },
+      { id: "totally-unknown-xyz", display_name: "totally-unknown-xyz", type: "chat" },
     ],
   },
 };

@@ -257,18 +257,29 @@ function dictToAppConfig(d: Record<string, unknown> | null): AppConfig {
 
 /**
  * 用户模型条目映射。
- * 注意：contextWindow / maxOutputTokens **只在 YAML 里真有数值时才设置** ——
+ *
+ * tolerant-read：持久化键已 snake 化（display_name / context_window / max_output_tokens），
+ * 但老 settings.yaml 里是 camelCase（displayName / contextWindow / maxOutputTokens）。读侧
+ * `snake ?? camel` 优先认新键、回退旧键；写侧 domain 已 snake + objToPlain 逐字落盘，
+ * 一次 save 后文件自愈为 snake。三处（custom_providers[].models / enabled_models / 供应商）
+ * 都复用本函数，一处 fix 全覆盖。
+ *
+ * 注意：context_window / max_output_tokens **只在 YAML 里真有数值时才设置** ——
  * 缺失=「未知」是有语义的（UI 走"按 XXk 估算"显式提示路径），
- * 不能在这里静默补默认值把猜测伪装成用户手填的权威数据。
+ * 不能在这里静默补默认值把猜测伪装成用户手填的权威数据。tolerant-read 不改变此 optional
+ * 语义：两键都缺 → 仍读成 undefined（不落成 0/默认）。
  */
 function dictToCustomModelEntry(d: Record<string, unknown>): CustomModelEntry {
   const id = (d.id as string) ?? "";
+  const displayName = (d.display_name as string) ?? (d.displayName as string);
+  const contextWindow = d.context_window ?? d.contextWindow;
+  const maxOutputTokens = d.max_output_tokens ?? d.maxOutputTokens;
   return createCustomModelEntry({
     id,
-    displayName: (d.displayName as string) || id,
+    display_name: displayName || id,
     type: d.type === "embedding" ? "embedding" : "chat",
-    ...(typeof d.contextWindow === "number" ? { contextWindow: d.contextWindow } : {}),
-    ...(typeof d.maxOutputTokens === "number" ? { maxOutputTokens: d.maxOutputTokens } : {}),
+    ...(typeof contextWindow === "number" ? { context_window: contextWindow } : {}),
+    ...(typeof maxOutputTokens === "number" ? { max_output_tokens: maxOutputTokens } : {}),
   });
 }
 
@@ -285,14 +296,17 @@ function dictToCustomProviders(arr: unknown): CustomProviderEntry[] {
           .filter((m): m is Record<string, unknown> => Boolean(m) && typeof m === "object")
           .map(dictToCustomModelEntry)
       : [];
+    // tolerant-read：snake ?? camel（见 dictToCustomModelEntry 注释，同款迁移口径）。
+    const displayName = (d.display_name as string) ?? (d.displayName as string);
+    const chatPath = (d.chat_path as string) ?? (d.chatPath as string);
     result.push(
       createCustomProviderEntry({
         id,
-        displayName: (d.displayName as string) || id,
-        baseUrl: (d.baseUrl as string) ?? "",
+        display_name: displayName || id,
+        base_url: (d.base_url as string) ?? (d.baseUrl as string) ?? "",
         api_key: (d.api_key as string) ?? "",
         models,
-        ...(typeof d.chatPath === "string" && d.chatPath ? { chatPath: d.chatPath } : {}),
+        ...(typeof chatPath === "string" && chatPath ? { chat_path: chatPath } : {}),
       }),
     );
   }

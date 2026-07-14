@@ -188,11 +188,13 @@ export async function getWriterSessionConfig(): Promise<WriterSessionConfig> {
 // ---------------------------------------------------------------------------
 
 function toCustomProviderInfo(p: CustomProviderEntry): CustomProviderInfo {
+  // 左侧 = CustomProviderInfo（UI DTO，不落盘，字段保持 camelCase）；
+  // 右侧 = CustomProviderEntry（持久化域，已 snake 化）。
   return {
     id: p.id,
-    displayName: p.displayName,
-    baseUrl: p.baseUrl,
-    ...(p.chatPath ? { chatPath: p.chatPath } : {}),
+    displayName: p.display_name,
+    baseUrl: p.base_url,
+    ...(p.chat_path ? { chatPath: p.chat_path } : {}),
     has_api_key: Boolean(p.api_key?.trim()),
     models: structuredClone(p.models),
   };
@@ -225,11 +227,13 @@ export async function saveCustomProvider(input: CustomProviderSaveInput): Promis
     current.custom_providers = current.custom_providers ?? [];
     const existing = input.id ? current.custom_providers.find((p) => p.id === input.id) : undefined;
 
+    // 左侧 = CustomProviderEntry（持久化域，已 snake 化）；
+    // 右侧 input = CustomProviderSaveInput（UI DTO，字段保持 camelCase）。
     const entry: CustomProviderEntry = {
       id: existing?.id ?? input.id ?? generateCustomProviderId(),
-      displayName: input.displayName,
-      baseUrl: input.baseUrl,
-      ...(input.chatPath?.trim() ? { chatPath: input.chatPath.trim() } : {}),
+      display_name: input.displayName,
+      base_url: input.baseUrl,
+      ...(input.chatPath?.trim() ? { chat_path: input.chatPath.trim() } : {}),
       // undefined = 保持已存密钥；字符串（含空串=清除）= 覆盖。
       // 空串清除语义与 secure_fields.extractSecureFields 的「显式置空即删密钥」一致。
       api_key: input.api_key !== undefined ? input.api_key : (existing?.api_key ?? ""),

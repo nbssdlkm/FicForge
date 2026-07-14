@@ -264,8 +264,8 @@ describe("ProviderModelPicker", () => {
       custom_providers: [],
       enabled_models: {
         siliconflow: [
-          { id: "deepseek-ai/DeepSeek-V4", displayName: "deepseek-ai/DeepSeek-V4", type: "chat" },
-          { id: "Qwen/Qwen3-Max", displayName: "Qwen/Qwen3-Max", type: "chat" },
+          { id: "deepseek-ai/DeepSeek-V4", display_name: "deepseek-ai/DeepSeek-V4", type: "chat" },
+          { id: "Qwen/Qwen3-Max", display_name: "Qwen/Qwen3-Max", type: "chat" },
         ],
       },
     };
@@ -295,7 +295,7 @@ describe("ProviderModelPicker", () => {
     (getModelCatalog as Mock).mockResolvedValue({
       custom_providers: [],
       enabled_models: {
-        deepseek: [{ id: "made-up-model-9000", displayName: "made-up-model-9000", type: "chat" }],
+        deepseek: [{ id: "made-up-model-9000", display_name: "made-up-model-9000", type: "chat" }],
       },
     });
     const onContextWindowChange = vi.fn();

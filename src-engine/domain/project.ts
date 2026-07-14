@@ -32,9 +32,9 @@ export interface LLMConfig {
   ollama_model: string;
   context_window: number; // 0 = 自动推断
   /**
-   * 非标聊天补全路径（默认 /chat/completions）。特殊网关（自定义供应商 chatPath）用。
+   * 非标聊天补全路径（默认 /chat/completions）。特殊网关（自定义供应商 chat_path）用。
    * 与 api_base 同源随层持久化：缺省 = 未设置（消费方回退默认路径），不写默认值 ——
-   * 与 CustomProviderEntry.chatPath 的「缺省即默认」语义一致，避免把默认伪装成用户配置。
+   * 与 CustomProviderEntry.chat_path 的「缺省即默认」语义一致，避免把默认伪装成用户配置。
    */
   chat_path?: string;
 }
@@ -86,7 +86,7 @@ export function dictToLLMConfig(d: Record<string, unknown> | null): LLMConfig {
     ollama_model: (d.ollama_model as string) ?? "",
     context_window: (d.context_window as number) ?? 0,
     // chat_path：optional，只在 YAML 真有非空值时映射（缺省 = 未设置，走默认路径）。
-    // 与 custom_providers.chatPath 的「未知≠默认」映射口径一致。
+    // 与 custom_providers.chat_path 的「未知≠默认」映射口径一致。
     ...(typeof d.chat_path === "string" && d.chat_path ? { chat_path: d.chat_path } : {}),
   });
 }

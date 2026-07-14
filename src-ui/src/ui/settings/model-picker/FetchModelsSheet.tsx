@@ -167,7 +167,7 @@ export function FetchModelsSheet({
       (id) =>
         existingById.get(id) ?? {
           id,
-          displayName: id,
+          display_name: id,
           type: isLikelyEmbeddingId(id) ? "embedding" : "chat",
         },
     );

@@ -49,20 +49,24 @@ export function createEmbeddingConfig(partial?: Partial<EmbeddingConfig>): Embed
  * CustomProviderEntry.models 复用同一形状但 v1 表单不提供逐模型手填入口（恒为空，留作扩展点）；
  * 自定义模型的 ctx 经拉取 sheet 的已有条目保留 / 槽位级手填维护，逐模型编辑待后续。
  *
- * contextWindow 语义（与 provider_manifest.contextWindowForModel 分层一致）：
+ * context_window 语义（与 provider_manifest.contextWindowForModel 分层一致）：
  *   - 有值 = 用户手填/确认的权威值（喂 computeInputBudget）
  *   - 缺失 = 未知 —— UI 必须按 MODEL_CONTEXT_MAP fuzzy 估算并**显式提示「按 XXk 估算」**，
  *     禁止在持久化层静默补一个默认值伪装成权威数据（决策文档明令禁静默 fallback）。
+ *
+ * 字段命名：本类型**逐字落盘** settings.yaml（objToPlain + dumpYaml），故字段名有意
+ * 全 snake_case（与 api_key 同款），与文件里其它键统一；读侧带 tolerant-read 迁移层
+ * 兼容旧版 camelCase 落盘（file_settings.dictToCustomModelEntry）。
  */
 export interface CustomModelEntry {
   /** 模型 id（发给 API 的名字，可带 org/ 前缀）。 */
   id: string;
   /** UI 展示名（默认与 id 相同）。 */
-  displayName: string;
+  display_name: string;
   /** 用户手填/确认的 context window（缺 = 未知，UI 走估算提示路径）。 */
-  contextWindow?: number;
+  context_window?: number;
   /** 单次输出上限（可选）。 */
-  maxOutputTokens?: number;
+  max_output_tokens?: number;
   /** chat / embedding（拉取清单按 id 启发式预标，用户可改）。 */
   type: ModelKind;
 }
@@ -70,17 +74,20 @@ export interface CustomModelEntry {
 export function createCustomModelEntry(partial?: Partial<CustomModelEntry>): CustomModelEntry {
   return {
     id: "",
-    displayName: "",
+    display_name: "",
     type: "chat",
     ...partial,
   };
 }
 
 /**
- * 用户自定义供应商（与 manifest 的 ProviderEntry 同构：id/displayName/baseUrl/chatPath?/models[]）。
+ * 用户自定义供应商。**结构类比** manifest 的 ProviderEntry（id/显示名/base/chat 路径/models[]），
+ * 但字段命名有意不同：ProviderEntry 是 code-const（provider_manifest.ts，从不落盘，camelCase 合法），
+ * 本类型则**逐字写进** settings.yaml（objToPlain + dumpYaml），故与文件里其它键统一走 snake_case
+ * （display_name / base_url / chat_path，与 api_key 同款）；读侧带 tolerant-read 兼容旧版 camelCase。
  *
  * 差异（有意为之）：
- *   - displayName 是单一字符串（用户手填，不做中英双语）
+ *   - display_name 是单一字符串（用户手填，不做中英双语）
  *   - api_key 持久化在供应商条目上（Kelivo 模式）——落盘走 secure storage
  *     （见 file_settings 的动态 SecureFieldSpec），YAML 里只留占位符
  *   - models = 逐模型清单扩展点（v1 表单无手填入口，恒为空）；「拉取勾选」的模型统一存
@@ -89,10 +96,10 @@ export function createCustomModelEntry(partial?: Partial<CustomModelEntry>): Cus
 export interface CustomProviderEntry {
   /** 稳定 id（UI 生成，唯一；secure storage key 的 namespace 组成部分）。 */
   id: string;
-  displayName: string;
-  baseUrl: string;
+  display_name: string;
+  base_url: string;
   /** 可选自定义 chat 路径（默认 /chat/completions）。 */
-  chatPath?: string;
+  chat_path?: string;
   /** 供应商级 API key（选中该供应商时自动带出；secure storage 管理）。 */
   api_key: string;
   models: CustomModelEntry[];
@@ -101,8 +108,8 @@ export interface CustomProviderEntry {
 export function createCustomProviderEntry(partial?: Partial<CustomProviderEntry>): CustomProviderEntry {
   return {
     id: "",
-    displayName: "",
-    baseUrl: "",
+    display_name: "",
+    base_url: "",
     api_key: "",
     models: [],
     ...partial,
