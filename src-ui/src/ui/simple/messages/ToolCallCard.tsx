@@ -42,7 +42,7 @@ function ToolCallCardImpl({ message, globalBusy, onConfirm, onSkip, onUndo }: To
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
-  const argsJson = JSON.stringify(message.toolArgs, null, 2);
+  const argsJson = JSON.stringify(message.tool_args, null, 2);
   const isLong = argsJson.length > COLLAPSE_THRESHOLD;
   const displayArgs = isLong && !expanded ? argsJson.slice(0, COLLAPSE_THRESHOLD) + "..." : argsJson;
 
@@ -50,10 +50,10 @@ function ToolCallCardImpl({ message, globalBusy, onConfirm, onSkip, onUndo }: To
     pending: t("simple.toolCard.pending", { defaultValue: "待确认" }),
     confirmed:
       t("simple.toolCard.confirmed", { defaultValue: "已执行" }) +
-      (message.resultNote ? ` · ${message.resultNote}` : ""),
+      (message.result_note ? ` · ${message.result_note}` : ""),
     skipped: t("simple.toolCard.skipped", { defaultValue: "已跳过" }),
     undone: t("simple.toolCard.undone", { defaultValue: "已撤销" }),
-    error: message.errorMessage || t("simple.toolCard.error", { defaultValue: "执行失败" }),
+    error: message.error_message || t("simple.toolCard.error", { defaultValue: "执行失败" }),
   };
 
   const v = statusVisual(message.status);
@@ -64,7 +64,7 @@ function ToolCallCardImpl({ message, globalBusy, onConfirm, onSkip, onUndo }: To
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <CardEyebrow icon={Wrench}>{t("simple.toolCard.eyebrow", { defaultValue: "Tool Call" })}</CardEyebrow>
         <span className="font-display text-[13px] font-semibold not-italic tracking-normal text-text">
-          {message.toolName}
+          {message.tool_name}
         </span>
         <span className={`ml-auto inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 ${v.className}`}>
           <v.Icon size={11} />

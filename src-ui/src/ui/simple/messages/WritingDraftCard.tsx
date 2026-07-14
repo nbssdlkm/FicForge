@@ -59,21 +59,21 @@ function StatusBadge({
         return t("simple.draftCard.statusPending", { defaultValue: "待确认" });
       case "accepted":
         // revision 未知（标记恢复场景，对抗审 A-7）时不显示 rev，避免恒显 rev 1 的错值
-        return message.acceptedRevision != null
+        return message.accepted_revision != null
           ? t("simple.draftCard.statusAccepted", {
               defaultValue: "已接受为第 {{num}} 章 · rev {{rev}}",
-              num: message.chapterNum,
-              rev: message.acceptedRevision,
+              num: message.chapter_num,
+              rev: message.accepted_revision,
             })
           : t("simple.draftCard.statusAcceptedNoRev", {
               defaultValue: "已接受为第 {{num}} 章",
-              num: message.chapterNum,
+              num: message.chapter_num,
             });
       case "rejected":
       case "discarded":
         return t("simple.draftCard.statusDiscarded", { defaultValue: "已丢弃" });
       case "error":
-        return message.errorMessage || t("simple.draftCard.statusError", { defaultValue: "生成失败" });
+        return message.error_message || t("simple.draftCard.statusError", { defaultValue: "生成失败" });
     }
   })();
   return (
@@ -106,8 +106,8 @@ function WritingDraftCardImpl({ message, isStreaming, onAccept, onRegenerate, on
         <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-ink-muted">
           {t("simple.draftCard.chapterSlug", {
             defaultValue: "Ch.{{num}} · Draft {{label}} · {{count}} chars",
-            num: message.chapterNum,
-            label: message.draftLabel,
+            num: message.chapter_num,
+            label: message.draft_label,
             count: wordCount,
           })}
         </span>
@@ -153,9 +153,9 @@ function WritingDraftCardImpl({ message, isStreaming, onAccept, onRegenerate, on
               {message.status === "error"
                 ? t("simple.draftCard.retryAccept", {
                     defaultValue: "重试接受为第 {{num}} 章",
-                    num: message.chapterNum,
+                    num: message.chapter_num,
                   })
-                : t("simple.draftCard.accept", { defaultValue: "接受为第 {{num}} 章", num: message.chapterNum })}
+                : t("simple.draftCard.accept", { defaultValue: "接受为第 {{num}} 章", num: message.chapter_num })}
             </Button>
           )}
           <Button

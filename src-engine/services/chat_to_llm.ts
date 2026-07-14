@@ -94,18 +94,18 @@ export function chatToOpenAIMessages(messages: SimpleChatMessage[]): OpenAIChatM
         // chat_reply 闲聊回答 → 直接进 history（content + 无 tool_calls）。
         // agent loop 一轮 LLM 决定调 read-only tool 时 → 携 tool_calls，content 可空，
         // 紧随其后的 SimpleToolResultMessage 会被转成 role:"tool" 串回该 tool_call.id。
-        if (msg.toolCalls && msg.toolCalls.length > 0) {
+        if (msg.tool_calls && msg.tool_calls.length > 0) {
           result.push({
             role: "assistant",
             content: msg.content,
-            tool_calls: msg.toolCalls.map((tc) => ({
+            tool_calls: msg.tool_calls.map((tc) => ({
               id: tc.id,
               type: "function" as const,
               function: { name: tc.name, arguments: tc.args },
             })),
           });
           // 这些 tool_call.id 现在可被后续 tool-result 配对
-          for (const tc of msg.toolCalls) knownToolCallIds.add(tc.id);
+          for (const tc of msg.tool_calls) knownToolCallIds.add(tc.id);
         } else {
           result.push({ role: "assistant", content: msg.content });
         }
@@ -122,10 +122,10 @@ export function chatToOpenAIMessages(messages: SimpleChatMessage[]): OpenAIChatM
         break;
       case "tool-call": {
         // tool call — 完整 args + 状态 marker
-        const argsBlock = JSON.stringify(msg.toolArgs, null, 2);
+        const argsBlock = JSON.stringify(msg.tool_args, null, 2);
         result.push({
           role: "assistant",
-          content: `[tool: ${msg.toolName}]\n${argsBlock}\n${statusMarker(msg.status, msg.errorMessage)}`,
+          content: `[tool: ${msg.tool_name}]\n${argsBlock}\n${statusMarker(msg.status, msg.error_message)}`,
         });
         break;
       }
@@ -138,10 +138,10 @@ export function chatToOpenAIMessages(messages: SimpleChatMessage[]): OpenAIChatM
         // 起源端修，此防御保旧用户 chat.yaml 不变砖。
         // errorMessage 不进 OpenAI content 字段（防 LLM 误把 errorMessage 当工具产出真实
         // 文本），只在 UI / 持久化里保留。
-        if (knownToolCallIds.has(msg.toolCallId)) {
+        if (knownToolCallIds.has(msg.tool_call_id)) {
           result.push({
             role: "tool",
-            tool_call_id: msg.toolCallId,
+            tool_call_id: msg.tool_call_id,
             content: msg.content,
           });
         } else {
@@ -150,7 +150,7 @@ export function chatToOpenAIMessages(messages: SimpleChatMessage[]): OpenAIChatM
           // warnAlways 落日志文件，条目可随「导出日志」带走诊断。
           warnAlways(
             "chat-to-llm",
-            `orphan tool-result skipped: tool_call_id=${msg.toolCallId} tool=${msg.toolName}; ` +
+            `orphan tool-result skipped: tool_call_id=${msg.tool_call_id} tool=${msg.tool_name}; ` +
               `no preceding assistant.toolCalls match. Likely legacy chat.yaml prior to 2026-05-04 fix.`,
           );
         }

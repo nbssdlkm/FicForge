@@ -31,9 +31,9 @@ function SettingPreviewCardImpl({ message, auPath, fandomPath, onToggleExpanded 
     };
   }, []);
 
-  const parts = message.filePath.split("/");
+  const parts = message.file_path.split("/");
   const category = parts[0] ?? "";
-  const filename = parts.slice(1).join("/") || message.filePath;
+  const filename = parts.slice(1).join("/") || message.file_path;
   const isFandom = category === "core_characters" || category === "core_worldbuilding";
   const missingFandomPath =
     isFandom && !fandomPath ? t("simple.previewCard.noFandomPath", { defaultValue: "请提供 fandomPath" }) : null;
@@ -68,7 +68,7 @@ function SettingPreviewCardImpl({ message, auPath, fandomPath, onToggleExpanded 
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
       <CardEyebrow icon={FileText}>{t("simple.previewCard.settingEyebrow", { defaultValue: "Lore" })}</CardEyebrow>
       <span className="break-all font-display text-[13px] font-semibold not-italic tracking-normal text-text">
-        {message.filePath}
+        {message.file_path}
       </span>
       {charCount > 0 && (
         <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-ink-faint">

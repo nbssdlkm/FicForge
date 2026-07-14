@@ -29,8 +29,8 @@ describe("useSimpleChat", () => {
     const draft = result.current.messages.find((m) => m.id === id);
     expect(draft).toMatchObject({
       kind: "writing-draft",
-      chapterNum: 3,
-      draftLabel: "?",
+      chapter_num: 3,
+      draft_label: "?",
       content: "",
       status: "streaming",
     });
@@ -59,8 +59,8 @@ describe("useSimpleChat", () => {
     });
     draft = result.current.messages.find((m) => m.id === id);
     expect(draft?.kind === "writing-draft" && draft.status).toBe("accepted");
-    expect(draft?.kind === "writing-draft" && draft.acceptedRevision).toBe(2);
-    expect(draft?.kind === "writing-draft" && draft.acceptedAt).toBeTruthy();
+    expect(draft?.kind === "writing-draft" && draft.accepted_revision).toBe(2);
+    expect(draft?.kind === "writing-draft" && draft.accepted_at).toBeTruthy();
   });
 
   it("assignDraftLabel updates only writing-draft messages", () => {
@@ -73,7 +73,7 @@ describe("useSimpleChat", () => {
       result.current.assignDraftLabel(id, "B");
     });
     const draft = result.current.messages.find((m) => m.id === id);
-    expect(draft?.kind === "writing-draft" && draft.draftLabel).toBe("B");
+    expect(draft?.kind === "writing-draft" && draft.draft_label).toBe("B");
   });
 
   it("AU 切换清空 messages", () => {
@@ -98,7 +98,7 @@ describe("useSimpleChat", () => {
       ]);
     });
     const msg = result.current.messages.find((m) => m.id === id);
-    expect(msg?.kind === "assistant" && msg.toolCalls).toEqual([
+    expect(msg?.kind === "assistant" && msg.tool_calls).toEqual([
       { id: "tc_001", name: "show_chapter", args: '{"chapter_num":5}' },
     ]);
   });
@@ -110,8 +110,8 @@ describe("useSimpleChat", () => {
       id = result.current.appendAssistantMessage("hello");
     });
     const msg = result.current.messages.find((m) => m.id === id);
-    // 关键：闲聊路径不污染 chat.yaml 形状（toolCalls 字段不存在，不是 undefined）
-    expect(msg?.kind === "assistant" && "toolCalls" in msg).toBe(false);
+    // 关键：闲聊路径不污染 chat.yaml 形状（tool_calls 字段不存在，不是 undefined）
+    expect(msg?.kind === "assistant" && "tool_calls" in msg).toBe(false);
   });
 
   it("appendAssistantMessage 传空数组 toolCalls 时也不写字段（防空数组污染）", () => {
@@ -121,7 +121,7 @@ describe("useSimpleChat", () => {
       id = result.current.appendAssistantMessage("hello", []);
     });
     const msg = result.current.messages.find((m) => m.id === id);
-    expect(msg?.kind === "assistant" && "toolCalls" in msg).toBe(false);
+    expect(msg?.kind === "assistant" && "tool_calls" in msg).toBe(false);
   });
 
   it("appendToolResultMessage 加 tool-result kind 消息（agent MVP T2）", () => {
@@ -137,12 +137,12 @@ describe("useSimpleChat", () => {
     const msg = result.current.messages.find((m) => m.id === id);
     expect(msg).toMatchObject({
       kind: "tool-result",
-      toolCallId: "tc_001",
-      toolName: "show_chapter",
+      tool_call_id: "tc_001",
+      tool_name: "show_chapter",
       content: "第五章正文...",
     });
-    // errorMessage 缺省时不写字段（保持 chat.yaml 干净）
-    expect(msg && "errorMessage" in msg).toBe(false);
+    // error_message 缺省时不写字段（保持 chat.yaml 干净）
+    expect(msg && "error_message" in msg).toBe(false);
   });
 
   it("appendToolResultMessage 带 errorMessage 时持久化", () => {
@@ -157,7 +157,7 @@ describe("useSimpleChat", () => {
       });
     });
     const msg = result.current.messages.find((m) => m.id === id);
-    expect(msg?.kind === "tool-result" && msg.errorMessage).toBe("characters/Alice.md 不存在");
+    expect(msg?.kind === "tool-result" && msg.error_message).toBe("characters/Alice.md 不存在");
   });
 
   it("appendToolCallMessage + markToolCallStatus 状态迁移", () => {
@@ -179,7 +179,7 @@ describe("useSimpleChat", () => {
     });
     const card = result.current.messages.find((m) => m.id === id);
     expect(card?.kind === "tool-call" && card.status).toBe("confirmed");
-    expect(card?.kind === "tool-call" && card.resultNote).toBe("wrote 300 chars");
+    expect(card?.kind === "tool-call" && card.result_note).toBe("wrote 300 chars");
   });
 
   it("togglePreviewExpanded 反转 chapter-preview / setting-preview 的 expanded", () => {

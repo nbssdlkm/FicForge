@@ -164,10 +164,10 @@ export function useSimpleToolExecutor(options: SimpleToolExecutorOptions): UseSi
         // 主仓库 SettingsChatPanel.handleUndoTool 一致），找不到再认 index。
         const project = await getProjectForEditing(auPath);
         const pinnedContext = project.pinned_context || [];
-        const pinnedContent = (undoMeta.pinnedContent || "").trim();
+        const pinnedContent = (undoMeta.pinned_content || "").trim();
         let pinnedIndex =
-          typeof undoMeta.pinnedIndex === "number" && pinnedContext[undoMeta.pinnedIndex]?.trim() === pinnedContent
-            ? undoMeta.pinnedIndex
+          typeof undoMeta.pinned_index === "number" && pinnedContext[undoMeta.pinned_index]?.trim() === pinnedContent
+            ? undoMeta.pinned_index
             : -1;
 
         if (pinnedIndex < 0 && pinnedContent) {

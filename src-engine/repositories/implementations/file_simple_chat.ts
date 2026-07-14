@@ -29,6 +29,75 @@ import { warnAlways } from "../../logger/index.js";
 const CHAT_FILE_NAME = "simple-chat.yaml";
 const WELL_KNOWN_DIR = ".well-known";
 
+/**
+ * Legacy camelCase → snake_case 消息键迁移表（tolerant-read）。
+ *
+ * 2026-07 SimpleChatMessage 字段 snake 化前，chat.yaml 里消息键用 camelCase 落盘
+ * （文件级键 au_path/created_at/updated_at 一直是 snake，只有消息键是 camel）。
+ * get() 读老文件时把这些 camel 键 coalesce 到 snake —— 否则消费方读 snake 拿到
+ * undefined，用户对话历史静默读不出（草稿章节号/工具调用/生成元数据全丢）。
+ * 写侧 domain 字段已改 snake + objToPlain 逐字落盘，故文件一次 save 即自愈为 snake。
+ *
+ * 单一真相源：本表键 = domain/simple_chat.ts 里被 rename 的字段的旧名。
+ */
+const LEGACY_MESSAGE_KEY_MAP: Record<string, string> = {
+  chapterNum: "chapter_num",
+  draftLabel: "draft_label",
+  toolArgs: "tool_args",
+  toolCallId: "tool_call_id",
+  toolName: "tool_name",
+  toolCalls: "tool_calls",
+  generatedWith: "generated_with",
+  undoMeta: "undo_meta",
+  acceptedRevision: "accepted_revision",
+  acceptedAt: "accepted_at",
+  resultNote: "result_note",
+  errorMessage: "error_message",
+  filePath: "file_path",
+};
+
+/** 嵌套 ToolUndoMeta（在 undo_meta 内）的 legacy camel → snake 键迁移表。 */
+const LEGACY_UNDO_META_KEY_MAP: Record<string, string> = {
+  factId: "fact_id",
+  pinnedIndex: "pinned_index",
+  pinnedContent: "pinned_content",
+  chapterNum: "chapter_num",
+};
+
+/**
+ * 按迁移表把一层对象的 legacy camel 键改写为 snake。
+ * - 仅当 camel 键实际存在时才动手（不给本无该字段的消息注入 undefined 键，
+ *   file_simple_chat.test.ts 的 `undefined` 断言依赖此）
+ * - 已有 snake 值时优先保留（新写入不被旧 camel 覆盖）
+ * - 惰性复制：无任何 legacy 键则原样返回入参，避免无谓分配
+ */
+function coalesceLegacyKeys(source: Record<string, unknown>, map: Record<string, string>): Record<string, unknown> {
+  let out = source;
+  for (const [camel, snake] of Object.entries(map)) {
+    if (!(camel in out)) continue;
+    if (out === source) out = { ...source };
+    if (!(snake in out) || out[snake] === undefined) {
+      out[snake] = out[camel];
+    }
+    delete out[camel];
+  }
+  return out;
+}
+
+/** 迁移单条 message 的 legacy 键（含嵌套 undo_meta）。返回值可能是入参本身（无 legacy 键时）。 */
+function migrateLegacyMessageKeys(m: Record<string, unknown>): Record<string, unknown> {
+  let out = coalesceLegacyKeys(m, LEGACY_MESSAGE_KEY_MAP);
+  const undo = out.undo_meta;
+  if (undo && typeof undo === "object" && !Array.isArray(undo)) {
+    const migratedUndo = coalesceLegacyKeys(undo as Record<string, unknown>, LEGACY_UNDO_META_KEY_MAP);
+    if (migratedUndo !== undo) {
+      if (out === m) out = { ...m };
+      out.undo_meta = migratedUndo;
+    }
+  }
+  return out;
+}
+
 export class FileSimpleChatRepository implements SimpleChatRepository {
   constructor(private adapter: PlatformAdapter) {}
 
@@ -82,7 +151,9 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
       const ts = typeof m.timestamp === "string" ? m.timestamp : null;
       const kind = typeof m.kind === "string" ? m.kind : null;
       if (!id || !ts || !kind) continue;
-      messages.push({ ...m, id, timestamp: ts, kind });
+      // tolerant-read：老 chat.yaml 的 camelCase 消息键 coalesce 到 snake（见上方迁移表）
+      const migrated = migrateLegacyMessageKeys(m);
+      messages.push({ ...migrated, id, timestamp: ts, kind });
     }
 
     return {

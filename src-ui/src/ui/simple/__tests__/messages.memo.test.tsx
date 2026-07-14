@@ -131,8 +131,8 @@ describe("WritingDraftCard memo", () => {
     id: "m4",
     kind: "writing-draft" as const,
     timestamp: "2026-05-05T00:00:00Z",
-    chapterNum: 1,
-    draftLabel: "A",
+    chapter_num: 1,
+    draft_label: "A",
     content: "draft content here",
     status: "pending" as const,
   };
@@ -194,8 +194,8 @@ describe("ToolCallCard memo", () => {
     id: "m5",
     kind: "tool-call" as const,
     timestamp: "2026-05-05T00:00:00Z",
-    toolName: "modify_chapter",
-    toolArgs: { chapterNum: 1 },
+    tool_name: "modify_chapter",
+    tool_args: { chapterNum: 1 },
     status: "pending" as const,
   };
 
@@ -214,7 +214,7 @@ describe("ToolCallCard memo", () => {
       <ToolCallCard message={baseMessage} globalBusy={false} onConfirm={cb} onSkip={cb} onUndo={cb} />,
     );
     t.mockClear();
-    const m2 = { ...baseMessage, toolArgs: { chapterNum: 2, extra: true } };
+    const m2 = { ...baseMessage, tool_args: { chapterNum: 2, extra: true } };
     rerender(<ToolCallCard message={m2} globalBusy={false} onConfirm={cb} onSkip={cb} onUndo={cb} />);
     expect(t).toHaveBeenCalled();
     expect(container.textContent).toContain('"chapterNum": 2');
@@ -244,7 +244,7 @@ describe("ChapterPreviewCard memo", () => {
     id: "m6",
     kind: "chapter-preview" as const,
     timestamp: "2026-05-05T00:00:00Z",
-    chapterNum: 1,
+    chapter_num: 1,
     expanded: false,
   };
 
@@ -262,7 +262,7 @@ describe("ChapterPreviewCard memo", () => {
     const { rerender } = render(<ChapterPreviewCard message={baseMessage} auPath="/au/test" onToggleExpanded={cb} />);
     t.mockClear();
     rerender(
-      <ChapterPreviewCard message={{ ...baseMessage, chapterNum: 2 }} auPath="/au/test" onToggleExpanded={cb} />,
+      <ChapterPreviewCard message={{ ...baseMessage, chapter_num: 2 }} auPath="/au/test" onToggleExpanded={cb} />,
     );
     expect(t).toHaveBeenCalled();
   });
@@ -275,7 +275,7 @@ describe("SettingPreviewCard memo", () => {
     id: "m7",
     kind: "setting-preview" as const,
     timestamp: "2026-05-05T00:00:00Z",
-    filePath: "characters/Alice.md",
+    file_path: "characters/Alice.md",
     expanded: false,
   };
 
@@ -293,7 +293,7 @@ describe("SettingPreviewCard memo", () => {
       <SettingPreviewCard message={baseMessage} auPath="/au/test" onToggleExpanded={cb} />,
     );
     t.mockClear();
-    const m2 = { ...baseMessage, filePath: "worldbuilding/Magic.md" };
+    const m2 = { ...baseMessage, file_path: "worldbuilding/Magic.md" };
     rerender(<SettingPreviewCard message={m2} auPath="/au/test" onToggleExpanded={cb} />);
     expect(t).toHaveBeenCalled();
     expect(container.textContent).toContain("worldbuilding/Magic.md");

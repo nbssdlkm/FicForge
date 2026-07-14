@@ -34,7 +34,7 @@ export async function saveSimpleChat(auPath: string, messages: SimpleChatMessage
  * 期间用户切走 / 离开工作区会让内存标记与防抖保存双双失效 → 章节已定稿但草稿永远显示
  * 可点「接受」，再点一次就重复确认覆写同章（审计 H3）。这里的写入不依赖组件存活。
  *
- * revision 传 null 表示未知（标记恢复场景），只钉 status/acceptedAt 不写 acceptedRevision。
+ * revision 传 null 表示未知（标记恢复场景），只钉 status/accepted_at 不写 accepted_revision。
  */
 export async function markSimpleChatDraftAccepted(
   auPath: string,
@@ -48,11 +48,11 @@ export async function markSimpleChatDraftAccepted(
       const next: SimpleChatMessageEnvelope = {
         ...m,
         status: "accepted",
-        acceptedAt: new Date().toISOString(),
-        ...(revision !== null ? { acceptedRevision: revision } : {}),
+        accepted_at: new Date().toISOString(),
+        ...(revision !== null ? { accepted_revision: revision } : {}),
       };
       // 终态清掉历史错误文案，避免「accepted 却挂着 error 信息」的矛盾展示
-      delete next.errorMessage;
+      delete next.error_message;
       return next;
     }),
   );

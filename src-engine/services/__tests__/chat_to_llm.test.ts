@@ -26,7 +26,7 @@ describe("chatToOpenAIMessages", () => {
         kind: "assistant",
         timestamp: "t",
         content: "",
-        toolCalls: [
+        tool_calls: [
           { id: "call_001", name: "show_chapter", args: '{"chapter_num":5}' },
           { id: "call_002", name: "show_setting", args: '{"file_path":"characters/Alice.md"}' },
         ],
@@ -35,16 +35,16 @@ describe("chatToOpenAIMessages", () => {
         id: "2",
         kind: "tool-result",
         timestamp: "t",
-        toolCallId: "call_001",
-        toolName: "show_chapter",
+        tool_call_id: "call_001",
+        tool_name: "show_chapter",
         content: "ch5 content",
       },
       {
         id: "3",
         kind: "tool-result",
         timestamp: "t",
-        toolCallId: "call_002",
-        toolName: "show_setting",
+        tool_call_id: "call_002",
+        tool_name: "show_setting",
         content: "Alice content",
       },
     ];
@@ -83,7 +83,7 @@ describe("chatToOpenAIMessages", () => {
           kind: "assistant",
           timestamp: "t",
           content: "",
-          toolCalls: [{ id: "call_show", name: "show_chapter", args: '{"chapter_num":5}' }],
+          tool_calls: [{ id: "call_show", name: "show_chapter", args: '{"chapter_num":5}' }],
         },
         // 没 tool-result for call_show（orphan）
         { id: "a2", kind: "assistant", timestamp: "t", content: "看完了" },
@@ -118,7 +118,7 @@ describe("chatToOpenAIMessages", () => {
           kind: "assistant",
           timestamp: "t",
           content: "让我查一下",
-          toolCalls: [
+          tool_calls: [
             { id: "call_a", name: "show_chapter", args: '{"chapter_num":5}' },
             { id: "call_b", name: "show_setting", args: '{"file_path":"characters/Alice.md"}' },
           ],
@@ -128,8 +128,8 @@ describe("chatToOpenAIMessages", () => {
           id: "tr_a",
           kind: "tool-result",
           timestamp: "t",
-          toolCallId: "call_a",
-          toolName: "show_chapter",
+          tool_call_id: "call_a",
+          tool_name: "show_chapter",
           content: "第五章正文...",
         },
         { id: "a2", kind: "assistant", timestamp: "t", content: "查到了" },
@@ -168,7 +168,7 @@ describe("chatToOpenAIMessages", () => {
           kind: "assistant",
           timestamp: "t",
           content: "让我查一下",
-          toolCalls: [{ id: "call_x", name: "show_chapter", args: '{"chapter_num":5}' }],
+          tool_calls: [{ id: "call_x", name: "show_chapter", args: '{"chapter_num":5}' }],
         },
         // 插入一条别的 assistant 文本，把 call_x 的 tool-result 从其父消息隔开。
         { id: "a_mid", kind: "assistant", timestamp: "t", content: "顺便说一句" },
@@ -176,8 +176,8 @@ describe("chatToOpenAIMessages", () => {
           id: "tr_x",
           kind: "tool-result",
           timestamp: "t",
-          toolCallId: "call_x",
-          toolName: "show_chapter",
+          tool_call_id: "call_x",
+          tool_name: "show_chapter",
           content: "第五章正文...",
         },
       ]);
@@ -208,7 +208,7 @@ describe("chatToOpenAIMessages", () => {
           kind: "assistant",
           timestamp: "t",
           content: "我考虑一下",
-          toolCalls: [{ id: "orphan_id", name: "show_chapter", args: '{"chapter_num":1}' }],
+          tool_calls: [{ id: "orphan_id", name: "show_chapter", args: '{"chapter_num":1}' }],
         },
       ]);
       // tool_calls drop 但 content 保留
@@ -220,7 +220,7 @@ describe("chatToOpenAIMessages", () => {
   });
 
   it("assistant.toolCalls 为空数组时不输出 tool_calls 字段（防空数组污染 history）", () => {
-    const out = chatToOpenAIMessages([{ id: "1", kind: "assistant", timestamp: "t", content: "hi", toolCalls: [] }]);
+    const out = chatToOpenAIMessages([{ id: "1", kind: "assistant", timestamp: "t", content: "hi", tool_calls: [] }]);
     expect(out[0]).not.toHaveProperty("tool_calls");
   });
 
@@ -233,7 +233,7 @@ describe("chatToOpenAIMessages", () => {
         kind: "assistant",
         timestamp: "t",
         content: "",
-        toolCalls: [
+        tool_calls: [
           { id: "call_001", name: "show_chapter", args: '{"chapter_num":5}' },
           { id: "call_002", name: "show_setting", args: '{"file_path":"characters/Alice.md"}' },
         ],
@@ -242,18 +242,18 @@ describe("chatToOpenAIMessages", () => {
         id: "1",
         kind: "tool-result",
         timestamp: "t",
-        toolCallId: "call_001",
-        toolName: "show_chapter",
+        tool_call_id: "call_001",
+        tool_name: "show_chapter",
         content: "第五章正文...",
       },
       {
         id: "2",
         kind: "tool-result",
         timestamp: "t",
-        toolCallId: "call_002",
-        toolName: "show_setting",
+        tool_call_id: "call_002",
+        tool_name: "show_setting",
         content: "FILE_NOT_FOUND",
-        errorMessage: "characters/Alice.md 不存在",
+        error_message: "characters/Alice.md 不存在",
       },
     ]);
     expect(out).toHaveLength(3);
@@ -276,8 +276,8 @@ describe("chatToOpenAIMessages", () => {
           id: "tr",
           kind: "tool-result",
           timestamp: "t",
-          toolCallId: "orphan_id",
-          toolName: "show_chapter",
+          tool_call_id: "orphan_id",
+          tool_name: "show_chapter",
           content: "第五章正文...",
         },
       ]);
@@ -304,7 +304,7 @@ describe("chatToOpenAIMessages", () => {
         kind: "assistant",
         timestamp: "t2",
         content: "",
-        toolCalls: [
+        tool_calls: [
           { id: "tc_chap", name: "show_chapter", args: '{"chapter_num":5}' },
           { id: "tc_setting", name: "show_setting", args: '{"file_path":"characters/Alice.md"}' },
         ],
@@ -313,18 +313,18 @@ describe("chatToOpenAIMessages", () => {
         id: "tr1",
         kind: "tool-result",
         timestamp: "t3",
-        toolCallId: "tc_chap",
-        toolName: "show_chapter",
+        tool_call_id: "tc_chap",
+        tool_name: "show_chapter",
         content: "第五章：夜色...",
       },
       {
         id: "tr2",
         kind: "tool-result",
         timestamp: "t4",
-        toolCallId: "tc_setting",
-        toolName: "show_setting",
+        tool_call_id: "tc_setting",
+        tool_name: "show_setting",
         content: "FILE_NOT_FOUND",
-        errorMessage: "characters/Alice.md 不存在",
+        error_message: "characters/Alice.md 不存在",
       },
       { id: "a2", kind: "assistant", timestamp: "t5", content: "我看了第 5 章；Alice 设定还没有，要不要建？" },
     ];
@@ -355,25 +355,25 @@ describe("chatToOpenAIMessages", () => {
         id: "tc1",
         kind: "tool-call",
         timestamp: "t1",
-        toolName: "modify_character_file",
-        toolArgs: { filename: "Alice.md", new_content: "...", change_summary: "改发色为银色" },
+        tool_name: "modify_character_file",
+        tool_args: { filename: "Alice.md", new_content: "...", change_summary: "改发色为银色" },
         status: "confirmed",
       },
       {
         id: "tc2",
         kind: "tool-call",
         timestamp: "t2",
-        toolName: "add_pinned_context",
-        toolArgs: { content: "Alice 的发色是银色" },
+        tool_name: "add_pinned_context",
+        tool_args: { content: "Alice 的发色是银色" },
         status: "error",
-        errorMessage: "engine 写盘失败",
+        error_message: "engine 写盘失败",
       },
       {
         id: "tc3",
         kind: "tool-call",
         timestamp: "t3",
-        toolName: "create_character_file",
-        toolArgs: { name: "Bob" },
+        tool_name: "create_character_file",
+        tool_args: { name: "Bob" },
         status: "pending",
       },
     ]);
@@ -397,8 +397,8 @@ describe("chatToOpenAIMessages", () => {
         id: "d1",
         kind: "writing-draft",
         timestamp: "t",
-        chapterNum: 1,
-        draftLabel: "A",
+        chapter_num: 1,
+        draft_label: "A",
         content: "第一章正文...",
         status: "accepted",
       },
@@ -415,8 +415,8 @@ describe("chatToOpenAIMessages", () => {
         id: "d1",
         kind: "writing-draft",
         timestamp: "t",
-        chapterNum: 1,
-        draftLabel: "A",
+        chapter_num: 1,
+        draft_label: "A",
         content: "半成品...",
         status: "streaming",
       },
@@ -426,8 +426,8 @@ describe("chatToOpenAIMessages", () => {
 
   it("chapter-preview / setting-preview / system 跳过（旧逻辑不破坏）", () => {
     const out = chatToOpenAIMessages([
-      { id: "1", kind: "chapter-preview", timestamp: "t", chapterNum: 5, expanded: false },
-      { id: "2", kind: "setting-preview", timestamp: "t", filePath: "x.md", expanded: false },
+      { id: "1", kind: "chapter-preview", timestamp: "t", chapter_num: 5, expanded: false },
+      { id: "2", kind: "setting-preview", timestamp: "t", file_path: "x.md", expanded: false },
       { id: "3", kind: "system", timestamp: "t", tone: "info", content: "提示" },
     ]);
     expect(out).toEqual([]);

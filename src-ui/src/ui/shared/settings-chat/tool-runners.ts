@@ -210,8 +210,8 @@ export async function runAddPinnedContext(
     resultNote: t("settingsMode.executedWithTarget", { target: t("common.labels.pinnedContext") }),
     undoMeta: {
       kind: "pinned",
-      pinnedIndex: index,
-      pinnedContent: content,
+      pinned_index: index,
+      pinned_content: content,
     },
     warningMessage: null,
   };

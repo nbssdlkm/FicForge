@@ -46,10 +46,10 @@ export interface ToolUndoMeta {
   kind: "lore" | "fact" | "pinned" | "unsupported";
   category?: string;
   filename?: string;
-  factId?: string;
-  pinnedIndex?: number;
-  pinnedContent?: string;
-  chapterNum?: number;
+  fact_id?: string;
+  pinned_index?: number;
+  pinned_content?: string;
+  chapter_num?: number;
   note?: string;
 }
 
@@ -70,7 +70,7 @@ export type SimpleUserMessage = {
 export interface SimpleAssistantToolCall {
   id: string;
   name: string;
-  /** stringified JSON，例如 '{"chapterNum":5}'。 */
+  /** stringified JSON，例如 '{"chapter_num":5}'。 */
   args: string;
 }
 
@@ -84,7 +84,7 @@ export type SimpleAssistantMessage = {
   /** agent loop 一轮 LLM 决定调用的工具（read-only 自动 fetch / 或缺 args 触发 LLM 重试）；
    * 持久化进 chat.yaml 让 reload 后 LLM 能从 history 还原完整 reasoning 链路。
    * 旧 schema reload 出来此字段为 undefined（向后兼容）。 */
-  toolCalls?: SimpleAssistantToolCall[];
+  tool_calls?: SimpleAssistantToolCall[];
 };
 
 /**
@@ -98,11 +98,11 @@ export type SimpleToolResultMessage = {
   kind: "tool-result";
   timestamp: string;
   /** 对应 SimpleAssistantToolCall.id，让 LLM 把 result 串到自己上一轮的 tool_call。 */
-  toolCallId: string;
-  toolName: string;
+  tool_call_id: string;
+  tool_name: string;
   /** 工具执行返回内容（章节正文 / 设定文件原文 / FILE_NOT_FOUND / TOOL_ARGS_INVALID 等）。 */
   content: string;
-  errorMessage?: string;
+  error_message?: string;
 };
 
 export type SimpleWritingDraftMessage = {
@@ -110,38 +110,38 @@ export type SimpleWritingDraftMessage = {
   kind: "writing-draft";
   timestamp: string;
   /** 草稿对应章节号；接受时写入这一章。 */
-  chapterNum: number;
+  chapter_num: number;
   /** 草稿标签（A/B/C/...），由 engine 在 confirm 时生成；本地 streaming 阶段先用临时标签。 */
-  draftLabel: string;
+  draft_label: string;
   /** 当前正文，streaming 期增量更新；finalize 后冻结。 */
   content: string;
   status: SimpleDraftStatus;
   /** finalize 时回填，用于"接受"按钮调 confirmChapter。 */
-  acceptedAt?: string;
-  acceptedRevision?: number;
-  errorMessage?: string;
+  accepted_at?: string;
+  accepted_revision?: number;
+  error_message?: string;
   /** engine done 事件携带的 generated_with；confirm 时回传给 ops 审计。 */
-  generatedWith?: Record<string, unknown>;
+  generated_with?: Record<string, unknown>;
 };
 
 export type SimpleToolCallMessage = {
   id: string;
   kind: "tool-call";
   timestamp: string;
-  toolName: string;
-  toolArgs: Record<string, unknown>;
+  tool_name: string;
+  tool_args: Record<string, unknown>;
   status: SimpleToolCallStatus;
-  resultNote?: string;
-  errorMessage?: string;
+  result_note?: string;
+  error_message?: string;
   /** 见 ToolUndoMeta 注释；chat.yaml 持久化向后兼容：旧消息无此字段读出 undefined。 */
-  undoMeta?: ToolUndoMeta | null;
+  undo_meta?: ToolUndoMeta | null;
 };
 
 export type SimpleChapterPreviewMessage = {
   id: string;
   kind: "chapter-preview";
   timestamp: string;
-  chapterNum: number;
+  chapter_num: number;
   /** 折叠态 / 展开态；UI 自管。 */
   expanded: boolean;
 };
@@ -151,7 +151,7 @@ export type SimpleSettingPreviewMessage = {
   kind: "setting-preview";
   timestamp: string;
   /** 'characters/Alice.md' 或 'worldbuilding/Magic.md' 等相对路径。 */
-  filePath: string;
+  file_path: string;
   expanded: boolean;
 };
 
@@ -187,7 +187,7 @@ export interface SimpleChatMessageEnvelope {
   timestamp: string;
   /** SimpleChatMessage union 的 `kind` 判别字段；宽容读取下可能是未知值。 */
   kind: string;
-  /** 任意附加字段（content / chapterNum / status / toolName / 等）。 */
+  /** 任意附加字段（content / chapter_num / status / tool_name / 等）。 */
   [key: string]: unknown;
 }
 

@@ -35,7 +35,7 @@ function ChapterPreviewCardImpl({ message, auPath, onToggleExpanded }: ChapterPr
     if (content !== null || loading || error !== null) return;
     setLoading(true);
     setError(null);
-    getChapterContent(auPath, message.chapterNum)
+    getChapterContent(auPath, message.chapter_num)
       .then((text) => {
         if (!mountedRef.current) return;
         setContent(text);
@@ -46,7 +46,7 @@ function ChapterPreviewCardImpl({ message, auPath, onToggleExpanded }: ChapterPr
         setError(err.message);
         setLoading(false);
       });
-  }, [message.expanded, content, loading, error, auPath, message.chapterNum]);
+  }, [message.expanded, content, loading, error, auPath, message.chapter_num]);
 
   const charCount = content ? content.length : 0;
 
@@ -54,7 +54,7 @@ function ChapterPreviewCardImpl({ message, auPath, onToggleExpanded }: ChapterPr
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
       <CardEyebrow icon={BookOpen}>{t("simple.previewCard.chapterEyebrow", { defaultValue: "Chapter" })}</CardEyebrow>
       <span className="font-display text-[14px] font-semibold not-italic tracking-normal text-text">
-        {t("simple.previewCard.chapterNum", { defaultValue: "第 {{num}} 章", num: message.chapterNum })}
+        {t("simple.previewCard.chapterNum", { defaultValue: "第 {{num}} 章", num: message.chapter_num })}
       </span>
       {charCount > 0 && (
         <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-ink-faint">

@@ -45,7 +45,7 @@ export function useSimpleToolCardActions({ auPath, chat }: UseSimpleToolCardActi
 
       setExecutingToolId(messageId);
       try {
-        const result = await toolExecutor.execute(target.toolName, target.toolArgs);
+        const result = await toolExecutor.execute(target.tool_name, target.tool_args);
         chat.markToolCallStatus(messageId, "confirmed", {
           resultNote: result.resultNote,
           undoMeta: result.undoMeta,
@@ -72,7 +72,7 @@ export function useSimpleToolCardActions({ auPath, chat }: UseSimpleToolCardActi
       const target = chat.messages.find((m) => m.id === messageId);
       if (!target || target.kind !== "tool-call") return;
       if (target.status !== "confirmed") return;
-      if (!target.undoMeta || target.undoMeta.kind === "unsupported") {
+      if (!target.undo_meta || target.undo_meta.kind === "unsupported") {
         // modify_* 主仓库也不支持 undo，温和提示
         showToast(
           t("simple.toolCard.undoUnsupported", {
@@ -86,7 +86,7 @@ export function useSimpleToolCardActions({ auPath, chat }: UseSimpleToolCardActi
 
       setExecutingToolId(messageId);
       try {
-        const result = await toolExecutor.undo(target.undoMeta);
+        const result = await toolExecutor.undo(target.undo_meta);
         chat.markToolCallStatus(messageId, "undone", {
           resultNote: result.resultNote,
           undoMeta: null,

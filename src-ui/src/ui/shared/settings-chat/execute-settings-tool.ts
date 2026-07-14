@@ -278,8 +278,8 @@ export async function executeSettingsTool(
       resultNote: t("settingsMode.executedWithTarget", { target: response.fact_id || t("settingsMode.card.addFact") }),
       undoMeta: {
         kind: "fact",
-        factId: response.fact_id,
-        chapterNum: currentChapter,
+        fact_id: response.fact_id,
+        chapter_num: currentChapter,
       },
       warningMessage: null,
     };
@@ -380,18 +380,18 @@ export async function undoSettingsTool(ctx: SettingsToolExecutionContext, undoMe
     return;
   }
 
-  if (undoMeta.kind === "fact" && undoMeta.factId) {
-    await updateFactStatus(basePath, undoMeta.factId, "deprecated", undoMeta.chapterNum || currentChapter);
+  if (undoMeta.kind === "fact" && undoMeta.fact_id) {
+    await updateFactStatus(basePath, undoMeta.fact_id, "deprecated", undoMeta.chapter_num || currentChapter);
     return;
   }
 
   if (undoMeta.kind === "pinned") {
     const latestProject = await getProjectForEditing(basePath);
     const pinnedContext = latestProject.pinned_context || [];
-    const pinnedContent = (undoMeta.pinnedContent || "").trim();
+    const pinnedContent = (undoMeta.pinned_content || "").trim();
     let pinnedIndex =
-      typeof undoMeta.pinnedIndex === "number" && pinnedContext[undoMeta.pinnedIndex]?.trim() === pinnedContent
-        ? undoMeta.pinnedIndex
+      typeof undoMeta.pinned_index === "number" && pinnedContext[undoMeta.pinned_index]?.trim() === pinnedContent
+        ? undoMeta.pinned_index
         : -1;
 
     if (pinnedIndex < 0 && pinnedContent) {

@@ -287,8 +287,8 @@ describe("useSimpleToolExecutor — execute", () => {
     expect(mocked.addPinned).toHaveBeenCalledWith(AU, "魔法不能复活");
     expect(res.undoMeta).toEqual({
       kind: "pinned",
-      pinnedIndex: 1, // 已有 1 条所以新条 index = 1
-      pinnedContent: "魔法不能复活",
+      pinned_index: 1, // 已有 1 条所以新条 index = 1
+      pinned_content: "魔法不能复活",
     });
   });
 
@@ -394,8 +394,8 @@ describe("useSimpleToolExecutor — undo", () => {
       // 当时 add 时 index 是 0，但现在被前置插入 1 条，实际 index = 1
       await result.current.undo({
         kind: "pinned",
-        pinnedIndex: 0,
-        pinnedContent: "魔法不能复活",
+        pinned_index: 0,
+        pinned_content: "魔法不能复活",
       });
     });
 
@@ -410,8 +410,8 @@ describe("useSimpleToolExecutor — undo", () => {
       await expect(
         result.current.undo({
           kind: "pinned",
-          pinnedIndex: 0,
-          pinnedContent: "已经被删了的",
+          pinned_index: 0,
+          pinned_content: "已经被删了的",
         }),
       ).rejects.toThrow();
     });

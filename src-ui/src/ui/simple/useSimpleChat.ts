@@ -317,8 +317,8 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
         kind: "assistant",
         timestamp: nowIso(),
         content,
-        // 不带 toolCalls 时不写空字段，保持旧版闲聊消息形状不变（chat.yaml diff 干净）
-        ...(toolCalls && toolCalls.length > 0 ? { toolCalls } : {}),
+        // 不带 tool_calls 时不写空字段，保持旧版闲聊消息形状不变（chat.yaml diff 干净）
+        ...(toolCalls && toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
       };
       appendMessage(message);
       return message.id;
@@ -346,10 +346,10 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
         id: makeMessageId(),
         kind: "tool-result",
         timestamp: nowIso(),
-        toolCallId: init.toolCallId,
-        toolName: init.toolName,
+        tool_call_id: init.toolCallId,
+        tool_name: init.toolName,
         content: init.content,
-        ...(init.errorMessage !== undefined ? { errorMessage: init.errorMessage } : {}),
+        ...(init.errorMessage !== undefined ? { error_message: init.errorMessage } : {}),
       };
       appendMessage(message);
       return message.id;
@@ -363,8 +363,8 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
         id: makeMessageId(),
         kind: "writing-draft",
         timestamp: nowIso(),
-        chapterNum: init.chapterNum,
-        draftLabel: init.draftLabel ?? "?",
+        chapter_num: init.chapterNum,
+        draft_label: init.draftLabel ?? "?",
         content: "",
         status: "streaming",
       };
@@ -402,7 +402,7 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
     (id: string, label: string) => {
       updateMessage(id, (prev) => {
         if (prev.kind !== "writing-draft") return prev;
-        return { ...prev, draftLabel: label };
+        return { ...prev, draft_label: label };
       });
     },
     [updateMessage],
@@ -412,7 +412,7 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
     (id: string, generatedWith: Record<string, unknown>) => {
       updateMessage(id, (prev) => {
         if (prev.kind !== "writing-draft") return prev;
-        return { ...prev, generatedWith };
+        return { ...prev, generated_with: generatedWith };
       });
     },
     [updateMessage],
@@ -425,8 +425,8 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
         return {
           ...prev,
           status,
-          ...(opts?.errorMessage !== undefined ? { errorMessage: opts.errorMessage } : {}),
-          ...(opts?.revision !== undefined ? { acceptedRevision: opts.revision } : {}),
+          ...(opts?.errorMessage !== undefined ? { error_message: opts.errorMessage } : {}),
+          ...(opts?.revision !== undefined ? { accepted_revision: opts.revision } : {}),
         };
       });
     },
@@ -440,9 +440,9 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
         return {
           ...prev,
           status: "accepted",
-          acceptedAt: nowIso(),
-          ...(revision !== null ? { acceptedRevision: revision } : {}),
-          errorMessage: undefined,
+          accepted_at: nowIso(),
+          ...(revision !== null ? { accepted_revision: revision } : {}),
+          error_message: undefined,
         };
       });
     },
@@ -455,8 +455,8 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
         id: makeMessageId(),
         kind: "tool-call",
         timestamp: nowIso(),
-        toolName: init.toolName,
-        toolArgs: init.toolArgs,
+        tool_name: init.toolName,
+        tool_args: init.toolArgs,
         status: "pending",
       };
       appendMessage(message);
@@ -480,9 +480,9 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
         return {
           ...prev,
           status,
-          ...(opts?.resultNote !== undefined ? { resultNote: opts.resultNote } : {}),
-          ...(opts?.errorMessage !== undefined ? { errorMessage: opts.errorMessage } : {}),
-          ...(opts?.undoMeta !== undefined ? { undoMeta: opts.undoMeta } : {}),
+          ...(opts?.resultNote !== undefined ? { result_note: opts.resultNote } : {}),
+          ...(opts?.errorMessage !== undefined ? { error_message: opts.errorMessage } : {}),
+          ...(opts?.undoMeta !== undefined ? { undo_meta: opts.undoMeta } : {}),
         };
       });
     },
@@ -495,7 +495,7 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
         id: makeMessageId(),
         kind: "chapter-preview",
         timestamp: nowIso(),
-        chapterNum,
+        chapter_num: chapterNum,
         expanded: false,
       };
       appendMessage(message);
@@ -510,7 +510,7 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
         id: makeMessageId(),
         kind: "setting-preview",
         timestamp: nowIso(),
-        filePath,
+        file_path: filePath,
         expanded: false,
       };
       appendMessage(message);

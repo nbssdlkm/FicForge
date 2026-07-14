@@ -69,16 +69,16 @@ export function useSimpleDraftActions({
       // 下面的章号 guard 是 TOCTOU（两次都读到旧 current_chapter），拦不住并发形态。
       if (acceptingDraftId) return;
       setAcceptingDraftId(messageId);
-      const draftLabel = target.draftLabel && target.draftLabel !== "?" ? target.draftLabel : "A";
-      const draftFileId = draftFilename(target.chapterNum, draftLabel);
+      const draftLabel = target.draft_label && target.draft_label !== "?" ? target.draft_label : "A";
+      const draftFileId = draftFilename(target.chapter_num, draftLabel);
       try {
         // 防重复接受（审计 H3）：接受只对「下一章」合法。三种到得了这里的非法状态 ——
         // 接受标记落盘失败后的残留 pending、连点、陈旧会话里的旧草稿 —— 都会覆写
         // 已确认章节 + 重复触发提取，必须在 confirm 之前拦下。
         const st = await getState(auPath);
         const expectedChapter = st.current_chapter ?? 1;
-        if (target.chapterNum !== expectedChapter) {
-          const existing = await getChapterContent(auPath, target.chapterNum).catch(
+        if (target.chapter_num !== expectedChapter) {
+          const existing = await getChapterContent(auPath, target.chapter_num).catch(
             swallowToNull("useSimpleDraftActions", "load existing chapter content failed"),
           );
           if (existing !== null && existing.trim() === target.content.trim()) {
@@ -91,7 +91,7 @@ export function useSimpleDraftActions({
             showToast(
               t("simple.draftCard.alreadyAccepted", {
                 defaultValue: "该草稿此前已接受为第 {{num}} 章，已恢复标记",
-                num: target.chapterNum,
+                num: target.chapter_num,
               }),
               "info",
             );
@@ -102,7 +102,7 @@ export function useSimpleDraftActions({
             showToast(
               t("simple.draftCard.chapterTaken", {
                 defaultValue: "第 {{num}} 章与当前写作进度不符（下一章应为第 {{expected}} 章），未执行接受",
-                num: target.chapterNum,
+                num: target.chapter_num,
                 expected: expectedChapter,
               }),
               "warning",
@@ -117,14 +117,14 @@ export function useSimpleDraftActions({
         //（下一章应为第 3 章）」的自相矛盾句 —— 拆专用 key，指路写文页处理。
         // 内容逐字一致（同章重接、confirm 半成功后重试）→ 放行 confirm：引擎带备份覆盖 +
         // 推进 state，正是修复半成功所需。
-        const existingCurrent = await getChapterContent(auPath, target.chapterNum).catch(
+        const existingCurrent = await getChapterContent(auPath, target.chapter_num).catch(
           swallowToNull("useSimpleDraftActions", "load existing chapter content failed"),
         );
         if (existingCurrent !== null && existingCurrent.trim() !== target.content.trim()) {
           showToast(
             t("simple.draftCard.chapterTakenSameNum", {
               defaultValue: "第 {{num}} 章当前已有不同内容，未覆盖；如需替换请先在写文页处理该章",
-              num: target.chapterNum,
+              num: target.chapter_num,
             }),
             "warning",
           );
@@ -133,9 +133,9 @@ export function useSimpleDraftActions({
 
         const result = await confirmChapter(
           auPath,
-          target.chapterNum,
+          target.chapter_num,
           draftFileId,
-          target.generatedWith,
+          target.generated_with,
           target.content,
         );
         // 立即把 accepted 终态直写 chat.yaml（锁内 read-modify-write，不依赖组件存活）。
@@ -145,11 +145,11 @@ export function useSimpleDraftActions({
           logCatch("simple", "persist accepted marker failed", e),
         );
         chat.markDraftAccepted(messageId, result.revision);
-        chat.appendChapterPreviewMessage(target.chapterNum);
+        chat.appendChapterPreviewMessage(target.chapter_num);
         showSuccess(
           t("simple.draftCard.acceptedToast", {
             defaultValue: "已接受为第 {{num}} 章",
-            num: target.chapterNum,
+            num: target.chapter_num,
           }),
         );
         await refreshChapterContext();
@@ -160,7 +160,7 @@ export function useSimpleDraftActions({
         // 否则静默跳过（增强提取关 / LLM 未配）。extractFacts 内部再按 react_extraction_enabled
         // 决定 react vs plain，这里只 gate「是否自动触发」。目标章号由 hook 内部记录。
         if (canAutoExtract) {
-          void factsExtraction.handleOpenExtractReview(target.chapterNum);
+          void factsExtraction.handleOpenExtractReview(target.chapter_num);
         }
       } catch (err) {
         chat.markDraftStatus(messageId, "error", {
