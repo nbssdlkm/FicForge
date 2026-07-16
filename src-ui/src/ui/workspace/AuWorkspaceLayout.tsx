@@ -239,18 +239,12 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
         onToggle={() => setLeftCollapsed(!leftCollapsed)}
         className="flex flex-col shrink-0 z-20 border-r border-rule"
       >
-        {/* Brand seal + AU name header — mirrors the Library topbar so the two
-            surfaces read as parts of the same catalog */}
+        {/* AU name header — mirrors the Library topbar: text-only chrome. The
+            hand-brushed brand art is reserved for big moments (app icon,
+            splash, onboarding), where it isn't reduced to a fussy 28px glyph */}
         <div className="flex flex-col gap-1 border-b border-rule bg-surface px-4 py-3.5">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div
-                aria-hidden="true"
-                className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-sm border-[1.5px] border-accent"
-              >
-                <span className="font-display italic text-base font-semibold leading-none text-accent">F</span>
-                <span className="pointer-events-none absolute inset-[2.5px] rounded-[2px] border border-accent/50 opacity-60" />
-              </div>
               <div className="min-w-0 leading-tight">
                 <div className="truncate font-display text-base font-semibold text-text" title={auName}>
                   {auName}

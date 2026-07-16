@@ -3,23 +3,17 @@
 // See LICENSE file in the project root for full license text.
 
 import { Button } from "../shared/Button";
+import { BrandLockup } from "../shared/BrandLockup";
 import { useTranslation } from "../../i18n/useAppTranslation";
 
-// Welcome panel — Ex Libris bookplate: accent-bordered seal with "F" italic,
-// hero in display italic, subtitle in serif, gold ornament separator between
-// the hero and the CTA.
+// Welcome panel — Ex Libris: brand mark up top, hero in display italic,
+// subtitle in serif, gold ornament separator between the hero and the CTA.
 export function WelcomeStep({ onNext }: { onNext: () => void }) {
   const { t } = useTranslation();
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center justify-center gap-8 py-20 text-center">
-      {/* Bookplate seal — bigger sibling of the Library / sidebar seal */}
-      <div
-        aria-hidden="true"
-        className="relative flex h-16 w-16 items-center justify-center rounded-sm border-[1.5px] border-accent"
-      >
-        <span className="font-display italic text-[32px] font-semibold leading-none text-accent">F</span>
-        <span className="pointer-events-none absolute inset-[6px] rounded-[2px] border border-accent/50 opacity-60" />
-      </div>
+      {/* Brand lockup — onboarding is a big moment, so it gets the hand-brushed wordmark */}
+      <BrandLockup className="h-16 w-[148px]" />
 
       <div className="space-y-3">
         <h1 className="font-display text-4xl font-semibold tracking-[0.01em] text-text md:text-5xl">

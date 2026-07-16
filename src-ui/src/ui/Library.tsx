@@ -94,28 +94,15 @@ function LibraryInner({ onNavigate }: Props) {
   return (
     <div className="min-app-height bg-background text-text flex flex-col font-sans transition-colors duration-200">
       {/* TOP BAR — v13 .app-top: padding 8/16/10, actions 36×36 buttons.
-          Lighter than the previous h-16 / 40px setup so the brand seal
+          Lighter than the previous h-16 / 40px setup so the wordmark
           stays the visual anchor. */}
       <header className="safe-area-top border-b border-rule bg-surface px-4 py-2.5 md:h-14 md:px-6 transition-colors duration-200">
         <div className="flex h-full items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            {/* v13 .app-top .seal: 32x32, border-radius 3px, inner inset 3px
-                radius 1.5px opacity 0.5. */}
-            <div
-              aria-hidden="true"
-              className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[3px] border-[1.5px] border-accent"
-            >
-              <span className="font-display italic text-[18px] font-semibold leading-none text-accent">F</span>
-              <span className="pointer-events-none absolute inset-[3px] rounded-[1.5px] border-[0.5px] border-accent opacity-50" />
-            </div>
-            {/* v13 .app-top .name: EB Garamond 17px font-weight 600 (NOT italic)
-                + .cn LXGW 11px font-weight 400 ink-muted (NOT mono uppercase). */}
-            <div className="leading-[1.1]">
-              <div className="font-display text-[17px] font-semibold tracking-[0.02em] text-text">
-                {t("common.appName")}
-              </div>
-              <div className="mt-[1px] font-serif text-[11px] font-normal tracking-[0.04em] text-ink-muted">粮坊</div>
-            </div>
+          {/* Wordmark: the hand-brushed lockup is reserved for big moments
+              (app icon / splash) — at topbar size its script gets fussy, so
+              chrome uses the clean EB Garamond wordmark instead. */}
+          <div className="font-display text-[17px] font-semibold tracking-[0.02em] text-text">
+            {t("common.appName")}
           </div>
           {/* All toolbar buttons sized to v13's 36×36. Secondary actions
               (Import / Trash) use a smaller icon glyph (16px) so they
