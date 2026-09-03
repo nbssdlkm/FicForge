@@ -69,7 +69,7 @@
 - [x] ~~盲审修复批 push~~（2026-07-12 核对：`647e67c` 已在 origin/main，此条早已完成）
 - [x] ~~长期债③测试批合入~~（2026-07-12 核对：分支已删、测试已在 main——引擎/UI 现行总数即含它们）
 - [x] ~~别名表接通合入~~（2026-07-12 用户验收后合入 main，见当前状态首条）
-- [ ] Tauri 壳收权冒烟（盲审修复引入）：CSP 开启后桌面端全流程 + 导出到任意路径（依赖 v2 对话框自动入 scope）。**E5/E7 增量**：connect-src 已进一步收窄（明文仅 localhost/127.0.0.1——局域网 http 端点会被拦，冒烟时验证告警文案）；plugin-http/plugin-opener 的 npm 侧已移除（E7），构建机上只剩 Rust 注册清理（lib.rs + Cargo.toml）
+- [ ] Tauri 壳收权冒烟（盲审修复引入）：CSP 开启后桌面端全流程 + 导出到任意路径（依赖 v2 对话框自动入 scope）。**E5/E7 增量**：connect-src 已进一步收窄（明文仅 localhost/127.0.0.1——局域网 http 端点会被拦，冒烟时验证告警文案）；~~plugin-http/plugin-opener 的 npm 侧已移除（E7），构建机上只剩 Rust 注册清理（lib.rs + Cargo.toml）~~ **2026-09-03 Rust 侧清理完毕**（`7e575ef`：依赖+注册+opener:default 权限全删，顺手修复 G5 遗留的 tauri 双端版本断裂 2.10.3↔2.11.1 致打包拒开工）；**剩余=真机装包冒烟**（msi/nsis 安装包已出，`src-tauri/target/release/bundle/`）
 - [ ] 真机日常写作流验证：改配置立即生效、切 tab 生成存活、PWA 更新横幅、iOS 刘海 safe-area、离线冷启动、低端机流式帧率
 - [ ] 真 key 端到端**实跑** LLM 旅程剩项：backfill 实跑（本机浏览器够不到硅基流动 embedding，走代理才通）+ 自定义 chatPath 网关 + 纯 UI 点击层
 - [x] ~~Android Manifest / variables.gradle 入库~~（**2026-09-03 已入库**，`b17a492`：本机即有文件，.gitignore 整目录忽略改为精准放行两文件）
@@ -94,6 +94,8 @@
 - ✅ tailwind 4 浏览器底线：**已拍板（2026-07-10，用户）不考虑旧设备兼容**，按 Safari 16.4+ / Chrome 111+ 底线走；真机验证无需专门留意此项。（背景存档：旧设备上 var 基 /N 底纹会回退 100% 实心、同色对不可读；字面色遮罩不受影响）
 
 ## 里程碑（倒序）
+
+- **2026-09-03（打包线）** — 桌面端打包修复 + 清理：tauri 双端版本对齐 2.11.5（G5 lockfile 重生成致 npm api 2.11.1 vs rust 2.10.3 打包拒开工）+ Rust 侧 plugin-http/opener 死注册与 opener:default 死权限清除（待办①尾巴销账）；msi + nsis 双安装包产出（NSIS 经 ghproxy 镜像手工铺缓存 + SHA1 校验，本机 github 直连被墙）。品牌源图 `docs/brand/icon-source-1254.png` 入库防丢；`output/`（56MB 落选草稿）与 `canvas/` 删除；远端 3 个全 merged 过期分支删除（archive/main-2026-05-03 含 2 个未入 main 的 commit，有意保留）。
 
 - **2026-09-03** — 移动端设定页风格修复 + 仓库卫生：AuLoreLayout isMobile 分支 7 处 className 对齐 Ex Libris（rounded-xl/半透明/黑边硬编码 → rounded-sm/border-rule/实色，纯样式零行为变更；桌面分支查明与全局惯例一致不动）。对抗审 codex terra（sol 本机 404 降级，chaohaowan 池已撤）verdict=clean 零 findings；浏览器移动视口真机眼验灌测试 AU 明暗双主题全过（截图 D:/tmp/ficforge-reviews/）。同批：AndroidManifest/variables.gradle 入库（待办④销账）、canvas//output/ 本地产物加 ignore、AGENTS.md 首次入库并刷新至收官态。UI 642 测试绿 + biome 0。3 commit 随本文件一起 push。
 
