@@ -64,4 +64,18 @@ service-account*.json
 test_out*.txt
 *.log
 release/
-src-ui/android/
+# === 本地产物（不入库）===
+canvas/
+output/
+
+# src-ui/android/ 整目录忽略（Capacitor 生成物），但入库两个手维护配置：
+# app/src/main/AndroidManifest.xml + variables.gradle（2026-07 待办④）
+src-ui/android/*
+!src-ui/android/variables.gradle
+!src-ui/android/app/
+src-ui/android/app/*
+!src-ui/android/app/src/
+src-ui/android/app/src/*
+!src-ui/android/app/src/main/
+src-ui/android/app/src/main/*
+!src-ui/android/app/src/main/AndroidManifest.xml
