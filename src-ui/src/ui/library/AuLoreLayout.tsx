@@ -279,7 +279,7 @@ export const AuLoreLayout = ({
     return (
       <>
         <div className="min-h-full bg-background pb-28 md:hidden">
-          <header className="safe-area-top sticky top-0 z-20 border-b border-black/10 bg-surface/90 px-4 py-4 backdrop-blur-sm dark:border-white/10">
+          <header className="safe-area-top sticky top-0 z-20 border-b border-rule bg-surface/85 px-4 py-4 backdrop-blur-sm">
             <div className="flex items-center justify-between gap-3">
               {selectedFile ? (
                 <div className="flex min-w-0 items-center gap-2">
@@ -356,7 +356,7 @@ export const AuLoreLayout = ({
             </div>
 
             {selectedFile ? (
-              <div className="mt-3 inline-flex rounded-md border border-black/10 bg-surface/60 p-0.5 dark:border-white/10">
+              <div className="mt-3 inline-flex rounded-sm border border-rule bg-background/60 p-0.5">
                 <button
                   type="button"
                   className={`flex min-h-[44px] items-center gap-1 rounded px-3 py-2 text-sm ${!previewMode ? "bg-accent text-inv-text" : "text-text/70 hover:text-text"}`}
@@ -374,18 +374,18 @@ export const AuLoreLayout = ({
               </div>
             ) : (
               <>
-                <div className="mt-4 inline-flex w-full rounded-xl border border-black/10 bg-background/70 p-1 dark:border-white/10">
+                <div className="mt-4 inline-flex w-full rounded-sm border border-rule bg-background/60 p-1">
                   <button
                     type="button"
                     onClick={() => editor.selectCategory("characters")}
-                    className={`flex min-h-[44px] flex-1 items-center justify-center rounded-xl text-sm font-medium transition-colors ${selectedCategory === "characters" ? "bg-accent text-inv-text" : "text-text/50"}`}
+                    className={`flex min-h-[44px] flex-1 items-center justify-center rounded-[3px] text-sm font-medium transition-colors ${selectedCategory === "characters" ? "bg-accent text-inv-text" : "text-text/50"}`}
                   >
                     {t("common.labels.characters")}
                   </button>
                   <button
                     type="button"
                     onClick={() => editor.selectCategory("worldbuilding")}
-                    className={`flex min-h-[44px] flex-1 items-center justify-center rounded-xl text-sm font-medium transition-colors ${selectedCategory === "worldbuilding" ? "bg-accent text-inv-text" : "text-text/50"}`}
+                    className={`flex min-h-[44px] flex-1 items-center justify-center rounded-[3px] text-sm font-medium transition-colors ${selectedCategory === "worldbuilding" ? "bg-accent text-inv-text" : "text-text/50"}`}
                   >
                     {t("common.labels.worldbuilding")}
                   </button>
@@ -452,7 +452,7 @@ export const AuLoreLayout = ({
                             void editor.openFile(file.name, selectedCategory);
                           })
                         }
-                        className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-black/10 bg-surface/35 px-4 py-4 text-left transition-colors dark:border-white/10"
+                        className="flex w-full cursor-pointer items-center justify-between rounded-sm border border-rule bg-surface px-4 py-4 text-left transition-colors"
                       >
                         <div className="min-w-0">
                           <p className="truncate text-base font-medium text-text">{file.name}.md</p>
@@ -479,7 +479,7 @@ export const AuLoreLayout = ({
                   })
                 )}
 
-                <div className="overflow-hidden rounded-xl border border-black/10 bg-surface/35 dark:border-white/10">
+                <div className="overflow-hidden rounded-sm border border-rule bg-surface">
                   <TrashPanel
                     scope="au"
                     path={auPath}
