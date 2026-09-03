@@ -72,8 +72,8 @@
 - [ ] Tauri 壳收权冒烟（盲审修复引入）：CSP 开启后桌面端全流程 + 导出到任意路径（依赖 v2 对话框自动入 scope）。**E5/E7 增量**：connect-src 已进一步收窄（明文仅 localhost/127.0.0.1——局域网 http 端点会被拦，冒烟时验证告警文案）；plugin-http/plugin-opener 的 npm 侧已移除（E7），构建机上只剩 Rust 注册清理（lib.rs + Cargo.toml）
 - [ ] 真机日常写作流验证：改配置立即生效、切 tab 生成存活、PWA 更新横幅、iOS 刘海 safe-area、离线冷启动、低端机流式帧率
 - [ ] 真 key 端到端**实跑** LLM 旅程剩项：backfill 实跑（本机浏览器够不到硅基流动 embedding，走代理才通）+ 自定义 chatPath 网关 + 纯 UI 点击层
-- [ ] Android Manifest / variables.gradle 入库（文件在 Windows 构建机）
-- [ ] 新 UI 的可视化眼验（需 seeded 数据，靠点击铺设不划算，留真机旅程）：归档候选徽标（带候选的 AU）、导入完成态引导（导 bundle/原始文件夹）
+- [x] ~~Android Manifest / variables.gradle 入库~~（**2026-09-03 已入库**，`b17a492`：本机即有文件，.gitignore 整目录忽略改为精准放行两文件）
+- [ ] 新 UI 的可视化眼验（需 seeded 数据，靠点击铺设不划算，留真机旅程）：归档候选徽标（带候选的 AU）、导入完成态引导（导 bundle/原始文件夹）。**2026-09-03 部分销账**：移动设定页 Ex Libris 对齐后已做浏览器移动视口眼验（灌测试 AU，明暗双主题 6 截图全过，D:/tmp/ficforge-reviews/）；剩归档徽标/导入引导两项仍待验
 
 ### 2026-07-09 大会话：第三轮审计闭环 + TD-017 + 最后一公里（5 commit 未 push）
 - [x] **第三轮审计 MED 三修** `734eaa4`：①交互式接受事实改批量单锁落库（`addFactsBatch` 单锁 + 逐章存在性 CAS + `writtenIndices` 精确半成功去重，防并发 undo 插批次产生孤儿）②embedding 加 AbortSignal（与内部 30s 超时联动，取消 backfill 时在飞 embed 立即中止）③手动 fact 富化字段进 prompt（`buildFactEnrichmentSuffix` 门控改「无 _confidence=手动 ground truth 即注入；有=ReAct 按 gate」，ReAct 逐字节不变）。对抗审采纳 3 发现（Facts 页半成功去重 + 空串守卫 + slice 混章错位改 writtenIndices）。
@@ -94,6 +94,8 @@
 - ✅ tailwind 4 浏览器底线：**已拍板（2026-07-10，用户）不考虑旧设备兼容**，按 Safari 16.4+ / Chrome 111+ 底线走；真机验证无需专门留意此项。（背景存档：旧设备上 var 基 /N 底纹会回退 100% 实心、同色对不可读；字面色遮罩不受影响）
 
 ## 里程碑（倒序）
+
+- **2026-09-03** — 移动端设定页风格修复 + 仓库卫生：AuLoreLayout isMobile 分支 7 处 className 对齐 Ex Libris（rounded-xl/半透明/黑边硬编码 → rounded-sm/border-rule/实色，纯样式零行为变更；桌面分支查明与全局惯例一致不动）。对抗审 codex terra（sol 本机 404 降级，chaohaowan 池已撤）verdict=clean 零 findings；浏览器移动视口真机眼验灌测试 AU 明暗双主题全过（截图 D:/tmp/ficforge-reviews/）。同批：AndroidManifest/variables.gradle 入库（待办④销账）、canvas//output/ 本地产物加 ignore、AGENTS.md 首次入库并刷新至收官态。UI 642 测试绿 + biome 0。3 commit 随本文件一起 push。
 
 - **2026-07-10（长期债②第三块）** — SettingsChatPanel 状态下沉：1026 行 God 组件 → 115 行编排层 + 3 hooks（supportData / conversation / toolActions）+ execute-settings-tool 纯 async 模块（执行/撤销 I/O 与 React 状态彻底分离；与简版 useSimpleToolExecutor 平行不合并，同一 helper 栈两种工具面）。跨 hook 零裸 setter，freshness 缓存经语义化 bridge 方法回写。新增 SettingsChatPanel 回归测试 4 用例（发消息出卡/确认→撤销全生命周期/失败回滚/切上下文清空）。UI tsc 0 + 508 全绿（+4）、preview 双模式眼验零 console 报错。
 - **2026-07-10（续）** — 长期债⑤升级的 xhigh 档独立审阅（10 视角并行找 + 12 候选逐条对抗验证 + 补漏扫）：11 条入报告（2 medium 为 v4 hover 门控引入的真实触屏回归），全部当场修复 —— ①剧情线节点移除/AU 删除按钮加 `pointer-coarse:opacity-100`（触屏常显，二者均为对应操作唯一入口）②`dark:` 变体经 `@custom-variant` 接回 `.theme-night` 类开关（存量问题：183 处 dark:* 此前只跟 OS 深色模式走，四种组合修后全正确）③preflight 兜底边框色 #e5e7eb→`var(--color-rule)`（元素级穷举证实今天零消费、原值双主题不分）④engine readBinary/storage.read 类型收窄补全（与下载链同约定）⑤rule/N 修饰符防回潜守卫测试 ⑥tokens.ts/DESIGN-SYSTEM.md 3 处悬空 tailwind.config.ts 指针 + App.css 两处注释按实测校准。审阅另查明浏览器底线确切失效形态（已并入上方待办）。验证：引擎 1300 + UI 412（+1 守卫）全绿、双 tsc 0、build + i18n 对称、dist CSS 逐条实证、preview 探针活体验证（dark 接线四态 / 兜底色随主题 / 触屏规则编译落地）。
