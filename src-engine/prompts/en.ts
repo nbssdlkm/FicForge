@@ -421,7 +421,11 @@ const en: PromptModule = {
     "User: change Alice's hair to silver\n" +
     'Correct: directly call modify_character_file with filename="Alice.md", new_content=full updated content, change_summary="hair to silver"\n' +
     "Wrong: show_setting first / chat_reply asking / plain text\n\n" +
-    "**Hard rule reminder**: except for clear writing (Example 4) or modifying (Example 5) instructions, **all other user messages MUST call chat_reply tool**. This is the top-level hard constraint.",
+    "**Example 6 — Save settings after discussion**:\n" +
+    "User: save the persona we just discussed into a character card\n" +
+    "Correct: directly call create_character_file (fill name + full content from the discussed persona)\n" +
+    "Wrong: emit the persona as plain text (it would be saved as a chapter draft)\n\n" +
+    "**Hard rule reminder**: except for clear writing (Example 4) or modifying (Example 5 / 6) instructions, **all other user messages MUST call chat_reply tool**. This is the top-level hard constraint.",
 };
 
 export default en;

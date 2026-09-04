@@ -175,12 +175,40 @@ export interface SimpleChatDispatchParams {
 const WRITING_INTENT_RE = /写|续|继续|下一章|下章|主角进|场景|开篇/;
 const WRITING_INTENT_LONG_THRESHOLD = 30; // 30+ 字大概率是详细场景描述
 
+/**
+ * 设定语境判据：消息点名设定对象（设定/人设/角色卡/世界观/铁律/文风）。
+ * 「把讨论的人设写入角色卡」「改一下女主设定」都含「写/改」字，但意图是设定操作，
+ * 不是续写 —— 误判为续写时 suppressTokens=false 会关掉 deviation guard，模型一旦
+ * 用纯文本回（弱模型常见偏离），人设内容会被当章节正文落成草稿卡（2026-09-04 mock
+ * 复现实证：46 字人设 → 「接受为第 1 章」待确认卡）。
+ */
+const LORE_NOUN_RE = /设定|人设|角色卡|世界观|铁律|文风/;
+
+/**
+ * 强续写信号：出现它们时即使点名设定对象也仍判续写
+ * （「写第 3 章主角人设崩塌的戏」是续写，不是设定操作）。
+ */
+const STRONG_WRITING_RE = /第\s*\d+\s*章|下一章|下章|续写|继续写|正文|开篇|开头|结尾/;
+
 function looksLikeWritingIntent(userInput: string): boolean {
   const trimmed = userInput.trim();
   if (trimmed.length === 0) return false;
+  // 设定语境优先于单字「写」：「把人设写入角色卡」是设定操作不是续写；
+  // 带强续写信号（第N章/下一章/续写…）时例外，仍判续写。
+  if (LORE_NOUN_RE.test(trimmed) && !STRONG_WRITING_RE.test(trimmed)) return false;
   if (WRITING_INTENT_RE.test(trimmed)) return true;
   if (trimmed.length >= WRITING_INTENT_LONG_THRESHOLD) return true;
   return false;
+}
+
+/**
+ * 设定意图判据（deviation guard 的 hint 分流用）：点名设定对象且未被判为续写。
+ * 为 true 时 guard hint 引导模型用 create/modify 工具写入（而不是笼统叫回 chat_reply ——
+ * 对「写入角色卡」类消息叫回 chat_reply 是又一次错误纠偏）。
+ */
+function looksLikeLoreIntent(userInput: string): boolean {
+  const trimmed = userInput.trim();
+  return trimmed.length > 0 && LORE_NOUN_RE.test(trimmed) && !looksLikeWritingIntent(trimmed);
 }
 
 // ---------------------------------------------------------------------------
@@ -274,6 +302,8 @@ interface DispatchSession {
   label: string;
   /** !looksLikeWritingIntent(user_input)：非续写意图时缓冲 token 不直出。 */
   suppressTokens: boolean;
+  /** looksLikeLoreIntent(user_input)：deviation guard 的 hint 分流（引导设定工具 vs chat_reply）。 */
+  loreIntent: boolean;
   max_tokens: number;
   /** [systemMessage, ...history, userMessage]：组装只发生一次，进 runAgentLoop startMessages。 */
   startMessages: Message[];
@@ -372,6 +402,7 @@ async function resolveDispatchSession(deps: ResolveDispatchDeps): Promise<Dispat
   const label = nextDraftLabel(existingDrafts.map((d) => d.variant));
 
   const suppressTokens = !looksLikeWritingIntent(user_input);
+  const loreIntent = looksLikeLoreIntent(user_input);
 
   return {
     provider,
@@ -381,6 +412,7 @@ async function resolveDispatchSession(deps: ResolveDispatchDeps): Promise<Dispat
     tools,
     label,
     suppressTokens,
+    loreIntent,
     max_tokens,
     startMessages: [systemMessage, ...history, userMessage],
   };
@@ -423,7 +455,7 @@ function buildAgentLoopConfig(deps: BuildAgentLoopConfigDeps): AgentLoopConfig<S
     telemetry,
     signal,
   } = deps;
-  const { llmConfig, modelName, llmParams, tools, suppressTokens } = session;
+  const { llmConfig, modelName, llmParams, tools, suppressTokens, loreIntent } = session;
 
   return {
     agentName: SIMPLE_AGENT_NAME,
@@ -663,6 +695,17 @@ function buildAgentLoopConfig(deps: BuildAgentLoopConfigDeps): AgentLoopConfig<S
           count: ctx.count + 1,
           iter: ctx.iter,
         });
+        // 设定意图的 hint 不能笼统叫回 chat_reply（用户要的是写入文件）——
+        // 明确引导 create/modify 工具；讨论则 chat_reply。两方向都给出路，模型自我纠正。
+        if (loreIntent) {
+          return {
+            role: "user",
+            content:
+              language === "en"
+                ? "[system note] If the user is asking to create or update settings (character card, worldbuilding, writing style, pinned rules), call the corresponding create/modify tool with all required fields filled. If the user is just discussing, use the chat_reply tool. Do NOT output settings content as plain text."
+                : "[系统提示] 如果用户是在要求创建/修改设定（角色卡、世界观、文风、铁律等），请调用对应的 create/modify 工具并把 required 字段带全；如果只是讨论，请用 chat_reply tool 回复。不要把设定内容用纯文本输出。",
+          };
+        }
         return {
           role: "user",
           content:

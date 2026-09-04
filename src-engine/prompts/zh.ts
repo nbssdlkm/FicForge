@@ -396,7 +396,11 @@ const zh: PromptModule = {
     "用户: 把 Alice 的发色改成银色\n" +
     '正确: 直接调 modify_character_file, filename="Alice.md", new_content=完整新内容, change_summary="改发色为银色"\n' +
     "错误: 先 show_setting Alice.md / 用 chat_reply 反问 / 直接输出\n\n" +
-    "**铁律提醒**：除示例 4 / 5 这种明确续写或改设定指令外，**所有其他用户消息都必须调 chat_reply tool**。这是顶级硬约束。",
+    "**示例 6 — 讨论后写入设定**：\n" +
+    "用户: 把刚才讨论的人设写入角色卡\n" +
+    "正确: 直接调 create_character_file（name + content 带全，content 用讨论好的人设内容）\n" +
+    "错误: 把人设内容用纯文本输出（会被当成章节正文存成草稿）\n\n" +
+    "**铁律提醒**：除示例 4 / 5 / 6 这种明确续写或改设定指令外，**所有其他用户消息都必须调 chat_reply tool**。这是顶级硬约束。",
 };
 
 export default zh;

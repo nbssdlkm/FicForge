@@ -1477,6 +1477,94 @@ describe("dispatchSimpleChat", () => {
     const after = await collect(dispatchSimpleChat(makeBaseParams(adapter, fastProvider, "写第一章")));
     expect(after.some((e) => e.type === "error" && e.data.error_code === "DISPATCH_IN_PROGRESS")).toBe(false);
   });
+
+  // ---------------------------------------------------------------------------
+  // 设定语境意图判据（2026-09-04 mock 复现实证后修复）：「把讨论的人设写入角色卡」含「写」
+  // 但意图是设定操作 —— 旧判据误判续写 → suppressTokens=false 关掉 deviation guard → 模型
+  // 纯文本吐人设时被落成「接受为第 1 章」草稿卡。
+  // ---------------------------------------------------------------------------
+  it("设定语境优先：「把人设写入角色卡」不判续写 → 纯文本偏离触发 guard 重试 + lore hint 引导工具", async () => {
+    const adapter = new MockAdapter();
+    const provider = createScriptedStreamProvider([
+      // iter 0：模型偏离 —— 纯文本人设（没调工具）
+      [{ delta: "顾红衣，26 岁，当铺掌柜。", is_final: true, input_tokens: 0, output_tokens: 5, finish_reason: "stop" }],
+      // iter 1（hint 后）：模型改调 create_character_file
+      [
+        {
+          delta: "",
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "c1",
+              type: "function",
+              function: { name: "create_character_file", arguments: '{"name":"顾红衣","content":"# 顾红衣"}' },
+            },
+          ],
+          is_final: false,
+          input_tokens: null,
+          output_tokens: null,
+          finish_reason: null,
+        },
+        { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" },
+      ],
+    ]);
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "把刚才讨论的人设写入角色卡")));
+
+    // deviation guard 重试发生了（两次 LLM 调用）
+    expect(provider.calls.length).toBe(2);
+    // 第二次调用的 history 尾部是 lore hint（引导 create/modify），不是笼统的「改用 chat_reply」
+    const secondCallMsgs = provider.calls[1].messages;
+    const hint = secondCallMsgs[secondCallMsgs.length - 1];
+    expect(hint.role).toBe("user");
+    expect(String(hint.content)).toContain("create/modify");
+    expect(String(hint.content)).not.toContain("改用 chat_reply");
+    // 人设文本没有被落成章节草稿，token 也未直出（suppressed）
+    expect(events.find((e) => e.type === "done_text")).toBeUndefined();
+    expect(events.filter((e) => e.type === "token")).toHaveLength(0);
+    // 最终产出 create_character_file 工具卡（terminal）
+    const doneTools = events.find((e) => e.type === "done_tools");
+    expect(doneTools).toBeDefined();
+    if (doneTools && doneTools.type === "done_tools") {
+      expect(doneTools.data.tool_calls[0].function.name).toBe("create_character_file");
+    }
+  });
+
+  it("强续写信号优先：「写第3章 主角人设崩塌的戏」仍判续写 → 纯文本直接落草稿，不触发 guard", async () => {
+    const adapter = new MockAdapter();
+    const provider = createMockLLMProvider({
+      streamChunks: [{ delta: "夜色低垂……", is_final: true, input_tokens: 10, output_tokens: 5, finish_reason: "stop" }],
+    });
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "写第3章 主角人设崩塌的戏")));
+    expect(provider.calls.length).toBe(1);
+    expect(events.find((e) => e.type === "done_text")).toBeDefined();
+  });
+
+  it("纯讨论（无人设名词的短消息）原行为不变：非续写意图 deviation guard 仍用 chat_reply hint", async () => {
+    const adapter = new MockAdapter();
+    const provider = createScriptedStreamProvider([
+      [{ delta: "我觉得可以。", is_final: true, input_tokens: 0, output_tokens: 5, finish_reason: "stop" }],
+      [
+        {
+          delta: "",
+          tool_call_deltas: [
+            { index: 0, id: "c1", type: "function", function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"好的"}' } },
+          ],
+          is_final: false,
+          input_tokens: null,
+          output_tokens: null,
+          finish_reason: null,
+        },
+        { delta: "", is_final: true, input_tokens: null, output_tokens: 5, finish_reason: "tool_calls" },
+      ],
+    ]);
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "你觉得呢")));
+    expect(provider.calls.length).toBe(2);
+    const secondCallMsgs = provider.calls[1].messages;
+    const hint = secondCallMsgs[secondCallMsgs.length - 1];
+    expect(String(hint.content)).toContain("chat_reply");
+    expect(String(hint.content)).not.toContain("create/modify");
+    expect(events.find((e) => e.type === "done_tools")).toBeDefined();
+  });
 });
 
 describe("SIMPLE_MUTATING_TOOLS 派生不变量（盲审 2026-07-11 + B1 对抗审）", () => {
