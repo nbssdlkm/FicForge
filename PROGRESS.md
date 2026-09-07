@@ -3,7 +3,11 @@
 > 人读的前瞻进度文件（AI 地图见 CLAUDE.md，历史细节见 git log 与 `docs/internal/audit/`）。
 > 约定：每个工作会话收尾时更新「当前状态」与「待办」；完成的待办移入「里程碑」一行带走。
 
-## 当前状态（2026-07-13）
+## 当前状态（2026-09-07）
+
+**2026-09-07 大会话收官（已 push origin=`498cb54`，工作树干净）**：桌面端打包+图标定稿+fs 权限根治；agent 链路「工具写入/创建/读取一直有问题」排查治本（四项加固：静默重试/非法转义打捞/截断防御/chat_reply 送达语义，四轮对抗审 CLEAN）；未知模型默认 ctx 32K→256K；模型 id 自动更新（选中即启用，六轮对抗审闭环）。验证基线：引擎 **1596** / UI **654** / 双 tsc 0 / biome 严格门禁 0 / i18n 对称。详见下方「里程碑」2026-09-07 条。**以下历史条目里「未 push」措辞以本条为准。**
+
+## 当前状态（2026-07-13，历史）
 
 **2026-07-13（晚）仓库卫生小会话（已 push origin）**：①biome lint 诊断**全清零（103→0，warning+info 一并清）**——56 文件按规则逐类 `--unsafe --only` 机械修复（useTemplate 67 / useOptionalChain 9 / useParseIntRadix 补十进制 5 / Number.isNaN / useLiteralKeys / useNodejsImportProtocol 等），3 处手工：删未用测试变量 1、**刻意豁免注释 2**（`agent_loop.onTokenChunk` 的 `boolean | void` 是接口承诺的副作用型 handler 人体工学，不改类型；`tool_stream_buffer.test` 标题字面描述 `${Date.now()}` id 格式属误报）；验证=双包 biome 0 诊断 + 双 tsc 0 + 引擎 1581 / UI 642 全绿，纯机械无行为变更。②清理已合并的过期分支 `claude/gracious-raman-6e2e46` + 对应遗留 worktree（`.claude/worktrees/`，干净无未提交改动），本地仅剩 main。
 
@@ -95,6 +99,13 @@
 
 ## 里程碑（倒序）
 
+- **2026-09-07（大会话下）** — 桌面端打包/图标定稿 + 桌面 fs 权限根治 + agent 链路四项加固 + 256K 默认 + 模型自动更新，4+1 commit push 至 `498cb54`：
+  - **桌面端**：ICO 定稿（ink-press 蓝墨章+金字）嵌入 bundle `be18621`；「一点就弹出点问题」根治 `e0255ae`（Tauri fs scope 只剩 $APPDATA 全灭 → 递归开数据根 + 22 项细分权限 + CSP connect-src 收紧）；NSIS 3.3MB 真机冒烟过
+  - **陷阱 A 修复** `9e9a251`：llm_request_prepared 的 estimated_input_tokens 粗估当权威值致 8K 模型 26K 溢出误报超窗 → safety-budget 口径
+  - **agent 链路四项加固** `35e18f0`（写角色卡「工具写入/创建/读取一直有问题」治本）：P1 静默回喂（坏参数混合批次不空卡、回喂重试，mutating 保护限 mutating）+ P2 salvage（非法转义修复 + 栈匹配闭合只补括号/拒绝 partial-json 库）+ P3 截断防御（finish_reason=length 丢弃+重试≤2）+ 空参数 chat_reply 谎报/半截气泡终态判定修复；**四轮对抗审 CLEAN**；mock LLM 三场景旅程（混合坏批次/截断/半截气泡）浏览器实证。引擎测试 1591→1595
+  - **默认 ctx 32K→256K** `254df8b`（单点常量+注释去硬编码+测试符号化）
+  - **模型 id 自动更新** `da839fe`：选择器后台拉 /models → 「云端新发现」组 → 选中即启用（引擎原子 enableModel）；sheet 确认改原子合并 replaceEnabledModelsInUniverse；catalog 版本化读取（跨 chat/embedding 双实例）；**六轮对抗审** C1 并发覆写→跨实例失效→上限语义全闭环。UI 测试 642→654，真浏览器眼验过
+  - 教训入档：codex 派工型号必须现查 devflow.config.md（幻觉 gpt-5.4 事件）；biome --write 语义破坏被测试当场抓住×1；自伤 bug×2 均被测试抓住
 - **2026-09-03（打包线）** — 桌面端打包修复 + 清理：tauri 双端版本对齐 2.11.5（G5 lockfile 重生成致 npm api 2.11.1 vs rust 2.10.3 打包拒开工）+ Rust 侧 plugin-http/opener 死注册与 opener:default 死权限清除（待办①尾巴销账）；msi + nsis 双安装包产出（NSIS 经 ghproxy 镜像手工铺缓存 + SHA1 校验，本机 github 直连被墙）。品牌源图 `docs/brand/icon-source-1254.png` 入库防丢；`output/`（56MB 落选草稿）与 `canvas/` 删除；远端 3 个全 merged 过期分支删除（archive/main-2026-05-03 含 2 个未入 main 的 commit，有意保留）。
 
 - **2026-09-03** — 移动端设定页风格修复 + 仓库卫生：AuLoreLayout isMobile 分支 7 处 className 对齐 Ex Libris（rounded-xl/半透明/黑边硬编码 → rounded-sm/border-rule/实色，纯样式零行为变更；桌面分支查明与全局惯例一致不动）。对抗审 codex terra（sol 本机 404 降级，chaohaowan 池已撤）verdict=clean 零 findings；浏览器移动视口真机眼验灌测试 AU 明暗双主题全过（截图 D:/tmp/ficforge-reviews/）。同批：AndroidManifest/variables.gradle 入库（待办④销账）、canvas//output/ 本地产物加 ignore、AGENTS.md 首次入库并刷新至收官态。UI 642 测试绿 + biome 0。3 commit 随本文件一起 push。
