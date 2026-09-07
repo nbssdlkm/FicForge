@@ -30,7 +30,8 @@ export type ShapeRepairKind =
   | "wrap_bare_to_array"
   | "drop_null_optional"
   | "strip_degenerate_markdown_link"
-  | "salvage_malformed_json";
+  | "salvage_malformed_json"
+  | "close_truncated_json";
 
 export interface RepairTrace {
   field: (string | number)[];
@@ -136,6 +137,9 @@ function deleteAtPath(obj: unknown, path: (string | number)[]): unknown {
  * 只有真正补过转义才返回新串（没改 = 畸形不属本类，返回 null 不重复 parse）。
  */
 export function salvageMalformedJson(raw: string): string | null {
+  // 合法 JSON 转义集（\" \\ \/ \b \f \n \r \t \uXXXX）。\u 必须跟 4 位 hex 才算合法，
+  // 否则按非法转义处理（pi-ai repairJson 同款语义）。
+  const VALID_ESCAPES = new Set(['"', "\\", "/", "b", "f", "n", "r", "t"]);
   let out = "";
   let inStr = false;
   let changed = false;
@@ -148,12 +152,36 @@ export function salvageMalformedJson(raw: string): string | null {
     }
     // ----- 串内 -----
     if (ch === "\\") {
-      // 合法转义序列：原样带走 `\` 和其后一个字符
-      out += ch;
-      if (i + 1 < raw.length) {
-        out += raw[i + 1];
-        i++;
+      const next = raw[i + 1];
+      if (next === undefined) {
+        // 串尾孤立反斜杠 → 双写自保
+        out += "\\\\";
+        changed = true;
+        continue;
       }
+      if (next === "u") {
+        const hex = raw.slice(i + 2, i + 6);
+        if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+          out += `${ch}u${hex}`;
+          i += 5;
+          continue;
+        }
+        // \u 后不是 4 位 hex → 非法转义，双写反斜杠
+        out += "\\\\";
+        changed = true;
+        continue;
+      }
+      if (VALID_ESCAPES.has(next)) {
+        // 合法转义序列：原样带走 `\` 和其后一个字符
+        out += ch + next;
+        i++;
+        continue;
+      }
+      // 非法转义（如模型写 Windows 路径 C:\path 里的 \p）→ 双写反斜杠
+      // （pi-ai repairJson 同款：JSON 语义下 \p 非法，作者本意几乎总是字面反斜杠）。
+      out += `\\\\${next}`;
+      i++;
+      changed = true;
       continue;
     }
     if (ch === '"') {
@@ -174,6 +202,51 @@ export function salvageMalformedJson(raw: string): string | null {
     out += ch;
   }
   return changed ? out : null;
+}
+
+/**
+ * 截断 JSON 的「结构闭合」抢救：只对**字符串值已全部闭合、缺的是尾部结构括号**
+ * 的模型笔误补 `]` / `}`。结束时仍在字符串内（inStr）说明 content 本体是半截的
+ * —— 闭合它会产出静默残缺的设定内容写进文件，比失败更毒，故坚决不救（返回 null，
+ * 走 finish=length 截断回喂重发路径）。
+ *
+ * 不引 partial-json 库的原因同上：它对未闭合字符串也闭眼闭合，无法区分
+ * 「笔误缺尾括号」vs「content 半截」。（2026-09-04 对标 pi-ai 后的刻意取舍）
+ */
+export function closeTruncatedJsonStructure(raw: string): string | null {
+  const stack: string[] = [];
+  let inStr = false;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (inStr) {
+      if (ch === "\\") {
+        i++; // 跳过转义的下一字符
+        continue;
+      }
+      if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') {
+      inStr = true;
+      continue;
+    }
+    if (ch === "{" || ch === "[") {
+      stack.push(ch);
+      continue;
+    }
+    if (ch === "}" || ch === "]") {
+      // 失配（如 } 对 [）说明结构已坏，不是单纯截断——不救
+      const top = stack.pop();
+      if ((ch === "}" && top !== "{") || (ch === "]" && top !== "[")) return null;
+    }
+  }
+  if (inStr) return null; // 字符串未闭合 → content 半截，不救
+  if (stack.length === 0) return null; // 结构本来就闭合，问题在别处
+  let closing = "";
+  for (let i = stack.length - 1; i >= 0; i--) {
+    closing += stack[i] === "{" ? "}" : "]";
+  }
+  return raw + closing;
 }
 
 // ---------------------------------------------------------------------------
@@ -401,13 +474,34 @@ export function repairAndValidateToolArgs<T>(
         recovered = true;
         preTraces.push({ field: [], kind: "salvage_malformed_json", before: rawArgs, after: salvaged });
       } catch {
-        /* 抢救后仍非法 → 放弃 */
+        // salvage 修了但单独 parse 仍失败（如同时还缺尾括号）：只要串确实被改过就记录 trace，
+        // 修复成果会随 salvaged 传入闭合层串链（对抗审 W1），审计日志应可见这一步。
+        if (salvaged !== (rawArgs ?? "")) {
+          preTraces.push({ field: [], kind: "salvage_malformed_json", before: rawArgs, after: salvaged });
+        }
       }
     }
     if (!recovered) {
+      // 截断抢救第二层：值都完整只是尾括号缺（模型笔误）→ 结构闭合后再 parse。
+      // 未闭合字符串（content 半截）在 closeTruncatedJsonStructure 里就被拒，不会走到这。
+      // 必须在 salvaged 上跑而不是原始 rawArgs：保留 salvage 的转义修复成果，
+      // 否则「非法转义 + 缺尾括号」的组合输入会漏救（对抗审 W1）。
+      const closed = closeTruncatedJsonStructure(salvaged ?? rawArgs ?? "");
+      if (closed !== null) {
+        try {
+          parsed = JSON.parse(closed);
+          recovered = true;
+          preTraces.push({ field: [], kind: "close_truncated_json", before: rawArgs, after: closed });
+        } catch {
+          /* 闭合后仍非法 → 放弃 */
+        }
+      }
+    }
+    if (!recovered) {
+      // 二轮审 W2-1：失败也要带出 preTraces——salvage/闭合确实试过且改过串，审计不能丢。
       return {
         success: false,
-        repairs: [],
+        repairs: preTraces,
         remainingIssues: [],
         retryHint: `注意：工具 ${toolName} 收到无法解析的 JSON 参数。请重发完整、合法的 JSON 对象。错误：${
           e instanceof Error ? e.message : String(e)
@@ -418,7 +512,7 @@ export function repairAndValidateToolArgs<T>(
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
     return {
       success: false,
-      repairs: [],
+      repairs: preTraces,
       remainingIssues: [],
       retryHint: `注意：工具 ${toolName} 参数应为 JSON 对象，收到 ${
         Array.isArray(parsed) ? "数组" : parsed === null ? "null" : typeof parsed

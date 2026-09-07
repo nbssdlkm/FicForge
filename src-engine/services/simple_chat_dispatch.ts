@@ -275,6 +275,20 @@ interface DispatchStreamState {
   chatReplyEmittedLen: number;
   /** 本 iter chat_reply 是否已进入流式（决定 terminal 时是否跳过重复 emit）。 */
   chatReplyStreamingActive: boolean;
+  /**
+   * 跨 iter 存活：chat_reply 是否已送达过用户（流过一个字符就算）。
+   * P1 静默回喂路径会让 loop 在 chat_reply 送达后继续跑（重发坏掉的 mutating 调用），
+   * 后续 iter 模型可能再调 chat_reply —— 不压会出第二个重复气泡。
+   */
+  chatReplyDelivered: boolean;
+  /**
+   * 跨 iter 存活：chat_reply 是否**完整**送达（三轮审 W3-1）。
+   * chatReplyDelivered 在 content 流出半截（args 未闭合/被截断）时也会置真，
+   * 若拿它当「已送达」依据，会把完整重发压掉、用户永远只看到半句气泡。
+   * 只有终态 args 完整解析且已流出长度覆盖完整 content 时才置真；
+   * 重复气泡抑制（onToolCallDelta）与静默回喂的「已送达」告知都以它为准。
+   */
+  chatReplyFullyDelivered: boolean;
 }
 
 function createDispatchStreamState(): DispatchStreamState {
@@ -284,6 +298,8 @@ function createDispatchStreamState(): DispatchStreamState {
     bufferedTokens: [],
     chatReplyEmittedLen: 0,
     chatReplyStreamingActive: false,
+    chatReplyDelivered: false,
+    chatReplyFullyDelivered: false,
   };
 }
 
@@ -482,11 +498,16 @@ function buildAgentLoopConfig(deps: BuildAgentLoopConfigDeps): AgentLoopConfig<S
     },
     onToolCallDelta: (buf) => {
       if (buf.name !== SIMPLE_TOOL_CHAT_REPLY) return undefined;
+      // P1：chat_reply 在**之前的 iter** 已完整送达过（静默回喂重试轮模型又调了一次）→ 不再流式，
+      // 防重复气泡。判定用 chatReplyFullyDelivered 而非 chatReplyDelivered（W3-1：半截气泡不算送达，
+      // 重发必须放行）。同 iter 的续流（streamingActive 本 iter 已开）不拦，否则增量被截断。
+      if (st.chatReplyFullyDelivered && !st.chatReplyStreamingActive) return undefined;
       const partial = extractPartialJsonStringField(buf.args, "content");
       if (partial === null || partial.length <= st.chatReplyEmittedLen) return undefined;
       const delta = partial.slice(st.chatReplyEmittedLen);
       st.chatReplyEmittedLen = partial.length;
       st.chatReplyStreamingActive = true;
+      st.chatReplyDelivered = true;
       return [{ type: "business", data: { kind: "chat_reply_chunk", data: delta } }];
     },
     onTextPathTerminal: async (iterCtx) => {
@@ -547,6 +568,8 @@ function buildAgentLoopConfig(deps: BuildAgentLoopConfigDeps): AgentLoopConfig<S
       // Branch 1: chat_reply terminal (含 mixed read-only)
       if (hasChatReply) {
         const readOnlyCalls = calls.filter((c) => isReadOnlyTool(c.function.name));
+        // P1：read-only 结果顺手收集 —— 静默回喂路径要把它们按 OpenAI 协议配对进 internalHistory
+        const readOnlyResults = new Map<string, string>();
         for (const c of readOnlyCalls) {
           if (signal?.aborted) throw createAbortError();
           events.push({ type: "tool_call", data: c });
@@ -554,6 +577,7 @@ function buildAgentLoopConfig(deps: BuildAgentLoopConfigDeps): AgentLoopConfig<S
           emitRepairTelemetry(telemetry, c.function.name, repaired);
           const result = await executeReadTool(c.function.name, repaired.args, { au_id, chapter_repo, adapter });
           if (signal?.aborted) throw createAbortError();
+          readOnlyResults.set(c.id, result.content);
           events.push({
             type: "tool_result",
             data: {
@@ -565,27 +589,88 @@ function buildAgentLoopConfig(deps: BuildAgentLoopConfigDeps): AgentLoopConfig<S
           });
         }
         const restCalls = calls.filter((c) => !isReadOnlyTool(c.function.name));
-        for (const c of restCalls) {
-          if (c.function.name === SIMPLE_TOOL_CHAT_REPLY && st.chatReplyStreamingActive) continue;
-          // M15：chat_reply 以外的 mutating 调用同样过 repair —— 修复后的 args 才是
-          // UI confirm 卡片该展示/执行的（旧代码原样透传 LLM 未修复 args，路径污染
-          // 无从纠正）。chat_reply 本身不 emit tool_call（它是 terminal 文本气泡），
-          // 无需 repair。
-          if (c.function.name !== SIMPLE_TOOL_CHAT_REPLY) {
+
+        // P1（2026-09-04，对标 pi-ai 执行层哲学）：先扫全部 mutating 调用的 repair 结果。
+        // 有任何一个无效（含未知工具）→ 走静默回喂 continue，坏参数绝不渲染成确认卡
+        // （旧行为原样 emit → UI safeParseArgs 静默转 {} → 用户看到空 JSON 卡，实证根源）。
+        const mutatingChecks = restCalls
+          .filter((c) => c.function.name !== SIMPLE_TOOL_CHAT_REPLY)
+          .map((c) => {
             const repaired = repairToolArgs(c.function.name, c.function.arguments);
             emitRepairTelemetry(telemetry, c.function.name, repaired);
-            if (repaired.success) {
+            return { call: c, repaired, known: isKnownTool(c.function.name) };
+          });
+        const hasInvalidMutating = mutatingChecks.some((m) => !m.repaired.success || !m.known);
+
+        if (!hasInvalidMutating) {
+          // 全 valid → 原 terminal 路径（emit 修复后 args，与旧 M15 口径一致）
+          const checkById = new Map(mutatingChecks.map((m) => [m.call.id, m]));
+          for (const c of restCalls) {
+            if (c.function.name === SIMPLE_TOOL_CHAT_REPLY && (st.chatReplyStreamingActive || st.chatReplyDelivered))
+              continue;
+            const m = checkById.get(c.id);
+            if (m) {
               events.push({
                 type: "tool_call",
-                data: { ...c, function: { ...c.function, arguments: JSON.stringify(repaired.args) } },
+                data: { ...c, function: { ...c.function, arguments: JSON.stringify(m.repaired.args) } },
               });
               continue;
             }
+            events.push({ type: "tool_call", data: c });
           }
-          events.push({ type: "tool_call", data: c });
+          events.push({ type: "business", data: { kind: "done_tools", data: { tool_calls: calls } } });
+          return { mode: "terminal", events };
         }
-        events.push({ type: "business", data: { kind: "done_tools", data: { tool_calls: calls } } });
-        return { mode: "terminal", events };
+
+        // —— 静默回喂路径（continue）：assistant tool_calls + 全部配对的 tool result 入
+        // internalHistory，模型下一轮重发修正后的调用。chat_reply 已送达用户（流式气泡），
+        // 用合成 result 告知无需重发；valid 的 mutating 与 Branch 3 同口径 TOOL_BATCH_RETRY。
+        iterCtx.internalHistory.push({
+          role: "assistant",
+          content: iterCtx.fullText,
+          tool_calls: calls,
+          ...(iterCtx.reasoningContent ? { reasoning_content: iterCtx.reasoningContent } : {}),
+        });
+        const checkById2 = new Map(mutatingChecks.map((m) => [m.call.id, m]));
+        for (const c of calls) {
+          let content: string;
+          if (c.function.name === SIMPLE_TOOL_CHAT_REPLY) {
+            // 二轮审 W2-2 + 三轮审 W3-1：只有「完整送达」才算已送达——
+            // 终态 args 完整解析、content 非空且已流出长度覆盖完整 content。
+            // 空参数 / 半截气泡（未闭合、被截断）一律视为未送达，回喂重发提示、下轮不压。
+            if (!st.chatReplyFullyDelivered && st.chatReplyDelivered) {
+              try {
+                const parsed = JSON.parse(c.function.arguments || "{}") as { content?: unknown };
+                if (
+                  typeof parsed.content === "string" &&
+                  parsed.content.length > 0 &&
+                  parsed.content.length <= st.chatReplyEmittedLen
+                ) {
+                  st.chatReplyFullyDelivered = true;
+                }
+              } catch {
+                /* args 不完整（未闭合/截断）→ 保持未送达 */
+              }
+            }
+            content = st.chatReplyFullyDelivered
+              ? "[chat_reply 已送达用户，无需重发]"
+              : "注意：chat_reply 未完整送达（content 为空或参数被截断），用户未收到消息。请重新发出带完整 content 的 chat_reply。";
+          } else if (isReadOnlyTool(c.function.name)) {
+            content = truncateReadResultForHistory(readOnlyResults.get(c.id) ?? "", llmConfig, language);
+          } else {
+            const m = checkById2.get(c.id);
+            const invalid = !m?.repaired.success || !m.known;
+            if (invalid) {
+              content = m?.repaired.retryHint ?? `注意：工具 ${c.function.name} 参数无效，请重发完整合法的 JSON 参数。`;
+            } else {
+              content = `TOOL_BATCH_RETRY: a sibling tool call had invalid args; please reissue this call next round if still needed. Original call: ${c.function.name}(${c.function.arguments || "{}"})`;
+            }
+          }
+          // 二轮审 W2-3：静默回喂的 result 只入 internalHistory（当前 loop 协议配对用），
+          // 不 emit 到 UI/持久化层——没有对应的 UI tool_call，落库会变孤儿消息。
+          iterCtx.internalHistory.push({ role: "tool", tool_call_id: c.id, content });
+        }
+        return { mode: "continue", events };
       }
 
       // Branch 2: all read-only continue
@@ -746,6 +831,34 @@ function buildAgentLoopConfig(deps: BuildAgentLoopConfigDeps): AgentLoopConfig<S
       } catch {
         return { rescued: false };
       }
+    },
+    // P3 截断防御：finish=length 的 tool 调用一律不弹卡——assistant tool_calls +
+    // 每个调用的「参数可能被截断」错误 result 入 internalHistory，模型下轮重发完整参数。
+    // 长 content（人设正文）撞输出上限是高频场景，附「精简/分批」指引。
+    onTruncatedToolCalls: async (calls, iterCtx) => {
+      telemetry.emit({
+        kind: "truncated_tool_calls_retry",
+        agentName: SIMPLE_AGENT_NAME,
+        count: iterCtx.iter + 1,
+        iter: iterCtx.iter,
+        toolCount: calls.length,
+      });
+      iterCtx.internalHistory.push({
+        role: "assistant",
+        content: iterCtx.fullText,
+        tool_calls: calls,
+        ...(iterCtx.reasoningContent ? { reasoning_content: iterCtx.reasoningContent } : {}),
+      });
+      const events: AgentLoopEvent<SimpleBusinessEvent>[] = [];
+      for (const c of calls) {
+        const content =
+          language === "en"
+            ? `Tool call "${c.function.name}" was not executed: the response hit the output token limit, so its arguments may be truncated. Re-issue the tool call with complete arguments. If the content is long, shorten it or split into smaller pieces.`
+            : `工具 ${c.function.name} 未执行：响应达到输出长度上限，参数可能被截断。请重新发出完整参数的调用；如果 content 较长，请精简后重发。`;
+        // 二轮审 W2-3：截断回喂的 result 只入 internalHistory，不 emit 到 UI/持久化层（孤儿消息）。
+        iterCtx.internalHistory.push({ role: "tool", tool_call_id: c.id, content });
+      }
+      return { retry: true, events };
     },
     telemetry,
   };

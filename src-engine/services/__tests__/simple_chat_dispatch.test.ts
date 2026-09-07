@@ -1487,7 +1487,15 @@ describe("dispatchSimpleChat", () => {
     const adapter = new MockAdapter();
     const provider = createScriptedStreamProvider([
       // iter 0：模型偏离 —— 纯文本人设（没调工具）
-      [{ delta: "顾红衣，26 岁，当铺掌柜。", is_final: true, input_tokens: 0, output_tokens: 5, finish_reason: "stop" }],
+      [
+        {
+          delta: "顾红衣，26 岁，当铺掌柜。",
+          is_final: true,
+          input_tokens: 0,
+          output_tokens: 5,
+          finish_reason: "stop",
+        },
+      ],
       // iter 1（hint 后）：模型改调 create_character_file
       [
         {
@@ -1532,7 +1540,9 @@ describe("dispatchSimpleChat", () => {
   it("强续写信号优先：「写第3章 主角人设崩塌的戏」仍判续写 → 纯文本直接落草稿，不触发 guard", async () => {
     const adapter = new MockAdapter();
     const provider = createMockLLMProvider({
-      streamChunks: [{ delta: "夜色低垂……", is_final: true, input_tokens: 10, output_tokens: 5, finish_reason: "stop" }],
+      streamChunks: [
+        { delta: "夜色低垂……", is_final: true, input_tokens: 10, output_tokens: 5, finish_reason: "stop" },
+      ],
     });
     const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "写第3章 主角人设崩塌的戏")));
     expect(provider.calls.length).toBe(1);
@@ -1547,7 +1557,12 @@ describe("dispatchSimpleChat", () => {
         {
           delta: "",
           tool_call_deltas: [
-            { index: 0, id: "c1", type: "function", function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"好的"}' } },
+            {
+              index: 0,
+              id: "c1",
+              type: "function",
+              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"好的"}' },
+            },
           ],
           is_final: false,
           input_tokens: null,
@@ -1564,6 +1579,355 @@ describe("dispatchSimpleChat", () => {
     expect(String(hint.content)).toContain("chat_reply");
     expect(String(hint.content)).not.toContain("create/modify");
     expect(events.find((e) => e.type === "done_tools")).toBeDefined();
+  });
+
+  // ---------------------------------------------------------------------------
+  // P1（2026-09-04，对标 pi-ai）：混合批次 mutating 参数坏 → 不渲染坏卡，静默回喂重发。
+  // 旧行为：原样 emit 坏 tool_call → UI safeParseArgs 静默转 {} → 空 JSON 确认卡。
+  // ---------------------------------------------------------------------------
+  it("P1: chat_reply + 坏参数 mutating 混合批次 → 静默回喂重试，坏卡不出；下轮重发成卡且不重复气泡", async () => {
+    const adapter = new MockAdapter();
+    const brokenArgs = '{"name":"顾红衣","content":"半截'; // 未闭合字符串，parse/salvage/闭合三层都救不了
+    const goodArgs = '{"name":"顾红衣","content":"# 顾红衣\\n当铺掌柜"}';
+    const provider = createScriptedStreamProvider([
+      // iter 0：chat_reply（正常流式）+ create_character_file（参数截断坏）
+      [
+        {
+          delta: "",
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "cr1",
+              type: "function",
+              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"收到，我来写入。"}' },
+            },
+            {
+              index: 1,
+              id: "cc1",
+              type: "function",
+              function: { name: "create_character_file", arguments: brokenArgs },
+            },
+          ],
+          is_final: true,
+          input_tokens: 10,
+          output_tokens: 5,
+          finish_reason: "tool_calls",
+        },
+      ],
+      // iter 1：模型重发修正后的 create_character_file，顺手又调了一次 chat_reply（应被压掉）
+      [
+        {
+          delta: "",
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "cr2",
+              type: "function",
+              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"重发好了。"}' },
+            },
+            { index: 1, id: "cc2", type: "function", function: { name: "create_character_file", arguments: goodArgs } },
+          ],
+          is_final: true,
+          input_tokens: 10,
+          output_tokens: 5,
+          finish_reason: "tool_calls",
+        },
+      ],
+    ]);
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "把刚才讨论的人设写入角色卡")));
+
+    // 两轮调用（静默重试发生）
+    expect(provider.calls.length).toBe(2);
+
+    // chat_reply 气泡只流了一次（iter 1 的重复 chat_reply 被压掉）
+    const chunks = events
+      .filter((e) => e.type === "chat_reply_chunk")
+      .map((e) => (e as { data: string }).data)
+      .join("");
+    expect(chunks).toBe("收到，我来写入。");
+
+    // iter 0 的坏 create_character_file 没有渲染成确认卡：emit 的 tool_call 里没有 cc1
+    const emittedToolCalls = events
+      .filter((e) => e.type === "tool_call")
+      .map((e) => (e as { data: { id: string } }).data.id);
+    expect(emittedToolCalls).not.toContain("cc1");
+    // 二轮审 W2-3：静默回喂的 result 不再 emit 到 UI/持久化层（防孤儿消息），
+    // 只入 internalHistory——下方协议配对断言验证模型侧仍能看到失败。
+    const silentResult = events.find(
+      (e) => e.type === "tool_result" && (e as { data: { tool_call_id: string } }).data.tool_call_id === "cc1",
+    );
+    expect(silentResult).toBeUndefined();
+
+    // iter 1 重发的 valid 调用正常成卡（修复后 args）
+    const goodCard = events.find(
+      (e) =>
+        e.type === "tool_call" &&
+        (e.data as { function: { name: string; arguments: string } }).function.name === "create_character_file",
+    );
+    expect(goodCard).toBeDefined();
+    const cardArgs = JSON.parse((goodCard as { data: { function: { arguments: string } } }).data.function.arguments);
+    expect(cardArgs).toEqual({ name: "顾红衣", content: "# 顾红衣\n当铺掌柜" });
+
+    // 协议配对：iter 1 请求里 assistant tool_calls 的每个 id 都有对应 role:tool 消息
+    const iter1Msgs = provider.calls[1].messages;
+    const assistantWithTools = [...iter1Msgs].reverse().find((m) => m.role === "assistant" && m.tool_calls?.length);
+    expect(assistantWithTools).toBeDefined();
+    const toolMsgIds = new Set(
+      iter1Msgs.filter((m) => m.role === "tool").map((m) => (m as { tool_call_id: string }).tool_call_id),
+    );
+    for (const tc of assistantWithTools!.tool_calls!) {
+      expect(toolMsgIds.has(tc.id)).toBe(true);
+    }
+    // chat_reply 的配对 result 是合成告知，不是报错
+    const chatReplyResult = iter1Msgs.find(
+      (m) => m.role === "tool" && (m as { tool_call_id: string }).tool_call_id === "cr1",
+    );
+    expect(String(chatReplyResult?.content)).toContain("已送达");
+  });
+
+  it("二轮审 W2-2: chat_reply 空参数（未送达）+ 坏 mutating → 回喂重发提示而非「已送达」，下轮重发气泡正常流出", async () => {
+    const adapter = new MockAdapter();
+    const provider = createScriptedStreamProvider([
+      // iter 0：chat_reply 参数为空对象（用户看不到气泡）+ 坏参数 create
+      [
+        {
+          delta: "",
+          tool_call_deltas: [
+            { index: 0, id: "cr1", type: "function", function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: "{}" } },
+            {
+              index: 1,
+              id: "cc1",
+              type: "function",
+              function: { name: "create_character_file", arguments: '{"name":"顾红衣","content":"# 顾红衣' },
+            },
+          ],
+          is_final: true,
+          input_tokens: 10,
+          output_tokens: 5,
+          finish_reason: "tool_calls",
+        },
+      ],
+      // iter 1：模型收到提示后重发完整 chat_reply + valid create
+      [
+        {
+          delta: "",
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "cr2",
+              type: "function",
+              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"这回真的回复了"}' },
+            },
+            {
+              index: 1,
+              id: "cc2",
+              type: "function",
+              function: { name: "create_character_file", arguments: '{"name":"顾红衣","content":"# 顾红衣"}' },
+            },
+          ],
+          is_final: true,
+          input_tokens: 10,
+          output_tokens: 5,
+          finish_reason: "tool_calls",
+        },
+      ],
+    ]);
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "把刚才讨论的人设写入角色卡")));
+
+    expect(provider.calls.length).toBe(2);
+    // iter 0 空气泡没出，iter 1 重发的气泡正常流出且只有一次
+    const chunks = events
+      .filter((e) => e.type === "chat_reply_chunk")
+      .map((e) => (e as { data: string }).data)
+      .join("");
+    expect(chunks).toBe("这回真的回复了");
+    // iter 0 的 chat_reply 配对 result 是重发提示，不是「已送达」
+    const iter1Msgs = provider.calls[1].messages;
+    const cr1Result = iter1Msgs.find(
+      (m) => m.role === "tool" && (m as { tool_call_id: string }).tool_call_id === "cr1",
+    );
+    expect(String(cr1Result?.content)).toContain("未收到消息");
+    expect(String(cr1Result?.content)).not.toContain("已送达");
+    // iter 1 的 valid create 正常成卡
+    const goodCard = events.find(
+      (e) =>
+        e.type === "tool_call" && (e.data as { function: { name: string } }).function.name === "create_character_file",
+    );
+    expect(goodCard).toBeDefined();
+  });
+
+  it("三轮审 W3-1: chat_reply 半截气泡（args 未闭合）+ 坏 mutating → 不算已送达，下轮重发不被压", async () => {
+    const adapter = new MockAdapter();
+    const provider = createScriptedStreamProvider([
+      // iter 0：chat_reply content 流到一半截断（args 未闭合）+ 坏参数 create
+      [
+        {
+          delta: "",
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "cr1",
+              type: "function",
+              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"这话说一半' },
+            },
+            {
+              index: 1,
+              id: "cc1",
+              type: "function",
+              function: { name: "create_character_file", arguments: '{"name":"顾红衣","content":"# 顾红衣' },
+            },
+          ],
+          is_final: true,
+          input_tokens: 10,
+          output_tokens: 5,
+          finish_reason: "tool_calls",
+        },
+      ],
+      // iter 1：模型重发完整 chat_reply + valid create——半截轮不算送达，重发必须流出
+      [
+        {
+          delta: "",
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "cr2",
+              type: "function",
+              function: { name: SIMPLE_TOOL_CHAT_REPLY, arguments: '{"content":"这话说完了。"}' },
+            },
+            {
+              index: 1,
+              id: "cc2",
+              type: "function",
+              function: { name: "create_character_file", arguments: '{"name":"顾红衣","content":"# 顾红衣"}' },
+            },
+          ],
+          is_final: true,
+          input_tokens: 10,
+          output_tokens: 5,
+          finish_reason: "tool_calls",
+        },
+      ],
+    ]);
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "把刚才讨论的人设写入角色卡")));
+
+    expect(provider.calls.length).toBe(2);
+    // 半截流出 + 完整重发都出来了（重发没被压）
+    const chunks = events
+      .filter((e) => e.type === "chat_reply_chunk")
+      .map((e) => (e as { data: string }).data)
+      .join("");
+    expect(chunks).toBe("这话说一半这话说完了。");
+    // 半截轮的配对 result 是重发提示，不是「已送达」
+    const iter1Msgs = provider.calls[1].messages;
+    const cr1Result = iter1Msgs.find(
+      (m) => m.role === "tool" && (m as { tool_call_id: string }).tool_call_id === "cr1",
+    );
+    expect(String(cr1Result?.content)).toContain("未收到消息");
+    expect(String(cr1Result?.content)).not.toContain("已送达");
+  });
+
+  // ---------------------------------------------------------------------------
+  // P3（2026-09-04，对标 pi-ai failToolCallsFromTruncatedMessage）：finish=length 的
+  // tool 调用参数可能截断，一律不弹卡，回喂模型重发完整参数。
+  // ---------------------------------------------------------------------------
+  it("P3: finish=length + tool 调用 → 不弹确认卡，回喂「参数截断请重发」，下轮重发成卡", async () => {
+    const adapter = new MockAdapter();
+    const truncatedArgs = '{"name":"顾红衣","content":"# 顾红衣'; // 结构缺尾（截断现场）
+    const goodArgs = '{"name":"顾红衣","content":"# 顾红衣"}';
+    const provider = createScriptedStreamProvider([
+      // iter 0：create_character_file 写到一半撞输出上限（finish=length）
+      [
+        {
+          delta: "",
+          tool_call_deltas: [
+            {
+              index: 0,
+              id: "tc1",
+              type: "function",
+              function: { name: "create_character_file", arguments: truncatedArgs },
+            },
+          ],
+          is_final: true,
+          input_tokens: 10,
+          output_tokens: null,
+          finish_reason: "length",
+        },
+      ],
+      // iter 1：模型重发完整参数
+      [
+        {
+          delta: "",
+          tool_call_deltas: [
+            { index: 0, id: "tc2", type: "function", function: { name: "create_character_file", arguments: goodArgs } },
+          ],
+          is_final: true,
+          input_tokens: 10,
+          output_tokens: 5,
+          finish_reason: "tool_calls",
+        },
+      ],
+    ]);
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "把刚才讨论的人设写入角色卡")));
+
+    // 重试发生
+    expect(provider.calls.length).toBe(2);
+    // 截断轮没有任何确认卡（tool_call 事件只有 iter 1 重发的那张）
+    const emittedCards = events.filter((e) => e.type === "tool_call");
+    expect(emittedCards).toHaveLength(1);
+    expect((emittedCards[0].data as { id: string }).id).toBe("tc2");
+    // 二轮审 W2-3：截断轮的回喂 result 不 emit 到 UI（防孤儿消息），只在 internalHistory
+    const errResult = events.find(
+      (e) => e.type === "tool_result" && (e.data as { tool_call_id: string }).tool_call_id === "tc1",
+    );
+    expect(errResult).toBeUndefined();
+    // 协议配对完整，且模型侧确实收到截断提示
+    const iter1Msgs = provider.calls[1].messages;
+    const assistantWithTools = [...iter1Msgs].reverse().find((m) => m.role === "assistant" && m.tool_calls?.length);
+    const toolMsgIds = new Set(
+      iter1Msgs.filter((m) => m.role === "tool").map((m) => (m as { tool_call_id: string }).tool_call_id),
+    );
+    for (const tc of assistantWithTools?.tool_calls ?? []) {
+      expect(toolMsgIds.has(tc.id)).toBe(true);
+    }
+    // 模型侧确实收到截断提示（internalHistory 配对内容）
+    const truncToolMsg = iter1Msgs.find(
+      (m) => m.role === "tool" && (m as { tool_call_id: string }).tool_call_id === "tc1",
+    );
+    expect(String(truncToolMsg?.content)).toContain("截断");
+  });
+
+  it("P3: finish=length 连续两轮不恢复 → 耗尽后落入正常路由（不无限重试）", async () => {
+    const adapter = new MockAdapter();
+    const truncatedArgs = '{"name":"顾红衣","content":"# 顾红衣';
+    // 3 轮全是 length 截断（guard 上限 2 次 → 第 3 轮落正常路由）
+    const iters = Array.from({ length: 3 }, (_, i) => [
+      {
+        delta: "",
+        tool_call_deltas: [
+          {
+            index: 0,
+            id: `tc${i}`,
+            type: "function",
+            function: { name: "create_character_file", arguments: truncatedArgs },
+          },
+        ],
+        is_final: true,
+        input_tokens: 10,
+        output_tokens: null,
+        finish_reason: "length",
+      },
+    ]);
+    const provider = createScriptedStreamProvider(iters as never);
+    const events = await collect(dispatchSimpleChat(makeBaseParams(adapter, provider, "把刚才讨论的人设写入角色卡")));
+    // guard 2 次 + 最终路由 1 次 = 3 轮调用后结束（不无限循环）
+    expect(provider.calls.length).toBe(3);
+    // 最终轮落入 text path（finish=length 不是 tool_calls）：截断调用原样 emit（有界兜底，
+    // 用户至少看到现场），done_tools 收尾
+    expect(
+      events.find((e) => e.type === "done_tools") ||
+        events.find((e) => e.type === "done_text") ||
+        events.find((e) => e.type === "error"),
+    ).toBeDefined();
   });
 });
 

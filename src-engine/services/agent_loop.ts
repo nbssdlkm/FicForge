@@ -110,6 +110,19 @@ export interface AgentLoopConfig<E> {
     ctx: { count: number; max: number; iter: number; fullText: string },
   ) => Message | null;
 
+  /**
+   * 截断 tool calls 防御（finish_reason="length" 且本 iter 有 tool 调用）：流式 args
+   * 被输出上限截断的调用可能「parse/validate 通过但内容静默残缺」，一个都不安全。
+   * 业务侧回 `{ retry: true }` 时 harness 不路由不弹卡，直接进下一 iter（业务侧应
+   * 在回调内把 assistant tool_calls + 每个调用的错误 tool result 入 internalHistory，
+   * 保持 OpenAI 配对）。耗尽（或业务未实现）则落入正常路由。pi-ai
+   * failToolCallsFromTruncatedMessage 的对应物（2026-09-04 对标引入）。
+   */
+  onTruncatedToolCalls?: (
+    calls: ToolCall[],
+    ctx: IterContext,
+  ) => Promise<{ retry: boolean; events?: AgentLoopEvent<E>[] }>;
+
   onPartialRescue?: (fullText: string) => Promise<{ rescued: boolean; label?: string }>;
 
   telemetry?: TelemetrySink;
@@ -147,6 +160,7 @@ export async function* runAgentLoop<E>(
   let reasoningContent = "";
   let emptyGuardCount = 0;
   let deviationGuardCount = 0;
+  let truncatedToolsGuardCount = 0;
   // 一旦某模型拒绝强制 tool_choice，本 run 后续不再强制（sticky）。
   let forcedChoiceDisabled = false;
 
@@ -273,6 +287,38 @@ export async function* runAgentLoop<E>(
         }
         yield { type: "empty_response_terminal" };
         return;
+      }
+
+      // TRUNCATED_TOOL_CALLS guard — finish=length 且带 tool 调用：流式 args 可能被
+      // 截断，本 iter 的调用一律不路由不弹卡，交业务侧回喂模型重发（harness 层计数防死循环）。
+      if (
+        finishReason === "length" &&
+        hasTools &&
+        config.onTruncatedToolCalls &&
+        truncatedToolsGuardCount < maxGuardRetries
+      ) {
+        const truncCalls = finalizeToolCalls(toolBuffers);
+        const truncCtx: IterContext = {
+          iter,
+          finishReason,
+          fullText,
+          reasoningContent,
+          toolCalls: truncCalls,
+          hasFullText,
+          hasTools,
+          forceToolOnly,
+          internalHistory,
+          inputTokens,
+          outputTokens,
+        };
+        const decision = await config.onTruncatedToolCalls(truncCalls, truncCtx);
+        if (decision.events) {
+          for (const ev of decision.events) yield ev;
+        }
+        if (decision.retry) {
+          truncatedToolsGuardCount++;
+          continue;
+        }
       }
 
       // Deviation guard（hasFullText && !hasTools）：业务侧可注入 hint 让 LLM 改用

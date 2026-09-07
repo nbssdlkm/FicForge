@@ -53,7 +53,8 @@ export type TelemetryEvent =
   /** Catch 路径救回 partial draft */
   | { kind: "partial_draft_rescued"; agentName: string; label: string; len: number }
   /** Provider 拒收 forced tool_choice，dispatch 自动降级到 "auto" 重试 */
-  | { kind: "forced_tool_choice_fallback"; agentName: string; model: string };
+  | { kind: "forced_tool_choice_fallback"; agentName: string; model: string }
+  | { kind: "truncated_tool_calls_retry"; agentName: string; count: number; iter: number; toolCount: number };
 
 export interface TelemetrySink {
   emit(event: TelemetryEvent): void;
@@ -89,6 +90,7 @@ const DEGRADED_EVENT_KINDS: ReadonlySet<TelemetryEvent["kind"]> = new Set([
   "double_emit_with_mutating_tool",
   "partial_draft_rescued",
   "forced_tool_choice_fallback",
+  "truncated_tool_calls_retry",
 ]);
 
 /**

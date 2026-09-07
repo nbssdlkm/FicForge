@@ -15,7 +15,7 @@
 
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { repairAndValidateToolArgs, salvageMalformedJson } from "../tool_args_repair.js";
+import { closeTruncatedJsonStructure, repairAndValidateToolArgs, salvageMalformedJson } from "../tool_args_repair.js";
 
 describe("repairAndValidateToolArgs", () => {
   // -------------------------------------------------------------------------
@@ -429,6 +429,78 @@ describe("repairAndValidateToolArgs", () => {
       const out = salvageMalformedJson('{"x":"a\nb"}');
       expect(out).toBe('{"x":"a\\nb"}');
       expect(JSON.parse(out as string)).toEqual({ x: "a\nb" });
+    });
+
+    // ------------------------------------------------------------------
+    // 2026-09-04 对标 pi-ai repairJson：非法转义修复 + 截断结构闭合
+    // ------------------------------------------------------------------
+    it("salvageMalformedJson 单元：非法转义（C:path 的 \\p）→ 双写反斜杠救活", () => {
+      // TS 源码里的 "\\p" = 字面 backslash+p —— 模型写 Windows 路径的高频坏法
+      const out = salvageMalformedJson('{"p":"C:\\path\\new"}');
+      expect(out).not.toBeNull();
+      // \\p 被双写成 \\\\p；\n 是合法转义保留（JSON 语义二义性与 pi 一致）
+      expect(JSON.parse(out as string)).toEqual({ p: "C:\\path\new" });
+    });
+
+    it("salvageMalformedJson 单元：合法转义（\\n \\t \\uXXXX）原样不动", () => {
+      expect(salvageMalformedJson('{"a":"x\\ny"}')).toBeNull();
+      expect(salvageMalformedJson('{"a":"x\\u4e2d"}')).toBeNull();
+    });
+
+    it("closeTruncatedJsonStructure：值完整缺尾括号 → 补上救活；字符串未闭合 → 不救", () => {
+      // 缺一个 } —— 笔误，救
+      expect(closeTruncatedJsonStructure('{"name":"顾红衣","content":"# 顾红衣"')).toBe(
+        '{"name":"顾红衣","content":"# 顾红衣"}',
+      );
+      // 缺 ] } 两层
+      expect(closeTruncatedJsonStructure('{"a":[1,2')).toBe('{"a":[1,2]}');
+      // content 半截（字符串未闭合）→ 坚决不救（闭合半截 content 比失败更毒）
+      expect(closeTruncatedJsonStructure('{"facts":[{"content_clean":"foo')).toBeNull();
+      // 结构失配（} 对 [）→ 不是单纯截断，不救
+      expect(closeTruncatedJsonStructure('{"a":[1,2}')).toBeNull();
+      // 本来就闭合 → null（问题在别处）
+      expect(closeTruncatedJsonStructure('{"a":1}')).toBeNull();
+    });
+
+    it("repair 端到端：缺尾括号的 create_character_file 参数 → close_truncated_json 救活成功", () => {
+      const schema = z.object({ name: z.string().min(1), content: z.string().min(1) });
+      const r = repairAndValidateToolArgs(
+        "create_character_file",
+        '{"name":"顾红衣","content":"# 顾红衣\\n\\n当铺掌柜"',
+        schema,
+      );
+      expect(r.success).toBe(true);
+      expect(r.data).toEqual({ name: "顾红衣", content: "# 顾红衣\n\n当铺掌柜" });
+      expect(r.repairs.some((x) => x.kind === "close_truncated_json")).toBe(true);
+    });
+
+    it("repair 端到端：非法转义 + 缺尾括号组合输入串链修复（对抗审 W1）", () => {
+      // salvage 先修非法转义（\p → \\p），修后仍缺尾括号 → 闭合层必须跑在 salvaged 上，
+      // 若跑在原始串上，这个组合会漏救。
+      const schema = z.object({ name: z.string().min(1), content: z.string().min(1) });
+      const r = repairAndValidateToolArgs(
+        "create_character_file",
+        '{"name":"顾红衣","content":"路径 C:\\prod 的值"',
+        schema,
+      );
+      expect(r.success).toBe(true);
+      expect(r.data).toEqual({ name: "顾红衣", content: "路径 C:\\prod 的值" });
+      expect(r.repairs.some((x) => x.kind === "salvage_malformed_json")).toBe(true);
+      expect(r.repairs.some((x) => x.kind === "close_truncated_json")).toBe(true);
+    });
+
+    it("repair 端到端：salvage 改过但最终救不活（未闭合字符串）→ success=false 且保留 salvage trace（二轮审 W2-1）", () => {
+      const schema = z.object({ name: z.string().min(1), content: z.string().min(1) });
+      // 非法转义 \\p 被 salvage 修掉，但 content 字符串未闭合 → 闭合层拒救 → 整体失败；
+      // 审计必须留 salvage_malformed_json 痕迹，不能 repairs: [] 。
+      const r = repairAndValidateToolArgs(
+        "create_character_file",
+        '{"name":"顾红衣","content":"路径 C:\\prod 的半截',
+        schema,
+      );
+      expect(r.success).toBe(false);
+      expect(r.retryHint).toBeTruthy();
+      expect(r.repairs.some((x) => x.kind === "salvage_malformed_json")).toBe(true);
     });
   });
 });
