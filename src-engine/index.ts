@@ -30,6 +30,7 @@ export {
   asSimpleChatMessages,
   contextWindowForModel,
   createChapterSummary,
+  createCustomModelEntry,
   createDraft,
   createFontsConfig,
   createOpsEntry,

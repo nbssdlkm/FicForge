@@ -116,6 +116,39 @@ describe("modelOptionsForProvider — 合并 + 过滤 + ctx 分层", () => {
     // 自定义供应商同样过滤
     expect(modelOptionsForProvider(relay, "embedding").map((o) => o.id)).toEqual(["relay/awesome-embed"]);
   });
+
+  it("fetched 云端新发现：新增 id 进 fetched 组、已有 id 去重、按 kind 过滤向量模型（2026-09-04 自动更新）", () => {
+    const fetched = [
+      "deepseek-v9-new", // 新 chat 模型 → 应出现
+      "deepseek-v4-flash", // 已在推荐 → 去重不出现两条
+      "some-org/text-embedding-9", // 向量模型 → chat 槽不出现
+    ];
+    const chatOptions = modelOptionsForProvider(deepseek, "chat", fetched);
+    const discovered = chatOptions.filter((o) => o.origin === "fetched");
+    expect(discovered.map((o) => o.id)).toEqual(["deepseek-v9-new"]);
+    expect(chatOptions.filter((o) => o.id === "deepseek-v4-flash")).toHaveLength(1);
+    // fetched 组排最后（推荐/自定义/已启用优先）
+    expect(chatOptions[chatOptions.length - 1].origin).toBe("fetched");
+    // embedding 槽反过来：只要向量模型
+    const embOptions = modelOptionsForProvider(deepseek, "embedding", fetched);
+    expect(embOptions.filter((o) => o.origin === "fetched").map((o) => o.id)).toEqual(["some-org/text-embedding-9"]);
+    // ctx 走估算/未知三态，不伪造权威
+    const ctx = discovered[0].ctx;
+    expect(["estimated", "unknown"]).toContain(ctx.source);
+  });
+
+  it("fetched kind 过滤的已知边界（对抗审 W4 钉死）：含 embed 的 chat id 被误排除、无关键词向量模型漏进 chat 槽", () => {
+    const fetched = ["acme/embed-master-chat", "acme-vecstore-01"]; // 前者实为 chat、后者实为向量
+    const chatOptions = modelOptionsForProvider(deepseek, "chat", fetched);
+    const chatDiscovered = chatOptions.filter((o) => o.origin === "fetched").map((o) => o.id);
+    // 启发式现状：embed 字样一律按向量处理 → chat 槽不见 embed-master-chat；无关键词的 vecstore 漏进 chat
+    expect(chatDiscovered).not.toContain("acme/embed-master-chat");
+    expect(chatDiscovered).toContain("acme-vecstore-01");
+    const embDiscovered = modelOptionsForProvider(deepseek, "embedding", fetched)
+      .filter((o) => o.origin === "fetched")
+      .map((o) => o.id);
+    expect(embDiscovered).toEqual(["acme/embed-master-chat"]);
+  });
 });
 
 describe("ctxInfoForModel — 手填模型的三层判定", () => {
