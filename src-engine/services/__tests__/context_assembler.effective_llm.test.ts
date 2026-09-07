@@ -6,7 +6,7 @@
  * 计算窗口与输出上限，不再只看 project.llm。
  *
  * 判别性：回退旧码（assembler 忽略 effective_llm / estimate 不接 settings）时，
- * 「131072 窗口」断言全部退回 DEFAULT_CONTEXT_WINDOW=32000 而失败。
+ * 「131072 窗口」断言全部退回 DEFAULT_CONTEXT_WINDOW 保守兜底而失败。
  * 向后兼容：不传 effective 视图的调用与修改前逐字节一致（等价性用例钉死）。
  */
 
@@ -16,13 +16,14 @@ import { estimateSimpleContextTokens } from "../estimate_simple_tokens.js";
 import { createProject, createLLMConfig } from "../../domain/project.js";
 import { createSettings } from "../../domain/settings.js";
 import { createState } from "../../domain/state.js";
+import { DEFAULT_CONTEXT_WINDOW } from "../../domain/model_context_map.js";
 import { MockAdapter } from "../../repositories/__tests__/mock_adapter.js";
 import { FileChapterRepository } from "../../repositories/implementations/file_chapter.js";
 
 const EFFECTIVE_128K = { mode: "api", model: "unmapped-model-x", context_window: 131_072 };
 
 function bareProject(auId: string) {
-  // 主流受害配置：AU 无 LLM 覆盖（model=""、context_window=0）——旧码在此按 32k 兜底
+  // 主流受害配置：AU 无 LLM 覆盖（model=""、context_window=0）——旧码在此按 DEFAULT_CONTEXT_WINDOW 兜底
   return createProject({ project_id: "p", au_id: auId, llm: createLLMConfig() });
 }
 
@@ -61,8 +62,8 @@ describe("assembleContext — effective_llm（审计 H4）", () => {
     });
 
     expect(withEffective.budget_report.context_window).toBe(131_072);
-    // 旧码路径（不传视图）保持 32k 兜底 —— 同时证明差异确实来自 effective 参数
-    expect(withoutEffective.budget_report.context_window).toBe(32_000);
+    // 旧码路径（不传视图）保持 DEFAULT 保守兜底 —— 同时证明差异确实来自 effective 参数
+    expect(withoutEffective.budget_report.context_window).toBe(DEFAULT_CONTEXT_WINDOW);
   });
 
   it("等价性：effective 视图 == project.llm 时输出与不传视图逐项一致（向后兼容）", async () => {
@@ -139,7 +140,7 @@ describe("assembleChatContext — effective_llm（审计 H4）", () => {
     });
 
     expect(withEffective.budget_report.context_window).toBe(131_072);
-    expect(withoutEffective.budget_report.context_window).toBe(32_000);
+    expect(withoutEffective.budget_report.context_window).toBe(DEFAULT_CONTEXT_WINDOW);
   });
 });
 
@@ -171,7 +172,7 @@ describe("estimateSimpleContextTokens — 与真实组装同源（审计 H4）",
     });
 
     expect(withSettings.contextWindow).toBe(131_072);
-    expect(withoutSettings.contextWindow).toBe(32_000);
+    expect(withoutSettings.contextWindow).toBe(DEFAULT_CONTEXT_WINDOW);
   });
 
   it("session 覆盖优先于 settings（badge 跟随会话切模型）", async () => {

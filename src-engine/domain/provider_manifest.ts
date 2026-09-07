@@ -422,7 +422,7 @@ export function findRecommendedModel(providerId: string, modelId: string): Recom
  *      注意：getContextWindow 对未知 id 返回 DEFAULT_CONTEXT_WINDOW（不返回 undefined），
  *      故本层用「fuzzy 命中的裸名是否真在 MODEL_CONTEXT_MAP 里」判定是否算命中。
  *   3. **undefined** —— 前两层都没有权威数据，交给调用方自己兜 DEFAULT（不在此静默 fallback，
- *      避免把"猜测的 32k"伪装成"权威值"；蓝图 §三.4 明确禁静默 fallback）。
+ *      避免把「猜测的保守默认」伪装成"权威值"；蓝图 §三.4 明确禁静默 fallback）。
  *
  * @param model 模型 id（可带 org/ 前缀）。
  * @param providerId 可选；给了才走第 1 层 manifest 权威查询。

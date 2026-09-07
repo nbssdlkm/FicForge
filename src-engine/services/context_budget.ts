@@ -24,8 +24,8 @@ import { warnAlways } from "../logger/index.js";
  *
  * 实际发请求的模型由 resolveLlmConfig(session_llm, project, settings) 三层解析，
  * 可能落在 settings.default_llm（最主流配置：全局默认 + AU 无覆盖）——而 assembler
- * 历史上只看 project.llm，导致该场景按 DEFAULT_CONTEXT_WINDOW=32k / max_output("")=4096
- * 计算，64k+ 模型的大半输入预算被白白扔掉；反向的小窗口 session 模型则可能超窗。
+ * 历史上只看 project.llm，导致该场景按 DEFAULT_CONTEXT_WINDOW 保守兜底 / max_output("")=4096
+ * 计算，大窗模型的大半输入预算被白白扔掉；反向的小窗口 session 模型则可能超窗。
  *
  * 调用方（generation / simple_chat_dispatch / estimate）把 resolve 结果传进来即可 ——
  * ResolvedLLMConfig 结构上就满足本视图（mode/model/context_window）。

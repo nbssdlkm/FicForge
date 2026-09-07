@@ -36,6 +36,10 @@ describe("model_context_map", () => {
     expect(getContextWindow({})).toBe(DEFAULT_CONTEXT_WINDOW);
   });
 
+  it("决策锚点：未知模型默认窗口 = 256k（2026-09-04 卡拉拍板 32k→256k；防常量被误改而符号断言仍全绿）", () => {
+    expect(DEFAULT_CONTEXT_WINDOW).toBe(256_000);
+  });
+
   // -------------------------------------------------------------------------
   // 数据刷新（2026-07-07）：新增主力模型条目
   // -------------------------------------------------------------------------
@@ -88,7 +92,7 @@ describe("model_context_map", () => {
     expect(getModelMaxOutput("deepseek-ai/DeepSeek-V4-Pro")).toBe(384_000);
   });
 
-  it("fuzzy 修复 — 未知 org/ 形态 id 仍落 DEFAULT(32000)（判别测试）", () => {
+  it("fuzzy 修复 — 未知 org/ 形态 id 仍落 DEFAULT（判别测试）", () => {
     expect(getContextWindow({ llm: { context_window: 0, model: "some-org/Totally-Unknown-Model" } })).toBe(
       DEFAULT_CONTEXT_WINDOW,
     );

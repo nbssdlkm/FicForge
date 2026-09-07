@@ -100,7 +100,10 @@ export const MODEL_CONTEXT_MAP: Record<string, number> = {
   "llama3.1": 131_072,
 };
 
-export const DEFAULT_CONTEXT_WINDOW = 32_000;
+// 未知模型的保守兜底。2026-09-04 卡拉拍板 32k → 256k：现代模型普遍 128k+，
+// 对新模型保守 32k 反而把预算浪费在组装不足上；代价是真小窗模型（如本地小模型手填进来）
+// 会按 256k 组上下文、可能超窗被 API 拒——UI 层对未知模型有显式警示要求手填，可接受。
+export const DEFAULT_CONTEXT_WINDOW = 256_000;
 
 // ---------------------------------------------------------------------------
 // 模型输出上限映射表（PRD §4.1）
@@ -169,7 +172,7 @@ export const DEFAULT_MAX_OUTPUT = 4_096;
  *
  * SiliconFlow / OpenRouter 返回的模型 id 带组织前缀（`deepseek-ai/DeepSeek-V4-Pro`、
  * `moonshotai/Kimi-K2.6`、`zai-org/GLM-4.7`），且大小写与官方裸名不同 —— 旧 `startsWith`
- * 逻辑对这类 id 全部落 DEFAULT(32k)，导致 1M 模型被当 32k 用（浪费 97% 预算，调研诊断）。
+ * 逻辑对这类 id 全部落 DEFAULT 保守值，导致 1M 模型被当小窗用（浪费 97% 预算，调研诊断）。
  * 此处只取最后一段 `/` 之后的部分并小写化：`deepseek-ai/DeepSeek-V4-Pro` → `deepseek-v4-pro`。
  * MODEL_CONTEXT_MAP 的 key 也统一存裸名小写形态，两侧同源比较。
  */

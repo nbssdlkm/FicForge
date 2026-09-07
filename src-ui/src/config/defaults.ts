@@ -7,7 +7,7 @@
  *
  * 这些是 UI 表单层 / API wrapper 层的语义默认值（表单初值、useState 初值、
  * `api_base || 默认` 兜底），**不是**引擎的 fallback floor —— 引擎自有
- * `model_context_map.ts` 的 DEFAULT_CONTEXT_WINDOW(32000)，语义不同，刻意不对齐。
+ * `model_context_map.ts` 的 DEFAULT_CONTEXT_WINDOW(256000)，语义不同，刻意不对齐。
  *
  * 供应商相关值（端点 / 模型 id）一律从引擎 provider manifest 派生，本文件不允许
  * 出现与 manifest 重复的字面量 —— 「默认选哪家/哪个模型」是 UI 产品决策，

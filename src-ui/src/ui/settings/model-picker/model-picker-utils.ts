@@ -12,7 +12,7 @@
  *
  * ctx 判定分层沿用 engine contextWindowForModel 的口径：
  *   authoritative（manifest 权威）> manual（用户手填）> estimated（MODEL_CONTEXT_MAP fuzzy）
- *   > unknown（三层皆无 —— UI 必须显式提示，禁静默兜底 32k）。
+ *   > unknown（三层皆无 —— UI 必须显式提示，禁静默兜底保守默认）。
  */
 
 import {
@@ -44,8 +44,8 @@ export interface PickerModelOption {
   type: ModelKind;
   tags?: ModelTag[];
   ctx: CtxInfo;
-  /** 来源分组（optgroup 显示）。 */
-  origin: "recommended" | "enabled" | "custom";
+  /** 来源分组（optgroup 显示）。fetched = 后台自动拉 /models 发现的云端新模型（不落盘，选中才启用）。 */
+  origin: "recommended" | "enabled" | "custom" | "fetched";
 }
 
 /** 供应商的统一视图（内置 + 用户自定义同构合并）。 */
@@ -141,10 +141,16 @@ function estimateCtx(modelId: string): CtxInfo {
 }
 
 /**
- * 供应商内可选模型（推荐 > 自定义 > 已启用，按 id 去重前者优先），
+ * 供应商内可选模型（推荐 > 自定义 > 已启用 > 云端新发现，按 id 去重前者优先），
  * 按 kind 过滤（embedding 槽位只显示 embedding 类型 —— 实施项 5 的过滤参数）。
+ * fetchedIds：后台自动拉 /models 的云端列表（2026-09-04 卡拉拍板：模型 id 自动更新）。
+ * 纯增量——只加下拉里还没有的 id，永不移除用户已启用条目；ctx 走估算/未知三态，不伪造权威。
  */
-export function modelOptionsForProvider(provider: PickerProvider, kind: ModelKind): PickerModelOption[] {
+export function modelOptionsForProvider(
+  provider: PickerProvider,
+  kind: ModelKind,
+  fetchedIds: readonly string[] = [],
+): PickerModelOption[] {
   const seen = new Set<string>();
   const options: PickerModelOption[] = [];
 
@@ -169,6 +175,18 @@ export function modelOptionsForProvider(provider: PickerProvider, kind: ModelKin
     if (m.type !== kind || seen.has(m.id)) continue;
     seen.add(m.id);
     options.push(userEntryToOption(m, "enabled"));
+  }
+  // 云端新发现：后台拉 /models 得到的、上述三类都没有的 id。kind 过滤用 isLikelyEmbeddingId
+  // 判据（与拉取 sheet 的 embedding 分组同源）：chat 槽排除向量模型，embedding 槽只要向量模型。
+  // 已知边界（对抗审 W4，接受并钉测试）：OpenAI 兼容 /models 不返回模型类型元数据，
+  // 只能靠 id 猜——含 embed 字样的 chat 模型会被误排除（如 "text-embedder-chat"），
+  // 无关键词的向量模型会漏进 chat 槽（选中后调用会报错，用户可换）。厂商给元数据前应换真源。
+  for (const id of fetchedIds) {
+    if (seen.has(id)) continue;
+    const embeddingLike = isLikelyEmbeddingId(id);
+    if (kind === "embedding" ? !embeddingLike : embeddingLike) continue;
+    seen.add(id);
+    options.push({ id, displayName: id, type: kind, ctx: estimateCtx(id), origin: "fetched" });
   }
   return options;
 }
