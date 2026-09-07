@@ -461,7 +461,8 @@
     "originGroup": {
       "recommended": "推荐模型",
       "enabled": "已启用（拉取勾选）",
-      "custom": "自定义模型"
+      "custom": "自定义模型",
+      "fetched": "云端新发现"
     },
     "tag": {
       "flagship": "旗舰",
@@ -475,7 +476,8 @@
     "ctxResetDefault": "恢复官方默认",
     "ctxEstimated": "窗口未确认，按 {{ctx}} 估算 —— 可手改",
     "ctxManual": "你手填的值，保存后生效",
-    "ctxUnknown": "查不到这个模型一次能读多少字，请按服务商说明填写；不填则按较保守值处理",
+    "ctxUnknown": "查不到这个模型一次能读多少字，请按服务商说明填写；不填则按内置回退值处理（小窗模型可能超窗）",
+    "autoEnableFailed": "模型已选用，但写入「已启用」列表失败，下次打开可能需要重选",
     "layer": {
       "session": "会话临时",
       "au": "本篇单独设置",

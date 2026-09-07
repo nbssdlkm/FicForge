@@ -138,6 +138,8 @@ export {
   saveCustomProvider,
   saveDefaultLlmSettings,
   saveEnabledModels,
+  enableModel,
+  replaceEnabledModelsInUniverse,
   saveFontPreferences,
   saveGlobalSettingsForEditing,
   saveGlobalModelParams,

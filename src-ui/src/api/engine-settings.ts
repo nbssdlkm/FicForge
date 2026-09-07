@@ -286,6 +286,44 @@ export async function saveEnabledModels(providerId: string, models: CustomModelE
   });
 }
 
+/**
+ * 终审 v5 P1：拉取 sheet 确认的「可见宇宙内以勾选为准、宇宙外原样保留」合并放进写锁——
+ * 读-合-写整体原子，消除 UI 层锁外 fresh-read + 整表覆写与并发 enableModel / 另一槽位
+ * sheet 确认的互踩窗口（后写方用旧快照盖掉先写方）。返回合并后的完整启用列表供 UI 同步。
+ */
+export async function replaceEnabledModelsInUniverse(
+  providerId: string,
+  selected: CustomModelEntry[],
+  preserveOutsideUniverse: ReadonlySet<string>,
+): Promise<CustomModelEntry[]> {
+  return withSettingsWrite((current) => {
+    const existing = current.enabled_models?.[providerId] ?? [];
+    const selectedIds = new Set(selected.map((m) => m.id));
+    const preserved = existing.filter((m) => !preserveOutsideUniverse.has(m.id) && !selectedIds.has(m.id));
+    const merged = [...structuredClone(selected), ...preserved];
+    current.enabled_models = { ...(current.enabled_models ?? {}), [providerId]: merged };
+    return structuredClone(merged);
+  });
+}
+
+/**
+ * 原子启用单个模型（「云端新发现」选中即启用，2026-09-04）：读-合并-写进同一把写锁，
+ * 没有 UI 层 fresh-read + 整表覆写的竞态窗口（对抗审 C1 终审修复——saveEnabledModels 整表覆写
+ * 在并发启用下会丢别人的条目，原子 append 按 id 合并则不会）。
+ * 已在列表（按 id）则不动。返回是否发生了实际新增。
+ */
+export async function enableModel(providerId: string, entry: CustomModelEntry): Promise<boolean> {
+  return withSettingsWrite((current) => {
+    const existing = current.enabled_models?.[providerId] ?? [];
+    if (existing.some((m) => m.id === entry.id)) return false;
+    current.enabled_models = {
+      ...(current.enabled_models ?? {}),
+      [providerId]: [...existing, structuredClone(entry)],
+    };
+    return true;
+  });
+}
+
 /** /models 端点超时（毫秒）。 */
 const FETCH_MODELS_TIMEOUT_MS = 15_000;
 

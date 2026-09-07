@@ -4,7 +4,11 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { useState } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { ProviderModelPicker } from "../ProviderModelPicker";
+import {
+  bumpCatalogMutationVersionForTest,
+  clearAutoFetchedModelsCache,
+  ProviderModelPicker,
+} from "../ProviderModelPicker";
 import { FeedbackProvider } from "../../../../hooks/useFeedback";
 import { buildGlobalSettingsSaveInput, createDefaultGlobalSettingsFormState } from "../../form-mappers";
 
@@ -16,6 +20,8 @@ vi.mock("../../../../api/engine-client", async (importActual) => {
     getModelCatalog: vi.fn(),
     getCustomProviderApiKey: vi.fn(),
     saveEnabledModels: vi.fn(),
+    enableModel: vi.fn(),
+    replaceEnabledModelsInUniverse: vi.fn(),
     saveCustomProvider: vi.fn(),
     deleteCustomProvider: vi.fn(),
     fetchProviderModels: vi.fn(),
@@ -27,6 +33,8 @@ import {
   getCustomProviderApiKey,
   fetchProviderModels,
   saveEnabledModels,
+  enableModel,
+  replaceEnabledModelsInUniverse,
 } from "../../../../api/engine-client";
 
 const emptyCatalog = { custom_providers: [], enabled_models: {} };
@@ -114,6 +122,10 @@ describe("ProviderModelPicker", () => {
   beforeEach(() => {
     (getModelCatalog as Mock).mockReset().mockResolvedValue(emptyCatalog);
     (getCustomProviderApiKey as Mock).mockReset().mockResolvedValue("");
+    // 后台自动拉 /models（云端新发现分组）：默认空列表，各用例按需覆盖。
+    (fetchProviderModels as Mock).mockReset().mockResolvedValue({ ids: [] });
+    // 自动启用原子 append：默认成功新增。
+    (enableModel as Mock).mockReset().mockResolvedValue(true);
   });
 
   it("供应商切换 → 自动填该供应商 baseUrl", async () => {
@@ -250,12 +262,234 @@ describe("ProviderModelPicker", () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(providerSelect.value).toBe("custom-m2");
 
-    // 拉取 → 勾选 → 保存挂到正确的 custom-m2
+    // 拉取 → 勾选 → 保存挂到正确的 custom-m2（终审 v5：走引擎侧原子合并，不再 UI 整表覆写）
+    (replaceEnabledModelsInUniverse as Mock)
+      .mockReset()
+      .mockResolvedValue([{ id: "model-x", display_name: "model-x", type: "chat" }]);
     fireEvent.click(screen.getByRole("button", { name: "从 API 获取列表" }));
     fireEvent.click(await screen.findByRole("checkbox", { name: /model-x/ }));
     fireEvent.click(screen.getByRole("button", { name: "保存勾选" }));
-    await waitFor(() => expect(saveEnabledModels).toHaveBeenCalled());
-    expect((saveEnabledModels as Mock).mock.calls[0][0]).toBe("custom-m2");
+    await waitFor(() => expect(replaceEnabledModelsInUniverse).toHaveBeenCalled());
+    expect((replaceEnabledModelsInUniverse as Mock).mock.calls[0][0]).toBe("custom-m2");
+    expect(saveEnabledModels).not.toHaveBeenCalled();
+  });
+
+  it("云端新发现：后台自动拉 /models → 新 id 进下拉；选中即写 enabled_models 持久化（2026-09-04 自动更新）", async () => {
+    clearAutoFetchedModelsCache();
+    (fetchProviderModels as Mock).mockReset().mockResolvedValue({ ids: ["deepseek-v9-new", "deepseek-v4-flash"] });
+    (saveEnabledModels as Mock).mockReset().mockResolvedValue(undefined);
+    const onModelChange = vi.fn();
+    renderPicker(<ControlledPicker spies={{ onModelChange }} />);
+
+    fireEvent.change(await screen.findByLabelText("服务商"), { target: { value: "deepseek" } });
+    const modelSelect = (await screen.findByLabelText("模型")) as HTMLSelectElement;
+    // 等后台拉取落到选项（600ms 防抖 + fetch）；已推荐的 deepseek-v4-flash 不重复
+    await waitFor(
+      () => {
+        expect([...modelSelect.querySelectorAll("option")].some((o) => o.value === "deepseek-v9-new")).toBe(true);
+      },
+      { timeout: 3000 },
+    );
+    expect([...modelSelect.querySelectorAll("option")].filter((o) => o.value === "deepseek-v4-flash")).toHaveLength(1);
+    // 独立分组标签
+    expect([...modelSelect.querySelectorAll("optgroup")].some((g) => g.label === "云端新发现")).toBe(true);
+
+    // 选中即启用：onModelChange 生效 + 原子 append 进 enabled_models
+    fireEvent.change(modelSelect, { target: { value: "deepseek-v9-new" } });
+    expect(onModelChange).toHaveBeenCalledWith("deepseek-v9-new");
+    await waitFor(() => expect(enableModel).toHaveBeenCalled());
+    const [providerId, entry] = (enableModel as Mock).mock.calls[0];
+    expect(providerId).toBe("deepseek");
+    expect((entry as { id: string }).id).toBe("deepseek-v9-new");
+  });
+
+  it("对抗审 C1 终审：自动启用走引擎侧原子 enableModel（读-合并-写同锁），不经 UI 整表覆写", async () => {
+    clearAutoFetchedModelsCache();
+    (fetchProviderModels as Mock).mockReset().mockResolvedValue({ ids: ["deepseek-v9-new"] });
+    renderPicker(<ControlledPicker spies={{}} />);
+    fireEvent.change(await screen.findByLabelText("服务商"), { target: { value: "deepseek" } });
+    const modelSelect = (await screen.findByLabelText("模型")) as HTMLSelectElement;
+    await waitFor(
+      () => {
+        expect([...modelSelect.querySelectorAll("option")].some((o) => o.value === "deepseek-v9-new")).toBe(true);
+      },
+      { timeout: 3000 },
+    );
+    fireEvent.change(modelSelect, { target: { value: "deepseek-v9-new" } });
+    await waitFor(() => expect(enableModel).toHaveBeenCalled());
+    // 关键断言：自动路径不调用整表覆写 saveEnabledModels（竞态源已被移除）
+    expect(saveEnabledModels).not.toHaveBeenCalled();
+  });
+
+  it("终审 W：mount 的慢 catalog 响应晚于自动启用落地 → 丢弃重拉，新启用模型留在「已启用」组", async () => {
+    clearAutoFetchedModelsCache();
+    // mount 的 getModelCatalog 挂起（deferred）；后续重拉返回含新启用条目的 fresh catalog（已落盘）
+    let resolveMount: ((v: typeof emptyCatalog) => void) | undefined;
+    let first = true;
+    (getModelCatalog as Mock).mockReset().mockImplementation(() => {
+      if (first) {
+        first = false;
+        return new Promise((res) => {
+          resolveMount = res;
+        });
+      }
+      return Promise.resolve({
+        custom_providers: [],
+        enabled_models: { deepseek: [{ id: "deepseek-v9-new", display_name: "deepseek-v9-new", type: "chat" }] },
+      });
+    });
+    (fetchProviderModels as Mock).mockReset().mockResolvedValue({ ids: ["deepseek-v9-new"] });
+    (enableModel as Mock).mockReset().mockResolvedValue(true);
+    renderPicker(<ControlledPicker spies={{}} />);
+    fireEvent.change(await screen.findByLabelText("服务商"), { target: { value: "deepseek" } });
+    const modelSelect = (await screen.findByLabelText("模型")) as HTMLSelectElement;
+    await waitFor(
+      () => {
+        expect([...modelSelect.querySelectorAll("option")].some((o) => o.value === "deepseek-v9-new")).toBe(true);
+      },
+      { timeout: 3000 },
+    );
+    fireEvent.change(modelSelect, { target: { value: "deepseek-v9-new" } });
+    await waitFor(() => expect(enableModel).toHaveBeenCalled());
+    // 慢响应才落地（空快照）——若盲覆盖，刚启用的模型会丢；正确行为=丢弃重拉
+    resolveMount?.(emptyCatalog);
+    await waitFor(() => {
+      const enabledGroup = [...modelSelect.querySelectorAll("optgroup")].find((g) => g.label === "已启用（拉取勾选）");
+      expect(
+        enabledGroup && [...enabledGroup.querySelectorAll("option")].some((o) => o.value === "deepseek-v9-new"),
+      ).toBe(true);
+    });
+    // 确实发生了重拉（mount 1 次 + 丢弃后 1 次）
+    expect((getModelCatalog as Mock).mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("版本持续漂移：精确 4 次尝试后放弃，不落地过期快照", async () => {
+    clearAutoFetchedModelsCache();
+    // 每次读取期间都有兄弟实例 mutation（bump 版本）→ 所有响应都被判废
+    (getModelCatalog as Mock).mockReset().mockImplementation(() => {
+      bumpCatalogMutationVersionForTest();
+      return Promise.resolve({
+        custom_providers: [
+          {
+            id: "custom-x",
+            displayName: "不该出现的供应商",
+            baseUrl: "https://x.example.com/v1",
+            has_api_key: true,
+            models: [],
+          },
+        ],
+        enabled_models: {},
+      });
+    });
+    renderPicker(<ControlledPicker spies={{}} />);
+    // 首发 + 3 次重试 = 精确 4 次，之后不再发起
+    await waitFor(() => expect((getModelCatalog as Mock).mock.calls.length).toBe(4), { timeout: 3000 });
+    await new Promise((r) => setTimeout(r, 100));
+    expect((getModelCatalog as Mock).mock.calls.length).toBe(4);
+    // 未落地：响应里的自定义供应商始终不出现在下拉（若落地则可见）
+    const providerSelect = (await screen.findByLabelText("服务商")) as HTMLSelectElement;
+    expect([...providerSelect.querySelectorAll("option")].some((o) => o.value === "custom-x")).toBe(false);
+  });
+
+  it("终审 v2 P1：兄弟 picker 实例的 mount 慢响应被全局版本判废重拉（跨实例失效覆盖）", async () => {
+    clearAutoFetchedModelsCache();
+    // 两个实例的 mount 读都挂起；之后的重拉返回含新建供应商的 fresh catalog（已落盘）
+    const mountResolvers: Array<(v: typeof emptyCatalog) => void> = [];
+    let call = 0;
+    (getModelCatalog as Mock).mockReset().mockImplementation(() => {
+      call++;
+      if (call <= 2) {
+        return new Promise((res) => {
+          mountResolvers.push(res as (v: typeof emptyCatalog) => void);
+        });
+      }
+      return Promise.resolve({
+        custom_providers: [
+          {
+            id: "custom-new",
+            displayName: "新中转站",
+            baseUrl: "https://new.example.com/v1",
+            has_api_key: true,
+            models: [],
+          },
+        ],
+        enabled_models: {},
+      });
+    });
+    (fetchProviderModels as Mock).mockReset().mockResolvedValue({ ids: ["deepseek-v9-new"] });
+    (enableModel as Mock).mockReset().mockResolvedValue(true);
+    // 同页挂两个实例（模拟设置页 chat + embedding 双 picker）
+    renderPicker(
+      <>
+        <ControlledPicker spies={{}} />
+        <ControlledPicker spies={{}} />
+      </>,
+    );
+    // 实例 A 完成一次 mutation（自动启用 → bump 全局版本）
+    const providerSelects = await screen.findAllByLabelText("服务商");
+    fireEvent.change(providerSelects[0], { target: { value: "deepseek" } });
+    const modelSelects = await screen.findAllByLabelText("模型");
+    await waitFor(
+      () => {
+        expect([...modelSelects[0].querySelectorAll("option")].some((o) => o.value === "deepseek-v9-new")).toBe(true);
+      },
+      { timeout: 3000 },
+    );
+    fireEvent.change(modelSelects[0], { target: { value: "deepseek-v9-new" } });
+    await waitFor(() => expect(enableModel).toHaveBeenCalled());
+    // 两个实例的慢 mount 响应才落地（空快照，已落后于 mutation）→ 都应判废重拉
+    for (const resolve of mountResolvers) resolve(emptyCatalog);
+    // 重拉后的 fresh catalog 含新供应商——两个实例的供应商下拉都要能看到
+    await waitFor(
+      () => {
+        for (const sel of screen.getAllByLabelText("服务商")) {
+          expect([...sel.querySelectorAll("option")].some((o) => o.value === "custom-new")).toBe(true);
+        }
+      },
+      { timeout: 3000 },
+    );
+    // 两个实例各自 mount 1 次 + 判废重拉 ≥1 次
+    expect((getModelCatalog as Mock).mock.calls.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("对抗审 W2：切供应商后旧供应商的云端新发现立即消失", async () => {
+    clearAutoFetchedModelsCache();
+    (fetchProviderModels as Mock).mockImplementation(({ api_base }: { api_base: string }) =>
+      Promise.resolve({ ids: api_base.includes("deepseek") ? ["deepseek-v9-new"] : [] }),
+    );
+    renderPicker(<ControlledPicker spies={{}} />);
+    const providerSelect = await screen.findByLabelText("服务商");
+    fireEvent.change(providerSelect, { target: { value: "deepseek" } });
+    const modelSelect = (await screen.findByLabelText("模型")) as HTMLSelectElement;
+    await waitFor(
+      () => {
+        expect([...modelSelect.querySelectorAll("option")].some((o) => o.value === "deepseek-v9-new")).toBe(true);
+      },
+      { timeout: 3000 },
+    );
+    fireEvent.change(providerSelect, { target: { value: "zhipu" } });
+    // 旧供应商的 fetched 选项立刻消失（不等新请求返回）
+    expect([...modelSelect.querySelectorAll("option")].some((o) => o.value === "deepseek-v9-new")).toBe(false);
+  });
+
+  it("对抗审 W3：自动启用持久化失败 → 用户看到非阻塞错误提示（选择本身仍生效）", async () => {
+    clearAutoFetchedModelsCache();
+    (fetchProviderModels as Mock).mockReset().mockResolvedValue({ ids: ["deepseek-v9-new"] });
+    (enableModel as Mock).mockReset().mockRejectedValue(new Error("disk full"));
+    const onModelChange = vi.fn();
+    renderPicker(<ControlledPicker spies={{ onModelChange }} />);
+    fireEvent.change(await screen.findByLabelText("服务商"), { target: { value: "deepseek" } });
+    const modelSelect = (await screen.findByLabelText("模型")) as HTMLSelectElement;
+    await waitFor(
+      () => {
+        expect([...modelSelect.querySelectorAll("option")].some((o) => o.value === "deepseek-v9-new")).toBe(true);
+      },
+      { timeout: 3000 },
+    );
+    fireEvent.change(modelSelect, { target: { value: "deepseek-v9-new" } });
+    expect(onModelChange).toHaveBeenCalledWith("deepseek-v9-new");
+    // 错误 toast 可见（showError 对 Error 取 message；fallback 文案也在）
+    await screen.findByText(/已选用|disk full/);
   });
 
   it("F-4: 跨槽位 stale 快照 —— 别槽已启用 A/B，本槽拉取勾 C 保存 → A/B 仍启用不被误清", async () => {
@@ -284,11 +518,30 @@ describe("ProviderModelPicker", () => {
     // 新拉到的 C 勾上
     fireEvent.click(await screen.findByRole("checkbox", { name: /bge-large-zh/ }));
 
+    // 终审 v5：确认走引擎侧原子合并（读-合-写同锁）——UI 只传「本次勾选 + 可见宇宙」，
+    // 宇宙外保留的合并在锁内发生（合并正确性见引擎层 model-catalog 测试）。
+    const mergedResult = [
+      { id: "BAAI/bge-large-zh", display_name: "BAAI/bge-large-zh", type: "chat" },
+      { id: "Qwen/Qwen3-Max", display_name: "Qwen/Qwen3-Max", type: "chat" },
+      { id: "deepseek-ai/DeepSeek-V4", display_name: "deepseek-ai/DeepSeek-V4", type: "chat" },
+    ];
+    (replaceEnabledModelsInUniverse as Mock).mockReset().mockResolvedValue(mergedResult);
     fireEvent.click(screen.getByRole("button", { name: "保存勾选" }));
-    await waitFor(() => expect(saveEnabledModels).toHaveBeenCalled());
-    const [providerId, saved] = (saveEnabledModels as Mock).mock.calls[0] as [string, { id: string }[]];
+    await waitFor(() => expect(replaceEnabledModelsInUniverse).toHaveBeenCalled());
+    const [providerId, selected, universe] = (replaceEnabledModelsInUniverse as Mock).mock.calls[0] as [
+      string,
+      { id: string }[],
+      Set<string>,
+    ];
     expect(providerId).toBe("siliconflow");
-    expect(saved.map((m) => m.id).sort()).toEqual(["BAAI/bge-large-zh", "Qwen/Qwen3-Max", "deepseek-ai/DeepSeek-V4"]);
+    // 本次勾选 = A/B（未返回组保持勾选）+ C（新勾）
+    expect(selected.map((m) => m.id).sort()).toEqual([
+      "BAAI/bge-large-zh",
+      "Qwen/Qwen3-Max",
+      "deepseek-ai/DeepSeek-V4",
+    ]);
+    expect(universe.has("BAAI/bge-large-zh")).toBe(true);
+    expect(saveEnabledModels).not.toHaveBeenCalled();
   });
 
   it("F-5: 下拉选中窗口未知模型 → 清空 ctx 表单值（不沿用上一模型 stale 大数）+ 未知警示照旧", async () => {
