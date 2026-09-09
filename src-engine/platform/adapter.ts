@@ -21,6 +21,7 @@ export interface SecretStorageCapabilities {
     | "local_storage_with_memory_fallback"
     | "session_storage_with_memory_fallback"
     | "session_storage_plaintext_fallback"
+    | "idb_plaintext_fallback"
     | "web_crypto_aes_gcm"
     | "memory"
     | "os_keyring";

@@ -152,6 +152,8 @@ export interface AppConfig {
   fonts: FontsConfig;
   /** M9：开启 ReAct 增强事实提取（跨章 caused_by + 自动挂剧情线）。默认开（PD-4，用户 2026-06-21 拍板）；可在全局设置关。 */
   react_extraction_enabled: boolean;
+  /** 开发者模式（2026-09-08 调试观测面）：开 = 生成调试包捕获 + 设置里出现「生成调试」面板。默认关。 */
+  developer_mode: boolean;
   schema_version: string;
 }
 
@@ -161,6 +163,7 @@ export function createAppConfig(partial?: Partial<AppConfig>): AppConfig {
     data_dir: "./fandoms",
     fonts: createFontsConfig(),
     react_extraction_enabled: true,
+    developer_mode: false,
     schema_version: "1.0.0",
     ...partial,
   };
@@ -173,6 +176,14 @@ export function createAppConfig(partial?: Partial<AppConfig>): AppConfig {
  */
 export function isReactExtractionEnabled(app: { react_extraction_enabled?: boolean } | null | undefined): boolean {
   return app?.react_extraction_enabled !== false;
+}
+
+/**
+ * 开发者模式开关的单一判据：**缺省视为关**（`=== true`，与 createAppConfig 默认 false /
+ * dictToAppConfig 读侧归一化同口径）。调试面对普通用户隐藏，只有显式开才可见。
+ */
+export function isDeveloperMode(app: { developer_mode?: boolean } | null | undefined): boolean {
+  return app?.developer_mode === true;
 }
 
 // LicenseConfig（tier/feature_flags/api_mode）已物理清退（盲审 R5 功能 L2）：round-trip 完整但

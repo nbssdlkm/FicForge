@@ -80,7 +80,9 @@ function buildRagChunkLabel(chunk: RagChunkDetail, t: TranslateFn): string {
 // 折叠 2 行的展示粒度下，约 80 字符能排满；超过才值得给用户一个"展开全文"入口。
 const RAG_CHUNK_EXPAND_THRESHOLD = 80;
 
-function RagChunkItem({ chunk, t, hasWarning }: { chunk: RagChunkDetail; t: TranslateFn; hasWarning: boolean }) {
+// 导出供 GenerationDebugSection（设置·生成调试面板）复用 RAG chunk 渲染——同一 chunk 的
+// label/score/展开交互只此一处实现（单一真相源），不手抄第二份。
+export function RagChunkItem({ chunk, t, hasWarning }: { chunk: RagChunkDetail; t: TranslateFn; hasWarning: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const label = buildRagChunkLabel(chunk, t);
   const scorePercent = Math.round(Math.max(0, Math.min(1, chunk.score)) * 100);

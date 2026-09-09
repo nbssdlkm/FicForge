@@ -59,6 +59,12 @@ describe("redactCtx — 字符串值级擦洗（error 字段直通面根治）",
     expect(out.error).not.toContain("sk_verysecret42");
   });
 
+  it("空格形态 'API key: xxx' 被擦掉（2026-09-08 实现审：部分供应商错误体写法）", () => {
+    const out = redactCtx({ error: "Error: API key: ab12cd34ef56 not valid for model" });
+    expect(out.error).not.toContain("ab12cd34ef56");
+    expect(out.error).toContain("[REDACTED]");
+  });
+
   it("secure key 名内嵌的作品标题被擦掉（keyring 错误串形态）", () => {
     const out = redactCtx({
       error: "failed to read secure store entry for project.我的秘密同人文.llm.api_key: locked",

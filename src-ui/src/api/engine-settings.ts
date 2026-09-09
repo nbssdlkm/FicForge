@@ -165,6 +165,7 @@ export async function getSettingsSummary(): Promise<SettingsSummary> {
       language: settings.app.language,
       fonts: toFontPreferences(settings),
       react_extraction_enabled: settings.app.react_extraction_enabled,
+      developer_mode: settings.app.developer_mode,
     },
   };
 }
@@ -467,6 +468,7 @@ export async function saveAppPreferences(payload: AppPreferencesInput) {
       ...(payload.react_extraction_enabled !== undefined
         ? { react_extraction_enabled: payload.react_extraction_enabled }
         : {}),
+      ...(payload.developer_mode !== undefined ? { developer_mode: payload.developer_mode } : {}),
     };
     return current.app;
   });

@@ -3,6 +3,12 @@
 > 人读的前瞻进度文件（AI 地图见 CLAUDE.md，历史细节见 git log 与 `docs/internal/audit/`）。
 > 约定：每个工作会话收尾时更新「当前状态」与「待办」；完成的待办移入「里程碑」一行带走。
 
+## 当前状态（2026-09-08）
+
+**2026-09-08 开发者模式 + 生成调试面板 + 全局错误兜底（分支 `feat/dev-mode-debug`，未提交等确认）**：自用调试能力 C+D 落地。C = 引擎新增 `src-engine/debug/` 环形缓冲（10 条、不可变语义、关=即停捕+清空零保留）+ 双路径捕获点（写文 generation / 对话 dispatch，骨架入口建立「有什么填什么」、对话经 onIterStart 快照末轮真实发送序列 + 翻译层兜三类 harness 直产终态与 error 事件零漏记）+ `context_assembler` 对话路径补挂 RAG chunks 明细（只动 summary 不动 prompt）+ `AppConfig.developer_mode`（默认关，全链 round-trip 测试）+ UI 设置弹窗开关与「生成调试」面板（prompt 全文 start/final 分组 / 预算分解表 / RAG 命中复用 RagChunkItem / 复制整包 JSON+逐条复制）。D = `docs/DEBUGGING.md` 三端调试入口一页纸（release 包不带 devtools=D2 有意不做，触发条件在案）。**追加全局错误兜底**：`global-error-handler.ts`（零静态依赖+顶层自安装，main.tsx 第一行 import；window 级幂等防 HMR 双注册；report 全 try/catch 防二次崩溃；logCatch 动态 import 降级 console）+ `AppErrorBoundary`（非 Error 抛出归一化；诊断信息复制/展示过 redactString；渲染崩溃落日志+兜底页）。**真机验收抓获两个叠加 bug 并修复**（卡拉实测面板永远 0 条 → 现场探针定位）：①HMR 实例分裂——dev server 长跑后引擎模块图撕裂，模块级单例分裂（开关写 A 实例/生成写 B 实例/面板读 A 实例）→ `capture.ts` 状态迁 globalThis 共享容器（生产单 bundle 行为不变）；②常驻设置弹窗挂载时 settings=null → hydrate 把 bootstrap 刚同步的引擎开关误关回 false → `useDeveloperModePref` hydrate 加 null 守卫 + toggle 改引擎开关先行（消灭持久化竞态窗口，对抗审 major）+ 回归测试 2 例。顺带清掉引擎包 3 个未使用导入 lint（此前 biome check 路径只扫了子集，教训：根目录 `biome check .` 才算数）。**已知 dev-only 限制（有意不修）**：logger 单例同款 HMR 分裂风险（minor，fresh reload 即恢复，生产无此问题）。审阅链：codex 四轮（方案 9 major + 实现 2 major + 兜底 3 major + hotfix 2 major 全修）、minimax 三轮收敛。spec 在 `docs/superpowers/specs/2026-09-08-dev-mode-generation-debug-design.md`。
+
+**2026-09-09 WebAdapter 密钥持久化（同分支追加，卡拉拍板）**：浏览器/PWA 端 API 密钥从「会话级」（sessionStorage，关标签页就没）改为「持久加密存储」（密文迁 IndexedDB `ficforge_keystore` v2 新增 secrets store，AES 密钥机制不动），与桌面/安卓端拉齐「配一次永久」。拍板依据：本地运行 app 三端威胁模型一致（设备解锁即全通），会话级是审计加固时未拉齐三端留下的不一致，安全收益为虚。实现要点：IDB op 三态语义（unavailable=环境不支持合理降级 / ok / failed=真故障）；H8 不变量保持（读故障且降级层全空 → 抛 SecretStoreReadError；有真值副本则兜底返回不算吞）；迁移原子性（写成功才删源副本）；secureSet 双故障抛错防旧值遮蔽；secureRemove 删失败抛错防密钥复活；事务 onabort 防悬挂。codex 对抗审 5 major 全修 + minimax 复审 2 minor 全修（首轮拒审理由正当：prompt 没嵌 diff）。测试 94 例 platform 全绿（含 6 例故障注入回归）+ 真机浏览器 cold-start round-trip 验证（写入→刷新→读回，IDB 落盘为密文）。引擎全量 1633+3 skipped 绿。
+
 ## 当前状态（2026-09-07）
 
 **2026-09-07 大会话收官（已 push origin=`498cb54`，工作树干净）**：桌面端打包+图标定稿+fs 权限根治；agent 链路「工具写入/创建/读取一直有问题」排查治本（四项加固：静默重试/非法转义打捞/截断防御/chat_reply 送达语义，四轮对抗审 CLEAN）；未知模型默认 ctx 32K→256K；模型 id 自动更新（选中即启用，六轮对抗审闭环）。验证基线：引擎 **1596** / UI **654** / 双 tsc 0 / biome 严格门禁 0 / i18n 对称。详见下方「里程碑」2026-09-07 条。**以下历史条目里「未 push」措辞以本条为准。**

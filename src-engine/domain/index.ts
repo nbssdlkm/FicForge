@@ -39,6 +39,14 @@ export { createChapterSummary } from "./chapter_summary.js";
 
 export type { ContextSummary, RagChunkDetail, RagCollection } from "./context_summary.js";
 export { createContextSummary, RAG_COLLECTIONS } from "./context_summary.js";
+export type {
+  DebugBundleMeta,
+  GenerationDebugBundle,
+  GenerationDebugError,
+  GenerationDebugParams,
+  GenerationDebugResult,
+} from "./debug_bundle.js";
+export { createGenerationDebugBundle, toDebugBundleMeta } from "./debug_bundle.js";
 
 export type { Draft } from "./draft.js";
 export { createDraft } from "./draft.js";
@@ -89,6 +97,7 @@ export {
   createFontsConfig,
   createModelParams,
   createSettings,
+  isDeveloperMode,
   isReactExtractionEnabled,
 } from "./settings.js";
 

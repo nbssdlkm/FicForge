@@ -119,6 +119,7 @@ export interface EmbeddingSettingsSaveInput {
 export interface AppPreferencesInput {
   language?: string;
   react_extraction_enabled?: boolean;
+  developer_mode?: boolean;
 }
 
 export interface GlobalSettingsSaveInput {
@@ -136,6 +137,8 @@ export interface SettingsSummary {
     // 具体 boolean（默认 true），不会是 undefined；此处声明可选只为类型容错（手构 summary /
     // 非 repo 路径可缺）。消费侧统一按 `!== false`（默认开）解释——对话接受后是否自动触发 M9 提取的 gate。
     react_extraction_enabled?: boolean;
+    /** 开发者模式（2026-09-08）：开 = 生成调试包捕获 + 设置里出现「生成调试」面板。缺省 false。 */
+    developer_mode?: boolean;
   };
 }
 

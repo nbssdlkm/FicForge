@@ -575,7 +575,11 @@
       "reactExtractionDescription": "确认章节后用 AI 自动给笔记找跨章因果、归入剧情线。会多花几秒；关闭则用更快的基础提取。",
       "dataPathLabel": "数据存储路径",
       "dataPathDefault": "应用内部存储",
-      "dataPathHint": "你的所有作品数据保存在此路径下。建议定期通过导出或同步功能备份。"
+      "dataPathHint": "你的所有作品数据保存在此路径下。建议定期通过导出或同步功能备份。",
+      "developerModeLabel": "开发者模式",
+      "developerModeOn": "开启",
+      "developerModeOff": "关闭（默认）",
+      "developerModeDescription": "开启后捕获每次生成的完整调试信息（prompt 全文 / 预算 / RAG 命中），仅驻内存不落盘。自用调试功能，普通用户无需开启。"
     },
     "fonts": {
       "title": "字体",
@@ -634,7 +638,39 @@
     "createCoreIncludeTitle": "添加必带角色",
     "createCoreIncludePlaceholder": "输入角色名",
     "coreIncludeNoAvailable": "没有可添加的角色（所有角色已在必带列表中，或尚未创建角色）",
-    "coreIncludeMissing": "角色「{{name}}」不在登记名册中，请先在角色页创建"
+    "coreIncludeMissing": "角色「{{name}}」不在登记名册中，请先在角色页创建",
+    "genDebug": {
+      "title": "生成调试",
+      "refresh": "刷新",
+      "clearAll": "清空",
+      "cleared": "已清空",
+      "count": "{{count}} 次",
+      "empty": "暂无生成记录（开启开发者模式后，新生成会出现在这里）",
+      "pathWrite": "写文",
+      "pathChat": "对话",
+      "statusOk": "成功",
+      "statusError": "失败",
+      "statusUnknown": "未完成",
+      "iterations": "{{count}} 轮",
+      "copyAll": "复制全部",
+      "copied": "已复制到剪贴板",
+      "copyFailed": "复制失败",
+      "budgetTitle": "预算分解",
+      "noBudget": "无预算数据（失败发生在组装之前）",
+      "budgetContextWindow": "上下文窗口",
+      "budgetSystem": "P0 系统提示",
+      "budgetThread": "剧情线",
+      "budgetTotalInput": "总输入",
+      "budgetMaxOutput": "输出上限",
+      "budgetRemaining": "剩余预算",
+      "budgetTruncated": "被截断的层：{{layers}}",
+      "budgetFallback": "token 数为估算值（tokenizer 降级）",
+      "ragTitle": "RAG 命中",
+      "messagesTitle": "Prompt 消息",
+      "messagesStart": "首轮发送",
+      "messagesFinal": "末轮实际发送（含 agent 迭代的 tool 消息）",
+      "copyOne": "复制"
+    }
   },
   "facts": {
     "title": "剧情笔记",
@@ -1591,5 +1627,12 @@
       "empty": "未归入任何剧情线",
       "noRole": "（未标角色）"
     }
+  },
+  "errorBoundary": {
+    "title": "应用遇到错误",
+    "description": "界面渲染时发生异常。你可以复制诊断信息发给开发者，或重载应用重试。",
+    "copyDiagnostics": "复制诊断信息",
+    "copied": "已复制",
+    "reload": "重载应用"
   }
 }
