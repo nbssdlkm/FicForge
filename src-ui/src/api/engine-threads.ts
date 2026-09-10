@@ -145,15 +145,19 @@ export async function addFactToThread(
       const v = facts.find((x) => x.id === fid)?.thread_order?.[threadId];
       return typeof v === "number" ? v : undefined;
     };
-    let before = orderOf(at.beforeFactId);
-    let after = orderOf(at.afterFactId);
+    // 两套词汇表对齐（对抗审 blocker 实证）：UI 侧 beforeFactId=「插到它之前」的后继节点、
+    // afterFactId=「插到它之后」的前驱节点；allocateThreadOrder 契约 before=前驱序号、after=后继序号。
+    // 所以交叉映射：before ← afterFactId（上方邻居），after ← beforeFactId（下方邻居）。接反则三个
+    // 缝隙两个落错位、中间缝必撞号（REQ-140 对抗审 kimi 抓出，回归测试见 engine-threads 位置用例）。
+    let before = orderOf(at.afterFactId);
+    let after = orderOf(at.beforeFactId);
     // 邻居没有显式序号（旧线）→ 先全线归一化再定位
-    if ((at.beforeFactId && before === undefined) || (at.afterFactId && after === undefined)) {
+    if ((at.beforeFactId && after === undefined) || (at.afterFactId && before === undefined)) {
       await writeNormalizedOrders(auPath, threadId, members);
       facts = await e.repos.fact.listAll(auPath);
       members = sortThreadFacts(facts, threadId);
-      before = orderOf(at.beforeFactId);
-      after = orderOf(at.afterFactId);
+      before = orderOf(at.afterFactId);
+      after = orderOf(at.beforeFactId);
     }
     // 邻居本来就没传（尾追加）但线上有节点 → 追加到最大序号之后
     if (!at.beforeFactId && !at.afterFactId && members.length > 0) {
@@ -168,11 +172,11 @@ export async function addFactToThread(
     }
     let order = allocateThreadOrder(before, after);
     if (order === null) {
-      // 间隙耗尽 → 归一化后重算中点
+      // 间隙耗尽 → 归一化后重算中点；仍失败则大声抛错（不许静默撞号——silent fallback 教训）
       await writeNormalizedOrders(auPath, threadId, members);
       facts = await e.repos.fact.listAll(auPath);
-      order = allocateThreadOrder(orderOf(at.beforeFactId), orderOf(at.afterFactId));
-      if (order === null) order = allocateThreadOrder(undefined, undefined) as number; // 理论上不可达
+      order = allocateThreadOrder(orderOf(at.afterFactId), orderOf(at.beforeFactId));
+      if (order === null) throw new Error(`thread ${threadId} 序号归一化后仍无法分配插入位`);
     }
     const nextOrder = { ...(fresh?.thread_order ?? {}), [threadId]: order };
     patch.thread_order = nextOrder;

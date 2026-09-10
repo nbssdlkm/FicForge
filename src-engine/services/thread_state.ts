@@ -116,15 +116,18 @@ export async function regenerateThreadState(
 /** 相邻节点的序号间隔。gap 制（10/20/30…）让插入多数时候只需写中点、不必整线归一化。 */
 export const THREAD_ORDER_GAP = 10;
 
-/** 派生序比较器（旧数据兜底）：章号升序，再 created_at 升序。与 threadMemberFacts 同据。 */
+/** 派生序比较器（旧数据兜底）：仅章号升序（`?? 0` 防御）。**不加 created_at 二级键**——
+ * 旧 ThreadDetail 就是仅 chapter 的稳定排序（同章保持 facts 数组原序），多一个键就破了
+ * 「旧线打开顺序不变」的保护承诺（对抗审 major）。与 threadMemberFacts 的 created_at tiebreak
+ * 有意不同：那是 LLM 喂料顺序，无用户可见承诺。 */
 function derivedCompare(a: Fact, b: Fact): number {
-  return a.chapter - b.chapter || (a.created_at || "").localeCompare(b.created_at || "");
+  return (a.chapter ?? 0) - (b.chapter ?? 0);
 }
 
 /**
  * 一条线的成员节点按「用户编排序」排序：
  * - 有 `thread_order[threadId]` 的按序号升序在前；
- * - 没序号的排尾部、按派生序（章号+created_at）——**全部无序号时输出与旧派生序完全一致**
+ * - 没序号的排尾部、按派生序（仅章号稳定序）——**全部无序号时输出与旧 UI 行为完全一致**
  *   （旧线打开顺序不变的兼容承诺）；
  * - 不过滤冷 fact（调用方按需自行 isColdFact 过滤：UI 展示全量、注入层滤冷）。
  */

@@ -18,7 +18,7 @@ import { MockAdapter } from "../../../../src-engine/repositories/__tests__/mock_
 import { addFact } from "../engine-facts";
 import { createAu, createFandom } from "../engine-fandoms";
 import { getEngine, initEngine } from "../engine-instance";
-import { addFactToThread, addThread } from "../engine-threads";
+import { addFactToThread, addThread, moveFactInThread, removeFactFromThread } from "../engine-threads";
 
 let adapter: MockAdapter;
 let auPath: string;
@@ -85,5 +85,114 @@ describe("addFactToThread — RMW（成员关系 = fact.thread_ids）", () => {
   it("错误路径：fact 不存在 → RMW 读到 null 后 editFact 抛错（不静默造孤儿）", async () => {
     const thread = await addThread(auPath, { title: "主线" });
     await expect(addFactToThread(auPath, "fact_missing", thread.id)).rejects.toThrow();
+  });
+});
+
+// ===========================================================================
+// REQ-140：编排板位置语义（对抗审 blocker 回归——before/after 曾接反，三个缝隙两个落错位）
+// 词汇表：UI 侧 beforeFactId=「插到它之前」的后继、afterFactId=「插到它之后」的前驱。
+// ===========================================================================
+
+describe("addFactToThread 位置插入（REQ-140）", () => {
+  const orderOf = async (factId: string, threadId: string) =>
+    (await getEngine().repos.fact.get(auPath, factId))?.thread_order?.[threadId];
+
+  it("尾部追加：空位置对象 → 序号 = 末节点+GAP", async () => {
+    const f1 = await seedFact();
+    const f2 = await seedFact();
+    const t = await addThread(auPath, { title: "线" });
+    await addFactToThread(auPath, f1, t.id, {});
+    await addFactToThread(auPath, f2, t.id, {});
+    const o1 = await orderOf(f1, t.id);
+    const o2 = await orderOf(f2, t.id);
+    expect(o1).toBe(10);
+    expect(o2).toBe(20);
+  });
+
+  it("头部缝隙（beforeFactId=首节点）→ 新节点排到首节点之前", async () => {
+    const f1 = await seedFact();
+    const f2 = await seedFact();
+    const fNew = await seedFact();
+    const t = await addThread(auPath, { title: "线" });
+    await addFactToThread(auPath, f1, t.id, {});
+    await addFactToThread(auPath, f2, t.id, {});
+    await addFactToThread(auPath, fNew, t.id, { beforeFactId: f1 });
+    expect(await orderOf(fNew, t.id)).toBe(0); // 10 - GAP
+  });
+
+  it("中间缝隙（beforeFactId=后继 afterFactId=前驱）→ 序号严格居中", async () => {
+    const f1 = await seedFact();
+    const f2 = await seedFact();
+    const fNew = await seedFact();
+    const t = await addThread(auPath, { title: "线" });
+    await addFactToThread(auPath, f1, t.id, {});
+    await addFactToThread(auPath, f2, t.id, {});
+    await addFactToThread(auPath, fNew, t.id, { beforeFactId: f2, afterFactId: f1 });
+    expect(await orderOf(fNew, t.id)).toBe(15);
+  });
+
+  it("尾部缝隙（afterFactId=末节点）→ 落到末节点之后", async () => {
+    const f1 = await seedFact();
+    const f2 = await seedFact();
+    const fNew = await seedFact();
+    const t = await addThread(auPath, { title: "线" });
+    await addFactToThread(auPath, f1, t.id, {});
+    await addFactToThread(auPath, f2, t.id, {});
+    await addFactToThread(auPath, fNew, t.id, { afterFactId: f2 });
+    expect(await orderOf(fNew, t.id)).toBe(30);
+  });
+
+  it("旧线邻居无序号 → 先归一化再插入（legacy 兼容）", async () => {
+    const f1 = await seedFact();
+    const f2 = await seedFact();
+    const fNew = await seedFact();
+    const t = await addThread(auPath, { title: "线" });
+    // 无位置挂载 = 不写序号（模拟旧线）
+    await addFactToThread(auPath, f1, t.id);
+    await addFactToThread(auPath, f2, t.id);
+    expect(await orderOf(f1, t.id)).toBeUndefined();
+    await addFactToThread(auPath, fNew, t.id, { beforeFactId: f2, afterFactId: f1 });
+    // 归一化后 f1=10 f2=20，新节点 15
+    expect(await orderOf(f1, t.id)).toBe(10);
+    expect(await orderOf(f2, t.id)).toBe(20);
+    expect(await orderOf(fNew, t.id)).toBe(15);
+  });
+});
+
+describe("moveFactInThread / removeFactFromThread 序号维护（REQ-140）", () => {
+  const orderOf = async (factId: string, threadId: string) =>
+    (await getEngine().repos.fact.get(auPath, factId))?.thread_order?.[threadId];
+
+  it("下移交换位置并归一化：f1↓ 后顺序 f2(10), f1(20)", async () => {
+    const f1 = await seedFact();
+    const f2 = await seedFact();
+    const t = await addThread(auPath, { title: "线" });
+    await addFactToThread(auPath, f1, t.id, {});
+    await addFactToThread(auPath, f2, t.id, {});
+    await moveFactInThread(auPath, t.id, f1, "down");
+    expect(await orderOf(f2, t.id)).toBe(10);
+    expect(await orderOf(f1, t.id)).toBe(20);
+  });
+
+  it("端点 no-op：首节点上移不动", async () => {
+    const f1 = await seedFact();
+    const f2 = await seedFact();
+    const t = await addThread(auPath, { title: "线" });
+    await addFactToThread(auPath, f1, t.id, {});
+    await addFactToThread(auPath, f2, t.id, {});
+    await moveFactInThread(auPath, t.id, f1, "up");
+    expect(await orderOf(f1, t.id)).toBe(10);
+    expect(await orderOf(f2, t.id)).toBe(20);
+  });
+
+  it("摘除清 thread_order 本线条目（不留孤儿键）", async () => {
+    const f1 = await seedFact();
+    const t = await addThread(auPath, { title: "线" });
+    await addFactToThread(auPath, f1, t.id, {});
+    expect(await orderOf(f1, t.id)).toBe(10);
+    await removeFactFromThread(auPath, f1, t.id);
+    const fresh = await getEngine().repos.fact.get(auPath, f1);
+    expect(fresh?.thread_ids).toEqual([]);
+    expect(fresh?.thread_order ?? {}).not.toHaveProperty(t.id);
   });
 });
