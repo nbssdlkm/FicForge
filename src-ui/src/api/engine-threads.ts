@@ -15,10 +15,13 @@ import {
   generateThreadId,
   nowUtc,
   computeThreadStaleness,
-  threadMemberFacts,
+  sortThreadFacts,
+  allocateThreadOrder,
+  normalizeThreadOrders,
+  isColdFact,
   regenerateThreadState as regenerateThreadStateEngine,
 } from "@ficforge/engine";
-import type { Thread, ThreadStaleness } from "@ficforge/engine";
+import type { Fact, Thread, ThreadStaleness } from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
 import { editFact, resolveFactsProvider } from "./engine-facts";
 
@@ -71,7 +74,8 @@ export async function regenerateThreadState(auPath: string, threadId: string): P
   const thread = await e.repos.thread.get(auPath, threadId);
   if (!thread) return null;
   const facts = await e.repos.fact.listAll(auPath);
-  const members = threadMemberFacts(thread, facts);
+  // REQ-140：喂 LLM 的顺序跟用户编排序（显式 thread_order 优先，派生序兜底），滤冷不变
+  const members = sortThreadFacts(facts, threadId).filter((f) => !isColdFact(f));
   const { provider, lang } = await resolveFactsProvider(auPath);
   const state = await regenerateThreadStateEngine(thread, members, provider, { language: lang as "zh" | "en" });
   if (state == null) return null;
@@ -102,6 +106,10 @@ export async function removeThread(auPath: string, id: string): Promise<void> {
       const { [id]: _drop, ...rest } = f.thread_roles;
       patch.thread_roles = rest;
     }
+    if (f.thread_order && id in f.thread_order) {
+      const { [id]: _dropO, ...restO } = f.thread_order;
+      patch.thread_order = restO;
+    }
     await editFact(auPath, f.id, patch);
   }
   await e.repos.thread.remove(auPath, id);
@@ -112,15 +120,98 @@ export async function removeThread(auPath: string, id: string): Promise<void> {
 // editFact 自身 withAuLock 非同一把锁，但 ThreadDetail 用 busyRef 同步串行同一 fact 操作 +
 // 单用户低频，实际不触发。彻底原子需给 editFact 加 in-lock transform 回调（记 TD 后续硬化）。
 
-/** 把一条 Fact 挂到某剧情线（成员关系 = fact.thread_ids）。已挂则 no-op。 */
-export async function addFactToThread(auPath: string, factId: string, threadId: string): Promise<void> {
-  const fresh = await getEngine().repos.fact.get(auPath, factId);
+/**
+ * 把一条 Fact 挂到某剧情线（成员关系 = fact.thread_ids）。已挂则 no-op。
+ * REQ-140：`at` 可指定插入位置（beforeFactId/afterFactId 为线上邻居节点 id，均空 = 尾部追加）。
+ * 序号用 gap 中点；间隙耗尽时先把全线归一化（10/20/30…）再分配。
+ */
+export async function addFactToThread(
+  auPath: string,
+  factId: string,
+  threadId: string,
+  at?: { beforeFactId?: string; afterFactId?: string },
+): Promise<void> {
+  const e = getEngine();
+  const fresh = await e.repos.fact.get(auPath, factId);
   const ids = fresh?.thread_ids ?? [];
   if (ids.includes(threadId)) return;
-  await editFact(auPath, factId, { thread_ids: [...ids, threadId] });
+  const patch: Record<string, unknown> = { thread_ids: [...ids, threadId] };
+
+  if (at) {
+    let facts = await e.repos.fact.listAll(auPath);
+    let members = sortThreadFacts(facts, threadId);
+    const orderOf = (fid: string | undefined): number | undefined => {
+      if (!fid) return undefined;
+      const v = facts.find((x) => x.id === fid)?.thread_order?.[threadId];
+      return typeof v === "number" ? v : undefined;
+    };
+    let before = orderOf(at.beforeFactId);
+    let after = orderOf(at.afterFactId);
+    // 邻居没有显式序号（旧线）→ 先全线归一化再定位
+    if ((at.beforeFactId && before === undefined) || (at.afterFactId && after === undefined)) {
+      await writeNormalizedOrders(auPath, threadId, members);
+      facts = await e.repos.fact.listAll(auPath);
+      members = sortThreadFacts(facts, threadId);
+      before = orderOf(at.beforeFactId);
+      after = orderOf(at.afterFactId);
+    }
+    // 邻居本来就没传（尾追加）但线上有节点 → 追加到最大序号之后
+    if (!at.beforeFactId && !at.afterFactId && members.length > 0) {
+      before = orderOf(members[members.length - 1].id);
+      if (before === undefined) {
+        await writeNormalizedOrders(auPath, threadId, members);
+        facts = await e.repos.fact.listAll(auPath);
+        members = sortThreadFacts(facts, threadId);
+        before = orderOf(members[members.length - 1].id);
+      }
+      after = undefined;
+    }
+    let order = allocateThreadOrder(before, after);
+    if (order === null) {
+      // 间隙耗尽 → 归一化后重算中点
+      await writeNormalizedOrders(auPath, threadId, members);
+      facts = await e.repos.fact.listAll(auPath);
+      order = allocateThreadOrder(orderOf(at.beforeFactId), orderOf(at.afterFactId));
+      if (order === null) order = allocateThreadOrder(undefined, undefined) as number; // 理论上不可达
+    }
+    const nextOrder = { ...(fresh?.thread_order ?? {}), [threadId]: order };
+    patch.thread_order = nextOrder;
+  }
+  await editFact(auPath, factId, patch);
 }
 
-/** 把一条 Fact 从某剧情线摘除：同时清 thread_ids 与 thread_roles[threadId]，不留孤儿。 */
+/** 全线归一化写回（10/20/30…）。members 应已是目标顺序。 */
+async function writeNormalizedOrders(auPath: string, threadId: string, members: Fact[]): Promise<void> {
+  const mapping = normalizeThreadOrders(members);
+  for (const [factId, order] of Object.entries(mapping)) {
+    const fresh = await getEngine().repos.fact.get(auPath, factId);
+    if (!fresh) continue;
+    await editFact(auPath, factId, { thread_order: { ...(fresh.thread_order ?? {}), [threadId]: order } });
+  }
+}
+
+/**
+ * 线上换位（REQ-140）：把 factId 与上/下邻居交换位置。实现 = 交换后按新顺序全线归一化
+ * （gap 序号重写为 10/20/30…），比在飞交换两个序号更不容易留脏状态。到端点 no-op。
+ */
+export async function moveFactInThread(
+  auPath: string,
+  threadId: string,
+  factId: string,
+  direction: "up" | "down",
+): Promise<void> {
+  const e = getEngine();
+  const facts = await e.repos.fact.listAll(auPath);
+  const members = sortThreadFacts(facts, threadId);
+  const idx = members.findIndex((f) => f.id === factId);
+  const swapWith = direction === "up" ? idx - 1 : idx + 1;
+  if (idx < 0 || swapWith < 0 || swapWith >= members.length) return;
+  const next = [...members];
+  [next[idx], next[swapWith]] = [next[swapWith], next[idx]];
+  await writeNormalizedOrders(auPath, threadId, next);
+}
+
+/** 把一条 Fact 从某剧情线摘除：同时清 thread_ids 与 thread_roles/thread_order 的本线条目，不留孤儿。 */
 export async function removeFactFromThread(auPath: string, factId: string, threadId: string): Promise<void> {
   const fresh = await getEngine().repos.fact.get(auPath, factId);
   if (!fresh) return;
@@ -130,6 +221,10 @@ export async function removeFactFromThread(auPath: string, factId: string, threa
   if (fresh.thread_roles && threadId in fresh.thread_roles) {
     const { [threadId]: _drop, ...rest } = fresh.thread_roles;
     patch.thread_roles = rest;
+  }
+  if (fresh.thread_order && threadId in fresh.thread_order) {
+    const { [threadId]: _dropO, ...restO } = fresh.thread_order;
+    patch.thread_order = restO;
   }
   await editFact(auPath, factId, patch);
 }

@@ -1607,10 +1607,10 @@
     "detail": {
       "back": "返回",
       "editThread": "编辑线",
-      "nodesTitle": "节点（按章）",
+      "nodesTitle": "节点（编排顺序）",
       "addNode": "挂节点",
       "emptyNodesTitle": "这条线还没有节点",
-      "emptyNodesDesc": "把相关的剧情笔记挂到这条线上，按章排成节点；续写时这条线的进展会注入上下文。",
+      "emptyNodesDesc": "把相关的剧情笔记挂到这条线上，用缝隙 + 决定先后、用 ↑↓ 换位；续写时这条线的骨架和进展会注入上下文。",
       "removeNode": "从本线移除",
       "setRole": "标角色",
       "roleLabel": "节点角色",
@@ -1620,7 +1620,11 @@
       "pickerEmpty": "没有可挂的剧情笔记（都已在本线，或还没有笔记）",
       "refreshState": "刷新进展",
       "refreshing": "刷新中…",
-      "stateStale": "有 {{count}} 条新进展，「当前进展」可能已过时"
+      "stateStale": "有 {{count}} 条新进展，「当前进展」可能已过时",
+      "insertHere": "在此插入节点",
+      "moveUp": "上移节点",
+      "moveDown": "下移节点",
+      "editFactNote": "编辑这条笔记"
     },
     "appearsIn": {
       "title": "出现在剧情线",

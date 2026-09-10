@@ -43,16 +43,17 @@ const T = (over: Partial<ReturnType<typeof createThread>> = {}) =>
 
 describe("buildThreadsLayer (M8-B)", () => {
   it("active threads → titled lines with state", () => {
-    const text = buildThreadsLayer([T()], 10000, null, "zh");
+    const text = buildThreadsLayer([T()], [], 10000, null, "zh");
     expect(text).toContain("当前剧情线");
     expect(text).toContain("【为父翻案】准备面圣");
   });
 
   it("empty / non-active only → ''", () => {
-    expect(buildThreadsLayer([], 10000, null, "zh")).toBe("");
+    expect(buildThreadsLayer([], [], 10000, null, "zh")).toBe("");
     expect(
       buildThreadsLayer(
         [T({ status: ThreadStatus.RESOLVED }), T({ id: "t2", status: ThreadStatus.DORMANT })],
+        [],
         10000,
         null,
         "zh",
@@ -66,6 +67,7 @@ describe("buildThreadsLayer (M8-B)", () => {
         T({ id: "a", title: "活跃线", status: ThreadStatus.ACTIVE }),
         T({ id: "b", title: "已收束线", status: ThreadStatus.RESOLVED }),
       ],
+      [],
       10000,
       null,
       "zh",
@@ -80,6 +82,7 @@ describe("buildThreadsLayer (M8-B)", () => {
         T({ id: "old", title: "旧线", updated_at: "2026-01-01T00:00:00Z" }),
         T({ id: "new", title: "新线", updated_at: "2026-06-01T00:00:00Z" }),
       ],
+      [],
       10000,
       null,
       "zh",
@@ -88,10 +91,10 @@ describe("buildThreadsLayer (M8-B)", () => {
   });
 
   it("falls back to description when state empty; bare title when both empty", () => {
-    expect(buildThreadsLayer([T({ state: "", description: "某描述" })], 10000, null, "zh")).toContain(
+    expect(buildThreadsLayer([T({ state: "", description: "某描述" })], [], 10000, null, "zh")).toContain(
       "【为父翻案】某描述",
     );
-    expect(buildThreadsLayer([T({ state: "", description: "" })], 10000, null, "zh")).toContain("【为父翻案】");
+    expect(buildThreadsLayer([T({ state: "", description: "" })], [], 10000, null, "zh")).toContain("【为父翻案】");
   });
 
   it("budget truncation drops tail threads", () => {
@@ -103,8 +106,8 @@ describe("buildThreadsLayer (M8-B)", () => {
         updated_at: `2026-06-${String(i + 1).padStart(2, "0")}T00:00:00Z`,
       }),
     );
-    const tight = buildThreadsLayer(many, 30, null, "zh");
-    const all = buildThreadsLayer(many, 100000, null, "zh");
+    const tight = buildThreadsLayer(many, [], 30, null, "zh");
+    const all = buildThreadsLayer(many, [], 100000, null, "zh");
     expect(tight.split("\n").length).toBeLessThan(all.split("\n").length);
   });
 });
@@ -304,5 +307,143 @@ describe("M8-B fact.thread_ids serialization across all hops", () => {
     const rebuilt = rebuildFactsFromOps(ops);
     expect(rebuilt[0].thread_ids).toEqual(["tb"]);
     expect(rebuilt[0].thread_roles).toEqual({ tb: "side" });
+  });
+});
+
+// ===========================================================================
+// REQ-140：线骨架注入 + thread_order 序列化
+// ===========================================================================
+
+describe("buildThreadsLayer 线骨架（REQ-140）", () => {
+  const F = (over: Partial<ReturnType<typeof createFact>> = {}) =>
+    createFact({ id: "f", content_raw: "r", content_clean: "c", status: FactStatus.ACTIVE, chapter: 1, ...over });
+
+  it("有 role 的成员按编排序拼骨架：-【标题】role1 → role2 ▶ 当前：进展", () => {
+    const facts = [
+      F({ id: "f1", thread_ids: ["t1"], thread_roles: { t1: "首次接触" }, thread_order: { t1: 20 }, chapter: 5 }),
+      F({ id: "f2", thread_ids: ["t1"], thread_roles: { t1: "告白被拒" }, thread_order: { t1: 10 }, chapter: 9 }),
+    ];
+    const text = buildThreadsLayer([T()], facts, 10000, null, "zh");
+    // 显式序 10 的 f2 在前（尽管章号更大）——编排序优先于派生序
+    expect(text).toContain("【为父翻案】告白被拒 → 首次接触 ▶ 当前：准备面圣");
+  });
+
+  it("无 role 的节点不进骨架；全线无 role ⇒ 回退 M8-B 一行式（字节不变）", () => {
+    const withRoleless = buildThreadsLayer(
+      [T()],
+      [F({ id: "f1", thread_ids: ["t1"] })], // 挂了线但没 role
+      10000,
+      null,
+      "zh",
+    );
+    expect(withRoleless).toContain("【为父翻案】准备面圣");
+    expect(withRoleless).not.toContain("▶");
+    // 部分有 role：只拼有 role 的
+    const partial = buildThreadsLayer(
+      [T()],
+      [
+        F({ id: "f1", thread_ids: ["t1"], thread_roles: { t1: "触发" }, thread_order: { t1: 10 } }),
+        F({ id: "f2", thread_ids: ["t1"], thread_order: { t1: 20 } }),
+      ],
+      10000,
+      null,
+      "zh",
+    );
+    expect(partial).toContain("【为父翻案】触发 ▶ 当前：准备面圣");
+  });
+
+  it("state 为空时有骨架但不输出 ▶ 段；冷 fact 不进骨架", () => {
+    const noState = buildThreadsLayer(
+      [T({ state: "", description: "" })],
+      [F({ id: "f1", thread_ids: ["t1"], thread_roles: { t1: "触发" } })],
+      10000,
+      null,
+      "zh",
+    );
+    expect(noState).toContain("【为父翻案】触发");
+    expect(noState).not.toContain("▶");
+    const cold = buildThreadsLayer(
+      [T()],
+      [F({ id: "f1", thread_ids: ["t1"], thread_roles: { t1: "触发" }, archived: true })],
+      10000,
+      null,
+      "zh",
+    );
+    expect(cold).toContain("【为父翻案】准备面圣"); // 冷节点的 role 被排除 → 回退一行式
+    expect(cold).not.toContain("▶");
+  });
+
+  it("英文环境 marker 走 prompts 模板（不硬编码中文）", () => {
+    const text = buildThreadsLayer(
+      [T()],
+      [F({ id: "f1", thread_ids: ["t1"], thread_roles: { t1: "trigger" } })],
+      10000,
+      null,
+      "en",
+    );
+    expect(text).toContain("▶ Current: 准备面圣");
+  });
+});
+
+describe("REQ-140 fact.thread_order 序列化全链", () => {
+  let adapter: MockAdapter;
+  let factRepo: FileFactRepository;
+  let opsRepo: FileOpsRepository;
+  let stateRepo: FileStateRepository;
+
+  beforeEach(() => {
+    adapter = new MockAdapter();
+    factRepo = new FileFactRepository(adapter);
+    opsRepo = new FileOpsRepository(adapter);
+    stateRepo = new FileStateRepository(adapter);
+  });
+
+  it("jsonl round-trip：append → listAll 保留 thread_order", async () => {
+    await factRepo.append(
+      "au",
+      createFact({ id: "f1", content_raw: "r", content_clean: "c", thread_ids: ["t1"], thread_order: { t1: 20 } }),
+    );
+    const got = (await factRepo.listAll("au"))[0];
+    expect(got.thread_order).toEqual({ t1: 20 });
+  });
+
+  it("服务级 addFact → 持久化 + ops rebuild 全链保留 thread_order", async () => {
+    await addFact(
+      "au",
+      1,
+      { content_raw: "r", content_clean: "c", thread_ids: ["t1"], thread_order: { t1: 10 } },
+      factRepo,
+      opsRepo,
+    );
+    expect((await factRepo.listAll("au"))[0].thread_order).toEqual({ t1: 10 });
+    const rebuilt = rebuildFactsFromOps(await opsRepo.listAll("au"));
+    expect(rebuilt[0].thread_order).toEqual({ t1: 10 });
+  });
+
+  it("editFact 改 thread_order → live + rebuild 双路生效；清除（null）rebuild 后归 undefined", async () => {
+    const created = await addFact("au", 1, { content_raw: "r", content_clean: "c" }, factRepo, opsRepo);
+    await editFact("au", created.id, { thread_order: { t1: 30 } }, factRepo, opsRepo, stateRepo);
+    expect((await factRepo.get("au", created.id))?.thread_order).toEqual({ t1: 30 });
+    let rebuilt = rebuildFactsFromOps(await opsRepo.listAll("au")).find((f) => f.id === created.id);
+    expect(rebuilt?.thread_order).toEqual({ t1: 30 });
+    // 清除语义：patch 空对象 → 落盘 undefined；rebuild（op 里 null）同样归 undefined
+    await editFact("au", created.id, { thread_order: {} }, factRepo, opsRepo, stateRepo);
+    expect((await factRepo.get("au", created.id))?.thread_order).toBeUndefined();
+    rebuilt = rebuildFactsFromOps(await opsRepo.listAll("au")).find((f) => f.id === created.id);
+    expect(rebuilt?.thread_order).toBeUndefined();
+  });
+
+  it("垃圾值消毒：非数值被剔除，全垃圾 → undefined", async () => {
+    // 手改 jsonl 的脏数据：字符串/NaN(JSON 里落为 null) 都该被读盘消毒挡掉
+    adapter.seed(
+      "au/facts.jsonl",
+      JSON.stringify({ id: "f2", content_clean: "c", content_raw: "r", thread_order: { t1: 10, t2: "junk", t3: NaN } }) +
+        "\n" +
+        JSON.stringify({ id: "f3", content_clean: "c", content_raw: "r", thread_order: "garbage" }) +
+        "\n",
+    );
+    const all = await factRepo.listAll("au");
+    expect(all.find((f) => f.id === "f2")?.thread_order).toEqual({ t1: 10 });
+    expect(all.find((f) => f.id === "f3")?.thread_order).toBeUndefined();
   });
 });

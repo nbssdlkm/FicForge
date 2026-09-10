@@ -1607,10 +1607,10 @@
     "detail": {
       "back": "Back",
       "editThread": "Edit thread",
-      "nodesTitle": "Nodes (by chapter)",
+      "nodesTitle": "Nodes (your order)",
       "addNode": "Add node",
       "emptyNodesTitle": "No nodes on this thread yet",
-      "emptyNodesDesc": "Attach related plot points to this thread as chapter-ordered nodes. The thread’s current state is injected into context while writing.",
+      "emptyNodesDesc": "Attach plot notes to this thread, place them with the gap + and reorder with ↑↓; the thread spine and progress are injected when writing.",
       "removeNode": "Remove from thread",
       "setRole": "Set role",
       "roleLabel": "Node role",
@@ -1620,7 +1620,11 @@
       "pickerEmpty": "No plot points available (all already on this thread, or none yet)",
       "refreshState": "Refresh progress",
       "refreshing": "Refreshing…",
-      "stateStale": "{{count}} new since last update — progress may be stale"
+      "stateStale": "{{count}} new since last update — progress may be stale",
+      "insertHere": "Insert node here",
+      "moveUp": "Move node up",
+      "moveDown": "Move node down",
+      "editFactNote": "Edit this note"
     },
     "appearsIn": {
       "title": "Appears in",

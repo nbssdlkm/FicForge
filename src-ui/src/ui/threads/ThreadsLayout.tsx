@@ -26,6 +26,7 @@ import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
 import { useFeedback } from "../../hooks/useFeedback";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { listThreads, addThread, updateThread, removeThread, listFacts, type FactInfo } from "../../api/engine-client";
+import { requestFactFocus } from "../facts/factFocus";
 import { ThreadStatus } from "@ficforge/engine";
 import type { Thread } from "@ficforge/engine";
 
@@ -41,7 +42,7 @@ type DraftThread = { id?: string; title: string; description: string; state: str
 
 const emptyDraft = (): DraftThread => ({ title: "", description: "", state: "", status: ThreadStatus.ACTIVE });
 
-export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
+export const ThreadsLayout = ({ auPath, onNavigate }: { auPath: string; onNavigate?: (page: string, path?: string) => void }) => {
   const { t } = useTranslation();
   const { showError } = useFeedback();
   const loadGuard = useActiveRequestGuard(auPath);
@@ -166,6 +167,15 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
 
   const selectedThread = selectedThreadId ? threads.find((th) => th.id === selectedThreadId) : null;
 
+  // REQ-140：「编辑笔记」= 登记 pending-focus + 切到剧情笔记页（FactsLayout 挂载后消费）。
+  // 宿主没给 onNavigate（如纯列表嵌入场景）时 ThreadDetail 不渲染该按钮。
+  const handleEditFact = onNavigate
+    ? (factId: string) => {
+        requestFactFocus(factId);
+        onNavigate("facts", auPath);
+      }
+    : undefined;
+
   return (
     <div className="flex h-full w-full flex-col bg-background">
       {selectedThread ? (
@@ -178,6 +188,7 @@ export const ThreadsLayout = ({ auPath }: { auPath: string }) => {
             setEditing({ id: th.id, title: th.title, description: th.description, state: th.state, status: th.status })
           }
           onChanged={load}
+          onEditFact={handleEditFact}
         />
       ) : (
         <>

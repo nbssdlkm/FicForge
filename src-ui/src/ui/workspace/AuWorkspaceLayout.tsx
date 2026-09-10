@@ -496,7 +496,7 @@ function AuWorkspaceLayoutInner({ activeTab, auPath, onNavigate }: Props) {
                 className="flex-1 flex w-full h-full overflow-hidden"
               >
                 {activeTab === "facts" && <FactsLayout auPath={auPath} />}
-                {activeTab === "threads" && <ThreadsLayout auPath={auPath} />}
+                {activeTab === "threads" && <ThreadsLayout auPath={auPath} onNavigate={onNavigate} />}
                 {activeTab === "au_lore" && (
                   <AuLoreLayout auPath={auPath} onChaptersChanged={refreshChaptersExternal} />
                 )}

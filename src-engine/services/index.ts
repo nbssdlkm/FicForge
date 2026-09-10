@@ -226,6 +226,10 @@ export {
   threadMemberFacts,
   regenerateThreadState,
   THREAD_STATE_MAX_FACTS,
+  sortThreadFacts,
+  allocateThreadOrder,
+  normalizeThreadOrders,
+  THREAD_ORDER_GAP,
 } from "./thread_state.js";
 
 // Secure Storage Migration

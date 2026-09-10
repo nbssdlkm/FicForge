@@ -68,7 +68,13 @@ export function MobileManageView({
         {section === "facts" ? (
           <FactsLayout auPath={auPath} />
         ) : section === "threads" ? (
-          <ThreadsLayout auPath={auPath} />
+          /* REQ-140：「编辑笔记」跳转在移动端 = 切段到 facts（与桌面 onNavigate 同语义） */
+          <ThreadsLayout
+            auPath={auPath}
+            onNavigate={(page) => {
+              if (page === "facts") setSection("facts");
+            }}
+          />
         ) : section === "trash" ? (
           /* 垃圾箱独立成段（2026-09-09：此前堆在设置页最底部，要滚完整个表单才看得到） */
           <div className="px-4 pb-28 pt-2">

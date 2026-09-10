@@ -171,6 +171,7 @@ export {
   removeThread,
   addFactToThread,
   removeFactFromThread,
+  moveFactInThread,
   setFactThreadRole,
   getStaleThreads,
   regenerateThreadState,

@@ -153,7 +153,7 @@ async function runMemoryLayerCascade(p: MemoryCascadeParams): Promise<MemoryCasc
 
   // === 剧情线摘要层（M8-B）：P3 之后、P2 之前 ===
   const threadBudget = Math.max(0, base_budget - used - guarantee);
-  const threadText = buildThreadsLayer(threads, threadBudget, llm, language);
+  const threadText = buildThreadsLayer(threads, facts, threadBudget, llm, language);
   const threadTokens = _count(threadText, llm).count;
   used += threadTokens;
   report.thread_tokens = threadTokens;

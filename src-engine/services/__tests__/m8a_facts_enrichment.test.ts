@@ -514,7 +514,7 @@ describe("T7: FACTS_ENRICH_SYSTEM_PROMPT prompt key (M8-A)", () => {
   });
 
   it("total key count is 70 (M8-A +1 + M10-A +4 + M8-B +1 + B2 +2 + M3批一 +1)", () => {
-    expect(REQUIRED_KEYS.length).toBe(70);
+    expect(REQUIRED_KEYS.length).toBe(71); // REQ-140 +1: THREAD_CURRENT_MARKER
   });
 
   it("zh module has FACTS_ENRICH_SYSTEM_PROMPT and it is non-empty", () => {

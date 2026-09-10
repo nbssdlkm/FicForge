@@ -52,7 +52,7 @@ export type { Draft } from "./draft.js";
 export { createDraft } from "./draft.js";
 
 export type { Fact } from "./fact.js";
-export { createFact } from "./fact.js";
+export { createFact, sanitizeThreadOrder, isColdFact } from "./fact.js";
 
 export type { Thread } from "./thread.js";
 export { createThread } from "./thread.js";

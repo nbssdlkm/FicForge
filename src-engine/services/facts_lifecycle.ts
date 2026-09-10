@@ -16,7 +16,7 @@
 
 import { FactSource, FactStatus, FactType, NarrativeWeight, TimeKind, SuspenseType } from "../domain/enums.js";
 import type { Fact } from "../domain/fact.js";
-import { createFact } from "../domain/fact.js";
+import { createFact, sanitizeThreadOrder } from "../domain/fact.js";
 import { createOpsEntry } from "../domain/ops_entry.js";
 import type { FactRepository } from "../repositories/interfaces/fact.js";
 import type { OpsRepository } from "../repositories/interfaces/ops.js";
@@ -221,6 +221,9 @@ export async function addFact(
       typeof fact_data.thread_roles === "object" && fact_data.thread_roles !== null
         ? (fact_data.thread_roles as Record<string, string>)
         : undefined,
+    // REQ-140：键必须始终存在（即使 undefined）——editFact 用 `key in fact` 判字段合法性，
+    // 缺键会让首个 thread_order 补丁被静默丢弃
+    thread_order: sanitizeThreadOrder(fact_data.thread_order),
     // _confidence（形状消毒：仅保留已知键 + 合法档位；非法形状 → undefined，M3 批一）
     _confidence: confidenceRes.ok ? confidenceRes.value : undefined,
   });
@@ -268,6 +271,7 @@ export async function addFact(
           // Thread 关联（M8-B）—— 不进快照则 hop 3 无从恢复（M8-A 同款 BLOCKER 教训）
           ...(fact.thread_ids?.length ? { thread_ids: fact.thread_ids } : {}),
           ...(fact.thread_roles && Object.keys(fact.thread_roles).length ? { thread_roles: fact.thread_roles } : {}),
+          ...(fact.thread_order && Object.keys(fact.thread_order).length ? { thread_order: fact.thread_order } : {}),
           // _confidence
           ...(fact._confidence ? { _confidence: fact._confidence } : {}),
         },
@@ -347,6 +351,23 @@ export async function editFact(
       }
       (fact as unknown as Record<string, unknown>)[key] = res.value;
       appliedFields[key] = res.value;
+      continue;
+    }
+    // REQ-140：thread_order 与读盘/replay 共用 sanitizeThreadOrder 单一真相源。清除
+    // （null/undefined/空对象）归一化为 undefined；非空但全是垃圾值 → 拒绝保留现值。
+    // op payload 以 null 表达清除（undefined 会被 JSON 序列化吞掉，replay 会丢清除语义）。
+    if (key === "thread_order") {
+      const sanitized = sanitizeThreadOrder(value);
+      const isClearing =
+        value == null || (typeof value === "object" && Object.keys(value as Record<string, unknown>).length === 0);
+      if (!isClearing && sanitized === undefined) {
+        if (hasLogger()) getLogger().warn("facts", "edit_fact 拒绝非法形状 thread_order", { fact_id });
+        continue;
+      }
+      const current = (fact as unknown as Record<string, unknown>)[key];
+      if (JSON.stringify(sanitized ?? null) === JSON.stringify(current ?? null)) continue;
+      (fact as unknown as Record<string, unknown>)[key] = sanitized;
+      appliedFields[key] = sanitized ?? null;
       continue;
     }
     const enumSet = enumValueSets[key];

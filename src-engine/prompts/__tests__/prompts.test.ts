@@ -56,12 +56,13 @@ describe("Prompt templates", () => {
     expect(en.SYSTEM_NOVELIST).toBe("You are a professional fiction writer.");
   });
 
-  it("total key count is 70", () => {
+  it("total key count is 71", () => {
     // M10-A adds 4 keys: SUMMARY_MICRO_SYSTEM/USER + SUMMARY_RETROSPECTIVE_SYSTEM/USER
     // M8-B adds 1 key: SECTION_PLOT_THREADS
     // 最后一公里 B2 adds 2 keys: THREAD_STATE_SYSTEM/USER
     // M3 批一 adds 1 key: INFO_ASYMMETRY_RULES（知情范围图例）
-    expect(REQUIRED_KEYS.length).toBe(70);
+    // REQ-140 adds 1 key: THREAD_CURRENT_MARKER（线骨架「▶ 当前：」）
+    expect(REQUIRED_KEYS.length).toBe(71);
   });
 
   // Critical prompt snapshots — prevent accidental content drift
