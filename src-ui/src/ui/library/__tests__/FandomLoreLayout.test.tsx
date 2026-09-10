@@ -83,6 +83,9 @@ describe("FandomLoreLayout — 状态下沉回归", () => {
     renderLayout();
 
     await screen.findByText("康纳");
+    // 世界观收在独立 tab（三段切换），默认不可见，切 tab 后可见
+    expect(screen.queryByText("仿生人条例")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^世界观/ }));
     expect(screen.getByText("仿生人条例")).toBeInTheDocument();
     expect(screen.getByText("Fandom：底特律：变人")).toBeInTheDocument();
     expect(listFandomFiles).toHaveBeenCalledWith("底特律");
@@ -113,6 +116,7 @@ describe("FandomLoreLayout — 状态下沉回归", () => {
     await screen.findByText("康纳");
     await makeDirtyEdit();
 
+    fireEvent.click(screen.getByRole("button", { name: /^世界观/ }));
     fireEvent.click(screen.getByText("仿生人条例"));
     await screen.findByText("放弃未保存的修改？");
 
@@ -127,6 +131,7 @@ describe("FandomLoreLayout — 状态下沉回归", () => {
     await makeDirtyEdit();
     expect(readFandomFile).toHaveBeenCalledTimes(1);
 
+    fireEvent.click(screen.getByRole("button", { name: /^世界观/ }));
     fireEvent.click(screen.getByText("仿生人条例"));
     await screen.findByText("放弃未保存的修改？");
     fireEvent.click(screen.getByRole("button", { name: "取消" }));

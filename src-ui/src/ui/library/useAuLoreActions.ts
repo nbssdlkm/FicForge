@@ -35,6 +35,9 @@ export type AuLoreActionDeps = {
   // 值
   project: ProjectInfo | null;
   files: LoreFileEntry[];
+  /** 当前打开文件的真实分类（由 openFile/applyCreated 锁定，保存/删除/别名写回只认它） */
+  openFileCategory: LoreCategory;
+  /** 新建目标分类（由各个新建入口显式 selectCategory 设定，仅 createFile 消费） */
   selectedCategory: LoreCategory;
   selectedFile: string | null;
   editorContent: string;
@@ -128,16 +131,16 @@ export function useAuLoreActions(auPath: string, deps: AuLoreActionDeps) {
 
   /** 保存当前打开的文件（characters 分类先把别名写回 frontmatter）。 */
   const saveCurrentFile = async () => {
-    const { selectedFile, selectedCategory, editorContent, aliases } = depsRef.current;
+    const { selectedFile, openFileCategory, editorContent, aliases } = depsRef.current;
     if (!selectedFile) return;
     const requestAuPath = auPath;
     setIsSaving(true);
     try {
       const contentToSave =
-        selectedCategory === "characters" ? setAliasesInContent(editorContent, aliases) : editorContent;
+        openFileCategory === "characters" ? setAliasesInContent(editorContent, aliases) : editorContent;
       await saveLoreApi({
         au_path: auPath,
-        category: selectedCategory,
+        category: openFileCategory,
         filename: `${selectedFile}.md`,
         content: contentToSave,
       });
@@ -161,7 +164,7 @@ export function useAuLoreActions(auPath: string, deps: AuLoreActionDeps) {
     if (!d.selectedFile || !d.project) return;
     const requestAuPath = auPath;
     const target = d.selectedFile;
-    const category = d.selectedCategory;
+    const category = d.openFileCategory;
     d.closeDeleteConfirm();
     setIsSaving(true);
     try {

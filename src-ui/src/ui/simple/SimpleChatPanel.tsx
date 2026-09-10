@@ -147,7 +147,10 @@ export function SimpleChatPanel({
 
   return (
     <div
-      className={`flex h-full min-h-0 flex-col bg-background ${className}`}
+      // w-full + min-w-0：桌面工作台把本面板挂在 flex-row 容器里（常驻挂载 CSS 隐藏方案），
+      // flex item 默认 shrink-to-fit 会把面板压成内容宽度（2026-09-09 卡拉实拍：对话页只
+      // 占左下角一条 ~420px，右半屏全空）；显式声明占满槽位、允许收缩防撑爆。
+      className={`flex h-full min-h-0 w-full min-w-0 flex-col bg-background ${className}`}
       style={
         {
           // 注入 drawer 字号 / 行距 → 子组件正文 div 用 var(--ff-body-fs) /

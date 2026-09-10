@@ -3,18 +3,16 @@
 // See LICENSE file in the project root for full license text.
 
 import { useCallback, useEffect, useState } from "react";
-import type { FandomLoreCategory } from "./lore-utils";
+import type { FandomLoreCategory, FandomLoreTab } from "./lore-utils";
 
 /**
  * useFandomLoreChrome — Fandom 资料页界面镶边（对齐 useWriterChromeState 形态）：
- * 新建/删除弹窗、AI 面板开关、侧栏折叠、搜索词。
- * 折叠态与 AI 面板跨 fandom 保持（原行为）；搜索词与弹窗随 fandom 复位。
+ * 新建/删除弹窗、AI 面板开关、列表 tab、搜索词。
+ * 列表 tab 与 AI 面板跨 fandom 保持（原折叠态行为）；搜索词与弹窗随 fandom 复位。
  */
 export function useFandomLoreChrome(fandomPath: string | undefined) {
-  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
-    core_characters: true,
-    core_worldbuilding: true,
-  });
+  // 列表视图当前 tab（角色/世界观/垃圾箱三段切换，2026-09-09 取代 folder 竖排堆叠）
+  const [activeTab, setActiveTab] = useState<FandomLoreTab>("core_characters");
   const [aiPanelOpen, setAiPanelOpen] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -31,9 +29,7 @@ export function useFandomLoreChrome(fandomPath: string | undefined) {
     setDeleteConfirmOpen(false);
   }, [fandomPath]);
 
-  const toggleFolder = useCallback((folder: string) => {
-    setExpandedFolders((prev) => ({ ...prev, [folder]: !prev[folder] }));
-  }, []);
+  const selectTab = useCallback((tab: FandomLoreTab) => setActiveTab(tab), []);
   const openAiPanel = useCallback(() => setAiPanelOpen(true), []);
   const closeAiPanel = useCallback(() => setAiPanelOpen(false), []);
   const openCreateModal = useCallback((category: FandomLoreCategory) => {
@@ -46,14 +42,14 @@ export function useFandomLoreChrome(fandomPath: string | undefined) {
   const closeDeleteConfirm = useCallback(() => setDeleteConfirmOpen(false), []);
 
   return {
-    expandedFolders,
+    activeTab,
     aiPanelOpen,
     searchTerm,
     createModalOpen,
     createModalCategory,
     createName,
     deleteConfirmOpen,
-    toggleFolder,
+    selectTab,
     openAiPanel,
     closeAiPanel,
     openCreateModal,

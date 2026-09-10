@@ -14,9 +14,6 @@ import {
   Search,
   Plus,
   FileText,
-  ChevronDown,
-  ChevronRight,
-  Folder,
   Trash2,
   Download,
   Pin,
@@ -30,7 +27,7 @@ import { useMilestoneGuide } from "../../hooks/useMilestoneGuide";
 import { MilestoneGuide } from "../shared/MilestoneGuide";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { AuLoreModals } from "./AuLoreModals";
-import type { LoreFileEntry } from "./lore-utils";
+import type { LoreCategory, LoreFileEntry } from "./lore-utils";
 import { useAuLoreData } from "./useAuLoreData";
 import { useAuLoreEditor } from "./useAuLoreEditor";
 import { useAuLoreModals } from "./useAuLoreModals";
@@ -82,6 +79,7 @@ export const AuLoreLayout = ({
   const actions = useAuLoreActions(auPath, {
     project: data.project,
     files: data.files,
+    openFileCategory: editor.openFileCategory,
     selectedCategory: editor.selectedCategory,
     selectedFile: editor.selectedFile,
     editorContent: editor.editorContent,
@@ -112,7 +110,8 @@ export const AuLoreLayout = ({
     previewMode,
     isReadingFile,
     searchTerm,
-    expandedFolders,
+    activeTab,
+    openFileCategory,
   } = editor;
   const { isSaving } = actions;
 
@@ -166,7 +165,7 @@ export const AuLoreLayout = ({
       {/* 小节标题，不关联单一控件（下方视 previewMode/分类切换渲染 Markdown 预览、Textarea 或别名 chips） */}
       <p className="text-sm font-bold text-text/90">{t("navigation.auLore")}</p>
 
-      {selectedCategory === "characters" && (
+      {openFileCategory === "characters" && (
         /* M3 批一：别名胶囊抽取为 shared/ChipListInput（行为逐像素不变），fact 编辑器两处名单共用同一组件 */
         <ChipListInput
           label={t("auLore.aliasesLabel")}
@@ -273,8 +272,11 @@ export const AuLoreLayout = ({
     />
   );
 
+  /** 列表区/空态/新建入口的目标分类（activeTab 非 trash 时等价；trash 时回退 characters 仅作保底） */
+  const listCategory: LoreCategory = activeTab === "worldbuilding" ? "worldbuilding" : "characters";
+
   if (isMobile) {
-    const currentFiles = selectedCategory === "characters" ? filteredFiles : filteredWorldbuildingFiles;
+    const currentFiles = activeTab === "characters" ? filteredFiles : filteredWorldbuildingFiles;
 
     return (
       <>
@@ -289,7 +291,7 @@ export const AuLoreLayout = ({
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-text">{selectedFile}.md</p>
                     <p className="text-xs text-text/50">
-                      {selectedCategory === "worldbuilding"
+                      {openFileCategory === "worldbuilding"
                         ? t("auLore.selectedTagWorldbuilding")
                         : t("auLore.selectedTag")}
                     </p>
@@ -345,8 +347,11 @@ export const AuLoreLayout = ({
                       fill="solid"
                       size="sm"
                       className="px-3"
-                      onClick={modals.openCreate}
-                      disabled={isSaving}
+                      onClick={() => {
+                        editor.selectCategory(listCategory);
+                        modals.openCreate();
+                      }}
+                      disabled={isSaving || activeTab === "trash"}
                     >
                       <Plus size={16} />
                     </Button>
@@ -377,28 +382,41 @@ export const AuLoreLayout = ({
                 <div className="mt-4 inline-flex w-full rounded-sm border border-rule bg-background/60 p-1">
                   <button
                     type="button"
-                    onClick={() => editor.selectCategory("characters")}
-                    className={`flex min-h-[44px] flex-1 items-center justify-center rounded-[3px] text-sm font-medium transition-colors ${selectedCategory === "characters" ? "bg-accent text-inv-text" : "text-text/50"}`}
+                    aria-pressed={editor.activeTab === "characters"}
+                    onClick={() => editor.selectTab("characters")}
+                    className={`flex min-h-[44px] flex-1 items-center justify-center rounded-[3px] text-sm font-medium transition-colors ${activeTab === "characters" ? "bg-accent text-inv-text" : "text-text/50"}`}
                   >
                     {t("common.labels.characters")}
                   </button>
                   <button
                     type="button"
-                    onClick={() => editor.selectCategory("worldbuilding")}
-                    className={`flex min-h-[44px] flex-1 items-center justify-center rounded-[3px] text-sm font-medium transition-colors ${selectedCategory === "worldbuilding" ? "bg-accent text-inv-text" : "text-text/50"}`}
+                    aria-pressed={editor.activeTab === "worldbuilding"}
+                    onClick={() => editor.selectTab("worldbuilding")}
+                    className={`flex min-h-[44px] flex-1 items-center justify-center rounded-[3px] text-sm font-medium transition-colors ${activeTab === "worldbuilding" ? "bg-accent text-inv-text" : "text-text/50"}`}
                   >
                     {t("common.labels.worldbuilding")}
                   </button>
+                  <button
+                    type="button"
+                    aria-pressed={editor.activeTab === "trash"}
+                    onClick={() => editor.selectTab("trash")}
+                    className={`flex min-h-[44px] flex-1 items-center justify-center rounded-[3px] text-sm font-medium transition-colors ${activeTab === "trash" ? "bg-accent text-inv-text" : "text-text/50"}`}
+                  >
+                    {t("trash.title")}
+                  </button>
                 </div>
-                <div className="relative mt-3">
-                  <Search className="absolute left-3 top-3 text-text/50" size={16} />
-                  <Input
-                    className="pl-10"
-                    placeholder={t("auLore.searchPlaceholder")}
-                    value={searchTerm}
-                    onChange={(e) => editor.setSearchTerm(e.target.value)}
-                  />
-                </div>
+                {/* 垃圾箱 tab 下搜索无意义（搜索只过滤角色/世界观列表） */}
+                {activeTab !== "trash" && (
+                  <div className="relative mt-3">
+                    <Search className="absolute left-3 top-3 text-text/50" size={16} />
+                    <Input
+                      className="pl-10"
+                      placeholder={t("auLore.searchPlaceholder")}
+                      value={searchTerm}
+                      onChange={(e) => editor.setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                )}
               </>
             )}
           </header>
@@ -406,6 +424,10 @@ export const AuLoreLayout = ({
           <div className="px-4 py-4">
             {selectedFile ? (
               editorPanel
+            ) : activeTab === "trash" ? (
+              <div className="overflow-hidden rounded-sm border border-rule bg-surface">
+                <TrashPanel scope="au" path={auPath} onRestore={handleTrashRestore} refreshToken={trashRefreshToken} />
+              </div>
             ) : (
               <div className="space-y-3">
                 {currentFiles.length === 0 ? (
@@ -413,12 +435,12 @@ export const AuLoreLayout = ({
                     compact
                     icon={<FileText size={28} />}
                     title={
-                      selectedCategory === "characters"
+                      listCategory === "characters"
                         ? t("emptyState.auCharacters.title")
                         : t("emptyState.auWorldbuilding.title")
                     }
                     description={
-                      selectedCategory === "characters"
+                      listCategory === "characters"
                         ? t("emptyState.auCharacters.description")
                         : t("emptyState.auWorldbuilding.description")
                     }
@@ -426,8 +448,16 @@ export const AuLoreLayout = ({
                       {
                         key: "add-item",
                         element: (
-                          <Button tone="accent" fill="solid" size="sm" onClick={modals.openCreate}>
-                            {selectedCategory === "characters"
+                          <Button
+                            tone="accent"
+                            fill="solid"
+                            size="sm"
+                            onClick={() => {
+                              editor.selectCategory(listCategory);
+                              modals.openCreate();
+                            }}
+                          >
+                            {listCategory === "characters"
                               ? t("common.actions.addCharacter")
                               : t("common.actions.addWorldbuilding")}
                           </Button>
@@ -445,11 +475,11 @@ export const AuLoreLayout = ({
                         role="button"
                         tabIndex={0}
                         onClick={() => {
-                          void editor.openFile(file.name, selectedCategory);
+                          void editor.openFile(file.name, listCategory);
                         }}
                         onKeyDown={(event) =>
                           activateOnEnterOrSpace(event, () => {
-                            void editor.openFile(file.name, selectedCategory);
+                            void editor.openFile(file.name, listCategory);
                           })
                         }
                         className="flex w-full cursor-pointer items-center justify-between rounded-sm border border-rule bg-surface px-4 py-4 text-left transition-colors"
@@ -457,12 +487,12 @@ export const AuLoreLayout = ({
                         <div className="min-w-0">
                           <p className="truncate text-base font-medium text-text">{file.name}.md</p>
                           <p className="mt-1 text-xs text-text/50">
-                            {selectedCategory === "worldbuilding"
+                            {listCategory === "worldbuilding"
                               ? t("auLore.selectedTagWorldbuilding")
                               : t("auLore.selectedTag")}
                           </p>
                         </div>
-                        {selectedCategory === "characters" ? (
+                        {listCategory === "characters" ? (
                           <button
                             type="button"
                             className={`ml-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${isPinned ? "text-accent" : "text-text/30"}`}
@@ -478,15 +508,6 @@ export const AuLoreLayout = ({
                     );
                   })
                 )}
-
-                <div className="overflow-hidden rounded-sm border border-rule bg-surface">
-                  <TrashPanel
-                    scope="au"
-                    path={auPath}
-                    onRestore={handleTrashRestore}
-                    refreshToken={trashRefreshToken}
-                  />
-                </div>
               </div>
             )}
           </div>
@@ -522,23 +543,29 @@ export const AuLoreLayout = ({
                 fill="plain"
                 size="sm"
                 className="px-2"
-                onClick={modals.openCreate}
-                disabled={isSaving}
+                onClick={() => {
+                  editor.selectCategory(listCategory);
+                  modals.openCreate();
+                }}
+                disabled={isSaving || activeTab === "trash"}
               >
                 {isSaving ? <Spinner size="md" /> : <Plus size={16} />}
               </Button>
             </div>
           </div>
           <div className="text-xs text-text/70">{t("auLore.referenceHint")}</div>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2 text-text/50" size={14} />
-            <Input
-              className="pl-8 h-8 text-xs placeholder:text-xs"
-              placeholder={t("auLore.searchPlaceholder")}
-              value={searchTerm}
-              onChange={(e) => editor.setSearchTerm(e.target.value)}
-            />
-          </div>
+          {/* 垃圾箱 tab 下搜索无意义（搜索只过滤角色/世界观列表） */}
+          {activeTab !== "trash" && (
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2 text-text/50" size={14} />
+              <Input
+                className="pl-8 h-8 text-xs placeholder:text-xs"
+                placeholder={t("auLore.searchPlaceholder")}
+                value={searchTerm}
+                onChange={(e) => editor.setSearchTerm(e.target.value)}
+              />
+            </div>
+          )}
         </header>
 
         <div className="flex-1 min-h-0 flex flex-col">
@@ -555,41 +582,39 @@ export const AuLoreLayout = ({
                 onDismiss={handleDismissPinMilestone}
               />
             )}
-          <div className="flex-1 overflow-y-auto p-2 space-y-6 font-mono py-4">
-            <div className="space-y-2">
-              <div className="px-3 pb-1 text-xs font-sans font-medium text-text/50">
-                {t("auLore.charactersLabel")} ({files.length})
-              </div>
-              <div>
-                {/* biome-ignore lint/a11y/useSemanticElements: 内含真 <button>（新建角色），button 不可嵌 button，只能保留 div+role */}
-                <div
-                  className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/90 font-bold font-sans"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => editor.toggleFolder("characters")}
-                  onKeyDown={(event) => activateOnEnterOrSpace(event, () => editor.toggleFolder("characters"))}
-                >
-                  <div className="flex items-center gap-2">
-                    {expandedFolders.characters ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    <Folder size={14} className="text-accent" fill="currentColor" fillOpacity={0.2} />
-                    <span>{t("common.labels.characters")}</span>
-                  </div>
-                  <Button
-                    tone="neutral"
-                    fill="plain"
-                    size="sm"
-                    className="p-0 h-6 w-6"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      editor.selectCategory("characters");
-                      modals.openCreate();
-                    }}
-                  >
-                    <Plus size={12} />
-                  </Button>
-                </div>
-                {expandedFolders.characters && (
-                  <div className="mt-1 space-y-0.5">
+          {/* 三段分类切换（2026-09-09 卡拉反馈：角色/世界观/垃圾箱从竖排堆叠改分段切换，
+              不再为看一眼垃圾箱滚过整个页面；与移动端 tab 模式同构） */}
+          <div className="px-3 pt-3">
+            <div className="inline-flex w-full rounded-sm border border-rule bg-background/60 p-1">
+              <button
+                type="button"
+                aria-pressed={editor.activeTab === "characters"}
+                onClick={() => editor.selectTab("characters")}
+                className={`flex min-h-[36px] flex-1 items-center justify-center rounded-[3px] text-xs font-medium transition-colors ${activeTab === "characters" ? "bg-accent text-inv-text" : "text-text/50"}`}
+              >
+                {t("common.labels.characters")} ({files.length})
+              </button>
+              <button
+                type="button"
+                aria-pressed={editor.activeTab === "worldbuilding"}
+                onClick={() => editor.selectTab("worldbuilding")}
+                className={`flex min-h-[36px] flex-1 items-center justify-center rounded-[3px] text-xs font-medium transition-colors ${activeTab === "worldbuilding" ? "bg-accent text-inv-text" : "text-text/50"}`}
+              >
+                {t("common.labels.worldbuilding")} ({worldbuildingFiles.length})
+              </button>
+              <button
+                type="button"
+                aria-pressed={editor.activeTab === "trash"}
+                onClick={() => editor.selectTab("trash")}
+                className={`flex min-h-[36px] flex-1 items-center justify-center rounded-[3px] text-xs font-medium transition-colors ${activeTab === "trash" ? "bg-accent text-inv-text" : "text-text/50"}`}
+              >
+                {t("trash.title")}
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-2 font-mono py-4">
+            {activeTab === "characters" && (
+              <div className="mt-1 space-y-0.5">
                     {filteredFiles.length === 0 ? (
                       <EmptyState
                         compact
@@ -630,7 +655,7 @@ export const AuLoreLayout = ({
                           // biome-ignore lint/a11y/useSemanticElements: 内含真 <button>（置顶切换），button 不可嵌 button，只能保留 div+role
                           <div
                             key={file.name}
-                            className={`flex items-center justify-between pl-6 pr-2 py-1.5 text-sm cursor-pointer rounded-md ${selectedFile === file.name && selectedCategory === "characters" ? "bg-accent/10 text-accent font-medium" : "text-text/70 hover:bg-black/5 dark:hover:bg-white/5 hover:text-text"}`}
+                            className={`flex items-center justify-between pl-6 pr-2 py-1.5 text-sm cursor-pointer rounded-md ${selectedFile === file.name && openFileCategory === "characters" ? "bg-accent/10 text-accent font-medium" : "text-text/70 hover:bg-black/5 dark:hover:bg-white/5 hover:text-text"}`}
                             role="button"
                             tabIndex={0}
                             onClick={() => {
@@ -662,46 +687,10 @@ export const AuLoreLayout = ({
                         );
                       })
                     )}
-                  </div>
-                )}
               </div>
-            </div>
-
-            {/* 世界观分区 */}
-            <div className="space-y-2">
-              <div className="px-3 pb-1 text-xs font-sans font-medium text-text/50">
-                {t("common.labels.worldbuilding")} ({worldbuildingFiles.length})
-              </div>
-              <div>
-                {/* biome-ignore lint/a11y/useSemanticElements: 内含真 <button>（新建世界观条目），button 不可嵌 button，只能保留 div+role */}
-                <div
-                  className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 rounded-md text-text/90 font-bold font-sans"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => editor.toggleFolder("worldbuilding")}
-                  onKeyDown={(event) => activateOnEnterOrSpace(event, () => editor.toggleFolder("worldbuilding"))}
-                >
-                  <div className="flex items-center gap-2">
-                    {expandedFolders.worldbuilding ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    <Folder size={14} className="text-info" fill="currentColor" fillOpacity={0.2} />
-                    <span>{t("common.labels.worldbuilding")}</span>
-                  </div>
-                  <Button
-                    tone="neutral"
-                    fill="plain"
-                    size="sm"
-                    className="p-0 h-6 w-6"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      editor.selectCategory("worldbuilding");
-                      modals.openCreate();
-                    }}
-                  >
-                    <Plus size={12} />
-                  </Button>
-                </div>
-                {expandedFolders.worldbuilding && (
-                  <div className="mt-1 space-y-0.5">
+            )}
+            {activeTab === "worldbuilding" && (
+              <div className="mt-1 space-y-0.5">
                     {worldbuildingFiles.length === 0 ? (
                       <EmptyState
                         compact
@@ -732,7 +721,7 @@ export const AuLoreLayout = ({
                         <button
                           type="button"
                           key={file.name}
-                          className={`flex w-full items-center justify-between pl-6 pr-2 py-1.5 text-left text-sm cursor-pointer rounded-md ${selectedFile === file.name && selectedCategory === "worldbuilding" ? "bg-accent/10 text-accent font-medium" : "text-text/70 hover:bg-black/5 dark:hover:bg-white/5 hover:text-text"}`}
+                          className={`flex w-full items-center justify-between pl-6 pr-2 py-1.5 text-left text-sm cursor-pointer rounded-md ${selectedFile === file.name && openFileCategory === "worldbuilding" ? "bg-accent/10 text-accent font-medium" : "text-text/70 hover:bg-black/5 dark:hover:bg-white/5 hover:text-text"}`}
                           onClick={() => {
                             void editor.openFile(file.name, "worldbuilding");
                           }}
@@ -744,20 +733,22 @@ export const AuLoreLayout = ({
                         </button>
                       ))
                     )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="px-4 pb-2 space-y-2">
-            {coreIncludes.length > 3 && (
-              <div className="text-xs text-warning bg-warning/10 rounded-md px-3 py-2">
-                {t("coreIncludes.tooMany", { count: coreIncludes.length })}
               </div>
             )}
-            <div className="text-xs text-text/50 leading-relaxed px-1">{t("coreIncludes.hint")}</div>
+            {activeTab === "trash" && (
+              <TrashPanel scope="au" path={auPath} onRestore={handleTrashRestore} refreshToken={trashRefreshToken} />
+            )}
           </div>
-          <TrashPanel scope="au" path={auPath} onRestore={handleTrashRestore} refreshToken={trashRefreshToken} />
+          {activeTab === "characters" && (
+            <div className="px-4 pb-2 space-y-2">
+              {coreIncludes.length > 3 && (
+                <div className="text-xs text-warning bg-warning/10 rounded-md px-3 py-2">
+                  {t("coreIncludes.tooMany", { count: coreIncludes.length })}
+                </div>
+              )}
+              <div className="text-xs text-text/50 leading-relaxed px-1">{t("coreIncludes.hint")}</div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -768,7 +759,7 @@ export const AuLoreLayout = ({
               <div className="flex items-center gap-3">
                 <span className="font-mono text-sm font-semibold opacity-70">{selectedFile}.md</span>
                 <span className="rounded-full bg-info/10 px-2 py-1 text-xs text-info">
-                  {selectedCategory === "worldbuilding"
+                  {openFileCategory === "worldbuilding"
                     ? t("auLore.selectedTagWorldbuilding")
                     : t("auLore.selectedTag")}
                 </span>

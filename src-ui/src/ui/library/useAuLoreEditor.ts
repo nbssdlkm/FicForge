@@ -10,6 +10,7 @@ import {
   buildDefaultWorldbuildingContent,
   parseAliasesFromContent,
   type LoreCategory,
+  type LoreTab,
   type LoreFileEntry,
 } from "./lore-utils";
 
@@ -45,10 +46,12 @@ export function useAuLoreEditor(
   const [previewMode, setPreviewMode] = useState(true);
   const [isReadingFile, setIsReadingFile] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
-    characters: true,
-    worldbuilding: false,
-  });
+  // 列表视图当前 tab（角色/世界观/垃圾箱三段切换，2026-09-09 取代 folder 竖排堆叠）
+  const [activeTab, setActiveTab] = useState<LoreTab>("characters");
+  /** 当前打开文件的真实分类（openFile/applyCreated 时锁定）。
+   * 保存/删除必须用它而不是 selectedCategory——后者会随新建入口点击漂移，
+   * 桌面端编辑中切 tab 不再改它（2026-09-09 对抗审 blocker：切 tab 后保存写错目录）。 */
+  const [openFileCategory, setOpenFileCategory] = useState<LoreCategory>("characters");
 
   const listsRef = useRef({ files, worldbuildingFiles });
   listsRef.current = { files, worldbuildingFiles };
@@ -74,6 +77,7 @@ export function useAuLoreEditor(
     async (name: string, category: LoreCategory) => {
       const token = readGuard.start();
       setSelectedCategory(category);
+      setOpenFileCategory(category);
       setSelectedFile(name);
       setEditorContent("");
       setIsReadingFile(true);
@@ -131,10 +135,9 @@ export function useAuLoreEditor(
   /** 切分类 tab / 定位新建目标分类（仅切分类，不动已打开的文件——沿用旧行为）。 */
   const selectCategory = useCallback((category: LoreCategory) => setSelectedCategory(category), []);
 
-  /** 桌面侧栏文件夹折叠开关。 */
-  const toggleFolder = useCallback((folder: string) => {
-    setExpandedFolders((prev) => ({ ...prev, [folder]: !prev[folder] }));
-  }, []);
+  /** 切列表视图 tab（纯视图状态——绝不同步 selectedCategory：桌面端打开文件后仍可切 tab，
+   * 若同步会篡改保存/删除的分类路径。新建目标分类由各个新建入口显式 selectCategory。） */
+  const selectTab = useCallback((tab: LoreTab) => setActiveTab(tab), []);
 
   const showPreview = useCallback(() => setPreviewMode(true), []);
   const showEditor = useCallback(() => setPreviewMode(false), []);
@@ -165,6 +168,7 @@ export function useAuLoreEditor(
   /** 新建成功：直接打开新文件进入编辑态（内容已知，不再读盘）。 */
   const applyCreated = useCallback((name: string, category: LoreCategory, content: string) => {
     setSelectedCategory(category);
+    setOpenFileCategory(category);
     setSelectedFile(name);
     setEditorContent(content);
     setSavedContent(content);
@@ -190,11 +194,12 @@ export function useAuLoreEditor(
     previewMode,
     isReadingFile,
     searchTerm,
-    expandedFolders,
+    activeTab,
+    openFileCategory,
     openFile,
     closeFile,
     selectCategory,
-    toggleFolder,
+    selectTab,
     showPreview,
     showEditor,
     commitNewAlias,

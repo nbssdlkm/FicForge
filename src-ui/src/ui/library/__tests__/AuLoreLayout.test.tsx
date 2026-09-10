@@ -148,16 +148,16 @@ describe("AuLoreLayout — 状态下沉回归", () => {
     (saveProjectCoreIncludes as Mock).mockReset().mockResolvedValue(undefined);
   });
 
-  it("加载后渲染角色/世界观双列表；files 固定按 characters 分类拉取", async () => {
+  it("加载后默认角色 tab；切世界观 tab 才渲染世界观列表（三段切换回归）", async () => {
     await renderLayout();
 
     expect(screen.getByText("配角乙.md")).toBeInTheDocument();
     expect(listLoreFiles).toHaveBeenCalledWith({ au_path: AU_PATH, category: "characters" });
     expect(listLoreFiles).toHaveBeenCalledWith({ au_path: AU_PATH, category: "worldbuilding" });
 
-    // 世界观夹默认折叠，点开后可见
+    // 世界观收在独立 tab（不再竖排堆叠），默认不可见，切 tab 后可见
     expect(screen.queryByText("魔法体系.md")).toBeNull();
-    fireEvent.click(screen.getByText("世界观"));
+    fireEvent.click(screen.getByRole("button", { name: /^世界观/ }));
     expect(screen.getByText("魔法体系.md")).toBeInTheDocument();
   });
 
@@ -168,6 +168,49 @@ describe("AuLoreLayout — 状态下沉回归", () => {
     expect(screen.getByTestId("settings-md").textContent).toContain("正文一段");
     expect(screen.getByText("小甲")).toBeInTheDocument();
     expect(screen.getByText("甲哥")).toBeInTheDocument();
+  });
+
+  it("编辑中切 tab 再保存/删除：分类路径锁定打开文件的真实分类（对抗审 blocker 回归）", async () => {
+    await renderLayout();
+    await openCharacterFile();
+
+    // 编辑中切到世界观 tab（桌面端侧栏始终可见，tab 可点）
+    fireEvent.click(screen.getByRole("button", { name: /^世界观/ }));
+
+    // 保存：仍写 characters 目录
+    fireEvent.click(screen.getByRole("button", { name: "编辑" }));
+    const textarea = document.querySelector("textarea");
+    fireEvent.change(textarea!, { target: { value: "# 主角甲\n\n改过的正文" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存设定" }));
+    await waitFor(() => expect(saveLore).toHaveBeenCalledTimes(1));
+    expect((saveLore as Mock).mock.calls[0][0].category).toBe("characters");
+
+    // 删除：同样锁定 characters
+    clickIconButton("lucide-trash");
+    fireEvent.click(screen.getByRole("button", { name: "确认删除" }));
+    await waitFor(() => expect(deleteLore).toHaveBeenCalledTimes(1));
+    expect((deleteLore as Mock).mock.calls[0][0].category).toBe("characters");
+  });
+
+  it("编辑世界观文件中切回角色 tab 再保存：路径仍写 worldbuilding（blocker 回归反向变体）", async () => {
+    await renderLayout();
+    fireEvent.click(screen.getByRole("button", { name: /^世界观/ }));
+    fireEvent.click(screen.getByText("魔法体系.md"));
+    await waitFor(() =>
+      expect(readLore).toHaveBeenCalledWith(
+        expect.objectContaining({ category: "worldbuilding", filename: "魔法体系.md" }),
+      ),
+    );
+    await waitFor(() => expect(screen.getByTestId("settings-md").textContent).toContain("# 魔法体系"));
+
+    // 切回角色 tab 再保存
+    fireEvent.click(screen.getByRole("button", { name: /^角色/ }));
+    fireEvent.click(screen.getByRole("button", { name: "编辑" }));
+    const textarea = document.querySelector("textarea");
+    fireEvent.change(textarea!, { target: { value: "# 魔法体系\n\n改过的正文" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存设定" }));
+    await waitFor(() => expect(saveLore).toHaveBeenCalledTimes(1));
+    expect((saveLore as Mock).mock.calls[0][0].category).toBe("worldbuilding");
   });
 
   it("编辑 + 新增别名后保存：别名写回 frontmatter，payload 来自最新正文", async () => {
@@ -288,10 +331,15 @@ describe("AuLoreLayout — 状态下沉回归", () => {
     const onChaptersChanged = vi.fn();
     await renderLayout(AU_PATH, onChaptersChanged);
 
+    // 垃圾箱收为第三段 tab，先切过去
+    fireEvent.click(screen.getByRole("button", { name: "垃圾箱" }));
     fireEvent.click(screen.getByText("restore-character"));
+    // 恢复后切回角色 tab 可见插回的文件
+    fireEvent.click(screen.getByRole("button", { name: /^角色/ }));
     expect(await screen.findByText("恢复角色.md")).toBeTruthy();
     expect(onChaptersChanged).not.toHaveBeenCalled();
 
+    fireEvent.click(screen.getByRole("button", { name: "垃圾箱" }));
     fireEvent.click(screen.getByText("restore-chapter"));
     expect(onChaptersChanged).toHaveBeenCalledTimes(1);
     expect(screen.queryByText("第三章.md")).toBeNull();
