@@ -5,7 +5,7 @@
 
 ## 当前状态（2026-09-13）
 
-**2026-09-13 REQ-140 悬空 R2 批收尾提交（分支 `feat/thread-board`，commit `86d5d8c`+`8839451`+`c1d6ae1`，仍待卡拉 UI 人工验收+合并授权）**：09-10 深夜会话留下一批未提交改动（R2 修复 + ToolCallCard 改进 + biome 格式化，11 文件），本会话先全量验证再分三笔提交：①`86d5d8c` REQ-140 对抗审 R2（codex sol 复跑）2 条属实发现修复——sanitizeThreadOrder 拒数组形状（`[10,20]` 曾漏成 `{"0":10}` 脏键）+ writeNormalizedOrders 改 best-effort（单条失败收集继续写、末尾聚合抛出、已是目标值跳过不涨 revision、重试自愈收敛），修复点快筛（codex luna）clean；②`8839451` 工具确认卡参数逐字段格式化渲染——多行/超长字符串字段复用 SettingsMarkdown 按 markdown 预览（原 JSON 转义形态确认前没法审内容）+ 逐字段折叠 + 空参数不渲染，零新增 i18n 键，快筛 clean；③`c1d6ae1` biome format 纯格式化 4 文件零语义。验证：引擎 1650 / UI 694 / 双 tsc 0 / 根 biome 0 / i18n 1334 对称。**R2 遗留 1 条 major（编排写入 lost-update）无处置记录在案**：代码层核实 editFact 走 `withAuLock` 逐 AU 串行 + 字段级 patch（thread_order 与 thread_roles 互不覆写）+ UI busyId 互斥，实际风险已大幅收窄，但「接受风险还是补 CAS」需卡拉拍板后补记 DR。
+**2026-09-13 REQ-140 悬空 R2 批收尾提交（分支 `feat/thread-board`，commit `86d5d8c`+`8839451`+`c1d6ae1`，仍待卡拉 UI 人工验收+合并授权）**：09-10 深夜会话留下一批未提交改动（R2 修复 + ToolCallCard 改进 + biome 格式化，11 文件），本会话先全量验证再分三笔提交：①`86d5d8c` REQ-140 对抗审 R2（codex sol 复跑）2 条属实发现修复——sanitizeThreadOrder 拒数组形状（`[10,20]` 曾漏成 `{"0":10}` 脏键）+ writeNormalizedOrders 改 best-effort（单条失败收集继续写、末尾聚合抛出、已是目标值跳过不涨 revision、重试自愈收敛），修复点快筛（codex luna）clean；②`8839451` 工具确认卡参数逐字段格式化渲染——多行/超长字符串字段复用 SettingsMarkdown 按 markdown 预览（原 JSON 转义形态确认前没法审内容）+ 逐字段折叠 + 空参数不渲染，零新增 i18n 键，快筛 clean；③`c1d6ae1` biome format 纯格式化 4 文件零语义。验证：引擎 1650 / UI 694 / 双 tsc 0 / 根 biome 0 / i18n 1334 对称。**R2 遗留 1 条 major（编排写入 lost-update）**：代码层核实 editFact 走 `withAuLock` 逐 AU 串行 + 字段级 patch（thread_order 与 thread_roles 互不覆写）+ UI busyId 互斥，实际窗口只剩理论场景；**卡拉 2026-09-13 拍板 A=接受现状不补 CAS**（后果=序号没存上重调一次可自愈，CAS 复杂化全部写路径不值当），已记 DR。R2 三条发现全部闭环（2 修 1 接受）。
 
 ## 当前状态（2026-09-10）
 
