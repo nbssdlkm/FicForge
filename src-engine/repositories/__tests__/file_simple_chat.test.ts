@@ -256,9 +256,10 @@ describe("FileSimpleChatRepository", () => {
     expect(undo.factId).toBeUndefined();
     expect(toolCall.undoMeta).toBeUndefined();
 
-    // 自愈：把读出来的（已 snake）消息 save 回去，落盘键即为 snake，legacy camel 彻底消失
+    // 自愈：把读出来的（已 snake）消息 save 回去，落盘键即为 snake，legacy camel 彻底消失。
+    // chat-sessions 底座后 save 落点是 default 会话文件（legacy 老文件保留不删，仍含 camel 键）。
     await repo.save("au-legacy-camel", loaded.messages);
-    const rawAfter = await adapter.readFile(path);
+    const rawAfter = await adapter.readFile("au-legacy-camel/.well-known/chat-sessions/default.yaml");
     expect(rawAfter).toContain("chapter_num");
     expect(rawAfter).toContain("tool_calls");
     expect(rawAfter).toContain("generated_with");

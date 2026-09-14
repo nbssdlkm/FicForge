@@ -93,6 +93,8 @@ export {
 } from "./settings.js";
 
 export type {
+  ChatSessionIndex,
+  ChatSessionMeta,
   SimpleChatFile,
   SimpleChatMessageEnvelope,
   SimpleMessageKind,
@@ -111,7 +113,16 @@ export type {
   SimpleSystemMessage,
   SimpleChatMessage,
 } from "./simple_chat.js";
-export { createSimpleChatFile, SIMPLE_CHAT_VERSION, asSimpleChatMessages } from "./simple_chat.js";
+export {
+  CHAT_SESSION_INDEX_VERSION,
+  CHAT_SESSION_TITLE_MAX,
+  DEFAULT_CHAT_SESSION_ID,
+  createChatSessionIndex,
+  createSimpleChatFile,
+  deriveChatSessionTitle,
+  SIMPLE_CHAT_VERSION,
+  asSimpleChatMessages,
+} from "./simple_chat.js";
 
 export type { EmbeddingFingerprint, State } from "./state.js";
 export { createEmbeddingFingerprint, createState } from "./state.js";
