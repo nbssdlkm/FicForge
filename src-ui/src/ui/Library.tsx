@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useMemo, useState } from "react";
-import { Settings, BookOpen, Trash2, Plus, Import, Archive } from "lucide-react";
+import { Settings, BookOpen, Trash2, Plus, Import, Archive, MessagesSquare } from "lucide-react";
 import { Spinner } from "./shared/Spinner";
 import { Button } from "./shared/Button";
 import { InlineBanner } from "./shared/InlineBanner";
@@ -140,6 +140,16 @@ function LibraryInner({ onNavigate }: Props) {
               title={t("restoreBundle.title")}
             >
               <Archive size={16} />
+            </Button>
+            <Button
+              tone="neutral"
+              fill="plain"
+              size="sm"
+              onClick={() => onNavigate("chat_sessions")}
+              className="h-9 w-9 p-0 text-ink-muted hover:text-text"
+              title={t("chatSessions.globalTitle")}
+            >
+              <MessagesSquare size={16} />
             </Button>
             <span className="mx-1 h-4 w-px bg-rule" aria-hidden="true" />
             <ThemeToggle />

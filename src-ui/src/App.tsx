@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Library } from "./ui/Library";
+import { GlobalChatSessionsLayout } from "./ui/simple/GlobalChatSessionsLayout";
 import { FandomLoreLayout } from "./ui/library/FandomLoreLayout";
 import { MobileFandomView } from "./ui/mobile/MobileFandomView";
 import { SplashScreen } from "./ui/SplashScreen";
@@ -249,6 +250,7 @@ function App() {
     <>
       <SplashScreen visible={splashVisible} />
       {!isAuSpace && currentPage === "library" && <Library onNavigate={handleNavigate} />}
+      {!isAuSpace && currentPage === "chat_sessions" && <GlobalChatSessionsLayout onNavigate={handleNavigate} />}
       {!isAuSpace &&
         currentPage === "fandom_lore" &&
         (isMobile ? (
