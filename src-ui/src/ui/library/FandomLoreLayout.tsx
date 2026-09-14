@@ -12,19 +12,7 @@ import { EmptyState } from "../shared/EmptyState";
 import { TrashPanel } from "../shared/TrashPanel";
 import { SettingsChatPanel } from "../shared/settings-chat/SettingsChatPanel";
 import type { FandomFileEntry } from "../../api/engine-client";
-import {
-  Search,
-  Plus,
-  ArrowLeft,
-  FileText,
-  Trash2,
-  Users,
-  Globe2,
-  Eye,
-  Pencil,
-  MessageSquare,
-  X,
-} from "lucide-react";
+import { Search, Plus, ArrowLeft, FileText, Trash2, Users, Globe2, Eye, Pencil, MessageSquare, X } from "lucide-react";
 import { SettingsMarkdown } from "../shared/SettingsMarkdown";
 import { FandomLoreModals } from "./FandomLoreModals";
 import { useTranslation } from "../../i18n/useAppTranslation";
@@ -39,7 +27,6 @@ type Props = {
   fandomPath?: string;
   onNavigate: (page: string) => void;
 };
-
 
 function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
   const { t } = useTranslation();
@@ -195,7 +182,9 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
               size="sm"
               className="px-2"
               onClick={() =>
-                openCreateModalIntent(chrome.activeTab === "core_worldbuilding" ? "core_worldbuilding" : "core_characters")
+                openCreateModalIntent(
+                  chrome.activeTab === "core_worldbuilding" ? "core_worldbuilding" : "core_characters",
+                )
               }
               disabled={editor.editorBusy || files.filesLoading || chrome.activeTab === "trash"}
             >
@@ -249,120 +238,120 @@ function FandomLoreLayoutInner({ fandomPath, onNavigate }: Props) {
           <div className="flex-1 overflow-y-auto p-2 font-mono py-4">
             {chrome.activeTab === "core_characters" && (
               <div className="mt-1 space-y-0.5">
-                    {files.filesLoading ? (
-                      <div className="pl-6 py-2">
-                        <Spinner size="sm" className="text-accent" />
-                      </div>
-                    ) : filteredCharacterFiles.length === 0 ? (
-                      <EmptyState
-                        compact
-                        icon={<Users size={28} />}
-                        title={
-                          files.characterFiles.length === 0
-                            ? t("emptyState.fandomCharacters.title")
-                            : t("facts.noSearchResultTitle")
-                        }
-                        description={
-                          files.characterFiles.length === 0
-                            ? t("emptyState.fandomCharacters.description")
-                            : t("facts.noSearchResultDescription")
-                        }
-                        actions={
-                          files.characterFiles.length === 0
-                            ? [
-                                {
-                                  key: "create-character",
-                                  element: (
-                                    <Button
-                                      tone="accent"
-                                      fill="solid"
-                                      size="sm"
-                                      onClick={() => openCreateModalIntent("core_characters")}
-                                    >
-                                      {t("common.actions.addCharacter")}
-                                    </Button>
-                                  ),
-                                },
-                              ]
-                            : undefined
-                        }
-                      />
-                    ) : (
-                      filteredCharacterFiles.map((f) => (
-                        <button
-                          type="button"
-                          key={f.filename}
-                          className={`flex w-full items-center gap-2 pl-6 pr-2 py-1.5 text-left text-sm cursor-pointer rounded-md transition-colors ${
-                            editor.selectedFile === f.filename && editor.selectedCategory === "core_characters"
-                              ? "bg-accent/10 text-accent font-semibold"
-                              : "hover:bg-black/5 dark:hover:bg-white/5 text-text/70"
-                          } ${editor.editorBusy ? "pointer-events-none opacity-60" : ""}`}
-                          onClick={() => handleSelectFileIntent(f.filename, "core_characters")}
-                        >
-                          <FileText size={13} />
-                          <span>{f.name}</span>
-                        </button>
-                      ))
-                    )}
+                {files.filesLoading ? (
+                  <div className="pl-6 py-2">
+                    <Spinner size="sm" className="text-accent" />
+                  </div>
+                ) : filteredCharacterFiles.length === 0 ? (
+                  <EmptyState
+                    compact
+                    icon={<Users size={28} />}
+                    title={
+                      files.characterFiles.length === 0
+                        ? t("emptyState.fandomCharacters.title")
+                        : t("facts.noSearchResultTitle")
+                    }
+                    description={
+                      files.characterFiles.length === 0
+                        ? t("emptyState.fandomCharacters.description")
+                        : t("facts.noSearchResultDescription")
+                    }
+                    actions={
+                      files.characterFiles.length === 0
+                        ? [
+                            {
+                              key: "create-character",
+                              element: (
+                                <Button
+                                  tone="accent"
+                                  fill="solid"
+                                  size="sm"
+                                  onClick={() => openCreateModalIntent("core_characters")}
+                                >
+                                  {t("common.actions.addCharacter")}
+                                </Button>
+                              ),
+                            },
+                          ]
+                        : undefined
+                    }
+                  />
+                ) : (
+                  filteredCharacterFiles.map((f) => (
+                    <button
+                      type="button"
+                      key={f.filename}
+                      className={`flex w-full items-center gap-2 pl-6 pr-2 py-1.5 text-left text-sm cursor-pointer rounded-md transition-colors ${
+                        editor.selectedFile === f.filename && editor.selectedCategory === "core_characters"
+                          ? "bg-accent/10 text-accent font-semibold"
+                          : "hover:bg-black/5 dark:hover:bg-white/5 text-text/70"
+                      } ${editor.editorBusy ? "pointer-events-none opacity-60" : ""}`}
+                      onClick={() => handleSelectFileIntent(f.filename, "core_characters")}
+                    >
+                      <FileText size={13} />
+                      <span>{f.name}</span>
+                    </button>
+                  ))
+                )}
               </div>
             )}
             {chrome.activeTab === "core_worldbuilding" && (
               <div className="mt-1 space-y-0.5">
-                    {files.filesLoading ? (
-                      <div className="pl-6 py-2">
-                        <Spinner size="sm" className="text-accent" />
-                      </div>
-                    ) : filteredWorldbuildingFiles.length === 0 ? (
-                      <EmptyState
-                        compact
-                        icon={<Globe2 size={28} />}
-                        title={
-                          files.worldbuildingFiles.length === 0
-                            ? t("emptyState.fandomWorldbuilding.title")
-                            : t("facts.noSearchResultTitle")
-                        }
-                        description={
-                          files.worldbuildingFiles.length === 0
-                            ? t("emptyState.fandomWorldbuilding.description")
-                            : t("facts.noSearchResultDescription")
-                        }
-                        actions={
-                          files.worldbuildingFiles.length === 0
-                            ? [
-                                {
-                                  key: "create-worldbuilding",
-                                  element: (
-                                    <Button
-                                      tone="accent"
-                                      fill="solid"
-                                      size="sm"
-                                      onClick={() => openCreateModalIntent("core_worldbuilding")}
-                                    >
-                                      {t("common.actions.addWorldbuilding")}
-                                    </Button>
-                                  ),
-                                },
-                              ]
-                            : undefined
-                        }
-                      />
-                    ) : (
-                      filteredWorldbuildingFiles.map((f) => (
-                        <button
-                          type="button"
-                          key={f.filename}
-                          className={`flex w-full items-center gap-2 pl-6 pr-2 py-1.5 text-left text-sm cursor-pointer rounded-md transition-colors ${
-                            editor.selectedFile === f.filename && editor.selectedCategory === "core_worldbuilding"
-                              ? "bg-accent/10 text-accent font-semibold"
-                              : "hover:bg-black/5 dark:hover:bg-white/5 text-text/70"
-                          } ${editor.editorBusy ? "pointer-events-none opacity-60" : ""}`}
-                          onClick={() => handleSelectFileIntent(f.filename, "core_worldbuilding")}
-                        >
-                          <FileText size={13} />
-                          <span>{f.name}</span>
-                        </button>
-                      ))
-                    )}
+                {files.filesLoading ? (
+                  <div className="pl-6 py-2">
+                    <Spinner size="sm" className="text-accent" />
+                  </div>
+                ) : filteredWorldbuildingFiles.length === 0 ? (
+                  <EmptyState
+                    compact
+                    icon={<Globe2 size={28} />}
+                    title={
+                      files.worldbuildingFiles.length === 0
+                        ? t("emptyState.fandomWorldbuilding.title")
+                        : t("facts.noSearchResultTitle")
+                    }
+                    description={
+                      files.worldbuildingFiles.length === 0
+                        ? t("emptyState.fandomWorldbuilding.description")
+                        : t("facts.noSearchResultDescription")
+                    }
+                    actions={
+                      files.worldbuildingFiles.length === 0
+                        ? [
+                            {
+                              key: "create-worldbuilding",
+                              element: (
+                                <Button
+                                  tone="accent"
+                                  fill="solid"
+                                  size="sm"
+                                  onClick={() => openCreateModalIntent("core_worldbuilding")}
+                                >
+                                  {t("common.actions.addWorldbuilding")}
+                                </Button>
+                              ),
+                            },
+                          ]
+                        : undefined
+                    }
+                  />
+                ) : (
+                  filteredWorldbuildingFiles.map((f) => (
+                    <button
+                      type="button"
+                      key={f.filename}
+                      className={`flex w-full items-center gap-2 pl-6 pr-2 py-1.5 text-left text-sm cursor-pointer rounded-md transition-colors ${
+                        editor.selectedFile === f.filename && editor.selectedCategory === "core_worldbuilding"
+                          ? "bg-accent/10 text-accent font-semibold"
+                          : "hover:bg-black/5 dark:hover:bg-white/5 text-text/70"
+                      } ${editor.editorBusy ? "pointer-events-none opacity-60" : ""}`}
+                      onClick={() => handleSelectFileIntent(f.filename, "core_worldbuilding")}
+                    >
+                      <FileText size={13} />
+                      <span>{f.name}</span>
+                    </button>
+                  ))
+                )}
               </div>
             )}
             {chrome.activeTab === "trash" && (

@@ -42,7 +42,13 @@ type DraftThread = { id?: string; title: string; description: string; state: str
 
 const emptyDraft = (): DraftThread => ({ title: "", description: "", state: "", status: ThreadStatus.ACTIVE });
 
-export const ThreadsLayout = ({ auPath, onNavigate }: { auPath: string; onNavigate?: (page: string, path?: string) => void }) => {
+export const ThreadsLayout = ({
+  auPath,
+  onNavigate,
+}: {
+  auPath: string;
+  onNavigate?: (page: string, path?: string) => void;
+}) => {
   const { t } = useTranslation();
   const { showError } = useFeedback();
   const loadGuard = useActiveRequestGuard(auPath);

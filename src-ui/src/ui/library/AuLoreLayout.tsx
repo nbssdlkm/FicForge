@@ -10,16 +10,7 @@ import { Input, Textarea } from "../shared/Input";
 import { EmptyState } from "../shared/EmptyState";
 import { TrashPanel } from "../shared/TrashPanel";
 import type { TrashEntry } from "../../api/engine-client";
-import {
-  Search,
-  Plus,
-  FileText,
-  Trash2,
-  Download,
-  Pin,
-  Eye,
-  Pencil,
-} from "lucide-react";
+import { Search, Plus, FileText, Trash2, Download, Pin, Eye, Pencil } from "lucide-react";
 import { SettingsMarkdown } from "../shared/SettingsMarkdown";
 import { chapterNumFromTrashEntry } from "../../api/engine-client";
 import { useTranslation } from "../../i18n/useAppTranslation";
@@ -615,124 +606,124 @@ export const AuLoreLayout = ({
           <div className="flex-1 overflow-y-auto p-2 font-mono py-4">
             {activeTab === "characters" && (
               <div className="mt-1 space-y-0.5">
-                    {filteredFiles.length === 0 ? (
-                      <EmptyState
-                        compact
-                        icon={<FileText size={28} />}
-                        title={t("emptyState.auCharacters.title")}
-                        description={t("emptyState.auCharacters.description")}
-                        actions={[
-                          {
-                            key: "add-character",
-                            element: (
-                              <Button
-                                tone="accent"
-                                fill="solid"
-                                size="sm"
-                                onClick={() => {
-                                  editor.selectCategory("characters");
-                                  modals.openCreate();
-                                }}
-                              >
-                                {t("common.actions.addCharacter")}
-                              </Button>
-                            ),
-                          },
-                          {
-                            key: "import-character",
-                            element: (
-                              <Button tone="neutral" fill="outline" size="sm" onClick={handleOpenImport}>
-                                {t("common.actions.importFromFandom")}
-                              </Button>
-                            ),
-                          },
-                        ]}
-                      />
-                    ) : (
-                      filteredFiles.map((file) => {
-                        const isPinned = coreIncludes.includes(file.name);
-                        return (
-                          // biome-ignore lint/a11y/useSemanticElements: 内含真 <button>（置顶切换），button 不可嵌 button，只能保留 div+role
-                          <div
-                            key={file.name}
-                            className={`flex items-center justify-between pl-6 pr-2 py-1.5 text-sm cursor-pointer rounded-md ${selectedFile === file.name && openFileCategory === "characters" ? "bg-accent/10 text-accent font-medium" : "text-text/70 hover:bg-black/5 dark:hover:bg-white/5 hover:text-text"}`}
-                            role="button"
-                            tabIndex={0}
+                {filteredFiles.length === 0 ? (
+                  <EmptyState
+                    compact
+                    icon={<FileText size={28} />}
+                    title={t("emptyState.auCharacters.title")}
+                    description={t("emptyState.auCharacters.description")}
+                    actions={[
+                      {
+                        key: "add-character",
+                        element: (
+                          <Button
+                            tone="accent"
+                            fill="solid"
+                            size="sm"
                             onClick={() => {
-                              void editor.openFile(file.name, "characters");
+                              editor.selectCategory("characters");
+                              modals.openCreate();
                             }}
-                            onKeyDown={(event) =>
-                              activateOnEnterOrSpace(event, () => {
-                                void editor.openFile(file.name, "characters");
-                              })
-                            }
                           >
-                            <div className="flex items-center gap-2 overflow-hidden">
-                              <FileText size={14} className="opacity-50 shrink-0" />
-                              <span className="truncate">{file.name}.md</span>
-                            </div>
-                            <button
-                              type="button"
-                              className={`shrink-0 p-1 rounded transition-colors ${isPinned ? "text-accent" : "text-text/30 hover:text-text/50"} ${isSaving ? "opacity-30 cursor-not-allowed" : ""}`}
-                              title={isPinned ? t("coreIncludes.pinned") : t("coreIncludes.setPin")}
-                              disabled={isSaving}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void actions.togglePin(file.name);
-                              }}
-                            >
-                              <Pin size={12} fill={isPinned ? "currentColor" : "none"} />
-                            </button>
-                          </div>
-                        );
-                      })
-                    )}
+                            {t("common.actions.addCharacter")}
+                          </Button>
+                        ),
+                      },
+                      {
+                        key: "import-character",
+                        element: (
+                          <Button tone="neutral" fill="outline" size="sm" onClick={handleOpenImport}>
+                            {t("common.actions.importFromFandom")}
+                          </Button>
+                        ),
+                      },
+                    ]}
+                  />
+                ) : (
+                  filteredFiles.map((file) => {
+                    const isPinned = coreIncludes.includes(file.name);
+                    return (
+                      // biome-ignore lint/a11y/useSemanticElements: 内含真 <button>（置顶切换），button 不可嵌 button，只能保留 div+role
+                      <div
+                        key={file.name}
+                        className={`flex items-center justify-between pl-6 pr-2 py-1.5 text-sm cursor-pointer rounded-md ${selectedFile === file.name && openFileCategory === "characters" ? "bg-accent/10 text-accent font-medium" : "text-text/70 hover:bg-black/5 dark:hover:bg-white/5 hover:text-text"}`}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => {
+                          void editor.openFile(file.name, "characters");
+                        }}
+                        onKeyDown={(event) =>
+                          activateOnEnterOrSpace(event, () => {
+                            void editor.openFile(file.name, "characters");
+                          })
+                        }
+                      >
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <FileText size={14} className="opacity-50 shrink-0" />
+                          <span className="truncate">{file.name}.md</span>
+                        </div>
+                        <button
+                          type="button"
+                          className={`shrink-0 p-1 rounded transition-colors ${isPinned ? "text-accent" : "text-text/30 hover:text-text/50"} ${isSaving ? "opacity-30 cursor-not-allowed" : ""}`}
+                          title={isPinned ? t("coreIncludes.pinned") : t("coreIncludes.setPin")}
+                          disabled={isSaving}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void actions.togglePin(file.name);
+                          }}
+                        >
+                          <Pin size={12} fill={isPinned ? "currentColor" : "none"} />
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             )}
             {activeTab === "worldbuilding" && (
               <div className="mt-1 space-y-0.5">
-                    {worldbuildingFiles.length === 0 ? (
-                      <EmptyState
-                        compact
-                        icon={<FileText size={28} />}
-                        title={t("emptyState.auWorldbuilding.title")}
-                        description={t("emptyState.auWorldbuilding.description")}
-                        actions={[
-                          {
-                            key: "add-worldbuilding",
-                            element: (
-                              <Button
-                                tone="accent"
-                                fill="solid"
-                                size="sm"
-                                onClick={() => {
-                                  editor.selectCategory("worldbuilding");
-                                  modals.openCreate();
-                                }}
-                              >
-                                {t("common.actions.addWorldbuilding")}
-                              </Button>
-                            ),
-                          },
-                        ]}
-                      />
-                    ) : (
-                      worldbuildingFiles.map((file) => (
-                        <button
-                          type="button"
-                          key={file.name}
-                          className={`flex w-full items-center justify-between pl-6 pr-2 py-1.5 text-left text-sm cursor-pointer rounded-md ${selectedFile === file.name && openFileCategory === "worldbuilding" ? "bg-accent/10 text-accent font-medium" : "text-text/70 hover:bg-black/5 dark:hover:bg-white/5 hover:text-text"}`}
-                          onClick={() => {
-                            void editor.openFile(file.name, "worldbuilding");
-                          }}
-                        >
-                          <div className="flex items-center gap-2 overflow-hidden">
-                            <FileText size={14} className="opacity-50 shrink-0" />
-                            <span className="truncate">{file.name}.md</span>
-                          </div>
-                        </button>
-                      ))
-                    )}
+                {worldbuildingFiles.length === 0 ? (
+                  <EmptyState
+                    compact
+                    icon={<FileText size={28} />}
+                    title={t("emptyState.auWorldbuilding.title")}
+                    description={t("emptyState.auWorldbuilding.description")}
+                    actions={[
+                      {
+                        key: "add-worldbuilding",
+                        element: (
+                          <Button
+                            tone="accent"
+                            fill="solid"
+                            size="sm"
+                            onClick={() => {
+                              editor.selectCategory("worldbuilding");
+                              modals.openCreate();
+                            }}
+                          >
+                            {t("common.actions.addWorldbuilding")}
+                          </Button>
+                        ),
+                      },
+                    ]}
+                  />
+                ) : (
+                  worldbuildingFiles.map((file) => (
+                    <button
+                      type="button"
+                      key={file.name}
+                      className={`flex w-full items-center justify-between pl-6 pr-2 py-1.5 text-left text-sm cursor-pointer rounded-md ${selectedFile === file.name && openFileCategory === "worldbuilding" ? "bg-accent/10 text-accent font-medium" : "text-text/70 hover:bg-black/5 dark:hover:bg-white/5 hover:text-text"}`}
+                      onClick={() => {
+                        void editor.openFile(file.name, "worldbuilding");
+                      }}
+                    >
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <FileText size={14} className="opacity-50 shrink-0" />
+                        <span className="truncate">{file.name}.md</span>
+                      </div>
+                    </button>
+                  ))
+                )}
               </div>
             )}
             {activeTab === "trash" && (

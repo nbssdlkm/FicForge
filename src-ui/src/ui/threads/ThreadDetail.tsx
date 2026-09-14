@@ -286,12 +286,7 @@ export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged,
                   {
                     key: "add",
                     element: (
-                      <Button
-                        tone="accent"
-                        fill="solid"
-                        size="sm"
-                        onClick={() => openPicker()}
-                      >
+                      <Button tone="accent" fill="solid" size="sm" onClick={() => openPicker()}>
                         {t("threads.detail.addNode")}
                       </Button>
                     ),
@@ -300,134 +295,134 @@ export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged,
               />
             ) : (
               <>
-              {nodes.map((f, idx) => {
-                const role = f.thread_roles?.[thread.id] ?? "";
-                const tags = nodeTags(f);
-                return (
-                  <Fragment key={f.id}>
-                    {/* REQ-140：每个节点前的缝隙插入口（含首节点之前） */}
-                    <GapInsert beforeFactId={f.id} afterFactId={nodes[idx - 1]?.id} />
-                  <div className="group relative rounded-sm border border-rule bg-surface py-3 pl-5 pr-3">
-                    <span
-                      aria-hidden
-                      className="pointer-events-none absolute left-0 top-3 bottom-3 w-[2px] rounded-r bg-gold opacity-65"
-                    />
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2 font-mono text-[10px] text-text/45">
-                        {/* № = 本线内节点序，ch.X = 章号（审 NIT：两处别都显示章号） */}
-                        <span className="text-gold">№ {String(idx + 1).padStart(2, "0")}</span>
-                        <span>ch.{f.chapter ?? 0}</span>
-                      </div>
-                      {/* REQ-140：操作簇常显（上移/下移/编辑笔记/摘除）——hover 才显示曾让卡拉找不着摘除 */}
-                      <div className="flex shrink-0 items-center gap-0.5">
-                        <button
-                          type="button"
-                          onClick={() => moveNode(f, "up")}
-                          disabled={busyId === f.id || idx === 0}
-                          aria-label={t("threads.detail.moveUp")}
-                          className="rounded p-0.5 text-text/35 transition-colors hover:bg-rule-soft hover:text-text/70 disabled:opacity-30"
-                        >
-                          <ArrowUp size={13} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveNode(f, "down")}
-                          disabled={busyId === f.id || idx === nodes.length - 1}
-                          aria-label={t("threads.detail.moveDown")}
-                          className="rounded p-0.5 text-text/35 transition-colors hover:bg-rule-soft hover:text-text/70 disabled:opacity-30"
-                        >
-                          <ArrowDown size={13} />
-                        </button>
-                        {onEditFact ? (
-                          <button
-                            type="button"
-                            onClick={() => onEditFact(f.id)}
-                            aria-label={t("threads.detail.editFactNote")}
-                            className="rounded p-0.5 text-text/35 transition-colors hover:bg-accent/10 hover:text-accent"
-                          >
-                            <BookOpen size={13} />
-                          </button>
-                        ) : null}
-                        <button
-                          type="button"
-                          onClick={() => removeNode(f)}
-                          disabled={busyId === f.id}
-                          aria-label={t("threads.detail.removeNode")}
-                          className="shrink-0 rounded p-0.5 text-text/35 transition-colors hover:bg-error/10 hover:text-error"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    </div>
-                    <p className="mt-1 font-serif text-[13px] leading-snug text-text/90">{f.content_clean}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      {/* REQ-140：人物 + 故事时间元数据徽章（中性色调，区别于金色叙事标签） */}
-                      {(f.characters ?? []).map((c) => (
+                {nodes.map((f, idx) => {
+                  const role = f.thread_roles?.[thread.id] ?? "";
+                  const tags = nodeTags(f);
+                  return (
+                    <Fragment key={f.id}>
+                      {/* REQ-140：每个节点前的缝隙插入口（含首节点之前） */}
+                      <GapInsert beforeFactId={f.id} afterFactId={nodes[idx - 1]?.id} />
+                      <div className="group relative rounded-sm border border-rule bg-surface py-3 pl-5 pr-3">
                         <span
-                          key={`char-${c}`}
-                          className="rounded-[1px] border border-rule bg-rule-soft px-[5px] py-[2px] font-sans text-[9px] text-ink-muted"
-                        >
-                          {c}
-                        </span>
-                      ))}
-                      {f.story_time_tag ? (
-                        <span className="rounded-[1px] border border-rule bg-rule-soft px-[5px] py-[2px] font-mono text-[9px] text-ink-muted">
-                          {f.story_time_tag}
-                        </span>
-                      ) : null}
-                      {tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-[1px] border border-gold/30 bg-gold/15 px-[5px] py-[2px] font-mono text-[8px] font-medium uppercase tracking-[0.14em] text-gold"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                      {/* thread_role — 「role」 显示，点击改 */}
-                      {editingRoleId === f.id ? (
-                        <Input
-                          autoFocus
-                          aria-label={t("threads.detail.roleLabel")}
-                          value={roleDraft}
-                          onChange={(e) => setRoleDraft(e.target.value)}
-                          onBlur={() => {
-                            if (pendingEscapeRef.current) {
-                              pendingEscapeRef.current = false;
-                              return;
-                            }
-                            saveRole(f);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              saveRole(f);
-                            } else if (e.key === "Escape") {
-                              pendingEscapeRef.current = true;
-                              setEditingRoleId(null);
-                            }
-                          }}
-                          placeholder={t("threads.detail.rolePlaceholder")}
-                          className="h-7 w-40 text-xs"
+                          aria-hidden
+                          className="pointer-events-none absolute left-0 top-3 bottom-3 w-[2px] rounded-r bg-gold opacity-65"
                         />
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingRoleId(f.id);
-                            setRoleDraft(role);
-                          }}
-                          className="font-display text-[13px] italic text-accent hover:underline"
-                        >
-                          {role ? `「${role}」` : `+ ${t("threads.detail.setRole")}`}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  </Fragment>
-                );
-              })}
-              {/* 尾部缝隙 = 追加到最后 */}
-              <GapInsert afterFactId={nodes[nodes.length - 1]?.id} />
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-2 font-mono text-[10px] text-text/45">
+                            {/* № = 本线内节点序，ch.X = 章号（审 NIT：两处别都显示章号） */}
+                            <span className="text-gold">№ {String(idx + 1).padStart(2, "0")}</span>
+                            <span>ch.{f.chapter ?? 0}</span>
+                          </div>
+                          {/* REQ-140：操作簇常显（上移/下移/编辑笔记/摘除）——hover 才显示曾让卡拉找不着摘除 */}
+                          <div className="flex shrink-0 items-center gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => moveNode(f, "up")}
+                              disabled={busyId === f.id || idx === 0}
+                              aria-label={t("threads.detail.moveUp")}
+                              className="rounded p-0.5 text-text/35 transition-colors hover:bg-rule-soft hover:text-text/70 disabled:opacity-30"
+                            >
+                              <ArrowUp size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveNode(f, "down")}
+                              disabled={busyId === f.id || idx === nodes.length - 1}
+                              aria-label={t("threads.detail.moveDown")}
+                              className="rounded p-0.5 text-text/35 transition-colors hover:bg-rule-soft hover:text-text/70 disabled:opacity-30"
+                            >
+                              <ArrowDown size={13} />
+                            </button>
+                            {onEditFact ? (
+                              <button
+                                type="button"
+                                onClick={() => onEditFact(f.id)}
+                                aria-label={t("threads.detail.editFactNote")}
+                                className="rounded p-0.5 text-text/35 transition-colors hover:bg-accent/10 hover:text-accent"
+                              >
+                                <BookOpen size={13} />
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => removeNode(f)}
+                              disabled={busyId === f.id}
+                              aria-label={t("threads.detail.removeNode")}
+                              className="shrink-0 rounded p-0.5 text-text/35 transition-colors hover:bg-error/10 hover:text-error"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        </div>
+                        <p className="mt-1 font-serif text-[13px] leading-snug text-text/90">{f.content_clean}</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          {/* REQ-140：人物 + 故事时间元数据徽章（中性色调，区别于金色叙事标签） */}
+                          {(f.characters ?? []).map((c) => (
+                            <span
+                              key={`char-${c}`}
+                              className="rounded-[1px] border border-rule bg-rule-soft px-[5px] py-[2px] font-sans text-[9px] text-ink-muted"
+                            >
+                              {c}
+                            </span>
+                          ))}
+                          {f.story_time_tag ? (
+                            <span className="rounded-[1px] border border-rule bg-rule-soft px-[5px] py-[2px] font-mono text-[9px] text-ink-muted">
+                              {f.story_time_tag}
+                            </span>
+                          ) : null}
+                          {tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="rounded-[1px] border border-gold/30 bg-gold/15 px-[5px] py-[2px] font-mono text-[8px] font-medium uppercase tracking-[0.14em] text-gold"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                          {/* thread_role — 「role」 显示，点击改 */}
+                          {editingRoleId === f.id ? (
+                            <Input
+                              autoFocus
+                              aria-label={t("threads.detail.roleLabel")}
+                              value={roleDraft}
+                              onChange={(e) => setRoleDraft(e.target.value)}
+                              onBlur={() => {
+                                if (pendingEscapeRef.current) {
+                                  pendingEscapeRef.current = false;
+                                  return;
+                                }
+                                saveRole(f);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  saveRole(f);
+                                } else if (e.key === "Escape") {
+                                  pendingEscapeRef.current = true;
+                                  setEditingRoleId(null);
+                                }
+                              }}
+                              placeholder={t("threads.detail.rolePlaceholder")}
+                              className="h-7 w-40 text-xs"
+                            />
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingRoleId(f.id);
+                                setRoleDraft(role);
+                              }}
+                              className="font-display text-[13px] italic text-accent hover:underline"
+                            >
+                              {role ? `「${role}」` : `+ ${t("threads.detail.setRole")}`}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </Fragment>
+                  );
+                })}
+                {/* 尾部缝隙 = 追加到最后 */}
+                <GapInsert afterFactId={nodes[nodes.length - 1]?.id} />
               </>
             )}
           </div>
