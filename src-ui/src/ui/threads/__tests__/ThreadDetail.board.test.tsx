@@ -7,7 +7,7 @@
  * 「编辑笔记」跳转回调、人物/故事时间元数据徽章、显式 thread_order 优先于章号序。
  */
 
-import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ThreadDetail } from "../ThreadDetail";
 import { FeedbackProvider } from "../../../hooks/useFeedback";
@@ -27,11 +27,7 @@ vi.mock("../../../api/engine-client", async (importActual) => {
   };
 });
 
-import {
-  addFactToThread,
-  removeFactFromThread,
-  moveFactInThread,
-} from "../../../api/engine-client";
+import { addFactToThread, removeFactFromThread, moveFactInThread } from "../../../api/engine-client";
 
 const THREAD = {
   id: "t1",
@@ -103,7 +99,7 @@ describe("ThreadDetail 编排板（REQ-140）", () => {
         />
       </FeedbackProvider>,
     );
-    const items = screen.getAllByText(/章.\但序号/);
+    const items = screen.getAllByText(/章.但序号/);
     expect(items[0].textContent).toContain("章9但序号10");
     expect(items[1].textContent).toContain("章1但序号20");
   });

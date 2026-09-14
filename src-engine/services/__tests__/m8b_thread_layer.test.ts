@@ -17,7 +17,7 @@ import { addFact, editFact } from "../facts_lifecycle.js";
 import { rebuildFactsFromOps } from "../../ops/ops_projection.js";
 import { createOpsEntry } from "../../domain/ops_entry.js";
 import { createThread } from "../../domain/thread.js";
-import { createFact } from "../../domain/fact.js";
+import { createFact, sanitizeThreadOrder } from "../../domain/fact.js";
 import { createProject, createLLMConfig } from "../../domain/project.js";
 import { createState } from "../../domain/state.js";
 import { ThreadStatus, FactStatus } from "../../domain/enums.js";
@@ -445,5 +445,15 @@ describe("REQ-140 fact.thread_order 序列化全链", () => {
     const all = await factRepo.listAll("au");
     expect(all.find((f) => f.id === "f2")?.thread_order).toEqual({ t1: 10 });
     expect(all.find((f) => f.id === "f3")?.thread_order).toBeUndefined();
+  });
+
+  it("垃圾形状消毒：数组 → undefined（codex R2：typeof 数组也是 object，会漏成 {\"0\":n} 脏键）", async () => {
+    expect(sanitizeThreadOrder([10, 20])).toBeUndefined();
+    adapter.seed(
+      "au/facts.jsonl",
+      JSON.stringify({ id: "f4", content_clean: "c", content_raw: "r", thread_order: [10, 20] }) + "\n",
+    );
+    const all = await factRepo.listAll("au");
+    expect(all.find((f) => f.id === "f4")?.thread_order).toBeUndefined();
   });
 });

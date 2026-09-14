@@ -184,13 +184,26 @@ export async function addFactToThread(
   await editFact(auPath, factId, patch);
 }
 
-/** 全线归一化写回（10/20/30…）。members 应已是目标顺序。 */
+/** 全线归一化写回（10/20/30…）。members 应已是目标顺序。
+ *  best-effort 语义（REQ-140 codex 审 R2 修复）：逐条 editFact 无事务，任一失败不中断——
+ *  继续写完其余（序号任意数值都能排序，多写一条就多收敛一条），末尾聚合抛出让 UI 响亮报错；
+ *  已是目标值的跳过不写，收窄失败窗口。重试可自愈（下次归一化从混合序号继续收敛）。 */
 async function writeNormalizedOrders(auPath: string, threadId: string, members: Fact[]): Promise<void> {
   const mapping = normalizeThreadOrders(members);
+  const total = Object.keys(mapping).length;
+  const failures: unknown[] = [];
   for (const [factId, order] of Object.entries(mapping)) {
-    const fresh = await getEngine().repos.fact.get(auPath, factId);
-    if (!fresh) continue;
-    await editFact(auPath, factId, { thread_order: { ...(fresh.thread_order ?? {}), [threadId]: order } });
+    try {
+      const fresh = await getEngine().repos.fact.get(auPath, factId);
+      if (!fresh) continue;
+      if (fresh.thread_order?.[threadId] === order) continue; // 已是目标值 → 不重写，不涨 revision
+      await editFact(auPath, factId, { thread_order: { ...(fresh.thread_order ?? {}), [threadId]: order } });
+    } catch (err) {
+      failures.push(err);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(`剧情线序号归一化部分失败：${total} 条中 ${failures.length} 条未写入（重试可自愈）`);
   }
 }
 

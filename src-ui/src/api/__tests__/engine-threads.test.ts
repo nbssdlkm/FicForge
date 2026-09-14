@@ -195,4 +195,37 @@ describe("moveFactInThread / removeFactFromThread 序号维护（REQ-140）", ()
     expect(fresh?.thread_ids).toEqual([]);
     expect(fresh?.thread_order ?? {}).not.toHaveProperty(t.id);
   });
+
+  it("归一化半写故障（codex R2 修复）：单条写失败不中断其余，聚合抛错，重试自愈收敛", async () => {
+    const f1 = await seedFact();
+    const f2 = await seedFact();
+    const f3 = await seedFact();
+    const t = await addThread(auPath, { title: "线" });
+    await addFactToThread(auPath, f1, t.id, {});
+    await addFactToThread(auPath, f2, t.id, {});
+    await addFactToThread(auPath, f3, t.id, {}); // 序号 10/20/30
+
+    // 故障注入：归一化的第一笔 facts 写盘失败（f3→20 写不进去）
+    const origWrite = adapter.writeFile.bind(adapter);
+    let factsWrites = 0;
+    vi.spyOn(adapter, "writeFile").mockImplementation(async (p: string, c: string) => {
+      if (p.includes("facts.jsonl")) {
+        factsWrites += 1;
+        if (factsWrites === 1) throw new Error("injected io failure");
+      }
+      return origWrite(p, c);
+    });
+
+    // f3 上移 → 目标 [f1,f3,f2] = 10/20/30；f1 同值跳过，f3 写失败，f2 应仍写成 30（best-effort 不中断）
+    await expect(moveFactInThread(auPath, t.id, f3, "up")).rejects.toThrow(/部分失败/);
+    expect(await orderOf(f2, t.id)).toBe(30); // 未受故障影响的那笔已持久化
+    expect(await orderOf(f3, t.id)).toBe(30); // 故障笔保持旧值
+
+    // 重试（撤掉故障）：自愈收敛到目标序
+    vi.restoreAllMocks();
+    await moveFactInThread(auPath, t.id, f3, "up");
+    expect(await orderOf(f1, t.id)).toBe(10);
+    expect(await orderOf(f3, t.id)).toBe(20);
+    expect(await orderOf(f2, t.id)).toBe(30);
+  });
 });

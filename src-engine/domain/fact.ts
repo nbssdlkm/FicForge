@@ -57,10 +57,11 @@ export function isColdFact(f: Pick<Fact, "archived">): boolean {
 
 /**
  * thread_order 读取消毒（REQ-140）：repo 读盘与 ops replay 共用同一判据——仅保留有限数值
- * 键值对，非法形状/垃圾值 → undefined（视同未编排，走派生序兜底）。单一真相源防两处漂移。
+ * 键值对，非法形状（含数组——typeof 数组也是 object，会漏成 {"0":n} 脏键）/垃圾值 → undefined
+ * （视同未编排，走派生序兜底）。单一真相源防两处漂移。
  */
 export function sanitizeThreadOrder(raw: unknown): Record<string, number> | undefined {
-  if (typeof raw !== "object" || raw === null) return undefined;
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return undefined;
   const out: Record<string, number> = {};
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
     if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
