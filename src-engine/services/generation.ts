@@ -27,7 +27,9 @@ import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { ResolvedLLMConfig, ResolvedLLMParams } from "../llm/config_resolver.js";
 import { createProvider, resolveLlmConfig, resolveLlmParams } from "../llm/config_resolver.js";
 import { isAbortError } from "../utils/abort_error.js";
-import { logCatch } from "../logger/index.js";
+import { logCatch, redactString } from "../logger/index.js";
+import { createGenerationDebugBundle } from "../domain/debug_bundle.js";
+import { captureDebugBundle } from "../debug/index.js";
 import {
   chapterInflightKey,
   isChapterInflight,
@@ -193,11 +195,20 @@ export async function* generateChapter(params: GenerateChapterParams): AsyncGene
   let fullText = "";
   const startTime = performance.now();
 
+  // 调试包骨架在 try 入口建立（开发者模式观测面，spec 2026-09-08）：后续步骤逐步填充，
+  // resolveLlmConfig/provider 创建/设定文件加载/RAG 检索/assembleContext 任一抛错都能
+  // 以「当时有什么填什么」的骨架产 error bundle。abort（用户取消）不 capture。
+  const debugBundle = createGenerationDebugBundle({ path: "write", au_id, chapter_num });
+
   try {
     // === 步骤 1：解析配置和参数 ===
     const llmConfig: ResolvedLLMConfig = resolveLlmConfig(session_llm, project, settings);
     const modelName = llmConfig.model;
     const llmParams: ResolvedLLMParams = resolveLlmParams(modelName, session_params, project, settings);
+    // 调试包在 createProvider 之前填充——createProvider 也可能抛错（如 local 模式被拒）。
+    // max_tokens 由 assembleContext 按 D-0039 公式算出，待其返回后覆写为真实值。
+    debugBundle.model = modelName;
+    debugBundle.params = { max_tokens: 0, temperature: llmParams.temperature, top_p: llmParams.top_p };
     const provider: LLMProvider = params._provider_override ?? createProvider(llmConfig);
 
     // === 步骤 1.5：加载角色与世界观设定文件（P5 核心设定用）===
@@ -250,6 +261,13 @@ export async function* generateChapter(params: GenerateChapterParams): AsyncGene
       effective_llm: llmConfig,
     });
     const { messages, max_tokens, budget_report, context_summary } = ctx;
+
+    debugBundle.params = { max_tokens, temperature: llmParams.temperature, top_p: llmParams.top_p };
+    debugBundle.start_messages = messages;
+    debugBundle.final_messages = messages; // 写文路径单轮，start === final
+    debugBundle.iterations = 1;
+    debugBundle.budget_report = budget_report;
+    debugBundle.context_summary = context_summary;
 
     // 把结构化 RAG 片段挂到 summary（assembleContext 只看纯文本，这里外挂 detail）
     context_summary.rag_chunks = ragChunksDetail
@@ -305,6 +323,13 @@ export async function* generateChapter(params: GenerateChapterParams): AsyncGene
     });
 
     // === 步骤 6：yield done ===
+    debugBundle.result = {
+      input_tokens: budget_report.total_input_tokens,
+      output_tokens: outputTokens,
+      duration_ms: elapsedMs,
+      draft_label: label,
+    };
+    captureDebugBundle(debugBundle);
     yield {
       type: "done",
       data: {
@@ -318,6 +343,13 @@ export async function* generateChapter(params: GenerateChapterParams): AsyncGene
     if (isAbortError(e)) {
       throw e;
     }
+
+    // 调试包：error 过 redactString（provider 错误体可能回显密钥），骨架有什么算什么。
+    debugBundle.error = {
+      code: e instanceof LLMError ? e.error_code : "INTERNAL_ERROR",
+      message: redactString(e instanceof Error ? e.message : String(e)),
+    };
+    captureDebugBundle(debugBundle);
 
     // === 错误处理：保留部分文本为草稿 ===
     if (fullText && label) {

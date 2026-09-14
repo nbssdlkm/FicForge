@@ -204,6 +204,37 @@ describe("FileSettingsRepository react_extraction_enabled (M9 default-on, PD-4)"
   });
 });
 
+describe("FileSettingsRepository developer_mode (2026-09-08 开发者模式，默认关)", () => {
+  it("空 yaml / 缺字段（老 settings）首次 get → 默认关（false）", async () => {
+    const adapter = new MockAdapter();
+    const repo = new FileSettingsRepository(adapter, "");
+    const s = await repo.get();
+    expect(s.app.developer_mode).toBe(false);
+  });
+
+  it("显式 true round-trip：开后读回仍是 true", async () => {
+    const adapter = new MockAdapter();
+    const repo = new FileSettingsRepository(adapter, "");
+    const s = await repo.get();
+    s.app.developer_mode = true;
+    await repo.save(s);
+    const reloaded = await repo.get();
+    expect(reloaded.app.developer_mode).toBe(true);
+  });
+
+  it("显式 false round-trip：关后读回仍是 false（不被默认覆盖）", async () => {
+    const adapter = new MockAdapter();
+    const repo = new FileSettingsRepository(adapter, "");
+    const s = await repo.get();
+    s.app.developer_mode = true;
+    await repo.save(s);
+    const s2 = await repo.get();
+    s2.app.developer_mode = false;
+    await repo.save(s2);
+    expect((await repo.get()).app.developer_mode).toBe(false);
+  });
+});
+
 describe("FileSettingsRepository fonts — dictToFontsConfig + 迁移", () => {
   it("空 yaml 首次 get → app.fonts 为 createFontsConfig() 默认值", async () => {
     const adapter = new MockAdapter();

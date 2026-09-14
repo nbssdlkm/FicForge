@@ -55,6 +55,11 @@ import { runAgentLoop, type AgentLoopConfig, type AgentLoopEvent } from "./agent
 import type { RepairTrace } from "./tool_args_repair.js";
 import { SIMPLE_TOOL_PATH_FIELDS, SIMPLE_TOOL_SCHEMAS } from "../domain/simple_tools_zod.js";
 import { createTelemetry, type TelemetrySink } from "./agent_telemetry.js";
+import type { BudgetReport } from "../domain/budget_report.js";
+import type { ContextSummary } from "../domain/context_summary.js";
+import { createGenerationDebugBundle, type GenerationDebugBundle } from "../domain/debug_bundle.js";
+import { captureDebugBundle } from "../debug/index.js";
+import { redactString } from "../logger/index.js";
 // E4a 拆出的工具层（分类判据 / 参数修复）——内部 import，仅本文件族可见
 import {
   isKnownTool,
@@ -323,6 +328,9 @@ interface DispatchSession {
   max_tokens: number;
   /** [systemMessage, ...history, userMessage]：组装只发生一次，进 runAgentLoop startMessages。 */
   startMessages: Message[];
+  /** 分层组装旁路产物（调试包 / token badge）。 */
+  budget_report: BudgetReport;
+  context_summary: ContextSummary;
 }
 
 interface ResolveDispatchDeps {
@@ -408,7 +416,7 @@ async function resolveDispatchSession(deps: ResolveDispatchDeps): Promise<Dispat
     effective_llm: llmConfig,
     character_aliases, // E8：对话正文只出现别名时活跃角色过滤集也认主名
   });
-  const { systemContent, latestUserContent, max_tokens } = ctx;
+  const { systemContent, latestUserContent, max_tokens, budget_report, context_summary } = ctx;
   const systemMessage: Message = { role: "system", content: systemContent };
   const userMessage: Message = { role: "user", content: latestUserContent };
 
@@ -431,6 +439,8 @@ async function resolveDispatchSession(deps: ResolveDispatchDeps): Promise<Dispat
     loreIntent,
     max_tokens,
     startMessages: [systemMessage, ...history, userMessage],
+    budget_report,
+    context_summary,
   };
 }
 
@@ -450,6 +460,8 @@ interface BuildAgentLoopConfigDeps {
   language: "zh" | "en";
   telemetry: TelemetrySink;
   signal?: AbortSignal;
+  /** 调试包末轮快照（开发者模式观测面）：每次迭代开始时被调，调用方据此刷新 final_messages/iterations。 */
+  onDebugIter?: (iter: number, history: Message[]) => void;
 }
 
 /**
@@ -470,6 +482,7 @@ function buildAgentLoopConfig(deps: BuildAgentLoopConfigDeps): AgentLoopConfig<S
     language,
     telemetry,
     signal,
+    onDebugIter,
   } = deps;
   const { llmConfig, modelName, llmParams, tools, suppressTokens, loreIntent } = session;
 
@@ -484,10 +497,12 @@ function buildAgentLoopConfig(deps: BuildAgentLoopConfigDeps): AgentLoopConfig<S
     isMutatingTool,
     isTerminalTool: (name) => name === SIMPLE_TOOL_CHAT_REPLY,
     executeReadTool: async (name, args, _sig) => executeReadTool(name, args, { au_id, chapter_repo, adapter }),
-    onIterStart: async () => {
+    onIterStart: async (iter, history) => {
       st.bufferedTokens = [];
       st.chatReplyEmittedLen = 0;
       st.chatReplyStreamingActive = false;
+      // 调试包末轮快照：internalHistory 含上一轮完整 tool 交互，末轮即实际发送序列。
+      onDebugIter?.(iter, history);
     },
     onTokenChunk: (delta) => {
       if (suppressTokens) {
@@ -917,6 +932,16 @@ export async function* dispatchSimpleChat(params: SimpleChatDispatchParams): Asy
   const streamState = createDispatchStreamState();
   const startTime = performance.now();
 
+  // 调试包骨架在入口建立（开发者模式观测面，spec 2026-09-08 v3）：resolveDispatchSession /
+  // provider 创建 / runAgentLoop 普通抛错统一走 catch → error bundle，chat 失败零漏记。
+  const debugBundle: GenerationDebugBundle = createGenerationDebugBundle({ path: "chat", au_id, chapter_num });
+  let debugCaptured = false;
+  const captureDebugOnce = () => {
+    if (debugCaptured) return;
+    debugCaptured = true;
+    captureDebugBundle(debugBundle);
+  };
+
   // M17：占用并发标志紧贴 try —— finally 保证释放，中间无可抛点，避免标志泄漏锁死本章。
   markChapterInflight(concurrencyKey, "dispatch");
   try {
@@ -946,6 +971,18 @@ export async function* dispatchSimpleChat(params: SimpleChatDispatchParams): Asy
     // label 从只读 session 落到可变 streamState —— 回调组 / catch 段统一读 streamState.label。
     streamState.label = session.label;
 
+    // 调试包：填充解析产物（start_messages = 首轮发送序列，含 system + 历史 + 最新 user）。
+    debugBundle.model = session.modelName;
+    debugBundle.params = {
+      max_tokens: session.max_tokens,
+      temperature: session.llmParams.temperature,
+      top_p: session.llmParams.top_p,
+    };
+    debugBundle.start_messages = session.startMessages;
+    debugBundle.final_messages = session.startMessages; // 无迭代时末轮即首轮
+    debugBundle.budget_report = session.budget_report;
+    debugBundle.context_summary = session.context_summary;
+
     // agent loop 回调组：共享闭包已显式化为 streamState，回调工厂只依赖 (session + state + dep)。
     const config = buildAgentLoopConfig({
       session,
@@ -959,6 +996,11 @@ export async function* dispatchSimpleChat(params: SimpleChatDispatchParams): Asy
       language,
       telemetry,
       signal,
+      onDebugIter: (iter, history) => {
+        // 末轮实际发送序列 = [...startMessages, ...internalHistory]；iter 零基 → +1 归一为轮数。
+        debugBundle.final_messages = [...session.startMessages, ...history];
+        debugBundle.iterations = iter + 1;
+      },
     });
 
     // 跑 runAgentLoop + 事件翻译委托：event 有则 yield，terminal 则终止。
@@ -970,9 +1012,32 @@ export async function* dispatchSimpleChat(params: SimpleChatDispatchParams): Asy
       signal,
     )) {
       const { event, terminal } = translateLoopEvent(ev, language);
+      // 调试包：终态分三路填满——done_text（带 generated_with 统计）/ done_tools（无统计只记时长）/
+      // error（含三类 harness 直产终态：max_iter / empty_response / declared_tools_but_empty）。
+      if (event?.type === "done_text") {
+        debugBundle.result = {
+          input_tokens: event.data.generated_with.input_tokens,
+          output_tokens: event.data.generated_with.output_tokens,
+          duration_ms: event.data.generated_with.duration_ms,
+          draft_label: event.data.draft_label,
+        };
+      } else if (event?.type === "done_tools") {
+        debugBundle.result = {
+          input_tokens: null,
+          output_tokens: null,
+          duration_ms: Math.trunc(performance.now() - startTime),
+        };
+      } else if (event?.type === "error") {
+        debugBundle.error = { code: event.data.error_code, message: redactString(event.data.message) };
+      }
       if (event) yield event;
-      if (terminal) return;
+      if (terminal) {
+        captureDebugOnce();
+        return;
+      }
     }
+    // 业务终态（done_text/done_tools 经翻译层 terminal=false）：runAgentLoop 迭代器自然结束落此。
+    captureDebugOnce();
   } catch (e) {
     // AbortError 直接透传给 caller，不 emit error event。
     if (isAbortError(e)) {
@@ -980,7 +1045,12 @@ export async function* dispatchSimpleChat(params: SimpleChatDispatchParams): Asy
     }
     // partial rescue 已在 onPartialRescue 内处理，这里只 emit error event。
     // L9：partial_draft_label 只有在 rescue 真落盘成功时才给 label（详见 DispatchStreamState）。
-    yield toDispatchErrorEvent(e, streamState.rescueSucceeded ? streamState.label : null);
+    const errEvent = toDispatchErrorEvent(e, streamState.rescueSucceeded ? streamState.label : null);
+    if (errEvent.type === "error") {
+      debugBundle.error = { code: errEvent.data.error_code, message: redactString(errEvent.data.message) };
+    }
+    captureDebugOnce();
+    yield errEvent;
   } finally {
     // M17：无论正常结束 / error / abort throw，都要释放并发标志，否则该 (au, chapter)
     // 永久被锁死无法再生成。

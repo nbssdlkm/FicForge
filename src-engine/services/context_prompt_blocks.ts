@@ -18,6 +18,7 @@ import { DEFAULT_CHAPTER_LENGTH } from "../domain/project.js";
 import type { Project, WritingStyle } from "../domain/project.js";
 import type { State } from "../domain/state.js";
 import { getPrompts } from "../prompts/index.js";
+import { sortThreadFacts } from "./thread_state.js";
 import { countTokens } from "../tokenizer/index.js";
 import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 
@@ -444,18 +445,25 @@ function sortByWeightAndRecency(facts: Fact[]): Fact[] {
 // ===========================================================================
 
 /**
- * 把活跃剧情线（status=active）的「当前进展」拼成一段注入文本。
+ * 把活跃剧情线（status=active）注入文本。
+ *
+ * REQ-140 线骨架格式（有线内角色标签时）：
+ *   `- 【标题】role1 → role2 → … ▶ 当前：进展`
+ * 骨架 = 成员 fact 的 thread_roles[threadId] 按编排序（sortThreadFacts）拼接，无 role 的节点
+ * 不进骨架；全线无 role ⇒ 回退 M8-B 一行式 `-【标题】进展`（字节不变，存量 golden/测试零回归）。
+ * state 为空时不输出 ▶ 段。冷 fact（已归档）不进骨架（与注入语义一致）。
  *
  * - 仅 active 线注入（resolved/dormant 不需要模型注意力）。
  * - 按 updated_at 倒序（最近推进的在前）。
  * - 预算截断：超预算丢尾部线（mirror buildFactsLayer 截断语义）。
  * - 空 / 全非 active ⇒ 返回 ""（调用方 filter(Boolean) 后逐字节回退，golden 零回归）。
  *
- * 成员关系（哪些 Fact 属于线）的真相源是 fact.thread_ids，本函数不反查 fact，
- * 只读 thread.title + thread.state，避免双向状态（spec D1）。
+ * 成员关系（哪些 Fact 属于线）的真相源是 fact.thread_ids，本函数不反查 fact 本体内容，
+ * 只读 thread.title/state + fact.thread_roles/thread_order，避免双向状态（spec D1）。
  */
 export function buildThreadsLayer(
   threads: Thread[],
+  facts: Fact[],
   budget_tokens: number,
   llm_config: unknown,
   language = "zh",
@@ -466,11 +474,26 @@ export function buildThreadsLayer(
     .sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""));
   if (active.length === 0) return "";
 
+  const P = getPrompts(language as "zh" | "en");
+  const warmFacts = facts.filter((f) => !isColdFact(f));
+
   const lines: string[] = [];
   let used = 0;
   for (const t of active) {
+    const spine = sortThreadFacts(warmFacts, t.id)
+      .map((f) => f.thread_roles?.[t.id]?.trim() ?? "")
+      .filter(Boolean)
+      .join(" → ");
     const stateText = t.state?.trim() || t.description?.trim() || "";
-    const line = stateText ? `- 【${t.title}】${stateText}` : `- 【${t.title}】`;
+    let line: string;
+    if (spine) {
+      line = stateText
+        ? `- 【${t.title}】${spine} ${P.THREAD_CURRENT_MARKER}${stateText}`
+        : `- 【${t.title}】${spine}`;
+    } else {
+      // 无骨架 ⇒ M8-B 一行式原样（存量行为零回归）
+      line = stateText ? `- 【${t.title}】${stateText}` : `- 【${t.title}】`;
+    }
     const tk = _count(line, llm_config).count;
     if (used + tk > budget_tokens) break; // 预算截断，丢尾部
     lines.push(line);
@@ -478,7 +501,6 @@ export function buildThreadsLayer(
   }
   if (lines.length === 0) return "";
 
-  const P = getPrompts(language as "zh" | "en");
   return `${P.SECTION_PLOT_THREADS}\n${lines.join("\n")}`;
 }
 

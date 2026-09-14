@@ -102,6 +102,7 @@ const en: PromptModule = {
   SECTION_PLOT_STATE: "## Current Plot State",
   SECTION_PLOT_THREADS:
     "## Active Plot Threads (keep these long arcs coherent; do not forget them or resolve them twice)",
+  THREAD_CURRENT_MARKER: "▶ Current: ",
 
   INFO_ASYMMETRY_RULES:
     "(Knowledge-scope note: facts below may carry annotations like [known only to: X], [reader-only], or [hidden from: X], marking information asymmetry.\n" +

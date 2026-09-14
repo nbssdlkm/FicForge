@@ -238,6 +238,34 @@ describe("assembleChatContext (对话式 × 记忆栈融合 P1.2)", () => {
     expect(result.context_summary.rag_chunks_retrieved).toBeGreaterThan(0);
   });
 
+  it("RAG：结构化 chunks 明细挂到 summary.rag_chunks（2026-09-08 调试面板修复，与写文路径同款）", async () => {
+    const adapter = new MockAdapter();
+    const chapterRepo = new FileChapterRepository(adapter);
+    const project = baseProject({ cast_registry: { characters: ["Alice"] }, core_always_include: ["Alice"] });
+    const state = createState({ au_id: "au_chat", current_chapter: 5 });
+    const vectorRepo = createMockVectorRepo({
+      chapters: [{ content: "RAG 召回片段：密林深处有古老祭坛。", chapter_num: 2, score: 0.9, metadata: {} }],
+    });
+
+    const result = await assembleChatContext({
+      project,
+      state,
+      user_input: "Alice 继续深入",
+      facts: [],
+      chapter_repo: chapterRepo,
+      au_id: "au_chat",
+      vector_repo: vectorRepo,
+      embedding_provider: mockEmbedding,
+      language: "zh",
+    });
+
+    // 修复前：chunks 被丢弃，rag_chunks 恒空；修复后：detail 列表与 retrieved 计数一致。
+    expect(result.context_summary.rag_chunks.length).toBe(1);
+    expect(result.context_summary.rag_chunks[0].collection).toBe("chapters");
+    expect(result.context_summary.rag_chunks[0].chapter_num).toBe(2);
+    expect(result.context_summary.rag_chunks_retrieved).toBe(1);
+  });
+
   it("不传 vector_repo → gate 在 vector_repo 处短路，embedding 一次都不调用（estimate 路径省钱保证）", async () => {
     const adapter = new MockAdapter();
     const chapterRepo = new FileChapterRepository(adapter);

@@ -6,7 +6,7 @@
 import type { PlatformAdapter } from "../../platform/adapter.js";
 import { FactSource, FactStatus, FactType, NarrativeWeight, TimeKind, SuspenseType } from "../../domain/enums.js";
 import type { Fact, FactFieldConfidence } from "../../domain/fact.js";
-import { createFact } from "../../domain/fact.js";
+import { createFact, sanitizeThreadOrder } from "../../domain/fact.js";
 import { ON_DISK_DEFAULT_REVISION } from "../../domain/project.js";
 import type { FactRepository } from "../interfaces/fact.js";
 import {
@@ -57,6 +57,7 @@ export function factToDict(fact: Fact): Record<string, unknown> {
   // Thread 关联（M8-B）：成员关系单一真相源，仅非空时写入
   if (fact.thread_ids?.length) d.thread_ids = fact.thread_ids;
   if (fact.thread_roles && Object.keys(fact.thread_roles).length) d.thread_roles = fact.thread_roles;
+  if (fact.thread_order && Object.keys(fact.thread_order).length) d.thread_order = fact.thread_order;
   // _confidence (旁路，持久化供 UI 高亮用)
   if (fact._confidence) d._confidence = fact._confidence;
   // M10-B: 冷热分层 — archived 字段仅 true 时写入（节约存储，false 为默认）
@@ -105,6 +106,7 @@ function dictToFact(d: Record<string, unknown>): Fact {
       typeof d.thread_roles === "object" && d.thread_roles !== null
         ? (d.thread_roles as Record<string, string>)
         : undefined,
+    thread_order: sanitizeThreadOrder(d.thread_order),
     // _confidence
     _confidence:
       typeof d._confidence === "object" && d._confidence !== null ? (d._confidence as FactFieldConfidence) : undefined,

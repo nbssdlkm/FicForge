@@ -39,12 +39,20 @@ export { createChapterSummary } from "./chapter_summary.js";
 
 export type { ContextSummary, RagChunkDetail, RagCollection } from "./context_summary.js";
 export { createContextSummary, RAG_COLLECTIONS } from "./context_summary.js";
+export type {
+  DebugBundleMeta,
+  GenerationDebugBundle,
+  GenerationDebugError,
+  GenerationDebugParams,
+  GenerationDebugResult,
+} from "./debug_bundle.js";
+export { createGenerationDebugBundle, toDebugBundleMeta } from "./debug_bundle.js";
 
 export type { Draft } from "./draft.js";
 export { createDraft } from "./draft.js";
 
 export type { Fact } from "./fact.js";
-export { createFact } from "./fact.js";
+export { createFact, sanitizeThreadOrder, isColdFact } from "./fact.js";
 
 export type { Thread } from "./thread.js";
 export { createThread } from "./thread.js";
@@ -89,6 +97,7 @@ export {
   createFontsConfig,
   createModelParams,
   createSettings,
+  isDeveloperMode,
   isReactExtractionEnabled,
 } from "./settings.js";
 

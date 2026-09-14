@@ -177,35 +177,48 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
         </h1>
       </header>
 
-      {/* Category tabs */}
+      {/* Category tabs（角色/世界观/垃圾箱三段，与桌面端拉齐） */}
       <div className="border-b border-rule px-4 pt-3">
         <div className="inline-flex w-full rounded-sm border border-rule bg-background/60 p-1">
-          {(["core_characters", "core_worldbuilding"] as const).map((cat) => {
-            const Icon = cat === "core_characters" ? Users : Globe2;
+          {(["core_characters", "core_worldbuilding", "trash"] as const).map((tab) => {
+            const Icon = tab === "core_characters" ? Users : tab === "core_worldbuilding" ? Globe2 : Trash2;
             const label =
-              cat === "core_characters" ? t("fandomLore.category.characters") : t("fandomLore.category.worldbuilding");
-            const count = cat === "core_characters" ? files.characterFiles.length : files.worldbuildingFiles.length;
+              tab === "core_characters"
+                ? t("fandomLore.category.characters")
+                : tab === "core_worldbuilding"
+                  ? t("fandomLore.category.worldbuilding")
+                  : t("trash.title");
+            const count =
+              tab === "core_characters"
+                ? files.characterFiles.length
+                : tab === "core_worldbuilding"
+                  ? files.worldbuildingFiles.length
+                  : null;
             return (
               <button
-                key={cat}
+                key={tab}
                 type="button"
-                onClick={() => chrome.selectCategory(cat)}
+                aria-pressed={chrome.activeTab === tab}
+                onClick={() => chrome.selectTab(tab)}
                 className={cn(
                   "flex min-h-[44px] flex-1 items-center justify-center rounded-[3px] text-sm font-medium transition-colors",
-                  chrome.category === cat ? "bg-accent text-inv-text" : "text-text/55 hover:bg-rule-soft",
+                  chrome.activeTab === tab ? "bg-accent text-inv-text" : "text-text/55 hover:bg-rule-soft",
                 )}
               >
                 <Icon size={15} className="mr-2" />
-                {label} ({count})
+                {label}
+                {count !== null ? ` (${count})` : ""}
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* File list */}
+      {/* File list（垃圾箱 tab 换 TrashPanel） */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {files.loading ? (
+        {chrome.activeTab === "trash" ? (
+          <TrashPanel scope="fandom" path={fandomPath} />
+        ) : files.loading ? (
           <div className="flex items-center justify-center py-24">
             <Spinner size="lg" className="text-accent" />
           </div>
@@ -254,8 +267,8 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
           ))
         )}
 
-        {/* Add button when list not empty */}
-        {!files.loading && currentFiles.length > 0 && (
+        {/* Add button when list not empty（垃圾箱 tab 下隐藏） */}
+        {chrome.activeTab !== "trash" && !files.loading && currentFiles.length > 0 && (
           <div className="pt-2">
             <Button tone="neutral" fill="outline" size="sm" className="w-full" onClick={chrome.openCreate}>
               {chrome.category === "core_characters"
@@ -264,8 +277,6 @@ function MobileFandomViewInner({ fandomPath, onNavigate }: MobileFandomViewProps
             </Button>
           </div>
         )}
-
-        <TrashPanel scope="fandom" path={fandomPath} />
       </div>
 
       {/* Create modal */}

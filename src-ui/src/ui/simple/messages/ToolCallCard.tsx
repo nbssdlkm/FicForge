@@ -7,6 +7,7 @@ import type { LucideIcon } from "lucide-react";
 import type { SimpleToolCallMessage } from "../types";
 import { Card } from "../../shared/Card";
 import { Button } from "../../shared/Button";
+import { SettingsMarkdown } from "../../shared/SettingsMarkdown";
 import { useTranslation } from "../../../i18n/useAppTranslation";
 import { ActionFooter, CardEyebrow, ExpandToggle } from "./CardChrome";
 
@@ -17,7 +18,9 @@ interface ToolCallCardProps {
   onSkip: (messageId: string) => void;
   onUndo: (messageId: string) => void;
 }
-const COLLAPSE_THRESHOLD = 500;
+
+/** 文本参数超过此长度默认折叠（展开/收起逐字段控制）。 */
+const LONG_TEXT_THRESHOLD = 500;
 
 interface StatusVisual {
   Icon: LucideIcon;
@@ -38,13 +41,54 @@ function statusVisual(status: SimpleToolCallMessage["status"]): StatusVisual {
   }
 }
 
-function ToolCallCardImpl({ message, globalBusy, onConfirm, onSkip, onUndo }: ToolCallCardProps) {
+/**
+ * 单个参数的格式化渲染。多行文本（含 \n 或超长）按 markdown 渲染（复用 SettingsMarkdown，
+ * 与设定页预览同一渲染器）——原始 JSON 转义形态（\n/## 糊成一坨）在确认前根本没法审内容。
+ * 短标量内联展示；数组/对象保持 JSON 字面量（结构即信息）。
+ */
+function ArgField({ name, value }: { name: string; value: unknown }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
-  const argsJson = JSON.stringify(message.tool_args, null, 2);
-  const isLong = argsJson.length > COLLAPSE_THRESHOLD;
-  const displayArgs = isLong && !expanded ? `${argsJson.slice(0, COLLAPSE_THRESHOLD)}...` : argsJson;
+  if (typeof value === "string" && (value.includes("\n") || value.length > LONG_TEXT_THRESHOLD)) {
+    const isLong = value.length > LONG_TEXT_THRESHOLD;
+    return (
+      <div className="space-y-1">
+        <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">{name}</div>
+        <div
+          className={`overflow-auto rounded-sm border border-rule bg-surface/70 p-2 ${
+            isLong && !expanded ? "max-h-60" : ""
+          }`}
+        >
+          <SettingsMarkdown content={value} />
+        </div>
+        {isLong && (
+          <ExpandToggle
+            expanded={expanded}
+            onToggle={() => setExpanded((p) => !p)}
+            expandLabel={t("simple.toolCard.expand", { defaultValue: "展开" })}
+            collapseLabel={t("simple.toolCard.collapse", { defaultValue: "折叠" })}
+          />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-baseline gap-2">
+      <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint">{name}</span>
+      <span className="font-serif text-[12px] leading-relaxed text-text/90 break-all">
+        {typeof value === "string" ? value : JSON.stringify(value)}
+      </span>
+    </div>
+  );
+}
+
+function ToolCallCardImpl({ message, globalBusy, onConfirm, onSkip, onUndo }: ToolCallCardProps) {
+  const { t } = useTranslation();
+
+  const args = message.tool_args;
+  const argEntries = Object.entries(args);
 
   const statusLabel: Record<SimpleToolCallMessage["status"], string> = {
     pending: t("simple.toolCard.pending", { defaultValue: "待确认" }),
@@ -72,17 +116,12 @@ function ToolCallCardImpl({ message, globalBusy, onConfirm, onSkip, onUndo }: To
         </span>
       </div>
 
-      <pre className="overflow-auto rounded-sm border border-rule bg-surface/70 p-2 font-mono text-[11px] leading-relaxed text-text/85 whitespace-pre-wrap break-all max-h-60">
-        {displayArgs}
-      </pre>
-
-      {isLong && (
-        <ExpandToggle
-          expanded={expanded}
-          onToggle={() => setExpanded((p) => !p)}
-          expandLabel={t("simple.toolCard.expand", { defaultValue: "展开" })}
-          collapseLabel={t("simple.toolCard.collapse", { defaultValue: "折叠" })}
-        />
+      {argEntries.length > 0 && (
+        <div className="space-y-2.5">
+          {argEntries.map(([key, value]) => (
+            <ArgField key={key} name={key} value={value} />
+          ))}
+        </div>
       )}
 
       {message.status === "pending" && (

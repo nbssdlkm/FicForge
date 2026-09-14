@@ -171,6 +171,7 @@ export {
   removeThread,
   addFactToThread,
   removeFactFromThread,
+  moveFactInThread,
   setFactThreadRole,
   getStaleThreads,
   regenerateThreadState,
@@ -261,3 +262,14 @@ export { SIMPLE_TOOL_SHOW_CHAPTER, SIMPLE_TOOL_SHOW_SETTING } from "@ficforge/en
 
 // Logger re-exports
 export { hasLogger, initLogger, getLogger, logCatch } from "@ficforge/engine";
+
+// 开发者模式调试捕获（观测面）：开关同步 + 调试包读取
+export {
+  setDebugCaptureEnabled,
+  isDebugCaptureEnabled,
+  listDebugBundles,
+  getDebugBundle,
+  clearDebugBundles,
+  isDeveloperMode,
+} from "@ficforge/engine";
+export type { DebugBundleMeta, GenerationDebugBundle } from "@ficforge/engine";

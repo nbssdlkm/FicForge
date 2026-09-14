@@ -38,6 +38,7 @@ export {
   createDraft,
   deriveChatSessionTitle,
   createFontsConfig,
+  createGenerationDebugBundle,
   createOpsEntry,
   createProject,
   createSettings,
@@ -47,6 +48,8 @@ export {
   dumpFrontmatterKey,
   findRecommendedModel,
   getProvider,
+  isDeveloperMode,
+  isColdFact,
   isLlmOverride,
   isReactExtractionEnabled,
   isSettingsMutatingToolName,
@@ -55,6 +58,7 @@ export {
   parseChapterMainPath,
   parseCharacterCard,
   safeMatter,
+  sanitizeThreadOrder,
   splitFrontmatterRaw,
 } from "./domain/index.js";
 export type {
@@ -63,12 +67,14 @@ export type {
   ContextSummary,
   CustomModelEntry,
   CustomProviderEntry,
+  DebugBundleMeta,
   Draft,
   EmbeddingConfig,
   EmbeddingLock,
   Fact,
   FactChange,
   GeneratedWith,
+  GenerationDebugBundle,
   LLMConfig,
   ModelKind,
   ModelTag,
@@ -209,6 +215,7 @@ export {
   TrashService,
   WriteTransaction,
   addFact,
+  allocateThreadOrder,
   archiveFacts,
   backfillChapterMemory,
   buildSettingsContext,
@@ -237,6 +244,7 @@ export {
   isChapterInflight,
   markChapterInflight,
   migrateLegacySecureStorage,
+  normalizeThreadOrders,
   persistChapterSummary,
   recalcState,
   regenerateThreadState,
@@ -244,6 +252,8 @@ export {
   resolveDirtyChapter,
   setChapterFocus,
   shouldRunRetrospective,
+  sortThreadFacts,
+  THREAD_ORDER_GAP,
   threadMemberFacts,
   unarchiveFact,
   undoLatestChapter,
@@ -320,8 +330,18 @@ export type { TaskEvent } from "./tasks/index.js";
 
 // Logger
 export type { LogEntry, LogLevel, LoggerOptions } from "./logger/index.js";
-export { FileLogger, getLogger, hasLogger, initLogger, logCatch } from "./logger/index.js";
+export { FileLogger, getLogger, hasLogger, initLogger, logCatch, redactString } from "./logger/index.js";
 export type { Logger } from "./logger/index.js";
+
+// Debug capture（开发者模式观测面：生成调试包环形缓冲，关 = 零保留）
+export {
+  captureDebugBundle,
+  clearDebugBundles,
+  getDebugBundle,
+  isDebugCaptureEnabled,
+  listDebugBundles,
+  setDebugCaptureEnabled,
+} from "./debug/index.js";
 
 // Fonts
 export {

@@ -31,7 +31,7 @@ import type { ChapterRepository } from "../repositories/interfaces/chapter.js";
 import type { VectorRepository } from "../repositories/interfaces/vector.js";
 import type { EmbeddingProvider } from "../llm/embedding_provider.js";
 import type { Message } from "../llm/provider.js";
-import { retrieveRagForContext } from "./rag_retrieval.js";
+import { retrieveRagForContext, toRagChunkDetail, type ChunkWithCollection } from "./rag_retrieval.js";
 import {
   _count,
   buildSystemPrompt,
@@ -153,7 +153,7 @@ async function runMemoryLayerCascade(p: MemoryCascadeParams): Promise<MemoryCasc
 
   // === 剧情线摘要层（M8-B）：P3 之后、P2 之前 ===
   const threadBudget = Math.max(0, base_budget - used - guarantee);
-  const threadText = buildThreadsLayer(threads, threadBudget, llm, language);
+  const threadText = buildThreadsLayer(threads, facts, threadBudget, llm, language);
   const threadTokens = _count(threadText, llm).count;
   used += threadTokens;
   report.thread_tokens = threadTokens;
@@ -519,6 +519,7 @@ export async function assembleChatContext(params: AssembleChatContextParams): Pr
 
   // --- RAG 检索（一次性，单一真相源 retrieveRagForContext）---
   // gate 与 generateChapter 一致：rag_text 已给则跳过；否则两 repo 都在才检索。
+  let ragChunksDetail: ChunkWithCollection[] = [];
   if (rag_text === null && vector_repo && embedding_provider) {
     const rag = await retrieveRagForContext({
       project,
@@ -534,6 +535,7 @@ export async function assembleChatContext(params: AssembleChatContextParams): Pr
       character_aliases, // E8：对话正文只出现别名时活跃角色过滤集也认主名
     });
     rag_text = rag.ragText;
+    ragChunksDetail = rag.chunks;
   }
 
   // === P3→thread→P2→P4→P5：记忆层级联（与 assembleContext 共用单一真相源）===
@@ -582,6 +584,12 @@ export async function assembleChatContext(params: AssembleChatContextParams): Pr
       summary.rag_chunks_retrieved = p4Text
         .split("\n")
         .filter((line) => line.trim() && !line.startsWith("### ")).length;
+    }
+    // 调试面板要 RAG 来源明细（与 generation.ts 写文路径同款挂法）：结构化 chunks 经
+    // toRagChunkDetail 挂 summary.rag_chunks。仅旁路统计，不动 prompt 内容。
+    if (ragChunksDetail.length > 0) {
+      summary.rag_chunks = ragChunksDetail.map(toRagChunkDetail).filter((d): d is NonNullable<typeof d> => d !== null);
+      summary.rag_chunks_retrieved = summary.rag_chunks.length;
     }
     summary.characters_used = p5Injected;
     summary.truncated_characters = p5Truncated;

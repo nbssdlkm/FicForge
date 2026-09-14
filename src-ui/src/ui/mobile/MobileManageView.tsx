@@ -3,7 +3,7 @@
 // See LICENSE file in the project root for full license text.
 
 import { useEffect, useState } from "react";
-import { SlidersHorizontal, Spline, Trash2 } from "lucide-react";
+import { Settings2, SlidersHorizontal, Spline, Trash2 } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { chapterNumFromTrashEntry } from "../../api/engine-client";
 import { FactsLayout } from "../facts/FactsLayout";
@@ -12,7 +12,7 @@ import { AuSettingsLayout } from "../settings/AuSettingsLayout";
 import { TrashPanel } from "../shared/TrashPanel";
 import { cn } from "../shared/utils";
 
-type ManageSection = "facts" | "threads" | "project";
+type ManageSection = "facts" | "threads" | "project" | "trash";
 
 interface MobileManageViewProps {
   auPath: string;
@@ -44,11 +44,13 @@ export function MobileManageView({
           {[
             { id: "facts", label: t("facts.title"), Icon: SlidersHorizontal },
             { id: "threads", label: t("navigation.threads"), Icon: Spline },
-            { id: "project", label: t("workspace.projectSection"), Icon: Trash2 },
+            { id: "project", label: t("workspace.projectSection"), Icon: Settings2 },
+            { id: "trash", label: t("trash.title"), Icon: Trash2 },
           ].map(({ id, label, Icon }) => (
             <button
               key={id}
               type="button"
+              aria-pressed={section === id}
               onClick={() => setSection(id as ManageSection)}
               className={cn(
                 "flex min-h-[44px] flex-1 items-center justify-center rounded-[3px] text-sm font-medium transition-colors",
@@ -66,24 +68,32 @@ export function MobileManageView({
         {section === "facts" ? (
           <FactsLayout auPath={auPath} />
         ) : section === "threads" ? (
-          <ThreadsLayout auPath={auPath} />
+          /* REQ-140：「编辑笔记」跳转在移动端 = 切段到 facts（与桌面 onNavigate 同语义） */
+          <ThreadsLayout
+            auPath={auPath}
+            onNavigate={(page) => {
+              if (page === "facts") setSection("facts");
+            }}
+          />
+        ) : section === "trash" ? (
+          /* 垃圾箱独立成段（2026-09-09：此前堆在设置页最底部，要滚完整个表单才看得到） */
+          <div className="px-4 pb-28 pt-2">
+            <div className="overflow-hidden rounded-sm border border-rule bg-surface">
+              <TrashPanel
+                scope="au"
+                path={auPath}
+                onRestore={(entry) => {
+                  // R1-5：章文件恢复 → 通知宿主刷新（与桌面 AuLoreLayout 同口径）。
+                  if (chapterNumFromTrashEntry(entry) !== null) {
+                    onChaptersChanged?.();
+                  }
+                }}
+              />
+            </div>
+          </div>
         ) : (
           <div className="space-y-4">
             <AuSettingsLayout auPath={auPath} />
-            <div className="px-4 pb-28">
-              <div className="overflow-hidden rounded-sm border border-rule bg-surface">
-                <TrashPanel
-                  scope="au"
-                  path={auPath}
-                  onRestore={(entry) => {
-                    // R1-5：章文件恢复 → 通知宿主刷新（与桌面 AuLoreLayout 同口径）。
-                    if (chapterNumFromTrashEntry(entry) !== null) {
-                      onChaptersChanged?.();
-                    }
-                  }}
-                />
-              </div>
-            </div>
           </div>
         )}
       </div>
