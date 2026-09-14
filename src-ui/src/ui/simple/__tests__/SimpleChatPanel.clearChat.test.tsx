@@ -35,6 +35,12 @@ vi.mock("../../../api/engine-client", async () => {
     getFactsExtractionReadiness: vi.fn(),
     getSimpleChat: vi.fn(),
     saveSimpleChat: vi.fn(),
+    listChatSessions: vi.fn(),
+    createChatSession: vi.fn(),
+    deleteChatSession: vi.fn(),
+    renameChatSession: vi.fn(),
+    getChatSession: vi.fn(),
+    saveChatSession: vi.fn(),
   };
 });
 
@@ -62,10 +68,24 @@ beforeEach(() => {
   mocked.getFactsExtractionReadiness.mockResolvedValue(
     null as unknown as Awaited<ReturnType<typeof engineClient.getFactsExtractionReadiness>>,
   );
-  mocked.getSimpleChat.mockResolvedValue({
+  const seededChat = {
     messages: [{ id: "m1", kind: "user", timestamp: "2026-01-01T00:00:00Z", content: "写第一章" }],
-  } as unknown as Awaited<ReturnType<typeof engineClient.getSimpleChat>>);
+  } as unknown as Awaited<ReturnType<typeof engineClient.getSimpleChat>>;
+  mocked.getSimpleChat.mockResolvedValue(seededChat);
+  // 面板经会话列表选中会话后走 getChatSession 加载消息（chat-sessions 底座），镜像同种子
+  mocked.getChatSession.mockResolvedValue(seededChat);
   mocked.saveSimpleChat.mockResolvedValue(undefined as never);
+  mocked.saveChatSession.mockResolvedValue(undefined as never);
+  mocked.listChatSessions.mockResolvedValue([]);
+  mocked.createChatSession.mockResolvedValue({
+    id: "cs_test",
+    title: "新对话",
+    created_at: "2026-09-13T00:00:00Z",
+    updated_at: "2026-09-13T00:00:00Z",
+    message_count: 0,
+  } as unknown as Awaited<ReturnType<typeof engineClient.createChatSession>>);
+  mocked.deleteChatSession.mockResolvedValue(undefined as never);
+  mocked.renameChatSession.mockResolvedValue(undefined as never);
 });
 
 describe("SimpleChatPanel 清空对话 ConfirmDialog（审计 M13）", () => {
@@ -78,7 +98,7 @@ describe("SimpleChatPanel 清空对话 ConfirmDialog（审计 M13）", () => {
     await user.click(screen.getByLabelText("清空对话"));
 
     // 应用内 dialog 文案出现（旧实现走 window.confirm，DOM 里不会有这段文案）
-    expect(await screen.findByText("清空当前 AU 的所有对话历史？此操作不可撤销。")).toBeInTheDocument();
+    expect(await screen.findByText("清空当前对话的所有消息？此操作不可撤销。")).toBeInTheDocument();
     expect(confirmSpy).not.toHaveBeenCalled();
     // 消息还在（还没确认）
     expect(screen.getByText("写第一章")).toBeInTheDocument();
@@ -91,7 +111,7 @@ describe("SimpleChatPanel 清空对话 ConfirmDialog（审计 M13）", () => {
     await screen.findByText("写第一章");
 
     await user.click(screen.getByLabelText("清空对话"));
-    await screen.findByText("清空当前 AU 的所有对话历史？此操作不可撤销。");
+    await screen.findByText("清空当前对话的所有消息？此操作不可撤销。");
     await user.click(screen.getByRole("button", { name: "确认" }));
 
     await waitFor(() => {
@@ -105,11 +125,11 @@ describe("SimpleChatPanel 清空对话 ConfirmDialog（审计 M13）", () => {
     await screen.findByText("写第一章");
 
     await user.click(screen.getByLabelText("清空对话"));
-    await screen.findByText("清空当前 AU 的所有对话历史？此操作不可撤销。");
+    await screen.findByText("清空当前对话的所有消息？此操作不可撤销。");
     await user.click(screen.getByRole("button", { name: "取消" }));
 
     await waitFor(() => {
-      expect(screen.queryByText("清空当前 AU 的所有对话历史？此操作不可撤销。")).toBeNull();
+      expect(screen.queryByText("清空当前对话的所有消息？此操作不可撤销。")).toBeNull();
     });
     expect(screen.getByText("写第一章")).toBeInTheDocument();
   });

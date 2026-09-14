@@ -1462,7 +1462,7 @@
       "send": "Send"
     },
     "clearChat": {
-      "confirm": "Clear all chat history for this AU? This cannot be undone.",
+      "confirm": "Clear all messages in the current chat? This cannot be undone.",
       "done": "Chat cleared",
       "label": "Clear chat"
     },
@@ -1591,5 +1591,23 @@
       "empty": "Not in any thread",
       "noRole": "(no role)"
     }
+  },
+  "chatSessions": {
+    "listTitle": "Chats",
+    "new": "New chat",
+    "untitled": "New chat",
+    "rename": "Rename",
+    "delete": "Delete chat",
+    "renamePlaceholder": "Chat name",
+    "deleteTitle": "Delete chat",
+    "deleteConfirm": "Delete \"{{title}}\"? All messages in this chat will be deleted. This cannot be undone.",
+    "empty": "No chats yet",
+    "messageCount": "{{count}} messages",
+    "viewAll": "All chats",
+    "globalTitle": "Chat Sessions",
+    "globalSubtitle": "Every AI conversation across your works and fandoms lives here. Click one to jump and open it.",
+    "searchPlaceholder": "Search chat titles…",
+    "groupCount": "{{count}} chats",
+    "open": "Open"
   }
 }

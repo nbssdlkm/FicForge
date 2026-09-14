@@ -40,6 +40,12 @@ vi.mock("../../../api/engine-client", async () => {
     getFactsExtractionReadiness: vi.fn(),
     getSimpleChat: vi.fn(),
     saveSimpleChat: vi.fn(),
+    listChatSessions: vi.fn(),
+    createChatSession: vi.fn(),
+    deleteChatSession: vi.fn(),
+    renameChatSession: vi.fn(),
+    getChatSession: vi.fn(),
+    saveChatSession: vi.fn(),
   };
 });
 
@@ -78,14 +84,32 @@ function setupBaseMocks() {
   mocked.getSimpleChat.mockResolvedValue({ messages: [] } as unknown as Awaited<
     ReturnType<typeof engineClient.getSimpleChat>
   >);
+  // 会话底座位：选中会话后走 getChatSession（默认空；个别用例自行覆写）
+  mocked.getChatSession.mockResolvedValue({ messages: [] } as unknown as Awaited<
+    ReturnType<typeof engineClient.getChatSession>
+  >);
   mocked.saveSimpleChat.mockResolvedValue(undefined as never);
+  mocked.saveChatSession.mockResolvedValue(undefined as never);
+  mocked.listChatSessions.mockResolvedValue([]);
+  mocked.createChatSession.mockResolvedValue({
+    id: "cs_test",
+    title: "新对话",
+    created_at: "2026-09-13T00:00:00Z",
+    updated_at: "2026-09-13T00:00:00Z",
+    message_count: 0,
+  } as unknown as Awaited<ReturnType<typeof engineClient.createChatSession>>);
+  mocked.deleteChatSession.mockResolvedValue(undefined as never);
+  mocked.renameChatSession.mockResolvedValue(undefined as never);
 }
 
 /** 预置一条历史消息（清空按钮在空对话时 disabled，chrome 用例需要它可点）。 */
 function mockChatWithOneMessage() {
-  mocked.getSimpleChat.mockResolvedValue({
+  const seeded = {
     messages: [{ id: "m1", kind: "user", timestamp: "2026-01-01T00:00:00Z", content: "历史消息" }],
-  } as unknown as Awaited<ReturnType<typeof engineClient.getSimpleChat>>);
+  } as unknown as Awaited<ReturnType<typeof engineClient.getSimpleChat>>;
+  mocked.getSimpleChat.mockResolvedValue(seeded);
+  // 会话底座位：选中会话后实际走 getChatSession 加载，镜像同种子
+  mocked.getChatSession.mockResolvedValue(seeded);
 }
 
 function renderPanel(auPath: string) {
@@ -177,11 +201,11 @@ describe("SimpleChatPanel — AU 切换各 hook 状态清空", () => {
     await act(async () => {
       await user.click(screen.getByLabelText("清空对话"));
     });
-    expect(await screen.findByText("清空当前 AU 的所有对话历史？此操作不可撤销。")).toBeInTheDocument();
+    expect(await screen.findByText("清空当前对话的所有消息？此操作不可撤销。")).toBeInTheDocument();
 
     switchAu(rerender, AU_B);
     await waitFor(() => {
-      expect(screen.queryByText("清空当前 AU 的所有对话历史？此操作不可撤销。")).not.toBeInTheDocument();
+      expect(screen.queryByText("清空当前对话的所有消息？此操作不可撤销。")).not.toBeInTheDocument();
     });
   });
 

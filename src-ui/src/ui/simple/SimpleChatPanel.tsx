@@ -35,6 +35,8 @@ import { SimpleSettingsDrawer } from "./SimpleSettingsDrawer";
 import { SimpleChatHistory } from "./SimpleChatHistory";
 import { SimpleChatInput } from "./SimpleChatInput";
 import { useSimpleChat } from "./useSimpleChat";
+import { useChatSessions } from "./useChatSessions";
+import { ChatSessionList } from "./ChatSessionList";
 import { useSimpleDispatch } from "./useSimpleDispatch";
 import { useContextTokenCount } from "./useContextTokenCount";
 import { useSimpleChatPanelConfig } from "./useSimpleChatPanelConfig";
@@ -64,7 +66,11 @@ export function SimpleChatPanel({
 }: SimpleChatPanelProps) {
   const { t } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
-  const chat = useSimpleChat(auPath);
+  // chat-sessions 底座：会话列表归 sessions hook，消息归 chat hook（activeId 驱动重载）。
+  // 加载完成前 activeId=null → chat 走 legacy 兼容路径读 default 会话，列表就绪后
+  // 若 activeId 不同会再重载一次（一次性，可接受）。
+  const sessions = useChatSessions(auPath);
+  const chat = useSimpleChat(auPath, sessions.activeId ?? undefined);
   const dispatch = useSimpleDispatch(auPath);
 
   const config = useSimpleChatPanelConfig(auPath, isActiveTab);
@@ -77,6 +83,7 @@ export function SimpleChatPanel({
 
   const draftActions = useSimpleDraftActions({
     auPath,
+    sessionId: sessions.activeId ?? undefined,
     chat,
     canAutoExtract: config.canAutoExtract,
     factsExtraction,
@@ -116,6 +123,15 @@ export function SimpleChatPanel({
       );
     }
   }, [factsExtraction.isExtractReviewOpen, isActiveTab, showToast, t]);
+
+  // 会话元数据跟随消息落盘刷新（自动标题 / 消息数）：防抖 500ms，流式期 chunk
+  // 高频变更只触发最后一次。refresh 只回写索引 state，不动 activeId，无重载循环。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——chat.messages 只作变更信号，体内读 sessions 的语义化方法
+  useEffect(() => {
+    if (!sessions.isLoaded || !chat.isLoaded) return;
+    const id = setTimeout(() => void sessions.refresh(), 500);
+    return () => clearTimeout(id);
+  }, [chat.messages, chat.isLoaded, sessions.isLoaded]);
 
   const globalBusy =
     dispatch.isStreaming || draftActions.acceptingDraftId !== null || toolActions.executingToolId !== null;
@@ -213,33 +229,45 @@ export function SimpleChatPanel({
         </button>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-hidden">
-        <SimpleChatHistory
-          messages={chat.messages}
-          auPath={auPath}
-          fandomPath={fandomPath}
-          isStreaming={dispatch.isStreaming}
-          globalBusy={globalBusy}
-          thinkingActive={flow.thinkingActive}
-          isActiveTab={isActiveTab}
-          onAcceptDraft={draftActions.handleAcceptDraftSync}
-          onRegenerateDraft={flow.handleRegenerateDraft}
-          onDiscardDraft={draftActions.handleDiscardDraft}
-          onConfirmTool={toolActions.handleConfirmTool}
-          onSkipTool={toolActions.handleSkipTool}
-          onUndoTool={toolActions.handleUndoTool}
-          onTogglePreview={chat.togglePreviewExpanded}
+      <div className="flex min-h-0 flex-1">
+        <ChatSessionList
+          sessions={sessions.sessions}
+          activeId={sessions.activeId}
+          onSelect={sessions.selectSession}
+          onCreate={() => void sessions.createNewSession()}
+          onRename={(id, title) => void sessions.renameSessionById(id, title)}
+          onDelete={(id) => void sessions.removeSession(id)}
         />
-      </div>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <SimpleChatHistory
+              messages={chat.messages}
+              auPath={auPath}
+              fandomPath={fandomPath}
+              isStreaming={dispatch.isStreaming}
+              globalBusy={globalBusy}
+              thinkingActive={flow.thinkingActive}
+              isActiveTab={isActiveTab}
+              onAcceptDraft={draftActions.handleAcceptDraftSync}
+              onRegenerateDraft={flow.handleRegenerateDraft}
+              onDiscardDraft={draftActions.handleDiscardDraft}
+              onConfirmTool={toolActions.handleConfirmTool}
+              onSkipTool={toolActions.handleSkipTool}
+              onUndoTool={toolActions.handleUndoTool}
+              onTogglePreview={chat.togglePreviewExpanded}
+            />
+          </div>
 
-      <SimpleChatInput
-        value={flow.inputText}
-        onChange={flow.setInputText}
-        onSend={flow.handleSend}
-        isStreaming={dispatch.isStreaming}
-        onCancelStreaming={flow.handleCancel}
-        busy={globalBusy}
-      />
+          <SimpleChatInput
+            value={flow.inputText}
+            onChange={flow.setInputText}
+            onSend={flow.handleSend}
+            isStreaming={dispatch.isStreaming}
+            onCancelStreaming={flow.handleCancel}
+            busy={globalBusy}
+          />
+        </div>
+      </div>
       <SimpleSettingsDrawer
         isOpen={chrome.drawerOpen}
         isLoading={config.projectInfo === null && config.settingsInfo === null}

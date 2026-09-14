@@ -1462,7 +1462,7 @@
       "send": "发送"
     },
     "clearChat": {
-      "confirm": "清空当前 AU 的所有对话历史？此操作不可撤销。",
+      "confirm": "清空当前对话的所有消息？此操作不可撤销。",
       "done": "对话已清空",
       "label": "清空对话"
     },
@@ -1591,5 +1591,23 @@
       "empty": "未归入任何剧情线",
       "noRole": "（未标角色）"
     }
+  },
+  "chatSessions": {
+    "listTitle": "对话",
+    "new": "新对话",
+    "untitled": "新对话",
+    "rename": "重命名",
+    "delete": "删除对话",
+    "renamePlaceholder": "对话名称",
+    "deleteTitle": "删除对话",
+    "deleteConfirm": "删除「{{title}}」？该对话的所有消息将一并删除，不可撤销。",
+    "empty": "还没有对话",
+    "messageCount": "{{count}} 条",
+    "viewAll": "全部会话",
+    "globalTitle": "会话管理",
+    "globalSubtitle": "所有作品与 fandom 的 AI 对话都在这里。点任意一条，跳过去打开它。",
+    "searchPlaceholder": "搜索对话标题…",
+    "groupCount": "{{count}} 个会话",
+    "open": "打开"
   }
 }
