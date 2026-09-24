@@ -79,3 +79,4 @@ src-ui/android/app/src/*
 !src-ui/android/app/src/main/
 src-ui/android/app/src/main/*
 !src-ui/android/app/src/main/AndroidManifest.xml
+docs/DEBUGGING.md
