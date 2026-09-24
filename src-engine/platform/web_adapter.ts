@@ -168,7 +168,10 @@ let _secretsIdbAvailable: boolean | null = null;
  */
 type SecretsIdbResult<T> = { state: "unavailable" } | { state: "ok"; value: T } | { state: "failed"; error: unknown };
 
-async function secretsIdbRun<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>): Promise<SecretsIdbResult<T>> {
+async function secretsIdbRun<T>(
+  mode: IDBTransactionMode,
+  run: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<SecretsIdbResult<T>> {
   if (typeof indexedDB === "undefined") {
     _secretsIdbAvailable = false;
     return { state: "unavailable" };
@@ -525,7 +528,9 @@ export class WebAdapter implements PlatformAdapter {
       }
       const legacyFallback0 = this.getLegacySecureValue(key);
       if (legacyFallback0 !== null) {
-        platformWarn("WebAdapter", "secureGet: 持久层读故障，用 legacy 明文副本兜底", { key_redacted: redactSecureKey(key) });
+        platformWarn("WebAdapter", "secureGet: 持久层读故障，用 legacy 明文副本兜底", {
+          key_redacted: redactSecureKey(key),
+        });
         return legacyFallback0;
       }
       throw new SecretStoreReadError(key);
@@ -641,7 +646,11 @@ export class WebAdapter implements PlatformAdapter {
     const encrypted = _keyMaterialized === true;
     const persistent = _secretsIdbAvailable === true;
     return {
-      backend: encrypted ? "web_crypto_aes_gcm" : persistent ? "idb_plaintext_fallback" : "session_storage_plaintext_fallback",
+      backend: encrypted
+        ? "web_crypto_aes_gcm"
+        : persistent
+          ? "idb_plaintext_fallback"
+          : "session_storage_plaintext_fallback",
       encrypted_at_rest: encrypted,
       persistence: persistent ? "persistent" : "session_only",
     };

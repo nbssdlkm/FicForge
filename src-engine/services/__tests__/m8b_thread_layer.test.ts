@@ -437,7 +437,12 @@ describe("REQ-140 fact.thread_order 序列化全链", () => {
     // 手改 jsonl 的脏数据：字符串/NaN(JSON 里落为 null) 都该被读盘消毒挡掉
     adapter.seed(
       "au/facts.jsonl",
-      JSON.stringify({ id: "f2", content_clean: "c", content_raw: "r", thread_order: { t1: 10, t2: "junk", t3: NaN } }) +
+      JSON.stringify({
+        id: "f2",
+        content_clean: "c",
+        content_raw: "r",
+        thread_order: { t1: 10, t2: "junk", t3: NaN },
+      }) +
         "\n" +
         JSON.stringify({ id: "f3", content_clean: "c", content_raw: "r", thread_order: "garbage" }) +
         "\n",
@@ -447,7 +452,7 @@ describe("REQ-140 fact.thread_order 序列化全链", () => {
     expect(all.find((f) => f.id === "f3")?.thread_order).toBeUndefined();
   });
 
-  it("垃圾形状消毒：数组 → undefined（codex R2：typeof 数组也是 object，会漏成 {\"0\":n} 脏键）", async () => {
+  it('垃圾形状消毒：数组 → undefined（codex R2：typeof 数组也是 object，会漏成 {"0":n} 脏键）', async () => {
     expect(sanitizeThreadOrder([10, 20])).toBeUndefined();
     adapter.seed(
       "au/facts.jsonl",

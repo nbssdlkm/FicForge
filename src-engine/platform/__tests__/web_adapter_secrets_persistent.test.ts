@@ -88,7 +88,7 @@ describe("WebAdapter secrets 持久层 (fake-indexeddb)", () => {
   });
 
   it("落 IDB 的是密文（encv1: 前缀），且 sessionStorage 无残留", async () => {
-    vi_stubSession();
+    viStubSession();
     const a = new WebAdapter("dev");
     await a.init();
     await a.secureSet(SECRET_KEY, "sk-super-secret");
@@ -101,7 +101,7 @@ describe("WebAdapter secrets 持久层 (fake-indexeddb)", () => {
   });
 
   it("旧会话值（sessionStorage 密文）读到即迁移上持久层并删副本", async () => {
-    vi_stubSession();
+    viStubSession();
     // 第一轮：IDB 不可用时代的产物——只有 sessionStorage 里有密文
     const a1 = new WebAdapter("dev");
     await a1.init();
@@ -143,7 +143,7 @@ describe("WebAdapter secrets 持久层 (fake-indexeddb)", () => {
   });
 
   it("secureRemove 三层全清（IDB + session + 内存兜底）", async () => {
-    vi_stubSession();
+    viStubSession();
     const a = new WebAdapter("dev");
     await a.init();
     await a.secureSet(SECRET_KEY, "sk-to-remove");
@@ -154,7 +154,7 @@ describe("WebAdapter secrets 持久层 (fake-indexeddb)", () => {
   });
 
   it("IDB 不可用（隐私模式）时降级 sessionStorage 会话级，能力如实报 session_only", async () => {
-    vi_stubSession();
+    viStubSession();
     delete (globalThis as unknown as { indexedDB?: unknown }).indexedDB; // IDB 整块缺失
     const a = new WebAdapter("dev");
     // init() 里 openDB 也会失败——主库都没有，这里只测 secret 路径，绕过 init
@@ -167,7 +167,7 @@ describe("WebAdapter secrets 持久层 (fake-indexeddb)", () => {
   // ── 故障注入（对抗审 2026-09-09 M1-M4 回归）──
 
   it("M1: 主存储读故障且降级层全空 → 抛 SecretStoreReadError，绝不吞成「没存过」（H8）", async () => {
-    vi_stubSession();
+    viStubSession();
     const a = new WebAdapter("dev");
     await a.init();
     await a.secureSet(SECRET_KEY, "sk-real-value");
@@ -176,7 +176,7 @@ describe("WebAdapter secrets 持久层 (fake-indexeddb)", () => {
   });
 
   it("M1-R2: 主存储读故障但会话层有真值副本 → 返回副本（真值兜底不算吞）", async () => {
-    vi_stubSession();
+    viStubSession();
     const a = new WebAdapter("dev");
     await a.init();
     await a.secureSet(SECRET_KEY, "sk-has-session-copy");
@@ -188,7 +188,7 @@ describe("WebAdapter secrets 持久层 (fake-indexeddb)", () => {
   });
 
   it("M2: 会话→IDB 迁移写失败时保留会话源副本（不丢唯一副本）", async () => {
-    vi_stubSession();
+    viStubSession();
     const a = new WebAdapter("dev");
     await a.init();
     await a.secureSet(SECRET_KEY, "sk-migrate-me");
@@ -204,7 +204,7 @@ describe("WebAdapter secrets 持久层 (fake-indexeddb)", () => {
   });
 
   it("M3: secureSet 持久层写失败 → 降级会话级 + best-effort 清 IDB 旧值防遮蔽", async () => {
-    vi_stubSession();
+    viStubSession();
     const a = new WebAdapter("dev");
     await a.init();
     await a.secureSet(SECRET_KEY, "sk-old"); // IDB 里先躺一个旧值
@@ -221,7 +221,7 @@ describe("WebAdapter secrets 持久层 (fake-indexeddb)", () => {
   });
 
   it("M3-R2: secureSet 双故障（写失败+清旧值也失败）→ 抛错，不静默留遮蔽态", async () => {
-    vi_stubSession();
+    viStubSession();
     const a = new WebAdapter("dev");
     await a.init();
     await a.secureSet(SECRET_KEY, "sk-old");
@@ -233,7 +233,7 @@ describe("WebAdapter secrets 持久层 (fake-indexeddb)", () => {
   });
 
   it("M4: secureRemove 持久层删失败 → 抛错且三层副本全保留（密钥不复活）", async () => {
-    vi_stubSession();
+    viStubSession();
     const a = new WebAdapter("dev");
     await a.init();
     await a.secureSet(SECRET_KEY, "sk-undeletable");
@@ -245,7 +245,7 @@ describe("WebAdapter secrets 持久层 (fake-indexeddb)", () => {
   });
 });
 
-function vi_stubSession() {
+function viStubSession() {
   (globalThis as unknown as { sessionStorage: Storage }).sessionStorage = createStorageMock();
 }
 

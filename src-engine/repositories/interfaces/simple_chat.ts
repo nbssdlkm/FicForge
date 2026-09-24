@@ -3,11 +3,7 @@
 
 /** SimpleChatRepository 抽象接口（FicForge Lite C2 chat 持久化）。 */
 
-import type {
-  ChatSessionMeta,
-  SimpleChatFile,
-  SimpleChatMessageEnvelope,
-} from "../../domain/simple_chat.js";
+import type { ChatSessionMeta, SimpleChatFile, SimpleChatMessageEnvelope } from "../../domain/simple_chat.js";
 
 export interface SimpleChatRepository {
   // ---------- legacy 单会话兼容面 ----------

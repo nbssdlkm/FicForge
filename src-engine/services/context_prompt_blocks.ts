@@ -487,9 +487,7 @@ export function buildThreadsLayer(
     const stateText = t.state?.trim() || t.description?.trim() || "";
     let line: string;
     if (spine) {
-      line = stateText
-        ? `- 【${t.title}】${spine} ${P.THREAD_CURRENT_MARKER}${stateText}`
-        : `- 【${t.title}】${spine}`;
+      line = stateText ? `- 【${t.title}】${spine} ${P.THREAD_CURRENT_MARKER}${stateText}` : `- 【${t.title}】${spine}`;
     } else {
       // 无骨架 ⇒ M8-B 一行式原样（存量行为零回归）
       line = stateText ? `- 【${t.title}】${stateText}` : `- 【${t.title}】`;
