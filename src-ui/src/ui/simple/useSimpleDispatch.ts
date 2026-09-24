@@ -72,13 +72,15 @@ function safeParseArgs(raw: string): Record<string, unknown> {
   }
 }
 
-export function useSimpleDispatch(auPath: string): UseSimpleDispatchResult {
+export function useSimpleDispatch(auPath: string, sessionId?: string): UseSimpleDispatchResult {
   const [isStreaming, setIsStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const cancelCallbackRef = useRef<(() => void) | null>(null);
 
-  // AU 切换 cleanup（铁律 2：state + reset 同文件）
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——cleanup 仅随 auPath 变化跑（abort 在跑请求 + 复位 isStreaming）；auPath 只作触发键、体内不读取；删除会使切 AU 不再中断在飞 dispatch
+  // AU / 会话切换 cleanup（铁律 2：state + reset 同文件）。sessionId 进依赖：流式中途切会话
+  // 必须 abort 在飞 dispatch——否则旧会话的流回调会继续 append 到新会话 state，防抖 save
+  // 再把它落进新会话文件（kimi 交叉验证 2026-09-14 major：跨会话写串且落盘）。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——cleanup 仅随 auPath/sessionId 变化跑（abort 在跑请求 + 复位 isStreaming）；两键只作触发、体内不读取；删除会使切换不再中断在飞 dispatch
   useEffect(() => {
     return () => {
       if (abortRef.current) {
@@ -93,7 +95,7 @@ export function useSimpleDispatch(auPath: string): UseSimpleDispatchResult {
       // React 会静默忽略（组件已卸载），原地变更时才真正生效，两种情形都安全。
       setIsStreaming(false);
     };
-  }, [auPath]);
+  }, [auPath, sessionId]);
 
   const cancelDispatch = useCallback(() => {
     // F8：立即 abort + 复位 isStreaming 保证输入框秒回可用（用户体验优先）。engine 侧的

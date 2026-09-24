@@ -15,7 +15,13 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { asSimpleChatMessages, getChatSession, getSimpleChat, saveChatSession, saveSimpleChat } from "../../api/engine-client";
+import {
+  asSimpleChatMessages,
+  getChatSession,
+  getSimpleChat,
+  saveChatSession,
+  saveSimpleChat,
+} from "../../api/engine-client";
 import { warnUi } from "../../utils/ui-logger";
 import {
   makeMessageId,
@@ -225,6 +231,7 @@ export function useSimpleChat(auPath: string, sessionId?: string): UseSimpleChat
   // 没有它，「已接受」等收尾状态回写恰好落在离场前的防抖窗口里就静默丢失 —— 重载后草稿
   // 回到 pending，用户可再点一次接受重复确认同章。cleanup 先于新 auPath 的 effect 运行，
   // 各 ref 里还是旧 AU 的值，闭包 auPath 也是旧值，不会串写到新 AU。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sessionId 是刻意的触发键——切会话也要重挂 cleanup 做 flush；体内读 sessionIdRef 最新值
   useEffect(() => {
     return () => {
       if (!isLoadedRef.current || loadErrorRef.current !== null) return;

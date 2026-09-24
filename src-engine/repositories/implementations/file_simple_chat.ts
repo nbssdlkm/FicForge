@@ -299,6 +299,9 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
       version: typeof obj.version === "number" ? obj.version : CHAT_SESSION_INDEX_VERSION,
       sessions,
       ...(obj.migrated_from_legacy === true ? { migrated_from_legacy: true } : {}),
+      ...(Array.isArray(obj.retired_session_ids)
+        ? { retired_session_ids: obj.retired_session_ids.filter((v): v is string => typeof v === "string") }
+        : {}),
     };
   }
 
@@ -311,14 +314,98 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
   }
 
   /**
-   * 确保索引存在（幂等）。首次调用时若 legacy simple-chat.yaml 存在则迁移为
-   * default 会话（消息原样搬入 default.yaml；老文件保留不删，降级兼容）。
+   * 索引文件状态：missing（从未创建）/ ok / corrupt（存在但读不出）。
+   * ensureIndex 靠它区分「新建」与「损坏重建」——后者必须抢救会话文件，
+   * 不能写空索引把多会话列表埋掉（对抗审 2026-09-14 major）。
+   */
+  private async indexFileState(au_id: string): Promise<"missing" | "ok" | "corrupt"> {
+    try {
+      if (!(await this.adapter.exists(this.indexPath(au_id)))) return "missing";
+    } catch {
+      return "missing";
+    }
+    return (await this.readIndex(au_id)) ? "ok" : "corrupt";
+  }
+
+  /**
+   * 索引损坏时从会话文件抢救重建：扫 sessions 目录逐份宽容读，恢复
+   * id / 自动标题 / 消息数 / 时间戳。读不出的文件跳过（不拖垮其余会话）。
+   */
+  private async rebuildIndexFromSessionFiles(au_id: string): Promise<ChatSessionIndex> {
+    const index = createChatSessionIndex();
+    // statEntry 判别「目录不存在」与「瞬时 IO 错误」：listDir 在 Tauri/Capacitor 对
+    // 不存在目录抛错、瞬时错误也抛错，混为一谈会把重建做成误覆盖旁路（kimi 复审 R4）。
+    // statEntry 判别「目录不存在」与「瞬时 IO 错误」（kimi 复审 R4）：瞬时错误向外抛——
+    // ensureIndex 整笔中止不写索引（留现场下次重试），绝不写空索引埋掉会话。
+    let names: string[] = [];
+    const dirStat = await this.adapter.statEntry(this.sessionsDir(au_id));
+    if (dirStat === "directory") {
+      names = await this.adapter.listDir(this.sessionsDir(au_id)); // 目录存在时抛错 = 瞬时错误，向外抛
+    }
+    for (const name of names) {
+      const match = /^([A-Za-z0-9_-]+)\.yaml$/.exec(name);
+      if (!match) continue;
+      const id = match[1];
+      if (id === "index") continue;
+      try {
+        const file = await this.readChatFile(this.sessionPath(au_id, id), au_id);
+        const hasUserMessage = file.messages.some((m) => m.kind === "user");
+        index.sessions.push({
+          id,
+          title: deriveChatSessionTitle(file.messages, UNTITLED_FALLBACK),
+          ...(hasUserMessage ? {} : { title_auto: true }),
+          created_at: file.created_at,
+          updated_at: file.updated_at,
+          message_count: file.messages.length,
+        });
+      } catch (err) {
+        warnAlways("simple_chat", `rebuild index: skip unreadable session file ${name}`, {
+          error: (err as Error).message,
+        });
+      }
+    }
+    return index;
+  }
+
+  /**
+   * 确保索引存在（幂等）。三分支：
+   * - ok：不动
+   * - corrupt：扫会话文件抢救重建（不写空索引埋掉会话列表）
+   * - missing：建空索引；若 legacy simple-chat.yaml 存在则迁移为 default 会话
+   *   （消息原样搬入 default.yaml；老文件保留不删，降级兼容）。
    */
   private async ensureIndex(au_id: string): Promise<void> {
     const indexPath = this.indexPath(au_id);
     await withWriteLock(indexPath, async () => {
-      const existing = await this.readIndex(au_id);
-      if (existing) return;
+      const state = await this.indexFileState(au_id);
+      if (state === "ok") return;
+      if (state === "corrupt") {
+        warnAlways(
+          "simple_chat",
+          `chat session index corrupted for ${au_id}; rebuilding from session files (retired tombstones lost)`,
+        );
+        await this.writeIndexLocked(au_id, await this.rebuildIndexFromSessionFiles(au_id));
+        return;
+      }
+
+      // kimi 交叉验证 2026-09-14 major：index 丢失但会话文件还在（崩溃窗口/手动清理）
+      // 时绝不能走 legacy 迁移——那会把 legacy 旧消息覆盖已更新的 default.yaml。
+      // 有会话文件 = 抢救重建；完全没有 = 才考虑 legacy 迁移。
+      // statEntry 判别「目录不存在」与「瞬时 IO 错误」（kimi 复审 R4）：瞬时错误向外抛，
+      // ensureIndex 整笔中止（不写索引不迁移，留现场下次重试），防把迁移做成覆盖旁路。
+      const sessionsDirStat = await this.adapter.statEntry(this.sessionsDir(au_id));
+      if (sessionsDirStat === "directory") {
+        // kimi R8 major：目录存在（哪怕已被 deleteSession 清空）= 会话系统初始化过，
+        // 一律重建而不走 legacy 迁移——否则「删 default → 索引丢失 → legacy 文件保留」
+        // 会把用户已显式删除的会话连同旧消息复活。墓碑随索引丢失是已知限制（warn 留痕）。
+        warnAlways(
+          "simple_chat",
+          `chat session index missing for ${au_id} but sessions dir exists; rebuilding (retired tombstones lost)`,
+        );
+        await this.writeIndexLocked(au_id, await this.rebuildIndexFromSessionFiles(au_id));
+        return;
+      }
+      // 目录也不存在 = 真·新鲜 AU，才允许 legacy 迁移。
 
       const index = createChatSessionIndex();
       let legacyExists = false;
@@ -342,6 +429,7 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
         index.migrated_from_legacy = true;
         // 写 default 会话文件（与索引锁不同路径，无嵌套锁）；created_at/updated_at
         // 保留 legacy 原值（writeChatFileLocked 会刷 updated_at，迁移场景要原样搬）。
+        // 保留 legacy 原时间戳（原子写不刷新）。
         const sessionFile: SimpleChatFile = {
           version: SIMPLE_CHAT_VERSION,
           au_path: au_id,
@@ -349,27 +437,59 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
           updated_at: legacyFile.updated_at,
           messages: legacyFile.messages,
         };
+        // 非破坏性（复审 R5/R6 major）：迁移全程持 default 会话文件锁（与 saveSession 的
+        // 会话锁互斥，堵「索引丢失窗口期迁移写与并发 save 交叉」）；探测不吞错——
+        // exists 抛错 = 瞬时故障，整笔中止留现场下次重试（已知平台限制：Capacitor
+        // adapter 的 exists 内部吞错返 false，三探针全跪的叠加窗口属残余风险，见派工单）。
         const defaultPath = this.sessionPath(au_id, DEFAULT_CHAT_SESSION_ID);
         await this.adapter.mkdir(this.sessionsDir(au_id));
-        await atomicWrite(this.adapter, defaultPath, dumpYaml(objToPlain(sessionFile)));
+        await withWriteLock(defaultPath, async () => {
+          if (await this.adapter.exists(defaultPath)) {
+            warnAlways("simple_chat", `legacy migration: ${defaultPath} already exists; keep it and register as-is`);
+            const existingFile = await this.readChatFile(defaultPath, au_id);
+            if (existingFile.messages.length > 0) {
+              // 现存文件可读：按现状注册（R6 minor：损坏文件宽容读出空壳时不采纳其
+              // 时间戳/零消息数，免得把有历史的会话在列表里伪装成「刚创建的空会话」）
+              meta.title = deriveChatSessionTitle(existingFile.messages, meta.title);
+              if (existingFile.messages.some((m) => m.kind === "user")) delete meta.title_auto;
+              meta.created_at = existingFile.created_at;
+              meta.updated_at = existingFile.updated_at;
+              meta.message_count = existingFile.messages.length;
+            } else {
+              warnAlways(
+                "simple_chat",
+                `legacy migration: ${defaultPath} exists but unreadable/empty; register with legacy meta`,
+              );
+            }
+            return;
+          }
+          await atomicWrite(this.adapter, defaultPath, dumpYaml(objToPlain(sessionFile)));
+        });
       }
       await this.writeIndexLocked(au_id, index);
     });
   }
 
   /**
-   * 同步索引元数据（updated_at / message_count / 自动标题）。条目不存在时补建
-   * （直写未注册会话文件的场景）。只在索引锁内读写，不碰会话文件锁。
+   * 同步索引元数据（updated_at / message_count / 自动标题）。条目不存在时 warn+return
+   * 绝不补建（缺条目=会话刚被并发删除，复活它是数据事故；正常写路径条目必已注册，
+   * legacy default 直写由 ensureDefaultRegistered 先注册）。只在索引锁内读写。
    */
-  private async touchIndexMeta(au_id: string, session_id: string, messages: SimpleChatMessageEnvelope[]): Promise<void> {
+  private async touchIndexMeta(
+    au_id: string,
+    session_id: string,
+    messages: SimpleChatMessageEnvelope[],
+  ): Promise<void> {
     const indexPath = this.indexPath(au_id);
     await withWriteLock(indexPath, async () => {
       const index = (await this.readIndex(au_id)) ?? createChatSessionIndex();
       const now = nowUtc();
-      let entry = index.sessions.find((s) => s.id === session_id);
+      const entry = index.sessions.find((s) => s.id === session_id);
       if (!entry) {
-        entry = { id: session_id, title: UNTITLED_FALLBACK, title_auto: true, created_at: now, updated_at: now, message_count: 0 };
-        index.sessions.push(entry);
+        // 缺条目 = 会话刚被并发删除（shouldSkipWrite 之后 delete 落地）——绝不在
+        // 索引里复活它（对抗审 2026-09-14 major）。正常写路径条目必已注册。
+        warnAlways("simple_chat", `touchIndexMeta: session ${session_id} not in index (deleted?); skip index update`);
+        return;
       }
       entry.updated_at = now;
       entry.message_count = messages.length;
@@ -392,7 +512,36 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
     return this.getSession(au_id, DEFAULT_CHAT_SESSION_ID);
   }
 
+  /**
+   * legacy 直写 default 前显式注册条目（shouldSkipWrite 对所有 id 生效后，老调用方
+   * 在索引建立前直写 default 的合法路径靠它保住——复审 2026-09-14）。
+   */
+  private async ensureDefaultRegistered(au_id: string): Promise<void> {
+    await this.ensureIndex(au_id);
+    const indexPath = this.indexPath(au_id);
+    await withWriteLock(indexPath, async () => {
+      const index = (await this.readIndex(au_id)) ?? createChatSessionIndex();
+      if (index.sessions.some((s) => s.id === DEFAULT_CHAT_SESSION_ID)) return;
+      if (index.retired_session_ids?.includes(DEFAULT_CHAT_SESSION_ID)) {
+        // default 被显式删除过：legacy 直写不复活它（复审 2026-09-14 R2 major）
+        warnAlways("simple_chat", "legacy save skipped: default session was explicitly deleted");
+        return;
+      }
+      const now = nowUtc();
+      index.sessions.push({
+        id: DEFAULT_CHAT_SESSION_ID,
+        title: UNTITLED_FALLBACK,
+        title_auto: true,
+        created_at: now,
+        updated_at: now,
+        message_count: 0,
+      });
+      await this.writeIndexLocked(au_id, index);
+    });
+  }
+
   async save(au_id: string, messages: SimpleChatMessageEnvelope[]): Promise<void> {
+    await this.ensureDefaultRegistered(au_id);
     return this.saveSession(au_id, DEFAULT_CHAT_SESSION_ID, messages);
   }
 
@@ -400,10 +549,12 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
     au_id: string,
     updater: (messages: SimpleChatMessageEnvelope[]) => SimpleChatMessageEnvelope[],
   ): Promise<void> {
+    await this.ensureDefaultRegistered(au_id);
     return this.updateSession(au_id, DEFAULT_CHAT_SESSION_ID, updater);
   }
 
   async clear(au_id: string): Promise<void> {
+    await this.ensureDefaultRegistered(au_id);
     return this.saveSession(au_id, DEFAULT_CHAT_SESSION_ID, []);
   }
 
@@ -464,12 +615,19 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
       const next = index.sessions.filter((s) => s.id !== session_id);
       if (next.length === index.sessions.length) return; // 不存在 → 幂等
       index.sessions = next;
+      // 记墓碑：legacy save() 等注册路径不得复活已删会话（复审 R2 major）
+      const retired = new Set(index.retired_session_ids ?? []);
+      retired.add(session_id);
+      index.retired_session_ids = [...retired];
       await this.writeIndexLocked(au_id, index);
     });
-    // 删文件：三端 deleteFile 对不存在路径行为漂移（Tauri 抛错 / mock 幂等），
-    // 「删除即达期望态」自行兜底（adapter 注释契约）。
+    // 删文件持会话锁（kimi R8 minor）：与 in-flight saveSession 的写互斥——否则删除先完成、
+    // 慢半拍的写后落地会留下 orphan 文件，索引损坏重建时会把它当存活会话注册回来。
+    // 三端 deleteFile 对不存在路径行为漂移（Tauri 抛错 / mock 幂等），「删除即达期望态」自行兜底。
     try {
-      await this.adapter.deleteFile(this.sessionPath(au_id, session_id));
+      await withWriteLock(this.sessionPath(au_id, session_id), async () => {
+        await this.adapter.deleteFile(this.sessionPath(au_id, session_id));
+      });
     } catch {
       // 文件本就不存在或删除失败：索引已除名，残留文件不再被引用
     }
@@ -480,10 +638,29 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
     return this.readChatFile(this.sessionPath(au_id, session_id), au_id);
   }
 
+  /**
+   * 写前闸门：索引里不存在该会话（= 已被并发删除）时整笔写丢弃——否则
+   * save-after-delete 会把已删会话的文件与索引项双双复活（对抗审 2026-09-14 major）。
+   * 对所有 id 生效、无 default 例外（复审 2026-09-14：default 豁免在「删除 default 后
+   * 慢半拍的防抖 save」场景同样构成复活后门）；legacy 直写 default 的合法路径改由
+   * save()/update() 委托前 ensureDefaultRegistered 显式注册。
+   */
+  private async shouldSkipWrite(au_id: string, session_id: string): Promise<boolean> {
+    const index = await this.readIndex(au_id);
+    if (!index) return false; // 索引自身异常时不动拦（ensureIndex 已尽力）
+    if (index.sessions.some((s) => s.id === session_id)) return false;
+    warnAlways("simple_chat", `skip write: session ${session_id} not in index (deleted or never registered)`);
+    return true;
+  }
+
   async saveSession(au_id: string, session_id: string, messages: SimpleChatMessageEnvelope[]): Promise<void> {
     await this.ensureIndex(au_id);
+    // 先过 sessionPath 的 id 校验（非法 id 必须抛错，不能被跳过闸门静默吞掉）
     const path = this.sessionPath(au_id, session_id);
+    // 闸门收进会话锁内（kimi R9 minor 残余 TOCTOU）：deleteSession 删文件也持会话锁，
+    // 检查→写入原子化——并发删除落地后本轮写必然看到索引无条目而丢弃，不留 orphan。
     await withWriteLock(path, async () => {
+      if (await this.shouldSkipWrite(au_id, session_id)) return;
       await this.writeChatFileLocked(path, au_id, messages);
     });
     await this.touchIndexMeta(au_id, session_id, messages);
@@ -495,9 +672,11 @@ export class FileSimpleChatRepository implements SimpleChatRepository {
     updater: (messages: SimpleChatMessageEnvelope[]) => SimpleChatMessageEnvelope[],
   ): Promise<void> {
     await this.ensureIndex(au_id);
+    // 先过 sessionPath 的 id 校验（非法 id 必须抛错，不能被跳过闸门静默吞掉）
     const path = this.sessionPath(au_id, session_id);
     let applied: SimpleChatMessageEnvelope[] = [];
     await withWriteLock(path, async () => {
+      if (await this.shouldSkipWrite(au_id, session_id)) return;
       // get() 不取锁，可安全在锁内复用；以磁盘现状为基底，避免调用方拿内存快照
       // 整体覆盖时丢掉别处刚写入的消息（接受标记 vs 防抖 save 的并发场景）。
       const file = await this.readChatFile(path, au_id);

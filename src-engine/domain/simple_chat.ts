@@ -242,6 +242,9 @@ export interface ChatSessionIndex {
   sessions: ChatSessionMeta[];
   /** true = 已从 legacy simple-chat.yaml 迁移过（不再重复搬；老文件保留）。 */
   migrated_from_legacy?: boolean;
+  /** 已被显式删除的会话 id 墓碑：deleteSession 记录，防 legacy 直写等路径把已删
+   * 会话重新注册（复审 2026-09-14 R2 major：删 default 后 legacy save() 复活它）。 */
+  retired_session_ids?: string[];
 }
 
 export const CHAT_SESSION_INDEX_VERSION = 1;

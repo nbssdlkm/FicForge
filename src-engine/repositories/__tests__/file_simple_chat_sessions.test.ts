@@ -214,4 +214,137 @@ describe("FileSimpleChatRepository · chat-sessions 多会话", () => {
     expect(file.messages).toHaveLength(1);
     expect(["A", "B", "C"]).toContain(file.messages[0].content);
   });
+
+  it("索引损坏 → 从会话文件抢救重建，不写空索引埋掉会话列表（对抗审 2026-09-14）", async () => {
+    const s = await repo.createSession("au1", "抢救目标");
+    await repo.saveSession("au1", s.id, [userMsg("m1", "消息还在")]);
+    await adapter.writeFile("au1/.well-known/chat-sessions/index.yaml", "{{{{not yaml at all");
+
+    const sessions = await repo.listSessions("au1");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].id).toBe(s.id);
+    expect(sessions[0].title).toBe("消息还在");
+    expect((await repo.getSession("au1", s.id)).messages[0].content).toBe("消息还在");
+  });
+
+  it("save-after-delete 不复活已删会话；legacy default 委托路径仍可直写（对抗审 2026-09-14）", async () => {
+    const s = await repo.createSession("au1");
+    await repo.saveSession("au1", s.id, [userMsg("m1", "hi")]);
+    await repo.deleteSession("au1", s.id);
+    await repo.saveSession("au1", s.id, [userMsg("m2", "late write")]);
+    expect(await repo.listSessions("au1")).toEqual([]);
+    expect(await adapter.exists(`au1/.well-known/chat-sessions/${s.id}.yaml`)).toBe(false);
+
+    // default 例外：老调用方在索引建立前直写 default 是合法 legacy 路径
+    await repo.save("au2", [userMsg("m3", "legacy direct")]);
+    expect((await repo.get("au2")).messages[0].content).toBe("legacy direct");
+    expect((await repo.listSessions("au2")).map((x) => x.id)).toEqual(["default"]);
+  });
+
+  it("default 会话删除后 saveSession 直写也被闸门拦截（复审 2026-09-14：default 豁免=复活后门）", async () => {
+    await repo.save("au3", [userMsg("m1", "legacy 消息")]); // legacy 委托路径注册 default
+    await repo.deleteSession("au3", "default");
+    await repo.saveSession("au3", "default", [userMsg("m2", "late write")]);
+    expect(await repo.listSessions("au3")).toEqual([]);
+    expect(await adapter.exists("au3/.well-known/chat-sessions/default.yaml")).toBe(false);
+  });
+
+  it("墓碑：default 删除后 legacy save() 也不再复活（复审 R2 major）；全新 AU 不受影响", async () => {
+    await repo.save("au4", [userMsg("m1", "legacy 消息")]);
+    await repo.deleteSession("au4", "default");
+    await repo.save("au4", [userMsg("m2", "legacy late write")]); // legacy 委托也不复活
+    expect(await repo.listSessions("au4")).toEqual([]);
+    expect(await adapter.exists("au4/.well-known/chat-sessions/default.yaml")).toBe(false);
+
+    // 全新 AU（无墓碑）legacy 直写照常工作
+    await repo.save("au5", [userMsg("m3", "fresh legacy")]);
+    expect((await repo.get("au5")).messages[0].content).toBe("fresh legacy");
+  });
+
+  it("索引丢失但会话文件还在 → 抢救重建，绝不用 legacy 旧内容覆盖 default.yaml（kimi 交叉验证 major）", async () => {
+    // 先迁移出 default，再写入新消息
+    await adapter.writeFile(
+      "au6/.well-known/simple-chat.yaml",
+      yaml.dump({
+        version: 1,
+        au_id: "au6",
+        updated_at: "2026-09-01T00:00:00Z",
+        messages: [{ id: "old", kind: "user", content: "旧 legacy 消息" }],
+      }),
+    );
+    await repo.listSessions("au6"); // 触发迁移
+    await repo.saveSession("au6", "default", [userMsg("new", "迁移后的新消息")]);
+    // 索引丢失（崩溃窗口/手动清理）
+    const filesBefore = await repo.getSession("au6", "default");
+    expect(filesBefore.messages[0].content).toBe("迁移后的新消息");
+    await adapter.deleteFile("au6/.well-known/chat-sessions/index.yaml");
+
+    const sessions = await repo.listSessions("au6");
+    expect(sessions.map((s) => s.id)).toEqual(["default"]);
+    // default.yaml 仍是新内容，未被 legacy 旧消息覆盖
+    const after = await repo.getSession("au6", "default");
+    expect(after.messages[0].content).toBe("迁移后的新消息");
+  });
+
+  it("迁移本身非破坏性：default.yaml 已存在时只注册不覆盖（复审 R5 major）", async () => {
+    // 场景：索引丢失 + 枚举探测被瞬时错误骗过（statEntry 吞错返 missing，adapter 契约
+    // 缺陷）→ 走迁移分支，但 default.yaml 还在——迁移绝不能用 legacy 旧内容覆盖它。
+    const blindAdapter = new MockAdapter();
+    const origStat = blindAdapter.statEntry.bind(blindAdapter);
+    blindAdapter.statEntry = async (p: string) => (p.endsWith("chat-sessions") ? "missing" : origStat(p));
+    const blindRepo = new FileSimpleChatRepository(blindAdapter);
+
+    await blindAdapter.writeFile(
+      "au7/.well-known/simple-chat.yaml",
+      yaml.dump({
+        version: 1,
+        au_id: "au7",
+        updated_at: "2026-09-01T00:00:00Z",
+        messages: [{ id: "old", kind: "user", content: "旧 legacy 消息" }],
+      }),
+    );
+    await blindAdapter.writeFile(
+      "au7/.well-known/chat-sessions/default.yaml",
+      yaml.dump({
+        version: 1,
+        au_path: "au7",
+        created_at: "2026-09-02T00:00:00Z",
+        updated_at: "2026-09-02T00:00:00Z",
+        messages: [{ id: "new", kind: "user", timestamp: "2026-09-02T00:00:00Z", content: "迁移后的新消息" }],
+      }),
+    );
+
+    const sessions = await blindRepo.listSessions("au7");
+    expect(sessions.map((s) => s.id)).toEqual(["default"]);
+    // 注册元数据按现存文件现状（新消息数/新标题）
+    expect(sessions[0].message_count).toBe(1);
+    expect(sessions[0].title).toBe("迁移后的新消息");
+    const file = await blindRepo.getSession("au7", "default");
+    expect(file.messages[0].content).toBe("迁移后的新消息");
+  });
+
+  it("迁移遇损坏的现存 default.yaml：不覆盖文件、元数据退回 legacy 导出（复审 R6 minor）", async () => {
+    const blindAdapter = new MockAdapter();
+    const origStat = blindAdapter.statEntry.bind(blindAdapter);
+    blindAdapter.statEntry = async (p: string) => (p.endsWith("chat-sessions") ? "missing" : origStat(p));
+    const blindRepo = new FileSimpleChatRepository(blindAdapter);
+    await blindAdapter.writeFile(
+      "au8/.well-known/simple-chat.yaml",
+      yaml.dump({
+        version: 1,
+        au_id: "au8",
+        updated_at: "2026-09-01T00:00:00Z",
+        messages: [{ id: "old", kind: "user", timestamp: "2026-09-01T00:00:00Z", content: "legacy 标题源" }],
+      }),
+    );
+    await blindAdapter.writeFile("au8/.well-known/chat-sessions/default.yaml", "{{{{corrupted");
+
+    const sessions = await blindRepo.listSessions("au8");
+    expect(sessions).toHaveLength(1);
+    // 元数据按 legacy 导出（不是空壳的 nowUtc/0 条）
+    expect(sessions[0].title).toBe("legacy 标题源");
+    expect(sessions[0].message_count).toBe(1);
+    // 损坏文件本体未被覆盖（留现场）
+    expect(await blindAdapter.readFile("au8/.well-known/chat-sessions/default.yaml")).toBe("{{{{corrupted");
+  });
 });
