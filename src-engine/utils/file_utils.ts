@@ -241,3 +241,8 @@ export function generateOpId(): string {
 export function generateThreadId(): string {
   return `t_${Math.floor(Date.now() / 1000)}_${randomIdSuffix()}`;
 }
+
+/** 生成全局唯一对话会话 ID：cs_{unix时间戳}_{4位随机}（chat-sessions 底座）。 */
+export function generateChatSessionId(): string {
+  return `cs_${Math.floor(Date.now() / 1000)}_${randomIdSuffix()}`;
+}

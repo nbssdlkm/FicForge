@@ -18,6 +18,7 @@ import {
   FileFandomRepository,
   FileOpsRepository,
   FileProjectRepository,
+  FileSettingsChatRepository,
   FileSettingsRepository,
   FileStateRepository,
   FileSimpleChatRepository,
@@ -49,6 +50,7 @@ export interface EngineInstance {
     settings: FileSettingsRepository;
     state: FileStateRepository;
     simpleChat: FileSimpleChatRepository;
+    settingsChat: FileSettingsChatRepository;
     thread: FileThreadRepository;
   };
   trash: TrashService;
@@ -80,6 +82,7 @@ export function initEngine(adapter: PlatformAdapter, dataDir: string): void {
       settings: new FileSettingsRepository(adapter, dataDir),
       state: new FileStateRepository(adapter),
       simpleChat: new FileSimpleChatRepository(adapter),
+      settingsChat: new FileSettingsChatRepository(adapter),
       thread: new FileThreadRepository(adapter),
     },
     trash: new TrashService(adapter),

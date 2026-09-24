@@ -15,8 +15,14 @@ import { dumpFrontmatterKey, parseCharacterCard } from "@ficforge/engine";
 /** AU 资料的两个分类目录 */
 export type LoreCategory = "characters" | "worldbuilding";
 
+/** 设定页列表视图的三段 tab（2026-09-09：分类从竖排堆叠改分段切换，垃圾箱收为第三段）。 */
+export type LoreTab = LoreCategory | "trash";
+
 /** Fandom 资料的两个分类目录 */
 export type FandomLoreCategory = "core_characters" | "core_worldbuilding";
+
+/** Fandom 资料页列表视图的三段 tab（与 LoreTab 同构）。 */
+export type FandomLoreTab = FandomLoreCategory | "trash";
 
 export type LoreFileEntry = {
   name: string;

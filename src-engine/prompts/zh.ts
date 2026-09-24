@@ -91,6 +91,7 @@ const zh: PromptModule = {
 
   SECTION_PLOT_STATE: "## 当前剧情状态",
   SECTION_PLOT_THREADS: "## 当前剧情线（守住这些长线的连贯，别遗忘也别重复收束）",
+  THREAD_CURRENT_MARKER: "▶ 当前：",
 
   INFO_ASYMMETRY_RULES:
     "（知情范围说明：下列事实若带「仅X知道」「仅读者知」「瞒着X」标注，表示信息不对称。\n" +

@@ -3,33 +3,34 @@
 // See LICENSE file in the project root for full license text.
 
 /**
- * 剧情线详情屏（M8-B UI，Thread detail）。
+ * 剧情线详情屏（M8-B UI + REQ-140 编排板）。
  *
- * 把 Fact 挂到这条线上当「节点」（成员关系真相源 = fact.thread_ids），按章排序，
- * 给每个节点标 thread_role（如 触发 / 转折 / 高潮）。设计取自 Claude Design 原型：
- * 左 sidebar 元数据 + olive current_state banner，右主区「Index of nodes」金色书脊节点卡。
+ * 把 Fact 挂到这条线上当「节点」（成员关系真相源 = fact.thread_ids），REQ-140 起节点顺序
+ * 由用户编排（fact.thread_order 显式序号，无序号按章号+时间派生兜底）：缝隙「+」可在任意
+ * 位置插入、上移/下移换位、摘除按钮常显、「编辑笔记」跳剧情笔记页改 fact 本体。
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { Button } from "../shared/Button";
 import { Input } from "../shared/Input";
 import { Modal } from "../shared/Modal";
 import { EmptyState } from "../shared/EmptyState";
 import { Tag } from "../shared/Tag";
 import { goldLine } from "../shared/tokens";
-import { ArrowLeft, Plus, Pencil, X, Search, RefreshCw } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, X, Search, RefreshCw, ArrowUp, ArrowDown, BookOpen } from "lucide-react";
 import { useFeedback } from "../../hooks/useFeedback";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { getEnumLabel } from "../../i18n/labels";
 import {
   addFactToThread,
   removeFactFromThread,
+  moveFactInThread,
   setFactThreadRole,
   getStaleThreads,
   regenerateThreadState,
   type FactInfo,
 } from "../../api/engine-client";
-import { ThreadStatus } from "@ficforge/engine";
+import { ThreadStatus, sortThreadFacts } from "@ficforge/engine";
 import type { Thread } from "@ficforge/engine";
 
 const headerGoldLines = {
@@ -49,25 +50,31 @@ interface ThreadDetailProps {
   onBack: () => void;
   onEdit: (thread: Thread) => void;
   onChanged: () => void | Promise<void>;
+  /** REQ-140：「编辑笔记」跳转（跳到剧情笔记页开该 fact 编辑态）。宿主不提供时按钮不渲染。 */
+  onEditFact?: (factId: string) => void;
 }
 
-export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged }: ThreadDetailProps) => {
+/** 缝隙插入的位置上下文：挂在 beforeFactId/afterFactId 两邻居之间；均空 = 尾部追加。 */
+interface InsertAt {
+  beforeFactId?: string;
+  afterFactId?: string;
+}
+
+export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged, onEditFact }: ThreadDetailProps) => {
   const { t } = useTranslation();
   const { showError } = useFeedback();
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerFilter, setPickerFilter] = useState("");
+  const [pickerAt, setPickerAt] = useState<InsertAt | undefined>(undefined); // 本次 picker 的落位（REQ-140）
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [roleDraft, setRoleDraft] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const busyRef = useRef<Set<string>>(new Set()); // 同步 in-flight 哨兵（state 是异步、防不住快速双触发）
   const pendingEscapeRef = useRef(false); // Escape 丢弃意图：拦下随后被动 blur 的误存
 
-  const nodes = useMemo(
-    () =>
-      facts.filter((f) => (f.thread_ids ?? []).includes(thread.id)).sort((a, b) => (a.chapter ?? 0) - (b.chapter ?? 0)),
-    [facts, thread.id],
-  );
+  // REQ-140：节点按「用户编排序」（显式 thread_order 优先，无章序者按章号+时间派生兜底）
+  const nodes = useMemo(() => sortThreadFacts(facts, thread.id), [facts, thread.id]);
 
   const available = useMemo(() => {
     const q = pickerFilter.trim().toLowerCase();
@@ -135,17 +142,39 @@ export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged 
   };
 
   // 助手已改为内部读 fresh fact，这里不再传 UI 旧值（防 lost-update）。
+  // REQ-140：pickerAt 携带缝隙落位；undefined（头部/空态入口）= 尾部追加。
   const addNode = (f: FactInfo) =>
     guard(f.id, async () => {
-      await addFactToThread(auPath, f.id, thread.id);
+      await addFactToThread(auPath, f.id, thread.id, pickerAt);
       setPickerOpen(false); // 挂成功即关 picker（审 MINOR：原先不关、列表已变但弹窗滞留）
     });
   const removeNode = (f: FactInfo) => guard(f.id, () => removeFactFromThread(auPath, f.id, thread.id));
+  // REQ-140：换位 = 与邻居交换后全线归一化持久化（见 engine-threads.moveFactInThread）
+  const moveNode = (f: FactInfo, direction: "up" | "down") =>
+    guard(f.id, () => moveFactInThread(auPath, thread.id, f.id, direction));
+  const openPicker = (at: InsertAt = {}) => {
+    setPickerFilter("");
+    setPickerAt(at);
+    setPickerOpen(true);
+  };
   const saveRole = (f: FactInfo) =>
     guard(f.id, async () => {
       await setFactThreadRole(auPath, f.id, thread.id, roleDraft);
       setEditingRoleId(null);
     });
+
+  // REQ-140：缝隙插入入口——「想在哪里挂就在哪里挂」。常显低噪（卡拉 2026-09-10 拍板：
+  // hover 隐藏=发现性死亡的教训，见摘除按钮同款修复），hover/focus 才提亮。
+  const GapInsert = ({ beforeFactId, afterFactId }: InsertAt) => (
+    <button
+      type="button"
+      onClick={() => openPicker({ beforeFactId, afterFactId })}
+      aria-label={t("threads.detail.insertHere")}
+      className="flex h-4 w-full items-center justify-center rounded-sm text-ink-faint/50 transition-colors hover:bg-gold/10 hover:text-gold focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-bright"
+    >
+      <Plus size={12} />
+    </button>
+  );
 
   // M8-A 叙事标签（flashback / reader-only / suspense）— UPPERCASE mono，同原型
   const nodeTags = (f: FactInfo): string[] => {
@@ -241,10 +270,7 @@ export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged 
                 fill="plain"
                 size="sm"
                 className="h-7 gap-1 text-inv-text/85 hover:bg-gold-bright/10 hover:text-inv-text"
-                onClick={() => {
-                  setPickerFilter("");
-                  setPickerOpen(true);
-                }}
+                onClick={() => openPicker()}
               >
                 <Plus size={14} /> {t("threads.detail.addNode")}
               </Button>
@@ -260,15 +286,7 @@ export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged 
                   {
                     key: "add",
                     element: (
-                      <Button
-                        tone="accent"
-                        fill="solid"
-                        size="sm"
-                        onClick={() => {
-                          setPickerFilter("");
-                          setPickerOpen(true);
-                        }}
-                      >
+                      <Button tone="accent" fill="solid" size="sm" onClick={() => openPicker()}>
                         {t("threads.detail.addNode")}
                       </Button>
                     ),
@@ -276,83 +294,136 @@ export const ThreadDetail = ({ auPath, thread, facts, onBack, onEdit, onChanged 
                 ]}
               />
             ) : (
-              nodes.map((f, idx) => {
-                const role = f.thread_roles?.[thread.id] ?? "";
-                const tags = nodeTags(f);
-                return (
-                  <div key={f.id} className="group relative rounded-sm border border-rule bg-surface py-3 pl-5 pr-3">
-                    <span
-                      aria-hidden
-                      className="pointer-events-none absolute left-0 top-3 bottom-3 w-[2px] rounded-r bg-gold opacity-65"
-                    />
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2 font-mono text-[10px] text-text/45">
-                        {/* № = 本线内节点序，ch.X = 章号（审 NIT：两处别都显示章号） */}
-                        <span className="text-gold">№ {String(idx + 1).padStart(2, "0")}</span>
-                        <span>ch.{f.chapter ?? 0}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeNode(f)}
-                        disabled={busyId === f.id}
-                        aria-label={t("threads.detail.removeNode")}
-                        className="shrink-0 rounded p-0.5 text-text/35 opacity-0 transition-opacity hover:bg-error/10 hover:text-error group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                    <p className="mt-1 font-serif text-[13px] leading-snug text-text/90">{f.content_clean}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      {tags.map((tag) => (
+              <>
+                {nodes.map((f, idx) => {
+                  const role = f.thread_roles?.[thread.id] ?? "";
+                  const tags = nodeTags(f);
+                  return (
+                    <Fragment key={f.id}>
+                      {/* REQ-140：每个节点前的缝隙插入口（含首节点之前） */}
+                      <GapInsert beforeFactId={f.id} afterFactId={nodes[idx - 1]?.id} />
+                      <div className="group relative rounded-sm border border-rule bg-surface py-3 pl-5 pr-3">
                         <span
-                          key={tag}
-                          className="rounded-[1px] border border-gold/30 bg-gold/15 px-[5px] py-[2px] font-mono text-[8px] font-medium uppercase tracking-[0.14em] text-gold"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                      {/* thread_role — 「role」 显示，点击改 */}
-                      {editingRoleId === f.id ? (
-                        <Input
-                          autoFocus
-                          aria-label={t("threads.detail.roleLabel")}
-                          value={roleDraft}
-                          onChange={(e) => setRoleDraft(e.target.value)}
-                          onBlur={() => {
-                            if (pendingEscapeRef.current) {
-                              pendingEscapeRef.current = false;
-                              return;
-                            }
-                            saveRole(f);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              saveRole(f);
-                            } else if (e.key === "Escape") {
-                              pendingEscapeRef.current = true;
-                              setEditingRoleId(null);
-                            }
-                          }}
-                          placeholder={t("threads.detail.rolePlaceholder")}
-                          className="h-7 w-40 text-xs"
+                          aria-hidden
+                          className="pointer-events-none absolute left-0 top-3 bottom-3 w-[2px] rounded-r bg-gold opacity-65"
                         />
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingRoleId(f.id);
-                            setRoleDraft(role);
-                          }}
-                          className="font-display text-[13px] italic text-accent hover:underline"
-                        >
-                          {role ? `「${role}」` : `+ ${t("threads.detail.setRole")}`}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-2 font-mono text-[10px] text-text/45">
+                            {/* № = 本线内节点序，ch.X = 章号（审 NIT：两处别都显示章号） */}
+                            <span className="text-gold">№ {String(idx + 1).padStart(2, "0")}</span>
+                            <span>ch.{f.chapter ?? 0}</span>
+                          </div>
+                          {/* REQ-140：操作簇常显（上移/下移/编辑笔记/摘除）——hover 才显示曾让卡拉找不着摘除 */}
+                          <div className="flex shrink-0 items-center gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => moveNode(f, "up")}
+                              disabled={busyId === f.id || idx === 0}
+                              aria-label={t("threads.detail.moveUp")}
+                              className="rounded p-0.5 text-text/35 transition-colors hover:bg-rule-soft hover:text-text/70 disabled:opacity-30"
+                            >
+                              <ArrowUp size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveNode(f, "down")}
+                              disabled={busyId === f.id || idx === nodes.length - 1}
+                              aria-label={t("threads.detail.moveDown")}
+                              className="rounded p-0.5 text-text/35 transition-colors hover:bg-rule-soft hover:text-text/70 disabled:opacity-30"
+                            >
+                              <ArrowDown size={13} />
+                            </button>
+                            {onEditFact ? (
+                              <button
+                                type="button"
+                                onClick={() => onEditFact(f.id)}
+                                aria-label={t("threads.detail.editFactNote")}
+                                className="rounded p-0.5 text-text/35 transition-colors hover:bg-accent/10 hover:text-accent"
+                              >
+                                <BookOpen size={13} />
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => removeNode(f)}
+                              disabled={busyId === f.id}
+                              aria-label={t("threads.detail.removeNode")}
+                              className="shrink-0 rounded p-0.5 text-text/35 transition-colors hover:bg-error/10 hover:text-error"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        </div>
+                        <p className="mt-1 font-serif text-[13px] leading-snug text-text/90">{f.content_clean}</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          {/* REQ-140：人物 + 故事时间元数据徽章（中性色调，区别于金色叙事标签） */}
+                          {(f.characters ?? []).map((c) => (
+                            <span
+                              key={`char-${c}`}
+                              className="rounded-[1px] border border-rule bg-rule-soft px-[5px] py-[2px] font-sans text-[9px] text-ink-muted"
+                            >
+                              {c}
+                            </span>
+                          ))}
+                          {f.story_time_tag ? (
+                            <span className="rounded-[1px] border border-rule bg-rule-soft px-[5px] py-[2px] font-mono text-[9px] text-ink-muted">
+                              {f.story_time_tag}
+                            </span>
+                          ) : null}
+                          {tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="rounded-[1px] border border-gold/30 bg-gold/15 px-[5px] py-[2px] font-mono text-[8px] font-medium uppercase tracking-[0.14em] text-gold"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                          {/* thread_role — 「role」 显示，点击改 */}
+                          {editingRoleId === f.id ? (
+                            <Input
+                              autoFocus
+                              aria-label={t("threads.detail.roleLabel")}
+                              value={roleDraft}
+                              onChange={(e) => setRoleDraft(e.target.value)}
+                              onBlur={() => {
+                                if (pendingEscapeRef.current) {
+                                  pendingEscapeRef.current = false;
+                                  return;
+                                }
+                                saveRole(f);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  saveRole(f);
+                                } else if (e.key === "Escape") {
+                                  pendingEscapeRef.current = true;
+                                  setEditingRoleId(null);
+                                }
+                              }}
+                              placeholder={t("threads.detail.rolePlaceholder")}
+                              className="h-7 w-40 text-xs"
+                            />
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingRoleId(f.id);
+                                setRoleDraft(role);
+                              }}
+                              className="font-display text-[13px] italic text-accent hover:underline"
+                            >
+                              {role ? `「${role}」` : `+ ${t("threads.detail.setRole")}`}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </Fragment>
+                  );
+                })}
+                {/* 尾部缝隙 = 追加到最后 */}
+                <GapInsert afterFactId={nodes[nodes.length - 1]?.id} />
+              </>
             )}
           </div>
         </main>

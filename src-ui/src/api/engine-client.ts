@@ -171,6 +171,7 @@ export {
   removeThread,
   addFactToThread,
   removeFactFromThread,
+  moveFactInThread,
   setFactThreadRole,
   getStaleThreads,
   regenerateThreadState,
@@ -214,7 +215,16 @@ export {
   getLoreContent,
   sanitizePathSegment,
 } from "./engine-lore";
-export { sendSettingsChat } from "./engine-settings-chat";
+export {
+  createSettingsChatSession,
+  deleteSettingsChatSession,
+  getSettingsChatSession,
+  listSettingsChatSessions,
+  renameSettingsChatSession,
+  saveSettingsChatSession,
+  sendSettingsChat,
+} from "./engine-settings-chat";
+export type { SettingsChatFile, SettingsChatMessageEnvelope } from "./engine-settings-chat";
 export {
   listFandoms,
   getFandomDisplayInfo,
@@ -241,11 +251,34 @@ export { migrateLegacySecureStorage } from "./engine-security";
 // ---------------------------------------------------------------------------
 export { dispatchSimpleChat } from "./engine-simple-dispatch";
 export type { DispatchSimpleChatParams, SimpleChatEvent } from "./engine-simple-dispatch";
-export { getSimpleChat, saveSimpleChat, markSimpleChatDraftAccepted, asSimpleChatMessages } from "./engine-simple-chat";
-export type { SimpleChatFile, SimpleChatMessageEnvelope } from "./engine-simple-chat";
+export {
+  createChatSession,
+  deleteChatSession,
+  getChatSession,
+  getSimpleChat,
+  listChatSessions,
+  markChatSessionDraftAccepted,
+  markSimpleChatDraftAccepted,
+  renameChatSession,
+  saveChatSession,
+  saveSimpleChat,
+  asSimpleChatMessages,
+} from "./engine-simple-chat";
+export type { ChatSessionMeta, SimpleChatFile, SimpleChatMessageEnvelope } from "./engine-simple-chat";
 export { estimateSimpleContextTokens } from "./engine-tokens";
 export type { SimpleContextTokenEstimate } from "./engine-tokens";
 export { SIMPLE_TOOL_SHOW_CHAPTER, SIMPLE_TOOL_SHOW_SETTING } from "@ficforge/engine";
 
 // Logger re-exports
 export { hasLogger, initLogger, getLogger, logCatch } from "@ficforge/engine";
+
+// 开发者模式调试捕获（观测面）：开关同步 + 调试包读取
+export {
+  setDebugCaptureEnabled,
+  isDebugCaptureEnabled,
+  listDebugBundles,
+  getDebugBundle,
+  clearDebugBundles,
+  isDeveloperMode,
+} from "@ficforge/engine";
+export type { DebugBundleMeta, GenerationDebugBundle } from "@ficforge/engine";

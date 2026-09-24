@@ -15,7 +15,13 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { asSimpleChatMessages, getSimpleChat, saveSimpleChat } from "../../api/engine-client";
+import {
+  asSimpleChatMessages,
+  getChatSession,
+  getSimpleChat,
+  saveChatSession,
+  saveSimpleChat,
+} from "../../api/engine-client";
 import { warnUi } from "../../utils/ui-logger";
 import {
   makeMessageId,
@@ -112,7 +118,7 @@ const DEBOUNCE_MS = 200;
  * rAF throttle 时 buffer 无限增长（低端设备后台 1fps，30KB+ 章节内存压力）。 */
 const BUFFER_FLUSH_THRESHOLD = 50_000;
 
-export function useSimpleChat(auPath: string): UseSimpleChatResult {
+export function useSimpleChat(auPath: string, sessionId?: string): UseSimpleChatResult {
   const [messages, setMessages] = useState<SimpleChatMessage[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -121,6 +127,10 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
   const loadTokenRef = useRef(0);
   /** 区分 save token 同样防 AU 切换后旧 save 串到新 AU。 */
   const auPathRef = useRef(auPath);
+  /** sessionId 同走上一条的 ref 防 stale 模式：防抖/离场/pagehide flush 触发时读最新值，
+   * 保证切会话后不会把新会话的消息写回旧会话文件。undefined = legacy 单文件路径
+   * （存量调用方/测试不传 sessionId 时行为逐字节不变）。 */
+  const sessionIdRef = useRef(sessionId);
   /** 离场 flush 需要在 cleanup 里读到最新值（cleanup 闭包捕获的是旧 render 的 state）。 */
   const isLoadedRef = useRef(false);
   const loadErrorRef = useRef<string | null>(null);
@@ -138,6 +148,11 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
     }
     warnUi("useSimpleChat", "saveSimpleChat failed; save mark rolled back for retry on next flush", err);
   }, []);
+
+  /** 统一写盘入口：有 sessionId 走会话文件，否则走 legacy 单文件（向后兼容）。 */
+  const saveCurrent = useCallback((targetAu: string, targetSession: string | undefined, msgs: SimpleChatMessage[]) => {
+    return targetSession ? saveChatSession(targetAu, targetSession, msgs) : saveSimpleChat(targetAu, msgs);
+  }, []);
   /** 流式 chunk 缓冲：messageId → 待 append 的累积 chunk 字符串。rAF 触发批量
    * 应用到 messages，避免每 chunk 一次 setMessages 让 SimpleChatHistory 整列
    * 重 reconcile（V1 真机卡顿根因之一）。 */
@@ -151,6 +166,10 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
   useEffect(() => {
     auPathRef.current = auPath;
   }, [auPath]);
+
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   useEffect(() => {
     isLoadedRef.current = isLoaded;
@@ -167,7 +186,7 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
     setLoadError(null);
     const token = ++loadTokenRef.current;
 
-    void getSimpleChat(auPath)
+    void (sessionId ? getChatSession(auPath, sessionId) : getSimpleChat(auPath))
       .then((file) => {
         if (loadTokenRef.current !== token) return;
         // engine 宽容读取壳 → 正式 domain union，走 domain 的唯一窄化点
@@ -184,7 +203,7 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
         setLoadError(err instanceof Error ? err.message : String(err));
         setIsLoaded(true); // 即便错也允许写新 chat
       });
-  }, [auPath]);
+  }, [auPath, sessionId]);
 
   // 防抖保存（仅在加载完成且无 loadError 时触发）。
   // 关键：loadError 非空时**不 save**——load 失败原因可能是临时（文件锁、权限瞬时拒绝），
@@ -196,33 +215,35 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
     if (loadError !== null) return;
     if (messages === lastSavedMessagesRef.current) return;
     const targetAuPath = auPathRef.current;
+    const targetSessionId = sessionIdRef.current;
     const timeout = setTimeout(() => {
-      if (auPathRef.current !== targetAuPath) return;
+      if (auPathRef.current !== targetAuPath || sessionIdRef.current !== targetSessionId) return;
       lastSavedMessagesRef.current = messages;
-      void saveSimpleChat(targetAuPath, messages).catch((err) => {
+      void saveCurrent(targetAuPath, targetSessionId, messages).catch((err) => {
         // save 失败不阻断 UX，但必须回滚标记让离场/pagehide flush 重试（否则永久丢消息）
         rollbackSaveMark(messages, err);
       });
     }, DEBOUNCE_MS);
     return () => clearTimeout(timeout);
-  }, [auPath, isLoaded, loadError, messages, rollbackSaveMark]);
+  }, [auPath, sessionId, isLoaded, loadError, messages, rollbackSaveMark, saveCurrent]);
 
   // 离场 flush（审计 H3）：AU 切换 / 卸载时，200ms 防抖窗口内未落盘的最后一笔立即写出。
   // 没有它，「已接受」等收尾状态回写恰好落在离场前的防抖窗口里就静默丢失 —— 重载后草稿
   // 回到 pending，用户可再点一次接受重复确认同章。cleanup 先于新 auPath 的 effect 运行，
   // 各 ref 里还是旧 AU 的值，闭包 auPath 也是旧值，不会串写到新 AU。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sessionId 是刻意的触发键——切会话也要重挂 cleanup 做 flush；体内读 sessionIdRef 最新值
   useEffect(() => {
     return () => {
       if (!isLoadedRef.current || loadErrorRef.current !== null) return;
       const msgs = messagesRef.current;
       if (msgs === lastSavedMessagesRef.current) return;
       lastSavedMessagesRef.current = msgs;
-      void saveSimpleChat(auPath, msgs).catch((err) => {
+      void saveCurrent(auPath, sessionIdRef.current, msgs).catch((err) => {
         // 离场路径无宿主可提示；回滚标记 + 落日志（pagehide flush 仍可能兜到）
         rollbackSaveMark(msgs, err);
       });
     };
-  }, [auPath, rollbackSaveMark]);
+  }, [auPath, sessionId, rollbackSaveMark, saveCurrent]);
 
   // pagehide flush（R1-6）：关标签页 / PWA 进后台被回收 / SW 更新强刷时组件 cleanup
   // 不保证执行，防抖窗口内的最后一笔会静默丢。与离场 flush 同一判定逻辑（有未落盘才写），
@@ -233,14 +254,14 @@ export function useSimpleChat(auPath: string): UseSimpleChatResult {
       const msgs = messagesRef.current;
       if (msgs === lastSavedMessagesRef.current) return;
       lastSavedMessagesRef.current = msgs;
-      void saveSimpleChat(auPathRef.current, msgs).catch((err) => {
+      void saveCurrent(auPathRef.current, sessionIdRef.current, msgs).catch((err) => {
         // 页面正在离场，无宿主可提示；回滚标记 +落日志（bfcache 回退后还有机会重试）
         rollbackSaveMark(msgs, err);
       });
     };
     window.addEventListener("pagehide", flushOnPageHide);
     return () => window.removeEventListener("pagehide", flushOnPageHide);
-  }, [rollbackSaveMark]);
+  }, [rollbackSaveMark, saveCurrent]);
 
   const appendMessage = useCallback((message: SimpleChatMessage) => {
     setMessages((prev) => [...prev, message]);

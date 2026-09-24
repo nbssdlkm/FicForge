@@ -4,11 +4,13 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Library } from "./ui/Library";
+import { GlobalChatSessionsLayout } from "./ui/simple/GlobalChatSessionsLayout";
 import { FandomLoreLayout } from "./ui/library/FandomLoreLayout";
 import { MobileFandomView } from "./ui/mobile/MobileFandomView";
 import { SplashScreen } from "./ui/SplashScreen";
 import { AuWorkspaceLayout } from "./ui/workspace/AuWorkspaceLayout";
 import { initEngine, getEngine, initLogger, getLogger, migrateLegacySecureStorage } from "./api/engine-client";
+import { setDebugCaptureEnabled, isDeveloperMode } from "./api/engine-client";
 import { hydrateFontsOnStartup } from "./api/engine-fonts";
 import { useTranslation } from "./i18n/useAppTranslation";
 import { useMediaQuery } from "./hooks/useMediaQuery";
@@ -132,6 +134,18 @@ function App() {
           /* best effort */
         }
 
+        // 开发者模式 → 调试捕获开关同步（spec 2026-09-08）：必须发生在 settings 加载之后、
+        // 用户可触发生成之前（bootstrap 完成前 UI 不可交互，无竞态面）。失败不阻断启动。
+        try {
+          const eng = getEngine();
+          const settings = await eng.repos.settings.get();
+          setDebugCaptureEnabled(isDeveloperMode(settings.app));
+        } catch (err) {
+          getLogger().warn("App", "同步开发者模式开关失败", {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+
         // 检查是否有上次中断的后台任务（仅 log，后续可接恢复 UI）
         try {
           const eng = getEngine();
@@ -249,6 +263,7 @@ function App() {
     <>
       <SplashScreen visible={splashVisible} />
       {!isAuSpace && currentPage === "library" && <Library onNavigate={handleNavigate} />}
+      {!isAuSpace && currentPage === "chat_sessions" && <GlobalChatSessionsLayout onNavigate={handleNavigate} />}
       {!isAuSpace &&
         currentPage === "fandom_lore" &&
         (isMobile ? (

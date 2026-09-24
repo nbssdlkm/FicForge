@@ -213,6 +213,63 @@ export interface SimpleChatFile {
 
 export const SIMPLE_CHAT_VERSION = 1;
 
+// ---------------------------------------------------------------------------
+// 多会话底座（chat-sessions）
+//
+// 存储布局：`{au_path}/.well-known/chat-sessions/index.yaml`（索引）+
+// `{au_path}/.well-known/chat-sessions/{session_id}.yaml`（每会话一份，形状同
+// SimpleChatFile）。legacy 单文件 `simple-chat.yaml` 在首次访问时自动迁移为
+// default 会话（老文件保留不删，降级回旧版 App 仍能读到）。
+//
+// 兼容约定同消息层：新增字段一律 optional；读方向宽容（索引条目缺字段跳过）。
+// ---------------------------------------------------------------------------
+
+/** 会话索引条目（列表页/侧栏展示用元数据，消息本体在会话文件里）。 */
+export interface ChatSessionMeta {
+  /** 会话 ID：`cs_{unix秒}_{4位随机}`，default 会话固定为 DEFAULT_CHAT_SESSION_ID。 */
+  id: string;
+  title: string;
+  /** true = 标题是占位默认值；首次落盘含用户消息时仓储自动改写为首条用户消息截断。 */
+  title_auto?: boolean;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+}
+
+/** chat-sessions/index.yaml 文件形状。 */
+export interface ChatSessionIndex {
+  version: number;
+  sessions: ChatSessionMeta[];
+  /** true = 已从 legacy simple-chat.yaml 迁移过（不再重复搬；老文件保留）。 */
+  migrated_from_legacy?: boolean;
+  /** 已被显式删除的会话 id 墓碑：deleteSession 记录，防 legacy 直写等路径把已删
+   * 会话重新注册（复审 2026-09-14 R2 major：删 default 后 legacy save() 复活它）。 */
+  retired_session_ids?: string[];
+}
+
+export const CHAT_SESSION_INDEX_VERSION = 1;
+/** legacy simple-chat.yaml 迁移落点 / 未指定会话时的兼容默认。 */
+export const DEFAULT_CHAT_SESSION_ID = "default";
+/** 会话标题最大长度（自动起名截断阈值）。 */
+export const CHAT_SESSION_TITLE_MAX = 24;
+
+/**
+ * 从消息列表推导会话标题：首条用户消息内容（压缩空白后截断），无则回退 fallback。
+ * 语言中立——标题来自用户自己的输入，引擎不硬编码任何语种文案。
+ */
+export function deriveChatSessionTitle(messages: SimpleChatMessageEnvelope[], fallback: string): string {
+  for (const m of messages) {
+    if (m.kind !== "user") continue;
+    const content = typeof m.content === "string" ? m.content.replace(/\s+/g, " ").trim() : "";
+    if (content) return content.slice(0, CHAT_SESSION_TITLE_MAX);
+  }
+  return fallback;
+}
+
+export function createChatSessionIndex(partial?: Partial<ChatSessionIndex>): ChatSessionIndex {
+  return { version: CHAT_SESSION_INDEX_VERSION, sessions: [], ...partial };
+}
+
 export function createSimpleChatFile(partial?: Partial<SimpleChatFile>): SimpleChatFile {
   const now = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
   return {

@@ -39,12 +39,20 @@ export { createChapterSummary } from "./chapter_summary.js";
 
 export type { ContextSummary, RagChunkDetail, RagCollection } from "./context_summary.js";
 export { createContextSummary, RAG_COLLECTIONS } from "./context_summary.js";
+export type {
+  DebugBundleMeta,
+  GenerationDebugBundle,
+  GenerationDebugError,
+  GenerationDebugParams,
+  GenerationDebugResult,
+} from "./debug_bundle.js";
+export { createGenerationDebugBundle, toDebugBundleMeta } from "./debug_bundle.js";
 
 export type { Draft } from "./draft.js";
 export { createDraft } from "./draft.js";
 
 export type { Fact } from "./fact.js";
-export { createFact } from "./fact.js";
+export { createFact, sanitizeThreadOrder, isColdFact } from "./fact.js";
 
 export type { Thread } from "./thread.js";
 export { createThread } from "./thread.js";
@@ -89,10 +97,13 @@ export {
   createFontsConfig,
   createModelParams,
   createSettings,
+  isDeveloperMode,
   isReactExtractionEnabled,
 } from "./settings.js";
 
 export type {
+  ChatSessionIndex,
+  ChatSessionMeta,
   SimpleChatFile,
   SimpleChatMessageEnvelope,
   SimpleMessageKind,
@@ -111,7 +122,27 @@ export type {
   SimpleSystemMessage,
   SimpleChatMessage,
 } from "./simple_chat.js";
-export { createSimpleChatFile, SIMPLE_CHAT_VERSION, asSimpleChatMessages } from "./simple_chat.js";
+export {
+  CHAT_SESSION_INDEX_VERSION,
+  CHAT_SESSION_TITLE_MAX,
+  DEFAULT_CHAT_SESSION_ID,
+  createChatSessionIndex,
+  createSimpleChatFile,
+  deriveChatSessionTitle,
+  SIMPLE_CHAT_VERSION,
+  asSimpleChatMessages,
+} from "./simple_chat.js";
+
+export type {
+  SettingsChatFile,
+  SettingsChatMessageEnvelope,
+  SettingsChatRole,
+} from "./settings_chat.js";
+export {
+  createSettingsChatFile,
+  deriveSettingsChatTitle,
+  SETTINGS_CHAT_VERSION,
+} from "./settings_chat.js";
 
 export type { EmbeddingFingerprint, State } from "./state.js";
 export { createEmbeddingFingerprint, createState } from "./state.js";

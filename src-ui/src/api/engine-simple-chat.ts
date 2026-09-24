@@ -7,10 +7,10 @@
  * 单 AU 一份 simple-chat.yaml；每次 message 改动后由 useSimpleChat 防抖保存。
  */
 
-import type { SimpleChatFile, SimpleChatMessageEnvelope } from "@ficforge/engine";
+import type { ChatSessionMeta, SimpleChatFile, SimpleChatMessageEnvelope } from "@ficforge/engine";
 import { getEngine } from "./engine-instance";
 
-export type { SimpleChatFile, SimpleChatMessageEnvelope };
+export type { ChatSessionMeta, SimpleChatFile, SimpleChatMessageEnvelope };
 // 仓储宽容读取 → 正式 SimpleChatMessage union 的唯一窄化点（domain 提供），
 // UI 端经此消费，不得自行 cast。
 export { asSimpleChatMessages } from "@ficforge/engine";
@@ -42,18 +42,82 @@ export async function markSimpleChatDraftAccepted(
   revision: number | null,
 ): Promise<void> {
   const { simpleChat } = getEngine().repos;
-  await simpleChat.update(auPath, (messages) =>
-    messages.map((m) => {
-      if (m.id !== messageId || m.kind !== "writing-draft") return m;
-      const next: SimpleChatMessageEnvelope = {
-        ...m,
-        status: "accepted",
-        accepted_at: new Date().toISOString(),
-        ...(revision !== null ? { accepted_revision: revision } : {}),
-      };
-      // 终态清掉历史错误文案，避免「accepted 却挂着 error 信息」的矛盾展示
-      delete next.error_message;
-      return next;
-    }),
+  await simpleChat.update(auPath, (messages) => markDraftAcceptedInMessages(messages, messageId, revision));
+}
+
+/** 钉 accepted 标记的纯函数（legacy 与 session 路径共用同一映射逻辑）。 */
+function markDraftAcceptedInMessages(
+  messages: SimpleChatMessageEnvelope[],
+  messageId: string,
+  revision: number | null,
+): SimpleChatMessageEnvelope[] {
+  return messages.map((m) => {
+    if (m.id !== messageId || m.kind !== "writing-draft") return m;
+    const next: SimpleChatMessageEnvelope = {
+      ...m,
+      status: "accepted",
+      accepted_at: new Date().toISOString(),
+      ...(revision !== null ? { accepted_revision: revision } : {}),
+    };
+    // 终态清掉历史错误文案，避免「accepted 却挂着 error 信息」的矛盾展示
+    delete next.error_message;
+    return next;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 多会话面（chat-sessions 底座）
+// ---------------------------------------------------------------------------
+
+/** 列出 AU 的对话会话（按 updated_at 倒序；首次调用自动迁移 legacy 单文件）。 */
+export async function listChatSessions(auPath: string): Promise<ChatSessionMeta[]> {
+  const { simpleChat } = getEngine().repos;
+  return await simpleChat.listSessions(auPath);
+}
+
+/** 新建会话。title 缺省时仓储落 title_auto 占位（首条用户消息落盘时自动起名）。 */
+export async function createChatSession(auPath: string, title?: string): Promise<ChatSessionMeta> {
+  const { simpleChat } = getEngine().repos;
+  return await simpleChat.createSession(auPath, title);
+}
+
+/** 重命名会话。 */
+export async function renameChatSession(auPath: string, sessionId: string, title: string): Promise<void> {
+  const { simpleChat } = getEngine().repos;
+  await simpleChat.renameSession(auPath, sessionId, title);
+}
+
+/** 删除会话（索引除名 + 删文件，幂等）。 */
+export async function deleteChatSession(auPath: string, sessionId: string): Promise<void> {
+  const { simpleChat } = getEngine().repos;
+  await simpleChat.deleteSession(auPath, sessionId);
+}
+
+/** 读指定会话消息（不存在返回空白 SimpleChatFile）。 */
+export async function getChatSession(auPath: string, sessionId: string): Promise<SimpleChatFile> {
+  const { simpleChat } = getEngine().repos;
+  return await simpleChat.getSession(auPath, sessionId);
+}
+
+/** 全量替换写指定会话。 */
+export async function saveChatSession(
+  auPath: string,
+  sessionId: string,
+  messages: SimpleChatMessageEnvelope[],
+): Promise<void> {
+  const { simpleChat } = getEngine().repos;
+  await simpleChat.saveSession(auPath, sessionId, messages);
+}
+
+/** session 版的钉 accepted 标记（语义同 markSimpleChatDraftAccepted，写指定会话文件）。 */
+export async function markChatSessionDraftAccepted(
+  auPath: string,
+  sessionId: string,
+  messageId: string,
+  revision: number | null,
+): Promise<void> {
+  const { simpleChat } = getEngine().repos;
+  await simpleChat.updateSession(auPath, sessionId, (messages) =>
+    markDraftAcceptedInMessages(messages, messageId, revision),
   );
 }

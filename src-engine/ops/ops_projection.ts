@@ -17,7 +17,7 @@ import { createState } from "../domain/state.js";
 import { ON_DISK_DEFAULT_REVISION } from "../domain/project.js";
 import type { State } from "../domain/state.js";
 import type { Fact } from "../domain/fact.js";
-import { createFact } from "../domain/fact.js";
+import { createFact, sanitizeThreadOrder } from "../domain/fact.js";
 import { sanitizeKnownTo, sanitizeHiddenFrom, sanitizeConfidence } from "../domain/fact_sanitize.js";
 import {
   FACT_SOURCE_VALUES,
@@ -276,6 +276,7 @@ function factFromPayload(id: string, d: Record<string, unknown>): Fact {
       typeof d.thread_roles === "object" && d.thread_roles !== null
         ? (d.thread_roles as Record<string, string>)
         : undefined,
+    thread_order: sanitizeThreadOrder(d.thread_order),
     // M10-B: cold-tier archival (default false; undefined on old facts treated as false)
     archived: typeof d.archived === "boolean" ? d.archived : false,
     archived_at: typeof d.archived_at === "string" ? d.archived_at : undefined,
@@ -324,6 +325,8 @@ export function rebuildFactsFromOps(ops: OpsEntry[]): Fact[] {
             // M8-B: thread 关联（setFactThreads 走 edit_fact op → 这两个键必须在白名单内才能 replay）
             "thread_ids",
             "thread_roles",
+            // REQ-140: 线内显式序号（编排板换位/插入走 edit_fact op → 同理由必须在白名单）
+            "thread_order",
             // M10-B: cold-tier archival fields
             "archived",
             "archived_at",
@@ -359,6 +362,11 @@ export function rebuildFactsFromOps(ops: OpsEntry[]): Fact[] {
                 continue;
               }
               (existing as unknown as Record<string, unknown>)[key] = res.value;
+              continue;
+            }
+            if (key === "thread_order") {
+              // REQ-140：与写路径/读盘共用 domain/fact.sanitizeThreadOrder；op 里 null=清除 → undefined
+              (existing as unknown as Record<string, unknown>)[key] = sanitizeThreadOrder(value);
               continue;
             }
             const validVals = EDIT_ENUM[key];

@@ -14,6 +14,7 @@ import { type LLMMode, getDataDir } from "../../api/engine-client";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { useFeedback } from "../../hooks/useFeedback";
 import { DebugLogsSection } from "./DebugLogsSection";
+import { GenerationDebugSection } from "./GenerationDebugSection";
 import { changeLanguage, SUPPORTED_LANGUAGES, type AppLanguage } from "../../i18n";
 import { ApiSetupHelp } from "../help/ApiSetupHelp";
 import { LlmModeSelect } from "./LlmModeSelect";
@@ -25,6 +26,7 @@ import { useGlobalSettingsData } from "./useGlobalSettingsData";
 import { useGlobalSettingsForm } from "./useGlobalSettingsForm";
 import { useGlobalSettingsModals } from "./useGlobalSettingsModals";
 import { useReactExtractionPref } from "./useReactExtractionPref";
+import { useDeveloperModePref } from "./useDeveloperModePref";
 
 export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const { t, i18n } = useTranslation();
@@ -36,6 +38,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onCl
   const contextWindowId = useId();
   const languageId = useId();
   const reactExtractionId = useId();
+  const developerModeId = useId();
 
   const { settings, displayDataDir, loading, loadKey } = useGlobalSettingsData(isOpen);
   const {
@@ -56,6 +59,7 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onCl
   } = useGlobalSettingsForm(isOpen, settings, loadKey);
   const modals = useGlobalSettingsModals(isOpen);
   const reactExtraction = useReactExtractionPref(isOpen, settings, loadKey);
+  const developerMode = useDeveloperModePref(isOpen, settings, loadKey);
 
   const llmConnection = useLlmConnectionTest({
     getSuccessMessage: () => t("settings.global.connectionSuccess"),
@@ -418,6 +422,28 @@ export const GlobalSettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onCl
           </div>
 
           <DebugLogsSection />
+
+          <div className="space-y-2 border-t border-rule pt-5">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor={developerModeId} className="text-sm font-bold text-text/90">
+                {t("settings.global.developerModeLabel")}
+              </label>
+              <select
+                id={developerModeId}
+                value={developerMode.enabled ? "on" : "off"}
+                onChange={(e) => {
+                  void developerMode.toggle(e.target.value === "on");
+                }}
+                className="h-11 w-full rounded-sm border border-rule bg-background px-3 text-base outline-hidden focus:ring-2 focus:ring-accent md:h-10 md:w-48 md:text-sm"
+              >
+                <option value="on">{t("settings.global.developerModeOn")}</option>
+                <option value="off">{t("settings.global.developerModeOff")}</option>
+              </select>
+              <p className="text-xs text-text/50">{t("settings.global.developerModeDescription")}</p>
+            </div>
+          </div>
+
+          {developerMode.enabled && <GenerationDebugSection />}
 
           <p className="mt-4 text-xs leading-relaxed text-text/30">{t("ethics.aboutFooter")}</p>
 

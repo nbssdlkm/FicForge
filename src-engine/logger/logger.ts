@@ -276,8 +276,10 @@ const STRING_REDACT_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
   // URL query 里的 key/token 参数值
   [/([?&](?:api[_-]?key|apikey|key|token|access[_-]?token|secret)=)[^&\s"']+/gi, "$1[REDACTED]"],
   // JSON / kv 形态 "api_key":"xxx"、token=xxx（B2 对抗审：token 并入 —— 网关 4xx 回显常用）
+  // 2026-09-08 实现审：api[_ -]?key 允许空格形态（"API key: xxx"——部分供应商错误体习惯写法），
+  // 与下化线/连字符同口径。
   [
-    /(\b(?:api[_-]?key|apikey|access[_-]?token|token|secret|password|authorization)["']?\s*[:=]\s*["']?)[^\s"',;{}]{4,}/gi,
+    /(\b(?:api[_ -]?key|apikey|access[_-]?token|token|secret|password|authorization)["']?\s*[:=]\s*["']?)[^\s"',;{}]{4,}/gi,
     "$1[REDACTED]",
   ],
   // secure key 名内嵌的作品/AU 标题（Rust/adapter 错误串会拼原始 key 名）。

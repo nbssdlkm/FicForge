@@ -251,6 +251,8 @@ function dictToAppConfig(d: Record<string, unknown> | null): AppConfig {
     fonts: dictToFontsConfig(d.fonts as Record<string, unknown> | null),
     // 默认开（PD-4）：缺字段（老 settings.yaml）视为开；仅显式 false 才关。
     react_extraction_enabled: d.react_extraction_enabled !== false,
+    // 默认关（2026-09-08 开发者模式）：缺字段视为关；仅显式 true 才开。
+    developer_mode: d.developer_mode === true,
     schema_version: (d.schema_version as string) ?? "1.0.0",
   });
 }

@@ -34,6 +34,7 @@ export const REQUIRED_KEYS = [
 
   // === context_assembler: buildThreadsLayer (M8-B) ===
   "SECTION_PLOT_THREADS",
+  "THREAD_CURRENT_MARKER", // REQ-140 线骨架：「▶ 当前：」标记（骨架与进展之间的分隔）
 
   // === context_assembler: buildRecentChapterLayer ===
   "SECTION_LAST_ENDING", // f-string with {content}

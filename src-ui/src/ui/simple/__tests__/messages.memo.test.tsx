@@ -217,7 +217,10 @@ describe("ToolCallCard memo", () => {
     const m2 = { ...baseMessage, tool_args: { chapterNum: 2, extra: true } };
     rerender(<ToolCallCard message={m2} globalBusy={false} onConfirm={cb} onSkip={cb} onUndo={cb} />);
     expect(t).toHaveBeenCalled();
-    expect(container.textContent).toContain('"chapterNum": 2');
+    // 格式化渲染：字段名标签 + 值分行展示（不再是 JSON 字面量），新字段 extra 出现即证重渲
+    expect(container.textContent).toContain("chapterNum");
+    expect(container.textContent).toContain("extra");
+    expect(container.textContent).toContain("true");
   });
 
   test("changed onConfirm ref → new callback fires on click", () => {

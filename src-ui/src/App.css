@@ -301,6 +301,32 @@
     overscroll-behavior-y: none;
   }
 
+  /* 全局滚动条融入纸面设计系统（2026-09-09 卡拉反馈：原生灰块滚动条与整体风格割裂）。
+   * 细轨 + 半透明墨色系 thumb，hover 加深；明暗主题随 --color-ink-muted-rgb 源变量自适应。
+   * Firefox 走 scrollbar-* 标准属性，WebKit/Blink 走 ::-webkit-scrollbar 伪元素。 */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--color-ink-muted-rgb) / 0.35) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--color-ink-muted-rgb) / 0.28);
+    border-radius: var(--radius-sm);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--color-ink-muted-rgb) / 0.45);
+  }
+
   input,
   textarea,
   select {

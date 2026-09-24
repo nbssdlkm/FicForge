@@ -17,6 +17,7 @@ import {
   getChapterContent,
   getState,
   logCatch,
+  markChatSessionDraftAccepted,
   markSimpleChatDraftAccepted,
 } from "../../api/engine-client";
 import { useFeedback } from "../../hooks/useFeedback";
@@ -27,6 +28,8 @@ import { swallowToNull } from "../../utils/ui-logger";
 
 interface UseSimpleDraftActionsParams {
   auPath: string;
+  /** 当前会话 id（chat-sessions 底座）；缺省时 accepted 标记写 legacy 单文件路径。 */
+  sessionId?: string;
   chat: ReturnType<typeof useSimpleChat>;
   /** M9 自动提取 gate（config hook 派生，双 gate 同源 resolveFactsProvider）。 */
   canAutoExtract: boolean;
@@ -39,8 +42,16 @@ interface UseSimpleDraftActionsParams {
   cancelDispatch: () => void;
 }
 
+/** accepted 标记落盘：有 sessionId 写会话文件，否则写 legacy 单文件（向后兼容）。 */
+function markAcceptedToDisk(auPath: string, sessionId: string | undefined, messageId: string, revision: number | null) {
+  return sessionId
+    ? markChatSessionDraftAccepted(auPath, sessionId, messageId, revision)
+    : markSimpleChatDraftAccepted(auPath, messageId, revision);
+}
+
 export function useSimpleDraftActions({
   auPath,
+  sessionId,
   chat,
   canAutoExtract,
   factsExtraction,
@@ -84,7 +95,7 @@ export function useSimpleDraftActions({
           if (existing !== null && existing.trim() === target.content.trim()) {
             // 章节内容与草稿逐字一致 → 此前已接受过、只是标记没落盘（切 tab 竞态遗留），
             // 补回标记而不是再确认一次。
-            await markSimpleChatDraftAccepted(auPath, messageId, null).catch((e) =>
+            await markAcceptedToDisk(auPath, sessionId, messageId, null).catch((e) =>
               logCatch("simple", "restore accepted marker failed", e),
             );
             chat.markDraftAccepted(messageId, null);
@@ -141,7 +152,7 @@ export function useSimpleDraftActions({
         // 立即把 accepted 终态直写 chat.yaml（锁内 read-modify-write，不依赖组件存活）。
         // confirm 要串行跑多个 LLM 调用，期间用户完全可能已离开工作区 —— 只靠下面的
         // 内存标记 + 防抖保存，标记会静默丢失（审计 H3 根因）。
-        await markSimpleChatDraftAccepted(auPath, messageId, result.revision).catch((e) =>
+        await markAcceptedToDisk(auPath, sessionId, messageId, result.revision).catch((e) =>
           logCatch("simple", "persist accepted marker failed", e),
         );
         chat.markDraftAccepted(messageId, result.revision);
@@ -174,6 +185,7 @@ export function useSimpleDraftActions({
     [
       acceptingDraftId,
       auPath,
+      sessionId,
       canAutoExtract,
       chat,
       factsExtraction.handleOpenExtractReview,

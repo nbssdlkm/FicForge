@@ -575,7 +575,11 @@
       "reactExtractionDescription": "After confirming a chapter, AI finds cross-chapter causes for notes and assigns them to storylines. Takes a few extra seconds; turn off for faster basic extraction.",
       "dataPathLabel": "Data Storage Path",
       "dataPathDefault": "App internal storage",
-      "dataPathHint": "All your work is saved at this location. We recommend regular backups via export or sync."
+      "dataPathHint": "All your work is saved at this location. We recommend regular backups via export or sync.",
+      "developerModeLabel": "Developer mode",
+      "developerModeOn": "On",
+      "developerModeOff": "Off (default)",
+      "developerModeDescription": "When on, captures full debug info for each generation (prompt / budget / RAG hits). Memory only, never persisted. For self-debugging; regular users don't need this."
     },
     "fonts": {
       "title": "Fonts",
@@ -634,7 +638,39 @@
     "createCoreIncludeTitle": "Add Pinned Character",
     "createCoreIncludePlaceholder": "Enter character name",
     "coreIncludeNoAvailable": "No characters available to add (all are already pinned, or no characters created yet)",
-    "coreIncludeMissing": "Character \"{{name}}\" is not in the roster. Please create them first."
+    "coreIncludeMissing": "Character \"{{name}}\" is not in the roster. Please create them first.",
+    "genDebug": {
+      "title": "Generation Debug",
+      "refresh": "Refresh",
+      "clearAll": "Clear",
+      "cleared": "Cleared",
+      "count": "{{count}} runs",
+      "empty": "No generations yet (new generations appear here while developer mode is on)",
+      "pathWrite": "Write",
+      "pathChat": "Chat",
+      "statusOk": "OK",
+      "statusError": "Error",
+      "statusUnknown": "Incomplete",
+      "iterations": "{{count}} iters",
+      "copyAll": "Copy all",
+      "copied": "Copied to clipboard",
+      "copyFailed": "Copy failed",
+      "budgetTitle": "Budget breakdown",
+      "noBudget": "No budget data (failed before assembly)",
+      "budgetContextWindow": "Context window",
+      "budgetSystem": "P0 system prompt",
+      "budgetThread": "Threads",
+      "budgetTotalInput": "Total input",
+      "budgetMaxOutput": "Max output",
+      "budgetRemaining": "Remaining",
+      "budgetTruncated": "Truncated layers: {{layers}}",
+      "budgetFallback": "Token counts are estimates (tokenizer fallback)",
+      "ragTitle": "RAG hits",
+      "messagesTitle": "Prompt messages",
+      "messagesStart": "First iteration",
+      "messagesFinal": "Final iteration (incl. agent tool messages)",
+      "copyOne": "Copy"
+    }
   },
   "facts": {
     "title": "Plot Points",
@@ -1462,7 +1498,7 @@
       "send": "Send"
     },
     "clearChat": {
-      "confirm": "Clear all chat history for this AU? This cannot be undone.",
+      "confirm": "Clear all messages in the current chat? This cannot be undone.",
       "done": "Chat cleared",
       "label": "Clear chat"
     },
@@ -1571,10 +1607,10 @@
     "detail": {
       "back": "Back",
       "editThread": "Edit thread",
-      "nodesTitle": "Nodes (by chapter)",
+      "nodesTitle": "Nodes (your order)",
       "addNode": "Add node",
       "emptyNodesTitle": "No nodes on this thread yet",
-      "emptyNodesDesc": "Attach related plot points to this thread as chapter-ordered nodes. The thread’s current state is injected into context while writing.",
+      "emptyNodesDesc": "Attach plot notes to this thread, place them with the gap + and reorder with ↑↓; the thread spine and progress are injected when writing.",
       "removeNode": "Remove from thread",
       "setRole": "Set role",
       "roleLabel": "Node role",
@@ -1584,12 +1620,48 @@
       "pickerEmpty": "No plot points available (all already on this thread, or none yet)",
       "refreshState": "Refresh progress",
       "refreshing": "Refreshing…",
-      "stateStale": "{{count}} new since last update — progress may be stale"
+      "stateStale": "{{count}} new since last update — progress may be stale",
+      "insertHere": "Insert node here",
+      "moveUp": "Move node up",
+      "moveDown": "Move node down",
+      "editFactNote": "Edit this note"
     },
     "appearsIn": {
       "title": "Appears in",
       "empty": "Not in any thread",
       "noRole": "(no role)"
     }
+  },
+  "chatSessions": {
+    "listTitle": "Chats",
+    "new": "New chat",
+    "untitled": "New chat",
+    "rename": "Rename",
+    "delete": "Delete chat",
+    "renamePlaceholder": "Chat name",
+    "deleteTitle": "Delete chat",
+    "deleteConfirm": "Delete \"{{title}}\"? All messages in this chat will be deleted. This cannot be undone.",
+    "empty": "No chats yet",
+    "messageCount": "{{count}} messages",
+    "viewAll": "All chats",
+    "globalTitle": "Chat Sessions",
+    "globalSubtitle": "Every AI conversation across your works and fandoms lives here. Click one to jump and open it.",
+    "searchPlaceholder": "Search chat titles…",
+    "groupCount": "{{count}} chats",
+    "open": "Open",
+    "kind": {
+      "chat": "Chat",
+      "settings": "Settings AI",
+      "fandom": "Fandom AI"
+    },
+    "historyLoadFailed": "Couldn't load this conversation — what you type now won't be saved",
+    "loadFailed": "Couldn't load the conversation list — this chat won't be saved"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "description": "An error occurred while rendering the interface. You can copy the diagnostics and send them to the developer, or reload the app.",
+    "copyDiagnostics": "Copy diagnostics",
+    "copied": "Copied",
+    "reload": "Reload app"
   }
 }

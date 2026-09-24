@@ -19,7 +19,7 @@ import { useTranslation } from "../../i18n/useAppTranslation";
 import { Button } from "./Button";
 import { EmptyState } from "./EmptyState";
 import { Modal } from "./Modal";
-import { ChevronDown, ChevronRight, FileText, FolderOpen, Trash2 } from "lucide-react";
+import { FileText, FolderOpen, Trash2 } from "lucide-react";
 
 type TrashPanelProps = {
   scope: TrashScope;
@@ -85,7 +85,6 @@ function getEntryLabel(entry: TrashEntry): string {
 export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled = false }: TrashPanelProps) {
   const { t, i18n } = useTranslation();
   const { showError, showSuccess, showToast } = useFeedback();
-  const [isExpanded, setIsExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [entries, setEntries] = useState<TrashEntry[]>([]);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -134,12 +133,6 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
   useEffect(() => {
     void loadEntries();
   }, [path, refreshToken, scope]);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——仅应随 isExpanded 变化（展开时首拉）；loadEntries 每渲染重建，入依赖会每次渲染重拉
-  useEffect(() => {
-    if (!isExpanded) return;
-    void loadEntries();
-  }, [isExpanded]);
 
   const handleRestore = async (entry: TrashEntry, onConflict: "abort" | "overwrite" = "abort") => {
     if (!path || disabled) return;
@@ -227,109 +220,101 @@ export function TrashPanel({ scope, path, onRestore, refreshToken = 0, disabled 
 
   return (
     <>
+      {/* 去折叠只去掉展开/收起交互，根容器类名保留（shrink-0/border-t/底色是贴底 footer
+          形态的布局契约——kimi R8 major：丢失后 6 个挂载点会被压缩/视觉断层） */}
       <div className="shrink-0 border-t border-black/10 bg-surface/80 dark:border-white/10">
-        <button
-          type="button"
-          className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-text/90 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-          onClick={() => setIsExpanded((current) => !current)}
-          disabled={disabled}
-        >
-          <span className="flex items-center gap-2">
-            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        {/* 常显标题行（无折叠开关）——垃圾箱在 tab / 弹窗里都是独立视图，再折叠一层只会多一次点击 */}
+        <div className="flex items-center justify-between px-4 py-3">
+          <span className="flex items-center gap-2 text-sm font-medium text-text/90">
             <Trash2 size={14} className="text-text/50" />
             <span>{t("trash.title")}</span>
             <span className="text-text/50">{t("trash.count", { count: entries.length })}</span>
           </span>
           {loading && <Spinner size="sm" className="text-accent" />}
-        </button>
+        </div>
 
-        {isExpanded && (
-          <div className="space-y-3 border-t border-black/10 px-4 py-4 dark:border-white/10">
-            {loading ? (
-              <div className="flex justify-center py-6">
-                <Spinner size="md" className="text-accent" />
-              </div>
-            ) : entries.length === 0 ? (
-              <EmptyState
-                compact
-                icon={<Trash2 size={28} />}
-                title={t("emptyState.trash.title")}
-                description={t("emptyState.trash.description")}
-              />
-            ) : (
-              <>
-                {entries.map((entry) => {
-                  const expiresInDays = getDaysUntilExpiry(entry.expires_at);
-                  const isBusy = pendingId === entry.trash_id || isClearingAll;
-                  return (
-                    <div
-                      key={entry.trash_id}
-                      className="rounded-lg border border-black/10 bg-background/60 p-3 shadow-subtle dark:border-white/10"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="mt-0.5 text-text/50">
-                          {isDirectoryEntry(entry) ? <FolderOpen size={16} /> : <FileText size={16} />}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-medium text-text">{getEntryLabel(entry)}</div>
-                          <div
-                            className="mt-1 text-xs text-text/50"
-                            title={formatAbsoluteTime(entry.deleted_at, timeLocale)}
-                          >
-                            {t("trash.deletedAt", { time: formatRelativeTime(entry.deleted_at, timeLocale) })}
-                          </div>
-                          <div
-                            className="text-xs text-text/50"
-                            title={formatAbsoluteTime(entry.expires_at, timeLocale)}
-                          >
-                            {expiresInDays === null
-                              ? t("trash.expired")
-                              : expiresInDays > 0
-                                ? t("trash.expiresIn", { days: expiresInDays })
-                                : t("trash.expired")}
-                          </div>
-                        </div>
+        <div className="space-y-3 px-4 py-4">
+          {loading ? (
+            <div className="flex justify-center py-6">
+              <Spinner size="md" className="text-accent" />
+            </div>
+          ) : entries.length === 0 ? (
+            <EmptyState
+              compact
+              icon={<Trash2 size={28} />}
+              title={t("emptyState.trash.title")}
+              description={t("emptyState.trash.description")}
+            />
+          ) : (
+            <>
+              {entries.map((entry) => {
+                const expiresInDays = getDaysUntilExpiry(entry.expires_at);
+                const isBusy = pendingId === entry.trash_id || isClearingAll;
+                return (
+                  <div
+                    key={entry.trash_id}
+                    className="rounded-lg border border-black/10 bg-background/60 p-3 shadow-subtle dark:border-white/10"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 text-text/50">
+                        {isDirectoryEntry(entry) ? <FolderOpen size={16} /> : <FileText size={16} />}
                       </div>
-                      <div className="mt-3 flex justify-end gap-2">
-                        <Button
-                          tone="neutral"
-                          fill="outline"
-                          size="sm"
-                          onClick={() => {
-                            void handleRestore(entry);
-                          }}
-                          disabled={isBusy || disabled}
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium text-text">{getEntryLabel(entry)}</div>
+                        <div
+                          className="mt-1 text-xs text-text/50"
+                          title={formatAbsoluteTime(entry.deleted_at, timeLocale)}
                         >
-                          {pendingId === entry.trash_id ? <Spinner size="sm" /> : t("trash.restore")}
-                        </Button>
-                        <Button
-                          tone="destructive"
-                          fill="plain"
-                          size="sm"
-                          onClick={() => setDeleteTarget(entry)}
-                          disabled={isBusy || disabled}
-                        >
-                          {t("trash.permanentDelete")}
-                        </Button>
+                          {t("trash.deletedAt", { time: formatRelativeTime(entry.deleted_at, timeLocale) })}
+                        </div>
+                        <div className="text-xs text-text/50" title={formatAbsoluteTime(entry.expires_at, timeLocale)}>
+                          {expiresInDays === null
+                            ? t("trash.expired")
+                            : expiresInDays > 0
+                              ? t("trash.expiresIn", { days: expiresInDays })
+                              : t("trash.expired")}
+                        </div>
                       </div>
                     </div>
-                  );
-                })}
-                <div className="flex justify-end pt-1">
-                  <Button
-                    tone="destructive"
-                    fill="plain"
-                    size="sm"
-                    onClick={() => setClearAllOpen(true)}
-                    disabled={isClearingAll || disabled}
-                  >
-                    {isClearingAll ? <Spinner size="sm" /> : t("trash.clearAll")}
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
+                    <div className="mt-3 flex justify-end gap-2">
+                      <Button
+                        tone="neutral"
+                        fill="outline"
+                        size="sm"
+                        onClick={() => {
+                          void handleRestore(entry);
+                        }}
+                        disabled={isBusy || disabled}
+                      >
+                        {pendingId === entry.trash_id ? <Spinner size="sm" /> : t("trash.restore")}
+                      </Button>
+                      <Button
+                        tone="destructive"
+                        fill="plain"
+                        size="sm"
+                        onClick={() => setDeleteTarget(entry)}
+                        disabled={isBusy || disabled}
+                      >
+                        {t("trash.permanentDelete")}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="flex justify-end pt-1">
+                <Button
+                  tone="destructive"
+                  fill="plain"
+                  size="sm"
+                  onClick={() => setClearAllOpen(true)}
+                  disabled={isClearingAll || disabled}
+                >
+                  {isClearingAll ? <Spinner size="sm" /> : t("trash.clearAll")}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <Modal isOpen={deleteTarget !== null} onClose={() => setDeleteTarget(null)} title={t("trash.permanentDelete")}>

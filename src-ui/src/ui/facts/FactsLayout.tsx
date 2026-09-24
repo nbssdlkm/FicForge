@@ -7,7 +7,7 @@ import { Check } from "lucide-react";
 import { Spinner } from "../shared/Spinner";
 import { Button } from "../shared/Button";
 import { useActiveRequestGuard } from "../../hooks/useActiveRequestGuard";
-import { updateFactStatus, unarchiveFact, type FactStatus } from "../../api/engine-client";
+import { updateFactStatus, unarchiveFact, logCatch, type FactStatus } from "../../api/engine-client";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { useFeedback } from "../../hooks/useFeedback";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
@@ -16,6 +16,7 @@ import { useFactsFilter } from "./useFactsFilter";
 import { useBatchFacts } from "./useBatchFacts";
 import { useFactEditor } from "./useFactEditor";
 import { useFactsExtraction } from "./useFactsExtraction";
+import { peekFactFocus, consumeFactFocus } from "./factFocus";
 import { FactsFilterBar, type FactsCounts } from "./FactsFilterBar";
 import { FactsListControls } from "./FactsListControls";
 import { FactsList } from "./FactsList";
@@ -64,6 +65,22 @@ export const FactsLayout = ({ auPath }: { auPath: string }) => {
   useEffect(() => {
     void reloadFacts();
   }, [auPath, factsFilter.statusFilter]);
+
+  // REQ-140：剧情线「编辑笔记」跳转落点。pending-focus 单次投递（factFocus.ts）：加载完成后
+  // 找到目标 → 进编辑态并消费；找不到（已删）→ 也消费掉 + 记日志，不静默挂住。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: editor.startEditFact 引用稳定（useCallback），有意省略
+  useEffect(() => {
+    if (data.loading) return;
+    const pending = peekFactFocus();
+    if (!pending) return;
+    const target = data.facts.find((f) => f.id === pending);
+    consumeFactFocus();
+    if (target) {
+      editor.startEditFact(target);
+    } else {
+      logCatch("facts", `factFocus target not found: ${pending}`, new Error("fact not found"));
+    }
+  }, [data.loading, data.facts]);
 
   const handleStatusChange = async (factId: string, nextStatus: string) => {
     if (!auPath) return;

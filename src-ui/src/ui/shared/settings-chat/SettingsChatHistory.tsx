@@ -62,8 +62,9 @@ export function SettingsChatHistory({
   }, [messages]);
 
   if (messages.length === 0) {
+    // 空态不套圆角卡片——面板本身就是容器，再包一层像「框中框」
     return (
-      <div className="flex h-full min-h-[240px] items-center justify-center rounded-[24px] border border-black/10 bg-surface/35 p-6 shadow-subtle dark:border-white/10">
+      <div className="flex h-full min-h-[240px] items-center justify-center p-6">
         <EmptyState
           compact={compact}
           icon={<MessageSquareText size={compact ? 28 : 40} />}

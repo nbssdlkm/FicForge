@@ -36,6 +36,7 @@ export interface Fact {
   suspense_type?: SuspenseType | null; // 悬念类型
   thread_ids?: string[]; // 【留位，M8-B 实现】故事线 ID 列表
   thread_roles?: Record<string, string>; // 【留位，M8-B 实现】故事线角色
+  thread_order?: Record<string, number>; // REQ-140：线内显式序号（用户编排的节点位置）。真相源同 thread_ids 记在 fact 上（D1 单源不破，Thread 不存 nodes 数组）；缺失 = 未编排，消费方按章号+created_at 派生兜底
 
   // ---------- 置信度旁路（M8-A）----------
   _confidence?: FactFieldConfidence; // per-field LLM 置信度，非叙事内容不注入 prompt
@@ -52,6 +53,20 @@ export interface Fact {
  */
 export function isColdFact(f: Pick<Fact, "archived">): boolean {
   return f.archived === true;
+}
+
+/**
+ * thread_order 读取消毒（REQ-140）：repo 读盘与 ops replay 共用同一判据——仅保留有限数值
+ * 键值对，非法形状（含数组——typeof 数组也是 object，会漏成 {"0":n} 脏键）/垃圾值 → undefined
+ * （视同未编排，走派生序兜底）。单一真相源防两处漂移。
+ */
+export function sanitizeThreadOrder(raw: unknown): Record<string, number> | undefined {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return undefined;
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 export type ConfidenceLevel = "high" | "medium" | "low";
