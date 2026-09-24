@@ -133,6 +133,17 @@ export {
   asSimpleChatMessages,
 } from "./simple_chat.js";
 
+export type {
+  SettingsChatFile,
+  SettingsChatMessageEnvelope,
+  SettingsChatRole,
+} from "./settings_chat.js";
+export {
+  createSettingsChatFile,
+  deriveSettingsChatTitle,
+  SETTINGS_CHAT_VERSION,
+} from "./settings_chat.js";
+
 export type { EmbeddingFingerprint, State } from "./state.js";
 export { createEmbeddingFingerprint, createState } from "./state.js";
 

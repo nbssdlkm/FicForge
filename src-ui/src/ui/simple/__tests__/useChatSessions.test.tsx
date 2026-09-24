@@ -56,7 +56,10 @@ describe("useChatSessions", () => {
   });
 
   it("非空列表 → 默认选首项（updated_at 倒序 = 最近），不额外创建", async () => {
-    mocked.listChatSessions.mockResolvedValue([meta("cs_recent", "最近"), meta("cs_old", "旧的", "2026-09-01T10:00:00Z")]);
+    mocked.listChatSessions.mockResolvedValue([
+      meta("cs_recent", "最近"),
+      meta("cs_old", "旧的", "2026-09-01T10:00:00Z"),
+    ]);
 
     const { result } = renderHook(() => useChatSessions("au_a"));
     await waitFor(() => expect(result.current.isLoaded).toBe(true));
@@ -148,5 +151,25 @@ describe("useChatSessions", () => {
     rerender({ au: "au_b" });
     await waitFor(() => expect(result.current.activeId).toBe("cs_b"));
     expect(result.current.sessions.map((s) => s.id)).toEqual(["cs_b"]);
+  });
+
+  it("并发连删两个会话 → 第二个删除读到最新列表，不残留 ghost（对抗审 2026-09-14）", async () => {
+    mocked.listChatSessions.mockResolvedValue([meta("cs_a", "会话 A")]);
+    let createSeq = 0;
+    mocked.createChatSession.mockImplementation(async () => meta(`cs_new_${++createSeq}`, "新建"));
+    const { result } = renderHook(({ au }) => useChatSessions(au), { initialProps: { au: "au_a" } });
+    await waitFor(() => expect(result.current.activeId).toBe("cs_a"));
+    act(() => {
+      void result.current.createNewSession("第二个");
+    });
+    await waitFor(() => expect(result.current.sessions).toHaveLength(2));
+    const [newest, oldest] = result.current.sessions.map((s) => s.id);
+    // 不等第一个 await 完就发第二个删除（同一 act 里并发）
+    await act(async () => {
+      await Promise.all([result.current.removeSession(newest), result.current.removeSession(oldest)]);
+    });
+    // 两个都删光 → 自愈新建一个；绝不能残留任何旧 id
+    expect(result.current.sessions.some((s) => s.id === newest || s.id === oldest)).toBe(false);
+    expect(result.current.sessions.length).toBe(1);
   });
 });

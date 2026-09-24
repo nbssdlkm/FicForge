@@ -10,7 +10,10 @@ import {
   callSettingsLlm,
   resolveLlmConfig,
   createProvider,
+  type ChatSessionMeta,
   type Message,
+  type SettingsChatFile,
+  type SettingsChatMessageEnvelope,
 } from "@ficforge/engine";
 import { ApiError, getFriendlyErrorMessage } from "./client";
 import { getEngine } from "./engine-instance";
@@ -62,4 +65,39 @@ export async function sendSettingsChat(params: {
     content: result.content,
     tool_calls: result.tool_calls,
   };
+}
+
+// ---------------------------------------------------------------------------
+// 设定助手会话底座（settings-chat-sessions）
+// contextPath：fandom 助手 = fandomPath，AU 设定助手 = auPath。
+// ---------------------------------------------------------------------------
+
+export type { ChatSessionMeta, SettingsChatFile, SettingsChatMessageEnvelope };
+
+export async function listSettingsChatSessions(contextPath: string): Promise<ChatSessionMeta[]> {
+  return await getEngine().repos.settingsChat.listSessions(contextPath);
+}
+
+export async function createSettingsChatSession(contextPath: string, title?: string): Promise<ChatSessionMeta> {
+  return await getEngine().repos.settingsChat.createSession(contextPath, title);
+}
+
+export async function renameSettingsChatSession(contextPath: string, sessionId: string, title: string): Promise<void> {
+  await getEngine().repos.settingsChat.renameSession(contextPath, sessionId, title);
+}
+
+export async function deleteSettingsChatSession(contextPath: string, sessionId: string): Promise<void> {
+  await getEngine().repos.settingsChat.deleteSession(contextPath, sessionId);
+}
+
+export async function getSettingsChatSession(contextPath: string, sessionId: string): Promise<SettingsChatFile> {
+  return await getEngine().repos.settingsChat.getSession(contextPath, sessionId);
+}
+
+export async function saveSettingsChatSession(
+  contextPath: string,
+  sessionId: string,
+  messages: SettingsChatMessageEnvelope[],
+): Promise<void> {
+  await getEngine().repos.settingsChat.saveSession(contextPath, sessionId, messages);
 }

@@ -11,6 +11,7 @@ export type { FandomRepository } from "./fandom.js";
 export type { OpsRepository } from "./ops.js";
 export type { ProjectRepository } from "./project.js";
 export type { SettingsRepository } from "./settings.js";
+export type { SettingsChatRepository } from "./settings_chat.js";
 export type { SimpleChatRepository } from "./simple_chat.js";
 export type { StateRepository } from "./state.js";
 export type { ThreadRepository } from "./thread.js";

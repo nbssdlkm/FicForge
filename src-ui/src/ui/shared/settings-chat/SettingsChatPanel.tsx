@@ -6,8 +6,10 @@ import { useEffect } from "react";
 import { Sparkles } from "lucide-react";
 import type { SettingsChatSessionLlm } from "../../../api/engine-client";
 import { useTranslation } from "../../../i18n/useAppTranslation";
+import { useSettingsChatSessions } from "../../simple/useChatSessions";
 import { SettingsChatHistory } from "./SettingsChatHistory";
 import { SettingsChatInput } from "./SettingsChatInput";
+import { SettingsChatSessionBar } from "./SettingsChatSessionBar";
 import { useSettingsChatConversation } from "./useSettingsChatConversation";
 import { useSettingsChatSupportData } from "./useSettingsChatSupportData";
 import { useSettingsChatToolActions } from "./useSettingsChatToolActions";
@@ -53,7 +55,16 @@ export function SettingsChatPanel({
   const { t } = useTranslation();
 
   const supportData = useSettingsChatSupportData(mode, basePath);
-  const conversation = useSettingsChatConversation({ mode, basePath, fandomPath, sessionLlm, disabled });
+  // 会话底座：contextPath = basePath（fandom 助手传 fandomPath，AU 设定助手传 auPath）
+  const sessions = useSettingsChatSessions(basePath ?? "");
+  const conversation = useSettingsChatConversation({
+    mode,
+    basePath,
+    fandomPath,
+    sessionLlm,
+    disabled,
+    sessionId: sessions.activeId,
+  });
   const toolActions = useSettingsChatToolActions({
     mode,
     basePath,
@@ -69,6 +80,15 @@ export function SettingsChatPanel({
     onBusyChange?.(mutationBusy);
   }, [mutationBusy, onBusyChange]);
 
+  // 会话元数据跟随消息落盘刷新（自动标题 / 消息数）：防抖 500ms，与 SimpleChatPanel 同款接线。
+  // refresh 只回写索引 state，不动 activeId，无重载循环。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——conversation.messages 只作变更信号，体内读 sessions 的语义化方法
+  useEffect(() => {
+    if (!sessions.isLoaded || !conversation.isLoaded) return;
+    const timer = setTimeout(() => void sessions.refresh(), 500);
+    return () => clearTimeout(timer);
+  }, [conversation.messages, conversation.isLoaded, sessions.isLoaded]);
+
   return (
     <div className={`flex h-full min-h-0 flex-col ${className}`}>
       {title ? (
@@ -76,6 +96,26 @@ export function SettingsChatPanel({
           <Sparkles size={16} className="text-accent" />
           <span>{title}</span>
         </div>
+      ) : null}
+
+      {/* 会话切换条：key 强制切上下文重挂载（展开态自然收起） */}
+      <SettingsChatSessionBar
+        key={basePath ?? ""}
+        sessions={sessions.sessions}
+        activeId={sessions.activeId}
+        loadError={sessions.loadError}
+        onSelect={sessions.selectSession}
+        onCreate={() => void sessions.createNewSession()}
+        onRename={(id, newTitle) => void sessions.renameSessionById(id, newTitle)}
+        onDelete={(id) => void sessions.removeSession(id)}
+      />
+
+      {/* 消息级加载失败警告（kimi R9 major）：会话列表加载失败的警告在 SessionBar，
+          这里是会话消息文件本身加载失败——此期间不持久化，必须让用户看见 */}
+      {conversation.loadError ? (
+        <p className="shrink-0 border-b border-warning/30 bg-warning/10 px-3 py-1.5 text-[11px] leading-snug text-warning">
+          {t("chatSessions.historyLoadFailed", { defaultValue: "这条对话的记录加载失败，当前输入不会被保存" })}
+        </p>
       ) : null}
 
       <div className="min-h-0 flex-1 overflow-hidden">

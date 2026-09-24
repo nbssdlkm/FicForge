@@ -3,8 +3,15 @@
 // See LICENSE file in the project root for full license text.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { sendSettingsChat, type SettingsChatSessionLlm } from "../../../api/engine-client";
+import {
+  getSettingsChatSession,
+  saveSettingsChatSession,
+  sendSettingsChat,
+  type SettingsChatMessageEnvelope,
+  type SettingsChatSessionLlm,
+} from "../../../api/engine-client";
 import { useActiveRequestGuard } from "../../../hooks/useActiveRequestGuard";
+import { logUiError } from "../../../utils/ui-logger";
 import { useFeedback } from "../../../hooks/useFeedback";
 import { useTranslation } from "../../../i18n/useAppTranslation";
 import {
@@ -78,6 +85,18 @@ interface SettingsChatConversationParams {
   fandomPath?: string;
   sessionLlm?: SettingsChatSessionLlm | null;
   disabled: boolean;
+  /** 会话底座：选中会话 id（useSettingsChatSessions 驱动）。null = 未就绪，不加载不持久化。 */
+  sessionId?: string | null;
+}
+
+/** 引擎信封 → UI 消息的唯一窄化点：仓储里就是本 hook 防抖保存的原形状（透传键含 toolCalls）。 */
+function asSettingsChatMessages(envelopes: SettingsChatMessageEnvelope[]): SettingsChatMessage[] {
+  return envelopes as SettingsChatMessage[];
+}
+
+/** UI 消息 → 引擎信封（spread 补 index signature；同一形状的双向边界，与上方成对）。 */
+function toSettingsChatEnvelopes(messages: SettingsChatMessage[]): SettingsChatMessageEnvelope[] {
+  return messages.map((m) => ({ ...m }));
 }
 
 /**
@@ -97,29 +116,123 @@ export function useSettingsChatConversation({
   fandomPath,
   sessionLlm,
   disabled,
+  sessionId = null,
 }: SettingsChatConversationParams) {
   const { t } = useTranslation();
   const { showError } = useFeedback();
-  const chatGuard = useActiveRequestGuard(`chat:${mode}:${basePath ?? ""}`);
+  const chatGuard = useActiveRequestGuard(`chat:${mode}:${basePath ?? ""}:${sessionId ?? ""}`);
 
   const [messages, setMessages] = useState<SettingsChatMessage[]>([]);
   const messagesRef = useRef<SettingsChatMessage[]>([]);
   const [inputText, setInputText] = useState("");
   const [sending, setSending] = useState(false);
   const [isPostMutationBusy, setPostMutationBusy] = useState(false);
+  /** 会话消息从磁盘就绪前不持久化（防加载途中被空数组覆写）。 */
+  const [isLoaded, setIsLoaded] = useState(false);
+  /** 加载失败闸门（kimi R8 blocker）：load 出错时磁盘上可能有内容，此时 messages=[]
+   * 若放行持久化会把会话历史清空——loadError 非空期间防抖与 flush 双禁写
+   * （与 useSimpleChat 同款契约）。 */
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const loadErrorRef = useRef<string | null>(null);
+  /** isLoaded / basePath / sessionId 的 ref 镜像：防抖点火与离场 flush 在闭包里读最新值。 */
+  const isLoadedRef = useRef(false);
+  const basePathRef = useRef(basePath);
+  const sessionIdRef = useRef(sessionId);
+  /** 最后一次交给落盘的 messages 引用——防抖点火前比对跳过重写，失败回滚重试
+   * （与 useSimpleChat 同款；缺它则 save 失败后用户再无改动时最后一笔永久丢，
+   * 对抗审 2026-09-14 minor）。 */
+  const lastSavedMessagesRef = useRef<SettingsChatMessage[] | null>(null);
+  const loadTokenRef = useRef(0);
 
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
 
-  // 切上下文 reset（铁律②：state 与 reset 同文件）
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 边沿触发——体内全是 setter（非依赖），仅应随 basePath/mode 变化 reset；biome 判它们多余，删掉会导致切上下文不再复位（残留上一篇消息/输入）
+  useEffect(() => {
+    isLoadedRef.current = isLoaded;
+  }, [isLoaded]);
+
+  useEffect(() => {
+    basePathRef.current = basePath;
+  }, [basePath]);
+
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
+
+  useEffect(() => {
+    loadErrorRef.current = loadError;
+  }, [loadError]);
+
+  // 切上下文 / 切会话：reset + 从磁盘加载该会话消息（铁律②：state 与 reset 同文件）。
+  // sessionId=null（会话索引未就绪）只 reset 不加载、保持不持久化。
   useEffect(() => {
     setSending(false);
     setPostMutationBusy(false);
     setMessages([]);
     setInputText("");
-  }, [basePath, mode]);
+    setIsLoaded(false);
+    setLoadError(null);
+    if (!basePath || !sessionId) return;
+    const token = ++loadTokenRef.current;
+    void (async () => {
+      try {
+        const file = await getSettingsChatSession(basePath, sessionId);
+        if (loadTokenRef.current !== token) return;
+        const loaded = asSettingsChatMessages(file.messages);
+        lastSavedMessagesRef.current = loaded; // 刚 load 的内容即磁盘现状
+        setMessages(loaded);
+        setIsLoaded(true);
+      } catch (err) {
+        if (loadTokenRef.current !== token) return;
+        // 走到这里多半是适配器级故障（ensureIndex/statEntry 瞬时抛错）。放行 UI 空白可写，
+        // 但必须立 loadError 闸门禁持久化——否则防抖会以空数组覆写磁盘历史（kimi R8 blocker）。
+        logUiError("settingsChat", "load session failed", err);
+        setLoadError(err instanceof Error ? err.message : String(err));
+        setIsLoaded(true);
+      }
+    })();
+  }, [basePath, sessionId]);
+
+  // 持久化：消息变更防抖 400ms 落盘当前会话（工具卡确认/跳过/撤销终态同消息一起存）。
+  // 加载未就绪 / 无会话上下文时跳过；发送中途的中间态也会被最后一次防抖收敛。
+  // 点火时再核 basePath/sessionId 最新值（防抖窗口内切会话不写串，对抗审 2026-09-14）。
+  useEffect(() => {
+    if (!isLoaded || loadError !== null || !basePath || !sessionId) return;
+    if (messages === lastSavedMessagesRef.current) return;
+    const targetPath = basePath;
+    const targetSession = sessionId;
+    const attempted = messages;
+    const timer = setTimeout(() => {
+      if (basePathRef.current !== targetPath || sessionIdRef.current !== targetSession) return;
+      lastSavedMessagesRef.current = attempted;
+      void saveSettingsChatSession(targetPath, targetSession, toSettingsChatEnvelopes(messagesRef.current)).catch(
+        (err) => {
+          // 失败回滚标记：下一次消息变更 / 换会话 flush 重试，不静默丢最后一笔
+          if (lastSavedMessagesRef.current === attempted) lastSavedMessagesRef.current = null;
+          logUiError("settingsChat", "save session failed", err);
+        },
+      );
+    }, 400);
+    return () => clearTimeout(timer);
+    // messages 只作变更信号，落盘读 messagesRef 最新值（防抖语义）
+  }, [messages, isLoaded, loadError, basePath, sessionId]);
+
+  // 换会话 / 切上下文 / 卸载 flush：防抖窗口内未落盘的最后一笔立即写给【旧】会话
+  // （cleanup 闭包捕获旧 basePath/sessionId；useSimpleChat 同款，对抗审 2026-09-14 major：
+  // 400ms 窗口内切会话丢消息）。
+  useEffect(() => {
+    return () => {
+      if (!isLoadedRef.current || loadErrorRef.current !== null || !basePath || !sessionId) return;
+      if (messagesRef.current === lastSavedMessagesRef.current) return;
+      const attempted = messagesRef.current;
+      lastSavedMessagesRef.current = attempted;
+      void saveSettingsChatSession(basePath, sessionId, toSettingsChatEnvelopes(attempted)).catch((err) => {
+        if (lastSavedMessagesRef.current === attempted) lastSavedMessagesRef.current = null;
+        logUiError("settingsChat", "flush on switch/unmount failed", err);
+      });
+    };
+  }, [basePath, sessionId]);
 
   const hasLoadingCards = messages.some((message) => (message.toolCalls || []).some((card) => card.isLoading));
   const mutationBusy = sending || hasLoadingCards || isPostMutationBusy;
@@ -219,6 +332,8 @@ export function useSettingsChatConversation({
 
   return {
     messages,
+    isLoaded,
+    loadError,
     inputText,
     setInputText, // 受控绑定（hook 规则 5 例外①：textarea 双向绑定）
     sending,

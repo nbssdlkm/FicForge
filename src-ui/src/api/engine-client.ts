@@ -215,7 +215,16 @@ export {
   getLoreContent,
   sanitizePathSegment,
 } from "./engine-lore";
-export { sendSettingsChat } from "./engine-settings-chat";
+export {
+  createSettingsChatSession,
+  deleteSettingsChatSession,
+  getSettingsChatSession,
+  listSettingsChatSessions,
+  renameSettingsChatSession,
+  saveSettingsChatSession,
+  sendSettingsChat,
+} from "./engine-settings-chat";
+export type { SettingsChatFile, SettingsChatMessageEnvelope } from "./engine-settings-chat";
 export {
   listFandoms,
   getFandomDisplayInfo,
