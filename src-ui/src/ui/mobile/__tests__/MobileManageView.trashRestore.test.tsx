@@ -59,10 +59,9 @@ async function renderAndRestore(entry: TrashEntry, onChaptersChanged: () => void
 
   render(<MobileManageView auPath={AU} defaultSection="project" onChaptersChanged={onChaptersChanged} />);
 
-  // 垃圾箱独立成段：先切到垃圾箱段（面板随之挂载），再展开面板点「恢复」
+  // 垃圾箱独立成段：切到垃圾箱段后面板直接常显（无折叠开关），点「恢复」
   await user.click(screen.getByRole("button", { name: "垃圾箱" }));
   await waitFor(() => expect(mocked.listTrash).toHaveBeenCalled());
-  await user.click(screen.getByRole("button", { name: /垃圾箱\(/ }));
   const restoreBtn = await screen.findByRole("button", { name: "恢复" });
   await user.click(restoreBtn);
   await waitFor(() => expect(mocked.restoreTrash).toHaveBeenCalled());
