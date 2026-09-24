@@ -14,6 +14,8 @@ import { useKV } from "../../hooks/useKV";
 export function useSimpleChatChrome(auPath: string) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [clearChatConfirmOpen, setClearChatConfirmOpen] = useState(false);
+  // 移动端会话列表底栏弹层（桌面是常驻侧栏，不需要这个开关）
+  const [sessionsSheetOpen, setSessionsSheetOpen] = useState(false);
 
   const [fontSizeStr, setFontSizeKV] = useKV("ficforge.fontSize", "18");
   const [lineHeightStr, setLineHeightKV] = useKV("ficforge.lineHeight", "1.8");
@@ -25,12 +27,15 @@ export function useSimpleChatChrome(auPath: string) {
   useEffect(() => {
     setDrawerOpen(false);
     setClearChatConfirmOpen(false);
+    setSessionsSheetOpen(false);
   }, [auPath]);
 
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
   const openClearChatConfirm = useCallback(() => setClearChatConfirmOpen(true), []);
   const closeClearChatConfirm = useCallback(() => setClearChatConfirmOpen(false), []);
+  const openSessionsSheet = useCallback(() => setSessionsSheetOpen(true), []);
+  const closeSessionsSheet = useCallback(() => setSessionsSheetOpen(false), []);
 
   // 受控绑定（hook 规则 5 例外①：SimpleSettingsDrawer 字号/行距滑杆的双向绑定）
   const setFontSize = useCallback((v: number) => setFontSizeKV(String(v)), [setFontSizeKV]);
@@ -43,6 +48,9 @@ export function useSimpleChatChrome(auPath: string) {
     clearChatConfirmOpen,
     openClearChatConfirm,
     closeClearChatConfirm,
+    sessionsSheetOpen,
+    openSessionsSheet,
+    closeSessionsSheet,
     fontSize,
     setFontSize, // 受控绑定（hook 规则 5 例外①：drawer 滑杆双向绑定）
     lineHeight,

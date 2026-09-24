@@ -1648,7 +1648,14 @@
     "globalSubtitle": "Every AI conversation across your works and fandoms lives here. Click one to jump and open it.",
     "searchPlaceholder": "Search chat titles…",
     "groupCount": "{{count}} chats",
-    "open": "Open"
+    "open": "Open",
+    "kind": {
+      "chat": "Chat",
+      "settings": "Settings AI",
+      "fandom": "Fandom AI"
+    },
+    "historyLoadFailed": "Couldn't load this conversation — what you type now won't be saved",
+    "loadFailed": "Couldn't load the conversation list — this chat won't be saved"
   },
   "errorBoundary": {
     "title": "Something went wrong",

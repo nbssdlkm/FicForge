@@ -15,23 +15,33 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, MessageSquare, Pencil, Search, Trash2 } from "lucide-react";
 import {
   deleteChatSession,
+  deleteSettingsChatSession,
   getDataDir,
   listChatSessions,
   listFandoms,
+  listSettingsChatSessions,
   renameChatSession,
+  renameSettingsChatSession,
   type ChatSessionMeta,
 } from "../../api/engine-client";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { FeedbackProvider, useFeedback } from "../../hooks/useFeedback";
 import { logUiError } from "../../utils/ui-logger";
+import { markPendingSessionSelection } from "./pendingSessionSelection";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
 import { Spinner } from "../shared/Spinner";
 
+/** 会话归属：chat = AU 对话 tab；au_settings = AU 设定助手；fandom_settings = fandom 助手。 */
+export type GlobalSessionKind = "chat" | "au_settings" | "fandom_settings";
+
 /** 一行 = 一个会话，携带跳转所需的上下文。 */
 export interface GlobalSessionRow {
+  kind: GlobalSessionKind;
   fandomName: string;
+  /** fandom 级会话（fandom_settings）为空串。 */
   auName: string;
-  auPath: string;
+  /** chat / au_settings = auPath；fandom_settings = fandomPath。 */
+  contextPath: string;
   session: ChatSessionMeta;
 }
 
@@ -51,19 +61,51 @@ function useGlobalChatSessions() {
       const dataDir = getDataDir();
       const fandoms = await listFandoms();
       const next: GlobalSessionRow[] = [];
-      // fandom 间串行、AU 间串行：会话枚举是页级一次性扫描，量小（每 AU 一次
+      // fandom 间串行、AU 间串行：会话枚举是页级一次性扫描，量小（每上下文一次
       // 索引文件读），串行换取三端文件系统行为一致、零并发坑。
       for (const fandom of fandoms) {
+        const fandomPath = `${dataDir}/fandoms/${fandom.dir_name}`;
+        // fandom 助手会话（fandom 级）
+        try {
+          const fandomSessions = await listSettingsChatSessions(fandomPath);
+          for (const session of fandomSessions) {
+            next.push({
+              kind: "fandom_settings",
+              fandomName: fandom.name,
+              auName: "",
+              contextPath: fandomPath,
+              session,
+            });
+          }
+        } catch (err) {
+          logUiError("globalChatSessions", `list settings sessions failed for ${fandomPath}`, err);
+        }
         for (const au of fandom.aus) {
-          const auPath = `${dataDir}/fandoms/${fandom.dir_name}/aus/${au.dir_name}`;
+          const auPath = `${fandomPath}/aus/${au.dir_name}`;
+          // 对话 tab 会话
           try {
             const sessions = await listChatSessions(auPath);
             for (const session of sessions) {
-              next.push({ fandomName: fandom.name, auName: au.name, auPath, session });
+              next.push({ kind: "chat", fandomName: fandom.name, auName: au.name, contextPath: auPath, session });
             }
           } catch (err) {
             // 单 AU 索引损坏不拖垮整页：跳过该 AU，其余照列
             logUiError("globalChatSessions", `list sessions failed for ${auPath}`, err);
+          }
+          // AU 设定助手会话
+          try {
+            const settingsSessions = await listSettingsChatSessions(auPath);
+            for (const session of settingsSessions) {
+              next.push({
+                kind: "au_settings",
+                fandomName: fandom.name,
+                auName: au.name,
+                contextPath: auPath,
+                session,
+              });
+            }
+          } catch (err) {
+            logUiError("globalChatSessions", `list settings sessions failed for ${auPath}`, err);
           }
         }
       }
@@ -80,15 +122,32 @@ function useGlobalChatSessions() {
   }, [load]);
 
   const removeRow = useCallback(async (row: GlobalSessionRow) => {
-    await deleteChatSession(row.auPath, row.session.id);
-    setRows((prev) => prev.filter((r) => !(r.auPath === row.auPath && r.session.id === row.session.id)));
+    if (row.kind === "chat") {
+      await deleteChatSession(row.contextPath, row.session.id);
+    } else {
+      await deleteSettingsChatSession(row.contextPath, row.session.id);
+    }
+    setRows((prev) =>
+      prev.filter(
+        (r) => !(r.kind === row.kind && r.contextPath === row.contextPath && r.session.id === row.session.id),
+      ),
+    );
   }, []);
 
   const renameRow = useCallback(async (row: GlobalSessionRow, title: string) => {
-    await renameChatSession(row.auPath, row.session.id, title);
+    if (row.kind === "chat") {
+      await renameChatSession(row.contextPath, row.session.id, title);
+    } else {
+      await renameSettingsChatSession(row.contextPath, row.session.id, title);
+    }
     const trimmed = title.trim();
     setRows((prev) =>
-      prev.map((r) => (r.auPath === row.auPath && r.session.id === row.session.id ? { ...r, session: { ...r.session, title: trimmed } } : r)),
+      prev.map((r) =>
+        r.kind === row.kind && r.contextPath === row.contextPath && r.session.id === row.session.id
+          ? // 显式改名后清 title_auto（kimi R11 minor：不清则该行仍显示「新对话」占位直至重载）
+            { ...r, session: { ...r.session, title: trimmed, title_auto: undefined } }
+          : r,
+      ),
     );
   }, []);
 
@@ -113,7 +172,18 @@ function GlobalChatSessionsInner({ onNavigate }: GlobalChatSessionsLayoutProps) 
   const [editingValue, setEditingValue] = useState("");
   const [pendingDelete, setPendingDelete] = useState<GlobalSessionRow | null>(null);
 
-  const rowKey = (r: GlobalSessionRow) => `${r.auPath}::${r.session.id}`;
+  const rowKey = (r: GlobalSessionRow) => `${r.kind}::${r.contextPath}::${r.session.id}`;
+
+  /** 点击跳转落点：对话 tab / AU 设定页 / fandom 资料页。 */
+  const navigateTarget = (r: GlobalSessionRow): string =>
+    r.kind === "chat" ? "chat" : r.kind === "au_settings" ? "settings" : "fandom_lore";
+
+  const kindLabel = (r: GlobalSessionRow): string =>
+    r.kind === "chat"
+      ? t("chatSessions.kind.chat", { defaultValue: "对话" })
+      : r.kind === "au_settings"
+        ? t("chatSessions.kind.settings", { defaultValue: "设定助手" })
+        : t("chatSessions.kind.fandom", { defaultValue: "Fandom 助手" });
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -130,7 +200,7 @@ function GlobalChatSessionsInner({ onNavigate }: GlobalChatSessionsLayoutProps) 
   const groups = useMemo(() => {
     const out: { label: string; rows: GlobalSessionRow[] }[] = [];
     for (const r of filtered) {
-      const label = `${r.fandomName} / ${r.auName}`;
+      const label = r.auName ? `${r.fandomName} / ${r.auName}` : r.fandomName;
       const g = out[out.length - 1];
       if (g && g.label === label) g.rows.push(r);
       else out.push({ label, rows: [r] });
@@ -212,7 +282,8 @@ function GlobalChatSessionsInner({ onNavigate }: GlobalChatSessionsLayoutProps) 
                             value={editingValue}
                             onChange={(e) => setEditingValue(e.target.value)}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") commitRename(r);
+                              // IME 组词期间的 Enter 是选词不是提交（kimi R8/R9 major）
+                              if (e.key === "Enter" && !e.nativeEvent.isComposing) commitRename(r);
                               if (e.key === "Escape") {
                                 setEditingKey(null);
                                 setEditingValue("");
@@ -235,12 +306,28 @@ function GlobalChatSessionsInner({ onNavigate }: GlobalChatSessionsLayoutProps) 
                         <>
                           <button
                             type="button"
-                            onClick={() => onNavigate("chat", r.auPath)}
+                            onClick={() => {
+                              // 登记「打开指定会话」接力（kimi R8 major）：目标页默认选最新会话，
+                              // 不登记会落到别的对话里
+                              markPendingSessionSelection(
+                                r.kind === "chat" ? "chat" : "settings",
+                                r.contextPath,
+                                r.session.id,
+                              );
+                              onNavigate(navigateTarget(r), r.contextPath);
+                            }}
                             className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
                           >
                             <MessageSquare size={14} className="shrink-0 text-ink-faint" />
                             <span className="min-w-0">
-                              <span className="block truncate text-[13px] font-semibold text-text">{r.session.title}</span>
+                              <span className="flex items-center gap-1.5">
+                                <span className="truncate text-[13px] font-semibold text-text">
+                                  {r.session.title_auto ? t("chatSessions.untitled") : r.session.title}
+                                </span>
+                                <span className="shrink-0 rounded-sm border border-rule-soft px-1 py-px font-mono text-[9px] uppercase tracking-[0.06em] text-ink-muted">
+                                  {kindLabel(r)}
+                                </span>
+                              </span>
                               <span className="block font-mono text-[10px] text-ink-faint">
                                 {t("chatSessions.messageCount", {
                                   count: r.session.message_count,
@@ -256,7 +343,8 @@ function GlobalChatSessionsInner({ onNavigate }: GlobalChatSessionsLayoutProps) 
                               type="button"
                               onClick={() => {
                                 setEditingKey(key);
-                                setEditingValue(r.session.title);
+                                // title_auto 会话预填空（kimi R10：防英文占位被固化成显式标题）
+                                setEditingValue(r.session.title_auto ? "" : r.session.title);
                               }}
                               aria-label={t("chatSessions.rename", { defaultValue: "重命名" })}
                               className="rounded-sm p-1 text-ink-muted transition-colors hover:bg-rule-soft hover:text-text"

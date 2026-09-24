@@ -1648,7 +1648,14 @@
     "globalSubtitle": "所有作品与 fandom 的 AI 对话都在这里。点任意一条，跳过去打开它。",
     "searchPlaceholder": "搜索对话标题…",
     "groupCount": "{{count}} 个会话",
-    "open": "打开"
+    "open": "打开",
+    "kind": {
+      "chat": "对话",
+      "settings": "设定助手",
+      "fandom": "Fandom 助手"
+    },
+    "historyLoadFailed": "这条对话的记录加载失败，当前输入不会被保存",
+    "loadFailed": "会话列表加载失败，当前对话不会被保存"
   },
   "errorBoundary": {
     "title": "应用遇到错误",

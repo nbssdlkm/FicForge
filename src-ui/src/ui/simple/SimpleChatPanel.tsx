@@ -23,13 +23,14 @@
  */
 
 import { useEffect, useMemo, useRef } from "react";
-import { BarChart3, Eraser, Settings, X } from "lucide-react";
+import { BarChart3, ChevronDown, Eraser, MessageSquare, Settings, X } from "lucide-react";
 import { useTranslation } from "../../i18n/useAppTranslation";
 import { useFeedback } from "../../hooks/useFeedback";
 import { useSessionParams } from "../writer/useSessionParams";
 import { useWriterFactsExtraction } from "../writer/useWriterFactsExtraction";
 import { ExtractReviewModal } from "../writer/WriterModals";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
+import { MobileSheet } from "../mobile/MobileSheet";
 import { Spinner } from "../shared/Spinner";
 import { SimpleSettingsDrawer } from "./SimpleSettingsDrawer";
 import { SimpleChatHistory } from "./SimpleChatHistory";
@@ -71,7 +72,7 @@ export function SimpleChatPanel({
   // 若 activeId 不同会再重载一次（一次性，可接受）。
   const sessions = useChatSessions(auPath);
   const chat = useSimpleChat(auPath, sessions.activeId ?? undefined);
-  const dispatch = useSimpleDispatch(auPath);
+  const dispatch = useSimpleDispatch(auPath, sessions.activeId ?? undefined);
 
   const config = useSimpleChatPanelConfig(auPath, isActiveTab);
   const chapterContext = useSimpleChapterContext(auPath, isActiveTab);
@@ -134,7 +135,10 @@ export function SimpleChatPanel({
   }, [chat.messages, chat.isLoaded, sessions.isLoaded]);
 
   const globalBusy =
-    dispatch.isStreaming || draftActions.acceptingDraftId !== null || toolActions.executingToolId !== null;
+    !sessions.isLoaded || // 会话索引未就绪前禁发送：此时 chat 走 legacy default 路径，消息会滞留不可见（kimi 交叉验证 minor）
+    dispatch.isStreaming ||
+    draftActions.acceptingDraftId !== null ||
+    toolActions.executingToolId !== null;
 
   // C5: token 估算。chapterCount 变化（接受后）触发重算。面板常驻挂载后隐藏期
   // 暂停 30s 兜底轮询（对抗审 A-4）。sessionLlmPayload 让 badge 与 dispatch 同走
@@ -177,6 +181,26 @@ export function SimpleChatPanel({
       }
     >
       <header className="flex items-center gap-x-3 gap-y-2 flex-wrap border-b border-rule bg-surface px-4 py-3">
+        {/* 移动端会话入口：桌面是常驻侧栏，小屏点这里开底栏弹层选会话 */}
+        <button
+          type="button"
+          onClick={chrome.openSessionsSheet}
+          className="inline-flex h-8 max-w-[45%] items-center gap-1.5 rounded-sm border border-rule-soft px-2 text-[12px] text-text/80 transition-colors hover:bg-rule-soft focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-gold-bright md:hidden"
+          aria-label={t("chatSessions.listTitle", { defaultValue: "对话" })}
+        >
+          <MessageSquare size={13} className="shrink-0 text-accent" />
+          <span className="truncate">
+            {(() => {
+              // title_auto 占位标题按界面语言显示（kimi R9 minor，同其他三处渲染点）
+              const active = sessions.sessions.find((s) => s.id === sessions.activeId);
+              return (
+                (active ? (active.title_auto ? t("chatSessions.untitled") : active.title) : null) ??
+                t("chatSessions.listTitle", { defaultValue: "对话" })
+              );
+            })()}
+          </span>
+          <ChevronDown size={12} className="shrink-0 text-ink-faint" />
+        </button>
         <span className="inline-flex items-baseline gap-1 font-mono text-[9px] uppercase tracking-[0.08em] text-ink-muted">
           <span>{t("simple.header.chaptersLabel", { defaultValue: "Chapters" })}</span>
           <strong className="font-display text-[12px] font-semibold not-italic tracking-normal text-accent">
@@ -236,6 +260,7 @@ export function SimpleChatPanel({
         <ChatSessionList
           sessions={sessions.sessions}
           activeId={sessions.activeId}
+          loadError={sessions.loadError}
           onSelect={sessions.selectSession}
           onCreate={() => void sessions.createNewSession()}
           onRename={(id, title) => void sessions.renameSessionById(id, title)}
@@ -271,6 +296,28 @@ export function SimpleChatPanel({
           />
         </div>
       </div>
+      {/* 移动端会话列表：同一个 ChatSessionList 组件，全宽常显 + 操作按钮常显 */}
+      <MobileSheet
+        isOpen={chrome.sessionsSheetOpen}
+        onClose={chrome.closeSessionsSheet}
+        title={t("chatSessions.listTitle", { defaultValue: "对话" })}
+        contentClassName="px-0 py-0 flex flex-col"
+      >
+        <ChatSessionList
+          sessions={sessions.sessions}
+          activeId={sessions.activeId}
+          loadError={sessions.loadError}
+          onSelect={(id) => {
+            sessions.selectSession(id);
+            chrome.closeSessionsSheet();
+          }}
+          onCreate={() => void sessions.createNewSession()}
+          onRename={(id, title) => void sessions.renameSessionById(id, title)}
+          onDelete={(id) => void sessions.removeSession(id)}
+          className="flex min-h-0 w-full flex-1 flex-col bg-surface"
+          alwaysShowActions
+        />
+      </MobileSheet>
       <SimpleSettingsDrawer
         isOpen={chrome.drawerOpen}
         isLoading={config.projectInfo === null && config.settingsInfo === null}
